@@ -202,12 +202,35 @@ static inline void mlx4_en_update_rx_prod_db(struct mlx4_en_rx_ring *ring)
 	*ring->wqres.db.db = cpu_to_be32(ring->prod & 0xffff);
 }
 
+static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
+				 struct mlx4_en_rx_ring *ring,
+				 int index)
+{
+	struct mlx4_en_dev *mdev = priv->mdev;
+	struct skb_frag_struct *skb_frags;
+	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index << ring->log_stride);
+	dma_addr_t dma;
+	int nr;
+
+	skb_frags = ring->rx_info + (index << priv->log_rx_info);
+	for (nr = 0; nr < priv->num_frags; nr++) {
+		mlx4_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
+		dma = be64_to_cpu(rx_desc->data[nr].addr);
+
+		mlx4_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (u64) dma);
+		pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
+				 PCI_DMA_FROMDEVICE);
+		put_page(skb_frags[nr].page);
+	}
+}
+
 static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring;
 	int ring_ind;
 	int buf_ind;
+	int new_size;
 
 	for (buf_ind = 0; buf_ind < priv->prof->rx_ring_size; buf_ind++) {
 		for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
@@ -220,18 +243,30 @@ static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 						       "enough rx buffers\n");
 					return -ENOMEM;
 				} else {
-					if (netif_msg_rx_err(priv))
-						mlx4_warn(mdev,
-							  "Only %d buffers allocated\n",
-							  ring->actual_size);
-					goto out;
+					new_size = rounddown_pow_of_two(ring->actual_size);
+					mlx4_warn(mdev, "Only %d buffers allocated "
+							"reducing ring size to %d",
+						  ring->actual_size, new_size);
+					goto reduce_rings;
 				}
 			}
 			ring->actual_size++;
 			ring->prod++;
 		}
 	}
-out:
+	return 0;
+
+reduce_rings:
+	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
+		ring = &priv->rx_ring[ring_ind];
+		while (ring->actual_size > new_size) {
+			ring->actual_size--;
+			ring->prod--;
+			mlx4_en_free_rx_desc(priv, ring, ring->actual_size);
+		}
+		ring->size_mask = ring->actual_size - 1;
+	}
+
 	return 0;
 }
 
@@ -255,7 +290,7 @@ static int mlx4_en_fill_rx_buf(struct net_device *dev,
 		++num;
 		++ring->prod;
 	}
-	if ((u32) (ring->prod - ring->cons) == ring->size)
+	if ((u32) (ring->prod - ring->cons) == ring->actual_size)
 		ring->full = 1;
 
 	return num;
@@ -264,33 +299,17 @@ static int mlx4_en_fill_rx_buf(struct net_device *dev,
 static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
-	struct skb_frag_struct *skb_frags;
-	struct mlx4_en_rx_desc *rx_desc;
-	dma_addr_t dma;
 	int index;
-	int nr;
 
 	mlx4_dbg(DRV, priv, "Freeing Rx buf - cons:%d prod:%d\n",
 			ring->cons, ring->prod);
 
 	/* Unmap and free Rx buffers */
-	BUG_ON((u32) (ring->prod - ring->cons) > ring->size);
+	BUG_ON((u32) (ring->prod - ring->cons) > ring->actual_size);
 	while (ring->cons != ring->prod) {
 		index = ring->cons & ring->size_mask;
-		rx_desc = ring->buf + (index << ring->log_stride);
-		skb_frags = ring->rx_info + (index << priv->log_rx_info);
 		mlx4_dbg(DRV, priv, "Processing descriptor:%d\n", index);
-
-		for (nr = 0; nr < priv->num_frags; nr++) {
-			mlx4_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
-			dma = be64_to_cpu(rx_desc->data[nr].addr);
-
-			mlx4_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (u64) dma);
-			pci_unmap_single(mdev->pdev, dma, skb_frags[nr].size,
-					 PCI_DMA_FROMDEVICE);
-			put_page(skb_frags[nr].page);
-		}
+		mlx4_en_free_rx_desc(priv, ring, index);
 		++ring->cons;
 	}
 }
@@ -454,7 +473,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		mlx4_en_update_rx_prod_db(ring);
 
 		/* Configure SRQ representing the ring */
-		ring->srq.max    = ring->size;
+		ring->srq.max    = ring->actual_size;
 		ring->srq.max_gs = max_gs;
 		ring->srq.wqe_shift = ilog2(ring->stride);
 

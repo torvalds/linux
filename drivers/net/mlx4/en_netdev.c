@@ -556,7 +556,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_cq *cq;
 	struct mlx4_en_tx_ring *tx_ring;
-	struct mlx4_en_rx_ring *rx_ring;
 	int rx_index = 0;
 	int tx_index = 0;
 	int err = 0;
@@ -572,10 +571,15 @@ int mlx4_en_start_port(struct net_device *dev)
 	dev->mtu = min(dev->mtu, priv->max_mtu);
 	mlx4_en_calc_rx_buf(dev);
 	mlx4_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_skb_size);
+
 	/* Configure rx cq's and rings */
+	err = mlx4_en_activate_rx_rings(priv);
+	if (err) {
+		mlx4_err(mdev, "Failed to activate RX rings\n");
+		return err;
+	}
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		cq = &priv->rx_cq[i];
-		rx_ring = &priv->rx_ring[i];
 
 		err = mlx4_en_activate_cq(priv, cq);
 		if (err) {
@@ -591,20 +595,14 @@ int mlx4_en_start_port(struct net_device *dev)
 			goto cq_err;
 		}
 		mlx4_en_arm_cq(priv, cq);
-
+		priv->rx_ring[i].cqn = cq->mcq.cqn;
 		++rx_index;
-	}
-
-	err = mlx4_en_activate_rx_rings(priv);
-	if (err) {
-		mlx4_err(mdev, "Failed to activate RX rings\n");
-		goto cq_err;
 	}
 
 	err = mlx4_en_config_rss_steer(priv);
 	if (err) {
 		mlx4_err(mdev, "Failed configuring rss steering\n");
-		goto rx_err;
+		goto cq_err;
 	}
 
 	/* Configure tx cq's and rings */
@@ -691,12 +689,11 @@ tx_err:
 	}
 
 	mlx4_en_release_rss_steer(priv);
-rx_err:
-	for (i = 0; i < priv->rx_ring_num; i++)
-		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 cq_err:
 	while (rx_index--)
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[rx_index]);
+	for (i = 0; i < priv->rx_ring_num; i++)
+		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 
 	return err; /* need to close devices */
 }
