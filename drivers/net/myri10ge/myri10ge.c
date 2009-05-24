@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.5.0-1.415"
+#define MYRI10GE_VERSION_STR "1.5.0-1.418"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -3915,6 +3915,12 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
 	netdev->features |= NETIF_F_LRO;
+
+	netdev->vlan_features |= mgp->features;
+	if (mgp->fw_ver_tiny < 37)
+		netdev->vlan_features &= ~NETIF_F_TSO6;
+	if (mgp->fw_ver_tiny < 32)
+		netdev->vlan_features &= ~NETIF_F_TSO;
 
 	/* make sure we can get an irq, and that MSI can be
 	 * setup (if available).  Also ensure netdev->irq
