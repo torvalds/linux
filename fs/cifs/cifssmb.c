@@ -2427,8 +2427,7 @@ querySymLinkRetry:
 	params = 2 /* level */  + 4 /* rsrvd */  + name_len /* incl null */ ;
 	pSMB->TotalDataCount = 0;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
-	/* BB find exact max data count below from sess structure BB */
-	pSMB->MaxDataCount = cpu_to_le16(4000);
+	pSMB->MaxDataCount = cpu_to_le16(CIFSMaxBufSize);
 	pSMB->MaxSetupCount = 0;
 	pSMB->Reserved = 0;
 	pSMB->Flags = 0;
