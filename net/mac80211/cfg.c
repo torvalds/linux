@@ -664,17 +664,18 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	spin_unlock_bh(&sta->lock);
 
 	/*
+	 * cfg80211 validates this (1-2007) and allows setting the AID
+	 * only when creating a new station entry
+	 */
+	if (params->aid)
+		sta->sta.aid = params->aid;
+
+	/*
 	 * FIXME: updating the following information is racy when this
 	 *	  function is called from ieee80211_change_station().
 	 *	  However, all this information should be static so
 	 *	  maybe we should just reject attemps to change it.
 	 */
-
-	if (params->aid) {
-		sta->sta.aid = params->aid;
-		if (sta->sta.aid > IEEE80211_MAX_AID)
-			sta->sta.aid = 0; /* XXX: should this be an error? */
-	}
 
 	if (params->listen_interval >= 0)
 		sta->listen_interval = params->listen_interval;
