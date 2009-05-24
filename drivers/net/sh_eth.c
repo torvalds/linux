@@ -536,6 +536,7 @@ static int sh_eth_rx(struct net_device *ndev)
 		}
 		rxdesc->status |= cpu_to_edmac(mdp, RD_RACT);
 		entry = (++mdp->cur_rx) % RX_RING_SIZE;
+		rxdesc = &mdp->rx_ring[entry];
 	}
 
 	/* Refill the Rx ring buffers. */
