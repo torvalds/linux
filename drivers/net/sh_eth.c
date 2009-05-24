@@ -34,7 +34,57 @@
 #include "sh_eth.h"
 
 /* There is CPU dependent code */
-#if defined(CONFIG_CPU_SUBTYPE_SH7763)
+#if defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define SH_ETH_RESET_DEFAULT	1
+static void sh_eth_set_duplex(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	if (mdp->duplex) /* Full */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) | ECMR_DM, ioaddr + ECMR);
+	else		/* Half */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) & ~ECMR_DM, ioaddr + ECMR);
+}
+
+static void sh_eth_set_rate(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ioaddr = ndev->base_addr;
+
+	switch (mdp->speed) {
+	case 10: /* 10BASE */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) & ~ECMR_RTM, ioaddr + ECMR);
+		break;
+	case 100:/* 100BASE */
+		ctrl_outl(ctrl_inl(ioaddr + ECMR) | ECMR_RTM, ioaddr + ECMR);
+		break;
+	default:
+		break;
+	}
+}
+
+/* SH7724 */
+static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate,
+
+	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
+	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x01ff009f,
+
+	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
+	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RDE |
+			  EESR_RFRMER | EESR_TFE | EESR_TDE | EESR_ECI,
+	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
+
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.hw_swap	= 1,
+};
+
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 #define SH_ETH_HAS_TSU	1
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
