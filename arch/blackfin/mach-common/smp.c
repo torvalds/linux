@@ -369,9 +369,6 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	bfin_write_ILAT(ilat);
 	CSYNC();
 
-	/* Reserve the PDA space for the secondary CPU. */
-	reserve_pda();
-
 	/* Enable interrupt levels IVG7-15. IARs have been already
 	 * programmed by the boot CPU.  */
 	bfin_irq_flags |= IMASK_IVG15 |
