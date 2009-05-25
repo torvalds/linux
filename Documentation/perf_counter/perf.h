@@ -61,8 +61,8 @@ sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr,
 		       group_fd, flags);
 }
 
-#define MAX_COUNTERS			1024
-#define MAX_NR_CPUS			4096
+#define MAX_COUNTERS			256
+#define MAX_NR_CPUS			256
 
 #define EID(type, id) (((__u64)(type) << PERF_COUNTER_TYPE_SHIFT) | (id))
 
