@@ -91,6 +91,7 @@ struct ar9170_led {
 	struct led_classdev l;
 	char name[32];
 	unsigned int toggled;
+	bool last_state;
 	bool registered;
 };
 
