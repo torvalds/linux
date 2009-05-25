@@ -113,8 +113,8 @@
  */
 
 /*
- * Xonar Essence STX
- * -----------------
+ * Xonar Essence ST (Deluxe)/STX
+ * -----------------------------
  *
  * CMI8788:
  *
@@ -180,6 +180,8 @@ enum {
 	MODEL_DX,
 	MODEL_HDAV,	/* without daughterboard */
 	MODEL_HDAV_H6,	/* with H6 daughterboard */
+	MODEL_ST,
+	MODEL_ST_H6,
 	MODEL_STX,
 };
 
@@ -191,6 +193,7 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8327), .driver_data = MODEL_DX },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x834f), .driver_data = MODEL_D1 },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835c), .driver_data = MODEL_STX },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x835d), .driver_data = MODEL_ST },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }
 };
@@ -211,9 +214,9 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define GPIO_DX_FRONT_PANEL	0x0002
 #define GPIO_DX_INPUT_ROUTE	0x0100
 
-#define GPIO_HDAV_DB_MASK	0x0030
-#define GPIO_HDAV_DB_H6		0x0000
-#define GPIO_HDAV_DB_XX		0x0020
+#define GPIO_DB_MASK		0x0030
+#define GPIO_DB_H6		0x0000
+#define GPIO_DB_XX		0x0020
 
 #define GPIO_ST_HP_REAR		0x0002
 #define GPIO_ST_HP		0x0080
@@ -531,7 +534,7 @@ static void xonar_hdav_init(struct oxygen *chip)
 	snd_component_add(chip->card, "CS5381");
 }
 
-static void xonar_stx_init(struct oxygen *chip)
+static void xonar_st_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
 
@@ -540,12 +543,11 @@ static void xonar_stx_init(struct oxygen *chip)
 		       OXYGEN_2WIRE_INTERRUPT_MASK |
 		       OXYGEN_2WIRE_SPEED_FAST);
 
+	if (chip->model.private_data == MODEL_ST_H6)
+		chip->model.dac_channels = 8;
 	data->anti_pop_delay = 100;
-	data->dacs = 1;
+	data->dacs = chip->model.private_data == MODEL_ST_H6 ? 4 : 1;
 	data->output_enable_bit = GPIO_DX_OUTPUT_ENABLE;
-	data->ext_power_reg = OXYGEN_GPI_DATA;
-	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
-	data->ext_power_bit = GPI_DX_EXT_POWER;
 	data->pcm1796_oversampling = PCM1796_OS_64;
 
 	pcm1796_init(chip);
@@ -559,6 +561,17 @@ static void xonar_stx_init(struct oxygen *chip)
 
 	snd_component_add(chip->card, "PCM1792A");
 	snd_component_add(chip->card, "CS5381");
+}
+
+static void xonar_stx_init(struct oxygen *chip)
+{
+	struct xonar_data *data = chip->model_data;
+
+	data->ext_power_reg = OXYGEN_GPI_DATA;
+	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
+	data->ext_power_bit = GPI_DX_EXT_POWER;
+
+	xonar_st_init(chip);
 }
 
 static void xonar_disable_output(struct oxygen *chip)
@@ -1036,7 +1049,7 @@ static const struct oxygen_model model_xonar_hdav = {
 static const struct oxygen_model model_xonar_st = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
-	.init = xonar_stx_init,
+	.init = xonar_st_init,
 	.control_filter = xonar_st_control_filter,
 	.mixer_init = xonar_st_mixer_init,
 	.cleanup = xonar_st_cleanup,
@@ -1069,6 +1082,7 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 		[MODEL_D2]	= &model_xonar_d2,
 		[MODEL_D2X]	= &model_xonar_d2,
 		[MODEL_HDAV]	= &model_xonar_hdav,
+		[MODEL_ST]	= &model_xonar_st,
 		[MODEL_STX]	= &model_xonar_st,
 	};
 	static const char *const names[] = {
@@ -1078,6 +1092,8 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 		[MODEL_D2X]	= "Xonar D2X",
 		[MODEL_HDAV]	= "Xonar HDAV1.3",
 		[MODEL_HDAV_H6]	= "Xonar HDAV1.3+H6",
+		[MODEL_ST]	= "Xonar Essence ST",
+		[MODEL_ST_H6]	= "Xonar Essence ST+H6",
 		[MODEL_STX]	= "Xonar Essence STX",
 	};
 	unsigned int model = id->driver_data;
@@ -1094,21 +1110,27 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 		chip->model.init = xonar_dx_init;
 		break;
 	case MODEL_HDAV:
-		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
-				    GPIO_HDAV_DB_MASK);
-		switch (oxygen_read16(chip, OXYGEN_GPIO_DATA) &
-			GPIO_HDAV_DB_MASK) {
-		case GPIO_HDAV_DB_H6:
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_DB_MASK);
+		switch (oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DB_MASK) {
+		case GPIO_DB_H6:
 			model = MODEL_HDAV_H6;
 			break;
-		case GPIO_HDAV_DB_XX:
+		case GPIO_DB_XX:
 			snd_printk(KERN_ERR "unknown daughterboard\n");
 			return -ENODEV;
 		}
 		break;
+	case MODEL_ST:
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_DB_MASK);
+		switch (oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DB_MASK) {
+		case GPIO_DB_H6:
+			model = MODEL_ST_H6;
+			break;
+		}
+		break;
 	case MODEL_STX:
-		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
-				    GPIO_HDAV_DB_MASK);
+		chip->model.init = xonar_stx_init;
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_DB_MASK);
 		break;
 	}
 
