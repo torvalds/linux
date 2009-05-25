@@ -3683,7 +3683,7 @@ array_size_store(mddev_t *mddev, const char *buf, size_t len)
 		if (strict_blocks_to_sectors(buf, &sectors) < 0)
 			return -EINVAL;
 		if (mddev->pers && mddev->pers->size(mddev, 0, 0) < sectors)
-			return -EINVAL;
+			return -E2BIG;
 
 		mddev->external_size = 1;
 	}
