@@ -587,7 +587,6 @@ asmlinkage void __init start_kernel(void)
 	 * kmem_cache_init()
 	 */
 	pidhash_init();
-	vmalloc_init();
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
@@ -596,6 +595,7 @@ asmlinkage void __init start_kernel(void)
 	 */
 	mem_init();
 	kmem_cache_init();
+	vmalloc_init();
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()

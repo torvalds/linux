@@ -23,7 +23,6 @@
 #include <linux/rbtree.h>
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
-#include <linux/bootmem.h>
 #include <linux/pfn.h>
 
 #include <asm/atomic.h>
@@ -1032,7 +1031,7 @@ void __init vmalloc_init(void)
 
 	/* Import existing vmlist entries. */
 	for (tmp = vmlist; tmp; tmp = tmp->next) {
-		va = alloc_bootmem(sizeof(struct vmap_area));
+		va = kzalloc(sizeof(struct vmap_area), GFP_NOWAIT);
 		va->flags = tmp->flags | VM_VM_AREA;
 		va->va_start = (unsigned long)tmp->addr;
 		va->va_end = va->va_start + tmp->size;
