@@ -1680,6 +1680,13 @@ static int regulatory_hint_core(const char *alpha2)
 
 	queue_regulatory_request(request);
 
+	/*
+	 * This ensures last_request is populated once modules
+	 * come swinging in and calling regulatory hints and
+	 * wiphy_apply_custom_regulatory().
+	 */
+	flush_scheduled_work();
+
 	return 0;
 }
 
