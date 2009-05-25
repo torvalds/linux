@@ -10,6 +10,14 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
+config CFG80211_DEBUGFS
+	bool "cfg80211 DebugFS entries"
+	depends on CFG80211 && DEBUG_FS
+	---help---
+	  You can enable this if you want to debugfs entries for cfg80211.
+
+	  If unsure, say N.
+
 config WIRELESS_OLD_REGULATORY
 	bool "Old wireless static regulatory definitions"
 	default n

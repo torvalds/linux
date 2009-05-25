@@ -1070,7 +1070,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, true);
 		if (r)
 			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to reset hardware; reset status %u\n",
+				"Unable to reset hardware; reset status %d\n",
 				r);
 		spin_unlock_bh(&sc->sc_resetlock);
 	}
@@ -1788,6 +1788,16 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		 */
 		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
+	}
+
+	if (sc->sc_flags & SC_OP_WAIT_FOR_TX_ACK) {
+		sc->sc_flags &= ~SC_OP_WAIT_FOR_TX_ACK;
+		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
+			"received TX status (0x%x)\n",
+			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+					SC_OP_WAIT_FOR_CAB |
+					SC_OP_WAIT_FOR_PSPOLL_DATA |
+					SC_OP_WAIT_FOR_TX_ACK));
 	}
 
 	if (frame_type == ATH9K_NOT_INTERNAL)

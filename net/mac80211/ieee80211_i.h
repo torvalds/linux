@@ -293,6 +293,7 @@ struct ieee80211_if_managed {
 	int auth_tries; /* retries for auth req */
 	int assoc_tries; /* retries for assoc req */
 
+	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
 
 	unsigned long request;
@@ -333,6 +334,9 @@ struct ieee80211_if_ibss {
 
 	unsigned long request;
 	unsigned long last_scan_completed;
+
+	bool timer_running;
+
 	bool fixed_bssid;
 	bool fixed_channel;
 
@@ -357,6 +361,8 @@ struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
 	struct sk_buff_head skb_queue;
+
+	unsigned long timers_running;
 
 	bool housekeeping;
 
@@ -609,6 +615,21 @@ struct ieee80211_local {
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
+
+	/*
+	 * suspended is true if we finished all the suspend _and_ we have
+	 * not yet come up from resume. This is to be used by mac80211
+	 * to ensure driver sanity during suspend and mac80211's own
+	 * sanity. It can eventually be used for WoW as well.
+	 */
+	bool suspended;
+
+	/*
+	 * quiescing is true during the suspend process _only_ to
+	 * ease timer cancelling etc.
+	 */
+	bool quiescing;
+
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames
@@ -758,10 +779,6 @@ struct ieee80211_local {
 		struct dentry *rcdir;
 		struct dentry *rcname;
 		struct dentry *frequency;
-		struct dentry *rts_threshold;
-		struct dentry *fragmentation_threshold;
-		struct dentry *short_retry_limit;
-		struct dentry *long_retry_limit;
 		struct dentry *total_ps_buffered;
 		struct dentry *wep_iv;
 		struct dentry *tsf;
@@ -938,6 +955,11 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency);
 int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
+void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel_sw_ie *sw_elem,
+				      struct ieee80211_bss *bss);
+void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 
 /* IBSS code */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
@@ -950,6 +972,8 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params);
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
+void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata);
+void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
@@ -960,6 +984,7 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 int ieee80211_scan_results(struct ieee80211_local *local,
 			   struct iw_request_info *info,
 			   char *buf, size_t len);
+void ieee80211_scan_cancel(struct ieee80211_local *local);
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata,
 		  struct sk_buff *skb,
@@ -1035,14 +1060,6 @@ int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
 				       size_t len);
-void ieee80211_chswitch_timer(unsigned long data);
-void ieee80211_chswitch_work(struct work_struct *work);
-void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				  struct ieee80211_channel_sw_ie *sw_elem,
-				  struct ieee80211_bss *bss);
-void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-				 u16 capab_info, u8 *pwr_constr_elem,
-				 u8 pwr_constr_elem_len);
 
 /* Suspend/resume and hw reconfiguration */
 int ieee80211_reconfig(struct ieee80211_local *local);
@@ -1068,8 +1085,6 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
-extern const unsigned char rfc1042_header[6];
-extern const unsigned char bridge_tunnel_header[6];
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type);
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,

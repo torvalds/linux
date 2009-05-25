@@ -504,6 +504,13 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			else if (idx == wdev->wext.default_mgmt_key)
 				wdev->wext.default_mgmt_key = -1;
 		}
+		/*
+		 * Applications using wireless extensions expect to be
+		 * able to delete keys that don't exist, so allow that.
+		 */
+		if (err == -ENOENT)
+			return 0;
+
 		return err;
 	} else {
 		if (addr)

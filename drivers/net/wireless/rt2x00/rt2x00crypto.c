@@ -33,7 +33,7 @@ enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
 {
 	switch (key->alg) {
 	case ALG_WEP:
-		if (key->keylen == LEN_WEP40)
+		if (key->keylen == WLAN_KEY_LEN_WEP40)
 			return CIPHER_WEP64;
 		else
 			return CIPHER_WEP128;

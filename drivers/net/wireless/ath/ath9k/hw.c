@@ -2472,14 +2472,14 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 		}
 		break;
 	case ATH9K_CIPHER_WEP:
-		if (k->kv_len < LEN_WEP40) {
+		if (k->kv_len < WLAN_KEY_LEN_WEP40) {
 			DPRINTF(ah->ah_sc, ATH_DBG_ANY,
 				"WEP key length %u too small\n", k->kv_len);
 			return false;
 		}
-		if (k->kv_len <= LEN_WEP40)
+		if (k->kv_len <= WLAN_KEY_LEN_WEP40)
 			keyType = AR_KEYTABLE_TYPE_40;
-		else if (k->kv_len <= LEN_WEP104)
+		else if (k->kv_len <= WLAN_KEY_LEN_WEP104)
 			keyType = AR_KEYTABLE_TYPE_104;
 		else
 			keyType = AR_KEYTABLE_TYPE_128;
@@ -2498,7 +2498,7 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 	key2 = get_unaligned_le32(k->kv_val + 6);
 	key3 = get_unaligned_le16(k->kv_val + 10);
 	key4 = get_unaligned_le32(k->kv_val + 12);
-	if (k->kv_len <= LEN_WEP104)
+	if (k->kv_len <= WLAN_KEY_LEN_WEP104)
 		key4 &= 0xff;
 
 	/*

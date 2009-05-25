@@ -77,6 +77,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_KEY_IDX] = { .type = NLA_U8 },
 	[NL80211_ATTR_KEY_CIPHER] = { .type = NLA_U32 },
 	[NL80211_ATTR_KEY_DEFAULT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_KEY_SEQ] = { .type = NLA_BINARY, .len = 8 },
 
 	[NL80211_ATTR_BEACON_INTERVAL] = { .type = NLA_U32 },
 	[NL80211_ATTR_DTIM_PERIOD] = { .type = NLA_U32 },
@@ -492,7 +493,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 		struct ieee80211_channel *chan;
 		struct ieee80211_sta_ht_cap *ht_cap;
-		u32 freq, sec_freq;
+		u32 freq;
 
 		if (!rdev->ops->set_channel) {
 			result = -EOPNOTSUPP;
@@ -518,32 +519,27 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
 			goto bad_res;
 
-		if (channel_type == NL80211_CHAN_HT40MINUS)
-			sec_freq = freq - 20;
-		else if (channel_type == NL80211_CHAN_HT40PLUS)
-			sec_freq = freq + 20;
-		else
-			sec_freq = 0;
+		if (channel_type == NL80211_CHAN_HT40MINUS &&
+		    (chan->flags & IEEE80211_CHAN_NO_HT40MINUS))
+			goto bad_res;
+		else if (channel_type == NL80211_CHAN_HT40PLUS &&
+			 (chan->flags & IEEE80211_CHAN_NO_HT40PLUS))
+			goto bad_res;
+
+		/*
+		 * At this point we know if that if HT40 was requested
+		 * we are allowed to use it and the extension channel
+		 * exists.
+		 */
 
 		ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
 
-		/* no HT capabilities */
-		if (channel_type != NL80211_CHAN_NO_HT &&
-		    !ht_cap->ht_supported)
-			goto bad_res;
-
-		if (sec_freq) {
-			struct ieee80211_channel *schan;
-
-			/* no 40 MHz capabilities */
+		/* no HT capabilities or intolerant */
+		if (channel_type != NL80211_CHAN_NO_HT) {
+			if (!ht_cap->ht_supported)
+				goto bad_res;
 			if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
 			    (ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
-				goto bad_res;
-
-			schan = ieee80211_get_channel(&rdev->wiphy, sec_freq);
-
-			/* Secondary channel not allowed */
-			if (!schan || schan->flags & IEEE80211_CHAN_DISABLED)
 				goto bad_res;
 		}
 
@@ -2571,18 +2567,24 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 			rem_reg_rules) {
 		num_rules++;
 		if (num_rules > NL80211_MAX_SUPP_REG_RULES)
-			goto bad_reg;
+			return -EINVAL;
 	}
 
-	if (!reg_is_valid_request(alpha2))
-		return -EINVAL;
+	mutex_lock(&cfg80211_mutex);
+
+	if (!reg_is_valid_request(alpha2)) {
+		r = -EINVAL;
+		goto bad_reg;
+	}
 
 	size_of_regd = sizeof(struct ieee80211_regdomain) +
 		(num_rules * sizeof(struct ieee80211_reg_rule));
 
 	rd = kzalloc(size_of_regd, GFP_KERNEL);
-	if (!rd)
-		return -ENOMEM;
+	if (!rd) {
+		r = -ENOMEM;
+		goto bad_reg;
+	}
 
 	rd->n_reg_rules = num_rules;
 	rd->alpha2[0] = alpha2[0];
@@ -2599,20 +2601,24 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 		rule_idx++;
 
-		if (rule_idx > NL80211_MAX_SUPP_REG_RULES)
+		if (rule_idx > NL80211_MAX_SUPP_REG_RULES) {
+			r = -EINVAL;
 			goto bad_reg;
+		}
 	}
 
 	BUG_ON(rule_idx != num_rules);
 
-	mutex_lock(&cfg80211_mutex);
 	r = set_regdom(rd);
+
 	mutex_unlock(&cfg80211_mutex);
+
 	return r;
 
  bad_reg:
+	mutex_unlock(&cfg80211_mutex);
 	kfree(rd);
-	return -EINVAL;
+	return r;
 }
 
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)

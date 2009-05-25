@@ -56,9 +56,9 @@ enum ieee80211_band {
  *	on this channel.
  * @IEEE80211_CHAN_NO_IBSS: IBSS is not allowed on this channel.
  * @IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
- * @IEEE80211_CHAN_NO_FAT_ABOVE: extension channel above this channel
+ * @IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
  * 	is not permitted.
- * @IEEE80211_CHAN_NO_FAT_BELOW: extension channel below this channel
+ * @IEEE80211_CHAN_NO_HT40MINUS: extension channel below this channel
  * 	is not permitted.
  */
 enum ieee80211_channel_flags {
@@ -66,9 +66,12 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_PASSIVE_SCAN	= 1<<1,
 	IEEE80211_CHAN_NO_IBSS		= 1<<2,
 	IEEE80211_CHAN_RADAR		= 1<<3,
-	IEEE80211_CHAN_NO_FAT_ABOVE	= 1<<4,
-	IEEE80211_CHAN_NO_FAT_BELOW	= 1<<5,
+	IEEE80211_CHAN_NO_HT40PLUS	= 1<<4,
+	IEEE80211_CHAN_NO_HT40MINUS	= 1<<5,
 };
+
+#define IEEE80211_CHAN_NO_HT40 \
+	(IEEE80211_CHAN_NO_HT40PLUS | IEEE80211_CHAN_NO_HT40MINUS)
 
 /**
  * struct ieee80211_channel - channel definition
@@ -778,10 +781,11 @@ enum wiphy_params_flags {
  * @get_key: get information about the key with the given parameters.
  *	@mac_addr will be %NULL when requesting information for a group
  *	key. All pointers given to the @callback function need not be valid
- *	after it returns.
+ *	after it returns. This function should return an error if it is
+ *	not possible to retrieve the key, -ENOENT if it doesn't exist.
  *
  * @del_key: remove a key given the @mac_addr (%NULL for a group key)
- *	and @key_index
+ *	and @key_index, return -ENOENT if the key doesn't exist.
  *
  * @set_default_key: set the default key on an interface
  *
@@ -994,7 +998,7 @@ struct wiphy {
 	 * know whether it points to a wiphy your driver has registered
 	 * or not. Assign this to something global to your driver to
 	 * help determine whether you own this wiphy or not. */
-	void *privid;
+	const void *privid;
 
 	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
 
@@ -1070,7 +1074,7 @@ static inline const char *wiphy_name(struct wiphy *wiphy)
  * The returned pointer must be assigned to each netdev's
  * ieee80211_ptr for proper operation.
  */
-struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv);
+struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv);
 
 /**
  * wiphy_register - register a wiphy with cfg80211
@@ -1240,6 +1244,53 @@ extern int ieee80211_radiotap_iterator_init(
 extern int ieee80211_radiotap_iterator_next(
    struct ieee80211_radiotap_iterator *iterator);
 
+extern const unsigned char rfc1042_header[6];
+extern const unsigned char bridge_tunnel_header[6];
+
+/**
+ * ieee80211_get_hdrlen_from_skb - get header length from data
+ *
+ * Given an skb with a raw 802.11 header at the data pointer this function
+ * returns the 802.11 header length in bytes (not including encryption
+ * headers). If the data in the sk_buff is too short to contain a valid 802.11
+ * header the function returns 0.
+ *
+ * @skb: the frame
+ */
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
+
+/**
+ * ieee80211_hdrlen - get header length in bytes from frame control
+ * @fc: frame control field in little-endian format
+ */
+unsigned int ieee80211_hdrlen(__le16 fc);
+
+/**
+ * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
+ * @skb: the 802.11 data frame
+ * @addr: the device MAC address
+ * @iftype: the virtual interface type
+ */
+int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
+			   enum nl80211_iftype iftype);
+
+/**
+ * ieee80211_data_from_8023 - convert an 802.3 frame to 802.11
+ * @skb: the 802.3 frame
+ * @addr: the device MAC address
+ * @iftype: the virtual interface type
+ * @bssid: the network bssid (used only for iftype STATION and ADHOC)
+ * @qos: build 802.11 QoS data frame
+ */
+int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
+			     enum nl80211_iftype iftype, u8 *bssid, bool qos);
+
+/**
+ * cfg80211_classify8021d - determine the 802.1p/1d tag for a data frame
+ * @skb: the data frame
+ */
+unsigned int cfg80211_classify8021d(struct sk_buff *skb);
+
 /*
  * Regulatory helper functions for wiphys
  */
@@ -1303,9 +1354,10 @@ extern void wiphy_apply_custom_regulatory(
  * freq_reg_info - get regulatory information for the given frequency
  * @wiphy: the wiphy for which we want to process this rule for
  * @center_freq: Frequency in KHz for which we want regulatory information for
- * @bandwidth: the bandwidth requirement you have in KHz, if you do not have one
- * 	you can set this to 0. If this frequency is allowed we then set
- * 	this value to the maximum allowed bandwidth.
+ * @desired_bw_khz: the desired max bandwidth you want to use per
+ *	channel. Note that this is still 20 MHz if you want to use HT40
+ *	as HT40 makes use of two channels for its 40 MHz width bandwidth.
+ *	If set to 0 we'll assume you want the standard 20 MHz.
  * @reg_rule: the regulatory rule which we have for this frequency
  *
  * Use this function to get the regulatory rule for a specific frequency on
@@ -1320,7 +1372,9 @@ extern void wiphy_apply_custom_regulatory(
  * freq_in_rule_band() for our current definition of a band -- this is purely
  * subjective and right now its 802.11 specific.
  */
-extern int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 *bandwidth,
+extern int freq_reg_info(struct wiphy *wiphy,
+			 u32 center_freq,
+			 u32 desired_bw_khz,
 			 const struct ieee80211_reg_rule **reg_rule);
 
 /*

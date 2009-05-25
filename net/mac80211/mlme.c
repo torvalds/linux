@@ -33,9 +33,12 @@
 #define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
 #define IEEE80211_ASSOC_MAX_TRIES 3
 #define IEEE80211_MONITORING_INTERVAL (2 * HZ)
-#define IEEE80211_PROBE_WAIT (HZ / 20)
+#define IEEE80211_PROBE_WAIT (HZ / 5)
 #define IEEE80211_PROBE_IDLE_TIME (60 * HZ)
 #define IEEE80211_RETRY_AUTH_INTERVAL (1 * HZ)
+
+#define TMR_RUNNING_TIMER	0
+#define TMR_RUNNING_CHANSW	1
 
 /* utils */
 static int ecw2cw(int ecw)
@@ -121,10 +124,14 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		    (hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
 			switch(hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-				channel_type = NL80211_CHAN_HT40PLUS;
+				if (!(local->hw.conf.channel->flags &
+				    IEEE80211_CHAN_NO_HT40PLUS))
+					channel_type = NL80211_CHAN_HT40PLUS;
 				break;
 			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-				channel_type = NL80211_CHAN_HT40MINUS;
+				if (!(local->hw.conf.channel->flags &
+				    IEEE80211_CHAN_NO_HT40MINUS))
+					channel_type = NL80211_CHAN_HT40MINUS;
 				break;
 			}
 		}
@@ -349,13 +356,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 		switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-			if (flags & IEEE80211_CHAN_NO_FAT_ABOVE) {
+			if (flags & IEEE80211_CHAN_NO_HT40PLUS) {
 				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}
 			break;
 		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-			if (flags & IEEE80211_CHAN_NO_FAT_BELOW) {
+			if (flags & IEEE80211_CHAN_NO_HT40MINUS) {
 				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}
@@ -480,6 +487,108 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
 
 	ieee80211_tx_skb(sdata, skb, 0);
+}
+
+/* spectrum management related things */
+static void ieee80211_chswitch_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data, u.mgd.chswitch_work);
+	struct ieee80211_bss *bss;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (!netif_running(sdata->dev))
+		return;
+
+	bss = ieee80211_rx_bss_get(sdata->local, ifmgd->bssid,
+				   sdata->local->hw.conf.channel->center_freq,
+				   ifmgd->ssid, ifmgd->ssid_len);
+	if (!bss)
+		goto exit;
+
+	sdata->local->oper_channel = sdata->local->csa_channel;
+	/* XXX: shouldn't really modify cfg80211-owned data! */
+	if (!ieee80211_hw_config(sdata->local, IEEE80211_CONF_CHANGE_CHANNEL))
+		bss->cbss.channel = sdata->local->oper_channel;
+
+	ieee80211_rx_bss_put(sdata->local, bss);
+exit:
+	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
+	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+}
+
+static void ieee80211_chswitch_timer(unsigned long data)
+{
+	struct ieee80211_sub_if_data *sdata =
+		(struct ieee80211_sub_if_data *) data;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (sdata->local->quiescing) {
+		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
+		return;
+	}
+
+	queue_work(sdata->local->hw.workqueue, &ifmgd->chswitch_work);
+}
+
+void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel_sw_ie *sw_elem,
+				      struct ieee80211_bss *bss)
+{
+	struct ieee80211_channel *new_ch;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	int new_freq = ieee80211_channel_to_frequency(sw_elem->new_ch_num);
+
+	if (ifmgd->state != IEEE80211_STA_MLME_ASSOCIATED)
+		return;
+
+	if (sdata->local->sw_scanning || sdata->local->hw_scanning)
+		return;
+
+	/* Disregard subsequent beacons if we are already running a timer
+	   processing a CSA */
+
+	if (ifmgd->flags & IEEE80211_STA_CSA_RECEIVED)
+		return;
+
+	new_ch = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
+	if (!new_ch || new_ch->flags & IEEE80211_CHAN_DISABLED)
+		return;
+
+	sdata->local->csa_channel = new_ch;
+
+	if (sw_elem->count <= 1) {
+		queue_work(sdata->local->hw.workqueue, &ifmgd->chswitch_work);
+	} else {
+		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+		mod_timer(&ifmgd->chswitch_timer,
+			  jiffies +
+			  msecs_to_jiffies(sw_elem->count *
+					   bss->cbss.beacon_interval));
+	}
+}
+
+static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+					u16 capab_info, u8 *pwr_constr_elem,
+					u8 pwr_constr_elem_len)
+{
+	struct ieee80211_conf *conf = &sdata->local->hw.conf;
+
+	if (!(capab_info & WLAN_CAPABILITY_SPECTRUM_MGMT))
+		return;
+
+	/* Power constraint IE length should be 1 octet */
+	if (pwr_constr_elem_len != 1)
+		return;
+
+	if ((*pwr_constr_elem <= conf->channel->max_power) &&
+	    (*pwr_constr_elem != sdata->local->power_constr_level)) {
+		sdata->local->power_constr_level = *pwr_constr_elem;
+		ieee80211_hw_config(sdata->local, 0);
+	}
 }
 
 /* powersave */
@@ -612,6 +721,9 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 void ieee80211_dynamic_ps_timer(unsigned long data)
 {
 	struct ieee80211_local *local = (void *) data;
+
+	if (local->quiescing)
+		return;
 
 	queue_work(local->hw.workqueue, &local->dynamic_ps_enable_work);
 }
@@ -865,6 +977,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	 * changed or not.
 	 */
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
+
+	/* And the BSSID changed - we're associated now */
+	bss_info_changed |= BSS_CHANGED_BSSID;
+
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	/* will be same as sdata */
@@ -1064,6 +1180,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_hw_config(local, config_changed);
+
+	/* And the BSSID changed -- not very interesting here */
+	changed |= BSS_CHANGED_BSSID;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	rcu_read_lock();
@@ -1270,8 +1389,8 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 		ifmgd->flags |= IEEE80211_STA_PROBEREQ_POLL;
 		ieee80211_send_probe_req(sdata, ifmgd->bssid, ifmgd->ssid,
 					 ifmgd->ssid_len, NULL, 0);
+		mod_timer(&ifmgd->timer, jiffies + IEEE80211_PROBE_WAIT);
 		goto unlock;
-
 	}
 
 	if (time_after(jiffies, sta->last_rx + IEEE80211_PROBE_IDLE_TIME)) {
@@ -1280,15 +1399,16 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 					 ifmgd->ssid_len, NULL, 0);
 	}
 
+	if (!disassoc)
+		mod_timer(&ifmgd->timer,
+			  jiffies + IEEE80211_MONITORING_INTERVAL);
+
  unlock:
 	rcu_read_unlock();
 
 	if (disassoc)
 		ieee80211_set_disassoc(sdata, true, true,
 					WLAN_REASON_PREV_AUTH_NOT_VALID);
-	else
-		mod_timer(&ifmgd->timer, jiffies +
-				      IEEE80211_MONITORING_INTERVAL);
 }
 
 
@@ -1732,7 +1852,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	    (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN) == 0)) {
 		struct ieee80211_channel_sw_ie *sw_elem =
 			(struct ieee80211_channel_sw_ie *)elems->ch_switch_elem;
-		ieee80211_process_chanswitch(sdata, sw_elem, bss);
+		ieee80211_sta_process_chanswitch(sdata, sw_elem, bss);
 	}
 
 	ieee80211_rx_bss_put(local, bss);
@@ -1820,6 +1940,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	    memcmp(ifmgd->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
+	if (ifmgd->flags & IEEE80211_STA_PROBEREQ_POLL) {
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: cancelling probereq poll due "
+			       "to a received beacon\n", sdata->dev->name);
+		}
+#endif
+		ifmgd->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
+	}
+
 	ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
 	ncrc = ieee802_11_parse_elems_crc(mgmt->u.beacon.variable,
 					  len - baselen, &elems,
@@ -1829,16 +1959,13 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		directed_tim = ieee80211_check_tim(elems.tim, elems.tim_len,
 						   ifmgd->aid);
 
-	ncrc = crc32_be(ncrc, (void *)&directed_tim, sizeof(directed_tim));
+	if (ncrc != ifmgd->beacon_crc) {
+		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
+				      true);
 
-	if (ncrc == ifmgd->beacon_crc)
-		return;
-	ifmgd->beacon_crc = ncrc;
-
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
-
-	ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
-				 elems.wmm_param_len);
+		ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
+					 elems.wmm_param_len);
+	}
 
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
 		if (directed_tim) {
@@ -1862,6 +1989,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 	}
+
+	if (ncrc == ifmgd->beacon_crc)
+		return;
+	ifmgd->beacon_crc = ncrc;
 
 	if (elems.erp_info && elems.erp_info_len >= 1) {
 		erp_valid = true;
@@ -1997,6 +2128,11 @@ static void ieee80211_sta_timer(unsigned long data)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 
+	if (local->quiescing) {
+		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
+		return;
+	}
+
 	set_bit(IEEE80211_STA_REQ_RUN, &ifmgd->request);
 	queue_work(local->hw.workqueue, &ifmgd->work);
 }
@@ -2129,6 +2265,17 @@ static void ieee80211_sta_work(struct work_struct *work)
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return;
+
+	/*
+	 * Nothing should have been stuffed into the workqueue during
+	 * the suspend->resume cycle. If this WARN is seen then there
+	 * is a bug with either the driver suspend or something in
+	 * mac80211 stuffing into the workqueue which we haven't yet
+	 * cleared during mac80211's suspend cycle.
+	 */
+	if (WARN_ON(local->suspended))
+		return;
+
 	ifmgd = &sdata->u.mgd;
 
 	while ((skb = skb_dequeue(&ifmgd->skb_queue)))
@@ -2195,6 +2342,38 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 			   &sdata->u.mgd.work);
 	}
 }
+
+#ifdef CONFIG_PM
+void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	/*
+	 * we need to use atomic bitops for the running bits
+	 * only because both timers might fire at the same
+	 * time -- the code here is properly synchronised.
+	 */
+
+	cancel_work_sync(&ifmgd->work);
+	cancel_work_sync(&ifmgd->beacon_loss_work);
+	if (del_timer_sync(&ifmgd->timer))
+		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
+
+	cancel_work_sync(&ifmgd->chswitch_work);
+	if (del_timer_sync(&ifmgd->chswitch_timer))
+		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
+}
+
+void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
+		add_timer(&ifmgd->timer);
+	if (test_and_clear_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running))
+		add_timer(&ifmgd->chswitch_timer);
+}
+#endif
 
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
@@ -2310,9 +2489,6 @@ int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 		ifmgd->flags &= ~IEEE80211_STA_BSSID_SET;
 	}
 
-	if (netif_running(sdata->dev))
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
-
 	return ieee80211_sta_commit(sdata);
 }
 
@@ -2320,6 +2496,13 @@ int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 			       const char *ie, size_t len)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (len == 0 && ifmgd->extra_ie_len == 0)
+		return -EALREADY;
+
+	if (len == ifmgd->extra_ie_len && ifmgd->extra_ie &&
+	    memcmp(ifmgd->extra_ie, ie, len) == 0)
+		return -EALREADY;
 
 	kfree(ifmgd->extra_ie);
 	if (len == 0) {

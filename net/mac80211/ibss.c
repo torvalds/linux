@@ -535,9 +535,9 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		bssid = ifibss->bssid;
 	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan, bssid,
 				       ifibss->ssid, ifibss->ssid_len,
-				       capability,
 				       WLAN_CAPABILITY_IBSS |
-				       WLAN_CAPABILITY_PRIVACY);
+				       WLAN_CAPABILITY_PRIVACY,
+				       capability);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	if (bss)
@@ -737,6 +737,9 @@ static void ieee80211_ibss_work(struct work_struct *work)
 	struct ieee80211_if_ibss *ifibss;
 	struct sk_buff *skb;
 
+	if (WARN_ON(local->suspended))
+		return;
+
 	if (!netif_running(sdata->dev))
 		return;
 
@@ -773,9 +776,35 @@ static void ieee80211_ibss_timer(unsigned long data)
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 
+	if (local->quiescing) {
+		ifibss->timer_running = true;
+		return;
+	}
+
 	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
 	queue_work(local->hw.workqueue, &ifibss->work);
 }
+
+#ifdef CONFIG_PM
+void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+
+	cancel_work_sync(&ifibss->work);
+	if (del_timer_sync(&ifibss->timer))
+		ifibss->timer_running = true;
+}
+
+void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+
+	if (ifibss->timer_running) {
+		add_timer(&ifibss->timer);
+		ifibss->timer_running = false;
+	}
+}
+#endif
 
 void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {

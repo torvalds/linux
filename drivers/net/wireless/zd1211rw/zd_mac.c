@@ -420,9 +420,9 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		cs->control |= ZD_CS_NEED_RANDOM_BACKOFF;
 
-	/* Multicast */
-	if (is_multicast_ether_addr(header->addr1))
-		cs->control |= ZD_CS_MULTICAST;
+	/* No ACK expected (multicast, etc.) */
+	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+		cs->control |= ZD_CS_NO_ACK;
 
 	/* PS-POLL */
 	if (ieee80211_is_pspoll(header->frame_control))

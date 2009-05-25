@@ -515,6 +515,10 @@ struct ath_rfkill {
 #define SC_OP_LED_ON            BIT(13)
 #define SC_OP_SCANNING          BIT(14)
 #define SC_OP_TSF_RESET         BIT(15)
+#define SC_OP_WAIT_FOR_CAB      BIT(16)
+#define SC_OP_WAIT_FOR_PSPOLL_DATA BIT(17)
+#define SC_OP_WAIT_FOR_TX_ACK   BIT(18)
+#define SC_OP_BEACON_SYNC       BIT(19)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -599,6 +603,7 @@ struct ath_softc {
 	struct ath9k_debug debug;
 #endif
 	struct ath_bus_ops *bus_ops;
+	struct ath_beacon_config cur_beacon_conf;
 };
 
 struct ath_wiphy {
@@ -676,7 +681,9 @@ static inline void ath9k_ps_restore(struct ath_softc *sc)
 {
 	if (atomic_dec_and_test(&sc->ps_usecount))
 		if ((sc->hw->conf.flags & IEEE80211_CONF_PS) &&
-		    !(sc->sc_flags & SC_OP_WAIT_FOR_BEACON))
+		    !(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+				      SC_OP_WAIT_FOR_PSPOLL_DATA |
+				      SC_OP_WAIT_FOR_TX_ACK)))
 			ath9k_hw_setpower(sc->sc_ah,
 					  sc->sc_ah->restore_mode);
 }

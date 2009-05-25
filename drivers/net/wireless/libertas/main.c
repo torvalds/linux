@@ -1002,8 +1002,16 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
 	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
+	struct cmd_header cmd;
 
 	lbs_deb_enter(LBS_DEB_FW);
+
+	if (priv->fn_init_required) {
+		memset(&cmd, 0, sizeof(cmd));
+		if (__lbs_cmd(priv, CMD_FUNC_INIT, &cmd, sizeof(cmd),
+				lbs_cmd_copyback, (unsigned long) &cmd))
+			lbs_pr_alert("CMD_FUNC_INIT command failed\n");
+	}
 
 	/* Read MAC address from firmware */
 	memset(priv->current_addr, 0xff, ETH_ALEN);
@@ -1192,6 +1200,9 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
 
+	priv->fn_init_required = 0;
+	priv->fn_shutdown_required = 0;
+
 	/* Setup the OS Interface to our functions */
  	dev->netdev_ops = &lbs_netdev_ops;
 	dev->watchdog_timeo = 5 * HZ;
@@ -1373,11 +1384,20 @@ void lbs_stop_card(struct lbs_private *priv)
 	struct net_device *dev;
 	struct cmd_ctrl_node *cmdnode;
 	unsigned long flags;
+	struct cmd_header cmd;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	if (!priv)
 		goto out;
+
+	if (priv->fn_shutdown_required) {
+		memset(&cmd, 0, sizeof(cmd));
+		if (__lbs_cmd(priv, CMD_FUNC_SHUTDOWN, &cmd, sizeof(cmd),
+				lbs_cmd_copyback, (unsigned long) &cmd))
+			lbs_pr_alert("CMD_FUNC_SHUTDOWN command failed\n");
+	}
+
 	dev = priv->dev;
 
 	netif_stop_queue(dev);

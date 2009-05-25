@@ -35,15 +35,6 @@
 /* privid for wiphys to determine whether they belong to us or not */
 void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
 
-/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-const unsigned char rfc1042_header[] __aligned(2) =
-	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-const unsigned char bridge_tunnel_header[] __aligned(2) =
-	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
-
 struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 {
 	struct ieee80211_local *local;
@@ -101,70 +92,6 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 	}
 
 	return NULL;
-}
-
-unsigned int ieee80211_hdrlen(__le16 fc)
-{
-	unsigned int hdrlen = 24;
-
-	if (ieee80211_is_data(fc)) {
-		if (ieee80211_has_a4(fc))
-			hdrlen = 30;
-		if (ieee80211_is_data_qos(fc))
-			hdrlen += IEEE80211_QOS_CTL_LEN;
-		goto out;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		/*
-		 * ACK and CTS are 10 bytes, all others 16. To see how
-		 * to get this condition consider
-		 *   subtype mask:   0b0000000011110000 (0x00F0)
-		 *   ACK subtype:    0b0000000011010000 (0x00D0)
-		 *   CTS subtype:    0b0000000011000000 (0x00C0)
-		 *   bits that matter:         ^^^      (0x00E0)
-		 *   value of those: 0b0000000011000000 (0x00C0)
-		 */
-		if ((fc & cpu_to_le16(0x00E0)) == cpu_to_le16(0x00C0))
-			hdrlen = 10;
-		else
-			hdrlen = 16;
-	}
-out:
-	return hdrlen;
-}
-EXPORT_SYMBOL(ieee80211_hdrlen);
-
-unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
-{
-	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)skb->data;
-	unsigned int hdrlen;
-
-	if (unlikely(skb->len < 10))
-		return 0;
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (unlikely(hdrlen > skb->len))
-		return 0;
-	return hdrlen;
-}
-EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
-
-int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
-{
-	int ae = meshhdr->flags & IEEE80211S_FLAGS_AE;
-	/* 7.1.3.5a.2 */
-	switch (ae) {
-	case 0:
-		return 6;
-	case 1:
-		return 12;
-	case 2:
-		return 18;
-	case 3:
-		return 24;
-	default:
-		return 6;
-	}
 }
 
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
@@ -1034,6 +961,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct sta_info *sta;
 	unsigned long flags;
 	int res;
+	bool from_suspend = local->suspended;
+
+	/*
+	 * We're going to start the hardware, at that point
+	 * we are no longer suspended and can RX frames.
+	 */
+	local->suspended = false;
 
 	/* restart hardware */
 	if (local->open_count) {
@@ -1058,6 +992,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (local->ops->sta_notify) {
 		spin_lock_irqsave(&local->sta_lock, flags);
 		list_for_each_entry(sta, &local->sta_list, list) {
+			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 				sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
@@ -1128,5 +1063,40 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
+	/*
+	 * If this is for hw restart things are still running.
+	 * We may want to change that later, however.
+	 */
+	if (!from_suspend)
+		return 0;
+
+#ifdef CONFIG_PM
+	local->suspended = false;
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		switch(sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			ieee80211_sta_restart(sdata);
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			ieee80211_ibss_restart(sdata);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			ieee80211_mesh_restart(sdata);
+			break;
+		default:
+			break;
+		}
+	}
+
+	add_timer(&local->sta_cleanup);
+
+	spin_lock_irqsave(&local->sta_lock, flags);
+	list_for_each_entry(sta, &local->sta_list, list)
+		mesh_plink_restart(sta);
+	spin_unlock_irqrestore(&local->sta_lock, flags);
+#else
+	WARN_ON(1);
+#endif
 	return 0;
 }

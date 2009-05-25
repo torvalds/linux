@@ -631,3 +631,21 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->scan_mtx);
 	return ret;
 }
+
+void ieee80211_scan_cancel(struct ieee80211_local *local)
+{
+	bool swscan;
+
+	cancel_delayed_work_sync(&local->scan_work);
+
+	/*
+	 * Only call this function when a scan can't be
+	 * queued -- mostly at suspend under RTNL.
+	 */
+	mutex_lock(&local->scan_mtx);
+	swscan = local->sw_scanning;
+	mutex_unlock(&local->scan_mtx);
+
+	if (swscan)
+		ieee80211_scan_completed(&local->hw, true);
+}

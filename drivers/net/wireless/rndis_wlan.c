@@ -2,7 +2,7 @@
  * Driver for RNDIS based wireless USB devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
- * Copyright (C) 2008 by Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -196,6 +196,18 @@ enum ndis_80211_priv_filter {
 	ndis_80211_priv_8021x_wep
 };
 
+enum ndis_80211_addkey_bits {
+	ndis_80211_addkey_8021x_auth = cpu_to_le32(1 << 28),
+	ndis_80211_addkey_set_init_recv_seq = cpu_to_le32(1 << 29),
+	ndis_80211_addkey_pairwise_key = cpu_to_le32(1 << 30),
+	ndis_80211_addkey_transmit_key = cpu_to_le32(1 << 31),
+};
+
+enum ndis_80211_addwep_bits {
+	ndis_80211_addwep_perclient_key = cpu_to_le32(1 << 30),
+	ndis_80211_addwep_transmit_key = cpu_to_le32(1 << 31),
+};
+
 struct ndis_80211_ssid {
 	__le32 length;
 	u8 essid[NDIS_802_11_LENGTH_SSID];
@@ -309,7 +321,6 @@ enum wpa_key_mgmt { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
 #define CAP_MODE_80211B		2
 #define CAP_MODE_80211G		4
 #define CAP_MODE_MASK		7
-#define CAP_SUPPORT_TXPOWER	8
 
 #define WORK_LINK_UP		(1<<0)
 #define WORK_LINK_DOWN		(1<<1)
@@ -394,6 +405,7 @@ struct rndis_wext_private {
 	int  encr_tx_key_index;
 	char encr_keys[4][32];
 	int  encr_key_len[4];
+	char encr_key_wpa[4];
 	int  wpa_version;
 	int  wpa_keymgmt;
 	int  wpa_authalg;
@@ -945,7 +957,7 @@ static int set_infra_mode(struct usbnet *usbdev, int mode)
 	if (priv->wpa_keymgmt == 0 ||
 		priv->wpa_keymgmt == IW_AUTH_KEY_MGMT_802_1X) {
 		for (i = 0; i < 4; i++) {
-			if (priv->encr_key_len[i] > 0)
+			if (priv->encr_key_len[i] > 0 && !priv->encr_key_wpa[i])
 				add_wep_key(usbdev, priv->encr_keys[i],
 						priv->encr_key_len[i], i);
 		}
@@ -999,7 +1011,7 @@ static int add_wep_key(struct usbnet *usbdev, char *key, int key_len, int index)
 	memcpy(&ndis_key.material, key, key_len);
 
 	if (index == priv->encr_tx_key_index) {
-		ndis_key.index |= cpu_to_le32(1 << 31);
+		ndis_key.index |= ndis_80211_addwep_transmit_key;
 		ret = set_encr_mode(usbdev, IW_AUTH_CIPHER_WEP104,
 						IW_AUTH_CIPHER_NONE);
 		if (ret)
@@ -1016,7 +1028,76 @@ static int add_wep_key(struct usbnet *usbdev, char *key, int key_len, int index)
 	}
 
 	priv->encr_key_len[index] = key_len;
+	priv->encr_key_wpa[index] = 0;
 	memcpy(&priv->encr_keys[index], key, key_len);
+
+	return 0;
+}
+
+
+static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
+			int index, const struct sockaddr *addr,
+			const u8 *rx_seq, int alg, int flags)
+{
+	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
+	struct ndis_80211_key ndis_key;
+	int ret;
+
+	if (index < 0 || index >= 4)
+		return -EINVAL;
+	if (key_len > sizeof(ndis_key.material) || key_len < 0)
+		return -EINVAL;
+	if ((flags & ndis_80211_addkey_set_init_recv_seq) && !rx_seq)
+		return -EINVAL;
+	if ((flags & ndis_80211_addkey_pairwise_key) && !addr)
+		return -EINVAL;
+
+	devdbg(usbdev, "add_wpa_key(%i): flags:%i%i%i", index,
+			!!(flags & ndis_80211_addkey_transmit_key),
+			!!(flags & ndis_80211_addkey_pairwise_key),
+			!!(flags & ndis_80211_addkey_set_init_recv_seq));
+
+	memset(&ndis_key, 0, sizeof(ndis_key));
+
+	ndis_key.size = cpu_to_le32(sizeof(ndis_key) -
+				sizeof(ndis_key.material) + key_len);
+	ndis_key.length = cpu_to_le32(key_len);
+	ndis_key.index = cpu_to_le32(index) | flags;
+
+	if (alg == IW_ENCODE_ALG_TKIP && key_len == 32) {
+		/* wpa_supplicant gives us the Michael MIC RX/TX keys in
+		 * different order than NDIS spec, so swap the order here. */
+		memcpy(ndis_key.material, key, 16);
+		memcpy(ndis_key.material + 16, key + 24, 8);
+		memcpy(ndis_key.material + 24, key + 16, 8);
+	} else
+		memcpy(ndis_key.material, key, key_len);
+
+	if (flags & ndis_80211_addkey_set_init_recv_seq)
+		memcpy(ndis_key.rsc, rx_seq, 6);
+
+	if (flags & ndis_80211_addkey_pairwise_key) {
+		/* pairwise key */
+		memcpy(ndis_key.bssid, addr->sa_data, ETH_ALEN);
+	} else {
+		/* group key */
+		if (priv->infra_mode == ndis_80211_infra_adhoc)
+			memset(ndis_key.bssid, 0xff, ETH_ALEN);
+		else
+			get_bssid(usbdev, ndis_key.bssid);
+	}
+
+	ret = rndis_set_oid(usbdev, OID_802_11_ADD_KEY, &ndis_key,
+					le32_to_cpu(ndis_key.size));
+	devdbg(usbdev, "add_wpa_key: OID_802_11_ADD_KEY -> %08X", ret);
+	if (ret != 0)
+		return ret;
+
+	priv->encr_key_len[index] = key_len;
+	priv->encr_key_wpa[index] = 1;
+
+	if (flags & ndis_80211_addkey_transmit_key)
+		priv->encr_tx_key_index = index;
 
 	return 0;
 }
@@ -1034,6 +1115,7 @@ static int remove_key(struct usbnet *usbdev, int index, u8 bssid[ETH_ALEN])
 		return 0;
 
 	priv->encr_key_len[index] = 0;
+	priv->encr_key_wpa[index] = 0;
 	memset(&priv->encr_keys[index], 0, sizeof(priv->encr_keys[index]));
 
 	if (priv->wpa_cipher_pair == IW_AUTH_CIPHER_TKIP ||
@@ -1045,7 +1127,8 @@ static int remove_key(struct usbnet *usbdev, int index, u8 bssid[ETH_ALEN])
 		if (bssid) {
 			/* pairwise key */
 			if (memcmp(bssid, ffff_bssid, ETH_ALEN) != 0)
-				remove_key.index |= cpu_to_le32(1 << 30);
+				remove_key.index |=
+					ndis_80211_addkey_pairwise_key;
 			memcpy(remove_key.bssid, bssid,
 					sizeof(remove_key.bssid));
 		} else
@@ -1590,9 +1673,7 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
-	struct ndis_80211_key ndis_key;
-	int keyidx, ret;
-	u8 *addr;
+	int keyidx, flags;
 
 	keyidx = wrqu->encoding.flags & IW_ENCODE_INDEX;
 
@@ -1615,58 +1696,16 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	    ext->alg == IW_ENCODE_ALG_NONE || ext->key_len == 0)
 		return remove_key(usbdev, keyidx, NULL);
 
-	if (ext->key_len > sizeof(ndis_key.material))
-		return -1;
-
-	memset(&ndis_key, 0, sizeof(ndis_key));
-
-	ndis_key.size = cpu_to_le32(sizeof(ndis_key) -
-				sizeof(ndis_key.material) + ext->key_len);
-	ndis_key.length = cpu_to_le32(ext->key_len);
-	ndis_key.index = cpu_to_le32(keyidx);
-
-	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-		memcpy(ndis_key.rsc, ext->rx_seq, 6);
-		ndis_key.index |= cpu_to_le32(1 << 29);
-	}
-
-	addr = ext->addr.sa_data;
-	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
-		/* group key */
-		if (priv->infra_mode == ndis_80211_infra_adhoc)
-			memset(ndis_key.bssid, 0xff, ETH_ALEN);
-		else
-			get_bssid(usbdev, ndis_key.bssid);
-	} else {
-		/* pairwise key */
-		ndis_key.index |= cpu_to_le32(1 << 30);
-		memcpy(ndis_key.bssid, addr, ETH_ALEN);
-	}
-
+	flags = 0;
+	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID)
+		flags |= ndis_80211_addkey_set_init_recv_seq;
+	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY))
+		flags |= ndis_80211_addkey_pairwise_key;
 	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
-		ndis_key.index |= cpu_to_le32(1 << 31);
+		flags |= ndis_80211_addkey_transmit_key;
 
-	if (ext->alg == IW_ENCODE_ALG_TKIP && ext->key_len == 32) {
-		/* wpa_supplicant gives us the Michael MIC RX/TX keys in
-		 * different order than NDIS spec, so swap the order here. */
-		memcpy(ndis_key.material, ext->key, 16);
-		memcpy(ndis_key.material + 16, ext->key + 24, 8);
-		memcpy(ndis_key.material + 24, ext->key + 16, 8);
-	} else
-		memcpy(ndis_key.material, ext->key, ext->key_len);
-
-	ret = rndis_set_oid(usbdev, OID_802_11_ADD_KEY, &ndis_key,
-					le32_to_cpu(ndis_key.size));
-	devdbg(usbdev, "SIOCSIWENCODEEXT: OID_802_11_ADD_KEY -> %08X", ret);
-	if (ret != 0)
-		return ret;
-
-	priv->encr_key_len[keyidx] = ext->key_len;
-	memcpy(&priv->encr_keys[keyidx], ndis_key.material, ext->key_len);
-	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
-		priv->encr_tx_key_index = keyidx;
-
-	return 0;
+	return add_wpa_key(usbdev, ext->key, ext->key_len, keyidx, &ext->addr,
+				ext->rx_seq, ext->alg, flags);
 }
 
 
@@ -1849,18 +1888,10 @@ static int rndis_iw_get_txpower(struct net_device *dev,
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	__le32 tx_power;
-	int ret = 0, len;
 
 	if (priv->radio_on) {
-		if (priv->caps & CAP_SUPPORT_TXPOWER) {
-			len = sizeof(tx_power);
-			ret = rndis_query_oid(usbdev, OID_802_11_TX_POWER_LEVEL,
-							&tx_power, &len);
-			if (ret != 0)
-				return ret;
-		} else
-			/* fake incase not supported */
-			tx_power = cpu_to_le32(get_bcm4320_power(priv));
+		/* fake since changing tx_power (by userlevel) not supported */
+		tx_power = cpu_to_le32(get_bcm4320_power(priv));
 
 		wrqu->txpower.flags = IW_TXPOW_MWATT;
 		wrqu->txpower.value = le32_to_cpu(tx_power);
@@ -1873,7 +1904,7 @@ static int rndis_iw_get_txpower(struct net_device *dev,
 
 	devdbg(usbdev, "SIOCGIWTXPOW: %d", wrqu->txpower.value);
 
-	return ret;
+	return 0;
 }
 
 
@@ -1883,7 +1914,6 @@ static int rndis_iw_set_txpower(struct net_device *dev,
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	__le32 tx_power = 0;
-	int ret = 0;
 
 	if (!wrqu->txpower.disabled) {
 		if (wrqu->txpower.flags == IW_TXPOW_MWATT)
@@ -1906,22 +1936,10 @@ static int rndis_iw_set_txpower(struct net_device *dev,
 	devdbg(usbdev, "SIOCSIWTXPOW: %d", le32_to_cpu(tx_power));
 
 	if (le32_to_cpu(tx_power) != 0) {
-		if (priv->caps & CAP_SUPPORT_TXPOWER) {
-			/* turn radio on first */
-			if (!priv->radio_on)
-				disassociate(usbdev, 1);
-
-			ret = rndis_set_oid(usbdev, OID_802_11_TX_POWER_LEVEL,
-						&tx_power, sizeof(tx_power));
-			if (ret != 0)
-				ret = -EOPNOTSUPP;
-			return ret;
-		} else {
-			/* txpower unsupported, just turn radio on */
-			if (!priv->radio_on)
-				return disassociate(usbdev, 1);
-			return 0; /* all ready on */
-		}
+		/* txpower unsupported, just turn radio on */
+		if (!priv->radio_on)
+			return disassociate(usbdev, 1);
+		return 0; /* all ready on */
 	}
 
 	/* tx_power == 0, turn off radio */
@@ -2130,15 +2148,7 @@ static int rndis_wext_get_caps(struct usbnet *usbdev)
 		__le32	items[8];
 	} networks_supported;
 	int len, retval, i, n;
-	__le32 tx_power;
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
-
-	/* determine if supports setting txpower */
-	len = sizeof(tx_power);
-	retval = rndis_query_oid(usbdev, OID_802_11_TX_POWER_LEVEL, &tx_power,
-									&len);
-	if (retval == 0 && le32_to_cpu(tx_power) != 0xFF)
-		priv->caps |= CAP_SUPPORT_TXPOWER;
 
 	/* determine supported modes */
 	len = sizeof(networks_supported);
@@ -2275,7 +2285,17 @@ end:
 }
 
 
-static int bcm4320_early_init(struct usbnet *usbdev)
+static int bcm4320a_early_init(struct usbnet *usbdev)
+{
+	/* bcm4320a doesn't handle configuration parameters well. Try
+	 * set any and you get partially zeroed mac and broken device.
+	 */
+
+	return 0;
+}
+
+
+static int bcm4320b_early_init(struct usbnet *usbdev)
 {
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	char buf[8];
@@ -2515,7 +2535,7 @@ static const struct driver_info	bcm4320b_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320b_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 
@@ -2528,7 +2548,7 @@ static const struct driver_info	bcm4320a_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320a_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 
@@ -2541,7 +2561,7 @@ static const struct driver_info rndis_wext_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320a_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 

@@ -501,5 +501,6 @@ source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/rt2x00/Kconfig"
 source "drivers/net/wireless/orinoco/Kconfig"
 source "drivers/net/wireless/wl12xx/Kconfig"
+source "drivers/net/wireless/iwmc3200wifi/Kconfig"
 
 endmenu

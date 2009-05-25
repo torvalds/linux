@@ -106,6 +106,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	}
 
 	erp.basic_rates = bss_conf->basic_rates;
+	erp.beacon_int = bss_conf->beacon_int;
 
 	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
 }

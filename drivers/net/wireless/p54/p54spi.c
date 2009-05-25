@@ -96,7 +96,7 @@ static void p54spi_spi_write(struct p54s_priv *priv, u8 address,
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
-	t[1].len = len;
+	t[1].len = len & ~1;
 	spi_message_add_tail(&t[1], &m);
 
 	if (len % 2) {
@@ -172,8 +172,6 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 		__le32 buffer = p54spi_read32(priv, reg);
 		if ((buffer & bits) == bits)
 			return 1;
-
-		msleep(0);
 	}
 	return 0;
 }
@@ -181,15 +179,15 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 static int p54spi_spi_write_dma(struct p54s_priv *priv, __le32 base,
 				const void *buf, size_t len)
 {
-	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_CTRL,
-		       cpu_to_le16(SPI_DMA_WRITE_CTRL_ENABLE));
-
 	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL,
 			     cpu_to_le32(HOST_ALLOWED))) {
 		dev_err(&priv->spi->dev, "spi_write_dma not allowed "
 			"to DMA write.\n");
 		return -EAGAIN;
 	}
+
+	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_CTRL,
+		       cpu_to_le16(SPI_DMA_WRITE_CTRL_ENABLE));
 
 	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_LEN, cpu_to_le16(len));
 	p54spi_write32(priv, SPI_ADRS_DMA_WRITE_BASE, base);
@@ -327,7 +325,7 @@ static inline void p54spi_int_ack(struct p54s_priv *priv, u32 val)
 	p54spi_write32(priv, SPI_ADRS_HOST_INT_ACK, cpu_to_le32(val));
 }
 
-static void p54spi_wakeup(struct p54s_priv *priv)
+static int p54spi_wakeup(struct p54s_priv *priv)
 {
 	/* wake the chip */
 	p54spi_write32(priv, SPI_ADRS_ARM_INTERRUPTS,
@@ -337,13 +335,11 @@ static void p54spi_wakeup(struct p54s_priv *priv)
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
 			     cpu_to_le32(SPI_HOST_INT_READY))) {
 		dev_err(&priv->spi->dev, "INT_READY timeout\n");
-		goto out;
+		return -EBUSY;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_READY);
-
-out:
-	return;
+	return 0;
 }
 
 static inline void p54spi_sleep(struct p54s_priv *priv)
@@ -375,19 +371,24 @@ static int p54spi_rx(struct p54s_priv *priv)
 {
 	struct sk_buff *skb;
 	u16 len;
+	u16 rx_head[2];
+#define READAHEAD_SZ (sizeof(rx_head)-sizeof(u16))
 
-	p54spi_wakeup(priv);
+	if (p54spi_wakeup(priv) < 0)
+		return -EBUSY;
 
-	/* dummy read to flush SPI DMA controller bug */
-	p54spi_read16(priv, SPI_ADRS_GEN_PURP_1);
-
-	len = p54spi_read16(priv, SPI_ADRS_DMA_DATA);
+	/* Read data size and first data word in one SPI transaction
+	 * This is workaround for firmware/DMA bug,
+	 * when first data word gets lost under high load.
+	 */
+	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, rx_head, sizeof(rx_head));
+	len = rx_head[0];
 
 	if (len == 0) {
-		dev_err(&priv->spi->dev, "rx request of zero bytes");
+		p54spi_sleep(priv);
+		dev_err(&priv->spi->dev, "rx request of zero bytes\n");
 		return 0;
 	}
-
 
 	/* Firmware may insert up to 4 padding bytes after the lmac header,
 	 * but it does not amend the size of SPI data transfer.
@@ -395,11 +396,19 @@ static int p54spi_rx(struct p54s_priv *priv)
 	 * past the end of allocated skb. Reserve extra 4 bytes for this case */
 	skb = dev_alloc_skb(len + 4);
 	if (!skb) {
+		p54spi_sleep(priv);
 		dev_err(&priv->spi->dev, "could not alloc skb");
-		return 0;
+		return -ENOMEM;
 	}
 
-	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, skb_put(skb, len), len);
+	if (len <= READAHEAD_SZ) {
+		memcpy(skb_put(skb, len), rx_head + 1, len);
+	} else {
+		memcpy(skb_put(skb, READAHEAD_SZ), rx_head + 1, READAHEAD_SZ);
+		p54spi_spi_read(priv, SPI_ADRS_DMA_DATA,
+				skb_put(skb, len - READAHEAD_SZ),
+				len - READAHEAD_SZ);
+	}
 	p54spi_sleep(priv);
 	/* Put additional bytes to compensate for the possible
 	 * alignment-caused truncation */
@@ -427,7 +436,8 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
 	int ret = 0;
 
-	p54spi_wakeup(priv);
+	if (p54spi_wakeup(priv) < 0)
+		return -EBUSY;
 
 	ret = p54spi_spi_write_dma(priv, hdr->req_id, skb->data, skb->len);
 	if (ret < 0)
@@ -436,16 +446,16 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
 			     cpu_to_le32(SPI_HOST_INT_WR_READY))) {
 		dev_err(&priv->spi->dev, "WR_READY timeout\n");
-		ret = -1;
+		ret = -EAGAIN;
 		goto out;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_WR_READY);
-	p54spi_sleep(priv);
 
 	if (FREE_AFTER_TX(skb))
 		p54_free_skb(priv->hw, skb);
 out:
+	p54spi_sleep(priv);
 	return ret;
 }
 
@@ -515,8 +525,7 @@ static void p54spi_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->fw_state == FW_STATE_OFF &&
-	    priv->fw_state == FW_STATE_RESET)
+	if (priv->fw_state == FW_STATE_OFF)
 		goto out;
 
 	ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
@@ -543,11 +552,6 @@ static void p54spi_work(struct work_struct *work)
 	}
 
 	ret = p54spi_wq_tx(priv);
-	if (ret < 0)
-		goto out;
-
-	ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
-
 out:
 	mutex_unlock(&priv->mutex);
 }

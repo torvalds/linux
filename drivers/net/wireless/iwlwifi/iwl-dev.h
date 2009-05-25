@@ -382,6 +382,7 @@ struct iwl_rx_queue {
 	u32 read;
 	u32 write;
 	u32 free_count;
+	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
 	int need_update;
@@ -499,22 +500,13 @@ struct iwl_qos_info {
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
 
-struct iwl3945_tid_data {
-	u16 seq_number;
-};
-
-struct iwl3945_hw_key {
-	enum ieee80211_key_alg alg;
-	int keylen;
-	u8 key[32];
-};
 
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
-	struct iwl3945_tid_data tid[MAX_TID_COUNT];
+	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
-	struct iwl3945_hw_key keyinfo;
+	struct iwl_hw_key keyinfo;
 };
 
 struct iwl_station_entry {
@@ -823,6 +815,11 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
+enum iwl_nvm_type {
+	NVM_DEVICE_TYPE_EEPROM = 0,
+	NVM_DEVICE_TYPE_OTP,
+};
+
 /* interrupt statistics */
 struct isr_statistics {
 	u32 hw;
@@ -900,6 +897,7 @@ struct iwl_priv {
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
 	spinlock_t hcmd_lock;	/* protect hcmd */
+	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
 	/* basic pci-network driver stuff */
@@ -1033,6 +1031,7 @@ struct iwl_priv {
 
 	/* eeprom */
 	u8 *eeprom;
+	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;
@@ -1050,7 +1049,16 @@ struct iwl_priv {
 	/*End*/
 	struct iwl_hw_params hw_params;
 
+	/* INT ICT Table */
+	u32 *ict_tbl;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	void *ict_tbl_vir;
+	u32 inta;
+	bool use_ict;
 
+	u32 inta_mask;
 	/* Current association information needed to configure the
 	 * hardware */
 	u16 assoc_id;
@@ -1105,7 +1113,7 @@ struct iwl_priv {
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
-
+	bool hw_ready;
 	/*For 3945*/
 #define IWL_DEFAULT_TX_POWER 0x0F
 

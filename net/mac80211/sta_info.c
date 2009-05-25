@@ -293,6 +293,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
 
+	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+		sta->last_seq_ctrl[i] = cpu_to_le16(USHORT_MAX);
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Allocated STA %pM\n",
 	       wiphy_name(local->hw.wiphy), sta->sta.addr);
@@ -607,6 +610,9 @@ static void sta_info_cleanup(unsigned long data)
 	list_for_each_entry_rcu(sta, &local->sta_list, list)
 		sta_info_cleanup_expire_buffered(local, sta);
 	rcu_read_unlock();
+
+	if (local->quiescing)
+		return;
 
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);

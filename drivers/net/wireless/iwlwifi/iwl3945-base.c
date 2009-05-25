@@ -340,7 +340,7 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	memset(&priv->stations_39[sta_id].keyinfo, 0, sizeof(struct iwl3945_hw_key));
+	memset(&priv->stations_39[sta_id].keyinfo, 0, sizeof(struct iwl_hw_key));
 	memset(&priv->stations_39[sta_id].sta.key, 0,
 		sizeof(struct iwl4965_keyinfo));
 	priv->stations_39[sta_id].sta.key.key_flags = STA_KEY_FLG_NO_ENC;
@@ -578,8 +578,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      int sta_id)
 {
 	struct iwl3945_tx_cmd *tx = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
-	struct iwl3945_hw_key *keyinfo =
-	    &priv->stations_39[sta_id].keyinfo;
+	struct iwl_hw_key *keyinfo = &priv->stations_39[sta_id].keyinfo;
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -1687,7 +1686,6 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 	u32 i;
 	u32 desc, time, count, base, data1;
 	u32 blink1, blink2, ilink1, ilink2;
-	int rc;
 
 	base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
@@ -1696,11 +1694,6 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
-		return;
-	}
 
 	count = iwl_read_targ_mem(priv, base);
 
@@ -1735,8 +1728,6 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 			ilink1, ilink2, data1);
 	}
 
-	iwl_release_nic_access(priv);
-
 }
 
 #define EVENT_START_OFFSET  (6 * sizeof(u32))
@@ -1744,7 +1735,6 @@ static void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 /**
  * iwl3945_print_event_log - Dump error event log to syslog
  *
- * NOTE: Must be called with iwl_grab_nic_access() already obtained!
  */
 static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 				u32 num_events, u32 mode)
@@ -1787,7 +1777,6 @@ static void iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 {
-	int rc;
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
 	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
@@ -1798,12 +1787,6 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
-		return;
-	}
-
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
 		return;
 	}
 
@@ -1818,7 +1801,6 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	/* bail out if nothing in log */
 	if (size == 0) {
 		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
-		iwl_release_nic_access(priv);
 		return;
 	}
 
@@ -1834,7 +1816,6 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	/* (then/else) start at top of log */
 	iwl3945_print_event_log(priv, 0, next_entry, mode);
 
-	iwl_release_nic_access(priv);
 }
 
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
@@ -1953,11 +1934,8 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		priv->isr_stats.tx++;
 
 		iwl_write32(priv, CSR_FH_INT_STATUS, (1 << 6));
-		if (!iwl_grab_nic_access(priv)) {
-			iwl_write_direct32(priv, FH39_TCSR_CREDIT
-					     (FH39_SRVC_CHNL), 0x0);
-			iwl_release_nic_access(priv);
-		}
+		iwl_write_direct32(priv, FH39_TCSR_CREDIT
+					(FH39_SRVC_CHNL), 0x0);
 		handled |= CSR_INT_BIT_FH_TX;
 	}
 
@@ -1966,9 +1944,9 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		priv->isr_stats.unhandled++;
 	}
 
-	if (inta & ~CSR_INI_SET_MASK) {
+	if (inta & ~priv->inta_mask) {
 		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
-			 inta & ~CSR_INI_SET_MASK);
+			 inta & ~priv->inta_mask);
 		IWL_WARN(priv, "   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
@@ -2132,10 +2110,6 @@ static int iwl3945_verify_inst_full(struct iwl_priv *priv, __le32 *image, u32 le
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc)
-		return rc;
-
 	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			       IWL39_RTC_INST_LOWER_BOUND);
 
@@ -2156,7 +2130,6 @@ static int iwl3945_verify_inst_full(struct iwl_priv *priv, __le32 *image, u32 le
 		}
 	}
 
-	iwl_release_nic_access(priv);
 
 	if (!errcnt)
 		IWL_DEBUG_INFO(priv,
@@ -2180,10 +2153,6 @@ static int iwl3945_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc)
-		return rc;
-
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
@@ -2203,8 +2172,6 @@ static int iwl3945_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 				break;
 		}
 	}
-
-	iwl_release_nic_access(priv);
 
 	return rc;
 }
@@ -2529,19 +2496,10 @@ static int iwl3945_set_ucode_ptrs(struct iwl_priv *priv)
 {
 	dma_addr_t pinst;
 	dma_addr_t pdata;
-	int rc = 0;
-	unsigned long flags;
 
 	/* bits 31:0 for 3945 */
 	pinst = priv->ucode_code.p_addr;
 	pdata = priv->ucode_data_backup.p_addr;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 
 	/* Tell bootstrap uCode where to find image to load */
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
@@ -2554,13 +2512,9 @@ static int iwl3945_set_ucode_ptrs(struct iwl_priv *priv)
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
 
-	iwl_release_nic_access(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	IWL_DEBUG_INFO(priv, "Runtime uCode pointers are set.\n");
 
-	return rc;
+	return 0;
 }
 
 /**
@@ -2613,7 +2567,6 @@ static void iwl3945_init_alive_start(struct iwl_priv *priv)
  */
 static void iwl3945_alive_start(struct iwl_priv *priv)
 {
-	int rc = 0;
 	int thermal_spin = 0;
 	u32 rfkill;
 
@@ -2638,15 +2591,8 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 
 	priv->cfg->ops->smgmt->clear_station_table(priv);
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		IWL_WARN(priv, "Can not read RFKILL status from adapter\n");
-		return;
-	}
-
 	rfkill = iwl_read_prph(priv, APMG_RFKILL_REG);
 	IWL_DEBUG_INFO(priv, "RFKILL status: 0x%x\n", rfkill);
-	iwl_release_nic_access(priv);
 
 	if (rfkill & 0x1) {
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
@@ -2792,13 +2738,8 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	iwl3945_hw_txq_ctx_stop(priv);
 	iwl3945_hw_rxq_stop(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!iwl_grab_nic_access(priv)) {
-		iwl_write_prph(priv, APMG_CLK_DIS_REG,
-					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl_release_nic_access(priv);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	iwl_write_prph(priv, APMG_CLK_DIS_REG,
+				APMG_CLK_VAL_DMA_CLK_RQT);
 
 	udelay(5);
 
@@ -4243,6 +4184,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
 	priv->pci_dev = pdev;
+	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	priv->debug_level = iwl3945_mod_params.debug;
@@ -4288,6 +4230,11 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, 0x41, 0x00);
+
+	/* this spin lock will be used in apm_ops.init and EEPROM access
+	 * we should init now
+	 */
+	spin_lock_init(&priv->reg_lock);
 
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);
@@ -4344,8 +4291,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_enable_msi(priv->pci_dev);
 
-	err = request_irq(priv->pci_dev->irq, iwl_isr, IRQF_SHARED,
-			  DRV_NAME, priv);
+	err = request_irq(priv->pci_dev->irq, priv->cfg->ops->lib->isr,
+			  IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
 		goto out_disable_msi;

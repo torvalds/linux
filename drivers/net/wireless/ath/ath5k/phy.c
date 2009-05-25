@@ -1897,6 +1897,9 @@ ath5k_get_linear_pcdac_min(const u8 *stepL, const u8 *stepR,
 	s16 min_pwrL, min_pwrR;
 	s16 pwr_i;
 
+	if (WARN_ON(stepL[0] == stepL[1] || stepR[0] == stepR[1]))
+		return 0;
+
 	if (pwrL[0] == pwrL[1])
 		min_pwrL = pwrL[0];
 	else {

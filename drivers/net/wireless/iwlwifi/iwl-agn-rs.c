@@ -270,6 +270,8 @@ const static struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
   {"60", "64QAM 5/6"}
 };
 
+#define MCS_INDEX_PER_STREAM	(8)
+
 static inline u8 rs_extract_rate(u32 rate_n_flags)
 {
 	return (u8)(rate_n_flags & 0xFF);
@@ -652,19 +654,19 @@ static int rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
 	return 1;
 }
 
-/* FIXME:RS: in 4965 we don't use greenfield at all */
-/* FIXME:RS: don't use greenfield for now in TX */
-#if 0
-static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
+/* in 4965 we don't use greenfield at all */
+static inline u8 rs_use_green(struct iwl_priv *priv,
+			      struct ieee80211_conf *conf)
 {
-	return (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
-		priv->current_ht_config.is_green_field &&
-		!priv->current_ht_config.non_GF_STA_present;
-}
-#endif
-static inline u8 rs_use_green(struct iwl_priv *priv, struct ieee80211_conf *conf)
-{
-	return 0;
+	u8 is_green;
+
+	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+		is_green = 0;
+	else
+		is_green = (conf_is_ht(conf) &&
+			   priv->current_ht_config.is_green_field &&
+			   !priv->current_ht_config.non_GF_STA_present);
+	return is_green;
 }
 
 /**
@@ -2061,6 +2063,10 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		active_tbl = 1 - lq_sta->active_tbl;
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
+	if (is_legacy(tbl->lq_type))
+		lq_sta->is_green = 0;
+	else
+		lq_sta->is_green = rs_use_green(priv, conf);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2514,12 +2520,33 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 		}
 	}
 
-	if (rate_idx < 0 || rate_idx > IWL_RATE_COUNT)
-		rate_idx = rate_lowest_index(sband, sta);
-	else if (sband->band == IEEE80211_BAND_5GHZ)
+	if (lq_sta->last_rate_n_flags & RATE_MCS_HT_MSK) {
 		rate_idx -= IWL_FIRST_OFDM_RATE;
-
+		/* 6M and 9M shared same MCS index */
+		rate_idx = (rate_idx > 0) ? (rate_idx - 1) : 0;
+		if (rs_extract_rate(lq_sta->last_rate_n_flags) >=
+		    IWL_RATE_MIMO3_6M_PLCP)
+			rate_idx = rate_idx + (2 * MCS_INDEX_PER_STREAM);
+		else if (rs_extract_rate(lq_sta->last_rate_n_flags) >=
+			 IWL_RATE_MIMO2_6M_PLCP)
+			rate_idx = rate_idx + MCS_INDEX_PER_STREAM;
+		info->control.rates[0].flags = IEEE80211_TX_RC_MCS;
+		if (lq_sta->last_rate_n_flags & RATE_MCS_SGI_MSK)
+			info->control.rates[0].flags |= IEEE80211_TX_RC_SHORT_GI;
+		if (lq_sta->last_rate_n_flags & RATE_MCS_DUP_MSK)
+			info->control.rates[0].flags |= IEEE80211_TX_RC_DUP_DATA;
+		if (lq_sta->last_rate_n_flags & RATE_MCS_FAT_MSK)
+			info->control.rates[0].flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+		if (lq_sta->last_rate_n_flags & RATE_MCS_GF_MSK)
+			info->control.rates[0].flags |= IEEE80211_TX_RC_GREEN_FIELD;
+	} else {
+		if (rate_idx < 0 || rate_idx > IWL_RATE_COUNT)
+			rate_idx = rate_lowest_index(sband, sta);
+		else if (sband->band == IEEE80211_BAND_5GHZ)
+			rate_idx -= IWL_FIRST_OFDM_RATE;
+	}
 	info->control.rates[0].idx = rate_idx;
+
 }
 
 static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,
@@ -2896,7 +2923,8 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		   ((is_mimo2(tbl->lq_type)) ? "MIMO2" : "MIMO3"));
 		   desc += sprintf(buff+desc, " %s",
 		   (tbl->is_fat) ? "40MHz" : "20MHz");
-		desc += sprintf(buff+desc, " %s\n", (tbl->is_SGI) ? "SGI" : "");
+		   desc += sprintf(buff+desc, " %s %s\n", (tbl->is_SGI) ? "SGI" : "",
+		   (lq_sta->is_green) ? "GF enabled" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 		lq_sta->last_rate_n_flags);
@@ -2959,13 +2987,14 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 		return -ENOMEM;
 
 	for (i = 0; i < LQ_SIZE; i++) {
-		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d\n"
+		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d GF=%d\n"
 				"rate=0x%X\n",
 				lq_sta->active_tbl == i ? "*" : "x",
 				lq_sta->lq_info[i].lq_type,
 				lq_sta->lq_info[i].is_SGI,
 				lq_sta->lq_info[i].is_fat,
 				lq_sta->lq_info[i].is_dup,
+				lq_sta->is_green,
 				lq_sta->lq_info[i].current_rate);
 		for (j = 0; j < IWL_RATE_COUNT; j++) {
 			desc += sprintf(buff+desc,

@@ -172,7 +172,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
 	const size_t bufsz = sizeof(buf);
 
-	iwl_grab_nic_access(priv);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
 		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \
 					priv->dbgfs->sram_len - i);
@@ -192,7 +191,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos, "0x%08x ", val);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "\n");
-	iwl_release_nic_access(priv);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	return ret;
@@ -292,7 +290,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
+static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 				       char __user *user_buf,
 				       size_t count,
 				       loff_t *ppos)
@@ -306,7 +304,7 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IWL_ERR(priv, "EEPROM size is not multiple of 16.\n");
+		IWL_ERR(priv, "NVM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
@@ -318,6 +316,13 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	}
 
 	ptr = priv->eeprom;
+	if (!ptr) {
+		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
+		return -ENOMEM;
+	}
+	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s\n",
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			? "OTP" : "EEPROM");
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
@@ -375,51 +380,53 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	}
 
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
-	channels = supp_band->channels;
+	if (supp_band) {
+		channels = supp_band->channels;
 
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"Displaying %d channels in 2.4GHz band 802.11bg):\n",
-			 supp_band->n_channels);
-
-	for (i = 0; i < supp_band->n_channels; i++)
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"%d: %ddBm: BSS%s%s, %s.\n",
-				ieee80211_frequency_to_channel(
-				channels[i].center_freq),
-				channels[i].max_power,
-				channels[i].flags & IEEE80211_CHAN_RADAR ?
-				" (IEEE 802.11h required)" : "",
-				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
-				|| (channels[i].flags &
-				IEEE80211_CHAN_RADAR)) ? "" :
-				", IBSS",
-				channels[i].flags &
-				IEEE80211_CHAN_PASSIVE_SCAN ?
-				"passive only" : "active/passive");
+				"Displaying %d channels in 2.4GHz band 802.11bg):\n",
+				supp_band->n_channels);
 
+		for (i = 0; i < supp_band->n_channels; i++)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"%d: %ddBm: BSS%s%s, %s.\n",
+					ieee80211_frequency_to_channel(
+					channels[i].center_freq),
+					channels[i].max_power,
+					channels[i].flags & IEEE80211_CHAN_RADAR ?
+					" (IEEE 802.11h required)" : "",
+					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					|| (channels[i].flags &
+					IEEE80211_CHAN_RADAR)) ? "" :
+					", IBSS",
+					channels[i].flags &
+					IEEE80211_CHAN_PASSIVE_SCAN ?
+					"passive only" : "active/passive");
+	}
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
-	channels = supp_band->channels;
+	if (supp_band) {
+		channels = supp_band->channels;
 
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"Displaying %d channels in 5.2GHz band (802.11a)\n",
-			supp_band->n_channels);
-
-	for (i = 0; i < supp_band->n_channels; i++)
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"%d: %ddBm: BSS%s%s, %s.\n",
-				ieee80211_frequency_to_channel(
-				channels[i].center_freq),
-				channels[i].max_power,
-				channels[i].flags & IEEE80211_CHAN_RADAR ?
-				" (IEEE 802.11h required)" : "",
-				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
-				|| (channels[i].flags &
-				IEEE80211_CHAN_RADAR)) ? "" :
-				", IBSS",
-				channels[i].flags &
-				IEEE80211_CHAN_PASSIVE_SCAN ?
-				"passive only" : "active/passive");
+				"Displaying %d channels in 5.2GHz band (802.11a)\n",
+				supp_band->n_channels);
 
+		for (i = 0; i < supp_band->n_channels; i++)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"%d: %ddBm: BSS%s%s, %s.\n",
+					ieee80211_frequency_to_channel(
+					channels[i].center_freq),
+					channels[i].max_power,
+					channels[i].flags & IEEE80211_CHAN_RADAR ?
+					" (IEEE 802.11h required)" : "",
+					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					|| (channels[i].flags &
+					IEEE80211_CHAN_RADAR)) ? "" :
+					", IBSS",
+					channels[i].flags &
+					IEEE80211_CHAN_PASSIVE_SCAN ?
+					"passive only" : "active/passive");
+	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
@@ -564,7 +571,7 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
-DEBUGFS_READ_FILE_OPS(eeprom);
+DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
@@ -598,7 +605,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
 	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
-	DEBUGFS_ADD_FILE(eeprom, data);
+	DEBUGFS_ADD_FILE(nvm, data);
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(log_event, data);
 	DEBUGFS_ADD_FILE(stations, data);
@@ -629,7 +636,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	if (!priv->dbgfs)
 		return;
 
-	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_eeprom);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_nvm);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);

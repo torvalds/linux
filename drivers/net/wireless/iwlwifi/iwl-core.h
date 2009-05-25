@@ -112,6 +112,19 @@ struct iwl_hcmd_utils_ops {
 			  struct iwl_rx_phy_res *rx_resp);
 };
 
+struct iwl_apm_ops {
+	int (*init)(struct iwl_priv *priv);
+	int (*reset)(struct iwl_priv *priv);
+	void (*stop)(struct iwl_priv *priv);
+	void (*config)(struct iwl_priv *priv);
+	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
+};
+
+struct iwl_temp_ops {
+	void (*temperature)(struct iwl_priv *priv);
+	void (*set_ct_kill)(struct iwl_priv *priv);
+};
+
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -149,23 +162,21 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	 /* power management */
-	struct {
-		int (*init)(struct iwl_priv *priv);
-		int (*reset)(struct iwl_priv *priv);
-		void (*stop)(struct iwl_priv *priv);
-		void (*config)(struct iwl_priv *priv);
-		int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
-	} apm_ops;
+	/* power management */
+	struct iwl_apm_ops apm_ops;
+
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*temperature) (struct iwl_priv *priv);
 	void (*post_associate) (struct iwl_priv *priv);
 	void (*config_ap) (struct iwl_priv *priv);
+	irqreturn_t (*isr) (int irq, void *data);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
+
+	/* temperature */
+	struct iwl_temp_ops temp_ops;
 };
 
 struct iwl_ops {
@@ -229,6 +240,7 @@ struct iwl_cfg {
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
 	bool need_pll_cfg;
+	bool use_isr_legacy;
 };
 
 /***************************
@@ -306,10 +318,11 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 void iwl_rx_replenish(struct iwl_priv *priv);
+void iwl_rx_replenish_now(struct iwl_priv *priv);
 int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
-void iwl_rx_allocate(struct iwl_priv *priv);
+void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
@@ -456,7 +469,13 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
  *****************************************************/
 void iwl_disable_interrupts(struct iwl_priv *priv);
 void iwl_enable_interrupts(struct iwl_priv *priv);
-irqreturn_t iwl_isr(int irq, void *data);
+irqreturn_t iwl_isr_legacy(int irq, void *data);
+int iwl_reset_ict(struct iwl_priv *priv);
+void iwl_disable_ict(struct iwl_priv *priv);
+int iwl_alloc_isr_ict(struct iwl_priv *priv);
+void iwl_free_isr_ict(struct iwl_priv *priv);
+irqreturn_t iwl_isr_ict(int irq, void *data);
+
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
 	int pos;
