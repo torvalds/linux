@@ -863,6 +863,32 @@ out:
 	return ret;
 }
 
+static int vidioc_enum_framesizes(struct file *file, void *priv,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	struct gspca_dev *gspca_dev = priv;
+	int i;
+	__u32 index = 0;
+
+	for (i = 0; i < gspca_dev->cam.nmodes; i++) {
+		if (fsize->pixel_format !=
+				gspca_dev->cam.cam_mode[i].pixelformat)
+			continue;
+
+		if (fsize->index == index) {
+			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fsize->discrete.width =
+				gspca_dev->cam.cam_mode[i].width;
+			fsize->discrete.height =
+				gspca_dev->cam.cam_mode[i].height;
+			return 0;
+		}
+		index++;
+	}
+
+	return -EINVAL;
+}
+
 static void gspca_release(struct video_device *vfd)
 {
 	struct gspca_dev *gspca_dev = container_of(vfd, struct gspca_dev, vdev);
@@ -1858,6 +1884,7 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_g_parm		= vidioc_g_parm,
 	.vidioc_s_parm		= vidioc_s_parm,
 	.vidioc_s_std		= vidioc_s_std,
+	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
