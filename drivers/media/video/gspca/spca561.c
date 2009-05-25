@@ -48,9 +48,9 @@ struct sd {
 #define BRIGHTNESS_MAX 0x3f
 
 	__u8 white;
-#define WHITE_MIN 1
-#define WHITE_DEF 0x40
-#define WHITE_MAX 0x7f
+#define HUE_MIN 1
+#define HUE_DEF 0x40
+#define HUE_MAX 0x7f
 
 	__u8 autogain;
 #define AUTOGAIN_MIN 0
@@ -461,7 +461,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
-	sd->white = WHITE_DEF;
+	sd->white = HUE_DEF;
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->gain = GAIN_DEF;
@@ -929,13 +929,13 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 static struct ctrl sd_ctrls_12a[] = {
 	{
 	    {
-		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.id = V4L2_CID_HUE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "White Balance",
-		.minimum = WHITE_MIN,
-		.maximum = WHITE_MAX,
+		.name = "Hue",
+		.minimum = HUE_MIN,
+		.maximum = HUE_MAX,
 		.step = 1,
-		.default_value = WHITE_DEF,
+		.default_value = HUE_DEF,
 	    },
 	    .set = sd_setwhite,
 	    .get = sd_getwhite,
@@ -971,13 +971,13 @@ static struct ctrl sd_ctrls_12a[] = {
 static struct ctrl sd_ctrls_72a[] = {
 	{
 	    {
-		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.id = V4L2_CID_HUE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "White Balance",
-		.minimum = WHITE_MIN,
-		.maximum = WHITE_MAX,
+		.name = "Hue",
+		.minimum = HUE_MIN,
+		.maximum = HUE_MAX,
 		.step = 1,
-		.default_value = WHITE_DEF,
+		.default_value = HUE_DEF,
 	    },
 	    .set = sd_setwhite,
 	    .get = sd_getwhite,
