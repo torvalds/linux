@@ -10639,31 +10639,46 @@ static struct hda_verb alc262_HP_BPC_init_verbs[] = {
 	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
 
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x7023 },
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
         {0x19, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0x7023 },
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
 	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000 },
 
 
 	/* FIXME: use matrix-type input source selection */
-	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
-	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
+	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 0b, 12 */
+	/* Input mixer1: only unmute Mic */
 	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x05 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x06 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x07 << 8))},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x08 << 8))},
 	/* Input mixer2 */
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x05 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x06 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x07 << 8))},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x08 << 8))},
 	/* Input mixer3 */
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x03 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x02 << 8))},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x04 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x01 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x02 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x03 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x05 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x06 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x07 << 8))},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x08 << 8))},
 
 	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 
