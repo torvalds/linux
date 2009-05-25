@@ -374,18 +374,26 @@ static struct sym_entry		tmp[MAX_SYMS];
 
 static void print_sym_table(void)
 {
-	int i, printed;
+	int i, j, active_count, printed;
 	int counter;
 	float events_per_sec = events/delay_secs;
 	float kevents_per_sec = (events-userspace_events)/delay_secs;
 	float sum_kevents = 0.0;
 
 	events = userspace_events = 0;
-	memcpy(tmp, sym_table, sizeof(sym_table[0])*sym_table_count);
-	qsort(tmp, sym_table_count, sizeof(tmp[0]), compare);
 
-	for (i = 0; i < sym_table_count && tmp[i].count[0]; i++)
-		sum_kevents += tmp[i].count[0];
+	/* Iterate over symbol table and copy/tally/decay active symbols. */
+	for (i = 0, active_count = 0; i < sym_table_count; i++) {
+		if (sym_table[i].count[0]) {
+			tmp[active_count++] = sym_table[i];
+			sum_kevents += sym_table[i].count[0];
+
+			for (j = 0; j < nr_counters; j++)
+				sym_table[i].count[j] = zero ? 0 : sym_table[i].count[j] * 7 / 8;
+		}
+	}
+
+	qsort(tmp, active_count + 1, sizeof(tmp[0]), compare);
 
 	write(1, CONSOLE_CLEAR, strlen(CONSOLE_CLEAR));
 
@@ -433,29 +441,23 @@ static void print_sym_table(void)
 	       	       "  ______     ______   _____   ________________   _______________\n\n"
 	);
 
-	for (i = 0, printed = 0; i < sym_table_count; i++) {
+	for (i = 0, printed = 0; i < active_count; i++) {
 		float pcnt;
-		int count;
 
-		if (printed <= 18 && tmp[i].count[0] >= count_filter) {
-			pcnt = 100.0 - (100.0*((sum_kevents-tmp[i].count[0])/sum_kevents));
+		if (++printed > 18 || tmp[i].count[0] < count_filter)
+			break;
 
-			if (nr_counters == 1)
-				printf("%19.2f - %4.1f%% - %016llx : %s\n",
-					sym_weight(tmp + i),
-					pcnt, tmp[i].addr, tmp[i].sym);
-			else
-				printf("%8.1f %10ld - %4.1f%% - %016llx : %s\n",
-					sym_weight(tmp + i),
-					tmp[i].count[0],
-					pcnt, tmp[i].addr, tmp[i].sym);
-			printed++;
-		}
-		/*
-		 * Add decay to the counts:
-		 */
-		for (count = 0; count < nr_counters; count++)
-			sym_table[i].count[count] = zero ? 0 : sym_table[i].count[count] * 7 / 8;
+		pcnt = 100.0 - (100.0*((sum_kevents-tmp[i].count[0])/sum_kevents));
+
+		if (nr_counters == 1)
+			printf("%19.2f - %4.1f%% - %016llx : %s\n",
+				sym_weight(tmp + i),
+				pcnt, tmp[i].addr, tmp[i].sym);
+		else
+			printf("%8.1f %10ld - %4.1f%% - %016llx : %s\n",
+				sym_weight(tmp + i),
+				tmp[i].count[0],
+				pcnt, tmp[i].addr, tmp[i].sym);
 	}
 
 	if (sym_filter_entry)
