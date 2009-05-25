@@ -924,14 +924,13 @@ void perf_counter_task_sched_out(struct task_struct *task,
 	struct perf_counter_context *next_ctx;
 	struct pt_regs *regs;
 
+	regs = task_pt_regs(task);
+	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
+
 	if (likely(!ctx || !cpuctx->task_ctx))
 		return;
 
 	update_context_time(ctx);
-
-	regs = task_pt_regs(task);
-	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
-
 	next_ctx = next->perf_counter_ctxp;
 	if (next_ctx && context_equiv(ctx, next_ctx)) {
 		task->perf_counter_ctxp = next_ctx;
