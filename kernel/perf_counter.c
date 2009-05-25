@@ -3434,17 +3434,22 @@ again:
 /*
  * Initialize the perf_counter context in task_struct
  */
-void perf_counter_init_task(struct task_struct *child)
+int perf_counter_init_task(struct task_struct *child)
 {
 	struct perf_counter_context *child_ctx, *parent_ctx;
 	struct perf_counter *counter;
 	struct task_struct *parent = current;
 	int inherited_all = 1;
+	int ret = 0;
 
 	child->perf_counter_ctxp = NULL;
 
 	mutex_init(&child->perf_counter_mutex);
 	INIT_LIST_HEAD(&child->perf_counter_list);
+
+	parent_ctx = parent->perf_counter_ctxp;
+	if (likely(!parent_ctx || !parent_ctx->nr_counters))
+		return 0;
 
 	/*
 	 * This is executed from the parent task context, so inherit
@@ -3454,11 +3459,7 @@ void perf_counter_init_task(struct task_struct *child)
 
 	child_ctx = kmalloc(sizeof(struct perf_counter_context), GFP_KERNEL);
 	if (!child_ctx)
-		return;
-
-	parent_ctx = parent->perf_counter_ctxp;
-	if (likely(!parent_ctx || !parent_ctx->nr_counters))
-		return;
+		return -ENOMEM;
 
 	__perf_counter_init_context(child_ctx, child);
 	child->perf_counter_ctxp = child_ctx;
@@ -3482,8 +3483,9 @@ void perf_counter_init_task(struct task_struct *child)
 			continue;
 		}
 
-		if (inherit_group(counter, parent,
-				  parent_ctx, child, child_ctx)) {
+		ret = inherit_group(counter, parent, parent_ctx,
+					     child, child_ctx);
+		if (ret) {
 			inherited_all = 0;
 			break;
 		}
@@ -3505,6 +3507,8 @@ void perf_counter_init_task(struct task_struct *child)
 	}
 
 	mutex_unlock(&parent_ctx->mutex);
+
+	return ret;
 }
 
 static void __cpuinit perf_counter_init_cpu(int cpu)
