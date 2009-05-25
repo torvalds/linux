@@ -188,6 +188,7 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8275), .driver_data = MODEL_DX },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x82b7), .driver_data = MODEL_D2X },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8314), .driver_data = MODEL_HDAV },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8327), .driver_data = MODEL_DX },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x834f), .driver_data = MODEL_D1 },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835c), .driver_data = MODEL_STX },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
