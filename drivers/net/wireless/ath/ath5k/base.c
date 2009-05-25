@@ -2779,7 +2779,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 
 	ret = ath5k_chan_set(sc, conf->channel);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
 	(sc->power_level != conf->power_level)) {
@@ -2808,8 +2808,9 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
 
+unlock:
 	mutex_unlock(&sc->lock);
-	return 0;
+	return ret;
 }
 
 #define SUPPORTED_FIF_FLAGS \
