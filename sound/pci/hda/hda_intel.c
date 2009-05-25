@@ -522,6 +522,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* RIRB set up */
 	chip->rirb.addr = chip->rb.addr + 2048;
 	chip->rirb.buf = (u32 *)(chip->rb.area + 2048);
+	chip->rirb.wp = chip->rirb.rp = chip->rirb.cmds = 0;
 	azx_writel(chip, RIRBLBASE, (u32)chip->rirb.addr);
 	azx_writel(chip, RIRBUBASE, upper_32_bits(chip->rirb.addr));
 
@@ -533,7 +534,6 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
-	chip->rirb.rp = chip->rirb.cmds = 0;
 }
 
 static void azx_free_cmd_io(struct azx *chip)
@@ -654,9 +654,11 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 
 	snd_printk(KERN_ERR SFX "azx_get_response timeout (ERROR): "
 		   "last cmd=0x%08x\n", chip->last_cmd);
+	/* re-initialize CORB/RIRB */
 	spin_lock_irq(&chip->reg_lock);
-	chip->rirb.cmds = 0; /* reset the index */
 	bus->rirb_error = 1;
+	azx_free_cmd_io(chip);
+	azx_init_cmd_io(chip);
 	spin_unlock_irq(&chip->reg_lock);
 	return -1;
 }
