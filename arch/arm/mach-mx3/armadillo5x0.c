@@ -274,20 +274,6 @@ static void __init armadillo5x0_init(void)
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 }
 
-/*
- * Set up static virtual mappings.
- */
-static void __init armadillo5x0_map_io(void)
-{
-	/*
-	 * Maps:
-	 * - NAND, SDRAM, WEIM, M3IF, EMI controllers
-	 * - AVIC (Vectored Interrupt controller)
-	 * - AIPS1 and AIPS2
-	 **/
-	mxc_map_io();
-}
-
 static void __init armadillo5x0_timer_init(void)
 {
 	mx31_clocks_init(26000000);
@@ -302,7 +288,7 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
-	.map_io		= armadillo5x0_map_io,
+	.map_io		= mx31_map_io,
 	.init_irq	= mxc_init_irq,
 	.timer		= &armadillo5x0_timer,
 	.init_machine	= armadillo5x0_init,
