@@ -546,5 +546,6 @@ void tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
 		       unsigned char ch_mask, unsigned char wide_mask);
 void tx4939_dmac_init(int memcpy_chan0, int memcpy_chan1);
 void tx4939_aclc_init(void);
+void tx4939_sramc_init(void);
 
 #endif /* __ASM_TXX9_TX4939_H */

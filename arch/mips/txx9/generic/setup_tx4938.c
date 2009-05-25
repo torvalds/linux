@@ -425,6 +425,12 @@ void __init tx4938_aclc_init(void)
 			       1, 0, 1);
 }
 
+void __init tx4938_sramc_init(void)
+{
+	if (tx4938_sram_resource.start)
+		txx9_sramc_init(&tx4938_sram_resource);
+}
+
 static void __init tx4938_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;

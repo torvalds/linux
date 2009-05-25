@@ -95,5 +95,6 @@ void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 			   unsigned int dmac_id,
 			   unsigned int dma_chan_out,
 			   unsigned int dma_chan_in);
+void __init txx9_sramc_init(struct resource *r);
 
 #endif /* __ASM_TXX9_GENERIC_H */

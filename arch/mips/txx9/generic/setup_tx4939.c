@@ -494,6 +494,12 @@ void __init tx4939_aclc_init(void)
 			       TXX9_IRQ_BASE + TX4939_IR_ACLC, 1, 0, 1);
 }
 
+void __init tx4939_sramc_init(void)
+{
+	if (tx4939_sram_resource.start)
+		txx9_sramc_init(&tx4939_sram_resource);
+}
+
 static void __init tx4939_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;
