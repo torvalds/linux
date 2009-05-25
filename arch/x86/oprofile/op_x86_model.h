@@ -11,14 +11,16 @@
 #ifndef OP_X86_MODEL_H
 #define OP_X86_MODEL_H
 
-#define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
-#define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
-#define CTRL_SET_ACTIVE(n) (n |= (1<<22))
-#define CTRL_SET_ENABLE(val) (val |= 1<<20)
-#define CTRL_SET_INACTIVE(n) (n &= ~(1<<22))
-#define CTRL_SET_KERN(val, k) (val |= ((k & 1) << 17))
-#define CTRL_SET_UM(val, m) (val |= (m << 8))
-#define CTRL_SET_USR(val, u) (val |= ((u & 1) << 16))
+#include <asm/intel_arch_perfmon.h>
+
+#define CTR_IS_RESERVED(msrs, c)	((msrs)->counters[(c)].addr ? 1 : 0)
+#define CTRL_IS_RESERVED(msrs, c)	((msrs)->controls[(c)].addr ? 1 : 0)
+#define CTRL_SET_ACTIVE(val)		((val) |= ARCH_PERFMON_EVENTSEL0_ENABLE)
+#define CTRL_SET_ENABLE(val)		((val) |= ARCH_PERFMON_EVENTSEL_INT)
+#define CTRL_SET_INACTIVE(val)		((val) &= ~ARCH_PERFMON_EVENTSEL0_ENABLE)
+#define CTRL_SET_KERN(val, k)		((val) |= ((k) ? ARCH_PERFMON_EVENTSEL_OS : 0))
+#define CTRL_SET_USR(val, u)		((val) |= ((u) ? ARCH_PERFMON_EVENTSEL_USR : 0))
+#define CTRL_SET_UM(val, m)		((val) |= ((m) << 8))
 
 struct op_saved_msr {
 	unsigned int high;

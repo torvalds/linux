@@ -18,7 +18,6 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
-#include <asm/intel_arch_perfmon.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"
