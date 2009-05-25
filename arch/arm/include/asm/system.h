@@ -248,6 +248,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	unsigned int tmp;
 #endif
 
+	smp_mb();
+
 	switch (size) {
 #if __LINUX_ARM_ARCH__ >= 6
 	case 1:
@@ -307,6 +309,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		__bad_xchg(ptr, size), ret = 0;
 		break;
 	}
+	smp_mb();
 
 	return ret;
 }
