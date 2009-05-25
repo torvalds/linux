@@ -26,10 +26,9 @@
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
 #define OP_EVENT_MASK			0x0FFF
+#define OP_CTR_OVERFLOW			(1ULL<<31)
 
 #define MSR_AMD_EVENTSEL_RESERVED	((0xFFFFFCF0ULL<<32)|(1ULL<<21))
-
-#define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
 
 static unsigned long reset_value[NUM_COUNTERS];
 
@@ -241,17 +240,18 @@ static inline void op_amd_stop_ibs(void) { }
 static int op_amd_check_ctrs(struct pt_regs * const regs,
 			     struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 
 	for (i = 0 ; i < NUM_COUNTERS; ++i) {
 		if (!reset_value[i])
 			continue;
-		rdmsr(msrs->counters[i].addr, low, high);
-		if (CTR_OVERFLOWED(low)) {
-			oprofile_add_sample(regs, i);
-			wrmsr(msrs->counters[i].addr, -(unsigned int)reset_value[i], -1);
-		}
+		rdmsrl(msrs->counters[i].addr, val);
+		/* bit is clear if overflowed: */
+		if (val & OP_CTR_OVERFLOW)
+			continue;
+		oprofile_add_sample(regs, i);
+		wrmsr(msrs->counters[i].addr, -(unsigned int)reset_value[i], -1);
 	}
 
 	op_amd_handle_ibs(regs, msrs);

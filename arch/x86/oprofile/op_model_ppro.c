@@ -26,8 +26,6 @@
 static int num_counters = 2;
 static int counter_width = 32;
 
-#define CTR_OVERFLOWED(n) (!((n) & (1ULL<<(counter_width-1))))
-
 #define MSR_PPRO_EVENTSEL_RESERVED	((0xFFFFFFFFULL<<32)|(1ULL<<21))
 
 static u64 *reset_value;
@@ -124,10 +122,10 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 		if (!reset_value[i])
 			continue;
 		rdmsrl(msrs->counters[i].addr, val);
-		if (CTR_OVERFLOWED(val)) {
-			oprofile_add_sample(regs, i);
-			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
-		}
+		if (val & (1ULL << (counter_width - 1)))
+			continue;
+		oprofile_add_sample(regs, i);
+		wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 	}
 
 	/* Only P6 based Pentium M need to re-unmask the apic vector but it

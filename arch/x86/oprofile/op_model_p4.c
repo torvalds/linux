@@ -32,6 +32,8 @@
 #define NUM_CCCRS_HT2 9
 #define NUM_CONTROLS_HT2 (NUM_ESCRS_HT2 + NUM_CCCRS_HT2)
 
+#define OP_CTR_OVERFLOW			(1ULL<<31)
+
 static unsigned int num_counters = NUM_COUNTERS_NON_HT;
 static unsigned int num_controls = NUM_CONTROLS_NON_HT;
 
@@ -362,8 +364,6 @@ static struct p4_event_binding p4_events[NUM_EVENTS] = {
 #define CCCR_OVF_P(cccr) ((cccr) & (1U<<31))
 #define CCCR_CLEAR_OVF(cccr) ((cccr) &= (~(1U<<31)))
 
-#define CTR_OVERFLOW_P(ctr) (!((ctr) & 0x80000000))
-
 
 /* this assigns a "stagger" to the current CPU, which is used throughout
    the code in this module as an extra array offset, to select the "even"
@@ -622,7 +622,7 @@ static int p4_check_ctrs(struct pt_regs * const regs,
 
 		rdmsr(p4_counters[real].cccr_address, low, high);
 		rdmsr(p4_counters[real].counter_address, ctr, high);
-		if (CCCR_OVF_P(low) || CTR_OVERFLOW_P(ctr)) {
+		if (CCCR_OVF_P(low) || !(ctr & OP_CTR_OVERFLOW)) {
 			oprofile_add_sample(regs, i);
 			wrmsr(p4_counters[real].counter_address,
 			      -(u32)reset_value[i], -1);
