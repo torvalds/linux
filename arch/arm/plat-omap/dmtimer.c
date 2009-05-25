@@ -214,7 +214,7 @@ static const char *omap2_dm_source_names[] __initdata = {
 	NULL
 };
 
-static struct clk **omap2_dm_source_clocks[3];
+static struct clk *omap2_dm_source_clocks[3];
 static const int dm_timer_count = ARRAY_SIZE(omap2_dm_timers);
 
 #elif defined(CONFIG_ARCH_OMAP3)
@@ -247,7 +247,7 @@ static const char *omap3_dm_source_names[] __initdata = {
 	NULL
 };
 
-static struct clk **omap3_dm_source_clocks[2];
+static struct clk *omap3_dm_source_clocks[2];
 static const int dm_timer_count = ARRAY_SIZE(omap3_dm_timers);
 
 #else
@@ -257,7 +257,7 @@ static const int dm_timer_count = ARRAY_SIZE(omap3_dm_timers);
 #endif
 
 static struct omap_dm_timer *dm_timers;
-static char **dm_source_names;
+static const char **dm_source_names;
 static struct clk **dm_source_clocks;
 
 static spinlock_t dm_timer_lock;
@@ -705,12 +705,12 @@ int __init omap_dm_timer_init(void)
 		dm_timers = omap1_dm_timers;
 	else if (cpu_is_omap24xx()) {
 		dm_timers = omap2_dm_timers;
-		dm_source_names = (char **)omap2_dm_source_names;
-		dm_source_clocks = (struct clk **)omap2_dm_source_clocks;
+		dm_source_names = omap2_dm_source_names;
+		dm_source_clocks = omap2_dm_source_clocks;
 	} else if (cpu_is_omap34xx()) {
 		dm_timers = omap3_dm_timers;
-		dm_source_names = (char **)omap3_dm_source_names;
-		dm_source_clocks = (struct clk **)omap3_dm_source_clocks;
+		dm_source_names = omap3_dm_source_names;
+		dm_source_clocks = omap3_dm_source_clocks;
 	}
 
 	if (cpu_class_is_omap2())
