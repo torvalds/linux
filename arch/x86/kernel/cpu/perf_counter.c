@@ -719,11 +719,6 @@ static void intel_pmu_save_and_restart(struct perf_counter *counter)
 }
 
 /*
- * Maximum interrupt frequency of 100KHz per CPU
- */
-#define PERFMON_MAX_INTERRUPTS (100000/HZ)
-
-/*
  * This handler is triggered by the local APIC, so the APIC IRQ handling
  * rules apply:
  */
@@ -775,15 +770,14 @@ again:
 	if (status)
 		goto again;
 
-	if (++cpuc->interrupts != PERFMON_MAX_INTERRUPTS)
-		perf_enable();
+	perf_enable();
 
 	return 1;
 }
 
 static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 {
-	int cpu, idx, throttle = 0, handled = 0;
+	int cpu, idx, handled = 0;
 	struct cpu_hw_counters *cpuc;
 	struct perf_counter *counter;
 	struct hw_perf_counter *hwc;
@@ -792,16 +786,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
-	if (++cpuc->interrupts == PERFMON_MAX_INTERRUPTS) {
-		throttle = 1;
-		__perf_disable();
-		cpuc->enabled = 0;
-		barrier();
-	}
-
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		int disable = 0;
-
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
@@ -809,43 +794,21 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 		hwc = &counter->hw;
 
 		if (counter->hw_event.nmi != nmi)
-			goto next;
+			continue;
 
 		val = x86_perf_counter_update(counter, hwc, idx);
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
-			goto next;
+			continue;
 
 		/* counter overflow */
 		x86_perf_counter_set_period(counter, hwc, idx);
 		handled = 1;
 		inc_irq_stat(apic_perf_irqs);
-		disable = perf_counter_overflow(counter, nmi, regs, 0);
-
-next:
-		if (disable || throttle)
+		if (perf_counter_overflow(counter, nmi, regs, 0))
 			amd_pmu_disable_counter(hwc, idx);
 	}
 
 	return handled;
-}
-
-void perf_counter_unthrottle(void)
-{
-	struct cpu_hw_counters *cpuc;
-
-	if (!x86_pmu_initialized())
-		return;
-
-	cpuc = &__get_cpu_var(cpu_hw_counters);
-	if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS) {
-		/*
-		 * Clear them before re-enabling irqs/NMIs again:
-		 */
-		cpuc->interrupts = 0;
-		perf_enable();
-	} else {
-		cpuc->interrupts = 0;
-	}
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)

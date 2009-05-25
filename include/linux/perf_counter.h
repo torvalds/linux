@@ -570,7 +570,6 @@ extern int perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
 extern void perf_counter_do_pending(void);
 extern void perf_counter_print_debug(void);
-extern void perf_counter_unthrottle(void);
 extern void __perf_disable(void);
 extern bool __perf_enable(void);
 extern void perf_disable(void);
@@ -635,7 +634,6 @@ static inline int perf_counter_init_task(struct task_struct *child)	{ }
 static inline void perf_counter_exit_task(struct task_struct *child)	{ }
 static inline void perf_counter_do_pending(void)			{ }
 static inline void perf_counter_print_debug(void)			{ }
-static inline void perf_counter_unthrottle(void)			{ }
 static inline void perf_disable(void)					{ }
 static inline void perf_enable(void)					{ }
 static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
