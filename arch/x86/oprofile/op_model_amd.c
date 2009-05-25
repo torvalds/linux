@@ -31,8 +31,6 @@
 #define CTRL_CLEAR_HI(x) (x &= 0xfffffcf0)
 #define CTRL_SET_EVENT_LOW(val, e) (val |= (e & 0xff))
 #define CTRL_SET_EVENT_HIGH(val, e) (val |= ((e >> 8) & 0xf))
-#define CTRL_SET_HOST_ONLY(val, h) (val |= ((h & 1) << 9))
-#define CTRL_SET_GUEST_ONLY(val, h) (val |= ((h & 1) << 8))
 
 static unsigned long reset_value[NUM_COUNTERS];
 
@@ -125,9 +123,6 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 			CTRL_SET_UM(low, counter_config[i].unit_mask);
 			CTRL_SET_EVENT_LOW(low, counter_config[i].event);
 			CTRL_SET_EVENT_HIGH(high, counter_config[i].event);
-			CTRL_SET_HOST_ONLY(high, 0);
-			CTRL_SET_GUEST_ONLY(high, 0);
-
 			wrmsr(msrs->controls[i].addr, low, high);
 		} else {
 			reset_value[i] = 0;
