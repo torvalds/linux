@@ -255,6 +255,7 @@ const struct mem_type *get_mem_type(unsigned int type)
 {
 	return type < ARRAY_SIZE(mem_types) ? &mem_types[type] : NULL;
 }
+EXPORT_SYMBOL(get_mem_type);
 
 /*
  * Adjust the PMD section entries according to the CPU in use.
