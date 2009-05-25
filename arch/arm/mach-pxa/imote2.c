@@ -459,6 +459,9 @@ static struct i2c_board_info __initdata imote2_i2c_board_info[] = {
 		.type = "tmp175",
 		.addr = 0x4A,
 		.irq = IRQ_GPIO(96),
+	}, { /* IMB400 Multimedia board */
+		.type = "wm8940",
+		.addr = 0x1A,
 	},
 };
 
