@@ -266,9 +266,9 @@ static __u64 match_event_symbols(char *str)
 
 	switch (sscanf(str, "%d:%llu:%2s", &type, &id, mask_str)) {
 		case 3:
-			if (strchr(mask_str, 'u'))
-				event_mask[nr_counters] |= EVENT_MASK_USER;
 			if (strchr(mask_str, 'k'))
+				event_mask[nr_counters] |= EVENT_MASK_USER;
+			if (strchr(mask_str, 'u'))
 				event_mask[nr_counters] |= EVENT_MASK_KERNEL;
 		case 2:
 			return EID(type, id);
