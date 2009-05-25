@@ -262,13 +262,13 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 
 static void op_amd_start(struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (reset_value[i]) {
-			rdmsr(msrs->controls[i].addr, low, high);
-			CTRL_SET_ACTIVE(low);
-			wrmsr(msrs->controls[i].addr, low, high);
+			rdmsrl(msrs->controls[i].addr, val);
+			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+			wrmsrl(msrs->controls[i].addr, val);
 		}
 	}
 
@@ -277,7 +277,7 @@ static void op_amd_start(struct op_msrs const * const msrs)
 
 static void op_amd_stop(struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 
 	/*
@@ -287,9 +287,9 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (!reset_value[i])
 			continue;
-		rdmsr(msrs->controls[i].addr, low, high);
-		CTRL_SET_INACTIVE(low);
-		wrmsr(msrs->controls[i].addr, low, high);
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 
 	op_amd_stop_ibs();
