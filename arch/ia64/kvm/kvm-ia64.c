@@ -1224,7 +1224,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 		/*Initialize itc offset for vcpus*/
 		itc_offset = 0UL - kvm_get_itc(vcpu);
-		for (i = 0; i < kvm->arch.online_vcpus; i++) {
+		for (i = 0; i < KVM_MAX_VCPUS; i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
 			v->arch.itc_offset = itc_offset;
