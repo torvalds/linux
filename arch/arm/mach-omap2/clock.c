@@ -91,9 +91,9 @@ static void _omap2xxx_clk_commit(struct clk *clk)
 		return;
 
 	prm_write_mod_reg(OMAP24XX_VALID_CONFIG, OMAP24XX_GR_MOD,
-		OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
+		OMAP2_PRCM_CLKCFG_CTRL_OFFSET);
 	/* OCP barrier */
-	prm_read_mod_reg(OMAP24XX_GR_MOD, OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
+	prm_read_mod_reg(OMAP24XX_GR_MOD, OMAP2_PRCM_CLKCFG_CTRL_OFFSET);
 }
 
 /*
