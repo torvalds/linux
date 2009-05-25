@@ -154,11 +154,11 @@ struct perf_counter_hw_event {
 
 				__reserved_1   : 51;
 
-	__u32			extra_config_len;
 	__u32			wakeup_events;	/* wakeup every n events */
+	__u32			__reserved_2;
 
-	__u64			__reserved_2;
 	__u64			__reserved_3;
+	__u64			__reserved_4;
 };
 
 /*
