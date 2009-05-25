@@ -62,8 +62,7 @@ if [ "$1" = "--file" ]; then
 	if [ "$FN" = "" ] ; then
 		usage
 	fi
-	shift
-	shift
+	shift 2
 else
 	FN=.config
 fi
@@ -76,26 +75,34 @@ while [ "$1" != "" ] ; do
 	CMD="$1"
 	shift
 	case "$CMD" in
-	--enable|-e)
+	--refresh)
+		;;
+	--*-after)
 		checkarg "$1"
-		set_var "CONFIG_$ARG" "CONFIG_$ARG=y"
+		A=$ARG
+		checkarg "$2"
+		B=$ARG
+		shift 2
+		;;
+	--*)
+		checkarg "$1"
 		shift
+		;;
+	esac
+	case "$CMD" in
+	--enable|-e)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=y"
 		;;
 
 	--disable|-d)
-		checkarg "$1"
 		set_var "CONFIG_$ARG" "# CONFIG_$ARG is not set"
-		shift
 		;;
 
 	--module|-m)
-		checkarg "$1"
 		set_var "CONFIG_$ARG" "CONFIG_$ARG=m"
-		shift
 		;;
 
 	--state|-s)
-		checkarg "$1"
 		if grep -q "# CONFIG_$ARG is not set" $FN ; then
 			echo n
 		else
@@ -108,37 +115,18 @@ while [ "$1" != "" ] ; do
 				echo "$V"
 			fi
 		fi
-		shift
 		;;
 
 	--enable-after|-E)
-		checkarg "$1"
-		A=$ARG
-		checkarg "$2"
-		B=$ARG
 		set_var "CONFIG_$B" "CONFIG_$B=y" "CONFIG_$A"
-		shift
-		shift
 		;;
 
 	--disable-after|-D)
-		checkarg "$1"
-		A=$ARG
-		checkarg "$2"
-		B=$ARG
 		set_var "CONFIG_$B" "# CONFIG_$B is not set" "CONFIG_$A"
-		shift
-		shift
 		;;
 
 	--module-after|-M)
-		checkarg "$1"
-		A=$ARG
-		checkarg "$2"
-		B=$ARG
 		set_var "CONFIG_$B" "CONFIG_$B=m" "CONFIG_$A"
-		shift
-		shift
 		;;
 
 	# undocumented because it ignores --file (fixme)
