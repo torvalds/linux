@@ -280,7 +280,7 @@ MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx21ads_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx21_init_irq,
 	.init_machine   = mx21ads_board_init,
 	.timer          = &mx21ads_timer,
 MACHINE_END

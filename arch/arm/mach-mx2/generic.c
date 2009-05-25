@@ -85,3 +85,13 @@ void __init mx27_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+void __init mx27_init_irq(void)
+{
+	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+}
+
+void __init mx21_init_irq(void)
+{
+	mx27_init_irq();
+}
+

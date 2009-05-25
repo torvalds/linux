@@ -45,3 +45,9 @@ void __init mx1_map_io(void)
 
 	iotable_init(imx_io_desc, ARRAY_SIZE(imx_io_desc));
 }
+
+void __init mx1_init_irq(void)
+{
+	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+}
+

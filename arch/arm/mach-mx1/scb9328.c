@@ -154,7 +154,7 @@ MACHINE_START(SCB9328, "Synertronixx scb9328")
 	.io_pg_offst	= ((0xe0200000) >> 18) & 0xfffc,
 	.boot_params	= 0x08000100,
 	.map_io		= mx1_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx1_init_irq,
 	.timer		= &scb9328_timer,
 	.init_machine	= scb9328_init,
 MACHINE_END

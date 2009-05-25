@@ -113,11 +113,11 @@ static struct irq_chip mxc_avic_chip = {
  * interrupts. It registers the interrupt enable and disable functions
  * to the kernel for each interrupt source.
  */
-void __init mxc_init_irq(void)
+void __init mxc_init_irq(void __iomem *irqbase)
 {
 	int i;
 
-	avic_base = IO_ADDRESS(AVIC_BASE_ADDR);
+	avic_base = irqbase;
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled

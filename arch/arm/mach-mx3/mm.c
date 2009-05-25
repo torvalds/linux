@@ -88,6 +88,16 @@ void __init mx35_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+void __init mx31_init_irq(void)
+{
+	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
+}
+
+void __init mx35_init_irq(void)
+{
+	mx31_init_irq();
+}
+
 #ifdef CONFIG_CACHE_L2X0
 static int mxc_init_l2x0(void)
 {

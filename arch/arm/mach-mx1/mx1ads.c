@@ -151,7 +151,7 @@ MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	.io_pg_offst	= (IMX_IO_BASE >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx1_init_irq,
 	.timer		= &mx1ads_timer,
 	.init_machine	= mx1ads_init,
 MACHINE_END
@@ -161,7 +161,7 @@ MACHINE_START(MXLADS, "Freescale MXLADS")
 	.io_pg_offst	= (IMX_IO_BASE >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
-	.init_irq	= mxc_init_irq,
+	.init_irq	= mx1_init_irq,
 	.timer		= &mx1ads_timer,
 	.init_machine	= mx1ads_init,
 MACHINE_END
