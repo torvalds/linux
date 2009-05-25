@@ -35,6 +35,7 @@
 #include <mach/omapfb.h>
 #include <mach/lcd_mipid.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
 
 #define ADS7846_PENDOWN_GPIO	15
 
