@@ -395,6 +395,10 @@ static const struct soc_enum twl4030_handsfreel_enum =
 static const struct snd_kcontrol_new twl4030_dapm_handsfreel_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreel_enum);
 
+/* Handsfree Left virtual mute */
+static const struct snd_kcontrol_new twl4030_dapm_handsfreelmute_control =
+	SOC_DAPM_SINGLE("Switch", TWL4030_REG_SW_SHADOW, 0, 1, 0);
+
 /* Handsfree Right */
 static const char *twl4030_handsfreer_texts[] =
 		{"Voice", "AudioR1", "AudioR2", "AudioL2"};
@@ -406,6 +410,10 @@ static const struct soc_enum twl4030_handsfreer_enum =
 
 static const struct snd_kcontrol_new twl4030_dapm_handsfreer_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreer_enum);
+
+/* Handsfree Right virtual mute */
+static const struct snd_kcontrol_new twl4030_dapm_handsfreermute_control =
+	SOC_DAPM_SINGLE("Switch", TWL4030_REG_SW_SHADOW, 1, 1, 0);
 
 /* Vibra */
 /* Vibra audio path selection */
@@ -1231,11 +1239,15 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	/* HandsfreeL/R */
 	SND_SOC_DAPM_MUX("HandsfreeL Mux", SND_SOC_NOPM, 0, 0,
 		&twl4030_dapm_handsfreel_control),
+	SND_SOC_DAPM_SWITCH("HandsfreeL Switch", SND_SOC_NOPM, 0, 0,
+			&twl4030_dapm_handsfreelmute_control),
 	SND_SOC_DAPM_PGA_E("HandsfreeL PGA", SND_SOC_NOPM,
 			0, 0, NULL, 0, handsfreelpga_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("HandsfreeR Mux", SND_SOC_NOPM, 5, 0,
 		&twl4030_dapm_handsfreer_control),
+	SND_SOC_DAPM_SWITCH("HandsfreeR Switch", SND_SOC_NOPM, 0, 0,
+			&twl4030_dapm_handsfreermute_control),
 	SND_SOC_DAPM_PGA_E("HandsfreeR PGA", SND_SOC_NOPM,
 			0, 0, NULL, 0, handsfreerpga_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
@@ -1346,13 +1358,15 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"HandsfreeL Mux", "AudioL1", "Analog L1 Playback Mixer"},
 	{"HandsfreeL Mux", "AudioL2", "Analog L2 Playback Mixer"},
 	{"HandsfreeL Mux", "AudioR2", "Analog R2 Playback Mixer"},
-	{"HandsfreeL PGA", NULL, "HandsfreeL Mux"},
+	{"HandsfreeL Switch", "Switch", "HandsfreeL Mux"},
+	{"HandsfreeL PGA", NULL, "HandsfreeL Switch"},
 	/* HandsfreeR */
 	{"HandsfreeR Mux", "Voice", "Analog Voice Playback Mixer"},
 	{"HandsfreeR Mux", "AudioR1", "Analog R1 Playback Mixer"},
 	{"HandsfreeR Mux", "AudioR2", "Analog R2 Playback Mixer"},
 	{"HandsfreeR Mux", "AudioL2", "Analog L2 Playback Mixer"},
-	{"HandsfreeR PGA", NULL, "HandsfreeR Mux"},
+	{"HandsfreeR Switch", "Switch", "HandsfreeR Mux"},
+	{"HandsfreeR PGA", NULL, "HandsfreeR Switch"},
 	/* Vibra */
 	{"Vibra Mux", "AudioL1", "DAC Left1"},
 	{"Vibra Mux", "AudioR1", "DAC Right1"},
