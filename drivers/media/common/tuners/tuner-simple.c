@@ -694,11 +694,11 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 		return 0;
 	}
 
-	/* Bandswitch byte */
-	simple_radio_bandswitch(fe, &buffer[0]);
-
 	buffer[2] = (t_params->ranges[0].config & ~TUNER_RATIO_MASK) |
 		    TUNER_RATIO_SELECT_50; /* 50 kHz step */
+
+	/* Bandswitch byte */
+	simple_radio_bandswitch(fe, &buffer[0]);
 
 	/* Convert from 1/16 kHz V4L steps to 1/20 MHz (=50 kHz) PLL steps
 	   freq * (1 Mhz / 16000 V4L steps) * (20 PLL steps / 1 MHz) =
