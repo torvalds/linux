@@ -101,14 +101,15 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (unlikely(!msrs->counters[i].addr))
 			continue;
-		wrmsr(msrs->counters[i].addr, -1, -1);
+		wrmsrl(msrs->counters[i].addr, -1LL);
 	}
 
 	/* enable active counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (counter_config[i].enabled && msrs->counters[i].addr) {
 			reset_value[i] = counter_config[i].count;
-			wrmsr(msrs->counters[i].addr, -(unsigned int)counter_config[i].count, -1);
+			wrmsrl(msrs->counters[i].addr,
+			       -(s64)counter_config[i].count);
 			rdmsrl(msrs->controls[i].addr, val);
 			val &= model->reserved;
 			val |= op_x86_get_ctrl(model, &counter_config[i]);
@@ -251,7 +252,7 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 		if (val & OP_CTR_OVERFLOW)
 			continue;
 		oprofile_add_sample(regs, i);
-		wrmsr(msrs->counters[i].addr, -(unsigned int)reset_value[i], -1);
+		wrmsrl(msrs->counters[i].addr, -(s64)reset_value[i]);
 	}
 
 	op_amd_handle_ibs(regs, msrs);
