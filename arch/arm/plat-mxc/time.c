@@ -281,30 +281,13 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxc_timer_init(struct clk *timer_clk)
+void __init mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
 {
 	uint32_t tctl_val;
-	int irq;
 
 	clk_enable(timer_clk);
 
-	if (cpu_is_mx1()) {
-#ifdef CONFIG_ARCH_MX1
-		timer_base = IO_ADDRESS(TIM1_BASE_ADDR);
-		irq = TIM1_INT;
-#endif
-	} else if (cpu_is_mx2()) {
-#ifdef CONFIG_ARCH_MX2
-		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
-		irq = MXC_INT_GPT1;
-#endif
-	} else if (cpu_is_mx3()) {
-#ifdef CONFIG_ARCH_MX3
-		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
-		irq = MXC_INT_GPT;
-#endif
-	} else
-		BUG();
+	timer_base = base;
 
 	/*
 	 * Initialise to a known state (all timers off, and timing reset)

@@ -29,6 +29,7 @@
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
+#include <mach/mx31.h>
 #include <mach/common.h>
 
 #include "crm_regs.h"
@@ -609,7 +610,7 @@ int __init mx31_clocks_init(unsigned long fref)
 		__raw_writel(reg, MXC_CCM_PMCR1);
 	}
 
-	mxc_timer_init(&ipg_clk);
+	mxc_timer_init(&ipg_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT);
 
 	return 0;
 }

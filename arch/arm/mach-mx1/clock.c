@@ -626,7 +626,7 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_enable(&hclk);
 	clk_enable(&fclk);
 
-	mxc_timer_init(&gpt_clk);
+	mxc_timer_init(&gpt_clk, IO_ADDRESS(TIM1_BASE_ADDR), TIM1_INT);
 
 	return 0;
 }
