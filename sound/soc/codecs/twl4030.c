@@ -115,6 +115,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_VIBRA_PWM_SET	(0x47)	*/
 	0x00, /* REG_ANAMIC_GAIN	(0x48)	*/
 	0x00, /* REG_MISC_SET_2		(0x49)	*/
+	0x00, /* REG_SW_SHADOW		(0x4A)	- Shadow, non HW register */
 };
 
 /* codec private data */
@@ -172,7 +173,11 @@ static int twl4030_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int value)
 {
 	twl4030_write_reg_cache(codec, reg, value);
-	return twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value, reg);
+	if (likely(reg < TWL4030_REG_SW_SHADOW))
+		return twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value,
+					    reg);
+	else
+		return 0;
 }
 
 static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
