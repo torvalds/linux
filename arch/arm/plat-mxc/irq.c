@@ -44,7 +44,7 @@
 #define AVIC_FIPNDH		0x60	/* fast int pending high */
 #define AVIC_FIPNDL		0x64	/* fast int pending low */
 
-static void __iomem *avic_base;
+void __iomem *avic_base;
 
 int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 {
