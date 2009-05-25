@@ -102,9 +102,9 @@ static u8 oui_8021h[] = { 0x00, 0x00, 0xf8 };
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
-			struct sk_buff *skb, p80211_hdr_t *p80211_hdr,
-			p80211_metawep_t *p80211_wep)
+int skb_ether_to_p80211(wlandevice_t * wlandev, u32 ethconv,
+			struct sk_buff *skb, p80211_hdr_t * p80211_hdr,
+			p80211_metawep_t * p80211_wep)
 {
 
 	u16 fc;
@@ -209,8 +209,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 
 		if ((foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				       skb->len,
-				       (wlandev->
-					hostwep & HOSTWEP_DEFAULTKEY_MASK),
+				       (wlandev->hostwep &
+					HOSTWEP_DEFAULTKEY_MASK),
 				       p80211_wep->iv, p80211_wep->icv))) {
 			printk(KERN_WARNING
 			       "Host en-WEP failed, dropping frame (%d).\n",
@@ -230,8 +230,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 }
 
 /* jkriegl: from orinoco, modified */
-static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
-			       p80211_rxmeta_t *rxmeta)
+static void orinoco_spy_gather(wlandevice_t * wlandev, char *mac,
+			       p80211_rxmeta_t * rxmeta)
 {
 	int i;
 
@@ -272,7 +272,7 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
+int skb_p80211_to_ether(wlandevice_t * wlandev, u32 ethconv,
 			struct sk_buff *skb)
 {
 	netdevice_t *netdev = wlandev->netdev;
@@ -329,9 +329,8 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 				       skb->data + payload_offset +
 				       payload_length - 4))) {
 			/* de-wep failed, drop skb. */
-			pr_debug(
-			       "Host de-WEP failed, dropping frame (%d).\n",
-			       foo);
+			pr_debug("Host de-WEP failed, dropping frame (%d).\n",
+				 foo);
 			wlandev->rx.decrypt_err++;
 			return 2;
 		}

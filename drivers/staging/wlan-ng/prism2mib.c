@@ -86,65 +86,65 @@ typedef struct mibrec {
 	u16 parm1;
 	u16 parm2;
 	u16 parm3;
-	int (*func) (struct mibrec *mib,
+	int (*func) (struct mibrec * mib,
 		     int isget,
-		     wlandevice_t *wlandev,
-		     hfa384x_t *hw,
-		     p80211msg_dot11req_mibset_t *msg, void *data);
+		     wlandevice_t * wlandev,
+		     hfa384x_t * hw,
+		     p80211msg_dot11req_mibset_t * msg, void *data);
 } mibrec_t;
 
-static int prism2mib_bytearea2pstr(mibrec_t *mib,
+static int prism2mib_bytearea2pstr(mibrec_t * mib,
 				   int isget,
-				   wlandevice_t *wlandev,
-				   hfa384x_t *hw,
-				   p80211msg_dot11req_mibset_t *msg,
+				   wlandevice_t * wlandev,
+				   hfa384x_t * hw,
+				   p80211msg_dot11req_mibset_t * msg,
 				   void *data);
 
-static int prism2mib_uint32(mibrec_t *mib,
+static int prism2mib_uint32(mibrec_t * mib,
 			    int isget,
-			    wlandevice_t *wlandev,
-			    hfa384x_t *hw,
-			    p80211msg_dot11req_mibset_t *msg, void *data);
+			    wlandevice_t * wlandev,
+			    hfa384x_t * hw,
+			    p80211msg_dot11req_mibset_t * msg, void *data);
 
-static int prism2mib_flag(mibrec_t *mib,
+static int prism2mib_flag(mibrec_t * mib,
 			  int isget,
-			  wlandevice_t *wlandev,
-			  hfa384x_t *hw,
-			  p80211msg_dot11req_mibset_t *msg, void *data);
+			  wlandevice_t * wlandev,
+			  hfa384x_t * hw,
+			  p80211msg_dot11req_mibset_t * msg, void *data);
 
-static int prism2mib_wepdefaultkey(mibrec_t *mib,
+static int prism2mib_wepdefaultkey(mibrec_t * mib,
 				   int isget,
-				   wlandevice_t *wlandev,
-				   hfa384x_t *hw,
-				   p80211msg_dot11req_mibset_t *msg,
+				   wlandevice_t * wlandev,
+				   hfa384x_t * hw,
+				   p80211msg_dot11req_mibset_t * msg,
 				   void *data);
 
-static int prism2mib_privacyinvoked(mibrec_t *mib,
+static int prism2mib_privacyinvoked(mibrec_t * mib,
 				    int isget,
-				    wlandevice_t *wlandev,
-				    hfa384x_t *hw,
-				    p80211msg_dot11req_mibset_t *msg,
+				    wlandevice_t * wlandev,
+				    hfa384x_t * hw,
+				    p80211msg_dot11req_mibset_t * msg,
 				    void *data);
 
-static int prism2mib_excludeunencrypted(mibrec_t *mib,
+static int prism2mib_excludeunencrypted(mibrec_t * mib,
 					int isget,
-					wlandevice_t *wlandev,
-					hfa384x_t *hw,
-					p80211msg_dot11req_mibset_t *msg,
+					wlandevice_t * wlandev,
+					hfa384x_t * hw,
+					p80211msg_dot11req_mibset_t * msg,
 					void *data);
 
-static int prism2mib_fragmentationthreshold(mibrec_t *mib,
+static int prism2mib_fragmentationthreshold(mibrec_t * mib,
 					    int isget,
-					    wlandevice_t *wlandev,
-					    hfa384x_t *hw,
-					    p80211msg_dot11req_mibset_t *msg,
+					    wlandevice_t * wlandev,
+					    hfa384x_t * hw,
+					    p80211msg_dot11req_mibset_t * msg,
 					    void *data);
 
-static int prism2mib_priv(mibrec_t *mib,
+static int prism2mib_priv(mibrec_t * mib,
 			  int isget,
-			  wlandevice_t *wlandev,
-			  hfa384x_t *hw,
-			  p80211msg_dot11req_mibset_t *msg, void *data);
+			  wlandevice_t * wlandev,
+			  hfa384x_t * hw,
+			  p80211msg_dot11req_mibset_t * msg, void *data);
 
 static mibrec_t mibtab[] = {
 
@@ -258,7 +258,7 @@ static mibrec_t mibtab[] = {
 *	interrupt
 ----------------------------------------------------------------*/
 
-int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
+int prism2mgmt_mibset_mibget(wlandevice_t * wlandev, void *msgp)
 {
 	hfa384x_t *hw = wlandev->priv;
 	int result, isget;
@@ -330,8 +330,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 
 	if (msg->resultcode.data == P80211ENUM_resultcode_success) {
 		if (result != 0) {
-			pr_debug("get/set failure, result=%d\n",
-			       result);
+			pr_debug("get/set failure, result=%d\n", result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 		} else {
@@ -373,11 +372,11 @@ done:
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_bytearea2pstr(mibrec_t *mib,
+static int prism2mib_bytearea2pstr(mibrec_t * mib,
 				   int isget,
-				   wlandevice_t *wlandev,
-				   hfa384x_t *hw,
-				   p80211msg_dot11req_mibset_t *msg,
+				   wlandevice_t * wlandev,
+				   hfa384x_t * hw,
+				   p80211msg_dot11req_mibset_t * msg,
 				   void *data)
 {
 	int result;
@@ -423,11 +422,11 @@ static int prism2mib_bytearea2pstr(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_uint32(mibrec_t *mib,
+static int prism2mib_uint32(mibrec_t * mib,
 			    int isget,
-			    wlandevice_t *wlandev,
-			    hfa384x_t *hw,
-			    p80211msg_dot11req_mibset_t *msg, void *data)
+			    wlandevice_t * wlandev,
+			    hfa384x_t * hw,
+			    p80211msg_dot11req_mibset_t * msg, void *data)
 {
 	int result;
 	u32 *uint32 = (u32 *) data;
@@ -470,11 +469,11 @@ static int prism2mib_uint32(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_flag(mibrec_t *mib,
+static int prism2mib_flag(mibrec_t * mib,
 			  int isget,
-			  wlandevice_t *wlandev,
-			  hfa384x_t *hw,
-			  p80211msg_dot11req_mibset_t *msg, void *data)
+			  wlandevice_t * wlandev,
+			  hfa384x_t * hw,
+			  p80211msg_dot11req_mibset_t * msg, void *data)
 {
 	int result;
 	u32 *uint32 = (u32 *) data;
@@ -527,11 +526,11 @@ static int prism2mib_flag(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_wepdefaultkey(mibrec_t *mib,
+static int prism2mib_wepdefaultkey(mibrec_t * mib,
 				   int isget,
-				   wlandevice_t *wlandev,
-				   hfa384x_t *hw,
-				   p80211msg_dot11req_mibset_t *msg,
+				   wlandevice_t * wlandev,
+				   hfa384x_t * hw,
+				   p80211msg_dot11req_mibset_t * msg,
 				   void *data)
 {
 	int result;
@@ -577,11 +576,11 @@ static int prism2mib_wepdefaultkey(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_privacyinvoked(mibrec_t *mib,
+static int prism2mib_privacyinvoked(mibrec_t * mib,
 				    int isget,
-				    wlandevice_t *wlandev,
-				    hfa384x_t *hw,
-				    p80211msg_dot11req_mibset_t *msg,
+				    wlandevice_t * wlandev,
+				    hfa384x_t * hw,
+				    p80211msg_dot11req_mibset_t * msg,
 				    void *data)
 {
 	int result;
@@ -623,11 +622,11 @@ static int prism2mib_privacyinvoked(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_excludeunencrypted(mibrec_t *mib,
+static int prism2mib_excludeunencrypted(mibrec_t * mib,
 					int isget,
-					wlandevice_t *wlandev,
-					hfa384x_t *hw,
-					p80211msg_dot11req_mibset_t *msg,
+					wlandevice_t * wlandev,
+					hfa384x_t * hw,
+					p80211msg_dot11req_mibset_t * msg,
 					void *data)
 {
 	int result;
@@ -662,11 +661,11 @@ static int prism2mib_excludeunencrypted(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_fragmentationthreshold(mibrec_t *mib,
+static int prism2mib_fragmentationthreshold(mibrec_t * mib,
 					    int isget,
-					    wlandevice_t *wlandev,
-					    hfa384x_t *hw,
-					    p80211msg_dot11req_mibset_t *msg,
+					    wlandevice_t * wlandev,
+					    hfa384x_t * hw,
+					    p80211msg_dot11req_mibset_t * msg,
 					    void *data)
 {
 	int result;
@@ -711,11 +710,11 @@ static int prism2mib_fragmentationthreshold(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-static int prism2mib_priv(mibrec_t *mib,
+static int prism2mib_priv(mibrec_t * mib,
 			  int isget,
-			  wlandevice_t *wlandev,
-			  hfa384x_t *hw,
-			  p80211msg_dot11req_mibset_t *msg, void *data)
+			  wlandevice_t * wlandev,
+			  hfa384x_t * hw,
+			  p80211msg_dot11req_mibset_t * msg, void *data)
 {
 	p80211pstrd_t *pstr = (p80211pstrd_t *) data;
 
@@ -727,7 +726,7 @@ static int prism2mib_priv(mibrec_t *mib,
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,
 						       HFA384x_RID_CNFWPADATA,
-						       (u8 *)&wpa,
+						       (u8 *) & wpa,
 						       sizeof(wpa));
 				pstr->len = le16_to_cpu(wpa.datalen);
 				memcpy(pstr->data, wpa.data, pstr->len);
@@ -738,7 +737,7 @@ static int prism2mib_priv(mibrec_t *mib,
 				result =
 				    hfa384x_drvr_setconfig(hw,
 							   HFA384x_RID_CNFWPADATA,
-							   (u8 *)&wpa,
+							   (u8 *) & wpa,
 							   sizeof(wpa));
 			}
 			break;
@@ -765,7 +764,7 @@ static int prism2mib_priv(mibrec_t *mib,
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
+void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t * bytestr, p80211pstrd_t * pstr)
 {
 	bytestr->len = cpu_to_le16((u16) (pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
@@ -786,7 +785,7 @@ void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
+void prism2mgmt_pstr2bytearea(u8 * bytearea, p80211pstrd_t * pstr)
 {
 	memcpy(bytearea, pstr->data, pstr->len);
 }
@@ -806,7 +805,7 @@ void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
+void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t * bytestr, p80211pstrd_t * pstr)
 {
 	pstr->len = (u8) (le16_to_cpu((u16) (bytestr->len)));
 	memcpy(pstr->data, bytestr->data, pstr->len);
@@ -827,13 +826,8 @@ void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
+void prism2mgmt_bytearea2pstr(u8 * bytearea, p80211pstrd_t * pstr, int len)
 {
 	pstr->len = (u8) len;
 	memcpy(pstr->data, bytearea, len);
 }
-
-
-
-
-

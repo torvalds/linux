@@ -182,16 +182,16 @@ typedef struct wlandevice {
 	unsigned int ethconv;
 
 	/* device methods (init by MSD, used by p80211 */
-	int (*open) (struct wlandevice *wlandev);
-	int (*close) (struct wlandevice *wlandev);
-	void (*reset) (struct wlandevice *wlandev);
-	int (*txframe) (struct wlandevice *wlandev, struct sk_buff *skb,
-			p80211_hdr_t *p80211_hdr,
-			p80211_metawep_t *p80211_wep);
-	int (*mlmerequest) (struct wlandevice *wlandev, p80211msg_t *msg);
-	int (*set_multicast_list) (struct wlandevice *wlandev,
-				   netdevice_t *dev);
-	void (*tx_timeout) (struct wlandevice *wlandev);
+	int (*open) (struct wlandevice * wlandev);
+	int (*close) (struct wlandevice * wlandev);
+	void (*reset) (struct wlandevice * wlandev);
+	int (*txframe) (struct wlandevice * wlandev, struct sk_buff * skb,
+			p80211_hdr_t * p80211_hdr,
+			p80211_metawep_t * p80211_wep);
+	int (*mlmerequest) (struct wlandevice * wlandev, p80211msg_t * msg);
+	int (*set_multicast_list) (struct wlandevice * wlandev,
+				   netdevice_t * dev);
+	void (*tx_timeout) (struct wlandevice * wlandev);
 
 	/* 802.11 State */
 	u8 bssid[WLAN_BSSID_LEN];
@@ -230,16 +230,16 @@ typedef struct wlandevice {
 } wlandevice_t;
 
 /* WEP stuff */
-int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen);
-int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
-		u8 *iv, u8 *icv);
-int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
-		u8 *iv, u8 *icv);
+int wep_change_key(wlandevice_t * wlandev, int keynum, u8 * key, int keylen);
+int wep_decrypt(wlandevice_t * wlandev, u8 * buf, u32 len, int key_override,
+		u8 * iv, u8 * icv);
+int wep_encrypt(wlandevice_t * wlandev, u8 * buf, u8 * dst, u32 len, int keynum,
+		u8 * iv, u8 * icv);
 
-int wlan_setup(wlandevice_t *wlandev);
-int wlan_unsetup(wlandevice_t *wlandev);
-int register_wlandev(wlandevice_t *wlandev);
-int unregister_wlandev(wlandevice_t *wlandev);
-void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
-void p80211netdev_hwremoved(wlandevice_t *wlandev);
+int wlan_setup(wlandevice_t * wlandev);
+int wlan_unsetup(wlandevice_t * wlandev);
+int register_wlandev(wlandevice_t * wlandev);
+int unregister_wlandev(wlandevice_t * wlandev);
+void p80211netdev_rx(wlandevice_t * wlandev, struct sk_buff *skb);
+void p80211netdev_hwremoved(wlandevice_t * wlandev);
 #endif
