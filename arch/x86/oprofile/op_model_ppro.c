@@ -51,7 +51,8 @@ static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 }
 
 
-static void ppro_setup_ctrs(struct op_msrs const * const msrs)
+static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
+			    struct op_msrs const * const msrs)
 {
 	unsigned int low, high;
 	int i;

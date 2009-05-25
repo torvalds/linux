@@ -542,7 +542,8 @@ static void pmc_setup_one_p4_counter(unsigned int ctr)
 }
 
 
-static void p4_setup_ctrs(struct op_msrs const * const msrs)
+static void p4_setup_ctrs(struct op_x86_model_spec const *model,
+			  struct op_msrs const * const msrs)
 {
 	unsigned int i;
 	unsigned int low, high;
