@@ -16,7 +16,6 @@ struct clk_ops {
 	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
-	void (*build_rate_table)(struct clk *clk);
 };
 
 struct clk {

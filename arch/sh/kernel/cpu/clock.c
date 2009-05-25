@@ -138,8 +138,6 @@ void propagate_rate(struct clk *tclk)
 	list_for_each_entry(clkp, &tclk->children, sibling) {
 		if (clkp->ops && clkp->ops->recalc)
 			clkp->rate = clkp->ops->recalc(clkp);
-		if (clkp->ops && clkp->ops->build_rate_table)
-			clkp->ops->build_rate_table(clkp);
 
 		propagate_rate(clkp);
 	}
