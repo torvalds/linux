@@ -419,7 +419,7 @@ static const struct file_operations fops_blob = {
 };
 
 /**
- * debugfs_create_blob - create a debugfs file that is used to read and write a binary blob
+ * debugfs_create_blob - create a debugfs file that is used to read a binary blob
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have
  * @parent: a pointer to the parent dentry for this file.  This should be a
