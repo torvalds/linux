@@ -91,7 +91,6 @@ static int shrink_liability(struct ubifs_info *c, int nr_to_write)
 	return nr_written;
 }
 
-
 /**
  * run_gc - run garbage collector.
  * @c: UBIFS file-system description object
