@@ -138,12 +138,12 @@ static inline int qmgr_stat_empty(unsigned int queue)
 }
 
 /**
- * qmgr_stat_empty() - checks if a hardware queue is nearly empty
+ * qmgr_stat_below_low_watermark() - checks if a queue is below low watermark
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is nearly or completely empty.
+ * Returns non-zero value if the queue is below low watermark.
  */
-static inline int qmgr_stat_nearly_empty(unsigned int queue)
+static inline int qmgr_stat_below_low_watermark(unsigned int queue)
 {
 	extern struct qmgr_regs __iomem *qmgr_regs;
 	if (queue >= HALF_QUEUES)
@@ -153,19 +153,19 @@ static inline int qmgr_stat_nearly_empty(unsigned int queue)
 }
 
 /**
- * qmgr_stat_empty() - checks if a hardware queue is nearly full
+ * qmgr_stat_above_high_watermark() - checks if a queue is above high watermark
  * @queue:	queue number
  *
- * Returns non-zero value if the queue is nearly or completely full.
+ * Returns non-zero value if the queue is above high watermark
  */
-static inline int qmgr_stat_nearly_full(unsigned int queue)
+static inline int qmgr_stat_above_high_watermark(unsigned int queue)
 {
 	BUG_ON(queue >= HALF_QUEUES);
 	return __qmgr_get_stat1(queue) & QUEUE_STAT1_NEARLY_FULL;
 }
 
 /**
- * qmgr_stat_empty() - checks if a hardware queue is full
+ * qmgr_stat_full() - checks if a hardware queue is full
  * @queue:	queue number
  *
  * Returns non-zero value if the queue is full.
@@ -180,10 +180,10 @@ static inline int qmgr_stat_full(unsigned int queue)
 }
 
 /**
- * qmgr_stat_empty() - checks if a hardware queue experienced underflow
+ * qmgr_stat_underflow() - checks if a hardware queue experienced underflow
  * @queue:	queue number
  *
- * Returns non-zero value if empty.
+ * Returns non-zero value if the queue experienced underflow.
  */
 static inline int qmgr_stat_underflow(unsigned int queue)
 {
@@ -191,10 +191,10 @@ static inline int qmgr_stat_underflow(unsigned int queue)
 }
 
 /**
- * qmgr_stat_empty() - checks if a hardware queue experienced overflow
+ * qmgr_stat_overflow() - checks if a hardware queue experienced overflow
  * @queue:	queue number
  *
- * Returns non-zero value if empty.
+ * Returns non-zero value if the queue experienced overflow.
  */
 static inline int qmgr_stat_overflow(unsigned int queue)
 {
