@@ -357,7 +357,7 @@ int main(int argc, const char **argv)
 	 * die if that one cannot handle it.
 	 */
 	if (!prefixcmp(cmd, "perf-")) {
-		cmd += 4;
+		cmd += 5;
 		argv[0] = cmd;
 		handle_internal_command(argc, argv);
 		die("cannot handle %s internally", cmd);
