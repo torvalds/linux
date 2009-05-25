@@ -25,12 +25,11 @@
 
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
+#define OP_EVENT_MASK			0x0FFF
+
+#define MSR_AMD_EVENTSEL_RESERVED	((0xFFFFFCF0ULL<<32)|(1ULL<<21))
 
 #define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
-#define CTRL_CLEAR_LO(x) (x &= (1<<21))
-#define CTRL_CLEAR_HI(x) (x &= 0xfffffcf0)
-#define CTRL_SET_EVENT_LOW(val, e) (val |= (e & 0xff))
-#define CTRL_SET_EVENT_HIGH(val, e) (val |= ((e >> 8) & 0xf))
 
 static unsigned long reset_value[NUM_COUNTERS];
 
@@ -84,21 +83,19 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 	}
 }
 
-
 static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 			      struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 
 	/* clear all counters */
 	for (i = 0 ; i < NUM_CONTROLS; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
-		rdmsr(msrs->controls[i].addr, low, high);
-		CTRL_CLEAR_LO(low);
-		CTRL_CLEAR_HI(high);
-		wrmsr(msrs->controls[i].addr, low, high);
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
@@ -112,19 +109,11 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
 			reset_value[i] = counter_config[i].count;
-
 			wrmsr(msrs->counters[i].addr, -(unsigned int)counter_config[i].count, -1);
-
-			rdmsr(msrs->controls[i].addr, low, high);
-			CTRL_CLEAR_LO(low);
-			CTRL_CLEAR_HI(high);
-			CTRL_SET_ENABLE(low);
-			CTRL_SET_USR(low, counter_config[i].user);
-			CTRL_SET_KERN(low, counter_config[i].kernel);
-			CTRL_SET_UM(low, counter_config[i].unit_mask);
-			CTRL_SET_EVENT_LOW(low, counter_config[i].event);
-			CTRL_SET_EVENT_HIGH(high, counter_config[i].event);
-			wrmsr(msrs->controls[i].addr, low, high);
+			rdmsrl(msrs->controls[i].addr, val);
+			val &= model->reserved;
+			val |= op_x86_get_ctrl(model, &counter_config[i]);
+			wrmsrl(msrs->controls[i].addr, val);
 		} else {
 			reset_value[i] = 0;
 		}
@@ -486,14 +475,16 @@ static void op_amd_exit(void) {}
 #endif /* CONFIG_OPROFILE_IBS */
 
 struct op_x86_model_spec const op_amd_spec = {
-	.init			= op_amd_init,
-	.exit			= op_amd_exit,
 	.num_counters		= NUM_COUNTERS,
 	.num_controls		= NUM_CONTROLS,
+	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
+	.event_mask		= OP_EVENT_MASK,
+	.init			= op_amd_init,
+	.exit			= op_amd_exit,
 	.fill_in_addresses	= &op_amd_fill_in_addresses,
 	.setup_ctrs		= &op_amd_setup_ctrs,
 	.check_ctrs		= &op_amd_check_ctrs,
 	.start			= &op_amd_start,
 	.stop			= &op_amd_stop,
-	.shutdown		= &op_amd_shutdown
+	.shutdown		= &op_amd_shutdown,
 };

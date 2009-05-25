@@ -10,6 +10,7 @@
  * @author Philippe Elie
  * @author Graydon Hoare
  * @author Andi Kleen
+ * @author Robert Richter <robert.richter@amd.com>
  */
 
 #include <linux/oprofile.h>
@@ -26,8 +27,8 @@ static int num_counters = 2;
 static int counter_width = 32;
 
 #define CTR_OVERFLOWED(n) (!((n) & (1ULL<<(counter_width-1))))
-#define CTRL_CLEAR(x) (x &= (1<<21))
-#define CTRL_SET_EVENT(val, e) (val |= e)
+
+#define MSR_PPRO_EVENTSEL_RESERVED	((0xFFFFFFFFULL<<32)|(1ULL<<21))
 
 static u64 *reset_value;
 
@@ -54,7 +55,7 @@ static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 			    struct op_msrs const * const msrs)
 {
-	unsigned int low, high;
+	u64 val;
 	int i;
 
 	if (!reset_value) {
@@ -85,9 +86,9 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 	for (i = 0 ; i < num_counters; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
-		rdmsr(msrs->controls[i].addr, low, high);
-		CTRL_CLEAR(low);
-		wrmsr(msrs->controls[i].addr, low, high);
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		wrmsrl(msrs->controls[i].addr, val);
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
@@ -101,17 +102,11 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 	for (i = 0; i < num_counters; ++i) {
 		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
 			reset_value[i] = counter_config[i].count;
-
 			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
-
-			rdmsr(msrs->controls[i].addr, low, high);
-			CTRL_CLEAR(low);
-			CTRL_SET_ENABLE(low);
-			CTRL_SET_USR(low, counter_config[i].user);
-			CTRL_SET_KERN(low, counter_config[i].kernel);
-			CTRL_SET_UM(low, counter_config[i].unit_mask);
-			CTRL_SET_EVENT(low, counter_config[i].event);
-			wrmsr(msrs->controls[i].addr, low, high);
+			rdmsrl(msrs->controls[i].addr, val);
+			val &= model->reserved;
+			val |= op_x86_get_ctrl(model, &counter_config[i]);
+			wrmsrl(msrs->controls[i].addr, val);
 		} else {
 			reset_value[i] = 0;
 		}
@@ -205,6 +200,7 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 struct op_x86_model_spec const op_ppro_spec = {
 	.num_counters		= 2,
 	.num_controls		= 2,
+	.reserved		= MSR_PPRO_EVENTSEL_RESERVED,
 	.fill_in_addresses	= &ppro_fill_in_addresses,
 	.setup_ctrs		= &ppro_setup_ctrs,
 	.check_ctrs		= &ppro_check_ctrs,
@@ -249,6 +245,7 @@ static int arch_perfmon_init(struct oprofile_operations *ignore)
 }
 
 struct op_x86_model_spec op_arch_perfmon_spec = {
+	.reserved		= MSR_PPRO_EVENTSEL_RESERVED,
 	.init			= &arch_perfmon_init,
 	/* num_counters/num_controls filled in at runtime */
 	.fill_in_addresses	= &ppro_fill_in_addresses,

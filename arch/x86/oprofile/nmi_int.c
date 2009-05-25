@@ -31,6 +31,26 @@ static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
 
+/* common functions */
+
+u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
+		    struct op_counter_config *counter_config)
+{
+	u64 val = 0;
+	u16 event = (u16)counter_config->event;
+
+	val |= ARCH_PERFMON_EVENTSEL_INT;
+	val |= counter_config->user ? ARCH_PERFMON_EVENTSEL_USR : 0;
+	val |= counter_config->kernel ? ARCH_PERFMON_EVENTSEL_OS : 0;
+	val |= (counter_config->unit_mask & 0xFF) << 8;
+	event &= model->event_mask ? model->event_mask : 0xFF;
+	val |= event & 0xFF;
+	val |= (event & 0x0F00) << 24;
+
+	return val;
+}
+
+
 static int profile_exceptions_notify(struct notifier_block *self,
 				     unsigned long val, void *data)
 {
