@@ -175,15 +175,6 @@ void __init mem_init(void)
 		initk, codek, datak, DMA_UNCACHED_REGION >> 10, (reservedpages << (PAGE_SHIFT-10)));
 }
 
-static int __init sram_init(void)
-{
-	/* Initialize the blackfin L1 Memory. */
-	bfin_sram_init();
-
-	return 0;
-}
-pure_initcall(sram_init);
-
 static void __init free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long addr;

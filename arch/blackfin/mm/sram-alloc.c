@@ -223,7 +223,7 @@ static void __init l2_sram_init(void)
 	spin_lock_init(&l2_sram_lock);
 }
 
-void __init bfin_sram_init(void)
+static int __init bfin_sram_init(void)
 {
 	sram_piece_cache = kmem_cache_create("sram_piece_cache",
 				sizeof(struct sram_piece),
@@ -233,7 +233,10 @@ void __init bfin_sram_init(void)
 	l1_data_sram_init();
 	l1_inst_sram_init();
 	l2_sram_init();
+
+	return 0;
 }
+pure_initcall(bfin_sram_init);
 
 /* SRAM allocate function */
 static void *_sram_alloc(size_t size, struct sram_piece *pfree_head,
