@@ -22,6 +22,7 @@
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/mfd/da903x.h>
+#include <linux/sht15.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -102,6 +103,10 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO96_GPIO,	/* accelerometer interrupt */
 	GPIO99_GPIO,	/* ADC interrupt */
 
+	/* SHT15 */
+	GPIO100_GPIO,
+	GPIO98_GPIO,
+
 	/* Connector pins specified as gpios */
 	GPIO94_GPIO, /* large basic connector pin 14 */
 	GPIO10_GPIO, /* large basic connector pin 23 */
@@ -110,6 +115,26 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO103_GPIO, /* red led */
 	GPIO104_GPIO, /* green led */
 	GPIO105_GPIO, /* blue led */
+};
+
+static struct sht15_platform_data platform_data_sht15 = {
+	.gpio_data =  100,
+	.gpio_sck  =  98,
+};
+
+static struct platform_device sht15 = {
+	.name = "sht15",
+	.id = -1,
+	.dev = {
+		.platform_data = &platform_data_sht15,
+	},
+};
+
+static struct regulator_consumer_supply imote2_sensor_3_con[] = {
+	{
+		.dev = &sht15.dev,
+		.supply = "vcc",
+	},
 };
 
 static struct gpio_led imote2_led_pins[] = {
@@ -257,6 +282,8 @@ static struct regulator_init_data imote2_ldo_init_data[] = {
 			.min_uV = 2800000,
 			.max_uV = 3000000,
 		},
+		.num_consumer_supplies = ARRAY_SIZE(imote2_sensor_3_con),
+		.consumer_supplies = imote2_sensor_3_con,
 	},
 	[vcc_pxa_pll] = { /* 1.17V - 1.43V, default 1.3V*/
 		.constraints = {
@@ -508,6 +535,7 @@ static struct pxa2xx_udc_mach_info imote2_udc_info __initdata = {
 static struct platform_device *imote2_devices[] = {
 	&imote2_flash_device,
 	&imote2_leds,
+	&sht15,
 };
 
 static struct i2c_pxa_platform_data i2c_pwr_pdata = {
