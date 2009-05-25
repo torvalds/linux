@@ -27,6 +27,8 @@
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 
+#define OMAP_CM_REGADDR		OMAP34XX_CM_REGADDR
+
 static unsigned long omap3_dpll_recalc(struct clk *clk);
 static unsigned long omap3_clkoutx2_recalc(struct clk *clk);
 static void omap3_dpll_allow_idle(struct clk *clk);

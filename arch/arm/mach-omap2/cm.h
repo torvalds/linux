@@ -16,17 +16,12 @@
 
 #include "prcm-common.h"
 
-#ifndef __ASSEMBLER__
-#define OMAP_CM_REGADDR(module, reg)					\
-			IO_ADDRESS(OMAP2_CM_BASE + (module) + (reg))
-#else
 #define OMAP2420_CM_REGADDR(module, reg)				\
 			IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
 #define OMAP2430_CM_REGADDR(module, reg)				\
 			IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 #define OMAP34XX_CM_REGADDR(module, reg)				\
 			IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
-#endif
 
 /*
  * Architecture-specific global CM registers
