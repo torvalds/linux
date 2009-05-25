@@ -100,4 +100,22 @@ enum clk_sh_algo_id {
 	IP_N1,
 };
 
+struct clk_div_mult_table {
+	unsigned int *divisors;
+	unsigned int nr_divisors;
+	unsigned int *multipliers;
+	unsigned int nr_multipliers;
+};
+
+struct cpufreq_frequency_table;
+void clk_rate_table_build(struct clk *clk,
+			  struct cpufreq_frequency_table *freq_table,
+			  int nr_freqs,
+			  struct clk_div_mult_table *src_table,
+			  unsigned long *bitmap);
+
+long clk_rate_table_round(struct clk *clk,
+			  struct cpufreq_frequency_table *freq_table,
+			  unsigned long rate);
+
 #endif /* __ASM_SH_CLOCK_H */
