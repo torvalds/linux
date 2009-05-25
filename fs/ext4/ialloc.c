@@ -347,7 +347,6 @@ static int find_group_flex(struct super_block *sb, struct inode *parent,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_group_desc *desc;
-	struct buffer_head *bh;
 	struct flex_groups *flex_group = sbi->s_flex_groups;
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
 	ext4_group_t parent_fbg_group = ext4_flex_group(sbi, parent_group);
@@ -402,7 +401,7 @@ find_close_to_parent:
 found_flexbg:
 	for (i = best_flex * flex_size; i < ngroups &&
 		     i < (best_flex + 1) * flex_size; i++) {
-		desc = ext4_get_group_desc(sb, i, &bh);
+		desc = ext4_get_group_desc(sb, i, NULL);
 		if (ext4_free_inodes_count(sb, desc)) {
 			*best_group = i;
 			goto out;
