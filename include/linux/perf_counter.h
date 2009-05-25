@@ -73,7 +73,7 @@ enum sw_event_ids {
 	PERF_SW_EVENTS_MAX		= 7,
 };
 
-#define __PERF_COUNTER_MASK(name) 			\
+#define __PERF_COUNTER_MASK(name)			\
 	(((1ULL << PERF_COUNTER_##name##_BITS) - 1) <<	\
 	 PERF_COUNTER_##name##_SHIFT)
 
@@ -98,14 +98,14 @@ enum sw_event_ids {
  * in the overflow packets.
  */
 enum perf_counter_record_format {
-	PERF_RECORD_IP		= 1U << 0,
-	PERF_RECORD_TID		= 1U << 1,
-	PERF_RECORD_TIME	= 1U << 2,
-	PERF_RECORD_ADDR	= 1U << 3,
-	PERF_RECORD_GROUP	= 1U << 4,
-	PERF_RECORD_CALLCHAIN	= 1U << 5,
-	PERF_RECORD_CONFIG	= 1U << 6,
-	PERF_RECORD_CPU		= 1U << 7,
+	PERF_RECORD_IP			= 1U << 0,
+	PERF_RECORD_TID			= 1U << 1,
+	PERF_RECORD_TIME		= 1U << 2,
+	PERF_RECORD_ADDR		= 1U << 3,
+	PERF_RECORD_GROUP		= 1U << 4,
+	PERF_RECORD_CALLCHAIN		= 1U << 5,
+	PERF_RECORD_CONFIG		= 1U << 6,
+	PERF_RECORD_CPU			= 1U << 7,
 };
 
 /*
@@ -235,13 +235,13 @@ enum perf_event_type {
 	 * correlate userspace IPs to code. They have the following structure:
 	 *
 	 * struct {
-	 * 	struct perf_event_header	header;
+	 *	struct perf_event_header	header;
 	 *
-	 * 	u32				pid, tid;
-	 * 	u64				addr;
-	 * 	u64				len;
-	 * 	u64				pgoff;
-	 * 	char				filename[];
+	 *	u32				pid, tid;
+	 *	u64				addr;
+	 *	u64				len;
+	 *	u64				pgoff;
+	 *	char				filename[];
 	 * };
 	 */
 	PERF_EVENT_MMAP			= 1,
@@ -249,27 +249,27 @@ enum perf_event_type {
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
+	 *	struct perf_event_header	header;
 	 *
-	 * 	u32				pid, tid;
-	 * 	char				comm[];
+	 *	u32				pid, tid;
+	 *	char				comm[];
 	 * };
 	 */
 	PERF_EVENT_COMM			= 3,
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
-	 * 	u64				time;
-	 * 	u64				irq_period;
+	 *	struct perf_event_header	header;
+	 *	u64				time;
+	 *	u64				irq_period;
 	 * };
 	 */
 	PERF_EVENT_PERIOD		= 4,
 
 	/*
 	 * struct {
-	 * 	struct perf_event_header	header;
-	 * 	u64				time;
+	 *	struct perf_event_header	header;
+	 *	u64				time;
 	 * };
 	 */
 	PERF_EVENT_THROTTLE		= 5,
@@ -280,23 +280,23 @@ enum perf_event_type {
 	 * will be PERF_RECORD_*
 	 *
 	 * struct {
-	 * 	struct perf_event_header	header;
+	 *	struct perf_event_header	header;
 	 *
-	 * 	{ u64			ip;	  } && PERF_RECORD_IP
-	 * 	{ u32			pid, tid; } && PERF_RECORD_TID
-	 * 	{ u64			time;     } && PERF_RECORD_TIME
-	 * 	{ u64			addr;     } && PERF_RECORD_ADDR
-	 * 	{ u64			config;   } && PERF_RECORD_CONFIG
-	 * 	{ u32			cpu, res; } && PERF_RECORD_CPU
+	 *	{ u64			ip;	  } && PERF_RECORD_IP
+	 *	{ u32			pid, tid; } && PERF_RECORD_TID
+	 *	{ u64			time;     } && PERF_RECORD_TIME
+	 *	{ u64			addr;     } && PERF_RECORD_ADDR
+	 *	{ u64			config;   } && PERF_RECORD_CONFIG
+	 *	{ u32			cpu, res; } && PERF_RECORD_CPU
 	 *
-	 * 	{ u64			nr;
-	 * 	  { u64 event, val; } 	cnt[nr];  } && PERF_RECORD_GROUP
+	 *	{ u64			nr;
+	 *	  { u64 event, val; }	cnt[nr];  } && PERF_RECORD_GROUP
 	 *
-	 * 	{ u16			nr,
-	 * 				hv,
-	 * 				kernel,
-	 * 				user;
-	 * 	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
+	 *	{ u16			nr,
+	 *				hv,
+	 *				kernel,
+	 *				user;
+	 *	  u64			ips[nr];  } && PERF_RECORD_CALLCHAIN
 	 * };
 	 */
 };
@@ -406,7 +406,7 @@ struct perf_mmap_data {
 	atomic_t			wakeup;		/* needs a wakeup    */
 
 	struct perf_counter_mmap_page   *user_page;
-	void 				*data_pages[0];
+	void				*data_pages[0];
 };
 
 struct perf_pending_entry {
@@ -422,7 +422,7 @@ struct perf_counter {
 	struct list_head		list_entry;
 	struct list_head		event_entry;
 	struct list_head		sibling_list;
-	int 				nr_siblings;
+	int				nr_siblings;
 	struct perf_counter		*group_leader;
 	const struct pmu		*pmu;
 

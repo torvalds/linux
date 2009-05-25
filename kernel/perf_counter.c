@@ -2576,7 +2576,7 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 		.time = sched_clock(),
 	};
 
-	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 0, 0);
+	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);
 	if (ret)
 		return;
 
@@ -3448,8 +3448,6 @@ void perf_counter_exit_task(struct task_struct *child)
 	struct perf_counter *child_counter, *tmp;
 	struct perf_counter_context *child_ctx;
 	unsigned long flags;
-
-	WARN_ON_ONCE(child != current);
 
 	child_ctx = child->perf_counter_ctxp;
 
