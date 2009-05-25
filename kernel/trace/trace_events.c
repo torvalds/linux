@@ -85,6 +85,7 @@ static void ftrace_clear_events(void)
 
 		if (call->enabled) {
 			call->enabled = 0;
+			tracing_stop_cmdline_record();
 			call->unregfunc();
 		}
 	}
@@ -99,12 +100,14 @@ static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 	case 0:
 		if (call->enabled) {
 			call->enabled = 0;
+			tracing_stop_cmdline_record();
 			call->unregfunc();
 		}
 		break;
 	case 1:
 		if (!call->enabled) {
 			call->enabled = 1;
+			tracing_start_cmdline_record();
 			call->regfunc();
 		}
 		break;
@@ -1058,6 +1061,7 @@ static void trace_module_remove_events(struct module *mod)
 			found = true;
 			if (call->enabled) {
 				call->enabled = 0;
+				tracing_stop_cmdline_record();
 				call->unregfunc();
 			}
 			if (call->event)
@@ -1262,11 +1266,13 @@ static __init void event_trace_self_tests(void)
 		}
 
 		call->enabled = 1;
+		tracing_start_cmdline_record();
 		call->regfunc();
 
 		event_test_stuff();
 
 		call->unregfunc();
+		tracing_stop_cmdline_record();
 		call->enabled = 0;
 
 		pr_cont("OK\n");

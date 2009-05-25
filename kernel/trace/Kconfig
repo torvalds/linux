@@ -49,6 +49,11 @@ config FTRACE_NMI_ENTER
        default y
 
 config EVENT_TRACING
+	select CONTEXT_SWITCH_TRACER
+	bool
+
+config CONTEXT_SWITCH_TRACER
+	select MARKERS
 	bool
 
 config TRACING
@@ -176,10 +181,10 @@ config SCHED_TRACER
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
 
-config CONTEXT_SWITCH_TRACER
+config ENABLE_CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
 	select TRACING
-	select MARKERS
+	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
