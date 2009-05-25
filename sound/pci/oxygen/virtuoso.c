@@ -1022,7 +1022,8 @@ static const struct oxygen_model model_xonar_hdav = {
 	.model_data_size = sizeof(struct xonar_data),
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
-			 CAPTURE_0_FROM_I2S_2,
+			 CAPTURE_0_FROM_I2S_2 |
+			 CAPTURE_1_FROM_SPDIF,
 	.dac_channels = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
