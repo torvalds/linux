@@ -1067,30 +1067,6 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 	__perf_counter_sched_in(ctx, cpuctx, cpu);
 }
 
-int perf_counter_task_enable(void)
-{
-	struct perf_counter *counter;
-
-	mutex_lock(&current->perf_counter_mutex);
-	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
-		perf_counter_enable(counter);
-	mutex_unlock(&current->perf_counter_mutex);
-
-	return 0;
-}
-
-int perf_counter_task_disable(void)
-{
-	struct perf_counter *counter;
-
-	mutex_lock(&current->perf_counter_mutex);
-	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
-		perf_counter_disable(counter);
-	mutex_unlock(&current->perf_counter_mutex);
-
-	return 0;
-}
-
 static void perf_log_period(struct perf_counter *counter, u64 period);
 
 static void perf_adjust_freq(struct perf_counter_context *ctx)
@@ -1501,6 +1477,30 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		perf_counter_for_each(counter, func);
 	else
 		perf_counter_for_each_child(counter, func);
+
+	return 0;
+}
+
+int perf_counter_task_enable(void)
+{
+	struct perf_counter *counter;
+
+	mutex_lock(&current->perf_counter_mutex);
+	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
+		perf_counter_for_each_child(counter, perf_counter_enable);
+	mutex_unlock(&current->perf_counter_mutex);
+
+	return 0;
+}
+
+int perf_counter_task_disable(void)
+{
+	struct perf_counter *counter;
+
+	mutex_lock(&current->perf_counter_mutex);
+	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
+		perf_counter_for_each_child(counter, perf_counter_disable);
+	mutex_unlock(&current->perf_counter_mutex);
 
 	return 0;
 }
