@@ -185,10 +185,6 @@ static const struct header_ops fddi_header_ops = {
 static void fddi_setup(struct net_device *dev)
 {
 	dev->header_ops		= &fddi_header_ops;
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	dev->change_mtu		= fddi_change_mtu,
-#endif
-
 	dev->type		= ARPHRD_FDDI;
 	dev->hard_header_len	= FDDI_K_SNAP_HLEN+3;	/* Assume 802.2 SNAP hdr len + 3 pad bytes */
 	dev->mtu		= FDDI_K_SNAP_DLEN;	/* Assume max payload of 802.2 SNAP frame */

@@ -337,11 +337,6 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
 void ether_setup(struct net_device *dev)
 {
 	dev->header_ops		= &eth_header_ops;
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	dev->change_mtu		= eth_change_mtu;
-	dev->set_mac_address 	= eth_mac_addr;
-	dev->validate_addr	= eth_validate_addr;
-#endif
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;
 	dev->mtu		= ETH_DATA_LEN;

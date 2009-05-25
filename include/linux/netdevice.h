@@ -901,44 +901,6 @@ struct net_device
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
-
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	struct {
-		int			(*init)(struct net_device *dev);
-		void			(*uninit)(struct net_device *dev);
-		int			(*open)(struct net_device *dev);
-		int			(*stop)(struct net_device *dev);
-		int			(*hard_start_xmit) (struct sk_buff *skb,
-							    struct net_device *dev);
-		u16			(*select_queue)(struct net_device *dev,
-							struct sk_buff *skb);
-		void			(*change_rx_flags)(struct net_device *dev,
-							   int flags);
-		void			(*set_rx_mode)(struct net_device *dev);
-		void			(*set_multicast_list)(struct net_device *dev);
-		int			(*set_mac_address)(struct net_device *dev,
-							   void *addr);
-		int			(*validate_addr)(struct net_device *dev);
-		int			(*do_ioctl)(struct net_device *dev,
-						    struct ifreq *ifr, int cmd);
-		int			(*set_config)(struct net_device *dev,
-						      struct ifmap *map);
-		int			(*change_mtu)(struct net_device *dev, int new_mtu);
-		int			(*neigh_setup)(struct net_device *dev,
-						       struct neigh_parms *);
-		void			(*tx_timeout) (struct net_device *dev);
-		struct net_device_stats* (*get_stats)(struct net_device *dev);
-		void			(*vlan_rx_register)(struct net_device *dev,
-							    struct vlan_group *grp);
-		void			(*vlan_rx_add_vid)(struct net_device *dev,
-							   unsigned short vid);
-		void			(*vlan_rx_kill_vid)(struct net_device *dev,
-							    unsigned short vid);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		void                    (*poll_controller)(struct net_device *dev);
-#endif
-	};
-#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

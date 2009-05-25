@@ -644,7 +644,6 @@ static int vlan_dev_init(struct net_device *dev)
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
 		dev->netdev_ops         = &vlan_netdev_ops;
 	}
-	netdev_resync_ops(dev);
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
