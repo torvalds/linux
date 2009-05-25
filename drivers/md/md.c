@@ -3306,7 +3306,9 @@ static ssize_t
 action_show(mddev_t *mddev, char *page)
 {
 	char *type = "idle";
-	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+	if (test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
+		type = "frozen";
+	else if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 	    (!mddev->ro && test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))) {
 		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
 			type = "reshape";
@@ -3329,7 +3331,12 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 	if (!mddev->pers || !mddev->pers->sync_request)
 		return -EINVAL;
 
-	if (cmd_match(page, "idle")) {
+	if (cmd_match(page, "frozen"))
+		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	else
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+
+	if (cmd_match(page, "idle") || cmd_match(page, "frozen")) {
 		if (mddev->sync_thread) {
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			md_unregister_thread(mddev->sync_thread);
