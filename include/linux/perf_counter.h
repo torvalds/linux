@@ -267,6 +267,15 @@ enum perf_event_type {
 	PERF_EVENT_PERIOD		= 4,
 
 	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u64				time;
+	 * };
+	 */
+	PERF_EVENT_THROTTLE		= 5,
+	PERF_EVENT_UNTHROTTLE		= 6,
+
+	/*
 	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
 	 * will be PERF_RECORD_*
 	 *
@@ -367,6 +376,7 @@ struct pmu {
 	int (*enable)			(struct perf_counter *counter);
 	void (*disable)			(struct perf_counter *counter);
 	void (*read)			(struct perf_counter *counter);
+	void (*unthrottle)		(struct perf_counter *counter);
 };
 
 /**
@@ -613,6 +623,7 @@ extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 extern int sysctl_perf_counter_priv;
 extern int sysctl_perf_counter_mlock;
+extern int sysctl_perf_counter_limit;
 
 extern void perf_counter_init(void);
 

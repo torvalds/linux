@@ -46,6 +46,7 @@ static atomic_t nr_comm_tracking __read_mostly;
 
 int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
 int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
+int sysctl_perf_counter_limit __read_mostly = 100000; /* max NMIs per second */
 
 /*
  * Lock for (sysadmin-configurable) counter reservations:
@@ -1066,12 +1067,15 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 	__perf_counter_sched_in(ctx, cpuctx, cpu);
 }
 
+#define MAX_INTERRUPTS (~0ULL)
+
+static void perf_log_throttle(struct perf_counter *counter, int enable);
 static void perf_log_period(struct perf_counter *counter, u64 period);
 
 static void perf_adjust_freq(struct perf_counter_context *ctx)
 {
 	struct perf_counter *counter;
-	u64 irq_period;
+	u64 interrupts, irq_period;
 	u64 events, period;
 	s64 delta;
 
@@ -1080,10 +1084,19 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 			continue;
 
+		interrupts = counter->hw.interrupts;
+		counter->hw.interrupts = 0;
+
+		if (interrupts == MAX_INTERRUPTS) {
+			perf_log_throttle(counter, 1);
+			counter->pmu->unthrottle(counter);
+			interrupts = 2*sysctl_perf_counter_limit/HZ;
+		}
+
 		if (!counter->hw_event.freq || !counter->hw_event.irq_freq)
 			continue;
 
-		events = HZ * counter->hw.interrupts * counter->hw.irq_period;
+		events = HZ * interrupts * counter->hw.irq_period;
 		period = div64_u64(events, counter->hw_event.irq_freq);
 
 		delta = (s64)(1 + period - counter->hw.irq_period);
@@ -1097,7 +1110,6 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		perf_log_period(counter, irq_period);
 
 		counter->hw.irq_period = irq_period;
-		counter->hw.interrupts = 0;
 	}
 	spin_unlock(&ctx->lock);
 }
@@ -2544,6 +2556,35 @@ static void perf_log_period(struct perf_counter *counter, u64 period)
 }
 
 /*
+ * IRQ throttle logging
+ */
+
+static void perf_log_throttle(struct perf_counter *counter, int enable)
+{
+	struct perf_output_handle handle;
+	int ret;
+
+	struct {
+		struct perf_event_header	header;
+		u64				time;
+	} throttle_event = {
+		.header = {
+			.type = PERF_EVENT_THROTTLE + 1,
+			.misc = 0,
+			.size = sizeof(throttle_event),
+		},
+		.time = sched_clock(),
+	};
+
+	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 0, 0);
+	if (ret)
+		return;
+
+	perf_output_put(&handle, throttle_event);
+	perf_output_end(&handle);
+}
+
+/*
  * Generic counter overflow handling.
  */
 
@@ -2551,9 +2592,19 @@ int perf_counter_overflow(struct perf_counter *counter,
 			  int nmi, struct pt_regs *regs, u64 addr)
 {
 	int events = atomic_read(&counter->event_limit);
+	int throttle = counter->pmu->unthrottle != NULL;
 	int ret = 0;
 
-	counter->hw.interrupts++;
+	if (!throttle) {
+		counter->hw.interrupts++;
+	} else if (counter->hw.interrupts != MAX_INTERRUPTS) {
+		counter->hw.interrupts++;
+		if (HZ*counter->hw.interrupts > (u64)sysctl_perf_counter_limit) {
+			counter->hw.interrupts = MAX_INTERRUPTS;
+			perf_log_throttle(counter, 0);
+			ret = 1;
+		}
+	}
 
 	/*
 	 * XXX event_limit might not quite work as expected on inherited

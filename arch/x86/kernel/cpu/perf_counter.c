@@ -623,6 +623,18 @@ try_generic:
 	return 0;
 }
 
+static void x86_pmu_unthrottle(struct perf_counter *counter)
+{
+	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+	struct hw_perf_counter *hwc = &counter->hw;
+
+	if (WARN_ON_ONCE(hwc->idx >= X86_PMC_IDX_MAX ||
+				cpuc->counters[hwc->idx] != counter))
+		return;
+
+	x86_pmu.enable(hwc, hwc->idx);
+}
+
 void perf_counter_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
@@ -1038,6 +1050,7 @@ static const struct pmu pmu = {
 	.enable		= x86_pmu_enable,
 	.disable	= x86_pmu_disable,
 	.read		= x86_pmu_read,
+	.unthrottle	= x86_pmu_unthrottle,
 };
 
 const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
