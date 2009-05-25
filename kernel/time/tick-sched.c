@@ -222,6 +222,15 @@ void tick_nohz_stop_sched_tick(int inidle)
 
 	cpu = smp_processor_id();
 	ts = &per_cpu(tick_cpu_sched, cpu);
+
+	/*
+	 * Call to tick_nohz_start_idle stops the last_update_time from being
+	 * updated. Thus, it must not be called in the event we are called from
+	 * irq_exit() with the prior state different than idle.
+	 */
+	if (!inidle && !ts->inidle)
+		goto end;
+
 	now = tick_nohz_start_idle(ts);
 
 	/*
@@ -237,9 +246,6 @@ void tick_nohz_stop_sched_tick(int inidle)
 	}
 
 	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE))
-		goto end;
-
-	if (!inidle && !ts->inidle)
 		goto end;
 
 	ts->inidle = 1;
