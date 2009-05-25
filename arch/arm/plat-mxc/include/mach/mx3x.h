@@ -279,9 +279,6 @@
 
 /* Mandatory defines used globally */
 
-/* this CPU supports up to 96 GPIOs */
-#define ARCH_NR_GPIOS		96
-
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 
 extern unsigned int system_rev;

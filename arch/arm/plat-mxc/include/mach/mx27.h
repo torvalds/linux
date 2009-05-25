@@ -120,7 +120,4 @@ extern int mx27_revision(void);
 
 /* Mandatory defines used globally */
 
-/* this CPU supports up to 192 GPIOs (don't forget the baseboard!) */
-#define ARCH_NR_GPIOS		(192 + 16)
-
 #endif /* __ASM_ARCH_MXC_MX27_H__ */
