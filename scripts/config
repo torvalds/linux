@@ -9,8 +9,10 @@ config options command ...
 commands:
 	--enable|-e option   Enable option
 	--disable|-d option  Disable option
-	--module|-m option      Turn option into a module
-	--state|-s option       Print state of option (n,y,m,undef)
+	--module|-m option   Turn option into a module
+	--set-str option value
+	                     Set option to "value"
+	--state|-s option    Print state of option (n,y,m,undef)
 
 	--enable-after|-E beforeopt option
                              Enable option directly after other option
@@ -100,6 +102,11 @@ while [ "$1" != "" ] ; do
 
 	--module|-m)
 		set_var "CONFIG_$ARG" "CONFIG_$ARG=m"
+		;;
+
+	--set-str)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=\"$1\""
+		shift
 		;;
 
 	--state|-s)
