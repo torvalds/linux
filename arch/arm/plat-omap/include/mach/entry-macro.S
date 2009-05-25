@@ -58,11 +58,14 @@
 #endif
 #if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
 
-#if defined(CONFIG_ARCH_OMAP24XX)
 #include <mach/omap24xx.h>
-#endif
-#if defined(CONFIG_ARCH_OMAP34XX)
 #include <mach/omap34xx.h>
+
+/* REVISIT: This should be set dynamically if CONFIG_MULTI_OMAP2 is selected */
+#if defined(CONFIG_ARCH_OMAP2420) || defined(CONFIG_ARCH_OMAP2430)
+#define OMAP2_VA_IC_BASE		IO_ADDRESS(OMAP24XX_IC_BASE)
+#elif defined(CONFIG_ARCH_OMAP34XX)
+#define OMAP2_VA_IC_BASE		IO_ADDRESS(OMAP34XX_IC_BASE)
 #endif
 
 #define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt offset */
