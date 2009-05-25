@@ -1187,6 +1187,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!ubifs_compr_present(c->default_compr)) {
 		ubifs_err("'compressor \"%s\" is not compiled in",
 			  ubifs_compr_name(c->default_compr));
+		err = -ENOTSUPP;
 		goto out_free;
 	}
 
