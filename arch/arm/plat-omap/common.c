@@ -287,9 +287,7 @@ arch_initcall(omap_init_clocksource_32k);
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
-static struct omap_globals *omap2_globals;
-
-static void __init __omap2_set_globals(void)
+static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 {
 	omap2_set_globals_tap(omap2_globals);
 	omap2_set_globals_sdrc(omap2_globals);
@@ -313,8 +311,7 @@ static struct omap_globals omap242x_globals = {
 
 void __init omap2_set_globals_242x(void)
 {
-	omap2_globals = &omap242x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap242x_globals);
 }
 #endif
 
@@ -332,8 +329,7 @@ static struct omap_globals omap243x_globals = {
 
 void __init omap2_set_globals_243x(void)
 {
-	omap2_globals = &omap243x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap243x_globals);
 }
 #endif
 
@@ -351,8 +347,7 @@ static struct omap_globals omap343x_globals = {
 
 void __init omap2_set_globals_343x(void)
 {
-	omap2_globals = &omap343x_globals;
-	__omap2_set_globals();
+	__omap2_set_globals(&omap343x_globals);
 }
 #endif
 
