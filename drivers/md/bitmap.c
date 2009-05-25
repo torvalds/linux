@@ -1097,14 +1097,12 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 	}
 	bitmap->allclean = 1;
 
+	spin_lock_irqsave(&bitmap->lock, flags);
 	for (j = 0; j < bitmap->chunks; j++) {
 		bitmap_counter_t *bmc;
-		spin_lock_irqsave(&bitmap->lock, flags);
-		if (!bitmap->filemap) {
+		if (!bitmap->filemap)
 			/* error or shutdown */
-			spin_unlock_irqrestore(&bitmap->lock, flags);
 			break;
-		}
 
 		page = filemap_get_page(bitmap, j);
 
@@ -1121,6 +1119,8 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 					write_page(bitmap, page, 0);
 					bitmap->allclean = 0;
 				}
+				spin_lock_irqsave(&bitmap->lock, flags);
+				j |= (PAGE_BITS - 1);
 				continue;
 			}
 
@@ -1181,9 +1181,10 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 					ext2_clear_bit(file_page_offset(j), paddr);
 				kunmap_atomic(paddr, KM_USER0);
 			}
-		}
-		spin_unlock_irqrestore(&bitmap->lock, flags);
+		} else
+			j |= PAGE_COUNTER_MASK;
 	}
+	spin_unlock_irqrestore(&bitmap->lock, flags);
 
 	/* now sync the final page */
 	if (lastpage != NULL) {
