@@ -83,6 +83,14 @@ static struct kmem_cache *sram_piece_cache;
 static void __init l1sram_init(void)
 {
 	unsigned int cpu;
+	unsigned long reserve;
+
+#ifdef CONFIG_SMP
+	reserve = 0;
+#else
+	reserve = sizeof(struct l1_scratch_task_info);
+#endif
+
 	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
 		per_cpu(free_l1_ssram_head, cpu).next =
 			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
@@ -91,8 +99,8 @@ static void __init l1sram_init(void)
 			return;
 		}
 
-		per_cpu(free_l1_ssram_head, cpu).next->paddr = (void *)get_l1_scratch_start_cpu(cpu);
-		per_cpu(free_l1_ssram_head, cpu).next->size = L1_SCRATCH_LENGTH;
+		per_cpu(free_l1_ssram_head, cpu).next->paddr = (void *)get_l1_scratch_start_cpu(cpu) + reserve;
+		per_cpu(free_l1_ssram_head, cpu).next->size = L1_SCRATCH_LENGTH - reserve;
 		per_cpu(free_l1_ssram_head, cpu).next->pid = 0;
 		per_cpu(free_l1_ssram_head, cpu).next->next = NULL;
 
