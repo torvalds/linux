@@ -23,12 +23,21 @@ MODULE_SUPPORTED_DEVICE("{{Creative Labs, Sound Blaster X-Fi}");
 
 static unsigned int reference_rate = 48000;
 static unsigned int multiple = 2;
+MODULE_PARM_DESC(reference_rate, "Reference rate (default=48000)");
 module_param(reference_rate, uint, S_IRUGO);
+MODULE_PARM_DESC(multiple, "Rate multiplier (default=2)");
 module_param(multiple, uint, S_IRUGO);
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+
+module_param_array(index, int, NULL, 0444);
+MODULE_PARM_DESC(index, "Index value for Creative X-Fi driver");
+module_param_array(id, charp, NULL, 0444);
+MODULE_PARM_DESC(id, "ID string for Creative X-Fi driver");
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable Creative X-Fi driver");
 
 static struct pci_device_id ct_pci_dev_ids[] = {
 	/* only X-Fi is supported, so... */
