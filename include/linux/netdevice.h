@@ -1008,6 +1008,9 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 void netif_napi_del(struct napi_struct *napi);
 
 struct napi_gro_cb {
+	/* Virtual address of skb_shinfo(skb)->frags[0].page + offset. */
+	void *frag0;
+
 	/* This indicates where we are processing relative to skb->data. */
 	int data_offset;
 
@@ -1107,9 +1110,9 @@ extern int		dev_restart(struct net_device *dev);
 #ifdef CONFIG_NETPOLL_TRAP
 extern int		netpoll_trap(void);
 #endif
-extern void	      *skb_gro_header(struct sk_buff *skb, unsigned int hlen);
 extern int	       skb_gro_receive(struct sk_buff **head,
 				       struct sk_buff *skb);
+extern void	       skb_gro_reset_offset(struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
@@ -1126,23 +1129,28 @@ static inline void skb_gro_pull(struct sk_buff *skb, unsigned int len)
 	NAPI_GRO_CB(skb)->data_offset += len;
 }
 
-static inline void skb_gro_reset_offset(struct sk_buff *skb)
+static inline void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
 {
-	NAPI_GRO_CB(skb)->data_offset = 0;
+	unsigned int offset = skb_gro_offset(skb);
+
+	hlen += offset;
+	if (!NAPI_GRO_CB(skb)->frag0 ||
+	    unlikely(skb_shinfo(skb)->frags[0].size + skb_headlen(skb) < hlen))
+		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
+
+	return NAPI_GRO_CB(skb)->frag0 + offset;
 }
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
 {
 	return skb_headlen(skb) ? skb_mac_header(skb) :
-	       page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset;
+	       NAPI_GRO_CB(skb)->frag0;
 }
 
 static inline void *skb_gro_network_header(struct sk_buff *skb)
 {
 	return skb_headlen(skb) ? skb_network_header(skb) :
-	       page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset + skb_network_offset(skb);
+	       NAPI_GRO_CB(skb)->frag0 + skb_network_offset(skb);
 }
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,

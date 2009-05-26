@@ -2390,21 +2390,6 @@ void napi_gro_flush(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
-void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
-{
-	unsigned int offset = skb_gro_offset(skb);
-
-	hlen += offset;
-	if (unlikely(skb_headlen(skb) ||
-		     skb_shinfo(skb)->frags[0].size < hlen ||
-		     PageHighMem(skb_shinfo(skb)->frags[0].page)))
-		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
-
-	return page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset + offset;
-}
-EXPORT_SYMBOL(skb_gro_header);
-
 int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
@@ -2519,6 +2504,18 @@ int napi_skb_finish(int ret, struct sk_buff *skb)
 	return err;
 }
 EXPORT_SYMBOL(napi_skb_finish);
+
+void skb_gro_reset_offset(struct sk_buff *skb)
+{
+	NAPI_GRO_CB(skb)->data_offset = 0;
+	NAPI_GRO_CB(skb)->frag0 = NULL;
+
+	if (!skb_headlen(skb) && !PageHighMem(skb_shinfo(skb)->frags[0].page))
+		NAPI_GRO_CB(skb)->frag0 =
+			page_address(skb_shinfo(skb)->frags[0].page) +
+			skb_shinfo(skb)->frags[0].page_offset;
+}
+EXPORT_SYMBOL(skb_gro_reset_offset);
 
 int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
