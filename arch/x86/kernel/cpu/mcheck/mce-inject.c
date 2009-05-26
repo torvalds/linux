@@ -120,7 +120,8 @@ static int inject_init(void)
 }
 
 module_init(inject_init);
-/* Cannot tolerate unloading currently because we cannot
+/*
+ * Cannot tolerate unloading currently because we cannot
  * guarantee all openers of mce_chrdev will get a reference to us.
  */
 MODULE_LICENSE("GPL");
