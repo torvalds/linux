@@ -645,6 +645,7 @@ static int __cmd_report(void)
 	char *buf;
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
+	uint32_t size;
 	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
 
 	input = open(input_name, O_RDONLY);
@@ -680,6 +681,10 @@ remap:
 more:
 	event = (event_t *)(buf + head);
 
+	size = event->header.size;
+	if (!size)
+		size = 8;
+
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
 		int ret;
@@ -692,12 +697,9 @@ more:
 		goto remap;
 	}
 
-
-	if (!event->header.size) {
-		fprintf(stderr, "zero-sized event at file offset %ld\n", offset + head);
-		fprintf(stderr, "skipping %ld bytes of events.\n", stat.st_size - offset - head);
-		goto done;
-	}
+	size = event->header.size;
+	if (!size)
+		goto broken_event;
 
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
 		char level;
@@ -787,15 +789,26 @@ more:
 		break;
 	}
 	default: {
+broken_event:
 		fprintf(stderr, "%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
 			event->header.type);
 		total_unknown++;
+
+		/*
+		 * assume we lost track of the stream, check alignment, and
+		 * increment a single u64 in the hope to catch on again 'soon'.
+		 */
+
+		if (unlikely(head & 7))
+			head &= ~7ULL;
+
+		size = 8;
 	}
 	}
 
-	head += event->header.size;
+	head += size;
 
 	if (offset + head < stat.st_size)
 		goto more;
