@@ -196,7 +196,7 @@ struct dvb_usb_device_properties {
 #define CYPRESS_FX2     3
 	int        usb_ctrl;
 	int        (*download_firmware) (struct usb_device *, const struct firmware *);
-	const char firmware[FIRMWARE_NAME_MAX];
+	const char *firmware;
 	int        no_reconnect;
 
 	int size_of_priv;
