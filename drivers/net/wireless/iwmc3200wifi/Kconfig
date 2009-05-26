@@ -1,7 +1,8 @@
 config IWM
 	tristate "Intel Wireless Multicomm 3200 WiFi driver"
 	depends on MMC && WLAN_80211 && EXPERIMENTAL
-	select LIB80211
+	select WIRELESS_EXT
+	select CFG80211
 	select FW_LOADER
 	select RFKILL
 
