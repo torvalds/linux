@@ -645,7 +645,7 @@ static int __cmd_report(void)
 	char *buf;
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
-	unsigned long total = 0, total_mmap = 0, total_comm = 0;
+	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown;
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -785,6 +785,7 @@ more:
 	default: {
 		fprintf(stderr, "skipping unknown header type: %d\n",
 			event->header.type);
+		total_unknown++;
 	}
 	}
 
@@ -796,9 +797,10 @@ done:
 	close(input);
 
 	if (dump_trace) {
-		fprintf(stderr, "   IP events: %10ld\n", total);
-		fprintf(stderr, " mmap events: %10ld\n", total_mmap);
-		fprintf(stderr, " comm events: %10ld\n", total_comm);
+		fprintf(stderr, "      IP events: %10ld\n", total);
+		fprintf(stderr, "    mmap events: %10ld\n", total_mmap);
+		fprintf(stderr, "    comm events: %10ld\n", total_comm);
+		fprintf(stderr, " unknown events: %10ld\n", total_unknown);
 
 		return 0;
 	}
