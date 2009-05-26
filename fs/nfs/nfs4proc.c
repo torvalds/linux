@@ -2594,12 +2594,9 @@ static void nfs4_renew_done(struct rpc_task *task, void *data)
 	unsigned long timestamp = (unsigned long)data;
 
 	if (task->tk_status < 0) {
-		switch (task->tk_status) {
-			case -NFS4ERR_STALE_CLIENTID:
-			case -NFS4ERR_EXPIRED:
-			case -NFS4ERR_CB_PATH_DOWN:
-				nfs4_schedule_state_recovery(clp);
-		}
+		/* Unless we're shutting down, schedule state recovery! */
+		if (test_bit(NFS_CS_RENEWD, &clp->cl_res_state) != 0)
+			nfs4_schedule_state_recovery(clp);
 		return;
 	}
 	spin_lock(&clp->cl_lock);
