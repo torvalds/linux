@@ -2014,14 +2014,12 @@ static int __devinit snd_riptide_mixer(struct snd_riptide *chip)
 }
 
 #ifdef SUPPORT_JOYSTICK
-static int have_joystick;
-static struct pci_dev *riptide_gameport_pci;
-static struct gameport *riptide_gameport;
 
 static int __devinit
 snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
 	static int dev;
+	struct gameport *gameport;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -2030,36 +2028,33 @@ snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return -ENOENT;
 	}
 
-	if (joystick_port[dev]) {
-		riptide_gameport = gameport_allocate_port();
-		if (riptide_gameport) {
-			if (!request_region
-			    (joystick_port[dev], 8, "Riptide gameport")) {
-				snd_printk(KERN_WARNING
-					   "Riptide: cannot grab gameport 0x%x\n",
-					   joystick_port[dev]);
-				gameport_free_port(riptide_gameport);
-				riptide_gameport = NULL;
-			} else {
-				riptide_gameport_pci = pci;
-				riptide_gameport->io = joystick_port[dev];
-				gameport_register_port(riptide_gameport);
-			}
-		}
+	if (!joystick_port[dev++])
+		return 0;
+
+	gameport = gameport_allocate_port();
+	if (!gameport)
+		return -ENOMEM;
+	if (!request_region(joystick_port[dev], 8, "Riptide gameport")) {
+		snd_printk(KERN_WARNING
+			   "Riptide: cannot grab gameport 0x%x\n",
+			   joystick_port[dev]);
+		gameport_free_port(gameport);
+		return -EBUSY;
 	}
-	dev++;
+
+	gameport->io = joystick_port[dev];
+	gameport_register_port(gameport);
+	pci_set_drvdata(pci, gameport);
 	return 0;
 }
 
 static void __devexit snd_riptide_joystick_remove(struct pci_dev *pci)
 {
-	if (riptide_gameport) {
-		if (riptide_gameport_pci == pci) {
-			release_region(riptide_gameport->io, 8);
-			riptide_gameport_pci = NULL;
-			gameport_unregister_port(riptide_gameport);
-			riptide_gameport = NULL;
-		}
+	struct gameport *gameport = pci_get_drvdata(pci);
+	if (gameport) {
+		release_region(gameport->io, 8);
+		gameport_unregister_port(gameport);
+		pci_set_drvdata(pci, NULL);
 	}
 }
 #endif
@@ -2198,14 +2193,11 @@ static struct pci_driver joystick_driver = {
 static int __init alsa_card_riptide_init(void)
 {
 	int err;
-	if ((err = pci_register_driver(&driver)) < 0)
+	err = pci_register_driver(&driver);
+	if (err < 0)
 		return err;
 #if defined(SUPPORT_JOYSTICK)
-	if (pci_register_driver(&joystick_driver) < 0) {
-		have_joystick = 0;
-		snd_printk(KERN_INFO "no joystick found\n");
-	} else
-		have_joystick = 1;
+	pci_register_driver(&joystick_driver);
 #endif
 	return 0;
 }
@@ -2214,8 +2206,7 @@ static void __exit alsa_card_riptide_exit(void)
 {
 	pci_unregister_driver(&driver);
 #if defined(SUPPORT_JOYSTICK)
-	if (have_joystick)
-		pci_unregister_driver(&joystick_driver);
+	pci_unregister_driver(&joystick_driver);
 #endif
 }
 
