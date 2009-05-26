@@ -2666,13 +2666,15 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct sk_buff *nskb;
 	unsigned int headroom;
 	unsigned int len = skb_gro_len(skb);
+	unsigned int offset = skb_gro_offset(skb);
+	unsigned int headlen = skb_headlen(skb);
 
 	if (p->len + len >= 65536)
 		return -E2BIG;
 
 	if (skb_shinfo(p)->frag_list)
 		goto merge;
-	else if (skb_headlen(skb) <= skb_gro_offset(skb)) {
+	else if (headlen <= offset) {
 		skb_frag_t *frag;
 		int i;
 
@@ -2680,10 +2682,8 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		    MAX_SKB_FRAGS)
 			return -E2BIG;
 
-		skb_shinfo(skb)->frags[0].page_offset +=
-			skb_gro_offset(skb) - skb_headlen(skb);
-		skb_shinfo(skb)->frags[0].size -=
-			skb_gro_offset(skb) - skb_headlen(skb);
+		skb_shinfo(skb)->frags[0].page_offset += offset - headlen;
+		skb_shinfo(skb)->frags[0].size -= offset - headlen;
 
 		frag = skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags;
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -2736,16 +2736,13 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
-	if (skb_gro_offset(skb) > skb_headlen(skb)) {
-		skb_shinfo(skb)->frags[0].page_offset +=
-			skb_gro_offset(skb) - skb_headlen(skb);
-		skb_shinfo(skb)->frags[0].size -=
-			skb_gro_offset(skb) - skb_headlen(skb);
-		skb_gro_reset_offset(skb);
-		skb_gro_pull(skb, skb_headlen(skb));
+	if (offset > headlen) {
+		skb_shinfo(skb)->frags[0].page_offset += offset - headlen;
+		skb_shinfo(skb)->frags[0].size -= offset - headlen;
+		offset = headlen;
 	}
 
-	__skb_pull(skb, skb_gro_offset(skb));
+	__skb_pull(skb, offset);
 
 	p->prev->next = skb;
 	p->prev = skb;
