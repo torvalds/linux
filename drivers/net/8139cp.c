@@ -471,8 +471,7 @@ static void cp_rx_err_acct (struct cp_private *cp, unsigned rx_tail,
 			    u32 status, u32 len)
 {
 	if (netif_msg_rx_err (cp))
-		printk (KERN_DEBUG
-			"%s: rx err, slot %d status 0x%x len %d\n",
+		pr_debug("%s: rx err, slot %d status 0x%x len %d\n",
 			cp->dev->name, rx_tail, status, len);
 	cp->dev->stats.rx_errors++;
 	if (status & RxErrFrame)
@@ -547,7 +546,7 @@ rx_status_loop:
 		}
 
 		if (netif_msg_rx_status(cp))
-			printk(KERN_DEBUG "%s: rx slot %d status 0x%x len %d\n",
+			pr_debug("%s: rx slot %d status 0x%x len %d\n",
 			       dev->name, rx_tail, status, len);
 
 		buflen = cp->rx_buf_sz + NET_IP_ALIGN;
@@ -626,7 +625,7 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 		return IRQ_NONE;
 
 	if (netif_msg_intr(cp))
-		printk(KERN_DEBUG "%s: intr, status %04x cmd %02x cpcmd %04x\n",
+		pr_debug("%s: intr, status %04x cmd %02x cpcmd %04x\n",
 		        dev->name, status, cpr8(Cmd), cpr16(CpCmd));
 
 	cpw16(IntrStatus, status & ~cp_rx_intr_mask);
@@ -658,7 +657,7 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 
 		pci_read_config_word(cp->pdev, PCI_STATUS, &pci_status);
 		pci_write_config_word(cp->pdev, PCI_STATUS, pci_status);
-		printk(KERN_ERR "%s: PCI bus error, status=%04x, PCI status=%04x\n",
+		pr_err("%s: PCI bus error, status=%04x, PCI status=%04x\n",
 		       dev->name, status, pci_status);
 
 		/* TODO: reset hardware */
@@ -705,7 +704,7 @@ static void cp_tx (struct cp_private *cp)
 		if (status & LastFrag) {
 			if (status & (TxError | TxFIFOUnder)) {
 				if (netif_msg_tx_err(cp))
-					printk(KERN_DEBUG "%s: tx err, status 0x%x\n",
+					pr_debug("%s: tx err, status 0x%x\n",
 					       cp->dev->name, status);
 				cp->dev->stats.tx_errors++;
 				if (status & TxOWC)
@@ -722,7 +721,7 @@ static void cp_tx (struct cp_private *cp)
 				cp->dev->stats.tx_packets++;
 				cp->dev->stats.tx_bytes += skb->len;
 				if (netif_msg_tx_done(cp))
-					printk(KERN_DEBUG "%s: tx done, slot %d\n", cp->dev->name, tx_tail);
+					pr_debug("%s: tx done, slot %d\n", cp->dev->name, tx_tail);
 			}
 			dev_kfree_skb_irq(skb);
 		}
@@ -755,7 +754,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(cp) <= (skb_shinfo(skb)->nr_frags + 1)) {
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&cp->lock, intr_flags);
-		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
+		pr_err(PFX "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
 		return 1;
 	}
@@ -882,7 +881,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	}
 	cp->tx_head = entry;
 	if (netif_msg_tx_queued(cp))
-		printk(KERN_DEBUG "%s: tx queued, slot %d, skblen %d\n",
+		pr_debug("%s: tx queued, slot %d, skblen %d\n",
 		       dev->name, entry, skb->len);
 	if (TX_BUFFS_AVAIL(cp) <= (MAX_SKB_FRAGS + 1))
 		netif_stop_queue(dev);
@@ -996,7 +995,7 @@ static void cp_reset_hw (struct cp_private *cp)
 		schedule_timeout_uninterruptible(10);
 	}
 
-	printk(KERN_ERR "%s: hardware reset timeout\n", cp->dev->name);
+	pr_err("%s: hardware reset timeout\n", cp->dev->name);
 }
 
 static inline void cp_start_hw (struct cp_private *cp)
@@ -1166,7 +1165,7 @@ static int cp_open (struct net_device *dev)
 	int rc;
 
 	if (netif_msg_ifup(cp))
-		printk(KERN_DEBUG "%s: enabling interface\n", dev->name);
+		pr_debug("%s: enabling interface\n", dev->name);
 
 	rc = cp_alloc_rings(cp);
 	if (rc)
@@ -1201,7 +1200,7 @@ static int cp_close (struct net_device *dev)
 	napi_disable(&cp->napi);
 
 	if (netif_msg_ifdown(cp))
-		printk(KERN_DEBUG "%s: disabling interface\n", dev->name);
+		pr_debug("%s: disabling interface\n", dev->name);
 
 	spin_lock_irqsave(&cp->lock, flags);
 
@@ -1224,7 +1223,7 @@ static void cp_tx_timeout(struct net_device *dev)
 	unsigned long flags;
 	int rc;
 
-	printk(KERN_WARNING "%s: Transmit timeout, status %2x %4x %4x %4x\n",
+	pr_warning("%s: Transmit timeout, status %2x %4x %4x %4x\n",
 	       dev->name, cpr8(Cmd), cpr16(CpCmd),
 	       cpr16(IntrStatus), cpr16(IntrMask));
 
@@ -1873,7 +1872,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifndef MODULE
 	static int version_printed;
 	if (version_printed++ == 0)
-		printk("%s", version);
+		pr_info("%s", version);
 #endif
 
 	if (pdev->vendor == PCI_VENDOR_ID_REALTEK &&
@@ -1995,8 +1994,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_iomap;
 
-	printk (KERN_INFO "%s: RTL-8139C+ at 0x%lx, "
-		"%pM, IRQ %d\n",
+	pr_info("%s: RTL-8139C+ at 0x%lx, %pM, IRQ %d\n",
 		dev->name,
 		dev->base_addr,
 		dev->dev_addr,
@@ -2113,7 +2111,7 @@ static struct pci_driver cp_driver = {
 static int __init cp_init (void)
 {
 #ifdef MODULE
-	printk("%s", version);
+	pr_info("%s", version);
 #endif
 	return pci_register_driver(&cp_driver);
 }
