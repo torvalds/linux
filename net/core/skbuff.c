@@ -2676,21 +2676,26 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		goto merge;
 	else if (headlen <= offset) {
 		skb_frag_t *frag;
-		int i;
+		skb_frag_t *frag2;
+		int i = skb_shinfo(skb)->nr_frags;
+		int nr_frags = skb_shinfo(p)->nr_frags + i;
 
-		if (skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags >
-		    MAX_SKB_FRAGS)
+		offset -= headlen;
+
+		if (nr_frags > MAX_SKB_FRAGS)
 			return -E2BIG;
 
-		skb_shinfo(skb)->frags[0].page_offset += offset - headlen;
-		skb_shinfo(skb)->frags[0].size -= offset - headlen;
-
-		frag = skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags;
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-			*frag++ = skb_shinfo(skb)->frags[i];
-
-		skb_shinfo(p)->nr_frags += skb_shinfo(skb)->nr_frags;
+		skb_shinfo(p)->nr_frags = nr_frags;
 		skb_shinfo(skb)->nr_frags = 0;
+
+		frag = skb_shinfo(p)->frags + nr_frags;
+		frag2 = skb_shinfo(skb)->frags + i;
+		do {
+			*--frag = *--frag2;
+		} while (--i);
+
+		frag->page_offset += offset;
+		frag->size -= offset;
 
 		skb->truesize -= skb->data_len;
 		skb->len -= skb->data_len;
