@@ -307,12 +307,6 @@ static struct platform_device *sh7366_devices[] __initdata = {
 
 static int __init sh7366_devices_setup(void)
 {
-	clk_always_enable("rsmem0"); /* RSMEM */
-	clk_always_enable("xymem0"); /* XYMEM */
-	clk_always_enable("veu1"); /* VEU-2 */
-	clk_always_enable("veu0"); /* VEU-1 */
-	clk_always_enable("vpu0"); /* VPU */
-
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
 	platform_resource_setup_memory(&veu1_device, "veu1", 2 << 20);

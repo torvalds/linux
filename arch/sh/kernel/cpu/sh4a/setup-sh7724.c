@@ -470,10 +470,6 @@ static struct platform_device *sh7724_devices[] __initdata = {
 
 static int __init sh7724_devices_setup(void)
 {
-	clk_always_enable("vpu0");   /* VPU */
-	clk_always_enable("veu1");   /* VEU3F1 */
-	clk_always_enable("veu0");   /* VEU3F0 */
-
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
 	platform_resource_setup_memory(&veu1_device, "veu1", 2 << 20);

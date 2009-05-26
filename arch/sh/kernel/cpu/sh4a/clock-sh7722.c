@@ -151,27 +151,24 @@ static int divisors2[] = { 4, 1, 8, 12, 16, 24, 32, 1, 48, 64, 72, 96, 1, 144 };
 static int divisors2[] = { 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40 };
 #endif
 
-static void master_clk_recalc(struct clk *clk)
+static unsigned long master_clk_recalc(struct clk *clk)
 {
 	unsigned frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = CONFIG_SH_PCLK_FREQ * STCPLL(frqcr);
+	return CONFIG_SH_PCLK_FREQ * STCPLL(frqcr);
 }
 
 static void master_clk_init(struct clk *clk)
 {
 	clk->parent = NULL;
-	clk->flags |= CLK_RATE_PROPAGATES;
-	clk->rate = CONFIG_SH_PCLK_FREQ;
-	master_clk_recalc(clk);
+	clk->rate = master_clk_recalc(clk);
 }
 
-
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	unsigned long frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = clk->parent->rate / STCPLL(frqcr);
+	return clk->parent->rate / STCPLL(frqcr);
 }
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7724)
@@ -283,14 +280,14 @@ static int sh7722_find_div_index(unsigned long parent_rate, unsigned rate)
 	return index;
 }
 
-static void sh7722_frqcr_recalc(struct clk *clk)
+static unsigned long sh7722_frqcr_recalc(struct clk *clk)
 {
 	struct frqcr_context ctx = sh7722_get_clk_context(clk->name);
 	unsigned long frqcr = ctrl_inl(FRQCR);
 	int index;
 
 	index = (frqcr >> ctx.shift) & ctx.mask;
-	clk->rate = clk->parent->rate * 2 / divisors2[index];
+	return clk->parent->rate * 2 / divisors2[index];
 }
 
 static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
@@ -439,11 +436,8 @@ static struct clk_ops sh7722_frqcr_clk_ops = {
 
 /*
  * clock ops methods for SIU A/B and IrDA clock
- *
  */
-
 #ifndef CONFIG_CPU_SUBTYPE_SH7343
-
 static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 {
 	unsigned long r;
@@ -458,12 +452,12 @@ static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 	return 0;
 }
 
-static void sh7722_siu_recalc(struct clk *clk)
+static unsigned long sh7722_siu_recalc(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(clk->arch_flags);
-	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
+	return clk->parent->rate * 2 / divisors2[r & 0xF];
 }
 
 static int sh7722_siu_start_stop(struct clk *clk, int enable)
@@ -478,9 +472,9 @@ static int sh7722_siu_start_stop(struct clk *clk, int enable)
 	return 0;
 }
 
-static void sh7722_siu_enable(struct clk *clk)
+static int sh7722_siu_enable(struct clk *clk)
 {
-	sh7722_siu_start_stop(clk, 1);
+	return sh7722_siu_start_stop(clk, 1);
 }
 
 static void sh7722_siu_disable(struct clk *clk)
@@ -497,12 +491,13 @@ static struct clk_ops sh7722_siu_clk_ops = {
 
 #endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
-static void sh7722_video_enable(struct clk *clk)
+static int sh7722_video_enable(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(VCLKCR);
 	ctrl_outl( r & ~(1<<8), VCLKCR);
+	return 0;
 }
 
 static void sh7722_video_disable(struct clk *clk)
@@ -525,12 +520,12 @@ static int sh7722_video_set_rate(struct clk *clk, unsigned long rate,
 	return 0;
 }
 
-static void sh7722_video_recalc(struct clk *clk)
+static unsigned long sh7722_video_recalc(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(VCLKCR);
-	clk->rate = clk->parent->rate / ((r & 0x3F) + 1);
+	return clk->parent->rate / ((r & 0x3F) + 1);
 }
 
 static struct clk_ops sh7722_video_clk_ops = {
@@ -545,19 +540,16 @@ static struct clk_ops sh7722_video_clk_ops = {
 static struct clk sh7722_umem_clock = {
 	.name = "umem_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sh_clock = {
 	.name = "sh_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_peripheral_clock = {
 	.name = "peripheral_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sdram_clock = {
@@ -568,7 +560,6 @@ static struct clk sh7722_sdram_clock = {
 static struct clk sh7722_r_clock = {
 	.name = "r_clk",
 	.rate = 32768,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 #if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
@@ -627,7 +618,7 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 		break;
 	default:
 		return -EINVAL;
-	}  
+	}
 
 	r = ctrl_inl(reg);
 
@@ -640,9 +631,9 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 	return 0;
 }
 
-static void sh7722_mstpcr_enable(struct clk *clk)
+static int sh7722_mstpcr_enable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, 1);
+	return sh7722_mstpcr_start_stop(clk, 1);
 }
 
 static void sh7722_mstpcr_disable(struct clk *clk)
@@ -650,219 +641,214 @@ static void sh7722_mstpcr_disable(struct clk *clk)
 	sh7722_mstpcr_start_stop(clk, 0);
 }
 
-static void sh7722_mstpcr_recalc(struct clk *clk)
-{
-	if (clk->parent)
-		clk->rate = clk->parent->rate;
-}
-
 static struct clk_ops sh7722_mstpcr_clk_ops = {
 	.enable = sh7722_mstpcr_enable,
 	.disable = sh7722_mstpcr_disable,
-	.recalc = sh7722_mstpcr_recalc,
+	.recalc = followparent_recalc,
 };
 
-#define MSTPCR(_name, _parent, regnr, bitnr) \
+#define MSTPCR(_name, _parent, regnr, bitnr, _flags) \
 {						\
 	.name = _name,				\
+	.flags = _flags,			\
 	.arch_flags = MSTPCR_ARCH_FLAGS(regnr, bitnr),	\
 	.ops = (void *)_parent,		\
 }
 
 static struct clk sh7722_mstpcr_clocks[] = {
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
-	MSTPCR("uram0", "umem_clk", 0, 28),
-	MSTPCR("xymem0", "bus_clk", 0, 26),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15),
-	MSTPCR("cmt0", "r_clk", 0, 14),
-	MSTPCR("rwdt0", "r_clk", 0, 13),
-	MSTPCR("flctl0", "peripheral_clk", 0, 10),
-	MSTPCR("scif0", "peripheral_clk", 0, 7),
-	MSTPCR("scif1", "peripheral_clk", 0, 6),
-	MSTPCR("scif2", "peripheral_clk", 0, 5),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9),
-	MSTPCR("rtc0", "r_clk", 1, 8),
-	MSTPCR("sdhi0", "peripheral_clk", 2, 18),
-	MSTPCR("keysc0", "r_clk", 2, 14),
-	MSTPCR("usbf0", "peripheral_clk", 2, 11),
-	MSTPCR("2dg0", "bus_clk", 2, 9),
-	MSTPCR("siu0", "bus_clk", 2, 8),
-	MSTPCR("vou0", "bus_clk", 2, 5),
-	MSTPCR("jpu0", "bus_clk", 2, 6),
-	MSTPCR("beu0", "bus_clk", 2, 4),
-	MSTPCR("ceu0", "bus_clk", 2, 3),
-	MSTPCR("veu0", "bus_clk", 2, 2),
-	MSTPCR("vpu0", "bus_clk", 2, 1),
-	MSTPCR("lcdc0", "bus_clk", 2, 0),
+	MSTPCR("uram0", "umem_clk", 0, 28, CLK_ENABLE_ON_INIT),
+	MSTPCR("xymem0", "bus_clk", 0, 26, CLK_ENABLE_ON_INIT),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
+	MSTPCR("cmt0", "r_clk", 0, 14, 0),
+	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10, 0),
+	MSTPCR("scif0", "peripheral_clk", 0, 7, 0),
+	MSTPCR("scif1", "peripheral_clk", 0, 6, 0),
+	MSTPCR("scif2", "peripheral_clk", 0, 5, 0),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
+	MSTPCR("rtc0", "r_clk", 1, 8, 0),
+	MSTPCR("sdhi0", "peripheral_clk", 2, 18, 0),
+	MSTPCR("keysc0", "r_clk", 2, 14, 0),
+	MSTPCR("usbf0", "peripheral_clk", 2, 11, 0),
+	MSTPCR("2dg0", "bus_clk", 2, 9, 0),
+	MSTPCR("siu0", "bus_clk", 2, 8, 0),
+	MSTPCR("vou0", "bus_clk", 2, 5, 0),
+	MSTPCR("jpu0", "bus_clk", 2, 6, CLK_ENABLE_ON_INIT),
+	MSTPCR("beu0", "bus_clk", 2, 4, 0),
+	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
+	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
+	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
+	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7723)
 	/* See page 60 of Datasheet V1.0: Overview -> Block Diagram */
-	MSTPCR("tlb0", "cpu_clk", 0, 31),
-	MSTPCR("ic0", "cpu_clk", 0, 30),
-	MSTPCR("oc0", "cpu_clk", 0, 29),
-	MSTPCR("l2c0", "sh_clk", 0, 28),
-	MSTPCR("ilmem0", "cpu_clk", 0, 27),
-	MSTPCR("fpu0", "cpu_clk", 0, 24),
-	MSTPCR("intc0", "cpu_clk", 0, 22),
-	MSTPCR("dmac0", "bus_clk", 0, 21),
-	MSTPCR("sh0", "sh_clk", 0, 20),
-	MSTPCR("hudi0", "peripheral_clk", 0, 19),
-	MSTPCR("ubc0", "cpu_clk", 0, 17),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15),
-	MSTPCR("cmt0", "r_clk", 0, 14),
-	MSTPCR("rwdt0", "r_clk", 0, 13),
-	MSTPCR("dmac1", "bus_clk", 0, 12),
-	MSTPCR("tmu1", "peripheral_clk", 0, 11),
-	MSTPCR("flctl0", "peripheral_clk", 0, 10),
-	MSTPCR("scif0", "peripheral_clk", 0, 9),
-	MSTPCR("scif1", "peripheral_clk", 0, 8),
-	MSTPCR("scif2", "peripheral_clk", 0, 7),
-	MSTPCR("scif3", "bus_clk", 0, 6),
-	MSTPCR("scif4", "bus_clk", 0, 5),
-	MSTPCR("scif5", "bus_clk", 0, 4),
-	MSTPCR("msiof0", "bus_clk", 0, 2),
-	MSTPCR("msiof1", "bus_clk", 0, 1),
-	MSTPCR("meram0", "sh_clk", 0, 0),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9),
-	MSTPCR("rtc0", "r_clk", 1, 8),
-	MSTPCR("atapi0", "sh_clk", 2, 28),
-	MSTPCR("adc0", "peripheral_clk", 2, 28),
-	MSTPCR("tpu0", "bus_clk", 2, 25),
-	MSTPCR("irda0", "peripheral_clk", 2, 24),
-	MSTPCR("tsif0", "bus_clk", 2, 22),
-	MSTPCR("icb0", "bus_clk", 2, 21),
-	MSTPCR("sdhi0", "bus_clk", 2, 18),
-	MSTPCR("sdhi1", "bus_clk", 2, 17),
-	MSTPCR("keysc0", "r_clk", 2, 14),
-	MSTPCR("usb0", "bus_clk", 2, 11),
-	MSTPCR("2dg0", "bus_clk", 2, 10),
-	MSTPCR("siu0", "bus_clk", 2, 8),
-	MSTPCR("veu1", "bus_clk", 2, 6),
-	MSTPCR("vou0", "bus_clk", 2, 5),
-	MSTPCR("beu0", "bus_clk", 2, 4),
-	MSTPCR("ceu0", "bus_clk", 2, 3),
-	MSTPCR("veu0", "bus_clk", 2, 2),
-	MSTPCR("vpu0", "bus_clk", 2, 1),
-	MSTPCR("lcdc0", "bus_clk", 2, 0),
+	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
+	MSTPCR("ic0", "cpu_clk", 0, 30, 0),
+	MSTPCR("oc0", "cpu_clk", 0, 29, 0),
+	MSTPCR("l2c0", "sh_clk", 0, 28, 0),
+	MSTPCR("ilmem0", "cpu_clk", 0, 27, 0),
+	MSTPCR("fpu0", "cpu_clk", 0, 24, 0),
+	MSTPCR("intc0", "cpu_clk", 0, 22, 0),
+	MSTPCR("dmac0", "bus_clk", 0, 21, 0),
+	MSTPCR("sh0", "sh_clk", 0, 20, 0),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19, 0),
+	MSTPCR("ubc0", "cpu_clk", 0, 17, 0),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
+	MSTPCR("cmt0", "r_clk", 0, 14, 0),
+	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
+	MSTPCR("dmac1", "bus_clk", 0, 12, 0),
+	MSTPCR("tmu1", "peripheral_clk", 0, 11, 0),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10, 0),
+	MSTPCR("scif0", "peripheral_clk", 0, 9, 0),
+	MSTPCR("scif1", "peripheral_clk", 0, 8, 0),
+	MSTPCR("scif2", "peripheral_clk", 0, 7, 0),
+	MSTPCR("scif3", "bus_clk", 0, 6, 0),
+	MSTPCR("scif4", "bus_clk", 0, 5, 0),
+	MSTPCR("scif5", "bus_clk", 0, 4, 0),
+	MSTPCR("msiof0", "bus_clk", 0, 2, 0),
+	MSTPCR("msiof1", "bus_clk", 0, 1, 0),
+	MSTPCR("meram0", "sh_clk", 0, 0, CLK_ENABLE_ON_INIT),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
+	MSTPCR("rtc0", "r_clk", 1, 8, 0),
+	MSTPCR("atapi0", "sh_clk", 2, 28, 0),
+	MSTPCR("adc0", "peripheral_clk", 2, 28, 0),
+	MSTPCR("tpu0", "bus_clk", 2, 25, 0),
+	MSTPCR("irda0", "peripheral_clk", 2, 24, 0),
+	MSTPCR("tsif0", "bus_clk", 2, 22, 0),
+	MSTPCR("icb0", "bus_clk", 2, 21, 0),
+	MSTPCR("sdhi0", "bus_clk", 2, 18, 0),
+	MSTPCR("sdhi1", "bus_clk", 2, 17, 0),
+	MSTPCR("keysc0", "r_clk", 2, 14, 0),
+	MSTPCR("usb0", "bus_clk", 2, 11, 0),
+	MSTPCR("2dg0", "bus_clk", 2, 10, 0),
+	MSTPCR("siu0", "bus_clk", 2, 8, 0),
+	MSTPCR("veu1", "bus_clk", 2, 6, CLK_ENABLE_ON_INIT),
+	MSTPCR("vou0", "bus_clk", 2, 5, 0),
+	MSTPCR("beu0", "bus_clk", 2, 4, 0),
+	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
+	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
+	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
+	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7724)
 	/* See Datasheet : Overview -> Block Diagram */
-	MSTPCR("tlb0", "cpu_clk", 0, 31),
-	MSTPCR("ic0", "cpu_clk", 0, 30),
-	MSTPCR("oc0", "cpu_clk", 0, 29),
-	MSTPCR("rs0", "bus_clk", 0, 28),
-	MSTPCR("ilmem0", "cpu_clk", 0, 27),
-	MSTPCR("l2c0", "sh_clk", 0, 26),
-	MSTPCR("fpu0", "cpu_clk", 0, 24),
-	MSTPCR("intc0", "peripheral_clk", 0, 22),
-	MSTPCR("dmac0", "bus_clk", 0, 21),
-	MSTPCR("sh0", "sh_clk", 0, 20),
-	MSTPCR("hudi0", "peripheral_clk", 0, 19),
-	MSTPCR("ubc0", "cpu_clk", 0, 17),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15),
-	MSTPCR("cmt0", "r_clk", 0, 14),
-	MSTPCR("rwdt0", "r_clk", 0, 13),
-	MSTPCR("dmac1", "bus_clk", 0, 12),
-	MSTPCR("tmu1", "peripheral_clk", 0, 10),
-	MSTPCR("scif0", "peripheral_clk", 0, 9),
-	MSTPCR("scif1", "peripheral_clk", 0, 8),
-	MSTPCR("scif2", "peripheral_clk", 0, 7),
-	MSTPCR("scif3", "bus_clk", 0, 6),
-	MSTPCR("scif4", "bus_clk", 0, 5),
-	MSTPCR("scif5", "bus_clk", 0, 4),
-	MSTPCR("msiof0", "bus_clk", 0, 2),
-	MSTPCR("msiof1", "bus_clk", 0, 1),
-	MSTPCR("keysc0", "r_clk", 1, 12),
-	MSTPCR("rtc0", "r_clk", 1, 11),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9),
-	MSTPCR("i2c1", "peripheral_clk", 1, 8),
-	MSTPCR("mmc0", "bus_clk", 2, 29),
-	MSTPCR("eth0", "bus_clk", 2, 28),
-	MSTPCR("atapi0", "bus_clk", 2, 26),
-	MSTPCR("tpu0", "bus_clk", 2, 25),
-	MSTPCR("irda0", "peripheral_clk", 2, 24),
-	MSTPCR("tsif0", "bus_clk", 2, 22),
-	MSTPCR("usb1", "bus_clk", 2, 21),
-	MSTPCR("usb0", "bus_clk", 2, 20),
-	MSTPCR("2dg0", "bus_clk", 2, 19),
-	MSTPCR("sdhi0", "bus_clk", 2, 18),
-	MSTPCR("sdhi1", "bus_clk", 2, 17),
-	MSTPCR("veu1", "bus_clk", 2, 15),
-	MSTPCR("ceu1", "bus_clk", 2, 13),
-	MSTPCR("beu1", "bus_clk", 2, 12),
-	MSTPCR("2ddmac0", "sh_clk", 2, 10),
-	MSTPCR("spu0", "bus_clk", 2, 9),
-	MSTPCR("jpu0", "bus_clk", 2, 6),
-	MSTPCR("vou0", "bus_clk", 2, 5),
-	MSTPCR("beu0", "bus_clk", 2, 4),
-	MSTPCR("ceu0", "bus_clk", 2, 3),
-	MSTPCR("veu0", "bus_clk", 2, 2),
-	MSTPCR("vpu0", "bus_clk", 2, 1),
-	MSTPCR("lcdc0", "bus_clk", 2, 0),
+	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
+	MSTPCR("ic0", "cpu_clk", 0, 30, 0),
+	MSTPCR("oc0", "cpu_clk", 0, 29, 0),
+	MSTPCR("rs0", "bus_clk", 0, 28, 0),
+	MSTPCR("ilmem0", "cpu_clk", 0, 27, 0),
+	MSTPCR("l2c0", "sh_clk", 0, 26, 0),
+	MSTPCR("fpu0", "cpu_clk", 0, 24, 0),
+	MSTPCR("intc0", "peripheral_clk", 0, 22, 0),
+	MSTPCR("dmac0", "bus_clk", 0, 21, 0),
+	MSTPCR("sh0", "sh_clk", 0, 20, 0),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19, 0),
+	MSTPCR("ubc0", "cpu_clk", 0, 17, 0),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
+	MSTPCR("cmt0", "r_clk", 0, 14, 0),
+	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
+	MSTPCR("dmac1", "bus_clk", 0, 12, 0),
+	MSTPCR("tmu1", "peripheral_clk", 0, 10, 0),
+	MSTPCR("scif0", "peripheral_clk", 0, 9, 0),
+	MSTPCR("scif1", "peripheral_clk", 0, 8, 0),
+	MSTPCR("scif2", "peripheral_clk", 0, 7, 0),
+	MSTPCR("scif3", "bus_clk", 0, 6, 0),
+	MSTPCR("scif4", "bus_clk", 0, 5, 0),
+	MSTPCR("scif5", "bus_clk", 0, 4, 0),
+	MSTPCR("msiof0", "bus_clk", 0, 2, 0),
+	MSTPCR("msiof1", "bus_clk", 0, 1, 0),
+	MSTPCR("keysc0", "r_clk", 1, 12, 0),
+	MSTPCR("rtc0", "r_clk", 1, 11, 0),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
+	MSTPCR("i2c1", "peripheral_clk", 1, 8, 0),
+	MSTPCR("mmc0", "bus_clk", 2, 29, 0),
+	MSTPCR("eth0", "bus_clk", 2, 28, 0),
+	MSTPCR("atapi0", "bus_clk", 2, 26, 0),
+	MSTPCR("tpu0", "bus_clk", 2, 25, 0),
+	MSTPCR("irda0", "peripheral_clk", 2, 24, 0),
+	MSTPCR("tsif0", "bus_clk", 2, 22, 0),
+	MSTPCR("usb1", "bus_clk", 2, 21, 0),
+	MSTPCR("usb0", "bus_clk", 2, 20, 0),
+	MSTPCR("2dg0", "bus_clk", 2, 19, 0),
+	MSTPCR("sdhi0", "bus_clk", 2, 18, 0),
+	MSTPCR("sdhi1", "bus_clk", 2, 17, 0),
+	MSTPCR("veu1", "bus_clk", 2, 15, CLK_ENABLE_ON_INIT),
+	MSTPCR("ceu1", "bus_clk", 2, 13, 0),
+	MSTPCR("beu1", "bus_clk", 2, 12, 0),
+	MSTPCR("2ddmac0", "sh_clk", 2, 10, 0),
+	MSTPCR("spu0", "bus_clk", 2, 9, 0),
+	MSTPCR("jpu0", "bus_clk", 2, 6, 0),
+	MSTPCR("vou0", "bus_clk", 2, 5, 0),
+	MSTPCR("beu0", "bus_clk", 2, 4, 0),
+	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
+	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
+	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
+	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7343)
-	MSTPCR("uram0", "umem_clk", 0, 28),
-	MSTPCR("xymem0", "bus_clk", 0, 26),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15),
-	MSTPCR("cmt0", "r_clk", 0, 14),
-	MSTPCR("rwdt0", "r_clk", 0, 13),
-	MSTPCR("scif0", "peripheral_clk", 0, 7),
-	MSTPCR("scif1", "peripheral_clk", 0, 6),
-	MSTPCR("scif2", "peripheral_clk", 0, 5),
-	MSTPCR("scif3", "peripheral_clk", 0, 4),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9),
-	MSTPCR("i2c1", "peripheral_clk", 1, 8),
-	MSTPCR("sdhi0", "peripheral_clk", 2, 18),
-	MSTPCR("keysc0", "r_clk", 2, 14),
-	MSTPCR("usbf0", "peripheral_clk", 2, 11),
-	MSTPCR("siu0", "bus_clk", 2, 8),
-	MSTPCR("jpu0", "bus_clk", 2, 6),
-	MSTPCR("vou0", "bus_clk", 2, 5),
-	MSTPCR("beu0", "bus_clk", 2, 4),
-	MSTPCR("ceu0", "bus_clk", 2, 3),
-	MSTPCR("veu0", "bus_clk", 2, 2),
-	MSTPCR("vpu0", "bus_clk", 2, 1),
-	MSTPCR("lcdc0", "bus_clk", 2, 0),
+	MSTPCR("uram0", "umem_clk", 0, 28, CLK_ENABLE_ON_INIT),
+	MSTPCR("xymem0", "bus_clk", 0, 26, CLK_ENABLE_ON_INIT),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
+	MSTPCR("cmt0", "r_clk", 0, 14, 0),
+	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
+	MSTPCR("scif0", "peripheral_clk", 0, 7, 0),
+	MSTPCR("scif1", "peripheral_clk", 0, 6, 0),
+	MSTPCR("scif2", "peripheral_clk", 0, 5, 0),
+	MSTPCR("scif3", "peripheral_clk", 0, 4, 0),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
+	MSTPCR("i2c1", "peripheral_clk", 1, 8, 0),
+	MSTPCR("sdhi0", "peripheral_clk", 2, 18, 0),
+	MSTPCR("keysc0", "r_clk", 2, 14, 0),
+	MSTPCR("usbf0", "peripheral_clk", 2, 11, 0),
+	MSTPCR("siu0", "bus_clk", 2, 8, 0),
+	MSTPCR("jpu0", "bus_clk", 2, 6, CLK_ENABLE_ON_INIT),
+	MSTPCR("vou0", "bus_clk", 2, 5, 0),
+	MSTPCR("beu0", "bus_clk", 2, 4, 0),
+	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
+	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
+	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
+	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7366)
 	/* See page 52 of Datasheet V0.40: Overview -> Block Diagram */
-	MSTPCR("tlb0", "cpu_clk", 0, 31),
-	MSTPCR("ic0", "cpu_clk", 0, 30),
-	MSTPCR("oc0", "cpu_clk", 0, 29),
-	MSTPCR("rsmem0", "sh_clk", 0, 28),
-	MSTPCR("xymem0", "cpu_clk", 0, 26),
-	MSTPCR("intc30", "peripheral_clk", 0, 23),
-	MSTPCR("intc0", "peripheral_clk", 0, 22),
-	MSTPCR("dmac0", "bus_clk", 0, 21),
-	MSTPCR("sh0", "sh_clk", 0, 20),
-	MSTPCR("hudi0", "peripheral_clk", 0, 19),
-	MSTPCR("ubc0", "cpu_clk", 0, 17),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15),
-	MSTPCR("cmt0", "r_clk", 0, 14),
-	MSTPCR("rwdt0", "r_clk", 0, 13),
-	MSTPCR("flctl0", "peripheral_clk", 0, 10),
-	MSTPCR("scif0", "peripheral_clk", 0, 7),
-	MSTPCR("scif1", "bus_clk", 0, 6),
-	MSTPCR("scif2", "bus_clk", 0, 5),
-	MSTPCR("msiof0", "peripheral_clk", 0, 2),
-	MSTPCR("sbr0", "peripheral_clk", 0, 1),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9),
-	MSTPCR("icb0", "bus_clk", 2, 27),
-	MSTPCR("meram0", "sh_clk", 2, 26),
-	MSTPCR("dacc0", "peripheral_clk", 2, 24),
-	MSTPCR("dacy0", "peripheral_clk", 2, 23),
-	MSTPCR("tsif0", "bus_clk", 2, 22),
-	MSTPCR("sdhi0", "bus_clk", 2, 18),
-	MSTPCR("mmcif0", "bus_clk", 2, 17),
-	MSTPCR("usb0", "bus_clk", 2, 11),
-	MSTPCR("siu0", "bus_clk", 2, 8),
-	MSTPCR("veu1", "bus_clk", 2, 7),
-	MSTPCR("vou0", "bus_clk", 2, 5),
-	MSTPCR("beu0", "bus_clk", 2, 4),
-	MSTPCR("ceu0", "bus_clk", 2, 3),
-	MSTPCR("veu0", "bus_clk", 2, 2),
-	MSTPCR("vpu0", "bus_clk", 2, 1),
-	MSTPCR("lcdc0", "bus_clk", 2, 0),
+	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
+	MSTPCR("ic0", "cpu_clk", 0, 30, 0),
+	MSTPCR("oc0", "cpu_clk", 0, 29, 0),
+	MSTPCR("rsmem0", "sh_clk", 0, 28, CLK_ENABLE_ON_INIT),
+	MSTPCR("xymem0", "cpu_clk", 0, 26, CLK_ENABLE_ON_INIT),
+	MSTPCR("intc30", "peripheral_clk", 0, 23, 0),
+	MSTPCR("intc0", "peripheral_clk", 0, 22, 0),
+	MSTPCR("dmac0", "bus_clk", 0, 21, 0),
+	MSTPCR("sh0", "sh_clk", 0, 20, 0),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19, 0),
+	MSTPCR("ubc0", "cpu_clk", 0, 17, 0),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
+	MSTPCR("cmt0", "r_clk", 0, 14, 0),
+	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10, 0),
+	MSTPCR("scif0", "peripheral_clk", 0, 7, 0),
+	MSTPCR("scif1", "bus_clk", 0, 6, 0),
+	MSTPCR("scif2", "bus_clk", 0, 5, 0),
+	MSTPCR("msiof0", "peripheral_clk", 0, 2, 0),
+	MSTPCR("sbr0", "peripheral_clk", 0, 1, 0),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
+	MSTPCR("icb0", "bus_clk", 2, 27, 0),
+	MSTPCR("meram0", "sh_clk", 2, 26, 0),
+	MSTPCR("dacc0", "peripheral_clk", 2, 24, 0),
+	MSTPCR("dacy0", "peripheral_clk", 2, 23, 0),
+	MSTPCR("tsif0", "bus_clk", 2, 22, 0),
+	MSTPCR("sdhi0", "bus_clk", 2, 18, 0),
+	MSTPCR("mmcif0", "bus_clk", 2, 17, 0),
+	MSTPCR("usb0", "bus_clk", 2, 11, 0),
+	MSTPCR("siu0", "bus_clk", 2, 8, 0),
+	MSTPCR("veu1", "bus_clk", 2, 7, CLK_ENABLE_ON_INIT),
+	MSTPCR("vou0", "bus_clk", 2, 5, 0),
+	MSTPCR("beu0", "bus_clk", 2, 4, 0),
+	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
+	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
+	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
+	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
 };
 
@@ -897,7 +883,7 @@ struct clk_ops *onchip_ops[] = {
 void __init
 arch_init_clk_ops(struct clk_ops **ops, int type)
 {
-	BUG_ON(type < 0 || type > ARRAY_SIZE(onchip_ops));
+	BUG_ON(type < 0 || type >= ARRAY_SIZE(onchip_ops));
 	*ops = onchip_ops[type];
 }
 
@@ -905,6 +891,8 @@ int __init arch_clk_init(void)
 {
 	struct clk *clk;
 	int i;
+
+	cpg_clk_init();
 
 	clk = clk_get(NULL, "master_clk");
 	for (i = 0; i < ARRAY_SIZE(sh7722_clocks); i++) {
@@ -926,7 +914,7 @@ int __init arch_clk_init(void)
 		clk_put(clk);
 	}
 
-	clk_recalc_rate(&sh7722_r_clock); /* make sure rate gets propagated */
+	propagate_rate(&sh7722_r_clock); /* make sure rate gets propagated */
 
 	return 0;
 }

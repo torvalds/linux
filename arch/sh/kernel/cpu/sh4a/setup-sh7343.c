@@ -318,12 +318,6 @@ static struct platform_device *sh7343_devices[] __initdata = {
 
 static int __init sh7343_devices_setup(void)
 {
-	clk_always_enable("uram0"); /* URAM */
-	clk_always_enable("xymem0"); /* XYMEM */
-	clk_always_enable("veu0"); /* VEU */
-	clk_always_enable("vpu0"); /* VPU */
-	clk_always_enable("jpu0"); /* JPU */
-
 	platform_resource_setup_memory(&vpu_device, "vpu", 1 << 20);
 	platform_resource_setup_memory(&veu_device, "veu", 2 << 20);
 	platform_resource_setup_memory(&jpu_device, "jpu", 2 << 20);

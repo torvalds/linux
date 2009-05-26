@@ -33,24 +33,24 @@ static struct clk_ops sh7712_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int frqcr = ctrl_inw(FRQCR);
 	int idx = frqcr & 0x0007;
 
-	clk->rate = clk->parent->rate / divisors[idx];
+	return clk->parent->rate / divisors[idx];
 }
 
 static struct clk_ops sh7712_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
 	int frqcr = ctrl_inw(FRQCR);
 	int idx = (frqcr & 0x0030) >> 4;
 
-	clk->rate = clk->parent->rate / divisors[idx];
+	return clk->parent->rate / divisors[idx];
 }
 
 static struct clk_ops sh7712_cpu_clk_ops = {

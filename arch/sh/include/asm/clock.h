@@ -10,9 +10,9 @@ struct clk;
 
 struct clk_ops {
 	void (*init)(struct clk *clk);
-	void (*enable)(struct clk *clk);
+	int (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
-	void (*recalc)(struct clk *clk);
+	unsigned long (*recalc)(struct clk *clk);
 	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
@@ -27,44 +27,46 @@ struct clk {
 	struct clk		*parent;
 	struct clk_ops		*ops;
 
+	struct list_head	children;
+	struct list_head	sibling;	/* node for children */
+
 	int			usecount;
 
 	unsigned long		rate;
 	unsigned long		flags;
+
+	void __iomem		*enable_reg;
+	unsigned int		enable_bit;
+
 	unsigned long		arch_flags;
+	void			*priv;
+	struct dentry		*dentry;
 };
 
-#define CLK_ALWAYS_ENABLED	(1 << 0)
-#define CLK_RATE_PROPAGATES	(1 << 1)
-#define CLK_NEEDS_INIT		(1 << 2)
+struct clk_lookup {
+	struct list_head	node;
+	const char		*dev_id;
+	const char		*con_id;
+	struct clk		*clk;
+};
+
+#define CLK_ENABLE_ON_INIT	(1 << 0)
 
 /* Should be defined by processor-specific code */
-void arch_init_clk_ops(struct clk_ops **, int type);
+void __deprecated arch_init_clk_ops(struct clk_ops **, int type);
 int __init arch_clk_init(void);
 
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);
-
-void clk_recalc_rate(struct clk *);
-
+unsigned long followparent_recalc(struct clk *);
+void recalculate_root_clocks(void);
+void propagate_rate(struct clk *);
+int clk_reparent(struct clk *child, struct clk *parent);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 
-static inline int clk_always_enable(const char *id)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = clk_get(NULL, id);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	ret = clk_enable(clk);
-	if (ret)
-		clk_put(clk);
-
-	return ret;
-}
+/* arch/sh/kernel/cpu/clock-cpg.c */
+int __init __deprecated cpg_clk_init(void);
 
 /* the exported API, in addition to clk_set_rate */
 /**
@@ -96,4 +98,23 @@ enum clk_sh_algo_id {
 
 	IP_N1,
 };
+
+struct clk_div_mult_table {
+	unsigned int *divisors;
+	unsigned int nr_divisors;
+	unsigned int *multipliers;
+	unsigned int nr_multipliers;
+};
+
+struct cpufreq_frequency_table;
+void clk_rate_table_build(struct clk *clk,
+			  struct cpufreq_frequency_table *freq_table,
+			  int nr_freqs,
+			  struct clk_div_mult_table *src_table,
+			  unsigned long *bitmap);
+
+long clk_rate_table_round(struct clk *clk,
+			  struct cpufreq_frequency_table *freq_table,
+			  unsigned long rate);
+
 #endif /* __ASM_SH_CLOCK_H */

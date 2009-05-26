@@ -396,7 +396,7 @@ static int __devinit calc_CCR(unsigned long scl_hz)
 	signed char cdf, cdfm;
 	int scgd, scgdm, scgds;
 
-	mclk = clk_get(NULL, "module_clk");
+	mclk = clk_get(NULL, "peripheral_clk");
 	if (IS_ERR(mclk)) {
 		return PTR_ERR(mclk);
 	} else {

@@ -115,7 +115,7 @@ static struct sh_timer_config cmt0_platform_data = {
 	.name = "CMT0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 0, /* disabled due to code generation issues */
 };
@@ -147,7 +147,7 @@ static struct sh_timer_config cmt1_platform_data = {
 	.name = "CMT1",
 	.channel_offset = 0x08,
 	.timer_bit = 1,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 0, /* disabled due to code generation issues */
 };

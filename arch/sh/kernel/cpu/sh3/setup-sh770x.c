@@ -149,7 +149,7 @@ static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -180,7 +180,7 @@ static struct sh_timer_config tmu1_platform_data = {
 	.name = "TMU1",
 	.channel_offset = 0xe,
 	.timer_bit = 1,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
@@ -211,7 +211,7 @@ static struct sh_timer_config tmu2_platform_data = {
 	.name = "TMU2",
 	.channel_offset = 0x1a,
 	.timer_bit = 2,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
