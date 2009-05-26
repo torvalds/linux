@@ -2452,10 +2452,25 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	ret = GRO_HELD;
 
 pull:
-	if (unlikely(!pskb_may_pull(skb, skb_gro_offset(skb)))) {
-		if (napi->gro_list == skb)
-			napi->gro_list = skb->next;
-		ret = GRO_DROP;
+	if (skb_headlen(skb) < skb_gro_offset(skb)) {
+		int grow = skb_gro_offset(skb) - skb_headlen(skb);
+
+		BUG_ON(skb->end - skb->tail < grow);
+
+		memcpy(skb_tail_pointer(skb), NAPI_GRO_CB(skb)->frag0, grow);
+
+		skb->tail += grow;
+		skb->data_len -= grow;
+
+		skb_shinfo(skb)->frags[0].page_offset += grow;
+		skb_shinfo(skb)->frags[0].size -= grow;
+
+		if (unlikely(!skb_shinfo(skb)->frags[0].size)) {
+			put_page(skb_shinfo(skb)->frags[0].page);
+			memmove(skb_shinfo(skb)->frags,
+				skb_shinfo(skb)->frags + 1,
+				--skb_shinfo(skb)->nr_frags);
+		}
 	}
 
 ok:
