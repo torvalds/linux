@@ -72,7 +72,7 @@ static int iwm_fw_op_offset(struct iwm_priv *iwm, const struct firmware *fw,
 	}
 
 	if (fw->size < IWM_HDR_LEN) {
-		IWM_ERR(iwm, "FW is too small (%d)\n", fw->size);
+		IWM_ERR(iwm, "FW is too small (%zu)\n", fw->size);
 		return -EINVAL;
 	}
 
