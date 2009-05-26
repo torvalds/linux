@@ -492,7 +492,7 @@ config MTD_BFIN_ASYNC
 	  If compiled as a module, it will be called bfin-async-flash.
 
 config MTD_UCLINUX
-	tristate "Generic uClinux RAM/ROM filesystem support"
+	bool "Generic uClinux RAM/ROM filesystem support"
 	depends on MTD_PARTITIONS && MTD_RAM && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
