@@ -458,7 +458,7 @@ static irqreturn_t bf5xx_nand_dma_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int bf5xx_nand_dma_rw(struct mtd_info *mtd,
+static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 				uint8_t *buf, int is_read)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
@@ -512,8 +512,6 @@ static int bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	else
 		bfin_write_NFC_PGCTL(0x2);
 	wait_for_completion(&info->dma_completion);
-
-	return 0;
 }
 
 static void bf5xx_nand_dma_read_buf(struct mtd_info *mtd,
