@@ -3,33 +3,21 @@
  * ALSA SoC Digital Audio Interface (DAI) driver
  *
  * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2009 Jon Smirl, Digispeaker
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/dma-mapping.h>
 
-#include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-of-simple.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/gen_bd.h>
 #include <asm/mpc52xx_psc.h>
 
+#include "mpc5200_psc_i2s.h"
 #include "mpc5200_dma.h"
-
-MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
-MODULE_DESCRIPTION("Freescale MPC5200 PSC in I2S mode ASoC Driver");
-MODULE_LICENSE("GPL");
 
 /**
  * PSC_I2S_RATES: sample rates supported by the I2S
@@ -46,8 +34,7 @@ MODULE_LICENSE("GPL");
  * PSC_I2S_FORMATS: audio formats supported by the PSC I2S mode
  */
 #define PSC_I2S_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_BE | \
-			 SNDRV_PCM_FMTBIT_S24_BE | SNDRV_PCM_FMTBIT_S24_BE | \
-			 SNDRV_PCM_FMTBIT_S32_BE)
+			 SNDRV_PCM_FMTBIT_S24_BE | SNDRV_PCM_FMTBIT_S32_BE)
 
 static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
@@ -81,8 +68,6 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 	out_be32(&psc_dma->psc_regs->sicr, psc_dma->sicr | mode);
-
-	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	return 0;
 }
@@ -140,16 +125,13 @@ static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
  * psc_i2s_dai_template: template CPU Digital Audio Interface
  */
 static struct snd_soc_dai_ops psc_i2s_dai_ops = {
-	.startup	= psc_dma_startup,
 	.hw_params	= psc_i2s_hw_params,
-	.hw_free	= psc_dma_hw_free,
-	.shutdown	= psc_dma_shutdown,
-	.trigger	= psc_dma_trigger,
 	.set_sysclk	= psc_i2s_set_sysclk,
 	.set_fmt	= psc_i2s_set_fmt,
 };
 
-static struct snd_soc_dai psc_i2s_dai_template = {
+struct snd_soc_dai psc_i2s_dai[] = {{
+	.name   = "I2S",
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -163,71 +145,8 @@ static struct snd_soc_dai psc_i2s_dai_template = {
 		.formats = PSC_I2S_FORMATS,
 	},
 	.ops = &psc_i2s_dai_ops,
-};
-
-/* ---------------------------------------------------------------------
- * Sysfs attributes for debugging
- */
-
-static ssize_t psc_i2s_status_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	struct psc_dma *psc_dma = dev_get_drvdata(dev);
-
-	return sprintf(buf, "status=%.4x sicr=%.8x rfnum=%i rfstat=0x%.4x "
-			"tfnum=%i tfstat=0x%.4x\n",
-			in_be16(&psc_dma->psc_regs->sr_csr.status),
-			in_be32(&psc_dma->psc_regs->sicr),
-			in_be16(&psc_dma->fifo_regs->rfnum) & 0x1ff,
-			in_be16(&psc_dma->fifo_regs->rfstat),
-			in_be16(&psc_dma->fifo_regs->tfnum) & 0x1ff,
-			in_be16(&psc_dma->fifo_regs->tfstat));
-}
-
-static int *psc_i2s_get_stat_attr(struct psc_dma *psc_dma, const char *name)
-{
-	if (strcmp(name, "playback_underrun") == 0)
-		return &psc_dma->stats.underrun_count;
-	if (strcmp(name, "capture_overrun") == 0)
-		return &psc_dma->stats.overrun_count;
-
-	return NULL;
-}
-
-static ssize_t psc_i2s_stat_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct psc_dma *psc_dma = dev_get_drvdata(dev);
-	int *attrib;
-
-	attrib = psc_i2s_get_stat_attr(psc_dma, attr->attr.name);
-	if (!attrib)
-		return 0;
-
-	return sprintf(buf, "%i\n", *attrib);
-}
-
-static ssize_t psc_i2s_stat_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t count)
-{
-	struct psc_dma *psc_dma = dev_get_drvdata(dev);
-	int *attrib;
-
-	attrib = psc_i2s_get_stat_attr(psc_dma, attr->attr.name);
-	if (!attrib)
-		return 0;
-
-	*attrib = simple_strtoul(buf, NULL, 0);
-	return count;
-}
-
-static DEVICE_ATTR(status, 0644, psc_i2s_status_show, NULL);
-static DEVICE_ATTR(playback_underrun, 0644, psc_i2s_stat_show,
-			psc_i2s_stat_store);
-static DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show,
-			psc_i2s_stat_store);
+} };
+EXPORT_SYMBOL_GPL(psc_i2s_dai);
 
 /* ---------------------------------------------------------------------
  * OF platform bus binding code:
@@ -237,82 +156,26 @@ static DEVICE_ATTR(capture_overrun, 0644, psc_i2s_stat_show,
 static int __devinit psc_i2s_of_probe(struct of_device *op,
 				      const struct of_device_id *match)
 {
-	phys_addr_t fifo;
+	int rc;
 	struct psc_dma *psc_dma;
-	struct resource res;
-	int size, psc_id, irq, rc;
-	const __be32 *prop;
-	void __iomem *regs;
+	struct mpc52xx_psc __iomem *regs;
 
-	dev_dbg(&op->dev, "probing psc i2s device\n");
+	rc = mpc5200_audio_dma_create(op);
+	if (rc != 0)
+		return rc;
 
-	/* Get the PSC ID */
-	prop = of_get_property(op->node, "cell-index", &size);
-	if (!prop || size < sizeof *prop)
-		return -ENODEV;
-	psc_id = be32_to_cpu(*prop);
-
-	/* Fetch the registers and IRQ of the PSC */
-	irq = irq_of_parse_and_map(op->node, 0);
-	if (of_address_to_resource(op->node, 0, &res)) {
-		dev_err(&op->dev, "Missing reg property\n");
-		return -ENODEV;
-	}
-	regs = ioremap(res.start, 1 + res.end - res.start);
-	if (!regs) {
-		dev_err(&op->dev, "Could not map registers\n");
-		return -ENODEV;
+	rc = snd_soc_register_dais(psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
+	if (rc != 0) {
+		pr_err("Failed to register DAI\n");
+		return 0;
 	}
 
-	/* Allocate and initialize the driver private data */
-	psc_dma = kzalloc(sizeof *psc_dma, GFP_KERNEL);
-	if (!psc_dma) {
-		iounmap(regs);
-		return -ENOMEM;
-	}
-	spin_lock_init(&psc_dma->lock);
-	psc_dma->irq = irq;
-	psc_dma->psc_regs = regs;
-	psc_dma->fifo_regs = regs + sizeof *psc_dma->psc_regs;
-	psc_dma->dev = &op->dev;
-	psc_dma->playback.psc_dma = psc_dma;
-	psc_dma->capture.psc_dma = psc_dma;
-	snprintf(psc_dma->name, sizeof psc_dma->name, "PSC%u", psc_id+1);
-
-	/* Fill out the CPU DAI structure */
-	memcpy(&psc_dma->dai, &psc_i2s_dai_template, sizeof psc_dma->dai);
-	psc_dma->dai.private_data = psc_dma;
-	psc_dma->dai.name = psc_dma->name;
-	psc_dma->dai.id = psc_id;
-
-	/* Find the address of the fifo data registers and setup the
-	 * DMA tasks */
-	fifo = res.start + offsetof(struct mpc52xx_psc, buffer.buffer_32);
-	psc_dma->capture.bcom_task =
-		bcom_psc_gen_bd_rx_init(psc_id, 10, fifo, 512);
-	psc_dma->playback.bcom_task =
-		bcom_psc_gen_bd_tx_init(psc_id, 10, fifo);
-	if (!psc_dma->capture.bcom_task ||
-	    !psc_dma->playback.bcom_task) {
-		dev_err(&op->dev, "Could not allocate bestcomm tasks\n");
-		iounmap(regs);
-		kfree(psc_dma);
-		return -ENODEV;
-	}
-
-	/* Disable all interrupts and reset the PSC */
-	out_be16(&psc_dma->psc_regs->isr_imr.imr, 0);
-	out_8(&psc_dma->psc_regs->command, 3 << 4); /* reset transmitter */
-	out_8(&psc_dma->psc_regs->command, 2 << 4); /* reset receiver */
-	out_8(&psc_dma->psc_regs->command, 1 << 4); /* reset mode */
-	out_8(&psc_dma->psc_regs->command, 4 << 4); /* reset error */
+	psc_dma = dev_get_drvdata(&op->dev);
+	regs = psc_dma->psc_regs;
 
 	/* Configure the serial interface mode; defaulting to CODEC8 mode */
 	psc_dma->sicr = MPC52xx_PSC_SICR_DTS1 | MPC52xx_PSC_SICR_I2S |
 			MPC52xx_PSC_SICR_CLKPOL;
-	if (of_get_property(op->node, "fsl,cellslave", NULL))
-		psc_dma->sicr |= MPC52xx_PSC_SICR_CELLSLAVE |
-				 MPC52xx_PSC_SICR_GENCLK;
 	out_be32(&psc_dma->psc_regs->sicr,
 		 psc_dma->sicr | MPC52xx_PSC_SICR_SIM_CODEC_8);
 
@@ -321,66 +184,37 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 	if (!of_get_property(op->node, "codec-handle", NULL))
 		return 0;
 
-	/* Set up mode register;
-	 * First write: RxRdy (FIFO Alarm) generates rx FIFO irq
-	 * Second write: register Normal mode for non loopback
-	 */
-	out_8(&psc_dma->psc_regs->mode, 0);
-	out_8(&psc_dma->psc_regs->mode, 0);
+	/* Due to errata in the dma mode; need to line up enabling
+	 * the transmitter with a transition on the frame sync
+	 * line */
 
-	/* Set the TX and RX fifo alarm thresholds */
-	out_be16(&psc_dma->fifo_regs->rfalarm, 0x100);
-	out_8(&psc_dma->fifo_regs->rfcntl, 0x4);
-	out_be16(&psc_dma->fifo_regs->tfalarm, 0x100);
-	out_8(&psc_dma->fifo_regs->tfcntl, 0x7);
+	/* first make sure it is low */
+	while ((in_8(&regs->ipcr_acr.ipcr) & 0x80) != 0)
+		;
+	/* then wait for the transition to high */
+	while ((in_8(&regs->ipcr_acr.ipcr) & 0x80) == 0)
+		;
+	/* Finally, enable the PSC.
+	 * Receiver must always be enabled; even when we only want
+	 * transmit.  (see 15.3.2.3 of MPC5200B User's Guide) */
 
-	/* Lookup the IRQ numbers */
-	psc_dma->playback.irq =
-		bcom_get_task_irq(psc_dma->playback.bcom_task);
-	psc_dma->capture.irq =
-		bcom_get_task_irq(psc_dma->capture.bcom_task);
-
-	/* Save what we've done so it can be found again later */
-	dev_set_drvdata(&op->dev, psc_dma);
-
-	/* Register the SYSFS files */
-	rc = device_create_file(psc_dma->dev, &dev_attr_status);
-	rc |= device_create_file(psc_dma->dev, &dev_attr_capture_overrun);
-	rc |= device_create_file(psc_dma->dev, &dev_attr_playback_underrun);
-	if (rc)
-		dev_info(psc_dma->dev, "error creating sysfs files\n");
-
-	snd_soc_register_platform(&psc_dma_pcm_soc_platform);
-
-	/* Tell the ASoC OF helpers about it */
-	of_snd_soc_register_platform(&psc_dma_pcm_soc_platform, op->node,
-				     &psc_dma->dai);
+	/* Go */
+	out_8(&psc_dma->psc_regs->command,
+			MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
 
 	return 0;
+
 }
 
 static int __devexit psc_i2s_of_remove(struct of_device *op)
 {
-	struct psc_dma *psc_dma = dev_get_drvdata(&op->dev);
-
-	dev_dbg(&op->dev, "psc_i2s_remove()\n");
-
-	snd_soc_unregister_platform(&psc_dma_pcm_soc_platform);
-
-	bcom_gen_bd_rx_release(psc_dma->capture.bcom_task);
-	bcom_gen_bd_tx_release(psc_dma->playback.bcom_task);
-
-	iounmap(psc_dma->psc_regs);
-	iounmap(psc_dma->fifo_regs);
-	kfree(psc_dma);
-	dev_set_drvdata(&op->dev, NULL);
-
-	return 0;
+	return mpc5200_audio_dma_destroy(op);
 }
 
 /* Match table for of_platform binding */
 static struct of_device_id psc_i2s_match[] __devinitdata = {
 	{ .compatible = "fsl,mpc5200-psc-i2s", },
+	{ .compatible = "fsl,mpc5200b-psc-i2s", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, psc_i2s_match);
@@ -411,4 +245,7 @@ static void __exit psc_i2s_exit(void)
 }
 module_exit(psc_i2s_exit);
 
+MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
+MODULE_DESCRIPTION("Freescale MPC5200 PSC in I2S mode ASoC Driver");
+MODULE_LICENSE("GPL");
 

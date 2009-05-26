@@ -25,7 +25,6 @@ config SND_SOC_MPC8610_HPCD
 config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select SND_SOC_OF_SIMPLE
 	select SND_MPC52xx_DMA
 	select PPC_BESTCOMM_GEN_BD
 	help
