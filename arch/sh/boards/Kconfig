@@ -46,6 +46,15 @@ config SH_7722_SOLUTION_ENGINE
 	  Select 7722 SolutionEngine if configuring for a Hitachi SH772
 	  evaluation board.
 
+config SH_7724_SOLUTION_ENGINE
+	bool "SolutionEngine7724"
+	select SOLUTION_ENGINE
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Select 7724 SolutionEngine if configuring for a Hitachi SH7724
+	  evaluation board.
+
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
