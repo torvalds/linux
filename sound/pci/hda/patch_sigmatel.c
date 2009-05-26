@@ -193,6 +193,7 @@ struct sigmatel_spec {
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
 	unsigned int gpio_mute;
+	unsigned int gpio_led;
 
 	/* stream */
 	unsigned int stream_delay;
@@ -4651,22 +4652,13 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 					      hda_nid_t nid)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	unsigned int gpio_bit = 0; /* gets rid of compiler warning */
-
-	switch (spec->board_config) {
-	case STAC_HP_DV4_1222NR:
-		gpio_bit = 0x01;
-		break;
-	case STAC_HP_HDX:
-		gpio_bit = 0x08;
-	}
 
 	if (nid == 0x10) {
 		if (snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
 		    HDA_AMP_MUTE)
-			spec->gpio_data &= ~gpio_bit;  /* orange */
+			spec->gpio_data |= spec->gpio_led; /* white */
 		else
-			spec->gpio_data |= gpio_bit;   /* white */
+			spec->gpio_data &= ~spec->gpio_led; /* orange */
 
 		stac_gpio_set(codec, spec->gpio_mask,
 			      spec->gpio_dir,
@@ -5352,14 +5344,7 @@ again:
 		 */
 		spec->num_smuxes = 1;
 		spec->num_dmuxes = 1;
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-		/* This controls MUTE LED */
-		spec->gpio_mask |= 0x01;
-		spec->gpio_dir  |= 0x01;
-		spec->gpio_data |= 0x01;
-		codec->patch_ops.check_power_status =
-		    stac92xx_hp_check_power_status;
-#endif
+		spec->gpio_led = 0x01;
 		/* fallthrough */
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
@@ -5369,22 +5354,21 @@ again:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
-		/*
-		 * For controlling MUTE LED on HP HDX16/HDX18 notebooks,
-		 * the CONFIG_SND_HDA_POWER_SAVE is needed to be set.
-		 */
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 		/* orange/white mute led on GPIO3, orange=0, white=1 */
-		spec->gpio_mask |= 0x08;
-		spec->gpio_dir  |= 0x08;
-		spec->gpio_data |= 0x08;  /* set to white */
+		spec->gpio_led = 0x08;
+		break;
+	}
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (spec->gpio_led) {
+		spec->gpio_mask |= spec->gpio_led;
+		spec->gpio_dir |= spec->gpio_led;
+		spec->gpio_data |= spec->gpio_led;
 		/* register check_power_status callback. */
 		codec->patch_ops.check_power_status =
-		    stac92xx_hp_check_power_status;
+			stac92xx_hp_check_power_status;
+	}
 #endif	
-		break;
-	};
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	if (spec->dinput_mux)
@@ -5409,7 +5393,7 @@ again:
 	codec->proc_widget_hook = stac92hd7x_proc_hook;
 
 	return 0;
-};
+}
 
 static int patch_stac922x(struct hda_codec *codec)
 {
@@ -5564,7 +5548,7 @@ static int patch_stac927x(struct hda_codec *codec)
 			/* correct the device field to SPDIF out */
 			snd_hda_codec_set_pincfg(codec, 0x21, 0x01442070);
 			break;
-		};
+		}
 		/* configure the analog microphone on some laptops */
 		snd_hda_codec_set_pincfg(codec, 0x0c, 0x90a79130);
 		/* correct the front output jack as a hp out */
