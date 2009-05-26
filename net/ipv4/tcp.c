@@ -2566,7 +2566,7 @@ found:
 
 	mss = skb_shinfo(p)->gso_size;
 
-	flush |= (len > mss) | !len;
+	flush |= (len - 1) >= mss;
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
 	if (flush || skb_gro_receive(head, skb)) {
