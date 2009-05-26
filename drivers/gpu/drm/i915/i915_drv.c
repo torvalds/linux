@@ -37,7 +37,7 @@
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
 
-static unsigned int i915_modeset = -1;
+static int i915_modeset = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
 
 unsigned int i915_fbpercrtc = 0;
