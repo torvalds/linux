@@ -727,7 +727,7 @@ static const struct option options[] = {
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
-	OPT_INTEGER('d', "delay", &realtime_prio,
+	OPT_INTEGER('d', "delay", &delay_secs,
 		    "number of seconds to delay between refreshes"),
 	OPT_BOOLEAN('D', "dump-symtab", &dump_symtab,
 			    "dump the symbol table used for profiling"),
