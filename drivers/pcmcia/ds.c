@@ -828,7 +828,6 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 {
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
-	char path[FIRMWARE_NAME_MAX];
 	int ret = -ENOMEM;
 	int no_funcs;
 	int old_funcs;
@@ -839,16 +838,7 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 
 	ds_dev_dbg(1, &dev->dev, "trying to load CIS file %s\n", filename);
 
-	if (strlen(filename) > (FIRMWARE_NAME_MAX - 1)) {
-		dev_printk(KERN_WARNING, &dev->dev,
-			   "pcmcia: CIS filename is too long [%s]\n",
-			   filename);
-		return -EINVAL;
-	}
-
-	snprintf(path, sizeof(path), "%s", filename);
-
-	if (request_firmware(&fw, path, &dev->dev) == 0) {
+	if (request_firmware(&fw, filename, &dev->dev) == 0) {
 		if (fw->size >= CISTPL_MAX_CIS_SIZE) {
 			ret = -EINVAL;
 			dev_printk(KERN_ERR, &dev->dev,
