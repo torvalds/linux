@@ -724,6 +724,30 @@ static void intel_pmu_save_and_restart(struct perf_counter *counter)
 		intel_pmu_enable_counter(hwc, idx);
 }
 
+static void intel_pmu_reset(void)
+{
+	unsigned long flags;
+	int idx;
+
+	if (!x86_pmu.num_counters)
+		return;
+
+	local_irq_save(flags);
+
+	printk("clearing PMU state on CPU#%d\n", smp_processor_id());
+
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		checking_wrmsrl(x86_pmu.eventsel + idx, 0ull);
+		checking_wrmsrl(x86_pmu.perfctr  + idx, 0ull);
+	}
+	for (idx = 0; idx < x86_pmu.num_counters_fixed; idx++) {
+		checking_wrmsrl(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
+	}
+
+	local_irq_restore(flags);
+}
+
+
 /*
  * This handler is triggered by the local APIC, so the APIC IRQ handling
  * rules apply:
@@ -750,6 +774,8 @@ again:
 	if (++loops > 100) {
 		WARN_ONCE(1, "perfcounters: irq loop stuck!\n");
 		perf_counter_print_debug();
+		intel_pmu_reset();
+		perf_enable();
 		return 1;
 	}
 
