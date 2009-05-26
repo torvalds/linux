@@ -204,30 +204,19 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	}
 }
 
-static void wbinvd_local(void *unused)
-{
-	wbinvd();
-}
-
 static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 			    int in_flags, struct page **pages)
 {
 	unsigned int i, level;
+	unsigned long do_wbinvd = cache && numpages >= 1024; /* 4M threshold */
 
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_range, NULL, 1);
+	on_each_cpu(__cpa_flush_all, (void *) do_wbinvd, 1);
 
-	if (!cache)
+	if (!cache || do_wbinvd)
 		return;
 
-	/* 4M threshold */
-	if (numpages >= 1024) {
-		if (boot_cpu_data.x86 >= 4)
-			on_each_cpu(wbinvd_local, NULL, 1);
-
-		return;
-	}
 	/*
 	 * We only need to flush on one CPU,
 	 * clflush is a MESI-coherent instruction that
