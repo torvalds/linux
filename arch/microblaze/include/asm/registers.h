@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2008 Michal Simek
- * Copyright (C) 2008 PetaLogix
+ * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2006 Atmark Techno, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -30,4 +30,21 @@
 #define FSR_UF		(1<<1) /* Underflow */
 #define FSR_DO		(1<<0) /* Denormalized operand error */
 
+# ifdef CONFIG_MMU
+/* Machine State Register (MSR) Fields */
+# define MSR_UM		(1<<11) /* User Mode */
+# define MSR_UMS	(1<<12) /* User Mode Save */
+# define MSR_VM		(1<<13) /* Virtual Mode */
+# define MSR_VMS	(1<<14) /* Virtual Mode Save */
+
+# define MSR_KERNEL	(MSR_EE | MSR_VM)
+/* # define MSR_USER	(MSR_KERNEL | MSR_UM | MSR_IE) */
+# define MSR_KERNEL_VMS	(MSR_EE | MSR_VMS)
+/* # define MSR_USER_VMS	(MSR_KERNEL_VMS | MSR_UMS | MSR_IE) */
+
+/* Exception State Register (ESR) Fields */
+# define	  ESR_DIZ	(1<<11) /* Zone Protection */
+# define	  ESR_S		(1<<10) /* Store instruction */
+
+# endif /* CONFIG_MMU */
 #endif /* _ASM_MICROBLAZE_REGISTERS_H */
