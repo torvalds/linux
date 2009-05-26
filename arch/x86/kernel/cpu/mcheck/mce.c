@@ -940,6 +940,7 @@ static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	}
 }
 
+/* Modified in mce-inject.c, so not static or const */
 struct file_operations mce_chrdev_ops = {
 	.open			= mce_open,
 	.release		= mce_release,
