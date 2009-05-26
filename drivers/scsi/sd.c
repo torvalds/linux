@@ -1902,24 +1902,6 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	index = sdkp->index;
 	dev = &sdp->sdev_gendev;
 
-	if (!sdp->request_queue->rq_timeout) {
-		if (sdp->type != TYPE_MOD)
-			blk_queue_rq_timeout(sdp->request_queue, SD_TIMEOUT);
-		else
-			blk_queue_rq_timeout(sdp->request_queue,
-					     SD_MOD_TIMEOUT);
-	}
-
-	device_initialize(&sdkp->dev);
-	sdkp->dev.parent = &sdp->sdev_gendev;
-	sdkp->dev.class = &sd_disk_class;
-	dev_set_name(&sdkp->dev, dev_name(&sdp->sdev_gendev));
-
-	if (device_add(&sdkp->dev))
-		goto out_free_index;
-
-	get_device(&sdp->sdev_gendev);
-
 	if (index < SD_MAX_DISKS) {
 		gd->major = sd_major((index & 0xf0) >> 4);
 		gd->first_minor = ((index & 0xf) << 4) | (index & 0xfff00);
@@ -1954,11 +1936,6 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
-
-	return;
-
- out_free_index:
-	ida_remove(&sd_index_ida, index);
 }
 
 /**
@@ -2026,6 +2003,24 @@ static int sd_probe(struct device *dev)
 	sdkp->openers = 0;
 	sdkp->previous_state = 1;
 
+	if (!sdp->request_queue->rq_timeout) {
+		if (sdp->type != TYPE_MOD)
+			blk_queue_rq_timeout(sdp->request_queue, SD_TIMEOUT);
+		else
+			blk_queue_rq_timeout(sdp->request_queue,
+					     SD_MOD_TIMEOUT);
+	}
+
+	device_initialize(&sdkp->dev);
+	sdkp->dev.parent = &sdp->sdev_gendev;
+	sdkp->dev.class = &sd_disk_class;
+	dev_set_name(&sdkp->dev, dev_name(&sdp->sdev_gendev));
+
+	if (device_add(&sdkp->dev))
+		goto out_free_index;
+
+	get_device(&sdp->sdev_gendev);
+
 	async_schedule(sd_probe_async, sdkp);
 
 	return 0;
@@ -2055,8 +2050,10 @@ static int sd_probe(struct device *dev)
  **/
 static int sd_remove(struct device *dev)
 {
-	struct scsi_disk *sdkp = dev_get_drvdata(dev);
+	struct scsi_disk *sdkp;
 
+	async_synchronize_full();
+	sdkp = dev_get_drvdata(dev);
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
