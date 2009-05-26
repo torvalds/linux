@@ -3122,6 +3122,8 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->group_leader		= group_leader;
 	counter->pmu			= NULL;
 	counter->ctx			= ctx;
+	counter->oncpu			= -1;
+
 	get_ctx(ctx);
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
