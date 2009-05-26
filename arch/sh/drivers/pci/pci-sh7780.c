@@ -15,8 +15,6 @@
 #include <linux/delay.h>
 #include "pci-sh4.h"
 
-extern u8 pci_cache_line_size;
-
 static struct resource sh7785_io_resource = {
 	.name	= "SH7785_IO",
 	.start	= SH7780_PCI_IO_BASE,
@@ -37,6 +35,7 @@ static struct pci_channel sh7780_pci_controller = {
 	.mem_offset	= 0x00000000,
 	.io_resource	= &sh7785_io_resource,
 	.io_offset	= 0x00000000,
+	.io_map_base	= SH7780_PCI_IO_BASE,
 };
 
 static struct sh4_pci_address_map sh7780_pci_map = {
@@ -99,8 +98,6 @@ static int __init sh7780_pci_init(void)
 	__raw_writeb(PCI_CLASS_BRIDGE_HOST & 0xff,
 		     chan->reg_base + SH7780_PCISUB);
 
-	pci_cache_line_size = pci_read_reg(chan, SH7780_PCICLS) / 4;
-
 	/*
 	 * Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
@@ -141,8 +138,6 @@ static int __init sh7780_pci_init(void)
 	/* use round robin mode to stop a device starving/overruning */
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
 	pci_write_reg(chan, word, SH4_PCICR);
-
-	__set_io_port_base(SH7780_PCI_IO_BASE);
 
 	register_pci_controller(chan);
 
