@@ -2673,6 +2673,9 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	if (skb_shinfo(p)->frag_list)
 		goto merge;
 	else if (skb_headlen(skb) <= skb_gro_offset(skb)) {
+		skb_frag_t *frag;
+		int i;
+
 		if (skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags >
 		    MAX_SKB_FRAGS)
 			return -E2BIG;
@@ -2682,9 +2685,9 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		skb_shinfo(skb)->frags[0].size -=
 			skb_gro_offset(skb) - skb_headlen(skb);
 
-		memcpy(skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags,
-		       skb_shinfo(skb)->frags,
-		       skb_shinfo(skb)->nr_frags * sizeof(skb_frag_t));
+		frag = skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags;
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+			*frag++ = skb_shinfo(skb)->frags[i];
 
 		skb_shinfo(p)->nr_frags += skb_shinfo(skb)->nr_frags;
 		skb_shinfo(skb)->nr_frags = 0;
