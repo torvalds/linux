@@ -740,10 +740,37 @@ static void power_pmu_disable(struct perf_counter *counter)
 	local_irq_restore(flags);
 }
 
+/*
+ * Re-enable interrupts on a counter after they were throttled
+ * because they were coming too fast.
+ */
+static void power_pmu_unthrottle(struct perf_counter *counter)
+{
+	s64 val, left;
+	unsigned long flags;
+
+	if (!counter->hw.idx || !counter->hw.irq_period)
+		return;
+	local_irq_save(flags);
+	perf_disable();
+	power_pmu_read(counter);
+	left = counter->hw.irq_period;
+	val = 0;
+	if (left < 0x80000000L)
+		val = 0x80000000L - left;
+	write_pmc(counter->hw.idx, val);
+	atomic64_set(&counter->hw.prev_count, val);
+	atomic64_set(&counter->hw.period_left, left);
+	perf_counter_update_userpage(counter);
+	perf_enable();
+	local_irq_restore(flags);
+}
+
 struct pmu power_pmu = {
 	.enable		= power_pmu_enable,
 	.disable	= power_pmu_disable,
 	.read		= power_pmu_read,
+	.unthrottle	= power_pmu_unthrottle,
 };
 
 /*
@@ -957,10 +984,6 @@ static void record_and_restart(struct perf_counter *counter, long val,
 		if (left < 0x80000000L)
 			val = 0x80000000L - left;
 	}
-	write_pmc(counter->hw.idx, val);
-	atomic64_set(&counter->hw.prev_count, val);
-	atomic64_set(&counter->hw.period_left, left);
-	perf_counter_update_userpage(counter);
 
 	/*
 	 * Finally record data if requested.
@@ -983,8 +1006,23 @@ static void record_and_restart(struct perf_counter *counter, long val,
 			if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
 				addr = mfspr(SPRN_SDAR);
 		}
-		perf_counter_overflow(counter, nmi, regs, addr);
+		if (perf_counter_overflow(counter, nmi, regs, addr)) {
+			/*
+			 * Interrupts are coming too fast - throttle them
+			 * by setting the counter to 0, so it will be
+			 * at least 2^30 cycles until the next interrupt
+			 * (assuming each counter counts at most 2 counts
+			 * per cycle).
+			 */
+			val = 0;
+			left = ~0ULL >> 1;
+		}
 	}
+
+	write_pmc(counter->hw.idx, val);
+	atomic64_set(&counter->hw.prev_count, val);
+	atomic64_set(&counter->hw.period_left, left);
+	perf_counter_update_userpage(counter);
 }
 
 /*
