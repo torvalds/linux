@@ -27,6 +27,12 @@ static int tomoyo_cred_prepare(struct cred *new, const struct cred *old,
 
 static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 {
+	int rc;
+
+	rc = cap_bprm_set_creds(bprm);
+	if (rc)
+		return rc;
+
 	/*
 	 * Do only if this function is called for the first time of an execve
 	 * operation.
