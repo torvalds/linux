@@ -142,6 +142,7 @@ enum {
 #define E1000_SYNQF(_n) (0x055FC + (4 * (_n))) /* SYN Packet Queue Fltr */
 #define E1000_ETQF(_n)  (0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
 
+#define E1000_RQDPC(_n) (0x0C030 + ((_n) * 0x40))
 /* Split and Replication RX Control - RW */
 /*
  * Convenience macros
