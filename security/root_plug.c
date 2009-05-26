@@ -71,18 +71,6 @@ static int rootplug_bprm_check_security (struct linux_binprm *bprm)
 }
 
 static struct security_operations rootplug_security_ops = {
-	/* Use the capability functions for some of the hooks */
-	.ptrace_may_access =		cap_ptrace_may_access,
-	.ptrace_traceme =		cap_ptrace_traceme,
-	.capget =			cap_capget,
-	.capset =			cap_capset,
-	.capable =			cap_capable,
-
-	.bprm_set_creds =		cap_bprm_set_creds,
-
-	.task_fix_setuid =		cap_task_fix_setuid,
-	.task_prctl =			cap_task_prctl,
-
 	.bprm_check_security =		rootplug_bprm_check_security,
 };
 
