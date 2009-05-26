@@ -335,15 +335,16 @@ checkstatus:
 
 	/* Status byte: the entire seven-bit R1 response.  */
 	if (cmd->resp[0] != 0) {
-		if ((R1_SPI_PARAMETER | R1_SPI_ADDRESS
-				      | R1_SPI_ILLEGAL_COMMAND)
+		if ((R1_SPI_PARAMETER | R1_SPI_ADDRESS)
 				& cmd->resp[0])
-			value = -EINVAL;
+			value = -EFAULT; /* Bad address */
+		else if (R1_SPI_ILLEGAL_COMMAND & cmd->resp[0])
+			value = -ENOSYS; /* Function not implemented */
 		else if (R1_SPI_COM_CRC & cmd->resp[0])
-			value = -EILSEQ;
+			value = -EILSEQ; /* Illegal byte sequence */
 		else if ((R1_SPI_ERASE_SEQ | R1_SPI_ERASE_RESET)
 				& cmd->resp[0])
-			value = -EIO;
+			value = -EIO;    /* I/O error */
 		/* else R1_SPI_IDLE, "it's resetting" */
 	}
 
