@@ -20,6 +20,8 @@ static char		const *input_name = "output.perf";
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
+static int		dump_trace = 0;
+
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
@@ -643,7 +645,7 @@ static int __cmd_report(void)
 	char *buf;
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
-	unsigned long total = 0;
+	unsigned long total = 0, total_mmap = 0, total_comm = 0;
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -706,6 +708,13 @@ more:
 		struct thread *thread = threads__findnew(event->ip.pid);
 		uint64_t ip = event->ip.ip;
 
+		if (dump_trace) {
+			fprintf(stderr, "PERF_EVENT (IP, %d): %d: %p\n",
+				event->header.misc,
+				event->ip.pid,
+				(void *)event->ip.ip);
+		}
+
 		if (thread == NULL) {
 			fprintf(stderr, "problem processing %d event, bailing out\n",
 				event->header.type);
@@ -743,22 +752,39 @@ more:
 		struct thread *thread = threads__findnew(event->mmap.pid);
 		struct map *map = map__new(&event->mmap);
 
+		if (dump_trace) {
+			fprintf(stderr, "PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+				(void *)event->mmap.start,
+				(void *)event->mmap.len,
+				(void *)event->mmap.pgoff,
+				event->mmap.filename);
+		}
 		if (thread == NULL || map == NULL) {
 			fprintf(stderr, "problem processing PERF_EVENT_MMAP, bailing out\n");
 			goto done;
 		}
 		thread__insert_map(thread, map);
+		total_mmap++;
 		break;
 	}
 	case PERF_EVENT_COMM: {
 		struct thread *thread = threads__findnew(event->comm.pid);
 
+		if (dump_trace) {
+			fprintf(stderr, "PERF_EVENT_COMM: %s:%d\n",
+				event->comm.comm, event->comm.pid);
+		}
 		if (thread == NULL ||
 		    thread__set_comm(thread, event->comm.comm)) {
 			fprintf(stderr, "problem processing PERF_EVENT_COMM, bailing out\n");
 			goto done;
 		}
+		total_comm++;
 		break;
+	}
+	default: {
+		fprintf(stderr, "skipping unknown header type: %d\n",
+			event->header.type);
 	}
 	}
 
@@ -768,6 +794,15 @@ more:
 	rc = EXIT_SUCCESS;
 done:
 	close(input);
+
+	if (dump_trace) {
+		fprintf(stderr, "   IP events: %10ld\n", total);
+		fprintf(stderr, " mmap events: %10ld\n", total_mmap);
+		fprintf(stderr, " comm events: %10ld\n", total_comm);
+
+		return 0;
+	}
+
 	//dsos__fprintf(stdout);
 	threads__fprintf(stdout);
 #if 0
@@ -796,6 +831,8 @@ static const char * const report_usage[] = {
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
+	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
+		    "dump raw trace in ASCII"),
 	OPT_END()
 };
 
