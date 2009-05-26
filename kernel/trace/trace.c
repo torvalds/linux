@@ -808,6 +808,7 @@ void trace_find_cmdline(int pid, char comm[])
 		return;
 	}
 
+	preempt_disable();
 	__raw_spin_lock(&trace_cmdline_lock);
 	map = map_pid_to_cmdline[pid];
 	if (map != NO_CMDLINE_MAP)
@@ -816,6 +817,7 @@ void trace_find_cmdline(int pid, char comm[])
 		strcpy(comm, "<...>");
 
 	__raw_spin_unlock(&trace_cmdline_lock);
+	preempt_enable();
 }
 
 void tracing_record_cmdline(struct task_struct *tsk)
