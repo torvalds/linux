@@ -776,7 +776,7 @@ int __init omap1_clk_init(void)
 	arm_idlect1_mask = ~0;
 
 	for (c = omap_clks; c < omap_clks + ARRAY_SIZE(omap_clks); c++)
-		clk_init_one(c->lk.clk);
+		clk_preinit(c->lk.clk);
 
 	cpu_mask = 0;
 	if (cpu_is_omap16xx())
