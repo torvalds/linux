@@ -360,9 +360,17 @@ static int load_kallsyms(void)
 	char *line = NULL;
 	size_t n;
 
+	if (getline(&line, &n, file) < 0 || !line)
+		goto out_delete_dso;
+
+	unsigned long long previous_start;
+	char c, previous_symbf[4096];
+	if (sscanf(line, "%llx %c %s", &previous_start, &c, previous_symbf) != 3)
+		goto out_delete_line;
+
 	while (!feof(file)) {
 		unsigned long long start;
-		char c, symbf[4096];
+		char symbf[4096];
 
 		if (getline(&line, &n, file) < 0)
 			break;
@@ -371,12 +379,18 @@ static int load_kallsyms(void)
 			goto out_delete_dso;
 
 		if (sscanf(line, "%llx %c %s", &start, &c, symbf) == 3) {
-			struct symbol *sym = symbol__new(start, 0x1000000, symbf);
+			if (start > previous_start) {
+				struct symbol *sym = symbol__new(previous_start,
+								 start - previous_start,
+								 previous_symbf);
 
-			if (sym == NULL)
-				goto out_delete_dso;
+				if (sym == NULL)
+					goto out_delete_dso;
 
-			dso__insert_symbol(kernel_dso, sym);
+				dso__insert_symbol(kernel_dso, sym);
+				previous_start = start;
+				strcpy(previous_symbf, symbf);
+			}
 		}
 	}
 
@@ -385,6 +399,8 @@ static int load_kallsyms(void)
 	fclose(file);
 	return 0;
 
+out_delete_line:
+	free(line);
 out_delete_dso:
 	dso__delete(kernel_dso);
 	return -1;
