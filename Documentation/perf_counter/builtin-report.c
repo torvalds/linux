@@ -3,6 +3,7 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
+#include <ctype.h>
 
 #include "util/list.h"
 #include "util/rbtree.h"
@@ -408,13 +409,20 @@ static int load_kallsyms(void)
 
 		int len = hex2long(line, &start);
 		
-		len += 3; /* ' t ' */
-		if (len >= line_len)
+		len++;
+		if (len + 2 >= line_len)
+			continue;
+
+		char symbol_type = line[len];
+		/*
+		 * We're interested only in code ('T'ext)
+		 */
+		if (toupper(symbol_type) != 'T')
 			continue;
 		/*
 		 * Well fix up the end later, when we have all sorted.
 		 */
-		struct symbol *sym = symbol__new(start, 0xdead, line + len);
+		struct symbol *sym = symbol__new(start, 0xdead, line + len + 2);
 
 		if (sym == NULL)
 			goto out_delete_dso;
