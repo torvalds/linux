@@ -1,4 +1,8 @@
+ifeq ($(CONFIG_MMU),y)
+UTS_SYSNAME = -DUTS_SYSNAME=\"Linux\"
+else
 UTS_SYSNAME = -DUTS_SYSNAME=\"uClinux\"
+endif
 
 # What CPU vesion are we building for, and crack it open
 # as major.minor.rev
