@@ -1153,7 +1153,7 @@ static struct net_device_stats *atl1e_get_stats(struct net_device *netdev)
 {
 	struct atl1e_adapter *adapter = netdev_priv(netdev);
 	struct atl1e_hw_stats  *hw_stats = &adapter->hw_stats;
-	struct net_device_stats *net_stats = &adapter->net_stats;
+	struct net_device_stats *net_stats = &netdev->stats;
 
 	net_stats->rx_packets = hw_stats->rx_ok;
 	net_stats->tx_packets = hw_stats->tx_ok;
@@ -1181,7 +1181,7 @@ static struct net_device_stats *atl1e_get_stats(struct net_device *netdev)
 	net_stats->tx_aborted_errors = hw_stats->tx_abort_col;
 	net_stats->tx_window_errors  = hw_stats->tx_late_col;
 
-	return &adapter->net_stats;
+	return net_stats;
 }
 
 static void atl1e_update_hw_stats(struct atl1e_adapter *adapter)
@@ -1309,7 +1309,7 @@ static irqreturn_t atl1e_intr(int irq, void *data)
 
 		/* link event */
 		if (status & (ISR_GPHY | ISR_MANUAL)) {
-			adapter->net_stats.tx_carrier_errors++;
+			netdev->stats.tx_carrier_errors++;
 			atl1e_link_chg_event(adapter);
 			break;
 		}
