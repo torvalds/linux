@@ -55,34 +55,6 @@ typedef union event_union {
 	struct comm_event comm;
 } event_t;
 
-struct section {
-	struct list_head node;
-	uint64_t	 start;
-	uint64_t	 end;
-	uint64_t	 offset;
-	char		 name[0];
-};
-
-struct section *section__new(uint64_t start, uint64_t size,
-				    uint64_t offset, char *name)
-{
-	struct section *self = malloc(sizeof(*self) + strlen(name) + 1);
-
-	if (self != NULL) {
-		self->start  = start;
-		self->end    = start + size;
-		self->offset = offset;
-		strcpy(self->name, name);
-	}
-
-	return self;
-}
-
-static void section__delete(struct section *self)
-{
-	free(self);
-}
-
 struct symbol {
 	struct rb_node rb_node;
 	uint64_t       start;
@@ -116,7 +88,6 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 
 struct dso {
 	struct list_head node;
-	struct list_head sections;
 	struct rb_root	 syms;
 	char		 name[0];
 };
@@ -127,19 +98,10 @@ static struct dso *dso__new(const char *name)
 
 	if (self != NULL) {
 		strcpy(self->name, name);
-		INIT_LIST_HEAD(&self->sections);
 		self->syms = RB_ROOT;
 	}
 
 	return self;
-}
-
-static void dso__delete_sections(struct dso *self)
-{
-	struct section *pos, *n;
-
-	list_for_each_entry_safe(pos, n, &self->sections, node)
-		section__delete(pos);
 }
 
 static void dso__delete_symbols(struct dso *self)
@@ -156,7 +118,6 @@ static void dso__delete_symbols(struct dso *self)
 
 static void dso__delete(struct dso *self)
 {
-	dso__delete_sections(self);
 	dso__delete_symbols(self);
 	free(self);
 }
@@ -282,9 +243,6 @@ static int dso__load(struct dso *self)
 	if (sec == NULL)
 		goto out_elf_end;
 
-	if (gelf_getshdr(sec, &shdr) == NULL)
-		goto out_elf_end;
-
 	Elf_Data *syms = elf_getdata(sec, NULL);
 	if (syms == NULL)
 		goto out_elf_end;
@@ -302,11 +260,21 @@ static int dso__load(struct dso *self)
 	GElf_Sym sym;
 	uint32_t index;
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
+		struct symbol *f;
+
 		if (!elf_sym__is_function(&sym))
 			continue;
-		struct symbol *f = symbol__new(sym.st_value, sym.st_size,
-					       elf_sym__name(&sym, symstrs));
-		if (f == NULL)
+
+		sec = elf_getscn(elf, sym.st_shndx);
+		if (!sec)
+			goto out_elf_end;
+
+		gelf_getshdr(sec, &shdr);
+		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
+
+		f = symbol__new(sym.st_value, sym.st_size,
+				elf_sym__name(&sym, symstrs));
+		if (!f)
 			goto out_elf_end;
 
 		dso__insert_symbol(self, f);
@@ -498,7 +466,7 @@ static size_t symhist__fprintf(struct symhist *self, FILE *fp)
 		ret += fprintf(fp, "%s", self->sym ? self->sym->name: "<unknown>");
 	else
 		ret += fprintf(fp, "%s: %s",
-			       self->dso ? self->dso->name : "<unknown",
+			       self->dso ? self->dso->name : "<unknown>",
 			       self->sym ? self->sym->name : "<unknown>");
 	return ret + fprintf(fp, ": %u\n", self->count);
 }
@@ -714,6 +682,7 @@ more:
 		int show = 0;
 		struct dso *dso = NULL;
 		struct thread *thread = threads__findnew(event->ip.pid);
+		uint64_t ip = event->ip.ip;
 
 		if (thread == NULL) {
 			fprintf(stderr, "problem processing %d event, bailing out\n",
@@ -728,19 +697,20 @@ more:
 		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
 			show = SHOW_USER;
 			level = '.';
-			struct map *map = thread__find_map(thread, event->ip.ip);
-			if (map != NULL)
+			struct map *map = thread__find_map(thread, ip);
+			if (map != NULL) {
 				dso = map->dso;
+				ip -= map->start + map->pgoff;
+			}
 		} else {
 			show = SHOW_HV;
 			level = 'H';
 		}
 
 		if (show & show_mask) {
-			struct symbol *sym = dso__find_symbol(dso, event->ip.ip);
+			struct symbol *sym = dso__find_symbol(dso, ip);
 
-			if (thread__symbol_incnew(thread, sym, event->ip.ip,
-						  dso, level)) {
+			if (thread__symbol_incnew(thread, sym, ip, dso, level)) {
 				fprintf(stderr, "problem incrementing symbol count, bailing out\n");
 				goto done;
 			}
