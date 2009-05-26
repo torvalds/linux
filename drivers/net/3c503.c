@@ -234,16 +234,16 @@ el2_probe1(struct net_device *dev, int ioaddr)
     }
 
     if (ei_debug  &&  version_printed++ == 0)
-	printk(version);
+	pr_debug("%s", version);
 
     dev->base_addr = ioaddr;
 
-    printk("%s: 3c503 at i/o base %#3x, node ", dev->name, ioaddr);
+    pr_info("%s: 3c503 at i/o base %#3x, node ", dev->name, ioaddr);
 
     /* Retrieve and print the ethernet address. */
     for (i = 0; i < 6; i++)
 	dev->dev_addr[i] = inb(ioaddr + i);
-    printk("%pM", dev->dev_addr);
+    pr_cont("%pM", dev->dev_addr);
 
     /* Map the 8390 back into the window. */
     outb(ECNTRL_THIN, ioaddr + 0x406);
@@ -256,7 +256,8 @@ el2_probe1(struct net_device *dev, int ioaddr)
     outb_p(E8390_PAGE0, ioaddr + E8390_CMD);
 
     /* Probe for, turn on and clear the board's shared memory. */
-    if (ei_debug > 2) printk(" memory jumpers %2.2x ", membase_reg);
+    if (ei_debug > 2)
+	pr_cont(" memory jumpers %2.2x ", membase_reg);
     outb(EGACFR_NORM, ioaddr + 0x405);	/* Enable RAM */
 
     /* This should be probed for (or set via an ioctl()) at run-time.
@@ -268,7 +269,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
 #else
     ei_status.interface_num = dev->mem_end & 0xf;
 #endif
-    printk(", using %sternal xcvr.\n", ei_status.interface_num == 0 ? "in" : "ex");
+    pr_cont(", using %sternal xcvr.\n", ei_status.interface_num == 0 ? "in" : "ex");
 
     if ((membase_reg & 0xf0) == 0) {
 	dev->mem_start = 0;
@@ -292,7 +293,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
 		writel(test_val, mem_base + i);
 		if (readl(mem_base) != 0xba5eba5e
 		    || readl(mem_base + i) != test_val) {
-		    printk("3c503: memory failure or memory address conflict.\n");
+		    pr_warning("3c503: memory failure or memory address conflict.\n");
 		    dev->mem_start = 0;
 		    ei_status.name = "3c503-PIO";
 		    iounmap(mem_base);
@@ -344,7 +345,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
     if (dev->irq == 2)
 	dev->irq = 9;
     else if (dev->irq > 5 && dev->irq != 9) {
-	printk("3c503: configured interrupt %d invalid, will use autoIRQ.\n",
+	pr_warning("3c503: configured interrupt %d invalid, will use autoIRQ.\n",
 	       dev->irq);
 	dev->irq = 0;
     }
@@ -359,7 +360,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
 	goto out1;
 
     if (dev->mem_start)
-	printk("%s: %s - %dkB RAM, 8kB shared mem window at %#6lx-%#6lx.\n",
+	pr_info("%s: %s - %dkB RAM, 8kB shared mem window at %#6lx-%#6lx.\n",
 		dev->name, ei_status.name, (wordlength+1)<<3,
 		dev->mem_start, dev->mem_end-1);
 
@@ -367,7 +368,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
     {
 	ei_status.tx_start_page = EL2_MB1_START_PG;
 	ei_status.rx_start_page = EL2_MB1_START_PG + TX_PAGES;
-	printk("\n%s: %s, %dkB RAM, using programmed I/O (REJUMPER for SHARED MEMORY).\n",
+	pr_info("%s: %s, %dkB RAM, using programmed I/O (REJUMPER for SHARED MEMORY).\n",
 	       dev->name, ei_status.name, (wordlength+1)<<3);
     }
     release_region(ioaddr + 0x400, 8);
@@ -435,15 +436,16 @@ static void
 el2_reset_8390(struct net_device *dev)
 {
     if (ei_debug > 1) {
-	printk("%s: Resetting the 3c503 board...", dev->name);
-	printk("%#lx=%#02x %#lx=%#02x %#lx=%#02x...", E33G_IDCFR, inb(E33G_IDCFR),
+	pr_debug("%s: Resetting the 3c503 board...", dev->name);
+	pr_cont(" %#lx=%#02x %#lx=%#02x %#lx=%#02x...", E33G_IDCFR, inb(E33G_IDCFR),
 	       E33G_CNTRL, inb(E33G_CNTRL), E33G_GACFR, inb(E33G_GACFR));
     }
     outb_p(ECNTRL_RESET|ECNTRL_THIN, E33G_CNTRL);
     ei_status.txing = 0;
     outb_p(ei_status.interface_num==0 ? ECNTRL_THIN : ECNTRL_AUI, E33G_CNTRL);
     el2_init_card(dev);
-    if (ei_debug > 1) printk("done\n");
+    if (ei_debug > 1)
+	pr_cont("done\n");
 }
 
 /* Initialize the 3c503 GA registers after a reset. */
@@ -529,7 +531,7 @@ el2_block_output(struct net_device *dev, int count,
         {
             if(!boguscount--)
             {
-                printk("%s: FIFO blocked in el2_block_output.\n", dev->name);
+                pr_notice("%s: FIFO blocked in el2_block_output.\n", dev->name);
                 el2_reset_8390(dev);
                 goto blocked;
             }
@@ -581,7 +583,7 @@ el2_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_pag
     {
         if(!boguscount--)
         {
-            printk("%s: FIFO blocked in el2_get_8390_hdr.\n", dev->name);
+            pr_notice("%s: FIFO blocked in el2_get_8390_hdr.\n", dev->name);
             memset(hdr, 0x00, sizeof(struct e8390_pkt_hdr));
             el2_reset_8390(dev);
             goto blocked;
@@ -645,7 +647,7 @@ el2_block_input(struct net_device *dev, int count, struct sk_buff *skb, int ring
         {
             if(!boguscount--)
             {
-                printk("%s: FIFO blocked in el2_block_input.\n", dev->name);
+                pr_notice("%s: FIFO blocked in el2_block_input.\n", dev->name);
                 el2_reset_8390(dev);
                 goto blocked;
             }
@@ -707,7 +709,7 @@ init_module(void)
 	for (this_dev = 0; this_dev < MAX_EL2_CARDS; this_dev++) {
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) break; /* only autoprobe 1st one */
-			printk(KERN_NOTICE "3c503.c: Presently autoprobing (not recommended) for a single card.\n");
+			pr_notice("3c503.c: Presently autoprobing (not recommended) for a single card.\n");
 		}
 		dev = alloc_eip_netdev();
 		if (!dev)
@@ -720,7 +722,7 @@ init_module(void)
 			continue;
 		}
 		free_netdev(dev);
-		printk(KERN_WARNING "3c503.c: No 3c503 card found (i/o = 0x%x).\n", io[this_dev]);
+		pr_warning("3c503.c: No 3c503 card found (i/o = 0x%x).\n", io[this_dev]);
 		break;
 	}
 	if (found)
