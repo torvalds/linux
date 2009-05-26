@@ -1011,6 +1011,9 @@ struct napi_gro_cb {
 	/* Virtual address of skb_shinfo(skb)->frags[0].page + offset. */
 	void *frag0;
 
+	/* Length of frag0. */
+	unsigned int frag0_len;
+
 	/* This indicates where we are processing relative to skb->data. */
 	int data_offset;
 
@@ -1134,9 +1137,9 @@ static inline void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
 	unsigned int offset = skb_gro_offset(skb);
 
 	hlen += offset;
-	if (!NAPI_GRO_CB(skb)->frag0 ||
-	    unlikely(skb_shinfo(skb)->frags[0].size < hlen)) {
+	if (NAPI_GRO_CB(skb)->frag0_len < hlen) {
 		NAPI_GRO_CB(skb)->frag0 = NULL;
+		NAPI_GRO_CB(skb)->frag0_len = 0;
 		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
 	}
 
