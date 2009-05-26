@@ -3,44 +3,17 @@
 #include "perf.h"
 #include "util/util.h"
 #include "util/parse-options.h"
+#include "util/parse-events.h"
 #include "util/exec_cmd.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <assert.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <time.h>
 #include <sched.h>
-#include <pthread.h>
-
-#include <sys/syscall.h>
-#include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <sys/prctl.h>
-#include <sys/wait.h>
-#include <sys/uio.h>
-#include <sys/mman.h>
-
-#include <linux/unistd.h>
-#include <linux/types.h>
-
-
 
 #define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
 #define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
 
-static int			nr_counters			=  0;
-static __u64			event_id[MAX_COUNTERS]		= { };
 static int			default_interval = 100000;
 static int			event_count[MAX_COUNTERS];
+
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 static int			nr_cpus				=  0;
 static unsigned int		page_size;
@@ -420,131 +393,16 @@ static int __cmd_record(int argc, const char **argv)
 	return 0;
 }
 
-struct event_symbol {
-	__u64 event;
-	char *symbol;
-};
-
-static struct event_symbol event_symbols[] = {
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),		"cpu-cycles",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),		"cycles",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_INSTRUCTIONS),		"instructions",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_REFERENCES),		"cache-references",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_MISSES),		"cache-misses",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_INSTRUCTIONS),	"branch-instructions",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_INSTRUCTIONS),	"branches",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_MISSES),		"branch-misses",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BUS_CYCLES),		"bus-cycles",		},
-
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK),			"cpu-clock",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK),		"task-clock",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),		"page-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),		"faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS_MIN),		"minor-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS_MAJ),		"major-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),		"context-switches",	},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),		"cs",			},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),		"cpu-migrations",	},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),		"migrations",		},
-};
-
-/*
- * Each event can have multiple symbolic names.
- * Symbolic names are (almost) exactly matched.
- */
-static __u64 match_event_symbols(const char *str)
-{
-	__u64 config, id;
-	int type;
-	unsigned int i;
-
-	if (sscanf(str, "r%llx", &config) == 1)
-		return config | PERF_COUNTER_RAW_MASK;
-
-	if (sscanf(str, "%d:%llu", &type, &id) == 2)
-		return EID(type, id);
-
-	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
-		if (!strncmp(str, event_symbols[i].symbol,
-			     strlen(event_symbols[i].symbol)))
-			return event_symbols[i].event;
-	}
-
-	return ~0ULL;
-}
-
-static int parse_events(const struct option *opt, const char *str, int unset)
-{
-	__u64 config;
-
-again:
-	if (nr_counters == MAX_COUNTERS)
-		return -1;
-
-	config = match_event_symbols(str);
-	if (config == ~0ULL)
-		return -1;
-
-	event_id[nr_counters] = config;
-	nr_counters++;
-
-	str = strstr(str, ",");
-	if (str) {
-		str++;
-		goto again;
-	}
-
-	return 0;
-}
-
-static char events_help[100000];
-
-#define __PERF_COUNTER_FIELD(config, name) \
-	((config & PERF_COUNTER_##name##_MASK) >> PERF_COUNTER_##name##_SHIFT)
-
-#define PERF_COUNTER_RAW(config)	__PERF_COUNTER_FIELD(config, RAW)
-#define PERF_COUNTER_CONFIG(config)	__PERF_COUNTER_FIELD(config, CONFIG)
-#define PERF_COUNTER_TYPE(config)	__PERF_COUNTER_FIELD(config, TYPE)
-#define PERF_COUNTER_ID(config)		__PERF_COUNTER_FIELD(config, EVENT)
-
-
-
-static void create_events_help(void)
-{
-	unsigned int i;
-	char *str;
-	__u64 e;
-
-	str = events_help;
-
-	str += sprintf(str,
-	"event name: [");
-
-	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
-		int type, id;
-
-		e = event_symbols[i].event;
-		type = PERF_COUNTER_TYPE(e);
-		id = PERF_COUNTER_ID(e);
-
-		if (i)
-			str += sprintf(str, "|");
-
-		str += sprintf(str, "%s",
-				event_symbols[i].symbol);
-	}
-
-	str += sprintf(str, "|rNNN]");
-}
-
 static const char * const record_usage[] = {
 	"perf record [<options>] <command>",
 	NULL
 };
 
+static char events_help_msg[EVENTS_HELP_MAX];
+
 const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
-		     events_help, parse_events),
+		     events_help_msg, parse_events),
 	OPT_INTEGER('c', "count", &default_interval,
 		    "event period to sample"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
@@ -566,7 +424,7 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 {
 	int counter;
 
-	create_events_help();
+	create_events_help(events_help_msg);
 
 	argc = parse_options(argc, argv, options, record_usage, 0);
 	if (!argc)
