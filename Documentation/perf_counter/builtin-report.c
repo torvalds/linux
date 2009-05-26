@@ -1,52 +1,29 @@
-#define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
+#include "util/util.h"
+
+#include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
-#include <libelf.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <errno.h>
-#include <ctype.h>
-#include <time.h>
-#include <getopt.h>
-#include <assert.h>
-#include <search.h>
 
-#include <sys/ioctl.h>
-#include <sys/poll.h>
-#include <sys/prctl.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <linux/unistd.h>
-#include <linux/types.h>
-
-#include "../../include/linux/perf_counter.h"
 #include "util/list.h"
 #include "util/rbtree.h"
+
+#include "perf.h"
+
+#include "util/parse-options.h"
+#include "util/parse-events.h"
 
 #define SHOW_KERNEL	1
 #define SHOW_USER	2
 #define SHOW_HV		4
 
-static char 		const *input_name = "output.perf";
+static char		const *input_name = "output.perf";
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
-static const char *perf_event_names[] = {
+const char *perf_event_names[] = {
 	[PERF_EVENT_MMAP]   = " PERF_EVENT_MMAP",
 	[PERF_EVENT_MUNMAP] = " PERF_EVENT_MUNMAP",
 	[PERF_EVENT_COMM]   = " PERF_EVENT_COMM",
@@ -86,7 +63,7 @@ struct section {
 	char		 name[0];
 };
 
-static struct section *section__new(uint64_t start, uint64_t size,
+struct section *section__new(uint64_t start, uint64_t size,
 				    uint64_t offset, char *name)
 {
 	struct section *self = malloc(sizeof(*self) + strlen(name) + 1);
@@ -241,7 +218,7 @@ static inline uint8_t elf_sym__type(const GElf_Sym *sym)
 	return GELF_ST_TYPE(sym->st_info);
 }
 
-static inline bool elf_sym__is_function(const GElf_Sym *sym)
+static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_FUNC &&
 	       sym->st_name != 0 &&
@@ -393,7 +370,7 @@ out_delete_dso:
 	return NULL;
 }
 
-static void dsos__fprintf(FILE *fp)
+void dsos__fprintf(FILE *fp)
 {
 	struct dso *pos;
 
@@ -503,7 +480,7 @@ static struct symhist *symhist__new(struct symbol *sym, uint64_t ip,
 	return self;
 }
 
-static void symhist__delete(struct symhist *self)
+void symhist__delete(struct symhist *self)
 {
 	free(self);
 }
@@ -587,7 +564,7 @@ static int thread__set_comm(struct thread *self, const char *comm)
 	return self->comm ? 0 : -ENOMEM;
 }
 
-static size_t thread__maps_fprintf(struct thread *self, FILE *fp)
+size_t thread__maps_fprintf(struct thread *self, FILE *fp)
 {
 	struct map *pos;
 	size_t ret = 0;
@@ -668,49 +645,7 @@ static void threads__fprintf(FILE *fp)
 	}
 }
 
-static void display_help(void)
-{
-	printf(
-	"Usage: perf-report [<options>]\n"
-	" -i file   --input=<file>      # input file\n"
-	);
-
-	exit(0);
-}
-
-static void process_options(int argc, char *argv[])
-{
-	int error = 0;
-
-	for (;;) {
-		int option_index = 0;
-		/** Options for getopt */
-		static struct option long_options[] = {
-			{"input",	required_argument,	NULL, 'i'},
-			{"no-user",	no_argument,		NULL, 'u'},
-			{"no-kernel",	no_argument,		NULL, 'k'},
-			{"no-hv",	no_argument,		NULL, 'h'},
-			{NULL,		0,			NULL,  0 }
-		};
-		int c = getopt_long(argc, argv, "+:i:kuh",
-				    long_options, &option_index);
-		if (c == -1)
-			break;
-
-		switch (c) {
-		case 'i': input_name			= strdup(optarg); break;
-		case 'k': show_mask &= ~SHOW_KERNEL; break;
-		case 'u': show_mask &= ~SHOW_USER; break;
-		case 'h': show_mask &= ~SHOW_HV; break;
-		default: error = 1; break;
-		}
-	}
-
-	if (error)
-		display_help();
-}
-
-int cmd_report(int argc, char **argv)
+static int __cmd_report(void)
 {
 	unsigned long offset = 0;
 	unsigned long head = 0;
@@ -719,12 +654,6 @@ int cmd_report(int argc, char **argv)
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
 	unsigned long total = 0;
-
-	elf_version(EV_CURRENT);
-
-	page_size = getpagesize();
-
-	process_options(argc, argv);
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -867,3 +796,24 @@ done:
 	return rc;
 }
 
+static const char * const report_usage[] = {
+	"perf report [<options>] <command>",
+	NULL
+};
+
+static const struct option options[] = {
+	OPT_STRING('i', "input", &input_name, "file",
+		    "input file name"),
+	OPT_END()
+};
+
+int cmd_report(int argc, const char **argv, const char *prefix)
+{
+	elf_version(EV_CURRENT);
+
+	page_size = getpagesize();
+
+	parse_options(argc, argv, options, report_usage, 0);
+
+	return __cmd_report();
+}
