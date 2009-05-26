@@ -285,14 +285,10 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
 
 	/*
-	 * If privileged enough, allow NMI events:
+	 * Use NMI events all the time:
 	 */
-	hwc->nmi = 0;
-	if (hw_event->nmi) {
-		if (sysctl_perf_counter_priv && !capable(CAP_SYS_ADMIN))
-			return -EACCES;
-		hwc->nmi = 1;
-	}
+	hwc->nmi	= 1;
+	hw_event->nmi	= 1;
 
 	if (!hwc->irq_period)
 		hwc->irq_period = x86_pmu.max_period;
@@ -553,9 +549,6 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 	if (!x86_pmu.num_counters_fixed)
 		return -1;
 
-	if (unlikely(hwc->nmi))
-		return -1;
-
 	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
 	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_INSTRUCTIONS)))
@@ -805,9 +798,6 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 
 		counter = cpuc->counters[idx];
 		hwc = &counter->hw;
-
-		if (counter->hw_event.nmi != nmi)
-			continue;
 
 		val = x86_perf_counter_update(counter, hwc, idx);
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
