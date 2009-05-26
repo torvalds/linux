@@ -58,7 +58,7 @@ static struct device_attribute virtio_dev_attrs[] = {
 static inline int virtio_id_match(const struct virtio_device *dev,
 				  const struct virtio_device_id *id)
 {
-	if (id->device != dev->id.device)
+	if (id->device != dev->id.device && id->device != VIRTIO_DEV_ANY_ID)
 		return 0;
 
 	return id->vendor == VIRTIO_DEV_ANY_ID || id->vendor == dev->id.vendor;
