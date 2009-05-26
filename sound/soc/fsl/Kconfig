@@ -41,15 +41,16 @@ config SND_SOC_MPC5200_AC97
 
 config SND_MPC52xx_SOC_PCM030
 	tristate "SoC AC97 Audio support for Phytec pcm030 and WM9712"
-	depends on PPC_MPC5200_SIMPLE
+	depends on PPC_MPC5200_SIMPLE && BROKEN
 	select SND_SOC_MPC5200_AC97
 	select SND_SOC_WM9712
 	help
-	  Say Y if you want to add support for sound on the Phytec pcm030 baseboard.
+	  Say Y if you want to add support for sound on the Phytec pcm030
+	  baseboard.
 
 config SND_MPC52xx_SOC_EFIKA
 	tristate "SoC AC97 Audio support for bbplan Efika and STAC9766"
-	depends on PPC_EFIKA
+	depends on PPC_EFIKA && BROKEN
 	select SND_SOC_MPC5200_AC97
 	select SND_SOC_STAC9766
 	help
