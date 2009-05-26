@@ -53,7 +53,7 @@ static inline void set_interrupt_registers(int ip)
 
 static void mask_imask_irq(unsigned int irq)
 {
-	clear_bit(irq, &imask_mask);
+	clear_bit(irq, imask_mask);
 	if (interrupt_priority < IMASK_PRIORITY - irq)
 		interrupt_priority = IMASK_PRIORITY - irq;
 	set_interrupt_registers(interrupt_priority);
@@ -61,7 +61,7 @@ static void mask_imask_irq(unsigned int irq)
 
 static void unmask_imask_irq(unsigned int irq)
 {
-	set_bit(irq, &imask_mask);
+	set_bit(irq, imask_mask);
 	interrupt_priority = IMASK_PRIORITY -
 		find_first_zero_bit(imask_mask, IMASK_PRIORITY);
 	set_interrupt_registers(interrupt_priority);
