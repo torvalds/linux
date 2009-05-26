@@ -18,9 +18,12 @@
 #include <linux/tty.h>
 #include <linux/pfn.h>
 
+#ifdef CONFIG_MTD_UCLINUX
+#include <linux/mtd/map.h>
 #include <linux/ext2_fs.h>
 #include <linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
+#endif
 
 #include <asm/cplb.h>
 #include <asm/cacheflush.h>
@@ -45,6 +48,7 @@ EXPORT_SYMBOL(_ramend);
 EXPORT_SYMBOL(reserved_mem_dcache_on);
 
 #ifdef CONFIG_MTD_UCLINUX
+extern struct map_info uclinux_ram_map;
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
 unsigned long _ebss;
 EXPORT_SYMBOL(memory_mtd_end);
@@ -535,10 +539,9 @@ static __init void memory_setup(void)
 	}
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	dma_memcpy((char *)memory_end, _end, mtd_size);
-
-	memory_mtd_start = memory_end;
-	_ebss = memory_mtd_start;	/* define _ebss for compatible */
+	uclinux_ram_map.phys = memory_mtd_start = memory_end;
+	uclinux_ram_map.size = mtd_size;
+	dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 #endif				/* CONFIG_MTD_UCLINUX */
 
 #if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
