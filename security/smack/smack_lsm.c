@@ -3034,15 +3034,7 @@ struct security_operations smack_ops = {
 
 	.ptrace_may_access =		smack_ptrace_may_access,
 	.ptrace_traceme =		smack_ptrace_traceme,
-	.capget = 			cap_capget,
-	.capset = 			cap_capset,
-	.capable = 			cap_capable,
 	.syslog = 			smack_syslog,
-	.settime = 			cap_settime,
-	.vm_enough_memory = 		cap_vm_enough_memory,
-
-	.bprm_set_creds = 		cap_bprm_set_creds,
-	.bprm_secureexec = 		cap_bprm_secureexec,
 
 	.sb_alloc_security = 		smack_sb_alloc_security,
 	.sb_free_security = 		smack_sb_free_security,
@@ -3066,8 +3058,6 @@ struct security_operations smack_ops = {
 	.inode_post_setxattr = 		smack_inode_post_setxattr,
 	.inode_getxattr = 		smack_inode_getxattr,
 	.inode_removexattr = 		smack_inode_removexattr,
-	.inode_need_killpriv =		cap_inode_need_killpriv,
-	.inode_killpriv =		cap_inode_killpriv,
 	.inode_getsecurity = 		smack_inode_getsecurity,
 	.inode_setsecurity = 		smack_inode_setsecurity,
 	.inode_listsecurity = 		smack_inode_listsecurity,
@@ -3088,7 +3078,6 @@ struct security_operations smack_ops = {
 	.cred_commit =			smack_cred_commit,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,
-	.task_fix_setuid =		cap_task_fix_setuid,
 	.task_setpgid = 		smack_task_setpgid,
 	.task_getpgid = 		smack_task_getpgid,
 	.task_getsid = 			smack_task_getsid,
@@ -3102,7 +3091,6 @@ struct security_operations smack_ops = {
 	.task_kill = 			smack_task_kill,
 	.task_wait = 			smack_task_wait,
 	.task_to_inode = 		smack_task_to_inode,
-	.task_prctl =			cap_task_prctl,
 
 	.ipc_permission = 		smack_ipc_permission,
 	.ipc_getsecid =			smack_ipc_getsecid,
@@ -3128,9 +3116,6 @@ struct security_operations smack_ops = {
 	.sem_associate = 		smack_sem_associate,
 	.sem_semctl = 			smack_sem_semctl,
 	.sem_semop = 			smack_sem_semop,
-
-	.netlink_send =			cap_netlink_send,
-	.netlink_recv = 		cap_netlink_recv,
 
 	.d_instantiate = 		smack_d_instantiate,
 
