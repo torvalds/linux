@@ -1248,9 +1248,9 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	struct iphdr *iph;
 	unsigned int hlen;
 	unsigned int off;
+	unsigned int id;
 	int flush = 1;
 	int proto;
-	int id;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*iph);
@@ -1274,9 +1274,9 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto out_unlock;
 
-	flush = ntohs(iph->tot_len) != skb_gro_len(skb) ||
-		iph->frag_off != htons(IP_DF);
-	id = ntohs(iph->id);
+	id = ntohl(*(u32 *)&iph->id);
+	flush = (u16)((ntohl(*(u32 *)iph) ^ skb_gro_len(skb)) | (id ^ IP_DF));
+	id >>= 16;
 
 	for (p = *head; p; p = p->next) {
 		struct iphdr *iph2;
