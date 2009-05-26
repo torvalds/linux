@@ -240,7 +240,7 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 struct address_space_operations nilfs_aops = {
 	.writepage		= nilfs_writepage,
 	.readpage		= nilfs_readpage,
-	/* .sync_page		= nilfs_sync_page, */
+	.sync_page		= block_sync_page,
 	.writepages		= nilfs_writepages,
 	.set_page_dirty		= nilfs_set_page_dirty,
 	.readpages		= nilfs_readpages,
