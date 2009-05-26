@@ -776,6 +776,12 @@ static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 		pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
 		if (pincap & AC_PINCAP_VREF_80)
 			val = PIN_VREF80;
+		else if (pincap & AC_PINCAP_VREF_50)
+			val = PIN_VREF50;
+		else if (pincap & AC_PINCAP_VREF_100)
+			val = PIN_VREF100;
+		else if (pincap & AC_PINCAP_VREF_GRD)
+			val = PIN_VREFGRD;
 	}
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, val);
 }
