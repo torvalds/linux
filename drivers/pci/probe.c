@@ -289,7 +289,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 	struct resource *res;
 	int i;
 
-	if (!child->parent)	/* It's a host bus, nothing to read */
+	if (pci_is_root_bus(child))	/* It's a host bus, nothing to read */
 		return;
 
 	if (dev->transparent) {
