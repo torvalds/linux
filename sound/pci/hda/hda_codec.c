@@ -158,6 +158,38 @@ make_codec_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 	return val;
 }
 
+/*
+ * Send and receive a verb
+ */
+static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
+			   unsigned int *res)
+{
+	struct hda_bus *bus = codec->bus;
+	int err, repeated = 0;
+
+	if (res)
+		*res = -1;
+	snd_hda_power_up(codec);
+	mutex_lock(&bus->cmd_mutex);
+ again:
+	err = bus->ops.command(bus, cmd);
+	if (!err) {
+		if (res) {
+			*res = bus->ops.get_response(bus);
+			if (*res == -1 && bus->rirb_error) {
+				if (repeated++ < 1) {
+					snd_printd(KERN_WARNING "hda_codec: "
+					   "Trying verb 0x%08x again\n", cmd);
+					goto again;
+				}
+			}
+		}
+	}
+	mutex_unlock(&bus->cmd_mutex);
+	snd_hda_power_down(codec);
+	return err;
+}
+
 /**
  * snd_hda_codec_read - send a command and get the response
  * @codec: the HDA codec
@@ -174,30 +206,17 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 				int direct,
 				unsigned int verb, unsigned int parm)
 {
-	struct hda_bus *bus = codec->bus;
-	unsigned int cmd, res;
-	int repeated = 0;
-
-	cmd = make_codec_cmd(codec, nid, direct, verb, parm);
-	snd_hda_power_up(codec);
-	mutex_lock(&bus->cmd_mutex);
- again:
-	if (!bus->ops.command(bus, cmd)) {
-		res = bus->ops.get_response(bus);
-		if (res == -1 && bus->rirb_error) {
-			if (repeated++ < 1) {
-				snd_printd(KERN_WARNING "hda_codec: "
-					   "Trying verb 0x%08x again\n", cmd);
-				goto again;
-			}
-		}
-	} else
-		res = (unsigned int)-1;
-	mutex_unlock(&bus->cmd_mutex);
-	snd_hda_power_down(codec);
+	unsigned cmd = make_codec_cmd(codec, nid, direct, verb, parm);
+	unsigned int res;
+	codec_exec_verb(codec, cmd, &res);
 	return res;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_read);
+
+/* Define the below to send and receive verbs synchronously.
+ * If you often get any codec communication errors, this is worth to try.
+ */
+/* #define SND_HDA_SUPPORT_SYNC_WRITE */
 
 /**
  * snd_hda_codec_write - send a single command without waiting for response
@@ -214,17 +233,13 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_read);
 int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 			 unsigned int verb, unsigned int parm)
 {
-	struct hda_bus *bus = codec->bus;
+	unsigned int cmd = make_codec_cmd(codec, nid, direct, verb, parm);
+#ifdef SND_HDA_SUPPORT_SYNC_WRITE
 	unsigned int res;
-	int err;
-
-	res = make_codec_cmd(codec, nid, direct, verb, parm);
-	snd_hda_power_up(codec);
-	mutex_lock(&bus->cmd_mutex);
-	err = bus->ops.command(bus, res);
-	mutex_unlock(&bus->cmd_mutex);
-	snd_hda_power_down(codec);
-	return err;
+	return codec_exec_verb(codec, cmd, &res);
+#else
+	return codec_exec_verb(codec, cmd, NULL);
+#endif
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_write);
 
@@ -2281,28 +2296,22 @@ EXPORT_SYMBOL_HDA(snd_hda_create_spdif_in_ctls);
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm)
 {
-	struct hda_bus *bus = codec->bus;
-	unsigned int res;
-	int err;
+	int err = snd_hda_codec_write(codec, nid, direct, verb, parm);
+	struct hda_cache_head *c;
+	u32 key;
 
-	res = make_codec_cmd(codec, nid, direct, verb, parm);
-	snd_hda_power_up(codec);
-	mutex_lock(&bus->cmd_mutex);
-	err = bus->ops.command(bus, res);
-	if (!err) {
-		struct hda_cache_head *c;
-		u32 key;
-		/* parm may contain the verb stuff for get/set amp */
-		verb = verb | (parm >> 8);
-		parm &= 0xff;
-		key = build_cmd_cache_key(nid, verb);
-		c = get_alloc_hash(&codec->cmd_cache, key);
-		if (c)
-			c->val = parm;
-	}
-	mutex_unlock(&bus->cmd_mutex);
-	snd_hda_power_down(codec);
-	return err;
+	if (err < 0)
+		return err;
+	/* parm may contain the verb stuff for get/set amp */
+	verb = verb | (parm >> 8);
+	parm &= 0xff;
+	key = build_cmd_cache_key(nid, verb);
+	mutex_lock(&codec->bus->cmd_mutex);
+	c = get_alloc_hash(&codec->cmd_cache, key);
+	if (c)
+		c->val = parm;
+	mutex_unlock(&codec->bus->cmd_mutex);
+	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_write_cache);
 
