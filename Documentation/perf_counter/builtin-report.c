@@ -645,7 +645,7 @@ static int __cmd_report(void)
 	char *buf;
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
-	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown;
+	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -699,8 +699,6 @@ more:
 		goto done;
 	}
 
-	head += event->header.size;
-
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
 		char level;
 		int show = 0;
@@ -709,7 +707,9 @@ more:
 		uint64_t ip = event->ip.ip;
 
 		if (dump_trace) {
-			fprintf(stderr, "PERF_EVENT (IP, %d): %d: %p\n",
+			fprintf(stderr, "%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
+				(void *)(offset + head),
+				(void *)(long)(event->header.size),
 				event->header.misc,
 				event->ip.pid,
 				(void *)event->ip.ip);
@@ -753,7 +753,9 @@ more:
 		struct map *map = map__new(&event->mmap);
 
 		if (dump_trace) {
-			fprintf(stderr, "PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+			fprintf(stderr, "%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+				(void *)(offset + head),
+				(void *)(long)(event->header.size),
 				(void *)event->mmap.start,
 				(void *)event->mmap.len,
 				(void *)event->mmap.pgoff,
@@ -771,7 +773,9 @@ more:
 		struct thread *thread = threads__findnew(event->comm.pid);
 
 		if (dump_trace) {
-			fprintf(stderr, "PERF_EVENT_COMM: %s:%d\n",
+			fprintf(stderr, "%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+				(void *)(offset + head),
+				(void *)(long)(event->header.size),
 				event->comm.comm, event->comm.pid);
 		}
 		if (thread == NULL ||
@@ -783,11 +787,15 @@ more:
 		break;
 	}
 	default: {
-		fprintf(stderr, "skipping unknown header type: %d\n",
+		fprintf(stderr, "%p [%p]: skipping unknown header type: %d\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
 			event->header.type);
 		total_unknown++;
 	}
 	}
+
+	head += event->header.size;
 
 	if (offset + head < stat.st_size)
 		goto more;
