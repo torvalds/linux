@@ -360,17 +360,9 @@ static int load_kallsyms(void)
 	char *line = NULL;
 	size_t n;
 
-	if (getline(&line, &n, file) < 0 || !line)
-		goto out_delete_dso;
-
-	unsigned long long previous_start;
-	char c, previous_symbf[4096];
-	if (sscanf(line, "%llx %c %s", &previous_start, &c, previous_symbf) != 3)
-		goto out_delete_line;
-
 	while (!feof(file)) {
 		unsigned long long start;
-		char symbf[4096];
+		char c, symbf[4096];
 
 		if (getline(&line, &n, file) < 0)
 			break;
@@ -379,19 +371,33 @@ static int load_kallsyms(void)
 			goto out_delete_dso;
 
 		if (sscanf(line, "%llx %c %s", &start, &c, symbf) == 3) {
-			if (start > previous_start) {
-				struct symbol *sym = symbol__new(previous_start,
-								 start - previous_start,
-								 previous_symbf);
+			/*
+			 * Well fix up the end later, when we have all sorted.
+			 */
+			struct symbol *sym = symbol__new(start, 0xdead, symbf);
 
-				if (sym == NULL)
-					goto out_delete_dso;
+			if (sym == NULL)
+				goto out_delete_dso;
 
-				dso__insert_symbol(kernel_dso, sym);
-				previous_start = start;
-				strcpy(previous_symbf, symbf);
-			}
+			dso__insert_symbol(kernel_dso, sym);
 		}
+	}
+
+	/*
+	 * Now that we have all sorted out, just set the ->end of all
+	 * symbols
+	 */
+	struct rb_node *nd, *prevnd = rb_first(&kernel_dso->syms);
+
+	if (prevnd == NULL)
+		goto out_delete_line;
+
+	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
+		struct symbol *prev = rb_entry(prevnd, struct symbol, rb_node),
+			      *curr = rb_entry(nd, struct symbol, rb_node);
+
+		prev->end = curr->start - 1;
+		prevnd = nd;
 	}
 
 	dsos__add(kernel_dso);
