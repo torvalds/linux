@@ -4,7 +4,6 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-#include "util/exec_cmd.h"
 
 #include <sched.h>
 
@@ -400,7 +399,7 @@ static const char * const record_usage[] = {
 
 static char events_help_msg[EVENTS_HELP_MAX];
 
-const struct option options[] = {
+static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     events_help_msg, parse_events),
 	OPT_INTEGER('c', "count", &default_interval,
