@@ -64,6 +64,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "rx_crc_errors", IGB_STAT(stats.crcerrs) },
 	{ "rx_frame_errors", IGB_STAT(net_stats.rx_frame_errors) },
 	{ "rx_no_buffer_count", IGB_STAT(stats.rnbc) },
+	{ "rx_queue_drop_packet_count", IGB_STAT(net_stats.rx_fifo_errors) },
 	{ "rx_missed_errors", IGB_STAT(stats.mpc) },
 	{ "tx_aborted_errors", IGB_STAT(stats.ecol) },
 	{ "tx_carrier_errors", IGB_STAT(stats.tncrs) },

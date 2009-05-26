@@ -3590,6 +3590,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 
 	if (hw->mac.type != e1000_82575) {
 		u32 rqdpc_tmp;
+		u64 rqdpc_total = 0;
 		int i;
 		/* Read out drops stats per RX queue.  Notice RQDPC (Receive
 		 * Queue Drop Packet Count) stats only gets incremented, if
@@ -3602,8 +3603,17 @@ void igb_update_stats(struct igb_adapter *adapter)
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			rqdpc_tmp = rd32(E1000_RQDPC(i)) & 0xFFF;
 			adapter->rx_ring[i].rx_stats.drops += rqdpc_tmp;
+			rqdpc_total += adapter->rx_ring[i].rx_stats.drops;
 		}
+		adapter->net_stats.rx_fifo_errors = rqdpc_total;
 	}
+
+	/* Note RNBC (Receive No Buffers Count) is an not an exact
+	 * drop count as the hardware FIFO might save the day.  Thats
+	 * one of the reason for saving it in rx_fifo_errors, as its
+	 * potentially not a true drop.
+	 */
+	adapter->net_stats.rx_fifo_errors += adapter->stats.rnbc;
 
 	/* RLEC on some newer hardware can be incorrect so build
 	 * our own version based on RUC and ROC */
