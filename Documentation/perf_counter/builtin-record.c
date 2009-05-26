@@ -191,7 +191,7 @@ static void display_help(void)
 	exit(0);
 }
 
-static void process_options(int argc, const char *argv[])
+static void process_options(int argc, char * const argv[])
 {
 	int error = 0, counter;
 
@@ -538,7 +538,7 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
-int cmd_record(int argc, const char **argv)
+int cmd_record(int argc, char * const argv[])
 {
 	int i, counter;
 	pid_t pid;
