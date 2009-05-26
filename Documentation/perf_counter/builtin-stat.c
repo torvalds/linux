@@ -541,8 +541,6 @@ static void skip_signal(int signo)
 
 int cmd_stat(int argc, char **argv, const char *prefix)
 {
-	sigset_t blocked;
-
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	process_options(argc, argv);
