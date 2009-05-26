@@ -30,11 +30,11 @@ struct map_info uclinux_ram_map = {
 	.size = 0,
 };
 
-struct mtd_info *uclinux_ram_mtdinfo;
+static struct mtd_info *uclinux_ram_mtdinfo;
 
 /****************************************************************************/
 
-struct mtd_partition uclinux_romfs[] = {
+static struct mtd_partition uclinux_romfs[] = {
 	{ .name = "ROMfs" }
 };
 
@@ -42,7 +42,7 @@ struct mtd_partition uclinux_romfs[] = {
 
 /****************************************************************************/
 
-int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
+static int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct map_info *map = mtd->priv;
