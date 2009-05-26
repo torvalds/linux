@@ -411,44 +411,6 @@ static struct attribute *lock_module_attrs[] = {
 	NULL,
 };
 
-#define ARGS_ATTR(name, fmt)                                                \
-static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
-{                                                                           \
-	return snprintf(buf, PAGE_SIZE, fmt, sdp->sd_args.ar_##name);       \
-}                                                                           \
-static struct gfs2_attr args_attr_##name = __ATTR_RO(name)
-
-ARGS_ATTR(lockproto,       "%s\n");
-ARGS_ATTR(locktable,       "%s\n");
-ARGS_ATTR(hostdata,        "%s\n");
-ARGS_ATTR(spectator,       "%d\n");
-ARGS_ATTR(ignore_local_fs, "%d\n");
-ARGS_ATTR(localcaching,    "%d\n");
-ARGS_ATTR(localflocks,     "%d\n");
-ARGS_ATTR(debug,           "%d\n");
-ARGS_ATTR(upgrade,         "%d\n");
-ARGS_ATTR(posix_acl,       "%d\n");
-ARGS_ATTR(quota,           "%u\n");
-ARGS_ATTR(suiddir,         "%d\n");
-ARGS_ATTR(data,            "%d\n");
-
-static struct attribute *args_attrs[] = {
-	&args_attr_lockproto.attr,
-	&args_attr_locktable.attr,
-	&args_attr_hostdata.attr,
-	&args_attr_spectator.attr,
-	&args_attr_ignore_local_fs.attr,
-	&args_attr_localcaching.attr,
-	&args_attr_localflocks.attr,
-	&args_attr_debug.attr,
-	&args_attr_upgrade.attr,
-	&args_attr_posix_acl.attr,
-	&args_attr_quota.attr,
-	&args_attr_suiddir.attr,
-	&args_attr_data.attr,
-	NULL,
-};
-
 /*
  * get and set struct gfs2_tune fields
  */
@@ -545,11 +507,6 @@ static struct attribute *tune_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group args_group = {
-	.name = "args",
-	.attrs = args_attrs,
-};
-
 static struct attribute_group tune_group = {
 	.name = "tune",
 	.attrs = tune_attrs,
@@ -570,13 +527,9 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail;
 
-	error = sysfs_create_group(&sdp->sd_kobj, &args_group);
-	if (error)
-		goto fail_reg;
-
 	error = sysfs_create_group(&sdp->sd_kobj, &tune_group);
 	if (error)
-		goto fail_args;
+		goto fail_reg;
 
 	error = sysfs_create_group(&sdp->sd_kobj, &lock_module_group);
 	if (error)
@@ -587,8 +540,6 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 
 fail_tune:
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
-fail_args:
-	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 fail_reg:
 	kobject_put(&sdp->sd_kobj);
 fail:
@@ -599,7 +550,6 @@ fail:
 void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 {
 	sysfs_remove_group(&sdp->sd_kobj, &tune_group);
-	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lock_module_group);
 	kobject_put(&sdp->sd_kobj);
 }
