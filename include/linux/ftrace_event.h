@@ -3,11 +3,22 @@
 
 #include <linux/trace_seq.h>
 #include <linux/ring_buffer.h>
-
+#include <linux/percpu.h>
 
 struct trace_array;
 struct tracer;
 struct dentry;
+
+DECLARE_PER_CPU(struct trace_seq, ftrace_event_seq);
+
+struct trace_print_flags {
+	unsigned long		mask;
+	const char		*name;
+};
+
+const char *ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
+				   unsigned long flags,
+				   const struct trace_print_flags *flag_array);
 
 /*
  * The trace entry - the most basic unit of tracing. This is what

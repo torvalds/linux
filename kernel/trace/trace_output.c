@@ -15,6 +15,9 @@
 #define EVENT_HASHSIZE	128
 
 static DECLARE_RWSEM(trace_event_mutex);
+
+DEFINE_PER_CPU(struct trace_seq, ftrace_event_seq);
+
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
 static int next_event_type = __TRACE_LAST_TYPE + 1;
@@ -210,6 +213,42 @@ int trace_seq_path(struct trace_seq *s, struct path *path)
 	}
 
 	return 0;
+}
+
+const char *
+ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
+		       unsigned long flags,
+		       const struct trace_print_flags *flag_array)
+{
+	unsigned long mask;
+	const char *str;
+	int i;
+
+	trace_seq_init(p);
+
+	for (i = 0;  flag_array[i].name && flags; i++) {
+
+		mask = flag_array[i].mask;
+		if ((flags & mask) != mask)
+			continue;
+
+		str = flag_array[i].name;
+		flags &= ~mask;
+		if (p->len && delim)
+			trace_seq_puts(p, delim);
+		trace_seq_puts(p, str);
+	}
+
+	/* check for left over flags */
+	if (flags) {
+		if (p->len && delim)
+			trace_seq_puts(p, delim);
+		trace_seq_printf(p, "0x%lx", flags);
+	}
+
+	trace_seq_putc(p, 0);
+
+	return p->buffer;
 }
 
 #ifdef CONFIG_KRETPROBES
