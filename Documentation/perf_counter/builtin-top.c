@@ -42,13 +42,16 @@
   * Released under the GPL v2. (and only v2, not any later version)
   */
 
+
 #include "perf.h"
 #include "util/util.h"
 
 #include <getopt.h>
 #include <assert.h>
 #include <fcntl.h>
+
 #include <stdio.h>
+
 #include <errno.h>
 #include <time.h>
 #include <sched.h>
