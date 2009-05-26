@@ -1529,7 +1529,7 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
 	if (!pin)
 		return -1;
 
-	while (dev->bus->parent) {
+	while (!pci_is_root_bus(dev->bus)) {
 		pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 	}
