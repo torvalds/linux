@@ -52,7 +52,7 @@ static struct resource sh7751_io_resource = {
 };
 
 static struct resource sh7751_mem_resource = {
-	.name	= "SH7785_mem",
+	.name	= "SH7751_mem",
 	.start	= SH7751_PCI_MEMORY_BASE,
 	.end	= SH7751_PCI_MEMORY_BASE + SH7751_PCI_MEM_SIZE - 1,
 	.flags	= IORESOURCE_MEM
@@ -64,6 +64,7 @@ static struct pci_channel sh7751_pci_controller = {
 	.mem_offset	= 0x00000000,
 	.io_resource	= &sh7751_io_resource,
 	.io_offset	= 0x00000000,
+	.io_map_base	= SH7751_PCI_IO_BASE,
 };
 
 static struct sh4_pci_address_map sh7751_pci_map = {
@@ -178,8 +179,6 @@ static int __init sh7751_pci_init(void)
 	/* use round robin mode to stop a device starving/overruning */
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_ARBM;
 	pci_write_reg(chan, word, SH4_PCICR);
-
-	__set_io_port_base(SH7751_PCI_IO_BASE);
 
 	register_pci_controller(chan);
 
