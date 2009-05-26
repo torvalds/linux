@@ -6362,12 +6362,13 @@ void md_do_sync(mddev_t *mddev)
 
 		skipped = 0;
 
-		if ((mddev->curr_resync > mddev->curr_resync_completed &&
-		     (mddev->curr_resync - mddev->curr_resync_completed)
-		    > (max_sectors >> 4)) ||
-		    (j - mddev->curr_resync_completed)*2
-		    >= mddev->resync_max - mddev->curr_resync_completed
-			) {
+		if (!test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
+		    ((mddev->curr_resync > mddev->curr_resync_completed &&
+		      (mddev->curr_resync - mddev->curr_resync_completed)
+		      > (max_sectors >> 4)) ||
+		     (j - mddev->curr_resync_completed)*2
+		     >= mddev->resync_max - mddev->curr_resync_completed
+			    )) {
 			/* time to update curr_resync_completed */
 			blk_unplug(mddev->queue);
 			wait_event(mddev->recovery_wait,
