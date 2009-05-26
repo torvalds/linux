@@ -17,8 +17,7 @@ ENTRY(_start)
 jiffies = jiffies_64 + 4;
 
 SECTIONS {
-	. = CONFIG_KERNEL_BASE_ADDR;
-
+	. = CONFIG_KERNEL_START;
 	.text : {
 		_text = . ;
 		_stext = . ;
