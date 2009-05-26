@@ -1215,6 +1215,10 @@ static void __init em_x270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
+#ifdef CONFIG_PM
+	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);
+#endif
+
 	if (machine_is_em_x270())
 		em_x270_module_init();
 	else if (machine_is_exeda())
