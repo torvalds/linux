@@ -82,7 +82,6 @@ defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
 
 # Set some sensible Kbuild defaults
-KBUILD_DEFCONFIG	:= shx3_defconfig
 KBUILD_IMAGE		:= $(defaultimage-y)
 
 #
@@ -90,15 +89,17 @@ KBUILD_IMAGE		:= $(defaultimage-y)
 # error messages during linking.
 #
 ifdef CONFIG_SUPERH32
-UTS_MACHINE	:= sh
-BITS		:= 32
-LDFLAGS_vmlinux	+= -e _stext
+UTS_MACHINE		:= sh
+BITS			:= 32
+LDFLAGS_vmlinux		+= -e _stext
+KBUILD_DEFCONFIG	:= shx3_defconfig
 else
-UTS_MACHINE	:= sh64
-BITS		:= 64
-LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
-		   --defsym phys_stext_shmedia=phys_stext+1 \
-		   -e phys_stext_shmedia
+UTS_MACHINE		:= sh64
+BITS			:= 64
+LDFLAGS_vmlinux		+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
+			   --defsym phys_stext_shmedia=phys_stext+1 \
+			   -e phys_stext_shmedia
+KBUILD_DEFCONFIG	:= cayman_defconfig
 endif
 
 ifneq ($(SUBARCH),$(ARCH))
