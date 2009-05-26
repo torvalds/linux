@@ -124,25 +124,25 @@ ENTRY(__start)
 	 * below
 	 */
 	GET_PDA(p0, r0);
-	r7 = [p0 + PDA_RETX];
+	r6 = [p0 + PDA_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_DCPLB];
+	r6 = [p0 + PDA_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_ICPLB];
+	r6 = [p0 + PDA_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
-	[p1] = r7;
+	[p1] = r6;
 
-	r7 = [p0 + PDA_SEQSTAT];
+	r6 = [p0 + PDA_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
-	[p1] = r7;
+	[p1] = r6;
 #endif
 
 	/* Initialize stack pointer */
