@@ -348,6 +348,39 @@ void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
+static int hex(char ch)
+{
+	if ((ch >= '0') && (ch <= '9'))
+		return ch - '0';
+	if ((ch >= 'a') && (ch <= 'f'))
+		return ch - 'a' + 10;
+	if ((ch >= 'A') && (ch <= 'F'))
+		return ch - 'A' + 10;
+	return -1;
+}
+
+/*
+ * While we find nice hex chars, build a long_val.
+ * Return number of chars processed.
+ */
+int hex2long(char *ptr, unsigned long *long_val)
+{
+	const char *p = ptr;
+	*long_val = 0;
+
+	while (*p) {
+		const int hex_val = hex(*p);
+
+		if (hex_val < 0)
+			break;
+
+		*long_val = (*long_val << 4) | hex_val;
+		p++;
+	}
+
+	return p - ptr;
+}
+
 static int load_kallsyms(void)
 {
 	kernel_dso = dso__new("[kernel]");
@@ -363,26 +396,30 @@ static int load_kallsyms(void)
 	size_t n;
 
 	while (!feof(file)) {
-		unsigned long long start;
-		char c, symbf[4096];
-
-		if (getline(&line, &n, file) < 0)
+		unsigned long start;
+		int line_len = getline(&line, &n, file);
+		if (line_len < 0)
 			break;
 
 		if (!line)
 			goto out_delete_dso;
 
-		if (sscanf(line, "%llx %c %s", &start, &c, symbf) == 3) {
-			/*
-			 * Well fix up the end later, when we have all sorted.
-			 */
-			struct symbol *sym = symbol__new(start, 0xdead, symbf);
+		line[--line_len] = '\0'; /* \n */
 
-			if (sym == NULL)
-				goto out_delete_dso;
+		int len = hex2long(line, &start);
+		
+		len += 3; /* ' t ' */
+		if (len >= line_len)
+			continue;
+		/*
+		 * Well fix up the end later, when we have all sorted.
+		 */
+		struct symbol *sym = symbol__new(start, 0xdead, line + len);
 
-			dso__insert_symbol(kernel_dso, sym);
-		}
+		if (sym == NULL)
+			goto out_delete_dso;
+
+		dso__insert_symbol(kernel_dso, sym);
 	}
 
 	/*
