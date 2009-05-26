@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
 #include <asm/registers.h>
