@@ -2510,7 +2510,8 @@ void skb_gro_reset_offset(struct sk_buff *skb)
 	NAPI_GRO_CB(skb)->data_offset = 0;
 	NAPI_GRO_CB(skb)->frag0 = NULL;
 
-	if (!skb_headlen(skb) && !PageHighMem(skb_shinfo(skb)->frags[0].page))
+	if (skb->mac_header == skb->tail &&
+	    !PageHighMem(skb_shinfo(skb)->frags[0].page))
 		NAPI_GRO_CB(skb)->frag0 =
 			page_address(skb_shinfo(skb)->frags[0].page) +
 			skb_shinfo(skb)->frags[0].page_offset;

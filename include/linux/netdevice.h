@@ -1135,22 +1135,23 @@ static inline void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
 
 	hlen += offset;
 	if (!NAPI_GRO_CB(skb)->frag0 ||
-	    unlikely(skb_shinfo(skb)->frags[0].size + skb_headlen(skb) < hlen))
+	    unlikely(skb_shinfo(skb)->frags[0].size < hlen)) {
+		NAPI_GRO_CB(skb)->frag0 = NULL;
 		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
+	}
 
 	return NAPI_GRO_CB(skb)->frag0 + offset;
 }
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
 {
-	return skb_headlen(skb) ? skb_mac_header(skb) :
-	       NAPI_GRO_CB(skb)->frag0;
+	return NAPI_GRO_CB(skb)->frag0 ?: skb_mac_header(skb);
 }
 
 static inline void *skb_gro_network_header(struct sk_buff *skb)
 {
-	return skb_headlen(skb) ? skb_network_header(skb) :
-	       NAPI_GRO_CB(skb)->frag0 + skb_network_offset(skb);
+	return (NAPI_GRO_CB(skb)->frag0 ?: skb->data) +
+	       skb_network_offset(skb);
 }
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
