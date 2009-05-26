@@ -168,6 +168,7 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 		case 0x0E: /* Core */
 		case 0x0F: /* Core Duo */
 		case 0x16: /* Celeron Core */
+		case 0x1C: /* Atom */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 			return speedstep_get_frequency(SPEEDSTEP_CPU_PCORE);
 		case 0x0D: /* Pentium M (Dothan) */
