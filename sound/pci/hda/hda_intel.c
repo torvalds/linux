@@ -901,8 +901,7 @@ static void azx_init_chip(struct azx *chip)
 	azx_int_enable(chip);
 
 	/* initialize the codec command I/O */
-	if (!chip->single_cmd)
-		azx_init_cmd_io(chip);
+	azx_init_cmd_io(chip);
 
 	/* program the position buffer */
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
@@ -1018,7 +1017,7 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	/* clear rirb int */
 	status = azx_readb(chip, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
-		if (!chip->single_cmd && (status & RIRB_INT_RESPONSE))
+		if (status & RIRB_INT_RESPONSE)
 			azx_update_rirb(chip);
 		azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 	}
@@ -2338,11 +2337,9 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 	}
 	/* allocate CORB/RIRB */
-	if (!chip->single_cmd) {
-		err = azx_alloc_cmd_io(chip);
-		if (err < 0)
-			goto errout;
-	}
+	err = azx_alloc_cmd_io(chip);
+	if (err < 0)
+		goto errout;
 
 	/* initialize streams */
 	azx_init_stream(chip);
