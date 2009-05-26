@@ -3588,8 +3588,25 @@ void igb_update_stats(struct igb_adapter *adapter)
 
 	/* Rx Errors */
 
+	if (hw->mac.type != e1000_82575) {
+		u32 rqdpc_tmp;
+		int i;
+		/* Read out drops stats per RX queue.  Notice RQDPC (Receive
+		 * Queue Drop Packet Count) stats only gets incremented, if
+		 * the DROP_EN but it set (in the SRRCTL register for that
+		 * queue).  If DROP_EN bit is NOT set, then the some what
+		 * equivalent count is stored in RNBC (not per queue basis).
+		 * Also note the drop count is due to lack of available
+		 * descriptors.
+		 */
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			rqdpc_tmp = rd32(E1000_RQDPC(i)) & 0xFFF;
+			adapter->rx_ring[i].rx_stats.drops += rqdpc_tmp;
+		}
+	}
+
 	/* RLEC on some newer hardware can be incorrect so build
-	* our own version based on RUC and ROC */
+	 * our own version based on RUC and ROC */
 	adapter->net_stats.rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
 		adapter->stats.ruc + adapter->stats.roc +
