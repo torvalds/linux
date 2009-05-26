@@ -40,7 +40,7 @@ static int loading_timeout = 60;	/* In seconds */
 static DEFINE_MUTEX(fw_lock);
 
 struct firmware_priv {
-	char fw_id[FIRMWARE_NAME_MAX];
+	char *fw_id;
 	struct completion completion;
 	struct bin_attribute attr_data;
 	struct firmware *fw;
@@ -355,6 +355,7 @@ static void fw_dev_release(struct device *dev)
 	for (i = 0; i < fw_priv->nr_pages; i++)
 		__free_page(fw_priv->pages[i]);
 	kfree(fw_priv->pages);
+	kfree(fw_priv->fw_id);
 	kfree(fw_priv);
 	put_device(dev);
 
@@ -386,7 +387,13 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 
 	init_completion(&fw_priv->completion);
 	fw_priv->attr_data = firmware_attr_data_tmpl;
-	strlcpy(fw_priv->fw_id, fw_name, FIRMWARE_NAME_MAX);
+	fw_priv->fw_id = kstrdup(fw_name, GFP_KERNEL);
+	if (!fw_priv->fw_id) {
+		dev_err(device, "%s: Firmware name allocation failed\n",
+			__func__);
+		retval = -ENOMEM;
+		goto error_kfree;
+	}
 
 	fw_priv->timeout.function = firmware_class_timeout;
 	fw_priv->timeout.data = (u_long) fw_priv;
@@ -401,14 +408,15 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 	if (retval) {
 		dev_err(device, "%s: device_register failed\n", __func__);
 		put_device(f_dev);
-		goto error_kfree1;
+		goto error_kfree_fw_id;
 	}
 	*dev_p = f_dev;
 	return 0;
 
+error_kfree_fw_id:
+	kfree(fw_priv->fw_id);
 error_kfree:
 	kfree(f_dev);
-error_kfree1:
 	kfree(fw_priv);
 	return retval;
 }
