@@ -1698,6 +1698,8 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb->dst = NULL;
 		}
 		rc = ops->ndo_start_xmit(skb, dev);
+		if (rc == 0)
+			txq_trans_update(txq);
 		/*
 		 * TODO: if skb_orphan() was called by
 		 * dev->hard_start_xmit() (for example, the unmodified
@@ -1727,6 +1729,7 @@ gso:
 			skb->next = nskb;
 			return rc;
 		}
+		txq_trans_update(txq);
 		if (unlikely(netif_tx_queue_stopped(txq) && skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);

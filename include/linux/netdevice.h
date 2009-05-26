@@ -1674,6 +1674,12 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 	spin_unlock_bh(&txq->_xmit_lock);
 }
 
+static inline void txq_trans_update(struct netdev_queue *txq)
+{
+	if (txq->xmit_lock_owner != -1)
+		txq->trans_start = jiffies;
+}
+
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device

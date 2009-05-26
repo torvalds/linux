@@ -302,8 +302,11 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 		for (tries = jiffies_to_usecs(1)/USEC_PER_POLL;
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
-				if (!netif_tx_queue_stopped(txq))
+				if (!netif_tx_queue_stopped(txq)) {
 					status = ops->ndo_start_xmit(skb, dev);
+					if (status == NETDEV_TX_OK)
+						txq_trans_update(txq);
+				}
 				__netif_tx_unlock(txq);
 
 				if (status == NETDEV_TX_OK)

@@ -3438,6 +3438,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	      retry_now:
 		ret = (*xmit)(pkt_dev->skb, odev);
 		if (likely(ret == NETDEV_TX_OK)) {
+			txq_trans_update(txq);
 			pkt_dev->last_ok = 1;
 			pkt_dev->sofar++;
 			pkt_dev->seq_num++;
