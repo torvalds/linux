@@ -401,6 +401,9 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	 * we may got called by r6040_tx_timeout which has left
 	 * some unsent tx buffers */
 	iowrite16(0x01, ioaddr + MTPR);
+
+	/* Check media */
+	mii_check_media(&lp->mii_if, 1, 1);
 }
 
 static void r6040_tx_timeout(struct net_device *dev)
@@ -527,6 +530,8 @@ static int r6040_phy_mode_chk(struct net_device *dev)
 		else
 			phy_dat = 0x0000;
 	}
+
+	mii_check_media(&lp->mii_if, 0, 1);
 
 	return phy_dat;
 };
@@ -810,7 +815,6 @@ static void r6040_timer(unsigned long data)
 		lp->phy_mode = phy_mode;
 		lp->mcr0 = (lp->mcr0 & 0x7fff) | phy_mode;
 		iowrite16(lp->mcr0, ioaddr);
-		printk(KERN_INFO "Link Change %x \n", ioread16(ioaddr));
 	}
 
 	/* Timer active again */
