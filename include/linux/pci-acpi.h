@@ -23,7 +23,7 @@ static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 
 static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 {
-	if (pbus->parent)
+	if (!pci_is_root_bus(pbus))
 		return DEVICE_ACPI_HANDLE(&(pbus->self->dev));
 	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pbus),
 					      pbus->number);
