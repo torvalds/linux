@@ -22,6 +22,7 @@ static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		dump_trace = 0;
+static int 		verbose;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -551,9 +552,12 @@ symhist__fprintf(struct symhist *self, uint64_t total_samples, FILE *fp)
 	else
 		ret = fprintf(fp, "%12d", self->count);
 
-	ret += fprintf(fp, "%14s [%c] %#018llx ",
+	ret += fprintf(fp, "%14s [%c] ",
 		       thread__name(self->thread, bf, sizeof(bf)),
-		       self->level, (unsigned long long)self->ip);
+		       self->level);
+
+	if (verbose)
+		ret += fprintf(fp, "%#018llx ", (unsigned long long)self->ip);
 
 	if (self->level != '.')
 		ret += fprintf(fp, "%s\n",
@@ -974,6 +978,8 @@ static const char * const report_usage[] = {
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_END()
