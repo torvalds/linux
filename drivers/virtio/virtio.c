@@ -61,7 +61,7 @@ static inline int virtio_id_match(const struct virtio_device *dev,
 	if (id->device != dev->id.device)
 		return 0;
 
-	return id->vendor == VIRTIO_DEV_ANY_ID || id->vendor != dev->id.vendor;
+	return id->vendor == VIRTIO_DEV_ANY_ID || id->vendor == dev->id.vendor;
 }
 
 /* This looks through all the IDs a driver claims to support.  If any of them
