@@ -8,7 +8,7 @@
    Sample output:
 
 ------------------------------------------------------------------------------
- KernelTop:    2669 irqs/sec  [NMI, cache-misses/cache-refs],  (all, cpu: 2)
+ KernelTop:    2669 irqs/sec  [cache-misses/cache-refs],  (all, cpu: 2)
 ------------------------------------------------------------------------------
 
              weight         RIP          kernel function
@@ -92,7 +92,6 @@ static __u64			count_filter		       = 100;
 static int			target_pid				= -1;
 static int			profile_cpu			= -1;
 static int			nr_cpus				=  0;
-static int			nmi				=  1;
 static unsigned int		realtime_prio			=  0;
 static int			group				=  0;
 static unsigned int		page_size;
@@ -198,10 +197,9 @@ static void print_sym_table(void)
 
 	printf(
 "------------------------------------------------------------------------------\n");
-	printf( " KernelTop:%8.0f irqs/sec  kernel:%4.1f%% [%s, ",
+	printf( " KernelTop:%8.0f irqs/sec  kernel:%4.1f%% [",
 		events_per_sec,
-		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)),
-		nmi ? "NMI" : "IRQ");
+		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)));
 
 	if (nr_counters == 1)
 		printf("%d ", event_count[0]);
@@ -637,7 +635,7 @@ static int __cmd_top(void)
 			hw_event.config		= event_id[counter];
 			hw_event.irq_period	= event_count[counter];
 			hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-			hw_event.nmi		= nmi;
+			hw_event.nmi		= 1;
 			hw_event.mmap		= use_mmap;
 			hw_event.munmap		= use_munmap;
 			hw_event.freq		= freq;
