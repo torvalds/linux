@@ -1246,13 +1246,20 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	struct sk_buff **pp = NULL;
 	struct sk_buff *p;
 	struct iphdr *iph;
+	unsigned int hlen;
+	unsigned int off;
 	int flush = 1;
 	int proto;
 	int id;
 
-	iph = skb_gro_header(skb, sizeof(*iph));
-	if (unlikely(!iph))
-		goto out;
+	off = skb_gro_offset(skb);
+	hlen = off + sizeof(*iph);
+	iph = skb_gro_header_fast(skb, off);
+	if (skb_gro_header_hard(skb, hlen)) {
+		iph = skb_gro_header_slow(skb, hlen, off);
+		if (unlikely(!iph))
+			goto out;
+	}
 
 	proto = iph->protocol & (MAX_INET_PROTOS - 1);
 

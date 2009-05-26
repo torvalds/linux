@@ -1132,18 +1132,23 @@ static inline void skb_gro_pull(struct sk_buff *skb, unsigned int len)
 	NAPI_GRO_CB(skb)->data_offset += len;
 }
 
-static inline void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
+static inline void *skb_gro_header_fast(struct sk_buff *skb,
+					unsigned int offset)
 {
-	unsigned int offset = skb_gro_offset(skb);
-
-	hlen += offset;
-	if (NAPI_GRO_CB(skb)->frag0_len < hlen) {
-		NAPI_GRO_CB(skb)->frag0 = NULL;
-		NAPI_GRO_CB(skb)->frag0_len = 0;
-		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
-	}
-
 	return NAPI_GRO_CB(skb)->frag0 + offset;
+}
+
+static inline int skb_gro_header_hard(struct sk_buff *skb, unsigned int hlen)
+{
+	return NAPI_GRO_CB(skb)->frag0_len < hlen;
+}
+
+static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
+					unsigned int offset)
+{
+	NAPI_GRO_CB(skb)->frag0 = NULL;
+	NAPI_GRO_CB(skb)->frag0_len = 0;
+	return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
 }
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
