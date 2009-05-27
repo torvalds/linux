@@ -570,6 +570,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5710Z"),
 		},
 	},
+	{
+	 .callback = video_set_bqc_offset,
+	 .ident = "eMachines E510",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "EMACHINES"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "eMachines E510"),
+		},
+	},
 	{}
 };
 
