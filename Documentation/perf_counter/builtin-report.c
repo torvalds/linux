@@ -4,7 +4,6 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <elf.h>
-#include <ctype.h>
 
 #include "util/list.h"
 #include "util/cache.h"
