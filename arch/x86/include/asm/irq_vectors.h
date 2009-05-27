@@ -25,6 +25,7 @@
  */
 
 #define NMI_VECTOR			0x02
+#define MCE_VECTOR			0x12
 
 /*
  * IDT vectors usable for external interrupt sources start
