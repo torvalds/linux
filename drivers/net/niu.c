@@ -1317,7 +1317,7 @@ static int bcm8704_reset(struct niu *np)
 
 	err = mdio_read(np, np->phy_addr,
 			BCM8704_PHYXS_DEV_ADDR, MII_BMCR);
-	if (err < 0)
+	if (err < 0 || err == 0xffff)
 		return err;
 	err |= BMCR_RESET;
 	err = mdio_write(np, np->phy_addr, BCM8704_PHYXS_DEV_ADDR,
@@ -2042,7 +2042,7 @@ static int link_status_10g_bcm8706(struct niu *np, int *link_up_p)
 
 	err = mdio_read(np, np->phy_addr, BCM8704_PMA_PMD_DEV_ADDR,
 			BCM8704_PMD_RCV_SIGDET);
-	if (err < 0)
+	if (err < 0 || err == 0xffff)
 		goto out;
 	if (!(err & PMD_RCV_SIGDET_GLOBAL)) {
 		err = 0;
@@ -2083,8 +2083,6 @@ static int link_status_10g_bcm8706(struct niu *np, int *link_up_p)
 
 out:
 	*link_up_p = link_up;
-	if (np->flags & NIU_FLAGS_HOTPLUG_PHY)
-		err = 0;
 	return err;
 }
 
@@ -2220,10 +2218,17 @@ static int link_status_10g_hotplug(struct niu *np, int *link_up_p)
 		if (phy_present != phy_present_prev) {
 			/* state change */
 			if (phy_present) {
+				/* A NEM was just plugged in */
 				np->flags |= NIU_FLAGS_HOTPLUG_PHY_PRESENT;
 				if (np->phy_ops->xcvr_init)
 					err = np->phy_ops->xcvr_init(np);
 				if (err) {
+					err = mdio_read(np, np->phy_addr,
+						BCM8704_PHYXS_DEV_ADDR, MII_BMCR);
+					if (err == 0xffff) {
+						/* No mdio, back-to-back XAUI */
+						goto out;
+					}
 					/* debounce */
 					np->flags &= ~NIU_FLAGS_HOTPLUG_PHY_PRESENT;
 				}
@@ -2234,13 +2239,21 @@ static int link_status_10g_hotplug(struct niu *np, int *link_up_p)
 					np->dev->name);
 			}
 		}
-		if (np->flags & NIU_FLAGS_HOTPLUG_PHY_PRESENT)
+out:
+		if (np->flags & NIU_FLAGS_HOTPLUG_PHY_PRESENT) {
 			err = link_status_10g_bcm8706(np, link_up_p);
+			if (err == 0xffff) {
+				/* No mdio, back-to-back XAUI: it is C10NEM */
+				*link_up_p = 1;
+				np->link_config.active_speed = SPEED_10000;
+				np->link_config.active_duplex = DUPLEX_FULL;
+			}
+		}
 	}
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	return err;
+	return 0;
 }
 
 static int niu_link_status(struct niu *np, int *link_up_p)
@@ -2312,6 +2325,12 @@ static const struct niu_phy_ops phy_ops_10g_fiber_hotplug = {
 	.link_status		= link_status_10g_hotplug,
 };
 
+static const struct niu_phy_ops phy_ops_niu_10g_hotplug = {
+	.serdes_init		= serdes_init_niu_10g_fiber,
+	.xcvr_init		= xcvr_init_10g_bcm8706,
+	.link_status		= link_status_10g_hotplug,
+};
+
 static const struct niu_phy_ops phy_ops_10g_copper = {
 	.serdes_init		= serdes_init_10g,
 	.link_status		= link_status_10g, /* XXX */
@@ -2355,6 +2374,11 @@ static const struct niu_phy_template phy_template_10g_fiber = {
 
 static const struct niu_phy_template phy_template_10g_fiber_hotplug = {
 	.ops		= &phy_ops_10g_fiber_hotplug,
+	.phy_addr_base	= 8,
+};
+
+static const struct niu_phy_template phy_template_niu_10g_hotplug = {
+	.ops		= &phy_ops_niu_10g_hotplug,
 	.phy_addr_base	= 8,
 };
 
@@ -2542,8 +2566,16 @@ static int niu_determine_phy_disposition(struct niu *np)
 		case NIU_FLAGS_10G | NIU_FLAGS_FIBER:
 			/* 10G Fiber */
 		default:
-			tp = &phy_template_niu_10g_fiber;
-			phy_addr_off += np->port;
+			if (np->flags & NIU_FLAGS_HOTPLUG_PHY) {
+				tp = &phy_template_niu_10g_hotplug;
+				if (np->port == 0)
+					phy_addr_off = 8;
+				if (np->port == 1)
+					phy_addr_off = 12;
+			} else {
+				tp = &phy_template_niu_10g_fiber;
+				phy_addr_off += np->port;
+			}
 			break;
 		}
 	} else {
@@ -2630,11 +2662,11 @@ static int niu_init_link(struct niu *np)
 		msleep(200);
 	}
 	err = niu_serdes_init(np);
-	if (err)
+	if (err && !(np->flags & NIU_FLAGS_HOTPLUG_PHY))
 		return err;
 	msleep(200);
 	err = niu_xcvr_init(np);
-	if (!err)
+	if (!err || (np->flags & NIU_FLAGS_HOTPLUG_PHY))
 		niu_link_status(np, &ignore);
 	return 0;
 }
@@ -9345,6 +9377,11 @@ static int __devinit niu_get_of_props(struct niu *np)
 
 	if (model)
 		strcpy(np->vpd.model, model);
+
+	if (of_find_property(dp, "hot-swappable-phy", &prop_len)) {
+		np->flags |= (NIU_FLAGS_10G | NIU_FLAGS_FIBER |
+			NIU_FLAGS_HOTPLUG_PHY);
+	}
 
 	return 0;
 #else
