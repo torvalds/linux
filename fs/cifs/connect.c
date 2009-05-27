@@ -835,6 +835,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
+	/* default to using server inode numbers where available */
+	vol->server_ino = 1;
 
 	if (!options)
 		return 1;
