@@ -696,7 +696,7 @@ char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb)
 }
 
 /* gets root inode */
-struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
+struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 {
 	int xid;
 	struct cifs_sb_info *cifs_sb;
