@@ -72,8 +72,30 @@
 			#size-cells = <1>;
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x02000000>;
-			bank-width = <2>;
+			bank-width = <1>;
 			device-width = <1>;
+			partition@0 {
+				label = "ramdisk";
+				reg = <0x00000000 0x01c00000>;
+			};
+			partition@1c00000 {
+				label = "kernel";
+				reg = <0x01c00000 0x002e0000>;
+			};
+			partiton@1ee0000 {
+				label = "dtb";
+				reg = <0x01ee0000 0x00020000>;
+			};
+			partition@1f00000 {
+				label = "firmware";
+				reg = <0x01f00000 0x00080000>;
+				read-only;
+			};
+			partition@1f80000 {
+				label = "u-boot";
+				reg = <0x01f80000 0x00080000>;
+				read-only;
+			};
 		};
 
 		bcsr@1,0 {
