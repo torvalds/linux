@@ -82,6 +82,7 @@ static unsigned long		notify_user;
 static int			rip_msr;
 static int			mce_bootlog = -1;
 static int			monarch_timeout = -1;
+static int			mce_panic_timeout;
 
 static char			trigger[128];
 static char			*trigger_argv[2] = { trigger, NULL };
@@ -216,6 +217,8 @@ static void wait_for_panic(void)
 	local_irq_enable();
 	while (timeout-- > 0)
 		udelay(1);
+	if (panic_timeout == 0)
+		panic_timeout = mce_panic_timeout;
 	panic("Panicing machine check CPU died");
 }
 
@@ -253,6 +256,8 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		printk(KERN_EMERG "Some CPUs didn't answer in synchronization\n");
 	if (exp)
 		printk(KERN_EMERG "Machine check: %s\n", exp);
+	if (panic_timeout == 0)
+		panic_timeout = mce_panic_timeout;
 	panic(msg);
 }
 
@@ -1117,6 +1122,8 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
+	if (mce_bootlog != 0)
+		mce_panic_timeout = 30;
 }
 
 static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
