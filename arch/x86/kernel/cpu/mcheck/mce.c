@@ -13,7 +13,6 @@
 #include <linux/ratelimit.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
-#include <linux/smp_lock.h>
 #include <linux/kobject.h>
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
@@ -791,12 +790,10 @@ static int		open_exclu;		/* already open exclusive? */
 
 static int mce_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
 	spin_lock(&mce_state_lock);
 
 	if (open_exclu || (open_count && (file->f_flags & O_EXCL))) {
 		spin_unlock(&mce_state_lock);
-		unlock_kernel();
 
 		return -EBUSY;
 	}
@@ -806,7 +803,6 @@ static int mce_open(struct inode *inode, struct file *file)
 	open_count++;
 
 	spin_unlock(&mce_state_lock);
-	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
