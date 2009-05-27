@@ -89,6 +89,7 @@ struct mce_log {
 extern int mce_disabled;
 
 #include <asm/atomic.h>
+#include <linux/percpu.h>
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
@@ -122,6 +123,8 @@ static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
 
 int mce_available(struct cpuinfo_x86 *c);
+
+DECLARE_PER_CPU(unsigned, mce_exception_count);
 
 void mce_log_therm_throt_event(__u64 status);
 

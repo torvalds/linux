@@ -57,6 +57,8 @@ int				mce_disabled;
 
 atomic_t mce_entry;
 
+DEFINE_PER_CPU(unsigned, mce_exception_count);
+
 /*
  * Tolerant levels:
  *   0: always panic on uncorrected errors, log corrected errors
@@ -358,6 +360,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 
 	atomic_inc(&mce_entry);
+
+	__get_cpu_var(mce_exception_count)++;
 
 	if (notify_die(DIE_NMI, "machine check", regs, error_code,
 			   18, SIGKILL) == NOTIFY_STOP)

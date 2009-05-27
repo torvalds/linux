@@ -12,6 +12,7 @@
 #include <asm/io_apic.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
+#include <asm/mce.h>
 
 atomic_t irq_err_count;
 
@@ -94,6 +95,12 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "  Threshold APIC interrupts\n");
 # endif
 #endif
+#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_64)
+	seq_printf(p, "%*s: ", prec, "MCE");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(mce_exception_count, j));
+	seq_printf(p, "  Machine check exceptions\n");
+#endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));
@@ -161,6 +168,9 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 {
 	u64 sum = irq_stats(cpu)->__nmi_count;
 
+#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_64)
+	sum += per_cpu(mce_exception_count, cpu);
+#endif
 #ifdef CONFIG_X86_LOCAL_APIC
 	sum += irq_stats(cpu)->apic_timer_irqs;
 	sum += irq_stats(cpu)->irq_spurious_count;
