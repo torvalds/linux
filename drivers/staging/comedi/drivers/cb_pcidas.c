@@ -1593,7 +1593,7 @@ static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int half_fifo = thisboard->fifo_size / 2;
 	unsigned int num_points;
-	unsigned int flags;
+	unsigned long flags;
 
 	async->events = 0;
 
