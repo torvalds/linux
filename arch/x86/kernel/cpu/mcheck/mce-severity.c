@@ -10,6 +10,9 @@
  * Author: Andi Kleen
  */
 #include <linux/kernel.h>
+#include <linux/seq_file.h>
+#include <linux/init.h>
+#include <linux/debugfs.h>
 #include <asm/mce.h>
 
 #include "mce-internal.h"
@@ -37,6 +40,7 @@ static struct severity {
 	unsigned char mcgres;
 	unsigned char ser;
 	unsigned char context;
+	unsigned char covered;
 	char *msg;
 } severities[] = {
 #define KERNEL .context = IN_KERNEL
@@ -126,6 +130,7 @@ int mce_severity(struct mce *a, int tolerant, char **msg)
 			continue;
 		if (msg)
 			*msg = s->msg;
+		s->covered = 1;
 		if (s->sev >= MCE_UC_SEVERITY && ctx == IN_KERNEL) {
 			if (panic_on_oops || tolerant < 1)
 				return MCE_PANIC_SEVERITY;
@@ -133,3 +138,81 @@ int mce_severity(struct mce *a, int tolerant, char **msg)
 		return s->sev;
 	}
 }
+
+static void *s_start(struct seq_file *f, loff_t *pos)
+{
+	if (*pos >= ARRAY_SIZE(severities))
+		return NULL;
+	return &severities[*pos];
+}
+
+static void *s_next(struct seq_file *f, void *data, loff_t *pos)
+{
+	if (++(*pos) >= ARRAY_SIZE(severities))
+		return NULL;
+	return &severities[*pos];
+}
+
+static void s_stop(struct seq_file *f, void *data)
+{
+}
+
+static int s_show(struct seq_file *f, void *data)
+{
+	struct severity *ser = data;
+	seq_printf(f, "%d\t%s\n", ser->covered, ser->msg);
+	return 0;
+}
+
+static const struct seq_operations severities_seq_ops = {
+	.start	= s_start,
+	.next	= s_next,
+	.stop	= s_stop,
+	.show	= s_show,
+};
+
+static int severities_coverage_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &severities_seq_ops);
+}
+
+static ssize_t severities_coverage_write(struct file *file,
+					 const char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(severities); i++)
+		severities[i].covered = 0;
+	return count;
+}
+
+static const struct file_operations severities_coverage_fops = {
+	.open		= severities_coverage_open,
+	.release	= seq_release,
+	.read		= seq_read,
+	.write		= severities_coverage_write,
+};
+
+static int __init severities_debugfs_init(void)
+{
+	struct dentry *dmce = NULL, *fseverities_coverage = NULL;
+
+	dmce = debugfs_create_dir("mce", NULL);
+	if (dmce == NULL)
+		goto err_out;
+	fseverities_coverage = debugfs_create_file("severities-coverage",
+						   0444, dmce, NULL,
+						   &severities_coverage_fops);
+	if (fseverities_coverage == NULL)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	if (fseverities_coverage)
+		debugfs_remove(fseverities_coverage);
+	if (dmce)
+		debugfs_remove(dmce);
+	return -ENOMEM;
+}
+late_initcall(severities_debugfs_init);
