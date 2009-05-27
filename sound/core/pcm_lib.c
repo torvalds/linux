@@ -1478,7 +1478,6 @@ static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 		runtime->status->hw_ptr %= runtime->buffer_size;
 	else
 		runtime->status->hw_ptr = 0;
-	runtime->hw_ptr_jiffies = jiffies;
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }
