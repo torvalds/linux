@@ -839,7 +839,7 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->type           = dma_debug_sg;
 		entry->dev            = dev;
 		entry->paddr          = sg_phys(s);
-		entry->size           = s->length;
+		entry->size           = sg_dma_len(s);
 		entry->dev_addr       = sg_dma_address(s);
 		entry->direction      = direction;
 		entry->sg_call_ents   = nents;
@@ -847,7 +847,7 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 		if (!PageHighMem(sg_page(s))) {
 			check_for_stack(dev, sg_virt(s));
-			check_for_illegal_area(dev, sg_virt(s), s->length);
+			check_for_illegal_area(dev, sg_virt(s), sg_dma_len(s));
 		}
 
 		add_dma_entry(entry);
@@ -873,7 +873,7 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			.dev            = dev,
 			.paddr          = sg_phys(s),
 			.dev_addr       = sg_dma_address(s),
-			.size           = s->length,
+			.size           = sg_dma_len(s),
 			.direction      = dir,
 			.sg_call_ents   = 0,
 		};
@@ -996,7 +996,7 @@ void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, sg_dma_address(s), s->dma_length, 0,
+		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
 			   direction, true);
 	}
 }
@@ -1012,7 +1012,7 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, sg_dma_address(s), s->dma_length, 0,
+		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
 			   direction, false);
 	}
 }
