@@ -220,7 +220,7 @@ static struct mthca_mtt *__mthca_alloc_mtt(struct mthca_dev *dev, int size,
 
 	mtt->buddy = buddy;
 	mtt->order = 0;
-	for (i = MTHCA_MTT_SEG_SIZE / 8; i < size; i <<= 1)
+	for (i = dev->limits.mtt_seg_size / 8; i < size; i <<= 1)
 		++mtt->order;
 
 	mtt->first_seg = mthca_alloc_mtt_range(dev, mtt->order, buddy);
@@ -267,7 +267,7 @@ static int __mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 
 	while (list_len > 0) {
 		mtt_entry[0] = cpu_to_be64(dev->mr_table.mtt_base +
-					   mtt->first_seg * MTHCA_MTT_SEG_SIZE +
+					   mtt->first_seg * dev->limits.mtt_seg_size +
 					   start_index * 8);
 		mtt_entry[1] = 0;
 		for (i = 0; i < list_len && i < MTHCA_MAILBOX_SIZE / 8 - 2; ++i)
@@ -326,7 +326,7 @@ static void mthca_tavor_write_mtt_seg(struct mthca_dev *dev,
 	u64 __iomem *mtts;
 	int i;
 
-	mtts = dev->mr_table.tavor_fmr.mtt_base + mtt->first_seg * MTHCA_MTT_SEG_SIZE +
+	mtts = dev->mr_table.tavor_fmr.mtt_base + mtt->first_seg * dev->limits.mtt_seg_size +
 		start_index * sizeof (u64);
 	for (i = 0; i < list_len; ++i)
 		mthca_write64_raw(cpu_to_be64(buffer_list[i] | MTHCA_MTT_FLAG_PRESENT),
@@ -345,10 +345,10 @@ static void mthca_arbel_write_mtt_seg(struct mthca_dev *dev,
 	/* For Arbel, all MTTs must fit in the same page. */
 	BUG_ON(s / PAGE_SIZE != (s + list_len * sizeof(u64) - 1) / PAGE_SIZE);
 	/* Require full segments */
-	BUG_ON(s % MTHCA_MTT_SEG_SIZE);
+	BUG_ON(s % dev->limits.mtt_seg_size);
 
 	mtts = mthca_table_find(dev->mr_table.mtt_table, mtt->first_seg +
-				s / MTHCA_MTT_SEG_SIZE, &dma_handle);
+				s / dev->limits.mtt_seg_size, &dma_handle);
 
 	BUG_ON(!mtts);
 
@@ -479,7 +479,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 	if (mr->mtt)
 		mpt_entry->mtt_seg =
 			cpu_to_be64(dev->mr_table.mtt_base +
-				    mr->mtt->first_seg * MTHCA_MTT_SEG_SIZE);
+				    mr->mtt->first_seg * dev->limits.mtt_seg_size);
 
 	if (0) {
 		mthca_dbg(dev, "Dumping MPT entry %08x:\n", mr->ibmr.lkey);
@@ -626,7 +626,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		goto err_out_table;
 	}
 
-	mtt_seg = mr->mtt->first_seg * MTHCA_MTT_SEG_SIZE;
+	mtt_seg = mr->mtt->first_seg * dev->limits.mtt_seg_size;
 
 	if (mthca_is_memfree(dev)) {
 		mr->mem.arbel.mtts = mthca_table_find(dev->mr_table.mtt_table,
@@ -908,7 +908,7 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 			 dev->mr_table.mtt_base);
 
 		dev->mr_table.tavor_fmr.mtt_base =
-			ioremap(addr, mtts * MTHCA_MTT_SEG_SIZE);
+			ioremap(addr, mtts * dev->limits.mtt_seg_size);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
 			err = -ENOMEM;

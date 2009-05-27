@@ -159,6 +159,7 @@ struct mthca_limits {
 	int      reserved_eqs;
 	int      num_mpts;
 	int      num_mtt_segs;
+	int	 mtt_seg_size;
 	int      fmr_reserved_mtts;
 	int      reserved_mtts;
 	int      reserved_mrws;
