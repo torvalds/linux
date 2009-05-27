@@ -104,6 +104,11 @@ card*/pcm*/xrun_debug
 	When this value is greater than 1, the driver will show the
 	stack trace additionally.  This may help the debugging.
 
+	Since 2.6.30, this option also enables the hwptr check using
+	jiffies.  This detects spontaneous invalid pointer callback
+	values, but can be lead to too much corrections for a (mostly
+	buggy) hardware that doesn't give smooth pointer updates.
+
 card*/pcm*/sub*/info
 	The general information of this PCM sub-stream.
 
