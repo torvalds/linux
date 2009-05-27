@@ -10,6 +10,7 @@
 #include <linux/thread_info.h>
 #include <linux/capability.h>
 #include <linux/miscdevice.h>
+#include <linux/interrupt.h>
 #include <linux/ratelimit.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
@@ -32,7 +33,10 @@
 #include <linux/fs.h>
 
 #include <asm/processor.h>
+#include <asm/hw_irq.h>
+#include <asm/apic.h>
 #include <asm/idle.h>
+#include <asm/ipi.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -287,6 +291,54 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 	}
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC 
+/*
+ * Called after interrupts have been reenabled again
+ * when a MCE happened during an interrupts off region
+ * in the kernel.
+ */
+asmlinkage void smp_mce_self_interrupt(struct pt_regs *regs)
+{
+	ack_APIC_irq();
+	exit_idle();
+	irq_enter();
+	mce_notify_user();
+	irq_exit();
+}
+#endif
+
+static void mce_report_event(struct pt_regs *regs)
+{
+	if (regs->flags & (X86_VM_MASK|X86_EFLAGS_IF)) {
+		mce_notify_user();
+		return;
+	}
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	/*
+	 * Without APIC do not notify. The event will be picked
+	 * up eventually.
+	 */
+	if (!cpu_has_apic)
+		return;
+
+	/*
+	 * When interrupts are disabled we cannot use
+	 * kernel services safely. Trigger an self interrupt
+	 * through the APIC to instead do the notification
+	 * after interrupts are reenabled again.
+	 */
+	apic->send_IPI_self(MCE_SELF_VECTOR);
+
+	/*
+	 * Wait for idle afterwards again so that we don't leave the
+	 * APIC in a non idle state because the normal APIC writes
+	 * cannot exclude us.
+	 */
+	apic_wait_icr_idle();
+#endif
+}
+
 DEFINE_PER_CPU(unsigned, mce_poll_count);
 
 /*
@@ -529,6 +581,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	/* notify userspace ASAP */
 	set_thread_flag(TIF_MCE_NOTIFY);
+
+	mce_report_event(regs);
 
 	/* the last thing we do is clear state */
 	for (i = 0; i < banks; i++) {
