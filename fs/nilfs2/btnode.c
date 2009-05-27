@@ -48,13 +48,14 @@ void nilfs_btnode_cache_init_once(struct address_space *btnc)
 
 static struct address_space_operations def_btnode_aops;
 
-void nilfs_btnode_cache_init(struct address_space *btnc)
+void nilfs_btnode_cache_init(struct address_space *btnc,
+			     struct backing_dev_info *bdi)
 {
 	btnc->host = NULL;  /* can safely set to host inode ? */
 	btnc->flags = 0;
 	mapping_set_gfp_mask(btnc, GFP_NOFS);
 	btnc->assoc_mapping = NULL;
-	btnc->backing_dev_info = &default_backing_dev_info;
+	btnc->backing_dev_info = bdi;
 	btnc->a_ops = &def_btnode_aops;
 }
 

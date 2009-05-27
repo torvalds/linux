@@ -134,7 +134,7 @@ void nilfs_warning(struct super_block *sb, const char *function,
 
 static struct kmem_cache *nilfs_inode_cachep;
 
-struct inode *nilfs_alloc_inode(struct super_block *sb)
+struct inode *nilfs_alloc_inode_common(struct the_nilfs *nilfs)
 {
 	struct nilfs_inode_info *ii;
 
@@ -144,8 +144,13 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 	ii->i_bh = NULL;
 	ii->i_state = 0;
 	ii->vfs_inode.i_version = 1;
-	nilfs_btnode_cache_init(&ii->i_btnode_cache);
+	nilfs_btnode_cache_init(&ii->i_btnode_cache, nilfs->ns_bdi);
 	return &ii->vfs_inode;
+}
+
+struct inode *nilfs_alloc_inode(struct super_block *sb)
+{
+	return nilfs_alloc_inode_common(NILFS_SB(sb)->s_nilfs);
 }
 
 void nilfs_destroy_inode(struct inode *inode)

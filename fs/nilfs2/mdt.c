@@ -449,7 +449,7 @@ struct inode *
 nilfs_mdt_new_common(struct the_nilfs *nilfs, struct super_block *sb,
 		     ino_t ino, gfp_t gfp_mask)
 {
-	struct inode *inode = nilfs_alloc_inode(sb);
+	struct inode *inode = nilfs_alloc_inode_common(nilfs);
 
 	if (!inode)
 		return NULL;
