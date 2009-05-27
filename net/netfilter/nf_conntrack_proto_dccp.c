@@ -635,6 +635,8 @@ static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	NLA_PUT_U8(skb, CTA_PROTOINFO_DCCP_STATE, ct->proto.dccp.state);
 	NLA_PUT_U8(skb, CTA_PROTOINFO_DCCP_ROLE,
 		   ct->proto.dccp.role[IP_CT_DIR_ORIGINAL]);
+	NLA_PUT_BE64(skb, CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ,
+		     cpu_to_be64(ct->proto.dccp.handshake_seq));
 	nla_nest_end(skb, nest_parms);
 	read_unlock_bh(&dccp_lock);
 	return 0;
@@ -647,6 +649,7 @@ nla_put_failure:
 static const struct nla_policy dccp_nla_policy[CTA_PROTOINFO_DCCP_MAX + 1] = {
 	[CTA_PROTOINFO_DCCP_STATE]	= { .type = NLA_U8 },
 	[CTA_PROTOINFO_DCCP_ROLE]	= { .type = NLA_U8 },
+	[CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ] = { .type = NLA_U64 },
 };
 
 static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
@@ -678,6 +681,10 @@ static int nlattr_to_dccp(struct nlattr *cda[], struct nf_conn *ct)
 	} else {
 		ct->proto.dccp.role[IP_CT_DIR_ORIGINAL] = CT_DCCP_ROLE_SERVER;
 		ct->proto.dccp.role[IP_CT_DIR_REPLY] = CT_DCCP_ROLE_CLIENT;
+	}
+	if (tb[CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ]) {
+		ct->proto.dccp.handshake_seq =
+		be64_to_cpu(nla_get_be64(tb[CTA_PROTOINFO_DCCP_HANDSHAKE_SEQ]));
 	}
 	write_unlock_bh(&dccp_lock);
 	return 0;
