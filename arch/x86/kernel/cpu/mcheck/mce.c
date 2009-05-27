@@ -412,9 +412,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 		/*
 		 * Non uncorrected errors are handled by machine_check_poll
-		 * Leave them alone.
+		 * Leave them alone, unless this panics.
 		 */
-		if ((m.status & MCI_STATUS_UC) == 0)
+		if ((m.status & MCI_STATUS_UC) == 0 && !no_way_out)
 			continue;
 
 		/*
