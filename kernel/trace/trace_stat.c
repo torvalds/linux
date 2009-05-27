@@ -127,7 +127,7 @@ insert_stat(struct rb_root *root, struct stat_node *data, cmp_stat_t cmp)
  */
 static int dummy_cmp(void *p1, void *p2)
 {
-	return 1;
+	return -1;
 }
 
 /*
