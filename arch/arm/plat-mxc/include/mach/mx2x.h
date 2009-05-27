@@ -23,10 +23,6 @@
 #ifndef __ASM_ARCH_MXC_MX2x_H__
 #define __ASM_ARCH_MXC_MX2x_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
 /* The following addresses are common between i.MX21 and i.MX27 */
 
 /* Register offests */

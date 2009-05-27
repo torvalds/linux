@@ -11,10 +11,6 @@
 #ifndef __ASM_ARCH_MXC_MX31_H__
 #define __ASM_ARCH_MXC_MX31_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
 /*
  * MX31 memory map:
  *

@@ -12,10 +12,6 @@
 #ifndef __ASM_ARCH_MXC_MX1_H__
 #define __ASM_ARCH_MXC_MX1_H__
 
-#ifndef __ASM_ARCH_MXC_HARDWARE_H__
-#error "Do not include directly."
-#endif
-
 #include <mach/vmalloc.h>
 
 /*
