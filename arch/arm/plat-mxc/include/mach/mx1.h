@@ -134,20 +134,6 @@
 #define GPIO_INT_PORTD		62
 #define WDT_INT			63
 
-/* gpio and gpio based interrupt handling */
-#define GPIO_DR		 	0x1C
-#define GPIO_GDIR	 	0x00
-#define GPIO_PSR	 	0x24
-#define GPIO_ICR1	 	0x28
-#define GPIO_ICR2	 	0x2C
-#define GPIO_IMR	 	0x30
-#define GPIO_ISR	 	0x34
-#define GPIO_INT_LOW_LEV	0x3
-#define GPIO_INT_HIGH_LEV	0x2
-#define GPIO_INT_RISE_EDGE 	0x0
-#define GPIO_INT_FALL_EDGE	0x1
-#define GPIO_INT_NONE		0x4
-
 /* DMA */
 #define DMA_REQ_UART3_T		2
 #define DMA_REQ_UART3_R		3
