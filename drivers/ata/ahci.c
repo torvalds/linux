@@ -431,8 +431,7 @@ static const struct ata_port_info ahci_port_info[] = {
 	[board_ahci_sb600] =
 	{
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_SERR_INTERNAL |
-				 AHCI_HFLAG_32BIT_ONLY | AHCI_HFLAG_NO_MSI |
-				 AHCI_HFLAG_SECT255),
+				 AHCI_HFLAG_NO_MSI | AHCI_HFLAG_SECT255),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -2585,6 +2584,51 @@ static void ahci_p5wdh_workaround(struct ata_host *host)
 	}
 }
 
+/*
+ * SB600 ahci controller on ASUS M2A-VM can't do 64bit DMA with older
+ * BIOS.  The oldest version known to be broken is 0901 and working is
+ * 1501 which was released on 2007-10-26.  Force 32bit DMA on anything
+ * older than 1501.  Please read bko#9412 for more info.
+ */
+static bool ahci_asus_m2a_vm_32bit_only(struct pci_dev *pdev)
+{
+	static const struct dmi_system_id sysids[] = {
+		{
+			.ident = "ASUS M2A-VM",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR,
+					  "ASUSTeK Computer INC."),
+				DMI_MATCH(DMI_BOARD_NAME, "M2A-VM"),
+			},
+		},
+		{ }
+	};
+	const char *cutoff_mmdd = "10/26";
+	const char *date;
+	int year;
+
+	if (pdev->bus->number != 0 || pdev->devfn != PCI_DEVFN(0x12, 0) ||
+	    !dmi_check_system(sysids))
+		return false;
+
+	/*
+	 * Argh.... both version and date are free form strings.
+	 * Let's hope they're using the same date format across
+	 * different versions.
+	 */
+	date = dmi_get_system_info(DMI_BIOS_DATE);
+	year = dmi_get_year(DMI_BIOS_DATE);
+	if (date && strlen(date) >= 10 && date[2] == '/' && date[5] == '/' &&
+	    (year > 2007 ||
+	     (year == 2007 && strncmp(date, cutoff_mmdd, 5) >= 0)))
+		return false;
+
+	dev_printk(KERN_WARNING, &pdev->dev, "ASUS M2A-VM: BIOS too old, "
+		   "forcing 32bit DMA, update BIOS\n");
+
+	return true;
+}
+
 static bool ahci_broken_system_poweroff(struct pci_dev *pdev)
 {
 	static const struct dmi_system_id broken_systems[] = {
@@ -2744,6 +2788,10 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* SB800 does NOT need the workaround to ignore SERR_INTERNAL */
 	if (board_id == board_ahci_sb700 && pdev->revision >= 0x40)
 		hpriv->flags &= ~AHCI_HFLAG_IGN_SERR_INTERNAL;
+
+	/* apply ASUS M2A_VM quirk */
+	if (ahci_asus_m2a_vm_32bit_only(pdev))
+		hpriv->flags |= AHCI_HFLAG_32BIT_ONLY;
 
 	if (!(hpriv->flags & AHCI_HFLAG_NO_MSI))
 		pci_enable_msi(pdev);

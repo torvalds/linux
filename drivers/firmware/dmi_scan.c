@@ -596,6 +596,7 @@ int dmi_get_year(int field)
 
 	return year;
 }
+EXPORT_SYMBOL(dmi_get_year);
 
 /**
  *	dmi_walk - Walk the DMI table and get called back for every record
