@@ -3,7 +3,7 @@ perf-record(1)
 
 NAME
 ----
-perf-record - Run a command and record its profile into output.perf
+perf-record - Run a command and record its profile into perf.data
 
 SYNOPSIS
 --------
@@ -13,7 +13,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command runs a command and gathers a performance counter profile
-from it, into output.perf - without displaying anything.
+from it, into perf.data - without displaying anything.
 
 This file can then be inspected later on, using 'perf report'.
 

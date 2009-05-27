@@ -19,7 +19,7 @@ static int			nr_cpus				=  0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			output;
-static const char		*output_name			= "output.perf";
+static const char		*output_name			= "perf.data";
 static int			group				= 0;
 static unsigned int		realtime_prio			= 0;
 static int			system_wide			= 0;

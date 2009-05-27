@@ -18,7 +18,7 @@
 #define SHOW_USER	2
 #define SHOW_HV		4
 
-static char		const *input_name = "output.perf";
+static char		const *input_name = "perf.data";
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
