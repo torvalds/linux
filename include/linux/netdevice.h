@@ -1975,4 +1975,4 @@ static inline u32 dev_ethtool_get_flags(struct net_device *dev)
 }
 #endif /* __KERNEL__ */
 
-#endif	/* _LINUX_DEV_H */
+#endif	/* _LINUX_NETDEVICE_H */
