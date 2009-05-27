@@ -1129,7 +1129,7 @@ static int lbs_ret_80211_scan(struct lbs_private *priv, unsigned long dummy,
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(scanresp->bssdescriptsize);
+	bytesleft = get_unaligned_le16(&scanresp->bssdescriptsize);
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
 	scanrespsize = le16_to_cpu(resp->size);
