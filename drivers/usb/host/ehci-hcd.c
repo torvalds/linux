@@ -1024,6 +1024,51 @@ done:
 	return;
 }
 
+static void
+ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	struct ehci_qh		*qh;
+	int			eptype = usb_endpoint_type(&ep->desc);
+
+	if (eptype != USB_ENDPOINT_XFER_BULK && eptype != USB_ENDPOINT_XFER_INT)
+		return;
+
+ rescan:
+	spin_lock_irq(&ehci->lock);
+	qh = ep->hcpriv;
+
+	/* For Bulk and Interrupt endpoints we maintain the toggle state
+	 * in the hardware; the toggle bits in udev aren't used at all.
+	 * When an endpoint is reset by usb_clear_halt() we must reset
+	 * the toggle bit in the QH.
+	 */
+	if (qh) {
+		if (!list_empty(&qh->qtd_list)) {
+			WARN_ONCE(1, "clear_halt for a busy endpoint\n");
+		} else if (qh->qh_state == QH_STATE_IDLE) {
+			qh->hw_token &= ~cpu_to_hc32(ehci, QTD_TOGGLE);
+		} else {
+			/* It's not safe to write into the overlay area
+			 * while the QH is active.  Unlink it first and
+			 * wait for the unlink to complete.
+			 */
+			if (qh->qh_state == QH_STATE_LINKED) {
+				if (eptype == USB_ENDPOINT_XFER_BULK) {
+					unlink_async(ehci, qh);
+				} else {
+					intr_deschedule(ehci, qh);
+					(void) qh_schedule(ehci, qh);
+				}
+			}
+			spin_unlock_irq(&ehci->lock);
+			schedule_timeout_uninterruptible(1);
+			goto rescan;
+		}
+	}
+	spin_unlock_irq(&ehci->lock);
+}
+
 static int ehci_get_frame (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
