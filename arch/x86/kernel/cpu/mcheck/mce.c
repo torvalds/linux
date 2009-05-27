@@ -554,7 +554,7 @@ static void mce_reign(void)
 	 * other CPUs.
 	 */
 	if (m && global_worst >= MCE_PANIC_SEVERITY && tolerant < 3)
-		mce_panic("Fatal machine check", m, msg);
+		mce_panic("Fatal Machine check", m, msg);
 
 	/*
 	 * For UC somewhere we let the CPU who detects it handle it.
@@ -858,7 +858,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * support MCE broadcasting or it has been disabled.
 	 */
 	if (no_way_out && tolerant < 3)
-		mce_panic("Machine check", final, msg);
+		mce_panic("Fatal machine check on current CPU", final, msg);
 
 	/*
 	 * If the error seems to be unrecoverable, something should be
