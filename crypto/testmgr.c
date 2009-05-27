@@ -1002,24 +1002,25 @@ static int test_pcomp(struct crypto_pcomp *tfm,
 	const char *algo = crypto_tfm_alg_driver_name(crypto_pcomp_tfm(tfm));
 	unsigned int i;
 	char result[COMP_BUF_SIZE];
-	int error;
+	int res;
 
 	for (i = 0; i < ctcount; i++) {
 		struct comp_request req;
+		unsigned int produced = 0;
 
-		error = crypto_compress_setup(tfm, ctemplate[i].params,
-					      ctemplate[i].paramsize);
-		if (error) {
+		res = crypto_compress_setup(tfm, ctemplate[i].params,
+					    ctemplate[i].paramsize);
+		if (res) {
 			pr_err("alg: pcomp: compression setup failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
 
-		error = crypto_compress_init(tfm);
-		if (error) {
+		res = crypto_compress_init(tfm);
+		if (res) {
 			pr_err("alg: pcomp: compression init failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
 
 		memset(result, 0, sizeof(result));
@@ -1029,38 +1030,50 @@ static int test_pcomp(struct crypto_pcomp *tfm,
 		req.next_out = result;
 		req.avail_out = ctemplate[i].outlen / 2;
 
-		error = crypto_compress_update(tfm, &req);
-		if (error && (error != -EAGAIN || req.avail_in)) {
+		res = crypto_compress_update(tfm, &req);
+		if (res < 0 && (res != -EAGAIN || req.avail_in)) {
 			pr_err("alg: pcomp: compression update failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		if (res > 0)
+			produced += res;
 
 		/* Add remaining input data */
 		req.avail_in += (ctemplate[i].inlen + 1) / 2;
 
-		error = crypto_compress_update(tfm, &req);
-		if (error && (error != -EAGAIN || req.avail_in)) {
+		res = crypto_compress_update(tfm, &req);
+		if (res < 0 && (res != -EAGAIN || req.avail_in)) {
 			pr_err("alg: pcomp: compression update failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		if (res > 0)
+			produced += res;
 
 		/* Provide remaining output space */
 		req.avail_out += COMP_BUF_SIZE - ctemplate[i].outlen / 2;
 
-		error = crypto_compress_final(tfm, &req);
-		if (error) {
+		res = crypto_compress_final(tfm, &req);
+		if (res < 0) {
 			pr_err("alg: pcomp: compression final failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		produced += res;
 
 		if (COMP_BUF_SIZE - req.avail_out != ctemplate[i].outlen) {
 			pr_err("alg: comp: Compression test %d failed for %s: "
 			       "output len = %d (expected %d)\n", i + 1, algo,
 			       COMP_BUF_SIZE - req.avail_out,
 			       ctemplate[i].outlen);
+			return -EINVAL;
+		}
+
+		if (produced != ctemplate[i].outlen) {
+			pr_err("alg: comp: Compression test %d failed for %s: "
+			       "returned len = %u (expected %d)\n", i + 1,
+			       algo, produced, ctemplate[i].outlen);
 			return -EINVAL;
 		}
 
@@ -1074,21 +1087,21 @@ static int test_pcomp(struct crypto_pcomp *tfm,
 
 	for (i = 0; i < dtcount; i++) {
 		struct comp_request req;
+		unsigned int produced = 0;
 
-		error = crypto_decompress_setup(tfm, dtemplate[i].params,
-						dtemplate[i].paramsize);
-		if (error) {
+		res = crypto_decompress_setup(tfm, dtemplate[i].params,
+					      dtemplate[i].paramsize);
+		if (res) {
 			pr_err("alg: pcomp: decompression setup failed on "
-			       "test %d for %s: error=%d\n", i + 1, algo,
-			       error);
-			return error;
+			       "test %d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
 
-		error = crypto_decompress_init(tfm);
-		if (error) {
+		res = crypto_decompress_init(tfm);
+		if (res) {
 			pr_err("alg: pcomp: decompression init failed on test "
-			       "%d for %s: error=%d\n", i + 1, algo, error);
-			return error;
+			       "%d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
 
 		memset(result, 0, sizeof(result));
@@ -1098,41 +1111,51 @@ static int test_pcomp(struct crypto_pcomp *tfm,
 		req.next_out = result;
 		req.avail_out = dtemplate[i].outlen / 2;
 
-		error = crypto_decompress_update(tfm, &req);
-		if (error  && (error != -EAGAIN || req.avail_in)) {
+		res = crypto_decompress_update(tfm, &req);
+		if (res < 0 && (res != -EAGAIN || req.avail_in)) {
 			pr_err("alg: pcomp: decompression update failed on "
-			       "test %d for %s: error=%d\n", i + 1, algo,
-			       error);
-			return error;
+			       "test %d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		if (res > 0)
+			produced += res;
 
 		/* Add remaining input data */
 		req.avail_in += (dtemplate[i].inlen + 1) / 2;
 
-		error = crypto_decompress_update(tfm, &req);
-		if (error  && (error != -EAGAIN || req.avail_in)) {
+		res = crypto_decompress_update(tfm, &req);
+		if (res < 0 && (res != -EAGAIN || req.avail_in)) {
 			pr_err("alg: pcomp: decompression update failed on "
-			       "test %d for %s: error=%d\n", i + 1, algo,
-			       error);
-			return error;
+			       "test %d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		if (res > 0)
+			produced += res;
 
 		/* Provide remaining output space */
 		req.avail_out += COMP_BUF_SIZE - dtemplate[i].outlen / 2;
 
-		error = crypto_decompress_final(tfm, &req);
-		if (error  && (error != -EAGAIN || req.avail_in)) {
+		res = crypto_decompress_final(tfm, &req);
+		if (res < 0 && (res != -EAGAIN || req.avail_in)) {
 			pr_err("alg: pcomp: decompression final failed on "
-			       "test %d for %s: error=%d\n", i + 1, algo,
-			       error);
-			return error;
+			       "test %d for %s: error=%d\n", i + 1, algo, res);
+			return res;
 		}
+		if (res > 0)
+			produced += res;
 
 		if (COMP_BUF_SIZE - req.avail_out != dtemplate[i].outlen) {
 			pr_err("alg: comp: Decompression test %d failed for "
 			       "%s: output len = %d (expected %d)\n", i + 1,
 			       algo, COMP_BUF_SIZE - req.avail_out,
 			       dtemplate[i].outlen);
+			return -EINVAL;
+		}
+
+		if (produced != dtemplate[i].outlen) {
+			pr_err("alg: comp: Decompression test %d failed for "
+			       "%s: returned len = %u (expected %d)\n", i + 1,
+			       algo, produced, dtemplate[i].outlen);
 			return -EINVAL;
 		}
 

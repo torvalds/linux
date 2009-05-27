@@ -165,15 +165,15 @@ static int zlib_compress_update(struct crypto_pcomp *tfm,
 		return -EINVAL;
 	}
 
+	ret = req->avail_out - stream->avail_out;
 	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
-		 req->avail_in - stream->avail_in,
-		 req->avail_out - stream->avail_out);
+		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
 	req->avail_in = stream->avail_in;
 	req->next_out = stream->next_out;
 	req->avail_out = stream->avail_out;
-	return 0;
+	return ret;
 }
 
 static int zlib_compress_final(struct crypto_pcomp *tfm,
@@ -195,15 +195,15 @@ static int zlib_compress_final(struct crypto_pcomp *tfm,
 		return -EINVAL;
 	}
 
+	ret = req->avail_out - stream->avail_out;
 	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
-		 req->avail_in - stream->avail_in,
-		 req->avail_out - stream->avail_out);
+		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
 	req->avail_in = stream->avail_in;
 	req->next_out = stream->next_out;
 	req->avail_out = stream->avail_out;
-	return 0;
+	return ret;
 }
 
 
@@ -280,15 +280,15 @@ static int zlib_decompress_update(struct crypto_pcomp *tfm,
 		return -EINVAL;
 	}
 
+	ret = req->avail_out - stream->avail_out;
 	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
-		 req->avail_in - stream->avail_in,
-		 req->avail_out - stream->avail_out);
+		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
 	req->avail_in = stream->avail_in;
 	req->next_out = stream->next_out;
 	req->avail_out = stream->avail_out;
-	return 0;
+	return ret;
 }
 
 static int zlib_decompress_final(struct crypto_pcomp *tfm,
@@ -328,15 +328,15 @@ static int zlib_decompress_final(struct crypto_pcomp *tfm,
 		return -EINVAL;
 	}
 
+	ret = req->avail_out - stream->avail_out;
 	pr_debug("avail_in %u, avail_out %u (consumed %u, produced %u)\n",
 		 stream->avail_in, stream->avail_out,
-		 req->avail_in - stream->avail_in,
-		 req->avail_out - stream->avail_out);
+		 req->avail_in - stream->avail_in, ret);
 	req->next_in = stream->next_in;
 	req->avail_in = stream->avail_in;
 	req->next_out = stream->next_out;
 	req->avail_out = stream->avail_out;
-	return 0;
+	return ret;
 }
 
 
