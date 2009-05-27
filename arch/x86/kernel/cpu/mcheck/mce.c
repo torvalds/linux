@@ -33,6 +33,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
@@ -104,6 +105,8 @@ static inline int skip_bank_init(int i)
 {
 	return i < BITS_PER_LONG && test_bit(i, &dont_init_banks);
 }
+
+static DEFINE_PER_CPU(struct work_struct, mce_work);
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -312,11 +315,75 @@ static void mce_wrmsrl(u32 msr, u64 v)
 	wrmsrl(msr, v);
 }
 
+/*
+ * Simple lockless ring to communicate PFNs from the exception handler with the
+ * process context work function. This is vastly simplified because there's
+ * only a single reader and a single writer.
+ */
+#define MCE_RING_SIZE 16	/* we use one entry less */
+
+struct mce_ring {
+	unsigned short start;
+	unsigned short end;
+	unsigned long ring[MCE_RING_SIZE];
+};
+static DEFINE_PER_CPU(struct mce_ring, mce_ring);
+
+/* Runs with CPU affinity in workqueue */
+static int mce_ring_empty(void)
+{
+	struct mce_ring *r = &__get_cpu_var(mce_ring);
+
+	return r->start == r->end;
+}
+
+static int mce_ring_get(unsigned long *pfn)
+{
+	struct mce_ring *r;
+	int ret = 0;
+
+	*pfn = 0;
+	get_cpu();
+	r = &__get_cpu_var(mce_ring);
+	if (r->start == r->end)
+		goto out;
+	*pfn = r->ring[r->start];
+	r->start = (r->start + 1) % MCE_RING_SIZE;
+	ret = 1;
+out:
+	put_cpu();
+	return ret;
+}
+
+/* Always runs in MCE context with preempt off */
+static int mce_ring_add(unsigned long pfn)
+{
+	struct mce_ring *r = &__get_cpu_var(mce_ring);
+	unsigned next;
+
+	next = (r->end + 1) % MCE_RING_SIZE;
+	if (next == r->start)
+		return -1;
+	r->ring[r->end] = pfn;
+	wmb();
+	r->end = next;
+	return 0;
+}
+
 int mce_available(struct cpuinfo_x86 *c)
 {
 	if (mce_disabled)
 		return 0;
 	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
+}
+
+static void mce_schedule_work(void)
+{
+	if (!mce_ring_empty()) {
+		struct work_struct *work = &__get_cpu_var(mce_work);
+		if (!work_pending(work))
+			schedule_work(work);
+	}
 }
 
 /*
@@ -349,6 +416,7 @@ asmlinkage void smp_mce_self_interrupt(struct pt_regs *regs)
 	exit_idle();
 	irq_enter();
 	mce_notify_irq();
+	mce_schedule_work();
 	irq_exit();
 }
 #endif
@@ -357,6 +425,13 @@ static void mce_report_event(struct pt_regs *regs)
 {
 	if (regs->flags & (X86_VM_MASK|X86_EFLAGS_IF)) {
 		mce_notify_irq();
+		/*
+		 * Triggering the work queue here is just an insurance
+		 * policy in case the syscall exit notify handler
+		 * doesn't run soon enough or ends up running on the
+		 * wrong CPU (can happen when audit sleeps)
+		 */
+		mce_schedule_work();
 		return;
 	}
 
@@ -731,6 +806,23 @@ reset:
 	return ret;
 }
 
+/*
+ * Check if the address reported by the CPU is in a format we can parse.
+ * It would be possible to add code for most other cases, but all would
+ * be somewhat complicated (e.g. segment offset would require an instruction
+ * parser). So only support physical addresses upto page granuality for now.
+ */
+static int mce_usable_address(struct mce *m)
+{
+	if (!(m->status & MCI_STATUS_MISCV) || !(m->status & MCI_STATUS_ADDRV))
+		return 0;
+	if ((m->misc & 0x3f) > PAGE_SHIFT)
+		return 0;
+	if (((m->misc >> 6) & 7) != MCM_ADDR_PHYS)
+		return 0;
+	return 1;
+}
+
 static void mce_clear_state(unsigned long *toclear)
 {
 	int i;
@@ -865,6 +957,16 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		if (m.status & MCI_STATUS_ADDRV)
 			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
 
+		/*
+		 * Action optional error. Queue address for later processing.
+		 * When the ring overflows we just ignore the AO error.
+		 * RED-PEN add some logging mechanism when
+		 * usable_address or mce_add_ring fails.
+		 * RED-PEN don't ignore overflow for tolerant == 0
+		 */
+		if (severity == MCE_AO_SEVERITY && mce_usable_address(&m))
+			mce_ring_add(m.addr >> PAGE_SHIFT);
+
 		mce_get_rip(&m, regs);
 		mce_log(&m);
 
@@ -915,6 +1017,36 @@ out:
 	sync_core();
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
+
+/* dummy to break dependency. actual code is in mm/memory-failure.c */
+void __attribute__((weak)) memory_failure(unsigned long pfn, int vector)
+{
+	printk(KERN_ERR "Action optional memory failure at %lx ignored\n", pfn);
+}
+
+/*
+ * Called after mce notification in process context. This code
+ * is allowed to sleep. Call the high level VM handler to process
+ * any corrupted pages.
+ * Assume that the work queue code only calls this one at a time
+ * per CPU.
+ * Note we don't disable preemption, so this code might run on the wrong
+ * CPU. In this case the event is picked up by the scheduled work queue.
+ * This is merely a fast path to expedite processing in some common
+ * cases.
+ */
+void mce_notify_process(void)
+{
+	unsigned long pfn;
+	mce_notify_irq();
+	while (mce_ring_get(&pfn))
+		memory_failure(pfn, MCE_VECTOR);
+}
+
+static void mce_process_work(struct work_struct *dummy)
+{
+	mce_notify_process();
+}
 
 #ifdef CONFIG_X86_MCE_INTEL
 /***
@@ -1204,6 +1336,7 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 	mce_init();
 	mce_cpu_features(c);
 	mce_init_timer();
+	INIT_WORK(&__get_cpu_var(mce_work), mce_process_work);
 }
 
 /*
