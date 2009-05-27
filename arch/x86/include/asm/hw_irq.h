@@ -45,6 +45,7 @@ extern void invalidate_interrupt6(void);
 extern void invalidate_interrupt7(void);
 
 extern void irq_move_cleanup_interrupt(void);
+extern void reboot_interrupt(void);
 extern void threshold_interrupt(void);
 
 extern void call_function_interrupt(void);

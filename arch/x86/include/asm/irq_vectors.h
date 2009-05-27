@@ -88,12 +88,7 @@
 #define CALL_FUNCTION_SINGLE_VECTOR	0xfb
 #define THERMAL_APIC_VECTOR		0xfa
 #define THRESHOLD_APIC_VECTOR		0xf9
-
-#ifdef CONFIG_X86_32
-/* 0xf8 : free */
-#else
-# define UV_BAU_MESSAGE			0xf8
-#endif
+#define REBOOT_VECTOR			0xf8
 
 /* f0-f7 used for spreading out TLB flushes: */
 #define INVALIDATE_TLB_VECTOR_END	0xf7
@@ -116,6 +111,8 @@
  * Generic system vector for platform specific use
  */
 #define GENERIC_INTERRUPT_VECTOR	0xed
+
+#define UV_BAU_MESSAGE			0xec
 
 /*
  * Self IPI vector for machine checks
