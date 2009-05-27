@@ -223,6 +223,7 @@ endchoice
 
 config SMP
 	depends on BF561
+	select GENERIC_TIME
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU,
