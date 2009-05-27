@@ -384,21 +384,26 @@ int hex2long(char *ptr, unsigned long *long_val)
 
 static int load_kallsyms(void)
 {
+	struct rb_node *nd, *prevnd;
+	char *line = NULL;
+	FILE *file;
+	size_t n;
+
 	kernel_dso = dso__new("[kernel]");
 	if (kernel_dso == NULL)
 		return -1;
 
-	FILE *file = fopen("/proc/kallsyms", "r");
-
+	file = fopen("/proc/kallsyms", "r");
 	if (file == NULL)
 		goto out_delete_dso;
 
-	char *line = NULL;
-	size_t n;
-
 	while (!feof(file)) {
 		unsigned long start;
-		int line_len = getline(&line, &n, file);
+		struct symbol *sym;
+		int line_len, len;
+		char symbol_type;
+
+		line_len = getline(&line, &n, file);
 		if (line_len < 0)
 			break;
 
@@ -407,22 +412,22 @@ static int load_kallsyms(void)
 
 		line[--line_len] = '\0'; /* \n */
 
-		int len = hex2long(line, &start);
-		
+		len = hex2long(line, &start);
+
 		len++;
 		if (len + 2 >= line_len)
 			continue;
 
-		char symbol_type = line[len];
+		symbol_type = toupper(line[len]);
 		/*
 		 * We're interested only in code ('T'ext)
 		 */
-		if (toupper(symbol_type) != 'T')
+		if (symbol_type != 'T' && symbol_type != 'W')
 			continue;
 		/*
 		 * Well fix up the end later, when we have all sorted.
 		 */
-		struct symbol *sym = symbol__new(start, 0xdead, line + len + 2);
+		sym = symbol__new(start, 0xdead, line + len + 2);
 
 		if (sym == NULL)
 			goto out_delete_dso;
@@ -434,7 +439,7 @@ static int load_kallsyms(void)
 	 * Now that we have all sorted out, just set the ->end of all
 	 * symbols
 	 */
-	struct rb_node *nd, *prevnd = rb_first(&kernel_dso->syms);
+	prevnd = rb_first(&kernel_dso->syms);
 
 	if (prevnd == NULL)
 		goto out_delete_line;
@@ -450,6 +455,7 @@ static int load_kallsyms(void)
 	dsos__add(kernel_dso);
 	free(line);
 	fclose(file);
+
 	return 0;
 
 out_delete_line:
