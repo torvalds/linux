@@ -840,7 +840,7 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->dev            = dev;
 		entry->paddr          = sg_phys(s);
 		entry->size           = s->length;
-		entry->dev_addr       = s->dma_address;
+		entry->dev_addr       = sg_dma_address(s);
 		entry->direction      = direction;
 		entry->sg_call_ents   = nents;
 		entry->sg_mapped_ents = mapped_ents;
@@ -872,7 +872,7 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			.type           = dma_debug_sg,
 			.dev            = dev,
 			.paddr          = sg_phys(s),
-			.dev_addr       = s->dma_address,
+			.dev_addr       = sg_dma_address(s),
 			.size           = s->length,
 			.direction      = dir,
 			.sg_call_ents   = 0,
@@ -996,8 +996,8 @@ void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, s->dma_address, s->dma_length, 0,
-				direction, true);
+		check_sync(dev, sg_dma_address(s), s->dma_length, 0,
+			   direction, true);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_cpu);
@@ -1012,8 +1012,8 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, s->dma_address, s->dma_length, 0,
-				direction, false);
+		check_sync(dev, sg_dma_address(s), s->dma_length, 0,
+			   direction, false);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_device);
