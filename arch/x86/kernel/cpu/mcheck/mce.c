@@ -96,6 +96,15 @@ void mce_setup(struct mce *m)
 	memset(m, 0, sizeof(struct mce));
 	m->cpu = m->extcpu = smp_processor_id();
 	rdtscll(m->tsc);
+	/* We hope get_seconds stays lockless */
+	m->time = get_seconds();
+	m->cpuvendor = boot_cpu_data.x86_vendor;
+	m->cpuid = cpuid_eax(1);
+#ifdef CONFIG_SMP
+	m->socketid = cpu_data(m->extcpu).phys_proc_id;
+#endif
+	m->apicid = cpu_data(m->extcpu).initial_apicid;
+	rdmsrl(MSR_IA32_MCG_CAP, m->mcgcap);
 }
 
 DEFINE_PER_CPU(struct mce, injectm);
@@ -173,6 +182,9 @@ static void print_mce(struct mce *m)
 	if (m->misc)
 		printk("MISC %llx ", m->misc);
 	printk("\n");
+	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
+			m->cpuvendor, m->cpuid, m->time, m->socketid,
+			m->apicid);
 	printk(KERN_EMERG "This is not a software problem!\n");
 	printk(KERN_EMERG "Run through mcelog --ascii to decode "
 	       "and contact your hardware vendor\n");

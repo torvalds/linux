@@ -36,13 +36,19 @@ struct mce {
 	__u64 mcgstatus;
 	__u64 ip;
 	__u64 tsc;	/* cpu time stamp counter */
-	__u64 res1;	/* for future extension */
-	__u64 res2;	/* dito. */
+	__u64 time;	/* wall time_t when error was detected */
+	__u8  cpuvendor;	/* cpu vendor as encoded in system.h */
+	__u8  pad1;
+	__u16 pad2;
+	__u32 cpuid;	/* CPUID 1 EAX */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
 	__u8  cpu;	/* cpu number; obsolete; use extcpu now */
 	__u8  finished;   /* entry is valid */
 	__u32 extcpu;	/* linux cpu number that detected the error */
+	__u32 socketid;	/* CPU socket ID */
+	__u32 apicid;	/* CPU initial apic ID */
+	__u64 mcgcap;	/* MCGCAP MSR: machine check capabilities of CPU */
 };
 
 /*
