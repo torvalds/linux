@@ -40,9 +40,9 @@ struct mce {
 	__u64 res2;	/* dito. */
 	__u8  cs;		/* code segment */
 	__u8  bank;	/* machine check bank */
-	__u8  cpu;	/* cpu that raised the error */
+	__u8  cpu;	/* cpu number; obsolete; use extcpu now */
 	__u8  finished;   /* entry is valid */
-	__u32 pad;
+	__u32 extcpu;	/* linux cpu number that detected the error */
 };
 
 /*

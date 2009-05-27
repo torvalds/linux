@@ -23,14 +23,14 @@
 /* Update fake mce registers on current CPU. */
 static void inject_mce(struct mce *m)
 {
-	struct mce *i = &per_cpu(injectm, m->cpu);
+	struct mce *i = &per_cpu(injectm, m->extcpu);
 
 	/* Make sure noone reads partially written injectm */
 	i->finished = 0;
 	mb();
 	m->finished = 0;
 	/* First set the fields after finished */
-	i->cpu = m->cpu;
+	i->extcpu = m->extcpu;
 	mb();
 	/* Now write record in order, finished last (except above) */
 	memcpy(i, m, sizeof(struct mce));
@@ -49,7 +49,7 @@ static void raise_mce(unsigned long data)
 {
 	struct delayed_mce *dm = (struct delayed_mce *)data;
 	struct mce *m = &dm->m;
-	int cpu = m->cpu;
+	int cpu = m->extcpu;
 
 	inject_mce(m);
 	if (m->status & MCI_STATUS_UC) {
@@ -93,7 +93,7 @@ static ssize_t mce_write(struct file *filp, const char __user *ubuf,
 	if (copy_from_user(&m, ubuf, usize))
 		return -EFAULT;
 
-	if (m.cpu >= num_possible_cpus() || !cpu_online(m.cpu))
+	if (m.extcpu >= num_possible_cpus() || !cpu_online(m.extcpu))
 		return -EINVAL;
 
 	dm = kmalloc(sizeof(struct delayed_mce), GFP_KERNEL);
@@ -108,7 +108,7 @@ static ssize_t mce_write(struct file *filp, const char __user *ubuf,
 	memcpy(&dm->m, &m, sizeof(struct mce));
 	setup_timer(&dm->timer, raise_mce, (unsigned long)dm);
 	dm->timer.expires = jiffies + 2;
-	add_timer_on(&dm->timer, m.cpu);
+	add_timer_on(&dm->timer, m.extcpu);
 	return usize;
 }
 

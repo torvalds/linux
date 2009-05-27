@@ -94,7 +94,7 @@ static inline int skip_bank_init(int i)
 void mce_setup(struct mce *m)
 {
 	memset(m, 0, sizeof(struct mce));
-	m->cpu = smp_processor_id();
+	m->cpu = m->extcpu = smp_processor_id();
 	rdtscll(m->tsc);
 }
 
@@ -158,7 +158,7 @@ static void print_mce(struct mce *m)
 	       KERN_EMERG "HARDWARE ERROR\n"
 	       KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
-	       m->cpu, m->mcgstatus, m->bank, m->status);
+	       m->extcpu, m->mcgstatus, m->bank, m->status);
 	if (m->ip) {
 		printk(KERN_EMERG "RIP%s %02x:<%016Lx> ",
 		       !(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
