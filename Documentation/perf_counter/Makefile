@@ -297,11 +297,13 @@ LIB_H += util/util.h
 LIB_H += util/help.h
 LIB_H += util/strbuf.h
 LIB_H += util/run-command.h
+LIB_H += util/sigchain.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
 LIB_OBJS += util/config.o
 LIB_OBJS += util/ctype.o
+LIB_OBJS += util/environment.o
 LIB_OBJS += util/exec_cmd.o
 LIB_OBJS += util/help.o
 LIB_OBJS += util/levenshtein.o
@@ -314,6 +316,8 @@ LIB_OBJS += util/quote.o
 LIB_OBJS += util/strbuf.o
 LIB_OBJS += util/usage.o
 LIB_OBJS += util/wrapper.o
+LIB_OBJS += util/sigchain.o
+LIB_OBJS += util/pager.o
 
 BUILTIN_OBJS += builtin-help.o
 BUILTIN_OBJS += builtin-record.o

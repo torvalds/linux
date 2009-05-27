@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "util/list.h"
+#include "util/cache.h"
 #include "util/rbtree.h"
 
 #include "perf.h"
@@ -991,6 +992,8 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 	page_size = getpagesize();
 
 	parse_options(argc, argv, options, report_usage, 0);
+
+	setup_pager();
 
 	return __cmd_report();
 }
