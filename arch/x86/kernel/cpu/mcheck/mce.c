@@ -36,6 +36,7 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 
+#include "mce-internal.h"
 #include "mce.h"
 
 /* Handle unconfigured int18 (should never happen) */
@@ -191,7 +192,7 @@ static void print_mce(struct mce *m)
 	       "and contact your hardware vendor\n");
 }
 
-static void mce_panic(char *msg, struct mce *final)
+static void mce_panic(char *msg, struct mce *final, char *exp)
 {
 	int i;
 
@@ -214,6 +215,8 @@ static void mce_panic(char *msg, struct mce *final)
 	}
 	if (final)
 		print_mce(final);
+	if (exp)
+		printk(KERN_EMERG "Machine check: %s\n", exp);
 	panic(msg);
 }
 
@@ -358,6 +361,22 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 EXPORT_SYMBOL_GPL(machine_check_poll);
 
 /*
+ * Do a quick check if any of the events requires a panic.
+ * This decides if we keep the events around or clear them.
+ */
+static int mce_no_way_out(struct mce *m, char **msg)
+{
+	int i;
+
+	for (i = 0; i < banks; i++) {
+		m->status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
+		if (mce_severity(m, tolerant, msg) >= MCE_PANIC_SEVERITY)
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
  *
@@ -381,6 +400,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 */
 	int kill_it = 0;
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+	char *msg = "Unknown";
 
 	atomic_inc(&mce_entry);
 
@@ -395,10 +415,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
-
-	/* if the restart IP is not valid, we're done for */
-	if (!(m.mcgstatus & MCG_STATUS_RIPV))
-		no_way_out = 1;
+	no_way_out = mce_no_way_out(&m, &msg);
 
 	barrier();
 
@@ -430,18 +447,13 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		__set_bit(i, toclear);
 
 		if (m.status & MCI_STATUS_EN) {
-			/* if PCC was set, there's no way out */
-			no_way_out |= !!(m.status & MCI_STATUS_PCC);
 			/*
 			 * If this error was uncorrectable and there was
 			 * an overflow, we're in trouble.  If no overflow,
 			 * we might get away with just killing a task.
 			 */
-			if (m.status & MCI_STATUS_UC) {
-				if (tolerant < 1 || m.status & MCI_STATUS_OVER)
-					no_way_out = 1;
+			if (m.status & MCI_STATUS_UC)
 				kill_it = 1;
-			}
 		} else {
 			/*
 			 * Machine check event was not enabled. Clear, but
@@ -483,7 +495,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * has not set tolerant to an insane level, give up and die.
 	 */
 	if (no_way_out && tolerant < 3)
-		mce_panic("Machine check", &panicm);
+		mce_panic("Machine check", &panicm, msg);
 
 	/*
 	 * If the error seems to be unrecoverable, something should be
@@ -511,7 +523,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		if (user_space) {
 			force_sig(SIGBUS, current);
 		} else if (panic_on_oops || tolerant < 2) {
-			mce_panic("Uncorrected machine check", &panicm);
+			mce_panic("Uncorrected machine check", &panicm, msg);
 		}
 	}
 
