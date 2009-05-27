@@ -384,7 +384,6 @@ struct b44 {
 
 	struct timer_list	timer;
 
-	struct net_device_stats	stats;
 	struct b44_hw_stats	hw_stats;
 
 	struct ssb_device	*sdev;

@@ -1385,7 +1385,7 @@ static void velocity_free_td_ring(struct velocity_info *vptr)
 
 static int velocity_rx_srv(struct velocity_info *vptr, int status)
 {
-	struct net_device_stats *stats = &vptr->stats;
+	struct net_device_stats *stats = &vptr->dev->stats;
 	int rd_curr = vptr->rx.curr;
 	int works = 0;
 
@@ -1519,7 +1519,7 @@ static inline void velocity_iph_realign(struct velocity_info *vptr,
 static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 {
 	void (*pci_action)(struct pci_dev *, dma_addr_t, size_t, int);
-	struct net_device_stats *stats = &vptr->stats;
+	struct net_device_stats *stats = &vptr->dev->stats;
 	struct velocity_rd_info *rd_info = &(vptr->rx.info[idx]);
 	struct rx_desc *rd = &(vptr->rx.ring[idx]);
 	int pkt_len = le16_to_cpu(rd->rdesc0.len) & 0x3fff;
@@ -1532,7 +1532,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	}
 
 	if (rd->rdesc0.RSR & RSR_MAR)
-		vptr->stats.multicast++;
+		stats->multicast++;
 
 	skb = rd_info->skb;
 
@@ -1634,7 +1634,7 @@ static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
 	int idx;
 	int works = 0;
 	struct velocity_td_info *tdinfo;
-	struct net_device_stats *stats = &vptr->stats;
+	struct net_device_stats *stats = &vptr->dev->stats;
 
 	for (qnum = 0; qnum < vptr->tx.numq; qnum++) {
 		for (idx = vptr->tx.tail[qnum]; vptr->tx.used[qnum] > 0;
@@ -2324,22 +2324,22 @@ static struct net_device_stats *velocity_get_stats(struct net_device *dev)
 
 	/* If the hardware is down, don't touch MII */
 	if(!netif_running(dev))
-		return &vptr->stats;
+		return &dev->stats;
 
 	spin_lock_irq(&vptr->lock);
 	velocity_update_hw_mibs(vptr);
 	spin_unlock_irq(&vptr->lock);
 
-	vptr->stats.rx_packets = vptr->mib_counter[HW_MIB_ifRxAllPkts];
-	vptr->stats.rx_errors = vptr->mib_counter[HW_MIB_ifRxErrorPkts];
-	vptr->stats.rx_length_errors = vptr->mib_counter[HW_MIB_ifInRangeLengthErrors];
+	dev->stats.rx_packets = vptr->mib_counter[HW_MIB_ifRxAllPkts];
+	dev->stats.rx_errors = vptr->mib_counter[HW_MIB_ifRxErrorPkts];
+	dev->stats.rx_length_errors = vptr->mib_counter[HW_MIB_ifInRangeLengthErrors];
 
 //  unsigned long   rx_dropped;     /* no space in linux buffers    */
-	vptr->stats.collisions = vptr->mib_counter[HW_MIB_ifTxEtherCollisions];
+	dev->stats.collisions = vptr->mib_counter[HW_MIB_ifTxEtherCollisions];
 	/* detailed rx_errors: */
 //  unsigned long   rx_length_errors;
 //  unsigned long   rx_over_errors;     /* receiver ring buff overflow  */
-	vptr->stats.rx_crc_errors = vptr->mib_counter[HW_MIB_ifRxPktCRCE];
+	dev->stats.rx_crc_errors = vptr->mib_counter[HW_MIB_ifRxPktCRCE];
 //  unsigned long   rx_frame_errors;    /* recv'd frame alignment error */
 //  unsigned long   rx_fifo_errors;     /* recv'r fifo overrun      */
 //  unsigned long   rx_missed_errors;   /* receiver missed packet   */
@@ -2347,7 +2347,7 @@ static struct net_device_stats *velocity_get_stats(struct net_device *dev)
 	/* detailed tx_errors */
 //  unsigned long   tx_fifo_errors;
 
-	return &vptr->stats;
+	return &dev->stats;
 }
 
 
