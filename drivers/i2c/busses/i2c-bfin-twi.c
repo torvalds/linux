@@ -449,6 +449,16 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		}
 		iface->transPtr = data->block;
 		break;
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		if (read_write == I2C_SMBUS_READ) {
+			iface->readNum = data->block[0];
+			iface->cur_mode = TWI_I2C_MODE_COMBINED;
+		} else {
+			iface->writeNum = data->block[0];
+			iface->cur_mode = TWI_I2C_MODE_STANDARDSUB;
+		}
+		iface->transPtr = (u8 *)&data->block[1];
+		break;
 	default:
 		return -1;
 	}
@@ -572,7 +582,7 @@ static u32 bfin_twi_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	       I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_PROC_CALL |
-	       I2C_FUNC_I2C;
+	       I2C_FUNC_I2C | I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
 static struct i2c_algorithm bfin_twi_algorithm = {
