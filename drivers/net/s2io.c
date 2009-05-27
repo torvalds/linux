@@ -4299,7 +4299,6 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		s2io_stop_tx_queue(sp, fifo->fifo_no);
 	}
 	mac_control->stats_info->sw_stat.mem_allocated += skb->truesize;
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 
 	if (sp->config.intr_type == MSI_X)

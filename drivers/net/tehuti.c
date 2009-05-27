@@ -1718,8 +1718,9 @@ static int bdx_tx_transmit(struct sk_buff *skb, struct net_device *ndev)
 	WRITE_REG(priv, f->m.reg_WPTR, f->m.wptr & TXF_WPTR_WR_PTR);
 
 #endif
-	ndev->trans_start = jiffies;
-
+#ifdef BDX_LLTX
+	ndev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+#endif
 	priv->net_stats.tx_packets++;
 	priv->net_stats.tx_bytes += skb->len;
 

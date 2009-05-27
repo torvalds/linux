@@ -478,8 +478,6 @@ static int be_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	be_txq_notify(&adapter->ctrl, txq->id, wrb_cnt);
 
-	netdev->trans_start = jiffies;
-
 	be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
 	return NETDEV_TX_OK;
 }

@@ -438,6 +438,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 			kfree_skb(skb);
 			return -EPIPE;
 		}
+		efx->net_dev->trans_start = jiffies;
 	}
 
 	return 0;

@@ -2108,7 +2108,6 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	wmb();
 
 	ql_write_db_reg(tx_ring->prod_idx, tx_ring->prod_idx_db_reg);
-	ndev->trans_start = jiffies;
 	QPRINTK(qdev, TX_QUEUED, DEBUG, "tx queued, slot %d, len %d\n",
 		tx_ring->prod_idx, skb->len);
 

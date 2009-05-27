@@ -1488,7 +1488,6 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (count) {
 		ixgb_tx_queue(adapter, count, vlan_id, tx_flags);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		ixgb_maybe_stop_tx(netdev, &adapter->tx_ring, DESC_NEEDED);
 

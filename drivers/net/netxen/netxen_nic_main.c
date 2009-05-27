@@ -1496,7 +1496,6 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	netxen_nic_update_cmd_producer(adapter, tx_ring, producer);
 
 	adapter->stats.xmitcalled++;
-	netdev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 

@@ -1286,7 +1286,6 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (vlan_tx_tag_present(skb) && pi->vlan_grp)
 		qs->port_stats[SGE_PSTAT_VLANINS]++;
 
-	dev->trans_start = jiffies;
 	spin_unlock(&q->lock);
 
 	/*

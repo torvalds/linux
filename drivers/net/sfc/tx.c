@@ -360,13 +360,6 @@ inline int efx_xmit(struct efx_nic *efx,
 
 	/* Map fragments for DMA and add to TX queue */
 	rc = efx_enqueue_skb(tx_queue, skb);
-	if (unlikely(rc != NETDEV_TX_OK))
-		goto out;
-
-	/* Update last TX timer */
-	efx->net_dev->trans_start = jiffies;
-
- out:
 	return rc;
 }
 

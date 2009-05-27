@@ -4863,7 +4863,6 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (count) {
 		ixgbe_tx_queue(adapter, tx_ring, tx_flags, count, skb->len,
 		               hdr_len);
-		netdev->trans_start = jiffies;
 		ixgbe_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
 
 	} else {

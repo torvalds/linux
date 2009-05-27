@@ -819,7 +819,6 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Ring doorbell! */
 	wmb();
 	writel(ring->doorbell_qpn, mdev->uar_map + MLX4_SEND_DOORBELL);
-	dev->trans_start = jiffies;
 
 	/* Poll CQ here */
 	mlx4_en_xmit_poll(priv, tx_ind);
