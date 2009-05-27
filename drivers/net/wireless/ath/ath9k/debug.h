@@ -80,11 +80,7 @@ struct ath_interrupt_stats {
 	u32 dtim;
 };
 
-struct ath_legacy_rc_stats {
-	u32 success;
-};
-
-struct ath_11n_rc_stats {
+struct ath_rc_stats {
 	u32 success;
 	u32 retries;
 	u32 xretries;
@@ -93,8 +89,7 @@ struct ath_11n_rc_stats {
 
 struct ath_stats {
 	struct ath_interrupt_stats istats;
-	struct ath_legacy_rc_stats legacy_rcstats[12];	/* max(11a,11b,11g) */
-	struct ath_11n_rc_stats n_rcstats[16];		/* 0..15 MCS rates */
+	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
 struct ath9k_debug {
