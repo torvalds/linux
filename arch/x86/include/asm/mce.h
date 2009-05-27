@@ -125,6 +125,7 @@ static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 int mce_available(struct cpuinfo_x86 *c);
 
 DECLARE_PER_CPU(unsigned, mce_exception_count);
+DECLARE_PER_CPU(unsigned, mce_poll_count);
 
 void mce_log_therm_throt_event(__u64 status);
 

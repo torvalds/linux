@@ -264,6 +264,8 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 	}
 }
 
+DEFINE_PER_CPU(unsigned, mce_poll_count);
+
 /*
  * Poll for corrected events or events that happened before reset.
  * Those are just logged through /dev/mcelog.
@@ -274,6 +276,8 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	struct mce m;
 	int i;
+
+	__get_cpu_var(mce_poll_count)++;
 
 	mce_setup(&m);
 

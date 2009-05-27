@@ -100,6 +100,10 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(mce_exception_count, j));
 	seq_printf(p, "  Machine check exceptions\n");
+	seq_printf(p, "%*s: ", prec, "MCP");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
+	seq_printf(p, "  Machine check polls\n");
 #endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
