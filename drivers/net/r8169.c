@@ -94,6 +94,7 @@ static const int multicast_filter_limit = 32;
 #define RTL_R32(reg)		((unsigned long) readl (ioaddr + (reg)))
 
 enum mac_version {
+	RTL_GIGA_MAC_NONE   = 0x00,
 	RTL_GIGA_MAC_VER_01 = 0x01, // 8169
 	RTL_GIGA_MAC_VER_02 = 0x02, // 8169S
 	RTL_GIGA_MAC_VER_03 = 0x03, // 8110S
@@ -1300,7 +1301,8 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 		{ 0xfc800000, 0x00800000,	RTL_GIGA_MAC_VER_02 },
 		{ 0xfc800000, 0x00000000,	RTL_GIGA_MAC_VER_01 },
 
-		{ 0x00000000, 0x00000000,	RTL_GIGA_MAC_VER_01 }	/* Catch-all */
+		/* Catch-all */
+		{ 0x00000000, 0x00000000,	RTL_GIGA_MAC_NONE   }
 	}, *p = mac_info;
 	u32 reg;
 
@@ -1308,12 +1310,6 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	while ((reg & p->mask) != p->val)
 		p++;
 	tp->mac_version = p->mac_version;
-
-	if (p->mask == 0x00000000) {
-		struct pci_dev *pdev = tp->pci_dev;
-
-		dev_info(&pdev->dev, "unknown MAC (%08x)\n", reg);
-	}
 }
 
 static void rtl8169_print_mac_version(struct rtl8169_private *tp)
@@ -1889,6 +1885,7 @@ static const struct rtl_cfg_info {
 	u16 intr_event;
 	u16 napi_event;
 	unsigned features;
+	u8 default_ver;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
@@ -1897,7 +1894,8 @@ static const struct rtl_cfg_info {
 		.intr_event	= SYSErr | LinkChg | RxOverflow |
 				  RxFIFOOver | TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= RxFIFOOver | TxErr | TxOK | RxOK | RxOverflow,
-		.features	= RTL_FEATURE_GMII
+		.features	= RTL_FEATURE_GMII,
+		.default_ver	= RTL_GIGA_MAC_VER_01,
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
@@ -1906,7 +1904,8 @@ static const struct rtl_cfg_info {
 		.intr_event	= SYSErr | LinkChg | RxOverflow |
 				  TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= TxErr | TxOK | RxOK | RxOverflow,
-		.features	= RTL_FEATURE_GMII | RTL_FEATURE_MSI
+		.features	= RTL_FEATURE_GMII | RTL_FEATURE_MSI,
+		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
@@ -1915,7 +1914,8 @@ static const struct rtl_cfg_info {
 		.intr_event	= SYSErr | LinkChg | RxOverflow | PCSTimeout |
 				  RxFIFOOver | TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= RxFIFOOver | TxErr | TxOK | RxOK | RxOverflow,
-		.features	= RTL_FEATURE_MSI
+		.features	= RTL_FEATURE_MSI,
+		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
 };
 
@@ -2096,6 +2096,15 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, ioaddr);
 
+	/* Use appropriate default if unknown */
+	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
+		if (netif_msg_probe(tp)) {
+			dev_notice(&pdev->dev,
+				   "unknown MAC, using family default\n");
+		}
+		tp->mac_version = cfg->default_ver;
+	}
+
 	rtl8169_print_mac_version(tp);
 
 	for (i = 0; i < ARRAY_SIZE(rtl_chip_info); i++) {
@@ -2103,13 +2112,9 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			break;
 	}
 	if (i == ARRAY_SIZE(rtl_chip_info)) {
-		/* Unknown chip: assume array element #0, original RTL-8169 */
-		if (netif_msg_probe(tp)) {
-			dev_printk(KERN_DEBUG, &pdev->dev,
-				"unknown chip version, assuming %s\n",
-				rtl_chip_info[0].name);
-		}
-		i = 0;
+		dev_err(&pdev->dev,
+			"driver bug, MAC version not found in rtl_chip_info\n");
+		goto err_out_msi_5;
 	}
 	tp->chipset = i;
 
