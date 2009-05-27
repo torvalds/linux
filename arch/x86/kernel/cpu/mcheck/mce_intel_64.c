@@ -80,7 +80,7 @@ static int cmci_supported(int *banks)
 static void intel_threshold_interrupt(void)
 {
 	machine_check_poll(MCP_TIMESTAMP, &__get_cpu_var(mce_banks_owned));
-	mce_notify_user();
+	mce_notify_irq();
 }
 
 static void print_update(char *type, int *hdr, int num)

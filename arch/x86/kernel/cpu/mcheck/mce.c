@@ -348,7 +348,7 @@ asmlinkage void smp_mce_self_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	exit_idle();
 	irq_enter();
-	mce_notify_user();
+	mce_notify_irq();
 	irq_exit();
 }
 #endif
@@ -356,7 +356,7 @@ asmlinkage void smp_mce_self_interrupt(struct pt_regs *regs)
 static void mce_report_event(struct pt_regs *regs)
 {
 	if (regs->flags & (X86_VM_MASK|X86_EFLAGS_IF)) {
-		mce_notify_user();
+		mce_notify_irq();
 		return;
 	}
 
@@ -968,7 +968,7 @@ static void mcheck_timer(unsigned long data)
 	 * polling interval, otherwise increase the polling interval.
 	 */
 	n = &__get_cpu_var(next_interval);
-	if (mce_notify_user())
+	if (mce_notify_irq())
 		*n = max(*n/2, HZ/100);
 	else
 		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
@@ -989,7 +989,7 @@ static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
  * Can be called from interrupt context, but not from machine check/NMI
  * context.
  */
-int mce_notify_user(void)
+int mce_notify_irq(void)
 {
 	/* Not more than two messages every minute */
 	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
@@ -1014,7 +1014,7 @@ int mce_notify_user(void)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mce_notify_user);
+EXPORT_SYMBOL_GPL(mce_notify_irq);
 
 /*
  * Initialize Machine Checks for a CPU.

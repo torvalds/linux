@@ -65,7 +65,7 @@ static void raise_mce(unsigned long data)
 		memset(&b, 0xff, sizeof(mce_banks_t));
 		printk(KERN_INFO "Starting machine check poll CPU %d\n", cpu);
 		machine_check_poll(0, &b);
-		mce_notify_user();
+		mce_notify_irq();
 		printk(KERN_INFO "Finished machine check poll on CPU %d\n",
 		       cpu);
 	}
