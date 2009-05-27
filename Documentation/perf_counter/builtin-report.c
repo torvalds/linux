@@ -1,4 +1,5 @@
 #include "util/util.h"
+#include "builtin.h"
 
 #include <libelf.h>
 #include <gelf.h>
@@ -22,7 +23,7 @@ static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		dump_trace = 0;
-static int 		verbose;
+static int		verbose;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -60,10 +61,10 @@ typedef union event_union {
 } event_t;
 
 struct symbol {
-	struct rb_node rb_node;
-	uint64_t       start;
-	uint64_t       end;
-	char	       name[0];
+	struct rb_node		rb_node;
+	__u64			start;
+	__u64			end;
+	char			name[0];
 };
 
 static struct symbol *symbol__new(uint64_t start, uint64_t len, const char *name)
@@ -86,7 +87,7 @@ static void symbol__delete(struct symbol *self)
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 {
-	return fprintf(fp, " %lx-%lx %s\n",
+	return fprintf(fp, " %llx-%llx %s\n",
 		       self->start, self->end, self->name);
 }
 
@@ -147,10 +148,12 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 
 static struct symbol *dso__find_symbol(struct dso *self, uint64_t ip)
 {
+	struct rb_node *n;
+
 	if (self == NULL)
 		return NULL;
 
-	struct rb_node *n = self->syms.rb_node;
+	n = self->syms.rb_node;
 
 	while (n) {
 		struct symbol *s = rb_entry(n, struct symbol, rb_node);
@@ -221,33 +224,42 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 
 static int dso__load(struct dso *self)
 {
-	int fd = open(self->name, O_RDONLY), err = -1;
+	Elf_Data *symstrs;
+	uint32_t nr_syms;
+	int fd, err = -1;
+	uint32_t index;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Data *syms;
+	GElf_Sym sym;
+	Elf_Scn *sec;
+	Elf *elf;
 
+
+	fd = open(self->name, O_RDONLY);
 	if (fd == -1)
 		return -1;
 
-	Elf *elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
 		fprintf(stderr, "%s: cannot read %s ELF file.\n",
 			__func__, self->name);
 		goto out_close;
 	}
 
-	GElf_Ehdr ehdr;
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
 		fprintf(stderr, "%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
-	GElf_Shdr shdr;
-	Elf_Scn *sec = elf_section_by_name(elf, &ehdr, &shdr, ".symtab", NULL);
+	sec = elf_section_by_name(elf, &ehdr, &shdr, ".symtab", NULL);
 	if (sec == NULL)
 		sec = elf_section_by_name(elf, &ehdr, &shdr, ".dynsym", NULL);
 
 	if (sec == NULL)
 		goto out_elf_end;
 
-	Elf_Data *syms = elf_getdata(sec, NULL);
+	syms = elf_getdata(sec, NULL);
 	if (syms == NULL)
 		goto out_elf_end;
 
@@ -255,14 +267,12 @@ static int dso__load(struct dso *self)
 	if (sec == NULL)
 		goto out_elf_end;
 
-	Elf_Data *symstrs = elf_getdata(sec, NULL);
+	symstrs = elf_getdata(sec, NULL);
 	if (symstrs == NULL)
 		goto out_elf_end;
 
-	const uint32_t nr_syms = shdr.sh_size / shdr.sh_entsize;
+	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
-	GElf_Sym sym;
-	uint32_t index;
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
 
@@ -342,7 +352,7 @@ out_delete_dso:
 	return NULL;
 }
 
-void dsos__fprintf(FILE *fp)
+static void dsos__fprintf(FILE *fp)
 {
 	struct dso *pos;
 
@@ -365,7 +375,7 @@ static int hex(char ch)
  * While we find nice hex chars, build a long_val.
  * Return number of chars processed.
  */
-int hex2long(char *ptr, unsigned long *long_val)
+static int hex2long(char *ptr, unsigned long *long_val)
 {
 	const char *p = ptr;
 	*long_val = 0;
@@ -493,12 +503,6 @@ out_delete:
 	return NULL;
 }
 
-static size_t map__fprintf(struct map *self, FILE *fp)
-{
-	return fprintf(fp, " %lx-%lx %lx %s\n",
-		       self->start, self->end, self->pgoff, self->dso->name);
-}
-
 struct thread;
 
 static const char *thread__name(struct thread *self, char *bf, size_t size);
@@ -529,11 +533,6 @@ static struct symhist *symhist__new(struct symbol *sym, uint64_t ip,
 	}
 
 	return self;
-}
-
-void symhist__delete(struct symhist *self)
-{
-	free(self);
 }
 
 static void symhist__inc(struct symhist *self)
@@ -608,6 +607,8 @@ static int thread__symbol_incnew(struct thread *self, struct symbol *sym,
 	struct symhist *sh;
 
 	while (*p != NULL) {
+		uint64_t start;
+
 		parent = *p;
 		sh = rb_entry(parent, struct symhist, rb_node);
 
@@ -617,7 +618,7 @@ static int thread__symbol_incnew(struct thread *self, struct symbol *sym,
 		}
 
 		/* Handle unresolved symbols too */
-		const uint64_t start = !sh->sym ? sh->ip : sh->sym->start;
+		start = !sh->sym ? sh->ip : sh->sym->start;
 
 		if (ip < start)
 			p = &(*p)->rb_left;
@@ -639,17 +640,6 @@ static int thread__set_comm(struct thread *self, const char *comm)
 	return self->comm ? 0 : -ENOMEM;
 }
 
-size_t thread__maps_fprintf(struct thread *self, FILE *fp)
-{
-	struct map *pos;
-	size_t ret = 0;
-
-	list_for_each_entry(pos, &self->maps, node)
-		ret += map__fprintf(pos, fp);
-
-	return ret;
-}
-
 static size_t thread__fprintf(struct thread *self, FILE *fp)
 {
 	int ret = fprintf(fp, "thread: %d %s\n", self->pid, self->comm);
@@ -657,13 +647,14 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 
 	for (nd = rb_first(&self->symhists); nd; nd = rb_next(nd)) {
 		struct symhist *pos = rb_entry(nd, struct symhist, rb_node);
+
 		ret += symhist__fprintf(pos, 0, fp);
 	}
 
 	return ret;
 }
 
-static struct rb_root threads = RB_ROOT;
+static struct rb_root threads;
 
 static struct thread *threads__findnew(pid_t pid)
 {
@@ -699,10 +690,10 @@ static void thread__insert_map(struct thread *self, struct map *map)
 
 static struct map *thread__find_map(struct thread *self, uint64_t ip)
 {
+	struct map *pos;
+
 	if (self == NULL)
 		return NULL;
-
-	struct map *pos;
 
 	list_for_each_entry(pos, &self->maps, node)
 		if (ip >= pos->start && ip <= pos->end)
@@ -711,7 +702,7 @@ static struct map *thread__find_map(struct thread *self, uint64_t ip)
 	return NULL;
 }
 
-void threads__fprintf(FILE *fp)
+static void threads__fprintf(FILE *fp)
 {
 	struct rb_node *nd;
 	for (nd = rb_first(&threads); nd; nd = rb_next(nd)) {
@@ -720,7 +711,7 @@ void threads__fprintf(FILE *fp)
 	}
 }
 
-static struct rb_root global_symhists = RB_ROOT;
+static struct rb_root global_symhists;
 
 static void threads__insert_symhist(struct symhist *sh)
 {
@@ -852,7 +843,7 @@ more:
 				(void *)(long)(event->header.size),
 				event->header.misc,
 				event->ip.pid,
-				(void *)event->ip.ip);
+				(void *)(long)ip);
 		}
 
 		if (thread == NULL) {
@@ -866,9 +857,12 @@ more:
 			level = 'k';
 			dso = kernel_dso;
 		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+			struct map *map;
+
 			show = SHOW_USER;
 			level = '.';
-			struct map *map = thread__find_map(thread, ip);
+
+			map = thread__find_map(thread, ip);
 			if (map != NULL) {
 				dso = map->dso;
 				ip -= map->start + map->pgoff;
@@ -896,9 +890,9 @@ more:
 			fprintf(stderr, "%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
 				(void *)(offset + head),
 				(void *)(long)(event->header.size),
-				(void *)event->mmap.start,
-				(void *)event->mmap.len,
-				(void *)event->mmap.pgoff,
+				(void *)(long)event->mmap.start,
+				(void *)(long)event->mmap.len,
+				(void *)(long)event->mmap.pgoff,
 				event->mmap.filename);
 		}
 		if (thread == NULL || map == NULL) {
@@ -962,6 +956,11 @@ done:
 		fprintf(stderr, " unknown events: %10ld\n", total_unknown);
 
 		return 0;
+	}
+
+	if (verbose >= 2) {
+		dsos__fprintf(stdout);
+		threads__fprintf(stdout);
 	}
 
 	threads__sort_symhists();

@@ -309,6 +309,8 @@ extern ssize_t xread(int fd, void *buf, size_t len);
 extern ssize_t xwrite(int fd, const void *buf, size_t len);
 extern int xdup(int fd);
 extern FILE *xfdopen(int fd, const char *mode);
+extern int xmkstemp(char *template);
+
 static inline size_t xsize_t(off_t len)
 {
 	return (size_t)len;

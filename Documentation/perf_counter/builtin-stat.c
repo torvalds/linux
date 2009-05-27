@@ -30,6 +30,7 @@
  */
 
 #include "perf.h"
+#include "builtin.h"
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -108,7 +109,7 @@ static void create_perfstat_counter(int counter)
 	}
 }
 
-int do_perfstat(int argc, const char **argv)
+static int do_perfstat(int argc, const char **argv)
 {
 	unsigned long long t0, t1;
 	int counter;

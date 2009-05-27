@@ -1,6 +1,7 @@
 
 
 #include "perf.h"
+#include "builtin.h"
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -144,26 +145,32 @@ static int nr_poll;
 static int nr_cpu;
 
 struct mmap_event {
-	struct perf_event_header header;
-	__u32 pid, tid;
-	__u64 start;
-	__u64 len;
-	__u64 pgoff;
-	char filename[PATH_MAX];
+	struct perf_event_header	header;
+	__u32				pid;
+	__u32				tid;
+	__u64				start;
+	__u64				len;
+	__u64				pgoff;
+	char				filename[PATH_MAX];
 };
+
 struct comm_event {
-	struct perf_event_header header;
-	__u32 pid,tid;
-	char comm[16];
+	struct perf_event_header	header;
+	__u32				pid;
+	__u32				tid;
+	char				comm[16];
 };
 
 static pid_t pid_synthesize_comm_event(pid_t pid)
 {
-	char filename[PATH_MAX];
-	char bf[BUFSIZ];
 	struct comm_event comm_ev;
+	char filename[PATH_MAX];
+	pid_t spid, ppid;
+	char bf[BUFSIZ];
+	int fd, nr, ret;
+	char comm[18];
 	size_t size;
-	int fd;
+	char state;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/stat", pid);
 
@@ -178,12 +185,8 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 	}
 	close(fd);
 
-	pid_t spid, ppid;
-	char state;
-	char comm[18];
-
 	memset(&comm_ev, 0, sizeof(comm_ev));
-        int nr = sscanf(bf, "%d %s %c %d %d ",
+        nr = sscanf(bf, "%d %s %c %d %d ",
 			&spid, comm, &state, &ppid, &comm_ev.pid);
 	if (nr != 5) {
 		fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
@@ -198,7 +201,8 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 	memcpy(comm_ev.comm, comm + 1, size);
 	size = ALIGN(size, sizeof(uint64_t));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
-	int ret = write(output, &comm_ev, comm_ev.header.size);
+
+	ret = write(output, &comm_ev, comm_ev.header.size);
 	if (ret < 0) {
 		perror("failed to write");
 		exit(-1);

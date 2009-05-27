@@ -104,6 +104,8 @@ char *strip_path_suffix(const char *path, const char *suffix);
 
 extern char *mkpath(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
 extern char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2)));
+/* perf_mkstemp() - create tmp file honoring TMPDIR variable */
+extern int perf_mkstemp(char *path, size_t len, const char *template);
 
 extern char *mksnpath(char *buf, size_t n, const char *fmt, ...)
 	__attribute__((format (printf, 3, 4)));

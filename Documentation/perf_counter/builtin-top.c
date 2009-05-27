@@ -42,8 +42,8 @@
   * Released under the GPL v2. (and only v2, not any later version)
   */
 
-
 #include "perf.h"
+#include "builtin.h"
 #include "util/util.h"
 #include "util/util.h"
 #include "util/parse-options.h"

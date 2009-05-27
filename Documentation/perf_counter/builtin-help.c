@@ -399,7 +399,7 @@ static void get_html_page_path(struct strbuf *page_path, const char *page)
  * HTML.
  */
 #ifndef open_html
-void open_html(const char *path)
+static void open_html(const char *path)
 {
 	execl_perf_cmd("web--browse", "-c", "help.browser", path, NULL);
 }
