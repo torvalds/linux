@@ -19,6 +19,7 @@
 #define SHOW_HV		4
 
 static char		const *input_name = "perf.data";
+static char		*vmlinux = NULL;
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
@@ -532,6 +533,39 @@ out_delete_dso:
 	return -1;
 }
 
+static int load_kernel(void)
+{
+	int fd, nr;
+
+	if (!vmlinux)
+		goto kallsyms;
+
+	fd = open(vmlinux, O_RDONLY);
+	if (fd < 0)
+		goto kallsyms;
+
+	kernel_dso = dso__new("[kernel]");
+	if (!kernel_dso)
+		goto fail_open;
+
+	nr = dso__load_sym(kernel_dso, fd, vmlinux);
+
+	if (nr <= 0)
+		goto fail_load;
+
+	dsos__add(kernel_dso);
+	close(fd);
+
+	return 0;
+
+fail_load:
+	dso__delete(kernel_dso);
+fail_open:
+	close(fd);
+kallsyms:
+	return load_kallsyms();
+}
+
 struct map {
 	struct list_head node;
 	uint64_t	 start;
@@ -850,7 +884,7 @@ static int __cmd_report(void)
 		exit(0);
 	}
 
-	if (load_kallsyms() < 0) {
+	if (load_kernel() < 0) {
 		perror("failed to open kallsyms");
 		return EXIT_FAILURE;
 	}
@@ -1039,6 +1073,7 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_END()
 };
 
