@@ -2128,8 +2128,10 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 		return;
 	}
 
-	pitch_val = (obj_priv->stride / 128) - 1;
-	WARN_ON(pitch_val & ~0x0000000f);
+	pitch_val = obj_priv->stride / 128;
+	pitch_val = ffs(pitch_val) - 1;
+	WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
+
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
 		val |= 1 << I830_FENCE_TILING_Y_SHIFT;
