@@ -698,6 +698,7 @@ static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw,
 static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
+	s32 phy_status = 0;
 	u32 ctrl;
 	u32 gheccr;
 	u32 i;
@@ -745,13 +746,17 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 		/* PHY ops must be identified and initialized prior to reset */
 
 		/* Init PHY and function pointers, perform SFP setup */
-		status = hw->phy.ops.init(hw);
-		if (status == IXGBE_ERR_SFP_NOT_SUPPORTED)
+		phy_status = hw->phy.ops.init(hw);
+		if (phy_status == IXGBE_ERR_SFP_NOT_SUPPORTED)
 			goto reset_hw_out;
+		else if (phy_status == IXGBE_ERR_SFP_NOT_PRESENT)
+			goto no_phy_reset;
+
 
 		hw->phy.ops.reset(hw);
 	}
 
+no_phy_reset:
 	/*
 	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
 	 * access and verify no pending requests before reset
@@ -811,6 +816,9 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
 
 reset_hw_out:
+	if (phy_status)
+		status = phy_status;
+
 	return status;
 }
 

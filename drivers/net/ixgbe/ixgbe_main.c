@@ -2599,7 +2599,10 @@ int ixgbe_up(struct ixgbe_adapter *adapter)
 void ixgbe_reset(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	if (hw->mac.ops.init_hw(hw))
+	int err;
+
+	err = hw->mac.ops.init_hw(hw);
+	if (err && (err != IXGBE_ERR_SFP_NOT_PRESENT))
 		dev_err(&adapter->pdev->dev, "Hardware Error\n");
 
 	/* reprogram the RAR[0] in case user changed it. */
@@ -5167,20 +5170,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->sfp_config_module_task,
 	          ixgbe_sfp_config_module_task);
 
-	err = ii->get_invariants(hw);
-	if (err == IXGBE_ERR_SFP_NOT_PRESENT) {
-		/* start a kernel thread to watch for a module to arrive */
-		set_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
-		mod_timer(&adapter->sfp_timer,
-		          round_jiffies(jiffies + (2 * HZ)));
-		err = 0;
-	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		DPRINTK(PROBE, ERR, "failed to load because an "
-		        "unsupported SFP+ module type was detected.\n");
-		goto err_hw_init;
-	} else if (err) {
-		goto err_hw_init;
-	}
+	ii->get_invariants(hw);
 
 	/* setup the private structure */
 	err = ixgbe_sw_init(adapter);
@@ -5200,7 +5190,18 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* reset_hw fills in the perm_addr as well */
 	err = hw->mac.ops.reset_hw(hw);
-	if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
+	if (err == IXGBE_ERR_SFP_NOT_PRESENT &&
+	    hw->mac.type == ixgbe_mac_82598EB) {
+		/*
+		 * Start a kernel thread to watch for a module to arrive.
+		 * Only do this for 82598, since 82599 will generate
+		 * interrupts on module arrival.
+		 */
+		set_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
+		mod_timer(&adapter->sfp_timer,
+			  round_jiffies(jiffies + (2 * HZ)));
+		err = 0;
+	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
 		dev_err(&adapter->pdev->dev, "failed to load because an "
 		        "unsupported SFP+ module type was detected.\n");
 		goto err_sw_init;

@@ -530,11 +530,22 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 cable_tech = 0;
 	u16 enforce_sfp = 0;
 
+	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_fiber) {
+		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		status = IXGBE_ERR_SFP_NOT_PRESENT;
+		goto out;
+	}
+
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_IDENTIFIER,
 	                                     &identifier);
 
-	if (status == IXGBE_ERR_SFP_NOT_PRESENT) {
+	if (status == IXGBE_ERR_SFP_NOT_PRESENT || status == IXGBE_ERR_I2C) {
+		status = IXGBE_ERR_SFP_NOT_PRESENT;
 		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		if (hw->phy.type != ixgbe_phy_nl) {
+			hw->phy.id = 0;
+			hw->phy.type = ixgbe_phy_unknown;
+		}
 		goto out;
 	}
 
