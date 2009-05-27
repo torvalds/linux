@@ -59,7 +59,7 @@ struct mce_log {
 	unsigned len;	    /* = MCE_LOG_LEN */
 	unsigned next;
 	unsigned flags;
-	unsigned pad0;
+	unsigned recordlen;	/* length of struct mce */
 	struct mce entry[MCE_LOG_LEN];
 };
 

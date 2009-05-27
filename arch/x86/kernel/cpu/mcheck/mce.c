@@ -108,8 +108,9 @@ EXPORT_PER_CPU_SYMBOL_GPL(injectm);
  */
 
 static struct mce_log mcelog = {
-	MCE_LOG_SIGNATURE,
-	MCE_LOG_LEN,
+	.signature	= MCE_LOG_SIGNATURE,
+	.len		= MCE_LOG_LEN,
+	.recordlen	= sizeof(struct mce),
 };
 
 void mce_log(struct mce *mce)
