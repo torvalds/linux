@@ -499,7 +499,6 @@ int netdev_register_kobject(struct net_device *net)
 	dev->platform_data = net;
 	dev->groups = groups;
 
-	BUILD_BUG_ON(BUS_ID_SIZE < IFNAMSIZ);
 	dev_set_name(dev, "%s", net->name);
 
 #ifdef CONFIG_SYSFS
