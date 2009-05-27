@@ -855,13 +855,32 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(debug_dma_map_sg);
 
+static int get_nr_mapped_entries(struct device *dev, struct scatterlist *s)
+{
+	struct dma_debug_entry *entry;
+	struct hash_bucket *bucket;
+	unsigned long flags;
+	int mapped_ents = 0;
+	struct dma_debug_entry ref;
+
+	ref.dev = dev;
+	ref.dev_addr = sg_dma_address(s);
+	ref.size = sg_dma_len(s),
+
+	bucket = get_hash_bucket(&ref, &flags);
+	entry = hash_bucket_find(bucket, &ref);
+	if (entry)
+		mapped_ents = entry->sg_mapped_ents;
+	put_hash_bucket(bucket, &flags);
+
+	return mapped_ents;
+}
+
 void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			int nelems, int dir)
 {
-	struct dma_debug_entry *entry;
 	struct scatterlist *s;
 	int mapped_ents = 0, i;
-	unsigned long flags;
 
 	if (unlikely(global_disable))
 		return;
@@ -881,14 +900,9 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 		if (mapped_ents && i >= mapped_ents)
 			break;
 
-		if (mapped_ents == 0) {
-			struct hash_bucket *bucket;
+		if (!i) {
 			ref.sg_call_ents = nelems;
-			bucket = get_hash_bucket(&ref, &flags);
-			entry = hash_bucket_find(bucket, &ref);
-			if (entry)
-				mapped_ents = entry->sg_mapped_ents;
-			put_hash_bucket(bucket, &flags);
+			mapped_ents = get_nr_mapped_entries(dev, s);
 		}
 
 		check_unmap(&ref);
@@ -990,12 +1004,18 @@ void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 			       int nelems, int direction)
 {
 	struct scatterlist *s;
-	int i;
+	int mapped_ents = 0, i;
 
 	if (unlikely(global_disable))
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
+		if (!i)
+			mapped_ents = get_nr_mapped_entries(dev, s);
+
+		if (i >= mapped_ents)
+			break;
+
 		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
 			   direction, true);
 	}
@@ -1006,12 +1026,18 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 				  int nelems, int direction)
 {
 	struct scatterlist *s;
-	int i;
+	int mapped_ents = 0, i;
 
 	if (unlikely(global_disable))
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
+		if (!i)
+			mapped_ents = get_nr_mapped_entries(dev, s);
+
+		if (i >= mapped_ents)
+			break;
+
 		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
 			   direction, false);
 	}
