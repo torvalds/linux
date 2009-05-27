@@ -1,5 +1,6 @@
 obj-y				=  mce.o therm_throt.o
 
+obj-$(CONFIG_X86_NEW_MCE)	+= mce-severity.o
 obj-$(CONFIG_X86_OLD_MCE)	+= k7.o p4.o p6.o
 obj-$(CONFIG_X86_ANCIENT_MCE)	+= winchip.o p5.o
 obj-$(CONFIG_X86_MCE_P4THERMAL)	+= mce_intel.o
