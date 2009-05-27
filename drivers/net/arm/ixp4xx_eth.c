@@ -561,8 +561,8 @@ static int eth_poll(struct napi_struct *napi, int budget)
 		dma_unmap_single(&dev->dev, desc->data - NET_IP_ALIGN,
 				 RX_BUFF_SIZE, DMA_FROM_DEVICE);
 #else
-		dma_sync_single(&dev->dev, desc->data - NET_IP_ALIGN,
-				RX_BUFF_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(&dev->dev, desc->data - NET_IP_ALIGN,
+					RX_BUFF_SIZE, DMA_FROM_DEVICE);
 		memcpy_swab32((u32 *)skb->data, (u32 *)port->rx_buff_tab[n],
 			      ALIGN(NET_IP_ALIGN + desc->pkt_len, 4) / 4);
 #endif
