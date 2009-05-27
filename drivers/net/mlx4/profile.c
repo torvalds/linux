@@ -98,7 +98,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_EQ].size     = dev_cap->eqc_entry_sz;
 	profile[MLX4_RES_DMPT].size   = dev_cap->dmpt_entry_sz;
 	profile[MLX4_RES_CMPT].size   = dev_cap->cmpt_entry_sz;
-	profile[MLX4_RES_MTT].size    = MLX4_MTT_ENTRY_PER_SEG * dev_cap->mtt_entry_sz;
+	profile[MLX4_RES_MTT].size    = dev->caps.mtts_per_seg * dev_cap->mtt_entry_sz;
 	profile[MLX4_RES_MCG].size    = MLX4_MGM_ENTRY_SIZE;
 
 	profile[MLX4_RES_QP].num      = request->num_qp;

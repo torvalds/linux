@@ -210,6 +210,7 @@ struct mlx4_caps {
 	int			num_comp_vectors;
 	int			num_mpts;
 	int			num_mtt_segs;
+	int			mtts_per_seg;
 	int			fmr_reserved_mtts;
 	int			reserved_mtts;
 	int			reserved_mrws;
