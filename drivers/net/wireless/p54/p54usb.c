@@ -84,8 +84,8 @@ MODULE_DEVICE_TABLE(usb, p54u_table);
 static const struct {
 	u32 intf;
 	enum p54u_hw_type type;
-	char fw[FIRMWARE_NAME_MAX];
-	char fw_legacy[FIRMWARE_NAME_MAX];
+	const char *fw;
+	const char *fw_legacy;
 	char hw[20];
 } p54u_fwlist[__NUM_P54U_HWTYPES] = {
 	{
