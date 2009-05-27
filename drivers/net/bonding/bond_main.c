@@ -2405,8 +2405,7 @@ static void bond_miimon_commit(struct bonding *bond)
 				bond_3ad_handle_link_change(slave,
 							    BOND_LINK_DOWN);
 
-			if (bond->params.mode == BOND_MODE_TLB ||
-			    bond->params.mode == BOND_MODE_ALB)
+			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_DOWN);
 

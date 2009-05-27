@@ -286,8 +286,7 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
 	struct bonding *bond = netdev_priv(slave->dev->master);
-	if (bond->params.mode != BOND_MODE_TLB &&
-	    bond->params.mode != BOND_MODE_ALB)
+	if (!bond_is_lb(bond))
 		slave->state = BOND_STATE_BACKUP;
 	slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 	if (slave_do_arp_validate(bond, slave))
