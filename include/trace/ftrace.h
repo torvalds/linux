@@ -397,19 +397,19 @@ static void ftrace_profile_##call(proto)				\
 	perf_tpcounter_event(event_##call.id);				\
 }									\
 									\
-static int ftrace_profile_enable_##call(struct ftrace_event_call *call) \
+static int ftrace_profile_enable_##call(struct ftrace_event_call *event_call) \
 {									\
 	int ret = 0;							\
 									\
-	if (!atomic_inc_return(&call->profile_count))			\
+	if (!atomic_inc_return(&event_call->profile_count))		\
 		ret = register_trace_##call(ftrace_profile_##call);	\
 									\
 	return ret;							\
 }									\
 									\
-static void ftrace_profile_disable_##call(struct ftrace_event_call *call) \
+static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 {									\
-	if (atomic_add_negative(-1, &call->profile_count))		\
+	if (atomic_add_negative(-1, &event_call->profile_count))	\
 		unregister_trace_##call(ftrace_profile_##call);		\
 }
 
@@ -433,9 +433,9 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *call) \
 #define __array(type, item, len)
 
 #undef __string
-#define __string(item, src)						       \
-	__str_offsets.item = __str_size +				       \
-			     offsetof(typeof(*entry), __str_data);	       \
+#define __string(item, src)						\
+	__str_offsets.item = __str_size +				\
+			     offsetof(typeof(*entry), __str_data);	\
 	__str_size += strlen(src) + 1;
 
 #undef __assign_str
@@ -451,8 +451,8 @@ static struct ftrace_event_call event_##call;				\
 									\
 static void ftrace_raw_event_##call(proto)				\
 {									\
-	struct ftrace_str_offsets_##call __maybe_unused __str_offsets;  \
-	struct ftrace_event_call *call = &event_##call;			\
+	struct ftrace_str_offsets_##call __maybe_unused __str_offsets;	\
+	struct ftrace_event_call *event_call = &event_##call;		\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	unsigned long irq_flags;					\
@@ -473,7 +473,7 @@ static void ftrace_raw_event_##call(proto)				\
 									\
 	assign;								\
 									\
-	if (!filter_current_check_discard(call, entry, event))		\
+	if (!filter_current_check_discard(event_call, entry, event))	\
 		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
 }									\
 									\
