@@ -71,7 +71,11 @@ extern int icache_44x_need_flush;
  * until mem_init() at which point this becomes the top of the vmalloc
  * and ioremap space
  */
+#ifdef CONFIG_NOT_COHERENT_CACHE
+#define IOREMAP_TOP	((KVIRT_TOP - CONFIG_CONSISTENT_SIZE) & PAGE_MASK)
+#else
 #define IOREMAP_TOP	KVIRT_TOP
+#endif
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the

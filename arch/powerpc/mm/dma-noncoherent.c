@@ -32,20 +32,21 @@
 
 #include <asm/tlbflush.h>
 
+#include "mmu_decl.h"
+
 /*
  * This address range defaults to a value that is safe for all
  * platforms which currently set CONFIG_NOT_COHERENT_CACHE. It
  * can be further configured for specific applications under
  * the "Advanced Setup" menu. -Matt
  */
-#define CONSISTENT_BASE	(CONFIG_CONSISTENT_START)
-#define CONSISTENT_END	(CONFIG_CONSISTENT_START + CONFIG_CONSISTENT_SIZE)
+#define CONSISTENT_BASE		(IOREMAP_TOP)
+#define CONSISTENT_END 		(CONSISTENT_BASE + CONFIG_CONSISTENT_SIZE)
 #define CONSISTENT_OFFSET(x)	(((unsigned long)(x) - CONSISTENT_BASE) >> PAGE_SHIFT)
 
 /*
  * This is the page table (2MB) covering uncached, DMA consistent allocations
  */
-static pte_t *consistent_pte;
 static DEFINE_SPINLOCK(consistent_lock);
 
 /*
@@ -148,22 +149,38 @@ static struct ppc_vm_region *ppc_vm_region_find(struct ppc_vm_region *head, unsi
  * virtual and bus address for that space.
  */
 void *
-__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
+__dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	struct page *page;
 	struct ppc_vm_region *c;
 	unsigned long order;
-	u64 mask = 0x00ffffff, limit; /* ISA default */
+	u64 mask = ISA_DMA_THRESHOLD, limit;
 
-	if (!consistent_pte) {
-		printk(KERN_ERR "%s: not initialised\n", __func__);
-		dump_stack();
-		return NULL;
+	if (dev) {
+		mask = dev->coherent_dma_mask;
+
+		/*
+		 * Sanity check the DMA mask - it must be non-zero, and
+		 * must be able to be satisfied by a DMA allocation.
+		 */
+		if (mask == 0) {
+			dev_warn(dev, "coherent DMA mask is unset\n");
+			goto no_page;
+		}
+
+		if ((~mask) & ISA_DMA_THRESHOLD) {
+			dev_warn(dev, "coherent DMA mask %#llx is smaller "
+				 "than system GFP_DMA mask %#llx\n",
+				 mask, (unsigned long long)ISA_DMA_THRESHOLD);
+			goto no_page;
+		}
 	}
+
 
 	size = PAGE_ALIGN(size);
 	limit = (mask + 1) & ~mask;
-	if ((limit && size >= limit) || size >= (CONSISTENT_END - CONSISTENT_BASE)) {
+	if ((limit && size >= limit) ||
+	    size >= (CONSISTENT_END - CONSISTENT_BASE)) {
 		printk(KERN_WARNING "coherent allocation too big (requested %#x mask %#Lx)\n",
 		       size, mask);
 		return NULL;
@@ -171,6 +188,7 @@ __dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 
 	order = get_order(size);
 
+	/* Might be useful if we ever have a real legacy DMA zone... */
 	if (mask != 0xffffffff)
 		gfp |= GFP_DMA;
 
@@ -195,7 +213,6 @@ __dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
 		unsigned long vaddr = c->vm_start;
-		pte_t *pte = consistent_pte + CONSISTENT_OFFSET(vaddr);
 		struct page *end = page + (1 << order);
 
 		split_page(page, order);
@@ -206,13 +223,10 @@ __dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 		*handle = page_to_phys(page);
 
 		do {
-			BUG_ON(!pte_none(*pte));
-
 			SetPageReserved(page);
-			set_pte_at(&init_mm, vaddr,
-				   pte, mk_pte(page, pgprot_noncached(PAGE_KERNEL)));
+			map_page(vaddr, page_to_phys(page),
+				 pgprot_noncached(PAGE_KERNEL));
 			page++;
-			pte++;
 			vaddr += PAGE_SIZE;
 		} while (size -= PAGE_SIZE);
 
@@ -241,8 +255,7 @@ void __dma_free_coherent(size_t size, void *vaddr)
 {
 	struct ppc_vm_region *c;
 	unsigned long flags, addr;
-	pte_t *ptep;
-
+	
 	size = PAGE_ALIGN(size);
 
 	spin_lock_irqsave(&consistent_lock, flags);
@@ -258,29 +271,26 @@ void __dma_free_coherent(size_t size, void *vaddr)
 		size = c->vm_end - c->vm_start;
 	}
 
-	ptep = consistent_pte + CONSISTENT_OFFSET(c->vm_start);
 	addr = c->vm_start;
 	do {
-		pte_t pte = ptep_get_and_clear(&init_mm, addr, ptep);
+		pte_t *ptep;
 		unsigned long pfn;
 
-		ptep++;
-		addr += PAGE_SIZE;
-
-		if (!pte_none(pte) && pte_present(pte)) {
-			pfn = pte_pfn(pte);
-
+		ptep = pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(addr),
+							       addr),
+						    addr),
+					 addr);
+		if (!pte_none(*ptep) && pte_present(*ptep)) {
+			pfn = pte_pfn(*ptep);
+			pte_clear(&init_mm, addr, ptep);
 			if (pfn_valid(pfn)) {
 				struct page *page = pfn_to_page(pfn);
-				ClearPageReserved(page);
 
+				ClearPageReserved(page);
 				__free_page(page);
-				continue;
 			}
 		}
-
-		printk(KERN_CRIT "%s: bad page in kernel page table\n",
-		       __func__);
+		addr += PAGE_SIZE;
 	} while (size -= PAGE_SIZE);
 
 	flush_tlb_kernel_range(c->vm_start, c->vm_end);
@@ -299,42 +309,6 @@ void __dma_free_coherent(size_t size, void *vaddr)
 	dump_stack();
 }
 EXPORT_SYMBOL(__dma_free_coherent);
-
-/*
- * Initialise the consistent memory allocation.
- */
-static int __init dma_alloc_init(void)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int ret = 0;
-
-	do {
-		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
-		pud = pud_alloc(&init_mm, pgd, CONSISTENT_BASE);
-		pmd = pmd_alloc(&init_mm, pud, CONSISTENT_BASE);
-		if (!pmd) {
-			printk(KERN_ERR "%s: no pmd tables\n", __func__);
-			ret = -ENOMEM;
-			break;
-		}
-
-		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
-		if (!pte) {
-			printk(KERN_ERR "%s: no pte tables\n", __func__);
-			ret = -ENOMEM;
-			break;
-		}
-
-		consistent_pte = pte;
-	} while (0);
-
-	return ret;
-}
-
-core_initcall(dma_alloc_init);
 
 /*
  * make an area consistent.
