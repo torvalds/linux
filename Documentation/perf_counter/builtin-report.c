@@ -190,7 +190,8 @@ static inline int elf_sym__is_function(const GElf_Sym *sym)
 {
 	return elf_sym__type(sym) == STT_FUNC &&
 	       sym->st_name != 0 &&
-	       sym->st_shndx != SHN_UNDEF;
+	       sym->st_shndx != SHN_UNDEF &&
+	       sym->st_size != 0;
 }
 
 static inline const char *elf_sym__name(const GElf_Sym *sym,
@@ -222,11 +223,11 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	return sec;
 }
 
-static int dso__load(struct dso *self)
+static int dso__load_sym(struct dso *self, int fd, char *name)
 {
 	Elf_Data *symstrs;
 	uint32_t nr_syms;
-	int fd, err = -1;
+	int err = -1;
 	uint32_t index;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
@@ -234,16 +235,12 @@ static int dso__load(struct dso *self)
 	GElf_Sym sym;
 	Elf_Scn *sec;
 	Elf *elf;
-
-
-	fd = open(self->name, O_RDONLY);
-	if (fd == -1)
-		return -1;
+	int nr = 0;
 
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
 		fprintf(stderr, "%s: cannot read %s ELF file.\n",
-			__func__, self->name);
+			__func__, name);
 		goto out_close;
 	}
 
@@ -292,14 +289,61 @@ static int dso__load(struct dso *self)
 			goto out_elf_end;
 
 		dso__insert_symbol(self, f);
+
+		nr++;
 	}
 
-	err = 0;
+	err = nr;
 out_elf_end:
 	elf_end(elf);
 out_close:
-	close(fd);
 	return err;
+}
+
+static int dso__load(struct dso *self)
+{
+	int size = strlen(self->name) + sizeof("/usr/lib/debug%s.debug");
+	char *name = malloc(size);
+	int variant = 0;
+	int ret = -1;
+	int fd;
+
+	if (!name)
+		return -1;
+
+more:
+	do {
+		switch (variant) {
+		case 0: /* Fedora */
+			snprintf(name, size, "/usr/lib/debug%s.debug", self->name);
+			break;
+		case 1: /* Ubuntu */
+			snprintf(name, size, "/usr/lib/debug%s", self->name);
+			break;
+		case 2: /* Sane people */
+			snprintf(name, size, "%s", self->name);
+			break;
+
+		default:
+			goto out;
+		}
+		variant++;
+
+		fd = open(name, O_RDONLY);
+	} while (fd < 0);
+
+	ret = dso__load_sym(self, fd, name);
+	close(fd);
+
+	/*
+	 * Some people seem to have debuginfo files _WITHOUT_ debug info!?!?
+	 */
+	if (!ret)
+		goto more;
+
+out:
+	free(name);
+	return ret;
 }
 
 static size_t dso__fprintf(struct dso *self, FILE *fp)
@@ -336,11 +380,23 @@ static struct dso *dsos__find(const char *name)
 static struct dso *dsos__findnew(const char *name)
 {
 	struct dso *dso = dsos__find(name);
+	int nr;
 
 	if (dso == NULL) {
 		dso = dso__new(name);
-		if (dso != NULL && dso__load(dso) < 0)
+		if (!dso)
 			goto out_delete_dso;
+
+		nr = dso__load(dso);
+		if (nr < 0) {
+			fprintf(stderr, "Failed to open: %s\n", name);
+			goto out_delete_dso;
+		}
+		if (!nr) {
+			fprintf(stderr,
+		"Failed to find debug symbols for: %s, maybe install a debug package?\n",
+					name);
+		}
 
 		dsos__add(dso);
 	}
@@ -547,9 +603,9 @@ symhist__fprintf(struct symhist *self, uint64_t total_samples, FILE *fp)
 	size_t ret;
 
 	if (total_samples)
-		ret = fprintf(fp, "%5.2f", (self->count * 100.0) / total_samples);
+		ret = fprintf(fp, "%5.2f%% ", (self->count * 100.0) / total_samples);
 	else
-		ret = fprintf(fp, "%12d", self->count);
+		ret = fprintf(fp, "%12d ", self->count);
 
 	ret += fprintf(fp, "%14s [%c] ",
 		       thread__name(self->thread, bf, sizeof(bf)),
@@ -922,10 +978,12 @@ more:
 	}
 	default: {
 broken_event:
-		fprintf(stderr, "%p [%p]: skipping unknown header type: %d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.type);
+		if (dump_trace)
+			fprintf(stderr, "%p [%p]: skipping unknown header type: %d\n",
+					(void *)(offset + head),
+					(void *)(long)(event->header.size),
+					event->header.type);
+
 		total_unknown++;
 
 		/*
