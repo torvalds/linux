@@ -156,12 +156,12 @@ static inline int blk_cpu_to_group(int cpu)
  *
  *	a) it's attached to a gendisk, and
  *	b) the queue had IO stats enabled when this request was started, and
- *	c) it's a file system request
+ *	c) it's a file system request or a discard request
  */
 static inline int blk_do_io_stat(struct request *rq)
 {
-	return rq->rq_disk && blk_rq_io_stat(rq) && blk_fs_request(rq) &&
-		blk_discard_rq(rq);
+	return rq->rq_disk && blk_rq_io_stat(rq) &&
+	       (blk_fs_request(rq) || blk_discard_rq(rq));
 }
 
 #endif
