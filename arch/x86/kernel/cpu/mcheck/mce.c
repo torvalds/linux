@@ -158,6 +158,7 @@ void mce_log(struct mce *mce)
 	mcelog.entry[entry].finished = 1;
 	wmb();
 
+	mce->finished = 1;
 	set_bit(0, &notify_user);
 }
 
@@ -190,23 +191,29 @@ static void print_mce(struct mce *m)
 	       "and contact your hardware vendor\n");
 }
 
-static void mce_panic(char *msg, struct mce *backup, u64 start)
+static void mce_panic(char *msg, struct mce *final)
 {
 	int i;
 
 	bust_spinlocks(1);
 	console_verbose();
+	/* First print corrected ones that are still unlogged */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
-		u64 tsc = mcelog.entry[i].tsc;
-
-		if ((s64)(tsc - start) < 0)
-			continue;
-		print_mce(&mcelog.entry[i]);
-		if (backup && mcelog.entry[i].tsc == backup->tsc)
-			backup = NULL;
+		struct mce *m = &mcelog.entry[i];
+		if ((m->status & MCI_STATUS_VAL) &&
+			!(m->status & MCI_STATUS_UC))
+			print_mce(m);
 	}
-	if (backup)
-		print_mce(backup);
+	/* Now print uncorrected but with the final one last */
+	for (i = 0; i < MCE_LOG_LEN; i++) {
+		struct mce *m = &mcelog.entry[i];
+		if (!(m->status & MCI_STATUS_VAL))
+			continue;
+		if (!final || memcmp(m, final, sizeof(struct mce)))
+			print_mce(m);
+	}
+	if (final)
+		print_mce(final);
 	panic(msg);
 }
 
@@ -362,7 +369,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 {
 	struct mce m, panicm;
 	int panicm_found = 0;
-	u64 mcestart = 0;
 	int i;
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
@@ -394,7 +400,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
 		no_way_out = 1;
 
-	rdtscll(mcestart);
 	barrier();
 
 	for (i = 0; i < banks; i++) {
@@ -478,7 +483,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * has not set tolerant to an insane level, give up and die.
 	 */
 	if (no_way_out && tolerant < 3)
-		mce_panic("Machine check", &panicm, mcestart);
+		mce_panic("Machine check", &panicm);
 
 	/*
 	 * If the error seems to be unrecoverable, something should be
@@ -506,8 +511,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		if (user_space) {
 			force_sig(SIGBUS, current);
 		} else if (panic_on_oops || tolerant < 2) {
-			mce_panic("Uncorrected machine check",
-				&panicm, mcestart);
+			mce_panic("Uncorrected machine check", &panicm);
 		}
 	}
 
