@@ -60,8 +60,8 @@ static struct rb_node *release_next(struct rb_node *node)
 		return node->rb_right;
 	else {
 		if (!parent)
-			return NULL;
-		if (parent->rb_left == node)
+			;
+		else if (parent->rb_left == node)
 			parent->rb_left = NULL;
 		else
 			parent->rb_right = NULL;
