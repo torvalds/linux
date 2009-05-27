@@ -905,7 +905,6 @@ struct net_device
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
-#define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
 
 static inline
 struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev,
@@ -976,9 +975,7 @@ static inline bool netdev_uses_trailer_tags(struct net_device *dev)
  */
 static inline void *netdev_priv(const struct net_device *dev)
 {
-	return (char *)dev + ((sizeof(struct net_device)
-			       + NETDEV_ALIGN_CONST)
-			      & ~NETDEV_ALIGN_CONST);
+	return (char *)dev + ALIGN(sizeof(struct net_device), NETDEV_ALIGN);
 }
 
 /* Set the sysfs physical device reference for the network logical device

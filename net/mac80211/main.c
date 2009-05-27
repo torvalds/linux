@@ -735,9 +735,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	 * +-------------------------+
 	 *
 	 */
-	priv_size = ((sizeof(struct ieee80211_local) +
-		      NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST) +
-		    priv_data_len;
+	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
 	wiphy = wiphy_new(&mac80211_config_ops, priv_size);
 
@@ -754,9 +752,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	local->hw.wiphy = wiphy;
 
-	local->hw.priv = (char *)local +
-			 ((sizeof(struct ieee80211_local) +
-			   NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
+	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
 	BUG_ON(!ops->tx);
 	BUG_ON(!ops->start);
