@@ -699,14 +699,41 @@ struct hist_entry {
 	uint32_t	 count;
 };
 
+/*
+ * configurable sorting bits
+ */
+
+struct sort_entry {
+	struct list_head list;
+
+	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
+	size_t	(*print)(FILE *fp, struct hist_entry *);
+};
+
 static int64_t
-hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
+sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->thread->pid - left->thread->pid;
+}
+
+static size_t
+sort__thread_print(FILE *fp, struct hist_entry *self)
+{
+	char bf[32];
+
+	return fprintf(fp, "%14s ",
+			thread__name(self->thread, bf, sizeof(bf)));
+}
+
+static struct sort_entry sort_thread = {
+	.cmp	= sort__thread_cmp,
+	.print	= sort__thread_print,
+};
+
+static int64_t
+sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t ip_l, ip_r;
-	int cmp = right->thread->pid - left->thread->pid;
-
-	if (cmp)
-		return cmp;
 
 	if (left->sym == right->sym)
 		return 0;
@@ -716,6 +743,79 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 
 	return (int64_t)(ip_r - ip_l);
 }
+
+static size_t
+sort__sym_print(FILE *fp, struct hist_entry *self)
+{
+	size_t ret = 0;
+
+	ret += fprintf(fp, "[%c] ", self->level);
+
+	if (verbose)
+		ret += fprintf(fp, "%#018llx ", (unsigned long long)self->ip);
+
+	if (self->level != '.')
+		ret += fprintf(fp, "%s ",
+			       self->sym ? self->sym->name : "<unknown>");
+	else
+		ret += fprintf(fp, "%s: %s ",
+			       self->dso ? self->dso->name : "<unknown>",
+			       self->sym ? self->sym->name : "<unknown>");
+
+	return ret;
+}
+
+static struct sort_entry sort_sym = {
+	.cmp	= sort__sym_cmp,
+	.print	= sort__sym_print,
+};
+
+static LIST_HEAD(hist_entry__sort_list);
+
+static void setup_sorting(void)
+{
+	list_add_tail(&sort_thread.list, &hist_entry__sort_list);
+	list_add_tail(&sort_sym.list, &hist_entry__sort_list);
+}
+
+static int64_t
+hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	struct sort_entry *se;
+	int64_t cmp = 0;
+
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		cmp = se->cmp(left, right);
+		if (cmp)
+			break;
+	}
+
+	return cmp;
+}
+
+static size_t
+hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
+{
+	struct sort_entry *se;
+	size_t ret;
+
+	if (total_samples) {
+		ret = fprintf(fp, "%5.2f%% ",
+				(self->count * 100.0) / total_samples);
+	} else
+		ret = fprintf(fp, "%12d ", self->count);
+
+	list_for_each_entry(se, &hist_entry__sort_list, list)
+		ret += se->print(fp, self);
+
+	ret += fprintf(fp, "\n");
+
+	return ret;
+}
+
+/*
+ * collect histogram counts
+ */
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
@@ -760,35 +860,6 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	rb_insert_color(&he->rb_node, &hist);
 
 	return 0;
-}
-
-static size_t
-hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
-{
-	char bf[32];
-	size_t ret;
-
-	if (total_samples) {
-		ret = fprintf(fp, "%5.2f%% ",
-				(self->count * 100.0) / total_samples);
-	} else
-		ret = fprintf(fp, "%12d ", self->count);
-
-	ret += fprintf(fp, "%14s [%c] ",
-		       thread__name(self->thread, bf, sizeof(bf)),
-		       self->level);
-
-	if (verbose)
-		ret += fprintf(fp, "%#018llx ", (unsigned long long)self->ip);
-
-	if (self->level != '.')
-		ret += fprintf(fp, "%s\n",
-			       self->sym ? self->sym->name : "<unknown>");
-	else
-		ret += fprintf(fp, "%s: %s\n",
-			       self->dso ? self->dso->name : "<unknown>",
-			       self->sym ? self->sym->name : "<unknown>");
-	return ret;
 }
 
 /*
@@ -1076,6 +1147,8 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 	page_size = getpagesize();
 
 	parse_options(argc, argv, options, report_usage, 0);
+
+	setup_sorting();
 
 	setup_pager();
 
