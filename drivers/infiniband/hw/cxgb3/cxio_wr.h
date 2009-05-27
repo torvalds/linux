@@ -176,7 +176,7 @@ struct t3_send_wr {
 	struct t3_sge sgl[T3_MAX_SGE];	/* 4+ */
 };
 
-#define T3_MAX_FASTREG_DEPTH 24
+#define T3_MAX_FASTREG_DEPTH 10
 #define T3_MAX_FASTREG_FRAG 10
 
 struct t3_fastreg_wr {
