@@ -20,6 +20,7 @@
 
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
+static char		*sort_order = "pid,symbol";
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
@@ -770,12 +771,49 @@ static struct sort_entry sort_sym = {
 	.print	= sort__sym_print,
 };
 
+struct sort_dimension {
+	char *name;
+	struct sort_entry *entry;
+	int taken;
+};
+
+static struct sort_dimension sort_dimensions[] = {
+	{ .name = "pid",	.entry = &sort_thread,	},
+	{ .name = "symbol",	.entry = &sort_sym,	},
+};
+
 static LIST_HEAD(hist_entry__sort_list);
+
+static int sort_dimension__add(char *tok)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
+		struct sort_dimension *sd = &sort_dimensions[i];
+
+		if (sd->taken)
+			continue;
+
+		if (strcmp(tok, sd->name))
+			continue;
+
+		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
+		sd->taken = 1;
+		return 0;
+	}
+
+	return -ESRCH;
+}
 
 static void setup_sorting(void)
 {
-	list_add_tail(&sort_thread.list, &hist_entry__sort_list);
-	list_add_tail(&sort_sym.list, &hist_entry__sort_list);
+	char *tmp, *tok, *str = strdup(sort_order);
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp))
+		sort_dimension__add(tok);
+
+	free(str);
 }
 
 static int64_t
@@ -1137,6 +1175,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
+	OPT_STRING('s', "sort", &sort_order, "foo", "bar"),
 	OPT_END()
 };
 
