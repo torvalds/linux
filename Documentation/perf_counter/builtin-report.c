@@ -1117,9 +1117,9 @@ more:
 		}
 
 		if (thread == NULL) {
-			fprintf(stderr, "problem processing %d event, bailing out\n",
+			fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
-			goto done;
+			goto broken_event;
 		}
 
 		if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
@@ -1149,8 +1149,8 @@ more:
 
 			if (hist_entry__add(thread, map, dso, sym, ip, level)) {
 				fprintf(stderr,
-		"problem incrementing symbol count, bailing out\n");
-				goto done;
+		"problem incrementing symbol count, skipping event\n");
+				goto broken_event;
 			}
 		}
 		total++;
@@ -1169,8 +1169,8 @@ more:
 				event->mmap.filename);
 		}
 		if (thread == NULL || map == NULL) {
-			fprintf(stderr, "problem processing PERF_EVENT_MMAP, bailing out\n");
-			goto done;
+			fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
+			goto broken_event;
 		}
 		thread__insert_map(thread, map);
 		total_mmap++;
@@ -1187,8 +1187,8 @@ more:
 		}
 		if (thread == NULL ||
 		    thread__set_comm(thread, event->comm.comm)) {
-			fprintf(stderr, "problem processing PERF_EVENT_COMM, bailing out\n");
-			goto done;
+			fprintf(stderr, "problem processing PERF_EVENT_COMM, skipping event.\n");
+			goto broken_event;
 		}
 		total_comm++;
 		break;
@@ -1221,7 +1221,6 @@ broken_event:
 		goto more;
 
 	rc = EXIT_SUCCESS;
-done:
 	close(input);
 
 	if (dump_trace) {
