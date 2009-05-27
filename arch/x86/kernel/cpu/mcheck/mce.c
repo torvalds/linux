@@ -176,11 +176,13 @@ void mce_log(struct mce *mce)
 	set_bit(0, &notify_user);
 }
 
-static void print_mce(struct mce *m)
+static void print_mce(struct mce *m, int *first)
 {
-	printk(KERN_EMERG "\n"
-	       KERN_EMERG "HARDWARE ERROR\n"
-	       KERN_EMERG
+	if (*first) {
+		printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
+		*first = 0;
+	}
+	printk(KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
 	       m->extcpu, m->mcgstatus, m->bank, m->status);
 	if (m->ip) {
@@ -200,9 +202,12 @@ static void print_mce(struct mce *m)
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
-	printk(KERN_EMERG "This is not a software problem!\n");
-	printk(KERN_EMERG "Run through mcelog --ascii to decode "
-	       "and contact your hardware vendor\n");
+}
+
+static void print_mce_tail(void)
+{
+	printk(KERN_EMERG "This is not a software problem!\n"
+	       KERN_EMERG "Run through mcelog --ascii to decode and contact your hardware vendor\n");
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
@@ -225,6 +230,7 @@ static void wait_for_panic(void)
 static void mce_panic(char *msg, struct mce *final, char *exp)
 {
 	int i;
+	int first = 1;
 
 	/*
 	 * Make sure only one CPU runs in machine check panic
@@ -240,7 +246,7 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		struct mce *m = &mcelog.entry[i];
 		if ((m->status & MCI_STATUS_VAL) &&
 			!(m->status & MCI_STATUS_UC))
-			print_mce(m);
+			print_mce(m, &first);
 	}
 	/* Now print uncorrected but with the final one last */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
@@ -248,12 +254,13 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
 		if (!final || memcmp(m, final, sizeof(struct mce)))
-			print_mce(m);
+			print_mce(m, &first);
 	}
 	if (final)
-		print_mce(final);
+		print_mce(final, &first);
 	if (cpu_missing)
 		printk(KERN_EMERG "Some CPUs didn't answer in synchronization\n");
+	print_mce_tail();
 	if (exp)
 		printk(KERN_EMERG "Machine check: %s\n", exp);
 	if (panic_timeout == 0)
