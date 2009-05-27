@@ -653,6 +653,8 @@ try_new:
 		i2400m_tx_close(i2400m);
 		i2400m_tx_new(i2400m);
 	}
+	if (i2400m->tx_msg == NULL)
+		goto error_tx_new;
 	if (i2400m->tx_msg->size + padded_len > I2400M_TX_BUF_SIZE / 2) {
 		d_printf(2, dev, "TX: message too big, going new\n");
 		i2400m_tx_close(i2400m);
