@@ -44,6 +44,38 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static ssize_t read_file_debug(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[32];
+	unsigned int len = 0;
+	len += snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.debug_mask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned long mask;
+	char buf[32];
+	if (copy_from_user(buf, user_buf, (sizeof(buf) - 1) < count ?
+		(sizeof(buf) - 1) : count))
+		return 0;
+	buf[sizeof(buf)-1] = 0;
+	if (strict_strtoul(buf, 0, &mask) == 0)
+		sc->debug.debug_mask = mask;
+	return count;
+}
+
+static const struct file_operations fops_debug = {
+	.read = read_file_debug,
+	.write = write_file_debug,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -461,6 +493,11 @@ int ath9k_init_debug(struct ath_softc *sc)
 	if (!sc->debug.debugfs_phy)
 		goto err;
 
+	sc->debug.debugfs_debug = debugfs_create_file("debug",
+		S_IRUGO | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
+	if (!sc->debug.debugfs_debug)
+		goto err;
+
 	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUGO,
 				       sc->debug.debugfs_phy, sc, &fops_dma);
 	if (!sc->debug.debugfs_dma)
@@ -498,6 +535,7 @@ void ath9k_exit_debug(struct ath_softc *sc)
 	debugfs_remove(sc->debug.debugfs_rcstat);
 	debugfs_remove(sc->debug.debugfs_interrupt);
 	debugfs_remove(sc->debug.debugfs_dma);
+	debugfs_remove(sc->debug.debugfs_debug);
 	debugfs_remove(sc->debug.debugfs_phy);
 }
 

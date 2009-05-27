@@ -95,6 +95,7 @@ struct ath_stats {
 struct ath9k_debug {
 	int debug_mask;
 	struct dentry *debugfs_phy;
+	struct dentry *debugfs_debug;
 	struct dentry *debugfs_dma;
 	struct dentry *debugfs_interrupt;
 	struct dentry *debugfs_rcstat;
