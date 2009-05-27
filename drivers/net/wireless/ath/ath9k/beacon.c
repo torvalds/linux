@@ -411,6 +411,7 @@ void ath_beacon_tasklet(unsigned long data)
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			DPRINTF(sc, ATH_DBG_BEACON,
 				"beacon is officially stuck\n");
+			sc->sc_flags |= SC_OP_TSF_RESET;
 			ath_reset(sc, false);
 		}
 
