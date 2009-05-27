@@ -612,57 +612,61 @@ static struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	return pntsd;
 }
 
-/* Set an ACL on the server */
-static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
-				struct inode *inode, const char *path)
+static int set_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb, __u16 fid,
+		struct cifs_ntsd *pnntsd, u32 acllen)
 {
-	struct cifsFileInfo *open_file;
-	bool unlock_file = false;
-	int xid;
-	int rc = -EIO;
+	int xid, rc;
+
+	xid = GetXid();
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+	FreeXid(xid);
+
+	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
+	return rc;
+}
+
+static int set_cifs_acl_by_path(struct cifs_sb_info *cifs_sb, const char *path,
+		struct cifs_ntsd *pnntsd, u32 acllen)
+{
+	int oplock = 0;
+	int xid, rc;
 	__u16 fid;
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
 
-	cFYI(DBG2, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
-
-	if (!inode)
-		return rc;
-
-	sb = inode->i_sb;
-	if (sb == NULL)
-		return rc;
-
-	cifs_sb = CIFS_SB(sb);
 	xid = GetXid();
 
-	open_file = find_readable_file(CIFS_I(inode));
-	if (open_file) {
-		unlock_file = true;
-		fid = open_file->netfid;
-	} else {
-		int oplock = 0;
-		/* open file */
-		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
-				WRITE_DAC, 0, &fid, &oplock, NULL,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != 0) {
-			cERROR(1, ("Unable to open file to set ACL"));
-			FreeXid(xid);
-			return rc;
-		}
+	rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN, WRITE_DAC, 0,
+			 &fid, &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc) {
+		cERROR(1, ("Unable to open file to set ACL"));
+		goto out;
 	}
 
 	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
 	cFYI(DBG2, ("SetCIFSACL rc = %d", rc));
-	if (unlock_file)
-		atomic_dec(&open_file->wrtPending);
-	else
-		CIFSSMBClose(xid, cifs_sb->tcon, fid);
 
+	CIFSSMBClose(xid, cifs_sb->tcon, fid);
+ out:
 	FreeXid(xid);
+	return rc;
+}
 
+/* Set an ACL on the server */
+static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+				struct inode *inode, const char *path)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsFileInfo *open_file;
+	int rc;
+
+	cFYI(DBG2, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
+
+	open_file = find_readable_file(CIFS_I(inode));
+	if (!open_file)
+		return set_cifs_acl_by_path(cifs_sb, path, pnntsd, acllen);
+
+	rc = set_cifs_acl_by_fid(cifs_sb, open_file->netfid, pnntsd, acllen);
+	atomic_dec(&open_file->wrtPending);
 	return rc;
 }
 
