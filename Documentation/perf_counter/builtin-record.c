@@ -354,7 +354,7 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
-	if (target_pid == -1) {
+	if (target_pid == -1 && argc) {
 		pid = fork();
 		if (pid < 0)
 			perror("failed to fork");
@@ -430,7 +430,7 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 	create_events_help(events_help_msg);
 
 	argc = parse_options(argc, argv, options, record_usage, 0);
-	if (!argc)
+	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 
 	if (!nr_counters) {
