@@ -306,21 +306,22 @@ int mce_available(struct cpuinfo_x86 *c)
 	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
 }
 
+/*
+ * Get the address of the instruction at the time of the machine check
+ * error.
+ */
 static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 {
-	if (regs && (m->mcgstatus & MCG_STATUS_RIPV)) {
+
+	if (regs && (m->mcgstatus & (MCG_STATUS_RIPV|MCG_STATUS_EIPV))) {
 		m->ip = regs->ip;
 		m->cs = regs->cs;
 	} else {
 		m->ip = 0;
 		m->cs = 0;
 	}
-	if (rip_msr) {
-		/* Assume the RIP in the MSR is exact. Is this true? */
-		m->mcgstatus |= MCG_STATUS_EIPV;
+	if (rip_msr)
 		m->ip = mce_rdmsrl(rip_msr);
-		m->cs = 0;
-	}
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC 
