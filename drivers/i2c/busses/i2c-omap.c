@@ -343,17 +343,28 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 
 		/* If configured for High Speed */
 		if (dev->speed > 400) {
+			unsigned long scl;
+
 			/* For first phase of HS mode */
-			fsscll = internal_clk / (400 * 2) - 6;
-			fssclh = internal_clk / (400 * 2) - 6;
+			scl = internal_clk / 400;
+			fsscll = scl - (scl / 3) - 7;
+			fssclh = (scl / 3) - 5;
 
 			/* For second phase of HS mode */
-			hsscll = fclk_rate / (dev->speed * 2) - 6;
-			hssclh = fclk_rate / (dev->speed * 2) - 6;
+			scl = fclk_rate / dev->speed;
+			hsscll = scl - (scl / 3) - 7;
+			hssclh = (scl / 3) - 5;
+		} else if (dev->speed > 100) {
+			unsigned long scl;
+
+			/* Fast mode */
+			scl = internal_clk / dev->speed;
+			fsscll = scl - (scl / 3) - 7;
+			fssclh = (scl / 3) - 5;
 		} else {
-			/* To handle F/S modes */
-			fsscll = internal_clk / (dev->speed * 2) - 6;
-			fssclh = internal_clk / (dev->speed * 2) - 6;
+			/* Standard mode */
+			fsscll = internal_clk / (dev->speed * 2) - 7;
+			fssclh = internal_clk / (dev->speed * 2) - 5;
 		}
 		scll = (hsscll << OMAP_I2C_SCLL_HSSCLL) | fsscll;
 		sclh = (hssclh << OMAP_I2C_SCLH_HSSCLH) | fssclh;
