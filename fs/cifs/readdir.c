@@ -150,11 +150,11 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		allocation_size = le64_to_cpu(pfindData->AllocationSize);
 		end_of_file = le64_to_cpu(pfindData->EndOfFile);
 		tmp_inode->i_atime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+			cifs_NTtimeToUnix(pfindData->LastAccessTime);
 		tmp_inode->i_mtime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
+			cifs_NTtimeToUnix(pfindData->LastWriteTime);
 		tmp_inode->i_ctime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
+			cifs_NTtimeToUnix(pfindData->ChangeTime);
 	} else { /* legacy, OS2 and DOS style */
 /*		struct timespec ts;*/
 		FIND_FILE_STANDARD_INFO *pfindData =
@@ -331,11 +331,11 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	local_size  = tmp_inode->i_size;
 
 	tmp_inode->i_atime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+	    cifs_NTtimeToUnix(pfindData->LastAccessTime);
 	tmp_inode->i_mtime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastModificationTime));
+	    cifs_NTtimeToUnix(pfindData->LastModificationTime);
 	tmp_inode->i_ctime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastStatusChange));
+	    cifs_NTtimeToUnix(pfindData->LastStatusChange);
 
 	tmp_inode->i_mode = le64_to_cpu(pfindData->Permissions);
 	/* since we set the inode type below we need to mask off type

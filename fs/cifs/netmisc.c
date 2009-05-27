@@ -853,12 +853,12 @@ smbCalcSize_LE(struct smb_hdr *ptr)
 
 #define NTFS_TIME_OFFSET ((u64)(369*365 + 89) * 24 * 3600 * 10000000)
 
-    /*
-     * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
-     * into Unix UTC (based 1970-01-01, in seconds).
-     */
+/*
+ * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * into Unix UTC (based 1970-01-01, in seconds).
+ */
 struct timespec
-cifs_NTtimeToUnix(u64 ntutc)
+cifs_NTtimeToUnix(__le64 ntutc)
 {
 	struct timespec ts;
 	/* BB what about the timezone? BB */
@@ -866,7 +866,7 @@ cifs_NTtimeToUnix(u64 ntutc)
 	/* Subtract the NTFS time offset, then convert to 1s intervals. */
 	u64 t;
 
-	t = ntutc - NTFS_TIME_OFFSET;
+	t = le64_to_cpu(ntutc) - NTFS_TIME_OFFSET;
 	ts.tv_nsec = do_div(t, 10000000) * 100;
 	ts.tv_sec = t;
 	return ts;
