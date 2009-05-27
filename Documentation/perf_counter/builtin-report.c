@@ -761,6 +761,35 @@ static struct sort_entry sort_comm = {
 };
 
 static int64_t
+sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	struct dso *dso_l = left->dso;
+	struct dso *dso_r = right->dso;
+
+	if (!dso_l || !dso_r) {
+		if (!dso_l && !dso_r)
+			return 0;
+		else if (!dso_l)
+			return -1;
+		else
+			return 1;
+	}
+
+	return strcmp(dso_l->name, dso_r->name);
+}
+
+static size_t
+sort__dso_print(FILE *fp, struct hist_entry *self)
+{
+	return fprintf(fp, "%64s ", self->dso ? self->dso->name : "<unknown>");
+}
+
+static struct sort_entry sort_dso = {
+	.cmp	= sort__dso_cmp,
+	.print	= sort__dso_print,
+};
+
+static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t ip_l, ip_r;
@@ -809,6 +838,7 @@ struct sort_dimension {
 static struct sort_dimension sort_dimensions[] = {
 	{ .name = "pid",	.entry = &sort_thread,	},
 	{ .name = "comm",	.entry = &sort_comm,	},
+	{ .name = "dso",	.entry = &sort_dso,	},
 	{ .name = "symbol",	.entry = &sort_sym,	},
 };
 
