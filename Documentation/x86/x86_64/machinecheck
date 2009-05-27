@@ -69,6 +69,10 @@ trigger
 	Program to run when a machine check event is detected.
 	This is an alternative to running mcelog regularly from cron
 	and allows to detect events faster.
+monarch_timeout
+	How long to wait for the other CPUs to machine check too on a
+	exception. 0 to disable waiting for other CPUs.
+	Unit: us
 
 TBD document entries for AMD threshold interrupt configuration
 
