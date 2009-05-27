@@ -64,6 +64,31 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	unsigned int tmout;
 	int tmout_index;
 
+	/*
+	 * Hardware weirdness.  The FIFO_EMPTY bit of the HW_STATE
+	 * register is sometimes not set before a while when some
+	 * "unusual" data block sizes are used (such as with the SWITCH
+	 * command), even despite the fact that the XFER_DONE interrupt
+	 * was raised.  And if another data transfer starts before
+	 * this bit comes to good sense (which eventually happens by
+	 * itself) then the new transfer simply fails with a timeout.
+	 */
+	if (!(mvsd_read(MVSD_HW_STATE) & (1 << 13))) {
+		unsigned long t = jiffies + HZ;
+		unsigned int hw_state,  count = 0;
+		do {
+			if (time_after(jiffies, t)) {
+				dev_warn(host->dev, "FIFO_EMPTY bit missing\n");
+				break;
+			}
+			hw_state = mvsd_read(MVSD_HW_STATE);
+			count++;
+		} while (!(hw_state & (1 << 13)));
+		dev_dbg(host->dev, "*** wait for FIFO_EMPTY bit "
+				   "(hw=0x%04x, count=%d, jiffies=%ld)\n",
+				   hw_state, count, jiffies - (t - HZ));
+	}
+
 	/* If timeout=0 then maximum timeout index is used. */
 	tmout = DIV_ROUND_UP(data->timeout_ns, host->ns_per_clk);
 	tmout += data->timeout_clks;
