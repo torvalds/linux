@@ -15,6 +15,7 @@
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
+#define MCG_SER_P	 	(1ULL<<24)   /* MCA recovery/new status bits */
 
 #define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
@@ -27,6 +28,15 @@
 #define MCI_STATUS_MISCV (1ULL<<59)  /* misc error reg. valid */
 #define MCI_STATUS_ADDRV (1ULL<<58)  /* addr reg. valid */
 #define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
+#define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
+#define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+
+/* MISC register defines */
+#define MCM_ADDR_SEGOFF  0	/* segment offset */
+#define MCM_ADDR_LINEAR  1	/* linear address */
+#define MCM_ADDR_PHYS	 2	/* physical address */
+#define MCM_ADDR_MEM	 3	/* memory address */
+#define MCM_ADDR_GENERIC 7	/* generic */
 
 /* Fields are zero when not available */
 struct mce {

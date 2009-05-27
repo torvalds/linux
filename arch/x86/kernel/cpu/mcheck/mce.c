@@ -83,6 +83,7 @@ static int			rip_msr;
 static int			mce_bootlog = -1;
 static int			monarch_timeout = -1;
 static int			mce_panic_timeout;
+int				mce_ser;
 
 static char			trigger[128];
 static char			*trigger_argv[2] = { trigger, NULL };
@@ -391,6 +392,15 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
  * Those are just logged through /dev/mcelog.
  *
  * This is executed in standard interrupt context.
+ *
+ * Note: spec recommends to panic for fatal unsignalled
+ * errors here. However this would be quite problematic --
+ * we would need to reimplement the Monarch handling and
+ * it would mess up the exclusion between exception handler
+ * and poll hander -- * so we skip this for now.
+ * These cases should not happen anyways, or only when the CPU
+ * is already totally * confused. In this case it's likely it will
+ * not fully execute the machine check handler either.
  */
 void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
@@ -417,13 +427,13 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 			continue;
 
 		/*
-		 * Uncorrected events are handled by the exception handler
-		 * when it is enabled. But when the exception is disabled log
-		 * everything.
+		 * Uncorrected or signalled events are handled by the exception
+		 * handler when it is enabled, so don't process those here.
 		 *
 		 * TBD do the same check for MCI_STATUS_EN here?
 		 */
-		if ((m.status & MCI_STATUS_UC) && !(flags & MCP_UC))
+		if (!(flags & MCP_UC) &&
+		    (m.status & (mce_ser ? MCI_STATUS_S : MCI_STATUS_UC)))
 			continue;
 
 		if (m.status & MCI_STATUS_MISCV)
@@ -790,6 +800,12 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	barrier();
 
 	/*
+	 * When no restart IP must always kill or panic.
+	 */
+	if (!(m.mcgstatus & MCG_STATUS_RIPV))
+		kill_it = 1;
+
+	/*
 	 * Go through all the banks in exclusion of the other CPUs.
 	 * This way we don't report duplicated events on shared banks
 	 * because the first one to see it will clear it.
@@ -809,10 +825,11 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 			continue;
 
 		/*
-		 * Non uncorrected errors are handled by machine_check_poll
-		 * Leave them alone, unless this panics.
+		 * Non uncorrected or non signaled errors are handled by
+		 * machine_check_poll. Leave them alone, unless this panics.
 		 */
-		if ((m.status & MCI_STATUS_UC) == 0 && !no_way_out)
+		if (!(m.status & (mce_ser ? MCI_STATUS_S : MCI_STATUS_UC)) &&
+			!no_way_out)
 			continue;
 
 		/*
@@ -820,23 +837,28 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		 */
 		add_taint(TAINT_MACHINE_CHECK);
 
-		__set_bit(i, toclear);
+		severity = mce_severity(&m, tolerant, NULL);
 
-		if (m.status & MCI_STATUS_EN) {
-			/*
-			 * If this error was uncorrectable and there was
-			 * an overflow, we're in trouble.  If no overflow,
-			 * we might get away with just killing a task.
-			 */
-			if (m.status & MCI_STATUS_UC)
-				kill_it = 1;
-		} else {
+		/*
+		 * When machine check was for corrected handler don't touch,
+		 * unless we're panicing.
+		 */
+		if (severity == MCE_KEEP_SEVERITY && !no_way_out)
+			continue;
+		__set_bit(i, toclear);
+		if (severity == MCE_NO_SEVERITY) {
 			/*
 			 * Machine check event was not enabled. Clear, but
 			 * ignore.
 			 */
 			continue;
 		}
+
+		/*
+		 * Kill on action required.
+		 */
+		if (severity == MCE_AR_SEVERITY)
+			kill_it = 1;
 
 		if (m.status & MCI_STATUS_MISCV)
 			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
@@ -846,7 +868,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		mce_get_rip(&m, regs);
 		mce_log(&m);
 
-		severity = mce_severity(&m, tolerant, NULL);
 		if (severity > worst) {
 			*final = m;
 			worst = severity;
@@ -879,29 +900,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * one task, do that.  If the user has set the tolerance very
 	 * high, don't try to do anything at all.
 	 */
-	if (kill_it && tolerant < 3) {
-		int user_space = 0;
 
-		/*
-		 * If the EIPV bit is set, it means the saved IP is the
-		 * instruction which caused the MCE.
-		 */
-		if (m.mcgstatus & MCG_STATUS_EIPV)
-			user_space = final->ip && (final->cs & 3);
-
-		/*
-		 * If we know that the error was in user space, send a
-		 * SIGBUS.  Otherwise, panic if tolerance is low.
-		 *
-		 * force_sig() takes an awful lot of locks and has a slight
-		 * risk of deadlocking.
-		 */
-		if (user_space) {
-			force_sig(SIGBUS, current);
-		} else if (panic_on_oops || tolerant < 2) {
-			mce_panic("Uncorrected machine check", final, msg);
-		}
-	}
+	if (kill_it && tolerant < 3)
+		force_sig(SIGBUS, current);
 
 	/* notify userspace ASAP */
 	set_thread_flag(TIF_MCE_NOTIFY);
@@ -1048,6 +1049,9 @@ static int mce_cap_init(void)
 	/* Use accurate RIP reporting if available. */
 	if ((cap & MCG_EXT_P) && MCG_EXT_CNT(cap) >= 9)
 		rip_msr = MSR_IA32_MCG_EIP;
+
+	if (cap & MCG_SER_P)
+		mce_ser = 1;
 
 	return 0;
 }
