@@ -643,7 +643,7 @@ static int mce_cap_init(void)
 	return 0;
 }
 
-static void mce_init(void *dummy)
+static void mce_init(void)
 {
 	mce_banks_t all_banks;
 	u64 cap;
@@ -776,7 +776,7 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 
 	machine_check_vector = do_machine_check;
 
-	mce_init(NULL);
+	mce_init();
 	mce_cpu_features(c);
 	mce_init_timer();
 }
@@ -1020,7 +1020,7 @@ static int mce_shutdown(struct sys_device *dev)
  */
 static int mce_resume(struct sys_device *dev)
 {
-	mce_init(NULL);
+	mce_init();
 	mce_cpu_features(&current_cpu_data);
 
 	return 0;
@@ -1030,7 +1030,7 @@ static void mce_cpu_restart(void *data)
 {
 	del_timer_sync(&__get_cpu_var(mce_timer));
 	if (mce_available(&current_cpu_data))
-		mce_init(NULL);
+		mce_init();
 	mce_init_timer();
 }
 
