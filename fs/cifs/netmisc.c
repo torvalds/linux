@@ -883,16 +883,12 @@ cifs_UnixTimeToNT(struct timespec t)
 static int total_days_of_prev_months[] =
 {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
 
-
-__le64 cnvrtDosCifsTm(__u16 date, __u16 time)
-{
-	return cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(date, time)));
-}
-
-struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
+struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 {
 	struct timespec ts;
 	int sec, min, days, month, year;
+	u16 date = le16_to_cpu(le_date);
+	u16 time = le16_to_cpu(le_time);
 	SMB_TIME *st = (SMB_TIME *)&time;
 	SMB_DATE *sd = (SMB_DATE *)&date;
 
@@ -933,7 +929,7 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days;
 
-	ts.tv_sec = sec;
+	ts.tv_sec = sec + offset;
 
 	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
 

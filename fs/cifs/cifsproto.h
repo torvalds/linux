@@ -92,8 +92,8 @@ extern void DeleteOplockQEntry(struct oplock_q_entry *);
 extern void DeleteTconOplockQEntries(struct cifsTconInfo *);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
-extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
-extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
+extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
+				      int offset);
 
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct super_block *sb, int mode, int oflags,

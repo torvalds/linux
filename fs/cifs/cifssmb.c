@@ -524,8 +524,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			int val, seconds, remain, result;
 			struct timespec ts, utc;
 			utc = CURRENT_TIME;
-			ts = cnvrtDosUnixTm(le16_to_cpu(rsp->SrvTime.Date),
-						le16_to_cpu(rsp->SrvTime.Time));
+			ts = cnvrtDosUnixTm(rsp->SrvTime.Date,
+					    rsp->SrvTime.Time, 0);
 			cFYI(1, ("SrvTime %d sec since 1970 (utc: %d) diff: %d",
 				(int)ts.tv_sec, (int)utc.tv_sec,
 				(int)(utc.tv_sec - ts.tv_sec)));
