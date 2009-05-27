@@ -71,7 +71,6 @@ static u64			*bank;
 static unsigned long		notify_user;
 static int			rip_msr;
 static int			mce_bootlog = -1;
-static atomic_t			mce_events;
 
 static char			trigger[128];
 static char			*trigger_argv[2] = { trigger, NULL };
@@ -116,7 +115,6 @@ void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
 
-	atomic_inc(&mce_events);
 	mce->finished = 0;
 	wmb();
 	for (;;) {
