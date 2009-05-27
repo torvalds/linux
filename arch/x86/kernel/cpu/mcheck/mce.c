@@ -361,9 +361,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	if (notify_die(DIE_NMI, "machine check", regs, error_code,
 			   18, SIGKILL) == NOTIFY_STOP)
-		goto out2;
+		goto out;
 	if (!banks)
-		goto out2;
+		goto out;
 
 	mce_setup(&m);
 
@@ -499,7 +499,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 			mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
 	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
- out2:
+out:
 	atomic_dec(&mce_entry);
 	sync_core();
 }
