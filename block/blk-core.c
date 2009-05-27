@@ -956,14 +956,14 @@ EXPORT_SYMBOL(blk_make_request);
  */
 void blk_requeue_request(struct request_queue *q, struct request *rq)
 {
-	BUG_ON(blk_queued_rq(rq));
-
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
 
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(q, rq);
+
+	BUG_ON(blk_queued_rq(rq));
 
 	elv_requeue_request(q, rq);
 }
@@ -2042,10 +2042,10 @@ static bool blk_update_bidi_request(struct request *rq, int error,
  */
 static void blk_finish_request(struct request *req, int error)
 {
-	BUG_ON(blk_queued_rq(req));
-
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
+
+	BUG_ON(blk_queued_rq(req));
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
