@@ -861,7 +861,6 @@ void __cpuinit mdesc_fill_in_cpu_data(cpumask_t *mask)
 {
 	struct mdesc_handle *hp;
 
-	mdesc_populate_present_mask(mask);
 	mdesc_iterate_over_cpus(fill_in_one_cpu, NULL, mask);
 
 #ifdef CONFIG_SMP

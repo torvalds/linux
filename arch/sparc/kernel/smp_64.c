@@ -1399,4 +1399,8 @@ void __init real_setup_per_cpu_areas(void)
 
 	/* Setup %g5 for the boot cpu.  */
 	__local_per_cpu_offset = __per_cpu_offset(smp_processor_id());
+
+	of_fill_in_cpu_data();
+	if (tlb_type == hypervisor)
+		mdesc_fill_in_cpu_data(CPU_MASK_ALL_PTR);
 }

@@ -1799,19 +1799,15 @@ void __init paging_init(void)
 	if (tlb_type == hypervisor)
 		sun4v_ktsb_register();
 
-	/* We must setup the per-cpu areas before we pull in the
-	 * PROM and the MDESC.  The code there fills in cpu and
-	 * other information into per-cpu data structures.
-	 */
-	real_setup_per_cpu_areas();
-
 	prom_build_devicetree();
-	of_fill_in_cpu_data();
+	of_populate_present_mask();
 
 	if (tlb_type == hypervisor) {
 		sun4v_mdesc_init();
-		mdesc_fill_in_cpu_data(CPU_MASK_ALL_PTR);
+		mdesc_populate_present_mask(CPU_MASK_ALL_PTR);
 	}
+
+	real_setup_per_cpu_areas();
 
 	/* Once the OF device tree and MDESC have been setup, we know
 	 * the list of possible cpus.  Therefore we can allocate the
