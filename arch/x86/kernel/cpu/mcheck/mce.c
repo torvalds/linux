@@ -196,9 +196,31 @@ static void print_mce(struct mce *m)
 	       "and contact your hardware vendor\n");
 }
 
+#define PANIC_TIMEOUT 5 /* 5 seconds */
+
+static atomic_t mce_paniced;
+
+/* Panic in progress. Enable interrupts and wait for final IPI */
+static void wait_for_panic(void)
+{
+	long timeout = PANIC_TIMEOUT*USEC_PER_SEC;
+	preempt_disable();
+	local_irq_enable();
+	while (timeout-- > 0)
+		udelay(1);
+	panic("Panicing machine check CPU died");
+}
+
 static void mce_panic(char *msg, struct mce *final, char *exp)
 {
 	int i;
+
+	/*
+	 * Make sure only one CPU runs in machine check panic
+	 */
+	if (atomic_add_return(1, &mce_paniced) > 1)
+		wait_for_panic();
+	barrier();
 
 	bust_spinlocks(1);
 	console_verbose();
