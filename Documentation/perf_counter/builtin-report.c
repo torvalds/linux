@@ -732,6 +732,35 @@ static struct sort_entry sort_thread = {
 };
 
 static int64_t
+sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	char *comm_l = left->thread->comm;
+	char *comm_r = right->thread->comm;
+
+	if (!comm_l || !comm_r) {
+		if (!comm_l && !comm_r)
+			return 0;
+		else if (!comm_l)
+			return -1;
+		else
+			return 1;
+	}
+
+	return strcmp(comm_l, comm_r);
+}
+
+static size_t
+sort__comm_print(FILE *fp, struct hist_entry *self)
+{
+	return fprintf(fp, "%20s ", self->thread->comm ?: "<unknown>");
+}
+
+static struct sort_entry sort_comm = {
+	.cmp	= sort__comm_cmp,
+	.print	= sort__comm_print,
+};
+
+static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	uint64_t ip_l, ip_r;
@@ -779,6 +808,7 @@ struct sort_dimension {
 
 static struct sort_dimension sort_dimensions[] = {
 	{ .name = "pid",	.entry = &sort_thread,	},
+	{ .name = "comm",	.entry = &sort_comm,	},
 	{ .name = "symbol",	.entry = &sort_sym,	},
 };
 
