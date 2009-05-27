@@ -1054,28 +1054,6 @@ DEFINE_PER_CPU(struct sys_device, mce_dev);
 __cpuinitdata
 void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
-/* Why are there no generic functions for this? */
-#define ACCESSOR(name, var, start) \
-	static ssize_t show_ ## name(struct sys_device *s,		\
-				     struct sysdev_attribute *attr,	\
-				     char *buf) {			\
-		return sprintf(buf, "%Lx\n", (u64)var);			\
-	}								\
-	static ssize_t set_ ## name(struct sys_device *s,		\
-				    struct sysdev_attribute *attr,	\
-				    const char *buf, size_t siz) {	\
-		char *end;						\
-		u64 new = simple_strtoull(buf, &end, 0);		\
-									\
-		if (end == buf)						\
-			return -EINVAL;					\
-		var = new;						\
-		start;							\
-									\
-		return end-buf;						\
-	}								\
-	static SYSDEV_ATTR(name, 0644, show_ ## name, set_ ## name);
-
 static struct sysdev_attribute *bank_attrs;
 
 static ssize_t show_bank(struct sys_device *s, struct sysdev_attribute *attr,
@@ -1126,13 +1104,26 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 	return len;
 }
 
+static ssize_t store_int_with_restart(struct sys_device *s,
+				      struct sysdev_attribute *attr,
+				      const char *buf, size_t size)
+{
+	ssize_t ret = sysdev_store_int(s, attr, buf, size);
+	mce_restart();
+	return ret;
+}
+
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
 static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 
-ACCESSOR(check_interval, check_interval, mce_restart())
+static struct sysdev_ext_attribute attr_check_interval = {
+	_SYSDEV_ATTR(check_interval, 0644, sysdev_show_int,
+		     store_int_with_restart),
+	&check_interval
+};
 
 static struct sysdev_attribute *mce_attrs[] = {
-	&attr_tolerant.attr, &attr_check_interval, &attr_trigger,
+	&attr_tolerant.attr, &attr_check_interval.attr, &attr_trigger,
 	NULL
 };
 
