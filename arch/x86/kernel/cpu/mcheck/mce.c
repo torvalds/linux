@@ -328,6 +328,8 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	 * Don't clear MCG_STATUS here because it's only defined for
 	 * exceptions.
 	 */
+
+	sync_core();
 }
 EXPORT_SYMBOL_GPL(machine_check_poll);
 
@@ -501,6 +503,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
  out2:
 	atomic_dec(&mce_entry);
+	sync_core();
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
