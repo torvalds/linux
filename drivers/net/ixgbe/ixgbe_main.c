@@ -5354,7 +5354,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 err_register:
 	ixgbe_release_hw_control(adapter);
-err_hw_init:
 	ixgbe_clear_interrupt_scheme(adapter);
 err_sw_init:
 err_eeprom:
