@@ -5,6 +5,8 @@ only the AMD64 specific ones are listed here.
 
 Machine check
 
+   Please see Documentation/x86/x86_64/machinecheck for sysfs runtime tunables.
+
    mce=off disable machine check
    mce=bootlog Enable logging of machine checks left over from booting.
                Disabled by default on AMD because some BIOS leave bogus ones.
