@@ -708,6 +708,7 @@ struct sort_entry {
 	struct list_head list;
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
+	size_t (*print_header)(FILE *fp);
 	size_t	(*print)(FILE *fp, struct hist_entry *);
 };
 
@@ -722,7 +723,7 @@ sort__thread_print(FILE *fp, struct hist_entry *self)
 {
 	char bf[32];
 
-	return fprintf(fp, "%14s ",
+	return fprintf(fp, " %16s",
 			thread__name(self->thread, bf, sizeof(bf)));
 }
 
@@ -752,7 +753,7 @@ sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__comm_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "%20s ", self->thread->comm ?: "<unknown>");
+	return fprintf(fp, " %16s", self->thread->comm ?: "<unknown>");
 }
 
 static struct sort_entry sort_comm = {
@@ -781,7 +782,7 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__dso_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "%64s ", self->dso ? self->dso->name : "<unknown>");
+	return fprintf(fp, " %64s", self->dso ? self->dso->name : "<unknown>");
 }
 
 static struct sort_entry sort_dso = {
@@ -803,21 +804,33 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	return (int64_t)(ip_r - ip_l);
 }
 
+static size_t sort__sym_print_header(FILE *fp)
+{
+	size_t ret = 0;
+
+	ret += fprintf(fp, "#\n");
+	ret += fprintf(fp, "# Overhead          Command       File: Symbol\n");
+	ret += fprintf(fp, "# ........          .......       ............\n");
+	ret += fprintf(fp, "#\n");
+
+	return ret;
+}
+
 static size_t
 sort__sym_print(FILE *fp, struct hist_entry *self)
 {
 	size_t ret = 0;
 
-	ret += fprintf(fp, "[%c] ", self->level);
+	ret += fprintf(fp, "  [%c] ", self->level);
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx ", (unsigned long long)self->ip);
+		ret += fprintf(fp, " %#018llx", (unsigned long long)self->ip);
 
 	if (self->level != '.')
-		ret += fprintf(fp, "%s ",
+		ret += fprintf(fp, " kernel: %s",
 			       self->sym ? self->sym->name : "<unknown>");
 	else
-		ret += fprintf(fp, "%s: %s ",
+		ret += fprintf(fp, " %s: %s",
 			       self->dso ? self->dso->name : "<unknown>",
 			       self->sym ? self->sym->name : "<unknown>");
 
@@ -825,8 +838,9 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 }
 
 static struct sort_entry sort_sym = {
-	.cmp	= sort__sym_cmp,
-	.print	= sort__sym_print,
+	.cmp		= sort__sym_cmp,
+	.print_header	= sort__sym_print_header,
+	.print		= sort__sym_print,
 };
 
 struct sort_dimension {
@@ -898,7 +912,7 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
 	size_t ret;
 
 	if (total_samples) {
-		ret = fprintf(fp, "%5.2f%% ",
+		ret = fprintf(fp, "    %5.2f%%",
 				(self->count * 100.0) / total_samples);
 	} else
 		ret = fprintf(fp, "%12d ", self->count);
@@ -1003,8 +1017,14 @@ static void output__resort(void)
 static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 {
 	struct hist_entry *pos;
+	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		if (se->print_header)
+			ret += se->print_header(fp);
+	}
 
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
