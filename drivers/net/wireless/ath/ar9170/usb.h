@@ -62,6 +62,8 @@ struct ar9170_usb {
 	struct usb_anchor rx_submitted;
 	struct usb_anchor tx_submitted;
 
+	bool req_one_stage_fw;
+
 	spinlock_t cmdlock;
 	struct completion cmd_wait;
 	int readlen;
