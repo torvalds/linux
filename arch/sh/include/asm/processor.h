@@ -94,6 +94,10 @@ extern struct pt_regs fake_swapper_regs;
 const char *get_cpu_subtype(struct sh_cpuinfo *c);
 extern const struct seq_operations cpuinfo_op;
 
+/* processor boot mode configuration */
+int generic_mode_pins(void);
+int test_mode_pin(int pin);
+
 #ifdef CONFIG_VSYSCALL
 int vsyscall_init(void);
 #else

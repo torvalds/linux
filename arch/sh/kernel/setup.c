@@ -420,6 +420,18 @@ void __init setup_arch(char **cmdline_p)
 #endif
 }
 
+/* processor boot mode configuration */
+int generic_mode_pins(void)
+{
+	pr_warning("generic_mode_pins(): missing mode pin configuration\n");
+	return 0;
+}
+
+int test_mode_pin(int pin)
+{
+	return sh_mv.mv_mode_pins() & (1 << pin);
+}
+
 static const char *cpu_name[] = {
 	[CPU_SH7201]	= "SH7201",
 	[CPU_SH7203]	= "SH7203",	[CPU_SH7263]	= "SH7263",

@@ -48,6 +48,7 @@ struct sh_machine_vector {
 	void (*mv_ioport_unmap)(void __iomem *);
 
 	int (*mv_clk_init)(void);
+	int (*mv_mode_pins)(void);
 };
 
 extern struct sh_machine_vector sh_mv;
