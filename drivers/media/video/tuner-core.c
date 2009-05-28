@@ -412,8 +412,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_XC5000:
 	{
-		struct dvb_tuner_ops *xc_tuner_ops;
-
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		/* if_khz will be set when the digital dvb_attach() occurs */
 		xc5000_cfg.if_khz	  = 0;
