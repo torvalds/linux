@@ -340,7 +340,7 @@ static int __cmd_record(int argc, const char **argv)
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
 
-	output = open(output_name, O_CREAT|O_RDWR, S_IRWXU);
+	output = open(output_name, O_CREAT|O_EXCL|O_RDWR, S_IRWXU);
 	if (output < 0) {
 		perror("failed to create output file");
 		exit(-1);
