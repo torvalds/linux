@@ -11,13 +11,13 @@
  * Andi Kleen
  * Ying Huang
  */
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
-#include <asm/uaccess.h>
 #include <asm/mce.h>
 
 /* Update fake mce registers on current CPU. */
@@ -93,7 +93,7 @@ static ssize_t mce_write(struct file *filp, const char __user *ubuf,
 	if (copy_from_user(&m, ubuf, usize))
 		return -EFAULT;
 
-	if (m.cpu >= NR_CPUS || !cpu_online(m.cpu))
+	if (m.cpu >= num_possible_cpus() || !cpu_online(m.cpu))
 		return -EINVAL;
 
 	dm = kmalloc(sizeof(struct delayed_mce), GFP_KERNEL);
