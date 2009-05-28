@@ -171,7 +171,7 @@ endchoice
 
 config OMAP_SERIAL_WAKE
 	bool "Enable wake-up events for serial ports"
-	depends on OMAP_MUX
+	depends on ARCH_OMAP1 && OMAP_MUX
 	default y
 	help
 	  Select this option if you want to have your system wake up

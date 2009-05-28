@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
 #include <linux/console.h>
 #include <linux/serial.h>
 #include <linux/tty.h>

@@ -28,7 +28,6 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/pm.h>
 #include <mach/mux.h>
 #include <mach/usb.h>
 

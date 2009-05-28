@@ -60,9 +60,12 @@ struct omap_sdrc_params *omap2_sdrc_get_params(unsigned long r)
 {
 	struct omap_sdrc_params *sp;
 
+	if (!sdrc_init_params)
+		return NULL;
+
 	sp = sdrc_init_params;
 
-	while (sp->rate != r)
+	while (sp->rate && sp->rate != r)
 		sp++;
 
 	if (!sp->rate)
