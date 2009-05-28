@@ -367,8 +367,6 @@ static void svm_vcpu_init_msrpm(u32 *msrpm)
 #endif
 	set_msr_interception(msrpm, MSR_K6_STAR, 1, 1);
 	set_msr_interception(msrpm, MSR_IA32_SYSENTER_CS, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_SYSENTER_ESP, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_SYSENTER_EIP, 1, 1);
 }
 
 static void svm_enable_lbrv(struct vcpu_svm *svm)
@@ -1981,10 +1979,10 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 		*data = svm->vmcb->save.sysenter_cs;
 		break;
 	case MSR_IA32_SYSENTER_EIP:
-		*data = svm->vmcb->save.sysenter_eip;
+		*data = svm->sysenter_eip;
 		break;
 	case MSR_IA32_SYSENTER_ESP:
-		*data = svm->vmcb->save.sysenter_esp;
+		*data = svm->sysenter_esp;
 		break;
 	/* Nobody will change the following 5 values in the VMCB so
 	   we can safely return them on rdmsr. They will always be 0
@@ -2071,9 +2069,11 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		svm->vmcb->save.sysenter_cs = data;
 		break;
 	case MSR_IA32_SYSENTER_EIP:
+		svm->sysenter_eip = data;
 		svm->vmcb->save.sysenter_eip = data;
 		break;
 	case MSR_IA32_SYSENTER_ESP:
+		svm->sysenter_esp = data;
 		svm->vmcb->save.sysenter_esp = data;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:

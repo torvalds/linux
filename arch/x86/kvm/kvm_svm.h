@@ -27,6 +27,8 @@ struct vcpu_svm {
 	unsigned long vmcb_pa;
 	struct svm_cpu_data *svm_data;
 	uint64_t asid_generation;
+	uint64_t sysenter_esp;
+	uint64_t sysenter_eip;
 
 	u64 next_rip;
 
