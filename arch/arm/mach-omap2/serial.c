@@ -98,6 +98,14 @@ void omap_serial_enable_clocks(int enable)
 	}
 }
 
+static struct platform_device serial_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= serial_platform_data,
+	},
+};
+
 void __init omap_serial_init(void)
 {
 	int i;
@@ -142,18 +150,6 @@ void __init omap_serial_init(void)
 
 		omap_serial_reset(p);
 	}
-}
 
-static struct platform_device serial_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= serial_platform_data,
-	},
-};
-
-static int __init omap_init(void)
-{
-	return platform_device_register(&serial_device);
+	platform_device_register(&serial_device);
 }
-arch_initcall(omap_init);
