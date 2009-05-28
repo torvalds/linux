@@ -321,12 +321,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	unsigned long f;
 
 	spin_lock_irqsave(&priv->rx_queue.lock, f);
-	if (skb->next)
-		__skb_unlink(skb, &priv->rx_queue);
-	else {
-		spin_unlock_irqrestore(&priv->rx_queue.lock, f);
-		return;
-	}
+	__skb_unlink(skb, &priv->rx_queue);
 	spin_unlock_irqrestore(&priv->rx_queue.lock, f);
 	skb_put(skb, urb->actual_length);
 
