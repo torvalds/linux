@@ -212,6 +212,7 @@ static void skip_signal(int signo)
 
 static const char * const stat_usage[] = {
 	"perf stat [<options>] <command>",
+	"perf stat [<options>] -- <command> [<options>]",
 	NULL
 };
 

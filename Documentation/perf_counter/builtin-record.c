@@ -397,7 +397,8 @@ static int __cmd_record(int argc, const char **argv)
 }
 
 static const char * const record_usage[] = {
-	"perf record [<options>] <command>",
+	"perf record [<options>] [<command>]",
+	"perf record [<options>] -- <command> [<options>]",
 	NULL
 };
 
