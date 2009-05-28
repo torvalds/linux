@@ -2434,14 +2434,6 @@ static ssize_t ibmvfc_show_host_partition_name(struct device *dev,
 			vhost->login_buf->resp.partition_name);
 }
 
-static struct device_attribute ibmvfc_host_partition_name = {
-	.attr = {
-		.name = "partition_name",
-		.mode = S_IRUGO,
-	},
-	.show = ibmvfc_show_host_partition_name,
-};
-
 static ssize_t ibmvfc_show_host_device_name(struct device *dev,
 					    struct device_attribute *attr, char *buf)
 {
@@ -2451,14 +2443,6 @@ static ssize_t ibmvfc_show_host_device_name(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			vhost->login_buf->resp.device_name);
 }
-
-static struct device_attribute ibmvfc_host_device_name = {
-	.attr = {
-		.name = "device_name",
-		.mode = S_IRUGO,
-	},
-	.show = ibmvfc_show_host_device_name,
-};
 
 static ssize_t ibmvfc_show_host_loc_code(struct device *dev,
 					 struct device_attribute *attr, char *buf)
@@ -2470,14 +2454,6 @@ static ssize_t ibmvfc_show_host_loc_code(struct device *dev,
 			vhost->login_buf->resp.port_loc_code);
 }
 
-static struct device_attribute ibmvfc_host_loc_code = {
-	.attr = {
-		.name = "port_loc_code",
-		.mode = S_IRUGO,
-	},
-	.show = ibmvfc_show_host_loc_code,
-};
-
 static ssize_t ibmvfc_show_host_drc_name(struct device *dev,
 					 struct device_attribute *attr, char *buf)
 {
@@ -2488,14 +2464,6 @@ static ssize_t ibmvfc_show_host_drc_name(struct device *dev,
 			vhost->login_buf->resp.drc_name);
 }
 
-static struct device_attribute ibmvfc_host_drc_name = {
-	.attr = {
-		.name = "drc_name",
-		.mode = S_IRUGO,
-	},
-	.show = ibmvfc_show_host_drc_name,
-};
-
 static ssize_t ibmvfc_show_host_npiv_version(struct device *dev,
 					     struct device_attribute *attr, char *buf)
 {
@@ -2503,14 +2471,6 @@ static ssize_t ibmvfc_show_host_npiv_version(struct device *dev,
 	struct ibmvfc_host *vhost = shost_priv(shost);
 	return snprintf(buf, PAGE_SIZE, "%d\n", vhost->login_buf->resp.version);
 }
-
-static struct device_attribute ibmvfc_host_npiv_version = {
-	.attr = {
-		.name = "npiv_version",
-		.mode = S_IRUGO,
-	},
-	.show = ibmvfc_show_host_npiv_version,
-};
 
 /**
  * ibmvfc_show_log_level - Show the adapter's error logging level
@@ -2556,14 +2516,13 @@ static ssize_t ibmvfc_store_log_level(struct device *dev,
 	return strlen(buf);
 }
 
-static struct device_attribute ibmvfc_log_level_attr = {
-	.attr = {
-		.name =		"log_level",
-		.mode =		S_IRUGO | S_IWUSR,
-	},
-	.show = ibmvfc_show_log_level,
-	.store = ibmvfc_store_log_level
-};
+static DEVICE_ATTR(partition_name, S_IRUGO, ibmvfc_show_host_partition_name, NULL);
+static DEVICE_ATTR(device_name, S_IRUGO, ibmvfc_show_host_device_name, NULL);
+static DEVICE_ATTR(port_loc_code, S_IRUGO, ibmvfc_show_host_loc_code, NULL);
+static DEVICE_ATTR(drc_name, S_IRUGO, ibmvfc_show_host_drc_name, NULL);
+static DEVICE_ATTR(npiv_version, S_IRUGO, ibmvfc_show_host_npiv_version, NULL);
+static DEVICE_ATTR(log_level, S_IRUGO | S_IWUSR,
+		   ibmvfc_show_log_level, ibmvfc_store_log_level);
 
 #ifdef CONFIG_SCSI_IBMVFC_TRACE
 /**
@@ -2612,12 +2571,12 @@ static struct bin_attribute ibmvfc_trace_attr = {
 #endif
 
 static struct device_attribute *ibmvfc_attrs[] = {
-	&ibmvfc_host_partition_name,
-	&ibmvfc_host_device_name,
-	&ibmvfc_host_loc_code,
-	&ibmvfc_host_drc_name,
-	&ibmvfc_host_npiv_version,
-	&ibmvfc_log_level_attr,
+	&dev_attr_partition_name,
+	&dev_attr_device_name,
+	&dev_attr_port_loc_code,
+	&dev_attr_drc_name,
+	&dev_attr_npiv_version,
+	&dev_attr_log_level,
 	NULL
 };
 
