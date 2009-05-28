@@ -207,6 +207,7 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb);
 void ar9170_unregister(struct ar9170 *ar);
 void ar9170_handle_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 			     bool update_statistics, u16 tx_status);
+void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
 
 /* MAC */
 int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
