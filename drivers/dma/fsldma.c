@@ -147,10 +147,11 @@ static void dma_start(struct fsl_dma_chan *fsl_chan)
 	if (fsl_chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
 		DMA_OUT(fsl_chan, &fsl_chan->reg_base->bcr, 0, 32);
 		mr_set |= FSL_DMA_MR_EMP_EN;
-	} else
+	} else if ((fsl_chan->feature & FSL_DMA_IP_MASK) == FSL_DMA_IP_85XX) {
 		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr,
 			DMA_IN(fsl_chan, &fsl_chan->reg_base->mr, 32)
 				& ~FSL_DMA_MR_EMP_EN, 32);
+	}
 
 	if (fsl_chan->feature & FSL_DMA_CHAN_START_EXT)
 		mr_set |= FSL_DMA_MR_EMS_EN;
