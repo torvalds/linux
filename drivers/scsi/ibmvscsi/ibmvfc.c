@@ -3420,7 +3420,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost, u64 scsi_id)
 	}
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
-	tgt = mempool_alloc(vhost->tgt_pool, GFP_KERNEL);
+	tgt = mempool_alloc(vhost->tgt_pool, GFP_NOIO);
 	if (!tgt) {
 		dev_err(vhost->dev, "Target allocation failure for scsi id %08llx\n",
 			scsi_id);
