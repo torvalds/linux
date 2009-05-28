@@ -799,7 +799,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 	 * does not need to be synchronized by timer.
 	 */
 	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
-	c->jheads[GCHD].wbuf.timeout = 0;
+	c->jheads[GCHD].wbuf.softlimit = ktime_set(0, 0);
 
 	return 0;
 }
@@ -1695,7 +1695,7 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 
 	for (i = 0; i < c->jhead_cnt; i++) {
 		ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		del_timer_sync(&c->jheads[i].wbuf.timer);
+		hrtimer_cancel(&c->jheads[i].wbuf.timer);
 	}
 
 	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
@@ -1755,7 +1755,7 @@ static void ubifs_put_super(struct super_block *sb)
 		if (c->jheads)
 			for (i = 0; i < c->jhead_cnt; i++) {
 				ubifs_wbuf_sync(&c->jheads[i].wbuf);
-				del_timer_sync(&c->jheads[i].wbuf.timer);
+				hrtimer_cancel(&c->jheads[i].wbuf.timer);
 			}
 
 		/*
