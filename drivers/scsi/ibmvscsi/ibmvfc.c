@@ -143,6 +143,7 @@ static void ibmvfc_npiv_login(struct ibmvfc_host *);
 static void ibmvfc_tgt_send_prli(struct ibmvfc_target *);
 static void ibmvfc_tgt_send_plogi(struct ibmvfc_target *);
 static void ibmvfc_tgt_query_target(struct ibmvfc_target *);
+static void ibmvfc_npiv_logout(struct ibmvfc_host *);
 
 static const char *unknown_error = "unknown error";
 
@@ -477,6 +478,10 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 		if (vhost->action == IBMVFC_HOST_ACTION_INIT_WAIT)
 			vhost->action = action;
 		break;
+	case IBMVFC_HOST_ACTION_LOGO_WAIT:
+		if (vhost->action == IBMVFC_HOST_ACTION_LOGO)
+			vhost->action = action;
+		break;
 	case IBMVFC_HOST_ACTION_INIT_WAIT:
 		if (vhost->action == IBMVFC_HOST_ACTION_INIT)
 			vhost->action = action;
@@ -496,6 +501,7 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 		if (vhost->action == IBMVFC_HOST_ACTION_ALLOC_TGTS)
 			vhost->action = action;
 		break;
+	case IBMVFC_HOST_ACTION_LOGO:
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
@@ -647,6 +653,7 @@ static void ibmvfc_release_crq_queue(struct ibmvfc_host *vhost)
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	vhost->state = IBMVFC_NO_CRQ;
+	vhost->logged_in = 0;
 	dma_unmap_single(vhost->dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	free_page((unsigned long)crq->msgs);
 }
@@ -693,6 +700,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	vhost->state = IBMVFC_NO_CRQ;
+	vhost->logged_in = 0;
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
 
 	/* Clean out the queue */
@@ -808,10 +816,10 @@ static void ibmvfc_purge_requests(struct ibmvfc_host *vhost, int error_code)
 }
 
 /**
- * __ibmvfc_reset_host - Reset the connection to the server (no locking)
+ * ibmvfc_hard_reset_host - Reset the connection to the server by breaking the CRQ
  * @vhost:	struct ibmvfc host to reset
  **/
-static void __ibmvfc_reset_host(struct ibmvfc_host *vhost)
+static void ibmvfc_hard_reset_host(struct ibmvfc_host *vhost)
 {
 	int rc;
 
@@ -827,8 +835,24 @@ static void __ibmvfc_reset_host(struct ibmvfc_host *vhost)
 }
 
 /**
- * ibmvfc_reset_host - Reset the connection to the server
+ * __ibmvfc_reset_host - Reset the connection to the server (no locking)
  * @vhost:	struct ibmvfc host to reset
+ **/
+static void __ibmvfc_reset_host(struct ibmvfc_host *vhost)
+{
+	if (vhost->logged_in && vhost->action != IBMVFC_HOST_ACTION_LOGO_WAIT &&
+	    !ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
+		scsi_block_requests(vhost->host);
+		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_LOGO);
+		vhost->job_step = ibmvfc_npiv_logout;
+		wake_up(&vhost->work_wait_q);
+	} else
+		ibmvfc_hard_reset_host(vhost);
+}
+
+/**
+ * ibmvfc_reset_host - Reset the connection to the server
+ * @vhost:	ibmvfc host struct
  **/
 static void ibmvfc_reset_host(struct ibmvfc_host *vhost)
 {
@@ -2230,6 +2254,7 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 		return;
 	case IBMVFC_CRQ_XPORT_EVENT:
 		vhost->state = IBMVFC_NO_CRQ;
+		vhost->logged_in = 0;
 		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
 		if (crq->format == IBMVFC_PARTITION_MIGRATED) {
 			/* We need to re-setup the interpartition connection */
@@ -3554,6 +3579,7 @@ static void ibmvfc_npiv_login_done(struct ibmvfc_event *evt)
 		return;
 	}
 
+	vhost->logged_in = 1;
 	npiv_max_sectors = min((uint)(rsp->max_dma_len >> 9), IBMVFC_MAX_SECTORS);
 	dev_info(vhost->dev, "Host partition: %s, device: %s %s %s max sectors %u\n",
 		 rsp->partition_name, rsp->device_name, rsp->port_loc_code,
@@ -3612,6 +3638,65 @@ static void ibmvfc_npiv_login(struct ibmvfc_host *vhost)
 };
 
 /**
+ * ibmvfc_npiv_logout_done - Completion handler for NPIV Logout
+ * @vhost:		ibmvfc host struct
+ *
+ **/
+static void ibmvfc_npiv_logout_done(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_host *vhost = evt->vhost;
+	u32 mad_status = evt->xfer_iu->npiv_logout.common.status;
+
+	ibmvfc_free_event(evt);
+
+	switch (mad_status) {
+	case IBMVFC_MAD_SUCCESS:
+		if (list_empty(&vhost->sent) &&
+		    vhost->action == IBMVFC_HOST_ACTION_LOGO_WAIT) {
+			ibmvfc_init_host(vhost, 0);
+			return;
+		}
+		break;
+	case IBMVFC_MAD_FAILED:
+	case IBMVFC_MAD_NOT_SUPPORTED:
+	case IBMVFC_MAD_CRQ_ERROR:
+	case IBMVFC_MAD_DRIVER_FAILED:
+	default:
+		ibmvfc_dbg(vhost, "NPIV Logout failed. 0x%X\n", mad_status);
+		break;
+	}
+
+	ibmvfc_hard_reset_host(vhost);
+}
+
+/**
+ * ibmvfc_npiv_logout - Issue an NPIV Logout
+ * @vhost:		ibmvfc host struct
+ *
+ **/
+static void ibmvfc_npiv_logout(struct ibmvfc_host *vhost)
+{
+	struct ibmvfc_npiv_logout_mad *mad;
+	struct ibmvfc_event *evt;
+
+	evt = ibmvfc_get_event(vhost);
+	ibmvfc_init_event(evt, ibmvfc_npiv_logout_done, IBMVFC_MAD_FORMAT);
+
+	mad = &evt->iu.npiv_logout;
+	memset(mad, 0, sizeof(*mad));
+	mad->common.version = 1;
+	mad->common.opcode = IBMVFC_NPIV_LOGOUT;
+	mad->common.length = sizeof(struct ibmvfc_npiv_logout_mad);
+
+	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_LOGO_WAIT);
+
+	if (!ibmvfc_send_event(evt, vhost, default_timeout))
+		ibmvfc_dbg(vhost, "Sent NPIV logout\n");
+	else
+		ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+}
+
+/**
  * ibmvfc_dev_init_to_do - Is there target initialization work to do?
  * @vhost:		ibmvfc host struct
  *
@@ -3647,6 +3732,7 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 	switch (vhost->action) {
 	case IBMVFC_HOST_ACTION_NONE:
 	case IBMVFC_HOST_ACTION_INIT_WAIT:
+	case IBMVFC_HOST_ACTION_LOGO_WAIT:
 		return 0;
 	case IBMVFC_HOST_ACTION_TGT_INIT:
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
@@ -3659,6 +3745,7 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 			if (tgt->action == IBMVFC_TGT_ACTION_INIT_WAIT)
 				return 0;
 		return 1;
+	case IBMVFC_HOST_ACTION_LOGO:
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_ALLOC_TGTS:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
@@ -3765,7 +3852,11 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	vhost->events_to_log = 0;
 	switch (vhost->action) {
 	case IBMVFC_HOST_ACTION_NONE:
+	case IBMVFC_HOST_ACTION_LOGO_WAIT:
 	case IBMVFC_HOST_ACTION_INIT_WAIT:
+		break;
+	case IBMVFC_HOST_ACTION_LOGO:
+		vhost->job_step(vhost);
 		break;
 	case IBMVFC_HOST_ACTION_INIT:
 		BUG_ON(vhost->state != IBMVFC_INITIALIZING);

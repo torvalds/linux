@@ -57,9 +57,10 @@
  * Ensure we have resources for ERP and initialization:
  * 1 for ERP
  * 1 for initialization
+ * 1 for NPIV Logout
  * 2 for each discovery thread
  */
-#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + (disc_threads * 2))
+#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + 1 + (disc_threads * 2))
 
 #define IBMVFC_MAD_SUCCESS		0x00
 #define IBMVFC_MAD_NOT_SUPPORTED	0xF1
@@ -127,6 +128,7 @@ enum ibmvfc_mad_types {
 	IBMVFC_IMPLICIT_LOGOUT	= 0x0040,
 	IBMVFC_PASSTHRU		= 0x0200,
 	IBMVFC_TMF_MAD		= 0x0100,
+	IBMVFC_NPIV_LOGOUT	= 0x0800,
 };
 
 struct ibmvfc_mad_common {
@@ -141,6 +143,10 @@ struct ibmvfc_mad_common {
 struct ibmvfc_npiv_login_mad {
 	struct ibmvfc_mad_common common;
 	struct srp_direct_buf buffer;
+}__attribute__((packed, aligned (8)));
+
+struct ibmvfc_npiv_logout_mad {
+	struct ibmvfc_mad_common common;
 }__attribute__((packed, aligned (8)));
 
 #define IBMVFC_MAX_NAME 256
@@ -561,6 +567,7 @@ struct ibmvfc_async_crq_queue {
 union ibmvfc_iu {
 	struct ibmvfc_mad_common mad_common;
 	struct ibmvfc_npiv_login_mad npiv_login;
+	struct ibmvfc_npiv_logout_mad npiv_logout;
 	struct ibmvfc_discover_targets discover_targets;
 	struct ibmvfc_port_login plogi;
 	struct ibmvfc_process_login prli;
@@ -627,6 +634,8 @@ struct ibmvfc_event_pool {
 
 enum ibmvfc_host_action {
 	IBMVFC_HOST_ACTION_NONE = 0,
+	IBMVFC_HOST_ACTION_LOGO,
+	IBMVFC_HOST_ACTION_LOGO_WAIT,
 	IBMVFC_HOST_ACTION_INIT,
 	IBMVFC_HOST_ACTION_INIT_WAIT,
 	IBMVFC_HOST_ACTION_QUERY,
@@ -682,6 +691,7 @@ struct ibmvfc_host {
 	int reinit;
 	int delay_init;
 	int scan_complete;
+	int logged_in;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002
