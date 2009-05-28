@@ -673,6 +673,27 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
  *       I left the codes, however, for debugging/testing purposes.
  */
 
+/* receive a response */
+static int azx_single_wait_for_response(struct azx *chip)
+{
+	int timeout = 50;
+
+	while (timeout--) {
+		/* check IRV busy bit */
+		if (azx_readw(chip, IRS) & ICH6_IRS_VALID) {
+			/* reuse rirb.res as the response return value */
+			chip->rirb.res = azx_readl(chip, IR);
+			return 0;
+		}
+		udelay(1);
+	}
+	if (printk_ratelimit())
+		snd_printd(SFX "get_response timeout: IRS=0x%x\n",
+			   azx_readw(chip, IRS));
+	chip->rirb.res = -1;
+	return -EIO;
+}
+
 /* send a command */
 static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 {
@@ -688,7 +709,7 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 			azx_writel(chip, IC, val);
 			azx_writew(chip, IRS, azx_readw(chip, IRS) |
 				   ICH6_IRS_BUSY);
-			return 0;
+			return azx_single_wait_for_response(chip);
 		}
 		udelay(1);
 	}
@@ -702,18 +723,7 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 static unsigned int azx_single_get_response(struct hda_bus *bus)
 {
 	struct azx *chip = bus->private_data;
-	int timeout = 50;
-
-	while (timeout--) {
-		/* check IRV busy bit */
-		if (azx_readw(chip, IRS) & ICH6_IRS_VALID)
-			return azx_readl(chip, IR);
-		udelay(1);
-	}
-	if (printk_ratelimit())
-		snd_printd(SFX "get_response timeout: IRS=0x%x\n",
-			   azx_readw(chip, IRS));
-	return (unsigned int)-1;
+	return chip->rirb.res;
 }
 
 /*
