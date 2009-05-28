@@ -207,7 +207,8 @@ struct ibmvfc_npiv_login_resp {
 #define IBMVFC_NATIVE_FC		0x01
 #define IBMVFC_CAN_FLUSH_ON_HALT	0x08
 	u32 reserved;
-	u64 capabilites;
+	u64 capabilities;
+#define IBMVFC_CAN_FLUSH_ON_HALT	0x08
 	u32 max_cmds;
 	u32 scsi_id_sz;
 	u64 max_dma_len;
@@ -547,9 +548,17 @@ struct ibmvfc_crq_queue {
 	dma_addr_t msg_token;
 };
 
+enum ibmvfc_ae_link_state {
+	IBMVFC_AE_LS_LINK_UP		= 0x01,
+	IBMVFC_AE_LS_LINK_BOUNCED	= 0x02,
+	IBMVFC_AE_LS_LINK_DOWN		= 0x04,
+	IBMVFC_AE_LS_LINK_DEAD		= 0x08,
+};
+
 struct ibmvfc_async_crq {
 	volatile u8 valid;
-	u8 pad[3];
+	u8 link_state;
+	u8 pad[2];
 	u32 pad2;
 	volatile u64 event;
 	volatile u64 scsi_id;

@@ -110,7 +110,7 @@ static const struct {
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_XPORT_DEAD, DID_ERROR, 0, 1, "transport dead" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_CONFIG_ERROR, DID_ERROR, 1, 1, "configuration error" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_NAME_SERVER_FAIL, DID_ERROR, 1, 1, "name server failure" },
-	{ IBMVFC_FABRIC_MAPPED, IBMVFC_LINK_HALTED, DID_REQUEUE, 0, 0, "link halted" },
+	{ IBMVFC_FABRIC_MAPPED, IBMVFC_LINK_HALTED, DID_REQUEUE, 1, 0, "link halted" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_XPORT_GENERAL, DID_OK, 1, 0, "general transport error" },
 
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_CRQ_FAILURE, DID_REQUEUE, 1, 1, "CRQ failure" },
@@ -1169,8 +1169,9 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	login_info->partition_num = vhost->partition_number;
 	login_info->vfc_frame_version = 1;
 	login_info->fcp_version = 3;
+	login_info->flags = IBMVFC_FLUSH_ON_HALT;
 	if (vhost->client_migrated)
-		login_info->flags = IBMVFC_CLIENT_MIGRATED;
+		login_info->flags |= IBMVFC_CLIENT_MIGRATED;
 
 	login_info->max_cmds = max_requests + IBMVFC_NUM_INTERNAL_REQ;
 	login_info->capabilities = IBMVFC_CAN_MIGRATE;
@@ -2185,8 +2186,25 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 		   " node_name: %llx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
 
 	switch (crq->event) {
-	case IBMVFC_AE_LINK_UP:
 	case IBMVFC_AE_RESUME:
+		switch (crq->link_state) {
+		case IBMVFC_AE_LS_LINK_DOWN:
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DOWN);
+			break;
+		case IBMVFC_AE_LS_LINK_DEAD:
+			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+			break;
+		case IBMVFC_AE_LS_LINK_UP:
+		case IBMVFC_AE_LS_LINK_BOUNCED:
+		default:
+			vhost->events_to_log |= IBMVFC_AE_LINKUP;
+			vhost->delay_init = 1;
+			__ibmvfc_reset_host(vhost);
+			break;
+		};
+
+		break;
+	case IBMVFC_AE_LINK_UP:
 		vhost->events_to_log |= IBMVFC_AE_LINKUP;
 		vhost->delay_init = 1;
 		__ibmvfc_reset_host(vhost);
@@ -2505,6 +2523,14 @@ static ssize_t ibmvfc_show_host_npiv_version(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", vhost->login_buf->resp.version);
 }
 
+static ssize_t ibmvfc_show_host_capabilities(struct device *dev,
+					     struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ibmvfc_host *vhost = shost_priv(shost);
+	return snprintf(buf, PAGE_SIZE, "%llx\n", vhost->login_buf->resp.capabilities);
+}
+
 /**
  * ibmvfc_show_log_level - Show the adapter's error logging level
  * @dev:	class device struct
@@ -2554,6 +2580,7 @@ static DEVICE_ATTR(device_name, S_IRUGO, ibmvfc_show_host_device_name, NULL);
 static DEVICE_ATTR(port_loc_code, S_IRUGO, ibmvfc_show_host_loc_code, NULL);
 static DEVICE_ATTR(drc_name, S_IRUGO, ibmvfc_show_host_drc_name, NULL);
 static DEVICE_ATTR(npiv_version, S_IRUGO, ibmvfc_show_host_npiv_version, NULL);
+static DEVICE_ATTR(capabilities, S_IRUGO, ibmvfc_show_host_capabilities, NULL);
 static DEVICE_ATTR(log_level, S_IRUGO | S_IWUSR,
 		   ibmvfc_show_log_level, ibmvfc_store_log_level);
 
@@ -2609,6 +2636,7 @@ static struct device_attribute *ibmvfc_attrs[] = {
 	&dev_attr_port_loc_code,
 	&dev_attr_drc_name,
 	&dev_attr_npiv_version,
+	&dev_attr_capabilities,
 	&dev_attr_log_level,
 	NULL
 };
