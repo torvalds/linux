@@ -41,6 +41,7 @@
 #include "mmc-twl4030.h"
 
 #define SDP2430_CS0_BASE	0x04000000
+#define SECONDARY_LCD_GPIO		147
 
 static struct mtd_partition sdp2430_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -96,8 +97,18 @@ static struct platform_device sdp2430_flash_device = {
 	.resource	= &sdp2430_flash_resource,
 };
 
+static struct platform_device sdp2430_lcd_device = {
+	.name		= "sdp2430_lcd",
+	.id		= -1,
+};
+
 static struct platform_device *sdp2430_devices[] __initdata = {
 	&sdp2430_flash_device,
+	&sdp2430_lcd_device,
+};
+
+static struct omap_lcd_config sdp2430_lcd_config __initdata = {
+	.ctrl_name	= "internal",
 };
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91x_MODULE)
@@ -141,6 +152,7 @@ static struct omap_uart_config sdp2430_uart_config __initdata = {
 
 static struct omap_board_config_kernel sdp2430_config[] = {
 	{OMAP_TAG_UART, &sdp2430_uart_config},
+	{OMAP_TAG_LCD, &sdp2430_lcd_config},
 };
 
 
@@ -188,6 +200,8 @@ static struct twl4030_hsmmc_info mmc[] __initdata = {
 
 static void __init omap_2430sdp_init(void)
 {
+	int ret;
+
 	omap2430_i2c_init();
 
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
@@ -197,6 +211,11 @@ static void __init omap_2430sdp_init(void)
 	twl4030_mmc_init(mmc);
 	usb_musb_init();
 	board_smc91x_init();
+
+	/* Turn off secondary LCD backlight */
+	ret = gpio_request(SECONDARY_LCD_GPIO, "Secondary LCD backlight");
+	if (ret == 0)
+		gpio_direction_output(SECONDARY_LCD_GPIO, 0);
 }
 
 static void __init omap_2430sdp_map_io(void)
