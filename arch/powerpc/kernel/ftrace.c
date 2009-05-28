@@ -43,14 +43,6 @@ ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 	return op;
 }
 
-#ifdef CONFIG_PPC64
-# define _ASM_ALIGN	" .align 3 "
-# define _ASM_PTR	" .llong "
-#else
-# define _ASM_ALIGN	" .align 2 "
-# define _ASM_PTR	" .long "
-#endif
-
 static int
 ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 {
