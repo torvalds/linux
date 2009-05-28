@@ -263,6 +263,9 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	if (runtime->hw.info & SNDRV_PCM_INFO_BATCH)
 		goto no_jiffies_check;
 	hdelta = new_hw_ptr - old_hw_ptr;
+	if (hdelta < runtime->delay)
+		goto no_jiffies_check;
+	hdelta -= runtime->delay;
 	jdelta = jiffies - runtime->hw_ptr_jiffies;
 	if (((hdelta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		delta = jdelta /
@@ -349,8 +352,12 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		new_hw_ptr = hw_base + pos;
 	}
 	/* Do jiffies check only in xrun_debug mode */
-	if (xrun_debug(substream, 4) &&
-	    ((delta * HZ) / runtime->rate) > jdelta + HZ/100) {
+	if (!xrun_debug(substream, 4))
+		goto no_jiffies_check;
+	if (delta < runtime->delay)
+		goto no_jiffies_check;
+	delta -= runtime->delay;
+	if (((delta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		hw_ptr_error(substream,
 			     "hw_ptr skipping! "
 			     "(pos=%ld, delta=%ld, period=%ld, jdelta=%lu/%lu)\n",
@@ -359,6 +366,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 			     ((delta * HZ) / runtime->rate));
 		return 0;
 	}
+ no_jiffies_check:
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
