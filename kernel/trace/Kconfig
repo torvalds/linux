@@ -56,6 +56,13 @@ config CONTEXT_SWITCH_TRACER
 	select MARKERS
 	bool
 
+# All tracer options should select GENERIC_TRACER. For those options that are
+# enabled by all tracers (context switch and event tracer) they select TRACING.
+# This allows those options to appear when no other tracer is selected. But the
+# options do not appear when something else selects it. We need the two options
+# GENERIC_TRACER and TRACING to avoid circular dependencies to accomplish the
+# hidding of the automatic options options.
+
 config TRACING
 	bool
 	select DEBUG_FS
@@ -65,6 +72,10 @@ config TRACING
 	select NOP_TRACER
 	select BINARY_PRINTF
 	select EVENT_TRACING
+
+config GENERIC_TRACER
+	bool
+	select TRACING
 
 #
 # Minimum requirements an architecture has to meet for us to
@@ -95,7 +106,7 @@ config FUNCTION_TRACER
 	depends on HAVE_FUNCTION_TRACER
 	select FRAME_POINTER
 	select KALLSYMS
-	select TRACING
+	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	help
 	  Enable the kernel to trace every kernel function. This is done
@@ -126,7 +137,7 @@ config IRQSOFF_TRACER
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
 	select TRACE_IRQFLAGS
-	select TRACING
+	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	help
 	  This option measures the time spent in irqs-off critical
@@ -147,7 +158,7 @@ config PREEMPT_TRACER
 	default n
 	depends on GENERIC_TIME
 	depends on PREEMPT
-	select TRACING
+	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	help
 	  This option measures the time spent in preemption off critical
@@ -166,7 +177,7 @@ config PREEMPT_TRACER
 config SYSPROF_TRACER
 	bool "Sysprof Tracer"
 	depends on X86
-	select TRACING
+	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer provides the trace needed by the 'Sysprof' userspace
@@ -174,7 +185,7 @@ config SYSPROF_TRACER
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
-	select TRACING
+	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
 	help
@@ -183,6 +194,7 @@ config SCHED_TRACER
 
 config ENABLE_CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
+	depends on !GENERIC_TRACER
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	help
@@ -191,6 +203,7 @@ config ENABLE_CONTEXT_SWITCH_TRACER
 
 config ENABLE_EVENT_TRACING
 	bool "Trace various events in the kernel"
+	depends on !GENERIC_TRACER
 	select TRACING
 	help
 	  This tracer hooks to various trace points in the kernel
@@ -204,14 +217,14 @@ config ENABLE_EVENT_TRACING
 config FTRACE_SYSCALLS
 	bool "Trace syscalls"
 	depends on HAVE_FTRACE_SYSCALLS
-	select TRACING
+	select GENERIC_TRACER
 	select KALLSYMS
 	help
 	  Basic tracer to catch the syscall entry and exit events.
 
 config BOOT_TRACER
 	bool "Trace boot initcalls"
-	select TRACING
+	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer helps developers to optimize boot times: it records
@@ -228,7 +241,7 @@ config BOOT_TRACER
 
 config TRACE_BRANCH_PROFILING
 	bool
-	select TRACING
+	select GENERIC_TRACER
 
 choice
 	prompt "Branch Profiling"
@@ -308,7 +321,7 @@ config BRANCH_TRACER
 config POWER_TRACER
 	bool "Trace power consumption behavior"
 	depends on X86
-	select TRACING
+	select GENERIC_TRACER
 	help
 	  This tracer helps developers to analyze and optimize the kernels
 	  power management decisions, specifically the C-state and P-state
@@ -342,14 +355,14 @@ config STACK_TRACER
 config HW_BRANCH_TRACER
 	depends on HAVE_HW_BRANCH_TRACER
 	bool "Trace hw branches"
-	select TRACING
+	select GENERIC_TRACER
 	help
 	  This tracer records all branches on the system in a circular
 	  buffer giving access to the last N branches for each cpu.
 
 config KMEMTRACE
 	bool "Trace SLAB allocations"
-	select TRACING
+	select GENERIC_TRACER
 	help
 	  kmemtrace provides tracing for slab allocator functions, such as
 	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected
@@ -369,7 +382,7 @@ config KMEMTRACE
 
 config WORKQUEUE_TRACER
 	bool "Trace workqueues"
-	select TRACING
+	select GENERIC_TRACER
 	help
 	  The workqueue tracer provides some statistical informations
           about each cpu workqueue thread such as the number of the
@@ -385,7 +398,7 @@ config BLK_DEV_IO_TRACE
 	select RELAY
 	select DEBUG_FS
 	select TRACEPOINTS
-	select TRACING
+	select GENERIC_TRACER
 	select STACKTRACE
 	help
 	  Say Y here if you want to be able to trace the block layer actions
@@ -446,7 +459,7 @@ config FTRACE_SELFTEST
 
 config FTRACE_STARTUP_TEST
 	bool "Perform a startup test on ftrace"
-	depends on TRACING
+	depends on GENERIC_TRACER
 	select FTRACE_SELFTEST
 	help
 	  This option performs a series of startup tests on ftrace. On bootup
@@ -457,7 +470,7 @@ config FTRACE_STARTUP_TEST
 config MMIOTRACE
 	bool "Memory mapped IO tracing"
 	depends on HAVE_MMIOTRACE_SUPPORT && PCI
-	select TRACING
+	select GENERIC_TRACER
 	help
 	  Mmiotrace traces Memory Mapped I/O access and is meant for
 	  debugging and reverse engineering. It is called from the ioremap
