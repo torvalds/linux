@@ -49,6 +49,11 @@ static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
 
+static unsigned int disable_usb_speed_check;
+module_param(disable_usb_speed_check, int, 0444);
+MODULE_PARM_DESC(disable_usb_speed_check,
+		 "override min bandwidth requirement of 480M bps");
+
 static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
@@ -2371,7 +2376,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	 * video stream wouldn't likely work, since 12 Mbps is generally
 	 * not enough even for most Digital TV streams.
 	 */
-	if (udev->speed != USB_SPEED_HIGH) {
+	if (udev->speed != USB_SPEED_HIGH && disable_usb_speed_check == 0) {
 		printk(DRIVER_NAME ": Device initialization failed.\n");
 		printk(DRIVER_NAME ": Device must be connected to a high-speed"
 		       " USB 2.0 port.\n");
