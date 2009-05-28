@@ -10,6 +10,9 @@
  * Merged to support both OMAP1 and OMAP2 by Tony Lindgren <tony@atomide.com>
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
  * Support functions for the OMAP internal DMA channels.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -872,7 +875,7 @@ omap_dma_set_prio_lch(int lch, unsigned char read_prio,
 	}
 	l = dma_read(CCR(lch));
 	l &= ~((1 << 6) | (1 << 26));
-	if (cpu_is_omap2430() || cpu_is_omap34xx())
+	if (cpu_is_omap2430() || cpu_is_omap34xx() ||  cpu_is_omap44xx())
 		l |= ((read_prio & 0x1) << 6) | ((write_prio & 0x1) << 26);
 	else
 		l |= ((read_prio & 0x1) << 6);
@@ -1844,7 +1847,8 @@ static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 #define omap1_dma_irq_handler	NULL
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+			defined(CONFIG_ARCH_OMAP4)
 
 static int omap2_dma_handle_ch(int ch)
 {
@@ -2339,6 +2343,9 @@ static int __init omap_init_dma(void)
 	} else if (cpu_is_omap34xx()) {
 		omap_dma_base = IO_ADDRESS(OMAP34XX_DMA4_BASE);
 		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
+	} else if (cpu_is_omap44xx()) {
+		omap_dma_base = IO_ADDRESS(OMAP44XX_DMA4_BASE);
+		dma_lch_count = OMAP_DMA4_LOGICAL_DMA_CH_COUNT;
 	} else {
 		pr_err("DMA init failed for unsupported omap\n");
 		return -ENODEV;
@@ -2437,12 +2444,18 @@ static int __init omap_init_dma(void)
 		}
 	}
 
-	if (cpu_is_omap2430() || cpu_is_omap34xx())
+	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx())
 		omap_dma_set_global_params(DMA_DEFAULT_ARB_RATE,
 				DMA_DEFAULT_FIFO_DEPTH, 0);
 
-	if (cpu_class_is_omap2())
-		setup_irq(INT_24XX_SDMA_IRQ0, &omap24xx_dma_irq);
+	if (cpu_class_is_omap2()) {
+		int irq;
+		if (cpu_is_omap44xx())
+			irq = INT_44XX_SDMA_IRQ0;
+		else
+			irq = INT_24XX_SDMA_IRQ0;
+		setup_irq(irq, &omap24xx_dma_irq);
+	}
 
 	/* FIXME: Update LCD DMA to work on 24xx */
 	if (cpu_class_is_omap1()) {

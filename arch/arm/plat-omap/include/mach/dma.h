@@ -48,6 +48,7 @@
 /* Hardware registers for omap2 and omap3 */
 #define OMAP24XX_DMA4_BASE		(L4_24XX_BASE + 0x56000)
 #define OMAP34XX_DMA4_BASE		(L4_34XX_BASE + 0x56000)
+#define OMAP44XX_DMA4_BASE		(L4_44XX_BASE + 0x56000)
 
 #define OMAP_DMA4_REVISION		0x00
 #define OMAP_DMA4_GCR			0x78

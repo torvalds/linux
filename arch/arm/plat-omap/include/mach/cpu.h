@@ -5,7 +5,11 @@
  *
  * Copyright (C) 2004, 2008 Nokia Corporation
  *
+ * Copyright (C) 2009 Texas Instruments.
+ *
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ *
+ * Added OMAP4 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -155,6 +159,8 @@ IS_OMAP_SUBCLASS(343x, 0x343)
 #define cpu_is_omap243x()		0
 #define cpu_is_omap34xx()		0
 #define cpu_is_omap343x()		0
+#define cpu_is_omap44xx()		0
+#define cpu_is_omap443x()		0
 
 #if defined(MULTI_OMAP1)
 # if defined(CONFIG_ARCH_OMAP730)
@@ -348,12 +354,21 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define cpu_is_omap3430()		is_omap3430()
 #endif
 
+# if defined(CONFIG_ARCH_OMAP4)
+# undef cpu_is_omap44xx
+# undef cpu_is_omap443x
+# define cpu_is_omap44xx()		1
+# define cpu_is_omap443x()		1
+# endif
+
 /* Macros to detect if we have OMAP1 or OMAP2 */
 #define cpu_class_is_omap1()	(cpu_is_omap7xx() || cpu_is_omap15xx() || \
 				cpu_is_omap16xx())
-#define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx())
+#define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx() || \
+				cpu_is_omap44xx())
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+			defined(CONFIG_ARCH_OMAP4)
 
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
@@ -369,6 +384,8 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP3430_REV_ES2_1	0x34302034
 #define OMAP3430_REV_ES3_0	0x34303034
 #define OMAP3430_REV_ES3_1	0x34304034
+
+#define OMAP443X_CLASS		0x44300034
 
 /*
  * omap_chip bits

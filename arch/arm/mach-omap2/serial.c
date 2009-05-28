@@ -8,6 +8,9 @@
  *
  * Based off of arch/arm/mach-omap/omap1/serial.c
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com
+ *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -122,6 +125,10 @@ void __init omap_serial_init(void)
 
 	if (info == NULL)
 		return;
+	if (cpu_is_omap44xx()) {
+		for (i = 0; i < OMAP_MAX_NR_PORTS; i++)
+			serial_platform_data[i].irq += 32;
+	}
 
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		struct plat_serial8250_port *p = serial_platform_data + i;

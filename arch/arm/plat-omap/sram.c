@@ -6,6 +6,9 @@
  * Copyright (C) 2005 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -44,6 +47,8 @@
 #define OMAP3_SRAM_VA           0xd7000000
 #define OMAP3_SRAM_PUB_PA       0x40208000
 #define OMAP3_SRAM_PUB_VA       0xd7008000
+#define OMAP4_SRAM_PA		0x40200000		/*0x402f0000*/
+#define OMAP4_SRAM_VA		0xd7000000		/*0xd70f0000*/
 
 #if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
 #define SRAM_BOOTLOADER_SZ	0x00
@@ -86,6 +91,10 @@ extern unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 static int is_sram_locked(void)
 {
 	int type = 0;
+
+	if (cpu_is_omap44xx())
+		/* Not yet supported */
+		return 0;
 
 	if (cpu_is_omap242x())
 		type = omap_rev() & OMAP2_DEVICETYPE_MASK;
@@ -135,6 +144,10 @@ void __init omap_detect_sram(void)
 				omap_sram_base = OMAP3_SRAM_VA;
 				omap_sram_start = OMAP3_SRAM_PA;
 				omap_sram_size = 0x10000; /* 64K */
+			} else if (cpu_is_omap44xx()) {
+				omap_sram_base = OMAP4_SRAM_VA;
+				omap_sram_start = OMAP4_SRAM_PA;
+				omap_sram_size = 0x8000; /* 32K */
 			} else {
 				omap_sram_base = OMAP2_SRAM_VA;
 				omap_sram_start = OMAP2_SRAM_PA;
@@ -203,6 +216,12 @@ void __init omap_map_sram(void)
 		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
 	}
 
+	if (cpu_is_omap44xx()) {
+		omap_sram_io_desc[0].virtual = OMAP4_SRAM_VA;
+		base = OMAP4_SRAM_PA;
+		base = ROUND_DOWN(base, PAGE_SIZE);
+		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
+	}
 	omap_sram_io_desc[0].length = 1024 * 1024;	/* Use section desc */
 	iotable_init(omap_sram_io_desc, ARRAY_SIZE(omap_sram_io_desc));
 
@@ -391,6 +410,8 @@ int __init omap_sram_init(void)
 		omap243x_sram_init();
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();
+	else if (cpu_is_omap44xx())
+		omap34xx_sram_init(); /* FIXME: */
 
 	return 0;
 }
