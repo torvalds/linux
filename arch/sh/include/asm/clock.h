@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/seq_file.h>
+#include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
@@ -41,6 +42,7 @@ struct clk {
 	unsigned long		arch_flags;
 	void			*priv;
 	struct dentry		*dentry;
+	struct cpufreq_frequency_table *freq_table;
 };
 
 struct clk_lookup {
@@ -129,5 +131,18 @@ long clk_rate_table_round(struct clk *clk,
 }
 
 int sh_clk_mstp32_register(struct clk *clks, int nr);
+
+#define SH_CLK_DIV4(_name, _parent, _reg, _shift, _div_bitmap, _flags)	\
+{									\
+	.name = _name,							\
+	.parent = _parent,						\
+	.enable_reg = (void __iomem *)_reg,				\
+	.enable_bit = _shift,						\
+	.arch_flags = _div_bitmap,					\
+	.flags = _flags,						\
+}
+
+int sh_clk_div4_register(struct clk *clks, int nr,
+			 struct clk_div_mult_table *table);
 
 #endif /* __ASM_SH_CLOCK_H */

@@ -1,5 +1,6 @@
 #include <linux/clk.h>
 #include <linux/compiler.h>
+#include <linux/bootmem.h>
 #include <linux/io.h>
 #include <asm/clock.h>
 
@@ -32,6 +33,60 @@ int __init sh_clk_mstp32_register(struct clk *clks, int nr)
 		clkp = clks + k;
 		clkp->ops = &sh_clk_mstp32_clk_ops;
 		ret |= clk_register(clkp);
+	}
+
+	return ret;
+}
+
+static unsigned long sh_clk_div4_recalc(struct clk *clk)
+{
+	struct clk_div_mult_table *table = clk->priv;
+	unsigned int idx;
+
+	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
+			     table, &clk->arch_flags);
+
+	idx = (__raw_readl(clk->enable_reg) >> clk->enable_bit) & 0x000f;
+
+	return clk->freq_table[idx].frequency;
+}
+
+static long sh_clk_div4_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_table_round(clk, clk->freq_table, rate);
+}
+
+static struct clk_ops sh_clk_div4_clk_ops = {
+	.recalc		= sh_clk_div4_recalc,
+	.round_rate	= sh_clk_div4_round_rate,
+};
+
+int __init sh_clk_div4_register(struct clk *clks, int nr,
+				struct clk_div_mult_table *table)
+{
+	struct clk *clkp;
+	void *freq_table;
+	int nr_divs = table->nr_divisors;
+	int freq_table_size = sizeof(struct cpufreq_frequency_table);
+	int ret = 0;
+	int k;
+
+	k = nr_divs + 1;
+	freq_table = alloc_bootmem(freq_table_size * nr * (nr_divs + 1));
+	if (!freq_table)
+		return -ENOMEM;
+
+	for (k = 0; !ret && (k < nr); k++) {
+		clkp = clks + k;
+
+		clkp->ops = &sh_clk_div4_clk_ops;
+		clkp->id = -1;
+		clkp->priv = table;
+
+		clkp->freq_table = freq_table + (k * freq_table_size);
+		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
+
+		ret = clk_register(clkp);
 	}
 
 	return ret;
