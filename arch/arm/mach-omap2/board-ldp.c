@@ -77,10 +77,6 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static struct platform_device *ldp_devices[] __initdata = {
-	&ldp_smsc911x_device,
-};
-
 static inline void __init ldp_init_smsc911x(void)
 {
 	int eth_cs;
@@ -122,8 +118,18 @@ static struct omap_uart_config ldp_uart_config __initdata = {
 	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
+static struct platform_device ldp_lcd_device = {
+	.name		= "ldp_lcd",
+	.id		= -1,
+};
+
+static struct omap_lcd_config ldp_lcd_config __initdata = {
+	.ctrl_name	= "internal",
+};
+
 static struct omap_board_config_kernel ldp_config[] __initdata = {
 	{ OMAP_TAG_UART,	&ldp_uart_config },
+	{ OMAP_TAG_LCD,		&ldp_lcd_config },
 };
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
@@ -166,6 +172,11 @@ static struct twl4030_hsmmc_info mmc[] __initdata = {
 		.gpio_wp	= -EINVAL,
 	},
 	{}	/* Terminator */
+};
+
+static struct platform_device *ldp_devices[] __initdata = {
+	&ldp_smsc911x_device,
+	&ldp_lcd_device,
 };
 
 static void __init omap_ldp_init(void)
