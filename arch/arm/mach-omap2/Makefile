@@ -61,3 +61,6 @@ endif
 
 onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
 obj-y					+= $(onenand-m) $(onenand-y)
+
+smc91x-$(CONFIG_SMC91X)			:= gpmc-smc91x.o
+obj-y					+= $(smc91x-m) $(smc91x-y)
