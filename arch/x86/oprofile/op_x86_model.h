@@ -32,17 +32,17 @@ struct pt_regs;
  * various x86 CPU models' perfctr support.
  */
 struct op_x86_model_spec {
-	int (*init)(struct oprofile_operations *ops);
-	void (*exit)(void);
-	unsigned int num_counters;
-	unsigned int num_controls;
-	void (*fill_in_addresses)(struct op_msrs * const msrs);
-	void (*setup_ctrs)(struct op_msrs const * const msrs);
-	int (*check_ctrs)(struct pt_regs * const regs,
-		struct op_msrs const * const msrs);
-	void (*start)(struct op_msrs const * const msrs);
-	void (*stop)(struct op_msrs const * const msrs);
-	void (*shutdown)(struct op_msrs const * const msrs);
+	unsigned int	num_counters;
+	unsigned int	num_controls;
+	int		(*init)(struct oprofile_operations *ops);
+	void		(*exit)(void);
+	void		(*fill_in_addresses)(struct op_msrs * const msrs);
+	void		(*setup_ctrs)(struct op_msrs const * const msrs);
+	int		(*check_ctrs)(struct pt_regs * const regs,
+				      struct op_msrs const * const msrs);
+	void		(*start)(struct op_msrs const * const msrs);
+	void		(*stop)(struct op_msrs const * const msrs);
+	void		(*shutdown)(struct op_msrs const * const msrs);
 };
 
 extern struct op_x86_model_spec const op_ppro_spec;
