@@ -4127,6 +4127,69 @@ S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
 
+OMAP SUPPORT
+P:	Tony Lindgren <tony@atomide.com>
+M:	tony@atomide.com
+L:	linux-omap@vger.kernel.org
+W:	http://www.muru.com/linux/omap/
+W:	http://linux.omap.com/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap-2.6.git
+S:	Maintained
+F:	arch/arm/*omap*
+
+OMAP CLOCK FRAMEWORK SUPPORT
+P:	Paul Walmsley
+M:	paul@pwsan.com
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/*omap*/*clock*
+
+OMAP POWER MANAGEMENT SUPPORT
+P:	Kevin Hilman
+M:	khilman@deeprootsystems.com
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/*omap*/*pm*
+
+OMAP AUDIO SUPPORT
+P:	Jarkko Nikula
+M:	jhnikula@gmail.com
+L:	alsa-devel@alsa-project.org (subscribers-only)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	sound/soc/omap/
+
+OMAP FRAMEBUFFER SUPPORT
+P:	Imre Deak
+M:	imre.deak@nokia.com
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/video/omap/
+
+OMAP MMC SUPPORT
+P:	Jarkko Lavinen
+M:	jarkko.lavinen@nokia.com
+L:	linux-kernel@vger.kernel.org
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/*omap*
+
+OMAP RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
+S:	Maintained
+F:	drivers/char/hw_random/omap-rng.c
+
+OMAP USB SUPPORT
+P:	Felipe Balbi
+M:	felipe.balbi@nokia.com
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
+L:	linux-usb@vger.kernel.org
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+
 OMFS FILESYSTEM
 P:	Bob Copeland
 M:	me@bobcopeland.com
@@ -5514,20 +5577,6 @@ S:	Maintained
 F:	drivers/misc/tifm*
 F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
-
-TI OMAP MMC INTERFACE DRIVER
-P:	Carlos Aguiar, Anderson Briglia and Syed Khasim
-M:	linux-omap@vger.kernel.org
-W:	http://linux.omap.com
-W:	http://www.muru.com/linux/omap/
-S:	Maintained
-F:	drivers/mmc/host/omap.c
-
-TI OMAP RANDOM NUMBER GENERATOR SUPPORT
-P:	Deepak Saxena
-M:	dsaxena@plexity.net
-S:	Maintained
-F:	drivers/char/hw_random/omap-rng.c
 
 TIPC NETWORK LAYER
 P:	Per Liden

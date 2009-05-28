@@ -58,3 +58,9 @@ obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 
 # Platform specific device init code
 obj-y					+= usb-musb.o
+
+onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
+obj-y					+= $(onenand-m) $(onenand-y)
+
+smc91x-$(CONFIG_SMC91X)			:= gpmc-smc91x.o
+obj-y					+= $(smc91x-m) $(smc91x-y)
