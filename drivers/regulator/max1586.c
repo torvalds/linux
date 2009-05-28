@@ -29,7 +29,6 @@
 
 #define MAX1586_V3_MIN_UV   700000
 #define MAX1586_V3_MAX_UV  1475000
-#define MAX1586_V3_STEP_UV   25000
 
 #define MAX1586_V6_MIN_UV        0
 #define MAX1586_V6_MAX_UV  3000000
@@ -37,33 +36,52 @@
 #define I2C_V3_SELECT (0 << 5)
 #define I2C_V6_SELECT (1 << 5)
 
+struct max1586_data {
+	struct i2c_client *client;
+
+	/* min/max V3 voltage */
+	int min_uV;
+	int max_uV;
+
+	struct regulator_dev *rdev[0];
+};
+
 /*
  * V3 voltage
  * On I2C bus, sending a "x" byte to the max1586 means :
  *   set V3 to 0.700V + (x & 0x1f) * 0.025V
+ * This voltage can be increased by external resistors
+ * R24 and R25=100kOhm as described in the data sheet.
+ * The gain is approximately: 1 + R24/R25 + R24/185.5kOhm
  */
-static int max1586_v3_calc_voltage(unsigned selector)
+static int max1586_v3_calc_voltage(struct max1586_data *max1586,
+	unsigned selector)
 {
-	return MAX1586_V3_MIN_UV + (MAX1586_V3_STEP_UV * selector);
+	unsigned range_uV = max1586->max_uV - max1586->min_uV;
+
+	return max1586->min_uV + (selector * range_uV / MAX1586_V3_MAX_VSEL);
 }
 
 static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 {
-	struct i2c_client *client = rdev_get_drvdata(rdev);
+	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
+	struct i2c_client *client = max1586->client;
+	unsigned range_uV = max1586->max_uV - max1586->min_uV;
 	unsigned selector;
 	u8 v3_prog;
 
-	if (min_uV < MAX1586_V3_MIN_UV || min_uV > MAX1586_V3_MAX_UV)
+	if (min_uV > max1586->max_uV || max_uV < max1586->min_uV)
 		return -EINVAL;
-	if (max_uV < MAX1586_V3_MIN_UV || max_uV > MAX1586_V3_MAX_UV)
-		return -EINVAL;
+	if (min_uV < max1586->min_uV)
+		min_uV = max1586->min_uV;
 
-	selector = (min_uV - MAX1586_V3_MIN_UV) / MAX1586_V3_STEP_UV;
-	if (max1586_v3_calc_voltage(selector) > max_uV)
+	selector = ((min_uV - max1586->min_uV) * MAX1586_V3_MAX_VSEL +
+			range_uV - 1) / range_uV;
+	if (max1586_v3_calc_voltage(max1586, selector) > max_uV)
 		return -EINVAL;
 
 	dev_dbg(&client->dev, "changing voltage v3 to %dmv\n",
-		max1586_v3_calc_voltage(selector) / 1000);
+		max1586_v3_calc_voltage(max1586, selector) / 1000);
 
 	v3_prog = I2C_V3_SELECT | (u8) selector;
 	return i2c_smbus_write_byte(client, v3_prog);
@@ -71,9 +89,11 @@ static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 
 static int max1586_v3_list(struct regulator_dev *rdev, unsigned selector)
 {
+	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
+
 	if (selector > MAX1586_V3_MAX_VSEL)
 		return -EINVAL;
-	return max1586_v3_calc_voltage(selector);
+	return max1586_v3_calc_voltage(max1586, selector);
 }
 
 /*
@@ -164,14 +184,25 @@ static int max1586_pmic_probe(struct i2c_client *client,
 {
 	struct regulator_dev **rdev;
 	struct max1586_platform_data *pdata = client->dev.platform_data;
-	int i, id, ret = 0;
+	struct max1586_data *max1586;
+	int i, id, ret = -ENOMEM;
 
-	rdev = kzalloc(sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
-		       GFP_KERNEL);
-	if (!rdev)
-		return -ENOMEM;
+	max1586 = kzalloc(sizeof(struct max1586_data) +
+			sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
+			GFP_KERNEL);
+	if (!max1586)
+		goto out;
 
-	ret = -EINVAL;
+	max1586->client = client;
+
+	if (!pdata->v3_gain) {
+		ret = -EINVAL;
+		goto out_unmap;
+	}
+	max1586->min_uV = MAX1586_V3_MIN_UV * pdata->v3_gain / 1000000;
+	max1586->max_uV = MAX1586_V3_MAX_UV * pdata->v3_gain / 1000000;
+
+	rdev = max1586->rdev;
 	for (i = 0; i < pdata->num_subdevs && i <= MAX1586_V6; i++) {
 		id = pdata->subdevs[i].id;
 		if (!pdata->subdevs[i].platform_data)
@@ -182,7 +213,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 		}
 		rdev[i] = regulator_register(&max1586_reg[id], &client->dev,
 					     pdata->subdevs[i].platform_data,
-					     client);
+					     max1586);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(&client->dev, "failed to register %s\n",
@@ -198,7 +229,9 @@ static int max1586_pmic_probe(struct i2c_client *client,
 err:
 	while (--i >= 0)
 		regulator_unregister(rdev[i]);
-	kfree(rdev);
+out_unmap:
+	kfree(max1586);
+out:
 	return ret;
 }
 
