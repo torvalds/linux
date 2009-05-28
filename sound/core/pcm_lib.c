@@ -138,6 +138,10 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 
 static void xrun(struct snd_pcm_substream *substream)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
 	if (xrun_debug(substream, 1)) {
 		snd_printd(KERN_DEBUG "XRUN: pcmC%dD%d%c\n",
@@ -154,8 +158,6 @@ snd_pcm_update_hw_ptr_pos(struct snd_pcm_substream *substream,
 {
 	snd_pcm_uframes_t pos;
 
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
-		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	pos = substream->ops->pointer(substream);
 	if (pos == SNDRV_PCM_POS_XRUN)
 		return pos; /* XRUN */
@@ -298,10 +300,15 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
 
+	if (runtime->status->hw_ptr == new_hw_ptr)
+		return 0;
+
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = jiffies;
 	runtime->hw_ptr_interrupt = hw_ptr_interrupt;
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 
 	return snd_pcm_update_hw_ptr_post(substream, runtime);
 }
@@ -356,9 +363,14 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
 
+	if (runtime->status->hw_ptr != new_hw_ptr)
+		return 0;
+
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = jiffies;
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 
 	return snd_pcm_update_hw_ptr_post(substream, runtime);
 }
