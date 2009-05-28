@@ -33,6 +33,8 @@
 #include "prm.h"
 #include "sdrc.h"
 
+#define SDRC_SCRATCHPAD_SEM_V	0xfa00291c
+
 #define PM_PREPWSTST_CORE_V	OMAP34XX_PRM_REGADDR(CORE_MOD, \
 				OMAP3430_PM_PREPWSTST)
 #define PM_PREPWSTST_CORE_P	0x48306AE8
@@ -56,6 +58,37 @@
 #define SDRC_MANUAL_1_P		(OMAP343X_SDRC_BASE + SDRC_MANUAL_1)
 #define SDRC_DLLA_STATUS_V	OMAP34XX_SDRC_REGADDR(SDRC_DLLA_STATUS)
 #define SDRC_DLLA_CTRL_V	OMAP34XX_SDRC_REGADDR(SDRC_DLLA_CTRL)
+
+        .text
+/* Function to aquire the semaphore in scratchpad */
+ENTRY(lock_scratchpad_sem)
+	stmfd	sp!, {lr}	@ save registers on stack
+wait_sem:
+	mov	r0,#1
+	ldr	r1, sdrc_scratchpad_sem
+wait_loop:
+	ldr	r2, [r1]	@ load the lock value
+	cmp	r2, r0		@ is the lock free ?
+	beq	wait_loop	@ not free...
+	swp	r2, r0, [r1]	@ semaphore free so lock it and proceed
+	cmp	r2, r0		@ did we succeed ?
+	beq	wait_sem	@ no - try again
+	ldmfd	sp!, {pc}	@ restore regs and return
+sdrc_scratchpad_sem:
+        .word SDRC_SCRATCHPAD_SEM_V
+ENTRY(lock_scratchpad_sem_sz)
+        .word   . - lock_scratchpad_sem
+
+        .text
+/* Function to release the scratchpad semaphore */
+ENTRY(unlock_scratchpad_sem)
+	stmfd	sp!, {lr}	@ save registers on stack
+	ldr	r3, sdrc_scratchpad_sem
+	mov	r2,#0
+	str	r2,[r3]
+	ldmfd	sp!, {pc}	@ restore regs and return
+ENTRY(unlock_scratchpad_sem_sz)
+        .word   . - unlock_scratchpad_sem
 
 	.text
 /* Function call to get the restore pointer for resume from OFF */
