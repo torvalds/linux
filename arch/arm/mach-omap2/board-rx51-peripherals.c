@@ -27,6 +27,7 @@
 #include <mach/dma.h>
 #include <mach/gpmc.h>
 #include <mach/keypad.h>
+#include <mach/onenand.h>
 
 #include "mmc-twl4030.h"
 
@@ -408,6 +409,62 @@ static int __init rx51_i2c_init(void)
 	return 0;
 }
 
+#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
+	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+
+static struct mtd_partition onenand_partitions[] = {
+	{
+		.name           = "bootloader",
+		.offset         = 0,
+		.size           = 0x20000,
+		.mask_flags     = MTD_WRITEABLE,	/* Force read-only */
+	},
+	{
+		.name           = "config",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x60000,
+	},
+	{
+		.name           = "log",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x40000,
+	},
+	{
+		.name           = "kernel",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x200000,
+	},
+	{
+		.name           = "initfs",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 0x200000,
+	},
+	{
+		.name           = "rootfs",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = MTDPART_SIZ_FULL,
+	},
+};
+
+static struct omap_onenand_platform_data board_onenand_data = {
+	.cs		= 0,
+	.gpio_irq	= 65,
+	.parts		= onenand_partitions,
+	.nr_parts	= ARRAY_SIZE(onenand_partitions),
+};
+
+static void __init board_onenand_init(void)
+{
+	gpmc_onenand_init(&board_onenand_data);
+}
+
+#else
+
+static inline void board_onenand_init(void)
+{
+}
+
+#endif
 
 void __init rx51_peripherals_init(void)
 {
@@ -415,5 +472,6 @@ void __init rx51_peripherals_init(void)
 				ARRAY_SIZE(rx51_peripherals_devices));
 	rx51_i2c_init();
 	rx51_init_smc91x();
+	board_onenand_init();
 }
 

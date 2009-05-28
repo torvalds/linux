@@ -58,3 +58,6 @@ obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 ifeq ($(CONFIG_USB_MUSB_SOC),y)
 obj-y					+= usb-musb.o
 endif
+
+onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
+obj-y					+= $(onenand-m) $(onenand-y)
