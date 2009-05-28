@@ -483,7 +483,7 @@ DEFINE_CLOCK(i2c3_clk,    2, MXC_CCM_CGR0, 30, NULL, NULL, &perclk_clk);
 DEFINE_CLOCK(mpeg4_clk,   0, MXC_CCM_CGR1,  0, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(mstick1_clk, 0, MXC_CCM_CGR1,  2, mstick1_get_rate, NULL, &usb_pll_clk);
 DEFINE_CLOCK(mstick2_clk, 1, MXC_CCM_CGR1,  4, mstick2_get_rate, NULL, &usb_pll_clk);
-DEFINE_CLOCK1(csi_clk,    0, MXC_CCM_CGR1,  6, csi, NULL, &ahb_clk);
+DEFINE_CLOCK1(csi_clk,    0, MXC_CCM_CGR1,  6, csi, NULL, &serial_pll_clk);
 DEFINE_CLOCK(rtc_clk,     0, MXC_CCM_CGR1,  8, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(wdog_clk,    0, MXC_CCM_CGR1, 10, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(pwm_clk,     0, MXC_CCM_CGR1, 12, NULL, NULL, &perclk_clk);
@@ -570,6 +570,13 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	for (i = 0; i < ARRAY_SIZE(lookups); i++)
 		clkdev_add(&lookups[i]);
+
+	/* change the csi_clk parent if necessary */
+	reg = __raw_readl(MXC_CCM_CCMR);
+	if (!(reg & MXC_CCM_CCMR_CSCS))
+		if (clk_set_parent(&csi_clk, &usb_pll_clk))
+			pr_err("%s: error changing csi_clk parent\n", __func__);
+
 
 	/* Turn off all possible clocks */
 	__raw_writel((3 << 4), MXC_CCM_CGR0);
