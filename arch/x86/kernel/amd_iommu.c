@@ -1541,8 +1541,10 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
-	if (*dma_addr == bad_dma_address)
+	if (*dma_addr == bad_dma_address) {
+		spin_unlock_irqrestore(&domain->lock, flags);
 		goto out_free;
+	}
 
 	iommu_completion_wait(iommu);
 
