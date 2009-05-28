@@ -103,7 +103,7 @@ static struct clk_lookup clocks[] = {
 	INIT_CK(NULL, "hclk", &clk_h),
 	INIT_CK(NULL, "pclk", &clk_p),
 	INIT_CK(NULL, "pll2", &clk_pll2),
-	INIT_CK(NULL, "usb_host", &clk_usb_host),
+	INIT_CK("ep93xx-ohci", NULL, &clk_usb_host),
 	INIT_CK(NULL, "m2p0", &clk_m2p0),
 	INIT_CK(NULL, "m2p1", &clk_m2p1),
 	INIT_CK(NULL, "m2p2", &clk_m2p2),
