@@ -83,7 +83,7 @@ static struct dso *dsos__findnew(const char *name)
 	int nr;
 
 	if (dso == NULL) {
-		dso = dso__new(name);
+		dso = dso__new(name, 0);
 		if (!dso)
 			goto out_delete_dso;
 
@@ -120,7 +120,7 @@ static int load_kernel(void)
 {
 	int err = -1;
 
-	kernel_dso = dso__new("[kernel]");
+	kernel_dso = dso__new("[kernel]", 0);
 	if (!kernel_dso)
 		return -1;
 

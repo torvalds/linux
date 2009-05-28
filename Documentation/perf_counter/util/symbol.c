@@ -7,22 +7,27 @@
 #include <elf.h>
 
 static struct symbol *symbol__new(uint64_t start, uint64_t len,
-				  const char *name)
+				  const char *name, unsigned int priv_size)
 {
-	struct symbol *self = malloc(sizeof(*self) + strlen(name) + 1);
+	size_t namelen = strlen(name) + 1;
+	struct symbol *self = malloc(priv_size + sizeof(*self) + namelen);
 
 	if (self != NULL) {
+		if (priv_size) {
+			memset(self, 0, priv_size);
+			self = ((void *)self) + priv_size;
+		}
 		self->start = start;
 		self->end   = start + len;
-		strcpy(self->name, name);
+		memcpy(self->name, name, namelen);
 	}
 
 	return self;
 }
 
-static void symbol__delete(struct symbol *self)
+static void symbol__delete(struct symbol *self, unsigned int priv_size)
 {
-	free(self);
+	free(((void *)self) - priv_size);
 }
 
 static size_t symbol__fprintf(struct symbol *self, FILE *fp)
@@ -31,13 +36,14 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 		       self->start, self->end, self->name);
 }
 
-struct dso *dso__new(const char *name)
+struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 {
 	struct dso *self = malloc(sizeof(*self) + strlen(name) + 1);
 
 	if (self != NULL) {
 		strcpy(self->name, name);
 		self->syms = RB_ROOT;
+		self->sym_priv_size = sym_priv_size;
 	}
 
 	return self;
@@ -51,7 +57,7 @@ static void dso__delete_symbols(struct dso *self)
 	while (next) {
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
-		symbol__delete(pos);
+		symbol__delete(pos, self->sym_priv_size);
 	}
 }
 
@@ -189,7 +195,8 @@ int dso__load_kallsyms(struct dso *self)
 		/*
 		 * Well fix up the end later, when we have all sorted.
 		 */
-		sym = symbol__new(start, 0xdead, line + len + 2);
+		sym = symbol__new(start, 0xdead, line + len + 2,
+				  self->sym_priv_size);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -340,7 +347,8 @@ static int dso__load_sym(struct dso *self, int fd, const char *name)
 		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 
 		f = symbol__new(sym.st_value, sym.st_size,
-				elf_sym__name(&sym, symstrs));
+				elf_sym__name(&sym, symstrs),
+				self->sym_priv_size);
 		if (!f)
 			goto out_elf_end;
 

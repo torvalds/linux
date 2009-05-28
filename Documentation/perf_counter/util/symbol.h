@@ -15,11 +15,17 @@ struct symbol {
 struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
+	unsigned int	 sym_priv_size;
 	char		 name[0];
 };
 
-struct dso *dso__new(const char *name);
+struct dso *dso__new(const char *name, unsigned int sym_priv_size);
 void dso__delete(struct dso *self);
+
+static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
+{
+	return ((void *)sym) - self->sym_priv_size;
+}
 
 struct symbol *dso__find_symbol(struct dso *self, uint64_t ip);
 
