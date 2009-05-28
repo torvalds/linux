@@ -25,11 +25,6 @@
 
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static unsigned int ftrace_nop_replace(void)
-{
-	return PPC_INST_NOP;
-}
-
 static unsigned int
 ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
@@ -314,7 +309,7 @@ int ftrace_make_nop(struct module *mod,
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_call_replace(ip, addr, 1);
-		new = ftrace_nop_replace();
+		new = PPC_INST_NOP;
 		return ftrace_modify_code(ip, old, new);
 	}
 
@@ -452,7 +447,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ftrace_nop_replace();
+		old = PPC_INST_NOP;
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	}
