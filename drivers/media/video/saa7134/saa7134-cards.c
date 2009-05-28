@@ -4458,6 +4458,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Igor Kuznetsov <igk@igk.ru> */
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		/* Beholder Intl. Ltd. Dmitry Belimov <d.belimov@gmail.com> */
+		/* Alexey Osipov <lion-simba@pridelands.ru> */
 		.name           = "Beholder BeholdTV M6",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
@@ -4532,6 +4533,7 @@ struct saa7134_board saa7134_boards[] = {
 		/* Igor Kuznetsov <igk@igk.ru> */
 		/* Andrey Melnikoff <temnota@kmv.ru> */
 		/* Beholder Intl. Ltd. Dmitry Belimov <d.belimov@gmail.com> */
+		/* Alexey Osipov <lion-simba@pridelands.ru> */
 		.name           = "Beholder BeholdTV M6 Extra",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3, /* FIXME to MK5 */

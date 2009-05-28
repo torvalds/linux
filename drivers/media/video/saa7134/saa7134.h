@@ -493,12 +493,6 @@ struct saa7134_mpeg_ops {
 	void                       (*signal_change)(struct saa7134_dev *dev);
 };
 
-enum saa7134_ts_status {
-	SAA7134_TS_STOPPED,
-	SAA7134_TS_BUFF_DONE,
-	SAA7134_TS_STARTED,
-};
-
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
@@ -593,8 +587,7 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;
 	struct saa7134_dmaqueue    ts_q;
-	enum saa7134_ts_status 	   ts_state;
-	unsigned int 		   buff_cnt;
+	int                        ts_started;
 	struct saa7134_mpeg_ops    *mops;
 
 	/* SAA7134_MPEG_EMPRESS only */
@@ -751,6 +744,9 @@ int saa7134_ts_register(struct saa7134_mpeg_ops *ops);
 void saa7134_ts_unregister(struct saa7134_mpeg_ops *ops);
 
 int saa7134_ts_init_hw(struct saa7134_dev *dev);
+
+int saa7134_ts_start(struct saa7134_dev *dev);
+int saa7134_ts_stop(struct saa7134_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7134-vbi.c                                               */
