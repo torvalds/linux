@@ -133,6 +133,7 @@ struct korina_private {
 	int dma_halt_cnt;
 	int dma_run_cnt;
 	struct napi_struct napi;
+	struct timer_list media_check_timer;
 	struct mii_if_info mii_if;
 	struct net_device *dev;
 	int phy_addr;
@@ -664,6 +665,15 @@ static void korina_check_media(struct net_device *dev, unsigned int init_media)
 						&lp->eth_regs->ethmac2);
 }
 
+static void korina_poll_media(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct korina_private *lp = netdev_priv(dev);
+
+	korina_check_media(dev, 0);
+	mod_timer(&lp->media_check_timer, jiffies + HZ);
+}
+
 static void korina_set_carrier(struct mii_if_info *mii)
 {
 	if (mii->force_media) {
@@ -1034,6 +1044,7 @@ static int korina_open(struct net_device *dev)
 		    dev->name, lp->und_irq);
 		goto err_free_ovr_irq;
 	}
+	mod_timer(&lp->media_check_timer, jiffies + 1);
 out:
 	return ret;
 
@@ -1052,6 +1063,8 @@ static int korina_close(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
 	u32 tmp;
+
+	del_timer(&lp->media_check_timer);
 
 	/* Disable interrupts */
 	disable_irq(lp->rx_irq);
@@ -1183,6 +1196,7 @@ static int korina_probe(struct platform_device *pdev)
 			": cannot register net device %d\n", rc);
 		goto probe_err_register;
 	}
+	setup_timer(&lp->media_check_timer, korina_poll_media, (unsigned long) dev);
 out:
 	return rc;
 
