@@ -194,6 +194,27 @@
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
+extern bool amd_iommu_dump;
+#define DUMP_printk(format, arg...)					\
+	do {								\
+		if (amd_iommu_dump)						\
+			printk(KERN_INFO "AMD IOMMU: " format, ## arg);	\
+	} while(0);
+
+/*
+ * Make iterating over all IOMMUs easier
+ */
+#define for_each_iommu(iommu) \
+	list_for_each_entry((iommu), &amd_iommu_list, list)
+#define for_each_iommu_safe(iommu, next) \
+	list_for_each_entry_safe((iommu), (next), &amd_iommu_list, list)
+
+#define APERTURE_RANGE_SHIFT	27	/* 128 MB */
+#define APERTURE_RANGE_SIZE	(1ULL << APERTURE_RANGE_SHIFT)
+#define APERTURE_RANGE_PAGES	(APERTURE_RANGE_SIZE >> PAGE_SHIFT)
+#define APERTURE_MAX_RANGES	32	/* allows 4GB of DMA address space */
+#define APERTURE_RANGE_INDEX(a)	((a) >> APERTURE_RANGE_SHIFT)
+#define APERTURE_PAGE_INDEX(a)	(((a) >> 21) & 0x3fULL)
 
 /*
  * This structure contains generic data for  IOMMU protection domains
@@ -210,6 +231,26 @@ struct protection_domain {
 };
 
 /*
+ * For dynamic growth the aperture size is split into ranges of 128MB of
+ * DMA address space each. This struct represents one such range.
+ */
+struct aperture_range {
+
+	/* address allocation bitmap */
+	unsigned long *bitmap;
+
+	/*
+	 * Array of PTE pages for the aperture. In this array we save all the
+	 * leaf pages of the domain page table used for the aperture. This way
+	 * we don't need to walk the page table to find a specific PTE. We can
+	 * just calculate its address in constant time.
+	 */
+	u64 *pte_pages[64];
+
+	unsigned long offset;
+};
+
+/*
  * Data container for a dma_ops specific protection domain
  */
 struct dma_ops_domain {
@@ -222,18 +263,10 @@ struct dma_ops_domain {
 	unsigned long aperture_size;
 
 	/* address we start to search for free addresses */
-	unsigned long next_bit;
+	unsigned long next_address;
 
-	/* address allocation bitmap */
-	unsigned long *bitmap;
-
-	/*
-	 * Array of PTE pages for the aperture. In this array we save all the
-	 * leaf pages of the domain page table used for the aperture. This way
-	 * we don't need to walk the page table to find a specific PTE. We can
-	 * just calculate its address in constant time.
-	 */
-	u64 **pte_pages;
+	/* address space relevant data */
+	struct aperture_range *aperture[APERTURE_MAX_RANGES];
 
 	/* This will be set to true when TLB needs to be flushed */
 	bool need_flush;
