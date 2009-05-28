@@ -1002,16 +1002,17 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
-	[EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA] = {
-		.name                = "PointNix Intra-Oral Camera",
+	[EM2860_BOARD_SAA711X_REFERENCE_DESIGN] = {
+		.name                = "EM2860/SAA711X Reference Design",
 		.has_snapshot_button = 1,
-		.tda9887_conf        = TDA9887_PRESENT,
 		.tuner_type          = TUNER_ABSENT,
 		.decoder             = EM28XX_SAA711X,
 		.input               = { {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = EM28XX_AMUX_VIDEO,
+		}, {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
 		} },
 	},
 	[EM2880_BOARD_MSI_DIGIVOX_AD] = {
@@ -1519,7 +1520,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC},
 	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
-	{0x1ba50080, EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA, TUNER_ABSENT},
+	{0x1ba50080, EM2860_BOARD_SAA711X_REFERENCE_DESIGN, TUNER_ABSENT},
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
 };
 

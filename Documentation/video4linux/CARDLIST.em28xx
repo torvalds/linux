@@ -17,7 +17,7 @@
  16 -> Hauppauge WinTV HVR 950                  (em2883)        [2040:6513,2040:6517,2040:651b]
  17 -> Pinnacle PCTV HD Pro Stick               (em2880)        [2304:0227]
  18 -> Hauppauge WinTV HVR 900 (R2)             (em2880)        [2040:6502]
- 19 -> PointNix Intra-Oral Camera               (em2860)
+ 19 -> EM2860/SAA711X Reference Design          (em2860)
  20 -> AMD ATI TV Wonder HD 600                 (em2880)        [0438:b002]
  21 -> eMPIA Technology, Inc. GrabBeeX+ Video Encoder (em2800)        [eb1a:2801]
  22 -> Unknown EM2750/EM2751 webcam grabber     (em2750)        [eb1a:2750,eb1a:2751]
