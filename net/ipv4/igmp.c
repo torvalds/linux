@@ -2196,7 +2196,7 @@ int ip_mc_sf_allow(struct sock *sk, __be32 loc_addr, __be32 rmt_addr, int dif)
 			break;
 	}
 	if (!pmc)
-		return 1;
+		return inet->mc_all;
 	psl = pmc->sflist;
 	if (!psl)
 		return pmc->sfmode == MCAST_EXCLUDE;
