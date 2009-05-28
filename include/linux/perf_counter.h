@@ -641,7 +641,7 @@ perf_counter_task_sched_out(struct task_struct *task,
 			    struct task_struct *next, int cpu)		{ }
 static inline void
 perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
-static inline int perf_counter_init_task(struct task_struct *child)	{ }
+static inline int perf_counter_init_task(struct task_struct *child)	{ return 0; }
 static inline void perf_counter_exit_task(struct task_struct *child)	{ }
 static inline void perf_counter_do_pending(void)			{ }
 static inline void perf_counter_print_debug(void)			{ }
