@@ -500,6 +500,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	return 0;
 }
+EXPORT_SYMBOL(blk_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers
