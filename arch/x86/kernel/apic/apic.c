@@ -2027,7 +2027,7 @@ static int lapic_resume(struct sys_device *dev)
 	unsigned int l, h;
 	unsigned long flags;
 	int maxlvt;
-	int ret;
+	int ret = 0;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
 	if (!apic_pm_state.active)
@@ -2038,14 +2038,15 @@ static int lapic_resume(struct sys_device *dev)
 		ioapic_entries = alloc_ioapic_entries();
 		if (!ioapic_entries) {
 			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto restore;
 		}
 
 		ret = save_IO_APIC_setup(ioapic_entries);
 		if (ret) {
 			WARN(1, "Saving IO-APIC state failed: %d\n", ret);
 			free_ioapic_entries(ioapic_entries);
-			return ret;
+			goto restore;
 		}
 
 		mask_IO_APIC_setup(ioapic_entries);
@@ -2097,10 +2098,10 @@ static int lapic_resume(struct sys_device *dev)
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}
-
+restore:
 	local_irq_restore(flags);
 
-	return 0;
+	return ret;
 }
 
 /*
