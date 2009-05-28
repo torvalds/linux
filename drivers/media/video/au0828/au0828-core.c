@@ -181,6 +181,18 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		le16_to_cpu(usbdev->descriptor.idProduct),
 		ifnum);
 
+	/*
+	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
+	 * video stream wouldn't likely work, since 12 Mbps is generally
+	 * not enough even for most Digital TV streams.
+	 */
+	if (usbdev->speed != USB_SPEED_HIGH) {
+		printk(KERN_ERR "au0828: Device initialization failed.\n");
+		printk(KERN_ERR "au0828: Device must be connected to a "
+		       "high-speed USB 2.0 port.\n");
+		return -ENODEV;
+	}
+
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		printk(KERN_ERR "%s() Unable to allocate memory\n", __func__);
