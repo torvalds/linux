@@ -192,27 +192,14 @@ config SCHED_TRACER
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
 
-config ENABLE_CONTEXT_SWITCH_TRACER
-	bool "Trace process context switches"
-	depends on !GENERIC_TRACER
-	select TRACING
-	select CONTEXT_SWITCH_TRACER
-	help
-	  This tracer gets called from the context switch and records
-	  all switching of tasks.
-
-config ENABLE_EVENT_TRACING
-	bool "Trace various events in the kernel"
+config ENABLE_DEFAULT_TRACERS
+	bool "Trace process context switches and events"
 	depends on !GENERIC_TRACER
 	select TRACING
 	help
 	  This tracer hooks to various trace points in the kernel
 	  allowing the user to pick and choose which trace point they
-	  want to trace.
-
-	  Note, all tracers enable event tracing. This option is
-	  only a convenience to enable event tracing when no other
-	  tracers are selected.
+	  want to trace. It also includes the sched_switch tracer plugin.
 
 config FTRACE_SYSCALLS
 	bool "Trace syscalls"
