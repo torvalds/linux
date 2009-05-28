@@ -1255,8 +1255,8 @@ static int inline vortex_adbdma_getlinearpos(vortex_t * vortex, int adbdma)
 	int temp;
 
 	temp = hwread(vortex->mmio, VORTEX_ADBDMA_STAT + (adbdma << 2));
-	temp = (dma->period_virt * dma->period_bytes) + (temp & POS_MASK);
-	return (temp);
+	temp = (dma->period_virt * dma->period_bytes) + (temp & (dma->period_bytes - 1));
+	return temp;
 }
 
 static void vortex_adbdma_startfifo(vortex_t * vortex, int adbdma)
@@ -1504,8 +1504,7 @@ static int inline vortex_wtdma_getlinearpos(vortex_t * vortex, int wtdma)
 	int temp;
 
 	temp = hwread(vortex->mmio, VORTEX_WTDMA_STAT + (wtdma << 2));
-	//temp = (temp & POS_MASK) + (((temp>>WT_SUBBUF_SHIFT) & WT_SUBBUF_MASK)*(dma->cfg0&POS_MASK));
-	temp = (temp & POS_MASK) + ((dma->period_virt) * (dma->period_bytes));
+	temp = (dma->period_virt * dma->period_bytes) + (temp & (dma->period_bytes - 1));
 	return temp;
 }
 
