@@ -388,8 +388,13 @@ A partial list of the supported mount options follows:
 		or the CIFS Unix Extensions equivalent and for those
 		this mount option will have no effect.  Exporting cifs mounts
 		under nfsd requires this mount option on the cifs mount.
+		This is now the default if server supports the 
+		required network operation.
   noserverino   Client generates inode numbers (rather than using the actual one
-		from the server) by default.
+		from the server). These inode numbers will vary after
+		unmount or reboot which can confuse some applications,
+		but not all server filesystems support unique inode
+		numbers.
   setuids       If the CIFS Unix extensions are negotiated with the server
 		the client will attempt to set the effective uid and gid of
 		the local process on newly created files, directories, and
