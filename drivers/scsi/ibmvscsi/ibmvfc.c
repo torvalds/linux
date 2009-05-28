@@ -275,7 +275,7 @@ static int ibmvfc_get_err_result(struct ibmvfc_cmd *vfc_cmd)
 	int fc_rsp_len = rsp->fcp_rsp_len;
 
 	if ((rsp->flags & FCP_RSP_LEN_VALID) &&
-	    ((!fc_rsp_len && fc_rsp_len != 4 && fc_rsp_len != 8) ||
+	    ((fc_rsp_len && fc_rsp_len != 4 && fc_rsp_len != 8) ||
 	     rsp->data.info.rsp_code))
 		return DID_ERROR << 16;
 
