@@ -382,7 +382,7 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	struct dn_scp *scp = DN_SK(sk);
-	struct sk_buff *skb2, *list, *ack = NULL;
+	struct sk_buff *skb2, *n, *ack = NULL;
 	int wakeup = 0;
 	int try_retrans = 0;
 	unsigned long reftime = cb->stamp;
@@ -390,17 +390,13 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 	unsigned short xmit_count;
 	unsigned short segnum;
 
-	skb2 = q->next;
-	list = (struct sk_buff *)q;
-	while(list != skb2) {
+	skb_queue_walk_safe(q, skb2, n) {
 		struct dn_skb_cb *cb2 = DN_SKB_CB(skb2);
 
 		if (dn_before_or_equal(cb2->segnum, acknum))
 			ack = skb2;
 
 		/* printk(KERN_DEBUG "ack: %s %04x %04x\n", ack ? "ACK" : "SKIP", (int)cb2->segnum, (int)acknum); */
-
-		skb2 = skb2->next;
 
 		if (ack == NULL)
 			continue;
