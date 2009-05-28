@@ -292,6 +292,16 @@ static inline pte_t pte_mkyoung(pte_t pte)
 		pte_val(pte) |= _PAGE_SILENT_READ;
 	return pte;
 }
+
+#ifdef _PAGE_HUGE
+static inline int pte_huge(pte_t pte)	{ return pte_val(pte) & _PAGE_HUGE; }
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_HUGE;
+	return pte;
+}
+#endif /* _PAGE_HUGE */
 #endif
 static inline int pte_special(pte_t pte)	{ return 0; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
