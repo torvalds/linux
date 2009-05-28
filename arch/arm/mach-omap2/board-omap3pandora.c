@@ -36,6 +36,7 @@
 #include <mach/mcspi.h>
 #include <mach/usb.h>
 
+#include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 
 #define OMAP3_PANDORA_TS_GPIO		94
@@ -118,7 +119,7 @@ static int __init omap3pandora_i2c_init(void)
 
 static void __init omap3pandora_init_irq(void)
 {
-	omap2_init_common_hw(NULL);
+	omap2_init_common_hw(mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();
 }
