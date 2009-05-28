@@ -29,8 +29,7 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 
 struct symbol *dso__find_symbol(struct dso *self, uint64_t ip);
 
-int dso__load_kallsyms(struct dso *self);
-int dso__load_vmlinux(struct dso *self, const char *vmlinux);
+int dso__load_kernel(struct dso *self, const char *vmlinux);
 int dso__load(struct dso *self);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);

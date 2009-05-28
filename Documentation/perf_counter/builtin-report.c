@@ -118,18 +118,13 @@ static void dsos__fprintf(FILE *fp)
 
 static int load_kernel(void)
 {
-	int err = -1;
+	int err;
 
 	kernel_dso = dso__new("[kernel]", 0);
 	if (!kernel_dso)
 		return -1;
 
-	if (vmlinux)
-		err = dso__load_vmlinux(kernel_dso, vmlinux);
-
-	if (err)
-		err = dso__load_kallsyms(kernel_dso);
-
+	err = dso__load_kernel(kernel_dso, vmlinux);
 	if (err) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;

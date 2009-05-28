@@ -155,7 +155,7 @@ static int hex2long(char *ptr, unsigned long *long_val)
 	return p - ptr;
 }
 
-int dso__load_kallsyms(struct dso *self)
+static int dso__load_kallsyms(struct dso *self)
 {
 	struct rb_node *nd, *prevnd;
 	char *line = NULL;
@@ -410,7 +410,7 @@ out:
 	return ret;
 }
 
-int dso__load_vmlinux(struct dso *self, const char *vmlinux)
+static int dso__load_vmlinux(struct dso *self, const char *vmlinux)
 {
 	int err, fd = open(vmlinux, O_RDONLY);
 
@@ -419,6 +419,19 @@ int dso__load_vmlinux(struct dso *self, const char *vmlinux)
 
 	err = dso__load_sym(self, fd, vmlinux);
 	close(fd);
+
+	return err;
+}
+
+int dso__load_kernel(struct dso *self, const char *vmlinux)
+{
+	int err = -1;
+
+	if (vmlinux)
+		err = dso__load_vmlinux(self, vmlinux);
+
+	if (err)
+		err = dso__load_kallsyms(self);
 
 	return err;
 }
