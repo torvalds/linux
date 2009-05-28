@@ -575,7 +575,6 @@ enum ibmvfc_target_action {
 	IBMVFC_TGT_ACTION_NONE = 0,
 	IBMVFC_TGT_ACTION_INIT,
 	IBMVFC_TGT_ACTION_INIT_WAIT,
-	IBMVFC_TGT_ACTION_ADD_RPORT,
 	IBMVFC_TGT_ACTION_DEL_RPORT,
 };
 
@@ -588,6 +587,7 @@ struct ibmvfc_target {
 	int target_id;
 	enum ibmvfc_target_action action;
 	int need_login;
+	int add_rport;
 	int init_retries;
 	u32 cancel_key;
 	struct ibmvfc_service_parms service_parms;
@@ -635,7 +635,6 @@ enum ibmvfc_host_action {
 	IBMVFC_HOST_ACTION_ALLOC_TGTS,
 	IBMVFC_HOST_ACTION_TGT_INIT,
 	IBMVFC_HOST_ACTION_TGT_DEL_FAILED,
-	IBMVFC_HOST_ACTION_TGT_ADD,
 };
 
 enum ibmvfc_host_state {
@@ -682,6 +681,7 @@ struct ibmvfc_host {
 	int client_migrated;
 	int reinit;
 	int delay_init;
+	int scan_complete;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002
@@ -692,6 +692,7 @@ struct ibmvfc_host {
 	void (*job_step) (struct ibmvfc_host *);
 	struct task_struct *work_thread;
 	struct tasklet_struct tasklet;
+	struct work_struct rport_add_work_q;
 	wait_queue_head_t init_wait_q;
 	wait_queue_head_t work_wait_q;
 };

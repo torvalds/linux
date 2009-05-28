@@ -431,6 +431,8 @@ static void ibmvfc_set_tgt_action(struct ibmvfc_target *tgt,
 	case IBMVFC_TGT_ACTION_DEL_RPORT:
 		break;
 	default:
+		if (action == IBMVFC_TGT_ACTION_DEL_RPORT)
+			tgt->add_rport = 0;
 		tgt->action = action;
 		break;
 	}
@@ -483,7 +485,7 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 		switch (vhost->action) {
 		case IBMVFC_HOST_ACTION_INIT_WAIT:
 		case IBMVFC_HOST_ACTION_NONE:
-		case IBMVFC_HOST_ACTION_TGT_ADD:
+		case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 			vhost->action = action;
 			break;
 		default:
@@ -498,7 +500,6 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
-	case IBMVFC_HOST_ACTION_TGT_ADD:
 	case IBMVFC_HOST_ACTION_NONE:
 	default:
 		vhost->action = action;
@@ -2306,7 +2307,7 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		done = 1;
 	}
 
-	if (vhost->state != IBMVFC_NO_CRQ && vhost->action == IBMVFC_HOST_ACTION_NONE)
+	if (vhost->scan_complete)
 		done = 1;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return done;
@@ -2820,7 +2821,7 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 						tgt->ids.roles |= FC_PORT_ROLE_FCP_TARGET;
 					if (parms->service_parms & IBMVFC_PRLI_INITIATOR_FUNC)
 						tgt->ids.roles |= FC_PORT_ROLE_FCP_INITIATOR;
-					ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_ADD_RPORT);
+					tgt->add_rport = 1;
 				} else
 					ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 			} else if (prli_rsp[index].retry)
@@ -3660,7 +3661,6 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 		return 1;
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_ALLOC_TGTS:
-	case IBMVFC_HOST_ACTION_TGT_ADD:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 	case IBMVFC_HOST_ACTION_QUERY:
@@ -3715,25 +3715,26 @@ static void ibmvfc_log_ae(struct ibmvfc_host *vhost, int events)
 static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 {
 	struct ibmvfc_host *vhost = tgt->vhost;
-	struct fc_rport *rport = tgt->rport;
+	struct fc_rport *rport;
 	unsigned long flags;
-
-	if (rport) {
-		tgt_dbg(tgt, "Setting rport roles\n");
-		fc_remote_port_rolechg(rport, tgt->ids.roles);
-		spin_lock_irqsave(vhost->host->host_lock, flags);
-		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
-		spin_unlock_irqrestore(vhost->host->host_lock, flags);
-		return;
-	}
 
 	tgt_dbg(tgt, "Adding rport\n");
 	rport = fc_remote_port_add(vhost->host, 0, &tgt->ids);
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	tgt->rport = rport;
-	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
+
+	if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
+		tgt_dbg(tgt, "Deleting rport\n");
+		list_del(&tgt->queue);
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		fc_remote_port_delete(rport);
+		del_timer_sync(&tgt->timer);
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
+		return;
+	}
+
 	if (rport) {
 		tgt_dbg(tgt, "rport add succeeded\n");
+		tgt->rport = rport;
 		rport->maxframe_size = tgt->service_parms.common.bb_rcv_sz & 0x0fff;
 		rport->supported_classes = 0;
 		tgt->target_id = rport->scsi_target_id;
@@ -3811,11 +3812,21 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 
 		if (vhost->state == IBMVFC_INITIALIZING) {
 			if (vhost->action == IBMVFC_HOST_ACTION_TGT_DEL_FAILED) {
-				ibmvfc_set_host_state(vhost, IBMVFC_ACTIVE);
-				ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_ADD);
-				vhost->init_retries = 0;
-				spin_unlock_irqrestore(vhost->host->host_lock, flags);
-				scsi_unblock_requests(vhost->host);
+				if (vhost->reinit) {
+					vhost->reinit = 0;
+					scsi_block_requests(vhost->host);
+					ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+				} else {
+					ibmvfc_set_host_state(vhost, IBMVFC_ACTIVE);
+					ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
+					wake_up(&vhost->init_wait_q);
+					schedule_work(&vhost->rport_add_work_q);
+					vhost->init_retries = 0;
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+					scsi_unblock_requests(vhost->host);
+				}
+
 				return;
 			} else {
 				ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT);
@@ -3845,24 +3856,6 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 
 		if (!ibmvfc_dev_init_to_do(vhost))
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_DEL_FAILED);
-		break;
-	case IBMVFC_HOST_ACTION_TGT_ADD:
-		list_for_each_entry(tgt, &vhost->targets, queue) {
-			if (tgt->action == IBMVFC_TGT_ACTION_ADD_RPORT) {
-				spin_unlock_irqrestore(vhost->host->host_lock, flags);
-				ibmvfc_tgt_add_rport(tgt);
-				return;
-			}
-		}
-
-		if (vhost->reinit && !ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
-			vhost->reinit = 0;
-			scsi_block_requests(vhost->host);
-			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
-		} else {
-			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
-			wake_up(&vhost->init_wait_q);
-		}
 		break;
 	default:
 		break;
@@ -4093,6 +4086,56 @@ nomem:
 }
 
 /**
+ * ibmvfc_rport_add_thread - Worker thread for rport adds
+ * @work:	work struct
+ *
+ **/
+static void ibmvfc_rport_add_thread(struct work_struct *work)
+{
+	struct ibmvfc_host *vhost = container_of(work, struct ibmvfc_host,
+						 rport_add_work_q);
+	struct ibmvfc_target *tgt;
+	struct fc_rport *rport;
+	unsigned long flags;
+	int did_work;
+
+	ENTER;
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	do {
+		did_work = 0;
+		if (vhost->state != IBMVFC_ACTIVE)
+			break;
+
+		list_for_each_entry(tgt, &vhost->targets, queue) {
+			if (tgt->add_rport) {
+				did_work = 1;
+				tgt->add_rport = 0;
+				kref_get(&tgt->kref);
+				rport = tgt->rport;
+				if (!rport) {
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+					ibmvfc_tgt_add_rport(tgt);
+				} else if (get_device(&rport->dev)) {
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+					tgt_dbg(tgt, "Setting rport roles\n");
+					fc_remote_port_rolechg(rport, tgt->ids.roles);
+					put_device(&rport->dev);
+				}
+
+				kref_put(&tgt->kref, ibmvfc_release_tgt);
+				spin_lock_irqsave(vhost->host->host_lock, flags);
+				break;
+			}
+		}
+	} while(did_work);
+
+	if (vhost->state == IBMVFC_ACTIVE)
+		vhost->scan_complete = 1;
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+	LEAVE;
+}
+
+/**
  * ibmvfc_probe - Adapter hot plug add entry point
  * @vdev:	vio device struct
  * @id:	vio device id struct
@@ -4135,6 +4178,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	strcpy(vhost->partition_name, "UNKNOWN");
 	init_waitqueue_head(&vhost->work_wait_q);
 	init_waitqueue_head(&vhost->init_wait_q);
+	INIT_WORK(&vhost->rport_add_work_q, ibmvfc_rport_add_thread);
 
 	if ((rc = ibmvfc_alloc_mem(vhost)))
 		goto free_scsi_host;
