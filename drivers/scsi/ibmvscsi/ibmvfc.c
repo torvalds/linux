@@ -842,9 +842,13 @@ static void ibmvfc_reset_host(struct ibmvfc_host *vhost)
  * ibmvfc_retry_host_init - Retry host initialization if allowed
  * @vhost:	ibmvfc host struct
  *
+ * Returns: 1 if init will be retried / 0 if not
+ *
  **/
-static void ibmvfc_retry_host_init(struct ibmvfc_host *vhost)
+static int ibmvfc_retry_host_init(struct ibmvfc_host *vhost)
 {
+	int retry = 0;
+
 	if (vhost->action == IBMVFC_HOST_ACTION_INIT_WAIT) {
 		vhost->delay_init = 1;
 		if (++vhost->init_retries > IBMVFC_MAX_HOST_INIT_RETRIES) {
@@ -853,11 +857,14 @@ static void ibmvfc_retry_host_init(struct ibmvfc_host *vhost)
 			ibmvfc_link_down(vhost, IBMVFC_HOST_OFFLINE);
 		} else if (vhost->init_retries == IBMVFC_MAX_HOST_INIT_RETRIES)
 			__ibmvfc_reset_host(vhost);
-		else
+		else {
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT);
+			retry = 1;
+		}
 	}
 
 	wake_up(&vhost->work_wait_q);
+	return retry;
 }
 
 /**
@@ -2733,15 +2740,19 @@ static void ibmvfc_init_tgt(struct ibmvfc_target *tgt,
  * @tgt:		ibmvfc target struct
  * @job_step:	initialization job step
  *
+ * Returns: 1 if step will be retried / 0 if not
+ *
  **/
-static void ibmvfc_retry_tgt_init(struct ibmvfc_target *tgt,
+static int ibmvfc_retry_tgt_init(struct ibmvfc_target *tgt,
 				  void (*job_step) (struct ibmvfc_target *))
 {
 	if (++tgt->init_retries > IBMVFC_MAX_TGT_INIT_RETRIES) {
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		wake_up(&tgt->vhost->work_wait_q);
+		return 0;
 	} else
 		ibmvfc_init_tgt(tgt, job_step);
+	return 1;
 }
 
 /* Defined in FC-LS */
@@ -2790,7 +2801,7 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 	struct ibmvfc_process_login *rsp = &evt->xfer_iu->prli;
 	struct ibmvfc_prli_svc_parms *parms = &rsp->parms;
 	u32 status = rsp->common.status;
-	int index;
+	int index, level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	vhost->discovery_threads--;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
@@ -2826,13 +2837,14 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 		break;
 	case IBMVFC_MAD_FAILED:
 	default:
-		tgt_err(tgt, "Process Login failed: %s (%x:%x) rc=0x%02X\n",
-			ibmvfc_get_cmd_error(rsp->status, rsp->error),
-			rsp->status, rsp->error, status);
 		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
-			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_prli);
+			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_prli);
 		else
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+
+		tgt_log(tgt, level, "Process Login failed: %s (%x:%x) rc=0x%02X\n",
+			ibmvfc_get_cmd_error(rsp->status, rsp->error),
+			rsp->status, rsp->error, status);
 		break;
 	};
 
@@ -2891,6 +2903,7 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 	struct ibmvfc_host *vhost = evt->vhost;
 	struct ibmvfc_port_login *rsp = &evt->xfer_iu->plogi;
 	u32 status = rsp->common.status;
+	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	vhost->discovery_threads--;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
@@ -2919,15 +2932,15 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 		break;
 	case IBMVFC_MAD_FAILED:
 	default:
-		tgt_err(tgt, "Port Login failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
+		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
+			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_plogi);
+		else
+			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+
+		tgt_log(tgt, level, "Port Login failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
 			ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error,
 			ibmvfc_get_fc_type(rsp->fc_type), rsp->fc_type,
 			ibmvfc_get_ls_explain(rsp->fc_explain), rsp->fc_explain, status);
-
-		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
-			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_plogi);
-		else
-			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		break;
 	};
 
@@ -3281,6 +3294,7 @@ static void ibmvfc_tgt_query_target_done(struct ibmvfc_event *evt)
 	struct ibmvfc_host *vhost = evt->vhost;
 	struct ibmvfc_query_tgt *rsp = &evt->xfer_iu->query_tgt;
 	u32 status = rsp->common.status;
+	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	vhost->discovery_threads--;
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
@@ -3300,19 +3314,19 @@ static void ibmvfc_tgt_query_target_done(struct ibmvfc_event *evt)
 		break;
 	case IBMVFC_MAD_FAILED:
 	default:
-		tgt_err(tgt, "Query Target failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
-			ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error,
-			ibmvfc_get_fc_type(rsp->fc_type), rsp->fc_type,
-			ibmvfc_get_gs_explain(rsp->fc_explain), rsp->fc_explain, status);
-
 		if ((rsp->status & IBMVFC_FABRIC_MAPPED) == IBMVFC_FABRIC_MAPPED &&
 		    rsp->error == IBMVFC_UNABLE_TO_PERFORM_REQ &&
 		    rsp->fc_explain == IBMVFC_PORT_NAME_NOT_REG)
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		else if (ibmvfc_retry_cmd(rsp->status, rsp->error))
-			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_query_target);
+			level += ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_query_target);
 		else
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
+
+		tgt_log(tgt, level, "Query Target failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
+			ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error,
+			ibmvfc_get_fc_type(rsp->fc_type), rsp->fc_type,
+			ibmvfc_get_gs_explain(rsp->fc_explain), rsp->fc_explain, status);
 		break;
 	};
 
@@ -3431,6 +3445,7 @@ static void ibmvfc_discover_targets_done(struct ibmvfc_event *evt)
 	struct ibmvfc_host *vhost = evt->vhost;
 	struct ibmvfc_discover_targets *rsp = &evt->xfer_iu->discover_targets;
 	u32 mad_status = rsp->common.status;
+	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	switch (mad_status) {
 	case IBMVFC_MAD_SUCCESS:
@@ -3439,9 +3454,9 @@ static void ibmvfc_discover_targets_done(struct ibmvfc_event *evt)
 		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_ALLOC_TGTS);
 		break;
 	case IBMVFC_MAD_FAILED:
-		dev_err(vhost->dev, "Discover Targets failed: %s (%x:%x)\n",
-			ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error);
-		ibmvfc_retry_host_init(vhost);
+		level += ibmvfc_retry_host_init(vhost);
+		ibmvfc_log(vhost, level, "Discover Targets failed: %s (%x:%x)\n",
+			   ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error);
 		break;
 	case IBMVFC_MAD_DRIVER_FAILED:
 		break;
@@ -3493,18 +3508,19 @@ static void ibmvfc_npiv_login_done(struct ibmvfc_event *evt)
 	u32 mad_status = evt->xfer_iu->npiv_login.common.status;
 	struct ibmvfc_npiv_login_resp *rsp = &vhost->login_buf->resp;
 	unsigned int npiv_max_sectors;
+	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	switch (mad_status) {
 	case IBMVFC_MAD_SUCCESS:
 		ibmvfc_free_event(evt);
 		break;
 	case IBMVFC_MAD_FAILED:
-		dev_err(vhost->dev, "NPIV Login failed: %s (%x:%x)\n",
-			ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error);
 		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
-			ibmvfc_retry_host_init(vhost);
+			level += ibmvfc_retry_host_init(vhost);
 		else
 			ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
+		ibmvfc_log(vhost, level, "NPIV Login failed: %s (%x:%x)\n",
+			   ibmvfc_get_cmd_error(rsp->status, rsp->error), rsp->status, rsp->error);
 		ibmvfc_free_event(evt);
 		return;
 	case IBMVFC_MAD_CRQ_ERROR:

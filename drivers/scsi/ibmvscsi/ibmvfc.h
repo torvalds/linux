@@ -707,6 +707,12 @@ struct ibmvfc_host {
 #define tgt_err(t, fmt, ...)		\
 	dev_err((t)->vhost->dev, "%llX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
 
+#define tgt_log(t, level, fmt, ...) \
+	do { \
+		if ((t)->vhost->log_level >= level) \
+			tgt_err(t, fmt, ##__VA_ARGS__); \
+	} while (0)
+
 #define ibmvfc_dbg(vhost, ...) \
 	DBG_CMD(dev_info((vhost)->dev, ##__VA_ARGS__))
 
