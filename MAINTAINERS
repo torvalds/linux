@@ -680,6 +680,13 @@ M:	sakoman@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
+P:	Philipp Zabel
+M:	philipp.zabel@gmail.com
+S:	Maintained
+F:	arch/arm/mach-pxa/hx4700.c
+F:	arch/arm/mach-pxa/include/mach/hx4700.h
+
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 P:	Kristoffer Ericson
 M:	kristoffer.ericson@gmail.com
