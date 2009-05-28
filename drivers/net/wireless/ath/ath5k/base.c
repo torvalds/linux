@@ -2775,8 +2775,6 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&sc->lock);
 
-	sc->bintval = conf->beacon_int;
-
 	ret = ath5k_chan_set(sc, conf->channel);
 	if (ret < 0)
 		goto unlock;
