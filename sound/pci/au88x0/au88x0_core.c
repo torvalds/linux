@@ -2440,7 +2440,8 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 		spin_lock(&vortex->lock);
 		for (i = 0; i < NR_ADB; i++) {
 			if (vortex->dma_adb[i].fifo_status == FIFO_START) {
-				if (vortex_adbdma_bufshift(vortex, i)) ;
+				if (!vortex_adbdma_bufshift(vortex, i))
+					continue;
 				spin_unlock(&vortex->lock);
 				snd_pcm_period_elapsed(vortex->dma_adb[i].
 						       substream);
