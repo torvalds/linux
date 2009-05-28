@@ -255,6 +255,13 @@ config AB3100_CORE
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
 
+config EZX_PCAP
+	bool "PCAP Support"
+	depends on GENERIC_HARDIRQS && SPI_MASTER
+	help
+	  This enables the PCAP ASIC present on EZX Phones. This is
+	  needed for MMC, TouchScreen, Sound, USB, etc..
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
