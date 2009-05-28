@@ -51,6 +51,7 @@ MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atheros AR9170 802.11n USB wireless");
+MODULE_FIRMWARE("ar9170.fw");
 MODULE_FIRMWARE("ar9170-1.fw");
 MODULE_FIRMWARE("ar9170-2.fw");
 
@@ -504,17 +505,23 @@ static int ar9170_usb_request_firmware(struct ar9170_usb *aru)
 {
 	int err = 0;
 
+	err = request_firmware(&aru->firmware, "ar9170.fw",
+			       &aru->udev->dev);
+	if (!err) {
+		aru->init_values = NULL;
+		return 0;
+	}
+
+	dev_err(&aru->udev->dev, "ar9170.fw firmware file "
+		"not found, trying old firmware...\n");
+
 	err = request_firmware(&aru->init_values, "ar9170-1.fw",
 			       &aru->udev->dev);
-	if (err) {
-		dev_err(&aru->udev->dev, "file with init values not found.\n");
-		return err;
-	}
 
 	err = request_firmware(&aru->firmware, "ar9170-2.fw", &aru->udev->dev);
 	if (err) {
 		release_firmware(aru->init_values);
-		dev_err(&aru->udev->dev, "firmware file not found.\n");
+		dev_err(&aru->udev->dev, "file with init values not found.\n");
 		return err;
 	}
 
@@ -548,6 +555,9 @@ static int ar9170_usb_upload_firmware(struct ar9170_usb *aru)
 {
 	int err;
 
+	if (!aru->init_values)
+		goto upload_fw_start;
+
 	/* First, upload initial values to device RAM */
 	err = ar9170_usb_upload(aru, aru->init_values->data,
 				aru->init_values->size, 0x102800, false);
@@ -556,6 +566,8 @@ static int ar9170_usb_upload_firmware(struct ar9170_usb *aru)
 			"upload failed (%d).\n", err);
 		return err;
 	}
+
+upload_fw_start:
 
 	/* Then, upload the firmware itself and start it */
 	return ar9170_usb_upload(aru, aru->firmware->data, aru->firmware->size,
