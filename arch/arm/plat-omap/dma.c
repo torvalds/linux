@@ -310,41 +310,62 @@ EXPORT_SYMBOL(omap_set_dma_transfer_params);
 
 void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 {
-	u16 w;
-
 	BUG_ON(omap_dma_in_1510_mode());
 
+	if (cpu_class_is_omap1()) {
+		u16 w;
+
+		w = dma_read(CCR2(lch));
+		w &= ~0x03;
+
+		switch (mode) {
+		case OMAP_DMA_CONSTANT_FILL:
+			w |= 0x01;
+			break;
+		case OMAP_DMA_TRANSPARENT_COPY:
+			w |= 0x02;
+			break;
+		case OMAP_DMA_COLOR_DIS:
+			break;
+		default:
+			BUG();
+		}
+		dma_write(w, CCR2(lch));
+
+		w = dma_read(LCH_CTRL(lch));
+		w &= ~0x0f;
+		/* Default is channel type 2D */
+		if (mode) {
+			dma_write((u16)color, COLOR_L(lch));
+			dma_write((u16)(color >> 16), COLOR_U(lch));
+			w |= 1;		/* Channel type G */
+		}
+		dma_write(w, LCH_CTRL(lch));
+	}
+
 	if (cpu_class_is_omap2()) {
-		REVISIT_24XX();
-		return;
-	}
+		u32 val;
 
-	w = dma_read(CCR2(lch));
-	w &= ~0x03;
+		val = dma_read(CCR(lch));
+		val &= ~((1 << 17) | (1 << 16));
 
-	switch (mode) {
-	case OMAP_DMA_CONSTANT_FILL:
-		w |= 0x01;
-		break;
-	case OMAP_DMA_TRANSPARENT_COPY:
-		w |= 0x02;
-		break;
-	case OMAP_DMA_COLOR_DIS:
-		break;
-	default:
-		BUG();
-	}
-	dma_write(w, CCR2(lch));
+		switch (mode) {
+		case OMAP_DMA_CONSTANT_FILL:
+			val |= 1 << 16;
+			break;
+		case OMAP_DMA_TRANSPARENT_COPY:
+			val |= 1 << 17;
+			break;
+		case OMAP_DMA_COLOR_DIS:
+			break;
+		default:
+			BUG();
+		}
+		dma_write(val, CCR(lch));
 
-	w = dma_read(LCH_CTRL(lch));
-	w &= ~0x0f;
-	/* Default is channel type 2D */
-	if (mode) {
-		dma_write((u16)color, COLOR_L(lch));
-		dma_write((u16)(color >> 16), COLOR_U(lch));
-		w |= 1;		/* Channel type G */
+		color &= 0xffffff;
+		dma_write(color, COLOR(lch));
 	}
-	dma_write(w, LCH_CTRL(lch));
 }
 EXPORT_SYMBOL(omap_set_dma_color_mode);
 

@@ -144,6 +144,7 @@
 #define OMAP_DMA4_CSSA_U(n)		0
 #define OMAP_DMA4_CDSA_L(n)		0
 #define OMAP_DMA4_CDSA_U(n)		0
+#define OMAP1_DMA_COLOR(n)		0
 
 /*----------------------------------------------------------------------------*/
 
