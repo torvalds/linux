@@ -166,7 +166,7 @@ int __cpuexit __cpu_disable(void)
 	 * Take this CPU offline.  Once we clear this, we can't return,
 	 * and we must not schedule until we're ready to give up the cpu.
 	 */
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	/*
 	 * OK - migrate IRQs away from this CPU
@@ -288,7 +288,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	/*
 	 * OK, now it's safe to let the boot CPU continue
 	 */
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -462,7 +462,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 	dump_stack();
 	spin_unlock(&stop_lock);
 
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
 
 	local_fiq_disable();
 	local_irq_disable();

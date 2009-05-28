@@ -41,7 +41,7 @@ extern void show_ipi_list(struct seq_file *p);
 asmlinkage void do_IPI(struct pt_regs *regs);
 
 /*
- * Setup the SMP cpu_possible_map
+ * Setup the set of possible CPUs (via set_cpu_possible)
  */
 extern void smp_init_cpus(void);
 
