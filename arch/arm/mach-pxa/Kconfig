@@ -309,6 +309,14 @@ config MACH_CM_X300
 	select PXA3xx
 	select CPU_PXA300
 
+config MACH_H4700
+	bool "HP iPAQ hx4700"
+	select PXA27x
+	select IWMMXT
+	select PXA_SSP
+	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
+
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
