@@ -2869,10 +2869,6 @@ static int wavelan_packet_xmit(struct sk_buff *skb, struct net_device * dev)
 		if (lp->tx_n_in_use == (NTXBLOCKS - 1))
 			return 1;
 	}
-#ifdef DEBUG_TX_ERROR
-	if (skb->next)
-		printk(KERN_INFO "skb has next\n");
-#endif
 
 	/* Do we need some padding? */
 	/* Note : on wireless the propagation time is in the order of 1us,
