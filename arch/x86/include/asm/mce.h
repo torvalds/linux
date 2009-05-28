@@ -121,13 +121,13 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c);
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
 
-extern int mce_available(struct cpuinfo_x86 *c);
+int mce_available(struct cpuinfo_x86 *c);
 
 void mce_log_therm_throt_event(__u64 status);
 
 extern atomic_t mce_entry;
 
-extern void do_machine_check(struct pt_regs *, long);
+void do_machine_check(struct pt_regs *, long);
 
 typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
@@ -137,15 +137,15 @@ enum mcp_flags {
 	MCP_UC = (1 << 1),		/* log uncorrected errors */
 	MCP_DONTLOG = (1 << 2),		/* only clear, don't log */
 };
-extern void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
-extern int mce_notify_user(void);
+int mce_notify_user(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 extern struct file_operations mce_chrdev_ops;
 
 #ifdef CONFIG_X86_MCE
-extern void mcheck_init(struct cpuinfo_x86 *c);
+void mcheck_init(struct cpuinfo_x86 *c);
 #else
 #define mcheck_init(c) do { } while (0)
 #endif
