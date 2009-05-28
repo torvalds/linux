@@ -674,6 +674,14 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 
 	intval = conf->beacon_interval & ATH9K_BEACON_PERIOD;
 
+	/*
+	 * It looks like mac80211 may end up using beacon interval of zero in
+	 * some cases (at least for mesh point). Avoid getting into an
+	 * infinite loop by using a bit safer value instead..
+	 */
+	if (intval == 0)
+		intval = 100;
+
 	/* Pull nexttbtt forward to reflect the current TSF */
 
 	nexttbtt = TSF_TO_TU(sc->beacon.bc_tstamp >> 32, sc->beacon.bc_tstamp);
