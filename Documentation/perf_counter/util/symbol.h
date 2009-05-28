@@ -19,6 +19,8 @@ struct dso {
 	char		 name[0];
 };
 
+typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
+
 struct dso *dso__new(const char *name, unsigned int sym_priv_size);
 void dso__delete(struct dso *self);
 
@@ -29,8 +31,9 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 
 struct symbol *dso__find_symbol(struct dso *self, uint64_t ip);
 
-int dso__load_kernel(struct dso *self, const char *vmlinux);
-int dso__load(struct dso *self);
+int dso__load_kernel(struct dso *self, const char *vmlinux,
+		     symbol_filter_t filter);
+int dso__load(struct dso *self, symbol_filter_t filter);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 

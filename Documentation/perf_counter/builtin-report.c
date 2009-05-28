@@ -87,7 +87,7 @@ static struct dso *dsos__findnew(const char *name)
 		if (!dso)
 			goto out_delete_dso;
 
-		nr = dso__load(dso);
+		nr = dso__load(dso, NULL);
 		if (nr < 0) {
 			fprintf(stderr, "Failed to open: %s\n", name);
 			goto out_delete_dso;
@@ -124,7 +124,7 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux);
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL);
 	if (err) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
