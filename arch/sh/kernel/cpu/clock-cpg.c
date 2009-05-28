@@ -1,6 +1,41 @@
 #include <linux/clk.h>
 #include <linux/compiler.h>
+#include <linux/io.h>
 #include <asm/clock.h>
+
+static int sh_clk_mstp32_enable(struct clk *clk)
+{
+	__raw_writel(__raw_readl(clk->enable_reg) & ~(1 << clk->enable_bit),
+		     clk->enable_reg);
+	return 0;
+}
+
+static void sh_clk_mstp32_disable(struct clk *clk)
+{
+	__raw_writel(__raw_readl(clk->enable_reg) | (1 << clk->enable_bit),
+		     clk->enable_reg);
+}
+
+static struct clk_ops sh_clk_mstp32_clk_ops = {
+	.enable		= sh_clk_mstp32_enable,
+	.disable	= sh_clk_mstp32_disable,
+	.recalc		= followparent_recalc,
+};
+
+int __init sh_clk_mstp32_register(struct clk *clks, int nr)
+{
+	struct clk *clkp;
+	int ret = 0;
+	int k;
+
+	for (k = 0; !ret && (k < nr); k++) {
+		clkp = clks + k;
+		clkp->ops = &sh_clk_mstp32_clk_ops;
+		ret |= clk_register(clkp);
+	}
+
+	return ret;
+}
 
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 static struct clk master_clk = {
