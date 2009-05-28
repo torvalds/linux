@@ -2,6 +2,10 @@
  * linux/arch/arm/plat-omap/common.c
  *
  * Code common to all OMAP machines.
+ * The file is created by Tony Lindgren <tony@atomide.com>
+ *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -216,6 +220,15 @@ static cycle_t omap34xx_32k_read(struct clocksource *cs)
 #define omap34xx_32k_read	NULL
 #endif
 
+#ifdef CONFIG_ARCH_OMAP4
+static cycle_t omap44xx_32k_read(struct clocksource *cs)
+{
+	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10);
+}
+#else
+#define omap44xx_32k_read	NULL
+#endif
+
 /*
  * Kernel assumes that sched_clock can be called early but may not have
  * things ready yet.
@@ -263,6 +276,8 @@ static int __init omap_init_clocksource_32k(void)
 			clocksource_32k.read = omap2430_32k_read;
 		else if (cpu_is_omap34xx())
 			clocksource_32k.read = omap34xx_32k_read;
+		else if (cpu_is_omap44xx())
+			clocksource_32k.read = omap44xx_32k_read;
 		else
 			return -ENODEV;
 
@@ -347,6 +362,22 @@ static struct omap_globals omap343x_globals = {
 void __init omap2_set_globals_343x(void)
 {
 	__omap2_set_globals(&omap343x_globals);
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4)
+static struct omap_globals omap4_globals = {
+	.class	= OMAP443X_CLASS,
+	.tap	= OMAP2_IO_ADDRESS(0x4830a000),
+	.ctrl	= OMAP2_IO_ADDRESS(OMAP443X_CTRL_BASE),
+	.prm	= OMAP2_IO_ADDRESS(OMAP4430_PRM_BASE),
+	.cm	= OMAP2_IO_ADDRESS(OMAP4430_CM_BASE),
+};
+
+void __init omap2_set_globals_443x(void)
+{
+	omap2_set_globals_tap(&omap4_globals);
+	omap2_set_globals_control(&omap4_globals);
 }
 #endif
 

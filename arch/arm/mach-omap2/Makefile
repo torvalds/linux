@@ -60,6 +60,9 @@ obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 obj-$(CONFIG_MACH_OMAP_ZOOM2)		+= board-zoom2.o \
 					   mmc-twl4030.o \
 					   board-zoom-debugboard.o
+
+obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
+
 # Platform specific device init code
 obj-y					+= usb-musb.o
 

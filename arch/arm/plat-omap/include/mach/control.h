@@ -1,9 +1,9 @@
 /*
  * arch/arm/plat-omap/include/mach/control.h
  *
- * OMAP2/3 System Control Module definitions
+ * OMAP2/3/4 System Control Module definitions
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009 Texas Instruments, Inc.
  * Copyright (C) 2007-2008 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -203,7 +203,8 @@
 #define OMAP3_PADCONF_WAKEUPENABLE0	(1 << 14)
 
 #ifndef __ASSEMBLY__
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+		defined(CONFIG_ARCH_OMAP4)
 extern void __iomem *omap_ctrl_base_get(void);
 extern u8 omap_ctrl_readb(u16 offset);
 extern u16 omap_ctrl_readw(u16 offset);
