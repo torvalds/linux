@@ -40,8 +40,8 @@ struct max1586_data {
 	struct i2c_client *client;
 
 	/* min/max V3 voltage */
-	int min_uV;
-	int max_uV;
+	unsigned int min_uV;
+	unsigned int max_uV;
 
 	struct regulator_dev *rdev[0];
 };
@@ -199,8 +199,8 @@ static int max1586_pmic_probe(struct i2c_client *client,
 		ret = -EINVAL;
 		goto out_unmap;
 	}
-	max1586->min_uV = MAX1586_V3_MIN_UV * pdata->v3_gain / 1000000;
-	max1586->max_uV = MAX1586_V3_MAX_UV * pdata->v3_gain / 1000000;
+	max1586->min_uV = MAX1586_V3_MIN_UV / 1000 * pdata->v3_gain / 1000;
+	max1586->max_uV = MAX1586_V3_MAX_UV / 1000 * pdata->v3_gain / 1000;
 
 	rdev = max1586->rdev;
 	for (i = 0; i < pdata->num_subdevs && i <= MAX1586_V6; i++) {
