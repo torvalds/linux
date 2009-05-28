@@ -541,8 +541,9 @@ struct perf_counter_context {
 	 * been cloned (inherited) from a common ancestor.
 	 */
 	struct perf_counter_context *parent_ctx;
-	u32			parent_gen;
-	u32			generation;
+	u64			parent_gen;
+	u64			generation;
+	struct rcu_head		rcu_head;
 };
 
 /**

@@ -103,12 +103,22 @@ static void get_ctx(struct perf_counter_context *ctx)
 	atomic_inc(&ctx->refcount);
 }
 
+static void free_ctx(struct rcu_head *head)
+{
+	struct perf_counter_context *ctx;
+
+	ctx = container_of(head, struct perf_counter_context, rcu_head);
+	kfree(ctx);
+}
+
 static void put_ctx(struct perf_counter_context *ctx)
 {
 	if (atomic_dec_and_test(&ctx->refcount)) {
 		if (ctx->parent_ctx)
 			put_ctx(ctx->parent_ctx);
-		kfree(ctx);
+		if (ctx->task)
+			put_task_struct(ctx->task);
+		call_rcu(&ctx->rcu_head, free_ctx);
 	}
 }
 
@@ -212,22 +222,6 @@ group_sched_out(struct perf_counter *group_counter,
 }
 
 /*
- * Mark this context as not being a clone of another.
- * Called when counters are added to or removed from this context.
- * We also increment our generation number so that anything that
- * was cloned from this context before this will not match anything
- * cloned from this context after this.
- */
-static void unclone_ctx(struct perf_counter_context *ctx)
-{
-	++ctx->generation;
-	if (!ctx->parent_ctx)
-		return;
-	put_ctx(ctx->parent_ctx);
-	ctx->parent_ctx = NULL;
-}
-
-/*
  * Cross CPU call to remove a performance counter
  *
  * We disable the counter on the hardware level first. After that we
@@ -281,13 +275,19 @@ static void __perf_counter_remove_from_context(void *info)
  *
  * CPU counters are removed with a smp call. For task counters we only
  * call when the task is on a CPU.
+ *
+ * If counter->ctx is a cloned context, callers must make sure that
+ * every task struct that counter->ctx->task could possibly point to
+ * remains valid.  This is OK when called from perf_release since
+ * that only calls us on the top-level context, which can't be a clone.
+ * When called from perf_counter_exit_task, it's OK because the
+ * context has been detached from its task.
  */
 static void perf_counter_remove_from_context(struct perf_counter *counter)
 {
 	struct perf_counter_context *ctx = counter->ctx;
 	struct task_struct *task = ctx->task;
 
-	unclone_ctx(ctx);
 	if (!task) {
 		/*
 		 * Per cpu counters are removed via an smp call and
@@ -410,6 +410,16 @@ static void __perf_counter_disable(void *info)
 
 /*
  * Disable a counter.
+ *
+ * If counter->ctx is a cloned context, callers must make sure that
+ * every task struct that counter->ctx->task could possibly point to
+ * remains valid.  This condition is satisifed when called through
+ * perf_counter_for_each_child or perf_counter_for_each because they
+ * hold the top-level counter's child_mutex, so any descendant that
+ * goes to exit will block in sync_child_counter.
+ * When called from perf_pending_counter it's OK because counter->ctx
+ * is the current context on this CPU and preemption is disabled,
+ * hence we can't get into perf_counter_task_sched_out for this context.
  */
 static void perf_counter_disable(struct perf_counter *counter)
 {
@@ -794,6 +804,12 @@ static void __perf_counter_enable(void *info)
 
 /*
  * Enable a counter.
+ *
+ * If counter->ctx is a cloned context, callers must make sure that
+ * every task struct that counter->ctx->task could possibly point to
+ * remains valid.  This condition is satisfied when called through
+ * perf_counter_for_each_child or perf_counter_for_each as described
+ * for perf_counter_disable.
  */
 static void perf_counter_enable(struct perf_counter *counter)
 {
@@ -923,7 +939,9 @@ void perf_counter_task_sched_out(struct task_struct *task,
 	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
 	struct perf_counter_context *ctx = task->perf_counter_ctxp;
 	struct perf_counter_context *next_ctx;
+	struct perf_counter_context *parent;
 	struct pt_regs *regs;
+	int do_switch = 1;
 
 	regs = task_pt_regs(task);
 	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
@@ -932,18 +950,39 @@ void perf_counter_task_sched_out(struct task_struct *task,
 		return;
 
 	update_context_time(ctx);
+
+	rcu_read_lock();
+	parent = rcu_dereference(ctx->parent_ctx);
 	next_ctx = next->perf_counter_ctxp;
-	if (next_ctx && context_equiv(ctx, next_ctx)) {
-		task->perf_counter_ctxp = next_ctx;
-		next->perf_counter_ctxp = ctx;
-		ctx->task = next;
-		next_ctx->task = task;
-		return;
+	if (parent && next_ctx &&
+	    rcu_dereference(next_ctx->parent_ctx) == parent) {
+		/*
+		 * Looks like the two contexts are clones, so we might be
+		 * able to optimize the context switch.  We lock both
+		 * contexts and check that they are clones under the
+		 * lock (including re-checking that neither has been
+		 * uncloned in the meantime).  It doesn't matter which
+		 * order we take the locks because no other cpu could
+		 * be trying to lock both of these tasks.
+		 */
+		spin_lock(&ctx->lock);
+		spin_lock_nested(&next_ctx->lock, SINGLE_DEPTH_NESTING);
+		if (context_equiv(ctx, next_ctx)) {
+			task->perf_counter_ctxp = next_ctx;
+			next->perf_counter_ctxp = ctx;
+			ctx->task = next;
+			next_ctx->task = task;
+			do_switch = 0;
+		}
+		spin_unlock(&next_ctx->lock);
+		spin_unlock(&ctx->lock);
 	}
+	rcu_read_unlock();
 
-	__perf_counter_sched_out(ctx, cpuctx);
-
-	cpuctx->task_ctx = NULL;
+	if (do_switch) {
+		__perf_counter_sched_out(ctx, cpuctx);
+		cpuctx->task_ctx = NULL;
+	}
 }
 
 static void __perf_counter_task_sched_out(struct perf_counter_context *ctx)
@@ -1215,18 +1254,13 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 	ctx->task = task;
 }
 
-static void put_context(struct perf_counter_context *ctx)
-{
-	if (ctx->task)
-		put_task_struct(ctx->task);
-}
-
 static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 {
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
-	struct perf_counter_context *tctx;
+	struct perf_counter_context *parent_ctx;
 	struct task_struct *task;
+	int err;
 
 	/*
 	 * If cpu is not a wildcard then this is a percpu counter:
@@ -1249,6 +1283,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 
 		cpuctx = &per_cpu(perf_cpu_context, cpu);
 		ctx = &cpuctx->ctx;
+		get_ctx(ctx);
 
 		return ctx;
 	}
@@ -1265,37 +1300,79 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 	if (!task)
 		return ERR_PTR(-ESRCH);
 
-	/* Reuse ptrace permission checks for now. */
-	if (!ptrace_may_access(task, PTRACE_MODE_READ)) {
-		put_task_struct(task);
-		return ERR_PTR(-EACCES);
-	}
+	/*
+	 * Can't attach counters to a dying task.
+	 */
+	err = -ESRCH;
+	if (task->flags & PF_EXITING)
+		goto errout;
 
-	ctx = task->perf_counter_ctxp;
+	/* Reuse ptrace permission checks for now. */
+	err = -EACCES;
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+		goto errout;
+
+ retry_lock:
+	rcu_read_lock();
+ retry:
+	ctx = rcu_dereference(task->perf_counter_ctxp);
+	if (ctx) {
+		/*
+		 * If this context is a clone of another, it might
+		 * get swapped for another underneath us by
+		 * perf_counter_task_sched_out, though the
+		 * rcu_read_lock() protects us from any context
+		 * getting freed.  Lock the context and check if it
+		 * got swapped before we could get the lock, and retry
+		 * if so.  If we locked the right context, then it
+		 * can't get swapped on us any more and we can
+		 * unclone it if necessary.
+		 * Once it's not a clone things will be stable.
+		 */
+		spin_lock_irq(&ctx->lock);
+		if (ctx != rcu_dereference(task->perf_counter_ctxp)) {
+			spin_unlock_irq(&ctx->lock);
+			goto retry;
+		}
+		parent_ctx = ctx->parent_ctx;
+		if (parent_ctx) {
+			put_ctx(parent_ctx);
+			ctx->parent_ctx = NULL;		/* no longer a clone */
+		}
+		++ctx->generation;
+		/*
+		 * Get an extra reference before dropping the lock so that
+		 * this context won't get freed if the task exits.
+		 */
+		get_ctx(ctx);
+		spin_unlock_irq(&ctx->lock);
+	}
+	rcu_read_unlock();
+
 	if (!ctx) {
 		ctx = kmalloc(sizeof(struct perf_counter_context), GFP_KERNEL);
-		if (!ctx) {
-			put_task_struct(task);
-			return ERR_PTR(-ENOMEM);
-		}
+		err = -ENOMEM;
+		if (!ctx)
+			goto errout;
 		__perf_counter_init_context(ctx, task);
-		/*
-		 * Make sure other cpus see correct values for *ctx
-		 * once task->perf_counter_ctxp is visible to them.
-		 */
-		smp_wmb();
-		tctx = cmpxchg(&task->perf_counter_ctxp, NULL, ctx);
-		if (tctx) {
+		get_ctx(ctx);
+		if (cmpxchg(&task->perf_counter_ctxp, NULL, ctx)) {
 			/*
 			 * We raced with some other task; use
 			 * the context they set.
 			 */
 			kfree(ctx);
-			ctx = tctx;
+			goto retry_lock;
 		}
+		get_task_struct(task);
 	}
 
+	put_task_struct(task);
 	return ctx;
+
+ errout:
+	put_task_struct(task);
+	return ERR_PTR(err);
 }
 
 static void free_counter_rcu(struct rcu_head *head)
@@ -1303,7 +1380,6 @@ static void free_counter_rcu(struct rcu_head *head)
 	struct perf_counter *counter;
 
 	counter = container_of(head, struct perf_counter, rcu_head);
-	put_ctx(counter->ctx);
 	kfree(counter);
 }
 
@@ -1324,6 +1400,7 @@ static void free_counter(struct perf_counter *counter)
 	if (counter->destroy)
 		counter->destroy(counter);
 
+	put_ctx(counter->ctx);
 	call_rcu(&counter->rcu_head, free_counter_rcu);
 }
 
@@ -1347,7 +1424,6 @@ static int perf_release(struct inode *inode, struct file *file)
 	put_task_struct(counter->owner);
 
 	free_counter(counter);
-	put_context(ctx);
 
 	return 0;
 }
@@ -1437,6 +1513,12 @@ static void perf_counter_for_each_sibling(struct perf_counter *counter,
 	mutex_unlock(&ctx->mutex);
 }
 
+/*
+ * Holding the top-level counter's child_mutex means that any
+ * descendant process that has inherited this counter will block
+ * in sync_child_counter if it goes to exit, thus satisfying the
+ * task existence requirements of perf_counter_enable/disable.
+ */
 static void perf_counter_for_each_child(struct perf_counter *counter,
 					void (*func)(struct perf_counter *))
 {
@@ -3124,8 +3206,6 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->ctx			= ctx;
 	counter->oncpu			= -1;
 
-	get_ctx(ctx);
-
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	if (hw_event->disabled)
 		counter->state = PERF_COUNTER_STATE_OFF;
@@ -3290,7 +3370,7 @@ err_free_put_context:
 	kfree(counter);
 
 err_put_context:
-	put_context(ctx);
+	put_ctx(ctx);
 
 	goto out_fput;
 }
@@ -3322,6 +3402,7 @@ inherit_counter(struct perf_counter *parent_counter,
 					   group_leader, GFP_KERNEL);
 	if (IS_ERR(child_counter))
 		return child_counter;
+	get_ctx(child_ctx);
 
 	/*
 	 * Make the child state follow the state of the parent counter,
@@ -3439,11 +3520,6 @@ __perf_counter_exit_task(struct task_struct *child,
 
 /*
  * When a child task exits, feed back counter values to parent counters.
- *
- * Note: we may be running in child context, but the PID is not hashed
- * anymore so new counters will not be added.
- * (XXX not sure that is true when we get called from flush_old_exec.
- *  -- paulus)
  */
 void perf_counter_exit_task(struct task_struct *child)
 {
@@ -3458,7 +3534,15 @@ void perf_counter_exit_task(struct task_struct *child)
 
 	local_irq_save(flags);
 	__perf_counter_task_sched_out(child_ctx);
+
+	/*
+	 * Take the context lock here so that if find_get_context is
+	 * reading child->perf_counter_ctxp, we wait until it has
+	 * incremented the context's refcount before we do put_ctx below.
+	 */
+	spin_lock(&child_ctx->lock);
 	child->perf_counter_ctxp = NULL;
+	spin_unlock(&child_ctx->lock);
 	local_irq_restore(flags);
 
 	mutex_lock(&child_ctx->mutex);
@@ -3513,6 +3597,7 @@ int perf_counter_init_task(struct task_struct *child)
 
 	__perf_counter_init_context(child_ctx, child);
 	child->perf_counter_ctxp = child_ctx;
+	get_task_struct(child);
 
 	/*
 	 * Lock the parent list. No need to lock the child - not PID
