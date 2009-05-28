@@ -746,6 +746,7 @@ static struct max1586_subdev_data max1586_subdevs[] = {
 static struct max1586_platform_data max1586_info = {
 	.subdevs = max1586_subdevs,
 	.num_subdevs = ARRAY_SIZE(max1586_subdevs),
+	.v3_gain = MAX1586_GAIN_NO_R24, /* 700..1475 mV */
 };
 
 /*
