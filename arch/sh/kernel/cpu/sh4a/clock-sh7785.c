@@ -16,6 +16,7 @@
 #include <linux/cpufreq.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
+#include <cpu/sh7785.h>
 
 static unsigned int div2[] = { 1, 2, 4, 6, 8, 12, 16, 18,
 			       24, 32, 36, 48 };
@@ -80,12 +81,11 @@ static struct clk_ops frqmr_clk_ops = {
 
 static unsigned long pll_recalc(struct clk *clk)
 {
-	/*
-	 * XXX: PLL1 multiplier is locked for the default clock mode,
-	 * when mode pin detection and configuration support is added,
-	 * select the multiplier dynamically.
-	 */
-	return clk->parent->rate * 36;
+	int multiplier;
+
+	multiplier = test_mode_pin(MODE_PIN_MODE4) ? 36 : 72;
+
+	return clk->parent->rate * multiplier;
 }
 
 static struct clk_ops pll_clk_ops = {
