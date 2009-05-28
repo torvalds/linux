@@ -4628,7 +4628,7 @@ static int __init bttv_init_module(void)
 #endif
 	if (gbuffers < 2 || gbuffers > VIDEO_MAX_FRAME)
 		gbuffers = 2;
-	if (gbufsize < 0 || gbufsize > BTTV_MAX_FBUF)
+	if (gbufsize > BTTV_MAX_FBUF)
 		gbufsize = BTTV_MAX_FBUF;
 	gbufsize = (gbufsize + PAGE_SIZE - 1) & PAGE_MASK;
 	if (bttv_verbose)
