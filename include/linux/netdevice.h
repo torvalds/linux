@@ -1917,6 +1917,16 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 	dev->gso_max_size = size;
 }
 
+static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
+					      struct net_device *master)
+{
+	if (skb->pkt_type == PACKET_HOST) {
+		u16 *dest = (u16 *) eth_hdr(skb)->h_dest;
+
+		memcpy(dest, master->dev_addr, ETH_ALEN);
+	}
+}
+
 /* On bonding slaves other than the currently active slave, suppress
  * duplicates except for 802.3ad ETH_P_SLOW, alb non-mcast/bcast, and
  * ARP on active-backup slaves with arp_validate enabled.
@@ -1929,6 +1939,14 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 	if (master) {
 		if (master->priv_flags & IFF_MASTER_ARPMON)
 			dev->last_rx = jiffies;
+
+		if ((master->priv_flags & IFF_MASTER_ALB) && master->br_port) {
+			/* Do address unmangle. The local destination address
+			 * will be always the one master has. Provides the right
+			 * functionality in a bridge.
+			 */
+			skb_bond_set_mac_by_master(skb, master);
+		}
 
 		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
 			if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
