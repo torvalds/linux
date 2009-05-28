@@ -877,9 +877,9 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 
 	switch (new_fsl_chan->feature & FSL_DMA_IP_MASK) {
 	case FSL_DMA_IP_85XX:
-		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->toggle_ext_pause = fsl_chan_toggle_ext_pause;
 	case FSL_DMA_IP_83XX:
+		new_fsl_chan->toggle_ext_start = fsl_chan_toggle_ext_start;
 		new_fsl_chan->set_src_loop_size = fsl_chan_set_src_loop_size;
 		new_fsl_chan->set_dest_loop_size = fsl_chan_set_dest_loop_size;
 	}
