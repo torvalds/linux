@@ -126,20 +126,20 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 }
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-#define xrun_debug(substream)	((substream)->pstr->xrun_debug)
+#define xrun_debug(substream, mask)	((substream)->pstr->xrun_debug & (mask))
 #else
-#define xrun_debug(substream)	0
+#define xrun_debug(substream, mask)	0
 #endif
 
-#define dump_stack_on_xrun(substream) do {	\
-		if (xrun_debug(substream) > 1)	\
-			dump_stack();		\
+#define dump_stack_on_xrun(substream) do {		\
+		if (xrun_debug(substream, 2))		\
+			dump_stack();			\
 	} while (0)
 
 static void xrun(struct snd_pcm_substream *substream)
 {
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-	if (xrun_debug(substream)) {
+	if (xrun_debug(substream, 1)) {
 		snd_printd(KERN_DEBUG "XRUN: pcmC%dD%d%c\n",
 			   substream->pcm->card->number,
 			   substream->pcm->device,
@@ -197,7 +197,7 @@ static int snd_pcm_update_hw_ptr_post(struct snd_pcm_substream *substream,
 
 #define hw_ptr_error(substream, fmt, args...)				\
 	do {								\
-		if (xrun_debug(substream)) {				\
+		if (xrun_debug(substream, 1)) {				\
 			if (printk_ratelimit()) {			\
 				snd_printd("PCM: " fmt, ##args);	\
 			}						\
@@ -251,7 +251,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	}
 
 	/* Do jiffies check only in xrun_debug mode */
-	if (!xrun_debug(substream))
+	if (!xrun_debug(substream, 4))
 		goto no_jiffies_check;
 
 	/* Skip the jiffies check for hardwares with BATCH flag.
@@ -342,7 +342,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 		new_hw_ptr = hw_base + pos;
 	}
 	/* Do jiffies check only in xrun_debug mode */
-	if (xrun_debug(substream) &&
+	if (xrun_debug(substream, 4) &&
 	    ((delta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		hw_ptr_error(substream,
 			     "hw_ptr skipping! "
