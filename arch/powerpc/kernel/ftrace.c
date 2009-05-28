@@ -23,12 +23,6 @@
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
 
-#ifdef CONFIG_PPC32
-# define GET_ADDR(addr) addr
-#else
-/* PowerPC64's functions are data that points to the functions */
-# define GET_ADDR(addr) (*(unsigned long *)addr)
-#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 static unsigned int ftrace_nop_replace(void)
@@ -41,7 +35,7 @@ ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
 	unsigned int op;
 
-	addr = GET_ADDR(addr);
+	addr = ppc_function_entry((void *)addr);
 
 	/* if (link) set op to 'bl' else 'b' */
 	op = create_branch((unsigned int *)ip, addr, link ? 1 : 0);
@@ -197,7 +191,7 @@ __ftrace_make_nop(struct module *mod,
 	ptr = ((unsigned long)jmp[0] << 32) + jmp[1];
 
 	/* This should match what was called */
-	if (ptr != GET_ADDR(addr)) {
+	if (ptr != ppc_function_entry((void *)addr)) {
 		printk(KERN_ERR "addr does not match %lx\n", ptr);
 		return -EINVAL;
 	}
@@ -570,7 +564,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return_hooker = (unsigned long)&mod_return_to_handler;
 #endif
 
-	return_hooker = GET_ADDR(return_hooker);
+	return_hooker = ppc_function_entry((void *)return_hooker);
 
 	/*
 	 * Protect against fault, even if it shouldn't
