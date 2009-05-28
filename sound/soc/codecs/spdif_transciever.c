@@ -19,9 +19,10 @@
 #include <sound/soc.h>
 #include <sound/pcm.h>
 
+#include "spdif_transciever.h"
+
 #define STUB_RATES	SNDRV_PCM_RATE_8000_96000
 #define STUB_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
-
 
 struct snd_soc_dai dit_stub_dai = {
 	.name		= "DIT",
@@ -36,6 +37,7 @@ struct snd_soc_dai dit_stub_dai = {
 
 static int spdif_dit_probe(struct platform_device *pdev)
 {
+	dit_stub_dai.dev = &pdev->dev;
 	return snd_soc_register_dai(&dit_stub_dai);
 }
 
