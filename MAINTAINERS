@@ -434,7 +434,7 @@ F:	arch/alpha/
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 P:	Thomas Dahlmann
-M:	thomas.dahlmann@amd.com
+M:	dahlmann.thomas@arcor.de
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/usb/gadget/amd5536udc.*
