@@ -1220,7 +1220,7 @@ static void create_dma_lch_chain(int lch_head, int lch_queue)
  * 	     Failure: -EINVAL/-ENOMEM
  */
 int omap_request_dma_chain(int dev_id, const char *dev_name,
-			   void (*callback) (int chain_id, u16 ch_status,
+			   void (*callback) (int lch, u16 ch_status,
 					     void *data),
 			   int *chain_id, int no_of_chans, int chain_mode,
 			   struct omap_dma_channel_params params)

@@ -532,7 +532,7 @@ extern int omap_get_dma_index(int lch, int *ei, int *fi);
 /* Chaining APIs */
 #ifndef CONFIG_ARCH_OMAP1
 extern int omap_request_dma_chain(int dev_id, const char *dev_name,
-				  void (*callback) (int chain_id, u16 ch_status,
+				  void (*callback) (int lch, u16 ch_status,
 						    void *data),
 				  int *chain_id, int no_of_chans,
 				  int chain_mode,
