@@ -2365,6 +2365,20 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		ifnum,
 		interface->altsetting->desc.bInterfaceNumber);
 
+	/*
+	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
+	 * video stream wouldn't likely work, since 12 Mbps is generally
+	 * not enough even for most Digital TV streams.
+	 */
+	if (udev->speed != USB_SPEED_HIGH) {
+		printk(DRIVER_NAME ": Device initialization failed.\n");
+		printk(DRIVER_NAME ": Device must be connected to a high-speed"
+		       " USB 2.0 port.\n");
+		em28xx_devused &= ~(1<<nr);
+		retval = -ENODEV;
+		goto err;
+	}
+
 	if (nr >= EM28XX_MAXBOARDS) {
 		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
 				EM28XX_MAXBOARDS);
