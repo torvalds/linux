@@ -32,6 +32,7 @@
 #include <trace/events/sched.h>
 
 #include <asm/ftrace.h>
+#include <asm/setup.h>
 
 #include "trace_output.h"
 #include "trace_stat.h"
@@ -2369,6 +2370,45 @@ void ftrace_set_notrace(unsigned char *buf, int len, int reset)
 	ftrace_set_regex(buf, len, reset, 0);
 }
 
+/*
+ * command line interface to allow users to set filters on boot up.
+ */
+#define FTRACE_FILTER_SIZE		COMMAND_LINE_SIZE
+static char ftrace_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
+static char ftrace_filter_buf[FTRACE_FILTER_SIZE] __initdata;
+
+static int __init set_ftrace_notrace(char *str)
+{
+	strncpy(ftrace_notrace_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_notrace=", set_ftrace_notrace);
+
+static int __init set_ftrace_filter(char *str)
+{
+	strncpy(ftrace_filter_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_filter=", set_ftrace_filter);
+
+static void __init set_ftrace_early_filter(char *buf, int enable)
+{
+	char *func;
+
+	while (buf) {
+		func = strsep(&buf, ",");
+		ftrace_set_regex(func, strlen(func), 0, enable);
+	}
+}
+
+static void __init set_ftrace_early_filters(void)
+{
+	if (ftrace_filter_buf[0])
+		set_ftrace_early_filter(ftrace_filter_buf, 1);
+	if (ftrace_notrace_buf[0])
+		set_ftrace_early_filter(ftrace_notrace_buf, 0);
+}
+
 static int
 ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
@@ -2828,6 +2868,8 @@ void __init ftrace_init(void)
 	ret = register_module_notifier(&ftrace_module_nb);
 	if (ret)
 		pr_warning("Failed to register trace ftrace module notifier\n");
+
+	set_ftrace_early_filters();
 
 	return;
  failed:
