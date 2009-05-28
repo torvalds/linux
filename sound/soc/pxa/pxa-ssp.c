@@ -208,7 +208,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		~(SSCR0_ECS |  SSCR0_NCS | SSCR0_MOD | SSCR0_ACS);
 
 	dev_dbg(&ssp->pdev->dev,
-		"pxa_ssp_set_dai_sysclk id: %d, clk_id %d, freq %d\n",
+		"pxa_ssp_set_dai_sysclk id: %d, clk_id %d, freq %u\n",
 		cpu_dai->id, clk_id, freq);
 
 	switch (clk_id) {
@@ -357,7 +357,7 @@ static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai,
 			ssacd |= (0x6 << 4);
 
 			dev_dbg(&ssp->pdev->dev,
-				"Using SSACDD %x to supply %dHz\n",
+				"Using SSACDD %x to supply %uHz\n",
 				val, freq_out);
 			break;
 		}

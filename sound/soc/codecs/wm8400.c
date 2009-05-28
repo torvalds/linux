@@ -954,7 +954,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 		factors->outdiv *= 2;
 		if (factors->outdiv > 32) {
 			dev_err(wm8400->wm8400->dev,
-				"Unsupported FLL output frequency %dHz\n",
+				"Unsupported FLL output frequency %uHz\n",
 				Fout);
 			return -EINVAL;
 		}
@@ -1003,7 +1003,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 	factors->k = K / 10;
 
 	dev_dbg(wm8400->wm8400->dev,
-		"FLL: Fref=%d Fout=%d N=%x K=%x, FRATIO=%x OUTDIV=%x\n",
+		"FLL: Fref=%u Fout=%u N=%x K=%x, FRATIO=%x OUTDIV=%x\n",
 		Fref, Fout,
 		factors->n, factors->k, factors->fratio, factors->outdiv);
 

@@ -145,7 +145,7 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 	recv = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? 0 : 1;
 
 	pr_debug("ssi_hw_params() enter\nssicr was    %08lx\n", ssicr);
-	pr_debug("bits: %d channels: %d\n", bits, channels);
+	pr_debug("bits: %u channels: %u\n", bits, channels);
 
 	ssicr &= ~(CR_TRMD | CR_CHNL_MASK | CR_DWL_MASK | CR_PDTA |
 		   CR_SWL_MASK);

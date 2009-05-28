@@ -86,7 +86,7 @@ static int tlv320aic23_write(struct snd_soc_codec *codec, unsigned int reg,
 	 */
 
 	if ((reg < 0 || reg > 9) && (reg != 15)) {
-		printk(KERN_WARNING "%s Invalid register R%d\n", __func__, reg);
+		printk(KERN_WARNING "%s Invalid register R%u\n", __func__, reg);
 		return -1;
 	}
 
@@ -98,7 +98,7 @@ static int tlv320aic23_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
 
-	printk(KERN_ERR "%s cannot write %03x to register R%d\n", __func__,
+	printk(KERN_ERR "%s cannot write %03x to register R%u\n", __func__,
 	       value, reg);
 
 	return -EIO;

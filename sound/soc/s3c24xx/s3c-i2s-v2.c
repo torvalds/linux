@@ -547,7 +547,7 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 		actual = clkrate / (fsdiv * div);
 		deviation = actual - rate;
 
-		printk(KERN_DEBUG "%dfs: div %d => result %d, deviation %d\n",
+		printk(KERN_DEBUG "%ufs: div %u => result %u, deviation %d\n",
 		       fsdiv, div, actual, deviation);
 
 		deviation = abs(deviation);
@@ -563,7 +563,7 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 			break;
 	}
 
-	printk(KERN_DEBUG "best: fs=%d, div=%d, rate=%d\n",
+	printk(KERN_DEBUG "best: fs=%u, div=%u, rate=%u\n",
 	       best_fs, best_div, best_rate);
 
 	info->fs_div = best_fs;
