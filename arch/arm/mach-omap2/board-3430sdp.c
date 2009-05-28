@@ -41,6 +41,7 @@
 #include <mach/keypad.h>
 #include <mach/gpmc-smc91x.h>
 
+#include "sdram-qimonda-hyb18m512160af-6.h"
 #include "mmc-twl4030.h"
 
 #define CONFIG_DISABLE_HFCLK 1
@@ -168,7 +169,7 @@ static struct platform_device *sdp3430_devices[] __initdata = {
 
 static void __init omap_3430sdp_init_irq(void)
 {
-	omap2_init_common_hw(NULL);
+	omap2_init_common_hw(hyb18m512160af6_sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();
 }
