@@ -415,6 +415,13 @@ static int write_packet(struct imx_ep_struct *imx_ep, struct imx_request *req)
 	u8	*buf;
 	int	length, count, temp;
 
+	if (unlikely(__raw_readl(imx_ep->imx_usb->base +
+				 USB_EP_STAT(EP_NO(imx_ep))) & EPSTAT_ZLPS)) {
+		D_TRX(imx_ep->imx_usb->dev, "<%s> zlp still queued in EP %s\n",
+			__func__, imx_ep->ep.name);
+		return -1;
+	}
+
 	buf = req->req.buf + req->req.actual;
 	prefetch(buf);
 
