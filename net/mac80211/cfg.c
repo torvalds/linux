@@ -1256,7 +1256,7 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 		sdata->u.mgd.flags |= IEEE80211_STA_AUTO_SSID_SEL;
 
 	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
-	if (ret)
+	if (ret && ret != -EALREADY)
 		return ret;
 
 	if (req->use_mfp) {
