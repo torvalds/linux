@@ -138,14 +138,23 @@ MODULE_DESCRIPTION("Intel HDA driver");
  * registers
  */
 #define ICH6_REG_GCAP			0x00
+#define   ICH6_GCAP_64OK	(1 << 0)   /* 64bit address support */
+#define   ICH6_GCAP_NSDO	(3 << 1)   /* # of serial data out signals */
+#define   ICH6_GCAP_BSS		(31 << 3)  /* # of bidirectional streams */
+#define   ICH6_GCAP_ISS		(15 << 8)  /* # of input streams */
+#define   ICH6_GCAP_OSS		(15 << 12) /* # of output streams */
 #define ICH6_REG_VMIN			0x02
 #define ICH6_REG_VMAJ			0x03
 #define ICH6_REG_OUTPAY			0x04
 #define ICH6_REG_INPAY			0x06
 #define ICH6_REG_GCTL			0x08
+#define   ICH6_GCTL_RESET	(1 << 1)   /* controller reset */
+#define   ICH6_GCTL_FCNTRL	(1 << 1)   /* flush control */
+#define   ICH6_GCTL_UNSOL	(1 << 8)   /* accept unsol. response enable */
 #define ICH6_REG_WAKEEN			0x0c
 #define ICH6_REG_STATESTS		0x0e
 #define ICH6_REG_GSTS			0x10
+#define   ICH6_GSTS_FSTS	(1 << 1)   /* flush status */
 #define ICH6_REG_INTCTL			0x20
 #define ICH6_REG_INTSTS			0x24
 #define ICH6_REG_WALCLK			0x30
@@ -153,17 +162,27 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #define ICH6_REG_CORBLBASE		0x40
 #define ICH6_REG_CORBUBASE		0x44
 #define ICH6_REG_CORBWP			0x48
-#define ICH6_REG_CORBRP			0x4A
+#define ICH6_REG_CORBRP			0x4a
+#define   ICH6_CORBRP_RST	(1 << 15)  /* read pointer reset */
 #define ICH6_REG_CORBCTL		0x4c
+#define   ICH6_CORBCTL_RUN	(1 << 1)   /* enable DMA */
+#define   ICH6_CORBCTL_CMEIE	(1 << 0)   /* enable memory error irq */
 #define ICH6_REG_CORBSTS		0x4d
+#define   ICH6_CORBSTS_CMEI	(1 << 0)   /* memory error indication */
 #define ICH6_REG_CORBSIZE		0x4e
 
 #define ICH6_REG_RIRBLBASE		0x50
 #define ICH6_REG_RIRBUBASE		0x54
 #define ICH6_REG_RIRBWP			0x58
+#define   ICH6_RIRBWP_RST	(1 << 15)  /* write pointer reset */
 #define ICH6_REG_RINTCNT		0x5a
 #define ICH6_REG_RIRBCTL		0x5c
+#define   ICH6_RBCTL_IRQ_EN	(1 << 0)   /* enable IRQ */
+#define   ICH6_RBCTL_DMA_EN	(1 << 1)   /* enable DMA */
+#define   ICH6_RBCTL_OVERRUN_EN	(1 << 2)   /* enable overrun irq */
 #define ICH6_REG_RIRBSTS		0x5d
+#define   ICH6_RBSTS_IRQ	(1 << 0)   /* response irq */
+#define   ICH6_RBSTS_OVERRUN	(1 << 2)   /* overrun irq */
 #define ICH6_REG_RIRBSIZE		0x5e
 
 #define ICH6_REG_IC			0x60
@@ -260,16 +279,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define ICH6_INT_CTRL_EN	0x40000000 /* controller interrupt enable bit */
 #define ICH6_INT_GLOBAL_EN	0x80000000 /* global interrupt enable bit */
 
-/* GCTL unsolicited response enable bit */
-#define ICH6_GCTL_UREN		(1<<8)
-
-/* GCTL reset bit */
-#define ICH6_GCTL_RESET		(1<<0)
-
-/* CORB/RIRB control, read/write pointer */
-#define ICH6_RBCTL_DMA_EN	0x02	/* enable DMA */
-#define ICH6_RBCTL_IRQ_EN	0x01	/* enable IRQ */
-#define ICH6_RBRWP_CLR		0x8000	/* read/write pointer clear */
 /* below are so far hardcoded - should read registers in future */
 #define ICH6_MAX_CORB_ENTRIES	256
 #define ICH6_MAX_RIRB_ENTRIES	256
@@ -515,9 +524,9 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* set the corb write pointer to 0 */
 	azx_writew(chip, CORBWP, 0);
 	/* reset the corb hw read pointer */
-	azx_writew(chip, CORBRP, ICH6_RBRWP_CLR);
+	azx_writew(chip, CORBRP, ICH6_CORBRP_RST);
 	/* enable corb dma */
-	azx_writeb(chip, CORBCTL, ICH6_RBCTL_DMA_EN);
+	azx_writeb(chip, CORBCTL, ICH6_CORBCTL_RUN);
 
 	/* RIRB set up */
 	chip->rirb.addr = chip->rb.addr + 2048;
@@ -529,7 +538,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* set the rirb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, RIRBSIZE, 0x02);
 	/* reset the rirb hw write pointer */
-	azx_writew(chip, RIRBWP, ICH6_RBRWP_CLR);
+	azx_writew(chip, RIRBWP, ICH6_RIRBWP_RST);
 	/* set N=1, get RIRB response interrupt for new entry */
 	azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
@@ -796,7 +805,7 @@ static int azx_reset(struct azx *chip)
 	}
 
 	/* Accept unsolicited responses */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) | ICH6_GCTL_UREN);
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) | ICH6_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!chip->codec_mask) {
@@ -2284,10 +2293,10 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* ATI chips seems buggy about 64bit DMA addresses */
 	if (chip->driver_type == AZX_DRIVER_ATI)
-		gcap &= ~0x01;
+		gcap &= ~ICH6_GCAP_64OK;
 
 	/* allow 64bit DMA address if supported by H/W */
-	if ((gcap & 0x01) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
+	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
 		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(64));
 	else {
 		pci_set_dma_mask(pci, DMA_BIT_MASK(32));
