@@ -3344,7 +3344,6 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	if (count) {
 		igb_tx_queue_adv(adapter, tx_ring, tx_flags, count,
 			         skb->len, hdr_len);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		igb_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 4);
 	} else {

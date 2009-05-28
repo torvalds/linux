@@ -6211,7 +6211,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mmiowb();
 
 	txr->tx_prod = prod;
-	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2_tx_avail(bp, txr) <= MAX_SKB_FRAGS)) {
 		netif_tx_stop_queue(txq);

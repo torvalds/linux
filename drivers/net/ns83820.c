@@ -1204,9 +1204,7 @@ again:
 	if (stopped && (dev->tx_done_idx != tx_done_idx) && start_tx_okay(dev))
 		netif_start_queue(ndev);
 
-	/* set the transmit start time to catch transmit timeouts */
-	ndev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void ns83820_update_stats(struct ns83820 *dev)
@@ -1626,7 +1624,7 @@ static void ns83820_tx_watch(unsigned long data)
 		);
 #endif
 
-	if (time_after(jiffies, ndev->trans_start + 1*HZ) &&
+	if (time_after(jiffies, dev_trans_start(ndev) + 1*HZ) &&
 	    dev->tx_done_idx != dev->tx_free_idx) {
 		printk(KERN_DEBUG "%s: ns83820_tx_watch: %u %u %d\n",
 			ndev->name,

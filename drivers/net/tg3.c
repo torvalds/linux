@@ -5194,9 +5194,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out_unlock:
-    	mmiowb();
-
-	dev->trans_start = jiffies;
+	mmiowb();
 
 	return NETDEV_TX_OK;
 }
@@ -5407,9 +5405,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out_unlock:
-    	mmiowb();
-
-	dev->trans_start = jiffies;
+	mmiowb();
 
 	return NETDEV_TX_OK;
 }

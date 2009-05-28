@@ -1204,8 +1204,6 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	SIS_W32(TxControl, 0x1a00 | CmdReset | CmdTxEnb);
 
-	dev->trans_start = jiffies;
-
 	dirty_tx = tp->dirty_tx;
 	if ((tp->cur_tx - NUM_TX_DESC) == dirty_tx) {
 		netif_stop_queue(dev);

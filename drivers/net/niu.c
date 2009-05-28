@@ -6777,8 +6777,6 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
-	dev->trans_start = jiffies;
-
 out:
 	return NETDEV_TX_OK;
 

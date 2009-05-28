@@ -2837,8 +2837,6 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 

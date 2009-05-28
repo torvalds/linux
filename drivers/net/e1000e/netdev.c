@@ -4149,7 +4149,6 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	count = e1000_tx_map(adapter, skb, first, max_per_txd, nr_frags, mss);
 	if (count) {
 		e1000_tx_queue(adapter, tx_flags, count);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, MAX_SKB_FRAGS + 2);
 

@@ -2113,7 +2113,6 @@ static int atl1c_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	atl1c_tx_map(adapter, skb, tpd, type);
 	atl1c_tx_queue(adapter, skb, tpd, type);
 
-	netdev->trans_start = jiffies;
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
 	return NETDEV_TX_OK;
 }

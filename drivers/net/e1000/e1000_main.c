@@ -3365,7 +3365,6 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (count) {
 		e1000_tx_queue(adapter, tx_ring, tx_flags, count);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 2);
 
