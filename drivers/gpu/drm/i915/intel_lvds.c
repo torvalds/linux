@@ -511,10 +511,10 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->vbt_mode) {
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mutex_lock(&dev->mode_config.mutex);
 		dev_priv->panel_fixed_mode =
-			drm_mode_duplicate(dev, dev_priv->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=

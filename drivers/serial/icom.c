@@ -1472,8 +1472,8 @@ static void icom_remove_adapter(struct icom_adapter *icom_adapter)
 
 	free_irq(icom_adapter->pci_dev->irq, (void *) icom_adapter);
 	iounmap(icom_adapter->base_addr);
-	icom_free_adapter(icom_adapter);
 	pci_release_regions(icom_adapter->pci_dev);
+	icom_free_adapter(icom_adapter);
 }
 
 static void icom_kref_release(struct kref *kref)

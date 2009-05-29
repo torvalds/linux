@@ -370,8 +370,10 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 	sub_info->argv = argv;
 	sub_info->envp = envp;
 	sub_info->cred = prepare_usermodehelper_creds();
-	if (!sub_info->cred)
+	if (!sub_info->cred) {
+		kfree(sub_info);
 		return NULL;
+	}
 
   out:
 	return sub_info;
