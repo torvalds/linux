@@ -447,6 +447,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 	if (pll_post) {
 		int fsc, pll;
+		u64 tmp;
 
 		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
@@ -459,7 +460,9 @@ void cx18_av_std_setup(struct cx18 *cx)
 				    "= %d.%03d\n", src_decimation / 256,
 				    ((src_decimation % 256) * 1000) / 256);
 
-		fsc = ((((u64)sc) * 28636360)/src_decimation) >> 13L;
+		tmp = 28636360 * (u64) sc;
+		do_div(tmp, src_decimation);
+		fsc = tmp >> 13;
 		CX18_DEBUG_INFO_DEV(sd,
 				    "Chroma sub-carrier initial freq = %d.%06d "
 				    "MHz\n", fsc / 1000000, fsc % 1000000);
