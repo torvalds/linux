@@ -152,7 +152,7 @@ config MFD_WM8400
 	depends on I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
-	  CODEC.  This driver adds provides common support for accessing
+	  CODEC.  This driver provides common support for accessing
 	  the device, additional drivers must be enabled in order to use
 	  the functionality of the device.
 
