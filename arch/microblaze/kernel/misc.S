@@ -69,7 +69,7 @@ early_console_reg_tlb_alloc:
 	 * Load a TLB entry for the UART, so that microblaze_progress() can use
 	 * the UARTs nice and early.  We use a 4k real==virtual mapping.
 	 */
-	ori	r4, r0, 2
+	ori	r4, r0, 63
 	mts	rtlbx, r4 /* TLB slot 2 */
 
 	or	r4,r5,r0
