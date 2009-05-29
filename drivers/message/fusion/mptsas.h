@@ -53,6 +53,7 @@ struct mptsas_target_reset_event {
 	struct list_head 	list;
 	EVENT_DATA_SAS_DEVICE_STATUS_CHANGE sas_event_data;
 	u8	target_reset_issued;
+	unsigned long	 time_count;
 };
 
 enum mptsas_hotplug_action {

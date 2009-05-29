@@ -6243,6 +6243,7 @@ mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
 	switch (reset_phase) {
 	case MPT_IOC_SETUP_RESET:
+		ioc->taskmgmt_quiesce_io = 1;
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "%s: MPT_IOC_SETUP_RESET\n", ioc->name, __func__));
 		break;
@@ -6595,8 +6596,11 @@ mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
 	}
 	retval = 0;
 	ioc->taskmgmt_in_progress = 1;
-	if (ioc->alt_ioc)
+	ioc->taskmgmt_quiesce_io = 1;
+	if (ioc->alt_ioc) {
 		ioc->alt_ioc->taskmgmt_in_progress = 1;
+		ioc->alt_ioc->taskmgmt_quiesce_io = 1;
+	}
  out:
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 	return retval;
@@ -6615,8 +6619,11 @@ mpt_clear_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	ioc->taskmgmt_in_progress = 0;
-	if (ioc->alt_ioc)
+	ioc->taskmgmt_quiesce_io = 0;
+	if (ioc->alt_ioc) {
 		ioc->alt_ioc->taskmgmt_in_progress = 0;
+		ioc->alt_ioc->taskmgmt_quiesce_io = 0;
+	}
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 }
 EXPORT_SYMBOL(mpt_clear_taskmgmt_in_progress_flag);
@@ -6731,9 +6738,11 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	ioc->ioc_reset_in_progress = 0;
+	ioc->taskmgmt_quiesce_io = 0;
 	ioc->taskmgmt_in_progress = 0;
 	if (ioc->alt_ioc) {
 		ioc->alt_ioc->ioc_reset_in_progress = 0;
+		ioc->alt_ioc->taskmgmt_quiesce_io = 0;
 		ioc->alt_ioc->taskmgmt_in_progress = 0;
 	}
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);

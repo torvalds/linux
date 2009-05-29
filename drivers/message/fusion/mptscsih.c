@@ -99,7 +99,7 @@ int	mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id,
 int		mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
 int		mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
 
-static void
+void
 mptscsih_taskmgmt_response_code(MPT_ADAPTER *ioc, u8 response_code);
 static int	mptscsih_get_completion_code(MPT_ADAPTER *ioc,
 		MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply);
@@ -1304,7 +1304,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "qcmd: SCpnt=%p, done()=%p\n",
 		ioc->name, SCpnt, done));
 
-	if (hd->resetPending) {
+	if (ioc->taskmgmt_quiesce_io) {
 		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT "qcmd: SCpnt=%p timeout + 60HZ\n",
 			ioc->name, SCpnt));
 		return SCSI_MLQUEUE_HOST_BUSY;
@@ -1709,11 +1709,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		goto out;
 	}
 
-	if (hd->resetPending) {
-		retval = FAILED;
-		goto out;
-	}
-
 	if (hd->timeouts < -1)
 		hd->timeouts++;
 
@@ -1781,11 +1776,6 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 	printk(MYIOC_s_INFO_FMT "attempting target reset! (sc=%p)\n",
 	       ioc->name, SCpnt);
 	scsi_print_command(SCpnt);
-
-	if (hd->resetPending) {
-		retval = FAILED;
-		goto out;
-	}
 
 	vdevice = SCpnt->device->hostdata;
 	if (!vdevice || !vdevice->vtarget) {
@@ -1967,7 +1957,7 @@ mptscsih_taskmgmt_reply(MPT_ADAPTER *ioc, u8 type,
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static void
+void
 mptscsih_taskmgmt_response_code(MPT_ADAPTER *ioc, u8 response_code)
 {
 	char *desc;
@@ -2001,6 +1991,7 @@ mptscsih_taskmgmt_response_code(MPT_ADAPTER *ioc, u8 response_code)
 	printk(MYIOC_s_INFO_FMT "Response Code(0x%08x): F/W: %s\n",
 		ioc->name, response_code, desc);
 }
+EXPORT_SYMBOL(mptscsih_taskmgmt_response_code);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
@@ -2442,12 +2433,10 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	case MPT_IOC_SETUP_RESET:
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "%s: MPT_IOC_SETUP_RESET\n", ioc->name, __func__));
-		hd->resetPending = 1;
 		break;
 	case MPT_IOC_PRE_RESET:
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "%s: MPT_IOC_PRE_RESET\n", ioc->name, __func__));
-		hd->resetPending = 0;
 		mptscsih_flush_running_cmds(hd);
 		break;
 	case MPT_IOC_POST_RESET:

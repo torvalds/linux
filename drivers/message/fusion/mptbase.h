@@ -713,6 +713,7 @@ typedef struct _MPT_ADAPTER
 	MPT_MGMT		 taskmgmt_cmds;
 	spinlock_t		 taskmgmt_lock; /* diagnostic reset lock */
 	int			 taskmgmt_in_progress;
+	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
 	struct work_struct	 sas_persist_task;
 
@@ -855,7 +856,6 @@ typedef struct _MPT_SCSI_HOST {
 		 * OS callbacks. freeQ is the free pool.
 		 */
 	u8			  tmPending;
-	u8			  resetPending;
 	u8			  negoNvram;		/* DV disabled, nego NVRAM */
 	u8			  pad1;
 	u8                        tmState;

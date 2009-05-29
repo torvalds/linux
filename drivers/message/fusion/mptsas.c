@@ -93,6 +93,7 @@ static u8	mptsasDoneCtx = MPT_MAX_PROTOCOL_DRIVERS;
 static u8	mptsasTaskCtx = MPT_MAX_PROTOCOL_DRIVERS;
 static u8	mptsasInternalCtx = MPT_MAX_PROTOCOL_DRIVERS; /* Used only for internal commands */
 static u8	mptsasMgmtCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptsasDeviceResetCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static void mptsas_hotplug_work(struct work_struct *work);
 
@@ -523,10 +524,12 @@ mptsas_find_vtarget(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	VirtTarget 			*vtarget = NULL;
 
 	shost_for_each_device(sdev, ioc->sh) {
-		if ((vdevice = sdev->hostdata) == NULL)
+		vdevice = sdev->hostdata;
+		if ((vdevice == NULL) ||
+			(vdevice->vtarget == NULL))
 			continue;
 		if (vdevice->vtarget->id == id &&
-		    vdevice->vtarget->channel == channel)
+			vdevice->vtarget->channel == channel)
 			vtarget = vdevice->vtarget;
 	}
 	return vtarget;
@@ -551,9 +554,11 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	MPT_FRAME_HDR	*mf;
 	SCSITaskMgmt_t	*pScsiTm;
 
-	if ((mf = mpt_get_msg_frame(ioc->TaskCtx, ioc)) == NULL) {
-		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, no msg frames @%d!!\n",
-		    ioc->name,__func__, __LINE__));
+	mf = mpt_get_msg_frame(mptsasDeviceResetCtx, ioc);
+	if (mf == NULL) {
+		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
+			"%s, no msg frames @%d!!\n",
+			ioc->name, __func__, __LINE__));
 		return 0;
 	}
 
@@ -569,7 +574,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 
 	DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)mf);
 
-	mpt_put_msg_frame_hi_pri(ioc->TaskCtx, ioc, mf);
+	mpt_put_msg_frame_hi_pri(mptsasDeviceResetCtx, ioc, mf);
 
 	return 1;
 }
@@ -605,8 +610,9 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 	target_reset_list = kzalloc(sizeof(*target_reset_list),
 	    GFP_ATOMIC);
 	if (!target_reset_list) {
-		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, failed to allocate mem @%d..!!\n",
-		    ioc->name,__func__, __LINE__));
+		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
+			"%s, failed to allocate mem @%d..!!\n",
+			ioc->name, __func__, __LINE__));
 		return;
 	}
 
@@ -614,55 +620,94 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 		sizeof(*sas_event_data));
 	list_add_tail(&target_reset_list->list, &hd->target_reset_list);
 
-	if (hd->resetPending)
-		return;
+	target_reset_list->time_count = jiffies;
 
 	if (mptsas_target_reset(ioc, channel, id)) {
 		target_reset_list->target_reset_issued = 1;
-		hd->resetPending = 1;
 	}
 }
 
 /**
- * mptsas_dev_reset_complete
- *
- * Completion for TARGET_RESET after NOT_RESPONDING_EVENT,
- * enable work queue to finish off removing device from upper layers.
- * then send next TARGET_RESET in the queue.
- *
- * @ioc
+ *	mptsas_taskmgmt_complete - Completion for TARGET_RESET after
+ *	NOT_RESPONDING_EVENT, enable work queue to finish off removing device
+ *	from upper layers. then send next TARGET_RESET in the queue.
+ *	@ioc: Pointer to MPT_ADAPTER structure
  *
  **/
-static void
-mptsas_dev_reset_complete(MPT_ADAPTER *ioc)
+static int
+mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 {
 	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
         struct list_head *head = &hd->target_reset_list;
-	struct mptsas_target_reset_event *target_reset_list;
 	struct mptsas_hotplug_event *ev;
 	EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *sas_event_data;
 	u8		id, channel;
 	__le64		sas_address;
+	struct mptsas_target_reset_event	*target_reset_list;
+	SCSITaskMgmtReply_t *pScsiTmReply;
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt completed: "
+	    "(mf = %p, mr = %p)\n", ioc->name, mf, mr));
+
+	pScsiTmReply = (SCSITaskMgmtReply_t *)mr;
+	if (pScsiTmReply) {
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "\tTaskMgmt completed: fw_channel = %d, fw_id = %d,\n"
+		    "\ttask_type = 0x%02X, iocstatus = 0x%04X "
+		    "loginfo = 0x%08X,\n\tresponse_code = 0x%02X, "
+		    "term_cmnds = %d\n", ioc->name,
+		    pScsiTmReply->Bus, pScsiTmReply->TargetID,
+		    pScsiTmReply->TaskType,
+		    le16_to_cpu(pScsiTmReply->IOCStatus),
+		    le32_to_cpu(pScsiTmReply->IOCLogInfo),
+		    pScsiTmReply->ResponseCode,
+		    le32_to_cpu(pScsiTmReply->TerminationCount)));
+
+		if (pScsiTmReply->ResponseCode)
+			mptscsih_taskmgmt_response_code(ioc,
+			pScsiTmReply->ResponseCode);
+	}
+
+	if (pScsiTmReply && (pScsiTmReply->TaskType ==
+	    MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK || pScsiTmReply->TaskType ==
+	     MPI_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET)) {
+		ioc->taskmgmt_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
+		ioc->taskmgmt_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
+		memcpy(ioc->taskmgmt_cmds.reply, mr,
+		    min(MPT_DEFAULT_FRAME_SIZE, 4 * mr->u.reply.MsgLength));
+		if (ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_PENDING) {
+			ioc->taskmgmt_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
+			complete(&ioc->taskmgmt_cmds.done);
+			return 1;
+		}
+		return 0;
+	}
+
+	mpt_clear_taskmgmt_in_progress_flag(ioc);
 
 	if (list_empty(head))
-		return;
+		return 1;
 
-	target_reset_list = list_entry(head->next, struct mptsas_target_reset_event, list);
+	target_reset_list = list_entry(head->next,
+	    struct mptsas_target_reset_event, list);
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "TaskMgmt: completed (%d seconds)\n",
+	    ioc->name, jiffies_to_msecs(jiffies -
+	    target_reset_list->time_count)/1000));
 
 	sas_event_data = &target_reset_list->sas_event_data;
-	id = sas_event_data->TargetID;
-	channel = sas_event_data->Bus;
-	hd->resetPending = 0;
+	id = pScsiTmReply->TargetID;
+	channel = pScsiTmReply->Bus;
+	target_reset_list->time_count = jiffies;
 
 	/*
 	 * retry target reset
 	 */
 	if (!target_reset_list->target_reset_issued) {
-		if (mptsas_target_reset(ioc, channel, id)) {
+		if (mptsas_target_reset(ioc, channel, id))
 			target_reset_list->target_reset_issued = 1;
-			hd->resetPending = 1;
-		}
-		return;
+		return 1;
 	}
 
 	/*
@@ -674,7 +719,7 @@ mptsas_dev_reset_complete(MPT_ADAPTER *ioc)
 	if (!ev) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, failed to allocate mem @%d..!!\n",
 		    ioc->name,__func__, __LINE__));
-		return;
+		return 0;
 	}
 
 	INIT_WORK(&ev->work, mptsas_hotplug_work);
@@ -693,40 +738,26 @@ mptsas_dev_reset_complete(MPT_ADAPTER *ioc)
 	schedule_work(&ev->work);
 	kfree(target_reset_list);
 
+
 	/*
 	 * issue target reset to next device in the queue
 	 */
 
 	head = &hd->target_reset_list;
 	if (list_empty(head))
-		return;
+		return 1;
 
 	target_reset_list = list_entry(head->next, struct mptsas_target_reset_event,
 	    list);
 
-	sas_event_data = &target_reset_list->sas_event_data;
-	id = sas_event_data->TargetID;
-	channel = sas_event_data->Bus;
+	id = target_reset_list->sas_event_data.TargetID;
+	channel = target_reset_list->sas_event_data.Bus;
+	target_reset_list->time_count = jiffies;
 
-	if (mptsas_target_reset(ioc, channel, id)) {
+	if (mptsas_target_reset(ioc, channel, id))
 		target_reset_list->target_reset_issued = 1;
-		hd->resetPending = 1;
-	}
-}
 
-/**
- * mptsas_taskmgmt_complete
- *
- * @ioc
- * @mf
- * @mr
- *
- **/
-static int
-mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
-{
-	mptsas_dev_reset_complete(ioc);
-	return mptscsih_taskmgmt_complete(ioc, mf, mr);
+	return 1;
 }
 
 /**
@@ -3262,7 +3293,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	hd->tmPending = 0;
 	hd->tmState = TM_STATE_NONE;
-	hd->resetPending = 0;
 	hd->abortSCpnt = NULL;
 
 	/* Clear the pointer used to store
@@ -3381,10 +3411,12 @@ mptsas_init(void)
 		return -ENODEV;
 
 	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER);
-	mptsasTaskCtx = mpt_register(mptsas_taskmgmt_complete, MPTSAS_DRIVER);
+	mptsasTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSAS_DRIVER);
 	mptsasInternalCtx =
 		mpt_register(mptscsih_scandv_complete, MPTSAS_DRIVER);
 	mptsasMgmtCtx = mpt_register(mptsas_mgmt_done, MPTSAS_DRIVER);
+	mptsasDeviceResetCtx =
+		mpt_register(mptsas_taskmgmt_complete, MPTSAS_DRIVER);
 
 	mpt_event_register(mptsasDoneCtx, mptsas_event_process);
 	mpt_reset_register(mptsasDoneCtx, mptsas_ioc_reset);
@@ -3409,6 +3441,7 @@ mptsas_exit(void)
 	mpt_deregister(mptsasInternalCtx);
 	mpt_deregister(mptsasTaskCtx);
 	mpt_deregister(mptsasDoneCtx);
+	mpt_deregister(mptsasDeviceResetCtx);
 }
 
 module_init(mptsas_init);

@@ -1292,7 +1292,6 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	hd->tmPending = 0;
 	hd->tmState = TM_STATE_NONE;
-	hd->resetPending = 0;
 	hd->abortSCpnt = NULL;
 
 	/* Clear the pointer used to store
