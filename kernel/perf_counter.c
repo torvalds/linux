@@ -3538,8 +3538,7 @@ static void sync_child_counter(struct perf_counter *child_counter,
 }
 
 static void
-__perf_counter_exit_task(struct task_struct *child,
-			 struct perf_counter *child_counter,
+__perf_counter_exit_task(struct perf_counter *child_counter,
 			 struct perf_counter_context *child_ctx)
 {
 	struct perf_counter *parent_counter;
@@ -3605,7 +3604,7 @@ void perf_counter_exit_task(struct task_struct *child)
 again:
 	list_for_each_entry_safe(child_counter, tmp, &child_ctx->counter_list,
 				 list_entry)
-		__perf_counter_exit_task(child, child_counter, child_ctx);
+		__perf_counter_exit_task(child_counter, child_ctx);
 
 	/*
 	 * If the last counter was a group counter, it will have appended all
@@ -3618,6 +3617,44 @@ again:
 	mutex_unlock(&child_ctx->mutex);
 
 	put_ctx(child_ctx);
+}
+
+/*
+ * free an unexposed, unused context as created by inheritance by
+ * init_task below, used by fork() in case of fail.
+ */
+void perf_counter_free_task(struct task_struct *task)
+{
+	struct perf_counter_context *ctx = task->perf_counter_ctxp;
+	struct perf_counter *counter, *tmp;
+
+	if (!ctx)
+		return;
+
+	mutex_lock(&ctx->mutex);
+again:
+	list_for_each_entry_safe(counter, tmp, &ctx->counter_list, list_entry) {
+		struct perf_counter *parent = counter->parent;
+
+		if (WARN_ON_ONCE(!parent))
+			continue;
+
+		mutex_lock(&parent->child_mutex);
+		list_del_init(&counter->child_list);
+		mutex_unlock(&parent->child_mutex);
+
+		fput(parent->filp);
+
+		list_del_counter(counter, ctx);
+		free_counter(counter);
+	}
+
+	if (!list_empty(&ctx->counter_list))
+		goto again;
+
+	mutex_unlock(&ctx->mutex);
+
+	put_ctx(ctx);
 }
 
 /*
