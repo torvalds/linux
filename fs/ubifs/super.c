@@ -940,6 +940,27 @@ static const match_table_t tokens = {
 };
 
 /**
+ * parse_standard_option - parse a standard mount option.
+ * @option: the option to parse
+ *
+ * Normally, standard mount options like "sync" are passed to file-systems as
+ * flags. However, when a "rootflags=" kernel boot parameter is used, they may
+ * be present in the options string. This function tries to deal with this
+ * situation and parse standard options. Returns 0 if the option was not
+ * recognized, and the corresponding integer flag if it was.
+ *
+ * UBIFS is only interested in the "sync" option, so do not check for anything
+ * else.
+ */
+static int parse_standard_option(const char *option)
+{
+	ubifs_msg("parse %s", option);
+	if (!strcmp(option, "sync"))
+		return MS_SYNCHRONOUS;
+	return 0;
+}
+
+/**
  * ubifs_parse_options - parse mount parameters.
  * @c: UBIFS file-system description object
  * @options: parameters to parse
@@ -1015,9 +1036,19 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			break;
 		}
 		default:
-			ubifs_err("unrecognized mount option \"%s\" "
-				  "or missing value", p);
-			return -EINVAL;
+		{
+			unsigned long flag;
+			struct super_block *sb = c->vfs_sb;
+
+			flag = parse_standard_option(p);
+			if (!flag) {
+				ubifs_err("unrecognized mount option \"%s\" "
+					  "or missing value", p);
+				return -EINVAL;
+			}
+			sb->s_flags |= flag;
+			break;
+		}
 		}
 	}
 
@@ -1908,6 +1939,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&c->orph_list);
 	INIT_LIST_HEAD(&c->orph_new);
 
+	c->vfs_sb = sb;
 	c->highest_inum = UBIFS_FIRST_INO;
 	c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
 
@@ -1938,8 +1970,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	err = ubifs_parse_options(c, data, 0);
 	if (err)
 		goto out_bdi;
-
-	c->vfs_sb = sb;
 
 	sb->s_fs_info = c;
 	sb->s_magic = UBIFS_SUPER_MAGIC;
