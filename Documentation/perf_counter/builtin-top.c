@@ -371,7 +371,7 @@ static int parse_symbols(void)
 	max_ip = sym->start;
 
 	if (dump_symtab)
-		dso__fprintf(kernel_dso, stdout);
+		dso__fprintf(kernel_dso, stderr);
 
 	return 0;
 
