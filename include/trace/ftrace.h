@@ -209,8 +209,8 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 
 #undef __string
 #define __string(item, src)						       \
-	ret = trace_seq_printf(s, "\tfield: __str_loc " #item ";\t"	       \
-			       "offset:%u;tsize:%u;\n",			       \
+	ret = trace_seq_printf(s, "\tfield:__str_loc " #item ";\t"	       \
+			       "offset:%u;\tsize:%u;\n",		       \
 			       (unsigned int)offsetof(typeof(field),	       \
 					__str_loc_##item),		       \
 			       (unsigned int)sizeof(field.__str_loc_##item));  \
