@@ -758,6 +758,7 @@ typedef struct _MPT_ADAPTER
 	struct scsi_cmnd	**ScsiLookup;
 	spinlock_t		  scsi_lookup_lock;
 	u64			dma_mask;
+	u32			  broadcast_aen_busy;
 	char			 reset_work_q_name[MPT_KOBJ_NAME_LEN];
 	struct workqueue_struct *reset_work_q;
 	struct delayed_work	 fault_reset_work;

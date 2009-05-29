@@ -80,6 +80,7 @@ MODULE_VERSION(my_VERSION);
 /*
  *  Other private/forward protos...
  */
+struct scsi_cmnd	*mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i);
 static struct scsi_cmnd * mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i);
 static void	mptscsih_set_scsi_lookup(MPT_ADAPTER *ioc, int i, struct scsi_cmnd *scmd);
 static int	SCPNT_TO_LOOKUP_IDX(MPT_ADAPTER *ioc, struct scsi_cmnd *scmd);
@@ -2419,6 +2420,26 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 	}
 }
 
+/**
+ * mptscsih_get_scsi_lookup - retrieves scmd entry
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @i: index into the array
+ *
+ * Returns the scsi_cmd pointer
+ */
+struct scsi_cmnd *
+mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
+{
+	unsigned long	flags;
+	struct scsi_cmnd *scmd;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	scmd = ioc->ScsiLookup[i];
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	return scmd;
+}
+EXPORT_SYMBOL(mptscsih_get_scsi_lookup);
 
 /**
  * mptscsih_getclear_scsi_lookup

@@ -121,6 +121,7 @@ static void mptsas_expander_delete(MPT_ADAPTER *ioc,
 static void mptsas_send_expander_event(struct fw_event_work *fw_event);
 static void mptsas_not_responding_devices(MPT_ADAPTER *ioc);
 static void mptsas_scan_sas_topology(MPT_ADAPTER *ioc);
+static void mptsas_broadcast_primative_work(struct fw_event_work *fw_event);
 static void mptsas_handle_queue_full_event(struct fw_event_work *fw_event);
 static void mptsas_volume_delete(MPT_ADAPTER *ioc, u8 id);
 
@@ -284,6 +285,21 @@ mptsas_add_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	    ioc->name, __func__, fw_event));
 	queue_delayed_work(ioc->fw_event_q, &fw_event->work,
 	    delay);
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+}
+
+/* requeue a sas firmware event */
+static void
+mptsas_requeue_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
+    unsigned long delay)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: reschedule task "
+	    "(fw_event=0x%p)\n", ioc->name, __func__, fw_event));
+	fw_event->retries++;
+	queue_delayed_work(ioc->fw_event_q, &fw_event->work,
+	    msecs_to_jiffies(delay));
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -1605,6 +1621,9 @@ mptsas_firmware_event_work(struct work_struct *work)
 		mptbase_sas_persist_operation(ioc,
 		    MPI_SAS_OP_CLEAR_NOT_PRESENT);
 		mptsas_free_fw_event(ioc, fw_event);
+		break;
+	case MPI_EVENT_SAS_BROADCAST_PRIMITIVE:
+		mptsas_broadcast_primative_work(fw_event);
 		break;
 	case MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE:
 		mptsas_send_expander_event(fw_event);
@@ -4325,6 +4344,182 @@ mptsas_send_raid_event(struct fw_event_work *fw_event)
 		mptsas_free_fw_event(ioc, fw_event);
 }
 
+/**
+ *	mptsas_issue_tm - send mptsas internal tm request
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@type: Task Management type
+ *	@channel: channel number for task management
+ *	@id: Logical Target ID for reset (if appropriate)
+ *	@lun: Logical unit for reset (if appropriate)
+ *	@task_context: Context for the task to be aborted
+ *	@timeout: timeout for task management control
+ *
+ *	return 0 on success and -1 on failure:
+ *
+ */
+static int
+mptsas_issue_tm(MPT_ADAPTER *ioc, u8 type, u8 channel, u8 id, u64 lun,
+	int task_context, ulong timeout, u8 *issue_reset)
+{
+	MPT_FRAME_HDR	*mf;
+	SCSITaskMgmt_t	*pScsiTm;
+	int		 retval;
+	unsigned long	 timeleft;
+
+	*issue_reset = 0;
+	mf = mpt_get_msg_frame(mptsasDeviceResetCtx, ioc);
+	if (mf == NULL) {
+		retval = -1; /* return failure */
+		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT "TaskMgmt request: no "
+		    "msg frames!!\n", ioc->name));
+		goto out;
+	}
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request: mr = %p, "
+	    "task_type = 0x%02X,\n\t timeout = %ld, fw_channel = %d, "
+	    "fw_id = %d, lun = %lld,\n\t task_context = 0x%x\n", ioc->name, mf,
+	     type, timeout, channel, id, (unsigned long long)lun,
+	     task_context));
+
+	pScsiTm = (SCSITaskMgmt_t *) mf;
+	memset(pScsiTm, 0, sizeof(SCSITaskMgmt_t));
+	pScsiTm->Function = MPI_FUNCTION_SCSI_TASK_MGMT;
+	pScsiTm->TaskType = type;
+	pScsiTm->MsgFlags = 0;
+	pScsiTm->TargetID = id;
+	pScsiTm->Bus = channel;
+	pScsiTm->ChainOffset = 0;
+	pScsiTm->Reserved = 0;
+	pScsiTm->Reserved1 = 0;
+	pScsiTm->TaskMsgContext = task_context;
+	int_to_scsilun(lun, (struct scsi_lun *)pScsiTm->LUN);
+
+	INITIALIZE_MGMT_STATUS(ioc->taskmgmt_cmds.status)
+	CLEAR_MGMT_STATUS(ioc->internal_cmds.status)
+	retval = 0;
+	mpt_put_msg_frame_hi_pri(mptsasDeviceResetCtx, ioc, mf);
+
+	/* Now wait for the command to complete */
+	timeleft = wait_for_completion_timeout(&ioc->taskmgmt_cmds.done,
+	    timeout*HZ);
+	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
+		retval = -1; /* return failure */
+		dtmprintk(ioc, printk(MYIOC_s_ERR_FMT
+		    "TaskMgmt request: TIMED OUT!(mr=%p)\n", ioc->name, mf));
+		mpt_free_msg_frame(ioc, mf);
+		if (ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
+			goto out;
+		*issue_reset = 1;
+		goto out;
+	}
+
+	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
+		retval = -1; /* return failure */
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "TaskMgmt request: failed with no reply\n", ioc->name));
+		goto out;
+	}
+
+ out:
+	CLEAR_MGMT_STATUS(ioc->taskmgmt_cmds.status)
+	return retval;
+}
+
+/**
+ *	mptsas_broadcast_primative_work - Handle broadcast primitives
+ *	@work: work queue payload containing info describing the event
+ *
+ *	this will be handled in workqueue context.
+ */
+static void
+mptsas_broadcast_primative_work(struct fw_event_work *fw_event)
+{
+	MPT_ADAPTER *ioc = fw_event->ioc;
+	MPT_FRAME_HDR	*mf;
+	VirtDevice	*vdevice;
+	int			ii;
+	struct scsi_cmnd	*sc;
+	SCSITaskMgmtReply_t	*pScsiTmReply;
+	u8			issue_reset;
+	int			task_context;
+	u8			channel, id;
+	int			 lun;
+	u32			 termination_count;
+	u32			 query_count;
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "%s - enter\n", ioc->name, __func__));
+
+	mutex_lock(&ioc->taskmgmt_cmds.mutex);
+	if (mpt_set_taskmgmt_in_progress_flag(ioc) != 0) {
+		mutex_unlock(&ioc->taskmgmt_cmds.mutex);
+		mptsas_requeue_fw_event(ioc, fw_event, 1000);
+		return;
+	}
+
+	issue_reset = 0;
+	termination_count = 0;
+	query_count = 0;
+	mpt_findImVolumes(ioc);
+	pScsiTmReply = (SCSITaskMgmtReply_t *) ioc->taskmgmt_cmds.reply;
+
+	for (ii = 0; ii < ioc->req_depth; ii++) {
+		if (ioc->fw_events_off)
+			goto out;
+		sc = mptscsih_get_scsi_lookup(ioc, ii);
+		if (!sc)
+			continue;
+		mf = MPT_INDEX_2_MFPTR(ioc, ii);
+		if (!mf)
+			continue;
+		task_context = mf->u.frame.hwhdr.msgctxu.MsgContext;
+		vdevice = sc->device->hostdata;
+		if (!vdevice || !vdevice->vtarget)
+			continue;
+		if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT)
+			continue; /* skip hidden raid components */
+		if (vdevice->vtarget->raidVolume)
+			continue; /* skip hidden raid components */
+		channel = vdevice->vtarget->channel;
+		id = vdevice->vtarget->id;
+		lun = vdevice->lun;
+		if (mptsas_issue_tm(ioc, MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK,
+		    channel, id, (u64)lun, task_context, 30, &issue_reset))
+			goto out;
+		query_count++;
+		termination_count +=
+		    le32_to_cpu(pScsiTmReply->TerminationCount);
+		if ((pScsiTmReply->IOCStatus == MPI_IOCSTATUS_SUCCESS) &&
+		    (pScsiTmReply->ResponseCode ==
+		    MPI_SCSITASKMGMT_RSP_TM_SUCCEEDED ||
+		    pScsiTmReply->ResponseCode ==
+		    MPI_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC))
+			continue;
+		if (mptsas_issue_tm(ioc,
+		    MPI_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET,
+		    channel, id, (u64)lun, 0, 30, &issue_reset))
+			goto out;
+		termination_count +=
+		    le32_to_cpu(pScsiTmReply->TerminationCount);
+	}
+
+ out:
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "%s - exit, query_count = %d termination_count = %d\n",
+	    ioc->name, __func__, query_count, termination_count));
+
+	ioc->broadcast_aen_busy = 0;
+	mpt_clear_taskmgmt_in_progress_flag(ioc);
+	mutex_unlock(&ioc->taskmgmt_cmds.mutex);
+
+	if (issue_reset) {
+		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
+		    ioc->name, __func__);
+		mpt_HardResetHandler(ioc, CAN_SLEEP);
+	}
+	mptsas_free_fw_event(ioc, fw_event);
+}
+
 /*
  * mptsas_send_ir2_event - handle exposing hidden disk when
  * an inactive raid volume is added
@@ -4388,6 +4583,18 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 
 	delay = msecs_to_jiffies(1);
 	switch (event) {
+	case MPI_EVENT_SAS_BROADCAST_PRIMITIVE:
+	{
+		EVENT_DATA_SAS_BROADCAST_PRIMITIVE *broadcast_event_data =
+		    (EVENT_DATA_SAS_BROADCAST_PRIMITIVE *)reply->Data;
+		if (broadcast_event_data->Primitive !=
+		    MPI_EVENT_PRIMITIVE_ASYNCHRONOUS_EVENT)
+			return 0;
+		if (ioc->broadcast_aen_busy)
+			return 0;
+		ioc->broadcast_aen_busy = 1;
+		break;
+	}
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	{
 		EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *sas_event_data =
