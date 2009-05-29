@@ -148,7 +148,7 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
 		/* Wait until interrupt goes away */
-		disable_irq(SGI_PANEL_IRQ);
+		disable_irq_nosync(SGI_PANEL_IRQ);
 		init_timer(&debounce_timer);
 		debounce_timer.function = debounce;
 		debounce_timer.expires = jiffies + 5;

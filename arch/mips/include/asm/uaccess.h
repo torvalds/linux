@@ -956,7 +956,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 	void __user * __cl_addr = (addr);				\
 	unsigned long __cl_size = (n);					\
 	if (__cl_size && access_ok(VERIFY_WRITE,			\
-		((unsigned long)(__cl_addr)), __cl_size))		\
+					__cl_addr, __cl_size))		\
 		__cl_size = __clear_user(__cl_addr, __cl_size);		\
 	__cl_size;							\
 })

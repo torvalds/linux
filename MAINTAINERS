@@ -1132,17 +1132,17 @@ F:	fs/bfs/
 F:	include/linux/bfs_fs.h
 
 BLACKFIN ARCHITECTURE
-P:	Bryan Wu
-M:	cooloney@kernel.org
+P:	Mike Frysinger
+M:	vapier@gentoo.org
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
-P:	Bryan Wu
-M:	cooloney@kernel.org
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+P:	Michael Hennerich
+M:	michael.hennerich@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/net/bfin_mac.*
@@ -1150,7 +1150,7 @@ F:	drivers/net/bfin_mac.*
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/rtc/rtc-bfin.c
@@ -1158,7 +1158,7 @@ F:	drivers/rtc/rtc-bfin.c
 BLACKFIN SERIAL DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/serial/bfin_5xx.c
@@ -1166,7 +1166,7 @@ F:	drivers/serial/bfin_5xx.c
 BLACKFIN WATCHDOG DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/watchdog/bfin_wdt.c
@@ -1174,7 +1174,7 @@ F:	drivers/watchdog/bfin_wdt.c
 BLACKFIN I2C TWI DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
@@ -1430,6 +1430,14 @@ CLK API
 P:	Russell King
 M:	linux@arm.linux.org.uk
 F:	include/linux/clk.h
+
+CISCO FCOE HBA DRIVER
+P:	Abhijeet Joglekar
+M:	abjoglek@cisco.com
+P:	Joe Eykholt
+M:	jeykholt@cisco.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
 
 CODA FILE SYSTEM
 P:	Jan Harkes
@@ -5578,6 +5586,14 @@ P:	Ian Molton
 M:	ian@mnementh.co.uk
 S:	Maintained
 F:	drivers/mmc/host/tmio_mmc.*
+
+TMPFS (SHMEM FILESYSTEM)
+P:	Hugh Dickins
+M:	hugh.dickins@tiscali.co.uk
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	include/linux/shmem_fs.h
+F:	mm/shmem.c
 
 TPM DEVICE DRIVER
 P:	Debora Velarde

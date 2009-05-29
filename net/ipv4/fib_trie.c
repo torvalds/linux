@@ -986,8 +986,11 @@ fib_find_node(struct trie *t, u32 key)
 static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 {
 	int wasfull;
-	t_key cindex, key = tn->key;
+	t_key cindex, key;
 	struct tnode *tp;
+
+	preempt_disable();
+	key = tn->key;
 
 	while (tn != NULL && (tp = node_parent((struct node *)tn)) != NULL) {
 		cindex = tkey_extract_bits(key, tp->pos, tp->bits);
@@ -1007,6 +1010,7 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 	if (IS_TNODE(tn))
 		tn = (struct tnode *)resize(t, (struct tnode *)tn);
 
+	preempt_enable();
 	return (struct node *)tn;
 }
 
