@@ -439,12 +439,14 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			 !tp->urg_data ||
 			 before(tp->urg_seq, tp->copied_seq) ||
 			 !before(tp->urg_seq, tp->rcv_nxt)) {
+			struct sk_buff *skb;
+
 			answ = tp->rcv_nxt - tp->copied_seq;
 
 			/* Subtract 1, if FIN is in queue. */
-			if (answ && !skb_queue_empty(&sk->sk_receive_queue))
-				answ -=
-		       tcp_hdr((struct sk_buff *)sk->sk_receive_queue.prev)->fin;
+			skb = skb_peek_tail(&sk->sk_receive_queue);
+			if (answ && skb)
+				answ -= tcp_hdr(skb)->fin;
 		} else
 			answ = tp->urg_seq - tp->copied_seq;
 		release_sock(sk);
@@ -1382,11 +1384,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 		/* Next get a buffer. */
 
-		skb = skb_peek(&sk->sk_receive_queue);
-		do {
-			if (!skb)
-				break;
-
+		skb_queue_walk(&sk->sk_receive_queue, skb) {
 			/* Now that we have two receive queues this
 			 * shouldn't happen.
 			 */
@@ -1403,8 +1401,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 			if (tcp_hdr(skb)->fin)
 				goto found_fin_ok;
 			WARN_ON(!(flags & MSG_PEEK));
-			skb = skb->next;
-		} while (skb != (struct sk_buff *)&sk->sk_receive_queue);
+		}
 
 		/* Well, if we have backlog, try to process it now yet. */
 
