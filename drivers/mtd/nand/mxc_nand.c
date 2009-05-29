@@ -831,6 +831,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_READID:
+		host->col_addr = 0;
 		send_read_id(host);
 		break;
 
@@ -867,6 +868,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	mtd->priv = this;
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
+	mtd->name = "mxc_nand";
 
 	/* 50 us command delay time */
 	this->chip_delay = 5;
@@ -882,8 +884,10 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->verify_buf = mxc_nand_verify_buf;
 
 	host->clk = clk_get(&pdev->dev, "nfc");
-	if (IS_ERR(host->clk))
+	if (IS_ERR(host->clk)) {
+		err = PTR_ERR(host->clk);
 		goto eclk;
+	}
 
 	clk_enable(host->clk);
 	host->clk_act = 1;
@@ -896,7 +900,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	host->regs = ioremap(res->start, res->end - res->start + 1);
 	if (!host->regs) {
-		err = -EIO;
+		err = -ENOMEM;
 		goto eres;
 	}
 
@@ -1011,30 +1015,35 @@ static int __devexit mxcnd_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct mtd_info *info = platform_get_drvdata(pdev);
+	struct mtd_info *mtd = platform_get_drvdata(pdev);
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
 	int ret = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND suspend\n");
-	if (info)
-		ret = info->suspend(info);
-
-	/* Disable the NFC clock */
-	clk_disable(nfc_clk);	/* FIXME */
+	if (mtd) {
+		ret = mtd->suspend(mtd);
+		/* Disable the NFC clock */
+		clk_disable(host->clk);
+	}
 
 	return ret;
 }
 
 static int mxcnd_resume(struct platform_device *pdev)
 {
-	struct mtd_info *info = platform_get_drvdata(pdev);
+	struct mtd_info *mtd = platform_get_drvdata(pdev);
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
 	int ret = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND resume\n");
-	/* Enable the NFC clock */
-	clk_enable(nfc_clk);	/* FIXME */
 
-	if (info)
-		info->resume(info);
+	if (mtd) {
+		/* Enable the NFC clock */
+		clk_enable(host->clk);
+		mtd->resume(mtd);
+	}
 
 	return ret;
 }
@@ -1055,13 +1064,7 @@ static struct platform_driver mxcnd_driver = {
 
 static int __init mxc_nd_init(void)
 {
-	/* Register the device driver structure. */
-	pr_info("MXC MTD nand Driver\n");
-	if (platform_driver_probe(&mxcnd_driver, mxcnd_probe) != 0) {
-		printk(KERN_ERR "Driver register failed for mxcnd_driver\n");
-		return -ENODEV;
-	}
-	return 0;
+	return platform_driver_probe(&mxcnd_driver, mxcnd_probe);
 }
 
 static void __exit mxc_nd_cleanup(void)
