@@ -23,6 +23,7 @@ static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		dump_trace = 0;
 static int		verbose;
+static int		full_paths;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -134,6 +135,16 @@ static int load_kernel(void)
 	return err;
 }
 
+static int strcommon(const char *pathname, const char *cwd, int cwdlen)
+{
+	int n = 0;
+
+	while (pathname[n] == cwd[n] && n < cwdlen)
+		++n;
+
+	return n;
+}
+
 struct map {
 	struct list_head node;
 	uint64_t	 start;
@@ -142,16 +153,28 @@ struct map {
 	struct dso	 *dso;
 };
 
-static struct map *map__new(struct mmap_event *event)
+static struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
 
 	if (self != NULL) {
+		const char *filename = event->filename;
+		char newfilename[PATH_MAX];
+
+		if (cwd) {
+			int n = strcommon(filename, cwd, cwdlen);
+			if (n == cwdlen) {
+				snprintf(newfilename, sizeof(newfilename),
+					 ".%s", filename + n);
+				filename = newfilename;
+			}
+		}
+
 		self->start = event->start;
 		self->end   = event->start + event->len;
 		self->pgoff = event->pgoff;
 
-		self->dso = dsos__findnew(event->filename);
+		self->dso = dsos__findnew(filename);
 		if (self->dso == NULL)
 			goto out_delete;
 	}
@@ -598,6 +621,8 @@ static int __cmd_report(void)
 	int ret, rc = EXIT_FAILURE;
 	uint32_t size;
 	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
+	char cwd[PATH_MAX], *cwdp = cwd;
+	int cwdlen;
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
@@ -621,6 +646,14 @@ static int __cmd_report(void)
 		return EXIT_FAILURE;
 	}
 
+	if (!full_paths) {
+		if (getcwd(cwd, sizeof(cwd)) == NULL) {
+			perror("failed to get the current directory");
+			return EXIT_FAILURE;
+		}
+		cwdlen = strlen(cwd);
+	} else
+		cwdp = NULL;
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
@@ -710,7 +743,7 @@ more:
 	} else switch (event->header.type) {
 	case PERF_EVENT_MMAP: {
 		struct thread *thread = threads__findnew(event->mmap.pid);
-		struct map *map = map__new(&event->mmap);
+		struct map *map = map__new(&event->mmap, cwdp, cwdlen);
 
 		if (dump_trace) {
 			fprintf(stderr, "%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
@@ -809,6 +842,8 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol. Default: pid,symbol"),
+	OPT_BOOLEAN('P', "full-paths", &full_paths,
+		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_END()
 };
 
