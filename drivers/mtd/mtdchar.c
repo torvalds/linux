@@ -839,7 +839,7 @@ static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
-	void __user *argp = (void __user *)arg;
+	void __user *argp = compat_ptr(arg);
 	int ret = 0;
 
 	lock_kernel();
@@ -874,7 +874,7 @@ static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	default:
-		ret = mtd_ioctl(inode, file, cmd, arg);
+		ret = mtd_ioctl(inode, file, cmd, (unsigned long)argp);
 	}
 
 	unlock_kernel();
