@@ -1048,7 +1048,7 @@ void dev_load(struct net *net, const char *name)
 int dev_open(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	int ret = 0;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -1064,6 +1064,11 @@ int dev_open(struct net_device *dev)
 	 */
 	if (!netif_device_present(dev))
 		return -ENODEV;
+
+	ret = call_netdevice_notifiers(NETDEV_PRE_UP, dev);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
 
 	/*
 	 *	Call device private open method
