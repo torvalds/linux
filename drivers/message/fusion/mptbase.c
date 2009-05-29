@@ -2667,6 +2667,22 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 		}
 	}
 
+	/*
+	 * Put the controller into ready state (if its not already)
+	 */
+	if (mpt_GetIocState(ioc, 1) != MPI_IOC_STATE_READY) {
+		if (!SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET,
+		    CAN_SLEEP)) {
+			if (mpt_GetIocState(ioc, 1) != MPI_IOC_STATE_READY)
+				printk(MYIOC_s_ERR_FMT "%s:  IOC msg unit "
+				    "reset failed to put ioc in ready state!\n",
+				    ioc->name, __func__);
+		} else
+			printk(MYIOC_s_ERR_FMT "%s:  IOC msg unit reset "
+			    "failed!\n", ioc->name, __func__);
+	}
+
+
 	/* Disable adapter interrupts! */
 	synchronize_irq(ioc->pcidev->irq);
 	CHIPREG_WRITE32(&ioc->chip->IntMask, 0xFFFFFFFF);
