@@ -185,6 +185,10 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 		hash_buff = xbuf[0];
 
+		ret = -EINVAL;
+		if (WARN_ON(template[i].psize > PAGE_SIZE))
+			goto out;
+
 		memcpy(hash_buff, template[i].plaintext, template[i].psize);
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
 
@@ -238,7 +242,11 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 			temp = 0;
 			sg_init_table(sg, template[i].np);
+			ret = -EINVAL;
 			for (k = 0; k < template[i].np; k++) {
+				if (WARN_ON(offset_in_page(IDX[k]) +
+					    template[i].tap[k] > PAGE_SIZE))
+					goto out;
 				sg_set_buf(&sg[k],
 					   memcpy(xbuf[IDX[k] >> PAGE_SHIFT] +
 						  offset_in_page(IDX[k]),
@@ -356,6 +364,11 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 			 */
 			input = xbuf[0];
 			assoc = axbuf[0];
+
+			ret = -EINVAL;
+			if (WARN_ON(template[i].ilen > PAGE_SIZE ||
+				    template[i].alen > PAGE_SIZE))
+				goto out;
 
 			memcpy(input, template[i].input, template[i].ilen);
 			memcpy(assoc, template[i].assoc, template[i].alen);
@@ -516,7 +529,11 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 			}
 
 			sg_init_table(asg, template[i].anp);
+			ret = -EINVAL;
 			for (k = 0, temp = 0; k < template[i].anp; k++) {
+				if (WARN_ON(offset_in_page(IDX[k]) +
+					    template[i].atap[k] > PAGE_SIZE))
+					goto out;
 				sg_set_buf(&asg[k],
 					   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
 						  offset_in_page(IDX[k]),
@@ -650,6 +667,10 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 		j++;
 
+		ret = -EINVAL;
+		if (WARN_ON(template[i].ilen > PAGE_SIZE))
+			goto out;
+
 		data = xbuf[0];
 		memcpy(data, template[i].input, template[i].ilen);
 
@@ -740,6 +761,10 @@ static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 
 		if (!(template[i].np)) {
 			j++;
+
+			ret = -EINVAL;
+			if (WARN_ON(template[i].ilen > PAGE_SIZE))
+				goto out;
 
 			data = xbuf[0];
 			memcpy(data, template[i].input, template[i].ilen);
