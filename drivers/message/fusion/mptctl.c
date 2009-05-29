@@ -221,7 +221,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 			dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mptctl_reply() NULL Reply "
 				"Function=%x!\n", ioc->name, cmd));
 
-			ioc->ioctl->status |= MPT_IOCTL_STATUS_COMMAND_GOOD;
+			ioc->ioctl->status |= MPT_MGMT_STATUS_COMMAND_GOOD;
 			ioc->ioctl->reset &= ~MPTCTL_RESET_OK;
 
 			/* We are done, issue wake up
@@ -237,14 +237,14 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 		 */
 		memcpy(ioc->ioctl->ReplyFrame, reply,
 			min(ioc->reply_sz, 4*reply->u.reply.MsgLength));
-		ioc->ioctl->status |= MPT_IOCTL_STATUS_RF_VALID;
+		ioc->ioctl->status |= MPT_MGMT_STATUS_RF_VALID;
 
 		/* Set the command status to GOOD if IOC Status is GOOD
 		 * OR if SCSI I/O cmd and data underrun or recovered error.
 		 */
 		iocStatus = le16_to_cpu(reply->u.reply.IOCStatus) & MPI_IOCSTATUS_MASK;
 		if (iocStatus  == MPI_IOCSTATUS_SUCCESS)
-			ioc->ioctl->status |= MPT_IOCTL_STATUS_COMMAND_GOOD;
+			ioc->ioctl->status |= MPT_MGMT_STATUS_COMMAND_GOOD;
 
 		if (iocStatus || reply->u.reply.IOCLogInfo)
 			dctlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "\tiocstatus (0x%04X), "
@@ -268,7 +268,8 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 
 			if ((iocStatus == MPI_IOCSTATUS_SCSI_DATA_UNDERRUN) ||
 			(iocStatus == MPI_IOCSTATUS_SCSI_RECOVERED_ERROR)) {
-			ioc->ioctl->status |= MPT_IOCTL_STATUS_COMMAND_GOOD;
+				ioc->ioctl->status |=
+					MPT_MGMT_STATUS_COMMAND_GOOD;
 			}
 		}
 
@@ -284,7 +285,7 @@ mptctl_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 			    ((u8 *)ioc->sense_buf_pool +
 			     (req_index * MPT_SENSE_BUFFER_ALLOC));
 			memcpy(ioc->ioctl->sense, sense_data, sz);
-			ioc->ioctl->status |= MPT_IOCTL_STATUS_SENSE_VALID;
+			ioc->ioctl->status |= MPT_MGMT_STATUS_SENSE_VALID;
 		}
 
 		if (cmd == MPI_FUNCTION_SCSI_TASK_MGMT)
@@ -483,10 +484,10 @@ mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 	switch(reset_phase) {
 	case MPT_IOC_SETUP_RESET:
-		ioctl->status |= MPT_IOCTL_STATUS_DID_IOCRESET;
+		ioctl->status |= MPT_MGMT_STATUS_DID_IOCRESET;
 		break;
 	case MPT_IOC_POST_RESET:
-		ioctl->status &= ~MPT_IOCTL_STATUS_DID_IOCRESET;
+		ioctl->status &= ~MPT_MGMT_STATUS_DID_IOCRESET;
 		break;
 	case MPT_IOC_PRE_RESET:
 	default:
@@ -1791,7 +1792,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			"No memory available during driver init.\n",
 				__FILE__, __LINE__);
 		return -ENOMEM;
-	} else if (ioc->ioctl->status & MPT_IOCTL_STATUS_DID_IOCRESET) {
+	} else if (ioc->ioctl->status & MPT_MGMT_STATUS_DID_IOCRESET) {
 		printk(KERN_ERR MYNAM "%s@%d::mptctl_do_mpt_command - "
 			"Busy with IOC Reset \n", __FILE__, __LINE__);
 		return -EBUSY;
@@ -2231,7 +2232,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	/* If a valid reply frame, copy to the user.
 	 * Offset 2: reply length in U32's
 	 */
-	if (ioc->ioctl->status & MPT_IOCTL_STATUS_RF_VALID) {
+	if (ioc->ioctl->status & MPT_MGMT_STATUS_RF_VALID) {
 		if (karg.maxReplyBytes < ioc->reply_sz) {
 			 sz = min(karg.maxReplyBytes, 4*ioc->ioctl->ReplyFrame[2]);
 		} else {
@@ -2253,7 +2254,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 	/* If valid sense data, copy to user.
 	 */
-	if (ioc->ioctl->status & MPT_IOCTL_STATUS_SENSE_VALID) {
+	if (ioc->ioctl->status & MPT_MGMT_STATUS_SENSE_VALID) {
 		sz = min(karg.maxSenseBytes, MPT_SENSE_BUFFER_SIZE);
 		if (sz > 0) {
 			if (copy_to_user(karg.senseDataPtr, ioc->ioctl->sense, sz)) {
@@ -2270,7 +2271,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	/* If the overall status is _GOOD and data in, copy data
 	 * to user.
 	 */
-	if ((ioc->ioctl->status & MPT_IOCTL_STATUS_COMMAND_GOOD) &&
+	if ((ioc->ioctl->status & MPT_MGMT_STATUS_COMMAND_GOOD) &&
 				(karg.dataInSize > 0) && (bufIn.kptr)) {
 
 		if (copy_to_user(karg.dataInBufPtr,
@@ -2285,9 +2286,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 done_free_mem:
 
-	ioc->ioctl->status &= ~(MPT_IOCTL_STATUS_COMMAND_GOOD |
-		MPT_IOCTL_STATUS_SENSE_VALID |
-		MPT_IOCTL_STATUS_RF_VALID );
+	ioc->ioctl->status &= ~(MPT_MGMT_STATUS_COMMAND_GOOD |
+		MPT_MGMT_STATUS_SENSE_VALID |
+		MPT_MGMT_STATUS_RF_VALID);
 
 	/* Free the allocated memory.
 	 */
@@ -2527,7 +2528,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	 *   bays have drives in them
 	 * pbuf[3] = Checksum (0x100 = (byte0 + byte2 + byte3)
 	 */
-	if (ioc->ioctl->status & MPT_IOCTL_STATUS_RF_VALID)
+	if (ioc->ioctl->status & MPT_MGMT_STATUS_RF_VALID)
 		karg.rsvd = *(u32 *)pbuf;
 
  out:

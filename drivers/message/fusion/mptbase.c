@@ -146,7 +146,6 @@ static MPT_EVHANDLER		 MptEvHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static MPT_RESETHANDLER		 MptResetHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static struct mpt_pci_driver 	*MptDeviceDriverHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 
-static DECLARE_WAIT_QUEUE_HEAD(mpt_waitq);
 
 /*
  *  Driver Callback Index's
@@ -159,7 +158,8 @@ static u8 last_drv_idx;
  *  Forward protos...
  */
 static irqreturn_t mpt_interrupt(int irq, void *bus_id);
-static int	mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply);
+static int	mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req,
+		MPT_FRAME_HDR *reply);
 static int	mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes,
 			u32 *req, int replyBytes, u16 *u16reply, int maxwait,
 			int sleepFlag);
@@ -190,7 +190,6 @@ static int	mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum);
 static int	mpt_readScsiDevicePageHeaders(MPT_ADAPTER *ioc, int portnum);
 static void 	mpt_read_ioc_pg_1(MPT_ADAPTER *ioc);
 static void 	mpt_read_ioc_pg_4(MPT_ADAPTER *ioc);
-static void	mpt_timer_expired(unsigned long data);
 static void	mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc);
 static int	SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch,
 	int sleepFlag);
@@ -559,9 +558,9 @@ mpt_interrupt(int irq, void *bus_id)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mpt_base_reply - MPT base driver's callback routine
+ *	mptbase_reply - MPT base driver's callback routine
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@mf: Pointer to original MPT request frame
+ *	@req: Pointer to original MPT request frame
  *	@reply: Pointer to MPT reply frame (NULL if TurboReply)
  *
  *	MPT base driver's callback routine; all base driver
@@ -572,122 +571,49 @@ mpt_interrupt(int irq, void *bus_id)
  *	should be freed, or 0 if it shouldn't.
  */
 static int
-mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
+mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 {
+	EventNotificationReply_t *pEventReply;
+	u8 event;
+	int evHandlers;
 	int freereq = 1;
-	u8 func;
 
-	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mpt_base_reply() called\n", ioc->name));
-#ifdef CONFIG_FUSION_LOGGING
-	if ((ioc->debug_level & MPT_DEBUG_MSG_FRAME) &&
-			!(reply->u.hdr.MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY)) {
-		dmfprintk(ioc, printk(MYIOC_s_INFO_FMT ": Original request frame (@%p) header\n",
-		    ioc->name, mf));
-		DBG_DUMP_REQUEST_FRAME_HDR(ioc, (u32 *)mf);
-	}
-#endif
-
-	func = reply->u.hdr.Function;
-	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mpt_base_reply, Function=%02Xh\n",
-			ioc->name, func));
-
-	if (func == MPI_FUNCTION_EVENT_NOTIFICATION) {
-		EventNotificationReply_t *pEvReply = (EventNotificationReply_t *) reply;
-		int evHandlers = 0;
-		int results;
-
-		results = ProcessEventNotification(ioc, pEvReply, &evHandlers);
-		if (results != evHandlers) {
-			/* CHECKME! Any special handling needed here? */
-			devtverboseprintk(ioc, printk(MYIOC_s_WARN_FMT "Called %d event handlers, sum results = %d\n",
-					ioc->name, evHandlers, results));
-		}
-
-		/*
-		 *	Hmmm...  It seems that EventNotificationReply is an exception
-		 *	to the rule of one reply per request.
-		 */
-		if (pEvReply->MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY) {
+	switch (reply->u.hdr.Function) {
+	case MPI_FUNCTION_EVENT_NOTIFICATION:
+		pEventReply = (EventNotificationReply_t *)reply;
+		evHandlers = 0;
+		ProcessEventNotification(ioc, pEventReply, &evHandlers);
+		event = le32_to_cpu(pEventReply->Event) & 0xFF;
+		if (pEventReply->MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY)
 			freereq = 0;
-		} else {
-			devtverboseprintk(ioc, printk(MYIOC_s_WARN_FMT "EVENT_NOTIFICATION reply %p returns Request frame\n",
-				ioc->name, pEvReply));
+		if (event != MPI_EVENT_EVENT_CHANGE)
+			break;
+	case MPI_FUNCTION_CONFIG:
+	case MPI_FUNCTION_SAS_IO_UNIT_CONTROL:
+		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
+		if (reply) {
+			ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
+			memcpy(ioc->mptbase_cmds.reply, reply,
+			    min(MPT_DEFAULT_FRAME_SIZE,
+				4 * reply->u.reply.MsgLength));
 		}
-
-#ifdef CONFIG_PROC_FS
-//		LogEvent(ioc, pEvReply);
-#endif
-
-	} else if (func == MPI_FUNCTION_EVENT_ACK) {
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mpt_base_reply, EventAck reply received\n",
-				ioc->name));
-	} else if (func == MPI_FUNCTION_CONFIG) {
-		CONFIGPARMS *pCfg;
-		unsigned long flags;
-
-		dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT "config_complete (mf=%p,mr=%p)\n",
-				ioc->name, mf, reply));
-
-		pCfg = * ((CONFIGPARMS **)((u8 *) mf + ioc->req_sz - sizeof(void *)));
-
-		if (pCfg) {
-			/* disable timer and remove from linked list */
-			del_timer(&pCfg->timer);
-
-			spin_lock_irqsave(&ioc->FreeQlock, flags);
-			list_del(&pCfg->linkage);
-			spin_unlock_irqrestore(&ioc->FreeQlock, flags);
-
-			/*
-			 *	If IOC Status is SUCCESS, save the header
-			 *	and set the status code to GOOD.
-			 */
-			pCfg->status = MPT_CONFIG_ERROR;
-			if (reply) {
-				ConfigReply_t	*pReply = (ConfigReply_t *)reply;
-				u16		 status;
-
-				status = le16_to_cpu(pReply->IOCStatus) & MPI_IOCSTATUS_MASK;
-				dcprintk(ioc, printk(MYIOC_s_NOTE_FMT "  IOCStatus=%04xh, IOCLogInfo=%08xh\n",
-				     ioc->name, status, le32_to_cpu(pReply->IOCLogInfo)));
-
-				pCfg->status = status;
-				if (status == MPI_IOCSTATUS_SUCCESS) {
-					if ((pReply->Header.PageType &
-					    MPI_CONFIG_PAGETYPE_MASK) ==
-					    MPI_CONFIG_PAGETYPE_EXTENDED) {
-						pCfg->cfghdr.ehdr->ExtPageLength =
-						    le16_to_cpu(pReply->ExtPageLength);
-						pCfg->cfghdr.ehdr->ExtPageType =
-						    pReply->ExtPageType;
-					}
-					pCfg->cfghdr.hdr->PageVersion = pReply->Header.PageVersion;
-
-					/* If this is a regular header, save PageLength. */
-					/* LMP Do this better so not using a reserved field! */
-					pCfg->cfghdr.hdr->PageLength = pReply->Header.PageLength;
-					pCfg->cfghdr.hdr->PageNumber = pReply->Header.PageNumber;
-					pCfg->cfghdr.hdr->PageType = pReply->Header.PageType;
-				}
-			}
-
-			/*
-			 *	Wake up the original calling thread
-			 */
-			pCfg->wait_done = 1;
-			wake_up(&mpt_waitq);
-		}
-	} else if (func == MPI_FUNCTION_SAS_IO_UNIT_CONTROL) {
-		/* we should be always getting a reply frame */
-		memcpy(ioc->persist_reply_frame, reply,
-		    min(MPT_DEFAULT_FRAME_SIZE,
-		    4*reply->u.reply.MsgLength));
-		del_timer(&ioc->persist_timer);
-		ioc->persist_wait_done = 1;
-		wake_up(&mpt_waitq);
-	} else {
-		printk(MYIOC_s_ERR_FMT "Unexpected msg function (=%02Xh) reply received!\n",
-				ioc->name, func);
+		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_PENDING) {
+			ioc->mptbase_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
+			complete(&ioc->mptbase_cmds.done);
+		} else
+			freereq = 0;
+		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_FREE_MF)
+			freereq = 1;
+		break;
+	case MPI_FUNCTION_EVENT_ACK:
+		devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "EventAck reply received\n", ioc->name));
+		break;
+	default:
+		printk(MYIOC_s_ERR_FMT
+		    "Unexpected msg function (=%02Xh) reply received!\n",
+		    ioc->name, reply->u.hdr.Function);
+		break;
 	}
 
 	/*
@@ -1849,6 +1775,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ioc->diagLock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
+	mutex_init(&ioc->mptbase_cmds.mutex);
+	init_completion(&ioc->mptbase_cmds.done);
+
 	/* Initialize the event logging.
 	 */
 	ioc->eventTypes = 0;	/* None */
@@ -1865,10 +1794,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Initilize SCSI Config Data structure
 	 */
 	memset(&ioc->spi_data, 0, sizeof(SpiCfgData));
-
-	/* Initialize the running configQ head.
-	 */
-	INIT_LIST_HEAD(&ioc->configQ);
 
 	/* Initialize the fc rport list head.
 	 */
@@ -5013,7 +4938,14 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 	SasIoUnitControlReply_t		*sasIoUnitCntrReply;
 	MPT_FRAME_HDR			*mf = NULL;
 	MPIHeader_t			*mpi_hdr;
+	int				ret = 0;
+	unsigned long 	 		timeleft;
 
+	mutex_lock(&ioc->mptbase_cmds.mutex);
+
+	/* init the internal cmd struct */
+	memset(ioc->mptbase_cmds.reply, 0 , MPT_DEFAULT_FRAME_SIZE);
+	INITIALIZE_MGMT_STATUS(ioc->mptbase_cmds.status)
 
 	/* insure garbage is not sent to fw */
 	switch(persist_opcode) {
@@ -5023,17 +4955,19 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 		break;
 
 	default:
-		return -1;
-		break;
+		ret = -1;
+		goto out;
 	}
 
-	printk("%s: persist_opcode=%x\n",__func__, persist_opcode);
+	printk(KERN_DEBUG  "%s: persist_opcode=%x\n",
+		__func__, persist_opcode);
 
 	/* Get a MF for this command.
 	 */
 	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		printk("%s: no msg frames!\n",__func__);
-		return -1;
+		printk(KERN_DEBUG "%s: no msg frames!\n", __func__);
+		ret = -1;
+		goto out;
         }
 
 	mpi_hdr = (MPIHeader_t *) mf;
@@ -5043,27 +4977,42 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 	sasIoUnitCntrReq->MsgContext = mpi_hdr->MsgContext;
 	sasIoUnitCntrReq->Operation = persist_opcode;
 
-	init_timer(&ioc->persist_timer);
-	ioc->persist_timer.data = (unsigned long) ioc;
-	ioc->persist_timer.function = mpt_timer_expired;
-	ioc->persist_timer.expires = jiffies + HZ*10 /* 10 sec */;
-	ioc->persist_wait_done=0;
-	add_timer(&ioc->persist_timer);
 	mpt_put_msg_frame(mpt_base_index, ioc, mf);
-	wait_event(mpt_waitq, ioc->persist_wait_done);
-
-	sasIoUnitCntrReply =
-	    (SasIoUnitControlReply_t *)ioc->persist_reply_frame;
-	if (le16_to_cpu(sasIoUnitCntrReply->IOCStatus) != MPI_IOCSTATUS_SUCCESS) {
-		printk("%s: IOCStatus=0x%X IOCLogInfo=0x%X\n",
-		    __func__,
-		    sasIoUnitCntrReply->IOCStatus,
-		    sasIoUnitCntrReply->IOCLogInfo);
-		return -1;
+	timeleft = wait_for_completion_timeout(&ioc->mptbase_cmds.done, 10*HZ);
+	if (!(ioc->mptbase_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
+		ret = -ETIME;
+		printk(KERN_DEBUG "%s: failed\n", __func__);
+		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
+			goto out;
+		if (!timeleft) {
+			printk(KERN_DEBUG "%s: Issuing Reset from %s!!\n",
+			    ioc->name, __func__);
+			mpt_HardResetHandler(ioc, CAN_SLEEP);
+			mpt_free_msg_frame(ioc, mf);
+		}
+		goto out;
 	}
 
-	printk("%s: success\n",__func__);
-	return 0;
+	if (!(ioc->mptbase_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
+		ret = -1;
+		goto out;
+	}
+
+	sasIoUnitCntrReply =
+	    (SasIoUnitControlReply_t *)ioc->mptbase_cmds.reply;
+	if (le16_to_cpu(sasIoUnitCntrReply->IOCStatus) != MPI_IOCSTATUS_SUCCESS) {
+		printk(KERN_DEBUG "%s: IOCStatus=0x%X IOCLogInfo=0x%X\n",
+		    __func__, sasIoUnitCntrReply->IOCStatus,
+		    sasIoUnitCntrReply->IOCLogInfo);
+		printk(KERN_DEBUG "%s: failed\n", __func__);
+		ret = -1;
+	} else
+		printk(KERN_DEBUG "%s: success\n", __func__);
+ out:
+
+	CLEAR_MGMT_STATUS(ioc->mptbase_cmds.status)
+	mutex_unlock(&ioc->mptbase_cmds.mutex);
+	return ret;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -6066,7 +6015,7 @@ SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp)
 
 	if ((pAck = (EventAck_t *) mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, no msg frames!!\n",
-		    ioc->name,__func__));
+		    ioc->name, __func__));
 		return -1;
 	}
 
@@ -6103,12 +6052,18 @@ int
 mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 {
 	Config_t	*pReq;
+	ConfigReply_t	*pReply;
 	ConfigExtendedPageHeader_t  *pExtHdr = NULL;
 	MPT_FRAME_HDR	*mf;
-	unsigned long	 flags;
-	int		 ii, rc;
+	int		 ii;
 	int		 flagsLength;
+	long		 timeout;
+	int		 ret;
+	u8		 page_type = 0, extend_page;
+	unsigned long 	 timeleft;
 	int		 in_isr;
+	u8		 issue_hard_reset = 0;
+	u8		 retry_count = 0;
 
 	/*	Prevent calling wait_event() (below), if caller happens
 	 *	to be in ISR context, because that is fatal!
@@ -6120,13 +6075,31 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 		return -EPERM;
 	}
 
+	/* don't send if no chance of success */
+	if (!ioc->active ||
+	    mpt_GetIocState(ioc, 1) != MPI_IOC_STATE_OPERATIONAL) {
+		dfailprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "%s: ioc not operational, %d, %xh\n",
+		    ioc->name, __func__, ioc->active,
+		    mpt_GetIocState(ioc, 0)));
+		return -EFAULT;
+	}
+
+ retry_config:
+	mutex_lock(&ioc->mptbase_cmds.mutex);
+	/* init the internal cmd struct */
+	memset(ioc->mptbase_cmds.reply, 0 , MPT_DEFAULT_FRAME_SIZE);
+	INITIALIZE_MGMT_STATUS(ioc->mptbase_cmds.status)
+
 	/* Get and Populate a free Frame
 	 */
 	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		dcprintk(ioc, printk(MYIOC_s_WARN_FMT "mpt_config: no msg frames!\n",
-				ioc->name));
-		return -EAGAIN;
+		dcprintk(ioc, printk(MYIOC_s_WARN_FMT
+		"mpt_config: no msg frames!\n", ioc->name));
+		ret = -EAGAIN;
+		goto out;
 	}
+
 	pReq = (Config_t *)mf;
 	pReq->Action = pCfg->action;
 	pReq->Reserved = 0;
@@ -6152,7 +6125,9 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 		pReq->ExtPageType = pExtHdr->ExtPageType;
 		pReq->Header.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
 
-		/* Page Length must be treated as a reserved field for the extended header. */
+		/* Page Length must be treated as a reserved field for the
+		 * extended header.
+		 */
 		pReq->Header.PageLength = 0;
 	}
 
@@ -6165,78 +6140,91 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	else
 		flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ;
 
-	if ((pCfg->cfghdr.hdr->PageType & MPI_CONFIG_PAGETYPE_MASK) == MPI_CONFIG_PAGETYPE_EXTENDED) {
+	if ((pCfg->cfghdr.hdr->PageType & MPI_CONFIG_PAGETYPE_MASK) ==
+	    MPI_CONFIG_PAGETYPE_EXTENDED) {
 		flagsLength |= pExtHdr->ExtPageLength * 4;
-
-		dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Sending Config request type %d, page %d and action %d\n",
-			ioc->name, pReq->ExtPageType, pReq->Header.PageNumber, pReq->Action));
-	}
-	else {
+		page_type = pReq->ExtPageType;
+		extend_page = 1;
+	} else {
 		flagsLength |= pCfg->cfghdr.hdr->PageLength * 4;
-
-		dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Sending Config request type %d, page %d and action %d\n",
-			ioc->name, pReq->Header.PageType, pReq->Header.PageNumber, pReq->Action));
+		page_type = pReq->Header.PageType;
+		extend_page = 0;
 	}
+
+	dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "Sending Config request type 0x%x, page 0x%x and action %d\n",
+	    ioc->name, page_type, pReq->Header.PageNumber, pReq->Action));
 
 	ioc->add_sge((char *)&pReq->PageBufferSGE, flagsLength, pCfg->physAddr);
-
-	/* Append pCfg pointer to end of mf
-	 */
-	*((void **) (((u8 *) mf) + (ioc->req_sz - sizeof(void *)))) =  (void *) pCfg;
-
-	/* Initalize the timer
-	 */
-	init_timer_on_stack(&pCfg->timer);
-	pCfg->timer.data = (unsigned long) ioc;
-	pCfg->timer.function = mpt_timer_expired;
-	pCfg->wait_done = 0;
-
-	/* Set the timer; ensure 10 second minimum */
-	if (pCfg->timeout < 10)
-		pCfg->timer.expires = jiffies + HZ*10;
-	else
-		pCfg->timer.expires = jiffies + HZ*pCfg->timeout;
-
-	/* Add to end of Q, set timer and then issue this command */
-	spin_lock_irqsave(&ioc->FreeQlock, flags);
-	list_add_tail(&pCfg->linkage, &ioc->configQ);
-	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
-
-	add_timer(&pCfg->timer);
+	timeout = (pCfg->timeout < 15) ? HZ*15 : HZ*pCfg->timeout;
 	mpt_put_msg_frame(mpt_base_index, ioc, mf);
-	wait_event(mpt_waitq, pCfg->wait_done);
+	timeleft = wait_for_completion_timeout(&ioc->mptbase_cmds.done,
+		timeout);
+	if (!(ioc->mptbase_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
+		ret = -ETIME;
+		dfailprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "Failed Sending Config request type 0x%x, page 0x%x,"
+		    " action %d, status %xh, time left %ld\n\n",
+			ioc->name, page_type, pReq->Header.PageNumber,
+			pReq->Action, ioc->mptbase_cmds.status, timeleft));
+		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_DID_IOCRESET)
+			goto out;
+		if (!timeleft)
+			issue_hard_reset = 1;
+		goto out;
+	}
 
-	/* mf has been freed - do not access */
+	if (!(ioc->mptbase_cmds.status & MPT_MGMT_STATUS_RF_VALID)) {
+		ret = -1;
+		goto out;
+	}
+	pReply = (ConfigReply_t	*)ioc->mptbase_cmds.reply;
+	ret = le16_to_cpu(pReply->IOCStatus) & MPI_IOCSTATUS_MASK;
+	if (ret == MPI_IOCSTATUS_SUCCESS) {
+		if (extend_page) {
+			pCfg->cfghdr.ehdr->ExtPageLength =
+			    le16_to_cpu(pReply->ExtPageLength);
+			pCfg->cfghdr.ehdr->ExtPageType =
+			    pReply->ExtPageType;
+		}
+		pCfg->cfghdr.hdr->PageVersion = pReply->Header.PageVersion;
+		pCfg->cfghdr.hdr->PageLength = pReply->Header.PageLength;
+		pCfg->cfghdr.hdr->PageNumber = pReply->Header.PageNumber;
+		pCfg->cfghdr.hdr->PageType = pReply->Header.PageType;
 
-	rc = pCfg->status;
+	}
 
-	return rc;
-}
+	if (retry_count)
+		printk(MYIOC_s_INFO_FMT "Retry completed "
+		    "ret=0x%x timeleft=%ld\n",
+		    ioc->name, ret, timeleft);
 
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/**
- *	mpt_timer_expired - Callback for timer process.
- *	Used only internal config functionality.
- *	@data: Pointer to MPT_SCSI_HOST recast as an unsigned long
- */
-static void
-mpt_timer_expired(unsigned long data)
-{
-	MPT_ADAPTER *ioc = (MPT_ADAPTER *) data;
+	dcprintk(ioc, printk(KERN_DEBUG "IOCStatus=%04xh, IOCLogInfo=%08xh\n",
+	     ret, le32_to_cpu(pReply->IOCLogInfo)));
 
-	dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mpt_timer_expired! \n", ioc->name));
+out:
 
-	/* Perform a FW reload */
-	if (mpt_HardResetHandler(ioc, NO_SLEEP) < 0)
-		printk(MYIOC_s_WARN_FMT "Firmware Reload FAILED!\n", ioc->name);
+	CLEAR_MGMT_STATUS(ioc->mptbase_cmds.status)
+	mutex_unlock(&ioc->mptbase_cmds.mutex);
+	if (issue_hard_reset) {
+		issue_hard_reset = 0;
+		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
+		    ioc->name, __func__);
+		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		mpt_free_msg_frame(ioc, mf);
+		/* attempt one retry for a timed out command */
+		if (!retry_count) {
+			printk(MYIOC_s_INFO_FMT
+			    "Attempting Retry Config request"
+			    " type 0x%x, page 0x%x,"
+			    " action %d\n", ioc->name, page_type,
+			    pCfg->cfghdr.hdr->PageNumber, pCfg->action);
+			retry_count++;
+			goto retry_config;
+		}
+	}
+	return ret;
 
-	/* No more processing.
-	 * Hard reset clean-up will wake up
-	 * process and free all resources.
-	 */
-	dcprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mpt_timer_expired complete!\n", ioc->name));
-
-	return;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -6250,41 +6238,27 @@ mpt_timer_expired(unsigned long data)
 static int
 mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
-	CONFIGPARMS *pCfg;
-	unsigned long flags;
-
-	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-	    ": IOC %s_reset routed to MPT base driver!\n",
-	    ioc->name, reset_phase==MPT_IOC_SETUP_RESET ? "setup" : (
-	    reset_phase==MPT_IOC_PRE_RESET ? "pre" : "post")));
-
-	if (reset_phase == MPT_IOC_SETUP_RESET) {
-		;
-	} else if (reset_phase == MPT_IOC_PRE_RESET) {
-		/* If the internal config Q is not empty -
-		 * delete timer. MF resources will be freed when
-		 * the FIFO's are primed.
-		 */
-		spin_lock_irqsave(&ioc->FreeQlock, flags);
-		list_for_each_entry(pCfg, &ioc->configQ, linkage)
-			del_timer(&pCfg->timer);
-		spin_unlock_irqrestore(&ioc->FreeQlock, flags);
-
-	} else {
-		CONFIGPARMS *pNext;
-
-		/* Search the configQ for internal commands.
-		 * Flush the Q, and wake up all suspended threads.
-		 */
-		spin_lock_irqsave(&ioc->FreeQlock, flags);
-		list_for_each_entry_safe(pCfg, pNext, &ioc->configQ, linkage) {
-			list_del(&pCfg->linkage);
-
-			pCfg->status = MPT_CONFIG_ERROR;
-			pCfg->wait_done = 1;
-			wake_up(&mpt_waitq);
+	switch (reset_phase) {
+	case MPT_IOC_SETUP_RESET:
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "%s: MPT_IOC_SETUP_RESET\n", ioc->name, __func__));
+		break;
+	case MPT_IOC_PRE_RESET:
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "%s: MPT_IOC_PRE_RESET\n", ioc->name, __func__));
+		break;
+	case MPT_IOC_POST_RESET:
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "%s: MPT_IOC_POST_RESET\n",  ioc->name, __func__));
+/* wake up mptbase_cmds */
+		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_PENDING) {
+			ioc->mptbase_cmds.status |=
+			    MPT_MGMT_STATUS_DID_IOCRESET;
+			complete(&ioc->mptbase_cmds.done);
 		}
-		spin_unlock_irqrestore(&ioc->FreeQlock, flags);
+		break;
+	default:
+		break;
 	}
 
 	return 1;		/* currently means nothing really */
@@ -7901,7 +7875,7 @@ fusion_init(void)
 	/*  Register ourselves (mptbase) in order to facilitate
 	 *  EventNotification handling.
 	 */
-	mpt_base_index = mpt_register(mpt_base_reply, MPTBASE_DRIVER);
+	mpt_base_index = mpt_register(mptbase_reply, MPTBASE_DRIVER);
 
 	/* Register for hard reset handling callbacks.
 	 */

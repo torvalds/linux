@@ -1122,9 +1122,9 @@ static int mptsas_get_linkerrors(struct sas_phy *phy)
 static int mptsas_mgmt_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req,
 		MPT_FRAME_HDR *reply)
 {
-	ioc->sas_mgmt.status |= MPT_SAS_MGMT_STATUS_COMMAND_GOOD;
+	ioc->sas_mgmt.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
 	if (reply != NULL) {
-		ioc->sas_mgmt.status |= MPT_SAS_MGMT_STATUS_RF_VALID;
+		ioc->sas_mgmt.status |= MPT_MGMT_STATUS_RF_VALID;
 		memcpy(ioc->sas_mgmt.reply, reply,
 		    min(ioc->reply_sz, 4 * reply->u.reply.MsgLength));
 	}
@@ -1182,7 +1182,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 
 	/* a reply frame is expected */
 	if ((ioc->sas_mgmt.status &
-	    MPT_IOCTL_STATUS_RF_VALID) == 0) {
+	    MPT_MGMT_STATUS_RF_VALID) == 0) {
 		error = -ENXIO;
 		goto out_unlock;
 	}
@@ -1359,7 +1359,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	}
 	mf = NULL;
 
-	if (ioc->sas_mgmt.status & MPT_IOCTL_STATUS_RF_VALID) {
+	if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_RF_VALID) {
 		SmpPassthroughReply_t *smprep;
 
 		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;

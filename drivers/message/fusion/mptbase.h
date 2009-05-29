@@ -432,14 +432,6 @@ do { \
  *	IOCTL structure and associated defines
  */
 
-#define MPT_IOCTL_STATUS_DID_IOCRESET	0x01	/* IOC Reset occurred on the current*/
-#define MPT_IOCTL_STATUS_RF_VALID	0x02	/* The Reply Frame is VALID */
-#define MPT_IOCTL_STATUS_TIMER_ACTIVE	0x04	/* The timer is running */
-#define MPT_IOCTL_STATUS_SENSE_VALID	0x08	/* Sense data is valid */
-#define MPT_IOCTL_STATUS_COMMAND_GOOD	0x10	/* Command Status GOOD */
-#define MPT_IOCTL_STATUS_TMTIMER_ACTIVE	0x20	/* The TM timer is running */
-#define MPT_IOCTL_STATUS_TM_FAILED	0x40	/* User TM request failed */
-
 #define MPTCTL_RESET_OK			0x01	/* Issue Bus Reset */
 
 typedef struct _MPT_IOCTL {
@@ -454,16 +446,27 @@ typedef struct _MPT_IOCTL {
 	struct mutex		 ioctl_mutex;
 } MPT_IOCTL;
 
-#define MPT_SAS_MGMT_STATUS_RF_VALID	0x02	/* The Reply Frame is VALID */
-#define MPT_SAS_MGMT_STATUS_COMMAND_GOOD	0x10	/* Command Status GOOD */
-#define MPT_SAS_MGMT_STATUS_TM_FAILED	0x40	/* User TM request failed */
+#define MPT_MGMT_STATUS_RF_VALID	0x01	/* The Reply Frame is VALID */
+#define MPT_MGMT_STATUS_COMMAND_GOOD	0x02	/* Command Status GOOD */
+#define MPT_MGMT_STATUS_PENDING		0x04	/* command is pending */
+#define MPT_MGMT_STATUS_DID_IOCRESET	0x08	/* IOC Reset occurred
+						   on the current*/
+#define MPT_MGMT_STATUS_SENSE_VALID	0x10	/* valid sense info */
+#define MPT_MGMT_STATUS_TIMER_ACTIVE	0x20	/* obsolete */
+#define MPT_MGMT_STATUS_FREE_MF		0x40	/* free the mf from
+						   complete routine */
 
-typedef struct _MPT_SAS_MGMT {
+#define INITIALIZE_MGMT_STATUS(status) \
+	status = MPT_MGMT_STATUS_PENDING;
+#define CLEAR_MGMT_STATUS(status) \
+	status = 0;
+
+typedef struct _MPT_MGMT {
 	struct mutex		 mutex;
 	struct completion	 done;
 	u8			 reply[MPT_DEFAULT_FRAME_SIZE]; /* reply frame data */
 	u8			 status;	/* current command status */
-}MPT_SAS_MGMT;
+} MPT_MGMT;
 
 /*
  *  Event Structure and define
@@ -661,7 +664,6 @@ typedef struct _MPT_ADAPTER
 	struct _mpt_ioctl_events *events;	/* pointer to event log */
 	u8			*cached_fw;	/* Pointer to FW */
 	dma_addr_t	 	cached_fw_dma;
-	struct list_head	 configQ;	/* linked list of config. requests */
 	int			 hs_reply_idx;
 #ifndef MFCNT
 	u32			 pad0;
@@ -674,9 +676,6 @@ typedef struct _MPT_ADAPTER
 	IOCFactsReply_t		 facts;
 	PortFactsReply_t	 pfacts[2];
 	FCPortPage0_t		 fc_port_page0[2];
-	struct timer_list	 persist_timer;	/* persist table timer */
-	int			 persist_wait_done; /* persist completion flag */
-	u8			 persist_reply_frame[MPT_DEFAULT_FRAME_SIZE]; /* persist reply */
 	LANPage0_t		 lan_cnfg_page0;
 	LANPage1_t		 lan_cnfg_page1;
 
@@ -708,7 +707,8 @@ typedef struct _MPT_ADAPTER
 	u8			 sas_discovery_ignore_events;
 	u8			 sas_discovery_quiesce_io;
 	int			 sas_index; /* index refrencing */
-	MPT_SAS_MGMT		 sas_mgmt;
+	MPT_MGMT		 sas_mgmt;
+	MPT_MGMT		 mptbase_cmds; /* for sending config pages */
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
@@ -884,21 +884,16 @@ struct scsi_cmnd;
  * Generic structure passed to the base mpt_config function.
  */
 typedef struct _x_config_parms {
-	struct list_head	 linkage;	/* linked list */
-	struct timer_list	 timer;		/* timer function for this request  */
 	union {
 		ConfigExtendedPageHeader_t	*ehdr;
 		ConfigPageHeader_t	*hdr;
 	} cfghdr;
 	dma_addr_t		 physAddr;
-	int			 wait_done;	/* wait for this request */
 	u32			 pageAddr;	/* properly formatted */
+	u16			 status;
 	u8			 action;
 	u8			 dir;
 	u8			 timeout;	/* seconds */
-	u8			 pad1;
-	u16			 status;
-	u16			 pad2;
 } CONFIGPARMS;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
