@@ -160,7 +160,7 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.type = CPU_SH7724;
 		boot_cpu_data.icache.ways = 4;
 		boot_cpu_data.dcache.ways = 4;
-		boot_cpu_data.flags |= CPU_HAS_LLSC | CPU_HAS_FPU;
+		boot_cpu_data.flags |= CPU_HAS_LLSC | CPU_HAS_FPU | CPU_HAS_L2_CACHE;
 		break;
 	case 0x4000:	/* 1st cut */
 	case 0x4001:	/* 2nd cut */
