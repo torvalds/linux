@@ -998,7 +998,7 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	mpt_add_sge - Place a simple SGE at address pAddr.
+ *	mpt_add_sge - Place a simple 32 bit SGE at address pAddr.
  *	@pAddr: virtual address for SGE
  *	@flagslength: SGE flags and data transfer length
  *	@dma_addr: Physical address
@@ -1006,23 +1006,117 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
  *	This routine places a MPT request frame back on the MPT adapter's
  *	FreeQ.
  */
-void
-mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr)
+static void
+mpt_add_sge(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
 {
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		SGESimple64_t *pSge = (SGESimple64_t *) pAddr;
+	SGESimple32_t *pSge = (SGESimple32_t *) pAddr;
+	pSge->FlagsLength = cpu_to_le32(flagslength);
+	pSge->Address = cpu_to_le32(dma_addr);
+}
+
+/**
+ *	mpt_add_sge_64bit - Place a simple 64 bit SGE at address pAddr.
+ *	@pAddr: virtual address for SGE
+ *	@flagslength: SGE flags and data transfer length
+ *	@dma_addr: Physical address
+ *
+ *	This routine places a MPT request frame back on the MPT adapter's
+ *	FreeQ.
+ **/
+static void
+mpt_add_sge_64bit(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
+{
+	SGESimple64_t *pSge = (SGESimple64_t *) pAddr;
+	pSge->Address.Low = cpu_to_le32
+			(lower_32_bits((unsigned long)(dma_addr)));
+	pSge->Address.High = cpu_to_le32
+			(upper_32_bits((unsigned long)dma_addr));
+	pSge->FlagsLength = cpu_to_le32
+			((flagslength | MPT_SGE_FLAGS_64_BIT_ADDRESSING));
+}
+
+/**
+ *	mpt_add_sge_64bit_1078 - Place a simple 64 bit SGE at address pAddr
+ *	(1078 workaround).
+ *	@pAddr: virtual address for SGE
+ *	@flagslength: SGE flags and data transfer length
+ *	@dma_addr: Physical address
+ *
+ *	This routine places a MPT request frame back on the MPT adapter's
+ *	FreeQ.
+ **/
+static void
+mpt_add_sge_64bit_1078(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
+{
+	SGESimple64_t *pSge = (SGESimple64_t *) pAddr;
+	u32 tmp;
+
+	pSge->Address.Low = cpu_to_le32
+			(lower_32_bits((unsigned long)(dma_addr)));
+	tmp = (u32)(upper_32_bits((unsigned long)dma_addr));
+
+	/*
+	 * 1078 errata workaround for the 36GB limitation
+	 */
+	if ((((u64)dma_addr + MPI_SGE_LENGTH(flagslength)) >> 32)  == 9) {
+		flagslength |=
+		    MPI_SGE_SET_FLAGS(MPI_SGE_FLAGS_LOCAL_ADDRESS);
+		tmp |= (1<<31);
+		if (mpt_debug_level & MPT_DEBUG_36GB_MEM)
+			printk(KERN_DEBUG "1078 P0M2 addressing for "
+			    "addr = 0x%llx len = %d\n",
+			    (unsigned long long)dma_addr,
+			    MPI_SGE_LENGTH(flagslength));
+	}
+
+	pSge->Address.High = cpu_to_le32(tmp);
+	pSge->FlagsLength = cpu_to_le32(
+		(flagslength | MPT_SGE_FLAGS_64_BIT_ADDRESSING));
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/**
+ *	mpt_add_chain - Place a 32 bit chain SGE at address pAddr.
+ *	@pAddr: virtual address for SGE
+ *	@next: nextChainOffset value (u32's)
+ *	@length: length of next SGL segment
+ *	@dma_addr: Physical address
+ *
+ */
+static void
+mpt_add_chain(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
+{
+		SGEChain32_t *pChain = (SGEChain32_t *) pAddr;
+		pChain->Length = cpu_to_le16(length);
+		pChain->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT;
+		pChain->NextChainOffset = next;
+		pChain->Address = cpu_to_le32(dma_addr);
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/**
+ *	mpt_add_chain_64bit - Place a 64 bit chain SGE at address pAddr.
+ *	@pAddr: virtual address for SGE
+ *	@next: nextChainOffset value (u32's)
+ *	@length: length of next SGL segment
+ *	@dma_addr: Physical address
+ *
+ */
+static void
+mpt_add_chain_64bit(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
+{
+		SGEChain64_t *pChain = (SGEChain64_t *) pAddr;
 		u32 tmp = dma_addr & 0xFFFFFFFF;
 
-		pSge->FlagsLength = cpu_to_le32(flagslength);
-		pSge->Address.Low = cpu_to_le32(tmp);
-		tmp = (u32) ((u64)dma_addr >> 32);
-		pSge->Address.High = cpu_to_le32(tmp);
+		pChain->Length = cpu_to_le16(length);
+		pChain->Flags = (MPI_SGE_FLAGS_CHAIN_ELEMENT |
+				 MPI_SGE_FLAGS_64_BIT_ADDRESSING);
 
-	} else {
-		SGESimple32_t *pSge = (SGESimple32_t *) pAddr;
-		pSge->FlagsLength = cpu_to_le32(flagslength);
-		pSge->Address = cpu_to_le32(dma_addr);
-	}
+		pChain->NextChainOffset = next;
+
+		pChain->Address.Low = cpu_to_le32(tmp);
+		tmp = (u32)(upper_32_bits((unsigned long)dma_addr));
+		pChain->Address.High = cpu_to_le32(tmp);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -1225,7 +1319,7 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
 	}
 	flags_length = flags_length << MPI_SGE_FLAGS_SHIFT;
 	flags_length |= ioc->HostPageBuffer_sz;
-	mpt_add_sge(psge, flags_length, ioc->HostPageBuffer_dma);
+	ioc->add_sge(psge, flags_length, ioc->HostPageBuffer_dma);
 	ioc->facts.HostPageBufferSGE = ioc_init->HostPageBufferSGE;
 
 return 0;
@@ -1534,21 +1628,42 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 
 	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
-		    ": 64 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
-		    ioc->name));
-	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
-	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
-		    ": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
-		    ioc->name));
+	if (sizeof(dma_addr_t) > 4) {
+		const uint64_t required_mask = dma_get_required_mask
+		    (&pdev->dev);
+		if (required_mask > DMA_BIT_MASK(32)
+			&& !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
+			&& !pci_set_consistent_dma_mask(pdev,
+						 DMA_BIT_MASK(64))) {
+			ioc->dma_mask = DMA_BIT_MASK(64);
+			dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
+				": 64 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
+				ioc->name));
+		} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
+			&& !pci_set_consistent_dma_mask(pdev,
+						DMA_BIT_MASK(32))) {
+			ioc->dma_mask = DMA_BIT_MASK(32);
+			dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
+				": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
+				ioc->name));
+		} else {
+			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
+			    ioc->name, pci_name(pdev));
+			return r;
+		}
 	} else {
-		printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
-		    ioc->name, pci_name(pdev));
-		pci_release_selected_regions(pdev, ioc->bars);
-		return r;
+		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
+			&& !pci_set_consistent_dma_mask(pdev,
+						DMA_BIT_MASK(32))) {
+			ioc->dma_mask = DMA_BIT_MASK(32);
+			dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
+				": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
+				ioc->name));
+		} else {
+			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
+			    ioc->name, pci_name(pdev));
+			return r;
+		}
 	}
 
 	mem_phys = msize = 0;
@@ -1649,6 +1764,23 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		kfree(ioc);
 		return r;
 	}
+
+	/*
+	 * Setting up proper handlers for scatter gather handling
+	 */
+	if (ioc->dma_mask == DMA_BIT_MASK(64)) {
+		if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1078)
+			ioc->add_sge = &mpt_add_sge_64bit_1078;
+		else
+			ioc->add_sge = &mpt_add_sge_64bit;
+		ioc->add_chain = &mpt_add_chain_64bit;
+		ioc->sg_addr_size = 8;
+	} else {
+		ioc->add_sge = &mpt_add_sge;
+		ioc->add_chain = &mpt_add_chain;
+		ioc->sg_addr_size = 4;
+	}
+	ioc->SGE_size = sizeof(u32) + ioc->sg_addr_size;
 
 	ioc->alloc_total = sizeof(MPT_ADAPTER);
 	ioc->req_sz = MPT_DEFAULT_FRAME_SIZE;		/* avoid div by zero! */
@@ -1993,6 +2125,21 @@ mpt_resume(struct pci_dev *pdev)
 	err = mpt_mapresources(ioc);
 	if (err)
 		return err;
+
+	if (ioc->dma_mask == DMA_BIT_MASK(64)) {
+		if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1078)
+			ioc->add_sge = &mpt_add_sge_64bit_1078;
+		else
+			ioc->add_sge = &mpt_add_sge_64bit;
+		ioc->add_chain = &mpt_add_chain_64bit;
+		ioc->sg_addr_size = 8;
+	} else {
+
+		ioc->add_sge = &mpt_add_sge;
+		ioc->add_chain = &mpt_add_chain;
+		ioc->sg_addr_size = 4;
+	}
+	ioc->SGE_size = sizeof(u32) + ioc->sg_addr_size;
 
 	printk(MYIOC_s_INFO_FMT "pci-resume: ioc-state=0x%x,doorbell=0x%x\n",
 	    ioc->name, (mpt_GetIocState(ioc, 1) >> MPI_IOC_STATE_SHIFT),
@@ -3325,11 +3472,10 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 	FWUpload_t		*prequest;
 	FWUploadReply_t		*preply;
 	FWUploadTCSGE_t		*ptcsge;
-	int			 sgeoffset;
 	u32			 flagsLength;
 	int			 ii, sz, reply_sz;
 	int			 cmdStatus;
-
+	int			request_size;
 	/* If the image size is 0, we are done.
 	 */
 	if ((sz = ioc->facts.FWImageSize) == 0)
@@ -3364,18 +3510,17 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 	ptcsge->ImageSize = cpu_to_le32(sz);
 	ptcsge++;
 
-	sgeoffset = sizeof(FWUpload_t) - sizeof(SGE_MPI_UNION) + sizeof(FWUploadTCSGE_t);
-
 	flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ | sz;
-	mpt_add_sge((char *)ptcsge, flagsLength, ioc->cached_fw_dma);
-
-	sgeoffset += sizeof(u32) + sizeof(dma_addr_t);
-	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT ": Sending FW Upload (req @ %p) sgeoffset=%d \n",
-	    ioc->name, prequest, sgeoffset));
+	ioc->add_sge((char *)ptcsge, flagsLength, ioc->cached_fw_dma);
+	request_size = offsetof(FWUpload_t, SGL) + sizeof(FWUploadTCSGE_t) +
+	    ioc->SGE_size;
+	dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Sending FW Upload "
+	    " (req @ %p) fw_size=%d mf_request_size=%d\n", ioc->name, prequest,
+	    ioc->facts.FWImageSize, request_size));
 	DBG_DUMP_FW_REQUEST_FRAME(ioc, (u32 *)prequest);
 
-	ii = mpt_handshake_req_reply_wait(ioc, sgeoffset, (u32*)prequest,
-				reply_sz, (u16*)preply, 65 /*seconds*/, sleepFlag);
+	ii = mpt_handshake_req_reply_wait(ioc, request_size, (u32 *)prequest,
+	    reply_sz, (u16 *)preply, 65 /*seconds*/, sleepFlag);
 
 	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT ": FW Upload completed rc=%x \n", ioc->name, ii));
 
@@ -4090,18 +4235,18 @@ initChainBuffers(MPT_ADAPTER *ioc)
 	 * num_sge = num sge in request frame + last chain buffer
 	 * scale = num sge per chain buffer if no chain element
 	 */
-	scale = ioc->req_sz/(sizeof(dma_addr_t) + sizeof(u32));
-	if (sizeof(dma_addr_t) == sizeof(u64))
-		num_sge =  scale + (ioc->req_sz - 60) / (sizeof(dma_addr_t) + sizeof(u32));
+	scale = ioc->req_sz / ioc->SGE_size;
+	if (ioc->sg_addr_size == sizeof(u64))
+		num_sge =  scale + (ioc->req_sz - 60) / ioc->SGE_size;
 	else
-		num_sge =  1+ scale + (ioc->req_sz - 64) / (sizeof(dma_addr_t) + sizeof(u32));
+		num_sge =  1 + scale + (ioc->req_sz - 64) / ioc->SGE_size;
 
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
+	if (ioc->sg_addr_size == sizeof(u64)) {
 		numSGE = (scale - 1) * (ioc->facts.MaxChainDepth-1) + scale +
-			(ioc->req_sz - 60) / (sizeof(dma_addr_t) + sizeof(u32));
+			(ioc->req_sz - 60) / ioc->SGE_size;
 	} else {
-		numSGE = 1 + (scale - 1) * (ioc->facts.MaxChainDepth-1) + scale +
-			(ioc->req_sz - 64) / (sizeof(dma_addr_t) + sizeof(u32));
+		numSGE = 1 + (scale - 1) * (ioc->facts.MaxChainDepth-1) +
+		    scale + (ioc->req_sz - 64) / ioc->SGE_size;
 	}
 	dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "num_sge=%d numSGE=%d\n",
 		ioc->name, num_sge, numSGE));
@@ -4161,12 +4306,42 @@ PrimeIocFifos(MPT_ADAPTER *ioc)
 	dma_addr_t alloc_dma;
 	u8 *mem;
 	int i, reply_sz, sz, total_size, num_chain;
+	u64	dma_mask;
+
+	dma_mask = 0;
 
 	/*  Prime reply FIFO...  */
 
 	if (ioc->reply_frames == NULL) {
 		if ( (num_chain = initChainBuffers(ioc)) < 0)
 			return -1;
+		/*
+		 * 1078 errata workaround for the 36GB limitation
+		 */
+		if (ioc->pcidev->device == MPI_MANUFACTPAGE_DEVID_SAS1078 &&
+		    ioc->dma_mask > DMA_35BIT_MASK) {
+			if (!pci_set_dma_mask(ioc->pcidev, DMA_BIT_MASK(32))
+			    && !pci_set_consistent_dma_mask(ioc->pcidev,
+			    DMA_BIT_MASK(32))) {
+				dma_mask = DMA_35BIT_MASK;
+				d36memprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				    "setting 35 bit addressing for "
+				    "Request/Reply/Chain and Sense Buffers\n",
+				    ioc->name));
+			} else {
+				/*Reseting DMA mask to 64 bit*/
+				pci_set_dma_mask(ioc->pcidev,
+					DMA_BIT_MASK(64));
+				pci_set_consistent_dma_mask(ioc->pcidev,
+					DMA_BIT_MASK(64));
+
+				printk(MYIOC_s_ERR_FMT
+				    "failed setting 35 bit addressing for "
+				    "Request/Reply/Chain and Sense Buffers\n",
+				    ioc->name);
+				return -1;
+			}
+		}
 
 		total_size = reply_sz = (ioc->reply_sz * ioc->reply_depth);
 		dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ReplyBuffer sz=%d bytes, ReplyDepth=%d\n",
@@ -4305,6 +4480,12 @@ PrimeIocFifos(MPT_ADAPTER *ioc)
 		alloc_dma += ioc->reply_sz;
 	}
 
+	if (dma_mask == DMA_35BIT_MASK && !pci_set_dma_mask(ioc->pcidev,
+	    ioc->dma_mask) && !pci_set_consistent_dma_mask(ioc->pcidev,
+	    ioc->dma_mask))
+		d36memprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "restoring 64 bit addressing\n", ioc->name));
+
 	return 0;
 
 out_fail:
@@ -4324,6 +4505,13 @@ out_fail:
 				ioc->sense_buf_pool, ioc->sense_buf_pool_dma);
 		ioc->sense_buf_pool = NULL;
 	}
+
+	if (dma_mask == DMA_35BIT_MASK && !pci_set_dma_mask(ioc->pcidev,
+	    DMA_BIT_MASK(64)) && !pci_set_consistent_dma_mask(ioc->pcidev,
+	    DMA_BIT_MASK(64)))
+		d36memprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "restoring 64 bit addressing\n", ioc->name));
+
 	return -1;
 }
 
@@ -5926,7 +6114,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 			ioc->name, pReq->Header.PageType, pReq->Header.PageNumber, pReq->Action));
 	}
 
-	mpt_add_sge((char *)&pReq->PageBufferSGE, flagsLength, pCfg->physAddr);
+	ioc->add_sge((char *)&pReq->PageBufferSGE, flagsLength, pCfg->physAddr);
 
 	/* Append pCfg pointer to end of mf
 	 */
@@ -7613,7 +7801,6 @@ EXPORT_SYMBOL(mpt_get_msg_frame);
 EXPORT_SYMBOL(mpt_put_msg_frame);
 EXPORT_SYMBOL(mpt_put_msg_frame_hi_pri);
 EXPORT_SYMBOL(mpt_free_msg_frame);
-EXPORT_SYMBOL(mpt_add_sge);
 EXPORT_SYMBOL(mpt_send_handshake_request);
 EXPORT_SYMBOL(mpt_verify_adapter);
 EXPORT_SYMBOL(mpt_GetIocState);

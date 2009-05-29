@@ -1319,15 +1319,15 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	/* request */
 	flagsLength = (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 		       MPI_SGE_FLAGS_END_OF_BUFFER |
-		       MPI_SGE_FLAGS_DIRECTION |
-		       mpt_addr_size()) << MPI_SGE_FLAGS_SHIFT;
+		       MPI_SGE_FLAGS_DIRECTION)
+		       << MPI_SGE_FLAGS_SHIFT;
 	flagsLength |= (req->data_len - 4);
 
 	dma_addr_out = pci_map_single(ioc->pcidev, bio_data(req->bio),
 				      req->data_len, PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_out)
 		goto put_mf;
-	mpt_add_sge(psge, flagsLength, dma_addr_out);
+	ioc->add_sge(psge, flagsLength, dma_addr_out);
 	psge += (sizeof(u32) + sizeof(dma_addr_t));
 
 	/* response */
@@ -1337,7 +1337,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 				      rsp->data_len, PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_in)
 		goto unmap;
-	mpt_add_sge(psge, flagsLength, dma_addr_in);
+	ioc->add_sge(psge, flagsLength, dma_addr_in);
 
 	mpt_put_msg_frame(mptsasMgmtCtx, ioc, mf);
 
@@ -3211,17 +3211,15 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * A slightly different algorithm is required for
 	 * 64bit SGEs.
 	 */
-	scale = ioc->req_sz/(sizeof(dma_addr_t) + sizeof(u32));
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
+	scale = ioc->req_sz/ioc->SGE_size;
+	if (ioc->sg_addr_size == sizeof(u64)) {
 		numSGE = (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 60) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 60) / ioc->SGE_size;
 	} else {
 		numSGE = 1 + (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 64) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 64) / ioc->SGE_size;
 	}
 
 	if (numSGE < sh->sg_tablesize) {

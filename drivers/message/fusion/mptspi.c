@@ -300,7 +300,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 	flagsLength = MPT_SGE_FLAGS_SSIMPLE_WRITE |
 		(IOCPage4Ptr->Header.PageLength + ii) * 4;
 
-	mpt_add_sge((char *)&pReq->PageBufferSGE, flagsLength, dataDma);
+	ioc->add_sge((char *)&pReq->PageBufferSGE, flagsLength, dataDma);
 
 	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		"writeIOCPage4: MaxSEP=%d ActiveSEP=%d id=%d bus=%d\n",
@@ -643,7 +643,7 @@ mptscsih_quiesce_raid(MPT_SCSI_HOST *hd, int quiesce, u8 channel, u8 id)
 	pReq->Reserved2 = 0;
 	pReq->ActionDataWord = 0; /* Reserved for this action */
 
-	mpt_add_sge((char *)&pReq->ActionDataSGE,
+	ioc->add_sge((char *)&pReq->ActionDataSGE,
 		MPT_SGE_FLAGS_SSIMPLE_READ | 0, (dma_addr_t) -1);
 
 	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT "RAID Volume action=%x channel=%d id=%d\n",
@@ -1423,17 +1423,15 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * A slightly different algorithm is required for
 	 * 64bit SGEs.
 	 */
-	scale = ioc->req_sz/(sizeof(dma_addr_t) + sizeof(u32));
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
+	scale = ioc->req_sz/ioc->SGE_size;
+	if (ioc->sg_addr_size == sizeof(u64)) {
 		numSGE = (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 60) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 60) / ioc->SGE_size;
 	} else {
 		numSGE = 1 + (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 64) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 64) / ioc->SGE_size;
 	}
 
 	if (numSGE < sh->sg_tablesize) {

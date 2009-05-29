@@ -841,8 +841,9 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	 *	96		8
 	 *	64		4
 	 */
-	maxfrags = (iocp->req_sz - sizeof(MPIHeader_t) - sizeof(FWDownloadTCSGE_t))
-			/ (sizeof(dma_addr_t) + sizeof(u32));
+	maxfrags = (iocp->req_sz - sizeof(MPIHeader_t) -
+			sizeof(FWDownloadTCSGE_t))
+			/ iocp->SGE_size;
 	if (numfrags > maxfrags) {
 		ret = -EMLINK;
 		goto fwdl_out;
@@ -870,7 +871,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 		if (nib == 0 || nib == 3) {
 			;
 		} else if (sgIn->Address) {
-			mpt_add_sge(sgOut, sgIn->FlagsLength, sgIn->Address);
+			iocp->add_sge(sgOut, sgIn->FlagsLength, sgIn->Address);
 			n++;
 			if (copy_from_user(bl->kptr, ufwbuf+fw_bytes_copied, bl->len)) {
 				printk(MYIOC_s_ERR_FMT "%s@%d::_ioctl_fwdl - "
@@ -882,7 +883,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 		}
 		sgIn++;
 		bl++;
-		sgOut += (sizeof(dma_addr_t) + sizeof(u32));
+		sgOut += iocp->SGE_size;
 	}
 
 	DBG_DUMP_FW_DOWNLOAD(iocp, (u32 *)mf, numfrags);
@@ -1003,7 +1004,7 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 	 *
 	 */
 	sgl = sglbuf;
-	sg_spill = ((ioc->req_sz - sge_offset)/(sizeof(dma_addr_t) + sizeof(u32))) - 1;
+	sg_spill = ((ioc->req_sz - sge_offset)/ioc->SGE_size) - 1;
 	while (bytes_allocd < bytes) {
 		this_alloc = min(alloc_sz, bytes-bytes_allocd);
 		buflist[buflist_ent].len = this_alloc;
@@ -1024,8 +1025,9 @@ kbuf_alloc_2_sgl(int bytes, u32 sgdir, int sge_offset, int *frags,
 			dma_addr_t dma_addr;
 
 			bytes_allocd += this_alloc;
-			sgl->FlagsLength = (0x10000000|MPT_SGE_FLAGS_ADDRESSING|sgdir|this_alloc);
-			dma_addr = pci_map_single(ioc->pcidev, buflist[buflist_ent].kptr, this_alloc, dir);
+			sgl->FlagsLength = (0x10000000|sgdir|this_alloc);
+			dma_addr = pci_map_single(ioc->pcidev,
+				buflist[buflist_ent].kptr, this_alloc, dir);
 			sgl->Address = dma_addr;
 
 			fragcnt++;
@@ -1799,9 +1801,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	 */
 	sz = karg.dataSgeOffset * 4;
 	if (karg.dataInSize > 0)
-		sz += sizeof(dma_addr_t) + sizeof(u32);
+		sz += ioc->SGE_size;
 	if (karg.dataOutSize > 0)
-		sz += sizeof(dma_addr_t) + sizeof(u32);
+		sz += ioc->SGE_size;
 
 	if (sz > ioc->req_sz) {
 		printk(MYIOC_s_ERR_FMT "%s@%d::mptctl_do_mpt_command - "
@@ -1893,7 +1895,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			}
 
 			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
-			pScsiReq->MsgFlags |= mpt_msg_flags();
+			pScsiReq->MsgFlags |= mpt_msg_flags(ioc);
 
 
 			/* verify that app has not requested
@@ -1979,7 +1981,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			int dataSize;
 
 			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
-			pScsiReq->MsgFlags |= mpt_msg_flags();
+			pScsiReq->MsgFlags |= mpt_msg_flags(ioc);
 
 
 			/* verify that app has not requested
@@ -2123,8 +2125,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			if (karg.dataInSize > 0) {
 				flagsLength = ( MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 						MPI_SGE_FLAGS_END_OF_BUFFER |
-						MPI_SGE_FLAGS_DIRECTION |
-						mpt_addr_size() )
+						MPI_SGE_FLAGS_DIRECTION)
 						<< MPI_SGE_FLAGS_SHIFT;
 			} else {
 				flagsLength = MPT_SGE_FLAGS_SSIMPLE_WRITE;
@@ -2141,8 +2142,8 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 				/* Set up this SGE.
 				 * Copy to MF and to sglbuf
 				 */
-				mpt_add_sge(psge, flagsLength, dma_addr_out);
-				psge += (sizeof(u32) + sizeof(dma_addr_t));
+				ioc->add_sge(psge, flagsLength, dma_addr_out);
+				psge += ioc->SGE_size;
 
 				/* Copy user data to kernel space.
 				 */
@@ -2175,13 +2176,13 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 				/* Set up this SGE
 				 * Copy to MF and to sglbuf
 				 */
-				mpt_add_sge(psge, flagsLength, dma_addr_in);
+				ioc->add_sge(psge, flagsLength, dma_addr_in);
 			}
 		}
 	} else  {
 		/* Add a NULL SGE
 		 */
-		mpt_add_sge(psge, flagsLength, (dma_addr_t) -1);
+		ioc->add_sge(psge, flagsLength, (dma_addr_t) -1);
 	}
 
 	ioc->ioctl->wait_done = 0;
@@ -2498,7 +2499,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
 	if (!pbuf)
 		goto out;
-	mpt_add_sge((char *)&IstwiRWRequest->SGL,
+	ioc->add_sge((char *)&IstwiRWRequest->SGL,
 	    (MPT_SGE_FLAGS_SSIMPLE_READ|4), buf_dma);
 
 	ioc->ioctl->wait_done = 0;

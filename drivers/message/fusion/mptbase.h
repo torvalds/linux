@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.07"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.07"
+#define MPT_LINUX_VERSION_COMMON	"3.04.08"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.08"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -133,6 +133,7 @@
 #define  NO_SLEEP			0
 
 #define MPT_COALESCING_TIMEOUT		0x10
+
 
 /*
  * SCSI transfer rate defines.
@@ -564,6 +565,10 @@ struct mptfc_rport_info
 	u8		flags;
 };
 
+typedef void (*MPT_ADD_SGE)(void *pAddr, u32 flagslength, dma_addr_t dma_addr);
+typedef void (*MPT_ADD_CHAIN)(void *pAddr, u8 next, u16 length,
+		dma_addr_t dma_addr);
+
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
  */
@@ -600,6 +605,10 @@ typedef struct _MPT_ADAPTER
 	int			 reply_depth;	/* Num Allocated reply frames */
 	int			 reply_sz;	/* Reply frame size */
 	int			 num_chain;	/* Number of chain buffers */
+	MPT_ADD_SGE              add_sge;       /* Pointer to add_sge
+						   function */
+	MPT_ADD_CHAIN		 add_chain;	/* Pointer to add_chain
+						   function */
 		/* Pool of buffers for chaining. ReqToChain
 		 * and ChainToChain track index of chain buffers.
 		 * ChainBuffer (DMA) virt/phys addresses.
@@ -711,11 +720,14 @@ typedef struct _MPT_ADAPTER
 	struct workqueue_struct *fc_rescan_work_q;
 	struct scsi_cmnd	**ScsiLookup;
 	spinlock_t		  scsi_lookup_lock;
-
+	u64			dma_mask;
 	char			 reset_work_q_name[20];
 	struct workqueue_struct *reset_work_q;
 	struct delayed_work	 fault_reset_work;
 	spinlock_t		 fault_reset_work_lock;
+
+	u8			sg_addr_size;
+	u8			SGE_size;
 
 } MPT_ADAPTER;
 
@@ -753,13 +765,14 @@ typedef struct _mpt_sge {
 	dma_addr_t	Address;
 } MptSge_t;
 
-#define mpt_addr_size() \
-	((sizeof(dma_addr_t) == sizeof(u64)) ? MPI_SGE_FLAGS_64_BIT_ADDRESSING : \
-		MPI_SGE_FLAGS_32_BIT_ADDRESSING)
 
-#define mpt_msg_flags() \
-	((sizeof(dma_addr_t) == sizeof(u64)) ? MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_64 : \
-		MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_32)
+#define mpt_msg_flags(ioc) \
+	(ioc->sg_addr_size == sizeof(u64)) ?		\
+	MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_64 : 		\
+	MPI_SCSIIO_MSGFLGS_SENSE_WIDTH_32
+
+#define MPT_SGE_FLAGS_64_BIT_ADDRESSING \
+	(MPI_SGE_FLAGS_64_BIT_ADDRESSING << MPI_SGE_FLAGS_SHIFT)
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -909,7 +922,6 @@ extern MPT_FRAME_HDR	*mpt_get_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc);
 extern void	 mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_put_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_put_msg_frame_hi_pri(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
-extern void	 mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr);
 
 extern int	 mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);
 extern int	 mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp);
@@ -959,7 +971,6 @@ extern int mpt_fwfault_debug;
 #define MPT_SGE_FLAGS_END_OF_BUFFER		(0x40000000)
 #define MPT_SGE_FLAGS_LOCAL_ADDRESS		(0x08000000)
 #define MPT_SGE_FLAGS_DIRECTION			(0x04000000)
-#define MPT_SGE_FLAGS_ADDRESSING		(mpt_addr_size() << MPI_SGE_FLAGS_SHIFT)
 #define MPT_SGE_FLAGS_END_OF_LIST		(0x01000000)
 
 #define MPT_SGE_FLAGS_TRANSACTION_ELEMENT	(0x00000000)
@@ -972,14 +983,12 @@ extern int mpt_fwfault_debug;
 	 MPT_SGE_FLAGS_END_OF_BUFFER |	\
 	 MPT_SGE_FLAGS_END_OF_LIST |	\
 	 MPT_SGE_FLAGS_SIMPLE_ELEMENT |	\
-	 MPT_SGE_FLAGS_ADDRESSING | \
 	 MPT_TRANSFER_IOC_TO_HOST)
 #define MPT_SGE_FLAGS_SSIMPLE_WRITE \
 	(MPT_SGE_FLAGS_LAST_ELEMENT |	\
 	 MPT_SGE_FLAGS_END_OF_BUFFER |	\
 	 MPT_SGE_FLAGS_END_OF_LIST |	\
 	 MPT_SGE_FLAGS_SIMPLE_ELEMENT |	\
-	 MPT_SGE_FLAGS_ADDRESSING | \
 	 MPT_TRANSFER_HOST_TO_IOC)
 
 /*}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

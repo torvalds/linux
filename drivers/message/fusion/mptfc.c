@@ -1251,17 +1251,15 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * A slightly different algorithm is required for
 	 * 64bit SGEs.
 	 */
-	scale = ioc->req_sz/(sizeof(dma_addr_t) + sizeof(u32));
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
+	scale = ioc->req_sz/ioc->SGE_size;
+	if (ioc->sg_addr_size == sizeof(u64)) {
 		numSGE = (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 60) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 60) / ioc->SGE_size;
 	} else {
 		numSGE = 1 + (scale - 1) *
 		  (ioc->facts.MaxChainDepth-1) + scale +
-		  (ioc->req_sz - 64) / (sizeof(dma_addr_t) +
-		  sizeof(u32));
+		  (ioc->req_sz - 64) / ioc->SGE_size;
 	}
 
 	if (numSGE < sh->sg_tablesize) {

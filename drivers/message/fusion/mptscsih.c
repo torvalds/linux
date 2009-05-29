@@ -113,69 +113,6 @@ int 		mptscsih_resume(struct pci_dev *pdev);
 
 #define SNS_LEN(scp)	SCSI_SENSE_BUFFERSIZE
 
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/**
- *	mptscsih_add_sge - Place a simple SGE at address pAddr.
- *	@pAddr: virtual address for SGE
- *	@flagslength: SGE flags and data transfer length
- *	@dma_addr: Physical address
- *
- *	This routine places a MPT request frame back on the MPT adapter's
- *	FreeQ.
- */
-static inline void
-mptscsih_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr)
-{
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		SGESimple64_t *pSge = (SGESimple64_t *) pAddr;
-		u32 tmp = dma_addr & 0xFFFFFFFF;
-
-		pSge->FlagsLength = cpu_to_le32(flagslength);
-		pSge->Address.Low = cpu_to_le32(tmp);
-		tmp = (u32) ((u64)dma_addr >> 32);
-		pSge->Address.High = cpu_to_le32(tmp);
-
-	} else {
-		SGESimple32_t *pSge = (SGESimple32_t *) pAddr;
-		pSge->FlagsLength = cpu_to_le32(flagslength);
-		pSge->Address = cpu_to_le32(dma_addr);
-	}
-} /* mptscsih_add_sge() */
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/**
- *	mptscsih_add_chain - Place a chain SGE at address pAddr.
- *	@pAddr: virtual address for SGE
- *	@next: nextChainOffset value (u32's)
- *	@length: length of next SGL segment
- *	@dma_addr: Physical address
- *
- *	This routine places a MPT request frame back on the MPT adapter's
- *	FreeQ.
- */
-static inline void
-mptscsih_add_chain(char *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
-{
-	if (sizeof(dma_addr_t) == sizeof(u64)) {
-		SGEChain64_t *pChain = (SGEChain64_t *) pAddr;
-		u32 tmp = dma_addr & 0xFFFFFFFF;
-
-		pChain->Length = cpu_to_le16(length);
-		pChain->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT | mpt_addr_size();
-
-		pChain->NextChainOffset = next;
-
-		pChain->Address.Low = cpu_to_le32(tmp);
-		tmp = (u32) ((u64)dma_addr >> 32);
-		pChain->Address.High = cpu_to_le32(tmp);
-	} else {
-		SGEChain32_t *pChain = (SGEChain32_t *) pAddr;
-		pChain->Length = cpu_to_le16(length);
-		pChain->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT | mpt_addr_size();
-		pChain->NextChainOffset = next;
-		pChain->Address = cpu_to_le32(dma_addr);
-	}
-} /* mptscsih_add_chain() */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -281,10 +218,10 @@ mptscsih_AddSGE(MPT_ADAPTER *ioc, struct scsi_cmnd *SCpnt,
 	 */
 
 nextSGEset:
-	numSgeSlots = ((frm_sz - sgeOffset) / (sizeof(u32) + sizeof(dma_addr_t)) );
+	numSgeSlots = ((frm_sz - sgeOffset) / ioc->SGE_size);
 	numSgeThisFrame = (sges_left < numSgeSlots) ? sges_left : numSgeSlots;
 
-	sgflags = MPT_SGE_FLAGS_SIMPLE_ELEMENT | MPT_SGE_FLAGS_ADDRESSING | sgdir;
+	sgflags = MPT_SGE_FLAGS_SIMPLE_ELEMENT | sgdir;
 
 	/* Get first (num - 1) SG elements
 	 * Skip any SG entries with a length of 0
@@ -299,11 +236,11 @@ nextSGEset:
 		}
 
 		v2 = sg_dma_address(sg);
-		mptscsih_add_sge(psge, sgflags | thisxfer, v2);
+		ioc->add_sge(psge, sgflags | thisxfer, v2);
 
 		sg = sg_next(sg);	/* Get next SG element from the OS */
-		psge += (sizeof(u32) + sizeof(dma_addr_t));
-		sgeOffset += (sizeof(u32) + sizeof(dma_addr_t));
+		psge += ioc->SGE_size;
+		sgeOffset += ioc->SGE_size;
 		sg_done++;
 	}
 
@@ -320,12 +257,8 @@ nextSGEset:
 		thisxfer = sg_dma_len(sg);
 
 		v2 = sg_dma_address(sg);
-		mptscsih_add_sge(psge, sgflags | thisxfer, v2);
-		/*
-		sg = sg_next(sg);
-		psge += (sizeof(u32) + sizeof(dma_addr_t));
-		*/
-		sgeOffset += (sizeof(u32) + sizeof(dma_addr_t));
+		ioc->add_sge(psge, sgflags | thisxfer, v2);
+		sgeOffset += ioc->SGE_size;
 		sg_done++;
 
 		if (chainSge) {
@@ -334,7 +267,8 @@ nextSGEset:
 			 * Update the chain element
 			 * Offset and Length fields.
 			 */
-			mptscsih_add_chain((char *)chainSge, 0, sgeOffset, ioc->ChainBufferDMA + chain_dma_off);
+			ioc->add_chain((char *)chainSge, 0, sgeOffset,
+				ioc->ChainBufferDMA + chain_dma_off);
 		} else {
 			/* The current buffer is the original MF
 			 * and there is no Chain buffer.
@@ -367,7 +301,7 @@ nextSGEset:
 		 * set properly).
 		 */
 		if (sg_done) {
-			u32 *ptmp = (u32 *) (psge - (sizeof(u32) + sizeof(dma_addr_t)));
+			u32 *ptmp = (u32 *) (psge - ioc->SGE_size);
 			sgflags = le32_to_cpu(*ptmp);
 			sgflags |= MPT_SGE_FLAGS_LAST_ELEMENT;
 			*ptmp = cpu_to_le32(sgflags);
@@ -381,8 +315,9 @@ nextSGEset:
 			 * Old chain element is now complete.
 			 */
 			u8 nextChain = (u8) (sgeOffset >> 2);
-			sgeOffset += (sizeof(u32) + sizeof(dma_addr_t));
-			mptscsih_add_chain((char *)chainSge, nextChain, sgeOffset, ioc->ChainBufferDMA + chain_dma_off);
+			sgeOffset += ioc->SGE_size;
+			ioc->add_chain((char *)chainSge, nextChain, sgeOffset,
+					 ioc->ChainBufferDMA + chain_dma_off);
 		} else {
 			/* The original MF buffer requires a chain buffer -
 			 * set the offset.
@@ -1422,7 +1357,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	pScsiReq->CDBLength = SCpnt->cmd_len;
 	pScsiReq->SenseBufferLength = MPT_SENSE_BUFFER_SIZE;
 	pScsiReq->Reserved = 0;
-	pScsiReq->MsgFlags = mpt_msg_flags();
+	pScsiReq->MsgFlags = mpt_msg_flags(ioc);
 	int_to_scsilun(SCpnt->device->lun, (struct scsi_lun *)pScsiReq->LUN);
 	pScsiReq->Control = cpu_to_le32(scsictl);
 
@@ -1448,7 +1383,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	 */
 	if (datalen == 0) {
 		/* Add a NULL SGE */
-		mptscsih_add_sge((char *)&pScsiReq->SGL, MPT_SGE_FLAGS_SSIMPLE_READ | 0,
+		ioc->add_sge((char *)&pScsiReq->SGL,
+			MPT_SGE_FLAGS_SSIMPLE_READ | 0,
 			(dma_addr_t) -1);
 	} else {
 		/* Add a 32 or 64 bit SGE */
@@ -3172,7 +3108,7 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
 
 	pScsiReq->Reserved = 0;
 
-	pScsiReq->MsgFlags = mpt_msg_flags();
+	pScsiReq->MsgFlags = mpt_msg_flags(ioc);
 	/* MsgContext set in mpt_get_msg_fram call  */
 
 	int_to_scsilun(io->lun, (struct scsi_lun *)pScsiReq->LUN);
@@ -3199,11 +3135,11 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
 			ioc->name, cmd, io->channel, io->id, io->lun));
 
 	if (dir == MPI_SCSIIO_CONTROL_READ) {
-		mpt_add_sge((char *) &pScsiReq->SGL,
+		ioc->add_sge((char *) &pScsiReq->SGL,
 			MPT_SGE_FLAGS_SSIMPLE_READ | io->size,
 			io->data_dma);
 	} else {
-		mpt_add_sge((char *) &pScsiReq->SGL,
+		ioc->add_sge((char *) &pScsiReq->SGL,
 			MPT_SGE_FLAGS_SSIMPLE_WRITE | io->size,
 			io->data_dma);
 	}
