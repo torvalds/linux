@@ -109,11 +109,75 @@ static void create_perfstat_counter(int counter)
 	}
 }
 
+/*
+ * Does the counter have nsecs as a unit?
+ */
+static inline int nsec_counter(int counter)
+{
+	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK))
+		return 1;
+	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK))
+		return 1;
+
+	return 0;
+}
+
+/*
+ * Print out the results of a single counter:
+ */
+static void print_counter(int counter)
+{
+	__u64 count[3], single_count[3];
+	ssize_t res;
+	int cpu, nv;
+	int scaled;
+
+	count[0] = count[1] = count[2] = 0;
+	nv = scale ? 3 : 1;
+	for (cpu = 0; cpu < nr_cpus; cpu ++) {
+		res = read(fd[cpu][counter], single_count, nv * sizeof(__u64));
+		assert(res == nv * sizeof(__u64));
+
+		count[0] += single_count[0];
+		if (scale) {
+			count[1] += single_count[1];
+			count[2] += single_count[2];
+		}
+	}
+
+	scaled = 0;
+	if (scale) {
+		if (count[2] == 0) {
+			fprintf(stderr, " %14s  %-20s\n",
+				"<not counted>", event_name(counter));
+			return;
+		}
+		if (count[2] < count[1]) {
+			scaled = 1;
+			count[0] = (unsigned long long)
+				((double)count[0] * count[1] / count[2] + 0.5);
+		}
+	}
+
+	if (nsec_counter(counter)) {
+		double msecs = (double)count[0] / 1000000;
+
+		fprintf(stderr, " %14.6f  %-20s (msecs)",
+			msecs, event_name(counter));
+	} else {
+		fprintf(stderr, " %14Ld  %-20s (events)",
+			count[0], event_name(counter));
+	}
+	if (scaled)
+		fprintf(stderr, "  (scaled from %.2f%%)",
+			(double) count[2] / count[1] * 100);
+	fprintf(stderr, "\n");
+}
+
 static int do_perfstat(int argc, const char **argv)
 {
 	unsigned long long t0, t1;
 	int counter;
-	ssize_t res;
 	int status;
 	int pid;
 
@@ -149,55 +213,10 @@ static int do_perfstat(int argc, const char **argv)
 		argv[0]);
 	fprintf(stderr, "\n");
 
-	for (counter = 0; counter < nr_counters; counter++) {
-		int cpu, nv;
-		__u64 count[3], single_count[3];
-		int scaled;
+	for (counter = 0; counter < nr_counters; counter++)
+		print_counter(counter);
 
-		count[0] = count[1] = count[2] = 0;
-		nv = scale ? 3 : 1;
-		for (cpu = 0; cpu < nr_cpus; cpu ++) {
-			res = read(fd[cpu][counter],
-				   single_count, nv * sizeof(__u64));
-			assert(res == nv * sizeof(__u64));
 
-			count[0] += single_count[0];
-			if (scale) {
-				count[1] += single_count[1];
-				count[2] += single_count[2];
-			}
-		}
-
-		scaled = 0;
-		if (scale) {
-			if (count[2] == 0) {
-				fprintf(stderr, " %14s  %-20s\n",
-					"<not counted>", event_name(counter));
-				continue;
-			}
-			if (count[2] < count[1]) {
-				scaled = 1;
-				count[0] = (unsigned long long)
-					((double)count[0] * count[1] / count[2] + 0.5);
-			}
-		}
-
-		if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK) ||
-		    event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK)) {
-
-			double msecs = (double)count[0] / 1000000;
-
-			fprintf(stderr, " %14.6f  %-20s (msecs)",
-				msecs, event_name(counter));
-		} else {
-			fprintf(stderr, " %14Ld  %-20s (events)",
-				count[0], event_name(counter));
-		}
-		if (scaled)
-			fprintf(stderr, "  (scaled from %.2f%%)",
-				(double) count[2] / count[1] * 100);
-		fprintf(stderr, "\n");
-	}
 	fprintf(stderr, "\n");
 	fprintf(stderr, " Wall-clock time elapsed: %12.6f msecs\n",
 			(double)(t1-t0)/1e6);
@@ -212,7 +231,6 @@ static void skip_signal(int signo)
 
 static const char * const stat_usage[] = {
 	"perf stat [<options>] <command>",
-	"perf stat [<options>] -- <command> [<options>]",
 	NULL
 };
 
