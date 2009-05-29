@@ -234,15 +234,18 @@ static void __perf_counter_remove_from_context(void *info)
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
 
+	local_irq_save(flags);
 	/*
 	 * If this is a task context, we need to check whether it is
 	 * the current task context of this cpu. If not it has been
 	 * scheduled out before the smp call arrived.
 	 */
-	if (ctx->task && cpuctx->task_ctx != ctx)
+	if (ctx->task && cpuctx->task_ctx != ctx) {
+		local_irq_restore(flags);
 		return;
+	}
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock(&ctx->lock);
 	/*
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level.
@@ -382,14 +385,17 @@ static void __perf_counter_disable(void *info)
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
 
+	local_irq_save(flags);
 	/*
 	 * If this is a per-task counter, need to check whether this
 	 * counter's task is the current task on this cpu.
 	 */
-	if (ctx->task && cpuctx->task_ctx != ctx)
+	if (ctx->task && cpuctx->task_ctx != ctx) {
+		local_irq_restore(flags);
 		return;
+	}
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock(&ctx->lock);
 
 	/*
 	 * If the counter is on, turn it off.
@@ -615,6 +621,7 @@ static void __perf_install_in_context(void *info)
 	unsigned long flags;
 	int err;
 
+	local_irq_save(flags);
 	/*
 	 * If this is a task context, we need to check whether it is
 	 * the current task context of this cpu. If not it has been
@@ -623,12 +630,14 @@ static void __perf_install_in_context(void *info)
 	 * on this cpu because it had no counters.
 	 */
 	if (ctx->task && cpuctx->task_ctx != ctx) {
-		if (cpuctx->task_ctx || ctx->task != current)
+		if (cpuctx->task_ctx || ctx->task != current) {
+			local_irq_restore(flags);
 			return;
+		}
 		cpuctx->task_ctx = ctx;
 	}
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock(&ctx->lock);
 	ctx->is_active = 1;
 	update_context_time(ctx);
 
@@ -745,17 +754,20 @@ static void __perf_counter_enable(void *info)
 	unsigned long flags;
 	int err;
 
+	local_irq_save(flags);
 	/*
 	 * If this is a per-task counter, need to check whether this
 	 * counter's task is the current task on this cpu.
 	 */
 	if (ctx->task && cpuctx->task_ctx != ctx) {
-		if (cpuctx->task_ctx || ctx->task != current)
+		if (cpuctx->task_ctx || ctx->task != current) {
+			local_irq_restore(flags);
 			return;
+		}
 		cpuctx->task_ctx = ctx;
 	}
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	spin_lock(&ctx->lock);
 	ctx->is_active = 1;
 	update_context_time(ctx);
 
