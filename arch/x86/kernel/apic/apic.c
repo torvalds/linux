@@ -1135,7 +1135,7 @@ void __cpuinit setup_local_APIC(void)
 		apic_write(APIC_ESR, 0);
 	}
 #endif
-	perf_counters_lapic_init(0);
+	perf_counters_lapic_init();
 
 	preempt_disable();
 

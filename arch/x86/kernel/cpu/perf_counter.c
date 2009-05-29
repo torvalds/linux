@@ -604,7 +604,7 @@ try_generic:
 		hwc->counter_base = x86_pmu.perfctr;
 	}
 
-	perf_counters_lapic_init(hwc->nmi);
+	perf_counters_lapic_init();
 
 	x86_pmu.disable(hwc, idx);
 
@@ -863,24 +863,15 @@ void set_perf_counter_pending(void)
 	apic->send_IPI_self(LOCAL_PENDING_VECTOR);
 }
 
-void perf_counters_lapic_init(int nmi)
+void perf_counters_lapic_init(void)
 {
-	u32 apic_val;
-
 	if (!x86_pmu_initialized())
 		return;
 
 	/*
-	 * Enable the performance counter vector in the APIC LVT:
+	 * Always use NMI for PMU
 	 */
-	apic_val = apic_read(APIC_LVTERR);
-
-	apic_write(APIC_LVTERR, apic_val | APIC_LVT_MASKED);
-	if (nmi)
-		apic_write(APIC_LVTPC, APIC_DM_NMI);
-	else
-		apic_write(APIC_LVTPC, LOCAL_PERF_VECTOR);
-	apic_write(APIC_LVTERR, apic_val);
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
 }
 
 static int __kprobes
@@ -1054,7 +1045,7 @@ void __init init_hw_perf_counters(void)
 
 	pr_info("... counter mask:    %016Lx\n", perf_counter_mask);
 
-	perf_counters_lapic_init(0);
+	perf_counters_lapic_init();
 	register_die_notifier(&perf_counter_nmi_notifier);
 }
 

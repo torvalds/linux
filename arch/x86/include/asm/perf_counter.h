@@ -91,10 +91,10 @@ extern void set_perf_counter_pending(void);
 
 #ifdef CONFIG_PERF_COUNTERS
 extern void init_hw_perf_counters(void);
-extern void perf_counters_lapic_init(int nmi);
+extern void perf_counters_lapic_init(void);
 #else
 static inline void init_hw_perf_counters(void)		{ }
-static inline void perf_counters_lapic_init(int nmi)	{ }
+static inline void perf_counters_lapic_init(void)	{ }
 #endif
 
 #endif /* _ASM_X86_PERF_COUNTER_H */
