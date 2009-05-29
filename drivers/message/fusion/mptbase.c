@@ -341,7 +341,7 @@ mpt_fault_reset_work(struct work_struct *work)
 	int		 rc;
 	unsigned long	 flags;
 
-	if (ioc->diagPending || !ioc->active)
+	if (ioc->ioc_reset_in_progress || !ioc->active)
 		goto out;
 
 	ioc_raw_state = mpt_GetIocState(ioc, 0);
@@ -1771,14 +1771,15 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->reply_sz = MPT_REPLY_FRAME_SIZE;
 
 	ioc->pcidev = pdev;
-	ioc->diagPending = 0;
-	spin_lock_init(&ioc->diagLock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
+	spin_lock_init(&ioc->taskmgmt_lock);
 	mutex_init(&ioc->internal_cmds.mutex);
 	init_completion(&ioc->internal_cmds.done);
 	mutex_init(&ioc->mptbase_cmds.mutex);
 	init_completion(&ioc->mptbase_cmds.done);
+	mutex_init(&ioc->taskmgmt_cmds.mutex);
+	init_completion(&ioc->taskmgmt_cmds.done);
 
 	/* Initialize the event logging.
 	 */
@@ -6572,6 +6573,53 @@ mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buffer, int *size, int len, int sh
 
 	*size = y;
 }
+/**
+ *	mpt_set_taskmgmt_in_progress_flag - set flags associated with task managment
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *
+ *	Returns 0 for SUCCESS or -1 if FAILED.
+ *
+ *	If -1 is return, then it was not possible to set the flags
+ **/
+int
+mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+	int		 retval;
+
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	if (ioc->ioc_reset_in_progress || ioc->taskmgmt_in_progress ||
+	    (ioc->alt_ioc && ioc->alt_ioc->taskmgmt_in_progress)) {
+		retval = -1;
+		goto out;
+	}
+	retval = 0;
+	ioc->taskmgmt_in_progress = 1;
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->taskmgmt_in_progress = 1;
+ out:
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+	return retval;
+}
+EXPORT_SYMBOL(mpt_set_taskmgmt_in_progress_flag);
+
+/**
+ *	mpt_clear_taskmgmt_in_progress_flag - clear flags associated with task managment
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *
+ **/
+void
+mpt_clear_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
+{
+	unsigned long	 flags;
+
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	ioc->taskmgmt_in_progress = 0;
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->taskmgmt_in_progress = 0;
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+}
+EXPORT_SYMBOL(mpt_clear_taskmgmt_in_progress_flag);
 
 
 /**
@@ -6638,14 +6686,15 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	/* Reset the adapter. Prevent more than 1 call to
 	 * mpt_do_ioc_recovery at any instant in time.
 	 */
-	spin_lock_irqsave(&ioc->diagLock, flags);
-	if ((ioc->diagPending) || (ioc->alt_ioc && ioc->alt_ioc->diagPending)){
-		spin_unlock_irqrestore(&ioc->diagLock, flags);
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	if (ioc->ioc_reset_in_progress) {
+		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 		return 0;
-	} else {
-		ioc->diagPending = 1;
 	}
-	spin_unlock_irqrestore(&ioc->diagLock, flags);
+	ioc->ioc_reset_in_progress = 1;
+	if (ioc->alt_ioc)
+		ioc->alt_ioc->ioc_reset_in_progress = 1;
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 
 	/* FIXME: If do_ioc_recovery fails, repeat....
 	 */
@@ -6680,11 +6729,14 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	if (ioc->alt_ioc)
 		ioc->alt_ioc->reload_fw = 0;
 
-	spin_lock_irqsave(&ioc->diagLock, flags);
-	ioc->diagPending = 0;
-	if (ioc->alt_ioc)
-		ioc->alt_ioc->diagPending = 0;
-	spin_unlock_irqrestore(&ioc->diagLock, flags);
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	ioc->ioc_reset_in_progress = 0;
+	ioc->taskmgmt_in_progress = 0;
+	if (ioc->alt_ioc) {
+		ioc->alt_ioc->ioc_reset_in_progress = 0;
+		ioc->alt_ioc->taskmgmt_in_progress = 0;
+	}
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 
 	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "HardResetHandler rc = %d!\n", ioc->name, rc));
 

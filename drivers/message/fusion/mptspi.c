@@ -1522,7 +1522,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * issue internal bus reset
 	 */
 	if (ioc->spi_data.bus_reset)
-		mptscsih_TMHandler(hd,
+		mptscsih_IssueTaskMgmt(hd,
 		    MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
 		    0, 0, 0, 0, 5);
 

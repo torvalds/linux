@@ -657,8 +657,6 @@ typedef struct _MPT_ADAPTER
 	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;
 	struct _MPT_ADAPTER	*alt_ioc;	/* ptr to 929 bound adapter port */
-	spinlock_t		 diagLock;	/* diagnostic reset lock */
-	int			 diagPending;
 	u32			 biosVersion;	/* BIOS version from IO Unit Page 2 */
 	int			 eventTypes;	/* Event logging parameters */
 	int			 eventContext;	/* Next event context */
@@ -712,6 +710,10 @@ typedef struct _MPT_ADAPTER
 	MPT_MGMT		 sas_mgmt;
 	MPT_MGMT		 mptbase_cmds; /* for sending config pages */
 	MPT_MGMT		 internal_cmds;
+	MPT_MGMT		 taskmgmt_cmds;
+	spinlock_t		 taskmgmt_lock; /* diagnostic reset lock */
+	int			 taskmgmt_in_progress;
+	u8			 ioc_reset_in_progress;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
@@ -931,6 +933,8 @@ extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
 extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhysDiskPage0_t phys_disk);
+extern int	 mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
+extern void	 mpt_clear_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc);
 extern void     mpt_halt_firmware(MPT_ADAPTER *ioc);
 
 
