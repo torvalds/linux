@@ -368,7 +368,7 @@ static int parse_symbols(void)
 
 	node = rb_last(&kernel_dso->syms);
 	sym = rb_entry(node, struct symbol, rb_node);
-	max_ip = sym->start;
+	max_ip = sym->end;
 
 	if (dump_symtab)
 		dso__fprintf(kernel_dso, stderr);
