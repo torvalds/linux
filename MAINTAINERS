@@ -624,6 +624,7 @@ M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 T:	git git://gitorious.org/linux-gemini/mainline.git
 S:	Maintained
+F:	arch/arm/mach-gemini/
 
 ARM/EBSA110 MACHINE SUPPORT
 P:	Russell King
@@ -650,6 +651,7 @@ P:	Paulius Zaleckas
 M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
 P:	Russell King
