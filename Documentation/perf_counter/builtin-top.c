@@ -129,6 +129,8 @@ struct sym_entry {
 	struct rb_node		rb_node;
 	struct list_head	node;
 	unsigned long		count[MAX_COUNTERS];
+	unsigned long		snap_count;
+	double			weight;
 	int			skip;
 };
 
@@ -141,16 +143,15 @@ struct dso *kernel_dso;
  * after decayed.
  */
 static LIST_HEAD(active_symbols);
+static pthread_mutex_t active_symbols_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Ordering weight: count-1 * count-2 * ... / count-n
  */
 static double sym_weight(const struct sym_entry *sym)
 {
-	double weight;
+	double weight = sym->snap_count;
 	int counter;
-
-	weight = sym->count[0];
 
 	for (counter = 1; counter < nr_counters-1; counter++)
 		weight *= sym->count[counter];
@@ -164,9 +165,16 @@ static long			events;
 static long			userspace_events;
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
-static void list_insert_active_sym(struct sym_entry *syme)
+static void __list_insert_active_sym(struct sym_entry *syme)
 {
 	list_add(&syme->node, &active_symbols);
+}
+
+static void list_remove_active_sym(struct sym_entry *syme)
+{
+	pthread_mutex_lock(&active_symbols_lock);
+	list_del_init(&syme->node);
+	pthread_mutex_unlock(&active_symbols_lock);
 }
 
 static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
@@ -179,7 +187,7 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 		parent = *p;
 		iter = rb_entry(parent, struct sym_entry, rb_node);
 
-		if (sym_weight(se) > sym_weight(iter))
+		if (se->weight > iter->weight)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -203,15 +211,21 @@ static void print_sym_table(void)
 	events = userspace_events = 0;
 
 	/* Sort the active symbols */
-	list_for_each_entry_safe(syme, n, &active_symbols, node) {
-		if (syme->count[0] != 0) {
+	pthread_mutex_lock(&active_symbols_lock);
+	syme = list_entry(active_symbols.next, struct sym_entry, node);
+	pthread_mutex_unlock(&active_symbols_lock);
+
+	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
+		syme->snap_count = syme->count[0];
+		if (syme->snap_count != 0) {
+			syme->weight = sym_weight(syme);
 			rb_insert_active_sym(&tmp, syme);
-			sum_kevents += syme->count[0];
+			sum_kevents += syme->snap_count;
 
 			for (j = 0; j < nr_counters; j++)
 				syme->count[j] = zero ? 0 : syme->count[j] * 7 / 8;
 		} else
-			list_del_init(&syme->node);
+			list_remove_active_sym(syme);
 	}
 
 	write(1, CONSOLE_CLEAR, strlen(CONSOLE_CLEAR));
@@ -264,19 +278,18 @@ static void print_sym_table(void)
 		struct symbol *sym = (struct symbol *)(syme + 1);
 		float pcnt;
 
-		if (++printed > 18 || syme->count[0] < count_filter)
-			break;
+		if (++printed > 18 || syme->snap_count < count_filter)
+			continue;
 
-		pcnt = 100.0 - (100.0 * ((sum_kevents - syme->count[0]) /
+		pcnt = 100.0 - (100.0 * ((sum_kevents - syme->snap_count) /
 					 sum_kevents));
 
 		if (nr_counters == 1)
 			printf("%19.2f - %4.1f%% - %016llx : %s\n",
-				sym_weight(syme),
-				pcnt, sym->start, sym->name);
+				syme->weight, pcnt, sym->start, sym->name);
 		else
 			printf("%8.1f %10ld - %4.1f%% - %016llx : %s\n",
-				sym_weight(syme), syme->count[0],
+				syme->weight, syme->snap_count,
 				pcnt, sym->start, sym->name);
 	}
 
@@ -395,8 +408,10 @@ static void record_ip(uint64_t ip, int counter)
 
 		if (!syme->skip) {
 			syme->count[counter]++;
+			pthread_mutex_lock(&active_symbols_lock);
 			if (list_empty(&syme->node) || !syme->node.next)
-				list_insert_active_sym(syme);
+				__list_insert_active_sym(syme);
+			pthread_mutex_unlock(&active_symbols_lock);
 			return;
 		}
 	}
