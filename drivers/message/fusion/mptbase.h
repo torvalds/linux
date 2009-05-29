@@ -434,18 +434,6 @@ do { \
 
 #define MPTCTL_RESET_OK			0x01	/* Issue Bus Reset */
 
-typedef struct _MPT_IOCTL {
-	struct _MPT_ADAPTER	*ioc;
-	u8			 ReplyFrame[MPT_DEFAULT_FRAME_SIZE];	/* reply frame data */
-	u8			 sense[MPT_SENSE_BUFFER_ALLOC];
-	int			 wait_done;	/* wake-up value for this ioc */
-	u8			 rsvd;
-	u8			 status;	/* current command status */
-	u8			 reset;		/* 1 if bus reset allowed */
-	u8			 id;		/* target for reset */
-	struct mutex		 ioctl_mutex;
-} MPT_IOCTL;
-
 #define MPT_MGMT_STATUS_RF_VALID	0x01	/* The Reply Frame is VALID */
 #define MPT_MGMT_STATUS_COMMAND_GOOD	0x02	/* Command Status GOOD */
 #define MPT_MGMT_STATUS_PENDING		0x04	/* command is pending */
@@ -460,6 +448,10 @@ typedef struct _MPT_IOCTL {
 	status = MPT_MGMT_STATUS_PENDING;
 #define CLEAR_MGMT_STATUS(status) \
 	status = 0;
+#define CLEAR_MGMT_PENDING_STATUS(status) \
+	status &= ~MPT_MGMT_STATUS_PENDING;
+#define SET_MGMT_MSG_CONTEXT(msg_context, value) \
+	msg_context = value;
 
 typedef struct _MPT_MGMT {
 	struct mutex		 mutex;
@@ -468,6 +460,7 @@ typedef struct _MPT_MGMT {
 	u8			 sense[MPT_SENSE_BUFFER_ALLOC];
 	u8			 status;	/* current command status */
 	int			 completion_code;
+	u32			 msg_context;
 } MPT_MGMT;
 
 /*
@@ -654,7 +647,6 @@ typedef struct _MPT_ADAPTER
 	RaidCfgData		raid_data;	/* Raid config. data */
 	SasCfgData		sas_data;	/* Sas config. data */
 	FcCfgData		fc_data;	/* Fc config. data */
-	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;
 	struct _MPT_ADAPTER	*alt_ioc;	/* ptr to 929 bound adapter port */
 	u32			 biosVersion;	/* BIOS version from IO Unit Page 2 */
@@ -711,6 +703,7 @@ typedef struct _MPT_ADAPTER
 	MPT_MGMT		 mptbase_cmds; /* for sending config pages */
 	MPT_MGMT		 internal_cmds;
 	MPT_MGMT		 taskmgmt_cmds;
+	MPT_MGMT		 ioctl_cmds;
 	spinlock_t		 taskmgmt_lock; /* diagnostic reset lock */
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
@@ -855,10 +848,8 @@ typedef struct _MPT_SCSI_HOST {
 		/* Pool of memory for holding SCpnts before doing
 		 * OS callbacks. freeQ is the free pool.
 		 */
-	u8			  tmPending;
 	u8			  negoNvram;		/* DV disabled, nego NVRAM */
 	u8			  pad1;
-	u8                        tmState;
 	u8			  rsvd[2];
 	MPT_FRAME_HDR		 *cmdPtr;		/* Ptr to nonOS request */
 	struct scsi_cmnd	 *abortSCpnt;

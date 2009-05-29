@@ -1895,8 +1895,6 @@ mptscsih_host_reset(struct scsi_cmnd *SCpnt)
 		 *  NONE.
 		 */
 		retval = 0;
-		hd->tmPending = 0;
-		hd->tmState = TM_STATE_NONE;
 	}
 
 	printk(MYIOC_s_INFO_FMT "host reset: %s (sc=%p)\n",

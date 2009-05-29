@@ -553,14 +553,20 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
 	MPT_FRAME_HDR	*mf;
 	SCSITaskMgmt_t	*pScsiTm;
+	if (mpt_set_taskmgmt_in_progress_flag(ioc) != 0)
+		return 0;
+
 
 	mf = mpt_get_msg_frame(mptsasDeviceResetCtx, ioc);
 	if (mf == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
-			"%s, no msg frames @%d!!\n",
-			ioc->name, __func__, __LINE__));
-		return 0;
+			"%s, no msg frames @%d!!\n", ioc->name,
+			__func__, __LINE__));
+		goto out_fail;
 	}
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request (mf=%p)\n",
+		ioc->name, mf));
 
 	/* Format the Request
 	 */
@@ -574,9 +580,18 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 
 	DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)mf);
 
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	   "TaskMgmt type=%d (sas device delete) fw_channel = %d fw_id = %d)\n",
+	   ioc->name, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET, channel, id));
+
 	mpt_put_msg_frame_hi_pri(mptsasDeviceResetCtx, ioc, mf);
 
 	return 1;
+
+ out_fail:
+
+	mpt_clear_taskmgmt_in_progress_flag(ioc);
+	return 0;
 }
 
 /**
@@ -719,8 +734,11 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	if (!ev) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, failed to allocate mem @%d..!!\n",
 		    ioc->name,__func__, __LINE__));
-		return 0;
+		goto out_fail;
 	}
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "TaskMgmt request (mf=%p)\n",
+		ioc->name, mf));
 
 	INIT_WORK(&ev->work, mptsas_hotplug_work);
 	ev->ioc = ioc;
@@ -734,9 +752,18 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	    sizeof(__le64));
 	ev->sas_address = le64_to_cpu(sas_address);
 	ev->device_info = le32_to_cpu(sas_event_data->DeviceInfo);
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	   "TaskMgmt type=%d (sas device delete) fw_channel = %d fw_id = %d)\n",
+	   ioc->name, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET, channel, id));
+
 	ev->event_type = MPTSAS_DEL_DEVICE;
 	schedule_work(&ev->work);
 	kfree(target_reset_list);
+
+ out_fail:
+
+	mpt_clear_taskmgmt_in_progress_flag(ioc);
+	return 0;
 
 
 	/*
@@ -3291,8 +3318,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Clear the TM flags
 	 */
-	hd->tmPending = 0;
-	hd->tmState = TM_STATE_NONE;
 	hd->abortSCpnt = NULL;
 
 	/* Clear the pointer used to store
