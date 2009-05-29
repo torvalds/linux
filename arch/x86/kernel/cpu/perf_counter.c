@@ -1298,23 +1298,22 @@ static int intel_pmu_init(void)
 	if (version < 2)
 		return -ENODEV;
 
-	x86_pmu = intel_pmu;
-	x86_pmu.version = version;
-	x86_pmu.num_counters = eax.split.num_counters;
+	x86_pmu				= intel_pmu;
+	x86_pmu.version			= version;
+	x86_pmu.num_counters		= eax.split.num_counters;
+	x86_pmu.counter_bits		= eax.split.bit_width;
+	x86_pmu.counter_mask		= (1ULL << eax.split.bit_width) - 1;
 
 	/*
 	 * Quirk: v2 perfmon does not report fixed-purpose counters, so
 	 * assume at least 3 counters:
 	 */
-	x86_pmu.num_counters_fixed = max((int)edx.split.num_counters_fixed, 3);
-
-	x86_pmu.counter_bits = eax.split.bit_width;
-	x86_pmu.counter_mask = (1ULL << eax.split.bit_width) - 1;
+	x86_pmu.num_counters_fixed	= max((int)edx.split.num_counters_fixed, 3);
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
 	/*
-	 * Nehalem:
+	 * Install the hw-cache-events table:
 	 */
 	switch (boot_cpu_data.x86_model) {
 	case 17:
@@ -1322,7 +1321,7 @@ static int intel_pmu_init(void)
 		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
 			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
 
-		pr_info("... installed Core2 event tables\n");
+		pr_cont("Core2 events, ");
 		break;
 	default:
 	case 26:
@@ -1330,14 +1329,14 @@ static int intel_pmu_init(void)
 		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
 			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
 
-		pr_info("... installed Nehalem/Corei7 event tables\n");
+		pr_cont("Nehalem/Corei7 events, ");
 		break;
 	case 28:
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
 			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
 
-		pr_info("... installed Atom event tables\n");
+		pr_cont("Atom events, ");
 		break;
 	}
 	return 0;
@@ -1353,6 +1352,8 @@ void __init init_hw_perf_counters(void)
 {
 	int err;
 
+	pr_info("Performance Counters: ");
+
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		err = intel_pmu_init();
@@ -1363,14 +1364,13 @@ void __init init_hw_perf_counters(void)
 	default:
 		return;
 	}
-	if (err != 0)
+	if (err != 0) {
+		pr_cont("no PMU driver, software counters only.\n");
 		return;
+	}
 
-	pr_info("%s Performance Monitoring support detected.\n", x86_pmu.name);
-	pr_info("... version:         %d\n", x86_pmu.version);
-	pr_info("... bit width:       %d\n", x86_pmu.counter_bits);
+	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
-	pr_info("... num counters:    %d\n", x86_pmu.num_counters);
 	if (x86_pmu.num_counters > X86_PMC_MAX_GENERIC) {
 		x86_pmu.num_counters = X86_PMC_MAX_GENERIC;
 		WARN(1, KERN_ERR "hw perf counters %d > max(%d), clipping!",
@@ -1379,23 +1379,25 @@ void __init init_hw_perf_counters(void)
 	perf_counter_mask = (1 << x86_pmu.num_counters) - 1;
 	perf_max_counters = x86_pmu.num_counters;
 
-	pr_info("... value mask:      %016Lx\n", x86_pmu.counter_mask);
-	pr_info("... max period:      %016Lx\n", x86_pmu.max_period);
-
 	if (x86_pmu.num_counters_fixed > X86_PMC_MAX_FIXED) {
 		x86_pmu.num_counters_fixed = X86_PMC_MAX_FIXED;
 		WARN(1, KERN_ERR "hw perf counters fixed %d > max(%d), clipping!",
 		     x86_pmu.num_counters_fixed, X86_PMC_MAX_FIXED);
 	}
-	pr_info("... fixed counters:  %d\n", x86_pmu.num_counters_fixed);
 
 	perf_counter_mask |=
 		((1LL << x86_pmu.num_counters_fixed)-1) << X86_PMC_IDX_FIXED;
 
-	pr_info("... counter mask:    %016Lx\n", perf_counter_mask);
-
 	perf_counters_lapic_init();
 	register_die_notifier(&perf_counter_nmi_notifier);
+
+	pr_info("... version:                 %d\n",     x86_pmu.version);
+	pr_info("... bit width:               %d\n",     x86_pmu.counter_bits);
+	pr_info("... generic counters:        %d\n",     x86_pmu.num_counters);
+	pr_info("... value mask:              %016Lx\n", x86_pmu.counter_mask);
+	pr_info("... max period:              %016Lx\n", x86_pmu.max_period);
+	pr_info("... fixed-purpose counters:  %d\n",     x86_pmu.num_counters_fixed);
+	pr_info("... counter mask:            %016Lx\n", perf_counter_mask);
 }
 
 static inline void x86_pmu_read(struct perf_counter *counter)
