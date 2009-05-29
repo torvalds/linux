@@ -62,7 +62,7 @@ void __init davinci_init_i2c(struct davinci_i2c_platform_data *pdata)
 
 #if	defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
 
-static u64 mmcsd0_dma_mask = DMA_32BIT_MASK;
+static u64 mmcsd0_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource mmcsd0_resources[] = {
 	{
@@ -95,13 +95,13 @@ static struct platform_device davinci_mmcsd0_device = {
 	.id = 0,
 	.dev = {
 		.dma_mask = &mmcsd0_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources = ARRAY_SIZE(mmcsd0_resources),
 	.resource = mmcsd0_resources,
 };
 
-static u64 mmcsd1_dma_mask = DMA_32BIT_MASK;
+static u64 mmcsd1_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource mmcsd1_resources[] = {
 	{
@@ -132,7 +132,7 @@ static struct platform_device davinci_mmcsd1_device = {
 	.id = 1,
 	.dev = {
 		.dma_mask = &mmcsd1_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources = ARRAY_SIZE(mmcsd1_resources),
 	.resource = mmcsd1_resources,
