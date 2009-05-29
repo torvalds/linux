@@ -1644,7 +1644,9 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	const void __user *fp;
 	int nr = entry->nr;
 
-	regs = (struct pt_regs *)current->thread.sp0 - 1;
+	if (!user_mode(regs))
+		regs = task_pt_regs(current);
+
 	fp   = (void __user *)regs->bp;
 
 	callchain_store(entry, regs->ip);
@@ -1656,7 +1658,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if (!copy_stack_frame(fp, &frame))
 			break;
 
-		if ((unsigned long)fp < user_stack_pointer(regs))
+		if ((unsigned long)fp < regs->sp)
 			break;
 
 		callchain_store(entry, frame.return_address);
