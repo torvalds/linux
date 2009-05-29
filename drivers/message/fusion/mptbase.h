@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.08"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.08"
+#define MPT_LINUX_VERSION_COMMON	"3.04.09"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.09"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -711,6 +711,7 @@ typedef struct _MPT_ADAPTER
 	u16			 hba_port_num_phy;
 	struct list_head	 sas_device_info_list;
 	struct mutex		 sas_device_info_mutex;
+	u8			 old_sas_discovery_protocal;
 	u8			 sas_discovery_quiesce_io;
 	int			 sas_index; /* index refrencing */
 	MPT_MGMT		 sas_mgmt;
@@ -741,6 +742,7 @@ typedef struct _MPT_ADAPTER
 	spinlock_t		 fault_reset_work_lock;
 
 	u8			sg_addr_size;
+	u8			in_rescan;
 	u8			SGE_size;
 
 } MPT_ADAPTER;
