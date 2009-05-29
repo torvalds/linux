@@ -2288,7 +2288,7 @@ unsigned int skb_seq_read(unsigned int consumed, const u8 **data,
 next_skb:
 	block_limit = skb_headlen(st->cur_skb) + st->stepped_offset;
 
-	if (abs_offset < block_limit) {
+	if (abs_offset < block_limit && !st->frag_data) {
 		*data = st->cur_skb->data + (abs_offset - st->stepped_offset);
 		return block_limit - abs_offset;
 	}

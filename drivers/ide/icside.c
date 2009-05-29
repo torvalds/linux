@@ -466,7 +466,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	struct ide_host *host;
 	unsigned int sel = 0;
 	int ret;
-	hw_regs_t hw[2], *hws[] = { &hw[0], NULL, NULL, NULL };
+	hw_regs_t hw[2], *hws[] = { &hw[0], &hw[1], NULL, NULL };
 	struct ide_port_info d = icside_v6_port_info;
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);

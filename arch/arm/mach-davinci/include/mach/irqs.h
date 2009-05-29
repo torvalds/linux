@@ -30,6 +30,9 @@
 /* Base address */
 #define DAVINCI_ARM_INTC_BASE 0x01C48000
 
+#define DAVINCI_INTC_TYPE_AINTC		0
+#define DAVINCI_INTC_TYPE_CP_INTC	1
+
 /* Interrupt lines */
 #define IRQ_VDINT0       0
 #define IRQ_VDINT1       1

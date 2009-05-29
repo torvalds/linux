@@ -592,3 +592,17 @@ int maple_pci_get_legacy_ide_irq(struct pci_dev *pdev, int channel)
 	}
 	return irq;
 }
+
+static void __devinit quirk_ipr_msi(struct pci_dev *dev)
+{
+	/* Something prevents MSIs from the IPR from working on Bimini,
+	 * and the driver has no smarts to recover. So disable MSI
+	 * on it for now. */
+
+	if (machine_is(maple)) {
+		dev->no_msi = 1;
+		dev_info(&dev->dev, "Quirk disabled MSI\n");
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN,
+			quirk_ipr_msi);

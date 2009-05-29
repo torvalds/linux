@@ -1431,6 +1431,14 @@ P:	Russell King
 M:	linux@arm.linux.org.uk
 F:	include/linux/clk.h
 
+CISCO FCOE HBA DRIVER
+P:	Abhijeet Joglekar
+M:	abjoglek@cisco.com
+P:	Joe Eykholt
+M:	jeykholt@cisco.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+
 CODA FILE SYSTEM
 P:	Jan Harkes
 M:	jaharkes@cs.cmu.edu
@@ -5578,6 +5586,14 @@ P:	Ian Molton
 M:	ian@mnementh.co.uk
 S:	Maintained
 F:	drivers/mmc/host/tmio_mmc.*
+
+TMPFS (SHMEM FILESYSTEM)
+P:	Hugh Dickins
+M:	hugh.dickins@tiscali.co.uk
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	include/linux/shmem_fs.h
+F:	mm/shmem.c
 
 TPM DEVICE DRIVER
 P:	Debora Velarde

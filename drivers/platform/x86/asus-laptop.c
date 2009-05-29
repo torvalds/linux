@@ -269,16 +269,16 @@ static struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x34, KEY_SWITCHVIDEOMODE},
 	{KE_KEY, 0x40, KEY_PREVIOUSSONG},
 	{KE_KEY, 0x41, KEY_NEXTSONG},
-	{KE_KEY, 0x43, KEY_STOP},
+	{KE_KEY, 0x43, KEY_STOPCD},
 	{KE_KEY, 0x45, KEY_PLAYPAUSE},
 	{KE_KEY, 0x50, KEY_EMAIL},
 	{KE_KEY, 0x51, KEY_WWW},
-	{KE_KEY, 0x5C, BTN_EXTRA},  /* Performance */
+	{KE_KEY, 0x5C, KEY_SCREENLOCK},  /* Screenlock */
 	{KE_KEY, 0x5D, KEY_WLAN},
 	{KE_KEY, 0x61, KEY_SWITCHVIDEOMODE},
 	{KE_KEY, 0x6B, BTN_TOUCH}, /* Lock Mouse */
 	{KE_KEY, 0x82, KEY_CAMERA},
-	{KE_KEY, 0x8A, KEY_TV},
+	{KE_KEY, 0x8A, KEY_PROG1},
 	{KE_KEY, 0x95, KEY_MEDIA},
 	{KE_KEY, 0x99, KEY_PHONE},
 	{KE_END, 0},

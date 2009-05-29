@@ -21,15 +21,50 @@
 #include <asm/div64.h>
 #include <mach/hardware.h>
 
+
+/*
+ * The EP93xx has two external crystal oscillators.  To generate the
+ * required high-frequency clocks, the processor uses two phase-locked-
+ * loops (PLLs) to multiply the incoming external clock signal to much
+ * higher frequencies that are then divided down by programmable dividers
+ * to produce the needed clocks.  The PLLs operate independently of one
+ * another.
+ */
+#define EP93XX_EXT_CLK_RATE	14745600
+#define EP93XX_EXT_RTC_RATE	32768
+
+
 struct clk {
 	unsigned long	rate;
 	int		users;
+	int		sw_locked;
 	u32		enable_reg;
 	u32		enable_mask;
+
+	unsigned long	(*get_rate)(struct clk *clk);
 };
 
-static struct clk clk_uart = {
-	.rate		= 14745600,
+
+static unsigned long get_uart_rate(struct clk *clk);
+
+
+static struct clk clk_uart1 = {
+	.sw_locked	= 1,
+	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
+	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U1EN,
+	.get_rate	= get_uart_rate,
+};
+static struct clk clk_uart2 = {
+	.sw_locked	= 1,
+	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
+	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U2EN,
+	.get_rate	= get_uart_rate,
+};
+static struct clk clk_uart3 = {
+	.sw_locked	= 1,
+	.enable_reg	= EP93XX_SYSCON_DEVICE_CONFIG,
+	.enable_mask	= EP93XX_SYSCON_DEVICE_CONFIG_U3EN,
+	.get_rate	= get_uart_rate,
 };
 static struct clk clk_pll1;
 static struct clk clk_f;
@@ -95,9 +130,9 @@ static struct clk clk_m2m1 = {
 	{ .dev_id = dev, .con_id = con, .clk = ck }
 
 static struct clk_lookup clocks[] = {
-	INIT_CK("apb:uart1", NULL, &clk_uart),
-	INIT_CK("apb:uart2", NULL, &clk_uart),
-	INIT_CK("apb:uart3", NULL, &clk_uart),
+	INIT_CK("apb:uart1", NULL, &clk_uart1),
+	INIT_CK("apb:uart2", NULL, &clk_uart2),
+	INIT_CK("apb:uart3", NULL, &clk_uart3),
 	INIT_CK(NULL, "pll1", &clk_pll1),
 	INIT_CK(NULL, "fclk", &clk_f),
 	INIT_CK(NULL, "hclk", &clk_h),
@@ -125,6 +160,8 @@ int clk_enable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		if (clk->sw_locked)
+			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 		__raw_writel(value | clk->enable_mask, clk->enable_reg);
 	}
 
@@ -138,13 +175,29 @@ void clk_disable(struct clk *clk)
 		u32 value;
 
 		value = __raw_readl(clk->enable_reg);
+		if (clk->sw_locked)
+			__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 		__raw_writel(value & ~clk->enable_mask, clk->enable_reg);
 	}
 }
 EXPORT_SYMBOL(clk_disable);
 
+static unsigned long get_uart_rate(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(EP93XX_SYSCON_CLOCK_CONTROL);
+	if (value & EP93XX_SYSCON_CLOCK_UARTBAUD)
+		return EP93XX_EXT_CLK_RATE;
+	else
+		return EP93XX_EXT_CLK_RATE / 2;
+}
+
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (clk->get_rate)
+		return clk->get_rate(clk);
+
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
@@ -162,7 +215,7 @@ static unsigned long calc_pll_rate(u32 config_word)
 	unsigned long long rate;
 	int i;
 
-	rate = 14745600;
+	rate = EP93XX_EXT_CLK_RATE;
 	rate *= ((config_word >> 11) & 0x1f) + 1;		/* X1FBD */
 	rate *= ((config_word >> 5) & 0x3f) + 1;		/* X2FBD */
 	do_div(rate, (config_word & 0x1f) + 1);			/* X2IPD */
@@ -195,7 +248,7 @@ static int __init ep93xx_clock_init(void)
 
 	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET1);
 	if (!(value & 0x00800000)) {			/* PLL1 bypassed?  */
-		clk_pll1.rate = 14745600;
+		clk_pll1.rate = EP93XX_EXT_CLK_RATE;
 	} else {
 		clk_pll1.rate = calc_pll_rate(value);
 	}
@@ -206,7 +259,7 @@ static int __init ep93xx_clock_init(void)
 
 	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET2);
 	if (!(value & 0x00080000)) {			/* PLL2 bypassed?  */
-		clk_pll2.rate = 14745600;
+		clk_pll2.rate = EP93XX_EXT_CLK_RATE;
 	} else if (value & 0x00040000) {		/* PLL2 enabled?  */
 		clk_pll2.rate = calc_pll_rate(value);
 	} else {

@@ -123,7 +123,9 @@ static struct dentry *open_xa_root(struct super_block *sb, int flags)
 	mutex_lock_nested(&privroot->d_inode->i_mutex, I_MUTEX_XATTR);
 
 	xaroot = dget(REISERFS_SB(sb)->xattr_root);
-	if (!xaroot->d_inode) {
+	if (!xaroot)
+		xaroot = ERR_PTR(-ENODATA);
+	else if (!xaroot->d_inode) {
 		int err = -ENODATA;
 		if (xattr_may_create(flags))
 			err = xattr_mkdir(privroot->d_inode, xaroot, 0700);
@@ -685,20 +687,6 @@ out:
 	return err;
 }
 
-/* Actual operations that are exported to VFS-land */
-struct xattr_handler *reiserfs_xattr_handlers[] = {
-	&reiserfs_xattr_user_handler,
-	&reiserfs_xattr_trusted_handler,
-#ifdef CONFIG_REISERFS_FS_SECURITY
-	&reiserfs_xattr_security_handler,
-#endif
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	&reiserfs_posix_acl_access_handler,
-	&reiserfs_posix_acl_default_handler,
-#endif
-	NULL
-};
-
 /*
  * In order to implement different sets of xattr operations for each xattr
  * prefix with the generic xattr API, a filesystem should create a
@@ -883,23 +871,6 @@ static int reiserfs_check_acl(struct inode *inode, int mask)
 	return error;
 }
 
-int reiserfs_permission(struct inode *inode, int mask)
-{
-	/*
-	 * We don't do permission checks on the internal objects.
-	 * Permissions are determined by the "owning" object.
-	 */
-	if (IS_PRIVATE(inode))
-		return 0;
-	/*
-	 * Stat data v1 doesn't support ACLs.
-	 */
-	if (get_inode_sd_version(inode) == STAT_DATA_V1)
-		return generic_permission(inode, mask, NULL);
-	else
-		return generic_permission(inode, mask, reiserfs_check_acl);
-}
-
 static int create_privroot(struct dentry *dentry)
 {
 	int err;
@@ -922,6 +893,28 @@ static int create_privroot(struct dentry *dentry)
 	return 0;
 }
 
+#else
+int __init reiserfs_xattr_register_handlers(void) { return 0; }
+void reiserfs_xattr_unregister_handlers(void) {}
+static int create_privroot(struct dentry *dentry) { return 0; }
+#endif
+
+/* Actual operations that are exported to VFS-land */
+struct xattr_handler *reiserfs_xattr_handlers[] = {
+#ifdef CONFIG_REISERFS_FS_XATTR
+	&reiserfs_xattr_user_handler,
+	&reiserfs_xattr_trusted_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_SECURITY
+	&reiserfs_xattr_security_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
+	&reiserfs_posix_acl_access_handler,
+	&reiserfs_posix_acl_default_handler,
+#endif
+	NULL
+};
+
 static int xattr_mount_check(struct super_block *s)
 {
 	/* We need generation numbers to ensure that the oid mapping is correct
@@ -941,10 +934,24 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-#else
-int __init reiserfs_xattr_register_handlers(void) { return 0; }
-void reiserfs_xattr_unregister_handlers(void) {}
+int reiserfs_permission(struct inode *inode, int mask)
+{
+	/*
+	 * We don't do permission checks on the internal objects.
+	 * Permissions are determined by the "owning" object.
+	 */
+	if (IS_PRIVATE(inode))
+		return 0;
+
+#ifdef CONFIG_REISERFS_FS_XATTR
+	/*
+	 * Stat data v1 doesn't support ACLs.
+	 */
+	if (get_inode_sd_version(inode) != STAT_DATA_V1)
+		return generic_permission(inode, mask, reiserfs_check_acl);
 #endif
+	return generic_permission(inode, mask, NULL);
+}
 
 /* This will catch lookups from the fs root to .reiserfs_priv */
 static int
@@ -992,7 +999,6 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	int err = 0;
 	struct dentry *privroot = REISERFS_SB(s)->priv_root;
 
-#ifdef CONFIG_REISERFS_FS_XATTR
 	err = xattr_mount_check(s);
 	if (err)
 		goto error;
@@ -1023,14 +1029,11 @@ error:
 		clear_bit(REISERFS_XATTRS_USER, &(REISERFS_SB(s)->s_mount_opt));
 		clear_bit(REISERFS_POSIXACL, &(REISERFS_SB(s)->s_mount_opt));
 	}
-#endif
 
 	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 	if (reiserfs_posixacl(s))
 		s->s_flags |= MS_POSIXACL;
 	else
-#endif
 		s->s_flags &= ~MS_POSIXACL;
 
 	return err;

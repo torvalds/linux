@@ -16,12 +16,11 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
-#include <linux/etherdevice.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
-
+#include <linux/etherdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -44,6 +43,9 @@
 #include <mach/mux.h>
 #include <mach/psc.h>
 #include <mach/nand.h>
+#include <mach/mmc.h>
+#include <mach/emac.h>
+#include <mach/common.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -436,44 +438,14 @@ static struct pcf857x_platform_data pcf_data_u35 = {
  *  - 0x0039, 1 byte NTSC vs PAL (bit 0x80 == PAL)
  *  - ... newer boards may have more
  */
-static struct memory_accessor *at24_mem_acc;
-
-static void at24_setup(struct memory_accessor *mem_acc, void *context)
-{
-	DECLARE_MAC_BUF(mac_str);
-	char mac_addr[6];
-
-	at24_mem_acc = mem_acc;
-
-	/* Read MAC addr from EEPROM */
-	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, 6) == 6) {
-		printk(KERN_INFO "Read MAC addr from EEPROM: %s\n",
-		       print_mac(mac_str, mac_addr));
-	}
-}
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len	= (256*1024) / 8,
 	.page_size	= 64,
 	.flags		= AT24_FLAG_ADDR16,
-	.setup          = at24_setup,
+	.setup          = davinci_get_mac_addr,
+	.context	= (void *)0x7f00,
 };
-
-int dm6446evm_eeprom_read(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->read(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm6446evm_eeprom_read);
-
-int dm6446evm_eeprom_write(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->write(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm6446evm_eeprom_write);
 
 /*
  * MSP430 supports RTC, card detection, input from IR remote, and
@@ -545,6 +517,27 @@ static int dm6444evm_msp430_get_pins(void)
 	return (buf[3] << 8) | buf[2];
 }
 
+static int dm6444evm_mmc_get_cd(int module)
+{
+	int status = dm6444evm_msp430_get_pins();
+
+	return (status < 0) ? status : !(status & BIT(1));
+}
+
+static int dm6444evm_mmc_get_ro(int module)
+{
+	int status = dm6444evm_msp430_get_pins();
+
+	return (status < 0) ? status : status & BIT(6 + 8);
+}
+
+static struct davinci_mmc_config dm6446evm_mmc_config = {
+	.get_cd		= dm6444evm_mmc_get_cd,
+	.get_ro		= dm6444evm_mmc_get_ro,
+	.wires		= 4,
+	.version	= MMC_CTLR_VERSION_1
+};
+
 static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("dm6446evm_msp", 0x23),
@@ -598,7 +591,6 @@ static struct davinci_uart_config uart_config __initdata = {
 static void __init
 davinci_evm_map_io(void)
 {
-	davinci_map_common_io();
 	dm644x_init();
 }
 
@@ -639,6 +631,7 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 static __init void davinci_evm_init(void)
 {
 	struct clk *aemif_clk;
+	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
 	clk_enable(aemif_clk);
@@ -671,7 +664,12 @@ static __init void davinci_evm_init(void)
 			     ARRAY_SIZE(davinci_evm_devices));
 	evm_init_i2c();
 
+	davinci_setup_mmc(0, &dm6446evm_mmc_config);
+
 	davinci_serial_init(&uart_config);
+
+	soc_info->emac_pdata->phy_mask = DM644X_EVM_PHY_MASK;
+	soc_info->emac_pdata->mdio_max_freq = DM644X_EVM_MDIO_FREQUENCY;
 
 	/* Register the fixup for PHY on DaVinci */
 	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
