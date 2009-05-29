@@ -1,7 +1,7 @@
 /*
- * arch/arm/plat-omap/include/mach/pm.h
+ * arch/arm/mach-omap1/pm.h
  *
- * Header file for OMAP Power Management Routines
+ * Header file for OMAP1 Power Management Routines
  *
  * Author: MontaVista Software, Inc.
  *	   support@mvista.com
@@ -31,8 +31,8 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __ASM_ARCH_OMAP_PM_H
-#define __ASM_ARCH_OMAP_PM_H
+#ifndef __ARCH_ARM_MACH_OMAP1_PM_H
+#define __ARCH_ARM_MACH_OMAP1_PM_H
 
 /*
  * ----------------------------------------------------------------------------
@@ -106,8 +106,7 @@
 
 #if     !defined(CONFIG_ARCH_OMAP730) && \
 	!defined(CONFIG_ARCH_OMAP15XX) && \
-	!defined(CONFIG_ARCH_OMAP16XX) && \
-	!defined(CONFIG_ARCH_OMAP24XX)
+	!defined(CONFIG_ARCH_OMAP16XX)
 #warning "Power management for this processor not implemented yet"
 #endif
 
@@ -115,29 +114,27 @@
 
 #include <linux/clk.h>
 
+extern struct kset power_subsys;
+
 extern void prevent_idle_sleep(void);
 extern void allow_idle_sleep(void);
 
-extern void omap_pm_idle(void);
-extern void omap_pm_suspend(void);
+extern void omap1_pm_idle(void);
+extern void omap1_pm_suspend(void);
+
 extern void omap730_cpu_suspend(unsigned short, unsigned short);
 extern void omap1510_cpu_suspend(unsigned short, unsigned short);
 extern void omap1610_cpu_suspend(unsigned short, unsigned short);
-extern void omap24xx_cpu_suspend(u32 dll_ctrl, void __iomem *sdrc_dlla_ctrl,
-					void __iomem *sdrc_power);
 extern void omap730_idle_loop_suspend(void);
 extern void omap1510_idle_loop_suspend(void);
 extern void omap1610_idle_loop_suspend(void);
-extern void omap24xx_idle_loop_suspend(void);
 
 extern unsigned int omap730_cpu_suspend_sz;
 extern unsigned int omap1510_cpu_suspend_sz;
 extern unsigned int omap1610_cpu_suspend_sz;
-extern unsigned int omap24xx_cpu_suspend_sz;
 extern unsigned int omap730_idle_loop_suspend_sz;
 extern unsigned int omap1510_idle_loop_suspend_sz;
 extern unsigned int omap1610_idle_loop_suspend_sz;
-extern unsigned int omap24xx_idle_loop_suspend_sz;
 
 #ifdef CONFIG_OMAP_SERIAL_WAKE
 extern void omap_serial_wake_trigger(int enable);
@@ -169,10 +166,6 @@ extern void omap_serial_wake_trigger(int enable);
 #define MPUI1610_SAVE(x) mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_##x] = omap_readl(x)
 #define MPUI1610_RESTORE(x) omap_writel((mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_##x]), (x))
 #define MPUI1610_SHOW(x) mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_##x]
-
-#define OMAP24XX_SAVE(x) omap24xx_sleep_save[OMAP24XX_SLEEP_SAVE_##x] = x
-#define OMAP24XX_RESTORE(x) x = omap24xx_sleep_save[OMAP24XX_SLEEP_SAVE_##x]
-#define OMAP24XX_SHOW(x) omap24xx_sleep_save[OMAP24XX_SLEEP_SAVE_##x]
 
 /*
  * List of global OMAP registers to preserve.
@@ -281,64 +274,6 @@ enum mpui1610_save_state {
 #else
 	MPUI1610_SLEEP_SAVE_SIZE = 0
 #endif
-};
-
-enum omap24xx_save_state {
-	OMAP24XX_SLEEP_SAVE_START = 0,
-	OMAP24XX_SLEEP_SAVE_INTC_MIR0,
-	OMAP24XX_SLEEP_SAVE_INTC_MIR1,
-	OMAP24XX_SLEEP_SAVE_INTC_MIR2,
-
-	OMAP24XX_SLEEP_SAVE_CM_CLKSTCTRL_MPU,
-	OMAP24XX_SLEEP_SAVE_CM_CLKSTCTRL_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_CLKSTCTRL_GFX,
-	OMAP24XX_SLEEP_SAVE_CM_CLKSTCTRL_DSP,
-	OMAP24XX_SLEEP_SAVE_CM_CLKSTCTRL_MDM,
-
-	OMAP24XX_SLEEP_SAVE_PM_PWSTCTRL_MPU,
-	OMAP24XX_SLEEP_SAVE_PM_PWSTCTRL_CORE,
-	OMAP24XX_SLEEP_SAVE_PM_PWSTCTRL_GFX,
-	OMAP24XX_SLEEP_SAVE_PM_PWSTCTRL_DSP,
-	OMAP24XX_SLEEP_SAVE_PM_PWSTCTRL_MDM,
-
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST1_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST2_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST3_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST4_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST_GFX,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST_WKUP,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST_CKGEN,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST_DSP,
-	OMAP24XX_SLEEP_SAVE_CM_IDLEST_MDM,
-
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE1_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE2_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE3_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE4_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE_WKUP,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE_PLL,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE_DSP,
-	OMAP24XX_SLEEP_SAVE_CM_AUTOIDLE_MDM,
-
-	OMAP24XX_SLEEP_SAVE_CM_FCLKEN1_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_FCLKEN2_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_ICLKEN1_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_ICLKEN2_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_ICLKEN3_CORE,
-	OMAP24XX_SLEEP_SAVE_CM_ICLKEN4_CORE,
-	OMAP24XX_SLEEP_SAVE_GPIO1_IRQENABLE1,
-	OMAP24XX_SLEEP_SAVE_GPIO2_IRQENABLE1,
-	OMAP24XX_SLEEP_SAVE_GPIO3_IRQENABLE1,
-	OMAP24XX_SLEEP_SAVE_GPIO4_IRQENABLE1,
-	OMAP24XX_SLEEP_SAVE_GPIO3_OE,
-	OMAP24XX_SLEEP_SAVE_GPIO4_OE,
-	OMAP24XX_SLEEP_SAVE_GPIO3_RISINGDETECT,
-	OMAP24XX_SLEEP_SAVE_GPIO3_FALLINGDETECT,
-	OMAP24XX_SLEEP_SAVE_CONTROL_PADCONF_SPI1_NCS2,
-	OMAP24XX_SLEEP_SAVE_CONTROL_PADCONF_MCBSP1_DX,
-	OMAP24XX_SLEEP_SAVE_CONTROL_PADCONF_SSI1_FLAG_TX,
-	OMAP24XX_SLEEP_SAVE_CONTROL_PADCONF_SYS_NIRQW0,
-	OMAP24XX_SLEEP_SAVE_SIZE
 };
 
 #endif /* ASSEMBLER */

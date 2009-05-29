@@ -16,11 +16,13 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
+#include <linux/gpio_keys.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/regulator/machine.h>
 #include <linux/i2c/twl4030.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
@@ -39,6 +41,7 @@
 #include <asm/delay.h>
 #include <mach/control.h>
 #include <mach/usb.h>
+#include <mach/keypad.h>
 
 #include "mmc-twl4030.h"
 
@@ -77,8 +80,163 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static struct platform_device *ldp_devices[] __initdata = {
-	&ldp_smsc911x_device,
+static int ldp_twl4030_keymap[] = {
+	KEY(0, 0, KEY_1),
+	KEY(1, 0, KEY_2),
+	KEY(2, 0, KEY_3),
+	KEY(0, 1, KEY_4),
+	KEY(1, 1, KEY_5),
+	KEY(2, 1, KEY_6),
+	KEY(3, 1, KEY_F5),
+	KEY(0, 2, KEY_7),
+	KEY(1, 2, KEY_8),
+	KEY(2, 2, KEY_9),
+	KEY(3, 2, KEY_F6),
+	KEY(0, 3, KEY_F7),
+	KEY(1, 3, KEY_0),
+	KEY(2, 3, KEY_F8),
+	PERSISTENT_KEY(4, 5),
+	KEY(4, 4, KEY_VOLUMEUP),
+	KEY(5, 5, KEY_VOLUMEDOWN),
+	0
+};
+
+static struct twl4030_keypad_data ldp_kp_twl4030_data = {
+	.rows		= 6,
+	.cols		= 6,
+	.keymap		= ldp_twl4030_keymap,
+	.keymapsize	= ARRAY_SIZE(ldp_twl4030_keymap),
+	.rep		= 1,
+};
+
+static struct gpio_keys_button ldp_gpio_keys_buttons[] = {
+	[0] = {
+		.code			= KEY_ENTER,
+		.gpio			= 101,
+		.desc			= "enter sw",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[1] = {
+		.code			= KEY_F1,
+		.gpio			= 102,
+		.desc			= "func 1",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[2] = {
+		.code			= KEY_F2,
+		.gpio			= 103,
+		.desc			= "func 2",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[3] = {
+		.code			= KEY_F3,
+		.gpio			= 104,
+		.desc			= "func 3",
+		.active_low		= 1,
+		.debounce_interval 	= 30,
+	},
+	[4] = {
+		.code			= KEY_F4,
+		.gpio			= 105,
+		.desc			= "func 4",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[5] = {
+		.code			= KEY_LEFT,
+		.gpio			= 106,
+		.desc			= "left sw",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[6] = {
+		.code			= KEY_RIGHT,
+		.gpio			= 107,
+		.desc			= "right sw",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[7] = {
+		.code			= KEY_UP,
+		.gpio			= 108,
+		.desc			= "up sw",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+	[8] = {
+		.code			= KEY_DOWN,
+		.gpio			= 109,
+		.desc			= "down sw",
+		.active_low		= 1,
+		.debounce_interval	= 30,
+	},
+};
+
+static struct gpio_keys_platform_data ldp_gpio_keys = {
+	.buttons		= ldp_gpio_keys_buttons,
+	.nbuttons		= ARRAY_SIZE(ldp_gpio_keys_buttons),
+	.rep			= 1,
+};
+
+static struct platform_device ldp_gpio_keys_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ldp_gpio_keys,
+	},
+};
+
+static int ts_gpio;
+
+/**
+ * @brief ads7846_dev_init : Requests & sets GPIO line for pen-irq
+ *
+ * @return - void. If request gpio fails then Flag KERN_ERR.
+ */
+static void ads7846_dev_init(void)
+{
+	if (gpio_request(ts_gpio, "ads7846 irq") < 0) {
+		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
+		return;
+	}
+
+	gpio_direction_input(ts_gpio);
+	omap_set_gpio_debounce(ts_gpio, 1);
+	omap_set_gpio_debounce_time(ts_gpio, 0xa);
+}
+
+static int ads7846_get_pendown_state(void)
+{
+	return !gpio_get_value(ts_gpio);
+}
+
+static struct ads7846_platform_data tsc2046_config __initdata = {
+	.get_pendown_state	= ads7846_get_pendown_state,
+	.keep_vref_on		= 1,
+};
+
+static struct omap2_mcspi_device_config tsc2046_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,	/* 0: slave, 1: master */
+};
+
+static struct spi_board_info ldp_spi_board_info[] __initdata = {
+	[0] = {
+		/*
+		 * TSC2046 operates at a max freqency of 2MHz, so
+		 * operate slightly below at 1.5MHz
+		 */
+		.modalias		= "ads7846",
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.max_speed_hz		= 1500000,
+		.controller_data	= &tsc2046_mcspi_config,
+		.irq			= 0,
+		.platform_data		= &tsc2046_config,
+	},
 };
 
 static inline void __init ldp_init_smsc911x(void)
@@ -122,8 +280,22 @@ static struct omap_uart_config ldp_uart_config __initdata = {
 	.enabled_uarts	= ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
+static struct platform_device ldp_lcd_device = {
+	.name		= "ldp_lcd",
+	.id		= -1,
+};
+
+static struct omap_lcd_config ldp_lcd_config __initdata = {
+	.ctrl_name	= "internal",
+};
+
 static struct omap_board_config_kernel ldp_config[] __initdata = {
 	{ OMAP_TAG_UART,	&ldp_uart_config },
+	{ OMAP_TAG_LCD,		&ldp_lcd_config },
+};
+
+static struct twl4030_usb_data ldp_usb_data = {
+	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
 static struct twl4030_gpio_platform_data ldp_gpio_data = {
@@ -132,12 +304,39 @@ static struct twl4030_gpio_platform_data ldp_gpio_data = {
 	.irq_end	= TWL4030_GPIO_IRQ_END,
 };
 
+static struct twl4030_madc_platform_data ldp_madc_data = {
+	.irq_line	= 1,
+};
+
+static struct regulator_consumer_supply ldp_vmmc1_supply = {
+	.supply			= "vmmc",
+};
+
+/* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
+static struct regulator_init_data ldp_vmmc1 = {
+	.constraints = {
+		.min_uV			= 1850000,
+		.max_uV			= 3150000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &ldp_vmmc1_supply,
+};
+
 static struct twl4030_platform_data ldp_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
+	.madc		= &ldp_madc_data,
+	.usb		= &ldp_usb_data,
+	.vmmc1		= &ldp_vmmc1,
 	.gpio		= &ldp_gpio_data,
+	.keypad		= &ldp_kp_twl4030_data,
 };
 
 static struct i2c_board_info __initdata ldp_i2c_boardinfo[] = {
@@ -168,15 +367,29 @@ static struct twl4030_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
+static struct platform_device *ldp_devices[] __initdata = {
+	&ldp_smsc911x_device,
+	&ldp_lcd_device,
+	&ldp_gpio_keys_device,
+};
+
 static void __init omap_ldp_init(void)
 {
 	omap_i2c_init();
 	platform_add_devices(ldp_devices, ARRAY_SIZE(ldp_devices));
 	omap_board_config = ldp_config;
 	omap_board_config_size = ARRAY_SIZE(ldp_config);
+	ts_gpio = 54;
+	ldp_spi_board_info[0].irq = gpio_to_irq(ts_gpio);
+	spi_register_board_info(ldp_spi_board_info,
+				ARRAY_SIZE(ldp_spi_board_info));
+	ads7846_dev_init();
 	omap_serial_init();
-	twl4030_mmc_init(mmc);
 	usb_musb_init();
+
+	twl4030_mmc_init(mmc);
+	/* link regulators to MMC adapters */
+	ldp_vmmc1_supply.dev = mmc[0].dev;
 }
 
 static void __init omap_ldp_map_io(void)

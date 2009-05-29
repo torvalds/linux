@@ -26,9 +26,6 @@
 #include <mach/mux.h>
 #include <mach/gpio.h>
 #include <mach/fpga.h>
-#ifdef CONFIG_PM
-#include <mach/pm.h>
-#endif
 
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;
