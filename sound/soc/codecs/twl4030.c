@@ -145,7 +145,6 @@ struct twl4030_priv {
 static inline unsigned int twl4030_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
-	u8 *cache = codec->reg_cache;
 
 	if (reg >= TWL4030_CACHEREGNUM)
 		return -EIO;
@@ -204,6 +203,7 @@ static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 
 static void twl4030_init_chip(struct snd_soc_codec *codec)
 {
+	u8 *cache = codec->reg_cache;
 	int i;
 
 	/* clear CODECPDZ prior to setting register defaults */
@@ -211,7 +211,7 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 	/* set all audio section registers to reasonable defaults */
 	for (i = TWL4030_REG_OPTION; i <= TWL4030_REG_MISC_SET_2; i++)
-		twl4030_write(codec, i,	twl4030_reg[i]);
+		twl4030_write(codec, i,	cache[i]);
 
 }
 
