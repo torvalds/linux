@@ -704,6 +704,11 @@ typedef struct _MPT_ADAPTER
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
 	u8			 sas_discovery_ignore_events;
+
+	/* port_info object for the host */
+	struct mptsas_portinfo	*hba_port_info;
+	u64			 hba_port_sas_addr;
+	u16			 hba_port_num_phy;
 	struct list_head	 sas_device_info_list;
 	struct mutex		 sas_device_info_mutex;
 	u8			 sas_discovery_quiesce_io;
