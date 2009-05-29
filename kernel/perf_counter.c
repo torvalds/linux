@@ -2443,9 +2443,9 @@ static void perf_counter_comm_event(struct perf_comm_event *comm_event)
 
 	cpuctx = &get_cpu_var(perf_cpu_context);
 	perf_counter_comm_ctx(&cpuctx->ctx, comm_event);
+	if (cpuctx->task_ctx)
+		perf_counter_comm_ctx(cpuctx->task_ctx, comm_event);
 	put_cpu_var(perf_cpu_context);
-
-	perf_counter_comm_ctx(current->perf_counter_ctxp, comm_event);
 }
 
 void perf_counter_comm(struct task_struct *task)
@@ -2453,8 +2453,6 @@ void perf_counter_comm(struct task_struct *task)
 	struct perf_comm_event comm_event;
 
 	if (!atomic_read(&nr_comm_tracking))
-		return;
-	if (!current->perf_counter_ctxp)
 		return;
 
 	comm_event = (struct perf_comm_event){
@@ -2570,9 +2568,9 @@ got_name:
 
 	cpuctx = &get_cpu_var(perf_cpu_context);
 	perf_counter_mmap_ctx(&cpuctx->ctx, mmap_event);
+	if (cpuctx->task_ctx)
+		perf_counter_mmap_ctx(cpuctx->task_ctx, mmap_event);
 	put_cpu_var(perf_cpu_context);
-
-	perf_counter_mmap_ctx(current->perf_counter_ctxp, mmap_event);
 
 	kfree(buf);
 }
@@ -2583,8 +2581,6 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 	struct perf_mmap_event mmap_event;
 
 	if (!atomic_read(&nr_mmap_tracking))
-		return;
-	if (!current->perf_counter_ctxp)
 		return;
 
 	mmap_event = (struct perf_mmap_event){
