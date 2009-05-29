@@ -74,6 +74,8 @@ static const unsigned int default_count[] = {
 static __u64			event_res[MAX_COUNTERS][3];
 static __u64			event_scaled[MAX_COUNTERS];
 
+static __u64			runtime_nsecs;
+
 static void create_perfstat_counter(int counter)
 {
 	struct perf_counter_hw_event hw_event;
@@ -165,6 +167,11 @@ static void read_counter(int counter)
 				((double)count[0] * count[1] / count[2] + 0.5);
 		}
 	}
+	/*
+	 * Save the full runtime - to allow normalization during printout:
+	 */
+	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK))
+		runtime_nsecs = count[0];
 }
 
 /*
@@ -190,8 +197,11 @@ static void print_counter(int counter)
 		fprintf(stderr, " %14.6f  %-20s (msecs)",
 			msecs, event_name(counter));
 	} else {
-		fprintf(stderr, " %14Ld  %-20s (events)",
+		fprintf(stderr, " %14Ld  %-20s",
 			count[0], event_name(counter));
+		if (runtime_nsecs)
+			fprintf(stderr, " # %12.3f M/sec",
+				(double)count[0]/runtime_nsecs*1000.0);
 	}
 	if (scaled)
 		fprintf(stderr, "  (scaled from %.2f%%)",
