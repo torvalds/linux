@@ -557,7 +557,7 @@ static const struct port_type_info port_types[] = {
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
 	{ NULL },
-	{ NULL },
+	{ t3_aq100x_phy_prep },
 	{ t3_ael2020_phy_prep },
 };
 
