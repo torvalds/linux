@@ -1145,6 +1145,13 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
 		}
+
+		ret = i915_gem_object_set_to_gtt_domain(obj, write);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return VM_FAULT_SIGBUS;
+		}
+
 		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
@@ -2128,8 +2135,10 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 		return;
 	}
 
-	pitch_val = (obj_priv->stride / 128) - 1;
-	WARN_ON(pitch_val & ~0x0000000f);
+	pitch_val = obj_priv->stride / 128;
+	pitch_val = ffs(pitch_val) - 1;
+	WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
+
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
 		val |= 1 << I830_FENCE_TILING_Y_SHIFT;
@@ -2420,6 +2429,16 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 	 */
 	if (obj_priv->pages == NULL)
 		return;
+
+	/* XXX: The 865 in particular appears to be weird in how it handles
+	 * cache flushing.  We haven't figured it out, but the
+	 * clflush+agp_chipset_flush doesn't appear to successfully get the
+	 * data visible to the PGU, while wbinvd + agp_chipset_flush does.
+	 */
+	if (IS_I865G(obj->dev)) {
+		wbinvd();
+		return;
+	}
 
 	drm_clflush_pages(obj_priv->pages, obj->size / PAGE_SIZE);
 }
