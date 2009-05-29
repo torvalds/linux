@@ -180,7 +180,12 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   tcrypt_complete, &tresult);
 
+	j = 0;
 	for (i = 0; i < tcount; i++) {
+		if (template[i].np)
+			continue;
+
+		j++;
 		memset(result, 0, 64);
 
 		hash_buff = xbuf[0];
@@ -198,7 +203,7 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 						  template[i].ksize);
 			if (ret) {
 				printk(KERN_ERR "alg: hash: setkey failed on "
-				       "test %d for %s: ret=%d\n", i + 1, algo,
+				       "test %d for %s: ret=%d\n", j, algo,
 				       -ret);
 				goto out;
 			}
@@ -220,14 +225,14 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 			/* fall through */
 		default:
 			printk(KERN_ERR "alg: hash: digest failed on test %d "
-			       "for %s: ret=%d\n", i + 1, algo, -ret);
+			       "for %s: ret=%d\n", j, algo, -ret);
 			goto out;
 		}
 
 		if (memcmp(result, template[i].digest,
 			   crypto_ahash_digestsize(tfm))) {
 			printk(KERN_ERR "alg: hash: Test %d failed for %s\n",
-			       i + 1, algo);
+			       j, algo);
 			hexdump(result, crypto_ahash_digestsize(tfm));
 			ret = -EINVAL;
 			goto out;
