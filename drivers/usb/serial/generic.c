@@ -528,7 +528,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 
 int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
 {
-	if (port->sysrq) {
+	if (port->sysrq && port->console) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch, tty_port_tty_get(&port->port));
 			port->sysrq = 0;
