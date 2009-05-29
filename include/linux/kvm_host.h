@@ -249,8 +249,6 @@ long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg);
-void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
-void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
 
 int kvm_dev_ioctl_check_extension(long ext);
 
