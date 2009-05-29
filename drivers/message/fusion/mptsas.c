@@ -724,8 +724,8 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		 * Forming a port
 		 */
 		if (!port_details) {
-			port_details = kzalloc(sizeof(*port_details),
-				GFP_KERNEL);
+			port_details = kzalloc(sizeof(struct
+				mptsas_portinfo_details), GFP_KERNEL);
 			if (!port_details)
 				goto out;
 			port_details->num_phys = 1;
@@ -952,7 +952,7 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 
 	vtarget->deleted = 1; /* block IO */
 
-	target_reset_list = kzalloc(sizeof(*target_reset_list),
+	target_reset_list = kzalloc(sizeof(struct mptsas_target_reset_event),
 	    GFP_ATOMIC);
 	if (!target_reset_list) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
@@ -1791,8 +1791,13 @@ static int mptsas_mgmt_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req,
 		memcpy(ioc->sas_mgmt.reply, reply,
 		    min(ioc->reply_sz, 4 * reply->u.reply.MsgLength));
 	}
-	complete(&ioc->sas_mgmt.done);
-	return 1;
+
+	if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_PENDING) {
+		ioc->sas_mgmt.status &= ~MPT_MGMT_STATUS_PENDING;
+		complete(&ioc->sas_mgmt.done);
+		return 1;
+	}
+	return 0;
 }
 
 static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
@@ -1831,6 +1836,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 		MPI_SAS_OP_PHY_HARD_RESET : MPI_SAS_OP_PHY_LINK_RESET;
 	req->PhyNum = phy->identify.phy_identifier;
 
+	INITIALIZE_MGMT_STATUS(ioc->sas_mgmt.status)
 	mpt_put_msg_frame(mptsasMgmtCtx, ioc, mf);
 
 	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done,
@@ -1862,6 +1868,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	error = 0;
 
  out_unlock:
+	CLEAR_MGMT_STATUS(ioc->sas_mgmt.status)
 	mutex_unlock(&ioc->sas_mgmt.mutex);
  out:
 	return error;
@@ -1999,10 +2006,15 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	if (!dma_addr_out)
 		goto put_mf;
 	ioc->add_sge(psge, flagsLength, dma_addr_out);
-	psge += (sizeof(u32) + sizeof(dma_addr_t));
+	psge += ioc->SGE_size;
 
 	/* response */
-	flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ;
+	flagsLength = MPI_SGE_FLAGS_SIMPLE_ELEMENT |
+		MPI_SGE_FLAGS_SYSTEM_ADDRESS |
+		MPI_SGE_FLAGS_IOC_TO_HOST |
+		MPI_SGE_FLAGS_END_OF_BUFFER;
+
+	flagsLength = flagsLength << MPI_SGE_FLAGS_SHIFT;
 	flagsLength |= rsp->data_len + 4;
 	dma_addr_in =  pci_map_single(ioc->pcidev, bio_data(rsp->bio),
 				      rsp->data_len, PCI_DMA_BIDIRECTIONAL);
@@ -2010,6 +2022,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		goto unmap;
 	ioc->add_sge(psge, flagsLength, dma_addr_in);
 
+	INITIALIZE_MGMT_STATUS(ioc->sas_mgmt.status)
 	mpt_put_msg_frame(mptsasMgmtCtx, ioc, mf);
 
 	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done, 10 * HZ);
@@ -2031,7 +2044,8 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		req->data_len = 0;
 		rsp->data_len -= smprep->ResponseDataLength;
 	} else {
-		printk(MYIOC_s_ERR_FMT "%s: smp passthru reply failed to be returned\n",
+		printk(MYIOC_s_ERR_FMT
+		    "%s: smp passthru reply failed to be returned\n",
 		    ioc->name, __func__);
 		ret = -ENXIO;
 	}
@@ -2046,6 +2060,7 @@ put_mf:
 	if (mf)
 		mpt_free_msg_frame(ioc, mf);
 out_unlock:
+	CLEAR_MGMT_STATUS(ioc->sas_mgmt.status)
 	mutex_unlock(&ioc->sas_mgmt.mutex);
 out:
 	return ret;
@@ -2109,7 +2124,7 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 
 	port_info->num_phys = buffer->NumPhys;
 	port_info->phy_info = kcalloc(port_info->num_phys,
-		sizeof(*port_info->phy_info),GFP_KERNEL);
+		sizeof(struct mptsas_phyinfo), GFP_KERNEL);
 	if (!port_info->phy_info) {
 		error = -ENOMEM;
 		goto out_free_consistent;
@@ -2271,10 +2286,6 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	__le64 sas_address;
 	int error=0;
 
-	if (ioc->sas_discovery_runtime &&
-		mptsas_is_end_device(device_info))
-			goto out;
-
 	hdr.PageVersion = MPI_SASDEVICE0_PAGEVERSION;
 	hdr.ExtPageLength = 0;
 	hdr.PageNumber = 0;
@@ -2315,6 +2326,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 
 	mptsas_print_device_pg0(ioc, buffer);
 
+	memset(device_info, 0, sizeof(struct mptsas_devinfo));
 	device_info->handle = le16_to_cpu(buffer->DevHandle);
 	device_info->handle_parent = le16_to_cpu(buffer->ParentDevHandle);
 	device_info->handle_enclosure =
@@ -2346,7 +2358,9 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	SasExpanderPage0_t *buffer;
 	dma_addr_t dma_handle;
 	int i, error;
+	__le64 sas_address;
 
+	memset(port_info, 0, sizeof(struct mptsas_portinfo));
 	hdr.PageVersion = MPI_SASEXPANDER0_PAGEVERSION;
 	hdr.ExtPageLength = 0;
 	hdr.PageNumber = 0;
@@ -2392,18 +2406,23 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	}
 
 	/* save config data */
-	port_info->num_phys = buffer->NumPhys;
+	port_info->num_phys = (buffer->NumPhys) ? buffer->NumPhys : 1;
 	port_info->phy_info = kcalloc(port_info->num_phys,
-		sizeof(*port_info->phy_info),GFP_KERNEL);
+		sizeof(struct mptsas_phyinfo), GFP_KERNEL);
 	if (!port_info->phy_info) {
 		error = -ENOMEM;
 		goto out_free_consistent;
 	}
 
+	memcpy(&sas_address, &buffer->SASAddress, sizeof(__le64));
 	for (i = 0; i < port_info->num_phys; i++) {
 		port_info->phy_info[i].portinfo = port_info;
 		port_info->phy_info[i].handle =
 		    le16_to_cpu(buffer->DevHandle);
+		port_info->phy_info[i].identify.sas_address =
+		    le64_to_cpu(sas_address);
+		port_info->phy_info[i].identify.handle_parent =
+		    le16_to_cpu(buffer->ParentDevHandle);
 	}
 
  out_free_consistent:
@@ -2423,11 +2442,7 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	dma_addr_t dma_handle;
 	int error=0;
 
-	if (ioc->sas_discovery_runtime &&
-		mptsas_is_end_device(&phy_info->attached))
-			goto out;
-
-	hdr.PageVersion = MPI_SASEXPANDER0_PAGEVERSION;
+	hdr.PageVersion = MPI_SASEXPANDER1_PAGEVERSION;
 	hdr.ExtPageLength = 0;
 	hdr.PageNumber = 1;
 	hdr.Reserved1 = 0;
@@ -2462,6 +2477,12 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 
 	error = mpt_config(ioc, &cfg);
+
+	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
+		error = -ENODEV;
+		goto out;
+	}
+
 	if (error)
 		goto out_free_consistent;
 
@@ -2681,16 +2702,21 @@ static int mptsas_probe_one_phy(struct device *dev,
 				goto out;
 			}
 			mptsas_set_port(ioc, phy_info, port);
-			dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-			    "sas_port_alloc: port=%p dev=%p port_id=%d\n",
-			    ioc->name, port, dev, port->port_identifier));
+			devtprintk(ioc, dev_printk(KERN_DEBUG, &port->dev,
+			    MYIOC_s_FMT "add port %d, sas_addr (0x%llx)\n",
+			    ioc->name, port->port_identifier,
+			    (unsigned long long)phy_info->
+			    attached.sas_address));
 		}
-		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "sas_port_add_phy: phy_id=%d\n",
-		    ioc->name, phy_info->phy_id));
+		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+			"sas_port_add_phy: phy_id=%d\n",
+			ioc->name, phy_info->phy_id));
 		sas_port_add_phy(port, phy_info->phy);
 		phy_info->sas_port_add_phy = 0;
+		devtprintk(ioc, dev_printk(KERN_DEBUG, &phy_info->phy->dev,
+		    MYIOC_s_FMT "add phy %d, phy-obj (0x%p)\n", ioc->name,
+		     phy_info->phy_id, phy_info->phy));
 	}
-
 	if (!mptsas_get_rphy(phy_info) && port && !port->rphy) {
 
 		struct sas_rphy *rphy;
@@ -2703,9 +2729,10 @@ static int mptsas_probe_one_phy(struct device *dev,
 		 * the adding/removing of devices that occur
 		 * after start of day.
 		 */
-		if (ioc->sas_discovery_runtime &&
-			mptsas_is_end_device(&phy_info->attached))
-				goto out;
+		if (mptsas_is_end_device(&phy_info->attached) &&
+		    phy_info->attached.handle_parent) {
+			goto out;
+		}
 
 		mptsas_parse_device_info(&identify, &phy_info->attached);
 		if (scsi_is_host_device(parent)) {
@@ -3420,9 +3447,12 @@ mptsas_probe_devices(MPT_ADAPTER *ioc)
 	}
 }
 
-/*
- * Start of day discovery
- */
+/**
+ *	mptsas_scan_sas_topology -
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@sas_address:
+ *
+ **/
 static void
 mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 {

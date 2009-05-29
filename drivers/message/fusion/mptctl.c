@@ -2534,9 +2534,9 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 		MPT_SCSI_HOST *hd =  shost_priv(ioc->sh);
 
 		if (hd && (cim_rev == 1)) {
-			karg.hard_resets = hd->hard_resets;
-			karg.soft_resets = hd->soft_resets;
-			karg.timeouts = hd->timeouts;
+			karg.hard_resets = ioc->hard_resets;
+			karg.soft_resets = ioc->soft_resets;
+			karg.timeouts = ioc->timeouts;
 		}
 	}
 

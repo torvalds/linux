@@ -90,6 +90,7 @@
 
 #endif
 
+
 typedef struct _internal_cmd {
 	char		*data;		/* data pointer */
 	dma_addr_t	data_dma;	/* data dma address */

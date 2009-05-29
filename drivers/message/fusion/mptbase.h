@@ -76,7 +76,7 @@
 #define COPYRIGHT	"Copyright (c) 1999-2008 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.04.09"
+#define MPT_LINUX_VERSION_COMMON	"3.04.10"
 #define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.04.09"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
@@ -104,6 +104,7 @@
 #endif
 
 #define MPT_NAME_LENGTH			32
+#define MPT_KOBJ_NAME_LEN		20
 
 #define MPT_PROCFS_MPTBASEDIR		"mpt"
 						/* chg it to "driver/fusion" ? */
@@ -162,16 +163,28 @@
 /*
  * Set the MAX_SGE value based on user input.
  */
-#ifdef  CONFIG_FUSION_MAX_SGE
-#if     CONFIG_FUSION_MAX_SGE  < 16
+#ifdef CONFIG_FUSION_MAX_SGE
+#if CONFIG_FUSION_MAX_SGE  < 16
 #define MPT_SCSI_SG_DEPTH	16
-#elif   CONFIG_FUSION_MAX_SGE  > 128
+#elif CONFIG_FUSION_MAX_SGE  > 128
 #define MPT_SCSI_SG_DEPTH	128
 #else
 #define MPT_SCSI_SG_DEPTH	CONFIG_FUSION_MAX_SGE
 #endif
 #else
 #define MPT_SCSI_SG_DEPTH	40
+#endif
+
+#ifdef CONFIG_FUSION_MAX_FC_SGE
+#if CONFIG_FUSION_MAX_FC_SGE  < 16
+#define MPT_SCSI_FC_SG_DEPTH	16
+#elif CONFIG_FUSION_MAX_FC_SGE  > 256
+#define MPT_SCSI_FC_SG_DEPTH	256
+#else
+#define MPT_SCSI_FC_SG_DEPTH	CONFIG_FUSION_MAX_FC_SGE
+#endif
+#else
+#define MPT_SCSI_FC_SG_DEPTH	40
 #endif
 
 /* debug print string length used for events and iocstatus */
@@ -576,6 +589,10 @@ typedef struct _MPT_ADAPTER
 	int			 pci_irq;	/* This irq           */
 	char			 name[MPT_NAME_LENGTH];	/* "iocN"             */
 	char			 prod_name[MPT_NAME_LENGTH];	/* "LSIFC9x9"         */
+#ifdef CONFIG_FUSION_LOGGING
+	/* used in mpt_display_event_info */
+	char			 evStr[EVENT_DESCR_STR_SZ];
+#endif
 	char			 board_name[16];
 	char			 board_assembly[16];
 	char			 board_tracer[16];
@@ -682,14 +699,11 @@ typedef struct _MPT_ADAPTER
 	int			 aen_event_read_flag; /* flag to indicate event log was read*/
 	u8			 FirstWhoInit;
 	u8			 upload_fw;	/* If set, do a fw upload */
-	u8			 reload_fw;	/* Force a FW Reload on next reset */
 	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */
 	u8			 pad1[4];
 	u8			 DoneCtx;
 	u8			 TaskCtx;
 	u8			 InternalCtx;
-	spinlock_t		 initializing_hba_lock;
-	int 	 		 initializing_hba_lock_flag;
 	struct list_head	 list;
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
@@ -699,7 +713,7 @@ typedef struct _MPT_ADAPTER
 	struct list_head	 fw_event_list;
 	spinlock_t		 fw_event_lock;
 	u8			 fw_events_off; /* if '1', then ignore events */
-	char 			 fw_event_q_name[20];
+	char 			 fw_event_q_name[MPT_KOBJ_NAME_LEN];
 
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
@@ -731,15 +745,22 @@ typedef struct _MPT_ADAPTER
 	u8			 fc_link_speed[2];
 	spinlock_t		 fc_rescan_work_lock;
 	struct work_struct	 fc_rescan_work;
-	char			 fc_rescan_work_q_name[20];
+	char			 fc_rescan_work_q_name[MPT_KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
+
+	/* driver forced bus resets count */
+	unsigned long		  hard_resets;
+	/* fw/external bus resets count */
+	unsigned long		  soft_resets;
+	/* cmd timeouts */
+	unsigned long		  timeouts;
+
 	struct scsi_cmnd	**ScsiLookup;
 	spinlock_t		  scsi_lookup_lock;
 	u64			dma_mask;
-	char			 reset_work_q_name[20];
+	char			 reset_work_q_name[MPT_KOBJ_NAME_LEN];
 	struct workqueue_struct *reset_work_q;
 	struct delayed_work	 fault_reset_work;
-	spinlock_t		 fault_reset_work_lock;
 
 	u8			sg_addr_size;
 	u8			in_rescan;
@@ -870,9 +891,6 @@ typedef struct _MPT_SCSI_HOST {
 	MPT_FRAME_HDR		 *cmdPtr;		/* Ptr to nonOS request */
 	struct scsi_cmnd	 *abortSCpnt;
 	MPT_LOCAL_REPLY		  localReply;		/* internal cmd reply struct */
-	unsigned long		  hard_resets;		/* driver forced bus resets count */
-	unsigned long		  soft_resets;		/* fw/external bus resets count */
-	unsigned long		  timeouts;		/* cmd timeouts */
 	ushort			  sel_timeout[MPT_MAX_FC_DEVICES];
 	char 			  *info_kbuf;
 	long			  last_queue_full;
