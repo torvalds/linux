@@ -688,6 +688,12 @@ static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
 		}
 	}
 
+	/* make sure the internal data buffers in the core are drained
+	 * so that the DMA descriptors are completely written when the
+	 * DMA engine goes to fetch them below
+	 */
+	SSYNC();
+
 	/* enable this packet's dma */
 	current_tx_ptr->desc_a.config |= DMAEN;
 
