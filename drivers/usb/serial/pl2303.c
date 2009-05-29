@@ -927,6 +927,8 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
+	if (priv->line_status & UART_BREAK_ERROR)
+		usb_serial_handle_break(port);
 	wake_up_interruptible(&priv->delta_msr_wait);
 }
 
@@ -1037,7 +1039,8 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 		if (line_status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		for (i = 0; i < urb->actual_length; ++i)
-			tty_insert_flip_char(tty, data[i], tty_flag);
+			if (!usb_serial_handle_sysrq_char(port, data[i]))
+				tty_insert_flip_char(tty, data[i], tty_flag);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);
