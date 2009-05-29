@@ -82,6 +82,7 @@ struct mptsas_device_info {
 	u32			device_info; /* specific bits for devices */
 	u16			slot;		/* enclosure slot id */
 	u64			enclosure_logical_id; /*enclosure address */
+	u8			is_logical_volume; /* is this logical volume */
 };
 
 struct mptsas_hotplug_event {

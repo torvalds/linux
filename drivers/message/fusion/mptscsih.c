@@ -2087,8 +2087,10 @@ int
 mptscsih_is_phys_disk(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
 	struct inactive_raid_component_info *component_info;
-	int i;
+	int i, j;
+	RaidPhysDiskPage1_t *phys_disk;
 	int rc = 0;
+	int num_paths;
 
 	if (!ioc->raid_data.pIocPg3)
 		goto out;
@@ -2099,6 +2101,45 @@ mptscsih_is_phys_disk(MPT_ADAPTER *ioc, u8 channel, u8 id)
 			goto out;
 		}
 	}
+
+	if (ioc->bus_type != SAS)
+		goto out;
+
+	/*
+	 * Check if dual path
+	 */
+	for (i = 0; i < ioc->raid_data.pIocPg3->NumPhysDisks; i++) {
+		num_paths = mpt_raid_phys_disk_get_num_paths(ioc,
+		    ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskNum);
+		if (num_paths < 2)
+			continue;
+		phys_disk = kzalloc(offsetof(RaidPhysDiskPage1_t, Path) +
+		   (num_paths * sizeof(RAID_PHYS_DISK1_PATH)), GFP_KERNEL);
+		if (!phys_disk)
+			continue;
+		if ((mpt_raid_phys_disk_pg1(ioc,
+		    ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskNum,
+		    phys_disk))) {
+			kfree(phys_disk);
+			continue;
+		}
+		for (j = 0; j < num_paths; j++) {
+			if ((phys_disk->Path[j].Flags &
+			    MPI_RAID_PHYSDISK1_FLAG_INVALID))
+				continue;
+			if ((phys_disk->Path[j].Flags &
+			    MPI_RAID_PHYSDISK1_FLAG_BROKEN))
+				continue;
+			if ((id == phys_disk->Path[j].PhysDiskID) &&
+			    (channel == phys_disk->Path[j].PhysDiskBus)) {
+				rc = 1;
+				kfree(phys_disk);
+				goto out;
+			}
+		}
+		kfree(phys_disk);
+	}
+
 
 	/*
 	 * Check inactive list for matching phys disks
@@ -2124,8 +2165,10 @@ u8
 mptscsih_raid_id_to_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
 	struct inactive_raid_component_info *component_info;
-	int i;
+	int i, j;
+	RaidPhysDiskPage1_t *phys_disk;
 	int rc = -ENXIO;
+	int num_paths;
 
 	if (!ioc->raid_data.pIocPg3)
 		goto out;
@@ -2135,6 +2178,44 @@ mptscsih_raid_id_to_num(MPT_ADAPTER *ioc, u8 channel, u8 id)
 			rc = ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskNum;
 			goto out;
 		}
+	}
+
+	if (ioc->bus_type != SAS)
+		goto out;
+
+	/*
+	 * Check if dual path
+	 */
+	for (i = 0; i < ioc->raid_data.pIocPg3->NumPhysDisks; i++) {
+		num_paths = mpt_raid_phys_disk_get_num_paths(ioc,
+		    ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskNum);
+		if (num_paths < 2)
+			continue;
+		phys_disk = kzalloc(offsetof(RaidPhysDiskPage1_t, Path) +
+		   (num_paths * sizeof(RAID_PHYS_DISK1_PATH)), GFP_KERNEL);
+		if (!phys_disk)
+			continue;
+		if ((mpt_raid_phys_disk_pg1(ioc,
+		    ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskNum,
+		    phys_disk))) {
+			kfree(phys_disk);
+			continue;
+		}
+		for (j = 0; j < num_paths; j++) {
+			if ((phys_disk->Path[j].Flags &
+			    MPI_RAID_PHYSDISK1_FLAG_INVALID))
+				continue;
+			if ((phys_disk->Path[j].Flags &
+			    MPI_RAID_PHYSDISK1_FLAG_BROKEN))
+				continue;
+			if ((id == phys_disk->Path[j].PhysDiskID) &&
+			    (channel == phys_disk->Path[j].PhysDiskBus)) {
+				rc = phys_disk->PhysDiskNum;
+				kfree(phys_disk);
+				goto out;
+			}
+		}
+		kfree(phys_disk);
 	}
 
 	/*
