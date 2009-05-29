@@ -1241,7 +1241,6 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	q = &qs->txq[TXQ_ETH];
 	txq = netdev_get_tx_queue(dev, qidx);
 
-	spin_lock(&q->lock);
 	reclaim_completed_tx(adap, q, TX_RECLAIM_CHUNK);
 
 	credits = q->size - q->in_use;
@@ -1252,7 +1251,6 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_err(&adap->pdev->dev,
 			"%s: Tx ring %u full while queue awake!\n",
 			dev->name, q->cntxt_id & 7);
-		spin_unlock(&q->lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1285,8 +1283,6 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		qs->port_stats[SGE_PSTAT_TSO]++;
 	if (vlan_tx_tag_present(skb) && pi->vlan_grp)
 		qs->port_stats[SGE_PSTAT_VLANINS]++;
-
-	spin_unlock(&q->lock);
 
 	/*
 	 * We do not use Tx completion interrupts to free DMAd Tx packets.
@@ -2857,11 +2853,12 @@ static void sge_timer_tx(unsigned long data)
 	unsigned int tbd[SGE_TXQ_PER_SET] = {0, 0};
 	unsigned long next_period;
 
-	if (spin_trylock(&qs->txq[TXQ_ETH].lock)) {
-		tbd[TXQ_ETH] = reclaim_completed_tx(adap, &qs->txq[TXQ_ETH],
-						    TX_RECLAIM_TIMER_CHUNK);
-		spin_unlock(&qs->txq[TXQ_ETH].lock);
+	if (__netif_tx_trylock(qs->tx_q)) {
+                tbd[TXQ_ETH] = reclaim_completed_tx(adap, &qs->txq[TXQ_ETH],
+                                                     TX_RECLAIM_TIMER_CHUNK);
+		__netif_tx_unlock(qs->tx_q);
 	}
+
 	if (spin_trylock(&qs->txq[TXQ_OFLD].lock)) {
 		tbd[TXQ_OFLD] = reclaim_completed_tx(adap, &qs->txq[TXQ_OFLD],
 						     TX_RECLAIM_TIMER_CHUNK);
@@ -2869,8 +2866,8 @@ static void sge_timer_tx(unsigned long data)
 	}
 
 	next_period = TX_RECLAIM_PERIOD >>
-		      (max(tbd[TXQ_ETH], tbd[TXQ_OFLD]) /
-		       TX_RECLAIM_TIMER_CHUNK);
+                      (max(tbd[TXQ_ETH], tbd[TXQ_OFLD]) /
+                      TX_RECLAIM_TIMER_CHUNK);
 	mod_timer(&qs->tx_reclaim_timer, jiffies + next_period);
 }
 
