@@ -71,6 +71,9 @@ static const unsigned int default_count[] = {
 	  10000,
 };
 
+static __u64			event_res[MAX_COUNTERS][3];
+static __u64			event_scaled[MAX_COUNTERS];
+
 static void create_perfstat_counter(int counter)
 {
 	struct perf_counter_hw_event hw_event;
@@ -123,16 +126,19 @@ static inline int nsec_counter(int counter)
 }
 
 /*
- * Print out the results of a single counter:
+ * Read out the results of a single counter:
  */
-static void print_counter(int counter)
+static void read_counter(int counter)
 {
-	__u64 count[3], single_count[3];
+	__u64 *count, single_count[3];
 	ssize_t res;
 	int cpu, nv;
 	int scaled;
 
+	count = event_res[counter];
+
 	count[0] = count[1] = count[2] = 0;
+
 	nv = scale ? 3 : 1;
 	for (cpu = 0; cpu < nr_cpus; cpu ++) {
 		res = read(fd[cpu][counter], single_count, nv * sizeof(__u64));
@@ -148,15 +154,34 @@ static void print_counter(int counter)
 	scaled = 0;
 	if (scale) {
 		if (count[2] == 0) {
-			fprintf(stderr, " %14s  %-20s\n",
-				"<not counted>", event_name(counter));
+			event_scaled[counter] = -1;
+			count[0] = 0;
 			return;
 		}
+
 		if (count[2] < count[1]) {
-			scaled = 1;
+			event_scaled[counter] = 1;
 			count[0] = (unsigned long long)
 				((double)count[0] * count[1] / count[2] + 0.5);
 		}
+	}
+}
+
+/*
+ * Print out the results of a single counter:
+ */
+static void print_counter(int counter)
+{
+	__u64 *count;
+	int scaled;
+
+	count = event_res[counter];
+	scaled = event_scaled[counter];
+
+	if (scaled == -1) {
+		fprintf(stderr, " %14s  %-20s\n",
+			"<not counted>", event_name(counter));
+		return;
 	}
 
 	if (nsec_counter(counter)) {
@@ -212,6 +237,9 @@ static int do_perfstat(int argc, const char **argv)
 	fprintf(stderr, " Performance counter stats for \'%s\':\n",
 		argv[0]);
 	fprintf(stderr, "\n");
+
+	for (counter = 0; counter < nr_counters; counter++)
+		read_counter(counter);
 
 	for (counter = 0; counter < nr_counters; counter++)
 		print_counter(counter);
