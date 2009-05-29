@@ -107,7 +107,6 @@ static void sb1250_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	int i = 0, old_cpu, cpu, int_on;
 	u64 cur_ints;
-	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	i = cpumask_first(mask);
@@ -121,8 +120,7 @@ static void sb1250_set_affinity(unsigned int irq, const struct cpumask *mask)
 	cpu = cpu_logical_map(i);
 
 	/* Protect against other affinity changers and IMR manipulation */
-	spin_lock_irqsave(&desc->lock, flags);
-	spin_lock(&sb1250_imr_lock);
+	spin_lock_irqsave(&sb1250_imr_lock, flags);
 
 	/* Swizzle each CPU's IMR (but leave the IP selection alone) */
 	old_cpu = sb1250_irq_owner[irq];
@@ -144,8 +142,7 @@ static void sb1250_set_affinity(unsigned int irq, const struct cpumask *mask)
 		____raw_writeq(cur_ints, IOADDR(A_IMR_MAPPER(cpu) +
 					R_IMR_INTERRUPT_MASK));
 	}
-	spin_unlock(&sb1250_imr_lock);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	spin_unlock_irqrestore(&sb1250_imr_lock, flags);
 }
 #endif
 

@@ -312,16 +312,6 @@ out:
 	return retval;
 }
 
-/*
- * Read a page. Again trivial. If it didn't already exist
- * in the page cache, it is zero-filled.
- */
-static int hugetlbfs_readpage(struct file *file, struct page * page)
-{
-	unlock_page(page);
-	return -EINVAL;
-}
-
 static int hugetlbfs_write_begin(struct file *file,
 			struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
@@ -701,7 +691,6 @@ static void hugetlbfs_destroy_inode(struct inode *inode)
 }
 
 static const struct address_space_operations hugetlbfs_aops = {
-	.readpage	= hugetlbfs_readpage,
 	.write_begin	= hugetlbfs_write_begin,
 	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,

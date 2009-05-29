@@ -3738,7 +3738,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, icr = er32(ICR);
 
-	if (unlikely((!icr) || test_bit(__E1000_RESETTING, &adapter->flags)))
+	if (unlikely((!icr) || test_bit(__E1000_DOWN, &adapter->flags)))
 		return IRQ_NONE;  /* Not our interrupt */
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is

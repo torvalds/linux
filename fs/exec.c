@@ -69,17 +69,18 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-int register_binfmt(struct linux_binfmt * fmt)
+int __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
 	if (!fmt)
 		return -EINVAL;
 	write_lock(&binfmt_lock);
-	list_add(&fmt->lh, &formats);
+	insert ? list_add(&fmt->lh, &formats) :
+		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
 	return 0;	
 }
 
-EXPORT_SYMBOL(register_binfmt);
+EXPORT_SYMBOL(__register_binfmt);
 
 void unregister_binfmt(struct linux_binfmt * fmt)
 {
@@ -104,39 +105,27 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
-	struct nameidata nd;
 	char *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 
-	if (!IS_ERR(tmp)) {
-		error = path_lookup_open(AT_FDCWD, tmp,
-					 LOOKUP_FOLLOW, &nd,
-					 FMODE_READ|FMODE_EXEC);
-		putname(tmp);
-	}
-	if (error)
+	if (IS_ERR(tmp))
 		goto out;
 
-	error = -EINVAL;
-	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
-		goto exit;
-
-	error = -EACCES;
-	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
-		goto exit;
-
-	error = inode_permission(nd.path.dentry->d_inode,
-				 MAY_READ | MAY_EXEC | MAY_OPEN);
-	if (error)
-		goto exit;
-	error = ima_path_check(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN);
-	if (error)
-		goto exit;
-
-	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
+	file = do_filp_open(AT_FDCWD, tmp,
+				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
+				MAY_READ | MAY_EXEC | MAY_OPEN);
+	putname(tmp);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
+
+	error = -EINVAL;
+	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode))
+		goto exit;
+
+	error = -EACCES;
+	if (file->f_path.mnt->mnt_flags & MNT_NOEXEC)
+		goto exit;
 
 	fsnotify_open(file->f_path.dentry);
 
@@ -159,13 +148,10 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 		}
 		read_unlock(&binfmt_lock);
 	}
+exit:
 	fput(file);
 out:
   	return error;
-exit:
-	release_open_intent(&nd);
-	path_put(&nd.path);
-	goto out;
 }
 
 #ifdef CONFIG_MMU
@@ -660,47 +646,33 @@ EXPORT_SYMBOL(setup_arg_pages);
 
 struct file *open_exec(const char *name)
 {
-	struct nameidata nd;
 	struct file *file;
 	int err;
 
-	err = path_lookup_open(AT_FDCWD, name, LOOKUP_FOLLOW, &nd,
-				FMODE_READ|FMODE_EXEC);
-	if (err)
+	file = do_filp_open(AT_FDCWD, name,
+				O_LARGEFILE | O_RDONLY | FMODE_EXEC, 0,
+				MAY_EXEC | MAY_OPEN);
+	if (IS_ERR(file))
 		goto out;
 
 	err = -EACCES;
-	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
-		goto out_path_put;
+	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode))
+		goto exit;
 
-	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
-		goto out_path_put;
-
-	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
-	if (err)
-		goto out_path_put;
-	err = ima_path_check(&nd.path, MAY_EXEC | MAY_OPEN);
-	if (err)
-		goto out_path_put;
-
-	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
-	if (IS_ERR(file))
-		return file;
+	if (file->f_path.mnt->mnt_flags & MNT_NOEXEC)
+		goto exit;
 
 	fsnotify_open(file->f_path.dentry);
 
 	err = deny_write_access(file);
-	if (err) {
-		fput(file);
-		goto out;
-	}
+	if (err)
+		goto exit;
 
+out:
 	return file;
 
- out_path_put:
-	release_open_intent(&nd);
-	path_put(&nd.path);
- out:
+exit:
+	fput(file);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(open_exec);

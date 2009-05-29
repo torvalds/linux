@@ -67,8 +67,7 @@ static int proc_get_sb(struct file_system_type *fs_type,
 		sb->s_flags = flags;
 		err = proc_fill_super(sb);
 		if (err) {
-			up_write(&sb->s_umount);
-			deactivate_super(sb);
+			deactivate_locked_super(sb);
 			return err;
 		}
 

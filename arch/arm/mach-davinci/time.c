@@ -16,6 +16,9 @@
 #include <linux/clockchips.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/device.h>
 
 #include <mach/hardware.h>
 #include <asm/system.h>
@@ -24,8 +27,11 @@
 #include <asm/mach/time.h>
 #include <asm/errno.h>
 #include <mach/io.h>
+#include <mach/cputype.h>
+#include "clock.h"
 
 static struct clock_event_device clockevent_davinci;
+static unsigned int davinci_clock_tick_rate;
 
 #define DAVINCI_TIMER0_BASE (IO_PHYS + 0x21400)
 #define DAVINCI_TIMER1_BASE (IO_PHYS + 0x21800)
@@ -99,9 +105,9 @@ struct timer_s {
 	unsigned int id;
 	unsigned long period;
 	unsigned long opts;
-	unsigned long reg_base;
-	unsigned long tim_reg;
-	unsigned long prd_reg;
+	void __iomem *base;
+	unsigned long tim_off;
+	unsigned long prd_off;
 	unsigned long enamode_shift;
 	struct irqaction irqaction;
 };
@@ -114,15 +120,15 @@ static struct timer_s timers[];
 
 static int timer32_config(struct timer_s *t)
 {
-	u32 tcr = davinci_readl(t->reg_base + TCR);
+	u32 tcr = __raw_readl(t->base + TCR);
 
 	/* disable timer */
 	tcr &= ~(TCR_ENAMODE_MASK << t->enamode_shift);
-	davinci_writel(tcr, t->reg_base + TCR);
+	__raw_writel(tcr, t->base + TCR);
 
 	/* reset counter to zero, set new period */
-	davinci_writel(0, t->tim_reg);
-	davinci_writel(t->period, t->prd_reg);
+	__raw_writel(0, t->base + t->tim_off);
+	__raw_writel(t->period, t->base + t->prd_off);
 
 	/* Set enable mode */
 	if (t->opts & TIMER_OPTS_ONESHOT) {
@@ -131,13 +137,13 @@ static int timer32_config(struct timer_s *t)
 		tcr |= TCR_ENAMODE_PERIODIC << t->enamode_shift;
 	}
 
-	davinci_writel(tcr, t->reg_base + TCR);
+	__raw_writel(tcr, t->base + TCR);
 	return 0;
 }
 
 static inline u32 timer32_read(struct timer_s *t)
 {
-	return davinci_readl(t->tim_reg);
+	return __raw_readl(t->base + t->tim_off);
 }
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
@@ -176,51 +182,54 @@ static struct timer_s timers[] = {
 
 static void __init timer_init(void)
 {
-	u32 bases[] = {DAVINCI_TIMER0_BASE, DAVINCI_TIMER1_BASE};
+	u32 phys_bases[] = {DAVINCI_TIMER0_BASE, DAVINCI_TIMER1_BASE};
 	int i;
 
 	/* Global init of each 64-bit timer as a whole */
 	for(i=0; i<2; i++) {
-		u32 tgcr, base = bases[i];
+		u32 tgcr;
+		void __iomem *base = IO_ADDRESS(phys_bases[i]);
 
 		/* Disabled, Internal clock source */
-		davinci_writel(0, base + TCR);
+		__raw_writel(0, base + TCR);
 
 		/* reset both timers, no pre-scaler for timer34 */
 		tgcr = 0;
-		davinci_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base + TGCR);
 
 		/* Set both timers to unchained 32-bit */
 		tgcr = TGCR_TIMMODE_32BIT_UNCHAINED << TGCR_TIMMODE_SHIFT;
-		davinci_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base + TGCR);
 
 		/* Unreset timers */
 		tgcr |= (TGCR_UNRESET << TGCR_TIM12RS_SHIFT) |
 			(TGCR_UNRESET << TGCR_TIM34RS_SHIFT);
-		davinci_writel(tgcr, base + TGCR);
+		__raw_writel(tgcr, base + TGCR);
 
 		/* Init both counters to zero */
-		davinci_writel(0, base + TIM12);
-		davinci_writel(0, base + TIM34);
+		__raw_writel(0, base + TIM12);
+		__raw_writel(0, base + TIM34);
 	}
 
 	/* Init of each timer as a 32-bit timer */
 	for (i=0; i< ARRAY_SIZE(timers); i++) {
 		struct timer_s *t = &timers[i];
+		u32 phys_base;
 
 		if (t->name) {
 			t->id = i;
-			t->reg_base = (IS_TIMER1(t->id) ?
+			phys_base = (IS_TIMER1(t->id) ?
 			       DAVINCI_TIMER1_BASE : DAVINCI_TIMER0_BASE);
+			t->base = IO_ADDRESS(phys_base);
 
 			if (IS_TIMER_BOT(t->id)) {
 				t->enamode_shift = 6;
-				t->tim_reg = t->reg_base + TIM12;
-				t->prd_reg = t->reg_base + PRD12;
+				t->tim_off = TIM12;
+				t->prd_off = PRD12;
 			} else {
 				t->enamode_shift = 22;
-				t->tim_reg = t->reg_base + TIM34;
-				t->prd_reg = t->reg_base + PRD34;
+				t->tim_off = TIM34;
+				t->prd_off = PRD34;
 			}
 
 			/* Register interrupt */
@@ -274,7 +283,7 @@ static void davinci_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		t->period = CLOCK_TICK_RATE / (HZ);
+		t->period = davinci_clock_tick_rate / (HZ);
 		t->opts = TIMER_OPTS_PERIODIC;
 		timer32_config(t);
 		break;
@@ -301,21 +310,29 @@ static struct clock_event_device clockevent_davinci = {
 
 static void __init davinci_timer_init(void)
 {
+	struct clk *timer_clk;
+
 	static char err[] __initdata = KERN_ERR
 		"%s: can't register clocksource!\n";
 
 	/* init timer hw */
 	timer_init();
 
+	timer_clk = clk_get(NULL, "timer0");
+	BUG_ON(IS_ERR(timer_clk));
+	clk_enable(timer_clk);
+
+	davinci_clock_tick_rate = clk_get_rate(timer_clk);
+
 	/* setup clocksource */
 	clocksource_davinci.mult =
-		clocksource_khz2mult(CLOCK_TICK_RATE/1000,
+		clocksource_khz2mult(davinci_clock_tick_rate/1000,
 				     clocksource_davinci.shift);
 	if (clocksource_register(&clocksource_davinci))
 		printk(err, clocksource_davinci.name);
 
 	/* setup clockevent */
-	clockevent_davinci.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC,
+	clockevent_davinci.mult = div_sc(davinci_clock_tick_rate, NSEC_PER_SEC,
 					 clockevent_davinci.shift);
 	clockevent_davinci.max_delta_ns =
 		clockevent_delta2ns(0xfffffffe, &clockevent_davinci);
@@ -333,42 +350,52 @@ struct sys_timer davinci_timer = {
 
 /* reset board using watchdog timer */
 void davinci_watchdog_reset(void) {
-	u32 tgcr, wdtcr, base = DAVINCI_WDOG_BASE;
+	u32 tgcr, wdtcr;
+	void __iomem *base = IO_ADDRESS(DAVINCI_WDOG_BASE);
+	struct device dev;
+	struct clk *wd_clk;
+	char *name = "watchdog";
+
+	dev_set_name(&dev, name);
+	wd_clk = clk_get(&dev, NULL);
+	if (WARN_ON(IS_ERR(wd_clk)))
+		return;
+	clk_enable(wd_clk);
 
 	/* disable, internal clock source */
-	davinci_writel(0, base + TCR);
+	__raw_writel(0, base + TCR);
 
 	/* reset timer, set mode to 64-bit watchdog, and unreset */
 	tgcr = 0;
-	davinci_writel(tgcr, base + TCR);
+	__raw_writel(tgcr, base + TCR);
 	tgcr = TGCR_TIMMODE_64BIT_WDOG << TGCR_TIMMODE_SHIFT;
 	tgcr |= (TGCR_UNRESET << TGCR_TIM12RS_SHIFT) |
 		(TGCR_UNRESET << TGCR_TIM34RS_SHIFT);
-	davinci_writel(tgcr, base + TCR);
+	__raw_writel(tgcr, base + TCR);
 
 	/* clear counter and period regs */
-	davinci_writel(0, base + TIM12);
-	davinci_writel(0, base + TIM34);
-	davinci_writel(0, base + PRD12);
-	davinci_writel(0, base + PRD34);
+	__raw_writel(0, base + TIM12);
+	__raw_writel(0, base + TIM34);
+	__raw_writel(0, base + PRD12);
+	__raw_writel(0, base + PRD34);
 
 	/* enable */
-	wdtcr = davinci_readl(base + WDTCR);
+	wdtcr = __raw_readl(base + WDTCR);
 	wdtcr |= WDTCR_WDEN_ENABLE << WDTCR_WDEN_SHIFT;
-	davinci_writel(wdtcr, base + WDTCR);
+	__raw_writel(wdtcr, base + WDTCR);
 
 	/* put watchdog in pre-active state */
 	wdtcr = (WDTCR_WDKEY_SEQ0 << WDTCR_WDKEY_SHIFT) |
 		(WDTCR_WDEN_ENABLE << WDTCR_WDEN_SHIFT);
-	davinci_writel(wdtcr, base + WDTCR);
+	__raw_writel(wdtcr, base + WDTCR);
 
 	/* put watchdog in active state */
 	wdtcr = (WDTCR_WDKEY_SEQ1 << WDTCR_WDKEY_SHIFT) |
 		(WDTCR_WDEN_ENABLE << WDTCR_WDEN_SHIFT);
-	davinci_writel(wdtcr, base + WDTCR);
+	__raw_writel(wdtcr, base + WDTCR);
 
 	/* write an invalid value to the WDKEY field to trigger
 	 * a watchdog reset */
 	wdtcr = 0x00004000;
-	davinci_writel(wdtcr, base + WDTCR);
+	__raw_writel(wdtcr, base + WDTCR);
 }

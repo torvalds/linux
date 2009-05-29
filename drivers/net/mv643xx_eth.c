@@ -393,12 +393,12 @@ struct mv643xx_eth_private {
 	struct work_struct tx_timeout_task;
 
 	struct napi_struct napi;
+	u8 oom;
 	u8 work_link;
 	u8 work_tx;
 	u8 work_tx_end;
 	u8 work_rx;
 	u8 work_rx_refill;
-	u8 work_rx_oom;
 
 	int skb_size;
 	struct sk_buff_head rx_recycle;
@@ -569,7 +569,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		if (rxq->rx_curr_desc == rxq->rx_ring_size)
 			rxq->rx_curr_desc = 0;
 
-		dma_unmap_single(NULL, rx_desc->buf_ptr,
+		dma_unmap_single(mp->dev->dev.parent, rx_desc->buf_ptr,
 				 rx_desc->buf_size, DMA_FROM_DEVICE);
 		rxq->rx_desc_count--;
 		rx++;
@@ -661,7 +661,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 					    dma_get_cache_alignment() - 1);
 
 		if (skb == NULL) {
-			mp->work_rx_oom |= 1 << rxq->index;
+			mp->oom = 1;
 			goto oom;
 		}
 
@@ -678,8 +678,9 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		rx_desc = rxq->rx_desc_area + rx;
 
-		rx_desc->buf_ptr = dma_map_single(NULL, skb->data,
-					mp->skb_size, DMA_FROM_DEVICE);
+		rx_desc->buf_ptr = dma_map_single(mp->dev->dev.parent,
+						  skb->data, mp->skb_size,
+						  DMA_FROM_DEVICE);
 		rx_desc->buf_size = mp->skb_size;
 		rxq->rx_skb[rx] = skb;
 		wmb();
@@ -718,6 +719,7 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 
 static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
+	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int frag;
 
@@ -746,10 +748,10 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 
 		desc->l4i_chk = 0;
 		desc->byte_cnt = this_frag->size;
-		desc->buf_ptr = dma_map_page(NULL, this_frag->page,
-						this_frag->page_offset,
-						this_frag->size,
-						DMA_TO_DEVICE);
+		desc->buf_ptr = dma_map_page(mp->dev->dev.parent,
+					     this_frag->page,
+					     this_frag->page_offset,
+					     this_frag->size, DMA_TO_DEVICE);
 	}
 }
 
@@ -826,7 +828,8 @@ no_csum:
 
 	desc->l4i_chk = l4i_chk;
 	desc->byte_cnt = length;
-	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
+	desc->buf_ptr = dma_map_single(mp->dev->dev.parent, skb->data,
+				       length, DMA_TO_DEVICE);
 
 	__skb_queue_tail(&txq->tx_skb, skb);
 
@@ -956,10 +959,10 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		}
 
 		if (cmd_sts & TX_FIRST_DESC) {
-			dma_unmap_single(NULL, desc->buf_ptr,
+			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
 					 desc->byte_cnt, DMA_TO_DEVICE);
 		} else {
-			dma_unmap_page(NULL, desc->buf_ptr,
+			dma_unmap_page(mp->dev->dev.parent, desc->buf_ptr,
 				       desc->byte_cnt, DMA_TO_DEVICE);
 		}
 
@@ -1255,7 +1258,6 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 
 	spin_lock_bh(&mp->mib_counters_lock);
 	p->good_octets_received += mib_read(mp, 0x00);
-	p->good_octets_received += (u64)mib_read(mp, 0x04) << 32;
 	p->bad_octets_received += mib_read(mp, 0x08);
 	p->internal_mac_transmit_err += mib_read(mp, 0x0c);
 	p->good_frames_received += mib_read(mp, 0x10);
@@ -1269,7 +1271,6 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->frames_512_to_1023_octets += mib_read(mp, 0x30);
 	p->frames_1024_to_max_octets += mib_read(mp, 0x34);
 	p->good_octets_sent += mib_read(mp, 0x38);
-	p->good_octets_sent += (u64)mib_read(mp, 0x3c) << 32;
 	p->good_frames_sent += mib_read(mp, 0x40);
 	p->excessive_collision += mib_read(mp, 0x44);
 	p->multicast_frames_sent += mib_read(mp, 0x48);
@@ -1896,9 +1897,9 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 						mp->rx_desc_sram_size);
 		rxq->rx_desc_dma = mp->rx_desc_sram_addr;
 	} else {
-		rxq->rx_desc_area = dma_alloc_coherent(NULL, size,
-							&rxq->rx_desc_dma,
-							GFP_KERNEL);
+		rxq->rx_desc_area = dma_alloc_coherent(mp->dev->dev.parent,
+						       size, &rxq->rx_desc_dma,
+						       GFP_KERNEL);
 	}
 
 	if (rxq->rx_desc_area == NULL) {
@@ -1949,7 +1950,7 @@ out_free:
 	if (index == 0 && size <= mp->rx_desc_sram_size)
 		iounmap(rxq->rx_desc_area);
 	else
-		dma_free_coherent(NULL, size,
+		dma_free_coherent(mp->dev->dev.parent, size,
 				  rxq->rx_desc_area,
 				  rxq->rx_desc_dma);
 
@@ -1981,7 +1982,7 @@ static void rxq_deinit(struct rx_queue *rxq)
 	    rxq->rx_desc_area_size <= mp->rx_desc_sram_size)
 		iounmap(rxq->rx_desc_area);
 	else
-		dma_free_coherent(NULL, rxq->rx_desc_area_size,
+		dma_free_coherent(mp->dev->dev.parent, rxq->rx_desc_area_size,
 				  rxq->rx_desc_area, rxq->rx_desc_dma);
 
 	kfree(rxq->rx_skb);
@@ -2009,9 +2010,9 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 						mp->tx_desc_sram_size);
 		txq->tx_desc_dma = mp->tx_desc_sram_addr;
 	} else {
-		txq->tx_desc_area = dma_alloc_coherent(NULL, size,
-							&txq->tx_desc_dma,
-							GFP_KERNEL);
+		txq->tx_desc_area = dma_alloc_coherent(mp->dev->dev.parent,
+						       size, &txq->tx_desc_dma,
+						       GFP_KERNEL);
 	}
 
 	if (txq->tx_desc_area == NULL) {
@@ -2055,7 +2056,7 @@ static void txq_deinit(struct tx_queue *txq)
 	    txq->tx_desc_area_size <= mp->tx_desc_sram_size)
 		iounmap(txq->tx_desc_area);
 	else
-		dma_free_coherent(NULL, txq->tx_desc_area_size,
+		dma_free_coherent(mp->dev->dev.parent, txq->tx_desc_area_size,
 				  txq->tx_desc_area, txq->tx_desc_dma);
 }
 
@@ -2167,8 +2168,10 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 
 	mp = container_of(napi, struct mv643xx_eth_private, napi);
 
-	mp->work_rx_refill |= mp->work_rx_oom;
-	mp->work_rx_oom = 0;
+	if (unlikely(mp->oom)) {
+		mp->oom = 0;
+		del_timer(&mp->rx_oom);
+	}
 
 	work_done = 0;
 	while (work_done < budget) {
@@ -2182,8 +2185,10 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 			continue;
 		}
 
-		queue_mask = mp->work_tx | mp->work_tx_end |
-				mp->work_rx | mp->work_rx_refill;
+		queue_mask = mp->work_tx | mp->work_tx_end | mp->work_rx;
+		if (likely(!mp->oom))
+			queue_mask |= mp->work_rx_refill;
+
 		if (!queue_mask) {
 			if (mv643xx_eth_collect_events(mp))
 				continue;
@@ -2204,7 +2209,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 			txq_maybe_wake(mp->txq + queue);
 		} else if (mp->work_rx & queue_mask) {
 			work_done += rxq_process(mp->rxq + queue, work_tbd);
-		} else if (mp->work_rx_refill & queue_mask) {
+		} else if (!mp->oom && (mp->work_rx_refill & queue_mask)) {
 			work_done += rxq_refill(mp->rxq + queue, work_tbd);
 		} else {
 			BUG();
@@ -2212,7 +2217,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		if (mp->work_rx_oom)
+		if (mp->oom)
 			mod_timer(&mp->rx_oom, jiffies + (HZ / 10));
 		napi_complete(napi);
 		wrlp(mp, INT_MASK, INT_TX_END | INT_RX | INT_EXT);
@@ -2372,7 +2377,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 		rxq_refill(mp->rxq + i, INT_MAX);
 	}
 
-	if (mp->work_rx_oom) {
+	if (mp->oom) {
 		mp->rx_oom.expires = jiffies + (HZ / 10);
 		add_timer(&mp->rx_oom);
 	}
