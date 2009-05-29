@@ -3282,8 +3282,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ioc->sas_data.ptClear = mpt_pt_clear;
 
-	init_waitqueue_head(&hd->scandv_waitq);
-	hd->scandv_wait_done = 0;
 	hd->last_queue_full = 0;
 	INIT_LIST_HEAD(&hd->target_reset_list);
 	spin_unlock_irqrestore(&ioc->FreeQlock, flags);

@@ -1775,6 +1775,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ioc->diagLock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
+	mutex_init(&ioc->internal_cmds.mutex);
+	init_completion(&ioc->internal_cmds.done);
 	mutex_init(&ioc->mptbase_cmds.mutex);
 	init_completion(&ioc->mptbase_cmds.done);
 

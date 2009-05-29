@@ -465,7 +465,9 @@ typedef struct _MPT_MGMT {
 	struct mutex		 mutex;
 	struct completion	 done;
 	u8			 reply[MPT_DEFAULT_FRAME_SIZE]; /* reply frame data */
+	u8			 sense[MPT_SENSE_BUFFER_ALLOC];
 	u8			 status;	/* current command status */
+	int			 completion_code;
 } MPT_MGMT;
 
 /*
@@ -709,6 +711,7 @@ typedef struct _MPT_ADAPTER
 	int			 sas_index; /* index refrencing */
 	MPT_MGMT		 sas_mgmt;
 	MPT_MGMT		 mptbase_cmds; /* for sending config pages */
+	MPT_MGMT		 internal_cmds;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
@@ -863,8 +866,6 @@ typedef struct _MPT_SCSI_HOST {
 	unsigned long		  timeouts;		/* cmd timeouts */
 	ushort			  sel_timeout[MPT_MAX_FC_DEVICES];
 	char 			  *info_kbuf;
-	wait_queue_head_t	  scandv_waitq;
-	int			  scandv_wait_done;
 	long			  last_queue_full;
 	u16			  tm_iocstatus;
 	u16			  spi_pending;
