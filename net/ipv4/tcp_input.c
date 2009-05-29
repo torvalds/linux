@@ -4481,26 +4481,20 @@ drop:
 			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 
 		/* And clean segments covered by new one as whole. */
-		if (skb1 && !skb_queue_is_last(&tp->out_of_order_queue, skb1)) {
-			struct sk_buff *n;
+		while (!skb_queue_is_last(&tp->out_of_order_queue, skb)) {
+			skb1 = skb_queue_next(&tp->out_of_order_queue, skb);
 
-			skb1 = skb_queue_next(&tp->out_of_order_queue, skb1);
-			skb_queue_walk_from_safe(&tp->out_of_order_queue,
-						 skb1, n) {
-				if (!after(end_seq, TCP_SKB_CB(skb1)->seq))
-					break;
-				if (before(end_seq,
-					   TCP_SKB_CB(skb1)->end_seq)) {
-					tcp_dsack_extend(sk,
-							 TCP_SKB_CB(skb1)->seq,
-							 end_seq);
-					break;
-				}
-				__skb_unlink(skb1, &tp->out_of_order_queue);
+			if (!after(end_seq, TCP_SKB_CB(skb1)->seq))
+				break;
+			if (before(end_seq, TCP_SKB_CB(skb1)->end_seq)) {
 				tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
-						 TCP_SKB_CB(skb1)->end_seq);
-				__kfree_skb(skb1);
+						 end_seq);
+				break;
 			}
+			__skb_unlink(skb1, &tp->out_of_order_queue);
+			tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
+					 TCP_SKB_CB(skb1)->end_seq);
+			__kfree_skb(skb1);
 		}
 
 add_sack:
