@@ -61,12 +61,30 @@ enum mptsas_hotplug_action {
 	MPTSAS_DEL_DEVICE,
 	MPTSAS_ADD_RAID,
 	MPTSAS_DEL_RAID,
+	MPTSAS_ADD_PHYSDISK,
+	MPTSAS_ADD_PHYSDISK_REPROBE,
+	MPTSAS_DEL_PHYSDISK,
+	MPTSAS_DEL_PHYSDISK_REPROBE,
 	MPTSAS_ADD_INACTIVE_VOLUME,
 	MPTSAS_IGNORE_EVENT,
 };
 
+struct mptsas_mapping{
+	u8			id;
+	u8			channel;
+};
+
+struct mptsas_device_info {
+	struct list_head 	list;
+	struct mptsas_mapping	os;	/* operating system mapping*/
+	struct mptsas_mapping	fw;	/* firmware mapping */
+	u64			sas_address;
+	u32			device_info; /* specific bits for devices */
+	u16			slot;		/* enclosure slot id */
+	u64			enclosure_logical_id; /*enclosure address */
+};
+
 struct mptsas_hotplug_event {
-	struct work_struct	work;
 	MPT_ADAPTER		*ioc;
 	enum mptsas_hotplug_action event_type;
 	u64			sas_address;
@@ -74,11 +92,18 @@ struct mptsas_hotplug_event {
 	u8			id;
 	u32			device_info;
 	u16			handle;
-	u16			parent_handle;
 	u8			phy_id;
-	u8			phys_disk_num_valid;	/* hrc (hidden raid component) */
 	u8			phys_disk_num;		/* hrc - unique index*/
-	u8			hidden_raid_component;	/* hrc - don't expose*/
+	struct scsi_device	*sdev;
+};
+
+struct fw_event_work {
+	struct list_head 	list;
+	struct delayed_work	 work;
+	MPT_ADAPTER	*ioc;
+	u32			event;
+	u8			retries;
+	u8			event_data[1];
 };
 
 struct mptsas_discovery_event {

@@ -694,9 +694,18 @@ typedef struct _MPT_ADAPTER
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
 	struct mutex		 sas_topology_mutex;
+
+	struct workqueue_struct	*fw_event_q;
+	struct list_head	 fw_event_list;
+	spinlock_t		 fw_event_lock;
+	u8			 fw_events_off; /* if '1', then ignore events */
+	char 			 fw_event_q_name[20];
+
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
 	u8			 sas_discovery_ignore_events;
+	struct list_head	 sas_device_info_list;
+	struct mutex		 sas_device_info_mutex;
 	u8			 sas_discovery_quiesce_io;
 	int			 sas_index; /* index refrencing */
 	MPT_MGMT		 sas_mgmt;

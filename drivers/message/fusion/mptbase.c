@@ -1931,6 +1931,11 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	mpt_detect_bound_ports(ioc, pdev);
 
+	INIT_LIST_HEAD(&ioc->fw_event_list);
+	spin_lock_init(&ioc->fw_event_lock);
+	snprintf(ioc->fw_event_q_name, 20, "mpt/%d", ioc->id);
+	ioc->fw_event_q = create_singlethread_workqueue(ioc->fw_event_q_name);
+
 	if ((r = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
 	    CAN_SLEEP)) != 0){
 		printk(MYIOC_s_ERR_FMT "didn't initialize properly! (%d)\n",
@@ -2010,6 +2015,11 @@ mpt_detach(struct pci_dev *pdev)
 	cancel_delayed_work(&ioc->fault_reset_work);
 	destroy_workqueue(wq);
 
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+	wq = ioc->fw_event_q;
+	ioc->fw_event_q = NULL;
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	destroy_workqueue(wq);
 
 	sprintf(pname, MPT_PROCFS_MPTBASEDIR "/%s/summary", ioc->name);
 	remove_proc_entry(pname, NULL);
