@@ -59,7 +59,7 @@ enum {
 	 * M - Major: change if removing or modifying an existing call.
 	 * m - minor: change when adding a new call
 	 */
-	WIMAX_GNL_VERSION = 00,
+	WIMAX_GNL_VERSION = 01,
 	/* Generic NetLink attributes */
 	WIMAX_GNL_ATTR_INVALID = 0x00,
 	WIMAX_GNL_ATTR_MAX = 10,
@@ -78,6 +78,7 @@ enum {
 	WIMAX_GNL_OP_RFKILL,	/* Run wimax_rfkill() */
 	WIMAX_GNL_OP_RESET,	/* Run wimax_rfkill() */
 	WIMAX_GNL_RE_STATE_CHANGE,	/* Report: status change */
+	WIMAX_GNL_OP_STATE_GET,		/* Request for current state */
 };
 
 
@@ -113,6 +114,10 @@ enum {
 	WIMAX_GNL_RESET_IFIDX = 1,
 };
 
+/* Atributes for wimax_state_get() */
+enum {
+	WIMAX_GNL_STGET_IFIDX = 1,
+};
 
 /*
  * Attributes for the Report State Change
