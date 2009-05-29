@@ -192,7 +192,8 @@ static void 	mpt_read_ioc_pg_1(MPT_ADAPTER *ioc);
 static void 	mpt_read_ioc_pg_4(MPT_ADAPTER *ioc);
 static void	mpt_timer_expired(unsigned long data);
 static void	mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc);
-static int	SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch);
+static int	SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch,
+	int sleepFlag);
 static int	SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp);
 static int	mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_value, int sleepFlag);
 static int	mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init);
@@ -208,7 +209,8 @@ static int	procmpt_iocinfo_read(char *buf, char **start, off_t offset,
 static void	mpt_get_fw_exp_ver(char *buf, MPT_ADAPTER *ioc);
 
 //int		mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag);
-static int	ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *evReply, int *evHandlers);
+static int	ProcessEventNotification(MPT_ADAPTER *ioc,
+		EventNotificationReply_t *evReply, int *evHandlers);
 static void	mpt_iocstatus_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf);
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
@@ -2472,28 +2474,36 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 		}
 	}
 
+	/*  Enable MPT base driver management of EventNotification
+	 *  and EventAck handling.
+	 */
+	if ((ret == 0) && (!ioc->facts.EventState)) {
+		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
+			"SendEventNotification\n",
+		    ioc->name));
+		ret = SendEventNotification(ioc, 1, sleepFlag);	/* 1=Enable */
+	}
+
+	if (ioc->alt_ioc && alt_ioc_ready && !ioc->alt_ioc->facts.EventState)
+		rc = SendEventNotification(ioc->alt_ioc, 1, sleepFlag);
+
 	if (ret == 0) {
 		/* Enable! (reply interrupt) */
 		CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
 		ioc->active = 1;
 	}
-
-	if (reset_alt_ioc_active && ioc->alt_ioc) {
-		/* (re)Enable alt-IOC! (reply interrupt) */
-		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT "alt_ioc reply irq re-enabled\n",
-		    ioc->alt_ioc->name));
-		CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask, MPI_HIM_DIM);
-		ioc->alt_ioc->active = 1;
+	if (rc == 0) {	/* alt ioc */
+		if (reset_alt_ioc_active && ioc->alt_ioc) {
+			/* (re)Enable alt-IOC! (reply interrupt) */
+			dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "alt-ioc"
+				"reply irq re-enabled\n",
+				ioc->alt_ioc->name));
+			CHIPREG_WRITE32(&ioc->alt_ioc->chip->IntMask,
+				MPI_HIM_DIM);
+			ioc->alt_ioc->active = 1;
+		}
 	}
 
-	/*  Enable MPT base driver management of EventNotification
-	 *  and EventAck handling.
-	 */
-	if ((ret == 0) && (!ioc->facts.EventState))
-		(void) SendEventNotification(ioc, 1);	/* 1=Enable EventNotification */
-
-	if (ioc->alt_ioc && alt_ioc_ready && !ioc->alt_ioc->facts.EventState)
-		(void) SendEventNotification(ioc->alt_ioc, 1);	/* 1=Enable EventNotification */
 
 	/*	Add additional "reason" check before call to GetLanConfigPages
 	 *	(combined with GetIoUnitPage2 call).  This prevents a somewhat
@@ -6019,30 +6029,28 @@ mpt_get_manufacturing_pg_0(MPT_ADAPTER *ioc)
  *	SendEventNotification - Send EventNotification (on or off) request to adapter
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@EvSwitch: Event switch flags
+ *	@sleepFlag: Specifies whether the process can sleep
  */
 static int
-SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch)
+SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch, int sleepFlag)
 {
-	EventNotification_t	*evnp;
+	EventNotification_t	evn;
+	MPIDefaultReply_t	reply_buf;
 
-	evnp = (EventNotification_t *) mpt_get_msg_frame(mpt_base_index, ioc);
-	if (evnp == NULL) {
-		devtverboseprintk(ioc, printk(MYIOC_s_WARN_FMT "Unable to allocate event request frame!\n",
-				ioc->name));
-		return 0;
-	}
-	memset(evnp, 0, sizeof(*evnp));
+	memset(&evn, 0, sizeof(EventNotification_t));
+	memset(&reply_buf, 0, sizeof(MPIDefaultReply_t));
 
-	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Sending EventNotification (%d) request %p\n", ioc->name, EvSwitch, evnp));
+	evn.Function = MPI_FUNCTION_EVENT_NOTIFICATION;
+	evn.Switch = EvSwitch;
+	evn.MsgContext = cpu_to_le32(mpt_base_index << 16);
 
-	evnp->Function = MPI_FUNCTION_EVENT_NOTIFICATION;
-	evnp->ChainOffset = 0;
-	evnp->MsgFlags = 0;
-	evnp->Switch = EvSwitch;
+	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "Sending EventNotification (%d) request %p\n",
+	    ioc->name, EvSwitch, &evn));
 
-	mpt_put_msg_frame(mpt_base_index, ioc, (MPT_FRAME_HDR *)evnp);
-
-	return 0;
+	return mpt_handshake_req_reply_wait(ioc, sizeof(EventNotification_t),
+	    (u32 *)&evn, sizeof(MPIDefaultReply_t), (u16 *)&reply_buf, 30,
+	    sleepFlag);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
