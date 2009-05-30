@@ -48,6 +48,15 @@ config MACH_REALVIEW_PB1176
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
+config REALVIEW_PB1176_SECURE_FLASH
+	bool "Allow access to the secure flash memory block"
+	depends on MACH_REALVIEW_PB1176
+	default n
+	help
+	  Select this option if Linux will only run in secure mode on the
+	  RealView PB1176 platform and access to the secure flash memory
+	  block (64MB @ 0x3c000000) is required.
+
 config MACH_REALVIEW_PBA8
 	bool "Support RealView/PB-A8 platform"
 	select CPU_V7
