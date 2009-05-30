@@ -95,7 +95,7 @@ static __init int map_switcher(void)
 	 * array of struct pages.  It increments that pointer, but we don't
 	 * care. */
 	pagep = switcher_page;
-	err = map_vm_area(switcher_vma, PAGE_KERNEL, &pagep);
+	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, &pagep);
 	if (err) {
 		printk("lguest: map_vm_area failed: %i\n", err);
 		goto free_vma;
