@@ -117,14 +117,15 @@ static struct pci_device_id kvaser_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, kvaser_pci_tbl);
 
-static u8 kvaser_pci_read_reg(const struct net_device *dev, int port)
+static u8 kvaser_pci_read_reg(const struct sja1000_priv *priv, int port)
 {
-	return ioread8((void __iomem *)(dev->base_addr + port));
+	return ioread8(priv->reg_base + port);
 }
 
-static void kvaser_pci_write_reg(const struct net_device *dev, int port, u8 val)
+static void kvaser_pci_write_reg(const struct sja1000_priv *priv,
+				 int port, u8 val)
 {
-	iowrite8(val, (void __iomem *)(dev->base_addr + port));
+	iowrite8(val, priv->reg_base + port);
 }
 
 static void kvaser_pci_disable_irq(struct net_device *dev)
@@ -199,7 +200,7 @@ static void kvaser_pci_del_chan(struct net_device *dev)
 	}
 	unregister_sja1000dev(dev);
 
-	pci_iounmap(board->pci_dev, (void __iomem *)dev->base_addr);
+	pci_iounmap(board->pci_dev, priv->reg_base);
 	pci_iounmap(board->pci_dev, board->conf_addr);
 	pci_iounmap(board->pci_dev, board->res_addr);
 
@@ -210,7 +211,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 			       struct net_device **master_dev,
 			       void __iomem *conf_addr,
 			       void __iomem *res_addr,
-			       unsigned long base_addr)
+			       void __iomem *base_addr)
 {
 	struct net_device *dev;
 	struct sja1000_priv *priv;
@@ -252,7 +253,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 		board->xilinx_ver = master_board->xilinx_ver;
 	}
 
-	dev->base_addr = base_addr + channel * KVASER_PCI_PORT_BYTES;
+	priv->reg_base = base_addr + channel * KVASER_PCI_PORT_BYTES;
 
 	priv->read_reg = kvaser_pci_read_reg;
 	priv->write_reg = kvaser_pci_write_reg;
@@ -267,8 +268,8 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 
 	init_step = 4;
 
-	dev_info(&pdev->dev, "base_addr=%#lx conf_addr=%p irq=%d\n",
-		 dev->base_addr, board->conf_addr, dev->irq);
+	dev_info(&pdev->dev, "reg_base=%p conf_addr=%p irq=%d\n",
+		 priv->reg_base, board->conf_addr, dev->irq);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -343,7 +344,7 @@ static int __devinit kvaser_pci_init_one(struct pci_dev *pdev,
 	for (i = 0; i < no_channels; i++) {
 		err = kvaser_pci_add_chan(pdev, i, &master_dev,
 					  conf_addr, res_addr,
-					  (unsigned long)base_addr);
+					  base_addr);
 		if (err)
 			goto failure_cleanup;
 	}
