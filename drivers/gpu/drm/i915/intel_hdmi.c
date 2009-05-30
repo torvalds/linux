@@ -139,7 +139,7 @@ intel_hdmi_edid_detect(struct drm_connector *connector)
 	enum drm_connector_status status = connector_status_disconnected;
 
 	edid = drm_get_edid(&intel_output->base,
-			    &intel_output->ddc_bus->adapter);
+			    intel_output->ddc_bus);
 	hdmi_priv->has_hdmi_sink = false;
 	if (edid) {
 		if (edid->digital) {

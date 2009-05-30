@@ -38,8 +38,8 @@
 #undef SDVO_DEBUG
 #define I915_SDVO	"i915_sdvo"
 struct intel_sdvo_priv {
-	struct intel_i2c_chan *i2c_bus;
-	int slaveaddr;
+	struct i2c_adapter *i2c_bus;
+	u8 slave_addr;
 
 	/* Register for the SDVO device: SDVOB or SDVOC */
 	int output_device;
@@ -146,13 +146,13 @@ static bool intel_sdvo_read_byte(struct intel_output *intel_output, u8 addr,
 
 	struct i2c_msg msgs[] = {
 		{
-			.addr = sdvo_priv->i2c_bus->slave_addr,
+			.addr = sdvo_priv->slave_addr >> 1,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.addr = sdvo_priv->i2c_bus->slave_addr,
+			.addr = sdvo_priv->slave_addr >> 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = buf,
@@ -162,7 +162,7 @@ static bool intel_sdvo_read_byte(struct intel_output *intel_output, u8 addr,
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if ((ret = i2c_transfer(&sdvo_priv->i2c_bus->adapter, msgs, 2)) == 2)
+	if ((ret = i2c_transfer(sdvo_priv->i2c_bus, msgs, 2)) == 2)
 	{
 		*ch = buf[0];
 		return true;
@@ -175,10 +175,11 @@ static bool intel_sdvo_read_byte(struct intel_output *intel_output, u8 addr,
 static bool intel_sdvo_write_byte(struct intel_output *intel_output, int addr,
 				  u8 ch)
 {
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 	u8 out_buf[2];
 	struct i2c_msg msgs[] = {
 		{
-			.addr = intel_output->i2c_bus->slave_addr,
+			.addr = sdvo_priv->slave_addr >> 1,
 			.flags = 0,
 			.len = 2,
 			.buf = out_buf,
@@ -188,7 +189,7 @@ static bool intel_sdvo_write_byte(struct intel_output *intel_output, int addr,
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (i2c_transfer(&intel_output->i2c_bus->adapter, msgs, 1) == 1)
+	if (i2c_transfer(intel_output->i2c_bus, msgs, 1) == 1)
 	{
 		return true;
 	}
@@ -1371,7 +1372,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 
 	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
 	edid = drm_get_edid(&intel_output->base,
-			    &intel_output->ddc_bus->adapter);
+			    intel_output->ddc_bus);
 	if (edid != NULL) {
 		sdvo_priv->is_hdmi = drm_detect_hdmi_monitor(edid);
 		kfree(edid);
@@ -1709,7 +1710,7 @@ intel_sdvo_chan_to_intel_output(struct intel_i2c_chan *chan)
 
 	list_for_each_entry(connector,
 			&dev->mode_config.connector_list, head) {
-		if (to_intel_output(connector)->ddc_bus == chan) {
+		if (to_intel_output(connector)->ddc_bus == &chan->adapter) {
 			intel_output = to_intel_output(connector);
 			break;
 		}
@@ -1723,7 +1724,7 @@ static int intel_sdvo_master_xfer(struct i2c_adapter *i2c_adap,
 	struct intel_output *intel_output;
 	struct intel_sdvo_priv *sdvo_priv;
 	struct i2c_algo_bit_data *algo_data;
-	struct i2c_algorithm *algo;
+	const struct i2c_algorithm *algo;
 
 	algo_data = (struct i2c_algo_bit_data *)i2c_adap->algo_data;
 	intel_output =
@@ -1733,7 +1734,7 @@ static int intel_sdvo_master_xfer(struct i2c_adapter *i2c_adap,
 		return -EINVAL;
 
 	sdvo_priv = intel_output->dev_priv;
-	algo = (struct i2c_algorithm *)intel_output->i2c_bus->adapter.algo;
+	algo = intel_output->i2c_bus->algo;
 
 	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
 	return algo->master_xfer(i2c_adap, msgs, num);
@@ -1785,12 +1786,13 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
 	struct intel_sdvo_priv *sdvo_priv;
-	struct intel_i2c_chan *i2cbus = NULL;
-	struct intel_i2c_chan *ddcbus = NULL;
+	struct i2c_adapter *i2cbus = NULL;
+	struct i2c_adapter *ddcbus = NULL;
+
 	int connector_type;
 	u8 ch[0x40];
 	int i;
-	int encoder_type, output_id;
+	int encoder_type;
 	u8 slave_addr;
 
 	intel_output = kcalloc(sizeof(struct intel_output)+sizeof(struct intel_sdvo_priv), 1, GFP_KERNEL);
@@ -1802,25 +1804,23 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	intel_output->type = INTEL_OUTPUT_SDVO;
 
 	/* setup the DDC bus. */
-	if (output_device == SDVOB)
+	if (output_device == SDVOB) {
 		i2cbus = intel_i2c_create(dev, GPIOE, "SDVOCTRL_E for SDVOB");
-	else
+		slave_addr = 0x38;
+	} else {
 		i2cbus = intel_i2c_create(dev, GPIOE, "SDVOCTRL_E for SDVOC");
-
+		slave_addr = 0x39;
+	}
+		
 	if (!i2cbus)
 		goto err_inteloutput;
 
 	slave_addr = intel_sdvo_get_slave_addr(dev, output_device);
 	sdvo_priv->i2c_bus = i2cbus;
+	sdvo_priv->slave_addr = slave_addr;
 
-	if (output_device == SDVOB) {
-		output_id = 1;
-	} else {
-		output_id = 2;
-	}
-	sdvo_priv->i2c_bus->slave_addr = slave_addr >> 1;
 	sdvo_priv->output_device = output_device;
-	intel_output->i2c_bus = i2cbus;
+	intel_output->i2c_bus = sdvo_priv->i2c_bus;
 	intel_output->dev_priv = sdvo_priv;
 
 	/* Read the regs to test if we can talk to the device */
@@ -1843,8 +1843,8 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		goto err_i2c;
 
 	intel_sdvo_i2c_bit_algo.functionality =
-		intel_output->i2c_bus->adapter.algo->functionality;
-	ddcbus->adapter.algo = &intel_sdvo_i2c_bit_algo;
+		intel_output->i2c_bus->algo->functionality;
+	ddcbus->algo = &intel_sdvo_i2c_bit_algo;
 	intel_output->ddc_bus = ddcbus;
 
 	/* In defaut case sdvo lvds is false */

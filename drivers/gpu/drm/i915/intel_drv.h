@@ -65,7 +65,6 @@ struct intel_i2c_chan {
 	u32 reg; /* GPIO reg */
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
-        u8 slave_addr;
 };
 
 struct intel_framebuffer {
@@ -79,8 +78,8 @@ struct intel_output {
 
 	struct drm_encoder enc;
 	int type;
-	struct intel_i2c_chan *i2c_bus; /* for control functions */
-	struct intel_i2c_chan *ddc_bus; /* for DDC only stuff */
+	struct i2c_adapter *i2c_bus;
+	struct i2c_adapter *ddc_bus;
 	bool load_detect_temp;
 	bool needs_tv_clock;
 	void *dev_priv;
@@ -104,9 +103,9 @@ struct intel_crtc {
 #define enc_to_intel_output(x) container_of(x, struct intel_output, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 
-struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
-					const char *name);
-void intel_i2c_destroy(struct intel_i2c_chan *chan);
+struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
+				     const char *name);
+void intel_i2c_destroy(struct i2c_adapter *adapter);
 int intel_ddc_get_modes(struct intel_output *intel_output);
 extern bool intel_ddc_probe(struct intel_output *intel_output);
 void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
