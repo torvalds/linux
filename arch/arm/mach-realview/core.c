@@ -578,21 +578,22 @@ void realview_leds_event(led_event_t ledevt)
 {
 	unsigned long flags;
 	u32 val;
+	u32 led = 1 << smp_processor_id();
 
 	local_irq_save(flags);
 	val = readl(VA_LEDS_BASE);
 
 	switch (ledevt) {
 	case led_idle_start:
-		val = val & ~REALVIEW_SYS_LED0;
+		val = val & ~led;
 		break;
 
 	case led_idle_end:
-		val = val | REALVIEW_SYS_LED0;
+		val = val | led;
 		break;
 
 	case led_timer:
-		val = val ^ REALVIEW_SYS_LED1;
+		val = val ^ REALVIEW_SYS_LED7;
 		break;
 
 	case led_halted:
