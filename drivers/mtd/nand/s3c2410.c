@@ -180,8 +180,7 @@ static int s3c_nand_calc_rate(int wanted, unsigned long clk, int max)
 {
 	int result;
 
-	result = (wanted * clk) / NS_IN_KHZ;
-	result++;
+	result = DIV_ROUND_UP((wanted * clk), NS_IN_KHZ);
 
 	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
 
