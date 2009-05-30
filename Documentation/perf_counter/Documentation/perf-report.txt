@@ -1,5 +1,5 @@
 perf-report(1)
-==========
+==============
 
 NAME
 ----
@@ -20,12 +20,6 @@ OPTIONS
 -i::
 --input=::
         Input file name. (default: perf.data)
-
-Configuration
--------------
-
-EXAMPLES
---------
 
 SEE ALSO
 --------

@@ -51,9 +51,6 @@ OPTIONS
 -l::
         scale counter values
 
-Configuration
--------------
-
 EXAMPLES
 --------
 
@@ -74,4 +71,4 @@ $ perf stat sleep 1
 
 SEE ALSO
 --------
-linkperf:git-tops[1]
+linkperf:perf-tops[1]

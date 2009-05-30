@@ -50,12 +50,6 @@ OPTIONS
 -l::
         scale counter values
 
-Configuration
--------------
-
-EXAMPLES
---------
-
 SEE ALSO
 --------
-linkperf:git-stat[1]
+linkperf:perf-stat[1]

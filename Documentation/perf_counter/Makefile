@@ -693,6 +693,21 @@ builtin-revert.o wt-status.o: wt-status.h
 $(LIB_FILE): $(LIB_OBJS)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIB_OBJS)
 
+doc:
+	$(MAKE) -C Documentation all
+
+man:
+	$(MAKE) -C Documentation man
+
+html:
+	$(MAKE) -C Documentation html
+
+info:
+	$(MAKE) -C Documentation info
+
+pdf:
+	$(MAKE) -C Documentation pdf
+
 TAGS:
 	$(RM) TAGS
 	$(FIND) . -name '*.[hcS]' -print | xargs etags -a
@@ -781,6 +796,31 @@ ifneq (,$X)
 	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
 endif
 
+install-doc:
+	$(MAKE) -C Documentation install
+
+install-man:
+	$(MAKE) -C Documentation install-man
+
+install-html:
+	$(MAKE) -C Documentation install-html
+
+install-info:
+	$(MAKE) -C Documentation install-info
+
+install-pdf:
+	$(MAKE) -C Documentation install-pdf
+
+quick-install-doc:
+	$(MAKE) -C Documentation quick-install
+
+quick-install-man:
+	$(MAKE) -C Documentation quick-install-man
+
+quick-install-html:
+	$(MAKE) -C Documentation quick-install-html
+
+
 ### Maintainer's dist rules
 
 perf.spec: perf.spec.in
@@ -801,6 +841,26 @@ dist: perf.spec perf-archive$(X) configure
 	@$(RM) -r $(PERF_TARNAME)
 	gzip -f -9 $(PERF_TARNAME).tar
 
+htmldocs = perf-htmldocs-$(PERF_VERSION)
+manpages = perf-manpages-$(PERF_VERSION)
+dist-doc:
+	$(RM) -r .doc-tmp-dir
+	mkdir .doc-tmp-dir
+	$(MAKE) -C Documentation WEBDOC_DEST=../.doc-tmp-dir install-webdoc
+	cd .doc-tmp-dir && $(TAR) cf ../$(htmldocs).tar .
+	gzip -n -9 -f $(htmldocs).tar
+	:
+	$(RM) -r .doc-tmp-dir
+	mkdir -p .doc-tmp-dir/man1 .doc-tmp-dir/man5 .doc-tmp-dir/man7
+	$(MAKE) -C Documentation DESTDIR=./ \
+		man1dir=../.doc-tmp-dir/man1 \
+		man5dir=../.doc-tmp-dir/man5 \
+		man7dir=../.doc-tmp-dir/man7 \
+		install
+	cd .doc-tmp-dir && $(TAR) cf ../$(manpages).tar .
+	gzip -n -9 -f $(manpages).tar
+	$(RM) -r .doc-tmp-dir
+
 rpm: dist
 	$(RPMBUILD) -ta $(PERF_TARNAME).tar.gz
 
@@ -819,6 +879,7 @@ clean:
 	$(RM) -r $(PERF_TARNAME) .doc-tmp-dir
 	$(RM) $(PERF_TARNAME).tar.gz perf-core_$(PERF_VERSION)-*.tar.gz
 	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
+	$(MAKE) -C Documentation/ clean
 	$(RM) PERF-VERSION-FILE PERF-CFLAGS PERF-BUILD-OPTIONS
 
 .PHONY: all install clean strip

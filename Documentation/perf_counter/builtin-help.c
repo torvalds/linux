@@ -317,7 +317,7 @@ static const char *cmd_to_page(const char *perf_cmd)
 	else if (is_perf_command(perf_cmd))
 		return prepend("perf-", perf_cmd);
 	else
-		return prepend("perf", perf_cmd);
+		return prepend("perf-", perf_cmd);
 }
 
 static void setup_man_path(void)
