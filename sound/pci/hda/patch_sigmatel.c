@@ -4666,9 +4666,9 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 	if (nid == 0x10) {
 		if (snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
 		    HDA_AMP_MUTE)
-			spec->gpio_data |= spec->gpio_led; /* white */
-		else
 			spec->gpio_data &= ~spec->gpio_led; /* orange */
+		else
+			spec->gpio_data |= spec->gpio_led; /* white */
 
 		stac_gpio_set(codec, spec->gpio_mask,
 			      spec->gpio_dir,
