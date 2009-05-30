@@ -264,6 +264,7 @@ static struct {
 	u32 wan:1;
 	u32 uwb:1;
 	u32 fan_ctrl_status_undef:1;
+	u32 beep_needs_two_args:1;
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
 	u32 platform_drv_attrs_registered:1;
@@ -5142,14 +5143,28 @@ static struct ibm_struct led_driver_data = {
 
 TPACPI_HANDLE(beep, ec, "BEEP");	/* all except R30, R31 */
 
+#define TPACPI_BEEP_Q1 0x0001
+
+static const struct tpacpi_quirk beep_quirk_table[] __initconst = {
+	TPACPI_Q_IBM('I', 'M', TPACPI_BEEP_Q1), /* 570 */
+	TPACPI_Q_IBM('I', 'U', TPACPI_BEEP_Q1), /* 570E - unverified */
+};
+
 static int __init beep_init(struct ibm_init_struct *iibm)
 {
+	unsigned long quirks;
+
 	vdbg_printk(TPACPI_DBG_INIT, "initializing beep subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(beep);
 
 	vdbg_printk(TPACPI_DBG_INIT, "beep is %s\n",
 		str_supported(beep_handle != NULL));
+
+	quirks = tpacpi_check_quirks(beep_quirk_table,
+				     ARRAY_SIZE(beep_quirk_table));
+
+	tp_features.beep_needs_two_args = !!(quirks & TPACPI_BEEP_Q1);
 
 	return (beep_handle)? 0 : 1;
 }
@@ -5182,8 +5197,15 @@ static int beep_write(char *buf)
 			/* beep_cmd set */
 		} else
 			return -EINVAL;
-		if (!acpi_evalf(beep_handle, NULL, NULL, "vdd", beep_cmd, 0))
-			return -EIO;
+		if (tp_features.beep_needs_two_args) {
+			if (!acpi_evalf(beep_handle, NULL, NULL, "vdd",
+					beep_cmd, 0))
+				return -EIO;
+		} else {
+			if (!acpi_evalf(beep_handle, NULL, NULL, "vd",
+					beep_cmd))
+				return -EIO;
+		}
 	}
 
 	return 0;
