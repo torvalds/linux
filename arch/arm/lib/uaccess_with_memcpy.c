@@ -106,7 +106,7 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
 	 * With frame pointer disabled, tail call optimization kicks in
 	 * as well making this test almost invisible.
 	 */
-	if (n < 1024)
+	if (n < 64)
 		return __copy_to_user_std(to, from, n);
 	return __copy_to_user_memcpy(to, from, n);
 }
@@ -151,7 +151,78 @@ out:
 unsigned long __clear_user(void __user *addr, unsigned long n)
 {
 	/* See rational for this in __copy_to_user() above. */
-	if (n < 256)
+	if (n < 64)
 		return __clear_user_std(addr, n);
 	return __clear_user_memset(addr, n);
 }
+
+#if 0
+
+/*
+ * This code is disabled by default, but kept around in case the chosen
+ * thresholds need to be revalidated.  Some overhead (small but still)
+ * would be implied by a runtime determined variable threshold, and
+ * so far the measurement on concerned targets didn't show a worthwhile
+ * variation.
+ *
+ * Note that a fairly precise sched_clock() implementation is needed
+ * for results to make some sense.
+ */
+
+#include <linux/vmalloc.h>
+
+static int __init test_size_treshold(void)
+{
+	struct page *src_page, *dst_page;
+	void *user_ptr, *kernel_ptr;
+	unsigned long long t0, t1, t2;
+	int size, ret;
+
+	ret = -ENOMEM;
+	src_page = alloc_page(GFP_KERNEL);
+	if (!src_page)
+		goto no_src;
+	dst_page = alloc_page(GFP_KERNEL);
+	if (!dst_page)
+		goto no_dst;
+	kernel_ptr = page_address(src_page);
+	user_ptr = vmap(&dst_page, 1, VM_IOREMAP, __pgprot(__P010));
+	if (!user_ptr)
+		goto no_vmap;
+
+	/* warm up the src page dcache */
+	ret = __copy_to_user_memcpy(user_ptr, kernel_ptr, PAGE_SIZE);
+
+	for (size = PAGE_SIZE; size >= 4; size /= 2) {
+		t0 = sched_clock();
+		ret |= __copy_to_user_memcpy(user_ptr, kernel_ptr, size);
+		t1 = sched_clock();
+		ret |= __copy_to_user_std(user_ptr, kernel_ptr, size);
+		t2 = sched_clock();
+		printk("copy_to_user: %d %llu %llu\n", size, t1 - t0, t2 - t1);
+	}
+
+	for (size = PAGE_SIZE; size >= 4; size /= 2) {
+		t0 = sched_clock();
+		ret |= __clear_user_memset(user_ptr, size);
+		t1 = sched_clock();
+		ret |= __clear_user_std(user_ptr, size);
+		t2 = sched_clock();
+		printk("clear_user: %d %llu %llu\n", size, t1 - t0, t2 - t1);
+	}
+
+	if (ret)
+		ret = -EFAULT;
+
+	vunmap(user_ptr);
+no_vmap:
+	put_page(dst_page);
+no_dst:
+	put_page(src_page);
+no_src:
+	return ret;
+}
+
+subsys_initcall(test_size_treshold);
+
+#endif
