@@ -639,6 +639,20 @@ config CPU_BIG_ENDIAN
 	  port must properly enable any big-endian related features
 	  of your chipset/board/processor.
 
+config CPU_ENDIAN_BE8
+	bool
+	depends on CPU_BIG_ENDIAN
+	default CPU_V6 || CPU_V7
+	help
+	  Support for the BE-8 (big-endian) mode on ARMv6 and ARMv7 processors.
+
+config CPU_ENDIAN_BE32
+	bool
+	depends on CPU_BIG_ENDIAN
+	default !CPU_ENDIAN_BE8
+	help
+	  Support for the BE-32 (big-endian) mode on pre-ARMv6 processors.
+
 config CPU_HIGH_VECTOR
 	depends on !MMU && CPU_CP15 && !CPU_ARM740T
 	bool "Select the High exception vector"

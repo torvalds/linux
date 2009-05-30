@@ -253,6 +253,9 @@ __v7_setup:
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	orr	r6, r6, #1 << 25		@ big-endian page tables
+#endif
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them

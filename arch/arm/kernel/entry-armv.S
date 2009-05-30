@@ -482,6 +482,9 @@ __und_usr:
 	subeq	r4, r2, #4			@ ARM instr at LR - 4
 	subne	r4, r2, #2			@ Thumb instr at LR - 2
 1:	ldreqt	r0, [r4]
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	reveq	r0, r0				@ little endian instruction
+#endif
 	beq	call_fpe
 	@ Thumb instruction
 #if __LINUX_ARM_ARCH__ >= 7

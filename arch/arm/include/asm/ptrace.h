@@ -50,6 +50,7 @@
 #define PSR_F_BIT	0x00000040
 #define PSR_I_BIT	0x00000080
 #define PSR_A_BIT	0x00000100
+#define PSR_E_BIT	0x00000200
 #define PSR_J_BIT	0x01000000
 #define PSR_Q_BIT	0x08000000
 #define PSR_V_BIT	0x10000000
@@ -71,6 +72,15 @@
 #define PSR_ISET_MASK	0x01000010	/* ISA state (J, T) mask */
 #define PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
 #define PSR_ENDIAN_MASK	0x00000200	/* Endianness state mask */
+
+/*
+ * Default endianness state
+ */
+#ifdef CONFIG_CPU_ENDIAN_BE8
+#define PSR_ENDSTATE	PSR_E_BIT
+#else
+#define PSR_ENDSTATE	0
+#endif
 
 #ifndef __ASSEMBLY__
 
