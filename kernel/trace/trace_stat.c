@@ -316,7 +316,7 @@ static int init_stat_file(struct stat_session *session)
 
 int register_stat_tracer(struct tracer_stat *trace)
 {
-	struct stat_session *session, *node, *tmp;
+	struct stat_session *session, *node;
 	int ret;
 
 	if (!trace)
@@ -327,7 +327,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
+	list_for_each_entry(node, &all_stat_sessions, session_list) {
 		if (node->ts == trace) {
 			mutex_unlock(&all_stat_sessions_mutex);
 			return -EINVAL;
