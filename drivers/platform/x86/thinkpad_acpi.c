@@ -2655,7 +2655,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* update bright_acpimode... */
 		tpacpi_check_std_acpi_brightness_support();
 
-	if (tp_features.bright_acpimode) {
+	if (tp_features.bright_acpimode && acpi_video_backlight_support()) {
 		printk(TPACPI_INFO
 		       "This ThinkPad has standard ACPI backlight "
 		       "brightness control, supported by the ACPI "
