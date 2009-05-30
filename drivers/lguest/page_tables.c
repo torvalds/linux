@@ -568,7 +568,7 @@ void guest_set_pte(struct lg_cpu *cpu,
  *
  * So with that in mind here's our code to to update a (top-level) PGD entry:
  */
-void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 idx)
+void guest_set_pgd(struct lguest *lg, unsigned long gpgdir, u32 idx)
 {
 	int pgdir;
 

@@ -535,7 +535,7 @@ static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	native_set_pmd(pmdp, pmdval);
-	lazy_hcall2(LHCALL_SET_PMD, __pa(pmdp) & PAGE_MASK,
+	lazy_hcall2(LHCALL_SET_PGD, __pa(pmdp) & PAGE_MASK,
 		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
 }
 
