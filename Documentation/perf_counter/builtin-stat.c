@@ -75,6 +75,7 @@ static __u64			event_res[MAX_COUNTERS][3];
 static __u64			event_scaled[MAX_COUNTERS];
 
 static __u64			runtime_nsecs;
+static __u64			walltime_nsecs;
 
 static void create_perfstat_counter(int counter)
 {
@@ -194,13 +195,19 @@ static void print_counter(int counter)
 	if (nsec_counter(counter)) {
 		double msecs = (double)count[0] / 1000000;
 
-		fprintf(stderr, " %14.6f  %-20s (msecs)",
+		fprintf(stderr, " %14.6f  %-20s",
 			msecs, event_name(counter));
+		if (event_id[counter] ==
+				EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK)) {
+
+			fprintf(stderr, " # %11.3f CPU utilization factor",
+				(double)count[0] / (double)walltime_nsecs);
+		}
 	} else {
 		fprintf(stderr, " %14Ld  %-20s",
 			count[0], event_name(counter));
 		if (runtime_nsecs)
-			fprintf(stderr, " # %12.3f M/sec",
+			fprintf(stderr, " # %11.3f M/sec",
 				(double)count[0]/runtime_nsecs*1000.0);
 	}
 	if (scaled)
@@ -240,6 +247,8 @@ static int do_perfstat(int argc, const char **argv)
 		;
 	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
 	t1 = rdclock();
+
+	walltime_nsecs = t1 - t0;
 
 	fflush(stdout);
 
