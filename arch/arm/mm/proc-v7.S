@@ -176,8 +176,8 @@ cpu_v7_name:
  */
 __v7_setup:
 #ifdef CONFIG_SMP
-	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode
-	orr	r0, r0, #(0x1 << 6)
+	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode and
+	orr	r0, r0, #(1 << 6) | (1 << 0)	@ TLB ops broadcasting
 	mcr	p15, 0, r0, c1, c0, 1
 #endif
 	adr	r12, __v7_setup_stack		@ the local stack
