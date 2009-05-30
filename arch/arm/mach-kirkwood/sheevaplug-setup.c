@@ -71,7 +71,7 @@ static struct mv643xx_eth_platform_data sheevaplug_ge00_data = {
 };
 
 static struct mvsdio_platform_data sheevaplug_mvsdio_data = {
-	// unfortunately the CD signal has not been connected */
+	/* unfortunately the CD signal has not been connected */
 };
 
 static struct gpio_led sheevaplug_led_pins[] = {
