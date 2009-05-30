@@ -41,6 +41,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
+#include <mach/board-eb.h>
 #include <asm/system.h>
 
 #include "op_counter.h"

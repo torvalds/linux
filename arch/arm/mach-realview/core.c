@@ -48,6 +48,9 @@
 
 #include <asm/hardware/gic.h>
 
+#include <mach/platform.h>
+#include <mach/irqs.h>
+
 #include "core.h"
 #include "clock.h"
 
