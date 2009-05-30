@@ -2350,7 +2350,7 @@ static int __init acpi_video_init(void)
 	return acpi_video_register();
 }
 
-void __exit acpi_video_exit(void)
+void acpi_video_exit(void)
 {
 
 	acpi_bus_unregister_driver(&acpi_video_bus);
