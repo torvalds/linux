@@ -13,6 +13,7 @@
 
 #include <linux/inet.h>
 #include <linux/crypto.h>
+#include <net/dst.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
