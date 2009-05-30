@@ -284,8 +284,10 @@ struct thinkpad_id_data {
 	char *bios_version_str;	/* Something like 1ZET51WW (1.03z) */
 	char *ec_version_str;	/* Something like 1ZHT51WW-1.04a */
 
-	u16 bios_model;		/* Big Endian, TP-1Y = 0x5931, 0 = unknown */
+	u16 bios_model;		/* 1Y = 0x5931, 0 = unknown */
 	u16 ec_model;
+	u16 bios_release;	/* 1ZETK1WW = 0x314b, 0 = unknown */
+	u16 ec_release;
 
 	char *model_str;	/* ThinkPad T43 */
 	char *nummodel_str;	/* 9384A9C for a 9384-A9C model */
@@ -7357,6 +7359,24 @@ err_out:
 
 /* Probing */
 
+static bool __pure __init tpacpi_is_fw_digit(const char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z');
+}
+
+/* Most models: xxyTkkWW (#.##c); Ancient 570/600 and -SL lacks (#.##c) */
+static bool __pure __init tpacpi_is_valid_fw_id(const char* const s,
+						const char t)
+{
+	return s && strlen(s) >= 8 &&
+		tpacpi_is_fw_digit(s[0]) &&
+		tpacpi_is_fw_digit(s[1]) &&
+		s[2] == t && s[3] == 'T' &&
+		tpacpi_is_fw_digit(s[4]) &&
+		tpacpi_is_fw_digit(s[5]) &&
+		s[6] == 'W' && s[7] == 'W';
+}
+
 /* returns 0 - probe ok, or < 0 - probe error.
  * Probe ok doesn't mean thinkpad found.
  * On error, kfree() cleanup on tp->* is not performed, caller must do it */
@@ -7383,10 +7403,15 @@ static int __must_check __init get_thinkpad_model_data(
 	tp->bios_version_str = kstrdup(s, GFP_KERNEL);
 	if (s && !tp->bios_version_str)
 		return -ENOMEM;
-	if (!tp->bios_version_str)
+
+	/* Really ancient ThinkPad 240X will fail this, which is fine */
+	if (!tpacpi_is_valid_fw_id(tp->bios_version_str, 'E'))
 		return 0;
+
 	tp->bios_model = tp->bios_version_str[0]
 			 | (tp->bios_version_str[1] << 8);
+	tp->bios_release = (tp->bios_version_str[4] << 8)
+			 | tp->bios_version_str[5];
 
 	/*
 	 * ThinkPad T23 or newer, A31 or newer, R50e or newer,
@@ -7405,8 +7430,21 @@ static int __must_check __init get_thinkpad_model_data(
 			tp->ec_version_str = kstrdup(ec_fw_string, GFP_KERNEL);
 			if (!tp->ec_version_str)
 				return -ENOMEM;
-			tp->ec_model = ec_fw_string[0]
-					| (ec_fw_string[1] << 8);
+
+			if (tpacpi_is_valid_fw_id(ec_fw_string, 'H')) {
+				tp->ec_model = ec_fw_string[0]
+						| (ec_fw_string[1] << 8);
+				tp->ec_release = (ec_fw_string[4] << 8)
+						| ec_fw_string[5];
+			} else {
+				printk(TPACPI_NOTICE
+					"ThinkPad firmware release %s "
+					"doesn't match the known patterns\n",
+					ec_fw_string);
+				printk(TPACPI_NOTICE
+					"please report this to %s\n",
+					TPACPI_MAIL);
+			}
 			break;
 		}
 	}
