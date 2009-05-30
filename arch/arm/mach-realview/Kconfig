@@ -58,6 +58,13 @@ config MACH_REALVIEW_PBA8
 	  PB-A8 is a platform with an on-board Cortex-A8 and has support for
 	  PCI-E and Compact Flash.
 
+config MACH_REALVIEW_PBX
+	bool "Support RealView/PBX platform"
+	select ARM_GIC
+	select HAVE_PATA_PLATFORM
+	help
+	  Include support for the ARM(R) RealView PBX platform.
+
 config REALVIEW_HIGH_PHYS_OFFSET
 	bool "High physical base address for the RealView platform"
 	depends on !MACH_REALVIEW_PB1176

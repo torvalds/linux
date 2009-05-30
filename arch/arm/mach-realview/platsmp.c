@@ -22,6 +22,7 @@
 
 #include <mach/board-eb.h>
 #include <mach/board-pb11mp.h>
+#include <mach/board-pbx.h>
 #include <mach/scu.h>
 
 #include "core.h"
@@ -40,6 +41,9 @@ static void __iomem *scu_base_addr(void)
 		return __io_address(REALVIEW_EB11MP_SCU_BASE);
 	else if (machine_is_realview_pb11mp())
 		return __io_address(REALVIEW_TC11MP_SCU_BASE);
+	else if (machine_is_realview_pbx() &&
+		 (core_tile_pbx11mp() || core_tile_pbxa9mp()))
+		return __io_address(REALVIEW_PBX_TILE_SCU_BASE);
 	else
 		return (void __iomem *)0;
 }
