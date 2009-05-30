@@ -532,8 +532,8 @@ static int sja1000_open(struct net_device *dev)
 		err = request_irq(dev->irq, &sja1000_interrupt, priv->irq_flags,
 				  dev->name, (void *)dev);
 		if (err) {
-			return -EAGAIN;
 			close_candev(dev);
+			return -EAGAIN;
 		}
 	}
 

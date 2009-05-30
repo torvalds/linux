@@ -218,14 +218,12 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	card->conf_addr = pci_iomap(pdev, 0, EMS_PCI_MEM_SIZE);
 	if (card->conf_addr == NULL) {
 		err = -ENOMEM;
-
 		goto failure_cleanup;
 	}
 
 	card->base_addr = pci_iomap(pdev, 1, EMS_PCI_MEM_SIZE);
 	if (card->base_addr == NULL) {
 		err = -ENOMEM;
-
 		goto failure_cleanup;
 	}
 
@@ -239,7 +237,6 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	    ems_pci_readb(card, 3) != 0xCB ||
 	    ems_pci_readb(card, 4) != 0x11) {
 		dev_err(&pdev->dev, "Not EMS Dr. Thomas Wuensche interface\n");
-
 		err = -ENODEV;
 		goto failure_cleanup;
 	}
