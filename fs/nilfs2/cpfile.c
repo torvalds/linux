@@ -295,10 +295,6 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		return -EINVAL;
 	}
 
-	/* cannot delete the latest checkpoint */
-	if (start == nilfs_mdt_cno(cpfile) - 1)
-		return -EPERM;
-
 	down_write(&NILFS_MDT(cpfile)->mi_sem);
 
 	ret = nilfs_cpfile_get_header_block(cpfile, &header_bh);
@@ -542,20 +538,14 @@ int nilfs_cpfile_delete_checkpoint(struct inode *cpfile, __u64 cno)
 	struct nilfs_cpinfo ci;
 	__u64 tcno = cno;
 	ssize_t nci;
-	int ret;
 
 	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, sizeof(ci), 1);
 	if (nci < 0)
 		return nci;
 	else if (nci == 0 || ci.ci_cno != cno)
 		return -ENOENT;
-
-	/* cannot delete the latest checkpoint nor snapshots */
-	ret = nilfs_cpinfo_snapshot(&ci);
-	if (ret < 0)
-		return ret;
-	else if (ret > 0 || cno == nilfs_mdt_cno(cpfile) - 1)
-		return -EPERM;
+	else if (nilfs_cpinfo_snapshot(&ci))
+		return -EBUSY;
 
 	return nilfs_cpfile_delete_checkpoints(cpfile, cno, cno + 1);
 }
