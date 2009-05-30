@@ -1027,7 +1027,7 @@ config LEDS
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
 		   ARCH_AT91 || ARCH_DAVINCI || \
-		   ARCH_KS8695 || MACH_RD88F5182
+		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
