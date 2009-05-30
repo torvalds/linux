@@ -13,6 +13,7 @@
 #define OCR_MODE_TEST     0x01
 #define OCR_MODE_NORMAL   0x02
 #define OCR_MODE_CLOCK    0x03
+#define OCR_MODE_MASK     0x07
 #define OCR_TX0_INVERT    0x04
 #define OCR_TX0_PULLDOWN  0x08
 #define OCR_TX0_PULLUP    0x10
@@ -21,6 +22,8 @@
 #define OCR_TX1_PULLDOWN  0x40
 #define OCR_TX1_PULLUP    0x80
 #define OCR_TX1_PUSHPULL  0xc0
+#define OCR_TX_MASK       0xfc
+#define OCR_TX_SHIFT      2
 
 struct sja1000_platform_data {
 	u32 clock;	/* CAN bus oscillator frequency in Hz */
