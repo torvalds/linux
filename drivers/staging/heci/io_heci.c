@@ -297,6 +297,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		if (!heci_connect(dev, file_ext)) {
 			rets = -ENODEV;
 			spin_unlock_bh(&dev->device_lock);
+			spin_unlock(&file_ext->file_lock);
 			goto end;
 		} else {
 			file_ext->timer_count = HECI_CONNECT_TIMEOUT;
@@ -320,7 +321,9 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 			 || HECI_FILE_DISCONNECTED == file_ext->state),
 			timeout * HZ);
 
+	spin_lock_bh(&dev->device_lock);
 	if (HECI_FILE_CONNECTED == file_ext->state) {
+		spin_unlock_bh(&dev->device_lock);
 		DBG("successfully connected to FW client.\n");
 		rets = file_ext->status;
 		/* now copy the data to user space */
@@ -337,6 +340,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 	} else {
 		DBG("failed to connect to FW client.file_ext->state = %d.\n",
 		    file_ext->state);
+		spin_unlock_bh(&dev->device_lock);
 		if (!err) {
 			DBG("wait_event_interruptible_timeout failed on client"
 			    " connect message fw response message.\n");
@@ -637,11 +641,13 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 		DBG("received wrong function input param.\n");
 		return -ENODEV;
 	}
+
+	spin_lock_bh(&dev->device_lock);
 	if (file_ext->state != HECI_FILE_CONNECTED) {
+		spin_unlock_bh(&dev->device_lock);
 		return -ENODEV;
 	}
 
-	spin_lock_bh(&dev->device_lock);
 	if (dev->heci_state != HECI_ENABLED) {
 		spin_unlock_bh(&dev->device_lock);
 		return -ENODEV;
