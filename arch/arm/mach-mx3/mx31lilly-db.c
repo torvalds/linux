@@ -56,6 +56,14 @@ static unsigned int lilly_db_board_pins[] __initdata = {
 	MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
+	MX31_PIN_CTS2__CTS2,
+	MX31_PIN_RTS2__RTS2,
+	MX31_PIN_TXD2__TXD2,
+	MX31_PIN_RXD2__RXD2,
+	MX31_PIN_CSPI3_MOSI__RXD3,
+	MX31_PIN_CSPI3_MISO__TXD3,
+	MX31_PIN_CSPI3_SCLK__RTS3,
+	MX31_PIN_CSPI3_SPI_RDY__CTS3,
 	MX31_PIN_SD1_DATA3__SD1_DATA3,
 	MX31_PIN_SD1_DATA2__SD1_DATA2,
 	MX31_PIN_SD1_DATA1__SD1_DATA1,
@@ -200,6 +208,8 @@ void __init mx31lilly_db_init(void)
 					ARRAY_SIZE(lilly_db_board_pins),
 					"development board pins");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
 	mx31lilly_init_fb();
 }
