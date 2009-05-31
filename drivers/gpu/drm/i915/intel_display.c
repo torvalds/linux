@@ -2012,16 +2012,16 @@ static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	uint32_t adder;
 
 	if (x < 0) {
-		temp |= (CURSOR_POS_SIGN << CURSOR_X_SHIFT);
+		temp |= CURSOR_POS_SIGN << CURSOR_X_SHIFT;
 		x = -x;
 	}
 	if (y < 0) {
-		temp |= (CURSOR_POS_SIGN << CURSOR_Y_SHIFT);
+		temp |= CURSOR_POS_SIGN << CURSOR_Y_SHIFT;
 		y = -y;
 	}
 
-	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
-	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
+	temp |= x << CURSOR_X_SHIFT;
+	temp |= y << CURSOR_Y_SHIFT;
 
 	adder = intel_crtc->cursor_addr;
 	I915_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
