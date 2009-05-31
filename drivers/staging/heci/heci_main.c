@@ -955,10 +955,10 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 	}
 
 	err = heci_start_read(dev, if_num, file_ext);
-	spin_lock(&file_ext->read_io_lock);
+	spin_lock_bh(&file_ext->read_io_lock);
 	if (err != 0 && err != -EBUSY) {
 		DBG("heci start read failure with status = %d\n", err);
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		rets = err;
 		goto out;
 	}
@@ -966,10 +966,10 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 			&& !waitqueue_active(&file_ext->rx_wait)) {
 		if (file->f_flags & O_NONBLOCK) {
 			rets = -EAGAIN;
-			spin_unlock(&file_ext->read_io_lock);
+			spin_unlock_bh(&file_ext->read_io_lock);
 			goto out;
 		}
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 
 		if (wait_event_interruptible(file_ext->rx_wait,
 			(HECI_READ_COMPLETE == file_ext->reading_state
@@ -989,20 +989,20 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 			rets = -EBUSY;
 			goto out;
 		}
-		spin_lock(&file_ext->read_io_lock);
+		spin_lock_bh(&file_ext->read_io_lock);
 	}
 
 	priv_cb = file_ext->read_cb;
 
 	if (!priv_cb) {
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		return -ENODEV;
 	}
 	if (file_ext->reading_state != HECI_READ_COMPLETE) {
-		spin_unlock(&file_ext->read_io_lock);
+		spin_unlock_bh(&file_ext->read_io_lock);
 		return 0;
 	}
-	spin_unlock(&file_ext->read_io_lock);
+	spin_unlock_bh(&file_ext->read_io_lock);
 	/* now copy the data to user space */
 copy_buffer:
 	DBG("priv_cb->response_buffer size - %d\n",
@@ -1040,11 +1040,11 @@ free:
 		list_del(&priv_cb_pos->cb_list);
 	spin_unlock_bh(&dev->device_lock);
 	heci_free_cb_private(priv_cb);
-	spin_lock(&file_ext->read_io_lock);
+	spin_lock_bh(&file_ext->read_io_lock);
 	file_ext->reading_state = HECI_IDLE;
 	file_ext->read_cb = NULL;
 	file_ext->read_pending = 0;
-	spin_unlock(&file_ext->read_io_lock);
+	spin_unlock_bh(&file_ext->read_io_lock);
 out:	DBG("end heci read rets= %d\n", rets);
 	return rets;
 }
@@ -1106,11 +1106,11 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 			list_del(&priv_write_cb->cb_list);
 			heci_free_cb_private(priv_write_cb);
 			priv_write_cb = NULL;
-			spin_lock(&file_ext->read_io_lock);
+			spin_lock_bh(&file_ext->read_io_lock);
 			file_ext->reading_state = HECI_IDLE;
 			file_ext->read_cb = NULL;
 			file_ext->read_pending = 0;
-			spin_unlock(&file_ext->read_io_lock);
+			spin_unlock_bh(&file_ext->read_io_lock);
 		}
 	} else if (file_ext->reading_state == HECI_IDLE &&
 			file_ext->read_pending == 0)
