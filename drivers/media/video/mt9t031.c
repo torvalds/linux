@@ -385,17 +385,9 @@ static int mt9t031_try_fmt(struct soc_camera_device *icd,
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	if (pix->height < MT9T031_MIN_HEIGHT)
-		pix->height = MT9T031_MIN_HEIGHT;
-	if (pix->height > MT9T031_MAX_HEIGHT)
-		pix->height = MT9T031_MAX_HEIGHT;
-	if (pix->width < MT9T031_MIN_WIDTH)
-		pix->width = MT9T031_MIN_WIDTH;
-	if (pix->width > MT9T031_MAX_WIDTH)
-		pix->width = MT9T031_MAX_WIDTH;
-
-	pix->width &= ~0x01; /* has to be even */
-	pix->height &= ~0x01; /* has to be even */
+	v4l_bound_align_image(
+		&pix->width, MT9T031_MIN_WIDTH, MT9T031_MAX_WIDTH, 1,
+		&pix->height, MT9T031_MIN_HEIGHT, MT9T031_MAX_HEIGHT, 1, 0);
 
 	return 0;
 }
