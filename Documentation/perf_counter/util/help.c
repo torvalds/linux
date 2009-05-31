@@ -323,9 +323,6 @@ const char *help_unknown_cmd(const char *cmd)
 	qsort(main_cmds.names, main_cmds.cnt,
 	      sizeof(*main_cmds.names), levenshtein_compare);
 
-	if (!main_cmds.cnt)
-		die ("Uh oh. Your system reports no Git commands at all.");
-
 	best_similarity = main_cmds.names[0]->len;
 	n = 1;
 	while (n < main_cmds.cnt && best_similarity == main_cmds.names[n]->len)
