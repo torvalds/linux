@@ -209,4 +209,14 @@ struct v4l2_routing {
 	u32 output;
 };
 
+/* ------------------------------------------------------------------------- */
+
+/* Miscellaneous helper functions */
+
+void v4l_bound_align_image(unsigned int *w, unsigned int wmin,
+			   unsigned int wmax, unsigned int walign,
+			   unsigned int *h, unsigned int hmin,
+			   unsigned int hmax, unsigned int halign,
+			   unsigned int salign);
+
 #endif /* V4L2_COMMON_H_ */

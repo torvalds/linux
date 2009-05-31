@@ -1021,4 +1021,77 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
 
-#endif
+/* Clamp x to be between min and max, aligned to a multiple of 2^align.  min
+ * and max don't have to be aligned, but there must be at least one valid
+ * value.  E.g., min=17,max=31,align=4 is not allowed as there are no multiples
+ * of 16 between 17 and 31.  */
+static unsigned int clamp_align(unsigned int x, unsigned int min,
+				unsigned int max, unsigned int align)
+{
+	/* Bits that must be zero to be aligned */
+	unsigned int mask = ~((1 << align) - 1);
+
+	/* Round to nearest aligned value */
+	if (align)
+		x = (x + (1 << (align - 1))) & mask;
+
+	/* Clamp to aligned value of min and max */
+	if (x < min)
+		x = (min + ~mask) & mask;
+	else if (x > max)
+		x = max & mask;
+
+	return x;
+}
+
+/* Bound an image to have a width between wmin and wmax, and height between
+ * hmin and hmax, inclusive.  Additionally, the width will be a multiple of
+ * 2^walign, the height will be a multiple of 2^halign, and the overall size
+ * (width*height) will be a multiple of 2^salign.  The image may be shrunk
+ * or enlarged to fit the alignment constraints.
+ *
+ * The width or height maximum must not be smaller than the corresponding
+ * minimum.  The alignments must not be so high there are no possible image
+ * sizes within the allowed bounds.  wmin and hmin must be at least 1
+ * (don't use 0).  If you don't care about a certain alignment, specify 0,
+ * as 2^0 is 1 and one byte alignment is equivalent to no alignment.  If
+ * you only want to adjust downward, specify a maximum that's the same as
+ * the initial value.
+ */
+void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
+			   unsigned int walign,
+			   u32 *h, unsigned int hmin, unsigned int hmax,
+			   unsigned int halign, unsigned int salign)
+{
+	*w = clamp_align(*w, wmin, wmax, walign);
+	*h = clamp_align(*h, hmin, hmax, halign);
+
+	/* Usually we don't need to align the size and are done now. */
+	if (!salign)
+		return;
+
+	/* How much alignment do we have? */
+	walign = __ffs(*w);
+	halign = __ffs(*h);
+	/* Enough to satisfy the image alignment? */
+	if (walign + halign < salign) {
+		/* Max walign where there is still a valid width */
+		unsigned int wmaxa = __fls(wmax ^ (wmin - 1));
+		/* Max halign where there is still a valid height */
+		unsigned int hmaxa = __fls(hmax ^ (hmin - 1));
+
+		/* up the smaller alignment until we have enough */
+		do {
+			if (halign >= hmaxa ||
+			    (walign <= halign && walign < wmaxa)) {
+				*w = clamp_align(*w, wmin, wmax, walign + 1);
+				walign = __ffs(*w);
+			} else {
+				*h = clamp_align(*h, hmin, hmax, halign + 1);
+				halign = __ffs(*h);
+			}
+		} while (halign + walign < salign);
+	}
+}
+EXPORT_SYMBOL_GPL(v4l_bound_align_image);
+#endif /* defined(CONFIG_I2C) */
