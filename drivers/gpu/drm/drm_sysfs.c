@@ -147,7 +147,7 @@ static ssize_t status_show(struct device *device,
 	enum drm_connector_status status;
 
 	status = connector->funcs->detect(connector);
-	return snprintf(buf, PAGE_SIZE, "%s",
+	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_connector_status_name(status));
 }
 
@@ -166,7 +166,7 @@ static ssize_t dpms_show(struct device *device,
 	if (ret)
 		return 0;
 
-	return snprintf(buf, PAGE_SIZE, "%s",
+	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_dpms_name((int)dpms_status));
 }
 
@@ -176,7 +176,7 @@ static ssize_t enabled_show(struct device *device,
 {
 	struct drm_connector *connector = to_drm_connector(device);
 
-	return snprintf(buf, PAGE_SIZE, connector->encoder ? "enabled" :
+	return snprintf(buf, PAGE_SIZE, "%s\n", connector->encoder ? "enabled" :
 			"disabled");
 }
 
