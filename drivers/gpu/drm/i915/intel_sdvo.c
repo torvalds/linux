@@ -1741,6 +1741,43 @@ static struct i2c_algorithm intel_sdvo_i2c_bit_algo = {
 	.master_xfer	= intel_sdvo_master_xfer,
 };
 
+static u8
+intel_sdvo_get_slave_addr(struct drm_device *dev, int output_device)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct sdvo_device_mapping *my_mapping, *other_mapping;
+
+	if (output_device == SDVOB) {
+		my_mapping = &dev_priv->sdvo_mappings[0];
+		other_mapping = &dev_priv->sdvo_mappings[1];
+	} else {
+		my_mapping = &dev_priv->sdvo_mappings[1];
+		other_mapping = &dev_priv->sdvo_mappings[0];
+	}
+
+	/* If the BIOS described our SDVO device, take advantage of it. */
+	if (my_mapping->slave_addr)
+		return my_mapping->slave_addr;
+
+	/* If the BIOS only described a different SDVO device, use the
+	 * address that it isn't using.
+	 */
+	if (other_mapping->slave_addr) {
+		if (other_mapping->slave_addr == 0x70)
+			return 0x72;
+		else
+			return 0x70;
+	}
+
+	/* No SDVO device info is found for another DVO port,
+	 * so use mapping assumption we had before BIOS parsing.
+	 */
+	if (output_device == SDVOB)
+		return 0x70;
+	else
+		return 0x72;
+}
+
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
 	struct drm_connector *connector;
@@ -1752,6 +1789,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	u8 ch[0x40];
 	int i;
 	int encoder_type, output_id;
+	u8 slave_addr;
 
 	intel_output = kcalloc(sizeof(struct intel_output)+sizeof(struct intel_sdvo_priv), 1, GFP_KERNEL);
 	if (!intel_output) {
@@ -1770,16 +1808,15 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	if (!i2cbus)
 		goto err_inteloutput;
 
+	slave_addr = intel_sdvo_get_slave_addr(dev, output_device);
 	sdvo_priv->i2c_bus = i2cbus;
 
 	if (output_device == SDVOB) {
 		output_id = 1;
-		sdvo_priv->i2c_bus->slave_addr = 0x38;
 	} else {
 		output_id = 2;
-		sdvo_priv->i2c_bus->slave_addr = 0x39;
 	}
-
+	sdvo_priv->i2c_bus->slave_addr = slave_addr >> 1;
 	sdvo_priv->output_device = output_device;
 	intel_output->i2c_bus = i2cbus;
 	intel_output->dev_priv = sdvo_priv;
