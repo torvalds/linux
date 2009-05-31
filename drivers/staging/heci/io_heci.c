@@ -637,8 +637,9 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 		DBG("received wrong function input param.\n");
 		return -ENODEV;
 	}
-	if (file_ext->state != HECI_FILE_CONNECTED)
+	if (file_ext->state != HECI_FILE_CONNECTED) {
 		return -ENODEV;
+	}
 
 	spin_lock_bh(&dev->device_lock);
 	if (dev->heci_state != HECI_ENABLED) {
@@ -647,18 +648,26 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 	}
 	spin_unlock_bh(&dev->device_lock);
 	DBG("check if read is pending.\n");
+	spin_lock(&file_ext->read_io_lock);
 	if ((file_ext->read_pending) || (file_ext->read_cb != NULL)) {
 		DBG("read is pending.\n");
+		spin_unlock(&file_ext->read_io_lock);
 		return -EBUSY;
 	}
+	spin_unlock(&file_ext->read_io_lock);
+
 	priv_cb = kzalloc(sizeof(struct heci_cb_private), GFP_KERNEL);
 	if (!priv_cb)
 		return -ENOMEM;
 
+	spin_lock(&file_ext->read_io_lock);
 	DBG("allocation call back success\n"
 	    "host client = %d, ME client = %d\n",
 	    file_ext->host_client_id, file_ext->me_client_id);
+	spin_unlock(&file_ext->read_io_lock);
+
 	spin_lock_bh(&dev->device_lock);
+	spin_lock(&file_ext->read_io_lock);
 	for (i = 0; i < dev->num_heci_me_clients; i++) {
 		if (dev->me_clients[i].client_id == file_ext->me_client_id)
 			break;
@@ -666,6 +675,7 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 	}
 
 	BUG_ON(dev->me_clients[i].client_id != file_ext->me_client_id);
+	spin_unlock(&file_ext->read_io_lock);
 	if (i == dev->num_heci_me_clients) {
 		rets = -ENODEV;
 		goto unlock;
@@ -684,12 +694,14 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 	/* make sure information is zero before we start */
 	priv_cb->information = 0;
 	priv_cb->file_private = (void *) file_ext;
-	file_ext->read_cb = priv_cb;
 	spin_lock_bh(&dev->device_lock);
+	spin_lock(&file_ext->read_io_lock);
+	file_ext->read_cb = priv_cb;
 	if (dev->host_buffer_is_empty) {
 		dev->host_buffer_is_empty = 0;
 		if (!heci_send_flow_control(dev, file_ext)) {
 			rets = -ENODEV;
+			spin_unlock(&file_ext->read_io_lock);
 			goto unlock;
 		} else {
 			list_add_tail(&priv_cb->cb_list,
@@ -699,6 +711,7 @@ int heci_start_read(struct iamt_heci_device *dev, int if_num,
 		list_add_tail(&priv_cb->cb_list,
 			      &dev->ctrl_wr_list.heci_cb.cb_list);
 	}
+	spin_unlock(&file_ext->read_io_lock);
 	spin_unlock_bh(&dev->device_lock);
 	return rets;
 unlock:

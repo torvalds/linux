@@ -954,8 +954,8 @@ static ssize_t heci_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	spin_lock(&file_ext->read_io_lock);
 	err = heci_start_read(dev, if_num, file_ext);
+	spin_lock(&file_ext->read_io_lock);
 	if (err != 0 && err != -EBUSY) {
 		DBG("heci start read failure with status = %d\n", err);
 		spin_unlock(&file_ext->read_io_lock);
