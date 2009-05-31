@@ -126,6 +126,13 @@ struct drm_i915_fence_reg {
 	struct drm_gem_object *obj;
 };
 
+struct sdvo_device_mapping {
+	u8 dvo_port;
+	u8 slave_addr;
+	u8 dvo_wiring;
+	u8 initialized;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -389,6 +396,7 @@ typedef struct drm_i915_private {
 		/* storage for physical objects */
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
+	struct sdvo_device_mapping sdvo_mappings[2];
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
