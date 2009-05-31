@@ -460,7 +460,7 @@ static int w9968cf_set_picture(struct w9968cf_device*, struct video_picture);
 static int w9968cf_set_window(struct w9968cf_device*, struct video_window);
 static int w9968cf_postprocess_frame(struct w9968cf_device*,
 				     struct w9968cf_frame_t*);
-static int w9968cf_adjust_window_size(struct w9968cf_device*, u16* w, u16* h);
+static int w9968cf_adjust_window_size(struct w9968cf_device*, u32 *w, u32 *h);
 static void w9968cf_init_framelist(struct w9968cf_device*);
 static void w9968cf_push_frame(struct w9968cf_device*, u8 f_num);
 static void w9968cf_pop_frame(struct w9968cf_device*,struct w9968cf_frame_t**);
@@ -1763,8 +1763,7 @@ w9968cf_set_window(struct w9968cf_device* cam, struct video_window win)
 	#define UNSC(x) ((x) >> 10)
 
 	/* Make sure we are using a supported resolution */
-	if ((err = w9968cf_adjust_window_size(cam, (u16*)&win.width,
-					      (u16*)&win.height)))
+	if ((err = w9968cf_adjust_window_size(cam, &win.width, &win.height)))
 		goto error;
 
 	/* Scaling factors */
@@ -1914,12 +1913,9 @@ error:
   Return 0 on success, -1 otherwise.
   --------------------------------------------------------------------------*/
 static int
-w9968cf_adjust_window_size(struct w9968cf_device* cam, u16* width, u16* height)
+w9968cf_adjust_window_size(struct w9968cf_device *cam, u32 *width, u32 *height)
 {
-	u16 maxw, maxh;
-
-	if ((*width < cam->minwidth) || (*height < cam->minheight))
-		return -ERANGE;
+	unsigned int maxw, maxh, align;
 
 	maxw = cam->upscaling && !(cam->vpp_flag & VPP_DECOMPRESSION) &&
 	       w9968cf_vpp ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth)
@@ -1927,16 +1923,10 @@ w9968cf_adjust_window_size(struct w9968cf_device* cam, u16* width, u16* height)
 	maxh = cam->upscaling && !(cam->vpp_flag & VPP_DECOMPRESSION) &&
 	       w9968cf_vpp ? max((u16)W9968CF_MAX_HEIGHT, cam->maxheight)
 			   : cam->maxheight;
+	align = (cam->vpp_flag & VPP_DECOMPRESSION) ? 4 : 0;
 
-	if (*width > maxw)
-		*width = maxw;
-	if (*height > maxh)
-		*height = maxh;
-
-	if (cam->vpp_flag & VPP_DECOMPRESSION) {
-		*width  &= ~15L; /* multiple of 16 */
-		*height &= ~15L;
-	}
+	v4l_bound_align_image(width, cam->minwidth, maxw, align,
+			      height, cam->minheight, maxh, align, 0);
 
 	PDBGG("Window size adjusted w=%u, h=%u ", *width, *height)
 
@@ -3043,8 +3033,8 @@ static long w9968cf_v4l_ioctl(struct file *filp,
 		if (win.clipcount != 0 || win.flags != 0)
 			return -EINVAL;
 
-		if ((err = w9968cf_adjust_window_size(cam, (u16*)&win.width,
-						      (u16*)&win.height))) {
+		if ((err = w9968cf_adjust_window_size(cam, &win.width,
+						      &win.height))) {
 			DBG(4, "Resolution not supported (%ux%u). "
 			       "VIDIOCSWIN failed", win.width, win.height)
 			return err;
@@ -3116,6 +3106,7 @@ static long w9968cf_v4l_ioctl(struct file *filp,
 	{
 		struct video_mmap mmap;
 		struct w9968cf_frame_t* fr;
+		u32 w, h;
 		int err = 0;
 
 		if (copy_from_user(&mmap, arg, sizeof(mmap)))
@@ -3164,8 +3155,10 @@ static long w9968cf_v4l_ioctl(struct file *filp,
 		   }
 		}
 
-		if ((err = w9968cf_adjust_window_size(cam, (u16*)&mmap.width,
-						      (u16*)&mmap.height))) {
+		w = mmap.width; h = mmap.height;
+		err = w9968cf_adjust_window_size(cam, &w, &h);
+		mmap.width = w; mmap.height = h;
+		if (err) {
 			DBG(4, "Resolution not supported (%dx%d). "
 			       "VIDIOCMCAPTURE failed",
 			    mmap.width, mmap.height)
