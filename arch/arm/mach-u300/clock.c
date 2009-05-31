@@ -682,7 +682,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	} else {
 		printk(KERN_ERR "clock: Failed to set %s to %ld hz\n",
 		       clk->name, rate);
-		return -1;
+		return -EINVAL;
 	}
 }
 EXPORT_SYMBOL(clk_set_rate);
