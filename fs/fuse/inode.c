@@ -206,7 +206,7 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 		BUG();
 }
 
-static int fuse_inode_eq(struct inode *inode, void *_nodeidp)
+int fuse_inode_eq(struct inode *inode, void *_nodeidp)
 {
 	u64 nodeid = *(u64 *) _nodeidp;
 	if (get_node_id(inode) == nodeid)
@@ -255,6 +255,31 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 	fuse_change_attributes(inode, attr, attr_valid, attr_version);
 
 	return inode;
+}
+
+int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
+			     loff_t offset, loff_t len)
+{
+	struct inode *inode;
+	pgoff_t pg_start;
+	pgoff_t pg_end;
+
+	inode = ilookup5(sb, nodeid, fuse_inode_eq, &nodeid);
+	if (!inode)
+		return -ENOENT;
+
+	fuse_invalidate_attr(inode);
+	if (offset >= 0) {
+		pg_start = offset >> PAGE_CACHE_SHIFT;
+		if (len <= 0)
+			pg_end = -1;
+		else
+			pg_end = (offset + len - 1) >> PAGE_CACHE_SHIFT;
+		invalidate_inode_pages2_range(inode->i_mapping,
+					      pg_start, pg_end);
+	}
+	iput(inode);
+	return 0;
 }
 
 static void fuse_umount_begin(struct super_block *sb)
@@ -480,6 +505,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	memset(fc, 0, sizeof(*fc));
 	spin_lock_init(&fc->lock);
 	mutex_init(&fc->inst_mutex);
+	init_rwsem(&fc->killsb);
 	atomic_set(&fc->count, 1);
 	init_waitqueue_head(&fc->waitq);
 	init_waitqueue_head(&fc->blocked_waitq);
@@ -862,6 +888,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_conn_init(fc);
 
 	fc->dev = sb->s_dev;
+	fc->sb = sb;
 	err = fuse_bdi_init(fc, sb);
 	if (err)
 		goto err_put_conn;
@@ -948,12 +975,25 @@ static int fuse_get_sb(struct file_system_type *fs_type,
 	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
 }
 
+static void fuse_kill_sb_anon(struct super_block *sb)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+
+	if (fc) {
+		down_write(&fc->killsb);
+		fc->sb = NULL;
+		up_write(&fc->killsb);
+	}
+
+	kill_anon_super(sb);
+}
+
 static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
 	.fs_flags	= FS_HAS_SUBTYPE,
 	.get_sb		= fuse_get_sb,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= fuse_kill_sb_anon,
 };
 
 #ifdef CONFIG_BLOCK
@@ -965,11 +1005,24 @@ static int fuse_get_sb_blk(struct file_system_type *fs_type,
 			   mnt);
 }
 
+static void fuse_kill_sb_blk(struct super_block *sb)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+
+	if (fc) {
+		down_write(&fc->killsb);
+		fc->sb = NULL;
+		up_write(&fc->killsb);
+	}
+
+	kill_block_super(sb);
+}
+
 static struct file_system_type fuseblk_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuseblk",
 	.get_sb		= fuse_get_sb_blk,
-	.kill_sb	= kill_block_super,
+	.kill_sb	= fuse_kill_sb_blk,
 	.fs_flags	= FS_REQUIRES_DEV | FS_HAS_SUBTYPE,
 };
 
