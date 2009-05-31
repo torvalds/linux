@@ -111,7 +111,7 @@ int heci_ioctl_get_version(struct iamt_heci_device *dev, int if_num,
 
 	rets = file_ext->status;
 	/* now copy the data to user space */
-	if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+	if (copy_to_user((void __user *)k_msg.data, res_msg.data, res_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -188,7 +188,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 	/* copy the message to kernel space -
 	 * use a pointer already copied into kernel space
 	 */
-	if (copy_from_user(req_msg.data, k_msg.data, k_msg.size)) {
+	if (copy_from_user(req_msg.data, (void __user *)k_msg.data, k_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -266,7 +266,8 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		spin_unlock_bh(&dev->device_lock);
 
 		/* now copy the data to user space */
-		if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+		if (copy_to_user((void __user *)k_msg.data,
+					res_msg.data, res_msg.size)) {
 			rets = -EFAULT;
 			goto end;
 		}
@@ -320,7 +321,8 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		DBG("successfully connected to FW client.\n");
 		rets = file_ext->status;
 		/* now copy the data to user space */
-		if (copy_to_user(k_msg.data, res_msg.data, res_msg.size)) {
+		if (copy_to_user((void __user *)k_msg.data,
+					res_msg.data, res_msg.size)) {
 			rets = -EFAULT;
 			goto end;
 		}
@@ -394,7 +396,8 @@ int heci_ioctl_wd(struct iamt_heci_device *dev, int if_num,
 	/* copy the message to kernel space - use a pointer already
 	 * copied into kernel space
 	 */
-	if (copy_from_user(req_msg.data, k_msg.data, req_msg.size)) {
+	if (copy_from_user(req_msg.data,
+				(void __user *)k_msg.data, req_msg.size)) {
 		rets = -EFAULT;
 		goto end;
 	}
@@ -464,7 +467,7 @@ int heci_ioctl_bypass_wd(struct iamt_heci_device *dev, int if_num,
 		return -EMSGSIZE;
 	}
 	spin_unlock(&file_ext->file_lock);
-	if (copy_from_user(&flag, k_msg.data, 1)) {
+	if (copy_from_user(&flag, (void __user *)k_msg.data, 1)) {
 		rets = -EFAULT;
 		goto end;
 	}

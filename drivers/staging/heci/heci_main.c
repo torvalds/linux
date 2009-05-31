@@ -1140,9 +1140,12 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	spin_lock(&file_ext->file_lock);
 	file_ext->sm_state = 0;
 	if ((length == 4) &&
-	    ((memcmp(heci_wd_state_independence_msg[0], ubuf, 4) == 0) ||
-	     (memcmp(heci_wd_state_independence_msg[1], ubuf, 4) == 0) ||
-	     (memcmp(heci_wd_state_independence_msg[2], ubuf, 4) == 0)))
+	    ((memcmp(heci_wd_state_independence_msg[0],
+				 priv_write_cb->request_buffer.data, 4) == 0) ||
+	     (memcmp(heci_wd_state_independence_msg[1],
+				 priv_write_cb->request_buffer.data, 4) == 0) ||
+	     (memcmp(heci_wd_state_independence_msg[2],
+				 priv_write_cb->request_buffer.data, 4) == 0)))
 		file_ext->sm_state |= HECI_WD_STATE_INDEPENDENCE_MSG_SENT;
 	spin_unlock(&file_ext->file_lock);
 
