@@ -689,16 +689,8 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	/* FIXME: calculate using depth and bus width */
 
-	if (f->fmt.pix.height < 4)
-		f->fmt.pix.height = 4;
-	if (f->fmt.pix.height > 1920)
-		f->fmt.pix.height = 1920;
-	if (f->fmt.pix.width < 2)
-		f->fmt.pix.width = 2;
-	if (f->fmt.pix.width > 2560)
-		f->fmt.pix.width = 2560;
-	f->fmt.pix.width &= ~0x01;
-	f->fmt.pix.height &= ~0x03;
+	v4l_bound_align_image(&f->fmt.pix.width, 2, 2560, 1,
+			      &f->fmt.pix.height, 4, 1920, 2, 0);
 
 	f->fmt.pix.bytesperline = f->fmt.pix.width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
