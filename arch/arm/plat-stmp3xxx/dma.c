@@ -23,6 +23,7 @@
 
 #include <asm/page.h>
 
+#include <mach/platform.h>
 #include <mach/dma.h>
 #include <mach/regs-apbx.h>
 #include <mach/regs-apbh.h>
@@ -34,16 +35,6 @@ static struct stmp3xxx_dma_user {
 	int inuse;
 	const char *name;
 } channels[MAX_DMA_CHANNELS];
-
-static inline int dmach(int ch)
-{
-	return ch % 16;
-}
-
-static inline int dmabus(int ch)
-{
-	return ch / 16;
-}
 
 #define IS_VALID_CHANNEL(ch) ((ch) >= 0 && (ch) < MAX_DMA_CHANNELS)
 #define IS_USED(ch) (channels[ch].inuse)
@@ -101,17 +92,19 @@ int stmp3xxx_dma_read_semaphore(int channel)
 {
 	int sem = -1;
 
-	switch (dmabus(channel)) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		sem =
-		    (HW_APBH_CHn_SEMA_RD(dmach(channel)) &
-		     BM_APBH_CHn_SEMA_PHORE) >> BP_APBH_CHn_SEMA_PHORE;
+		sem = __raw_readl(REGS_APBH_BASE + HW_APBH_CHn_SEMA +
+				STMP3XXX_DMA_CHANNEL(channel) * 0x70);
+		sem &= BM_APBH_CHn_SEMA_PHORE;
+		sem >>= BP_APBH_CHn_SEMA_PHORE;
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		sem =
-		    (HW_APBX_CHn_SEMA_RD(dmach(channel)) &
-		     BM_APBX_CHn_SEMA_PHORE) >> BP_APBX_CHn_SEMA_PHORE;
+		sem = __raw_readl(REGS_APBX_BASE + HW_APBX_CHn_SEMA +
+				STMP3XXX_DMA_CHANNEL(channel) * 0x70);
+		sem &= BM_APBX_CHn_SEMA_PHORE;
+		sem >>= BP_APBX_CHn_SEMA_PHORE;
 		break;
 	default:
 		BUG();
@@ -189,39 +182,44 @@ EXPORT_SYMBOL(stmp3xxx_dma_free_command);
 void stmp3xxx_dma_go(int channel,
 		     struct stmp3xxx_dma_descriptor *head, u32 semaphore)
 {
-	int ch = dmach(channel);
+	int ch = STMP3XXX_DMA_CHANNEL(channel);
+	void __iomem *c, *s;
 
-	switch (dmabus(channel)) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		/* Set next command */
-		HW_APBH_CHn_NXTCMDAR_WR(ch, head->handle);
-		/* Set counting semaphore (kicks off transfer). Assumes
-		   peripheral has been set up correctly */
-		HW_APBH_CHn_SEMA_WR(ch, semaphore);
+		c = REGS_APBH_BASE + HW_APBH_CHn_NXTCMDAR + 0x70 * ch;
+		s = REGS_APBH_BASE + HW_APBH_CHn_SEMA + 0x70 * ch;
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		/* Set next command */
-		HW_APBX_CHn_NXTCMDAR_WR(ch, head->handle);
-		/* Set counting semaphore (kicks off transfer). Assumes
-		   peripheral has been set up correctly */
-		HW_APBX_CHn_SEMA_WR(ch, semaphore);
+		c = REGS_APBX_BASE + HW_APBX_CHn_NXTCMDAR + 0x70 * ch;
+		s = REGS_APBX_BASE + HW_APBX_CHn_SEMA + 0x70 * ch;
 		break;
+
+	default:
+		return;
 	}
+
+	/* Set next command */
+	__raw_writel(head->handle, c);
+	/* Set counting semaphore (kicks off transfer). Assumes
+	   peripheral has been set up correctly */
+	__raw_writel(semaphore, s);
 }
 EXPORT_SYMBOL(stmp3xxx_dma_go);
 
 int stmp3xxx_dma_running(int channel)
 {
-	switch (dmabus(channel)) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		return HW_APBH_CHn_SEMA_RD(dmach(channel)) &
-		    BM_APBH_CHn_SEMA_PHORE;
+		return (__raw_readl(REGS_APBH_BASE + HW_APBH_CHn_SEMA +
+			0x70 * STMP3XXX_DMA_CHANNEL(channel))) &
+			    BM_APBH_CHn_SEMA_PHORE;
 
 	case STMP3XXX_BUS_APBX:
-		return HW_APBX_CHn_SEMA_RD(dmach(channel)) &
-		    BM_APBX_CHn_SEMA_PHORE;
-
+		return (__raw_readl(REGS_APBX_BASE + HW_APBX_CHn_SEMA +
+			0x70 * STMP3XXX_DMA_CHANNEL(channel))) &
+			    BM_APBX_CHn_SEMA_PHORE;
 	default:
 		BUG();
 		return 0;
@@ -238,7 +236,7 @@ void stmp3xxx_dma_free_chain(struct stmp37xx_circ_dma_chain *chain)
 
 	for (i = 0; i < chain->total_count; i++)
 		stmp3xxx_dma_free_command(
-			STMP3xxx_DMA(chain->channel, chain->bus),
+			STMP3XXX_DMA(chain->channel, chain->bus),
 			&chain->chain[i]);
 }
 EXPORT_SYMBOL(stmp3xxx_dma_free_chain);
@@ -291,16 +289,15 @@ int stmp3xxx_dma_make_chain(int ch, struct stmp37xx_circ_dma_chain *chain,
 	chain->free_count = items;
 	chain->active_count = 0;
 	chain->cooked_count = 0;
-	chain->bus = dmabus(ch);
-	chain->channel = dmach(ch);
+	chain->bus = STMP3XXX_DMA_BUS(ch);
+	chain->channel = STMP3XXX_DMA_CHANNEL(ch);
 	return err;
 }
 EXPORT_SYMBOL(stmp3xxx_dma_make_chain);
 
 void stmp37xx_circ_clear_chain(struct stmp37xx_circ_dma_chain *chain)
 {
-	BUG_ON(stmp3xxx_dma_running(STMP3xxx_DMA(chain->channel, chain->bus)) >
-	       0);
+	BUG_ON(stmp3xxx_dma_running(STMP3XXX_DMA(chain->channel, chain->bus)));
 	chain->free_index = 0;
 	chain->active_index = 0;
 	chain->cooked_index = 0;
@@ -325,6 +322,8 @@ EXPORT_SYMBOL(stmp37xx_circ_advance_free);
 void stmp37xx_circ_advance_active(struct stmp37xx_circ_dma_chain *chain,
 		unsigned count)
 {
+	void __iomem *c;
+	u32 mask_clr, mask;
 	BUG_ON(chain->free_count < count);
 
 	chain->free_count -= count;
@@ -334,26 +333,24 @@ void stmp37xx_circ_advance_active(struct stmp37xx_circ_dma_chain *chain,
 
 	switch (chain->bus) {
 	case STMP3XXX_BUS_APBH:
-		/* Set counting semaphore (kicks off transfer). Assumes
-		   peripheral has been set up correctly */
-		HW_APBH_CHn_SEMA_CLR(chain->channel,
-				     BM_APBH_CHn_SEMA_INCREMENT_SEMA);
-		HW_APBH_CHn_SEMA_SET(chain->channel,
-				     BF_APBH_CHn_SEMA_INCREMENT_SEMA(count));
+		c = REGS_APBH_BASE + HW_APBH_CHn_SEMA + 0x70 * chain->channel;
+		mask_clr = BM_APBH_CHn_SEMA_INCREMENT_SEMA;
+		mask = BF(count, APBH_CHn_SEMA_INCREMENT_SEMA);
 		break;
-
 	case STMP3XXX_BUS_APBX:
-		/* Set counting semaphore (kicks off transfer). Assumes
-		   peripheral has been set up correctly */
-		HW_APBX_CHn_SEMA_CLR(chain->channel,
-				     BM_APBX_CHn_SEMA_INCREMENT_SEMA);
-		HW_APBX_CHn_SEMA_SET(chain->channel,
-				     BF_APBX_CHn_SEMA_INCREMENT_SEMA(count));
+		c = REGS_APBX_BASE + HW_APBX_CHn_SEMA + 0x70 * chain->channel;
+		mask_clr = BM_APBX_CHn_SEMA_INCREMENT_SEMA;
+		mask = BF(count, APBX_CHn_SEMA_INCREMENT_SEMA);
 		break;
-
 	default:
 		BUG();
+		return;
 	}
+
+	/* Set counting semaphore (kicks off transfer). Assumes
+	   peripheral has been set up correctly */
+	stmp3xxx_clearl(mask_clr, c);
+	stmp3xxx_setl(mask, c);
 }
 EXPORT_SYMBOL(stmp37xx_circ_advance_active);
 
@@ -362,7 +359,7 @@ unsigned stmp37xx_circ_advance_cooked(struct stmp37xx_circ_dma_chain *chain)
 	unsigned cooked;
 
 	cooked = chain->active_count -
-	  stmp3xxx_dma_read_semaphore(STMP3xxx_DMA(chain->channel, chain->bus));
+	  stmp3xxx_dma_read_semaphore(STMP3XXX_DMA(chain->channel, chain->bus));
 
 	chain->active_count -= cooked;
 	chain->active_index += cooked;
@@ -383,38 +380,41 @@ void stmp3xxx_dma_set_alt_target(int channel, int function)
 #else
 #error wrong arch
 #endif
-	int shift = dmach(channel) * bits;
+	int shift = STMP3XXX_DMA_CHANNEL(channel) * bits;
 	unsigned mask = (1<<bits) - 1;
+	void __iomem *c;
 
 	BUG_ON(function < 0 || function >= (1<<bits));
 	pr_debug("%s: channel = %d, using mask %x, "
 		 "shift = %d\n", __func__, channel, mask, shift);
 
-	switch (dmabus(channel)) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		HW_APBH_DEVSEL_CLR(mask<<shift);
-		HW_APBH_DEVSEL_SET(function<<shift);
+		c = REGS_APBH_BASE + HW_APBH_DEVSEL;
 		break;
 	case STMP3XXX_BUS_APBX:
-		HW_APBX_DEVSEL_CLR(mask<<shift);
-		HW_APBX_DEVSEL_SET(function<<shift);
+		c = REGS_APBX_BASE + HW_APBX_DEVSEL;
 		break;
 	default:
 		BUG();
 	}
+	stmp3xxx_clearl(mask << shift, c);
+	stmp3xxx_setl(mask << shift, c);
 }
 EXPORT_SYMBOL(stmp3xxx_dma_set_alt_target);
 
 void stmp3xxx_dma_suspend(void)
 {
-	HW_APBH_CTRL0_SET(BM_APBH_CTRL0_CLKGATE);
-	HW_APBX_CTRL0_SET(BM_APBX_CTRL0_CLKGATE);
+	stmp3xxx_setl(BM_APBH_CTRL0_CLKGATE, REGS_APBH_BASE + HW_APBH_CTRL0);
+	stmp3xxx_setl(BM_APBX_CTRL0_CLKGATE, REGS_APBX_BASE + HW_APBX_CTRL0);
 }
 
 void stmp3xxx_dma_resume(void)
 {
-	HW_APBH_CTRL0_CLR(BM_APBH_CTRL0_CLKGATE | BM_APBH_CTRL0_SFTRST);
-	HW_APBX_CTRL0_CLR(BM_APBX_CTRL0_CLKGATE | BM_APBX_CTRL0_SFTRST);
+	stmp3xxx_clearl(BM_APBH_CTRL0_CLKGATE | BM_APBH_CTRL0_SFTRST,
+			REGS_APBH_BASE + HW_APBH_CTRL0);
+	stmp3xxx_clearl(BM_APBX_CTRL0_CLKGATE | BM_APBX_CTRL0_SFTRST,
+			REGS_APBX_BASE + HW_APBX_CTRL0);
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -452,11 +452,12 @@ static struct dma_notifier_block dma_cpufreq_nb = {
 
 void __init stmp3xxx_dma_init(void)
 {
-	HW_APBH_CTRL0_CLR(BM_APBH_CTRL0_CLKGATE | BM_APBH_CTRL0_SFTRST);
-	HW_APBX_CTRL0_CLR(BM_APBX_CTRL0_CLKGATE | BM_APBX_CTRL0_SFTRST);
+	stmp3xxx_clearl(BM_APBH_CTRL0_CLKGATE | BM_APBH_CTRL0_SFTRST,
+			REGS_APBH_BASE + HW_APBH_CTRL0);
+	stmp3xxx_clearl(BM_APBX_CTRL0_CLKGATE | BM_APBX_CTRL0_SFTRST,
+			REGS_APBX_BASE + HW_APBX_CTRL0);
 #ifdef CONFIG_CPU_FREQ
 	cpufreq_register_notifier(&dma_cpufreq_nb.nb,
 				CPUFREQ_TRANSITION_NOTIFIER);
 #endif /* CONFIG_CPU_FREQ */
-
 }

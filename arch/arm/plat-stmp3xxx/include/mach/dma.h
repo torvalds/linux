@@ -25,16 +25,14 @@
 #define MAX_PIO_WORDS   (15)
 #endif
 
-#define STMP3XXX_BUS_APBH	0
-#define STMP3XXX_BUS_APBX	1
+#define STMP3XXX_BUS_APBH		0
+#define STMP3XXX_BUS_APBX		1
 #define STMP3XXX_DMA_MAX_CHANNEL	16
-
-
-#define STMP3xxx_DMA(channel, bus)  ((bus) * 16 + (channel))
-
-#define MAX_DMA_ADDRESS		0xffffffff
-
-#define MAX_DMA_CHANNELS	32
+#define STMP3XXX_DMA_BUS(dma)		((dma) / 16)
+#define STMP3XXX_DMA_CHANNEL(dma)	((dma) % 16)
+#define STMP3XXX_DMA(channel, bus)	((bus) * 16 + (channel))
+#define MAX_DMA_ADDRESS			0xffffffff
+#define MAX_DMA_CHANNELS		32
 
 struct stmp3xxx_dma_command {
 	u32 next;

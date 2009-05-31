@@ -14,6 +14,9 @@
 #ifndef __ASM_PLAT_PLATFORM_H
 #define __ASM_PLAT_PLATFORM_H
 
+#ifndef __ASSEMBLER__
+#include <linux/io.h>
+#endif
 #include <asm/sizes.h>
 
 /* Virtual address where registers are mapped */
@@ -43,5 +46,23 @@
 #define IRQ_PRIORITY_REG_RD	HW_ICOLL_INTERRUPTn_RD
 #define IRQ_PRIORITY_REG_WR	HW_ICOLL_INTERRUPTn_WR
 #endif
+
+#define HW_STMP3XXX_SET		0x04
+#define HW_STMP3XXX_CLR		0x08
+#define HW_STMP3XXX_TOG		0x0c
+
+#ifndef __ASSEMBLER__
+static inline void stmp3xxx_clearl(u32 v, void __iomem *r)
+{
+	__raw_writel(v, r + HW_STMP3XXX_CLR);
+}
+
+static inline void stmp3xxx_setl(u32 v, void __iomem *r)
+{
+	__raw_writel(v, r + HW_STMP3XXX_SET);
+}
+#endif
+
+#define BF(value, field) (((value) << BP_##field) & BM_##field)
 
 #endif /* __ASM_ARCH_PLATFORM_H */

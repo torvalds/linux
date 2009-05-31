@@ -22,21 +22,15 @@
 #include <linux/sysdev.h>
 
 #include <mach/stmp3xxx.h>
+#include <mach/platform.h>
 #include <mach/regs-icoll.h>
 
 void __init stmp3xxx_init_irq(struct irq_chip *chip)
 {
-	unsigned int i;
+	unsigned int i, lv;
 
 	/* Reset the interrupt controller */
-	HW_ICOLL_CTRL_CLR(BM_ICOLL_CTRL_CLKGATE);
-	udelay(10);
-	HW_ICOLL_CTRL_CLR(BM_ICOLL_CTRL_SFTRST);
-	udelay(10);
-	HW_ICOLL_CTRL_SET(BM_ICOLL_CTRL_SFTRST);
-	while (!(HW_ICOLL_CTRL_RD() & BM_ICOLL_CTRL_CLKGATE))
-		continue;
-	HW_ICOLL_CTRL_CLR(BM_ICOLL_CTRL_SFTRST | BM_ICOLL_CTRL_CLKGATE);
+	stmp3xxx_reset_block(REGS_ICOLL_BASE + HW_ICOLL_CTRL, true);
 
 	/* Disable all interrupts initially */
 	for (i = 0; i < NR_REAL_IRQS; i++) {
@@ -47,13 +41,11 @@ void __init stmp3xxx_init_irq(struct irq_chip *chip)
 	}
 
 	/* Ensure vector is cleared */
-	HW_ICOLL_LEVELACK_WR(1);
-	HW_ICOLL_LEVELACK_WR(2);
-	HW_ICOLL_LEVELACK_WR(4);
-	HW_ICOLL_LEVELACK_WR(8);
+	for (lv = 0; lv < 4; lv++)
+		__raw_writel(1 << lv, REGS_ICOLL_BASE + HW_ICOLL_LEVELACK);
+	__raw_writel(0, REGS_ICOLL_BASE + HW_ICOLL_VECTOR);
 
-	HW_ICOLL_VECTOR_WR(0);
 	/* Barrier */
-	(void) HW_ICOLL_STAT_RD();
+	(void)__raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT);
 }
 

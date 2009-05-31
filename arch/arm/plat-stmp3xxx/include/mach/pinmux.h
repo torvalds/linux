@@ -146,10 +146,9 @@ struct stmp3xxx_pinmux_bank {
 	u8 strengths[HW_DRIVE_PINDRV_NUM];
 
 	/* GPIO things */
-	void __iomem *hw_gpio_read,
-	     *hw_gpio_set,
-	     *hw_gpio_clr,
-	     *hw_gpio_doe;
+	void __iomem *hw_gpio_in,
+		     *hw_gpio_out,
+		     *hw_gpio_doe;
 	int irq, virq;
 };
 

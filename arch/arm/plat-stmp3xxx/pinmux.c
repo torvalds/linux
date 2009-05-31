@@ -15,6 +15,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -25,6 +26,7 @@
 #include <linux/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <mach/regs-pinctrl.h>
 #include <mach/pins.h>
 #include <mach/pinmux.h>
@@ -33,97 +35,94 @@
 static struct stmp3xxx_pinmux_bank pinmux_banks[] = {
 	[0] = {
 		.hw_muxsel = {
-			HW_PINCTRL_MUXSEL0_ADDR,
-			HW_PINCTRL_MUXSEL1_ADDR
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL0,
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL1,
 		},
 		.hw_drive = {
-			HW_PINCTRL_DRIVE0_ADDR,
-			HW_PINCTRL_DRIVE1_ADDR,
-			HW_PINCTRL_DRIVE2_ADDR,
-			HW_PINCTRL_DRIVE3_ADDR
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE0,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE1,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE2,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE3,
 		},
-		.hw_pull = HW_PINCTRL_PULL0_ADDR,
+		.hw_pull = REGS_PINCTRL_BASE + HW_PINCTRL_PULL0,
 		.functions = { 0x0, 0x1, 0x2, 0x3 },
 		.strengths = { 0x0, 0x1, 0x2, 0x3, 0xff },
 
-		.hw_gpio_read = HW_PINCTRL_DIN0_ADDR,
-		.hw_gpio_set = HW_PINCTRL_DOUT0_ADDR + HW_STMP3xxx_SET,
-		.hw_gpio_clr = HW_PINCTRL_DOUT0_ADDR + HW_STMP3xxx_CLR,
-		.hw_gpio_doe = HW_PINCTRL_DOE0_ADDR,
+		.hw_gpio_in = REGS_PINCTRL_BASE + HW_PINCTRL_DIN0,
+		.hw_gpio_out = REGS_PINCTRL_BASE + HW_PINCTRL_DOUT0,
+		.hw_gpio_doe = REGS_PINCTRL_BASE + HW_PINCTRL_DOE0,
 		.irq = IRQ_GPIO0,
 
-		.pin2irq = HW_PINCTRL_PIN2IRQ0_ADDR,
-		.irqstat = HW_PINCTRL_IRQSTAT0_ADDR,
-		.irqlevel = HW_PINCTRL_IRQLEVEL0_ADDR,
-		.irqpolarity = HW_PINCTRL_IRQPOL0_ADDR,
-		.irqen = HW_PINCTRL_IRQEN0_ADDR,
+		.pin2irq = REGS_PINCTRL_BASE + HW_PINCTRL_PIN2IRQ0,
+		.irqstat = REGS_PINCTRL_BASE + HW_PINCTRL_IRQSTAT0,
+		.irqlevel = REGS_PINCTRL_BASE + HW_PINCTRL_IRQLEVEL0,
+		.irqpolarity = REGS_PINCTRL_BASE + HW_PINCTRL_IRQPOL0,
+		.irqen = REGS_PINCTRL_BASE + HW_PINCTRL_IRQEN0,
 	},
 	[1] = {
 		.hw_muxsel = {
-			HW_PINCTRL_MUXSEL2_ADDR,
-			HW_PINCTRL_MUXSEL3_ADDR
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL2,
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL3,
 		},
 		.hw_drive = {
-			HW_PINCTRL_DRIVE4_ADDR,
-			HW_PINCTRL_DRIVE5_ADDR,
-			HW_PINCTRL_DRIVE6_ADDR,
-			HW_PINCTRL_DRIVE7_ADDR
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE4,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE5,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE6,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE7,
 		},
-		.hw_pull = HW_PINCTRL_PULL1_ADDR,
+		.hw_pull = REGS_PINCTRL_BASE + HW_PINCTRL_PULL1,
 		.functions = { 0x0, 0x1, 0x2, 0x3 },
 		.strengths = { 0x0, 0x1, 0x2, 0x3, 0xff },
 
-		.hw_gpio_read = HW_PINCTRL_DIN1_ADDR,
-		.hw_gpio_set = HW_PINCTRL_DOUT1_ADDR + HW_STMP3xxx_SET,
-		.hw_gpio_clr = HW_PINCTRL_DOUT1_ADDR + HW_STMP3xxx_CLR,
-		.hw_gpio_doe = HW_PINCTRL_DOE1_ADDR,
+		.hw_gpio_in = REGS_PINCTRL_BASE + HW_PINCTRL_DIN1,
+		.hw_gpio_out = REGS_PINCTRL_BASE + HW_PINCTRL_DOUT1,
+		.hw_gpio_doe = REGS_PINCTRL_BASE + HW_PINCTRL_DOE1,
 		.irq = IRQ_GPIO1,
 
-		.pin2irq = HW_PINCTRL_PIN2IRQ1_ADDR,
-		.irqstat = HW_PINCTRL_IRQSTAT1_ADDR,
-		.irqlevel = HW_PINCTRL_IRQLEVEL1_ADDR,
-		.irqpolarity = HW_PINCTRL_IRQPOL1_ADDR,
-		.irqen = HW_PINCTRL_IRQEN1_ADDR,
+		.pin2irq = REGS_PINCTRL_BASE + HW_PINCTRL_PIN2IRQ1,
+		.irqstat = REGS_PINCTRL_BASE + HW_PINCTRL_IRQSTAT1,
+		.irqlevel = REGS_PINCTRL_BASE + HW_PINCTRL_IRQLEVEL1,
+		.irqpolarity = REGS_PINCTRL_BASE + HW_PINCTRL_IRQPOL1,
+		.irqen = REGS_PINCTRL_BASE + HW_PINCTRL_IRQEN1,
 	},
 	[2] = {
 	       .hw_muxsel = {
-			HW_PINCTRL_MUXSEL4_ADDR,
-			HW_PINCTRL_MUXSEL5_ADDR,
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL4,
+			REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL5,
 		},
 		.hw_drive = {
-			HW_PINCTRL_DRIVE8_ADDR,
-			HW_PINCTRL_DRIVE9_ADDR,
-			HW_PINCTRL_DRIVE10_ADDR,
-			HW_PINCTRL_DRIVE11_ADDR,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE8,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE9,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE10,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE11,
 		},
-		.hw_pull = HW_PINCTRL_PULL2_ADDR,
+		.hw_pull = REGS_PINCTRL_BASE + HW_PINCTRL_PULL2,
 		.functions = { 0x0, 0x1, 0x2, 0x3 },
 		.strengths = { 0x0, 0x1, 0x2, 0x1, 0x2 },
 
-		.hw_gpio_read = HW_PINCTRL_DIN2_ADDR,
-		.hw_gpio_set = HW_PINCTRL_DOUT2_ADDR + HW_STMP3xxx_SET,
-		.hw_gpio_clr = HW_PINCTRL_DOUT2_ADDR + HW_STMP3xxx_CLR,
-		.hw_gpio_doe = HW_PINCTRL_DOE2_ADDR,
+		.hw_gpio_in = REGS_PINCTRL_BASE + HW_PINCTRL_DIN2,
+		.hw_gpio_out = REGS_PINCTRL_BASE + HW_PINCTRL_DOUT2,
+		.hw_gpio_doe = REGS_PINCTRL_BASE + HW_PINCTRL_DOE2,
 		.irq = IRQ_GPIO2,
 
-		.pin2irq = HW_PINCTRL_PIN2IRQ2_ADDR,
-		.irqstat = HW_PINCTRL_IRQSTAT2_ADDR,
-		.irqlevel = HW_PINCTRL_IRQLEVEL2_ADDR,
-		.irqpolarity = HW_PINCTRL_IRQPOL2_ADDR,
-		.irqen = HW_PINCTRL_IRQEN2_ADDR,
+		.pin2irq = REGS_PINCTRL_BASE + HW_PINCTRL_PIN2IRQ2,
+		.irqstat = REGS_PINCTRL_BASE + HW_PINCTRL_IRQSTAT2,
+		.irqlevel = REGS_PINCTRL_BASE + HW_PINCTRL_IRQLEVEL2,
+		.irqpolarity = REGS_PINCTRL_BASE + HW_PINCTRL_IRQPOL2,
+		.irqen = REGS_PINCTRL_BASE + HW_PINCTRL_IRQEN2,
 	},
 	[3] = {
 	       .hw_muxsel = {
-		       HW_PINCTRL_MUXSEL6_ADDR,
-		       HW_PINCTRL_MUXSEL7_ADDR,
+		       REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL6,
+		       REGS_PINCTRL_BASE + HW_PINCTRL_MUXSEL7,
 	       },
 	       .hw_drive = {
-			HW_PINCTRL_DRIVE12_ADDR,
-			HW_PINCTRL_DRIVE13_ADDR,
-			HW_PINCTRL_DRIVE14_ADDR,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE12,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE13,
+			REGS_PINCTRL_BASE + HW_PINCTRL_DRIVE14,
 			NULL,
 	       },
-	       .hw_pull = HW_PINCTRL_PULL3_ADDR,
+	       .hw_pull = REGS_PINCTRL_BASE + HW_PINCTRL_PULL3,
 	       .functions = {0x0, 0x1, 0x2, 0x3},
 	       .strengths = {0x0, 0x1, 0x2, 0x3, 0xff},
 	},
@@ -196,8 +195,8 @@ void stmp3xxx_pin_strength(unsigned id, enum pin_strength strength,
 
 	pr_debug("%s: writing 0x%x to 0x%p register\n", __func__,
 			val << shift, hwdrive);
-	__raw_writel(HW_DRIVE_PINDRV_MASK << shift, hwdrive + HW_STMP3xxx_CLR);
-	__raw_writel(val << shift, hwdrive + HW_STMP3xxx_SET);
+	stmp3xxx_clearl(HW_DRIVE_PINDRV_MASK << shift, hwdrive);
+	stmp3xxx_setl(val << shift, hwdrive);
 }
 
 void stmp3xxx_pin_voltage(unsigned id, enum pin_voltage voltage,
@@ -221,11 +220,9 @@ void stmp3xxx_pin_voltage(unsigned id, enum pin_voltage voltage,
 	pr_debug("%s: changing 0x%x bit in 0x%p register\n",
 			__func__, HW_DRIVE_PINV_MASK << shift, hwdrive);
 	if (voltage == PIN_1_8V)
-		__raw_writel(HW_DRIVE_PINV_MASK << shift,
-			     hwdrive + HW_STMP3xxx_CLR);
+		stmp3xxx_clearl(HW_DRIVE_PINV_MASK << shift, hwdrive);
 	else
-		__raw_writel(HW_DRIVE_PINV_MASK << shift,
-			     hwdrive + HW_STMP3xxx_SET);
+		stmp3xxx_setl(HW_DRIVE_PINV_MASK << shift, hwdrive);
 }
 
 void stmp3xxx_pin_pullup(unsigned id, int enable, const char *label)
@@ -245,8 +242,10 @@ void stmp3xxx_pin_pullup(unsigned id, int enable, const char *label)
 
 	pr_debug("%s: changing 0x%x bit in 0x%p register\n",
 			__func__, 1 << pin, hwpull);
-	__raw_writel(1 << pin,
-		     hwpull + (enable ? HW_STMP3xxx_SET : HW_STMP3xxx_CLR));
+	if (enable)
+		stmp3xxx_setl(1 << pin, hwpull);
+	else
+		stmp3xxx_clearl(1 << pin, hwpull);
 }
 
 int stmp3xxx_request_pin(unsigned id, enum pin_fun fun, const char *label)
@@ -290,8 +289,8 @@ void stmp3xxx_set_pin_type(unsigned id, enum pin_fun fun)
 	shift = (pin % HW_MUXSEL_PIN_NUM) * HW_MUXSEL_PIN_LEN;
 	pr_debug("%s: writing 0x%x to 0x%p register\n",
 			__func__, val << shift, hwmux);
-	__raw_writel(HW_MUXSEL_PINFUN_MASK << shift, hwmux + HW_STMP3xxx_CLR);
-	__raw_writel(val << shift, hwmux + HW_STMP3xxx_SET);
+	stmp3xxx_clearl(HW_MUXSEL_PINFUN_MASK << shift, hwmux);
+	stmp3xxx_setl(val << shift, hwmux);
 }
 
 void stmp3xxx_release_pin(unsigned id, const char *label)
@@ -388,10 +387,15 @@ static int stmp3xxx_set_irqtype(unsigned irq, unsigned type)
 				__func__, type);
 		return -ENXIO;
 	}
-	__raw_writel(1 << gpio,
-		pm->irqlevel + (l ? HW_STMP3xxx_SET : HW_STMP3xxx_CLR));
-	__raw_writel(1 << gpio,
-		pm->irqpolarity + (p ? HW_STMP3xxx_SET : HW_STMP3xxx_CLR));
+
+	if (l)
+		stmp3xxx_setl(1 << gpio, pm->irqlevel);
+	else
+		stmp3xxx_clearl(1 << gpio, pm->irqlevel);
+	if (p)
+		stmp3xxx_setl(1 << gpio, pm->irqpolarity);
+	else
+		stmp3xxx_clearl(1 << gpio, pm->irqpolarity);
 	return 0;
 }
 
@@ -402,8 +406,8 @@ static void stmp3xxx_pin_ack_irq(unsigned irq)
 	unsigned gpio;
 
 	stmp3xxx_irq_to_gpio(irq, &pm, &gpio);
-	stat = __raw_readl(pm->irqstat) & (1<<gpio);
-	__raw_writel(stat, pm->irqstat + HW_STMP3xxx_CLR);
+	stat = __raw_readl(pm->irqstat) & (1 << gpio);
+	stmp3xxx_clearl(stat, pm->irqstat);
 }
 
 static void stmp3xxx_pin_mask_irq(unsigned irq)
@@ -412,8 +416,8 @@ static void stmp3xxx_pin_mask_irq(unsigned irq)
 	unsigned gpio;
 
 	stmp3xxx_irq_to_gpio(irq, &pm, &gpio);
-	__raw_writel(1 << gpio, pm->irqen + HW_STMP3xxx_CLR);
-	__raw_writel(1 << gpio, pm->pin2irq + HW_STMP3xxx_CLR);
+	stmp3xxx_clearl(1 << gpio, pm->irqen);
+	stmp3xxx_clearl(1 << gpio, pm->pin2irq);
 }
 
 static void stmp3xxx_pin_unmask_irq(unsigned irq)
@@ -422,8 +426,8 @@ static void stmp3xxx_pin_unmask_irq(unsigned irq)
 	unsigned gpio;
 
 	stmp3xxx_irq_to_gpio(irq, &pm, &gpio);
-	__raw_writel(1 << gpio, pm->irqen + HW_STMP3xxx_SET);
-	__raw_writel(1 << gpio, pm->pin2irq + HW_STMP3xxx_SET);
+	stmp3xxx_setl(1 << gpio, pm->irqen);
+	stmp3xxx_setl(1 << gpio, pm->pin2irq);
 }
 
 static inline
@@ -443,7 +447,7 @@ static int stmp3xxx_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct stmp3xxx_pinmux_bank *pm = to_pinmux_bank(chip);
 	unsigned v;
 
-	v = __raw_readl(pm->hw_gpio_read) & (1 << offset);
+	v = __raw_readl(pm->hw_gpio_in) & (1 << offset);
 	return v ? 1 : 0;
 }
 
@@ -451,14 +455,17 @@ static void stmp3xxx_gpio_set(struct gpio_chip *chip, unsigned offset, int v)
 {
 	struct stmp3xxx_pinmux_bank *pm = to_pinmux_bank(chip);
 
-	__raw_writel(1 << offset, v ? pm->hw_gpio_set : pm->hw_gpio_clr);
+	if (v)
+		stmp3xxx_setl(1 << offset, pm->hw_gpio_out);
+	else
+		stmp3xxx_clearl(1 << offset, pm->hw_gpio_out);
 }
 
 static int stmp3xxx_gpio_output(struct gpio_chip *chip, unsigned offset, int v)
 {
 	struct stmp3xxx_pinmux_bank *pm = to_pinmux_bank(chip);
 
-	__raw_writel(1 << offset, pm->hw_gpio_doe + HW_STMP3xxx_SET);
+	stmp3xxx_setl(1 << offset, pm->hw_gpio_doe);
 	stmp3xxx_gpio_set(chip, offset, v);
 	return 0;
 }
@@ -467,7 +474,7 @@ static int stmp3xxx_gpio_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct stmp3xxx_pinmux_bank *pm = to_pinmux_bank(chip);
 
-	__raw_writel(1 << offset, pm->hw_gpio_doe + HW_STMP3xxx_CLR);
+	stmp3xxx_clearl(1 << offset, pm->hw_gpio_doe);
 	return 0;
 }
 

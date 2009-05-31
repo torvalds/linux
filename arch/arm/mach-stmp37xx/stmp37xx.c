@@ -34,6 +34,7 @@
 #include <mach/stmp3xxx.h>
 #include <mach/dma.h>
 
+#include <mach/platform.h>
 #include <mach/regs-icoll.h>
 #include <mach/regs-apbh.h>
 #include <mach/regs-apbx.h>
@@ -45,25 +46,28 @@
 static void stmp37xx_ack_irq(unsigned int irq)
 {
 	/* Disable IRQ */
-	HW_ICOLL_PRIORITYn_CLR(irq / 4, 0x04 << ((irq % 4) * 8));
+	stmp3xxx_clearl(0x04 << ((irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
 
 	/* ACK current interrupt */
-	HW_ICOLL_LEVELACK_WR(1);
+	__raw_writel(1, REGS_ICOLL_BASE + HW_ICOLL_LEVELACK);
 
 	/* Barrier */
-	(void) HW_ICOLL_STAT_RD();
+	(void)__raw_readl(REGS_ICOLL_BASE + HW_ICOLL_STAT);
 }
 
 static void stmp37xx_mask_irq(unsigned int irq)
 {
 	/* IRQ disable */
-	HW_ICOLL_PRIORITYn_CLR(irq / 4, 0x04 << ((irq % 4) * 8));
+	stmp3xxx_clearl(0x04 << ((irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
 }
 
 static void stmp37xx_unmask_irq(unsigned int irq)
 {
 	/* IRQ enable */
-	HW_ICOLL_PRIORITYn_SET(irq / 4, 0x04 << ((irq % 4) * 8));
+	stmp3xxx_setl(0x04 << ((irq % 4) * 8),
+		REGS_ICOLL_BASE + HW_ICOLL_PRIORITYn + irq / 4 * 0x10);
 }
 
 static struct irq_chip stmp37xx_chip = {
@@ -82,15 +86,15 @@ void __init stmp37xx_init_irq(void)
  */
 void stmp3xxx_arch_dma_enable_interrupt(int channel)
 {
-	int dmabus = channel / 16;
-
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		HW_APBH_CTRL1_SET(1 << (8 + (channel % 16)));
+		stmp3xxx_setl(1 << (8 + STMP3XXX_DMA_CHANNEL(channel)),
+			REGS_APBH_BASE + HW_APBH_CTRL1);
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		HW_APBX_CTRL1_SET(1 << (8 + (channel % 16)));
+		stmp3xxx_setl(1 << (8 + STMP3XXX_DMA_CHANNEL(channel)),
+			REGS_APBX_BASE + HW_APBX_CTRL1);
 		break;
 	}
 }
@@ -98,15 +102,15 @@ EXPORT_SYMBOL(stmp3xxx_arch_dma_enable_interrupt);
 
 void stmp3xxx_arch_dma_clear_interrupt(int channel)
 {
-	int dmabus = channel / 16;
-
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		HW_APBH_CTRL1_CLR(1 << (channel % 16));
+		stmp3xxx_clearl(1 << STMP3XXX_DMA_CHANNEL(channel),
+				REGS_APBH_BASE + HW_APBH_CTRL1);
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		HW_APBX_CTRL1_CLR(1 << (channel % 16));
+		stmp3xxx_clearl(1 << STMP3XXX_DMA_CHANNEL(channel),
+				REGS_APBX_BASE + HW_APBX_CTRL1);
 		break;
 	}
 }
@@ -116,15 +120,15 @@ int stmp3xxx_arch_dma_is_interrupt(int channel)
 {
 	int r = 0;
 
-	int dmabus = channel / 16;
-
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		r = HW_APBH_CTRL1_RD() & (1 << (channel % 16));
+		r = __raw_readl(REGS_APBH_BASE + HW_APBH_CTRL1) &
+			(1 << STMP3XXX_DMA_CHANNEL(channel));
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		r = HW_APBX_CTRL1_RD() & (1 << (channel % 16));
+		r = __raw_readl(REGS_APBH_BASE + HW_APBH_CTRL1) &
+			(1 << STMP3XXX_DMA_CHANNEL(channel));
 		break;
 	}
 	return r;
@@ -133,24 +137,24 @@ EXPORT_SYMBOL(stmp3xxx_arch_dma_is_interrupt);
 
 void stmp3xxx_arch_dma_reset_channel(int channel)
 {
-	int dmabus = channel / 16;
-	unsigned chbit = 1 << (channel % 16);
+	unsigned chbit = 1 << STMP3XXX_DMA_CHANNEL(channel);
 
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
 		/* Reset channel and wait for it to complete */
-		HW_APBH_CTRL0_SET(chbit << BP_APBH_CTRL0_RESET_CHANNEL);
-		while (HW_APBH_CTRL0_RD() &
+		stmp3xxx_setl(chbit << BP_APBH_CTRL0_RESET_CHANNEL,
+			REGS_APBH_BASE + HW_APBH_CTRL0);
+		while (__raw_readl(REGS_APBH_BASE + HW_APBH_CTRL0) &
 		       (chbit << BP_APBH_CTRL0_RESET_CHANNEL))
-			continue;
+				cpu_relax();
 		break;
 
 	case STMP3XXX_BUS_APBX:
-		/* Reset channel and wait for it to complete */
-		HW_APBX_CTRL0_SET(chbit << BP_APBX_CTRL0_RESET_CHANNEL);
-		while (HW_APBX_CTRL0_RD() &
+		stmp3xxx_setl(chbit << BP_APBX_CTRL0_RESET_CHANNEL,
+			REGS_APBX_BASE + HW_APBX_CTRL0);
+		while (__raw_readl(REGS_APBX_BASE + HW_APBX_CTRL0) &
 		       (chbit << BP_APBX_CTRL0_RESET_CHANNEL))
-			continue;
+				cpu_relax();
 		break;
 	}
 }
@@ -158,15 +162,14 @@ EXPORT_SYMBOL(stmp3xxx_arch_dma_reset_channel);
 
 void stmp3xxx_arch_dma_freeze(int channel)
 {
-	int dmabus = channel / 16;
-	unsigned chbit = 1 << (channel % 16);
+	unsigned chbit = 1 << STMP3XXX_DMA_CHANNEL(channel);
 
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		HW_APBH_CTRL0_SET(1<<chbit);
+		stmp3xxx_setl(1 << chbit, REGS_APBH_BASE + HW_APBH_CTRL0);
 		break;
 	case STMP3XXX_BUS_APBX:
-		HW_APBX_CTRL0_SET(1<<chbit);
+		stmp3xxx_setl(1 << chbit, REGS_APBH_BASE + HW_APBH_CTRL0);
 		break;
 	}
 }
@@ -174,15 +177,14 @@ EXPORT_SYMBOL(stmp3xxx_arch_dma_freeze);
 
 void stmp3xxx_arch_dma_unfreeze(int channel)
 {
-	int dmabus = channel / 16;
-	unsigned chbit = 1 << (channel % 16);
+	unsigned chbit = 1 << STMP3XXX_DMA_CHANNEL(channel);
 
-	switch (dmabus) {
+	switch (STMP3XXX_DMA_BUS(channel)) {
 	case STMP3XXX_BUS_APBH:
-		HW_APBH_CTRL0_CLR(1<<chbit);
+		stmp3xxx_clearl(1 << chbit, REGS_APBH_BASE + HW_APBH_CTRL0);
 		break;
 	case STMP3XXX_BUS_APBX:
-		HW_APBX_CTRL0_CLR(1<<chbit);
+		stmp3xxx_clearl(1 << chbit, REGS_APBH_BASE + HW_APBH_CTRL0);
 		break;
 	}
 }
@@ -194,7 +196,7 @@ EXPORT_SYMBOL(stmp3xxx_arch_dma_unfreeze);
  *
  * Logical      Physical
  * f0000000	80000000	On-chip registers
- * f1000000	00000000	256k on-chip SRAM
+ * f1000000	00000000	32k on-chip SRAM
  */
 static struct map_desc stmp37xx_io_desc[] __initdata = {
 	{

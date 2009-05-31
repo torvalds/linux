@@ -15,6 +15,7 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
+#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -27,6 +28,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/clkdev.h>
+#include <mach/platform.h>
 #include <mach/regs-clkctrl.h>
 
 #include "clock.h"
@@ -187,8 +189,8 @@ static long lcdif_get_rate(struct clk *clk)
 	div = (__raw_readl(clk->scale_reg) >> clk->scale_shift) & mask;
 	if (div) {
 		rate /= div;
-		div = (HW_CLKCTRL_FRAC_RD() & BM_CLKCTRL_FRAC_PIXFRAC) >>
-				BP_CLKCTRL_FRAC_PIXFRAC;
+		div = (__raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC) &
+			BM_CLKCTRL_FRAC_PIXFRAC) >> BP_CLKCTRL_FRAC_PIXFRAC;
 		rate /= div;
 	}
 	clk->rate = rate;
@@ -263,15 +265,19 @@ static int lcdif_set_rate(struct clk *clk, u32 rate)
 			lowest_result / 1000, lowest_result % 1000);
 
 	/* Program ref_pix phase fractional divider */
-	HW_CLKCTRL_FRAC_WR((HW_CLKCTRL_FRAC_RD() & ~BM_CLKCTRL_FRAC_PIXFRAC) |
-			   BF_CLKCTRL_FRAC_PIXFRAC(lowest_fracdiv));
+	reg_val = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC);
+	reg_val &= ~BM_CLKCTRL_FRAC_PIXFRAC;
+	reg_val |= BF(lowest_fracdiv, CLKCTRL_FRAC_PIXFRAC);
+	__raw_writel(reg_val, REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC);
+
 	/* Ungate PFD */
-	HW_CLKCTRL_FRAC_CLR(BM_CLKCTRL_FRAC_CLKGATEPIX);
+	stmp3xxx_clearl(BM_CLKCTRL_FRAC_CLKGATEPIX,
+			REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC);
 
 	/* Program pix divider */
 	reg_val = __raw_readl(clk->scale_reg);
 	reg_val &= ~(BM_CLKCTRL_PIX_DIV | BM_CLKCTRL_PIX_CLKGATE);
-	reg_val |= BF_CLKCTRL_PIX_DIV(lowest_div);
+	reg_val |= BF(lowest_div, CLKCTRL_PIX_DIV);
 	__raw_writel(reg_val, clk->scale_reg);
 
 	/* Wait for divider update */
@@ -287,7 +293,9 @@ static int lcdif_set_rate(struct clk *clk, u32 rate)
 	}
 
 	/* Switch to ref_pix source */
-	HW_CLKCTRL_CLKSEQ_CLR(BM_CLKCTRL_CLKSEQ_BYPASS_PIX);
+	reg_val = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
+	reg_val &= ~BM_CLKCTRL_CLKSEQ_BYPASS_PIX;
+	__raw_writel(reg_val, REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ);
 
 out:
 	return ret;
@@ -296,6 +304,8 @@ out:
 
 static int cpu_set_rate(struct clk *clk, u32 rate)
 {
+	u32 reg_val;
+
 	if (rate < 24000)
 		return -EINVAL;
 	else if (rate == 24000) {
@@ -344,7 +354,12 @@ static int cpu_set_rate(struct clk *clk, u32 rate)
 		__raw_writel(1<<7, clk->scale_reg + 8);
 		/* write clkctrl_cpu */
 		clk->saved_div = clkctrl_cpu;
-		HW_CLKCTRL_CPU_WR((HW_CLKCTRL_CPU_RD() & ~0x3f) | clkctrl_cpu);
+
+		reg_val = __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
+		reg_val &= ~0x3F;
+		reg_val |= clkctrl_cpu;
+		__raw_writel(reg_val, REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
+
 		for (i = 10000; i; i--)
 			if (!clk_is_busy(clk))
 				break;
@@ -364,7 +379,7 @@ static long cpu_get_rate(struct clk *clk)
 	long rate = clk->parent->rate * 18;
 
 	rate /= (__raw_readl(clk->scale_reg) >> clk->scale_shift) & 0x3f;
-	rate /= HW_CLKCTRL_CPU_RD() & 0x3f;
+	rate /= __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU) & 0x3f;
 	rate = ((rate + 9) / 10) * 10;
 	clk->rate = rate;
 
@@ -411,7 +426,7 @@ static long emi_get_rate(struct clk *clk)
 	long rate = clk->parent->rate * 18;
 
 	rate /= (__raw_readl(clk->scale_reg) >> clk->scale_shift) & 0x3f;
-	rate /= HW_CLKCTRL_EMI_RD() & 0x3f;
+	rate /= __raw_readl(REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI) & 0x3f;
 	clk->rate = rate;
 
 	return rate;
@@ -427,44 +442,52 @@ static int clkseq_set_parent(struct clk *clk, struct clk *parent)
 		shift = 4;
 
 	if (clk->bypass_reg) {
-		u32 hbus_mask = BM_CLKCTRL_HBUS_DIV_FRAC_EN |
-				BM_CLKCTRL_HBUS_DIV;
+#ifdef CONFIG_ARCH_STMP378X
+		u32 hbus_val, cpu_val;
 
 		if (clk == &cpu_clk && shift == 4) {
-			u32 hbus_val = HW_CLKCTRL_HBUS_RD();
-			u32 cpu_val = HW_CLKCTRL_CPU_RD();
-			hbus_val &= ~hbus_mask;
-			hbus_val |= 1;
+			hbus_val = __raw_readl(REGS_CLKCTRL_BASE +
+					HW_CLKCTRL_HBUS);
+			cpu_val = __raw_readl(REGS_CLKCTRL_BASE +
+					HW_CLKCTRL_CPU);
+
+			hbus_val &= ~(BM_CLKCTRL_HBUS_DIV_FRAC_EN |
+				      BM_CLKCTRL_HBUS_DIV);
 			clk->saved_div = cpu_val & BM_CLKCTRL_CPU_DIV_CPU;
 			cpu_val &= ~BM_CLKCTRL_CPU_DIV_CPU;
 			cpu_val |= 1;
-			__raw_writel(1 << clk->bypass_shift,
-					clk->bypass_reg + shift);
+
 			if (machine_is_stmp378x()) {
-				HW_CLKCTRL_HBUS_WR(hbus_val);
-				HW_CLKCTRL_CPU_WR(cpu_val);
+				__raw_writel(hbus_val,
+					REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
+				__raw_writel(cpu_val,
+					REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
 				hclk.rate = 0;
 			}
 		} else if (clk == &cpu_clk && shift == 8) {
-			u32 hbus_val = HW_CLKCTRL_HBUS_RD();
-			u32 cpu_val = HW_CLKCTRL_CPU_RD();
-			hbus_val &= ~hbus_mask;
+			hbus_val = __raw_readl(REGS_CLKCTRL_BASE +
+							HW_CLKCTRL_HBUS);
+			cpu_val = __raw_readl(REGS_CLKCTRL_BASE +
+							HW_CLKCTRL_CPU);
+			hbus_val &= ~(BM_CLKCTRL_HBUS_DIV_FRAC_EN |
+				      BM_CLKCTRL_HBUS_DIV);
 			hbus_val |= 2;
 			cpu_val &= ~BM_CLKCTRL_CPU_DIV_CPU;
 			if (clk->saved_div)
 				cpu_val |= clk->saved_div;
 			else
 				cpu_val |= 2;
+
 			if (machine_is_stmp378x()) {
-				HW_CLKCTRL_HBUS_WR(hbus_val);
-				HW_CLKCTRL_CPU_WR(cpu_val);
+				__raw_writel(hbus_val,
+					REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
+				__raw_writel(cpu_val,
+					REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU);
 				hclk.rate = 0;
 			}
-			__raw_writel(1 << clk->bypass_shift,
-					clk->bypass_reg + shift);
-		} else
-			__raw_writel(1 << clk->bypass_shift,
-					clk->bypass_reg + shift);
+		}
+#endif
+		__raw_writel(1 << clk->bypass_shift, clk->bypass_reg + shift);
 
 		ret = 0;
 	}
@@ -640,7 +663,7 @@ static struct clk osc_24M = {
 
 static struct clk pll_clk = {
 	.parent		= &osc_24M,
-	.enable_reg	= HW_CLKCTRL_PLLCTRL0_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0,
 	.enable_shift	= 16,
 	.enable_wait	= 10,
 	.flags		= FIXED_RATE | ENABLED,
@@ -650,11 +673,11 @@ static struct clk pll_clk = {
 
 static struct clk cpu_clk = {
 	.parent		= &pll_clk,
-	.scale_reg	= HW_CLKCTRL_FRAC_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC,
 	.scale_shift	= 0,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 7,
-	.busy_reg	= HW_CLKCTRL_CPU_ADDR,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CPU,
 	.busy_bit	= 28,
 	.flags		= RATE_PROPAGATES | ENABLED,
 	.ops		= &cpu_ops,
@@ -662,10 +685,10 @@ static struct clk cpu_clk = {
 
 static struct clk io_clk = {
 	.parent		= &pll_clk,
-	.enable_reg	= HW_CLKCTRL_FRAC_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.scale_reg	= HW_CLKCTRL_FRAC_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC,
 	.scale_shift	= 24,
 	.flags		= RATE_PROPAGATES | ENABLED,
 	.ops		= &io_ops,
@@ -673,10 +696,10 @@ static struct clk io_clk = {
 
 static struct clk hclk = {
 	.parent		= &cpu_clk,
-	.scale_reg	= HW_CLKCTRL_HBUS_ADDR,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 7,
-	.busy_reg	= HW_CLKCTRL_HBUS_ADDR,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS,
 	.busy_bit	= 29,
 	.flags		= RATE_PROPAGATES | ENABLED,
 	.ops		= &hbus_ops,
@@ -684,8 +707,8 @@ static struct clk hclk = {
 
 static struct clk xclk = {
 	.parent		= &osc_24M,
-	.scale_reg	= HW_CLKCTRL_XBUS_ADDR,
-	.busy_reg	= HW_CLKCTRL_XBUS_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XBUS,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XBUS,
 	.busy_bit	= 31,
 	.flags		= RATE_PROPAGATES | ENABLED,
 	.ops		= &xbus_ops,
@@ -693,7 +716,7 @@ static struct clk xclk = {
 
 static struct clk uart_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
 	.flags		= ENABLED,
@@ -702,7 +725,7 @@ static struct clk uart_clk = {
 
 static struct clk audio_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 30,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
@@ -710,7 +733,7 @@ static struct clk audio_clk = {
 
 static struct clk pwm_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 29,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
@@ -718,7 +741,7 @@ static struct clk pwm_clk = {
 
 static struct clk dri_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 28,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
@@ -726,7 +749,7 @@ static struct clk dri_clk = {
 
 static struct clk digctl_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 27,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
@@ -734,7 +757,7 @@ static struct clk digctl_clk = {
 
 static struct clk timer_clk = {
 	.parent		= &xclk,
-	.enable_reg	= HW_CLKCTRL_XTAL_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_XTAL,
 	.enable_shift	= 26,
 	.enable_negate	= 1,
 	.flags		= ENABLED,
@@ -743,13 +766,13 @@ static struct clk timer_clk = {
 
 static struct clk lcdif_clk = {
 	.parent		= &pll_clk,
-	.scale_reg	= HW_CLKCTRL_PIX_ADDR,
-	.busy_reg	= HW_CLKCTRL_PIX_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_PIX,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_PIX,
 	.busy_bit	= 29,
-	.enable_reg	= HW_CLKCTRL_PIX_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_PIX,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 1,
 	.flags		= NEEDS_SET_PARENT,
 	.ops		= &lcdif_ops,
@@ -757,12 +780,12 @@ static struct clk lcdif_clk = {
 
 static struct clk ssp_clk = {
 	.parent		= &io_clk,
-	.scale_reg	= HW_CLKCTRL_SSP_ADDR,
-	.busy_reg	= HW_CLKCTRL_SSP_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SSP,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SSP,
 	.busy_bit	= 29,
-	.enable_reg	= HW_CLKCTRL_SSP_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SSP,
 	.enable_shift	= 31,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 5,
 	.enable_negate	= 1,
 	.flags		= NEEDS_SET_PARENT,
@@ -771,13 +794,13 @@ static struct clk ssp_clk = {
 
 static struct clk gpmi_clk = {
 	.parent		= &io_clk,
-	.scale_reg	= HW_CLKCTRL_GPMI_ADDR,
-	.busy_reg	= HW_CLKCTRL_GPMI_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_GPMI,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_GPMI,
 	.busy_bit	= 29,
-	.enable_reg	= HW_CLKCTRL_GPMI_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_GPMI,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 4,
 	.flags		= NEEDS_SET_PARENT,
 	.ops		= &std_ops,
@@ -785,7 +808,7 @@ static struct clk gpmi_clk = {
 
 static struct clk spdif_clk = {
 	.parent		= &pll_clk,
-	.enable_reg	= HW_CLKCTRL_SPDIF_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SPDIF,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
@@ -793,14 +816,14 @@ static struct clk spdif_clk = {
 
 static struct clk emi_clk = {
 	.parent		= &pll_clk,
-	.enable_reg	= HW_CLKCTRL_EMI_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.scale_reg	= HW_CLKCTRL_FRAC_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_FRAC,
 	.scale_shift	= 8,
-	.busy_reg	= HW_CLKCTRL_EMI_ADDR,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_EMI,
 	.busy_bit	= 28,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 6,
 	.flags		= ENABLED,
 	.ops		= &emi_ops,
@@ -808,37 +831,37 @@ static struct clk emi_clk = {
 
 static struct clk ir_clk = {
 	.parent		= &io_clk,
-	.enable_reg	= HW_CLKCTRL_IR_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_IR,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 3,
 	.ops		= &min_ops,
 };
 
 static struct clk saif_clk = {
 	.parent		= &pll_clk,
-	.scale_reg	= HW_CLKCTRL_SAIF_ADDR,
-	.busy_reg	= HW_CLKCTRL_SAIF_ADDR,
+	.scale_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SAIF,
+	.busy_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SAIF,
 	.busy_bit	= 29,
-	.enable_reg	= HW_CLKCTRL_SAIF_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_SAIF,
 	.enable_shift	= 31,
 	.enable_negate	= 1,
-	.bypass_reg	= HW_CLKCTRL_CLKSEQ_ADDR,
+	.bypass_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_CLKSEQ,
 	.bypass_shift	= 0,
 	.ops		= &std_ops,
 };
 
 static struct clk usb_clk = {
 	.parent		= &pll_clk,
-	.enable_reg	= HW_CLKCTRL_PLLCTRL0_ADDR,
+	.enable_reg	= REGS_CLKCTRL_BASE + HW_CLKCTRL_PLLCTRL0,
 	.enable_shift	= 18,
 	.enable_negate	= 1,
 	.ops		= &min_ops,
 };
 
 /* list of all the clocks */
-static __initdata struct clk_lookup onchip_clks[] = {
+static struct clk_lookup onchip_clks[] = {
 	{
 		.con_id = "osc_24M",
 		.clk = &osc_24M,

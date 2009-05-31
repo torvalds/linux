@@ -17,6 +17,7 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/proc-fns.h>
+#include <mach/platform.h>
 #include <mach/regs-clkctrl.h>
 #include <mach/regs-power.h>
 
@@ -33,13 +34,14 @@ static inline void arch_idle(void)
 static inline void arch_reset(char mode, const char *cmd)
 {
 	/* Set BATTCHRG to default value */
-	HW_POWER_CHARGE_WR(0x00010000);
+	__raw_writel(0x00010000, REGS_POWER_BASE + HW_POWER_CHARGE);
 
 	/* Set MINPWR to default value   */
-	HW_POWER_MINPWR_WR(0);
+	__raw_writel(0, REGS_POWER_BASE + HW_POWER_MINPWR);
 
 	/* Reset digital side of chip (but not power or RTC) */
-	HW_CLKCTRL_RESET_WR(BM_CLKCTRL_RESET_DIG);
+	__raw_writel(BM_CLKCTRL_RESET_DIG,
+			REGS_CLKCTRL_BASE + HW_CLKCTRL_RESET);
 
 	/* Should not return */
 }

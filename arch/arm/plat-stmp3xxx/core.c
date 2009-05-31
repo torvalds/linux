@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 #include <mach/stmp3xxx.h>
+#include <mach/platform.h>
 #include <mach/dma.h>
 #include <mach/regs-clkctrl.h>
 
@@ -121,7 +122,7 @@ struct platform_device stmp3xxx_dbguart = {
 void __init stmp3xxx_init(void)
 {
 	/* Turn off auto-slow and other tricks */
-	HW_CLKCTRL_HBUS_CLR(0x07f00000U);
+	stmp3xxx_clearl(0x7f00000, REGS_CLKCTRL_BASE + HW_CLKCTRL_HBUS);
 
 	stmp3xxx_dma_init();
 }
