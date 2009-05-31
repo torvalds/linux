@@ -1012,6 +1012,7 @@ int heci_disconnect_host_client(struct iamt_heci_device *dev,
 	if (dev->host_buffer_is_empty) {
 		dev->host_buffer_is_empty = 0;
 		if (heci_disconnect(dev, file_ext)) {
+			mdelay(10); /* Wait for hardware disconnection ready */
 			list_add_tail(&priv_cb->cb_list,
 				&dev->ctrl_rd_list.heci_cb.cb_list);
 		} else {

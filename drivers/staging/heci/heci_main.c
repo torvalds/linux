@@ -1088,7 +1088,7 @@ static ssize_t heci_write(struct file *file, const char __user *ubuf,
 	if (file_ext == &dev->iamthif_file_ext) {
 		priv_write_cb = find_pthi_read_list_entry(dev, file);
 		if ((priv_write_cb != NULL) &&
-		     (((currtime - priv_write_cb->read_time) >
+		     (((currtime - priv_write_cb->read_time) >=
 			    IAMTHIF_READ_TIMER) ||
 		      (file_ext->reading_state == HECI_READ_COMPLETE))) {
 			(*offset) = 0;

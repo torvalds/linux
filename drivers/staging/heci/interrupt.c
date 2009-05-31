@@ -1054,7 +1054,7 @@ static int heci_bh_write_handler(struct io_heci_list *cmpl_list,
 				list_del(&priv_cb_pos->cb_list);
 				if ((HECI_WRITING == file_ext->writing_state) &&
 					(priv_cb_pos->major_file_operations ==
-						HECI_WRITING) &&
+						HECI_WRITE) &&
 					(file_ext != &dev->iamthif_file_ext)) {
 					DBG("HECI WRITE COMPLETE\n");
 					file_ext->writing_state =
