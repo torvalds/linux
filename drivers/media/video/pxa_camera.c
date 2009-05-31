@@ -163,13 +163,6 @@
 			CICR0_EOFM | CICR0_FOM)
 
 /*
- * YUV422P picture size should be a multiple of 16, so the heuristic aligns
- * height, width on 4 byte boundaries to reach the 16 multiple for the size.
- */
-#define YUV422P_X_Y_ALIGN 4
-#define YUV422P_SIZE_ALIGN YUV422P_X_Y_ALIGN * YUV422P_X_Y_ALIGN
-
-/*
  * Structures
  */
 enum pxa_camera_active_dma {
@@ -1398,28 +1391,15 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	/* limit to pxa hardware capabilities */
-	if (pix->height < 32)
-		pix->height = 32;
-	if (pix->height > 2048)
-		pix->height = 2048;
-	if (pix->width < 48)
-		pix->width = 48;
-	if (pix->width > 2048)
-		pix->width = 2048;
-	pix->width &= ~0x01;
-
 	/*
-	 * YUV422P planar format requires images size to be a 16 bytes
-	 * multiple. If not, zeros will be inserted between Y and U planes, and
-	 * U and V planes, and YUV422P standard would be violated.
+	 * Limit to pxa hardware capabilities.  YUV422P planar format requires
+	 * images size to be a multiple of 16 bytes.  If not, zeros will be
+	 * inserted between Y and U planes, and U and V planes, which violates
+	 * the YUV422P standard.
 	 */
-	if (xlate->host_fmt->fourcc == V4L2_PIX_FMT_YUV422P) {
-		if (!IS_ALIGNED(pix->width * pix->height, YUV422P_SIZE_ALIGN))
-			pix->height = ALIGN(pix->height, YUV422P_X_Y_ALIGN);
-		if (!IS_ALIGNED(pix->width * pix->height, YUV422P_SIZE_ALIGN))
-			pix->width = ALIGN(pix->width, YUV422P_X_Y_ALIGN);
-	}
+	v4l_bound_align_image(&pix->width, 48, 2048, 1,
+			      &pix->height, 32, 2048, 0,
+			      xlate->host_fmt->fourcc == V4L2_PIX_FMT_YUV422P ? 4 : 0);
 
 	pix->bytesperline = pix->width *
 		DIV_ROUND_UP(xlate->host_fmt->depth, 8);
