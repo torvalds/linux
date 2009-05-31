@@ -24,7 +24,6 @@ config REALVIEW_EB_ARM11MP
 config REALVIEW_EB_ARM11MP_REVB
 	bool "Support ARM11MPCore RevB tile"
 	depends on REALVIEW_EB_ARM11MP
-	default n
 	help
 	  Enable support for the ARM11MPCore RevB tile on the Realview
 	  platform. Since there are device address differences, a

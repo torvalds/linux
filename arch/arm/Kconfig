@@ -34,15 +34,12 @@ config SYS_SUPPORTS_APM_EMULATION
 
 config GENERIC_GPIO
 	bool
-	default n
 
 config GENERIC_TIME
 	bool
-	default n
 
 config GENERIC_CLOCKEVENTS
 	bool
-	default n
 
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
@@ -55,7 +52,6 @@ config MMU
 
 config NO_IOPORT
 	bool
-	default n
 
 config EISA
 	bool
@@ -126,11 +122,9 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config ARCH_HAS_ILOG2_U32
 	bool
-	default n
 
 config ARCH_HAS_ILOG2_U64
 	bool
-	default n
 
 config GENERIC_HWEIGHT
 	bool
@@ -969,7 +963,6 @@ config OABI_COMPAT
 
 config ARCH_HAS_HOLES_MEMORYMODEL
 	bool
-	default n
 
 # Discontigmem is deprecated
 config ARCH_DISCONTIGMEM_ENABLE

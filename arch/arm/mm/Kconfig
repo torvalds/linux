@@ -642,7 +642,6 @@ config CPU_BIG_ENDIAN
 config CPU_HIGH_VECTOR
 	depends on !MMU && CPU_CP15 && !CPU_ARM740T
 	bool "Select the High exception vector"
-	default n
 	help
 	  Say Y here to select high exception vector(0xFFFF0000~).
 	  The exception vector can be vary depending on the platform
@@ -726,7 +725,6 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 
 config OUTER_CACHE
 	bool
-	default n
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
@@ -739,7 +737,6 @@ config CACHE_FEROCEON_L2
 config CACHE_FEROCEON_L2_WRITETHROUGH
 	bool "Force Feroceon L2 cache write through"
 	depends on CACHE_FEROCEON_L2
-	default n
 	help
 	  Say Y here to use the Feroceon L2 cache in writethrough mode.
 	  Unless you specifically require this, say N for writeback mode.
