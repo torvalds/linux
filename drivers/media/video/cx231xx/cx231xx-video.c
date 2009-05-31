@@ -893,9 +893,9 @@ static int check_dev(struct cx231xx *dev)
 	return 0;
 }
 
-void get_scale(struct cx231xx *dev,
-	       unsigned int width, unsigned int height,
-	       unsigned int *hscale, unsigned int *vscale)
+static void get_scale(struct cx231xx *dev,
+		      unsigned int width, unsigned int height,
+		      unsigned int *hscale, unsigned int *vscale)
 {
 	unsigned int maxw = norm_maxw(dev);
 	unsigned int maxh = norm_maxh(dev);
@@ -907,10 +907,6 @@ void get_scale(struct cx231xx *dev,
 	*vscale = (((unsigned long)maxh) << 12) / height - 4096L;
 	if (*vscale >= 0x4000)
 		*vscale = 0x3fff;
-
-	dev->hscale = *hscale;
-	dev->vscale = *vscale;
-
 }
 
 /* ------------------------------------------------------------------
