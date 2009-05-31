@@ -958,15 +958,15 @@
 # define DAC_A_1_3_V			(0 << 4)
 # define DAC_A_1_1_V			(1 << 4)
 # define DAC_A_0_7_V			(2 << 4)
-# define DAC_A_OFF			(3 << 4)
+# define DAC_A_MASK			(3 << 4)
 # define DAC_B_1_3_V			(0 << 2)
 # define DAC_B_1_1_V			(1 << 2)
 # define DAC_B_0_7_V			(2 << 2)
-# define DAC_B_OFF			(3 << 2)
+# define DAC_B_MASK			(3 << 2)
 # define DAC_C_1_3_V			(0 << 0)
 # define DAC_C_1_1_V			(1 << 0)
 # define DAC_C_0_7_V			(2 << 0)
-# define DAC_C_OFF			(3 << 0)
+# define DAC_C_MASK			(3 << 0)
 
 /**
  * CSC coefficients are stored in a floating point format with 9 bits of
