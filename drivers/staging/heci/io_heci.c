@@ -277,14 +277,16 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 		}
 		goto end;
 	}
+	spin_unlock_bh(&dev->device_lock);
+
 	spin_lock(&file_ext->file_lock);
+	spin_lock_bh(&dev->device_lock);
 	if (file_ext->state != HECI_FILE_CONNECTING) {
 		rets = -ENODEV;
-		spin_unlock(&file_ext->file_lock);
 		spin_unlock_bh(&dev->device_lock);
+		spin_unlock(&file_ext->file_lock);
 		goto end;
 	}
-	spin_unlock(&file_ext->file_lock);
 	/* prepare the output buffer */
 	client = (struct heci_client *) res_msg.data;
 	client->max_msg_length = dev->me_clients[i].props.max_msg_length;
@@ -312,6 +314,7 @@ int heci_ioctl_connect_client(struct iamt_heci_device *dev, int if_num,
 			      &dev->ctrl_wr_list.heci_cb.cb_list);
 	}
 	spin_unlock_bh(&dev->device_lock);
+	spin_unlock(&file_ext->file_lock);
 	err = wait_event_timeout(dev->wait_recvd_msg,
 			(HECI_FILE_CONNECTED == file_ext->state
 			 || HECI_FILE_DISCONNECTED == file_ext->state),
