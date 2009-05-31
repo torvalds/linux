@@ -249,7 +249,7 @@ int heci_hw_init(struct iamt_heci_device *dev)
 
 	if ((dev->host_hw_state & H_IS) == H_IS) {
 		/* acknowledge interrupt and stop interupts */
-		heci_set_csr_register(dev);
+		heci_csr_clear_his(dev);
 	}
 	dev->recvd_msg = 0;
 	DBG("reset in start the heci device.\n");
@@ -354,7 +354,7 @@ void heci_reset(struct iamt_heci_device *dev, int interrupts)
 	dev->host_hw_state &= ~H_RST;
 	dev->host_hw_state |= H_IG;
 
-	write_heci_register(dev, H_CSR, dev->host_hw_state);
+	heci_set_csr_register(dev);
 
 	DBG("currently saved host_hw_state = 0x%08x.\n",
 	    dev->host_hw_state);

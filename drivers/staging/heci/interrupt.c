@@ -92,6 +92,9 @@ irqreturn_t heci_isr_interrupt(int irq, void *dev_id)
 	/* disable interrupts */
 	heci_csr_disable_interrupts(dev);
 
+	/* clear H_IS bit in H_CSR */
+	heci_csr_clear_his(dev);
+
 	/*
 	 * Our device interrupted, schedule work the heci_bh_handler
 	 * to handle the interrupt processing. This needs to be a
@@ -250,6 +253,9 @@ end:
 	if ((dev->host_hw_state & H_IS) == H_IS) {
 		/* acknowledge interrupt and disable interrupts */
 		heci_csr_disable_interrupts(dev);
+
+		/* clear H_IS bit in H_CSR */
+		heci_csr_clear_his(dev);
 
 		PREPARE_WORK(&dev->work, heci_bh_handler);
 		DBG("schedule work the heci_bh_handler.\n");

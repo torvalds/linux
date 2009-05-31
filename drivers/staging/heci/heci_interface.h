@@ -133,6 +133,7 @@ enum client_disconnect_status_types{
 void heci_set_csr_register(struct iamt_heci_device *dev);
 void heci_csr_enable_interrupts(struct iamt_heci_device *dev);
 void heci_csr_disable_interrupts(struct iamt_heci_device *dev);
+void heci_csr_clear_his(struct iamt_heci_device *dev);
 
 void heci_read_slots(struct iamt_heci_device *dev,
 		     unsigned char *buffer, unsigned long buffer_length);
