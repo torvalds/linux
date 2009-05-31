@@ -343,11 +343,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct drm_device *dev = connector->dev;
-
-	if (property == dev->mode_config.dpms_property && connector->encoder)
-		intel_lvds_dpms(connector->encoder, (uint32_t)(value & 0xf));
-
 	return 0;
 }
 
@@ -366,6 +361,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_lvds_save,
 	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
