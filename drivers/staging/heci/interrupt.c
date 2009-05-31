@@ -103,10 +103,8 @@ irqreturn_t heci_isr_interrupt(int irq, void *dev_id)
 	PREPARE_WORK(&dev->work, heci_bh_handler);
 	DBG("schedule work the heci_bh_handler.\n");
 	err = schedule_work(&dev->work);
-	if (!err) {
-		printk(KERN_ERR "heci: schedule the heci_bh_handler"
-		       " failed error=%x\n", err);
-	}
+	if (!err)
+		DBG("heci_bh_handler was already on the workqueue.\n");
 	return IRQ_HANDLED;
 }
 
@@ -260,10 +258,8 @@ end:
 		PREPARE_WORK(&dev->work, heci_bh_handler);
 		DBG("schedule work the heci_bh_handler.\n");
 		rets = schedule_work(&dev->work);
-		if (!rets) {
-			printk(KERN_ERR "heci: schedule the heci_bh_handler"
-			       " failed error=%x\n", rets);
-		}
+		if (!rets)
+			DBG("heci_bh_handler was already queued.\n");
 	} else {
 		heci_csr_enable_interrupts(dev);
 	}
