@@ -161,6 +161,8 @@ static struct kvm_vmx_segment_field {
 	VMX_SEGMENT_FIELD(LDTR),
 };
 
+static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
+
 /*
  * Keep MSR_K6_STAR at the end, as setup_msrs() will try to optimize it
  * away by decrementing the array size.
@@ -1047,6 +1049,10 @@ static void vmx_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	case VCPU_REGS_RIP:
 		vcpu->arch.regs[VCPU_REGS_RIP] = vmcs_readl(GUEST_RIP);
 		break;
+	case VCPU_EXREG_PDPTR:
+		if (enable_ept)
+			ept_save_pdptrs(vcpu);
+		break;
 	default:
 		break;
 	}
@@ -1546,6 +1552,10 @@ static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 
 static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
 {
+	if (!test_bit(VCPU_EXREG_PDPTR,
+		      (unsigned long *)&vcpu->arch.regs_dirty))
+		return;
+
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
 		vmcs_write64(GUEST_PDPTR0, vcpu->arch.pdptrs[0]);
 		vmcs_write64(GUEST_PDPTR1, vcpu->arch.pdptrs[1]);
@@ -1562,6 +1572,11 @@ static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 		vcpu->arch.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
 		vcpu->arch.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
 	}
+
+	__set_bit(VCPU_EXREG_PDPTR,
+		  (unsigned long *)&vcpu->arch.regs_avail);
+	__set_bit(VCPU_EXREG_PDPTR,
+		  (unsigned long *)&vcpu->arch.regs_dirty);
 }
 
 static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
@@ -3255,10 +3270,8 @@ static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/* Access CR3 don't cause VMExit in paging mode, so we need
 	 * to sync with guest real CR3. */
-	if (enable_ept && is_paging(vcpu)) {
+	if (enable_ept && is_paging(vcpu))
 		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
-		ept_save_pdptrs(vcpu);
-	}
 
 	if (unlikely(vmx->fail)) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
@@ -3567,7 +3580,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #endif
 	      );
 
-	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
+	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP)
+				  | (1 << VCPU_EXREG_PDPTR));
 	vcpu->arch.regs_dirty = 0;
 
 	get_debugreg(vcpu->arch.dr6, 6);

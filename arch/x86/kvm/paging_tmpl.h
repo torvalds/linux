@@ -131,7 +131,7 @@ walk:
 	pte = vcpu->arch.cr3;
 #if PTTYPE == 64
 	if (!is_long_mode(vcpu)) {
-		pte = vcpu->arch.pdptrs[(addr >> 30) & 3];
+		pte = kvm_pdptr_read(vcpu, (addr >> 30) & 3);
 		if (!is_present_pte(pte))
 			goto not_present;
 		--walker->level;

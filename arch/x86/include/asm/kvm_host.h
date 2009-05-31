@@ -120,6 +120,10 @@ enum kvm_reg {
 	NR_VCPU_REGS
 };
 
+enum kvm_reg_ex {
+	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
+};
+
 enum {
 	VCPU_SREG_ES,
 	VCPU_SREG_CS,

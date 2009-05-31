@@ -246,6 +246,10 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	ret = 1;
 
 	memcpy(vcpu->arch.pdptrs, pdpte, sizeof(vcpu->arch.pdptrs));
+	__set_bit(VCPU_EXREG_PDPTR,
+		  (unsigned long *)&vcpu->arch.regs_avail);
+	__set_bit(VCPU_EXREG_PDPTR,
+		  (unsigned long *)&vcpu->arch.regs_dirty);
 out:
 
 	return ret;
@@ -260,6 +264,10 @@ static bool pdptrs_changed(struct kvm_vcpu *vcpu)
 
 	if (is_long_mode(vcpu) || !is_pae(vcpu))
 		return false;
+
+	if (!test_bit(VCPU_EXREG_PDPTR,
+		      (unsigned long *)&vcpu->arch.regs_avail))
+		return true;
 
 	r = kvm_read_guest(vcpu->kvm, vcpu->arch.cr3 & ~31u, pdpte, sizeof(pdpte));
 	if (r < 0)

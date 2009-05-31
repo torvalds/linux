@@ -777,6 +777,18 @@ static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
 }
 
+static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
+{
+	switch (reg) {
+	case VCPU_EXREG_PDPTR:
+		BUG_ON(!npt_enabled);
+		load_pdptrs(vcpu, vcpu->arch.cr3);
+		break;
+	default:
+		BUG();
+	}
+}
+
 static void svm_set_vintr(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.intercept |= 1ULL << INTERCEPT_VINTR;
@@ -2285,12 +2297,6 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		}
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
 		vcpu->arch.cr3 = svm->vmcb->save.cr3;
-		if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-			if (!load_pdptrs(vcpu, vcpu->arch.cr3)) {
-				kvm_inject_gp(vcpu, 0);
-				return 1;
-			}
-		}
 		if (mmu_reload) {
 			kvm_mmu_reset_context(vcpu);
 			kvm_mmu_load(vcpu);
@@ -2641,6 +2647,11 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	svm->next_rip = 0;
 
+	if (npt_enabled) {
+		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
+		vcpu->arch.regs_dirty &= ~(1 << VCPU_EXREG_PDPTR);
+	}
+
 	svm_complete_interrupts(svm);
 }
 
@@ -2749,6 +2760,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_gdt = svm_set_gdt,
 	.get_dr = svm_get_dr,
 	.set_dr = svm_set_dr,
+	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
 

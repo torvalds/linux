@@ -18,6 +18,7 @@
  */
 
 #include "mmu.h"
+#include "kvm_cache_regs.h"
 
 #include <linux/kvm_host.h>
 #include <linux/types.h>
@@ -1954,6 +1955,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 	gfn_t root_gfn;
 	struct kvm_mmu_page *sp;
 	int direct = 0;
+	u64 pdptr;
 
 	root_gfn = vcpu->arch.cr3 >> PAGE_SHIFT;
 
@@ -1981,11 +1983,12 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
-			if (!is_present_pte(vcpu->arch.pdptrs[i])) {
+			pdptr = kvm_pdptr_read(vcpu, i);
+			if (!is_present_pte(pdptr)) {
 				vcpu->arch.mmu.pae_root[i] = 0;
 				continue;
 			}
-			root_gfn = vcpu->arch.pdptrs[i] >> PAGE_SHIFT;
+			root_gfn = pdptr >> PAGE_SHIFT;
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
 		if (mmu_check_root(vcpu, root_gfn))
