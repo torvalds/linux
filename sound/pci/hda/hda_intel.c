@@ -148,7 +148,7 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #define ICH6_REG_OUTPAY			0x04
 #define ICH6_REG_INPAY			0x06
 #define ICH6_REG_GCTL			0x08
-#define   ICH6_GCTL_RESET	(1 << 1)   /* controller reset */
+#define   ICH6_GCTL_RESET	(1 << 0)   /* controller reset */
 #define   ICH6_GCTL_FCNTRL	(1 << 1)   /* flush control */
 #define   ICH6_GCTL_UNSOL	(1 << 8)   /* accept unsol. response enable */
 #define ICH6_REG_WAKEEN			0x0c
