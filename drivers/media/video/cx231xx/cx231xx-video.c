@@ -955,8 +955,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
-	int width = f->fmt.pix.width;
-	int height = f->fmt.pix.height;
+	unsigned int width = f->fmt.pix.width;
+	unsigned int height = f->fmt.pix.height;
 	unsigned int maxw = norm_maxw(dev);
 	unsigned int maxh = norm_maxh(dev);
 	unsigned int hscale, vscale;
@@ -971,17 +971,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	/* width must even because of the YUYV format
 	   height must be even because of interlacing */
-	height &= 0xfffe;
-	width &= 0xfffe;
-
-	if (unlikely(height < 32))
-		height = 32;
-	if (unlikely(height > maxh))
-		height = maxh;
-	if (unlikely(width < 48))
-		width = 48;
-	if (unlikely(width > maxw))
-		width = maxw;
+	v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh, 1, 0);
 
 	get_scale(dev, width, height, &hscale, &vscale);
 
