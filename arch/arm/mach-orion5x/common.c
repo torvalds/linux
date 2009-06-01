@@ -31,7 +31,7 @@
 #include <plat/ehci-orion.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
-#include <plat/orion5x_wdt.h>
+#include <plat/orion_wdt.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -540,12 +540,12 @@ void __init orion5x_xor_init(void)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion5x_wdt_platform_data orion5x_wdt_data = {
+static struct orion_wdt_platform_data orion5x_wdt_data = {
 	.tclk			= 0,
 };
 
 static struct platform_device orion5x_wdt_device = {
-	.name		= "orion5x_wdt",
+	.name		= "orion_wdt",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &orion5x_wdt_data,
