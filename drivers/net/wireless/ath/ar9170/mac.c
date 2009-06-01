@@ -398,10 +398,10 @@ int ar9170_update_beacon(struct ar9170 *ar)
 	/* XXX: use skb->cb info */
 	if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ)
 		ar9170_regwrite(AR9170_MAC_REG_BCN_PLCP,
-				((skb->len + 4) << (3+16)) + 0x0400);
+				((skb->len + 4) << (3 + 16)) + 0x0400);
 	else
 		ar9170_regwrite(AR9170_MAC_REG_BCN_PLCP,
-				((skb->len + 4) << (3+16)) + 0x0400);
+				((skb->len + 4) << 16) + 0x001b);
 
 	ar9170_regwrite(AR9170_MAC_REG_BCN_LENGTH, skb->len + 4);
 	ar9170_regwrite(AR9170_MAC_REG_BCN_ADDR, AR9170_BEACON_BUFFER_ADDRESS);
