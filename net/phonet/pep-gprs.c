@@ -212,8 +212,9 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_bytes += len;
 	}
 
-	if (!pep_writeable(sk))
-		netif_stop_queue(dev);
+	netif_stop_queue(dev);
+	if (pep_writeable(sk))
+		netif_wake_queue(dev);
 	return 0;
 }
 
