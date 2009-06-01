@@ -2463,7 +2463,7 @@ struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus,
 	for (i = 0; i < bus->dev_count; i++) {
 		struct kvm_io_device *pos = bus->devs[i];
 
-		if (pos->in_range(pos, addr, len, is_write))
+		if (kvm_iodevice_in_range(pos, addr, len, is_write))
 			return pos;
 	}
 

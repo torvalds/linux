@@ -522,10 +522,15 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 	return val;
 }
 
+static inline struct kvm_lapic *to_lapic(struct kvm_io_device *dev)
+{
+	return container_of(dev, struct kvm_lapic, dev);
+}
+
 static void apic_mmio_read(struct kvm_io_device *this,
 			   gpa_t address, int len, void *data)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)this->private;
+	struct kvm_lapic *apic = to_lapic(this);
 	unsigned int offset = address - apic->base_address;
 	unsigned char alignment = offset & 0xf;
 	u32 result;
@@ -606,7 +611,7 @@ static void apic_manage_nmi_watchdog(struct kvm_lapic *apic, u32 lvt0_val)
 static void apic_mmio_write(struct kvm_io_device *this,
 			    gpa_t address, int len, const void *data)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)this->private;
+	struct kvm_lapic *apic = to_lapic(this);
 	unsigned int offset = address - apic->base_address;
 	unsigned char alignment = offset & 0xf;
 	u32 val;
@@ -723,7 +728,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 static int apic_mmio_range(struct kvm_io_device *this, gpa_t addr,
 			   int len, int size)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)this->private;
+	struct kvm_lapic *apic = to_lapic(this);
 	int ret = 0;
 
 
@@ -917,6 +922,12 @@ static struct kvm_timer_ops lapic_timer_ops = {
 	.is_periodic = lapic_is_periodic,
 };
 
+static const struct kvm_io_device_ops apic_mmio_ops = {
+	.read     = apic_mmio_read,
+	.write    = apic_mmio_write,
+	.in_range = apic_mmio_range,
+};
+
 int kvm_create_lapic(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic;
@@ -951,10 +962,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE;
 
 	kvm_lapic_reset(vcpu);
-	apic->dev.read = apic_mmio_read;
-	apic->dev.write = apic_mmio_write;
-	apic->dev.in_range = apic_mmio_range;
-	apic->dev.private = apic;
+	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
 
 	return 0;
 nomem_free_apic:

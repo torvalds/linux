@@ -444,10 +444,15 @@ static int picdev_in_range(struct kvm_io_device *this, gpa_t addr,
 	}
 }
 
+static inline struct kvm_pic *to_pic(struct kvm_io_device *dev)
+{
+	return container_of(dev, struct kvm_pic, dev);
+}
+
 static void picdev_write(struct kvm_io_device *this,
 			 gpa_t addr, int len, const void *val)
 {
-	struct kvm_pic *s = this->private;
+	struct kvm_pic *s = to_pic(this);
 	unsigned char data = *(unsigned char *)val;
 
 	if (len != 1) {
@@ -474,7 +479,7 @@ static void picdev_write(struct kvm_io_device *this,
 static void picdev_read(struct kvm_io_device *this,
 			gpa_t addr, int len, void *val)
 {
-	struct kvm_pic *s = this->private;
+	struct kvm_pic *s = to_pic(this);
 	unsigned char data = 0;
 
 	if (len != 1) {
@@ -516,6 +521,12 @@ static void pic_irq_request(void *opaque, int level)
 	}
 }
 
+static const struct kvm_io_device_ops picdev_ops = {
+	.read     = picdev_read,
+	.write    = picdev_write,
+	.in_range = picdev_in_range,
+};
+
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 {
 	struct kvm_pic *s;
@@ -534,10 +545,7 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 	/*
 	 * Initialize PIO device
 	 */
-	s->dev.read = picdev_read;
-	s->dev.write = picdev_write;
-	s->dev.in_range = picdev_in_range;
-	s->dev.private = s;
+	kvm_iodevice_init(&s->dev, &picdev_ops);
 	kvm_io_bus_register_dev(&kvm->pio_bus, &s->dev);
 	return s;
 }

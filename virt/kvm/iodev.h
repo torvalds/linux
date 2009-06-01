@@ -18,7 +18,9 @@
 
 #include <linux/kvm_types.h>
 
-struct kvm_io_device {
+struct kvm_io_device;
+
+struct kvm_io_device_ops {
 	void (*read)(struct kvm_io_device *this,
 		     gpa_t addr,
 		     int len,
@@ -30,16 +32,25 @@ struct kvm_io_device {
 	int (*in_range)(struct kvm_io_device *this, gpa_t addr, int len,
 			int is_write);
 	void (*destructor)(struct kvm_io_device *this);
-
-	void             *private;
 };
+
+
+struct kvm_io_device {
+	const struct kvm_io_device_ops *ops;
+};
+
+static inline void kvm_iodevice_init(struct kvm_io_device *dev,
+				     const struct kvm_io_device_ops *ops)
+{
+	dev->ops = ops;
+}
 
 static inline void kvm_iodevice_read(struct kvm_io_device *dev,
 				     gpa_t addr,
 				     int len,
 				     void *val)
 {
-	dev->read(dev, addr, len, val);
+	dev->ops->read(dev, addr, len, val);
 }
 
 static inline void kvm_iodevice_write(struct kvm_io_device *dev,
@@ -47,19 +58,19 @@ static inline void kvm_iodevice_write(struct kvm_io_device *dev,
 				      int len,
 				      const void *val)
 {
-	dev->write(dev, addr, len, val);
+	dev->ops->write(dev, addr, len, val);
 }
 
-static inline int kvm_iodevice_inrange(struct kvm_io_device *dev,
-				       gpa_t addr, int len, int is_write)
+static inline int kvm_iodevice_in_range(struct kvm_io_device *dev,
+					gpa_t addr, int len, int is_write)
 {
-	return dev->in_range(dev, addr, len, is_write);
+	return dev->ops->in_range(dev, addr, len, is_write);
 }
 
 static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)
 {
-	if (dev->destructor)
-		dev->destructor(dev);
+	if (dev->ops->destructor)
+		dev->ops->destructor(dev);
 }
 
 #endif /* __KVM_IODEV_H__ */

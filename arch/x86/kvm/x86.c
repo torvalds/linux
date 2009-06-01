@@ -2264,7 +2264,7 @@ static struct kvm_io_device *vcpu_find_pervcpu_dev(struct kvm_vcpu *vcpu,
 
 	if (vcpu->arch.apic) {
 		dev = &vcpu->arch.apic->dev;
-		if (dev->in_range(dev, addr, len, is_write))
+		if (kvm_iodevice_in_range(dev, addr, len, is_write))
 			return dev;
 	}
 	return NULL;

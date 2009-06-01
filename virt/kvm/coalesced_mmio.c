@@ -14,11 +14,15 @@
 
 #include "coalesced_mmio.h"
 
+static inline struct kvm_coalesced_mmio_dev *to_mmio(struct kvm_io_device *dev)
+{
+	return container_of(dev, struct kvm_coalesced_mmio_dev, dev);
+}
+
 static int coalesced_mmio_in_range(struct kvm_io_device *this,
 				   gpa_t addr, int len, int is_write)
 {
-	struct kvm_coalesced_mmio_dev *dev =
-				(struct kvm_coalesced_mmio_dev*)this->private;
+	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_zone *zone;
 	int next;
 	int i;
@@ -63,8 +67,7 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 static void coalesced_mmio_write(struct kvm_io_device *this,
 				 gpa_t addr, int len, const void *val)
 {
-	struct kvm_coalesced_mmio_dev *dev =
-				(struct kvm_coalesced_mmio_dev*)this->private;
+	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_ring *ring = dev->kvm->coalesced_mmio_ring;
 
 	/* kvm->lock must be taken by caller before call to in_range()*/
@@ -80,11 +83,16 @@ static void coalesced_mmio_write(struct kvm_io_device *this,
 
 static void coalesced_mmio_destructor(struct kvm_io_device *this)
 {
-	struct kvm_coalesced_mmio_dev *dev =
-		(struct kvm_coalesced_mmio_dev *)this->private;
+	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 
 	kfree(dev);
 }
+
+static const struct kvm_io_device_ops coalesced_mmio_ops = {
+	.write      = coalesced_mmio_write,
+	.in_range   = coalesced_mmio_in_range,
+	.destructor = coalesced_mmio_destructor,
+};
 
 int kvm_coalesced_mmio_init(struct kvm *kvm)
 {
@@ -93,10 +101,7 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	dev = kzalloc(sizeof(struct kvm_coalesced_mmio_dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	dev->dev.write  = coalesced_mmio_write;
-	dev->dev.in_range  = coalesced_mmio_in_range;
-	dev->dev.destructor  = coalesced_mmio_destructor;
-	dev->dev.private  = dev;
+	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
 	kvm_io_bus_register_dev(&kvm->mmio_bus, &dev->dev);
