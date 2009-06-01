@@ -143,8 +143,8 @@ enum {
 #define MLX4_EN_DEF_TX_RING_SIZE	1024
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
-/* Target number of bytes to coalesce with interrupt moderation */
-#define MLX4_EN_RX_COAL_TARGET	0x20000
+/* Target number of packets to coalesce with interrupt moderation */
+#define MLX4_EN_RX_COAL_TARGET	44
 #define MLX4_EN_RX_COAL_TIME	0x10
 
 #define MLX4_EN_TX_COAL_PKTS	5

@@ -268,8 +268,7 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 
 	priv->rx_frames = (coal->rx_max_coalesced_frames ==
 			   MLX4_EN_AUTO_CONF) ?
-				MLX4_EN_RX_COAL_TARGET /
-				priv->dev->mtu + 1 :
+				MLX4_EN_RX_COAL_TARGET :
 				coal->rx_max_coalesced_frames;
 	priv->rx_usecs = (coal->rx_coalesce_usecs ==
 			  MLX4_EN_AUTO_CONF) ?
