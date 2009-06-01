@@ -5375,6 +5375,15 @@ again:
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
 		snd_hda_sequence_write_cache(codec, unmute_init);
 
+	/* Some HP machines seem to have unstable codec communications
+	 * especially with ATI fglrx driver.  For recovering from the
+	 * CORB/RIRB stall, allow the BUS reset and keep always sync
+	 */
+	if (spec->board_config == STAC_HP_DV5) {
+		codec->bus->sync_write = 1;
+		codec->bus->allow_bus_reset = 1;
+	}
+
 	spec->aloopback_ctl = stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
 	spec->aloopback_shift = 0;

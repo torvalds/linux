@@ -665,7 +665,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 	 * to the single_cmd mode
 	 */
 	bus->rirb_error = 1;
-	if (!bus->response_reset && !bus->in_reset) {
+	if (bus->allow_bus_reset && !bus->response_reset && !bus->in_reset) {
 		bus->response_reset = 1;
 		return -1; /* give a chance to retry */
 	}

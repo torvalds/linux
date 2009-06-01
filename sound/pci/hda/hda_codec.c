@@ -214,11 +214,6 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_read);
 
-/* Define the below to send and receive verbs synchronously.
- * If you often get any codec communication errors, this is worth to try.
- */
-/* #define SND_HDA_SUPPORT_SYNC_WRITE */
-
 /**
  * snd_hda_codec_write - send a single command without waiting for response
  * @codec: the HDA codec
@@ -235,12 +230,9 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 			 unsigned int verb, unsigned int parm)
 {
 	unsigned int cmd = make_codec_cmd(codec, nid, direct, verb, parm);
-#ifdef SND_HDA_SUPPORT_SYNC_WRITE
 	unsigned int res;
-	return codec_exec_verb(codec, cmd, &res);
-#else
-	return codec_exec_verb(codec, cmd, NULL);
-#endif
+	return codec_exec_verb(codec, cmd,
+			       codec->bus->sync_write ? &res : NULL);
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_write);
 

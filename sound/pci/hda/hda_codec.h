@@ -624,6 +624,9 @@ struct hda_bus {
 
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
+	unsigned int allow_bus_reset:1;	/* allow bus reset at fatal error */
+	unsigned int sync_write:1;	/* sync after verb write */
+	/* status for codec/controller */
 	unsigned int shutdown :1;	/* being unloaded */
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
