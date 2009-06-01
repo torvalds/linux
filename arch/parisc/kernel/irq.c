@@ -130,15 +130,17 @@ int cpu_check_affinity(unsigned int irq, const struct cpumask *dest)
 	return cpu_dest;
 }
 
-static void cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
+static int cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 {
 	int cpu_dest;
 
 	cpu_dest = cpu_check_affinity(irq, dest);
 	if (cpu_dest < 0)
-		return;
+		return -1;
 
 	cpumask_copy(&irq_desc[irq].affinity, dest);
+
+	return 0;
 }
 #endif
 

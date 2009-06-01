@@ -2496,14 +2496,16 @@ static void check_link_status(struct adapter *adapter)
 	for_each_port(adapter, i) {
 		struct net_device *dev = adapter->port[i];
 		struct port_info *p = netdev_priv(dev);
+		int link_fault;
 
 		spin_lock_irq(&adapter->work_lock);
-		if (p->link_fault) {
+		link_fault = p->link_fault;
+		spin_unlock_irq(&adapter->work_lock);
+
+		if (link_fault) {
 			t3_link_fault(adapter, i);
-			spin_unlock_irq(&adapter->work_lock);
 			continue;
 		}
-		spin_unlock_irq(&adapter->work_lock);
 
 		if (!(p->phy.caps & SUPPORTED_IRQ) && netif_running(dev)) {
 			t3_xgm_intr_disable(adapter, i);

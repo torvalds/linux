@@ -434,7 +434,7 @@ F:	arch/alpha/
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 P:	Thomas Dahlmann
-M:	thomas.dahlmann@amd.com
+M:	dahlmann.thomas@arcor.de
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/usb/gadget/amd5536udc.*
@@ -624,6 +624,7 @@ M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 T:	git git://gitorious.org/linux-gemini/mainline.git
 S:	Maintained
+F:	arch/arm/mach-gemini/
 
 ARM/EBSA110 MACHINE SUPPORT
 P:	Russell King
@@ -650,6 +651,7 @@ P:	Paulius Zaleckas
 M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
 P:	Russell King
@@ -1540,6 +1542,13 @@ W:	http://www.fi.muni.cz/~kas/cosa/
 S:	Maintained
 F:	drivers/net/wan/cosa*
 
+CPMAC ETHERNET DRIVER
+P:	Florian Fainelli
+M:	florian@openwrt.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/cpmac.c
+
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
 M:	davej@redhat.com
@@ -1971,8 +1980,8 @@ F:	include/linux/edac.h
 
 EDAC-E752X
 P:	Mark Gross
-P:	Doug Thompson
 M:	mark.gross@intel.com
+P:	Doug Thompson
 M:	dougthompson@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
@@ -2249,7 +2258,7 @@ P:	Li Yang
 M:	leoli@freescale.com
 P:	Zhang Wei
 M:	zw@zh-kernel.org
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/dma/fsldma.*

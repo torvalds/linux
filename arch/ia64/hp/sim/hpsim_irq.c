@@ -21,9 +21,10 @@ hpsim_irq_noop (unsigned int irq)
 {
 }
 
-static void
+static int
 hpsim_set_affinity_noop(unsigned int a, const struct cpumask *b)
 {
+	return 0;
 }
 
 static struct hw_interrupt_type irq_type_hp_sim = {

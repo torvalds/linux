@@ -227,7 +227,7 @@ finish_up:
 	return new_irq_info;
 }
 
-static void sn_set_affinity_irq(unsigned int irq, const struct cpumask *mask)
+static int sn_set_affinity_irq(unsigned int irq, const struct cpumask *mask)
 {
 	struct sn_irq_info *sn_irq_info, *sn_irq_info_safe;
 	nasid_t nasid;
@@ -239,6 +239,8 @@ static void sn_set_affinity_irq(unsigned int irq, const struct cpumask *mask)
 	list_for_each_entry_safe(sn_irq_info, sn_irq_info_safe,
 				 sn_irq_lh[irq], list)
 		(void)sn_retarget_vector(sn_irq_info, nasid, slice);
+
+	return 0;
 }
 
 #ifdef CONFIG_SMP

@@ -257,6 +257,10 @@ EXPORT_SYMBOL_GPL(driver_register);
  */
 void driver_unregister(struct device_driver *drv)
 {
+	if (!drv || !drv->p) {
+		WARN(1, "Unexpected driver unregister!\n");
+		return;
+	}
 	driver_remove_groups(drv, drv->groups);
 	bus_remove_driver(drv);
 }

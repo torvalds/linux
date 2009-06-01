@@ -108,6 +108,7 @@ struct irte {
 };
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
+extern int intr_remapping_supported(void);
 extern int enable_intr_remapping(int);
 extern void disable_intr_remapping(void);
 extern int reenable_intr_remapping(int);
@@ -157,6 +158,8 @@ static inline struct intel_iommu *map_ioapic_to_ir(int apic)
 }
 #define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
+#define disable_intr_remapping()	(0)
+#define reenable_intr_remapping(mode)	(0)
 #define intr_remapping_enabled		(0)
 #endif
 

@@ -49,7 +49,7 @@ static inline void smtc_im_ack_irq(unsigned int irq)
 #ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
 #include <linux/cpumask.h>
 
-extern void plat_set_irq_affinity(unsigned int irq,
+extern int plat_set_irq_affinity(unsigned int irq,
 				  const struct cpumask *affinity);
 extern void smtc_forward_irq(unsigned int irq);
 
