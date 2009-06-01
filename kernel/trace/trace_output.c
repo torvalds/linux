@@ -17,6 +17,7 @@
 static DECLARE_RWSEM(trace_event_mutex);
 
 DEFINE_PER_CPU(struct trace_seq, ftrace_event_seq);
+EXPORT_PER_CPU_SYMBOL(ftrace_event_seq);
 
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
@@ -250,6 +251,7 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 
 	return p->buffer;
 }
+EXPORT_SYMBOL(ftrace_print_flags_seq);
 
 const char *
 ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
@@ -275,6 +277,7 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 
 	return p->buffer;
 }
+EXPORT_SYMBOL(ftrace_print_symbols_seq);
 
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
