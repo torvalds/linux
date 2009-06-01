@@ -1022,21 +1022,20 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	switch(fe->ops.info.type) {
 	case FE_OFDM:
 		bw = p->u.ofdm.bandwidth;
-		break;
-	case FE_QAM:
-		tuner_info("WARN: There are some reports that "
-			   "QAM 6 MHz doesn't work.\n"
-			   "If this works for you, please report by "
-			   "e-mail to: v4l-dvb-maintainer@linuxtv.org\n");
-		bw = BANDWIDTH_6_MHZ;
-		type |= QAM;
+		/*
+		 * The only countries with 6MHz seem to be Taiwan/Uruguay.
+		 * Both seem to require QAM firmware for OFDM decoding
+		 * Tested in Taiwan by Terry Wu <terrywu2009@gmail.com>
+		 */
+		if (bw == BANDWIDTH_6_MHZ)
+			type |= QAM;
 		break;
 	case FE_ATSC:
 		bw = BANDWIDTH_6_MHZ;
 		/* The only ATSC firmware (at least on v2.7) is D2633 */
 		type |= ATSC | D2633;
 		break;
-	/* DVB-S is not supported */
+	/* DVB-S and pure QAM (FE_QAM) are not supported */
 	default:
 		return -EINVAL;
 	}
