@@ -280,7 +280,6 @@ struct mac80211_hwsim_data {
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
 
 	struct ieee80211_channel *channel;
-	int radio_enabled;
 	unsigned long beacon_int; /* in jiffies unit */
 	unsigned int rx_filter;
 	int started;
@@ -418,8 +417,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (data == data2)
 			continue;
 
-		if (!data2->started || !data2->radio_enabled ||
-		    !hwsim_ps_rx_ok(data2, skb) ||
+		if (!data2->started || !hwsim_ps_rx_ok(data2, skb) ||
 		    data->channel->center_freq != data2->channel->center_freq ||
 		    !(data->group & data2->group))
 			continue;
@@ -441,7 +439,6 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 
 static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	struct mac80211_hwsim_data *data = hw->priv;
 	bool ack;
 	struct ieee80211_tx_info *txi;
 
@@ -449,13 +446,6 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (skb->len < 10) {
 		/* Should not happen; just a sanity check for addr1 use */
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	if (!data->radio_enabled) {
-		printk(KERN_DEBUG "%s: dropped TX frame since radio "
-		       "disabled\n", wiphy_name(hw->wiphy));
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -546,7 +536,7 @@ static void mac80211_hwsim_beacon(unsigned long arg)
 	struct ieee80211_hw *hw = (struct ieee80211_hw *) arg;
 	struct mac80211_hwsim_data *data = hw->priv;
 
-	if (!data->started || !data->radio_enabled)
+	if (!data->started)
 		return;
 
 	ieee80211_iterate_active_interfaces_atomic(
@@ -562,15 +552,14 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
-	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d idle=%d ps=%d)\n",
+	printk(KERN_DEBUG "%s:%s (freq=%d idle=%d ps=%d)\n",
 	       wiphy_name(hw->wiphy), __func__,
-	       conf->channel->center_freq, conf->radio_enabled,
+	       conf->channel->center_freq,
 	       !!(conf->flags & IEEE80211_CONF_IDLE),
 	       !!(conf->flags & IEEE80211_CONF_PS));
 
 	data->channel = conf->channel;
-	data->radio_enabled = conf->radio_enabled;
-	if (!data->started || !data->radio_enabled || !data->beacon_int)
+	if (!data->started || !data->beacon_int)
 		del_timer(&data->beacon_timer);
 	else
 		mod_timer(&data->beacon_timer, jiffies + data->beacon_int);
@@ -787,8 +776,7 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 	pspoll->aid = cpu_to_le16(0xc000 | vp->aid);
 	memcpy(pspoll->bssid, vp->bssid, ETH_ALEN);
 	memcpy(pspoll->ta, mac, ETH_ALEN);
-	if (data->radio_enabled &&
-	    !mac80211_hwsim_tx_frame(data->hw, skb))
+	if (!mac80211_hwsim_tx_frame(data->hw, skb))
 		printk(KERN_DEBUG "%s: PS-Poll frame not ack'ed\n", __func__);
 	dev_kfree_skb(skb);
 }
@@ -819,8 +807,7 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 	memcpy(hdr->addr1, vp->bssid, ETH_ALEN);
 	memcpy(hdr->addr2, mac, ETH_ALEN);
 	memcpy(hdr->addr3, vp->bssid, ETH_ALEN);
-	if (data->radio_enabled &&
-	    !mac80211_hwsim_tx_frame(data->hw, skb))
+	if (!mac80211_hwsim_tx_frame(data->hw, skb))
 		printk(KERN_DEBUG "%s: nullfunc frame not ack'ed\n", __func__);
 	dev_kfree_skb(skb);
 }
