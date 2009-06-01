@@ -255,7 +255,7 @@ out_unlock:
 	spin_unlock_irqrestore(&port->lock, flags);
 out:
 	if (unlikely(skb)) {
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 	}
 	return 0;
