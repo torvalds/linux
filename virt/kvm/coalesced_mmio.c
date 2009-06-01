@@ -80,7 +80,10 @@ static void coalesced_mmio_write(struct kvm_io_device *this,
 
 static void coalesced_mmio_destructor(struct kvm_io_device *this)
 {
-	kfree(this);
+	struct kvm_coalesced_mmio_dev *dev =
+		(struct kvm_coalesced_mmio_dev *)this->private;
+
+	kfree(dev);
 }
 
 int kvm_coalesced_mmio_init(struct kvm *kvm)
