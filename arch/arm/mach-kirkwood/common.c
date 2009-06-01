@@ -16,6 +16,7 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
+#include <linux/mtd/nand.h>
 #include <linux/spi/orion_spi.h>
 #include <net/dsa.h>
 #include <asm/page.h>
@@ -254,6 +255,42 @@ void __init kirkwood_ge00_switch_init(struct dsa_platform_data *d, int irq)
 	kirkwood_switch_device.dev.platform_data = d;
 
 	platform_device_register(&kirkwood_switch_device);
+}
+
+
+/*****************************************************************************
+ * NAND flash
+ ****************************************************************************/
+static struct resource kirkwood_nand_resource = {
+	.flags		= IORESOURCE_MEM,
+	.start		= KIRKWOOD_NAND_MEM_PHYS_BASE,
+	.end		= KIRKWOOD_NAND_MEM_PHYS_BASE +
+				KIRKWOOD_NAND_MEM_SIZE - 1,
+};
+
+static struct orion_nand_data kirkwood_nand_data = {
+	.cle		= 0,
+	.ale		= 1,
+	.width		= 8,
+};
+
+static struct platform_device kirkwood_nand_flash = {
+	.name		= "orion_nand",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &kirkwood_nand_data,
+	},
+	.resource	= &kirkwood_nand_resource,
+	.num_resources	= 1,
+};
+
+void __init kirkwood_nand_init(struct mtd_partition *parts, int nr_parts,
+			       int chip_delay)
+{
+	kirkwood_nand_data.parts = parts;
+	kirkwood_nand_data.nr_parts = nr_parts;
+	kirkwood_nand_data.chip_delay = chip_delay;
+	platform_device_register(&kirkwood_nand_flash);
 }
 
 
