@@ -73,9 +73,9 @@ static void orion5x_wdt_enable(void)
 	writel(reg, TIMER_CTRL);
 
 	/* Enable reset on watchdog */
-	reg = readl(CPU_RESET_MASK);
-	reg |= WDT_RESET;
-	writel(reg, CPU_RESET_MASK);
+	reg = readl(RSTOUTn_MASK);
+	reg |= WDT_RESET_OUT_EN;
+	writel(reg, RSTOUTn_MASK);
 
 	spin_unlock(&wdt_lock);
 }
@@ -87,9 +87,9 @@ static void orion5x_wdt_disable(void)
 	spin_lock(&wdt_lock);
 
 	/* Disable reset on watchdog */
-	reg = readl(CPU_RESET_MASK);
-	reg &= ~WDT_RESET;
-	writel(reg, CPU_RESET_MASK);
+	reg = readl(RSTOUTn_MASK);
+	reg &= ~WDT_RESET_OUT_EN;
+	writel(reg, RSTOUTn_MASK);
 
 	/* Disable watchdog timer */
 	reg = readl(TIMER_CTRL);
