@@ -58,6 +58,7 @@ static void dso__delete_symbols(struct dso *self)
 	while (next) {
 		pos = rb_entry(next, struct symbol, rb_node);
 		next = rb_next(&pos->rb_node);
+		rb_erase(&pos->rb_node, &self->syms);
 		symbol__delete(pos, self->sym_priv_size);
 	}
 }
