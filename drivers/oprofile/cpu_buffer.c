@@ -78,16 +78,20 @@ void free_cpu_buffers(void)
 	op_ring_buffer_write = NULL;
 }
 
+#define RB_EVENT_HDR_SIZE 4
+
 int alloc_cpu_buffers(void)
 {
 	int i;
 
 	unsigned long buffer_size = oprofile_cpu_buffer_size;
+	unsigned long byte_size = buffer_size * (sizeof(struct op_sample) +
+						 RB_EVENT_HDR_SIZE);
 
-	op_ring_buffer_read = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	op_ring_buffer_read = ring_buffer_alloc(byte_size, OP_BUFFER_FLAGS);
 	if (!op_ring_buffer_read)
 		goto fail;
-	op_ring_buffer_write = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
+	op_ring_buffer_write = ring_buffer_alloc(byte_size, OP_BUFFER_FLAGS);
 	if (!op_ring_buffer_write)
 		goto fail;
 

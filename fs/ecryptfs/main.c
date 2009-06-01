@@ -614,9 +614,8 @@ static int ecryptfs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 	goto out;
 out_abort:
-	dput(sb->s_root);
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	dput(sb->s_root); /* aka mnt->mnt_root, as set by get_sb_nodev() */
+	deactivate_locked_super(sb);
 out:
 	return rc;
 }

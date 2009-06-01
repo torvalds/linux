@@ -150,6 +150,7 @@ enum {
 	STAC_D965_REF,
 	STAC_D965_3ST,
 	STAC_D965_5ST,
+	STAC_D965_5ST_NO_FP,
 	STAC_DELL_3ST,
 	STAC_DELL_BIOS,
 	STAC_927X_MODELS
@@ -2154,6 +2155,13 @@ static unsigned int d965_5st_pin_configs[14] = {
 	0x40000100, 0x40000100
 };
 
+static unsigned int d965_5st_no_fp_pin_configs[14] = {
+	0x40000100, 0x40000100, 0x0181304e, 0x01014010,
+	0x01a19040, 0x01011012, 0x01016011, 0x40000100,
+	0x40000100, 0x40000100, 0x40000100, 0x01442070,
+	0x40000100, 0x40000100
+};
+
 static unsigned int dell_3st_pin_configs[14] = {
 	0x02211230, 0x02a11220, 0x01a19040, 0x01114210,
 	0x01111212, 0x01116211, 0x01813050, 0x01112214,
@@ -2166,6 +2174,7 @@ static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_D965_REF]  = ref927x_pin_configs,
 	[STAC_D965_3ST]  = d965_3st_pin_configs,
 	[STAC_D965_5ST]  = d965_5st_pin_configs,
+	[STAC_D965_5ST_NO_FP]  = d965_5st_no_fp_pin_configs,
 	[STAC_DELL_3ST]  = dell_3st_pin_configs,
 	[STAC_DELL_BIOS] = NULL,
 };
@@ -2176,6 +2185,7 @@ static const char *stac927x_models[STAC_927X_MODELS] = {
 	[STAC_D965_REF]		= "ref",
 	[STAC_D965_3ST]		= "3stack",
 	[STAC_D965_5ST]		= "5stack",
+	[STAC_D965_5ST_NO_FP]	= "5stack-no-fp",
 	[STAC_DELL_3ST]		= "dell-3stack",
 	[STAC_DELL_BIOS]	= "dell-bios",
 };
@@ -4079,7 +4089,12 @@ static int stac92xx_init(struct hda_codec *codec)
 				pinctl = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 				/* if PINCTL already set then skip */
-				if (!(pinctl & AC_PINCTL_IN_EN)) {
+				/* Also, if both INPUT and OUTPUT are set,
+				 * it must be a BIOS bug; need to override, too
+				 */
+				if (!(pinctl & AC_PINCTL_IN_EN) ||
+				    (pinctl & AC_PINCTL_OUT_EN)) {
+					pinctl &= ~AC_PINCTL_OUT_EN;
 					pinctl |= AC_PINCTL_IN_EN;
 					stac92xx_auto_set_pinctl(codec, nid,
 								 pinctl);

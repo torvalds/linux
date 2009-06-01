@@ -246,8 +246,7 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	return 0;
 
 Enomem:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	return -ENOMEM;
 }
 

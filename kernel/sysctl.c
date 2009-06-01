@@ -101,7 +101,6 @@ static int __maybe_unused one = 1;
 static int __maybe_unused two = 2;
 static unsigned long one_ul = 1;
 static int one_hundred = 100;
-static int one_thousand = 1000;
 
 /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
 static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
@@ -1032,28 +1031,6 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof nr_pdflush_threads,
 		.mode		= 0444 /* read-only*/,
 		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "nr_pdflush_threads_min",
-		.data		= &nr_pdflush_threads_min,
-		.maxlen		= sizeof nr_pdflush_threads_min,
-		.mode		= 0644 /* read-write */,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &one,
-		.extra2		= &nr_pdflush_threads_max,
-	},
-	{
-		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "nr_pdflush_threads_max",
-		.data		= &nr_pdflush_threads_max,
-		.maxlen		= sizeof nr_pdflush_threads_max,
-		.mode		= 0644 /* read-write */,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &nr_pdflush_threads_min,
-		.extra2		= &one_thousand,
 	},
 	{
 		.ctl_name	= VM_SWAPPINESS,

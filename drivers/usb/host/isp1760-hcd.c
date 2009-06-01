@@ -1658,6 +1658,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	u32 reg_base, or_reg, skip_reg;
 	unsigned long flags;
 	struct ptd ptd;
+	packet_enqueue *pe;
 
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
@@ -1669,6 +1670,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		reg_base = INT_REGS_OFFSET;
 		or_reg = HC_INT_IRQ_MASK_OR_REG;
 		skip_reg = HC_INT_PTD_SKIPMAP_REG;
+		pe = enqueue_an_INT_packet;
 		break;
 
 	default:
@@ -1676,6 +1678,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		reg_base = ATL_REGS_OFFSET;
 		or_reg = HC_ATL_IRQ_MASK_OR_REG;
 		skip_reg = HC_ATL_PTD_SKIPMAP_REG;
+		pe =  enqueue_an_ATL_packet;
 		break;
 	}
 
@@ -1687,6 +1690,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			u32 skip_map;
 			u32 or_map;
 			struct isp1760_qtd *qtd;
+			struct isp1760_qh *qh = ints->qh;
 
 			skip_map = isp1760_readl(hcd->regs + skip_reg);
 			skip_map |= 1 << i;
@@ -1699,8 +1703,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			priv_write_copy(priv, (u32 *)&ptd, hcd->regs + reg_base
 					+ i * sizeof(ptd), sizeof(ptd));
 			qtd = ints->qtd;
-
-			clean_up_qtdlist(qtd);
+			qtd = clean_up_qtdlist(qtd);
 
 			free_mem(priv, ints->payload);
 
@@ -1711,7 +1714,24 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			ints->payload = 0;
 
 			isp1760_urb_done(priv, urb, status);
+			if (qtd)
+				pe(hcd, qh, qtd);
 			break;
+
+		} else if (ints->qtd) {
+			struct isp1760_qtd *qtd, *prev_qtd = ints->qtd;
+
+			for (qtd = ints->qtd->hw_next; qtd; qtd = qtd->hw_next) {
+				if (qtd->urb == urb) {
+					prev_qtd->hw_next = clean_up_qtdlist(qtd);
+					isp1760_urb_done(priv, urb, status);
+					break;
+				}
+				prev_qtd = qtd;
+			}
+			/* we found the urb before the end of the list */
+			if (qtd)
+				break;
 		}
 		ints++;
 	}

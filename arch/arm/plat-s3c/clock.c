@@ -306,8 +306,6 @@ struct clk s3c24xx_uclk = {
 
 int s3c24xx_register_clock(struct clk *clk)
 {
-	clk->owner = THIS_MODULE;
-
 	if (clk->enable == NULL)
 		clk->enable = clk_null_enable;
 

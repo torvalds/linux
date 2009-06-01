@@ -358,6 +358,16 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 			if (emulate_insn(cpu))
 				return;
 		}
+		/* If KVM is active, the vmcall instruction triggers a
+		 * General Protection Fault.  Normally it triggers an
+		 * invalid opcode fault (6): */
+	case 6:
+		/* We need to check if ring == GUEST_PL and
+		 * faulting instruction == vmcall. */
+		if (is_hypercall(cpu)) {
+			rewrite_hypercall(cpu);
+			return;
+		}
 		break;
 	case 14: /* We've intercepted a Page Fault. */
 		/* The Guest accessed a virtual address that wasn't mapped.
@@ -403,15 +413,6 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * up the pointer now to indicate a hypercall is pending. */
 		cpu->hcall = (struct hcall_args *)cpu->regs;
 		return;
-	case 6:
-		/* kvm hypercalls trigger an invalid opcode fault (6).
-		 * We need to check if ring == GUEST_PL and
-		 * faulting instruction == vmcall. */
-		if (is_hypercall(cpu)) {
-			rewrite_hypercall(cpu);
-			return;
-		}
-		break;
 	}
 
 	/* We didn't handle the trap, so it needs to go to the Guest. */

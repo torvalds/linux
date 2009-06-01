@@ -536,7 +536,7 @@ static void __init rbtx4939_setup(void)
 }
 
 struct txx9_board_vec rbtx4939_vec __initdata = {
-	.system = "Tothiba RBTX4939",
+	.system = "Toshiba RBTX4939",
 	.prom_init = rbtx4939_prom_init,
 	.mem_setup = rbtx4939_setup,
 	.irq_setup = rbtx4939_irq_setup,

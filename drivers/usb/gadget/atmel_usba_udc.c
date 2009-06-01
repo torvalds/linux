@@ -794,7 +794,8 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (ep->desc) {
 		list_add_tail(&req->queue, &ep->queue);
 
-		if (ep->is_in || (ep_is_control(ep)
+		if ((!ep_is_control(ep) && ep->is_in) ||
+			(ep_is_control(ep)
 				&& (ep->state == DATA_STAGE_IN
 					|| ep->state == STATUS_STAGE_IN)))
 			usba_ep_writel(ep, CTL_ENB, USBA_TX_PK_RDY);
@@ -1940,7 +1941,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable(pclk);
 
-	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
+	usba_ep = kzalloc(sizeof(struct usba_ep) * pdata->num_ep,
 			  GFP_KERNEL);
 	if (!usba_ep)
 		goto err_alloc_ep;

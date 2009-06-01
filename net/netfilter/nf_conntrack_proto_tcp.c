@@ -634,6 +634,14 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			sender->td_end = end;
 			sender->flags |= IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED;
 		}
+		if (tcph->ack) {
+			if (!(sender->flags & IP_CT_TCP_FLAG_MAXACK_SET)) {
+				sender->td_maxack = ack;
+				sender->flags |= IP_CT_TCP_FLAG_MAXACK_SET;
+			} else if (after(ack, sender->td_maxack))
+				sender->td_maxack = ack;
+		}
+
 		/*
 		 * Update receiver data.
 		 */
@@ -918,6 +926,16 @@ static int tcp_packet(struct nf_conn *ct,
 				  "nf_ct_tcp: invalid state ");
 		return -NF_ACCEPT;
 	case TCP_CONNTRACK_CLOSE:
+		if (index == TCP_RST_SET
+		    && (ct->proto.tcp.seen[!dir].flags & IP_CT_TCP_FLAG_MAXACK_SET)
+		    && before(ntohl(th->seq), ct->proto.tcp.seen[!dir].td_maxack)) {
+			/* Invalid RST  */
+			write_unlock_bh(&tcp_lock);
+			if (LOG_INVALID(net, IPPROTO_TCP))
+				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+					  "nf_ct_tcp: invalid RST ");
+			return -NF_ACCEPT;
+		}
 		if (index == TCP_RST_SET
 		    && ((test_bit(IPS_SEEN_REPLY_BIT, &ct->status)
 			 && ct->proto.tcp.last_index == TCP_SYN_SET)

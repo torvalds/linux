@@ -1357,7 +1357,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	int pipe = intel_crtc->pipe;
 	uint32_t control = (pipe == 0) ? CURACNTR : CURBCNTR;
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
-	uint32_t temp;
+	uint32_t temp = I915_READ(control);
 	size_t addr;
 	int ret;
 
@@ -1366,7 +1366,12 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
 		DRM_DEBUG("cursor off\n");
-		temp = CURSOR_MODE_DISABLE;
+		if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+			temp &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
+			temp |= CURSOR_MODE_DISABLE;
+		} else {
+			temp &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
+		}
 		addr = 0;
 		bo = NULL;
 		mutex_lock(&dev->struct_mutex);
@@ -1409,10 +1414,19 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = obj_priv->phys_obj->handle->busaddr;
 	}
 
-	temp = 0;
-	/* set the pipe for the cursor */
-	temp |= (pipe << 28);
-	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+	if (!IS_I9XX(dev))
+		I915_WRITE(CURSIZE, (height << 12) | width);
+
+	/* Hooray for CUR*CNTR differences */
+	if (IS_MOBILE(dev) || IS_I9XX(dev)) {
+		temp &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
+		temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
+		temp |= (pipe << 28); /* Connect to correct pipe */
+	} else {
+		temp &= ~(CURSOR_FORMAT_MASK);
+		temp |= CURSOR_ENABLE;
+		temp |= CURSOR_FORMAT_ARGB | CURSOR_GAMMA_ENABLE;
+	}
 
  finish:
 	I915_WRITE(control, temp);
@@ -1802,6 +1816,37 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 
 	}
+}
+
+int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_get_pipe_from_crtc_id *pipe_from_crtc_id = data;
+	struct drm_crtc *crtc = NULL;
+	int pipe = -1;
+
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		if (crtc->base.id == pipe_from_crtc_id->crtc_id) {
+			pipe = intel_crtc->pipe;
+			break;
+		}
+	}
+
+	if (pipe == -1) {
+		DRM_ERROR("no such CRTC id\n");
+		return -EINVAL;
+	}
+
+	pipe_from_crtc_id->pipe = pipe;
+
+       return 0;
 }
 
 struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)

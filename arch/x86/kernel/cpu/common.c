@@ -114,6 +114,13 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
+static int __init x86_xsave_setup(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+	return 1;
+}
+__setup("noxsave", x86_xsave_setup);
+
 #ifdef CONFIG_X86_32
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_serial_nr __cpuinitdata = 1;

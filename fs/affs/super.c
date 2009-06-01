@@ -507,8 +507,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		kfree(new_opts);
 		return -EINVAL;
 	}
-	kfree(sb->s_options);
-	sb->s_options = new_opts;
+	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
 	sbi->s_mode  = mode;

@@ -175,7 +175,7 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 		return -EINVAL;
 	}
 	src = iwb->read;
-	if (unlikely(limit > BAS_OUTBUFSIZE + BAS_OUTBUFPAD ||
+	if (unlikely(limit >= BAS_OUTBUFSIZE + BAS_OUTBUFPAD ||
 		     (read < src && limit >= src))) {
 		pr_err("isoc write buffer frame reservation violated\n");
 		return -EFAULT;

@@ -88,7 +88,7 @@ void __init tx4927_setup(void)
 {
 	int i;
 	__u32 divmode;
-	int cpuclk = 0;
+	unsigned int cpuclk = 0;
 	u64 ccfg;
 
 	txx9_reg_res_init(TX4927_REV_PCODE(), TX4927_REG_BASE,
