@@ -844,7 +844,9 @@ source "kernel/time/Kconfig"
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP)
+	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
+	select HAVE_ARM_SCU if ARCH_REALVIEW
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -861,6 +863,18 @@ config SMP
 	  <http://www.linuxdoc.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config HAVE_ARM_SCU
+	bool
+	depends on SMP
+	help
+	  This option enables support for the ARM system coherency unit
+
+config HAVE_ARM_TWD
+	bool
+	depends on SMP
+	help
+	  This options enables support for the ARM timer and watchdog unit
 
 choice
 	prompt "Memory split"
@@ -902,6 +916,7 @@ config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || REALVIEW_EB_A9MP)
 	default y
+	select HAVE_ARM_TWD if ARCH_REALVIEW
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system

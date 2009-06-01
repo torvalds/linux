@@ -32,6 +32,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/hardware/icst307.h>
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/localtimer.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
