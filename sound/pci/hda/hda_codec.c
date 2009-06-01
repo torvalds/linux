@@ -165,28 +165,29 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 			   unsigned int *res)
 {
 	struct hda_bus *bus = codec->bus;
-	int err, repeated = 0;
+	int err;
 
 	if (res)
 		*res = -1;
+ again:
 	snd_hda_power_up(codec);
 	mutex_lock(&bus->cmd_mutex);
- again:
 	err = bus->ops.command(bus, cmd);
-	if (!err) {
-		if (res) {
-			*res = bus->ops.get_response(bus);
-			if (*res == -1 && bus->rirb_error) {
-				if (repeated++ < 1) {
-					snd_printd(KERN_WARNING "hda_codec: "
-					   "Trying verb 0x%08x again\n", cmd);
-					goto again;
-				}
-			}
-		}
-	}
+	if (!err && res)
+		*res = bus->ops.get_response(bus);
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
+	if (res && *res == -1 && bus->rirb_error) {
+		if (bus->response_reset) {
+			snd_printd("hda_codec: resetting BUS due to "
+				   "fatal communication error\n");
+			bus->ops.bus_reset(bus);
+		}
+		goto again;
+	}
+	/* clear reset-flag when the communication gets recovered */
+	if (!err)
+		bus->response_reset = 0;
 	return err;
 }
 
@@ -3894,11 +3895,10 @@ EXPORT_SYMBOL_HDA(auto_pin_cfg_labels);
 /**
  * snd_hda_suspend - suspend the codecs
  * @bus: the HDA bus
- * @state: suspsend state
  *
  * Returns 0 if successful.
  */
-int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
+int snd_hda_suspend(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
 
