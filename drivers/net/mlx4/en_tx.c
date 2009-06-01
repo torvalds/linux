@@ -297,34 +297,6 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-void mlx4_en_set_prio_map(struct mlx4_en_priv *priv, u16 *prio_map, u32 ring_num)
-{
-	int block = 8 / ring_num;
-	int extra = 8 - (block * ring_num);
-	int num = 0;
-	u16 ring = 1;
-	int prio;
-
-	if (ring_num == 1) {
-		for (prio = 0; prio < 8; prio++)
-			prio_map[prio] = 0;
-		return;
-	}
-
-	for (prio = 0; prio < 8; prio++) {
-		if (extra && (num == block + 1)) {
-			ring++;
-			num = 0;
-			extra--;
-		} else if (!extra && (num == block)) {
-			ring++;
-			num = 0;
-		}
-		prio_map[prio] = ring;
-		en_dbg(DRV, priv, " prio:%d --> ring:%d\n", prio, ring);
-		num++;
-	}
-}
 
 static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 {
@@ -386,18 +358,8 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	if (unlikely(ring->blocked)) {
 		if ((u32) (ring->prod - ring->cons) <=
 		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
-
-			/* TODO: support multiqueue netdevs. Currently, we block
-			 * when *any* ring is full. Note that:
-			 * - 2 Tx rings can unblock at the same time and call
-			 *   netif_wake_queue(), which is OK since this
-			 *   operation is idempotent.
-			 * - We might wake the queue just after another ring
-			 *   stopped it. This is no big deal because the next
-			 *   transmission on that ring would stop the queue.
-			 */
 			ring->blocked = 0;
-			netif_wake_queue(dev);
+			netif_tx_wake_queue(netdev_get_tx_queue(dev, cq->ring));
 			priv->port_stats.wake_queue++;
 		}
 	}
@@ -616,21 +578,20 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
-static int get_vlan_info(struct mlx4_en_priv *priv, struct sk_buff *skb,
-			 u16 *vlan_tag)
+u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-	int tx_ind;
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	u16 vlan_tag = 0;
 
-	/* Obtain VLAN information if present */
-	if (priv->vlgrp && vlan_tx_tag_present(skb)) {
-		*vlan_tag = vlan_tx_tag_get(skb);
-		/* Set the Tx ring to use according to vlan priority */
-		tx_ind = priv->tx_prio_map[*vlan_tag >> 13];
-	} else {
-		*vlan_tag = 0;
-		tx_ind = 0;
+	/* If we support per priority flow control and the packet contains
+	 * a vlan tag, send the packet to the TX ring assigned to that priority
+	 */
+	if (priv->prof->rx_ppp && priv->vlgrp && vlan_tx_tag_present(skb)) {
+		vlan_tag = vlan_tx_tag_get(skb);
+		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
 	}
-	return tx_ind;
+
+	return skb_tx_hash(dev, skb);
 }
 
 int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -650,7 +611,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t dma;
 	u32 index;
 	__be32 op_own;
-	u16 vlan_tag;
+	u16 vlan_tag = 0;
 	int i;
 	int lso_header_size;
 	void *fragptr;
@@ -673,15 +634,16 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	tx_ind = get_vlan_info(priv, skb, &vlan_tag);
+	tx_ind = skb->queue_mapping;
 	ring = &priv->tx_ring[tx_ind];
+	if (priv->vlgrp && vlan_tx_tag_present(skb))
+		vlan_tag = vlan_tx_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
 	if (unlikely(((int)(ring->prod - ring->cons)) >
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
-		/* every full Tx ring stops queue.
-		 * TODO: implement multi-queue support (per-queue stop) */
-		netif_stop_queue(dev);
+		/* every full Tx ring stops queue */
+		netif_tx_stop_queue(netdev_get_tx_queue(dev, tx_ind));
 		ring->blocked = 1;
 		priv->port_stats.queue_stopped++;
 

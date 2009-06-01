@@ -93,13 +93,8 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].tx_ppp = pfctx;
 		params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
 		params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
-	}
-	if (pfcrx || pfctx) {
-		params->prof[1].tx_ring_num = MLX4_EN_TX_RING_NUM;
-		params->prof[2].tx_ring_num = MLX4_EN_TX_RING_NUM;
-	} else {
-		params->prof[1].tx_ring_num = 1;
-		params->prof[2].tx_ring_num = 1;
+		params->prof[i].tx_ring_num = MLX4_EN_NUM_TX_RINGS +
+			(!!pfcrx) * MLX4_EN_NUM_PPP_RINGS;
 	}
 
 	return 0;

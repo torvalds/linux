@@ -934,6 +934,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
 	.ndo_start_xmit		= mlx4_en_xmit,
+	.ndo_select_queue	= mlx4_en_select_queue,
 	.ndo_get_stats		= mlx4_en_get_stats,
 	.ndo_set_multicast_list	= mlx4_en_set_multicast,
 	.ndo_set_mac_address	= mlx4_en_set_mac,
@@ -956,7 +957,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	int i;
 	int err;
 
-	dev = alloc_etherdev(sizeof(struct mlx4_en_priv));
+	dev = alloc_etherdev_mq(sizeof(struct mlx4_en_priv), prof->tx_ring_num);
 	if (dev == NULL) {
 		mlx4_err(mdev, "Net device allocation failed\n");
 		return -ENOMEM;
@@ -1018,14 +1019,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	priv->allocated = 1;
 
-	/* Populate Tx priority mappings */
-	mlx4_en_set_prio_map(priv, priv->tx_prio_map, prof->tx_ring_num);
-
 	/*
 	 * Initialize netdev entry points
 	 */
 	dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
+	dev->real_num_tx_queues = MLX4_EN_NUM_TX_RINGS;
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 

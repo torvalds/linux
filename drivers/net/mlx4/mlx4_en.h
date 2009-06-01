@@ -139,8 +139,10 @@ enum {
 #define MLX4_EN_MIN_RX_SIZE	(MLX4_EN_ALLOC_SIZE / SMP_CACHE_BYTES)
 #define MLX4_EN_MIN_TX_SIZE	(4096 / TXBB_SIZE)
 
-#define MLX4_EN_TX_RING_NUM		9
-#define MLX4_EN_DEF_TX_RING_SIZE	1024
+#define MLX4_EN_SMALL_PKT_SIZE		64
+#define MLX4_EN_NUM_TX_RINGS		8
+#define MLX4_EN_NUM_PPP_RINGS		8
+#define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
 /* Target number of packets to coalesce with interrupt moderation */
@@ -478,7 +480,6 @@ struct mlx4_en_priv {
 	int base_qpn;
 
 	struct mlx4_en_rss_map rss_map;
-	u16 tx_prio_map[8];
 	u32 flags;
 #define MLX4_EN_FLAG_PROMISC	0x1
 	u32 tx_ring_num;
@@ -526,6 +527,7 @@ int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_poll_tx_cq(unsigned long data);
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
+u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
 int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring,
@@ -560,7 +562,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev);
 void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 				 struct mlx4_en_rss_map *rss_map,
 				 int num_entries, int num_rings);
-void mlx4_en_set_prio_map(struct mlx4_en_priv *priv, u16 *prio_map, u32 ring_num);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring);
