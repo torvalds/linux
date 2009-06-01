@@ -917,22 +917,29 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_mode == T_ANALOG_TV) {
+	if (new_mode == T_ANALOG_TV)
 		rc = send_seq(priv, {0x00, 0x00});
-	} else if (priv->cur_fw.type & ATSC) {
-		offset = 1750000;
-	} else {
-		offset = 2750000;
+
+	/*
+	 * Digital modes require an offset to adjust to the
+	 * proper frequency.
+	 * Analog modes require offset = 0
+	 */
+	if (new_mode != T_ANALOG_TV) {
+		/* Sets the offset according with firmware */
+		if (priv->cur_fw.type & DTV6)
+			offset = 1750000;
+		else if (priv->cur_fw.type & DTV7)
+			offset = 2250000;
+		else	/* DTV8 or DTV78 */
+			offset = 2750000;
+
 		/*
-		 * We must adjust the offset by 500kHz in two cases in order
-		 * to correctly center the IF output:
-		 * 1) When the ZARLINK456 or DIBCOM52 tables were explicitly
-		 *    selected and a 7MHz channel is tuned;
-		 * 2) When tuning a VHF channel with DTV78 firmware.
+		 * We must adjust the offset by 500kHz  when
+		 * tuning a 7MHz VHF channel with DTV78 firmware
+		 * (used in Australia, Italy and Germany)
 		 */
-		if (((priv->cur_fw.type & DTV7) &&
-		     (priv->cur_fw.scode_table & (ZARLINK456 | DIBCOM52))) ||
-		    ((priv->cur_fw.type & DTV78) && freq < 470000000))
+		if ((priv->cur_fw.type & DTV78) && freq < 470000000)
 			offset -= 500000;
 	}
 
