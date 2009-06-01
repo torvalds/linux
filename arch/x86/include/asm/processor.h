@@ -29,6 +29,7 @@ struct mm_struct;
 #include <linux/threads.h>
 #include <linux/init.h>
 
+#define HBP_NUM 4
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
@@ -431,12 +432,11 @@ struct thread_struct {
 	unsigned long		fs;
 	unsigned long		gs;
 	/* Hardware debugging registers: */
-	unsigned long		debugreg0;
-	unsigned long		debugreg1;
-	unsigned long		debugreg2;
-	unsigned long		debugreg3;
+	unsigned long		debugreg[HBP_NUM];
 	unsigned long		debugreg6;
 	unsigned long		debugreg7;
+	/* Hardware breakpoint info */
+	struct hw_breakpoint	*hbp[HBP_NUM];
 	/* Fault info: */
 	unsigned long		cr2;
 	unsigned long		trap_no;

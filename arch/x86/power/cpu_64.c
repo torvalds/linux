@@ -163,10 +163,10 @@ static void fix_processor_context(void)
 	 * Now maybe reload the debug registers
 	 */
 	if (current->thread.debugreg7){
-                loaddebug(&current->thread, 0);
-                loaddebug(&current->thread, 1);
-                loaddebug(&current->thread, 2);
-                loaddebug(&current->thread, 3);
+		set_debugreg(current->thread.debugreg[0], 0);
+		set_debugreg(current->thread.debugreg[1], 1);
+		set_debugreg(current->thread.debugreg[2], 2);
+		set_debugreg(current->thread.debugreg[3], 3);
                 /* no 4 and 5 */
                 loaddebug(&current->thread, 6);
                 loaddebug(&current->thread, 7);

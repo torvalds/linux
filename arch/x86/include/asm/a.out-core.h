@@ -32,10 +32,10 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 			>> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
 	dump->u_ssize = 0;
-	dump->u_debugreg[0] = current->thread.debugreg0;
-	dump->u_debugreg[1] = current->thread.debugreg1;
-	dump->u_debugreg[2] = current->thread.debugreg2;
-	dump->u_debugreg[3] = current->thread.debugreg3;
+	dump->u_debugreg[0] = current->thread.debugreg[0];
+	dump->u_debugreg[1] = current->thread.debugreg[1];
+	dump->u_debugreg[2] = current->thread.debugreg[2];
+	dump->u_debugreg[3] = current->thread.debugreg[3];
 	dump->u_debugreg[4] = 0;
 	dump->u_debugreg[5] = 0;
 	dump->u_debugreg[6] = current->thread.debugreg6;

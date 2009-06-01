@@ -471,10 +471,10 @@ static int genregs_set(struct task_struct *target,
 static unsigned long ptrace_get_debugreg(struct task_struct *child, int n)
 {
 	switch (n) {
-	case 0:		return child->thread.debugreg0;
-	case 1:		return child->thread.debugreg1;
-	case 2:		return child->thread.debugreg2;
-	case 3:		return child->thread.debugreg3;
+	case 0:		return child->thread.debugreg[0];
+	case 1:		return child->thread.debugreg[1];
+	case 2:		return child->thread.debugreg[2];
+	case 3:		return child->thread.debugreg[3];
 	case 6:		return child->thread.debugreg6;
 	case 7:		return child->thread.debugreg7;
 	}
@@ -493,10 +493,10 @@ static int ptrace_set_debugreg(struct task_struct *child,
 		return -EIO;
 
 	switch (n) {
-	case 0:		child->thread.debugreg0 = data; break;
-	case 1:		child->thread.debugreg1 = data; break;
-	case 2:		child->thread.debugreg2 = data; break;
-	case 3:		child->thread.debugreg3 = data; break;
+	case 0:		child->thread.debugreg[0] = data; break;
+	case 1:		child->thread.debugreg[1] = data; break;
+	case 2:		child->thread.debugreg[2] = data; break;
+	case 3:		child->thread.debugreg[3] = data; break;
 
 	case 6:
 		if ((data & ~0xffffffffUL) != 0)
