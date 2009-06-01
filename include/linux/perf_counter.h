@@ -427,7 +427,6 @@ struct perf_counter {
 	const struct pmu		*pmu;
 
 	enum perf_counter_active_state	state;
-	enum perf_counter_active_state	prev_state;
 	atomic64_t			count;
 
 	/*

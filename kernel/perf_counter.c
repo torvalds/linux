@@ -572,7 +572,6 @@ group_sched_in(struct perf_counter *group_counter,
 	if (ret)
 		return ret < 0 ? ret : 0;
 
-	group_counter->prev_state = group_counter->state;
 	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
 		return -EAGAIN;
 
@@ -580,7 +579,6 @@ group_sched_in(struct perf_counter *group_counter,
 	 * Schedule in siblings as one group (if any):
 	 */
 	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
-		counter->prev_state = counter->state;
 		if (counter_sched_in(counter, cpuctx, ctx, cpu)) {
 			partial_group = counter;
 			goto group_error;
@@ -657,7 +655,6 @@ static void add_counter_to_ctx(struct perf_counter *counter,
 			       struct perf_counter_context *ctx)
 {
 	list_add_counter(counter, ctx);
-	counter->prev_state = PERF_COUNTER_STATE_OFF;
 	counter->tstamp_enabled = ctx->time;
 	counter->tstamp_running = ctx->time;
 	counter->tstamp_stopped = ctx->time;
@@ -820,7 +817,6 @@ static void __perf_counter_enable(void *info)
 	ctx->is_active = 1;
 	update_context_time(ctx);
 
-	counter->prev_state = counter->state;
 	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
 		goto unlock;
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
