@@ -18,14 +18,17 @@
 
 #include <linux/ftrace_event.h>
 
-#undef __array
-#define __array(type, item, len)	type	item[len];
-
 #undef __field
 #define __field(type, item)		type	item;
 
+#undef __array
+#define __array(type, item, len)	type	item[len];
+
+#undef __dynamic_array
+#define __dynamic_array(type, item, len) unsigned short __data_loc_##item;
+
 #undef __string
-#define __string(item, src)		unsigned short	__str_loc_##item;
+#define __string(item, src) __dynamic_array(char, item, -1)
 
 #undef TP_STRUCT__entry
 #define TP_STRUCT__entry(args...) args
@@ -35,7 +38,7 @@
 	struct ftrace_raw_##name {				\
 		struct trace_entry	ent;			\
 		tstruct						\
-		char			__str_data[0];		\
+		char			__data[0];		\
 	};							\
 	static struct ftrace_event_call event_##name
 
@@ -47,30 +50,31 @@
  *
  * Include the following:
  *
- * struct ftrace_str_offsets_<call> {
- *	int				<str1>;
- *	int				<str2>;
+ * struct ftrace_data_offsets_<call> {
+ *	int				<item1>;
+ *	int				<item2>;
  *	[...]
  * };
  *
- * The __string() macro will create each int <str>, this is to
- * keep the offset of each string from the beggining of the event
- * once we perform the strlen() of the src strings.
- *
+ * The __dynamic_array() macro will create each int <item>, this is
+ * to keep the offset of each array from the beginning of the event.
  */
-
-#undef __array
-#define __array(type, item, len)
 
 #undef __field
 #define __field(type, item);
 
+#undef __array
+#define __array(type, item, len)
+
+#undef __dynamic_array
+#define __dynamic_array(type, item, len)	int item;
+
 #undef __string
-#define __string(item, src)	int item;
+#define __string(item, src) __dynamic_array(char, item, -1)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
-	struct ftrace_str_offsets_##call {				\
+	struct ftrace_data_offsets_##call {				\
 		tstruct;						\
 	};
 
@@ -119,8 +123,12 @@
 #undef TP_printk
 #define TP_printk(fmt, args...) fmt "\n", args
 
+#undef __get_dynamic_array
+#define __get_dynamic_array(field)	\
+		((void *)__entry + __entry->__data_loc_##field)
+
 #undef __get_str
-#define __get_str(field)	((char *)__entry + __entry->__str_loc_##field)
+#define __get_str(field) (char *)__get_dynamic_array(field)
 
 #undef __print_flags
 #define __print_flags(flag, delim, flag_array...)			\
@@ -207,15 +215,18 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	if (!ret)							\
 		return 0;
 
-#undef __string
-#define __string(item, src)						       \
-	ret = trace_seq_printf(s, "\tfield:__str_loc " #item ";\t"	       \
+#undef __dynamic_array
+#define __dynamic_array(type, item, len)				       \
+	ret = trace_seq_printf(s, "\tfield:__data_loc " #item ";\t"	       \
 			       "offset:%u;\tsize:%u;\n",		       \
 			       (unsigned int)offsetof(typeof(field),	       \
-					__str_loc_##item),		       \
-			       (unsigned int)sizeof(field.__str_loc_##item));  \
+					__data_loc_##item),		       \
+			       (unsigned int)sizeof(field.__data_loc_##item)); \
 	if (!ret)							       \
 		return 0;
+
+#undef __string
+#define __string(item, src) __dynamic_array(char, item, -1)
 
 #undef __entry
 #define __entry REC
@@ -260,11 +271,14 @@ ftrace_format_##call(struct trace_seq *s)				\
 	if (ret)							\
 		return ret;
 
+#undef __dynamic_array
+#define __dynamic_array(type, item, len)				       \
+	ret = trace_define_field(event_call, "__data_loc" "[" #type "]", #item,\
+				offsetof(typeof(field), __data_loc_##item),    \
+				 sizeof(field.__data_loc_##item), 0);
+
 #undef __string
-#define __string(item, src)						       \
-	ret = trace_define_field(event_call, "__str_loc", #item,	       \
-				offsetof(typeof(field), __str_loc_##item),     \
-				 sizeof(field.__str_loc_##item), 0);
+#define __string(item, src) __dynamic_array(char, item, -1)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
@@ -284,6 +298,43 @@ ftrace_define_fields_##call(void)					\
 	tstruct;							\
 									\
 	return ret;							\
+}
+
+#include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
+
+/*
+ * remember the offset of each array from the beginning of the event.
+ */
+
+#undef __entry
+#define __entry entry
+
+#undef __field
+#define __field(type, item)
+
+#undef __array
+#define __array(type, item, len)
+
+#undef __dynamic_array
+#define __dynamic_array(type, item, len)				\
+	__data_offsets->item = __data_size +				\
+			       offsetof(typeof(*entry), __data);	\
+	__data_size += (len) * sizeof(type);
+
+#undef __string
+#define __string(item, src) __dynamic_array(char, item, strlen(src) + 1)       \
+
+#undef TRACE_EVENT
+#define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
+static inline int ftrace_get_offsets_##call(				\
+	struct ftrace_data_offsets_##call *__data_offsets, proto)       \
+{									\
+	int __data_size = 0;						\
+	struct ftrace_raw_##call __maybe_unused *entry;			\
+									\
+	tstruct;							\
+									\
+	return __data_size;						\
 }
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
@@ -432,15 +483,15 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *event_call)\
 #undef __array
 #define __array(type, item, len)
 
+#undef __dynamic_array
+#define __dynamic_array(type, item, len)				\
+	__entry->__data_loc_##item = __data_offsets.item;
+
 #undef __string
-#define __string(item, src)						\
-	__str_offsets.item = __str_size +				\
-			     offsetof(typeof(*entry), __str_data);	\
-	__str_size += strlen(src) + 1;
+#define __string(item, src) __dynamic_array(char, item, -1)       	\
 
 #undef __assign_str
 #define __assign_str(dst, src)						\
-	__entry->__str_loc_##dst = __str_offsets.dst;			\
 	strcpy(__get_str(dst), src);
 
 #undef TRACE_EVENT
@@ -451,25 +502,28 @@ static struct ftrace_event_call event_##call;				\
 									\
 static void ftrace_raw_event_##call(proto)				\
 {									\
-	struct ftrace_str_offsets_##call __maybe_unused __str_offsets;	\
+	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
 	unsigned long irq_flags;					\
-	int __str_size = 0;						\
+	int __data_size;						\
 	int pc;								\
 									\
 	local_save_flags(irq_flags);					\
 	pc = preempt_count();						\
 									\
-	tstruct;							\
+	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
 	event = trace_current_buffer_lock_reserve(event_##call.id,	\
-				 sizeof(struct ftrace_raw_##call) + __str_size,\
+				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
 	if (!event)							\
 		return;							\
 	entry	= ring_buffer_event_data(event);			\
+									\
+									\
+	tstruct								\
 									\
 	{ assign; }							\
 									\

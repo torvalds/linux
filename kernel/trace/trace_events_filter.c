@@ -478,11 +478,11 @@ enum {
 
 static int is_string_field(const char *type)
 {
+	if (strstr(type, "__data_loc") && strstr(type, "char"))
+		return FILTER_DYN_STRING;
+
 	if (strchr(type, '[') && strstr(type, "char"))
 		return FILTER_STATIC_STRING;
-
-	if (!strcmp(type, "__str_loc"))
-		return FILTER_DYN_STRING;
 
 	return 0;
 }
