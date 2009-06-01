@@ -471,7 +471,7 @@ static void ftrace_raw_event_##call(proto)				\
 		return;							\
 	entry	= ring_buffer_event_data(event);			\
 									\
-	assign;								\
+	{ assign; }							\
 									\
 	if (!filter_current_check_discard(event_call, entry, event))	\
 		trace_nowake_buffer_unlock_commit(event, irq_flags, pc); \
