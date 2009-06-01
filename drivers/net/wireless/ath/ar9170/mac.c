@@ -84,7 +84,7 @@ static int ar9170_set_ampdu_density(struct ar9170 *ar, u8 mpdudensity)
 	val = 0x140a00 | (mpdudensity ? (mpdudensity + 1) : 0);
 
 	ar9170_regwrite_begin(ar);
-	ar9170_regwrite(AR9170_MAC_REG_AMPDU_SET, val);
+	ar9170_regwrite(AR9170_MAC_REG_AMPDU_DENSITY, val);
 	ar9170_regwrite_finish();
 
 	return ar9170_regwrite_result();
