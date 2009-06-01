@@ -188,8 +188,7 @@ static struct usb_descriptor_header *hs_pn_function[] = {
 
 static int pn_net_open(struct net_device *dev)
 {
-	if (netif_carrier_ok(dev))
-		netif_wake_queue(dev);
+	netif_wake_queue(dev);
 	return 0;
 }
 
@@ -219,8 +218,7 @@ static void pn_tx_complete(struct usb_ep *ep, struct usb_request *req)
 	}
 
 	dev_kfree_skb_any(skb);
-	if (netif_carrier_ok(dev))
-		netif_wake_queue(dev);
+	netif_wake_queue(dev);
 }
 
 static int pn_net_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -383,7 +381,6 @@ static void __pn_reset(struct usb_function *f)
 	struct phonet_port *port = netdev_priv(dev);
 
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 	port->usb = NULL;
 
 	usb_ep_disable(fp->out_ep);
@@ -427,8 +424,6 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			fp->in_ep->driver_data = fp;
 
 			netif_carrier_on(dev);
-			if (netif_running(dev))
-				netif_wake_queue(dev);
 			for (i = 0; i < phonet_rxq_size; i++)
 				pn_rx_submit(fp, fp->out_reqv[i], GFP_ATOMIC);
 		}
@@ -610,7 +605,6 @@ int __init gphonet_setup(struct usb_gadget *gadget)
 	port = netdev_priv(dev);
 	spin_lock_init(&port->lock);
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 	SET_NETDEV_DEV(dev, &gadget->dev);
 
 	err = register_netdev(dev);
