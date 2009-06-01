@@ -2826,6 +2826,9 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	/* trace pipe does not show start of buffer */
 	cpumask_setall(iter->started);
 
+	if (trace_flags & TRACE_ITER_LATENCY_FMT)
+		iter->iter_flags |= TRACE_FILE_LAT_FMT;
+
 	iter->cpu_file = cpu_file;
 	iter->tr = &global_trace;
 	mutex_init(&iter->mutex);
