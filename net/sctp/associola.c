@@ -1470,6 +1470,10 @@ int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
 	int assoc_id;
 	int error = 0;
+
+	/* If the id is already assigned, keep it. */
+	if (asoc->assoc_id)
+		return error;
 retry:
 	if (unlikely(!idr_pre_get(&sctp_assocs_id, gfp)))
 		return -ENOMEM;
