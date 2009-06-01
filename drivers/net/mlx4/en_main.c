@@ -248,27 +248,10 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	/* Create a netdev for each port */
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
 		mlx4_info(mdev, "Activating port:%d\n", i);
-		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i])) {
+		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
 			mdev->pndev[i] = NULL;
-			goto err_free_netdev;
-		}
 	}
 	return mdev;
-
-
-err_free_netdev:
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		if (mdev->pndev[i])
-			mlx4_en_destroy_netdev(mdev->pndev[i]);
-	}
-
-	mutex_lock(&mdev->state_lock);
-	mdev->device_up = false;
-	mutex_unlock(&mdev->state_lock);
-	flush_workqueue(mdev->workqueue);
-
-	/* Stop event queue before we drop down to release shared SW state */
-	destroy_workqueue(mdev->workqueue);
 
 err_mr:
 	mlx4_mr_free(dev, &mdev->mr);
