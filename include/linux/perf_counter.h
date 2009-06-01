@@ -543,6 +543,7 @@ struct perf_counter_context {
 	struct perf_counter_context *parent_ctx;
 	u64			parent_gen;
 	u64			generation;
+	int			pin_count;
 	struct rcu_head		rcu_head;
 };
 
