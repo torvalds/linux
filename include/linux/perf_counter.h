@@ -562,7 +562,7 @@ struct perf_cpu_context {
 	 *
 	 * task, softirq, irq, nmi context
 	 */
-	int			recursion[4];
+	int				recursion[4];
 };
 
 #ifdef CONFIG_PERF_COUNTERS
