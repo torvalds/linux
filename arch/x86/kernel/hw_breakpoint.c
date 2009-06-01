@@ -314,8 +314,12 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 {
 	int i, cpu, rc = NOTIFY_STOP;
 	struct hw_breakpoint *bp;
-	/* The DR6 value is stored in args->err */
-	unsigned long dr7, dr6 = args->err;
+	unsigned long dr7, dr6;
+	unsigned long *dr6_p;
+
+	/* The DR6 value is pointed by args->err */
+	dr6_p = (unsigned long *)ERR_PTR(args->err);
+	dr6 = *dr6_p;
 
 	/* Do an early return if no trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
@@ -351,6 +355,11 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 			if (bp)
 				rc = NOTIFY_DONE;
 		}
+		/*
+		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
+		 * exception handling
+		 */
+		(*dr6_p) &= ~(DR_TRAP0 << i);
 		/*
 		 * bp can be NULL due to lazy debug register switching
 		 * or due to the delay between updates of hbp_kernel_pos

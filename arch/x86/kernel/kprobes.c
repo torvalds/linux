@@ -54,6 +54,7 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/alternative.h>
+#include <asm/debugreg.h>
 
 void jprobe_return_end(void);
 
@@ -967,8 +968,14 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG:
-		if (post_kprobe_handler(args->regs))
+		if (post_kprobe_handler(args->regs)) {
+			/*
+			 * Reset the BS bit in dr6 (pointed by args->err) to
+			 * denote completion of processing
+			 */
+			(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 			ret = NOTIFY_STOP;
+		}
 		break;
 	case DIE_GPF:
 		/*
