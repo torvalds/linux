@@ -134,7 +134,7 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.icache.ways = 4;
 		boot_cpu_data.dcache.ways = 4;
 		boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_PERF_COUNTER |
-			CPU_HAS_LLSC | CPU_HAS_PTEAEX;
+			CPU_HAS_LLSC | CPU_HAS_PTEAEX | CPU_HAS_L2_CACHE;
 		break;
 	case 0x3008:
 		boot_cpu_data.icache.ways = 4;
@@ -228,43 +228,48 @@ int __init detect_cpu_and_cache_system(void)
 	}
 
 	/*
-	 * Setup the L2 cache desc
-	 *
 	 * SH-4A's have an optional PIPT L2.
 	 */
 	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
-		/* Bug if we can't decode the L2 info */
-		BUG_ON(!(cvr & 0xf));
-
-		/* Silicon and specifications have clearly never met.. */
-		cvr ^= 0xf;
-
 		/*
-		 * Size calculation is much more sensible
-		 * than it is for the L1.
-		 *
-		 * Sizes are 128KB, 258KB, 512KB, and 1MB.
+		 * Verify that it really has something hooked up, this
+		 * is the safety net for CPUs that have optional L2
+		 * support yet do not implement it.
 		 */
-		size = (cvr & 0xf) << 17;
+		if ((cvr & 0xf) == 0)
+			boot_cpu_data.flags &= ~CPU_HAS_L2_CACHE;
+		else {
+			/*
+			 * Silicon and specifications have clearly never
+			 * met..
+			 */
+			cvr ^= 0xf;
 
-		BUG_ON(!size);
+			/*
+			 * Size calculation is much more sensible
+			 * than it is for the L1.
+			 *
+			 * Sizes are 128KB, 258KB, 512KB, and 1MB.
+			 */
+			size = (cvr & 0xf) << 17;
 
-		boot_cpu_data.scache.way_incr		= (1 << 16);
-		boot_cpu_data.scache.entry_shift	= 5;
-		boot_cpu_data.scache.ways		= 4;
-		boot_cpu_data.scache.linesz		= L1_CACHE_BYTES;
+			boot_cpu_data.scache.way_incr		= (1 << 16);
+			boot_cpu_data.scache.entry_shift	= 5;
+			boot_cpu_data.scache.ways		= 4;
+			boot_cpu_data.scache.linesz		= L1_CACHE_BYTES;
 
-		boot_cpu_data.scache.entry_mask	=
-			(boot_cpu_data.scache.way_incr -
-			 boot_cpu_data.scache.linesz);
+			boot_cpu_data.scache.entry_mask	=
+				(boot_cpu_data.scache.way_incr -
+				 boot_cpu_data.scache.linesz);
 
-		boot_cpu_data.scache.sets	= size /
-			(boot_cpu_data.scache.linesz *
-			 boot_cpu_data.scache.ways);
+			boot_cpu_data.scache.sets	= size /
+				(boot_cpu_data.scache.linesz *
+				 boot_cpu_data.scache.ways);
 
-		boot_cpu_data.scache.way_size	=
-			(boot_cpu_data.scache.sets *
-			 boot_cpu_data.scache.linesz);
+			boot_cpu_data.scache.way_size	=
+				(boot_cpu_data.scache.sets *
+				 boot_cpu_data.scache.linesz);
+		}
 	}
 
 	return 0;
