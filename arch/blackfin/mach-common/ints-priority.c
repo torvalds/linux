@@ -1152,23 +1152,22 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561) \
-	|| defined(BF538_FAMILY) || defined(CONFIG_BF51x)
+#if defined(SIC_ISR0) || defined(SICA_ISR0)
 		unsigned long sic_status[3];
 
 		if (smp_processor_id()) {
-#ifdef CONFIG_SMP
+# ifdef SICB_ISR0
 			/* This will be optimized out in UP mode. */
 			sic_status[0] = bfin_read_SICB_ISR0() & bfin_read_SICB_IMASK0();
 			sic_status[1] = bfin_read_SICB_ISR1() & bfin_read_SICB_IMASK1();
-#endif
+# endif
 		} else {
 			sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
 			sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
 		}
-#ifdef CONFIG_BF54x
+# ifdef SIC_ISR2
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-#endif
+# endif
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
 				atomic_inc(&num_spurious);
@@ -1234,14 +1233,14 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 		irq = IRQ_CORETMR;
 
 	} else {
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
+#if defined(SIC_ISR0) || defined(SICA_ISR0)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
 		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
-#ifdef CONFIG_BF54x
+# ifdef SIC_ISR2
 		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
-#endif
+# endif
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
 				atomic_inc(&num_spurious);
