@@ -233,10 +233,10 @@ config DAVINCI_WATCHDOG
 
 config ORION5X_WATCHDOG
 	tristate "Orion5x watchdog"
-	depends on ARCH_ORION5X
+	depends on ARCH_ORION5X || ARCH_KIRKWOOD
 	help
 	  Say Y here if to include support for the watchdog timer
-	  in the Orion5x ARM SoCs.
+	  in the Orion5x and Kirkwood ARM SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called orion5x_wdt.
 

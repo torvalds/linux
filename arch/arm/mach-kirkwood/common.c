@@ -30,6 +30,7 @@
 #include <plat/mvsdio.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
+#include <plat/orion5x_wdt.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -768,6 +769,29 @@ static void __init kirkwood_xor1_init(void)
 
 
 /*****************************************************************************
+ * Watchdog
+ ****************************************************************************/
+static struct orion5x_wdt_platform_data kirkwood_wdt_data = {
+	.tclk		= 0,
+};
+
+static struct platform_device kirkwood_wdt_device = {
+	.name		= "orion5x_wdt",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &kirkwood_wdt_data,
+	},
+	.num_resources	= 0,
+};
+
+static void __init kirkwood_wdt_init(void)
+{
+	kirkwood_wdt_data.tclk = kirkwood_tclk;
+	platform_device_register(&kirkwood_wdt_device);
+}
+
+
+/*****************************************************************************
  * Time handling
  ****************************************************************************/
 int kirkwood_tclk;
@@ -859,6 +883,7 @@ void __init kirkwood_init(void)
 
 	/* internal devices that every board has */
 	kirkwood_rtc_init();
+	kirkwood_wdt_init();
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
 }
