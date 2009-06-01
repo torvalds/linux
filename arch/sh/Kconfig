@@ -174,7 +174,6 @@ config CPU_SH4
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
-	select CPU_HAS_PTEA if !CPU_SH4A || CPU_SHX2
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
 	select SYS_SUPPORTS_TMU
 
