@@ -55,20 +55,36 @@
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
-#define mlx4_dbg(mlevel, priv, format, arg...)	\
-	if (NETIF_MSG_##mlevel & priv->msg_enable) \
-	printk(KERN_DEBUG "%s %s: " format , DRV_NAME ,\
-		(dev_name(&priv->mdev->pdev->dev)) , ## arg)
+#define en_print(level, priv, format, arg...)			\
+	{							\
+	if ((priv)->registered)					\
+		printk(level "%s: %s: " format, DRV_NAME,	\
+			(priv->dev)->name, ## arg);		\
+	else							\
+		printk(level "%s: %s: Port %d: " format,	\
+			DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
+			(priv)->port, ## arg);			\
+	}
+
+#define en_dbg(mlevel, priv, format, arg...)			\
+	{							\
+	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
+		en_print(KERN_DEBUG, priv, format, ## arg)	\
+	}
+#define en_warn(priv, format, arg...)				\
+	en_print(KERN_WARNING, priv, format, ## arg)
+#define en_err(priv, format, arg...)				\
+	en_print(KERN_ERR, priv, format, ## arg)
 
 #define mlx4_err(mdev, format, arg...) \
 	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 #define mlx4_info(mdev, format, arg...) \
 	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 #define mlx4_warn(mdev, format, arg...) \
 	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 
 /*
  * Device constants

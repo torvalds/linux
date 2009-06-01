@@ -68,15 +68,15 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = vmalloc(tmp);
 	if (!ring->tx_info) {
-		mlx4_err(mdev, "Failed allocating tx_info ring\n");
+		en_err(priv, "Failed allocating tx_info ring\n");
 		return -ENOMEM;
 	}
-	mlx4_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
+	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
 
 	ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
 	if (!ring->bounce_buf) {
-		mlx4_err(mdev, "Failed allocating bounce buffer\n");
+		en_err(priv, "Failed allocating bounce buffer\n");
 		err = -ENOMEM;
 		goto err_tx;
 	}
@@ -85,31 +85,31 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size,
 				 2 * PAGE_SIZE);
 	if (err) {
-		mlx4_err(mdev, "Failed allocating hwq resources\n");
+		en_err(priv, "Failed allocating hwq resources\n");
 		goto err_bounce;
 	}
 
 	err = mlx4_en_map_buffer(&ring->wqres.buf);
 	if (err) {
-		mlx4_err(mdev, "Failed to map TX buffer\n");
+		en_err(priv, "Failed to map TX buffer\n");
 		goto err_hwq_res;
 	}
 
 	ring->buf = ring->wqres.buf.direct.buf;
 
-	mlx4_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d "
-		 "buf_size:%d dma:%llx\n", ring, ring->buf, ring->size,
-		 ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
+	en_dbg(DRV, priv, "Allocated TX ring (addr:%p) - buf:%p size:%d "
+	       "buf_size:%d dma:%llx\n", ring, ring->buf, ring->size,
+	       ring->buf_size, (unsigned long long) ring->wqres.buf.direct.map);
 
 	err = mlx4_qp_reserve_range(mdev->dev, 1, 1, &ring->qpn);
 	if (err) {
-		mlx4_err(mdev, "Failed reserving qp for tx ring.\n");
+		en_err(priv, "Failed reserving qp for tx ring.\n");
 		goto err_map;
 	}
 
 	err = mlx4_qp_alloc(mdev->dev, ring->qpn, &ring->qp);
 	if (err) {
-		mlx4_err(mdev, "Failed allocating qp %d\n", ring->qpn);
+		en_err(priv, "Failed allocating qp %d\n", ring->qpn);
 		goto err_reserve;
 	}
 	ring->qp.event = mlx4_en_sqp_event;
@@ -135,7 +135,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
-	mlx4_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
+	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
@@ -274,12 +274,12 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 
 	/* Skip last polled descriptor */
 	ring->cons += ring->last_nr_txbb;
-	mlx4_dbg(DRV, priv, "Freeing Tx buf - cons:0x%x prod:0x%x\n",
+	en_dbg(DRV, priv, "Freeing Tx buf - cons:0x%x prod:0x%x\n",
 		 ring->cons, ring->prod);
 
 	if ((u32) (ring->prod - ring->cons) > ring->size) {
 		if (netif_msg_tx_err(priv))
-			mlx4_warn(priv->mdev, "Tx consumer passed producer!\n");
+			en_warn(priv, "Tx consumer passed producer!\n");
 		return 0;
 	}
 
@@ -292,7 +292,7 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	}
 
 	if (cnt)
-		mlx4_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
+		en_dbg(DRV, priv, "Freed %d uncompleted tx descriptors\n", cnt);
 
 	return cnt;
 }
@@ -321,7 +321,7 @@ void mlx4_en_set_prio_map(struct mlx4_en_priv *priv, u16 *prio_map, u32 ring_num
 			num = 0;
 		}
 		prio_map[prio] = ring;
-		mlx4_dbg(DRV, priv, " prio:%d --> ring:%d\n", prio, ring);
+		en_dbg(DRV, priv, " prio:%d --> ring:%d\n", prio, ring);
 		num++;
 	}
 }
@@ -539,7 +539,6 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 			 int *lso_header_size)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
 	int real_size;
 
 	if (skb_is_gso(skb)) {
@@ -553,14 +552,14 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 				real_size += DS_SIZE;
 			else {
 				if (netif_msg_tx_err(priv))
-					mlx4_warn(mdev, "Non-linear headers\n");
+					en_warn(priv, "Non-linear headers\n");
 				dev_kfree_skb_any(skb);
 				return 0;
 			}
 		}
 		if (unlikely(*lso_header_size > MAX_LSO_HDR_SIZE)) {
 			if (netif_msg_tx_err(priv))
-				mlx4_warn(mdev, "LSO header size too big\n");
+				en_warn(priv, "LSO header size too big\n");
 			dev_kfree_skb_any(skb);
 			return 0;
 		}
@@ -669,7 +668,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	nr_txbb = desc_size / TXBB_SIZE;
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (netif_msg_tx_err(priv))
-			mlx4_warn(mdev, "Oversized header or SG list\n");
+			en_warn(priv, "Oversized header or SG list\n");
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -695,7 +694,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Now that we know what Tx ring to use */
 	if (unlikely(!priv->port_up)) {
 		if (netif_msg_tx_err(priv))
-			mlx4_warn(mdev, "xmit: port down!\n");
+			en_warn(priv, "xmit: port down!\n");
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}

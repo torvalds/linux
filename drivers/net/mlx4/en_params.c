@@ -371,7 +371,7 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 				    priv->prof->rx_pause,
 				    priv->prof->rx_ppp);
 	if (err)
-		mlx4_err(mdev, "Failed setting pause params to\n");
+		en_err(priv, "Failed setting pause params\n");
 
 	return err;
 }
@@ -421,13 +421,13 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 
 	err = mlx4_en_alloc_resources(priv);
 	if (err) {
-		mlx4_err(mdev, "Failed reallocating port resources\n");
+		en_err(priv, "Failed reallocating port resources\n");
 		goto out;
 	}
 	if (port_up) {
 		err = mlx4_en_start_port(dev);
 		if (err)
-			mlx4_err(mdev, "Failed starting port\n");
+			en_err(priv, "Failed starting port\n");
 	}
 
 out:
