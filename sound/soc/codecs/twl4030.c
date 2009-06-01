@@ -1608,9 +1608,15 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 
 	 /* If the substream has 4 channel, do the necessary setup */
 	if (params_channels(params) == 4) {
-		/* Safety check: are we in the correct operating mode? */
-		if ((twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE) &
-			TWL4030_OPTION_1))
+		u8 format, mode;
+
+		format = twl4030_read_reg_cache(codec, TWL4030_REG_AUDIO_IF);
+		mode = twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE);
+
+		/* Safety check: are we in the correct operating mode and
+		 * the interface is in TDM mode? */
+		if ((mode & TWL4030_OPTION_1) &&
+		    ((format & TWL4030_AIF_FORMAT) == TWL4030_AIF_FORMAT_TDM))
 			twl4030_tdm_enable(codec, substream->stream, 1);
 		else
 			return -EINVAL;
