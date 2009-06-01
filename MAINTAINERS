@@ -1542,6 +1542,13 @@ W:	http://www.fi.muni.cz/~kas/cosa/
 S:	Maintained
 F:	drivers/net/wan/cosa*
 
+CPMAC ETHERNET DRIVER
+P:	Florian Fainelli
+M:	florian@openwrt.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/cpmac.c
+
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
 M:	davej@redhat.com
