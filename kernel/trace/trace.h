@@ -15,6 +15,10 @@
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 
+#ifdef CONFIG_KSYM_TRACER
+#include <asm/hw_breakpoint.h>
+#endif
+
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
 
@@ -40,6 +44,7 @@ enum trace_type {
 	TRACE_KMEM_FREE,
 	TRACE_POWER,
 	TRACE_BLK,
+	TRACE_KSYM,
 
 	__TRACE_LAST_TYPE,
 };
@@ -207,6 +212,21 @@ struct syscall_trace_exit {
 	unsigned long		ret;
 };
 
+#define KSYM_SELFTEST_ENTRY "ksym_selftest_dummy"
+extern int process_new_ksym_entry(char *ksymname, int op, unsigned long addr);
+
+struct trace_ksym {
+	struct trace_entry	ent;
+	struct hw_breakpoint	*ksym_hbp;
+	unsigned long		ksym_addr;
+	unsigned long		ip;
+#ifdef CONFIG_PROFILE_KSYM_TRACER
+	unsigned long		counter;
+#endif
+	struct hlist_node	ksym_hlist;
+	char			ksym_name[KSYM_NAME_LEN];
+	char			p_name[TASK_COMM_LEN];
+};
 
 /*
  * trace_flag_type is an enumeration that holds different
@@ -323,6 +343,7 @@ extern void __ftrace_bad_type(void);
 			  TRACE_SYSCALL_ENTER);				\
 		IF_ASSIGN(var, ent, struct syscall_trace_exit,		\
 			  TRACE_SYSCALL_EXIT);				\
+		IF_ASSIGN(var, ent, struct trace_ksym, TRACE_KSYM);	\
 		__ftrace_bad_type();					\
 	} while (0)
 
@@ -540,6 +561,8 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_hw_branches(struct tracer *trace,
 					      struct trace_array *tr);
+extern int trace_selftest_startup_ksym(struct tracer *trace,
+					 struct trace_array *tr);
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
