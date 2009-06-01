@@ -1344,15 +1344,21 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+
+		/* adjust slot time for 5 GHz */
+		err = ar9170_set_slot_time(ar);
+		if (err)
+			goto out;
+
+		err = ar9170_set_dyn_sifs_ack(ar);
+		if (err)
+			goto out;
+
 		err = ar9170_set_channel(ar, hw->conf.channel,
 				AR9170_RFI_NONE,
 				nl80211_to_ar9170(hw->conf.channel_type));
 		if (err)
 			goto out;
-		/* adjust slot time for 5 GHz */
-		if (hw->conf.channel->band == IEEE80211_BAND_5GHZ)
-			err = ar9170_write_reg(ar, AR9170_MAC_REG_SLOT_TIME,
-					       9 << 10);
 	}
 
 out:
@@ -1464,15 +1470,19 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		memcpy(ar->bssid, bss_conf->bssid, ETH_ALEN);
 		err = ar9170_set_operating_mode(ar);
+		if (err)
+			goto out;
 	}
 
 	if (changed & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED)) {
 		err = ar9170_update_beacon(ar);
-		if (!err)
-			ar9170_set_beacon_timers(ar);
-	}
+		if (err)
+			goto out;
 
-	ar9170_regwrite_begin(ar);
+		err = ar9170_set_beacon_timers(ar);
+		if (err)
+			goto out;
+	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		ar->state = bss_conf->assoc ? AR9170_ASSOCIATED : ar->state;
@@ -1483,8 +1493,11 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 #endif /* CONFIG_AR9170_LEDS */
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT)
+	if (changed & BSS_CHANGED_BEACON_INT) {
 		err = ar9170_set_beacon_timers(ar);
+		if (err)
+			goto out;
+	}
 
 	if (changed & BSS_CHANGED_HT) {
 		/* TODO */
@@ -1492,31 +1505,18 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		u32 slottime = 20;
-
-		if (bss_conf->use_short_slot)
-			slottime = 9;
-
-		ar9170_regwrite(AR9170_MAC_REG_SLOT_TIME, slottime << 10);
+		err = ar9170_set_slot_time(ar);
+		if (err)
+			goto out;
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		u32 cck, ofdm;
-
-		if (hw->conf.channel->band == IEEE80211_BAND_5GHZ) {
-			ofdm = bss_conf->basic_rates;
-			cck = 0;
-		} else {
-			/* four cck rates */
-			cck = bss_conf->basic_rates & 0xf;
-			ofdm = bss_conf->basic_rates >> 4;
-		}
-		ar9170_regwrite(AR9170_MAC_REG_BASIC_RATE,
-				ofdm << 8 | cck);
+		err = ar9170_set_basic_rates(ar);
+		if (err)
+			goto out;
 	}
 
-	ar9170_regwrite_finish();
-	err = ar9170_regwrite_result();
+out:
 	mutex_unlock(&ar->mutex);
 }
 

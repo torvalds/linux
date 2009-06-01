@@ -38,6 +38,55 @@
 #include "ar9170.h"
 #include "cmd.h"
 
+int ar9170_set_dyn_sifs_ack(struct ar9170 *ar)
+{
+	u32 val;
+
+	if (conf_is_ht40(&ar->hw->conf))
+		val = 0x010a;
+	else {
+		if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+			val = 0x105;
+		else
+			val = 0x104;
+	}
+
+	return ar9170_write_reg(ar, AR9170_MAC_REG_DYNAMIC_SIFS_ACK, val);
+}
+
+int ar9170_set_slot_time(struct ar9170 *ar)
+{
+	u32 slottime = 20;
+
+	if (!ar->vif)
+		return 0;
+
+	if ((ar->hw->conf.channel->band == IEEE80211_BAND_5GHZ) ||
+	    ar->vif->bss_conf.use_short_slot)
+		slottime = 9;
+
+	return ar9170_write_reg(ar, AR9170_MAC_REG_SLOT_TIME, slottime << 10);
+}
+
+int ar9170_set_basic_rates(struct ar9170 *ar)
+{
+	u8 cck, ofdm;
+
+	if (!ar->vif)
+		return 0;
+
+	ofdm = ar->vif->bss_conf.basic_rates >> 4;
+
+	/* FIXME: is still necessary? */
+	if (ar->hw->conf.channel->band == IEEE80211_BAND_5GHZ)
+		cck = 0;
+	else
+		cck = ar->vif->bss_conf.basic_rates & 0xf;
+
+	return ar9170_write_reg(ar, AR9170_MAC_REG_BASIC_RATE,
+				ofdm << 8 | cck);
+}
+
 int ar9170_set_qos(struct ar9170 *ar)
 {
 	ar9170_regwrite_begin(ar);
