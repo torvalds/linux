@@ -51,6 +51,60 @@ static const char mlx4_en_version[] =
 	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
+#define MLX4_EN_PARM_INT(X, def_val, desc) \
+	static unsigned int X = def_val;\
+	module_param(X , uint, 0444); \
+	MODULE_PARM_DESC(X, desc);
+
+
+/*
+ * Device scope module parameters
+ */
+
+
+/* Use a XOR rathern than Toeplitz hash function for RSS */
+MLX4_EN_PARM_INT(rss_xor, 0, "Use XOR hash function for RSS");
+
+/* RSS hash type mask - default to <saddr, daddr, sport, dport> */
+MLX4_EN_PARM_INT(rss_mask, 0xf, "RSS hash type bitmask");
+
+/* Number of LRO sessions per Rx ring (rounded up to a power of two) */
+MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
+		 "Number of LRO sessions per ring or disabled (0)");
+
+/* Priority pausing */
+MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
+			   " Per priority bit mask");
+MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
+			   " Per priority bit mask");
+
+static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
+{
+	struct mlx4_en_profile *params = &mdev->profile;
+	int i;
+
+	params->rss_xor = (rss_xor != 0);
+	params->rss_mask = rss_mask & 0x1f;
+	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
+	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
+		params->prof[i].rx_pause = 1;
+		params->prof[i].rx_ppp = pfcrx;
+		params->prof[i].tx_pause = 1;
+		params->prof[i].tx_ppp = pfctx;
+		params->prof[i].tx_ring_size = MLX4_EN_DEF_TX_RING_SIZE;
+		params->prof[i].rx_ring_size = MLX4_EN_DEF_RX_RING_SIZE;
+	}
+	if (pfcrx || pfctx) {
+		params->prof[1].tx_ring_num = MLX4_EN_TX_RING_NUM;
+		params->prof[2].tx_ring_num = MLX4_EN_TX_RING_NUM;
+	} else {
+		params->prof[1].tx_ring_num = 1;
+		params->prof[2].tx_ring_num = 1;
+	}
+
+	return 0;
+}
+
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 			  enum mlx4_dev_event event, int port)
 {
