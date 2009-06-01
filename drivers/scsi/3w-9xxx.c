@@ -1978,7 +1978,8 @@ static void twa_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
 
-	scsi_dma_unmap(cmd);
+	if (cmd->SCp.phase == TW_PHASE_SGLIST)
+		scsi_dma_unmap(cmd);
 } /* End twa_unmap_scsi_data() */
 
 /* scsi_host_template initializer */

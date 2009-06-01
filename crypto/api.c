@@ -221,7 +221,8 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 
 		request_module(name);
 
-		if (!((type ^ CRYPTO_ALG_NEED_FALLBACK) & mask) &&
+		if (!((type ^ CRYPTO_ALG_NEED_FALLBACK) & mask &
+		      CRYPTO_ALG_NEED_FALLBACK) &&
 		    snprintf(tmp, sizeof(tmp), "%s-all", name) < sizeof(tmp))
 			request_module(tmp);
 

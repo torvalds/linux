@@ -504,8 +504,11 @@ static void walk_relocs(void (*visit)(Elf32_Rel *rel, Elf32_Sym *sym))
 			if (sym->st_shndx == SHN_ABS) {
 				continue;
 			}
-			if (r_type == R_386_PC32) {
-				/* PC relative relocations don't need to be adjusted */
+			if (r_type == R_386_NONE || r_type == R_386_PC32) {
+				/*
+				 * NONE can be ignored and and PC relative
+				 * relocations don't need to be adjusted.
+				 */
 			}
 			else if (r_type == R_386_32) {
 				/* Visit relocations that need to be adjusted */

@@ -10,7 +10,7 @@
 
 extern unsigned long va_to_phys(unsigned long address);
 extern pte_t *va_to_pte(unsigned long address);
-extern unsigned long ioremap_bot, ioremap_base;
+extern unsigned long ioremap_bot;
 
 #ifdef CONFIG_44x
 extern int icache_44x_need_flush;
@@ -56,8 +56,30 @@ extern int icache_44x_need_flush;
 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
+ * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
+ * value (for now) on others, from where we can start layout kernel
+ * virtual space that goes below PKMAP and FIXMAP
+ */
+#ifdef CONFIG_HIGHMEM
+#define KVIRT_TOP	PKMAP_BASE
+#else
+#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
+#endif
+
+/*
+ * ioremap_bot starts at that address. Early ioremaps move down from there,
+ * until mem_init() at which point this becomes the top of the vmalloc
+ * and ioremap space
+ */
+#ifdef CONFIG_NOT_COHERENT_CACHE
+#define IOREMAP_TOP	((KVIRT_TOP - CONFIG_CONSISTENT_SIZE) & PAGE_MASK)
+#else
+#define IOREMAP_TOP	KVIRT_TOP
+#endif
+
+/*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
- * current 64MB value just means that there will be a 64MB "hole" after the
+ * current 16MB value just means that there will be a 64MB "hole" after the
  * physical memory until the kernel virtual memory starts.  That means that
  * any out-of-bounds memory accesses will hopefully be caught.
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced

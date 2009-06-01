@@ -442,7 +442,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		_ASM_EXTABLE(1b, 4b)
 		_ASM_EXTABLE(2b, 4b)
 
-		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [old] "=&r" (old), [faulted] "=r" (faulted)
 		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
 	);

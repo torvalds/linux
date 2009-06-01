@@ -498,6 +498,19 @@ config PARAVIRT
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
 
+config PARAVIRT_SPINLOCKS
+	bool "Paravirtualization layer for spinlocks"
+	depends on PARAVIRT && SMP && EXPERIMENTAL
+	---help---
+	  Paravirtualized spinlocks allow a pvops backend to replace the
+	  spinlock implementation with something virtualization-friendly
+	  (for example, block the virtual CPU rather than spinning).
+
+	  Unfortunately the downside is an up to 5% performance hit on
+	  native kernels, with various workloads.
+
+	  If you are unsure how to answer this question, answer N.
+
 config PARAVIRT_CLOCK
 	bool
 	default n

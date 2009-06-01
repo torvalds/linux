@@ -168,10 +168,12 @@ static int check_powernow(void)
 	return 1;
 }
 
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 static void invalidate_entry(unsigned int entry)
 {
 	powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
 }
+#endif
 
 static int get_ranges(unsigned char *pst)
 {

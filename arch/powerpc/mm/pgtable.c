@@ -219,7 +219,8 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 		entry = do_dcache_icache_coherency(entry);
 	changed = !pte_same(*(ptep), entry);
 	if (changed) {
-		assert_pte_locked(vma->vm_mm, address);
+		if (!(vma->vm_flags & VM_HUGETLB))
+			assert_pte_locked(vma->vm_mm, address);
 		__ptep_set_access_flags(ptep, entry);
 		flush_tlb_page_nohash(vma, address);
 	}
