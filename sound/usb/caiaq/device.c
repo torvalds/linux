@@ -382,10 +382,10 @@ static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 
 static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 {
-	char *c;
+	char usbpath[32];
 	struct usb_device *usb_dev = dev->chip.dev;
 	struct snd_card *card = dev->chip.card;
-	int err, len;
+	int err;
 
 	if (usb_set_interface(usb_dev, 0, 1) != 0) {
 		log("can't set alt interface.\n");
@@ -424,27 +424,14 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 	usb_string(usb_dev, usb_dev->descriptor.iProduct,
 		   dev->product_name, CAIAQ_USB_STR_LEN);
 
-	usb_string(usb_dev, usb_dev->descriptor.iSerialNumber,
-		   dev->serial, CAIAQ_USB_STR_LEN);
-
-	/* terminate serial string at first white space occurence */
-	c = strchr(dev->serial, ' ');
-	if (c)
-		*c = '\0';
-
 	strlcpy(card->driver, MODNAME, sizeof(card->driver));
 	strlcpy(card->shortname, dev->product_name, sizeof(card->shortname));
 
-	len = snprintf(card->longname, sizeof(card->longname),
-		       "%s %s (serial %s, ",
-		       dev->vendor_name, dev->product_name, dev->serial);
+	usb_make_path(usb_dev, usbpath, sizeof(usbpath));
+	snprintf(card->longname, sizeof(card->longname),
+		       "%s %s (%s)",
+		       dev->vendor_name, dev->product_name, usbpath);
 
-	if (len < sizeof(card->longname) - 2)
-		len += usb_make_path(usb_dev, card->longname + len,
-				     sizeof(card->longname) - len);
-
-	card->longname[len++] = ')';
-	card->longname[len] = '\0';
 	setup_card(dev);
 	return 0;
 }
