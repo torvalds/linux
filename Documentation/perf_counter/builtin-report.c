@@ -5,6 +5,7 @@
 #include "util/cache.h"
 #include "util/rbtree.h"
 #include "util/symbol.h"
+#include "util/string.h"
 
 #include "perf.h"
 

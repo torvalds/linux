@@ -5,6 +5,7 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
+#include "util/string.h"
 
 #include <sched.h>
 
@@ -165,12 +166,10 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 {
 	struct comm_event comm_ev;
 	char filename[PATH_MAX];
-	pid_t spid, ppid;
 	char bf[BUFSIZ];
-	int fd, nr, ret;
-	char comm[18];
+	int fd, ret;
 	size_t size;
-	char state;
+	char *field, *sep;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/stat", pid);
 
@@ -185,20 +184,22 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 	}
 	close(fd);
 
+	/* 9027 (cat) R 6747 9027 6747 34816 9027 ... */
 	memset(&comm_ev, 0, sizeof(comm_ev));
-        nr = sscanf(bf, "%d %s %c %d %d ",
-			&spid, comm, &state, &ppid, &comm_ev.pid);
-	if (nr != 5) {
-		fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
-			filename);
-		exit(EXIT_FAILURE);
-	}
+	field = strchr(bf, '(');
+	if (field == NULL)
+		goto out_failure;
+	sep = strchr(++field, ')');
+	if (sep == NULL)
+		goto out_failure;
+	size = sep - field;
+	memcpy(comm_ev.comm, field, size++);
+	field = strchr(sep + 4, ' ');
+	if (field == NULL)
+		goto out_failure;
+	comm_ev.pid = atoi(++field);
 	comm_ev.header.type = PERF_EVENT_COMM;
 	comm_ev.tid = pid;
-	size = strlen(comm);
-	comm[--size] = '\0'; /* Remove the ')' at the end */
-	--size; /* Remove the '(' at the begin */
-	memcpy(comm_ev.comm, comm + 1, size);
 	size = ALIGN(size, sizeof(uint64_t));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
 
@@ -208,6 +209,11 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 		exit(-1);
 	}
 	return comm_ev.pid;
+out_failure:
+	fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
+		filename);
+	exit(EXIT_FAILURE);
+	return -1;
 }
 
 static void pid_synthesize_mmap_events(pid_t pid, pid_t pgid)
@@ -223,23 +229,25 @@ static void pid_synthesize_mmap_events(pid_t pid, pid_t pgid)
 		exit(EXIT_FAILURE);
 	}
 	while (1) {
-		char bf[BUFSIZ];
-		unsigned char vm_read, vm_write, vm_exec, vm_mayshare;
+		char bf[BUFSIZ], *pbf = bf;
 		struct mmap_event mmap_ev = {
 			.header.type = PERF_EVENT_MMAP,
 		};
-		unsigned long ino;
-		int major, minor;
+		int n;
 		size_t size;
 		if (fgets(bf, sizeof(bf), fp) == NULL)
 			break;
 
 		/* 00400000-0040c000 r-xp 00000000 fd:01 41038  /bin/cat */
-		sscanf(bf, "%llx-%llx %c%c%c%c %llx %x:%x %lu",
-			&mmap_ev.start, &mmap_ev.len,
-                        &vm_read, &vm_write, &vm_exec, &vm_mayshare,
-                        &mmap_ev.pgoff, &major, &minor, &ino);
-		if (vm_exec == 'x') {
+		n = hex2u64(pbf, &mmap_ev.start);
+		if (n < 0)
+			continue;
+		pbf += n + 1;
+		n = hex2u64(pbf, &mmap_ev.len);
+		if (n < 0)
+			continue;
+		pbf += n + 3;
+		if (*pbf == 'x') { /* vm_exec */
 			char *execname = strrchr(bf, ' ');
 
 			if (execname == NULL || execname[1] != '/')

@@ -4,6 +4,7 @@
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
+#include "string.h"
 
 int nr_counters;
 
@@ -105,22 +106,26 @@ static __u64 match_event_symbols(const char *str)
 	__u64 config, id;
 	int type;
 	unsigned int i;
-	char mask_str[4];
+	const char *sep, *pstr;
 
-	if (sscanf(str, "r%llx", &config) == 1)
+	if (str[0] == 'r' && hex2u64(str + 1, &config) > 0)
 		return config | PERF_COUNTER_RAW_MASK;
 
-	switch (sscanf(str, "%d:%llu:%2s", &type, &id, mask_str)) {
-		case 3:
-			if (strchr(mask_str, 'k'))
+	pstr = str;
+	sep = strchr(pstr, ':');
+	if (sep) {
+		type = atoi(pstr);
+		pstr = sep + 1;
+		id = atoi(pstr);
+		sep = strchr(pstr, ':');
+		if (sep) {
+			pstr = sep + 1;
+			if (strchr(pstr, 'k'))
 				event_mask[nr_counters] |= EVENT_MASK_USER;
-			if (strchr(mask_str, 'u'))
+			if (strchr(pstr, 'u'))
 				event_mask[nr_counters] |= EVENT_MASK_KERNEL;
-		case 2:
-			return EID(type, id);
-
-		default:
-			break;
+		}
+		return EID(type, id);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {

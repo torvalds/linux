@@ -1,5 +1,6 @@
 #include "util.h"
 #include "../perf.h"
+#include "string.h"
 #include "symbol.h"
 
 #include <libelf.h>
@@ -122,39 +123,6 @@ size_t dso__fprintf(struct dso *self, FILE *fp)
 	return ret;
 }
 
-static int hex(char ch)
-{
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	return -1;
-}
-
-/*
- * While we find nice hex chars, build a long_val.
- * Return number of chars processed.
- */
-static int hex2long(char *ptr, unsigned long *long_val)
-{
-	const char *p = ptr;
-	*long_val = 0;
-
-	while (*p) {
-		const int hex_val = hex(*p);
-
-		if (hex_val < 0)
-			break;
-
-		*long_val = (*long_val << 4) | hex_val;
-		p++;
-	}
-
-	return p - ptr;
-}
-
 static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter)
 {
 	struct rb_node *nd, *prevnd;
@@ -166,7 +134,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter)
 		goto out_failure;
 
 	while (!feof(file)) {
-		unsigned long start;
+		__u64 start;
 		struct symbol *sym;
 		int line_len, len;
 		char symbol_type;
@@ -180,7 +148,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter)
 
 		line[--line_len] = '\0'; /* \n */
 
-		len = hex2long(line, &start);
+		len = hex2u64(line, &start);
 
 		len++;
 		if (len + 2 >= line_len)
