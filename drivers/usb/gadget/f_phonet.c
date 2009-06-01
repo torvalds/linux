@@ -569,9 +569,10 @@ static struct net_device *dev;
 int __init phonet_bind_config(struct usb_configuration *c)
 {
 	struct f_phonet *fp;
-	int err;
+	int err, size;
 
-	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+	size = sizeof(*fp) + (phonet_rxq_size * sizeof(struct usb_request *));
+	fp = kzalloc(size, GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
 
@@ -596,9 +597,7 @@ int __init gphonet_setup(struct usb_gadget *gadget)
 
 	/* Create net device */
 	BUG_ON(dev);
-	dev = alloc_netdev(sizeof(*port)
-		+ (phonet_rxq_size * sizeof(struct usb_request *)),
-				"upnlink%d", pn_net_setup);
+	dev = alloc_netdev(sizeof(*port), "upnlink%d", pn_net_setup);
 	if (!dev)
 		return -ENOMEM;
 
