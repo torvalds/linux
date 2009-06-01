@@ -2867,20 +2867,56 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 
 }
 
+static int perf_swcounter_is_counting(struct perf_counter *counter)
+{
+	struct perf_counter_context *ctx;
+	unsigned long flags;
+	int count;
+
+	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
+		return 1;
+
+	if (counter->state != PERF_COUNTER_STATE_INACTIVE)
+		return 0;
+
+	/*
+	 * If the counter is inactive, it could be just because
+	 * its task is scheduled out, or because it's in a group
+	 * which could not go on the PMU.  We want to count in
+	 * the first case but not the second.  If the context is
+	 * currently active then an inactive software counter must
+	 * be the second case.  If it's not currently active then
+	 * we need to know whether the counter was active when the
+	 * context was last active, which we can determine by
+	 * comparing counter->tstamp_stopped with ctx->time.
+	 *
+	 * We are within an RCU read-side critical section,
+	 * which protects the existence of *ctx.
+	 */
+	ctx = counter->ctx;
+	spin_lock_irqsave(&ctx->lock, flags);
+	count = 1;
+	/* Re-check state now we have the lock */
+	if (counter->state < PERF_COUNTER_STATE_INACTIVE ||
+	    counter->ctx->is_active ||
+	    counter->tstamp_stopped < ctx->time)
+		count = 0;
+	spin_unlock_irqrestore(&ctx->lock, flags);
+	return count;
+}
+
 static int perf_swcounter_match(struct perf_counter *counter,
 				enum perf_event_types type,
 				u32 event, struct pt_regs *regs)
 {
-	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
+	u64 event_config;
+
+	event_config = ((u64) type << PERF_COUNTER_TYPE_SHIFT) | event;
+
+	if (!perf_swcounter_is_counting(counter))
 		return 0;
 
-	if (perf_event_raw(&counter->hw_event))
-		return 0;
-
-	if (perf_event_type(&counter->hw_event) != type)
-		return 0;
-
-	if (perf_event_id(&counter->hw_event) != event)
+	if (counter->hw_event.config != event_config)
 		return 0;
 
 	if (counter->hw_event.exclude_user && user_mode(regs))
