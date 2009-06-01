@@ -432,8 +432,8 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 	if (c)
 		*c = '\0';
 
-	strcpy(card->driver, MODNAME);
-	strcpy(card->shortname, dev->product_name);
+	strlcpy(card->driver, MODNAME, sizeof(card->driver));
+	strlcpy(card->shortname, dev->product_name, sizeof(card->shortname));
 
 	len = snprintf(card->longname, sizeof(card->longname),
 		       "%s %s (serial %s, ",
