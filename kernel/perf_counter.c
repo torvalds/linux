@@ -2921,11 +2921,13 @@ static int perf_swcounter_match(struct perf_counter *counter,
 	if (counter->hw_event.config != event_config)
 		return 0;
 
-	if (counter->hw_event.exclude_user && user_mode(regs))
-		return 0;
+	if (regs) {
+		if (counter->hw_event.exclude_user && user_mode(regs))
+			return 0;
 
-	if (counter->hw_event.exclude_kernel && !user_mode(regs))
-		return 0;
+		if (counter->hw_event.exclude_kernel && !user_mode(regs))
+			return 0;
+	}
 
 	return 1;
 }
@@ -2935,7 +2937,7 @@ static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
 {
 	int neg = atomic64_add_negative(nr, &counter->hw.count);
 
-	if (counter->hw.irq_period && !neg)
+	if (counter->hw.irq_period && !neg && regs)
 		perf_swcounter_overflow(counter, nmi, regs, addr);
 }
 
@@ -3151,54 +3153,23 @@ static const struct pmu perf_ops_task_clock = {
 /*
  * Software counter: cpu migrations
  */
-
-static inline u64 get_cpu_migrations(struct perf_counter *counter)
+void perf_counter_task_migration(struct task_struct *task, int cpu)
 {
-	struct task_struct *curr = counter->ctx->task;
+	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
+	struct perf_counter_context *ctx;
 
-	if (curr)
-		return curr->se.nr_migrations;
-	return cpu_nr_migrations(smp_processor_id());
+	perf_swcounter_ctx_event(&cpuctx->ctx, PERF_TYPE_SOFTWARE,
+				 PERF_COUNT_CPU_MIGRATIONS,
+				 1, 1, NULL, 0);
+
+	ctx = perf_pin_task_context(task);
+	if (ctx) {
+		perf_swcounter_ctx_event(ctx, PERF_TYPE_SOFTWARE,
+					 PERF_COUNT_CPU_MIGRATIONS,
+					 1, 1, NULL, 0);
+		perf_unpin_context(ctx);
+	}
 }
-
-static void cpu_migrations_perf_counter_update(struct perf_counter *counter)
-{
-	u64 prev, now;
-	s64 delta;
-
-	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_cpu_migrations(counter);
-
-	atomic64_set(&counter->hw.prev_count, now);
-
-	delta = now - prev;
-
-	atomic64_add(delta, &counter->count);
-}
-
-static void cpu_migrations_perf_counter_read(struct perf_counter *counter)
-{
-	cpu_migrations_perf_counter_update(counter);
-}
-
-static int cpu_migrations_perf_counter_enable(struct perf_counter *counter)
-{
-	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
-		atomic64_set(&counter->hw.prev_count,
-			     get_cpu_migrations(counter));
-	return 0;
-}
-
-static void cpu_migrations_perf_counter_disable(struct perf_counter *counter)
-{
-	cpu_migrations_perf_counter_update(counter);
-}
-
-static const struct pmu perf_ops_cpu_migrations = {
-	.enable		= cpu_migrations_perf_counter_enable,
-	.disable	= cpu_migrations_perf_counter_disable,
-	.read		= cpu_migrations_perf_counter_read,
-};
 
 #ifdef CONFIG_EVENT_PROFILE
 void perf_tpcounter_event(int event_id)
@@ -3272,11 +3243,8 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_PAGE_FAULTS_MIN:
 	case PERF_COUNT_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_CONTEXT_SWITCHES:
-		pmu = &perf_ops_generic;
-		break;
 	case PERF_COUNT_CPU_MIGRATIONS:
-		if (!counter->hw_event.exclude_kernel)
-			pmu = &perf_ops_cpu_migrations;
+		pmu = &perf_ops_generic;
 		break;
 	}
 

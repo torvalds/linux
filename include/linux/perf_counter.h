@@ -615,6 +615,8 @@ extern void perf_counter_munmap(unsigned long addr, unsigned long len,
 
 extern void perf_counter_comm(struct task_struct *tsk);
 
+extern void perf_counter_task_migration(struct task_struct *task, int cpu);
+
 #define MAX_STACK_DEPTH		255
 
 struct perf_callchain_entry {
@@ -668,6 +670,8 @@ perf_counter_munmap(unsigned long addr, unsigned long len,
 
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
+static inline void perf_counter_task_migration(struct task_struct *task,
+					       int cpu)			{ }
 #endif
 
 #endif /* __KERNEL__ */
