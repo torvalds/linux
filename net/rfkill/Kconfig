@@ -18,7 +18,7 @@ config RFKILL_LEDS
 	default y
 
 config RFKILL_INPUT
-	bool
+	bool "RF switch input support"
 	depends on RFKILL
 	depends on INPUT = y || RFKILL = INPUT
-	default y
+	default y if !EMBEDDED
