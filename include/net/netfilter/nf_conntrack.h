@@ -144,6 +144,8 @@ static inline u_int8_t nf_ct_protonum(const struct nf_conn *ct)
 	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
 }
 
+#define nf_ct_tuple(ct, dir) (&(ct)->tuplehash[dir].tuple)
+
 /* get master conntrack via master expectation */
 #define master_ct(conntr) (conntr->master)
 
