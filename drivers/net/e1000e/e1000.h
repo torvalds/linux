@@ -96,6 +96,8 @@ struct e1000_info;
 /* Number of packet split data buffers (not including the header buffer) */
 #define PS_PAGE_BUFFERS			(MAX_PS_BUFFERS - 1)
 
+#define DEFAULT_JUMBO			9234
+
 enum e1000_boards {
 	board_82571,
 	board_82572,
@@ -293,6 +295,7 @@ struct e1000_adapter {
 	u32 eeprom_wol;
 	u32 wol;
 	u32 pba;
+	u32 max_hw_frame_size;
 
 	bool fc_autoneg;
 
@@ -309,6 +312,7 @@ struct e1000_info {
 	unsigned int		flags;
 	unsigned int            flags2;
 	u32			pba;
+	u32			max_hw_frame_size;
 	s32			(*get_variants)(struct e1000_adapter *);
 	struct e1000_mac_operations *mac_ops;
 	struct e1000_phy_operations *phy_ops;
