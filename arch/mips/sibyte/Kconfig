@@ -75,6 +75,8 @@ config SIBYTE_SB1xxx_SOC
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
+	select CFE
+	select SYS_HAS_EARLY_PRINTK
 
 choice
 	prompt "SiByte SOC Stepping"
@@ -136,33 +138,13 @@ config SB1_CERR_STALL
 	bool "Stall (rather than panic) on fatal cache error"
 	depends on SIBYTE_SB1xxx_SOC
 
-config SIBYTE_CFE
-	bool "Booting from CFE"
-	depends on SIBYTE_SB1xxx_SOC
-	select CFE
-	select SYS_HAS_EARLY_PRINTK
-	help
-	  Make use of the CFE API for enumerating available memory,
-	  controlling secondary CPUs, and possibly console output.
-
 config SIBYTE_CFE_CONSOLE
 	bool "Use firmware console"
-	depends on SIBYTE_CFE
+	depends on SIBYTE_SB1xxx_SOC
 	help
 	  Use the CFE API's console write routines during boot.  Other console
 	  options (VT console, sb1250 duart console, etc.) should not be
 	  configured.
-
-config SIBYTE_STANDALONE
-	bool
-	depends on SIBYTE_SB1xxx_SOC && !SIBYTE_CFE
-	select SYS_HAS_EARLY_PRINTK
-	default y
-
-config SIBYTE_STANDALONE_RAM_SIZE
-	int "Memory size (in megabytes)"
-	depends on SIBYTE_STANDALONE
-	default "32"
 
 config SIBYTE_BUS_WATCHER
 	bool "Support for Bus Watcher statistics"

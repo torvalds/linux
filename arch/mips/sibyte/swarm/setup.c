@@ -136,16 +136,6 @@ void __init plat_mem_setup(void)
 	if (m41t81_probe())
 		swarm_rtc_type = RTC_M4LT81;
 
-	printk("This kernel optimized for "
-	       "board"
-	       " runs "
-#ifdef CONFIG_SIBYTE_CFE
-	       "with"
-#else
-	       "without"
-#endif
-	       " CFE\n");
-
 #ifdef CONFIG_VT
 	screen_info = (struct screen_info) {
 		0, 0,           /* orig-x, orig-y */
