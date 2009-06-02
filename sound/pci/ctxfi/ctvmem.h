@@ -23,6 +23,14 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 
+/* The chip can handle the page table of 4k pages
+ * (emu20k1 can handle even 8k pages, but we don't use it right now)
+ */
+#define CT_PAGE_SIZE	4096
+#define CT_PAGE_SHIFT	12
+#define CT_PAGE_MASK	(~(PAGE_SIZE - 1))
+#define CT_PAGE_ALIGN(addr)	ALIGN(addr, CT_PAGE_SIZE)
+
 struct ct_vm_block {
 	unsigned int addr;	/* starting logical addr of this block */
 	unsigned int size;	/* size of this device virtual mem block */

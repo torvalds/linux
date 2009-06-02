@@ -1249,18 +1249,14 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 	}
 
 	trnctl = 0x13;  /* 32-bit, 4k-size page */
-#if BITS_PER_LONG == 64
-	ptp_phys_low = info->vm_pgt_phys & ((1UL<<32)-1);
-	ptp_phys_high = (info->vm_pgt_phys>>32) & ((1UL<<32)-1);
-	trnctl |= (1<<2);
-#elif BITS_PER_LONG == 32
-	ptp_phys_low = info->vm_pgt_phys & (~0UL);
-	ptp_phys_high = 0;
-#else
-#	error "Unknown BITS_PER_LONG!"
-#endif
+	ptp_phys_low = (u32)info->vm_pgt_phys;
+	ptp_phys_high = upper_32_bits(info->vm_pgt_phys);
+	if (sizeof(void *) == 8) /* 64bit address */
+		trnctl |= (1 << 2);
+#if 0 /* Only 4k h/w pages for simplicitiy */
 #if PAGE_SIZE == 8192
 	trnctl |= (1<<5);
+#endif
 #endif
 	hw_write_20kx(hw, PTPALX, ptp_phys_low);
 	hw_write_20kx(hw, PTPAHX, ptp_phys_high);

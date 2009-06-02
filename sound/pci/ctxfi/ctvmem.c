@@ -18,12 +18,11 @@
 #include "ctvmem.h"
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <asm/page.h>	/* for PAGE_SIZE macro definition */
 #include <linux/io.h>
 #include <asm/pgtable.h>
 
-#define CT_PTES_PER_PAGE (PAGE_SIZE / sizeof(void *))
-#define CT_ADDRS_PER_PAGE (CT_PTES_PER_PAGE * PAGE_SIZE)
+#define CT_PTES_PER_PAGE (CT_PAGE_SIZE / sizeof(void *))
+#define CT_ADDRS_PER_PAGE (CT_PTES_PER_PAGE * CT_PAGE_SIZE)
 
 /* *
  * Find or create vm block based on requested @size.
@@ -138,24 +137,24 @@ ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
 		return NULL;
 	}
 
-	start_phys = (virt_to_phys(host_addr) & PAGE_MASK);
-	pages = (PAGE_ALIGN(virt_to_phys(host_addr) + size)
-			- start_phys) >> PAGE_SHIFT;
+	start_phys = (virt_to_phys(host_addr) & CT_PAGE_MASK);
+	pages = (CT_PAGE_ALIGN(virt_to_phys(host_addr) + size)
+			- start_phys) >> CT_PAGE_SHIFT;
 
 	ptp = vm->ptp[0];
 
-	block = get_vm_block(vm, (pages << PAGE_SHIFT));
+	block = get_vm_block(vm, (pages << CT_PAGE_SHIFT));
 	if (block == NULL) {
 		printk(KERN_ERR "ctxfi: No virtual memory block that is big "
 				  "enough to allocate!\n");
 		return NULL;
 	}
 
-	pte_start = (block->addr >> PAGE_SHIFT);
+	pte_start = (block->addr >> CT_PAGE_SHIFT);
 	for (i = 0; i < pages; i++)
-		ptp[pte_start+i] = start_phys + (i << PAGE_SHIFT);
+		ptp[pte_start+i] = start_phys + (i << CT_PAGE_SHIFT);
 
-	block->addr += (virt_to_phys(host_addr) & (~PAGE_MASK));
+	block->addr += (virt_to_phys(host_addr) & (~CT_PAGE_MASK));
 	block->size = size;
 
 	return block;
@@ -164,9 +163,9 @@ ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
 static void ct_vm_unmap(struct ct_vm *vm, struct ct_vm_block *block)
 {
 	/* do unmapping */
-	block->size = ((block->addr + block->size + PAGE_SIZE - 1)
-			& PAGE_MASK) - (block->addr & PAGE_MASK);
-	block->addr &= PAGE_MASK;
+	block->size = ((block->addr + block->size + CT_PAGE_SIZE - 1)
+			& CT_PAGE_MASK) - (block->addr & CT_PAGE_MASK);
+	block->addr &= CT_PAGE_MASK;
 	put_vm_block(vm, block);
 }
 
