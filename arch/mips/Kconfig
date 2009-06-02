@@ -593,7 +593,7 @@ config WR_PPMC
 	  board, which is based on GT64120 bridge chip.
 
 config CAVIUM_OCTEON_SIMULATOR
-	bool "Support for the Cavium Networks Octeon Simulator"
+	bool "Cavium Networks Octeon Simulator"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT
@@ -607,7 +607,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	  hardware.
 
 config CAVIUM_OCTEON_REFERENCE_BOARD
-	bool "Support for the Cavium Networks Octeon reference board"
+	bool "Cavium Networks Octeon reference board"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT
