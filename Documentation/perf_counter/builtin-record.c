@@ -1,5 +1,7 @@
-
-
+/*
+ * perf record: Record the profile of a workload (or a CPU, or a PID) into
+ * the perf.data output file - for later analysis via perf report.
+ */
 #include "perf.h"
 #include "builtin.h"
 #include "util/util.h"
@@ -28,6 +30,7 @@ static int			system_wide			= 0;
 static pid_t			target_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
+static int			append_file			= 0;
 
 const unsigned int default_count[] = {
 	1000000,
@@ -385,22 +388,29 @@ static void open_counters(int cpu, pid_t pid)
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
-	pid_t pid;
-	int ret;
 	struct stat st;
+	pid_t pid;
+	int flags;
+	int ret;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
 
-	if (!stat(output_name, &st) && !force) {
-		fprintf(stderr, "Error, output file: %s exists, use -f to overwrite.\n",
+	if (!stat(output_name, &st) && !force && !append_file) {
+		fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
 				output_name);
 		exit(-1);
 	}
 
-	output = open(output_name, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
+	flags = O_CREAT|O_RDWR;
+	if (append_file)
+		flags |= O_APPEND;
+	else
+		flags |= O_TRUNC;
+
+	output = open(output_name, flags, S_IRUSR|S_IWUSR);
 	if (output < 0) {
 		perror("failed to create output file");
 		exit(-1);
@@ -466,22 +476,24 @@ static char events_help_msg[EVENTS_HELP_MAX];
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     events_help_msg, parse_events),
-	OPT_INTEGER('c', "count", &default_interval,
-		    "event period to sample"),
-	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
-		    "number of mmap data pages"),
-	OPT_STRING('o', "output", &output_name, "file",
-		    "output file name"),
-	OPT_BOOLEAN('i', "inherit", &inherit,
-		    "child tasks inherit counters"),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "record events on existing pid"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 			    "system-wide collection from all CPUs"),
+	OPT_BOOLEAN('A', "append", &append_file,
+			    "append to the output file to do incremental profiling"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file"),
+	OPT_INTEGER('c', "count", &default_interval,
+		    "event period to sample"),
+	OPT_STRING('o', "output", &output_name, "file",
+		    "output file name"),
+	OPT_BOOLEAN('i', "inherit", &inherit,
+		    "child tasks inherit counters"),
+	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
+		    "number of mmap data pages"),
 	OPT_END()
 };
 
