@@ -813,6 +813,11 @@ void elv_abort_queue(struct request_queue *q)
 		rq = list_entry_rq(q->queue_head.next);
 		rq->cmd_flags |= REQ_QUIET;
 		trace_block_rq_abort(q, rq);
+		/*
+		 * Mark this request as started so we don't trigger
+		 * any debug logic in the end I/O path.
+		 */
+		blk_start_request(rq);
 		__blk_end_request_all(rq, -EIO);
 	}
 }
