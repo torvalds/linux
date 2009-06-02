@@ -2067,8 +2067,8 @@ __weak struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 struct perf_output_handle {
 	struct perf_counter	*counter;
 	struct perf_mmap_data	*data;
-	unsigned int		offset;
-	unsigned int		head;
+	unsigned long		head;
+	unsigned long		offset;
 	int			nmi;
 	int			overflow;
 	int			locked;
@@ -2122,7 +2122,8 @@ static void perf_output_lock(struct perf_output_handle *handle)
 static void perf_output_unlock(struct perf_output_handle *handle)
 {
 	struct perf_mmap_data *data = handle->data;
-	int head, cpu;
+	unsigned long head;
+	int cpu;
 
 	data->done_head = data->head;
 
@@ -2135,7 +2136,7 @@ again:
 	 * before we publish the new head, matched by a rmb() in userspace when
 	 * reading this position.
 	 */
-	while ((head = atomic_xchg(&data->done_head, 0)))
+	while ((head = atomic_long_xchg(&data->done_head, 0)))
 		data->user_page->data_head = head;
 
 	/*
@@ -2148,7 +2149,7 @@ again:
 	/*
 	 * Therefore we have to validate we did not indeed do so.
 	 */
-	if (unlikely(atomic_read(&data->done_head))) {
+	if (unlikely(atomic_long_read(&data->done_head))) {
 		/*
 		 * Since we had it locked, we can lock it again.
 		 */
@@ -2195,7 +2196,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	do {
 		offset = head = atomic_read(&data->head);
 		head += size;
-	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
+	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
 
 	handle->offset	= offset;
 	handle->head	= head;
@@ -2246,7 +2247,7 @@ static void perf_output_copy(struct perf_output_handle *handle,
 	 * Check we didn't copy past our reservation window, taking the
 	 * possible unsigned int wrap into account.
 	 */
-	WARN_ON_ONCE(((int)(handle->head - handle->offset)) < 0);
+	WARN_ON_ONCE(((long)(handle->head - handle->offset)) < 0);
 }
 
 #define perf_output_put(handle, x) \

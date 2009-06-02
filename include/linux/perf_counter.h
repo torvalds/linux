@@ -212,7 +212,7 @@ struct perf_counter_mmap_page {
 	 * User-space reading this value should issue an rmb(), on SMP capable
 	 * platforms, after reading this value -- see perf_counter_wakeup().
 	 */
-	__u32   data_head;		/* head in the data section */
+	__u64   data_head;		/* head in the data section */
 };
 
 #define PERF_EVENT_MISC_CPUMODE_MASK	(3 << 0)
@@ -397,10 +397,11 @@ struct perf_mmap_data {
 	int				nr_locked;	/* nr pages mlocked  */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
-	atomic_t			head;		/* write position    */
 	atomic_t			events;		/* event limit       */
 
-	atomic_t			done_head;	/* completed head    */
+	atomic_long_t			head;		/* write position    */
+	atomic_long_t			done_head;	/* completed head    */
+
 	atomic_t			lock;		/* concurrent writes */
 
 	atomic_t			wakeup;		/* needs a wakeup    */
