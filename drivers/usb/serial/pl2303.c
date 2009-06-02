@@ -878,7 +878,7 @@ static void pl2303_break_ctl(struct tty_struct *tty, int break_state)
 		dbg("%s - error sending break = %d", __func__, result);
 }
 
-static void pl2303_shutdown(struct usb_serial *serial)
+static void pl2303_release(struct usb_serial *serial)
 {
 	int i;
 	struct pl2303_private *priv;
@@ -890,7 +890,6 @@ static void pl2303_shutdown(struct usb_serial *serial)
 		if (priv) {
 			pl2303_buf_free(priv->buf);
 			kfree(priv);
-			usb_set_serial_port_data(serial->port[i], NULL);
 		}
 	}
 }
@@ -1123,7 +1122,7 @@ static struct usb_serial_driver pl2303_device = {
 	.write_room =		pl2303_write_room,
 	.chars_in_buffer =	pl2303_chars_in_buffer,
 	.attach =		pl2303_startup,
-	.shutdown =		pl2303_shutdown,
+	.release =		pl2303_release,
 };
 
 static int __init pl2303_init(void)

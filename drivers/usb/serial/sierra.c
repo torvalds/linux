@@ -814,7 +814,7 @@ static int sierra_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void sierra_shutdown(struct usb_serial *serial)
+static void sierra_disconnect(struct usb_serial *serial)
 {
 	int i;
 	struct usb_serial_port *port;
@@ -853,7 +853,7 @@ static struct usb_serial_driver sierra_device = {
 	.tiocmget          = sierra_tiocmget,
 	.tiocmset          = sierra_tiocmset,
 	.attach            = sierra_startup,
-	.shutdown          = sierra_shutdown,
+	.disconnect        = sierra_disconnect,
 	.read_int_callback = sierra_instat_callback,
 };
 

@@ -63,7 +63,8 @@ struct usb_serial_driver usb_serial_generic_device = {
 	.id_table =		generic_device_ids,
 	.usb_driver = 		&generic_driver,
 	.num_ports =		1,
-	.shutdown =		usb_serial_generic_shutdown,
+	.disconnect =		usb_serial_generic_disconnect,
+	.release =		usb_serial_generic_release,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
 	.resume =		usb_serial_generic_resume,
@@ -551,7 +552,7 @@ int usb_serial_handle_break(struct usb_serial_port *port)
 }
 EXPORT_SYMBOL_GPL(usb_serial_handle_break);
 
-void usb_serial_generic_shutdown(struct usb_serial *serial)
+void usb_serial_generic_disconnect(struct usb_serial *serial)
 {
 	int i;
 
@@ -562,3 +563,7 @@ void usb_serial_generic_shutdown(struct usb_serial *serial)
 		generic_cleanup(serial->port[i]);
 }
 
+void usb_serial_generic_release(struct usb_serial *serial)
+{
+	dbg("%s", __func__);
+}

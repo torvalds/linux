@@ -141,6 +141,14 @@ static void destroy_serial(struct kref *kref)
 	if (serial->minor != SERIAL_TTY_NO_MINOR)
 		return_serial(serial);
 
+	serial->type->release(serial);
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		if (port)
+			put_device(&port->dev);
+	}
+
 	/* If this is a "fake" port, we have to clean it up here, as it will
 	 * not get cleaned up in port_release() as it was never registered with
 	 * the driver core */
@@ -148,9 +156,8 @@ static void destroy_serial(struct kref *kref)
 		for (i = serial->num_ports;
 					i < serial->num_port_pointers; ++i) {
 			port = serial->port[i];
-			if (!port)
-				continue;
-			port_free(port);
+			if (port)
+				port_free(port);
 		}
 	}
 
@@ -1118,10 +1125,6 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	serial->disconnected = 1;
 	mutex_unlock(&serial->disc_mutex);
 
-	/* Unfortunately, many of the sub-drivers expect the port structures
-	 * to exist when their shutdown method is called, so we have to go
-	 * through this awkward two-step unregistration procedure.
-	 */
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port) {
@@ -1153,14 +1156,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 			}
 		}
 	}
-	serial->type->shutdown(serial);
-	for (i = 0; i < serial->num_ports; ++i) {
-		port = serial->port[i];
-		if (port) {
-			put_device(&port->dev);
-			serial->port[i] = NULL;
-		}
-	}
+	serial->type->disconnect(serial);
 
 	/* let the last holder of this object
 	 * cause it to be cleaned up */
@@ -1338,7 +1334,8 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, chars_in_buffer);
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
-	set_to_generic_if_null(device, shutdown);
+	set_to_generic_if_null(device, disconnect);
+	set_to_generic_if_null(device, release);
 }
 
 int usb_serial_register(struct usb_serial_driver *driver)

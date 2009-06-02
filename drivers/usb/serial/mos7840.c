@@ -2633,16 +2633,16 @@ error:
 }
 
 /****************************************************************************
- * mos7840_shutdown
+ * mos7840_disconnect
  *	This function is called whenever the device is removed from the usb bus.
  ****************************************************************************/
 
-static void mos7840_shutdown(struct usb_serial *serial)
+static void mos7840_disconnect(struct usb_serial *serial)
 {
 	int i;
 	unsigned long flags;
 	struct moschip_port *mos7840_port;
-	dbg("%s", " shutdown :entering..........");
+	dbg("%s", " disconnect :entering..........");
 
 	if (!serial) {
 		dbg("%s", "Invalid Handler");
@@ -2662,11 +2662,42 @@ static void mos7840_shutdown(struct usb_serial *serial)
 			mos7840_port->zombie = 1;
 			spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 			usb_kill_urb(mos7840_port->control_urb);
+		}
+	}
+
+	dbg("%s", "Thank u :: ");
+
+}
+
+/****************************************************************************
+ * mos7840_release
+ *	This function is called when the usb_serial structure is freed.
+ ****************************************************************************/
+
+static void mos7840_release(struct usb_serial *serial)
+{
+	int i;
+	struct moschip_port *mos7840_port;
+	dbg("%s", " release :entering..........");
+
+	if (!serial) {
+		dbg("%s", "Invalid Handler");
+		return;
+	}
+
+	/* check for the ports to be closed,close the ports and disconnect */
+
+	/* free private structure allocated for serial port  *
+	 * stop reads and writes on all ports                */
+
+	for (i = 0; i < serial->num_ports; ++i) {
+		mos7840_port = mos7840_get_port_private(serial->port[i]);
+		dbg("mos7840_port %d = %p", i, mos7840_port);
+		if (mos7840_port) {
 			kfree(mos7840_port->ctrl_buf);
 			kfree(mos7840_port->dr);
 			kfree(mos7840_port);
 		}
-		mos7840_set_port_private(serial->port[i], NULL);
 	}
 
 	dbg("%s", "Thank u :: ");
@@ -2707,7 +2738,8 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.tiocmget = mos7840_tiocmget,
 	.tiocmset = mos7840_tiocmset,
 	.attach = mos7840_startup,
-	.shutdown = mos7840_shutdown,
+	.disconnect = mos7840_disconnect,
+	.release = mos7840_release,
 	.read_bulk_callback = mos7840_bulk_in_callback,
 	.read_int_callback = mos7840_interrupt_callback,
 };
