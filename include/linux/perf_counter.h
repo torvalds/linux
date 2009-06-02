@@ -94,18 +94,18 @@ enum sw_event_ids {
 #define PERF_COUNTER_EVENT_MASK		__PERF_COUNTER_MASK(EVENT)
 
 /*
- * Bits that can be set in hw_event.record_type to request information
+ * Bits that can be set in hw_event.sample_type to request information
  * in the overflow packets.
  */
-enum perf_counter_record_format {
-	PERF_RECORD_IP			= 1U << 0,
-	PERF_RECORD_TID			= 1U << 1,
-	PERF_RECORD_TIME		= 1U << 2,
-	PERF_RECORD_ADDR		= 1U << 3,
-	PERF_RECORD_GROUP		= 1U << 4,
-	PERF_RECORD_CALLCHAIN		= 1U << 5,
-	PERF_RECORD_CONFIG		= 1U << 6,
-	PERF_RECORD_CPU			= 1U << 7,
+enum perf_counter_sample_format {
+	PERF_SAMPLE_IP			= 1U << 0,
+	PERF_SAMPLE_TID			= 1U << 1,
+	PERF_SAMPLE_TIME		= 1U << 2,
+	PERF_SAMPLE_ADDR		= 1U << 3,
+	PERF_SAMPLE_GROUP		= 1U << 4,
+	PERF_SAMPLE_CALLCHAIN		= 1U << 5,
+	PERF_SAMPLE_CONFIG		= 1U << 6,
+	PERF_SAMPLE_CPU			= 1U << 7,
 };
 
 /*
@@ -132,12 +132,12 @@ struct perf_counter_hw_event {
 	__u64			config;
 
 	union {
-		__u64		irq_period;
-		__u64		irq_freq;
+		__u64		sample_period;
+		__u64		sample_freq;
 	};
 
-	__u32			record_type;
-	__u32			read_format;
+	__u64			sample_type;
+	__u64			read_format;
 
 	__u64			disabled       :  1, /* off by default        */
 				nmi	       :  1, /* NMI sampling          */
@@ -262,7 +262,7 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u64				time;
-	 *	u64				irq_period;
+	 *	u64				sample_period;
 	 * };
 	 */
 	PERF_EVENT_PERIOD		= 4,
@@ -363,7 +363,7 @@ struct hw_perf_counter {
 		};
 	};
 	atomic64_t			prev_count;
-	u64				irq_period;
+	u64				sample_period;
 	atomic64_t			period_left;
 	u64				interrupts;
 #endif

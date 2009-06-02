@@ -535,7 +535,7 @@ void hw_perf_enable(void)
 			continue;
 		}
 		val = 0;
-		if (counter->hw.irq_period) {
+		if (counter->hw.sample_period) {
 			left = atomic64_read(&counter->hw.period_left);
 			if (left < 0x80000000L)
 				val = 0x80000000L - left;
@@ -749,12 +749,12 @@ static void power_pmu_unthrottle(struct perf_counter *counter)
 	s64 val, left;
 	unsigned long flags;
 
-	if (!counter->hw.idx || !counter->hw.irq_period)
+	if (!counter->hw.idx || !counter->hw.sample_period)
 		return;
 	local_irq_save(flags);
 	perf_disable();
 	power_pmu_read(counter);
-	left = counter->hw.irq_period;
+	left = counter->hw.sample_period;
 	val = 0;
 	if (left < 0x80000000L)
 		val = 0x80000000L - left;
@@ -789,7 +789,7 @@ static int can_go_on_limited_pmc(struct perf_counter *counter, u64 ev,
 	if (counter->hw_event.exclude_user
 	    || counter->hw_event.exclude_kernel
 	    || counter->hw_event.exclude_hv
-	    || counter->hw_event.irq_period)
+	    || counter->hw_event.sample_period)
 		return 0;
 
 	if (ppmu->limited_pmc_event(ev))
@@ -925,7 +925,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	counter->hw.config = events[n];
 	counter->hw.counter_base = cflags[n];
-	atomic64_set(&counter->hw.period_left, counter->hw.irq_period);
+	atomic64_set(&counter->hw.period_left, counter->hw.sample_period);
 
 	/*
 	 * See if we need to reserve the PMU.
@@ -958,7 +958,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 static void record_and_restart(struct perf_counter *counter, long val,
 			       struct pt_regs *regs, int nmi)
 {
-	u64 period = counter->hw.irq_period;
+	u64 period = counter->hw.sample_period;
 	s64 prev, delta, left;
 	int record = 0;
 	u64 addr, mmcra, sdsync;
