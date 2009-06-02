@@ -2348,8 +2348,13 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if (hw->fc.requested_mode == e1000_fc_default)
-		hw->fc.requested_mode = e1000_fc_full;
+	if (hw->fc.requested_mode == e1000_fc_default) {
+		/* Workaround h/w hang when Tx flow control enabled */
+		if (hw->mac.type == e1000_pchlan)
+			hw->fc.requested_mode = e1000_fc_rx_pause;
+		else
+			hw->fc.requested_mode = e1000_fc_full;
+	}
 
 	/*
 	 * Save off the requested flow control mode for use later.  Depending
