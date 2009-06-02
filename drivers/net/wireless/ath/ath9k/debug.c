@@ -49,8 +49,9 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	char buf[32];
-	unsigned int len = 0;
-	len += snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.debug_mask);
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.debug_mask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -60,12 +61,17 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	unsigned long mask;
 	char buf[32];
-	if (copy_from_user(buf, user_buf, (sizeof(buf) - 1) < count ?
-		(sizeof(buf) - 1) : count))
-		return 0;
-	buf[sizeof(buf)-1] = 0;
-	if (strict_strtoul(buf, 0, &mask) == 0)
-		sc->debug.debug_mask = mask;
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	sc->debug.debug_mask = mask;
 	return count;
 }
 
