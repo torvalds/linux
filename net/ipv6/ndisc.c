@@ -465,8 +465,8 @@ struct sk_buff *ndisc_build_skb(struct net_device *dev,
 				  1, &err);
 	if (!skb) {
 		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 ND: %s() failed to allocate an skb.\n",
-			   __func__);
+			   "ICMPv6 ND: %s() failed to allocate an skb, err=%d.\n",
+			   __func__, err);
 		return NULL;
 	}
 
@@ -1562,8 +1562,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 				   1, &err);
 	if (buff == NULL) {
 		ND_PRINTK0(KERN_ERR
-			   "ICMPv6 Redirect: %s() failed to allocate an skb.\n",
-			   __func__);
+			   "ICMPv6 Redirect: %s() failed to allocate an skb, err=%d.\n",
+			   __func__, err);
 		goto release;
 	}
 
