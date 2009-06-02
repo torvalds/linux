@@ -757,13 +757,11 @@ enum wiphy_params_flags {
  * @TX_POWER_AUTOMATIC: the dbm parameter is ignored
  * @TX_POWER_LIMITED: limit TX power by the dbm parameter
  * @TX_POWER_FIXED: fix TX power to the dbm parameter
- * @TX_POWER_OFF: turn off completely (will go away)
  */
 enum tx_power_setting {
 	TX_POWER_AUTOMATIC,
 	TX_POWER_LIMITED,
 	TX_POWER_FIXED,
-	TX_POWER_OFF,
 };
 
 /**
@@ -855,8 +853,10 @@ enum tx_power_setting {
  *
  * @set_tx_power: set the transmit power according to the parameters
  * @get_tx_power: store the current TX power into the dbm variable;
- *	return 0 if successful; or -ENETDOWN if successful but power
- *	is disabled (this will go away)
+ *	return 0 if successful
+ *
+ * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
+ *	functions to adjust rfkill hw state
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -952,6 +952,8 @@ struct cfg80211_ops {
 	int	(*set_tx_power)(struct wiphy *wiphy,
 				enum tx_power_setting type, int dbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
+
+	void	(*rfkill_poll)(struct wiphy *wiphy);
 };
 
 /*
@@ -1665,5 +1667,24 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
  * always a scan result for this IBSS. cfg80211 will handle the rest.
  */
 void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
+
+/**
+ * wiphy_rfkill_set_hw_state - notify cfg80211 about hw block state
+ * @wiphy: the wiphy
+ * @blocked: block status
+ */
+void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked);
+
+/**
+ * wiphy_rfkill_start_polling - start polling rfkill
+ * @wiphy: the wiphy
+ */
+void wiphy_rfkill_start_polling(struct wiphy *wiphy);
+
+/**
+ * wiphy_rfkill_stop_polling - stop polling rfkill
+ * @wiphy: the wiphy
+ */
+void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
 
 #endif /* __NET_CFG80211_H */

@@ -973,7 +973,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (local->open_count) {
 		res = drv_start(local);
 
-		ieee80211_led_radio(local, hw->conf.radio_enabled);
+		ieee80211_led_radio(local, true);
 	}
 
 	/* add interfaces */

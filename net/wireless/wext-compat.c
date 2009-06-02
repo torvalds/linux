@@ -764,6 +764,8 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 
 	/* only change when not disabling */
 	if (!data->txpower.disabled) {
+		rfkill_set_sw_state(rdev->rfkill, false);
+
 		if (data->txpower.fixed) {
 			/*
 			 * wext doesn't support negative values, see
@@ -787,7 +789,9 @@ int cfg80211_wext_siwtxpower(struct net_device *dev,
 			}
 		}
 	} else {
-		type = TX_POWER_OFF;
+		rfkill_set_sw_state(rdev->rfkill, true);
+		schedule_work(&rdev->rfkill_sync);
+		return 0;
 	}
 
 	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);;
@@ -811,13 +815,12 @@ int cfg80211_wext_giwtxpower(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	err = rdev->ops->get_tx_power(wdev->wiphy, &val);
-	/* HACK!!! */
-	if (err && err != -ENETDOWN)
+	if (err)
 		return err;
 
 	/* well... oh well */
 	data->txpower.fixed = 1;
-	data->txpower.disabled = err == -ENETDOWN;
+	data->txpower.disabled = rfkill_blocked(rdev->rfkill);
 	data->txpower.value = val;
 	data->txpower.flags = IW_TXPOW_DBM;
 

@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/rtnetlink.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "nl80211.h"
@@ -227,6 +228,41 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
+static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
+{
+	struct cfg80211_registered_device *drv = data;
+
+	drv->ops->rfkill_poll(&drv->wiphy);
+}
+
+static int cfg80211_rfkill_set_block(void *data, bool blocked)
+{
+	struct cfg80211_registered_device *drv = data;
+	struct wireless_dev *wdev;
+
+	if (!blocked)
+		return 0;
+
+	rtnl_lock();
+	mutex_lock(&drv->devlist_mtx);
+
+	list_for_each_entry(wdev, &drv->netdev_list, list)
+		dev_close(wdev->netdev);
+
+	mutex_unlock(&drv->devlist_mtx);
+	rtnl_unlock();
+
+	return 0;
+}
+
+static void cfg80211_rfkill_sync_work(struct work_struct *work)
+{
+	struct cfg80211_registered_device *drv;
+
+	drv = container_of(work, struct cfg80211_registered_device, rfkill_sync);
+	cfg80211_rfkill_set_block(drv, rfkill_blocked(drv->rfkill));
+}
+
 /* exported functions */
 
 struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
@@ -273,6 +309,18 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	device_initialize(&drv->wiphy.dev);
 	drv->wiphy.dev.class = &ieee80211_class;
 	drv->wiphy.dev.platform_data = drv;
+
+	drv->rfkill_ops.set_block = cfg80211_rfkill_set_block;
+	drv->rfkill = rfkill_alloc(dev_name(&drv->wiphy.dev),
+				   &drv->wiphy.dev, RFKILL_TYPE_WLAN,
+				   &drv->rfkill_ops, drv);
+
+	if (!drv->rfkill) {
+		kfree(drv);
+		return NULL;
+	}
+
+	INIT_WORK(&drv->rfkill_sync, cfg80211_rfkill_sync_work);
 
 	/*
 	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
@@ -356,6 +404,10 @@ int wiphy_register(struct wiphy *wiphy)
 	if (res)
 		goto out_unlock;
 
+	res = rfkill_register(drv->rfkill);
+	if (res)
+		goto out_rm_dev;
+
 	list_add(&drv->list, &cfg80211_drv_list);
 
 	/* add to debugfs */
@@ -379,15 +431,40 @@ int wiphy_register(struct wiphy *wiphy)
 	cfg80211_debugfs_drv_add(drv);
 
 	res = 0;
-out_unlock:
+	goto out_unlock;
+
+ out_rm_dev:
+	device_del(&drv->wiphy.dev);
+ out_unlock:
 	mutex_unlock(&cfg80211_mutex);
 	return res;
 }
 EXPORT_SYMBOL(wiphy_register);
 
+void wiphy_rfkill_start_polling(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+
+	if (!drv->ops->rfkill_poll)
+		return;
+	drv->rfkill_ops.poll = cfg80211_rfkill_poll;
+	rfkill_resume_polling(drv->rfkill);
+}
+EXPORT_SYMBOL(wiphy_rfkill_start_polling);
+
+void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+
+	rfkill_pause_polling(drv->rfkill);
+}
+EXPORT_SYMBOL(wiphy_rfkill_stop_polling);
+
 void wiphy_unregister(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+
+	rfkill_unregister(drv->rfkill);
 
 	/* protect the device list */
 	mutex_lock(&cfg80211_mutex);
@@ -425,6 +502,7 @@ EXPORT_SYMBOL(wiphy_unregister);
 void cfg80211_dev_free(struct cfg80211_registered_device *drv)
 {
 	struct cfg80211_internal_bss *scan, *tmp;
+	rfkill_destroy(drv->rfkill);
 	mutex_destroy(&drv->mtx);
 	mutex_destroy(&drv->devlist_mtx);
 	list_for_each_entry_safe(scan, tmp, &drv->bss_list, list)
@@ -438,6 +516,15 @@ void wiphy_free(struct wiphy *wiphy)
 }
 EXPORT_SYMBOL(wiphy_free);
 
+void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked)
+{
+	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
+
+	if (rfkill_set_hw_state(drv->rfkill, blocked))
+		schedule_work(&drv->rfkill_sync);
+}
+EXPORT_SYMBOL(wiphy_rfkill_set_hw_state);
+
 static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 					 unsigned long state,
 					 void *ndev)
@@ -446,7 +533,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	struct cfg80211_registered_device *rdev;
 
 	if (!dev->ieee80211_ptr)
-		return 0;
+		return NOTIFY_DONE;
 
 	rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
 
@@ -492,9 +579,13 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		}
 		mutex_unlock(&rdev->devlist_mtx);
 		break;
+	case NETDEV_PRE_UP:
+		if (rfkill_blocked(rdev->rfkill))
+			return notifier_from_errno(-ERFKILL);
+		break;
 	}
 
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block cfg80211_netdev_notifier = {

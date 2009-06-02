@@ -11,6 +11,8 @@
 #include <linux/kref.h>
 #include <linux/rbtree.h>
 #include <linux/debugfs.h>
+#include <linux/rfkill.h>
+#include <linux/workqueue.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "reg.h"
@@ -23,6 +25,11 @@ struct cfg80211_registered_device {
 	 * to avoid the deregister call to proceed while
 	 * any call is in progress */
 	struct mutex mtx;
+
+	/* rfkill support */
+	struct rfkill_ops rfkill_ops;
+	struct rfkill *rfkill;
+	struct work_struct rfkill_sync;
 
 	/* ISO / IEC 3166 alpha2 for which this device is receiving
 	 * country IEs on, this can help disregard country IEs from APs

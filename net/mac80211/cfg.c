@@ -1340,7 +1340,6 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_channel *chan = local->hw.conf.channel;
 	u32 changes = 0;
-	bool radio_enabled = true;
 
 	switch (type) {
 	case TX_POWER_AUTOMATIC:
@@ -1359,14 +1358,6 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 			return -EINVAL;
 		local->user_power_level = dbm;
 		break;
-	case TX_POWER_OFF:
-		radio_enabled = false;
-		break;
-	}
-
-	if (radio_enabled != local->hw.conf.radio_enabled) {
-		changes |= IEEE80211_CONF_CHANGE_RADIO_ENABLED;
-		local->hw.conf.radio_enabled = radio_enabled;
 	}
 
 	ieee80211_hw_config(local, changes);
@@ -1380,10 +1371,14 @@ static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
 
 	*dbm = local->hw.conf.power_level;
 
-	if (!local->hw.conf.radio_enabled)
-		return -ENETDOWN;
-
 	return 0;
+}
+
+static void ieee80211_rfkill_poll(struct wiphy *wiphy)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	drv_rfkill_poll(local);
 }
 
 struct cfg80211_ops mac80211_config_ops = {
@@ -1427,4 +1422,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.set_wiphy_params = ieee80211_set_wiphy_params,
 	.set_tx_power = ieee80211_set_tx_power,
 	.get_tx_power = ieee80211_get_tx_power,
+	.rfkill_poll = ieee80211_rfkill_poll,
 };

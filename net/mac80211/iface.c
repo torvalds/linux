@@ -170,7 +170,7 @@ static int ieee80211_open(struct net_device *dev)
 			goto err_del_bss;
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
-		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
+		ieee80211_led_radio(local, true);
 	}
 
 	/*
@@ -560,7 +560,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 		drv_stop(local);
 
-		ieee80211_led_radio(local, 0);
+		ieee80211_led_radio(local, false);
 
 		flush_workqueue(local->hw.workqueue);
 
