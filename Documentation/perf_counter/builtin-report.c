@@ -653,8 +653,10 @@ static int __cmd_report(void)
 			return EXIT_FAILURE;
 		}
 		cwdlen = strlen(cwd);
-	} else
+	} else {
 		cwdp = NULL;
+		cwdlen = 0;
+	}
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
