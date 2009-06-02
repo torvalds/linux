@@ -95,7 +95,7 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "  Threshold APIC interrupts\n");
 # endif
 #endif
-#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_64)
+#ifdef CONFIG_X86_NEW_MCE
 	seq_printf(p, "%*s: ", prec, "MCE");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(mce_exception_count, j));
@@ -172,9 +172,6 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 {
 	u64 sum = irq_stats(cpu)->__nmi_count;
 
-#if defined(CONFIG_X86_MCE) && defined(CONFIG_X86_64)
-	sum += per_cpu(mce_exception_count, cpu);
-#endif
 #ifdef CONFIG_X86_LOCAL_APIC
 	sum += irq_stats(cpu)->apic_timer_irqs;
 	sum += irq_stats(cpu)->irq_spurious_count;
@@ -191,6 +188,10 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 # ifdef CONFIG_X86_MCE_THRESHOLD
 	sum += irq_stats(cpu)->irq_threshold_count;
 # endif
+#endif
+#ifdef CONFIG_X86_NEW_MCE
+	sum += per_cpu(mce_exception_count, cpu);
+	sum += per_cpu(mce_poll_count, cpu);
 #endif
 	return sum;
 }
