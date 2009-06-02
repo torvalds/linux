@@ -1,0 +1,33 @@
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/model
+Date:		March 2009
+Kernel Version: 2.6.30
+Contact:	iss_storagedev@hp.com
+Description:	Displays the SCSI INQUIRY page 0 model for logical drive
+		Y of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/rev
+Date:		March 2009
+Kernel Version: 2.6.30
+Contact:	iss_storagedev@hp.com
+Description:	Displays the SCSI INQUIRY page 0 revision for logical
+		drive Y of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/unique_id
+Date:		March 2009
+Kernel Version: 2.6.30
+Contact:	iss_storagedev@hp.com
+Description:	Displays the SCSI INQUIRY page 83 serial number for logical
+		drive Y of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/vendor
+Date:		March 2009
+Kernel Version: 2.6.30
+Contact:	iss_storagedev@hp.com
+Description:	Displays the SCSI INQUIRY page 0 vendor for logical drive
+		Y of controller X.
+
+Where:		/sys/bus/pci/devices/<dev>/ccissX/cXdY/block:cciss!cXdY
+Date:		March 2009
+Kernel Version: 2.6.30
+Contact:	iss_storagedev@hp.com
+Description:	A symbolic link to /sys/block/cciss!cXdY
