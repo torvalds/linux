@@ -658,6 +658,52 @@ static void mxc_nand_select_chip(struct mtd_info *mtd, int chip)
 	}
 }
 
+static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
+
+	/* Write out column address, if necessary */
+	if (column != -1) {
+		/*
+		 * MXC NANDFC can only perform full page+spare or
+		 * spare-only read/write.  When the upper layers
+		 * layers perform a read/write buf operation,
+		 * we will used the saved column adress to index into
+		 * the full page.
+		 */
+		send_addr(host, 0, page_addr == -1);
+		if (host->pagesize_2k)
+			/* another col addr cycle for 2k page */
+			send_addr(host, 0, false);
+	}
+
+	/* Write out page address, if necessary */
+	if (page_addr != -1) {
+		/* paddr_0 - p_addr_7 */
+		send_addr(host, (page_addr & 0xff), false);
+
+		if (host->pagesize_2k) {
+			if (mtd->size >= 0x10000000) {
+				/* paddr_8 - paddr_15 */
+				send_addr(host, (page_addr >> 8) & 0xff, false);
+				send_addr(host, (page_addr >> 16) & 0xff, true);
+			} else
+				/* paddr_8 - paddr_15 */
+				send_addr(host, (page_addr >> 8) & 0xff, true);
+		} else {
+			/* One more address cycle for higher density devices */
+			if (mtd->size >= 0x4000000) {
+				/* paddr_8 - paddr_15 */
+				send_addr(host, (page_addr >> 8) & 0xff, false);
+				send_addr(host, (page_addr >> 16) & 0xff, true);
+			} else
+				/* paddr_8 - paddr_15 */
+				send_addr(host, (page_addr >> 8) & 0xff, true);
+		}
+	}
+}
+
 /* Used by the upper layer to write command to NAND Flash for
  * different operations to be carried out on NAND Flash */
 static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
@@ -746,46 +792,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 
 	/* Write out the command to the device. */
 	send_cmd(host, command, useirq);
-
-	/* Write out column address, if necessary */
-	if (column != -1) {
-		/*
-		 * MXC NANDFC can only perform full page+spare or
-		 * spare-only read/write.  When the upper layers
-		 * layers perform a read/write buf operation,
-		 * we will used the saved column adress to index into
-		 * the full page.
-		 */
-		send_addr(host, 0, page_addr == -1);
-		if (host->pagesize_2k)
-			/* another col addr cycle for 2k page */
-			send_addr(host, 0, false);
-	}
-
-	/* Write out page address, if necessary */
-	if (page_addr != -1) {
-		/* paddr_0 - p_addr_7 */
-		send_addr(host, (page_addr & 0xff), false);
-
-		if (host->pagesize_2k) {
-			if (mtd->size >= 0x10000000) {
-				/* paddr_8 - paddr_15 */
-				send_addr(host, (page_addr >> 8) & 0xff, false);
-				send_addr(host, (page_addr >> 16) & 0xff, true);
-			} else
-				/* paddr_8 - paddr_15 */
-				send_addr(host, (page_addr >> 8) & 0xff, true);
-		} else {
-			/* One more address cycle for higher density devices */
-			if (mtd->size >= 0x4000000) {
-				/* paddr_8 - paddr_15 */
-				send_addr(host, (page_addr >> 8) & 0xff, false);
-				send_addr(host, (page_addr >> 16) & 0xff, true);
-			} else
-				/* paddr_8 - paddr_15 */
-				send_addr(host, (page_addr >> 8) & 0xff, true);
-		}
-	}
+	mxc_do_addr_cycle(mtd, column, page_addr);
 
 	/* Command post-processing step */
 	switch (command) {
