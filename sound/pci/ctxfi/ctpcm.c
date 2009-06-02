@@ -469,12 +469,10 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	struct snd_pcm *pcm;
 	int err;
 	int playback_count, capture_count;
-	char name[128];
 
-	strncpy(name, device_name, sizeof(name));
 	playback_count = (IEC958 == device) ? 1 : 8;
 	capture_count = (FRONT == device) ? 1 : 0;
-	err = snd_pcm_new(atc->card, name, device,
+	err = snd_pcm_new(atc->card, "ctxfi", device,
 			  playback_count, capture_count, &pcm);
 	if (err < 0) {
 		printk(KERN_ERR "ctxfi: snd_pcm_new failed!! Err=%d\n", err);
@@ -484,7 +482,7 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	pcm->private_data = atc;
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, device_name);
+	strlcpy(pcm->name, device_name, sizeof(pcm->name));
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &ct_pcm_playback_ops);
 

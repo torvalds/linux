@@ -29,9 +29,9 @@
 
 enum CTALSADEVS {		/* Types of alsa devices */
 	FRONT,
-	REAR,
-	CLFE,
 	SURROUND,
+	CLFE,
+	SIDE,
 	IEC958,
 	MIXER,
 	NUM_CTALSADEVS		/* This should always be the last */
