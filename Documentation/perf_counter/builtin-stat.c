@@ -84,7 +84,6 @@ static void create_perfstat_counter(int counter)
 	memset(&hw_event, 0, sizeof(hw_event));
 	hw_event.config		= event_id[counter];
 	hw_event.record_type	= 0;
-	hw_event.nmi		= 1;
 	hw_event.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
 	hw_event.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
 

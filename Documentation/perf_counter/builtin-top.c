@@ -581,7 +581,6 @@ static int __cmd_top(void)
 			hw_event.config		= event_id[counter];
 			hw_event.irq_period	= event_count[counter];
 			hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-			hw_event.nmi		= 1;
 			hw_event.mmap		= use_mmap;
 			hw_event.munmap		= use_munmap;
 			hw_event.freq		= freq;
