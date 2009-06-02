@@ -22,10 +22,10 @@ config COMEDI_PCI_DRIVERS
 
 config COMEDI_PCMCIA_DRIVERS
 	tristate "Comedi PCMCIA drivers"
-	depends on COMEDI && PCMCIA
+	depends on COMEDI && PCMCIA && PCCARD
 	default N
 	---help---
-	  Enable lots of comedi PCMCIA drivers to be built
+	  Enable lots of comedi PCMCIA and PCCARD drivers to be built
 
 config COMEDI_USB_DRIVERS
 	tristate "Comedi USB drivers"
