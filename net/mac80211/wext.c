@@ -306,82 +306,6 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
-				      struct iw_request_info *info,
-				      union iwreq_data *data, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_channel* chan = local->hw.conf.channel;
-	bool reconf = false;
-	u32 reconf_flags = 0;
-	int new_power_level;
-
-	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
-		return -EINVAL;
-	if (data->txpower.flags & IW_TXPOW_RANGE)
-		return -EINVAL;
-	if (!chan)
-		return -EINVAL;
-
-	/* only change when not disabling */
-	if (!data->txpower.disabled) {
-		if (data->txpower.fixed) {
-			if (data->txpower.value < 0)
-				return -EINVAL;
-			new_power_level = data->txpower.value;
-			/*
-			 * Debatable, but we cannot do a fixed power
-			 * level above the regulatory constraint.
-			 * Use "iwconfig wlan0 txpower 15dBm" instead.
-			 */
-			if (new_power_level > chan->max_power)
-				return -EINVAL;
-		} else {
-			/*
-			 * Automatic power level setting, max being the value
-			 * passed in from userland.
-			 */
-			if (data->txpower.value < 0)
-				new_power_level = -1;
-			else
-				new_power_level = data->txpower.value;
-		}
-
-		reconf = true;
-
-		/*
-		 * ieee80211_hw_config() will limit to the channel's
-		 * max power and possibly power constraint from AP.
-		 */
-		local->user_power_level = new_power_level;
-	}
-
-	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
-		local->hw.conf.radio_enabled = !(data->txpower.disabled);
-		reconf_flags |= IEEE80211_CONF_CHANGE_RADIO_ENABLED;
-		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
-	}
-
-	if (reconf || reconf_flags)
-		ieee80211_hw_config(local, reconf_flags);
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
-				   struct iw_request_info *info,
-				   union iwreq_data *data, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	data->txpower.fixed = 1;
-	data->txpower.disabled = !(local->hw.conf.radio_enabled);
-	data->txpower.value = local->hw.conf.power_level;
-	data->txpower.flags = IW_TXPOW_DBM;
-
-	return 0;
-}
-
 static int ieee80211_ioctl_siwpower(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_param *wrq,
@@ -658,8 +582,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) cfg80211_wext_giwrts,		/* SIOCGIWRTS */
 	(iw_handler) cfg80211_wext_siwfrag,		/* SIOCSIWFRAG */
 	(iw_handler) cfg80211_wext_giwfrag,		/* SIOCGIWFRAG */
-	(iw_handler) ieee80211_ioctl_siwtxpower,	/* SIOCSIWTXPOW */
-	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
+	(iw_handler) cfg80211_wext_siwtxpower,		/* SIOCSIWTXPOW */
+	(iw_handler) cfg80211_wext_giwtxpower,		/* SIOCGIWTXPOW */
 	(iw_handler) cfg80211_wext_siwretry,		/* SIOCSIWRETRY */
 	(iw_handler) cfg80211_wext_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */

@@ -744,3 +744,83 @@ int cfg80211_wext_giwencode(struct net_device *dev,
 	return err;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwencode);
+
+int cfg80211_wext_siwtxpower(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	enum tx_power_setting type;
+	int dbm = 0;
+
+	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
+		return -EINVAL;
+	if (data->txpower.flags & IW_TXPOW_RANGE)
+		return -EINVAL;
+
+	if (!rdev->ops->set_tx_power)
+		return -EOPNOTSUPP;
+
+	/* only change when not disabling */
+	if (!data->txpower.disabled) {
+		if (data->txpower.fixed) {
+			/*
+			 * wext doesn't support negative values, see
+			 * below where it's for automatic
+			 */
+			if (data->txpower.value < 0)
+				return -EINVAL;
+			dbm = data->txpower.value;
+			type = TX_POWER_FIXED;
+			/* TODO: do regulatory check! */
+		} else {
+			/*
+			 * Automatic power level setting, max being the value
+			 * passed in from userland.
+			 */
+			if (data->txpower.value < 0) {
+				type = TX_POWER_AUTOMATIC;
+			} else {
+				dbm = data->txpower.value;
+				type = TX_POWER_LIMITED;
+			}
+		}
+	} else {
+		type = TX_POWER_OFF;
+	}
+
+	return rdev->ops->set_tx_power(wdev->wiphy, type, dbm);;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwtxpower);
+
+int cfg80211_wext_giwtxpower(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	int err, val;
+
+	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
+		return -EINVAL;
+	if (data->txpower.flags & IW_TXPOW_RANGE)
+		return -EINVAL;
+
+	if (!rdev->ops->get_tx_power)
+		return -EOPNOTSUPP;
+
+	err = rdev->ops->get_tx_power(wdev->wiphy, &val);
+	/* HACK!!! */
+	if (err && err != -ENETDOWN)
+		return err;
+
+	/* well... oh well */
+	data->txpower.fixed = 1;
+	data->txpower.disabled = err == -ENETDOWN;
+	data->txpower.value = val;
+	data->txpower.flags = IW_TXPOW_DBM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwtxpower);

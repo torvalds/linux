@@ -1334,6 +1334,58 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	return 0;
 }
 
+static int ieee80211_set_tx_power(struct wiphy *wiphy,
+				  enum tx_power_setting type, int dbm)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_channel *chan = local->hw.conf.channel;
+	u32 changes = 0;
+	bool radio_enabled = true;
+
+	switch (type) {
+	case TX_POWER_AUTOMATIC:
+		local->user_power_level = -1;
+		break;
+	case TX_POWER_LIMITED:
+		if (dbm < 0)
+			return -EINVAL;
+		local->user_power_level = dbm;
+		break;
+	case TX_POWER_FIXED:
+		if (dbm < 0)
+			return -EINVAL;
+		/* TODO: move to cfg80211 when it knows the channel */
+		if (dbm > chan->max_power)
+			return -EINVAL;
+		local->user_power_level = dbm;
+		break;
+	case TX_POWER_OFF:
+		radio_enabled = false;
+		break;
+	}
+
+	if (radio_enabled != local->hw.conf.radio_enabled) {
+		changes |= IEEE80211_CONF_CHANGE_RADIO_ENABLED;
+		local->hw.conf.radio_enabled = radio_enabled;
+	}
+
+	ieee80211_hw_config(local, changes);
+
+	return 0;
+}
+
+static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	*dbm = local->hw.conf.power_level;
+
+	if (!local->hw.conf.radio_enabled)
+		return -ENETDOWN;
+
+	return 0;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1373,4 +1425,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.join_ibss = ieee80211_join_ibss,
 	.leave_ibss = ieee80211_leave_ibss,
 	.set_wiphy_params = ieee80211_set_wiphy_params,
+	.set_tx_power = ieee80211_set_tx_power,
+	.get_tx_power = ieee80211_get_tx_power,
 };
