@@ -350,8 +350,7 @@ nla_put_failure:
 
 static int
 ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
-		    int event, int nowait,
-		    const struct nf_conn *ct)
+		    int event, const struct nf_conn *ct)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
@@ -362,7 +361,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	nlh    = NLMSG_PUT(skb, pid, seq, event, sizeof(struct nfgenmsg));
 	nfmsg  = NLMSG_DATA(nlh);
 
-	nlh->nlmsg_flags    = (nowait && pid) ? NLM_F_MULTI : 0;
+	nlh->nlmsg_flags    = pid ? NLM_F_MULTI : 0;
 	nfmsg->nfgen_family = nf_ct_l3num(ct);
 	nfmsg->version      = NFNETLINK_V0;
 	nfmsg->res_id	    = 0;
@@ -637,8 +636,7 @@ restart:
 			}
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 						cb->nlh->nlmsg_seq,
-						IPCTNL_MSG_CT_NEW,
-						1, ct) < 0) {
+						IPCTNL_MSG_CT_NEW, ct) < 0) {
 				cb->args[1] = (unsigned long)ct;
 				goto out;
 			}
@@ -880,7 +878,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	rcu_read_lock();
 	err = ctnetlink_fill_info(skb2, NETLINK_CB(skb).pid, nlh->nlmsg_seq,
-				  IPCTNL_MSG_CT_NEW, 1, ct);
+				  IPCTNL_MSG_CT_NEW, ct);
 	rcu_read_unlock();
 	nf_ct_put(ct);
 	if (err <= 0)
@@ -1503,9 +1501,7 @@ nla_put_failure:
 
 static int
 ctnetlink_exp_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
-		    int event,
-		    int nowait,
-		    const struct nf_conntrack_expect *exp)
+			int event, const struct nf_conntrack_expect *exp)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
@@ -1515,7 +1511,7 @@ ctnetlink_exp_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	nlh    = NLMSG_PUT(skb, pid, seq, event, sizeof(struct nfgenmsg));
 	nfmsg  = NLMSG_DATA(nlh);
 
-	nlh->nlmsg_flags    = (nowait && pid) ? NLM_F_MULTI : 0;
+	nlh->nlmsg_flags    = pid ? NLM_F_MULTI : 0;
 	nfmsg->nfgen_family = exp->tuple.src.l3num;
 	nfmsg->version	    = NFNETLINK_V0;
 	nfmsg->res_id	    = 0;
@@ -1617,10 +1613,11 @@ restart:
 					continue;
 				cb->args[1] = 0;
 			}
-			if (ctnetlink_exp_fill_info(skb, NETLINK_CB(cb->skb).pid,
+			if (ctnetlink_exp_fill_info(skb,
+						    NETLINK_CB(cb->skb).pid,
 						    cb->nlh->nlmsg_seq,
 						    IPCTNL_MSG_EXP_NEW,
-						    1, exp) < 0) {
+						    exp) < 0) {
 				if (!atomic_inc_not_zero(&exp->use))
 					continue;
 				cb->args[1] = (unsigned long)exp;
@@ -1689,8 +1686,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	rcu_read_lock();
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid,
-				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW,
-				      1, exp);
+				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW, exp);
 	rcu_read_unlock();
 	if (err <= 0)
 		goto free;
