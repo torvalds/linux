@@ -1806,10 +1806,9 @@ init_card(struct hfc_pci *hc)
 			printk(KERN_WARNING
 			    "HFC PCI: IRQ(%d) getting no interrupts "
 			    "during init %d\n", hc->irq, 4 - cnt);
-			if (cnt == 1) {
-				spin_unlock_irqrestore(&hc->lock, flags);
-				return -EIO;
-			} else {
+			if (cnt == 1)
+				break;
+			else {
 				reset_hfcpci(hc);
 				cnt--;
 			}
