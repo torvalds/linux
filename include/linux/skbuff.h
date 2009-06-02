@@ -325,6 +325,7 @@ struct sk_buff {
 	union {
 		struct  dst_entry	*dst;
 		struct  rtable		*rtable;
+		unsigned long		_skb_dst;
 	};
 #ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
