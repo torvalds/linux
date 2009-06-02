@@ -272,6 +272,20 @@ config USB_PXA27X
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_S3C_HSOTG
+	boolean "S3C HS/OtG USB Device controller"
+	depends on S3C_DEV_USB_HSOTG
+	select USB_GADGET_S3C_HSOTG_PIO
+	help
+	  The Samsung S3C64XX USB2.0 high-speed gadget controller
+	  integrated into the S3C64XX series SoC.
+
+config USB_S3C_HSOTG
+	tristate
+	depends on USB_GADGET_S3C_HSOTG
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_S3C2410
 	boolean "S3C2410 USB Device Controller"
 	depends on ARCH_S3C2410
