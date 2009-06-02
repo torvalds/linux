@@ -968,6 +968,16 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
 }
 
 
+static const struct net_device_ops device_netdev_ops = {
+    .ndo_open               = device_open,
+    .ndo_stop               = device_close,
+    .ndo_do_ioctl           = device_ioctl,
+    .ndo_get_stats          = device_get_stats,
+    .ndo_start_xmit         = device_xmit,
+    .ndo_set_multicast_list = device_set_multi,
+};
+
+
 #ifndef PRIVATE_OBJ
 
 static int
@@ -1134,12 +1144,7 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     pDevice->pMgmt = &(pDevice->sMgmtObj);
 
     dev->irq                = pcid->irq;
-    dev->open               = device_open;
-    dev->hard_start_xmit    = device_xmit;
-    dev->stop               = device_close;
-    dev->get_stats          = device_get_stats;
-    dev->set_multicast_list = device_set_multi;
-    dev->do_ioctl           = device_ioctl;
+    dev->netdev_ops         = &device_netdev_ops;
 
 #ifdef WIRELESS_EXT
 //Einsn Modify for ubuntu-7.04
