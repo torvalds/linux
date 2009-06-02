@@ -26,52 +26,28 @@ enum ip_conntrack_events
 	IPCT_DESTROY_BIT = 2,
 	IPCT_DESTROY = (1 << IPCT_DESTROY_BIT),
 
-	/* Timer has been refreshed */
-	IPCT_REFRESH_BIT = 3,
-	IPCT_REFRESH = (1 << IPCT_REFRESH_BIT),
-
 	/* Status has changed */
-	IPCT_STATUS_BIT = 4,
+	IPCT_STATUS_BIT = 3,
 	IPCT_STATUS = (1 << IPCT_STATUS_BIT),
 
 	/* Update of protocol info */
-	IPCT_PROTOINFO_BIT = 5,
+	IPCT_PROTOINFO_BIT = 4,
 	IPCT_PROTOINFO = (1 << IPCT_PROTOINFO_BIT),
 
-	/* Volatile protocol info */
-	IPCT_PROTOINFO_VOLATILE_BIT = 6,
-	IPCT_PROTOINFO_VOLATILE = (1 << IPCT_PROTOINFO_VOLATILE_BIT),
-
 	/* New helper for conntrack */
-	IPCT_HELPER_BIT = 7,
+	IPCT_HELPER_BIT = 5,
 	IPCT_HELPER = (1 << IPCT_HELPER_BIT),
 
-	/* Update of helper info */
-	IPCT_HELPINFO_BIT = 8,
-	IPCT_HELPINFO = (1 << IPCT_HELPINFO_BIT),
-
-	/* Volatile helper info */
-	IPCT_HELPINFO_VOLATILE_BIT = 9,
-	IPCT_HELPINFO_VOLATILE = (1 << IPCT_HELPINFO_VOLATILE_BIT),
-
-	/* NAT info */
-	IPCT_NATINFO_BIT = 10,
-	IPCT_NATINFO = (1 << IPCT_NATINFO_BIT),
-
-	/* Counter highest bit has been set, unused */
-	IPCT_COUNTER_FILLING_BIT = 11,
-	IPCT_COUNTER_FILLING = (1 << IPCT_COUNTER_FILLING_BIT),
-
 	/* Mark is set */
-	IPCT_MARK_BIT = 12,
+	IPCT_MARK_BIT = 6,
 	IPCT_MARK = (1 << IPCT_MARK_BIT),
 
 	/* NAT sequence adjustment */
-	IPCT_NATSEQADJ_BIT = 13,
+	IPCT_NATSEQADJ_BIT = 7,
 	IPCT_NATSEQADJ = (1 << IPCT_NATSEQADJ_BIT),
 
 	/* Secmark is set */
-	IPCT_SECMARK_BIT = 14,
+	IPCT_SECMARK_BIT = 8,
 	IPCT_SECMARK = (1 << IPCT_SECMARK_BIT),
 };
 
