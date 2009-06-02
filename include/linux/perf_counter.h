@@ -317,6 +317,7 @@ enum perf_event_type {
 #include <linux/spinlock.h>
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
+#include <linux/pid_namespace.h>
 #include <asm/atomic.h>
 
 struct task_struct;
@@ -500,6 +501,8 @@ struct perf_counter {
 
 	void (*destroy)(struct perf_counter *);
 	struct rcu_head			rcu_head;
+
+	struct pid_namespace		*ns;
 #endif
 };
 

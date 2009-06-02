@@ -1432,6 +1432,8 @@ static void free_counter_rcu(struct rcu_head *head)
 	struct perf_counter *counter;
 
 	counter = container_of(head, struct perf_counter, rcu_head);
+	if (counter->ns)
+		put_pid_ns(counter->ns);
 	kfree(counter);
 }
 
@@ -2267,6 +2269,28 @@ static void perf_output_end(struct perf_output_handle *handle)
 	rcu_read_unlock();
 }
 
+static u32 perf_counter_pid(struct perf_counter *counter, struct task_struct *p)
+{
+	/*
+	 * only top level counters have the pid namespace they were created in
+	 */
+	if (counter->parent)
+		counter = counter->parent;
+
+	return task_tgid_nr_ns(p, counter->ns);
+}
+
+static u32 perf_counter_tid(struct perf_counter *counter, struct task_struct *p)
+{
+	/*
+	 * only top level counters have the pid namespace they were created in
+	 */
+	if (counter->parent)
+		counter = counter->parent;
+
+	return task_pid_nr_ns(p, counter->ns);
+}
+
 static void perf_counter_output(struct perf_counter *counter,
 				int nmi, struct pt_regs *regs, u64 addr)
 {
@@ -2303,8 +2327,8 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (record_type & PERF_RECORD_TID) {
 		/* namespace issues */
-		tid_entry.pid = current->group_leader->pid;
-		tid_entry.tid = current->pid;
+		tid_entry.pid = perf_counter_pid(counter, current);
+		tid_entry.tid = perf_counter_tid(counter, current);
 
 		header.type |= PERF_RECORD_TID;
 		header.size += sizeof(tid_entry);
@@ -2432,6 +2456,9 @@ static void perf_counter_comm_output(struct perf_counter *counter,
 	if (ret)
 		return;
 
+	comm_event->event.pid = perf_counter_pid(counter, comm_event->task);
+	comm_event->event.tid = perf_counter_tid(counter, comm_event->task);
+
 	perf_output_put(&handle, comm_event->event);
 	perf_output_copy(&handle, comm_event->comm,
 				   comm_event->comm_size);
@@ -2504,8 +2531,6 @@ void perf_counter_comm(struct task_struct *task)
 		.task	= task,
 		.event  = {
 			.header = { .type = PERF_EVENT_COMM, },
-			.pid	= task->group_leader->pid,
-			.tid	= task->pid,
 		},
 	};
 
@@ -2541,6 +2566,9 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 
 	if (ret)
 		return;
+
+	mmap_event->event.pid = perf_counter_pid(counter, current);
+	mmap_event->event.tid = perf_counter_tid(counter, current);
 
 	perf_output_put(&handle, mmap_event->event);
 	perf_output_copy(&handle, mmap_event->file_name,
@@ -2641,8 +2669,6 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 		.file   = file,
 		.event  = {
 			.header = { .type = PERF_EVENT_MMAP, },
-			.pid	= current->group_leader->pid,
-			.tid	= current->pid,
 			.start  = addr,
 			.len    = len,
 			.pgoff  = pgoff,
@@ -2664,8 +2690,6 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 		.file   = file,
 		.event  = {
 			.header = { .type = PERF_EVENT_MUNMAP, },
-			.pid	= current->group_leader->pid,
-			.tid	= current->pid,
 			.start  = addr,
 			.len    = len,
 			.pgoff  = pgoff,
@@ -3444,6 +3468,8 @@ SYSCALL_DEFINE5(perf_counter_open,
 	mutex_lock(&current->perf_counter_mutex);
 	list_add_tail(&counter->owner_entry, &current->perf_counter_list);
 	mutex_unlock(&current->perf_counter_mutex);
+
+	counter->ns = get_pid_ns(current->nsproxy->pid_ns);
 
 	fput_light(counter_file, fput_needed2);
 
