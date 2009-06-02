@@ -90,17 +90,10 @@ static inline struct tomoyo_domain_info *tomoyo_domain(void)
 	return current_cred()->security;
 }
 
-/* Caller holds tasklist_lock spinlock. */
 static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 							    *task)
 {
-	/***** CRITICAL SECTION START *****/
-	const struct cred *cred = get_task_cred(task);
-	struct tomoyo_domain_info *domain = cred->security;
-
-	put_cred(cred);
-	return domain;
-	/***** CRITICAL SECTION END *****/
+	return task_cred_xxx(task, security);
 }
 
 #endif /* !defined(_SECURITY_TOMOYO_TOMOYO_H) */
