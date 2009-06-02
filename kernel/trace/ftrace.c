@@ -599,7 +599,7 @@ function_profile_call(unsigned long ip, unsigned long parent_ip)
 	local_irq_save(flags);
 
 	stat = &__get_cpu_var(ftrace_profile_stats);
-	if (!stat->hash)
+	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
 	rec = ftrace_find_profiled_func(stat, ip);
@@ -630,7 +630,7 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 
 	local_irq_save(flags);
 	stat = &__get_cpu_var(ftrace_profile_stats);
-	if (!stat->hash)
+	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
 	calltime = trace->rettime - trace->calltime;
@@ -724,6 +724,10 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
 			ftrace_profile_enabled = 1;
 		} else {
 			ftrace_profile_enabled = 0;
+			/*
+			 * unregister_ftrace_profiler calls stop_machine
+			 * so this acts like an synchronize_sched.
+			 */
 			unregister_ftrace_profiler();
 		}
 	}
