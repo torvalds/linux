@@ -1510,6 +1510,8 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (counter->hw_event.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		values[n++] = counter->total_time_running +
 			atomic64_read(&counter->child_total_time_running);
+	if (counter->hw_event.read_format & PERF_FORMAT_ID)
+		values[n++] = counter->id;
 	mutex_unlock(&counter->child_mutex);
 
 	if (count < n * sizeof(u64))
@@ -2303,7 +2305,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		u32 pid, tid;
 	} tid_entry;
 	struct {
-		u64 event;
+		u64 id;
 		u64 counter;
 	} group_entry;
 	struct perf_callchain_entry *callchain = NULL;
@@ -2416,7 +2418,7 @@ static void perf_counter_output(struct perf_counter *counter,
 			if (sub != counter)
 				sub->pmu->read(sub);
 
-			group_entry.event = sub->hw_event.config;
+			group_entry.id = sub->id;
 			group_entry.counter = atomic64_read(&sub->count);
 
 			perf_output_put(&handle, group_entry);
@@ -3375,6 +3377,8 @@ done:
 	return counter;
 }
 
+static atomic64_t perf_counter_id;
+
 /**
  * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
  *
@@ -3470,6 +3474,7 @@ SYSCALL_DEFINE5(perf_counter_open,
 	mutex_unlock(&current->perf_counter_mutex);
 
 	counter->ns = get_pid_ns(current->nsproxy->pid_ns);
+	counter->id = atomic64_inc_return(&perf_counter_id);
 
 	fput_light(counter_file, fput_needed2);
 

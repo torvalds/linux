@@ -114,8 +114,9 @@ enum perf_counter_record_format {
  * in increasing order of bit value, after the counter value.
  */
 enum perf_counter_read_format {
-	PERF_FORMAT_TOTAL_TIME_ENABLED	=  1,
-	PERF_FORMAT_TOTAL_TIME_RUNNING	=  2,
+	PERF_FORMAT_TOTAL_TIME_ENABLED	=  1U << 0,
+	PERF_FORMAT_TOTAL_TIME_RUNNING	=  1U << 1,
+	PERF_FORMAT_ID			=  1U << 2,
 };
 
 /*
@@ -290,7 +291,7 @@ enum perf_event_type {
 	 *	{ u32			cpu, res; } && PERF_RECORD_CPU
 	 *
 	 *	{ u64			nr;
-	 *	  { u64 event, val; }	cnt[nr];  } && PERF_RECORD_GROUP
+	 *	  { u64 id, val; }	cnt[nr];  } && PERF_RECORD_GROUP
 	 *
 	 *	{ u16			nr,
 	 *				hv,
@@ -503,6 +504,7 @@ struct perf_counter {
 	struct rcu_head			rcu_head;
 
 	struct pid_namespace		*ns;
+	u64				id;
 #endif
 };
 
