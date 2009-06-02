@@ -84,24 +84,25 @@ static struct dso *dsos__findnew(const char *name)
 	struct dso *dso = dsos__find(name);
 	int nr;
 
-	if (dso == NULL) {
-		dso = dso__new(name, 0);
-		if (!dso)
-			goto out_delete_dso;
+	if (dso)
+		return dso;
 
-		nr = dso__load(dso, NULL);
-		if (nr < 0) {
-			fprintf(stderr, "Failed to open: %s\n", name);
-			goto out_delete_dso;
-		}
-		if (!nr) {
-			fprintf(stderr,
-		"Failed to find debug symbols for: %s, maybe install a debug package?\n",
-					name);
-		}
+	dso = dso__new(name, 0);
+	if (!dso)
+		goto out_delete_dso;
 
-		dsos__add(dso);
+	nr = dso__load(dso, NULL);
+	if (nr < 0) {
+		fprintf(stderr, "Failed to open: %s\n", name);
+		goto out_delete_dso;
 	}
+	if (!nr && verbose) {
+		fprintf(stderr,
+		"No symbols found in: %s, maybe install a debug package?\n",
+				name);
+	}
+
+	dsos__add(dso);
 
 	return dso;
 
@@ -302,11 +303,11 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__thread_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, " %16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return fprintf(fp, "  %16s:%5d", self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "         Command: Pid ",
+	.header = "          Command: Pid ",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
 };
@@ -332,11 +333,11 @@ sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__comm_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, " %16s", self->thread->comm ?: "<unknown>");
+	return fprintf(fp, "  %16s", self->thread->comm ?: "<unknown>");
 }
 
 static struct sort_entry sort_comm = {
-	.header = "         Command",
+	.header = "          Command",
 	.cmp	= sort__comm_cmp,
 	.print	= sort__comm_print,
 };
@@ -362,11 +363,11 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__dso_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, " %64s", self->dso ? self->dso->name : "<unknown>");
+	return fprintf(fp, "  %s", self->dso ? self->dso->name : "<unknown>");
 }
 
 static struct sort_entry sort_dso = {
-	.header = "                                                    Shared Object",
+	.header = " Shared Object",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
 };
@@ -391,9 +392,9 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, " %#018llx", (unsigned long long)self->ip);
+		ret += fprintf(fp, "  %#018llx", (unsigned long long)self->ip);
 
-	ret += fprintf(fp, " %s: %s",
+	ret += fprintf(fp, "  %s: %s",
 			self->dso ? self->dso->name : "<unknown>",
 			self->sym ? self->sym->name : "<unknown>");
 
@@ -401,7 +402,7 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 }
 
 static struct sort_entry sort_sym = {
-	.header = "Shared Object: Symbol",
+	.header = " Shared Object: Symbol",
 	.cmp	= sort__sym_cmp,
 	.print	= sort__sym_print,
 };
@@ -595,8 +596,8 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		int i;
 
-		fprintf(fp, " ");
-		for (i = 0; i < strlen(se->header); i++)
+		fprintf(fp, "  ");
+		for (i = 0; i < strlen(se->header)-1; i++)
 			fprintf(fp, ".");
 	}
 	fprintf(fp, "\n");
