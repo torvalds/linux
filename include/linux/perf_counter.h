@@ -22,7 +22,7 @@
  */
 
 /*
- * hw_event.type
+ * attr.type
  */
 enum perf_event_types {
 	PERF_TYPE_HARDWARE		= 0,
@@ -37,10 +37,10 @@ enum perf_event_types {
 };
 
 /*
- * Generalized performance counter event types, used by the hw_event.event_id
+ * Generalized performance counter event types, used by the attr.event_id
  * parameter of the sys_perf_counter_open() syscall:
  */
-enum hw_event_ids {
+enum attr_ids {
 	/*
 	 * Common hardware events, generalized by the kernel:
 	 */
@@ -94,7 +94,7 @@ enum sw_event_ids {
 #define PERF_COUNTER_EVENT_MASK		__PERF_COUNTER_MASK(EVENT)
 
 /*
- * Bits that can be set in hw_event.sample_type to request information
+ * Bits that can be set in attr.sample_type to request information
  * in the overflow packets.
  */
 enum perf_counter_sample_format {
@@ -109,7 +109,7 @@ enum perf_counter_sample_format {
 };
 
 /*
- * Bits that can be set in hw_event.read_format to request that
+ * Bits that can be set in attr.read_format to request that
  * reads on the counter should return the indicated quantities,
  * in increasing order of bit value, after the counter value.
  */
@@ -122,7 +122,7 @@ enum perf_counter_read_format {
 /*
  * Hardware event to monitor via a performance monitoring counter:
  */
-struct perf_counter_hw_event {
+struct perf_counter_attr {
 	/*
 	 * The MSB of the config word signifies if the rest contains cpu
 	 * specific (raw) counter configuration data, if unset, the next
@@ -323,25 +323,25 @@ enum perf_event_type {
 
 struct task_struct;
 
-static inline u64 perf_event_raw(struct perf_counter_hw_event *hw_event)
+static inline u64 perf_event_raw(struct perf_counter_attr *attr)
 {
-	return hw_event->config & PERF_COUNTER_RAW_MASK;
+	return attr->config & PERF_COUNTER_RAW_MASK;
 }
 
-static inline u64 perf_event_config(struct perf_counter_hw_event *hw_event)
+static inline u64 perf_event_config(struct perf_counter_attr *attr)
 {
-	return hw_event->config & PERF_COUNTER_CONFIG_MASK;
+	return attr->config & PERF_COUNTER_CONFIG_MASK;
 }
 
-static inline u64 perf_event_type(struct perf_counter_hw_event *hw_event)
+static inline u64 perf_event_type(struct perf_counter_attr *attr)
 {
-	return (hw_event->config & PERF_COUNTER_TYPE_MASK) >>
+	return (attr->config & PERF_COUNTER_TYPE_MASK) >>
 		PERF_COUNTER_TYPE_SHIFT;
 }
 
-static inline u64 perf_event_id(struct perf_counter_hw_event *hw_event)
+static inline u64 perf_event_id(struct perf_counter_attr *attr)
 {
-	return hw_event->config & PERF_COUNTER_EVENT_MASK;
+	return attr->config & PERF_COUNTER_EVENT_MASK;
 }
 
 /**
@@ -457,7 +457,7 @@ struct perf_counter {
 	u64				tstamp_running;
 	u64				tstamp_stopped;
 
-	struct perf_counter_hw_event	hw_event;
+	struct perf_counter_attr	attr;
 	struct hw_perf_counter		hw;
 
 	struct perf_counter_context	*ctx;
@@ -605,8 +605,8 @@ extern int perf_counter_overflow(struct perf_counter *counter,
  */
 static inline int is_software_counter(struct perf_counter *counter)
 {
-	return !perf_event_raw(&counter->hw_event) &&
-		perf_event_type(&counter->hw_event) != PERF_TYPE_HARDWARE;
+	return !perf_event_raw(&counter->attr) &&
+		perf_event_type(&counter->attr) != PERF_TYPE_HARDWARE;
 }
 
 extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);

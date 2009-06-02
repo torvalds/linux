@@ -260,7 +260,7 @@ counter_sched_out(struct perf_counter *counter,
 	if (!is_software_counter(counter))
 		cpuctx->active_oncpu--;
 	ctx->nr_active--;
-	if (counter->hw_event.exclusive || !cpuctx->active_oncpu)
+	if (counter->attr.exclusive || !cpuctx->active_oncpu)
 		cpuctx->exclusive = 0;
 }
 
@@ -282,7 +282,7 @@ group_sched_out(struct perf_counter *group_counter,
 	list_for_each_entry(counter, &group_counter->sibling_list, list_entry)
 		counter_sched_out(counter, cpuctx, ctx);
 
-	if (group_counter->hw_event.exclusive)
+	if (group_counter->attr.exclusive)
 		cpuctx->exclusive = 0;
 }
 
@@ -550,7 +550,7 @@ counter_sched_in(struct perf_counter *counter,
 		cpuctx->active_oncpu++;
 	ctx->nr_active++;
 
-	if (counter->hw_event.exclusive)
+	if (counter->attr.exclusive)
 		cpuctx->exclusive = 1;
 
 	return 0;
@@ -642,7 +642,7 @@ static int group_can_go_on(struct perf_counter *counter,
 	 * If this group is exclusive and there are already
 	 * counters on the CPU, it can't go on.
 	 */
-	if (counter->hw_event.exclusive && cpuctx->active_oncpu)
+	if (counter->attr.exclusive && cpuctx->active_oncpu)
 		return 0;
 	/*
 	 * Otherwise, try to add it if all previous groups were able
@@ -725,7 +725,7 @@ static void __perf_install_in_context(void *info)
 		 */
 		if (leader != counter)
 			group_sched_out(leader, cpuctx, ctx);
-		if (leader->hw_event.pinned) {
+		if (leader->attr.pinned) {
 			update_group_times(leader);
 			leader->state = PERF_COUNTER_STATE_ERROR;
 		}
@@ -849,7 +849,7 @@ static void __perf_counter_enable(void *info)
 		 */
 		if (leader != counter)
 			group_sched_out(leader, cpuctx, ctx);
-		if (leader->hw_event.pinned) {
+		if (leader->attr.pinned) {
 			update_group_times(leader);
 			leader->state = PERF_COUNTER_STATE_ERROR;
 		}
@@ -927,7 +927,7 @@ static int perf_counter_refresh(struct perf_counter *counter, int refresh)
 	/*
 	 * not supported on inherited counters
 	 */
-	if (counter->hw_event.inherit)
+	if (counter->attr.inherit)
 		return -EINVAL;
 
 	atomic_add(refresh, &counter->event_limit);
@@ -1094,7 +1094,7 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 	 */
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		if (counter->state <= PERF_COUNTER_STATE_OFF ||
-		    !counter->hw_event.pinned)
+		    !counter->attr.pinned)
 			continue;
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
@@ -1122,7 +1122,7 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 		 * ignore pinned counters since we did them already.
 		 */
 		if (counter->state <= PERF_COUNTER_STATE_OFF ||
-		    counter->hw_event.pinned)
+		    counter->attr.pinned)
 			continue;
 
 		/*
@@ -1204,11 +1204,11 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 			interrupts = 2*sysctl_perf_counter_limit/HZ;
 		}
 
-		if (!counter->hw_event.freq || !counter->hw_event.sample_freq)
+		if (!counter->attr.freq || !counter->attr.sample_freq)
 			continue;
 
 		events = HZ * interrupts * counter->hw.sample_period;
-		period = div64_u64(events, counter->hw_event.sample_freq);
+		period = div64_u64(events, counter->attr.sample_freq);
 
 		delta = (s64)(1 + period - counter->hw.sample_period);
 		delta >>= 1;
@@ -1444,11 +1444,11 @@ static void free_counter(struct perf_counter *counter)
 	perf_pending_sync(counter);
 
 	atomic_dec(&nr_counters);
-	if (counter->hw_event.mmap)
+	if (counter->attr.mmap)
 		atomic_dec(&nr_mmap_tracking);
-	if (counter->hw_event.munmap)
+	if (counter->attr.munmap)
 		atomic_dec(&nr_munmap_tracking);
-	if (counter->hw_event.comm)
+	if (counter->attr.comm)
 		atomic_dec(&nr_comm_tracking);
 
 	if (counter->destroy)
@@ -1504,13 +1504,13 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	mutex_lock(&counter->child_mutex);
 	values[0] = perf_counter_read(counter);
 	n = 1;
-	if (counter->hw_event.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
 		values[n++] = counter->total_time_enabled +
 			atomic64_read(&counter->child_total_time_enabled);
-	if (counter->hw_event.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		values[n++] = counter->total_time_running +
 			atomic64_read(&counter->child_total_time_running);
-	if (counter->hw_event.read_format & PERF_FORMAT_ID)
+	if (counter->attr.read_format & PERF_FORMAT_ID)
 		values[n++] = counter->id;
 	mutex_unlock(&counter->child_mutex);
 
@@ -1611,7 +1611,7 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 	int ret = 0;
 	u64 value;
 
-	if (!counter->hw_event.sample_period)
+	if (!counter->attr.sample_period)
 		return -EINVAL;
 
 	size = copy_from_user(&value, arg, sizeof(value));
@@ -1622,15 +1622,15 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 		return -EINVAL;
 
 	spin_lock_irq(&ctx->lock);
-	if (counter->hw_event.freq) {
+	if (counter->attr.freq) {
 		if (value > sysctl_perf_counter_limit) {
 			ret = -EINVAL;
 			goto unlock;
 		}
 
-		counter->hw_event.sample_freq = value;
+		counter->attr.sample_freq = value;
 	} else {
-		counter->hw_event.sample_period = value;
+		counter->attr.sample_period = value;
 		counter->hw.sample_period = value;
 
 		perf_log_period(counter, value);
@@ -2299,7 +2299,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 	struct perf_counter *counter = handle->counter;
 	struct perf_mmap_data *data = handle->data;
 
-	int wakeup_events = counter->hw_event.wakeup_events;
+	int wakeup_events = counter->attr.wakeup_events;
 
 	if (handle->overflow && wakeup_events) {
 		int events = atomic_inc_return(&data->events);
@@ -2339,7 +2339,7 @@ static void perf_counter_output(struct perf_counter *counter,
 				int nmi, struct pt_regs *regs, u64 addr)
 {
 	int ret;
-	u64 sample_type = counter->hw_event.sample_type;
+	u64 sample_type = counter->attr.sample_type;
 	struct perf_output_handle handle;
 	struct perf_event_header header;
 	u64 ip;
@@ -2441,7 +2441,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		perf_output_put(&handle, addr);
 
 	if (sample_type & PERF_SAMPLE_CONFIG)
-		perf_output_put(&handle, counter->hw_event.config);
+		perf_output_put(&handle, counter->attr.config);
 
 	if (sample_type & PERF_SAMPLE_CPU)
 		perf_output_put(&handle, cpu_entry);
@@ -2512,7 +2512,7 @@ static void perf_counter_comm_output(struct perf_counter *counter,
 static int perf_counter_comm_match(struct perf_counter *counter,
 				   struct perf_comm_event *comm_event)
 {
-	if (counter->hw_event.comm &&
+	if (counter->attr.comm &&
 	    comm_event->event.header.type == PERF_EVENT_COMM)
 		return 1;
 
@@ -2623,11 +2623,11 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 static int perf_counter_mmap_match(struct perf_counter *counter,
 				   struct perf_mmap_event *mmap_event)
 {
-	if (counter->hw_event.mmap &&
+	if (counter->attr.mmap &&
 	    mmap_event->event.header.type == PERF_EVENT_MMAP)
 		return 1;
 
-	if (counter->hw_event.munmap &&
+	if (counter->attr.munmap &&
 	    mmap_event->event.header.type == PERF_EVENT_MUNMAP)
 		return 1;
 
@@ -2907,8 +2907,8 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 	 * In case we exclude kernel IPs or are somehow not in interrupt
 	 * context, provide the next best thing, the user IP.
 	 */
-	if ((counter->hw_event.exclude_kernel || !regs) &&
-			!counter->hw_event.exclude_user)
+	if ((counter->attr.exclude_kernel || !regs) &&
+			!counter->attr.exclude_user)
 		regs = task_pt_regs(current);
 
 	if (regs) {
@@ -2982,14 +2982,14 @@ static int perf_swcounter_match(struct perf_counter *counter,
 	if (!perf_swcounter_is_counting(counter))
 		return 0;
 
-	if (counter->hw_event.config != event_config)
+	if (counter->attr.config != event_config)
 		return 0;
 
 	if (regs) {
-		if (counter->hw_event.exclude_user && user_mode(regs))
+		if (counter->attr.exclude_user && user_mode(regs))
 			return 0;
 
-		if (counter->hw_event.exclude_kernel && !user_mode(regs))
+		if (counter->attr.exclude_kernel && !user_mode(regs))
 			return 0;
 	}
 
@@ -3252,12 +3252,12 @@ extern void ftrace_profile_disable(int);
 
 static void tp_perf_counter_destroy(struct perf_counter *counter)
 {
-	ftrace_profile_disable(perf_event_id(&counter->hw_event));
+	ftrace_profile_disable(perf_event_id(&counter->attr));
 }
 
 static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
-	int event_id = perf_event_id(&counter->hw_event);
+	int event_id = perf_event_id(&counter->attr);
 	int ret;
 
 	ret = ftrace_profile_enable(event_id);
@@ -3265,7 +3265,7 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
-	counter->hw.sample_period = counter->hw_event.sample_period;
+	counter->hw.sample_period = counter->attr.sample_period;
 
 	return &perf_ops_generic;
 }
@@ -3287,7 +3287,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (perf_event_id(&counter->hw_event)) {
+	switch (perf_event_id(&counter->attr)) {
 	case PERF_COUNT_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
@@ -3319,7 +3319,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
  * Allocate and initialize a counter structure
  */
 static struct perf_counter *
-perf_counter_alloc(struct perf_counter_hw_event *hw_event,
+perf_counter_alloc(struct perf_counter_attr *attr,
 		   int cpu,
 		   struct perf_counter_context *ctx,
 		   struct perf_counter *group_leader,
@@ -3352,36 +3352,36 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	mutex_init(&counter->mmap_mutex);
 
 	counter->cpu			= cpu;
-	counter->hw_event		= *hw_event;
+	counter->attr		= *attr;
 	counter->group_leader		= group_leader;
 	counter->pmu			= NULL;
 	counter->ctx			= ctx;
 	counter->oncpu			= -1;
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
-	if (hw_event->disabled)
+	if (attr->disabled)
 		counter->state = PERF_COUNTER_STATE_OFF;
 
 	pmu = NULL;
 
 	hwc = &counter->hw;
-	if (hw_event->freq && hw_event->sample_freq)
-		hwc->sample_period = div64_u64(TICK_NSEC, hw_event->sample_freq);
+	if (attr->freq && attr->sample_freq)
+		hwc->sample_period = div64_u64(TICK_NSEC, attr->sample_freq);
 	else
-		hwc->sample_period = hw_event->sample_period;
+		hwc->sample_period = attr->sample_period;
 
 	/*
 	 * we currently do not support PERF_SAMPLE_GROUP on inherited counters
 	 */
-	if (hw_event->inherit && (hw_event->sample_type & PERF_SAMPLE_GROUP))
+	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
 		goto done;
 
-	if (perf_event_raw(hw_event)) {
+	if (perf_event_raw(attr)) {
 		pmu = hw_perf_counter_init(counter);
 		goto done;
 	}
 
-	switch (perf_event_type(hw_event)) {
+	switch (perf_event_type(attr)) {
 	case PERF_TYPE_HARDWARE:
 		pmu = hw_perf_counter_init(counter);
 		break;
@@ -3409,11 +3409,11 @@ done:
 	counter->pmu = pmu;
 
 	atomic_inc(&nr_counters);
-	if (counter->hw_event.mmap)
+	if (counter->attr.mmap)
 		atomic_inc(&nr_mmap_tracking);
-	if (counter->hw_event.munmap)
+	if (counter->attr.munmap)
 		atomic_inc(&nr_munmap_tracking);
-	if (counter->hw_event.comm)
+	if (counter->attr.comm)
 		atomic_inc(&nr_comm_tracking);
 
 	return counter;
@@ -3424,17 +3424,17 @@ static atomic64_t perf_counter_id;
 /**
  * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
  *
- * @hw_event_uptr:	event type attributes for monitoring/sampling
+ * @attr_uptr:	event type attributes for monitoring/sampling
  * @pid:		target pid
  * @cpu:		target cpu
  * @group_fd:		group leader counter fd
  */
 SYSCALL_DEFINE5(perf_counter_open,
-		const struct perf_counter_hw_event __user *, hw_event_uptr,
+		const struct perf_counter_attr __user *, attr_uptr,
 		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
 {
 	struct perf_counter *counter, *group_leader;
-	struct perf_counter_hw_event hw_event;
+	struct perf_counter_attr attr;
 	struct perf_counter_context *ctx;
 	struct file *counter_file = NULL;
 	struct file *group_file = NULL;
@@ -3446,7 +3446,7 @@ SYSCALL_DEFINE5(perf_counter_open,
 	if (flags)
 		return -EINVAL;
 
-	if (copy_from_user(&hw_event, hw_event_uptr, sizeof(hw_event)) != 0)
+	if (copy_from_user(&attr, attr_uptr, sizeof(attr)) != 0)
 		return -EFAULT;
 
 	/*
@@ -3484,11 +3484,11 @@ SYSCALL_DEFINE5(perf_counter_open,
 		/*
 		 * Only a group leader can be exclusive or pinned
 		 */
-		if (hw_event.exclusive || hw_event.pinned)
+		if (attr.exclusive || attr.pinned)
 			goto err_put_context;
 	}
 
-	counter = perf_counter_alloc(&hw_event, cpu, ctx, group_leader,
+	counter = perf_counter_alloc(&attr, cpu, ctx, group_leader,
 				     GFP_KERNEL);
 	ret = PTR_ERR(counter);
 	if (IS_ERR(counter))
@@ -3556,7 +3556,7 @@ inherit_counter(struct perf_counter *parent_counter,
 	if (parent_counter->parent)
 		parent_counter = parent_counter->parent;
 
-	child_counter = perf_counter_alloc(&parent_counter->hw_event,
+	child_counter = perf_counter_alloc(&parent_counter->attr,
 					   parent_counter->cpu, child_ctx,
 					   group_leader, GFP_KERNEL);
 	if (IS_ERR(child_counter))
@@ -3565,7 +3565,7 @@ inherit_counter(struct perf_counter *parent_counter,
 
 	/*
 	 * Make the child state follow the state of the parent counter,
-	 * not its hw_event.disabled bit.  We hold the parent's mutex,
+	 * not its attr.disabled bit.  We hold the parent's mutex,
 	 * so we won't race with perf_counter_{en, dis}able_family.
 	 */
 	if (parent_counter->state >= PERF_COUNTER_STATE_INACTIVE)
@@ -3582,7 +3582,7 @@ inherit_counter(struct perf_counter *parent_counter,
 	/*
 	 * inherit into child's child as well:
 	 */
-	child_counter->hw_event.inherit = 1;
+	child_counter->attr.inherit = 1;
 
 	/*
 	 * Get a reference to the parent filp - we will fput it
@@ -3838,7 +3838,7 @@ int perf_counter_init_task(struct task_struct *child)
 		if (counter != counter->group_leader)
 			continue;
 
-		if (!counter->hw_event.inherit) {
+		if (!counter->attr.inherit) {
 			inherited_all = 0;
 			continue;
 		}

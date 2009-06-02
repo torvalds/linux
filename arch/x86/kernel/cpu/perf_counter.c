@@ -247,11 +247,11 @@ static inline int x86_pmu_initialized(void)
 }
 
 /*
- * Setup the hardware configuration for a given hw_event_type
+ * Setup the hardware configuration for a given attr_type
  */
 static int __hw_perf_counter_init(struct perf_counter *counter)
 {
-	struct perf_counter_hw_event *hw_event = &counter->hw_event;
+	struct perf_counter_attr *attr = &counter->attr;
 	struct hw_perf_counter *hwc = &counter->hw;
 	int err;
 
@@ -279,9 +279,9 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	/*
 	 * Count user and OS events unless requested not to.
 	 */
-	if (!hw_event->exclude_user)
+	if (!attr->exclude_user)
 		hwc->config |= ARCH_PERFMON_EVENTSEL_USR;
-	if (!hw_event->exclude_kernel)
+	if (!attr->exclude_kernel)
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
 
 	if (!hwc->sample_period)
@@ -292,15 +292,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
-	if (perf_event_raw(hw_event)) {
-		hwc->config |= x86_pmu.raw_event(perf_event_config(hw_event));
+	if (perf_event_raw(attr)) {
+		hwc->config |= x86_pmu.raw_event(perf_event_config(attr));
 	} else {
-		if (perf_event_id(hw_event) >= x86_pmu.max_events)
+		if (perf_event_id(attr) >= x86_pmu.max_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= x86_pmu.event_map(perf_event_id(hw_event));
+		hwc->config |= x86_pmu.event_map(perf_event_id(attr));
 	}
 
 	counter->destroy = hw_perf_counter_destroy;

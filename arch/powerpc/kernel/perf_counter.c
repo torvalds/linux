@@ -262,13 +262,13 @@ static int check_excludes(struct perf_counter **ctrs, unsigned int cflags[],
 		}
 		counter = ctrs[i];
 		if (first) {
-			eu = counter->hw_event.exclude_user;
-			ek = counter->hw_event.exclude_kernel;
-			eh = counter->hw_event.exclude_hv;
+			eu = counter->attr.exclude_user;
+			ek = counter->attr.exclude_kernel;
+			eh = counter->attr.exclude_hv;
 			first = 0;
-		} else if (counter->hw_event.exclude_user != eu ||
-			   counter->hw_event.exclude_kernel != ek ||
-			   counter->hw_event.exclude_hv != eh) {
+		} else if (counter->attr.exclude_user != eu ||
+			   counter->attr.exclude_kernel != ek ||
+			   counter->attr.exclude_hv != eh) {
 			return -EAGAIN;
 		}
 	}
@@ -483,16 +483,16 @@ void hw_perf_enable(void)
 
 	/*
 	 * Add in MMCR0 freeze bits corresponding to the
-	 * hw_event.exclude_* bits for the first counter.
+	 * attr.exclude_* bits for the first counter.
 	 * We have already checked that all counters have the
 	 * same values for these bits as the first counter.
 	 */
 	counter = cpuhw->counter[0];
-	if (counter->hw_event.exclude_user)
+	if (counter->attr.exclude_user)
 		cpuhw->mmcr[0] |= MMCR0_FCP;
-	if (counter->hw_event.exclude_kernel)
+	if (counter->attr.exclude_kernel)
 		cpuhw->mmcr[0] |= freeze_counters_kernel;
-	if (counter->hw_event.exclude_hv)
+	if (counter->attr.exclude_hv)
 		cpuhw->mmcr[0] |= MMCR0_FCHV;
 
 	/*
@@ -786,10 +786,10 @@ static int can_go_on_limited_pmc(struct perf_counter *counter, u64 ev,
 	int n;
 	u64 alt[MAX_EVENT_ALTERNATIVES];
 
-	if (counter->hw_event.exclude_user
-	    || counter->hw_event.exclude_kernel
-	    || counter->hw_event.exclude_hv
-	    || counter->hw_event.sample_period)
+	if (counter->attr.exclude_user
+	    || counter->attr.exclude_kernel
+	    || counter->attr.exclude_hv
+	    || counter->attr.sample_period)
 		return 0;
 
 	if (ppmu->limited_pmc_event(ev))
@@ -855,13 +855,13 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	if (!ppmu)
 		return ERR_PTR(-ENXIO);
-	if (!perf_event_raw(&counter->hw_event)) {
-		ev = perf_event_id(&counter->hw_event);
+	if (!perf_event_raw(&counter->attr)) {
+		ev = perf_event_id(&counter->attr);
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
 			return ERR_PTR(-EOPNOTSUPP);
 		ev = ppmu->generic_events[ev];
 	} else {
-		ev = perf_event_config(&counter->hw_event);
+		ev = perf_event_config(&counter->attr);
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;
@@ -872,7 +872,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	 * the user set it to.
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
-		counter->hw_event.exclude_hv = 0;
+		counter->attr.exclude_hv = 0;
 
 	/*
 	 * If this is a per-task counter, then we can use
@@ -990,7 +990,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 */
 	if (record) {
 		addr = 0;
-		if (counter->hw_event.record_type & PERF_RECORD_ADDR) {
+		if (counter->attr.record_type & PERF_RECORD_ADDR) {
 			/*
 			 * The user wants a data address recorded.
 			 * If we're not doing instruction sampling,
