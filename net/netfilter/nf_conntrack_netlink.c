@@ -403,76 +403,55 @@ nla_put_failure:
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-/*
- * The general structure of a ctnetlink event is
- *
- *  CTA_TUPLE_ORIG
- *    <l3/l4-proto-attributes>
- *  CTA_TUPLE_REPLY
- *    <l3/l4-proto-attributes>
- *  CTA_ID
- *  ...
- *  CTA_PROTOINFO
- *    <l4-proto-attributes>
- *  CTA_TUPLE_MASTER
- *    <l3/l4-proto-attributes>
- *
- * Therefore the formular is
- *
- *   size = sizeof(headers) + sizeof(generic_nlas) + 3 * sizeof(tuple_nlas)
- *		+ sizeof(protoinfo_nlas)
- */
-static struct sk_buff *
-ctnetlink_alloc_skb(const struct nf_conntrack_tuple *tuple, gfp_t gfp)
+static inline size_t
+ctnetlink_proto_size(const struct nf_conn *ct)
 {
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
-	int len;
-
-#define NLA_TYPE_SIZE(type)		nla_total_size(sizeof(type))
-
-	/* proto independant part */
-	len = NLMSG_ALIGN(sizeof(struct nfgenmsg))
-		+ 3 * nla_total_size(0)		/* CTA_TUPLE_ORIG|REPL|MASTER */
-		+ 3 * nla_total_size(0)		/* CTA_TUPLE_IP */
-		+ 3 * nla_total_size(0)		/* CTA_TUPLE_PROTO */
-		+ 3 * NLA_TYPE_SIZE(u_int8_t)	/* CTA_PROTO_NUM */
-		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_ID */
-		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_STATUS */
-#ifdef CONFIG_NF_CT_ACCT
-		+ 2 * nla_total_size(0)		/* CTA_COUNTERS_ORIG|REPL */
-		+ 2 * NLA_TYPE_SIZE(uint64_t)	/* CTA_COUNTERS_PACKETS */
-		+ 2 * NLA_TYPE_SIZE(uint64_t)	/* CTA_COUNTERS_BYTES */
-#endif
-		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_TIMEOUT */
-		+ nla_total_size(0)		/* CTA_PROTOINFO */
-		+ nla_total_size(0)		/* CTA_HELP */
-		+ nla_total_size(NF_CT_HELPER_NAME_LEN)	/* CTA_HELP_NAME */
-#ifdef CONFIG_NF_CONNTRACK_SECMARK
-		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_SECMARK */
-#endif
-#ifdef CONFIG_NF_NAT_NEEDED
-		+ 2 * nla_total_size(0)		/* CTA_NAT_SEQ_ADJ_ORIG|REPL */
-		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_POS */
-		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_BEFORE */
-		+ 2 * NLA_TYPE_SIZE(u_int32_t)	/* CTA_NAT_SEQ_CORRECTION_AFTER */
-#endif
-#ifdef CONFIG_NF_CONNTRACK_MARK
-		+ NLA_TYPE_SIZE(u_int32_t)	/* CTA_MARK */
-#endif
-		;
-
-#undef NLA_TYPE_SIZE
+	size_t len = 0;
 
 	rcu_read_lock();
-	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
+	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	len += l3proto->nla_size;
 
-	l4proto = __nf_ct_l4proto_find(tuple->src.l3num, tuple->dst.protonum);
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	len += l4proto->nla_size;
 	rcu_read_unlock();
 
-	return nlmsg_new(len, gfp);
+	return len;
+}
+
+static inline size_t
+ctnetlink_nlmsg_size(const struct nf_conn *ct)
+{
+	return NLMSG_ALIGN(sizeof(struct nfgenmsg))
+	       + 3 * nla_total_size(0) /* CTA_TUPLE_ORIG|REPL|MASTER */
+	       + 3 * nla_total_size(0) /* CTA_TUPLE_IP */
+	       + 3 * nla_total_size(0) /* CTA_TUPLE_PROTO */
+	       + 3 * nla_total_size(sizeof(u_int8_t)) /* CTA_PROTO_NUM */
+	       + nla_total_size(sizeof(u_int32_t)) /* CTA_ID */
+	       + nla_total_size(sizeof(u_int32_t)) /* CTA_STATUS */
+#ifdef CONFIG_NF_CT_ACCT
+	       + 2 * nla_total_size(0) /* CTA_COUNTERS_ORIG|REPL */
+	       + 2 * nla_total_size(sizeof(uint64_t)) /* CTA_COUNTERS_PACKETS */
+	       + 2 * nla_total_size(sizeof(uint64_t)) /* CTA_COUNTERS_BYTES */
+#endif
+	       + nla_total_size(sizeof(u_int32_t)) /* CTA_TIMEOUT */
+	       + nla_total_size(0) /* CTA_PROTOINFO */
+	       + nla_total_size(0) /* CTA_HELP */
+	       + nla_total_size(NF_CT_HELPER_NAME_LEN) /* CTA_HELP_NAME */
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	       + nla_total_size(sizeof(u_int32_t)) /* CTA_SECMARK */
+#endif
+#ifdef CONFIG_NF_NAT_NEEDED
+	       + 2 * nla_total_size(0) /* CTA_NAT_SEQ_ADJ_ORIG|REPL */
+	       + 6 * nla_total_size(sizeof(u_int32_t)) /* CTA_NAT_SEQ_OFFSET */
+#endif
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	       + nla_total_size(sizeof(u_int32_t)) /* CTA_MARK */
+#endif
+	       + ctnetlink_proto_size(ct)
+	       ;
 }
 
 static int ctnetlink_conntrack_event(struct notifier_block *this,
@@ -507,9 +486,8 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (!item->report && !nfnetlink_has_listeners(group))
 		return NOTIFY_DONE;
 
-	skb = ctnetlink_alloc_skb(nf_ct_tuple(ct, IP_CT_DIR_ORIGINAL),
-				  GFP_ATOMIC);
-	if (!skb)
+	skb = nlmsg_new(ctnetlink_nlmsg_size(ct), GFP_ATOMIC);
+	if (skb == NULL)
 		goto errout;
 
 	type |= NFNL_SUBSYS_CTNETLINK << 8;
