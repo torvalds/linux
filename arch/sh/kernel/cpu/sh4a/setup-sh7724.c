@@ -495,6 +495,15 @@ void __init plat_early_device_setup(void)
 				   ARRAY_SIZE(sh7724_early_devices));
 }
 
+#define RAMCR_CACHE_L2FC	0x0002
+#define RAMCR_CACHE_L2E		0x0001
+#define L2_CACHE_ENABLE		(RAMCR_CACHE_L2E|RAMCR_CACHE_L2FC)
+void __uses_jump_to_uncached l2_cache_init(void)
+{
+	/* Enable L2 cache */
+	ctrl_outl(L2_CACHE_ENABLE, RAMCR);
+}
+
 enum {
 	UNUSED = 0,
 
