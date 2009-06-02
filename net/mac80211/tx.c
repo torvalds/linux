@@ -1238,7 +1238,6 @@ static void ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 			 bool txpending)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct sta_info *sta;
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1270,7 +1269,6 @@ static void ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return;
 	}
 
-	sta = tx.sta;
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
