@@ -709,11 +709,7 @@ device_receive_frame (
                 ref_skb_add_offset(skb->skb, 4);
                 ref_skb_set_dev(pDevice->apdev, skb->skb);
                 skb_put(skb->skb, FrameSize);
-#if	LINUX_VERSION_CODE	> KERNEL_VERSION(2,6,21)
 	            skb->mac_header = skb->data;
-#else
-			skb->mac.raw = skb->data;
-#endif
 	            *(skb->pkt_type) = PACKET_OTHERHOST;
     	        *(skb->protocol) = htons(ETH_P_802_2);
 	            memset(skb->cb, 0, sizeof(skb->cb));
@@ -722,11 +718,7 @@ device_receive_frame (
 	            skb->data += 4;
 	            skb->tail += 4;
                      skb_put(skb, FrameSize);
-#if	LINUX_VERSION_CODE > KERNEL_VERSION (2,6,21)
 	            skb->mac_header = skb->data;
-#else
-		skb->mac.raw = skb->data;
-#endif
 	            skb->pkt_type = PACKET_OTHERHOST;
     	        skb->protocol = htons(ETH_P_802_2);
 	            memset(skb->cb, 0, sizeof(skb->cb));
@@ -858,11 +850,7 @@ device_receive_frame (
             ref_skb_add_offset(skb->skb, (cbIVOffset + 4));
             ref_skb_set_dev(pDevice->apdev, skb->skb);
             skb_put(skb->skb, FrameSize);
-#if	LINUX_VERSION_CODE	> KERNEL_VERSION(2,6,21)
 			skb->mac_header = skb->data;
-#else
-			skb->mac.raw = skb->data;
-#endif
             *(skb->pkt_type) = PACKET_OTHERHOST;
 	        *(skb->protocol) = htons(ETH_P_802_2);
             memset(skb->cb, 0, sizeof(skb->cb));
@@ -871,11 +859,7 @@ device_receive_frame (
             skb->data +=  (cbIVOffset + 4);
             skb->tail +=  (cbIVOffset + 4);
             skb_put(skb, FrameSize);
-#if	LINUX_VERSION_CODE	> KERNEL_VERSION(2,6,21)
            skb->mac_header = skb->data;
-#else
-	skb->mac.raw = skb->data;
-#endif
 
 	skb->pkt_type = PACKET_OTHERHOST;
             skb->protocol = htons(ETH_P_802_2);
@@ -998,12 +982,8 @@ device_receive_frame (
                      wpahdr->req_ie_len = 0;
                      skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                      pDevice->skb->dev = pDevice->wpadev;
-#if	LINUX_VERSION_CODE	> KERNEL_VERSION(2,6,21)
-		pDevice->skb->mac_header = pDevice->skb->data;
-#else
-		pDevice->skb->mac.raw=pDevice->skb->data;
-#endif
-			pDevice->skb->pkt_type = PACKET_HOST;
+                     pDevice->skb->mac_header = pDevice->skb->data;
+                     pDevice->skb->pkt_type = PACKET_HOST;
                      pDevice->skb->protocol = htons(ETH_P_802_2);
                      memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
                      netif_rx(pDevice->skb);

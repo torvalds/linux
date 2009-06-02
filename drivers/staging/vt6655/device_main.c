@@ -367,7 +367,6 @@ static void device_set_multi(struct net_device *dev);
 static int  device_close(struct net_device *dev);
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 #ifdef CONFIG_PM
 static int device_notify_reboot(struct notifier_block *, unsigned long event, void *ptr);
 static int viawget_suspend(struct pci_dev *pcid, u32 state);
@@ -377,7 +376,6 @@ struct notifier_block device_notifier = {
         next:           NULL,
         priority:       0
 };
-#endif
 #endif
 
 #endif // #ifndef PRIVATE_OBJ
@@ -948,12 +946,7 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
                  wpahdr->req_ie_len = 0;
                  skb_put(pDevice->skb, sizeof(viawget_wpa_header));
                  pDevice->skb->dev = pDevice->wpadev;
-//2008-4-3 modify by Chester for wpa
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
                  pDevice->skb->mac_header = pDevice->skb->data;
-#else
-                 pDevice->skb->mac.raw = pDevice->skb->data;
-#endif
                  pDevice->skb->pkt_type = PACKET_HOST;
                  pDevice->skb->protocol = htons(ETH_P_802_2);
                  memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
@@ -984,23 +977,14 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     struct net_device*  dev = NULL;
     PCHIP_INFO  pChip_info = (PCHIP_INFO)ent->driver_data;
     PSDevice    pDevice;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     int         rc;
-#endif
-//#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
- //  BYTE            fake_mac[U_ETHER_ADDR_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};//fake MAC address
-//#endif
     if (device_nics ++>= MAX_UINTS) {
         printk(KERN_NOTICE DEVICE_NAME ": already found %d NICs\n", device_nics);
         return -ENODEV;
     }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     dev = alloc_etherdev(sizeof(DEVICE_INFO));
-#else
-    dev = init_etherdev(dev, 0);
-#endif
 
     pDevice = (PSDevice) netdev_priv(dev);
 
@@ -1009,11 +993,9 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
         return -ENODEV;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     // Chain it all together
    // SET_MODULE_OWNER(dev);
     SET_NETDEV_DEV(dev, &pcid->dev);
-#endif
 
     if (bFirst) {
         printk(KERN_NOTICE "%s Ver. %s\n",DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
@@ -1106,21 +1088,12 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     rc = pci_request_regions(pcid, DEVICE_NAME);
     if (rc) {
         printk(KERN_ERR DEVICE_NAME ": Failed to find PCI device\n");
         device_free_info(pDevice);
         return -ENODEV;
     }
-#else
-    if (check_region(pDevice->ioaddr, pDevice->io_size)) {
-        printk(KERN_ERR DEVICE_NAME ": Failed to find PCI device\n");
-        device_free_info(pDevice);
-        return -ENODEV;
-    }
-    request_region(pDevice->ioaddr, pDevice->io_size, DEVICE_NAME);
-#endif
 
     dev->base_addr = pDevice->ioaddr;
 #ifdef	PLICE_DEBUG
@@ -1177,10 +1150,6 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
 #endif /* WIRELESS_EXT > 12 */
 #endif /* WIRELESS_EXT */
 
- //  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
-  //  memcpy(pDevice->dev->dev_addr, fake_mac, U_ETHER_ADDR_LEN); //use fake mac address
- //  #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     rc = register_netdev(dev);
     if (rc)
     {
@@ -1188,7 +1157,6 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
         device_free_info(pDevice);
         return -ENODEV;
     }
-#endif
 //2008-07-21-01<Add>by MikeLiu
 //register wpadev
    if(wpa_set_wpadev(pDevice, 1)!=0) {
@@ -1354,17 +1322,10 @@ device_release_WPADEV(pDevice);
     if (pDevice->PortOffset)
         iounmap((PVOID)pDevice->PortOffset);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     if (pDevice->pcid)
         pci_release_regions(pDevice->pcid);
     if (dev)
         free_netdev(dev);
-#else
-    if (pDevice->ioaddr)
-        release_region(pDevice->ioaddr,pDevice->io_size);
-    if (dev)
-        kfree(dev);
-#endif
 
     if (pDevice->pcid) {
         pci_set_drvdata(pDevice->pcid,NULL);
@@ -1877,11 +1838,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
 #else
                     skb = pTD->pTDInfo->skb;
 	                skb->dev = pDevice->apdev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-			skb->mac_header = skb->data;
-#else
-			skb->mac.raw = skb->data;
-#endif
+			        skb->mac_header = skb->data;
 	                skb->pkt_type = PACKET_OTHERHOST;
     	            //skb->protocol = htons(ETH_P_802_2);
 	                memset(skb->cb, 0, sizeof(skb->cb));
@@ -2061,11 +2018,7 @@ static int  device_open(struct net_device *dev) {
     }
 //2008-5-13 <add> by chester
 #ifndef PRIVATE_OBJ
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,16)
     i=request_irq(pDevice->pcid->irq, &device_intr, IRQF_SHARED, dev->name, dev);
-#else
-    i=request_irq(pDevice->pcid->irq, &device_intr, (unsigned long)SA_SHIRQ, dev->name, dev);
-#endif
     if (i)
         return i;
 #endif
@@ -2185,12 +2138,6 @@ DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call MACvIntEnable\n");
     }
     pDevice->flags |=DEVICE_FLAGS_OPENED;
 
-#ifndef PRIVATE_OBJ
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    MOD_INC_USE_COUNT;
-#endif
-#endif
-
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success.. \n");
     return 0;
 }
@@ -2255,11 +2202,6 @@ device_release_WPADEV(pDevice);
 //PLICE_DEBUG->
 	//tasklet_kill(&pDevice->RxMngWorkItem);
 //PLICE_DEBUG<-
-#ifndef PRIVATE_OBJ
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-    MOD_DEC_USE_COUNT;
-#endif
-#endif
     DEVICE_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close.. \n");
     return 0;
 }
@@ -3945,11 +3887,9 @@ static struct pci_driver device_driver = {
         id_table:   device_id_table,
         probe:      device_found1,
         remove:     device_remove1,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 #ifdef CONFIG_PM
         suspend:    viawget_suspend,
         resume:     viawget_resume,
-#endif
 #endif
 };
 
@@ -3960,16 +3900,10 @@ static int __init device_init_module(void)
 
 //    ret=pci_module_init(&device_driver);
 	//ret = pcie_port_service_register(&device_driver);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 	ret = pci_register_driver(&device_driver);
-#else
-	ret = pci_module_init(&device_driver);
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 #ifdef CONFIG_PM
     if(ret >= 0)
         register_reboot_notifier(&device_notifier);
-#endif
 #endif
 
     return ret;
@@ -3979,10 +3913,8 @@ static void __exit device_cleanup_module(void)
 {
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 #ifdef CONFIG_PM
     unregister_reboot_notifier(&device_notifier);
-#endif
 #endif
     pci_unregister_driver(&device_driver);
 
@@ -3992,7 +3924,6 @@ module_init(device_init_module);
 module_exit(device_cleanup_module);
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,9)
 #ifdef CONFIG_PM
 static int
 device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
@@ -4002,11 +3933,7 @@ device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
     case SYS_DOWN:
     case SYS_HALT:
     case SYS_POWER_OFF:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
         while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
-#else
-        pci_for_each_dev(pdev) {
-#endif
             if(pci_dev_driver(pdev) == &device_driver) {
                 if (pci_get_drvdata(pdev))
                     viawget_suspend(pdev, 3);
@@ -4026,11 +3953,7 @@ viawget_suspend(struct pci_dev *pcid, u32 state)
 
     netif_stop_queue(pDevice->dev);
     spin_lock_irq(&pDevice->lock);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
     pci_save_state(pcid);
-#else
-    pci_save_state(pcid, pDevice->pci_state);
-#endif
     del_timer(&pDevice->sTimerCommand);
     del_timer(&pMgmt->sTimerSecondCallback);
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
@@ -4058,11 +3981,7 @@ viawget_resume(struct pci_dev *pcid)
 
     power_status = pci_set_power_state(pcid, 0);
     power_status = pci_enable_wake(pcid, 0, 0);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
     pci_restore_state(pcid);
-#else
-    pci_restore_state(pcid, pDevice->pci_state);
-#endif
     if (netif_running(pDevice->dev)) {
         spin_lock_irq(&pDevice->lock);
         MACvRestoreContext(pDevice->PortOffset, pDevice->abyMacContext);
@@ -4090,7 +4009,6 @@ viawget_resume(struct pci_dev *pcid)
     return 0;
 }
 
-#endif
 #endif
 
 #endif //#ifndef PRIVATE_OBJ

@@ -1335,12 +1335,7 @@ start:
              wpahdr->req_ie_len = 0;
              skb_put(pDevice->skb, sizeof(viawget_wpa_header));
              pDevice->skb->dev = pDevice->wpadev;
-//2008-4-3 modify by Chester for wpa
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
              pDevice->skb->mac_header = pDevice->skb->data;
-#else
-            pDevice->skb->mac.raw = pDevice->skb->data;
-#endif
              pDevice->skb->pkt_type = PACKET_HOST;
              pDevice->skb->protocol = htons(ETH_P_802_2);
              memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
