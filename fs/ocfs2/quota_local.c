@@ -655,6 +655,9 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	struct ocfs2_quota_recovery *rec;
 	int locked = 0;
 
+	/* We don't need the lock and we have to acquire quota file locks
+	 * which will later depend on this lock */
+	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	info->dqi_maxblimit = 0x7fffffffffffffffLL;
 	info->dqi_maxilimit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
@@ -733,6 +736,7 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 		goto out_err;
 	}
 
+	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return 0;
 out_err:
 	if (oinfo) {
@@ -746,6 +750,7 @@ out_err:
 		kfree(oinfo);
 	}
 	brelse(bh);
+	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	return -1;
 }
 
