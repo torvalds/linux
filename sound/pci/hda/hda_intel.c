@@ -661,14 +661,23 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 		return -1;
 	}
 
-	snd_printk(KERN_ERR SFX "azx_get_response timeout (ERROR): "
-		   "last cmd=0x%08x\n", chip->last_cmd);
-	/* re-initialize CORB/RIRB */
-	spin_lock_irq(&chip->reg_lock);
+	/* a fatal communication error; need either to reset or to fallback
+	 * to the single_cmd mode
+	 */
 	bus->rirb_error = 1;
+	if (bus->allow_bus_reset && !bus->response_reset && !bus->in_reset) {
+		bus->response_reset = 1;
+		return -1; /* give a chance to retry */
+	}
+
+	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout, "
+		   "switching to single_cmd mode: last cmd=0x%08x\n",
+		   chip->last_cmd);
+	chip->single_cmd = 1;
+	bus->response_reset = 0;
+	/* re-initialize CORB/RIRB */
 	azx_free_cmd_io(chip);
 	azx_init_cmd_io(chip);
-	spin_unlock_irq(&chip->reg_lock);
 	return -1;
 }
 
@@ -709,6 +718,7 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 	struct azx *chip = bus->private_data;
 	int timeout = 50;
 
+	bus->rirb_error = 0;
 	while (timeout--) {
 		/* check ICB busy bit */
 		if (!((azx_readw(chip, IRS) & ICH6_IRS_BUSY))) {
@@ -1247,6 +1257,23 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 				 struct hda_pcm *cpcm);
 static void azx_stop_chip(struct azx *chip);
 
+static void azx_bus_reset(struct hda_bus *bus)
+{
+	struct azx *chip = bus->private_data;
+	int i;
+
+	bus->in_reset = 1;
+	azx_stop_chip(chip);
+	azx_init_chip(chip);
+	if (chip->initialized) {
+		for (i = 0; i < AZX_MAX_PCMS; i++)
+			snd_pcm_suspend_all(chip->pcm[i]);
+		snd_hda_suspend(chip->bus);
+		snd_hda_resume(chip->bus);
+	}
+	bus->in_reset = 0;
+}
+
 /*
  * Codec initialization
  */
@@ -1270,6 +1297,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	bus_temp.ops.command = azx_send_cmd;
 	bus_temp.ops.get_response = azx_get_response;
 	bus_temp.ops.attach_pcm = azx_attach_pcm_stream;
+	bus_temp.ops.bus_reset = azx_bus_reset;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	bus_temp.power_save = &power_save;
 	bus_temp.ops.pm_notify = azx_power_notify;
@@ -1997,7 +2025,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < AZX_MAX_PCMS; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->initialized)
-		snd_hda_suspend(chip->bus, state);
+		snd_hda_suspend(chip->bus);
 	azx_stop_chip(chip);
 	if (chip->irq >= 0) {
 		free_irq(chip->irq, chip);
