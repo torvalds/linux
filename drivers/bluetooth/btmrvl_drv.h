@@ -79,6 +79,9 @@ struct btmrvl_private {
 				u8 *payload, u16 nb);
 	int (*hw_wakeup_firmware) (struct btmrvl_private *priv);
 	spinlock_t driver_lock;		/* spinlock used by driver */
+#ifdef CONFIG_DEBUG_FS
+	void *debugfs_data;
+#endif
 };
 
 #define MRVL_VENDOR_PKT			0xFE
@@ -134,5 +137,10 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb);
 
 int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd);
 int btmrvl_prepare_command(struct btmrvl_private *priv);
+
+#ifdef CONFIG_DEBUG_FS
+void btmrvl_debugfs_init(struct hci_dev *hdev);
+void btmrvl_debugfs_remove(struct hci_dev *hdev);
+#endif
 
 #endif /* _BTMRVL_DRV_H_ */

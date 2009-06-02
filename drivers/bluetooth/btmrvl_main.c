@@ -658,6 +658,10 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 		goto err_hci_register_dev;
 	}
 
+#ifdef CONFIG_DEBUG_FS
+	btmrvl_debugfs_init(hdev);
+#endif
+
 	BT_DBG("Leave");
 	return priv;
 
@@ -691,6 +695,10 @@ int btmrvl_remove_card(struct btmrvl_private *priv)
 	wake_up_interruptible(&priv->adapter->cmd_wait_q);
 
 	kthread_stop(priv->main_thread.task);
+
+#ifdef CONFIG_DEBUG_FS
+	btmrvl_debugfs_remove(hdev);
+#endif
 
 	hci_unregister_dev(hdev);
 

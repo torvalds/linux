@@ -173,6 +173,7 @@ config BT_HCIVHCI
 config BT_MRVL
 	tristate "Marvell Bluetooth driver support"
 	select FW_LOADER
+	select DEBUG_FS
 	help
 	  The core driver to support Marvell Bluetooth devices.
 
