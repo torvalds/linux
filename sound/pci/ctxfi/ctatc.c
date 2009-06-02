@@ -254,6 +254,9 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		return 0;
 	}
 
+	/* first release old resources */
+	atc->pcm_release_resources(atc, apcm);
+
 	/* Get SRC resource */
 	desc.multi = apcm->substream->runtime->channels;
 	desc.msr = atc->msr;
@@ -495,6 +498,9 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	int multi = 0, err = 0, i = 0;
 	int n_srcimp = 0, n_amixer = 0, n_srcc = 0, n_sum = 0;
 	struct src_node_conf_t src_node_conf[2] = {{0} };
+
+	/* first release old resources */
+	atc->pcm_release_resources(atc, apcm);
 
 	/* The numbers of converting SRCs and SRCIMPs should be determined
 	 * by pitch value. */
@@ -766,6 +772,9 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	int err = 0;
 	int n_amixer = apcm->substream->runtime->channels, i = 0;
 	unsigned int pitch = 0, rsr = atc->pll_rate;
+
+	/* first release old resources */
+	atc->pcm_release_resources(atc, apcm);
 
 	/* Get SRC resource */
 	desc.multi = apcm->substream->runtime->channels;
