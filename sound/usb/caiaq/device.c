@@ -382,10 +382,10 @@ static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 
 static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 {
-	char usbpath[32];
+	char *c, usbpath[32];
 	struct usb_device *usb_dev = dev->chip.dev;
 	struct snd_card *card = dev->chip.card;
-	int err;
+	int err, len;
 
 	if (usb_set_interface(usb_dev, 0, 1) != 0) {
 		log("can't set alt interface.\n");
@@ -426,6 +426,23 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 
 	strlcpy(card->driver, MODNAME, sizeof(card->driver));
 	strlcpy(card->shortname, dev->product_name, sizeof(card->shortname));
+
+	/* if the id was not passed as module option, fill it with a shortened
+	 * version of the product string which does not contain any
+	 * whitespaces */
+
+	if (*card->id == '\0') {
+		char id[sizeof(card->id)];
+
+		memset(id, 0, sizeof(id));
+
+		for (c = card->shortname, len = 0;
+			*c && len < sizeof(card->id); c++)
+			if (*c != ' ')
+				id[len++] = *c;
+
+		snd_card_set_id(card, id);
+	}
 
 	usb_make_path(usb_dev, usbpath, sizeof(usbpath));
 	snprintf(card->longname, sizeof(card->longname),
