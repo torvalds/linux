@@ -170,5 +170,17 @@ config BT_HCIVHCI
 	  Say Y here to compile support for virtual HCI devices into the
 	  kernel or say M to compile it as module (hci_vhci).
 
+config BT_MRVL
+	tristate "Marvell Bluetooth driver support"
+	select FW_LOADER
+	help
+	  The core driver to support Marvell Bluetooth devices.
+
+	  This driver is required if you want to support
+	  Marvell Bluetooth devices, such as 8688.
+
+	  Say Y here to compile Marvell Bluetooth driver
+	  into the kernel or say M to compile it as module.
+
 endmenu
 
