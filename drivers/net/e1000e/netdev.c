@@ -2751,23 +2751,25 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	/*
 	 * flow control settings
 	 *
-	 * The high water mark must be low enough to fit one full frame
+	 * The high water mark must be low enough to fit two full frame
 	 * (or the size used for early receive) above it in the Rx FIFO.
 	 * Set it to the lower of:
 	 * - 90% of the Rx FIFO size, and
 	 * - the full Rx FIFO size minus the early receive size (for parts
 	 *   with ERT support assuming ERT set to E1000_ERT_2048), or
-	 * - the full Rx FIFO size minus one full frame
+	 * - the full Rx FIFO size minus two full frames
 	 */
-	if (adapter->flags & FLAG_HAS_ERT)
+	if ((adapter->flags & FLAG_HAS_ERT) &&
+	    (adapter->netdev->mtu > ETH_DATA_LEN))
 		hwm = min(((pba << 10) * 9 / 10),
 			  ((pba << 10) - (E1000_ERT_2048 << 3)));
 	else
 		hwm = min(((pba << 10) * 9 / 10),
-			  ((pba << 10) - adapter->max_frame_size));
+			  ((pba << 10) - (2 * adapter->max_frame_size)));
 
-	fc->high_water = hwm & 0xFFF8; /* 8-byte granularity */
-	fc->low_water = fc->high_water - 8;
+	fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
+	fc->low_water = (fc->high_water - (2 * adapter->max_frame_size));
+	fc->low_water &= E1000_FCRTL_RTL; /* 8-byte granularity */
 
 	if (adapter->flags & FLAG_DISABLE_FC_PAUSE_TIME)
 		fc->pause_time = 0xFFFF;

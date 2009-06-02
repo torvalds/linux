@@ -469,6 +469,8 @@
 #define AUTO_READ_DONE_TIMEOUT      10
 
 /* Flow Control */
+#define E1000_FCRTH_RTH  0x0000FFF8     /* Mask Bits[15:3] for RTH */
+#define E1000_FCRTL_RTL  0x0000FFF8     /* Mask Bits[15:3] for RTL */
 #define E1000_FCRTL_XONE 0x80000000     /* Enable XON frame transmission */
 
 /* Transmit Configuration Word */
