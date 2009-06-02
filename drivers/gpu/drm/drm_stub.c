@@ -343,7 +343,7 @@ static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int t
 #if defined(CONFIG_DEBUG_FS)
 	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
 	if (ret) {
-		DRM_ERROR("DRM: Failed to initialize /debugfs/dri.\n");
+		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
 		goto err_g2;
 	}
 #endif

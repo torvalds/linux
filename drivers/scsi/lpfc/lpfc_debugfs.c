@@ -53,8 +53,7 @@
  * debugfs interface
  *
  * To access this interface the user should:
- * # mkdir /debug
- * # mount -t debugfs none /debug
+ * # mount -t debugfs none /sys/kernel/debug
  *
  * The lpfc debugfs directory hierarchy is:
  * lpfc/lpfcX/vportY

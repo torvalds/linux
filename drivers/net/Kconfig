@@ -2206,7 +2206,7 @@ config SKGE_DEBUG
        depends on SKGE && DEBUG_FS
        help
 	 This option adds the ability to dump driver state for debugging.
-	 The file debugfs/skge/ethX displays the state of the internal
+	 The file /sys/kernel/debug/skge/ethX displays the state of the internal
 	 transmit and receive rings.
 
 	 If unsure, say N.
@@ -2232,7 +2232,7 @@ config SKY2_DEBUG
        depends on SKY2 && DEBUG_FS
        help
 	 This option adds the ability to dump driver state for debugging.
-	 The file debugfs/sky2/ethX displays the state of the internal
+	 The file /sys/kernel/debug/sky2/ethX displays the state of the internal
 	 transmit and receive rings.
 
 	 If unsure, say N.
