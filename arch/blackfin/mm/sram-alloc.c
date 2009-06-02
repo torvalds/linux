@@ -743,6 +743,10 @@ found:
 }
 EXPORT_SYMBOL(sram_free_with_lsl);
 
+/* Allocate memory and keep in L1 SRAM List (lsl) so that the resources are
+ * tracked.  These are designed for userspace so that when a process exits,
+ * we can safely reap their resources.
+ */
 void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 {
 	void *addr = NULL;
