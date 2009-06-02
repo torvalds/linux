@@ -3902,8 +3902,12 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
+/*
+ * This has to have a higher priority than migration_notifier in sched.c.
+ */
 static struct notifier_block __cpuinitdata perf_cpu_nb = {
 	.notifier_call		= perf_cpu_notify,
+	.priority		= 20,
 };
 
 void __init perf_counter_init(void)
