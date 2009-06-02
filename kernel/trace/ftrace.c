@@ -2738,6 +2738,9 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
+	/* Make sure we do not use the parent ret_stack */
+	t->ret_stack = NULL;
+
 	if (atomic_read(&ftrace_graph_active)) {
 		struct ftrace_ret_stack *ret_stack;
 
@@ -2753,8 +2756,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 		/* make curr_ret_stack visable before we add the ret_stack */
 		smp_wmb();
 		t->ret_stack = ret_stack;
-	} else
-		t->ret_stack = NULL;
+	}
 }
 
 void ftrace_graph_exit_task(struct task_struct *t)
