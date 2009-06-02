@@ -2130,7 +2130,7 @@ void
 dump_log_buf(void)
 {
         const unsigned long size = 128;
-        unsigned long i, end, addr;
+        unsigned long end, addr;
         unsigned char buf[size + 1];
 
         addr = 0;
