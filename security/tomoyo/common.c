@@ -1113,10 +1113,9 @@ static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 				 list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, "%s\n", ptr->manager->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%s\n", ptr->manager->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_policy_manager_list_lock);
 	head->read_eof = done;
@@ -1441,15 +1440,14 @@ static int tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
 		    TOMOYO_DOMAIN_FLAGS_IGNORE_GLOBAL_ALLOW_READ)
 			ignore_global_allow_read
 				= TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ "\n";
-		if (!tomoyo_io_printf(head,
-				      "%s\n" TOMOYO_KEYWORD_USE_PROFILE "%u\n"
-				      "%s%s%s\n", domain->domainname->name,
-				      domain->profile, quota_exceeded,
-				      transition_failed,
-				      ignore_global_allow_read)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%s\n" TOMOYO_KEYWORD_USE_PROFILE
+					"%u\n%s%s%s\n",
+					domain->domainname->name,
+					domain->profile, quota_exceeded,
+					transition_failed,
+					ignore_global_allow_read);
+		if (!done)
 			break;
-		}
 		head->read_step = 2;
 acl_loop:
 		if (head->read_step == 3)
@@ -1457,24 +1455,22 @@ acl_loop:
 		/* Print ACL entries in the domain. */
 		down_read(&tomoyo_domain_acl_info_list_lock);
 		list_for_each_cookie(apos, head->read_var2,
-				      &domain->acl_info_list) {
+				     &domain->acl_info_list) {
 			struct tomoyo_acl_info *ptr
 				= list_entry(apos, struct tomoyo_acl_info,
-					      list);
-			if (!tomoyo_print_entry(head, ptr)) {
-				done = false;
+					     list);
+			done = tomoyo_print_entry(head, ptr);
+			if (!done)
 				break;
-			}
 		}
 		up_read(&tomoyo_domain_acl_info_list_lock);
 		if (!done)
 			break;
 		head->read_step = 3;
 tail_mark:
-		if (!tomoyo_io_printf(head, "\n")) {
-			done = false;
+		done = tomoyo_io_printf(head, "\n");
+		if (!done)
 			break;
-		}
 		head->read_step = 1;
 		if (head->read_single_domain)
 			break;
@@ -1544,11 +1540,10 @@ static int tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
 		domain = list_entry(pos, struct tomoyo_domain_info, list);
 		if (domain->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, "%u %s\n", domain->profile,
-				      domain->domainname->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%u %s\n", domain->profile,
+					domain->domainname->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_list_lock);
 	head->read_eof = done;

@@ -247,11 +247,10 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
 				 list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
-				      ptr->filename->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
+					ptr->filename->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_globally_readable_list_lock);
 	return done;
@@ -369,11 +368,10 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_pattern_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN "%s\n",
-				      ptr->pattern->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN
+					"%s\n", ptr->pattern->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_pattern_list_lock);
 	return done;
@@ -483,11 +481,10 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_no_rewrite_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE "%s\n",
-				      ptr->pattern->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE
+					"%s\n", ptr->pattern->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_no_rewrite_list_lock);
 	return done;

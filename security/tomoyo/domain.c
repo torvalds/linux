@@ -189,13 +189,12 @@ bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head)
 			from = " from ";
 			domain = ptr->domainname->name;
 		}
-		if (!tomoyo_io_printf(head,
-				      "%s" TOMOYO_KEYWORD_INITIALIZE_DOMAIN
-				      "%s%s%s\n", no, ptr->program->name, from,
-				      domain)) {
-			done = false;
+		done = tomoyo_io_printf(head,
+					"%s" TOMOYO_KEYWORD_INITIALIZE_DOMAIN
+					"%s%s%s\n", no, ptr->program->name,
+					from, domain);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_initializer_list_lock);
 	return done;
@@ -387,13 +386,12 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 			from = " from ";
 			program = ptr->program->name;
 		}
-		if (!tomoyo_io_printf(head,
-				      "%s" TOMOYO_KEYWORD_KEEP_DOMAIN
-				      "%s%s%s\n", no, program, from,
-				      ptr->domainname->name)) {
-			done = false;
+		done = tomoyo_io_printf(head,
+					"%s" TOMOYO_KEYWORD_KEEP_DOMAIN
+					"%s%s%s\n", no, program, from,
+					ptr->domainname->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_keeper_list_lock);
 	return done;
@@ -513,12 +511,11 @@ bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_alias_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
-				      ptr->original_name->name,
-				      ptr->aliased_name->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
+					ptr->original_name->name,
+					ptr->aliased_name->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_alias_list_lock);
 	return done;
