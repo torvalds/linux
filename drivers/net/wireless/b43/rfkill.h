@@ -7,14 +7,11 @@ struct b43_wldev;
 #ifdef CONFIG_B43_RFKILL
 
 #include <linux/rfkill.h>
-#include <linux/input-polldev.h>
 
 
 struct b43_rfkill {
 	/* The RFKILL subsystem data structure */
 	struct rfkill *rfkill;
-	/* The poll device for the RFKILL input button */
-	struct input_polled_dev *poll_dev;
 	/* Did initialization succeed? Used for freeing. */
 	bool registered;
 	/* The unique name of this rfkill switch */
@@ -26,7 +23,7 @@ struct b43_rfkill {
 void b43_rfkill_init(struct b43_wldev *dev);
 void b43_rfkill_exit(struct b43_wldev *dev);
 
-char * b43_rfkill_led_name(struct b43_wldev *dev);
+const char *b43_rfkill_led_name(struct b43_wldev *dev);
 
 
 #else /* CONFIG_B43_RFKILL */

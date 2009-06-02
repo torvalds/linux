@@ -174,10 +174,11 @@ dell_send_request(struct calling_interface_buffer *buffer, int class,
    result[3]: NVRAM format version number
 */
 
-static int dell_rfkill_set(int radio, enum rfkill_state state)
+static int dell_rfkill_set(void *data, bool blocked)
 {
 	struct calling_interface_buffer buffer;
-	int disable = (state == RFKILL_STATE_UNBLOCKED) ? 0 : 1;
+	int disable = blocked ? 0 : 1;
+	unsigned long radio = (unsigned long)data;
 
 	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
 	buffer.input[0] = (1 | (radio<<8) | (disable << 16));
@@ -186,56 +187,24 @@ static int dell_rfkill_set(int radio, enum rfkill_state state)
 	return 0;
 }
 
-static int dell_wifi_set(void *data, enum rfkill_state state)
-{
-	return dell_rfkill_set(1, state);
-}
-
-static int dell_bluetooth_set(void *data, enum rfkill_state state)
-{
-	return dell_rfkill_set(2, state);
-}
-
-static int dell_wwan_set(void *data, enum rfkill_state state)
-{
-	return dell_rfkill_set(3, state);
-}
-
-static int dell_rfkill_get(int bit, enum rfkill_state *state)
+static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 {
 	struct calling_interface_buffer buffer;
 	int status;
-	int new_state = RFKILL_STATE_HARD_BLOCKED;
+	int bit = (unsigned long)data + 16;
 
 	memset(&buffer, 0, sizeof(struct calling_interface_buffer));
 	dell_send_request(&buffer, 17, 11);
 	status = buffer.output[1];
 
-	if (status & (1<<16))
-		new_state = RFKILL_STATE_SOFT_BLOCKED;
-
-	if (status & (1<<bit))
-		*state = new_state;
-	else
-		*state = RFKILL_STATE_UNBLOCKED;
-
-	return 0;
+	if (status & BIT(bit))
+		rfkill_set_hw_state(rfkill, !!(status & BIT(16)));
 }
 
-static int dell_wifi_get(void *data, enum rfkill_state *state)
-{
-	return dell_rfkill_get(17, state);
-}
-
-static int dell_bluetooth_get(void *data, enum rfkill_state *state)
-{
-	return dell_rfkill_get(18, state);
-}
-
-static int dell_wwan_get(void *data, enum rfkill_state *state)
-{
-	return dell_rfkill_get(19, state);
-}
+static const struct rfkill_ops dell_rfkill_ops = {
+	.set_block = dell_rfkill_set,
+	.query = dell_rfkill_query,
+};
 
 static int dell_setup_rfkill(void)
 {
@@ -248,36 +217,37 @@ static int dell_setup_rfkill(void)
 	status = buffer.output[1];
 
 	if ((status & (1<<2|1<<8)) == (1<<2|1<<8)) {
-		wifi_rfkill = rfkill_allocate(NULL, RFKILL_TYPE_WLAN);
-		if (!wifi_rfkill)
+		wifi_rfkill = rfkill_alloc("dell-wifi", NULL, RFKILL_TYPE_WLAN,
+					   &dell_rfkill_ops, (void *) 1);
+		if (!wifi_rfkill) {
+			ret = -ENOMEM;
 			goto err_wifi;
-		wifi_rfkill->name = "dell-wifi";
-		wifi_rfkill->toggle_radio = dell_wifi_set;
-		wifi_rfkill->get_state = dell_wifi_get;
+		}
 		ret = rfkill_register(wifi_rfkill);
 		if (ret)
 			goto err_wifi;
 	}
 
 	if ((status & (1<<3|1<<9)) == (1<<3|1<<9)) {
-		bluetooth_rfkill = rfkill_allocate(NULL, RFKILL_TYPE_BLUETOOTH);
-		if (!bluetooth_rfkill)
+		bluetooth_rfkill = rfkill_alloc("dell-bluetooth", NULL,
+						RFKILL_TYPE_BLUETOOTH,
+						&dell_rfkill_ops, (void *) 2);
+		if (!bluetooth_rfkill) {
+			ret = -ENOMEM;
 			goto err_bluetooth;
-		bluetooth_rfkill->name = "dell-bluetooth";
-		bluetooth_rfkill->toggle_radio = dell_bluetooth_set;
-		bluetooth_rfkill->get_state = dell_bluetooth_get;
+		}
 		ret = rfkill_register(bluetooth_rfkill);
 		if (ret)
 			goto err_bluetooth;
 	}
 
 	if ((status & (1<<4|1<<10)) == (1<<4|1<<10)) {
-		wwan_rfkill = rfkill_allocate(NULL, RFKILL_TYPE_WWAN);
-		if (!wwan_rfkill)
+		wwan_rfkill = rfkill_alloc("dell-wwan", NULL, RFKILL_TYPE_WWAN,
+					   &dell_rfkill_ops, (void *) 3);
+		if (!wwan_rfkill) {
+			ret = -ENOMEM;
 			goto err_wwan;
-		wwan_rfkill->name = "dell-wwan";
-		wwan_rfkill->toggle_radio = dell_wwan_set;
-		wwan_rfkill->get_state = dell_wwan_get;
+		}
 		ret = rfkill_register(wwan_rfkill);
 		if (ret)
 			goto err_wwan;
@@ -285,22 +255,15 @@ static int dell_setup_rfkill(void)
 
 	return 0;
 err_wwan:
-	if (wwan_rfkill)
-		rfkill_free(wwan_rfkill);
-	if (bluetooth_rfkill) {
-		rfkill_unregister(bluetooth_rfkill);
-		bluetooth_rfkill = NULL;
-	}
-err_bluetooth:
+	rfkill_destroy(wwan_rfkill);
 	if (bluetooth_rfkill)
-		rfkill_free(bluetooth_rfkill);
-	if (wifi_rfkill) {
-		rfkill_unregister(wifi_rfkill);
-		wifi_rfkill = NULL;
-	}
-err_wifi:
+		rfkill_unregister(bluetooth_rfkill);
+err_bluetooth:
+	rfkill_destroy(bluetooth_rfkill);
 	if (wifi_rfkill)
-		rfkill_free(wifi_rfkill);
+		rfkill_unregister(wifi_rfkill);
+err_wifi:
+	rfkill_destroy(wifi_rfkill);
 
 	return ret;
 }

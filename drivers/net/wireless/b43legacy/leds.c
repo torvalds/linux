@@ -86,7 +86,8 @@ static void b43legacy_led_brightness_set(struct led_classdev *led_dev,
 
 static int b43legacy_register_led(struct b43legacy_wldev *dev,
 				  struct b43legacy_led *led,
-				  const char *name, char *default_trigger,
+				  const char *name,
+				  const char *default_trigger,
 				  u8 led_index, bool activelow)
 {
 	int err;
