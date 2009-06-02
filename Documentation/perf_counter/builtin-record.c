@@ -467,6 +467,9 @@ static int __cmd_record(int argc, const char **argv)
 			ret = poll(event_array, nr_poll, 100);
 	}
 
+
+	fprintf(stderr, "[ perf record: Captured and wrote %ld events. ]\n", events);
+
 	return 0;
 }
 
