@@ -201,7 +201,9 @@ static struct thread *thread__new(pid_t pid)
 
 	if (self != NULL) {
 		self->pid = pid;
-		self->comm = NULL;
+		self->comm = malloc(30);
+		if (self->comm)
+			sprintf(self->comm, ":%d", pid);
 		INIT_LIST_HEAD(&self->maps);
 	}
 
@@ -333,7 +335,7 @@ sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__comm_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "  %16s", self->thread->comm ?: "<unknown>");
+	return fprintf(fp, "  %16s", self->thread->comm);
 }
 
 static struct sort_entry sort_comm = {
@@ -363,7 +365,10 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__dso_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "  %-25s", self->dso ? self->dso->name : "<unknown>");
+	if (self->dso)
+		return fprintf(fp, "  %-25s", self->dso->name);
+
+	return fprintf(fp, "  %016llx", (__u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
@@ -392,11 +397,17 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "  %#018llx", (unsigned long long)self->ip);
+		ret += fprintf(fp, "  %#018llx", (__u64)self->ip);
 
-	ret += fprintf(fp, "  %s: %s",
-			self->dso ? self->dso->name : "<unknown>",
-			self->sym ? self->sym->name : "<unknown>");
+	if (self->dso)
+		ret += fprintf(fp, "  %s: ", self->dso->name);
+	else
+		ret += fprintf(fp, "  %#016llx: ", (__u64)self->ip);
+
+	if (self->sym)
+		ret += fprintf(fp, "%s", self->sym->name);
+	else
+		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
 
 	return ret;
 }
@@ -772,7 +783,8 @@ more:
 				event->mmap.filename);
 		}
 		if (thread == NULL || map == NULL) {
-			fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
+			if (verbose)
+				fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
 			goto broken_event;
 		}
 		thread__insert_map(thread, map);
