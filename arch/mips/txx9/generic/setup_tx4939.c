@@ -500,6 +500,23 @@ void __init tx4939_sramc_init(void)
 		txx9_sramc_init(&tx4939_sram_resource);
 }
 
+void __init tx4939_rng_init(void)
+{
+	static struct resource res = {
+		.start = TX4939_RNG_REG & 0xfffffffffULL,
+		.end = (TX4939_RNG_REG & 0xfffffffffULL) + 0x30 - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	static struct platform_device pdev = {
+		.name = "tx4939-rng",
+		.id = -1,
+		.num_resources = 1,
+		.resource = &res,
+	};
+
+	platform_device_register(&pdev);
+}
+
 static void __init tx4939_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;
