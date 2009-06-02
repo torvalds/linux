@@ -37,6 +37,8 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+#define I915_LVDS "i915_lvds"
+
 /**
  * Sets the backlight level.
  *
@@ -447,7 +449,8 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG("Skipping LVDS initialization for %s\n", id->ident);
+	DRM_DEBUG_KMS(I915_LVDS,
+		      "Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
@@ -646,7 +649,7 @@ out:
 	return;
 
 failed:
-	DRM_DEBUG("No LVDS modes found, disabling.\n");
+	DRM_DEBUG_KMS(I915_LVDS, "No LVDS modes found, disabling.\n");
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);
