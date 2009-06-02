@@ -260,8 +260,6 @@ PROGRAMS += perf
 
 # List built-in command $C whose implementation cmd_$C() is not in
 # builtin-$C.o but is linked in as part of some other command.
-BUILT_INS += $(patsubst builtin-%.o,perf-%$X,$(BUILTIN_OBJS))
-
 #
 # None right now:
 #
@@ -791,11 +789,13 @@ export perfexec_instdir
 
 install: all
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
-	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
-	$(INSTALL) $(ALL_PROGRAMS) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 	$(INSTALL) perf$X '$(DESTDIR_SQ)$(bindir_SQ)'
+ifdef BUILT_INS
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
+	$(INSTALL) $(BUILT_INS) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
 ifneq (,$X)
 	$(foreach p,$(patsubst %$X,%,$(filter %$X,$(ALL_PROGRAMS) $(BUILT_INS) perf$X)), $(RM) '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/$p';)
+endif
 endif
 
 install-doc:
@@ -824,52 +824,55 @@ quick-install-html:
 
 
 ### Maintainer's dist rules
-
-perf.spec: perf.spec.in
-	sed -e 's/@@VERSION@@/$(PERF_VERSION)/g' < $< > $@+
-	mv $@+ $@
-
-PERF_TARNAME=perf-$(PERF_VERSION)
-dist: perf.spec perf-archive$(X) configure
-	./perf-archive --format=tar \
-		--prefix=$(PERF_TARNAME)/ HEAD^{tree} > $(PERF_TARNAME).tar
-	@mkdir -p $(PERF_TARNAME)
-	@cp perf.spec configure $(PERF_TARNAME)
-	@echo $(PERF_VERSION) > $(PERF_TARNAME)/version
-	$(TAR) rf $(PERF_TARNAME).tar \
-		$(PERF_TARNAME)/perf.spec \
-		$(PERF_TARNAME)/configure \
-		$(PERF_TARNAME)/version
-	@$(RM) -r $(PERF_TARNAME)
-	gzip -f -9 $(PERF_TARNAME).tar
-
-htmldocs = perf-htmldocs-$(PERF_VERSION)
-manpages = perf-manpages-$(PERF_VERSION)
-dist-doc:
-	$(RM) -r .doc-tmp-dir
-	mkdir .doc-tmp-dir
-	$(MAKE) -C Documentation WEBDOC_DEST=../.doc-tmp-dir install-webdoc
-	cd .doc-tmp-dir && $(TAR) cf ../$(htmldocs).tar .
-	gzip -n -9 -f $(htmldocs).tar
-	:
-	$(RM) -r .doc-tmp-dir
-	mkdir -p .doc-tmp-dir/man1 .doc-tmp-dir/man5 .doc-tmp-dir/man7
-	$(MAKE) -C Documentation DESTDIR=./ \
-		man1dir=../.doc-tmp-dir/man1 \
-		man5dir=../.doc-tmp-dir/man5 \
-		man7dir=../.doc-tmp-dir/man7 \
-		install
-	cd .doc-tmp-dir && $(TAR) cf ../$(manpages).tar .
-	gzip -n -9 -f $(manpages).tar
-	$(RM) -r .doc-tmp-dir
-
-rpm: dist
-	$(RPMBUILD) -ta $(PERF_TARNAME).tar.gz
+#
+# None right now
+#
+#
+# perf.spec: perf.spec.in
+#	sed -e 's/@@VERSION@@/$(PERF_VERSION)/g' < $< > $@+
+#	mv $@+ $@
+#
+# PERF_TARNAME=perf-$(PERF_VERSION)
+# dist: perf.spec perf-archive$(X) configure
+#	./perf-archive --format=tar \
+#		--prefix=$(PERF_TARNAME)/ HEAD^{tree} > $(PERF_TARNAME).tar
+#	@mkdir -p $(PERF_TARNAME)
+#	@cp perf.spec configure $(PERF_TARNAME)
+#	@echo $(PERF_VERSION) > $(PERF_TARNAME)/version
+#	$(TAR) rf $(PERF_TARNAME).tar \
+#		$(PERF_TARNAME)/perf.spec \
+#		$(PERF_TARNAME)/configure \
+#		$(PERF_TARNAME)/version
+#	@$(RM) -r $(PERF_TARNAME)
+#	gzip -f -9 $(PERF_TARNAME).tar
+#
+# htmldocs = perf-htmldocs-$(PERF_VERSION)
+# manpages = perf-manpages-$(PERF_VERSION)
+# dist-doc:
+#	$(RM) -r .doc-tmp-dir
+#	mkdir .doc-tmp-dir
+#	$(MAKE) -C Documentation WEBDOC_DEST=../.doc-tmp-dir install-webdoc
+#	cd .doc-tmp-dir && $(TAR) cf ../$(htmldocs).tar .
+#	gzip -n -9 -f $(htmldocs).tar
+#	:
+#	$(RM) -r .doc-tmp-dir
+#	mkdir -p .doc-tmp-dir/man1 .doc-tmp-dir/man5 .doc-tmp-dir/man7
+#	$(MAKE) -C Documentation DESTDIR=./ \
+#		man1dir=../.doc-tmp-dir/man1 \
+#		man5dir=../.doc-tmp-dir/man5 \
+#		man7dir=../.doc-tmp-dir/man7 \
+#		install
+#	cd .doc-tmp-dir && $(TAR) cf ../$(manpages).tar .
+#	gzip -n -9 -f $(manpages).tar
+#	$(RM) -r .doc-tmp-dir
+#
+# rpm: dist
+#	$(RPMBUILD) -ta $(PERF_TARNAME).tar.gz
 
 ### Cleaning rules
 
 distclean: clean
-	$(RM) configure
+#	$(RM) configure
 
 clean:
 	$(RM) *.o */*.o $(LIB_FILE)
@@ -896,25 +899,27 @@ check-builtins::
 
 ### Test suite coverage testing
 #
-.PHONY: coverage coverage-clean coverage-build coverage-report
-
-coverage:
-	$(MAKE) coverage-build
-	$(MAKE) coverage-report
-
-coverage-clean:
-	rm -f *.gcda *.gcno
-
-COVERAGE_CFLAGS = $(CFLAGS) -O0 -ftest-coverage -fprofile-arcs
-COVERAGE_LDFLAGS = $(CFLAGS)  -O0 -lgcov
-
-coverage-build: coverage-clean
-	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" all
-	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" \
-		-j1 test
-
-coverage-report:
-	gcov -b *.c */*.c
-	grep '^function.*called 0 ' *.c.gcov */*.c.gcov \
-		| sed -e 's/\([^:]*\)\.gcov: *function \([^ ]*\) called.*/\1: \2/' \
-		| tee coverage-untested-functions
+# None right now
+#
+# .PHONY: coverage coverage-clean coverage-build coverage-report
+#
+# coverage:
+#	$(MAKE) coverage-build
+#	$(MAKE) coverage-report
+#
+# coverage-clean:
+#	rm -f *.gcda *.gcno
+#
+# COVERAGE_CFLAGS = $(CFLAGS) -O0 -ftest-coverage -fprofile-arcs
+# COVERAGE_LDFLAGS = $(CFLAGS)  -O0 -lgcov
+#
+# coverage-build: coverage-clean
+#	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" all
+#	$(MAKE) CFLAGS="$(COVERAGE_CFLAGS)" LDFLAGS="$(COVERAGE_LDFLAGS)" \
+#		-j1 test
+#
+# coverage-report:
+#	gcov -b *.c */*.c
+#	grep '^function.*called 0 ' *.c.gcov */*.c.gcov \
+#		| sed -e 's/\([^:]*\)\.gcov: *function \([^ ]*\) called.*/\1: \2/' \
+#		| tee coverage-untested-functions
