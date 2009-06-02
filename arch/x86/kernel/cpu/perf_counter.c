@@ -287,8 +287,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (!hwc->sample_period)
 		hwc->sample_period = x86_pmu.max_period;
 
-	atomic64_set(&hwc->period_left,
-			min(x86_pmu.max_period, hwc->sample_period));
+	atomic64_set(&hwc->period_left, hwc->sample_period);
 
 	/*
 	 * Raw event type provide the config in the event structure
@@ -451,13 +450,13 @@ static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
  * Set the next IRQ period, based on the hwc->period_left value.
  * To be called with the counter disabled in hw:
  */
-static void
+static int
 x86_perf_counter_set_period(struct perf_counter *counter,
 			     struct hw_perf_counter *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
-	s64 period = min(x86_pmu.max_period, hwc->sample_period);
-	int err;
+	s64 period = hwc->sample_period;
+	int err, ret = 0;
 
 	/*
 	 * If we are way outside a reasoable range then just skip forward:
@@ -465,17 +464,22 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	if (unlikely(left <= -period)) {
 		left = period;
 		atomic64_set(&hwc->period_left, left);
+		ret = 1;
 	}
 
 	if (unlikely(left <= 0)) {
 		left += period;
 		atomic64_set(&hwc->period_left, left);
+		ret = 1;
 	}
 	/*
 	 * Quirk: certain CPUs dont like it if just 1 event is left:
 	 */
 	if (unlikely(left < 2))
 		left = 2;
+
+	if (left > x86_pmu.max_period)
+		left = x86_pmu.max_period;
 
 	per_cpu(prev_left[idx], smp_processor_id()) = left;
 
@@ -487,6 +491,8 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 
 	err = checking_wrmsrl(hwc->counter_base + idx,
 			     (u64)(-left) & x86_pmu.counter_mask);
+
+	return ret;
 }
 
 static inline void
@@ -706,16 +712,19 @@ static void x86_pmu_disable(struct perf_counter *counter)
  * Save and restart an expired counter. Called by NMI contexts,
  * so it has to be careful about preempting normal counter ops:
  */
-static void intel_pmu_save_and_restart(struct perf_counter *counter)
+static int intel_pmu_save_and_restart(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
 	int idx = hwc->idx;
+	int ret;
 
 	x86_perf_counter_update(counter, hwc, idx);
-	x86_perf_counter_set_period(counter, hwc, idx);
+	ret = x86_perf_counter_set_period(counter, hwc, idx);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		intel_pmu_enable_counter(hwc, idx);
+
+	return ret;
 }
 
 static void intel_pmu_reset(void)
@@ -782,7 +791,9 @@ again:
 		if (!test_bit(bit, cpuc->active_mask))
 			continue;
 
-		intel_pmu_save_and_restart(counter);
+		if (!intel_pmu_save_and_restart(counter))
+			continue;
+
 		if (perf_counter_overflow(counter, nmi, regs, 0))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
@@ -824,9 +835,11 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 			continue;
 
 		/* counter overflow */
-		x86_perf_counter_set_period(counter, hwc, idx);
 		handled = 1;
 		inc_irq_stat(apic_perf_irqs);
+		if (!x86_perf_counter_set_period(counter, hwc, idx))
+			continue;
+
 		if (perf_counter_overflow(counter, nmi, regs, 0))
 			amd_pmu_disable_counter(hwc, idx);
 	}
