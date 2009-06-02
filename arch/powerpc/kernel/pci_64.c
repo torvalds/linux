@@ -506,7 +506,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	pr_debug("IO mapping for PHB %s\n", hose->dn->full_name);
 	pr_debug("  phys=0x%016llx, virt=0x%p (alloc=0x%p)\n",
 		 hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
-	pr_debug("  size=0x%016lx (alloc=0x%016lx)\n",
+	pr_debug("  size=0x%016llx (alloc=0x%016lx)\n",
 		 hose->pci_io_size, size_page);
 
 	/* Establish the mapping */
