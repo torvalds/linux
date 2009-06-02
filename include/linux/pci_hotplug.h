@@ -66,14 +66,6 @@ enum pcie_link_speed {
 	PCIE_LNK_SPEED_UNKNOWN	= 0xFF,
 };
 
-struct hotplug_slot;
-struct hotplug_slot_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct hotplug_slot *, char *);
-	ssize_t (*store)(struct hotplug_slot *, const char *, size_t);
-};
-#define to_hotplug_attr(n) container_of(n, struct hotplug_slot_attribute, attr);
-
 /**
  * struct hotplug_slot_ops -the callbacks that the hotplug pci core can use
  * @owner: The module owner of this structure
