@@ -417,9 +417,11 @@ void __init setup_system(void)
 	if (ppc64_caches.iline_size != 0x80)
 		printk("ppc64_caches.icache_line_size = 0x%x\n",
 		       ppc64_caches.iline_size);
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (htab_address)
 		printk("htab_address                  = 0x%p\n", htab_address);
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
+#endif /* CONFIG_PPC_STD_MMU_64 */
 	if (PHYSICAL_START > 0)
 		printk("physical_start                = 0x%lx\n",
 		       PHYSICAL_START);
@@ -511,8 +513,9 @@ void __init setup_arch(char **cmdline_p)
 	irqstack_early_init();
 	emergency_stack_init();
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	stabs_alloc();
-
+#endif
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	sparse_init();

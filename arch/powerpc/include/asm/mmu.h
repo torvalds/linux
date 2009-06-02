@@ -74,10 +74,10 @@ extern void early_init_mmu_secondary(void);
 #endif /* !__ASSEMBLY__ */
 
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC_STD_MMU_64)
 /* 64-bit classic hash table MMU */
 #  include <asm/mmu-hash64.h>
-#elif defined(CONFIG_PPC_STD_MMU)
+#elif defined(CONFIG_PPC_STD_MMU_32)
 /* 32-bit classic hash table MMU */
 #  include <asm/mmu-hash32.h>
 #elif defined(CONFIG_40x)

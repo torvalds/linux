@@ -420,6 +420,9 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	 * so flushing the hash table is the only sane way to make sure
 	 * that no hash entries are covering that removed bridge area
 	 * while still allowing other busses overlapping those pages
+	 *
+	 * Note: If we ever support P2P hotplug on Book3E, we'll have
+	 * to do an appropriate TLB flush here too
 	 */
 	if (bus->self) {
 		struct resource *res = bus->resource[0];
@@ -427,8 +430,10 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 		pr_debug("IO unmapping for PCI-PCI bridge %s\n",
 			 pci_name(bus->self));
 
+#ifdef CONFIG_PPC_STD_MMU_64
 		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
 					 res->end + _IO_BASE + 1);
+#endif
 		return 0;
 	}
 

@@ -117,6 +117,7 @@ notrace void raw_local_irq_restore(unsigned long en)
 	if (!en)
 		return;
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
 		/*
 		 * Do we need to disable preemption here?  Not really: in the
@@ -134,6 +135,7 @@ notrace void raw_local_irq_restore(unsigned long en)
 		if (local_paca->lppaca_ptr->int_dword.any_int)
 			iseries_handle_interrupts();
 	}
+#endif /* CONFIG_PPC_STD_MMU_64 */
 
 	/*
 	 * if (get_paca()->hard_enabled) return;
