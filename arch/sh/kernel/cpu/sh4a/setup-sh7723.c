@@ -14,6 +14,7 @@
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
 #include <linux/sh_timer.h>
+#include <linux/io.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
 
@@ -483,6 +484,15 @@ void __init plat_early_device_setup(void)
 {
 	early_platform_add_devices(sh7723_early_devices,
 				   ARRAY_SIZE(sh7723_early_devices));
+}
+
+#define RAMCR_CACHE_L2FC	0x0002
+#define RAMCR_CACHE_L2E		0x0001
+#define L2_CACHE_ENABLE		(RAMCR_CACHE_L2E|RAMCR_CACHE_L2FC)
+void __uses_jump_to_uncached l2_cache_init(void)
+{
+	/* Enable L2 cache */
+	ctrl_outl(L2_CACHE_ENABLE, RAMCR);
 }
 
 enum {
