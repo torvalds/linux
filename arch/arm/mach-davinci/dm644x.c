@@ -580,6 +580,13 @@ static struct davinci_id dm644x_ids[] = {
 		.cpu_id		= DAVINCI_CPU_ID_DM6446,
 		.name		= "dm6446",
 	},
+	{
+		.variant	= 0x1,
+		.part_no	= 0xb700,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DM6446,
+		.name		= "dm6446a",
+	},
 };
 
 static void __iomem *dm644x_psc_bases[] = {
