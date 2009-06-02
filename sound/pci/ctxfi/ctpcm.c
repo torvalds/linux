@@ -26,12 +26,10 @@ static struct snd_pcm_hardware ct_pcm_playback_hw = {
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_PAUSE),
 	.formats		= (SNDRV_PCM_FMTBIT_U8 |
-				   SNDRV_PCM_FMTBIT_S8 |
 				   SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE |
 				   SNDRV_PCM_FMTBIT_S24_3LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE),
+				   SNDRV_PCM_FMTBIT_S32_LE |
+				   SNDRV_PCM_FMTBIT_FLOAT_LE),
 	.rates			= (SNDRV_PCM_RATE_CONTINUOUS |
 				   SNDRV_PCM_RATE_8000_192000),
 	.rate_min		= 8000,
@@ -52,8 +50,7 @@ static struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_PAUSE),
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE),
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.rates			= (SNDRV_PCM_RATE_48000 |
 				   SNDRV_PCM_RATE_44100 |
 				   SNDRV_PCM_RATE_32000),
@@ -77,12 +74,10 @@ static struct snd_pcm_hardware ct_pcm_capture_hw = {
 				   SNDRV_PCM_INFO_PAUSE |
 				   SNDRV_PCM_INFO_MMAP_VALID),
 	.formats		= (SNDRV_PCM_FMTBIT_U8 |
-				   SNDRV_PCM_FMTBIT_S8 |
 				   SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE |
 				   SNDRV_PCM_FMTBIT_S24_3LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE),
+				   SNDRV_PCM_FMTBIT_S32_LE |
+				   SNDRV_PCM_FMTBIT_FLOAT_LE),
 	.rates			= (SNDRV_PCM_RATE_CONTINUOUS |
 				   SNDRV_PCM_RATE_8000_96000),
 	.rate_min		= 8000,

@@ -170,16 +170,15 @@ static unsigned int convert_format(snd_pcm_format_t snd_format)
 {
 	switch (snd_format) {
 	case SNDRV_PCM_FORMAT_U8:
-	case SNDRV_PCM_FORMAT_S8:
 		return SRC_SF_U8;
 	case SNDRV_PCM_FORMAT_S16_LE:
-	case SNDRV_PCM_FORMAT_U16_LE:
 		return SRC_SF_S16;
 	case SNDRV_PCM_FORMAT_S24_3LE:
 		return SRC_SF_S24;
-	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		return SRC_SF_S32;
+	case SNDRV_PCM_FORMAT_FLOAT_LE:
+		return SRC_SF_F32;
 	default:
 		printk(KERN_ERR "ctxfi: not recognized snd format is %d \n",
 			snd_format);
