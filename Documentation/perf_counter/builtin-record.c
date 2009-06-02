@@ -7,6 +7,7 @@
 #include "util/parse-events.h"
 #include "util/string.h"
 
+#include <unistd.h>
 #include <sched.h>
 
 #define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
@@ -26,7 +27,7 @@ static unsigned int		realtime_prio			= 0;
 static int			system_wide			= 0;
 static pid_t			target_pid			= -1;
 static int			inherit				= 1;
-static int			nmi				= 1;
+static int			force				= 0;
 
 const unsigned int default_count[] = {
 	1000000,
@@ -337,7 +338,6 @@ static void open_counters(int cpu, pid_t pid)
 		hw_event.config		= event_id[counter];
 		hw_event.irq_period	= event_count[counter];
 		hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-		hw_event.nmi		= nmi;
 		hw_event.mmap		= track;
 		hw_event.comm		= track;
 		hw_event.inherit	= (cpu < 0) && inherit;
@@ -387,13 +387,20 @@ static int __cmd_record(int argc, const char **argv)
 	int i, counter;
 	pid_t pid;
 	int ret;
+	struct stat st;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
 
-	output = open(output_name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
+	if (!stat(output_name, &st) && !force) {
+		fprintf(stderr, "Error, output file: %s exists, use -f to overwrite.\n",
+				output_name);
+		exit(-1);
+	}
+
+	output = open(output_name, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
 	if (output < 0) {
 		perror("failed to create output file");
 		exit(-1);
@@ -473,6 +480,8 @@ static const struct option options[] = {
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 			    "system-wide collection from all CPUs"),
+	OPT_BOOLEAN('f', "force", &force,
+			"overwrite existing data file"),
 	OPT_END()
 };
 
