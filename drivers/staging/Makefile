@@ -41,3 +41,4 @@ obj-$(CONFIG_HECI)		+= heci/
 obj-$(CONFIG_LINE6_USB)		+= line6/
 obj-$(CONFIG_USB_SERIAL_QUATECH_ESU100)	+= serqt_usb/
 obj-$(CONFIG_OCTEON_ETHERNET)	+= octeon/
+obj-$(CONFIG_VT6655)		+= vt6655/

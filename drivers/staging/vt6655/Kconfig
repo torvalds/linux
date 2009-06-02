@@ -1,0 +1,5 @@
+config VT6655
+   tristate "VIA Technologies VT6655 support"
+   ---help---
+   This is a vendor-written driver for VIA VT6655.
+

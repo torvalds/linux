@@ -119,5 +119,7 @@ source "drivers/gpu/drm/radeon/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
+source "drivers/staging/vt6655/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
