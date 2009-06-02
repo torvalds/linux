@@ -162,6 +162,41 @@ static struct clk arm_clk = {
 	.flags = ALWAYS_ENABLED,
 };
 
+static struct clk edma_cc_clk = {
+	.name = "edma_cc",
+	.parent = &pll1_sysclk2,
+	.lpsc = DM646X_LPSC_TPCC,
+	.flags = ALWAYS_ENABLED,
+};
+
+static struct clk edma_tc0_clk = {
+	.name = "edma_tc0",
+	.parent = &pll1_sysclk2,
+	.lpsc = DM646X_LPSC_TPTC0,
+	.flags = ALWAYS_ENABLED,
+};
+
+static struct clk edma_tc1_clk = {
+	.name = "edma_tc1",
+	.parent = &pll1_sysclk2,
+	.lpsc = DM646X_LPSC_TPTC1,
+	.flags = ALWAYS_ENABLED,
+};
+
+static struct clk edma_tc2_clk = {
+	.name = "edma_tc2",
+	.parent = &pll1_sysclk2,
+	.lpsc = DM646X_LPSC_TPTC2,
+	.flags = ALWAYS_ENABLED,
+};
+
+static struct clk edma_tc3_clk = {
+	.name = "edma_tc3",
+	.parent = &pll1_sysclk2,
+	.lpsc = DM646X_LPSC_TPTC3,
+	.flags = ALWAYS_ENABLED,
+};
+
 static struct clk uart0_clk = {
 	.name = "uart0",
 	.parent = &aux_clkin,
@@ -269,6 +304,11 @@ struct davinci_clk dm646x_clks[] = {
 	CLK(NULL, "pll2_sysclk1", &pll2_sysclk1),
 	CLK(NULL, "dsp", &dsp_clk),
 	CLK(NULL, "arm", &arm_clk),
+	CLK(NULL, "edma_cc", &edma_cc_clk),
+	CLK(NULL, "edma_tc0", &edma_tc0_clk),
+	CLK(NULL, "edma_tc1", &edma_tc1_clk),
+	CLK(NULL, "edma_tc2", &edma_tc2_clk),
+	CLK(NULL, "edma_tc3", &edma_tc3_clk),
 	CLK(NULL, "uart0", &uart0_clk),
 	CLK(NULL, "uart1", &uart1_clk),
 	CLK(NULL, "uart2", &uart2_clk),
