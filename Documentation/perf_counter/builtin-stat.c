@@ -79,22 +79,22 @@ static __u64			walltime_nsecs;
 
 static void create_perfstat_counter(int counter)
 {
-	struct perf_counter_hw_event hw_event;
+	struct perf_counter_attr attr;
 
-	memset(&hw_event, 0, sizeof(hw_event));
-	hw_event.config		= event_id[counter];
-	hw_event.record_type	= 0;
-	hw_event.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
-	hw_event.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
+	memset(&attr, 0, sizeof(attr));
+	attr.config		= event_id[counter];
+	attr.sample_type	= 0;
+	attr.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
+	attr.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
 
 	if (scale)
-		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
+		attr.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 					  PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
 		int cpu;
 		for (cpu = 0; cpu < nr_cpus; cpu ++) {
-			fd[cpu][counter] = sys_perf_counter_open(&hw_event, -1, cpu, -1, 0);
+			fd[cpu][counter] = sys_perf_counter_open(&attr, -1, cpu, -1, 0);
 			if (fd[cpu][counter] < 0) {
 				printf("perfstat error: syscall returned with %d (%s)\n",
 						fd[cpu][counter], strerror(errno));
@@ -102,10 +102,10 @@ static void create_perfstat_counter(int counter)
 			}
 		}
 	} else {
-		hw_event.inherit	= inherit;
-		hw_event.disabled	= 1;
+		attr.inherit	= inherit;
+		attr.disabled	= 1;
 
-		fd[0][counter] = sys_perf_counter_open(&hw_event, 0, -1, -1, 0);
+		fd[0][counter] = sys_perf_counter_open(&attr, 0, -1, -1, 0);
 		if (fd[0][counter] < 0) {
 			printf("perfstat error: syscall returned with %d (%s)\n",
 					fd[0][counter], strerror(errno));

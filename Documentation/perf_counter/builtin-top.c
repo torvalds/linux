@@ -537,7 +537,7 @@ static void mmap_read(struct mmap_data *md)
 		old += size;
 
 		if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
-			if (event->header.type & PERF_RECORD_IP)
+			if (event->header.type & PERF_SAMPLE_IP)
 				process_event(event->ip.ip, md->counter);
 		} else {
 			switch (event->header.type) {
@@ -563,7 +563,7 @@ static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int __cmd_top(void)
 {
-	struct perf_counter_hw_event hw_event;
+	struct perf_counter_attr attr;
 	pthread_t thread;
 	int i, counter, group_fd, nr_poll = 0;
 	unsigned int cpu;
@@ -577,15 +577,15 @@ static int __cmd_top(void)
 			if (target_pid == -1 && profile_cpu == -1)
 				cpu = i;
 
-			memset(&hw_event, 0, sizeof(hw_event));
-			hw_event.config		= event_id[counter];
-			hw_event.irq_period	= event_count[counter];
-			hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-			hw_event.mmap		= use_mmap;
-			hw_event.munmap		= use_munmap;
-			hw_event.freq		= freq;
+			memset(&attr, 0, sizeof(attr));
+			attr.config		= event_id[counter];
+			attr.sample_period	= event_count[counter];
+			attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+			attr.mmap		= use_mmap;
+			attr.munmap		= use_munmap;
+			attr.freq		= freq;
 
-			fd[i][counter] = sys_perf_counter_open(&hw_event, target_pid, cpu, group_fd, 0);
+			fd[i][counter] = sys_perf_counter_open(&attr, target_pid, cpu, group_fd, 0);
 			if (fd[i][counter] < 0) {
 				int err = errno;
 				printf("kerneltop error: syscall returned with %d (%s)\n",

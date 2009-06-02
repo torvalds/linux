@@ -322,7 +322,7 @@ static void synthesize_events(void)
 
 static void open_counters(int cpu, pid_t pid)
 {
-	struct perf_counter_hw_event hw_event;
+	struct perf_counter_attr attr;
 	int counter, group_fd;
 	int track = 1;
 
@@ -334,18 +334,18 @@ static void open_counters(int cpu, pid_t pid)
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++) {
 
-		memset(&hw_event, 0, sizeof(hw_event));
-		hw_event.config		= event_id[counter];
-		hw_event.irq_period	= event_count[counter];
-		hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-		hw_event.mmap		= track;
-		hw_event.comm		= track;
-		hw_event.inherit	= (cpu < 0) && inherit;
+		memset(&attr, 0, sizeof(attr));
+		attr.config		= event_id[counter];
+		attr.sample_period	= event_count[counter];
+		attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+		attr.mmap		= track;
+		attr.comm		= track;
+		attr.inherit	= (cpu < 0) && inherit;
 
 		track = 0; // only the first counter needs these
 
 		fd[nr_cpu][counter] =
-			sys_perf_counter_open(&hw_event, pid, cpu, group_fd, 0);
+			sys_perf_counter_open(&attr, pid, cpu, group_fd, 0);
 
 		if (fd[nr_cpu][counter] < 0) {
 			int err = errno;
