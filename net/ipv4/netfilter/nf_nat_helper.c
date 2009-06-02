@@ -140,7 +140,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct iphdr *iph;
 	struct tcphdr *tcph;
 	int oldlen, datalen;
@@ -218,7 +218,7 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct iphdr *iph;
 	struct udphdr *udph;
 	int datalen, oldlen;

@@ -228,6 +228,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
+	struct rtable *rt;
 
 	if (nf_bridge->mask & BRNF_PKT_TYPE) {
 		skb->pkt_type = PACKET_OTHERHOST;
@@ -235,12 +236,13 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 
-	skb->rtable = bridge_parent_rtable(nf_bridge->physindev);
-	if (!skb->rtable) {
+	rt = bridge_parent_rtable(nf_bridge->physindev);
+	if (!rt) {
 		kfree_skb(skb);
 		return 0;
 	}
-	dst_hold(&skb->rtable->u.dst);
+	dst_hold(&rt->u.dst);
+	skb->dst = &rt->u.dst;
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_push_encap_header(skb);
@@ -338,6 +340,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct iphdr *iph = ip_hdr(skb);
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
+	struct rtable *rt;
 	int err;
 
 	if (nf_bridge->mask & BRNF_PKT_TYPE) {
@@ -347,7 +350,6 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
-			struct rtable *rt;
 			struct flowi fl = {
 				.nl_u = {
 					.ip4_u = {
@@ -404,12 +406,13 @@ bridged_dnat:
 			skb->pkt_type = PACKET_HOST;
 		}
 	} else {
-		skb->rtable = bridge_parent_rtable(nf_bridge->physindev);
-		if (!skb->rtable) {
+		rt = bridge_parent_rtable(nf_bridge->physindev);
+		if (!rt) {
 			kfree_skb(skb);
 			return 0;
 		}
-		dst_hold(&skb->rtable->u.dst);
+		dst_hold(&rt->u.dst);
+		skb->dst = &rt->u.dst;
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -628,9 +631,11 @@ static unsigned int br_nf_local_in(unsigned int hook, struct sk_buff *skb,
 				   const struct net_device *out,
 				   int (*okfn)(struct sk_buff *))
 {
-	if (skb->rtable && skb->rtable == bridge_parent_rtable(in)) {
-		dst_release(&skb->rtable->u.dst);
-		skb->rtable = NULL;
+	struct rtable *rt = skb_rtable(skb);
+
+	if (rt && rt == bridge_parent_rtable(in)) {
+		dst_release(&rt->u.dst);
+		skb->dst = NULL;
 	}
 
 	return NF_ACCEPT;

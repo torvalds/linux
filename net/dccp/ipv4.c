@@ -452,7 +452,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 					   struct sk_buff *skb)
 {
 	struct rtable *rt;
-	struct flowi fl = { .oif = skb->rtable->rt_iif,
+	struct flowi fl = { .oif = skb_rtable(skb)->rt_iif,
 			    .nl_u = { .ip4_u =
 				      { .daddr = ip_hdr(skb)->saddr,
 					.saddr = ip_hdr(skb)->daddr,
@@ -514,7 +514,7 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
 		return;
 
-	if (rxskb->rtable->rt_type != RTN_LOCAL)
+	if (skb_rtable(rxskb)->rt_type != RTN_LOCAL)
 		return;
 
 	dst = dccp_v4_route_skb(net, ctl_sk, rxskb);
@@ -567,7 +567,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
-	if (skb->rtable->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
+	if (skb_rtable(skb)->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		return 0;	/* discard, don't send a reset here */
 
 	if (dccp_bad_service_code(sk, service)) {

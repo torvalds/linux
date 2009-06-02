@@ -357,7 +357,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	if (iph->ihl > 5 && ip_rcv_options(skb))
 		goto drop;
 
-	rt = skb->rtable;
+	rt = skb_rtable(skb);
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS_BH(dev_net(rt->u.dst.dev), IPSTATS_MIB_INMCAST,
 				skb->len);

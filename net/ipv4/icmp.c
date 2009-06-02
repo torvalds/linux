@@ -356,7 +356,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
 	struct ipcm_cookie ipc;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->u.dst.dev);
 	struct sock *sk;
 	struct inet_sock *inet;
@@ -416,7 +416,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	struct iphdr *iph;
 	int room;
 	struct icmp_bxm icmp_param;
-	struct rtable *rt = skb_in->rtable;
+	struct rtable *rt = skb_rtable(skb_in);
 	struct ipcm_cookie ipc;
 	__be32 saddr;
 	u8  tos;
@@ -596,7 +596,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 					     RT_TOS(tos), rt2->u.dst.dev);
 
 			dst_release(&rt2->u.dst);
-			rt2 = skb_in->rtable;
+			rt2 = skb_rtable(skb_in);
 			skb_in->dst = odst;
 		}
 
@@ -926,7 +926,7 @@ static void icmp_address(struct sk_buff *skb)
 
 static void icmp_address_reply(struct sk_buff *skb)
 {
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net_device *dev = skb->dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
@@ -970,7 +970,7 @@ static void icmp_discard(struct sk_buff *skb)
 int icmp_rcv(struct sk_buff *skb)
 {
 	struct icmphdr *icmph;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->u.dst.dev);
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {

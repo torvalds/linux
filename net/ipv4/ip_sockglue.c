@@ -57,7 +57,7 @@
 static void ip_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 {
 	struct in_pktinfo info;
-	struct rtable *rt = skb->rtable;
+	struct rtable *rt = skb_rtable(skb);
 
 	info.ipi_addr.s_addr = ip_hdr(skb)->daddr;
 	if (rt) {

@@ -81,7 +81,7 @@ int ip_forward(struct sk_buff *skb)
 	if (!xfrm4_route_forward(skb))
 		goto drop;
 
-	rt = skb->rtable;
+	rt = skb_rtable(skb);
 
 	if (opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
 		goto sr_failed;

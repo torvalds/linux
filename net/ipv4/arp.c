@@ -474,7 +474,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 		return 1;
 	}
 
-	paddr = skb->rtable->rt_gateway;
+	paddr = skb_rtable(skb)->rt_gateway;
 
 	if (arp_set_predefined(inet_addr_type(dev_net(dev), paddr), haddr, paddr, dev))
 		return 0;
@@ -817,7 +817,7 @@ static int arp_process(struct sk_buff *skb)
 	if (arp->ar_op == htons(ARPOP_REQUEST) &&
 	    ip_route_input(skb, tip, sip, 0, dev) == 0) {
 
-		rt = skb->rtable;
+		rt = skb_rtable(skb);
 		addr_type = rt->rt_type;
 
 		if (addr_type == RTN_LOCAL) {

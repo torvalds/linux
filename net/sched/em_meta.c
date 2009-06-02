@@ -258,10 +258,10 @@ META_COLLECTOR(int_rtclassid)
 
 META_COLLECTOR(int_rtiif)
 {
-	if (unlikely(skb->rtable == NULL))
+	if (unlikely(skb_rtable(skb) == NULL))
 		*err = -1;
 	else
-		dst->value = skb->rtable->fl.iif;
+		dst->value = skb_rtable(skb)->fl.iif;
 }
 
 /**************************************************************************
