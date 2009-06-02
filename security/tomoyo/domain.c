@@ -67,14 +67,12 @@ void tomoyo_set_domain_flag(struct tomoyo_domain_info *domain,
 {
 	/* We need to serialize because this is bitfield operation. */
 	static DEFINE_SPINLOCK(lock);
-	/***** CRITICAL SECTION START *****/
 	spin_lock(&lock);
 	if (!is_delete)
 		domain->flags |= flags;
 	else
 		domain->flags &= ~flags;
 	spin_unlock(&lock);
-	/***** CRITICAL SECTION END *****/
 }
 
 /**
@@ -135,7 +133,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	saved_program = tomoyo_save_name(program);
 	if (!saved_program)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_initializer_list_lock);
 	list_for_each_entry(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
@@ -161,7 +158,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	error = 0;
  out:
 	up_write(&tomoyo_domain_initializer_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -314,7 +310,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_keeper_list_lock);
 	list_for_each_entry(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
@@ -340,7 +335,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	error = 0;
  out:
 	up_write(&tomoyo_domain_keeper_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -475,7 +469,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	saved_aliased_name = tomoyo_save_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_alias_list_lock);
 	list_for_each_entry(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
@@ -498,7 +491,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	error = 0;
  out:
 	up_write(&tomoyo_alias_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -566,7 +558,6 @@ int tomoyo_delete_domain(char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_list_lock);
 	/* Is there an active domain? */
 	list_for_each_entry(domain, &tomoyo_domain_list, list) {
@@ -580,7 +571,6 @@ int tomoyo_delete_domain(char *domainname)
 		break;
 	}
 	up_write(&tomoyo_domain_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return 0;
 }
 
@@ -599,7 +589,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	struct tomoyo_domain_info *domain = NULL;
 	const struct tomoyo_path_info *saved_domainname;
 
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_list_lock);
 	domain = tomoyo_find_domain(domainname);
 	if (domain)
@@ -618,7 +607,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		    domain->domainname != saved_domainname)
 			continue;
 		flag = false;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		for_each_process(p) {
 			if (tomoyo_real_domain(p) != domain)
@@ -627,7 +615,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 			break;
 		}
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 		if (flag)
 			continue;
 		list_for_each_entry(ptr, &domain->acl_info_list, list) {
@@ -650,7 +637,6 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	}
  out:
 	up_write(&tomoyo_domain_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return domain;
 }
 

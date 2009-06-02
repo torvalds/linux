@@ -220,7 +220,6 @@ void *tomoyo_alloc_element(const unsigned int size)
 		= roundup(size, max(sizeof(void *), sizeof(long)));
 	if (word_aligned_size > PATH_MAX)
 		return NULL;
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	if (buf_used_len + word_aligned_size > PATH_MAX) {
 		if (!tomoyo_quota_for_elements ||
@@ -251,7 +250,6 @@ void *tomoyo_alloc_element(const unsigned int size)
 		}
 	}
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr;
 }
 
@@ -318,7 +316,6 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 		return NULL;
 	}
 	hash = full_name_hash((const unsigned char *) name, len - 1);
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	list_for_each_entry(ptr, &tomoyo_name_list[hash % TOMOYO_MAX_HASH],
 			     list) {
@@ -366,7 +363,6 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 	}
  out:
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr ? &ptr->entry : NULL;
 }
 

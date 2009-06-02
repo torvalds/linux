@@ -166,7 +166,6 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_globally_readable_list_lock);
 	list_for_each_entry(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
@@ -187,7 +186,6 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	error = 0;
  out:
 	up_write(&tomoyo_globally_readable_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -284,7 +282,6 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_pattern_list_lock);
 	list_for_each_entry(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
@@ -305,7 +302,6 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	error = 0;
  out:
 	up_write(&tomoyo_pattern_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -407,7 +403,6 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_no_rewrite_list_lock);
 	list_for_each_entry(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
@@ -428,7 +423,6 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	error = 0;
  out:
 	up_write(&tomoyo_no_rewrite_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -745,7 +739,6 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_acl_info_list_lock);
 	if (is_delete)
 		goto delete;
@@ -800,7 +793,6 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	}
  out:
 	up_write(&tomoyo_domain_acl_info_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -836,7 +828,6 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	saved_filename2 = tomoyo_save_name(filename2);
 	if (!saved_filename1 || !saved_filename2)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_acl_info_list_lock);
 	if (is_delete)
 		goto delete;
@@ -884,7 +875,6 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	}
  out:
 	up_write(&tomoyo_domain_acl_info_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 

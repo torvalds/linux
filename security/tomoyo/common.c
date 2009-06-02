@@ -866,7 +866,6 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 
 	if (profile >= TOMOYO_MAX_PROFILES)
 		return NULL;
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
@@ -880,7 +879,6 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	tomoyo_profile_ptr[profile] = ptr;
  ok:
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr;
 }
 
@@ -1050,7 +1048,6 @@ static int tomoyo_update_manager_entry(const char *manager,
 	saved_manager = tomoyo_save_name(manager);
 	if (!saved_manager)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_policy_manager_list_lock);
 	list_for_each_entry(ptr, &tomoyo_policy_manager_list, list) {
 		if (ptr->manager != saved_manager)
@@ -1072,7 +1069,6 @@ static int tomoyo_update_manager_entry(const char *manager,
 	error = 0;
  out:
 	up_write(&tomoyo_policy_manager_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -1197,13 +1193,11 @@ static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
 
 	if (sscanf(data, "pid=%u", &pid) == 1) {
 		struct task_struct *p;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_is_domain_def(data + 7)) {
 			down_read(&tomoyo_domain_list_lock);
@@ -1594,13 +1588,11 @@ static int tomoyo_read_pid(struct tomoyo_io_buffer *head)
 		const int pid = head->read_step;
 		struct task_struct *p;
 		struct tomoyo_domain_info *domain = NULL;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 		if (domain)
 			tomoyo_io_printf(head, "%d %u %s", pid, domain->profile,
 					 domain->domainname->name);
