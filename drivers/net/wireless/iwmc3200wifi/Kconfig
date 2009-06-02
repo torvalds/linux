@@ -4,7 +4,6 @@ config IWM
 	select WIRELESS_EXT
 	select CFG80211
 	select FW_LOADER
-	select RFKILL
 
 config IWM_DEBUG
 	bool "Enable full debugging output in iwmc3200wifi"

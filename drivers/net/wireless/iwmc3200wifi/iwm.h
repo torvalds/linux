@@ -343,8 +343,4 @@ int iwm_rx_handle_resp(struct iwm_priv *iwm, u8 *buf, unsigned long buf_size,
 		       struct iwm_wifi_cmd *cmd);
 void iwm_rx_free(struct iwm_priv *iwm);
 
-/* RF Kill API */
-int iwm_rfkill_init(struct iwm_priv *iwm);
-void iwm_rfkill_exit(struct iwm_priv *iwm);
-
 #endif
