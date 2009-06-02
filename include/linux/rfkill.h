@@ -261,6 +261,13 @@ void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw);
  *	registered drivers?
  */
 void rfkill_set_global_sw_state(const enum rfkill_type type, bool blocked);
+
+/**
+ * rfkill_blocked - query rfkill block
+ *
+ * @rfkill: rfkill struct to query
+ */
+bool rfkill_blocked(struct rfkill *rfkill);
 #else /* !RFKILL */
 static inline struct rfkill * __must_check
 rfkill_alloc(const char *name,
@@ -312,6 +319,11 @@ static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
 static inline void rfkill_set_global_sw_state(const enum rfkill_type type,
 					      bool blocked)
 {
+}
+
+static inline bool rfkill_blocked(struct rfkill *rfkill)
+{
+	return false;
 }
 #endif /* RFKILL || RFKILL_MODULE */
 

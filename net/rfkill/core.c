@@ -773,6 +773,19 @@ static struct class rfkill_class = {
 	.resume		= rfkill_resume,
 };
 
+bool rfkill_blocked(struct rfkill *rfkill)
+{
+	unsigned long flags;
+	u32 state;
+
+	spin_lock_irqsave(&rfkill->lock, flags);
+	state = rfkill->state;
+	spin_unlock_irqrestore(&rfkill->lock, flags);
+
+	return !!(state & RFKILL_BLOCK_ANY);
+}
+EXPORT_SYMBOL(rfkill_blocked);
+
 
 struct rfkill * __must_check rfkill_alloc(const char *name,
 					  struct device *parent,
