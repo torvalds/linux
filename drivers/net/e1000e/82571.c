@@ -1587,6 +1587,7 @@ static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 static struct e1000_mac_operations e82571_mac_ops = {
 	/* .check_mng_mode: mac type dependent */
 	/* .check_for_link: media type dependent */
+	.id_led_init		= e1000e_id_led_init,
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
@@ -1598,6 +1599,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
+	.setup_led		= e1000e_setup_led_generic,
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {
