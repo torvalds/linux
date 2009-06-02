@@ -44,11 +44,11 @@ static unsigned int ksym_tracing_enabled;
 
 static HLIST_HEAD(ksym_filter_head);
 
+static DEFINE_MUTEX(ksym_tracer_mutex);
+
 #ifdef CONFIG_PROFILE_KSYM_TRACER
 
 #define MAX_UL_INT 0xffffffff
-
-static DEFINE_MUTEX(ksym_tracer_mutex);
 
 void ksym_collect_stats(unsigned long hbp_hit_addr)
 {
