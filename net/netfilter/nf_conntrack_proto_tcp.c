@@ -59,7 +59,7 @@ static const char *const tcp_conntrack_names[] = {
 	"LAST_ACK",
 	"TIME_WAIT",
 	"CLOSE",
-	"LISTEN"
+	"SYN_SENT2",
 };
 
 #define SECS * HZ
@@ -82,6 +82,7 @@ static unsigned int tcp_timeouts[TCP_CONNTRACK_MAX] __read_mostly = {
 	[TCP_CONNTRACK_LAST_ACK]	= 30 SECS,
 	[TCP_CONNTRACK_TIME_WAIT]	= 2 MINS,
 	[TCP_CONNTRACK_CLOSE]		= 10 SECS,
+	[TCP_CONNTRACK_SYN_SENT2]	= 2 MINS,
 };
 
 #define sNO TCP_CONNTRACK_NONE
@@ -93,7 +94,7 @@ static unsigned int tcp_timeouts[TCP_CONNTRACK_MAX] __read_mostly = {
 #define sLA TCP_CONNTRACK_LAST_ACK
 #define sTW TCP_CONNTRACK_TIME_WAIT
 #define sCL TCP_CONNTRACK_CLOSE
-#define sLI TCP_CONNTRACK_LISTEN
+#define sS2 TCP_CONNTRACK_SYN_SENT2
 #define sIV TCP_CONNTRACK_MAX
 #define sIG TCP_CONNTRACK_IGNORE
 
@@ -123,6 +124,7 @@ enum tcp_bit_set {
  *
  * NONE:	initial state
  * SYN_SENT:	SYN-only packet seen
+ * SYN_SENT2:	SYN-only packet seen from reply dir, simultaneous open
  * SYN_RECV:	SYN-ACK packet seen
  * ESTABLISHED:	ACK packet seen
  * FIN_WAIT:	FIN packet seen
@@ -131,26 +133,24 @@ enum tcp_bit_set {
  * TIME_WAIT:	last ACK seen
  * CLOSE:	closed connection (RST)
  *
- * LISTEN state is not used.
- *
  * Packets marked as IGNORED (sIG):
  *	if they may be either invalid or valid
  *	and the receiver may send back a connection
  *	closing RST or a SYN/ACK.
  *
  * Packets marked as INVALID (sIV):
- *	if they are invalid
- *	or we do not support the request (simultaneous open)
+ *	if we regard them as truly invalid packets
  */
 static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	{
 /* ORIGINAL */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*syn*/	   { sSS, sSS, sIG, sIG, sIG, sIG, sIG, sSS, sSS, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*syn*/	   { sSS, sSS, sIG, sIG, sIG, sIG, sIG, sSS, sSS, sS2 },
 /*
  *	sNO -> sSS	Initialize a new connection
  *	sSS -> sSS	Retransmitted SYN
- *	sSR -> sIG	Late retransmitted SYN?
+ *	sS2 -> sS2	Late retransmitted SYN
+ *	sSR -> sIG
  *	sES -> sIG	Error: SYNs in window outside the SYN_SENT state
  *			are errors. Receiver will reply with RST
  *			and close the connection.
@@ -161,22 +161,30 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sSS	Reopened connection (RFC 1122).
  *	sCL -> sSS
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*synack*/ { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*synack*/ { sIV, sIV, sIG, sIG, sIG, sIG, sIG, sIG, sIG, sSR },
 /*
- * A SYN/ACK from the client is always invalid:
- *	- either it tries to set up a simultaneous open, which is
- *	  not supported;
- *	- or the firewall has just been inserted between the two hosts
- *	  during the session set-up. The SYN will be retransmitted
- *	  by the true client (or it'll time out).
+ *	sNO -> sIV	Too late and no reason to do anything
+ *	sSS -> sIV	Client can't send SYN and then SYN/ACK
+ *	sS2 -> sSR	SYN/ACK sent to SYN2 in simultaneous open
+ *	sSR -> sIG
+ *	sES -> sIG	Error: SYNs in window outside the SYN_SENT state
+ *			are errors. Receiver will reply with RST
+ *			and close the connection.
+ *			Or we are not in sync and hold a dead connection.
+ *	sFW -> sIG
+ *	sCW -> sIG
+ *	sLA -> sIG
+ *	sTW -> sIG
+ *	sCL -> sIG
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*fin*/    { sIV, sIV, sFW, sFW, sLA, sLA, sLA, sTW, sCL, sIV },
 /*
  *	sNO -> sIV	Too late and no reason to do anything...
  *	sSS -> sIV	Client migth not send FIN in this state:
  *			we enforce waiting for a SYN/ACK reply first.
+ *	sS2 -> sIV
  *	sSR -> sFW	Close started.
  *	sES -> sFW
  *	sFW -> sLA	FIN seen in both directions, waiting for
@@ -187,11 +195,12 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sTW
  *	sCL -> sCL
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*ack*/	   { sES, sIV, sES, sES, sCW, sCW, sTW, sTW, sCL, sIV },
 /*
  *	sNO -> sES	Assumed.
  *	sSS -> sIV	ACK is invalid: we haven't seen a SYN/ACK yet.
+ *	sS2 -> sIV
  *	sSR -> sES	Established state is reached.
  *	sES -> sES	:-)
  *	sFW -> sCW	Normal close request answered by ACK.
@@ -200,29 +209,31 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sTW	Retransmitted last ACK. Remain in the same state.
  *	sCL -> sCL
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL },
 /*none*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
 	},
 	{
 /* REPLY */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*syn*/	   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*syn*/	   { sIV, sS2, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sS2 },
 /*
  *	sNO -> sIV	Never reached.
- *	sSS -> sIV	Simultaneous open, not supported
- *	sSR -> sIV	Simultaneous open, not supported.
- *	sES -> sIV	Server may not initiate a connection.
+ *	sSS -> sS2	Simultaneous open
+ *	sS2 -> sS2	Retransmitted simultaneous SYN
+ *	sSR -> sIV	Invalid SYN packets sent by the server
+ *	sES -> sIV
  *	sFW -> sIV
  *	sCW -> sIV
  *	sLA -> sIV
  *	sTW -> sIV	Reopened connection, but server may not do it.
  *	sCL -> sIV
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*synack*/ { sIV, sSR, sSR, sIG, sIG, sIG, sIG, sIG, sIG, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*synack*/ { sIV, sSR, sSR, sIG, sIG, sIG, sIG, sIG, sIG, sSR },
 /*
  *	sSS -> sSR	Standard open.
+ *	sS2 -> sSR	Simultaneous open
  *	sSR -> sSR	Retransmitted SYN/ACK.
  *	sES -> sIG	Late retransmitted SYN/ACK?
  *	sFW -> sIG	Might be SYN/ACK answering ignored SYN
@@ -231,10 +242,11 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sIG
  *	sCL -> sIG
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
 /*fin*/    { sIV, sIV, sFW, sFW, sLA, sLA, sLA, sTW, sCL, sIV },
 /*
  *	sSS -> sIV	Server might not send FIN in this state.
+ *	sS2 -> sIV
  *	sSR -> sFW	Close started.
  *	sES -> sFW
  *	sFW -> sLA	FIN seen in both directions.
@@ -243,10 +255,11 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sTW
  *	sCL -> sCL
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*ack*/	   { sIV, sIG, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*ack*/	   { sIV, sIG, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIG },
 /*
  *	sSS -> sIG	Might be a half-open connection.
+ *	sS2 -> sIG
  *	sSR -> sSR	Might answer late resent SYN.
  *	sES -> sES	:-)
  *	sFW -> sCW	Normal close request answered by ACK.
@@ -255,8 +268,8 @@ static const u8 tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sTW -> sTW	Retransmitted last ACK.
  *	sCL -> sCL
  */
-/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sIV },
+/* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sS2	*/
+/*rst*/    { sIV, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL, sCL },
 /*none*/   { sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV, sIV }
 	}
 };
@@ -521,13 +534,14 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		 receiver->td_end, receiver->td_maxend, receiver->td_maxwin,
 		 receiver->td_scale);
 
-	if (sender->td_end == 0) {
+	if (sender->td_maxwin == 0) {
 		/*
 		 * Initialize sender data.
 		 */
-		if (tcph->syn && tcph->ack) {
+		if (tcph->syn) {
 			/*
-			 * Outgoing SYN-ACK in reply to a SYN.
+			 * SYN-ACK in reply to a SYN
+			 * or SYN from reply direction in simultaneous open.
 			 */
 			sender->td_end =
 			sender->td_maxend = end;
@@ -543,6 +557,9 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			      && receiver->flags & IP_CT_TCP_FLAG_WINDOW_SCALE))
 				sender->td_scale =
 				receiver->td_scale = 0;
+			if (!tcph->ack)
+				/* Simultaneous open */
+				return true;
 		} else {
 			/*
 			 * We are in the middle of a connection,
@@ -1068,7 +1085,7 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	ct->proto.tcp.seen[1].td_end = 0;
 	ct->proto.tcp.seen[1].td_maxend = 0;
-	ct->proto.tcp.seen[1].td_maxwin = 1;
+	ct->proto.tcp.seen[1].td_maxwin = 0;
 	ct->proto.tcp.seen[1].td_scale = 0;
 
 	/* tcp_packet will set them */
@@ -1305,6 +1322,13 @@ static struct ctl_table tcp_compat_sysctl_table[] = {
 	{
 		.procname	= "ip_conntrack_tcp_timeout_syn_sent",
 		.data		= &tcp_timeouts[TCP_CONNTRACK_SYN_SENT],
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
+		.procname	= "ip_conntrack_tcp_timeout_syn_sent2",
+		.data		= &tcp_timeouts[TCP_CONNTRACK_SYN_SENT2],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
