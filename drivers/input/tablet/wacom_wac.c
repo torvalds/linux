@@ -455,6 +455,9 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 			wacom_report_key(wcombo, BTN_6, (data[3] & 0x20));
 			if (data[1] & 0x80) {
 				wacom_report_abs(wcombo, ABS_WHEEL, (data[1] & 0x7f));
+			} else {
+				/* Out of proximity, clear wheel value. */
+				wacom_report_abs(wcombo, ABS_WHEEL, 0);
 			}
 			if (wacom->features->type != INTUOS4S) {
 				wacom_report_key(wcombo, BTN_7, (data[3] & 0x40));
