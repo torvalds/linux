@@ -112,14 +112,17 @@ static void wpadev_setup(struct net_device *dev)
 
 static int wpa_init_wpadev(PSDevice pDevice)
 {
+    PSDevice wpadev_priv;
 	struct net_device *dev = pDevice->dev;
          int ret=0;
 
-	pDevice->wpadev = alloc_netdev(0, "vntwpa", wpadev_setup);
+	pDevice->wpadev = alloc_netdev(sizeof(PSDevice), "vntwpa", wpadev_setup);
 	if (pDevice->wpadev == NULL)
 		return -ENOMEM;
 
-	pDevice->wpadev->priv = pDevice;
+    wpadev_priv = netdev_priv(pDevice->wpadev);
+    *wpadev_priv = *pDevice;
+
 	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, U_ETHER_ADDR_LEN);
          pDevice->wpadev->base_addr = dev->base_addr;
 	pDevice->wpadev->irq = dev->irq;

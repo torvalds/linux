@@ -997,10 +997,12 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    dev = alloc_etherdev(0);
+    dev = alloc_etherdev(sizeof(DEVICE_INFO));
 #else
     dev = init_etherdev(dev, 0);
 #endif
+
+    pDevice = (PSDevice) netdev_priv(dev);
 
     if (dev == NULL) {
         printk(KERN_ERR DEVICE_NAME ": allocate net device failed \n");
@@ -1025,7 +1027,6 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     pDevice->dev = dev;
     pDevice->next_module = root_device_dev;
     root_device_dev = dev;
-    dev->priv = pDevice;
     dev->irq = pcid->irq;
 
     if (pci_enable_device(pcid)) {
@@ -1194,7 +1195,6 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
      printk("Fail to Register WPADEV?\n");
         unregister_netdev(pDevice->dev);
         free_netdev(dev);
-        kfree(pDevice);
    }
     device_print_info(pDevice);
     pci_set_drvdata(pcid, pDevice);
@@ -1225,11 +1225,6 @@ static BOOL device_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     PCHIP_INFO pChip_info) {
 
     PSDevice p;
-
-    *ppDevice = kmalloc(sizeof(DEVICE_INFO),GFP_ATOMIC);
-
-    if (*ppDevice == NULL)
-        return FALSE;
 
     memset(*ppDevice,0,sizeof(DEVICE_INFO));
 
@@ -1374,8 +1369,6 @@ device_release_WPADEV(pDevice);
     if (pDevice->pcid) {
         pci_set_drvdata(pDevice->pcid,NULL);
     }
-    kfree(pDevice);
-
 }
 #endif// ifndef PRIVATE_OBJ
 
@@ -2059,7 +2052,7 @@ int __device_open(HANDLE pExDevice) {
 #else
 
 static int  device_open(struct net_device *dev) {
-    PSDevice    pDevice=(PSDevice) dev->priv;
+    PSDevice    pDevice=(PSDevice) netdev_priv(dev);
     int i;
 #endif
     pDevice->rx_buf_sz = PKT_BUF_SZ;
@@ -2212,7 +2205,7 @@ int  __device_close(HANDLE pExDevice) {
 
 #else
 static int  device_close(struct net_device *dev) {
-    PSDevice  pDevice=(PSDevice) dev->priv;
+    PSDevice  pDevice=(PSDevice) netdev_priv(dev);
 #endif
     PSMgmtObject     pMgmt = pDevice->pMgmt;
  //PLICE_DEBUG->
@@ -2282,7 +2275,7 @@ int  __device_dma0_tx_80211(HANDLE pExDevice, struct sk_buff *skb) {
 
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice        pDevice=dev->priv;
+    PSDevice        pDevice=netdev_priv(dev);
 #endif
     PBYTE           pbMPDU;
     UINT            cbMPDULen = 0;
@@ -2494,7 +2487,7 @@ int  __device_xmit(HANDLE pExDevice, struct sk_buff *skb) {
 
 #else
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice pDevice=dev->priv;
+    PSDevice pDevice=netdev_priv(dev);
 
 #endif
     PSMgmtObject    pMgmt = pDevice->pMgmt;
@@ -2950,7 +2943,7 @@ int __device_intr(int irq, HANDLE pExDevice, struct pt_regs *regs) {
 #else
 static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     struct net_device* dev=dev_instance;
-    PSDevice     pDevice=(PSDevice) dev->priv;
+    PSDevice     pDevice=(PSDevice) netdev_priv(dev);
 #endif
 
     int             max_count=0;
@@ -3367,7 +3360,7 @@ void __device_set_multi(HANDLE pExDevice) {
 #else
 
 static void device_set_multi(struct net_device *dev) {
-    PSDevice         pDevice = (PSDevice) dev->priv;
+    PSDevice         pDevice = (PSDevice) netdev_priv(dev);
 #endif
 
     PSMgmtObject     pMgmt = pDevice->pMgmt;
@@ -3441,7 +3434,7 @@ struct net_device_stats *__device_get_stats(HANDLE pExDevice) {
 
 #else
 static struct net_device_stats *device_get_stats(struct net_device *dev) {
-    PSDevice pDevice=(PSDevice) dev->priv;
+    PSDevice pDevice=(PSDevice) netdev_priv(dev);
 #endif
 
     return &pDevice->stats;
@@ -3458,7 +3451,7 @@ int __device_ioctl(HANDLE pExDevice, struct ifreq *rq, int cmd) {
 #else
 
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 #endif
 
 #ifdef WIRELESS_EXT
@@ -4115,7 +4108,6 @@ int __device_hw_reset(HANDLE pExDevice){
 int __device_hw_init(HANDLE pExDevice){
     PSDevice_info pDevice_info = (PSDevice_info)pExDevice;
     PSDevice    pDevice;
-
 
     pDevice = (PSDevice)kmalloc(sizeof(DEVICE_INFO), (int)GFP_ATOMIC);
     if (pDevice == NULL)
