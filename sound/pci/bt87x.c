@@ -810,6 +810,8 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, GENERIC),
 	/* Voodoo TV 200 */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, GENERIC),
+	/* Askey Computer Corp. MagicTView'99 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x144f, 0x3000, GENERIC),
 	/* AVerMedia Studio No. 103, 203, ...? */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, AVPHONE98),
 	/* Prolink PixelView PV-M4900 */
