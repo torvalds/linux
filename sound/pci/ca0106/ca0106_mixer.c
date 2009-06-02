@@ -841,6 +841,9 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 					      snd_ca0106_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
+	err = snd_ctl_add(card, vmaster);
+	if (err < 0)
+		return err;
 	add_slaves(card, vmaster, slave_vols);
 
 	if (emu->details->spi_dac == 1) {
@@ -848,6 +851,9 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 						      NULL);
 		if (!vmaster)
 			return -ENOMEM;
+		err = snd_ctl_add(card, vmaster);
+		if (err < 0)
+			return err;
 		add_slaves(card, vmaster, slave_sws);
 	}
         return 0;
