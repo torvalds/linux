@@ -168,7 +168,7 @@ ct_kcontrol_init_table[NUM_CTALSA_MIXERS] = {
 	},
 	[MIXER_WAVES_P] = {
 		.ctl = 1,
-		.name = "Surround Playback Volume",
+		.name = "Side Playback Volume",
 	},
 	[MIXER_WAVEC_P] = {
 		.ctl = 1,
@@ -176,7 +176,7 @@ ct_kcontrol_init_table[NUM_CTALSA_MIXERS] = {
 	},
 	[MIXER_WAVER_P] = {
 		.ctl = 1,
-		.name = "Rear Playback Volume",
+		.name = "Surround Playback Volume",
 	},
 
 	[MIXER_PCM_C_S] = {
@@ -213,7 +213,7 @@ ct_kcontrol_init_table[NUM_CTALSA_MIXERS] = {
 	},
 	[MIXER_WAVES_P_S] = {
 		.ctl = 1,
-		.name = "Surround Playback Switch",
+		.name = "Side Playback Switch",
 	},
 	[MIXER_WAVEC_P_S] = {
 		.ctl = 1,
@@ -221,7 +221,7 @@ ct_kcontrol_init_table[NUM_CTALSA_MIXERS] = {
 	},
 	[MIXER_WAVER_P_S] = {
 		.ctl = 1,
-		.name = "Rear Playback Switch",
+		.name = "Surround Playback Switch",
 	},
 	[MIXER_DIGITAL_IO_S] = {
 		.ctl = 0,

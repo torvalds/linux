@@ -26,12 +26,10 @@ static struct snd_pcm_hardware ct_pcm_playback_hw = {
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_PAUSE),
 	.formats		= (SNDRV_PCM_FMTBIT_U8 |
-				   SNDRV_PCM_FMTBIT_S8 |
 				   SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE |
 				   SNDRV_PCM_FMTBIT_S24_3LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE),
+				   SNDRV_PCM_FMTBIT_S32_LE |
+				   SNDRV_PCM_FMTBIT_FLOAT_LE),
 	.rates			= (SNDRV_PCM_RATE_CONTINUOUS |
 				   SNDRV_PCM_RATE_8000_192000),
 	.rate_min		= 8000,
@@ -52,8 +50,7 @@ static struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				   SNDRV_PCM_INFO_MMAP_VALID |
 				   SNDRV_PCM_INFO_PAUSE),
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE),
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.rates			= (SNDRV_PCM_RATE_48000 |
 				   SNDRV_PCM_RATE_44100 |
 				   SNDRV_PCM_RATE_32000),
@@ -77,12 +74,10 @@ static struct snd_pcm_hardware ct_pcm_capture_hw = {
 				   SNDRV_PCM_INFO_PAUSE |
 				   SNDRV_PCM_INFO_MMAP_VALID),
 	.formats		= (SNDRV_PCM_FMTBIT_U8 |
-				   SNDRV_PCM_FMTBIT_S8 |
 				   SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_U16_LE |
 				   SNDRV_PCM_FMTBIT_S24_3LE |
-				   SNDRV_PCM_FMTBIT_S24_LE |
-				   SNDRV_PCM_FMTBIT_S32_LE),
+				   SNDRV_PCM_FMTBIT_S32_LE |
+				   SNDRV_PCM_FMTBIT_FLOAT_LE),
 	.rates			= (SNDRV_PCM_RATE_CONTINUOUS |
 				   SNDRV_PCM_RATE_8000_96000),
 	.rate_min		= 8000,
@@ -447,6 +442,7 @@ static struct snd_pcm_ops ct_pcm_playback_ops = {
 	.prepare	= ct_pcm_playback_prepare,
 	.trigger	= ct_pcm_playback_trigger,
 	.pointer	= ct_pcm_playback_pointer,
+	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 /* PCM operators for capture */
@@ -459,6 +455,7 @@ static struct snd_pcm_ops ct_pcm_capture_ops = {
 	.prepare	= ct_pcm_capture_prepare,
 	.trigger	= ct_pcm_capture_trigger,
 	.pointer	= ct_pcm_capture_pointer,
+	.page		= snd_pcm_sgbuf_ops_page,
 };
 
 /* Create ALSA pcm device */
@@ -469,12 +466,10 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	struct snd_pcm *pcm;
 	int err;
 	int playback_count, capture_count;
-	char name[128];
 
-	strncpy(name, device_name, sizeof(name));
 	playback_count = (IEC958 == device) ? 1 : 8;
 	capture_count = (FRONT == device) ? 1 : 0;
-	err = snd_pcm_new(atc->card, name, device,
+	err = snd_pcm_new(atc->card, "ctxfi", device,
 			  playback_count, capture_count, &pcm);
 	if (err < 0) {
 		printk(KERN_ERR "ctxfi: snd_pcm_new failed!! Err=%d\n", err);
@@ -484,7 +479,7 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	pcm->private_data = atc;
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, device_name);
+	strlcpy(pcm->name, device_name, sizeof(pcm->name));
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &ct_pcm_playback_ops);
 
@@ -492,7 +487,7 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 		snd_pcm_set_ops(pcm,
 				SNDRV_PCM_STREAM_CAPTURE, &ct_pcm_capture_ops);
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 			snd_dma_pci_data(atc->pci), 128*1024, 128*1024);
 
 	return 0;

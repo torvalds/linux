@@ -18,12 +18,11 @@
 #include "ctvmem.h"
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <asm/page.h>	/* for PAGE_SIZE macro definition */
 #include <linux/io.h>
-#include <asm/pgtable.h>
+#include <sound/pcm.h>
 
-#define CT_PTES_PER_PAGE (PAGE_SIZE / sizeof(void *))
-#define CT_ADDRS_PER_PAGE (CT_PTES_PER_PAGE * PAGE_SIZE)
+#define CT_PTES_PER_PAGE (CT_PAGE_SIZE / sizeof(void *))
+#define CT_ADDRS_PER_PAGE (CT_PTES_PER_PAGE * CT_PAGE_SIZE)
 
 /* *
  * Find or create vm block based on requested @size.
@@ -35,25 +34,34 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 	struct ct_vm_block *block = NULL, *entry = NULL;
 	struct list_head *pos = NULL;
 
+	size = CT_PAGE_ALIGN(size);
+	if (size > vm->size) {
+		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtural "
+				  "memory space available!\n");
+		return NULL;
+	}
+
+	mutex_lock(&vm->lock);
 	list_for_each(pos, &vm->unused) {
 		entry = list_entry(pos, struct ct_vm_block, list);
 		if (entry->size >= size)
 			break; /* found a block that is big enough */
 	}
 	if (pos == &vm->unused)
-		return NULL;
+		goto out;
 
 	if (entry->size == size) {
 		/* Move the vm node from unused list to used list directly */
 		list_del(&entry->list);
 		list_add(&entry->list, &vm->used);
 		vm->size -= size;
-		return entry;
+		block = entry;
+		goto out;
 	}
 
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (NULL == block)
-		return NULL;
+		goto out;
 
 	block->addr = entry->addr;
 	block->size = size;
@@ -62,6 +70,8 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 	entry->size -= size;
 	vm->size -= size;
 
+ out:
+	mutex_unlock(&vm->lock);
 	return block;
 }
 
@@ -70,6 +80,9 @@ static void put_vm_block(struct ct_vm *vm, struct ct_vm_block *block)
 	struct ct_vm_block *entry = NULL, *pre_ent = NULL;
 	struct list_head *pos = NULL, *pre = NULL;
 
+	block->size = CT_PAGE_ALIGN(block->size);
+
+	mutex_lock(&vm->lock);
 	list_del(&block->list);
 	vm->size += block->size;
 
@@ -106,61 +119,41 @@ static void put_vm_block(struct ct_vm *vm, struct ct_vm_block *block)
 		pos = pre;
 		pre = pos->prev;
 	}
+	mutex_unlock(&vm->lock);
 }
 
 /* Map host addr (kmalloced/vmalloced) to device logical addr. */
 static struct ct_vm_block *
-ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
+ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 {
-	struct ct_vm_block *block = NULL;
-	unsigned long pte_start;
-	unsigned long i;
-	unsigned long pages;
-	unsigned long start_phys;
+	struct ct_vm_block *block;
+	unsigned int pte_start;
+	unsigned i, pages;
 	unsigned long *ptp;
 
-	/* do mapping */
-	if ((unsigned long)host_addr >= VMALLOC_START) {
-		printk(KERN_ERR "ctxfi: "
-		       "Fail! Not support vmalloced addr now!\n");
-		return NULL;
-	}
-
-	if (size > vm->size) {
-		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtural "
-				  "memory space available!\n");
-		return NULL;
-	}
-
-	start_phys = (virt_to_phys(host_addr) & PAGE_MASK);
-	pages = (PAGE_ALIGN(virt_to_phys(host_addr) + size)
-			- start_phys) >> PAGE_SHIFT;
-
-	ptp = vm->ptp[0];
-
-	block = get_vm_block(vm, (pages << PAGE_SHIFT));
+	block = get_vm_block(vm, size);
 	if (block == NULL) {
 		printk(KERN_ERR "ctxfi: No virtual memory block that is big "
 				  "enough to allocate!\n");
 		return NULL;
 	}
 
-	pte_start = (block->addr >> PAGE_SHIFT);
-	for (i = 0; i < pages; i++)
-		ptp[pte_start+i] = start_phys + (i << PAGE_SHIFT);
+	ptp = vm->ptp[0];
+	pte_start = (block->addr >> CT_PAGE_SHIFT);
+	pages = block->size >> CT_PAGE_SHIFT;
+	for (i = 0; i < pages; i++) {
+		unsigned long addr;
+		addr = snd_pcm_sgbuf_get_addr(substream, i << CT_PAGE_SHIFT);
+		ptp[pte_start + i] = addr;
+	}
 
-	block->addr += (virt_to_phys(host_addr) & (~PAGE_MASK));
 	block->size = size;
-
 	return block;
 }
 
 static void ct_vm_unmap(struct ct_vm *vm, struct ct_vm_block *block)
 {
 	/* do unmapping */
-	block->size = ((block->addr + block->size + PAGE_SIZE - 1)
-			& PAGE_MASK) - (block->addr & PAGE_MASK);
-	block->addr &= PAGE_MASK;
 	put_vm_block(vm, block);
 }
 
@@ -190,6 +183,8 @@ int ct_vm_create(struct ct_vm **rvm)
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (NULL == vm)
 		return -ENOMEM;
+
+	mutex_init(&vm->lock);
 
 	/* Allocate page table pages */
 	for (i = 0; i < CT_PTP_NUM; i++) {

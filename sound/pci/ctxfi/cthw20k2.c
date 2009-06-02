@@ -1203,19 +1203,10 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 	}
 
 	vmctl = 0x80000C0F;  /* 32-bit, 4k-size page */
-#if BITS_PER_LONG == 64
-	ptp_phys_low = info->vm_pgt_phys & ((1UL<<32)-1);
-	ptp_phys_high = (info->vm_pgt_phys>>32) & ((1UL<<32)-1);
-	vmctl |= (3<<8);
-#elif BITS_PER_LONG == 32
-	ptp_phys_low = info->vm_pgt_phys & (~0UL);
-	ptp_phys_high = 0;
-#else
-#	error "Unknown BITS_PER_LONG!"
-#endif
-#if PAGE_SIZE == 8192
-#	error "Don't support 8k-page!"
-#endif
+	ptp_phys_low = (u32)info->vm_pgt_phys;
+	ptp_phys_high = upper_32_bits(info->vm_pgt_phys);
+	if (sizeof(void *) == 8) /* 64bit address */
+		vmctl |= (3 << 8);
 	/* Write page table physical address to all PTPAL registers */
 	for (i = 0; i < 64; i++) {
 		hw_write_20kx(hw, VMEM_PTPAL+(16*i), ptp_phys_low);
