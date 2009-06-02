@@ -141,7 +141,7 @@ int sysdev_class_register(struct sysdev_class *cls)
 	cls->kset.kobj.ktype = &ktype_sysdev_class;
 	cls->kset.kobj.kset = system_kset;
 
-	retval = kobject_set_name(&cls->kset.kobj, cls->name);
+	retval = kobject_set_name(&cls->kset.kobj, "%s", cls->name);
 	if (retval)
 		return retval;
 
