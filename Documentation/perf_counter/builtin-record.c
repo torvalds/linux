@@ -162,7 +162,7 @@ struct comm_event {
 	char				comm[16];
 };
 
-static pid_t pid_synthesize_comm_event(pid_t pid)
+static void pid_synthesize_comm_event(pid_t pid, int full)
 {
 	struct comm_event comm_ev;
 	char filename[PATH_MAX];
@@ -170,6 +170,8 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 	int fd, ret;
 	size_t size;
 	char *field, *sep;
+	DIR *tasks;
+	struct dirent dirent, *next;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/stat", pid);
 
@@ -194,29 +196,50 @@ static pid_t pid_synthesize_comm_event(pid_t pid)
 		goto out_failure;
 	size = sep - field;
 	memcpy(comm_ev.comm, field, size++);
-	field = strchr(sep + 4, ' ');
-	if (field == NULL)
-		goto out_failure;
-	comm_ev.pid = atoi(++field);
+
+	comm_ev.pid = pid;
 	comm_ev.header.type = PERF_EVENT_COMM;
-	comm_ev.tid = pid;
 	size = ALIGN(size, sizeof(uint64_t));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
 
-	ret = write(output, &comm_ev, comm_ev.header.size);
-	if (ret < 0) {
-		perror("failed to write");
-		exit(-1);
+	if (!full) {
+		comm_ev.tid = pid;
+
+		ret = write(output, &comm_ev, comm_ev.header.size);
+		if (ret < 0) {
+			perror("failed to write");
+			exit(-1);
+		}
+		return;
 	}
-	return comm_ev.pid;
+
+	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
+
+	tasks = opendir(filename);
+	while (!readdir_r(tasks, &dirent, &next) && next) {
+		char *end;
+		pid = strtol(dirent.d_name, &end, 10);
+		if (*end)
+			continue;
+
+		comm_ev.tid = pid;
+
+		ret = write(output, &comm_ev, comm_ev.header.size);
+		if (ret < 0) {
+			perror("failed to write");
+			exit(-1);
+		}
+	}
+	closedir(tasks);
+	return;
+
 out_failure:
 	fprintf(stderr, "couldn't get COMM and pgid, malformed %s\n",
 		filename);
 	exit(EXIT_FAILURE);
-	return -1;
 }
 
-static void pid_synthesize_mmap_events(pid_t pid, pid_t pgid)
+static void pid_synthesize_mmap_events(pid_t pid)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
@@ -261,7 +284,7 @@ static void pid_synthesize_mmap_events(pid_t pid, pid_t pgid)
 			mmap_ev.len -= mmap_ev.start;
 			mmap_ev.header.size = (sizeof(mmap_ev) -
 					       (sizeof(mmap_ev.filename) - size));
-			mmap_ev.pid = pgid;
+			mmap_ev.pid = pid;
 			mmap_ev.tid = pid;
 
 			if (write(output, &mmap_ev, mmap_ev.header.size) < 0) {
@@ -274,6 +297,28 @@ static void pid_synthesize_mmap_events(pid_t pid, pid_t pgid)
 	fclose(fp);
 }
 
+static void synthesize_events(void)
+{
+	DIR *proc;
+	struct dirent dirent, *next;
+
+	proc = opendir("/proc");
+
+	while (!readdir_r(proc, &dirent, &next) && next) {
+		char *end;
+		pid_t pid;
+
+		pid = strtol(dirent.d_name, &end, 10);
+		if (*end) /* only interested in proper numerical dirents */
+			continue;
+
+		pid_synthesize_comm_event(pid, 1);
+		pid_synthesize_mmap_events(pid);
+	}
+
+	closedir(proc);
+}
+
 static void open_counters(int cpu, pid_t pid)
 {
 	struct perf_counter_hw_event hw_event;
@@ -281,8 +326,8 @@ static void open_counters(int cpu, pid_t pid)
 	int track = 1;
 
 	if (pid > 0) {
-		pid_t pgid = pid_synthesize_comm_event(pid);
-		pid_synthesize_mmap_events(pid, pgid);
+		pid_synthesize_comm_event(pid, 0);
+		pid_synthesize_mmap_events(pid);
 	}
 
 	group_fd = -1;
@@ -348,7 +393,7 @@ static int __cmd_record(int argc, const char **argv)
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
 
-	output = open(output_name, O_CREAT|O_EXCL|O_RDWR, S_IRWXU);
+	output = open(output_name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
 	if (output < 0) {
 		perror("failed to create output file");
 		exit(-1);
@@ -385,9 +430,8 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	/*
-	 * TODO: store the current /proc/$/maps information somewhere
-	 */
+	if (system_wide)
+		synthesize_events();
 
 	while (!done) {
 		int hits = events;

@@ -18,7 +18,7 @@
 
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
-static char		*sort_order = "pid,symbol";
+static char		*sort_order = "comm,dso";
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
