@@ -322,9 +322,7 @@ struct sk_buff {
 	ktime_t			tstamp;
 	struct net_device	*dev;
 
-	union {
-		unsigned long		_skb_dst;
-	};
+	unsigned long		_skb_dst;
 #ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
 #endif
