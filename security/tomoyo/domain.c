@@ -296,7 +296,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	struct tomoyo_domain_keeper_entry *ptr;
 	const struct tomoyo_path_info *saved_domainname;
 	const struct tomoyo_path_info *saved_program = NULL;
-	static DEFINE_MUTEX(lock);
 	int error = -ENOMEM;
 	bool is_last_name = false;
 
