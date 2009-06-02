@@ -137,11 +137,7 @@ void __init plat_mem_setup(void)
 		swarm_rtc_type = RTC_M4LT81;
 
 	printk("This kernel optimized for "
-#ifdef CONFIG_SIMULATION
-	       "simulation"
-#else
 	       "board"
-#endif
 	       " runs "
 #ifdef CONFIG_SIBYTE_CFE
 	       "with"

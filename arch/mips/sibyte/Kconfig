@@ -128,13 +128,6 @@ config SIBYTE_ENABLE_LDT_IF_PCI
 	bool
 	select SIBYTE_HAS_LDT if PCI
 
-config SIMULATION
-	bool "Running under simulation"
-	depends on SIBYTE_SB1xxx_SOC
-	help
-	  Build a kernel suitable for running under the GDB simulator.
-	  Primarily adjusts the kernel's notion of time.
-
 config SB1_CEX_ALWAYS_FATAL
 	bool "All cache exceptions considered fatal (no recovery attempted)"
 	depends on SIBYTE_SB1xxx_SOC
