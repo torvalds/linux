@@ -330,13 +330,13 @@ static int sh7785lcr_mode_pins(void)
 	 * If you change these dip switches then you will need to
 	 * adjust the values below as well.
 	 */
-	value |= 1 << MODE_PIN_MODE4; /* Clock Mode 16 */
-	value |= 1 << MODE_PIN_MODE5; /* 32-bit Area0 bus width */
-	value |= 1 << MODE_PIN_MODE6; /* 32-bit Area0 bus width */
-	value |= 1 << MODE_PIN_MODE7; /* Area 0 SRAM interface [fixed] */
-	value |= 1 << MODE_PIN_MODE8; /* Little Endian */
-	value |= 1 << MODE_PIN_MODE9; /* Master Mode */
-	value |= 1 << MODE_PIN_MODE14; /* No PLL step-up */
+	value |= MODE_PIN4; /* Clock Mode 16 */
+	value |= MODE_PIN5; /* 32-bit Area0 bus width */
+	value |= MODE_PIN6; /* 32-bit Area0 bus width */
+	value |= MODE_PIN7; /* Area 0 SRAM interface [fixed] */
+	value |= MODE_PIN8; /* Little Endian */
+	value |= MODE_PIN9; /* Master Mode */
+	value |= MODE_PIN14; /* No PLL step-up */
 
 	return value;
 }

@@ -429,7 +429,7 @@ int generic_mode_pins(void)
 
 int test_mode_pin(int pin)
 {
-	return sh_mv.mv_mode_pins() & (1 << pin);
+	return sh_mv.mv_mode_pins() & pin;
 }
 
 static const char *cpu_name[] = {

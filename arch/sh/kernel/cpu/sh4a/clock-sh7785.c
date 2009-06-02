@@ -32,7 +32,7 @@ static unsigned long pll_recalc(struct clk *clk)
 {
 	int multiplier;
 
-	multiplier = test_mode_pin(MODE_PIN_MODE4) ? 36 : 72;
+	multiplier = test_mode_pin(MODE_PIN4) ? 36 : 72;
 
 	return clk->parent->rate * multiplier;
 }
