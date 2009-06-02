@@ -2643,8 +2643,10 @@ static int start_graph_tracing(void)
 		return -ENOMEM;
 
 	/* The cpu_boot init_task->ret_stack will never be freed */
-	for_each_online_cpu(cpu)
-		ftrace_graph_init_task(idle_task(cpu));
+	for_each_online_cpu(cpu) {
+		if (!idle_task(cpu)->ret_stack)
+			ftrace_graph_init_task(idle_task(cpu));
+	}
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
