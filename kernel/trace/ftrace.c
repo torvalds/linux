@@ -2580,12 +2580,12 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 
 		if (t->ret_stack == NULL) {
-			t->curr_ret_stack = -1;
-			/* Make sure IRQs see the -1 first: */
-			barrier();
-			t->ret_stack = ret_stack_list[start++];
 			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
+			t->curr_ret_stack = -1;
+			/* Make sure the tasks see the -1 first: */
+			smp_wmb();
+			t->ret_stack = ret_stack_list[start++];
 		}
 	} while_each_thread(g, t);
 
