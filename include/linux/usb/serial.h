@@ -27,6 +27,13 @@
 /* parity check flag */
 #define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
+enum port_dev_state {
+	PORT_UNREGISTERED,
+	PORT_REGISTERING,
+	PORT_REGISTERED,
+	PORT_UNREGISTERING,
+};
+
 /**
  * usb_serial_port: structure for the specific ports of a device.
  * @serial: pointer back to the struct usb_serial owner of this port.
@@ -102,6 +109,7 @@ struct usb_serial_port {
 	char			console;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
+	enum port_dev_state	dev_state;
 };
 #define to_usb_serial_port(d) container_of(d, struct usb_serial_port, dev)
 
