@@ -13,7 +13,6 @@
 
 #include <asm/unaligned.h>
 
-#define	flat_stack_align(sp) /* nothing needed */
 #define	flat_argvp_envp_on_stack()	0
 #define	flat_old_ram_flag(flags)	(flags)
 #define	flat_reloc_valid(reloc, size)	((reloc) <= (size))
