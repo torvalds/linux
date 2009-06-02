@@ -35,6 +35,7 @@
 #include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <linux/inet.h>
 #include <net/ipv6.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -960,7 +961,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if (strnicmp(data, "ip", 2) == 0) {
 			if (!value || !*value) {
 				vol->UNCip = NULL;
-			} else if (strnlen(value, 35) < 35) {
+			} else if (strnlen(value, INET6_ADDRSTRLEN) <
+							INET6_ADDRSTRLEN) {
 				vol->UNCip = value;
 			} else {
 				printk(KERN_WARNING "CIFS: ip address "
