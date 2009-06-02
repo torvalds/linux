@@ -55,20 +55,19 @@ static ssize_t
 attr_show_args(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct mISDN_dsp_element *elem = dev_get_drvdata(dev);
-	ssize_t len = 0;
-	int i = 0;
+	int i;
+	char *p = buf;
 
 	*buf = 0;
-	for (; i < elem->num_args; ++i)
-		len = sprintf(buf, "%sName:        %s\n%s%s%sDescription: %s\n"
-			"\n", buf,
+	for (i = 0; i < elem->num_args; i++)
+		p += sprintf(p, "Name:        %s\n%s%s%sDescription: %s\n\n",
 			  elem->args[i].name,
 			  elem->args[i].def ? "Default:     " : "",
 			  elem->args[i].def ? elem->args[i].def : "",
 			  elem->args[i].def ? "\n" : "",
 			  elem->args[i].desc);
 
-	return len;
+	return p - buf;
 }
 
 static struct device_attribute element_attributes[] = {
