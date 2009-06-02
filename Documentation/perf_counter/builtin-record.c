@@ -19,9 +19,9 @@ static int			default_interval = 100000;
 static int			event_count[MAX_COUNTERS];
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
-static int			nr_cpus				=  0;
+static int			nr_cpus				= 0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= 16;
+static unsigned int		mmap_pages			= 128;
 static int			output;
 static const char		*output_name			= "perf.data";
 static int			group				= 0;
