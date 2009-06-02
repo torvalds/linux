@@ -12,7 +12,7 @@
 
 int ip6_route_me_harder(struct sk_buff *skb)
 {
-	struct net *net = dev_net(skb->dst->dev);
+	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct dst_entry *dst;
 	struct flowi fl = {
@@ -28,9 +28,15 @@ int ip6_route_me_harder(struct sk_buff *skb)
 
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
-	    xfrm_decode_session(skb, &fl, AF_INET6) == 0)
-		if (xfrm_lookup(net, &skb->dst, &fl, skb->sk, 0))
+	    xfrm_decode_session(skb, &fl, AF_INET6) == 0) {
+		struct dst_entry *dst2 = skb_dst(skb);
+
+		if (xfrm_lookup(net, &dst2, &fl, skb->sk, 0)) {
+			skb_dst_set(skb, NULL);
 			return -1;
+		}
+		skb_dst_set(skb, dst2);
+	}
 #endif
 
 	if (dst->error) {
@@ -41,9 +47,9 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	}
 
 	/* Drop old route. */
-	dst_release(skb->dst);
+	skb_dst_drop(skb);
 
-	skb->dst = dst;
+	skb_dst_set(skb, dst);
 	return 0;
 }
 EXPORT_SYMBOL(ip6_route_me_harder);

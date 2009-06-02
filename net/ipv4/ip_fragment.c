@@ -573,7 +573,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	struct ipq *qp;
 	struct net *net;
 
-	net = skb->dev ? dev_net(skb->dev) : dev_net(skb->dst->dev);
+	net = skb->dev ? dev_net(skb->dev) : dev_net(skb_dst(skb)->dev);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
 
 	/* Start by cleaning up the memory. */

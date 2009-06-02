@@ -381,7 +381,7 @@ static void kfree_skbmem(struct sk_buff *skb)
 
 static void skb_release_head_state(struct sk_buff *skb)
 {
-	dst_release(skb->dst);
+	skb_dst_drop(skb);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
 #endif
@@ -521,7 +521,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->transport_header	= old->transport_header;
 	new->network_header	= old->network_header;
 	new->mac_header		= old->mac_header;
-	new->dst		= dst_clone(old->dst);
+	skb_dst_set(new, dst_clone(skb_dst(old)));
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif

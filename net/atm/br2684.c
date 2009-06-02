@@ -228,7 +228,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	pr_debug("br2684_start_xmit, skb->dst=%p\n", skb->dst);
+	pr_debug("br2684_start_xmit, skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {

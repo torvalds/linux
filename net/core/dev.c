@@ -1693,10 +1693,9 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		 * If device doesnt need skb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
-		if ((dev->priv_flags & IFF_XMIT_DST_RELEASE) && skb->dst) {
-			dst_release(skb->dst);
-			skb->dst = NULL;
-		}
+		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
+			skb_dst_drop(skb);
+
 		rc = ops->ndo_start_xmit(skb, dev);
 		if (rc == 0)
 			txq_trans_update(txq);

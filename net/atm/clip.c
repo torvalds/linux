@@ -369,16 +369,16 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	pr_debug("clip_start_xmit (skb %p)\n", skb);
-	if (!skb->dst) {
-		printk(KERN_ERR "clip_start_xmit: skb->dst == NULL\n");
+	if (!skb_dst(skb)) {
+		printk(KERN_ERR "clip_start_xmit: skb_dst(skb) == NULL\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return 0;
 	}
-	if (!skb->dst->neighbour) {
+	if (!skb_dst(skb)->neighbour) {
 #if 0
-		skb->dst->neighbour = clip_find_neighbour(skb->dst, 1);
-		if (!skb->dst->neighbour) {
+		skb_dst(skb)->neighbour = clip_find_neighbour(skb_dst(skb), 1);
+		if (!skb_dst(skb)->neighbour) {
 			dev_kfree_skb(skb);	/* lost that one */
 			dev->stats.tx_dropped++;
 			return 0;
@@ -389,7 +389,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_dropped++;
 		return 0;
 	}
-	entry = NEIGH2ENTRY(skb->dst->neighbour);
+	entry = NEIGH2ENTRY(skb_dst(skb)->neighbour);
 	if (!entry->vccs) {
 		if (time_after(jiffies, entry->expires)) {
 			/* should be resolved */
@@ -406,7 +406,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	pr_debug("neigh %p, vccs %p\n", entry, entry->vccs);
 	ATM_SKB(skb)->vcc = vcc = entry->vccs->vcc;
-	pr_debug("using neighbour %p, vcc %p\n", skb->dst->neighbour, vcc);
+	pr_debug("using neighbour %p, vcc %p\n", skb_dst(skb)->neighbour, vcc);
 	if (entry->vccs->encap) {
 		void *here;
 

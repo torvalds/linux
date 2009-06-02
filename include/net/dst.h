@@ -195,6 +195,12 @@ struct dst_entry * dst_clone(struct dst_entry * dst)
 }
 
 extern void dst_release(struct dst_entry *dst);
+static inline void skb_dst_drop(struct sk_buff *skb)
+{
+	if (skb->_skb_dst)
+		dst_release(skb_dst(skb));
+	skb->_skb_dst = 0UL;
+}
 
 /* Children define the path of the packet through the
  * Linux networking.  Thus, destinations are stackable.
@@ -246,7 +252,7 @@ static inline void dst_negative_advice(struct dst_entry **dst_p)
 
 static inline void dst_link_failure(struct sk_buff *skb)
 {
-	struct dst_entry * dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	if (dst && dst->ops && dst->ops->link_failure)
 		dst->ops->link_failure(skb);
 }
@@ -265,13 +271,13 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 /* Output packet to network from transport.  */
 static inline int dst_output(struct sk_buff *skb)
 {
-	return skb->dst->output(skb);
+	return skb_dst(skb)->output(skb);
 }
 
 /* Input packet from network to transport.  */
 static inline int dst_input(struct sk_buff *skb)
 {
-	return skb->dst->input(skb);
+	return skb_dst(skb)->input(skb);
 }
 
 static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)

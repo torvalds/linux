@@ -31,7 +31,7 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
  */
 static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct ipv6hdr *top_iph;
 	int dsfield;
 
@@ -45,7 +45,7 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	memcpy(top_iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
 	       sizeof(top_iph->flow_lbl));
-	top_iph->nexthdr = xfrm_af2proto(skb->dst->ops->family);
+	top_iph->nexthdr = xfrm_af2proto(skb_dst(skb)->ops->family);
 
 	dsfield = XFRM_MODE_SKB_CB(skb)->tos;
 	dsfield = INET_ECN_encapsulate(dsfield, dsfield);

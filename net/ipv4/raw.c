@@ -343,7 +343,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb->dst = dst_clone(&rt->u.dst);
+	skb_dst_set(skb, dst_clone(&rt->u.dst));
 
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);

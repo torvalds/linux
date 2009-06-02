@@ -1075,6 +1075,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 	int err = 0;
 	unsigned char type;
 	long timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	struct dst_entry *dst;
 
 	lock_sock(sk);
 
@@ -1102,8 +1103,9 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 	}
 	release_sock(sk);
 
-	dst_release(xchg(&newsk->sk_dst_cache, skb->dst));
-	skb->dst = NULL;
+	dst = skb_dst(skb);
+	dst_release(xchg(&newsk->sk_dst_cache, dst));
+	skb_dst_set(skb, NULL);
 
 	DN_SK(newsk)->state        = DN_CR;
 	DN_SK(newsk)->addrrem      = cb->src_port;

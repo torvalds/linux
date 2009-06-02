@@ -143,7 +143,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 						__be32 addr;
 
 						memcpy(&addr, sptr+soffset-1, 4);
-						if (inet_addr_type(dev_net(skb->dst->dev), addr) != RTN_LOCAL) {
+						if (inet_addr_type(dev_net(skb_dst(skb)->dev), addr) != RTN_LOCAL) {
 							dopt->ts_needtime = 1;
 							soffset += 8;
 						}
@@ -624,12 +624,12 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 		memcpy(&nexthop, &optptr[srrptr-1], 4);
 
 		rt = skb_rtable(skb);
-		skb->dst = NULL;
+		skb_dst_set(skb, NULL);
 		err = ip_route_input(skb, nexthop, iph->saddr, iph->tos, skb->dev);
 		rt2 = skb_rtable(skb);
 		if (err || (rt2->rt_type != RTN_UNICAST && rt2->rt_type != RTN_LOCAL)) {
 			ip_rt_put(rt2);
-			skb->dst = &rt->u.dst;
+			skb_dst_set(skb, &rt->u.dst);
 			return -EINVAL;
 		}
 		ip_rt_put(rt);

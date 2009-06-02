@@ -678,7 +678,7 @@ out:
 
 static int dn_output(struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
 	struct net_device *dev = dst->dev;
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
@@ -717,7 +717,7 @@ error:
 static int dn_forward(struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct dn_dev *dn_db = dst->dev->dn_ptr;
 	struct dn_route *rt;
 	struct neighbour *neigh = dst->neighbour;
@@ -730,7 +730,7 @@ static int dn_forward(struct sk_buff *skb)
 		goto drop;
 
 	/* Ensure that we have enough space for headers */
-	rt = (struct dn_route *)skb->dst;
+	rt = (struct dn_route *)skb_dst(skb);
 	header_len = dn_db->use_long ? 21 : 6;
 	if (skb_cow(skb, LL_RESERVED_SPACE(rt->u.dst.dev)+header_len))
 		goto drop;
@@ -1392,7 +1392,8 @@ make_route:
 		goto e_neighbour;
 
 	hash = dn_hash(rt->fl.fld_src, rt->fl.fld_dst);
-	dn_insert_route(rt, hash, (struct dn_route **)&skb->dst);
+	dn_insert_route(rt, hash, &rt);
+	skb_dst_set(skb, &rt->u.dst);
 
 done:
 	if (neigh)
@@ -1424,7 +1425,7 @@ static int dn_route_input(struct sk_buff *skb)
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	unsigned hash = dn_hash(cb->src, cb->dst);
 
-	if (skb->dst)
+	if (skb_dst(skb))
 		return 0;
 
 	rcu_read_lock();
@@ -1437,7 +1438,7 @@ static int dn_route_input(struct sk_buff *skb)
 		    (rt->fl.iif == cb->iif)) {
 			dst_use(&rt->u.dst, jiffies);
 			rcu_read_unlock();
-			skb->dst = (struct dst_entry *)rt;
+			skb_dst_set(skb, (struct dst_entry *)rt);
 			return 0;
 		}
 	}
@@ -1449,7 +1450,7 @@ static int dn_route_input(struct sk_buff *skb)
 static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 			   int event, int nowait, unsigned int flags)
 {
-	struct dn_route *rt = (struct dn_route *)skb->dst;
+	struct dn_route *rt = (struct dn_route *)skb_dst(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
@@ -1554,7 +1555,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 		err = dn_route_input(skb);
 		local_bh_enable();
 		memset(cb, 0, sizeof(struct dn_skb_cb));
-		rt = (struct dn_route *)skb->dst;
+		rt = (struct dn_route *)skb_dst(skb);
 		if (!err && -rt->u.dst.error)
 			err = rt->u.dst.error;
 	} else {
@@ -1570,7 +1571,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	skb->dev = NULL;
 	if (err)
 		goto out_free;
-	skb->dst = &rt->u.dst;
+	skb_dst_set(skb, &rt->u.dst);
 	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		rt->rt_flags |= RTCF_NOTIFY;
 
@@ -1622,15 +1623,15 @@ int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			rt = rcu_dereference(rt->u.dst.dn_next), idx++) {
 			if (idx < s_idx)
 				continue;
-			skb->dst = dst_clone(&rt->u.dst);
+			skb_dst_set(skb, dst_clone(&rt->u.dst));
 			if (dn_rt_fill_info(skb, NETLINK_CB(cb->skb).pid,
 					cb->nlh->nlmsg_seq, RTM_NEWROUTE,
 					1, NLM_F_MULTI) <= 0) {
-				dst_release(xchg(&skb->dst, NULL));
+				skb_dst_drop(skb);
 				rcu_read_unlock_bh();
 				goto done;
 			}
-			dst_release(xchg(&skb->dst, NULL));
+			skb_dst_drop(skb);
 		}
 		rcu_read_unlock_bh();
 	}

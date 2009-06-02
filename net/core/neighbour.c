@@ -1088,8 +1088,8 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 			struct neighbour *n1 = neigh;
 			write_unlock_bh(&neigh->lock);
 			/* On shaper/eql skb->dst->neighbour != neigh :( */
-			if (skb->dst && skb->dst->neighbour)
-				n1 = skb->dst->neighbour;
+			if (skb_dst(skb) && skb_dst(skb)->neighbour)
+				n1 = skb_dst(skb)->neighbour;
 			n1->output(skb);
 			write_lock_bh(&neigh->lock);
 		}
@@ -1182,7 +1182,7 @@ EXPORT_SYMBOL(neigh_compat_output);
 
 int neigh_resolve_output(struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct neighbour *neigh;
 	int rc = 0;
 
@@ -1229,7 +1229,7 @@ EXPORT_SYMBOL(neigh_resolve_output);
 int neigh_connected_output(struct sk_buff *skb)
 {
 	int err;
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 
@@ -1298,8 +1298,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		if (time_before(tbl->proxy_timer.expires, sched_next))
 			sched_next = tbl->proxy_timer.expires;
 	}
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	skb_dst_drop(skb);
 	dev_hold(skb->dev);
 	__skb_queue_tail(&tbl->proxy_queue, skb);
 	mod_timer(&tbl->proxy_timer, sched_next);

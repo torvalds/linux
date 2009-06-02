@@ -398,10 +398,9 @@ static int pim6_rcv(struct sk_buff *skb)
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
-	dst_release(skb->dst);
+	skb_dst_drop(skb);
 	reg_dev->stats.rx_bytes += skb->len;
 	reg_dev->stats.rx_packets++;
-	skb->dst = NULL;
 	nf_reset(skb);
 	netif_rx(skb);
 	dev_put(reg_dev);
@@ -849,7 +848,7 @@ static int ip6mr_cache_report(struct net *net, struct sk_buff *pkt, mifi_t mifi,
 	ipv6_addr_copy(&msg->im6_src, &ipv6_hdr(pkt)->saddr);
 	ipv6_addr_copy(&msg->im6_dst, &ipv6_hdr(pkt)->daddr);
 
-	skb->dst = dst_clone(pkt->dst);
+	skb_dst_set(skb, dst_clone(skb_dst(pkt)));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
@@ -1487,7 +1486,7 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 
 static inline int ip6mr_forward2_finish(struct sk_buff *skb)
 {
-	IP6_INC_STATS_BH(dev_net(skb->dst->dev), ip6_dst_idev(skb->dst),
+	IP6_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTFORWDATAGRAMS);
 	return dst_output(skb);
 }
@@ -1532,8 +1531,8 @@ static int ip6mr_forward2(struct sk_buff *skb, struct mfc6_cache *c, int vifi)
 	if (!dst)
 		goto out_free;
 
-	dst_release(skb->dst);
-	skb->dst = dst;
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst);
 
 	/*
 	 * RFC1584 teaches, that DVMRP/PIM router must deliver packets locally
@@ -1722,7 +1721,7 @@ int ip6mr_get_route(struct net *net,
 {
 	int err;
 	struct mfc6_cache *cache;
-	struct rt6_info *rt = (struct rt6_info *)skb->dst;
+	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
 
 	read_lock(&mrt_lock);
 	cache = ip6mr_cache_find(net, &rt->rt6i_src.addr, &rt->rt6i_dst.addr);

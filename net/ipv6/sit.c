@@ -575,8 +575,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tunnel->dev->stats.rx_packets++;
 		tunnel->dev->stats.rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		nf_reset(skb);
 		ipip6_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
@@ -638,8 +637,8 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (dev->priv_flags & IFF_ISATAP) {
 		struct neighbour *neigh = NULL;
 
-		if (skb->dst)
-			neigh = skb->dst->neighbour;
+		if (skb_dst(skb))
+			neigh = skb_dst(skb)->neighbour;
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -663,8 +662,8 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!dst) {
 		struct neighbour *neigh = NULL;
 
-		if (skb->dst)
-			neigh = skb->dst->neighbour;
+		if (skb_dst(skb))
+			neigh = skb_dst(skb)->neighbour;
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -714,7 +713,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tiph->frag_off)
 		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
 	else
-		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
+		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	if (mtu < 68) {
 		stats->collisions++;
@@ -723,8 +722,8 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
-	if (tunnel->parms.iph.daddr && skb->dst)
-		skb->dst->ops->update_pmtu(skb->dst, mtu);
+	if (tunnel->parms.iph.daddr && skb_dst(skb))
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 	if (skb->len > mtu) {
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, dev);
@@ -768,8 +767,8 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_network_header(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags = 0;
-	dst_release(skb->dst);
-	skb->dst = &rt->u.dst;
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->u.dst);
 
 	/*
 	 *	Push down and install the IPIP header.

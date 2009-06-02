@@ -242,7 +242,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 		return 0;
 	}
 	dst_hold(&rt->u.dst);
-	skb->dst = &rt->u.dst;
+	skb_dst_set(skb, &rt->u.dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_push_encap_header(skb);
@@ -322,7 +322,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 
 	skb->dev = bridge_parent(skb->dev);
 	if (skb->dev) {
-		struct dst_entry *dst = skb->dst;
+		struct dst_entry *dst = skb_dst(skb);
 
 		nf_bridge_pull_encap_header(skb);
 
@@ -375,7 +375,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
 				if (((struct dst_entry *)rt)->dev == dev) {
-					skb->dst = (struct dst_entry *)rt;
+					skb_dst_set(skb, (struct dst_entry *)rt);
 					goto bridged_dnat;
 				}
 				/* we are sure that forwarding is disabled, so printing
@@ -389,7 +389,7 @@ free_skb:
 			kfree_skb(skb);
 			return 0;
 		} else {
-			if (skb->dst->dev == dev) {
+			if (skb_dst(skb)->dev == dev) {
 bridged_dnat:
 				/* Tell br_nf_local_out this is a
 				 * bridged frame */
@@ -412,7 +412,7 @@ bridged_dnat:
 			return 0;
 		}
 		dst_hold(&rt->u.dst);
-		skb->dst = &rt->u.dst;
+		skb_dst_set(skb, &rt->u.dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -633,10 +633,8 @@ static unsigned int br_nf_local_in(unsigned int hook, struct sk_buff *skb,
 {
 	struct rtable *rt = skb_rtable(skb);
 
-	if (rt && rt == bridge_parent_rtable(in)) {
-		dst_release(&rt->u.dst);
-		skb->dst = NULL;
-	}
+	if (rt && rt == bridge_parent_rtable(in))
+		skb_dst_drop(skb);
 
 	return NF_ACCEPT;
 }
@@ -851,7 +849,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 		return NF_ACCEPT;
 
 #ifdef CONFIG_NETFILTER_DEBUG
-	if (skb->dst == NULL) {
+	if (skb_dst(skb) == NULL) {
 		printk(KERN_INFO "br_netfilter post_routing: skb->dst == NULL\n");
 		goto print_error;
 	}

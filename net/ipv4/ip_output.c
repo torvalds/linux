@@ -95,7 +95,7 @@ int __ip_local_out(struct sk_buff *skb)
 
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
-	return nf_hook(PF_INET, NF_INET_LOCAL_OUT, skb, NULL, skb->dst->dev,
+	return nf_hook(PF_INET, NF_INET_LOCAL_OUT, skb, NULL, skb_dst(skb)->dev,
 		       dst_output);
 }
 
@@ -118,7 +118,7 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	__skb_pull(newskb, skb_network_offset(newskb));
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
-	WARN_ON(!newskb->dst);
+	WARN_ON(!skb_dst(newskb));
 	netif_rx(newskb);
 	return 0;
 }
@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(ip_build_and_send_pkt);
 
 static inline int ip_finish_output2(struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
+	struct dst_entry *dst = skb_dst(skb);
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
@@ -217,14 +217,14 @@ static inline int ip_skb_dst_mtu(struct sk_buff *skb)
 	struct inet_sock *inet = skb->sk ? inet_sk(skb->sk) : NULL;
 
 	return (inet && inet->pmtudisc == IP_PMTUDISC_PROBE) ?
-	       skb->dst->dev->mtu : dst_mtu(skb->dst);
+	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
 static int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
-	if (skb->dst->xfrm != NULL) {
+	if (skb_dst(skb)->xfrm != NULL) {
 		IPCB(skb)->flags |= IPSKB_REROUTED;
 		return dst_output(skb);
 	}
@@ -296,7 +296,7 @@ int ip_mc_output(struct sk_buff *skb)
 
 int ip_output(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dst->dev;
+	struct net_device *dev = skb_dst(skb)->dev;
 
 	IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUT, skb->len);
 
@@ -355,7 +355,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 		}
 		sk_setup_caps(sk, &rt->u.dst);
 	}
-	skb->dst = dst_clone(&rt->u.dst);
+	skb_dst_set(skb, dst_clone(&rt->u.dst));
 
 packet_routed:
 	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
@@ -401,8 +401,8 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->pkt_type = from->pkt_type;
 	to->priority = from->priority;
 	to->protocol = from->protocol;
-	dst_release(to->dst);
-	to->dst = dst_clone(from->dst);
+	skb_dst_drop(to);
+	skb_dst_set(to, dst_clone(skb_dst(from)));
 	to->dev = from->dev;
 	to->mark = from->mark;
 
@@ -1294,7 +1294,7 @@ int ip_push_pending_frames(struct sock *sk)
 	 * on dst refcount
 	 */
 	inet->cork.dst = NULL;
-	skb->dst = &rt->u.dst;
+	skb_dst_set(skb, &rt->u.dst);
 
 	if (iph->protocol == IPPROTO_ICMP)
 		icmp_out_count(net, ((struct icmphdr *)

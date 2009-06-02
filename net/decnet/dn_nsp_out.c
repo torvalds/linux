@@ -85,7 +85,7 @@ static void dn_nsp_send(struct sk_buff *skb)
 	dst = sk_dst_check(sk, 0);
 	if (dst) {
 try_again:
-		skb->dst = dst;
+		skb_dst_set(skb, dst);
 		dst_output(skb);
 		return;
 	}
@@ -582,7 +582,7 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 	 * to be able to send disc packets out which have no socket
 	 * associations.
 	 */
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 	dst_output(skb);
 }
 
@@ -611,7 +611,7 @@ void dn_nsp_return_disc(struct sk_buff *skb, unsigned char msgflg,
 	int ddl = 0;
 	gfp_t gfp = GFP_ATOMIC;
 
-	dn_nsp_do_disc(NULL, msgflg, reason, gfp, skb->dst, ddl,
+	dn_nsp_do_disc(NULL, msgflg, reason, gfp, skb_dst(skb), ddl,
 			NULL, cb->src_port, cb->dst_port);
 }
 

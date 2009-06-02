@@ -1448,6 +1448,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int err;
 	struct flowi fl;
+	struct dst_entry *dst;
 
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
@@ -1459,9 +1460,9 @@ static void mld_sendpack(struct sk_buff *skb)
 		IPPROTO_ICMPV6, csum_partial(skb_transport_header(skb),
 					     mldlen, 0));
 
-	skb->dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
 
-	if (!skb->dst) {
+	if (!dst) {
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1470,7 +1471,8 @@ static void mld_sendpack(struct sk_buff *skb)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
+	skb_dst_set(skb, dst);
 	if (err)
 		goto err_out;
 
@@ -1775,6 +1777,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
 	struct flowi fl;
+	struct dst_entry *dst;
 
 	if (type == ICMPV6_MGM_REDUCTION)
 		snd_addr = &in6addr_linklocal_allrouters;
@@ -1828,8 +1831,8 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	idev = in6_dev_get(skb->dev);
 
-	skb->dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-	if (!skb->dst) {
+	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
+	if (!dst) {
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -1838,11 +1841,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &skb->dst, &fl, NULL, 0);
+	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
 	if (err)
 		goto err_out;
 
-
+	skb_dst_set(skb, dst);
 	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,
 		      dst_output);
 out:

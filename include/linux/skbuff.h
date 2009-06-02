@@ -323,7 +323,6 @@ struct sk_buff {
 	struct net_device	*dev;
 
 	union {
-		struct  dst_entry	*dst;
 		unsigned long		_skb_dst;
 	};
 #ifdef CONFIG_XFRM
@@ -426,9 +425,19 @@ extern void skb_dma_unmap(struct device *dev, struct sk_buff *skb,
 			  enum dma_data_direction dir);
 #endif
 
+static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
+{
+	return (struct dst_entry *)skb->_skb_dst;
+}
+
+static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
+{
+	skb->_skb_dst = (unsigned long)dst;
+}
+
 static inline struct rtable *skb_rtable(const struct sk_buff *skb)
 {
-	return (struct rtable *)skb->_skb_dst;
+	return (struct rtable *)skb_dst(skb);
 }
 
 extern void kfree_skb(struct sk_buff *skb);

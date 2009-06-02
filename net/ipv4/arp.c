@@ -468,7 +468,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 	__be32 paddr;
 	struct neighbour *n;
 
-	if (!skb->dst) {
+	if (!skb_dst(skb)) {
 		printk(KERN_DEBUG "arp_find is called with dst==NULL\n");
 		kfree_skb(skb);
 		return 1;

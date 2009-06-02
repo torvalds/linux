@@ -329,7 +329,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */
-	if (skb->dst == NULL) {
+	if (skb_dst(skb) == NULL) {
 		int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
 					 skb->dev);
 		if (unlikely(err)) {
@@ -344,9 +344,9 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	if (unlikely(skb->dst->tclassid)) {
+	if (unlikely(skb_dst(skb)->tclassid)) {
 		struct ip_rt_acct *st = per_cpu_ptr(ip_rt_acct, smp_processor_id());
-		u32 idx = skb->dst->tclassid;
+		u32 idx = skb_dst(skb)->tclassid;
 		st[idx&0xFF].o_packets++;
 		st[idx&0xFF].o_bytes += skb->len;
 		st[(idx>>16)&0xFF].i_packets++;

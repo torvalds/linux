@@ -2202,7 +2202,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	/* Reserve space for headers. */
 	skb_reserve(skb, MAX_TCP_HEADER);
 
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	mss = dst_metric(dst, RTAX_ADVMSS);
 	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < mss)
