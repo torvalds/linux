@@ -284,12 +284,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (!hw_event->exclude_kernel)
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
 
-	/*
-	 * Use NMI events all the time:
-	 */
-	hwc->nmi	= 1;
-	hw_event->nmi	= 1;
-
 	if (!hwc->sample_period)
 		hwc->sample_period = x86_pmu.max_period;
 

@@ -140,7 +140,6 @@ struct perf_counter_hw_event {
 	__u64			read_format;
 
 	__u64			disabled       :  1, /* off by default        */
-				nmi	       :  1, /* NMI sampling          */
 				inherit	       :  1, /* children inherit it   */
 				pinned	       :  1, /* must always be on PMU */
 				exclusive      :  1, /* only group on PMU     */
@@ -153,7 +152,7 @@ struct perf_counter_hw_event {
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
 
-				__reserved_1   : 51;
+				__reserved_1   : 52;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;
@@ -354,7 +353,6 @@ struct hw_perf_counter {
 			u64				config;
 			unsigned long			config_base;
 			unsigned long			counter_base;
-			int				nmi;
 			int				idx;
 		};
 		union { /* software */
