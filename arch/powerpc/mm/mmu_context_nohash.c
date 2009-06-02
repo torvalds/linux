@@ -46,7 +46,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static spinlock_t context_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -276,6 +276,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
  */
 void destroy_context(struct mm_struct *mm)
 {
+	unsigned long flags;
 	unsigned int id;
 
 	if (mm->context.id == MMU_NO_CONTEXT)
@@ -283,7 +284,7 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock(&context_lock);
+	spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
@@ -294,7 +295,7 @@ void destroy_context(struct mm_struct *mm)
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock(&context_lock);
+	spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP
