@@ -1604,6 +1604,43 @@ static void perf_counter_for_each(struct perf_counter *counter,
 	mutex_unlock(&counter->child_mutex);
 }
 
+static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
+{
+	struct perf_counter_context *ctx = counter->ctx;
+	unsigned long size;
+	int ret = 0;
+	u64 value;
+
+	if (!counter->hw_event.sample_period)
+		return -EINVAL;
+
+	size = copy_from_user(&value, arg, sizeof(value));
+	if (size != sizeof(value))
+		return -EFAULT;
+
+	if (!value)
+		return -EINVAL;
+
+	spin_lock_irq(&ctx->lock);
+	if (counter->hw_event.freq) {
+		if (value > sysctl_perf_counter_limit) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+
+		counter->hw_event.sample_freq = value;
+	} else {
+		counter->hw_event.sample_period = value;
+		counter->hw.sample_period = value;
+
+		perf_log_period(counter, value);
+	}
+unlock:
+	spin_unlock_irq(&ctx->lock);
+
+	return ret;
+}
+
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct perf_counter *counter = file->private_data;
@@ -1623,6 +1660,10 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PERF_COUNTER_IOC_REFRESH:
 		return perf_counter_refresh(counter, arg);
+
+	case PERF_COUNTER_IOC_PERIOD:
+		return perf_counter_period(counter, (u64 __user *)arg);
+
 	default:
 		return -ENOTTY;
 	}
