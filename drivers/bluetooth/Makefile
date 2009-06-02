@@ -17,6 +17,7 @@ obj-$(CONFIG_BT_HCIBTSDIO)	+= btsdio.o
 
 btmrvl-objs			:= btmrvl_main.o
 obj-$(CONFIG_BT_MRVL)		+= btmrvl.o
+obj-$(CONFIG_BT_MRVL_SDIO)	+= btmrvl_sdio.o
 
 hci_uart-y				:= hci_ldisc.o
 hci_uart-$(CONFIG_BT_HCIUART_H4)	+= hci_h4.o
