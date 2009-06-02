@@ -20,7 +20,7 @@
 
 #define CT_PTP_NUM	1	/* num of device page table pages */
 
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 
 struct ct_vm_block {
@@ -35,6 +35,7 @@ struct ct_vm {
 	unsigned int size;		/* Available addr space in bytes */
 	struct list_head unused;	/* List of unused blocks */
 	struct list_head used;		/* List of used blocks */
+	struct mutex lock;
 
 	/* Map host addr (kmalloced/vmalloced) to device logical addr. */
 	struct ct_vm_block *(*map)(struct ct_vm *, void *host_addr, int size);

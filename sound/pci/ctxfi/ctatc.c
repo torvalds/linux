@@ -119,7 +119,6 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm);
 
 static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	unsigned long flags;
 	struct snd_pcm_runtime *runtime;
 	struct ct_vm *vm;
 
@@ -129,9 +128,7 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	runtime = apcm->substream->runtime;
 	vm = atc->vm;
 
-	spin_lock_irqsave(&atc->vm_lock, flags);
 	apcm->vm_block = vm->map(vm, runtime->dma_area, runtime->dma_bytes);
-	spin_unlock_irqrestore(&atc->vm_lock, flags);
 
 	if (NULL == apcm->vm_block)
 		return -ENOENT;
@@ -141,7 +138,6 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 static void ct_unmap_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	unsigned long flags;
 	struct ct_vm *vm;
 
 	if (NULL == apcm->vm_block)
@@ -149,9 +145,7 @@ static void ct_unmap_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	vm = atc->vm;
 
-	spin_lock_irqsave(&atc->vm_lock, flags);
 	vm->unmap(vm, apcm->vm_block);
-	spin_unlock_irqrestore(&atc->vm_lock, flags);
 
 	apcm->vm_block = NULL;
 }
@@ -161,17 +155,13 @@ static unsigned long atc_get_ptp_phys(struct ct_atc *atc, int index)
 	struct ct_vm *vm;
 	void *kvirt_addr;
 	unsigned long phys_addr;
-	unsigned long flags;
 
-	spin_lock_irqsave(&atc->vm_lock, flags);
 	vm = atc->vm;
 	kvirt_addr = vm->get_ptp_virt(vm, index);
 	if (kvirt_addr == NULL)
 		phys_addr = (~0UL);
 	else
 		phys_addr = virt_to_phys(kvirt_addr);
-
-	spin_unlock_irqrestore(&atc->vm_lock, flags);
 
 	return phys_addr;
 }
@@ -1562,7 +1552,6 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	atc_set_ops(atc);
 
 	spin_lock_init(&atc->atc_lock);
-	spin_lock_init(&atc->vm_lock);
 
 	/* Find card model */
 	err = atc_identify_card(atc);

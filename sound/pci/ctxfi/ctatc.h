@@ -101,7 +101,6 @@ struct ct_atc {
 	unsigned long (*get_ptp_phys)(struct ct_atc *atc, int index);
 
 	spinlock_t atc_lock;
-	spinlock_t vm_lock;
 
 	int (*pcm_playback_prepare)(struct ct_atc *atc,
 				    struct ct_atc_pcm *apcm);
