@@ -303,11 +303,11 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__thread_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "  %16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return fprintf(fp, " %16s:%5d", self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "          Command: Pid ",
+	.header = "         Command: Pid ",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
 };
@@ -363,11 +363,11 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__dso_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "  %s", self->dso ? self->dso->name : "<unknown>");
+	return fprintf(fp, "  %-25s", self->dso ? self->dso->name : "<unknown>");
 }
 
 static struct sort_entry sort_dso = {
-	.header = " Shared Object",
+	.header = " Shared Object          ",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
 };
