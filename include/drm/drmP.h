@@ -87,6 +87,15 @@ struct drm_device;
 #include "drm_os_linux.h"
 #include "drm_hashtab.h"
 
+#define DRM_UT_CORE 		0x01
+#define DRM_UT_DRIVER		0x02
+#define DRM_UT_KMS		0x04
+#define DRM_UT_MODE		0x08
+
+extern void drm_ut_debug_printk(unsigned int request_level,
+				const char *prefix,
+				const char *function_name,
+				const char *format, ...);
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
@@ -186,15 +195,57 @@ struct drm_device;
  * \param arg arguments
  */
 #if DRM_DEBUG_CODE
-#define DRM_DEBUG(fmt, arg...)						\
+#define DRM_DEBUG(fmt, args...)						\
 	do {								\
-		if ( drm_debug )			\
-			printk(KERN_DEBUG				\
-			       "[" DRM_NAME ":%s] " fmt ,	\
-			       __func__ , ##arg);			\
+		drm_ut_debug_printk(DRM_UT_CORE, DRM_NAME, 		\
+					__func__, fmt, ##args);		\
+	} while (0)
+
+#define DRM_DEBUG_DRIVER(prefix, fmt, args...)				\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_DRIVER, prefix,		\
+					__func__, fmt, ##args);		\
+	} while (0)
+#define DRM_DEBUG_KMS(prefix, fmt, args...)				\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_KMS, prefix, 		\
+					 __func__, fmt, ##args);	\
+	} while (0)
+#define DRM_DEBUG_MODE(prefix, fmt, args...)				\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_MODE, prefix, 		\
+					 __func__, fmt, ##args);	\
+	} while (0)
+#define DRM_LOG(fmt, args...)						\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_CORE, NULL,			\
+					NULL, fmt, ##args);		\
+	} while (0)
+#define DRM_LOG_KMS(fmt, args...)					\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_KMS, NULL,			\
+					NULL, fmt, ##args);		\
+	} while (0)
+#define DRM_LOG_MODE(fmt, args...)					\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_MODE, NULL,			\
+					NULL, fmt, ##args);		\
+	} while (0)
+#define DRM_LOG_DRIVER(fmt, args...)					\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_DRIVER, NULL,		\
+					NULL, fmt, ##args);		\
 	} while (0)
 #else
+#define DRM_DEBUG_DRIVER(prefix, fmt, args...) do { } while (0)
+#define DRM_DEBUG_KMS(prefix, fmt, args...)	do { } while (0)
+#define DRM_DEBUG_MODE(prefix, fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
+#define DRM_LOG(fmt, arg...)		do { } while (0)
+#define DRM_LOG_KMS(fmt, args...) do { } while (0)
+#define DRM_LOG_MODE(fmt, arg...) do { } while (0)
+#define DRM_LOG_DRIVER(fmt, arg...) do { } while (0)
+
 #endif
 
 #define DRM_PROC_LIMIT (PAGE_SIZE-80)
