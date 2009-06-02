@@ -1,20 +1,27 @@
 /*
- * perf stat:  /usr/bin/time -alike performance counter statistics utility
+ * builtin-stat.c
+ *
+ * Builtin stat command: Give a precise performance counters summary
+ * overview about any workload, CPU or specific PID.
+ *
+ * Sample output:
 
-          It summarizes the counter events of all tasks (and child tasks),
-          covering all CPUs that the command (or workload) executes on.
-          It only counts the per-task events of the workload started,
-          independent of how many other tasks run on those CPUs.
+   $ perf stat ~/hackbench 10
+   Time: 0.104
 
-   Sample output:
+    Performance counter stats for '/home/mingo/hackbench':
 
-   $ perf stat -e 1 -e 3 -e 5 ls -lR /usr/include/ >/dev/null
+       1255.538611  task clock ticks     #      10.143 CPU utilization factor
+             54011  context switches     #       0.043 M/sec
+               385  CPU migrations       #       0.000 M/sec
+             17755  pagefaults           #       0.014 M/sec
+        3808323185  CPU cycles           #    3033.219 M/sec
+        1575111190  instructions         #    1254.530 M/sec
+          17367895  cache references     #      13.833 M/sec
+           7674421  cache misses         #       6.112 M/sec
 
-   Performance counter stats for 'ls':
+    Wall-clock time elapsed:   123.786620 msecs
 
-           163516953 instructions
-                2295 cache-misses
-             2855182 branch-misses
  *
  * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
  *

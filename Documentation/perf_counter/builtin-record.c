@@ -1,9 +1,14 @@
 /*
- * perf record: Record the profile of a workload (or a CPU, or a PID) into
- * the perf.data output file - for later analysis via perf report.
+ * builtin-record.c
+ *
+ * Builtin record command: Record the profile of a workload
+ * (or a CPU, or a PID) into the perf.data output file - for
+ * later analysis via perf report.
  */
-#include "perf.h"
 #include "builtin.h"
+
+#include "perf.h"
+
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"

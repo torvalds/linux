@@ -1,49 +1,25 @@
 /*
- * kerneltop.c: show top kernel functions - performance counters showcase
-
-   Build with:
-
-     make -C Documentation/perf_counter/
-
-   Sample output:
-
-------------------------------------------------------------------------------
- KernelTop:    2669 irqs/sec  [cache-misses/cache-refs],  (all, cpu: 2)
-------------------------------------------------------------------------------
-
-             weight         RIP          kernel function
-             ______   ________________   _______________
-
-              35.20 - ffffffff804ce74b : skb_copy_and_csum_dev
-              33.00 - ffffffff804cb740 : sock_alloc_send_skb
-              31.26 - ffffffff804ce808 : skb_push
-              22.43 - ffffffff80510004 : tcp_established_options
-              19.00 - ffffffff8027d250 : find_get_page
-              15.76 - ffffffff804e4fc9 : eth_type_trans
-              15.20 - ffffffff804d8baa : dst_release
-              14.86 - ffffffff804cf5d8 : skb_release_head_state
-              14.00 - ffffffff802217d5 : read_hpet
-              12.00 - ffffffff804ffb7f : __ip_local_out
-              11.97 - ffffffff804fc0c8 : ip_local_deliver_finish
-               8.54 - ffffffff805001a3 : ip_queue_xmit
+ * builtin-top.c
+ *
+ * Builtin top command: Display a continuously updated profile of
+ * any workload, CPU or specific PID.
+ *
+ * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+ *
+ * Improvements and fixes by:
+ *
+ *   Arjan van de Ven <arjan@linux.intel.com>
+ *   Yanmin Zhang <yanmin.zhang@intel.com>
+ *   Wu Fengguang <fengguang.wu@intel.com>
+ *   Mike Galbraith <efault@gmx.de>
+ *   Paul Mackerras <paulus@samba.org>
+ *
+ * Released under the GPL v2. (and only v2, not any later version)
  */
-
- /*
-  * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
-  *
-  * Improvements and fixes by:
-  *
-  *   Arjan van de Ven <arjan@linux.intel.com>
-  *   Yanmin Zhang <yanmin.zhang@intel.com>
-  *   Wu Fengguang <fengguang.wu@intel.com>
-  *   Mike Galbraith <efault@gmx.de>
-  *   Paul Mackerras <paulus@samba.org>
-  *
-  * Released under the GPL v2. (and only v2, not any later version)
-  */
+#include "builtin.h"
 
 #include "perf.h"
-#include "builtin.h"
+
 #include "util/symbol.h"
 #include "util/util.h"
 #include "util/rbtree.h"

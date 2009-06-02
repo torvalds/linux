@@ -1,4 +1,13 @@
+/*
+ * perf.c
+ *
+ * Performance analysis utility.
+ *
+ * This is the main hub from which the sub-commands (perf stat,
+ * perf top, perf record, perf report, etc.) are started.
+ */
 #include "builtin.h"
+
 #include "util/exec_cmd.h"
 #include "util/cache.h"
 #include "util/quote.h"

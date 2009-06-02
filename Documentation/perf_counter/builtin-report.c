@@ -1,5 +1,13 @@
-#include "util/util.h"
+/*
+ * builtin-report.c
+ *
+ * Builtin report command: Analyze the perf.data input file,
+ * look up and read DSOs and symbol information and display
+ * a histogram of results, along various sorting keys.
+ */
 #include "builtin.h"
+
+#include "util/util.h"
 
 #include "util/list.h"
 #include "util/cache.h"
