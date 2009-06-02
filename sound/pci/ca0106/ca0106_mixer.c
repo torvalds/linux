@@ -856,6 +856,8 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 			return err;
 		add_slaves(card, vmaster, slave_sws);
 	}
+
+	strcpy(card->mixername, "CA0106");
         return 0;
 }
 
