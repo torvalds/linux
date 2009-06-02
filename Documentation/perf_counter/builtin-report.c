@@ -612,6 +612,17 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 	return ret;
 }
 
+static void register_idle_thread(void)
+{
+	struct thread *thread = threads__findnew(0);
+
+	if (thread == NULL ||
+			thread__set_comm(thread, "[idle]")) {
+		fprintf(stderr, "problem inserting idle task.\n");
+		exit(-1);
+	}
+}
+
 
 static int __cmd_report(void)
 {
@@ -625,6 +636,8 @@ static int __cmd_report(void)
 	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
 	char cwd[PATH_MAX], *cwdp = cwd;
 	int cwdlen;
+
+	register_idle_thread();
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
