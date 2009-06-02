@@ -128,7 +128,7 @@ static int ct_map_audio_buffer(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	runtime = apcm->substream->runtime;
 	vm = atc->vm;
 
-	apcm->vm_block = vm->map(vm, runtime->dma_area, runtime->dma_bytes);
+	apcm->vm_block = vm->map(vm, apcm->substream, runtime->dma_bytes);
 
 	if (NULL == apcm->vm_block)
 		return -ENOENT;

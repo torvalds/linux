@@ -37,6 +37,8 @@ struct ct_vm_block {
 	struct list_head list;
 };
 
+struct snd_pcm_substream;
+
 /* Virtual memory management object for card device */
 struct ct_vm {
 	void *ptp[CT_PTP_NUM];		/* Device page table pages */
@@ -46,7 +48,8 @@ struct ct_vm {
 	struct mutex lock;
 
 	/* Map host addr (kmalloced/vmalloced) to device logical addr. */
-	struct ct_vm_block *(*map)(struct ct_vm *, void *host_addr, int size);
+	struct ct_vm_block *(*map)(struct ct_vm *, struct snd_pcm_substream *,
+				   int size);
 	/* Unmap device logical addr area. */
 	void (*unmap)(struct ct_vm *, struct ct_vm_block *block);
 	void *(*get_ptp_virt)(struct ct_vm *vm, int index);

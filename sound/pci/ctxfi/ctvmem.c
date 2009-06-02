@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/io.h>
-#include <asm/pgtable.h>
+#include <sound/pcm.h>
 
 #define CT_PTES_PER_PAGE (CT_PAGE_SIZE / sizeof(void *))
 #define CT_ADDRS_PER_PAGE (CT_PTES_PER_PAGE * CT_PAGE_SIZE)
@@ -33,6 +33,13 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 {
 	struct ct_vm_block *block = NULL, *entry = NULL;
 	struct list_head *pos = NULL;
+
+	size = CT_PAGE_ALIGN(size);
+	if (size > vm->size) {
+		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtural "
+				  "memory space available!\n");
+		return NULL;
+	}
 
 	mutex_lock(&vm->lock);
 	list_for_each(pos, &vm->unused) {
@@ -72,6 +79,8 @@ static void put_vm_block(struct ct_vm *vm, struct ct_vm_block *block)
 {
 	struct ct_vm_block *entry = NULL, *pre_ent = NULL;
 	struct list_head *pos = NULL, *pre = NULL;
+
+	block->size = CT_PAGE_ALIGN(block->size);
 
 	mutex_lock(&vm->lock);
 	list_del(&block->list);
@@ -115,57 +124,36 @@ static void put_vm_block(struct ct_vm *vm, struct ct_vm_block *block)
 
 /* Map host addr (kmalloced/vmalloced) to device logical addr. */
 static struct ct_vm_block *
-ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
+ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 {
-	struct ct_vm_block *block = NULL;
-	unsigned long pte_start;
-	unsigned long i;
-	unsigned long pages;
-	unsigned long start_phys;
+	struct ct_vm_block *block;
+	unsigned int pte_start;
+	unsigned i, pages;
 	unsigned long *ptp;
 
-	/* do mapping */
-	if ((unsigned long)host_addr >= VMALLOC_START) {
-		printk(KERN_ERR "ctxfi: "
-		       "Fail! Not support vmalloced addr now!\n");
-		return NULL;
-	}
-
-	if (size > vm->size) {
-		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtural "
-				  "memory space available!\n");
-		return NULL;
-	}
-
-	start_phys = (virt_to_phys(host_addr) & CT_PAGE_MASK);
-	pages = (CT_PAGE_ALIGN(virt_to_phys(host_addr) + size)
-			- start_phys) >> CT_PAGE_SHIFT;
-
-	ptp = vm->ptp[0];
-
-	block = get_vm_block(vm, (pages << CT_PAGE_SHIFT));
+	block = get_vm_block(vm, size);
 	if (block == NULL) {
 		printk(KERN_ERR "ctxfi: No virtual memory block that is big "
 				  "enough to allocate!\n");
 		return NULL;
 	}
 
+	ptp = vm->ptp[0];
 	pte_start = (block->addr >> CT_PAGE_SHIFT);
-	for (i = 0; i < pages; i++)
-		ptp[pte_start+i] = start_phys + (i << CT_PAGE_SHIFT);
+	pages = block->size >> CT_PAGE_SHIFT;
+	for (i = 0; i < pages; i++) {
+		unsigned long addr;
+		addr = snd_pcm_sgbuf_get_addr(substream, i << CT_PAGE_SHIFT);
+		ptp[pte_start + i] = addr;
+	}
 
-	block->addr += (virt_to_phys(host_addr) & (~CT_PAGE_MASK));
 	block->size = size;
-
 	return block;
 }
 
 static void ct_vm_unmap(struct ct_vm *vm, struct ct_vm_block *block)
 {
 	/* do unmapping */
-	block->size = ((block->addr + block->size + CT_PAGE_SIZE - 1)
-			& CT_PAGE_MASK) - (block->addr & CT_PAGE_MASK);
-	block->addr &= CT_PAGE_MASK;
 	put_vm_block(vm, block);
 }
 
