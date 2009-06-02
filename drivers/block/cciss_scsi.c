@@ -58,6 +58,18 @@ static int sendcmd(
 	unsigned char *scsi3addr,
 	int cmd_type);
 
+static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
+	size_t size,
+	unsigned int use_unit_num, /* 0: address the controller,
+				      1: address logical volume log_unit,
+				      2: periph device address is scsi3addr */
+	unsigned int log_unit, __u8 page_code, unsigned char *scsi3addr,
+	int cmd_type);
+
+static int sendcmd_core(ctlr_info_t *h, CommandList_struct *c);
+
+static CommandList_struct *cmd_alloc(ctlr_info_t *h, int get_from_pool);
+static void cmd_free(ctlr_info_t *h, CommandList_struct *c, int got_from_pool);
 
 static int cciss_scsi_proc_info(
 		struct Scsi_Host *sh,
@@ -1575,6 +1587,68 @@ cciss_seq_tape_report(struct seq_file *seq, int ctlr)
 	CPQ_TAPE_UNLOCK(ctlr, flags);
 }
 
+static int wait_for_device_to_become_ready(ctlr_info_t *h,
+	unsigned char lunaddr[])
+{
+	int rc;
+	int count = 0;
+	int waittime = HZ;
+	CommandList_struct *c;
+
+	c = cmd_alloc(h, 1);
+	if (!c) {
+		printk(KERN_WARNING "cciss%d: out of memory in "
+			"wait_for_device_to_become_ready.\n", h->ctlr);
+		return IO_ERROR;
+	}
+
+	/* Send test unit ready until device ready, or give up. */
+	while (count < 20) {
+
+		/* Wait for a bit.  do this first, because if we send
+		 * the TUR right away, the reset will just abort it.
+		 */
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(waittime);
+		count++;
+
+		/* Increase wait time with each try, up to a point. */
+		if (waittime < (HZ * 30))
+			waittime = waittime * 2;
+
+		/* Send the Test Unit Ready */
+		rc = fill_cmd(c, TEST_UNIT_READY, h->ctlr, NULL, 0, 0, 0, 0,
+			lunaddr, TYPE_CMD);
+		if (rc == 0) {
+			rc = sendcmd_core(h, c);
+			/* sendcmd turned off interrupts, turn 'em back on. */
+			h->access.set_intr_mask(h, CCISS_INTR_ON);
+		}
+
+		if (rc == 0 && c->err_info->CommandStatus == CMD_SUCCESS)
+			break;
+
+		if (rc == 0 &&
+			c->err_info->CommandStatus == CMD_TARGET_STATUS &&
+			c->err_info->ScsiStatus == SAM_STAT_CHECK_CONDITION &&
+			(c->err_info->SenseInfo[2] == NO_SENSE ||
+			c->err_info->SenseInfo[2] == UNIT_ATTENTION))
+			break;
+
+		printk(KERN_WARNING "cciss%d: Waiting %d secs "
+			"for device to become ready.\n",
+			h->ctlr, waittime / HZ);
+		rc = 1; /* device not ready. */
+	}
+
+	if (rc)
+		printk("cciss%d: giving up on device.\n", h->ctlr);
+	else
+		printk(KERN_WARNING "cciss%d: device is ready.\n", h->ctlr);
+
+	cmd_free(h, c, 1);
+	return rc;
+}
 
 /* Need at least one of these error handlers to keep ../scsi/hosts.c from 
  * complaining.  Doing a host- or bus-reset can't do anything good here. 
@@ -1591,6 +1665,7 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 {
 	int rc;
 	CommandList_struct *cmd_in_trouble;
+	unsigned char lunaddr[8];
 	ctlr_info_t **c;
 	int ctlr;
 
@@ -1600,19 +1675,17 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 		return FAILED;
 	ctlr = (*c)->ctlr;
 	printk(KERN_WARNING "cciss%d: resetting tape drive or medium changer.\n", ctlr);
-
 	/* find the command that's giving us trouble */
 	cmd_in_trouble = (CommandList_struct *) scsicmd->host_scribble;
-	if (cmd_in_trouble == NULL) { /* paranoia */
+	if (cmd_in_trouble == NULL) /* paranoia */
 		return FAILED;
-	}
+	memcpy(lunaddr, &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 8);
 	/* send a reset to the SCSI LUN which the command was sent to */
-	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 2, 0, 0, 
-		(unsigned char *) &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 
+	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 2, 0, 0, lunaddr,
 		TYPE_MSG);
 	/* sendcmd turned off interrupts on the board, turn 'em back on. */
 	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
-	if (rc == 0)
+	if (rc == 0 && wait_for_device_to_become_ready(*c, lunaddr) == 0)
 		return SUCCESS;
 	printk(KERN_WARNING "cciss%d: resetting device failed.\n", ctlr);
 	return FAILED;
