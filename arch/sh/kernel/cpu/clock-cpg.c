@@ -71,8 +71,9 @@ int __init sh_clk_div4_register(struct clk *clks, int nr,
 	int ret = 0;
 	int k;
 
-	k = nr_divs + 1;
-	freq_table = alloc_bootmem(freq_table_size * nr * (nr_divs + 1));
+	freq_table_size *= (nr_divs + 1);
+
+	freq_table = alloc_bootmem(freq_table_size * nr);
 	if (!freq_table)
 		return -ENOMEM;
 
