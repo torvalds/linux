@@ -201,8 +201,8 @@ apply_relocate(Elf_Shdr * sechdrs, const char *strtab,
 /*            Arithmetic relocations are handled.                        */
 /*            We do not expect LSETUP to be split and hence is not       */
 /*            handled.                                                   */
-/*            R_byte and R_byte2 are also not handled as the gas         */
-/*            does not generate it.                                      */
+/*            R_BFIN_BYTE and R_BFIN_BYTE2 are also not handled as the   */
+/*            gas does not generate it.                                  */
 /*************************************************************************/
 int
 apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
@@ -243,8 +243,8 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 #endif
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 
-		case R_pcrel24:
-		case R_pcrel24_jump_l:
+		case R_BFIN_PCREL24:
+		case R_BFIN_PCREL24_JUMP_L:
 			/* Add the value, subtract its postition */
 			location16 =
 			    (uint16_t *) (sechdrs[sechdrs[relsec].sh_info].
@@ -266,18 +266,18 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			    (*location16 & 0xff00) | (value >> 16 & 0x00ff);
 			*(location16 + 1) = value & 0xffff;
 			break;
-		case R_pcrel12_jump:
-		case R_pcrel12_jump_s:
+		case R_BFIN_PCREL12_JUMP:
+		case R_BFIN_PCREL12_JUMP_S:
 			value -= (uint32_t) location32;
 			value >>= 1;
 			*location16 = (value & 0xfff);
 			break;
-		case R_pcrel10:
+		case R_BFIN_PCREL10:
 			value -= (uint32_t) location32;
 			value >>= 1;
 			*location16 = (value & 0x3ff);
 			break;
-		case R_luimm16:
+		case R_BFIN_LUIMM16:
 			pr_debug("before %x after %x\n", *location16,
 				       (value & 0xffff));
 			tmp = (value & 0xffff);
@@ -286,7 +286,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			} else
 				*location16 = tmp;
 			break;
-		case R_huimm16:
+		case R_BFIN_HUIMM16:
 			pr_debug("before %x after %x\n", *location16,
 				       ((value >> 16) & 0xffff));
 			tmp = ((value >> 16) & 0xffff);
@@ -295,10 +295,10 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			} else
 				*location16 = tmp;
 			break;
-		case R_rimm16:
+		case R_BFIN_RIMM16:
 			*location16 = (value & 0xffff);
 			break;
-		case R_byte4_data:
+		case R_BFIN_BYTE4_DATA:
 			pr_debug("before %x after %x\n", *location32, value);
 			*location32 = value;
 			break;
