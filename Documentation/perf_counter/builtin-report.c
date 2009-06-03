@@ -50,6 +50,7 @@ struct ip_event {
 	__u64 ip;
 	__u32 pid, tid;
 };
+
 struct mmap_event {
 	struct perf_event_header header;
 	__u32 pid, tid;
@@ -58,9 +59,10 @@ struct mmap_event {
 	__u64 pgoff;
 	char filename[PATH_MAX];
 };
+
 struct comm_event {
 	struct perf_event_header header;
-	__u32 pid,tid;
+	__u32 pid, tid;
 	char comm[16];
 };
 
@@ -760,114 +762,137 @@ static void register_idle_thread(void)
 static unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
 
 static int
+process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	char level;
+	int show = 0;
+	struct dso *dso = NULL;
+	struct thread *thread = threads__findnew(event->ip.pid);
+	uint64_t ip = event->ip.ip;
+	struct map *map = NULL;
+
+	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		event->header.misc,
+		event->ip.pid,
+		(void *)(long)ip);
+
+	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+
+	if (thread == NULL) {
+		fprintf(stderr, "problem processing %d event, skipping it.\n",
+			event->header.type);
+		return -1;
+	}
+
+	if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+		show = SHOW_KERNEL;
+		level = 'k';
+
+		dso = kernel_dso;
+
+		dprintf(" ...... dso: %s\n", dso->name);
+
+	} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+
+		show = SHOW_USER;
+		level = '.';
+
+		map = thread__find_map(thread, ip);
+		if (map != NULL) {
+			dso = map->dso;
+			ip -= map->start + map->pgoff;
+		} else {
+			/*
+			 * If this is outside of all known maps,
+			 * and is a negative address, try to look it
+			 * up in the kernel dso, as it might be a
+			 * vsyscall (which executes in user-mode):
+			 */
+			if ((long long)ip < 0)
+				dso = kernel_dso;
+		}
+		dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+
+	} else {
+		show = SHOW_HV;
+		level = 'H';
+		dprintf(" ...... dso: [hypervisor]\n");
+	}
+
+	if (show & show_mask) {
+		struct symbol *sym = dso__find_symbol(dso, ip);
+
+		if (hist_entry__add(thread, map, dso, sym, ip, level)) {
+			fprintf(stderr,
+		"problem incrementing symbol count, skipping event\n");
+			return -1;
+		}
+	}
+	total++;
+
+	return 0;
+}
+
+static int
+process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	struct thread *thread = threads__findnew(event->mmap.pid);
+	struct map *map = map__new(&event->mmap);
+
+	dprintf("%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		(void *)(long)event->mmap.start,
+		(void *)(long)event->mmap.len,
+		(void *)(long)event->mmap.pgoff,
+		event->mmap.filename);
+
+	if (thread == NULL || map == NULL) {
+		dprintf("problem processing PERF_EVENT_MMAP, skipping event.\n");
+		return -1;
+	}
+
+	thread__insert_map(thread, map);
+	total_mmap++;
+
+	return 0;
+}
+
+static int
+process_comm_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	struct thread *thread = threads__findnew(event->comm.pid);
+
+	dprintf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		event->comm.comm, event->comm.pid);
+
+	if (thread == NULL ||
+	    thread__set_comm(thread, event->comm.comm)) {
+		dprintf("problem processing PERF_EVENT_COMM, skipping event.\n");
+		return -1;
+	}
+	total_comm++;
+
+	return 0;
+}
+
+static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
-		char level;
-		int show = 0;
-		struct dso *dso = NULL;
-		struct thread *thread = threads__findnew(event->ip.pid);
-		uint64_t ip = event->ip.ip;
-		struct map *map = NULL;
+	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
+		return process_overflow_event(event, offset, head);
 
-		dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->header.misc,
-			event->ip.pid,
-			(void *)(long)ip);
+	switch (event->header.type) {
+	case PERF_EVENT_MMAP:
+		return process_mmap_event(event, offset, head);
 
-		dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	case PERF_EVENT_COMM:
+		return process_comm_event(event, offset, head);
 
-		if (thread == NULL) {
-			fprintf(stderr, "problem processing %d event, skipping it.\n",
-				event->header.type);
-			return -1;
-		}
-
-		if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
-			show = SHOW_KERNEL;
-			level = 'k';
-
-			dso = kernel_dso;
-
-			dprintf(" ...... dso: %s\n", dso->name);
-
-		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
-
-			show = SHOW_USER;
-			level = '.';
-
-			map = thread__find_map(thread, ip);
-			if (map != NULL) {
-				dso = map->dso;
-				ip -= map->start + map->pgoff;
-			} else {
-				/*
-				 * If this is outside of all known maps,
-				 * and is a negative address, try to look it
-				 * up in the kernel dso, as it might be a
-				 * vsyscall (which executes in user-mode):
-				 */
-				if ((long long)ip < 0)
-					dso = kernel_dso;
-			}
-			dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
-
-		} else {
-			show = SHOW_HV;
-			level = 'H';
-			dprintf(" ...... dso: [hypervisor]\n");
-		}
-
-		if (show & show_mask) {
-			struct symbol *sym = dso__find_symbol(dso, ip);
-
-			if (hist_entry__add(thread, map, dso, sym, ip, level)) {
-				fprintf(stderr,
-		"problem incrementing symbol count, skipping event\n");
-				return -1;
-			}
-		}
-		total++;
-	} else switch (event->header.type) {
-	case PERF_EVENT_MMAP: {
-		struct thread *thread = threads__findnew(event->mmap.pid);
-		struct map *map = map__new(&event->mmap);
-
-		dprintf("%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			(void *)(long)event->mmap.start,
-			(void *)(long)event->mmap.len,
-			(void *)(long)event->mmap.pgoff,
-			event->mmap.filename);
-
-		if (thread == NULL || map == NULL) {
-			if (verbose)
-				fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
-			return -1;
-		}
-		thread__insert_map(thread, map);
-		total_mmap++;
-		break;
-	}
-	case PERF_EVENT_COMM: {
-		struct thread *thread = threads__findnew(event->comm.pid);
-
-		dprintf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
-			(void *)(offset + head),
-			(void *)(long)(event->header.size),
-			event->comm.comm, event->comm.pid);
-
-		if (thread == NULL ||
-		    thread__set_comm(thread, event->comm.comm)) {
-			fprintf(stderr, "problem processing PERF_EVENT_COMM, skipping event.\n");
-			return -1;
-		}
-		total_comm++;
-		break;
-	}
 	default:
 		return -1;
 	}
@@ -877,13 +902,13 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 static int __cmd_report(void)
 {
+	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
 	unsigned long head = 0;
 	struct stat stat;
-	char *buf;
 	event_t *event;
-	int ret, rc = EXIT_FAILURE;
 	uint32_t size;
+	char *buf;
 
 	register_idle_thread();
 
