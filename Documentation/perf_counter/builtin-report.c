@@ -211,9 +211,9 @@ static struct thread *thread__new(pid_t pid)
 
 	if (self != NULL) {
 		self->pid = pid;
-		self->comm = malloc(30);
+		self->comm = malloc(32);
 		if (self->comm)
-			sprintf(self->comm, ":%d", pid);
+			snprintf(self->comm, 32, ":%d", self->pid);
 		INIT_LIST_HEAD(&self->maps);
 	}
 
@@ -222,6 +222,8 @@ static struct thread *thread__new(pid_t pid)
 
 static int thread__set_comm(struct thread *self, const char *comm)
 {
+	if (self->comm)
+		free(self->comm);
 	self->comm = strdup(comm);
 	return self->comm ? 0 : -ENOMEM;
 }
@@ -303,8 +305,11 @@ struct sort_entry {
 	char *header;
 
 	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
+	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
 	size_t	(*print)(FILE *fp, struct hist_entry *);
 };
+
+/* --sort pid */
 
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -324,8 +329,16 @@ static struct sort_entry sort_thread = {
 	.print	= sort__thread_print,
 };
 
+/* --sort comm */
+
 static int64_t
 sort__comm_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->thread->pid - left->thread->pid;
+}
+
+static int64_t
+sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 {
 	char *comm_l = left->thread->comm;
 	char *comm_r = right->thread->comm;
@@ -349,10 +362,13 @@ sort__comm_print(FILE *fp, struct hist_entry *self)
 }
 
 static struct sort_entry sort_comm = {
-	.header = "          Command",
-	.cmp	= sort__comm_cmp,
-	.print	= sort__comm_print,
+	.header 	= "          Command",
+	.cmp		= sort__comm_cmp,
+	.collapse	= sort__comm_collapse,
+	.print		= sort__comm_print,
 };
+
+/* --sort dso */
 
 static int64_t
 sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -386,6 +402,8 @@ static struct sort_entry sort_dso = {
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
 };
+
+/* --sort symbol */
 
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -428,6 +446,8 @@ static struct sort_entry sort_sym = {
 	.print	= sort__sym_print,
 };
 
+static int sort__need_collapse = 0;
+
 struct sort_dimension {
 	char *name;
 	struct sort_entry *entry;
@@ -456,6 +476,9 @@ static int sort_dimension__add(char *tok)
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
+		if (sd->entry->collapse)
+			sort__need_collapse = 1;
+
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
 		sd->taken = 1;
 
@@ -473,6 +496,25 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		cmp = se->cmp(left, right);
+		if (cmp)
+			break;
+	}
+
+	return cmp;
+}
+
+static int64_t
+hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
+{
+	struct sort_entry *se;
+	int64_t cmp = 0;
+
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		int64_t (*f)(struct hist_entry *, struct hist_entry *);
+
+		f = se->collapse ?: se->cmp;
+
+		cmp = f(left, right);
 		if (cmp)
 			break;
 	}
@@ -549,6 +591,64 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	return 0;
 }
 
+static void hist_entry__free(struct hist_entry *he)
+{
+	free(he);
+}
+
+/*
+ * collapse the histogram
+ */
+
+static struct rb_root collapse_hists;
+
+static void collapse__insert_entry(struct hist_entry *he)
+{
+	struct rb_node **p = &collapse_hists.rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *iter;
+	int64_t cmp;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct hist_entry, rb_node);
+
+		cmp = hist_entry__collapse(iter, he);
+
+		if (!cmp) {
+			iter->count += he->count;
+			hist_entry__free(he);
+			return;
+		}
+
+		if (cmp < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&he->rb_node, parent, p);
+	rb_insert_color(&he->rb_node, &collapse_hists);
+}
+
+static void collapse__resort(void)
+{
+	struct rb_node *next;
+	struct hist_entry *n;
+
+	if (!sort__need_collapse)
+		return;
+
+	next = rb_first(&hist);
+	while (next) {
+		n = rb_entry(next, struct hist_entry, rb_node);
+		next = rb_next(&n->rb_node);
+
+		rb_erase(&n->rb_node, &hist);
+		collapse__insert_entry(n);
+	}
+}
+
 /*
  * reverse the map, sort on count.
  */
@@ -577,8 +677,13 @@ static void output__insert_entry(struct hist_entry *he)
 
 static void output__resort(void)
 {
-	struct rb_node *next = rb_first(&hist);
+	struct rb_node *next;
 	struct hist_entry *n;
+
+	if (sort__need_collapse)
+		next = rb_first(&collapse_hists);
+	else
+		next = rb_first(&hist);
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
@@ -859,6 +964,7 @@ broken_event:
 	if (verbose >= 2)
 		dsos__fprintf(stdout);
 
+	collapse__resort();
 	output__resort();
 	output__fprintf(stdout, total);
 
