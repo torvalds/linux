@@ -88,9 +88,9 @@ static struct hwrng timeriomem_rng_ops = {
 	.priv		= 0,
 };
 
-static int __init timeriomem_rng_probe(struct platform_device *pdev)
+static int __devinit timeriomem_rng_probe(struct platform_device *pdev)
 {
-	struct resource *res, *mem;
+	struct resource *res;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -98,21 +98,12 @@ static int __init timeriomem_rng_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENOENT;
 
-	mem = request_mem_region(res->start, res->end - res->start + 1,
-				 pdev->name);
-	if (mem == NULL)
-		return -EBUSY;
-
-	dev_set_drvdata(&pdev->dev, mem);
-
 	timeriomem_rng_data = pdev->dev.platform_data;
 
 	timeriomem_rng_data->address = ioremap(res->start,
 						res->end - res->start + 1);
-	if (!timeriomem_rng_data->address) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
+	if (!timeriomem_rng_data->address)
+		return -EIO;
 
 	if (timeriomem_rng_data->period != 0
 		&& usecs_to_jiffies(timeriomem_rng_data->period) > 0) {
@@ -125,7 +116,7 @@ static int __init timeriomem_rng_probe(struct platform_device *pdev)
 
 	ret = hwrng_register(&timeriomem_rng_ops);
 	if (ret)
-		goto err_register;
+		goto failed;
 
 	dev_info(&pdev->dev, "32bits from 0x%p @ %dus\n",
 			timeriomem_rng_data->address,
@@ -133,24 +124,19 @@ static int __init timeriomem_rng_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_register:
+failed:
 	dev_err(&pdev->dev, "problem registering\n");
 	iounmap(timeriomem_rng_data->address);
-err_ioremap:
-	release_resource(mem);
 
 	return ret;
 }
 
 static int __devexit timeriomem_rng_remove(struct platform_device *pdev)
 {
-	struct resource *mem = dev_get_drvdata(&pdev->dev);
-
 	del_timer_sync(&timeriomem_rng_timer);
 	hwrng_unregister(&timeriomem_rng_ops);
 
 	iounmap(timeriomem_rng_data->address);
-	release_resource(mem);
 
 	return 0;
 }
