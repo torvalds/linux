@@ -1176,7 +1176,7 @@ static int iwl3945_rx_queue_restock(struct iwl_priv *priv)
 
 	/* If we've added more space for the firmware to place data, tell it.
 	 * Increment device's write pointer in multiples of 8. */
-	if ((write != (rxq->write & ~0x7))
+	if ((rxq->write_actual != (rxq->write & ~0x7))
 	    || (abs(rxq->write - rxq->read) > 7)) {
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
@@ -1197,7 +1197,7 @@ static int iwl3945_rx_queue_restock(struct iwl_priv *priv)
  * Also restock the Rx queue via iwl3945_rx_queue_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-static void iwl3945_rx_allocate(struct iwl_priv *priv)
+static void iwl3945_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
@@ -1220,7 +1220,7 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 		/* Alloc a new receive buffer */
 		rxb->skb =
 		    alloc_skb(priv->hw_params.rx_buf_size,
-				GFP_KERNEL);
+				priority);
 		if (!rxb->skb) {
 			if (net_ratelimit())
 				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
@@ -1279,6 +1279,7 @@ void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
 	rxq->free_count = 0;
+	rxq->write_actual = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
@@ -1287,12 +1288,20 @@ void iwl3945_rx_replenish(void *data)
 	struct iwl_priv *priv = data;
 	unsigned long flags;
 
-	iwl3945_rx_allocate(priv);
+	iwl3945_rx_allocate(priv, GFP_KERNEL);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl3945_rx_queue_restock(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
+
+static void iwl3945_rx_replenish_now(struct iwl_priv *priv)
+{
+	iwl3945_rx_allocate(priv, GFP_ATOMIC);
+
+	iwl3945_rx_queue_restock(priv);
+}
+
 
 /* Assumes that the skb field of the buffers in 'pool' is kept accurate.
  * If an SKB has been detached, the POOL needs to have its SKB set to NULL
@@ -1416,13 +1425,19 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 	unsigned long flags;
 	u8 fill_rx = 0;
 	u32 count = 8;
+	int total_empty = 0;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
 	r = le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF;
 	i = rxq->read;
 
-	if (iwl_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
+	/* calculate total frames need to be restock after handling RX */
+	total_empty = r - priv->rxq.write_actual;
+	if (total_empty < 0)
+		total_empty += RX_QUEUE_SIZE;
+
+	if (total_empty > (RX_QUEUE_SIZE / 2))
 		fill_rx = 1;
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
@@ -1499,7 +1514,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				priv->rxq.read = i;
-				iwl3945_rx_queue_restock(priv);
+				iwl3945_rx_replenish_now(priv);
 				count = 0;
 			}
 		}
@@ -1507,7 +1522,10 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 
 	/* Backtrack one entry */
 	priv->rxq.read = i;
-	iwl3945_rx_queue_restock(priv);
+	if (fill_rx)
+		iwl3945_rx_replenish_now(priv);
+	else
+		iwl3945_rx_queue_restock(priv);
 }
 
 /* call this function to flush any scheduled tasklet */
