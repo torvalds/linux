@@ -110,28 +110,8 @@ config SECURITY_ROOTPLUG
 
 	  See <http://www.linuxjournal.com/article.php?sid=6279> for
 	  more information about this module.
-	  
+
 	  If you are unsure how to answer this question, answer N.
-
-config SECURITY_DEFAULT_MMAP_MIN_ADDR
-        int "Low address space to protect from user allocation"
-        depends on SECURITY
-        default 0
-        help
-	  This is the portion of low virtual memory which should be protected
-	  from userspace allocation.  Keeping a user from writing to low pages
-	  can help reduce the impact of kernel NULL pointer bugs.
-
-	  For most ia64, ppc64 and x86 users with lots of address space
-	  a value of 65536 is reasonable and should cause no problems.
-	  On arm and other archs it should not be higher than 32768.
-	  Programs which use vm86 functionality would either need additional
-	  permissions from either the LSM or the capabilities module or have
-	  this protection disabled.
-
-	  This value can be changed after boot using the
-	  /proc/sys/vm/mmap_min_addr tunable.
-
 
 source security/selinux/Kconfig
 source security/smack/Kconfig
