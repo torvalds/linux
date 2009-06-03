@@ -886,6 +886,56 @@ cont_alloc:
 	    htonl(offsetof(struct qla2xxx_fw_dump, isp));
 }
 
+static int
+qla81xx_mpi_sync(scsi_qla_host_t *vha)
+{
+#define MPS_MASK	0xe0
+	int rval;
+	uint16_t dc;
+	uint32_t dw;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(vha->hw))
+		return QLA_SUCCESS;
+
+	rval = qla2x00_write_ram_word(vha, 0x7c00, 1);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "Sync-MPI: Unable to acquire semaphore.\n"));
+		goto done;
+	}
+
+	pci_read_config_word(vha->hw->pdev, 0x54, &dc);
+	rval = qla2x00_read_ram_word(vha, 0x7a15, &dw);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "Sync-MPI: Unable to read sync.\n"));
+		goto done_release;
+	}
+
+	dc &= MPS_MASK;
+	if (dc == (dw & MPS_MASK))
+		goto done_release;
+
+	dw &= ~MPS_MASK;
+	dw |= dc;
+	rval = qla2x00_write_ram_word(vha, 0x7a15, dw);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "Sync-MPI: Unable to gain sync.\n"));
+	}
+
+done_release:
+	rval = qla2x00_write_ram_word(vha, 0x7c00, 0);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "Sync-MPI: Unable to release semaphore.\n"));
+	}
+
+done:
+	return rval;
+}
+
 /**
  * qla2x00_setup_chip() - Load and start RISC firmware.
  * @ha: HA context
@@ -909,6 +959,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 		RD_REG_WORD(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
+
+	qla81xx_mpi_sync(vha);
 
 	/* Load firmware sequences */
 	rval = ha->isp_ops->load_risc(vha, &srisc_address);
