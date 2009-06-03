@@ -33,11 +33,10 @@
 /* do_async_xor - dma map the pages and perform the xor with an engine */
 static __async_inline struct dma_async_tx_descriptor *
 do_async_xor(struct dma_chan *chan, struct page *dest, struct page **src_list,
-	     unsigned int offset, int src_cnt, size_t len,
+	     unsigned int offset, int src_cnt, size_t len, dma_addr_t *dma_src,
 	     struct async_submit_ctl *submit)
 {
 	struct dma_device *dma = chan->device;
-	dma_addr_t *dma_src = (dma_addr_t *) src_list;
 	struct dma_async_tx_descriptor *tx = NULL;
 	int src_off = 0;
 	int i;
@@ -125,9 +124,14 @@ do_sync_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	int xor_src_cnt;
 	int src_off = 0;
 	void *dest_buf;
-	void **srcs = (void **) src_list;
+	void **srcs;
 
-	/* reuse the 'src_list' array to convert to buffer pointers */
+	if (submit->scribble)
+		srcs = submit->scribble;
+	else
+		srcs = (void **) src_list;
+
+	/* convert to buffer pointers */
 	for (i = 0; i < src_cnt; i++)
 		srcs[i] = page_address(src_list[i]) + offset;
 
@@ -178,17 +182,26 @@ async_xor(struct page *dest, struct page **src_list, unsigned int offset,
 	struct dma_chan *chan = async_tx_find_channel(submit, DMA_XOR,
 						      &dest, 1, src_list,
 						      src_cnt, len);
+	dma_addr_t *dma_src = NULL;
+
 	BUG_ON(src_cnt <= 1);
 
-	if (chan) {
+	if (submit->scribble)
+		dma_src = submit->scribble;
+	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
+		dma_src = (dma_addr_t *) src_list;
+
+	if (dma_src && chan) {
 		/* run the xor asynchronously */
 		pr_debug("%s (async): len: %zu\n", __func__, len);
 
 		return do_async_xor(chan, dest, src_list, offset, src_cnt, len,
-				    submit);
+				    dma_src, submit);
 	} else {
 		/* run the xor synchronously */
 		pr_debug("%s (sync): len: %zu\n", __func__, len);
+		WARN_ONCE(chan, "%s: no space for dma address conversion\n",
+			  __func__);
 
 		/* in the sync case the dest is an implied source
 		 * (assumes the dest is the first source)
@@ -241,11 +254,16 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 						      src_cnt, len);
 	struct dma_device *device = chan ? chan->device : NULL;
 	struct dma_async_tx_descriptor *tx = NULL;
+	dma_addr_t *dma_src = NULL;
 
 	BUG_ON(src_cnt <= 1);
 
-	if (device && src_cnt <= device->max_xor) {
-		dma_addr_t *dma_src = (dma_addr_t *) src_list;
+	if (submit->scribble)
+		dma_src = submit->scribble;
+	else if (sizeof(dma_addr_t) <= sizeof(struct page *))
+		dma_src = (dma_addr_t *) src_list;
+
+	if (dma_src && device && src_cnt <= device->max_xor) {
 		unsigned long dma_prep_flags;
 		int i;
 
@@ -275,6 +293,9 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 		enum async_tx_flags flags_orig = submit->flags;
 
 		pr_debug("%s: (sync) len: %zu\n", __func__, len);
+		WARN_ONCE(device && src_cnt <= device->max_xor,
+			  "%s: no space for dma address conversion\n",
+			  __func__);
 
 		submit->flags |= ASYNC_TX_XOR_DROP_DST;
 		submit->flags &= ~ASYNC_TX_ACK;
@@ -292,29 +313,6 @@ async_xor_val(struct page *dest, struct page **src_list, unsigned int offset,
 	return tx;
 }
 EXPORT_SYMBOL_GPL(async_xor_val);
-
-static int __init async_xor_init(void)
-{
-	#ifdef CONFIG_DMA_ENGINE
-	/* To conserve stack space the input src_list (array of page pointers)
-	 * is reused to hold the array of dma addresses passed to the driver.
-	 * This conversion is only possible when dma_addr_t is less than the
-	 * the size of a pointer.  HIGHMEM64G is known to violate this
-	 * assumption.
-	 */
-	BUILD_BUG_ON(sizeof(dma_addr_t) > sizeof(struct page *));
-	#endif
-
-	return 0;
-}
-
-static void __exit async_xor_exit(void)
-{
-	do { } while (0);
-}
-
-module_init(async_xor_init);
-module_exit(async_xor_exit);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("asynchronous xor/xor-zero-sum api");
