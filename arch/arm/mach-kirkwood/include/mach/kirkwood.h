@@ -20,11 +20,15 @@
  * f1000000	on-chip peripheral registers
  * f2000000	PCIe I/O space
  * f3000000	NAND controller address window
+ * f4000000	Security Accelerator SRAM
  *
  * virt		phys		size
  * fee00000	f1000000	1M	on-chip peripheral registers
  * fef00000	f2000000	1M	PCIe I/O space
  */
+
+#define KIRKWOOD_SRAM_PHYS_BASE		0xf4000000
+#define KIRKWOOD_SRAM_SIZE		SZ_2K
 
 #define KIRKWOOD_NAND_MEM_PHYS_BASE	0xf3000000
 #define KIRKWOOD_NAND_MEM_SIZE		SZ_1K

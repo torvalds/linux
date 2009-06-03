@@ -26,7 +26,6 @@ void kirkwood_init_irq(void);
 
 extern struct mbus_dram_target_info kirkwood_mbus_dram_info;
 void kirkwood_setup_cpu_mbus(void);
-void kirkwood_setup_sram_win(u32 base, u32 size);
 
 void kirkwood_pcie_id(u32 *dev, u32 *rev);
 
