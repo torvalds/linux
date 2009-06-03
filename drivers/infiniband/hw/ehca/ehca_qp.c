@@ -1962,19 +1962,13 @@ int ehca_query_qp(struct ib_qp *qp,
 	qp_attr->cap.max_inline_data = my_qp->sq_max_inline_data_size;
 	qp_attr->dest_qp_num = qpcb->dest_qp_nr;
 
-	qp_attr->pkey_index =
-		EHCA_BMASK_GET(MQPCB_PRIM_P_KEY_IDX, qpcb->prim_p_key_idx);
-
-	qp_attr->port_num =
-		EHCA_BMASK_GET(MQPCB_PRIM_PHYS_PORT, qpcb->prim_phys_port);
-
+	qp_attr->pkey_index = qpcb->prim_p_key_idx;
+	qp_attr->port_num = qpcb->prim_phys_port;
 	qp_attr->timeout = qpcb->timeout;
 	qp_attr->retry_cnt = qpcb->retry_count;
 	qp_attr->rnr_retry = qpcb->rnr_retry_count;
 
-	qp_attr->alt_pkey_index =
-		EHCA_BMASK_GET(MQPCB_PRIM_P_KEY_IDX, qpcb->alt_p_key_idx);
-
+	qp_attr->alt_pkey_index = qpcb->alt_p_key_idx;
 	qp_attr->alt_port_num = qpcb->alt_phys_port;
 	qp_attr->alt_timeout = qpcb->timeout_al;
 
@@ -2061,8 +2055,7 @@ int ehca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		update_mask |=
 			EHCA_BMASK_SET(MQPCB_MASK_CURR_SRQ_LIMIT, 1)
 			| EHCA_BMASK_SET(MQPCB_MASK_QP_AFF_ASYN_EV_LOG_REG, 1);
-		mqpcb->curr_srq_limit =
-			EHCA_BMASK_SET(MQPCB_CURR_SRQ_LIMIT, attr->srq_limit);
+		mqpcb->curr_srq_limit = attr->srq_limit;
 		mqpcb->qp_aff_asyn_ev_log_reg =
 			EHCA_BMASK_SET(QPX_AAELOG_RESET_SRQ_LIMIT, 1);
 	}
@@ -2125,8 +2118,7 @@ int ehca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr)
 
 	srq_attr->max_wr = qpcb->max_nr_outst_recv_wr - 1;
 	srq_attr->max_sge = 3;
-	srq_attr->srq_limit = EHCA_BMASK_GET(
-		MQPCB_CURR_SRQ_LIMIT, qpcb->curr_srq_limit);
+	srq_attr->srq_limit = qpcb->curr_srq_limit;
 
 	if (ehca_debug_level >= 2)
 		ehca_dmp(qpcb, 4*70, "qp_num=%x", my_qp->real_qp_num);
