@@ -370,6 +370,9 @@ static inline int test_time_stamp(u64 delta)
 /* Max payload is BUF_PAGE_SIZE - header (8bytes) */
 #define BUF_MAX_DATA_SIZE (BUF_PAGE_SIZE - (sizeof(u32) * 2))
 
+/* Max number of timestamps that can fit on a page */
+#define RB_TIMESTAMPS_PER_PAGE	(BUF_PAGE_SIZE / RB_LEN_TIME_STAMP)
+
 int ring_buffer_print_page_header(struct trace_seq *s)
 {
 	struct buffer_data_page field;
@@ -1409,8 +1412,12 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 			event->array[0] = *delta >> TS_SHIFT;
 		} else {
 			cpu_buffer->commit_page->page->time_stamp = *ts;
-			event->time_delta = 0;
-			event->array[0] = 0;
+			/* try to discard, since we do not need this */
+			if (!rb_try_to_discard(cpu_buffer, event)) {
+				/* nope, just zero it */
+				event->time_delta = 0;
+				event->array[0] = 0;
+			}
 		}
 		cpu_buffer->write_stamp = *ts;
 		/* let the caller know this was the commit */
@@ -2268,8 +2275,8 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 	 * Check if we are at the end of the buffer.
 	 */
 	if (iter->head >= rb_page_size(iter->head_page)) {
-		if (RB_WARN_ON(buffer,
-			       iter->head_page == cpu_buffer->commit_page))
+		/* discarded commits can make the page empty */
+		if (iter->head_page == cpu_buffer->commit_page)
 			return;
 		rb_inc_iter(iter);
 		return;
@@ -2312,12 +2319,10 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	/*
 	 * We repeat when a timestamp is encountered. It is possible
 	 * to get multiple timestamps from an interrupt entering just
-	 * as one timestamp is about to be written. The max times
-	 * that this can happen is the number of nested interrupts we
-	 * can have.  Nesting 10 deep of interrupts is clearly
-	 * an anomaly.
+	 * as one timestamp is about to be written, or from discarded
+	 * commits. The most that we can have is the number on a single page.
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 10))
+	if (RB_WARN_ON(cpu_buffer, ++nr_loops > RB_TIMESTAMPS_PER_PAGE))
 		return NULL;
 
 	reader = rb_get_reader_page(cpu_buffer);
@@ -2383,14 +2388,14 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
  again:
 	/*
-	 * We repeat when a timestamp is encountered. It is possible
-	 * to get multiple timestamps from an interrupt entering just
-	 * as one timestamp is about to be written. The max times
-	 * that this can happen is the number of nested interrupts we
-	 * can have. Nesting 10 deep of interrupts is clearly
-	 * an anomaly.
+	 * We repeat when a timestamp is encountered.
+	 * We can get multiple timestamps by nested interrupts or also
+	 * if filtering is on (discarding commits). Since discarding
+	 * commits can be frequent we can get a lot of timestamps.
+	 * But we limit them by not adding timestamps if they begin
+	 * at the start of a page.
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 10))
+	if (RB_WARN_ON(cpu_buffer, ++nr_loops > RB_TIMESTAMPS_PER_PAGE))
 		return NULL;
 
 	if (rb_per_cpu_empty(cpu_buffer))
