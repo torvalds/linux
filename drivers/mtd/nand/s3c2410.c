@@ -215,9 +215,9 @@ static int s3c2410_nand_setrate(struct s3c2410_nand_info *info)
 
 	case TYPE_S3C2440:
 	case TYPE_S3C2412:
-		mask = (S3C2410_NFCONF_TACLS(tacls_max - 1) |
-			S3C2410_NFCONF_TWRPH0(7) |
-			S3C2410_NFCONF_TWRPH1(7));
+		mask = (S3C2440_NFCONF_TACLS(tacls_max - 1) |
+			S3C2440_NFCONF_TWRPH0(7) |
+			S3C2440_NFCONF_TWRPH1(7));
 
 		set = S3C2440_NFCONF_TACLS(tacls - 1);
 		set |= S3C2440_NFCONF_TWRPH0(twrph0 - 1);
