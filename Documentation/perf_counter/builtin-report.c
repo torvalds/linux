@@ -893,6 +893,15 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	case PERF_EVENT_COMM:
 		return process_comm_event(event, offset, head);
 
+	/*
+	 * We dont process them right now but they are fine:
+	 */
+	case PERF_EVENT_MUNMAP:
+	case PERF_EVENT_PERIOD:
+	case PERF_EVENT_THROTTLE:
+	case PERF_EVENT_UNTHROTTLE:
+		return 0;
+
 	default:
 		return -1;
 	}
