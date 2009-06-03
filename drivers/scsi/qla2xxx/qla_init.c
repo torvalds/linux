@@ -2064,8 +2064,10 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)) {
 		if (test_bit(LOCAL_LOOP_UPDATE, &save_flags))
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-		if (test_bit(RSCN_UPDATE, &save_flags))
+		if (test_bit(RSCN_UPDATE, &save_flags)) {
 			set_bit(RSCN_UPDATE, &vha->dpc_flags);
+			vha->flags.rscn_queue_overflow = 1;
+		}
 	}
 
 	return (rval);
