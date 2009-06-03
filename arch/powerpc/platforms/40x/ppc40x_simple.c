@@ -52,6 +52,8 @@ machine_device_initcall(ppc40x_simple, ppc40x_device_probe);
  */
 static char *board[] __initdata = {
 	"amcc,acadia",
+	"amcc,haleakala",
+	"amcc,kilauea",
 	"amcc,makalu"
 };
 
