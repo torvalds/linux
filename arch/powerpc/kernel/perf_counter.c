@@ -372,16 +372,28 @@ static void write_mmcr0(struct cpu_hw_counters *cpuhw, unsigned long mmcr0)
 
 	/*
 	 * Write MMCR0, then read PMC5 and PMC6 immediately.
+	 * To ensure we don't get a performance monitor interrupt
+	 * between writing MMCR0 and freezing/thawing the limited
+	 * counters, we first write MMCR0 with the counter overflow
+	 * interrupt enable bits turned off.
 	 */
 	asm volatile("mtspr %3,%2; mfspr %0,%4; mfspr %1,%5"
 		     : "=&r" (pmc5), "=&r" (pmc6)
-		     : "r" (mmcr0), "i" (SPRN_MMCR0),
+		     : "r" (mmcr0 & ~(MMCR0_PMC1CE | MMCR0_PMCjCE)),
+		       "i" (SPRN_MMCR0),
 		       "i" (SPRN_PMC5), "i" (SPRN_PMC6));
 
 	if (mmcr0 & MMCR0_FC)
 		freeze_limited_counters(cpuhw, pmc5, pmc6);
 	else
 		thaw_limited_counters(cpuhw, pmc5, pmc6);
+
+	/*
+	 * Write the full MMCR0 including the counter overflow interrupt
+	 * enable bits, if necessary.
+	 */
+	if (mmcr0 & (MMCR0_PMC1CE | MMCR0_PMCjCE))
+		mtspr(SPRN_MMCR0, mmcr0);
 }
 
 /*
@@ -1108,7 +1120,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
-		if (is_limited_pmc(counter->hw.idx))
+		if (!counter->hw.idx || is_limited_pmc(counter->hw.idx))
 			continue;
 		val = read_pmc(counter->hw.idx);
 		if ((int)val < 0) {
