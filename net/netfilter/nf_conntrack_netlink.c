@@ -27,7 +27,6 @@
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
 
 #include <linux/netfilter.h>
 #include <net/netlink.h>
@@ -454,13 +453,12 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       ;
 }
 
-static int ctnetlink_conntrack_event(struct notifier_block *this,
-				     unsigned long events, void *ptr)
+static int
+ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct nlattr *nest_parms;
-	struct nf_ct_event *item = (struct nf_ct_event *)ptr;
 	struct nf_conn *ct = item->ct;
 	struct sk_buff *skb;
 	unsigned int type;
@@ -468,7 +466,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 
 	/* ignore our fake conntrack entry */
 	if (ct == &nf_conntrack_untracked)
-		return NOTIFY_DONE;
+		return 0;
 
 	if (events & IPCT_DESTROY) {
 		type = IPCTNL_MSG_CT_DELETE;
@@ -481,10 +479,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		type = IPCTNL_MSG_CT_NEW;
 		group = NFNLGRP_CONNTRACK_UPDATE;
 	} else
-		return NOTIFY_DONE;
+		return 0;
 
 	if (!item->report && !nfnetlink_has_listeners(group))
-		return NOTIFY_DONE;
+		return 0;
 
 	skb = nlmsg_new(ctnetlink_nlmsg_size(ct), GFP_ATOMIC);
 	if (skb == NULL)
@@ -560,8 +558,8 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, item->pid, group, item->report);
-	return NOTIFY_DONE;
+	nfnetlink_send(skb, item->pid, group, item->report, GFP_ATOMIC);
+	return 0;
 
 nla_put_failure:
 	rcu_read_unlock();
@@ -570,7 +568,7 @@ nlmsg_failure:
 	kfree_skb(skb);
 errout:
 	nfnetlink_set_err(0, group, -ENOBUFS);
-	return NOTIFY_DONE;
+	return 0;
 }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */
 
@@ -1507,12 +1505,11 @@ nla_put_failure:
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-static int ctnetlink_expect_event(struct notifier_block *this,
-				  unsigned long events, void *ptr)
+static int
+ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	struct nf_exp_event *item = (struct nf_exp_event *)ptr;
 	struct nf_conntrack_expect *exp = item->exp;
 	struct sk_buff *skb;
 	unsigned int type;
@@ -1522,11 +1519,11 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 		type = IPCTNL_MSG_EXP_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 	} else
-		return NOTIFY_DONE;
+		return 0;
 
 	if (!item->report &&
 	    !nfnetlink_has_listeners(NFNLGRP_CONNTRACK_EXP_NEW))
-		return NOTIFY_DONE;
+		return 0;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (skb == NULL)
@@ -1548,8 +1545,9 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, item->pid, NFNLGRP_CONNTRACK_EXP_NEW, item->report);
-	return NOTIFY_DONE;
+	nfnetlink_send(skb, item->pid, NFNLGRP_CONNTRACK_EXP_NEW,
+		       item->report, GFP_ATOMIC);
+	return 0;
 
 nla_put_failure:
 	rcu_read_unlock();
@@ -1558,7 +1556,7 @@ nlmsg_failure:
 	kfree_skb(skb);
 errout:
 	nfnetlink_set_err(0, 0, -ENOBUFS);
-	return NOTIFY_DONE;
+	return 0;
 }
 #endif
 static int ctnetlink_exp_done(struct netlink_callback *cb)
@@ -1864,12 +1862,12 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-static struct notifier_block ctnl_notifier = {
-	.notifier_call	= ctnetlink_conntrack_event,
+static struct nf_ct_event_notifier ctnl_notifier = {
+	.fcn = ctnetlink_conntrack_event,
 };
 
-static struct notifier_block ctnl_notifier_exp = {
-	.notifier_call	= ctnetlink_expect_event,
+static struct nf_exp_event_notifier ctnl_notifier_exp = {
+	.fcn = ctnetlink_expect_event,
 };
 #endif
 

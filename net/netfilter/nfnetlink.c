@@ -107,9 +107,10 @@ int nfnetlink_has_listeners(unsigned int group)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
-int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
+int nfnetlink_send(struct sk_buff *skb, u32 pid,
+		   unsigned group, int echo, gfp_t flags)
 {
-	return nlmsg_notify(nfnl, skb, pid, group, echo, gfp_any());
+	return nlmsg_notify(nfnl, skb, pid, group, echo, flags);
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
