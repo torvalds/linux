@@ -83,15 +83,6 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
-struct iwl_station_mgmt_ops {
-	u8 (*add_station)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
-	int (*remove_station)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap);
-	u8 (*find_station)(struct iwl_priv *priv, const u8 *addr);
-	void (*clear_station_table)(struct iwl_priv *priv);
-};
-
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
@@ -183,7 +174,6 @@ struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_station_mgmt_ops *smgmt;
 };
 
 struct iwl_mod_params {

@@ -1067,7 +1067,7 @@ struct iwl_addsta_cmd {
 	 * Set modify_mask bit STA_MODIFY_TID_DISABLE_TX to use this field. */
 	__le16 tid_disable_tx;
 
-	__le16	reserved1;
+	__le16	rate_n_flags;		/* 3945 only */
 
 	/* TID for which to add block-ack support.
 	 * Set modify_mask bit STA_MODIFY_ADDBA_TID_MSK to use this field. */

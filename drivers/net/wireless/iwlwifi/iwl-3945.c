@@ -769,35 +769,6 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	return ;
 }
 
-u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *addr)
-{
-	int i, start = IWL_AP_ID;
-	int ret = IWL_INVALID_STATION;
-	unsigned long flags;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) ||
-	    (priv->iw_mode == NL80211_IFTYPE_AP))
-		start = IWL_STA_ID;
-
-	if (is_broadcast_ether_addr(addr))
-		return priv->hw_params.bcast_sta_id;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_params.max_stations; i++)
-		if ((priv->stations_39[i].used) &&
-		    (!compare_ether_addr
-		     (priv->stations_39[i].sta.sta.addr, addr))) {
-			ret = i;
-			goto out;
-		}
-
-	IWL_DEBUG_INFO(priv, "can not find STA %pM (total %d)\n",
-		       addr, priv->num_stations);
- out:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return ret;
-}
-
 /**
  * iwl3945_hw_build_tx_cmd_rate - Add rate portion to TX_CMD:
  *
@@ -875,13 +846,13 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv, struct iwl_cmd *cmd,
 u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 {
 	unsigned long flags_spin;
-	struct iwl3945_station_entry *station;
+	struct iwl_station_entry *station;
 
 	if (sta_id == IWL_INVALID_STATION)
 		return IWL_INVALID_STATION;
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
-	station = &priv->stations_39[sta_id];
+	station = &priv->stations[sta_id];
 
 	station->sta.sta.modify_mask = STA_MODIFY_TX_RATE_MSK;
 	station->sta.rate_n_flags = cpu_to_le16(tx_rate);
@@ -889,8 +860,7 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
-	iwl_send_add_sta(priv,
-			 (struct iwl_addsta_cmd *)&station->sta, flags);
+	iwl_send_add_sta(priv, &station->sta, flags);
 	IWL_DEBUG_RATE(priv, "SCALE sync station %d to rate %d\n",
 			sta_id, tx_rate);
 	return sta_id;
@@ -2029,7 +1999,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
@@ -2040,7 +2010,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (priv->cfg->ops->smgmt->add_station(priv, iwl_bcast_addr, 0, 0, NULL) ==
+	if (iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL) ==
 	    IWL_INVALID_STATION) {
 		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
 		return -EIO;
@@ -2050,9 +2020,8 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	 * add the IWL_AP_ID to the station rate table */
 	if (iwl_is_associated(priv) &&
 	    (priv->iw_mode == NL80211_IFTYPE_STATION))
-		if (priv->cfg->ops->smgmt->add_station(priv,
-					priv->active_rxon.bssid_addr, 1, 0, NULL)
-		    == IWL_INVALID_STATION) {
+		if (iwl_add_station(priv, priv->active_rxon.bssid_addr,
+				true, CMD_SYNC, NULL) == IWL_INVALID_STATION) {
 			IWL_ERR(priv, "Error adding AP address for transmit\n");
 			return -EIO;
 		}
@@ -2466,12 +2435,24 @@ static u16 iwl3945_get_hcmd_size(u8 cmd_id, u16 len)
 	}
 }
 
+
 static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
-	u16 size = (u16)sizeof(struct iwl3945_addsta_cmd);
-	memcpy(data, cmd, size);
-	return size;
+	struct iwl3945_addsta_cmd *addsta = (struct iwl3945_addsta_cmd *)data;
+	addsta->mode = cmd->mode;
+	memcpy(&addsta->sta, &cmd->sta, sizeof(struct sta_id_modify));
+	memcpy(&addsta->key, &cmd->key, sizeof(struct iwl4965_keyinfo));
+	addsta->station_flags = cmd->station_flags;
+	addsta->station_flags_msk = cmd->station_flags_msk;
+	addsta->tid_disable_tx = cpu_to_le16(0);
+	addsta->rate_n_flags = cmd->rate_n_flags;
+	addsta->add_immediate_ba_tid = cmd->add_immediate_ba_tid;
+	addsta->remove_immediate_ba_tid = cmd->remove_immediate_ba_tid;
+	addsta->add_immediate_ba_ssn = cmd->add_immediate_ba_ssn;
+
+	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
+
 
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
@@ -2842,15 +2823,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.config_ap = iwl3945_config_ap,
 };
 
-static struct iwl_station_mgmt_ops iwl3945_station_mgmt = {
-	.add_station = iwl3945_add_station,
-#if 0
-	.remove_station = iwl3945_remove_station,
-#endif
-	.find_station = iwl3945_hw_find_station,
-	.clear_station_table = iwl3945_clear_stations_table,
-};
-
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
@@ -2860,7 +2832,6 @@ static struct iwl_ops iwl3945_ops = {
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
-	.smgmt = &iwl3945_station_mgmt,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {

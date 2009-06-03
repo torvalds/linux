@@ -72,7 +72,6 @@ static struct iwl_ops iwl6000_ops = {
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl6000_hcmd_utils,
-	.smgmt = &iwl5000_station_mgmt,
 };
 
 struct iwl_cfg iwl6000_2ag_cfg = {

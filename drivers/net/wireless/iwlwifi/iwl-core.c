@@ -1389,7 +1389,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	mutex_init(&priv->mutex);
 
 	/* Clear the driver's (not device's) station table */
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 
 	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
@@ -2680,7 +2680,7 @@ int iwl_set_mode(struct iwl_priv *priv, int mode)
 
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 
 	/* dont commit rxon if rf-kill is on*/
 	if (!iwl_is_ready_rf(priv))
