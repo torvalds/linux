@@ -1595,6 +1595,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	struct qla_hw_data *ha = base_vha->hw;
 	uint16_t options = 0;
 	int	cnt;
+	struct req_que *req = ha->req_q_map[0];
 
 	ret = qla24xx_vport_create_req_sanity_check(fc_vport);
 	if (ret) {
@@ -1650,14 +1651,16 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	qla24xx_vport_disable(fc_vport, disable);
 
-	ret = 0;
-	if (ql2xmaxqueues == 1 || ql2xmultique_tag || !ha->npiv_info)
+	if (ql2xmultique_tag) {
+		req = ha->req_q_map[1];
+		goto vport_queue;
+	} else if (ql2xmaxqueues == 1 || !ha->npiv_info)
 		goto vport_queue;
 	/* Create a request queue in QoS mode for the vport */
 	for (cnt = 0; cnt < ha->nvram_npiv_size; cnt++) {
 		if (memcmp(ha->npiv_info[cnt].port_name, vha->port_name, 8) == 0
 			&& memcmp(ha->npiv_info[cnt].node_name, vha->node_name,
-			8) == 0) {
+					8) == 0) {
 			qos = ha->npiv_info[cnt].q_qos;
 			break;
 		}
@@ -1669,14 +1672,16 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			qla_printk(KERN_WARNING, ha,
 			"Can't create request queue for vp_idx:%d\n",
 			vha->vp_idx);
-		else
+		else {
 			DEBUG2(qla_printk(KERN_INFO, ha,
 			"Request Que:%d (QoS: %d) created for vp_idx:%d\n",
 			ret, qos, vha->vp_idx));
+			req = ha->req_q_map[ret];
+		}
 	}
 
 vport_queue:
-	vha->req = ha->req_q_map[ret];
+	vha->req = req;
 	return 0;
 
 vport_create_failed_2:

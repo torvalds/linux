@@ -15,7 +15,7 @@ static request_t *qla2x00_req_pkt(struct scsi_qla_host *, struct req_que *,
 							struct rsp_que *rsp);
 static void qla2x00_isp_cmd(struct scsi_qla_host *, struct req_que *);
 
-static void qla25xx_set_que(srb_t *, struct req_que **, struct rsp_que **);
+static void qla25xx_set_que(srb_t *, struct rsp_que **);
 /**
  * qla2x00_get_cmd_direction() - Determine control_flag data direction.
  * @cmd: SCSI command
@@ -722,7 +722,8 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Setup device pointers. */
 	ret = 0;
 
-	qla25xx_set_que(sp, &req, &rsp);
+	qla25xx_set_que(sp, &rsp);
+	req = vha->req;
 
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
@@ -845,20 +846,15 @@ queuing_error:
 	return QLA_FUNCTION_FAILED;
 }
 
-static void qla25xx_set_que(srb_t *sp, struct req_que **req,
-	struct rsp_que **rsp)
+static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 {
 	struct scsi_cmnd *cmd = sp->cmd;
-	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = sp->fcport->vha->hw;
 	int affinity = cmd->request->cpu;
 
 	if (ql2xmultique_tag && affinity >= 0 &&
-		affinity < ha->max_rsp_queues - 1) {
+		affinity < ha->max_rsp_queues - 1)
 		*rsp = ha->rsp_q_map[affinity + 1];
-		*req = ha->req_q_map[1];
-	} else {
-		*req = vha->req;
+	 else
 		*rsp = ha->rsp_q_map[0];
-	}
 }
