@@ -56,6 +56,7 @@ config MAKALU
 	select 405EX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
+	select PPC40x_SIMPLE
 	help
 	  This option enables support for the AMCC PPC405EX board.
 
