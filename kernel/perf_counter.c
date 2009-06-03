@@ -2822,11 +2822,20 @@ int perf_counter_overflow(struct perf_counter *counter,
 
 	if (!throttle) {
 		counter->hw.interrupts++;
-	} else if (counter->hw.interrupts != MAX_INTERRUPTS) {
-		counter->hw.interrupts++;
-		if (HZ*counter->hw.interrupts > (u64)sysctl_perf_counter_limit) {
-			counter->hw.interrupts = MAX_INTERRUPTS;
-			perf_log_throttle(counter, 0);
+	} else {
+		if (counter->hw.interrupts != MAX_INTERRUPTS) {
+			counter->hw.interrupts++;
+			if (HZ*counter->hw.interrupts > (u64)sysctl_perf_counter_limit) {
+				counter->hw.interrupts = MAX_INTERRUPTS;
+				perf_log_throttle(counter, 0);
+				ret = 1;
+			}
+		} else {
+			/*
+			 * Keep re-disabling counters even though on the previous
+			 * pass we disabled it - just in case we raced with a
+			 * sched-in and the counter got enabled again:
+			 */
 			ret = 1;
 		}
 	}
