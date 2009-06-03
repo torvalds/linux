@@ -617,23 +617,6 @@ funcexit:
 	return funcresult;
 }
 
-/**
- *    Set port up for dma.
- *    @ap: Port to initialize
- *
- *    Called just after data structures for each port are
- *    initialized.  Allocates space for PRD table if the device
- *    is DMA capable SFF.
-
-    Some drivers also use this entry point as a chance to allocate driverprivate
-    memory for ap->private_data.
-
- *
- *    May be used as the port_start() entry in ata_port_operations.
- *
- *    LOCKING:
- *    Inherited from caller.
- */
 static int rdc_pata_port_start(struct ata_port *ap)
 {
 	uint    Channel;
@@ -657,14 +640,6 @@ static void rdc_pata_port_stop(struct ata_port *ap)
 	dev_dbg(ap->dev, "%s Channel: %u\n", __func__, Channel);
 }
 
-/**
- *    prereset for PATA host controller
- *    @link: Target link
- *    @deadline: deadline jiffies for the operation
- *
- *    LOCKING:
- *    None (inherited from caller).
- */
 static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
 	struct pci_dev *pdev;
@@ -690,16 +665,6 @@ static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 	}
 }
 
-/**
- *    Probe host controller cable detect info
- *    @ap: Port for which cable detect info is desired
- *
- *    Read cable indicator from ATA PCI device's PCI config
- *    register.  This register is normally set by firmware (BIOS).
- *
- *    LOCKING:
- *    None (inherited from caller).
- */
 static int rdc_pata_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev;
@@ -732,16 +697,6 @@ static int rdc_pata_cable_detect(struct ata_port *ap)
 	}
 }
 
-/**
- *    Initialize host controller PATA PIO timings
- *    @ap: Port whose timings we are configuring
- *    @adev: um
- *
- *    Set PIO mode for device, in host controller PCI config space.
- *
- *    LOCKING:
- *    None (inherited from caller).
- */
 static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev;
@@ -782,14 +737,14 @@ static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		    pdev,
 		    DeviceID,
 		    PIOTimingMode,
-		    TRUE,/* DMAEnable, */
+		    TRUE,
 		    PrefetchPostingEnable
 		    );
 
 		ATAHostAdapter_SetPrimaryUDMA(
 		    pdev,
 		    DeviceID,
-		    FALSE,/* UDMAEnable, */
+		    FALSE,
 		    UDMA0
 		    );
 	} else {
@@ -797,14 +752,14 @@ static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		    pdev,
 		    DeviceID,
 		    PIOTimingMode,
-		    TRUE,/* DMAEnable, */
+		    TRUE,
 		    PrefetchPostingEnable
 		    );
 
 		ATAHostAdapter_SetSecondaryUDMA(
 		    pdev,
 		    DeviceID,
-		    FALSE,/* UDMAEnable, */
+		    FALSE,
 		    UDMA0
 		    );
 	}
@@ -812,16 +767,6 @@ static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		__func__, Channel, DeviceID, PIOTimingMode);
 }
 
-/**
- *    Initialize host controller PATA DMA timings
- *    @ap: Port whose timings we are configuring
- *    @adev: um
- *
- *    Set MW/UDMA mode for device, in host controller PCI config space.
- *
- *    LOCKING:
- *    None (inherited from caller).
- */
 static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct pci_dev *pdev;
@@ -855,16 +800,13 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		UDMAEnable = TRUE;
 	}
 
-	/*if (ap->mdma_mask == 0) {
-	}*/
-
 	if (Channel == 0) {
 		if (DMATimingMode >= XFER_UDMA_0) {
 			/* UDMA */
 			ATAHostAdapter_SetPrimaryPIO(pdev,
 				DeviceID,
 				PIOTimingMode,
-				TRUE,/*DMAEnable,*/
+				TRUE,
 				PrefetchPostingEnable);
 
 			ATAHostAdapter_SetPrimaryUDMA(pdev,
@@ -880,12 +822,12 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			ATAHostAdapter_SetPrimaryPIO(pdev,
 				DeviceID,
 				(DMATimingMode - XFER_MW_DMA_0) + PIO2, /* MDMA0 = PIO2 */
-				TRUE,/*DMAEnable,*/
+				TRUE,
 				PrefetchPostingEnable);
 
 			ATAHostAdapter_SetPrimaryUDMA(pdev,
 				DeviceID,
-				FALSE,/*UDMAEnable,*/
+				FALSE,
 				UDMA0);
 			dev_dbg(ap->dev,
 				"%s: Channel: %u, DeviceID: %u, MDMA: %u\n",
@@ -898,7 +840,7 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			ATAHostAdapter_SetSecondaryPIO(pdev,
 				DeviceID,
 				PIOTimingMode,
-				TRUE,/*DMAEnable,*/
+				TRUE,
 				PrefetchPostingEnable);
 
 			ATAHostAdapter_SetSecondaryUDMA(pdev,
@@ -914,12 +856,12 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			ATAHostAdapter_SetSecondaryPIO(pdev,
 				DeviceID,
 				(DMATimingMode - XFER_MW_DMA_0) + PIO2, /* MDMA0 = PIO2 */
-				TRUE,/*DMAEnable,*/
+				TRUE,
 				PrefetchPostingEnable);
 
 			ATAHostAdapter_SetSecondaryUDMA(pdev,
 				DeviceID,
-				FALSE,/*UDMAEnable,*/
+				FALSE,
 				UDMA0);
 			dev_dbg(ap->dev,
 				"%s: Channel: %u, DeviceID: %u, MDMA: %u \n",
@@ -929,7 +871,6 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-/* pata host template */
 static struct scsi_host_template rdc_pata_sht = {
 	ATA_BMDMA_SHT(KBUILD_MODNAME),
 };
@@ -976,20 +917,16 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	port_info[0] = rdc_pata_port_info[ent->driver_data];
 	port_info[1] = rdc_pata_port_info[ent->driver_data];
 
-	/* enable device and prepare host */
 	rc = pci_enable_device(pdev);
 	if (rc) {
 		dev_dbg(&pdev->dev, "%s pci_enable_device failed\n", __func__);
 		return rc;
 	}
-
-	/* enable interrupt */
 	pci_intx(pdev, 1);
 
 	return ata_pci_sff_init_one(pdev, ppinfo, &rdc_pata_sht, NULL);
 }
 
-/* a pci driver */
 static struct pci_driver rdc_pata_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rdc_pata_id_table,
