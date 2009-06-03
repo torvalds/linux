@@ -141,34 +141,4 @@ enum rdc_controller_ids {
 	RDC_17F31012
 };
 
-/* callback function for driver */
-static int rdc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-
-/* callback function for ata_port */
-static int rdc_pata_port_start(struct ata_port *ap);
-
-static void rdc_pata_port_stop(struct ata_port *ap);
-
-static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline);
-
-static int rdc_pata_cable_detect(struct ata_port *ap);
-
-static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev);
-
-static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev);
-
-/* modified PCIDeviceIO code. */
-static uint PCIDeviceIO_ReadPCIConfiguration(struct pci_dev *pdev, uint Offset, uint Length, void *pBuffer);
-
-static uint PCIDeviceIO_WritePCIConfiguration(struct pci_dev *pdev, uint Offset, uint Length, void *pBuffer);
-
-/* modify ATAHostAdapter code */
-static uint ATAHostAdapter_SetPrimaryPIO(struct pci_dev *pdev, uint DeviceID, uint PIOTimingMode, uint DMAEnable, uint PrefetchPostingEnable);
-
-static uint ATAHostAdapter_SetSecondaryPIO(struct pci_dev *pdev, uint DeviceID, uint PIOTimingMode, uint DMAEnable, uint PrefetchPostingEnable);
-
-static uint ATAHostAdapter_SetPrimaryUDMA(struct pci_dev *pdev, uint DeviceID, uint UDMAEnable, uint UDMATimingMode);
-
-static uint ATAHostAdapter_SetSecondaryUDMA(struct pci_dev *pdev, uint DeviceID, uint UDMAEnable, uint UDMATimingMode);
-
 #endif
