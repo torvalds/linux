@@ -1690,6 +1690,9 @@ qla2xxx_scan_start(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
+	if (vha->hw->flags.running_gold_fw)
+		return;
+
 	set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 	set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 	set_bit(RSCN_UPDATE, &vha->dpc_flags);
@@ -1962,6 +1965,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				"Can't create queues, falling back to single"
 				" queue mode\n");
 
+	if (ha->flags.running_gold_fw)
+		goto skip_dpc;
+
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
@@ -1974,6 +1980,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto probe_failed;
 	}
 
+skip_dpc:
 	list_add_tail(&base_vha->list, &ha->vp_list);
 	base_vha->host->irq = ha->pdev->irq;
 

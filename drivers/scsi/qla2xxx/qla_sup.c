@@ -728,6 +728,9 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			if (!ha->flags.port0)
 				ha->flt_region_npiv_conf = start;
 			break;
+		case FLT_REG_GOLD_FW:
+			ha->flt_region_gold_fw = start;
+			break;
 		}
 	}
 	goto done;

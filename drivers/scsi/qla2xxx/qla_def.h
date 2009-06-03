@@ -2223,6 +2223,7 @@ struct qla_hw_data {
 		uint32_t	fac_supported		:1;
 		uint32_t	chip_reset_done		:1;
 		uint32_t	port0			:1;
+		uint32_t	running_gold_fw		:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2523,6 +2524,7 @@ struct qla_hw_data {
 	uint32_t        flt_region_vpd;
 	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
+	uint32_t	flt_region_gold_fw;
 
 	/* Needed for BEACON */
 	uint16_t        beacon_blink_led;

@@ -1241,6 +1241,7 @@ struct qla_flt_header {
 #define FLT_REG_HW_EVENT_1	0x1f
 #define FLT_REG_NPIV_CONF_0	0x29
 #define FLT_REG_NPIV_CONF_1	0x2a
+#define FLT_REG_GOLD_FW		0x2f
 
 struct qla_flt_region {
 	uint32_t code;

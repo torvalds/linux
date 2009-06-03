@@ -3806,11 +3806,11 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 }
 
 static int
-qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr)
+qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
+    uint32_t faddr)
 {
 	int	rval = QLA_SUCCESS;
 	int	segments, fragment;
-	uint32_t faddr;
 	uint32_t *dcode, dlen;
 	uint32_t risc_addr;
 	uint32_t risc_size;
@@ -3819,12 +3819,11 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	struct req_que *req = ha->req_q_map[0];
 
 	qla_printk(KERN_INFO, ha,
-	    "FW: Loading from flash (%x)...\n", ha->flt_region_fw);
+	    "FW: Loading from flash (%x)...\n", faddr);
 
 	rval = QLA_SUCCESS;
 
 	segments = FA_RISC_CODE_SEGMENTS;
-	faddr = ha->flt_region_fw;
 	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 
@@ -4124,27 +4123,45 @@ qla24xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	if (rval == QLA_SUCCESS)
 		return rval;
 
-	return qla24xx_load_risc_flash(vha, srisc_addr);
+	return qla24xx_load_risc_flash(vha, srisc_addr,
+	    vha->hw->flt_region_fw);
 }
 
 int
 qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int rval;
+	struct qla_hw_data *ha = vha->hw;
 
 	if (ql2xfwloadbin == 2)
-		return qla24xx_load_risc(vha, srisc_addr);
+		goto try_blob_fw;
 
 	/*
 	 * FW Load priority:
 	 * 1) Firmware residing in flash.
 	 * 2) Firmware via request-firmware interface (.bin file).
+	 * 3) Golden-Firmware residing in flash -- limited operation.
 	 */
-	rval = qla24xx_load_risc_flash(vha, srisc_addr);
+	rval = qla24xx_load_risc_flash(vha, srisc_addr, ha->flt_region_fw);
 	if (rval == QLA_SUCCESS)
 		return rval;
 
-	return qla24xx_load_risc_blob(vha, srisc_addr);
+try_blob_fw:
+	rval = qla24xx_load_risc_blob(vha, srisc_addr);
+	if (rval == QLA_SUCCESS || !ha->flt_region_gold_fw)
+		return rval;
+
+	qla_printk(KERN_ERR, ha,
+	    "FW: Attempting to fallback to golden firmware...\n");
+	rval = qla24xx_load_risc_flash(vha, srisc_addr, ha->flt_region_gold_fw);
+	if (rval != QLA_SUCCESS)
+		return rval;
+
+	qla_printk(KERN_ERR, ha,
+	    "FW: Please update operational firmware...\n");
+	ha->flags.running_gold_fw = 1;
+
+	return rval;
 }
 
 void
