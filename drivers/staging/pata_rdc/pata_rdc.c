@@ -10,18 +10,6 @@
 
 #include "pata_rdc.h"
 
-/* #define DBGPRINTF */
-
-#ifdef DBGPRINTF
-
-    #define dbgprintf(format, arg...) printk(KERN_INFO format, ## arg)
-
-#else
-
-    #define dbgprintf(...)
-
-#endif
-
 /* Driver Info. */
 #define DRIVER_NAME         "pata_rdc"	/* sata_rdc for SATA */
 #define DRIVER_VERSION      "2.6.28"    /* based on kernel version. */
@@ -660,11 +648,11 @@ static int rdc_pata_port_start(struct ata_port *ap)
 	uint    Channel;
 
 	Channel = ap->port_no;
-	dbgprintf("rdc_pata_port_start Channel: %u \n", Channel);
+	dev_dbg(ap->dev, "%s: Channel: %u\n", __func__, Channel);
 	if (ap->ioaddr.bmdma_addr) {
 		return ata_port_start(ap);
 	} else {
-		dbgprintf("rdc_pata_port_start return 0 !!!\n");
+		dev_dbg(ap->dev, "%s: return 0!!!\n", __func__);
 		return 0;
 	}
 }
@@ -675,7 +663,7 @@ static void rdc_pata_port_stop(struct ata_port *ap)
 
 	Channel = ap->port_no;
 
-	dbgprintf("rdc_pata_port_stop Channel: %u \n", Channel);
+	dev_dbg(ap->dev, "%s Channel: %u\n", __func__, Channel);
 }
 
 /**
@@ -692,7 +680,7 @@ static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap;
 	uint Channel;
 
-	dbgprintf("rdc_pata_prereset\n");
+	dev_dbg(link->ap->dev, "%s\n", __func__);
 
 	ap = link->ap;
 	pdev = to_pci_dev(ap->host->dev);
@@ -701,10 +689,12 @@ static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* test ATA Decode Enable Bits, should be enable. */
 	if (!pci_test_config_bits(pdev, &ATA_Decode_Enable_Bits[Channel])) {
-		dbgprintf("rdc_pata_prereset Channel: %u, Decode Disable\n", Channel);
+		dev_dbg(link->ap->dev, "%s: Channel: %u, Decode Disable\n",
+			__func__, Channel);
 		return -ENOENT;
 	} else {
-		dbgprintf("rdc_pata_prereset Channel: %u, Decode Enable\n", Channel);
+		dev_dbg(link->ap->dev, "%s: Channel: %u, Decode Enable\n",
+			__func__, Channel);
 		return ata_std_prereset(link, deadline);
 	}
 }
@@ -726,7 +716,7 @@ static int rdc_pata_cable_detect(struct ata_port *ap)
 	uint Mask;
 	u32 u32Value;
 
-	dbgprintf("rdc_pata_cable_detect\n");
+	dev_dbg(ap->dev, "%s\n", __func__);
 
 	pdev = to_pci_dev(ap->host->dev);
 
@@ -741,10 +731,12 @@ static int rdc_pata_cable_detect(struct ata_port *ap)
 	pci_read_config_dword(pdev, ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset, &u32Value);
 
 	if ((u32Value & Mask) == 0) {
-		dbgprintf("rdc_pata_cable_detect Channel: %u, PATA40 \n", Channel);
+		dev_dbg(ap->dev, "%s: Channel: %u, PATA40 \n",
+			__func__, Channel);
 		return ATA_CBL_PATA40;
 	} else {
-		dbgprintf("rdc_pata_cable_detect Channel: %u, PATA80 \n", Channel);
+		dev_dbg(ap->dev, "%s: Channel: %u, PATA80 \n",
+			__func__, Channel);
 		return ATA_CBL_PATA80;
 	}
 }
@@ -767,7 +759,7 @@ static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	uint    PIOTimingMode;
 	uint    PrefetchPostingEnable;
 
-	dbgprintf("rdc_pata_set_piomode\n");
+	dev_dbg(ap->dev, "%s\n", __func__);
 
 	pdev = to_pci_dev(ap->host->dev);
 
@@ -825,7 +817,8 @@ static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		    UDMA0
 		    );
 	}
-	dbgprintf("rdc_pata_set_piomode Channel: %u, DeviceID: %u, PIO: %d \n", Channel, DeviceID, PIOTimingMode);
+	dev_dbg(ap->dev, "%s: Channel: %u, DeviceID: %u, PIO: %d\n",
+		__func__, Channel, DeviceID, PIOTimingMode);
 }
 
 /**
@@ -848,7 +841,7 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	uint    DMATimingMode;
 	uint    UDMAEnable;
 
-	dbgprintf("rdc_pata_set_dmamode\n");
+	dev_dbg(ap->dev, "%s\n", __func__);
 
 	pdev = to_pci_dev(ap->host->dev);
 
@@ -887,7 +880,10 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 				DeviceID,
 				UDMAEnable,
 				DMATimingMode - XFER_UDMA_0);
-			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
+			dev_dbg(ap->dev,
+				"%s: Channel: %u, DeviceID: %u, UDMA: %u\n",
+				__func__, Channel, DeviceID,
+				(uint)(DMATimingMode - XFER_UDMA_0));
 		} else {
 			/* MDMA */
 			ATAHostAdapter_SetPrimaryPIO(pdev,
@@ -900,7 +896,10 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 				DeviceID,
 				FALSE,/*UDMAEnable,*/
 				UDMA0);
-			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
+			dev_dbg(ap->dev,
+				"%s: Channel: %u, DeviceID: %u, MDMA: %u\n",
+				__func__, Channel, DeviceID,
+				(uint)(DMATimingMode - XFER_MW_DMA_0));
 		}
 	} else {
 		if (DMATimingMode >= XFER_UDMA_0) {
@@ -915,7 +914,10 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 				DeviceID,
 				UDMAEnable,
 				DMATimingMode - XFER_UDMA_0);
-			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
+			dev_dbg(ap->dev,
+				"%s: Channel: %u, DeviceID: %u, UDMA: %u\n",
+				__func__, Channel, DeviceID,
+				(uint)(DMATimingMode - XFER_UDMA_0));
 		} else {
 			/* MDMA */
 			ATAHostAdapter_SetSecondaryPIO(pdev,
@@ -928,7 +930,10 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 				DeviceID,
 				FALSE,/*UDMAEnable,*/
 				UDMA0);
-			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
+			dev_dbg(ap->dev,
+				"%s: Channel: %u, DeviceID: %u, MDMA: %u \n",
+				__func__, Channel, DeviceID,
+				(uint)(DMATimingMode - XFER_MW_DMA_0));
 		}
 	}
 }
@@ -970,13 +975,12 @@ static struct ata_port_info rdc_pata_port_info[] = {
 static int __devinit rdc_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
-	/*struct device *dev = &pdev->dev; */
 	struct ata_port_info port_info[2];
 	const struct ata_port_info *ppinfo[] = { &port_info[0], &port_info[1] };
 
 	int rc;
 
-	dbgprintf("rdc_init_one\n");
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	port_info[0] = rdc_pata_port_info[ent->driver_data];
 	port_info[1] = rdc_pata_port_info[ent->driver_data];
@@ -984,12 +988,12 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	/* enable device and prepare host */
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		dbgprintf("rdc_init_one pci_enable_device failed \n");
+		dev_dbg(&pdev->dev, "%s pci_enable_device failed\n", __func__);
 		return rc;
 	}
-	/* initialize controller */
 
-	pci_intx(pdev, 1);  /* enable interrupt */
+	/* enable interrupt */
+	pci_intx(pdev, 1);
 
 	return ata_pci_sff_init_one(pdev, ppinfo, &rdc_pata_sht, NULL);
 }
@@ -1008,21 +1012,11 @@ static struct pci_driver rdc_pata_driver = {
 
 static int __init pata_rdc_init(void)
 {
-	int rc;
-
-	dbgprintf("pata_rdc_init\n");
-	rc = pci_register_driver(&rdc_pata_driver);
-	if (rc) {
-		dbgprintf("pata_rdc_init faile\n");
-		return rc;
-	}
-
-	return 0;
+	return pci_register_driver(&rdc_pata_driver);
 }
 
 static void __exit pata_rdc_exit(void)
 {
-	dbgprintf("pata_rdc_exit\n");
 	pci_unregister_driver(&rdc_pata_driver);
 }
 
