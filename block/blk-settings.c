@@ -194,6 +194,23 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
+ * blk_queue_bounce_pfn - set the bounce buffer limit for queue
+ * @q: the request queue for the device
+ * @pfn: max address
+ *
+ * Description:
+ *    This function is similar to blk_queue_bounce_limit except it
+ *    neither changes allocation flags, nor does it set up the ISA DMA
+ *    pool. This function should only be used by stacking drivers.
+ *    Hardware drivers should use blk_queue_bounce_limit instead.
+ */
+void blk_queue_bounce_pfn(struct request_queue *q, u64 pfn)
+{
+	q->limits.bounce_pfn = pfn;
+}
+EXPORT_SYMBOL(blk_queue_bounce_pfn);
+
+/**
  * blk_queue_max_sectors - set max sectors for a request for this queue
  * @q:  the request queue for the device
  * @max_sectors:  max sectors in the usual 512b unit

@@ -920,7 +920,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	blk_queue_max_segment_size(q, t->limits.max_segment_size);
 	blk_queue_max_hw_sectors(q, t->limits.max_hw_sectors);
 	blk_queue_segment_boundary(q, t->limits.seg_boundary_mask);
-	blk_queue_bounce_limit(q, t->limits.bounce_pfn);
+	blk_queue_bounce_pfn(q, t->limits.bounce_pfn);
 
 	if (t->limits.no_cluster)
 		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
