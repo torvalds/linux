@@ -3462,3 +3462,41 @@ qla2x00_write_edc(scsi_qla_host_t *vha, uint16_t dev, uint16_t adr,
 
 	return rval;
 }
+
+int
+qla2x00_get_xgmac_stats(scsi_qla_host_t *vha, dma_addr_t stats_dma,
+    uint16_t size_in_bytes, uint16_t *actual_size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA81XX(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_GET_XGMAC_STATS;
+	mcp->mb[2] = MSW(stats_dma);
+	mcp->mb[3] = LSW(stats_dma);
+	mcp->mb[6] = MSW(MSD(stats_dma));
+	mcp->mb[7] = LSW(MSD(stats_dma));
+	mcp->mb[8] = size_in_bytes >> 2;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=0x%x "
+		    "mb[1]=0x%x mb[2]=0x%x.\n", __func__, vha->host_no, rval,
+		    mcp->mb[0], mcp->mb[1], mcp->mb[2]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+
+		*actual_size = mcp->mb[2] << 2;
+	}
+
+	return rval;
+}

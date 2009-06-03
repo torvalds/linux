@@ -2397,6 +2397,10 @@ struct qla_hw_data {
 	dma_addr_t	edc_data_dma;
 	uint16_t	edc_data_len;
 
+#define XGMAC_DATA_SIZE	PAGE_SIZE
+	void		*xgmac_data;
+	dma_addr_t	xgmac_data_dma;
+
 	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */
 

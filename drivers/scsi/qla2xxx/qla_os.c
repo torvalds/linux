@@ -2434,6 +2434,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		vfree(ha->fw_dump);
 	}
 
+	if (ha->xgmac_data)
+		dma_free_coherent(&ha->pdev->dev, XGMAC_DATA_SIZE,
+		    ha->xgmac_data, ha->xgmac_data_dma);
+
 	if (ha->sns_cmd)
 		dma_free_coherent(&ha->pdev->dev, sizeof(struct sns_cmd_pkt),
 		ha->sns_cmd, ha->sns_cmd_dma);

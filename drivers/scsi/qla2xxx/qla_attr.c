@@ -692,6 +692,58 @@ static struct bin_attribute sysfs_edc_status_attr = {
 	.read = qla2x00_sysfs_read_edc_status,
 };
 
+static ssize_t
+qla2x00_sysfs_read_xgmac_stats(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	int rval;
+	uint16_t actual_size;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count > XGMAC_DATA_SIZE)
+		return 0;
+
+	if (ha->xgmac_data)
+		goto do_read;
+
+	ha->xgmac_data = dma_alloc_coherent(&ha->pdev->dev, XGMAC_DATA_SIZE,
+	    &ha->xgmac_data_dma, GFP_KERNEL);
+	if (!ha->xgmac_data) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for XGMAC read-data.\n");
+		return 0;
+	}
+
+do_read:
+	actual_size = 0;
+	memset(ha->xgmac_data, 0, XGMAC_DATA_SIZE);
+
+	rval = qla2x00_get_xgmac_stats(vha, ha->xgmac_data_dma,
+	    XGMAC_DATA_SIZE, &actual_size);
+	if (rval != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to read XGMAC data (%x).\n", rval);
+		count = 0;
+	}
+
+	count = actual_size > count ? count: actual_size;
+	memcpy(buf, ha->xgmac_data, count);
+
+	return count;
+}
+
+static struct bin_attribute sysfs_xgmac_stats_attr = {
+	.attr = {
+		.name = "xgmac_stats",
+		.mode = S_IRUSR,
+	},
+	.size = 0,
+	.read = qla2x00_sysfs_read_xgmac_stats,
+};
+
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
@@ -706,6 +758,7 @@ static struct sysfs_entry {
 	{ "reset", &sysfs_reset_attr, },
 	{ "edc", &sysfs_edc_attr, 2 },
 	{ "edc_status", &sysfs_edc_status_attr, 2 },
+	{ "xgmac_stats", &sysfs_xgmac_stats_attr, 3 },
 	{ NULL },
 };
 
@@ -720,6 +773,8 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(vha->hw))
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
+			continue;
+		if (iter->is4GBp_only == 3 && !IS_QLA81XX(vha->hw))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -742,6 +797,8 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
+			continue;
+		if (iter->is4GBp_only == 3 && !IS_QLA81XX(ha))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
