@@ -208,7 +208,7 @@ static void print_sym_table(void)
 
 	printf(
 "------------------------------------------------------------------------------\n");
-	printf( " KernelTop:%8.0f irqs/sec  kernel:%4.1f%% [",
+	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
 		events_per_sec,
 		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)));
 
@@ -281,7 +281,7 @@ static void print_sym_table(void)
 
 static void *display_thread(void *arg)
 {
-	printf("KernelTop refresh period: %d seconds\n", delay_secs);
+	printf("PerfTop refresh period: %d seconds\n", delay_secs);
 
 	while (!sleep(delay_secs))
 		print_sym_table();
@@ -564,7 +564,8 @@ static int __cmd_top(void)
 			fd[i][counter] = sys_perf_counter_open(&attr, target_pid, cpu, group_fd, 0);
 			if (fd[i][counter] < 0) {
 				int err = errno;
-				printf("kerneltop error: syscall returned with %d (%s)\n",
+
+				error("syscall returned with %d (%s)\n",
 					fd[i][counter], strerror(err));
 				if (err == EPERM)
 					printf("Are you root?\n");
@@ -588,11 +589,8 @@ static int __cmd_top(void)
 			mmap_array[i][counter].mask = mmap_pages*page_size - 1;
 			mmap_array[i][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
 					PROT_READ, MAP_SHARED, fd[i][counter], 0);
-			if (mmap_array[i][counter].base == MAP_FAILED) {
-				printf("kerneltop error: failed to mmap with %d (%s)\n",
-						errno, strerror(errno));
-				exit(-1);
-			}
+			if (mmap_array[i][counter].base == MAP_FAILED)
+				die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 		}
 	}
 

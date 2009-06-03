@@ -357,7 +357,8 @@ static void open_counters(int cpu, pid_t pid)
 
 		if (fd[nr_cpu][counter] < 0) {
 			int err = errno;
-			printf("kerneltop error: syscall returned with %d (%s)\n",
+
+			error("syscall returned with %d (%s)\n",
 					fd[nr_cpu][counter], strerror(err));
 			if (err == EPERM)
 				printf("Are you root?\n");
@@ -382,8 +383,7 @@ static void open_counters(int cpu, pid_t pid)
 		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
 				PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
 		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
-			printf("kerneltop error: failed to mmap with %d (%s)\n",
-					errno, strerror(errno));
+			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 			exit(-1);
 		}
 	}
