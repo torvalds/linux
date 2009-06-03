@@ -2545,7 +2545,6 @@ struct qla_hw_data {
 	uint16_t        num_vsans;      /* number of vsan created */
 	uint16_t        max_npiv_vports;        /* 63 or 125 per topoloty */
 	int             cur_vport_count;
-	uint16_t	flex_port_count;
 
 	struct qla_chip_state_84xx *cs84xx;
 	struct qla_statistics qla_stats;

@@ -1853,6 +1853,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_81XX;
+		ha->nvram_npiv_size = QLA_MAX_VPORTS_QLA25XX;
 		ha->isp_ops = &qla81xx_isp_ops;
 		ha->flash_conf_off = FARX_ACCESS_FLASH_CONF_81XX;
 		ha->flash_data_off = FARX_ACCESS_FLASH_DATA_81XX;

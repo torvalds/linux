@@ -920,11 +920,12 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 
 	entry = data + sizeof(struct qla_npiv_header);
 	cnt = le16_to_cpu(hdr.entries);
-	ha->flex_port_count = cnt;
 	for (i = 0; cnt; cnt--, entry++, i++) {
 		uint16_t flags;
 		struct fc_vport_identifiers vid;
 		struct fc_vport *vport;
+
+		memcpy(&ha->npiv_info[i], entry, sizeof(struct qla_npiv_entry));
 
 		flags = le16_to_cpu(entry->flags);
 		if (flags == 0xffff)
@@ -939,9 +940,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 		vid.port_name = wwn_to_u64(entry->port_name);
 		vid.node_name = wwn_to_u64(entry->node_name);
 
-		memcpy(&ha->npiv_info[i], entry, sizeof(struct qla_npiv_entry));
-
-		DEBUG2(qla_printk(KERN_DEBUG, ha, "NPIV[%02x]: wwpn=%llx "
+		DEBUG2(qla_printk(KERN_INFO, ha, "NPIV[%02x]: wwpn=%llx "
 			"wwnn=%llx vf_id=0x%x Q_qos=0x%x F_qos=0x%x.\n", cnt,
 			vid.port_name, vid.node_name, le16_to_cpu(entry->vf_id),
 			entry->q_qos, entry->f_qos));
@@ -957,7 +956,6 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	}
 done:
 	kfree(data);
-	ha->npiv_info = NULL;
 }
 
 static int

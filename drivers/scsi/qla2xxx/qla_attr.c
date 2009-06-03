@@ -1651,13 +1651,13 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	qla24xx_vport_disable(fc_vport, disable);
 
 	ret = 0;
-	if (ha->cur_vport_count <= ha->flex_port_count || ql2xmultique_tag
-		|| ha->max_req_queues == 1 || !ha->npiv_info)
+	if (ql2xmaxqueues == 1 || ql2xmultique_tag || !ha->npiv_info)
 		goto vport_queue;
 	/* Create a request queue in QoS mode for the vport */
-	for (cnt = ha->flex_port_count; cnt < ha->nvram_npiv_size; cnt++) {
-		if (ha->npiv_info[cnt].port_name == vha->port_name &&
-			ha->npiv_info[cnt].node_name == vha->node_name) {
+	for (cnt = 0; cnt < ha->nvram_npiv_size; cnt++) {
+		if (memcmp(ha->npiv_info[cnt].port_name, vha->port_name, 8) == 0
+			&& memcmp(ha->npiv_info[cnt].node_name, vha->node_name,
+			8) == 0) {
 			qos = ha->npiv_info[cnt].q_qos;
 			break;
 		}
@@ -1671,8 +1671,8 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			vha->vp_idx);
 		else
 			DEBUG2(qla_printk(KERN_INFO, ha,
-			"Request Que:%d created for vp_idx:%d\n",
-			ret, vha->vp_idx));
+			"Request Que:%d (QoS: %d) created for vp_idx:%d\n",
+			ret, qos, vha->vp_idx));
 	}
 
 vport_queue:
