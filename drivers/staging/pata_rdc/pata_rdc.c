@@ -10,15 +10,6 @@
 
 #include "pata_rdc.h"
 
-/* Driver Info. */
-#define DRIVER_NAME         "pata_rdc"	/* sata_rdc for SATA */
-#define DRIVER_VERSION      "2.6.28"    /* based on kernel version. */
-					/* because each kernel main version has
-					 * its libata, we follow kernel to
-					 * determine the last libata version.
-					 */
-
-
 static const struct pci_device_id rdc_pata_id_table[] = {
 	{ PCI_DEVICE(0x17F3, 0x1011), RDC_17F31011},
 	{ PCI_DEVICE(0x17F3, 0x1012), RDC_17F31012},
@@ -940,7 +931,7 @@ static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 /* pata host template */
 static struct scsi_host_template rdc_pata_sht = {
-	ATA_BMDMA_SHT(DRIVER_NAME),
+	ATA_BMDMA_SHT(KBUILD_MODNAME),
 };
 
 static struct ata_port_operations rdc_pata_ops = {
@@ -1000,7 +991,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 
 /* a pci driver */
 static struct pci_driver rdc_pata_driver = {
-	.name		= DRIVER_NAME,
+	.name		= KBUILD_MODNAME,
 	.id_table	= rdc_pata_id_table,
 	.probe		= rdc_init_one,
 	.remove		= ata_pci_remove_one,
@@ -1025,4 +1016,3 @@ module_exit(pata_rdc_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RDC PCI IDE Driver");
-MODULE_VERSION(DRIVER_VERSION);
