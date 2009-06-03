@@ -31,6 +31,8 @@ static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static int		dump_trace = 0;
+#define dprintf(x...)	do { if (dump_trace) printf(x); } while (0)
+
 static int		verbose;
 static int		full_paths;
 
@@ -729,14 +731,12 @@ more:
 		uint64_t ip = event->ip.ip;
 		struct map *map = NULL;
 
-		if (dump_trace) {
-			fprintf(stderr, "%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
-				(void *)(offset + head),
-				(void *)(long)(event->header.size),
-				event->header.misc,
-				event->ip.pid,
-				(void *)(long)ip);
-		}
+		dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			event->header.misc,
+			event->ip.pid,
+			(void *)(long)ip);
 
 		if (thread == NULL) {
 			fprintf(stderr, "problem processing %d event, skipping it.\n",
@@ -781,15 +781,14 @@ more:
 		struct thread *thread = threads__findnew(event->mmap.pid);
 		struct map *map = map__new(&event->mmap, cwdp, cwdlen);
 
-		if (dump_trace) {
-			fprintf(stderr, "%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
-				(void *)(offset + head),
-				(void *)(long)(event->header.size),
-				(void *)(long)event->mmap.start,
-				(void *)(long)event->mmap.len,
-				(void *)(long)event->mmap.pgoff,
-				event->mmap.filename);
-		}
+		dprintf("%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			(void *)(long)event->mmap.start,
+			(void *)(long)event->mmap.len,
+			(void *)(long)event->mmap.pgoff,
+			event->mmap.filename);
+
 		if (thread == NULL || map == NULL) {
 			if (verbose)
 				fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
@@ -802,12 +801,11 @@ more:
 	case PERF_EVENT_COMM: {
 		struct thread *thread = threads__findnew(event->comm.pid);
 
-		if (dump_trace) {
-			fprintf(stderr, "%p [%p]: PERF_EVENT_COMM: %s:%d\n",
-				(void *)(offset + head),
-				(void *)(long)(event->header.size),
-				event->comm.comm, event->comm.pid);
-		}
+		dprintf("%p [%p]: PERF_EVENT_COMM: %s:%d\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			event->comm.comm, event->comm.pid);
+
 		if (thread == NULL ||
 		    thread__set_comm(thread, event->comm.comm)) {
 			fprintf(stderr, "problem processing PERF_EVENT_COMM, skipping event.\n");
@@ -818,11 +816,10 @@ more:
 	}
 	default: {
 broken_event:
-		if (dump_trace)
-			fprintf(stderr, "%p [%p]: skipping unknown header type: %d\n",
-					(void *)(offset + head),
-					(void *)(long)(event->header.size),
-					event->header.type);
+		dprintf("%p [%p]: skipping unknown header type: %d\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			event->header.type);
 
 		total_unknown++;
 
@@ -846,14 +843,13 @@ broken_event:
 	rc = EXIT_SUCCESS;
 	close(input);
 
-	if (dump_trace) {
-		fprintf(stderr, "      IP events: %10ld\n", total);
-		fprintf(stderr, "    mmap events: %10ld\n", total_mmap);
-		fprintf(stderr, "    comm events: %10ld\n", total_comm);
-		fprintf(stderr, " unknown events: %10ld\n", total_unknown);
+	dprintf("      IP events: %10ld\n", total);
+	dprintf("    mmap events: %10ld\n", total_mmap);
+	dprintf("    comm events: %10ld\n", total_comm);
+	dprintf(" unknown events: %10ld\n", total_unknown);
 
+	if (dump_trace)
 		return 0;
-	}
 
 	if (verbose >= 2)
 		dsos__fprintf(stdout);
