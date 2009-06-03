@@ -48,7 +48,6 @@ struct perf_counter_hw_event {
         __u32                   read_format;
 
         __u64                   disabled       :  1, /* off by default        */
-                                nmi            :  1, /* NMI sampling          */
                                 inherit        :  1, /* children inherit it   */
                                 pinned         :  1, /* must always be on PMU */
                                 exclusive      :  1, /* only group on PMU     */
@@ -194,12 +193,6 @@ available to user-space using mmap() (see below).
 The 'disabled' bit specifies whether the counter starts out disabled
 or enabled.  If it is initially disabled, it can be enabled by ioctl
 or prctl (see below).
-
-The 'nmi' bit specifies, for hardware events, whether the counter
-should be set up to request non-maskable interrupts (NMIs) or normal
-interrupts.  This bit is ignored if the user doesn't have
-CAP_SYS_ADMIN privilege (i.e. is not root) or if the CPU doesn't
-generate NMIs from hardware counters.
 
 The 'inherit' bit, if set, specifies that this counter should count
 events on descendant tasks as well as the task specified.  This only
