@@ -118,6 +118,7 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 			 void *priv,
 			 struct videobuf_qtype_ops *int_ops)
 {
+	BUG_ON(!q);
 	memset(q, 0, sizeof(*q));
 	q->irqlock   = irqlock;
 	q->dev       = dev;
