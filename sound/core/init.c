@@ -476,15 +476,8 @@ int snd_card_free(struct snd_card *card)
 
 EXPORT_SYMBOL(snd_card_free);
 
-/**
- *  snd_card_set_id - set card identification name
- *  @card: soundcard structure
- *  @nid: new identification string
- *
- *  This function sets the card identification and checks for name
- *  collisions.
- */
-void snd_card_set_id(struct snd_card *card, const char *nid)
+static void snd_card_set_id_internal(struct snd_card *card, const char *nid,
+				     int do_locking)
 {
 	int i, len, idx_flag = 0, loops = SNDRV_CARDS;
 	const char *spos, *src;
@@ -529,14 +522,16 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
       		}
 	      	if (!snd_info_check_reserved_words(id))
       			goto __change;
-		mutex_lock(&snd_card_mutex);
+		if (do_locking)
+			mutex_lock(&snd_card_mutex);
 		for (i = 0; i < snd_ecards_limit; i++) {
 			if (snd_cards[i] && !strcmp(snd_cards[i]->id, id)) {
 				mutex_unlock(&snd_card_mutex);
 				goto __change;
 			}
 		}
-		mutex_unlock(&snd_card_mutex);
+		if (do_locking)
+			mutex_unlock(&snd_card_mutex);
 		break;
 
 	      __change:
@@ -561,6 +556,18 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
 	}
 }
 
+/**
+ *  snd_card_set_id - set card identification name
+ *  @card: soundcard structure
+ *  @nid: new identification string
+ *
+ *  This function sets the card identification and checks for name
+ *  collisions.
+ */
+void snd_card_set_id(struct snd_card *card, const char *nid)
+{
+	snd_card_set_id_internal(card, nid, 1);
+}
 EXPORT_SYMBOL(snd_card_set_id);
 
 #ifndef CONFIG_SYSFS_DEPRECATED
@@ -657,7 +664,7 @@ int snd_card_register(struct snd_card *card)
 		return 0;
 	}
 	if (card->id[0] == '\0')
-		snd_card_set_id(card, NULL);
+		snd_card_set_id_internal(card, NULL, 0);
 	snd_cards[card->number] = card;
 	mutex_unlock(&snd_card_mutex);
 	init_info_for_card(card);
