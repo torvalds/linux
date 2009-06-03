@@ -1211,7 +1211,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			/*
 			 * If RISC reports underrun and target does not report
 			 * it then we must have a lost frame, so tell upper
-			 * layer to retry it by reporting a bus busy.
+			 * layer to retry it by reporting an error.
 			 */
 			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
 				DEBUG2(printk("scsi(%ld:%d:%d:%d) Dropped "
@@ -1221,7 +1221,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 					cp->device->id, cp->device->lun, resid,
 					scsi_bufflen(cp)));
 
-				cp->result = DID_BUS_BUSY << 16;
+				cp->result = DID_ERROR << 16;
 				break;
 			}
 
