@@ -89,4 +89,11 @@ config MACH_ARMADILLO5X0
 	  Include support for Atmark Armadillo-500 platform. This includes
 	  specific configurations for the board and its peripherals.
 
+config MACH_MX35_3DS
+	bool "Support MX35PDK platform"
+	select ARCH_MX35
+	default n
+	help
+	  Include support for MX35PDK platform. This includes specific
+	  configurations for the board and its peripherals.
 endif
