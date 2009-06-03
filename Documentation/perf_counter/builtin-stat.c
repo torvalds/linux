@@ -228,6 +228,7 @@ static int do_perfstat(int argc, const char **argv)
 	int counter;
 	int status;
 	int pid;
+	int i;
 
 	if (!system_wide)
 		nr_cpus = 1;
@@ -243,14 +244,17 @@ static int do_perfstat(int argc, const char **argv)
 
 	if ((pid = fork()) < 0)
 		perror("failed to fork");
+
 	if (!pid) {
 		if (execvp(argv[0], (char **)argv)) {
 			perror(argv[0]);
 			exit(-1);
 		}
 	}
+
 	while (wait(&status) >= 0)
 		;
+
 	prctl(PR_TASK_PERF_COUNTERS_DISABLE);
 	t1 = rdclock();
 
@@ -259,8 +263,12 @@ static int do_perfstat(int argc, const char **argv)
 	fflush(stdout);
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " Performance counter stats for \'%s\':\n",
-		argv[0]);
+	fprintf(stderr, " Performance counter stats for \'%s", argv[0]);
+
+	for (i = 1; i < argc; i++)
+		fprintf(stderr, " %s", argv[i]);
+
+	fprintf(stderr, "\':\n");
 	fprintf(stderr, "\n");
 
 	for (counter = 0; counter < nr_counters; counter++)
