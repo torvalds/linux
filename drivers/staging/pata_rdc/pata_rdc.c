@@ -148,7 +148,7 @@ static int __devinit rdc_init_one(
 {
     //struct device *dev = &pdev->dev;
     struct ata_port_info port_info[2];
-    struct ata_port_info *ppinfo[] = { &port_info[0], &port_info[1] };
+    const struct ata_port_info *ppinfo[] = { &port_info[0], &port_info[1] };
 
     int rc;
 
@@ -174,7 +174,7 @@ static int __devinit rdc_init_one(
 
     pci_intx(pdev, 1);  // enable interrupt
 
-    return ata_pci_init_one(pdev, ppinfo);
+    return ata_pci_sff_init_one(pdev, ppinfo, &rdc_pata_sht, NULL);
 }
 
 // callback function for ata_port
