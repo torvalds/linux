@@ -147,7 +147,11 @@ static int load_kernel(void)
 	return err;
 }
 
-static int strcommon(const char *pathname, const char *cwd, int cwdlen)
+static char __cwd[PATH_MAX];
+static char *cwd = __cwd;
+static int cwdlen;
+
+static int strcommon(const char *pathname)
 {
 	int n = 0;
 
@@ -165,7 +169,7 @@ struct map {
 	struct dso	 *dso;
 };
 
-static struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
+static struct map *map__new(struct mmap_event *event)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -174,7 +178,8 @@ static struct map *map__new(struct mmap_event *event, char *cwd, int cwdlen)
 		char newfilename[PATH_MAX];
 
 		if (cwd) {
-			int n = strcommon(filename, cwd, cwdlen);
+			int n = strcommon(filename);
+
 			if (n == cwdlen) {
 				snprintf(newfilename, sizeof(newfilename),
 					 ".%s", filename + n);
@@ -752,85 +757,11 @@ static void register_idle_thread(void)
 	}
 }
 
+static unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
 
-static int __cmd_report(void)
+static int
+process_event(event_t *event, unsigned long offset, unsigned long head)
 {
-	unsigned long offset = 0;
-	unsigned long head = 0;
-	struct stat stat;
-	char *buf;
-	event_t *event;
-	int ret, rc = EXIT_FAILURE;
-	uint32_t size;
-	unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
-	char cwd[PATH_MAX], *cwdp = cwd;
-	int cwdlen;
-
-	register_idle_thread();
-
-	input = open(input_name, O_RDONLY);
-	if (input < 0) {
-		perror("failed to open file");
-		exit(-1);
-	}
-
-	ret = fstat(input, &stat);
-	if (ret < 0) {
-		perror("failed to stat file");
-		exit(-1);
-	}
-
-	if (!stat.st_size) {
-		fprintf(stderr, "zero-sized file, nothing to do!\n");
-		exit(0);
-	}
-
-	if (load_kernel() < 0) {
-		perror("failed to load kernel symbols");
-		return EXIT_FAILURE;
-	}
-
-	if (!full_paths) {
-		if (getcwd(cwd, sizeof(cwd)) == NULL) {
-			perror("failed to get the current directory");
-			return EXIT_FAILURE;
-		}
-		cwdlen = strlen(cwd);
-	} else {
-		cwdp = NULL;
-		cwdlen = 0;
-	}
-remap:
-	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
-			   MAP_SHARED, input, offset);
-	if (buf == MAP_FAILED) {
-		perror("failed to mmap file");
-		exit(-1);
-	}
-
-more:
-	event = (event_t *)(buf + head);
-
-	size = event->header.size;
-	if (!size)
-		size = 8;
-
-	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
-		int ret;
-
-		ret = munmap(buf, page_size * mmap_window);
-		assert(ret == 0);
-
-		offset += shift;
-		head -= shift;
-		goto remap;
-	}
-
-	size = event->header.size;
-	if (!size)
-		goto broken_event;
-
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
 		char level;
 		int show = 0;
@@ -851,7 +782,7 @@ more:
 		if (thread == NULL) {
 			fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
-			goto broken_event;
+			return -1;
 		}
 
 		if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
@@ -895,14 +826,14 @@ more:
 			if (hist_entry__add(thread, map, dso, sym, ip, level)) {
 				fprintf(stderr,
 		"problem incrementing symbol count, skipping event\n");
-				goto broken_event;
+				return -1;
 			}
 		}
 		total++;
 	} else switch (event->header.type) {
 	case PERF_EVENT_MMAP: {
 		struct thread *thread = threads__findnew(event->mmap.pid);
-		struct map *map = map__new(&event->mmap, cwdp, cwdlen);
+		struct map *map = map__new(&event->mmap);
 
 		dprintf("%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
 			(void *)(offset + head),
@@ -915,7 +846,7 @@ more:
 		if (thread == NULL || map == NULL) {
 			if (verbose)
 				fprintf(stderr, "problem processing PERF_EVENT_MMAP, skipping event.\n");
-			goto broken_event;
+			return -1;
 		}
 		thread__insert_map(thread, map);
 		total_mmap++;
@@ -932,13 +863,93 @@ more:
 		if (thread == NULL ||
 		    thread__set_comm(thread, event->comm.comm)) {
 			fprintf(stderr, "problem processing PERF_EVENT_COMM, skipping event.\n");
-			goto broken_event;
+			return -1;
 		}
 		total_comm++;
 		break;
 	}
-	default: {
-broken_event:
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static int __cmd_report(void)
+{
+	unsigned long offset = 0;
+	unsigned long head = 0;
+	struct stat stat;
+	char *buf;
+	event_t *event;
+	int ret, rc = EXIT_FAILURE;
+	uint32_t size;
+
+	register_idle_thread();
+
+	input = open(input_name, O_RDONLY);
+	if (input < 0) {
+		perror("failed to open file");
+		exit(-1);
+	}
+
+	ret = fstat(input, &stat);
+	if (ret < 0) {
+		perror("failed to stat file");
+		exit(-1);
+	}
+
+	if (!stat.st_size) {
+		fprintf(stderr, "zero-sized file, nothing to do!\n");
+		exit(0);
+	}
+
+	if (load_kernel() < 0) {
+		perror("failed to load kernel symbols");
+		return EXIT_FAILURE;
+	}
+
+	if (!full_paths) {
+		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
+			perror("failed to get the current directory");
+			return EXIT_FAILURE;
+		}
+		cwdlen = strlen(cwd);
+	} else {
+		cwd = NULL;
+		cwdlen = 0;
+	}
+remap:
+	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
+			   MAP_SHARED, input, offset);
+	if (buf == MAP_FAILED) {
+		perror("failed to mmap file");
+		exit(-1);
+	}
+
+more:
+	event = (event_t *)(buf + head);
+
+	size = event->header.size;
+	if (!size)
+		size = 8;
+
+	if (head + event->header.size >= page_size * mmap_window) {
+		unsigned long shift = page_size * (head / page_size);
+		int ret;
+
+		ret = munmap(buf, page_size * mmap_window);
+		assert(ret == 0);
+
+		offset += shift;
+		head -= shift;
+		goto remap;
+	}
+
+	size = event->header.size;
+
+	if (!size || process_event(event, offset, head) < 0) {
+
 		dprintf("%p [%p]: skipping unknown header type: %d\n",
 			(void *)(offset + head),
 			(void *)(long)(event->header.size),
@@ -955,7 +966,6 @@ broken_event:
 			head &= ~7ULL;
 
 		size = 8;
-	}
 	}
 
 	head += size;
