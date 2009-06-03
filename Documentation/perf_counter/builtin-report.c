@@ -453,26 +453,16 @@ static int sort_dimension__add(char *tok)
 		if (sd->taken)
 			continue;
 
-		if (strcmp(tok, sd->name))
+		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
 		sd->taken = 1;
+
 		return 0;
 	}
 
 	return -ESRCH;
-}
-
-static void setup_sorting(void)
-{
-	char *tmp, *tok, *str = strdup(sort_order);
-
-	for (tok = strtok_r(str, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp))
-		sort_dimension__add(tok);
-
-	free(str);
 }
 
 static int64_t
@@ -879,6 +869,21 @@ static const struct option options[] = {
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_END()
 };
+
+static void setup_sorting(void)
+{
+	char *tmp, *tok, *str = strdup(sort_order);
+
+	for (tok = strtok_r(str, ", ", &tmp);
+			tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (sort_dimension__add(tok) < 0) {
+			error("Unknown --sort key: `%s'", tok);
+			usage_with_options(report_usage, options);
+		}
+	}
+
+	free(str);
+}
 
 int cmd_report(int argc, const char **argv, const char *prefix)
 {
