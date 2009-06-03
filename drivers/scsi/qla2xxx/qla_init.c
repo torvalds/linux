@@ -4406,7 +4406,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->max_luns_per_target = __constant_cpu_to_le16(128);
 		nv->port_down_retry_count = __constant_cpu_to_le16(30);
 		nv->link_down_timeout = __constant_cpu_to_le16(30);
-		nv->enode_mac[0] = 0x01;
+		nv->enode_mac[0] = 0x00;
 		nv->enode_mac[1] = 0x02;
 		nv->enode_mac[2] = 0x03;
 		nv->enode_mac[3] = 0x04;
