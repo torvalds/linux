@@ -422,7 +422,7 @@ copyarea(struct dlfb_data *dev_info, int dx, int dy, int sx, int sy,
 	return 1;
 }
 
-void dlfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void dlfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 
 	struct dlfb_data *dev = info->par;
@@ -434,7 +434,7 @@ void dlfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 
 }
 
-void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 
 	int ret;
@@ -447,7 +447,7 @@ void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	/* printk("IMAGE BLIT (2) %d %d %d %d DEPTH %d {%p} %d!!!\n", image->dx, image->dy, image->width, image->height, image->depth, dev->udev, ret); */
 }
 
-void dlfb_fillrect(struct fb_info *info, const struct fb_fillrect *region)
+static void dlfb_fillrect(struct fb_info *info, const struct fb_fillrect *region)
 {
 
 	unsigned char red, green, blue;

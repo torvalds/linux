@@ -40,7 +40,7 @@ struct dlfb_video_mode {
 	uint8_t unknown3[4];
 } __attribute__ ((__packed__));
 
-struct dlfb_video_mode dlfb_video_modes[MAX_VMODES];
+static struct dlfb_video_mode dlfb_video_modes[MAX_VMODES];
 
 static void dlfb_bulk_callback(struct urb *urb)
 {
@@ -66,7 +66,7 @@ static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
 	return dev_info->tx_urb->actual_length;
 }
 
-void dlfb_init_modes(void)
+static void dlfb_init_modes(void)
 {
 	dlfb_video_modes[0].col = 0;
 	memcpy(&dlfb_video_modes[0].hclock, "\x20\x3C\x7A\xC9", 4);
@@ -105,7 +105,7 @@ void dlfb_init_modes(void)
 	memcpy(&dlfb_video_modes[3].unknown3, "\x04\x02\x1E\x5F", 4);
 }
 
-char *dlfb_set_register(char *bufptr, uint8_t reg, uint8_t val)
+static char *dlfb_set_register(char *bufptr, uint8_t reg, uint8_t val)
 {
 	*bufptr++ = 0xAF;
 	*bufptr++ = 0x20;
@@ -115,7 +115,7 @@ char *dlfb_set_register(char *bufptr, uint8_t reg, uint8_t val)
 	return bufptr;
 }
 
-int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
+static int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 {
 	int i, ret;
 	unsigned char j;
