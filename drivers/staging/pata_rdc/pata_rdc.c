@@ -942,7 +942,7 @@ static struct scsi_host_template rdc_pata_sht = {
 	ATA_BMDMA_SHT(DRIVER_NAME),
 };
 
-static const struct ata_port_operations rdc_pata_ops = {
+static struct ata_port_operations rdc_pata_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.port_start	= rdc_pata_port_start,
