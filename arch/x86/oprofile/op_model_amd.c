@@ -35,16 +35,18 @@ static unsigned long reset_value[NUM_COUNTERS];
 #ifdef CONFIG_OPROFILE_IBS
 
 /* IbsFetchCtl bits/masks */
-#define IBS_FETCH_HIGH_VALID_BIT	(1UL << 17)	/* bit 49 */
-#define IBS_FETCH_HIGH_ENABLE		(1UL << 16)	/* bit 48 */
-#define IBS_FETCH_LOW_MAX_CNT_MASK	0x0000FFFFUL	/* MaxCnt mask */
+#define IBS_FETCH_RAND_EN		(1ULL<<57)
+#define IBS_FETCH_VAL			(1ULL<<49)
+#define IBS_FETCH_ENABLE		(1ULL<<48)
+#define IBS_FETCH_CNT_MASK		0xFFFF0000ULL
 
 /*IbsOpCtl bits */
-#define IBS_OP_LOW_VALID_BIT		(1ULL<<18)	/* bit 18 */
-#define IBS_OP_LOW_ENABLE		(1ULL<<17)	/* bit 17 */
+#define IBS_OP_CNT_CTL			(1ULL<<19)
+#define IBS_OP_VAL			(1ULL<<18)
+#define IBS_OP_ENABLE			(1ULL<<17)
 
-#define IBS_FETCH_SIZE	6
-#define IBS_OP_SIZE	12
+#define IBS_FETCH_SIZE			6
+#define IBS_OP_SIZE			12
 
 static int has_ibs;	/* AMD Family10h and later */
 
@@ -126,66 +128,63 @@ static inline int
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
 {
-	u32 low, high;
-	u64 msr;
+	u64 val, ctl;
 	struct op_entry entry;
 
 	if (!has_ibs)
 		return 1;
 
 	if (ibs_config.fetch_enabled) {
-		rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
-		if (high & IBS_FETCH_HIGH_VALID_BIT) {
-			rdmsrl(MSR_AMD64_IBSFETCHLINAD, msr);
-			oprofile_write_reserve(&entry, regs, msr,
+		rdmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
+		if (ctl & IBS_FETCH_VAL) {
+			rdmsrl(MSR_AMD64_IBSFETCHLINAD, val);
+			oprofile_write_reserve(&entry, regs, val,
 					       IBS_FETCH_CODE, IBS_FETCH_SIZE);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			oprofile_add_data(&entry, low);
-			oprofile_add_data(&entry, high);
-			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data(&entry, (u32)ctl);
+			oprofile_add_data(&entry, (u32)(ctl >> 32));
+			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			high &= ~IBS_FETCH_HIGH_VALID_BIT;
-			high |= IBS_FETCH_HIGH_ENABLE;
-			low &= IBS_FETCH_LOW_MAX_CNT_MASK;
-			wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
+			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT_MASK);
+			ctl |= IBS_FETCH_ENABLE;
+			wrmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
 		}
 	}
 
 	if (ibs_config.op_enabled) {
-		rdmsr(MSR_AMD64_IBSOPCTL, low, high);
-		if (low & IBS_OP_LOW_VALID_BIT) {
-			rdmsrl(MSR_AMD64_IBSOPRIP, msr);
-			oprofile_write_reserve(&entry, regs, msr,
+		rdmsrl(MSR_AMD64_IBSOPCTL, ctl);
+		if (ctl & IBS_OP_VAL) {
+			rdmsrl(MSR_AMD64_IBSOPRIP, val);
+			oprofile_write_reserve(&entry, regs, val,
 					       IBS_OP_CODE, IBS_OP_SIZE);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			rdmsrl(MSR_AMD64_IBSOPDATA, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			rdmsrl(MSR_AMD64_IBSOPDATA2, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			rdmsrl(MSR_AMD64_IBSOPDATA3, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			rdmsrl(MSR_AMD64_IBSDCLINAD, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
-			rdmsrl(MSR_AMD64_IBSDCPHYSAD, msr);
-			oprofile_add_data(&entry, (u32)msr);
-			oprofile_add_data(&entry, (u32)(msr >> 32));
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA2, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			rdmsrl(MSR_AMD64_IBSOPDATA3, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			rdmsrl(MSR_AMD64_IBSDCLINAD, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
+			rdmsrl(MSR_AMD64_IBSDCPHYSAD, val);
+			oprofile_add_data(&entry, (u32)val);
+			oprofile_add_data(&entry, (u32)(val >> 32));
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			high = 0;
-			low &= ~IBS_OP_LOW_VALID_BIT;
-			low |= IBS_OP_LOW_ENABLE;
-			wrmsr(MSR_AMD64_IBSOPCTL, low, high);
+			ctl &= ~IBS_OP_VAL & 0xFFFFFFFF;
+			ctl |= IBS_OP_ENABLE;
+			wrmsrl(MSR_AMD64_IBSOPCTL, ctl);
 		}
 	}
 
@@ -194,39 +193,31 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 
 static inline void op_amd_start_ibs(void)
 {
-	unsigned int low, high;
+	u64 val;
 	if (has_ibs && ibs_config.fetch_enabled) {
-		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
-		high = ((ibs_config.rand_en & 0x1) << 25) /* bit 57 */
-			+ IBS_FETCH_HIGH_ENABLE;
-		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
+		val = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
+		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
+		val |= IBS_FETCH_ENABLE;
+		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
 	}
 
 	if (has_ibs && ibs_config.op_enabled) {
-		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF)
-			+ ((ibs_config.dispatched_ops & 0x1) << 19) /* bit 19 */
-			+ IBS_OP_LOW_ENABLE;
-		high = 0;
-		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
+		val = (ibs_config.max_cnt_op >> 4) & 0xFFFF;
+		val |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
+		val |= IBS_OP_ENABLE;
+		wrmsrl(MSR_AMD64_IBSOPCTL, val);
 	}
 }
 
 static void op_amd_stop_ibs(void)
 {
-	unsigned int low, high;
-	if (has_ibs && ibs_config.fetch_enabled) {
+	if (has_ibs && ibs_config.fetch_enabled)
 		/* clear max count and enable */
-		low = 0;
-		high = 0;
-		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
-	}
+		wrmsrl(MSR_AMD64_IBSFETCHCTL, 0);
 
-	if (has_ibs && ibs_config.op_enabled) {
+	if (has_ibs && ibs_config.op_enabled)
 		/* clear max count and enable */
-		low = 0;
-		high = 0;
-		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
-	}
+		wrmsrl(MSR_AMD64_IBSOPCTL, 0);
 }
 
 #else
