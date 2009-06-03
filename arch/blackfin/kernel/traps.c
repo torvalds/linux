@@ -68,6 +68,13 @@
 	({ if (0) printk(fmt, ##arg); 0; })
 #endif
 
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+u32 last_seqstat;
+#ifdef CONFIG_DEBUG_MMRS_MODULE
+EXPORT_SYMBOL(last_seqstat);
+#endif
+#endif
+
 /* Initiate the event table handler */
 void __init trap_init(void)
 {
@@ -245,6 +252,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	unsigned long trapnr = fp->seqstat & SEQSTAT_EXCAUSE;
 
 	trace_buffer_save(j);
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+	last_seqstat = (u32)fp->seqstat;
+#endif
 
 	/* Important - be very careful dereferncing pointers - will lead to
 	 * double faults if the stack has become corrupt
