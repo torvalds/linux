@@ -610,6 +610,8 @@ out:
  */
 int i2400m_dev_reset_handle(struct i2400m *i2400m)
 {
+	i2400m->boot_mode = 1;
+	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
 				    GFP_ATOMIC);
 }

@@ -985,6 +985,7 @@ int i2400m_fw_dnload(struct i2400m *i2400m, const struct i2400m_bcf_hdr *bcf,
 	d_fnstart(5, dev, "(i2400m %p bcf %p size %zu)\n",
 		  i2400m, bcf, bcf_size);
 	i2400m->boot_mode = 1;
+	wmb();		/* Make sure other readers see it */
 hw_reboot:
 	if (count-- == 0) {
 		ret = -ERESTARTSYS;
@@ -1033,6 +1034,7 @@ hw_reboot:
 	d_printf(2, dev, "fw %s successfully uploaded\n",
 		 i2400m->fw_name);
 	i2400m->boot_mode = 0;
+	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 error_dnload_finalize:
 error_dnload_bcf:
 error_dnload_init:

@@ -695,6 +695,7 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 	d_fnstart(3, dev, "(i2400m %p buf %p len %zu)\n",
 		  i2400m, buf, buf_len);
 
+	rmb();		/* Make sure we see what i2400m_dev_reset_handle() */
 	if (i2400m->boot_mode)
 		return ERR_PTR(-ENODEV);
 
