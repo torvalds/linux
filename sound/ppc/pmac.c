@@ -908,7 +908,7 @@ static int snd_pmac_dev_free(struct snd_device *device)
  * check the machine support byteswap (little-endian)
  */
 
-static void __init detect_byte_swap(struct snd_pmac *chip)
+static void __devinit detect_byte_swap(struct snd_pmac *chip)
 {
 	struct device_node *mio;
 
@@ -1143,7 +1143,7 @@ static int pmac_hp_detect_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new auto_mute_controls[] __initdata = {
+static struct snd_kcontrol_new auto_mute_controls[] __devinitdata = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "Auto Mute Switch",
 	  .info = snd_pmac_boolean_mono_info,
