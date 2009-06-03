@@ -985,8 +985,9 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 	link_cmd.general_params.single_stream_ant_msk =
 				first_antenna(priv->hw_params.valid_tx_ant);
 	link_cmd.general_params.dual_stream_ant_msk = 3;
-	link_cmd.agg_params.agg_dis_start_th = 3;
-	link_cmd.agg_params.agg_time_limit = cpu_to_le16(4000);
+	link_cmd.agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
+	link_cmd.agg_params.agg_time_limit =
+		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
 
 	/* Update the rate scaling for control frame Tx to AP */
 	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_params.bcast_sta_id;

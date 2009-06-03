@@ -1913,6 +1913,18 @@ struct iwl_link_qual_general_params {
 	u8 start_rate_index[LINK_QUAL_AC_NUM];
 } __attribute__ ((packed));
 
+#define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
+#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(65535)
+#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(0)
+
+#define LINK_QUAL_AGG_DISABLE_START_DEF	(3)
+#define LINK_QUAL_AGG_DISABLE_START_MAX	(255)
+#define LINK_QUAL_AGG_DISABLE_START_MIN	(0)
+
+#define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(31)
+#define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(64)
+#define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
+
 /**
  * struct iwl_link_qual_agg_params
  *

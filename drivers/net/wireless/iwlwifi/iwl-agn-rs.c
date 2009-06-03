@@ -2787,9 +2787,10 @@ static void rs_fill_link_cmd(const struct iwl_priv *priv,
 		repeat_rate--;
 	}
 
-	lq_cmd->agg_params.agg_frame_cnt_limit = 64;
-	lq_cmd->agg_params.agg_dis_start_th = 3;
-	lq_cmd->agg_params.agg_time_limit = cpu_to_le16(4000);
+	lq_cmd->agg_params.agg_frame_cnt_limit = LINK_QUAL_AGG_FRAME_LIMIT_MAX;
+	lq_cmd->agg_params.agg_dis_start_th = LINK_QUAL_AGG_DISABLE_START_DEF;
+	lq_cmd->agg_params.agg_time_limit =
+		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
