@@ -1115,6 +1115,15 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 	    vha->fcoe_vn_port_mac[1], vha->fcoe_vn_port_mac[0]);
 }
 
+static ssize_t
+qla2x00_fabric_param_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", vha->hw->switch_cap);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -1146,6 +1155,7 @@ static DEVICE_ATTR(flash_block_size, S_IRUGO, qla2x00_flash_block_size_show,
 static DEVICE_ATTR(vlan_id, S_IRUGO, qla2x00_vlan_id_show, NULL);
 static DEVICE_ATTR(vn_port_mac_address, S_IRUGO,
 		   qla2x00_vn_port_mac_address_show, NULL);
+static DEVICE_ATTR(fabric_param, S_IRUGO, qla2x00_fabric_param_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1170,6 +1180,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_flash_block_size,
 	&dev_attr_vlan_id,
 	&dev_attr_vn_port_mac_address,
+	&dev_attr_fabric_param,
 	NULL,
 };
 
