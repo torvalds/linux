@@ -40,7 +40,7 @@ struct cpu_hw_counters {
 struct x86_pmu {
 	const char	*name;
 	int		version;
-	int		(*handle_irq)(struct pt_regs *, int);
+	int		(*handle_irq)(struct pt_regs *);
 	void		(*disable_all)(void);
 	void		(*enable_all)(void);
 	void		(*enable)(struct hw_perf_counter *, int);
@@ -755,7 +755,7 @@ static void intel_pmu_reset(void)
  * This handler is triggered by the local APIC, so the APIC IRQ handling
  * rules apply:
  */
-static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
+static int intel_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct cpu_hw_counters *cpuc;
 	struct cpu_hw_counters;
@@ -794,7 +794,7 @@ again:
 		if (!intel_pmu_save_and_restart(counter))
 			continue;
 
-		if (perf_counter_overflow(counter, nmi, regs, 0))
+		if (perf_counter_overflow(counter, 1, regs, 0))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
 
@@ -812,7 +812,7 @@ again:
 	return 1;
 }
 
-static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
+static int amd_pmu_handle_irq(struct pt_regs *regs)
 {
 	int cpu, idx, handled = 0;
 	struct cpu_hw_counters *cpuc;
@@ -840,20 +840,11 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 		if (!x86_perf_counter_set_period(counter, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, nmi, regs, 0))
+		if (perf_counter_overflow(counter, 1, regs, 0))
 			amd_pmu_disable_counter(hwc, idx);
 	}
 
 	return handled;
-}
-
-void smp_perf_counter_interrupt(struct pt_regs *regs)
-{
-	irq_enter();
-	apic_write(APIC_LVTPC, LOCAL_PERF_VECTOR);
-	ack_APIC_irq();
-	x86_pmu.handle_irq(regs, 0);
-	irq_exit();
 }
 
 void smp_perf_pending_interrupt(struct pt_regs *regs)
@@ -910,7 +901,7 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	 * If the first NMI handles both, the latter will be empty and daze
 	 * the CPU.
 	 */
-	x86_pmu.handle_irq(regs, 1);
+	x86_pmu.handle_irq(regs);
 
 	return NOTIFY_STOP;
 }

@@ -155,7 +155,6 @@ static void __init apic_intr_init(void)
 
 	/* Performance monitoring interrupt: */
 #ifdef CONFIG_PERF_COUNTERS
-	alloc_intr_gate(LOCAL_PERF_VECTOR, perf_counter_interrupt);
 	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
 #endif
 }
