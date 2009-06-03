@@ -2753,8 +2753,11 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (vp_idx == 0)
 			return;
 
-		if (MSB(stat) == 1)
+		if (MSB(stat) == 1) {
+			DEBUG2(printk("scsi(%ld): Could not acquire ID for "
+			    "VP[%d].\n", vha->host_no, vp_idx));
 			return;
+		}
 
 		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list)
 			if (vp_idx == vp->vp_idx)
