@@ -46,12 +46,12 @@ snd_pmac_burgundy_extend_wait(struct snd_pmac *chip)
 	timeout = 50;
 	while (!(in_le32(&chip->awacs->codec_stat) & MASK_EXTEND) && timeout--)
 		udelay(1);
-	if (! timeout)
+	if (timeout < 0)
 		printk(KERN_DEBUG "burgundy_extend_wait: timeout #1\n");
 	timeout = 50;
 	while ((in_le32(&chip->awacs->codec_stat) & MASK_EXTEND) && timeout--)
 		udelay(1);
-	if (! timeout)
+	if (timeout < 0)
 		printk(KERN_DEBUG "burgundy_extend_wait: timeout #2\n");
 }
 
