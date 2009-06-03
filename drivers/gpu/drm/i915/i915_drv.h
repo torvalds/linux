@@ -498,13 +498,16 @@ struct drm_i915_gem_request {
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
+	/** global list entry for this request */
 	struct list_head list;
+
+	/** file_priv list entry for this request */
+	struct list_head client_list;
 };
 
 struct drm_i915_file_private {
 	struct {
-		uint32_t last_gem_seqno;
-		uint32_t last_gem_throttle_seqno;
+		struct list_head request_list;
 	} mm;
 };
 

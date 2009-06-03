@@ -1273,8 +1273,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 
 	file_priv->driver_priv = i915_file_priv;
 
-	i915_file_priv->mm.last_gem_seqno = 0;
-	i915_file_priv->mm.last_gem_throttle_seqno = 0;
+	INIT_LIST_HEAD(&i915_file_priv->mm.request_list);
 
 	return 0;
 }
@@ -1311,6 +1310,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	i915_gem_release(dev, file_priv);
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_mem_release(dev, file_priv, dev_priv->agp_heap);
 }

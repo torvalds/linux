@@ -1481,13 +1481,18 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
  * Returned sequence numbers are nonzero on success.
  */
 static uint32_t
-i915_add_request(struct drm_device *dev, uint32_t flush_domains)
+i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
+		 uint32_t flush_domains)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_file_private *i915_file_priv = NULL;
 	struct drm_i915_gem_request *request;
 	uint32_t seqno;
 	int was_empty;
 	RING_LOCALS;
+
+	if (file_priv != NULL)
+		i915_file_priv = file_priv->driver_priv;
 
 	request = drm_calloc(1, sizeof(*request), DRM_MEM_DRIVER);
 	if (request == NULL)
@@ -1515,6 +1520,12 @@ i915_add_request(struct drm_device *dev, uint32_t flush_domains)
 	request->emitted_jiffies = jiffies;
 	was_empty = list_empty(&dev_priv->mm.request_list);
 	list_add_tail(&request->list, &dev_priv->mm.request_list);
+	if (i915_file_priv) {
+		list_add_tail(&request->client_list,
+			      &i915_file_priv->mm.request_list);
+	} else {
+		INIT_LIST_HEAD(&request->client_list);
+	}
 
 	/* Associate any objects on the flushing list matching the write
 	 * domain we're flushing with our flush.
@@ -1664,6 +1675,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 			i915_gem_retire_request(dev, request);
 
 			list_del(&request->list);
+			list_del(&request->client_list);
 			drm_free(request, sizeof(*request), DRM_MEM_DRIVER);
 		} else
 			break;
@@ -1977,7 +1989,7 @@ i915_gem_evict_something(struct drm_device *dev)
 			i915_gem_flush(dev,
 				       obj->write_domain,
 				       obj->write_domain);
-			i915_add_request(dev, obj->write_domain);
+			i915_add_request(dev, NULL, obj->write_domain);
 
 			obj = NULL;
 			continue;
@@ -2248,7 +2260,7 @@ try_again:
 				i915_gem_flush(dev,
 					       I915_GEM_GPU_DOMAINS,
 					       I915_GEM_GPU_DOMAINS);
-				seqno = i915_add_request(dev,
+				seqno = i915_add_request(dev, NULL,
 							 I915_GEM_GPU_DOMAINS);
 				if (seqno == 0)
 					return -ENOMEM;
@@ -2452,7 +2464,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj)
 
 	/* Queue the GPU write cache flushing we need. */
 	i915_gem_flush(dev, 0, obj->write_domain);
-	seqno = i915_add_request(dev, obj->write_domain);
+	seqno = i915_add_request(dev, NULL, obj->write_domain);
 	obj->write_domain = 0;
 	i915_gem_object_move_to_active(obj, seqno);
 }
@@ -3089,6 +3101,10 @@ i915_dispatch_gem_execbuffer(struct drm_device *dev,
 /* Throttle our rendering by waiting until the ring has completed our requests
  * emitted over 20 msec ago.
  *
+ * Note that if we were to use the current jiffies each time around the loop,
+ * we wouldn't escape the function with any frames outstanding if the time to
+ * render a frame was over 20ms.
+ *
  * This should get us reasonable parallelism between CPU and GPU but also
  * relatively low latency when blocking on a particular request to finish.
  */
@@ -3097,15 +3113,25 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
 	int ret = 0;
-	uint32_t seqno;
+	unsigned long recent_enough = jiffies - msecs_to_jiffies(20);
 
 	mutex_lock(&dev->struct_mutex);
-	seqno = i915_file_priv->mm.last_gem_throttle_seqno;
-	i915_file_priv->mm.last_gem_throttle_seqno =
-		i915_file_priv->mm.last_gem_seqno;
-	if (seqno)
-		ret = i915_wait_request(dev, seqno);
+	while (!list_empty(&i915_file_priv->mm.request_list)) {
+		struct drm_i915_gem_request *request;
+
+		request = list_first_entry(&i915_file_priv->mm.request_list,
+					   struct drm_i915_gem_request,
+					   client_list);
+
+		if (time_after_eq(request->emitted_jiffies, recent_enough))
+			break;
+
+		ret = i915_wait_request(dev, request->seqno);
+		if (ret != 0)
+			break;
+	}
 	mutex_unlock(&dev->struct_mutex);
+
 	return ret;
 }
 
@@ -3187,7 +3213,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_exec_object *exec_list = NULL;
 	struct drm_gem_object **object_list = NULL;
@@ -3363,7 +3388,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			       dev->invalidate_domains,
 			       dev->flush_domains);
 		if (dev->flush_domains)
-			(void)i915_add_request(dev, dev->flush_domains);
+			(void)i915_add_request(dev, file_priv,
+					       dev->flush_domains);
 	}
 
 	for (i = 0; i < args->buffer_count; i++) {
@@ -3412,9 +3438,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	 * *some* interrupts representing completion of buffers that we can
 	 * wait on when trying to clear up gtt space).
 	 */
-	seqno = i915_add_request(dev, flush_domains);
+	seqno = i915_add_request(dev, file_priv, flush_domains);
 	BUG_ON(seqno == 0);
-	i915_file_priv->mm.last_gem_seqno = seqno;
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
 
@@ -3802,7 +3827,7 @@ i915_gem_idle(struct drm_device *dev)
 	 */
 	i915_gem_flush(dev, ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT),
 		       ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT));
-	seqno = i915_add_request(dev, ~I915_GEM_DOMAIN_CPU);
+	seqno = i915_add_request(dev, NULL, ~I915_GEM_DOMAIN_CPU);
 
 	if (seqno == 0) {
 		mutex_unlock(&dev->struct_mutex);
@@ -4351,4 +4376,18 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 
 	drm_agp_chipset_flush(dev);
 	return 0;
+}
+
+void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
+{
+	struct drm_i915_file_private *i915_file_priv = file_priv->driver_priv;
+
+	/* Clean up our request list when the client is going away, so that
+	 * later retire_requests won't dereference our soon-to-be-gone
+	 * file_priv.
+	 */
+	mutex_lock(&dev->struct_mutex);
+	while (!list_empty(&i915_file_priv->mm.request_list))
+		list_del_init(i915_file_priv->mm.request_list.next);
+	mutex_unlock(&dev->struct_mutex);
 }
