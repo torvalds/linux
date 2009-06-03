@@ -109,7 +109,7 @@ void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 	}
 }
 
-int __init snd_pmac_tumbler_post_init(void)
+int __devinit snd_pmac_tumbler_post_init(void)
 {
 	int err;
 	
@@ -124,7 +124,7 @@ int __init snd_pmac_tumbler_post_init(void)
 }
 
 /* exported */
-int __init snd_pmac_keywest_init(struct pmac_keywest *i2c)
+int __devinit snd_pmac_keywest_init(struct pmac_keywest *i2c)
 {
 	int err;
 

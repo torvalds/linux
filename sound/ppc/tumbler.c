@@ -1269,7 +1269,7 @@ static void tumbler_resume(struct snd_pmac *chip)
 #endif
 
 /* initialize tumbler */
-static int __init tumbler_init(struct snd_pmac *chip)
+static int __devinit tumbler_init(struct snd_pmac *chip)
 {
 	int irq;
 	struct pmac_tumbler *mix = chip->mixer_data;
@@ -1339,7 +1339,7 @@ static void tumbler_cleanup(struct snd_pmac *chip)
 }
 
 /* exported */
-int __init snd_pmac_tumbler_init(struct snd_pmac *chip)
+int __devinit snd_pmac_tumbler_init(struct snd_pmac *chip)
 {
 	int i, err;
 	struct pmac_tumbler *mix;

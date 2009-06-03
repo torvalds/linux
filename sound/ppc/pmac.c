@@ -702,7 +702,7 @@ static struct snd_pcm_ops snd_pmac_capture_ops = {
 	.pointer =	snd_pmac_capture_pointer,
 };
 
-int __init snd_pmac_pcm_new(struct snd_pmac *chip)
+int __devinit snd_pmac_pcm_new(struct snd_pmac *chip)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -934,7 +934,7 @@ static void __init detect_byte_swap(struct snd_pmac *chip)
 /*
  * detect a sound chip
  */
-static int __init snd_pmac_detect(struct snd_pmac *chip)
+static int __devinit snd_pmac_detect(struct snd_pmac *chip)
 {
 	struct device_node *sound;
 	struct device_node *dn;
@@ -1158,7 +1158,7 @@ static struct snd_kcontrol_new auto_mute_controls[] __initdata = {
 	},
 };
 
-int __init snd_pmac_add_automute(struct snd_pmac *chip)
+int __devinit snd_pmac_add_automute(struct snd_pmac *chip)
 {
 	int err;
 	chip->auto_mute = 1;
@@ -1175,7 +1175,7 @@ int __init snd_pmac_add_automute(struct snd_pmac *chip)
 /*
  * create and detect a pmac chip record
  */
-int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
+int __devinit snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 {
 	struct snd_pmac *chip;
 	struct device_node *np;

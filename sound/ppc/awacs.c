@@ -872,7 +872,7 @@ static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
 /*
  * initialize chip
  */
-int __init
+int __devinit
 snd_pmac_awacs_init(struct snd_pmac *chip)
 {
 	int pm7500 = IS_PM7500;

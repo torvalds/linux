@@ -618,7 +618,7 @@ static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_noti
 /*
  * initialize burgundy
  */
-int __init snd_pmac_burgundy_init(struct snd_pmac *chip)
+int __devinit snd_pmac_burgundy_init(struct snd_pmac *chip)
 {
 	int imac = machine_is_compatible("iMac");
 	int i, err;
