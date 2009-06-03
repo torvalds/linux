@@ -132,6 +132,11 @@ rodir	      -- FAT has the ATTR_RO (read-only) attribute. But on Windows,
 		 If you want to use ATTR_RO as read-only flag even for
 		 the directory, set this option.
 
+errors=panic|continue|remount-ro
+	      -- specify FAT behavior on critical errors: panic, continue
+		 without doing anything or remount the partition in
+		 read-only mode (default behavior).
+
 <bool>: 0,1,yes,no,true,false
 
 TODO
