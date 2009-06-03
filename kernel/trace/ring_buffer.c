@@ -1708,7 +1708,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 
 	bpage = cpu_buffer->tail_page;
 
-	if (bpage == (void *)addr && rb_page_write(bpage) == old_index) {
+	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
 		/*
 		 * This is on the tail page. It is possible that
 		 * a write could come in and move the tail page
