@@ -20,8 +20,8 @@
 #define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
 #define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
 
-static int			default_interval = 100000;
-static int			event_count[MAX_COUNTERS];
+static long			default_interval = 100000;
+static long			event_count[MAX_COUNTERS];
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 static int			nr_cpus				= 0;
@@ -494,7 +494,7 @@ static const struct option options[] = {
 			    "append to the output file to do incremental profiling"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file"),
-	OPT_INTEGER('c', "count", &default_interval,
+	OPT_LONG('c', "count", &default_interval,
 		    "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
