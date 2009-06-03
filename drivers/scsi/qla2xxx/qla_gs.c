@@ -1879,6 +1879,9 @@ qla2x00_gpsc(scsi_qla_host_t *vha, sw_info_t *list)
 			case BIT_13:
 				list[i].fp_speed = PORT_SPEED_4GB;
 				break;
+			case BIT_12:
+				list[i].fp_speed = PORT_SPEED_10GB;
+				break;
 			case BIT_11:
 				list[i].fp_speed = PORT_SPEED_8GB;
 				break;

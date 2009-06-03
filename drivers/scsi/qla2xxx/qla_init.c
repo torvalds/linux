@@ -2248,7 +2248,8 @@ static void
 qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
 #define LS_UNKNOWN      2
-	static char *link_speeds[5] = { "1", "2", "?", "4", "8" };
+	static char *link_speeds[] = { "1", "2", "?", "4", "8", "10" };
+	char *link_speed;
 	int rval;
 	uint16_t mb[6];
 	struct qla_hw_data *ha = vha->hw;
@@ -2271,10 +2272,15 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    fcport->port_name[6], fcport->port_name[7], rval,
 		    fcport->fp_speed, mb[0], mb[1]));
 	} else {
+		link_speed = link_speeds[LS_UNKNOWN];
+		if (fcport->fp_speed < 5)
+			link_speed = link_speeds[fcport->fp_speed];
+		else if (fcport->fp_speed == 0x13)
+			link_speed = link_speeds[5];
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "iIDMA adjusted to %s GB/s on "
 		    "%02x%02x%02x%02x%02x%02x%02x%02x.\n",
-		    link_speeds[fcport->fp_speed], fcport->port_name[0],
+		    link_speed, fcport->port_name[0],
 		    fcport->port_name[1], fcport->port_name[2],
 		    fcport->port_name[3], fcport->port_name[4],
 		    fcport->port_name[5], fcport->port_name[6],
