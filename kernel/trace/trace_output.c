@@ -975,16 +975,16 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
+	if (!trace_seq_puts(s, "\n"))
+		goto partial;
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
-		if (!field->caller[i])
+		if (!field->caller[i] || (field->caller[i] == ULONG_MAX))
 			break;
-		if (i) {
-			if (!trace_seq_puts(s, " <= "))
-				goto partial;
+		if (!trace_seq_puts(s, " => "))
+			goto partial;
 
-			if (!seq_print_ip_sym(s, field->caller[i], flags))
-				goto partial;
-		}
+		if (!seq_print_ip_sym(s, field->caller[i], flags))
+			goto partial;
 		if (!trace_seq_puts(s, "\n"))
 			goto partial;
 	}
