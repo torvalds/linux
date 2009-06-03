@@ -389,17 +389,20 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 
 		if (ip == ULONG_MAX || !ret)
 			break;
-		if (i && ret)
-			ret = trace_seq_puts(s, " <- ");
+		if (ret)
+			ret = trace_seq_puts(s, " => ");
 		if (!ip) {
 			if (ret)
 				ret = trace_seq_puts(s, "??");
+			if (ret)
+				ret = trace_seq_puts(s, "\n");
 			continue;
 		}
 		if (!ret)
 			break;
 		if (ret)
 			ret = seq_print_user_ip(s, mm, ip, sym_flags);
+		ret = trace_seq_puts(s, "\n");
 	}
 
 	if (mm)
@@ -1012,10 +1015,10 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (!seq_print_userip_objs(field, s, flags))
+	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
-	if (!trace_seq_putc(s, '\n'))
+	if (!seq_print_userip_objs(field, s, flags))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;
