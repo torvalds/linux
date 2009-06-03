@@ -728,6 +728,8 @@ more:
 			event->ip.pid,
 			(void *)(long)ip);
 
+		dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+
 		if (thread == NULL) {
 			fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
@@ -740,6 +742,8 @@ more:
 
 			dso = kernel_dso;
 
+			dprintf(" ...... dso: %s\n", dso->name);
+
 		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
 
 			show = SHOW_USER;
@@ -749,11 +753,22 @@ more:
 			if (map != NULL) {
 				dso = map->dso;
 				ip -= map->start + map->pgoff;
+			} else {
+				/*
+				 * If this is outside of all known maps,
+				 * and is a negative address, try to look it
+				 * up in the kernel dso, as it might be a
+				 * vsyscall (which executes in user-mode):
+				 */
+				if ((long long)ip < 0)
+					dso = kernel_dso;
 			}
+			dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
 
 		} else {
 			show = SHOW_HV;
 			level = 'H';
+			dprintf(" ...... dso: [hypervisor]\n");
 		}
 
 		if (show & show_mask) {
