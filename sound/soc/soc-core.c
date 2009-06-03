@@ -628,6 +628,12 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_codec *codec = card->codec;
 	int i;
 
+	/* If the initialization of this soc device failed, there is no codec
+	 * associated with it. Just bail out in this case.
+	 */
+	if (!codec)
+		return 0;
+
 	/* Due to the resume being scheduled into a workqueue we could
 	* suspend before that's finished - wait for it to complete.
 	 */
