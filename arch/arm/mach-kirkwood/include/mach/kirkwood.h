@@ -27,9 +27,7 @@
  */
 
 #define KIRKWOOD_NAND_MEM_PHYS_BASE	0xf3000000
-#define KIRKWOOD_NAND_MEM_SIZE		SZ_64K /* 1K is sufficient, but 64K
-						* is the minimal window size
-						*/
+#define KIRKWOOD_NAND_MEM_SIZE		SZ_1K
 
 #define KIRKWOOD_PCIE_IO_PHYS_BASE	0xf2000000
 #define KIRKWOOD_PCIE_IO_VIRT_BASE	0xfef00000
