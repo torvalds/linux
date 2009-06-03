@@ -67,6 +67,8 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 static long events;
 static struct timeval last_read, this_read;
 
+static __u64 bytes_written;
+
 static void mmap_read(struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
@@ -114,28 +116,34 @@ static void mmap_read(struct mmap_data *md)
 		buf = &data[old & md->mask];
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
+
 		while (size) {
 			int ret = write(output, buf, size);
-			if (ret < 0) {
-				perror("failed to write");
-				exit(-1);
-			}
+
+			if (ret < 0)
+				die("failed to write");
+
 			size -= ret;
 			buf += ret;
+
+			bytes_written += ret;
 		}
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
+
 	while (size) {
 		int ret = write(output, buf, size);
-		if (ret < 0) {
-			perror("failed to write");
-			exit(-1);
-		}
+
+		if (ret < 0)
+			die("failed to write");
+
 		size -= ret;
 		buf += ret;
+
+		bytes_written += ret;
 	}
 
 	md->prev = old;
@@ -467,8 +475,14 @@ static int __cmd_record(int argc, const char **argv)
 			ret = poll(event_array, nr_poll, 100);
 	}
 
-
-	fprintf(stderr, "[ perf record: Captured and wrote %ld events. ]\n", events);
+	/*
+	 * Approximate RIP event size: 24 bytes.
+	 */
+	fprintf(stderr,
+		"[ perf record: Captured and wrote %.3f MB %s (~%lld events) ]\n",
+		(double)bytes_written / 1024.0 / 1024.0,
+		output_name,
+		bytes_written / 24);
 
 	return 0;
 }
