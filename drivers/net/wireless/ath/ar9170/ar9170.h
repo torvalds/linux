@@ -102,7 +102,6 @@ enum ar9170_device_state {
 	AR9170_STOPPED,
 	AR9170_IDLE,
 	AR9170_STARTED,
-	AR9170_ASSOCIATED,
 };
 
 struct ar9170_rxstream_mpdu_merge {

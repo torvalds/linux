@@ -1303,11 +1303,6 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&ar->mutex);
 
-	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
-		/* TODO */
-		err = 0;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
 		/* TODO */
 		err = 0;
@@ -1490,8 +1485,6 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		ar->state = bss_conf->assoc ? AR9170_ASSOCIATED : ar->state;
-
 #ifndef CONFIG_AR9170_LEDS
 		/* enable assoc LED. */
 		err = ar9170_set_leds_state(ar, bss_conf->assoc ? 2 : 0);
