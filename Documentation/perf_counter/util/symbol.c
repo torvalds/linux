@@ -19,7 +19,7 @@ static struct symbol *symbol__new(uint64_t start, uint64_t len,
 			self = ((void *)self) + priv_size;
 		}
 		self->start = start;
-		self->end   = start + len;
+		self->end   = start + len - 1;
 		memcpy(self->name, name, namelen);
 	}
 
