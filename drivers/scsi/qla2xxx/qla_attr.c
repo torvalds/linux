@@ -744,6 +744,57 @@ static struct bin_attribute sysfs_xgmac_stats_attr = {
 	.read = qla2x00_sysfs_read_xgmac_stats,
 };
 
+static ssize_t
+qla2x00_sysfs_read_dcbx_tlv(struct kobject *kobj,
+		       struct bin_attribute *bin_attr,
+		       char *buf, loff_t off, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	struct qla_hw_data *ha = vha->hw;
+	int rval;
+	uint16_t actual_size;
+
+	if (!capable(CAP_SYS_ADMIN) || off != 0 || count > DCBX_TLV_DATA_SIZE)
+		return 0;
+
+	if (ha->dcbx_tlv)
+		goto do_read;
+
+	ha->dcbx_tlv = dma_alloc_coherent(&ha->pdev->dev, DCBX_TLV_DATA_SIZE,
+	    &ha->dcbx_tlv_dma, GFP_KERNEL);
+	if (!ha->dcbx_tlv) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for DCBX TLV read-data.\n");
+		return 0;
+	}
+
+do_read:
+	actual_size = 0;
+	memset(ha->dcbx_tlv, 0, DCBX_TLV_DATA_SIZE);
+
+	rval = qla2x00_get_dcbx_params(vha, ha->dcbx_tlv_dma,
+	    DCBX_TLV_DATA_SIZE);
+	if (rval != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to read DCBX TLV data (%x).\n", rval);
+		count = 0;
+	}
+
+	memcpy(buf, ha->dcbx_tlv, count);
+
+	return count;
+}
+
+static struct bin_attribute sysfs_dcbx_tlv_attr = {
+	.attr = {
+		.name = "dcbx_tlv",
+		.mode = S_IRUSR,
+	},
+	.size = 0,
+	.read = qla2x00_sysfs_read_dcbx_tlv,
+};
+
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
@@ -759,6 +810,7 @@ static struct sysfs_entry {
 	{ "edc", &sysfs_edc_attr, 2 },
 	{ "edc_status", &sysfs_edc_status_attr, 2 },
 	{ "xgmac_stats", &sysfs_xgmac_stats_attr, 3 },
+	{ "dcbx_tlv", &sysfs_dcbx_tlv_attr, 3 },
 	{ NULL },
 };
 

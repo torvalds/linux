@@ -2401,6 +2401,10 @@ struct qla_hw_data {
 	void		*xgmac_data;
 	dma_addr_t	xgmac_data_dma;
 
+#define DCBX_TLV_DATA_SIZE PAGE_SIZE
+	void		*dcbx_tlv;
+	dma_addr_t	dcbx_tlv_dma;
+
 	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */
 

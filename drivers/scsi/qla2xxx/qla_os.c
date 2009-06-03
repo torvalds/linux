@@ -2434,6 +2434,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		vfree(ha->fw_dump);
 	}
 
+	if (ha->dcbx_tlv)
+		dma_free_coherent(&ha->pdev->dev, DCBX_TLV_DATA_SIZE,
+		    ha->dcbx_tlv, ha->dcbx_tlv_dma);
+
 	if (ha->xgmac_data)
 		dma_free_coherent(&ha->pdev->dev, XGMAC_DATA_SIZE,
 		    ha->xgmac_data, ha->xgmac_data_dma);

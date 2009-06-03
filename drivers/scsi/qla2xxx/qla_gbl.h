@@ -296,6 +296,9 @@ qla81xx_fac_erase_sector(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int
 qla2x00_get_xgmac_stats(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t *);
 
+extern int
+qla2x00_get_dcbx_params(scsi_qla_host_t *, dma_addr_t, uint16_t);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
