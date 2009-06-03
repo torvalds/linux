@@ -2070,6 +2070,13 @@ err_unmap:
 	return ret;
 }
 
+static void ath5k_beacon_disable(struct ath5k_softc *sc)
+{
+	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
+	ath5k_hw_set_imr(sc->ah, sc->imask);
+	ath5k_hw_stop_tx_dma(sc->ah, sc->bhalq);
+}
+
 /*
  * Transmit a beacon frame at SWBA.  Dynamic updates to the
  * frame contents are done as needed and the slot time is
@@ -2757,6 +2764,7 @@ ath5k_remove_interface(struct ieee80211_hw *hw,
 		goto end;
 
 	ath5k_hw_set_lladdr(sc->ah, mac);
+	ath5k_beacon_disable(sc);
 	sc->vif = NULL;
 end:
 	mutex_unlock(&sc->lock);
@@ -3060,7 +3068,14 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	int ret;
 	struct ath5k_softc *sc = hw->priv;
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb;
+
+	if (WARN_ON(!vif)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	skb = ieee80211_beacon_get(hw, vif);
 
 	if (!skb) {
 		ret = -ENOMEM;
