@@ -113,7 +113,7 @@ The following sysfs entries exist for every rfkill device:
 		0: RFKILL_STATE_SOFT_BLOCKED
 			transmitter is turned off by software
 		1: RFKILL_STATE_UNBLOCKED
-			transmiter is (potentially) active
+			transmitter is (potentially) active
 		2: RFKILL_STATE_HARD_BLOCKED
 			transmitter is forced off by something outside of
 			the driver's control.
@@ -128,3 +128,9 @@ RFKILL_TYPE
 
 The contents of these variables corresponds to the "name", "state" and
 "type" sysfs files explained above.
+
+An alternative userspace interface exists as a misc device /dev/rfkill,
+which allows userspace to obtain and set the state of rfkill devices and
+sets of devices. It also notifies userspace about device addition and
+removal. The API is a simple read/write API that is defined in
+linux/rfkill.h.
