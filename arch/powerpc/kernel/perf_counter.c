@@ -1002,7 +1002,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 */
 	if (record) {
 		addr = 0;
-		if (counter->attr.record_type & PERF_RECORD_ADDR) {
+		if (counter->attr.sample_type & PERF_SAMPLE_ADDR) {
 			/*
 			 * The user wants a data address recorded.
 			 * If we're not doing instruction sampling,
