@@ -242,7 +242,7 @@ static const unsigned char bytedecode_alternatives[4][4] = {
  * event code for those that do, or -1 otherwise.  This also handles
  * alternative PCMSEL values for add events.
  */
-static int find_alternative_bdecode(unsigned int event)
+static s64 find_alternative_bdecode(u64 event)
 {
 	int pmc, altpmc, pp, j;
 
@@ -277,7 +277,7 @@ static int power5p_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int i, j, nalt = 1;
 	int nlim;
-	u64 ae;
+	s64 ae;
 
 	alt[0] = event;
 	nalt = 1;

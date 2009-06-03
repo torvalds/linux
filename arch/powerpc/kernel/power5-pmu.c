@@ -250,7 +250,7 @@ static const unsigned char bytedecode_alternatives[4][4] = {
  * PMCSEL values on other counters.  This returns the alternative
  * event code for those that do, or -1 otherwise.
  */
-static u64 find_alternative_bdecode(u64 event)
+static s64 find_alternative_bdecode(u64 event)
 {
 	int pmc, altpmc, pp, j;
 
@@ -272,7 +272,7 @@ static u64 find_alternative_bdecode(u64 event)
 static int power5_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int i, j, nalt = 1;
-	u64 ae;
+	s64 ae;
 
 	alt[0] = event;
 	nalt = 1;
