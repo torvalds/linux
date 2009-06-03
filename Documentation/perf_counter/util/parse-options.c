@@ -33,7 +33,7 @@ static int get_arg(struct parse_opt_ctx_t *p, const struct option *opt,
 static int get_value(struct parse_opt_ctx_t *p,
 		     const struct option *opt, int flags)
 {
-	const char *s, *arg;
+	const char *s, *arg = NULL;
 	const int unset = flags & OPT_UNSET;
 
 	if (unset && p->opt)

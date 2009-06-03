@@ -175,7 +175,7 @@ static void rb_insert_active_sym(struct rb_root *tree, struct sym_entry *se)
 
 static void print_sym_table(void)
 {
-	int printed, j;
+	int printed = 0, j;
 	int counter;
 	float events_per_sec = events/delay_secs;
 	float kevents_per_sec = (events-userspace_events)/delay_secs;
