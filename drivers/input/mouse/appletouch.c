@@ -361,7 +361,7 @@ static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
 		    (!is_increasing && xy_sensors[i - 1] < xy_sensors[i])) {
 			(*fingers)++;
 			is_increasing = 1;
-		} else if (i > 0 && xy_sensors[i - 1] >= xy_sensors[i]) {
+		} else if (i > 0 && (xy_sensors[i - 1] - xy_sensors[i] > threshold)) {
 			is_increasing = 0;
 		}
 
