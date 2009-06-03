@@ -555,6 +555,7 @@ static struct mmc_spi_platform_data bfin_mmc_spi_pdata = {
 static struct bfin5xx_spi_chip  mmc_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 8,
+	.pio_interrupt = 0,
 };
 #endif
 
@@ -864,6 +865,11 @@ static struct resource bfin_spi0_resource[] = {
 	[1] = {
 		.start = CH_SPI,
 		.end   = CH_SPI,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = IRQ_SPI,
+		.end   = IRQ_SPI,
 		.flags = IORESOURCE_IRQ,
 	},
 };
