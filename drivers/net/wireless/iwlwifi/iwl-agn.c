@@ -1887,8 +1887,6 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	/* clear (again), then enable host interrupts */
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
-	/* enable dram interrupt */
-	iwl_reset_ict(priv);
 	iwl_enable_interrupts(priv);
 
 	/* really make sure rfkill handshake bits are cleared */
@@ -1961,6 +1959,9 @@ static void iwl_bg_alive_start(struct work_struct *data)
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
+
+	/* enable dram interrupt */
+	iwl_reset_ict(priv);
 
 	mutex_lock(&priv->mutex);
 	iwl_alive_start(priv);
