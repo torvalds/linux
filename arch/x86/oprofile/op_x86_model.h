@@ -15,14 +15,9 @@
 #include <asm/types.h>
 #include <asm/intel_arch_perfmon.h>
 
-struct op_saved_msr {
-	unsigned int high;
-	unsigned int low;
-};
-
 struct op_msr {
-	unsigned long addr;
-	struct op_saved_msr saved;
+	unsigned long	addr;
+	u64		saved;
 };
 
 struct op_msrs {
