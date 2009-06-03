@@ -406,11 +406,11 @@ struct sys_timer davinci_timer = {
 void davinci_watchdog_reset(void)
 {
 	u32 tgcr, wdtcr;
-	struct davinci_soc_info *soc_info = &davinci_soc_info;
-	void __iomem *base = soc_info->wdt_base;
+	struct platform_device *pdev = &davinci_wdt_device;
+	void __iomem *base = IO_ADDRESS(pdev->resource[0].start);
 	struct clk *wd_clk;
 
-	wd_clk = clk_get(&davinci_wdt_device.dev, NULL);
+	wd_clk = clk_get(&pdev->dev, NULL);
 	if (WARN_ON(IS_ERR(wd_clk)))
 		return;
 	clk_enable(wd_clk);
