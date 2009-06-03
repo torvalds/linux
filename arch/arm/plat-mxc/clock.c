@@ -39,6 +39,7 @@
 #include <linux/string.h>
 
 #include <mach/clock.h>
+#include <mach/hardware.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
@@ -363,12 +364,11 @@ unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
 
 	mfn_abs = mfn;
 
-#if !defined CONFIG_ARCH_MX1 && !defined CONFIG_ARCH_MX21
-	if (mfn >= 0x200) {
-		mfn |= 0xFFFFFE00;
-		mfn_abs = -mfn;
-	}
-#endif
+	/* On all i.MXs except i.MX1 and i.MX21 mfn is a 10bit
+	 * 2's complements number
+	 */
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
+		mfn_abs = 0x400 - mfn;
 
 	freq *= 2;
 	freq /= pd + 1;
@@ -376,8 +376,10 @@ unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
 	ll = (unsigned long long)freq * mfn_abs;
 
 	do_div(ll, mfd + 1);
-	if (mfn < 0)
+
+	if (!cpu_is_mx1() && !cpu_is_mx21() && mfn >= 0x200)
 		ll = -ll;
+
 	ll = (freq * mfi) + ll;
 
 	return ll;
