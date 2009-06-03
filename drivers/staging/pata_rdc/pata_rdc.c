@@ -38,10 +38,6 @@ static const struct pci_device_id rdc_pata_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, rdc_pata_id_table);
 
-static unsigned int in_module_init = 1; /* hotplugging check??? */
-
-/* ata device data */
-
 /* see ATA Host Adapters Standards. */
 static struct pci_bits ATA_Decode_Enable_Bits[] = {
 	{ 0x41U, 1U, 0x80UL, 0x80UL },	/* port (Channel) 0 */
@@ -982,11 +978,6 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 
 	dbgprintf("rdc_init_one\n");
 
-	/* no hotplugging support (FIXME) */ /* why??? */
-	if (!in_module_init) {
-		dbgprintf("rdc_init_one in_module_init == 0 failed \n");
-		return -ENODEV;
-	}
 	port_info[0] = rdc_pata_port_info[ent->driver_data];
 	port_info[1] = rdc_pata_port_info[ent->driver_data];
 
@@ -1025,8 +1016,6 @@ static int __init pata_rdc_init(void)
 		dbgprintf("pata_rdc_init faile\n");
 		return rc;
 	}
-
-	in_module_init = 0;
 
 	return 0;
 }
