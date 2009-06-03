@@ -285,6 +285,13 @@ typedef struct drm_i915_private {
 	u8 saveDACMASK;
 	u8 saveCR[37];
 	uint64_t saveFENCE[16];
+	u32 saveCURACNTR;
+	u32 saveCURAPOS;
+	u32 saveCURABASE;
+	u32 saveCURBCNTR;
+	u32 saveCURBPOS;
+	u32 saveCURBBASE;
+	u32 saveCURSIZE;
 
 	struct {
 		struct drm_mm gtt_space;
@@ -642,6 +649,7 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
+void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
