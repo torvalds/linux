@@ -32,8 +32,8 @@
 
 
 static const struct pci_device_id rdc_pata_id_table[] = {
-	{ 0x17F3, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31011},
-	{ 0x17F3, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31012},
+	{ PCI_DEVICE(0x17F3, 0x1011), RDC_17F31011},
+	{ PCI_DEVICE(0x17F3, 0x1012), RDC_17F31012},
 	{ }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, rdc_pata_id_table);
