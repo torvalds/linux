@@ -878,7 +878,6 @@ struct device_reg_24xx {
 					/* HCCR statuses. */
 #define HCCRX_HOST_INT		BIT_6	/* Host to RISC interrupt bit. */
 #define HCCRX_RISC_RESET	BIT_5	/* RISC Reset mode bit. */
-#define HCCRX_RISC_PAUSE	BIT_4	/* RISC Pause mode bit. */
 					/* HCCR commands. */
 					/* NOOP. */
 #define HCCRX_NOOP		0x00000000
