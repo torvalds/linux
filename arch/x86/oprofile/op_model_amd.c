@@ -140,13 +140,10 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			rdmsrl(MSR_AMD64_IBSFETCHLINAD, val);
 			oprofile_write_reserve(&entry, regs, val,
 					       IBS_FETCH_CODE, IBS_FETCH_SIZE);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
-			oprofile_add_data(&entry, (u32)ctl);
-			oprofile_add_data(&entry, (u32)(ctl >> 32));
+			oprofile_add_data64(&entry, val);
+			oprofile_add_data64(&entry, ctl);
 			rdmsrl(MSR_AMD64_IBSFETCHPHYSAD, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
@@ -162,23 +159,17 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			rdmsrl(MSR_AMD64_IBSOPRIP, val);
 			oprofile_write_reserve(&entry, regs, val,
 					       IBS_OP_CODE, IBS_OP_SIZE);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSOPDATA, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSOPDATA2, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSOPDATA3, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSDCLINAD, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			rdmsrl(MSR_AMD64_IBSDCPHYSAD, val);
-			oprofile_add_data(&entry, (u32)val);
-			oprofile_add_data(&entry, (u32)(val >> 32));
+			oprofile_add_data64(&entry, val);
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
