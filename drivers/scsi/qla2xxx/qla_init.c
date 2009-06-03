@@ -730,9 +730,6 @@ qla24xx_chip_diag(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
-	/* Perform RISC reset. */
-	qla24xx_reset_risc(vha);
-
 	ha->fw_transfer_size = REQUEST_ENTRY_SIZE * req->length;
 
 	rval = qla2x00_mbx_reg_test(vha);
