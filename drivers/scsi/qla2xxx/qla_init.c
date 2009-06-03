@@ -1304,7 +1304,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 	unsigned long	wtime, mtime, cs84xx_time;
 	uint16_t	min_wait;	/* Minimum wait time if loop is down */
 	uint16_t	wait_time;	/* Wait time if loop is coming ready */
-	uint16_t	state[3];
+	uint16_t	state[5];
 	struct qla_hw_data *ha = vha->hw;
 
 	rval = QLA_SUCCESS;
@@ -1403,8 +1403,9 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 		    vha->host_no, state[0], jiffies));
 	} while (1);
 
-	DEBUG(printk("scsi(%ld): fw_state=%x curr time=%lx.\n",
-	    vha->host_no, state[0], jiffies));
+	DEBUG(printk("scsi(%ld): fw_state=%x (%x, %x, %x, %x) curr time=%lx.\n",
+	    vha->host_no, state[0], state[1], state[2], state[3], state[4],
+	    jiffies));
 
 	if (rval) {
 		DEBUG2_3(printk("scsi(%ld): Firmware ready **** FAILED ****.\n",
