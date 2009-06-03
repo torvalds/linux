@@ -909,16 +909,15 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 
 	rfkill->registered = true;
 
-	if (rfkill->ops->poll) {
-		INIT_DELAYED_WORK(&rfkill->poll_work, rfkill_poll);
+	INIT_DELAYED_WORK(&rfkill->poll_work, rfkill_poll);
+	INIT_WORK(&rfkill->uevent_work, rfkill_uevent_work);
+	INIT_WORK(&rfkill->sync_work, rfkill_sync_work);
+
+	if (rfkill->ops->poll)
 		schedule_delayed_work(&rfkill->poll_work,
 			round_jiffies_relative(POLL_INTERVAL));
-	}
-
-	INIT_WORK(&rfkill->uevent_work, rfkill_uevent_work);
-
-	INIT_WORK(&rfkill->sync_work, rfkill_sync_work);
 	schedule_work(&rfkill->sync_work);
+
 	rfkill_send_events(rfkill, RFKILL_OP_ADD);
 
 	mutex_unlock(&rfkill_global_mutex);
