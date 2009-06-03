@@ -929,13 +929,16 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS) {
 				fw_major_version = ha->fw_major_version;
-				qla2x00_get_fw_version(vha,
+				rval = qla2x00_get_fw_version(vha,
 				    &ha->fw_major_version,
 				    &ha->fw_minor_version,
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size,
 				    ha->mpi_version, &ha->mpi_capabilities,
 				    ha->phy_version);
+				if (rval != QLA_SUCCESS)
+					goto failed;
+
 				ha->flags.npiv_supported = 0;
 				if (IS_QLA2XXX_MIDTYPE(ha) &&
 					 (ha->fw_attributes & BIT_2)) {
@@ -987,7 +990,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			    ha->fw_subminor_version);
 		}
 	}
-
+failed:
 	if (rval) {
 		DEBUG2_3(printk("scsi(%ld): Setup chip **** FAILED ****.\n",
 		    vha->host_no));

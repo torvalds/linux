@@ -148,7 +148,7 @@ qla2x00_dump_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 extern int
 qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);
 
-extern void
+extern int
 qla2x00_get_fw_version(scsi_qla_host_t *, uint16_t *, uint16_t *, uint16_t *,
     uint16_t *, uint32_t *, uint8_t *, uint32_t *, uint8_t *);
 

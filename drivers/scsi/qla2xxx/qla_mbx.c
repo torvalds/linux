@@ -408,7 +408,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
  * Context:
  *	Kernel context.
  */
-void
+int
 qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
     uint16_t *subminor, uint16_t *attributes, uint32_t *memory, uint8_t *mpi,
     uint32_t *mpi_caps, uint8_t *phy)
@@ -427,6 +427,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
 	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS)
+		goto failed;
 
 	/* Return mailbox data. */
 	*major = mcp->mb[1];
@@ -446,7 +448,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 		phy[1] = mcp->mb[9] >> 8;
 		phy[2] = mcp->mb[9] & 0xff;
 	}
-
+failed:
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
@@ -455,6 +457,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 		/*EMPTY*/
 		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
+	return rval;
 }
 
 /*
