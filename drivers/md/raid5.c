@@ -499,11 +499,14 @@ async_copy_data(int frombio, struct bio *bio, struct page *page,
 	struct page *bio_page;
 	int i;
 	int page_offset;
+	struct async_submit_ctl submit;
 
 	if (bio->bi_sector >= sector)
 		page_offset = (signed)(bio->bi_sector - sector) * 512;
 	else
 		page_offset = (signed)(sector - bio->bi_sector) * -512;
+
+	init_async_submit(&submit, 0, tx, NULL, NULL, NULL);
 	bio_for_each_segment(bvl, bio, i) {
 		int len = bio_iovec_idx(bio, i)->bv_len;
 		int clen;
@@ -525,13 +528,14 @@ async_copy_data(int frombio, struct bio *bio, struct page *page,
 			bio_page = bio_iovec_idx(bio, i)->bv_page;
 			if (frombio)
 				tx = async_memcpy(page, bio_page, page_offset,
-						  b_offset, clen, 0,
-						  tx, NULL, NULL);
+						  b_offset, clen, &submit);
 			else
 				tx = async_memcpy(bio_page, page, b_offset,
-						  page_offset, clen, 0,
-						  tx, NULL, NULL);
+						  page_offset, clen, &submit);
 		}
+		/* chain the operations */
+		submit.depend_tx = tx;
+
 		if (clen < len) /* hit end of page */
 			break;
 		page_offset +=  len;
@@ -590,6 +594,7 @@ static void ops_run_biofill(struct stripe_head *sh)
 {
 	struct dma_async_tx_descriptor *tx = NULL;
 	raid5_conf_t *conf = sh->raid_conf;
+	struct async_submit_ctl submit;
 	int i;
 
 	pr_debug("%s: stripe %llu\n", __func__,
@@ -613,7 +618,8 @@ static void ops_run_biofill(struct stripe_head *sh)
 	}
 
 	atomic_inc(&sh->count);
-	async_trigger_callback(ASYNC_TX_ACK, tx, ops_complete_biofill, sh);
+	init_async_submit(&submit, ASYNC_TX_ACK, tx, ops_complete_biofill, sh, NULL);
+	async_trigger_callback(&submit);
 }
 
 static void ops_complete_compute5(void *stripe_head_ref)
@@ -645,6 +651,7 @@ static struct dma_async_tx_descriptor *ops_run_compute5(struct stripe_head *sh)
 	struct page *xor_dest = tgt->page;
 	int count = 0;
 	struct dma_async_tx_descriptor *tx;
+	struct async_submit_ctl submit;
 	int i;
 
 	pr_debug("%s: stripe %llu block: %d\n",
@@ -657,13 +664,12 @@ static struct dma_async_tx_descriptor *ops_run_compute5(struct stripe_head *sh)
 
 	atomic_inc(&sh->count);
 
+	init_async_submit(&submit, ASYNC_TX_XOR_ZERO_DST, NULL,
+			  ops_complete_compute5, sh, NULL);
 	if (unlikely(count == 1))
-		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE,
-			0, NULL, ops_complete_compute5, sh);
+		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE, &submit);
 	else
-		tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
-			ASYNC_TX_XOR_ZERO_DST, NULL,
-			ops_complete_compute5, sh);
+		tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE, &submit);
 
 	return tx;
 }
@@ -683,6 +689,7 @@ ops_run_prexor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	int disks = sh->disks;
 	struct page *xor_srcs[disks];
 	int count = 0, pd_idx = sh->pd_idx, i;
+	struct async_submit_ctl submit;
 
 	/* existing parity data subtracted */
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
@@ -697,9 +704,9 @@ ops_run_prexor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 			xor_srcs[count++] = dev->page;
 	}
 
-	tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
-		       ASYNC_TX_XOR_DROP_DST, tx,
-		       ops_complete_prexor, sh);
+	init_async_submit(&submit, ASYNC_TX_XOR_DROP_DST, tx,
+			  ops_complete_prexor, sh, NULL);
+	tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE, &submit);
 
 	return tx;
 }
@@ -772,7 +779,7 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 	/* kernel stack size limits the total number of disks */
 	int disks = sh->disks;
 	struct page *xor_srcs[disks];
-
+	struct async_submit_ctl submit;
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct page *xor_dest;
 	int prexor = 0;
@@ -811,13 +818,11 @@ ops_run_postxor(struct stripe_head *sh, struct dma_async_tx_descriptor *tx)
 
 	atomic_inc(&sh->count);
 
-	if (unlikely(count == 1)) {
-		flags &= ~(ASYNC_TX_XOR_DROP_DST | ASYNC_TX_XOR_ZERO_DST);
-		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE,
-			flags, tx, ops_complete_postxor, sh);
-	} else
-		tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
-			flags, tx, ops_complete_postxor, sh);
+	init_async_submit(&submit, flags, tx, ops_complete_postxor, sh, NULL);
+	if (unlikely(count == 1))
+		tx = async_memcpy(xor_dest, xor_srcs[0], 0, 0, STRIPE_SIZE, &submit);
+	else
+		tx = async_xor(xor_dest, xor_srcs, 0, count, STRIPE_SIZE, &submit);
 }
 
 static void ops_complete_check(void *stripe_head_ref)
@@ -838,6 +843,7 @@ static void ops_run_check(struct stripe_head *sh)
 	int disks = sh->disks;
 	struct page *xor_srcs[disks];
 	struct dma_async_tx_descriptor *tx;
+	struct async_submit_ctl submit;
 
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct page *xor_dest = xor_srcs[count++] = sh->dev[pd_idx].page;
@@ -851,12 +857,13 @@ static void ops_run_check(struct stripe_head *sh)
 			xor_srcs[count++] = dev->page;
 	}
 
+	init_async_submit(&submit, 0, NULL, NULL, NULL, NULL);
 	tx = async_xor_val(xor_dest, xor_srcs, 0, count, STRIPE_SIZE,
-		&sh->ops.zero_sum_result, 0, NULL, NULL, NULL);
+			   &sh->ops.zero_sum_result, &submit);
 
 	atomic_inc(&sh->count);
-	tx = async_trigger_callback(ASYNC_TX_ACK, tx,
-		ops_complete_check, sh);
+	init_async_submit(&submit, ASYNC_TX_ACK, tx, ops_complete_check, sh, NULL);
+	tx = async_trigger_callback(&submit);
 }
 
 static void raid5_run_ops(struct stripe_head *sh, unsigned long ops_request)
@@ -2664,6 +2671,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 		if (i != sh->pd_idx && i != sh->qd_idx) {
 			int dd_idx, j;
 			struct stripe_head *sh2;
+			struct async_submit_ctl submit;
 
 			sector_t bn = compute_blocknr(sh, i, 1);
 			sector_t s = raid5_compute_sector(conf, bn, 0,
@@ -2683,9 +2691,10 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 			}
 
 			/* place all the copies on one channel */
+			init_async_submit(&submit, 0, tx, NULL, NULL, NULL);
 			tx = async_memcpy(sh2->dev[dd_idx].page,
 					  sh->dev[i].page, 0, 0, STRIPE_SIZE,
-					  0, tx, NULL, NULL);
+					  &submit);
 
 			set_bit(R5_Expanded, &sh2->dev[dd_idx].flags);
 			set_bit(R5_UPTODATE, &sh2->dev[dd_idx].flags);
