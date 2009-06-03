@@ -48,6 +48,8 @@ int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
 int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
 int sysctl_perf_counter_limit __read_mostly = 100000; /* max NMIs per second */
 
+static atomic64_t perf_counter_id;
+
 /*
  * Lock for (sysadmin-configurable) counter reservations:
  */
@@ -3351,14 +3353,18 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 
 	mutex_init(&counter->mmap_mutex);
 
-	counter->cpu			= cpu;
+	counter->cpu		= cpu;
 	counter->attr		= *attr;
-	counter->group_leader		= group_leader;
-	counter->pmu			= NULL;
-	counter->ctx			= ctx;
-	counter->oncpu			= -1;
+	counter->group_leader	= group_leader;
+	counter->pmu		= NULL;
+	counter->ctx		= ctx;
+	counter->oncpu		= -1;
 
-	counter->state = PERF_COUNTER_STATE_INACTIVE;
+	counter->ns		= get_pid_ns(current->nsproxy->pid_ns);
+	counter->id		= atomic64_inc_return(&perf_counter_id);
+
+	counter->state		= PERF_COUNTER_STATE_INACTIVE;
+
 	if (attr->disabled)
 		counter->state = PERF_COUNTER_STATE_OFF;
 
@@ -3402,6 +3408,8 @@ done:
 		err = PTR_ERR(pmu);
 
 	if (err) {
+		if (counter->ns)
+			put_pid_ns(counter->ns);
 		kfree(counter);
 		return ERR_PTR(err);
 	}
@@ -3418,8 +3426,6 @@ done:
 
 	return counter;
 }
-
-static atomic64_t perf_counter_id;
 
 /**
  * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
@@ -3514,9 +3520,6 @@ SYSCALL_DEFINE5(perf_counter_open,
 	mutex_lock(&current->perf_counter_mutex);
 	list_add_tail(&counter->owner_entry, &current->perf_counter_list);
 	mutex_unlock(&current->perf_counter_mutex);
-
-	counter->ns = get_pid_ns(current->nsproxy->pid_ns);
-	counter->id = atomic64_inc_return(&perf_counter_id);
 
 	fput_light(counter_file, fput_needed2);
 
