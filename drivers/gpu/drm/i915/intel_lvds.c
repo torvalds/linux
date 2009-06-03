@@ -387,7 +387,7 @@ static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 }
 
 /* These systems claim to have LVDS, but really don't */
-static const struct dmi_system_id __initdata intel_no_lvds[] = {
+static const struct dmi_system_id intel_no_lvds[] = {
 	{
 		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core series)",
