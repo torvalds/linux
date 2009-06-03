@@ -10,7 +10,7 @@
 
 #include "pata_rdc.h"
 
-//#define DBGPRINTF
+/* #define DBGPRINTF */
 
 #ifdef DBGPRINTF
 
@@ -22,113 +22,111 @@
 
 #endif
 
-// Driver Info.
-
-#define DRIVER_NAME         "pata_rdc"  // sata_rdc for SATA
-#define DRIVER_VERSION      "2.6.28"    // based on kernel version.
-                                        // because each kernel main version has its libata, we follow kernel to determine the last libata version.
+/* Driver Info. */
+#define DRIVER_NAME         "pata_rdc"	/* sata_rdc for SATA */
+#define DRIVER_VERSION      "2.6.28"    /* based on kernel version. */
+					/* because each kernel main version has
+					 * its libata, we follow kernel to
+					 * determine the last libata version.
+					 */
 
 
 static const struct pci_device_id rdc_pata_id_table[] = {
-    { 0x17F3, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31011},
-    { 0x17F3, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31012},
-    { }    /* terminate list */
+	{ 0x17F3, 0x1011, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31011},
+	{ 0x17F3, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RDC_17F31012},
+	{ }	/* terminate list */
 };
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("this version author is RDC");    // replace "RDC" with the last maintainer.
+MODULE_AUTHOR("this version author is RDC");    /* replace "RDC" with the last maintainer. */
 MODULE_DESCRIPTION("RDC PCI IDE Driver");
 MODULE_DEVICE_TABLE(pci, rdc_pata_id_table);
 MODULE_VERSION(DRIVER_VERSION);
 
-// a pci driver
+/* a pci driver */
 static struct pci_driver rdc_pata_driver = {
-    .name           = DRIVER_NAME,
-    .id_table       = rdc_pata_id_table,
-    .probe          = rdc_init_one,
-    .remove         = ata_pci_remove_one,
+	.name		= DRIVER_NAME,
+	.id_table	= rdc_pata_id_table,
+	.probe		= rdc_init_one,
+	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
-    .suspend        = ata_pci_device_suspend,
-    .resume         = ata_pci_device_resume,
+	.suspend	= ata_pci_device_suspend,
+	.resume		= ata_pci_device_resume,
 #endif
 };
 
-static unsigned int in_module_init = 1; // hotplugging check???
+static unsigned int in_module_init = 1; /* hotplugging check??? */
 static int __init pata_rdc_init(void)
 {
-    int rc;
+	int rc;
 
-    dbgprintf("pata_rdc_init\n");
-    rc = pci_register_driver(&rdc_pata_driver);
-    if (rc)
-    {
-        dbgprintf("pata_rdc_init faile\n");
-        return rc;
-    }
+	dbgprintf("pata_rdc_init\n");
+	rc = pci_register_driver(&rdc_pata_driver);
+	if (rc) {
+		dbgprintf("pata_rdc_init faile\n");
+		return rc;
+	}
 
-    in_module_init = 0;
+	in_module_init = 0;
 
-    return 0;
+	return 0;
 }
 
 static void __exit pata_rdc_exit(void)
 {
-    dbgprintf("pata_rdc_exit\n");
-    pci_unregister_driver(&rdc_pata_driver);
+	dbgprintf("pata_rdc_exit\n");
+	pci_unregister_driver(&rdc_pata_driver);
 }
 
 module_init(pata_rdc_init);
 module_exit(pata_rdc_exit);
 
-// ata device data
+/* ata device data */
 
-static struct pci_bits ATA_Decode_Enable_Bits[] = { // see ATA Host Adapters Standards.
-    { 0x41U, 1U, 0x80UL, 0x80UL },    /* port (Channel) 0 */
-    { 0x43U, 1U, 0x80UL, 0x80UL },    /* port (Channel) 1 */
+/* see ATA Host Adapters Standards. */
+static struct pci_bits ATA_Decode_Enable_Bits[] = {
+	{ 0x41U, 1U, 0x80UL, 0x80UL },	/* port (Channel) 0 */
+	{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port (Channel) 1 */
 };
 
-static struct scsi_host_template rdc_pata_sht = {    // pata host template
-    ATA_BMDMA_SHT(DRIVER_NAME),
+/* pata host template */
+static struct scsi_host_template rdc_pata_sht = {
+	ATA_BMDMA_SHT(DRIVER_NAME),
 };
 
 static const struct ata_port_operations rdc_pata_ops = {
-    .inherits           = &ata_bmdma_port_ops,
+	.inherits	= &ata_bmdma_port_ops,
 
-    .port_start         = rdc_pata_port_start,
-    .port_stop          = rdc_pata_port_stop,
-    .prereset           = rdc_pata_prereset,
-    .cable_detect       = rdc_pata_cable_detect,
-    .set_piomode        = rdc_pata_set_piomode,
-    .set_dmamode        = rdc_pata_set_dmamode,
-
+	.port_start	= rdc_pata_port_start,
+	.port_stop	= rdc_pata_port_stop,
+	.prereset	= rdc_pata_prereset,
+	.cable_detect	= rdc_pata_cable_detect,
+	.set_piomode	= rdc_pata_set_piomode,
+	.set_dmamode	= rdc_pata_set_dmamode,
 };
 
 static struct ata_port_info rdc_pata_port_info[] = {
-    [RDC_17F31011] =
-    {
-        .flags          = ATA_FLAG_SLAVE_POSS,
-        .pio_mask       = 0x1f,    /* pio0-4 */
-        .mwdma_mask     = 0x07, /* mwdma0-2 */
-        .udma_mask      = ATA_UDMA5, /* udma0-5 */
-        .port_ops       = &rdc_pata_ops,
-    },
+	[RDC_17F31011] = {
+	.flags		= ATA_FLAG_SLAVE_POSS,
+	.pio_mask	= 0x1f,		/* pio0-4 */
+	.mwdma_mask	= 0x07,		/* mwdma0-2 */
+	.udma_mask	= ATA_UDMA5,	/* udma0-5 */
+	.port_ops	= &rdc_pata_ops,
+	},
 
-    [RDC_17F31012] =
-    {
-        .flags          = ATA_FLAG_SLAVE_POSS,
-        .pio_mask       = 0x1f,    /* pio0-4 */
-        .mwdma_mask     = 0x07, /* mwdma0-2 */
-        .udma_mask      = ATA_UDMA5, /* udma0-5 */
-        .port_ops       = &rdc_pata_ops,
-    },
-
-
+	[RDC_17F31012] = {
+	.flags		= ATA_FLAG_SLAVE_POSS,
+	.pio_mask	= 0x1f,		/* pio0-4 */
+	.mwdma_mask	= 0x07,		/* mwdma0-2 */
+	.udma_mask	= ATA_UDMA5,	/* udma0-5 */
+	.port_ops	= &rdc_pata_ops,
+	},
 };
 
 
 
 
-// callback function for pci_driver
+/* callback function for pci_driver */
 
 /**
  *    Register ATA PCI device with kernel services
@@ -141,43 +139,39 @@ static struct ata_port_info rdc_pata_port_info[] = {
  *    RETURNS:
  *    Zero on success, or -ERRNO value.
  */
-static int __devinit rdc_init_one(
-    struct pci_dev *pdev,
-    const struct pci_device_id *ent
-    )
+static int __devinit rdc_init_one(struct pci_dev *pdev,
+				  const struct pci_device_id *ent)
 {
-    //struct device *dev = &pdev->dev;
-    struct ata_port_info port_info[2];
-    const struct ata_port_info *ppinfo[] = { &port_info[0], &port_info[1] };
+	/*struct device *dev = &pdev->dev; */
+	struct ata_port_info port_info[2];
+	const struct ata_port_info *ppinfo[] = { &port_info[0], &port_info[1] };
 
-    int rc;
+	int rc;
 
-    dbgprintf("rdc_init_one\n");
+	dbgprintf("rdc_init_one\n");
 
-    /* no hotplugging support (FIXME) */ // why???
-    if (!in_module_init)
-    {
-        dbgprintf("rdc_init_one in_module_init == 0 failed \n");
-        return -ENODEV;
-    }
-    port_info[0] = rdc_pata_port_info[ent->driver_data];
-    port_info[1] = rdc_pata_port_info[ent->driver_data];
+	/* no hotplugging support (FIXME) */ /* why??? */
+	if (!in_module_init) {
+		dbgprintf("rdc_init_one in_module_init == 0 failed \n");
+		return -ENODEV;
+	}
+	port_info[0] = rdc_pata_port_info[ent->driver_data];
+	port_info[1] = rdc_pata_port_info[ent->driver_data];
 
-    /* enable device and prepare host */
-    rc = pci_enable_device(pdev);
-    if (rc)
-    {
-        dbgprintf("rdc_init_one pci_enable_device failed \n");
-        return rc;
-    }
-    /* initialize controller */
+	/* enable device and prepare host */
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		dbgprintf("rdc_init_one pci_enable_device failed \n");
+		return rc;
+	}
+	/* initialize controller */
 
-    pci_intx(pdev, 1);  // enable interrupt
+	pci_intx(pdev, 1);  /* enable interrupt */
 
-    return ata_pci_sff_init_one(pdev, ppinfo, &rdc_pata_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppinfo, &rdc_pata_sht, NULL);
 }
 
-// callback function for ata_port
+/* callback function for ata_port */
 
 /**
  *    Set port up for dma.
@@ -196,34 +190,27 @@ static int __devinit rdc_init_one(
  *    LOCKING:
  *    Inherited from caller.
  */
-static int rdc_pata_port_start(
-    struct ata_port *ap
-    )
+static int rdc_pata_port_start(struct ata_port *ap)
 {
-    uint    Channel;
+	uint    Channel;
 
-    Channel = ap->port_no;
-    dbgprintf("rdc_pata_port_start Channel: %u \n", Channel);
-    if (ap->ioaddr.bmdma_addr)
-    {
-        return ata_port_start(ap);
-    }
-    else
-    {
-        dbgprintf("rdc_pata_port_start return 0 !!!\n");
-        return 0;
-    }
+	Channel = ap->port_no;
+	dbgprintf("rdc_pata_port_start Channel: %u \n", Channel);
+	if (ap->ioaddr.bmdma_addr) {
+		return ata_port_start(ap);
+	} else {
+		dbgprintf("rdc_pata_port_start return 0 !!!\n");
+		return 0;
+	}
 }
 
-static void rdc_pata_port_stop(
-    struct ata_port *ap
-    )
+static void rdc_pata_port_stop(struct ata_port *ap)
 {
-    uint    Channel;
+	uint    Channel;
 
-    Channel = ap->port_no;
+	Channel = ap->port_no;
 
-    dbgprintf("rdc_pata_port_stop Channel: %u \n", Channel);
+	dbgprintf("rdc_pata_port_stop Channel: %u \n", Channel);
 }
 
 /**
@@ -234,34 +221,27 @@ static void rdc_pata_port_stop(
  *    LOCKING:
  *    None (inherited from caller).
  */
-static int rdc_pata_prereset(
-    struct ata_link *link,
-    unsigned long deadline
-    )
+static int rdc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
-    struct pci_dev *pdev;
-    struct ata_port *ap;
+	struct pci_dev *pdev;
+	struct ata_port *ap;
+	uint Channel;
 
-    uint    Channel;
+	dbgprintf("rdc_pata_prereset\n");
 
-    dbgprintf("rdc_pata_prereset\n");
+	ap = link->ap;
+	pdev = to_pci_dev(ap->host->dev);
 
-    ap = link->ap;
-    pdev = to_pci_dev(ap->host->dev);
+	Channel = ap->port_no;
 
-    Channel = ap->port_no;
-
-    // test ATA Decode Enable Bits, should be enable.
-    if (!pci_test_config_bits(pdev, &ATA_Decode_Enable_Bits[Channel]))
-    {
-        dbgprintf("rdc_pata_prereset Channel: %u, Decode Disable\n", Channel);
-        return -ENOENT;
-    }
-    else
-    {
-        dbgprintf("rdc_pata_prereset Channel: %u, Decode Enable\n", Channel);
-        return ata_std_prereset(link, deadline);
-    }
+	/* test ATA Decode Enable Bits, should be enable. */
+	if (!pci_test_config_bits(pdev, &ATA_Decode_Enable_Bits[Channel])) {
+		dbgprintf("rdc_pata_prereset Channel: %u, Decode Disable\n", Channel);
+		return -ENOENT;
+	} else {
+		dbgprintf("rdc_pata_prereset Channel: %u, Decode Enable\n", Channel);
+		return ata_std_prereset(link, deadline);
+	}
 }
 
 /**
@@ -274,46 +254,34 @@ static int rdc_pata_prereset(
  *    LOCKING:
  *    None (inherited from caller).
  */
-
-static int rdc_pata_cable_detect(
-    struct ata_port *ap
-    )
+static int rdc_pata_cable_detect(struct ata_port *ap)
 {
-    struct pci_dev *pdev;
+	struct pci_dev *pdev;
+	uint Channel;
+	uint Mask;
+	u32 u32Value;
 
-    uint    Channel;
+	dbgprintf("rdc_pata_cable_detect\n");
 
-    uint    Mask;
-    u32     u32Value;
+	pdev = to_pci_dev(ap->host->dev);
 
-    dbgprintf("rdc_pata_cable_detect\n");
+	Channel = ap->port_no;
 
-    pdev = to_pci_dev(ap->host->dev);
+	if (Channel == 0)
+		Mask = ATAConfiguration_IDEIOConfiguration_PrimaryDeviceCable80Report;
+	else
+		Mask = ATAConfiguration_IDEIOConfiguration_SecondaryDeviceCable80Report;
 
-    Channel = ap->port_no;
+	/* check BIOS cable detect results */
+	pci_read_config_dword(pdev, ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset, &u32Value);
 
-    if (Channel == 0)
-    {
-        Mask = ATAConfiguration_IDEIOConfiguration_PrimaryDeviceCable80Report;
-    }
-    else
-    {
-        Mask = ATAConfiguration_IDEIOConfiguration_SecondaryDeviceCable80Report;
-    }
-
-    /* check BIOS cable detect results */
-    pci_read_config_dword(pdev, ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset, &u32Value);
-
-    if ((u32Value & Mask) == 0)
-    {
-        dbgprintf("rdc_pata_cable_detect Channel: %u, PATA40 \n", Channel);
-        return ATA_CBL_PATA40;
-    }
-    else
-    {
-        dbgprintf("rdc_pata_cable_detect Channel: %u, PATA80 \n", Channel);
-        return ATA_CBL_PATA80;
-    }
+	if ((u32Value & Mask) == 0) {
+		dbgprintf("rdc_pata_cable_detect Channel: %u, PATA40 \n", Channel);
+		return ATA_CBL_PATA40;
+	} else {
+		dbgprintf("rdc_pata_cable_detect Channel: %u, PATA80 \n", Channel);
+		return ATA_CBL_PATA80;
+	}
 }
 
 /**
@@ -326,80 +294,73 @@ static int rdc_pata_cable_detect(
  *    LOCKING:
  *    None (inherited from caller).
  */
-
-static void rdc_pata_set_piomode(
-    struct ata_port *ap,
-    struct ata_device *adev
-    )
+static void rdc_pata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-    struct pci_dev *pdev;
+	struct pci_dev *pdev;
+	uint    Channel;
+	uint    DeviceID;
+	uint    PIOTimingMode;
+	uint    PrefetchPostingEnable;
 
-    uint    Channel;
-    uint    DeviceID;
+	dbgprintf("rdc_pata_set_piomode\n");
 
-    uint    PIOTimingMode;
-    uint    PrefetchPostingEnable;
+	pdev = to_pci_dev(ap->host->dev);
 
-    dbgprintf("rdc_pata_set_piomode\n");
+	Channel = ap->port_no;
+	DeviceID = adev->devno;
+	/*
+	 * piomode = 0, 1, 2, 3... ; adev->pio_mode = XFER_PIO_0, XFER_PIO_1,
+	 * XFER_PIO_2, XFER_PIO_3...
+	 */
+	PIOTimingMode = adev->pio_mode - XFER_PIO_0;
 
-    pdev    = to_pci_dev(ap->host->dev);
+	if (adev->class == ATA_DEV_ATA) {
+		PrefetchPostingEnable = TRUE;
+	} else {
+		/* ATAPI, CD DVD Rom */
+		PrefetchPostingEnable = FALSE;
+	}
 
-    Channel = ap->port_no;
-    DeviceID = adev->devno;
-    PIOTimingMode = adev->pio_mode - XFER_PIO_0;  // piomode = 0, 1, 2, 3... ; adev->pio_mode = XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3...
+	/* PIO configuration clears DTE unconditionally.  It will be
+	 * programmed in set_dmamode which is guaranteed to be called
+	 * after set_piomode if any DMA mode is available.
+	 */
 
-    if (adev->class == ATA_DEV_ATA)
-    {
-        PrefetchPostingEnable = TRUE;
-    }
-    else
-    {   // ATAPI, CD DVD Rom
-        PrefetchPostingEnable = FALSE;
-    }
+	/* Ensure the UDMA bit is off - it will be turned back on if UDMA is
+	 * selected */
 
-    /* PIO configuration clears DTE unconditionally.  It will be
-     * programmed in set_dmamode which is guaranteed to be called
-     * after set_piomode if any DMA mode is available.
-     */
+	if (Channel == 0) {
+		ATAHostAdapter_SetPrimaryPIO(
+		    pdev,
+		    DeviceID,
+		    PIOTimingMode,
+		    TRUE,/* DMAEnable, */
+		    PrefetchPostingEnable
+		    );
 
-     /* Ensure the UDMA bit is off - it will be turned back on if
-       UDMA is selected */
+		ATAHostAdapter_SetPrimaryUDMA(
+		    pdev,
+		    DeviceID,
+		    FALSE,/* UDMAEnable, */
+		    UDMA0
+		    );
+	} else {
+		ATAHostAdapter_SetSecondaryPIO(
+		    pdev,
+		    DeviceID,
+		    PIOTimingMode,
+		    TRUE,/* DMAEnable, */
+		    PrefetchPostingEnable
+		    );
 
-    if (Channel == 0)
-    {
-        ATAHostAdapter_SetPrimaryPIO(
-            pdev,
-            DeviceID,
-            PIOTimingMode,
-            TRUE,//DMAEnable,
-            PrefetchPostingEnable
-            );
-
-        ATAHostAdapter_SetPrimaryUDMA(
-            pdev,
-            DeviceID,
-            FALSE,//UDMAEnable,
-            UDMA0
-            );
-    }
-    else
-    {
-        ATAHostAdapter_SetSecondaryPIO(
-            pdev,
-            DeviceID,
-            PIOTimingMode,
-            TRUE,//DMAEnable,
-            PrefetchPostingEnable
-            );
-
-        ATAHostAdapter_SetSecondaryUDMA(
-            pdev,
-            DeviceID,
-            FALSE,//UDMAEnable,
-            UDMA0
-            );
-    }
-    dbgprintf("rdc_pata_set_piomode Channel: %u, DeviceID: %u, PIO: %d \n", Channel, DeviceID, PIOTimingMode);
+		ATAHostAdapter_SetSecondaryUDMA(
+		    pdev,
+		    DeviceID,
+		    FALSE,/* UDMAEnable, */
+		    UDMA0
+		    );
+	}
+	dbgprintf("rdc_pata_set_piomode Channel: %u, DeviceID: %u, PIO: %d \n", Channel, DeviceID, PIOTimingMode);
 }
 
 /**
@@ -412,992 +373,694 @@ static void rdc_pata_set_piomode(
  *    LOCKING:
  *    None (inherited from caller).
  */
-
-static void rdc_pata_set_dmamode(
-    struct ata_port *ap,
-    struct ata_device *adev
-    )
+static void rdc_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-    struct pci_dev *pdev;
+	struct pci_dev *pdev;
+	uint    Channel;
+	uint    DeviceID;
+	uint    PIOTimingMode;
+	uint    PrefetchPostingEnable;
+	uint    DMATimingMode;
+	uint    UDMAEnable;
 
-    uint    Channel;
-    uint    DeviceID;
+	dbgprintf("rdc_pata_set_dmamode\n");
 
-    uint    PIOTimingMode;
-    uint    PrefetchPostingEnable;
-    uint    DMATimingMode;
-    uint    UDMAEnable;
+	pdev = to_pci_dev(ap->host->dev);
 
-    dbgprintf("rdc_pata_set_dmamode\n");
+	Channel = ap->port_no;
+	DeviceID = adev->devno;
+	PIOTimingMode = adev->pio_mode - XFER_PIO_0;  /* piomode = 0, 1, 2, 3... ; adev->pio_mode = XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3... */
+	DMATimingMode = adev->dma_mode; /* UDMA or MDMA */
 
-    pdev    = to_pci_dev(ap->host->dev);
+	if (adev->class == ATA_DEV_ATA) {
+		PrefetchPostingEnable = TRUE;
+	} else {
+		/* ATAPI, CD DVD Rom */
+		PrefetchPostingEnable = FALSE;
+	}
 
-    Channel = ap->port_no;
-    DeviceID = adev->devno;
-    PIOTimingMode = adev->pio_mode - XFER_PIO_0;  // piomode = 0, 1, 2, 3... ; adev->pio_mode = XFER_PIO_0, XFER_PIO_1, XFER_PIO_2, XFER_PIO_3...
-    DMATimingMode = adev->dma_mode; // UDMA or MDMA
+	if (ap->udma_mask == 0) {
+		/* ata_port dont support udma. depend on hardware spec. */
+		UDMAEnable = FALSE;
+	} else {
+		UDMAEnable = TRUE;
+	}
 
-    if (adev->class == ATA_DEV_ATA)
-    {
-        PrefetchPostingEnable = TRUE;
-    }
-    else
-    {   // ATAPI, CD DVD Rom
-        PrefetchPostingEnable = FALSE;
-    }
+	/*if (ap->mdma_mask == 0) {
+	}*/
 
-    if (ap->udma_mask == 0)
-    {   // ata_port dont support udma. depend on hardware spec.
-        UDMAEnable = FALSE;
-    }
-    else
-    {
-        UDMAEnable = TRUE;
-    }
+	if (Channel == 0) {
+		if (DMATimingMode >= XFER_UDMA_0) {
+			/* UDMA */
+			ATAHostAdapter_SetPrimaryPIO(pdev,
+				DeviceID,
+				PIOTimingMode,
+				TRUE,/*DMAEnable,*/
+				PrefetchPostingEnable);
 
-    /*if (ap->mdma_mask == 0)
-    {
-    }*/
+			ATAHostAdapter_SetPrimaryUDMA(pdev,
+				DeviceID,
+				UDMAEnable,
+				DMATimingMode - XFER_UDMA_0);
+			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
+		} else {
+			/* MDMA */
+			ATAHostAdapter_SetPrimaryPIO(pdev,
+				DeviceID,
+				(DMATimingMode - XFER_MW_DMA_0) + PIO2, /* MDMA0 = PIO2 */
+				TRUE,/*DMAEnable,*/
+				PrefetchPostingEnable);
 
-    if (Channel == 0)
-    {
-        if (DMATimingMode >= XFER_UDMA_0)
-        {   // UDMA
-            ATAHostAdapter_SetPrimaryPIO(
-                pdev,
-                DeviceID,
-                PIOTimingMode,
-                TRUE,//DMAEnable,
-                PrefetchPostingEnable
-                );
+			ATAHostAdapter_SetPrimaryUDMA(pdev,
+				DeviceID,
+				FALSE,/*UDMAEnable,*/
+				UDMA0);
+			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
+		}
+	} else {
+		if (DMATimingMode >= XFER_UDMA_0) {
+			/* UDMA */
+			ATAHostAdapter_SetSecondaryPIO(pdev,
+				DeviceID,
+				PIOTimingMode,
+				TRUE,/*DMAEnable,*/
+				PrefetchPostingEnable);
 
-            ATAHostAdapter_SetPrimaryUDMA(
-                pdev,
-                DeviceID,
-                UDMAEnable,
-                DMATimingMode - XFER_UDMA_0
-                );
-            dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
-        }
-        else
-        {   // MDMA
-            ATAHostAdapter_SetPrimaryPIO(
-                pdev,
-                DeviceID,
-                (DMATimingMode - XFER_MW_DMA_0) + PIO2, // MDMA0 = PIO2
-                TRUE,//DMAEnable,
-                PrefetchPostingEnable
-                );
+			ATAHostAdapter_SetSecondaryUDMA(pdev,
+				DeviceID,
+				UDMAEnable,
+				DMATimingMode - XFER_UDMA_0);
+			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
+		} else {
+			/* MDMA */
+			ATAHostAdapter_SetSecondaryPIO(pdev,
+				DeviceID,
+				(DMATimingMode - XFER_MW_DMA_0) + PIO2, /* MDMA0 = PIO2 */
+				TRUE,/*DMAEnable,*/
+				PrefetchPostingEnable);
 
-            ATAHostAdapter_SetPrimaryUDMA(
-                pdev,
-                DeviceID,
-                FALSE,//UDMAEnable,
-                UDMA0
-                );
-            dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
-        }
-    }
-    else
-    {
-        if (DMATimingMode >= XFER_UDMA_0)
-        {   // UDMA
-            ATAHostAdapter_SetSecondaryPIO(
-                pdev,
-                DeviceID,
-                PIOTimingMode,
-                TRUE,//DMAEnable,
-                PrefetchPostingEnable
-                );
-
-            ATAHostAdapter_SetSecondaryUDMA(
-                pdev,
-                DeviceID,
-                UDMAEnable,
-                DMATimingMode - XFER_UDMA_0
-                );
-            dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, UDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_UDMA_0));
-        }
-        else
-        {   // MDMA
-            ATAHostAdapter_SetSecondaryPIO(
-                pdev,
-                DeviceID,
-                (DMATimingMode - XFER_MW_DMA_0) + PIO2, // MDMA0 = PIO2
-                TRUE,//DMAEnable,
-                PrefetchPostingEnable
-                );
-
-            ATAHostAdapter_SetSecondaryUDMA(
-                pdev,
-                DeviceID,
-                FALSE,//UDMAEnable,
-                UDMA0
-                );
-            dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
-        }
-    }
+			ATAHostAdapter_SetSecondaryUDMA(pdev,
+				DeviceID,
+				FALSE,/*UDMAEnable,*/
+				UDMA0);
+			dbgprintf("rdc_pata_set_dmamode Channel: %u, DeviceID: %u, MDMA: %u \n", Channel, DeviceID, (uint)(DMATimingMode - XFER_MW_DMA_0));
+		}
+	}
 }
 
-// modified PCIDeviceIO code.
+/* modified PCIDeviceIO code. */
 
-static uint
-PCIDeviceIO_ReadPCIConfiguration(
-    struct pci_dev *pdev,
-    uint           Offset,
-    uint           Length,
-    void*          pBuffer
-    )
+static uint PCIDeviceIO_ReadPCIConfiguration(struct pci_dev *pdev, uint Offset, uint Length, void *pBuffer)
 {
-    uint    funcresult;
+	uint funcresult;
+	unchar *pchar;
+	uint i;
 
-    unchar* pchar;
+	funcresult = TRUE;
 
-    uint   i;
+	pchar = pBuffer;
 
-    funcresult = TRUE;
+	for (i = 0; i < Length; i++) {
+		pci_read_config_byte(pdev, Offset, pchar);
+		Offset++;
+		pchar++;
+	}
 
-    pchar = pBuffer;
+	funcresult = TRUE;
 
-    for (i = 0; i < Length; i++)
-    {
-        pci_read_config_byte(pdev, Offset, pchar);
-        Offset++;
-        pchar++;
-    }
-
-    funcresult = TRUE;
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
 
-    return funcresult;
+	return funcresult;
 }
 
-static uint
-PCIDeviceIO_WritePCIConfiguration(
-    struct pci_dev *pdev,
-    uint           Offset,
-    uint           Length,
-    void*          pBuffer
-    )
+static uint PCIDeviceIO_WritePCIConfiguration(struct pci_dev *pdev, uint Offset, uint Length, void *pBuffer)
 {
-    uint    funcresult;
+	uint funcresult;
+	unchar *pchar;
+	uint i;
 
-    unchar* pchar;
+	funcresult = TRUE;
 
-    uint   i;
+	pchar = pBuffer;
 
-    funcresult = TRUE;
+	for (i = 0; i < Length; i++) {
+		pci_write_config_byte(pdev, Offset, *pchar);
+		Offset++;
+		pchar++;
+	}
 
-    pchar = pBuffer;
+	funcresult = TRUE;
 
-    for (i = 0; i < Length; i++)
-    {
-        pci_write_config_byte(pdev, Offset, *pchar);
-        Offset++;
-        pchar++;
-    }
-
-    funcresult = TRUE;
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
 
-    return funcresult;
+	return funcresult;
 }
 
-
-// modified ATAHostAdapter code.
-
-static uint
-ATAHostAdapter_SetPrimaryPIO(
-    struct pci_dev *pdev,
-    uint                DeviceID,
-    uint                PIOTimingMode,
-    uint                DMAEnable,
-    uint                PrefetchPostingEnable
-    )
+/* modified ATAHostAdapter code. */
+static uint ATAHostAdapter_SetPrimaryPIO(struct pci_dev *pdev, uint DeviceID,
+					 uint PIOTimingMode, uint DMAEnable,
+					 uint PrefetchPostingEnable)
 {
-    uint    funcresult;
+	uint funcresult;
+	uint result;
+	uint ATATimingRegister;
+	uint Device1TimingRegister;
 
-    uint    result;
+	funcresult = TRUE;
 
-    uint    ATATimingRegister;
-    uint    Device1TimingRegister;
+	ATATimingRegister = 0;
+	Device1TimingRegister = 0;
 
-    funcresult = TRUE;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						 ATAConfiguration_ID_PrimaryTiming + ATAConfiguration_PCIOffset,
+						 ATAConfiguration_ID_PrimaryTiming_Size,
+						 &ATATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    ATATimingRegister = 0;
-    Device1TimingRegister = 0;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_Device1Timing_Size,
+						  &Device1TimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_PrimaryTiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_PrimaryTiming_Size,
-        &ATATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1TimingRegisterEnable;
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_Device1Timing_Size,
-        &Device1TimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	switch (DeviceID) {
+	case 0:
+		/* mask clear */
+		ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device0FastTimingEnable |
+				      ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable |
+				      ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable |
+				      ATAConfiguration_PrimaryTiming_Device0DMATimingEnable |
+				      ATAConfiguration_PrimaryTiming_Device0RecoveryMode |
+				      ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode);
 
-    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1TimingRegisterEnable;
+		if (PIOTimingMode > PIO0)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0FastTimingEnable;
 
-    switch(DeviceID)
-    {
-        case 0:
-            {
-                // mask clear
-                ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device0FastTimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable
-                    | ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0DMATimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0RecoveryMode
-                    | ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode
-                    );
+		if (PIOTimingMode >= PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable;
 
-                if (PIOTimingMode > PIO0)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0FastTimingEnable;
-                }
+		if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable;
 
-                if (PIOTimingMode >= PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable;
-                }
+		if (DMAEnable == TRUE && PIOTimingMode >= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0DMATimingEnable;
 
-                if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable;
-                }
+		if (PIOTimingMode <= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_0;
+		else if (PIOTimingMode == PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_1;
+		else if (PIOTimingMode == PIO4)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_3;
 
-                if (DMAEnable == TRUE
-                    && PIOTimingMode >= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0DMATimingEnable;
-                }
+		if (PIOTimingMode <= PIO1)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_0;
+		else if (PIOTimingMode == PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_1;
+		else if (PIOTimingMode <= PIO4)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_2;
+		break;
+	case 1:
+		ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device1FastTimingEnable |
+				       ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable |
+				       ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable |
+				       ATAConfiguration_PrimaryTiming_Device1DMATimingEnable);
 
-                if (PIOTimingMode <= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_0;
-                }
-                else if (PIOTimingMode == PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_1;
-                }
-                else if (PIOTimingMode == PIO4)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_3;
-                }
+		if (PIOTimingMode > PIO0)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1FastTimingEnable;
 
-                if (PIOTimingMode <= PIO1)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_0;
-                }
-                else if (PIOTimingMode == PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_1;
-                }
-                else if (PIOTimingMode <= PIO4)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_2;
-                }
-            }
-            break;
-        case 1:
-            {
-                ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device1FastTimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable
-                    | ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable
-                    | ATAConfiguration_PrimaryTiming_Device1DMATimingEnable
-                    );
+		if (PIOTimingMode >= PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable;
 
-                if (PIOTimingMode > PIO0)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1FastTimingEnable;
-                }
+		if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable;
 
-                if (PIOTimingMode >= PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable;
-                }
+		if (DMAEnable == TRUE && PIOTimingMode >= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1DMATimingEnable;
 
-                if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable;
-                }
+		Device1TimingRegister &= ~(ATAConfiguration_Device1Timing_PrimaryRecoveryMode |
+					   ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode);
 
-                if (DMAEnable == TRUE
-                    && PIOTimingMode >= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1DMATimingEnable;
-                }
+		if (PIOTimingMode <= PIO2)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_0;
+		else if (PIOTimingMode == PIO3)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_1;
+		else if (PIOTimingMode == PIO4)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_3;
 
-                Device1TimingRegister &= ~(ATAConfiguration_Device1Timing_PrimaryRecoveryMode | ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode);
+		if (PIOTimingMode <= PIO1)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_0;
+		else if (PIOTimingMode == PIO2)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_1;
+		else if (PIOTimingMode <= PIO4)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_2;
+		break;
+	default:
+		funcresult = FALSE;
+		goto funcexit;
+		break;
+	}
 
-                if (PIOTimingMode <= PIO2)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_0;
-                }
-                else if (PIOTimingMode == PIO3)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_1;
-                }
-                else if (PIOTimingMode == PIO4)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryRecoveryMode_3;
-                }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_PrimaryTiming + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_PrimaryTiming_Size,
+						   &ATATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                if (PIOTimingMode <= PIO1)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_0;
-                }
-                else if (PIOTimingMode == PIO2)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_1;
-                }
-                else if (PIOTimingMode <= PIO4)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_PrimaryIORDYSampleMode_2;
-                }
-            }
-            break;
-        default:
-            {
-                funcresult = FALSE;
-                goto funcexit;
-            }
-            break;
-    }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_Device1Timing_Size,
+						   &Device1TimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_PrimaryTiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_PrimaryTiming_Size,
-        &ATATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_Device1Timing_Size,
-        &Device1TimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
 
-    return funcresult;
+	return funcresult;
 }
 
-static uint
-ATAHostAdapter_SetSecondaryPIO(
-    struct pci_dev *pdev,
-    uint                DeviceID,
-    uint                PIOTimingMode,
-    uint                DMAEnable,
-    uint                PrefetchPostingEnable
-    )
+static uint ATAHostAdapter_SetSecondaryPIO(struct pci_dev *pdev, uint DeviceID,
+					   uint PIOTimingMode, uint DMAEnable,
+					   uint PrefetchPostingEnable)
 {
-    uint    funcresult;
+	uint funcresult;
+	uint result;
+	uint ATATimingRegister;
+	uint Device1TimingRegister;
 
-    uint    result;
+	funcresult = TRUE;
 
-    uint    ATATimingRegister;
-    uint    Device1TimingRegister;
+	ATATimingRegister = 0;
+	Device1TimingRegister = 0;
 
-    funcresult = TRUE;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_SecondaryTiming + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_SecondaryTiming_Size,
+						  &ATATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    ATATimingRegister = 0;
-    Device1TimingRegister = 0;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_Device1Timing_Size,
+						  &Device1TimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_SecondaryTiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_SecondaryTiming_Size,
-        &ATATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1TimingRegisterEnable;
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_Device1Timing_Size,
-        &Device1TimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	switch (DeviceID) {
+	case 0:
+		/* mask clear */
+		ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device0FastTimingEnable |
+				       ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable |
+				       ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable |
+				       ATAConfiguration_PrimaryTiming_Device0DMATimingEnable |
+				       ATAConfiguration_PrimaryTiming_Device0RecoveryMode |
+				       ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode);
 
-    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1TimingRegisterEnable;
+		if (PIOTimingMode > PIO0)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0FastTimingEnable;
 
-    switch(DeviceID)
-    {
-        case 0:
-            {
-                // mask clear
-                ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device0FastTimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable
-                    | ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0DMATimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device0RecoveryMode
-                    | ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode
-                    );
+		if (PIOTimingMode >= PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable;
 
-                if (PIOTimingMode > PIO0)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0FastTimingEnable;
-                }
+		if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable;
 
-                if (PIOTimingMode >= PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleModeEnable;
-                }
+		if (DMAEnable == TRUE && PIOTimingMode >= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0DMATimingEnable;
 
-                if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0PrefetchandPostingEnable;
-                }
+		if (PIOTimingMode <= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_0;
+		else if (PIOTimingMode == PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_1;
+		else if (PIOTimingMode == PIO4)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_3;
 
-                if (DMAEnable == TRUE
-                    && PIOTimingMode >= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0DMATimingEnable;
-                }
+		if (PIOTimingMode <= PIO1)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_0;
+		else if (PIOTimingMode == PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_1;
+		else if (PIOTimingMode <= PIO4)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_2;
+		break;
+	case 1:
+		ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device1FastTimingEnable |
+				       ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable |
+				       ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable |
+				       ATAConfiguration_PrimaryTiming_Device1DMATimingEnable);
 
-                if (PIOTimingMode <= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_0;
-                }
-                else if (PIOTimingMode == PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_1;
-                }
-                else if (PIOTimingMode == PIO4)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0RecoveryMode_3;
-                }
+		if (PIOTimingMode > PIO0)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1FastTimingEnable;
 
-                if (PIOTimingMode <= PIO1)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_0;
-                }
-                else if (PIOTimingMode == PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_1;
-                }
-                else if (PIOTimingMode <= PIO4)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device0IORDYSampleMode_2;
-                }
-            }
-            break;
-        case 1:
-            {
-                ATATimingRegister &= ~(ATAConfiguration_PrimaryTiming_Device1FastTimingEnable
-                    | ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable
-                    | ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable
-                    | ATAConfiguration_PrimaryTiming_Device1DMATimingEnable
-                    );
+		if (PIOTimingMode >= PIO3)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable;
 
-                if (PIOTimingMode > PIO0)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1FastTimingEnable;
-                }
+		if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable;
 
-                if (PIOTimingMode >= PIO3)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1IORDYSampleModeEnable;
-                }
+		if (DMAEnable == TRUE && PIOTimingMode >= PIO2)
+			ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1DMATimingEnable;
 
-                if (PIOTimingMode >= PIO2 && PrefetchPostingEnable == TRUE)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1PrefetchandPostingEnable;
-                }
+		Device1TimingRegister &= ~(ATAConfiguration_Device1Timing_SecondaryRecoveryMode |
+					   ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode);
 
-                if (DMAEnable == TRUE
-                    && PIOTimingMode >= PIO2)
-                {
-                    ATATimingRegister |= ATAConfiguration_PrimaryTiming_Device1DMATimingEnable;
-                }
+		if (PIOTimingMode <= PIO2)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_0;
+		else if (PIOTimingMode == PIO3)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_1;
+		else if (PIOTimingMode == PIO4)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_3;
 
-                Device1TimingRegister &= ~(ATAConfiguration_Device1Timing_SecondaryRecoveryMode | ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode);
+		if (PIOTimingMode <= PIO1)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_0;
+		else if (PIOTimingMode == PIO2)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_1;
+		else if (PIOTimingMode <= PIO4)
+			Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_2;
+		break;
+	default:
+		funcresult = FALSE;
+		goto funcexit;
+		break;
+	}
 
-                if (PIOTimingMode <= PIO2)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_0;
-                }
-                else if (PIOTimingMode == PIO3)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_1;
-                }
-                else if (PIOTimingMode == PIO4)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryRecoveryMode_3;
-                }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_SecondaryTiming + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_SecondaryTiming_Size,
+						   &ATATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                if (PIOTimingMode <= PIO1)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_0;
-                }
-                else if (PIOTimingMode == PIO2)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_1;
-                }
-                else if (PIOTimingMode <= PIO4)
-                {
-                    Device1TimingRegister |= ATAConfiguration_Device1Timing_SecondaryIORDYSampleMode_2;
-                }
-            }
-            break;
-        default:
-            {
-                funcresult = FALSE;
-                goto funcexit;
-            }
-            break;
-    }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_Device1Timing_Size,
+						   &Device1TimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_SecondaryTiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_SecondaryTiming_Size,
-        &ATATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_Device1Timing + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_Device1Timing_Size,
-        &Device1TimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
-
-    return funcresult;
+	return funcresult;
 }
 
-static uint
-ATAHostAdapter_SetPrimaryUDMA(
-    struct pci_dev *pdev,
-    uint                DeviceID,
-    uint                UDMAEnable,
-    uint                UDMATimingMode
-    )
+static uint ATAHostAdapter_SetPrimaryUDMA(struct pci_dev *pdev, uint DeviceID,
+					  uint UDMAEnable, uint UDMATimingMode)
 {
-    uint    funcresult;
+	uint funcresult;
+	uint result;
+	uint UDMAControlRegister;
+	uint UDMATimingRegister;
+	ulong IDEIOConfigurationRegister;
 
-    uint    result;
+	funcresult = TRUE;
+	UDMAControlRegister = 0;
+	UDMATimingRegister = 0;
+	IDEIOConfigurationRegister = 0;
 
-    uint    UDMAControlRegister;
-    uint    UDMATimingRegister;
-    ulong   IDEIOConfigurationRegister;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_UDMAControl_Size,
+						  &UDMAControlRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    funcresult = TRUE;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_UDMATiming_Size,
+						  &UDMATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    UDMAControlRegister = 0;
-    UDMATimingRegister = 0;
-    IDEIOConfigurationRegister = 0;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_IDEIOConfiguration_Size,
+						  &IDEIOConfigurationRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMAControl_Size,
-        &UDMAControlRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	/*Rom Code will determine the device cable type and ATA 100.*/
+	/*IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_DeviceCable80Report;*/
+	/*IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_ATA100IsSupported;*/
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMATiming_Size,
-        &UDMATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	switch (DeviceID) {
+	case 0:
+		UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_PrimaryDevice0UDMAModeEnable);
+		if (UDMAEnable == TRUE)
+			UDMAControlRegister |= ATAConfiguration_UDMAControl_PrimaryDevice0UDMAModeEnable;
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_IDEIOConfiguration_Size,
-        &IDEIOConfigurationRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+		IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_PrimaryDevice066MhzEnable |
+						ATAConfiguration_IDEIOConfiguration_PrimaryDevice0100MhzEnable);
 
-    //Rom Code will determine the device cable type and ATA 100.
-    //IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_DeviceCable80Report;
-    //IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_ATA100IsSupported;
+		if (UDMATimingMode >= UDMA5)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice0100MhzEnable;
+		else if (UDMATimingMode >= UDMA3)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice066MhzEnable;
 
-    switch(DeviceID)
-    {
-        case 0:
-            {
-                UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_PrimaryDevice0UDMAModeEnable);
-                if (UDMAEnable == TRUE)
-                {
-                    UDMAControlRegister |= ATAConfiguration_UDMAControl_PrimaryDevice0UDMAModeEnable;
-                }
+		/* if 80 cable report */
+		UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime);
 
-                IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_PrimaryDevice066MhzEnable
-                    | ATAConfiguration_IDEIOConfiguration_PrimaryDevice0100MhzEnable
-                    );
+		if (UDMATimingMode == UDMA0) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_0;
+		} else if (UDMATimingMode == UDMA1 ||
+			   UDMATimingMode == UDMA3 ||
+			   UDMATimingMode == UDMA5) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_1;
+		} else if (UDMATimingMode == UDMA2 ||
+			   UDMATimingMode == UDMA4) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_2;
+		}
+		break;
+	case 1:
+		UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_PrimaryDevice1UDMAModeEnable);
+		if (UDMAEnable == TRUE)
+			UDMAControlRegister |= ATAConfiguration_UDMAControl_PrimaryDevice1UDMAModeEnable;
 
-                if (UDMATimingMode >= UDMA5)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice0100MhzEnable;
-                }
-                else if (UDMATimingMode >= UDMA3)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice066MhzEnable;
-                }
+		IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_PrimaryDevice166MhzEnable |
+						ATAConfiguration_IDEIOConfiguration_PrimaryDevice1100MhzEnable);
 
-                // if 80 cable report
+		if (UDMATimingMode >= UDMA5)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice1100MhzEnable;
+		else if (UDMATimingMode >= UDMA3)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice166MhzEnable;
 
-                UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime);
+		/* if 80 cable report */
+		UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime);
 
-                if (UDMATimingMode == UDMA0)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_0;
-                }
-                else if (UDMATimingMode == UDMA1 || UDMATimingMode == UDMA3 || UDMATimingMode == UDMA5)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_1;
-                }
-                else if (UDMATimingMode == UDMA2 || UDMATimingMode == UDMA4)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice0CycleTime_2;
-                }
-            }
-            break;
-        case 1:
-            {
-                UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_PrimaryDevice1UDMAModeEnable);
-                if (UDMAEnable == TRUE)
-                {
-                    UDMAControlRegister |= ATAConfiguration_UDMAControl_PrimaryDevice1UDMAModeEnable;
-                }
+		if (UDMATimingMode == UDMA0) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_0;
+		} else if (UDMATimingMode == UDMA1 ||
+			   UDMATimingMode == UDMA3 ||
+			   UDMATimingMode == UDMA5) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_1;
+		} else if (UDMATimingMode == UDMA2 ||
+			   UDMATimingMode == UDMA4) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_2;
+		}
+		break;
+	default:
+		funcresult = FALSE;
+		goto funcexit;
+		break;
+	}
 
-                IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_PrimaryDevice166MhzEnable
-                    | ATAConfiguration_IDEIOConfiguration_PrimaryDevice1100MhzEnable
-                    );
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_UDMAControl_Size,
+						   &UDMAControlRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                if (UDMATimingMode >= UDMA5)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice1100MhzEnable;
-                }
-                else if (UDMATimingMode >= UDMA3)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_PrimaryDevice166MhzEnable;
-                }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_UDMATiming_Size,
+						   &UDMATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                // if 80 cable report
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_IDEIOConfiguration_Size,
+						   &IDEIOConfigurationRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime);
-
-                if (UDMATimingMode == UDMA0)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_0;
-                }
-                else if (UDMATimingMode == UDMA1 || UDMATimingMode == UDMA3 || UDMATimingMode == UDMA5)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_1;
-                }
-                else if (UDMATimingMode == UDMA2 || UDMATimingMode == UDMA4)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_PrimaryDevice1CycleTime_2;
-                }
-            }
-            break;
-        default:
-            {
-                funcresult = FALSE;
-                goto funcexit;
-            }
-            break;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMAControl_Size,
-        &UDMAControlRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMATiming_Size,
-        &UDMATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_IDEIOConfiguration_Size,
-        &IDEIOConfigurationRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
-
-    return funcresult;
+	return funcresult;
 }
 
-static uint
-ATAHostAdapter_SetSecondaryUDMA(
-    struct pci_dev *pdev,
-    uint                DeviceID,
-    uint                UDMAEnable,
-    uint                UDMATimingMode
-    )
+static uint ATAHostAdapter_SetSecondaryUDMA(struct pci_dev *pdev, uint DeviceID,
+					    uint UDMAEnable, uint UDMATimingMode)
 {
-    uint    funcresult;
+	uint funcresult;
+	uint result;
+	uint UDMAControlRegister;
+	uint UDMATimingRegister;
+	ulong IDEIOConfigurationRegister;
 
-    uint    result;
+	funcresult = TRUE;
 
-    uint    UDMAControlRegister;
-    uint    UDMATimingRegister;
-    ulong   IDEIOConfigurationRegister;
+	UDMAControlRegister = 0;
+	UDMATimingRegister = 0;
+	IDEIOConfigurationRegister = 0;
 
-    funcresult = TRUE;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_UDMAControl_Size,
+						  &UDMAControlRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    UDMAControlRegister = 0;
-    UDMATimingRegister = 0;
-    IDEIOConfigurationRegister = 0;
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_UDMATiming_Size,
+						  &UDMATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMAControl_Size,
-        &UDMAControlRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	result = PCIDeviceIO_ReadPCIConfiguration(pdev,
+						  ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
+						  ATAConfiguration_ID_IDEIOConfiguration_Size,
+						  &IDEIOConfigurationRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMATiming_Size,
-        &UDMATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	/* Rom Code will determine the device cable type and ATA 100. */
+	/* IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_DeviceCable80Report; */
+	/* IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_ATA100IsSupported; */
 
-    result = PCIDeviceIO_ReadPCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_IDEIOConfiguration_Size,
-        &IDEIOConfigurationRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
+	switch (DeviceID) {
+	case 0:
+		UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_SecondaryDevice0UDMAModeEnable);
+		if (UDMAEnable == TRUE)
+			UDMAControlRegister |= ATAConfiguration_UDMAControl_SecondaryDevice0UDMAModeEnable;
 
-    //Rom Code will determine the device cable type and ATA 100.
-    //IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_DeviceCable80Report;
-    //IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_ATA100IsSupported;
+		IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_SecondaryDevice066MhzEnable |
+						ATAConfiguration_IDEIOConfiguration_SecondaryDevice0100MhzEnable);
 
-    switch(DeviceID)
-    {
-        case 0:
-            {
-                UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_SecondaryDevice0UDMAModeEnable);
-                if (UDMAEnable == TRUE)
-                {
-                    UDMAControlRegister |= ATAConfiguration_UDMAControl_SecondaryDevice0UDMAModeEnable;
-                }
+		if (UDMATimingMode >= UDMA5)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice0100MhzEnable;
+		else if (UDMATimingMode >= UDMA3)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice066MhzEnable;
 
-                IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_SecondaryDevice066MhzEnable
-                    | ATAConfiguration_IDEIOConfiguration_SecondaryDevice0100MhzEnable
-                    );
+		/* if 80 cable report */
+		UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime);
 
-                if (UDMATimingMode >= UDMA5)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice0100MhzEnable;
-                }
-                else if (UDMATimingMode >= UDMA3)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice066MhzEnable;
-                }
+		if (UDMATimingMode == UDMA0) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_0;
+		} else if (UDMATimingMode == UDMA1 ||
+			   UDMATimingMode == UDMA3 ||
+			   UDMATimingMode == UDMA5) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_1;
+		} else if (UDMATimingMode == UDMA2 ||
+			   UDMATimingMode == UDMA4) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_2;
+		}
+		break;
+	case 1:
+		UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_SecondaryDevice1UDMAModeEnable);
+		if (UDMAEnable == TRUE)
+			UDMAControlRegister |= ATAConfiguration_UDMAControl_SecondaryDevice1UDMAModeEnable;
 
-                // if 80 cable report
+		IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_SecondaryDevice166MhzEnable |
+						ATAConfiguration_IDEIOConfiguration_SecondaryDevice1100MhzEnable);
 
-                UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime);
+		if (UDMATimingMode >= UDMA5)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice1100MhzEnable;
+		else if (UDMATimingMode >= UDMA3)
+			IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice166MhzEnable;
 
-                if (UDMATimingMode == UDMA0)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_0;
-                }
-                else if (UDMATimingMode == UDMA1 || UDMATimingMode == UDMA3 || UDMATimingMode == UDMA5)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_1;
-                }
-                else if (UDMATimingMode == UDMA2 || UDMATimingMode == UDMA4)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice0CycleTime_2;
-                }
-            }
-            break;
-        case 1:
-            {
-                UDMAControlRegister &= ~(ATAConfiguration_UDMAControl_SecondaryDevice1UDMAModeEnable);
-                if (UDMAEnable == TRUE)
-                {
-                    UDMAControlRegister |= ATAConfiguration_UDMAControl_SecondaryDevice1UDMAModeEnable;
-                }
+		/* if 80 cable report */
+		UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime);
 
-                IDEIOConfigurationRegister &= ~(ATAConfiguration_IDEIOConfiguration_SecondaryDevice166MhzEnable
-                    | ATAConfiguration_IDEIOConfiguration_SecondaryDevice1100MhzEnable
-                    );
+		if (UDMATimingMode == UDMA0) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_0;
+		} else if (UDMATimingMode == UDMA1 ||
+			   UDMATimingMode == UDMA3 ||
+			   UDMATimingMode == UDMA5) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_1;
+		} else if (UDMATimingMode == UDMA2 ||
+			   UDMATimingMode == UDMA4) {
+			UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_2;
+		}
+		break;
+	default:
+		funcresult = FALSE;
+		goto funcexit;
+		break;
+	}
 
-                if (UDMATimingMode >= UDMA5)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice1100MhzEnable;
-                }
-                else if (UDMATimingMode >= UDMA3)
-                {
-                    IDEIOConfigurationRegister |= ATAConfiguration_IDEIOConfiguration_SecondaryDevice166MhzEnable;
-                }
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_UDMAControl_Size,
+						   &UDMAControlRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                // if 80 cable report
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_UDMATiming_Size,
+						   &UDMATimingRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                UDMATimingRegister &= ~(ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime);
+	result = PCIDeviceIO_WritePCIConfiguration(pdev,
+						   ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
+						   ATAConfiguration_ID_IDEIOConfiguration_Size,
+						   &IDEIOConfigurationRegister);
+	if (result == FALSE) {
+		funcresult = FALSE;
+		goto funcexit;
+	}
 
-                if (UDMATimingMode == UDMA0)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_0;
-                }
-                else if (UDMATimingMode == UDMA1 || UDMATimingMode == UDMA3 || UDMATimingMode == UDMA5)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_1;
-                }
-                else if (UDMATimingMode == UDMA2 || UDMATimingMode == UDMA4)
-                {
-                    UDMATimingRegister |= ATAConfiguration_UDMATiming_SecondaryDevice1CycleTime_2;
-                }
-            }
-            break;
-        default:
-            {
-                funcresult = FALSE;
-                goto funcexit;
-            }
-            break;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMAControl + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMAControl_Size,
-        &UDMAControlRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_UDMATiming + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_UDMATiming_Size,
-        &UDMATimingRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    result = PCIDeviceIO_WritePCIConfiguration(
-        pdev,
-        ATAConfiguration_ID_IDEIOConfiguration + ATAConfiguration_PCIOffset,
-        ATAConfiguration_ID_IDEIOConfiguration_Size,
-        &IDEIOConfigurationRegister
-        );
-    if (result == FALSE)
-    {
-        funcresult = FALSE;
-        goto funcexit;
-    }
-
-    goto funcexit;
+	goto funcexit;
 funcexit:
-
-    return funcresult;
+	return funcresult;
 }
