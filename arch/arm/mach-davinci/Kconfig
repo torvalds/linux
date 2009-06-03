@@ -26,7 +26,7 @@ comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
 	bool "TI DM644x EVM"
-	default y
+	default ARCH_DAVINCI_DM644x
 	depends on ARCH_DAVINCI_DM644x
 	help
 	  Configure this option to specify the whether the board used
@@ -41,6 +41,7 @@ config MACH_SFFSDR
 
 config MACH_DAVINCI_DM355_EVM
 	bool "TI DM355 EVM"
+	default ARCH_DAVINCI_DM355
 	depends on ARCH_DAVINCI_DM355
 	help
 	  Configure this option to specify the whether the board used
@@ -55,6 +56,7 @@ config MACH_DM355_LEOPARD
 
 config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
+	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
 	help
 	  Configure this option to specify the whether the board used
