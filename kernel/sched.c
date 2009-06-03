@@ -1629,8 +1629,14 @@ static int tg_load_down(struct task_group *tg, void *data)
 
 static void update_shares(struct sched_domain *sd)
 {
-	u64 now = cpu_clock(raw_smp_processor_id());
-	s64 elapsed = now - sd->last_update;
+	s64 elapsed;
+	u64 now;
+
+	if (root_task_group_empty())
+		return;
+
+	now = cpu_clock(raw_smp_processor_id());
+	elapsed = now - sd->last_update;
 
 	if (elapsed >= (s64)(u64)sysctl_sched_shares_ratelimit) {
 		sd->last_update = now;
@@ -1640,6 +1646,9 @@ static void update_shares(struct sched_domain *sd)
 
 static void update_shares_locked(struct rq *rq, struct sched_domain *sd)
 {
+	if (root_task_group_empty())
+		return;
+
 	spin_unlock(&rq->lock);
 	update_shares(sd);
 	spin_lock(&rq->lock);
@@ -1647,6 +1656,9 @@ static void update_shares_locked(struct rq *rq, struct sched_domain *sd)
 
 static void update_h_load(long cpu)
 {
+	if (root_task_group_empty())
+		return;
+
 	walk_tg_tree(tg_load_down, tg_nop, (void *)cpu);
 }
 
