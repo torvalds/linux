@@ -1335,6 +1335,38 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	return event;
 }
 
+static inline int
+rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
+		  struct ring_buffer_event *event)
+{
+	unsigned long new_index, old_index;
+	struct buffer_page *bpage;
+	unsigned long index;
+	unsigned long addr;
+
+	new_index = rb_event_index(event);
+	old_index = new_index + rb_event_length(event);
+	addr = (unsigned long)event;
+	addr &= PAGE_MASK;
+
+	bpage = cpu_buffer->tail_page;
+
+	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
+		/*
+		 * This is on the tail page. It is possible that
+		 * a write could come in and move the tail page
+		 * and write to the next page. That is fine
+		 * because we just shorten what is on this page.
+		 */
+		index = local_cmpxchg(&bpage->write, old_index, new_index);
+		if (index == old_index)
+			return 1;
+	}
+
+	/* could not discard */
+	return 0;
+}
+
 static int
 rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		  u64 *ts, u64 *delta)
@@ -1384,10 +1416,13 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 		/* let the caller know this was the commit */
 		ret = 1;
 	} else {
-		/* Darn, this is just wasted space */
-		event->time_delta = 0;
-		event->array[0] = 0;
-		ret = 0;
+		/* Try to discard the event */
+		if (!rb_try_to_discard(cpu_buffer, event)) {
+			/* Darn, this is just wasted space */
+			event->time_delta = 0;
+			event->array[0] = 0;
+			ret = 0;
+		}
 	}
 
 	*delta = 0;
@@ -1682,10 +1717,6 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 				struct ring_buffer_event *event)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
-	unsigned long new_index, old_index;
-	struct buffer_page *bpage;
-	unsigned long index;
-	unsigned long addr;
 	int cpu;
 
 	/* The event is discarded regardless */
@@ -1701,24 +1732,8 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	cpu = smp_processor_id();
 	cpu_buffer = buffer->buffers[cpu];
 
-	new_index = rb_event_index(event);
-	old_index = new_index + rb_event_length(event);
-	addr = (unsigned long)event;
-	addr &= PAGE_MASK;
-
-	bpage = cpu_buffer->tail_page;
-
-	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
-		/*
-		 * This is on the tail page. It is possible that
-		 * a write could come in and move the tail page
-		 * and write to the next page. That is fine
-		 * because we just shorten what is on this page.
-		 */
-		index = local_cmpxchg(&bpage->write, old_index, new_index);
-		if (index == old_index)
-			goto out;
-	}
+	if (!rb_try_to_discard(cpu_buffer, event))
+		goto out;
 
 	/*
 	 * The commit is still visible by the reader, so we
