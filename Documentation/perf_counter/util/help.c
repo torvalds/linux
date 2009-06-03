@@ -298,7 +298,7 @@ static void add_cmd_list(struct cmdnames *cmds, struct cmdnames *old)
 
 const char *help_unknown_cmd(const char *cmd)
 {
-	int i, n, best_similarity = 0;
+	int i, n = 0, best_similarity = 0;
 	struct cmdnames main_cmds, other_cmds;
 
 	memset(&main_cmds, 0, sizeof(main_cmds));
@@ -315,20 +315,24 @@ const char *help_unknown_cmd(const char *cmd)
 	      sizeof(main_cmds.names), cmdname_compare);
 	uniq(&main_cmds);
 
-	/* This reuses cmdname->len for similarity index */
-	for (i = 0; i < main_cmds.cnt; ++i)
-		main_cmds.names[i]->len =
-			levenshtein(cmd, main_cmds.names[i]->name, 0, 2, 1, 4);
+	if (main_cmds.cnt) {
+		/* This reuses cmdname->len for similarity index */
+		for (i = 0; i < main_cmds.cnt; ++i)
+			main_cmds.names[i]->len =
+				levenshtein(cmd, main_cmds.names[i]->name, 0, 2, 1, 4);
 
-	qsort(main_cmds.names, main_cmds.cnt,
-	      sizeof(*main_cmds.names), levenshtein_compare);
+		qsort(main_cmds.names, main_cmds.cnt,
+		      sizeof(*main_cmds.names), levenshtein_compare);
 
-	best_similarity = main_cmds.names[0]->len;
-	n = 1;
-	while (n < main_cmds.cnt && best_similarity == main_cmds.names[n]->len)
-		++n;
+		best_similarity = main_cmds.names[0]->len;
+		n = 1;
+		while (n < main_cmds.cnt && best_similarity == main_cmds.names[n]->len)
+			++n;
+	}
+
 	if (autocorrect && n == 1) {
 		const char *assumed = main_cmds.names[0]->name;
+
 		main_cmds.names[0] = NULL;
 		clean_cmdnames(&main_cmds);
 		fprintf(stderr, "WARNING: You called a Git program named '%s', "
@@ -345,7 +349,7 @@ const char *help_unknown_cmd(const char *cmd)
 
 	fprintf(stderr, "perf: '%s' is not a perf-command. See 'perf --help'.\n", cmd);
 
-	if (best_similarity < 6) {
+	if (main_cmds.cnt && best_similarity < 6) {
 		fprintf(stderr, "\nDid you mean %s?\n",
 			n < 2 ? "this": "one of these");
 
