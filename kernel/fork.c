@@ -1412,6 +1412,12 @@ long do_fork(unsigned long clone_flags,
 		if (clone_flags & CLONE_VFORK) {
 			p->vfork_done = &vfork;
 			init_completion(&vfork);
+		} else {
+			/*
+			 * vfork will do an exec which will call
+			 * set_task_comm()
+			 */
+			perf_counter_comm(p);
 		}
 
 		audit_finish_fork(p);
