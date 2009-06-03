@@ -50,3 +50,19 @@ struct platform_device s3c64xx_device_iis1 = {
 	.resource	  = s3c64xx_iis1_resource,
 };
 EXPORT_SYMBOL(s3c64xx_device_iis1);
+
+static struct resource s3c64xx_iisv4_resource[] = {
+	[0] = {
+		.start = S3C64XX_PA_IISV4,
+		.end   = S3C64XX_PA_IISV4 + 0x100 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device s3c64xx_device_iisv4 = {
+	.name		  = "s3c64xx-iis-v4",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(s3c64xx_iisv4_resource),
+	.resource	  = s3c64xx_iisv4_resource,
+};
+EXPORT_SYMBOL(s3c64xx_device_iisv4);

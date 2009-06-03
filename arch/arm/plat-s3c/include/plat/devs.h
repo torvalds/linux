@@ -26,6 +26,7 @@ extern struct platform_device s3c_device_timer[];
 
 extern struct platform_device s3c64xx_device_iis0;
 extern struct platform_device s3c64xx_device_iis1;
+extern struct platform_device s3c64xx_device_iisv4;
 
 extern struct platform_device s3c_device_fb;
 extern struct platform_device s3c_device_usb;
