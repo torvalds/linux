@@ -85,8 +85,8 @@ struct fl_pg_chunk {
 	struct page *page;
 	void *va;
 	unsigned int offset;
-	u64 *p_cnt;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	unsigned long *p_cnt;
+	dma_addr_t mapping;
 };
 
 struct rx_desc;

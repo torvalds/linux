@@ -1873,18 +1873,18 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	if (ret != CMD_STATUS_COMPLETE) {
 		queue_delayed_work(priv->hw->workqueue, &priv->dwork_hw_scan,
 				   SCAN_POLL_INTERVAL);
-		goto exit;
+		mutex_unlock(&priv->mtx);
+		return;
 	}
-
-	ieee80211_scan_completed(priv->hw, false);
 
 	if (is_valid_ether_addr(priv->bssid))
 		at76_join(priv);
 
-	ieee80211_wake_queues(priv->hw);
-
-exit:
 	mutex_unlock(&priv->mtx);
+
+	ieee80211_scan_completed(priv->hw, false);
+
+	ieee80211_wake_queues(priv->hw);
 }
 
 static int at76_hw_scan(struct ieee80211_hw *hw,

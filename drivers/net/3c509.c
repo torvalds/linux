@@ -480,9 +480,13 @@ static int pnp_registered;
 
 #ifdef CONFIG_EISA
 static struct eisa_device_id el3_eisa_ids[] = {
+		{ "TCM5090" },
+		{ "TCM5091" },
 		{ "TCM5092" },
 		{ "TCM5093" },
+		{ "TCM5094" },
 		{ "TCM5095" },
+		{ "TCM5098" },
 		{ "" }
 };
 MODULE_DEVICE_TABLE(eisa, el3_eisa_ids);
