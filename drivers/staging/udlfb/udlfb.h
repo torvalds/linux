@@ -1,11 +1,15 @@
-#define MAX_VMODES 4
-#define FB_BPP 16
+#ifndef UDLFB_H
+#define UDLFB_H
 
-#define STD_CHANNEL        "\x57\xCD\xDC\xA7\x1C\x88\x5E\x15\x60\xFE\xC6\x97\x16\x3D\x47\xF2"
+#define MAX_VMODES	4
+#define FB_BPP		16
 
-// as libdlo
-#define BUF_HIGH_WATER_MARK 1024
-#define BUF_SIZE 64*1024
+#define STD_CHANNEL	"\x57\xCD\xDC\xA7\x1C\x88\x5E\x15"	\
+			"\x60\xFE\xC6\x97\x16\x3D\x47\xF2"
+
+/* as libdlo */
+#define BUF_HIGH_WATER_MARK	1024
+#define BUF_SIZE		(64*1024)
 
 struct dlfb_data {
 	struct usb_device *udev;
@@ -26,7 +30,6 @@ struct dlfb_data {
 };
 
 struct dlfb_video_mode {
-
 	uint8_t col;
 	uint32_t hclock;
 	uint32_t vclock;
@@ -35,22 +38,18 @@ struct dlfb_video_mode {
 	uint8_t unknown2[6];
 	uint16_t yres;
 	uint8_t unknown3[4];
-
 } __attribute__ ((__packed__));
 
 struct dlfb_video_mode dlfb_video_modes[MAX_VMODES];
 
 static void dlfb_bulk_callback(struct urb *urb)
 {
-
 	struct dlfb_data *dev_info = urb->context;
 	complete(&dev_info->done);
-
 }
 
 static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
 {
-
 	int ret;
 
 	init_completion(&dev_info->done);
@@ -65,12 +64,10 @@ static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
 	}
 
 	return dev_info->tx_urb->actual_length;
-
 }
 
 void dlfb_init_modes(void)
 {
-
 	dlfb_video_modes[0].col = 0;
 	memcpy(&dlfb_video_modes[0].hclock, "\x20\x3C\x7A\xC9", 4);
 	memcpy(&dlfb_video_modes[0].vclock, "\xF2\x6C\x48\xF9", 4);
@@ -106,24 +103,20 @@ void dlfb_init_modes(void)
 	memcpy(&dlfb_video_modes[3].unknown2, "\xC9\x4E\xFF\xFF\xFF\xF2", 6);
 	dlfb_video_modes[3].yres = 1050;
 	memcpy(&dlfb_video_modes[3].unknown3, "\x04\x02\x1E\x5F", 4);
-
 }
 
 char *dlfb_set_register(char *bufptr, uint8_t reg, uint8_t val)
 {
-
 	*bufptr++ = 0xAF;
 	*bufptr++ = 0x20;
 	*bufptr++ = reg;
 	*bufptr++ = val;
 
 	return bufptr;
-
 }
 
 int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 {
-
 	int i, ret;
 	unsigned char j;
 	char *bufptr = dev_info->buf;
@@ -139,7 +132,7 @@ int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 
 			dev_info->base8 = width * height * (FB_BPP / 8);;
 
-			// set encryption key (null)
+			/* set encryption key (null) */
 			memcpy(dev_info->buf, STD_CHANNEL, 16);
 			ret =
 			    usb_control_msg(dev_info->udev,
@@ -148,10 +141,10 @@ int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 					    dev_info->buf, 16, 0);
 			printk("ret control msg 1 (STD_CHANNEL): %d\n", ret);
 
-			// set registers
+			/* set registers */
 			bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
 
-			// set addresses
+			/* set addresses */
 			bufptr =
 			    dlfb_set_register(bufptr, 0x20,
 					      (char)(dev_info->base16 >> 16));
@@ -172,24 +165,23 @@ int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 			    dlfb_set_register(bufptr, 0x28,
 					      (char)(dev_info->base8));
 
-			// set video mode
-			vdata = (uint8_t *) & dlfb_video_modes[i];
-			for (j = 0; j < 29; j++) {
+			/* set video mode */
+			vdata = (uint8_t *)&dlfb_video_modes[i];
+			for (j = 0; j < 29; j++)
 				bufptr = dlfb_set_register(bufptr, j, vdata[j]);
-			}
 
-			// blank
+			/* blank */
 			bufptr = dlfb_set_register(bufptr, 0x1F, 0x00);
 
-			// end registers
+			/* end registers */
 			bufptr = dlfb_set_register(bufptr, 0xFF, 0xFF);
 
-			// send
+			/* send */
 			ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
 			printk("ret bulk 2: %d %d\n", ret,
 			       bufptr - dev_info->buf);
 
-			// flush
+			/* flush */
 			ret = dlfb_bulk_msg(dev_info, 0);
 			printk("ret bulk 3: %d\n", ret);
 
@@ -202,3 +194,5 @@ int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height)
 
 	return -1;
 }
+
+#endif
