@@ -580,6 +580,20 @@ config USB_ZERO_HNPTEST
 	  the "B-Peripheral" role, that device will use HNP to let this
 	  one serve as the USB host instead (in the "B-Host" role).
 
+config USB_AUDIO
+	tristate "Audio Gadget (EXPERIMENTAL)"
+	depends on SND
+	help
+	  Gadget Audio is compatible with USB Audio Class specification 1.0.
+	  It will include at least one AudioControl interface, zero or more
+	  AudioStream interface and zero or more MIDIStream interface.
+
+	  Gadget Audio will use on-board ALSA (CONFIG_SND) audio card to
+	  playback or capture audio stream.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_audio".
+
 config USB_ETH
 	tristate "Ethernet Gadget (with CDC Ethernet support)"
 	depends on NET

@@ -31,6 +31,7 @@ obj-$(CONFIG_USB_S3C_HSOTG)	+= s3c-hsotg.o
 # USB gadget drivers
 #
 g_zero-objs			:= zero.o
+g_audio-objs			:= audio.o
 g_ether-objs			:= ether.o
 g_serial-objs			:= serial.o
 g_midi-objs			:= gmidi.o
@@ -40,6 +41,7 @@ g_printer-objs			:= printer.o
 g_cdc-objs			:= cdc2.o
 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
+obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
 obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
 obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
