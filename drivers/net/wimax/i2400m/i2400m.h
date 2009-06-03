@@ -150,6 +150,7 @@
 enum {
 	/* Firmware uploading */
 	I2400M_BOOT_RETRIES = 3,
+	I3200_BOOT_RETRIES = 3,
 	/* Size of the Boot Mode Command buffer */
 	I2400M_BM_CMD_BUF_SIZE = 16 * 1024,
 	I2400M_BM_ACK_BUF_SIZE = 256,
@@ -223,6 +224,17 @@ struct i2400m_roq;
  *     IMPORTANT: this is called very early in the device setup
  *     process, so it cannot rely on common infrastructure being laid
  *     out.
+ *
+ * @bus_bm_retries: [fill] How many times shall a firmware upload /
+ *     device initialization be retried? Different models of the same
+ *     device might need different values, hence it is set by the
+ *     bus-specific driver. Note this value is used in two places,
+ *     i2400m_fw_dnload() and __i2400m_dev_start(); they won't become
+ *     multiplicative (__i2400m_dev_start() calling N times
+ *     i2400m_fw_dnload() and this trying N times to download the
+ *     firmware), as if __i2400m_dev_start() only retries if the
+ *     firmware crashed while initializing the device (not in a
+ *     general case).
  *
  * @bus_bm_cmd_send: [fill] Function called to send a boot-mode
  *     command. Flags are defined in 'enum i2400m_bm_cmd_flags'. This
@@ -399,6 +411,8 @@ struct i2400m {
 
 	size_t bus_tx_block_size;
 	size_t bus_pl_size_max;
+	unsigned bus_bm_retries;
+
 	int (*bus_dev_start)(struct i2400m *);
 	void (*bus_dev_stop)(struct i2400m *);
 	void (*bus_tx_kick)(struct i2400m *);

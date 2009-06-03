@@ -980,7 +980,7 @@ int i2400m_fw_dnload(struct i2400m *i2400m, const struct i2400m_bcf_hdr *bcf,
 {
 	int ret = 0;
 	struct device *dev = i2400m_dev(i2400m);
-	int count = I2400M_BOOT_RETRIES;
+	int count = i2400m->bus_bm_retries;
 
 	d_fnstart(5, dev, "(i2400m %p bcf %p size %zu)\n",
 		  i2400m, bcf, bcf_size);

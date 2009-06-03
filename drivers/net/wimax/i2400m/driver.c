@@ -399,7 +399,7 @@ int __i2400m_dev_start(struct i2400m *i2400m, enum i2400m_bri flags)
 	struct wimax_dev *wimax_dev = &i2400m->wimax_dev;
 	struct net_device *net_dev = wimax_dev->net_dev;
 	struct device *dev = i2400m_dev(i2400m);
-	int times = 3;
+	int times = i2400m->bus_bm_retries;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 retry:
