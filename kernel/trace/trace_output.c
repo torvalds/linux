@@ -976,7 +976,7 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (!trace_seq_puts(s, "\n"))
+	if (!trace_seq_puts(s, "<stack trace>\n"))
 		goto partial;
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		if (!field->caller[i] || (field->caller[i] == ULONG_MAX))
@@ -1013,7 +1013,7 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (!trace_seq_putc(s, '\n'))
+	if (!trace_seq_puts(s, "<user stack trace>\n"))
 		goto partial;
 
 	if (!seq_print_userip_objs(field, s, flags))
