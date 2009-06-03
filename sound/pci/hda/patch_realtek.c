@@ -1469,10 +1469,10 @@ static struct hda_verb alc888_acer_aspire_4930g_verbs[] = {
 };
 
 /*
- * ALC888 Acer Aspire 8930G model
+ * ALC889 Acer Aspire 8930G model
  */
 
-static struct hda_verb alc888_acer_aspire_8930g_verbs[] = {
+static struct hda_verb alc889_acer_aspire_8930g_verbs[] = {
 /* Front Mic: set to PIN_IN (empty by default) */
 	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 /* Unselect Front Mic by default in input mixer 3 */
@@ -1492,7 +1492,7 @@ static struct hda_verb alc888_acer_aspire_8930g_verbs[] = {
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x16, AC_VERB_SET_CONNECT_SEL, 0x02},
 /* Connect HP out to Front */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | PIN_HP},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
 /* Enable all DACs */
@@ -1507,6 +1507,17 @@ static struct hda_verb alc888_acer_aspire_8930g_verbs[] = {
 /* Enable amplifiers */
 	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
 	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+/* DMIC fix
+ * This laptop has a stereo digital microphone. The mics are only 1cm apart
+ * which makes the stereo useless. However, either the mic or the ALC889
+ * makes the signal become a difference/sum signal instead of standard
+ * stereo, which is annoying. So instead we flip this bit which makes the
+ * codec replicate the sum signal to both channels, turning it into a
+ * normal mono mic.
+ */
+/*  DMIC_CONTROL? Init value = 0x0001 */
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x0b},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x0003},
 	{ }
 };
 
@@ -1527,6 +1538,38 @@ static struct hda_input_mux alc888_2_capture_sources[2] = {
 			{ "Mic", 0x0 },
 			{ "Line", 0x2 },
 			{ "CD", 0x4 },
+		},
+	}
+};
+
+static struct hda_input_mux alc889_capture_sources[3] = {
+	/* Digital mic only available on first "ADC" */
+	{
+		.num_items = 5,
+		.items = {
+			{ "Mic", 0x0 },
+			{ "Line", 0x2 },
+			{ "CD", 0x4 },
+			{ "Front Mic", 0xb },
+			{ "Input Mix", 0xa },
+		},
+	},
+	{
+		.num_items = 4,
+		.items = {
+			{ "Mic", 0x0 },
+			{ "Line", 0x2 },
+			{ "CD", 0x4 },
+			{ "Input Mix", 0xa },
+		},
+	},
+	{
+		.num_items = 4,
+		.items = {
+			{ "Mic", 0x0 },
+			{ "Line", 0x2 },
+			{ "CD", 0x4 },
+			{ "Input Mix", 0xa },
 		},
 	}
 };
@@ -1562,7 +1605,7 @@ static void alc888_acer_aspire_4930g_init_hook(struct hda_codec *codec)
 	alc_automute_amp(codec);
 }
 
-static void alc888_acer_aspire_8930g_init_hook(struct hda_codec *codec)
+static void alc889_acer_aspire_8930g_init_hook(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -9081,22 +9124,22 @@ static struct alc_config_preset alc883_presets[] = {
 		.mixers = { alc888_base_mixer,
 				alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs, alc880_gpio1_init_verbs,
-				alc888_acer_aspire_8930g_verbs },
+				alc889_acer_aspire_8930g_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids_rev),
-		.adc_nids = alc883_adc_nids_rev,
-		.capsrc_nids = alc883_capsrc_nids_rev,
+		.num_adc_nids = ARRAY_SIZE(alc889_adc_nids),
+		.adc_nids = alc889_adc_nids,
+		.capsrc_nids = alc889_capsrc_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_modes),
 		.channel_mode = alc883_3ST_6ch_modes,
 		.need_dac_fix = 1,
 		.const_channel_count = 6,
 		.num_mux_defs =
-			ARRAY_SIZE(alc888_2_capture_sources),
-		.input_mux = alc888_2_capture_sources,
+			ARRAY_SIZE(alc889_capture_sources),
+		.input_mux = alc889_capture_sources,
 		.unsol_event = alc_automute_amp_unsol_event,
-		.init_hook = alc888_acer_aspire_8930g_init_hook,
+		.init_hook = alc889_acer_aspire_8930g_init_hook,
 	},
 	[ALC883_MEDION] = {
 		.mixers = { alc883_fivestack_mixer,
