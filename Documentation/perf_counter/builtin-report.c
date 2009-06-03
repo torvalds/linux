@@ -229,6 +229,7 @@ static int thread__set_comm(struct thread *self, const char *comm)
 }
 
 static struct rb_root threads;
+static struct thread *last_match;
 
 static struct thread *threads__findnew(pid_t pid)
 {
@@ -236,12 +237,22 @@ static struct thread *threads__findnew(pid_t pid)
 	struct rb_node *parent = NULL;
 	struct thread *th;
 
+	/*
+	 * Font-end cache - PID lookups come in blocks,
+	 * so most of the time we dont have to look up
+	 * the full rbtree:
+	 */
+	if (last_match && last_match->pid == pid)
+		return last_match;
+
 	while (*p != NULL) {
 		parent = *p;
 		th = rb_entry(parent, struct thread, rb_node);
 
-		if (th->pid == pid)
+		if (th->pid == pid) {
+			last_match = th;
 			return th;
+		}
 
 		if (pid < th->pid)
 			p = &(*p)->rb_left;
@@ -253,7 +264,9 @@ static struct thread *threads__findnew(pid_t pid)
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
 		rb_insert_color(&th->rb_node, &threads);
+		last_match = th;
 	}
+
 	return th;
 }
 
