@@ -4516,7 +4516,7 @@ static struct pci_driver sxg_driver = {
 	.name = sxg_driver_name,
 	.id_table = sxg_pci_tbl,
 	.probe = sxg_entry_probe,
-	.remove = sxg_entry_remove,
+	.remove = __devexit_p(sxg_entry_remove),
 #if SXG_POWER_MANAGEMENT_ENABLED
 	.suspend = sxgpm_suspend,
 	.resume = sxgpm_resume,
