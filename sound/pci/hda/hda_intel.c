@@ -1260,17 +1260,20 @@ static void azx_stop_chip(struct azx *chip);
 static void azx_bus_reset(struct hda_bus *bus)
 {
 	struct azx *chip = bus->private_data;
-	int i;
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
 	azx_init_chip(chip);
+#ifdef CONFIG_PM
 	if (chip->initialized) {
+		int i;
+
 		for (i = 0; i < AZX_MAX_PCMS; i++)
 			snd_pcm_suspend_all(chip->pcm[i]);
 		snd_hda_suspend(chip->bus);
 		snd_hda_resume(chip->bus);
 	}
+#endif
 	bus->in_reset = 0;
 }
 
