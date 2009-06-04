@@ -28,6 +28,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/setup.h>
 
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
@@ -494,6 +495,18 @@ static void __init cm_x300_init(void)
 	cm_x300_init_rtc();
 }
 
+static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
+				 char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 2;
+	mi->bank[0].start = 0xa0000000;
+	mi->bank[0].node = 0;
+	mi->bank[0].size = (64*1024*1024);
+	mi->bank[1].start = 0xc0000000;
+	mi->bank[1].node = 0;
+	mi->bank[1].size = (64*1024*1024);
+}
+
 MACHINE_START(CM_X300, "CM-X300 module")
 	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
@@ -502,4 +515,5 @@ MACHINE_START(CM_X300, "CM-X300 module")
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cm_x300_init,
+	.fixup		= cm_x300_fixup,
 MACHINE_END
