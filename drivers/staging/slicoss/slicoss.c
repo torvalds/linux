@@ -4049,7 +4049,7 @@ static struct pci_driver slic_driver = {
 	.name = DRV_NAME,
 	.id_table = slic_pci_tbl,
 	.probe = slic_entry_probe,
-	.remove = slic_entry_remove,
+	.remove = __devexit_p(slic_entry_remove),
 };
 
 static int __init slic_module_init(void)
