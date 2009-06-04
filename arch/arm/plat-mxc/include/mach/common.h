@@ -29,5 +29,6 @@ extern int mx35_clocks_init(void);
 extern int mxc_register_gpios(void);
 extern int mxc_register_device(struct platform_device *pdev, void *data);
 extern void mxc_set_cpu_type(unsigned int type);
+extern void mxc_arch_reset_init(void __iomem *);
 
 #endif

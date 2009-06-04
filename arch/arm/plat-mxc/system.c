@@ -30,29 +30,28 @@
 #include <asm/proc-fns.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_ARCH_MX1
-#define WDOG_WCR_REG		IO_ADDRESS(WDT_BASE_ADDR)
-#define WDOG_WCR_ENABLE		(1 << 0)
-#else
-#define WDOG_WCR_REG		IO_ADDRESS(WDOG_BASE_ADDR)
-#define WDOG_WCR_ENABLE		(1 << 2)
-#endif
+static void __iomem *wdog_base;
 
 /*
  * Reset the system. It is called by machine_restart().
  */
 void arch_reset(char mode, const char *cmd)
 {
-	if (!cpu_is_mx1()) {
+	unsigned int wcr_enable;
+
+	if (cpu_is_mx1()) {
+		wcr_enable = (1 << 0);
+	} else {
 		struct clk *clk;
 
 		clk = clk_get_sys("imx-wdt.0", NULL);
 		if (!IS_ERR(clk))
 			clk_enable(clk);
+		wcr_enable = (1 << 2);
 	}
 
 	/* Assert SRS signal */
-	__raw_writew(WDOG_WCR_ENABLE, WDOG_WCR_REG);
+	__raw_writew(wcr_enable, wdog_base);
 
 	/* wait for reset to assert... */
 	mdelay(500);
@@ -64,4 +63,9 @@ void arch_reset(char mode, const char *cmd)
 
 	/* we'll take a jump through zero as a poor second */
 	cpu_reset(0);
+}
+
+void mxc_arch_reset_init(void __iomem *base)
+{
+	wdog_base = base;
 }
