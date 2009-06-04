@@ -620,23 +620,6 @@ static void mxc_nand_select_chip(struct mtd_info *mtd, int chip)
 	struct nand_chip *nand_chip = mtd->priv;
 	struct mxc_nand_host *host = nand_chip->priv;
 
-#ifdef CONFIG_MTD_NAND_MXC_FORCE_CE
-	if (chip > 0) {
-		DEBUG(MTD_DEBUG_LEVEL0,
-		      "ERROR:  Illegal chip select (chip = %d)\n", chip);
-		return;
-	}
-
-	if (chip == -1) {
-		writew(readw(host->regs + NFC_CONFIG1) & ~NFC_CE,
-				host->regs + NFC_CONFIG1);
-		return;
-	}
-
-	writew(readw(host->regs + NFC_CONFIG1) | NFC_CE,
-			host->regs + NFC_CONFIG1);
-#endif
-
 	switch (chip) {
 	case -1:
 		/* Disable the NFC clock */
