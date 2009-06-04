@@ -474,6 +474,27 @@ config USB_GOKU
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_LANGWELL
+	boolean "Intel Langwell USB Device Controller"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	   Intel Langwell USB Device Controller is a High-Speed USB
+	   On-The-Go device controller.
+
+	   The number of programmable endpoints is different through
+	   controller revision.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "langwell_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_LANGWELL
+	tristate
+	depends on USB_GADGET_LANGWELL
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 
 #
 # LAST -- dummy/emulated controller
