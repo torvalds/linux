@@ -3026,12 +3026,12 @@ EXPORT_SYMBOL_GPL(skb_tstamp_tx);
  */
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off)
 {
-	if (unlikely(start > skb->len - 2) ||
-	    unlikely((int)start + off > skb->len - 2)) {
+	if (unlikely(start > skb_headlen(skb)) ||
+	    unlikely((int)start + off > skb_headlen(skb) - 2)) {
 		if (net_ratelimit())
 			printk(KERN_WARNING
 			       "bad partial csum: csum=%u/%u len=%u\n",
-			       start, off, skb->len);
+			       start, off, skb_headlen(skb));
 		return false;
 	}
 	skb->ip_summed = CHECKSUM_PARTIAL;
