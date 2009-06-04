@@ -59,11 +59,7 @@ static inline int is_in_rom(unsigned long addr)
 #ifndef CONFIG_ACCESS_CHECK
 static inline int _access_ok(unsigned long addr, unsigned long size) { return 1; }
 #else
-#ifdef CONFIG_ACCESS_OK_L1
-extern int _access_ok(unsigned long addr, unsigned long size)__attribute__((l1_text));
-#else
 extern int _access_ok(unsigned long addr, unsigned long size);
-#endif
 #endif
 
 /*
