@@ -1872,7 +1872,6 @@ static int slic_card_download(struct adapter *adapter)
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 	u32 instruction;
 	u32 baseaddress;
-	u32 failure;
 	u32 i;
 	u32 numsects = 0;
 	u32 sectsize[3];
