@@ -199,7 +199,7 @@ static void wait_op_done(struct mxc_nand_host *host, int max_retries,
 			}
 			udelay(1);
 		}
-		if (max_retries <= 0)
+		if (max_retries < 0)
 			DEBUG(MTD_DEBUG_LEVEL0, "%s(%d): INT not set\n",
 			      __func__, param);
 	}
