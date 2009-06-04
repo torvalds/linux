@@ -722,6 +722,8 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 	size_t ret = 0;
 
 	fprintf(fp, "#\n");
+	fprintf(fp, "# (%Ld profiler events)\n", (__u64)total_samples);
+	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
 	list_for_each_entry(se, &hist_entry__sort_list, list)
