@@ -18,13 +18,21 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/module.h>
-#include <linux/wait.h>
+#include <linux/bug.h>
 #include <linux/errno.h>
-#include <asm/bug.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+
+#include <asm/atomic.h>
 #include <asm/system.h>
-#include "fw-transaction.h"
+
 #include "fw-topology.h"
+#include "fw-transaction.h"
 
 #define SELF_ID_PHY_ID(q)		(((q) >> 24) & 0x3f)
 #define SELF_ID_EXTENDED(q)		(((q) >> 23) & 0x01)

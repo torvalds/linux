@@ -30,18 +30,27 @@
 
 #include <linux/blkdev.h>
 #include <linux/bug.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/firewire-constants.h>
+#include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/stringify.h>
-#include <linux/timer.h>
 #include <linux/workqueue.h>
+
+#include <asm/byteorder.h>
 #include <asm/system.h>
 
 #include <scsi/scsi.h>
@@ -50,7 +59,6 @@
 #include <scsi/scsi_host.h>
 
 #include "fw-device.h"
-#include "fw-topology.h"
 #include "fw-transaction.h"
 
 /*

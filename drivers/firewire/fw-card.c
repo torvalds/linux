@@ -16,18 +16,27 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bug.h>
 #include <linux/completion.h>
 #include <linux/crc-itu-t.h>
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 
-#include "fw-transaction.h"
-#include "fw-topology.h"
+#include <asm/atomic.h>
+#include <asm/byteorder.h>
+
 #include "fw-device.h"
+#include "fw-topology.h"
+#include "fw-transaction.h"
 
 int fw_compute_block_crc(u32 *block)
 {

@@ -28,6 +28,8 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 
+#include <asm/byteorder.h>
+
 #include "fw-topology.h"
 #include "fw-transaction.h"
 

@@ -27,6 +27,7 @@
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
@@ -34,6 +35,8 @@
 #include <linux/string.h>
 #include <linux/workqueue.h>
 
+#include <asm/atomic.h>
+#include <asm/byteorder.h>
 #include <asm/system.h>
 
 #include "fw-device.h"

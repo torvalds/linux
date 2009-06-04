@@ -18,24 +18,28 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bug.h>
 #include <linux/completion.h>
-#include <linux/idr.h>
-#include <linux/kernel.h>
-#include <linux/kref.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/firewire-constants.h>
+#include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/delay.h>
-#include <linux/poll.h>
+#include <linux/idr.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/kthread.h>
-#include <asm/uaccess.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/timer.h>
+#include <linux/types.h>
 
+#include <asm/byteorder.h>
+
+#include "fw-device.h"	/* for fw_device_ops */
 #include "fw-transaction.h"
-#include "fw-topology.h"
-#include "fw-device.h"
 
 #define HEADER_PRI(pri)			((pri) << 0)
 #define HEADER_TCODE(tcode)		((tcode) << 4)

@@ -20,18 +20,24 @@
 
 #include <linux/compiler.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/firewire-constants.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 
 #include <asm/atomic.h>
+#include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/system.h>
 
@@ -232,7 +238,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_MAX_AT_RESP_RETRIES	0x2
 #define OHCI1394_MAX_PHYS_RESP_RETRIES	0x8
 
-#define FW_OHCI_MAJOR			240
 #define OHCI1394_REGISTER_SIZE		0x800
 #define OHCI_LOOP_COUNT			500
 #define OHCI1394_PCI_HCI_Control	0x40
