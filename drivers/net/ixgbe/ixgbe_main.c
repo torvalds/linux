@@ -2598,12 +2598,19 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	int err;
 
 	err = hw->mac.ops.init_hw(hw);
-	if (err && (err != IXGBE_ERR_SFP_NOT_PRESENT))
-		dev_err(&adapter->pdev->dev, "Hardware Error\n");
+	switch (err) {
+	case 0:
+	case IXGBE_ERR_SFP_NOT_PRESENT:
+		break;
+	case IXGBE_ERR_MASTER_REQUESTS_PENDING:
+		dev_err(&adapter->pdev->dev, "master disable timed out\n");
+		break;
+	default:
+		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
+	}
 
 	/* reprogram the RAR[0] in case user changed it. */
 	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
-
 }
 
 /**
