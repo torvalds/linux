@@ -522,23 +522,21 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	struct resource *res_ctl, *res_cnf;
 	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
-	int ret = -ENOMEM;
+	int ret = -EINVAL;
 
 	if (dev->num_resources != 3)
 		goto out;
 
 	res_ctl = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	res_cnf = platform_get_resource(dev, IORESOURCE_MEM, 1);
-	if (!res_ctl || !res_cnf) {
-		ret = -EINVAL;
+	if (!res_ctl || !res_cnf)
 		goto out;
-	}
 
 	pdata = cell->driver_data;
-	if (!pdata || !pdata->hclk) {
-		ret = -EINVAL;
+	if (!pdata || !pdata->hclk)
 		goto out;
-	}
+
+	ret = -ENOMEM;
 
 	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &dev->dev);
 	if (!mmc)
