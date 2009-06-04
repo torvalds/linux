@@ -24,7 +24,8 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 {
 	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_zone *zone;
-	int next;
+	struct kvm_coalesced_mmio_ring *ring;
+	unsigned avail;
 	int i;
 
 	if (!is_write)
@@ -40,10 +41,9 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 	 * check if we don't meet the first used entry
 	 * there is always one unused entry in the buffer
 	 */
-
-	next = (dev->kvm->coalesced_mmio_ring->last + 1) %
-							KVM_COALESCED_MMIO_MAX;
-	if (next == dev->kvm->coalesced_mmio_ring->first) {
+	ring = dev->kvm->coalesced_mmio_ring;
+	avail = (ring->first - ring->last - 1) % KVM_COALESCED_MMIO_MAX;
+	if (avail < 1) {
 		/* full */
 		return 0;
 	}
