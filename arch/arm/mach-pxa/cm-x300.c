@@ -265,6 +265,7 @@ static struct mtd_partition cm_x300_nand_partitions[] = {
 
 static struct pxa3xx_nand_platform_data cm_x300_nand_info = {
 	.enable_arbiter	= 1,
+	.keep_config	= 1,
 	.parts		= cm_x300_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(cm_x300_nand_partitions),
 };
