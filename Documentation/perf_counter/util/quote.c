@@ -201,8 +201,9 @@ static size_t quote_c_style_counted(const char *name, ssize_t maxlen,
 	} while (0)
 #define EMITBUF(s, l)                           \
 	do {                                        \
+		int __ret;				\
 		if (sb) strbuf_add(sb, (s), (l));       \
-		if (fp) fwrite((s), (l), 1, fp);        \
+		if (fp) __ret = fwrite((s), (l), 1, fp);        \
 		count += (l);                           \
 	} while (0)
 
@@ -287,7 +288,9 @@ extern void write_name_quotedpfx(const char *pfx, size_t pfxlen,
 		quote_c_style(name, NULL, fp, 1);
 		fputc('"', fp);
 	} else {
-		fwrite(pfx, pfxlen, 1, fp);
+		int ret;
+
+		ret = fwrite(pfx, pfxlen, 1, fp);
 		fputs(name, fp);
 	}
 	fputc(terminator, fp);
