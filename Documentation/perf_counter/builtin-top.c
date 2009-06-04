@@ -75,8 +75,6 @@ static unsigned int		realtime_prio			=  0;
 static int			group				=  0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=  16;
-static int			use_mmap			= 0;
-static int			use_munmap			= 0;
 static int			freq				= 0;
 
 static char			*sym_filter;
@@ -527,19 +525,6 @@ static void mmap_read(struct mmap_data *md)
 		if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
 			if (event->header.type & PERF_SAMPLE_IP)
 				process_event(event->ip.ip, md->counter);
-		} else {
-			switch (event->header.type) {
-				case PERF_EVENT_MMAP:
-				case PERF_EVENT_MUNMAP:
-					printf("%s: %Lu %Lu %Lu %s\n",
-							event->header.type == PERF_EVENT_MMAP
-							? "mmap" : "munmap",
-							event->mmap.start,
-							event->mmap.len,
-							event->mmap.pgoff,
-							event->mmap.filename);
-					break;
-			}
 		}
 	}
 
@@ -569,8 +554,6 @@ static int __cmd_top(void)
 			attr.config		= event_id[counter];
 			attr.sample_period	= event_count[counter];
 			attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-			attr.mmap		= use_mmap;
-			attr.munmap		= use_munmap;
 			attr.freq		= freq;
 
 			fd[i][counter] = sys_perf_counter_open(&attr, target_pid, cpu, group_fd, 0);
@@ -670,10 +653,6 @@ static const struct option options[] = {
 		    "only display symbols matchig this pattern"),
 	OPT_BOOLEAN('z', "zero", &group,
 		    "zero history across updates"),
-	OPT_BOOLEAN('M', "use-mmap", &use_mmap,
-		    "track mmap events"),
-	OPT_BOOLEAN('U', "use-munmap", &use_munmap,
-		    "track munmap events"),
 	OPT_INTEGER('F', "freq", &freq,
 		    "profile at this frequency"),
 	OPT_INTEGER('E', "entries", &print_entries,

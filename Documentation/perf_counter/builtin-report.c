@@ -43,12 +43,6 @@ static int		full_paths;
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
-const char *perf_event_names[] = {
-	[PERF_EVENT_MMAP]   = " PERF_EVENT_MMAP",
-	[PERF_EVENT_MUNMAP] = " PERF_EVENT_MUNMAP",
-	[PERF_EVENT_COMM]   = " PERF_EVENT_COMM",
-};
-
 struct ip_event {
 	struct perf_event_header header;
 	__u64 ip;
@@ -70,11 +64,17 @@ struct comm_event {
 	char comm[16];
 };
 
+struct fork_event {
+	struct perf_event_header header;
+	__u32 pid, ppid;
+};
+
 typedef union event_union {
 	struct perf_event_header header;
 	struct ip_event ip;
 	struct mmap_event mmap;
 	struct comm_event comm;
+	struct fork_event fork;
 } event_t;
 
 static LIST_HEAD(dsos);
@@ -208,7 +208,31 @@ out_delete:
 	return NULL;
 }
 
-struct thread;
+static struct map *map__clone(struct map *self)
+{
+	struct map *map = malloc(sizeof(*self));
+
+	if (!map)
+		return NULL;
+
+	memcpy(map, self, sizeof(*self));
+
+	return map;
+}
+
+static int map__overlap(struct map *l, struct map *r)
+{
+	if (l->start > r->start) {
+		struct map *t = l;
+		l = r;
+		r = t;
+	}
+
+	if (l->end > r->start)
+		return 1;
+
+	return 0;
+}
 
 struct thread {
 	struct rb_node	 rb_node;
@@ -284,7 +308,37 @@ static struct thread *threads__findnew(pid_t pid)
 
 static void thread__insert_map(struct thread *self, struct map *map)
 {
+	struct map *pos, *tmp;
+
+	list_for_each_entry_safe(pos, tmp, &self->maps, node) {
+		if (map__overlap(pos, map)) {
+			list_del_init(&pos->node);
+			/* XXX leaks dsos */
+			free(pos);
+		}
+	}
+
 	list_add_tail(&map->node, &self->maps);
+}
+
+static int thread__fork(struct thread *self, struct thread *parent)
+{
+	struct map *map;
+
+	if (self->comm)
+		free(self->comm);
+	self->comm = strdup(parent->comm);
+	if (!self->comm)
+		return -ENOMEM;
+
+	list_for_each_entry(map, &parent->maps, node) {
+		struct map *new = map__clone(map);
+		if (!new)
+			return -ENOMEM;
+		thread__insert_map(self, new);
+	}
+
+	return 0;
 }
 
 static struct map *thread__find_map(struct thread *self, uint64_t ip)
@@ -784,7 +838,11 @@ static void register_idle_thread(void)
 	}
 }
 
-static unsigned long total = 0, total_mmap = 0, total_comm = 0, total_unknown = 0;
+static unsigned long total = 0,
+		     total_mmap = 0,
+		     total_comm = 0,
+		     total_fork = 0,
+		     total_unknown = 0;
 
 static int
 process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
@@ -866,9 +924,10 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 	struct thread *thread = threads__findnew(event->mmap.pid);
 	struct map *map = map__new(&event->mmap);
 
-	dprintf("%p [%p]: PERF_EVENT_MMAP: [%p(%p) @ %p]: %s\n",
+	dprintf("%p [%p]: PERF_EVENT_MMAP %d: [%p(%p) @ %p]: %s\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
+		event->mmap.pid,
 		(void *)(long)event->mmap.start,
 		(void *)(long)event->mmap.len,
 		(void *)(long)event->mmap.pgoff,
@@ -906,6 +965,26 @@ process_comm_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
+process_fork_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	struct thread *thread = threads__findnew(event->fork.pid);
+	struct thread *parent = threads__findnew(event->fork.ppid);
+
+	dprintf("%p [%p]: PERF_EVENT_FORK: %d:%d\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		event->fork.pid, event->fork.ppid);
+
+	if (!thread || !parent || thread__fork(thread, parent)) {
+		dprintf("problem processing PERF_EVENT_FORK, skipping event.\n");
+		return -1;
+	}
+	total_fork++;
+
+	return 0;
+}
+
+static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
@@ -918,10 +997,13 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	case PERF_EVENT_COMM:
 		return process_comm_event(event, offset, head);
 
+	case PERF_EVENT_FORK:
+		return process_fork_event(event, offset, head);
+
 	/*
 	 * We dont process them right now but they are fine:
 	 */
-	case PERF_EVENT_MUNMAP:
+
 	case PERF_EVENT_PERIOD:
 	case PERF_EVENT_THROTTLE:
 	case PERF_EVENT_UNTHROTTLE:
@@ -1038,6 +1120,7 @@ more:
 	dprintf("      IP events: %10ld\n", total);
 	dprintf("    mmap events: %10ld\n", total_mmap);
 	dprintf("    comm events: %10ld\n", total_comm);
+	dprintf("    fork events: %10ld\n", total_fork);
 	dprintf(" unknown events: %10ld\n", total_unknown);
 
 	if (dump_trace)
