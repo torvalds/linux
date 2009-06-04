@@ -26,7 +26,10 @@
 
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
-static char		*sort_order = "comm,dso";
+
+static char		default_sort_order[] = "comm,dso";
+static char		*sort_order = default_sort_order;
+
 static int		input;
 static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
@@ -103,9 +106,10 @@ static struct dso *dsos__findnew(const char *name)
 	if (!dso)
 		goto out_delete_dso;
 
-	nr = dso__load(dso, NULL);
+	nr = dso__load(dso, NULL, verbose);
 	if (nr < 0) {
-		fprintf(stderr, "Failed to open: %s\n", name);
+		if (verbose)
+			fprintf(stderr, "Failed to open: %s\n", name);
 		goto out_delete_dso;
 	}
 	if (!nr && verbose) {
@@ -139,7 +143,7 @@ static int load_kernel(void)
 	if (!kernel_dso)
 		return -1;
 
-	err = dso__load_kernel(kernel_dso, vmlinux, NULL);
+	err = dso__load_kernel(kernel_dso, vmlinux, NULL, verbose);
 	if (err) {
 		dso__delete(kernel_dso);
 		kernel_dso = NULL;
@@ -739,6 +743,12 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
 		pos = rb_entry(nd, struct hist_entry, rb_node);
 		ret += hist_entry__fprintf(fp, pos, total_samples);
+	}
+
+	if (!strcmp(sort_order, default_sort_order)) {
+		fprintf(fp, "#\n");
+		fprintf(fp, "# ( For more details, try: perf report --sort comm,dso,symbol )\n");
+		fprintf(fp, "#\n");
 	}
 
 	return ret;

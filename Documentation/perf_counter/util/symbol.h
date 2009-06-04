@@ -32,8 +32,8 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 struct symbol *dso__find_symbol(struct dso *self, uint64_t ip);
 
 int dso__load_kernel(struct dso *self, const char *vmlinux,
-		     symbol_filter_t filter);
-int dso__load(struct dso *self, symbol_filter_t filter);
+		     symbol_filter_t filter, int verbose);
+int dso__load(struct dso *self, symbol_filter_t filter, int verbose);
 
 size_t dso__fprintf(struct dso *self, FILE *fp);
 

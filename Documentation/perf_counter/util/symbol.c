@@ -124,7 +124,7 @@ size_t dso__fprintf(struct dso *self, FILE *fp)
 	return ret;
 }
 
-static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter)
+static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verbose)
 {
 	struct rb_node *nd, *prevnd;
 	char *line = NULL;
@@ -370,7 +370,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 }
 
 static int dso__load_sym(struct dso *self, int fd, const char *name,
-			 symbol_filter_t filter)
+			 symbol_filter_t filter, int verbose)
 {
 	Elf_Data *symstrs;
 	uint32_t nr_syms;
@@ -387,13 +387,15 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 
 	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
-		fprintf(stderr, "%s: cannot read %s ELF file.\n",
-			__func__, name);
+		if (verbose)
+			fprintf(stderr, "%s: cannot read %s ELF file.\n",
+				__func__, name);
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
-		fprintf(stderr, "%s: cannot get elf header.\n", __func__);
+		if (verbose)
+			fprintf(stderr, "%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
@@ -473,7 +475,7 @@ out_close:
 	return err;
 }
 
-int dso__load(struct dso *self, symbol_filter_t filter)
+int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 {
 	int size = strlen(self->name) + sizeof("/usr/lib/debug%s.debug");
 	char *name = malloc(size);
@@ -505,7 +507,7 @@ more:
 		fd = open(name, O_RDONLY);
 	} while (fd < 0);
 
-	ret = dso__load_sym(self, fd, name, filter);
+	ret = dso__load_sym(self, fd, name, filter, verbose);
 	close(fd);
 
 	/*
@@ -520,28 +522,29 @@ out:
 }
 
 static int dso__load_vmlinux(struct dso *self, const char *vmlinux,
-			     symbol_filter_t filter)
+			     symbol_filter_t filter, int verbose)
 {
 	int err, fd = open(vmlinux, O_RDONLY);
 
 	if (fd < 0)
 		return -1;
 
-	err = dso__load_sym(self, fd, vmlinux, filter);
+	err = dso__load_sym(self, fd, vmlinux, filter, verbose);
 	close(fd);
 
 	return err;
 }
 
-int dso__load_kernel(struct dso *self, const char *vmlinux, symbol_filter_t filter)
+int dso__load_kernel(struct dso *self, const char *vmlinux,
+		     symbol_filter_t filter, int verbose)
 {
 	int err = -1;
 
 	if (vmlinux)
-		err = dso__load_vmlinux(self, vmlinux, filter);
+		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
 
 	if (err)
-		err = dso__load_kallsyms(self, filter);
+		err = dso__load_kallsyms(self, filter, verbose);
 
 	return err;
 }
