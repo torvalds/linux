@@ -92,6 +92,9 @@ struct ocfs2_unblock_ctl {
 	enum ocfs2_unblock_action unblock_action;
 };
 
+/* Lockdep class keys */
+struct lock_class_key lockdep_keys[OCFS2_NUM_LOCK_TYPES];
+
 static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level);
 static void ocfs2_set_meta_lvb(struct ocfs2_lock_res *lockres);
@@ -317,9 +320,16 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			     u32 dlm_flags);
 static inline int ocfs2_may_continue_on_blocked_lock(struct ocfs2_lock_res *lockres,
 						     int wanted);
-static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
-				 struct ocfs2_lock_res *lockres,
-				 int level);
+static void __ocfs2_cluster_unlock(struct ocfs2_super *osb,
+				   struct ocfs2_lock_res *lockres,
+				   int level, unsigned long caller_ip);
+static inline void ocfs2_cluster_unlock(struct ocfs2_super *osb,
+					struct ocfs2_lock_res *lockres,
+					int level)
+{
+	__ocfs2_cluster_unlock(osb, lockres, level, _RET_IP_);
+}
+
 static inline void ocfs2_generic_handle_downconvert_action(struct ocfs2_lock_res *lockres);
 static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lockres);
 static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *lockres);
@@ -489,6 +499,13 @@ static void ocfs2_lock_res_init_common(struct ocfs2_super *osb,
 	ocfs2_add_lockres_tracking(res, osb->osb_dlm_debug);
 
 	ocfs2_init_lock_stats(res);
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (type != OCFS2_LOCK_TYPE_OPEN)
+		lockdep_init_map(&res->l_lockdep_map, ocfs2_lock_type_strings[type],
+				 &lockdep_keys[type], 0);
+	else
+		res->l_lockdep_map.key = NULL;
+#endif
 }
 
 void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res)
@@ -1252,11 +1269,13 @@ static int ocfs2_wait_for_mask_interruptible(struct ocfs2_mask_waiter *mw,
 	return ret;
 }
 
-static int ocfs2_cluster_lock(struct ocfs2_super *osb,
-			      struct ocfs2_lock_res *lockres,
-			      int level,
-			      u32 lkm_flags,
-			      int arg_flags)
+static int __ocfs2_cluster_lock(struct ocfs2_super *osb,
+				struct ocfs2_lock_res *lockres,
+				int level,
+				u32 lkm_flags,
+				int arg_flags,
+				int l_subclass,
+				unsigned long caller_ip)
 {
 	struct ocfs2_mask_waiter mw;
 	int wait, catch_signals = !(osb->s_mount_opt & OCFS2_MOUNT_NOINTR);
@@ -1399,13 +1418,37 @@ out:
 	}
 	ocfs2_update_lock_stats(lockres, level, &mw, ret);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (!ret && lockres->l_lockdep_map.key != NULL) {
+		if (level == DLM_LOCK_PR)
+			rwsem_acquire_read(&lockres->l_lockdep_map, l_subclass,
+				!!(arg_flags & OCFS2_META_LOCK_NOQUEUE),
+				caller_ip);
+		else
+			rwsem_acquire(&lockres->l_lockdep_map, l_subclass,
+				!!(arg_flags & OCFS2_META_LOCK_NOQUEUE),
+				caller_ip);
+	}
+#endif
 	mlog_exit(ret);
 	return ret;
 }
 
-static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
-				 struct ocfs2_lock_res *lockres,
-				 int level)
+static inline int ocfs2_cluster_lock(struct ocfs2_super *osb,
+				     struct ocfs2_lock_res *lockres,
+				     int level,
+				     u32 lkm_flags,
+				     int arg_flags)
+{
+	return __ocfs2_cluster_lock(osb, lockres, level, lkm_flags, arg_flags,
+				    0, _RET_IP_);
+}
+
+
+static void __ocfs2_cluster_unlock(struct ocfs2_super *osb,
+				   struct ocfs2_lock_res *lockres,
+				   int level,
+				   unsigned long caller_ip)
 {
 	unsigned long flags;
 
@@ -1414,6 +1457,10 @@ static void ocfs2_cluster_unlock(struct ocfs2_super *osb,
 	ocfs2_dec_holders(lockres, level);
 	ocfs2_downconvert_on_unlock(osb, lockres);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	if (lockres->l_lockdep_map.key != NULL)
+		rwsem_release(&lockres->l_lockdep_map, 1, caller_ip);
+#endif
 	mlog_exit_void();
 }
 
@@ -2159,10 +2206,11 @@ static int ocfs2_assign_bh(struct inode *inode,
  * returns < 0 error if the callback will never be called, otherwise
  * the result of the lock will be communicated via the callback.
  */
-int ocfs2_inode_lock_full(struct inode *inode,
-			 struct buffer_head **ret_bh,
-			 int ex,
-			 int arg_flags)
+int ocfs2_inode_lock_full_nested(struct inode *inode,
+				 struct buffer_head **ret_bh,
+				 int ex,
+				 int arg_flags,
+				 int subclass)
 {
 	int status, level, acquired;
 	u32 dlm_flags;
@@ -2200,7 +2248,8 @@ int ocfs2_inode_lock_full(struct inode *inode,
 	if (arg_flags & OCFS2_META_LOCK_NOQUEUE)
 		dlm_flags |= DLM_LKF_NOQUEUE;
 
-	status = ocfs2_cluster_lock(osb, lockres, level, dlm_flags, arg_flags);
+	status = __ocfs2_cluster_lock(osb, lockres, level, dlm_flags,
+				      arg_flags, subclass, _RET_IP_);
 	if (status < 0) {
 		if (status != -EAGAIN && status != -EIOCBRETRY)
 			mlog_errno(status);
