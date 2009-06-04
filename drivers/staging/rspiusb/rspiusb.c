@@ -217,8 +217,10 @@ static int pixis_io(struct ioctl_struct *ctrl, struct device_extension *pdx,
 	dbg("numbytes to read = %d", numbytes);
 	dbg("endpoint # %d", ctrl->endpoint);
 
-	if (copy_from_user(uBuf, ctrl->pData, numbytes))
+	if (copy_from_user(uBuf, ctrl->pData, numbytes)) {
 		dbg("copying ctrl->pData to dummyBuf failed");
+		return -EFAULT;
+	}
 
 	do {
 		i = usb_bulk_msg(pdx->udev, pdx->hEP[ctrl->endpoint],
@@ -304,9 +306,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 	switch (cmd) {
 	case PIUSB_GETVNDCMD:
-		if (copy_from_user
-		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct)))
+		if (__copy_from_user
+		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct))) {
 			dev_err(&pdx->udev->dev, "copy_from_user failed\n");
+			return -EFAULT;
+		}
 		dbg("%s %x\n", "Get Vendor Command = ", ctrl.cmd);
 		retval =
 		    usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0),
@@ -321,9 +325,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		return retval;
 
 	case PIUSB_SETVNDCMD:
-		if (copy_from_user
-		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct)))
+		if (__copy_from_user
+		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct))) {
 			dev_err(&pdx->udev->dev, "copy_from_user failed\n");
+			return -EFAULT;
+		}
 		/* dbg( "%s %x", "Set Vendor Command = ",ctrl.cmd ); */
 		controlData = ctrl.pData[0];
 		controlData |= (ctrl.pData[1] << 8);
@@ -341,9 +347,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		return ((pdx->udev->speed == USB_SPEED_HIGH) ? 1 : 0);
 
 	case PIUSB_WRITEPIPE:
-		if (copy_from_user(&ctrl, (void __user *)arg, _IOC_SIZE(cmd)))
+		if (__copy_from_user(&ctrl, (void __user *)arg, _IOC_SIZE(cmd))) {
 			dev_err(&pdx->udev->dev,
 					"copy_from_user WRITE_DUMMY failed\n");
+			return -EFAULT;
+		}
 		if (!access_ok(VERIFY_READ, ctrl.pData, ctrl.numbytes)) {
 			dbg("can't access pData");
 			return 0;
@@ -352,9 +360,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		return ctrl.numbytes;
 
 	case PIUSB_USERBUFFER:
-		if (copy_from_user
-		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct)))
+		if (__copy_from_user
+		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct))) {
 			dev_err(&pdx->udev->dev, "copy_from_user failed\n");
+			return -EFAULT;
+		}
 		return MapUserBuffer((struct ioctl_struct *) &ctrl, pdx);
 
 	case PIUSB_UNMAP_USERBUFFER:
@@ -362,10 +372,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		return retval;
 
 	case PIUSB_READPIPE:
-		if (copy_from_user(&ctrl, (void __user *)arg,
-					sizeof(struct ioctl_struct)))
+		if (__copy_from_user(&ctrl, (void __user *)arg,
+					sizeof(struct ioctl_struct))) {
 			dev_err(&pdx->udev->dev, "copy_from_user failed\n");
-
+			return -EFAULT;
+		}
 		if (((0 == ctrl.endpoint) && (PIXIS_PID == pdx->iama)) ||
 				(1 == ctrl.endpoint) ||	/* ST133IO */
 				(4 == ctrl.endpoint))	/* PIXIS IO */
@@ -383,9 +394,11 @@ static int piusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	case PIUSB_SETFRAMESIZE:
 		dbg("PIUSB_SETFRAMESIZE");
-		if (copy_from_user
-		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct)))
+		if (__copy_from_user
+		    (&ctrl, (void __user *)arg, sizeof(struct ioctl_struct))) {
 			dev_err(&pdx->udev->dev, "copy_from_user failed\n");
+			return -EFAULT;
+		}
 		pdx->frameSize = ctrl.numbytes;
 		pdx->num_frames = ctrl.numFrames;
 		if (!pdx->sgl)
@@ -451,7 +464,10 @@ int piusb_output(struct ioctl_struct *io, unsigned char *uBuf, int len,
 			dev_err(&pdx->udev->dev, "buffer_alloc failed\n");
 			return -ENOMEM;
 		}
-		memcpy(kbuf, uBuf, len);
+		if(__copy_from_user(kbuf, uBuf, len)) {
+			dev_err(&pdx->udev->dev, "__copy_from_user failed\n");
+			return -EFAULT;
+		}
 		usb_fill_bulk_urb(urb, pdx->udev, pdx->hEP[io->endpoint], kbuf,
 				  len, piusb_write_bulk_callback, pdx);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
