@@ -699,17 +699,18 @@ static void output__resort(void)
 {
 	struct rb_node *next;
 	struct hist_entry *n;
+	struct rb_root *tree = &hist;
 
 	if (sort__need_collapse)
-		next = rb_first(&collapse_hists);
-	else
-		next = rb_first(&hist);
+		tree = &collapse_hists;
+
+	next = rb_first(tree);
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
 
-		rb_erase(&n->rb_node, &hist);
+		rb_erase(&n->rb_node, tree);
 		output__insert_entry(n);
 	}
 }
