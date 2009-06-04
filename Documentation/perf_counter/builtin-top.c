@@ -64,9 +64,10 @@ static int			default_interval = 100000;
 static int			event_count[MAX_COUNTERS];
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static __u64			count_filter		       = 100;
+static __u64			count_filter			=  5;
+static int			print_entries			= 15;
 
-static int			target_pid				= -1;
+static int			target_pid			= -1;
 static int			profile_cpu			= -1;
 static int			nr_cpus				=  0;
 static unsigned int		realtime_prio			=  0;
@@ -254,7 +255,7 @@ static void print_sym_table(void)
 		struct symbol *sym = (struct symbol *)(syme + 1);
 		float pcnt;
 
-		if (++printed > 18 || syme->snap_count < count_filter)
+		if (++printed > print_entries || syme->snap_count < count_filter)
 			continue;
 
 		pcnt = 100.0 - (100.0 * ((sum_kevents - syme->snap_count) /
@@ -650,7 +651,7 @@ static const struct option options[] = {
 		    "number of seconds to delay between refreshes"),
 	OPT_BOOLEAN('D', "dump-symtab", &dump_symtab,
 			    "dump the symbol table used for profiling"),
-	OPT_INTEGER('f', "--count-filter", &count_filter,
+	OPT_INTEGER('f', "count-filter", &count_filter,
 		    "only display functions with more events than this"),
 	OPT_BOOLEAN('g', "group", &group,
 			    "put the counters into a counter group"),
@@ -662,8 +663,10 @@ static const struct option options[] = {
 		    "track mmap events"),
 	OPT_BOOLEAN('U', "use-munmap", &use_munmap,
 		    "track munmap events"),
-	OPT_INTEGER('F', "--freq", &freq,
+	OPT_INTEGER('F', "freq", &freq,
 		    "profile at this frequency"),
+	OPT_INTEGER('E', "entries", &print_entries,
+		    "display this many functions"),
 	OPT_END()
 };
 
