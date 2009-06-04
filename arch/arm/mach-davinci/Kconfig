@@ -6,6 +6,9 @@ config AINTC
 config CP_INTC
 	bool
 
+config ARCH_DAVINCI_DMx
+	bool
+
 menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
@@ -13,14 +16,25 @@ comment "DaVinci Core Type"
 config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM355
         bool "DaVinci 355 based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM646x
         bool "DaVinci 646x based system"
 	select AINTC
+	select ARCH_DAVINCI_DMx
+
+config ARCH_DAVINCI_DA830
+        bool "DA830/OMAP-L137 based system"
+	select CP_INTC
+	select ARCH_DAVINCI_DA8XX
+
+config ARCH_DAVINCI_DA8XX
+	bool
 
 config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
