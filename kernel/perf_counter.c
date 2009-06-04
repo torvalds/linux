@@ -40,9 +40,9 @@ static int perf_reserved_percpu __read_mostly;
 static int perf_overcommit __read_mostly = 1;
 
 static atomic_t nr_counters __read_mostly;
-static atomic_t nr_mmap_tracking __read_mostly;
-static atomic_t nr_munmap_tracking __read_mostly;
-static atomic_t nr_comm_tracking __read_mostly;
+static atomic_t nr_mmap_counters __read_mostly;
+static atomic_t nr_munmap_counters __read_mostly;
+static atomic_t nr_comm_counters __read_mostly;
 
 int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
 int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
@@ -1447,11 +1447,11 @@ static void free_counter(struct perf_counter *counter)
 
 	atomic_dec(&nr_counters);
 	if (counter->attr.mmap)
-		atomic_dec(&nr_mmap_tracking);
+		atomic_dec(&nr_mmap_counters);
 	if (counter->attr.munmap)
-		atomic_dec(&nr_munmap_tracking);
+		atomic_dec(&nr_munmap_counters);
 	if (counter->attr.comm)
-		atomic_dec(&nr_comm_tracking);
+		atomic_dec(&nr_comm_counters);
 
 	if (counter->destroy)
 		counter->destroy(counter);
@@ -2476,6 +2476,105 @@ static void perf_counter_output(struct perf_counter *counter,
 }
 
 /*
+ * fork tracking
+ */
+
+struct perf_fork_event {
+	struct task_struct	*task;
+
+	struct {
+		struct perf_event_header	header;
+
+		u32				pid;
+		u32				ppid;
+	} event;
+};
+
+static void perf_counter_fork_output(struct perf_counter *counter,
+				     struct perf_fork_event *fork_event)
+{
+	struct perf_output_handle handle;
+	int size = fork_event->event.header.size;
+	struct task_struct *task = fork_event->task;
+	int ret = perf_output_begin(&handle, counter, size, 0, 0);
+
+	if (ret)
+		return;
+
+	fork_event->event.pid = perf_counter_pid(counter, task);
+	fork_event->event.ppid = perf_counter_pid(counter, task->real_parent);
+
+	perf_output_put(&handle, fork_event->event);
+	perf_output_end(&handle);
+}
+
+static int perf_counter_fork_match(struct perf_counter *counter)
+{
+	if (counter->attr.comm || counter->attr.mmap || counter->attr.munmap)
+		return 1;
+
+	return 0;
+}
+
+static void perf_counter_fork_ctx(struct perf_counter_context *ctx,
+				  struct perf_fork_event *fork_event)
+{
+	struct perf_counter *counter;
+
+	if (system_state != SYSTEM_RUNNING || list_empty(&ctx->event_list))
+		return;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
+		if (perf_counter_fork_match(counter))
+			perf_counter_fork_output(counter, fork_event);
+	}
+	rcu_read_unlock();
+}
+
+static void perf_counter_fork_event(struct perf_fork_event *fork_event)
+{
+	struct perf_cpu_context *cpuctx;
+	struct perf_counter_context *ctx;
+
+	cpuctx = &get_cpu_var(perf_cpu_context);
+	perf_counter_fork_ctx(&cpuctx->ctx, fork_event);
+	put_cpu_var(perf_cpu_context);
+
+	rcu_read_lock();
+	/*
+	 * doesn't really matter which of the child contexts the
+	 * events ends up in.
+	 */
+	ctx = rcu_dereference(current->perf_counter_ctxp);
+	if (ctx)
+		perf_counter_fork_ctx(ctx, fork_event);
+	rcu_read_unlock();
+}
+
+void perf_counter_fork(struct task_struct *task)
+{
+	struct perf_fork_event fork_event;
+
+	if (!atomic_read(&nr_comm_counters) &&
+	    !atomic_read(&nr_mmap_counters) &&
+	    !atomic_read(&nr_munmap_counters))
+		return;
+
+	fork_event = (struct perf_fork_event){
+		.task	= task,
+		.event  = {
+			.header = {
+				.type = PERF_EVENT_FORK,
+				.size = sizeof(fork_event.event),
+			},
+		},
+	};
+
+	perf_counter_fork_event(&fork_event);
+}
+
+/*
  * comm tracking
  */
 
@@ -2511,11 +2610,9 @@ static void perf_counter_comm_output(struct perf_counter *counter,
 	perf_output_end(&handle);
 }
 
-static int perf_counter_comm_match(struct perf_counter *counter,
-				   struct perf_comm_event *comm_event)
+static int perf_counter_comm_match(struct perf_counter *counter)
 {
-	if (counter->attr.comm &&
-	    comm_event->event.header.type == PERF_EVENT_COMM)
+	if (counter->attr.comm)
 		return 1;
 
 	return 0;
@@ -2531,7 +2628,7 @@ static void perf_counter_comm_ctx(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_counter_comm_match(counter, comm_event))
+		if (perf_counter_comm_match(counter))
 			perf_counter_comm_output(counter, comm_event);
 	}
 	rcu_read_unlock();
@@ -2570,7 +2667,7 @@ void perf_counter_comm(struct task_struct *task)
 {
 	struct perf_comm_event comm_event;
 
-	if (!atomic_read(&nr_comm_tracking))
+	if (!atomic_read(&nr_comm_counters))
 		return;
 
 	comm_event = (struct perf_comm_event){
@@ -2708,7 +2805,7 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 {
 	struct perf_mmap_event mmap_event;
 
-	if (!atomic_read(&nr_mmap_tracking))
+	if (!atomic_read(&nr_mmap_counters))
 		return;
 
 	mmap_event = (struct perf_mmap_event){
@@ -2729,7 +2826,7 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 {
 	struct perf_mmap_event mmap_event;
 
-	if (!atomic_read(&nr_munmap_tracking))
+	if (!atomic_read(&nr_munmap_counters))
 		return;
 
 	mmap_event = (struct perf_mmap_event){
@@ -3427,11 +3524,11 @@ done:
 
 	atomic_inc(&nr_counters);
 	if (counter->attr.mmap)
-		atomic_inc(&nr_mmap_tracking);
+		atomic_inc(&nr_mmap_counters);
 	if (counter->attr.munmap)
-		atomic_inc(&nr_munmap_tracking);
+		atomic_inc(&nr_munmap_counters);
 	if (counter->attr.comm)
-		atomic_inc(&nr_comm_tracking);
+		atomic_inc(&nr_comm_counters);
 
 	return counter;
 }

@@ -277,6 +277,14 @@ enum perf_event_type {
 	PERF_EVENT_UNTHROTTLE		= 6,
 
 	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u32				pid, ppid;
+	 * };
+	 */
+	PERF_EVENT_FORK			= 7,
+
+	/*
 	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
 	 * will be PERF_RECORD_*
 	 *
@@ -618,6 +626,7 @@ extern void perf_counter_munmap(unsigned long addr, unsigned long len,
 				unsigned long pgoff, struct file *file);
 
 extern void perf_counter_comm(struct task_struct *tsk);
+extern void perf_counter_fork(struct task_struct *tsk);
 
 extern void perf_counter_task_migration(struct task_struct *task, int cpu);
 
@@ -673,6 +682,7 @@ perf_counter_munmap(unsigned long addr, unsigned long len,
 		    unsigned long pgoff, struct file *file)		{ }
 
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
+static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
 static inline void perf_counter_task_migration(struct task_struct *task,
 					       int cpu)			{ }
