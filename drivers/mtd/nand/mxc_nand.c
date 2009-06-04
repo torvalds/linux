@@ -865,7 +865,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		goto eres;
 	}
 
-	host->regs = ioremap(res->start, res->end - res->start + 1);
+	host->regs = ioremap(res->start, resource_size(res));
 	if (!host->regs) {
 		err = -ENOMEM;
 		goto eres;
