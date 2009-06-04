@@ -48,6 +48,8 @@
 #include <asm/ldc.h>
 #include <asm/hypervisor.h>
 
+#include "cpumap.h"
+
 int sparc64_multi_core __read_mostly;
 
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
@@ -1313,6 +1315,8 @@ int __cpu_disable(void)
 	ipi_call_lock();
 	cpu_clear(cpu, cpu_online_map);
 	ipi_call_unlock();
+
+	cpu_map_rebuild();
 
 	return 0;
 }
