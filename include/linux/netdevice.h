@@ -1903,15 +1903,14 @@ static inline int net_gso_ok(int features, int gso_type)
 
 static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
-	return net_gso_ok(features, skb_shinfo(skb)->gso_type);
+	return net_gso_ok(features, skb_shinfo(skb)->gso_type) &&
+	       (!skb_shinfo(skb)->frag_list || (features & NETIF_F_FRAGLIST));
 }
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
-	        (skb_shinfo(skb)->frag_list &&
-	         !(dev->features & NETIF_F_FRAGLIST)) ||
 		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
 }
 
