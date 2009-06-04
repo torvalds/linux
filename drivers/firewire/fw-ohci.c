@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
+#include <asm/atomic.h>
 #include <asm/page.h>
 #include <asm/system.h>
 
@@ -178,7 +179,7 @@ struct fw_ohci {
 	int node_id;
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
-	u32 bus_seconds;
+	atomic_t bus_seconds;
 
 	bool use_dualbuffer;
 	bool old_uninorth;
@@ -1434,7 +1435,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
-			ohci->bus_seconds++;
+			atomic_inc(&ohci->bus_seconds);
 	}
 
 	return IRQ_HANDLED;
@@ -1770,7 +1771,7 @@ static u64 ohci_get_bus_time(struct fw_card *card)
 	u64 bus_time;
 
 	cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-	bus_time = ((u64) ohci->bus_seconds << 32) | cycle_time;
+	bus_time = ((u64)atomic_read(&ohci->bus_seconds) << 32) | cycle_time;
 
 	return bus_time;
 }
