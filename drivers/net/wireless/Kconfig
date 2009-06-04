@@ -153,7 +153,7 @@ config LIBERTAS_SDIO
 
 config LIBERTAS_SPI
 	tristate "Marvell Libertas 8686 SPI 802.11b/g cards"
-	depends on LIBERTAS && SPI && GENERIC_GPIO
+	depends on LIBERTAS && SPI
 	---help---
 	  A driver for Marvell Libertas 8686 SPI devices.
 
