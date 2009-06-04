@@ -1819,7 +1819,6 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	struct emac_rxch *rxch = priv->rxch[EMAC_DEF_RX_CH];
 	struct device *emac_dev = &priv->ndev->dev;
 	struct sockaddr *sa = addr;
-	DECLARE_MAC_BUF(mac);
 
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
@@ -1828,8 +1827,8 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	emac_setmac(priv, EMAC_DEF_RX_CH, rxch->mac_addr);
 
 	if (netif_msg_drv(priv))
-		dev_notice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %s\n",
-			   print_mac(mac, priv->mac_addr));
+		dev_notice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %pM\n",
+					priv->mac_addr);
 
 	return 0;
 }
@@ -2683,11 +2682,10 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	ndev->irq = res->start;
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
-		DECLARE_MAC_BUF(buf);
 		/* Use random MAC if none passed */
 		random_ether_addr(priv->mac_addr);
-		printk(KERN_WARNING "%s: using random MAC addr: %s\n",
-			__func__, print_mac(buf, priv->mac_addr));
+		printk(KERN_WARNING "%s: using random MAC addr: %pM\n",
+				__func__, priv->mac_addr);
 	}
 
 	ndev->netdev_ops = &emac_netdev_ops;
