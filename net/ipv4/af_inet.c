@@ -116,7 +116,6 @@
 #include <linux/mroute.h>
 #endif
 
-extern void ip_mc_drop_socket(struct sock *sk);
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
