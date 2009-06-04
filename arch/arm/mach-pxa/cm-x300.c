@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/dm9000.h>
 #include <linux/leds.h>
+#include <linux/rtc-v3020.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
@@ -45,6 +46,11 @@
 #define GPIO85_MMC2_WP		(85)
 
 #define	CM_X300_MMC2_IRQ	IRQ_GPIO(GPIO82_MMC2_IRQ)
+
+#define GPIO95_RTC_CS		(95)
+#define GPIO96_RTC_WR		(96)
+#define GPIO97_RTC_RD		(97)
+#define GPIO98_RTC_IO		(98)
 
 static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	/* LCD */
@@ -134,6 +140,12 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO82_GPIO | MFP_PULL_HIGH,	/* MMC CD */
 	GPIO85_GPIO,			/* MMC WP */
 	GPIO99_GPIO,			/* Ethernet IRQ */
+
+	/* RTC GPIOs */
+	GPIO95_GPIO,			/* RTC CS */
+	GPIO96_GPIO,			/* RTC WR */
+	GPIO97_GPIO,			/* RTC RD */
+	GPIO98_GPIO,			/* RTC IO */
 
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
@@ -442,6 +454,31 @@ static void __init cm_x300_init_i2c(void)
 static inline void cm_x300_init_i2c(void) {}
 #endif
 
+#if defined(CONFIG_RTC_DRV_V3020) || defined(CONFIG_RTC_DRV_V3020_MODULE)
+struct v3020_platform_data cm_x300_v3020_pdata = {
+	.use_gpio	= 1,
+	.gpio_cs	= GPIO95_RTC_CS,
+	.gpio_wr	= GPIO96_RTC_WR,
+	.gpio_rd	= GPIO97_RTC_RD,
+	.gpio_io	= GPIO98_RTC_IO,
+};
+
+static struct platform_device cm_x300_rtc_device = {
+	.name		= "v3020",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &cm_x300_v3020_pdata,
+	}
+};
+
+static void __init cm_x300_init_rtc(void)
+{
+	platform_device_register(&cm_x300_rtc_device);
+}
+#else
+static inline void cm_x300_init_rtc(void) {}
+#endif
+
 static void __init cm_x300_init(void)
 {
 	/* board-processor specific GPIO initialization */
@@ -454,6 +491,7 @@ static void __init cm_x300_init(void)
 	cm_x300_init_nand();
 	cm_x300_init_leds();
 	cm_x300_init_i2c();
+	cm_x300_init_rtc();
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
