@@ -763,7 +763,7 @@ NDIS_STATUS	 CreateThreads(
 	// Creat MLME Thread
 #ifndef RT30xx
 	pObj->MLMEThr_task = NULL;
-	tsk = kthread_run(MlmeThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(MlmeThread, pAd, "%s", pAd->net_dev->name);
 
 	if (IS_ERR(tsk)) {
 #endif
@@ -789,7 +789,7 @@ NDIS_STATUS	 CreateThreads(
 	// Creat Command Thread
 #ifndef RT30xx
 	pObj->RTUSBCmdThr_task = NULL;
-	tsk = kthread_run(RTUSBCmdThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(RTUSBCmdThread, pAd, "%s", pAd->net_dev->name);
 
 	if (IS_ERR(tsk) < 0)
 #endif
@@ -813,7 +813,7 @@ NDIS_STATUS	 CreateThreads(
 
 #ifndef RT30xx
 	pObj->TimerQThr_task = NULL;
-	tsk = kthread_run(TimerQThread, pAd, pAd->net_dev->name);
+	tsk = kthread_run(TimerQThread, pAd, "%s", pAd->net_dev->name);
 	if (IS_ERR(tsk) < 0)
 #endif
 #ifdef RT30xx
