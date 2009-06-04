@@ -1012,13 +1012,11 @@ int tomoyo_check_file_perm(struct tomoyo_domain_info *domain,
  *
  * @domain:   Pointer to "struct tomoyo_domain_info".
  * @filename: Check permission for "execute".
- * @tmp:      Buffer for temporary use.
  *
  * Returns 0 on success, negativevalue otherwise.
  */
 int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
-			   const struct tomoyo_path_info *filename,
-			   struct tomoyo_page_buffer *tmp)
+			   const struct tomoyo_path_info *filename)
 {
 	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
 

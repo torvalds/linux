@@ -721,7 +721,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm,
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_check_exec_perm(old_domain, &r, tmp);
+	retval = tomoyo_check_exec_perm(old_domain, &r);
 	if (retval < 0)
 		goto out;
 
