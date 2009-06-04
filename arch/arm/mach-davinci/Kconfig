@@ -89,6 +89,12 @@ config MACH_DAVINCI_DM365_EVM
 	  Configure this option to specify whether the board used
 	  for development is a DM365 EVM
 
+config MACH_DAVINCI_DA830_EVM
+	bool "TI DA830/OMAP-L137 Reference Platform"
+	default ARCH_DAVINCI_DA830
+	depends on ARCH_DAVINCI_DA830
+	help
+	  Say Y here to select the TI DA830/OMAP-L137 Evaluation Module.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
