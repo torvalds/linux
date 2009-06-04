@@ -37,7 +37,7 @@ static void cb710_read_regs_##t(void __iomem *iobase,			\
 	unsigned i, j;							\
 									\
 	for (i = 0; i < ARRAY_SIZE(allow); ++i, reg += 16/(t/8)) {	\
-		if (!select & (1 << i))					\
+		if (!(select & (1 << i)))					\
 			continue;					\
 									\
 		for (j = 0; j < 0x10/(t/8); ++j) {			\
