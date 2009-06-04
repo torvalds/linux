@@ -1,7 +1,7 @@
 #include "cache.h"
 #include "color.h"
 
-int perf_use_color_default = 0;
+int perf_use_color_default = -1;
 
 static int parse_color(const char *name, int len)
 {
@@ -169,10 +169,20 @@ static int color_vfprintf(FILE *fp, const char *color, const char *fmt,
 {
 	int r = 0;
 
-	if (*color)
+	/*
+	 * Auto-detect:
+	 */
+	if (perf_use_color_default < 0) {
+		if (isatty(1) || pager_in_use())
+			perf_use_color_default = 1;
+		else
+			perf_use_color_default = 0;
+	}
+
+	if (perf_use_color_default && *color)
 		r += fprintf(fp, "%s", color);
 	r += vfprintf(fp, fmt, args);
-	if (*color)
+	if (perf_use_color_default && *color)
 		r += fprintf(fp, "%s", PERF_COLOR_RESET);
 	if (trail)
 		r += fprintf(fp, "%s", trail);
@@ -185,6 +195,7 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 {
 	va_list args;
 	int r;
+
 	va_start(args, fmt);
 	r = color_vfprintf(fp, color, fmt, args, NULL);
 	va_end(args);
