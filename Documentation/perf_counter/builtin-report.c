@@ -1094,9 +1094,15 @@ int cmd_report(int argc, const char **argv, const char *prefix)
 
 	page_size = getpagesize();
 
-	parse_options(argc, argv, options, report_usage, 0);
+	argc = parse_options(argc, argv, options, report_usage, 0);
 
 	setup_sorting();
+
+	/*
+	 * Any (unrecognized) arguments left?
+	 */
+	if (argc)
+		usage_with_options(report_usage, options);
 
 	setup_pager();
 
