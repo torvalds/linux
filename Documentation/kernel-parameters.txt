@@ -751,12 +751,25 @@ and is between 256 and 4096 characters. It is defined in the file
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	ftrace=[tracer]
-			[ftrace] will set and start the specified tracer
+			[FTRACE] will set and start the specified tracer
 			as early as possible in order to facilitate early
 			boot debugging.
 
 	ftrace_dump_on_oops
-			[ftrace] will dump the trace buffers on oops.
+			[FTRACE] will dump the trace buffers on oops.
+
+	ftrace_filter=[function-list]
+			[FTRACE] Limit the functions traced by the function
+			tracer at boot up. function-list is a comma separated
+			list of functions. This list can be changed at run
+			time by the set_ftrace_filter file in the debugfs
+			tracing directory. 
+
+	ftrace_notrace=[function-list]
+			[FTRACE] Do not trace the functions specified in
+			function-list. This list can be changed at run time
+			by the set_ftrace_notrace file in the debugfs
+			tracing directory.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
