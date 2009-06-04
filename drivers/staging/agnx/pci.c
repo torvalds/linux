@@ -58,15 +58,17 @@ static inline void agnx_interrupt_ack(struct agnx_priv *priv, u32 *reason)
 			*reason |= AGNX_STAT_TXM;
 		}
 	}
-/*	if (*reason & AGNX_STAT_X) {
+#if 0
+	if (*reason & AGNX_STAT_X) {
 		reg = ioread32(ctl + AGNX_INT_STAT);
 		iowrite32(reg, ctl + AGNX_INT_STAT);
-		/* FIXME reinit interrupt mask *\/
+		/* FIXME reinit interrupt mask */
 		reg = 0xc390bf9 & ~IRQ_TX_BEACON;
 		reg &= ~IRQ_TX_DISABLE;
 		iowrite32(reg, ctl + AGNX_INT_MASK);
 		iowrite32(0x800, ctl + AGNX_CIR_BLKCTL);
-	} */
+	}
+#endif
 } /* agnx_interrupt_ack */
 
 static irqreturn_t agnx_interrupt_handler(int irq, void *dev_id)
@@ -219,7 +221,7 @@ static void agnx_periodic_work_handler(struct work_struct *work)
 	/* TODO Recalibrate*/
 /*	calibrate_oscillator(priv); */
 /*	antenna_calibrate(priv); */
-/*	agnx_send_packet(priv, 997); /
+/*	agnx_send_packet(priv, 997); */
 	/* FIXME */
 /* 	if (debug == 3) */
 /*                 delay = msecs_to_jiffies(AGNX_PERIODIC_DELAY); */
