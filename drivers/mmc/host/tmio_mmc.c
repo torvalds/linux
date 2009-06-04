@@ -493,17 +493,17 @@ static int tmio_mmc_resume(struct platform_device *dev)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	int ret = 0;
 
-	/* Enable the MMC/SD Control registers */
-	sd_config_write16(host, CNF_CMD, SDCREN);
-	sd_config_write32(host, CNF_CTL_BASE,
-		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
-
 	/* Tell the MFD core we are ready to be enabled */
 	if (cell->enable) {
 		ret = cell->enable(dev);
 		if (ret)
 			goto out;
 	}
+
+	/* Enable the MMC/SD Control registers */
+	sd_config_write16(host, CNF_CMD, SDCREN);
+	sd_config_write32(host, CNF_CTL_BASE,
+		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
 
 	mmc_resume_host(mmc);
 
@@ -563,17 +563,17 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	mmc->f_min = mmc->f_max / 512;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
-	/* Enable the MMC/SD Control registers */
-	sd_config_write16(host, CNF_CMD, SDCREN);
-	sd_config_write32(host, CNF_CTL_BASE,
-		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
-
 	/* Tell the MFD core we are ready to be enabled */
 	if (cell->enable) {
 		ret = cell->enable(dev);
 		if (ret)
 			goto unmap_cnf;
 	}
+
+	/* Enable the MMC/SD Control registers */
+	sd_config_write16(host, CNF_CMD, SDCREN);
+	sd_config_write32(host, CNF_CTL_BASE,
+		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
 
 	/* Disable SD power during suspend */
 	sd_config_write8(host, CNF_PWR_CTL_3, 0x01);
