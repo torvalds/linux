@@ -33,11 +33,27 @@
  */
 static struct platform_device *stmp37xx_devb_devices[] = {
 	&stmp3xxx_dbguart,
+	&stmp3xxx_appuart,
 };
 
 static struct pin_desc dbguart_pins_0[] = {
 	{ PINID_PWM0, PIN_FUN3, },
 	{ PINID_PWM1, PIN_FUN3, },
+};
+
+struct pin_desc appuart_pins_0[] = {
+	{ PINID_UART2_CTS, PIN_FUN1, PIN_4MA, PIN_1_8V, 0, },
+	{ PINID_UART2_RTS, PIN_FUN1, PIN_4MA, PIN_1_8V, 0, },
+	{ PINID_UART2_RX, PIN_FUN1, PIN_4MA, PIN_1_8V, 0, },
+	{ PINID_UART2_TX, PIN_FUN1, PIN_4MA, PIN_1_8V, 0, },
+};
+
+static struct pin_group appuart_pins[] = {
+	[0] = {
+		.pins		= appuart_pins_0,
+		.nr_pins	= ARRAY_SIZE(appuart_pins_0),
+	},
+	/* 37xx has the only app uart */
 };
 
 static struct pin_group dbguart_pins[] = {
@@ -67,6 +83,8 @@ static void __init stmp37xx_devb_init(void)
 	stmp3xxx_init();
 
 	stmp3xxx_dbguart.dev.platform_data = dbguart_pins_control;
+	stmp3xxx_appuart.dev.platform_data = appuart_pins;
+
 	/* Add STMP37xx development board devices */
 	platform_add_devices(stmp37xx_devb_devices,
 			ARRAY_SIZE(stmp37xx_devb_devices));

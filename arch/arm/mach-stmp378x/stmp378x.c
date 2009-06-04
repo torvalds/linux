@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/dma.h>
 #include <asm/setup.h>
@@ -39,6 +40,8 @@
 #include <mach/regs-icoll.h>
 #include <mach/regs-apbh.h>
 #include <mach/regs-apbx.h>
+#include <mach/regs-pxp.h>
+#include <mach/regs-i2c.h>
 
 #include "stmp378x.h"
 /*
@@ -230,6 +233,64 @@ static struct map_desc stmp378x_io_desc[] __initdata = {
 		.length		= STMP3XXX_OCRAM_SIZE,
 		.type		= MT_DEVICE,
 	},
+};
+
+
+static u64 common_dmamask = DMA_BIT_MASK(32);
+
+/*
+ * devices that are present only on stmp378x, not on all 3xxx boards:
+ * 	PxP
+ * 	I2C
+ */
+static struct resource pxp_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= REGS_PXP_PHYS,
+		.end	= REGS_PXP_PHYS + REGS_PXP_SIZE,
+	}, {
+		.flags	= IORESOURCE_IRQ,
+		.start	= IRQ_PXP,
+		.end	= IRQ_PXP,
+	},
+};
+
+struct platform_device stmp378x_pxp = {
+	.name		= "stmp3xxx-pxp",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &common_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(pxp_resource),
+	.resource	= pxp_resource,
+};
+
+static struct resource i2c_resources[] = {
+	{
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_I2C_ERROR,
+		.end = IRQ_I2C_ERROR,
+	}, {
+		.flags = IORESOURCE_MEM,
+		.start = REGS_I2C_PHYS,
+		.end = REGS_I2C_PHYS + REGS_I2C_SIZE,
+	}, {
+		.flags = IORESOURCE_DMA,
+		.start = STMP3XXX_DMA(3, STMP3XXX_BUS_APBX),
+		.end = STMP3XXX_DMA(3, STMP3XXX_BUS_APBX),
+	},
+};
+
+struct platform_device stmp378x_i2c = {
+	.name = "i2c_stmp3xxx",
+	.id = 0,
+	.dev	= {
+		.dma_mask	= &common_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.resource = i2c_resources,
+	.num_resources = ARRAY_SIZE(i2c_resources),
 };
 
 void __init stmp378x_map_io(void)
