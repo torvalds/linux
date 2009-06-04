@@ -2578,7 +2578,7 @@ static int ext4_da_writepage(struct page *page,
 		 * all are mapped and non delay. We don't want to
 		 * do block allocation here.
 		 */
-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
+		ret = block_prepare_write(page, 0, len,
 					  noalloc_get_block_write);
 		if (!ret) {
 			page_bufs = page_buffers(page);
@@ -2600,7 +2600,7 @@ static int ext4_da_writepage(struct page *page,
 			return 0;
 		}
 		/* now mark the buffer_heads as dirty and uptodate */
-		block_commit_write(page, 0, PAGE_CACHE_SIZE);
+		block_commit_write(page, 0, len);
 	}
 
 	if (test_opt(inode->i_sb, NOBH) && ext4_should_writeback_data(inode))
@@ -3246,6 +3246,8 @@ static int ext4_normal_writepage(struct page *page,
 static int __ext4_journalled_writepage(struct page *page,
 				       struct writeback_control *wbc)
 {
+	loff_t size;
+	unsigned int len;
 	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
 	struct buffer_head *page_bufs;
@@ -3253,14 +3255,17 @@ static int __ext4_journalled_writepage(struct page *page,
 	int ret = 0;
 	int err;
 
-	ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
-				  noalloc_get_block_write);
+	size = i_size_read(inode);
+	if (page->index == size >> PAGE_CACHE_SHIFT)
+		len = size & ~PAGE_CACHE_MASK;
+	else
+		len = PAGE_CACHE_SIZE;
+	ret = block_prepare_write(page, 0, len, noalloc_get_block_write);
 	if (ret != 0)
 		goto out_unlock;
 
 	page_bufs = page_buffers(page);
-	walk_page_buffers(handle, page_bufs, 0, PAGE_CACHE_SIZE, NULL,
-								bget_one);
+	walk_page_buffers(handle, page_bufs, 0, len, NULL, bget_one);
 	/* As soon as we unlock the page, it can go away, but we have
 	 * references to buffers so we are safe */
 	unlock_page(page);
@@ -3271,19 +3276,18 @@ static int __ext4_journalled_writepage(struct page *page,
 		goto out;
 	}
 
-	ret = walk_page_buffers(handle, page_bufs, 0,
-			PAGE_CACHE_SIZE, NULL, do_journal_get_write_access);
+	ret = walk_page_buffers(handle, page_bufs, 0, len, NULL,
+				do_journal_get_write_access);
 
-	err = walk_page_buffers(handle, page_bufs, 0,
-				PAGE_CACHE_SIZE, NULL, write_end_fn);
+	err = walk_page_buffers(handle, page_bufs, 0, len, NULL,
+				write_end_fn);
 	if (ret == 0)
 		ret = err;
 	err = ext4_journal_stop(handle);
 	if (!ret)
 		ret = err;
 
-	walk_page_buffers(handle, page_bufs, 0,
-				PAGE_CACHE_SIZE, NULL, bput_one);
+	walk_page_buffers(handle, page_bufs, 0, len, NULL, bput_one);
 	EXT4_I(inode)->i_state |= EXT4_STATE_JDATA;
 	goto out;
 
