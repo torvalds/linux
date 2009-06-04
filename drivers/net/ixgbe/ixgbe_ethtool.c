@@ -136,11 +136,12 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->supported = SUPPORTED_10000baseT_Full;
 	ecmd->autoneg = AUTONEG_ENABLE;
 	ecmd->transceiver = XCVR_EXTERNAL;
-	if (hw->phy.media_type == ixgbe_media_type_copper) {
+	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
+	    (hw->mac.type == ixgbe_mac_82599EB)) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
-		                    SUPPORTED_TP | SUPPORTED_Autoneg);
+		                    SUPPORTED_Autoneg);
 
-		ecmd->advertising = (ADVERTISED_TP | ADVERTISED_Autoneg);
+		ecmd->advertising = ADVERTISED_Autoneg;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
 			ecmd->advertising |= ADVERTISED_10000baseT_Full;
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
@@ -155,7 +156,15 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
 					      ADVERTISED_1000baseT_Full);
 
-		ecmd->port = PORT_TP;
+		if (hw->phy.media_type == ixgbe_media_type_copper) {
+			ecmd->supported |= SUPPORTED_TP;
+			ecmd->advertising |= ADVERTISED_TP;
+			ecmd->port = PORT_TP;
+		} else {
+			ecmd->supported |= SUPPORTED_FIBRE;
+			ecmd->advertising |= ADVERTISED_FIBRE;
+			ecmd->port = PORT_FIBRE;
+		}
 	} else if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		/* Set as FIBRE until SERDES defined in kernel */
 		switch (hw->device_id) {
@@ -203,16 +212,10 @@ static int ixgbe_set_settings(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 advertised, old;
-	s32 err;
+	s32 err = 0;
 
-	switch (hw->phy.media_type) {
-	case ixgbe_media_type_fiber:
-		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
-		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
-			return -EINVAL;
-		/* in this case we currently only support 10Gb/FULL */
-		break;
-	case ixgbe_media_type_copper:
+	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
+	    (hw->mac.type == ixgbe_mac_82599EB)) {
 		/* 10000/copper and 1000/copper must autoneg
 		 * this function does not support any duplex forcing, but can
 		 * limit the advertising of the adapter to only 10000 or 1000 */
@@ -228,20 +231,23 @@ static int ixgbe_set_settings(struct net_device *netdev,
 			advertised |= IXGBE_LINK_SPEED_1GB_FULL;
 
 		if (old == advertised)
-			break;
+			return err;
 		/* this sets the link speed and restarts auto-neg */
+		hw->mac.autotry_restart = true;
 		err = hw->mac.ops.setup_link_speed(hw, advertised, true, true);
 		if (err) {
 			DPRINTK(PROBE, INFO,
 			        "setup link failed with code %d\n", err);
 			hw->mac.ops.setup_link_speed(hw, old, true, true);
 		}
-		break;
-	default:
-		break;
+	} else {
+		/* in this case we currently only support 10Gb/FULL */
+		if ((ecmd->autoneg == AUTONEG_ENABLE) ||
+		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
+			return -EINVAL;
 	}
 
-	return 0;
+	return err;
 }
 
 static void ixgbe_get_pauseparam(struct net_device *netdev,
