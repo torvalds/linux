@@ -62,6 +62,12 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+/*
+ * Ordering of locks:
+ *
+ * 		kvm->lock --> kvm->irq_lock
+ */
+
 DEFINE_SPINLOCK(kvm_lock);
 LIST_HEAD(vm_list);
 
@@ -126,11 +132,7 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 				    interrupt_work);
 	kvm = assigned_dev->kvm;
 
-	/* This is taken to safely inject irq inside the guest. When
-	 * the interrupt injection (or the ioapic code) uses a
-	 * finer-grained lock, update this
-	 */
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->irq_lock);
 	spin_lock_irq(&assigned_dev->assigned_dev_lock);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
 		struct kvm_guest_msix_entry *guest_entries =
@@ -149,7 +151,7 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 			    assigned_dev->guest_irq, 1);
 
 	spin_unlock_irq(&assigned_dev->assigned_dev_lock);
-	mutex_unlock(&assigned_dev->kvm->lock);
+	mutex_unlock(&assigned_dev->kvm->irq_lock);
 }
 
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
@@ -207,7 +209,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 static void deassign_guest_irq(struct kvm *kvm,
 			       struct kvm_assigned_dev_kernel *assigned_dev)
 {
-	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
+	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
 	assigned_dev->ack_notifier.gsi = -1;
 
 	if (assigned_dev->irq_source_id != -1)
