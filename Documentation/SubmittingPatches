@@ -444,7 +444,7 @@ offer a Reviewed-by tag for a patch.  This tag serves to give credit to
 reviewers and to inform maintainers of the degree of review which has been
 done on the patch.  Reviewed-by: tags, when supplied by reviewers known to
 understand the subject area and to perform thorough reviews, will normally
-increase the liklihood of your patch getting into the kernel.
+increase the likelihood of your patch getting into the kernel.
 
 
 15) The canonical patch format
