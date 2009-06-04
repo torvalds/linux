@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/sh4a/clock-sh7722.c
  *
- * SH7343, SH7722 & SH7366 support for the clock framework
+ * SH7722 & SH7366 support for the clock framework
  *
  * Copyright (c) 2006-2007 Nomad Global Solutions Inc
  * Based on code for sh7343 by Paul Mundt
@@ -417,7 +417,6 @@ static struct clk_ops sh7722_frqcr_clk_ops = {
 /*
  * clock ops methods for SIU A/B and IrDA clock
  */
-#ifndef CONFIG_CPU_SUBTYPE_SH7343
 static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 {
 	unsigned long r;
@@ -468,8 +467,6 @@ static struct clk_ops sh7722_siu_clk_ops = {
 	.enable = sh7722_siu_enable,
 	.disable = sh7722_siu_disable,
 };
-
-#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static int sh7722_video_enable(struct clk *clk)
 {
@@ -542,7 +539,6 @@ static struct clk sh7722_r_clock = {
 	.rate = 32768,
 };
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7343)
 /*
  * these three clocks - SIU A, SIU B, IrDA - share the same clk_ops
  * methods of clk_ops determine which register they should access by
@@ -559,7 +555,6 @@ static struct clk sh7722_siu_b_clock = {
 	.arch_flags = SCLKBCR,
 	.ops = &sh7722_siu_clk_ops,
 };
-#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
 static struct clk sh7722_irda_clock = {
@@ -659,30 +654,6 @@ static struct clk sh7722_mstpcr_clocks[] = {
 	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
 	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
-#if defined(CONFIG_CPU_SUBTYPE_SH7343)
-	MSTPCR("uram0", "umem_clk", 0, 28, CLK_ENABLE_ON_INIT),
-	MSTPCR("xymem0", "bus_clk", 0, 26, CLK_ENABLE_ON_INIT),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
-	MSTPCR("cmt0", "r_clk", 0, 14, 0),
-	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
-	MSTPCR("scif0", "peripheral_clk", 0, 7, 0),
-	MSTPCR("scif1", "peripheral_clk", 0, 6, 0),
-	MSTPCR("scif2", "peripheral_clk", 0, 5, 0),
-	MSTPCR("scif3", "peripheral_clk", 0, 4, 0),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
-	MSTPCR("i2c1", "peripheral_clk", 1, 8, 0),
-	MSTPCR("sdhi0", "peripheral_clk", 2, 18, 0),
-	MSTPCR("keysc0", "r_clk", 2, 14, 0),
-	MSTPCR("usbf0", "peripheral_clk", 2, 11, 0),
-	MSTPCR("siu0", "bus_clk", 2, 8, 0),
-	MSTPCR("jpu0", "bus_clk", 2, 6, CLK_ENABLE_ON_INIT),
-	MSTPCR("vou0", "bus_clk", 2, 5, 0),
-	MSTPCR("beu0", "bus_clk", 2, 4, 0),
-	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
-	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
-	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
-	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
-#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7366)
 	/* See page 52 of Datasheet V0.40: Overview -> Block Diagram */
 	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
@@ -730,10 +701,8 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sh_clock,
 	&sh7722_peripheral_clock,
 	&sh7722_sdram_clock,
-#if !defined(CONFIG_CPU_SUBTYPE_SH7343)
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
-#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	&sh7722_irda_clock,
 #endif
