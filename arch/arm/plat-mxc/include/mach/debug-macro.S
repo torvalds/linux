@@ -17,6 +17,15 @@
 #define UART_VADDR	IO_ADDRESS(UART1_BASE_ADDR)
 #endif
 
+#ifdef CONFIG_ARCH_MX25
+#ifdef UART_PADDR
+#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
+#endif
+#include <mach/mx25.h>
+#define UART_PADDR	UART1_BASE_ADDR
+#define UART_VADDR	MX25_AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
+#endif
+
 #ifdef CONFIG_ARCH_MX2
 #ifdef UART_PADDR
 #error "CONFIG_DEBUG_LL is incompatible with multiple archs"

@@ -20,6 +20,13 @@ config ARCH_MX2
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
+config ARCH_MX25
+	bool "MX25-based"
+	select CPU_ARM926T
+	select COMMON_CLKDEV
+	help
+	  This enables support for systems based on the Freescale i.MX25 family
+
 config ARCH_MX3
 	bool "MX3-based"
 	select CPU_V6
@@ -32,6 +39,7 @@ endchoice
 source "arch/arm/mach-mx1/Kconfig"
 source "arch/arm/mach-mx2/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
+source "arch/arm/mach-mx25/Kconfig"
 
 endmenu
 

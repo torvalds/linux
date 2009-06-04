@@ -63,6 +63,7 @@ static void putc(int ch)
 #define flush() do { } while (0)
 
 #define MX1_UART1_BASE_ADDR	0x00206000
+#define MX25_UART1_BASE_ADDR	0x43f90000
 #define MX2X_UART1_BASE_ADDR	0x1000a000
 #define MX3X_UART1_BASE_ADDR	0x43F90000
 

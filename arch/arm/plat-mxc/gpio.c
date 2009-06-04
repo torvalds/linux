@@ -297,7 +297,7 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		/* its a serious configuration bug when it fails */
 		BUG_ON( gpiochip_add(&port[i].chip) < 0 );
 
-		if (cpu_is_mx1() || cpu_is_mx3()) {
+		if (cpu_is_mx1() || cpu_is_mx3() || cpu_is_mx25()) {
 			/* setup one handler for each entry */
 			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
 			set_irq_data(port[i].irq, &port[i]);
