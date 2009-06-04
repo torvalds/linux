@@ -597,12 +597,10 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 
 	disable_mmc_irqs(host, TMIO_MASK_ALL);
 
-	ret = request_irq(host->irq, tmio_mmc_irq, IRQF_DISABLED, "tmio-mmc",
-		host);
+	ret = request_irq(host->irq, tmio_mmc_irq, IRQF_DISABLED |
+		IRQF_TRIGGER_FALLING, "tmio-mmc", host);
 	if (ret)
 		goto unmap_cnf;
-
-	set_irq_type(host->irq, IRQ_TYPE_EDGE_FALLING);
 
 	mmc_add_host(mmc);
 
