@@ -1143,7 +1143,7 @@ static struct pci_driver pci_driver = {
 	.name = DRV_NAME,
 	.id_table = ids,
 	.probe = probe,
-	.remove = remove,
+	.remove = __devexit_p(remove),
 	/* resume, suspend are optional */
 };
 
