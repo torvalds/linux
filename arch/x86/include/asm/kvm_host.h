@@ -335,7 +335,7 @@ struct kvm_vcpu_arch {
 	} interrupt;
 
 	struct {
-		int active;
+		int vm86_active;
 		u8 save_iopl;
 		struct kvm_save_segment {
 			u16 selector;

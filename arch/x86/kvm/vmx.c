@@ -495,7 +495,7 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
 			eb |= 1u << BP_VECTOR;
 	}
-	if (vcpu->arch.rmode.active)
+	if (vcpu->arch.rmode.vm86_active)
 		eb = ~0;
 	if (enable_ept)
 		eb &= ~(1u << PF_VECTOR); /* bypass_guest_pf = 0 */
@@ -731,7 +731,7 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
-	if (vcpu->arch.rmode.active)
+	if (vcpu->arch.rmode.vm86_active)
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
@@ -788,7 +788,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		intr_info |= INTR_INFO_DELIVER_CODE_MASK;
 	}
 
-	if (vcpu->arch.rmode.active) {
+	if (vcpu->arch.rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = nr;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -1363,7 +1363,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	vmx->emulation_required = 1;
-	vcpu->arch.rmode.active = 0;
+	vcpu->arch.rmode.vm86_active = 0;
 
 	vmcs_writel(GUEST_TR_BASE, vcpu->arch.rmode.tr.base);
 	vmcs_write32(GUEST_TR_LIMIT, vcpu->arch.rmode.tr.limit);
@@ -1425,7 +1425,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	vmx->emulation_required = 1;
-	vcpu->arch.rmode.active = 1;
+	vcpu->arch.rmode.vm86_active = 1;
 
 	vcpu->arch.rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
@@ -1594,10 +1594,10 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	vmx_fpu_deactivate(vcpu);
 
-	if (vcpu->arch.rmode.active && (cr0 & X86_CR0_PE))
+	if (vcpu->arch.rmode.vm86_active && (cr0 & X86_CR0_PE))
 		enter_pmode(vcpu);
 
-	if (!vcpu->arch.rmode.active && !(cr0 & X86_CR0_PE))
+	if (!vcpu->arch.rmode.vm86_active && !(cr0 & X86_CR0_PE))
 		enter_rmode(vcpu);
 
 #ifdef CONFIG_X86_64
@@ -1655,7 +1655,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long hw_cr4 = cr4 | (vcpu->arch.rmode.active ?
+	unsigned long hw_cr4 = cr4 | (vcpu->arch.rmode.vm86_active ?
 		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
 
 	vcpu->arch.cr4 = cr4;
@@ -1738,7 +1738,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	u32 ar;
 
-	if (vcpu->arch.rmode.active && seg == VCPU_SREG_TR) {
+	if (vcpu->arch.rmode.vm86_active && seg == VCPU_SREG_TR) {
 		vcpu->arch.rmode.tr.selector = var->selector;
 		vcpu->arch.rmode.tr.base = var->base;
 		vcpu->arch.rmode.tr.limit = var->limit;
@@ -1748,7 +1748,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (vcpu->arch.rmode.active && var->s) {
+	if (vcpu->arch.rmode.vm86_active && var->s) {
 		/*
 		 * Hack real-mode segments into vm86 compatibility.
 		 */
@@ -2317,7 +2317,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vmx->vcpu.arch.rmode.active = 0;
+	vmx->vcpu.arch.rmode.vm86_active = 0;
 
 	vmx->soft_vnmi_blocked = 0;
 
@@ -2455,7 +2455,7 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 	KVMTRACE_1D(INJ_VIRQ, vcpu, (u32)irq, handler);
 
 	++vcpu->stat.irq_injections;
-	if (vcpu->arch.rmode.active) {
+	if (vcpu->arch.rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -2493,7 +2493,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	}
 
 	++vcpu->stat.nmi_injections;
-	if (vcpu->arch.rmode.active) {
+	if (vcpu->arch.rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = NMI_VECTOR;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -2629,7 +2629,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
-	if (vcpu->arch.rmode.active &&
+	if (vcpu->arch.rmode.vm86_active &&
 	    handle_rmode_exception(vcpu, intr_info & INTR_INFO_VECTOR_MASK,
 								error_code)) {
 		if (vcpu->arch.halt_request) {
