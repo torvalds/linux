@@ -264,7 +264,7 @@ static int pixel_data(struct ioctl_struct *ctrl, struct device_extension *pdx)
 	pdx->bulk_in_size_returned -= pdx->frameSize;
 
 	for (i = 0; i < pdx->maplist_numPagesMapped[pdx->active_frame]; i++)
-		SetPageDirty(pdx->sgl[pdx->active_frame][i].page_link);
+		SetPageDirty(sg_page(&pdx->sgl[pdx->active_frame][i]));
 
 	pdx->active_frame = ((pdx->active_frame + 1) % pdx->num_frames);
 
@@ -497,7 +497,7 @@ static int UnMapUserBuffer(struct device_extension *pdx)
 		usb_buffer_unmap_sg(pdx->udev, epAddr, pdx->sgl[k],
 				    pdx->maplist_numPagesMapped[k]);
 		for (i = 0; i < pdx->maplist_numPagesMapped[k]; i++)
-			page_cache_release(pdx->sgl[k][i].page_link);
+			page_cache_release(sg_page(&pdx->sgl[k][i]));
 		kfree(pdx->sgl[k]);
 		kfree(pdx->PixelUrb[k]);
 		kfree(pdx->pendedPixelUrbs[k]);
@@ -659,7 +659,7 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 		dbg("can't allocate mem for sgl");
 		return -ENOMEM;
 	}
-	pdx->sgl[frameInfo][0].page_link = maplist_p[0];
+	sg_assign_page(&pdx->sgl[frameInfo][0], maplist_p[0]);
 	pdx->sgl[frameInfo][0].offset = uaddr & ~PAGE_MASK;
 	if (pdx->maplist_numPagesMapped[frameInfo] > 1) {
 		pdx->sgl[frameInfo][0].length =
@@ -667,7 +667,7 @@ static int MapUserBuffer(struct ioctl_struct *io, struct device_extension *pdx)
 		count -= pdx->sgl[frameInfo][0].length;
 		for (k = 1; k < pdx->maplist_numPagesMapped[frameInfo]; k++) {
 			pdx->sgl[frameInfo][k].offset = 0;
-			pdx->sgl[frameInfo][k].page_link = maplist_p[k];
+			sg_assign_page(&pdx->sgl[frameInfo][k], maplist_p[k]);
 			pdx->sgl[frameInfo][k].length =
 			    (count < PAGE_SIZE) ? count : PAGE_SIZE;
 			count -= PAGE_SIZE; /* example had PAGE_SIZE here */
