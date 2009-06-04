@@ -708,7 +708,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(skb->data - NET_IP_ALIGN);
 		rx_buffer_info->skb = NULL;
 
-		if (len && !skb_shinfo(skb)->nr_frags) {
+		if (rx_buffer_info->dma) {
 			pci_unmap_single(pdev, rx_buffer_info->dma,
 			                 rx_ring->rx_buf_len,
 			                 PCI_DMA_FROMDEVICE);
