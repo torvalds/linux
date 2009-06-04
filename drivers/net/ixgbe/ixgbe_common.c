@@ -106,13 +106,17 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw)
 {
+	s32 status;
+
 	/* Reset the hardware */
-	hw->mac.ops.reset_hw(hw);
+	status = hw->mac.ops.reset_hw(hw);
 
-	/* Start the HW */
-	hw->mac.ops.start_hw(hw);
+	if (status == 0) {
+		/* Start the HW */
+		status = hw->mac.ops.start_hw(hw);
+	}
 
-	return 0;
+	return status;
 }
 
 /**

@@ -71,10 +71,10 @@ s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw);
 s32 ixgbe_init_uta_tables_82599(struct ixgbe_hw *hw);
 s32 ixgbe_read_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val);
-s32 ixgbe_start_hw_rev_0_82599(struct ixgbe_hw *hw);
 s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw);
 u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw);
+static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
 
 void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
@@ -2142,8 +2142,9 @@ s32 ixgbe_write_analog_reg8_82599(struct ixgbe_hw *hw, u32 reg, u8 val)
 s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 {
 	u32 q_num;
+	s32 ret_val;
 
-	ixgbe_start_hw_generic(hw);
+	ret_val = ixgbe_start_hw_generic(hw);
 
 	/* Clear the rate limiters */
 	for (q_num = 0; q_num < hw->mac.max_tx_queues; q_num++) {
@@ -2155,7 +2156,10 @@ s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
 
-	return 0;
+	if (ret_val == 0)
+		ret_val = ixgbe_verify_fw_version_82599(hw);
+
+	return ret_val;
 }
 
 /**
@@ -2405,6 +2409,54 @@ s32 ixgbe_get_san_mac_addr_82599(struct ixgbe_hw *hw, u8 *san_mac_addr)
 
 san_mac_addr_out:
 	return 0;
+}
+
+/**
+ *  ixgbe_verify_fw_version_82599 - verify fw version for 82599
+ *  @hw: pointer to hardware structure
+ *
+ *  Verifies that installed the firmware version is 0.6 or higher
+ *  for SFI devices. All 82599 SFI devices should have version 0.6 or higher.
+ *
+ *  Returns IXGBE_ERR_EEPROM_VERSION if the FW is not present or
+ *  if the FW version is not supported.
+ **/
+static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
+{
+	s32 status = IXGBE_ERR_EEPROM_VERSION;
+	u16 fw_offset, fw_ptp_cfg_offset;
+	u16 fw_version = 0;
+
+	/* firmware check is only necessary for SFI devices */
+	if (hw->phy.media_type != ixgbe_media_type_fiber) {
+		status = 0;
+		goto fw_version_out;
+	}
+
+	/* get the offset to the Firmware Module block */
+	hw->eeprom.ops.read(hw, IXGBE_FW_PTR, &fw_offset);
+
+	if ((fw_offset == 0) || (fw_offset == 0xFFFF))
+		goto fw_version_out;
+
+	/* get the offset to the Pass Through Patch Configuration block */
+	hw->eeprom.ops.read(hw, (fw_offset +
+	                         IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR),
+	                         &fw_ptp_cfg_offset);
+
+	if ((fw_ptp_cfg_offset == 0) || (fw_ptp_cfg_offset == 0xFFFF))
+		goto fw_version_out;
+
+	/* get the firmware version */
+	hw->eeprom.ops.read(hw, (fw_ptp_cfg_offset +
+	                         IXGBE_FW_PATCH_VERSION_4),
+	                         &fw_version);
+
+	if (fw_version > 0x5)
+		status = 0;
+
+fw_version_out:
+	return status;
 }
 
 static struct ixgbe_mac_operations mac_ops_82599 = {

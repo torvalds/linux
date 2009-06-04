@@ -2728,6 +2728,15 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	case IXGBE_ERR_MASTER_REQUESTS_PENDING:
 		dev_err(&adapter->pdev->dev, "master disable timed out\n");
 		break;
+	case IXGBE_ERR_EEPROM_VERSION:
+		/* We are running on a pre-production device, log a warning */
+		dev_warn(&adapter->pdev->dev, "This device is a pre-production "
+		         "adapter/LOM.  Please be aware there may be issues "
+		         "associated with your hardware.  If you are "
+		         "experiencing problems please contact your Intel or "
+		         "hardware representative who provided you with this "
+		         "hardware.\n");
+		break;
 	default:
 		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
 	}
@@ -5608,8 +5617,17 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	hw->eeprom.ops.read(hw, 0x29, &adapter->eeprom_version);
 
 	/* reset the hardware with the new settings */
-	hw->mac.ops.start_hw(hw);
+	err = hw->mac.ops.start_hw(hw);
 
+	if (err == IXGBE_ERR_EEPROM_VERSION) {
+		/* We are running on a pre-production device, log a warning */
+		dev_warn(&pdev->dev, "This device is a pre-production "
+		         "adapter/LOM.  Please be aware there may be issues "
+		         "associated with your hardware.  If you are "
+		         "experiencing problems please contact your Intel or "
+		         "hardware representative who provided you with this "
+		         "hardware.\n");
+	}
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)

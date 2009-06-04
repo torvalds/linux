@@ -1516,6 +1516,8 @@
 #define IXGBE_SAN_MAC_ADDR_PORT1_OFFSET  0x3
 #define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
 #define IXGBE_DEVICE_CAPS_FCOE_OFFLOADS  0x2
+#define IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR   0x4
+#define IXGBE_FW_PATCH_VERSION_4   0x7
 
 /* PCI Bus Info */
 #define IXGBE_PCI_LINK_STATUS     0xB2
@@ -2495,6 +2497,7 @@ struct ixgbe_info {
 #define IXGBE_ERR_SFP_NOT_PRESENT               -20
 #define IXGBE_ERR_SFP_NO_INIT_SEQ_PRESENT       -21
 #define IXGBE_ERR_FDIR_REINIT_FAILED            -23
+#define IXGBE_ERR_EEPROM_VERSION                -24
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #endif /* _IXGBE_TYPE_H_ */
