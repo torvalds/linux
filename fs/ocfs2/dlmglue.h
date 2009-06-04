@@ -62,6 +62,14 @@ struct ocfs2_qinfo_lvb {
 	__be32	lvb_free_entry;
 };
 
+#define OCFS2_ORPHAN_LVB_VERSION 1
+
+struct ocfs2_orphan_scan_lvb {
+	__u8	lvb_version;
+	__u8	lvb_reserved[3];
+	__be32	lvb_os_seqno;
+};
+
 /* ocfs2_inode_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
@@ -113,6 +121,9 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex);
 void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno, int ex);
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno, int ex);
+
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
 int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex);

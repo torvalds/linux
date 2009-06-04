@@ -248,6 +248,10 @@ static struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_orphan_scan_lops = {
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
+};
+
 static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.get_osb	= ocfs2_get_dentry_osb,
 	.post_unlock	= ocfs2_dentry_post_unlock,
@@ -635,6 +639,19 @@ static void ocfs2_nfs_sync_lock_res_init(struct ocfs2_lock_res *res,
 	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_NFS_SYNC, 0, 0, res->l_name);
 	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_NFS_SYNC,
 				   &ocfs2_nfs_sync_lops, osb);
+}
+
+static void ocfs2_orphan_scan_lock_res_init(struct ocfs2_lock_res *res,
+					    struct ocfs2_super *osb)
+{
+	struct ocfs2_orphan_scan_lvb *lvb;
+
+	ocfs2_lock_res_init_once(res);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_ORPHAN_SCAN, 0, 0, res->l_name);
+	ocfs2_lock_res_init_common(osb, res, OCFS2_LOCK_TYPE_ORPHAN_SCAN,
+				   &ocfs2_orphan_scan_lops, osb);
+	lvb = ocfs2_dlm_lvb(&res->l_lksb);
+	lvb->lvb_version = OCFS2_ORPHAN_LVB_VERSION;
 }
 
 void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
@@ -2352,6 +2369,37 @@ void ocfs2_inode_unlock(struct inode *inode,
 	mlog_exit_void();
 }
 
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno, int ex)
+{
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_orphan_scan_lvb *lvb;
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+	int status = 0;
+
+	lockres = &osb->osb_orphan_scan.os_lockres;
+	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
+	if (status < 0)
+		return status;
+
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+	if (lvb->lvb_version == OCFS2_ORPHAN_LVB_VERSION)
+		*seqno = be32_to_cpu(lvb->lvb_os_seqno);
+	return status;
+}
+
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno, int ex)
+{
+	struct ocfs2_lock_res *lockres;
+	struct ocfs2_orphan_scan_lvb *lvb;
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+
+	lockres = &osb->osb_orphan_scan.os_lockres;
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+	lvb->lvb_version = OCFS2_ORPHAN_LVB_VERSION;
+	lvb->lvb_os_seqno = cpu_to_be32(seqno);
+	ocfs2_cluster_unlock(osb, lockres, level);
+}
+
 int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex)
 {
@@ -2842,6 +2890,7 @@ local:
 	ocfs2_super_lock_res_init(&osb->osb_super_lockres, osb);
 	ocfs2_rename_lock_res_init(&osb->osb_rename_lockres, osb);
 	ocfs2_nfs_sync_lock_res_init(&osb->osb_nfs_sync_lockres, osb);
+	ocfs2_orphan_scan_lock_res_init(&osb->osb_orphan_scan.os_lockres, osb);
 
 	osb->cconn = conn;
 
@@ -2878,6 +2927,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 	ocfs2_lock_res_free(&osb->osb_super_lockres);
 	ocfs2_lock_res_free(&osb->osb_rename_lockres);
 	ocfs2_lock_res_free(&osb->osb_nfs_sync_lockres);
+	ocfs2_lock_res_free(&osb->osb_orphan_scan.os_lockres);
 
 	ocfs2_cluster_disconnect(osb->cconn, hangup_pending);
 	osb->cconn = NULL;
@@ -3061,6 +3111,7 @@ static void ocfs2_drop_osb_locks(struct ocfs2_super *osb)
 	ocfs2_simple_drop_lockres(osb, &osb->osb_super_lockres);
 	ocfs2_simple_drop_lockres(osb, &osb->osb_rename_lockres);
 	ocfs2_simple_drop_lockres(osb, &osb->osb_nfs_sync_lockres);
+	ocfs2_simple_drop_lockres(osb, &osb->osb_orphan_scan.os_lockres);
 }
 
 int ocfs2_drop_inode_locks(struct inode *inode)

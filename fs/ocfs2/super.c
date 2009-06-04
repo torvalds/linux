@@ -1802,6 +1802,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_truncate_log_shutdown(osb);
 
+	ocfs2_orphan_scan_stop(osb);
+
 	/* This will disable recovery and flush any recovery work. */
 	ocfs2_recovery_exit(osb);
 
@@ -1953,6 +1955,13 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	status = ocfs2_recovery_init(osb);
 	if (status) {
 		mlog(ML_ERROR, "Unable to initialize recovery state\n");
+		mlog_errno(status);
+		goto bail;
+	}
+
+	status = ocfs2_orphan_scan_init(osb);
+	if (status) {
+		mlog(ML_ERROR, "Unable to initialize delayed orphan scan\n");
 		mlog_errno(status);
 		goto bail;
 	}

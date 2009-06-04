@@ -151,6 +151,14 @@ struct ocfs2_lock_res {
 #endif
 };
 
+struct ocfs2_orphan_scan {
+	struct mutex 		os_lock;
+	struct ocfs2_super 	*os_osb;
+	struct ocfs2_lock_res 	os_lockres;     /* lock to synchronize scans */
+	struct delayed_work 	os_orphan_scan_work;
+	u32  			os_seqno;       /* incremented on every scan */
+};
+
 struct ocfs2_dlm_debug {
 	struct kref d_refcnt;
 	struct dentry *d_locking_state;
@@ -340,6 +348,8 @@ struct ocfs2_super
 	struct ocfs2_node_map		osb_recovering_orphan_dirs;
 	unsigned int			*osb_orphan_wipes;
 	wait_queue_head_t		osb_wipe_event;
+
+	struct ocfs2_orphan_scan	osb_orphan_scan;
 
 	/* used to protect metaecc calculation check of xattr. */
 	spinlock_t osb_xattr_lock;
