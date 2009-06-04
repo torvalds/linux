@@ -1750,6 +1750,7 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 int usb_resume(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev;
+	int			status;
 
 	udev = to_usb_device(dev);
 
@@ -1759,7 +1760,14 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	 */
 	if (udev->skip_sys_resume)
 		return 0;
-	return usb_external_resume_device(udev, msg);
+	status = usb_external_resume_device(udev, msg);
+
+	/* Avoid PM error messages for devices disconnected while suspended
+	 * as we'll display regular disconnect messages just a bit later.
+	 */
+	if (status == -ENODEV)
+		return 0;
+	return status;
 }
 
 #endif /* CONFIG_PM */
