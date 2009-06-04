@@ -347,7 +347,7 @@ static struct {
 	u32 msg_enable;
 } debug = { -1 };
 
-MODULE_DESCRIPTION("SiS sis190 Gigabit Ethernet driver");
+MODULE_DESCRIPTION("SiS sis190/191 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param_named(debug, debug.msg_enable, int, 0);
@@ -1313,12 +1313,15 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 			((mii_status & (BMSR_100FULL | BMSR_100HALF)) ?
 				LAN : HOME) : p->type;
 		tp->features |= p->feature;
-	} else
+		net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
+			pci_name(tp->pci_dev), p->name, phy_id);
+	} else {
 		phy->type = UNKNOWN;
-
-	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
-		  pci_name(tp->pci_dev),
-		  (phy->type == UNKNOWN) ? "Unknown PHY" : p->name, phy_id);
+		net_probe(tp, KERN_INFO
+			"%s: unknown PHY 0x%x:0x%x transceiver at address %d\n",
+			pci_name(tp->pci_dev),
+			phy->id[0], (phy->id[1] & 0xfff0), phy_id);
+	}
 }
 
 static void sis190_mii_probe_88e1111_fixup(struct sis190_private *tp)
