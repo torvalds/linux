@@ -1723,6 +1723,11 @@ config TLAN
 
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
+config KS8842
+	tristate "Micrel KSZ8842"
+	help
+	  This platform driver is for Micrel KSZ8842 chip.
+
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on NET_PCI && PCI
