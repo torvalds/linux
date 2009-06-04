@@ -31,10 +31,6 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 	if (!is_write)
 		return 0;
 
-	/* kvm->lock is taken by the caller and must be not released before
-         * dev.read/write
-         */
-
 	/* Are we able to batch it ? */
 
 	/* last is the first free entry
@@ -43,7 +39,7 @@ static int coalesced_mmio_in_range(struct kvm_io_device *this,
 	 */
 	ring = dev->kvm->coalesced_mmio_ring;
 	avail = (ring->first - ring->last - 1) % KVM_COALESCED_MMIO_MAX;
-	if (avail < 1) {
+	if (avail < KVM_MAX_VCPUS) {
 		/* full */
 		return 0;
 	}
@@ -70,7 +66,7 @@ static void coalesced_mmio_write(struct kvm_io_device *this,
 	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_ring *ring = dev->kvm->coalesced_mmio_ring;
 
-	/* kvm->lock must be taken by caller before call to in_range()*/
+	spin_lock(&dev->lock);
 
 	/* copy data in first free entry of the ring */
 
@@ -79,6 +75,7 @@ static void coalesced_mmio_write(struct kvm_io_device *this,
 	memcpy(ring->coalesced_mmio[ring->last].data, val, len);
 	smp_wmb();
 	ring->last = (ring->last + 1) % KVM_COALESCED_MMIO_MAX;
+	spin_unlock(&dev->lock);
 }
 
 static void coalesced_mmio_destructor(struct kvm_io_device *this)
@@ -101,6 +98,7 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	dev = kzalloc(sizeof(struct kvm_coalesced_mmio_dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+	spin_lock_init(&dev->lock);
 	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
