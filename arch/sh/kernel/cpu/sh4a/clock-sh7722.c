@@ -1,7 +1,7 @@
 /*
  * arch/sh/kernel/cpu/sh4a/clock-sh7722.c
  *
- * SH7722 & SH7366 support for the clock framework
+ * SH7722 support for the clock framework
  *
  * Copyright (c) 2006-2007 Nomad Global Solutions Inc
  * Based on code for sh7343 by Paul Mundt
@@ -648,46 +648,6 @@ static struct clk sh7722_mstpcr_clocks[] = {
 	MSTPCR("siu0", "bus_clk", 2, 8, 0),
 	MSTPCR("vou0", "bus_clk", 2, 5, 0),
 	MSTPCR("jpu0", "bus_clk", 2, 6, CLK_ENABLE_ON_INIT),
-	MSTPCR("beu0", "bus_clk", 2, 4, 0),
-	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
-	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
-	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
-	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
-#endif
-#if defined(CONFIG_CPU_SUBTYPE_SH7366)
-	/* See page 52 of Datasheet V0.40: Overview -> Block Diagram */
-	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
-	MSTPCR("ic0", "cpu_clk", 0, 30, 0),
-	MSTPCR("oc0", "cpu_clk", 0, 29, 0),
-	MSTPCR("rsmem0", "sh_clk", 0, 28, CLK_ENABLE_ON_INIT),
-	MSTPCR("xymem0", "cpu_clk", 0, 26, CLK_ENABLE_ON_INIT),
-	MSTPCR("intc30", "peripheral_clk", 0, 23, 0),
-	MSTPCR("intc0", "peripheral_clk", 0, 22, 0),
-	MSTPCR("dmac0", "bus_clk", 0, 21, 0),
-	MSTPCR("sh0", "sh_clk", 0, 20, 0),
-	MSTPCR("hudi0", "peripheral_clk", 0, 19, 0),
-	MSTPCR("ubc0", "cpu_clk", 0, 17, 0),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
-	MSTPCR("cmt0", "r_clk", 0, 14, 0),
-	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
-	MSTPCR("flctl0", "peripheral_clk", 0, 10, 0),
-	MSTPCR("scif0", "peripheral_clk", 0, 7, 0),
-	MSTPCR("scif1", "bus_clk", 0, 6, 0),
-	MSTPCR("scif2", "bus_clk", 0, 5, 0),
-	MSTPCR("msiof0", "peripheral_clk", 0, 2, 0),
-	MSTPCR("sbr0", "peripheral_clk", 0, 1, 0),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
-	MSTPCR("icb0", "bus_clk", 2, 27, 0),
-	MSTPCR("meram0", "sh_clk", 2, 26, 0),
-	MSTPCR("dacc0", "peripheral_clk", 2, 24, 0),
-	MSTPCR("dacy0", "peripheral_clk", 2, 23, 0),
-	MSTPCR("tsif0", "bus_clk", 2, 22, 0),
-	MSTPCR("sdhi0", "bus_clk", 2, 18, 0),
-	MSTPCR("mmcif0", "bus_clk", 2, 17, 0),
-	MSTPCR("usb0", "bus_clk", 2, 11, 0),
-	MSTPCR("siu0", "bus_clk", 2, 8, 0),
-	MSTPCR("veu1", "bus_clk", 2, 7, CLK_ENABLE_ON_INIT),
-	MSTPCR("vou0", "bus_clk", 2, 5, 0),
 	MSTPCR("beu0", "bus_clk", 2, 4, 0),
 	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
 	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
