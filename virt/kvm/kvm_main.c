@@ -982,6 +982,7 @@ static struct kvm *kvm_create_vm(void)
 	kvm_io_bus_init(&kvm->pio_bus);
 	kvm_irqfd_init(kvm);
 	mutex_init(&kvm->lock);
+	mutex_init(&kvm->irq_lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
 	init_rwsem(&kvm->slots_lock);
 	atomic_set(&kvm->users_count, 1);

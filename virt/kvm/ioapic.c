@@ -243,6 +243,7 @@ static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 	ioapic_debug("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
+	mutex_lock(&ioapic->kvm->irq_lock);
 	addr &= 0xff;
 	switch (addr) {
 	case IOAPIC_REG_SELECT:
@@ -269,6 +270,7 @@ static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 	default:
 		printk(KERN_WARNING "ioapic: wrong length %d\n", len);
 	}
+	mutex_unlock(&ioapic->kvm->irq_lock);
 }
 
 static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
@@ -280,6 +282,8 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
 		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
+
+	mutex_lock(&ioapic->kvm->irq_lock);
 	if (len == 4 || len == 8)
 		data = *(u32 *) val;
 	else {
@@ -305,6 +309,7 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	default:
 		break;
 	}
+	mutex_unlock(&ioapic->kvm->irq_lock);
 }
 
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
