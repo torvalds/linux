@@ -344,11 +344,11 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__thread_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, " %16s:%5d", self->thread->comm ?: "", self->thread->pid);
+	return fprintf(fp, "%16s:%5d", self->thread->comm ?: "", self->thread->pid);
 }
 
 static struct sort_entry sort_thread = {
-	.header = "         Command: Pid ",
+	.header = "         Command:  Pid",
 	.cmp	= sort__thread_cmp,
 	.print	= sort__thread_print,
 };
@@ -382,11 +382,11 @@ sort__comm_collapse(struct hist_entry *left, struct hist_entry *right)
 static size_t
 sort__comm_print(FILE *fp, struct hist_entry *self)
 {
-	return fprintf(fp, "  %16s", self->thread->comm);
+	return fprintf(fp, "%16s", self->thread->comm);
 }
 
 static struct sort_entry sort_comm = {
-	.header		= "          Command",
+	.header 	= "         Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
 	.print		= sort__comm_print,
@@ -416,13 +416,13 @@ static size_t
 sort__dso_print(FILE *fp, struct hist_entry *self)
 {
 	if (self->dso)
-		return fprintf(fp, "  %-25s", self->dso->name);
+		return fprintf(fp, "%-25s", self->dso->name);
 
-	return fprintf(fp, "  %016llx         ", (__u64)self->ip);
+	return fprintf(fp, "%016llx         ", (__u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
-	.header = " Shared Object            ",
+	.header = "Shared Object            ",
 	.cmp	= sort__dso_cmp,
 	.print	= sort__dso_print,
 };
@@ -449,18 +449,18 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "  %#018llx", (__u64)self->ip);
+		ret += fprintf(fp, "%#018llx  ", (__u64)self->ip);
 
 	if (self->sym)
-		ret += fprintf(fp, "  %s", self->sym->name);
+		ret += fprintf(fp, "%s", self->sym->name);
 	else
-		ret += fprintf(fp, "  %#016llx", (__u64)self->ip);
+		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
 
 	return ret;
 }
 
 static struct sort_entry sort_sym = {
-	.header = " Symbol",
+	.header = "Symbol",
 	.cmp	= sort__sym_cmp,
 	.print	= sort__sym_print,
 };
@@ -553,8 +553,10 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
 	} else
 		ret = fprintf(fp, "%12d ", self->count);
 
-	list_for_each_entry(se, &hist_entry__sort_list, list)
+	list_for_each_entry(se, &hist_entry__sort_list, list) {
+		fprintf(fp, "  ");
 		ret += se->print(fp, self);
+	}
 
 	ret += fprintf(fp, "\n");
 
@@ -721,13 +723,14 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 	struct rb_node *nd;
 	size_t ret = 0;
 
+	fprintf(fp, "\n");
 	fprintf(fp, "#\n");
 	fprintf(fp, "# (%Ld profiler events)\n", (__u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
 	list_for_each_entry(se, &hist_entry__sort_list, list)
-		fprintf(fp, " %s", se->header);
+		fprintf(fp, "  %s", se->header);
 	fprintf(fp, "\n");
 
 	fprintf(fp, "# ........");
@@ -735,7 +738,7 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 		int i;
 
 		fprintf(fp, "  ");
-		for (i = 0; i < strlen(se->header)-1; i++)
+		for (i = 0; i < strlen(se->header); i++)
 			fprintf(fp, ".");
 	}
 	fprintf(fp, "\n");
@@ -749,9 +752,10 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 
 	if (!strcmp(sort_order, default_sort_order)) {
 		fprintf(fp, "#\n");
-		fprintf(fp, "# ( For more details, try: perf report --sort comm,dso,symbol )\n");
+		fprintf(fp, "# (For more details, try: perf report --sort comm,dso,symbol)\n");
 		fprintf(fp, "#\n");
 	}
+	fprintf(fp, "\n");
 
 	return ret;
 }
