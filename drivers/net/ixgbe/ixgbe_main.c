@@ -4344,12 +4344,12 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 #ifdef CONFIG_DCB
 			if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 				for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
-					hw->mac.ops.setup_fc(hw, i);
+					hw->mac.ops.fc_enable(hw, i);
 			} else {
-				hw->mac.ops.setup_fc(hw, 0);
+				hw->mac.ops.fc_enable(hw, 0);
 			}
 #else
-			hw->mac.ops.setup_fc(hw, 0);
+			hw->mac.ops.fc_enable(hw, 0);
 #endif
 		}
 

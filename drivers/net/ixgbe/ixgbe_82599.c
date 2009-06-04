@@ -413,9 +413,6 @@ s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw)
 		}
 	}
 
-	/* Set up flow control */
-	status = ixgbe_setup_fc_generic(hw, 0);
-
 	/* Add delay to filter out noises during initial link setup */
 	msleep(50);
 
@@ -641,6 +638,11 @@ s32 ixgbe_check_mac_link_82599(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else
 		*speed = IXGBE_LINK_SPEED_100_FULL;
 
+	/* if link is down, zero out the current_mode */
+	if (*link_up == false) {
+		hw->fc.current_mode = ixgbe_fc_none;
+		hw->fc.fc_was_autonegged = false;
+	}
 
 	return 0;
 }
@@ -746,9 +748,6 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 				}
 			}
 		}
-
-		/* Set up flow control */
-		status = ixgbe_setup_fc_generic(hw, 0);
 
 		/* Add delay to filter out noises during initial link setup */
 		msleep(50);
@@ -1509,7 +1508,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.disable_mc             = &ixgbe_disable_mc_generic,
 	.clear_vfta             = &ixgbe_clear_vfta_82599,
 	.set_vfta               = &ixgbe_set_vfta_82599,
-	.setup_fc               = &ixgbe_setup_fc_generic,
+	.fc_enable               = &ixgbe_fc_enable_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_82599,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
 };

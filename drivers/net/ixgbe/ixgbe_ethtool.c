@@ -283,6 +283,7 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_fc_info fc;
 
 #ifdef CONFIG_DCB
 	if (adapter->dcb_cfg.pfc_mode_enable ||
@@ -291,26 +292,37 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 		return -EINVAL;
 
 #endif
+
+	fc = hw->fc;
+
 	if (pause->autoneg != AUTONEG_ENABLE)
-		hw->fc.disable_fc_autoneg = true;
+		fc.disable_fc_autoneg = true;
 	else
-		hw->fc.disable_fc_autoneg = false;
+		fc.disable_fc_autoneg = false;
 
 	if (pause->rx_pause && pause->tx_pause)
-		hw->fc.requested_mode = ixgbe_fc_full;
+		fc.requested_mode = ixgbe_fc_full;
 	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc.requested_mode = ixgbe_fc_rx_pause;
+		fc.requested_mode = ixgbe_fc_rx_pause;
 	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc.requested_mode = ixgbe_fc_tx_pause;
+		fc.requested_mode = ixgbe_fc_tx_pause;
 	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc.requested_mode = ixgbe_fc_none;
+		fc.requested_mode = ixgbe_fc_none;
 	else
 		return -EINVAL;
 
 #ifdef CONFIG_DCB
-	adapter->last_lfc_mode = hw->fc.requested_mode;
+	adapter->last_lfc_mode = fc.requested_mode;
 #endif
-	hw->mac.ops.setup_fc(hw, 0);
+
+	/* if the thing changed then we'll update and use new autoneg */
+	if (memcmp(&fc, &hw->fc, sizeof(struct ixgbe_fc_info))) {
+		hw->fc = fc;
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
+		else
+			ixgbe_reset(adapter);
+	}
 
 	return 0;
 }
