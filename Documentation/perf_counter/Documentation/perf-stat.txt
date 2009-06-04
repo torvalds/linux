@@ -22,6 +22,7 @@ OPTIONS
 <command>...::
 	Any command you can specify in a shell.
 
+
 -e::
 --event=::
                              0:0: cpu-cycles          
@@ -45,6 +46,13 @@ OPTIONS
                              1:4: migrations          
                            rNNN: raw PMU events (eventsel+umask)
 
+-i::
+--inherit::
+        child tasks inherit counters
+-p::
+--pid=<pid>::
+        stat events on existing pid
+
 -a::
         system-wide collection
 
@@ -54,20 +62,20 @@ OPTIONS
 EXAMPLES
 --------
 
-$ perf stat sleep 1
+$ perf stat -- make -j
 
- Performance counter stats for 'sleep':
+ Performance counter stats for 'make -j':
 
-       0.678356  task clock ticks     (msecs)
-              7  context switches     (events)
-              4  CPU migrations       (events)
-            232  pagefaults           (events)
-        1810403  CPU cycles           (events)
-         946759  instructions         (events)
-          18952  cache references     (events)
-           4885  cache misses         (events)
+    8117.370256  task clock ticks     #      11.281 CPU utilization factor
+            678  context switches     #       0.000 M/sec
+            133  CPU migrations       #       0.000 M/sec
+         235724  pagefaults           #       0.029 M/sec
+    24821162526  CPU cycles           #    3057.784 M/sec
+    18687303457  instructions         #    2302.138 M/sec
+      172158895  cache references     #      21.209 M/sec
+       27075259  cache misses         #       3.335 M/sec
 
- Wall-clock time elapsed:  1001.252894 msecs
+ Wall-clock time elapsed:   719.554352 msecs
 
 SEE ALSO
 --------
