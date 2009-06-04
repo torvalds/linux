@@ -430,7 +430,7 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide) {
-		open_counters(-1, target_pid != -1 ? target_pid : 0);
+		open_counters(-1, target_pid != -1 ? target_pid : getpid());
 	} else for (i = 0; i < nr_cpus; i++)
 		open_counters(i, target_pid);
 

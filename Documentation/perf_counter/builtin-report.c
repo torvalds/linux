@@ -852,7 +852,7 @@ process_mmap_event(event_t *event, unsigned long offset, unsigned long head)
 
 	if (thread == NULL || map == NULL) {
 		dprintf("problem processing PERF_EVENT_MMAP, skipping event.\n");
-		return -1;
+		return 0;
 	}
 
 	thread__insert_map(thread, map);
