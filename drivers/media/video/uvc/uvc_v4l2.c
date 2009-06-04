@@ -251,7 +251,7 @@ static int uvc_v4l2_set_format(struct uvc_video_device *video,
 	if (fmt->type != video->streaming->type)
 		return -EINVAL;
 
-	if (uvc_queue_streaming(&video->queue))
+	if (uvc_queue_allocated(&video->queue))
 		return -EBUSY;
 
 	ret = uvc_v4l2_try_format(video, fmt, &probe, &format, &frame);
