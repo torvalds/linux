@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/nmi.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -47,7 +48,7 @@
 #define PCI_BIOS32_PARAGRAPH_LEN	16
 #define PCI_ROM_BASE1			0x000F0000
 #define ROM_SIZE			0x10000
-#define HPWDT_VERSION			"1.01"
+#define HPWDT_VERSION			"1.1.1"
 
 struct bios32_service_dir {
 	u32 signature;
@@ -119,6 +120,7 @@ static int nowayout = WATCHDOG_NOWAYOUT;
 static char expect_release;
 static unsigned long hpwdt_is_open;
 static unsigned int allow_kdump;
+static int hpwdt_nmi_sourcing;
 
 static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_timer_reg;
@@ -468,21 +470,22 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
 		return NOTIFY_OK;
 
-	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called)
-		asminline_call(&cmn_regs, cru_rom_addr);
-	die_nmi_called = 1;
-	spin_unlock_irqrestore(&rom_lock, rom_pl);
-	if (cmn_regs.u1.ral == 0) {
-		printk(KERN_WARNING "hpwdt: An NMI occurred, "
-			"but unable to determine source.\n");
-	} else {
-		if (allow_kdump)
-			hpwdt_stop();
-		panic("An NMI occurred, please see the Integrated "
-			"Management Log for details.\n");
+	if (hpwdt_nmi_sourcing) {
+		spin_lock_irqsave(&rom_lock, rom_pl);
+		if (!die_nmi_called)
+			asminline_call(&cmn_regs, cru_rom_addr);
+		die_nmi_called = 1;
+		spin_unlock_irqrestore(&rom_lock, rom_pl);
+		if (cmn_regs.u1.ral == 0) {
+			printk(KERN_WARNING "hpwdt: An NMI occurred, "
+				"but unable to determine source.\n");
+		} else {
+			if (allow_kdump)
+				hpwdt_stop();
+			panic("An NMI occurred, please see the Integrated "
+				"Management Log for details.\n");
+		}
 	}
-
 	return NOTIFY_OK;
 }
 
@@ -627,10 +630,36 @@ static struct notifier_block die_notifier = {
  *	Init & Exit
  */
 
+#ifdef ARCH_HAS_NMI_WATCHDOG
+static void __devinit hpwdt_check_nmi_sourcing(struct pci_dev *dev)
+{
+	/*
+	 * If nmi_watchdog is turned off then we can turn on
+	 * our nmi sourcing capability.
+	 */
+	if (!nmi_watchdog_active())
+		hpwdt_nmi_sourcing = 1;
+	else
+		dev_warn(&dev->dev, "NMI sourcing is disabled. To enable this "
+			"functionality you must reboot with nmi_watchdog=0.\n");
+}
+#else
+static void __devinit hpwdt_check_nmi_sourcing(struct pci_dev *dev)
+{
+	dev_warn(&dev->dev, "NMI sourcing is disabled. "
+		"Your kernel does not support a NMI Watchdog.\n");
+}
+#endif
+
 static int __devinit hpwdt_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	int retval;
+
+	/*
+	 * Check if we can do NMI sourcing or not
+	 */
+	hpwdt_check_nmi_sourcing(dev);
 
 	/*
 	 * First let's find out if we are on an iLO2 server. We will
