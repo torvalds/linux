@@ -520,7 +520,7 @@ static int __devinit me_probe_pci(struct pci_dev *dev,
 
 	if ((constructor =
 	     (me_pci_constructor_t) symbol_get(constructor_name)) == NULL) {
-		if (request_module(module_name)) {
+		if (request_module("%s", module_name)) {
 			PERROR("Error while request for module %s.\n",
 			       module_name);
 			return -ENODEV;
