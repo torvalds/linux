@@ -1032,7 +1032,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 		goto error;
 	}
 	info("Allocated memory for %d messages (%lu kbytes)",
-	     CPC_MSG_BUF_CNT, (sizeof(CPC_MSG_T) * CPC_MSG_BUF_CNT) / 1000);
+	     CPC_MSG_BUF_CNT, (long unsigned int)(sizeof(CPC_MSG_T) * CPC_MSG_BUF_CNT) / 1000);
 	memset(chan->buf, 0, sizeof(CPC_MSG_T) * CPC_MSG_BUF_CNT);
 
 	ResetBuffer(chan);
