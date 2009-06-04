@@ -68,6 +68,8 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_crc_errors", IXGBE_STAT(net_stats.rx_crc_errors)},
 	{"rx_frame_errors", IXGBE_STAT(net_stats.rx_frame_errors)},
 	{"hw_rsc_count", IXGBE_STAT(rsc_count)},
+	{"fdir_match", IXGBE_STAT(stats.fdirmatch)},
+	{"fdir_miss", IXGBE_STAT(stats.fdirmiss)},
 	{"rx_fifo_errors", IXGBE_STAT(net_stats.rx_fifo_errors)},
 	{"rx_missed_errors", IXGBE_STAT(net_stats.rx_missed_errors)},
 	{"tx_aborted_errors", IXGBE_STAT(net_stats.tx_aborted_errors)},

@@ -126,6 +126,8 @@ struct ixgbe_ring {
 	unsigned int count;		/* amount of descriptors */
 	unsigned int next_to_use;
 	unsigned int next_to_clean;
+	u8 atr_sample_rate;
+	u8 atr_count;
 
 	int queue_index; /* needed for multiqueue queue management */
 	union {
@@ -148,6 +150,7 @@ struct ixgbe_ring {
 	int cpu;
 #endif
 	struct ixgbe_queue_stats stats;
+	unsigned long reinit_state;
 
 	u16 work_limit;                /* max work per interrupt */
 	u16 rx_buf_len;
@@ -159,6 +162,7 @@ enum ixgbe_ring_f_enum {
 	RING_F_DCB,
 	RING_F_VMDQ,
 	RING_F_RSS,
+	RING_F_FDIR,
 #ifdef IXGBE_FCOE
 	RING_F_FCOE,
 #endif /* IXGBE_FCOE */
@@ -169,6 +173,7 @@ enum ixgbe_ring_f_enum {
 #define IXGBE_MAX_DCB_INDICES   8
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 16
+#define IXGBE_MAX_FDIR_INDICES 64
 #ifdef IXGBE_FCOE
 #define IXGBE_MAX_FCOE_INDICES  8
 #endif /* IXGBE_FCOE */
@@ -317,6 +322,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 23)
 #define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 24)
 #define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 25)
+#define IXGBE_FLAG_FDIR_HASH_CAPABLE            (u32)(1 << 26)
+#define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 27)
 #define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 29)
 
 	u32 flags2;
@@ -356,6 +363,10 @@ struct ixgbe_adapter {
 	struct timer_list sfp_timer;
 	struct work_struct multispeed_fiber_task;
 	struct work_struct sfp_config_module_task;
+	u32 fdir_pballoc;
+	u32 atr_sample_rate;
+	spinlock_t fdir_perfect_lock;
+	struct work_struct fdir_reinit_task;
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;
 #endif /* IXGBE_FCOE */
@@ -368,6 +379,7 @@ enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
 	__IXGBE_DOWN,
+	__IXGBE_FDIR_INIT_DONE,
 	__IXGBE_SFP_MODULE_NOT_FOUND
 };
 
