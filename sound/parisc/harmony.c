@@ -1020,7 +1020,7 @@ static struct parisc_driver snd_harmony_driver = {
 	.name = "harmony",
 	.id_table = snd_harmony_devtable,
 	.probe = snd_harmony_probe,
-	.remove = snd_harmony_remove,
+	.remove = __devexit_p(snd_harmony_remove),
 };
 
 static int __init 
