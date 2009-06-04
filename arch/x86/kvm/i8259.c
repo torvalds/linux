@@ -72,8 +72,10 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 void kvm_pic_clear_isr_ack(struct kvm *kvm)
 {
 	struct kvm_pic *s = pic_irqchip(kvm);
+	pic_lock(s);
 	s->pics[0].isr_ack = 0xff;
 	s->pics[1].isr_ack = 0xff;
+	pic_unlock(s);
 }
 
 /*
