@@ -899,15 +899,14 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 					continue;
 				}
 				/* Allocate an sk_buff */
-				odev->skb_rx_buf = dev_alloc_skb(frame_len);
+				odev->skb_rx_buf = netdev_alloc_skb(odev->net,
+								    frame_len);
 				if (!odev->skb_rx_buf) {
 					/* We got no receive buffer. */
 					D1("could not allocate memory");
 					odev->rx_parse_state = WAIT_SYNC;
 					return;
 				}
-				/* Here's where it came from */
-				odev->skb_rx_buf->dev = odev->net;
 
 				/* Copy what we got so far. make room for iphdr
 				 * after tail. */
