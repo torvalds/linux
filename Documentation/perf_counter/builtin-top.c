@@ -204,7 +204,7 @@ static void print_sym_table(void)
 			list_remove_active_sym(syme);
 	}
 
-	write(1, CONSOLE_CLEAR, strlen(CONSOLE_CLEAR));
+	puts(CONSOLE_CLEAR);
 
 	printf(
 "------------------------------------------------------------------------------\n");
@@ -278,23 +278,21 @@ static void print_sym_table(void)
 		color_fprintf(stdout, color, "%4.1f%%", pcnt);
 		printf(" - %016llx : %s\n", sym->start, sym->name);
 	}
-
-	{
-		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
-
-		if (poll(&stdin_poll, 1, 0) == 1) {
-			printf("key pressed - exiting.\n");
-			exit(0);
-		}
-	}
 }
 
 static void *display_thread(void *arg)
 {
+	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
+	int delay_msecs = delay_secs * 1000;
+
 	printf("PerfTop refresh period: %d seconds\n", delay_secs);
 
-	while (!sleep(delay_secs))
+	do {
 		print_sym_table();
+	} while (!poll(&stdin_poll, 1, delay_msecs) == 1);
+
+	printf("key pressed - exiting.\n");
+	exit(0);
 
 	return NULL;
 }
