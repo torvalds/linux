@@ -228,16 +228,25 @@ static void send_addr(struct mxc_nand_host *host, uint16_t addr, int islast)
 	wait_op_done(host, TROP_US_DELAY, islast);
 }
 
-static void send_page(struct mxc_nand_host *host, uint8_t buf_id,
-		unsigned int ops)
+static void send_page(struct mxc_nand_host *host, unsigned int ops)
 {
-	/* NANDFC buffer 0 is used for page read/write */
-	writew(buf_id, host->regs + NFC_BUF_ADDR);
+	int bufs, i;
 
-	writew(ops, host->regs + NFC_CONFIG2);
+	if (host->pagesize_2k)
+		bufs = 4;
+	else
+		bufs = 1;
 
-	/* Wait for operation to complete */
-	wait_op_done(host, TROP_US_DELAY, true);
+	for (i = 0; i < bufs; i++) {
+
+		/* NANDFC buffer 0 is used for page read/write */
+		writew(i, host->regs + NFC_BUF_ADDR);
+
+		writew(ops, host->regs + NFC_CONFIG2);
+
+		/* Wait for operation to complete */
+		wait_op_done(host, TROP_US_DELAY, true);
+	}
 }
 
 /* Request the NANDFC to perform a read of the NAND device ID. */
@@ -565,16 +574,10 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 		send_cmd(host, command, false);
 		mxc_do_addr_cycle(mtd, column, page_addr);
 
-		if (host->pagesize_2k) {
-			/* send read confirm command */
+		if (host->pagesize_2k)
 			send_cmd(host, NAND_CMD_READSTART, true);
-			/* read for each AREA */
-			send_page(host, 0, NFC_OUTPUT);
-			send_page(host, 1, NFC_OUTPUT);
-			send_page(host, 2, NFC_OUTPUT);
-			send_page(host, 3, NFC_OUTPUT);
-		} else
-			send_page(host, 0, NFC_OUTPUT);
+
+		send_page(host, NFC_OUTPUT);
 
 		memcpy(host->data_buf, host->regs + MAIN_AREA0, mtd->writesize);
 		copy_spare(mtd, true);
@@ -614,15 +617,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_PAGEPROG:
 		memcpy(host->regs + MAIN_AREA0, host->data_buf, mtd->writesize);
 		copy_spare(mtd, false);
-		send_page(host, 0, NFC_INPUT);
-
-		if (host->pagesize_2k) {
-			/* data in 4 areas datas */
-			send_page(host, 1, NFC_INPUT);
-			send_page(host, 2, NFC_INPUT);
-			send_page(host, 3, NFC_INPUT);
-		}
-
+		send_page(host, NFC_INPUT);
 		send_cmd(host, command, true);
 		mxc_do_addr_cycle(mtd, column, page_addr);
 		break;
