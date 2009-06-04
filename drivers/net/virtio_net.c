@@ -470,7 +470,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		hdr->hdr_len = skb_transport_header(skb) - skb->data;
+		hdr->hdr_len = skb_headlen(skb);
 		hdr->gso_size = skb_shinfo(skb)->gso_size;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
