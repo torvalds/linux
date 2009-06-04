@@ -461,10 +461,21 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 	bool link_up = false;
 	bool negotiation;
+	int i;
 
 	/* Mask off requested but non-supported speeds */
 	hw->mac.ops.get_link_capabilities(hw, &phy_link_speed, &negotiation);
 	speed &= phy_link_speed;
+
+	/*
+	 * When the driver changes the link speeds that it can support,
+	 * it sets autotry_restart to true to indicate that we need to
+	 * initiate a new autotry session with the link partner.  To do
+	 * so, we set the speed then disable and re-enable the tx laser, to
+	 * alert the link partner that it also needs to restart autotry on its
+	 * end.  This is consistent with true clause 37 autoneg, which also
+	 * involves a loss of signal.
+	 */
 
 	/*
 	 * Try each speed one by one, highest priority first.  We do this in
@@ -474,21 +485,52 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 		speedcnt++;
 		highest_link_speed = IXGBE_LINK_SPEED_10GB_FULL;
 
-		/* Set hardware SDP's */
+		/* If we already have link at this speed, just jump out */
+		hw->mac.ops.check_link(hw, &phy_link_speed, &link_up, false);
+
+		if ((phy_link_speed == IXGBE_LINK_SPEED_10GB_FULL) && link_up)
+			goto out;
+
+		/* Set the module link speed */
 		esdp_reg |= (IXGBE_ESDP_SDP5_DIR | IXGBE_ESDP_SDP5);
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 
-		ixgbe_setup_mac_link_speed_82599(hw,
-		                                 IXGBE_LINK_SPEED_10GB_FULL,
-		                                 autoneg,
-		                                 autoneg_wait_to_complete);
+		/* Allow module to change analog characteristics (1G->10G) */
+		msleep(40);
 
-		msleep(50);
-
-		/* If we have link, just jump out */
-		hw->mac.ops.check_link(hw, &phy_link_speed, &link_up, false);
-		if (link_up)
+		status = ixgbe_setup_mac_link_speed_82599(hw,
+		                                     IXGBE_LINK_SPEED_10GB_FULL,
+		                                     autoneg,
+		                                     autoneg_wait_to_complete);
+		if (status != 0)
 			goto out;
+
+		/* Flap the tx laser if it has not already been done */
+		if (hw->mac.autotry_restart) {
+			/* Disable tx laser; allow 100us to go dark per spec */
+			esdp_reg |= IXGBE_ESDP_SDP3;
+			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+			udelay(100);
+
+			/* Enable tx laser; allow 2ms to light up per spec */
+			esdp_reg &= ~IXGBE_ESDP_SDP3;
+			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+			msleep(2);
+
+			hw->mac.autotry_restart = false;
+		}
+
+		/* The controller may take up to 500ms at 10g to acquire link */
+		for (i = 0; i < 5; i++) {
+			/* Wait for the link partner to also set speed */
+			msleep(100);
+
+			/* If we have link, just jump out */
+			hw->mac.ops.check_link(hw, &phy_link_speed,
+			                       &link_up, false);
+			if (link_up)
+				goto out;
+		}
 	}
 
 	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
@@ -496,16 +538,44 @@ s32 ixgbe_setup_mac_link_speed_multispeed_fiber(struct ixgbe_hw *hw,
 		if (highest_link_speed == IXGBE_LINK_SPEED_UNKNOWN)
 			highest_link_speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-		/* Set hardware SDP's */
+		/* If we already have link at this speed, just jump out */
+		hw->mac.ops.check_link(hw, &phy_link_speed, &link_up, false);
+
+		if ((phy_link_speed == IXGBE_LINK_SPEED_1GB_FULL) && link_up)
+			goto out;
+
+		/* Set the module link speed */
 		esdp_reg &= ~IXGBE_ESDP_SDP5;
 		esdp_reg |= IXGBE_ESDP_SDP5_DIR;
 		IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 
-		ixgbe_setup_mac_link_speed_82599(
-			hw, IXGBE_LINK_SPEED_1GB_FULL, autoneg,
-			autoneg_wait_to_complete);
+		/* Allow module to change analog characteristics (10G->1G) */
+		msleep(40);
 
-		msleep(50);
+		status = ixgbe_setup_mac_link_speed_82599(hw,
+		                                      IXGBE_LINK_SPEED_1GB_FULL,
+		                                      autoneg,
+		                                      autoneg_wait_to_complete);
+		if (status != 0)
+			goto out;
+
+		/* Flap the tx laser if it has not already been done */
+		if (hw->mac.autotry_restart) {
+			/* Disable tx laser; allow 100us to go dark per spec */
+			esdp_reg |= IXGBE_ESDP_SDP3;
+			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+			udelay(100);
+
+			/* Enable tx laser; allow 2ms to light up per spec */
+			esdp_reg &= ~IXGBE_ESDP_SDP3;
+			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
+			msleep(2);
+
+			hw->mac.autotry_restart = false;
+		}
+
+		/* Wait for the link partner to also set speed */
+		msleep(100);
 
 		/* If we have link, just jump out */
 		hw->mac.ops.check_link(hw, &phy_link_speed, &link_up, false);
@@ -591,6 +661,7 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 	s32 status = 0;
 	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+	u32 start_autoc = autoc;
 	u32 orig_autoc = 0;
 	u32 link_mode = autoc & IXGBE_AUTOC_LMS_MASK;
 	u32 pma_pmd_1g = autoc & IXGBE_AUTOC_1G_PMA_PMD_MASK;
@@ -603,6 +674,11 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 	hw->mac.ops.get_link_capabilities(hw, &link_capabilities, &autoneg);
 	speed &= link_capabilities;
 
+	if (speed == IXGBE_LINK_SPEED_UNKNOWN) {
+		status = IXGBE_ERR_LINK_SETUP;
+		goto out;
+	}
+
 	/* Use stored value (EEPROM defaults) of AUTOC to find KR/KX4 support*/
 	if (hw->mac.orig_link_settings_stored)
 		orig_autoc = hw->mac.orig_autoc;
@@ -610,11 +686,9 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 		orig_autoc = autoc;
 
 
-	if (speed == IXGBE_LINK_SPEED_UNKNOWN) {
-		status = IXGBE_ERR_LINK_SETUP;
-	} else if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
-	           link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN ||
-	           link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII) {
+	if (link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR ||
+	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_1G_AN ||
+	    link_mode == IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII) {
 		/* Set KX4/KX/KR support according to speed requested */
 		autoc &= ~(IXGBE_AUTOC_KX4_KX_SUPP_MASK | IXGBE_AUTOC_KR_SUPP);
 		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
@@ -646,7 +720,7 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 		}
 	}
 
-	if (status == 0) {
+	if (autoc != start_autoc) {
 		/* Restart link */
 		autoc |= IXGBE_AUTOC_AN_RESTART;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
@@ -680,6 +754,7 @@ s32 ixgbe_setup_mac_link_speed_82599(struct ixgbe_hw *hw,
 		msleep(50);
 	}
 
+out:
 	return status;
 }
 
@@ -1143,6 +1218,9 @@ s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 		IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, 0);
 	}
 	IXGBE_WRITE_FLUSH(hw);
+
+	/* We need to run link autotry after the driver loads */
+	hw->mac.autotry_restart = true;
 
 	return 0;
 }

@@ -1265,8 +1265,10 @@
 #define IXGBE_STATUS_LAN_ID_1   0x00000004 /* LAN ID 1 */
 
 /* ESDP Bit Masks */
-#define IXGBE_ESDP_SDP0 0x00000001
-#define IXGBE_ESDP_SDP1 0x00000002
+#define IXGBE_ESDP_SDP0 0x00000001 /* SDP0 Data Value */
+#define IXGBE_ESDP_SDP1 0x00000002 /* SDP1 Data Value */
+#define IXGBE_ESDP_SDP2 0x00000004 /* SDP2 Data Value */
+#define IXGBE_ESDP_SDP3 0x00000008 /* SDP3 Data Value */
 #define IXGBE_ESDP_SDP4 0x00000010 /* SDP4 Data Value */
 #define IXGBE_ESDP_SDP5 0x00000020 /* SDP5 Data Value */
 #define IXGBE_ESDP_SDP6 0x00000040 /* SDP6 Data Value */
@@ -2281,6 +2283,7 @@ struct ixgbe_mac_info {
 	bool                            orig_link_settings_stored;
 	bool                            autoneg;
 	bool                            autoneg_succeeded;
+	bool                            autotry_restart;
 };
 
 struct ixgbe_phy_info {
