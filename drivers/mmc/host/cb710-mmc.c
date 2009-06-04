@@ -219,7 +219,7 @@ static void cb710_mmc_set_transfer_size(struct cb710_slot *slot,
 	cb710_write_port_32(slot, CB710_MMC_TRANSFER_SIZE_PORT,
 		((count - 1) << 16)|(blocksize - 1));
 
-	dev_vdbg(cb710_slot_dev(slot), "set up for %d block%s of %d bytes\n",
+	dev_vdbg(cb710_slot_dev(slot), "set up for %zu block%s of %zu bytes\n",
 		count, count == 1 ? "" : "s", blocksize);
 }
 
