@@ -587,19 +587,18 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 	unsigned short *mmr16;
 	unsigned long *mmr32;
 	int err;
-	int size = 0;
+	int size;
 	int cpu = raw_smp_processor_id();
 
 	tmp_old = tmp_new = buf;
 
-	while (count-- > 0) {
+	for (size = 0; size < count; ++size) {
 		if (*tmp_old == 0x7d)
 			*tmp_new = *(++tmp_old) ^ 0x20;
 		else
 			*tmp_new = *tmp_old;
 		tmp_new++;
 		tmp_old++;
-		size++;
 	}
 
 	err = validate_memory_access_address((unsigned long)mem, size);
