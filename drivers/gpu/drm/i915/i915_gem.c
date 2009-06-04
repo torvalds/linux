@@ -2260,9 +2260,6 @@ try_again:
 			goto try_again;
 		}
 
-		BUG_ON(old_obj_priv->active ||
-		       (reg->obj->write_domain & I915_GEM_GPU_DOMAINS));
-
 		/*
 		 * Zap this virtual mapping so we can set up a fence again
 		 * for this object next time we need it.
