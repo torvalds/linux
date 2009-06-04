@@ -145,6 +145,7 @@ struct twl4030_priv {
 static inline unsigned int twl4030_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
+	u8 *cache = codec->reg_cache;
 
 	if (reg >= TWL4030_CACHEREGNUM)
 		return -EIO;
