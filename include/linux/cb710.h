@@ -10,10 +10,6 @@
 #ifndef LINUX_CB710_DRIVER_H
 #define LINUX_CB710_DRIVER_H
 
-#ifdef CONFIG_CB710_DEBUG
-#define DEBUG
-#endif
-
 /* verify assumptions on platform_device framework */
 #define CONFIG_CB710_DEBUG_ASSUMPTIONS
 
