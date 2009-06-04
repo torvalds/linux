@@ -149,8 +149,8 @@ static void ima_update_counts(struct ima_iint_cache *iint, int mask)
  *	- Opening a file for read when already open for write,
  * 	  could result in a file measurement error.
  *
- * Return 0 on success, an error code on failure.
- * (Based on the results of appraise_measurement().)
+ * Always return 0 and audit dentry_open failures.
+ * (Return code will be based upon measurement appraisal.)
  */
 int ima_path_check(struct path *path, int mask, int update_counts)
 {
@@ -189,8 +189,13 @@ int ima_path_check(struct path *path, int mask, int update_counts)
 		file = dentry_open(dentry, mnt, O_RDONLY | O_LARGEFILE,
 				   current_cred());
 		if (IS_ERR(file)) {
-			pr_info("%s dentry_open failed\n", dentry->d_name.name);
-			rc = PTR_ERR(file);
+			int audit_info = 0;
+
+			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
+					    dentry->d_name.name,
+					    "add_measurement",
+					    "dentry_open failed",
+					    1, audit_info);
 			file = NULL;
 			goto out;
 		}
