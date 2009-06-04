@@ -41,7 +41,6 @@ static int perf_overcommit __read_mostly = 1;
 
 static atomic_t nr_counters __read_mostly;
 static atomic_t nr_mmap_counters __read_mostly;
-static atomic_t nr_munmap_counters __read_mostly;
 static atomic_t nr_comm_counters __read_mostly;
 
 int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
@@ -1448,8 +1447,6 @@ static void free_counter(struct perf_counter *counter)
 	atomic_dec(&nr_counters);
 	if (counter->attr.mmap)
 		atomic_dec(&nr_mmap_counters);
-	if (counter->attr.munmap)
-		atomic_dec(&nr_munmap_counters);
 	if (counter->attr.comm)
 		atomic_dec(&nr_comm_counters);
 
@@ -2510,7 +2507,7 @@ static void perf_counter_fork_output(struct perf_counter *counter,
 
 static int perf_counter_fork_match(struct perf_counter *counter)
 {
-	if (counter->attr.comm || counter->attr.mmap || counter->attr.munmap)
+	if (counter->attr.comm || counter->attr.mmap)
 		return 1;
 
 	return 0;
@@ -2557,8 +2554,7 @@ void perf_counter_fork(struct task_struct *task)
 	struct perf_fork_event fork_event;
 
 	if (!atomic_read(&nr_comm_counters) &&
-	    !atomic_read(&nr_mmap_counters) &&
-	    !atomic_read(&nr_munmap_counters))
+	    !atomic_read(&nr_mmap_counters))
 		return;
 
 	fork_event = (struct perf_fork_event){
@@ -2722,12 +2718,7 @@ static void perf_counter_mmap_output(struct perf_counter *counter,
 static int perf_counter_mmap_match(struct perf_counter *counter,
 				   struct perf_mmap_event *mmap_event)
 {
-	if (counter->attr.mmap &&
-	    mmap_event->event.header.type == PERF_EVENT_MMAP)
-		return 1;
-
-	if (counter->attr.munmap &&
-	    mmap_event->event.header.type == PERF_EVENT_MUNMAP)
+	if (counter->attr.mmap)
 		return 1;
 
 	return 0;
@@ -2812,27 +2803,6 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 		.file   = file,
 		.event  = {
 			.header = { .type = PERF_EVENT_MMAP, },
-			.start  = addr,
-			.len    = len,
-			.pgoff  = pgoff,
-		},
-	};
-
-	perf_counter_mmap_event(&mmap_event);
-}
-
-void perf_counter_munmap(unsigned long addr, unsigned long len,
-			 unsigned long pgoff, struct file *file)
-{
-	struct perf_mmap_event mmap_event;
-
-	if (!atomic_read(&nr_munmap_counters))
-		return;
-
-	mmap_event = (struct perf_mmap_event){
-		.file   = file,
-		.event  = {
-			.header = { .type = PERF_EVENT_MUNMAP, },
 			.start  = addr,
 			.len    = len,
 			.pgoff  = pgoff,
@@ -3525,8 +3495,6 @@ done:
 	atomic_inc(&nr_counters);
 	if (counter->attr.mmap)
 		atomic_inc(&nr_mmap_counters);
-	if (counter->attr.munmap)
-		atomic_inc(&nr_munmap_counters);
 	if (counter->attr.comm)
 		atomic_inc(&nr_comm_counters);
 

@@ -1756,12 +1756,6 @@ static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 	do {
 		long nrpages = vma_pages(vma);
 
-		if (vma->vm_flags & VM_EXEC) {
-			perf_counter_munmap(vma->vm_start,
-					nrpages << PAGE_SHIFT,
-					vma->vm_pgoff, vma->vm_file);
-		}
-
 		mm->total_vm -= nrpages;
 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
 		vma = remove_vma(vma);

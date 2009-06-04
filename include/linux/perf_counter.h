@@ -148,11 +148,10 @@ struct perf_counter_attr {
 				exclude_hv     :  1, /* ditto hypervisor      */
 				exclude_idle   :  1, /* don't count when idle */
 				mmap           :  1, /* include mmap data     */
-				munmap         :  1, /* include munmap data   */
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
 
-				__reserved_1   : 52;
+				__reserved_1   : 53;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;
@@ -246,7 +245,6 @@ enum perf_event_type {
 	 * };
 	 */
 	PERF_EVENT_MMAP			= 1,
-	PERF_EVENT_MUNMAP		= 2,
 
 	/*
 	 * struct {
@@ -622,9 +620,6 @@ extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
 extern void perf_counter_mmap(unsigned long addr, unsigned long len,
 			      unsigned long pgoff, struct file *file);
 
-extern void perf_counter_munmap(unsigned long addr, unsigned long len,
-				unsigned long pgoff, struct file *file);
-
 extern void perf_counter_comm(struct task_struct *tsk);
 extern void perf_counter_fork(struct task_struct *tsk);
 
@@ -676,10 +671,6 @@ perf_swcounter_event(u32 event, u64 nr, int nmi,
 static inline void
 perf_counter_mmap(unsigned long addr, unsigned long len,
 		  unsigned long pgoff, struct file *file)		{ }
-
-static inline void
-perf_counter_munmap(unsigned long addr, unsigned long len,
-		    unsigned long pgoff, struct file *file)		{ }
 
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
