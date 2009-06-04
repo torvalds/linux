@@ -317,10 +317,11 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 23)
 #define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 24)
 #define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 25)
-#define IXGBE_FLAG_RSC_CAPABLE                  (u32)(1 << 26)
-#define IXGBE_FLAG_RSC_ENABLED                  (u32)(1 << 27)
 #define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 29)
 
+	u32 flags2;
+#define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
+#define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
 

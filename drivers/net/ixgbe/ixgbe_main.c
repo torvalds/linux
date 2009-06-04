@@ -748,7 +748,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (adapter->flags & IXGBE_FLAG_RSC_CAPABLE)
+		if (adapter->flags & IXGBE_FLAG2_RSC_CAPABLE)
 			rsc_count = ixgbe_get_rsc_count(rx_desc);
 
 		if (rsc_count) {
@@ -1968,7 +1968,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 		}
 	} else {
-		if (!(adapter->flags & IXGBE_FLAG_RSC_ENABLED) &&
+		if (!(adapter->flags & IXGBE_FLAG2_RSC_ENABLED) &&
 		    (netdev->mtu <= ETH_DATA_LEN))
 			rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		else
@@ -2097,7 +2097,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
 	}
 
-	if (adapter->flags & IXGBE_FLAG_RSC_ENABLED) {
+	if (adapter->flags & IXGBE_FLAG2_RSC_ENABLED) {
 		/* Enable 82599 HW-RSC */
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			j = adapter->rx_ring[i].reg_idx;
@@ -3632,8 +3632,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 	} else if (hw->mac.type == ixgbe_mac_82599EB) {
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
-		adapter->flags |= IXGBE_FLAG_RSC_CAPABLE;
-		adapter->flags |= IXGBE_FLAG_RSC_ENABLED;
+		adapter->flags |= IXGBE_FLAG2_RSC_CAPABLE;
+		adapter->flags |= IXGBE_FLAG2_RSC_ENABLED;
 #ifdef IXGBE_FCOE
 		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
 		adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
@@ -5323,7 +5323,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	if (adapter->flags & IXGBE_FLAG_RSC_ENABLED)
+	if (adapter->flags & IXGBE_FLAG2_RSC_ENABLED)
 		netdev->features |= NETIF_F_LRO;
 
 	/* make sure the EEPROM is good */
