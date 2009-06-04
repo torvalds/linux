@@ -10,7 +10,7 @@
  *
  * Driver for the MMC / SD / SDIO cell found in:
  *
- * TC6393XB TC6391XB TC6387XB T7L66XB
+ * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
  *
  * This driver draws mainly on scattered spec sheets, Reverse engineering
  * of the toshiba e800  SD driver and some parts of the 2.4 ASIC3 driver (4 bit
