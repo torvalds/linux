@@ -234,6 +234,13 @@ static int map__overlap(struct map *l, struct map *r)
 	return 0;
 }
 
+static size_t map__fprintf(struct map *self, FILE *fp)
+{
+	return fprintf(fp, " %lx-%lx %lx %s\n",
+		       self->start, self->end, self->pgoff, self->dso->name);
+}
+
+
 struct thread {
 	struct rb_node	 rb_node;
 	struct list_head maps;
@@ -263,6 +270,18 @@ static int thread__set_comm(struct thread *self, const char *comm)
 	self->comm = strdup(comm);
 	return self->comm ? 0 : -ENOMEM;
 }
+
+static size_t thread__fprintf(struct thread *self, FILE *fp)
+{
+	struct map *pos;
+	size_t ret = fprintf(fp, "Thread %d %s\n", self->pid, self->comm);
+
+	list_for_each_entry(pos, &self->maps, node)
+		ret += map__fprintf(pos, fp);
+
+	return ret;
+}
+
 
 static struct rb_root threads;
 static struct thread *last_match;
@@ -353,6 +372,20 @@ static struct map *thread__find_map(struct thread *self, uint64_t ip)
 			return pos;
 
 	return NULL;
+}
+
+static size_t threads__fprintf(FILE *fp)
+{
+	size_t ret = 0;
+	struct rb_node *nd;
+
+	for (nd = rb_first(&threads); nd; nd = rb_next(nd)) {
+		struct thread *pos = rb_entry(nd, struct thread, rb_node);
+
+		ret += thread__fprintf(pos, fp);
+	}
+
+	return ret;
 }
 
 /*
@@ -1125,6 +1158,9 @@ more:
 
 	if (dump_trace)
 		return 0;
+
+	if (verbose >= 3)
+		threads__fprintf(stdout);
 
 	if (verbose >= 2)
 		dsos__fprintf(stdout);
