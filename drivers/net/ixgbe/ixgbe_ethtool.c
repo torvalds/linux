@@ -840,7 +840,6 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 				}
 				goto err_setup;
 			}
-			temp_tx_ring[i].v_idx = adapter->tx_ring[i].v_idx;
 		}
 		need_update = true;
 	}
@@ -870,7 +869,6 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 				}
 				goto err_setup;
 			}
-			temp_rx_ring[i].v_idx = adapter->rx_ring[i].v_idx;
 		}
 		need_update = true;
 	}
@@ -1987,8 +1985,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		else
 			/* rx only or mixed */
 			q_vector->eitr = adapter->eitr_param;
-		ixgbe_write_eitr(adapter, i,
-		                 EITR_INTS_PER_SEC_TO_REG(q_vector->eitr));
+		ixgbe_write_eitr(q_vector);
 	}
 
 	return 0;

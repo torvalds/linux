@@ -148,10 +148,6 @@ struct ixgbe_ring {
 	int cpu;
 #endif
 	struct ixgbe_queue_stats stats;
-	u64 v_idx; /* maps directly to the index for this ring in the hardware
-	            * vector array, can also be used for finding the bit in EICR
-	            * and friends that represents the vector for this ring */
-
 
 	u16 work_limit;                /* max work per interrupt */
 	u16 rx_buf_len;
@@ -193,6 +189,9 @@ struct ixgbe_ring_feature {
  */
 struct ixgbe_q_vector {
 	struct ixgbe_adapter *adapter;
+	unsigned int v_idx; /* index of q_vector within array, also used for
+	                     * finding the bit in EICR and friends that
+	                     * represents the vector for this ring */
 	struct napi_struct napi;
 	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
 	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
@@ -201,7 +200,6 @@ struct ixgbe_q_vector {
 	u8 tx_itr;
 	u8 rx_itr;
 	u32 eitr;
-	u32 v_idx;        /* vector index in list */
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -401,7 +399,8 @@ extern void ixgbe_free_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *)
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
-extern void ixgbe_write_eitr(struct ixgbe_adapter *, int, u32);
+extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
+extern int ethtool_ioctl(struct ifreq *ifr);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_adapter *adapter,
