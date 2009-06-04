@@ -533,7 +533,6 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct mxc_nand_host *host = nand_chip->priv;
-	int useirq = true;
 
 	DEBUG(MTD_DEBUG_LEVEL3,
 	      "mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",
@@ -548,19 +547,37 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_STATUS:
 		host->buf_start = 0;
 		host->status_request = true;
+
+		send_cmd(host, command, true);
+		mxc_do_addr_cycle(mtd, column, page_addr);
 		break;
 
 	case NAND_CMD_READ0:
-		host->buf_start = column;
-		useirq = false;
-		break;
-
 	case NAND_CMD_READOOB:
-		host->buf_start = column + mtd->writesize;
+		if (command == NAND_CMD_READ0)
+			host->buf_start = column;
+		else
+			host->buf_start = column + mtd->writesize;
 
-		useirq = false;
 		if (host->pagesize_2k)
 			command = NAND_CMD_READ0; /* only READ0 is valid */
+
+		send_cmd(host, command, false);
+		mxc_do_addr_cycle(mtd, column, page_addr);
+
+		if (host->pagesize_2k) {
+			/* send read confirm command */
+			send_cmd(host, NAND_CMD_READSTART, true);
+			/* read for each AREA */
+			send_page(host, 0, NFC_OUTPUT);
+			send_page(host, 1, NFC_OUTPUT);
+			send_page(host, 2, NFC_OUTPUT);
+			send_page(host, 3, NFC_OUTPUT);
+		} else
+			send_page(host, 0, NFC_OUTPUT);
+
+		memcpy(host->data_buf, host->regs + MAIN_AREA0, mtd->writesize);
+		copy_spare(mtd, true);
 		break;
 
 	case NAND_CMD_SEQIN:
@@ -589,7 +606,9 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 			if (!host->pagesize_2k)
 				send_cmd(host, NAND_CMD_READ0, false);
 		}
-		useirq = false;
+
+		send_cmd(host, command, false);
+		mxc_do_addr_cycle(mtd, column, page_addr);
 		break;
 
 	case NAND_CMD_PAGEPROG:
@@ -604,51 +623,21 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 			send_page(host, 3, NFC_INPUT);
 		}
 
-		break;
-
-	case NAND_CMD_ERASE1:
-		useirq = false;
-		break;
-	}
-
-	/* Write out the command to the device. */
-	send_cmd(host, command, useirq);
-	mxc_do_addr_cycle(mtd, column, page_addr);
-
-	/* Command post-processing step */
-	switch (command) {
-
-	case NAND_CMD_RESET:
-		break;
-
-	case NAND_CMD_READOOB:
-	case NAND_CMD_READ0:
-		if (host->pagesize_2k) {
-			/* send read confirm command */
-			send_cmd(host, NAND_CMD_READSTART, true);
-			/* read for each AREA */
-			send_page(host, 0, NFC_OUTPUT);
-			send_page(host, 1, NFC_OUTPUT);
-			send_page(host, 2, NFC_OUTPUT);
-			send_page(host, 3, NFC_OUTPUT);
-		} else
-			send_page(host, 0, NFC_OUTPUT);
-
-		memcpy(host->data_buf, host->regs + MAIN_AREA0, mtd->writesize);
-		copy_spare(mtd, true);
+		send_cmd(host, command, true);
+		mxc_do_addr_cycle(mtd, column, page_addr);
 		break;
 
 	case NAND_CMD_READID:
+		send_cmd(host, command, true);
+		mxc_do_addr_cycle(mtd, column, page_addr);
 		send_read_id(host);
 		break;
 
-	case NAND_CMD_PAGEPROG:
-		break;
-
-	case NAND_CMD_STATUS:
-		break;
-
+	case NAND_CMD_ERASE1:
 	case NAND_CMD_ERASE2:
+		send_cmd(host, command, false);
+		mxc_do_addr_cycle(mtd, column, page_addr);
+
 		break;
 	}
 }
