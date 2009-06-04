@@ -34,14 +34,6 @@
 #define DEBUGP(fmt...)
 #endif
 
-#if defined(CONFIG_UML) || defined(CONFIG_X86_32)
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-	return vmalloc_exec(size);
-}
-#else /*X86_64*/
 void *module_alloc(unsigned long size)
 {
 	struct vm_struct *area;
@@ -56,9 +48,9 @@ void *module_alloc(unsigned long size)
 	if (!area)
 		return NULL;
 
-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
+	return __vmalloc_area(area, GFP_KERNEL | __GFP_HIGHMEM,
+					PAGE_KERNEL_EXEC);
 }
-#endif
 
 /* Free memory returned from module_alloc */
 void module_free(struct module *mod, void *module_region)
