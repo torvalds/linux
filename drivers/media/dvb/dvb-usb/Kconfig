@@ -216,7 +216,7 @@ config DVB_USB_TTUSB2
 	help
 	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver. The
 	  firmware protocol used by this module is similar to the one used by the
-	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.ko.
+	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.
 
 config DVB_USB_DTT200U
 	tristate "WideView WT-200U and WT-220U (pen) DVB-T USB2.0 support (Yakumo/Hama/Typhoon/Yuan)"

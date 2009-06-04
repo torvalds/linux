@@ -531,7 +531,7 @@ config SBC8360_WDT
 	  Board Computer produced by Axiomtek Co., Ltd. (www.axiomtek.com).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sbc8360.ko.
+	  module will be called sbc8360.
 
 	  Most people will say N.
 

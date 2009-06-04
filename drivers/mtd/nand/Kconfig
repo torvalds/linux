@@ -260,7 +260,7 @@ config MTD_NAND_BASLER_EXCITE
 	help
           This enables the driver for the NAND flash device found on the
           Basler eXcite Smart Camera. If built as a module, the driver
-          will be named "excite_nandflash.ko".
+          will be named excite_nandflash.
 
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
@@ -282,7 +282,7 @@ config MTD_NAND_CS553X
 	  controller is enabled for NAND, and currently requires that
 	  the controller be in MMIO mode.
 
-	  If you say "m", the module will be called "cs553x_nand.ko".
+	  If you say "m", the module will be called cs553x_nand.
 
 config MTD_NAND_ATMEL
 	tristate "Support for NAND Flash / SmartMedia on AT91 and AVR32"
