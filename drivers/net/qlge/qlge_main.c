@@ -3174,7 +3174,7 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 
 	if (value & RST_FO_FR) {
 		QPRINTK(qdev, IFDOWN, ERR,
-			"ETIMEOUT!!! errored out of resetting the chip!\n");
+			"ETIMEDOUT!!! errored out of resetting the chip!\n");
 		status = -ETIMEDOUT;
 	}
 
