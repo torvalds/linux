@@ -15,9 +15,6 @@
 #include <asm/types.h>
 #include <asm/intel_arch_perfmon.h>
 
-#define CTR_IS_RESERVED(msrs, c)	((msrs)->counters[(c)].addr ? 1 : 0)
-#define CTRL_IS_RESERVED(msrs, c)	((msrs)->controls[(c)].addr ? 1 : 0)
-
 struct op_saved_msr {
 	unsigned int high;
 	unsigned int low;

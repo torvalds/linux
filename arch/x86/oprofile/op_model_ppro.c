@@ -82,7 +82,7 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* clear all counters */
 	for (i = 0 ; i < num_counters; ++i) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
+		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
 		val &= model->reserved;
@@ -91,14 +91,14 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* avoid a false detection of ctr overflows in NMI handler */
 	for (i = 0; i < num_counters; ++i) {
-		if (unlikely(!CTR_IS_RESERVED(msrs, i)))
+		if (unlikely(!msrs->counters[i].addr))
 			continue;
 		wrmsrl(msrs->counters[i].addr, -1LL);
 	}
 
 	/* enable active counters */
 	for (i = 0; i < num_counters; ++i) {
-		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
+		if (counter_config[i].enabled && msrs->counters[i].addr) {
 			reset_value[i] = counter_config[i].count;
 			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 			rdmsrl(msrs->controls[i].addr, val);
@@ -181,11 +181,11 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0 ; i < num_counters ; ++i) {
-		if (CTR_IS_RESERVED(msrs, i))
+		if (msrs->counters[i].addr)
 			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
 	}
 	for (i = 0 ; i < num_counters ; ++i) {
-		if (CTRL_IS_RESERVED(msrs, i))
+		if (msrs->controls[i].addr)
 			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
 	}
 	if (reset_value) {

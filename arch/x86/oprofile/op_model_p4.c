@@ -559,7 +559,7 @@ static void p4_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* clear the cccrs we will use */
 	for (i = 0 ; i < num_counters ; i++) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
+		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		rdmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 		CCCR_CLEAR(low);
@@ -569,14 +569,14 @@ static void p4_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* clear all escrs (including those outside our concern) */
 	for (i = num_counters; i < num_controls; i++) {
-		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
+		if (unlikely(!msrs->controls[i].addr))
 			continue;
 		wrmsr(msrs->controls[i].addr, 0, 0);
 	}
 
 	/* setup all counters */
 	for (i = 0 ; i < num_counters ; ++i) {
-		if ((counter_config[i].enabled) && (CTRL_IS_RESERVED(msrs, i))) {
+		if (counter_config[i].enabled && msrs->controls[i].addr) {
 			reset_value[i] = counter_config[i].count;
 			pmc_setup_one_p4_counter(i);
 			wrmsr(p4_counters[VIRT_CTR(stag, i)].counter_address,
@@ -679,7 +679,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0 ; i < num_counters ; ++i) {
-		if (CTR_IS_RESERVED(msrs, i))
+		if (msrs->counters[i].addr)
 			release_perfctr_nmi(msrs->counters[i].addr);
 	}
 	/*
@@ -688,7 +688,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 	 * This saves a few bits.
 	 */
 	for (i = num_counters ; i < num_controls ; ++i) {
-		if (CTRL_IS_RESERVED(msrs, i))
+		if (msrs->controls[i].addr)
 			release_evntsel_nmi(msrs->controls[i].addr);
 	}
 }
