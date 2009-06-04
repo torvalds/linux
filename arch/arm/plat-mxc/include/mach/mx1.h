@@ -179,8 +179,4 @@
 #define DMA_REQ_UART1_T		30
 #define DMA_REQ_UART1_R		31
 
-/* mandatory for CONFIG_DEBUG_LL */
-#define MXC_LL_UART_PADDR	UART1_BASE_ADDR
-#define MXC_LL_UART_VADDR	IO_ADDRESS(UART1_BASE_ADDR)
-
 #endif /*  __ASM_ARCH_MXC_MX1_H__ */
