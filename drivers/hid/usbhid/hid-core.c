@@ -1234,12 +1234,11 @@ static int hid_post_reset(struct usb_interface *intf)
 	struct hid_device *hid = usb_get_intfdata(intf);
 	struct usbhid_device *usbhid = hid->driver_data;
 	int status;
- 
+
 	spin_lock_irq(&usbhid->lock);
 	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->lock);
 	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
-	/* FIXME: Any more reinitialization needed? */
 	status = hid_start_in(hid);
 	if (status < 0)
 		hid_io_error(hid);
@@ -1251,14 +1250,14 @@ static int hid_post_reset(struct usb_interface *intf)
 int usbhid_get_power(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
- 
+
 	return usb_autopm_get_interface(usbhid->intf);
 }
 
 void usbhid_put_power(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
- 
+
 	usb_autopm_put_interface(usbhid->intf);
 }
 
