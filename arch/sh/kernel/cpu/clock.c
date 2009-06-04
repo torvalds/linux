@@ -111,6 +111,25 @@ long clk_rate_table_round(struct clk *clk,
 	return rate_best_fit;
 }
 
+int clk_rate_table_find(struct clk *clk,
+			struct cpufreq_frequency_table *freq_table,
+			unsigned long rate)
+{
+	int i;
+
+	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		unsigned long freq = freq_table[i].frequency;
+
+		if (freq == CPUFREQ_ENTRY_INVALID)
+			continue;
+
+		if (freq == rate)
+			return i;
+	}
+
+	return -ENOENT;
+}
+
 /* Used for clocks that always have same value as the parent clock */
 unsigned long followparent_recalc(struct clk *clk)
 {

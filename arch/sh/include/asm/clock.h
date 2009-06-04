@@ -119,6 +119,10 @@ long clk_rate_table_round(struct clk *clk,
 			  struct cpufreq_frequency_table *freq_table,
 			  unsigned long rate);
 
+int clk_rate_table_find(struct clk *clk,
+			struct cpufreq_frequency_table *freq_table,
+			unsigned long rate);
+
 #define SH_CLK_MSTP32(_name, _id, _parent, _enable_reg,	\
 	    _enable_bit, _flags)			\
 {							\

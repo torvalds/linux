@@ -68,9 +68,53 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 	return clk->freq_table[idx].frequency;
 }
 
+static int sh_clk_div6_set_rate(struct clk *clk,
+				unsigned long rate, int algo_id)
+{
+	unsigned long value;
+	int idx;
+
+	idx = clk_rate_table_find(clk, clk->freq_table, rate);
+	if (idx < 0)
+		return idx;
+
+	value = __raw_readl(clk->enable_reg);
+	value &= ~0x3f;
+	value |= idx;
+	__raw_writel(value, clk->enable_reg);
+	return 0;
+}
+
+static int sh_clk_div6_enable(struct clk *clk)
+{
+	unsigned long value;
+	int ret;
+
+	ret = sh_clk_div6_set_rate(clk, clk->rate, 0);
+	if (ret == 0) {
+		value = __raw_readl(clk->enable_reg);
+		value &= ~0x100; /* clear stop bit to enable clock */
+		__raw_writel(value, clk->enable_reg);
+	}
+	return ret;
+}
+
+static void sh_clk_div6_disable(struct clk *clk)
+{
+	unsigned long value;
+
+	value = __raw_readl(clk->enable_reg);
+	value |= 0x100; /* stop clock */
+	value |= 0x3f; /* VDIV bits must be non-zero, overwrite divider */
+	__raw_writel(value, clk->enable_reg);
+}
+
 static struct clk_ops sh_clk_div6_clk_ops = {
 	.recalc		= sh_clk_div6_recalc,
 	.round_rate	= sh_clk_div_round_rate,
+	.set_rate	= sh_clk_div6_set_rate,
+	.enable		= sh_clk_div6_enable,
+	.disable	= sh_clk_div6_disable,
 };
 
 int __init sh_clk_div6_register(struct clk *clks, int nr)
