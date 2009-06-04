@@ -1794,7 +1794,7 @@ static struct usb_driver usbvision_driver = {
 	.name		= "usbvision",
 	.id_table	= usbvision_table,
 	.probe		= usbvision_probe,
-	.disconnect	= usbvision_disconnect
+	.disconnect	= __devexit_p(usbvision_disconnect),
 };
 
 /*

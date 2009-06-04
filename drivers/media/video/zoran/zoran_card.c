@@ -1477,7 +1477,7 @@ static struct pci_driver zoran_driver = {
 	.name = "zr36067",
 	.id_table = zr36067_pci_tbl,
 	.probe = zoran_probe,
-	.remove = zoran_remove,
+	.remove = __devexit_p(zoran_remove),
 };
 
 static int __init zoran_init(void)

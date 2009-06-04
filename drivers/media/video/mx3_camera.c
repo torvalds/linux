@@ -1074,7 +1074,7 @@ static struct soc_camera_host_ops mx3_soc_camera_host_ops = {
 	.set_bus_param	= mx3_camera_set_bus_param,
 };
 
-static int mx3_camera_probe(struct platform_device *pdev)
+static int __devinit mx3_camera_probe(struct platform_device *pdev)
 {
 	struct mx3_camera_dev *mx3_cam;
 	struct resource *res;
@@ -1194,11 +1194,11 @@ static struct platform_driver mx3_camera_driver = {
 		.name	= MX3_CAM_DRV_NAME,
 	},
 	.probe		= mx3_camera_probe,
-	.remove		= __exit_p(mx3_camera_remove),
+	.remove		= __devexit_p(mx3_camera_remove),
 };
 
 
-static int __devinit mx3_camera_init(void)
+static int __init mx3_camera_init(void)
 {
 	return platform_driver_register(&mx3_camera_driver);
 }

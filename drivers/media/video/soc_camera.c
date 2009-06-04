@@ -1205,7 +1205,7 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 
 static struct platform_driver __refdata soc_camera_pdrv = {
 	.probe	= soc_camera_pdrv_probe,
-	.remove	= __exit_p(soc_camera_pdrv_remove),
+	.remove	= __devexit_p(soc_camera_pdrv_remove),
 	.driver	= {
 		.name = "soc-camera-pdrv",
 		.owner = THIS_MODULE,
