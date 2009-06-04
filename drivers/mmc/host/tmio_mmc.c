@@ -35,23 +35,14 @@
 
 #include "tmio_mmc.h"
 
-/*
- * Fixme - documentation conflicts on what the clock values are for the
- * various dividers.
- * One document I have says that its a divisor of a 24MHz clock, another 33.
- * This probably depends on HCLK for a given platform, so we may need to
- * require HCLK be passed to us from the MFD core.
- *
- */
-
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 {
 	void __iomem *cnf = host->cnf;
 	void __iomem *ctl = host->ctl;
-	u32 clk = 0, clock;
+	u32 clk = 0, clock, f_min = host->mmc->f_min;
 
 	if (new_clock) {
-		for (clock = 46875, clk = 0x100; new_clock >= (clock<<1); ) {
+		for (clock = f_min, clk = 0x100; new_clock >= (clock<<1); ) {
 			clock <<= 1;
 			clk >>= 1;
 		}
@@ -545,6 +536,7 @@ out:
 static int __devinit tmio_mmc_probe(struct platform_device *dev)
 {
 	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
+	struct tmio_mmc_data *pdata;
 	struct resource *res_ctl, *res_cnf;
 	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
@@ -556,6 +548,12 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	res_ctl = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	res_cnf = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	if (!res_ctl || !res_cnf) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	pdata = cell->driver_data;
+	if (!pdata || !pdata->hclk) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -578,8 +576,8 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 
 	mmc->ops = &tmio_mmc_ops;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
-	mmc->f_min = 46875; /* 24000000 / 512 */
-	mmc->f_max = 24000000;
+	mmc->f_max = pdata->hclk;
+	mmc->f_min = mmc->f_max / 512;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	/* Enable the MMC/SD Control registers */
