@@ -37,6 +37,7 @@ obj-y                   += una_asm_$(BITS).o
 obj-$(CONFIG_SPARC32)   += muldiv.o
 obj-y                   += prom_common.o
 obj-y                   += prom_$(BITS).o
+obj-y                   += of_device_common.o
 obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
