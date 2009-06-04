@@ -41,7 +41,6 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 #include "iwl-debug.h"
-#include "iwl-rfkill.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
 #include "iwl-3945-led.h"
@@ -936,9 +935,6 @@ struct iwl_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
-#if defined(CONFIG_IWLWIFI_RFKILL)
-	struct rfkill *rfkill;
-#endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	unsigned long last_blink_time;
@@ -1072,7 +1068,6 @@ struct iwl_priv {
 	struct work_struct calibrated_work;
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
-	struct work_struct rf_kill;
 	struct work_struct abort_scan;
 	struct work_struct update_link_led;
 	struct work_struct auth_work;

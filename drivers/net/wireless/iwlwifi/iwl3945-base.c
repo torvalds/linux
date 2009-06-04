@@ -1009,18 +1009,12 @@ static void iwl3945_rx_card_state_notif(struct iwl_priv *priv,
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 
 
-	if (flags & SW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_SW, &priv->status);
-	else
-		clear_bit(STATUS_RF_KILL_SW, &priv->status);
-
 	iwl_scan_cancel(priv);
 
 	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &priv->status)) ||
-	    (test_bit(STATUS_RF_KILL_SW, &status) !=
-	     test_bit(STATUS_RF_KILL_SW, &priv->status)))
-		queue_work(priv->workqueue, &priv->rf_kill);
+	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
+				test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
 		wake_up_interruptible(&priv->wait_command_queue);
 }
@@ -2586,8 +2580,6 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	if (!iwl_is_init(priv)) {
 		priv->status = test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 					STATUS_RF_KILL_HW |
-			       test_bit(STATUS_RF_KILL_SW, &priv->status) <<
-					STATUS_RF_KILL_SW |
 			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 					STATUS_GEO_CONFIGURED |
 				test_bit(STATUS_EXIT_PENDING, &priv->status) <<
@@ -2596,11 +2588,9 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	}
 
 	/* ...otherwise clear out all the status bits but the RF Kill
-	 * bits and continue taking the NIC down. */
+	 * bit and continue taking the NIC down. */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
-			test_bit(STATUS_RF_KILL_SW, &priv->status) <<
-				STATUS_RF_KILL_SW |
 			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<
@@ -2655,12 +2645,6 @@ static int __iwl3945_up(struct iwl_priv *priv)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
 		return -EIO;
-	}
-
-	if (test_bit(STATUS_RF_KILL_SW, &priv->status)) {
-		IWL_WARN(priv, "Radio disabled by SW RF kill (module "
-			    "parameter)\n");
-		return -ENODEV;
 	}
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
@@ -2779,15 +2763,14 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, rfkill_poll.work);
-	unsigned long status = priv->status;
 
 	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	if (test_bit(STATUS_RF_KILL_HW, &status) != test_bit(STATUS_RF_KILL_HW, &priv->status))
-		queue_work(priv->workqueue, &priv->rf_kill);
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy,
+			test_bit(STATUS_RF_KILL_HW, &priv->status));
 
 	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
@@ -3019,7 +3002,6 @@ static void iwl3945_bg_up(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 	__iwl3945_up(priv);
 	mutex_unlock(&priv->mutex);
-	iwl_rfkill_set_hw_state(priv);
 }
 
 static void iwl3945_bg_restart(struct work_struct *data)
@@ -3181,8 +3163,6 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 	ret = __iwl3945_up(priv);
 
 	mutex_unlock(&priv->mutex);
-
-	iwl_rfkill_set_hw_state(priv);
 
 	if (ret)
 		goto out_release_irq;
@@ -3836,7 +3816,6 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->up, iwl3945_bg_up);
 	INIT_WORK(&priv->restart, iwl3945_bg_restart);
 	INIT_WORK(&priv->rx_replenish, iwl3945_bg_rx_replenish);
-	INIT_WORK(&priv->rf_kill, iwl_bg_rf_kill);
 	INIT_WORK(&priv->beacon_update, iwl3945_bg_beacon_update);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl3945_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
@@ -4203,13 +4182,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	if (err)
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
-	err = iwl_rfkill_init(priv);
-	if (err)
-		IWL_ERR(priv, "Unable to initialize RFKILL system. "
-				  "Ignoring error: %d\n", err);
-	else
-		iwl_rfkill_set_hw_state(priv);
-
 	/* Start monitoring the killswitch */
 	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
 			   2 * HZ);
@@ -4275,7 +4247,6 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
-	iwl_rfkill_unregister(priv);
 	cancel_delayed_work_sync(&priv->rfkill_poll);
 
 	iwl3945_dealloc_ucode_pci(priv);
