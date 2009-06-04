@@ -731,7 +731,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	 ops = ieee80211_get_crypto_ops(alg);
         if (ops == NULL) {
-                request_module(module);
+                request_module("%s", module);
                 ops = ieee80211_get_crypto_ops(alg);
         }
         if (ops == NULL) {
