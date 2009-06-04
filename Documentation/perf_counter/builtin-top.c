@@ -21,6 +21,7 @@
 #include "perf.h"
 
 #include "util/symbol.h"
+#include "util/color.h"
 #include "util/util.h"
 #include "util/rbtree.h"
 #include "util/parse-options.h"
@@ -253,7 +254,8 @@ static void print_sym_table(void)
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct sym_entry *syme = rb_entry(nd, struct sym_entry, rb_node);
 		struct symbol *sym = (struct symbol *)(syme + 1);
-		float pcnt;
+		char *color = PERF_COLOR_NORMAL;
+		double pcnt;
 
 		if (++printed > print_entries || syme->snap_count < count_filter)
 			continue;
@@ -261,13 +263,22 @@ static void print_sym_table(void)
 		pcnt = 100.0 - (100.0 * ((sum_kevents - syme->snap_count) /
 					 sum_kevents));
 
+		/*
+		 * We color high-overhead entries in red, low-overhead
+		 * entries in green - and keep the middle ground normal:
+		 */
+		if (pcnt >= 5.0)
+			color = PERF_COLOR_RED;
+		if (pcnt < 0.5)
+			color = PERF_COLOR_GREEN;
+
 		if (nr_counters == 1)
-			printf("%19.2f - %4.1f%% - %016llx : %s\n",
-				syme->weight, pcnt, sym->start, sym->name);
+			printf("%19.2f - ", syme->weight);
 		else
-			printf("%8.1f %10ld - %4.1f%% - %016llx : %s\n",
-				syme->weight, syme->snap_count,
-				pcnt, sym->start, sym->name);
+			printf("%8.1f %10ld - ", syme->weight, syme->snap_count);
+
+		color_fprintf(stdout, color, "%4.1f%%", pcnt);
+		printf(" - %016llx : %s\n", sym->start, sym->name);
 	}
 
 	{

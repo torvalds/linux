@@ -298,6 +298,7 @@ LIB_H += util/string.h
 LIB_H += util/run-command.h
 LIB_H += util/sigchain.h
 LIB_H += util/symbol.h
+LIB_H += util/color.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
@@ -319,6 +320,7 @@ LIB_OBJS += util/usage.o
 LIB_OBJS += util/wrapper.o
 LIB_OBJS += util/sigchain.o
 LIB_OBJS += util/symbol.o
+LIB_OBJS += util/color.o
 LIB_OBJS += util/pager.o
 
 BUILTIN_OBJS += builtin-help.o

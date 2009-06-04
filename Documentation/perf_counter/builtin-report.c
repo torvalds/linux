@@ -9,6 +9,7 @@
 
 #include "util/util.h"
 
+#include "util/color.h"
 #include "util/list.h"
 #include "util/cache.h"
 #include "util/rbtree.h"
@@ -548,7 +549,19 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
 	size_t ret;
 
 	if (total_samples) {
-		ret = fprintf(fp, "   %6.2f%%",
+		double percent = self->count * 100.0 / total_samples;
+		char *color = PERF_COLOR_NORMAL;
+
+		/*
+		 * We color high-overhead entries in red, low-overhead
+		 * entries in green - and keep the middle ground normal:
+		 */
+		if (percent >= 5.0)
+			color = PERF_COLOR_RED;
+		if (percent < 0.5)
+			color = PERF_COLOR_GREEN;
+
+		ret = color_fprintf(fp, color, "   %6.2f%%",
 				(self->count * 100.0) / total_samples);
 	} else
 		ret = fprintf(fp, "%12d ", self->count);
