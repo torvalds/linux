@@ -1900,6 +1900,8 @@ void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 	 * number and update LVB so other node will skip the scan for a while
 	 */
 	seqno++;
+	os->os_count++;
+	os->os_scantime = CURRENT_TIME;
 unlock:
 	ocfs2_orphan_scan_unlock(osb, seqno, DLM_LOCK_EX);
 out:
@@ -1939,6 +1941,8 @@ int ocfs2_orphan_scan_init(struct ocfs2_super *osb)
 
 	os = &osb->osb_orphan_scan;
 	os->os_osb = osb;
+	os->os_count = 0;
+	os->os_scantime = CURRENT_TIME;
 	mutex_init(&os->os_lock);
 
 	INIT_DELAYED_WORK(&os->os_orphan_scan_work,

@@ -208,6 +208,7 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 	int i;
 	struct ocfs2_cluster_connection *cconn = osb->cconn;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
+	struct ocfs2_orphan_scan *os;
 
 	out += snprintf(buf + out, len - out,
 			"%10s => Id: %-s  Uuid: %-s  Gen: 0x%X  Label: %-s\n",
@@ -308,6 +309,13 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 				(i == osb->slot_num ? '*' : ' '),
 				i, osb->slot_recovery_generations[i]);
 	}
+
+	os = &osb->osb_orphan_scan;
+	out += snprintf(buf + out, len - out, "Orphan Scan=> ");
+	out += snprintf(buf + out, len - out, "Local: %u  Global: %u ",
+			os->os_count, os->os_seqno);
+	out += snprintf(buf + out, len - out, " Last Scan: %lu seconds ago\n",
+			(get_seconds() - os->os_scantime.tv_sec));
 
 	return out;
 }
