@@ -243,6 +243,7 @@ enum {
 	ALC888_ASUS_EEE1601,
 	ALC889A_MB31,
 	ALC1200_ASUS_P5Q,
+	ALC883_SONY_VAIO_TT,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -8134,6 +8135,16 @@ static struct snd_kcontrol_new alc889A_mb31_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc883_vaiott_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	{ } /* end */
+};
+
 static struct hda_bind_ctls alc883_bind_cap_vol = {
 	.ops = &snd_hda_bind_vol,
 	.values = {
@@ -8410,6 +8421,17 @@ static struct hda_verb alc888_6st_dell_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc883_vaiott_verbs[] = {
+	/* HP */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+
+	/* enable unsolicited event */
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+
+	{ } /* end */
+};
+
 static void alc888_3st_hp_init_hook(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -8669,6 +8691,16 @@ static void alc888_lenovo_sky_init_hook(struct hda_codec *codec)
 	alc_automute_amp(codec);
 }
 
+static void alc883_vaiott_init_hook(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x17;
+	alc_automute_amp(codec);
+}
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -8884,6 +8916,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_3ST_6ch_INTEL]	= "3stack-6ch-intel",
 	[ALC1200_ASUS_P5Q]	= "asus-p5q",
 	[ALC889A_MB31]		= "mb31",
+	[ALC883_SONY_VAIO_TT]	= "sony-vaio-tt",
 	[ALC883_AUTO]		= "auto",
 };
 
@@ -8978,6 +9011,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x8086, 0x2503, "82801H", ALC883_MITAC),
 	SND_PCI_QUIRK(0x8086, 0x0022, "DX58SO", ALC883_3ST_6ch_INTEL),
 	SND_PCI_QUIRK(0x8086, 0xd601, "D102GGC", ALC883_3ST_6ch),
+	SND_PCI_QUIRK(0x104d, 0x9047, "Sony Vaio TT", ALC883_SONY_VAIO_TT),
 	{}
 };
 
@@ -9372,6 +9406,17 @@ static struct alc_config_preset alc883_presets[] = {
 		.dig_out_nid = ALC883_DIGOUT_NID,
 		.unsol_event = alc889A_mb31_unsol_event,
 		.init_hook = alc889A_mb31_automute,
+	},
+	[ALC883_SONY_VAIO_TT] = {
+		.mixers = { alc883_vaiott_mixer },
+		.init_verbs = { alc883_init_verbs, alc883_vaiott_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.input_mux = &alc883_capture_source,
+		.unsol_event = alc_automute_amp_unsol_event,
+		.init_hook = alc883_vaiott_init_hook,
 	},
 };
 

@@ -159,6 +159,7 @@ ALC883/888
   3stack-6ch-intel Intel DG33* boards
   asus-p5q	ASUS P5Q-EM boards
   mb31		MacBook 3,1
+  sony-vaio-tt  Sony VAIO TT
   auto		auto-config reading BIOS (default)
 
 ALC861/660
