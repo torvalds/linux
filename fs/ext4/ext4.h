@@ -1401,6 +1401,8 @@ extern void ext4_abort(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_warning(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+extern void ext4_msg(struct super_block *, const char *, const char *, ...)
+	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_grp_locked_error(struct super_block *, ext4_group_t,
 				const char *, const char *, ...)
 	__attribute__ ((format (printf, 4, 5)));
