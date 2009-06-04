@@ -170,7 +170,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	mtpar.in      = tgpar.in  = in;
 	mtpar.out     = tgpar.out = out;
 	mtpar.hotdrop = &hotdrop;
-	tgpar.hooknum = hook;
+	mtpar.hooknum = tgpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
 	private = table->private;
