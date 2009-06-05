@@ -31,6 +31,7 @@
 #include <linux/time.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
+#include <linux/math64.h>
 #include <linux/string.h>
 #include <sound/core.h>
 #include <sound/minors.h>
@@ -617,9 +618,7 @@ static long snd_pcm_oss_bytes(struct snd_pcm_substream *substream, long frames)
 #else
 	{
 		u64 bsize = (u64)runtime->oss.buffer_bytes * (u64)bytes;
-		u32 rem;
-		div64_32(&bsize, buffer_size, &rem);
-		return (long)bsize;
+		return div_u64(bsize, buffer_size);
 	}
 #endif
 }
