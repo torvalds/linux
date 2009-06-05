@@ -45,6 +45,7 @@ struct dso *dso__new(const char *name, unsigned int sym_priv_size)
 		strcpy(self->name, name);
 		self->syms = RB_ROOT;
 		self->sym_priv_size = sym_priv_size;
+		self->find_symbol = dso__find_symbol;
 	}
 
 	return self;

@@ -16,6 +16,7 @@ struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
 	unsigned int	 sym_priv_size;
+	struct symbol    *(*find_symbol)(struct dso *, uint64_t ip);
 	char		 name[0];
 };
 

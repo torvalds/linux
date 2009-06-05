@@ -79,6 +79,7 @@ typedef union event_union {
 
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
+static struct dso *vdso;
 
 static void dsos__add(struct dso *dso)
 {
@@ -136,6 +137,11 @@ static void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
+static struct symbol *vdso__find_symbol(struct dso *dso, uint64_t ip)
+{
+	return dso__find_symbol(kernel_dso, ip);
+}
+
 static int load_kernel(void)
 {
 	int err;
@@ -150,6 +156,14 @@ static int load_kernel(void)
 		kernel_dso = NULL;
 	} else
 		dsos__add(kernel_dso);
+
+	vdso = dso__new("[vdso]", 0);
+	if (!vdso)
+		return -1;
+
+	vdso->find_symbol = vdso__find_symbol;
+
+	dsos__add(vdso);
 
 	return err;
 }
@@ -173,8 +187,19 @@ struct map {
 	uint64_t	 start;
 	uint64_t	 end;
 	uint64_t	 pgoff;
+	uint64_t	 (*map_ip)(struct map *, uint64_t);
 	struct dso	 *dso;
 };
+
+static uint64_t map__map_ip(struct map *map, uint64_t ip)
+{
+	return ip - map->start + map->pgoff;
+}
+
+static uint64_t vdso__map_ip(struct map *map, uint64_t ip)
+{
+	return ip;
+}
 
 static struct map *map__new(struct mmap_event *event)
 {
@@ -201,6 +226,11 @@ static struct map *map__new(struct mmap_event *event)
 		self->dso = dsos__findnew(filename);
 		if (self->dso == NULL)
 			goto out_delete;
+
+		if (self->dso == vdso)
+			self->map_ip = vdso__map_ip;
+		else
+			self->map_ip = map__map_ip;
 	}
 	return self;
 out_delete:
@@ -917,8 +947,8 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 
 		map = thread__find_map(thread, ip);
 		if (map != NULL) {
+			ip = map->map_ip(map, ip);
 			dso = map->dso;
-			ip -= map->start + map->pgoff;
 		} else {
 			/*
 			 * If this is outside of all known maps,
@@ -938,7 +968,10 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	}
 
 	if (show & show_mask) {
-		struct symbol *sym = dso__find_symbol(dso, ip);
+		struct symbol *sym = NULL;
+
+		if (dso)
+			sym = dso->find_symbol(dso, ip);
 
 		if (hist_entry__add(thread, map, dso, sym, ip, level)) {
 			fprintf(stderr,
