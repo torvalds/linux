@@ -60,9 +60,6 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvmppc_e500_tlb_setup(vcpu_e500);
 
-	/* Use the same core vertion as host's */
-	vcpu->arch.pvr = mfspr(SPRN_PVR);
-
 	return 0;
 }
 

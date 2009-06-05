@@ -153,7 +153,6 @@ struct kvm_vcpu_arch {
 	u32 pid;
 	u32 swap_pid;
 
-	u32 pvr;
 	u32 ccr0;
 	u32 ccr1;
 	u32 dbcr0;
