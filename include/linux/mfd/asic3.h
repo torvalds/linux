@@ -227,8 +227,8 @@ struct asic3_platform_data {
 
 
 /* Basic control of the SD ASIC */
-#define ASIC3_SDHWCTRL_Base	0x0E00
-#define ASIC3_SDHWCTRL_SDConf    0x00
+#define ASIC3_SDHWCTRL_BASE     0x0E00
+#define ASIC3_SDHWCTRL_SDCONF     0x00
 
 #define ASIC3_SDHWCTRL_SUSPEND    (1 << 0)  /* 1=suspend all SD operations */
 #define ASIC3_SDHWCTRL_CLKSEL     (1 << 1)  /* 1=SDICK, 0=HCLK */
@@ -242,10 +242,10 @@ struct asic3_platform_data {
 /* SD card power supply ctrl 1=enable */
 #define ASIC3_SDHWCTRL_SDPWR      (1 << 6)
 
-#define ASIC3_EXTCF_Base		0x1100
+#define ASIC3_EXTCF_BASE        0x1100
 
-#define ASIC3_EXTCF_Select         0x00
-#define ASIC3_EXTCF_Reset          0x04
+#define ASIC3_EXTCF_SELECT        0x00
+#define ASIC3_EXTCF_RESET         0x04
 
 #define ASIC3_EXTCF_SMOD0	         (1 << 0)  /* slot number of mode 0 */
 #define ASIC3_EXTCF_SMOD1	         (1 << 1)  /* slot number of mode 1 */

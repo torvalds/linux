@@ -52,6 +52,21 @@ static inline u32 asic3_read_register(struct asic3 *asic,
 			(reg >> asic->bus_shift));
 }
 
+void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&asic->lock, flags);
+	val = asic3_read_register(asic, reg);
+	if (set)
+		val |= bits;
+	else
+		val &= ~bits;
+	asic3_write_register(asic, reg, val);
+	spin_unlock_irqrestore(&asic->lock, flags);
+}
+
 /* IRQs */
 #define MAX_ASIC_ISR_LOOPS    20
 #define ASIC3_GPIO_BASE_INCR \
