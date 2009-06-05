@@ -117,6 +117,10 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_delay	= 0	/* usec */,
 };
 
+static struct snd_platform_data dm355_evm_snd_data = {
+	.clk_name	= "asp1",
+};
+
 static int dm355evm_mmc_gpios = -EINVAL;
 
 static void dm355evm_mmcsd_gpios(unsigned gpio)
@@ -279,6 +283,9 @@ static __init void dm355_evm_init(void)
 
 	dm355_init_spi0(BIT(0), dm355_evm_spi_info,
 			ARRAY_SIZE(dm355_evm_spi_info));
+
+	/* DM335 EVM uses ASP1; line-out is a stereo mini-jack */
+	dm355_init_asp1(ASP1_TX_EVT_EN | ASP1_RX_EVT_EN, &dm355_evm_snd_data);
 }
 
 static __init void dm355_evm_irq_init(void)

@@ -225,6 +225,10 @@ static struct platform_device ide_dev = {
 	},
 };
 
+static struct snd_platform_data dm644x_evm_snd_data = {
+	.clk_name	= "asp0",
+};
+
 /*----------------------------------------------------------------------*/
 
 /*
@@ -666,6 +670,7 @@ static __init void davinci_evm_init(void)
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 
 	davinci_serial_init(&uart_config);
+	dm644x_init_asp(&dm644x_evm_snd_data);
 
 	soc_info->emac_pdata->phy_mask = DM644X_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DM644X_EVM_MDIO_FREQUENCY;

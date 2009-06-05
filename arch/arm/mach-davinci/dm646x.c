@@ -27,6 +27,7 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -591,6 +592,66 @@ static struct platform_device dm646x_edma_device = {
 	.resource		= edma_resources,
 };
 
+static struct resource dm646x_mcasp0_resources[] = {
+	{
+		.name	= "mcasp0",
+		.start 	= DAVINCI_DM646X_MCASP0_REG_BASE,
+		.end 	= DAVINCI_DM646X_MCASP0_REG_BASE + (SZ_1K << 1) - 1,
+		.flags 	= IORESOURCE_MEM,
+	},
+	/* first TX, then RX */
+	{
+		.start	= DAVINCI_DM646X_DMA_MCASP0_AXEVT0,
+		.end	= DAVINCI_DM646X_DMA_MCASP0_AXEVT0,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DM646X_DMA_MCASP0_AREVT0,
+		.end	= DAVINCI_DM646X_DMA_MCASP0_AREVT0,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct resource dm646x_mcasp1_resources[] = {
+	{
+		.name	= "mcasp1",
+		.start	= DAVINCI_DM646X_MCASP1_REG_BASE,
+		.end	= DAVINCI_DM646X_MCASP1_REG_BASE + (SZ_1K << 1) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	/* DIT mode, only TX event */
+	{
+		.start	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
+		.end	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
+		.flags	= IORESOURCE_DMA,
+	},
+	/* DIT mode, dummy entry */
+	{
+		.start	= -1,
+		.end	= -1,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm646x_mcasp0_device = {
+	.name		= "davinci-mcasp",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm646x_mcasp0_resources),
+	.resource	= dm646x_mcasp0_resources,
+};
+
+static struct platform_device dm646x_mcasp1_device = {
+	.name		= "davinci-mcasp",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(dm646x_mcasp1_resources),
+	.resource	= dm646x_mcasp1_resources,
+};
+
+static struct platform_device dm646x_dit_device = {
+	.name	= "spdif-dit",
+	.id	= -1,
+};
+
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm646x_io_desc[] = {
@@ -699,6 +760,19 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.sram_dma		= 0x10010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm646x_init_mcasp0(struct snd_platform_data *pdata)
+{
+	dm646x_mcasp0_device.dev.platform_data = pdata;
+	platform_device_register(&dm646x_mcasp0_device);
+}
+
+void __init dm646x_init_mcasp1(struct snd_platform_data *pdata)
+{
+	dm646x_mcasp1_device.dev.platform_data = pdata;
+	platform_device_register(&dm646x_mcasp1_device);
+	platform_device_register(&dm646x_dit_device);
+}
 
 void __init dm646x_init(void)
 {

@@ -206,6 +206,37 @@ static struct at24_platform_data eeprom_info = {
 	.context	= (void *)0x7f00,
 };
 
+static u8 dm646x_iis_serializer_direction[] = {
+       TX_MODE, RX_MODE, INACTIVE_MODE, INACTIVE_MODE,
+};
+
+static u8 dm646x_dit_serializer_direction[] = {
+       TX_MODE,
+};
+
+static struct snd_platform_data dm646x_evm_snd_data[] = {
+	{
+		.clk_name       = "mcasp0",
+		.tx_dma_offset  = 0x400,
+		.rx_dma_offset  = 0x400,
+		.op_mode        = DAVINCI_MCASP_IIS_MODE,
+		.num_serializer = ARRAY_SIZE(dm646x_iis_serializer_direction),
+		.tdm_slots      = 2,
+		.serial_dir     = dm646x_iis_serializer_direction,
+		.eventq_no      = EVENTQ_0,
+	},
+	{
+		.clk_name       = "mcasp1",
+		.tx_dma_offset  = 0x400,
+		.rx_dma_offset  = 0,
+		.op_mode        = DAVINCI_MCASP_DIT_MODE,
+		.num_serializer = ARRAY_SIZE(dm646x_dit_serializer_direction),
+		.tdm_slots      = 32,
+		.serial_dir     = dm646x_dit_serializer_direction,
+		.eventq_no      = EVENTQ_0,
+	},
+};
+
 static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("24c256", 0x50),
@@ -239,6 +270,8 @@ static __init void evm_init(void)
 
 	evm_init_i2c();
 	davinci_serial_init(&uart_config);
+	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
+	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
 
 	soc_info->emac_pdata->phy_mask = DM646X_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DM646X_EVM_MDIO_FREQUENCY;

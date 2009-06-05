@@ -27,6 +27,7 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -303,7 +304,7 @@ struct davinci_clk dm644x_clks[] = {
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("palm_bk3710", NULL, &ide_clk),
-	CLK("soc-audio.0", NULL, &asp_clk),
+	CLK(NULL, "asp0", &asp_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd_clk),
 	CLK(NULL, "spi", &spi_clk),
 	CLK(NULL, "gpio", &gpio_clk),
@@ -553,6 +554,32 @@ static struct platform_device dm644x_edma_device = {
 	.resource		= edma_resources,
 };
 
+/* DM6446 EVM uses ASP0; line-out is a pair of RCA jacks */
+static struct resource dm644x_asp_resources[] = {
+	{
+		.start	= DAVINCI_ASP0_BASE,
+		.end	= DAVINCI_ASP0_BASE + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_TX,
+		.end	= DAVINCI_DMA_ASP0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_RX,
+		.end	= DAVINCI_DMA_ASP0_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm644x_asp_device = {
+	.name		= "davinci-asp",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm644x_asp_resources),
+	.resource	= dm644x_asp_resources,
+};
+
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm644x_io_desc[] = {
@@ -668,6 +695,13 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.sram_dma		= 0x00008000,
 	.sram_len		= SZ_16K,
 };
+
+void __init dm644x_init_asp(struct snd_platform_data *pdata)
+{
+	davinci_cfg_reg(DM644X_MCBSP);
+	dm644x_asp_device.dev.platform_data = pdata;
+	platform_device_register(&dm644x_asp_device);
+}
 
 void __init dm644x_init(void)
 {

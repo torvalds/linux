@@ -30,6 +30,7 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -360,8 +361,8 @@ static struct davinci_clk dm355_clks[] = {
 	CLK(NULL, "uart1", &uart1_clk),
 	CLK(NULL, "uart2", &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
-	CLK("soc-audio.0", NULL, &asp0_clk),
-	CLK("soc-audio.1", NULL, &asp1_clk),
+	CLK(NULL, "asp0", &asp0_clk),
+	CLK(NULL, "asp1", &asp1_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
 	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
 	CLK(NULL, "spi0", &spi0_clk),
@@ -627,6 +628,31 @@ static struct platform_device dm355_edma_device = {
 	.resource		= edma_resources,
 };
 
+static struct resource dm355_asp1_resources[] = {
+	{
+		.start	= DAVINCI_ASP1_BASE,
+		.end	= DAVINCI_ASP1_BASE + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP1_TX,
+		.end	= DAVINCI_DMA_ASP1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP1_RX,
+		.end	= DAVINCI_DMA_ASP1_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm355_asp1_device = {
+	.name		= "davinci-asp",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm355_asp1_resources),
+	.resource	= dm355_asp1_resources,
+};
+
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm355_io_desc[] = {
@@ -734,6 +760,19 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
+{
+	/* we don't use ASP1 IRQs, or we'd need to mux them ... */
+	if (evt_enable & ASP1_TX_EVT_EN)
+		davinci_cfg_reg(DM355_EVT8_ASP1_TX);
+
+	if (evt_enable & ASP1_RX_EVT_EN)
+		davinci_cfg_reg(DM355_EVT9_ASP1_RX);
+
+	dm355_asp1_device.dev.platform_data = pdata;
+	platform_device_register(&dm355_asp1_device);
+}
 
 void __init dm355_init(void)
 {
