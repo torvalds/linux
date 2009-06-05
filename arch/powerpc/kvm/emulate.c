@@ -188,6 +188,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				vcpu->arch.gpr[rt] = vcpu->arch.srr1; break;
 			case SPRN_PVR:
 				vcpu->arch.gpr[rt] = mfspr(SPRN_PVR); break;
+			case SPRN_PIR:
+				vcpu->arch.gpr[rt] = mfspr(SPRN_PIR); break;
 
 			/* Note: mftb and TBRL/TBWL are user-accessible, so
 			 * the guest can always access the real TB anyways.
