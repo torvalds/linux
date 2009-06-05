@@ -1785,6 +1785,8 @@ static int hw_have_digit_io_switch(struct hw *hw)
 				|| ((subsys_id & 0xf000) == 0x6000));
 }
 
+#define CTLBITS(a, b, c, d)	(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+
 #define UAA_CFG_PWRSTATUS	0x44
 #define UAA_CFG_SPACE_FLAG	0xA0
 #define UAA_CORE_CHANGE		0x3FFC
@@ -1792,26 +1794,24 @@ static int uaa_to_xfi(struct pci_dev *pci)
 {
 	unsigned int bar0, bar1, bar2, bar3, bar4, bar5;
 	unsigned int cmd, irq, cl_size, l_timer, pwr;
-	unsigned int CTLA, CTLZ, CTLL, CTLX, CTL_, CTLF, CTLi;
 	unsigned int is_uaa = 0;
 	unsigned int data[4] = {0};
 	unsigned int io_base;
 	void *mem_base;
 	int i = 0;
+	const u32 CTLX = CTLBITS('C', 'T', 'L', 'X');
+	const u32 CTL_ = CTLBITS('C', 'T', 'L', '-');
+	const u32 CTLF = CTLBITS('C', 'T', 'L', 'F');
+	const u32 CTLi = CTLBITS('C', 'T', 'L', 'i');
+	const u32 CTLA = CTLBITS('C', 'T', 'L', 'A');
+	const u32 CTLZ = CTLBITS('C', 'T', 'L', 'Z');
+	const u32 CTLL = CTLBITS('C', 'T', 'L', 'L');
 
 	/* By default, Hendrix card UAA Bar0 should be using memory... */
 	io_base = pci_resource_start(pci, 0);
 	mem_base = ioremap(io_base, pci_resource_len(pci, 0));
 	if (NULL == mem_base)
 		return -ENOENT;
-
-	CTLX = ___constant_swab32(*((unsigned int *)"CTLX"));
-	CTL_ = ___constant_swab32(*((unsigned int *)"CTL-"));
-	CTLF = ___constant_swab32(*((unsigned int *)"CTLF"));
-	CTLi = ___constant_swab32(*((unsigned int *)"CTLi"));
-	CTLA = ___constant_swab32(*((unsigned int *)"CTLA"));
-	CTLZ = ___constant_swab32(*((unsigned int *)"CTLZ"));
-	CTLL = ___constant_swab32(*((unsigned int *)"CTLL"));
 
 	/* Read current mode from Mode Change Register */
 	for (i = 0; i < 4; i++)
