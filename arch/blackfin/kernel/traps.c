@@ -86,7 +86,6 @@ void __init trap_init(void)
 static void decode_address(char *buf, unsigned long address)
 {
 #ifdef CONFIG_DEBUG_VERBOSE
-	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
 	unsigned long flags, offset;
