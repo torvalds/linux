@@ -2392,8 +2392,8 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(u64);
 	}
 
-	if (sample_type & PERF_SAMPLE_CONFIG) {
-		header.type |= PERF_SAMPLE_CONFIG;
+	if (sample_type & PERF_SAMPLE_ID) {
+		header.type |= PERF_SAMPLE_ID;
 		header.size += sizeof(u64);
 	}
 
@@ -2439,8 +2439,8 @@ static void perf_counter_output(struct perf_counter *counter,
 	if (sample_type & PERF_SAMPLE_ADDR)
 		perf_output_put(&handle, addr);
 
-	if (sample_type & PERF_SAMPLE_CONFIG)
-		perf_output_put(&handle, counter->attr.config);
+	if (sample_type & PERF_SAMPLE_ID)
+		perf_output_put(&handle, counter->id);
 
 	if (sample_type & PERF_SAMPLE_CPU)
 		perf_output_put(&handle, cpu_entry);

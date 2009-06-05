@@ -104,7 +104,7 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_ADDR		= 1U << 3,
 	PERF_SAMPLE_GROUP		= 1U << 4,
 	PERF_SAMPLE_CALLCHAIN		= 1U << 5,
-	PERF_SAMPLE_CONFIG		= 1U << 6,
+	PERF_SAMPLE_ID			= 1U << 6,
 	PERF_SAMPLE_CPU			= 1U << 7,
 };
 
