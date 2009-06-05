@@ -106,6 +106,7 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_CALLCHAIN		= 1U << 5,
 	PERF_SAMPLE_ID			= 1U << 6,
 	PERF_SAMPLE_CPU			= 1U << 7,
+	PERF_SAMPLE_PERIOD		= 1U << 8,
 };
 
 /*
@@ -260,6 +261,7 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u64				time;
+	 *	u64				id;
 	 *	u64				sample_period;
 	 * };
 	 */

@@ -2404,6 +2404,11 @@ static void perf_counter_output(struct perf_counter *counter,
 		cpu_entry.cpu = raw_smp_processor_id();
 	}
 
+	if (sample_type & PERF_SAMPLE_PERIOD) {
+		header.type |= PERF_SAMPLE_PERIOD;
+		header.size += sizeof(u64);
+	}
+
 	if (sample_type & PERF_SAMPLE_GROUP) {
 		header.type |= PERF_SAMPLE_GROUP;
 		header.size += sizeof(u64) +
@@ -2444,6 +2449,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (sample_type & PERF_SAMPLE_CPU)
 		perf_output_put(&handle, cpu_entry);
+
+	if (sample_type & PERF_SAMPLE_PERIOD)
+		perf_output_put(&handle, counter->hw.sample_period);
 
 	/*
 	 * XXX PERF_SAMPLE_GROUP vs inherited counters seems difficult.
@@ -2835,6 +2843,7 @@ static void perf_log_period(struct perf_counter *counter, u64 period)
 	struct {
 		struct perf_event_header	header;
 		u64				time;
+		u64				id;
 		u64				period;
 	} freq_event = {
 		.header = {
@@ -2843,6 +2852,7 @@ static void perf_log_period(struct perf_counter *counter, u64 period)
 			.size = sizeof(freq_event),
 		},
 		.time = sched_clock(),
+		.id = counter->id,
 		.period = period,
 	};
 
