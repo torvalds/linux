@@ -796,7 +796,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
 		       (dev)->pci_device == 0x2E22 || \
-		       (dev)->pci_device == 0x2E32)
+		       (dev)->pci_device == 0x2E32 || \
+		       (dev)->pci_device == 0x0042 || \
+		       (dev)->pci_device == 0x0046)
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
 			(dev)->pci_device == 0x2A12)
@@ -818,20 +820,26 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			(dev)->pci_device == 0x29D2 ||  \
 			(IS_IGD(dev)))
 
+#define IS_IGDNG_D(dev)	((dev)->pci_device == 0x0042)
+#define IS_IGDNG_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_IGDNG(dev)	(IS_IGDNG_D(dev) || IS_IGDNG_M(dev))
+
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
-		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
+		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev) || \
+		      IS_IGDNG(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
-			IS_IGD(dev))
+			IS_IGD(dev) || IS_IGDNG_M(dev))
 
-#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev) || \
+				IS_IGDNG(dev))
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
 #define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
