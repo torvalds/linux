@@ -3139,8 +3139,7 @@ static inline int igb_tx_map_adv(struct igb_adapter *adapter,
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
-	buffer_info->dma = map[count];
-	count++;
+	buffer_info->dma = skb_shinfo(skb)->dma_head;
 
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
@@ -3164,7 +3163,7 @@ static inline int igb_tx_map_adv(struct igb_adapter *adapter,
 	tx_ring->buffer_info[i].skb = skb;
 	tx_ring->buffer_info[first].next_to_watch = i;
 
-	return count;
+	return count + 1;
 }
 
 static inline void igb_tx_queue_adv(struct igb_adapter *adapter,

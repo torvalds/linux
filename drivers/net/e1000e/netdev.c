@@ -3916,7 +3916,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 		buffer_info->length = size;
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
-		buffer_info->dma = map[0] + offset;
+		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
 		count++;
 
 		len -= size;
@@ -3947,7 +3947,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
 			buffer_info->next_to_watch = i;
-			buffer_info->dma = map[f + 1] + offset;
+			buffer_info->dma = map[f] + offset;
 
 			len -= size;
 			offset += size;

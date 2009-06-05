@@ -5487,7 +5487,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		dev_kfree_skb(skb);
 		return -EIO;
 	}
-	map = skb_shinfo(skb)->dma_maps[0];
+	map = skb_shinfo(skb)->dma_head;
 
 	REG_WR(bp, BNX2_HC_COMMAND,
 	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
@@ -6167,7 +6167,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	sp = skb_shinfo(skb);
-	mapping = sp->dma_maps[0];
+	mapping = sp->dma_head;
 
 	tx_buf = &txr->tx_buf_ring[ring_prod];
 	tx_buf->skb = skb;
@@ -6191,7 +6191,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = frag->size;
-		mapping = sp->dma_maps[i + 1];
+		mapping = sp->dma_maps[i];
 
 		txbd->tx_bd_haddr_hi = (u64) mapping >> 32;
 		txbd->tx_bd_haddr_lo = (u64) mapping & 0xffffffff;
