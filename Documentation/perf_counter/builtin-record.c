@@ -347,7 +347,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	memset(&attr, 0, sizeof(attr));
 	attr.config		= event_id[counter];
 	attr.sample_period	= event_count[counter];
-	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_PERIOD;
 	attr.freq		= freq;
 	attr.mmap		= track;
 	attr.comm		= track;

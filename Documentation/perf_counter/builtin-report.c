@@ -69,12 +69,20 @@ struct fork_event {
 	__u32 pid, ppid;
 };
 
-typedef union event_union {
+struct period_event {
 	struct perf_event_header header;
-	struct ip_event ip;
-	struct mmap_event mmap;
-	struct comm_event comm;
-	struct fork_event fork;
+	__u64 time;
+	__u64 id;
+	__u64 sample_period;
+};
+
+typedef union event_union {
+	struct perf_event_header	header;
+	struct ip_event			ip;
+	struct mmap_event		mmap;
+	struct comm_event		comm;
+	struct fork_event		fork;
+	struct period_event		period;
 } event_t;
 
 static LIST_HEAD(dsos);
@@ -1053,6 +1061,19 @@ process_fork_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
+process_period_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	dprintf("%p [%p]: PERF_EVENT_PERIOD: time:%Ld, id:%Ld: period:%Ld\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		event->period.time,
+		event->period.id,
+		event->period.sample_period);
+
+	return 0;
+}
+
+static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
@@ -1068,11 +1089,12 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	case PERF_EVENT_FORK:
 		return process_fork_event(event, offset, head);
 
+	case PERF_EVENT_PERIOD:
+		return process_period_event(event, offset, head);
 	/*
 	 * We dont process them right now but they are fine:
 	 */
 
-	case PERF_EVENT_PERIOD:
 	case PERF_EVENT_THROTTLE:
 	case PERF_EVENT_UNTHROTTLE:
 		return 0;
@@ -1156,6 +1178,11 @@ more:
 	}
 
 	size = event->header.size;
+
+	dprintf("%p [%p]: event: %d\n",
+			(void *)(offset + head),
+			(void *)(long)event->header.size,
+			event->header.type);
 
 	if (!size || process_event(event, offset, head) < 0) {
 
