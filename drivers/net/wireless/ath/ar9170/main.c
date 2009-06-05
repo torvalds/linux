@@ -442,6 +442,38 @@ void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 		/* retransmission issue / SIFS/EIFS collision ?! */
 		break;
 
+	/* firmware debug */
+	case 0xca:
+		printk(KERN_DEBUG "ar9170 FW: %.*s\n", len - 4, (char *)buf + 4);
+		break;
+	case 0xcb:
+		len -= 4;
+
+		switch (len) {
+		case 1:
+			printk(KERN_DEBUG "ar9170 FW: u8: %#.2x\n",
+				*((char *)buf + 4));
+			break;
+		case 2:
+			printk(KERN_DEBUG "ar9170 FW: u8: %#.4x\n",
+				le16_to_cpup((__le16 *)((char *)buf + 4)));
+			break;
+		case 4:
+			printk(KERN_DEBUG "ar9170 FW: u8: %#.8x\n",
+				le32_to_cpup((__le32 *)((char *)buf + 4)));
+			break;
+		case 8:
+			printk(KERN_DEBUG "ar9170 FW: u8: %#.16lx\n",
+				(unsigned long)le64_to_cpup(
+						(__le64 *)((char *)buf + 4)));
+			break;
+		}
+		break;
+	case 0xcc:
+		print_hex_dump_bytes("ar9170 FW:", DUMP_PREFIX_NONE,
+				     (char *)buf + 4, len - 4);
+		break;
+
 	default:
 		printk(KERN_INFO "received unhandled event %x\n", cmd->type);
 		print_hex_dump_bytes("dump:", DUMP_PREFIX_NONE, buf, len);
