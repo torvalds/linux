@@ -7,6 +7,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/math64.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include "ctatc.h"
