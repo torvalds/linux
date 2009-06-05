@@ -25,6 +25,48 @@
 
 #include <linux/mfd/asic3.h>
 
+enum {
+	ASIC3_CLOCK_SPI,
+	ASIC3_CLOCK_OWM,
+	ASIC3_CLOCK_PWM0,
+	ASIC3_CLOCK_PWM1,
+	ASIC3_CLOCK_LED0,
+	ASIC3_CLOCK_LED1,
+	ASIC3_CLOCK_LED2,
+	ASIC3_CLOCK_SD_HOST,
+	ASIC3_CLOCK_SD_BUS,
+	ASIC3_CLOCK_SMBUS,
+	ASIC3_CLOCK_EX0,
+	ASIC3_CLOCK_EX1,
+};
+
+struct asic3_clk {
+	int enabled;
+	unsigned int cdex;
+	unsigned long rate;
+};
+
+#define INIT_CDEX(_name, _rate)	\
+	[ASIC3_CLOCK_##_name] = {		\
+		.cdex = CLOCK_CDEX_##_name,	\
+		.rate = _rate,			\
+	}
+
+struct asic3_clk asic3_clk_init[] __initdata = {
+	INIT_CDEX(SPI, 0),
+	INIT_CDEX(OWM, 5000000),
+	INIT_CDEX(PWM0, 0),
+	INIT_CDEX(PWM1, 0),
+	INIT_CDEX(LED0, 0),
+	INIT_CDEX(LED1, 0),
+	INIT_CDEX(LED2, 0),
+	INIT_CDEX(SD_HOST, 24576000),
+	INIT_CDEX(SD_BUS, 12288000),
+	INIT_CDEX(SMBUS, 0),
+	INIT_CDEX(EX0, 32768),
+	INIT_CDEX(EX1, 24576000),
+};
+
 struct asic3 {
 	void __iomem *mapping;
 	unsigned int bus_shift;
@@ -34,6 +76,8 @@ struct asic3 {
 	u16 irq_bothedge[4];
 	struct gpio_chip gpio;
 	struct device *dev;
+
+	struct asic3_clk clocks[ARRAY_SIZE(asic3_clk_init)];
 };
 
 static int asic3_gpio_get(struct gpio_chip *chip, unsigned offset);
@@ -540,6 +584,37 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 	return gpiochip_remove(&asic->gpio);
 }
 
+static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
+{
+	unsigned long flags;
+	u32 cdex;
+
+	spin_lock_irqsave(&asic->lock, flags);
+	if (clk->enabled++ == 0) {
+		cdex = asic3_read_register(asic, ASIC3_OFFSET(CLOCK, CDEX));
+		cdex |= clk->cdex;
+		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
+	}
+	spin_unlock_irqrestore(&asic->lock, flags);
+
+	return 0;
+}
+
+static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
+{
+	unsigned long flags;
+	u32 cdex;
+
+	WARN_ON(clk->enabled == 0);
+
+	spin_lock_irqsave(&asic->lock, flags);
+	if (--clk->enabled == 0) {
+		cdex = asic3_read_register(asic, ASIC3_OFFSET(CLOCK, CDEX));
+		cdex &= ~clk->cdex;
+		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
+	}
+	spin_unlock_irqrestore(&asic->lock, flags);
+}
 
 /* Core */
 static int __init asic3_probe(struct platform_device *pdev)
@@ -604,6 +679,11 @@ static int __init asic3_probe(struct platform_device *pdev)
 		dev_err(asic->dev, "GPIO probe failed\n");
 		goto out_irq;
 	}
+
+	/* Making a per-device copy is only needed for the
+	 * theoretical case of multiple ASIC3s on one board:
+	 */
+	memcpy(asic->clocks, asic3_clk_init, sizeof(asic3_clk_init));
 
 	dev_info(asic->dev, "ASIC3 Core driver\n");
 
