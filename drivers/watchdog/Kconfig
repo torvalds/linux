@@ -729,6 +729,12 @@ config SBC_EPX_C3_WATCHDOG
 
 # MIPS Architecture
 
+config BCM47XX_WDT
+	tristate "Broadcom BCM47xx Watchdog Timer"
+	depends on BCM47XX
+	help
+	  Hardware driver for the Broadcom BCM47xx Watchog Timer.
+
 config RC32434_WDT
 	tristate "IDT RC32434 SoC Watchdog Timer"
 	depends on MIKROTIK_RB532
