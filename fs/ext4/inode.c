@@ -1549,6 +1549,52 @@ static int write_end_fn(handle_t *handle, struct buffer_head *bh)
 	return ext4_handle_dirty_metadata(handle, NULL, bh);
 }
 
+static int ext4_generic_write_end(struct file *file,
+				struct address_space *mapping,
+				loff_t pos, unsigned len, unsigned copied,
+				struct page *page, void *fsdata)
+{
+	int i_size_changed = 0;
+	struct inode *inode = mapping->host;
+	handle_t *handle = ext4_journal_current_handle();
+
+	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+
+	/*
+	 * No need to use i_size_read() here, the i_size
+	 * cannot change under us because we hold i_mutex.
+	 *
+	 * But it's important to update i_size while still holding page lock:
+	 * page writeout could otherwise come in and zero beyond i_size.
+	 */
+	if (pos + copied > inode->i_size) {
+		i_size_write(inode, pos + copied);
+		i_size_changed = 1;
+	}
+
+	if (pos + copied >  EXT4_I(inode)->i_disksize) {
+		/* We need to mark inode dirty even if
+		 * new_i_size is less that inode->i_size
+		 * bu greater than i_disksize.(hint delalloc)
+		 */
+		ext4_update_i_disksize(inode, (pos + copied));
+		i_size_changed = 1;
+	}
+	unlock_page(page);
+	page_cache_release(page);
+
+	/*
+	 * Don't mark the inode dirty under page lock. First, it unnecessarily
+	 * makes the holding time of page lock longer. Second, it forces lock
+	 * ordering of page lock and transaction start for journaling
+	 * filesystems.
+	 */
+	if (i_size_changed)
+		ext4_mark_inode_dirty(handle, inode);
+
+	return copied;
+}
+
 /*
  * We need to pick up the new inode size which generic_commit_write gave us
  * `file' can be NULL - eg, when called from page_symlink().
@@ -1572,27 +1618,33 @@ static int ext4_ordered_write_end(struct file *file,
 	ret = ext4_jbd2_file_inode(handle, inode);
 
 	if (ret == 0) {
-		loff_t new_i_size;
-
-		new_i_size = pos + copied;
-		if (new_i_size > EXT4_I(inode)->i_disksize) {
-			ext4_update_i_disksize(inode, new_i_size);
-			/* We need to mark inode dirty even if
-			 * new_i_size is less that inode->i_size
-			 * bu greater than i_disksize.(hint delalloc)
-			 */
-			ext4_mark_inode_dirty(handle, inode);
-		}
-
-		ret2 = generic_write_end(file, mapping, pos, len, copied,
+		ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 		copied = ret2;
+		if (pos + len > inode->i_size)
+			/* if we have allocated more blocks and copied
+			 * less. We will have blocks allocated outside
+			 * inode->i_size. So truncate them
+			 */
+			ext4_orphan_add(handle, inode);
 		if (ret2 < 0)
 			ret = ret2;
 	}
 	ret2 = ext4_journal_stop(handle);
 	if (!ret)
 		ret = ret2;
+
+	if (pos + len > inode->i_size) {
+		vmtruncate(inode, inode->i_size);
+		/* 
+		 * If vmtruncate failed early the inode might still be
+		 * on the orphan list; we need to make sure the inode
+		 * is removed from the orphan list in that case.
+		 */
+		if (inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+	}
+
 
 	return ret ? ret : copied;
 }
@@ -1605,31 +1657,38 @@ static int ext4_writeback_write_end(struct file *file,
 	handle_t *handle = ext4_journal_current_handle();
 	struct inode *inode = mapping->host;
 	int ret = 0, ret2;
-	loff_t new_i_size;
 
 	trace_mark(ext4_writeback_write_end,
 		   "dev %s ino %lu pos %llu len %u copied %u",
 		   inode->i_sb->s_id, inode->i_ino,
 		   (unsigned long long) pos, len, copied);
-	new_i_size = pos + copied;
-	if (new_i_size > EXT4_I(inode)->i_disksize) {
-		ext4_update_i_disksize(inode, new_i_size);
-		/* We need to mark inode dirty even if
-		 * new_i_size is less that inode->i_size
-		 * bu greater than i_disksize.(hint delalloc)
-		 */
-		ext4_mark_inode_dirty(handle, inode);
-	}
-
-	ret2 = generic_write_end(file, mapping, pos, len, copied,
+	ret2 = ext4_generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 	copied = ret2;
+	if (pos + len > inode->i_size)
+		/* if we have allocated more blocks and copied
+		 * less. We will have blocks allocated outside
+		 * inode->i_size. So truncate them
+		 */
+		ext4_orphan_add(handle, inode);
+
 	if (ret2 < 0)
 		ret = ret2;
 
 	ret2 = ext4_journal_stop(handle);
 	if (!ret)
 		ret = ret2;
+
+	if (pos + len > inode->i_size) {
+		vmtruncate(inode, inode->i_size);
+		/* 
+		 * If vmtruncate failed early the inode might still be
+		 * on the orphan list; we need to make sure the inode
+		 * is removed from the orphan list in that case.
+		 */
+		if (inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+	}
 
 	return ret ? ret : copied;
 }
@@ -1675,10 +1734,27 @@ static int ext4_journalled_write_end(struct file *file,
 	}
 
 	unlock_page(page);
+	page_cache_release(page);
+	if (pos + len > inode->i_size)
+		/* if we have allocated more blocks and copied
+		 * less. We will have blocks allocated outside
+		 * inode->i_size. So truncate them
+		 */
+		ext4_orphan_add(handle, inode);
+
 	ret2 = ext4_journal_stop(handle);
 	if (!ret)
 		ret = ret2;
-	page_cache_release(page);
+	if (pos + len > inode->i_size) {
+		vmtruncate(inode, inode->i_size);
+		/* 
+		 * If vmtruncate failed early the inode might still be
+		 * on the orphan list; we need to make sure the inode
+		 * is removed from the orphan list in that case.
+		 */
+		if (inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+	}
 
 	return ret ? ret : copied;
 }
