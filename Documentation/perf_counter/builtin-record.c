@@ -348,7 +348,10 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	attr.config		= event_id[counter];
 	attr.sample_period	= event_count[counter];
 	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_PERIOD;
-	attr.freq		= freq;
+	if (freq) {
+		attr.freq		= 1;
+		attr.sample_freq	= freq;
+	}
 	attr.mmap		= track;
 	attr.comm		= track;
 	attr.inherit		= (cpu < 0) && inherit;
@@ -544,10 +547,6 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 		event_id[0] = 0;
 	}
 
-	if (freq) {
-		default_interval = freq;
-		freq = 1;
-	}
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (event_count[counter])
 			continue;
