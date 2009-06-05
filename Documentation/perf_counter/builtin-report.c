@@ -504,7 +504,7 @@ sort__comm_print(FILE *fp, struct hist_entry *self)
 }
 
 static struct sort_entry sort_comm = {
-	.header 	= "         Command",
+	.header		= "         Command",
 	.cmp		= sort__comm_cmp,
 	.collapse	= sort__comm_collapse,
 	.print		= sort__comm_print,
@@ -569,10 +569,12 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	if (verbose)
 		ret += fprintf(fp, "%#018llx  ", (__u64)self->ip);
 
-	if (self->sym)
-		ret += fprintf(fp, "%s", self->sym->name);
-	else
+	if (self->sym) {
+		ret += fprintf(fp, "[%c] %s",
+			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
+	} else {
 		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
+	}
 
 	return ret;
 }
@@ -586,9 +588,9 @@ static struct sort_entry sort_sym = {
 static int sort__need_collapse = 0;
 
 struct sort_dimension {
-	char *name;
-	struct sort_entry *entry;
-	int taken;
+	char			*name;
+	struct sort_entry	*entry;
+	int			taken;
 };
 
 static struct sort_dimension sort_dimensions[] = {
