@@ -484,7 +484,9 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 void i915_enable_interrupt (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	opregion_enable_asle(dev);
+
+	if (!IS_IGDNG(dev))
+		opregion_enable_asle(dev);
 	dev_priv->irq_enabled = 1;
 }
 
