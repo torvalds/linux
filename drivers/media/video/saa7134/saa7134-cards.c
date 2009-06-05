@@ -6449,6 +6449,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4847,
 		.driver_data  = SAA7134_BOARD_ASUS_EUROPA_HYBRID,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x107d,
+		.subdevice    = 0x6655,
+		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
