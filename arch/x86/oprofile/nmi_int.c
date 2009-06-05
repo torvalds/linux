@@ -71,18 +71,16 @@ static int profile_exceptions_notify(struct notifier_block *self,
 
 static void nmi_cpu_save_registers(struct op_msrs *msrs)
 {
-	unsigned int const nr_ctrs = model->num_counters;
-	unsigned int const nr_ctrls = model->num_controls;
 	struct op_msr *counters = msrs->counters;
 	struct op_msr *controls = msrs->controls;
 	unsigned int i;
 
-	for (i = 0; i < nr_ctrs; ++i) {
+	for (i = 0; i < model->num_counters; ++i) {
 		if (counters[i].addr)
 			rdmsrl(counters[i].addr, counters[i].saved);
 	}
 
-	for (i = 0; i < nr_ctrls; ++i) {
+	for (i = 0; i < model->num_controls; ++i) {
 		if (controls[i].addr)
 			rdmsrl(controls[i].addr, controls[i].saved);
 	}
@@ -191,18 +189,16 @@ static int nmi_setup(void)
 
 static void nmi_restore_registers(struct op_msrs *msrs)
 {
-	unsigned int const nr_ctrs = model->num_counters;
-	unsigned int const nr_ctrls = model->num_controls;
 	struct op_msr *counters = msrs->counters;
 	struct op_msr *controls = msrs->controls;
 	unsigned int i;
 
-	for (i = 0; i < nr_ctrls; ++i) {
+	for (i = 0; i < model->num_controls; ++i) {
 		if (controls[i].addr)
 			wrmsrl(controls[i].addr, controls[i].saved);
 	}
 
-	for (i = 0; i < nr_ctrs; ++i) {
+	for (i = 0; i < model->num_counters; ++i) {
 		if (counters[i].addr)
 			wrmsrl(counters[i].addr, counters[i].saved);
 	}
