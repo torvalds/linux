@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
