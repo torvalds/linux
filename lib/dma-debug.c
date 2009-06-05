@@ -186,15 +186,50 @@ static void put_hash_bucket(struct hash_bucket *bucket,
 static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 						struct dma_debug_entry *ref)
 {
-	struct dma_debug_entry *entry;
+	struct dma_debug_entry *entry, *ret = NULL;
+	int matches = 0, match_lvl, last_lvl = 0;
 
 	list_for_each_entry(entry, &bucket->list, list) {
-		if ((entry->dev_addr == ref->dev_addr) &&
-		    (entry->dev == ref->dev))
+		if ((entry->dev_addr != ref->dev_addr) ||
+		    (entry->dev != ref->dev))
+			continue;
+
+		/*
+		 * Some drivers map the same physical address multiple
+		 * times. Without a hardware IOMMU this results in the
+		 * same device addresses being put into the dma-debug
+		 * hash multiple times too. This can result in false
+		 * positives being reported. Therfore we implement a
+		 * best-fit algorithm here which returns the entry from
+		 * the hash which fits best to the reference value
+		 * instead of the first-fit.
+		 */
+		matches += 1;
+		match_lvl = 0;
+		entry->size      == ref->size      ? ++match_lvl : match_lvl;
+		entry->type      == ref->type      ? ++match_lvl : match_lvl;
+		entry->direction == ref->direction ? ++match_lvl : match_lvl;
+
+		if (match_lvl == 3) {
+			/* perfect-fit - return the result */
 			return entry;
+		} else if (match_lvl > last_lvl) {
+			/*
+			 * We found an entry that fits better then the
+			 * previous one
+			 */
+			last_lvl = match_lvl;
+			ret      = entry;
+		}
 	}
 
-	return NULL;
+	/*
+	 * If we have multiple matches but no perfect-fit, just return
+	 * NULL.
+	 */
+	ret = (matches == 1) ? ret : NULL;
+
+	return ret;
 }
 
 /*
