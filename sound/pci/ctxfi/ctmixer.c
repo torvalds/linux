@@ -1097,7 +1097,7 @@ int ct_alsa_mix_create(struct ct_atc *atc,
 	int err = 0;
 
 	/* Create snd kcontrol instances on demand */
-	vol_ctl.device = swh_ctl.device = device;
+	/* vol_ctl.device = swh_ctl.device = device; */ /* better w/ device 0 */
 	err = ct_mixer_kcontrols_create((struct ct_mixer *)atc->mixer);
 	if (err)
 		return err;
