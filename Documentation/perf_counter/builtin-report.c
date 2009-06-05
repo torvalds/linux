@@ -236,7 +236,7 @@ static int map__overlap(struct map *l, struct map *r)
 
 static size_t map__fprintf(struct map *self, FILE *fp)
 {
-	return fprintf(fp, " %lx-%lx %lx %s\n",
+	return fprintf(fp, " %"PRIx64"-%"PRIx64" %"PRIx64" %s\n",
 		       self->start, self->end, self->pgoff, self->dso->name);
 }
 
