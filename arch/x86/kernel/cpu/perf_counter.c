@@ -83,6 +83,128 @@ static u64 intel_pmu_event_map(int event)
 	return intel_perfmon_event_map[event];
 }
 
+/*
+ * Generalized hw caching related event table, filled
+ * in on a per model basis. A value of 0 means
+ * 'not supported', -1 means 'event makes no sense on
+ * this CPU', any other value means the raw event
+ * ID.
+ */
+
+#define C(x) PERF_COUNT_HW_CACHE_##x
+
+static u64 __read_mostly hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX];
+
+static const u64 nehalem_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+ [ C(L1D) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0f40, /* L1D_CACHE_LD.MESI            */
+		[ C(RESULT_MISS)   ] = 0x0140, /* L1D_CACHE_LD.I_STATE         */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0f41, /* L1D_CACHE_ST.MESI            */
+		[ C(RESULT_MISS)   ] = 0x0141, /* L1D_CACHE_ST.I_STATE         */
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x014e, /* L1D_PREFETCH.REQUESTS        */
+		[ C(RESULT_MISS)   ] = 0x024e, /* L1D_PREFETCH.MISS            */
+	},
+ },
+ [ C(L1I ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0480, /* L1I.READS                    */
+		[ C(RESULT_MISS)   ] = 0x0280, /* L1I.MISSES                   */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x0,
+	},
+ },
+ [ C(L2  ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0324, /* L2_RQSTS.LOADS               */
+		[ C(RESULT_MISS)   ] = 0x0224, /* L2_RQSTS.LD_MISS             */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0c24, /* L2_RQSTS.RFOS                */
+		[ C(RESULT_MISS)   ] = 0x0824, /* L2_RQSTS.RFO_MISS            */
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0xc024, /* L2_RQSTS.PREFETCHES          */
+		[ C(RESULT_MISS)   ] = 0x8024, /* L2_RQSTS.PREFETCH_MISS       */
+	},
+ },
+ [ C(DTLB) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0f40, /* L1D_CACHE_LD.MESI   (alias)  */
+		[ C(RESULT_MISS)   ] = 0x0108, /* DTLB_LOAD_MISSES.ANY         */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0f41, /* L1D_CACHE_ST.MESI   (alias)  */
+		[ C(RESULT_MISS)   ] = 0x010c, /* MEM_STORE_RETIRED.DTLB_MISS  */
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+		[ C(RESULT_MISS)   ] = 0x0,
+	},
+ },
+ [ C(ITLB) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x01c0, /* INST_RETIRED.ANY_P           */
+		[ C(RESULT_MISS)   ] = 0x0185, /* ITLB_MISS_RETIRED            */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+ [ C(BPU ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x00c4, /* BR_INST_RETIRED.ALL_BRANCHES */
+		[ C(RESULT_MISS)   ] = 0x03e8, /* BPU_CLEARS.ANY               */
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+};
+
+static const u64 core2_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+	/* To be filled in */
+};
+
+static const u64 atom_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+	/* To be filled in */
+};
+
 static u64 intel_pmu_raw_event(u64 event)
 {
 #define CORE_EVNTSEL_EVENT_MASK		0x000000FFULL
@@ -246,6 +368,39 @@ static inline int x86_pmu_initialized(void)
 	return x86_pmu.handle_irq != NULL;
 }
 
+static inline int
+set_ext_hw_attr(struct hw_perf_counter *hwc, struct perf_counter_attr *attr)
+{
+	unsigned int cache_type, cache_op, cache_result;
+	u64 config, val;
+
+	config = attr->config;
+
+	cache_type = (config >>  0) & 0xff;
+	if (cache_type >= PERF_COUNT_HW_CACHE_MAX)
+		return -EINVAL;
+
+	cache_op = (config >>  8) & 0xff;
+	if (cache_op >= PERF_COUNT_HW_CACHE_OP_MAX)
+		return -EINVAL;
+
+	cache_result = (config >> 16) & 0xff;
+	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
+		return -EINVAL;
+
+	val = hw_cache_event_ids[cache_type][cache_op][cache_result];
+
+	if (val == 0)
+		return -ENOENT;
+
+	if (val == -1)
+		return -EINVAL;
+
+	hwc->config |= val;
+
+	return 0;
+}
+
 /*
  * Setup the hardware configuration for a given attr_type
  */
@@ -288,22 +443,25 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->sample_period = x86_pmu.max_period;
 
 	atomic64_set(&hwc->period_left, hwc->sample_period);
+	counter->destroy = hw_perf_counter_destroy;
 
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
 	if (attr->type == PERF_TYPE_RAW) {
 		hwc->config |= x86_pmu.raw_event(attr->config);
-	} else {
-		if (attr->config >= x86_pmu.max_events)
-			return -EINVAL;
-		/*
-		 * The generic map:
-		 */
-		hwc->config |= x86_pmu.event_map(attr->config);
+		return 0;
 	}
 
-	counter->destroy = hw_perf_counter_destroy;
+	if (attr->type == PERF_TYPE_HW_CACHE)
+		return set_ext_hw_attr(hwc, attr);
+
+	if (attr->config >= x86_pmu.max_events)
+		return -EINVAL;
+	/*
+	 * The generic map:
+	 */
+	hwc->config |= x86_pmu.event_map(attr->config);
 
 	return 0;
 }
@@ -989,6 +1147,33 @@ static int intel_pmu_init(void)
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
+	/*
+	 * Nehalem:
+	 */
+	switch (boot_cpu_data.x86_model) {
+	case 17:
+		memcpy(hw_cache_event_ids, core2_hw_cache_event_ids,
+		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
+			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+
+		pr_info("... installed Core2 event tables\n");
+		break;
+	default:
+	case 26:
+		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
+		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
+			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+
+		pr_info("... installed Nehalem/Corei7 event tables\n");
+		break;
+	case 28:
+		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
+		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
+			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+
+		pr_info("... installed Atom event tables\n");
+		break;
+	}
 	return 0;
 }
 

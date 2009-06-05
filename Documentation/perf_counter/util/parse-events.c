@@ -6,6 +6,8 @@
 #include "exec_cmd.h"
 #include "string.h"
 
+extern char *strcasestr(const char *haystack, const char *needle);
+
 int					nr_counters;
 
 struct perf_counter_attr		attrs[MAX_COUNTERS];
@@ -17,6 +19,7 @@ struct event_symbol {
 };
 
 #define C(x, y) .type = PERF_TYPE_##x, .config = PERF_COUNT_##y
+#define CR(x, y) .type = PERF_TYPE_##x, .config = y
 
 static struct event_symbol event_symbols[] = {
   { C(HARDWARE, CPU_CYCLES),		"cpu-cycles",		},
@@ -69,6 +72,28 @@ static char *sw_event_names[] = {
 	"major faults",
 };
 
+#define MAX_ALIASES 8
+
+static char *hw_cache [][MAX_ALIASES] = {
+	{ "l1-d" ,	"l1d" ,	"l1", "l1-data-cache"			},
+	{ "l1-i" ,	"l1i" ,	"l1-instruction-cache"		},
+	{ "l2"  , },
+	{ "dtlb", },
+	{ "itlb", },
+	{ "bpu" , "btb", "branch-cache", NULL },
+};
+
+static char *hw_cache_op [][MAX_ALIASES] = {
+	{ "read"	, "load" },
+	{ "write"	, "store" },
+	{ "prefetch"	, "speculative-read", "speculative-load" },
+};
+
+static char *hw_cache_result [][MAX_ALIASES] = {
+	{ "access", "ops" },
+	{ "miss", },
+};
+
 char *event_name(int counter)
 {
 	__u64 config = attrs[counter].config;
@@ -86,6 +111,30 @@ char *event_name(int counter)
 			return hw_event_names[config];
 		return "unknown-hardware";
 
+	case PERF_TYPE_HW_CACHE: {
+		__u8 cache_type, cache_op, cache_result;
+		static char name[100];
+
+		cache_type   = (config >>  0) & 0xff;
+		if (cache_type > PERF_COUNT_HW_CACHE_MAX)
+			return "unknown-ext-hardware-cache-type";
+
+		cache_op     = (config >>  8) & 0xff;
+		if (cache_type > PERF_COUNT_HW_CACHE_OP_MAX)
+			return "unknown-ext-hardware-cache-op-type";
+
+		cache_result = (config >> 16) & 0xff;
+		if (cache_type > PERF_COUNT_HW_CACHE_RESULT_MAX)
+			return "unknown-ext-hardware-cache-result-type";
+
+		sprintf(name, "%s:%s:%s",
+			hw_cache[cache_type][0],
+			hw_cache_op[cache_op][0],
+			hw_cache_result[cache_result][0]);
+
+		return name;
+	}
+
 	case PERF_TYPE_SOFTWARE:
 		if (config < PERF_SW_EVENTS_MAX)
 			return sw_event_names[config];
@@ -98,11 +147,60 @@ char *event_name(int counter)
 	return "unknown";
 }
 
+static int parse_aliases(const char *str, char *names[][MAX_ALIASES], int size)
+{
+	int i, j;
+
+	for (i = 0; i < size; i++) {
+		for (j = 0; j < MAX_ALIASES; j++) {
+			if (!names[i][j])
+				break;
+			if (strcasestr(str, names[i][j]))
+				return i;
+		}
+	}
+
+	return 0;
+}
+
+static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
+{
+	__u8 cache_type = -1, cache_op = 0, cache_result = 0;
+
+	cache_type = parse_aliases(str, hw_cache, PERF_COUNT_HW_CACHE_MAX);
+	/*
+	 * No fallback - if we cannot get a clear cache type
+	 * then bail out:
+	 */
+	if (cache_type == -1)
+		return -EINVAL;
+
+	cache_op = parse_aliases(str, hw_cache_op, PERF_COUNT_HW_CACHE_OP_MAX);
+	/*
+	 * Fall back to reads:
+	 */
+	if (cache_type == -1)
+		cache_type = PERF_COUNT_HW_CACHE_OP_READ;
+
+	cache_result = parse_aliases(str, hw_cache_result,
+					PERF_COUNT_HW_CACHE_RESULT_MAX);
+	/*
+	 * Fall back to accesses:
+	 */
+	if (cache_result == -1)
+		cache_result = PERF_COUNT_HW_CACHE_RESULT_ACCESS;
+
+	attr->config = cache_type | (cache_op << 8) | (cache_result << 16);
+	attr->type = PERF_TYPE_HW_CACHE;
+
+	return 0;
+}
+
 /*
  * Each event can have multiple symbolic names.
  * Symbolic names are (almost) exactly matched.
  */
-static int match_event_symbols(const char *str, struct perf_counter_attr *attr)
+static int parse_event_symbols(const char *str, struct perf_counter_attr *attr)
 {
 	__u64 config, id;
 	int type;
@@ -147,7 +245,7 @@ static int match_event_symbols(const char *str, struct perf_counter_attr *attr)
 		}
 	}
 
-	return -EINVAL;
+	return parse_generic_hw_symbols(str, attr);
 }
 
 int parse_events(const struct option *opt, const char *str, int unset)
@@ -160,7 +258,7 @@ again:
 	if (nr_counters == MAX_COUNTERS)
 		return -1;
 
-	ret = match_event_symbols(str, &attr);
+	ret = parse_event_symbols(str, &attr);
 	if (ret < 0)
 		return ret;
 

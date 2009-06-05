@@ -3501,6 +3501,7 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 
 	switch (attr->type) {
 	case PERF_TYPE_HARDWARE:
+	case PERF_TYPE_HW_CACHE:
 		pmu = hw_perf_counter_init(counter);
 		break;
 

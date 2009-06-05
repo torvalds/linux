@@ -28,6 +28,7 @@ enum perf_event_types {
 	PERF_TYPE_HARDWARE		= 0,
 	PERF_TYPE_SOFTWARE		= 1,
 	PERF_TYPE_TRACEPOINT		= 2,
+	PERF_TYPE_HW_CACHE		= 3,
 
 	/*
 	 * available TYPE space, raw is the max value.
@@ -53,6 +54,39 @@ enum attr_ids {
 	PERF_COUNT_BUS_CYCLES		= 6,
 
 	PERF_HW_EVENTS_MAX		= 7,
+};
+
+/*
+ * Generalized hardware cache counters:
+ *
+ *       { L1-D, L1-I, L2, LLC, ITLB, DTLB, BPU } x
+ *       { read, write, prefetch } x
+ *       { accesses, misses }
+ */
+enum hw_cache_id {
+	PERF_COUNT_HW_CACHE_L1D,
+	PERF_COUNT_HW_CACHE_L1I,
+	PERF_COUNT_HW_CACHE_L2,
+	PERF_COUNT_HW_CACHE_DTLB,
+	PERF_COUNT_HW_CACHE_ITLB,
+	PERF_COUNT_HW_CACHE_BPU,
+
+	PERF_COUNT_HW_CACHE_MAX,
+};
+
+enum hw_cache_op_id {
+	PERF_COUNT_HW_CACHE_OP_READ,
+	PERF_COUNT_HW_CACHE_OP_WRITE,
+	PERF_COUNT_HW_CACHE_OP_PREFETCH,
+
+	PERF_COUNT_HW_CACHE_OP_MAX,
+};
+
+enum hw_cache_op_result_id {
+	PERF_COUNT_HW_CACHE_RESULT_ACCESS,
+	PERF_COUNT_HW_CACHE_RESULT_MISS,
+
+	PERF_COUNT_HW_CACHE_RESULT_MAX,
 };
 
 /*
