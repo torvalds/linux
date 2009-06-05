@@ -1433,8 +1433,8 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 			/* Darn, this is just wasted space */
 			event->time_delta = 0;
 			event->array[0] = 0;
-			ret = 0;
 		}
+		ret = 0;
 	}
 
 	*delta = 0;
