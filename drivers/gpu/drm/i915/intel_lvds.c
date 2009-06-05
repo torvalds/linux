@@ -493,6 +493,13 @@ static const struct dmi_system_id __initdata intel_no_lvds[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "i965GMx-IF"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Aopen i945GTt-VFA",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
