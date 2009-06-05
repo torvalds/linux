@@ -407,16 +407,17 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	}
 	info->chip.ecc.mode = ecc_mode;
 
-	info->clk = clk_get(&pdev->dev, "AEMIFCLK");
+	info->clk = clk_get(&pdev->dev, "aemif");
 	if (IS_ERR(info->clk)) {
 		ret = PTR_ERR(info->clk);
-		dev_dbg(&pdev->dev, "unable to get AEMIFCLK, err %d\n", ret);
+		dev_dbg(&pdev->dev, "unable to get AEMIF clock, err %d\n", ret);
 		goto err_clk;
 	}
 
 	ret = clk_enable(info->clk);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "unable to enable AEMIFCLK, err %d\n", ret);
+		dev_dbg(&pdev->dev, "unable to enable AEMIF clock, err %d\n",
+			ret);
 		goto err_clk_enable;
 	}
 
