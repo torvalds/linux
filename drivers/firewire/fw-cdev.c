@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
 #include <linux/idr.h>
 #include <linux/jiffies.h>
@@ -41,9 +42,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-#include "fw-device.h"
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include "core.h"
 
 struct client {
 	u32 version;

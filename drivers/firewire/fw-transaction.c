@@ -22,6 +22,7 @@
 #include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -38,8 +39,7 @@
 
 #include <asm/byteorder.h>
 
-#include "fw-device.h"	/* for fw_device_ops */
-#include "fw-transaction.h"
+#include "core.h"
 
 #define HEADER_PRI(pri)			((pri) << 0)
 #define HEADER_TCODE(tcode)		((tcode) << 4)
@@ -63,6 +63,10 @@
 
 #define HEADER_DESTINATION_IS_BROADCAST(q) \
 	(((q) & HEADER_DESTINATION(0x3f)) == HEADER_DESTINATION(0x3f))
+
+#define PHY_PACKET_CONFIG	0x0
+#define PHY_PACKET_LINK_ON	0x1
+#define PHY_PACKET_SELF_ID	0x2
 
 #define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))

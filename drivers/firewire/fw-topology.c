@@ -20,6 +20,8 @@
 
 #include <linux/bug.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -31,8 +33,7 @@
 #include <asm/atomic.h>
 #include <asm/system.h>
 
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include "core.h"
 
 #define SELF_ID_PHY_ID(q)		(((q) >> 24) & 0x3f)
 #define SELF_ID_EXTENDED(q)		(((q) >> 23) & 0x01)
@@ -44,6 +45,11 @@
 #define SELF_ID_MORE_PACKETS(q)		(((q) >>  0) & 0x01)
 
 #define SELF_ID_EXT_SEQUENCE(q)		(((q) >> 20) & 0x07)
+
+#define SELFID_PORT_CHILD	0x3
+#define SELFID_PORT_PARENT	0x2
+#define SELFID_PORT_NCONN	0x1
+#define SELFID_PORT_NONE	0x0
 
 static u32 *count_ports(u32 *sid, int *total_port_count, int *child_port_count)
 {

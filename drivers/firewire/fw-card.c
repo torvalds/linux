@@ -21,6 +21,8 @@
 #include <linux/crc-itu-t.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -34,9 +36,7 @@
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
 
-#include "fw-device.h"
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include "core.h"
 
 int fw_compute_block_crc(u32 *block)
 {

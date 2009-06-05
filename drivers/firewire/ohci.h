@@ -1,5 +1,5 @@
-#ifndef __fw_ohci_h
-#define __fw_ohci_h
+#ifndef _FIREWIRE_OHCI_H
+#define _FIREWIRE_OHCI_H
 
 /* OHCI register map */
 
@@ -154,4 +154,4 @@
 
 #define OHCI1394_phy_tcode		0xe
 
-#endif /* __fw_ohci_h */
+#endif /* _FIREWIRE_OHCI_H */

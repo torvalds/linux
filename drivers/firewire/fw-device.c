@@ -22,6 +22,8 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/idr.h>
 #include <linux/jiffies.h>
 #include <linux/kobject.h>
@@ -39,9 +41,7 @@
 #include <asm/byteorder.h>
 #include <asm/system.h>
 
-#include "fw-device.h"
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include "core.h"
 
 void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
 {
@@ -94,8 +94,9 @@ static int fw_unit_match(struct device *dev, struct device_driver *drv)
 		return 0;
 
 	device = fw_device(unit->device.parent);
+	id = container_of(drv, struct fw_driver, driver)->id_table;
 
-	for (id = fw_driver(drv)->id_table; id->match_flags != 0; id++) {
+	for (; id->match_flags != 0; id++) {
 		if (match_unit_directory(unit->directory, id->match_flags, id))
 			return 1;
 

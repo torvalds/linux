@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -57,9 +58,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
-
-#include "fw-device.h"
-#include "fw-transaction.h"
 
 /*
  * So far only bridges from Oxford Semiconductor are known to support

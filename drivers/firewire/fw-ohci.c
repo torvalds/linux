@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -45,8 +46,8 @@
 #include <asm/pmac_feature.h>
 #endif
 
-#include "fw-ohci.h"
-#include "fw-transaction.h"
+#include "core.h"
+#include "ohci.h"
 
 #define DESCRIPTOR_OUTPUT_MORE		0
 #define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
