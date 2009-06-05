@@ -638,6 +638,24 @@ int pnp_possible_config(struct pnp_dev *dev, int type, resource_size_t start,
 }
 EXPORT_SYMBOL(pnp_possible_config);
 
+int pnp_range_reserved(resource_size_t start, resource_size_t end)
+{
+	struct pnp_dev *dev;
+	struct pnp_resource *pnp_res;
+	resource_size_t *dev_start, *dev_end;
+
+	pnp_for_each_dev(dev) {
+		list_for_each_entry(pnp_res, &dev->resources, list) {
+			dev_start = &pnp_res->res.start;
+			dev_end   = &pnp_res->res.end;
+			if (ranged_conflict(&start, &end, dev_start, dev_end))
+				return 1;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(pnp_range_reserved);
+
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */
 static int __init pnp_setup_reserve_irq(char *str)
 {
