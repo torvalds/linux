@@ -194,9 +194,6 @@ struct skb_shared_info {
 	unsigned short  gso_type;
 	__be32          ip6_frag_id;
 	union skb_shared_tx tx_flags;
-#ifdef CONFIG_HAS_DMA
-	unsigned int	num_dma_maps;
-#endif
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
 	skb_frag_t	frags[MAX_SKB_FRAGS];

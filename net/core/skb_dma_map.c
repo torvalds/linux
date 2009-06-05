@@ -30,7 +30,6 @@ int skb_dma_map(struct device *dev, struct sk_buff *skb,
 			goto unwind;
 		sp->dma_maps[i + 1] = map;
 	}
-	sp->num_dma_maps = i + 1;
 
 	return 0;
 
