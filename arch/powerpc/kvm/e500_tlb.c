@@ -269,7 +269,7 @@ static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
 	tlbsel = (vcpu_e500->mas4 >> 28) & 0x1;
 	victim = (tlbsel == 0) ? tlb0_get_next_victim(vcpu_e500) : 0;
 	pidsel = (vcpu_e500->mas4 >> 16) & 0xf;
-	tsized = (vcpu_e500->mas4 >> 8) & 0xf;
+	tsized = (vcpu_e500->mas4 >> 7) & 0x1f;
 
 	vcpu_e500->mas0 = MAS0_TLBSEL(tlbsel) | MAS0_ESEL(victim)
 		| MAS0_NV(vcpu_e500->guest_tlb_nv[tlbsel]);
@@ -309,7 +309,7 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	vcpu_e500->shadow_pages[tlbsel][esel] = new_page;
 
 	/* Force TS=1 IPROT=0 TSIZE=4KB for all guest mappings. */
-	stlbe->mas1 = MAS1_TSIZE(BOOKE_PAGESZ_4K)
+	stlbe->mas1 = MAS1_TSIZE(BOOK3E_PAGESZ_4K)
 		| MAS1_TID(get_tlb_tid(gtlbe)) | MAS1_TS | MAS1_VALID;
 	stlbe->mas2 = (gvaddr & MAS2_EPN)
 		| e500_shadow_mas2_attrib(gtlbe->mas2,
@@ -545,7 +545,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		case 0:
 			/* TLB0 */
 			gtlbe->mas1 &= ~MAS1_TSIZE(~0);
-			gtlbe->mas1 |= MAS1_TSIZE(BOOKE_PAGESZ_4K);
+			gtlbe->mas1 |= MAS1_TSIZE(BOOK3E_PAGESZ_4K);
 
 			stlbsel = 0;
 			sesel = kvmppc_e500_stlbe_map(vcpu_e500, 0, esel);
@@ -679,14 +679,14 @@ void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *vcpu_e500)
 
 	/* Insert large initial mapping for guest. */
 	tlbe = &vcpu_e500->guest_tlb[1][0];
-	tlbe->mas1 = MAS1_VALID | MAS1_TSIZE(BOOKE_PAGESZ_256M);
+	tlbe->mas1 = MAS1_VALID | MAS1_TSIZE(BOOK3E_PAGESZ_256M);
 	tlbe->mas2 = 0;
 	tlbe->mas3 = E500_TLB_SUPER_PERM_MASK;
 	tlbe->mas7 = 0;
 
 	/* 4K map for serial output. Used by kernel wrapper. */
 	tlbe = &vcpu_e500->guest_tlb[1][1];
-	tlbe->mas1 = MAS1_VALID | MAS1_TSIZE(BOOKE_PAGESZ_4K);
+	tlbe->mas1 = MAS1_VALID | MAS1_TSIZE(BOOK3E_PAGESZ_4K);
 	tlbe->mas2 = (0xe0004500 & 0xFFFFF000) | MAS2_I | MAS2_G;
 	tlbe->mas3 = (0xe0004500 & 0xFFFFF000) | E500_TLB_SUPER_PERM_MASK;
 	tlbe->mas7 = 0;
