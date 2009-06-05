@@ -1883,18 +1883,17 @@ static int hw_card_start(struct hw *hw)
 	int err = 0;
 	struct pci_dev *pci = hw->pci;
 	u16 subsys_id = 0;
-	unsigned int dma_mask = 0;
 
 	err = pci_enable_device(pci);
 	if (err < 0)
 		return err;
 
 	/* Set DMA transfer mask */
-	dma_mask = CT_XFI_DMA_MASK;
-	if (pci_set_dma_mask(pci, dma_mask) < 0 ||
-	    pci_set_consistent_dma_mask(pci, dma_mask) < 0) {
+	if (pci_set_dma_mask(pci, CT_XFI_DMA_MASK) < 0 ||
+	    pci_set_consistent_dma_mask(pci, CT_XFI_DMA_MASK) < 0) {
 		printk(KERN_ERR "architecture does not support PCI "
-				"busmaster DMA with mask 0x%x\n", dma_mask);
+				"busmaster DMA with mask 0x%llx\n",
+		       CT_XFI_DMA_MASK);
 		err = -ENXIO;
 		goto error1;
 	}
