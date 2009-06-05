@@ -857,7 +857,7 @@ static size_t output__fprintf(FILE *fp, uint64_t total_samples)
 
 	fprintf(fp, "\n");
 	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld profiler events)\n", (__u64)total_samples);
+	fprintf(fp, "# (%Ld samples)\n", (__u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");

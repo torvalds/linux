@@ -137,8 +137,8 @@ static double sym_weight(const struct sym_entry *sym)
 	return weight;
 }
 
-static long			events;
-static long			userspace_events;
+static long			samples;
+static long			userspace_samples;
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
 static void __list_insert_active_sym(struct sym_entry *syme)
@@ -177,14 +177,14 @@ static void print_sym_table(void)
 {
 	int printed = 0, j;
 	int counter;
-	float events_per_sec = events/delay_secs;
-	float kevents_per_sec = (events-userspace_events)/delay_secs;
-	float sum_kevents = 0.0;
+	float samples_per_sec = samples/delay_secs;
+	float ksamples_per_sec = (samples-userspace_samples)/delay_secs;
+	float sum_ksamples = 0.0;
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
 
-	events = userspace_events = 0;
+	samples = userspace_samples = 0;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&active_symbols_lock);
@@ -196,7 +196,7 @@ static void print_sym_table(void)
 		if (syme->snap_count != 0) {
 			syme->weight = sym_weight(syme);
 			rb_insert_active_sym(&tmp, syme);
-			sum_kevents += syme->snap_count;
+			sum_ksamples += syme->snap_count;
 
 			for (j = 0; j < nr_counters; j++)
 				syme->count[j] = zero ? 0 : syme->count[j] * 7 / 8;
@@ -209,8 +209,8 @@ static void print_sym_table(void)
 	printf(
 "------------------------------------------------------------------------------\n");
 	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
-		events_per_sec,
-		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)));
+		samples_per_sec,
+		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
 
 	if (nr_counters == 1) {
 		printf("%d", event_count[0]);
@@ -246,12 +246,12 @@ static void print_sym_table(void)
 	printf("------------------------------------------------------------------------------\n\n");
 
 	if (nr_counters == 1)
-		printf("             events    pcnt");
+		printf("             samples    pcnt");
 	else
-		printf("  weight     events    pcnt");
+		printf("  weight     samples    pcnt");
 
 	printf("         RIP          kernel function\n"
-	       	       "  ______     ______   _____   ________________   _______________\n\n"
+	       	       "  ______     _______   _____   ________________   _______________\n\n"
 	);
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
@@ -263,8 +263,8 @@ static void print_sym_table(void)
 		if (++printed > print_entries || syme->snap_count < count_filter)
 			continue;
 
-		pcnt = 100.0 - (100.0 * ((sum_kevents - syme->snap_count) /
-					 sum_kevents));
+		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
+					 sum_ksamples));
 
 		/*
 		 * We color high-overhead entries in red, low-overhead
@@ -276,9 +276,9 @@ static void print_sym_table(void)
 			color = PERF_COLOR_GREEN;
 
 		if (nr_counters == 1)
-			printf("%19.2f - ", syme->weight);
+			printf("%20.2f - ", syme->weight);
 		else
-			printf("%8.1f %10ld - ", syme->weight, syme->snap_count);
+			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
 
 		color_fprintf(stdout, color, "%4.1f%%", pcnt);
 		printf(" - %016llx : %s\n", sym->start, sym->name);
@@ -318,7 +318,7 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 		return 1;
 
 	syme = dso__sym_priv(self, sym);
-	/* Tag events to be skipped. */
+	/* Tag samples to be skipped. */
 	if (!strcmp("default_idle", name) ||
 	    !strcmp("cpu_idle", name) ||
 	    !strcmp("enter_idle", name) ||
@@ -405,15 +405,15 @@ static void record_ip(uint64_t ip, int counter)
 		}
 	}
 
-	events--;
+	samples--;
 }
 
 static void process_event(uint64_t ip, int counter)
 {
-	events++;
+	samples++;
 
 	if (ip < min_ip || ip > max_ip) {
-		userspace_events++;
+		userspace_samples++;
 		return;
 	}
 
@@ -451,7 +451,7 @@ static void mmap_read(struct mmap_data *md)
 
 	/*
 	 * If we're further behind than half the buffer, there's a chance
-	 * the writer will bite our tail and screw up the events under us.
+	 * the writer will bite our tail and mess up the samples under us.
 	 *
 	 * If we somehow ended up ahead of the head, we got messed up.
 	 *
@@ -608,14 +608,14 @@ static int __cmd_top(void)
 	}
 
 	while (1) {
-		int hits = events;
+		int hits = samples;
 
 		for (i = 0; i < nr_cpus; i++) {
 			for (counter = 0; counter < nr_counters; counter++)
 				mmap_read(&mmap_array[i][counter]);
 		}
 
-		if (hits == events)
+		if (hits == samples)
 			ret = poll(event_array, nr_poll, 100);
 	}
 

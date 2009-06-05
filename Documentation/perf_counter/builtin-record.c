@@ -65,7 +65,7 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 	return head;
 }
 
-static long events;
+static long samples;
 static struct timeval last_read, this_read;
 
 static __u64 bytes_written;
@@ -83,7 +83,7 @@ static void mmap_read(struct mmap_data *md)
 
 	/*
 	 * If we're further behind than half the buffer, there's a chance
-	 * the writer will bite our tail and screw up the events under us.
+	 * the writer will bite our tail and mess up the samples under us.
 	 *
 	 * If we somehow ended up ahead of the head, we got messed up.
 	 *
@@ -109,7 +109,7 @@ static void mmap_read(struct mmap_data *md)
 	last_read = this_read;
 
 	if (old != head)
-		events++;
+		samples++;
 
 	size = head - old;
 
@@ -257,7 +257,7 @@ out_failure:
 	exit(EXIT_FAILURE);
 }
 
-static void pid_synthesize_mmap_events(pid_t pid)
+static void pid_synthesize_mmap_samples(pid_t pid)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
@@ -315,7 +315,7 @@ static void pid_synthesize_mmap_events(pid_t pid)
 	fclose(fp);
 }
 
-static void synthesize_events(void)
+static void synthesize_samples(void)
 {
 	DIR *proc;
 	struct dirent dirent, *next;
@@ -331,7 +331,7 @@ static void synthesize_events(void)
 			continue;
 
 		pid_synthesize_comm_event(pid, 1);
-		pid_synthesize_mmap_events(pid);
+		pid_synthesize_mmap_samples(pid);
 	}
 
 	closedir(proc);
@@ -396,7 +396,7 @@ static void open_counters(int cpu, pid_t pid)
 
 	if (pid > 0) {
 		pid_synthesize_comm_event(pid, 0);
-		pid_synthesize_mmap_events(pid);
+		pid_synthesize_mmap_samples(pid);
 	}
 
 	group_fd = -1;
@@ -469,17 +469,17 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (system_wide)
-		synthesize_events();
+		synthesize_samples();
 
 	while (!done) {
-		int hits = events;
+		int hits = samples;
 
 		for (i = 0; i < nr_cpu; i++) {
 			for (counter = 0; counter < nr_counters; counter++)
 				mmap_read(&mmap_array[i][counter]);
 		}
 
-		if (hits == events)
+		if (hits == samples)
 			ret = poll(event_array, nr_poll, 100);
 	}
 
@@ -487,7 +487,7 @@ static int __cmd_record(int argc, const char **argv)
 	 * Approximate RIP event size: 24 bytes.
 	 */
 	fprintf(stderr,
-		"[ perf record: Captured and wrote %.3f MB %s (~%lld events) ]\n",
+		"[ perf record: Captured and wrote %.3f MB %s (~%lld samples) ]\n",
 		(double)bytes_written / 1024.0 / 1024.0,
 		output_name,
 		bytes_written / 24);
