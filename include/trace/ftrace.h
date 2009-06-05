@@ -104,6 +104,7 @@
  *	field = (typeof(field))entry;
  *
  *	p = get_cpu_var(ftrace_event_seq);
+ *	trace_seq_init(p);
  *	ret = trace_seq_printf(s, <TP_printk> "\n");
  *	put_cpu();
  *	if (!ret)
@@ -167,6 +168,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 	field = (typeof(field))entry;					\
 									\
 	p = &get_cpu_var(ftrace_event_seq);				\
+	trace_seq_init(p);						\
 	ret = trace_seq_printf(s, #call ": " print);			\
 	put_cpu();							\
 	if (!ret)							\

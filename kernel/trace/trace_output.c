@@ -223,9 +223,8 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 {
 	unsigned long mask;
 	const char *str;
+	const char *ret = p->buffer + p->len;
 	int i;
-
-	trace_seq_init(p);
 
 	for (i = 0;  flag_array[i].name && flags; i++) {
 
@@ -249,7 +248,7 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 
 	trace_seq_putc(p, 0);
 
-	return p->buffer;
+	return ret;
 }
 EXPORT_SYMBOL(ftrace_print_flags_seq);
 
@@ -258,8 +257,7 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 			 const struct trace_print_flags *symbol_array)
 {
 	int i;
-
-	trace_seq_init(p);
+	const char *ret = p->buffer + p->len;
 
 	for (i = 0;  symbol_array[i].name; i++) {
 
@@ -275,7 +273,7 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 		
 	trace_seq_putc(p, 0);
 
-	return p->buffer;
+	return ret;
 }
 EXPORT_SYMBOL(ftrace_print_symbols_seq);
 
@@ -389,17 +387,20 @@ seq_print_userip_objs(const struct userstack_entry *entry, struct trace_seq *s,
 
 		if (ip == ULONG_MAX || !ret)
 			break;
-		if (i && ret)
-			ret = trace_seq_puts(s, " <- ");
+		if (ret)
+			ret = trace_seq_puts(s, " => ");
 		if (!ip) {
 			if (ret)
 				ret = trace_seq_puts(s, "??");
+			if (ret)
+				ret = trace_seq_puts(s, "\n");
 			continue;
 		}
 		if (!ret)
 			break;
 		if (ret)
 			ret = seq_print_user_ip(s, mm, ip, sym_flags);
+		ret = trace_seq_puts(s, "\n");
 	}
 
 	if (mm)
@@ -975,16 +976,16 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
+	if (!trace_seq_puts(s, "<stack trace>\n"))
+		goto partial;
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
-		if (!field->caller[i])
+		if (!field->caller[i] || (field->caller[i] == ULONG_MAX))
 			break;
-		if (i) {
-			if (!trace_seq_puts(s, " <= "))
-				goto partial;
+		if (!trace_seq_puts(s, " => "))
+			goto partial;
 
-			if (!seq_print_ip_sym(s, field->caller[i], flags))
-				goto partial;
-		}
+		if (!seq_print_ip_sym(s, field->caller[i], flags))
+			goto partial;
 		if (!trace_seq_puts(s, "\n"))
 			goto partial;
 	}
@@ -1012,10 +1013,10 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_assign_type(field, iter->ent);
 
-	if (!seq_print_userip_objs(field, s, flags))
+	if (!trace_seq_puts(s, "<user stack trace>\n"))
 		goto partial;
 
-	if (!trace_seq_putc(s, '\n'))
+	if (!seq_print_userip_objs(field, s, flags))
 		goto partial;
 
 	return TRACE_TYPE_HANDLED;

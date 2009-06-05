@@ -265,7 +265,7 @@ static int t_show(struct seq_file *m, void *v)
 		seq_printf(m, "        Depth    Size   Location"
 			   "    (%d entries)\n"
 			   "        -----    ----   --------\n",
-			   max_stack_trace.nr_entries);
+			   max_stack_trace.nr_entries - 1);
 
 		if (!stack_tracer_enabled && !max_stack_size)
 			print_disabled(m);
