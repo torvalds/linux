@@ -2432,7 +2432,22 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_lvds_init(dev);
 
 	if (IS_IGDNG(dev)) {
-		/* ignore for other outputs */
+		int found;
+
+		if (I915_READ(HDMIB) & PORT_DETECTED) {
+			/* check SDVOB */
+			/* found = intel_sdvo_init(dev, HDMIB); */
+			found = 0;
+			if (!found)
+				intel_hdmi_init(dev, HDMIB);
+		}
+
+		if (I915_READ(HDMIC) & PORT_DETECTED)
+			intel_hdmi_init(dev, HDMIC);
+
+		if (I915_READ(HDMID) & PORT_DETECTED)
+			intel_hdmi_init(dev, HDMID);
+
 	} else if (IS_I9XX(dev)) {
 		int found;
 		u32 reg;
