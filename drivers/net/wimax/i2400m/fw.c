@@ -696,8 +696,7 @@ error_dev_gone:
 	return result;
 
 error_timeout:
-	dev_err(dev, "Timed out waiting for reboot ack, resetting\n");
-	i2400m->bus_reset(i2400m, I2400M_RT_BUS);
+	dev_err(dev, "Timed out waiting for reboot ack\n");
 	result = -ETIMEDOUT;
 	goto exit_timeout;
 }
