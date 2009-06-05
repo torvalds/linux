@@ -1542,6 +1542,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int pch_fp_reg = (pipe == 0) ? PCH_FPA0 : PCH_FPB0;
 	int pch_dpll_reg = (pipe == 0) ? PCH_DPLL_A : PCH_DPLL_B;
 	int fdi_rx_reg = (pipe == 0) ? FDI_RXA_CTL : FDI_RXB_CTL;
+	int lvds_reg = LVDS;
 	u32 temp;
 	int sdvo_pixel_multiply;
 
@@ -1772,8 +1773,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	 * things on.
 	 */
 	if (is_lvds) {
-		u32 lvds = I915_READ(LVDS);
+		u32 lvds;
 
+		if (IS_IGDNG(dev))
+			lvds_reg = PCH_LVDS;
+
+		lvds = I915_READ(lvds_reg);
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP | LVDS_PIPEB_SELECT;
 		/* Set the B0-B3 data pairs corresponding to whether we're going to
 		 * set the DPLLs for dual-channel mode or not.
@@ -1788,8 +1793,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * panels behave in the two modes.
 		 */
 
-		I915_WRITE(LVDS, lvds);
-		I915_READ(LVDS);
+		I915_WRITE(lvds_reg, lvds);
+		I915_READ(lvds_reg);
 	}
 
 	I915_WRITE(fp_reg, fp);
@@ -2428,7 +2433,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	intel_crt_init(dev);
 
 	/* Set up integrated LVDS */
-	if (IS_MOBILE(dev) && !IS_I830(dev) && !IS_IGDNG(dev))
+	if (IS_MOBILE(dev) && !IS_I830(dev))
 		intel_lvds_init(dev);
 
 	if (IS_IGDNG(dev)) {
