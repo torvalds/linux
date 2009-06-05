@@ -2071,11 +2071,13 @@ static inline int deliver_skb(struct sk_buff *skb,
 }
 
 #if defined(CONFIG_BRIDGE) || defined (CONFIG_BRIDGE_MODULE)
-/* These hooks defined here for ATM */
-struct net_bridge;
-struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
-						unsigned char *addr);
-void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent) __read_mostly;
+
+#if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
+/* This hook is defined here for ATM LANE */
+int (*br_fdb_test_addr_hook)(struct net_device *dev,
+			     unsigned char *addr) __read_mostly;
+EXPORT_SYMBOL(br_fdb_test_addr_hook);
+#endif
 
 /*
  * If bridge module is loaded call bridging hook.
@@ -2083,6 +2085,8 @@ void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent) __read_mostly;
  */
 struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
 					struct sk_buff *skb) __read_mostly;
+EXPORT_SYMBOL(br_handle_frame_hook);
+
 static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
 					    struct packet_type **pt_prev, int *ret,
 					    struct net_device *orig_dev)
@@ -5664,12 +5668,6 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
 EXPORT_SYMBOL(net_enable_timestamp);
 EXPORT_SYMBOL(net_disable_timestamp);
 EXPORT_SYMBOL(dev_get_flags);
-
-#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
-EXPORT_SYMBOL(br_handle_frame_hook);
-EXPORT_SYMBOL(br_fdb_get_hook);
-EXPORT_SYMBOL(br_fdb_put_hook);
-#endif
 
 EXPORT_SYMBOL(dev_load);
 
