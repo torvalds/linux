@@ -466,7 +466,8 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (memcpy_fromiovecend(skb->data + offset, from, 0, copy))
+		if (memcpy_fromiovecend(skb->data + offset, from, from_offset,
+					copy))
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
