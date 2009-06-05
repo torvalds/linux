@@ -16,6 +16,7 @@
  */
 
 #include "ctpcm.h"
+#include "cttimer.h"
 #include <sound/pcm.h>
 
 /* Hardware descriptions for playback */
@@ -108,6 +109,7 @@ static void ct_atc_pcm_free_substream(struct snd_pcm_runtime *runtime)
 	struct ct_atc *atc = snd_pcm_substream_chip(apcm->substream);
 
 	atc->pcm_release_resources(atc, apcm);
+	ct_timer_instance_free(apcm->timer);
 	kfree(apcm);
 	runtime->private_data = NULL;
 }
@@ -124,8 +126,6 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 	if (NULL == apcm)
 		return -ENOMEM;
 
-	spin_lock_init(&apcm->timer_lock);
-	apcm->stop_timer = 0;
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
 	runtime->private_data = apcm;
@@ -152,6 +152,10 @@ static int ct_pcm_playback_open(struct snd_pcm_substream *substream)
 		kfree(apcm);
 		return err;
 	}
+
+	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
+	if (!apcm->timer)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -182,89 +186,6 @@ static int ct_pcm_hw_free(struct snd_pcm_substream *substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static void ct_pcm_timer_callback(unsigned long data)
-{
-	struct ct_atc_pcm *apcm = (struct ct_atc_pcm *)data;
-	struct snd_pcm_substream *substream = apcm->substream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int period_size = runtime->period_size;
-	unsigned int buffer_size = runtime->buffer_size;
-	unsigned long flags;
-	unsigned int position = 0, dist = 0, interval = 0;
-
-	position = substream->ops->pointer(substream);
-	dist = (position + buffer_size - apcm->position) % buffer_size;
-	if ((dist >= period_size) ||
-		(position/period_size != apcm->position/period_size)) {
-		apcm->interrupt(apcm);
-		apcm->position = position;
-	}
-	/* Add extra HZ*5/1000 to avoid overrun issue when recording
-	 * at 8kHz in 8-bit format or at 88kHz in 24-bit format. */
-	interval = ((period_size - (position % period_size))
-		   * HZ + (runtime->rate - 1)) / runtime->rate + HZ * 5 / 1000;
-	spin_lock_irqsave(&apcm->timer_lock, flags);
-	apcm->timer.expires = jiffies + interval;
-	if (!apcm->stop_timer)
-		add_timer(&apcm->timer);
-
-	spin_unlock_irqrestore(&apcm->timer_lock, flags);
-}
-
-static int ct_pcm_timer_prepare(struct ct_atc_pcm *apcm)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&apcm->timer_lock, flags);
-	if (timer_pending(&apcm->timer)) {
-		/* The timer has already been started. */
-		spin_unlock_irqrestore(&apcm->timer_lock, flags);
-		return 0;
-	}
-
-	init_timer(&apcm->timer);
-	apcm->timer.data = (unsigned long)apcm;
-	apcm->timer.function = ct_pcm_timer_callback;
-	spin_unlock_irqrestore(&apcm->timer_lock, flags);
-	apcm->position = 0;
-
-	return 0;
-}
-
-static int ct_pcm_timer_start(struct ct_atc_pcm *apcm)
-{
-	struct snd_pcm_runtime *runtime = apcm->substream->runtime;
-	unsigned long flags;
-
-	spin_lock_irqsave(&apcm->timer_lock, flags);
-	if (timer_pending(&apcm->timer)) {
-		/* The timer has already been started. */
-		spin_unlock_irqrestore(&apcm->timer_lock, flags);
-		return 0;
-	}
-
-	apcm->timer.expires = jiffies + (runtime->period_size * HZ +
-				(runtime->rate - 1)) / runtime->rate;
-	apcm->stop_timer = 0;
-	add_timer(&apcm->timer);
-	spin_unlock_irqrestore(&apcm->timer_lock, flags);
-
-	return 0;
-}
-
-static int ct_pcm_timer_stop(struct ct_atc_pcm *apcm)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&apcm->timer_lock, flags);
-	apcm->stop_timer = 1;
-	del_timer(&apcm->timer);
-	spin_unlock_irqrestore(&apcm->timer_lock, flags);
-
-	try_to_del_timer_sync(&apcm->timer);
-
-	return 0;
-}
 
 static int ct_pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
@@ -283,8 +204,6 @@ static int ct_pcm_playback_prepare(struct snd_pcm_substream *substream)
 		return err;
 	}
 
-	ct_pcm_timer_prepare(apcm);
-
 	return 0;
 }
 
@@ -300,12 +219,10 @@ ct_pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		atc->pcm_playback_start(atc, apcm);
-		ct_pcm_timer_start(apcm);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ct_pcm_timer_stop(apcm);
 		atc->pcm_playback_stop(atc, apcm);
 		break;
 	default:
@@ -341,9 +258,7 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 	if (NULL == apcm)
 		return -ENOMEM;
 
-	spin_lock_init(&apcm->timer_lock);
 	apcm->started = 0;
-	apcm->stop_timer = 0;
 	apcm->substream = substream;
 	apcm->interrupt = ct_atc_pcm_interrupt;
 	runtime->private_data = apcm;
@@ -364,6 +279,10 @@ static int ct_pcm_capture_open(struct snd_pcm_substream *substream)
 		kfree(apcm);
 		return err;
 	}
+
+	apcm->timer = ct_timer_instance_new(atc->timer, apcm);
+	if (!apcm->timer)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -388,8 +307,6 @@ static int ct_pcm_capture_prepare(struct snd_pcm_substream *substream)
 		return err;
 	}
 
-	ct_pcm_timer_prepare(apcm);
-
 	return 0;
 }
 
@@ -403,14 +320,11 @@ ct_pcm_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		atc->pcm_capture_start(atc, apcm);
-		ct_pcm_timer_start(apcm);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		ct_pcm_timer_stop(apcm);
 		atc->pcm_capture_stop(atc, apcm);
 		break;
 	default:
-		ct_pcm_timer_stop(apcm);
 		atc->pcm_capture_stop(atc, apcm);
 		break;
 	}

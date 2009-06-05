@@ -22,6 +22,7 @@
 #include "ctsrc.h"
 #include "ctamixer.h"
 #include "ctdaio.h"
+#include "cttimer.h"
 #include <linux/delay.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -307,6 +308,8 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 			src = apcm->src;
 	}
 
+	ct_timer_prepare(apcm->timer);
+
 	return 0;
 
 error1:
@@ -389,6 +392,7 @@ static int atc_pcm_playback_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	src->ops->set_state(src, SRC_STATE_INIT);
 	src->ops->commit_write(src);
 
+	ct_timer_start(apcm->timer);
 	return 0;
 }
 
@@ -396,6 +400,8 @@ static int atc_pcm_stop(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
 	struct src *src = NULL;
 	int i = 0;
+
+	ct_timer_stop(apcm->timer);
 
 	src = apcm->src;
 	src->ops->set_bm(src, 0);
@@ -701,6 +707,8 @@ static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		}
 	}
 
+	ct_timer_prepare(apcm->timer);
+
 	return 0;
 }
 
@@ -749,6 +757,7 @@ static int atc_pcm_capture_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	/* Enable relevant SRCs synchronously */
 	src_mgr->commit_write(src_mgr);
 
+	ct_timer_start(apcm->timer);
 	return 0;
 }
 
@@ -905,6 +914,8 @@ spdif_passthru_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	amixer = apcm->amixers[1];
 	dao->ops->set_right_input(dao, &amixer->rsc);
 	spin_unlock_irqrestore(&atc->atc_lock, flags);
+
+	ct_timer_prepare(apcm->timer);
 
 	return 0;
 }
@@ -1099,6 +1110,11 @@ static int ct_atc_destroy(struct ct_atc *atc)
 
 	if (NULL == atc)
 		return 0;
+
+	if (atc->timer) {
+		ct_timer_free(atc->timer);
+		atc->timer = NULL;
+	}
 
 	/* Stop hardware and disable all interrupts */
 	if (NULL != atc->hw)
@@ -1586,6 +1602,10 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	/* Build topology */
 	atc_connect_resources(atc);
 
+	atc->timer = ct_timer_new(atc);
+	if (!atc->timer)
+		goto error1;
+
 	atc->create_alsa_devs = ct_create_alsa_devs;
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, atc, &ops);
@@ -1602,4 +1622,3 @@ error1:
 	printk(KERN_ERR "ctxfi: Something wrong!!!\n");
 	return err;
 }
-

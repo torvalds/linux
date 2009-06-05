@@ -589,6 +589,8 @@
 
 #define		WC		0x1C6000
 #define		TIMR		0x1C6004
+# define	TIMR_IE		(1<<15)
+# define	TIMR_IP		(1<<14)
 
 #define		GIP		0x1C6010
 #define		GIE		0x1C6014

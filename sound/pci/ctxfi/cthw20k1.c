@@ -1171,6 +1171,21 @@ static int daio_mgr_put_ctrl_blk(void *blk)
 	return 0;
 }
 
+/* Timer interrupt */
+static int set_timer_irq(struct hw *hw, int enable)
+{
+	hw_write_20kx(hw, GIE, enable ? IT_INT : 0);
+	return 0;
+}
+
+static int set_timer_tick(struct hw *hw, unsigned int ticks)
+{
+	if (ticks)
+		ticks |= TIMR_IE | TIMR_IP;
+	hw_write_20kx(hw, TIMR, ticks);
+	return 0;
+}
+
 /* Card hardware initialization block */
 struct dac_conf {
 	unsigned int msr; /* master sample rate in rsrs */
@@ -1878,6 +1893,22 @@ static int uaa_to_xfi(struct pci_dev *pci)
 	return 0;
 }
 
+static irqreturn_t ct_20k1_interrupt(int irq, void *dev_id)
+{
+	struct hw *hw = dev_id;
+	unsigned int status;
+
+	status = hw_read_20kx(hw, GIP);
+	if (!status)
+		return IRQ_NONE;
+
+	if (hw->irq_callback)
+		hw->irq_callback(hw->irq_callback_data, status);
+
+	hw_write_20kx(hw, GIP, status);
+	return IRQ_HANDLED;
+}
+
 static int hw_card_start(struct hw *hw)
 {
 	int err = 0;
@@ -1914,12 +1945,13 @@ static int hw_card_start(struct hw *hw)
 		hw->io_base = pci_resource_start(pci, 0);
 	}
 
-	/*if ((err = request_irq(pci->irq, ct_atc_interrupt, IRQF_SHARED,
-				atc->chip_details->nm_card, hw))) {
+	err = request_irq(pci->irq, ct_20k1_interrupt, IRQF_SHARED,
+			  "ctxfi", hw);
+	if (err < 0) {
+		printk(KERN_ERR "XFi: Cannot get irq %d\n", pci->irq);
 		goto error2;
 	}
 	hw->irq = pci->irq;
-	*/
 
 	pci_set_master(pci);
 
@@ -1936,6 +1968,8 @@ error1:
 static int hw_card_stop(struct hw *hw)
 {
 	/* TODO: Disable interrupt and so on... */
+	if (hw->irq >= 0)
+		synchronize_irq(hw->irq);
 	return 0;
 }
 
@@ -2214,6 +2248,9 @@ int create_20k1_hw_obj(struct hw **rhw)
 	hw->daio_mgr_set_imapnxt = daio_mgr_set_imapnxt;
 	hw->daio_mgr_set_imapaddr = daio_mgr_set_imapaddr;
 	hw->daio_mgr_commit_write = daio_mgr_commit_write;
+
+	hw->set_timer_irq = set_timer_irq;
+	hw->set_timer_tick = set_timer_tick;
 
 	*rhw = hw;
 

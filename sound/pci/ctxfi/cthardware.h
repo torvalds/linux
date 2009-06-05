@@ -145,6 +145,12 @@ struct hw {
 	int (*daio_mgr_set_imapaddr)(void *blk, unsigned int addr);
 	int (*daio_mgr_commit_write)(struct hw *hw, void *blk);
 
+	int (*set_timer_irq)(struct hw *hw, int enable);
+	int (*set_timer_tick)(struct hw *hw, unsigned int tick);
+
+	void (*irq_callback)(void *data, unsigned int bit);
+	void *irq_callback_data;
+
 	struct pci_dev *pci;	/* the pci kernel structure of this card */
 	int irq;
 	unsigned long io_base;
@@ -156,5 +162,18 @@ int destroy_hw_obj(struct hw *hw);
 
 unsigned int get_field(unsigned int data, unsigned int field);
 void set_field(unsigned int *data, unsigned int field, unsigned int value);
+
+/* IRQ bits */
+#define	PLL_INT		(1 << 10) /* PLL input-clock out-of-range */
+#define FI_INT		(1 << 9)  /* forced interrupt */
+#define IT_INT		(1 << 8)  /* timer interrupt */
+#define PCI_INT		(1 << 7)  /* PCI bus error pending */
+#define URT_INT		(1 << 6)  /* UART Tx/Rx */
+#define GPI_INT		(1 << 5)  /* GPI pin */
+#define MIX_INT		(1 << 4)  /* mixer parameter segment FIFO channels */
+#define DAI_INT		(1 << 3)  /* DAI (SR-tracker or SPDIF-receiver) */
+#define TP_INT		(1 << 2)  /* transport priority queue */
+#define DSP_INT		(1 << 1)  /* DSP */
+#define SRC_INT		(1 << 0)  /* SRC channels */
 
 #endif /* CTHARDWARE_H */
