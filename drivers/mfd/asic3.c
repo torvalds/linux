@@ -623,7 +623,6 @@ static int __init asic3_probe(struct platform_device *pdev)
 	struct asic3 *asic;
 	struct resource *mem;
 	unsigned long clksel;
-	int map_size;
 	int ret = 0;
 
 	asic = kzalloc(sizeof(struct asic3), GFP_KERNEL);
@@ -643,8 +642,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	map_size = mem->end - mem->start + 1;
-	asic->mapping = ioremap(mem->start, map_size);
+	asic->mapping = ioremap(mem->start, resource_size(mem));
 	if (!asic->mapping) {
 		ret = -ENOMEM;
 		dev_err(asic->dev, "Couldn't ioremap\n");
@@ -654,7 +652,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	asic->irq_base = pdata->irq_base;
 
 	/* calculate bus shift from mem resource */
-	asic->bus_shift = 2 - (map_size >> 12);
+	asic->bus_shift = 2 - (resource_size(mem) >> 12);
 
 	clksel = 0;
 	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL), clksel);
