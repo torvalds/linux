@@ -27,6 +27,7 @@ static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 static int			nr_cpus				= 0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 128;
+static int			freq				= 0;
 static int			output;
 static const char		*output_name			= "perf.data";
 static int			group				= 0;
@@ -347,9 +348,10 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	attr.config		= event_id[counter];
 	attr.sample_period	= event_count[counter];
 	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+	attr.freq		= freq;
 	attr.mmap		= track;
 	attr.comm		= track;
-	attr.inherit	= (cpu < 0) && inherit;
+	attr.inherit		= (cpu < 0) && inherit;
 
 	track = 0; /* only the first counter needs these */
 
@@ -520,6 +522,8 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
+	OPT_INTEGER('F', "freq", &freq,
+		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_END()
@@ -540,6 +544,10 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 		event_id[0] = 0;
 	}
 
+	if (freq) {
+		default_interval = freq;
+		freq = 1;
+	}
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (event_count[counter])
 			continue;

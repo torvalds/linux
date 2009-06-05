@@ -74,8 +74,8 @@ static int			nr_cpus				=  0;
 static unsigned int		realtime_prio			=  0;
 static int			group				=  0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			=  16;
-static int			freq				= 0;
+static unsigned int		mmap_pages			= 16;
+static int			freq				=  0;
 
 static char			*sym_filter;
 static unsigned long		filter_start;
@@ -212,8 +212,13 @@ static void print_sym_table(void)
 		events_per_sec,
 		100.0 - (100.0*((events_per_sec-kevents_per_sec)/events_per_sec)));
 
-	if (nr_counters == 1)
-		printf("%d ", event_count[0]);
+	if (nr_counters == 1) {
+		printf("%d", event_count[0]);
+		if (freq)
+			printf("Hz ");
+		else
+			printf(" ");
+	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (counter)
