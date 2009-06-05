@@ -2255,7 +2255,7 @@ out:
 }
 
 static void perf_output_copy(struct perf_output_handle *handle,
-			     void *buf, unsigned int len)
+			     const void *buf, unsigned int len)
 {
 	unsigned int pages_mask;
 	unsigned int offset;
@@ -2681,9 +2681,10 @@ void perf_counter_comm(struct task_struct *task)
  */
 
 struct perf_mmap_event {
-	struct file	*file;
-	char		*file_name;
-	int		file_size;
+	struct vm_area_struct	*vma;
+
+	const char		*file_name;
+	int			file_size;
 
 	struct {
 		struct perf_event_header	header;
@@ -2744,11 +2745,12 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 {
 	struct perf_cpu_context *cpuctx;
 	struct perf_counter_context *ctx;
-	struct file *file = mmap_event->file;
+	struct vm_area_struct *vma = mmap_event->vma;
+	struct file *file = vma->vm_file;
 	unsigned int size;
 	char tmp[16];
 	char *buf = NULL;
-	char *name;
+	const char *name;
 
 	if (file) {
 		buf = kzalloc(PATH_MAX, GFP_KERNEL);
@@ -2762,6 +2764,15 @@ static void perf_counter_mmap_event(struct perf_mmap_event *mmap_event)
 			goto got_name;
 		}
 	} else {
+		name = arch_vma_name(mmap_event->vma);
+		if (name)
+			goto got_name;
+
+		if (!vma->vm_mm) {
+			name = strncpy(tmp, "[vdso]", sizeof(tmp));
+			goto got_name;
+		}
+
 		name = strncpy(tmp, "//anon", sizeof(tmp));
 		goto got_name;
 	}
@@ -2791,8 +2802,7 @@ got_name:
 	kfree(buf);
 }
 
-void perf_counter_mmap(unsigned long addr, unsigned long len,
-		       unsigned long pgoff, struct file *file)
+void __perf_counter_mmap(struct vm_area_struct *vma)
 {
 	struct perf_mmap_event mmap_event;
 
@@ -2800,12 +2810,12 @@ void perf_counter_mmap(unsigned long addr, unsigned long len,
 		return;
 
 	mmap_event = (struct perf_mmap_event){
-		.file   = file,
+		.vma	= vma,
 		.event  = {
 			.header = { .type = PERF_EVENT_MMAP, },
-			.start  = addr,
-			.len    = len,
-			.pgoff  = pgoff,
+			.start  = vma->vm_start,
+			.len    = vma->vm_end - vma->vm_start,
+			.pgoff  = vma->vm_pgoff,
 		},
 	};
 

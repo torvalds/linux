@@ -617,8 +617,13 @@ static inline int is_software_counter(struct perf_counter *counter)
 
 extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
 
-extern void perf_counter_mmap(unsigned long addr, unsigned long len,
-			      unsigned long pgoff, struct file *file);
+extern void __perf_counter_mmap(struct vm_area_struct *vma);
+
+static inline void perf_counter_mmap(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_EXEC)
+		__perf_counter_mmap(vma);
+}
 
 extern void perf_counter_comm(struct task_struct *tsk);
 extern void perf_counter_fork(struct task_struct *tsk);
@@ -668,10 +673,7 @@ static inline void
 perf_swcounter_event(u32 event, u64 nr, int nmi,
 		     struct pt_regs *regs, u64 addr)			{ }
 
-static inline void
-perf_counter_mmap(unsigned long addr, unsigned long len,
-		  unsigned long pgoff, struct file *file)		{ }
-
+static inline void perf_counter_mmap(struct vm_area_struct *vma)	{ }
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }

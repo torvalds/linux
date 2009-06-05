@@ -1220,8 +1220,7 @@ munmap_back:
 	if (correct_wcount)
 		atomic_inc(&inode->i_writecount);
 out:
-	if (vm_flags & VM_EXEC)
-		perf_counter_mmap(addr, len, pgoff, file);
+	perf_counter_mmap(vma);
 
 	mm->total_vm += len >> PAGE_SHIFT;
 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
@@ -2308,6 +2307,8 @@ int install_special_mapping(struct mm_struct *mm,
 	}
 
 	mm->total_vm += len >> PAGE_SHIFT;
+
+	perf_counter_mmap(vma);
 
 	return 0;
 }
