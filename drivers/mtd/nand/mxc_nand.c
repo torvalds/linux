@@ -122,13 +122,6 @@ struct mxc_nand_host {
 
 /* Define delays in microsec for NAND device operations */
 #define TROP_US_DELAY   2000
-/* Macros to get byte and bit positions of ECC */
-#define COLPOS(x)  ((x) >> 3)
-#define BITPOS(x) ((x) & 0xf)
-
-/* Define single bit Error positions in Main & Spare area */
-#define MAIN_SINGLEBIT_ERROR 0x4
-#define SPARE_SINGLEBIT_ERROR 0x1
 
 /* OOB placement block for use with hardware ecc generation */
 static struct nand_ecclayout nand_hw_eccoob_smallpage = {
