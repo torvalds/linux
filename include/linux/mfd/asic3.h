@@ -30,6 +30,13 @@ struct asic3_platform_data {
 #define ASIC3_NUM_GPIOS		64
 #define ASIC3_NR_IRQS		ASIC3_NUM_GPIOS + 6
 
+#define ASIC3_IRQ_LED0		64
+#define ASIC3_IRQ_LED1		65
+#define ASIC3_IRQ_LED2		66
+#define ASIC3_IRQ_SPI		67
+#define ASIC3_IRQ_SMBUS		68
+#define ASIC3_IRQ_OWM		69
+
 #define ASIC3_TO_GPIO(gpio) (NR_BUILTIN_GPIO + (gpio))
 
 #define ASIC3_GPIO_BANK_A	0
