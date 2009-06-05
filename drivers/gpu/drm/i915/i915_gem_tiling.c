@@ -170,6 +170,13 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		}
 	}
 
+	/* FIXME: check with memory config on IGDNG */
+	if (IS_IGDNG(dev)) {
+		DRM_ERROR("disable tiling on IGDNG...\n");
+		swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+		swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+	}
+
 	dev_priv->mm.bit_6_swizzle_x = swizzle_x;
 	dev_priv->mm.bit_6_swizzle_y = swizzle_y;
 }
