@@ -326,13 +326,7 @@ static int vbus_is_present(struct usba_udc *udc)
 	return 1;
 }
 
-#if defined(CONFIG_AVR32)
-
-static void toggle_bias(int is_on)
-{
-}
-
-#elif defined(CONFIG_ARCH_AT91)
+#if defined(CONFIG_ARCH_AT91SAM9RL)
 
 #include <mach/at91_pmc.h>
 
@@ -346,7 +340,13 @@ static void toggle_bias(int is_on)
 		at91_sys_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
 }
 
-#endif /* CONFIG_ARCH_AT91 */
+#else
+
+static void toggle_bias(int is_on)
+{
+}
+
+#endif /* CONFIG_ARCH_AT91SAM9RL */
 
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
