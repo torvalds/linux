@@ -215,7 +215,7 @@ minstrel_get_next_sample(struct minstrel_sta_info *mi)
 	unsigned int sample_ndx;
 	sample_ndx = SAMPLE_TBL(mi, mi->sample_idx, mi->sample_column);
 	mi->sample_idx++;
-	if (mi->sample_idx > (mi->n_rates - 2)) {
+	if ((int) mi->sample_idx > (mi->n_rates - 2)) {
 		mi->sample_idx = 0;
 		mi->sample_column++;
 		if (mi->sample_column >= SAMPLE_COLUMNS)
