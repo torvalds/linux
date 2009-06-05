@@ -835,7 +835,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
 	struct cpufreq_frequency_table *powernow_table;
 	int ret_val = -ENODEV;
-	acpi_integer space_id;
+	acpi_integer control, status;
 
 	if (acpi_processor_register_performance(&data->acpi_data, data->cpu)) {
 		dprintk("register performance failed: bad ACPI data\n");
@@ -848,12 +848,13 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		goto err_out;
 	}
 
-	space_id = data->acpi_data.control_register.space_id;
-	if ((space_id != ACPI_ADR_SPACE_FIXED_HARDWARE) ||
-		(space_id != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
+	control = data->acpi_data.control_register.space_id;
+	status = data->acpi_data.status_register.space_id;
+
+	if ((control != ACPI_ADR_SPACE_FIXED_HARDWARE) ||
+	    (status != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
 		dprintk("Invalid control/status registers (%x - %x)\n",
-			data->acpi_data.control_register.space_id,
-			space_id);
+			control, status);
 		goto err_out;
 	}
 
