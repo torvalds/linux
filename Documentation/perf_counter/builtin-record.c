@@ -336,11 +336,61 @@ static void synthesize_events(void)
 	closedir(proc);
 }
 
-static void open_counters(int cpu, pid_t pid)
+static int group_fd;
+
+static void create_counter(int counter, int cpu, pid_t pid)
 {
 	struct perf_counter_attr attr;
-	int counter, group_fd;
 	int track = 1;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.config		= event_id[counter];
+	attr.sample_period	= event_count[counter];
+	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+	attr.mmap		= track;
+	attr.comm		= track;
+	attr.inherit	= (cpu < 0) && inherit;
+
+	track = 0; /* only the first counter needs these */
+
+	fd[nr_cpu][counter] = sys_perf_counter_open(&attr, pid, cpu, group_fd, 0);
+
+	if (fd[nr_cpu][counter] < 0) {
+		int err = errno;
+
+		error("syscall returned with %d (%s)\n",
+				fd[nr_cpu][counter], strerror(err));
+		if (err == EPERM)
+			printf("Are you root?\n");
+		exit(-1);
+	}
+	assert(fd[nr_cpu][counter] >= 0);
+	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
+
+	/*
+	 * First counter acts as the group leader:
+	 */
+	if (group && group_fd == -1)
+		group_fd = fd[nr_cpu][counter];
+
+	event_array[nr_poll].fd = fd[nr_cpu][counter];
+	event_array[nr_poll].events = POLLIN;
+	nr_poll++;
+
+	mmap_array[nr_cpu][counter].counter = counter;
+	mmap_array[nr_cpu][counter].prev = 0;
+	mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
+	mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
+			PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
+	if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
+		error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+		exit(-1);
+	}
+}
+
+static void open_counters(int cpu, pid_t pid)
+{
+	int counter;
 
 	if (pid > 0) {
 		pid_synthesize_comm_event(pid, 0);
@@ -348,53 +398,9 @@ static void open_counters(int cpu, pid_t pid)
 	}
 
 	group_fd = -1;
-	for (counter = 0; counter < nr_counters; counter++) {
+	for (counter = 0; counter < nr_counters; counter++)
+		create_counter(counter, cpu, pid);
 
-		memset(&attr, 0, sizeof(attr));
-		attr.config		= event_id[counter];
-		attr.sample_period	= event_count[counter];
-		attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-		attr.mmap		= track;
-		attr.comm		= track;
-		attr.inherit	= (cpu < 0) && inherit;
-
-		track = 0; // only the first counter needs these
-
-		fd[nr_cpu][counter] =
-			sys_perf_counter_open(&attr, pid, cpu, group_fd, 0);
-
-		if (fd[nr_cpu][counter] < 0) {
-			int err = errno;
-
-			error("syscall returned with %d (%s)\n",
-					fd[nr_cpu][counter], strerror(err));
-			if (err == EPERM)
-				printf("Are you root?\n");
-			exit(-1);
-		}
-		assert(fd[nr_cpu][counter] >= 0);
-		fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
-
-		/*
-		 * First counter acts as the group leader:
-		 */
-		if (group && group_fd == -1)
-			group_fd = fd[nr_cpu][counter];
-
-		event_array[nr_poll].fd = fd[nr_cpu][counter];
-		event_array[nr_poll].events = POLLIN;
-		nr_poll++;
-
-		mmap_array[nr_cpu][counter].counter = counter;
-		mmap_array[nr_cpu][counter].prev = 0;
-		mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
-		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
-		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
-			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
-			exit(-1);
-		}
-	}
 	nr_cpu++;
 }
 
