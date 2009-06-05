@@ -91,8 +91,6 @@ struct ct_atc {
 
 	const struct ct_atc_chip_details *chip_details;
 	enum CTCARDS model;
-	/* Create all alsa devices */
-	int (*create_alsa_devs)(struct ct_atc *atc);
 
 	struct ct_vm *vm; /* device virtual memory manager for this card */
 	int (*map_audio_buffer)(struct ct_atc *atc, struct ct_atc_pcm *apcm);
@@ -151,5 +149,6 @@ struct ct_atc {
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 			    unsigned int rsr, unsigned int msr,
 			    struct ct_atc **ratc);
+int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc);
 
 #endif /* CTATC_H */

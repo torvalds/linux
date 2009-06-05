@@ -86,7 +86,7 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	card->private_data = atc;
 
 	/* Create alsa devices supported by this card */
-	err = atc->create_alsa_devs(atc);
+	err = ct_atc_create_alsa_devs(atc);
 	if (err < 0)
 		goto error;
 

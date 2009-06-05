@@ -20,7 +20,7 @@
 #include "cthw20k2.h"
 #include <linux/bug.h>
 
-static enum CHIPTYP get_chip_type(struct hw *hw)
+static enum CHIPTYP __devinitdata get_chip_type(struct hw *hw)
 {
 	enum CHIPTYP type = ATCNONE;
 
@@ -39,7 +39,7 @@ static enum CHIPTYP get_chip_type(struct hw *hw)
 	return type;
 }
 
-int create_hw_obj(struct pci_dev *pci, struct hw **rhw)
+int __devinit create_hw_obj(struct pci_dev *pci, struct hw **rhw)
 {
 	int err = 0;
 

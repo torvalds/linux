@@ -2006,7 +2006,103 @@ static void hw_write_20kx(struct hw *hw, u32 reg, u32 data)
 	writel(data, (void *)(hw->mem_base + reg));
 }
 
-int create_20k2_hw_obj(struct hw **rhw)
+static struct hw ct20k2_preset __devinitdata = {
+	.irq = -1,
+
+	.card_init = hw_card_init,
+	.card_stop = hw_card_stop,
+	.pll_init = hw_pll_init,
+	.is_adc_source_selected = hw_is_adc_input_selected,
+	.select_adc_source = hw_adc_input_select,
+	.have_digit_io_switch = hw_have_digit_io_switch,
+
+	.src_rsc_get_ctrl_blk = src_get_rsc_ctrl_blk,
+	.src_rsc_put_ctrl_blk = src_put_rsc_ctrl_blk,
+	.src_mgr_get_ctrl_blk = src_mgr_get_ctrl_blk,
+	.src_mgr_put_ctrl_blk = src_mgr_put_ctrl_blk,
+	.src_set_state = src_set_state,
+	.src_set_bm = src_set_bm,
+	.src_set_rsr = src_set_rsr,
+	.src_set_sf = src_set_sf,
+	.src_set_wr = src_set_wr,
+	.src_set_pm = src_set_pm,
+	.src_set_rom = src_set_rom,
+	.src_set_vo = src_set_vo,
+	.src_set_st = src_set_st,
+	.src_set_ie = src_set_ie,
+	.src_set_ilsz = src_set_ilsz,
+	.src_set_bp = src_set_bp,
+	.src_set_cisz = src_set_cisz,
+	.src_set_ca = src_set_ca,
+	.src_set_sa = src_set_sa,
+	.src_set_la = src_set_la,
+	.src_set_pitch = src_set_pitch,
+	.src_set_dirty = src_set_dirty,
+	.src_set_clear_zbufs = src_set_clear_zbufs,
+	.src_set_dirty_all = src_set_dirty_all,
+	.src_commit_write = src_commit_write,
+	.src_get_ca = src_get_ca,
+	.src_get_dirty = src_get_dirty,
+	.src_dirty_conj_mask = src_dirty_conj_mask,
+	.src_mgr_enbs_src = src_mgr_enbs_src,
+	.src_mgr_enb_src = src_mgr_enb_src,
+	.src_mgr_dsb_src = src_mgr_dsb_src,
+	.src_mgr_commit_write = src_mgr_commit_write,
+
+	.srcimp_mgr_get_ctrl_blk = srcimp_mgr_get_ctrl_blk,
+	.srcimp_mgr_put_ctrl_blk = srcimp_mgr_put_ctrl_blk,
+	.srcimp_mgr_set_imaparc = srcimp_mgr_set_imaparc,
+	.srcimp_mgr_set_imapuser = srcimp_mgr_set_imapuser,
+	.srcimp_mgr_set_imapnxt = srcimp_mgr_set_imapnxt,
+	.srcimp_mgr_set_imapaddr = srcimp_mgr_set_imapaddr,
+	.srcimp_mgr_commit_write = srcimp_mgr_commit_write,
+
+	.amixer_rsc_get_ctrl_blk = amixer_rsc_get_ctrl_blk,
+	.amixer_rsc_put_ctrl_blk = amixer_rsc_put_ctrl_blk,
+	.amixer_mgr_get_ctrl_blk = amixer_mgr_get_ctrl_blk,
+	.amixer_mgr_put_ctrl_blk = amixer_mgr_put_ctrl_blk,
+	.amixer_set_mode = amixer_set_mode,
+	.amixer_set_iv = amixer_set_iv,
+	.amixer_set_x = amixer_set_x,
+	.amixer_set_y = amixer_set_y,
+	.amixer_set_sadr = amixer_set_sadr,
+	.amixer_set_se = amixer_set_se,
+	.amixer_set_dirty = amixer_set_dirty,
+	.amixer_set_dirty_all = amixer_set_dirty_all,
+	.amixer_commit_write = amixer_commit_write,
+	.amixer_get_y = amixer_get_y,
+	.amixer_get_dirty = amixer_get_dirty,
+
+	.dai_get_ctrl_blk = dai_get_ctrl_blk,
+	.dai_put_ctrl_blk = dai_put_ctrl_blk,
+	.dai_srt_set_srco = dai_srt_set_srco,
+	.dai_srt_set_srcm = dai_srt_set_srcm,
+	.dai_srt_set_rsr = dai_srt_set_rsr,
+	.dai_srt_set_drat = dai_srt_set_drat,
+	.dai_srt_set_ec = dai_srt_set_ec,
+	.dai_srt_set_et = dai_srt_set_et,
+	.dai_commit_write = dai_commit_write,
+
+	.dao_get_ctrl_blk = dao_get_ctrl_blk,
+	.dao_put_ctrl_blk = dao_put_ctrl_blk,
+	.dao_set_spos = dao_set_spos,
+	.dao_commit_write = dao_commit_write,
+	.dao_get_spos = dao_get_spos,
+
+	.daio_mgr_get_ctrl_blk = daio_mgr_get_ctrl_blk,
+	.daio_mgr_put_ctrl_blk = daio_mgr_put_ctrl_blk,
+	.daio_mgr_enb_dai = daio_mgr_enb_dai,
+	.daio_mgr_dsb_dai = daio_mgr_dsb_dai,
+	.daio_mgr_enb_dao = daio_mgr_enb_dao,
+	.daio_mgr_dsb_dao = daio_mgr_dsb_dao,
+	.daio_mgr_dao_init = daio_mgr_dao_init,
+	.daio_mgr_set_imaparc = daio_mgr_set_imaparc,
+	.daio_mgr_set_imapnxt = daio_mgr_set_imapnxt,
+	.daio_mgr_set_imapaddr = daio_mgr_set_imapaddr,
+	.daio_mgr_commit_write = daio_mgr_commit_write,
+};
+
+int __devinit create_20k2_hw_obj(struct hw **rhw)
 {
 	struct hw *hw;
 
@@ -2015,102 +2111,7 @@ int create_20k2_hw_obj(struct hw **rhw)
 	if (NULL == hw)
 		return -ENOMEM;
 
-	hw->io_base = 0;
-	hw->mem_base = (unsigned long)NULL;
-	hw->irq = -1;
-
-	hw->card_init = hw_card_init;
-	hw->card_stop = hw_card_stop;
-	hw->pll_init = hw_pll_init;
-	hw->is_adc_source_selected = hw_is_adc_input_selected;
-	hw->select_adc_source = hw_adc_input_select;
-	hw->have_digit_io_switch = hw_have_digit_io_switch;
-
-	hw->src_rsc_get_ctrl_blk = src_get_rsc_ctrl_blk;
-	hw->src_rsc_put_ctrl_blk = src_put_rsc_ctrl_blk;
-	hw->src_mgr_get_ctrl_blk = src_mgr_get_ctrl_blk;
-	hw->src_mgr_put_ctrl_blk = src_mgr_put_ctrl_blk;
-	hw->src_set_state = src_set_state;
-	hw->src_set_bm = src_set_bm;
-	hw->src_set_rsr = src_set_rsr;
-	hw->src_set_sf = src_set_sf;
-	hw->src_set_wr = src_set_wr;
-	hw->src_set_pm = src_set_pm;
-	hw->src_set_rom = src_set_rom;
-	hw->src_set_vo = src_set_vo;
-	hw->src_set_st = src_set_st;
-	hw->src_set_ie = src_set_ie;
-	hw->src_set_ilsz = src_set_ilsz;
-	hw->src_set_bp = src_set_bp;
-	hw->src_set_cisz = src_set_cisz;
-	hw->src_set_ca = src_set_ca;
-	hw->src_set_sa = src_set_sa;
-	hw->src_set_la = src_set_la;
-	hw->src_set_pitch = src_set_pitch;
-	hw->src_set_dirty = src_set_dirty;
-	hw->src_set_clear_zbufs = src_set_clear_zbufs;
-	hw->src_set_dirty_all = src_set_dirty_all;
-	hw->src_commit_write = src_commit_write;
-	hw->src_get_ca = src_get_ca;
-	hw->src_get_dirty = src_get_dirty;
-	hw->src_dirty_conj_mask = src_dirty_conj_mask;
-	hw->src_mgr_enbs_src = src_mgr_enbs_src;
-	hw->src_mgr_enb_src = src_mgr_enb_src;
-	hw->src_mgr_dsb_src = src_mgr_dsb_src;
-	hw->src_mgr_commit_write = src_mgr_commit_write;
-
-	hw->srcimp_mgr_get_ctrl_blk = srcimp_mgr_get_ctrl_blk;
-	hw->srcimp_mgr_put_ctrl_blk = srcimp_mgr_put_ctrl_blk;
-	hw->srcimp_mgr_set_imaparc = srcimp_mgr_set_imaparc;
-	hw->srcimp_mgr_set_imapuser = srcimp_mgr_set_imapuser;
-	hw->srcimp_mgr_set_imapnxt = srcimp_mgr_set_imapnxt;
-	hw->srcimp_mgr_set_imapaddr = srcimp_mgr_set_imapaddr;
-	hw->srcimp_mgr_commit_write = srcimp_mgr_commit_write;
-
-	hw->amixer_rsc_get_ctrl_blk = amixer_rsc_get_ctrl_blk;
-	hw->amixer_rsc_put_ctrl_blk = amixer_rsc_put_ctrl_blk;
-	hw->amixer_mgr_get_ctrl_blk = amixer_mgr_get_ctrl_blk;
-	hw->amixer_mgr_put_ctrl_blk = amixer_mgr_put_ctrl_blk;
-	hw->amixer_set_mode = amixer_set_mode;
-	hw->amixer_set_iv = amixer_set_iv;
-	hw->amixer_set_x = amixer_set_x;
-	hw->amixer_set_y = amixer_set_y;
-	hw->amixer_set_sadr = amixer_set_sadr;
-	hw->amixer_set_se = amixer_set_se;
-	hw->amixer_set_dirty = amixer_set_dirty;
-	hw->amixer_set_dirty_all = amixer_set_dirty_all;
-	hw->amixer_commit_write = amixer_commit_write;
-	hw->amixer_get_y = amixer_get_y;
-	hw->amixer_get_dirty = amixer_get_dirty;
-
-	hw->dai_get_ctrl_blk = dai_get_ctrl_blk;
-	hw->dai_put_ctrl_blk = dai_put_ctrl_blk;
-	hw->dai_srt_set_srco = dai_srt_set_srco;
-	hw->dai_srt_set_srcm = dai_srt_set_srcm;
-	hw->dai_srt_set_rsr = dai_srt_set_rsr;
-	hw->dai_srt_set_drat = dai_srt_set_drat;
-	hw->dai_srt_set_ec = dai_srt_set_ec;
-	hw->dai_srt_set_et = dai_srt_set_et;
-	hw->dai_commit_write = dai_commit_write;
-
-	hw->dao_get_ctrl_blk = dao_get_ctrl_blk;
-	hw->dao_put_ctrl_blk = dao_put_ctrl_blk;
-	hw->dao_set_spos = dao_set_spos;
-	hw->dao_commit_write = dao_commit_write;
-	hw->dao_get_spos = dao_get_spos;
-
-	hw->daio_mgr_get_ctrl_blk = daio_mgr_get_ctrl_blk;
-	hw->daio_mgr_put_ctrl_blk = daio_mgr_put_ctrl_blk;
-	hw->daio_mgr_enb_dai = daio_mgr_enb_dai;
-	hw->daio_mgr_dsb_dai = daio_mgr_dsb_dai;
-	hw->daio_mgr_enb_dao = daio_mgr_enb_dao;
-	hw->daio_mgr_dsb_dao = daio_mgr_dsb_dao;
-	hw->daio_mgr_dao_init = daio_mgr_dao_init;
-	hw->daio_mgr_set_imaparc = daio_mgr_set_imaparc;
-	hw->daio_mgr_set_imapnxt = daio_mgr_set_imapnxt;
-	hw->daio_mgr_set_imapaddr = daio_mgr_set_imapaddr;
-	hw->daio_mgr_commit_write = daio_mgr_commit_write;
-
+	*hw = ct20k2_preset;
 	*rhw = hw;
 
 	return 0;
