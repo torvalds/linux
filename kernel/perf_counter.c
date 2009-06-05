@@ -2234,7 +2234,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	perf_output_lock(handle);
 
 	do {
-		offset = head = atomic_read(&data->head);
+		offset = head = atomic_long_read(&data->head);
 		head += size;
 	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
 
