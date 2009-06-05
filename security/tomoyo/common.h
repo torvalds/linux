@@ -35,7 +35,6 @@ struct tomoyo_page_buffer {
 struct tomoyo_path_info {
 	const char *name;
 	u32 hash;          /* = full_name_hash(name, strlen(name)) */
-	u16 total_len;     /* = strlen(name)                       */
 	u16 const_len;     /* = tomoyo_const_part_length(name)     */
 	bool is_dir;       /* = tomoyo_strendswith(name, "/")      */
 	bool is_patterned; /* = tomoyo_path_contains_pattern(name) */
