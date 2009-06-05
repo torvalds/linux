@@ -1196,7 +1196,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		"The variable %s references\n"
 		"the %s %s%s%s\n"
 		"If the reference is valid then annotate the\n"
-		"variable with __init* (see linux/init.h) "
+		"variable with __init* or __refdata (see linux/init.h) "
 		"or name the variable:\n",
 		fromsym, to, sec2annotation(tosec), tosym, to_p);
 		while (*s)
