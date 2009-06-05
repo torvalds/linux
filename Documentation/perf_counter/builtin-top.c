@@ -693,6 +693,9 @@ int cmd_top(int argc, const char **argv, const char *prefix)
 		event_id[0] = 0;
 	}
 
+	if (delay_secs < 1)
+		delay_secs = 1;
+
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (event_count[counter])
 			continue;
