@@ -15,8 +15,6 @@
  *
  */
 
-#include "cthw20k1.h"
-#include "ct20k1reg.h"
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -26,8 +24,14 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include "cthw20k1.h"
+#include "ct20k1reg.h"
 
-#define CT_XFI_DMA_MASK		DMA_BIT_MASK(32) /* 32 bits */
+#if BITS_PER_LONG == 32
+#define CT_XFI_DMA_MASK		DMA_BIT_MASK(32) /* 32 bit PTE */
+#else
+#define CT_XFI_DMA_MASK		DMA_BIT_MASK(64) /* 64 bit PTE */
+#endif
 
 struct hw20k1 {
 	struct hw hw;
