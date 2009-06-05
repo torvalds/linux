@@ -1273,9 +1273,20 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	return get_sb_bdev(fs_type, flags, dev_name, data, fill_super, mnt);
 }
 
+static int test_meta_super(struct super_block *s, void *ptr)
+{
+	struct block_device *bdev = ptr;
+	return (bdev == s->s_bdev);
+}
+
+static int set_meta_super(struct super_block *s, void *ptr)
+{
+	return -EINVAL;
+}
+
 static struct super_block *get_gfs2_sb(const char *dev_name)
 {
-	struct super_block *sb;
+	struct super_block *s;
 	struct path path;
 	int error;
 
@@ -1283,30 +1294,27 @@ static struct super_block *get_gfs2_sb(const char *dev_name)
 	if (error) {
 		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
 		       dev_name, error);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
-	sb = path.dentry->d_inode->i_sb;
-	if (sb && (sb->s_type == &gfs2_fs_type))
-		atomic_inc(&sb->s_active);
-	else
-		sb = NULL;
+	s = sget(&gfs2_fs_type, test_meta_super, set_meta_super,
+		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
-	return sb;
+	return s;
 }
 
 static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 			    const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	struct super_block *sb = NULL;
+	struct super_block *s;
 	struct gfs2_sbd *sdp;
 
-	sb = get_gfs2_sb(dev_name);
-	if (!sb) {
+	s = get_gfs2_sb(dev_name);
+	if (IS_ERR(s)) {
 		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
-		return -ENOENT;
+		return PTR_ERR(s);
 	}
-	sdp = sb->s_fs_info;
-	mnt->mnt_sb = sb;
+	sdp = s->s_fs_info;
+	mnt->mnt_sb = s;
 	mnt->mnt_root = dget(sdp->sd_master_dir);
 	return 0;
 }
