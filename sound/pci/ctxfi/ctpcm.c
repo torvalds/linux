@@ -40,7 +40,7 @@ static struct snd_pcm_hardware ct_pcm_playback_hw = {
 	.buffer_bytes_max	= (128*1024),
 	.period_bytes_min	= (64),
 	.period_bytes_max	= (128*1024),
-	.periods_min		= 1,
+	.periods_min		= 2,
 	.periods_max		= 1024,
 	.fifo_size		= 0,
 };
@@ -62,7 +62,7 @@ static struct snd_pcm_hardware ct_spdif_passthru_playback_hw = {
 	.buffer_bytes_max	= (128*1024),
 	.period_bytes_min	= (64),
 	.period_bytes_max	= (128*1024),
-	.periods_min		= 1,
+	.periods_min		= 2,
 	.periods_max		= 1024,
 	.fifo_size		= 0,
 };
