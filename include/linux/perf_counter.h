@@ -373,6 +373,9 @@ struct hw_perf_counter {
 	u64				sample_period;
 	atomic64_t			period_left;
 	u64				interrupts;
+
+	u64				freq_count;
+	u64				freq_interrupts;
 #endif
 };
 

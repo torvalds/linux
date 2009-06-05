@@ -1187,8 +1187,9 @@ static void perf_log_period(struct perf_counter *counter, u64 period);
 static void perf_adjust_freq(struct perf_counter_context *ctx)
 {
 	struct perf_counter *counter;
+	struct hw_perf_counter *hwc;
 	u64 interrupts, sample_period;
-	u64 events, period;
+	u64 events, period, freq;
 	s64 delta;
 
 	spin_lock(&ctx->lock);
@@ -1196,8 +1197,10 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		if (counter->state != PERF_COUNTER_STATE_ACTIVE)
 			continue;
 
-		interrupts = counter->hw.interrupts;
-		counter->hw.interrupts = 0;
+		hwc = &counter->hw;
+
+		interrupts = hwc->interrupts;
+		hwc->interrupts = 0;
 
 		if (interrupts == MAX_INTERRUPTS) {
 			perf_log_throttle(counter, 1);
@@ -1208,20 +1211,35 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		if (!counter->attr.freq || !counter->attr.sample_freq)
 			continue;
 
-		events = HZ * interrupts * counter->hw.sample_period;
+		if (counter->attr.sample_freq < HZ) {
+			freq = counter->attr.sample_freq;
+
+			hwc->freq_count += freq;
+			hwc->freq_interrupts += interrupts;
+
+			if (hwc->freq_count < HZ)
+				continue;
+
+			interrupts = hwc->freq_interrupts;
+			hwc->freq_interrupts = 0;
+			hwc->freq_count -= HZ;
+		} else
+			freq = HZ;
+
+		events = freq * interrupts * hwc->sample_period;
 		period = div64_u64(events, counter->attr.sample_freq);
 
-		delta = (s64)(1 + period - counter->hw.sample_period);
+		delta = (s64)(1 + period - hwc->sample_period);
 		delta >>= 1;
 
-		sample_period = counter->hw.sample_period + delta;
+		sample_period = hwc->sample_period + delta;
 
 		if (!sample_period)
 			sample_period = 1;
 
 		perf_log_period(counter, sample_period);
 
-		counter->hw.sample_period = sample_period;
+		hwc->sample_period = sample_period;
 	}
 	spin_unlock(&ctx->lock);
 }
