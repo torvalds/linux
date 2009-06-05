@@ -86,105 +86,7 @@ enum cpu_file_bit {
 	CPU_VALUE_BIT,				/* value		*/
 };
 
-#define	CPU_FILE_VALUE			(1 << CPU_VALUE_BIT)
-
-/*
- * DisplayFamily_DisplayModel	Processor Families/Processor Number Series
- * --------------------------	------------------------------------------
- * 05_01, 05_02, 05_04		Pentium, Pentium with MMX
- *
- * 06_01			Pentium Pro
- * 06_03, 06_05			Pentium II Xeon, Pentium II
- * 06_07, 06_08, 06_0A, 06_0B	Pentium III Xeon, Pentum III
- *
- * 06_09, 060D			Pentium M
- *
- * 06_0E			Core Duo, Core Solo
- *
- * 06_0F			Xeon 3000, 3200, 5100, 5300, 7300 series,
- *				Core 2 Quad, Core 2 Extreme, Core 2 Duo,
- *				Pentium dual-core
- * 06_17			Xeon 5200, 5400 series, Core 2 Quad Q9650
- *
- * 06_1C			Atom
- *
- * 0F_00, 0F_01, 0F_02		Xeon, Xeon MP, Pentium 4
- * 0F_03, 0F_04			Xeon, Xeon MP, Pentium 4, Pentium D
- *
- * 0F_06			Xeon 7100, 5000 Series, Xeon MP,
- *				Pentium 4, Pentium D
- */
-
-/* Register processors bits */
-enum cpu_processor_bit {
-	CPU_NONE,
-/* Intel */
-	CPU_INTEL_PENTIUM_BIT,
-	CPU_INTEL_P6_BIT,
-	CPU_INTEL_PENTIUM_M_BIT,
-	CPU_INTEL_CORE_BIT,
-	CPU_INTEL_CORE2_BIT,
-	CPU_INTEL_ATOM_BIT,
-	CPU_INTEL_XEON_P4_BIT,
-	CPU_INTEL_XEON_MP_BIT,
-/* AMD */
-	CPU_AMD_K6_BIT,
-	CPU_AMD_K7_BIT,
-	CPU_AMD_K8_BIT,
-	CPU_AMD_0F_BIT,
-	CPU_AMD_10_BIT,
-	CPU_AMD_11_BIT,
-};
-
-#define	CPU_INTEL_PENTIUM	(1 << CPU_INTEL_PENTIUM_BIT)
-#define	CPU_INTEL_P6		(1 << CPU_INTEL_P6_BIT)
-#define	CPU_INTEL_PENTIUM_M	(1 << CPU_INTEL_PENTIUM_M_BIT)
-#define	CPU_INTEL_CORE		(1 << CPU_INTEL_CORE_BIT)
-#define	CPU_INTEL_CORE2		(1 << CPU_INTEL_CORE2_BIT)
-#define	CPU_INTEL_ATOM		(1 << CPU_INTEL_ATOM_BIT)
-#define	CPU_INTEL_XEON_P4	(1 << CPU_INTEL_XEON_P4_BIT)
-#define	CPU_INTEL_XEON_MP	(1 << CPU_INTEL_XEON_MP_BIT)
-
-#define	CPU_INTEL_PX		(CPU_INTEL_P6 | CPU_INTEL_PENTIUM_M)
-#define	CPU_INTEL_COREX		(CPU_INTEL_CORE | CPU_INTEL_CORE2)
-#define	CPU_INTEL_XEON		(CPU_INTEL_XEON_P4 | CPU_INTEL_XEON_MP)
-#define	CPU_CO_AT		(CPU_INTEL_CORE | CPU_INTEL_ATOM)
-#define	CPU_C2_AT		(CPU_INTEL_CORE2 | CPU_INTEL_ATOM)
-#define	CPU_CX_AT		(CPU_INTEL_COREX | CPU_INTEL_ATOM)
-#define	CPU_CX_XE		(CPU_INTEL_COREX | CPU_INTEL_XEON)
-#define	CPU_P6_XE		(CPU_INTEL_P6 | CPU_INTEL_XEON)
-#define	CPU_PM_CO_AT		(CPU_INTEL_PENTIUM_M | CPU_CO_AT)
-#define	CPU_C2_AT_XE		(CPU_C2_AT | CPU_INTEL_XEON)
-#define	CPU_CX_AT_XE		(CPU_CX_AT | CPU_INTEL_XEON)
-#define	CPU_P6_CX_AT		(CPU_INTEL_P6 | CPU_CX_AT)
-#define	CPU_P6_CX_XE		(CPU_P6_XE | CPU_INTEL_COREX)
-#define	CPU_P6_CX_AT_XE		(CPU_INTEL_P6 | CPU_CX_AT_XE)
-#define	CPU_PM_CX_AT_XE		(CPU_INTEL_PENTIUM_M | CPU_CX_AT_XE)
-#define	CPU_PM_CX_AT		(CPU_INTEL_PENTIUM_M | CPU_CX_AT)
-#define	CPU_PM_CX_XE		(CPU_INTEL_PENTIUM_M | CPU_CX_XE)
-#define	CPU_PX_CX_AT		(CPU_INTEL_PX | CPU_CX_AT)
-#define	CPU_PX_CX_AT_XE		(CPU_INTEL_PX | CPU_CX_AT_XE)
-
-/* Select all supported Intel CPUs */
-#define	CPU_INTEL_ALL		(CPU_INTEL_PENTIUM | CPU_PX_CX_AT_XE)
-
-#define	CPU_AMD_K6		(1 << CPU_AMD_K6_BIT)
-#define	CPU_AMD_K7		(1 << CPU_AMD_K7_BIT)
-#define	CPU_AMD_K8		(1 << CPU_AMD_K8_BIT)
-#define	CPU_AMD_0F		(1 << CPU_AMD_0F_BIT)
-#define	CPU_AMD_10		(1 << CPU_AMD_10_BIT)
-#define	CPU_AMD_11		(1 << CPU_AMD_11_BIT)
-
-#define	CPU_K10_PLUS		(CPU_AMD_10 | CPU_AMD_11)
-#define	CPU_K0F_PLUS		(CPU_AMD_0F | CPU_K10_PLUS)
-#define	CPU_K8_PLUS		(CPU_AMD_K8 | CPU_K0F_PLUS)
-#define	CPU_K7_PLUS		(CPU_AMD_K7 | CPU_K8_PLUS)
-
-/* Select all supported AMD CPUs */
-#define	CPU_AMD_ALL		(CPU_AMD_K6 | CPU_K7_PLUS)
-
-/* Select all supported CPUs */
-#define	CPU_ALL			(CPU_INTEL_ALL | CPU_AMD_ALL)
+#define	CPU_FILE_VALUE		(1 << CPU_VALUE_BIT)
 
 #define MAX_CPU_FILES		512
 
@@ -220,7 +122,6 @@ struct cpu_debug_range {
 	unsigned		min;		/* Register range min	*/
 	unsigned		max;		/* Register range max	*/
 	unsigned		flag;		/* Supported flags	*/
-	unsigned		model;		/* Supported models	*/
 };
 
 #endif /* _ASM_X86_CPU_DEBUG_H */
