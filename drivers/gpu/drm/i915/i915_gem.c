@@ -989,10 +989,10 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		return -ENODEV;
 
 	/* Only handle setting domains to types used by the CPU. */
-	if (write_domain & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+	if (write_domain & I915_GEM_GPU_DOMAINS)
 		return -EINVAL;
 
-	if (read_domains & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+	if (read_domains & I915_GEM_GPU_DOMAINS)
 		return -EINVAL;
 
 	/* Having something in the write domain implies it's in the read
@@ -1769,8 +1769,7 @@ i915_gem_flush(struct drm_device *dev,
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		drm_agp_chipset_flush(dev);
 
-	if ((invalidate_domains | flush_domains) & ~(I915_GEM_DOMAIN_CPU |
-						     I915_GEM_DOMAIN_GTT)) {
+	if ((invalidate_domains | flush_domains) & I915_GEM_GPU_DOMAINS) {
 		/*
 		 * read/write caches:
 		 *
@@ -2424,8 +2423,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
 	 * a GPU cache
 	 */
-	BUG_ON(obj->read_domains & ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT));
-	BUG_ON(obj->write_domain & ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT));
+	BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
+	BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 	return 0;
 }
@@ -3568,8 +3567,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 		atomic_inc(&dev->pin_count);
 		atomic_add(obj->size, &dev->pin_memory);
 		if (!obj_priv->active &&
-		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
-					   I915_GEM_DOMAIN_GTT)) == 0 &&
+		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0 &&
 		    !list_empty(&obj_priv->list))
 			list_del_init(&obj_priv->list);
 	}
@@ -3596,8 +3594,7 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 	 */
 	if (obj_priv->pin_count == 0) {
 		if (!obj_priv->active &&
-		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
-					   I915_GEM_DOMAIN_GTT)) == 0)
+		    (obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
 			list_move_tail(&obj_priv->list,
 				       &dev_priv->mm.inactive_list);
 		atomic_dec(&dev->pin_count);
@@ -3847,9 +3844,8 @@ i915_gem_idle(struct drm_device *dev)
 
 	/* Flush the GPU along with all non-CPU write domains
 	 */
-	i915_gem_flush(dev, ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT),
-		       ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT));
-	seqno = i915_add_request(dev, NULL, ~I915_GEM_DOMAIN_CPU);
+	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
 
 	if (seqno == 0) {
 		mutex_unlock(&dev->struct_mutex);
