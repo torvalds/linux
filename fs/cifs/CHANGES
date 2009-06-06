@@ -2,7 +2,10 @@ Version 1.59
 ------------
 Client uses server inode numbers (which are persistent) rather than
 client generated ones by default (mount option "serverino" turned
-on by default if server supports it).
+on by default if server supports it).  Add forceuid and forcegid
+mount options (so that when negotiating unix extensions specifying
+which uid mounted does not immediately force the server's reported
+uids to be overridden).
 
 Version 1.58
 ------------
