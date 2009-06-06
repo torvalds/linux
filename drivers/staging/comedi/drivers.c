@@ -509,9 +509,8 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 			async->prealloc_buf =
 			    vmap(pages, n_pages, VM_MAP, PAGE_KERNEL_NOCACHE);
 		}
-		if (pages) {
-			vfree(pages);
-		}
+		vfree(pages);
+
 		if (async->prealloc_buf == NULL) {
 			/* Some allocation failed above. */
 			if (async->buf_page_list) {
