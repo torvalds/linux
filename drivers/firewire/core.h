@@ -124,7 +124,7 @@ extern struct idr fw_device_idr;
 extern int fw_cdev_major;
 
 struct fw_device *fw_device_get_by_devt(dev_t devt);
-void fw_device_set_broadcast_channel(struct fw_device *device, int generation);
+int fw_device_set_broadcast_channel(struct device *dev, void *gen);
 void fw_node_event(struct fw_card *card, struct fw_node *node, int event);
 
 

@@ -59,7 +59,7 @@ int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
 }
 EXPORT_SYMBOL(fw_csr_iterator_next);
 
-static int is_fw_unit(struct device *dev);
+static bool is_fw_unit(struct device *dev);
 
 static int match_unit_directory(u32 *directory, u32 match_flags,
 				const struct ieee1394_device_id *id)
@@ -599,7 +599,7 @@ static struct device_type fw_unit_type = {
 	.release	= fw_unit_release,
 };
 
-static int is_fw_unit(struct device *dev)
+static bool is_fw_unit(struct device *dev)
 {
 	return dev->type == &fw_unit_type;
 }
@@ -749,6 +749,11 @@ static struct device_type fw_device_type = {
 	.release = fw_device_release,
 };
 
+static bool is_fw_device(struct device *dev)
+{
+	return dev->type == &fw_device_type;
+}
+
 static int update_unit(struct device *dev, void *data)
 {
 	struct fw_unit *unit = fw_unit(dev);
@@ -784,6 +789,9 @@ static int lookup_existing_device(struct device *dev, void *data)
 	struct fw_device *new = data;
 	struct fw_card *card = new->card;
 	int match = 0;
+
+	if (!is_fw_device(dev))
+		return 0;
 
 	down_read(&fw_device_rwsem); /* serialize config_rom access */
 	spin_lock_irq(&card->lock);  /* serialize node access */
@@ -824,7 +832,7 @@ static int lookup_existing_device(struct device *dev, void *data)
 
 enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
 
-void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
+static void set_broadcast_channel(struct fw_device *device, int generation)
 {
 	struct fw_card *card = device->card;
 	__be32 data;
@@ -858,6 +866,14 @@ void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
 				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
 				&data, 4);
 	}
+}
+
+int fw_device_set_broadcast_channel(struct device *dev, void *gen)
+{
+	if (is_fw_device(dev))
+		set_broadcast_channel(fw_device(dev), (long)gen);
+
+	return 0;
 }
 
 static void fw_device_init(struct work_struct *work)
@@ -958,7 +974,7 @@ static void fw_device_init(struct work_struct *work)
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
 
-		fw_device_set_broadcast_channel(device, device->generation);
+		set_broadcast_channel(device, device->generation);
 	}
 
 	/*

@@ -190,12 +190,6 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 	mutex_unlock(&card_mutex);
 }
 
-static int set_broadcast_channel(struct device *dev, void *data)
-{
-	fw_device_set_broadcast_channel(fw_device(dev), (long)data);
-	return 0;
-}
-
 static void allocate_broadcast_channel(struct fw_card *card, int generation)
 {
 	int channel, bandwidth = 0;
@@ -205,7 +199,7 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 	if (channel == 31) {
 		card->broadcast_channel_allocated = true;
 		device_for_each_child(card->device, (void *)(long)generation,
-				      set_broadcast_channel);
+				      fw_device_set_broadcast_channel);
 	}
 }
 
