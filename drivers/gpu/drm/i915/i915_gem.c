@@ -2162,7 +2162,6 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	val |= I830_FENCE_REG_VALID;
 
 	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
-
 }
 
 /**
@@ -2326,6 +2325,42 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 
 	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
+}
+
+/**
+ * i915_gem_object_put_fence_reg - waits on outstanding fenced access
+ * to the buffer to finish, and then resets the fence register.
+ * @obj: tiled object holding a fence register.
+ *
+ * Zeroes out the fence register itself and clears out the associated
+ * data structures in dev_priv and obj_priv.
+ */
+int
+i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
+		return 0;
+
+	/* On the i915, GPU access to tiled buffers is via a fence,
+	 * therefore we must wait for any outstanding access to complete
+	 * before clearing the fence.
+	 */
+	if (!IS_I965G(dev)) {
+		int ret;
+
+		i915_gem_object_flush_gpu_write_domain(obj);
+		i915_gem_object_flush_gtt_write_domain(obj);
+		ret = i915_gem_object_wait_rendering(obj);
+		if (ret != 0)
+			return ret;
+	}
+
+	i915_gem_clear_fence_reg (obj);
+
+	return 0;
 }
 
 /**
