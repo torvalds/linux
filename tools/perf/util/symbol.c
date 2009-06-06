@@ -457,6 +457,8 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
+	memset(&sym, 0, sizeof(sym));
+
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
 		uint64_t obj_start;
