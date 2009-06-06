@@ -128,20 +128,6 @@ struct intel_limit {
 #define I9XX_P2_LVDS_FAST		      7
 #define I9XX_P2_LVDS_SLOW_LIMIT		 112000
 
-#define INTEL_LIMIT_I8XX_DVO_DAC    0
-#define INTEL_LIMIT_I8XX_LVDS	    1
-#define INTEL_LIMIT_I9XX_SDVO_DAC   2
-#define INTEL_LIMIT_I9XX_LVDS	    3
-#define INTEL_LIMIT_G4X_SDVO	    4
-#define INTEL_LIMIT_G4X_HDMI_DAC   5
-#define INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS   6
-#define INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS   7
-#define INTEL_LIMIT_G4X_DISPLAY_PORT	8
-#define INTEL_LIMIT_IGD_SDVO_DAC    9
-#define INTEL_LIMIT_IGD_LVDS	    10
-#define INTEL_LIMIT_IGDNG_SDVO_DAC  11
-#define INTEL_LIMIT_IGDNG_LVDS	    12
-
 /*The parameter is for SDVO on G4x platform*/
 #define G4X_DOT_SDVO_MIN           25000
 #define G4X_DOT_SDVO_MAX           270000
@@ -281,8 +267,7 @@ static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
 		      int target, int refclk, intel_clock_t *best_clock);
 
-static const intel_limit_t intel_limits[] = {
-    { /* INTEL_LIMIT_I8XX_DVO_DAC */
+static const intel_limit_t intel_limits_i8xx_dvo = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
         .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
@@ -294,8 +279,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I8XX_LVDS */
+};
+
+static const intel_limit_t intel_limits_i8xx_lvds = {
         .dot = { .min = I8XX_DOT_MIN,		.max = I8XX_DOT_MAX },
         .vco = { .min = I8XX_VCO_MIN,		.max = I8XX_VCO_MAX },
         .n   = { .min = I8XX_N_MIN,		.max = I8XX_N_MAX },
@@ -307,8 +293,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I9XX_SDVO_DAC */
+};
+	
+static const intel_limit_t intel_limits_i9xx_sdvo = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -320,8 +307,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_I9XX_LVDS */
+};
+
+static const intel_limit_t intel_limits_i9xx_lvds = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = I9XX_VCO_MIN,		.max = I9XX_VCO_MAX },
         .n   = { .min = I9XX_N_MIN,		.max = I9XX_N_MAX },
@@ -336,9 +324,10 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
+};
+
     /* below parameter and function is for G4X Chipset Family*/
-    { /* INTEL_LIMIT_G4X_SDVO */
+static const intel_limit_t intel_limits_g4x_sdvo = {
 	.dot = { .min = G4X_DOT_SDVO_MIN,	.max = G4X_DOT_SDVO_MAX },
 	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
 	.n   = { .min = G4X_N_SDVO_MIN,	        .max = G4X_N_SDVO_MAX },
@@ -352,8 +341,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_SDVO_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_HDMI_DAC */
+};
+
+static const intel_limit_t intel_limits_g4x_hdmi = {
 	.dot = { .min = G4X_DOT_HDMI_DAC_MIN,	.max = G4X_DOT_HDMI_DAC_MAX },
 	.vco = { .min = G4X_VCO_MIN,	        .max = G4X_VCO_MAX},
 	.n   = { .min = G4X_N_HDMI_DAC_MIN,	.max = G4X_N_HDMI_DAC_MAX },
@@ -367,8 +357,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_HDMI_DAC_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS */
+};
+
+static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 	.dot = { .min = G4X_DOT_SINGLE_CHANNEL_LVDS_MIN,
 		 .max = G4X_DOT_SINGLE_CHANNEL_LVDS_MAX },
 	.vco = { .min = G4X_VCO_MIN,
@@ -390,8 +381,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS */
+};
+
+static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 	.dot = { .min = G4X_DOT_DUAL_CHANNEL_LVDS_MIN,
 		 .max = G4X_DOT_DUAL_CHANNEL_LVDS_MAX },
 	.vco = { .min = G4X_VCO_MIN,
@@ -413,8 +405,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-    },
-    {   /* INTEL_LIMIT_G4X_DISPLAY_PORT */
+};
+
+static const intel_limit_t intel_limits_g4x_display_port = {
         .dot = { .min = G4X_DOT_DISPLAY_PORT_MIN,
                  .max = G4X_DOT_DISPLAY_PORT_MAX },
         .vco = { .min = G4X_VCO_MIN,
@@ -435,8 +428,9 @@ static const intel_limit_t intel_limits[] = {
                  .p2_slow = G4X_P2_DISPLAY_PORT_SLOW,
                  .p2_fast = G4X_P2_DISPLAY_PORT_FAST },
         .find_pll = intel_find_pll_g4x_dp,
-    },
-    { /* INTEL_LIMIT_IGD_SDVO */
+};
+
+static const intel_limit_t intel_limits_igd_sdvo = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX},
         .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
         .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
@@ -448,8 +442,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGD_LVDS */
+};
+
+static const intel_limit_t intel_limits_igd_lvds = {
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
         .vco = { .min = IGD_VCO_MIN,		.max = IGD_VCO_MAX },
         .n   = { .min = IGD_N_MIN,		.max = IGD_N_MAX },
@@ -462,8 +457,9 @@ static const intel_limit_t intel_limits[] = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGDNG_SDVO_DAC */
+};
+
+static const intel_limit_t intel_limits_igdng_sdvo = {
 	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
 	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
 	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
@@ -476,8 +472,9 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_slow = IGDNG_P2_SDVO_DAC_SLOW,
 		 .p2_fast = IGDNG_P2_SDVO_DAC_FAST },
 	.find_pll = intel_igdng_find_best_PLL,
-    },
-    { /* INTEL_LIMIT_IGDNG_LVDS */
+};
+
+static const intel_limit_t intel_limits_igdng_lvds = {
 	.dot = { .min = IGDNG_DOT_MIN,          .max = IGDNG_DOT_MAX },
 	.vco = { .min = IGDNG_VCO_MIN,          .max = IGDNG_VCO_MAX },
 	.n   = { .min = IGDNG_N_MIN,            .max = IGDNG_N_MAX },
@@ -490,16 +487,15 @@ static const intel_limit_t intel_limits[] = {
 		 .p2_slow = IGDNG_P2_LVDS_SLOW,
 		 .p2_fast = IGDNG_P2_LVDS_FAST },
 	.find_pll = intel_igdng_find_best_PLL,
-    },
 };
 
 static const intel_limit_t *intel_igdng_limit(struct drm_crtc *crtc)
 {
 	const intel_limit_t *limit;
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &intel_limits[INTEL_LIMIT_IGDNG_LVDS];
+		limit = &intel_limits_igdng_lvds;
 	else
-		limit = &intel_limits[INTEL_LIMIT_IGDNG_SDVO_DAC];
+		limit = &intel_limits_igdng_sdvo;
 
 	return limit;
 }
@@ -514,21 +510,19 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP)
 			/* LVDS with dual channel */
-			limit = &intel_limits
-					[INTEL_LIMIT_G4X_DUAL_CHANNEL_LVDS];
+			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
 			/* LVDS with dual channel */
-			limit = &intel_limits
-					[INTEL_LIMIT_G4X_SINGLE_CHANNEL_LVDS];
+			limit = &intel_limits_g4x_single_channel_lvds;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI) ||
 		   intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG)) {
-		limit = &intel_limits[INTEL_LIMIT_G4X_HDMI_DAC];
+		limit = &intel_limits_g4x_hdmi;
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO)) {
-		limit = &intel_limits[INTEL_LIMIT_G4X_SDVO];
+		limit = &intel_limits_g4x_sdvo;
 	} else if (intel_pipe_has_type (crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		limit = &intel_limits[INTEL_LIMIT_G4X_DISPLAY_PORT];
+		limit = &intel_limits_g4x_display_port;
 	} else /* The option is for other outputs */
-		limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+		limit = &intel_limits_i9xx_sdvo;
 
 	return limit;
 }
@@ -544,19 +538,19 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 		limit = intel_g4x_limit(crtc);
 	} else if (IS_I9XX(dev) && !IS_IGD(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_I9XX_LVDS];
+			limit = &intel_limits_i9xx_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
+			limit = &intel_limits_i9xx_sdvo;
 	} else if (IS_IGD(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_IGD_LVDS];
+			limit = &intel_limits_igd_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_IGD_SDVO_DAC];
+			limit = &intel_limits_igd_sdvo;
 	} else {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-			limit = &intel_limits[INTEL_LIMIT_I8XX_LVDS];
+			limit = &intel_limits_i8xx_lvds;
 		else
-			limit = &intel_limits[INTEL_LIMIT_I8XX_DVO_DAC];
+			limit = &intel_limits_i8xx_dvo;
 	}
 	return limit;
 }
