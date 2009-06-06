@@ -35,12 +35,12 @@
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
 #include <linux/time.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 #include "core.h"
 
