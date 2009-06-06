@@ -109,6 +109,11 @@ struct ar9170_rxstream_mpdu_merge {
 	bool has_plcp;
 };
 
+#define AR9170_QUEUE_TIMEOUT		64
+#define AR9170_TX_TIMEOUT		8
+#define AR9170_JANITOR_DELAY		128
+#define AR9170_TX_INVALID_RATE		0xffffffff
+
 struct ar9170 {
 	struct ieee80211_hw *hw;
 	struct mutex mutex;
@@ -117,10 +122,11 @@ struct ar9170 {
 
 	int (*open)(struct ar9170 *);
 	void (*stop)(struct ar9170 *);
-	int (*tx)(struct ar9170 *, struct sk_buff *, bool, unsigned int);
+	int (*tx)(struct ar9170 *, struct sk_buff *);
 	int (*exec_cmd)(struct ar9170 *, enum ar9170_cmd, u32 ,
 			void *, u32 , void *);
 	void (*callback_cmd)(struct ar9170 *, u32 , void *);
+	int (*flush)(struct ar9170 *);
 
 	/* interface mode settings */
 	struct ieee80211_vif *vif;
@@ -177,10 +183,10 @@ struct ar9170 {
 	struct ar9170_eeprom eeprom;
 	struct ath_regulatory regulatory;
 
-	/* global tx status for unregistered Stations. */
-	struct sk_buff_head global_tx_status;
-	struct sk_buff_head global_tx_status_waste;
-	struct delayed_work tx_status_janitor;
+	/* tx queues - as seen by hw - */
+	struct sk_buff_head tx_pending[__AR9170_NUM_TXQ];
+	struct sk_buff_head tx_status[__AR9170_NUM_TXQ];
+	struct delayed_work tx_janitor;
 
 	/* rxstream mpdu merge */
 	struct ar9170_rxstream_mpdu_merge rx_mpdu;
@@ -189,11 +195,19 @@ struct ar9170 {
 };
 
 struct ar9170_sta_info {
-	struct sk_buff_head tx_status[__AR9170_NUM_TXQ];
 };
 
-#define IS_STARTED(a)		(a->state >= AR9170_STARTED)
-#define IS_ACCEPTING_CMD(a)	(a->state >= AR9170_IDLE)
+#define AR9170_TX_FLAG_WAIT_FOR_ACK	BIT(0)
+#define AR9170_TX_FLAG_NO_ACK		BIT(1)
+#define AR9170_TX_FLAG_BLOCK_ACK	BIT(2)
+
+struct ar9170_tx_info {
+	unsigned long timeout;
+	unsigned int flags;
+};
+
+#define IS_STARTED(a)		(((struct ar9170 *)a)->state >= AR9170_STARTED)
+#define IS_ACCEPTING_CMD(a)	(((struct ar9170 *)a)->state >= AR9170_IDLE)
 
 #define AR9170_FILTER_CHANGED_MODE		BIT(0)
 #define AR9170_FILTER_CHANGED_MULTICAST		BIT(1)
@@ -204,9 +218,9 @@ void *ar9170_alloc(size_t priv_size);
 int ar9170_register(struct ar9170 *ar, struct device *pdev);
 void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb);
 void ar9170_unregister(struct ar9170 *ar);
-void ar9170_handle_tx_status(struct ar9170 *ar, struct sk_buff *skb,
-			     bool update_statistics, u16 tx_status);
+void ar9170_tx_callback(struct ar9170 *ar, struct sk_buff *skb);
 void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
+int ar9170_nag_limiter(struct ar9170 *ar);
 
 /* MAC */
 int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);

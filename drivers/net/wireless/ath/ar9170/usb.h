@@ -51,6 +51,7 @@
 #include "ar9170.h"
 
 #define AR9170_NUM_RX_URBS			16
+#define AR9170_NUM_TX_URBS			8
 
 struct firmware;
 
@@ -60,11 +61,15 @@ struct ar9170_usb {
 	struct usb_interface *intf;
 
 	struct usb_anchor rx_submitted;
+	struct usb_anchor tx_pending;
 	struct usb_anchor tx_submitted;
 
 	bool req_one_stage_fw;
 
-	spinlock_t cmdlock;
+	spinlock_t tx_urb_lock;
+	unsigned int tx_submitted_urbs;
+	unsigned int tx_pending_urbs;
+
 	struct completion cmd_wait;
 	int readlen;
 	u8 *readbuf;

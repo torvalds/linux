@@ -420,4 +420,7 @@ enum ar9170_txq {
 	__AR9170_NUM_TXQ,
 };
 
+#define AR9170_TXQ_DEPTH	32
+#define AR9170_TX_MAX_PENDING	128
+
 #endif /* __AR9170_HW_H */

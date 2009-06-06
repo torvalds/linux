@@ -96,7 +96,49 @@ static struct usb_device_id ar9170_usb_ids[] = {
 };
 MODULE_DEVICE_TABLE(usb, ar9170_usb_ids);
 
-static void ar9170_usb_tx_urb_complete_free(struct urb *urb)
+static void ar9170_usb_submit_urb(struct ar9170_usb *aru)
+{
+	struct urb *urb;
+	unsigned long flags;
+	int err;
+
+	if (unlikely(!IS_STARTED(&aru->common)))
+		return ;
+
+	spin_lock_irqsave(&aru->tx_urb_lock, flags);
+	if (aru->tx_submitted_urbs >= AR9170_NUM_TX_URBS) {
+		spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+		return ;
+	}
+	aru->tx_submitted_urbs++;
+
+	urb = usb_get_from_anchor(&aru->tx_pending);
+	if (!urb) {
+		aru->tx_submitted_urbs--;
+		spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+
+		return ;
+	}
+	spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+
+	aru->tx_pending_urbs--;
+	usb_anchor_urb(urb, &aru->tx_submitted);
+
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (unlikely(err)) {
+		if (ar9170_nag_limiter(&aru->common))
+			dev_err(&aru->udev->dev, "submit_urb failed (%d).\n",
+				err);
+
+		usb_unanchor_urb(urb);
+		aru->tx_submitted_urbs--;
+		ar9170_tx_callback(&aru->common, urb->context);
+	}
+
+	usb_free_urb(urb);
+}
+
+static void ar9170_usb_tx_urb_complete_frame(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
 	struct ar9170_usb *aru = (struct ar9170_usb *)
@@ -107,8 +149,11 @@ static void ar9170_usb_tx_urb_complete_free(struct urb *urb)
 		return ;
 	}
 
-	ar9170_handle_tx_status(&aru->common, skb, false,
-				AR9170_TX_STATUS_COMPLETE);
+	aru->tx_submitted_urbs--;
+
+	ar9170_tx_callback(&aru->common, skb);
+
+	ar9170_usb_submit_urb(aru);
 }
 
 static void ar9170_usb_tx_urb_complete(struct urb *urb)
@@ -290,21 +335,47 @@ err_out:
 	return err;
 }
 
-static void ar9170_usb_cancel_urbs(struct ar9170_usb *aru)
+static int ar9170_usb_flush(struct ar9170 *ar)
 {
-	int ret;
+	struct ar9170_usb *aru = (void *) ar;
+	struct urb *urb;
+	int ret, err = 0;
 
-	aru->common.state = AR9170_UNKNOWN_STATE;
+	if (IS_STARTED(ar))
+		aru->common.state = AR9170_IDLE;
 
-	usb_unlink_anchored_urbs(&aru->tx_submitted);
+	usb_wait_anchor_empty_timeout(&aru->tx_pending,
+					    msecs_to_jiffies(800));
+	while ((urb = usb_get_from_anchor(&aru->tx_pending))) {
+		ar9170_tx_callback(&aru->common, (void *) urb->context);
+		usb_free_urb(urb);
+	}
 
-	/* give the LED OFF command and the deauth frame a chance to air. */
+	/* lets wait a while until the tx - queues are dried out */
 	ret = usb_wait_anchor_empty_timeout(&aru->tx_submitted,
 					    msecs_to_jiffies(100));
 	if (ret == 0)
-		dev_err(&aru->udev->dev, "kill pending tx urbs.\n");
-	usb_poison_anchored_urbs(&aru->tx_submitted);
+		err = -ETIMEDOUT;
 
+	usb_kill_anchored_urbs(&aru->tx_submitted);
+
+	if (IS_ACCEPTING_CMD(ar))
+		aru->common.state = AR9170_STARTED;
+
+	return err;
+}
+
+static void ar9170_usb_cancel_urbs(struct ar9170_usb *aru)
+{
+	int err;
+
+	aru->common.state = AR9170_UNKNOWN_STATE;
+
+	err = ar9170_usb_flush(&aru->common);
+	if (err)
+		dev_err(&aru->udev->dev, "stuck tx urbs!\n");
+
+	usb_poison_anchored_urbs(&aru->tx_submitted);
 	usb_poison_anchored_urbs(&aru->rx_submitted);
 }
 
@@ -388,12 +459,10 @@ err_free:
 	return err;
 }
 
-static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb,
-			 bool txstatus_needed, unsigned int extra_len)
+static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb)
 {
 	struct ar9170_usb *aru = (struct ar9170_usb *) ar;
 	struct urb *urb;
-	int err;
 
 	if (unlikely(!IS_STARTED(ar))) {
 		/* Seriously, what were you drink... err... thinking!? */
@@ -406,18 +475,17 @@ static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb,
 
 	usb_fill_bulk_urb(urb, aru->udev,
 			  usb_sndbulkpipe(aru->udev, AR9170_EP_TX),
-			  skb->data, skb->len + extra_len, (txstatus_needed ?
-			  ar9170_usb_tx_urb_complete :
-			  ar9170_usb_tx_urb_complete_free), skb);
+			  skb->data, skb->len,
+			  ar9170_usb_tx_urb_complete_frame, skb);
 	urb->transfer_flags |= URB_ZERO_PACKET;
 
-	usb_anchor_urb(urb, &aru->tx_submitted);
-	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (unlikely(err))
-		usb_unanchor_urb(urb);
+	usb_anchor_urb(urb, &aru->tx_pending);
+	aru->tx_pending_urbs++;
 
 	usb_free_urb(urb);
-	return err;
+
+	ar9170_usb_submit_urb(aru);
+	return 0;
 }
 
 static void ar9170_usb_callback_cmd(struct ar9170 *ar, u32 len , void *buffer)
@@ -617,10 +685,8 @@ static void ar9170_usb_stop(struct ar9170 *ar)
 	if (IS_ACCEPTING_CMD(ar))
 		aru->common.state = AR9170_STOPPED;
 
-	/* lets wait a while until the tx - queues are dried out */
-	ret = usb_wait_anchor_empty_timeout(&aru->tx_submitted,
-					    msecs_to_jiffies(1000));
-	if (ret == 0)
+	ret = ar9170_usb_flush(ar);
+	if (ret)
 		dev_err(&aru->udev->dev, "kill pending tx urbs.\n");
 
 	usb_poison_anchored_urbs(&aru->tx_submitted);
@@ -716,10 +782,16 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	SET_IEEE80211_DEV(ar->hw, &udev->dev);
 
 	init_usb_anchor(&aru->rx_submitted);
+	init_usb_anchor(&aru->tx_pending);
 	init_usb_anchor(&aru->tx_submitted);
 	init_completion(&aru->cmd_wait);
+	spin_lock_init(&aru->tx_urb_lock);
+
+	aru->tx_pending_urbs = 0;
+	aru->tx_submitted_urbs = 0;
 
 	aru->common.stop = ar9170_usb_stop;
+	aru->common.flush = ar9170_usb_flush;
 	aru->common.open = ar9170_usb_open;
 	aru->common.tx = ar9170_usb_tx;
 	aru->common.exec_cmd = ar9170_usb_exec_cmd;
