@@ -248,6 +248,11 @@ static inline void fw_unit_put(struct fw_unit *unit)
 	put_device(&unit->device);
 }
 
+static inline struct fw_device *fw_parent_device(struct fw_unit *unit)
+{
+	return fw_device(unit->device.parent);
+}
+
 struct ieee1394_device_id;
 
 struct fw_driver {

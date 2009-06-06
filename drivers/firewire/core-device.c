@@ -93,7 +93,7 @@ static int fw_unit_match(struct device *dev, struct device_driver *drv)
 	if (!is_fw_unit(dev))
 		return 0;
 
-	device = fw_device(unit->device.parent);
+	device = fw_parent_device(unit);
 	id = container_of(drv, struct fw_driver, driver)->id_table;
 
 	for (; id->match_flags != 0; id++) {
@@ -114,7 +114,7 @@ static int fw_unit_match(struct device *dev, struct device_driver *drv)
 
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 {
-	struct fw_device *device = fw_device(unit->device.parent);
+	struct fw_device *device = fw_parent_device(unit);
 	struct fw_csr_iterator ci;
 
 	int key, value;

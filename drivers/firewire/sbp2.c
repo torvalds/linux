@@ -180,6 +180,11 @@ struct sbp2_target {
 	int blocked;	/* ditto */
 };
 
+static struct fw_device *target_device(struct sbp2_target *tgt)
+{
+	return fw_parent_device(tgt->unit);
+}
+
 /* Impossible login_id, to detect logout attempt before successful login */
 #define INVALID_LOGIN_ID 0x10000
 
@@ -488,7 +493,7 @@ static void complete_transaction(struct fw_card *card, int rcode,
 static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 			  int node_id, int generation, u64 offset)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	unsigned long flags;
 
 	orb->pointer.high = 0;
@@ -510,7 +515,7 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 
 static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	struct sbp2_orb *orb, *next;
 	struct list_head list;
 	unsigned long flags;
@@ -548,7 +553,7 @@ static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 				    int generation, int function,
 				    int lun_or_login_id, void *response)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	struct sbp2_management_orb *orb;
 	unsigned int timeout;
 	int retval = -ENOMEM;
@@ -644,7 +649,7 @@ static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 
 static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	__be32 d = 0;
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
@@ -661,7 +666,7 @@ static void complete_agent_reset_write_no_wait(struct fw_card *card,
 
 static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	struct fw_transaction *t;
 	static __be32 d;
 
@@ -700,7 +705,7 @@ static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
 static void sbp2_conditionally_block(struct sbp2_logical_unit *lu)
 {
 	struct sbp2_target *tgt = lu->tgt;
-	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct fw_card *card = target_device(tgt)->card;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	unsigned long flags;
@@ -724,7 +729,7 @@ static void sbp2_conditionally_block(struct sbp2_logical_unit *lu)
 static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
 {
 	struct sbp2_target *tgt = lu->tgt;
-	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct fw_card *card = target_device(tgt)->card;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	unsigned long flags;
@@ -749,7 +754,7 @@ static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
  */
 static void sbp2_unblock(struct sbp2_target *tgt)
 {
-	struct fw_card *card = fw_device(tgt->unit->device.parent)->card;
+	struct fw_card *card = target_device(tgt)->card;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	unsigned long flags;
@@ -779,7 +784,7 @@ static void sbp2_release_target(struct kref *kref)
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	struct scsi_device *sdev;
-	struct fw_device *device = fw_device(tgt->unit->device.parent);
+	struct fw_device *device = target_device(tgt);
 
 	/* prevent deadlocks */
 	sbp2_unblock(tgt);
@@ -852,7 +857,7 @@ static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
  */
 static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 {
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	__be32 d = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
@@ -868,7 +873,7 @@ static void sbp2_login(struct work_struct *work)
 	struct sbp2_logical_unit *lu =
 		container_of(work, struct sbp2_logical_unit, work.work);
 	struct sbp2_target *tgt = lu->tgt;
-	struct fw_device *device = fw_device(tgt->unit->device.parent);
+	struct fw_device *device = target_device(tgt);
 	struct Scsi_Host *shost;
 	struct scsi_device *sdev;
 	struct sbp2_login_response response;
@@ -1116,7 +1121,7 @@ static struct scsi_host_template scsi_driver_template;
 static int sbp2_probe(struct device *dev)
 {
 	struct fw_unit *unit = fw_unit(dev);
-	struct fw_device *device = fw_device(unit->device.parent);
+	struct fw_device *device = fw_parent_device(unit);
 	struct sbp2_target *tgt;
 	struct sbp2_logical_unit *lu;
 	struct Scsi_Host *shost;
@@ -1197,7 +1202,7 @@ static void sbp2_reconnect(struct work_struct *work)
 	struct sbp2_logical_unit *lu =
 		container_of(work, struct sbp2_logical_unit, work.work);
 	struct sbp2_target *tgt = lu->tgt;
-	struct fw_device *device = fw_device(tgt->unit->device.parent);
+	struct fw_device *device = target_device(tgt);
 	int generation, node_id, local_node_id;
 
 	if (fw_device_is_shutdown(device))
@@ -1249,7 +1254,7 @@ static void sbp2_update(struct fw_unit *unit)
 	struct sbp2_target *tgt = unit->device.driver_data;
 	struct sbp2_logical_unit *lu;
 
-	fw_device_enable_phys_dma(fw_device(unit->device.parent));
+	fw_device_enable_phys_dma(fw_parent_device(unit));
 
 	/*
 	 * Fw-core serializes sbp2_update() against sbp2_remove().
@@ -1342,7 +1347,7 @@ static void complete_command_orb(struct sbp2_orb *base_orb,
 {
 	struct sbp2_command_orb *orb =
 		container_of(base_orb, struct sbp2_command_orb, base);
-	struct fw_device *device = fw_device(orb->lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(orb->lu->tgt);
 	int result;
 
 	if (status != NULL) {
@@ -1449,7 +1454,7 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
-	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	struct fw_device *device = target_device(lu->tgt);
 	struct sbp2_command_orb *orb;
 	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
