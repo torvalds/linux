@@ -9,6 +9,9 @@ struct symbol {
 	struct rb_node	rb_node;
 	__u64		start;
 	__u64		end;
+	__u64		obj_start;
+	__u64		hist_sum;
+	__u64		*hist;
 	char		name[0];
 };
 
@@ -19,6 +22,8 @@ struct dso {
 	struct symbol    *(*find_symbol)(struct dso *, uint64_t ip);
 	char		 name[0];
 };
+
+const char *sym_hist_filter;
 
 typedef int (*symbol_filter_t)(struct dso *self, struct symbol *sym);
 

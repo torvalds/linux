@@ -7,21 +7,36 @@
 #include <gelf.h>
 #include <elf.h>
 
+const char *sym_hist_filter;
+
 static struct symbol *symbol__new(uint64_t start, uint64_t len,
-				  const char *name, unsigned int priv_size)
+				  const char *name, unsigned int priv_size,
+				  uint64_t obj_start, int verbose)
 {
 	size_t namelen = strlen(name) + 1;
-	struct symbol *self = malloc(priv_size + sizeof(*self) + namelen);
+	struct symbol *self = calloc(1, priv_size + sizeof(*self) + namelen);
 
-	if (self != NULL) {
-		if (priv_size) {
-			memset(self, 0, priv_size);
-			self = ((void *)self) + priv_size;
-		}
-		self->start = start;
-		self->end   = start + len - 1;
-		memcpy(self->name, name, namelen);
+	if (!self)
+		return NULL;
+
+	if (verbose >= 2)
+		printf("new symbol: %016Lx [%08lx]: %s, hist: %p, obj_start: %p\n",
+			(__u64)start, len, name, self->hist, (void *)obj_start);
+
+	self->obj_start= obj_start;
+	self->hist = NULL;
+	self->hist_sum = 0;
+
+	if (sym_hist_filter && !strcmp(name, sym_hist_filter))
+		self->hist = calloc(sizeof(__u64), len);
+
+	if (priv_size) {
+		memset(self, 0, priv_size);
+		self = ((void *)self) + priv_size;
 	}
+	self->start = start;
+	self->end   = start + len - 1;
+	memcpy(self->name, name, namelen);
 
 	return self;
 }
@@ -166,7 +181,7 @@ static int dso__load_kallsyms(struct dso *self, symbol_filter_t filter, int verb
 		 * Well fix up the end later, when we have all sorted.
 		 */
 		sym = symbol__new(start, 0xdead, line + len + 2,
-				  self->sym_priv_size);
+				  self->sym_priv_size, 0, verbose);
 
 		if (sym == NULL)
 			goto out_delete_line;
@@ -272,7 +287,7 @@ static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 				       GElf_Ehdr *ehdr, Elf_Scn *scn_dynsym,
 				       GElf_Shdr *shdr_dynsym,
-				       size_t dynsym_idx)
+				       size_t dynsym_idx, int verbose)
 {
 	uint32_t nr_rel_entries, idx;
 	GElf_Sym sym;
@@ -335,7 +350,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size);
+					sympltname, self->sym_priv_size, 0, verbose);
 			if (!f)
 				return -1;
 
@@ -353,7 +368,7 @@ static int dso__synthesize_plt_symbols(struct  dso *self, Elf *elf,
 				 "%s@plt", elf_sym__name(&sym, symstrs));
 
 			f = symbol__new(plt_offset, shdr_plt.sh_entsize,
-					sympltname, self->sym_priv_size);
+					sympltname, self->sym_priv_size, 0, verbose);
 			if (!f)
 				return -1;
 
@@ -410,7 +425,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 	if (sec_dynsym != NULL) {
 		nr = dso__synthesize_plt_symbols(self, elf, &ehdr,
 						 sec_dynsym, &shdr,
-						 dynsym_idx);
+						 dynsym_idx, verbose);
 		if (nr < 0)
 			goto out_elf_end;
 	}
@@ -444,6 +459,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
+		uint64_t obj_start;
 
 		if (!elf_sym__is_function(&sym))
 			continue;
@@ -453,11 +469,13 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 			goto out_elf_end;
 
 		gelf_getshdr(sec, &shdr);
+		obj_start = sym.st_value;
+
 		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 
 		f = symbol__new(sym.st_value, sym.st_size,
 				elf_sym__name(&sym, symstrs),
-				self->sym_priv_size);
+				self->sym_priv_size, obj_start, verbose);
 		if (!f)
 			goto out_elf_end;
 

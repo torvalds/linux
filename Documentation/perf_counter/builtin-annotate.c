@@ -28,7 +28,7 @@
 static char		const *input_name = "perf.data";
 static char		*vmlinux = NULL;
 
-static char		default_sort_order[] = "comm,dso";
+static char		default_sort_order[] = "comm,symbol";
 static char		*sort_order = default_sort_order;
 
 static int		input;
@@ -38,7 +38,6 @@ static int		dump_trace = 0;
 #define dprintf(x...)	do { if (dump_trace) printf(x); } while (0)
 
 static int		verbose;
-static int		full_paths;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -88,6 +87,7 @@ typedef union event_union {
 static LIST_HEAD(dsos);
 static struct dso *kernel_dso;
 static struct dso *vdso;
+
 
 static void dsos__add(struct dso *dso)
 {
@@ -176,20 +176,6 @@ static int load_kernel(void)
 	return err;
 }
 
-static char __cwd[PATH_MAX];
-static char *cwd = __cwd;
-static int cwdlen;
-
-static int strcommon(const char *pathname)
-{
-	int n = 0;
-
-	while (pathname[n] == cwd[n] && n < cwdlen)
-		++n;
-
-	return n;
-}
-
 struct map {
 	struct list_head node;
 	uint64_t	 start;
@@ -215,17 +201,6 @@ static struct map *map__new(struct mmap_event *event)
 
 	if (self != NULL) {
 		const char *filename = event->filename;
-		char newfilename[PATH_MAX];
-
-		if (cwd) {
-			int n = strcommon(filename);
-
-			if (n == cwdlen) {
-				snprintf(newfilename, sizeof(newfilename),
-					 ".%s", filename + n);
-				filename = newfilename;
-			}
-		}
 
 		self->start = event->start;
 		self->end   = event->start + event->len;
@@ -669,43 +644,35 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	return cmp;
 }
 
-static size_t
-hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
-{
-	struct sort_entry *se;
-	size_t ret;
-
-	if (total_samples) {
-		double percent = self->count * 100.0 / total_samples;
-		char *color = PERF_COLOR_NORMAL;
-
-		/*
-		 * We color high-overhead entries in red, low-overhead
-		 * entries in green - and keep the middle ground normal:
-		 */
-		if (percent >= 5.0)
-			color = PERF_COLOR_RED;
-		if (percent < 0.5)
-			color = PERF_COLOR_GREEN;
-
-		ret = color_fprintf(fp, color, "   %6.2f%%",
-				(self->count * 100.0) / total_samples);
-	} else
-		ret = fprintf(fp, "%12d ", self->count);
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		fprintf(fp, "  ");
-		ret += se->print(fp, self);
-	}
-
-	ret += fprintf(fp, "\n");
-
-	return ret;
-}
-
 /*
  * collect histogram counts
  */
+static void hist_hit(struct hist_entry *he, uint64_t ip)
+{
+	unsigned int sym_size, offset;
+	struct symbol *sym = he->sym;
+
+	he->count++;
+
+	if (!sym || !sym->hist)
+		return;
+
+	sym_size = sym->end - sym->start;
+	offset = ip - sym->start;
+
+	if (offset >= sym_size)
+		return;
+
+	sym->hist_sum++;
+	sym->hist[offset]++;
+
+	if (verbose >= 3)
+		printf("%p %s: count++ [ip: %p, %08Lx] => %Ld\n",
+			(void *)he->sym->start,
+			he->sym->name,
+			(void *)ip, ip - he->sym->start,
+			sym->hist[offset]);
+}
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
@@ -732,7 +699,8 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		cmp = hist_entry__cmp(&entry, he);
 
 		if (!cmp) {
-			he->count++;
+			hist_hit(he, ip);
+
 			return 0;
 		}
 
@@ -854,50 +822,6 @@ static void output__resort(void)
 		rb_erase(&n->rb_node, tree);
 		output__insert_entry(n);
 	}
-}
-
-static size_t output__fprintf(FILE *fp, uint64_t total_samples)
-{
-	struct hist_entry *pos;
-	struct sort_entry *se;
-	struct rb_node *nd;
-	size_t ret = 0;
-
-	fprintf(fp, "\n");
-	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld samples)\n", (__u64)total_samples);
-	fprintf(fp, "#\n");
-
-	fprintf(fp, "# Overhead");
-	list_for_each_entry(se, &hist_entry__sort_list, list)
-		fprintf(fp, "  %s", se->header);
-	fprintf(fp, "\n");
-
-	fprintf(fp, "# ........");
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		int i;
-
-		fprintf(fp, "  ");
-		for (i = 0; i < strlen(se->header); i++)
-			fprintf(fp, ".");
-	}
-	fprintf(fp, "\n");
-
-	fprintf(fp, "#\n");
-
-	for (nd = rb_first(&output_hists); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct hist_entry, rb_node);
-		ret += hist_entry__fprintf(fp, pos, total_samples);
-	}
-
-	if (!strcmp(sort_order, default_sort_order)) {
-		fprintf(fp, "#\n");
-		fprintf(fp, "# (For more details, try: perf annotate --sort comm,dso,symbol)\n");
-		fprintf(fp, "#\n");
-	}
-	fprintf(fp, "\n");
-
-	return ret;
 }
 
 static void register_idle_thread(void)
@@ -1106,6 +1030,149 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
+static int
+parse_line(FILE *file, struct symbol *sym, uint64_t start, uint64_t len)
+{
+	char *line = NULL, *tmp, *tmp2;
+	unsigned int offset;
+	size_t line_len;
+	__u64 line_ip;
+	int ret;
+	char *c;
+
+	if (getline(&line, &line_len, file) < 0)
+		return -1;
+	if (!line)
+		return -1;
+
+	c = strchr(line, '\n');
+	if (c)
+		*c = 0;
+
+	line_ip = -1;
+	offset = 0;
+	ret = -2;
+
+	/*
+	 * Strip leading spaces:
+	 */
+	tmp = line;
+	while (*tmp) {
+		if (*tmp != ' ')
+			break;
+		tmp++;
+	}
+
+	if (*tmp) {
+		/*
+		 * Parse hexa addresses followed by ':'
+		 */
+		line_ip = strtoull(tmp, &tmp2, 16);
+		if (*tmp2 != ':')
+			line_ip = -1;
+	}
+
+	if (line_ip != -1) {
+		unsigned int hits = 0;
+		double percent = 0.0;
+		char *color = PERF_COLOR_NORMAL;
+
+		offset = line_ip - start;
+		if (offset < len)
+			hits = sym->hist[offset];
+
+		if (sym->hist_sum)
+			percent = 100.0 * hits / sym->hist_sum;
+
+		/*
+		 * We color high-overhead entries in red, low-overhead
+		 * entries in green - and keep the middle ground normal:
+		 */
+		if (percent >= 5.0)
+			color = PERF_COLOR_RED;
+		else {
+			if (percent > 0.5)
+				color = PERF_COLOR_GREEN;
+		}
+
+		color_fprintf(stdout, color, " %7.2f", percent);
+		printf(" :	");
+		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", line);
+	} else {
+		if (!*line)
+			printf("         :\n");
+		else
+			printf("         :	%s\n", line);
+	}
+
+	return 0;
+}
+
+static void annotate_sym(struct dso *dso, struct symbol *sym)
+{
+	char *filename = dso->name;
+	uint64_t start, end, len;
+	char command[PATH_MAX*2];
+	FILE *file;
+
+	if (!filename)
+		return;
+	if (dso == kernel_dso)
+		filename = vmlinux;
+
+	printf("\n------------------------------------------------\n");
+	printf(" Percent |	Source code & Disassembly of %s\n", filename);
+	printf("------------------------------------------------\n");
+
+	if (verbose >= 2)
+		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
+
+	start = sym->obj_start;
+	if (!start)
+		start = sym->start;
+
+	end = start + sym->end - sym->start + 1;
+	len = sym->end - sym->start;
+
+	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (__u64)start, (__u64)end, filename);
+
+	if (verbose >= 3)
+		printf("doing: %s\n", command);
+
+	file = popen(command, "r");
+	if (!file)
+		return;
+
+	while (!feof(file)) {
+		if (parse_line(file, sym, start, len) < 0)
+			break;
+	}
+
+	pclose(file);
+}
+
+static void find_annotations(void)
+{
+	struct rb_node *nd;
+	struct dso *dso;
+	int count = 0;
+
+	list_for_each_entry(dso, &dsos, node) {
+
+		for (nd = rb_first(&dso->syms); nd; nd = rb_next(nd)) {
+			struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
+
+			if (sym->hist) {
+				annotate_sym(dso, sym);
+				count++;
+			}
+		}
+	}
+
+	if (!count)
+		printf(" Error: symbol '%s' not present amongst the samples.\n", sym_hist_filter);
+}
+
 static int __cmd_annotate(void)
 {
 	int ret, rc = EXIT_FAILURE;
@@ -1140,16 +1207,6 @@ static int __cmd_annotate(void)
 		return EXIT_FAILURE;
 	}
 
-	if (!full_paths) {
-		if (getcwd(__cwd, sizeof(__cwd)) == NULL) {
-			perror("failed to get the current directory");
-			return EXIT_FAILURE;
-		}
-		cwdlen = strlen(cwd);
-	} else {
-		cwd = NULL;
-		cwdlen = 0;
-	}
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
@@ -1229,7 +1286,8 @@ more:
 
 	collapse__resort();
 	output__resort();
-	output__fprintf(stdout, total);
+
+	find_annotations();
 
 	return rc;
 }
@@ -1242,15 +1300,13 @@ static const char * const annotate_usage[] = {
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
+	OPT_STRING('s', "symbol", &sym_hist_filter, "file",
+		    "symbol to annotate"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
-	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
-		   "sort by key(s): pid, comm, dso, symbol. Default: pid,symbol"),
-	OPT_BOOLEAN('P', "full-paths", &full_paths,
-		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_END()
 };
 
@@ -1279,10 +1335,18 @@ int cmd_annotate(int argc, const char **argv, const char *prefix)
 
 	setup_sorting();
 
-	/*
-	 * Any (unrecognized) arguments left?
-	 */
-	if (argc)
+	if (argc) {
+		/*
+		 * Special case: if there's an argument left then assume tha
+		 * it's a symbol filter:
+		 */
+		if (argc > 1)
+			usage_with_options(annotate_usage, options);
+
+		sym_hist_filter = argv[0];
+	}
+
+	if (!sym_hist_filter)
 		usage_with_options(annotate_usage, options);
 
 	setup_pager();

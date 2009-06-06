@@ -3,7 +3,7 @@ perf-annotate(1)
 
 NAME
 ----
-perf-annotate - Read perf.data (created by perf record) and annotate functions
+perf-annotate - Read perf.data (created by perf record) and display annotated code
 
 SYNOPSIS
 --------
@@ -12,8 +12,11 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command displays the performance counter profile information recorded
-via perf record.
+This command reads the input file and displays an annotated version of the
+code. If the object file has debug symbols then the source code will be
+displayed alongside assembly code.
+
+If there is no debug info in the object, then annotated assembly is displayed.
 
 OPTIONS
 -------
