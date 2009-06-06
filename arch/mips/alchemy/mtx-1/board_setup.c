@@ -28,6 +28,7 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
 
 #include <asm/mach-au1x00/au1000.h>
@@ -55,10 +56,11 @@ void __init board_setup(void)
 	}
 #endif
 
+	alchemy_gpio2_enable();
+
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	/* Enable USB power switch */
-	au_writel(au_readl(GPIO2_DIR) | 0x10, GPIO2_DIR);
-	au_writel(0x100000, GPIO2_OUTPUT);
+	alchemy_gpio_direction_output(204, 0);
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 #ifdef CONFIG_PCI
@@ -74,14 +76,14 @@ void __init board_setup(void)
 
 	/* Initialize GPIO */
 	au_writel(0xFFFFFFFF, SYS_TRIOUTCLR);
-	au_writel(0x00000001, SYS_OUTPUTCLR); /* set M66EN (PCI 66MHz) to OFF */
-	au_writel(0x00000008, SYS_OUTPUTSET); /* set PCI CLKRUN# to OFF */
-	au_writel(0x00000002, SYS_OUTPUTSET); /* set EXT_IO3 ON */
-	au_writel(0x00000020, SYS_OUTPUTCLR); /* set eth PHY TX_ER to OFF */
+	alchemy_gpio_direction_output(0, 0);	/* Disable M66EN (PCI 66MHz) */
+	alchemy_gpio_direction_output(3, 1);	/* Disable PCI CLKRUN# */
+	alchemy_gpio_direction_output(1, 1);	/* Enable EXT_IO3 */
+	alchemy_gpio_direction_output(5, 0);	/* Disable eth PHY TX_ER */
 
 	/* Enable LED and set it to green */
-	au_writel(au_readl(GPIO2_DIR) | 0x1800, GPIO2_DIR);
-	au_writel(0x18000800, GPIO2_OUTPUT);
+	alchemy_gpio_direction_output(211, 1);	/* green on */
+	alchemy_gpio_direction_output(212, 0);	/* red off */
 
 	board_pci_idsel = mtx1_pci_idsel;
 
@@ -101,10 +103,10 @@ mtx1_pci_idsel(unsigned int devsel, int assert)
 
 	if (assert && devsel != 0)
 		/* Suppress signal to Cardbus */
-		au_writel(0x00000002, SYS_OUTPUTCLR); /* set EXT_IO3 OFF */
+		gpio_set_value(1, 0);	/* set EXT_IO3 OFF */
 	else
-		au_writel(0x00000002, SYS_OUTPUTSET); /* set EXT_IO3 ON */
+		gpio_set_value(1, 1);	/* set EXT_IO3 ON */
+
 	au_sync_udelay(1);
 	return 1;
 }
-
