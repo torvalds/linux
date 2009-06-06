@@ -661,7 +661,7 @@ static void intel_ds_init(void)
 
 #else /* CONFIG_CPU_SUP_INTEL */
 
-static int reseve_ds_buffers(void)
+static int reserve_ds_buffers(void)
 {
 	return 0;
 }
