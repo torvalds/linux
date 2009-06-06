@@ -53,45 +53,45 @@ static struct event_symbol event_symbols[] = {
 #define PERF_COUNTER_ID(config)		__PERF_COUNTER_FIELD(config, EVENT)
 
 static char *hw_event_names[] = {
-	"CPU cycles",
+	"cycles",
 	"instructions",
-	"cache references",
-	"cache misses",
+	"cache-references",
+	"cache-misses",
 	"branches",
-	"branch misses",
-	"bus cycles",
+	"branch-misses",
+	"bus-cycles",
 };
 
 static char *sw_event_names[] = {
-	"cpu clock ticks",
-	"task clock ticks",
-	"pagefaults",
-	"context switches",
-	"CPU migrations",
-	"minor faults",
-	"major faults",
+	"cpu-clock-ticks",
+	"task-clock-ticks",
+	"page-faults",
+	"context-switches",
+	"CPU-migrations",
+	"minor-faults",
+	"major-faults",
 };
 
 #define MAX_ALIASES 8
 
 static char *hw_cache [][MAX_ALIASES] = {
-	{ "l1-d" ,	"l1d" ,	"l1", "l1-data-cache"			},
-	{ "l1-i" ,	"l1i" ,	"l1-instruction-cache"		},
-	{ "l2"  , },
-	{ "dtlb", },
-	{ "itlb", },
-	{ "bpu" , "btb", "branch-cache", NULL },
+	{ "L1-data"		, "l1-d", "l1d", "l1"				},
+	{ "L1-instruction"	, "l1-i", "l1i"					},
+	{ "L2"			, "l2"						},
+	{ "Data-TLB"		, "dtlb", "d-tlb"				},
+	{ "Instruction-TLB"	, "itlb", "i-tlb"				},
+	{ "Branch"		, "bpu" , "btb", "bpc"				},
 };
 
 static char *hw_cache_op [][MAX_ALIASES] = {
-	{ "read"	, "load" },
-	{ "write"	, "store" },
-	{ "prefetch"	, "speculative-read", "speculative-load" },
+	{ "Load"		, "read"					},
+	{ "Store"		, "write"					},
+	{ "Prefetch"		, "speculative-read", "speculative-load"	},
 };
 
 static char *hw_cache_result [][MAX_ALIASES] = {
-	{ "access", "ops" },
-	{ "miss", },
+	{ "Reference"		, "ops", "access"				},
+	{ "Miss"								},
 };
 
 char *event_name(int counter)
@@ -120,14 +120,14 @@ char *event_name(int counter)
 			return "unknown-ext-hardware-cache-type";
 
 		cache_op     = (config >>  8) & 0xff;
-		if (cache_type > PERF_COUNT_HW_CACHE_OP_MAX)
-			return "unknown-ext-hardware-cache-op-type";
+		if (cache_op > PERF_COUNT_HW_CACHE_OP_MAX)
+			return "unknown-ext-hardware-cache-op";
 
 		cache_result = (config >> 16) & 0xff;
-		if (cache_type > PERF_COUNT_HW_CACHE_RESULT_MAX)
-			return "unknown-ext-hardware-cache-result-type";
+		if (cache_result > PERF_COUNT_HW_CACHE_RESULT_MAX)
+			return "unknown-ext-hardware-cache-result";
 
-		sprintf(name, "%s:%s:%s",
+		sprintf(name, "%s-Cache-%s-%ses",
 			hw_cache[cache_type][0],
 			hw_cache_op[cache_op][0],
 			hw_cache_result[cache_result][0]);
