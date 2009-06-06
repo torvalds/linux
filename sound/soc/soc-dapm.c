@@ -12,7 +12,7 @@
  *  Features:
  *    o Changes power status of internal codec blocks depending on the
  *      dynamic configuration of codec internal audio paths and active
- *      DAC's/ADC's.
+ *      DACs/ADCs.
  *    o Platform power domain - can support external components i.e. amps and
  *      mic/meadphone insertion events.
  *    o Automatic Mic Bias support
@@ -220,7 +220,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	}
 }
 
-/* connect mux widget to it's interconnecting audio paths */
+/* connect mux widget to its interconnecting audio paths */
 static int dapm_connect_mux(struct snd_soc_codec *codec,
 	struct snd_soc_dapm_widget *src, struct snd_soc_dapm_widget *dest,
 	struct snd_soc_dapm_path *path, const char *control_name,
@@ -243,7 +243,7 @@ static int dapm_connect_mux(struct snd_soc_codec *codec,
 	return -ENODEV;
 }
 
-/* connect mixer widget to it's interconnecting audio paths */
+/* connect mixer widget to its interconnecting audio paths */
 static int dapm_connect_mixer(struct snd_soc_codec *codec,
 	struct snd_soc_dapm_widget *src, struct snd_soc_dapm_widget *dest,
 	struct snd_soc_dapm_path *path, const char *control_name)
@@ -1797,7 +1797,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
  * @codec: SoC codec
  * @pin: pin name
  *
- * Enables input/output pin and it's parents or children widgets iff there is
+ * Enables input/output pin and its parents or children widgets iff there is
  * a valid audio route and active audio stream.
  * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
  * do any widget power switching.
@@ -1813,7 +1813,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_enable_pin);
  * @codec: SoC codec
  * @pin: pin name
  *
- * Disables input/output pin and it's parents or children widgets.
+ * Disables input/output pin and its parents or children widgets.
  * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
  * do any widget power switching.
  */
