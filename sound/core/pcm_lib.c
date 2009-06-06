@@ -371,7 +371,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
 
-	if (runtime->status->hw_ptr != new_hw_ptr)
+	if (runtime->status->hw_ptr == new_hw_ptr)
 		return 0;
 
 	runtime->hw_ptr_base = hw_base;
