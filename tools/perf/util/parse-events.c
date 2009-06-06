@@ -160,12 +160,12 @@ static int parse_aliases(const char *str, char *names[][MAX_ALIASES], int size)
 		}
 	}
 
-	return 0;
+	return -1;
 }
 
 static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
 {
-	__u8 cache_type = -1, cache_op = 0, cache_result = 0;
+	int cache_type = -1, cache_op = 0, cache_result = 0;
 
 	cache_type = parse_aliases(str, hw_cache, PERF_COUNT_HW_CACHE_MAX);
 	/*
@@ -179,8 +179,8 @@ static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *a
 	/*
 	 * Fall back to reads:
 	 */
-	if (cache_type == -1)
-		cache_type = PERF_COUNT_HW_CACHE_OP_READ;
+	if (cache_op == -1)
+		cache_op = PERF_COUNT_HW_CACHE_OP_READ;
 
 	cache_result = parse_aliases(str, hw_cache_result,
 					PERF_COUNT_HW_CACHE_RESULT_MAX);
