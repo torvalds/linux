@@ -1978,6 +1978,9 @@ void em28xx_card_setup(struct em28xx *dev)
 	if (em28xx_boards[dev->model].tuner_addr)
 		dev->tuner_addr = em28xx_boards[dev->model].tuner_addr;
 
+	if (em28xx_boards[dev->model].tda9887_conf)
+		dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
+
 	/* request some modules */
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
