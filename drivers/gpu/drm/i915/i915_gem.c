@@ -3050,19 +3050,11 @@ i915_dispatch_gem_execbuffer(struct drm_device *dev,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int nbox = exec->num_cliprects;
 	int i = 0, count;
-	uint32_t	exec_start, exec_len;
+	uint32_t exec_start, exec_len;
 	RING_LOCALS;
 
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 	exec_len = (uint32_t) exec->batch_len;
-
-	if ((exec_start | exec_len) & 0x7) {
-		DRM_ERROR("alignment\n");
-		return -EINVAL;
-	}
-
-	if (!exec_start)
-		return -EINVAL;
 
 	count = nbox ? nbox : 1;
 
@@ -3209,6 +3201,24 @@ err:
 	drm_free_large(relocs);
 
 	return ret;
+}
+
+static int
+i915_gem_check_execbuffer (struct drm_i915_gem_execbuffer *exec,
+			   uint64_t exec_offset)
+{
+	uint32_t exec_start, exec_len;
+
+	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
+	exec_len = (uint32_t) exec->batch_len;
+
+	if ((exec_start | exec_len) & 0x7)
+		return -EINVAL;
+
+	if (!exec_start)
+		return -EINVAL;
+
+	return 0;
 }
 
 int
@@ -3362,6 +3372,14 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	batch_obj->pending_read_domains = I915_GEM_DOMAIN_COMMAND;
 	batch_obj->pending_write_domain = 0;
 
+	/* Sanity check the batch buffer, prior to moving objects */
+	exec_offset = exec_list[args->buffer_count - 1].offset;
+	ret = i915_gem_check_execbuffer (args, exec_offset);
+	if (ret != 0) {
+		DRM_ERROR("execbuf with invalid offset/length\n");
+		goto err;
+	}
+
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
 	/* Zero the global flush/invalidate flags. These
@@ -3409,8 +3427,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 						exec_list[i].handle);
 	}
 #endif
-
-	exec_offset = exec_list[args->buffer_count - 1].offset;
 
 #if WATCH_EXEC
 	i915_gem_dump_object(batch_obj,
