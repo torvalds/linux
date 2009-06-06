@@ -5,7 +5,7 @@
 
 #define EX_ST(x)		\
 98:	x;			\
-	.section .fixup;	\
+	.section .fixup,"ax";	\
 	.align 4;		\
 99:	retl;			\
 	 mov	-1, %o0;	\

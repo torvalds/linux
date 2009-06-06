@@ -99,6 +99,8 @@ extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_framebuffer *old_fb);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
 
+extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
+
 extern int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 					  struct drm_mode_fb_cmd *mode_cmd);
 

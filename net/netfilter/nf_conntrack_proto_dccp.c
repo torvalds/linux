@@ -22,6 +22,7 @@
 #include <linux/netfilter/nfnetlink_conntrack.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_log.h>
 
 static DEFINE_RWLOCK(dccp_lock);
@@ -552,6 +553,9 @@ static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 	ct->proto.dccp.last_pkt = type;
 	ct->proto.dccp.state = new_state;
 	write_unlock_bh(&dccp_lock);
+
+	if (new_state != old_state)
+		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
 
 	dn = dccp_pernet(net);
 	nf_ct_refresh_acct(ct, ctinfo, skb, dn->dccp_timeout[new_state]);

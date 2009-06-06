@@ -71,6 +71,8 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	{USB_DEVICE(0x18E8, 0x6232), .driver_info = DEVICE_RTL8187},
 	/* AirLive */
 	{USB_DEVICE(0x1b75, 0x8187), .driver_info = DEVICE_RTL8187},
+	/* Linksys */
+	{USB_DEVICE(0x1737, 0x0073), .driver_info = DEVICE_RTL8187B},
 	{}
 };
 

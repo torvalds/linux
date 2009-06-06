@@ -90,9 +90,6 @@ static void add_conn(struct work_struct *work)
 	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
 	struct hci_dev *hdev = conn->hdev;
 
-	/* ensure previous del is complete */
-	flush_work(&conn->work_del);
-
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
 	if (device_add(&conn->dev) < 0) {
@@ -117,9 +114,6 @@ static void del_conn(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn, work_del);
 	struct hci_dev *hdev = conn->hdev;
-
-	/* ensure previous add is complete */
-	flush_work(&conn->work_add);
 
 	if (!device_is_registered(&conn->dev))
 		return;
