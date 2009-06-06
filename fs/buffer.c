@@ -2736,6 +2736,8 @@ has_buffers:
 		pos += blocksize;
 	}
 
+	map_bh.b_size = blocksize;
+	map_bh.b_state = 0;
 	err = get_block(inode, iblock, &map_bh, 0);
 	if (err)
 		goto unlock;
