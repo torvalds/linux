@@ -3701,15 +3701,14 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
 
-	mutex_lock(&dev->struct_mutex);
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
 		DRM_ERROR("Bad handle in i915_gem_busy_ioctl(): %d\n",
 			  args->handle);
-		mutex_unlock(&dev->struct_mutex);
 		return -EBADF;
 	}
 
+	mutex_lock(&dev->struct_mutex);
 	/* Update the active list for the hardware's current position.
 	 * Otherwise this only updates on a delayed timer or when irqs are
 	 * actually unmasked, and our working set ends up being larger than
