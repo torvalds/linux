@@ -1,0 +1,26 @@
+perf-annotate(1)
+==============
+
+NAME
+----
+perf-annotate - Read perf.data (created by perf record) and annotate functions
+
+SYNOPSIS
+--------
+[verse]
+'perf annotate' [-i <file> | --input=file] symbol_name
+
+DESCRIPTION
+-----------
+This command displays the performance counter profile information recorded
+via perf record.
+
+OPTIONS
+-------
+-i::
+--input=::
+        Input file name. (default: perf.data)
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

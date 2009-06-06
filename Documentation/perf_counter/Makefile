@@ -323,12 +323,13 @@ LIB_OBJS += util/symbol.o
 LIB_OBJS += util/color.o
 LIB_OBJS += util/pager.o
 
+BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o
+BUILTIN_OBJS += builtin-list.o
 BUILTIN_OBJS += builtin-record.o
 BUILTIN_OBJS += builtin-report.o
 BUILTIN_OBJS += builtin-stat.o
 BUILTIN_OBJS += builtin-top.o
-BUILTIN_OBJS += builtin-list.o
 
 PERFLIBS = $(LIB_FILE)
 EXTLIBS =

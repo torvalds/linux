@@ -263,6 +263,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "report", cmd_report, 0 },
 		{ "stat", cmd_stat, 0 },
 		{ "top", cmd_top, 0 },
+		{ "annotate", cmd_annotate, 0 },
 		{ "version", cmd_version, 0 },
 	};
 	int i;
@@ -402,9 +403,11 @@ int main(int argc, const char **argv)
 	while (1) {
 		static int done_help = 0;
 		static int was_alias = 0;
+
 		was_alias = run_argv(&argc, &argv);
 		if (errno != ENOENT)
 			break;
+
 		if (was_alias) {
 			fprintf(stderr, "Expansion of alias '%s' failed; "
 				"'%s' is not a perf-command\n",
