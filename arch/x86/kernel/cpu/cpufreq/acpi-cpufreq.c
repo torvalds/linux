@@ -550,7 +550,7 @@ static int __init acpi_cpufreq_early_init(void)
 		return -ENOMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!alloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_node(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
 			GFP_KERNEL, cpu_to_node(i))) {
 
