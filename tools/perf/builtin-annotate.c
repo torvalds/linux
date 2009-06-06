@@ -668,9 +668,9 @@ static void hist_hit(struct hist_entry *he, uint64_t ip)
 
 	if (verbose >= 3)
 		printf("%p %s: count++ [ip: %p, %08Lx] => %Ld\n",
-			(void *)he->sym->start,
+			(void *)(unsigned long)he->sym->start,
 			he->sym->name,
-			(void *)ip, ip - he->sym->start,
+			(void *)(unsigned long)ip, ip - he->sym->start,
 			sym->hist[offset]);
 }
 

@@ -21,7 +21,7 @@ static struct symbol *symbol__new(uint64_t start, uint64_t len,
 
 	if (verbose >= 2)
 		printf("new symbol: %016Lx [%08lx]: %s, hist: %p, obj_start: %p\n",
-			(__u64)start, len, name, self->hist, (void *)obj_start);
+			(__u64)start, (unsigned long)len, name, self->hist, (void *)(unsigned long)obj_start);
 
 	self->obj_start= obj_start;
 	self->hist = NULL;
