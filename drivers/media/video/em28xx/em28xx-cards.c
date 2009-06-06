@@ -109,6 +109,24 @@ static struct em28xx_reg_seq em2880_msi_digivox_ad_analog[] = {
 /* Board  - EM2870 Kworld 355u
    Analog - No input analog */
 
+/* Board - EM2882 Kworld 315U digital */
+static struct em28xx_reg_seq em2882_kworld_315u_digital[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{EM28XX_R08_GPIO,	0xfe,	0xff,		10},
+	{EM2880_R04_GPO,	0x04,	0xff,		10},
+	{EM2880_R04_GPO,	0x0c,	0xff,		10},
+	{EM28XX_R08_GPIO,	0x7e,	0xff,		10},
+	{  -1,			-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq em2882_kworld_315u_tuner_gpio[] = {
+	{EM2880_R04_GPO,	0x08,	0xff,		10},
+	{EM2880_R04_GPO,	0x0c,	0xff,		10},
+	{EM2880_R04_GPO,	0x08,	0xff,		10},
+	{EM2880_R04_GPO,	0x0c,	0xff,		10},
+	{  -1,			-1,	-1,		-1},
+};
+
 static struct em28xx_reg_seq kworld_330u_analog[] = {
 	{EM28XX_R08_GPIO,	0x6d,	~EM_GPIO_4,	10},
 	{EM2880_R04_GPO,	0x00,	0xff,		10},
@@ -1111,6 +1129,38 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = default_analog,
 		} },
 	},
+	[EM2882_BOARD_KWORLD_ATSC_315U] = {
+		.name		= "KWorld ATSC 315U HDTV TV Box",
+		.valid		= EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type	= TUNER_THOMSON_DTT761X,
+		.tuner_gpio	= em2882_kworld_315u_tuner_gpio,
+		.tda9887_conf	= TDA9887_PRESENT,
+		.decoder	= EM28XX_SAA711X,
+		.has_dvb	= 1,
+		.dvb_gpio	= em2882_kworld_315u_digital,
+		.xclk		= EM28XX_XCLK_FREQUENCY_12MHZ,
+		.i2c_speed	= EM28XX_I2C_CLK_WAIT_ENABLE,
+		/* Analog mode - still not ready */
+		/*.input        = { {
+			.type = EM28XX_VMUX_TELEVISION,
+			.vmux = SAA7115_COMPOSITE2,
+			.amux = EM28XX_AMUX_VIDEO,
+			.gpio = em2882_kworld_315u_analog,
+			.aout = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
+		}, {
+			.type = EM28XX_VMUX_COMPOSITE1,
+			.vmux = SAA7115_COMPOSITE0,
+			.amux = EM28XX_AMUX_LINE_IN,
+			.gpio = em2882_kworld_315u_analog1,
+			.aout = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
+		}, {
+			.type = EM28XX_VMUX_SVIDEO,
+			.vmux = SAA7115_SVIDEO3,
+			.amux = EM28XX_AMUX_LINE_IN,
+			.gpio = em2882_kworld_315u_analog1,
+			.aout = EM28XX_AOUT_PCM_IN | EM28XX_AOUT_PCM_STEREO,
+		} }, */
+	},
 	[EM2880_BOARD_EMPIRE_DUAL_TV] = {
 		.name = "Empire dual TV",
 		.tuner_type = TUNER_XC2028,
@@ -1432,6 +1482,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2880_BOARD_KWORLD_DVB_305U },
 	{ USB_DEVICE(0xeb1a, 0xe310),
 			.driver_info = EM2880_BOARD_MSI_DIGIVOX_AD },
+	{ USB_DEVICE(0xeb1a, 0xa313),
+		.driver_info = EM2882_BOARD_KWORLD_ATSC_315U },
 	{ USB_DEVICE(0xeb1a, 0xa316),
 			.driver_info = EM2883_BOARD_KWORLD_HYBRID_330U },
 	{ USB_DEVICE(0xeb1a, 0xe320),
@@ -1699,6 +1751,17 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2820_BOARD_MSI_VOX_USB_2:
 		/* enables audio for that devices */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
+		break;
+
+	case EM2882_BOARD_KWORLD_ATSC_315U:
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
+		msleep(10);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
+		msleep(10);
+		em28xx_write_reg(dev, EM2880_R04_GPO, 0x00);
+		msleep(10);
+		em28xx_write_reg(dev, EM2880_R04_GPO, 0x08);
+		msleep(10);
 		break;
 
 	case EM2860_BOARD_KAIOMY_TVNPC_U2:
@@ -2010,6 +2073,12 @@ void em28xx_card_setup(struct em28xx *dev)
 #endif
 		break;
 	}
+	case EM2882_BOARD_KWORLD_ATSC_315U:
+		em28xx_write_reg(dev, 0x0d, 0x42);
+		msleep(10);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
+		msleep(10);
+		break;
 	case EM2820_BOARD_KWORLD_PVRTV2800RF:
 		/* GPIO enables sound on KWORLD PVR TV 2800RF */
 		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf9);

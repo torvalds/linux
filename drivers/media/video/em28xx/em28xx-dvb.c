@@ -25,6 +25,8 @@
 #include "em28xx.h"
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
+#include <media/tuner.h>
+#include "tuner-simple.h"
 
 #include "lgdt330x.h"
 #include "zl10353.h"
@@ -449,6 +451,18 @@ static int dvb_init(struct em28xx *dev)
 		if (attach_xc3028(0x61, dev) < 0) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM2882_BOARD_KWORLD_ATSC_315U:
+		dvb->frontend = dvb_attach(lgdt330x_attach,
+					   &em2880_lgdt3303_dev,
+					   &dev->i2c_adap);
+		if (dvb->frontend != NULL) {
+			if (!dvb_attach(simple_tuner_attach, dvb->frontend,
+				&dev->i2c_adap, 0x61, TUNER_THOMSON_DTT761X)) {
+				result = -EINVAL;
+				goto out_free;
+			}
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2:
