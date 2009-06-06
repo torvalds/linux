@@ -925,7 +925,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * proper frequency.
 	 * Analog modes require offset = 0
 	 */
-	if (new_mode != T_ANALOG_TV) {
+	if (new_mode == T_DIGITAL_TV) {
 		/* Sets the offset according with firmware */
 		if (priv->cur_fw.type & DTV6)
 			offset = 1750000;
@@ -998,7 +998,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 		if (priv->ctrl.input1)
 			type |= INPUT1;
 		return generic_set_freq(fe, (625l * p->frequency) / 10,
-				T_ANALOG_TV, type, 0, 0);
+				T_RADIO, type, 0, 0);
 	}
 
 	/* if std is not defined, choose one */
