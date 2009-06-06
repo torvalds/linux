@@ -420,7 +420,7 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 
 struct timeval last_read, this_read;
 
-static void mmap_read(struct mmap_data *md)
+static void mmap_read_counter(struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
@@ -517,6 +517,16 @@ static void mmap_read(struct mmap_data *md)
 static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
+static void mmap_read(void)
+{
+	int i, counter;
+
+	for (i = 0; i < nr_cpus; i++) {
+		for (counter = 0; counter < nr_counters; counter++)
+			mmap_read_counter(&mmap_array[i][counter]);
+	}
+}
+
 static int __cmd_top(void)
 {
 	struct perf_counter_attr *attr;
@@ -571,6 +581,11 @@ static int __cmd_top(void)
 		}
 	}
 
+	/* Wait for a minimal set of events before starting the snapshot */
+	poll(event_array, nr_poll, 100);
+
+	mmap_read();
+
 	if (pthread_create(&thread, NULL, display_thread, NULL)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
@@ -589,10 +604,7 @@ static int __cmd_top(void)
 	while (1) {
 		int hits = samples;
 
-		for (i = 0; i < nr_cpus; i++) {
-			for (counter = 0; counter < nr_counters; counter++)
-				mmap_read(&mmap_array[i][counter]);
-		}
+		mmap_read();
 
 		if (hits == samples)
 			ret = poll(event_array, nr_poll, 100);
