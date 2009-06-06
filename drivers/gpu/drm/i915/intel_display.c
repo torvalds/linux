@@ -2136,6 +2136,7 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,
 	}
 
 	encoder->crtc = crtc;
+	intel_output->base.encoder = encoder;
 	intel_output->load_detect_temp = true;
 
 	intel_crtc = to_intel_crtc(crtc);
@@ -2171,6 +2172,7 @@ void intel_release_load_detect_pipe(struct intel_output *intel_output, int dpms_
 
 	if (intel_output->load_detect_temp) {
 		encoder->crtc = NULL;
+		intel_output->base.encoder = NULL;
 		intel_output->load_detect_temp = false;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		drm_helper_disable_unused_functions(dev);
