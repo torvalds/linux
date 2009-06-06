@@ -26,7 +26,7 @@
 #define SHOW_HV		4
 
 static char		const *input_name = "perf.data";
-static char		*vmlinux = NULL;
+static char		*vmlinux = "vmlinux";
 
 static char		default_sort_order[] = "comm,symbol";
 static char		*sort_order = default_sort_order;
