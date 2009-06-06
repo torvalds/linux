@@ -257,6 +257,11 @@ static void __init xilinx_i8259_setup_cascade(void)
 	i8259_init(cascade_node, 0);
 	set_irq_chained_handler(cascade_irq, xilinx_i8259_cascade);
 
+	/* Program irq 7 (usb/audio), 14/15 (ide) to level sensitive */
+	/* This looks like a dirty hack to me --gcl */
+	outb(0xc0, 0x4d0);
+	outb(0xc0, 0x4d1);
+
  out:
 	of_node_put(cascade_node);
 }

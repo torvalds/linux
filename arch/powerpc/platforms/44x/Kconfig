@@ -156,7 +156,7 @@ config YOSEMITE
 #	  This option enables support for the IBM PPC440GX evaluation board.
 
 config XILINX_VIRTEX440_GENERIC_BOARD
-	bool "Generic Xilinx Virtex 440 board"
+	bool "Generic Xilinx Virtex 5 FXT board support"
 	depends on 44x
 	default n
 	select XILINX_VIRTEX_5_FXT
@@ -170,6 +170,17 @@ config XILINX_VIRTEX440_GENERIC_BOARD
 
 	  Most Virtex 5 designs should use this unless it needs to do some
 	  special configuration at board probe time.
+
+config XILINX_ML510
+	bool "Xilinx ML510 extra support"
+	depends on XILINX_VIRTEX440_GENERIC_BOARD
+	select PPC_PCI_CHOICE
+	select XILINX_PCI if PCI
+	select PPC_INDIRECT_PCI if PCI
+	select PPC_I8259 if PCI
+	help
+	  This option enables extra support for features on the Xilinx ML510
+	  board.  The ML510 has a PCI bus with ALI south bridge.
 
 config PPC44x_SIMPLE
 	bool "Simple PowerPC 44x board support"
