@@ -606,11 +606,10 @@ static const char * const top_usage[] = {
 	NULL
 };
 
-static char events_help_msg[EVENTS_HELP_MAX];
-
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
-		     events_help_msg, parse_events),
+		     "event selector. use 'perf list' to list available events",
+		     parse_events),
 	OPT_INTEGER('c', "count", &default_interval,
 		    "event period to sample"),
 	OPT_INTEGER('p', "pid", &target_pid,
@@ -647,8 +646,6 @@ int cmd_top(int argc, const char **argv, const char *prefix)
 	int counter;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
-
-	create_events_help(events_help_msg);
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)

@@ -293,18 +293,17 @@ static const char * const stat_usage[] = {
 	NULL
 };
 
-static char events_help_msg[EVENTS_HELP_MAX];
-
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
-		     events_help_msg, parse_events),
+		     "event selector. use 'perf list' to list available events",
+		     parse_events),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "stat events on existing pid"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 			    "system-wide collection from all CPUs"),
-	OPT_BOOLEAN('l', "scale", &scale,
+	OPT_BOOLEAN('S', "scale", &scale,
 			    "scale/normalize counters"),
 	OPT_END()
 };
@@ -312,8 +311,6 @@ static const struct option options[] = {
 int cmd_stat(int argc, const char **argv, const char *prefix)
 {
 	page_size = sysconf(_SC_PAGE_SIZE);
-
-	create_events_help(events_help_msg);
 
 	memcpy(attrs, default_attrs, sizeof(attrs));
 

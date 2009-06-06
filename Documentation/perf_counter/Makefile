@@ -328,6 +328,7 @@ BUILTIN_OBJS += builtin-record.o
 BUILTIN_OBJS += builtin-report.o
 BUILTIN_OBJS += builtin-stat.o
 BUILTIN_OBJS += builtin-top.o
+BUILTIN_OBJS += builtin-list.o
 
 PERFLIBS = $(LIB_FILE)
 EXTLIBS =

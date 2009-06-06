@@ -274,31 +274,43 @@ again:
 	return 0;
 }
 
+static const char * const event_type_descriptors[] = {
+	"",
+	"Hardware event",
+	"Software event",
+	"Tracepoint event",
+	"Hardware cache event",
+};
+
 /*
- * Create the help text for the event symbols:
+ * Print the help text for the event symbols:
  */
-void create_events_help(char *events_help_msg)
+void print_events(void)
 {
-	unsigned int i;
-	char *str;
+	struct event_symbol *syms = event_symbols;
+	unsigned int i, type, prev_type = -1;
 
-	str = events_help_msg;
+	fprintf(stderr, "\n");
+	fprintf(stderr, "List of pre-defined events (to be used in -e):\n");
 
-	str += sprintf(str,
-	"event name: [");
+	for (i = 0; i < ARRAY_SIZE(event_symbols); i++, syms++) {
+		type = syms->type + 1;
+		if (type > ARRAY_SIZE(event_type_descriptors))
+			type = 0;
 
-	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
-		int type, id;
+		if (type != prev_type)
+			fprintf(stderr, "\n");
 
-		type = event_symbols[i].type;
-		id = event_symbols[i].config;
+		fprintf(stderr, "  %-30s [%s]\n", syms->symbol,
+			event_type_descriptors[type]);
 
-		if (i)
-			str += sprintf(str, "|");
-
-		str += sprintf(str, "%s",
-				event_symbols[i].symbol);
+		prev_type = type;
 	}
 
-	str += sprintf(str, "|rNNN]");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "  %-30s [raw hardware event descriptor]\n",
+		"rNNN");
+	fprintf(stderr, "\n");
+
+	exit(129);
 }
