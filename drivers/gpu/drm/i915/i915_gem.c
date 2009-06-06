@@ -2005,7 +2005,7 @@ i915_gem_evict_something(struct drm_device *dev)
 		/* If we didn't do any of the above, there's nothing to be done
 		 * and we just can't fit it in.
 		 */
-		return -ENOMEM;
+		return -ENOSPC;
 	}
 	return ret;
 }
@@ -2020,7 +2020,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 		if (ret != 0)
 			break;
 	}
-	if (ret == -ENOMEM)
+	if (ret == -ENOSPC)
 		return 0;
 	return ret;
 }
@@ -2229,7 +2229,7 @@ try_again:
 		loff_t offset;
 
 		if (avail == 0)
-			return -ENOMEM;
+			return -ENOSPC;
 
 		for (i = dev_priv->fence_reg_start;
 		     i < dev_priv->num_fence_regs; i++) {
@@ -2378,7 +2378,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 		spin_unlock(&dev_priv->mm.active_list_lock);
 		if (lists_empty) {
 			DRM_ERROR("GTT full, but LRU list empty\n");
-			return -ENOMEM;
+			return -ENOSPC;
 		}
 
 		ret = i915_gem_evict_something(dev);
@@ -3349,7 +3349,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			break;
 
 		/* error other than GTT full, or we've already tried again */
-		if (ret != -ENOMEM || pin_tries >= 1) {
+		if (ret != -ENOSPC || pin_tries >= 1) {
 			if (ret != -ERESTARTSYS)
 				DRM_ERROR("Failed to pin buffers %d\n", ret);
 			goto err;
