@@ -1598,6 +1598,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
+		drm_vblank_post_modeset(dev, pipe);
 		return -EINVAL;
 	}
 
@@ -1858,12 +1859,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Flush the plane changes */
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
-	if (ret != 0)
-	    return ret;
-
 	drm_vblank_post_modeset(dev, pipe);
 
-	return 0;
+	return ret;
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
