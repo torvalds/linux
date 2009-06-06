@@ -219,6 +219,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 void destroy_inode(struct inode *inode)
 {
 	BUG_ON(inode_has_buffers(inode));
+	ima_inode_free(inode);
 	security_inode_free(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
