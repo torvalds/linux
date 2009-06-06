@@ -3369,8 +3369,12 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 
 	/* Set the pending read domains for the batch buffer to COMMAND */
 	batch_obj = object_list[args->buffer_count-1];
-	batch_obj->pending_read_domains = I915_GEM_DOMAIN_COMMAND;
-	batch_obj->pending_write_domain = 0;
+	if (batch_obj->pending_write_domain) {
+		DRM_ERROR("Attempting to use self-modifying batch buffer\n");
+		ret = -EINVAL;
+		goto err;
+	}
+	batch_obj->pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	/* Sanity check the batch buffer, prior to moving objects */
 	exec_offset = exec_list[args->buffer_count - 1].offset;
