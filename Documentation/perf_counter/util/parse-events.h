@@ -3,12 +3,9 @@
  * Parse symbolic events/counts passed in as options:
  */
 
-extern int nr_counters;
-extern __u64			event_id[MAX_COUNTERS];
-extern int			event_mask[MAX_COUNTERS];
+extern int			nr_counters;
 
-#define EVENT_MASK_KERNEL	1
-#define EVENT_MASK_USER		2
+extern struct perf_counter_attr attrs[MAX_COUNTERS];
 
 extern char *event_name(int ctr);
 

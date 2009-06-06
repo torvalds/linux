@@ -20,10 +20,10 @@
 #define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
 #define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
 
-static long			default_interval = 100000;
-static long			event_count[MAX_COUNTERS];
-
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+
+static long			default_interval		= 100000;
+
 static int			nr_cpus				= 0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 128;
@@ -38,21 +38,43 @@ static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
 
-const unsigned int default_count[] = {
-	1000000,
-	1000000,
-	  10000,
-	  10000,
-	1000000,
-	  10000,
+static long			samples;
+static struct timeval		last_read;
+static struct timeval		this_read;
+
+static __u64			bytes_written;
+
+static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
+
+static int			nr_poll;
+static int			nr_cpu;
+
+struct mmap_event {
+	struct perf_event_header	header;
+	__u32				pid;
+	__u32				tid;
+	__u64				start;
+	__u64				len;
+	__u64				pgoff;
+	char				filename[PATH_MAX];
 };
 
-struct mmap_data {
-	int counter;
-	void *base;
-	unsigned int mask;
-	unsigned int prev;
+struct comm_event {
+	struct perf_event_header	header;
+	__u32				pid;
+	__u32				tid;
+	char				comm[16];
 };
+
+
+struct mmap_data {
+	int			counter;
+	void			*base;
+	unsigned int		mask;
+	unsigned int		prev;
+};
+
+static struct mmap_data		mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static unsigned int mmap_read_head(struct mmap_data *md)
 {
@@ -64,11 +86,6 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 
 	return head;
 }
-
-static long samples;
-static struct timeval last_read, this_read;
-
-static __u64 bytes_written;
 
 static void mmap_read(struct mmap_data *md)
 {
@@ -156,29 +173,6 @@ static void sig_handler(int sig)
 {
 	done = 1;
 }
-
-static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
-static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
-
-static int nr_poll;
-static int nr_cpu;
-
-struct mmap_event {
-	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
-	__u64				start;
-	__u64				len;
-	__u64				pgoff;
-	char				filename[PATH_MAX];
-};
-
-struct comm_event {
-	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
-	char				comm[16];
-};
 
 static void pid_synthesize_comm_event(pid_t pid, int full)
 {
@@ -341,24 +335,21 @@ static int group_fd;
 
 static void create_counter(int counter, int cpu, pid_t pid)
 {
-	struct perf_counter_attr attr;
+	struct perf_counter_attr *attr = attrs + counter;
 	int track = 1;
 
-	memset(&attr, 0, sizeof(attr));
-	attr.config		= event_id[counter];
-	attr.sample_period	= event_count[counter];
-	attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_PERIOD;
+	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_PERIOD;
 	if (freq) {
-		attr.freq		= 1;
-		attr.sample_freq	= freq;
+		attr->freq		= 1;
+		attr->sample_freq	= freq;
 	}
-	attr.mmap		= track;
-	attr.comm		= track;
-	attr.inherit		= (cpu < 0) && inherit;
+	attr->mmap		= track;
+	attr->comm		= track;
+	attr->inherit		= (cpu < 0) && inherit;
 
 	track = 0; /* only the first counter needs these */
 
-	fd[nr_cpu][counter] = sys_perf_counter_open(&attr, pid, cpu, group_fd, 0);
+	fd[nr_cpu][counter] = sys_perf_counter_open(attr, pid, cpu, group_fd, 0);
 
 	if (fd[nr_cpu][counter] < 0) {
 		int err = errno;
@@ -542,16 +533,14 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 
-	if (!nr_counters) {
+	if (!nr_counters)
 		nr_counters = 1;
-		event_id[0] = 0;
-	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
-		if (event_count[counter])
+		if (attrs[counter].sample_period)
 			continue;
 
-		event_count[counter] = default_interval;
+		attrs[counter].sample_period = default_interval;
 	}
 
 	return __cmd_record(argc, argv);

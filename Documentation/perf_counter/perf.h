@@ -64,6 +64,4 @@ sys_perf_counter_open(struct perf_counter_attr *attr_uptr,
 #define MAX_COUNTERS			256
 #define MAX_NR_CPUS			256
 
-#define EID(type, id) (((__u64)(type) << PERF_COUNTER_TYPE_SHIFT) | (id))
-
 #endif

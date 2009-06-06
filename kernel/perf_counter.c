@@ -3091,14 +3091,12 @@ static int perf_swcounter_match(struct perf_counter *counter,
 				enum perf_event_types type,
 				u32 event, struct pt_regs *regs)
 {
-	u64 event_config;
-
-	event_config = ((u64) type << PERF_COUNTER_TYPE_SHIFT) | event;
-
 	if (!perf_swcounter_is_counting(counter))
 		return 0;
 
-	if (counter->attr.config != event_config)
+	if (counter->attr.type != type)
+		return 0;
+	if (counter->attr.config != event)
 		return 0;
 
 	if (regs) {
@@ -3403,7 +3401,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (perf_event_id(&counter->attr)) {
+	switch (counter->attr.config) {
 	case PERF_COUNT_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
@@ -3496,12 +3494,12 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
 		goto done;
 
-	if (perf_event_raw(attr)) {
+	if (attr->type == PERF_TYPE_RAW) {
 		pmu = hw_perf_counter_init(counter);
 		goto done;
 	}
 
-	switch (perf_event_type(attr)) {
+	switch (attr->type) {
 	case PERF_TYPE_HARDWARE:
 		pmu = hw_perf_counter_init(counter);
 		break;

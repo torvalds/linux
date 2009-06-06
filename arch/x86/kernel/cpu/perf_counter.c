@@ -292,15 +292,15 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	/*
 	 * Raw event type provide the config in the event structure
 	 */
-	if (perf_event_raw(attr)) {
-		hwc->config |= x86_pmu.raw_event(perf_event_config(attr));
+	if (attr->type == PERF_TYPE_RAW) {
+		hwc->config |= x86_pmu.raw_event(attr->config);
 	} else {
-		if (perf_event_id(attr) >= x86_pmu.max_events)
+		if (attr->config >= x86_pmu.max_events)
 			return -EINVAL;
 		/*
 		 * The generic map:
 		 */
-		hwc->config |= x86_pmu.event_map(perf_event_id(attr));
+		hwc->config |= x86_pmu.event_map(attr->config);
 	}
 
 	counter->destroy = hw_perf_counter_destroy;

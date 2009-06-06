@@ -48,22 +48,11 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
+static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+
 static int			system_wide			=  0;
 
-static __u64			default_event_id[MAX_COUNTERS]		= {
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),
-
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_INSTRUCTIONS),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_REFERENCES),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_MISSES),
-};
-static int			default_interval = 100000;
-static int			event_count[MAX_COUNTERS];
-static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+static int			default_interval		= 100000;
 
 static __u64			count_filter			=  5;
 static int			print_entries			= 15;
@@ -85,15 +74,6 @@ static int			delay_secs			=  2;
 static int			zero;
 static int			dump_symtab;
 
-static const unsigned int default_count[] = {
-	1000000,
-	1000000,
-	  10000,
-	  10000,
-	1000000,
-	  10000,
-};
-
 /*
  * Symbols
  */
@@ -112,7 +92,7 @@ struct sym_entry {
 
 struct sym_entry		*sym_filter_entry;
 
-struct dso *kernel_dso;
+struct dso			*kernel_dso;
 
 /*
  * Symbols will be added here in record_ip and will get out
@@ -213,7 +193,7 @@ static void print_sym_table(void)
 		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
 
 	if (nr_counters == 1) {
-		printf("%d", event_count[0]);
+		printf("%Ld", attrs[0].sample_period);
 		if (freq)
 			printf("Hz ");
 		else
@@ -421,10 +401,10 @@ static void process_event(uint64_t ip, int counter)
 }
 
 struct mmap_data {
-	int counter;
-	void *base;
-	unsigned int mask;
-	unsigned int prev;
+	int			counter;
+	void			*base;
+	unsigned int		mask;
+	unsigned int		prev;
 };
 
 static unsigned int mmap_read_head(struct mmap_data *md)
@@ -539,7 +519,7 @@ static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int __cmd_top(void)
 {
-	struct perf_counter_attr attr;
+	struct perf_counter_attr *attr;
 	pthread_t thread;
 	int i, counter, group_fd, nr_poll = 0;
 	unsigned int cpu;
@@ -553,13 +533,12 @@ static int __cmd_top(void)
 			if (target_pid == -1 && profile_cpu == -1)
 				cpu = i;
 
-			memset(&attr, 0, sizeof(attr));
-			attr.config		= event_id[counter];
-			attr.sample_period	= event_count[counter];
-			attr.sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-			attr.freq		= freq;
+			attr = attrs + counter;
 
-			fd[i][counter] = sys_perf_counter_open(&attr, target_pid, cpu, group_fd, 0);
+			attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+			attr->freq		= freq;
+
+			fd[i][counter] = sys_perf_counter_open(attr, target_pid, cpu, group_fd, 0);
 			if (fd[i][counter] < 0) {
 				int err = errno;
 
@@ -670,7 +649,6 @@ int cmd_top(int argc, const char **argv, const char *prefix)
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	create_events_help(events_help_msg);
-	memcpy(event_id, default_event_id, sizeof(default_event_id));
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
@@ -688,19 +666,22 @@ int cmd_top(int argc, const char **argv, const char *prefix)
 		profile_cpu = -1;
 	}
 
-	if (!nr_counters) {
+	if (!nr_counters)
 		nr_counters = 1;
-		event_id[0] = 0;
-	}
 
 	if (delay_secs < 1)
 		delay_secs = 1;
 
+	parse_symbols();
+
+	/*
+	 * Fill in the ones not specifically initialized via -c:
+	 */
 	for (counter = 0; counter < nr_counters; counter++) {
-		if (event_count[counter])
+		if (attrs[counter].sample_period)
 			continue;
 
-		event_count[counter] = default_interval;
+		attrs[counter].sample_period = default_interval;
 	}
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -709,8 +690,6 @@ int cmd_top(int argc, const char **argv, const char *prefix)
 
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
-
-	parse_symbols();
 
 	return __cmd_top();
 }

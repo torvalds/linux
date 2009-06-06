@@ -867,13 +867,13 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	if (!ppmu)
 		return ERR_PTR(-ENXIO);
-	if (!perf_event_raw(&counter->attr)) {
-		ev = perf_event_id(&counter->attr);
+	if (counter->attr.type != PERF_TYPE_RAW) {
+		ev = counter->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
 			return ERR_PTR(-EOPNOTSUPP);
 		ev = ppmu->generic_events[ev];
 	} else {
-		ev = perf_event_config(&counter->attr);
+		ev = counter->attr.config;
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;

@@ -44,23 +44,22 @@
 
 #include <sys/prctl.h>
 
+static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
+
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_TASK_CLOCK		},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_CONTEXT_SWITCHES	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_CPU_MIGRATIONS	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_PAGE_FAULTS	},
+
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CPU_CYCLES		},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_INSTRUCTIONS	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CACHE_REFERENCES	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CACHE_MISSES	},
+};
+
 static int			system_wide			=  0;
 static int			inherit				=  1;
 
-static __u64			default_event_id[MAX_COUNTERS]	= {
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),
-	EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),
-
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_INSTRUCTIONS),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_REFERENCES),
-	EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_MISSES),
-};
-
-static int			default_interval = 100000;
-static int			event_count[MAX_COUNTERS];
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int			target_pid			= -1;
@@ -86,22 +85,16 @@ static __u64			walltime_nsecs;
 
 static void create_perfstat_counter(int counter)
 {
-	struct perf_counter_attr attr;
-
-	memset(&attr, 0, sizeof(attr));
-	attr.config		= event_id[counter];
-	attr.sample_type	= 0;
-	attr.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
-	attr.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
+	struct perf_counter_attr *attr = attrs + counter;
 
 	if (scale)
-		attr.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
-					  PERF_FORMAT_TOTAL_TIME_RUNNING;
+		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
+				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide) {
 		int cpu;
 		for (cpu = 0; cpu < nr_cpus; cpu ++) {
-			fd[cpu][counter] = sys_perf_counter_open(&attr, -1, cpu, -1, 0);
+			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
 			if (fd[cpu][counter] < 0) {
 				printf("perfstat error: syscall returned with %d (%s)\n",
 						fd[cpu][counter], strerror(errno));
@@ -109,10 +102,10 @@ static void create_perfstat_counter(int counter)
 			}
 		}
 	} else {
-		attr.inherit	= inherit;
-		attr.disabled	= 1;
+		attr->inherit	= inherit;
+		attr->disabled	= 1;
 
-		fd[0][counter] = sys_perf_counter_open(&attr, 0, -1, -1, 0);
+		fd[0][counter] = sys_perf_counter_open(attr, 0, -1, -1, 0);
 		if (fd[0][counter] < 0) {
 			printf("perfstat error: syscall returned with %d (%s)\n",
 					fd[0][counter], strerror(errno));
@@ -126,9 +119,13 @@ static void create_perfstat_counter(int counter)
  */
 static inline int nsec_counter(int counter)
 {
-	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK))
+	if (attrs[counter].type != PERF_TYPE_SOFTWARE)
+		return 0;
+
+	if (attrs[counter].config == PERF_COUNT_CPU_CLOCK)
 		return 1;
-	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK))
+
+	if (attrs[counter].config == PERF_COUNT_TASK_CLOCK)
 		return 1;
 
 	return 0;
@@ -177,7 +174,8 @@ static void read_counter(int counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	if (event_id[counter] == EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK))
+	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
+		attrs[counter].config == PERF_COUNT_TASK_CLOCK)
 		runtime_nsecs = count[0];
 }
 
@@ -203,8 +201,8 @@ static void print_counter(int counter)
 
 		fprintf(stderr, " %14.6f  %-20s",
 			msecs, event_name(counter));
-		if (event_id[counter] ==
-				EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK)) {
+		if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
+			attrs[counter].config == PERF_COUNT_TASK_CLOCK) {
 
 			fprintf(stderr, " # %11.3f CPU utilization factor",
 				(double)count[0] / (double)walltime_nsecs);
@@ -300,8 +298,6 @@ static char events_help_msg[EVENTS_HELP_MAX];
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     events_help_msg, parse_events),
-	OPT_INTEGER('c', "count", &default_interval,
-		    "event period to sample"),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
 	OPT_INTEGER('p', "pid", &target_pid,
@@ -315,27 +311,19 @@ static const struct option options[] = {
 
 int cmd_stat(int argc, const char **argv, const char *prefix)
 {
-	int counter;
-
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	create_events_help(events_help_msg);
-	memcpy(event_id, default_event_id, sizeof(default_event_id));
+
+	memcpy(attrs, default_attrs, sizeof(attrs));
 
 	argc = parse_options(argc, argv, options, stat_usage, 0);
 	if (!argc)
 		usage_with_options(stat_usage, options);
 
-	if (!nr_counters) {
+	if (!nr_counters)
 		nr_counters = 8;
-	}
 
-	for (counter = 0; counter < nr_counters; counter++) {
-		if (event_count[counter])
-			continue;
-
-		event_count[counter] = default_interval;
-	}
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);

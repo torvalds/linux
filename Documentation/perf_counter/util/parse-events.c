@@ -6,37 +6,39 @@
 #include "exec_cmd.h"
 #include "string.h"
 
-int nr_counters;
+int					nr_counters;
 
-__u64			event_id[MAX_COUNTERS]		= { };
-int			event_mask[MAX_COUNTERS];
+struct perf_counter_attr		attrs[MAX_COUNTERS];
 
 struct event_symbol {
-	__u64 event;
-	char *symbol;
+	__u8	type;
+	__u64	config;
+	char	*symbol;
 };
 
-static struct event_symbol event_symbols[] = {
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),		"cpu-cycles",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CPU_CYCLES),		"cycles",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_INSTRUCTIONS),		"instructions",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_REFERENCES),		"cache-references",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_CACHE_MISSES),		"cache-misses",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_INSTRUCTIONS),	"branch-instructions",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_INSTRUCTIONS),	"branches",		},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BRANCH_MISSES),		"branch-misses",	},
-	{EID(PERF_TYPE_HARDWARE, PERF_COUNT_BUS_CYCLES),		"bus-cycles",		},
+#define C(x, y) .type = PERF_TYPE_##x, .config = PERF_COUNT_##y
 
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_CLOCK),			"cpu-clock",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_TASK_CLOCK),		"task-clock",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),		"page-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS),		"faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS_MIN),		"minor-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_PAGE_FAULTS_MAJ),		"major-faults",		},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),		"context-switches",	},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CONTEXT_SWITCHES),		"cs",			},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),		"cpu-migrations",	},
-	{EID(PERF_TYPE_SOFTWARE, PERF_COUNT_CPU_MIGRATIONS),		"migrations",		},
+static struct event_symbol event_symbols[] = {
+  { C(HARDWARE, CPU_CYCLES),		"cpu-cycles",		},
+  { C(HARDWARE, CPU_CYCLES),		"cycles",		},
+  { C(HARDWARE, INSTRUCTIONS),		"instructions",		},
+  { C(HARDWARE, CACHE_REFERENCES),	"cache-references",	},
+  { C(HARDWARE, CACHE_MISSES),		"cache-misses",		},
+  { C(HARDWARE, BRANCH_INSTRUCTIONS),	"branch-instructions",	},
+  { C(HARDWARE, BRANCH_INSTRUCTIONS),	"branches",		},
+  { C(HARDWARE, BRANCH_MISSES),		"branch-misses",	},
+  { C(HARDWARE, BUS_CYCLES),		"bus-cycles",		},
+
+  { C(SOFTWARE, CPU_CLOCK),		"cpu-clock",		},
+  { C(SOFTWARE, TASK_CLOCK),		"task-clock",		},
+  { C(SOFTWARE, PAGE_FAULTS),		"page-faults",		},
+  { C(SOFTWARE, PAGE_FAULTS),		"faults",		},
+  { C(SOFTWARE, PAGE_FAULTS_MIN),	"minor-faults",		},
+  { C(SOFTWARE, PAGE_FAULTS_MAJ),	"major-faults",		},
+  { C(SOFTWARE, CONTEXT_SWITCHES),	"context-switches",	},
+  { C(SOFTWARE, CONTEXT_SWITCHES),	"cs",			},
+  { C(SOFTWARE, CPU_MIGRATIONS),	"cpu-migrations",	},
+  { C(SOFTWARE, CPU_MIGRATIONS),	"migrations",		},
 };
 
 #define __PERF_COUNTER_FIELD(config, name) \
@@ -67,27 +69,26 @@ static char *sw_event_names[] = {
 	"major faults",
 };
 
-char *event_name(int ctr)
+char *event_name(int counter)
 {
-	__u64 config = event_id[ctr];
-	int type = PERF_COUNTER_TYPE(config);
-	int id = PERF_COUNTER_ID(config);
+	__u64 config = attrs[counter].config;
+	int type = attrs[counter].type;
 	static char buf[32];
 
-	if (PERF_COUNTER_RAW(config)) {
-		sprintf(buf, "raw 0x%llx", PERF_COUNTER_CONFIG(config));
+	if (attrs[counter].type == PERF_TYPE_RAW) {
+		sprintf(buf, "raw 0x%llx", config);
 		return buf;
 	}
 
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		if (id < PERF_HW_EVENTS_MAX)
-			return hw_event_names[id];
+		if (config < PERF_HW_EVENTS_MAX)
+			return hw_event_names[config];
 		return "unknown-hardware";
 
 	case PERF_TYPE_SOFTWARE:
-		if (id < PERF_SW_EVENTS_MAX)
-			return sw_event_names[id];
+		if (config < PERF_SW_EVENTS_MAX)
+			return sw_event_names[config];
 		return "unknown-software";
 
 	default:
@@ -101,15 +102,19 @@ char *event_name(int ctr)
  * Each event can have multiple symbolic names.
  * Symbolic names are (almost) exactly matched.
  */
-static __u64 match_event_symbols(const char *str)
+static int match_event_symbols(const char *str, struct perf_counter_attr *attr)
 {
 	__u64 config, id;
 	int type;
 	unsigned int i;
 	const char *sep, *pstr;
 
-	if (str[0] == 'r' && hex2u64(str + 1, &config) > 0)
-		return config | PERF_COUNTER_RAW_MASK;
+	if (str[0] == 'r' && hex2u64(str + 1, &config) > 0) {
+		attr->type = PERF_TYPE_RAW;
+		attr->config = config;
+
+		return 0;
+	}
 
 	pstr = str;
 	sep = strchr(pstr, ':');
@@ -121,35 +126,45 @@ static __u64 match_event_symbols(const char *str)
 		if (sep) {
 			pstr = sep + 1;
 			if (strchr(pstr, 'k'))
-				event_mask[nr_counters] |= EVENT_MASK_USER;
+				attr->exclude_user = 1;
 			if (strchr(pstr, 'u'))
-				event_mask[nr_counters] |= EVENT_MASK_KERNEL;
+				attr->exclude_kernel = 1;
 		}
-		return EID(type, id);
+		attr->type = type;
+		attr->config = id;
+
+		return 0;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
 		if (!strncmp(str, event_symbols[i].symbol,
-			     strlen(event_symbols[i].symbol)))
-			return event_symbols[i].event;
+			     strlen(event_symbols[i].symbol))) {
+
+			attr->type = event_symbols[i].type;
+			attr->config = event_symbols[i].config;
+
+			return 0;
+		}
 	}
 
-	return ~0ULL;
+	return -EINVAL;
 }
 
 int parse_events(const struct option *opt, const char *str, int unset)
 {
-	__u64 config;
+	struct perf_counter_attr attr;
+	int ret;
 
+	memset(&attr, 0, sizeof(attr));
 again:
 	if (nr_counters == MAX_COUNTERS)
 		return -1;
 
-	config = match_event_symbols(str);
-	if (config == ~0ULL)
-		return -1;
+	ret = match_event_symbols(str, &attr);
+	if (ret < 0)
+		return ret;
 
-	event_id[nr_counters] = config;
+	attrs[nr_counters] = attr;
 	nr_counters++;
 
 	str = strstr(str, ",");
@@ -168,7 +183,6 @@ void create_events_help(char *events_help_msg)
 {
 	unsigned int i;
 	char *str;
-	__u64 e;
 
 	str = events_help_msg;
 
@@ -178,9 +192,8 @@ void create_events_help(char *events_help_msg)
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
 		int type, id;
 
-		e = event_symbols[i].event;
-		type = PERF_COUNTER_TYPE(e);
-		id = PERF_COUNTER_ID(e);
+		type = event_symbols[i].type;
+		id = event_symbols[i].config;
 
 		if (i)
 			str += sprintf(str, "|");
@@ -191,4 +204,3 @@ void create_events_help(char *events_help_msg)
 
 	str += sprintf(str, "|rNNN]");
 }
-
