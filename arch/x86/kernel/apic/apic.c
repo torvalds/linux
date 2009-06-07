@@ -249,7 +249,7 @@ static void native_apic_write_dummy(u32 reg, u32 v)
 
 static u32 native_apic_read_dummy(u32 reg)
 {
-	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
 	return 0;
 }
 
@@ -1609,6 +1609,13 @@ void __init init_apic_mappings(void)
 	new_apicid = read_apic_id();
 	if (boot_cpu_physical_apicid != new_apicid) {
 		boot_cpu_physical_apicid = new_apicid;
+		/*
+		 * yeah -- we lie about apic_version
+		 * in case if apic was disabled via boot option
+		 * but it's not a problem for SMP compiled kernel
+		 * since smp_sanity_check is prepared for such a case
+		 * and disable smp mode
+		 */
 		apic_version[new_apicid] =
 			 GET_APIC_VERSION(apic_read(APIC_LVR));
 	}

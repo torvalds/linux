@@ -992,10 +992,12 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 */
 	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
 	    !cpu_has_apic) {
-		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
-			boot_cpu_physical_apicid);
-		printk(KERN_ERR "... forcing use of dummy APIC emulation."
+		if (!disable_apic) {
+			pr_err("BIOS bug, local APIC #%d not detected!...\n",
+				boot_cpu_physical_apicid);
+			pr_err("... forcing use of dummy APIC emulation."
 				"(tell your hw vendor)\n");
+		}
 		smpboot_clear_io_apic();
 		arch_disable_smp_support();
 		return -1;
