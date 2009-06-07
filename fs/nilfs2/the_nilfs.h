@@ -201,6 +201,7 @@ void put_nilfs(struct the_nilfs *);
 int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
 int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
+struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
 int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);
 int nilfs_near_disk_full(struct the_nilfs *);
 void nilfs_fall_back_super_block(struct the_nilfs *);
@@ -241,6 +242,12 @@ nilfs_detach_writer(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	if (sbi == nilfs->ns_writer)
 		nilfs->ns_writer = NULL;
 	mutex_unlock(&nilfs->ns_writer_mutex);
+}
+
+static inline void nilfs_put_sbinfo(struct nilfs_sb_info *sbi)
+{
+	if (!atomic_dec_and_test(&sbi->s_count))
+		kfree(sbi);
 }
 
 static inline void

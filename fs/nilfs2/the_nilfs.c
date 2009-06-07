@@ -664,6 +664,56 @@ int nilfs_near_disk_full(struct the_nilfs *nilfs)
 	return ret;
 }
 
+/**
+ * nilfs_find_sbinfo - find existing nilfs_sb_info structure
+ * @nilfs: nilfs object
+ * @rw_mount: mount type (non-zero value for read/write mount)
+ * @cno: checkpoint number (zero for read-only mount)
+ *
+ * nilfs_find_sbinfo() returns the nilfs_sb_info structure which
+ * @rw_mount and @cno (in case of snapshots) matched.  If no instance
+ * was found, NULL is returned.  Although the super block instance can
+ * be unmounted after this function returns, the nilfs_sb_info struct
+ * is kept on memory until nilfs_put_sbinfo() is called.
+ */
+struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *nilfs,
+					int rw_mount, __u64 cno)
+{
+	struct nilfs_sb_info *sbi;
+
+	down_read(&nilfs->ns_sem);
+	/*
+	 * The SNAPSHOT flag and sb->s_flags are supposed to be
+	 * protected with nilfs->ns_sem.
+	 */
+	sbi = nilfs->ns_current;
+	if (rw_mount) {
+		if (sbi && !(sbi->s_super->s_flags & MS_RDONLY))
+			goto found; /* read/write mount */
+		else
+			goto out;
+	} else if (cno == 0) {
+		if (sbi && (sbi->s_super->s_flags & MS_RDONLY))
+			goto found; /* read-only mount */
+		else
+			goto out;
+	}
+
+	list_for_each_entry(sbi, &nilfs->ns_supers, s_list) {
+		if (nilfs_test_opt(sbi, SNAPSHOT) &&
+		    sbi->s_snapshot_cno == cno)
+			goto found; /* snapshot mount */
+	}
+ out:
+	up_read(&nilfs->ns_sem);
+	return NULL;
+
+ found:
+	atomic_inc(&sbi->s_count);
+	up_read(&nilfs->ns_sem);
+	return sbi;
+}
+
 int nilfs_checkpoint_is_mounted(struct the_nilfs *nilfs, __u64 cno,
 				int snapshot_mount)
 {

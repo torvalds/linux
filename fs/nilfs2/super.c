@@ -336,7 +336,7 @@ static void nilfs_put_super(struct super_block *sb)
 	put_nilfs(sbi->s_nilfs);
 	sbi->s_super = NULL;
 	sb->s_fs_info = NULL;
-	kfree(sbi);
+	nilfs_put_sbinfo(sbi);
 
 	unlock_kernel();
 }
@@ -785,6 +785,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	get_nilfs(nilfs);
 	sbi->s_nilfs = nilfs;
 	sbi->s_super = sb;
+	atomic_set(&sbi->s_count, 1);
 
 	err = init_nilfs(nilfs, sbi, (char *)data);
 	if (err)
@@ -902,7 +903,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
  failed_sbi:
 	put_nilfs(nilfs);
 	sb->s_fs_info = NULL;
-	kfree(sbi);
+	nilfs_put_sbinfo(sbi);
 	return err;
 }
 
@@ -1014,6 +1015,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 struct nilfs_super_data {
 	struct block_device *bdev;
+	struct nilfs_sb_info *sbi;
 	__u64 cno;
 	int flags;
 };
@@ -1071,27 +1073,8 @@ static int nilfs_set_bdev_super(struct super_block *s, void *data)
 static int nilfs_test_bdev_super(struct super_block *s, void *data)
 {
 	struct nilfs_super_data *sd = data;
-	int ret;
 
-	if (s->s_bdev != sd->bdev)
-		return 0;
-
-	if (!((s->s_flags | sd->flags) & MS_RDONLY))
-		return 1; /* Reuse an old R/W-mode super_block */
-
-	if (s->s_flags & sd->flags & MS_RDONLY) {
-		if (down_read_trylock(&s->s_umount)) {
-			ret = s->s_root &&
-				(sd->cno == NILFS_SB(s)->s_snapshot_cno);
-			up_read(&s->s_umount);
-			/*
-			 * This path is locked with sb_lock by sget().
-			 * So, drop_super() causes deadlock.
-			 */
-			return ret;
-		}
-	}
-	return 0;
+	return sd->sbi && s->s_fs_info == (void *)sd->sbi;
 }
 
 static int
@@ -1112,7 +1095,6 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	 * much more information than normal filesystems to identify mount
 	 * instance.  For snapshot mounts, not only a mount type (ro-mount
 	 * or rw-mount) but also a checkpoint number is required.
-	 * The results are passed in sget() using nilfs_super_data.
 	 */
 	sd.cno = 0;
 	sd.flags = flags;
@@ -1148,13 +1130,23 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	/*
-	 * Search specified snapshot or R/W mode super_block
+	 * Find existing nilfs_sb_info struct
 	 */
+	sd.sbi = nilfs_find_sbinfo(nilfs, !(flags & MS_RDONLY), sd.cno);
+
 	if (!sd.cno)
 		/* trying to get the latest checkpoint.  */
 		sd.cno = nilfs_last_cno(nilfs);
 
+	/*
+	 * Get super block instance holding the nilfs_sb_info struct.
+	 * A new instance is allocated if no existing mount is present or
+	 * existing instance has been unmounted.
+	 */
 	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, &sd);
+	if (sd.sbi)
+		nilfs_put_sbinfo(sd.sbi);
+
 	if (IS_ERR(s)) {
 		err = PTR_ERR(s);
 		goto failed_unlock;
