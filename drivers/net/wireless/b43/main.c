@@ -4298,7 +4298,6 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	struct b43_wldev *dev = wl->current_dev;
 	int did_init = 0;
 	int err = 0;
-	bool do_rfkill_exit = 0;
 
 	/* Kill all old instance specific information to make sure
 	 * the card won't use it in the short timeframe between start
@@ -4312,18 +4311,12 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	wl->beacon1_uploaded = 0;
 	wl->beacon_templates_virgin = 1;
 
-	/* First register RFkill.
-	 * LEDs that are registered later depend on it. */
-	b43_rfkill_init(dev);
-
 	mutex_lock(&wl->mutex);
 
 	if (b43_status(dev) < B43_STAT_INITIALIZED) {
 		err = b43_wireless_core_init(dev);
-		if (err) {
-			do_rfkill_exit = 1;
+		if (err)
 			goto out_mutex_unlock;
-		}
 		did_init = 1;
 	}
 
@@ -4332,16 +4325,15 @@ static int b43_op_start(struct ieee80211_hw *hw)
 		if (err) {
 			if (did_init)
 				b43_wireless_core_exit(dev);
-			do_rfkill_exit = 1;
 			goto out_mutex_unlock;
 		}
 	}
 
+	/* XXX: only do if device doesn't support rfkill irq */
+	wiphy_rfkill_start_polling(hw->wiphy);
+
  out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
-
-	if (do_rfkill_exit)
-		b43_rfkill_exit(dev);
 
 	return err;
 }
@@ -4351,7 +4343,6 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
 
-	b43_rfkill_exit(dev);
 	cancel_work_sync(&(wl->beacon_update_trigger));
 
 	mutex_lock(&wl->mutex);
@@ -4433,6 +4424,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.sta_notify		= b43_op_sta_notify,
 	.sw_scan_start		= b43_op_sw_scan_start_notifier,
 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
+	.rfkill_poll		= b43_rfkill_poll,
 };
 
 /* Hard-reset the chip. Do not call this directly.
@@ -4920,7 +4912,7 @@ static struct ssb_driver b43_ssb_driver = {
 static void b43_print_driverinfo(void)
 {
 	const char *feat_pci = "", *feat_pcmcia = "", *feat_nphy = "",
-		   *feat_leds = "", *feat_rfkill = "";
+		   *feat_leds = "";
 
 #ifdef CONFIG_B43_PCI_AUTOSELECT
 	feat_pci = "P";
@@ -4934,14 +4926,11 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_LEDS
 	feat_leds = "L";
 #endif
-#ifdef CONFIG_B43_RFKILL
-	feat_rfkill = "R";
-#endif
 	printk(KERN_INFO "Broadcom 43xx driver loaded "
-	       "[ Features: %s%s%s%s%s, Firmware-ID: "
+	       "[ Features: %s%s%s%s, Firmware-ID: "
 	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
 	       feat_pci, feat_pcmcia, feat_nphy,
-	       feat_leds, feat_rfkill);
+	       feat_leds);
 }
 
 static int __init b43_init(void)

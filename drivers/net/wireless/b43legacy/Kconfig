@@ -42,14 +42,6 @@ config B43LEGACY_LEDS
 	depends on B43LEGACY && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43LEGACY)
 	default y
 
-# RFKILL support
-# This config option automatically enables b43legacy RFKILL support,
-# if it's possible.
-config B43LEGACY_RFKILL
-	bool
-	depends on B43LEGACY && (RFKILL = y || RFKILL = B43LEGACY)
-	default y
-
 # This config option automatically enables b43 HW-RNG support,
 # if the HW-RNG core is enabled.
 config B43LEGACY_HWRNG
