@@ -1061,13 +1061,6 @@ static int nilfs_set_bdev_super(struct super_block *s, void *data)
 static int nilfs_test_bdev_super(struct super_block *s, void *data)
 {
 	struct nilfs_super_data *sd = data;
-
-	return s->s_bdev == sd->bdev;
-}
-
-static int nilfs_test_bdev_super2(struct super_block *s, void *data)
-{
-	struct nilfs_super_data *sd = data;
 	int ret;
 
 	if (s->s_bdev != sd->bdev)
@@ -1096,8 +1089,8 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	     const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	struct nilfs_super_data sd;
-	struct super_block *s, *s2;
-	struct the_nilfs *nilfs = NULL;
+	struct super_block *s;
+	struct the_nilfs *nilfs;
 	int err, need_to_close = 1;
 
 	sd.bdev = open_bdev_exclusive(dev_name, flags, fs_type);
@@ -1118,11 +1111,12 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 		goto failed;
 	}
 
-	/*
-	 * once the super is inserted into the list by sget, s_umount
-	 * will protect the lockfs code from trying to start a snapshot
-	 * while we are mounting
-	 */
+	nilfs = find_or_create_nilfs(sd.bdev);
+	if (!nilfs) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
 	down(&sd.bdev->bd_mount_sem);
 	if (!sd.cno &&
 	    (err = test_exclusive_mount(fs_type, sd.bdev, flags ^ MS_RDONLY))) {
@@ -1131,51 +1125,22 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	/*
-	 * Phase-1: search any existent instance and get the_nilfs
+	 * Search specified snapshot or R/W mode super_block
 	 */
+	if (!sd.cno)
+		/* trying to get the latest checkpoint.  */
+		sd.cno = nilfs_last_cno(nilfs);
+
 	s = sget(fs_type, nilfs_test_bdev_super, nilfs_set_bdev_super, &sd);
-	if (IS_ERR(s))
-		goto error_s;
-
-	if (!s->s_root) {
-		err = -ENOMEM;
-		nilfs = alloc_nilfs(sd.bdev);
-		if (!nilfs)
-			goto cancel_new;
-	} else {
-		struct nilfs_sb_info *sbi = NILFS_SB(s);
-
-		/*
-		 * s_umount protects super_block from unmount process;
-		 * It covers pointers of nilfs_sb_info and the_nilfs.
-		 */
-		nilfs = sbi->s_nilfs;
-		get_nilfs(nilfs);
-		up_write(&s->s_umount);
-
-		/*
-		 * Phase-2: search specified snapshot or R/W mode super_block
-		 */
-		if (!sd.cno)
-			/* trying to get the latest checkpoint.  */
-			sd.cno = nilfs_last_cno(nilfs);
-
-		s2 = sget(fs_type, nilfs_test_bdev_super2,
-			  nilfs_set_bdev_super, &sd);
-		deactivate_super(s);
-		/*
-		 * Although deactivate_super() invokes close_bdev_exclusive() at
-		 * kill_block_super().  Here, s is an existent mount; we need
-		 * one more close_bdev_exclusive() call.
-		 */
-		s = s2;
-		if (IS_ERR(s))
-			goto error_s;
+	if (IS_ERR(s)) {
+		err = PTR_ERR(s);
+		goto failed_unlock;
 	}
 
 	if (!s->s_root) {
 		char b[BDEVNAME_SIZE];
 
+		/* New superblock instance created */
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(sd.bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(sd.bdev));
@@ -1195,15 +1160,9 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	simple_set_mnt(mnt, s);
 	return 0;
 
- error_s:
-	up(&sd.bdev->bd_mount_sem);
-	if (nilfs)
-		put_nilfs(nilfs);
-	close_bdev_exclusive(sd.bdev, flags);
-	return PTR_ERR(s);
-
  failed_unlock:
 	up(&sd.bdev->bd_mount_sem);
+	put_nilfs(nilfs);
  failed:
 	close_bdev_exclusive(sd.bdev, flags);
 
@@ -1212,8 +1171,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
  cancel_new:
 	/* Abandoning the newly allocated superblock */
 	up(&sd.bdev->bd_mount_sem);
-	if (nilfs)
-		put_nilfs(nilfs);
+	put_nilfs(nilfs);
 	up_write(&s->s_umount);
 	deactivate_super(s);
 	/*

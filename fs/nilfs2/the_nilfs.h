@@ -43,6 +43,7 @@ enum {
  * struct the_nilfs - struct to supervise multiple nilfs mount points
  * @ns_flags: flags
  * @ns_count: reference count
+ * @ns_list: list head for nilfs_list
  * @ns_bdev: block device
  * @ns_bdi: backing dev info
  * @ns_writer: back pointer to writable nilfs_sb_info
@@ -88,6 +89,7 @@ enum {
 struct the_nilfs {
 	unsigned long		ns_flags;
 	atomic_t		ns_count;
+	struct list_head	ns_list;
 
 	struct block_device    *ns_bdev;
 	struct backing_dev_info *ns_bdi;
@@ -191,7 +193,7 @@ THE_NILFS_FNS(DISCONTINUED, discontinued)
 #define NILFS_ALTSB_FREQ	60  /* spare superblock */
 
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);
-struct the_nilfs *alloc_nilfs(struct block_device *);
+struct the_nilfs *find_or_create_nilfs(struct block_device *);
 void put_nilfs(struct the_nilfs *);
 int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
 int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);

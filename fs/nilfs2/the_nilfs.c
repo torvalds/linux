@@ -35,6 +35,10 @@
 #include "seglist.h"
 #include "segbuf.h"
 
+
+static LIST_HEAD(nilfs_objects);
+static DEFINE_SPINLOCK(nilfs_lock);
+
 void nilfs_set_last_segment(struct the_nilfs *nilfs,
 			    sector_t start_blocknr, u64 seq, __u64 cno)
 {
@@ -55,7 +59,7 @@ void nilfs_set_last_segment(struct the_nilfs *nilfs,
  * Return Value: On success, pointer to the_nilfs is returned.
  * On error, NULL is returned.
  */
-struct the_nilfs *alloc_nilfs(struct block_device *bdev)
+static struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 {
 	struct the_nilfs *nilfs;
 
@@ -69,12 +73,52 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	atomic_set(&nilfs->ns_ndirtyblks, 0);
 	init_rwsem(&nilfs->ns_sem);
 	mutex_init(&nilfs->ns_writer_mutex);
+	INIT_LIST_HEAD(&nilfs->ns_list);
 	INIT_LIST_HEAD(&nilfs->ns_supers);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_gc_inodes_h = NULL;
 	init_rwsem(&nilfs->ns_segctor_sem);
 
 	return nilfs;
+}
+
+/**
+ * find_or_create_nilfs - find or create nilfs object
+ * @bdev: block device to which the_nilfs is related
+ *
+ * find_nilfs() looks up an existent nilfs object created on the
+ * device and gets the reference count of the object.  If no nilfs object
+ * is found on the device, a new nilfs object is allocated.
+ *
+ * Return Value: On success, pointer to the nilfs object is returned.
+ * On error, NULL is returned.
+ */
+struct the_nilfs *find_or_create_nilfs(struct block_device *bdev)
+{
+	struct the_nilfs *nilfs, *new = NULL;
+
+ retry:
+	spin_lock(&nilfs_lock);
+	list_for_each_entry(nilfs, &nilfs_objects, ns_list) {
+		if (nilfs->ns_bdev == bdev) {
+			get_nilfs(nilfs);
+			spin_unlock(&nilfs_lock);
+			if (new)
+				put_nilfs(new);
+			return nilfs; /* existing object */
+		}
+	}
+	if (new) {
+		list_add_tail(&new->ns_list, &nilfs_objects);
+		spin_unlock(&nilfs_lock);
+		return new; /* new object */
+	}
+	spin_unlock(&nilfs_lock);
+
+	new = alloc_nilfs(bdev);
+	if (new)
+		goto retry;
+	return NULL; /* insufficient memory */
 }
 
 /**
@@ -86,13 +130,20 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev)
  */
 void put_nilfs(struct the_nilfs *nilfs)
 {
-	if (!atomic_dec_and_test(&nilfs->ns_count))
+	spin_lock(&nilfs_lock);
+	if (!atomic_dec_and_test(&nilfs->ns_count)) {
+		spin_unlock(&nilfs_lock);
 		return;
+	}
+	list_del_init(&nilfs->ns_list);
+	spin_unlock(&nilfs_lock);
+
 	/*
-	 * Increment of ns_count never occur below because the caller
+	 * Increment of ns_count never occurs below because the caller
 	 * of get_nilfs() holds at least one reference to the_nilfs.
 	 * Thus its exclusion control is not required here.
 	 */
+
 	might_sleep();
 	if (nilfs_loaded(nilfs)) {
 		nilfs_mdt_clear(nilfs->ns_sufile);
