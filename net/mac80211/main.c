@@ -369,60 +369,12 @@ static void ieee80211_tasklet_handler(unsigned long data)
 	}
 }
 
-/* Remove added headers (e.g., QoS control), encryption header/MIC, etc. to
- * make a prepared TX frame (one that has been given to hw) to look like brand
- * new IEEE 802.11 frame that is ready to go through TX processing again.
- */
-static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
-				      struct ieee80211_key *key,
-				      struct sk_buff *skb)
-{
-	unsigned int hdrlen, iv_len, mic_len;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-
-	if (!key)
-		goto no_key;
-
-	switch (key->conf.alg) {
-	case ALG_WEP:
-		iv_len = WEP_IV_LEN;
-		mic_len = WEP_ICV_LEN;
-		break;
-	case ALG_TKIP:
-		iv_len = TKIP_IV_LEN;
-		mic_len = TKIP_ICV_LEN;
-		break;
-	case ALG_CCMP:
-		iv_len = CCMP_HDR_LEN;
-		mic_len = CCMP_MIC_LEN;
-		break;
-	default:
-		goto no_key;
-	}
-
-	if (skb->len >= hdrlen + mic_len &&
-	    !(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
-		skb_trim(skb, skb->len - mic_len);
-	if (skb->len >= hdrlen + iv_len) {
-		memmove(skb->data + iv_len, skb->data, hdrlen);
-		hdr = (struct ieee80211_hdr *)skb_pull(skb, iv_len);
-	}
-
-no_key:
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		hdr->frame_control &= ~cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
-		memmove(skb->data + IEEE80211_QOS_CTL_LEN, skb->data,
-			hdrlen - IEEE80211_QOS_CTL_LEN);
-		skb_pull(skb, IEEE80211_QOS_CTL_LEN);
-	}
-}
-
 static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 					    struct sta_info *sta,
 					    struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
 	sta->tx_filtered_count++;
 
 	/*
@@ -464,16 +416,15 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 */
 	if (test_sta_flags(sta, WLAN_STA_PS) &&
 	    skb_queue_len(&sta->tx_filtered) < STA_MAX_TX_BUFFER) {
-		ieee80211_remove_tx_extra(local, sta->key, skb);
 		skb_queue_tail(&sta->tx_filtered, skb);
 		return;
 	}
 
-	if (!test_sta_flags(sta, WLAN_STA_PS) && !skb->requeue) {
+	if (!test_sta_flags(sta, WLAN_STA_PS) &&
+	    !(info->flags & IEEE80211_TX_INTFL_RETRIED)) {
 		/* Software retry the packet once */
-		skb->requeue = 1;
-		ieee80211_remove_tx_extra(local, sta->key, skb);
-		dev_queue_xmit(skb);
+		info->flags |= IEEE80211_TX_INTFL_RETRIED;
+		ieee80211_add_pending_skb(local, skb);
 		return;
 	}
 

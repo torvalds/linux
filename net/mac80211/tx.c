@@ -400,6 +400,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			sta_info_set_tim_bit(sta);
 
 		info->control.jiffies = jiffies;
+		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
 		return TX_QUEUED;
 	}
@@ -420,7 +421,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		 * frame filtering and keeps a station  blacklist on its own
 		 * (e.g: p54), so that frames can be delivered unimpeded.
 		 *
-		 * Note: It should be save to disable the filter now.
+		 * Note: It should be safe to disable the filter now.
 		 * As, it is really unlikely that we still have any pending
 		 * frame for this station in the hw's buffers/fifos left,
 		 * that is not rejected with a unsuccessful tx_status yet.
