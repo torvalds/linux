@@ -6,24 +6,19 @@
 mainmenu "Blackfin Kernel Configuration"
 
 config MMU
-	bool
-	default n
+	def_bool n
 
 config FPU
-	bool
-	default n
+	def_bool n
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default n
+	def_bool n
 
 config BLACKFIN
-	bool
-	default y
+	def_bool y
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -33,36 +28,29 @@ config GENERIC_BUG
 	depends on BUG
 
 config ZONE_DMA
-	bool
-	default y
+	def_bool y
 
 config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config GENERIC_GPIO
-	bool
-	default y
+	def_bool y
 
 config FORCE_MAX_ZONEORDER
 	int
 	default "14"
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
+	def_bool y
 
 source "init/Kconfig"
 
