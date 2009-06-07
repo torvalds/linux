@@ -989,6 +989,8 @@ _cdebbuf *capi_cmsg2str(_cmsg * cmsg)
 {
 	_cdebbuf *cdb;
 
+	if (!cmsg->m)
+		return NULL;	/* no message */
 	cdb = cdebbuf_alloc();
 	if (!cdb)
 		return NULL;
