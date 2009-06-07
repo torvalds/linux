@@ -37,6 +37,7 @@ static pid_t			target_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
+static int			verbose				= 0;
 
 static long			samples;
 static struct timeval		last_read;
@@ -349,17 +350,35 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	track = 0; /* only the first counter needs these */
 
+try_again:
 	fd[nr_cpu][counter] = sys_perf_counter_open(attr, pid, cpu, group_fd, 0);
 
 	if (fd[nr_cpu][counter] < 0) {
 		int err = errno;
 
-		error("syscall returned with %d (%s)\n",
+		if (verbose)
+			error("sys_perf_counter_open() syscall returned with %d (%s)\n",
 				fd[nr_cpu][counter], strerror(err));
 		if (err == EPERM)
-			printf("Are you root?\n");
+			die("Permission error - are you root?\n");
+
+		/*
+		 * If it's cycles then fall back to hrtimer
+		 * based cpu-clock-tick sw counter, which
+		 * is always available even if no PMU support:
+		 */
+		if (attr->type == PERF_TYPE_HARDWARE
+			&& attr->config == PERF_COUNT_CPU_CYCLES) {
+
+			if (verbose)
+				warning(" ... trying to fall back to cpu-clock-ticks\n");
+			attr->type = PERF_TYPE_SOFTWARE;
+			attr->config = PERF_COUNT_CPU_CLOCK;
+			goto try_again;
+		}
 		exit(-1);
 	}
+
 	assert(fd[nr_cpu][counter] >= 0);
 	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
 
@@ -519,6 +538,8 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
 };
 

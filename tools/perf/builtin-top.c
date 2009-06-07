@@ -65,6 +65,7 @@ static int			group				=  0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			= 16;
 static int			freq				=  0;
+static int			verbose				=  0;
 
 static char			*sym_filter;
 static unsigned long		filter_start;
@@ -550,11 +551,12 @@ try_again:
 	if (fd[i][counter] < 0) {
 		int err = errno;
 
-		error("sys_perf_counter_open() syscall returned with %d (%s)\n",
-			fd[i][counter], strerror(err));
+		if (verbose)
+			error("sys_perf_counter_open() syscall returned with %d (%s)\n",
+				fd[i][counter], strerror(err));
 
 		if (err == EPERM)
-			die(" No permission - are you root?\n");
+			die("No permission - are you root?\n");
 		/*
 		 * If it's cycles then fall back to hrtimer
 		 * based cpu-clock-tick sw counter, which
@@ -563,7 +565,9 @@ try_again:
 		if (attr->type == PERF_TYPE_HARDWARE
 			&& attr->config == PERF_COUNT_CPU_CYCLES) {
 
-			warning(" ... trying to fall back to cpu-clock-ticks\n");
+			if (verbose)
+				warning(" ... trying to fall back to cpu-clock-ticks\n");
+
 			attr->type = PERF_TYPE_SOFTWARE;
 			attr->config = PERF_COUNT_CPU_CLOCK;
 			goto try_again;
@@ -673,6 +677,8 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('E', "entries", &print_entries,
 		    "display this many functions"),
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
 };
 
