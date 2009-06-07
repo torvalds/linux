@@ -311,7 +311,6 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	return 1;
 out_err:
-	SELECT_MASK(drive, 0);
 	if (rc == 2)
 		printk(KERN_ERR "%s: %s: bad status\n", drive->name, __func__);
 	kfree(id);
