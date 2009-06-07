@@ -50,6 +50,7 @@ enum {
  * @ns_sem: semaphore for shared states
  * @ns_writer_mutex: mutex protecting ns_writer attach/detach
  * @ns_writer_refcount: number of referrers on ns_writer
+ * @ns_current: back pointer to current mount
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
  * @ns_sbwtime: previous write time of super blocks
@@ -97,6 +98,8 @@ struct the_nilfs {
 	struct rw_semaphore	ns_sem;
 	struct mutex		ns_writer_mutex;
 	atomic_t		ns_writer_refcount;
+
+	struct nilfs_sb_info   *ns_current;
 
 	/*
 	 * used for
