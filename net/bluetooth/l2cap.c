@@ -812,7 +812,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		goto done;
 	}
 
-	if (la.l2_psm && btohs(la.l2_psm) < 0x1001 &&
+	if (la.l2_psm && __le16_to_cpu(la.l2_psm) < 0x1001 &&
 				!capable(CAP_NET_BIND_SERVICE)) {
 		err = -EACCES;
 		goto done;
@@ -829,7 +829,8 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		l2cap_pi(sk)->sport = la.l2_psm;
 		sk->sk_state = BT_BOUND;
 
-		if (btohs(la.l2_psm) == 0x0001 || btohs(la.l2_psm) == 0x0003)
+		if (__le16_to_cpu(la.l2_psm) == 0x0001 ||
+					__le16_to_cpu(la.l2_psm) == 0x0003)
 			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
 	}
 
@@ -1015,9 +1016,9 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 		write_lock_bh(&l2cap_sk_list.lock);
 
 		for (psm = 0x1001; psm < 0x1100; psm += 2)
-			if (!__l2cap_get_sock_by_addr(htobs(psm), src)) {
-				l2cap_pi(sk)->psm   = htobs(psm);
-				l2cap_pi(sk)->sport = htobs(psm);
+			if (!__l2cap_get_sock_by_addr(cpu_to_le16(psm), src)) {
+				l2cap_pi(sk)->psm   = cpu_to_le16(psm);
+				l2cap_pi(sk)->sport = cpu_to_le16(psm);
 				err = 0;
 				break;
 			}
@@ -1106,11 +1107,11 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr, int *l
 	if (peer) {
 		la->l2_psm = l2cap_pi(sk)->psm;
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->dst);
-		la->l2_cid = htobs(l2cap_pi(sk)->dcid);
+		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->dcid);
 	} else {
 		la->l2_psm = l2cap_pi(sk)->sport;
 		bacpy(&la->l2_bdaddr, &bt_sk(sk)->src);
-		la->l2_cid = htobs(l2cap_pi(sk)->scid);
+		la->l2_cid = cpu_to_le16(l2cap_pi(sk)->scid);
 	}
 
 	return 0;
@@ -2720,8 +2721,8 @@ static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 
 		str += sprintf(str, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d %d\n",
 				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-				sk->sk_state, btohs(pi->psm), pi->scid, pi->dcid,
-				pi->imtu, pi->omtu, pi->sec_level);
+				sk->sk_state, __le16_to_cpu(pi->psm), pi->scid,
+				pi->dcid, pi->imtu, pi->omtu, pi->sec_level);
 	}
 
 	read_unlock_bh(&l2cap_sk_list.lock);
