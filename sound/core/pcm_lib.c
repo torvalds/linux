@@ -299,6 +299,8 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 		hw_ptr_interrupt =
 			new_hw_ptr - new_hw_ptr % runtime->period_size;
 	}
+	runtime->hw_ptr_interrupt = hw_ptr_interrupt;
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
@@ -309,7 +311,6 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = jiffies;
-	runtime->hw_ptr_interrupt = hw_ptr_interrupt;
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
 		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 
