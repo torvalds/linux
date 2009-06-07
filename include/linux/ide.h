@@ -499,6 +499,7 @@ enum {
 	/* write protect */
 	IDE_DFLAG_WP			= (1 << 29),
 	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 30),
+	IDE_DFLAG_NIEN_QUIRK		= (1 << 31),
 };
 
 struct ide_drive_s {
@@ -530,7 +531,6 @@ struct ide_drive_s {
 	u8	waiting_for_dma;	/* dma currently in progress */
 	u8	dma;			/* atapi dma flag */
 
-        u8	quirk_list;	/* considered quirky, set for a specific host */
         u8	init_speed;	/* transfer rate set at boot */
         u8	current_speed;	/* current transfer rate set */
 	u8	desired_speed;	/* desired transfer rate set */

@@ -300,11 +300,9 @@ void ide_check_nien_quirk_list(ide_drive_t *drive)
 
 	for (list = nien_quirk_list; *list != NULL; list++)
 		if (strstr(m, *list) != NULL) {
-			drive->quirk_list = 2;
+			drive->dev_flags |= IDE_DFLAG_NIEN_QUIRK;
 			return;
 		}
-
-	drive->quirk_list = 0;
 }
 
 int ide_driveid_update(ide_drive_t *drive)
@@ -389,7 +387,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 
-	if (drive->quirk_list == 2)
+	if (drive->dev_flags & IDE_DFLAG_NIEN_QUIRK)
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	error = __ide_wait_stat(drive, drive->ready_stat,

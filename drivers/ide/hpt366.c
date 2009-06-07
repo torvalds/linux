@@ -727,7 +727,7 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 	struct pci_dev	*dev	= to_pci_dev(hwif->dev);
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 
-	if (drive->quirk_list == 0)
+	if ((drive->dev_flags & IDE_DFLAG_NIEN_QUIRK) == 0)
 		return;
 
 	if (info->chip_type >= HPT370) {
