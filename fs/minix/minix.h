@@ -57,7 +57,6 @@ extern int __minix_write_begin(struct file *file, struct address_space *mapping,
 extern void V1_minix_truncate(struct inode *);
 extern void V2_minix_truncate(struct inode *);
 extern void minix_truncate(struct inode *);
-extern int minix_sync_inode(struct inode *);
 extern void minix_set_inode(struct inode *, dev_t);
 extern int V1_minix_get_block(struct inode *, long, struct buffer_head *, int);
 extern int V2_minix_get_block(struct inode *, long, struct buffer_head *, int);
@@ -72,7 +71,6 @@ extern int minix_empty_dir(struct inode*);
 extern void minix_set_link(struct minix_dir_entry*, struct page*, struct inode*);
 extern struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
 extern ino_t minix_inode_by_name(struct dentry*);
-extern int minix_sync_file(struct file *, struct dentry *, int);
 
 extern const struct inode_operations minix_file_inode_operations;
 extern const struct inode_operations minix_dir_inode_operations;
