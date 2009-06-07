@@ -77,3 +77,15 @@ config FIREWIRE_SBP2
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
+
+config FIREWIRE_NET
+	tristate "IP networking over 1394"
+	depends on FIREWIRE && INET
+	help
+	  This enables IPv4 over IEEE 1394, providing IP connectivity with
+	  other implementations of RFC 2734 as found on several operating
+	  systems.  Multicast support is currently limited.
+
+	  To compile this driver as a module, say M here:  The module will be
+	  called firewire-net.  It replaces eth1394 of the classic IEEE 1394
+	  stack.

@@ -1633,7 +1633,7 @@ static int ipv4_probe ( struct device *dev ) {
 		return added;
 	}
 	fw_debug("ipv4 Local: adding netdev\n" );
-	netdev = alloc_netdev ( sizeof(*priv), "fw-ipv4-%d", ipv4_init_dev );
+	netdev = alloc_netdev ( sizeof(*priv), "firewire%d", ipv4_init_dev );
 	if ( netdev == NULL) {
 		fw_error( "Out of memory\n");
 		goto out;

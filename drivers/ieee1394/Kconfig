@@ -105,7 +105,7 @@ config IEEE1394_ETH1394_ROM_ENTRY
 	default n
 
 config IEEE1394_ETH1394
-	tristate "IP over 1394"
+	tristate "IP networking over 1394"
 	depends on IEEE1394 && EXPERIMENTAL && INET
 	select IEEE1394_ETH1394_ROM_ENTRY
 	help
