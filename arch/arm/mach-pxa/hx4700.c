@@ -802,7 +802,7 @@ static struct platform_device *devices[] __initdata = {
 	&pcmcia,
 };
 
-struct gpio_ress global_gpios[] = {
+static struct gpio_ress global_gpios[] = {
 	HX4700_GPIO_IN(GPIO12_HX4700_ASIC3_IRQ, "ASIC3_IRQ"),
 	HX4700_GPIO_IN(GPIO13_HX4700_W3220_IRQ, "W3220_IRQ"),
 	HX4700_GPIO_IN(GPIO14_HX4700_nWLAN_IRQ, "WLAN_IRQ"),
