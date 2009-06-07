@@ -13,20 +13,15 @@
  */
 
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/highuid.h>
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
-#include <linux/vfs.h>
-#include <asm/uaccess.h>
+#include <linux/statfs.h>
+#include "qnx4.h"
 
 #define QNX4_VERSION  4
 #define QNX4_BMNAME   ".bitmap"

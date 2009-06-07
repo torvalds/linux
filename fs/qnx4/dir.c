@@ -11,14 +11,9 @@
  * 20-06-1998 by Frank Denis : Linux 2.1.99+ & dcache support.
  */
 
-#include <linux/string.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
-#include <linux/stat.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
-
+#include "qnx4.h"
 
 static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {

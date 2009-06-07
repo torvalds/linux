@@ -12,16 +12,9 @@
  * 04-07-1998 by Frank Denis : first step for rmdir/unlink.
  */
 
-#include <linux/time.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-#include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include "qnx4.h"
 
 
 /*

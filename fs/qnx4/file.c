@@ -12,8 +12,7 @@
  * 27-06-1998 by Frank Denis : file overwriting.
  */
 
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
+#include "qnx4.h"
 
 /*
  * We have mostly NULL's here: the current defaults are ok for
