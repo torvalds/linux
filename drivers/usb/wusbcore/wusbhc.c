@@ -88,33 +88,31 @@ static DEVICE_ATTR(wusb_trust_timeout, 0644, wusb_trust_timeout_show,
 					     wusb_trust_timeout_store);
 
 /*
- * Show & store the current WUSB CHID
+ * Show the current WUSB CHID.
  */
 static ssize_t wusb_chid_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	const struct wusb_ckhdid *chid;
 	ssize_t result = 0;
 
 	if (wusbhc->wuie_host_info != NULL)
-		result += ckhdid_printf(buf, PAGE_SIZE,
-					&wusbhc->wuie_host_info->CHID);
+		chid = &wusbhc->wuie_host_info->CHID;
+	else
+		chid = &wusb_ckhdid_zero;
+
+	result += ckhdid_printf(buf, PAGE_SIZE, chid);
+	result += sprintf(buf + result, "\n");
+
 	return result;
 }
 
 /*
- * Store a new CHID
+ * Store a new CHID.
  *
- * This will (FIXME) trigger many changes.
- *
- * - Send an all zeros CHID and it will stop the controller
- * - Send a non-zero CHID and it will start it
- *   (unless it was started, it will just change the CHID,
- *   diconnecting all devices first).
- *
- * So first we scan the MMC we are sent and then we act on it.  We
- * read it in the same format as we print it, an ASCII string of 16
- * hex bytes.
+ * - Write an all zeros CHID and it will stop the controller
+ * - Write a non-zero CHID and it will start it.
  *
  * See wusbhc_chid_set() for more info.
  */
@@ -339,13 +337,15 @@ void wusbhc_giveback_urb(struct wusbhc *wusbhc, struct urb *urb, int status)
 {
 	struct wusb_dev *wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 
-	if (status == 0) {
+	if (status == 0 && wusb_dev) {
 		wusb_dev->entry_ts = jiffies;
 
-		/* wusbhc_devconnect_acked() can't be called from from
+		/* wusbhc_devconnect_acked() can't be called from
 		   atomic context so defer it to a work queue. */
 		if (!list_empty(&wusb_dev->cack_node))
 			queue_work(wusbd, &wusb_dev->devconnect_acked_work);
+		else
+			wusb_dev_put(wusb_dev);
 	}
 
 	usb_hcd_giveback_urb(&wusbhc->usb_hcd, urb, status);

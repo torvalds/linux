@@ -1202,7 +1202,6 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 	struct cphy *phy = &pi->phy;
 	struct cmac *mac = &pi->mac;
 	struct link_config *lc = &pi->link_config;
-	int force_link_down = 0;
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
@@ -1218,14 +1217,9 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 		status = t3_read_reg(adapter, A_XGM_INT_STATUS + mac->offset);
 		if (status & F_LINKFAULTCHANGE) {
 			mac->stats.link_faults++;
-			force_link_down = 1;
+			pi->link_fault = 1;
 		}
 		t3_open_rx_traffic(mac, rx_cfg, rx_hash_high, rx_hash_low);
-
-		if (force_link_down) {
-			t3_os_link_fault_handler(adapter, port_id);
-			return;
-		}
 	}
 
 	if (lc->requested_fc & PAUSE_AUTONEG)
@@ -1280,6 +1274,11 @@ void t3_link_fault(struct adapter *adapter, int port_id)
 				 A_XGM_INT_STATUS + mac->offset);
 	link_fault &= F_LINKFAULTCHANGE;
 
+	link_ok = lc->link_ok;
+	speed = lc->speed;
+	duplex = lc->duplex;
+	fc = lc->fc;
+
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
 	if (link_fault) {
@@ -1292,9 +1291,6 @@ void t3_link_fault(struct adapter *adapter, int port_id)
 		/* Account link faults only when the phy reports a link up */
 		if (link_ok)
 			mac->stats.link_faults++;
-
-		msleep(1000);
-		t3_os_link_fault_handler(adapter, port_id);
 	} else {
 		if (link_ok)
 			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
@@ -3788,7 +3784,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 
 	adapter->params.info = ai;
 	adapter->params.nports = ai->nports0 + ai->nports1;
-	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
+	adapter->params.chan_map = (!!ai->nports0) | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 	/*
 	 * We used to only run the "adapter check task" once a second if

@@ -121,7 +121,7 @@ static inline void cmx2xx_init_dm9000(void) {}
 /* UCB1400 touchscreen controller */
 #if defined(CONFIG_TOUCHSCREEN_UCB1400) || defined(CONFIG_TOUCHSCREEN_UCB1400_MODULE)
 static struct platform_device cmx2xx_ts_device = {
-	.name		= "ucb1400_ts",
+	.name		= "ucb1400_core",
 	.id		= -1,
 };
 

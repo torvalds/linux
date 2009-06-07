@@ -182,6 +182,8 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 	if (!driver)
 		return;
 
+	dev->error_state = pci_channel_io_normal;
+
 	eeh_enable_irq(dev);
 
 	if (!driver->err_handler ||

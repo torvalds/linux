@@ -227,8 +227,14 @@ static ssize_t cxacru_sysfs_showattr_s8(s8 value, char *buf)
 
 static ssize_t cxacru_sysfs_showattr_dB(s16 value, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d.%02u\n",
-					value / 100, abs(value) % 100);
+	if (likely(value >= 0)) {
+		return snprintf(buf, PAGE_SIZE, "%u.%02u\n",
+					value / 100, value % 100);
+	} else {
+		value = -value;
+		return snprintf(buf, PAGE_SIZE, "-%u.%02u\n",
+					value / 100, value % 100);
+	}
 }
 
 static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)

@@ -2185,9 +2185,9 @@ void radeon_commit_ring(drm_radeon_private_t *dev_priv)
 
 	/* check if the ring is padded out to 16-dword alignment */
 
-	tail_aligned = dev_priv->ring.tail & 0xf;
+	tail_aligned = dev_priv->ring.tail & (RADEON_RING_ALIGN-1);
 	if (tail_aligned) {
-		int num_p2 = 16 - tail_aligned;
+		int num_p2 = RADEON_RING_ALIGN - tail_aligned;
 
 		ring = dev_priv->ring.start;
 		/* pad with some CP_PACKET2 */

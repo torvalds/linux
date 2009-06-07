@@ -105,10 +105,10 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 		return 0;
 
 #undef __entry
-#define __entry "REC"
+#define __entry REC
 
 #undef TP_printk
-#define TP_printk(fmt, args...) "%s, %s\n", #fmt, #args
+#define TP_printk(fmt, args...) "%s, %s\n", #fmt, __stringify(args)
 
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args

@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"2.0.0"
-#define DRV_MODULE_RELDATE	"April 2, 2009"
+#define DRV_MODULE_VERSION	"2.0.1"
+#define DRV_MODULE_RELDATE	"May 6, 2009"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-4.6.16.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-4.6.16.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-4.6.17.fw"
@@ -2600,6 +2600,7 @@ bnx2_get_hw_tx_cons(struct bnx2_napi *bnapi)
 	/* Tell compiler that status block fields can change. */
 	barrier();
 	cons = *bnapi->hw_tx_cons_ptr;
+	barrier();
 	if (unlikely((cons & MAX_TX_DESC_CNT) == MAX_TX_DESC_CNT))
 		cons++;
 	return cons;
@@ -2879,6 +2880,7 @@ bnx2_get_hw_rx_cons(struct bnx2_napi *bnapi)
 	/* Tell compiler that status block fields can change. */
 	barrier();
 	cons = *bnapi->hw_rx_cons_ptr;
+	barrier();
 	if (unlikely((cons & MAX_RX_DESC_CNT) == MAX_RX_DESC_CNT))
 		cons++;
 	return cons;
@@ -3427,8 +3429,8 @@ static int __devinit
 bnx2_request_firmware(struct bnx2 *bp)
 {
 	const char *mips_fw_file, *rv2p_fw_file;
-	const struct bnx2_mips_fw_file *mips;
-	const struct bnx2_rv2p_fw_file *rv2p;
+	const struct bnx2_mips_fw_file *mips_fw;
+	const struct bnx2_rv2p_fw_file *rv2p_fw;
 	int rc;
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
@@ -3452,21 +3454,21 @@ bnx2_request_firmware(struct bnx2 *bp)
 		       rv2p_fw_file);
 		return rc;
 	}
-	mips = (const struct bnx2_mips_fw_file *) bp->mips_firmware->data;
-	rv2p = (const struct bnx2_rv2p_fw_file *) bp->rv2p_firmware->data;
-	if (bp->mips_firmware->size < sizeof(*mips) ||
-	    check_mips_fw_entry(bp->mips_firmware, &mips->com) ||
-	    check_mips_fw_entry(bp->mips_firmware, &mips->cp) ||
-	    check_mips_fw_entry(bp->mips_firmware, &mips->rxp) ||
-	    check_mips_fw_entry(bp->mips_firmware, &mips->tpat) ||
-	    check_mips_fw_entry(bp->mips_firmware, &mips->txp)) {
+	mips_fw = (const struct bnx2_mips_fw_file *) bp->mips_firmware->data;
+	rv2p_fw = (const struct bnx2_rv2p_fw_file *) bp->rv2p_firmware->data;
+	if (bp->mips_firmware->size < sizeof(*mips_fw) ||
+	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->com) ||
+	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->cp) ||
+	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->rxp) ||
+	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->tpat) ||
+	    check_mips_fw_entry(bp->mips_firmware, &mips_fw->txp)) {
 		printk(KERN_ERR PFX "Firmware file \"%s\" is invalid\n",
 		       mips_fw_file);
 		return -EINVAL;
 	}
-	if (bp->rv2p_firmware->size < sizeof(*rv2p) ||
-	    check_fw_section(bp->rv2p_firmware, &rv2p->proc1.rv2p, 8, true) ||
-	    check_fw_section(bp->rv2p_firmware, &rv2p->proc2.rv2p, 8, true)) {
+	if (bp->rv2p_firmware->size < sizeof(*rv2p_fw) ||
+	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc1.rv2p, 8, true) ||
+	    check_fw_section(bp->rv2p_firmware, &rv2p_fw->proc2.rv2p, 8, true)) {
 		printk(KERN_ERR PFX "Firmware file \"%s\" is invalid\n",
 		       rv2p_fw_file);
 		return -EINVAL;

@@ -102,7 +102,7 @@ static const struct rtc_class_ops pl030_ops = {
 	.set_alarm	= pl030_set_alarm,
 };
 
-static int pl030_probe(struct amba_device *dev, void *id)
+static int pl030_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct pl030_rtc *rtc;
 	int ret;

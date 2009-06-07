@@ -21,10 +21,6 @@ struct omap_irda_config {
 	int transceiver_cap;
 	int (*transceiver_mode)(struct device *dev, int mode);
 	int (*select_irda)(struct device *dev, int state);
-	/* Very specific to the needs of some platforms (h3,h4)
-	 * having calls which can sleep in irda_set_speed.
-	 */
-	struct delayed_work gpio_expa;
 	int rx_channel;
 	int tx_channel;
 	unsigned long dest_start;

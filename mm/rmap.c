@@ -14,7 +14,7 @@
  * Original design by Rik van Riel <riel@conectiva.com.br> 2001
  * File methods by Dave McCracken <dmccr@us.ibm.com> 2003, 2004
  * Anonymous methods by Andrea Arcangeli <andrea@suse.de> 2004
- * Contributions by Hugh Dickins <hugh@veritas.com> 2003, 2004
+ * Contributions by Hugh Dickins 2003, 2004
  */
 
 /*

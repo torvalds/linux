@@ -299,12 +299,22 @@ static struct pxa2xx_spi_master spitz_spi_info = {
 	.num_chipselect	= 3,
 };
 
+static void spitz_wait_for_hsync(void)
+{
+	while (gpio_get_value(SPITZ_GPIO_HSYNC))
+		cpu_relax();
+
+	while (!gpio_get_value(SPITZ_GPIO_HSYNC))
+		cpu_relax();
+}
+
 static struct ads7846_platform_data spitz_ads7846_info = {
 	.model			= 7846,
 	.vref_delay_usecs	= 100,
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.gpio_pendown		= SPITZ_GPIO_TP_INT,
+	.wait_for_sync		= spitz_wait_for_hsync,
 };
 
 static void spitz_ads7846_cs(u32 command)
@@ -521,9 +531,15 @@ static int spitz_ohci_init(struct device *dev)
 	return gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
 }
 
+static void spitz_ohci_exit(struct device *dev)
+{
+	gpio_free(SPITZ_GPIO_USB_HOST);
+}
+
 static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
+	.exit		= spitz_ohci_exit,
 	.flags		= ENABLE_PORT_ALL | NO_OC_PROTECTION,
 	.power_budget	= 150,
 };
@@ -721,7 +737,7 @@ static void spitz_restart(char mode, const char *cmd)
 
 static void __init common_init(void)
 {
-	init_gpio_reset(SPITZ_GPIO_ON_RESET, 1);
+	init_gpio_reset(SPITZ_GPIO_ON_RESET, 1, 0);
 	pm_power_off = spitz_poweroff;
 	arm_pm_restart = spitz_restart;
 

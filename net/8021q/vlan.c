@@ -492,6 +492,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 				continue;
 
 			dev_change_flags(vlandev, flgs & ~IFF_UP);
+			vlan_transfer_operstate(dev, vlandev);
 		}
 		break;
 
@@ -507,6 +508,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 				continue;
 
 			dev_change_flags(vlandev, flgs | IFF_UP);
+			vlan_transfer_operstate(dev, vlandev);
 		}
 		break;
 

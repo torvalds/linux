@@ -1183,8 +1183,7 @@ out_free_txq:
 	free_queue(lp->tx_num_entries, lp->tx_base);
 
 out_free_mssbuf:
-	if (mssbuf)
-		kfree(mssbuf);
+	kfree(mssbuf);
 
 out_free_iommu:
 	ldc_iommu_release(lp);
@@ -1217,8 +1216,7 @@ void ldc_free(struct ldc_channel *lp)
 
 	hlist_del(&lp->list);
 
-	if (lp->mssbuf)
-		kfree(lp->mssbuf);
+	kfree(lp->mssbuf);
 
 	ldc_iommu_release(lp);
 

@@ -352,8 +352,8 @@ static int __devinit parport_init_chip(struct parisc_device *dev)
 	unsigned long port;
 
 	if (!dev->irq) {
-		printk(KERN_WARNING "IRQ not found for parallel device at 0x%lx\n",
-			dev->hpa.start);
+		printk(KERN_WARNING "IRQ not found for parallel device at 0x%llx\n",
+			(unsigned long long)dev->hpa.start);
 		return -ENODEV;
 	}
 

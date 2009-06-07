@@ -164,10 +164,12 @@ case "$1" in
 		;;
 
 	"tags")
+		rm -f tags
 		xtags ctags
 		;;
 
 	"TAGS")
+		rm -f TAGS
 		xtags etags
 		;;
 esac

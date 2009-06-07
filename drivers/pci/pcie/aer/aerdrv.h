@@ -95,6 +95,9 @@ struct aer_broadcast_data {
 static inline pci_ers_result_t merge_result(enum pci_ers_result orig,
 		enum pci_ers_result new)
 {
+	if (new == PCI_ERS_RESULT_NONE)
+		return orig;
+
 	switch (orig) {
 	case PCI_ERS_RESULT_CAN_RECOVER:
 	case PCI_ERS_RESULT_RECOVERED:

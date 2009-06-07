@@ -794,7 +794,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 {
 	static xfrm_address_t saddr_wildcard = { };
 	struct net *net = xp_net(pol);
-	unsigned int h;
+	unsigned int h, h_wildcard;
 	struct hlist_node *entry;
 	struct xfrm_state *x, *x0, *to_put;
 	int acquire_in_progress = 0;
@@ -819,8 +819,8 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 	if (best)
 		goto found;
 
-	h = xfrm_dst_hash(net, daddr, &saddr_wildcard, tmpl->reqid, family);
-	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+	h_wildcard = xfrm_dst_hash(net, daddr, &saddr_wildcard, tmpl->reqid, family);
+	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h_wildcard, bydst) {
 		if (x->props.family == family &&
 		    x->props.reqid == tmpl->reqid &&
 		    !(x->props.flags & XFRM_STATE_WILDRECV) &&

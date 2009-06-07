@@ -546,10 +546,6 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = acm;
 	acm->tty = tty;
 
-	/* force low_latency on so that our tty_push actually forces the data through,
-	   otherwise it is scheduled, and with high data rates data can get lost. */
-	tty->low_latency = 1;
-
 	if (usb_autopm_get_interface(acm->control) < 0)
 		goto early_bail;
 	else
@@ -1377,6 +1373,9 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x0572, 0x1324), /* Conexant USB MODEM RD02-D400 */
+	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
+	},
+	{ USB_DEVICE(0x0572, 0x1328), /* Shiro / Aztech USB MODEM UM-3100 */
 	.driver_info = NO_UNION_NORMAL, /* has no union descriptor */
 	},
 	{ USB_DEVICE(0x22b8, 0x6425), /* Motorola MOTOMAGX phones */

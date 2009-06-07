@@ -150,6 +150,7 @@ enum {
 	STAC_D965_REF,
 	STAC_D965_3ST,
 	STAC_D965_5ST,
+	STAC_D965_5ST_NO_FP,
 	STAC_DELL_3ST,
 	STAC_DELL_BIOS,
 	STAC_927X_MODELS
@@ -2154,6 +2155,13 @@ static unsigned int d965_5st_pin_configs[14] = {
 	0x40000100, 0x40000100
 };
 
+static unsigned int d965_5st_no_fp_pin_configs[14] = {
+	0x40000100, 0x40000100, 0x0181304e, 0x01014010,
+	0x01a19040, 0x01011012, 0x01016011, 0x40000100,
+	0x40000100, 0x40000100, 0x40000100, 0x01442070,
+	0x40000100, 0x40000100
+};
+
 static unsigned int dell_3st_pin_configs[14] = {
 	0x02211230, 0x02a11220, 0x01a19040, 0x01114210,
 	0x01111212, 0x01116211, 0x01813050, 0x01112214,
@@ -2166,6 +2174,7 @@ static unsigned int *stac927x_brd_tbl[STAC_927X_MODELS] = {
 	[STAC_D965_REF]  = ref927x_pin_configs,
 	[STAC_D965_3ST]  = d965_3st_pin_configs,
 	[STAC_D965_5ST]  = d965_5st_pin_configs,
+	[STAC_D965_5ST_NO_FP]  = d965_5st_no_fp_pin_configs,
 	[STAC_DELL_3ST]  = dell_3st_pin_configs,
 	[STAC_DELL_BIOS] = NULL,
 };
@@ -2176,6 +2185,7 @@ static const char *stac927x_models[STAC_927X_MODELS] = {
 	[STAC_D965_REF]		= "ref",
 	[STAC_D965_3ST]		= "3stack",
 	[STAC_D965_5ST]		= "5stack",
+	[STAC_D965_5ST_NO_FP]	= "5stack-no-fp",
 	[STAC_DELL_3ST]		= "dell-3stack",
 	[STAC_DELL_BIOS]	= "dell-bios",
 };
@@ -3076,6 +3086,11 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 	unsigned int wid_caps;
 
 	for (i = 0; i < num_outs && i < ARRAY_SIZE(chname); i++) {
+		if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
+			wid_caps = get_wcaps(codec, pins[i]);
+			if (wid_caps & AC_WCAP_UNSOL_CAP)
+				spec->hp_detect = 1;
+		}
 		nid = dac_nids[i];
 		if (!nid)
 			continue;
@@ -3119,11 +3134,6 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 			err = create_controls_idx(codec, name, idx, nid, 3);
 			if (err < 0)
 				return err;
-			if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
-				wid_caps = get_wcaps(codec, pins[i]);
-				if (wid_caps & AC_WCAP_UNSOL_CAP)
-					spec->hp_detect = 1;
-			}
 		}
 	}
 	return 0;
@@ -3851,6 +3861,15 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
+#ifdef CONFIG_SND_JACK
+static void stac92xx_free_jack_priv(struct snd_jack *jack)
+{
+	struct sigmatel_jack *jacks = jack->private_data;
+	jacks->nid = 0;
+	jacks->jack = NULL;
+}
+#endif
+
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
@@ -3860,6 +3879,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int connectivity = get_defcfg_connect(def_conf);
 	char name[32];
+	int err;
 
 	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
 		return 0;
@@ -3876,10 +3896,15 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
 
-	return snd_jack_new(codec->bus->card, name, type, &jack->jack);
-#else
-	return 0;
+	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
+	if (err < 0) {
+		jack->nid = 0;
+		return err;
+	}
+	jack->jack->private_data = jack;
+	jack->jack->private_free = stac92xx_free_jack_priv;
 #endif
+	return 0;
 }
 
 static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
@@ -4064,7 +4089,12 @@ static int stac92xx_init(struct hda_codec *codec)
 				pinctl = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 				/* if PINCTL already set then skip */
-				if (!(pinctl & AC_PINCTL_IN_EN)) {
+				/* Also, if both INPUT and OUTPUT are set,
+				 * it must be a BIOS bug; need to override, too
+				 */
+				if (!(pinctl & AC_PINCTL_IN_EN) ||
+				    (pinctl & AC_PINCTL_OUT_EN)) {
+					pinctl &= ~AC_PINCTL_OUT_EN;
 					pinctl |= AC_PINCTL_IN_EN;
 					stac92xx_auto_set_pinctl(codec, nid,
 								 pinctl);
@@ -4138,8 +4168,10 @@ static void stac92xx_free_jacks(struct hda_codec *codec)
 	if (!codec->bus->shutdown && spec->jacks.list) {
 		struct sigmatel_jack *jacks = spec->jacks.list;
 		int i;
-		for (i = 0; i < spec->jacks.used; i++)
-			snd_device_free(codec->bus->card, &jacks[i].jack);
+		for (i = 0; i < spec->jacks.used; i++, jacks++) {
+			if (jacks->jack)
+				snd_device_free(codec->bus->card, jacks->jack);
+		}
 	}
 	snd_array_free(&spec->jacks);
 #endif

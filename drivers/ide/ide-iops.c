@@ -37,14 +37,11 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 
 u8 ide_read_error(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_ERROR;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_ERROR);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.error;
+	return tf.error;
 }
 EXPORT_SYMBOL_GPL(ide_read_error);
 
@@ -209,8 +206,6 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
 
 /*
  * Early UDMA66 devices don't set bit14 to 1, only bit13 is valid.
- * We list them here and depend on the device side cable detection for them.
- *
  * Some optical devices with the buggy firmwares have the same problem.
  */
 static const struct drive_list_entry ivb_list[] = {
@@ -254,10 +249,25 @@ u8 eighty_ninty_three(ide_drive_t *drive)
 	 * - force bit13 (80c cable present) check also for !ivb devices
 	 *   (unless the slave device is pre-ATA3)
 	 */
-	if ((id[ATA_ID_HW_CONFIG] & 0x4000) ||
-	    (ivb && (id[ATA_ID_HW_CONFIG] & 0x2000)))
+	if (id[ATA_ID_HW_CONFIG] & 0x4000)
 		return 1;
 
+	if (ivb) {
+		const char *model = (char *)&id[ATA_ID_PROD];
+
+		if (strstr(model, "TSSTcorp CDDVDW SH-S202")) {
+			/*
+			 * These ATAPI devices always report 80c cable
+			 * so we have to depend on the host in this case.
+			 */
+			if (hwif->cbl == ATA_CBL_PATA80)
+				return 1;
+		} else {
+			/* Depend on the device side cable detection. */
+			if (id[ATA_ID_HW_CONFIG] & 0x2000)
+				return 1;
+		}
+	}
 no_80w:
 	if (drive->dev_flags & IDE_DFLAG_UDMA33_WARNED)
 		return 0;
@@ -312,10 +322,10 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	struct ide_taskfile tf;
 	u16 *id = drive->id, i;
 	int error = 0;
 	u8 stat;
-	struct ide_cmd cmd;
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
@@ -347,12 +357,11 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	udelay(1);
 	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
-	cmd.tf.feature = SETFEATURES_XFER;
-	cmd.tf.nsect   = speed;
+	memset(&tf, 0, sizeof(tf));
+	tf.feature = SETFEATURES_XFER;
+	tf.nsect   = speed;
 
-	tp_ops->tf_load(drive, &cmd);
+	tp_ops->tf_load(drive, &tf, IDE_VALID_FEATURE | IDE_VALID_NSECT);
 
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 

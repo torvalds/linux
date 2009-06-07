@@ -1377,12 +1377,12 @@ static int blk_trace_str2mask(const char *str)
 {
 	int i;
 	int mask = 0;
-	char *s, *token;
+	char *buf, *s, *token;
 
-	s = kstrdup(str, GFP_KERNEL);
-	if (s == NULL)
+	buf = kstrdup(str, GFP_KERNEL);
+	if (buf == NULL)
 		return -ENOMEM;
-	s = strstrip(s);
+	s = strstrip(buf);
 
 	while (1) {
 		token = strsep(&s, ",");
@@ -1403,7 +1403,7 @@ static int blk_trace_str2mask(const char *str)
 			break;
 		}
 	}
-	kfree(s);
+	kfree(buf);
 
 	return mask;
 }

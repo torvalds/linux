@@ -350,12 +350,20 @@ static int conexant_mux_enum_put(struct snd_kcontrol *kcontrol,
 }
 
 #ifdef CONFIG_SND_JACK
+static void conexant_free_jack_priv(struct snd_jack *jack)
+{
+	struct conexant_jack *jacks = jack->private_data;
+	jacks->nid = 0;
+	jacks->jack = NULL;
+}
+
 static int conexant_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
 	struct conexant_spec *spec;
 	struct conexant_jack *jack;
 	const char *name;
+	int err;
 
 	spec = codec->spec;
 	snd_array_init(&spec->jacks, sizeof(*jack), 32);
@@ -368,7 +376,12 @@ static int conexant_add_jack(struct hda_codec *codec,
 	jack->nid = nid;
 	jack->type = type;
 
-	return snd_jack_new(codec->bus->card, name, type, &jack->jack);
+	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
+	if (err < 0)
+		return err;
+	jack->jack->private_data = jack;
+	jack->jack->private_free = conexant_free_jack_priv;
+	return 0;
 }
 
 static void conexant_report_jack(struct hda_codec *codec, hda_nid_t nid)
@@ -455,8 +468,10 @@ static void conexant_free(struct hda_codec *codec)
 	if (spec->jacks.list) {
 		struct conexant_jack *jacks = spec->jacks.list;
 		int i;
-		for (i = 0; i < spec->jacks.used; i++)
-			snd_device_free(codec->bus->card, &jacks[i].jack);
+		for (i = 0; i < spec->jacks.used; i++, jacks++) {
+			if (jacks->jack)
+				snd_device_free(codec->bus->card, jacks->jack);
+		}
 		snd_array_free(&spec->jacks);
 	}
 #endif
@@ -1833,6 +1848,7 @@ static const char *cxt5051_models[CXT5051_MODELS] = {
 
 static struct snd_pci_quirk cxt5051_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30cf, "HP DV6736", CXT5051_HP_DV6736),
+	SND_PCI_QUIRK(0x103c, 0x360b, "Compaq Presario CQ60", CXT5051_HP),
 	SND_PCI_QUIRK(0x14f1, 0x0101, "Conexant Reference board",
 		      CXT5051_LAPTOP),
 	SND_PCI_QUIRK(0x14f1, 0x5051, "HP Spartan 1.1", CXT5051_HP),

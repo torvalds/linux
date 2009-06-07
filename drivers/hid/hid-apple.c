@@ -151,7 +151,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (fnmode) {
 		int do_translate;
 
-		trans = apple_find_translation((hid->product < 0x220 ||
+		trans = apple_find_translation((hid->product < 0x21d ||
 					hid->product >= 0x300) ?
 					powerbook_fn_keys : apple_fn_keys,
 					usage->code);

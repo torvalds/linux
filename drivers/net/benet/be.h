@@ -35,7 +35,21 @@
 #define DRV_VER			"2.0.348"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
+#define OC_NAME			"Emulex OneConnect 10Gbps NIC"
 #define DRV_DESC		BE_NAME "Driver"
+
+#define BE_VENDOR_ID 		0x19a2
+#define BE_DEVICE_ID1		0x211
+#define OC_DEVICE_ID1		0x700
+#define OC_DEVICE_ID2		0x701
+
+static inline char *nic_name(struct pci_dev *pdev)
+{
+	if (pdev->device == OC_DEVICE_ID1 || pdev->device == OC_DEVICE_ID2)
+		return OC_NAME;
+	else
+		return BE_NAME;
+}
 
 /* Number of bytes of an RX frame that are copied to skb->data */
 #define BE_HDR_LEN 		64

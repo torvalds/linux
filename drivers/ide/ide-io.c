@@ -86,27 +86,30 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 
 		tp_ops->input_data(drive, cmd, data, 2);
 
-		tf->data = data[0];
-		tf->hob_data = data[1];
+		cmd->tf.data  = data[0];
+		cmd->hob.data = data[1];
 	}
 
-	tp_ops->tf_read(drive, cmd);
+	ide_tf_readback(drive, cmd);
 
 	if ((cmd->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) &&
 	    tf_cmd == ATA_CMD_IDLEIMMEDIATE) {
 		if (tf->lbal != 0xc4) {
 			printk(KERN_ERR "%s: head unload failed!\n",
 			       drive->name);
-			ide_tf_dump(drive->name, tf);
+			ide_tf_dump(drive->name, cmd);
 		} else
 			drive->dev_flags |= IDE_DFLAG_PARKED;
 	}
 
-	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		memcpy(rq->special, cmd, sizeof(*cmd));
+	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+		struct ide_cmd *orig_cmd = rq->special;
 
-	if (cmd->tf_flags & IDE_TFLAG_DYN)
-		kfree(cmd);
+		if (cmd->tf_flags & IDE_TFLAG_DYN)
+			kfree(orig_cmd);
+		else
+			memcpy(orig_cmd, cmd, sizeof(*cmd));
+	}
 }
 
 /* obsolete, blk_rq_bytes() should be used instead */
@@ -205,8 +208,9 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
-		       IDE_TFLAG_CUSTOM_HANDLER;
+	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
+	cmd.tf_flags = IDE_TFLAG_CUSTOM_HANDLER;
 
 	do_rw_taskfile(drive, &cmd);
 
@@ -692,7 +696,7 @@ void ide_timer_expiry (unsigned long data)
 		}
 		spin_lock_irq(&hwif->lock);
 		enable_irq(hwif->irq);
-		if (startstop == ide_stopped) {
+		if (startstop == ide_stopped && hwif->polling == 0) {
 			ide_unlock_port(hwif);
 			plug_device = 1;
 		}
@@ -864,7 +868,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	 * same irq as is currently being serviced here, and Linux
 	 * won't allow another of the same (on any CPU) until we return.
 	 */
-	if (startstop == ide_stopped) {
+	if (startstop == ide_stopped && hwif->polling == 0) {
 		BUG_ON(hwif->handler);
 		ide_unlock_port(hwif);
 		plug_device = 1;

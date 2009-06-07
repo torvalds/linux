@@ -293,6 +293,10 @@ enum {
 	FISCFG_WAIT_DEV_ERR	= (1 << 8),	/* wait for host on DevErr */
 	FISCFG_SINGLE_SYNC	= (1 << 16),	/* SYNC on DMA activation */
 
+	PHY_MODE9_GEN2		= 0x398,
+	PHY_MODE9_GEN1		= 0x39c,
+	PHYCFG_OFS		= 0x3a0,	/* only in 65n devices */
+
 	MV5_PHY_MODE		= 0x74,
 	MV5_LTMODE		= 0x30,
 	MV5_PHY_CTL		= 0x0C,
@@ -609,6 +613,8 @@ static int mv_soc_reset_hc(struct mv_host_priv *hpriv,
 static void mv_soc_reset_flash(struct mv_host_priv *hpriv,
 				      void __iomem *mmio);
 static void mv_soc_reset_bus(struct ata_host *host, void __iomem *mmio);
+static void mv_soc_65n_phy_errata(struct mv_host_priv *hpriv,
+				  void __iomem *mmio, unsigned int port);
 static void mv_reset_pci_bus(struct ata_host *host, void __iomem *mmio);
 static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 			     unsigned int port_no);
@@ -802,6 +808,14 @@ static const struct mv_hw_ops mv_soc_ops = {
 	.phy_errata		= mv6_phy_errata,
 	.enable_leds		= mv_soc_enable_leds,
 	.read_preamp		= mv_soc_read_preamp,
+	.reset_hc		= mv_soc_reset_hc,
+	.reset_flash		= mv_soc_reset_flash,
+	.reset_bus		= mv_soc_reset_bus,
+};
+
+static const struct mv_hw_ops mv_soc_65n_ops = {
+	.phy_errata		= mv_soc_65n_phy_errata,
+	.enable_leds		= mv_soc_enable_leds,
 	.reset_hc		= mv_soc_reset_hc,
 	.reset_flash		= mv_soc_reset_flash,
 	.reset_bus		= mv_soc_reset_bus,
@@ -1881,6 +1895,39 @@ static u8 mv_bmdma_status(struct ata_port *ap)
 	return status;
 }
 
+static void mv_rw_multi_errata_sata24(struct ata_queued_cmd *qc)
+{
+	struct ata_taskfile *tf = &qc->tf;
+	/*
+	 * Workaround for 88SX60x1 FEr SATA#24.
+	 *
+	 * Chip may corrupt WRITEs if multi_count >= 4kB.
+	 * Note that READs are unaffected.
+	 *
+	 * It's not clear if this errata really means "4K bytes",
+	 * or if it always happens for multi_count > 7
+	 * regardless of device sector_size.
+	 *
+	 * So, for safety, any write with multi_count > 7
+	 * gets converted here into a regular PIO write instead:
+	 */
+	if ((tf->flags & ATA_TFLAG_WRITE) && is_multi_taskfile(tf)) {
+		if (qc->dev->multi_count > 7) {
+			switch (tf->command) {
+			case ATA_CMD_WRITE_MULTI:
+				tf->command = ATA_CMD_PIO_WRITE;
+				break;
+			case ATA_CMD_WRITE_MULTI_FUA_EXT:
+				tf->flags &= ~ATA_TFLAG_FUA; /* ugh */
+				/* fall through */
+			case ATA_CMD_WRITE_MULTI_EXT:
+				tf->command = ATA_CMD_PIO_WRITE_EXT;
+				break;
+			}
+		}
+	}
+}
+
 /**
  *      mv_qc_prep - Host specific command preparation.
  *      @qc: queued command to prepare
@@ -1898,17 +1945,24 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct mv_port_priv *pp = ap->private_data;
 	__le16 *cw;
-	struct ata_taskfile *tf;
+	struct ata_taskfile *tf = &qc->tf;
 	u16 flags = 0;
 	unsigned in_index;
 
-	if ((qc->tf.protocol != ATA_PROT_DMA) &&
-	    (qc->tf.protocol != ATA_PROT_NCQ))
+	switch (tf->protocol) {
+	case ATA_PROT_DMA:
+	case ATA_PROT_NCQ:
+		break;	/* continue below */
+	case ATA_PROT_PIO:
+		mv_rw_multi_errata_sata24(qc);
 		return;
+	default:
+		return;
+	}
 
 	/* Fill in command request block
 	 */
-	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
+	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
@@ -1924,7 +1978,6 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	pp->crqb[in_index].ctrl_flags = cpu_to_le16(flags);
 
 	cw = &pp->crqb[in_index].ata_cmd[0];
-	tf = &qc->tf;
 
 	/* Sadly, the CRQB cannot accomodate all registers--there are
 	 * only 11 bytes...so we must pick and choose required
@@ -1990,16 +2043,16 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct mv_port_priv *pp = ap->private_data;
 	struct mv_crqb_iie *crqb;
-	struct ata_taskfile *tf;
+	struct ata_taskfile *tf = &qc->tf;
 	unsigned in_index;
 	u32 flags = 0;
 
-	if ((qc->tf.protocol != ATA_PROT_DMA) &&
-	    (qc->tf.protocol != ATA_PROT_NCQ))
+	if ((tf->protocol != ATA_PROT_DMA) &&
+	    (tf->protocol != ATA_PROT_NCQ))
 		return;
 
 	/* Fill in Gen IIE command request block */
-	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
+	if (!(tf->flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
@@ -2015,7 +2068,6 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma[qc->tag] >> 16) >> 16);
 	crqb->flags = cpu_to_le32(flags);
 
-	tf = &qc->tf;
 	crqb->ata_cmd[0] = cpu_to_le32(
 			(tf->command << 16) |
 			(tf->feature << 24)
@@ -3359,6 +3411,53 @@ static void mv_soc_reset_bus(struct ata_host *host, void __iomem *mmio)
 	return;
 }
 
+static void mv_soc_65n_phy_errata(struct mv_host_priv *hpriv,
+				  void __iomem *mmio, unsigned int port)
+{
+	void __iomem *port_mmio = mv_port_base(mmio, port);
+	u32	reg;
+
+	reg = readl(port_mmio + PHY_MODE3);
+	reg &= ~(0x3 << 27);	/* SELMUPF (bits 28:27) to 1 */
+	reg |= (0x1 << 27);
+	reg &= ~(0x3 << 29);	/* SELMUPI (bits 30:29) to 1 */
+	reg |= (0x1 << 29);
+	writel(reg, port_mmio + PHY_MODE3);
+
+	reg = readl(port_mmio + PHY_MODE4);
+	reg &= ~0x1;	/* SATU_OD8 (bit 0) to 0, reserved bit 16 must be set */
+	reg |= (0x1 << 16);
+	writel(reg, port_mmio + PHY_MODE4);
+
+	reg = readl(port_mmio + PHY_MODE9_GEN2);
+	reg &= ~0xf;	/* TXAMP[3:0] (bits 3:0) to 8 */
+	reg |= 0x8;
+	reg &= ~(0x1 << 14);	/* TXAMP[4] (bit 14) to 0 */
+	writel(reg, port_mmio + PHY_MODE9_GEN2);
+
+	reg = readl(port_mmio + PHY_MODE9_GEN1);
+	reg &= ~0xf;	/* TXAMP[3:0] (bits 3:0) to 8 */
+	reg |= 0x8;
+	reg &= ~(0x1 << 14);	/* TXAMP[4] (bit 14) to 0 */
+	writel(reg, port_mmio + PHY_MODE9_GEN1);
+}
+
+/**
+ *	soc_is_65 - check if the soc is 65 nano device
+ *
+ *	Detect the type of the SoC, this is done by reading the PHYCFG_OFS
+ *	register, this register should contain non-zero value and it exists only
+ *	in the 65 nano devices, when reading it from older devices we get 0.
+ */
+static bool soc_is_65n(struct mv_host_priv *hpriv)
+{
+	void __iomem *port0_mmio = mv_port_base(hpriv->base, 0);
+
+	if (readl(port0_mmio + PHYCFG_OFS))
+		return true;
+	return false;
+}
+
 static void mv_setup_ifcfg(void __iomem *port_mmio, int want_gen2i)
 {
 	u32 ifcfg = readl(port_mmio + SATA_IFCFG);
@@ -3699,7 +3798,10 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		}
 		break;
 	case chip_soc:
-		hpriv->ops = &mv_soc_ops;
+		if (soc_is_65n(hpriv))
+			hpriv->ops = &mv_soc_65n_ops;
+		else
+			hpriv->ops = &mv_soc_ops;
 		hp_flags |= MV_HP_FLAG_SOC | MV_HP_GEN_IIE |
 			MV_HP_ERRATA_60X1C0;
 		break;
@@ -3762,7 +3864,8 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	n_hc = mv_get_hc_count(host->ports[0]->flags);
 
 	for (port = 0; port < host->n_ports; port++)
-		hpriv->ops->read_preamp(hpriv, port, mmio);
+		if (hpriv->ops->read_preamp)
+			hpriv->ops->read_preamp(hpriv, port, mmio);
 
 	rc = hpriv->ops->reset_hc(hpriv, mmio, n_hc);
 	if (rc)

@@ -1200,7 +1200,7 @@ static int si470x_fops_release(struct file *file)
 			video_unregister_device(radio->videodev);
 			kfree(radio->buffer);
 			kfree(radio);
-			goto unlock;
+			goto done;
 		}
 
 		/* stop rds reception */

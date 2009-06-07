@@ -278,7 +278,7 @@ static ssize_t at24_bin_read(struct kobject *kobj, struct bin_attribute *attr,
  * We only use page mode writes; the alternative is sloooow. This routine
  * writes at most one page.
  */
-static ssize_t at24_eeprom_write(struct at24_data *at24, char *buf,
+static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 		unsigned offset, size_t count)
 {
 	struct i2c_client *client;
@@ -347,8 +347,8 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, char *buf,
 	return -ETIMEDOUT;
 }
 
-static ssize_t at24_write(struct at24_data *at24,
-		char *buf, loff_t off, size_t count)
+static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
+			  size_t count)
 {
 	ssize_t retval = 0;
 
@@ -406,7 +406,7 @@ static ssize_t at24_macc_read(struct memory_accessor *macc, char *buf,
 	return at24_read(at24, buf, offset, count);
 }
 
-static ssize_t at24_macc_write(struct memory_accessor *macc, char *buf,
+static ssize_t at24_macc_write(struct memory_accessor *macc, const char *buf,
 			  off_t offset, size_t count)
 {
 	struct at24_data *at24 = container_of(macc, struct at24_data, macc);

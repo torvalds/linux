@@ -193,6 +193,7 @@ static void drop_futex_key_refs(union futex_key *key)
  * @uaddr: virtual address of the futex
  * @fshared: 0 for a PROCESS_PRIVATE futex, 1 for PROCESS_SHARED
  * @key: address where result is stored.
+ * @rw: mapping needs to be read/write (values: VERIFY_READ, VERIFY_WRITE)
  *
  * Returns a negative error code or 0
  * The key words are stored in *key on success.
@@ -203,7 +204,8 @@ static void drop_futex_key_refs(union futex_key *key)
  *
  * lock_page() might sleep, the caller should not hold a spinlock.
  */
-static int get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
+static int
+get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 {
 	unsigned long address = (unsigned long)uaddr;
 	struct mm_struct *mm = current->mm;
@@ -226,7 +228,7 @@ static int get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 	 *        but access_ok() should be faster than find_vma()
 	 */
 	if (!fshared) {
-		if (unlikely(!access_ok(VERIFY_WRITE, uaddr, sizeof(u32))))
+		if (unlikely(!access_ok(rw, uaddr, sizeof(u32))))
 			return -EFAULT;
 		key->private.mm = mm;
 		key->private.address = address;
@@ -235,7 +237,7 @@ static int get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 	}
 
 again:
-	err = get_user_pages_fast(address, 1, 0, &page);
+	err = get_user_pages_fast(address, 1, rw == VERIFY_WRITE, &page);
 	if (err < 0)
 		return err;
 
@@ -677,7 +679,7 @@ static int futex_wake(u32 __user *uaddr, int fshared, int nr_wake, u32 bitset)
 	if (!bitset)
 		return -EINVAL;
 
-	ret = get_futex_key(uaddr, fshared, &key);
+	ret = get_futex_key(uaddr, fshared, &key, VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -723,10 +725,10 @@ futex_wake_op(u32 __user *uaddr1, int fshared, u32 __user *uaddr2,
 	int ret, op_ret;
 
 retry:
-	ret = get_futex_key(uaddr1, fshared, &key1);
+	ret = get_futex_key(uaddr1, fshared, &key1, VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out;
-	ret = get_futex_key(uaddr2, fshared, &key2);
+	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_WRITE);
 	if (unlikely(ret != 0))
 		goto out_put_key1;
 
@@ -814,10 +816,10 @@ static int futex_requeue(u32 __user *uaddr1, int fshared, u32 __user *uaddr2,
 	int ret, drop_count = 0;
 
 retry:
-	ret = get_futex_key(uaddr1, fshared, &key1);
+	ret = get_futex_key(uaddr1, fshared, &key1, VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out;
-	ret = get_futex_key(uaddr2, fshared, &key2);
+	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out_put_key1;
 
@@ -883,7 +885,12 @@ retry_private:
 out_unlock:
 	double_unlock_hb(hb1, hb2);
 
-	/* drop_futex_key_refs() must be called outside the spinlocks. */
+	/*
+	 * drop_futex_key_refs() must be called outside the spinlocks. During
+	 * the requeue we moved futex_q's from the hash bucket at key1 to the
+	 * one at key2 and updated their key pointer.  We no longer need to
+	 * hold the references to key1.
+	 */
 	while (--drop_count >= 0)
 		drop_futex_key_refs(&key1);
 
@@ -1135,7 +1142,7 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 	q.bitset = bitset;
 retry:
 	q.key = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr, fshared, &q.key);
+	ret = get_futex_key(uaddr, fshared, &q.key, VERIFY_READ);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -1325,7 +1332,7 @@ static int futex_lock_pi(u32 __user *uaddr, int fshared,
 	q.pi_state = NULL;
 retry:
 	q.key = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr, fshared, &q.key);
+	ret = get_futex_key(uaddr, fshared, &q.key, VERIFY_WRITE);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -1589,7 +1596,7 @@ retry:
 	if ((uval & FUTEX_TID_MASK) != task_pid_vnr(current))
 		return -EPERM;
 
-	ret = get_futex_key(uaddr, fshared, &key);
+	ret = get_futex_key(uaddr, fshared, &key, VERIFY_WRITE);
 	if (unlikely(ret != 0))
 		goto out;
 

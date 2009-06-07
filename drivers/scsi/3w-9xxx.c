@@ -1978,7 +1978,8 @@ static void twa_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
 
-	scsi_dma_unmap(cmd);
+	if (cmd->SCp.phase == TW_PHASE_SGLIST)
+		scsi_dma_unmap(cmd);
 } /* End twa_unmap_scsi_data() */
 
 /* scsi_host_template initializer */
@@ -2234,10 +2235,10 @@ static int twa_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK)
-	    || pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)
-		    || pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
+	    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
+		    || pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			TW_PRINTK(host, TW_DRIVER, 0x40, "Failed to set dma mask during resume");
 			retval = -ENODEV;
 			goto out_disable_device;

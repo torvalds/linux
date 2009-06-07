@@ -3670,12 +3670,14 @@ int arch_setup_hpet_msi(unsigned int irq)
 {
 	int ret;
 	struct msi_msg msg;
+	struct irq_desc *desc = irq_to_desc(irq);
 
 	ret = msi_compose_msg(NULL, irq, &msg);
 	if (ret < 0)
 		return ret;
 
 	hpet_msi_write(irq, &msg);
+	desc->status |= IRQ_MOVE_PCNTXT;
 	set_irq_chip_and_handler_name(irq, &hpet_msi_type, handle_edge_irq,
 		"edge");
 

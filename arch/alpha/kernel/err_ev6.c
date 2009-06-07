@@ -229,7 +229,7 @@ ev6_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-ev6_machine_check(u64 vector, u64 la_ptr)
+ev6_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 

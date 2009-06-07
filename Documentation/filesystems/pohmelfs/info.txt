@@ -1,6 +1,8 @@
 POHMELFS usage information.
 
-Mount options:
+Mount options.
+All but index, number of crypto threads and maximum IO size can changed via remount.
+
 idx=%u
  Each mountpoint is associated with a special index via this option.
  Administrator can add or remove servers from the given index, so all mounts,
@@ -52,16 +54,27 @@ mcache_timeout=%u
 
 Usage examples.
 
-Add (or remove if it already exists) server server1.net:1025 into the working set with index $idx
+Add server server1.net:1025 into the working set with index $idx
 with appropriate hash algorithm and key file and cipher algorithm, mode and key file:
-$cfg -a server1.net -p 1025 -i $idx -K $hash_key -k $cipher_key
+$cfg A add -a server1.net -p 1025 -i $idx -K $hash_key -k $cipher_key
 
 Mount filesystem with given index $idx to /mnt mountpoint.
 Client will connect to all servers specified in the working set via previous command:
 mount -t pohmel -o idx=$idx q /mnt
 
-One can add or remove servers from working set after mounting too.
+Change permissions to read-only (-I 1 option, '-I 2' - write-only, 3 - rw):
+$cfg A modify -a server1.net -p 1025 -i $idx -I 1
 
+Change IO priority to 123 (node with the highest priority gets read requests).
+$cfg A modify -a server1.net -p 1025 -i $idx -P 123
+
+One can check currect status of all connections in the mountstats file:
+# cat /proc/$PID/mountstats
+...
+device none mounted on /mnt with fstype pohmel
+idx addr(:port) socket_type protocol active priority permissions
+0 server1.net:1026 1 6 1 250 1
+0 server2.net:1025 1 6 1 123 3
 
 Server installation.
 

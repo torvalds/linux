@@ -427,12 +427,22 @@ static struct pxa2xx_spi_master corgi_spi_info = {
 	.num_chipselect	= 3,
 };
 
+static void corgi_wait_for_hsync(void)
+{
+	while (gpio_get_value(CORGI_GPIO_HSYNC))
+		cpu_relax();
+
+	while (!gpio_get_value(CORGI_GPIO_HSYNC))
+		cpu_relax();
+}
+
 static struct ads7846_platform_data corgi_ads7846_info = {
 	.model			= 7846,
 	.vref_delay_usecs	= 100,
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.gpio_pendown		= CORGI_GPIO_TP_INT,
+	.wait_for_sync		= corgi_wait_for_hsync,
 };
 
 static void corgi_ads7846_cs(u32 command)

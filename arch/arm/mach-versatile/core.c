@@ -413,7 +413,7 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 	{	/* UART0 */
 		.dev_id		= "dev:f1",
 		.clk		= &ref24_clk,
@@ -948,7 +948,7 @@ static struct irqaction versatile_timer_irq = {
 	.handler	= versatile_timer_interrupt,
 };
 
-static cycle_t versatile_get_cycles(void)
+static cycle_t versatile_get_cycles(struct clocksource *cs)
 {
 	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
 }

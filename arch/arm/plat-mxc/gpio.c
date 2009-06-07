@@ -124,7 +124,7 @@ static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
-	BUG_ON(!irq_stat);
+
 	mxc_gpio_irq_handler(port, irq_stat);
 }
 #endif

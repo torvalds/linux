@@ -31,34 +31,17 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 		blk_queue_bounce_limit(drive->queue, addr);
 }
 
-static void ide_dump_opcode(ide_drive_t *drive)
+u64 ide_get_lba_addr(struct ide_cmd *cmd, int lba48)
 {
-	struct request *rq = drive->hwif->rq;
-	struct ide_cmd *cmd = NULL;
-
-	if (!rq)
-		return;
-
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		cmd = rq->special;
-
-	printk(KERN_ERR "ide: failed opcode was: ");
-	if (cmd == NULL)
-		printk(KERN_CONT "unknown\n");
-	else
-		printk(KERN_CONT "0x%02x\n", cmd->tf.command);
-}
-
-u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
-{
+	struct ide_taskfile *tf = &cmd->tf;
 	u32 high, low;
 
-	if (lba48)
-		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
-			tf->hob_lbal;
-	else
-		high = tf->device & 0xf;
 	low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	if (lba48) {
+		tf = &cmd->hob;
+		high = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	} else
+		high = tf->device & 0xf;
 
 	return ((u64)high << 24) | low;
 }
@@ -71,17 +54,18 @@ static void ide_dump_sector(ide_drive_t *drive)
 	u8 lba48 = !!(drive->dev_flags & IDE_DFLAG_LBA48);
 
 	memset(&cmd, 0, sizeof(cmd));
-	if (lba48)
-		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
-				IDE_TFLAG_LBA48;
-	else
-		cmd.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+	if (lba48) {
+		cmd.valid.in.tf  = IDE_VALID_LBA;
+		cmd.valid.in.hob = IDE_VALID_LBA;
+		cmd.tf_flags = IDE_TFLAG_LBA48;
+	} else
+		cmd.valid.in.tf  = IDE_VALID_LBA | IDE_VALID_DEVICE;
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
+	ide_tf_readback(drive, &cmd);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(KERN_CONT ", LBAsect=%llu",
-			(unsigned long long)ide_get_lba_addr(tf, lba48));
+			(unsigned long long)ide_get_lba_addr(&cmd, lba48));
 	else
 		printk(KERN_CONT ", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
 			tf->device & 0xf, tf->lbal);
@@ -89,7 +73,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 
 static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 {
-	printk(KERN_ERR "{ ");
+	printk(KERN_CONT "{ ");
 	if (err & ATA_ABORTED)
 		printk(KERN_CONT "DriveStatusError ");
 	if (err & ATA_ICRC)
@@ -119,7 +103,7 @@ static void ide_dump_ata_error(ide_drive_t *drive, u8 err)
 
 static void ide_dump_atapi_error(ide_drive_t *drive, u8 err)
 {
-	printk(KERN_ERR "{ ");
+	printk(KERN_CONT "{ ");
 	if (err & ATAPI_ILI)
 		printk(KERN_CONT "IllegalLengthIndication ");
 	if (err & ATAPI_EOM)
@@ -177,7 +161,10 @@ u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 		else
 			ide_dump_atapi_error(drive, err);
 	}
-	ide_dump_opcode(drive);
+
+	printk(KERN_ERR "%s: possibly failed opcode: 0x%02x\n",
+		drive->name, drive->hwif->cmd.tf.command);
+
 	return err;
 }
 EXPORT_SYMBOL(ide_dump_status);

@@ -45,6 +45,7 @@
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
 #include <mach/pxa2xx_spi.h>
+#include <mach/audio.h>
 
 #include <asm/mach/arch.h>
 #include <mach/tosa.h>
@@ -896,7 +897,7 @@ static void __init tosa_init(void)
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 
-	init_gpio_reset(TOSA_GPIO_ON_RESET, 0);
+	init_gpio_reset(TOSA_GPIO_ON_RESET, 0, 0);
 
 	pm_power_off = tosa_poweroff;
 	arm_pm_restart = tosa_restart;
@@ -914,6 +915,7 @@ static void __init tosa_init(void)
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	pxa_set_ac97_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
 
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);

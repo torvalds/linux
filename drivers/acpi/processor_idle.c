@@ -145,6 +145,12 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 	struct acpi_processor_power *pwr = &pr->power;
 	u8 type = local_apic_timer_c2_ok ? ACPI_STATE_C3 : ACPI_STATE_C2;
 
+	if (cpu_has(&cpu_data(pr->id), X86_FEATURE_ARAT))
+		return;
+
+	if (boot_cpu_has(X86_FEATURE_AMDC1E))
+		type = ACPI_STATE_C1;
+
 	/*
 	 * Check, if one of the previous states already marked the lapic
 	 * unstable
@@ -199,21 +205,44 @@ static void acpi_state_timer_broadcast(struct acpi_processor *pr,
  * Suspend / resume control
  */
 static int acpi_idle_suspend;
+static u32 saved_bm_rld;
+
+static void acpi_idle_bm_rld_save(void)
+{
+	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
+}
+static void acpi_idle_bm_rld_restore(void)
+{
+	u32 resumed_bm_rld;
+
+	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &resumed_bm_rld);
+
+	if (resumed_bm_rld != saved_bm_rld)
+		acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
+}
 
 int acpi_processor_suspend(struct acpi_device * device, pm_message_t state)
 {
+	if (acpi_idle_suspend == 1)
+		return 0;
+
+	acpi_idle_bm_rld_save();
 	acpi_idle_suspend = 1;
 	return 0;
 }
 
 int acpi_processor_resume(struct acpi_device * device)
 {
+	if (acpi_idle_suspend == 0)
+		return 0;
+
+	acpi_idle_bm_rld_restore();
 	acpi_idle_suspend = 0;
 	return 0;
 }
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-static int tsc_halts_in_c(int state)
+static void tsc_check_state(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
@@ -223,13 +252,17 @@ static int tsc_halts_in_c(int state)
 		 * C/P/S0/S1 states when this bit is set.
 		 */
 		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-			return 0;
+			return;
 
 		/*FALL THROUGH*/
 	default:
-		return state > ACPI_STATE_C1;
+		/* TSC could halt in idle, so notify users */
+		if (state > ACPI_STATE_C1)
+			mark_tsc_unstable("TSC halts in idle");
 	}
 }
+#else
+static void tsc_check_state(int state) { return; }
 #endif
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
@@ -575,12 +608,13 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 
 	pr->power.timer_broadcast_on_state = INT_MAX;
 
-	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
+	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		struct acpi_processor_cx *cx = &pr->power.states[i];
 
 		switch (cx->type) {
 		case ACPI_STATE_C1:
 			cx->valid = 1;
+			acpi_timer_check_state(i, pr, cx);
 			break;
 
 		case ACPI_STATE_C2:
@@ -595,6 +629,8 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 				acpi_timer_check_state(i, pr, cx);
 			break;
 		}
+		if (cx->valid)
+			tsc_check_state(cx->type);
 
 		if (cx->valid)
 			working++;
@@ -654,11 +690,9 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "active state:            C%zd\n"
 		   "max_cstate:              C%d\n"
-		   "bus master activity:     %08x\n"
 		   "maximum allowed latency: %d usec\n",
 		   pr->power.state ? pr->power.state - pr->power.states : 0,
-		   max_cstate, (unsigned)pr->power.bm_activity,
-		   pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY));
+		   max_cstate, pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY));
 
 	seq_puts(seq, "states:\n");
 
@@ -800,11 +834,12 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 
 	/* Do not access any ACPI IO ports in suspend path */
 	if (acpi_idle_suspend) {
-		acpi_safe_halt();
 		local_irq_enable();
+		cpu_relax();
 		return 0;
 	}
 
+	acpi_state_timer_broadcast(pr, cx, 1);
 	kt1 = ktime_get_real();
 	acpi_idle_do_entry(cx);
 	kt2 = ktime_get_real();
@@ -812,6 +847,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 
 	local_irq_enable();
 	cx->usage++;
+	acpi_state_timer_broadcast(pr, cx, 0);
 
 	return idle_time;
 }
@@ -868,11 +904,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	kt2 = ktime_get_real();
 	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-	/* TSC could halt in idle, so notify users */
-	if (tsc_halts_in_c(cx->type))
-		mark_tsc_unstable("TSC halts in idle");;
-#endif
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 
 	/* Tell the scheduler how much we idled: */
@@ -952,6 +983,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	 */
 	acpi_state_timer_broadcast(pr, cx, 1);
 
+	kt1 = ktime_get_real();
 	/*
 	 * disable bus master
 	 * bm_check implies we need ARB_DIS
@@ -973,10 +1005,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		ACPI_FLUSH_CPU_CACHE();
 	}
 
-	kt1 = ktime_get_real();
 	acpi_idle_do_entry(cx);
-	kt2 = ktime_get_real();
-	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
 
 	/* Re-enable bus master arbitration */
 	if (pr->flags.bm_check && pr->flags.bm_control) {
@@ -985,12 +1014,9 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		c3_cpu_count--;
 		spin_unlock(&c3_lock);
 	}
+	kt2 = ktime_get_real();
+	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-	/* TSC could halt in idle, so notify users */
-	if (tsc_halts_in_c(ACPI_STATE_C3))
-		mark_tsc_unstable("TSC halts in idle");
-#endif
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 	/* Tell the scheduler how much we idled: */
 	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
@@ -1033,6 +1059,9 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		dev->states[i].name[0] = '\0';
 		dev->states[i].desc[0] = '\0';
 	}
+
+	if (max_cstate == 0)
+		max_cstate = 1;
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];

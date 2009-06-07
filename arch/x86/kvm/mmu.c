@@ -1248,7 +1248,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
-	sp->global = role.cr4_pge;
+	sp->global = 0;
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!direct) {
 		if (rmap_write_protect(vcpu->kvm, gfn))
@@ -2897,8 +2897,7 @@ static int kvm_pv_mmu_write(struct kvm_vcpu *vcpu,
 
 static int kvm_pv_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	kvm_x86_ops->tlb_flush(vcpu);
-	set_bit(KVM_REQ_MMU_SYNC, &vcpu->requests);
+	kvm_set_cr3(vcpu, vcpu->arch.cr3);
 	return 1;
 }
 

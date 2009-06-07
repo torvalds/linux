@@ -687,7 +687,13 @@ static noinline int wait_transaction_pre_flush(struct btrfs_fs_info *info)
 		prepare_to_wait(&info->transaction_wait, &wait,
 				TASK_UNINTERRUPTIBLE);
 		mutex_unlock(&info->trans_mutex);
+
+		atomic_dec(&info->throttles);
+		wake_up(&info->transaction_throttle);
+
 		schedule();
+
+		atomic_inc(&info->throttles);
 		mutex_lock(&info->trans_mutex);
 		finish_wait(&info->transaction_wait, &wait);
 	}

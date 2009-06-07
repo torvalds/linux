@@ -277,8 +277,7 @@ or bottom half).
   unfreeze_fs: called when VFS is unlocking a filesystem and making it writable
   	again.
 
-  statfs: called when the VFS needs to get filesystem statistics. This
-	is called with the kernel lock held
+  statfs: called when the VFS needs to get filesystem statistics.
 
   remount_fs: called when the filesystem is remounted. This is called
 	with the kernel lock held

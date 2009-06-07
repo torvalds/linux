@@ -24,6 +24,7 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -61,6 +62,8 @@ static unsigned long palmld_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO89_AC97_SYSCLK,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO108_GPIO,	/* ir disable */
@@ -68,10 +71,10 @@ static unsigned long palmld_pin_config[] __initdata = {
 	GPIO47_FICP_TXD,
 
 	/* MATRIX KEYPAD */
-	GPIO100_KP_MKIN_0,
-	GPIO101_KP_MKIN_1,
-	GPIO102_KP_MKIN_2,
-	GPIO97_KP_MKIN_3,
+	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO101_KP_MKIN_1 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO102_KP_MKIN_2 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO97_KP_MKIN_3 | WAKEUP_ON_LEVEL_HIGH,
 	GPIO103_KP_MKOUT_0,
 	GPIO104_KP_MKOUT_1,
 	GPIO105_KP_MKOUT_2,
@@ -476,8 +479,20 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 /******************************************************************************
  * aSoC audio
  ******************************************************************************/
-static struct palm27x_asoc_info palm27x_asoc_pdata = {
+static struct palm27x_asoc_info palmld_asoc_pdata = {
 	.jack_gpio	= GPIO_NR_PALMLD_EARPHONE_DETECT,
+};
+
+static pxa2xx_audio_ops_t palmld_ac97_pdata = {
+	.reset_gpio	= 95,
+};
+
+static struct platform_device palmld_asoc = {
+	.name = "palm27x-asoc",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &palmld_asoc_pdata,
+	},
 };
 
 /******************************************************************************
@@ -507,6 +522,33 @@ static struct pxafb_mach_info palmld_lcd_screen = {
 };
 
 /******************************************************************************
+ * Power management - standby
+ ******************************************************************************/
+#ifdef CONFIG_PM
+static u32 *addr __initdata;
+static u32 resume[3] __initdata = {
+	0xe3a00101,	/* mov	r0,	#0x40000000 */
+	0xe380060f,	/* orr	r0, r0, #0x00f00000 */
+	0xe590f008,	/* ldr	pc, [r0, #0x08] */
+};
+
+static int __init palmld_pm_init(void)
+{
+	int i;
+
+	/* this is where the bootloader jumps */
+	addr = phys_to_virt(PALMLD_STR_BASE);
+
+	for (i = 0; i < 3; i++)
+		addr[i] = resume[i];
+
+	return 0;
+}
+
+device_initcall(palmld_pm_init);
+#endif
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static struct platform_device *devices[] __initdata = {
@@ -516,6 +558,7 @@ static struct platform_device *devices[] __initdata = {
 	&palmld_backlight,
 	&palmld_leds,
 	&power_supply,
+	&palmld_asoc,
 };
 
 static struct map_desc palmld_io_desc[] __initdata = {
@@ -545,11 +588,10 @@ static void __init palmld_init(void)
 
 	set_pxa_fb_info(&palmld_lcd_screen);
 	pxa_set_mci_info(&palmld_mci_platform_data);
-	pxa_set_ac97_info(NULL);
+	pxa_set_ac97_info(&palmld_ac97_pdata);
 	pxa_set_ficp_info(&palmld_ficp_platform_data);
 	pxa_set_keypad_info(&palmld_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
-	palm27x_asoc_set_pdata(&palm27x_asoc_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

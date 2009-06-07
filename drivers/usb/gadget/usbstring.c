@@ -38,7 +38,7 @@ static int utf8_to_utf16le(const char *s, __le16 *cp, unsigned len)
 				uchar = (c & 0x1f) << 6;
 
 				c = (u8) *s++;
-				if ((c & 0xc0) != 0xc0)
+				if ((c & 0xc0) != 0x80)
 					goto fail;
 				c &= 0x3f;
 				uchar |= c;
@@ -49,13 +49,13 @@ static int utf8_to_utf16le(const char *s, __le16 *cp, unsigned len)
 				uchar = (c & 0x0f) << 12;
 
 				c = (u8) *s++;
-				if ((c & 0xc0) != 0xc0)
+				if ((c & 0xc0) != 0x80)
 					goto fail;
 				c &= 0x3f;
 				uchar |= c << 6;
 
 				c = (u8) *s++;
-				if ((c & 0xc0) != 0xc0)
+				if ((c & 0xc0) != 0x80)
 					goto fail;
 				c &= 0x3f;
 				uchar |= c;

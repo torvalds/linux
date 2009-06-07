@@ -243,7 +243,7 @@ static struct s3c2410_platform_nand anubis_nand_info = {
 
 /* IDE channels */
 
-struct pata_platform_info anubis_ide_platdata = {
+static struct pata_platform_info anubis_ide_platdata = {
 	.ioport_shift	= 5,
 };
 

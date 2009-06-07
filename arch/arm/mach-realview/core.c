@@ -715,7 +715,7 @@ static struct irqaction realview_timer_irq = {
 	.handler	= realview_timer_interrupt,
 };
 
-static cycle_t realview_get_cycles(void)
+static cycle_t realview_get_cycles(struct clocksource *cs)
 {
 	return ~readl(timer3_va_base + TIMER_VALUE);
 }
@@ -749,14 +749,6 @@ static void __init realview_clocksource_init(void)
 void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
-
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	/*
-	 * The dummy clock device has to be registered before the main device
-	 * so that the latter will broadcast the clock events
-	 */
-	local_timer_setup();
-#endif
 
 	/* 
 	 * set clock frequency: 

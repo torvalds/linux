@@ -311,7 +311,8 @@ static int construct_alloc_key(struct key_type *type,
 
 	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
-	down_write(&dest_keyring->sem);
+	if (dest_keyring)
+		down_write(&dest_keyring->sem);
 
 	/* attach the key to the destination keyring under lock, but we do need
 	 * to do another check just in case someone beat us to it whilst we
@@ -322,10 +323,12 @@ static int construct_alloc_key(struct key_type *type,
 	if (!IS_ERR(key_ref))
 		goto key_already_present;
 
-	__key_link(dest_keyring, key);
+	if (dest_keyring)
+		__key_link(dest_keyring, key);
 
 	mutex_unlock(&key_construction_mutex);
-	up_write(&dest_keyring->sem);
+	if (dest_keyring)
+		up_write(&dest_keyring->sem);
 	mutex_unlock(&user->cons_lock);
 	*_key = key;
 	kleave(" = 0 [%d]", key_serial(key));
