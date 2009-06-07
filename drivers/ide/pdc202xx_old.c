@@ -219,12 +219,6 @@ static void pdc202xx_reset(ide_drive_t *drive)
 	ide_set_max_pio(drive);
 }
 
-static void pdc202xx_dma_lost_irq(ide_drive_t *drive)
-{
-	pdc202xx_reset(drive);
-	ide_dma_lost_irq(drive);
-}
-
 static int init_chipset_pdc202xx(struct pci_dev *dev)
 {
 	unsigned long dmabase = pci_resource_start(dev, 4);
@@ -295,9 +289,8 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_start		= pdc202xx_dma_start,
 	.dma_end		= pdc202xx_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
-	.dma_lost_irq		= pdc202xx_dma_lost_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_clear		= pdc202xx_reset,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
