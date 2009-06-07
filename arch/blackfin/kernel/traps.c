@@ -309,7 +309,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a breakpoint in kernel space */
 		if (fp->ipend & 0xffc0)
-			return;
+			goto traps_done;
 		else
 			break;
 	/* 0x03 - User Defined, userspace stack overflow */
@@ -325,7 +325,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		CHK_DEBUGGER_TRAP();
-		return;
+		goto traps_done;
 #endif
 	/* 0x04 - User Defined */
 	/* 0x05 - User Defined */
@@ -355,7 +355,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a single step in kernel space */
 		if (fp->ipend & 0xffc0)
-			return;
+			goto traps_done;
 		else
 			break;
 	/* 0x11 - Trace Buffer Full, handled here */
@@ -459,7 +459,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a watchpoint in kernel space */
 		if (fp->ipend & 0xffc0)
-			return;
+			goto traps_done;
 		else
 			break;
 #ifdef CONFIG_BF535
@@ -624,8 +624,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8))
 		fp->pc = SAFE_USER_INSTRUCTION;
 
+ traps_done:
 	trace_buffer_restore(j);
-	return;
 }
 
 /* Typical exception handling routines	*/
