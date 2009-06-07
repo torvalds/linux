@@ -29,7 +29,7 @@ const struct file_operations qnx4_file_operations =
 #ifdef CONFIG_QNX4FS_RW
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
-	.fsync		= qnx4_sync_file,
+	.fsync		= simple_fsync,
 #endif
 };
 

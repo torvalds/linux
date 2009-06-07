@@ -84,7 +84,7 @@ const struct file_operations qnx4_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= qnx4_readdir,
-	.fsync		= file_fsync,
+	.fsync		= simple_fsync,
 };
 
 const struct inode_operations qnx4_dir_inode_operations =

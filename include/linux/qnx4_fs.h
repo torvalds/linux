@@ -126,8 +126,6 @@ extern void qnx4_truncate(struct inode *inode);
 extern void qnx4_free_inode(struct inode *inode);
 extern int qnx4_unlink(struct inode *dir, struct dentry *dentry);
 extern int qnx4_rmdir(struct inode *dir, struct dentry *dentry);
-extern int qnx4_sync_file(struct file *file, struct dentry *dentry, int);
-extern int qnx4_sync_inode(struct inode *inode);
 
 static inline struct qnx4_sb_info *qnx4_sb(struct super_block *sb)
 {
