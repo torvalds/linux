@@ -356,9 +356,6 @@ try_again:
 	if (fd[nr_cpu][counter] < 0) {
 		int err = errno;
 
-		if (verbose)
-			error("sys_perf_counter_open() syscall returned with %d (%s)\n",
-				fd[nr_cpu][counter], strerror(err));
 		if (err == EPERM)
 			die("Permission error - are you root?\n");
 
@@ -376,6 +373,10 @@ try_again:
 			attr->config = PERF_COUNT_CPU_CLOCK;
 			goto try_again;
 		}
+		printf("\n");
+		error("perfcounter syscall returned with %d (%s)\n",
+			fd[nr_cpu][counter], strerror(err));
+		die("No CONFIG_PERF_COUNTERS=y kernel support configured?\n");
 		exit(-1);
 	}
 
