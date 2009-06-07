@@ -50,7 +50,7 @@
 #define MAX_INTER_FRAME_WAIT 10	/* 10 usec max interframe-wait for coalescing */
 #define DFLT_INTER_FRAME_WAIT (MAX_INTER_FRAME_WAIT/2)
 #define UDELAY_COUNT 3
-#define UDELAY_DELAY 10
+#define UDELAY_DELAY 100
 
 
 #define TX_DESC_PER_IOCB 8
