@@ -59,6 +59,7 @@ static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
 
 static int			system_wide			=  0;
 static int			inherit				=  1;
+static int			verbose				=  0;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
@@ -83,7 +84,7 @@ static __u64			event_scaled[MAX_COUNTERS];
 static __u64			runtime_nsecs;
 static __u64			walltime_nsecs;
 
-static void create_perfstat_counter(int counter)
+static void create_perf_stat_counter(int counter)
 {
 	struct perf_counter_attr *attr = attrs + counter;
 
@@ -95,10 +96,8 @@ static void create_perfstat_counter(int counter)
 		int cpu;
 		for (cpu = 0; cpu < nr_cpus; cpu ++) {
 			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
-			if (fd[cpu][counter] < 0) {
-				printf("perfstat error: syscall returned with %d (%s)\n",
-						fd[cpu][counter], strerror(errno));
-				exit(-1);
+			if (fd[cpu][counter] < 0 && verbose) {
+				printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[cpu][counter], strerror(errno));
 			}
 		}
 	} else {
@@ -106,10 +105,8 @@ static void create_perfstat_counter(int counter)
 		attr->disabled	= 1;
 
 		fd[0][counter] = sys_perf_counter_open(attr, 0, -1, -1, 0);
-		if (fd[0][counter] < 0) {
-			printf("perfstat error: syscall returned with %d (%s)\n",
-					fd[0][counter], strerror(errno));
-			exit(-1);
+		if (fd[0][counter] < 0 && verbose) {
+			printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[0][counter], strerror(errno));
 		}
 	}
 }
@@ -147,6 +144,9 @@ static void read_counter(int counter)
 
 	nv = scale ? 3 : 1;
 	for (cpu = 0; cpu < nr_cpus; cpu ++) {
+		if (fd[cpu][counter] < 0)
+			continue;
+
 		res = read(fd[cpu][counter], single_count, nv * sizeof(__u64));
 		assert(res == nv * sizeof(__u64));
 
@@ -204,8 +204,9 @@ static void print_counter(int counter)
 		if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
 			attrs[counter].config == PERF_COUNT_TASK_CLOCK) {
 
-			fprintf(stderr, " # %11.3f CPU utilization factor",
-				(double)count[0] / (double)walltime_nsecs);
+			if (walltime_nsecs)
+				fprintf(stderr, " # %11.3f CPU utilization factor",
+					(double)count[0] / (double)walltime_nsecs);
 		}
 	} else {
 		fprintf(stderr, " %14Ld  %-20s",
@@ -220,7 +221,7 @@ static void print_counter(int counter)
 	fprintf(stderr, "\n");
 }
 
-static int do_perfstat(int argc, const char **argv)
+static int do_perf_stat(int argc, const char **argv)
 {
 	unsigned long long t0, t1;
 	int counter;
@@ -232,7 +233,7 @@ static int do_perfstat(int argc, const char **argv)
 		nr_cpus = 1;
 
 	for (counter = 0; counter < nr_counters; counter++)
-		create_perfstat_counter(counter);
+		create_perf_stat_counter(counter);
 
 	/*
 	 * Enable counters and exec the command:
@@ -305,6 +306,8 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('S', "scale", &scale,
 			    "scale/normalize counters"),
+	OPT_BOOLEAN('v', "verbose", &verbose,
+		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
 };
 
@@ -335,5 +338,5 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 	signal(SIGALRM, skip_signal);
 	signal(SIGABRT, skip_signal);
 
-	return do_perfstat(argc, argv);
+	return do_perf_stat(argc, argv);
 }
