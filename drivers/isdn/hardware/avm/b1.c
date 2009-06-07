@@ -330,7 +330,7 @@ void b1_reset_ctr(struct capi_ctr *ctrl)
 	spin_lock_irqsave(&card->lock, flags);
 	capilib_release(&cinfo->ncci_head);
 	spin_unlock_irqrestore(&card->lock, flags);
-	capi_ctr_reseted(ctrl);
+	capi_ctr_down(ctrl);
 }
 
 void b1_register_appl(struct capi_ctr *ctrl,

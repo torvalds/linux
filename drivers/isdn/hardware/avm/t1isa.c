@@ -339,7 +339,7 @@ static void t1isa_reset_ctr(struct capi_ctr *ctrl)
 	spin_lock_irqsave(&card->lock, flags);
 	capilib_release(&cinfo->ncci_head);
 	spin_unlock_irqrestore(&card->lock, flags);
-	capi_ctr_reseted(ctrl);
+	capi_ctr_down(ctrl);
 }
 
 static void t1isa_remove(struct pci_dev *pdev)

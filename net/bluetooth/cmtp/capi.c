@@ -382,7 +382,7 @@ static void cmtp_reset_ctr(struct capi_ctr *ctrl)
 
 	BT_DBG("ctrl %p", ctrl);
 
-	capi_ctr_reseted(ctrl);
+	capi_ctr_down(ctrl);
 
 	atomic_inc(&session->terminate);
 	cmtp_schedule(session);

@@ -45,7 +45,7 @@ From then on, Kernel CAPI may call the registered callback functions for the
 device.
 
 If the device becomes unusable for any reason (shutdown, disconnect ...), the
-driver has to call capi_ctr_reseted(). This will prevent further calls to the
+driver has to call capi_ctr_down(). This will prevent further calls to the
 callback functions by Kernel CAPI.
 
 
@@ -166,7 +166,7 @@ int detach_capi_ctr(struct capi_ctr *ctrlr)
 	register/unregister a device (controller) with Kernel CAPI
 
 void capi_ctr_ready(struct capi_ctr *ctrlr)
-void capi_ctr_reseted(struct capi_ctr *ctrlr)
+void capi_ctr_down(struct capi_ctr *ctrlr)
 	signal controller ready/not ready
 
 void capi_ctr_suspend_output(struct capi_ctr *ctrlr)
