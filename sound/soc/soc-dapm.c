@@ -740,7 +740,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_codec *codec,
 				   struct list_head *pending)
 {
 	struct snd_soc_dapm_widget *w;
-	int reg, power;
+	int reg, power, ret;
 	unsigned int value = 0;
 	unsigned int mask = 0;
 	unsigned int cur_mask;
@@ -764,13 +764,62 @@ static void dapm_seq_run_coalesced(struct snd_soc_codec *codec,
 		pop_dbg(codec->pop_time,
 			"pop test : Queue %s: reg=0x%x, 0x%x/0x%x\n",
 			w->name, reg, value, mask);
+
+		/* power up pre event */
+		if (w->power && w->event &&
+		    (w->event_flags & SND_SOC_DAPM_PRE_PMU)) {
+			pop_dbg(codec->pop_time, "pop test : %s PRE_PMU\n",
+				w->name);
+			ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMU);
+			if (ret < 0)
+				pr_err("%s: pre event failed: %d\n",
+				       w->name, ret);
+		}
+
+		/* power down pre event */
+		if (!w->power && w->event &&
+		    (w->event_flags & SND_SOC_DAPM_PRE_PMD)) {
+			pop_dbg(codec->pop_time, "pop test : %s PRE_PMD\n",
+				w->name);
+			ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMD);
+			if (ret < 0)
+				pr_err("%s: pre event failed: %d\n",
+				       w->name, ret);
+		}
 	}
 
-	pop_dbg(codec->pop_time,
-		"pop test : Applying 0x%x/0x%x to %x in %dms\n",
-		value, mask, reg, codec->pop_time);
-	pop_wait(codec->pop_time);
-	snd_soc_update_bits(codec, reg, mask, value);
+	if (reg >= 0) {
+		pop_dbg(codec->pop_time,
+			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
+			value, mask, reg, codec->pop_time);
+		pop_wait(codec->pop_time);
+		snd_soc_update_bits(codec, reg, mask, value);
+	}
+
+	list_for_each_entry(w, pending, power_list) {
+		/* power up post event */
+		if (w->power && w->event &&
+		    (w->event_flags & SND_SOC_DAPM_POST_PMU)) {
+			pop_dbg(codec->pop_time, "pop test : %s POST_PMU\n",
+				w->name);
+			ret = w->event(w,
+				       NULL, SND_SOC_DAPM_POST_PMU);
+			if (ret < 0)
+				pr_err("%s: post event failed: %d\n",
+				       w->name, ret);
+		}
+
+		/* power down post event */
+		if (!w->power && w->event &&
+		    (w->event_flags & SND_SOC_DAPM_POST_PMD)) {
+			pop_dbg(codec->pop_time, "pop test : %s POST_PMD\n",
+				w->name);
+			ret = w->event(w, NULL, SND_SOC_DAPM_POST_PMD);
+			if (ret < 0)
+				pr_err("%s: post event failed: %d\n",
+				       w->name, ret);
+		}
+	}
 }
 
 /* Apply a DAPM power sequence.
@@ -843,16 +892,11 @@ static void dapm_seq_run(struct snd_soc_codec *codec, struct list_head *list,
 			break;
 
 		default:
-			/* If there's an event or an invalid register
-			 * then run immediately, otherwise store the
-			 * updates so that we can coalesce. */
-			if (w->reg >= 0 && !w->event) {
-				cur_sort = sort[w->id];
-				cur_reg = w->reg;
-				list_move(&w->power_list, &pending);
-			} else {
-				ret = dapm_generic_apply_power(w);
-			}
+			/* Queue it up for application */
+			cur_sort = sort[w->id];
+			cur_reg = w->reg;
+			list_move(&w->power_list, &pending);
+			break;
 		}
 
 		if (ret < 0)
