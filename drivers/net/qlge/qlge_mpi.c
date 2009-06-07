@@ -90,14 +90,14 @@ static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
  */
 static int ql_wait_mbx_cmd_cmplt(struct ql_adapter *qdev)
 {
-	int count = 50;	/* TODO: arbitrary for now. */
+	int count = 100;
 	u32 value;
 
 	do {
 		value = ql_read32(qdev, STS);
 		if (value & STS_PI)
 			return 0;
-		udelay(UDELAY_DELAY); /* 10us */
+		mdelay(UDELAY_DELAY); /* 100ms */
 	} while (--count);
 	return -ETIMEDOUT;
 }
