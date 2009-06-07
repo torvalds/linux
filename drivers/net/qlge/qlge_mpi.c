@@ -453,6 +453,13 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	}
 end:
 	ql_write32(qdev, CSR, CSR_CMD_CLR_R2PCI_INT);
+	/* Restore the original mailbox count to
+	 * what the caller asked for.  This can get
+	 * changed when a mailbox command is waiting
+	 * for a response and an AEN arrives and
+	 * is handled.
+	 * */
+	mbcp->out_count = orig_count;
 	return status;
 }
 
