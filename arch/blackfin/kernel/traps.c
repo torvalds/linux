@@ -27,6 +27,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/bug.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -381,6 +382,23 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x20 - Reserved, Caught by default */
 	/* 0x21 - Undefined Instruction, handled here */
 	case VEC_UNDEF_I:
+#ifdef CONFIG_BUG
+		if (kernel_mode_regs(fp)) {
+			switch (report_bug(fp->pc, fp)) {
+			case BUG_TRAP_TYPE_NONE:
+				break;
+			case BUG_TRAP_TYPE_WARN:
+				dump_bfin_trace_buffer();
+				fp->pc += 2;
+				goto traps_done;
+			case BUG_TRAP_TYPE_BUG:
+				/* call to panic() will dump trace, and it is
+				 * off at this point, so it won't be clobbered
+				 */
+				panic("BUG()");
+			}
+		}
+#endif
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
 		verbose_printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
@@ -791,6 +809,18 @@ void dump_bfin_trace_buffer(void)
 #endif
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
+
+#ifdef CONFIG_BUG
+int is_valid_bugaddr(unsigned long addr)
+{
+	unsigned short opcode;
+
+	if (!get_instruction(&opcode, (unsigned short *)addr))
+		return 0;
+
+	return opcode == BFIN_BUG_OPCODE;
+}
+#endif
 
 /*
  * Checks to see if the address pointed to is either a

@@ -166,6 +166,20 @@ SECTIONS
 	}
 	PERCPU(4)
 	SECURITY_INIT
+
+	/* we have to discard exit text and such at runtime, not link time, to
+	 * handle embedded cross-section references (alt instructions, bug
+	 * table, eh_frame, etc...)
+	 */
+	.exit.text :
+	{
+		EXIT_TEXT
+	}
+	.exit.data :
+	{
+		EXIT_DATA
+	}
+
 	.init.ramfs :
 	{
 		. = ALIGN(4);
@@ -264,8 +278,6 @@ SECTIONS
 
 	/DISCARD/ :
 	{
-		EXIT_TEXT
-		EXIT_DATA
 		*(.exitcall.exit)
 	}
 }

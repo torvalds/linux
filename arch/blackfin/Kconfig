@@ -28,6 +28,10 @@ config BLACKFIN
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
 config ZONE_DMA
 	bool
 	default y
