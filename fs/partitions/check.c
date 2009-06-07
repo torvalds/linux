@@ -564,7 +564,8 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 			 * creating invalid block devices
 			 */
 			printk(KERN_WARNING
-			       "%s: p%d size %llu limited to end of disk\n",
+			       "%s: p%d size %llu exceeds device capacity, "
+			       "limited to end of disk\n",
 			       disk->disk_name, p, (unsigned long long) size);
 			size = get_capacity(disk) - from;
 		}
