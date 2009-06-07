@@ -49,6 +49,7 @@ enum {
  * @ns_writer: back pointer to writable nilfs_sb_info
  * @ns_sem: semaphore for shared states
  * @ns_super_sem: semaphore for global operations across super block instances
+ * @ns_mount_mutex: mutex protecting mount process of nilfs
  * @ns_writer_mutex: mutex protecting ns_writer attach/detach
  * @ns_writer_refcount: number of referrers on ns_writer
  * @ns_current: back pointer to current mount
@@ -98,6 +99,7 @@ struct the_nilfs {
 	struct nilfs_sb_info   *ns_writer;
 	struct rw_semaphore	ns_sem;
 	struct rw_semaphore	ns_super_sem;
+	struct mutex		ns_mount_mutex;
 	struct mutex		ns_writer_mutex;
 	atomic_t		ns_writer_refcount;
 
