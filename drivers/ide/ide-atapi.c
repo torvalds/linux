@@ -258,7 +258,7 @@ void ide_retry_pc(ide_drive_t *drive)
 	pc->req_xfer = sense_rq->data_len;
 
 	if (drive->media == ide_tape)
-		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
+		drive->atapi_flags |= IDE_AFLAG_IGNORE_DSC;
 
 	if (ide_queue_sense_rq(drive, pc))
 		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
