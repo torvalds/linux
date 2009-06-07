@@ -740,7 +740,7 @@ static void hpt3xx_quirkproc(ide_drive_t *drive)
 
 	while (*list)
 		if (strstr(m, *list++)) {
-			drive->quirk_list = 1;
+			drive->quirk_list = 2;
 			return;
 		}
 
