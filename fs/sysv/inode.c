@@ -247,7 +247,7 @@ bad_inode:
 	return ERR_PTR(-EIO);
 }
 
-static struct buffer_head * sysv_update_inode(struct inode * inode)
+int sysv_write_inode(struct inode *inode, int wait)
 {
 	struct super_block * sb = inode->i_sb;
 	struct sysv_sb_info * sbi = SYSV_SB(sb);
@@ -255,19 +255,21 @@ static struct buffer_head * sysv_update_inode(struct inode * inode)
 	struct sysv_inode * raw_inode;
 	struct sysv_inode_info * si;
 	unsigned int ino, block;
+	int err = 0;
 
 	ino = inode->i_ino;
 	if (!ino || ino > sbi->s_ninodes) {
 		printk("Bad inode number on dev %s: %d is out of range\n",
 		       inode->i_sb->s_id, ino);
-		return NULL;
+		return -EIO;
 	}
 	raw_inode = sysv_raw_inode(sb, ino, &bh);
 	if (!raw_inode) {
 		printk("unable to read i-node block\n");
-		return NULL;
+		return -EIO;
 	}
 
+	lock_kernel();
 	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
 	raw_inode->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(inode->i_uid));
 	raw_inode->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(inode->i_gid));
@@ -283,38 +285,23 @@ static struct buffer_head * sysv_update_inode(struct inode * inode)
 	for (block = 0; block < 10+1+1+1; block++)
 		write3byte(sbi, (u8 *)&si->i_data[block],
 			&raw_inode->i_data[3*block]);
-	mark_buffer_dirty(bh);
-	return bh;
-}
-
-int sysv_write_inode(struct inode * inode, int wait)
-{
-	struct buffer_head *bh;
-	lock_kernel();
-	bh = sysv_update_inode(inode);
-	brelse(bh);
 	unlock_kernel();
+	mark_buffer_dirty(bh);
+	if (wait) {
+                sync_dirty_buffer(bh);
+                if (buffer_req(bh) && !buffer_uptodate(bh)) {
+                        printk ("IO error syncing sysv inode [%s:%08x]\n",
+                                sb->s_id, ino);
+                        err = -EIO;
+                }
+        }
+	brelse(bh);
 	return 0;
 }
 
-int sysv_sync_inode(struct inode * inode)
+int sysv_sync_inode(struct inode *inode)
 {
-        int err = 0;
-        struct buffer_head *bh;
-
-        bh = sysv_update_inode(inode);
-        if (bh && buffer_dirty(bh)) {
-                sync_dirty_buffer(bh);
-                if (buffer_req(bh) && !buffer_uptodate(bh)) {
-                        printk ("IO error syncing sysv inode [%s:%08lx]\n",
-                                inode->i_sb->s_id, inode->i_ino);
-                        err = -1;
-                }
-        }
-        else if (!bh)
-                err = -1;
-        brelse (bh);
-        return err;
+	return sysv_write_inode(inode, 1);
 }
 
 static void sysv_delete_inode(struct inode *inode)
