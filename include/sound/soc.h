@@ -216,9 +216,9 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 
 /* codec register bit access */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value);
+				unsigned int mask, unsigned int value);
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value);
+				unsigned int mask, unsigned int value);
 
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);

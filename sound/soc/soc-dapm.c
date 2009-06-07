@@ -268,7 +268,7 @@ static int dapm_connect_mixer(struct snd_soc_codec *codec,
 static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 {
 	int change, power;
-	unsigned short old, new;
+	unsigned int old, new;
 	struct snd_soc_codec *codec = widget->codec;
 
 	/* check for valid widgets */
@@ -1372,7 +1372,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned short val, val2, val_mask;
+	unsigned int val, val2, val_mask;
 	int ret;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -1436,7 +1436,7 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val, bitmask;
+	unsigned int val, bitmask;
 
 	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
@@ -1464,8 +1464,8 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val, mux;
-	unsigned short mask, bitmask;
+	unsigned int val, mux;
+	unsigned int mask, bitmask;
 	int ret = 0;
 
 	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
@@ -1523,7 +1523,7 @@ int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short reg_val, val, mux;
+	unsigned int reg_val, val, mux;
 
 	reg_val = snd_soc_read(widget->codec, e->reg);
 	val = (reg_val >> e->shift_l) & e->mask;
@@ -1563,8 +1563,8 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val, mux;
-	unsigned short mask;
+	unsigned int val, mux;
+	unsigned int mask;
 	int ret = 0;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
