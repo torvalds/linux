@@ -72,6 +72,7 @@ static struct the_nilfs *alloc_nilfs(struct block_device *bdev)
 	atomic_set(&nilfs->ns_writer_refcount, -1);
 	atomic_set(&nilfs->ns_ndirtyblks, 0);
 	init_rwsem(&nilfs->ns_sem);
+	init_rwsem(&nilfs->ns_super_sem);
 	mutex_init(&nilfs->ns_writer_mutex);
 	INIT_LIST_HEAD(&nilfs->ns_list);
 	INIT_LIST_HEAD(&nilfs->ns_supers);
@@ -681,10 +682,10 @@ struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *nilfs,
 {
 	struct nilfs_sb_info *sbi;
 
-	down_read(&nilfs->ns_sem);
+	down_read(&nilfs->ns_super_sem);
 	/*
 	 * The SNAPSHOT flag and sb->s_flags are supposed to be
-	 * protected with nilfs->ns_sem.
+	 * protected with nilfs->ns_super_sem.
 	 */
 	sbi = nilfs->ns_current;
 	if (rw_mount) {
@@ -705,12 +706,12 @@ struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *nilfs,
 			goto found; /* snapshot mount */
 	}
  out:
-	up_read(&nilfs->ns_sem);
+	up_read(&nilfs->ns_super_sem);
 	return NULL;
 
  found:
 	atomic_inc(&sbi->s_count);
-	up_read(&nilfs->ns_sem);
+	up_read(&nilfs->ns_super_sem);
 	return sbi;
 }
 
@@ -720,7 +721,7 @@ int nilfs_checkpoint_is_mounted(struct the_nilfs *nilfs, __u64 cno,
 	struct nilfs_sb_info *sbi;
 	int ret = 0;
 
-	down_read(&nilfs->ns_sem);
+	down_read(&nilfs->ns_super_sem);
 	if (cno == 0 || cno > nilfs->ns_cno)
 		goto out_unlock;
 
@@ -737,6 +738,6 @@ int nilfs_checkpoint_is_mounted(struct the_nilfs *nilfs, __u64 cno,
 		ret++;
 
  out_unlock:
-	up_read(&nilfs->ns_sem);
+	up_read(&nilfs->ns_super_sem);
 	return ret;
 }

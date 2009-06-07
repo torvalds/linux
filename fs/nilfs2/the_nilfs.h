@@ -48,6 +48,7 @@ enum {
  * @ns_bdi: backing dev info
  * @ns_writer: back pointer to writable nilfs_sb_info
  * @ns_sem: semaphore for shared states
+ * @ns_super_sem: semaphore for global operations across super block instances
  * @ns_writer_mutex: mutex protecting ns_writer attach/detach
  * @ns_writer_refcount: number of referrers on ns_writer
  * @ns_current: back pointer to current mount
@@ -96,10 +97,15 @@ struct the_nilfs {
 	struct backing_dev_info *ns_bdi;
 	struct nilfs_sb_info   *ns_writer;
 	struct rw_semaphore	ns_sem;
+	struct rw_semaphore	ns_super_sem;
 	struct mutex		ns_writer_mutex;
 	atomic_t		ns_writer_refcount;
 
+	/*
+	 * components protected by ns_super_sem
+	 */
 	struct nilfs_sb_info   *ns_current;
+	struct list_head	ns_supers;
 
 	/*
 	 * used for
@@ -113,7 +119,6 @@ struct the_nilfs {
 	time_t			ns_sbwtime[2];
 	unsigned		ns_sbsize;
 	unsigned		ns_mount_state;
-	struct list_head	ns_supers;
 
 	/*
 	 * Following fields are dedicated to a writable FS-instance.

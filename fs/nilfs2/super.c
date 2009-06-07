@@ -327,10 +327,10 @@ static void nilfs_put_super(struct super_block *sb)
 		nilfs_commit_super(sbi, 1);
 		up_write(&nilfs->ns_sem);
 	}
-	down_write(&nilfs->ns_sem);
+	down_write(&nilfs->ns_super_sem);
 	if (nilfs->ns_current == sbi)
 		nilfs->ns_current = NULL;
-	up_write(&nilfs->ns_sem);
+	up_write(&nilfs->ns_super_sem);
 
 	nilfs_detach_checkpoint(sbi);
 	put_nilfs(sbi->s_nilfs);
@@ -408,9 +408,9 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	struct buffer_head *bh_cp;
 	int err;
 
-	down_write(&nilfs->ns_sem);
+	down_write(&nilfs->ns_super_sem);
 	list_add(&sbi->s_list, &nilfs->ns_supers);
-	up_write(&nilfs->ns_sem);
+	up_write(&nilfs->ns_super_sem);
 
 	sbi->s_ifile = nilfs_mdt_new(
 		nilfs, sbi->s_super, NILFS_IFILE_INO, NILFS_IFILE_GFP);
@@ -448,9 +448,9 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	nilfs_mdt_destroy(sbi->s_ifile);
 	sbi->s_ifile = NULL;
 
-	down_write(&nilfs->ns_sem);
+	down_write(&nilfs->ns_super_sem);
 	list_del_init(&sbi->s_list);
-	up_write(&nilfs->ns_sem);
+	up_write(&nilfs->ns_super_sem);
 
 	return err;
 }
@@ -462,9 +462,9 @@ void nilfs_detach_checkpoint(struct nilfs_sb_info *sbi)
 	nilfs_mdt_clear(sbi->s_ifile);
 	nilfs_mdt_destroy(sbi->s_ifile);
 	sbi->s_ifile = NULL;
-	down_write(&nilfs->ns_sem);
+	down_write(&nilfs->ns_super_sem);
 	list_del_init(&sbi->s_list);
-	up_write(&nilfs->ns_sem);
+	up_write(&nilfs->ns_super_sem);
 }
 
 static int nilfs_mark_recovery_complete(struct nilfs_sb_info *sbi)
@@ -883,10 +883,10 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		goto failed_root;
 	}
 
-	down_write(&nilfs->ns_sem);
+	down_write(&nilfs->ns_super_sem);
 	if (!nilfs_test_opt(sbi, SNAPSHOT))
 		nilfs->ns_current = sbi;
-	up_write(&nilfs->ns_sem);
+	up_write(&nilfs->ns_super_sem);
 
 	return 0;
 
@@ -918,6 +918,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 	lock_kernel();
 
+	down_write(&nilfs->ns_super_sem);
 	old_sb_flags = sb->s_flags;
 	old_opts.mount_opt = sbi->s_mount_opt;
 	old_opts.snapshot_cno = sbi->s_snapshot_cno;
@@ -965,24 +966,20 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		 * store the current valid flag.  (It may have been changed
 		 * by fsck since we originally mounted the partition.)
 		 */
-		down(&sb->s_bdev->bd_mount_sem);
-		down_read(&nilfs->ns_sem);
 		if (nilfs->ns_current && nilfs->ns_current != sbi) {
 			printk(KERN_WARNING "NILFS (device %s): couldn't "
 			       "remount because an RW-mount exists.\n",
 			       sb->s_id);
-			up_read(&nilfs->ns_sem);
 			err = -EBUSY;
-			goto rw_remount_failed;
+			goto restore_opts;
 		}
-		up_read(&nilfs->ns_sem);
 		if (sbi->s_snapshot_cno != nilfs_last_cno(nilfs)) {
 			printk(KERN_WARNING "NILFS (device %s): couldn't "
 			       "remount because the current RO-mount is not "
 			       "the latest one.\n",
 			       sb->s_id);
 			err = -EINVAL;
-			goto rw_remount_failed;
+			goto restore_opts;
 		}
 		sb->s_flags &= ~MS_RDONLY;
 		nilfs_clear_opt(sbi, SNAPSHOT);
@@ -990,25 +987,24 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
 		err = nilfs_attach_segment_constructor(sbi);
 		if (err)
-			goto rw_remount_failed;
+			goto restore_opts;
 
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sbi);
-		nilfs->ns_current = sbi;
 		up_write(&nilfs->ns_sem);
 
-		up(&sb->s_bdev->bd_mount_sem);
+		nilfs->ns_current = sbi;
 	}
  out:
+	up_write(&nilfs->ns_super_sem);
 	unlock_kernel();
 	return 0;
 
- rw_remount_failed:
-	up(&sb->s_bdev->bd_mount_sem);
  restore_opts:
 	sb->s_flags = old_sb_flags;
 	sbi->s_mount_opt = old_opts.mount_opt;
 	sbi->s_snapshot_cno = old_opts.snapshot_cno;
+	up_write(&nilfs->ns_super_sem);
 	unlock_kernel();
 	return err;
 }
@@ -1118,15 +1114,15 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 		 * (i.e. rw-mount or ro-mount), whereas rw-mount and
 		 * ro-mount are mutually exclusive.
 		 */
-		down_read(&nilfs->ns_sem);
+		down_read(&nilfs->ns_super_sem);
 		if (nilfs->ns_current &&
 		    ((nilfs->ns_current->s_super->s_flags ^ flags)
 		     & MS_RDONLY)) {
-			up_read(&nilfs->ns_sem);
+			up_read(&nilfs->ns_super_sem);
 			err = -EBUSY;
 			goto failed_unlock;
 		}
-		up_read(&nilfs->ns_sem);
+		up_read(&nilfs->ns_super_sem);
 	}
 
 	/*
