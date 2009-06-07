@@ -136,16 +136,7 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 
 	wdev->netdev = ndev;
 
-	ret = iwm_rfkill_init(iwm);
-	if (ret) {
-		dev_err(dev, "Failed to init rfkill\n");
-		goto out_rfkill;
-	}
-
 	return iwm;
-
- out_rfkill:
-	unregister_netdev(ndev);
 
  out_ndev:
 	free_netdev(ndev);
@@ -162,7 +153,6 @@ void iwm_if_free(struct iwm_priv *iwm)
 	if (!iwm_to_ndev(iwm))
 		return;
 
-	iwm_rfkill_exit(iwm);
 	unregister_netdev(iwm_to_ndev(iwm));
 	free_netdev(iwm_to_ndev(iwm));
 	iwm_wdev_free(iwm);

@@ -1192,92 +1192,48 @@ static bool ath_is_rfkill_set(struct ath_softc *sc)
 				  ah->rfkill_polarity;
 }
 
-/* h/w rfkill poll function */
-static void ath_rfkill_poll(struct work_struct *work)
-{
-	struct ath_softc *sc = container_of(work, struct ath_softc,
-					    rf_kill.rfkill_poll.work);
-	bool radio_on;
-
-	if (sc->sc_flags & SC_OP_INVALID)
-		return;
-
-	radio_on = !ath_is_rfkill_set(sc);
-
-	/*
-	 * enable/disable radio only when there is a
-	 * state change in RF switch
-	 */
-	if (radio_on == !!(sc->sc_flags & SC_OP_RFKILL_HW_BLOCKED)) {
-		enum rfkill_state state;
-
-		if (sc->sc_flags & SC_OP_RFKILL_SW_BLOCKED) {
-			state = radio_on ? RFKILL_STATE_SOFT_BLOCKED
-				: RFKILL_STATE_HARD_BLOCKED;
-		} else if (radio_on) {
-			ath_radio_enable(sc);
-			state = RFKILL_STATE_UNBLOCKED;
-		} else {
-			ath_radio_disable(sc);
-			state = RFKILL_STATE_HARD_BLOCKED;
-		}
-
-		if (state == RFKILL_STATE_HARD_BLOCKED)
-			sc->sc_flags |= SC_OP_RFKILL_HW_BLOCKED;
-		else
-			sc->sc_flags &= ~SC_OP_RFKILL_HW_BLOCKED;
-
-		rfkill_force_state(sc->rf_kill.rfkill, state);
-	}
-
-	queue_delayed_work(sc->hw->workqueue, &sc->rf_kill.rfkill_poll,
-			   msecs_to_jiffies(ATH_RFKILL_POLL_INTERVAL));
-}
-
-/* s/w rfkill handler */
-static int ath_sw_toggle_radio(void *data, enum rfkill_state state)
+/* s/w rfkill handlers */
+static int ath_rfkill_set_block(void *data, bool blocked)
 {
 	struct ath_softc *sc = data;
 
-	switch (state) {
-	case RFKILL_STATE_SOFT_BLOCKED:
-		if (!(sc->sc_flags & (SC_OP_RFKILL_HW_BLOCKED |
-		    SC_OP_RFKILL_SW_BLOCKED)))
-			ath_radio_disable(sc);
-		sc->sc_flags |= SC_OP_RFKILL_SW_BLOCKED;
-		return 0;
-	case RFKILL_STATE_UNBLOCKED:
-		if ((sc->sc_flags & SC_OP_RFKILL_SW_BLOCKED)) {
-			sc->sc_flags &= ~SC_OP_RFKILL_SW_BLOCKED;
-			if (sc->sc_flags & SC_OP_RFKILL_HW_BLOCKED) {
-				DPRINTF(sc, ATH_DBG_FATAL, "Can't turn on the"
-					"radio as it is disabled by h/w\n");
-				return -EPERM;
-			}
-			ath_radio_enable(sc);
-		}
-		return 0;
-	default:
-		return -EINVAL;
-	}
+	if (blocked)
+		ath_radio_disable(sc);
+	else
+		ath_radio_enable(sc);
+
+	return 0;
+}
+
+static void ath_rfkill_poll_state(struct rfkill *rfkill, void *data)
+{
+	struct ath_softc *sc = data;
+	bool blocked = !!ath_is_rfkill_set(sc);
+
+	if (rfkill_set_hw_state(rfkill, blocked))
+		ath_radio_disable(sc);
+	else
+		ath_radio_enable(sc);
 }
 
 /* Init s/w rfkill */
 static int ath_init_sw_rfkill(struct ath_softc *sc)
 {
-	sc->rf_kill.rfkill = rfkill_allocate(wiphy_dev(sc->hw->wiphy),
-					     RFKILL_TYPE_WLAN);
+	sc->rf_kill.ops.set_block = ath_rfkill_set_block;
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		sc->rf_kill.ops.poll = ath_rfkill_poll_state;
+
+	snprintf(sc->rf_kill.rfkill_name, sizeof(sc->rf_kill.rfkill_name),
+		"ath9k-%s::rfkill", wiphy_name(sc->hw->wiphy));
+
+	sc->rf_kill.rfkill = rfkill_alloc(sc->rf_kill.rfkill_name,
+					  wiphy_dev(sc->hw->wiphy),
+					  RFKILL_TYPE_WLAN,
+					  &sc->rf_kill.ops, sc);
 	if (!sc->rf_kill.rfkill) {
 		DPRINTF(sc, ATH_DBG_FATAL, "Failed to allocate rfkill\n");
 		return -ENOMEM;
 	}
-
-	snprintf(sc->rf_kill.rfkill_name, sizeof(sc->rf_kill.rfkill_name),
-		"ath9k-%s::rfkill", wiphy_name(sc->hw->wiphy));
-	sc->rf_kill.rfkill->name = sc->rf_kill.rfkill_name;
-	sc->rf_kill.rfkill->data = sc;
-	sc->rf_kill.rfkill->toggle_radio = ath_sw_toggle_radio;
-	sc->rf_kill.rfkill->state = RFKILL_STATE_UNBLOCKED;
 
 	return 0;
 }
@@ -1285,27 +1241,20 @@ static int ath_init_sw_rfkill(struct ath_softc *sc)
 /* Deinitialize rfkill */
 static void ath_deinit_rfkill(struct ath_softc *sc)
 {
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
-
 	if (sc->sc_flags & SC_OP_RFKILL_REGISTERED) {
 		rfkill_unregister(sc->rf_kill.rfkill);
+		rfkill_destroy(sc->rf_kill.rfkill);
 		sc->sc_flags &= ~SC_OP_RFKILL_REGISTERED;
-		sc->rf_kill.rfkill = NULL;
 	}
 }
 
 static int ath_start_rfkill_poll(struct ath_softc *sc)
 {
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		queue_delayed_work(sc->hw->workqueue,
-				   &sc->rf_kill.rfkill_poll, 0);
-
 	if (!(sc->sc_flags & SC_OP_RFKILL_REGISTERED)) {
 		if (rfkill_register(sc->rf_kill.rfkill)) {
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"Unable to register rfkill\n");
-			rfkill_free(sc->rf_kill.rfkill);
+			rfkill_destroy(sc->rf_kill.rfkill);
 
 			/* Deinitialize the device */
 			ath_cleanup(sc);
@@ -1678,10 +1627,6 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 		goto error_attach;
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	/* Initialze h/w Rfkill */
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		INIT_DELAYED_WORK(&sc->rf_kill.rfkill_poll, ath_rfkill_poll);
-
 	/* Initialize s/w rfkill */
 	error = ath_init_sw_rfkill(sc);
 	if (error)
@@ -2214,10 +2159,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	} else
 		sc->rx.rxlink = NULL;
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
-#endif
+	rfkill_pause_polling(sc->rf_kill.rfkill);
+
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
 	ath9k_hw_configpcipowersave(sc->sc_ah, 1);

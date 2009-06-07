@@ -146,7 +146,6 @@ static struct ieee80211_channel ar9170_5ghz_chantable[] = {
 {									\
 	.ht_supported	= true,						\
 	.cap		= IEEE80211_HT_CAP_MAX_AMSDU |			\
-			  IEEE80211_HT_CAP_SM_PS |			\
 			  IEEE80211_HT_CAP_SUP_WIDTH_20_40 |		\
 			  IEEE80211_HT_CAP_SGI_40 |			\
 			  IEEE80211_HT_CAP_DSSSCCK40 |			\
@@ -344,7 +343,6 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 	if (unlikely(!IS_STARTED(ar)))
 		return ;
 
-	mutex_lock(&ar->mutex);
 	/* recycle the garbage back to mac80211... one by one. */
 	while ((skb = skb_dequeue(&ar->global_tx_status_waste))) {
 #ifdef AR9170_QUEUE_DEBUG
@@ -370,12 +368,9 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 	if (skb_queue_len(&ar->global_tx_status_waste) > 0)
 		queue_delayed_work(ar->hw->workqueue, &ar->tx_status_janitor,
 				   msecs_to_jiffies(100));
-
-	mutex_unlock(&ar->mutex);
 }
 
-static void ar9170_handle_command_response(struct ar9170 *ar,
-					   void *buf, u32 len)
+void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 {
 	struct ar9170_cmd_response *cmd = (void *) buf;
 
@@ -957,6 +952,8 @@ static int ar9170_op_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->mutex);
 
+	ar->filter_changed = 0;
+
 	/* reinitialize queues statistics */
 	memset(&ar->tx_stats, 0, sizeof(ar->tx_stats));
 	for (i = 0; i < ARRAY_SIZE(ar->tx_stats); i++)
@@ -1012,10 +1009,10 @@ static void ar9170_op_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(ar->hw->workqueue);
 
-	mutex_lock(&ar->mutex);
 	cancel_delayed_work_sync(&ar->tx_status_janitor);
 	cancel_work_sync(&ar->filter_config_work);
 	cancel_work_sync(&ar->beacon_work);
+	mutex_lock(&ar->mutex);
 	skb_queue_purge(&ar->global_tx_status_waste);
 	skb_queue_purge(&ar->global_tx_status);
 
@@ -1306,11 +1303,6 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&ar->mutex);
 
-	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
-		/* TODO */
-		err = 0;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
 		/* TODO */
 		err = 0;
@@ -1344,15 +1336,21 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+
+		/* adjust slot time for 5 GHz */
+		err = ar9170_set_slot_time(ar);
+		if (err)
+			goto out;
+
+		err = ar9170_set_dyn_sifs_ack(ar);
+		if (err)
+			goto out;
+
 		err = ar9170_set_channel(ar, hw->conf.channel,
 				AR9170_RFI_NONE,
 				nl80211_to_ar9170(hw->conf.channel_type));
 		if (err)
 			goto out;
-		/* adjust slot time for 5 GHz */
-		if (hw->conf.channel->band == IEEE80211_BAND_5GHZ)
-			err = ar9170_write_reg(ar, AR9170_MAC_REG_SLOT_TIME,
-					       9 << 10);
 	}
 
 out:
@@ -1370,20 +1368,26 @@ static void ar9170_set_filters(struct work_struct *work)
 		return ;
 
 	mutex_lock(&ar->mutex);
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_PROMISC) {
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MODE,
+			       &ar->filter_changed)) {
 		err = ar9170_set_operating_mode(ar);
 		if (err)
 			goto unlock;
 	}
 
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_MULTICAST) {
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MULTICAST,
+			       &ar->filter_changed)) {
 		err = ar9170_update_multicast(ar);
 		if (err)
 			goto unlock;
 	}
 
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_FRAMEFILTER)
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
+			       &ar->filter_changed)) {
 		err = ar9170_update_frame_filter(ar);
+		if (err)
+			goto unlock;
+	}
 
 unlock:
 	mutex_unlock(&ar->mutex);
@@ -1413,7 +1417,7 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 			int i;
 
 			/* always get broadcast frames */
-			mchash = 1ULL << (0xff>>2);
+			mchash = 1ULL << (0xff >> 2);
 
 			for (i = 0; i < mc_count; i++) {
 				if (WARN_ON(!mclist))
@@ -1423,7 +1427,7 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 			}
 		ar->want_mc_hash = mchash;
 		}
-		ar->filter_changed |= AR9170_FILTER_CHANGED_MULTICAST;
+		set_bit(AR9170_FILTER_CHANGED_MULTICAST, &ar->filter_changed);
 	}
 
 	if (changed_flags & FIF_CONTROL) {
@@ -1439,12 +1443,14 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 		else
 			ar->want_filter = ar->cur_filter & ~filter;
 
-		ar->filter_changed |= AR9170_FILTER_CHANGED_FRAMEFILTER;
+		set_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
+			&ar->filter_changed);
 	}
 
 	if (changed_flags & FIF_PROMISC_IN_BSS) {
 		ar->sniffer_enabled = ((*new_flags) & FIF_PROMISC_IN_BSS) != 0;
-		ar->filter_changed |= AR9170_FILTER_CHANGED_PROMISC;
+		set_bit(AR9170_FILTER_CHANGED_MODE,
+			&ar->filter_changed);
 	}
 
 	if (likely(IS_STARTED(ar)))
@@ -1464,27 +1470,32 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		memcpy(ar->bssid, bss_conf->bssid, ETH_ALEN);
 		err = ar9170_set_operating_mode(ar);
+		if (err)
+			goto out;
 	}
 
 	if (changed & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED)) {
 		err = ar9170_update_beacon(ar);
-		if (!err)
-			ar9170_set_beacon_timers(ar);
+		if (err)
+			goto out;
+
+		err = ar9170_set_beacon_timers(ar);
+		if (err)
+			goto out;
 	}
 
-	ar9170_regwrite_begin(ar);
-
 	if (changed & BSS_CHANGED_ASSOC) {
-		ar->state = bss_conf->assoc ? AR9170_ASSOCIATED : ar->state;
-
 #ifndef CONFIG_AR9170_LEDS
 		/* enable assoc LED. */
 		err = ar9170_set_leds_state(ar, bss_conf->assoc ? 2 : 0);
 #endif /* CONFIG_AR9170_LEDS */
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT)
+	if (changed & BSS_CHANGED_BEACON_INT) {
 		err = ar9170_set_beacon_timers(ar);
+		if (err)
+			goto out;
+	}
 
 	if (changed & BSS_CHANGED_HT) {
 		/* TODO */
@@ -1492,31 +1503,18 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		u32 slottime = 20;
-
-		if (bss_conf->use_short_slot)
-			slottime = 9;
-
-		ar9170_regwrite(AR9170_MAC_REG_SLOT_TIME, slottime << 10);
+		err = ar9170_set_slot_time(ar);
+		if (err)
+			goto out;
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		u32 cck, ofdm;
-
-		if (hw->conf.channel->band == IEEE80211_BAND_5GHZ) {
-			ofdm = bss_conf->basic_rates;
-			cck = 0;
-		} else {
-			/* four cck rates */
-			cck = bss_conf->basic_rates & 0xf;
-			ofdm = bss_conf->basic_rates >> 4;
-		}
-		ar9170_regwrite(AR9170_MAC_REG_BASIC_RATE,
-				ofdm << 8 | cck);
+		err = ar9170_set_basic_rates(ar);
+		if (err)
+			goto out;
 	}
 
-	ar9170_regwrite_finish();
-	err = ar9170_regwrite_result();
+out:
 	mutex_unlock(&ar->mutex);
 }
 

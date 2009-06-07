@@ -47,7 +47,7 @@ config B43LEGACY_LEDS
 # if it's possible.
 config B43LEGACY_RFKILL
 	bool
-	depends on B43LEGACY && (RFKILL = y || RFKILL = B43LEGACY) && RFKILL_INPUT && (INPUT_POLLDEV = y || INPUT_POLLDEV = B43LEGACY)
+	depends on B43LEGACY && (RFKILL = y || RFKILL = B43LEGACY)
 	default y
 
 # This config option automatically enables b43 HW-RNG support,

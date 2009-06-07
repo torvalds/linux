@@ -460,12 +460,9 @@ struct ath_led {
 	bool registered;
 };
 
-/* Rfkill */
-#define ATH_RFKILL_POLL_INTERVAL	2000 /* msecs */
-
 struct ath_rfkill {
 	struct rfkill *rfkill;
-	struct delayed_work rfkill_poll;
+	struct rfkill_ops ops;
 	char rfkill_name[32];
 };
 
@@ -509,8 +506,6 @@ struct ath_rfkill {
 #define SC_OP_RXFLUSH           BIT(7)
 #define SC_OP_LED_ASSOCIATED    BIT(8)
 #define SC_OP_RFKILL_REGISTERED BIT(9)
-#define SC_OP_RFKILL_SW_BLOCKED BIT(10)
-#define SC_OP_RFKILL_HW_BLOCKED BIT(11)
 #define SC_OP_WAIT_FOR_BEACON   BIT(12)
 #define SC_OP_LED_ON            BIT(13)
 #define SC_OP_SCANNING          BIT(14)

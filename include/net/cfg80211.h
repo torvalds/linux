@@ -752,6 +752,19 @@ enum wiphy_params_flags {
 };
 
 /**
+ * enum tx_power_setting - TX power adjustment
+ *
+ * @TX_POWER_AUTOMATIC: the dbm parameter is ignored
+ * @TX_POWER_LIMITED: limit TX power by the dbm parameter
+ * @TX_POWER_FIXED: fix TX power to the dbm parameter
+ */
+enum tx_power_setting {
+	TX_POWER_AUTOMATIC,
+	TX_POWER_LIMITED,
+	TX_POWER_FIXED,
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -837,6 +850,13 @@ enum wiphy_params_flags {
  *	@changed bitfield (see &enum wiphy_params_flags) describes which values
  *	have changed. The actual parameter values are available in
  *	struct wiphy. If returning an error, no value should be changed.
+ *
+ * @set_tx_power: set the transmit power according to the parameters
+ * @get_tx_power: store the current TX power into the dbm variable;
+ *	return 0 if successful
+ *
+ * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
+ *	functions to adjust rfkill hw state
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -928,6 +948,12 @@ struct cfg80211_ops {
 	int	(*leave_ibss)(struct wiphy *wiphy, struct net_device *dev);
 
 	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
+
+	int	(*set_tx_power)(struct wiphy *wiphy,
+				enum tx_power_setting type, int dbm);
+	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
+
+	void	(*rfkill_poll)(struct wiphy *wiphy);
 };
 
 /*
@@ -1451,6 +1477,12 @@ int cfg80211_wext_siwencode(struct net_device *dev,
 int cfg80211_wext_giwencode(struct net_device *dev,
 			    struct iw_request_info *info,
 			    struct iw_point *erq, char *keybuf);
+int cfg80211_wext_siwtxpower(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *data, char *keybuf);
+int cfg80211_wext_giwtxpower(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *data, char *keybuf);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification
@@ -1635,5 +1667,24 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
  * always a scan result for this IBSS. cfg80211 will handle the rest.
  */
 void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
+
+/**
+ * wiphy_rfkill_set_hw_state - notify cfg80211 about hw block state
+ * @wiphy: the wiphy
+ * @blocked: block status
+ */
+void wiphy_rfkill_set_hw_state(struct wiphy *wiphy, bool blocked);
+
+/**
+ * wiphy_rfkill_start_polling - start polling rfkill
+ * @wiphy: the wiphy
+ */
+void wiphy_rfkill_start_polling(struct wiphy *wiphy);
+
+/**
+ * wiphy_rfkill_stop_polling - stop polling rfkill
+ * @wiphy: the wiphy
+ */
+void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
 
 #endif /* __NET_CFG80211_H */

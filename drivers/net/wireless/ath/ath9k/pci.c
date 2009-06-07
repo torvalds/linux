@@ -227,11 +227,6 @@ static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
-#endif
-
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
@@ -255,16 +250,6 @@ static int ath_pci_resume(struct pci_dev *pdev)
 	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
-
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	/*
-	 * check the h/w rfkill state on resume
-	 * and start the rfkill poll timer
-	 */
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		queue_delayed_work(sc->hw->workqueue,
-				   &sc->rf_kill.rfkill_poll, 0);
-#endif
 
 	return 0;
 }

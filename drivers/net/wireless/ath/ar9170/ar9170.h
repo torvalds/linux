@@ -91,6 +91,7 @@ struct ar9170_led {
 	struct led_classdev l;
 	char name[32];
 	unsigned int toggled;
+	bool last_state;
 	bool registered;
 };
 
@@ -101,7 +102,6 @@ enum ar9170_device_state {
 	AR9170_STOPPED,
 	AR9170_IDLE,
 	AR9170_STARTED,
-	AR9170_ASSOCIATED,
 };
 
 struct ar9170_rxstream_mpdu_merge {
@@ -140,7 +140,7 @@ struct ar9170 {
 	struct work_struct filter_config_work;
 	u64 cur_mc_hash, want_mc_hash;
 	u32 cur_filter, want_filter;
-	unsigned int filter_changed;
+	unsigned long filter_changed;
 	unsigned int filter_state;
 	bool sniffer_enabled;
 
@@ -195,7 +195,7 @@ struct ar9170_sta_info {
 #define IS_STARTED(a)		(a->state >= AR9170_STARTED)
 #define IS_ACCEPTING_CMD(a)	(a->state >= AR9170_IDLE)
 
-#define AR9170_FILTER_CHANGED_PROMISC		BIT(0)
+#define AR9170_FILTER_CHANGED_MODE		BIT(0)
 #define AR9170_FILTER_CHANGED_MULTICAST		BIT(1)
 #define AR9170_FILTER_CHANGED_FRAMEFILTER	BIT(2)
 
@@ -206,6 +206,7 @@ void ar9170_rx(struct ar9170 *ar, struct sk_buff *skb);
 void ar9170_unregister(struct ar9170 *ar);
 void ar9170_handle_tx_status(struct ar9170 *ar, struct sk_buff *skb,
 			     bool update_statistics, u16 tx_status);
+void ar9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
 
 /* MAC */
 int ar9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -215,6 +216,9 @@ int ar9170_update_multicast(struct ar9170 *ar);
 int ar9170_update_frame_filter(struct ar9170 *ar);
 int ar9170_set_operating_mode(struct ar9170 *ar);
 int ar9170_set_beacon_timers(struct ar9170 *ar);
+int ar9170_set_dyn_sifs_ack(struct ar9170 *ar);
+int ar9170_set_slot_time(struct ar9170 *ar);
+int ar9170_set_basic_rates(struct ar9170 *ar);
 int ar9170_set_hwretry_limit(struct ar9170 *ar, u32 max_retry);
 int ar9170_update_beacon(struct ar9170 *ar);
 void ar9170_new_beacon(struct work_struct *work);

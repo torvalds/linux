@@ -183,12 +183,12 @@ out_unlock:
  */
 static void *lbs_tlv_find(uint16_t tlv_type, const uint8_t *tlv, uint16_t size)
 {
-	struct mrvlietypesheader *tlv_h;
+	struct mrvl_ie_header *tlv_h;
 	uint16_t length;
 	ssize_t pos = 0;
 
 	while (pos < size) {
-		tlv_h = (struct mrvlietypesheader *) tlv;
+		tlv_h = (struct mrvl_ie_header *) tlv;
 		if (!tlv_h->len)
 			return NULL;
 		if (tlv_h->type == cpu_to_le16(tlv_type))
@@ -206,7 +206,7 @@ static ssize_t lbs_threshold_read(uint16_t tlv_type, uint16_t event_mask,
 				  size_t count, loff_t *ppos)
 {
 	struct cmd_ds_802_11_subscribe_event *subscribed;
-	struct mrvlietypes_thresholds *got;
+	struct mrvl_ie_thresholds *got;
 	struct lbs_private *priv = file->private_data;
 	ssize_t ret = 0;
 	size_t pos = 0;
@@ -259,7 +259,7 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 				   loff_t *ppos)
 {
 	struct cmd_ds_802_11_subscribe_event *events;
-	struct mrvlietypes_thresholds *tlv;
+	struct mrvl_ie_thresholds *tlv;
 	struct lbs_private *priv = file->private_data;
 	ssize_t buf_size;
 	int value, freq, new_mask;

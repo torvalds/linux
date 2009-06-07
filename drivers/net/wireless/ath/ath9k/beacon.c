@@ -411,6 +411,7 @@ void ath_beacon_tasklet(unsigned long data)
 		} else if (sc->beacon.bmisscnt >= BSTUCK_THRESH) {
 			DPRINTF(sc, ATH_DBG_BEACON,
 				"beacon is officially stuck\n");
+			sc->sc_flags |= SC_OP_TSF_RESET;
 			ath_reset(sc, false);
 		}
 
@@ -672,6 +673,14 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	u32 tsftu, intval, nexttbtt;
 
 	intval = conf->beacon_interval & ATH9K_BEACON_PERIOD;
+
+	/*
+	 * It looks like mac80211 may end up using beacon interval of zero in
+	 * some cases (at least for mesh point). Avoid getting into an
+	 * infinite loop by using a bit safer value instead..
+	 */
+	if (intval == 0)
+		intval = 100;
 
 	/* Pull nexttbtt forward to reflect the current TSF */
 

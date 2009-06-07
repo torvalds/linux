@@ -3470,7 +3470,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (!!conf->radio_enabled != phy->radio_on) {
 		if (conf->radio_enabled) {
-			b43_software_rfkill(dev, RFKILL_STATE_UNBLOCKED);
+			b43_software_rfkill(dev, false);
 			b43info(dev->wl, "Radio turned on by software\n");
 			if (!dev->radio_hw_enable) {
 				b43info(dev->wl, "The hardware RF-kill button "
@@ -3478,7 +3478,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 					"Press the button to turn it on.\n");
 			}
 		} else {
-			b43_software_rfkill(dev, RFKILL_STATE_SOFT_BLOCKED);
+			b43_software_rfkill(dev, true);
 			b43info(dev->wl, "Radio turned off by software\n");
 		}
 	}

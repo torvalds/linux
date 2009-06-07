@@ -657,15 +657,15 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		switch (queue) {
 		case 3: /* AC_BK */
-			qparam.cw_max = aCWmin;
-			qparam.cw_min = aCWmax;
+			qparam.cw_max = aCWmax;
+			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
 			qparam.aifs = 7;
 			break;
 		default: /* never happens but let's not leave undefined */
 		case 2: /* AC_BE */
-			qparam.cw_max = aCWmin;
-			qparam.cw_min = aCWmax;
+			qparam.cw_max = aCWmax;
+			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
 			qparam.aifs = 3;
 			break;
@@ -973,7 +973,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (local->open_count) {
 		res = drv_start(local);
 
-		ieee80211_led_radio(local, hw->conf.radio_enabled);
+		ieee80211_led_radio(local, true);
 	}
 
 	/* add interfaces */

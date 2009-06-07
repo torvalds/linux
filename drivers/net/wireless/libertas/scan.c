@@ -27,12 +27,12 @@
                              + 40)	/* 40 for WPAIE */
 
 //! Memory needed to store a max sized channel List TLV for a firmware scan
-#define CHAN_TLV_MAX_SIZE  (sizeof(struct mrvlietypesheader)    \
+#define CHAN_TLV_MAX_SIZE  (sizeof(struct mrvl_ie_header)    \
                             + (MRVDRV_MAX_CHANNELS_PER_SCAN     \
                                * sizeof(struct chanscanparamset)))
 
 //! Memory needed to store a max number/size SSID TLV for a firmware scan
-#define SSID_TLV_MAX_SIZE  (1 * sizeof(struct mrvlietypes_ssidparamset))
+#define SSID_TLV_MAX_SIZE  (1 * sizeof(struct mrvl_ie_ssid_param_set))
 
 //! Maximum memory needed for a cmd_ds_802_11_scan with all TLVs at max
 #define MAX_SCAN_CFG_ALLOC (sizeof(struct cmd_ds_802_11_scan)	\
@@ -211,7 +211,7 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
  */
 static int lbs_scan_add_ssid_tlv(struct lbs_private *priv, u8 *tlv)
 {
-	struct mrvlietypes_ssidparamset *ssid_tlv = (void *)tlv;
+	struct mrvl_ie_ssid_param_set *ssid_tlv = (void *)tlv;
 
 	ssid_tlv->header.type = cpu_to_le16(TLV_TYPE_SSID);
 	ssid_tlv->header.len = cpu_to_le16(priv->scan_ssid_len);
@@ -249,7 +249,7 @@ static int lbs_scan_add_chanlist_tlv(uint8_t *tlv,
 				     int chan_count)
 {
 	size_t size = sizeof(struct chanscanparamset) *chan_count;
-	struct mrvlietypes_chanlistparamset *chan_tlv = (void *)tlv;
+	struct mrvl_ie_chanlist_param_set *chan_tlv = (void *)tlv;
 
 	chan_tlv->header.type = cpu_to_le16(TLV_TYPE_CHANLIST);
 	memcpy(chan_tlv->chanscanparam, chan_list, size);
@@ -270,7 +270,7 @@ static int lbs_scan_add_chanlist_tlv(uint8_t *tlv,
 static int lbs_scan_add_rates_tlv(uint8_t *tlv)
 {
 	int i;
-	struct mrvlietypes_ratesparamset *rate_tlv = (void *)tlv;
+	struct mrvl_ie_rates_param_set *rate_tlv = (void *)tlv;
 
 	rate_tlv->header.type = cpu_to_le16(TLV_TYPE_RATES);
 	tlv += sizeof(rate_tlv->header);
@@ -513,12 +513,12 @@ void lbs_scan_worker(struct work_struct *work)
 static int lbs_process_bss(struct bss_descriptor *bss,
 			   uint8_t **pbeaconinfo, int *bytesleft)
 {
-	struct ieeetypes_fhparamset *pFH;
-	struct ieeetypes_dsparamset *pDS;
-	struct ieeetypes_cfparamset *pCF;
-	struct ieeetypes_ibssparamset *pibss;
+	struct ieee_ie_fh_param_set *fh;
+	struct ieee_ie_ds_param_set *ds;
+	struct ieee_ie_cf_param_set *cf;
+	struct ieee_ie_ibss_param_set *ibss;
 	DECLARE_SSID_BUF(ssid);
-	struct ieeetypes_countryinfoset *pcountryinfo;
+	struct ieee_ie_country_info_set *pcountryinfo;
 	uint8_t *pos, *end, *p;
 	uint8_t n_ex_rates = 0, got_basic_rates = 0, n_basic_rates = 0;
 	uint16_t beaconsize = 0;
@@ -616,50 +616,49 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			break;
 
 		case WLAN_EID_FH_PARAMS:
-			pFH = (struct ieeetypes_fhparamset *) pos;
-			memmove(&bss->phyparamset.fhparamset, pFH,
-				sizeof(struct ieeetypes_fhparamset));
+			fh = (struct ieee_ie_fh_param_set *) pos;
+			memcpy(&bss->phy.fh, fh, sizeof(*fh));
 			lbs_deb_scan("got FH IE\n");
 			break;
 
 		case WLAN_EID_DS_PARAMS:
-			pDS = (struct ieeetypes_dsparamset *) pos;
-			bss->channel = pDS->currentchan;
-			memcpy(&bss->phyparamset.dsparamset, pDS,
-			       sizeof(struct ieeetypes_dsparamset));
+			ds = (struct ieee_ie_ds_param_set *) pos;
+			bss->channel = ds->channel;
+			memcpy(&bss->phy.ds, ds, sizeof(*ds));
 			lbs_deb_scan("got DS IE, channel %d\n", bss->channel);
 			break;
 
 		case WLAN_EID_CF_PARAMS:
-			pCF = (struct ieeetypes_cfparamset *) pos;
-			memcpy(&bss->ssparamset.cfparamset, pCF,
-			       sizeof(struct ieeetypes_cfparamset));
+			cf = (struct ieee_ie_cf_param_set *) pos;
+			memcpy(&bss->ss.cf, cf, sizeof(*cf));
 			lbs_deb_scan("got CF IE\n");
 			break;
 
 		case WLAN_EID_IBSS_PARAMS:
-			pibss = (struct ieeetypes_ibssparamset *) pos;
-			bss->atimwindow = le16_to_cpu(pibss->atimwindow);
-			memmove(&bss->ssparamset.ibssparamset, pibss,
-				sizeof(struct ieeetypes_ibssparamset));
+			ibss = (struct ieee_ie_ibss_param_set *) pos;
+			bss->atimwindow = ibss->atimwindow;
+			memcpy(&bss->ss.ibss, ibss, sizeof(*ibss));
 			lbs_deb_scan("got IBSS IE\n");
 			break;
 
 		case WLAN_EID_COUNTRY:
-			pcountryinfo = (struct ieeetypes_countryinfoset *) pos;
+			pcountryinfo = (struct ieee_ie_country_info_set *) pos;
 			lbs_deb_scan("got COUNTRY IE\n");
-			if (pcountryinfo->len < sizeof(pcountryinfo->countrycode)
-			    || pcountryinfo->len > 254) {
-				lbs_deb_scan("process_bss: 11D- Err CountryInfo len %d, min %zd, max 254\n",
-					     pcountryinfo->len, sizeof(pcountryinfo->countrycode));
+			if (pcountryinfo->header.len < sizeof(pcountryinfo->countrycode)
+			    || pcountryinfo->header.len > 254) {
+				lbs_deb_scan("%s: 11D- Err CountryInfo len %d, min %zd, max 254\n",
+					     __func__,
+					     pcountryinfo->header.len,
+					     sizeof(pcountryinfo->countrycode));
 				ret = -1;
 				goto done;
 			}
 
-			memcpy(&bss->countryinfo, pcountryinfo, pcountryinfo->len + 2);
+			memcpy(&bss->countryinfo, pcountryinfo,
+				pcountryinfo->header.len + 2);
 			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: 11d countryinfo",
 				    (uint8_t *) pcountryinfo,
-				    (int) (pcountryinfo->len + 2));
+				    (int) (pcountryinfo->header.len + 2));
 			break;
 
 		case WLAN_EID_EXT_SUPP_RATES:
@@ -1130,7 +1129,7 @@ static int lbs_ret_80211_scan(struct lbs_private *priv, unsigned long dummy,
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(scanresp->bssdescriptsize);
+	bytesleft = get_unaligned_le16(&scanresp->bssdescriptsize);
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
 	scanrespsize = le16_to_cpu(resp->size);

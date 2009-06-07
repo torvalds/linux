@@ -167,10 +167,6 @@ static int iwl3945_led_disassociate(struct iwl_priv *priv, int led_id)
 	IWL_DEBUG_LED(priv, "Disassociated\n");
 
 	priv->allow_blinking = 0;
-	if (iwl_is_rfkill(priv))
-		iwl3945_led_off(priv, led_id);
-	else
-		iwl3945_led_on(priv, led_id);
 
 	return 0;
 }

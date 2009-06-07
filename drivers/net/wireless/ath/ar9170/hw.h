@@ -207,7 +207,8 @@ enum ar9170_cmd {
 #define AR9170_MAC_REG_AC1_AC0_TXOP		(AR9170_MAC_REG_BASE + 0xB44)
 #define AR9170_MAC_REG_AC3_AC2_TXOP		(AR9170_MAC_REG_BASE + 0xB48)
 
-#define AR9170_MAC_REG_AMPDU_SET		(AR9170_MAC_REG_BASE + 0xba0)
+#define AR9170_MAC_REG_AMPDU_FACTOR		(AR9170_MAC_REG_BASE + 0xB9C)
+#define AR9170_MAC_REG_AMPDU_DENSITY		(AR9170_MAC_REG_BASE + 0xBA0)
 
 #define AR9170_MAC_REG_ACK_TABLE		(AR9170_MAC_REG_BASE + 0xC00)
 #define AR9170_MAC_REG_AMPDU_RX_THRESH		(AR9170_MAC_REG_BASE + 0xC50)
@@ -376,7 +377,6 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_macstatus *t)
 #define AR9170_RX_ERROR_FATAL			0x80
 
 struct ar9170_cmd_tx_status {
-	__le16 unkn;
 	u8 dst[ETH_ALEN];
 	__le32 rate;
 	__le16 status;
@@ -394,6 +394,7 @@ struct ar9170_cmd_ba_failed_count {
 struct ar9170_cmd_response {
 	u8 flag;
 	u8 type;
+	__le16 padding;
 
 	union {
 		struct ar9170_cmd_tx_status		tx_status;

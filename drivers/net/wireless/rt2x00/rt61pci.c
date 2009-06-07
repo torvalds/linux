@@ -956,7 +956,7 @@ static void rt61pci_config_ps(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_SLEEP) {
 		rt2x00pci_register_read(rt2x00dev, MAC_CSR11, &reg);
 		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN,
-				   libconf->conf->beacon_int - 10);
+				   rt2x00dev->beacon_int - 10);
 		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP,
 				   libconf->conf->listen_interval - 1);
 		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 5);

@@ -21,7 +21,7 @@ config ACER_WMI
 	depends on NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	select ACPI_WMI
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds
@@ -60,7 +60,7 @@ config DELL_LAPTOP
 	depends on DCDBAS
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	depends on POWER_SUPPLY
 	default n
 	---help---
@@ -117,7 +117,7 @@ config HP_WMI
 	tristate "HP WMI extras"
 	depends on ACPI_WMI
 	depends on INPUT
-	depends on RFKILL
+	depends on RFKILL || RFKILL = n
 	help
 	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
 	 to read data from WMI such as docking or ambient light sensor state.
@@ -196,14 +196,13 @@ config THINKPAD_ACPI
 	tristate "ThinkPad ACPI Laptop Extras"
 	depends on ACPI
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
 	select NVRAM
 	select NEW_LEDS
 	select LEDS_CLASS
-	select NET
-	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -338,9 +337,9 @@ config EEEPC_LAPTOP
 	depends on ACPI
 	depends on INPUT
 	depends on EXPERIMENTAL
+	depends on RFKILL || RFKILL = n
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
-	select RFKILL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 	  It also adds the ability to switch camera/wlan on/off.
@@ -405,9 +404,8 @@ config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
 	select INPUT_POLLDEV
-	select NET
-	select RFKILL
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings
