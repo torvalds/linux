@@ -40,7 +40,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 static int minor = MISC_DYNAMIC_MINOR;
 
@@ -342,15 +342,14 @@ static const struct file_operations vhci_fops = {
 };
 
 static struct miscdevice vhci_miscdev= {
-	.name		= "vhci",
-	.fops		= &vhci_fops,
+	.name	= "vhci",
+	.fops	= &vhci_fops,
+	.minor	= MISC_DYNAMIC_MINOR,
 };
 
 static int __init vhci_init(void)
 {
 	BT_INFO("Virtual HCI driver ver %s", VERSION);
-
-	vhci_miscdev.minor = minor;
 
 	if (misc_register(&vhci_miscdev) < 0) {
 		BT_ERR("Can't register misc device with minor %d", minor);
@@ -368,9 +367,6 @@ static void __exit vhci_exit(void)
 
 module_init(vhci_init);
 module_exit(vhci_exit);
-
-module_param(minor, int, 0444);
-MODULE_PARM_DESC(minor, "Miscellaneous minor device number");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);
