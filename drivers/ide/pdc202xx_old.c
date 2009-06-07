@@ -203,30 +203,6 @@ static int pdc202xx_dma_end(ide_drive_t *drive)
 	return ide_dma_end(drive);
 }
 
-static int pdc202xx_dma_test_irq(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long high_16	= hwif->extra_base - 16;
-	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
-	u8 sc1d			= inb(high_16 + 0x001d);
-
-	if (hwif->channel) {
-		/* bit7: Error, bit6: Interrupting, bit5: FIFO Full, bit4: FIFO Empty */
-		if ((sc1d & 0x50) == 0x50)
-			goto somebody_else;
-		else if ((sc1d & 0x40) == 0x40)
-			return (dma_stat & 4) == 4;
-	} else {
-		/* bit3: Error, bit2: Interrupting, bit1: FIFO Full, bit0: FIFO Empty */
-		if ((sc1d & 0x05) == 0x05)
-			goto somebody_else;
-		else if ((sc1d & 0x04) == 0x04)
-			return (dma_stat & 4) == 4;
-	}
-somebody_else:
-	return (dma_stat & 4) == 4;	/* return 1 if INTR asserted */
-}
-
 static void pdc202xx_reset(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= drive->hwif;
@@ -313,23 +289,12 @@ static const struct ide_port_ops pdc2026x_port_ops = {
 	.cable_detect		= pdc2026x_cable_detect,
 };
 
-static const struct ide_dma_ops pdc20246_dma_ops = {
-	.dma_host_set		= ide_dma_host_set,
-	.dma_setup		= ide_dma_setup,
-	.dma_start		= ide_dma_start,
-	.dma_end		= ide_dma_end,
-	.dma_test_irq		= pdc202xx_dma_test_irq,
-	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_sff_read_status	= ide_dma_sff_read_status,
-};
-
 static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
 	.dma_start		= pdc202xx_dma_start,
 	.dma_end		= pdc202xx_dma_end,
-	.dma_test_irq		= pdc202xx_dma_test_irq,
+	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_clear		= pdc202xx_reset,
@@ -354,7 +319,7 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_pdc202xx,
 		.port_ops	= &pdc20246_port_ops,
-		.dma_ops	= &pdc20246_dma_ops,
+		.dma_ops	= &sff_dma_ops,
 		.host_flags	= IDE_HFLAGS_PDC202XX,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
