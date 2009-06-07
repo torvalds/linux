@@ -1735,6 +1735,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				root domains (aka PCI segments, in ACPI-speak).
 		nommconf	[X86] Disable use of MMCONFIG for PCI
 				Configuration
+		check_enable_amd_mmconf [X86] check for and enable
+				properly configured MMIO access to PCI
+				config space on AMD family 10h CPU
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
