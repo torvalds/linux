@@ -397,6 +397,7 @@ struct ide_drive_s;
 struct ide_disk_ops {
 	int		(*check)(struct ide_drive_s *, const char *);
 	int		(*get_capacity)(struct ide_drive_s *);
+	u64		(*set_capacity)(struct ide_drive_s *, u64);
 	void		(*setup)(struct ide_drive_s *);
 	void		(*flush)(struct ide_drive_s *);
 	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
@@ -568,8 +569,7 @@ struct ide_drive_s {
 	unsigned int	drive_data;	/* used by set_pio_mode/dev_select() */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
-	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
-
+	u64		probed_capacity;/* initial/native media capacity */
 	u64		capacity64;	/* total number of sectors */
 
 	int		lun;		/* logical unit */
