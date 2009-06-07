@@ -458,6 +458,8 @@ static void fat_put_super(struct super_block *sb)
 	if (sb->s_dirt)
 		fat_write_super(sb);
 
+	iput(sbi->fat_inode);
+
 	if (sbi->nls_disk) {
 		unload_nls(sbi->nls_disk);
 		sbi->nls_disk = NULL;
@@ -1183,7 +1185,7 @@ static int fat_read_root(struct inode *inode)
 int fat_fill_super(struct super_block *sb, void *data, int silent,
 		   const struct inode_operations *fs_dir_inode_ops, int isvfat)
 {
-	struct inode *root_inode = NULL;
+	struct inode *root_inode = NULL, *fat_inode = NULL;
 	struct buffer_head *bh;
 	struct fat_boot_sector *b;
 	struct msdos_sb_info *sbi;
@@ -1423,6 +1425,11 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	}
 
 	error = -ENOMEM;
+	fat_inode = new_inode(sb);
+	if (!fat_inode)
+		goto out_fail;
+	MSDOS_I(fat_inode)->i_pos = 0;
+	sbi->fat_inode = fat_inode;
 	root_inode = new_inode(sb);
 	if (!root_inode)
 		goto out_fail;
@@ -1448,6 +1455,8 @@ out_invalid:
 		       " on dev %s.\n", sb->s_id);
 
 out_fail:
+	if (fat_inode)
+		iput(fat_inode);
 	if (root_inode)
 		iput(root_inode);
 	if (sbi->nls_io)
