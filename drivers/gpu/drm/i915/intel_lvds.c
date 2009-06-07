@@ -343,11 +343,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct drm_device *dev = connector->dev;
-
-	if (property == dev->mode_config.dpms_property && connector->encoder)
-		intel_lvds_dpms(connector->encoder, (uint32_t)(value & 0xf));
-
 	return 0;
 }
 
@@ -366,6 +361,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_lvds_save,
 	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
@@ -384,7 +380,51 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 	.destroy = intel_lvds_enc_destroy,
 };
 
+static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG("Skipping LVDS initialization for %s\n", id->ident);
+	return 1;
+}
 
+/* These systems claim to have LVDS, but really don't */
+static const struct dmi_system_id intel_no_lvds[] = {
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Apple Mac Mini (Core series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Apple Mac Mini (Core 2 series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini2,1"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "MSI IM-945GSE-A",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A9830IMS"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Dell Studio Hybrid",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Studio Hybrid 140g"),
+		},
+	},
+
+	/* FIXME: add a check for the Aopen Mini PC */
+
+	{ }	/* terminating entry */
+};
 
 /**
  * intel_lvds_init - setup LVDS connectors on this device
@@ -404,15 +444,9 @@ void intel_lvds_init(struct drm_device *dev)
 	u32 lvds;
 	int pipe;
 
-	/* Blacklist machines that we know falsely report LVDS. */
-	/* FIXME: add a check for the Aopen Mini PC */
-
-	/* Apple Mac Mini Core Duo and Mac Mini Core 2 Duo */
-	if(dmi_match(DMI_PRODUCT_NAME, "Macmini1,1") ||
-	   dmi_match(DMI_PRODUCT_NAME, "Macmini2,1")) {
-		DRM_DEBUG("Skipping LVDS initialization for Apple Mac Mini\n");
+	/* Skip init on machines we know falsely report LVDS */
+	if (dmi_check_system(intel_no_lvds))
 		return;
-	}
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
 	if (!intel_output) {
@@ -473,10 +507,10 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->vbt_mode) {
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mutex_lock(&dev->mode_config.mutex);
 		dev_priv->panel_fixed_mode =
-			drm_mode_duplicate(dev, dev_priv->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=

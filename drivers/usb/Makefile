@@ -11,7 +11,6 @@ obj-$(CONFIG_USB_MON)		+= mon/
 obj-$(CONFIG_PCI)		+= host/
 obj-$(CONFIG_USB_EHCI_HCD)	+= host/
 obj-$(CONFIG_USB_ISP116X_HCD)	+= host/
-obj-$(CONFIG_USB_ISP1760_HCD)	+= host/
 obj-$(CONFIG_USB_OHCI_HCD)	+= host/
 obj-$(CONFIG_USB_UHCI_HCD)	+= host/
 obj-$(CONFIG_USB_FHCI_HCD)	+= host/
@@ -27,6 +26,8 @@ obj-$(CONFIG_USB_WUSB)		+= wusbcore/
 
 obj-$(CONFIG_USB_ACM)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
+obj-$(CONFIG_USB_WDM)		+= class/
+obj-$(CONFIG_USB_TMC)		+= class/
 
 obj-$(CONFIG_USB_STORAGE)	+= storage/
 obj-$(CONFIG_USB)		+= storage/

@@ -27,6 +27,7 @@
 #include <linux/fb.h>
 #include "drmP.h"
 #include "intel_drv.h"
+#include "i915_drv.h"
 
 /**
  * intel_ddc_probe
@@ -52,7 +53,10 @@ bool intel_ddc_probe(struct intel_output *intel_output)
 		}
 	};
 
+	intel_i2c_quirk_set(intel_output->ddc_bus->drm_dev, true);
 	ret = i2c_transfer(&intel_output->ddc_bus->adapter, msgs, 2);
+	intel_i2c_quirk_set(intel_output->ddc_bus->drm_dev, false);
+
 	if (ret == 2)
 		return true;
 
@@ -70,8 +74,10 @@ int intel_ddc_get_modes(struct intel_output *intel_output)
 	struct edid *edid;
 	int ret = 0;
 
+	intel_i2c_quirk_set(intel_output->ddc_bus->drm_dev, true);
 	edid = drm_get_edid(&intel_output->base,
 			    &intel_output->ddc_bus->adapter);
+	intel_i2c_quirk_set(intel_output->ddc_bus->drm_dev, false);
 	if (edid) {
 		drm_mode_connector_update_edid_property(&intel_output->base,
 							edid);

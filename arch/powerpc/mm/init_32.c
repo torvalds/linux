@@ -168,12 +168,8 @@ void __init MMU_init(void)
 		ppc_md.progress("MMU:mapin", 0x301);
 	mapin_ram();
 
-#ifdef CONFIG_HIGHMEM
-	ioremap_base = PKMAP_BASE;
-#else
-	ioremap_base = 0xfe000000UL;	/* for now, could be 0xfffff000 */
-#endif /* CONFIG_HIGHMEM */
-	ioremap_bot = ioremap_base;
+	/* Initialize early top-down ioremap allocator */
+	ioremap_bot = IOREMAP_TOP;
 
 	/* Map in I/O resources */
 	if (ppc_md.progress)

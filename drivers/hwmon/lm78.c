@@ -182,7 +182,7 @@ static struct platform_driver lm78_isa_driver = {
 		.name	= "lm78",
 	},
 	.probe		= lm78_isa_probe,
-	.remove		= lm78_isa_remove,
+	.remove		= __devexit_p(lm78_isa_remove),
 };
 
 

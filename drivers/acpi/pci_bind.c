@@ -116,9 +116,6 @@ int acpi_pci_bind(struct acpi_device *device)
 	struct acpi_pci_data *pdata;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_handle handle;
-	struct pci_dev *dev;
-	struct pci_bus *bus;
-
 
 	if (!device || !device->parent)
 		return -EINVAL;
@@ -176,20 +173,9 @@ int acpi_pci_bind(struct acpi_device *device)
 	 * Locate matching device in PCI namespace.  If it doesn't exist
 	 * this typically means that the device isn't currently inserted
 	 * (e.g. docking station, port replicator, etc.).
-	 * We cannot simply search the global pci device list, since
-	 * PCI devices are added to the global pci list when the root
-	 * bridge start ops are run, which may not have happened yet.
 	 */
-	bus = pci_find_bus(data->id.segment, data->id.bus);
-	if (bus) {
-		list_for_each_entry(dev, &bus->devices, bus_list) {
-			if (dev->devfn == PCI_DEVFN(data->id.device,
-						    data->id.function)) {
-				data->dev = dev;
-				break;
-			}
-		}
-	}
+	data->dev = pci_get_slot(pdata->bus,
+				PCI_DEVFN(data->id.device, data->id.function));
 	if (!data->dev) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device %04x:%02x:%02x.%d not present in PCI namespace\n",
@@ -259,9 +245,10 @@ int acpi_pci_bind(struct acpi_device *device)
 
       end:
 	kfree(buffer.pointer);
-	if (result)
+	if (result) {
+		pci_dev_put(data->dev);
 		kfree(data);
-
+	}
 	return result;
 }
 
@@ -303,6 +290,7 @@ static int acpi_pci_unbind(struct acpi_device *device)
 	if (data->dev->subordinate) {
 		acpi_pci_irq_del_prt(data->id.segment, data->bus->number);
 	}
+	pci_dev_put(data->dev);
 	kfree(data);
 
       end:

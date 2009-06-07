@@ -17,11 +17,6 @@
 
 #define SMAP	0x534d4150	/* ASCII "SMAP" */
 
-struct e820_ext_entry {
-	struct e820entry std;
-	u32 ext_flags;
-} __attribute__((packed));
-
 static int detect_memory_e820(void)
 {
 	int count = 0;
@@ -29,13 +24,21 @@ static int detect_memory_e820(void)
 	u32 size, id, edi;
 	u8 err;
 	struct e820entry *desc = boot_params.e820_map;
-	static struct e820_ext_entry buf; /* static so it is zeroed */
+	static struct e820entry buf; /* static so it is zeroed */
 
 	/*
-	 * Set this here so that if the BIOS doesn't change this field
-	 * but still doesn't change %ecx, we're still okay...
+	 * Note: at least one BIOS is known which assumes that the
+	 * buffer pointed to by one e820 call is the same one as
+	 * the previous call, and only changes modified fields.  Therefore,
+	 * we use a temporary buffer and copy the results entry by entry.
+	 *
+	 * This routine deliberately does not try to account for
+	 * ACPI 3+ extended attributes.  This is because there are
+	 * BIOSes in the field which report zero for the valid bit for
+	 * all ranges, and we don't currently make any use of the
+	 * other attribute bits.  Revisit this if we see the extended
+	 * attribute bits deployed in a meaningful way in the future.
 	 */
-	buf.ext_flags = 1;
 
 	do {
 		size = sizeof buf;
@@ -66,13 +69,7 @@ static int detect_memory_e820(void)
 			break;
 		}
 
-		/* ACPI 3.0 added the extended flags support.  If bit 0
-		   in the extended flags is zero, we're supposed to simply
-		   ignore the entry -- a backwards incompatible change! */
-		if (size > 20 && !(buf.ext_flags & 1))
-			continue;
-
-		*desc++ = buf.std;
+		*desc++ = buf;
 		count++;
 	} while (next && count < ARRAY_SIZE(boot_params.e820_map));
 

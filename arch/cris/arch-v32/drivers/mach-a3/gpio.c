@@ -681,7 +681,7 @@ static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 		shadow |= ~readl(dir_oe[priv->minor]) |
 			(arg & changeable_bits[priv->minor]);
 		i2c_write(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		spin_lock_irqrestore(&gpio_lock, flags);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_CLRBITS:
 		spin_lock_irqsave(&gpio_lock, flags);
@@ -690,7 +690,7 @@ static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 		shadow |= ~readl(dir_oe[priv->minor]) &
 			~(arg & changeable_bits[priv->minor]);
 		i2c_write(VIRT_I2C_ADDR, (void *)&shadow, sizeof(shadow));
-		spin_lock_irqrestore(&gpio_lock, flags);
+		spin_unlock_irqrestore(&gpio_lock, flags);
 		break;
 	case IO_HIGHALARM:
 		/* Set alarm when bits with 1 in arg go high. */

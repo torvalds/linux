@@ -66,9 +66,9 @@
 
    NOTES.
 
-   * The stored value for avbps is scaled by 2^5, so that maximal
-     rate is ~1Gbit, avpps is scaled by 2^10.
-
+   * avbps is scaled by 2^5, avpps is scaled by 2^10.
+   * both values are reported as 32 bit unsigned values. bps can
+     overflow for fast links : max speed being 34360Mbit/sec
    * Minimal interval is HZ/4=250msec (it is the greatest common divisor
      for HZ=100 and HZ=1024 8)), maximal interval
      is (HZ*2^EST_MAX_INTERVAL)/4 = 8sec. Shorter intervals
@@ -86,9 +86,9 @@ struct gen_estimator
 	spinlock_t		*stats_lock;
 	int			ewma_log;
 	u64			last_bytes;
+	u64			avbps;
 	u32			last_packets;
 	u32			avpps;
-	u32			avbps;
 	struct rcu_head		e_rcu;
 	struct rb_node		node;
 };
@@ -115,6 +115,7 @@ static void est_timer(unsigned long arg)
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &elist[idx].list, list) {
 		u64 nbytes;
+		u64 brate;
 		u32 npackets;
 		u32 rate;
 
@@ -125,9 +126,9 @@ static void est_timer(unsigned long arg)
 
 		nbytes = e->bstats->bytes;
 		npackets = e->bstats->packets;
-		rate = (nbytes - e->last_bytes)<<(7 - idx);
+		brate = (nbytes - e->last_bytes)<<(7 - idx);
 		e->last_bytes = nbytes;
-		e->avbps += ((long)rate - (long)e->avbps) >> e->ewma_log;
+		e->avbps += ((s64)(brate - e->avbps)) >> e->ewma_log;
 		e->rate_est->bps = (e->avbps+0xF)>>5;
 
 		rate = (npackets - e->last_packets)<<(12 - idx);

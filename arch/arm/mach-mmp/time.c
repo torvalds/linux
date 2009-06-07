@@ -136,7 +136,7 @@ static struct clock_event_device ckevt = {
 	.set_mode	= timer_set_mode,
 };
 
-static cycle_t clksrc_read(void)
+static cycle_t clksrc_read(struct clocksource *cs)
 {
 	return timer_read();
 }

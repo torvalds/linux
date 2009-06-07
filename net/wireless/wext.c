@@ -786,6 +786,13 @@ static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
 			err = -EFAULT;
 			goto out;
 		}
+
+		if (cmd == SIOCSIWENCODEEXT) {
+			struct iw_encode_ext *ee = (void *) extra;
+
+			if (iwp->length < sizeof(*ee) + ee->key_len)
+				return -EFAULT;
+		}
 	}
 
 	err = handler(dev, info, (union iwreq_data *) iwp, extra);
