@@ -138,18 +138,6 @@
 #undef	HPT_RESET_STATE_ENGINE
 #undef	HPT_DELAY_INTERRUPT
 
-static const char *quirk_drives[] = {
-	"QUANTUM FIREBALLlct08 08",
-	"QUANTUM FIREBALLP KA6.4",
-	"QUANTUM FIREBALLP KA9.1",
-	"QUANTUM FIREBALLP KX13.6",
-	"QUANTUM FIREBALLP KX20.5",
-	"QUANTUM FIREBALLP KX27.3",
-	"QUANTUM FIREBALLP LM20.4",
-	"QUANTUM FIREBALLP LM20.5",
-	NULL
-};
-
 static const char *bad_ata100_5[] = {
 	"IBM-DTLA-307075",
 	"IBM-DTLA-307060",
@@ -731,20 +719,6 @@ static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
 static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
-}
-
-static void hpt3xx_quirkproc(ide_drive_t *drive)
-{
-	char *m			= (char *)&drive->id[ATA_ID_PROD];
-	const  char **list	= quirk_drives;
-
-	while (*list)
-		if (strstr(m, *list++)) {
-			drive->quirk_list = 2;
-			return;
-		}
-
-	drive->quirk_list = 0;
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
@@ -1408,7 +1382,6 @@ static int __devinit hpt36x_init(struct pci_dev *dev, struct pci_dev *dev2)
 static const struct ide_port_ops hpt3xx_port_ops = {
 	.set_pio_mode		= hpt3xx_set_pio_mode,
 	.set_dma_mode		= hpt3xx_set_mode,
-	.quirkproc		= hpt3xx_quirkproc,
 	.maskproc		= hpt3xx_maskproc,
 	.mdma_filter		= hpt3xx_mdma_filter,
 	.udma_filter		= hpt3xx_udma_filter,

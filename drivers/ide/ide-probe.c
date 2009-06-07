@@ -732,6 +732,8 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	int i;
 
 	ide_port_for_each_present_dev(i, drive, hwif) {
+		ide_check_nien_quirk_list(drive);
+
 		if (port_ops && port_ops->quirkproc)
 			port_ops->quirkproc(drive);
 	}

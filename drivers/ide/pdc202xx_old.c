@@ -23,18 +23,6 @@
 
 #define PDC202XX_DEBUG_DRIVE_INFO	0
 
-static const char *pdc_quirk_drives[] = {
-	"QUANTUM FIREBALLlct08 08",
-	"QUANTUM FIREBALLP KA6.4",
-	"QUANTUM FIREBALLP KA9.1",
-	"QUANTUM FIREBALLP LM20.4",
-	"QUANTUM FIREBALLP KX13.6",
-	"QUANTUM FIREBALLP KX20.5",
-	"QUANTUM FIREBALLP KX27.3",
-	"QUANTUM FIREBALLP LM20.5",
-	NULL
-};
-
 static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 
 static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
@@ -151,19 +139,6 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
-static void pdc202xx_quirkproc(ide_drive_t *drive)
-{
-	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
-
-	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(m, *list) != NULL) {
-			drive->quirk_list = 2;
-			return;
-		}
-
-	drive->quirk_list = 0;
-}
-
 static void pdc202xx_dma_start(ide_drive_t *drive)
 {
 	if (drive->current_speed > XFER_UDMA_2)
@@ -256,13 +231,11 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 static const struct ide_port_ops pdc20246_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
-	.quirkproc		= pdc202xx_quirkproc,
 };
 
 static const struct ide_port_ops pdc2026x_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
-	.quirkproc		= pdc202xx_quirkproc,
 	.cable_detect		= pdc2026x_cable_detect,
 };
 
