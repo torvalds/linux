@@ -1120,7 +1120,10 @@ static int __cmd_report(void)
 
 	input = open(input_name, O_RDONLY);
 	if (input < 0) {
-		perror("failed to open file");
+		fprintf(stderr, " failed to open file: %s", input_name);
+		if (!strcmp(input_name, "perf.data"))
+			fprintf(stderr, "  (try 'perf record' first)");
+		fprintf(stderr, "\n");
 		exit(-1);
 	}
 
