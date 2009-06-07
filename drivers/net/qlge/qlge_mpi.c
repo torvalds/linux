@@ -761,7 +761,6 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 {
 	struct ql_adapter *qdev =
 	    container_of(work, struct ql_adapter, mpi_port_cfg_work.work);
-	struct net_device *ndev = qdev->ndev;
 	int status;
 
 	status = ql_mb_get_port_cfg(qdev);
@@ -771,9 +770,7 @@ void ql_mpi_port_cfg_work(struct work_struct *work)
 		goto err;
 	}
 
-	if (ndev->mtu <= 2500)
-		goto end;
-	else if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
+	if (qdev->link_config & CFG_JUMBO_FRAME_SIZE &&
 			qdev->max_frame_size ==
 			CFG_DEFAULT_MAX_FRAME_SIZE)
 		goto end;
