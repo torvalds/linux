@@ -1134,7 +1134,8 @@ static int rfkill_fop_release(struct inode *inode, struct file *file)
 
 #ifdef CONFIG_RFKILL_INPUT
 	if (data->input_handler)
-		atomic_dec(&rfkill_input_disabled);
+		if (atomic_dec_return(&rfkill_input_disabled) == 0)
+			printk(KERN_DEBUG "rfkill: input handler enabled\n");
 #endif
 
 	kfree(data);
@@ -1157,7 +1158,8 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 	mutex_lock(&data->mtx);
 
 	if (!data->input_handler) {
-		atomic_inc(&rfkill_input_disabled);
+		if (atomic_inc_return(&rfkill_input_disabled) == 1)
+			printk(KERN_DEBUG "rfkill: input handler disabled\n");
 		data->input_handler = true;
 	}
 
