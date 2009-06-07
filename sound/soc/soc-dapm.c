@@ -786,6 +786,10 @@ static void dapm_seq_run_coalesced(struct snd_soc_codec *codec,
 				pr_err("%s: pre event failed: %d\n",
 				       w->name, ret);
 		}
+
+		/* Lower PGA volume to reduce pops */
+		if (w->id == snd_soc_dapm_pga && !w->power)
+			dapm_set_pga(w, w->power);
 	}
 
 	if (reg >= 0) {
@@ -797,6 +801,10 @@ static void dapm_seq_run_coalesced(struct snd_soc_codec *codec,
 	}
 
 	list_for_each_entry(w, pending, power_list) {
+		/* Raise PGA volume to reduce pops */
+		if (w->id == snd_soc_dapm_pga && w->power)
+			dapm_set_pga(w, w->power);
+
 		/* power up post event */
 		if (w->power && w->event &&
 		    (w->event_flags & SND_SOC_DAPM_POST_PMU)) {
@@ -886,8 +894,6 @@ static void dapm_seq_run(struct snd_soc_codec *codec, struct list_head *list,
 		case snd_soc_dapm_line:
 		case snd_soc_dapm_spk:
 			/* No register support currently */
-		case snd_soc_dapm_pga:
-			/* Don't coalsece these yet due to gain ramping */
 			ret = dapm_generic_apply_power(w);
 			break;
 
