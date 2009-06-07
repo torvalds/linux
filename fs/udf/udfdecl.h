@@ -223,9 +223,6 @@ extern int udf_prealloc_blocks(struct super_block *, struct inode *, uint16_t,
 extern int udf_new_block(struct super_block *, struct inode *, uint16_t,
 			 uint32_t, int *);
 
-/* fsync.c */
-extern int udf_fsync_file(struct file *, struct dentry *, int);
-
 /* directory.c */
 extern struct fileIdentDesc *udf_fileident_read(struct inode *, loff_t *,
 						struct udf_fileident_bh *,
