@@ -83,6 +83,7 @@ static __u64			event_scaled[MAX_COUNTERS];
 
 static __u64			runtime_nsecs;
 static __u64			walltime_nsecs;
+static __u64			runtime_cycles;
 
 static void create_perf_stat_counter(int counter)
 {
@@ -177,6 +178,9 @@ static void read_counter(int counter)
 	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
 		attrs[counter].config == PERF_COUNT_TASK_CLOCK)
 		runtime_nsecs = count[0];
+	if (attrs[counter].type == PERF_TYPE_HARDWARE &&
+		attrs[counter].config == PERF_COUNT_CPU_CYCLES)
+		runtime_cycles = count[0];
 }
 
 /*
@@ -214,6 +218,13 @@ static void print_counter(int counter)
 		if (runtime_nsecs)
 			fprintf(stderr, " # %11.3f M/sec",
 				(double)count[0]/runtime_nsecs*1000.0);
+		if (runtime_cycles &&
+			attrs[counter].type == PERF_TYPE_HARDWARE &&
+				attrs[counter].config == PERF_COUNT_INSTRUCTIONS) {
+
+			fprintf(stderr, " # %1.3f per cycle",
+				(double)count[0] / (double)runtime_cycles);
+		}
 	}
 	if (scaled)
 		fprintf(stderr, "  (scaled from %.2f%%)",
