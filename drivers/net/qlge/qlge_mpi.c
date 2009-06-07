@@ -831,13 +831,19 @@ void ql_mpi_work(struct work_struct *work)
 	    container_of(work, struct ql_adapter, mpi_work.work);
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
+	int err = 0;
 
 	mutex_lock(&qdev->mpi_mutex);
 
 	while (ql_read32(qdev, STS) & STS_PI) {
 		memset(mbcp, 0, sizeof(struct mbox_params));
 		mbcp->out_count = 1;
-		ql_mpi_handler(qdev, mbcp);
+		/* Don't continue if an async event
+		 * did not complete properly.
+		 */
+		err = ql_mpi_handler(qdev, mbcp);
+		if (err)
+			break;
 	}
 
 	mutex_unlock(&qdev->mpi_mutex);
