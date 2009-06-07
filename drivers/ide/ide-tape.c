@@ -397,7 +397,8 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 		if (readpos[0] & 0x4) {
 			printk(KERN_INFO "ide-tape: Block location is unknown"
 					 "to the tape\n");
-			clear_bit(IDE_AFLAG_ADDRESS_VALID, &drive->atapi_flags);
+			clear_bit(ilog2(IDE_AFLAG_ADDRESS_VALID),
+				  &drive->atapi_flags);
 			uptodate = 0;
 			err = IDE_DRV_ERROR_GENERAL;
 		} else {
@@ -406,7 +407,8 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 
 			tape->partition = readpos[1];
 			tape->first_frame = be32_to_cpup((__be32 *)&readpos[4]);
-			set_bit(IDE_AFLAG_ADDRESS_VALID, &drive->atapi_flags);
+			set_bit(ilog2(IDE_AFLAG_ADDRESS_VALID),
+				&drive->atapi_flags);
 		}
 	}
 
@@ -746,7 +748,7 @@ static int idetape_wait_ready(ide_drive_t *drive, unsigned long timeout)
 	int load_attempted = 0;
 
 	/* Wait for the tape to become ready */
-	set_bit(IDE_AFLAG_MEDIUM_PRESENT, &drive->atapi_flags);
+	set_bit(ilog2(IDE_AFLAG_MEDIUM_PRESENT), &drive->atapi_flags);
 	timeout += jiffies;
 	while (time_before(jiffies, timeout)) {
 		if (ide_do_test_unit_ready(drive, disk) == 0)
@@ -822,7 +824,7 @@ static void __ide_tape_discard_merge_buffer(ide_drive_t *drive)
 	if (tape->chrdev_dir != IDETAPE_DIR_READ)
 		return;
 
-	clear_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags);
+	clear_bit(ilog2(IDE_AFLAG_FILEMARK), &drive->atapi_flags);
 	tape->valid = 0;
 	if (tape->buf != NULL) {
 		kfree(tape->buf);
@@ -1115,7 +1117,8 @@ static int idetape_space_over_filemarks(ide_drive_t *drive, short mt_op,
 
 	if (tape->chrdev_dir == IDETAPE_DIR_READ) {
 		tape->valid = 0;
-		if (test_and_clear_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags))
+		if (test_and_clear_bit(ilog2(IDE_AFLAG_FILEMARK),
+				       &drive->atapi_flags))
 			++count;
 		ide_tape_discard_merge_buffer(drive, 0);
 	}
@@ -1170,7 +1173,7 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 	debug_log(DBG_CHRDEV, "Enter %s, count %Zd\n", __func__, count);
 
 	if (tape->chrdev_dir != IDETAPE_DIR_READ) {
-		if (test_bit(IDE_AFLAG_DETECT_BS, &drive->atapi_flags))
+		if (test_bit(ilog2(IDE_AFLAG_DETECT_BS), &drive->atapi_flags))
 			if (count > tape->blk_size &&
 			    (count % tape->blk_size) == 0)
 				tape->user_bs_factor = count / tape->blk_size;
@@ -1186,7 +1189,8 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 		/* refill if staging buffer is empty */
 		if (!tape->valid) {
 			/* If we are at a filemark, nothing more to read */
-			if (test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags))
+			if (test_bit(ilog2(IDE_AFLAG_FILEMARK),
+				     &drive->atapi_flags))
 				break;
 			/* read */
 			if (idetape_queue_rw_tail(drive, REQ_IDETAPE_READ,
@@ -1204,7 +1208,7 @@ static ssize_t idetape_chrdev_read(struct file *file, char __user *buf,
 		done += todo;
 	}
 
-	if (!done && test_bit(IDE_AFLAG_FILEMARK, &drive->atapi_flags)) {
+	if (!done && test_bit(ilog2(IDE_AFLAG_FILEMARK), &drive->atapi_flags)) {
 		debug_log(DBG_SENSE, "%s: spacing over filemark\n", tape->name);
 
 		idetape_space_over_filemarks(drive, MTFSF, 1);
@@ -1338,7 +1342,8 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 		ide_tape_discard_merge_buffer(drive, 0);
 		retval = ide_do_start_stop(drive, disk, !IDETAPE_LU_LOAD_MASK);
 		if (!retval)
-			clear_bit(IDE_AFLAG_MEDIUM_PRESENT, &drive->atapi_flags);
+			clear_bit(ilog2(IDE_AFLAG_MEDIUM_PRESENT),
+				  &drive->atapi_flags);
 		return retval;
 	case MTNOP:
 		ide_tape_discard_merge_buffer(drive, 0);
@@ -1360,9 +1365,11 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 			    mt_count % tape->blk_size)
 				return -EIO;
 			tape->user_bs_factor = mt_count / tape->blk_size;
-			clear_bit(IDE_AFLAG_DETECT_BS, &drive->atapi_flags);
+			clear_bit(ilog2(IDE_AFLAG_DETECT_BS),
+				  &drive->atapi_flags);
 		} else
-			set_bit(IDE_AFLAG_DETECT_BS, &drive->atapi_flags);
+			set_bit(ilog2(IDE_AFLAG_DETECT_BS),
+				&drive->atapi_flags);
 		return 0;
 	case MTSEEK:
 		ide_tape_discard_merge_buffer(drive, 0);
@@ -1507,20 +1514,20 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = tape;
 
-	if (test_and_set_bit(IDE_AFLAG_BUSY, &drive->atapi_flags)) {
+	if (test_and_set_bit(ilog2(IDE_AFLAG_BUSY), &drive->atapi_flags)) {
 		retval = -EBUSY;
 		goto out_put_tape;
 	}
 
 	retval = idetape_wait_ready(drive, 60 * HZ);
 	if (retval) {
-		clear_bit(IDE_AFLAG_BUSY, &drive->atapi_flags);
+		clear_bit(ilog2(IDE_AFLAG_BUSY), &drive->atapi_flags);
 		printk(KERN_ERR "ide-tape: %s: drive not ready\n", tape->name);
 		goto out_put_tape;
 	}
 
 	idetape_read_position(drive);
-	if (!test_bit(IDE_AFLAG_ADDRESS_VALID, &drive->atapi_flags))
+	if (!test_bit(ilog2(IDE_AFLAG_ADDRESS_VALID), &drive->atapi_flags))
 		(void)idetape_rewind_tape(drive);
 
 	/* Read block size and write protect status from drive. */
@@ -1536,7 +1543,7 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 	if (tape->write_prot) {
 		if ((filp->f_flags & O_ACCMODE) == O_WRONLY ||
 		    (filp->f_flags & O_ACCMODE) == O_RDWR) {
-			clear_bit(IDE_AFLAG_BUSY, &drive->atapi_flags);
+			clear_bit(ilog2(IDE_AFLAG_BUSY), &drive->atapi_flags);
 			retval = -EROFS;
 			goto out_put_tape;
 		}
@@ -1593,15 +1600,17 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 			ide_tape_discard_merge_buffer(drive, 1);
 	}
 
-	if (minor < 128 && test_bit(IDE_AFLAG_MEDIUM_PRESENT, &drive->atapi_flags))
+	if (minor < 128 && test_bit(ilog2(IDE_AFLAG_MEDIUM_PRESENT),
+				    &drive->atapi_flags))
 		(void) idetape_rewind_tape(drive);
+
 	if (tape->chrdev_dir == IDETAPE_DIR_NONE) {
 		if (tape->door_locked == DOOR_LOCKED) {
 			if (!ide_set_media_lock(drive, tape->disk, 0))
 				tape->door_locked = DOOR_UNLOCKED;
 		}
 	}
-	clear_bit(IDE_AFLAG_BUSY, &drive->atapi_flags);
+	clear_bit(ilog2(IDE_AFLAG_BUSY), &drive->atapi_flags);
 	ide_tape_put(tape);
 	unlock_kernel();
 	return 0;
