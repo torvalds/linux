@@ -927,12 +927,11 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 {
 	struct snd_soc_device *socdev = codec->socdev;
 	struct snd_soc_dapm_widget *w;
+	LIST_HEAD(up_list);
+	LIST_HEAD(down_list);
 	int ret = 0;
 	int power;
 	int sys_power = 0;
-
-	INIT_LIST_HEAD(&codec->up_list);
-	INIT_LIST_HEAD(&codec->down_list);
 
 	/* Check which widgets we need to power and store them in
 	 * lists indicating if they should be powered up or down.
@@ -940,10 +939,10 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
 		switch (w->id) {
 		case snd_soc_dapm_pre:
-			dapm_seq_insert(w, &codec->down_list, dapm_down_seq);
+			dapm_seq_insert(w, &down_list, dapm_down_seq);
 			break;
 		case snd_soc_dapm_post:
-			dapm_seq_insert(w, &codec->up_list, dapm_up_seq);
+			dapm_seq_insert(w, &up_list, dapm_up_seq);
 			break;
 
 		default:
@@ -958,11 +957,9 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 				continue;
 
 			if (power)
-				dapm_seq_insert(w, &codec->up_list,
-						dapm_up_seq);
+				dapm_seq_insert(w, &up_list, dapm_up_seq);
 			else
-				dapm_seq_insert(w, &codec->down_list,
-						dapm_down_seq);
+				dapm_seq_insert(w, &down_list, dapm_down_seq);
 
 			w->power = power;
 			break;
@@ -979,10 +976,10 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 	}
 
 	/* Power down widgets first; try to avoid amplifying pops. */
-	dapm_seq_run(codec, &codec->down_list, event, dapm_down_seq);
+	dapm_seq_run(codec, &down_list, event, dapm_down_seq);
 
 	/* Now power up. */
-	dapm_seq_run(codec, &codec->up_list, event, dapm_up_seq);
+	dapm_seq_run(codec, &up_list, event, dapm_up_seq);
 
 	/* If we just powered the last thing off drop to standby bias */
 	if (codec->bias_level == SND_SOC_BIAS_PREPARE && !sys_power) {
