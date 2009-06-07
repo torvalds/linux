@@ -203,22 +203,6 @@ static int pdc202xx_dma_end(ide_drive_t *drive)
 	return ide_dma_end(drive);
 }
 
-static void pdc202xx_reset(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long high_16	= hwif->extra_base - 16;
-	u8 udma_speed_flag	= inb(high_16 | 0x001f);
-
-	printk(KERN_WARNING "PDC202xx: software reset...\n");
-
-	outb(udma_speed_flag | 0x10, high_16 | 0x001f);
-	mdelay(100);
-	outb(udma_speed_flag & ~0x10, high_16 | 0x001f);
-	mdelay(2000);	/* 2 seconds ?! */
-
-	ide_set_max_pio(drive);
-}
-
 static int init_chipset_pdc202xx(struct pci_dev *dev)
 {
 	unsigned long dmabase = pci_resource_start(dev, 4);
@@ -279,7 +263,6 @@ static const struct ide_port_ops pdc2026x_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
 	.quirkproc		= pdc202xx_quirkproc,
-	.resetproc		= pdc202xx_reset,
 	.cable_detect		= pdc2026x_cable_detect,
 };
 
