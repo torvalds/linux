@@ -350,6 +350,9 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 			 capacity, sectors_to_MB(capacity),
 			 set_max, sectors_to_MB(set_max));
 
+	if ((drive->dev_flags & IDE_DFLAG_NOHPA) == 0)
+		return;
+
 	set_max = ide_disk_hpa_set_capacity(drive, set_max, lba48);
 	if (set_max)
 		printk(KERN_INFO "%s: Host Protected Area disabled.\n",
@@ -430,8 +433,11 @@ static u64 ide_disk_set_capacity(ide_drive_t *drive, u64 capacity)
 		goto out;
 
 	set = ide_disk_hpa_set_capacity(drive, set, lba48);
-	if (set)
+	if (set) {
+		/* needed for ->resume to disable HPA */
+		drive->dev_flags |= IDE_DFLAG_NOHPA;
 		return set;
+	}
 out:
 	return drive->capacity64;
 }
