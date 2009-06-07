@@ -430,7 +430,7 @@ void fw_card_initialize(struct fw_card *card,
 
 	INIT_DELAYED_WORK(&card->work, fw_card_bm_work);
 	card->netdev = NULL;
-	INIT_LIST_HEAD(&card->ipv4_nodes);
+	INIT_LIST_HEAD(&card->peer_list);
 }
 EXPORT_SYMBOL(fw_card_initialize);
 

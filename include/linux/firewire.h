@@ -131,13 +131,10 @@ struct fw_card {
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
 	u32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
-	/* Only non-NULL if firewire-ipv4 is active on this card. */
+
+	/* firewire-net driver data */
 	void *netdev;
-	/*
-	 * The nodes get probed before the card, so we need a place to store
-	 * them independent of card->netdev
-	 */
-	struct list_head ipv4_nodes;
+	struct list_head peer_list;
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
