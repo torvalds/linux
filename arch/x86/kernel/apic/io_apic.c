@@ -116,13 +116,6 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
-/*
- * This is performance-critical, we want to do it O(1)
- *
- * the indexing order of this array favors 1:1 mappings
- * between pins and IRQs.
- */
-
 struct irq_pin_list {
 	int apic, pin;
 	struct irq_pin_list *next;
@@ -137,6 +130,11 @@ static struct irq_pin_list *get_one_free_irq_2_pin(int node)
 	return pin;
 }
 
+/*
+ * This is performance-critical, we want to do it O(1)
+ *
+ * Most irqs are mapped 1:1 with pins.
+ */
 struct irq_cfg {
 	struct irq_pin_list *irq_2_pin;
 	cpumask_var_t domain;
