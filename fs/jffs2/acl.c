@@ -158,10 +158,10 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 
 static struct posix_acl *jffs2_iget_acl(struct inode *inode, struct posix_acl **i_acl)
 {
-	struct posix_acl *acl = JFFS2_ACL_NOT_CACHED;
+	struct posix_acl *acl = ACL_NOT_CACHED;
 
 	spin_lock(&inode->i_lock);
-	if (*i_acl != JFFS2_ACL_NOT_CACHED)
+	if (*i_acl != ACL_NOT_CACHED)
 		acl = posix_acl_dup(*i_acl);
 	spin_unlock(&inode->i_lock);
 	return acl;
@@ -170,7 +170,7 @@ static struct posix_acl *jffs2_iget_acl(struct inode *inode, struct posix_acl **
 static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct posix_acl *acl)
 {
 	spin_lock(&inode->i_lock);
-	if (*i_acl != JFFS2_ACL_NOT_CACHED)
+	if (*i_acl != ACL_NOT_CACHED)
 		posix_acl_release(*i_acl);
 	*i_acl = posix_acl_dup(acl);
 	spin_unlock(&inode->i_lock);
@@ -178,21 +178,20 @@ static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct
 
 static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct posix_acl *acl;
 	char *value = NULL;
 	int rc, xprefix;
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		acl = jffs2_iget_acl(inode, &f->i_acl_access);
-		if (acl != JFFS2_ACL_NOT_CACHED)
+		acl = jffs2_iget_acl(inode, &inode->i_acl);
+		if (acl != ACL_NOT_CACHED)
 			return acl;
 		xprefix = JFFS2_XPREFIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		acl = jffs2_iget_acl(inode, &f->i_acl_default);
-		if (acl != JFFS2_ACL_NOT_CACHED)
+		acl = jffs2_iget_acl(inode, &inode->i_default_acl);
+		if (acl != ACL_NOT_CACHED)
 			return acl;
 		xprefix = JFFS2_XPREFIX_ACL_DEFAULT;
 		break;
@@ -218,10 +217,10 @@ static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 	if (!IS_ERR(acl)) {
 		switch (type) {
 		case ACL_TYPE_ACCESS:
-			jffs2_iset_acl(inode, &f->i_acl_access, acl);
+			jffs2_iset_acl(inode, &inode->i_acl, acl);
 			break;
 		case ACL_TYPE_DEFAULT:
-			jffs2_iset_acl(inode, &f->i_acl_default, acl);
+			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
 			break;
 		}
 	}
@@ -249,7 +248,6 @@ static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *a
 
 static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	int rc, xprefix;
 
 	if (S_ISLNK(inode->i_mode))
@@ -288,10 +286,10 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	if (!rc) {
 		switch(type) {
 		case ACL_TYPE_ACCESS:
-			jffs2_iset_acl(inode, &f->i_acl_access, acl);
+			jffs2_iset_acl(inode, &inode->i_acl, acl);
 			break;
 		case ACL_TYPE_DEFAULT:
-			jffs2_iset_acl(inode, &f->i_acl_default, acl);
+			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
 			break;
 		}
 	}
@@ -321,12 +319,11 @@ int jffs2_permission(struct inode *inode, int mask)
 
 int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct posix_acl *acl, *clone;
 	int rc;
 
-	f->i_acl_default = NULL;
-	f->i_acl_access = NULL;
+	inode->i_default_acl = NULL;
+	inode->i_acl = NULL;
 
 	if (S_ISLNK(*i_mode))
 		return 0;	/* Symlink always has no-ACL */
@@ -339,7 +336,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 		*i_mode &= ~current_umask();
 	} else {
 		if (S_ISDIR(*i_mode))
-			jffs2_iset_acl(inode, &f->i_acl_default, acl);
+			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
 
 		clone = posix_acl_clone(acl, GFP_KERNEL);
 		if (!clone)
@@ -350,7 +347,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 			return rc;
 		}
 		if (rc > 0)
-			jffs2_iset_acl(inode, &f->i_acl_access, clone);
+			jffs2_iset_acl(inode, &inode->i_acl, clone);
 
 		posix_acl_release(clone);
 	}
@@ -359,34 +356,21 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 
 int jffs2_init_acl_post(struct inode *inode)
 {
-	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	int rc;
 
-	if (f->i_acl_default) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_DEFAULT, f->i_acl_default);
+	if (inode->i_default_acl) {
+		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_DEFAULT, inode->i_default_acl);
 		if (rc)
 			return rc;
 	}
 
-	if (f->i_acl_access) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_ACCESS, f->i_acl_access);
+	if (inode->i_acl) {
+		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_ACCESS, inode->i_acl);
 		if (rc)
 			return rc;
 	}
 
 	return 0;
-}
-
-void jffs2_clear_acl(struct jffs2_inode_info *f)
-{
-	if (f->i_acl_access && f->i_acl_access != JFFS2_ACL_NOT_CACHED) {
-		posix_acl_release(f->i_acl_access);
-		f->i_acl_access = JFFS2_ACL_NOT_CACHED;
-	}
-	if (f->i_acl_default && f->i_acl_default != JFFS2_ACL_NOT_CACHED) {
-		posix_acl_release(f->i_acl_default);
-		f->i_acl_default = JFFS2_ACL_NOT_CACHED;
-	}
 }
 
 int jffs2_acl_chmod(struct inode *inode)
