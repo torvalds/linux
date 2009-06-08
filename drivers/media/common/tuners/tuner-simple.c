@@ -416,6 +416,24 @@ static int simple_std_setup(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int simple_set_aux_byte(struct dvb_frontend *fe, u8 config, u8 aux)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int rc;
+	u8 buffer[2];
+
+	buffer[0] = (config & ~0x38) | 0x18;
+	buffer[1] = aux;
+
+	tuner_dbg("setting aux byte: 0x%02x 0x%02x\n", buffer[0], buffer[1]);
+
+	rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 2);
+	if (2 != rc)
+		tuner_warn("i2c i/o error: rc == %d (should be 2)\n", rc);
+
+	return rc == 2 ? 0 : rc;
+}
+
 static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
 			    u16 div, u8 config, u8 cb)
 {
@@ -424,17 +442,10 @@ static int simple_post_tune(struct dvb_frontend *fe, u8 *buffer,
 
 	switch (priv->type) {
 	case TUNER_LG_TDVS_H06XF:
-		/* Set the Auxiliary Byte. */
-		buffer[0] = buffer[2];
-		buffer[0] &= ~0x20;
-		buffer[0] |= 0x18;
-		buffer[1] = 0x20;
-		tuner_dbg("tv 0x%02x 0x%02x\n", buffer[0], buffer[1]);
-
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 2);
-		if (2 != rc)
-			tuner_warn("i2c i/o error: rc == %d "
-				   "(should be 2)\n", rc);
+		simple_set_aux_byte(fe, config, 0x20);
+		break;
+	case TUNER_PHILIPS_FQ1216LME_MK3:
+		simple_set_aux_byte(fe, config, 0x60); /* External AGC */
 		break;
 	case TUNER_MICROTUNE_4042FI5:
 	{
@@ -505,6 +516,11 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 		break;
 	case TUNER_THOMSON_DTT761X:
 		buffer[3] = 0x39;
+		break;
+	case TUNER_PHILIPS_FQ1216LME_MK3:
+		tuner_err("This tuner doesn't have FM\n");
+		/* Set the low band for sanity, since it covers 88-108 MHz */
+		buffer[3] = 0x01;
 		break;
 	case TUNER_MICROTUNE_4049FM5:
 	default:

@@ -77,3 +77,4 @@ tuner=76 - Xceive 5000 tuner
 tuner=77 - TCL tuner MF02GIP-5N-E
 tuner=78 - Philips FMD1216MEX MK3 Hybrid Tuner
 tuner=79 - Philips PAL/SECAM multi (FM1216 MK5)
+tuner=80 - Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough
