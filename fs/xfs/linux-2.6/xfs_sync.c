@@ -48,6 +48,35 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+
+STATIC int
+xfs_sync_inode_data(
+	struct xfs_inode	*ip,
+	int			flags)
+{
+	struct inode		*inode = VFS_I(ip);
+	struct address_space *mapping = inode->i_mapping;
+	int			error = 0;
+
+	if (!mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+		goto out_wait;
+
+	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED)) {
+		if (flags & SYNC_TRYLOCK)
+			goto out_wait;
+		xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	}
+
+	error = xfs_flush_pages(ip, 0, -1, (flags & SYNC_WAIT) ?
+				0 : XFS_B_ASYNC, FI_NONE);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+
+ out_wait:
+	if (flags & SYNC_IOWAIT)
+		xfs_ioend_wait(ip);
+	return error;
+}
+
 /*
  * Sync all the inodes in the given AG according to the
  * direction given by the flags.
@@ -123,27 +152,10 @@ xfs_sync_inodes_ag(
 		 * If we have to flush data or wait for I/O completion
 		 * we need to hold the iolock.
 		 */
-		if (flags & SYNC_DELWRI) {
-			if (VN_DIRTY(inode)) {
-				if (flags & SYNC_TRYLOCK) {
-					if (xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
-						lock_flags |= XFS_IOLOCK_SHARED;
-				} else {
-					xfs_ilock(ip, XFS_IOLOCK_SHARED);
-					lock_flags |= XFS_IOLOCK_SHARED;
-				}
-				if (lock_flags & XFS_IOLOCK_SHARED) {
-					error = xfs_flush_pages(ip, 0, -1,
-							(flags & SYNC_WAIT) ? 0
-								: XFS_B_ASYNC,
-							FI_NONE);
-				}
-			}
-			if (VN_CACHED(inode) && (flags & SYNC_IOWAIT))
-				xfs_ioend_wait(ip);
-		}
-		xfs_ilock(ip, XFS_ILOCK_SHARED);
+		if (flags & SYNC_DELWRI)
+			error = xfs_sync_inode_data(ip, flags);
 
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
 		if ((flags & SYNC_ATTR) && !xfs_inode_clean(ip)) {
 			if (flags & SYNC_WAIT) {
 				xfs_iflock(ip);
