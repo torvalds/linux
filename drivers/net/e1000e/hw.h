@@ -214,6 +214,7 @@ enum e1e_registers {
 	E1000_FACTPS    = 0x05B30, /* Function Active and Power State to MNG */
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
+	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
 	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
@@ -883,6 +884,7 @@ struct e1000_fc_info {
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
 	bool alt_mac_addr_is_present;
+	u32 smb_counter;
 };
 
 struct e1000_shadow_ram {
