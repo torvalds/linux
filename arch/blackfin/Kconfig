@@ -55,6 +55,9 @@ config FORCE_MAX_ZONEORDER
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
+config LOCKDEP_SUPPORT
+	def_bool y
+
 config STACKTRACE_SUPPORT
 	def_bool y
 
