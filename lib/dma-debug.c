@@ -542,7 +542,8 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 
 	write_lock_irqsave(&driver_name_lock, flags);
 
-	/* Now handle the string we got from userspace very carefully.
+	/*
+	 * Now handle the string we got from userspace very carefully.
 	 * The rules are:
 	 *         - only use the first token we got
 	 *         - token delimiter is everything looking like a space
@@ -551,7 +552,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 */
 	if (!isalnum(buf[0])) {
 		/*
-		   If the first character userspace gave us is not
+		 * If the first character userspace gave us is not
 		 * alphanumerical then assume the filter should be
 		 * switched off.
 		 */
