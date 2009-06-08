@@ -25,6 +25,19 @@ static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
+affs_commit_super(struct super_block *sb, int clean)
+{
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+	struct buffer_head *bh = sbi->s_root_bh;
+	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
+
+	tail->bm_flag = cpu_to_be32(clean);
+	secs_to_datestamp(get_seconds(), &tail->disk_change);
+	affs_fix_checksum(sb, bh);
+	mark_buffer_dirty(bh);
+}
+
+static void
 affs_put_super(struct super_block *sb)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
@@ -32,13 +45,8 @@ affs_put_super(struct super_block *sb)
 
 	lock_kernel();
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(1);
-		secs_to_datestamp(get_seconds(),
-				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
-		affs_fix_checksum(sb, sbi->s_root_bh);
-		mark_buffer_dirty(sbi->s_root_bh);
-	}
+	if (!(sb->s_flags & MS_RDONLY))
+		affs_commit_super(sb, 1);
 
 	kfree(sbi->s_prefix);
 	affs_free_bitmap(sb);
@@ -53,24 +61,29 @@ static void
 affs_write_super(struct super_block *sb)
 {
 	int clean = 2;
-	struct affs_sb_info *sbi = AFFS_SB(sb);
 
 	lock_super(sb);
 	if (!(sb->s_flags & MS_RDONLY)) {
 		//	if (sbi->s_bitmap[i].bm_bh) {
 		//		if (buffer_dirty(sbi->s_bitmap[i].bm_bh)) {
 		//			clean = 0;
-		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(clean);
-		secs_to_datestamp(get_seconds(),
-				  &AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->disk_change);
-		affs_fix_checksum(sb, sbi->s_root_bh);
-		mark_buffer_dirty(sbi->s_root_bh);
+		affs_commit_super(sb, clean);
 		sb->s_dirt = !clean;	/* redo until bitmap synced */
 	} else
 		sb->s_dirt = 0;
 	unlock_super(sb);
 
 	pr_debug("AFFS: write_super() at %lu, clean=%d\n", get_seconds(), clean);
+}
+
+static int
+affs_sync_fs(struct super_block *sb, int wait)
+{
+	lock_super(sb);
+	affs_commit_super(sb, 2);
+	sb->s_dirt = 0;
+	unlock_super(sb);
+	return 0;
 }
 
 static struct kmem_cache * affs_inode_cachep;
@@ -130,6 +143,7 @@ static const struct super_operations affs_sops = {
 	.clear_inode	= affs_clear_inode,
 	.put_super	= affs_put_super,
 	.write_super	= affs_write_super,
+	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
 	.show_options	= generic_show_options,
