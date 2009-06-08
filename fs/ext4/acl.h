@@ -53,10 +53,6 @@ static inline int ext4_acl_count(size_t size)
 
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 
-/* Value for inode->u.ext4_i.i_acl and inode->u.ext4_i.i_default_acl
-   if the ACL has not been cached */
-#define EXT4_ACL_NOT_CACHED ((void *)-1)
-
 /* acl.c */
 extern int ext4_permission(struct inode *, int);
 extern int ext4_acl_chmod(struct inode *);
