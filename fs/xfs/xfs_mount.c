@@ -1371,7 +1371,7 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
-	xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_ASYNC);
+	xfs_reclaim_inodes(mp, XFS_IFLUSH_ASYNC);
 
 	xfs_qm_unmount(mp);
 

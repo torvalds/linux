@@ -48,7 +48,7 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
 void xfs_flush_inodes(struct xfs_inode *ip);
 
 int xfs_reclaim_inode(struct xfs_inode *ip, int locked, int sync_mode);
-int xfs_reclaim_inodes(struct xfs_mount *mp, int noblock, int mode);
+int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
 
 void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
 void xfs_inode_clear_reclaim_tag(struct xfs_inode *ip);

@@ -385,7 +385,7 @@ xfs_quiesce_fs(
 	int	count = 0, pincount;
 
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
-	xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+	xfs_reclaim_inodes(mp, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 
 	/*
 	 * This loop must run at least twice.  The first instance of the loop
@@ -509,7 +509,7 @@ xfs_sync_worker(
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
-		xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+		xfs_reclaim_inodes(mp, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_BDFLUSH);
 		error = xfs_sync_fsdata(mp, SYNC_BDFLUSH);
@@ -703,7 +703,6 @@ STATIC void
 xfs_reclaim_inodes_ag(
 	xfs_mount_t	*mp,
 	int		ag,
-	int		noblock,
 	int		mode)
 {
 	xfs_inode_t	*ip = NULL;
@@ -749,25 +748,13 @@ restart:
 			continue;
 		}
 
-		if (noblock) {
-			if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
-				read_unlock(&pag->pag_ici_lock);
-				continue;
-			}
-			if (xfs_ipincount(ip) ||
-			    !xfs_iflock_nowait(ip)) {
-				xfs_iunlock(ip, XFS_ILOCK_EXCL);
-				read_unlock(&pag->pag_ici_lock);
-				continue;
-			}
-		}
 		read_unlock(&pag->pag_ici_lock);
 
 		/*
 		 * hmmm - this is an inode already in reclaim. Do
 		 * we even bother catching it here?
 		 */
-		if (xfs_reclaim_inode(ip, noblock, mode))
+		if (xfs_reclaim_inode(ip, 0, mode))
 			skipped++;
 	} while (nr_found);
 
@@ -782,7 +769,6 @@ restart:
 int
 xfs_reclaim_inodes(
 	xfs_mount_t	*mp,
-	int		 noblock,
 	int		mode)
 {
 	int		i;
@@ -790,7 +776,7 @@ xfs_reclaim_inodes(
 	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
 		if (!mp->m_perag[i].pag_ici_init)
 			continue;
-		xfs_reclaim_inodes_ag(mp, i, noblock, mode);
+		xfs_reclaim_inodes_ag(mp, i, mode);
 	}
 	return 0;
 }
