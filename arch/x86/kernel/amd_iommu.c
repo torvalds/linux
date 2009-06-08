@@ -2073,7 +2073,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 
 	old_domain = domain_for_device(devid);
 	if (old_domain)
-		return -EBUSY;
+		detach_device(old_domain, devid);
 
 	attach_device(iommu, domain, devid);
 
