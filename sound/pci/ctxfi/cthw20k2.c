@@ -15,8 +15,6 @@
  *
  */
 
-#include "cthw20k2.h"
-#include "ct20k2reg.h"
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
@@ -25,12 +23,22 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include "cthw20k2.h"
+#include "ct20k2reg.h"
 
 #if BITS_PER_LONG == 32
 #define CT_XFI_DMA_MASK		DMA_BIT_MASK(32) /* 32 bit PTE */
 #else
 #define CT_XFI_DMA_MASK		DMA_BIT_MASK(64) /* 64 bit PTE */
 #endif
+
+struct hw20k2 {
+	struct hw hw;
+	/* for i2c */
+	unsigned char dev_id;
+	unsigned char addr_size;
+	unsigned char data_size;
+};
 
 static u32 hw_read_20kx(struct hw *hw, u32 reg);
 static void hw_write_20kx(struct hw *hw, u32 reg, u32 data);
@@ -1125,7 +1133,7 @@ struct trn_conf {
 
 static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 {
-	u32 dwData;
+	u32 data;
 	int i;
 
 	/* Program I2S with proper sample rate and enable the correct I2S
@@ -1156,12 +1164,12 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 		if (i <= 3) {
 			/* 1st 3 channels are SPDIFs (SB0960) */
 			if (i == 3)
-				dwData = 0x1001001;
+				data = 0x1001001;
 			else
-				dwData = 0x1000001;
+				data = 0x1000001;
 
-			hw_write_20kx(hw, (AUDIO_IO_TX_CTL+(0x40*i)), dwData);
-			hw_write_20kx(hw, (AUDIO_IO_RX_CTL+(0x40*i)), dwData);
+			hw_write_20kx(hw, (AUDIO_IO_TX_CTL+(0x40*i)), data);
+			hw_write_20kx(hw, (AUDIO_IO_RX_CTL+(0x40*i)), data);
 
 			/* Initialize the SPDIF Out Channel status registers.
 			 * The value specified here is based on the typical
@@ -1179,13 +1187,13 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 			hw_write_20kx(hw, AUDIO_IO_TX_CSTAT_H+(0x40*i), 0x0B);
 		} else {
 			/* Next 5 channels are I2S (SB0960) */
-			dwData = 0x11;
-			hw_write_20kx(hw, AUDIO_IO_RX_CTL+(0x40*i), dwData);
+			data = 0x11;
+			hw_write_20kx(hw, AUDIO_IO_RX_CTL+(0x40*i), data);
 			if (2 == info->msr) {
 				/* Four channels per sample period */
-				dwData |= 0x1000;
+				data |= 0x1000;
 			}
-			hw_write_20kx(hw, AUDIO_IO_TX_CTL+(0x40*i), dwData);
+			hw_write_20kx(hw, AUDIO_IO_TX_CTL+(0x40*i), data);
 		}
 	}
 
@@ -1377,34 +1385,32 @@ static int hw_auto_init(struct hw *hw)
 #define I2C_ADDRESS_PTAD	0x0000FFFF
 #define I2C_ADDRESS_SLAD	0x007F0000
 
-struct REGS_CS4382 {
-	u32 dwModeControl_1;
-	u32 dwModeControl_2;
-	u32 dwModeControl_3;
+struct regs_cs4382 {
+	u32 mode_control_1;
+	u32 mode_control_2;
+	u32 mode_control_3;
 
-	u32 dwFilterControl;
-	u32 dwInvertControl;
+	u32 filter_control;
+	u32 invert_control;
 
-	u32 dwMixControl_P1;
-	u32 dwVolControl_A1;
-	u32 dwVolControl_B1;
+	u32 mix_control_P1;
+	u32 vol_control_A1;
+	u32 vol_control_B1;
 
-	u32 dwMixControl_P2;
-	u32 dwVolControl_A2;
-	u32 dwVolControl_B2;
+	u32 mix_control_P2;
+	u32 vol_control_A2;
+	u32 vol_control_B2;
 
-	u32 dwMixControl_P3;
-	u32 dwVolControl_A3;
-	u32 dwVolControl_B3;
+	u32 mix_control_P3;
+	u32 vol_control_A3;
+	u32 vol_control_B3;
 
-	u32 dwMixControl_P4;
-	u32 dwVolControl_A4;
-	u32 dwVolControl_B4;
+	u32 mix_control_P4;
+	u32 vol_control_A4;
+	u32 vol_control_B4;
 };
 
-static u8 m_bAddressSize, m_bDataSize, m_bDeviceID;
-
-static int I2CUnlockFullAccess(struct hw *hw)
+static int hw20k2_i2c_unlock_full_access(struct hw *hw)
 {
 	u8 UnlockKeySequence_FLASH_FULLACCESS_MODE[2] =  {0xB3, 0xD4};
 
@@ -1420,7 +1426,7 @@ static int I2CUnlockFullAccess(struct hw *hw)
 	return -1;
 }
 
-static int I2CLockChip(struct hw *hw)
+static int hw20k2_i2c_lock_chip(struct hw *hw)
 {
 	/* Write twice */
 	hw_write_20kx(hw, I2C_IF_WLOCK, STATE_LOCKED);
@@ -1431,54 +1437,55 @@ static int I2CLockChip(struct hw *hw)
 	return -1;
 }
 
-static int I2CInit(struct hw *hw, u8 bDeviceID, u8 bAddressSize, u8 bDataSize)
+static int hw20k2_i2c_init(struct hw *hw, u8 dev_id, u8 addr_size, u8 data_size)
 {
+	struct hw20k2 *hw20k2 = (struct hw20k2 *)hw;
 	int err;
-	unsigned int RegI2CStatus;
-	unsigned int RegI2CAddress;
+	unsigned int i2c_status;
+	unsigned int i2c_addr;
 
-	err = I2CUnlockFullAccess(hw);
+	err = hw20k2_i2c_unlock_full_access(hw);
 	if (err < 0)
 		return err;
 
-	m_bAddressSize = bAddressSize;
-	m_bDataSize = bDataSize;
-	m_bDeviceID = bDeviceID;
+	hw20k2->addr_size = addr_size;
+	hw20k2->data_size = data_size;
+	hw20k2->dev_id = dev_id;
 
-	RegI2CAddress = 0;
-	set_field(&RegI2CAddress, I2C_ADDRESS_SLAD, bDeviceID);
+	i2c_addr = 0;
+	set_field(&i2c_addr, I2C_ADDRESS_SLAD, dev_id);
 
-	hw_write_20kx(hw, I2C_IF_ADDRESS, RegI2CAddress);
+	hw_write_20kx(hw, I2C_IF_ADDRESS, i2c_addr);
 
-	RegI2CStatus = hw_read_20kx(hw, I2C_IF_STATUS);
+	i2c_status = hw_read_20kx(hw, I2C_IF_STATUS);
 
-	set_field(&RegI2CStatus, I2C_STATUS_DCM, 1); /* Direct control mode */
+	set_field(&i2c_status, I2C_STATUS_DCM, 1); /* Direct control mode */
 
-	hw_write_20kx(hw, I2C_IF_STATUS, RegI2CStatus);
+	hw_write_20kx(hw, I2C_IF_STATUS, i2c_status);
 
 	return 0;
 }
 
-static int I2CUninit(struct hw *hw)
+static int hw20k2_i2c_uninit(struct hw *hw)
 {
-	unsigned int RegI2CStatus;
-	unsigned int RegI2CAddress;
+	unsigned int i2c_status;
+	unsigned int i2c_addr;
 
-	RegI2CAddress = 0;
-	set_field(&RegI2CAddress, I2C_ADDRESS_SLAD, 0x57); /* I2C id */
+	i2c_addr = 0;
+	set_field(&i2c_addr, I2C_ADDRESS_SLAD, 0x57); /* I2C id */
 
-	hw_write_20kx(hw, I2C_IF_ADDRESS, RegI2CAddress);
+	hw_write_20kx(hw, I2C_IF_ADDRESS, i2c_addr);
 
-	RegI2CStatus = hw_read_20kx(hw, I2C_IF_STATUS);
+	i2c_status = hw_read_20kx(hw, I2C_IF_STATUS);
 
-	set_field(&RegI2CStatus, I2C_STATUS_DCM, 0); /* I2C mode */
+	set_field(&i2c_status, I2C_STATUS_DCM, 0); /* I2C mode */
 
-	hw_write_20kx(hw, I2C_IF_STATUS, RegI2CStatus);
+	hw_write_20kx(hw, I2C_IF_STATUS, i2c_status);
 
-	return I2CLockChip(hw);
+	return hw20k2_i2c_lock_chip(hw);
 }
 
-static int I2CWaitDataReady(struct hw *hw)
+static int hw20k2_i2c_wait_data_ready(struct hw *hw)
 {
 	int i = 0x400000;
 	unsigned int ret;
@@ -1490,51 +1497,53 @@ static int I2CWaitDataReady(struct hw *hw)
 	return i;
 }
 
-static int I2CRead(struct hw *hw, u16 wAddress, u32 *pdwData)
+static int hw20k2_i2c_read(struct hw *hw, u16 addr, u32 *datap)
 {
-	unsigned int RegI2CStatus;
+	struct hw20k2 *hw20k2 = (struct hw20k2 *)hw;
+	unsigned int i2c_status;
 
-	RegI2CStatus = hw_read_20kx(hw, I2C_IF_STATUS);
-	set_field(&RegI2CStatus, I2C_STATUS_BC,
-			(4 == m_bAddressSize) ? 0 : m_bAddressSize);
-	hw_write_20kx(hw, I2C_IF_STATUS, RegI2CStatus);
-	if (!I2CWaitDataReady(hw))
+	i2c_status = hw_read_20kx(hw, I2C_IF_STATUS);
+	set_field(&i2c_status, I2C_STATUS_BC,
+		  (4 == hw20k2->addr_size) ? 0 : hw20k2->addr_size);
+	hw_write_20kx(hw, I2C_IF_STATUS, i2c_status);
+	if (!hw20k2_i2c_wait_data_ready(hw))
 		return -1;
 
-	hw_write_20kx(hw, I2C_IF_WDATA, (u32)wAddress);
-	if (!I2CWaitDataReady(hw))
+	hw_write_20kx(hw, I2C_IF_WDATA, addr);
+	if (!hw20k2_i2c_wait_data_ready(hw))
 		return -1;
 
 	/* Force a read operation */
 	hw_write_20kx(hw, I2C_IF_RDATA, 0);
-	if (!I2CWaitDataReady(hw))
+	if (!hw20k2_i2c_wait_data_ready(hw))
 		return -1;
 
-	*pdwData = hw_read_20kx(hw, I2C_IF_RDATA);
+	*datap = hw_read_20kx(hw, I2C_IF_RDATA);
 
 	return 0;
 }
 
-static int I2CWrite(struct hw *hw, u16 wAddress, u32 dwData)
+static int hw20k2_i2c_write(struct hw *hw, u16 addr, u32 data)
 {
-	unsigned int dwI2CData = (dwData << (m_bAddressSize * 8)) | wAddress;
-	unsigned int RegI2CStatus;
+	struct hw20k2 *hw20k2 = (struct hw20k2 *)hw;
+	unsigned int i2c_data = (data << (hw20k2->addr_size * 8)) | addr;
+	unsigned int i2c_status;
 
-	RegI2CStatus = hw_read_20kx(hw, I2C_IF_STATUS);
+	i2c_status = hw_read_20kx(hw, I2C_IF_STATUS);
 
-	set_field(&RegI2CStatus, I2C_STATUS_BC,
-		  (4 == (m_bAddressSize + m_bDataSize)) ?
-		  0 : (m_bAddressSize + m_bDataSize));
+	set_field(&i2c_status, I2C_STATUS_BC,
+		  (4 == (hw20k2->addr_size + hw20k2->data_size)) ?
+		  0 : (hw20k2->addr_size + hw20k2->data_size));
 
-	hw_write_20kx(hw, I2C_IF_STATUS, RegI2CStatus);
-	I2CWaitDataReady(hw);
+	hw_write_20kx(hw, I2C_IF_STATUS, i2c_status);
+	hw20k2_i2c_wait_data_ready(hw);
 	/* Dummy write to trigger the write oprtation */
 	hw_write_20kx(hw, I2C_IF_WDATA, 0);
-	I2CWaitDataReady(hw);
+	hw20k2_i2c_wait_data_ready(hw);
 
 	/* This is the real data */
-	hw_write_20kx(hw, I2C_IF_WDATA, dwI2CData);
-	I2CWaitDataReady(hw);
+	hw_write_20kx(hw, I2C_IF_WDATA, i2c_data);
+	hw20k2_i2c_wait_data_ready(hw);
 
 	return 0;
 }
@@ -1542,10 +1551,10 @@ static int I2CWrite(struct hw *hw, u16 wAddress, u32 dwData)
 static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 {
 	int err;
-	u32 dwData;
+	u32 data;
 	int i;
-	struct REGS_CS4382 cs4382_Read = {0};
-	struct REGS_CS4382 cs4382_Def = {
+	struct regs_cs4382 cs_read = {0};
+	struct regs_cs4382 cs_def = {
 				   0x00000001,  /* Mode Control 1 */
 				   0x00000000,  /* Mode Control 2 */
 				   0x00000084,  /* Mode Control 3 */
@@ -1566,87 +1575,86 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 				 };
 
 	/* Set DAC reset bit as output */
-	dwData = hw_read_20kx(hw, GPIO_CTRL);
-	dwData |= 0x02;
-	hw_write_20kx(hw, GPIO_CTRL, dwData);
+	data = hw_read_20kx(hw, GPIO_CTRL);
+	data |= 0x02;
+	hw_write_20kx(hw, GPIO_CTRL, data);
 
-	err = I2CInit(hw, 0x18, 1, 1);
+	err = hw20k2_i2c_init(hw, 0x18, 1, 1);
 	if (err < 0)
 		goto End;
 
 	for (i = 0; i < 2; i++) {
 		/* Reset DAC twice just in-case the chip
 		 * didn't initialized properly */
-		dwData = hw_read_20kx(hw, GPIO_DATA);
+		data = hw_read_20kx(hw, GPIO_DATA);
 		/* GPIO data bit 1 */
-		dwData &= 0xFFFFFFFD;
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data &= 0xFFFFFFFD;
+		hw_write_20kx(hw, GPIO_DATA, data);
 		mdelay(10);
-		dwData |= 0x2;
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data |= 0x2;
+		hw_write_20kx(hw, GPIO_DATA, data);
 		mdelay(50);
 
 		/* Reset the 2nd time */
-		dwData &= 0xFFFFFFFD;
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data &= 0xFFFFFFFD;
+		hw_write_20kx(hw, GPIO_DATA, data);
 		mdelay(10);
-		dwData |= 0x2;
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data |= 0x2;
+		hw_write_20kx(hw, GPIO_DATA, data);
 		mdelay(50);
 
-		if (I2CRead(hw, CS4382_MC1,  &cs4382_Read.dwModeControl_1))
+		if (hw20k2_i2c_read(hw, CS4382_MC1,  &cs_read.mode_control_1))
 			continue;
 
-		if (I2CRead(hw, CS4382_MC2,  &cs4382_Read.dwModeControl_2))
+		if (hw20k2_i2c_read(hw, CS4382_MC2,  &cs_read.mode_control_2))
 			continue;
 
-		if (I2CRead(hw, CS4382_MC3,  &cs4382_Read.dwModeControl_3))
+		if (hw20k2_i2c_read(hw, CS4382_MC3,  &cs_read.mode_control_3))
 			continue;
 
-		if (I2CRead(hw, CS4382_FC,   &cs4382_Read.dwFilterControl))
+		if (hw20k2_i2c_read(hw, CS4382_FC,   &cs_read.filter_control))
 			continue;
 
-		if (I2CRead(hw, CS4382_IC,   &cs4382_Read.dwInvertControl))
+		if (hw20k2_i2c_read(hw, CS4382_IC,   &cs_read.invert_control))
 			continue;
 
-		if (I2CRead(hw, CS4382_XC1,  &cs4382_Read.dwMixControl_P1))
+		if (hw20k2_i2c_read(hw, CS4382_XC1,  &cs_read.mix_control_P1))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCA1, &cs4382_Read.dwVolControl_A1))
+		if (hw20k2_i2c_read(hw, CS4382_VCA1, &cs_read.vol_control_A1))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCB1, &cs4382_Read.dwVolControl_B1))
+		if (hw20k2_i2c_read(hw, CS4382_VCB1, &cs_read.vol_control_B1))
 			continue;
 
-		if (I2CRead(hw, CS4382_XC2,  &cs4382_Read.dwMixControl_P2))
+		if (hw20k2_i2c_read(hw, CS4382_XC2,  &cs_read.mix_control_P2))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCA2, &cs4382_Read.dwVolControl_A2))
+		if (hw20k2_i2c_read(hw, CS4382_VCA2, &cs_read.vol_control_A2))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCB2, &cs4382_Read.dwVolControl_B2))
+		if (hw20k2_i2c_read(hw, CS4382_VCB2, &cs_read.vol_control_B2))
 			continue;
 
-		if (I2CRead(hw, CS4382_XC3,  &cs4382_Read.dwMixControl_P3))
+		if (hw20k2_i2c_read(hw, CS4382_XC3,  &cs_read.mix_control_P3))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCA3, &cs4382_Read.dwVolControl_A3))
+		if (hw20k2_i2c_read(hw, CS4382_VCA3, &cs_read.vol_control_A3))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCB3, &cs4382_Read.dwVolControl_B3))
+		if (hw20k2_i2c_read(hw, CS4382_VCB3, &cs_read.vol_control_B3))
 			continue;
 
-		if (I2CRead(hw, CS4382_XC4,  &cs4382_Read.dwMixControl_P4))
+		if (hw20k2_i2c_read(hw, CS4382_XC4,  &cs_read.mix_control_P4))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCA4, &cs4382_Read.dwVolControl_A4))
+		if (hw20k2_i2c_read(hw, CS4382_VCA4, &cs_read.vol_control_A4))
 			continue;
 
-		if (I2CRead(hw, CS4382_VCB4, &cs4382_Read.dwVolControl_B4))
+		if (hw20k2_i2c_read(hw, CS4382_VCB4, &cs_read.vol_control_B4))
 			continue;
 
-		if (memcmp(&cs4382_Read, &cs4382_Def,
-						sizeof(struct REGS_CS4382)))
+		if (memcmp(&cs_read, &cs_def, sizeof(cs_read)))
 			continue;
 		else
 			break;
@@ -1657,29 +1665,29 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 
 	/* Note: Every I2C write must have some delay.
 	 * This is not a requirement but the delay works here... */
-	I2CWrite(hw, CS4382_MC1, 0x80);
-	I2CWrite(hw, CS4382_MC2, 0x10);
+	hw20k2_i2c_write(hw, CS4382_MC1, 0x80);
+	hw20k2_i2c_write(hw, CS4382_MC2, 0x10);
 	if (1 == info->msr) {
-		I2CWrite(hw, CS4382_XC1, 0x24);
-		I2CWrite(hw, CS4382_XC2, 0x24);
-		I2CWrite(hw, CS4382_XC3, 0x24);
-		I2CWrite(hw, CS4382_XC4, 0x24);
+		hw20k2_i2c_write(hw, CS4382_XC1, 0x24);
+		hw20k2_i2c_write(hw, CS4382_XC2, 0x24);
+		hw20k2_i2c_write(hw, CS4382_XC3, 0x24);
+		hw20k2_i2c_write(hw, CS4382_XC4, 0x24);
 	} else if (2 == info->msr) {
-		I2CWrite(hw, CS4382_XC1, 0x25);
-		I2CWrite(hw, CS4382_XC2, 0x25);
-		I2CWrite(hw, CS4382_XC3, 0x25);
-		I2CWrite(hw, CS4382_XC4, 0x25);
+		hw20k2_i2c_write(hw, CS4382_XC1, 0x25);
+		hw20k2_i2c_write(hw, CS4382_XC2, 0x25);
+		hw20k2_i2c_write(hw, CS4382_XC3, 0x25);
+		hw20k2_i2c_write(hw, CS4382_XC4, 0x25);
 	} else {
-		I2CWrite(hw, CS4382_XC1, 0x26);
-		I2CWrite(hw, CS4382_XC2, 0x26);
-		I2CWrite(hw, CS4382_XC3, 0x26);
-		I2CWrite(hw, CS4382_XC4, 0x26);
+		hw20k2_i2c_write(hw, CS4382_XC1, 0x26);
+		hw20k2_i2c_write(hw, CS4382_XC2, 0x26);
+		hw20k2_i2c_write(hw, CS4382_XC3, 0x26);
+		hw20k2_i2c_write(hw, CS4382_XC4, 0x26);
 	}
 
 	return 0;
 End:
 
-	I2CUninit(hw);
+	hw20k2_i2c_uninit(hw);
 	return -1;
 }
 
@@ -1721,21 +1729,21 @@ static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 	case ADC_MICIN:
 		data |= (0x1 << 14);
 		hw_write_20kx(hw, GPIO_DATA, data);
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x101),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x101),
 				MAKE_WM8775_DATA(0x101)); /* Mic-in */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xE7),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xE7),
 				MAKE_WM8775_DATA(0xE7)); /* +12dB boost */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xE7),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xE7),
 				MAKE_WM8775_DATA(0xE7)); /* +12dB boost */
 		break;
 	case ADC_LINEIN:
 		data &= ~(0x1 << 14);
 		hw_write_20kx(hw, GPIO_DATA, data);
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x102),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x102),
 				MAKE_WM8775_DATA(0x102)); /* Line-in */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xCF),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xCF),
 				MAKE_WM8775_DATA(0xCF)); /* No boost */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xCF),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xCF),
 				MAKE_WM8775_DATA(0xCF)); /* No boost */
 		break;
 	default:
@@ -1748,34 +1756,34 @@ static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 {
 	int err;
-	u32 dwMux = 2, dwData, dwCtl;
+	u32 mux = 2, data, ctl;
 
 	/*  Set ADC reset bit as output */
-	dwData = hw_read_20kx(hw, GPIO_CTRL);
-	dwData |= (0x1 << 15);
-	hw_write_20kx(hw, GPIO_CTRL, dwData);
+	data = hw_read_20kx(hw, GPIO_CTRL);
+	data |= (0x1 << 15);
+	hw_write_20kx(hw, GPIO_CTRL, data);
 
 	/* Initialize I2C */
-	err = I2CInit(hw, 0x1A, 1, 1);
+	err = hw20k2_i2c_init(hw, 0x1A, 1, 1);
 	if (err < 0) {
 		printk(KERN_ALERT "ctxfi: Failure to acquire I2C!!!\n");
 		goto error;
 	}
 
 	/* Make ADC in normal operation */
-	dwData = hw_read_20kx(hw, GPIO_DATA);
-	dwData &= ~(0x1 << 15);
+	data = hw_read_20kx(hw, GPIO_DATA);
+	data &= ~(0x1 << 15);
 	mdelay(10);
-	dwData |= (0x1 << 15);
-	hw_write_20kx(hw, GPIO_DATA, dwData);
+	data |= (0x1 << 15);
+	hw_write_20kx(hw, GPIO_DATA, data);
 	mdelay(50);
 
 	/* Set the master mode (256fs) */
 	if (1 == info->msr) {
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x02),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x02),
 						MAKE_WM8775_DATA(0x02));
 	} else if (2 == info->msr) {
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x0A),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x0A),
 						MAKE_WM8775_DATA(0x0A));
 	} else {
 		printk(KERN_ALERT "ctxfi: Invalid master sampling "
@@ -1785,35 +1793,35 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	}
 
 	/* Configure GPIO bit 14 change to line-in/mic-in */
-	dwCtl = hw_read_20kx(hw, GPIO_CTRL);
-	dwCtl |= 0x1<<14;
-	hw_write_20kx(hw, GPIO_CTRL, dwCtl);
+	ctl = hw_read_20kx(hw, GPIO_CTRL);
+	ctl |= 0x1 << 14;
+	hw_write_20kx(hw, GPIO_CTRL, ctl);
 
 	/* Check using Mic-in or Line-in */
-	dwData = hw_read_20kx(hw, GPIO_DATA);
+	data = hw_read_20kx(hw, GPIO_DATA);
 
-	if (dwMux == 1) {
+	if (mux == 1) {
 		/* Configures GPIO data to select Mic-in */
-		dwData |= 0x1<<14;
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data |= 0x1 << 14;
+		hw_write_20kx(hw, GPIO_DATA, data);
 
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x101),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x101),
 				MAKE_WM8775_DATA(0x101)); /* Mic-in */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xE7),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xE7),
 				MAKE_WM8775_DATA(0xE7)); /* +12dB boost */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xE7),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xE7),
 				MAKE_WM8775_DATA(0xE7)); /* +12dB boost */
-	} else if (dwMux == 2) {
+	} else if (mux == 2) {
 		/* Configures GPIO data to select Line-in */
-		dwData &= ~(0x1<<14);
-		hw_write_20kx(hw, GPIO_DATA, dwData);
+		data &= ~(0x1 << 14);
+		hw_write_20kx(hw, GPIO_DATA, data);
 
 		/* Setup ADC */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x102),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_ADCMC, 0x102),
 				MAKE_WM8775_DATA(0x102)); /* Line-in */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xCF),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, 0xCF),
 				MAKE_WM8775_DATA(0xCF)); /* No boost */
-		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xCF),
+		hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xCF),
 				MAKE_WM8775_DATA(0xCF)); /* No boost */
 	} else {
 		printk(KERN_ALERT "ctxfi: ERROR!!! Invalid input mux!!!\n");
@@ -1824,7 +1832,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	return 0;
 
 error:
-	I2CUninit(hw);
+	hw20k2_i2c_uninit(hw);
 	return err;
 }
 
@@ -2106,15 +2114,15 @@ static struct hw ct20k2_preset __devinitdata = {
 
 int __devinit create_20k2_hw_obj(struct hw **rhw)
 {
-	struct hw *hw;
+	struct hw20k2 *hw20k2;
 
 	*rhw = NULL;
-	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
-	if (NULL == hw)
+	hw20k2 = kzalloc(sizeof(*hw20k2), GFP_KERNEL);
+	if (!hw20k2)
 		return -ENOMEM;
 
-	*hw = ct20k2_preset;
-	*rhw = hw;
+	hw20k2->hw = ct20k2_preset;
+	*rhw = &hw20k2->hw;
 
 	return 0;
 }
