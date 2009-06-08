@@ -739,7 +739,7 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 	} while (0)
 
 static __devinitdata
-DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 50, 1);
+DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 25, 1);
 
 static char *slave_vols[] __devinitdata = {
 	"Analog Front Playback Volume",
