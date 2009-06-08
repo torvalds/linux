@@ -693,13 +693,16 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
 		char *color = PERF_COLOR_NORMAL;
 
 		/*
-		 * We color high-overhead entries in red, low-overhead
-		 * entries in green - and keep the middle ground normal:
+		 * We color high-overhead entries in red, mid-overhead
+		 * entries in green - and keep the low overhead places
+		 * normal:
 		 */
-		if (percent >= 5.0)
+		if (percent >= 5.0) {
 			color = PERF_COLOR_RED;
-		if (percent < 0.5)
-			color = PERF_COLOR_GREEN;
+		} else {
+			if (percent >= 0.5)
+				color = PERF_COLOR_GREEN;
+		}
 
 		ret = color_fprintf(fp, color, "   %6.2f%%",
 				(self->count * 100.0) / total_samples);

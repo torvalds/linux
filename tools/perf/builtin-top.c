@@ -248,13 +248,16 @@ static void print_sym_table(void)
 					 sum_ksamples));
 
 		/*
-		 * We color high-overhead entries in red, low-overhead
-		 * entries in green - and keep the middle ground normal:
+		 * We color high-overhead entries in red, mid-overhead
+		 * entries in green - and keep the low overhead places
+		 * normal:
 		 */
-		if (pcnt >= 5.0)
+		if (pcnt >= 5.0) {
 			color = PERF_COLOR_RED;
-		if (pcnt < 0.5)
-			color = PERF_COLOR_GREEN;
+		} else {
+			if (pcnt >= 0.5)
+				color = PERF_COLOR_GREEN;
+		}
 
 		if (nr_counters == 1)
 			printf("%20.2f - ", syme->weight);

@@ -1085,8 +1085,9 @@ parse_line(FILE *file, struct symbol *sym, uint64_t start, uint64_t len)
 			percent = 100.0 * hits / sym->hist_sum;
 
 		/*
-		 * We color high-overhead entries in red, low-overhead
-		 * entries in green - and keep the middle ground normal:
+		 * We color high-overhead entries in red, mid-overhead
+		 * entries in green - and keep the low overhead places
+		 * normal:
 		 */
 		if (percent >= 5.0)
 			color = PERF_COLOR_RED;
