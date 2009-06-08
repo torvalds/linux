@@ -220,6 +220,68 @@ out_failure:
 	return -1;
 }
 
+static int dso__load_perf_map(struct dso *self, symbol_filter_t filter, int verbose)
+{
+	char *line = NULL;
+	size_t n;
+	FILE *file;
+	int nr_syms = 0;
+
+	file = fopen(self->name, "r");
+	if (file == NULL)
+		goto out_failure;
+
+	while (!feof(file)) {
+		__u64 start, size;
+		struct symbol *sym;
+		int line_len, len;
+
+		line_len = getline(&line, &n, file);
+		if (line_len < 0)
+			break;
+
+		if (!line)
+			goto out_failure;
+
+		line[--line_len] = '\0'; /* \n */
+
+		len = hex2u64(line, &start);
+
+		len++;
+		if (len + 2 >= line_len)
+			continue;
+
+		len += hex2u64(line + len, &size);
+
+		len++;
+		if (len + 2 >= line_len)
+			continue;
+
+		sym = symbol__new(start, size, line + len,
+				  self->sym_priv_size, start, verbose);
+
+		if (sym == NULL)
+			goto out_delete_line;
+
+		if (filter && filter(self, sym))
+			symbol__delete(sym, self->sym_priv_size);
+		else {
+			dso__insert_symbol(self, sym);
+			nr_syms++;
+		}
+	}
+
+	free(line);
+	fclose(file);
+
+	return nr_syms;
+
+out_delete_line:
+	free(line);
+out_failure:
+	return -1;
+}
+
 /**
  * elf_symtab__for_each_symbol - iterate thru all the symbols
  *
@@ -506,6 +568,9 @@ int dso__load(struct dso *self, symbol_filter_t filter, int verbose)
 
 	if (!name)
 		return -1;
+
+	if (strncmp(self->name, "/tmp/perf-", 10) == 0)
+		return dso__load_perf_map(self, filter, verbose);
 
 more:
 	do {

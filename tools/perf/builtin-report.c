@@ -209,6 +209,11 @@ static uint64_t vdso__map_ip(struct map *map, uint64_t ip)
 	return ip;
 }
 
+static inline int is_anon_memory(const char *filename)
+{
+     return strcmp(filename, "//anon") == 0;
+}
+
 static struct map *map__new(struct mmap_event *event)
 {
 	struct map *self = malloc(sizeof(*self));
@@ -216,6 +221,7 @@ static struct map *map__new(struct mmap_event *event)
 	if (self != NULL) {
 		const char *filename = event->filename;
 		char newfilename[PATH_MAX];
+		int anon;
 
 		if (cwd) {
 			int n = strcommon(filename);
@@ -227,6 +233,13 @@ static struct map *map__new(struct mmap_event *event)
 			}
 		}
 
+		anon = is_anon_memory(filename);
+
+		if (anon) {
+			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", event->pid);
+			filename = newfilename;
+		}
+
 		self->start = event->start;
 		self->end   = event->start + event->len;
 		self->pgoff = event->pgoff;
@@ -235,7 +248,7 @@ static struct map *map__new(struct mmap_event *event)
 		if (self->dso == NULL)
 			goto out_delete;
 
-		if (self->dso == vdso)
+		if (self->dso == vdso || anon)
 			self->map_ip = vdso__map_ip;
 		else
 			self->map_ip = map__map_ip;
