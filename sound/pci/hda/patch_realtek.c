@@ -7726,7 +7726,7 @@ static struct hda_channel_mode alc883_3ST_6ch_modes[3] = {
  * 2ch mode
  */
 static struct hda_verb alc883_4ST_ch2_init[] = {
-	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PhIN_OUT },
+	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
 	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
 	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
@@ -9205,7 +9205,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc883_tagra_unsol_event,
-		.init_hook = alc883_tagra_automute,
+		.init_hook = alc883_tagra_init_hook,
 	},
 	[ALC883_ACER] = {
 		.mixers = { alc883_base_mixer },
