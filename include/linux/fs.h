@@ -710,6 +710,9 @@ static inline int mapping_writably_mapped(struct address_space *mapping)
 #define i_size_ordered_init(inode) do { } while (0)
 #endif
 
+struct posix_acl;
+#define ACL_NOT_CACHED ((void *)(-1))
+
 struct inode {
 	struct hlist_node	i_hash;
 	struct list_head	i_list;
@@ -772,6 +775,10 @@ struct inode {
 	atomic_t		i_writecount;
 #ifdef CONFIG_SECURITY
 	void			*i_security;
+#endif
+#ifdef CONFIG_FS_POSIX_ACL
+	struct posix_acl	*i_acl;
+	struct posix_acl	*i_default_acl;
 #endif
 	void			*i_private; /* fs or device private pointer */
 };
