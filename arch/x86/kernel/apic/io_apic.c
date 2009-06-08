@@ -410,13 +410,10 @@ static bool io_apic_level_ack_pending(struct irq_cfg *cfg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	entry = cfg->irq_2_pin;
-	for (;;) {
+	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
 		unsigned int reg;
 		int pin;
 
-		if (!entry)
-			break;
 		pin = entry->pin;
 		reg = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
@@ -424,9 +421,6 @@ static bool io_apic_level_ack_pending(struct irq_cfg *cfg)
 			spin_unlock_irqrestore(&ioapic_lock, flags);
 			return true;
 		}
-		if (!entry->next)
-			break;
-		entry = entry->next;
 	}
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
