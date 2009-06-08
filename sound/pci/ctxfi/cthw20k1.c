@@ -1541,7 +1541,7 @@ static int hw_is_adc_input_selected(struct hw *hw, enum ADCSRC type)
 		return is_adc_input_selected_SB055x(hw, type);
 	case CTSB073X:
 		return is_adc_input_selected_hendrix(hw, type);
-	case CTHENDRIX:
+	case CTUAA:
 		return is_adc_input_selected_hendrix(hw, type);
 	default:
 		return is_adc_input_selected_SBx(hw, type);
@@ -1692,7 +1692,7 @@ static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 		return adc_input_select_SB055x(hw, type, state);
 	case CTSB073X:
 		return adc_input_select_hendrix(hw, type, state);
-	case CTHENDRIX:
+	case CTUAA:
 		return adc_input_select_hendrix(hw, type, state);
 	default:
 		return adc_input_select_SBx(hw, type, state);
@@ -1780,7 +1780,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 static int hw_have_digit_io_switch(struct hw *hw)
 {
 	/* SB073x and Vista compatible cards have no digit IO switch */
-	return !(hw->model == CTSB073X || hw->model == CTHENDRIX);
+	return !(hw->model == CTSB073X || hw->model == CTUAA);
 }
 
 #define CTLBITS(a, b, c, d)	(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
@@ -1916,7 +1916,7 @@ static int hw_card_start(struct hw *hw)
 		goto error1;
 
 	/* Switch to X-Fi mode from UAA mode if neeeded */
-	if (hw->model == CTHENDRIX) {
+	if (hw->model == CTUAA) {
 		err = uaa_to_xfi(pci);
 		if (err)
 			goto error2;
@@ -2027,7 +2027,7 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	case CTSB073X:
 		hw_write_20kx(hw, GPIOCTL, 0x00e6);
 		break;
-	case CTHENDRIX: /* Vista compatible cards */
+	case CTUAA:
 		hw_write_20kx(hw, GPIOCTL, 0x00c2);
 		break;
 	default:
