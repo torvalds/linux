@@ -1087,8 +1087,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	int r;
 	gfn_t base_gfn;
 	unsigned long npages, ugfn;
-	int largepages;
-	unsigned long i;
+	unsigned long largepages, i;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
 
