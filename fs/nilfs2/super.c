@@ -391,6 +391,8 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 {
 	int err = 0;
 
+	nilfs_write_super(sb);
+
 	/* This function is called when super block should be written back */
 	if (wait)
 		err = nilfs_construct_segment(sb);
