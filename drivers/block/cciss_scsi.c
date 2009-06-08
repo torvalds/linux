@@ -49,8 +49,6 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 	__u8 page_code, unsigned char *scsi3addr,
 	int cmd_type);
 
-static int sendcmd_core(ctlr_info_t *h, CommandList_struct *c);
-
 static CommandList_struct *cmd_alloc(ctlr_info_t *h, int get_from_pool);
 static void cmd_free(ctlr_info_t *h, CommandList_struct *c, int got_from_pool);
 
@@ -1601,11 +1599,10 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 		/* Send the Test Unit Ready */
 		rc = fill_cmd(c, TEST_UNIT_READY, h->ctlr, NULL, 0, 0,
 			lunaddr, TYPE_CMD);
-		if (rc == 0) {
-			rc = sendcmd_core(h, c);
-			/* sendcmd turned off interrupts, turn 'em back on. */
-			h->access.set_intr_mask(h, CCISS_INTR_ON);
-		}
+		if (rc == 0)
+			rc = sendcmd_withirq_core(h, c, 0);
+
+		(void) process_sendcmd_error(h, c);
 
 		if (rc == 0 && c->err_info->CommandStatus == CMD_SUCCESS)
 			break;
@@ -1663,10 +1660,8 @@ static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 		return FAILED;
 	memcpy(lunaddr, &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 8);
 	/* send a reset to the SCSI LUN which the command was sent to */
-	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 0, lunaddr,
+	rc = sendcmd_withirq(CCISS_RESET_MSG, ctlr, NULL, 0, 0, lunaddr,
 		TYPE_MSG);
-	/* sendcmd turned off interrupts on the board, turn 'em back on. */
-	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
 	if (rc == 0 && wait_for_device_to_become_ready(*c, lunaddr) == 0)
 		return SUCCESS;
 	printk(KERN_WARNING "cciss%d: resetting device failed.\n", ctlr);
@@ -1677,6 +1672,7 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 {
 	int rc;
 	CommandList_struct *cmd_to_abort;
+	unsigned char lunaddr[8];
 	ctlr_info_t **c;
 	int ctlr;
 
@@ -1691,11 +1687,9 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 	cmd_to_abort = (CommandList_struct *) scsicmd->host_scribble;
 	if (cmd_to_abort == NULL) /* paranoia */
 		return FAILED;
-	rc = sendcmd(CCISS_ABORT_MSG, ctlr, &cmd_to_abort->Header.Tag, 0, 0,
-		(unsigned char *) &cmd_to_abort->Header.LUN.LunAddrBytes[0], 
-		TYPE_MSG);
-	/* sendcmd turned off interrupts on the board, turn 'em back on. */
-	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
+	memcpy(lunaddr, &cmd_to_abort->Header.LUN.LunAddrBytes[0], 8);
+	rc = sendcmd_withirq(CCISS_ABORT_MSG, ctlr, &cmd_to_abort->Header.Tag,
+		0, 0, lunaddr, TYPE_MSG);
 	if (rc == 0)
 		return SUCCESS;
 	return FAILED;

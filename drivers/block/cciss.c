@@ -184,6 +184,9 @@ static int sendcmd(__u8 cmd, int ctlr, void *buff, size_t size,
 static int sendcmd_withirq(__u8 cmd, int ctlr, void *buff, size_t size,
 			__u8 page_code, unsigned char scsi3addr[],
 			int cmd_type);
+static int sendcmd_withirq_core(ctlr_info_t *h, CommandList_struct *c,
+	int attempt_retry);
+static int process_sendcmd_error(ctlr_info_t *h, CommandList_struct *c);
 
 static void fail_all_cmds(unsigned long ctlr);
 static int scan_thread(void *data);
