@@ -43,6 +43,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_inode_item.h"
 #include "xfs_rw.h"
+#include "xfs_quota.h"
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -317,12 +318,12 @@ xfs_quiesce_data(
 
 	/* push non-blocking */
 	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_BDFLUSH);
-	XFS_QM_DQSYNC(mp, SYNC_BDFLUSH);
+	xfs_qm_sync(mp, SYNC_BDFLUSH);
 	xfs_filestream_flush(mp);
 
 	/* push and block */
 	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_WAIT|SYNC_IOWAIT);
-	XFS_QM_DQSYNC(mp, SYNC_WAIT);
+	xfs_qm_sync(mp, SYNC_WAIT);
 
 	/* write superblock and hoover up shutdown errors */
 	error = xfs_sync_fsdata(mp, 0);
@@ -467,7 +468,7 @@ xfs_sync_worker(
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
 		xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		/* dgc: errors ignored here */
-		error = XFS_QM_DQSYNC(mp, SYNC_BDFLUSH);
+		error = xfs_qm_sync(mp, SYNC_BDFLUSH);
 		error = xfs_sync_fsdata(mp, SYNC_BDFLUSH);
 		if (xfs_log_need_covered(mp))
 			error = xfs_commit_dummy_trans(mp, XFS_LOG_FORCE);

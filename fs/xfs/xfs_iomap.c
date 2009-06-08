@@ -385,7 +385,7 @@ xfs_iomap_write_direct(
 	 * Make sure that the dquots are there. This doesn't hold
 	 * the ilock across a disk read.
 	 */
-	error = XFS_QM_DQATTACH(ip->i_mount, ip, XFS_QMOPT_ILOCKED);
+	error = xfs_qm_dqattach_locked(ip, 0);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -444,8 +444,7 @@ xfs_iomap_write_direct(
 	if (error)
 		goto error_out;
 
-	error = XFS_TRANS_RESERVE_QUOTA_NBLKS(mp, tp, ip,
-					      qblocks, 0, quota_flag);
+	error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
 	if (error)
 		goto error1;
 
@@ -495,7 +494,7 @@ xfs_iomap_write_direct(
 
 error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
 	xfs_bmap_cancel(&free_list);
-	XFS_TRANS_UNRESERVE_QUOTA_NBLKS(mp, tp, ip, qblocks, 0, quota_flag);
+	xfs_trans_unreserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
 
 error1:	/* Just cancel transaction */
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
@@ -582,7 +581,7 @@ xfs_iomap_write_delay(
 	 * Make sure that the dquots are there. This doesn't hold
 	 * the ilock across a disk read.
 	 */
-	error = XFS_QM_DQATTACH(mp, ip, XFS_QMOPT_ILOCKED);
+	error = xfs_qm_dqattach_locked(ip, 0);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -684,7 +683,8 @@ xfs_iomap_write_allocate(
 	/*
 	 * Make sure that the dquots are there.
 	 */
-	if ((error = XFS_QM_DQATTACH(mp, ip, 0)))
+	error = xfs_qm_dqattach(ip, 0);
+	if (error)
 		return XFS_ERROR(error);
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);

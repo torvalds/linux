@@ -88,8 +88,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
 				   xfs_rw.o \
-				   xfs_dmops.o \
-				   xfs_qmops.o
+				   xfs_dmops.o
 
 xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o \
 				   xfs_dir2_trace.o

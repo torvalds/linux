@@ -405,6 +405,14 @@ xfs_parseargs(
 		return EINVAL;
 	}
 
+#ifndef CONFIG_XFS_QUOTA
+	if (XFS_IS_QUOTA_RUNNING(mp)) {
+		cmn_err(CE_WARN,
+			"XFS: quota support not available in this kernel.");
+		return EINVAL;
+	}
+#endif
+
 	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
 	    (mp->m_qflags & (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE))) {
 		cmn_err(CE_WARN,
@@ -1098,7 +1106,6 @@ xfs_fs_put_super(
 	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
-	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
 	xfs_free_fsname(mp);
 	kfree(mp);
@@ -1168,6 +1175,7 @@ xfs_fs_statfs(
 {
 	struct xfs_mount	*mp = XFS_M(dentry->d_sb);
 	xfs_sb_t		*sbp = &mp->m_sb;
+	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
 	__uint64_t		fakeinos, id;
 	xfs_extlen_t		lsize;
 
@@ -1196,7 +1204,10 @@ xfs_fs_statfs(
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	spin_unlock(&mp->m_sb_lock);
 
-	XFS_QM_DQSTATVFS(XFS_I(dentry->d_inode), statp);
+	if ((ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) ||
+	    ((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))) ==
+			      (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))
+		xfs_qm_statvfs(ip, statp);
 	return 0;
 }
 
@@ -1404,16 +1415,13 @@ xfs_fs_fill_super(
 	error = xfs_dmops_get(mp);
 	if (error)
 		goto out_free_fsname;
-	error = xfs_qmops_get(mp);
-	if (error)
-		goto out_put_dmops;
 
 	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
 	error = xfs_open_devices(mp);
 	if (error)
-		goto out_put_qmops;
+		goto out_put_dmops;
 
 	if (xfs_icsb_init_counters(mp))
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
@@ -1482,8 +1490,6 @@ xfs_fs_fill_super(
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
- out_put_qmops:
-	xfs_qmops_put(mp);
  out_put_dmops:
 	xfs_dmops_put(mp);
  out_free_fsname:

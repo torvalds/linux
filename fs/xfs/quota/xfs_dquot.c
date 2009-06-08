@@ -1194,7 +1194,9 @@ void
 xfs_qm_dqrele(
 	xfs_dquot_t	*dqp)
 {
-	ASSERT(dqp);
+	if (!dqp)
+		return;
+
 	xfs_dqtrace_entry(dqp, "DQRELE");
 
 	xfs_dqlock(dqp);
