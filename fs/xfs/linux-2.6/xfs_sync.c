@@ -77,6 +77,35 @@ xfs_sync_inode_data(
 	return error;
 }
 
+STATIC int
+xfs_sync_inode_attr(
+	struct xfs_inode	*ip,
+	int			flags)
+{
+	int			error = 0;
+
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	if (xfs_inode_clean(ip))
+		goto out_unlock;
+	if (!xfs_iflock_nowait(ip)) {
+		if (!(flags & SYNC_WAIT))
+			goto out_unlock;
+		xfs_iflock(ip);
+	}
+
+	if (xfs_inode_clean(ip)) {
+		xfs_ifunlock(ip);
+		goto out_unlock;
+	}
+
+	error = xfs_iflush(ip, (flags & SYNC_WAIT) ?
+			   XFS_IFLUSH_SYNC : XFS_IFLUSH_DELWRI);
+
+ out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	return error;
+}
+
 /*
  * Sync all the inodes in the given AG according to the
  * direction given by the flags.
@@ -96,7 +125,6 @@ xfs_sync_inodes_ag(
 	do {
 		struct inode	*inode;
 		xfs_inode_t	*ip = NULL;
-		int		lock_flags = XFS_ILOCK_SHARED;
 
 		/*
 		 * use a gang lookup to find the next inode in the tree
@@ -155,22 +183,10 @@ xfs_sync_inodes_ag(
 		if (flags & SYNC_DELWRI)
 			error = xfs_sync_inode_data(ip, flags);
 
-		xfs_ilock(ip, XFS_ILOCK_SHARED);
-		if ((flags & SYNC_ATTR) && !xfs_inode_clean(ip)) {
-			if (flags & SYNC_WAIT) {
-				xfs_iflock(ip);
-				if (!xfs_inode_clean(ip))
-					error = xfs_iflush(ip, XFS_IFLUSH_SYNC);
-				else
-					xfs_ifunlock(ip);
-			} else if (xfs_iflock_nowait(ip)) {
-				if (!xfs_inode_clean(ip))
-					error = xfs_iflush(ip, XFS_IFLUSH_DELWRI);
-				else
-					xfs_ifunlock(ip);
-			}
-		}
-		xfs_iput(ip, lock_flags);
+		if (flags & SYNC_ATTR)
+			error = xfs_sync_inode_attr(ip, flags);
+
+		IRELE(ip);
 
 		if (error)
 			last_error = error;
