@@ -2822,12 +2822,13 @@ static pci_ers_result_t e100_io_error_detected(struct pci_dev *pdev, pci_channel
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
 
-	/* Similar to calling e100_down(), but avoids adapter I/O. */
-	e100_close(netdev);
-
-	/* Detach; put netif into a state similar to hotplug unplug. */
-	napi_enable(&nic->napi);
 	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (netif_running(netdev))
+		e100_down(nic);
 	pci_disable_device(pdev);
 
 	/* Request a slot reset. */
