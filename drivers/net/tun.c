@@ -565,6 +565,10 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
 			return -EFAULT;
 
+		if ((gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
+		    gso.csum_start + gso.csum_offset + 2 > gso.hdr_len)
+			gso.hdr_len = gso.csum_start + gso.csum_offset + 2;
+
 		if (gso.hdr_len > len)
 			return -EINVAL;
 		offset += sizeof(pi);
