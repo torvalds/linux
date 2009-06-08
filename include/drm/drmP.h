@@ -1573,18 +1573,14 @@ static __inline__ void *drm_calloc(size_t nmemb, size_t size, int area)
 
 static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
 {
-	u8 *addr;
-
-	if (size <= PAGE_SIZE)
+	if (size * nmemb <= PAGE_SIZE)
 	    return kcalloc(nmemb, size, GFP_KERNEL);
 
-	addr = vmalloc(nmemb * size);
-	if (!addr)
+	if (size != 0 && nmemb > ULONG_MAX / size)
 		return NULL;
 
-	memset(addr, 0, nmemb * size);
-
-	return addr;
+	return __vmalloc(size * nmemb,
+			 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
 }
 
 static __inline void drm_free_large(void *ptr)
