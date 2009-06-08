@@ -47,10 +47,6 @@ struct ext2_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_EXT2_FS_POSIX_ACL
-	struct posix_acl	*i_acl;
-	struct posix_acl	*i_default_acl;
-#endif
 	rwlock_t i_meta_lock;
 
 	/*

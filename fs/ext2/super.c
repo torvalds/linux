@@ -152,10 +152,6 @@ static struct inode *ext2_alloc_inode(struct super_block *sb)
 	ei = (struct ext2_inode_info *)kmem_cache_alloc(ext2_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-#ifdef CONFIG_EXT2_FS_POSIX_ACL
-	ei->i_acl = EXT2_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT2_ACL_NOT_CACHED;
-#endif
 	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
 	return &ei->vfs_inode;
@@ -198,18 +194,6 @@ static void destroy_inodecache(void)
 static void ext2_clear_inode(struct inode *inode)
 {
 	struct ext2_block_alloc_info *rsv = EXT2_I(inode)->i_block_alloc_info;
-#ifdef CONFIG_EXT2_FS_POSIX_ACL
-	struct ext2_inode_info *ei = EXT2_I(inode);
-
-	if (ei->i_acl && ei->i_acl != EXT2_ACL_NOT_CACHED) {
-		posix_acl_release(ei->i_acl);
-		ei->i_acl = EXT2_ACL_NOT_CACHED;
-	}
-	if (ei->i_default_acl && ei->i_default_acl != EXT2_ACL_NOT_CACHED) {
-		posix_acl_release(ei->i_default_acl);
-		ei->i_default_acl = EXT2_ACL_NOT_CACHED;
-	}
-#endif
 	ext2_discard_reservation(inode);
 	EXT2_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
