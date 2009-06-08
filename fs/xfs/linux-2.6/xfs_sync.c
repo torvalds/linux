@@ -268,29 +268,42 @@ xfs_sync_inode_attr(
 	return error;
 }
 
+/*
+ * Write out pagecache data for the whole filesystem.
+ */
 int
-xfs_sync_inodes(
-	xfs_mount_t	*mp,
-	int		flags)
+xfs_sync_data(
+	struct xfs_mount	*mp,
+	int			flags)
 {
-	int		error = 0;
-	int		lflags = XFS_LOG_FORCE;
+	int			error;
 
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return 0;
+	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT|SYNC_IOWAIT)) == 0);
 
-	if (flags & SYNC_WAIT)
-		lflags |= XFS_LOG_SYNC;
+	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
+				      XFS_ICI_NO_TAG);
+	if (error)
+		return XFS_ERROR(error);
 
-	if (flags & SYNC_DELWRI)
-		error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags, XFS_ICI_NO_TAG);
+	xfs_log_force(mp, 0,
+		      (flags & SYNC_WAIT) ?
+		       XFS_LOG_FORCE | XFS_LOG_SYNC :
+		       XFS_LOG_FORCE);
+	return 0;
+}
 
-	if (flags & SYNC_ATTR)
-		error = xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags, XFS_ICI_NO_TAG);
+/*
+ * Write out inode metadata (attributes) for the whole filesystem.
+ */
+int
+xfs_sync_attr(
+	struct xfs_mount	*mp,
+	int			flags)
+{
+	ASSERT((flags & ~SYNC_WAIT) == 0);
 
-	if (!error && (flags & SYNC_DELWRI))
-		xfs_log_force(mp, 0, lflags);
-	return XFS_ERROR(error);
+	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
+				     XFS_ICI_NO_TAG);
 }
 
 STATIC int
@@ -404,12 +417,12 @@ xfs_quiesce_data(
 	int error;
 
 	/* push non-blocking */
-	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_BDFLUSH);
+	xfs_sync_data(mp, 0);
 	xfs_qm_sync(mp, SYNC_BDFLUSH);
 	xfs_filestream_flush(mp);
 
 	/* push and block */
-	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_WAIT|SYNC_IOWAIT);
+	xfs_sync_data(mp, SYNC_WAIT|SYNC_IOWAIT);
 	xfs_qm_sync(mp, SYNC_WAIT);
 
 	/* write superblock and hoover up shutdown errors */
@@ -438,7 +451,7 @@ xfs_quiesce_fs(
 	 * logged before we can write the unmount record.
 	 */
 	do {
-		xfs_sync_inodes(mp, SYNC_ATTR|SYNC_WAIT);
+		xfs_sync_attr(mp, SYNC_WAIT);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);
@@ -521,8 +534,8 @@ xfs_flush_inodes_work(
 	void		*arg)
 {
 	struct inode	*inode = arg;
-	xfs_sync_inodes(mp, SYNC_DELWRI | SYNC_TRYLOCK);
-	xfs_sync_inodes(mp, SYNC_DELWRI | SYNC_TRYLOCK | SYNC_IOWAIT);
+	xfs_sync_data(mp, SYNC_TRYLOCK);
+	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_IOWAIT);
 	iput(inode);
 }
 

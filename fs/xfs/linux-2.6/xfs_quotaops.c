@@ -50,9 +50,11 @@ xfs_fs_quota_sync(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	if (sb->s_flags & MS_RDONLY)
+		return -EROFS;
 	if (!XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
-	return -xfs_sync_inodes(mp, SYNC_DELWRI);
+	return -xfs_sync_data(mp, 0);
 }
 
 STATIC int

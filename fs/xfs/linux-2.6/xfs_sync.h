@@ -29,8 +29,6 @@ typedef struct xfs_sync_work {
 	struct completion	*w_completion;
 } xfs_sync_work_t;
 
-#define SYNC_ATTR		0x0001	/* sync attributes */
-#define SYNC_DELWRI		0x0002	/* look at delayed writes */
 #define SYNC_WAIT		0x0004	/* wait for i/o to complete */
 #define SYNC_BDFLUSH		0x0008	/* BDFLUSH is calling -- don't block */
 #define SYNC_IOWAIT		0x0010  /* wait for all I/O to complete */
@@ -39,7 +37,8 @@ typedef struct xfs_sync_work {
 int xfs_syncd_init(struct xfs_mount *mp);
 void xfs_syncd_stop(struct xfs_mount *mp);
 
-int xfs_sync_inodes(struct xfs_mount *mp, int flags);
+int xfs_sync_attr(struct xfs_mount *mp, int flags);
+int xfs_sync_data(struct xfs_mount *mp, int flags);
 int xfs_sync_fsdata(struct xfs_mount *mp, int flags);
 
 int xfs_quiesce_data(struct xfs_mount *mp);

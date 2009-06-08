@@ -1071,7 +1071,18 @@ xfs_fs_put_super(
 	int			unmount_event_flags = 0;
 
 	xfs_syncd_stop(mp);
-	xfs_sync_inodes(mp, SYNC_ATTR|SYNC_DELWRI);
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		/*
+		 * XXX(hch): this should be SYNC_WAIT.
+		 *
+		 * Or more likely not needed at all because the VFS is already
+		 * calling ->sync_fs after shutting down all filestem
+		 * operations and just before calling ->put_super.
+		 */
+		xfs_sync_data(mp, 0);
+		xfs_sync_attr(mp, 0);
+	}
 
 #ifdef HAVE_DMAPI
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
