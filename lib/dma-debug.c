@@ -501,8 +501,8 @@ out_err:
 static ssize_t filter_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
-	unsigned long flags;
 	char buf[NAME_MAX_LEN + 1];
+	unsigned long flags;
 	int len;
 
 	if (!current_driver_name[0])
@@ -523,9 +523,9 @@ static ssize_t filter_read(struct file *file, char __user *user_buf,
 static ssize_t filter_write(struct file *file, const char __user *userbuf,
 			    size_t count, loff_t *ppos)
 {
-	unsigned long flags;
 	char buf[NAME_MAX_LEN];
-	size_t len = NAME_MAX_LEN - 1;
+	unsigned long flags;
+	size_t len;
 	int i;
 
 	/*
@@ -534,7 +534,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 * disabled. Since copy_from_user can fault and may sleep we
 	 * need to copy to temporary buffer first
 	 */
-	len = min(count, len);
+	len = min(count, NAME_MAX_LEN - 1);
 	if (copy_from_user(buf, userbuf, len))
 		return -EFAULT;
 
@@ -1040,18 +1040,19 @@ EXPORT_SYMBOL(debug_dma_map_sg);
 
 static int get_nr_mapped_entries(struct device *dev, struct scatterlist *s)
 {
-	struct dma_debug_entry *entry;
+	struct dma_debug_entry *entry, ref;
 	struct hash_bucket *bucket;
 	unsigned long flags;
-	int mapped_ents = 0;
-	struct dma_debug_entry ref;
+	int mapped_ents;
 
-	ref.dev = dev;
+	ref.dev      = dev;
 	ref.dev_addr = sg_dma_address(s);
-	ref.size = sg_dma_len(s),
+	ref.size     = sg_dma_len(s),
 
-	bucket = get_hash_bucket(&ref, &flags);
-	entry = hash_bucket_find(bucket, &ref);
+	bucket       = get_hash_bucket(&ref, &flags);
+	entry        = hash_bucket_find(bucket, &ref);
+	mapped_ents  = 0;
+
 	if (entry)
 		mapped_ents = entry->sg_mapped_ents;
 	put_hash_bucket(bucket, &flags);
