@@ -951,7 +951,7 @@ write_error:
  * physical eraseblock @to. The @vid_hdr buffer may be changed by this
  * function. Returns:
  *   o %0 in case of success;
- *   o %MOVE_CANCEL_RACE, %MOVE_TARGET_WR_ERR, or %MOVE_CANCEL_BITFLIPS;
+ *   o %MOVE_CANCEL_RACE, %MOVE_TARGET_WR_ERR, %MOVE_CANCEL_BITFLIPS, etc;
  *   o a negative error code in case of failure.
  */
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,

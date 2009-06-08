@@ -83,7 +83,7 @@
  * used. The former state corresponds to the @wl->free tree. The latter state
  * is split up on several sub-states:
  * o the WL movement is allowed (@wl->used tree);
- * o the WL movement is disallowed (@wl->erroneous) becouse the PEB is
+ * o the WL movement is disallowed (@wl->erroneous) because the PEB is
  *   erroneous - e.g., there was a read error;
  * o the WL movement is temporarily prohibited (@wl->pq queue);
  * o scrubbing is needed (@wl->scrub tree).
@@ -744,8 +744,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			 * given, so we have a situation when it has not yet
 			 * had a chance to write it, because it was preempted.
 			 * So add this PEB to the protection queue so far,
-			 * because presubably more data will be written there
-			 * (including the missin VID header), and then we'll
+			 * because presumably more data will be written there
+			 * (including the missing VID header), and then we'll
 			 * move it.
 			 */
 			dbg_wl("PEB %d has no VID header", e1->pnum);
@@ -790,8 +790,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			 * not switch to R/O mode in this case, and give the
 			 * upper layers a possibility to recover from this,
 			 * e.g. by unmapping corresponding LEB. Instead, just
-			 * put thie PEB to the @ubi->erroneus list to prevent
-			 * UBI from trying to move the over and over again.
+			 * put this PEB to the @ubi->erroneous list to prevent
+			 * UBI from trying to move it over and over again.
 			 */
 			if (ubi->erroneous_peb_count > ubi->max_erroneous) {
 				ubi_err("too many erroneous eraseblocks (%d)",
@@ -1045,7 +1045,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		/*
 		 * If this is not %-EIO, we have no idea what to do. Scheduling
 		 * this physical eraseblock for erasure again would cause
-		 * errors again and again. Well, lets switch to RO mode.
+		 * errors again and again. Well, lets switch to R/O mode.
 		 */
 		goto out_ro;
 	}
@@ -1161,7 +1161,7 @@ retry:
 			rb_erase(&e->u.rb, &ubi->erroneous);
 			ubi->erroneous_peb_count -= 1;
 			ubi_assert(ubi->erroneous_peb_count >= 0);
-			/* Erronious PEBs should be tortured */
+			/* Erroneous PEBs should be tortured */
 			torture = 1;
 		} else {
 			err = prot_queue_del(ubi, e->pnum);
