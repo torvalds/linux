@@ -171,15 +171,6 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long l
 	return skb;
 }
 
-static inline int skb_frags_no(struct sk_buff *skb)
-{
-	register struct sk_buff *frag = skb_shinfo(skb)->frag_list;
-	register int n = 1;
-
-	for (; frag; frag=frag->next, n++);
-	return n;
-}
-
 int bt_err(__u16 code);
 
 extern int hci_sock_init(void);
