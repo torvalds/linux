@@ -512,25 +512,22 @@ static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin
  * Reroute an IRQ to a different pin.
  */
 static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
-				      int oldapic, int oldpin,
-				      int newapic, int newpin)
+					   int oldapic, int oldpin,
+					   int newapic, int newpin)
 {
 	struct irq_pin_list *entry;
-	int replaced = 0;
 
 	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
 		if (entry->apic == oldapic && entry->pin == oldpin) {
 			entry->apic = newapic;
 			entry->pin = newpin;
-			replaced = 1;
 			/* every one is different, right? */
-			break;
+			return;
 		}
 	}
 
-	/* why? call replace before add? */
-	if (!replaced)
-		add_pin_to_irq_node(cfg, node, newapic, newpin);
+	/* old apic/pin didn't exist, so just add new ones */
+	add_pin_to_irq_node(cfg, node, newapic, newpin);
 }
 
 static void io_apic_modify_irq(struct irq_cfg *cfg,
