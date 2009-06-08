@@ -1409,23 +1409,20 @@ static int intel_pmu_init(void)
 	switch (boot_cpu_data.x86_model) {
 	case 17:
 		memcpy(hw_cache_event_ids, core2_hw_cache_event_ids,
-		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
-			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+		       sizeof(hw_cache_event_ids));
 
 		pr_cont("Core2 events, ");
 		break;
 	default:
 	case 26:
 		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
-		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
-			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+		       sizeof(hw_cache_event_ids));
 
 		pr_cont("Nehalem/Corei7 events, ");
 		break;
 	case 28:
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
-		sizeof(u64)*PERF_COUNT_HW_CACHE_MAX*
-			PERF_COUNT_HW_CACHE_OP_MAX*PERF_COUNT_HW_CACHE_RESULT_MAX);
+		       sizeof(hw_cache_event_ids));
 
 		pr_cont("Atom events, ");
 		break;
