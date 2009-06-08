@@ -116,8 +116,6 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
-struct irq_pin_list;
-
 /*
  * This is performance-critical, we want to do it O(1)
  *
