@@ -353,7 +353,7 @@ xfs_sync_fsdata(
 	 * If this is xfssyncd() then only sync the superblock if we can
 	 * lock it without sleeping and it is not pinned.
 	 */
-	if (flags & SYNC_BDFLUSH) {
+	if (flags & SYNC_TRYLOCK) {
 		ASSERT(!(flags & SYNC_WAIT));
 
 		bp = xfs_getsb(mp, XFS_BUF_TRYLOCK);
@@ -418,7 +418,7 @@ xfs_quiesce_data(
 
 	/* push non-blocking */
 	xfs_sync_data(mp, 0);
-	xfs_qm_sync(mp, SYNC_BDFLUSH);
+	xfs_qm_sync(mp, SYNC_TRYLOCK);
 	xfs_filestream_flush(mp);
 
 	/* push and block */
@@ -568,8 +568,8 @@ xfs_sync_worker(
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
 		xfs_reclaim_inodes(mp, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		/* dgc: errors ignored here */
-		error = xfs_qm_sync(mp, SYNC_BDFLUSH);
-		error = xfs_sync_fsdata(mp, SYNC_BDFLUSH);
+		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
+		error = xfs_sync_fsdata(mp, SYNC_TRYLOCK);
 		if (xfs_log_need_covered(mp))
 			error = xfs_commit_dummy_trans(mp, XFS_LOG_FORCE);
 	}

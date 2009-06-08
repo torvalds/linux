@@ -29,9 +29,8 @@ typedef struct xfs_sync_work {
 	struct completion	*w_completion;
 } xfs_sync_work_t;
 
-#define SYNC_WAIT		0x0004	/* wait for i/o to complete */
-#define SYNC_BDFLUSH		0x0008	/* BDFLUSH is calling -- don't block */
-#define SYNC_TRYLOCK		0x0020  /* only try to lock inodes */
+#define SYNC_WAIT		0x0001	/* wait for i/o to complete */
+#define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
 
 int xfs_syncd_init(struct xfs_mount *mp);
 void xfs_syncd_stop(struct xfs_mount *mp);

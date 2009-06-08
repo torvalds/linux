@@ -905,11 +905,6 @@ xfs_qm_dqdetach(
 	}
 }
 
-/*
- * This is called to sync quotas. We can be told to use non-blocking
- * semantics by either the SYNC_BDFLUSH flag or the absence of the
- * SYNC_WAIT flag.
- */
 int
 xfs_qm_sync(
 	xfs_mount_t	*mp,
@@ -918,17 +913,13 @@ xfs_qm_sync(
 	int		recl, restarts;
 	xfs_dquot_t	*dqp;
 	uint		flush_flags;
-	boolean_t	nowait;
 	int		error;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 
+	flush_flags = (flags & SYNC_WAIT) ? XFS_QMOPT_SYNC : XFS_QMOPT_DELWRI;
 	restarts = 0;
-	/*
-	 * We won't block unless we are asked to.
-	 */
-	nowait = (boolean_t)(flags & SYNC_BDFLUSH || (flags & SYNC_WAIT) == 0);
 
   again:
 	xfs_qm_mplist_lock(mp);
@@ -948,18 +939,10 @@ xfs_qm_sync(
 		 * don't 'seem' to be dirty. ie. don't acquire dqlock.
 		 * This is very similar to what xfs_sync does with inodes.
 		 */
-		if (flags & SYNC_BDFLUSH) {
-			if (! XFS_DQ_IS_DIRTY(dqp))
+		if (flags & SYNC_TRYLOCK) {
+			if (!XFS_DQ_IS_DIRTY(dqp))
 				continue;
-		}
-
-		if (nowait) {
-			/*
-			 * Try to acquire the dquot lock. We are NOT out of
-			 * lock order, but we just don't want to wait for this
-			 * lock, unless somebody wanted us to.
-			 */
-			if (! xfs_qm_dqlock_nowait(dqp))
+			if (!xfs_qm_dqlock_nowait(dqp))
 				continue;
 		} else {
 			xfs_dqlock(dqp);
@@ -976,7 +959,7 @@ xfs_qm_sync(
 		/* XXX a sentinel would be better */
 		recl = XFS_QI_MPLRECLAIMS(mp);
 		if (!xfs_dqflock_nowait(dqp)) {
-			if (nowait) {
+			if (flags & SYNC_TRYLOCK) {
 				xfs_dqunlock(dqp);
 				continue;
 			}
@@ -994,7 +977,6 @@ xfs_qm_sync(
 		 * Let go of the mplist lock. We don't want to hold it
 		 * across a disk write
 		 */
-		flush_flags = (nowait) ? XFS_QMOPT_DELWRI : XFS_QMOPT_SYNC;
 		xfs_qm_mplist_unlock(mp);
 		xfs_dqtrace_entry(dqp, "XQM_SYNC: DQFLUSH");
 		error = xfs_qm_dqflush(dqp, flush_flags);
