@@ -152,7 +152,7 @@ static void hfsplus_clear_inode(struct inode *inode)
 	}
 }
 
-static void hfsplus_write_super(struct super_block *sb)
+static int hfsplus_sync_fs(struct super_block *sb, int wait)
 {
 	struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 
@@ -160,9 +160,6 @@ static void hfsplus_write_super(struct super_block *sb)
 
 	lock_super(sb);
 	sb->s_dirt = 0;
-	if (sb->s_flags & MS_RDONLY)
-		/* warn? */
-		goto out;
 
 	vhdr->free_blocks = cpu_to_be32(HFSPLUS_SB(sb).free_blocks);
 	vhdr->next_alloc = cpu_to_be32(HFSPLUS_SB(sb).next_alloc);
@@ -194,8 +191,16 @@ static void hfsplus_write_super(struct super_block *sb)
 		}
 		HFSPLUS_SB(sb).flags &= ~HFSPLUS_SB_WRITEBACKUP;
 	}
- out:
 	unlock_super(sb);
+	return 0;
+}
+
+static void hfsplus_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		hfsplus_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static void hfsplus_put_super(struct super_block *sb)
@@ -290,6 +295,7 @@ static const struct super_operations hfsplus_sops = {
 	.clear_inode	= hfsplus_clear_inode,
 	.put_super	= hfsplus_put_super,
 	.write_super	= hfsplus_write_super,
+	.sync_fs	= hfsplus_sync_fs,
 	.statfs		= hfsplus_statfs,
 	.remount_fs	= hfsplus_remount,
 	.show_options	= hfsplus_show_options,
