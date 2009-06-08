@@ -98,14 +98,15 @@ error:
 	return ERR_PTR(-EIO);
 }
 
-static int bfs_write_inode(struct inode *inode, int unused)
+static int bfs_write_inode(struct inode *inode, int wait)
 {
+	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	unsigned int ino = (u16)inode->i_ino;
         unsigned long i_sblock;
 	struct bfs_inode *di;
 	struct buffer_head *bh;
 	int block, off;
-	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
+	int err = 0;
 
         dprintf("ino=%08x\n", ino);
 
@@ -146,9 +147,14 @@ static int bfs_write_inode(struct inode *inode, int unused)
 	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
 
 	mark_buffer_dirty(bh);
+	if (wait) {
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
 	brelse(bh);
 	mutex_unlock(&info->bfs_lock);
-	return 0;
+	return err;
 }
 
 static void bfs_delete_inode(struct inode *inode)
