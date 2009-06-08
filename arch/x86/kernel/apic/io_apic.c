@@ -515,10 +515,10 @@ static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
 				      int oldapic, int oldpin,
 				      int newapic, int newpin)
 {
-	struct irq_pin_list *entry = cfg->irq_2_pin;
+	struct irq_pin_list *entry;
 	int replaced = 0;
 
-	while (entry) {
+	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
 		if (entry->apic == oldapic && entry->pin == oldpin) {
 			entry->apic = newapic;
 			entry->pin = newpin;
@@ -526,7 +526,6 @@ static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
 			/* every one is different, right? */
 			break;
 		}
-		entry = entry->next;
 	}
 
 	/* why? call replace before add? */
