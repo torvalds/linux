@@ -1125,7 +1125,7 @@ failed_nomem:
 	return -ENOMEM;
 }
 
-static void ufs_write_super(struct super_block *sb)
+static int ufs_sync_fs(struct super_block *sb, int wait)
 {
 	struct ufs_sb_private_info * uspi;
 	struct ufs_super_block_first * usb1;
@@ -1134,25 +1134,36 @@ static void ufs_write_super(struct super_block *sb)
 
 	lock_super(sb);
 	lock_kernel();
+
 	UFSD("ENTER\n");
+
 	flags = UFS_SB(sb)->s_flags;
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
-		if ((flags & UFS_ST_MASK) == UFS_ST_SUN 
-		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
-		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
-			ufs_set_fs_state(sb, usb1, usb3,
-					UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
-		ufs_put_cstotal(sb);
-	}
+	usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
+	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
+		ufs_set_fs_state(sb, usb1, usb3,
+				UFS_FSOK - fs32_to_cpu(sb, usb1->fs_time));
+	ufs_put_cstotal(sb);
 	sb->s_dirt = 0;
+
 	UFSD("EXIT\n");
 	unlock_kernel();
 	unlock_super(sb);
+
+	return 0;
+}
+
+static void ufs_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		ufs_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static void ufs_put_super(struct super_block *sb)
@@ -1381,6 +1392,7 @@ static const struct super_operations ufs_super_ops = {
 	.delete_inode	= ufs_delete_inode,
 	.put_super	= ufs_put_super,
 	.write_super	= ufs_write_super,
+	.sync_fs	= ufs_sync_fs,
 	.statfs		= ufs_statfs,
 	.remount_fs	= ufs_remount,
 	.show_options   = ufs_show_options,
