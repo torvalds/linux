@@ -143,7 +143,8 @@ ALC883/888
   medion	Medion Laptops
   medion-md2	Medion MD2
   targa-dig	Targa/MSI
-  targa-2ch-dig	Targs/MSI with 2-channel
+  targa-2ch-dig	Targa/MSI with 2-channel
+  targa-8ch-dig Targa/MSI with 8-channel (MSI GX620)
   laptop-eapd   3-jack with SPDIF I/O and EAPD (Clevo M540JE, M550JE)
   lenovo-101e	Lenovo 101E
   lenovo-nb0763	Lenovo NB0763

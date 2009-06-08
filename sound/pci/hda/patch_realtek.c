@@ -220,6 +220,7 @@ enum {
 	ALC883_6ST_DIG,
 	ALC883_TARGA_DIG,
 	ALC883_TARGA_2ch_DIG,
+	ALC883_TARGA_8ch_DIG,
 	ALC883_ACER,
 	ALC883_ACER_ASPIRE,
 	ALC888_ACER_ASPIRE_4930G,
@@ -2722,6 +2723,7 @@ static struct hda_verb alc880_pin_asus_init_verbs[] = {
 /* Enable GPIO mask and set output */
 #define alc880_gpio1_init_verbs	alc_gpio1_init_verbs
 #define alc880_gpio2_init_verbs	alc_gpio2_init_verbs
+#define alc880_gpio3_init_verbs	alc_gpio3_init_verbs
 
 /* Clevo m520g init */
 static struct hda_verb alc880_pin_clevo_init_verbs[] = {
@@ -7719,6 +7721,73 @@ static struct hda_channel_mode alc883_3ST_6ch_modes[3] = {
 	{ 6, alc883_3ST_ch6_init },
 };
 
+
+/*
+ * 2ch mode
+ */
+static struct hda_verb alc883_4ST_ch2_init[] = {
+	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PhIN_OUT },
+	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ } /* end */
+};
+
+/*
+ * 4ch mode
+ */
+static struct hda_verb alc883_4ST_ch4_init[] = {
+	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+/*
+ * 6ch mode
+ */
+static struct hda_verb alc883_4ST_ch6_init[] = {
+	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+/*
+ * 8ch mode
+ */
+static struct hda_verb alc883_4ST_ch8_init[] = {
+	{ 0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x17, AC_VERB_SET_CONNECT_SEL, 0x03 },
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x18, AC_VERB_SET_CONNECT_SEL, 0x02 },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc883_4ST_8ch_modes[4] = {
+	{ 2, alc883_4ST_ch2_init },
+	{ 4, alc883_4ST_ch4_init },
+	{ 6, alc883_4ST_ch6_init },
+	{ 8, alc883_4ST_ch8_init },
+};
+
+
 /*
  * 2ch mode
  */
@@ -8355,14 +8424,24 @@ static struct hda_verb alc883_tagra_verbs[] = {
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01}, /* line/surround */
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
+/* Connect Line-Out side jack (SPDIF) to Side */
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x17, AC_VERB_SET_CONNECT_SEL, 0x03},
+/* Connect Mic jack to CLFE */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02},
+/* Connect Line-in jack to Surround */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01},
+/* Connect HP out jack to Front */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
 
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x03},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x03},
 
 	{ } /* end */
 };
@@ -8607,8 +8686,8 @@ static void alc883_lenovo_101e_ispeaker_automute(struct hda_codec *codec)
  	unsigned int present;
 	unsigned char bits;
 
- 	present = snd_hda_codec_read(codec, 0x14, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	present = snd_hda_codec_read(codec, 0x14, 0, AC_VERB_GET_PIN_SENSE, 0)
+		& AC_PINSENSE_PRESENCE;
 	bits = present ? HDA_AMP_MUTE : 0;
 	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE, bits);
@@ -8895,6 +8974,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_6ST_DIG]	= "6stack-dig",
 	[ALC883_TARGA_DIG]	= "targa-dig",
 	[ALC883_TARGA_2ch_DIG]	= "targa-2ch-dig",
+	[ALC883_TARGA_8ch_DIG]	= "targa-8ch-dig",
 	[ALC883_ACER]		= "acer",
 	[ALC883_ACER_ASPIRE]	= "acer-aspire",
 	[ALC888_ACER_ASPIRE_4930G]	= "acer-aspire-4930g",
@@ -8979,6 +9059,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x4314, "MSI", ALC883_TARGA_DIG),
 	SND_PCI_QUIRK(0x1462, 0x4319, "MSI", ALC883_TARGA_DIG),
 	SND_PCI_QUIRK(0x1462, 0x4324, "MSI", ALC883_TARGA_DIG),
+	SND_PCI_QUIRK(0x1462, 0x6510, "MSI GX620", ALC883_TARGA_8ch_DIG),
 	SND_PCI_QUIRK(0x1462, 0x6668, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x7187, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x7250, "MSI", ALC883_6ST_DIG),
@@ -9107,6 +9188,24 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc883_tagra_unsol_event,
 		.init_hook = alc883_tagra_init_hook,
+	},
+	[ALC883_TARGA_8ch_DIG] = {
+		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc880_gpio3_init_verbs,
+				alc883_tagra_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids_rev),
+		.adc_nids = alc883_adc_nids_rev,
+		.capsrc_nids = alc883_capsrc_nids_rev,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.dig_in_nid = ALC883_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_4ST_8ch_modes),
+		.channel_mode = alc883_4ST_8ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc883_capture_source,
+		.unsol_event = alc883_tagra_unsol_event,
+		.init_hook = alc883_tagra_automute,
 	},
 	[ALC883_ACER] = {
 		.mixers = { alc883_base_mixer },
