@@ -1684,6 +1684,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	host->max_lun = 8;
 	host->max_id = max_id;
 	host->max_channel = max_channel;
+	host->max_cmd_len = 16;
 
 	if (scsi_add_host(hostdata->host, hostdata->dev))
 		goto add_host_failed;
