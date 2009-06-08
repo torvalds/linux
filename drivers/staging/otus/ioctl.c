@@ -2045,6 +2045,7 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 	struct zsKeyInfo keyInfo;
 	struct usbdrv_private *macp = dev->ml_priv;
 	u16_t vapId = 0;
+	int ii;
 
 	/* zmw_get_wlan_dev(dev); */
 
@@ -2168,7 +2169,6 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 		/* DUMP key context */
 		/* #ifdef WPA_DEBUG */
 		if (keyInfo.keyLength > 0) {
-			int ii;
 			printk(KERN_WARNING
 						"Otus: Key Context:\n");
 			for (ii = 0; ii < keyInfo.keyLength; ) {
@@ -2266,7 +2266,6 @@ int usbdrv_wpa_ioctl(struct net_device *dev, struct athr_wlan_param *zdparm)
 		/* zfiWlanSetWpaIe(dev, zdparm->u.generic_elem.data,
 		* zdparm->u.generic_elem.len);
 		*/
-		int ii;
 		u8_t len = zdparm->u.generic_elem.len;
 		u8_t *wpaie = (u8_t *)zdparm->u.generic_elem.data;
 
@@ -2401,7 +2400,7 @@ int usbdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct athr_wlan_param zdparm;
 	struct usbdrv_private *macp = dev->ml_priv;
 
-	int err = 0;
+	int err = 0, val = 0;
 	int changed = 0;
 
 	/* regp = macp->regp; */
@@ -2445,7 +2444,7 @@ int usbdrv_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			err = -EPERM;
 			break;
 		}
-		int val = *((int *) wrq->u.name);
+		val = *((int *) wrq->u.name);
 		if ((val < 0) || (val > 2)) {
 			err = -EINVAL;
 			break;
