@@ -1608,7 +1608,7 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 		/* Wait for a bit.  do this first, because if we send
 		 * the TUR right away, the reset will just abort it.
 		 */
-		schedule_timeout_interruptible(waittime);
+		schedule_timeout_uninterruptible(waittime);
 		count++;
 
 		/* Increase wait time with each try, up to a point. */
