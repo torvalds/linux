@@ -51,13 +51,7 @@ struct vhci_data {
 
 	wait_queue_head_t read_wait;
 	struct sk_buff_head readq;
-
-	struct fasync_struct *fasync;
 };
-
-#define VHCI_FASYNC	0x0010
-
-static struct miscdevice vhci_miscdev;
 
 static int vhci_open_dev(struct hci_dev *hdev)
 {
@@ -104,9 +98,6 @@ static int vhci_send_frame(struct sk_buff *skb)
 
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&data->readq, skb);
-
-	if (data->flags & VHCI_FASYNC)
-		kill_fasync(&data->fasync, SIGIO, POLL_IN);
 
 	wake_up_interruptible(&data->read_wait);
 
@@ -293,35 +284,13 @@ static int vhci_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vhci_fasync(int fd, struct file *file, int on)
-{
-	struct vhci_data *data = file->private_data;
-	int err = 0;
-
-	lock_kernel();
-	err = fasync_helper(fd, file, on, &data->fasync);
-	if (err < 0)
-		goto out;
-
-	if (on)
-		data->flags |= VHCI_FASYNC;
-	else
-		data->flags &= ~VHCI_FASYNC;
-
-out:
-	unlock_kernel();
-	return err;
-}
-
 static const struct file_operations vhci_fops = {
-	.owner		= THIS_MODULE,
 	.read		= vhci_read,
 	.write		= vhci_write,
 	.poll		= vhci_poll,
 	.ioctl		= vhci_ioctl,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.fasync		= vhci_fasync,
 };
 
 static struct miscdevice vhci_miscdev= {
