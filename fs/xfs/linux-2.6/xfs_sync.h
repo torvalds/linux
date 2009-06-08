@@ -31,7 +31,6 @@ typedef struct xfs_sync_work {
 
 #define SYNC_WAIT		0x0004	/* wait for i/o to complete */
 #define SYNC_BDFLUSH		0x0008	/* BDFLUSH is calling -- don't block */
-#define SYNC_IOWAIT		0x0010  /* wait for all I/O to complete */
 #define SYNC_TRYLOCK		0x0020  /* only try to lock inodes */
 
 int xfs_syncd_init(struct xfs_mount *mp);

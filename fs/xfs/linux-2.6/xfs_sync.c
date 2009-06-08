@@ -227,7 +227,7 @@ xfs_sync_inode_data(
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
  out_wait:
-	if (flags & SYNC_IOWAIT)
+	if (flags & SYNC_WAIT)
 		xfs_ioend_wait(ip);
 	IRELE(ip);
 	return error;
@@ -278,7 +278,7 @@ xfs_sync_data(
 {
 	int			error;
 
-	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT|SYNC_IOWAIT)) == 0);
+	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
 	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
 				      XFS_ICI_NO_TAG);
@@ -422,7 +422,7 @@ xfs_quiesce_data(
 	xfs_filestream_flush(mp);
 
 	/* push and block */
-	xfs_sync_data(mp, SYNC_WAIT|SYNC_IOWAIT);
+	xfs_sync_data(mp, SYNC_WAIT);
 	xfs_qm_sync(mp, SYNC_WAIT);
 
 	/* write superblock and hoover up shutdown errors */
@@ -535,7 +535,7 @@ xfs_flush_inodes_work(
 {
 	struct inode	*inode = arg;
 	xfs_sync_data(mp, SYNC_TRYLOCK);
-	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_IOWAIT);
+	xfs_sync_data(mp, SYNC_TRYLOCK | SYNC_WAIT);
 	iput(inode);
 }
 
