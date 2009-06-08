@@ -469,7 +469,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	struct snd_platform_data *pdata = pdev->dev.platform_data;
 	struct davinci_mcbsp_dev *dev;
 	struct resource *mem, *ioarea, *res;
-	int ret = 0;
+	int ret;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -511,6 +511,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
+		ret = -ENXIO;
 		goto err_free_mem;
 	}
 	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK]->channel = res->start;
@@ -518,6 +519,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
+		ret = -ENXIO;
 		goto err_free_mem;
 	}
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE]->channel = res->start;
