@@ -147,6 +147,10 @@ static inline void dump_entry_trace(struct dma_debug_entry *entry)
 
 static bool driver_filter(struct device *dev)
 {
+	struct device_driver *drv;
+	unsigned long flags;
+	bool ret;
+
 	/* driver filter off */
 	if (likely(!current_driver_name[0]))
 		return true;
@@ -155,32 +159,28 @@ static bool driver_filter(struct device *dev)
 	if (current_driver && dev->driver == current_driver)
 		return true;
 
+	if (current_driver || !current_driver_name[0])
+		return false;
+
 	/* driver filter on but not yet initialized */
-	if (!current_driver && current_driver_name[0]) {
-		struct device_driver *drv = get_driver(dev->driver);
-		unsigned long flags;
-		bool ret = false;
+	drv = get_driver(dev->driver);
+	if (!drv)
+		return false;
 
-		if (!drv)
-			return false;
+	/* lock to protect against change of current_driver_name */
+	read_lock_irqsave(&driver_name_lock, flags);
 
-		/* lock to protect against change of current_driver_name */
-		read_lock_irqsave(&driver_name_lock, flags);
-
-		if (drv->name &&
-		    strncmp(current_driver_name, drv->name,
-			    NAME_MAX_LEN-1) == 0) {
-			current_driver = drv;
-			ret = true;
-		}
-
-		read_unlock_irqrestore(&driver_name_lock, flags);
-		put_driver(drv);
-
-		return ret;
+	ret = false;
+	if (drv->name &&
+	    strncmp(current_driver_name, drv->name, NAME_MAX_LEN - 1) == 0) {
+		current_driver = drv;
+		ret = true;
 	}
 
-	return false;
+	read_unlock_irqrestore(&driver_name_lock, flags);
+	put_driver(drv);
+
+	return ret;
 }
 
 #define err_printk(dev, entry, format, arg...) do {		\
