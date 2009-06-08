@@ -92,23 +92,18 @@ extern int initcall_debug;
 static async_cookie_t  __lowest_in_progress(struct list_head *running)
 {
 	struct async_entry *entry;
-	async_cookie_t ret = next_cookie; /* begin with "infinity" value */
 
 	if (!list_empty(running)) {
 		entry = list_first_entry(running,
 			struct async_entry, list);
-		ret = entry->cookie;
+		return entry->cookie;
 	}
 
-	if (!list_empty(&async_pending)) {
-		list_for_each_entry(entry, &async_pending, list)
-			if (entry->running == running) {
-				ret = entry->cookie;
-				break;
-			}
-	}
+	list_for_each_entry(entry, &async_pending, list)
+		if (entry->running == running)
+			return entry->cookie;
 
-	return ret;
+	return next_cookie;	/* "infinity" value */
 }
 
 static async_cookie_t  lowest_in_progress(struct list_head *running)
