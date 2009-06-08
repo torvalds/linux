@@ -712,6 +712,44 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 	return c_n;
 }
 
+static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
+{
+	struct stv0900_state *state = fe->demodulator_priv;
+	struct stv0900_internal *i_params = state->internal;
+	enum fe_stv0900_demod_num demod = state->demod;
+	u8 err_val1, err_val0;
+	s32 err_field1, err_field0;
+	u32 header_err_val = 0;
+
+	*ucblocks = 0x0;
+	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
+		/* DVB-S2 delineator errors count */
+
+		/* retreiving number for errnous headers */
+		dmd_reg(err_field0, R0900_P1_BBFCRCKO0,
+					R0900_P2_BBFCRCKO0);
+		dmd_reg(err_field1, R0900_P1_BBFCRCKO1,
+					R0900_P2_BBFCRCKO1);
+
+		err_val1 = stv0900_read_reg(i_params, err_field1);
+		err_val0 = stv0900_read_reg(i_params, err_field0);
+		header_err_val = (err_val1<<8) | err_val0;
+
+		/* retreiving number for errnous packets */
+		dmd_reg(err_field0, R0900_P1_UPCRCKO0,
+					R0900_P2_UPCRCKO0);
+		dmd_reg(err_field1, R0900_P1_UPCRCKO1,
+					R0900_P2_UPCRCKO1);
+
+		err_val1 = stv0900_read_reg(i_params, err_field1);
+		err_val0 = stv0900_read_reg(i_params, err_field0);
+		*ucblocks = (err_val1<<8) | err_val0;
+		*ucblocks += header_err_val;
+	}
+
+	return 0;
+}
+
 static int stv0900_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	*snr = stv0900_carr_get_quality(fe,
@@ -1882,6 +1920,7 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.read_ber			= stv0900_read_ber,
 	.read_signal_strength		= stv0900_read_signal_strength,
 	.read_snr			= stv0900_read_snr,
+	.read_ucblocks                  = stv0900_read_ucblocks,
 };
 
 struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
