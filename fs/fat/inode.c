@@ -449,6 +449,16 @@ static void fat_write_super(struct super_block *sb)
 	unlock_super(sb);
 }
 
+static int fat_sync_fs(struct super_block *sb, int wait)
+{
+	lock_super(sb);
+	fat_clusters_flush(sb);
+	sb->s_dirt = 0;
+	unlock_super(sb);
+
+	return 0;
+}
+
 static void fat_put_super(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -643,6 +653,7 @@ static const struct super_operations fat_sops = {
 	.delete_inode	= fat_delete_inode,
 	.put_super	= fat_put_super,
 	.write_super	= fat_write_super,
+	.sync_fs	= fat_sync_fs,
 	.statfs		= fat_statfs,
 	.clear_inode	= fat_clear_inode,
 	.remount_fs	= fat_remount,
