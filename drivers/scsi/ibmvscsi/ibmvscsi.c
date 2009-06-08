@@ -94,6 +94,7 @@ static int abort_timeout = 60;
 static int reset_timeout = 60;
 static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
 static int max_events = IBMVSCSI_MAX_REQUESTS_DEFAULT + 2;
+static int fast_fail = 1;
 
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
@@ -114,6 +115,8 @@ module_param_named(init_timeout, init_timeout, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(init_timeout, "Initialization timeout in seconds");
 module_param_named(max_requests, max_requests, int, S_IRUGO);
 MODULE_PARM_DESC(max_requests, "Maximum requests for this adapter");
+module_param_named(fast_fail, fast_fail, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fast_fail, "Enable fast fail. [Default=1]");
 
 /* ------------------------------------------------------------
  * Routines for the event pool and event structs
@@ -863,6 +866,60 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 };
 
 /**
+ * fast_fail_rsp: - Handle response to MAD enable fast fail
+ * @evt_struct:	srp_event_struct with the response
+ *
+ * Used as a "done" callback by when sending enable fast fail. Gets called
+ * by ibmvscsi_handle_crq()
+ */
+static void fast_fail_rsp(struct srp_event_struct *evt_struct)
+{
+	struct ibmvscsi_host_data *hostdata = evt_struct->hostdata;
+	u8 status = evt_struct->xfer_iu->mad.fast_fail.common.status;
+
+	if (status == VIOSRP_MAD_NOT_SUPPORTED)
+		dev_err(hostdata->dev, "fast_fail not supported in server\n");
+	else if (status == VIOSRP_MAD_FAILED)
+		dev_err(hostdata->dev, "fast_fail request failed\n");
+	else if (status != VIOSRP_MAD_SUCCESS)
+		dev_err(hostdata->dev, "error 0x%X enabling fast_fail\n", status);
+
+	send_srp_login(hostdata);
+}
+
+/**
+ * init_host - Start host initialization
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ * Returns zero if successful.
+ */
+static int enable_fast_fail(struct ibmvscsi_host_data *hostdata)
+{
+	int rc;
+	unsigned long flags;
+	struct viosrp_fast_fail *fast_fail_mad;
+	struct srp_event_struct *evt_struct;
+
+	if (!fast_fail)
+		return send_srp_login(hostdata);
+
+	evt_struct = get_event_struct(&hostdata->pool);
+	BUG_ON(!evt_struct);
+
+	init_event_struct(evt_struct, fast_fail_rsp, VIOSRP_MAD_FORMAT, info_timeout);
+
+	fast_fail_mad = &evt_struct->iu.mad.fast_fail;
+	memset(fast_fail_mad, 0, sizeof(*fast_fail_mad));
+	fast_fail_mad->common.type = VIOSRP_ENABLE_FAST_FAIL;
+	fast_fail_mad->common.length = sizeof(*fast_fail_mad);
+
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
+	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, info_timeout * 2);
+	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+	return rc;
+}
+
+/**
  * adapter_info_rsp: - Handle response to MAD adapter info request
  * @evt_struct:	srp_event_struct with the response
  *
@@ -903,7 +960,7 @@ static void adapter_info_rsp(struct srp_event_struct *evt_struct)
 		}
 	}
 
-	send_srp_login(hostdata);
+	enable_fast_fail(hostdata);
 }
 
 /**
