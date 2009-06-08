@@ -58,10 +58,6 @@ struct nilfs_inode_info {
 	 */
 	struct rw_semaphore xattr_sem;
 #endif
-#ifdef CONFIG_NILFS_POSIX_ACL
-	struct posix_acl *i_acl;
-	struct posix_acl *i_default_acl;
-#endif
 	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
 					   disk inode */
 	struct inode vfs_inode;
