@@ -18,11 +18,12 @@
 
 #include "ctmixer.h"
 #include "ctamixer.h"
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/asoundef.h>
 #include <sound/pcm.h>
-#include <linux/slab.h>
+#include <sound/tlv.h>
 
 enum CT_SUM_CTL {
 	SUM_IN_F,
@@ -292,6 +293,7 @@ set_switch_state(struct ct_mixer *mixer,
 		mixer->switch_state &= ~(0x1 << (type - SWH_MIXER_START));
 }
 
+#if 0 /* not used */
 /* Map integer value ranging from 0 to 65535 to 14-bit float value ranging
  * from 2^-6 to (1+1023/1024) */
 static unsigned int uint16_to_float14(unsigned int x)
@@ -331,6 +333,12 @@ static unsigned int float14_to_uint16(unsigned int x)
 
 	return x;
 }
+#endif /* not used */
+
+#define VOL_SCALE	0x1c
+#define VOL_MAX		0x100
+
+static const DECLARE_TLV_DB_SCALE(ct_vol_db_scale, -6400, 25, 1);
 
 static int ct_alsa_mix_volume_info(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_info *uinfo)
@@ -338,8 +346,7 @@ static int ct_alsa_mix_volume_info(struct snd_kcontrol *kcontrol,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 43690;
-	uinfo->value.integer.step = 128;
+	uinfo->value.integer.max = VOL_MAX;
 
 	return 0;
 }
@@ -349,15 +356,18 @@ static int ct_alsa_mix_volume_get(struct snd_kcontrol *kcontrol,
 {
 	struct ct_atc *atc = snd_kcontrol_chip(kcontrol);
 	enum CT_AMIXER_CTL type = get_amixer_index(kcontrol->private_value);
-	struct amixer *amixer = NULL;
-	int i = 0;
+	struct amixer *amixer;
+	int i, val;
 
 	for (i = 0; i < 2; i++) {
 		amixer = ((struct ct_mixer *)atc->mixer)->
 						amixers[type*CHN_NUM+i];
-		/* Convert 14-bit float-point scale to 16-bit integer volume */
-		ucontrol->value.integer.value[i] =
-		(float14_to_uint16(amixer->ops->get_scale(amixer)) & 0xffff);
+		val = amixer->ops->get_scale(amixer) / VOL_SCALE;
+		if (val < 0)
+			val = 0;
+		else if (val > VOL_MAX)
+			val = VOL_MAX;
+		ucontrol->value.integer.value[i] = val;
 	}
 
 	return 0;
@@ -369,16 +379,19 @@ static int ct_alsa_mix_volume_put(struct snd_kcontrol *kcontrol,
 	struct ct_atc *atc = snd_kcontrol_chip(kcontrol);
 	struct ct_mixer *mixer = atc->mixer;
 	enum CT_AMIXER_CTL type = get_amixer_index(kcontrol->private_value);
-	struct amixer *amixer = NULL;
-	int i = 0, j = 0, change = 0, val = 0;
+	struct amixer *amixer;
+	int i, j, val, oval, change = 0;
 
 	for (i = 0; i < 2; i++) {
-		/* Convert 16-bit integer volume to 14-bit float-point scale */
-		val = (ucontrol->value.integer.value[i] & 0xffff);
+		val = ucontrol->value.integer.value[i];
+		if (val < 0)
+			val = 0;
+		else if (val > VOL_MAX)
+			val = VOL_MAX;
+		val *= VOL_SCALE;
 		amixer = mixer->amixers[type*CHN_NUM+i];
-		if ((float14_to_uint16(amixer->ops->get_scale(amixer)) & 0xff80)
-				!= (val & 0xff80)) {
-			val = uint16_to_float14(val);
+		oval = amixer->ops->get_scale(amixer);
+		if (val != oval) {
 			amixer->ops->set_scale(amixer, val);
 			amixer->ops->commit_write(amixer);
 			change = 1;
@@ -398,11 +411,13 @@ static int ct_alsa_mix_volume_put(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new vol_ctl = {
-	.access		= SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.access		= SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 	.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info		= ct_alsa_mix_volume_info,
 	.get		= ct_alsa_mix_volume_get,
-	.put		= ct_alsa_mix_volume_put
+	.put		= ct_alsa_mix_volume_put,
+	.tlv		= { .p =  ct_vol_db_scale },
 };
 
 static void
