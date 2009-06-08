@@ -180,7 +180,8 @@ typedef struct drm_i915_private {
 	int backlight_duty_cycle;  /* restore backlight to this value */
 	bool panel_wants_dither;
 	struct drm_display_mode *panel_fixed_mode;
-	struct drm_display_mode *vbt_mode; /* if any */
+	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
+	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
 	/* Feature bits from the VBIOS */
 	unsigned int int_tv_support:1;
@@ -283,6 +284,7 @@ typedef struct drm_i915_private {
 	u8 saveAR[21];
 	u8 saveDACMASK;
 	u8 saveCR[37];
+	uint64_t saveFENCE[16];
 
 	struct {
 		struct drm_mm gtt_space;
@@ -705,13 +707,8 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 #define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
 #define I915_READ8(reg)		readb(dev_priv->regs + (reg))
 #define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
-#ifdef writeq
 #define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
-#else
-#define I915_WRITE64(reg, val)	(writel(val, dev_priv->regs + (reg)), \
-				 writel(upper_32_bits(val), dev_priv->regs + \
-					(reg) + 4))
-#endif
+#define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 
 #define I915_VERBOSE 0
@@ -790,7 +787,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2E22 || \
 		       (dev)->pci_device == 0x2E32)
 
-#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
+#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
+			(dev)->pci_device == 0x2A12)
 
 #define IS_GM45(dev) ((dev)->pci_device == 0x2A42)
 

@@ -784,8 +784,8 @@ static void rt_check_expire(void)
 {
 	static unsigned int rover;
 	unsigned int i = rover, goal;
-	struct rtable *rth, **rthp;
-	unsigned long length = 0, samples = 0;
+	struct rtable *rth, *aux, **rthp;
+	unsigned long samples = 0;
 	unsigned long sum = 0, sum2 = 0;
 	u64 mult;
 
@@ -795,9 +795,9 @@ static void rt_check_expire(void)
 	goal = (unsigned int)mult;
 	if (goal > rt_hash_mask)
 		goal = rt_hash_mask + 1;
-	length = 0;
 	for (; goal > 0; goal--) {
 		unsigned long tmo = ip_rt_gc_timeout;
+		unsigned long length;
 
 		i = (i + 1) & rt_hash_mask;
 		rthp = &rt_hash_table[i].chain;
@@ -809,8 +809,10 @@ static void rt_check_expire(void)
 
 		if (*rthp == NULL)
 			continue;
+		length = 0;
 		spin_lock_bh(rt_hash_lock_addr(i));
 		while ((rth = *rthp) != NULL) {
+			prefetch(rth->u.dst.rt_next);
 			if (rt_is_expired(rth)) {
 				*rthp = rth->u.dst.rt_next;
 				rt_free(rth);
@@ -819,33 +821,30 @@ static void rt_check_expire(void)
 			if (rth->u.dst.expires) {
 				/* Entry is expired even if it is in use */
 				if (time_before_eq(jiffies, rth->u.dst.expires)) {
+nofree:
 					tmo >>= 1;
 					rthp = &rth->u.dst.rt_next;
 					/*
-					 * Only bump our length if the hash
-					 * inputs on entries n and n+1 are not
-					 * the same, we only count entries on
+					 * We only count entries on
 					 * a chain with equal hash inputs once
 					 * so that entries for different QOS
 					 * levels, and other non-hash input
 					 * attributes don't unfairly skew
 					 * the length computation
 					 */
-					if ((*rthp == NULL) ||
-					    !compare_hash_inputs(&(*rthp)->fl,
-								 &rth->fl))
-						length += ONE;
+					for (aux = rt_hash_table[i].chain;;) {
+						if (aux == rth) {
+							length += ONE;
+							break;
+						}
+						if (compare_hash_inputs(&aux->fl, &rth->fl))
+							break;
+						aux = aux->u.dst.rt_next;
+					}
 					continue;
 				}
-			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout)) {
-				tmo >>= 1;
-				rthp = &rth->u.dst.rt_next;
-				if ((*rthp == NULL) ||
-				    !compare_hash_inputs(&(*rthp)->fl,
-							 &rth->fl))
-					length += ONE;
-				continue;
-			}
+			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout))
+				goto nofree;
 
 			/* Cleanup aged off entries. */
 			*rthp = rth->u.dst.rt_next;
@@ -1068,7 +1067,6 @@ out:	return 0;
 static int rt_intern_hash(unsigned hash, struct rtable *rt, struct rtable **rp)
 {
 	struct rtable	*rth, **rthp;
-	struct rtable	*rthi;
 	unsigned long	now;
 	struct rtable *cand, **candp;
 	u32 		min_score;
@@ -1088,7 +1086,6 @@ restart:
 	}
 
 	rthp = &rt_hash_table[hash].chain;
-	rthi = NULL;
 
 	spin_lock_bh(rt_hash_lock_addr(hash));
 	while ((rth = *rthp) != NULL) {
@@ -1134,17 +1131,6 @@ restart:
 		chain_length++;
 
 		rthp = &rth->u.dst.rt_next;
-
-		/*
-		 * check to see if the next entry in the chain
-		 * contains the same hash input values as rt.  If it does
-		 * This is where we will insert into the list, instead of
-		 * at the head.  This groups entries that differ by aspects not
-		 * relvant to the hash function together, which we use to adjust
-		 * our chain length
-		 */
-		if (*rthp && compare_hash_inputs(&(*rthp)->fl, &rt->fl))
-			rthi = rth;
 	}
 
 	if (cand) {
@@ -1205,10 +1191,7 @@ restart:
 		}
 	}
 
-	if (rthi)
-		rt->u.dst.rt_next = rthi->u.dst.rt_next;
-	else
-		rt->u.dst.rt_next = rt_hash_table[hash].chain;
+	rt->u.dst.rt_next = rt_hash_table[hash].chain;
 
 #if RT_CACHE_DEBUG >= 2
 	if (rt->u.dst.rt_next) {
@@ -1224,10 +1207,7 @@ restart:
 	 * previous writes to rt are comitted to memory
 	 * before making rt visible to other CPUS.
 	 */
-	if (rthi)
-		rcu_assign_pointer(rthi->u.dst.rt_next, rt);
-	else
-		rcu_assign_pointer(rt_hash_table[hash].chain, rt);
+	rcu_assign_pointer(rt_hash_table[hash].chain, rt);
 
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 	*rp = rt;

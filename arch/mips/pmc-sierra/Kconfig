@@ -36,18 +36,6 @@ config PMC_MSP7120_FPGA
 
 endchoice
 
-menu "Options for PMC-Sierra MSP chipsets"
-	depends on PMC_MSP
-
-config PMC_MSP_EMBEDDED_ROOTFS
-	bool "Root filesystem embedded in kernel image"
-	select MTD
-	select MTD_BLOCK
-	select MTD_PMC_MSP_RAMROOT
-	select MTD_RAM
-
-endmenu
-
 config HYPERTRANSPORT
 	bool "Hypertransport Support for PMC-Sierra Yosemite"
 	depends on PMC_YOSEMITE

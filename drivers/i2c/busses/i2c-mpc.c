@@ -164,7 +164,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 	return 0;
 }
 
-#ifdef CONFIG_PPC_52xx
+#ifdef CONFIG_PPC_MPC52xx
 static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] = {
 	{20, 0x20}, {22, 0x21}, {24, 0x22}, {26, 0x23},
 	{28, 0x24}, {30, 0x01}, {32, 0x25}, {34, 0x02},
@@ -188,7 +188,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_52xx[] = {
 
 int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock, int prescaler)
 {
-	const struct mpc52xx_i2c_divider *div = NULL;
+	const struct mpc_i2c_divider *div = NULL;
 	unsigned int pvr = mfspr(SPRN_PVR);
 	u32 divider;
 	int i;
@@ -203,7 +203,7 @@ int mpc_i2c_get_fdr_52xx(struct device_node *node, u32 clock, int prescaler)
 	 * We want to choose an FDR/DFSR that generates an I2C bus speed that
 	 * is equal to or lower than the requested speed.
 	 */
-	for (i = 0; i < ARRAY_SIZE(mpc52xx_i2c_dividers); i++) {
+	for (i = 0; i < ARRAY_SIZE(mpc_i2c_dividers_52xx); i++) {
 		div = &mpc_i2c_dividers_52xx[i];
 		/* Old MPC5200 rev A CPUs do not support the high bits */
 		if (div->fdr & 0xc0 && pvr == 0x80822011)
@@ -219,20 +219,23 @@ static void mpc_i2c_setclock_52xx(struct device_node *node,
 				  struct mpc_i2c *i2c,
 				  u32 clock, u32 prescaler)
 {
-	int fdr = mpc52xx_i2c_get_fdr(node, clock, prescaler);
+	int ret, fdr;
 
-	if (fdr < 0)
-		fdr = 0x3f; /* backward compatibility */
+	ret = mpc_i2c_get_fdr_52xx(node, clock, prescaler);
+	fdr = (ret >= 0) ? ret : 0x3f; /* backward compatibility */
+
 	writeb(fdr & 0xff, i2c->base + MPC_I2C_FDR);
-	dev_info(i2c->dev, "clock %d Hz (fdr=%d)\n", clock, fdr);
+
+	if (ret >= 0)
+		dev_info(i2c->dev, "clock %d Hz (fdr=%d)\n", clock, fdr);
 }
-#else /* !CONFIG_PPC_52xx */
+#else /* !CONFIG_PPC_MPC52xx */
 static void mpc_i2c_setclock_52xx(struct device_node *node,
 				  struct mpc_i2c *i2c,
 				  u32 clock, u32 prescaler)
 {
 }
-#endif /* CONFIG_PPC_52xx*/
+#endif /* CONFIG_PPC_MPC52xx*/
 
 #ifdef CONFIG_FSL_SOC
 static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] = {
@@ -321,14 +324,17 @@ static void mpc_i2c_setclock_8xxx(struct device_node *node,
 				  struct mpc_i2c *i2c,
 				  u32 clock, u32 prescaler)
 {
-	int fdr = mpc_i2c_get_fdr_8xxx(node, clock, prescaler);
+	int ret, fdr;
 
-	if (fdr < 0)
-		fdr = 0x1031; /* backward compatibility */
+	ret = mpc_i2c_get_fdr_8xxx(node, clock, prescaler);
+	fdr = (ret >= 0) ? ret : 0x1031; /* backward compatibility */
+
 	writeb(fdr & 0xff, i2c->base + MPC_I2C_FDR);
 	writeb((fdr >> 8) & 0xff, i2c->base + MPC_I2C_DFSRR);
-	dev_info(i2c->dev, "clock %d Hz (dfsrr=%d fdr=%d)\n",
-		 clock, fdr >> 8, fdr & 0xff);
+
+	if (ret >= 0)
+		dev_info(i2c->dev, "clock %d Hz (dfsrr=%d fdr=%d)\n",
+			 clock, fdr >> 8, fdr & 0xff);
 }
 
 #else /* !CONFIG_FSL_SOC */

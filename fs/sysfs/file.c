@@ -723,7 +723,7 @@ int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
 	mutex_unlock(&sysfs_workq_mutex);
 
 	if (sysfs_workqueue == NULL) {
-		sysfs_workqueue = create_workqueue("sysfsd");
+		sysfs_workqueue = create_singlethread_workqueue("sysfsd");
 		if (sysfs_workqueue == NULL) {
 			module_put(owner);
 			return -ENOMEM;

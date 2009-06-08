@@ -145,6 +145,7 @@
 	{USB_DEVICE(0x0789,0x0162)}, /* Logitec */		\
 	{USB_DEVICE(0x0789,0x0163)}, /* Logitec */		\
 	{USB_DEVICE(0x0789,0x0164)}, /* Logitec */		\
+	{USB_DEVICE(0x7392,0x7717)}, /* Edimax */		\
 	{ }/* Terminating entry */                      \
 }
 

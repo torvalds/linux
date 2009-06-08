@@ -864,7 +864,7 @@ static void intelfb_sysrq(int dummy1, struct tty_struct *dummy3)
 
 static struct sysrq_key_op sysrq_intelfb_restore_op = {
         .handler = intelfb_sysrq,
-        .help_msg = "force-fb(G)",
+        .help_msg = "force-fb(V)",
         .action_msg = "Restore framebuffer console",
 };
 
@@ -898,7 +898,7 @@ int intelfb_probe(struct drm_device *dev)
 		ret = intelfb_single_fb_probe(dev);
 	}
 
-	register_sysrq_key('g', &sysrq_intelfb_restore_op);
+	register_sysrq_key('v', &sysrq_intelfb_restore_op);
 
 	return ret;
 }

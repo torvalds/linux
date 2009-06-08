@@ -88,14 +88,19 @@ static struct device_type bt_link = {
 static void add_conn(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
+	struct hci_dev *hdev = conn->hdev;
 
 	/* ensure previous del is complete */
 	flush_work(&conn->work_del);
+
+	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
 		return;
 	}
+
+	hci_dev_hold(hdev);
 }
 
 /*
@@ -131,6 +136,7 @@ static void del_conn(struct work_struct *work)
 
 	device_del(&conn->dev);
 	put_device(&conn->dev);
+
 	hci_dev_put(hdev);
 }
 
@@ -154,11 +160,7 @@ void hci_conn_init_sysfs(struct hci_conn *conn)
 
 void hci_conn_add_sysfs(struct hci_conn *conn)
 {
-	struct hci_dev *hdev = conn->hdev;
-
 	BT_DBG("conn %p", conn);
-
-	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
 	queue_work(bt_workq, &conn->work_add);
 }
