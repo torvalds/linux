@@ -217,6 +217,8 @@ typedef union _LUNAddr_struct {
   LogDevAddr_struct  LogDev;
 } LUNAddr_struct;
 
+#define CTLR_LUNID "\0\0\0\0\0\0\0\0"
+
 typedef struct _CommandListHeader_struct {
   BYTE              ReplyQueue;
   BYTE              SGList;
