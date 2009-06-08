@@ -826,7 +826,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	err = schedule_erase(ubi, e1, 0);
 	if (err) {
 		kmem_cache_free(ubi_wl_entry_slab, e1);
-		kmem_cache_free(ubi_wl_entry_slab, e2);
+		if (e2)
+			kmem_cache_free(ubi_wl_entry_slab, e2);
 		goto out_ro;
 	}
 
