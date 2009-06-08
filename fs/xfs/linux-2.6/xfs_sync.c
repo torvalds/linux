@@ -49,6 +49,39 @@
 #include <linux/freezer.h>
 
 
+/* must be called with pag_ici_lock held and releases it */
+STATIC int
+xfs_sync_inode_valid(
+	struct xfs_inode	*ip,
+	struct xfs_perag	*pag)
+{
+	struct inode		*inode = VFS_I(ip);
+
+	/* nothing to sync during shutdown */
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		read_unlock(&pag->pag_ici_lock);
+		return EFSCORRUPTED;
+	}
+
+	/*
+	 * If we can't get a reference on the inode, it must be in reclaim.
+	 * Leave it for the reclaim code to flush. Also avoid inodes that
+	 * haven't been fully initialised.
+	 */
+	if (!igrab(inode)) {
+		read_unlock(&pag->pag_ici_lock);
+		return ENOENT;
+	}
+	read_unlock(&pag->pag_ici_lock);
+
+	if (is_bad_inode(inode) || xfs_iflags_test(ip, XFS_INEW)) {
+		IRELE(ip);
+		return ENOENT;
+	}
+
+	return 0;
+}
+
 STATIC int
 xfs_sync_inode_data(
 	struct xfs_inode	*ip,
@@ -123,7 +156,6 @@ xfs_sync_inodes_ag(
 	int		last_error = 0;
 
 	do {
-		struct inode	*inode;
 		xfs_inode_t	*ip = NULL;
 
 		/*
@@ -152,27 +184,10 @@ xfs_sync_inodes_ag(
 			break;
 		}
 
-		/* nothing to sync during shutdown */
-		if (XFS_FORCED_SHUTDOWN(mp)) {
-			read_unlock(&pag->pag_ici_lock);
-			return 0;
-		}
-
-		/*
-		 * If we can't get a reference on the inode, it must be
-		 * in reclaim. Leave it for the reclaim code to flush.
-		 */
-		inode = VFS_I(ip);
-		if (!igrab(inode)) {
-			read_unlock(&pag->pag_ici_lock);
-			continue;
-		}
-		read_unlock(&pag->pag_ici_lock);
-
-		/* avoid new or bad inodes */
-		if (is_bad_inode(inode) ||
-		    xfs_iflags_test(ip, XFS_INEW)) {
-			IRELE(ip);
+		error = xfs_sync_inode_valid(ip, pag);
+		if (error) {
+			if (error == EFSCORRUPTED)
+				return 0;
 			continue;
 		}
 
