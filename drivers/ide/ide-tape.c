@@ -240,18 +240,27 @@ static struct class *idetape_sysfs_class;
 
 static void ide_tape_release(struct device *);
 
-static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
+static struct ide_tape_obj *idetape_devs[MAX_HWIFS * MAX_DRIVES];
+
+static struct ide_tape_obj *ide_tape_get(struct gendisk *disk, bool cdev,
+					 unsigned int i)
 {
 	struct ide_tape_obj *tape = NULL;
 
 	mutex_lock(&idetape_ref_mutex);
-	tape = ide_drv_g(disk, ide_tape_obj);
+
+	if (cdev)
+		tape = idetape_devs[i];
+	else
+		tape = ide_drv_g(disk, ide_tape_obj);
+
 	if (tape) {
 		if (ide_device_get(tape->drive))
 			tape = NULL;
 		else
 			get_device(&tape->dev);
 	}
+
 	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
@@ -264,24 +273,6 @@ static void ide_tape_put(struct ide_tape_obj *tape)
 	put_device(&tape->dev);
 	ide_device_put(drive);
 	mutex_unlock(&idetape_ref_mutex);
-}
-
-/*
- * The variables below are used for the character device interface. Additional
- * state variables are defined in our ide_drive_t structure.
- */
-static struct ide_tape_obj *idetape_devs[MAX_HWIFS * MAX_DRIVES];
-
-static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
-{
-	struct ide_tape_obj *tape = NULL;
-
-	mutex_lock(&idetape_ref_mutex);
-	tape = idetape_devs[i];
-	if (tape)
-		get_device(&tape->dev);
-	mutex_unlock(&idetape_ref_mutex);
-	return tape;
 }
 
 /*
@@ -1495,7 +1486,7 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 		return -ENXIO;
 
 	lock_kernel();
-	tape = ide_tape_chrdev_get(i);
+	tape = ide_tape_get(NULL, true, i);
 	if (!tape) {
 		unlock_kernel();
 		return -ENXIO;
@@ -1916,7 +1907,7 @@ static const struct file_operations idetape_fops = {
 
 static int idetape_open(struct block_device *bdev, fmode_t mode)
 {
-	struct ide_tape_obj *tape = ide_tape_get(bdev->bd_disk);
+	struct ide_tape_obj *tape = ide_tape_get(bdev->bd_disk, false, 0);
 
 	if (!tape)
 		return -ENXIO;
