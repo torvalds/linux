@@ -33,8 +33,6 @@ static int __sync_filesystem(struct super_block *sb, int wait)
 	else
 		sync_quota_sb(sb, -1);
 	sync_inodes_sb(sb, wait);
-	if (sb->s_dirt && sb->s_op->write_super)
-		sb->s_op->write_super(sb);
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
 	return __sync_blockdev(sb->s_bdev, wait);
