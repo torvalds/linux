@@ -179,41 +179,31 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 static ssize_t vhci_read(struct file *file,
 				char __user *buf, size_t count, loff_t *pos)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct vhci_data *data = file->private_data;
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	add_wait_queue(&data->read_wait, &wait);
 	while (count) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
 		skb = skb_dequeue(&data->readq);
-		if (!skb) {
-			if (file->f_flags & O_NONBLOCK) {
-				ret = -EAGAIN;
-				break;
-			}
-
-			if (signal_pending(current)) {
-				ret = -ERESTARTSYS;
-				break;
-			}
-
-			schedule();
-			continue;
+		if (skb) {
+			ret = vhci_put_user(data, skb, buf, count);
+			if (ret < 0)
+				skb_queue_head(&data->readq, skb);
+			else
+				kfree_skb(skb);
+			break;
 		}
 
-		if (access_ok(VERIFY_WRITE, buf, count))
-			ret = vhci_put_user(data, skb, buf, count);
-		else
-			ret = -EFAULT;
+		if (file->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
 
-		kfree_skb(skb);
-		break;
+		ret = wait_event_interruptible(data->read_wait,
+					!skb_queue_empty(&data->readq));
+		if (ret < 0)
+			break;
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&data->read_wait, &wait);
 
 	return ret;
 }
@@ -222,9 +212,6 @@ static ssize_t vhci_write(struct file *file,
 			const char __user *buf, size_t count, loff_t *pos)
 {
 	struct vhci_data *data = file->private_data;
-
-	if (!access_ok(VERIFY_READ, buf, count))
-		return -EFAULT;
 
 	return vhci_get_user(data, buf, count);
 }
