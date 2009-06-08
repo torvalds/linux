@@ -28,6 +28,7 @@
 #ifndef _IXGBE_FCOE_H
 #define _IXGBE_FCOE_H
 
+#include <scsi/fc/fc_fs.h>
 #include <scsi/fc/fc_fcoe.h>
 
 /* shift bits within STAT fo FCSTAT */

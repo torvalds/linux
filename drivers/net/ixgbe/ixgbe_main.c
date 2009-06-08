@@ -293,12 +293,24 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 			if (cleaned && skb) {
 				unsigned int segs, bytecount;
+				unsigned int hlen = skb_headlen(skb);
 
 				/* gso_segs is currently only valid for tcp */
 				segs = skb_shinfo(skb)->gso_segs ?: 1;
+#ifdef IXGBE_FCOE
+				/* adjust for FCoE Sequence Offload */
+				if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+				    && (skb->protocol == htons(ETH_P_FCOE)) &&
+				    skb_is_gso(skb)) {
+					hlen = skb_transport_offset(skb) +
+						sizeof(struct fc_frame_header) +
+						sizeof(struct fcoe_crc_eof);
+					segs = DIV_ROUND_UP(skb->len - hlen,
+						skb_shinfo(skb)->gso_size);
+				}
+#endif /* IXGBE_FCOE */
 				/* multiply data chunks by size of headers */
-				bytecount = ((segs - 1) * skb_headlen(skb)) +
-				            skb->len;
+				bytecount = ((segs - 1) * hlen) + skb->len;
 				total_packets += segs;
 				total_bytes += bytecount;
 			}
@@ -683,6 +695,9 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	bool cleaned = false;
 	int cleaned_count = 0;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+#ifdef IXGBE_FCOE
+	int ddp_bytes = 0;
+#endif /* IXGBE_FCOE */
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC_ADV(*rx_ring, i);
@@ -793,9 +808,11 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 #ifdef IXGBE_FCOE
 		/* if ddp, not passing to ULD unless for FCP_RSP or error */
-		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
-			if (!ixgbe_fcoe_ddp(adapter, rx_desc, skb))
+		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb);
+			if (!ddp_bytes)
 				goto next_desc;
+		}
 #endif /* IXGBE_FCOE */
 		ixgbe_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
 
@@ -820,6 +837,21 @@ next_desc:
 
 	if (cleaned_count)
 		ixgbe_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
+
+#ifdef IXGBE_FCOE
+	/* include DDPed FCoE data */
+	if (ddp_bytes > 0) {
+		unsigned int mss;
+
+		mss = adapter->netdev->mtu - sizeof(struct fcoe_hdr) -
+			sizeof(struct fc_frame_header) -
+			sizeof(struct fcoe_crc_eof);
+		if (mss > 512)
+			mss &= ~511;
+		total_rx_bytes += ddp_bytes;
+		total_rx_packets += DIV_ROUND_UP(ddp_bytes, mss);
+	}
+#endif /* IXGBE_FCOE */
 
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
