@@ -31,16 +31,13 @@
 #include <asm/byteorder.h>
 #include "sysv.h"
 
-/* This is only called on sync() and umount(), when s_dirt=1. */
-static void sysv_write_super(struct super_block *sb)
+static int sysv_sync_fs(struct super_block *sb, int wait)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	unsigned long time = get_seconds(), old_time;
 
 	lock_super(sb);
 	lock_kernel();
-	if (sb->s_flags & MS_RDONLY)
-		goto clean;
 
 	/*
 	 * If we are going to write out the super block,
@@ -54,10 +51,19 @@ static void sysv_write_super(struct super_block *sb)
 		*sbi->s_sb_time = cpu_to_fs32(sbi, time);
 		mark_buffer_dirty(sbi->s_bh2);
 	}
-clean:
-	sb->s_dirt = 0;
+
 	unlock_kernel();
 	unlock_super(sb);
+
+	return 0;
+}
+
+static void sysv_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		sysv_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static int sysv_remount(struct super_block *sb, int *flags, char *data)
@@ -345,6 +351,7 @@ const struct super_operations sysv_sops = {
 	.delete_inode	= sysv_delete_inode,
 	.put_super	= sysv_put_super,
 	.write_super	= sysv_write_super,
+	.sync_fs	= sysv_sync_fs,
 	.remount_fs	= sysv_remount,
 	.statfs		= sysv_statfs,
 };
