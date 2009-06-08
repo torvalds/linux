@@ -80,8 +80,8 @@ static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
-int b43_modparam_qos = 1;
-module_param_named(qos, b43_modparam_qos, int, 0444);
+static int modparam_qos = 1;
+module_param_named(qos, modparam_qos, int, 0444);
 MODULE_PARM_DESC(qos, "Enable QOS support (default on)");
 
 static int modparam_btcoex = 1;
@@ -536,6 +536,13 @@ void b43_hf_write(struct b43_wldev *dev, u64 value)
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO, lo);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI, mi);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI, hi);
+}
+
+/* Read the firmware capabilities bitmask (Opensource firmware only) */
+static u16 b43_fwcapa_read(struct b43_wldev *dev)
+{
+	B43_WARN_ON(!dev->fw.opensource);
+	return b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_FWCAPA);
 }
 
 void b43_tsf_read(struct b43_wldev *dev, u64 *tsf)
@@ -2307,12 +2314,34 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	dev->fw.patch = fwpatch;
 	dev->fw.opensource = (fwdate == 0xFFFF);
 
+	/* Default to use-all-queues. */
+	dev->wl->hw->queues = dev->wl->mac80211_initially_registered_queues;
+	dev->qos_enabled = !!modparam_qos;
+	/* Default to firmware/hardware crypto acceleration. */
+	dev->hwcrypto_enabled = 1;
+
 	if (dev->fw.opensource) {
+		u16 fwcapa;
+
 		/* Patchlevel info is encoded in the "time" field. */
 		dev->fw.patch = fwtime;
-		b43info(dev->wl, "Loading OpenSource firmware version %u.%u%s\n",
-			dev->fw.rev, dev->fw.patch,
-			dev->fw.pcm_request_failed ? " (Hardware crypto not supported)" : "");
+		b43info(dev->wl, "Loading OpenSource firmware version %u.%u\n",
+			dev->fw.rev, dev->fw.patch);
+
+		fwcapa = b43_fwcapa_read(dev);
+		if (!(fwcapa & B43_FWCAPA_HWCRYPTO) || dev->fw.pcm_request_failed) {
+			b43info(dev->wl, "Hardware crypto acceleration not supported by firmware\n");
+			/* Disable hardware crypto and fall back to software crypto. */
+			dev->hwcrypto_enabled = 0;
+		}
+		if (!(fwcapa & B43_FWCAPA_QOS)) {
+			b43info(dev->wl, "QoS not supported by firmware\n");
+			/* Disable QoS. Tweak hw->queues to 1. It will be restored before
+			 * ieee80211_unregister to make sure the networking core can
+			 * properly free possible resources. */
+			dev->wl->hw->queues = 1;
+			dev->qos_enabled = 0;
+		}
 	} else {
 		b43info(dev->wl, "Loading firmware version %u.%u "
 			"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
@@ -3627,7 +3656,7 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!dev || b43_status(dev) < B43_STAT_INITIALIZED)
 		goto out_unlock;
 
-	if (dev->fw.pcm_request_failed) {
+	if (dev->fw.pcm_request_failed || !dev->hwcrypto_enabled) {
 		/* We don't have firmware for the crypto engine.
 		 * Must use software-crypto. */
 		err = -EOPNOTSUPP;
@@ -4727,6 +4756,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 		b43err(NULL, "Could not allocate ieee80211 device\n");
 		goto out;
 	}
+	wl = hw_to_b43_wl(hw);
 
 	/* fill hw info */
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
@@ -4740,7 +4770,8 @@ static int b43_wireless_init(struct ssb_device *dev)
 		BIT(NL80211_IFTYPE_WDS) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->queues = b43_modparam_qos ? 4 : 1;
+	hw->queues = modparam_qos ? 4 : 1;
+	wl->mac80211_initially_registered_queues = hw->queues;
 	hw->max_rates = 2;
 	SET_IEEE80211_DEV(hw, dev->dev);
 	if (is_valid_ether_addr(sprom->et1mac))
@@ -4748,9 +4779,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	else
 		SET_IEEE80211_PERM_ADDR(hw, sprom->il0mac);
 
-	/* Get and initialize struct b43_wl */
-	wl = hw_to_b43_wl(hw);
-	memset(wl, 0, sizeof(*wl));
+	/* Initialize struct b43_wl */
 	wl->hw = hw;
 	spin_lock_init(&wl->irq_lock);
 	rwlock_init(&wl->tx_lock);
@@ -4816,8 +4845,13 @@ static void b43_remove(struct ssb_device *dev)
 	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
-	if (wl->current_dev == wldev)
+	if (wl->current_dev == wldev) {
+		/* Restore the queues count before unregistering, because firmware detect
+		 * might have modified it. Restoring is important, so the networking
+		 * stack can properly free resources. */
+		wl->hw->queues = wl->mac80211_initially_registered_queues;
 		ieee80211_unregister_hw(wl->hw);
+	}
 
 	b43_one_core_detach(dev);
 
