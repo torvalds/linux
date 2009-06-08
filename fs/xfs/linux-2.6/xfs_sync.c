@@ -141,7 +141,7 @@ restart:
 	return last_error;
 }
 
-STATIC int
+int
 xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
 	int			(*execute)(struct xfs_inode *ip,
@@ -167,7 +167,7 @@ xfs_inode_ag_iterator(
 }
 
 /* must be called with pag_ici_lock held and releases it */
-STATIC int
+int
 xfs_sync_inode_valid(
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag)
