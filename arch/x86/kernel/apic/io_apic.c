@@ -580,7 +580,6 @@ static void __unmask_IO_APIC_irq(struct irq_cfg *cfg)
 	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_MASKED, 0, NULL);
 }
 
-#ifdef CONFIG_X86_64
 static void io_apic_sync(struct irq_pin_list *entry)
 {
 	/*
@@ -596,12 +595,8 @@ static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
 {
 	io_apic_modify_irq(cfg, ~0, IO_APIC_REDIR_MASKED, &io_apic_sync);
 }
-#else /* CONFIG_X86_32 */
-static void __mask_IO_APIC_irq(struct irq_cfg *cfg)
-{
-	io_apic_modify_irq(cfg, ~0, IO_APIC_REDIR_MASKED, NULL);
-}
 
+#ifdef CONFIG_X86_32
 static void __mask_and_edge_IO_APIC_irq(struct irq_cfg *cfg)
 {
 	io_apic_modify_irq(cfg, ~IO_APIC_REDIR_LEVEL_TRIGGER,
