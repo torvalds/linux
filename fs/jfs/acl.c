@@ -31,7 +31,6 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *ea_name;
-	struct jfs_inode_info *ji = JFS_IP(inode);
 	struct posix_acl **p_acl;
 	int size;
 	char *value = NULL;
@@ -39,17 +38,17 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			ea_name = POSIX_ACL_XATTR_ACCESS;
-			p_acl = &ji->i_acl;
+			p_acl = &inode->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
 			ea_name = POSIX_ACL_XATTR_DEFAULT;
-			p_acl = &ji->i_default_acl;
+			p_acl = &inode->i_default_acl;
 			break;
 		default:
 			return ERR_PTR(-EINVAL);
 	}
 
-	if (*p_acl != JFS_ACL_NOT_CACHED)
+	if (*p_acl != ACL_NOT_CACHED)
 		return posix_acl_dup(*p_acl);
 
 	size = __jfs_getxattr(inode, ea_name, NULL, 0);
@@ -80,7 +79,6 @@ static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
 		       struct posix_acl *acl)
 {
 	char *ea_name;
-	struct jfs_inode_info *ji = JFS_IP(inode);
 	struct posix_acl **p_acl;
 	int rc;
 	int size = 0;
@@ -92,11 +90,11 @@ static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			ea_name = POSIX_ACL_XATTR_ACCESS;
-			p_acl = &ji->i_acl;
+			p_acl = &inode->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
 			ea_name = POSIX_ACL_XATTR_DEFAULT;
-			p_acl = &ji->i_default_acl;
+			p_acl = &inode->i_default_acl;
 			if (!S_ISDIR(inode->i_mode))
 				return acl ? -EACCES : 0;
 			break;
@@ -117,7 +115,7 @@ out:
 	kfree(value);
 
 	if (!rc) {
-		if (*p_acl && (*p_acl != JFS_ACL_NOT_CACHED))
+		if (*p_acl && (*p_acl != ACL_NOT_CACHED))
 			posix_acl_release(*p_acl);
 		*p_acl = posix_acl_dup(acl);
 	}
@@ -126,17 +124,15 @@ out:
 
 static int jfs_check_acl(struct inode *inode, int mask)
 {
-	struct jfs_inode_info *ji = JFS_IP(inode);
-
-	if (ji->i_acl == JFS_ACL_NOT_CACHED) {
+	if (inode->i_acl == ACL_NOT_CACHED) {
 		struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 		posix_acl_release(acl);
 	}
 
-	if (ji->i_acl)
-		return posix_acl_permission(inode, ji->i_acl, mask);
+	if (inode->i_acl)
+		return posix_acl_permission(inode, inode->i_acl, mask);
 	return -EAGAIN;
 }
 
