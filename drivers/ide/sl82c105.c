@@ -10,7 +10,7 @@
  * with the timing registers setup.
  *  -- Benjamin Herrenschmidt (01/11/03) benh@kernel.crashing.org
  *
- * Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
+ * Copyright (C) 2006-2007,2009 MontaVista Software, Inc. <source@mvista.com>
  * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  */
 
@@ -146,14 +146,15 @@ static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 	u32 val, mask		= hwif->channel ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
 	u8 dma_cmd;
 
-	printk("sl82c105: lost IRQ, resetting host\n");
+	printk(KERN_WARNING "sl82c105: lost IRQ, resetting host\n");
 
 	/*
 	 * Check the raw interrupt from the drive.
 	 */
 	pci_read_config_dword(dev, 0x40, &val);
 	if (val & mask)
-		printk("sl82c105: drive was requesting IRQ, but host lost it\n");
+		printk(KERN_INFO "sl82c105: drive was requesting IRQ, "
+		       "but host lost it\n");
 
 	/*
 	 * Was DMA enabled?  If so, disable it - we're resetting the
@@ -162,7 +163,7 @@ static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 	dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 	if (dma_cmd & 1) {
 		outb(dma_cmd & ~1, hwif->dma_base + ATA_DMA_CMD);
-		printk("sl82c105: DMA was enabled\n");
+		printk(KERN_INFO "sl82c105: DMA was enabled\n");
 	}
 
 	sl82c105_reset_host(dev);
