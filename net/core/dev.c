@@ -3655,8 +3655,8 @@ static int dev_addr_init(struct net_device *dev)
 	/* rtnl_mutex must be held here */
 
 	INIT_LIST_HEAD(&dev->dev_addr_list);
-	memset(addr, 0, sizeof(*addr));
-	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, sizeof(*addr),
+	memset(addr, 0, sizeof(addr));
+	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, sizeof(addr),
 			    NETDEV_HW_ADDR_T_LAN);
 	if (!err) {
 		/*
