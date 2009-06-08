@@ -8,11 +8,16 @@
 
 #include <linux/slab.h>
 #include <linux/math64.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include "ctatc.h"
 #include "cthardware.h"
 #include "cttimer.h"
+
+static int use_system_timer;
+MODULE_PARM_DESC(use_system_timer, "Foce to use system-timer");
+module_param(use_system_timer, bool, S_IRUGO);
 
 struct ct_timer_ops {
 	void (*init)(struct ct_timer_instance *);
@@ -390,8 +395,6 @@ void ct_timer_instance_free(struct ct_timer_instance *ti)
  * timer manager
  */
 
-#define USE_SYSTEM_TIMER	0
-
 static void ct_timer_interrupt(void *data, unsigned int status)
 {
 	struct ct_timer *timer = data;
@@ -415,7 +418,7 @@ struct ct_timer *ct_timer_new(struct ct_atc *atc)
 	INIT_LIST_HEAD(&atimer->running_head);
 	atimer->atc = atc;
 	hw = atc->hw;
-	if (!USE_SYSTEM_TIMER && hw->set_timer_irq) {
+	if (!use_system_timer && hw->set_timer_irq) {
 		snd_printd(KERN_INFO "ctxfi: Use xfi-native timer\n");
 		atimer->ops = &ct_xfitimer_ops;
 		hw->irq_callback_data = atimer;
