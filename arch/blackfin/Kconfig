@@ -55,6 +55,9 @@ config FORCE_MAX_ZONEORDER
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.preempt"
