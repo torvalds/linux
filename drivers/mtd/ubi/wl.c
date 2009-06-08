@@ -656,6 +656,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
 	int err, scrubbing = 0, torture = 0, protect = 0, erroneous = 0;
+	int vol_id = -1, uninitialized_var(lnum);
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
 
@@ -757,6 +758,9 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		goto out_error;
 	}
 
+	vol_id = be32_to_cpu(vid_hdr->vol_id);
+	lnum = be32_to_cpu(vid_hdr->lnum);
+
 	err = ubi_eba_copy_leb(ubi, e1->pnum, e2->pnum, vid_hdr);
 	if (err) {
 		if (err == MOVE_CANCEL_RACE) {
@@ -773,7 +777,9 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 		if (err == MOVE_CANCEL_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
 		    err == MOVE_TARGET_RD_ERR) {
-			/* Target PEB bit-flips or write error, torture it */
+			/*
+			 * Target PEB had bit-flips or write error - torture it.
+			 */
 			torture = 1;
 			goto out_not_moved;
 		}
@@ -803,10 +809,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	}
 
 	/* The PEB has been successfully moved */
-	ubi_free_vid_hdr(ubi, vid_hdr);
 	if (scrubbing)
-		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
-			e1->pnum, e2->pnum);
+		ubi_msg("scrubbed PEB %d (LEB %d:%d), data moved to PEB %d",
+			e1->pnum, vol_id, lnum, e2->pnum);
+	ubi_free_vid_hdr(ubi, vid_hdr);
 
 	spin_lock(&ubi->wl_lock);
 	if (!ubi->move_to_put) {
@@ -829,7 +835,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 * Well, the target PEB was put meanwhile, schedule it for
 		 * erasure.
 		 */
-		dbg_wl("PEB %d was put meanwhile, erase", e2->pnum);
+		dbg_wl("PEB %d (LEB %d:%d) was put meanwhile, erase",
+		       e2->pnum, vol_id, lnum);
 		err = schedule_erase(ubi, e2, 0);
 		if (err) {
 			kmem_cache_free(ubi_wl_entry_slab, e2);
@@ -847,8 +854,12 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	 * have been changed, schedule it for erasure.
 	 */
 out_not_moved:
-	dbg_wl("cancel moving PEB %d to PEB %d (%d)",
-	       e1->pnum, e2->pnum, err);
+	if (vol_id != -1)
+		dbg_wl("cancel moving PEB %d (LEB %d:%d) to PEB %d (%d)",
+		       e1->pnum, vol_id, lnum, e2->pnum, err);
+	else
+		dbg_wl("cancel moving PEB %d to PEB %d (%d)",
+		       e1->pnum, e2->pnum, err);
 	spin_lock(&ubi->wl_lock);
 	if (protect)
 		prot_queue_add(ubi, e1);
@@ -874,8 +885,12 @@ out_not_moved:
 	return 0;
 
 out_error:
-	ubi_err("error %d while moving PEB %d to PEB %d",
-		err, e1->pnum, e2->pnum);
+	if (vol_id != -1)
+		ubi_err("error %d while moving PEB %d to PEB %d",
+			err, e1->pnum, e2->pnum);
+	else
+		ubi_err("error %d while moving PEB %d (LEB %d:%d) to PEB %d",
+			err, e1->pnum, vol_id, lnum, e2->pnum);
 	spin_lock(&ubi->wl_lock);
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->move_to_put = ubi->wl_scheduled = 0;
