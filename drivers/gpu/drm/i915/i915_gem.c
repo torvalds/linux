@@ -1714,7 +1714,10 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 	BUG_ON(seqno == 0);
 
 	if (!i915_seqno_passed(i915_get_gem_seqno(dev), seqno)) {
-		ier = I915_READ(IER);
+		if (IS_IGDNG(dev))
+			ier = I915_READ(DEIER) | I915_READ(GTIER);
+		else
+			ier = I915_READ(IER);
 		if (!ier) {
 			DRM_ERROR("something (likely vbetool) disabled "
 				  "interrupts, re-enabling\n");
