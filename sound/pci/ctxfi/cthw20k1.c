@@ -1186,6 +1186,11 @@ static int set_timer_tick(struct hw *hw, unsigned int ticks)
 	return 0;
 }
 
+static unsigned int get_wc(struct hw *hw)
+{
+	return hw_read_20kx(hw, WC);
+}
+
 /* Card hardware initialization block */
 struct dac_conf {
 	unsigned int msr; /* master sample rate in rsrs */
@@ -2235,6 +2240,7 @@ static struct hw ct20k1_preset __devinitdata = {
 
 	.set_timer_irq = set_timer_irq,
 	.set_timer_tick = set_timer_tick,
+	.get_wc = get_wc,
 };
 
 int __devinit create_20k1_hw_obj(struct hw **rhw)

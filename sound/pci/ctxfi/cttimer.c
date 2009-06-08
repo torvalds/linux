@@ -47,6 +47,7 @@ struct ct_timer {
 	struct ct_timer_ops *ops;
 	struct list_head instance_head;
 	struct list_head running_head;
+	unsigned int wc;		/* current wallclock */
 	unsigned int irq_handling:1;	/* in IRQ handling */
 	unsigned int reprogram:1;	/* need to reprogram the internval */
 	unsigned int running:1;		/* global timer running */
@@ -136,6 +137,7 @@ static struct ct_timer_ops ct_systimer_ops = {
  */
 
 #define CT_TIMER_FREQ	48000
+#define MIN_TICKS	1
 #define MAX_TICKS	((1 << 13) - 1)
 
 static void ct_xfitimer_irq_rearm(struct ct_timer *atimer, int ticks)
@@ -159,6 +161,12 @@ static void ct_xfitimer_irq_stop(struct ct_timer *atimer)
 	}
 }
 
+static inline unsigned int ct_xfitimer_get_wc(struct ct_timer *atimer)
+{
+	struct hw *hw = atimer->atc->hw;
+	return hw->get_wc(hw);
+}
+
 /*
  * reprogram the timer interval;
  * checks the running instance list and determines the next timer interval.
@@ -170,37 +178,46 @@ static void ct_xfitimer_irq_stop(struct ct_timer *atimer)
 static int ct_xfitimer_reprogram(struct ct_timer *atimer)
 {
 	struct ct_timer_instance *ti;
-	int min_intr = -1;
+	unsigned int min_intr = (unsigned int)-1;
 	int updates = 0;
+	unsigned int wc, diff;
 
-	list_for_each_entry(ti, &atimer->running_head, running_list) {
-		struct snd_pcm_runtime *runtime;
-		unsigned int pos, diff;
-		int intr;
-		runtime = ti->substream->runtime;
-		pos = ti->substream->ops->pointer(ti->substream);
-		if (pos < ti->position)
-			diff = runtime->buffer_size - ti->position + pos;
-		else
-			diff = pos - ti->position;
-		ti->position = pos;
-		while (diff >= ti->frag_count) {
-			ti->frag_count += runtime->period_size;
-			ti->need_update = 1;
-			updates++;
-		}
-		ti->frag_count -= diff;
-		intr = div_u64((u64)ti->frag_count * CT_TIMER_FREQ,
-			       runtime->rate);
-		if (min_intr < 0 || intr < min_intr)
-			min_intr = intr;
+	if (list_empty(&atimer->running_head)) {
+		ct_xfitimer_irq_stop(atimer);
+		atimer->reprogram = 0; /* clear flag */
+		return 0;
 	}
 
-	if (min_intr > 0)
-		ct_xfitimer_irq_rearm(atimer, min_intr);
-	else
-		ct_xfitimer_irq_stop(atimer);
+	wc = ct_xfitimer_get_wc(atimer);
+	diff = wc - atimer->wc;
+	atimer->wc = wc;
+	list_for_each_entry(ti, &atimer->running_head, running_list) {
+		if (ti->frag_count > diff)
+			ti->frag_count -= diff;
+		else {
+			unsigned int pos;
+			unsigned int period_size, rate;
 
+			period_size = ti->substream->runtime->period_size;
+			rate = ti->substream->runtime->rate;
+			pos = ti->substream->ops->pointer(ti->substream);
+			if (pos / period_size != ti->position / period_size) {
+				ti->need_update = 1;
+				ti->position = pos;
+				updates++;
+			}
+			pos %= period_size;
+			pos = period_size - pos;
+			ti->frag_count = div_u64((u64)pos * CT_TIMER_FREQ +
+						 rate - 1, rate);
+		}
+		if (ti->frag_count < min_intr)
+			min_intr = ti->frag_count;
+	}
+
+	if (min_intr < MIN_TICKS)
+		min_intr = MIN_TICKS;
+	ct_xfitimer_irq_rearm(atimer, min_intr);
 	atimer->reprogram = 0; /* clear flag */
 	return updates;
 }
@@ -253,13 +270,14 @@ static void ct_xfitimer_update(struct ct_timer *atimer)
 	unsigned long flags;
 	int update;
 
+	spin_lock_irqsave(&atimer->lock, flags);
 	if (atimer->irq_handling) {
 		/* reached from IRQ handler; let it handle later */
 		atimer->reprogram = 1;
+		spin_unlock_irqrestore(&atimer->lock, flags);
 		return;
 	}
 
-	spin_lock_irqsave(&atimer->lock, flags);
 	ct_xfitimer_irq_stop(atimer);
 	update = ct_xfitimer_reprogram(atimer);
 	spin_unlock_irqrestore(&atimer->lock, flags);
@@ -273,6 +291,8 @@ static void ct_xfitimer_start(struct ct_timer_instance *ti)
 	unsigned long flags;
 
 	spin_lock_irqsave(&atimer->lock, flags);
+	if (list_empty(&ti->running_list))
+		atimer->wc = ct_xfitimer_get_wc(atimer);
 	list_add(&ti->running_list, &atimer->running_head);
 	spin_unlock_irqrestore(&atimer->lock, flags);
 	ct_xfitimer_update(atimer);
@@ -396,12 +416,12 @@ struct ct_timer *ct_timer_new(struct ct_atc *atc)
 	atimer->atc = atc;
 	hw = atc->hw;
 	if (!USE_SYSTEM_TIMER && hw->set_timer_irq) {
-		printk(KERN_INFO "ctxfi: Use xfi-native timer\n");
+		snd_printd(KERN_INFO "ctxfi: Use xfi-native timer\n");
 		atimer->ops = &ct_xfitimer_ops;
 		hw->irq_callback_data = atimer;
 		hw->irq_callback = ct_timer_interrupt;
 	} else {
-		printk(KERN_INFO "ctxfi: Use system timer\n");
+		snd_printd(KERN_INFO "ctxfi: Use system timer\n");
 		atimer->ops = &ct_systimer_ops;
 	}
 	return atimer;

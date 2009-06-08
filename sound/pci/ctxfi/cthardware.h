@@ -147,6 +147,7 @@ struct hw {
 
 	int (*set_timer_irq)(struct hw *hw, int enable);
 	int (*set_timer_tick)(struct hw *hw, unsigned int tick);
+	unsigned int (*get_wc)(struct hw *hw);
 
 	void (*irq_callback)(void *data, unsigned int bit);
 	void *irq_callback_data;
