@@ -1604,16 +1604,25 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 
 		(void) process_sendcmd_error(h, c);
 
-		if (rc == 0 && c->err_info->CommandStatus == CMD_SUCCESS)
+		if (rc != 0)
+			goto retry_tur;
+
+		if (c->err_info->CommandStatus == CMD_SUCCESS)
 			break;
 
-		if (rc == 0 &&
-			c->err_info->CommandStatus == CMD_TARGET_STATUS &&
-			c->err_info->ScsiStatus == SAM_STAT_CHECK_CONDITION &&
-			(c->err_info->SenseInfo[2] == NO_SENSE ||
-			c->err_info->SenseInfo[2] == UNIT_ATTENTION))
-			break;
-
+		if (c->err_info->CommandStatus == CMD_TARGET_STATUS &&
+			c->err_info->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
+			if (c->err_info->SenseInfo[2] == NO_SENSE)
+				break;
+			if (c->err_info->SenseInfo[2] == UNIT_ATTENTION) {
+				unsigned char asc;
+				asc = c->err_info->SenseInfo[12];
+				check_for_unit_attention(h, c);
+				if (asc == POWER_OR_RESET)
+					break;
+			}
+		}
+retry_tur:
 		printk(KERN_WARNING "cciss%d: Waiting %d secs "
 			"for device to become ready.\n",
 			h->ctlr, waittime / HZ);
