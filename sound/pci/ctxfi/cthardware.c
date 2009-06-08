@@ -22,7 +22,7 @@
 
 static enum CHIPTYP __devinitdata get_chip_type(struct hw *hw)
 {
-	enum CHIPTYP type = ATCNONE;
+	enum CHIPTYP type;
 
 	switch (hw->pci->device) {
 	case 0x0005:	/* 20k1 device */
@@ -41,7 +41,7 @@ static enum CHIPTYP __devinitdata get_chip_type(struct hw *hw)
 
 int __devinit create_hw_obj(struct pci_dev *pci, struct hw **rhw)
 {
-	int err = 0;
+	int err;
 
 	switch (pci->device) {
 	case 0x0005:	/* 20k1 device */
@@ -65,7 +65,7 @@ int __devinit create_hw_obj(struct pci_dev *pci, struct hw **rhw)
 
 int destroy_hw_obj(struct hw *hw)
 {
-	int err = 0;
+	int err;
 
 	switch (hw->pci->device) {
 	case 0x0005:	/* 20k1 device */

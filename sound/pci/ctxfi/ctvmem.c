@@ -31,8 +31,8 @@
 static struct ct_vm_block *
 get_vm_block(struct ct_vm *vm, unsigned int size)
 {
-	struct ct_vm_block *block = NULL, *entry = NULL;
-	struct list_head *pos = NULL;
+	struct ct_vm_block *block = NULL, *entry;
+	struct list_head *pos;
 
 	size = CT_PAGE_ALIGN(size);
 	if (size > vm->size) {
@@ -77,8 +77,8 @@ get_vm_block(struct ct_vm *vm, unsigned int size)
 
 static void put_vm_block(struct ct_vm *vm, struct ct_vm_block *block)
 {
-	struct ct_vm_block *entry = NULL, *pre_ent = NULL;
-	struct list_head *pos = NULL, *pre = NULL;
+	struct ct_vm_block *entry, *pre_ent;
+	struct list_head *pos, *pre;
 
 	block->size = CT_PAGE_ALIGN(block->size);
 
@@ -223,8 +223,8 @@ int ct_vm_create(struct ct_vm **rvm)
 void ct_vm_destroy(struct ct_vm *vm)
 {
 	int i;
-	struct list_head *pos = NULL;
-	struct ct_vm_block *entry = NULL;
+	struct list_head *pos;
+	struct ct_vm_block *entry;
 
 	/* free used and unused list nodes */
 	while (!list_empty(&vm->used)) {

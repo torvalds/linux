@@ -369,7 +369,7 @@ static unsigned int src_param_pitch_mixer(unsigned int src_idx)
 static int src_commit_write(struct hw *hw, unsigned int idx, void *blk)
 {
 	struct src_rsc_ctrl_blk *ctl = blk;
-	int i = 0;
+	int i;
 
 	if (ctl->dirty.bf.czbfs) {
 		/* Clear Z-Buffer registers */
@@ -468,8 +468,8 @@ static int src_mgr_dsb_src(void *blk, unsigned int idx)
 static int src_mgr_commit_write(struct hw *hw, void *blk)
 {
 	struct src_mgr_ctrl_blk *ctl = blk;
-	int i = 0;
-	unsigned int ret = 0;
+	int i;
+	unsigned int ret;
 
 	if (ctl->dirty.bf.enbsa) {
 		do {
@@ -1108,7 +1108,7 @@ static int daio_mgr_set_imapaddr(void *blk, unsigned int addr)
 static int daio_mgr_commit_write(struct hw *hw, void *blk)
 {
 	struct daio_mgr_ctrl_blk *ctl = blk;
-	int i = 0;
+	int i;
 
 	if (ctl->dirty.bf.i2sictl || ctl->dirty.bf.i2soctl) {
 		for (i = 0; i < 4; i++) {
@@ -1212,8 +1212,8 @@ struct trn_conf {
 
 static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 {
-	u32 i2sorg = 0;
-	u32 spdorg = 0;
+	u32 i2sorg;
+	u32 spdorg;
 
 	/* Read I2S CTL.  Keep original value. */
 	/*i2sorg = hw_read_20kx(hw, I2SCTL);*/
@@ -1263,8 +1263,8 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 /* TRANSPORT operations */
 static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 {
-	u32 trnctl = 0;
-	unsigned long ptp_phys_low = 0, ptp_phys_high = 0;
+	u32 trnctl;
+	u32 ptp_phys_low, ptp_phys_high;
 
 	/* Set up device page table */
 	if ((~0UL) == info->vm_pgt_phys) {
@@ -1316,7 +1316,7 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 static int hw_pll_init(struct hw *hw, unsigned int rsr)
 {
 	unsigned int pllctl;
-	int i = 0;
+	int i;
 
 	pllctl = (48000 == rsr) ? 0x1480a001 : 0x1480a731;
 	for (i = 0; i < 3; i++) {
@@ -1384,7 +1384,7 @@ static void i2c_lock(struct hw *hw)
 
 static void i2c_write(struct hw *hw, u32 device, u32 addr, u32 data)
 {
-	unsigned int ret = 0;
+	unsigned int ret;
 
 	do {
 		ret = hw_read_pci(hw, 0xEC);
@@ -1397,9 +1397,9 @@ static void i2c_write(struct hw *hw, u32 device, u32 addr, u32 data)
 
 static int hw_reset_dac(struct hw *hw)
 {
-	u32 i = 0;
-	u16 gpioorg = 0;
-	unsigned int ret = 0;
+	u32 i;
+	u16 gpioorg;
+	unsigned int ret;
 
 	if (i2c_unlock(hw))
 		return -1;
@@ -1430,10 +1430,10 @@ static int hw_reset_dac(struct hw *hw)
 
 static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 {
-	u32 data = 0;
-	u16 gpioorg = 0;
-	u16 subsys_id = 0;
-	unsigned int ret = 0;
+	u32 data;
+	u16 gpioorg;
+	u16 subsys_id;
+	unsigned int ret;
 
 	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
@@ -1494,13 +1494,12 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 
 static int is_adc_input_selected_SB055x(struct hw *hw, enum ADCSRC type)
 {
-	u32 data = 0;
-	return data;
+	return 0;
 }
 
 static int is_adc_input_selected_SBx(struct hw *hw, enum ADCSRC type)
 {
-	u32 data = 0;
+	u32 data;
 
 	data = hw_read_20kx(hw, GPIO);
 	switch (type) {
@@ -1521,7 +1520,7 @@ static int is_adc_input_selected_SBx(struct hw *hw, enum ADCSRC type)
 
 static int is_adc_input_selected_hendrix(struct hw *hw, enum ADCSRC type)
 {
-	u32 data = 0;
+	u32 data;
 
 	data = hw_read_20kx(hw, GPIO);
 	switch (type) {
@@ -1539,7 +1538,7 @@ static int is_adc_input_selected_hendrix(struct hw *hw, enum ADCSRC type)
 
 static int hw_is_adc_input_selected(struct hw *hw, enum ADCSRC type)
 {
-	u16 subsys_id = 0;
+	u16 subsys_id;
 
 	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
@@ -1559,7 +1558,7 @@ static int hw_is_adc_input_selected(struct hw *hw, enum ADCSRC type)
 static int
 adc_input_select_SB055x(struct hw *hw, enum ADCSRC type, unsigned char boost)
 {
-	u32 data = 0;
+	u32 data;
 
 	/*
 	 * check and set the following GPIO bits accordingly
@@ -1599,9 +1598,9 @@ adc_input_select_SB055x(struct hw *hw, enum ADCSRC type, unsigned char boost)
 static int
 adc_input_select_SBx(struct hw *hw, enum ADCSRC type, unsigned char boost)
 {
-	u32 data = 0;
-	u32 i2c_data = 0;
-	unsigned int ret = 0;
+	u32 data;
+	u32 i2c_data;
+	unsigned int ret;
 
 	if (i2c_unlock(hw))
 		return -1;
@@ -1649,9 +1648,9 @@ adc_input_select_SBx(struct hw *hw, enum ADCSRC type, unsigned char boost)
 static int
 adc_input_select_hendrix(struct hw *hw, enum ADCSRC type, unsigned char boost)
 {
-	u32 data = 0;
-	u32 i2c_data = 0;
-	unsigned int ret = 0;
+	u32 data;
+	u32 i2c_data;
+	unsigned int ret;
 
 	if (i2c_unlock(hw))
 		return -1;
@@ -1693,7 +1692,7 @@ adc_input_select_hendrix(struct hw *hw, enum ADCSRC type, unsigned char boost)
 
 static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 {
-	u16 subsys_id = 0;
+	u16 subsys_id;
 
 	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
@@ -1719,8 +1718,8 @@ static int adc_init_SBx(struct hw *hw, int input, int mic20db)
 {
 	u16 gpioorg;
 	u16 input_source;
-	u32 adcdata = 0;
-	unsigned int ret = 0;
+	u32 adcdata;
+	unsigned int ret;
 
 	input_source = 0x100;  /* default to analog */
 	switch (input) {
@@ -1742,6 +1741,7 @@ static int adc_init_SBx(struct hw *hw, int input, int mic20db)
 		input_source = 0x0;  /* set to Digital */
 		break;
 	default:
+		adcdata = 0x0;
 		break;
 	}
 
@@ -1781,8 +1781,8 @@ static int adc_init_SBx(struct hw *hw, int input, int mic20db)
 
 static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 {
-	int err = 0;
-	u16 subsys_id = 0;
+	int err;
+	u16 subsys_id;
 
 	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
@@ -1797,7 +1797,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 
 static int hw_have_digit_io_switch(struct hw *hw)
 {
-	u16 subsys_id = 0;
+	u16 subsys_id;
 
 	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	/* SB073x and Vista compatible cards have no digit IO switch */
@@ -1814,11 +1814,11 @@ static int uaa_to_xfi(struct pci_dev *pci)
 {
 	unsigned int bar0, bar1, bar2, bar3, bar4, bar5;
 	unsigned int cmd, irq, cl_size, l_timer, pwr;
-	unsigned int is_uaa = 0;
+	unsigned int is_uaa;
 	unsigned int data[4] = {0};
 	unsigned int io_base;
 	void *mem_base;
-	int i = 0;
+	int i;
 	const u32 CTLX = CTLBITS('C', 'T', 'L', 'X');
 	const u32 CTL_ = CTLBITS('C', 'T', 'L', '-');
 	const u32 CTLF = CTLBITS('C', 'T', 'L', 'F');
@@ -1916,9 +1916,9 @@ static irqreturn_t ct_20k1_interrupt(int irq, void *dev_id)
 
 static int hw_card_start(struct hw *hw)
 {
-	int err = 0;
+	int err;
 	struct pci_dev *pci = hw->pci;
-	u16 subsys_id = 0;
+	u16 subsys_id;
 
 	err = pci_enable_device(pci);
 	if (err < 0)
@@ -2004,8 +2004,8 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 {
 	int err;
 	unsigned int gctl;
-	u16 subsys_id = 0;
-	u32 data = 0;
+	u16 subsys_id;
+	u32 data;
 	struct dac_conf dac_info = {0};
 	struct adc_conf adc_info = {0};
 	struct daio_conf daio_info = {0};

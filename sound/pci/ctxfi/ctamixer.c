@@ -58,9 +58,9 @@ static struct rsc_ops amixer_basic_rsc_ops = {
 
 static int amixer_set_input(struct amixer *amixer, struct rsc *rsc)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	hw->amixer_set_mode(amixer->rsc.ctrl_blk, AMIXER_Y_IMMEDIATE);
 	amixer->input = rsc;
 	if (NULL == rsc)
@@ -75,9 +75,9 @@ static int amixer_set_input(struct amixer *amixer, struct rsc *rsc)
 /* y is a 14-bit immediate constant */
 static int amixer_set_y(struct amixer *amixer, unsigned int y)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	hw->amixer_set_y(amixer->rsc.ctrl_blk, y);
 
 	return 0;
@@ -85,9 +85,9 @@ static int amixer_set_y(struct amixer *amixer, unsigned int y)
 
 static int amixer_set_invalid_squash(struct amixer *amixer, unsigned int iv)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	hw->amixer_set_iv(amixer->rsc.ctrl_blk, iv);
 
 	return 0;
@@ -95,9 +95,9 @@ static int amixer_set_invalid_squash(struct amixer *amixer, unsigned int iv)
 
 static int amixer_set_sum(struct amixer *amixer, struct sum *sum)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	amixer->sum = sum;
 	if (NULL == sum) {
 		hw->amixer_set_se(amixer->rsc.ctrl_blk, 0);
@@ -112,13 +112,13 @@ static int amixer_set_sum(struct amixer *amixer, struct sum *sum)
 
 static int amixer_commit_write(struct amixer *amixer)
 {
-	struct hw *hw = NULL;
-	unsigned int index = 0;
-	int i = 0;
-	struct rsc *input = NULL;
-	struct sum *sum = NULL;
+	struct hw *hw;
+	unsigned int index;
+	int i;
+	struct rsc *input;
+	struct sum *sum;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	input = amixer->input;
 	sum = amixer->sum;
 
@@ -158,10 +158,10 @@ static int amixer_commit_write(struct amixer *amixer)
 
 static int amixer_commit_raw_write(struct amixer *amixer)
 {
-	struct hw *hw = NULL;
-	unsigned int index = 0;
+	struct hw *hw;
+	unsigned int index;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	index = amixer->rsc.ops->output_slot(&amixer->rsc);
 	hw->amixer_commit_write(hw, index, amixer->rsc.ctrl_blk);
 
@@ -170,9 +170,9 @@ static int amixer_commit_raw_write(struct amixer *amixer)
 
 static int amixer_get_y(struct amixer *amixer)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)amixer->rsc.hw;
+	hw = amixer->rsc.hw;
 	return hw->amixer_get_y(amixer->rsc.ctrl_blk);
 }
 
@@ -201,7 +201,7 @@ static int amixer_rsc_init(struct amixer *amixer,
 			   const struct amixer_desc *desc,
 			   struct amixer_mgr *mgr)
 {
-	int err = 0;
+	int err;
 
 	err = rsc_init(&amixer->rsc, amixer->idx[0],
 			AMIXER, desc->msr, mgr->mgr.hw);
@@ -233,9 +233,9 @@ static int get_amixer_rsc(struct amixer_mgr *mgr,
 			  const struct amixer_desc *desc,
 			  struct amixer **ramixer)
 {
-	int err = 0, i = 0;
-	unsigned int idx = 0;
-	struct amixer *amixer = NULL;
+	int err, i;
+	unsigned int idx;
+	struct amixer *amixer;
 	unsigned long flags;
 
 	*ramixer = NULL;
@@ -284,7 +284,7 @@ error:
 static int put_amixer_rsc(struct amixer_mgr *mgr, struct amixer *amixer)
 {
 	unsigned long flags;
-	int i = 0;
+	int i;
 
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < amixer->rsc.msr; i++)
@@ -299,7 +299,7 @@ static int put_amixer_rsc(struct amixer_mgr *mgr, struct amixer *amixer)
 
 int amixer_mgr_create(void *hw, struct amixer_mgr **ramixer_mgr)
 {
-	int err = 0;
+	int err;
 	struct amixer_mgr *amixer_mgr;
 
 	*ramixer_mgr = NULL;
@@ -367,7 +367,7 @@ static int sum_rsc_init(struct sum *sum,
 			const struct sum_desc *desc,
 			struct sum_mgr *mgr)
 {
-	int err = 0;
+	int err;
 
 	err = rsc_init(&sum->rsc, sum->idx[0], SUM, desc->msr, mgr->mgr.hw);
 	if (err)
@@ -388,9 +388,9 @@ static int get_sum_rsc(struct sum_mgr *mgr,
 		       const struct sum_desc *desc,
 		       struct sum **rsum)
 {
-	int err = 0, i = 0;
-	unsigned int idx = 0;
-	struct sum *sum = NULL;
+	int err, i;
+	unsigned int idx;
+	struct sum *sum;
 	unsigned long flags;
 
 	*rsum = NULL;
@@ -438,7 +438,7 @@ error:
 static int put_sum_rsc(struct sum_mgr *mgr, struct sum *sum)
 {
 	unsigned long flags;
-	int i = 0;
+	int i;
 
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < sum->rsc.msr; i++)
@@ -453,7 +453,7 @@ static int put_sum_rsc(struct sum_mgr *mgr, struct sum *sum)
 
 int sum_mgr_create(void *hw, struct sum_mgr **rsum_mgr)
 {
-	int err = 0;
+	int err;
 	struct sum_mgr *sum_mgr;
 
 	*rsum_mgr = NULL;

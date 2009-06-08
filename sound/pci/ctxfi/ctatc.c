@@ -190,8 +190,8 @@ static unsigned int convert_format(snd_pcm_format_t snd_format)
 static unsigned int
 atc_get_pitch(unsigned int input_rate, unsigned int output_rate)
 {
-	unsigned int pitch = 0;
-	int b = 0;
+	unsigned int pitch;
+	int b;
 
 	/* get pitch and convert to fixed-point 8.24 format. */
 	pitch = (input_rate / output_rate) << 24;
@@ -241,12 +241,12 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct amixer_mgr *amixer_mgr = atc->rsc_mgrs[AMIXER];
 	struct src_desc desc = {0};
 	struct amixer_desc mix_dsc = {0};
-	struct src *src = NULL;
-	struct amixer *amixer = NULL;
-	int err = 0;
+	struct src *src;
+	struct amixer *amixer;
+	int err;
 	int n_amixer = apcm->substream->runtime->channels, i = 0;
 	int device = apcm->substream->pcm->device;
-	unsigned int pitch = 0;
+	unsigned int pitch;
 	unsigned long flags;
 
 	if (NULL != apcm->src) {
@@ -324,8 +324,8 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct srcimp_mgr *srcimp_mgr = atc->rsc_mgrs[SRCIMP];
 	struct amixer_mgr *amixer_mgr = atc->rsc_mgrs[AMIXER];
 	struct sum_mgr *sum_mgr = atc->rsc_mgrs[SUM];
-	struct srcimp *srcimp = NULL;
-	int i = 0;
+	struct srcimp *srcimp;
+	int i;
 
 	if (NULL != apcm->srcimps) {
 		for (i = 0; i < apcm->n_srcimp; i++) {
@@ -377,7 +377,7 @@ atc_pcm_release_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 static int atc_pcm_playback_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	unsigned int max_cisz = 0;
+	unsigned int max_cisz;
 	struct src *src = apcm->src;
 
 	max_cisz = src->multi * src->rsc.msr;
@@ -398,8 +398,8 @@ static int atc_pcm_playback_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 static int atc_pcm_stop(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	struct src *src = NULL;
-	int i = 0;
+	struct src *src;
+	int i;
 
 	ct_timer_stop(apcm->timer);
 
@@ -426,8 +426,8 @@ static int
 atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
 	struct src *src = apcm->src;
-	u32 size = 0, max_cisz = 0;
-	int position = 0;
+	u32 size, max_cisz;
+	int position;
 
 	position = src->ops->get_ca(src);
 
@@ -449,7 +449,7 @@ struct src_node_conf_t {
 static void setup_src_node_conf(struct ct_atc *atc, struct ct_atc_pcm *apcm,
 				struct src_node_conf_t *conf, int *n_srcc)
 {
-	unsigned int pitch = 0;
+	unsigned int pitch;
 
 	/* get pitch and convert to fixed-point 8.24 format. */
 	pitch = atc_get_pitch((atc->rsr * atc->msr),
@@ -494,14 +494,14 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct amixer_mgr *amixer_mgr = atc->rsc_mgrs[AMIXER];
 	struct sum_mgr *sum_mgr = atc->rsc_mgrs[SUM];
 	struct src_desc src_dsc = {0};
-	struct src *src = NULL;
+	struct src *src;
 	struct srcimp_desc srcimp_dsc = {0};
-	struct srcimp *srcimp = NULL;
+	struct srcimp *srcimp;
 	struct amixer_desc mix_dsc = {0};
 	struct sum_desc sum_dsc = {0};
-	unsigned int pitch = 0;
-	int multi = 0, err = 0, i = 0;
-	int n_srcimp = 0, n_amixer = 0, n_srcc = 0, n_sum = 0;
+	unsigned int pitch;
+	int multi, err, i;
+	int n_srcimp, n_amixer, n_srcc, n_sum;
 	struct src_node_conf_t src_node_conf[2] = {{0} };
 
 	/* first release old resources */
@@ -518,8 +518,8 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	setup_src_node_conf(atc, apcm, src_node_conf, &n_srcc);
 	n_sum = (1 == multi) ? 1 : 0;
-	n_amixer += n_sum * 2 + n_srcc;
-	n_srcimp += n_srcc;
+	n_amixer = n_sum * 2 + n_srcc;
+	n_srcimp = n_srcc;
 	if ((multi > 1) && (0x8000000 >= pitch)) {
 		/* Need extra AMIXERs and SRCIMPs for special treatment
 		 * of interleaved recording of conjugate channels */
@@ -633,14 +633,14 @@ error1:
 
 static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	struct src *src = NULL;
-	struct amixer *amixer = NULL;
-	struct srcimp *srcimp = NULL;
+	struct src *src;
+	struct amixer *amixer;
+	struct srcimp *srcimp;
 	struct ct_mixer *mixer = atc->mixer;
-	struct sum *mono = NULL;
+	struct sum *mono;
 	struct rsc *out_ports[8] = {NULL};
-	int err = 0, i = 0, j = 0, n_sum = 0, multi = 0;
-	unsigned int pitch = 0;
+	int err, i, j, n_sum, multi;
+	unsigned int pitch;
 	int mix_base = 0, imp_base = 0;
 
 	if (NULL != apcm->src) {
@@ -714,9 +714,9 @@ static int atc_pcm_capture_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 static int atc_pcm_capture_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	struct src *src = NULL;
+	struct src *src;
 	struct src_mgr *src_mgr = atc->rsc_mgrs[SRC];
-	int i = 0, multi = 0;
+	int i, multi;
 
 	if (apcm->started)
 		return 0;
@@ -776,10 +776,10 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	struct amixer_mgr *amixer_mgr = atc->rsc_mgrs[AMIXER];
 	struct src_desc desc = {0};
 	struct amixer_desc mix_dsc = {0};
-	struct src *src = NULL;
-	int err = 0;
-	int n_amixer = apcm->substream->runtime->channels, i = 0;
-	unsigned int pitch = 0, rsr = atc->pll_rate;
+	struct src *src;
+	int err;
+	int n_amixer = apcm->substream->runtime->channels, i;
+	unsigned int pitch, rsr = atc->pll_rate;
 
 	/* first release old resources */
 	atc->pcm_release_resources(atc, apcm);
@@ -832,15 +832,24 @@ error1:
 	return err;
 }
 
+static int atc_pll_init(struct ct_atc *atc, int rate)
+{
+	struct hw *hw = atc->hw;
+	int err;
+	err = hw->pll_init(hw, rate);
+	atc->pll_rate = err ? 0 : rate;
+	return err;
+}
+
 static int
 spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
 	struct dao *dao = container_of(atc->daios[SPDIFOO], struct dao, daio);
 	unsigned long flags;
 	unsigned int rate = apcm->substream->runtime->rate;
-	unsigned int status = 0;
-	int err = 0;
-	unsigned char iec958_con_fs = 0;
+	unsigned int status;
+	int err;
+	unsigned char iec958_con_fs;
 
 	switch (rate) {
 	case 48000:
@@ -864,10 +873,8 @@ spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		dao->ops->set_spos(dao, status);
 		dao->ops->commit_write(dao);
 	}
-	if ((rate != atc->pll_rate) && (32000 != rate)) {
-		err = ((struct hw *)atc->hw)->pll_init(atc->hw, rate);
-		atc->pll_rate = err ? 0 : rate;
-	}
+	if ((rate != atc->pll_rate) && (32000 != rate))
+		err = atc_pll_init(atc, rate);
 	spin_unlock_irqrestore(&atc->atc_lock, flags);
 
 	return err;
@@ -876,11 +883,11 @@ spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 static int
 spdif_passthru_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
-	struct src *src = NULL;
-	struct amixer *amixer = NULL;
-	struct dao *dao = NULL;
-	int err = 0;
-	int i = 0;
+	struct src *src;
+	struct amixer *amixer;
+	struct dao *dao;
+	int err;
+	int i;
 	unsigned long flags;
 
 	if (NULL != apcm->src)
@@ -924,7 +931,7 @@ static int atc_select_line_in(struct ct_atc *atc)
 {
 	struct hw *hw = atc->hw;
 	struct ct_mixer *mixer = atc->mixer;
-	struct src *src = NULL;
+	struct src *src;
 
 	if (hw->is_adc_source_selected(hw, ADC_LINEIN))
 		return 0;
@@ -946,7 +953,7 @@ static int atc_select_mic_in(struct ct_atc *atc)
 {
 	struct hw *hw = atc->hw;
 	struct ct_mixer *mixer = atc->mixer;
-	struct src *src = NULL;
+	struct src *src;
 
 	if (hw->is_adc_source_selected(hw, ADC_MICIN))
 		return 0;
@@ -1063,8 +1070,8 @@ static int atc_spdif_out_passthru(struct ct_atc *atc, unsigned char state)
 {
 	unsigned long flags;
 	struct dao_desc da_dsc = {0};
-	struct dao *dao = NULL;
-	int err = 0;
+	struct dao *dao;
+	int err;
 	struct ct_mixer *mixer = atc->mixer;
 	struct rsc *rscs[2] = {NULL};
 	unsigned int spos = 0;
@@ -1082,11 +1089,8 @@ static int atc_spdif_out_passthru(struct ct_atc *atc, unsigned char state)
 		dao->ops->set_left_input(dao, rscs[0]);
 		dao->ops->set_right_input(dao, rscs[1]);
 		/* Restore PLL to atc->rsr if needed. */
-		if (atc->pll_rate != atc->rsr) {
-			err = ((struct hw *)atc->hw)->pll_init(atc->hw,
-							       atc->rsr);
-			atc->pll_rate = err ? 0 : atc->rsr;
-		}
+		if (atc->pll_rate != atc->rsr)
+			err = atc_pll_init(atc, atc->rsr);
 	}
 	dao->ops->set_spos(dao, spos);
 	dao->ops->commit_write(dao);
@@ -1097,15 +1101,15 @@ static int atc_spdif_out_passthru(struct ct_atc *atc, unsigned char state)
 
 static int ct_atc_destroy(struct ct_atc *atc)
 {
-	struct daio_mgr *daio_mgr = NULL;
-	struct dao *dao = NULL;
-	struct dai *dai = NULL;
-	struct daio *daio = NULL;
-	struct sum_mgr *sum_mgr = NULL;
-	struct src_mgr *src_mgr = NULL;
-	struct srcimp_mgr *srcimp_mgr = NULL;
-	struct srcimp *srcimp = NULL;
-	struct ct_mixer *mixer = NULL;
+	struct daio_mgr *daio_mgr;
+	struct dao *dao;
+	struct dai *dai;
+	struct daio *daio;
+	struct sum_mgr *sum_mgr;
+	struct src_mgr *src_mgr;
+	struct srcimp_mgr *srcimp_mgr;
+	struct srcimp *srcimp;
+	struct ct_mixer *mixer;
 	int i = 0;
 
 	if (NULL == atc)
@@ -1279,9 +1283,9 @@ int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
 
 static int __devinit atc_create_hw_devs(struct ct_atc *atc)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 	struct card_conf info = {0};
-	int i = 0, err = 0;
+	int i, err;
 
 	err = create_hw_obj(atc->pci, &hw);
 	if (err) {
@@ -1316,14 +1320,14 @@ static int __devinit atc_create_hw_devs(struct ct_atc *atc)
 static int __devinit atc_get_resources(struct ct_atc *atc)
 {
 	struct daio_desc da_desc = {0};
-	struct daio_mgr *daio_mgr = NULL;
+	struct daio_mgr *daio_mgr;
 	struct src_desc src_dsc = {0};
-	struct src_mgr *src_mgr = NULL;
+	struct src_mgr *src_mgr;
 	struct srcimp_desc srcimp_dsc = {0};
-	struct srcimp_mgr *srcimp_mgr = NULL;
+	struct srcimp_mgr *srcimp_mgr;
 	struct sum_desc sum_dsc = {0};
-	struct sum_mgr *sum_mgr = NULL;
-	int err = 0, i = 0;
+	struct sum_mgr *sum_mgr;
+	int err, i;
 	unsigned short subsys_id;
 
 	atc->daios = kzalloc(sizeof(void *)*(DAIONUM), GFP_KERNEL);
@@ -1428,8 +1432,8 @@ atc_connect_dai(struct src_mgr *src_mgr, struct dai *dai,
 		struct src **srcs, struct srcimp **srcimps)
 {
 	struct rsc *rscs[2] = {NULL};
-	struct src *src = NULL;
-	struct srcimp *srcimp = NULL;
+	struct src *src;
+	struct srcimp *srcimp;
 	int i = 0;
 
 	rscs[0] = &dai->daio.rscl;
@@ -1464,13 +1468,13 @@ atc_connect_dai(struct src_mgr *src_mgr, struct dai *dai,
 
 static void __devinit atc_connect_resources(struct ct_atc *atc)
 {
-	struct dai *dai = NULL;
-	struct dao *dao = NULL;
-	struct src *src = NULL;
-	struct sum *sum = NULL;
-	struct ct_mixer *mixer = NULL;
+	struct dai *dai;
+	struct dao *dao;
+	struct src *src;
+	struct sum *sum;
+	struct ct_mixer *mixer;
 	struct rsc *rscs[2] = {NULL};
-	int i = 0, j = 0;
+	int i, j;
 
 	mixer = atc->mixer;
 
@@ -1553,11 +1557,11 @@ static struct ct_atc atc_preset __devinitdata = {
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 		  unsigned int rsr, unsigned int msr, struct ct_atc **ratc)
 {
-	struct ct_atc *atc = NULL;
+	struct ct_atc *atc;
 	static struct snd_device_ops ops = {
 		.dev_free = atc_dev_free,
 	};
-	int err = 0;
+	int err;
 
 	*ratc = NULL;
 

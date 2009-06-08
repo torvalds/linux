@@ -99,8 +99,8 @@ int input_mapper_delete(struct list_head *mappers, struct imapper *entry,
 
 void free_input_mapper_list(struct list_head *head)
 {
-	struct imapper *entry = NULL;
-	struct list_head *pos = NULL;
+	struct imapper *entry;
+	struct list_head *pos;
 
 	while (!list_empty(head)) {
 		pos = head->next;

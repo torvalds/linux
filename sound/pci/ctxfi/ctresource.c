@@ -27,7 +27,7 @@ static int
 get_resource(u8 *rscs, unsigned int amount,
 	     unsigned int multi, unsigned int *ridx)
 {
-	int i = 0, j = 0, k = 0, n = 0;
+	int i, j, k, n;
 
 	/* Check whether there are sufficient resources to meet request. */
 	for (i = 0, n = multi; i < amount; i++) {
@@ -61,7 +61,7 @@ get_resource(u8 *rscs, unsigned int amount,
 
 static int put_resource(u8 *rscs, unsigned int multi, unsigned int idx)
 {
-	unsigned int i = 0, j = 0, k = 0, n = 0;
+	unsigned int i, j, k, n;
 
 	/* Mark the contiguous bits in resource bit-map as used */
 	for (n = multi, i = idx; n > 0; n--) {
@@ -76,7 +76,7 @@ static int put_resource(u8 *rscs, unsigned int multi, unsigned int idx)
 
 int mgr_get_resource(struct rsc_mgr *mgr, unsigned int n, unsigned int *ridx)
 {
-	int err = 0;
+	int err;
 
 	if (n > mgr->avail)
 		return -ENOENT;

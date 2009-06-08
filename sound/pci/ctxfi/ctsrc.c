@@ -37,9 +37,9 @@ static int (*src_default_config[3])(struct src *) = {
 
 static int src_set_state(struct src *src, unsigned int state)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_state(src->rsc.ctrl_blk, state);
 
 	return 0;
@@ -47,9 +47,9 @@ static int src_set_state(struct src *src, unsigned int state)
 
 static int src_set_bm(struct src *src, unsigned int bm)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_bm(src->rsc.ctrl_blk, bm);
 
 	return 0;
@@ -57,9 +57,9 @@ static int src_set_bm(struct src *src, unsigned int bm)
 
 static int src_set_sf(struct src *src, unsigned int sf)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_sf(src->rsc.ctrl_blk, sf);
 
 	return 0;
@@ -67,9 +67,9 @@ static int src_set_sf(struct src *src, unsigned int sf)
 
 static int src_set_pm(struct src *src, unsigned int pm)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_pm(src->rsc.ctrl_blk, pm);
 
 	return 0;
@@ -77,9 +77,9 @@ static int src_set_pm(struct src *src, unsigned int pm)
 
 static int src_set_rom(struct src *src, unsigned int rom)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_rom(src->rsc.ctrl_blk, rom);
 
 	return 0;
@@ -87,9 +87,9 @@ static int src_set_rom(struct src *src, unsigned int rom)
 
 static int src_set_vo(struct src *src, unsigned int vo)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_vo(src->rsc.ctrl_blk, vo);
 
 	return 0;
@@ -97,9 +97,9 @@ static int src_set_vo(struct src *src, unsigned int vo)
 
 static int src_set_st(struct src *src, unsigned int st)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_st(src->rsc.ctrl_blk, st);
 
 	return 0;
@@ -107,9 +107,9 @@ static int src_set_st(struct src *src, unsigned int st)
 
 static int src_set_bp(struct src *src, unsigned int bp)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_bp(src->rsc.ctrl_blk, bp);
 
 	return 0;
@@ -117,9 +117,9 @@ static int src_set_bp(struct src *src, unsigned int bp)
 
 static int src_set_cisz(struct src *src, unsigned int cisz)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_cisz(src->rsc.ctrl_blk, cisz);
 
 	return 0;
@@ -127,9 +127,9 @@ static int src_set_cisz(struct src *src, unsigned int cisz)
 
 static int src_set_ca(struct src *src, unsigned int ca)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_ca(src->rsc.ctrl_blk, ca);
 
 	return 0;
@@ -137,9 +137,9 @@ static int src_set_ca(struct src *src, unsigned int ca)
 
 static int src_set_sa(struct src *src, unsigned int sa)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_sa(src->rsc.ctrl_blk, sa);
 
 	return 0;
@@ -147,9 +147,9 @@ static int src_set_sa(struct src *src, unsigned int sa)
 
 static int src_set_la(struct src *src, unsigned int la)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_la(src->rsc.ctrl_blk, la);
 
 	return 0;
@@ -157,9 +157,9 @@ static int src_set_la(struct src *src, unsigned int la)
 
 static int src_set_pitch(struct src *src, unsigned int pitch)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_pitch(src->rsc.ctrl_blk, pitch);
 
 	return 0;
@@ -167,9 +167,9 @@ static int src_set_pitch(struct src *src, unsigned int pitch)
 
 static int src_set_clear_zbufs(struct src *src)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	hw->src_set_clear_zbufs(src->rsc.ctrl_blk, 1);
 
 	return 0;
@@ -177,11 +177,11 @@ static int src_set_clear_zbufs(struct src *src)
 
 static int src_commit_write(struct src *src)
 {
-	struct hw *hw = NULL;
-	int i = 0;
+	struct hw *hw;
+	int i;
 	unsigned int dirty = 0;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	src->rsc.ops->master(&src->rsc);
 	if (src->rsc.msr > 1) {
 		/* Save dirty flags for conjugate resource programming */
@@ -207,9 +207,9 @@ static int src_commit_write(struct src *src)
 
 static int src_get_ca(struct src *src)
 {
-	struct hw *hw = NULL;
+	struct hw *hw;
 
-	hw = (struct hw *)src->rsc.hw;
+	hw = src->rsc.hw;
 	return hw->src_get_ca(hw, src->rsc.ops->index(&src->rsc),
 						src->rsc.ctrl_blk);
 }
@@ -229,7 +229,7 @@ static struct src *src_next_interleave(struct src *src)
 static int src_default_config_memrd(struct src *src)
 {
 	struct hw *hw = src->rsc.hw;
-	unsigned int rsr = 0, msr = 0;
+	unsigned int rsr, msr;
 
 	hw->src_set_state(src->rsc.ctrl_blk, SRC_STATE_OFF);
 	hw->src_set_bm(src->rsc.ctrl_blk, 1);
@@ -297,7 +297,7 @@ static int src_default_config_memwr(struct src *src)
 static int src_default_config_arcrw(struct src *src)
 {
 	struct hw *hw = src->rsc.hw;
-	unsigned int rsr = 0, msr = 0;
+	unsigned int rsr, msr;
 	unsigned int dirty;
 
 	hw->src_set_state(src->rsc.ctrl_blk, SRC_STATE_OFF);
@@ -360,8 +360,8 @@ static int
 src_rsc_init(struct src *src, u32 idx,
 	     const struct src_desc *desc, struct src_mgr *mgr)
 {
-	int err = 0;
-	int i = 0, n = 0;
+	int err;
+	int i, n;
 	struct src *p;
 
 	n = (MEMRD == desc->mode) ? desc->multi : 1;
@@ -395,7 +395,7 @@ error1:
 
 static int src_rsc_uninit(struct src *src, struct src_mgr *mgr)
 {
-	int i = 0, n = 0;
+	int i, n;
 	struct src *p;
 
 	n = (MEMRD == src->mode) ? src->multi : 1;
@@ -416,8 +416,8 @@ static int
 get_src_rsc(struct src_mgr *mgr, const struct src_desc *desc, struct src **rsrc)
 {
 	unsigned int idx = SRC_RESOURCE_NUM;
-	int err = 0;
-	struct src *src = NULL;
+	int err;
+	struct src *src;
 	unsigned long flags;
 
 	*rsrc = NULL;
@@ -489,7 +489,7 @@ static int put_src_rsc(struct src_mgr *mgr, struct src *src)
 static int src_enable_s(struct src_mgr *mgr, struct src *src)
 {
 	struct hw *hw = mgr->mgr.hw;
-	int i = 0;
+	int i;
 
 	src->rsc.ops->master(&src->rsc);
 	for (i = 0; i < src->rsc.msr; i++) {
@@ -505,7 +505,7 @@ static int src_enable_s(struct src_mgr *mgr, struct src *src)
 static int src_enable(struct src_mgr *mgr, struct src *src)
 {
 	struct hw *hw = mgr->mgr.hw;
-	int i = 0;
+	int i;
 
 	src->rsc.ops->master(&src->rsc);
 	for (i = 0; i < src->rsc.msr; i++) {
@@ -521,7 +521,7 @@ static int src_enable(struct src_mgr *mgr, struct src *src)
 static int src_disable(struct src_mgr *mgr, struct src *src)
 {
 	struct hw *hw = mgr->mgr.hw;
-	int i = 0;
+	int i;
 
 	src->rsc.ops->master(&src->rsc);
 	for (i = 0; i < src->rsc.msr; i++) {
@@ -545,7 +545,7 @@ static int src_mgr_commit_write(struct src_mgr *mgr)
 
 int src_mgr_create(void *hw, struct src_mgr **rsrc_mgr)
 {
-	int err = 0, i = 0;
+	int err, i;
 	struct src_mgr *src_mgr;
 
 	*rsrc_mgr = NULL;
@@ -618,8 +618,8 @@ static struct rsc_ops srcimp_basic_rsc_ops = {
 
 static int srcimp_map(struct srcimp *srcimp, struct src *src, struct rsc *input)
 {
-	struct imapper *entry = NULL;
-	int i = 0;
+	struct imapper *entry;
+	int i;
 
 	srcimp->rsc.ops->master(&srcimp->rsc);
 	src->rsc.ops->master(&src->rsc);
@@ -646,7 +646,7 @@ static int srcimp_map(struct srcimp *srcimp, struct src *src, struct rsc *input)
 
 static int srcimp_unmap(struct srcimp *srcimp)
 {
-	int i = 0;
+	int i;
 
 	/* Program master and conjugate resources */
 	for (i = 0; i < srcimp->rsc.msr; i++) {
@@ -669,7 +669,7 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 			   const struct srcimp_desc *desc,
 			   struct srcimp_mgr *mgr)
 {
-	int err = 0;
+	int err;
 
 	err = rsc_init(&srcimp->rsc, srcimp->idx[0],
 		       SRCIMP, desc->msr, mgr->mgr.hw);
@@ -715,9 +715,9 @@ static int get_srcimp_rsc(struct srcimp_mgr *mgr,
 			  const struct srcimp_desc *desc,
 			  struct srcimp **rsrcimp)
 {
-	int err = 0, i = 0;
-	unsigned int idx = 0;
-	struct srcimp *srcimp = NULL;
+	int err, i;
+	unsigned int idx;
+	struct srcimp *srcimp;
 	unsigned long flags;
 
 	*rsrcimp = NULL;
@@ -765,7 +765,7 @@ error1:
 static int put_srcimp_rsc(struct srcimp_mgr *mgr, struct srcimp *srcimp)
 {
 	unsigned long flags;
-	int i = 0;
+	int i;
 
 	spin_lock_irqsave(&mgr->mgr_lock, flags);
 	for (i = 0; i < srcimp->rsc.msr; i++)
@@ -795,7 +795,7 @@ static int srcimp_map_op(void *data, struct imapper *entry)
 static int srcimp_imap_add(struct srcimp_mgr *mgr, struct imapper *entry)
 {
 	unsigned long flags;
-	int err = 0;
+	int err;
 
 	spin_lock_irqsave(&mgr->imap_lock, flags);
 	if ((0 == entry->addr) && (mgr->init_imap_added)) {
@@ -812,7 +812,7 @@ static int srcimp_imap_add(struct srcimp_mgr *mgr, struct imapper *entry)
 static int srcimp_imap_delete(struct srcimp_mgr *mgr, struct imapper *entry)
 {
 	unsigned long flags;
-	int err = 0;
+	int err;
 
 	spin_lock_irqsave(&mgr->imap_lock, flags);
 	err = input_mapper_delete(&mgr->imappers, entry, srcimp_map_op, mgr);
@@ -828,7 +828,7 @@ static int srcimp_imap_delete(struct srcimp_mgr *mgr, struct imapper *entry)
 
 int srcimp_mgr_create(void *hw, struct srcimp_mgr **rsrcimp_mgr)
 {
-	int err = 0;
+	int err;
 	struct srcimp_mgr *srcimp_mgr;
 	struct imapper *entry;
 

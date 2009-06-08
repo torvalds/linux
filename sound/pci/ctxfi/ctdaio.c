@@ -168,9 +168,9 @@ static int dao_commit_write(struct dao *dao)
 
 static int dao_set_left_input(struct dao *dao, struct rsc *input)
 {
-	struct imapper *entry = NULL;
+	struct imapper *entry;
 	struct daio *daio = &dao->daio;
-	int i = 0;
+	int i;
 
 	entry = kzalloc((sizeof(*entry) * daio->rscl.msr), GFP_KERNEL);
 	if (NULL == entry)
@@ -196,9 +196,9 @@ static int dao_set_left_input(struct dao *dao, struct rsc *input)
 
 static int dao_set_right_input(struct dao *dao, struct rsc *input)
 {
-	struct imapper *entry = NULL;
+	struct imapper *entry;
 	struct daio *daio = &dao->daio;
-	int i = 0;
+	int i;
 
 	entry = kzalloc((sizeof(*entry) * daio->rscr.msr), GFP_KERNEL);
 	if (NULL == entry)
@@ -224,9 +224,9 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 
 static int dao_clear_left_input(struct dao *dao)
 {
-	struct imapper *entry = NULL;
+	struct imapper *entry;
 	struct daio *daio = &dao->daio;
-	int i = 0;
+	int i;
 
 	if (NULL == dao->imappers[0])
 		return 0;
@@ -248,9 +248,9 @@ static int dao_clear_left_input(struct dao *dao)
 
 static int dao_clear_right_input(struct dao *dao)
 {
-	struct imapper *entry = NULL;
+	struct imapper *entry;
 	struct daio *daio = &dao->daio;
-	int i = 0;
+	int i;
 
 	if (NULL == dao->imappers[daio->rscl.msr])
 		return 0;
@@ -299,7 +299,7 @@ static int dai_set_srt_srcr(struct dai *dai, struct rsc *src)
 
 static int dai_set_srt_msr(struct dai *dai, unsigned int msr)
 {
-	unsigned int rsr = 0;
+	unsigned int rsr;
 
 	for (rsr = 0; msr > 1; msr >>= 1)
 		rsr++;
@@ -340,8 +340,8 @@ static int daio_rsc_init(struct daio *daio,
 			 const struct daio_desc *desc,
 			 void *hw)
 {
-	int err = 0;
-	unsigned int idx_l = 0, idx_r = 0;
+	int err;
+	unsigned int idx_l, idx_r;
 
 	switch (((struct hw *)hw)->get_chip_type(hw)) {
 	case ATC20K1:
@@ -400,8 +400,8 @@ static int dao_rsc_init(struct dao *dao,
 			struct daio_mgr *mgr)
 {
 	struct hw *hw = mgr->mgr.hw;
-	unsigned int conf = 0;
-	int err = 0;
+	unsigned int conf;
+	int err;
 
 	err = daio_rsc_init(&dao->daio, desc, mgr->mgr.hw);
 	if (err)
@@ -423,7 +423,7 @@ static int dao_rsc_init(struct dao *dao,
 			daio_device_index(dao->daio.type, hw));
 	hw->daio_mgr_commit_write(hw, mgr->mgr.ctrl_blk);
 
-	conf |= (desc->msr & 0x7) | (desc->passthru << 3);
+	conf = (desc->msr & 0x7) | (desc->passthru << 3);
 	hw->daio_mgr_dao_init(mgr->mgr.ctrl_blk,
 			daio_device_index(dao->daio.type, hw), conf);
 	hw->daio_mgr_enb_dao(mgr->mgr.ctrl_blk,
@@ -475,9 +475,9 @@ static int dai_rsc_init(struct dai *dai,
 			const struct daio_desc *desc,
 			struct daio_mgr *mgr)
 {
-	int err = 0;
+	int err;
 	struct hw *hw = mgr->mgr.hw;
-	unsigned int rsr = 0, msr = 0;
+	unsigned int rsr, msr;
 
 	err = daio_rsc_init(&dai->daio, desc, mgr->mgr.hw);
 	if (err)
@@ -536,7 +536,7 @@ static int get_daio_rsc(struct daio_mgr *mgr,
 			const struct daio_desc *desc,
 			struct daio **rdaio)
 {
-	int err = 0;
+	int err;
 	struct dai *dai = NULL;
 	struct dao *dao = NULL;
 	unsigned long flags;
@@ -660,7 +660,7 @@ static int daio_map_op(void *data, struct imapper *entry)
 static int daio_imap_add(struct daio_mgr *mgr, struct imapper *entry)
 {
 	unsigned long flags;
-	int err = 0;
+	int err;
 
 	spin_lock_irqsave(&mgr->imap_lock, flags);
 	if ((0 == entry->addr) && (mgr->init_imap_added)) {
@@ -677,7 +677,7 @@ static int daio_imap_add(struct daio_mgr *mgr, struct imapper *entry)
 static int daio_imap_delete(struct daio_mgr *mgr, struct imapper *entry)
 {
 	unsigned long flags;
-	int err = 0;
+	int err;
 
 	spin_lock_irqsave(&mgr->imap_lock, flags);
 	err = input_mapper_delete(&mgr->imappers, entry, daio_map_op, mgr);
@@ -701,7 +701,7 @@ static int daio_mgr_commit_write(struct daio_mgr *mgr)
 
 int daio_mgr_create(void *hw, struct daio_mgr **rdaio_mgr)
 {
-	int err = 0, i = 0;
+	int err, i;
 	struct daio_mgr *daio_mgr;
 	struct imapper *entry;
 

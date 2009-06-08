@@ -298,7 +298,7 @@ set_switch_state(struct ct_mixer *mixer,
  * from 2^-6 to (1+1023/1024) */
 static unsigned int uint16_to_float14(unsigned int x)
 {
-	unsigned int i = 0;
+	unsigned int i;
 
 	if (x < 17)
 		return 0;
@@ -318,7 +318,7 @@ static unsigned int uint16_to_float14(unsigned int x)
 
 static unsigned int float14_to_uint16(unsigned int x)
 {
-	unsigned int e = 0;
+	unsigned int e;
 
 	if (!x)
 		return x;
@@ -491,7 +491,7 @@ static int ct_alsa_mix_switch_put(struct snd_kcontrol *kcontrol,
 	struct ct_atc *atc = snd_kcontrol_chip(kcontrol);
 	struct ct_mixer *mixer = atc->mixer;
 	enum CTALSA_MIXER_CTL type = kcontrol->private_value;
-	int state = 0;
+	int state;
 
 	state = ucontrol->value.integer.value[0];
 	if (get_switch_state(mixer, type) == state)
@@ -574,7 +574,7 @@ static int ct_spdif_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct ct_atc *atc = snd_kcontrol_chip(kcontrol);
-	unsigned int status = 0;
+	unsigned int status;
 
 	atc->spdif_out_get_status(atc, &status);
 	ucontrol->value.iec958.status[0] = (status >> 0) & 0xff;
@@ -589,8 +589,8 @@ static int ct_spdif_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct ct_atc *atc = snd_kcontrol_chip(kcontrol);
-	int change = 1;
-	unsigned int status = 0, old_status = 0;
+	int change;
+	unsigned int status, old_status;
 
 	status = (ucontrol->value.iec958.status[0] << 0) |
 		 (ucontrol->value.iec958.status[1] << 8) |
@@ -641,8 +641,8 @@ static struct snd_kcontrol_new iec958_ctl = {
 static int
 ct_mixer_kcontrol_new(struct ct_mixer *mixer, struct snd_kcontrol_new *new)
 {
-	struct snd_kcontrol *kctl = NULL;
-	int err = 0;
+	struct snd_kcontrol *kctl;
+	int err;
 
 	kctl = snd_ctl_new1(new, mixer->atc);
 	if (NULL == kctl)
@@ -669,9 +669,9 @@ ct_mixer_kcontrol_new(struct ct_mixer *mixer, struct snd_kcontrol_new *new)
 
 static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 {
-	enum CTALSA_MIXER_CTL type = 0;
+	enum CTALSA_MIXER_CTL type;
 	struct ct_atc *atc = mixer->atc;
-	int err = 0;
+	int err;
 
 	/* Create snd kcontrol instances on demand */
 	for (type = VOL_MIXER_START; type <= VOL_MIXER_END; type++) {
@@ -733,9 +733,9 @@ static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 static void
 ct_mixer_recording_select(struct ct_mixer *mixer, enum CT_AMIXER_CTL type)
 {
-	struct amixer *amix_d = NULL;
-	struct sum *sum_c = NULL;
-	int i = 0;
+	struct amixer *amix_d;
+	struct sum *sum_c;
+	int i;
 
 	for (i = 0; i < 2; i++) {
 		amix_d = mixer->amixers[type*CHN_NUM+i];
@@ -748,8 +748,8 @@ ct_mixer_recording_select(struct ct_mixer *mixer, enum CT_AMIXER_CTL type)
 static void
 ct_mixer_recording_unselect(struct ct_mixer *mixer, enum CT_AMIXER_CTL type)
 {
-	struct amixer *amix_d = NULL;
-	int i = 0;
+	struct amixer *amix_d;
+	int i;
 
 	for (i = 0; i < 2; i++) {
 		amix_d = mixer->amixers[type*CHN_NUM+i];
@@ -760,14 +760,14 @@ ct_mixer_recording_unselect(struct ct_mixer *mixer, enum CT_AMIXER_CTL type)
 
 static int ct_mixer_get_resources(struct ct_mixer *mixer)
 {
-	struct sum_mgr *sum_mgr = NULL;
-	struct sum *sum = NULL;
+	struct sum_mgr *sum_mgr;
+	struct sum *sum;
 	struct sum_desc sum_desc = {0};
-	struct amixer_mgr *amixer_mgr = NULL;
-	struct amixer *amixer = NULL;
+	struct amixer_mgr *amixer_mgr;
+	struct amixer *amixer;
 	struct amixer_desc am_desc = {0};
-	int err = 0;
-	int i = 0;
+	int err;
+	int i;
 
 	/* Allocate sum resources for mixer obj */
 	sum_mgr = (struct sum_mgr *)mixer->atc->rsc_mgrs[SUM];
@@ -822,8 +822,8 @@ error1:
 
 static int ct_mixer_get_mem(struct ct_mixer **rmixer)
 {
-	struct ct_mixer *mixer = NULL;
-	int err = 0;
+	struct ct_mixer *mixer;
+	int err;
 
 	*rmixer = NULL;
 	/* Allocate mem for mixer obj */
@@ -855,9 +855,9 @@ error1:
 
 static int ct_mixer_topology_build(struct ct_mixer *mixer)
 {
-	struct sum *sum = NULL;
-	struct amixer *amix_d = NULL, *amix_s = NULL;
-	enum CT_AMIXER_CTL i = 0, j = 0;
+	struct sum *sum;
+	struct amixer *amix_d, *amix_s;
+	enum CT_AMIXER_CTL i, j;
 
 	/* Build topology from destination to source */
 
@@ -1044,7 +1044,7 @@ int ct_mixer_destroy(struct ct_mixer *mixer)
 	struct sum_mgr *sum_mgr = (struct sum_mgr *)mixer->atc->rsc_mgrs[SUM];
 	struct amixer_mgr *amixer_mgr =
 			(struct amixer_mgr *)mixer->atc->rsc_mgrs[AMIXER];
-	struct amixer *amixer = NULL;
+	struct amixer *amixer;
 	int i = 0;
 
 	/* Release amixer resources */
@@ -1071,8 +1071,8 @@ int ct_mixer_destroy(struct ct_mixer *mixer)
 
 int ct_mixer_create(struct ct_atc *atc, struct ct_mixer **rmixer)
 {
-	struct ct_mixer *mixer = NULL;
-	int err = 0;
+	struct ct_mixer *mixer;
+	int err;
 
 	*rmixer = NULL;
 
@@ -1109,7 +1109,7 @@ int ct_alsa_mix_create(struct ct_atc *atc,
 		       enum CTALSADEVS device,
 		       const char *device_name)
 {
-	int err = 0;
+	int err;
 
 	/* Create snd kcontrol instances on demand */
 	/* vol_ctl.device = swh_ctl.device = device; */ /* better w/ device 0 */
