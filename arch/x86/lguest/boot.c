@@ -67,6 +67,7 @@
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/i387.h>
+#include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 
 /*G:010 Welcome to the Guest!
@@ -1088,12 +1089,20 @@ __init void lguest_init(void)
 	 * lguest_init() where the rest of the fairly chaotic boot setup
 	 * occurs. */
 
+	/* The stack protector is a weird thing where gcc places a canary
+	 * value on the stack and then checks it on return.  This file is
+	 * compiled with -fno-stack-protector it, so we got this far without
+	 * problems.  The value of the canary is kept at offset 20 from the
+	 * %gs register, so we need to set that up before calling C functions
+	 * in other files. */
+	setup_stack_canary_segment(0);
+	/* We could just call load_stack_canary_segment(), but we might as
+	 * call switch_to_new_gdt() which loads the whole table and sets up
+	 * the per-cpu segment descriptor register %fs as well. */
+	switch_to_new_gdt(0);
+
 	/* As described in head_32.S, we map the first 128M of memory. */
 	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
-
-	/* Load the %fs segment register (the per-cpu segment register) with
-	 * the normal data segment to get through booting. */
-	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
 	/* The Host<->Guest Switcher lives at the top of our address space, and
 	 * the Host told us how big it is when we made LGUEST_INIT hypercall:

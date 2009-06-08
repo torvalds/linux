@@ -419,7 +419,7 @@ static int ucb1400_ts_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int ucb1400_ts_resume(struct platform_device *dev)
 {
-	struct ucb1400_ts *ucb = platform_get_drvdata(dev);
+	struct ucb1400_ts *ucb = dev->dev.platform_data;
 
 	if (ucb->ts_task) {
 		/*

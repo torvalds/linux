@@ -129,7 +129,7 @@ enum {
 	Opt_err
 };
 
-static match_table_t __initconst tokens = {
+static const match_table_t tokens __initconst = {
 	{Opt_port, "port=%u"},
 	{Opt_rsize, "rsize=%u"},
 	{Opt_wsize, "wsize=%u"},

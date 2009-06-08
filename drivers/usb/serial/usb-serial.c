@@ -974,6 +974,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		if (retval > 0) {
 			/* quietly accept this device, but don't bind to a
 			   serial port as it's about to disappear */
+			serial->num_ports = 0;
 			goto exit;
 		}
 	}

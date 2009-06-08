@@ -680,7 +680,7 @@ static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
 	host->dma_ch = -1;
 	/*
 	 * DMA Callback: run in interrupt context.
-	 * mutex_unlock will through a kernel warning if used.
+	 * mutex_unlock will throw a kernel warning if used.
 	 */
 	up(&host->sem);
 }

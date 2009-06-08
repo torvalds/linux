@@ -343,11 +343,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
-	struct drm_device *dev = connector->dev;
-
-	if (property == dev->mode_config.dpms_property && connector->encoder)
-		intel_lvds_dpms(connector->encoder, (uint32_t)(value & 0xf));
-
 	return 0;
 }
 
@@ -366,6 +361,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_lvds_save,
 	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
@@ -391,7 +387,7 @@ static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 }
 
 /* These systems claim to have LVDS, but really don't */
-static const struct dmi_system_id __initdata intel_no_lvds[] = {
+static const struct dmi_system_id intel_no_lvds[] = {
 	{
 		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core series)",
@@ -511,10 +507,10 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->vbt_mode) {
+	if (dev_priv->lfp_lvds_vbt_mode) {
 		mutex_lock(&dev->mode_config.mutex);
 		dev_priv->panel_fixed_mode =
-			drm_mode_duplicate(dev, dev_priv->vbt_mode);
+			drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=

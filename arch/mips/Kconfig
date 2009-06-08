@@ -72,6 +72,7 @@ config MIPS_COBALT
 	select IRQ_CPU
 	select IRQ_GT641XX
 	select PCI_GT64XXX_PCI0
+	select PCI
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -593,7 +594,7 @@ config WR_PPMC
 	  board, which is based on GT64120 bridge chip.
 
 config CAVIUM_OCTEON_SIMULATOR
-	bool "Support for the Cavium Networks Octeon Simulator"
+	bool "Cavium Networks Octeon Simulator"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT
@@ -607,7 +608,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	  hardware.
 
 config CAVIUM_OCTEON_REFERENCE_BOARD
-	bool "Support for the Cavium Networks Octeon reference board"
+	bool "Cavium Networks Octeon reference board"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT

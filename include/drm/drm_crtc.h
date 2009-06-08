@@ -471,6 +471,9 @@ struct drm_connector {
 	u32 property_ids[DRM_CONNECTOR_MAX_PROPERTY];
 	uint64_t property_values[DRM_CONNECTOR_MAX_PROPERTY];
 
+	/* requested DPMS state */
+	int dpms;
+
 	void *helper_private;
 
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];

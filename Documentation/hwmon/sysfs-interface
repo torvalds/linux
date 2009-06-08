@@ -150,6 +150,11 @@ fan[1-*]_min	Fan minimum value
 		Unit: revolution/min (RPM)
 		RW
 
+fan[1-*]_max	Fan maximum value
+		Unit: revolution/min (RPM)
+		Only rarely supported by the hardware.
+		RW
+
 fan[1-*]_input	Fan input value.
 		Unit: revolution/min (RPM)
 		RO
@@ -390,6 +395,7 @@ OR
 in[0-*]_min_alarm
 in[0-*]_max_alarm
 fan[1-*]_min_alarm
+fan[1-*]_max_alarm
 temp[1-*]_min_alarm
 temp[1-*]_max_alarm
 temp[1-*]_crit_alarm

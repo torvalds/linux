@@ -316,6 +316,7 @@ static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_dvo_save,
 	.restore = intel_dvo_restore,
 	.detect = intel_dvo_detect,

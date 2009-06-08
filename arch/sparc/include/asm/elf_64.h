@@ -208,8 +208,9 @@ do {	unsigned long new_flags = current_thread_info()->flags; \
 	else						\
 		clear_thread_flag(TIF_ABI_PENDING);	\
 	/* flush_thread will update pgd cache */	\
-	if (current->personality != PER_LINUX32)	\
-		set_personality(PER_LINUX);		\
+	if (personality(current->personality) != PER_LINUX32)	\
+		set_personality(PER_LINUX |		\
+			(current->personality & (~PER_MASK)));	\
 } while (0)
 
 #endif /* !(__ASM_SPARC64_ELF_H) */
