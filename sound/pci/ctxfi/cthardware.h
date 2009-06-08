@@ -27,6 +27,19 @@ enum CHIPTYP {
 	ATCNONE
 };
 
+enum CTCARDS {
+	/* 20k1 models */
+	CTSB055X,
+	CTSB073X,
+	CTUAA,
+	CT20K1_UNKNOWN,
+	/* 20k2 models */
+	CTSB0760,
+	CTHENDRIX,
+	CTSB0880,
+	NUM_CTCARDS		/* This should always be the last */
+};
+
 /* Type of input source for ADC */
 enum ADCSRC{
 	ADC_MICIN,
@@ -48,7 +61,6 @@ struct hw {
 	int (*card_init)(struct hw *hw, struct card_conf *info);
 	int (*card_stop)(struct hw *hw);
 	int (*pll_init)(struct hw *hw, unsigned int rsr);
-	enum CHIPTYP (*get_chip_type)(struct hw *hw);
 	int (*is_adc_source_selected)(struct hw *hw, enum ADCSRC source);
 	int (*select_adc_source)(struct hw *hw, enum ADCSRC source);
 	int (*have_digit_io_switch)(struct hw *hw);
@@ -156,9 +168,13 @@ struct hw {
 	int irq;
 	unsigned long io_base;
 	unsigned long mem_base;
+
+	enum CHIPTYP chip_type;
+	enum CTCARDS model;
 };
 
-int create_hw_obj(struct pci_dev *pci, struct hw **rhw);
+int create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
+		  enum CTCARDS model, struct hw **rhw);
 int destroy_hw_obj(struct hw *hw);
 
 unsigned int get_field(unsigned int data, unsigned int field);

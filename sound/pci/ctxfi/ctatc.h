@@ -37,15 +37,6 @@ enum CTALSADEVS {		/* Types of alsa devices */
 	NUM_CTALSADEVS		/* This should always be the last */
 };
 
-enum CTCARDS {
-	CTSB0760,
-	CTHENDRIX,
-	CTSB08801,
-	CTSB08802,
-	CTSB08803,
-	NUM_CTCARDS		/* This should always be the last */
-};
-
 struct ct_atc_chip_sub_details {
 	u16 subsys;
 	const char *nm_model;
@@ -89,8 +80,10 @@ struct ct_atc {
 	unsigned int msr; /* master sample rate in rsr */
 	unsigned int pll_rate; /* current rate of Phase Lock Loop */
 
-	const struct ct_atc_chip_details *chip_details;
-	enum CTCARDS model;
+	int chip_type;
+	int model;
+	const char *chip_name;
+	const char *model_name;
 
 	struct ct_vm *vm; /* device virtual memory manager for this card */
 	int (*map_audio_buffer)(struct ct_atc *atc, struct ct_atc_pcm *apcm);
@@ -147,7 +140,7 @@ struct ct_atc {
 
 
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
-			    unsigned int rsr, unsigned int msr,
+			    unsigned int rsr, unsigned int msr, int chip_type,
 			    struct ct_atc **ratc);
 int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc);
 

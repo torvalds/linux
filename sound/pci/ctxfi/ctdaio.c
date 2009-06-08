@@ -116,7 +116,7 @@ static struct rsc_ops daio_in_rsc_ops_20k2 = {
 
 static unsigned int daio_device_index(enum DAIOTYP type, struct hw *hw)
 {
-	switch (hw->get_chip_type(hw)) {
+	switch (hw->chip_type) {
 	case ATC20K1:
 		switch (type) {
 		case SPDIFOO:	return 0;
@@ -343,7 +343,7 @@ static int daio_rsc_init(struct daio *daio,
 	int err;
 	unsigned int idx_l, idx_r;
 
-	switch (((struct hw *)hw)->get_chip_type(hw)) {
+	switch (((struct hw *)hw)->chip_type) {
 	case ATC20K1:
 		idx_l = idx_20k1[desc->type].left;
 		idx_r = idx_20k1[desc->type].right;
@@ -367,7 +367,7 @@ static int daio_rsc_init(struct daio *daio,
 	if (desc->type <= DAIO_OUT_MAX) {
 		daio->rscl.ops = daio->rscr.ops = &daio_out_rsc_ops;
 	} else {
-		switch (((struct hw *)hw)->get_chip_type(hw)) {
+		switch (((struct hw *)hw)->chip_type) {
 		case ATC20K1:
 			daio->rscl.ops = daio->rscr.ops = &daio_in_rsc_ops_20k1;
 			break;

@@ -15,6 +15,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "ctatc.h"
+#include "cthardware.h"
 
 MODULE_AUTHOR("Creative Technology Ltd");
 MODULE_DESCRIPTION("X-Fi driver version 1.03");
@@ -41,8 +42,12 @@ MODULE_PARM_DESC(enable, "Enable Creative X-Fi driver");
 
 static struct pci_device_id ct_pci_dev_ids[] = {
 	/* only X-Fi is supported, so... */
-	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K1) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K1),
+	  .driver_data = ATC20K1,
+	},
+	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K2),
+	  .driver_data = ATC20K2,
+	},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ct_pci_dev_ids);
@@ -79,7 +84,8 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		       "1 and 2, Value 2 is assumed.\n");
 		multiple = 2;
 	}
-	err = ct_atc_create(card, pci, reference_rate, multiple, &atc);
+	err = ct_atc_create(card, pci, reference_rate, multiple,
+			    pci_id->driver_data, &atc);
 	if (err < 0)
 		goto error;
 
@@ -92,7 +98,8 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	strcpy(card->driver, "SB-XFi");
 	strcpy(card->shortname, "Creative X-Fi");
-	strcpy(card->longname, "Creative ALSA Driver X-Fi");
+	snprintf(card->longname, sizeof(card->longname), "%s %s %s",
+		 card->shortname, atc->chip_name, atc->model_name);
 
 	err = snd_card_register(card);
 	if (err < 0)

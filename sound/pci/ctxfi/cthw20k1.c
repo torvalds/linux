@@ -1432,11 +1432,9 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 {
 	u32 data;
 	u16 gpioorg;
-	u16 subsys_id;
 	unsigned int ret;
 
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
-	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
+	if (hw->model == CTSB055X) {
 		/* SB055x, unmute outputs */
 		gpioorg = (u16)hw_read_20kx(hw, GPIO);
 		gpioorg &= 0xffbf;	/* set GPIO6 to low */
@@ -1538,19 +1536,14 @@ static int is_adc_input_selected_hendrix(struct hw *hw, enum ADCSRC type)
 
 static int hw_is_adc_input_selected(struct hw *hw, enum ADCSRC type)
 {
-	u16 subsys_id;
-
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
-	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
-		/* SB055x cards */
+	switch (hw->model) {
+	case CTSB055X:
 		return is_adc_input_selected_SB055x(hw, type);
-	} else if ((subsys_id == 0x0029) || (subsys_id == 0x0031)) {
-		/* SB073x cards */
+	case CTSB073X:
 		return is_adc_input_selected_hendrix(hw, type);
-	} else if ((subsys_id & 0xf000) == 0x6000) {
-		/* Vista compatible cards */
+	case CTHENDRIX:
 		return is_adc_input_selected_hendrix(hw, type);
-	} else {
+	default:
 		return is_adc_input_selected_SBx(hw, type);
 	}
 }
@@ -1692,20 +1685,17 @@ adc_input_select_hendrix(struct hw *hw, enum ADCSRC type, unsigned char boost)
 
 static int hw_adc_input_select(struct hw *hw, enum ADCSRC type)
 {
-	u16 subsys_id;
+	int state = type == ADC_MICIN;
 
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
-	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
-		/* SB055x cards */
-		return adc_input_select_SB055x(hw, type, (ADC_MICIN == type));
-	} else if ((subsys_id == 0x0029) || (subsys_id == 0x0031)) {
-		/* SB073x cards */
-		return adc_input_select_hendrix(hw, type, (ADC_MICIN == type));
-	} else if ((subsys_id & 0xf000) == 0x6000) {
-		/* Vista compatible cards */
-		return adc_input_select_hendrix(hw, type, (ADC_MICIN == type));
-	} else {
-		return adc_input_select_SBx(hw, type, (ADC_MICIN == type));
+	switch (hw->model) {
+	case CTSB055X:
+		return adc_input_select_SB055x(hw, type, state);
+	case CTSB073X:
+		return adc_input_select_hendrix(hw, type, state);
+	case CTHENDRIX:
+		return adc_input_select_hendrix(hw, type, state);
+	default:
+		return adc_input_select_SBx(hw, type, state);
 	}
 }
 
@@ -1781,28 +1771,16 @@ static int adc_init_SBx(struct hw *hw, int input, int mic20db)
 
 static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 {
-	int err;
-	u16 subsys_id;
-
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
-	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
-		/* Sb055x card */
-		err = adc_init_SB055x(hw, info->input, info->mic20db);
-	} else {
-		err = adc_init_SBx(hw, info->input, info->mic20db);
-	}
-
-	return err;
+	if (hw->model == CTSB055X)
+		return adc_init_SB055x(hw, info->input, info->mic20db);
+	else
+		return adc_init_SBx(hw, info->input, info->mic20db);
 }
 
 static int hw_have_digit_io_switch(struct hw *hw)
 {
-	u16 subsys_id;
-
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	/* SB073x and Vista compatible cards have no digit IO switch */
-	return !((subsys_id == 0x0029) || (subsys_id == 0x0031)
-				|| ((subsys_id & 0xf000) == 0x6000));
+	return !(hw->model == CTSB073X || hw->model == CTHENDRIX);
 }
 
 #define CTLBITS(a, b, c, d)	(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
@@ -1918,7 +1896,6 @@ static int hw_card_start(struct hw *hw)
 {
 	int err;
 	struct pci_dev *pci = hw->pci;
-	u16 subsys_id;
 
 	err = pci_enable_device(pci);
 	if (err < 0)
@@ -1939,8 +1916,7 @@ static int hw_card_start(struct hw *hw)
 		goto error1;
 
 	/* Switch to X-Fi mode from UAA mode if neeeded */
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsys_id);
-	if ((0x5 == pci->device) && (0x6000 == (subsys_id & 0x6000))) {
+	if (hw->model == CTHENDRIX) {
 		err = uaa_to_xfi(pci);
 		if (err)
 			goto error2;
@@ -2004,7 +1980,6 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 {
 	int err;
 	unsigned int gctl;
-	u16 subsys_id;
 	u32 data;
 	struct dac_conf dac_info = {0};
 	struct adc_conf adc_info = {0};
@@ -2044,19 +2019,20 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	hw_write_20kx(hw, SRCIP, 0);
 	mdelay(30);
 
-	pci_read_config_word(hw->pci, PCI_SUBSYSTEM_ID, &subsys_id);
 	/* Detect the card ID and configure GPIO accordingly. */
-	if ((subsys_id == 0x0022) || (subsys_id == 0x002F)) {
-		/* SB055x cards */
+	switch (hw->model) {
+	case CTSB055X:
 		hw_write_20kx(hw, GPIOCTL, 0x13fe);
-	} else if ((subsys_id == 0x0029) || (subsys_id == 0x0031)) {
-		/* SB073x cards */
+		break;
+	case CTSB073X:
 		hw_write_20kx(hw, GPIOCTL, 0x00e6);
-	} else if ((subsys_id & 0xf000) == 0x6000) {
-		/* Vista compatible cards */
+		break;
+	case CTHENDRIX: /* Vista compatible cards */
 		hw_write_20kx(hw, GPIOCTL, 0x00c2);
-	} else {
+		break;
+	default:
 		hw_write_20kx(hw, GPIOCTL, 0x01e6);
+		break;
 	}
 
 	trn_info.vm_pgt_phys = info->vm_pgt_phys;

@@ -39,29 +39,40 @@
 			    | (0x10 << 16) \
 			    | ((IEC958_AES3_CON_FS_48000) << 24))
 
-static const struct ct_atc_chip_sub_details atc_sub_details[NUM_CTCARDS] = {
-	[CTSB0760] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB0760,
-		      .nm_model = "SB076x"},
-	[CTHENDRIX] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_HENDRIX,
-		      .nm_model = "Hendrix"},
-	[CTSB08801] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08801,
-		      .nm_model = "SB0880"},
-	[CTSB08802] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08802,
-		      .nm_model = "SB0880"},
-	[CTSB08803] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08803,
-		      .nm_model = "SB0880"}
+static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0022, "SB055x", CTSB055X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x002f, "SB055x", CTSB055X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0029, "SB073x", CTSB073X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0031, "SB073x", CTSB073X),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_CREATIVE, 0x6000,
+			   PCI_SUBDEVICE_ID_CREATIVE_HENDRIX, "UAA", CTUAA),
+	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_CREATIVE,
+			     "Unknown", CT20K1_UNKNOWN),
+	{ } /* terminator */
 };
 
-static struct ct_atc_chip_details atc_chip_details[] = {
-	{.vendor = PCI_VENDOR_ID_CREATIVE,
-	 .device = PCI_DEVICE_ID_CREATIVE_20K1,
-	 .sub_details = NULL,
-	 .nm_card = "X-Fi 20k1"},
-	{.vendor = PCI_VENDOR_ID_CREATIVE,
-	 .device = PCI_DEVICE_ID_CREATIVE_20K2,
-	 .sub_details = atc_sub_details,
-	 .nm_card = "X-Fi 20k2"},
-	{} /* terminator */
+static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB0760,
+		      "SB0760", CTSB0760),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB08801,
+		      "SB0880", CTSB0880),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB08802,
+		      "SB0880", CTSB0880),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB08803,
+		      "SB0880", CTSB0880),
+	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_CREATIVE, 0x6000,
+			   PCI_SUBDEVICE_ID_CREATIVE_HENDRIX, "UAA", CTHENDRIX),
+	{ } /* terminator */
+};
+
+static const char *ct_subsys_name[NUM_CTCARDS] = {
+	[CTSB055X]	= "SB055x",
+	[CTSB073X]	= "SB073x",
+	[CTSB0760]	= "SB076x",
+	[CTUAA]		= "UAA",
+	[CT20K1_UNKNOWN] = "Unknown",
+	[CTHENDRIX]	= "Hendrix",
+	[CTSB0880]	= "SB0880",
 };
 
 static struct {
@@ -1208,62 +1219,39 @@ static int atc_dev_free(struct snd_device *dev)
 
 static int __devinit atc_identify_card(struct ct_atc *atc)
 {
-	u16 subsys;
-	u8 revision;
-	struct pci_dev *pci = atc->pci;
-	const struct ct_atc_chip_details *d;
-	enum CTCARDS i;
+	const struct snd_pci_quirk *p;
+	const struct snd_pci_quirk *list;
 
-	subsys = pci->subsystem_device;
-	revision = pci->revision;
-	atc->chip_details = NULL;
-	atc->model = NUM_CTCARDS;
-	for (d = atc_chip_details; d->vendor; d++) {
-		if (d->vendor != pci->vendor || d->device != pci->device)
-			continue;
-
-		if (NULL == d->sub_details) {
-			atc->chip_details = d;
-			break;
-		}
-		for (i = 0; i < NUM_CTCARDS; i++) {
-			if ((d->sub_details[i].subsys == subsys) ||
-			    (((subsys & 0x6000) == 0x6000) &&
-			    ((d->sub_details[i].subsys & 0x6000) == 0x6000))) {
-				atc->model = i;
-				break;
-			}
-		}
-		if (i >= NUM_CTCARDS)
-			continue;
-
-		atc->chip_details = d;
+	switch (atc->chip_type) {
+	case ATC20K1:
+		atc->chip_name = "20K1";
+		list = subsys_20k1_list;
 		break;
-		/* not take revision into consideration now */
-	}
-	if (!d->vendor)
+	case ATC20K2:
+		atc->chip_name = "20K2";
+		list = subsys_20k2_list;
+		break;
+	default:
 		return -ENOENT;
-
+	}
+	p = snd_pci_quirk_lookup(atc->pci, list);
+	if (!p)
+		return -ENOENT;
+	atc->model = p->value;
+	atc->model_name = ct_subsys_name[atc->model];
+	snd_printd("ctxfi: chip %s model %s (%04x:%04x) is found\n",
+		   atc->chip_name, atc->model_name,
+		   atc->pci->subsystem_vendor,
+		   atc->pci->subsystem_device);
 	return 0;
 }
 
 int __devinit ct_atc_create_alsa_devs(struct ct_atc *atc)
 {
 	enum CTALSADEVS i;
-	struct hw *hw = atc->hw;
 	int err;
 
-	switch (hw->get_chip_type(hw)) {
-	case ATC20K1:
-		alsa_dev_funcs[MIXER].public_name = "20K1";
-		break;
-	case ATC20K2:
-		alsa_dev_funcs[MIXER].public_name = "20K2";
-		break;
-	default:
-		alsa_dev_funcs[MIXER].public_name = "Unknown";
-		break;
-	}
+	alsa_dev_funcs[MIXER].public_name = atc->chip_name;
 
 	for (i = 0; i < NUM_CTALSADEVS; i++) {
 		if (NULL == alsa_dev_funcs[i].create)
@@ -1287,7 +1275,7 @@ static int __devinit atc_create_hw_devs(struct ct_atc *atc)
 	struct card_conf info = {0};
 	int i, err;
 
-	err = create_hw_obj(atc->pci, &hw);
+	err = create_hw_obj(atc->pci, atc->chip_type, atc->model, &hw);
 	if (err) {
 		printk(KERN_ERR "Failed to create hw obj!!!\n");
 		return err;
@@ -1328,7 +1316,6 @@ static int __devinit atc_get_resources(struct ct_atc *atc)
 	struct sum_desc sum_dsc = {0};
 	struct sum_mgr *sum_mgr;
 	int err, i;
-	unsigned short subsys_id;
 
 	atc->daios = kzalloc(sizeof(void *)*(DAIONUM), GFP_KERNEL);
 	if (NULL == atc->daios)
@@ -1359,13 +1346,10 @@ static int __devinit atc_get_resources(struct ct_atc *atc)
 		}
 		atc->n_daio++;
 	}
-	subsys_id = atc->pci->subsystem_device;
-	if ((subsys_id == 0x0029) || (subsys_id == 0x0031)) {
-		/* SB073x cards */
+	if (atc->model == CTSB073X)
 		da_desc.type = SPDIFI1;
-	} else {
+	else
 		da_desc.type = SPDIFIO;
-	}
 	err = daio_mgr->get_daio(daio_mgr, &da_desc,
 				(struct daio **)&atc->daios[i]);
 	if (err) {
@@ -1555,7 +1539,8 @@ static struct ct_atc atc_preset __devinitdata = {
  */
 
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
-		  unsigned int rsr, unsigned int msr, struct ct_atc **ratc)
+			    unsigned int rsr, unsigned int msr,
+			    int chip_type, struct ct_atc **ratc)
 {
 	struct ct_atc *atc;
 	static struct snd_device_ops ops = {
@@ -1576,6 +1561,7 @@ int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	atc->pci = pci;
 	atc->rsr = rsr;
 	atc->msr = msr;
+	atc->chip_type = chip_type;
 
 	spin_lock_init(&atc->atc_lock);
 

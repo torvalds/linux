@@ -20,34 +20,16 @@
 #include "cthw20k2.h"
 #include <linux/bug.h>
 
-static enum CHIPTYP __devinitdata get_chip_type(struct hw *hw)
-{
-	enum CHIPTYP type;
-
-	switch (hw->pci->device) {
-	case 0x0005:	/* 20k1 device */
-		type = ATC20K1;
-		break;
-	case 0x000B:	/* 20k2 device */
-		type = ATC20K2;
-		break;
-	default:
-		type = ATCNONE;
-		break;
-	}
-
-	return type;
-}
-
-int __devinit create_hw_obj(struct pci_dev *pci, struct hw **rhw)
+int __devinit create_hw_obj(struct pci_dev *pci, enum CHIPTYP chip_type,
+			    enum CTCARDS model, struct hw **rhw)
 {
 	int err;
 
-	switch (pci->device) {
-	case 0x0005:	/* 20k1 device */
+	switch (chip_type) {
+	case ATC20K1:
 		err = create_20k1_hw_obj(rhw);
 		break;
-	case 0x000B:	/* 20k2 device */
+	case ATC20K2:
 		err = create_20k2_hw_obj(rhw);
 		break;
 	default:
@@ -58,7 +40,8 @@ int __devinit create_hw_obj(struct pci_dev *pci, struct hw **rhw)
 		return err;
 
 	(*rhw)->pci = pci;
-	(*rhw)->get_chip_type = get_chip_type;
+	(*rhw)->chip_type = chip_type;
+	(*rhw)->model = model;
 
 	return 0;
 }
