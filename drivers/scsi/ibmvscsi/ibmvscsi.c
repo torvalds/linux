@@ -87,7 +87,11 @@
  */
 static int max_id = 64;
 static int max_channel = 3;
-static int init_timeout = 5;
+static int init_timeout = 300;
+static int login_timeout = 60;
+static int info_timeout = 30;
+static int abort_timeout = 60;
+static int reset_timeout = 60;
 static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
 static int max_events = IBMVSCSI_MAX_REQUESTS_DEFAULT + 2;
 
@@ -849,7 +853,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	init_event_struct(evt_struct,
 			  adapter_info_rsp,
 			  VIOSRP_MAD_FORMAT,
-			  init_timeout);
+			  info_timeout);
 	
 	req = &evt_struct->iu.mad.adapter_info;
 	memset(req, 0x00, sizeof(*req));
@@ -871,7 +875,7 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 	}
 	
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	if (ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2)) {
+	if (ibmvscsi_send_srp_event(evt_struct, hostdata, info_timeout * 2)) {
 		dev_err(hostdata->dev, "couldn't send ADAPTER_INFO_REQ!\n");
 		dma_unmap_single(hostdata->dev,
 				 addr,
@@ -944,7 +948,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	init_event_struct(evt_struct,
 			  login_rsp,
 			  VIOSRP_SRP_FORMAT,
-			  init_timeout);
+			  login_timeout);
 
 	login = &evt_struct->iu.srp.login_req;
 	memset(login, 0x00, sizeof(struct srp_login_req));
@@ -959,7 +963,7 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	 */
 	atomic_set(&hostdata->request_limit, 0);
 
-	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2);
+	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, login_timeout * 2);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	dev_info(hostdata->dev, "sent SRP login\n");
 	return rc;
@@ -1026,7 +1030,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		init_event_struct(evt,
 				  sync_completion,
 				  VIOSRP_SRP_FORMAT,
-				  init_timeout);
+				  abort_timeout);
 
 		tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 	
@@ -1040,7 +1044,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 		evt->sync_srp = &srp_rsp;
 
 		init_completion(&evt->comp);
-		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, abort_timeout * 2);
 
 		if (rsp_rc != SCSI_MLQUEUE_HOST_BUSY)
 			break;
@@ -1149,7 +1153,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		init_event_struct(evt,
 				  sync_completion,
 				  VIOSRP_SRP_FORMAT,
-				  init_timeout);
+				  reset_timeout);
 
 		tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 
@@ -1162,7 +1166,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		evt->sync_srp = &srp_rsp;
 
 		init_completion(&evt->comp);
-		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, reset_timeout * 2);
 
 		if (rsp_rc != SCSI_MLQUEUE_HOST_BUSY)
 			break;
@@ -1394,7 +1398,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 	init_event_struct(evt_struct,
 			  sync_completion,
 			  VIOSRP_MAD_FORMAT,
-			  init_timeout);
+			  info_timeout);
 
 	host_config = &evt_struct->iu.mad.host_config;
 
@@ -1416,7 +1420,7 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 
 	init_completion(&evt_struct->comp);
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, init_timeout * 2);
+	rc = ibmvscsi_send_srp_event(evt_struct, hostdata, info_timeout * 2);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 	if (rc == 0)
 		wait_for_completion(&evt_struct->comp);
@@ -1441,7 +1445,7 @@ static int ibmvscsi_slave_configure(struct scsi_device *sdev)
 	spin_lock_irqsave(shost->host_lock, lock_flags);
 	if (sdev->type == TYPE_DISK) {
 		sdev->allow_restart = 1;
-		blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
+		blk_queue_rq_timeout(sdev->request_queue, 120 * HZ);
 	}
 	scsi_adjust_queue_depth(sdev, 0, shost->cmd_per_lun);
 	spin_unlock_irqrestore(shost->host_lock, lock_flags);
