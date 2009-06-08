@@ -1072,10 +1072,9 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		ubi_err("no reserved physical eraseblocks");
 		goto out_ro;
 	}
-
 	spin_unlock(&ubi->volumes_lock);
-	ubi_msg("mark PEB %d as bad", pnum);
 
+	ubi_msg("mark PEB %d as bad", pnum);
 	err = ubi_io_mark_bad(ubi, pnum);
 	if (err)
 		goto out_ro;
@@ -1085,7 +1084,9 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	ubi->bad_peb_count += 1;
 	ubi->good_peb_count -= 1;
 	ubi_calculate_reserved(ubi);
-	if (ubi->beb_rsvd_pebs == 0)
+	if (ubi->beb_rsvd_pebs)
+		ubi_msg("%d PEBs left in the reserve", ubi->beb_rsvd_pebs);
+	else
 		ubi_warn("last PEB from the reserved pool was used");
 	spin_unlock(&ubi->volumes_lock);
 
