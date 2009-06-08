@@ -21,6 +21,18 @@ config BOARD_ATNGW100_EVKLCD10X
 	  The MCI pins can be reenabled by editing the "add device function" but
 	  this may break the setup for other displays that use these pins.
 
+config BOARD_ATNGW100_MRMT
+	bool "Mediama RMT1/2 add-on board"
+	help
+	  This enables support for the Mediama RMT1 or RMT2 board.
+	  RMT provides LCD support, AC97 codec and other
+	  optional peripherals to the Atmel NGW100.
+
+	  This choice disables the detect pin and the write-protect pin for the
+	  MCI platform device, since it conflicts with the LCD platform device.
+	  The MCI pins can be reenabled by editing the "add device function" but
+	  this may break the setup for other displays that use these pins.
+
 endchoice
 
 choice
@@ -38,5 +50,9 @@ config BOARD_ATNGW100_EVKLCD10X_POW_QVGA
 	bool "Powertip QVGA (320x240)"
 
 endchoice
+
+if BOARD_ATNGW100_MRMT
+source	"arch/avr32/boards/atngw100/Kconfig_mrmt"
+endif
 
 endif	# BOARD_ATNGW100
