@@ -42,6 +42,7 @@ static void ext2_sync_super(struct super_block *sb,
 			    struct ext2_super_block *es);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
+static int ext2_sync_fs(struct super_block *sb, int wait);
 
 void ext2_error (struct super_block * sb, const char * function,
 		 const char * fmt, ...)
@@ -309,6 +310,7 @@ static const struct super_operations ext2_sops = {
 	.delete_inode	= ext2_delete_inode,
 	.put_super	= ext2_put_super,
 	.write_super	= ext2_write_super,
+	.sync_fs	= ext2_sync_fs,
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
 	.clear_inode	= ext2_clear_inode,
@@ -1132,25 +1134,36 @@ static void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es)
  * set s_state to EXT2_VALID_FS after some corrections.
  */
 
-void ext2_write_super (struct super_block * sb)
+static int ext2_sync_fs(struct super_block *sb, int wait)
 {
-	struct ext2_super_block * es;
-	lock_kernel();
-	if (!(sb->s_flags & MS_RDONLY)) {
-		es = EXT2_SB(sb)->s_es;
+	struct ext2_super_block *es = EXT2_SB(sb)->s_es;
 
-		if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
-			ext2_debug ("setting valid to 0\n");
-			es->s_state &= cpu_to_le16(~EXT2_VALID_FS);
-			es->s_free_blocks_count = cpu_to_le32(ext2_count_free_blocks(sb));
-			es->s_free_inodes_count = cpu_to_le32(ext2_count_free_inodes(sb));
-			es->s_mtime = cpu_to_le32(get_seconds());
-			ext2_sync_super(sb, es);
-		} else
-			ext2_commit_super (sb, es);
+	lock_kernel();
+	if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
+		ext2_debug("setting valid to 0\n");
+		es->s_state &= cpu_to_le16(~EXT2_VALID_FS);
+		es->s_free_blocks_count =
+			cpu_to_le32(ext2_count_free_blocks(sb));
+		es->s_free_inodes_count =
+			cpu_to_le32(ext2_count_free_inodes(sb));
+		es->s_mtime = cpu_to_le32(get_seconds());
+		ext2_sync_super(sb, es);
+	} else {
+		ext2_commit_super(sb, es);
 	}
 	sb->s_dirt = 0;
 	unlock_kernel();
+
+	return 0;
+}
+
+
+void ext2_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		ext2_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static int ext2_remount (struct super_block * sb, int * flags, char * data)
