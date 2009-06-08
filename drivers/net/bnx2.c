@@ -546,8 +546,7 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 						    rxr->rx_desc_mapping[j]);
 			rxr->rx_desc_ring[j] = NULL;
 		}
-		if (rxr->rx_buf_ring)
-			vfree(rxr->rx_buf_ring);
+		vfree(rxr->rx_buf_ring);
 		rxr->rx_buf_ring = NULL;
 
 		for (j = 0; j < bp->rx_max_pg_ring; j++) {
@@ -557,8 +556,7 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 						    rxr->rx_pg_desc_mapping[j]);
 			rxr->rx_pg_desc_ring[j] = NULL;
 		}
-		if (rxr->rx_pg_ring)
-			vfree(rxr->rx_pg_ring);
+		vfree(rxr->rx_pg_ring);
 		rxr->rx_pg_ring = NULL;
 	}
 }
