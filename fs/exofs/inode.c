@@ -295,6 +295,9 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 err:
 	if (!is_sync)
 		_unlock_pcol_pages(pcol, ret, READ);
+	else /* Pages unlocked by caller in sync mode only free bio */
+		pcol_free(pcol);
+
 	kfree(pcol_copy);
 	if (or)
 		osd_end_request(or);
