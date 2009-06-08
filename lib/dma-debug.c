@@ -139,7 +139,7 @@ static inline void dump_entry_trace(struct dma_debug_entry *entry)
 {
 #ifdef CONFIG_STACKTRACE
 	if (entry) {
-		printk(KERN_WARNING "Mapped at:\n");
+		pr_warning("Mapped at:\n");
 		print_stack_trace(&entry->stacktrace, 0);
 	}
 #endif
@@ -377,8 +377,7 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 	spin_lock_irqsave(&free_entries_lock, flags);
 
 	if (list_empty(&free_entries)) {
-		printk(KERN_ERR "DMA-API: debugging out of memory "
-				"- disabling\n");
+		pr_err("DMA-API: debugging out of memory - disabling\n");
 		global_disable = true;
 		goto out;
 	}
@@ -483,8 +482,7 @@ static int prealloc_memory(u32 num_entries)
 	num_free_entries = num_entries;
 	min_free_entries = num_entries;
 
-	printk(KERN_INFO "DMA-API: preallocated %d debug entries\n",
-			num_entries);
+	pr_info("DMA-API: preallocated %d debug entries\n", num_entries);
 
 	return 0;
 
@@ -534,7 +532,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	 * disabled. Since copy_from_user can fault and may sleep we
 	 * need to copy to temporary buffer first
 	 */
-	len = min(count, NAME_MAX_LEN - 1);
+	len = min(count, (size_t)(NAME_MAX_LEN - 1));
 	if (copy_from_user(buf, userbuf, len))
 		return -EFAULT;
 
@@ -557,8 +555,7 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 		 * switched off.
 		 */
 		if (current_driver_name[0])
-			printk(KERN_INFO "DMA-API: switching off dma-debug "
-					 "driver filter\n");
+			pr_info("DMA-API: switching off dma-debug driver filter\n");
 		current_driver_name[0] = 0;
 		current_driver = NULL;
 		goto out_unlock;
@@ -576,8 +573,8 @@ static ssize_t filter_write(struct file *file, const char __user *userbuf,
 	current_driver_name[i] = 0;
 	current_driver = NULL;
 
-	printk(KERN_INFO "DMA-API: enable driver filter for driver [%s]\n",
-	       current_driver_name);
+	pr_info("DMA-API: enable driver filter for driver [%s]\n",
+		current_driver_name);
 
 out_unlock:
 	write_unlock_irqrestore(&driver_name_lock, flags);
@@ -594,7 +591,7 @@ static int dma_debug_fs_init(void)
 {
 	dma_debug_dent = debugfs_create_dir("dma-api", NULL);
 	if (!dma_debug_dent) {
-		printk(KERN_ERR "DMA-API: can not create debugfs directory\n");
+		pr_err("DMA-API: can not create debugfs directory\n");
 		return -ENOMEM;
 	}
 
@@ -693,7 +690,7 @@ void dma_debug_add_bus(struct bus_type *bus)
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (nb == NULL) {
-		printk(KERN_ERR "dma_debug_add_bus: out of memory\n");
+		pr_err("dma_debug_add_bus: out of memory\n");
 		return;
 	}
 
@@ -718,8 +715,7 @@ void dma_debug_init(u32 num_entries)
 	}
 
 	if (dma_debug_fs_init() != 0) {
-		printk(KERN_ERR "DMA-API: error creating debugfs entries "
-				"- disabling\n");
+		pr_err("DMA-API: error creating debugfs entries - disabling\n");
 		global_disable = true;
 
 		return;
@@ -729,8 +725,7 @@ void dma_debug_init(u32 num_entries)
 		num_entries = req_entries;
 
 	if (prealloc_memory(num_entries) != 0) {
-		printk(KERN_ERR "DMA-API: debugging out of memory error "
-				"- disabled\n");
+		pr_err("DMA-API: debugging out of memory error - disabled\n");
 		global_disable = true;
 
 		return;
@@ -738,7 +733,7 @@ void dma_debug_init(u32 num_entries)
 
 	nr_total_entries = num_free_entries;
 
-	printk(KERN_INFO "DMA-API: debugging enabled by kernel config\n");
+	pr_info("DMA-API: debugging enabled by kernel config\n");
 }
 
 static __init int dma_debug_cmdline(char *str)
@@ -747,8 +742,7 @@ static __init int dma_debug_cmdline(char *str)
 		return -EINVAL;
 
 	if (strncmp(str, "off", 3) == 0) {
-		printk(KERN_INFO "DMA-API: debugging disabled on kernel "
-				 "command line\n");
+		pr_info("DMA-API: debugging disabled on kernel command line\n");
 		global_disable = true;
 	}
 
@@ -1239,8 +1233,8 @@ static int __init dma_debug_driver_setup(char *str)
 	}
 
 	if (current_driver_name[0])
-		printk(KERN_INFO "DMA-API: enable driver filter for "
-				 "driver [%s]\n", current_driver_name);
+		pr_info("DMA-API: enable driver filter for driver [%s]\n",
+			current_driver_name);
 
 
 	return 1;
