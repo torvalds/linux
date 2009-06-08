@@ -137,6 +137,8 @@ struct hci_dev {
 	struct device		*parent;
 	struct device		dev;
 
+	struct rfkill		*rfkill;
+
 	struct module 		*owner;
 
 	int (*open)(struct hci_dev *hdev);
