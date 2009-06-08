@@ -2236,12 +2236,8 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 	struct irq_pin_list *entry;
 	u8 vector = cfg->vector;
 
-	entry = cfg->irq_2_pin;
-	for (;;) {
+	for (entry = cfg->irq_2_pin; entry != NULL; entry = entry->next) {
 		unsigned int reg;
-
-		if (!entry)
-			break;
 
 		apic = entry->apic;
 		pin = entry->pin;
@@ -2255,9 +2251,6 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
 		io_apic_modify(apic, 0x10 + pin*2, reg);
-		if (!entry->next)
-			break;
-		entry = entry->next;
 	}
 }
 
