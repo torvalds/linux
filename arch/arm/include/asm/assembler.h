@@ -114,3 +114,16 @@
 	.align	3;				\
 	.long	9999b,9001f;			\
 	.previous
+
+/*
+ * SMP data memory barrier
+ */
+	.macro	smp_dmb
+#ifdef CONFIG_SMP
+#if __LINUX_ARM_ARCH__ >= 7
+	dmb
+#elif __LINUX_ARM_ARCH__ == 6
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
+#endif
+	.endm

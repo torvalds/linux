@@ -848,6 +848,7 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
+	runtime->hw_ptr_jiffies = jiffies;
 	runtime->status->state = state;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
@@ -961,6 +962,11 @@ static int snd_pcm_do_pause(struct snd_pcm_substream *substream, int push)
 {
 	if (substream->runtime->trigger_master != substream)
 		return 0;
+	/* The jiffies check in snd_pcm_update_hw_ptr*() is done by
+	 * a delta betwen the current jiffies, this gives a large enough
+	 * delta, effectively to skip the check once.
+	 */
+	substream->runtime->hw_ptr_jiffies = jiffies - HZ * 1000;
 	return substream->ops->trigger(substream,
 				       push ? SNDRV_PCM_TRIGGER_PAUSE_PUSH :
 					      SNDRV_PCM_TRIGGER_PAUSE_RELEASE);

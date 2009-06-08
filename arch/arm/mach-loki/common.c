@@ -82,6 +82,9 @@ static struct platform_device loki_ge0 = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= loki_ge0_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init loki_ge0_init(struct mv643xx_eth_platform_data *eth_data)
@@ -136,6 +139,9 @@ static struct platform_device loki_ge1 = {
 	.id		= 1,
 	.num_resources	= 1,
 	.resource	= loki_ge1_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init loki_ge1_init(struct mv643xx_eth_platform_data *eth_data)

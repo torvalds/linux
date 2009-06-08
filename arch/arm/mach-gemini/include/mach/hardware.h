@@ -15,10 +15,9 @@
 /*
  * Memory Map definitions
  */
-/* FIXME: Does it really swap SRAM like this? */
 #ifdef CONFIG_GEMINI_MEM_SWAP
 # define GEMINI_DRAM_BASE	0x00000000
-# define GEMINI_SRAM_BASE	0x20000000
+# define GEMINI_SRAM_BASE	0x70000000
 #else
 # define GEMINI_SRAM_BASE	0x00000000
 # define GEMINI_DRAM_BASE	0x10000000

@@ -349,7 +349,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	last_data_page = (data_ptr + args->size - 1) / PAGE_SIZE;
 	num_pages = last_data_page - first_data_page + 1;
 
-	user_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	user_pages = drm_calloc_large(num_pages, sizeof(struct page *));
 	if (user_pages == NULL)
 		return -ENOMEM;
 
@@ -429,7 +429,7 @@ fail_put_user_pages:
 		SetPageDirty(user_pages[i]);
 		page_cache_release(user_pages[i]);
 	}
-	kfree(user_pages);
+	drm_free_large(user_pages);
 
 	return ret;
 }
@@ -649,7 +649,7 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	last_data_page = (data_ptr + args->size - 1) / PAGE_SIZE;
 	num_pages = last_data_page - first_data_page + 1;
 
-	user_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	user_pages = drm_calloc_large(num_pages, sizeof(struct page *));
 	if (user_pages == NULL)
 		return -ENOMEM;
 
@@ -719,7 +719,7 @@ out_unlock:
 out_unpin_pages:
 	for (i = 0; i < pinned_pages; i++)
 		page_cache_release(user_pages[i]);
-	kfree(user_pages);
+	drm_free_large(user_pages);
 
 	return ret;
 }
@@ -824,7 +824,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	last_data_page = (data_ptr + args->size - 1) / PAGE_SIZE;
 	num_pages = last_data_page - first_data_page + 1;
 
-	user_pages = kcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	user_pages = drm_calloc_large(num_pages, sizeof(struct page *));
 	if (user_pages == NULL)
 		return -ENOMEM;
 
@@ -902,7 +902,7 @@ fail_unlock:
 fail_put_user_pages:
 	for (i = 0; i < pinned_pages; i++)
 		page_cache_release(user_pages[i]);
-	kfree(user_pages);
+	drm_free_large(user_pages);
 
 	return ret;
 }
@@ -1145,7 +1145,14 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
 		}
-		list_add(&obj_priv->list, &dev_priv->mm.inactive_list);
+
+		ret = i915_gem_object_set_to_gtt_domain(obj, write);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return VM_FAULT_SIGBUS;
+		}
+
+		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	/* Need a new fence register? */
@@ -1375,7 +1382,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			mutex_unlock(&dev->struct_mutex);
 			return ret;
 		}
-		list_add(&obj_priv->list, &dev_priv->mm.inactive_list);
+		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	drm_gem_object_unreference(obj);
@@ -1408,9 +1415,7 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 		}
 	obj_priv->dirty = 0;
 
-	drm_free(obj_priv->pages,
-		 page_count * sizeof(struct page *),
-		 DRM_MEM_DRIVER);
+	drm_free_large(obj_priv->pages);
 	obj_priv->pages = NULL;
 }
 
@@ -2024,8 +2029,7 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 	 */
 	page_count = obj->size / PAGE_SIZE;
 	BUG_ON(obj_priv->pages != NULL);
-	obj_priv->pages = drm_calloc(page_count, sizeof(struct page *),
-				     DRM_MEM_DRIVER);
+	obj_priv->pages = drm_calloc_large(page_count, sizeof(struct page *));
 	if (obj_priv->pages == NULL) {
 		DRM_ERROR("Faled to allocate page list\n");
 		obj_priv->pages_refcount--;
@@ -2131,8 +2135,10 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 		return;
 	}
 
-	pitch_val = (obj_priv->stride / 128) - 1;
-	WARN_ON(pitch_val & ~0x0000000f);
+	pitch_val = obj_priv->stride / 128;
+	pitch_val = ffs(pitch_val) - 1;
+	WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
+
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
 		val |= 1 << I830_FENCE_TILING_Y_SHIFT;
@@ -2423,6 +2429,16 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 	 */
 	if (obj_priv->pages == NULL)
 		return;
+
+	/* XXX: The 865 in particular appears to be weird in how it handles
+	 * cache flushing.  We haven't figured it out, but the
+	 * clflush+agp_chipset_flush doesn't appear to successfully get the
+	 * data visible to the PGU, while wbinvd + agp_chipset_flush does.
+	 */
+	if (IS_I865G(obj->dev)) {
+		wbinvd();
+		return;
+	}
 
 	drm_clflush_pages(obj_priv->pages, obj->size / PAGE_SIZE);
 }
@@ -3111,7 +3127,7 @@ i915_gem_get_relocs_from_user(struct drm_i915_gem_exec_object *exec_list,
 		reloc_count += exec_list[i].relocation_count;
 	}
 
-	*relocs = drm_calloc(reloc_count, sizeof(**relocs), DRM_MEM_DRIVER);
+	*relocs = drm_calloc_large(reloc_count, sizeof(**relocs));
 	if (*relocs == NULL)
 		return -ENOMEM;
 
@@ -3125,8 +3141,7 @@ i915_gem_get_relocs_from_user(struct drm_i915_gem_exec_object *exec_list,
 				     exec_list[i].relocation_count *
 				     sizeof(**relocs));
 		if (ret != 0) {
-			drm_free(*relocs, reloc_count * sizeof(**relocs),
-				 DRM_MEM_DRIVER);
+			drm_free_large(*relocs);
 			*relocs = NULL;
 			return -EFAULT;
 		}
@@ -3165,7 +3180,7 @@ i915_gem_put_relocs_to_user(struct drm_i915_gem_exec_object *exec_list,
 	}
 
 err:
-	drm_free(relocs, reloc_count * sizeof(*relocs), DRM_MEM_DRIVER);
+	drm_free_large(relocs);
 
 	return ret;
 }
@@ -3198,10 +3213,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 	/* Copy in the exec list from userland */
-	exec_list = drm_calloc(sizeof(*exec_list), args->buffer_count,
-			       DRM_MEM_DRIVER);
-	object_list = drm_calloc(sizeof(*object_list), args->buffer_count,
-				 DRM_MEM_DRIVER);
+	exec_list = drm_calloc_large(sizeof(*exec_list), args->buffer_count);
+	object_list = drm_calloc_large(sizeof(*object_list), args->buffer_count);
 	if (exec_list == NULL || object_list == NULL) {
 		DRM_ERROR("Failed to allocate exec or object list "
 			  "for %d buffers\n",
@@ -3462,10 +3475,8 @@ err:
 	}
 
 pre_mutex_err:
-	drm_free(object_list, sizeof(*object_list) * args->buffer_count,
-		 DRM_MEM_DRIVER);
-	drm_free(exec_list, sizeof(*exec_list) * args->buffer_count,
-		 DRM_MEM_DRIVER);
+	drm_free_large(object_list);
+	drm_free_large(exec_list);
 	drm_free(cliprects, sizeof(*cliprects) * args->num_cliprects,
 		 DRM_MEM_DRIVER);
 

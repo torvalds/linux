@@ -138,7 +138,7 @@ void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
 
 	if (cipher == CIPHER_TKIP_NO_MIC)
 		cipher = CIPHER_TKIP;
-	if (cipher == CIPHER_NONE || cipher > CIPHER_MAX)
+	if (cipher == CIPHER_NONE || cipher >= CIPHER_MAX)
 		return;
 
 	/* Remove CIPHER_NONE index */

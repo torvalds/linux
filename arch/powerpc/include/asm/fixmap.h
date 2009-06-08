@@ -14,8 +14,6 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-extern unsigned long FIXADDR_TOP;
-
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
 #include <asm/page.h>
@@ -23,6 +21,8 @@ extern unsigned long FIXADDR_TOP;
 #include <linux/threads.h>
 #include <asm/kmap_types.h>
 #endif
+
+#define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
 
 /*
  * Here we define all the compile-time 'special' virtual

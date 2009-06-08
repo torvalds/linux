@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
@@ -20,7 +19,6 @@
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include <plat/mvsdio.h>
-#include <plat/orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -40,38 +38,12 @@ static struct mtd_partition sheevaplug_nand_parts[] = {
 	},
 };
 
-static struct resource sheevaplug_nand_resource = {
-	.flags		= IORESOURCE_MEM,
-	.start		= KIRKWOOD_NAND_MEM_PHYS_BASE,
-	.end		= KIRKWOOD_NAND_MEM_PHYS_BASE +
-			  KIRKWOOD_NAND_MEM_SIZE - 1,
-};
-
-static struct orion_nand_data sheevaplug_nand_data = {
-	.parts		= sheevaplug_nand_parts,
-	.nr_parts	= ARRAY_SIZE(sheevaplug_nand_parts),
-	.cle		= 0,
-	.ale		= 1,
-	.width		= 8,
-	.chip_delay	= 25,
-};
-
-static struct platform_device sheevaplug_nand_flash = {
-	.name		= "orion_nand",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &sheevaplug_nand_data,
-	},
-	.resource	= &sheevaplug_nand_resource,
-	.num_resources	= 1,
-};
-
 static struct mv643xx_eth_platform_data sheevaplug_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
 };
 
 static struct mvsdio_platform_data sheevaplug_mvsdio_data = {
-	// unfortunately the CD signal has not been connected */
+	/* unfortunately the CD signal has not been connected */
 };
 
 static struct gpio_led sheevaplug_led_pins[] = {
@@ -111,6 +83,7 @@ static void __init sheevaplug_init(void)
 	kirkwood_mpp_conf(sheevaplug_mpp_config);
 
 	kirkwood_uart0_init();
+	kirkwood_nand_init(ARRAY_AND_SIZE(sheevaplug_nand_parts), 25);
 
 	if (gpio_request(29, "USB Power Enable") != 0 ||
 	    gpio_direction_output(29, 1) != 0)
@@ -120,7 +93,6 @@ static void __init sheevaplug_init(void)
 	kirkwood_ge00_init(&sheevaplug_ge00_data);
 	kirkwood_sdio_init(&sheevaplug_mvsdio_data);
 
-	platform_device_register(&sheevaplug_nand_flash);
 	platform_device_register(&sheevaplug_leds);
 }
 

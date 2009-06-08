@@ -355,7 +355,7 @@ static void clear_rx_desc(struct pci_dev *pdev, const struct sge_fl *q,
 		(*d->pg_chunk.p_cnt)--;
 		if (!*d->pg_chunk.p_cnt)
 			pci_unmap_page(pdev,
-				       pci_unmap_addr(&d->pg_chunk, mapping),
+				       d->pg_chunk.mapping,
 				       q->alloc_size, PCI_DMA_FROMDEVICE);
 
 		put_page(d->pg_chunk.page);
@@ -454,7 +454,7 @@ static int alloc_pg_chunk(struct adapter *adapter, struct sge_fl *q,
 		q->pg_chunk.offset = 0;
 		mapping = pci_map_page(adapter->pdev, q->pg_chunk.page,
 				       0, q->alloc_size, PCI_DMA_FROMDEVICE);
-		pci_unmap_addr_set(&q->pg_chunk, mapping, mapping);
+		q->pg_chunk.mapping = mapping;
 	}
 	sd->pg_chunk = q->pg_chunk;
 
@@ -511,8 +511,7 @@ static int refill_fl(struct adapter *adap, struct sge_fl *q, int n, gfp_t gfp)
 nomem:				q->alloc_failed++;
 				break;
 			}
-			mapping = pci_unmap_addr(&sd->pg_chunk, mapping) +
-						 sd->pg_chunk.offset;
+			mapping = sd->pg_chunk.mapping + sd->pg_chunk.offset;
 			pci_unmap_addr_set(sd, dma_addr, mapping);
 
 			add_one_rx_chunk(mapping, d, q->gen);
@@ -881,7 +880,7 @@ recycle:
 	(*sd->pg_chunk.p_cnt)--;
 	if (!*sd->pg_chunk.p_cnt)
 		pci_unmap_page(adap->pdev,
-			       pci_unmap_addr(&sd->pg_chunk, mapping),
+			       sd->pg_chunk.mapping,
 			       fl->alloc_size,
 			       PCI_DMA_FROMDEVICE);
 	if (!skb) {
@@ -2096,7 +2095,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	(*sd->pg_chunk.p_cnt)--;
 	if (!*sd->pg_chunk.p_cnt)
 		pci_unmap_page(adap->pdev,
-			       pci_unmap_addr(&sd->pg_chunk, mapping),
+			       sd->pg_chunk.mapping,
 			       fl->alloc_size,
 			       PCI_DMA_FROMDEVICE);
 

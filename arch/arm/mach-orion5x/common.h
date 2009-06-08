@@ -26,6 +26,7 @@ void orion5x_setup_dev0_win(u32 base, u32 size);
 void orion5x_setup_dev1_win(u32 base, u32 size);
 void orion5x_setup_dev2_win(u32 base, u32 size);
 void orion5x_setup_pcie_wa_win(u32 base, u32 size);
+int orion5x_setup_sram_win(void);
 
 void orion5x_ehci0_init(void);
 void orion5x_ehci1_init(void);
@@ -37,6 +38,7 @@ void orion5x_spi_init(void);
 void orion5x_uart0_init(void);
 void orion5x_uart1_init(void);
 void orion5x_xor_init(void);
+int orion5x_crypto_init(void);
 
 /*
  * PCIe/PCI functions.
