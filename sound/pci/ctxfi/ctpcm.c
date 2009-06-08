@@ -243,6 +243,8 @@ ct_pcm_playback_pointer(struct snd_pcm_substream *substream)
 	/* Read out playback position */
 	position = atc->pcm_playback_position(atc, apcm);
 	position = bytes_to_frames(runtime, position);
+	if (position >= runtime->buffer_size)
+		position = 0;
 	return position;
 }
 
@@ -343,6 +345,8 @@ ct_pcm_capture_pointer(struct snd_pcm_substream *substream)
 	/* Read out playback position */
 	position = atc->pcm_capture_position(atc, apcm);
 	position = bytes_to_frames(runtime, position);
+	if (position >= runtime->buffer_size)
+		position = 0;
 	return position;
 }
 
