@@ -890,7 +890,7 @@ static struct clk clko_clk = {
 		.con_id = n, \
 		.clk = &c, \
 	},
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 /* It's unlikely that any driver wants one of them directly:
 	_REGISTER_CLOCK(NULL, "ckih", ckih_clk)
 	_REGISTER_CLOCK(NULL, "ckil", ckil_clk)
