@@ -1370,6 +1370,8 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_proc_exit();
 	cleanup_sctp_mibs();
 
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
+
 	kmem_cache_destroy(sctp_chunk_cachep);
 	kmem_cache_destroy(sctp_bucket_cachep);
 }
