@@ -1086,7 +1086,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 {
 	int r;
 	gfn_t base_gfn;
-	unsigned long npages;
+	unsigned long npages, ugfn;
 	int largepages;
 	unsigned long i;
 	struct kvm_memory_slot *memslot;
@@ -1177,6 +1177,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			new.lpage_info[0].write_count = 1;
 		if ((base_gfn+npages) % KVM_PAGES_PER_HPAGE)
 			new.lpage_info[largepages-1].write_count = 1;
+		ugfn = new.userspace_addr >> PAGE_SHIFT;
+		/*
+		 * If the gfn and userspace address are not aligned wrt each
+		 * other, disable large page support for this slot
+		 */
+		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE - 1))
+			for (i = 0; i < largepages; ++i)
+				new.lpage_info[i].write_count = 1;
 	}
 
 	/* Allocate page dirty bitmap if needed */
