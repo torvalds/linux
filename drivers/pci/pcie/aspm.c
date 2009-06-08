@@ -638,6 +638,10 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	if (pdev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
 		pdev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
 		return;
+	/* VIA has a strange chipset, root port is under a bridge */
+	if (pdev->pcie_type == PCI_EXP_TYPE_ROOT_PORT &&
+		pdev->bus->self)
+		return;
 	down_read(&pci_bus_sem);
 	if (list_empty(&pdev->subordinate->devices))
 		goto out;
