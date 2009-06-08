@@ -246,11 +246,9 @@ static int vhci_open(struct inode *inode, struct file *file)
 	skb_queue_head_init(&data->readq);
 	init_waitqueue_head(&data->read_wait);
 
-	lock_kernel();
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		kfree(data);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -271,12 +269,10 @@ static int vhci_open(struct inode *inode, struct file *file)
 		BT_ERR("Can't register HCI device");
 		kfree(data);
 		hci_free_dev(hdev);
-		unlock_kernel();
 		return -EBUSY;
 	}
 
 	file->private_data = data;
-	unlock_kernel();
 
 	return nonseekable_open(inode, file);
 }
