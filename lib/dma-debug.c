@@ -649,14 +649,18 @@ static int device_dma_allocations(struct device *dev)
 	unsigned long flags;
 	int count = 0, i;
 
+	local_irq_save(flags);
+
 	for (i = 0; i < HASH_SIZE; ++i) {
-		spin_lock_irqsave(&dma_entry_hash[i].lock, flags);
+		spin_lock(&dma_entry_hash[i].lock);
 		list_for_each_entry(entry, &dma_entry_hash[i].list, list) {
 			if (entry->dev == dev)
 				count += 1;
 		}
-		spin_unlock_irqrestore(&dma_entry_hash[i].lock, flags);
+		spin_unlock(&dma_entry_hash[i].lock);
 	}
+
+	local_irq_restore(flags);
 
 	return count;
 }
