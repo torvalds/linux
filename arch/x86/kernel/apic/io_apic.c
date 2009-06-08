@@ -556,9 +556,9 @@ static void __init replace_pin_at_irq_node(struct irq_cfg *cfg, int node,
 		add_pin_to_irq_node(cfg, node, newapic, newpin);
 }
 
-static inline void io_apic_modify_irq(struct irq_cfg *cfg,
-				int mask_and, int mask_or,
-				void (*final)(struct irq_pin_list *entry))
+static void io_apic_modify_irq(struct irq_cfg *cfg,
+			       int mask_and, int mask_or,
+			       void (*final)(struct irq_pin_list *entry))
 {
 	int pin;
 	struct irq_pin_list *entry;
