@@ -490,34 +490,22 @@ static void ioapic_mask_entry(int apic, int pin)
  */
 static void add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
-	struct irq_pin_list *entry;
+	struct irq_pin_list **entryp, *entry;
 
-	entry = cfg->irq_2_pin;
-	if (!entry) {
-		entry = get_one_free_irq_2_pin(node);
-		if (!entry) {
-			printk(KERN_ERR "can not alloc irq_2_pin to add %d - %d\n",
-					apic, pin);
-			return;
-		}
-		cfg->irq_2_pin = entry;
-		entry->apic = apic;
-		entry->pin = pin;
-		return;
-	}
-
-	while (entry->next) {
+	for (entryp = &cfg->irq_2_pin;
+	     *entryp != NULL;
+	     entryp = &(*entryp)->next) {
+		entry = *entryp;
 		/* not again, please */
 		if (entry->apic == apic && entry->pin == pin)
 			return;
-
-		entry = entry->next;
 	}
 
-	entry->next = get_one_free_irq_2_pin(node);
-	entry = entry->next;
+	entry = get_one_free_irq_2_pin(node);
 	entry->apic = apic;
 	entry->pin = pin;
+
+	*entryp = entry;
 }
 
 /*
