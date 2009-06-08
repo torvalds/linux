@@ -57,6 +57,13 @@ config MACH_MX31MOBOARD
 	  Include support for mx31moboard platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX31LILLY
+	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
+	select ARCH_MX31
+	help
+	  Include support for mx31 based LILLY1131 modules. This includes
+	  specific configurations for the board and its peripherals.
+
 config MACH_QONG
 	bool "Support Dave/DENX QongEVB-LITE platform"
 	select ARCH_MX31
@@ -71,4 +78,18 @@ config MACH_PCM043
 	  Include support for Phytec pcm043 platform. This includes
 	  specific configurations for the board and its peripherals.
 
+config MACH_ARMADILLO5X0
+	bool "Support Atmark Armadillo-500 Development Base Board"
+	select ARCH_MX31
+	help
+	  Include support for Atmark Armadillo-500 platform. This includes
+	  specific configurations for the board and its peripherals.
+
+config MACH_MX35_3DS
+	bool "Support MX35PDK platform"
+	select ARCH_MX35
+	default n
+	help
+	  Include support for MX35PDK platform. This includes specific
+	  configurations for the board and its peripherals.
 endif

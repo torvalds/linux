@@ -43,6 +43,15 @@
 #ifdef CONFIG_MACH_MX27_3DS
 #include <mach/board-mx27pdk.h>
 #endif
+#ifdef CONFIG_MACH_ARMADILLO5X0
+#include <mach/board-armadillo5x0.h>
+#endif
+#ifdef CONFIG_MACH_MX35_3DS
+#include <mach/board-mx35pdk.h>
+#endif
+#ifdef CONFIG_MACH_MX27LITE
+#include <mach/board-mx27lite.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
