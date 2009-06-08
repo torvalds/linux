@@ -200,18 +200,18 @@ static const struct export_operations exofs_export_ops;
 /*
  * Write the superblock to the OSD
  */
-static void exofs_write_super(struct super_block *sb)
+static int exofs_sync_fs(struct super_block *sb, int wait)
 {
 	struct exofs_sb_info *sbi;
 	struct exofs_fscb *fscb;
 	struct osd_request *or;
 	struct osd_obj_id obj;
-	int ret;
+	int ret = -ENOMEM;
 
 	fscb = kzalloc(sizeof(struct exofs_fscb), GFP_KERNEL);
 	if (!fscb) {
 		EXOFS_ERR("exofs_write_super: memory allocation failed.\n");
-		return;
+		return -ENOMEM;
 	}
 
 	lock_super(sb);
@@ -249,6 +249,15 @@ out:
 	unlock_kernel();
 	unlock_super(sb);
 	kfree(fscb);
+	return ret;
+}
+
+static void exofs_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		exofs_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 /*
@@ -493,6 +502,7 @@ static const struct super_operations exofs_sops = {
 	.delete_inode   = exofs_delete_inode,
 	.put_super      = exofs_put_super,
 	.write_super    = exofs_write_super,
+	.sync_fs	= exofs_sync_fs,
 	.statfs         = exofs_statfs,
 };
 
