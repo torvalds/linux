@@ -212,7 +212,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  *
  * rfkill drivers that get events when the hard-blocked state changes
  * use this function to notify the rfkill core (and through that also
- * userspace) of the current state -- they should also use this after
+ * userspace) of the current state.  They should also use this after
  * resume if the state could have changed.
  *
  * You need not (but may) call this function if poll_state is assigned.
@@ -234,8 +234,9 @@ bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
  * rfkill drivers that get events when the soft-blocked state changes
  * (yes, some platforms directly act on input but allow changing again)
  * use this function to notify the rfkill core (and through that also
- * userspace) of the current state -- they should also use this after
- * resume if the state could have changed.
+ * userspace) of the current state.  It is not necessary to notify on
+ * resume; since hibernation can always change the soft-blocked state,
+ * the rfkill core will unconditionally restore the previous state.
  *
  * This function can be called in any context, even from within rfkill
  * callbacks.
