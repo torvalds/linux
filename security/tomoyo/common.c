@@ -28,7 +28,13 @@ static const char *tomoyo_mode_2[4] = {
 	"disabled", "enabled", "enabled", "enabled"
 };
 
-/* Table for profile. */
+/*
+ * tomoyo_control_array is a static data which contains
+ *
+ *  (1) functionality name used by /sys/kernel/security/tomoyo/profile .
+ *  (2) initial values for "struct tomoyo_profile".
+ *  (3) max values for "struct tomoyo_profile".
+ */
 static struct {
 	const char *keyword;
 	unsigned int current_value;
@@ -39,7 +45,13 @@ static struct {
 	[TOMOYO_VERBOSE]          = { "TOMOYO_VERBOSE",      1,       1 },
 };
 
-/* Profile table. Memory is allocated as needed. */
+/*
+ * tomoyo_profile is a structure which is used for holding the mode of access
+ * controls. TOMOYO has 4 modes: disabled, learning, permissive, enforcing.
+ * An administrator can define up to 256 profiles.
+ * The ->profile of "struct tomoyo_domain_info" is used for remembering
+ * the profile's number (0 - 255) assigned to that domain.
+ */
 static struct tomoyo_profile {
 	unsigned int value[TOMOYO_MAX_CONTROL_INDEX];
 	const struct tomoyo_path_info *comment;
@@ -1006,7 +1018,19 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
 	return 0;
 }
 
-/* Structure for policy manager. */
+/*
+ * tomoyo_policy_manager_entry is a structure which is used for holding list of
+ * domainnames or programs which are permitted to modify configuration via
+ * /sys/kernel/security/tomoyo/ interface.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_policy_manager_list .
+ *  (2) "manager" is a domainname or a program's pathname.
+ *  (3) "is_domain" is a bool which is true if "manager" is a domainname, false
+ *      otherwise.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_policy_manager_entry {
 	struct list_head list;
 	/* A path to program or a domainname. */
@@ -1015,7 +1039,36 @@ struct tomoyo_policy_manager_entry {
 	bool is_deleted; /* True if this entry is deleted. */
 };
 
-/* The list for "struct tomoyo_policy_manager_entry". */
+/*
+ * tomoyo_policy_manager_list is used for holding list of domainnames or
+ * programs which are permitted to modify configuration via
+ * /sys/kernel/security/tomoyo/ interface.
+ *
+ * An entry is added by
+ *
+ * # echo '<kernel> /sbin/mingetty /bin/login /bin/bash' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *  (if you want to specify by a domainname)
+ *
+ *  or
+ *
+ * # echo '/usr/lib/ccs/editpolicy' > /sys/kernel/security/tomoyo/manager
+ *  (if you want to specify by a program's location)
+ *
+ * and is deleted by
+ *
+ * # echo 'delete <kernel> /sbin/mingetty /bin/login /bin/bash' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *
+ *  or
+ *
+ * # echo 'delete /usr/lib/ccs/editpolicy' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *
+ * and all entries are retrieved by
+ *
+ * # cat /sys/kernel/security/tomoyo/manager
+ */
 static LIST_HEAD(tomoyo_policy_manager_list);
 static DECLARE_RWSEM(tomoyo_policy_manager_list_lock);
 
@@ -2124,7 +2177,13 @@ static ssize_t tomoyo_write(struct file *file, const char __user *buf,
 	return tomoyo_write_control(file, buf, count);
 }
 
-/* Operations for /sys/kernel/security/tomoyo/ interface. */
+/*
+ * tomoyo_operations is a "struct file_operations" which is used for handling
+ * /sys/kernel/security/tomoyo/ interface.
+ *
+ * Some files under /sys/kernel/security/tomoyo/ directory accept open(O_RDWR).
+ * See tomoyo_io_buffer for internals.
+ */
 static const struct file_operations tomoyo_operations = {
 	.open    = tomoyo_open,
 	.release = tomoyo_release,
