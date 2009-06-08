@@ -1322,21 +1322,22 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 static int tun_chr_close(struct inode *inode, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun;
 
 
+	rtnl_lock();
+	tun = __tun_get(tfile);
 	if (tun) {
 		DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
 
-		rtnl_lock();
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
 		if (!(tun->flags & TUN_PERSIST))
 			unregister_netdevice(tun->dev);
 
-		rtnl_unlock();
 	}
+	rtnl_unlock();
 
 	tun = tfile->tun;
 	if (tun)
