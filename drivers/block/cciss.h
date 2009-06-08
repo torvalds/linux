@@ -11,6 +11,7 @@
 
 #define IO_OK		0
 #define IO_ERROR	1
+#define IO_NEEDS_RETRY  3
 
 #define VENDOR_LEN	8
 #define MODEL_LEN	16

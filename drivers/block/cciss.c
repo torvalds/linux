@@ -2292,26 +2292,12 @@ static int check_target_status(ctlr_info_t *h, CommandList_struct *c)
 	return IO_ERROR;
 }
 
-static int sendcmd_withirq_core(ctlr_info_t *h, CommandList_struct *c)
+static int process_sendcmd_error(ctlr_info_t *h, CommandList_struct *c)
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
-	u64bit buff_dma_handle;
-	unsigned long flags;
 	int return_status = IO_OK;
 
-resend_cmd2:
-	c->waiting = &wait;
-	/* Put the request on the tail of the queue and send it */
-	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
-	addQ(&h->reqQ, c);
-	h->Qdepth++;
-	start_io(h);
-	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
-
-	wait_for_completion(&wait);
-
-	if (c->err_info->CommandStatus == 0)
-		goto command_done;
+	if (c->err_info->CommandStatus == CMD_SUCCESS)
+		return IO_OK;
 
 	switch (c->err_info->CommandStatus) {
 	case CMD_TARGET_STATUS:
@@ -2322,7 +2308,7 @@ resend_cmd2:
 		/* expected for inquiry and report lun commands */
 		break;
 	case CMD_INVALID:
-		printk(KERN_WARNING "cciss: Cmd 0x%02x is "
+		printk(KERN_WARNING "cciss: cmd 0x%02x is "
 		       "reported invalid\n", c->Request.CDB[0]);
 		return_status = IO_ERROR;
 		break;
@@ -2355,25 +2341,51 @@ resend_cmd2:
 		printk(KERN_WARNING
 		       "cciss%d: unsolicited abort 0x%02x\n", h->ctlr,
 			c->Request.CDB[0]);
-		if (c->retry_count < MAX_CMD_RETRIES) {
-			printk(KERN_WARNING
-			       "cciss%d: retrying 0x%02x\n", h->ctlr,
-				c->Request.CDB[0]);
-			c->retry_count++;
-			/* erase the old error information */
-			memset(c->err_info, 0,
-			       sizeof(ErrorInfo_struct));
-			return_status = IO_OK;
-			INIT_COMPLETION(wait);
-			goto resend_cmd2;
-		}
-		return_status = IO_ERROR;
+		return_status = IO_NEEDS_RETRY;
 		break;
 	default:
 		printk(KERN_WARNING "cciss: cmd 0x%02x returned "
 		       "unknown status %x\n", c->Request.CDB[0],
 		       c->err_info->CommandStatus);
 		return_status = IO_ERROR;
+	}
+	return return_status;
+}
+
+static int sendcmd_withirq_core(ctlr_info_t *h, CommandList_struct *c,
+	int attempt_retry)
+{
+	DECLARE_COMPLETION_ONSTACK(wait);
+	u64bit buff_dma_handle;
+	unsigned long flags;
+	int return_status = IO_OK;
+
+resend_cmd2:
+	c->waiting = &wait;
+	/* Put the request on the tail of the queue and send it */
+	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
+	addQ(&h->reqQ, c);
+	h->Qdepth++;
+	start_io(h);
+	spin_unlock_irqrestore(CCISS_LOCK(h->ctlr), flags);
+
+	wait_for_completion(&wait);
+
+	if (c->err_info->CommandStatus == 0 || !attempt_retry)
+		goto command_done;
+
+	return_status = process_sendcmd_error(h, c);
+
+	if (return_status == IO_NEEDS_RETRY &&
+		c->retry_count < MAX_CMD_RETRIES) {
+		printk(KERN_WARNING "cciss%d: retrying 0x%02x\n", h->ctlr,
+			c->Request.CDB[0]);
+		c->retry_count++;
+		/* erase the old error information */
+		memset(c->err_info, 0, sizeof(ErrorInfo_struct));
+		return_status = IO_OK;
+		INIT_COMPLETION(wait);
+		goto resend_cmd2;
 	}
 
 command_done:
@@ -2399,7 +2411,8 @@ static int sendcmd_withirq(__u8 cmd, int ctlr, void *buff, size_t size,
 	return_status = fill_cmd(c, cmd, ctlr, buff, size, page_code,
 		scsi3addr, cmd_type);
 	if (return_status == IO_OK)
-		return_status = sendcmd_withirq_core(h, c);
+		return_status = sendcmd_withirq_core(h, c, 1);
+
 	cmd_free(h, c, 0);
 	return return_status;
 }
