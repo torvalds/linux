@@ -53,14 +53,6 @@ typedef struct _drive_info_struct
 	char rev[REV_LEN + 1];       /* SCSI revision string */
 } drive_info_struct;
 
-#ifdef CONFIG_CISS_SCSI_TAPE
-
-struct sendcmd_reject_list {
-	int ncompletions;
-	unsigned long *complete; /* array of NR_CMDS tags */
-};
-
-#endif
 struct ctlr_info 
 {
 	int	ctlr;
@@ -128,7 +120,6 @@ struct ctlr_info
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
 	/* list of block side commands the scsi error handling sucked up */
 	/* and saved for later processing */
-	struct sendcmd_reject_list scsi_rejects;
 #endif
 	unsigned char alive;
 	struct completion *rescan_wait;
