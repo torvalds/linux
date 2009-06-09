@@ -3288,7 +3288,7 @@ static void unplug_slaves(mddev_t *mddev)
 	int i;
 
 	rcu_read_lock();
-	for (i=0; i<mddev->raid_disks; i++) {
+	for (i = 0; i < conf->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
@@ -4034,7 +4034,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	 * We don't need to check the 'failed' flag as when that gets set,
 	 * recovery aborts.
 	 */
-	for (i=0; i<mddev->raid_disks; i++)
+	for (i = 0; i < conf->raid_disks; i++)
 		if (conf->disks[i].rdev == NULL)
 			still_degraded = 1;
 
