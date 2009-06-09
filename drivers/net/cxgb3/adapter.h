@@ -253,6 +253,8 @@ struct adapter {
 	struct mutex mdio_lock;
 	spinlock_t stats_lock;
 	spinlock_t work_lock;
+
+	struct sk_buff *nofail_skb;
 };
 
 static inline u32 t3_read_reg(struct adapter *adapter, u32 reg_addr)

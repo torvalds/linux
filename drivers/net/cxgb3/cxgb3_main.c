@@ -433,40 +433,78 @@ static int init_tp_parity(struct adapter *adap)
 	for (i = 0; i < 16; i++) {
 		struct cpl_smt_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_smt_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, i));
 		req->iff = i;
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
 	for (i = 0; i < 2048; i++) {
 		struct cpl_l2t_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_l2t_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, i));
 		req->params = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, 16 + i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
 	for (i = 0; i < 2048; i++) {
 		struct cpl_rte_write_req *req;
 
-		skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+		skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+		if (!skb)
+			skb = adap->nofail_skb;
+		if (!skb)
+			goto alloc_skb_fail;
+
 		req = (struct cpl_rte_write_req *)__skb_put(skb, sizeof(*req));
 		memset(req, 0, sizeof(*req));
 		req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 		OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_RTE_WRITE_REQ, i));
 		req->l2t_idx = htonl(V_L2T_W_IDX(i));
 		t3_mgmt_tx(adap, skb);
+		if (skb == adap->nofail_skb) {
+			await_mgmt_replies(adap, cnt, 16 + 2048 + i + 1);
+			adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+			if (!adap->nofail_skb)
+				goto alloc_skb_fail;
+		}
 	}
 
-	skb = alloc_skb(sizeof(*greq), GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+	if (!skb)
+		skb = adap->nofail_skb;
+	if (!skb)
+		goto alloc_skb_fail;
+
 	greq = (struct cpl_set_tcb_field *)__skb_put(skb, sizeof(*greq));
 	memset(greq, 0, sizeof(*greq));
 	greq->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
@@ -475,8 +513,17 @@ static int init_tp_parity(struct adapter *adap)
 	t3_mgmt_tx(adap, skb);
 
 	i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+	if (skb == adap->nofail_skb) {
+		i = await_mgmt_replies(adap, cnt, 16 + 2048 + 2048 + 1);
+		adap->nofail_skb = alloc_skb(sizeof(*greq), GFP_KERNEL);
+	}
+
 	t3_tp_set_offload_mode(adap, 0);
 	return i;
+
+alloc_skb_fail:
+	t3_tp_set_offload_mode(adap, 0);
+	return -ENOMEM;
 }
 
 /**
@@ -871,7 +918,12 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	struct mngt_pktsched_wr *req;
 	int ret;
 
-	skb = alloc_skb(sizeof(*req), GFP_KERNEL | __GFP_NOFAIL);
+	skb = alloc_skb(sizeof(*req), GFP_KERNEL);
+	if (!skb)
+		skb = adap->nofail_skb;
+	if (!skb)
+		return -ENOMEM;
+
 	req = (struct mngt_pktsched_wr *)skb_put(skb, sizeof(*req));
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
 	req->mngt_opcode = FW_MNGTOPCODE_PKTSCHED_SET;
@@ -881,6 +933,12 @@ static int send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	req->max = hi;
 	req->binding = port;
 	ret = t3_mgmt_tx(adap, skb);
+	if (skb == adap->nofail_skb) {
+		adap->nofail_skb = alloc_skb(sizeof(struct cpl_set_tcb_field),
+					     GFP_KERNEL);
+		if (!adap->nofail_skb)
+			ret = -ENOMEM;
+	}
 
 	return ret;
 }
@@ -3020,6 +3078,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 		goto out_disable_device;
 	}
 
+	adapter->nofail_skb =
+		alloc_skb(sizeof(struct cpl_set_tcb_field), GFP_KERNEL);
+	if (!adapter->nofail_skb) {
+		dev_err(&pdev->dev, "cannot allocate nofail buffer\n");
+		err = -ENOMEM;
+		goto out_free_adapter;
+	}
+
 	adapter->regs = ioremap_nocache(mmio_start, mmio_len);
 	if (!adapter->regs) {
 		dev_err(&pdev->dev, "cannot map device registers\n");
@@ -3176,6 +3242,8 @@ static void __devexit remove_one(struct pci_dev *pdev)
 				free_netdev(adapter->port[i]);
 
 		iounmap(adapter->regs);
+		if (adapter->nofail_skb)
+			kfree_skb(adapter->nofail_skb);
 		kfree(adapter);
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
