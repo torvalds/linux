@@ -523,7 +523,7 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	struct src_node_conf_t src_node_conf[2] = {{0} };
 
 	/* first release old resources */
-	atc->pcm_release_resources(atc, apcm);
+	atc_pcm_release_resources(atc, apcm);
 
 	/* The numbers of converting SRCs and SRCIMPs should be determined
 	 * by pitch value. */
@@ -802,7 +802,7 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 	unsigned int pitch, rsr = atc->pll_rate;
 
 	/* first release old resources */
-	atc->pcm_release_resources(atc, apcm);
+	atc_pcm_release_resources(atc, apcm);
 
 	/* Get SRC resource */
 	desc.multi = apcm->substream->runtime->channels;

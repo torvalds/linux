@@ -176,12 +176,26 @@ static int ct_pcm_playback_close(struct snd_pcm_substream *substream)
 static int ct_pcm_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *hw_params)
 {
-	return snd_pcm_lib_malloc_pages(substream,
+	struct ct_atc *atc = snd_pcm_substream_chip(substream);
+	struct ct_atc_pcm *apcm = substream->runtime->private_data;
+	int err;
+
+	err = snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
+	if (err < 0)
+		return err;
+	/* clear previous resources */
+	atc->pcm_release_resources(atc, apcm);
+	return err;
 }
 
 static int ct_pcm_hw_free(struct snd_pcm_substream *substream)
 {
+	struct ct_atc *atc = snd_pcm_substream_chip(substream);
+	struct ct_atc_pcm *apcm = substream->runtime->private_data;
+
+	/* clear previous resources */
+	atc->pcm_release_resources(atc, apcm);
 	/* Free snd-allocated pages */
 	return snd_pcm_lib_free_pages(substream);
 }
