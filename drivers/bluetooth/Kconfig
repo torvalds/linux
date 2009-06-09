@@ -172,8 +172,6 @@ config BT_HCIVHCI
 
 config BT_MRVL
 	tristate "Marvell Bluetooth driver support"
-	select FW_LOADER
-	select DEBUG_FS
 	help
 	  The core driver to support Marvell Bluetooth devices.
 
@@ -186,6 +184,7 @@ config BT_MRVL
 config BT_MRVL_SDIO
 	tristate "Marvell BT-over-SDIO driver"
 	depends on BT_MRVL && MMC
+	select FW_LOADER
 	help
 	  The driver for Marvell Bluetooth chipsets with SDIO interface.
 
