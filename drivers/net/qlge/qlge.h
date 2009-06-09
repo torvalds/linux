@@ -1430,6 +1430,7 @@ struct ql_adapter {
 
 	/* Hardware information */
 	u32 chip_rev_id;
+	u32 fw_rev_id;
 	u32 func;		/* PCI function for this adapter */
 
 	spinlock_t adapter_lock;
@@ -1580,6 +1581,7 @@ void ql_mpi_idc_work(struct work_struct *work);
 void ql_mpi_port_cfg_work(struct work_struct *work);
 int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
+int ql_mb_about_fw(struct ql_adapter *qdev);
 
 #if 1
 #define QL_ALL_DUMP

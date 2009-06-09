@@ -293,7 +293,10 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	strncpy(drvinfo->driver, qlge_driver_name, 32);
 	strncpy(drvinfo->version, qlge_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
+	snprintf(drvinfo->fw_version, 32, "v%d.%d.%d",
+		 (qdev->fw_rev_id & 0x00ff0000) >> 16,
+		 (qdev->fw_rev_id & 0x0000ff00) >> 8,
+		 (qdev->fw_rev_id & 0x000000ff));
 	strncpy(drvinfo->bus_info, pci_name(qdev->pdev), 32);
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;

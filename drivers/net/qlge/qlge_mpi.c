@@ -547,6 +547,40 @@ end:
 	return status;
 }
 
+
+/* Get MPI firmware version. This will be used for
+ * driver banner and for ethtool info.
+ * Returns zero on success.
+ */
+int ql_mb_about_fw(struct ql_adapter *qdev)
+{
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+	int status = 0;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 1;
+	mbcp->out_count = 3;
+
+	mbcp->mbox_in[0] = MB_CMD_ABOUT_FW;
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed about firmware command\n");
+		status = -EIO;
+	}
+
+	/* Store the firmware version */
+	qdev->fw_rev_id = mbcp->mbox_out[1];
+
+	return status;
+}
+
 /* Get functional state for MPI firmware.
  * Returns zero on success.
  */

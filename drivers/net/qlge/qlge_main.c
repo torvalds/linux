@@ -837,6 +837,13 @@ exit:
 static int ql_8000_port_initialize(struct ql_adapter *qdev)
 {
 	int status;
+	/*
+	 * Get MPI firmware version for driver banner
+	 * and ethool info.
+	 */
+	status = ql_mb_about_fw(qdev);
+	if (status)
+		goto exit;
 	status = ql_mb_get_fw_state(qdev);
 	if (status)
 		goto exit;
