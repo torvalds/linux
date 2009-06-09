@@ -45,7 +45,7 @@ static inline char *check_image_kernel(struct swsusp_info *info)
  */
 #define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
-/* kernel/power/disk.c */
+/* kernel/power/hibernate.c */
 extern int hibernation_snapshot(int platform_mode);
 extern int hibernation_restore(int platform_mode);
 extern int hibernation_platform_enter(void);
@@ -147,7 +147,7 @@ extern int swsusp_swap_in_use(void);
  */
 #define SF_PLATFORM_MODE	1
 
-/* kernel/power/disk.c */
+/* kernel/power/hibernate.c */
 extern int swsusp_check(void);
 extern void swsusp_free(void);
 extern int swsusp_read(unsigned int *flags_p);

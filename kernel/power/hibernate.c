@@ -1,12 +1,12 @@
 /*
- * kernel/power/disk.c - Suspend-to-disk support.
+ * kernel/power/hibernate.c - Hibernation (a.k.a suspend-to-disk) support.
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
  * Copyright (c) 2004 Pavel Machek <pavel@suse.cz>
+ * Copyright (c) 2009 Rafael J. Wysocki, Novell Inc.
  *
  * This file is released under the GPLv2.
- *
  */
 
 #include <linux/suspend.h>
