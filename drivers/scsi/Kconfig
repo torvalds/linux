@@ -354,6 +354,7 @@ config ISCSI_TCP
 	 http://open-iscsi.org
 
 source "drivers/scsi/cxgb3i/Kconfig"
+source "drivers/scsi/bnx2i/Kconfig"
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
