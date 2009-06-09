@@ -1846,6 +1846,9 @@ void blk_start_request(struct request *req)
 	 * resid_len to full count and add the timeout handler.
 	 */
 	req->resid_len = blk_rq_bytes(req);
+	if (unlikely(blk_bidi_rq(req)))
+		req->next_rq->resid_len = blk_rq_bytes(req->next_rq);
+
 	blk_add_timer(req);
 }
 EXPORT_SYMBOL(blk_start_request);
