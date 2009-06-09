@@ -1145,17 +1145,6 @@ static int device_change_notifier(struct notifier_block *nb,
 			  "to a non-dma-ops domain\n", dev_name(dev));
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		if (domain)
-			goto out;
-		dma_domain = find_protection_domain(devid);
-		if (!dma_domain)
-			dma_domain = iommu->default_dom;
-		attach_device(iommu, &dma_domain->domain, devid);
-		DUMP_printk(KERN_INFO "AMD IOMMU: Using protection domain "
-			    "%d for device %s\n",
-			    dma_domain->domain.id, dev_name(dev));
-		break;
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (!domain)
 			goto out;
