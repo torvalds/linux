@@ -65,6 +65,17 @@
 
 #define DB_PAGE_SIZE 4096
 
+/* MPI test register definitions. This register
+ * is used for determining alternate NIC function's
+ * PCI->func number.
+ */
+enum {
+	MPI_TEST_FUNC_PORT_CFG = 0x1002,
+	MPI_TEST_NIC1_FUNC_SHIFT = 1,
+	MPI_TEST_NIC2_FUNC_SHIFT = 5,
+	MPI_TEST_NIC_FUNC_MASK = 0x00000007,
+};
+
 /*
  * Processor Address Register (PROC_ADDR) bit definitions.
  */
@@ -1432,6 +1443,8 @@ struct ql_adapter {
 	u32 chip_rev_id;
 	u32 fw_rev_id;
 	u32 func;		/* PCI function for this adapter */
+	u32 alt_func;		/* PCI function for alternate adapter */
+	u32 port;		/* Port number this adapter */
 
 	spinlock_t adapter_lock;
 	spinlock_t hw_lock;
@@ -1581,6 +1594,7 @@ void ql_mpi_idc_work(struct work_struct *work);
 void ql_mpi_port_cfg_work(struct work_struct *work);
 int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
+int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
 int ql_mb_about_fw(struct ql_adapter *qdev);
 
 #if 1

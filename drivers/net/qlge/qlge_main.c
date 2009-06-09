@@ -680,7 +680,7 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 	/* Get flash offset for function and adjust
 	 * for dword access.
 	 */
-	if (!qdev->func)
+	if (!qdev->port)
 		offset = FUNC0_FLASH_OFFSET / sizeof(u32);
 	else
 		offset = FUNC1_FLASH_OFFSET / sizeof(u32);
@@ -744,7 +744,7 @@ static int ql_get_8012_flash_params(struct ql_adapter *qdev)
 	/* Second function's parameters follow the first
 	 * function's.
 	 */
-	if (qdev->func)
+	if (qdev->port)
 		offset = size;
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
@@ -3220,9 +3220,10 @@ static void ql_display_dev_info(struct net_device *ndev)
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 
 	QPRINTK(qdev, PROBE, INFO,
-		"Function #%d, NIC Roll %d, NIC Rev = %d, "
+		"Function #%d, Port %d, NIC Roll %d, NIC Rev = %d, "
 		"XG Roll = %d, XG Rev = %d.\n",
 		qdev->func,
+		qdev->port,
 		qdev->chip_rev_id & 0x0000000f,
 		qdev->chip_rev_id >> 4 & 0x0000000f,
 		qdev->chip_rev_id >> 8 & 0x0000000f,
@@ -3677,12 +3678,53 @@ static struct nic_operations qla8000_nic_ops = {
 	.port_initialize	= ql_8000_port_initialize,
 };
 
-
-static void ql_get_board_info(struct ql_adapter *qdev)
+/* Find the pcie function number for the other NIC
+ * on this chip.  Since both NIC functions share a
+ * common firmware we have the lowest enabled function
+ * do any common work.  Examples would be resetting
+ * after a fatal firmware error, or doing a firmware
+ * coredump.
+ */
+static int ql_get_alt_pcie_func(struct ql_adapter *qdev)
 {
+	int status = 0;
+	u32 temp;
+	u32 nic_func1, nic_func2;
+
+	status = ql_read_mpi_reg(qdev, MPI_TEST_FUNC_PORT_CFG,
+			&temp);
+	if (status)
+		return status;
+
+	nic_func1 = ((temp >> MPI_TEST_NIC1_FUNC_SHIFT) &
+			MPI_TEST_NIC_FUNC_MASK);
+	nic_func2 = ((temp >> MPI_TEST_NIC2_FUNC_SHIFT) &
+			MPI_TEST_NIC_FUNC_MASK);
+
+	if (qdev->func == nic_func1)
+		qdev->alt_func = nic_func2;
+	else if (qdev->func == nic_func2)
+		qdev->alt_func = nic_func1;
+	else
+		status = -EIO;
+
+	return status;
+}
+
+static int ql_get_board_info(struct ql_adapter *qdev)
+{
+	int status;
 	qdev->func =
 	    (ql_read32(qdev, STS) & STS_FUNC_ID_MASK) >> STS_FUNC_ID_SHIFT;
-	if (qdev->func) {
+	if (qdev->func > 3)
+		return -EIO;
+
+	status = ql_get_alt_pcie_func(qdev);
+	if (status)
+		return status;
+
+	qdev->port = (qdev->func < qdev->alt_func) ? 0 : 1;
+	if (qdev->port) {
 		qdev->xg_sem_mask = SEM_XGMAC1_MASK;
 		qdev->port_link_up = STS_PL1;
 		qdev->port_init = STS_PI1;
@@ -3701,6 +3743,7 @@ static void ql_get_board_info(struct ql_adapter *qdev)
 		qdev->nic_ops = &qla8012_nic_ops;
 	else if (qdev->device_id == QLGE_DEVICE_ID_8000)
 		qdev->nic_ops = &qla8000_nic_ops;
+	return status;
 }
 
 static void ql_release_all(struct pci_dev *pdev)
@@ -3795,7 +3838,12 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 
 	qdev->ndev = ndev;
 	qdev->pdev = pdev;
-	ql_get_board_info(qdev);
+	err = ql_get_board_info(qdev);
+	if (err) {
+		dev_err(&pdev->dev, "Register access failed.\n");
+		err = -EIO;
+		goto err_out;
+	}
 	qdev->msg_enable = netif_msg_init(debug, default_msg);
 	spin_lock_init(&qdev->hw_lock);
 	spin_lock_init(&qdev->stats_lock);
