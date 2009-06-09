@@ -1881,7 +1881,7 @@ static int sctp_skb_pull(struct sk_buff *skb, int len)
 	len -= skb_len;
 	__skb_pull(skb, skb_len);
 
-	for (list = skb_shinfo(skb)->frag_list; list; list = list->next) {
+	skb_walk_frags(skb, list) {
 		rlen = sctp_skb_pull(list, len);
 		skb->len -= (len-rlen);
 		skb->data_len -= (len-rlen);
@@ -6660,7 +6660,7 @@ static void sctp_sock_rfree_frag(struct sk_buff *skb)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+	skb_walk_frags(skb, frag)
 		sctp_sock_rfree_frag(frag);
 
 done:
@@ -6675,7 +6675,7 @@ static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+	skb_walk_frags(skb, frag)
 		sctp_skb_set_owner_r_frag(frag, sk);
 
 done:
