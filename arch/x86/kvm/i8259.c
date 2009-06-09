@@ -57,7 +57,7 @@ static void pic_unlock(struct kvm_pic *s)
 	}
 
 	if (wakeup) {
-		vcpu = s->kvm->vcpus[0];
+		vcpu = s->kvm->bsp_vcpu;
 		if (vcpu)
 			kvm_vcpu_kick(vcpu);
 	}
@@ -254,7 +254,7 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 {
 	int irq, irqbase, n;
 	struct kvm *kvm = s->pics_state->irq_request_opaque;
-	struct kvm_vcpu *vcpu0 = kvm->vcpus[0];
+	struct kvm_vcpu *vcpu0 = kvm->bsp_vcpu;
 
 	if (s == &s->pics_state->pics[0])
 		irqbase = 0;
@@ -512,7 +512,7 @@ static void picdev_read(struct kvm_io_device *this,
 static void pic_irq_request(void *opaque, int level)
 {
 	struct kvm *kvm = opaque;
-	struct kvm_vcpu *vcpu = kvm->vcpus[0];
+	struct kvm_vcpu *vcpu = kvm->bsp_vcpu;
 	struct kvm_pic *s = pic_irqchip(kvm);
 	int irq = pic_get_irq(&s->pics[0]);
 

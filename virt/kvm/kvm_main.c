@@ -1747,6 +1747,8 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 		goto vcpu_destroy;
 	}
 	kvm->vcpus[n] = vcpu;
+	if (n == 0)
+		kvm->bsp_vcpu = vcpu;
 	mutex_unlock(&kvm->lock);
 
 	/* Now it's all set up, let userspace reach it */

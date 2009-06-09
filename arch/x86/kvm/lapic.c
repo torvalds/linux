@@ -793,7 +793,8 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 		vcpu->arch.apic_base = value;
 		return;
 	}
-	if (apic->vcpu->vcpu_id)
+
+	if (!kvm_vcpu_is_bsp(apic->vcpu))
 		value &= ~MSR_IA32_APICBASE_BSP;
 
 	vcpu->arch.apic_base = value;
@@ -844,7 +845,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	}
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
-	if (vcpu->vcpu_id == 0)
+	if (kvm_vcpu_is_bsp(vcpu))
 		vcpu->arch.apic_base |= MSR_IA32_APICBASE_BSP;
 	apic_update_ppr(apic);
 
@@ -985,7 +986,7 @@ int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
 	u32 lvt0 = apic_get_reg(vcpu->arch.apic, APIC_LVT0);
 	int r = 0;
 
-	if (vcpu->vcpu_id == 0) {
+	if (kvm_vcpu_is_bsp(vcpu)) {
 		if (!apic_hw_enabled(vcpu->arch.apic))
 			r = 1;
 		if ((lvt0 & APIC_LVT_MASKED) == 0 &&

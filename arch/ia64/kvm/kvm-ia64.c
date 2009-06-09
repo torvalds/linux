@@ -1216,7 +1216,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	if (IS_ERR(vmm_vcpu))
 		return PTR_ERR(vmm_vcpu);
 
-	if (vcpu->vcpu_id == 0) {
+	if (kvm_vcpu_is_bsp(vcpu)) {
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 		/*Set entry address for first run.*/

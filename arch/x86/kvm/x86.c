@@ -4330,7 +4330,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	kvm_set_segment(vcpu, &sregs->ldt, VCPU_SREG_LDTR);
 
 	/* Older userspace won't unhalt the vcpu on reset. */
-	if (vcpu->vcpu_id == 0 && kvm_rip_read(vcpu) == 0xfff0 &&
+	if (kvm_vcpu_is_bsp(vcpu) && kvm_rip_read(vcpu) == 0xfff0 &&
 	    sregs->cs.selector == 0xf000 && sregs->cs.base == 0xffff0000 &&
 	    !(vcpu->arch.cr0 & X86_CR0_PE))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -4601,7 +4601,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	kvm = vcpu->kvm;
 
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
-	if (!irqchip_in_kernel(kvm) || vcpu->vcpu_id == 0)
+	if (!irqchip_in_kernel(kvm) || kvm_vcpu_is_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	else
 		vcpu->arch.mp_state = KVM_MP_STATE_UNINITIALIZED;

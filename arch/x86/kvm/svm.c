@@ -642,7 +642,7 @@ static int svm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	init_vmcb(svm);
 
-	if (vcpu->vcpu_id != 0) {
+	if (!kvm_vcpu_is_bsp(vcpu)) {
 		kvm_rip_write(vcpu, 0);
 		svm->vmcb->save.cs.base = svm->vcpu.arch.sipi_vector << 12;
 		svm->vmcb->save.cs.selector = svm->vcpu.arch.sipi_vector << 8;
@@ -706,7 +706,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	fx_init(&svm->vcpu);
 	svm->vcpu.fpu_active = 1;
 	svm->vcpu.arch.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
-	if (svm->vcpu.vcpu_id == 0)
+	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
 	return &svm->vcpu;
