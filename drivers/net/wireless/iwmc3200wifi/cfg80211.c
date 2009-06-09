@@ -167,19 +167,14 @@ int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 	return 0;
 }
 
-static int iwm_cfg80211_change_iface(struct wiphy *wiphy, int ifindex,
+static int iwm_cfg80211_change_iface(struct wiphy *wiphy,
+				     struct net_device *ndev,
 				     enum nl80211_iftype type, u32 *flags,
 				     struct vif_params *params)
 {
-	struct net_device *ndev;
 	struct wireless_dev *wdev;
 	struct iwm_priv *iwm;
 	u32 old_mode;
-
-	/* we're under RTNL */
-	ndev = __dev_get_by_index(&init_net, ifindex);
-	if (!ndev)
-		return -ENODEV;
 
 	wdev = ndev->ieee80211_ptr;
 	iwm = ndev_to_iwm(ndev);

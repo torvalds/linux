@@ -767,7 +767,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 	struct vif_params params;
-	int err, ifindex;
+	int err;
 	enum nl80211_iftype otype, ntype;
 	struct net_device *dev;
 	u32 _flags, *flags = NULL;
@@ -781,9 +781,7 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	ifindex = dev->ifindex;
 	otype = ntype = dev->ieee80211_ptr->iftype;
-	dev_put(dev);
 
 	if (info->attrs[NL80211_ATTR_IFTYPE]) {
 		ntype = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
@@ -826,20 +824,20 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (change)
-		err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
+		err = drv->ops->change_virtual_intf(&drv->wiphy, dev,
 						    ntype, flags, &params);
 	else
 		err = 0;
 
-	dev = __dev_get_by_index(&init_net, ifindex);
-	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != ntype));
+	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
 
-	if (dev && !err && (ntype != otype)) {
+	if (!err && (ntype != otype)) {
 		if (otype == NL80211_IFTYPE_ADHOC)
 			cfg80211_clear_ibss(dev, false);
 	}
 
  unlock:
+	dev_put(dev);
 	cfg80211_put_dev(drv);
  unlock_rtnl:
 	rtnl_unlock();

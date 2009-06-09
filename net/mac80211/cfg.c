@@ -74,18 +74,13 @@ static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 	return 0;
 }
 
-static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
+static int ieee80211_change_iface(struct wiphy *wiphy,
+				  struct net_device *dev,
 				  enum nl80211_iftype type, u32 *flags,
 				  struct vif_params *params)
 {
-	struct net_device *dev;
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
-
-	/* we're under RTNL */
-	dev = __dev_get_by_index(&init_net, ifindex);
-	if (!dev)
-		return -ENODEV;
 
 	if (!nl80211_type_check(type))
 		return -EINVAL;

@@ -103,7 +103,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	memset(&vifparams, 0, sizeof(vifparams));
 
-	ret = rdev->ops->change_virtual_intf(wdev->wiphy, dev->ifindex, type,
+	ret = rdev->ops->change_virtual_intf(wdev->wiphy, dev, type,
 					     NULL, &vifparams);
 	WARN_ON(!ret && wdev->iftype != type);
 
