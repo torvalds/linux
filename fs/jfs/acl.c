@@ -31,25 +31,23 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *ea_name;
-	struct posix_acl **p_acl;
 	int size;
 	char *value = NULL;
+
+	acl = get_cached_acl(inode, type);
+	if (acl != ACL_NOT_CACHED)
+		return acl;
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			ea_name = POSIX_ACL_XATTR_ACCESS;
-			p_acl = &inode->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
 			ea_name = POSIX_ACL_XATTR_DEFAULT;
-			p_acl = &inode->i_default_acl;
 			break;
 		default:
 			return ERR_PTR(-EINVAL);
 	}
-
-	if (*p_acl != ACL_NOT_CACHED)
-		return posix_acl_dup(*p_acl);
 
 	size = __jfs_getxattr(inode, ea_name, NULL, 0);
 
@@ -61,17 +59,18 @@ static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 	}
 
 	if (size < 0) {
-		if (size == -ENODATA) {
-			*p_acl = NULL;
+		if (size == -ENODATA)
 			acl = NULL;
-		} else
+		else
 			acl = ERR_PTR(size);
 	} else {
 		acl = posix_acl_from_xattr(value, size);
-		if (!IS_ERR(acl))
-			*p_acl = posix_acl_dup(acl);
 	}
 	kfree(value);
+	if (!IS_ERR(acl)) {
+		set_cached_acl(inode, type, acl);
+		posix_acl_release(acl);
+	}
 	return acl;
 }
 
@@ -79,7 +78,6 @@ static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
 		       struct posix_acl *acl)
 {
 	char *ea_name;
-	struct posix_acl **p_acl;
 	int rc;
 	int size = 0;
 	char *value = NULL;
@@ -90,11 +88,9 @@ static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
 	switch(type) {
 		case ACL_TYPE_ACCESS:
 			ea_name = POSIX_ACL_XATTR_ACCESS;
-			p_acl = &inode->i_acl;
 			break;
 		case ACL_TYPE_DEFAULT:
 			ea_name = POSIX_ACL_XATTR_DEFAULT;
-			p_acl = &inode->i_default_acl;
 			if (!S_ISDIR(inode->i_mode))
 				return acl ? -EACCES : 0;
 			break;
@@ -114,11 +110,9 @@ static int jfs_set_acl(tid_t tid, struct inode *inode, int type,
 out:
 	kfree(value);
 
-	if (!rc) {
-		if (*p_acl && (*p_acl != ACL_NOT_CACHED))
-			posix_acl_release(*p_acl);
-		*p_acl = posix_acl_dup(acl);
-	}
+	if (!rc)
+		set_cached_acl(inode, type, acl);
+
 	return rc;
 }
 

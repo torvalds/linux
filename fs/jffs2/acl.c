@@ -156,47 +156,25 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	return ERR_PTR(-EINVAL);
 }
 
-static struct posix_acl *jffs2_iget_acl(struct inode *inode, struct posix_acl **i_acl)
-{
-	struct posix_acl *acl = ACL_NOT_CACHED;
-
-	spin_lock(&inode->i_lock);
-	if (*i_acl != ACL_NOT_CACHED)
-		acl = posix_acl_dup(*i_acl);
-	spin_unlock(&inode->i_lock);
-	return acl;
-}
-
-static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct posix_acl *acl)
-{
-	spin_lock(&inode->i_lock);
-	if (*i_acl != ACL_NOT_CACHED)
-		posix_acl_release(*i_acl);
-	*i_acl = posix_acl_dup(acl);
-	spin_unlock(&inode->i_lock);
-}
-
 static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *value = NULL;
 	int rc, xprefix;
 
+	acl = get_cached_acl(inode, type);
+	if (acl != ACL_NOT_CACHED)
+		return acl;
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		acl = jffs2_iget_acl(inode, &inode->i_acl);
-		if (acl != ACL_NOT_CACHED)
-			return acl;
 		xprefix = JFFS2_XPREFIX_ACL_ACCESS;
 		break;
 	case ACL_TYPE_DEFAULT:
-		acl = jffs2_iget_acl(inode, &inode->i_default_acl);
-		if (acl != ACL_NOT_CACHED)
-			return acl;
 		xprefix = JFFS2_XPREFIX_ACL_DEFAULT;
 		break;
 	default:
-		return ERR_PTR(-EINVAL);
+		BUG();
 	}
 	rc = do_jffs2_getxattr(inode, xprefix, "", NULL, 0);
 	if (rc > 0) {
@@ -214,16 +192,8 @@ static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 	}
 	if (value)
 		kfree(value);
-	if (!IS_ERR(acl)) {
-		switch (type) {
-		case ACL_TYPE_ACCESS:
-			jffs2_iset_acl(inode, &inode->i_acl, acl);
-			break;
-		case ACL_TYPE_DEFAULT:
-			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
-			break;
-		}
-	}
+	if (!IS_ERR(acl))
+		set_cached_acl(inode, type, acl);
 	return acl;
 }
 
@@ -283,16 +253,8 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		return -EINVAL;
 	}
 	rc = __jffs2_set_acl(inode, xprefix, acl);
-	if (!rc) {
-		switch(type) {
-		case ACL_TYPE_ACCESS:
-			jffs2_iset_acl(inode, &inode->i_acl, acl);
-			break;
-		case ACL_TYPE_DEFAULT:
-			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
-			break;
-		}
-	}
+	if (!rc)
+		set_cached_acl(inode, type, acl);
 	return rc;
 }
 
@@ -336,7 +298,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 		*i_mode &= ~current_umask();
 	} else {
 		if (S_ISDIR(*i_mode))
-			jffs2_iset_acl(inode, &inode->i_default_acl, acl);
+			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
 
 		clone = posix_acl_clone(acl, GFP_KERNEL);
 		if (!clone)
@@ -347,7 +309,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 			return rc;
 		}
 		if (rc > 0)
-			jffs2_iset_acl(inode, &inode->i_acl, clone);
+			set_cached_acl(inode, ACL_TYPE_ACCESS, clone);
 
 		posix_acl_release(clone);
 	}
