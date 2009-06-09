@@ -19,9 +19,6 @@
  *
  **/
 
-#ifndef _BTMRVL_SDIO_H_
-#define _BTMRVL_SDIO_H_
-
 #define SDIO_HEADER_LEN			4
 
 /* SD block size can not bigger than 64 due to buf size limit in firmware */
@@ -109,5 +106,3 @@ struct btmrvl_sdio_device {
 /* Macros for Data Alignment : address */
 #define ALIGN_ADDR(p, a)	\
 	((((u32)(p)) + (((u32)(a)) - 1)) & ~(((u32)(a)) - 1))
-
-#endif /* _BTMRVL_SDIO_H_ */

@@ -19,9 +19,6 @@
  *
  */
 
-#ifndef _BTMRVL_DRV_H_
-#define _BTMRVL_DRV_H_
-
 #include <linux/kthread.h>
 #include <linux/bitops.h>
 #include <net/bluetooth/bluetooth.h>
@@ -142,5 +139,3 @@ int btmrvl_prepare_command(struct btmrvl_private *priv);
 void btmrvl_debugfs_init(struct hci_dev *hdev);
 void btmrvl_debugfs_remove(struct hci_dev *hdev);
 #endif
-
-#endif /* _BTMRVL_DRV_H_ */
