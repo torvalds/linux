@@ -15,9 +15,9 @@ static int __kvm_timer_fn(struct kvm_vcpu *vcpu, struct kvm_timer *ktimer)
 	 * case anyway.
 	 */
 	if (ktimer->reinject || !atomic_read(&ktimer->pending)) {
+		atomic_inc(&ktimer->pending);
 		/* FIXME: this code should not know anything about vcpus */
-		if (!atomic_inc_and_test(&ktimer->pending))
-			set_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
+		set_bit(KVM_REQ_PENDING_TIMER, &vcpu->requests);
 	}
 
 	if (waitqueue_active(q))
