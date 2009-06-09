@@ -337,13 +337,10 @@ static void be_tx_stats_update(struct be_adapter *adapter,
 /* Determine number of WRB entries needed to xmit data in an skb */
 static u32 wrb_cnt_for_skb(struct sk_buff *skb, bool *dummy)
 {
-	int cnt = 0;
-	while (skb) {
-		if (skb->len > skb->data_len)
-			cnt++;
-		cnt += skb_shinfo(skb)->nr_frags;
-		skb = skb_shinfo(skb)->frag_list;
-	}
+	int cnt = (skb->len > skb->data_len);
+
+	cnt += skb_shinfo(skb)->nr_frags;
+
 	/* to account for hdr wrb */
 	cnt++;
 	if (cnt & 1) {
@@ -409,31 +406,28 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	hdr = queue_head_node(txq);
 	queue_head_inc(txq);
 
-	while (skb) {
-		if (skb->len > skb->data_len) {
-			int len = skb->len - skb->data_len;
-			busaddr = pci_map_single(pdev, skb->data, len,
-					PCI_DMA_TODEVICE);
-			wrb = queue_head_node(txq);
-			wrb_fill(wrb, busaddr, len);
-			be_dws_cpu_to_le(wrb, sizeof(*wrb));
-			queue_head_inc(txq);
-			copied += len;
-		}
+	if (skb->len > skb->data_len) {
+		int len = skb->len - skb->data_len;
+		busaddr = pci_map_single(pdev, skb->data, len,
+					 PCI_DMA_TODEVICE);
+		wrb = queue_head_node(txq);
+		wrb_fill(wrb, busaddr, len);
+		be_dws_cpu_to_le(wrb, sizeof(*wrb));
+		queue_head_inc(txq);
+		copied += len;
+	}
 
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			struct skb_frag_struct *frag =
-				&skb_shinfo(skb)->frags[i];
-			busaddr = pci_map_page(pdev, frag->page,
-					frag->page_offset,
-					frag->size, PCI_DMA_TODEVICE);
-			wrb = queue_head_node(txq);
-			wrb_fill(wrb, busaddr, frag->size);
-			be_dws_cpu_to_le(wrb, sizeof(*wrb));
-			queue_head_inc(txq);
-			copied += frag->size;
-		}
-		skb = skb_shinfo(skb)->frag_list;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		struct skb_frag_struct *frag =
+			&skb_shinfo(skb)->frags[i];
+		busaddr = pci_map_page(pdev, frag->page,
+				       frag->page_offset,
+				       frag->size, PCI_DMA_TODEVICE);
+		wrb = queue_head_node(txq);
+		wrb_fill(wrb, busaddr, frag->size);
+		be_dws_cpu_to_le(wrb, sizeof(*wrb));
+		queue_head_inc(txq);
+		copied += frag->size;
 	}
 
 	if (dummy_wrb) {
