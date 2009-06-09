@@ -114,7 +114,7 @@ void __init tx4939_setup(void)
 	int i;
 	__u32 divmode;
 	__u64 pcfg;
-	int cpuclk = 0;
+	unsigned int cpuclk = 0;
 
 	txx9_reg_res_init(TX4939_REV_PCODE(), TX4939_REG_BASE,
 			  TX4939_REG_SIZE);

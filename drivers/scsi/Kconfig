@@ -628,6 +628,17 @@ config FCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
+config FCOE_FNIC
+	tristate "Cisco FNIC Driver"
+	depends on PCI && X86
+	select LIBFC
+	help
+	  This is support for the Cisco PCI-Express FCoE HBA.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/scsi/scsi.txt>.
+	  The module will be called fnic.
+
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI

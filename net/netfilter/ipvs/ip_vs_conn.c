@@ -260,7 +260,10 @@ struct ip_vs_conn *ip_vs_ct_in_get
 	list_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (cp->af == af &&
 		    ip_vs_addr_equal(af, s_addr, &cp->caddr) &&
-		    ip_vs_addr_equal(af, d_addr, &cp->vaddr) &&
+		    /* protocol should only be IPPROTO_IP if
+		     * d_addr is a fwmark */
+		    ip_vs_addr_equal(protocol == IPPROTO_IP ? AF_UNSPEC : af,
+		                     d_addr, &cp->vaddr) &&
 		    s_port == cp->cport && d_port == cp->vport &&
 		    cp->flags & IP_VS_CONN_F_TEMPLATE &&
 		    protocol == cp->protocol) {
@@ -698,7 +701,9 @@ ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
 	cp->cport	   = cport;
 	ip_vs_addr_copy(af, &cp->vaddr, vaddr);
 	cp->vport	   = vport;
-	ip_vs_addr_copy(af, &cp->daddr, daddr);
+	/* proto should only be IPPROTO_IP if d_addr is a fwmark */
+	ip_vs_addr_copy(proto == IPPROTO_IP ? AF_UNSPEC : af,
+			&cp->daddr, daddr);
 	cp->dport          = dport;
 	cp->flags	   = flags;
 	spin_lock_init(&cp->lock);

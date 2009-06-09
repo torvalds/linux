@@ -437,6 +437,11 @@ static inline int mem_cgroup_cache_charge_swapin(struct page *page,
 	return 0;
 }
 
+static inline void
+mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+{
+}
+
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/
 #endif /* _LINUX_SWAP_H */

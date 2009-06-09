@@ -649,6 +649,20 @@ static void print_basics(struct powernow_k8_data *data)
 				data->batps);
 }
 
+static u32 freq_from_fid_did(u32 fid, u32 did)
+{
+	u32 mhz = 0;
+
+	if (boot_cpu_data.x86 == 0x10)
+		mhz = (100 * (fid + 0x10)) >> did;
+	else if (boot_cpu_data.x86 == 0x11)
+		mhz = (100 * (fid + 8)) >> did;
+	else
+		BUG();
+
+	return mhz * 1000;
+}
+
 static int fill_powernow_table(struct powernow_k8_data *data,
 		struct pst_s *pst, u8 maxvid)
 {
@@ -923,8 +937,13 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 
 		powernow_table[i].index = index;
 
-		powernow_table[i].frequency =
-			data->acpi_data.states[i].core_frequency * 1000;
+		/* Frequency may be rounded for these */
+		if (boot_cpu_data.x86 == 0x10 || boot_cpu_data.x86 == 0x11) {
+			powernow_table[i].frequency =
+				freq_from_fid_did(lo & 0x3f, (lo >> 6) & 7);
+		} else
+			powernow_table[i].frequency =
+				data->acpi_data.states[i].core_frequency * 1000;
 	}
 	return 0;
 }
@@ -1215,13 +1234,16 @@ static int powernowk8_verify(struct cpufreq_policy *pol)
 	return cpufreq_frequency_table_verify(pol, data->powernow_table);
 }
 
+static const char ACPI_PSS_BIOS_BUG_MSG[] =
+	KERN_ERR FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
+	KERN_ERR FW_BUG PFX "Try again with latest BIOS.\n";
+
 /* per CPU init entry point to the driver */
 static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask;
 	int rc;
-	static int print_once;
 
 	if (!cpu_online(pol->cpu))
 		return -ENODEV;
@@ -1244,19 +1266,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			/*
-			 * Replace this one with print_once as soon as such a
-			 * thing gets introduced
-			 */
-			if (!print_once) {
-				WARN_ONCE(1, KERN_ERR FW_BUG PFX "Your BIOS "
-					"does not provide ACPI _PSS objects "
-					"in a way that Linux understands. "
-					"Please report this to the Linux ACPI"
-					" maintainers and complain to your "
-					"BIOS vendor.\n");
-				print_once++;
-			}
+			printk_once(ACPI_PSS_BIOS_BUG_MSG);
 			goto err_out;
 		}
 		if (pol->cpu != 0) {

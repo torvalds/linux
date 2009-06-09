@@ -32,7 +32,7 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 {
 	void *ret;
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	ret = __dma_alloc_coherent(size, dma_handle, flag);
+	ret = __dma_alloc_coherent(dev, size, dma_handle, flag);
 	if (ret == NULL)
 		return NULL;
 	*dma_handle += get_dma_direct_offset(dev);

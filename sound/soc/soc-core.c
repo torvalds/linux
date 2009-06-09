@@ -954,6 +954,9 @@ static int soc_remove(struct platform_device *pdev)
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 
+	if (!card->instantiated)
+		return 0;
+
 	run_delayed_work(&card->delayed_work);
 
 	if (platform->remove)

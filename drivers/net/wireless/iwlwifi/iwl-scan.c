@@ -227,9 +227,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	/* The HW is no longer scanning */
 	clear_bit(STATUS_SCAN_HW, &priv->status);
 
-	/* The scan completion notification came in, so kill that timer... */
-	cancel_delayed_work(&priv->scan_check);
-
 	IWL_DEBUG_INFO(priv, "Scan pass on %sGHz took %dms\n",
 		       (priv->scan_bands & BIT(IEEE80211_BAND_2GHZ)) ?
 						"2.4" : "5.2",
@@ -712,6 +709,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 	mutex_lock(&priv->mutex);
 
+	cancel_delayed_work(&priv->scan_check);
+
 	if (!iwl_is_ready(priv)) {
 		IWL_WARN(priv, "request scan called when driver not ready.\n");
 		goto done;
@@ -924,6 +923,8 @@ void iwl_bg_scan_completed(struct work_struct *work)
 	    container_of(work, struct iwl_priv, scan_completed);
 
 	IWL_DEBUG_SCAN(priv, "SCAN complete scan\n");
+
+	cancel_delayed_work(&priv->scan_check);
 
 	ieee80211_scan_completed(priv->hw, false);
 

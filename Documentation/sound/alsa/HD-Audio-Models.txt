@@ -334,6 +334,7 @@ STAC9227/9228/9229/927x
   ref-no-jd	Reference board without HP/Mic jack detection
   3stack	D965 3stack
   5stack	D965 5stack + SPDIF
+  5stack-no-fp	D965 5stack without front panel
   dell-3stack	Dell Dimension E520
   dell-bios	Fixes with Dell BIOS setup
   auto		BIOS setup (default)

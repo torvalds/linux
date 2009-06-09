@@ -1057,13 +1057,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
 
-	mpic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
-				       isu_size, &mpic_host_ops,
-				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
-	if (mpic->irqhost == NULL)
-		return NULL;
-
-	mpic->irqhost->host_data = mpic;
 	mpic->hc_irq = mpic_irq_chip;
 	mpic->hc_irq.typename = name;
 	if (flags & MPIC_PRIMARY)
@@ -1212,6 +1205,15 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
+
+	mpic->irqhost = irq_alloc_host(node, IRQ_HOST_MAP_LINEAR,
+				       isu_size ? isu_size : mpic->num_sources,
+				       &mpic_host_ops,
+				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
+	if (mpic->irqhost == NULL)
+		return NULL;
+
+	mpic->irqhost->host_data = mpic;
 
 	/* Display version */
 	switch (greg_feature & MPIC_GREG_FEATURE_VERSION_MASK) {

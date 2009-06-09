@@ -1249,7 +1249,7 @@ static int __devinit hss_init_one(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if ((port->npe = npe_request(0)) == NULL) {
-		err = -ENOSYS;
+		err = -ENODEV;
 		goto err_free;
 	}
 
@@ -1311,7 +1311,7 @@ static int __init hss_init_module(void)
 	if ((ixp4xx_read_feature_bits() &
 	     (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS)) !=
 	    (IXP4XX_FEATURE_HDLC | IXP4XX_FEATURE_HSS))
-		return -ENOSYS;
+		return -ENODEV;
 
 	spin_lock_init(&npe_lock);
 

@@ -2856,6 +2856,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		/* Assume a single IPMB channel at zero. */
 		intf->channels[0].medium = IPMI_CHANNEL_MEDIUM_IPMB;
 		intf->channels[0].protocol = IPMI_CHANNEL_PROTOCOL_IPMB;
+		intf->curr_channel = IPMI_MAX_CHANNELS;
 	}
 
 	if (rv == 0)
@@ -3648,13 +3649,13 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 		}
 
 		/*
-		** We need to make sure the channels have been initialized.
-		** The channel_handler routine will set the "curr_channel"
-		** equal to or greater than IPMI_MAX_CHANNELS when all the
-		** channels for this interface have been initialized.
-		*/
+		 * We need to make sure the channels have been initialized.
+		 * The channel_handler routine will set the "curr_channel"
+		 * equal to or greater than IPMI_MAX_CHANNELS when all the
+		 * channels for this interface have been initialized.
+		 */
 		if (intf->curr_channel < IPMI_MAX_CHANNELS) {
-			requeue = 1;     /* Just put the message back for now */
+			requeue = 0; /* Throw the message away */
 			goto out;
 		}
 

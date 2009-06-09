@@ -41,6 +41,10 @@ static int debug;
 module_param_named(debug, debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable debug printks in this driver");
 
+static int forceload;
+module_param_named(forceload, forceload, uint, 0644);
+MODULE_PARM_DESC(debug, "Enable driver testing on unvalidated i5000");
+
 #define dprintk(fmt, arg...) \
 	do { if (debug) printk(KERN_INFO I7300_PRINT fmt, ##arg); } while (0)
 
@@ -552,7 +556,7 @@ static int __init i7300_idle_init(void)
 	cpus_clear(idle_cpumask);
 	total_us = 0;
 
-	if (i7300_idle_platform_probe(&fbd_dev, &ioat_dev))
+	if (i7300_idle_platform_probe(&fbd_dev, &ioat_dev, forceload))
 		return -ENODEV;
 
 	if (i7300_idle_thrt_save())

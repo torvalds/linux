@@ -1720,14 +1720,14 @@ static bool tomoyo_policy_loader_exists(void)
 	 * policies are not loaded yet.
 	 * Thus, let do_execve() call this function everytime.
 	 */
-	struct nameidata nd;
+	struct path path;
 
-	if (path_lookup(tomoyo_loader, LOOKUP_FOLLOW, &nd)) {
+	if (kern_path(tomoyo_loader, LOOKUP_FOLLOW, &path)) {
 		printk(KERN_INFO "Not activating Mandatory Access Control now "
 		       "since %s doesn't exist.\n", tomoyo_loader);
 		return false;
 	}
-	path_put(&nd.path);
+	path_put(&path);
 	return true;
 }
 

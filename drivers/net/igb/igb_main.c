@@ -2006,7 +2006,7 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 	u32 srrctl = 0;
-	int i, j;
+	int i;
 
 	rctl = rd32(E1000_RCTL);
 
@@ -2071,8 +2071,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		u32 vmolr;
 
-		j = adapter->rx_ring[0].reg_idx;
-
 		/* set all queue drop enable bits */
 		wr32(E1000_QDE, ALL_QUEUES);
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -2080,16 +2078,16 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		/* disable queue 0 to prevent tail write w/o re-config */
 		wr32(E1000_RXDCTL(0), 0);
 
-		vmolr = rd32(E1000_VMOLR(j));
+		vmolr = rd32(E1000_VMOLR(adapter->vfs_allocated_count));
 		if (rctl & E1000_RCTL_LPE)
 			vmolr |= E1000_VMOLR_LPE;
-		if (adapter->num_rx_queues > 0)
+		if (adapter->num_rx_queues > 1)
 			vmolr |= E1000_VMOLR_RSSE;
-		wr32(E1000_VMOLR(j), vmolr);
+		wr32(E1000_VMOLR(adapter->vfs_allocated_count), vmolr);
 	}
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		j = adapter->rx_ring[i].reg_idx;
+		int j = adapter->rx_ring[i].reg_idx;
 		wr32(E1000_SRRCTL(j), srrctl);
 	}
 

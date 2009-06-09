@@ -90,6 +90,15 @@ static inline struct super_block *pts_sb_from_inode(struct inode *inode)
 #define PARSE_MOUNT	0
 #define PARSE_REMOUNT	1
 
+/*
+ * parse_mount_options():
+ * 	Set @opts to mount options specified in @data. If an option is not
+ * 	specified in @data, set it to its default value. The exception is
+ * 	'newinstance' option which can only be set/cleared on a mount (i.e.
+ * 	cannot be changed during remount).
+ *
+ * Note: @data may be NULL (in which case all options are set to default).
+ */
 static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
 {
 	char *p;
@@ -355,12 +364,9 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	struct pts_mount_opts opts;
 	struct super_block *s;
 
-	memset(&opts, 0, sizeof(opts));
-	if (data) {
-		error = parse_mount_options(data, PARSE_MOUNT, &opts);
-		if (error)
-			return error;
-	}
+	error = parse_mount_options(data, PARSE_MOUNT, &opts);
+	if (error)
+		return error;
 
 	if (opts.newinstance)
 		s = sget(fs_type, NULL, set_anon_super, NULL);
@@ -389,11 +395,10 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	return 0;
 
 out_dput:
-	dput(s->s_root);
+	dput(s->s_root); /* undo dget() in simple_set_mnt() */
 
 out_undo_sget:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	return error;
 }
 

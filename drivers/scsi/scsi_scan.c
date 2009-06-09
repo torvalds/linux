@@ -425,6 +425,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	INIT_LIST_HEAD(&starget->devices);
 	starget->state = STARGET_CREATED;
 	starget->scsi_level = SCSI_2;
+	starget->max_target_blocked = SCSI_DEFAULT_TARGET_BLOCKED;
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 

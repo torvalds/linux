@@ -147,6 +147,15 @@
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
 			 cpu_has_mips64r1 | cpu_has_mips64r2)
 
+/*
+ * MIPS32, MIPS64, VR5500, IDT32332, IDT32334 and maybe a few other
+ * pre-MIPS32/MIPS53 processors have CLO, CLZ.  For 64-bit kernels
+ * cpu_has_clo_clz also indicates the availability of DCLO and DCLZ.
+ */
+# ifndef cpu_has_clo_clz
+# define cpu_has_clo_clz	cpu_has_mips_r
+# endif
+
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif

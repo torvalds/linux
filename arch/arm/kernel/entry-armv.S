@@ -815,10 +815,7 @@ __kuser_helper_start:
  */
 
 __kuser_memory_barrier:				@ 0xffff0fa0
-
-#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
-	mcr	p15, 0, r0, c7, c10, 5	@ dmb
-#endif
+	smp_dmb
 	usr_ret	lr
 
 	.align	5

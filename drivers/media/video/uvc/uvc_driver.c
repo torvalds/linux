@@ -1726,14 +1726,17 @@ static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
 static int __uvc_resume(struct usb_interface *intf, int reset)
 {
 	struct uvc_device *dev = usb_get_intfdata(intf);
-	int ret;
 
 	uvc_trace(UVC_TRACE_SUSPEND, "Resuming interface %u\n",
 		intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass == SC_VIDEOCONTROL) {
-		if (reset && (ret = uvc_ctrl_resume_device(dev)) < 0)
-			return ret;
+		if (reset) {
+			int ret = uvc_ctrl_resume_device(dev);
+
+			if (ret < 0)
+				return ret;
+		}
 
 		return uvc_status_resume(dev);
 	}

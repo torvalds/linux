@@ -153,6 +153,7 @@ config 405GPR
 
 config XILINX_VIRTEX
 	bool
+	select DEFAULT_UIMAGE
 
 config XILINX_VIRTEX_II_PRO
 	bool

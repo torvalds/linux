@@ -23,9 +23,11 @@
 #include <linux/dma-debug.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
+#include <linux/uaccess.h>
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 
@@ -98,12 +100,27 @@ static struct dentry *show_all_errors_dent  __read_mostly;
 static struct dentry *show_num_errors_dent  __read_mostly;
 static struct dentry *num_free_entries_dent __read_mostly;
 static struct dentry *min_free_entries_dent __read_mostly;
+static struct dentry *filter_dent           __read_mostly;
+
+/* per-driver filter related state */
+
+#define NAME_MAX_LEN	64
+
+static char                  current_driver_name[NAME_MAX_LEN] __read_mostly;
+static struct device_driver *current_driver                    __read_mostly;
+
+static DEFINE_RWLOCK(driver_name_lock);
 
 static const char *type2name[4] = { "single", "page",
 				    "scather-gather", "coherent" };
 
 static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
 				   "DMA_FROM_DEVICE", "DMA_NONE" };
+
+/* little merge helper - remove it after the merge window */
+#ifndef BUS_NOTIFY_UNBOUND_DRIVER
+#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
+#endif
 
 /*
  * The access to some variables in this macro is racy. We can't use atomic_t
@@ -128,9 +145,48 @@ static inline void dump_entry_trace(struct dma_debug_entry *entry)
 #endif
 }
 
+static bool driver_filter(struct device *dev)
+{
+	/* driver filter off */
+	if (likely(!current_driver_name[0]))
+		return true;
+
+	/* driver filter on and initialized */
+	if (current_driver && dev->driver == current_driver)
+		return true;
+
+	/* driver filter on but not yet initialized */
+	if (!current_driver && current_driver_name[0]) {
+		struct device_driver *drv = get_driver(dev->driver);
+		unsigned long flags;
+		bool ret = false;
+
+		if (!drv)
+			return false;
+
+		/* lock to protect against change of current_driver_name */
+		read_lock_irqsave(&driver_name_lock, flags);
+
+		if (drv->name &&
+		    strncmp(current_driver_name, drv->name,
+			    NAME_MAX_LEN-1) == 0) {
+			current_driver = drv;
+			ret = true;
+		}
+
+		read_unlock_irqrestore(&driver_name_lock, flags);
+		put_driver(drv);
+
+		return ret;
+	}
+
+	return false;
+}
+
 #define err_printk(dev, entry, format, arg...) do {		\
 		error_count += 1;				\
-		if (show_all_errors || show_num_errors > 0) {	\
+		if (driver_filter(dev) &&			\
+		    (show_all_errors || show_num_errors > 0)) {	\
 			WARN(1, "%s %s: " format,		\
 			     dev_driver_string(dev),		\
 			     dev_name(dev) , ## arg);		\
@@ -186,15 +242,50 @@ static void put_hash_bucket(struct hash_bucket *bucket,
 static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 						struct dma_debug_entry *ref)
 {
-	struct dma_debug_entry *entry;
+	struct dma_debug_entry *entry, *ret = NULL;
+	int matches = 0, match_lvl, last_lvl = 0;
 
 	list_for_each_entry(entry, &bucket->list, list) {
-		if ((entry->dev_addr == ref->dev_addr) &&
-		    (entry->dev == ref->dev))
+		if ((entry->dev_addr != ref->dev_addr) ||
+		    (entry->dev != ref->dev))
+			continue;
+
+		/*
+		 * Some drivers map the same physical address multiple
+		 * times. Without a hardware IOMMU this results in the
+		 * same device addresses being put into the dma-debug
+		 * hash multiple times too. This can result in false
+		 * positives being reported. Therfore we implement a
+		 * best-fit algorithm here which returns the entry from
+		 * the hash which fits best to the reference value
+		 * instead of the first-fit.
+		 */
+		matches += 1;
+		match_lvl = 0;
+		entry->size      == ref->size      ? ++match_lvl : match_lvl;
+		entry->type      == ref->type      ? ++match_lvl : match_lvl;
+		entry->direction == ref->direction ? ++match_lvl : match_lvl;
+
+		if (match_lvl == 3) {
+			/* perfect-fit - return the result */
 			return entry;
+		} else if (match_lvl > last_lvl) {
+			/*
+			 * We found an entry that fits better then the
+			 * previous one
+			 */
+			last_lvl = match_lvl;
+			ret      = entry;
+		}
 	}
 
-	return NULL;
+	/*
+	 * If we have multiple matches but no perfect-fit, just return
+	 * NULL.
+	 */
+	ret = (matches == 1) ? ret : NULL;
+
+	return ret;
 }
 
 /*
@@ -407,6 +498,97 @@ out_err:
 	return -ENOMEM;
 }
 
+static ssize_t filter_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	unsigned long flags;
+	char buf[NAME_MAX_LEN + 1];
+	int len;
+
+	if (!current_driver_name[0])
+		return 0;
+
+	/*
+	 * We can't copy to userspace directly because current_driver_name can
+	 * only be read under the driver_name_lock with irqs disabled. So
+	 * create a temporary copy first.
+	 */
+	read_lock_irqsave(&driver_name_lock, flags);
+	len = scnprintf(buf, NAME_MAX_LEN + 1, "%s\n", current_driver_name);
+	read_unlock_irqrestore(&driver_name_lock, flags);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t filter_write(struct file *file, const char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	unsigned long flags;
+	char buf[NAME_MAX_LEN];
+	size_t len = NAME_MAX_LEN - 1;
+	int i;
+
+	/*
+	 * We can't copy from userspace directly. Access to
+	 * current_driver_name is protected with a write_lock with irqs
+	 * disabled. Since copy_from_user can fault and may sleep we
+	 * need to copy to temporary buffer first
+	 */
+	len = min(count, len);
+	if (copy_from_user(buf, userbuf, len))
+		return -EFAULT;
+
+	buf[len] = 0;
+
+	write_lock_irqsave(&driver_name_lock, flags);
+
+	/* Now handle the string we got from userspace very carefully.
+	 * The rules are:
+	 *         - only use the first token we got
+	 *         - token delimiter is everything looking like a space
+	 *           character (' ', '\n', '\t' ...)
+	 *
+	 */
+	if (!isalnum(buf[0])) {
+		/*
+		   If the first character userspace gave us is not
+		 * alphanumerical then assume the filter should be
+		 * switched off.
+		 */
+		if (current_driver_name[0])
+			printk(KERN_INFO "DMA-API: switching off dma-debug "
+					 "driver filter\n");
+		current_driver_name[0] = 0;
+		current_driver = NULL;
+		goto out_unlock;
+	}
+
+	/*
+	 * Now parse out the first token and use it as the name for the
+	 * driver to filter for.
+	 */
+	for (i = 0; i < NAME_MAX_LEN; ++i) {
+		current_driver_name[i] = buf[i];
+		if (isspace(buf[i]) || buf[i] == ' ' || buf[i] == 0)
+			break;
+	}
+	current_driver_name[i] = 0;
+	current_driver = NULL;
+
+	printk(KERN_INFO "DMA-API: enable driver filter for driver [%s]\n",
+	       current_driver_name);
+
+out_unlock:
+	write_unlock_irqrestore(&driver_name_lock, flags);
+
+	return count;
+}
+
+const struct file_operations filter_fops = {
+	.read  = filter_read,
+	.write = filter_write,
+};
+
 static int dma_debug_fs_init(void)
 {
 	dma_debug_dent = debugfs_create_dir("dma-api", NULL);
@@ -450,6 +632,11 @@ static int dma_debug_fs_init(void)
 	if (!min_free_entries_dent)
 		goto out_err;
 
+	filter_dent = debugfs_create_file("driver_filter", 0644,
+					  dma_debug_dent, NULL, &filter_fops);
+	if (!filter_dent)
+		goto out_err;
+
 	return 0;
 
 out_err:
@@ -458,9 +645,60 @@ out_err:
 	return -ENOMEM;
 }
 
+static int device_dma_allocations(struct device *dev)
+{
+	struct dma_debug_entry *entry;
+	unsigned long flags;
+	int count = 0, i;
+
+	for (i = 0; i < HASH_SIZE; ++i) {
+		spin_lock_irqsave(&dma_entry_hash[i].lock, flags);
+		list_for_each_entry(entry, &dma_entry_hash[i].list, list) {
+			if (entry->dev == dev)
+				count += 1;
+		}
+		spin_unlock_irqrestore(&dma_entry_hash[i].lock, flags);
+	}
+
+	return count;
+}
+
+static int dma_debug_device_change(struct notifier_block *nb,
+				    unsigned long action, void *data)
+{
+	struct device *dev = data;
+	int count;
+
+
+	switch (action) {
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		count = device_dma_allocations(dev);
+		if (count == 0)
+			break;
+		err_printk(dev, NULL, "DMA-API: device driver has pending "
+				"DMA allocations while released from device "
+				"[count=%d]\n", count);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 void dma_debug_add_bus(struct bus_type *bus)
 {
-	/* FIXME: register notifier */
+	struct notifier_block *nb;
+
+	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
+	if (nb == NULL) {
+		printk(KERN_ERR "dma_debug_add_bus: out of memory\n");
+		return;
+	}
+
+	nb->notifier_call = dma_debug_device_change;
+
+	bus_register_notifier(bus, nb);
 }
 
 /*
@@ -783,15 +1021,15 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		entry->type           = dma_debug_sg;
 		entry->dev            = dev;
 		entry->paddr          = sg_phys(s);
-		entry->size           = s->length;
-		entry->dev_addr       = s->dma_address;
+		entry->size           = sg_dma_len(s);
+		entry->dev_addr       = sg_dma_address(s);
 		entry->direction      = direction;
 		entry->sg_call_ents   = nents;
 		entry->sg_mapped_ents = mapped_ents;
 
 		if (!PageHighMem(sg_page(s))) {
 			check_for_stack(dev, sg_virt(s));
-			check_for_illegal_area(dev, sg_virt(s), s->length);
+			check_for_illegal_area(dev, sg_virt(s), sg_dma_len(s));
 		}
 
 		add_dma_entry(entry);
@@ -799,13 +1037,32 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(debug_dma_map_sg);
 
+static int get_nr_mapped_entries(struct device *dev, struct scatterlist *s)
+{
+	struct dma_debug_entry *entry;
+	struct hash_bucket *bucket;
+	unsigned long flags;
+	int mapped_ents = 0;
+	struct dma_debug_entry ref;
+
+	ref.dev = dev;
+	ref.dev_addr = sg_dma_address(s);
+	ref.size = sg_dma_len(s),
+
+	bucket = get_hash_bucket(&ref, &flags);
+	entry = hash_bucket_find(bucket, &ref);
+	if (entry)
+		mapped_ents = entry->sg_mapped_ents;
+	put_hash_bucket(bucket, &flags);
+
+	return mapped_ents;
+}
+
 void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			int nelems, int dir)
 {
-	struct dma_debug_entry *entry;
 	struct scatterlist *s;
 	int mapped_ents = 0, i;
-	unsigned long flags;
 
 	if (unlikely(global_disable))
 		return;
@@ -816,8 +1073,8 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			.type           = dma_debug_sg,
 			.dev            = dev,
 			.paddr          = sg_phys(s),
-			.dev_addr       = s->dma_address,
-			.size           = s->length,
+			.dev_addr       = sg_dma_address(s),
+			.size           = sg_dma_len(s),
 			.direction      = dir,
 			.sg_call_ents   = 0,
 		};
@@ -825,14 +1082,9 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 		if (mapped_ents && i >= mapped_ents)
 			break;
 
-		if (mapped_ents == 0) {
-			struct hash_bucket *bucket;
+		if (!i) {
 			ref.sg_call_ents = nelems;
-			bucket = get_hash_bucket(&ref, &flags);
-			entry = hash_bucket_find(bucket, &ref);
-			if (entry)
-				mapped_ents = entry->sg_mapped_ents;
-			put_hash_bucket(bucket, &flags);
+			mapped_ents = get_nr_mapped_entries(dev, s);
 		}
 
 		check_unmap(&ref);
@@ -934,14 +1186,20 @@ void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 			       int nelems, int direction)
 {
 	struct scatterlist *s;
-	int i;
+	int mapped_ents = 0, i;
 
 	if (unlikely(global_disable))
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, s->dma_address, s->dma_length, 0,
-				direction, true);
+		if (!i)
+			mapped_ents = get_nr_mapped_entries(dev, s);
+
+		if (i >= mapped_ents)
+			break;
+
+		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
+			   direction, true);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_cpu);
@@ -950,15 +1208,39 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 				  int nelems, int direction)
 {
 	struct scatterlist *s;
-	int i;
+	int mapped_ents = 0, i;
 
 	if (unlikely(global_disable))
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
-		check_sync(dev, s->dma_address, s->dma_length, 0,
-				direction, false);
+		if (!i)
+			mapped_ents = get_nr_mapped_entries(dev, s);
+
+		if (i >= mapped_ents)
+			break;
+
+		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
+			   direction, false);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_device);
 
+static int __init dma_debug_driver_setup(char *str)
+{
+	int i;
+
+	for (i = 0; i < NAME_MAX_LEN - 1; ++i, ++str) {
+		current_driver_name[i] = *str;
+		if (*str == 0)
+			break;
+	}
+
+	if (current_driver_name[0])
+		printk(KERN_INFO "DMA-API: enable driver filter for "
+				 "driver [%s]\n", current_driver_name);
+
+
+	return 1;
+}
+__setup("dma_debug_driver=", dma_debug_driver_setup);

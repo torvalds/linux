@@ -437,10 +437,6 @@ out_unlock:
 	return 0;
 }
 
-/*
- * Called inside transaction, so use GFP_NOFS
- */
-
 static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 {
 	u64 new_size;

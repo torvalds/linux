@@ -155,11 +155,18 @@ intel_hdmi_detect(struct drm_connector *connector)
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 
-	I915_WRITE(PORT_HOTPLUG_EN,
-		   temp |
-		   HDMIB_HOTPLUG_INT_EN |
-		   HDMIC_HOTPLUG_INT_EN |
-		   HDMID_HOTPLUG_INT_EN);
+	switch (hdmi_priv->sdvox_reg) {
+	case SDVOB:
+		temp |= HDMIB_HOTPLUG_INT_EN;
+		break;
+	case SDVOC:
+		temp |= HDMIC_HOTPLUG_INT_EN;
+		break;
+	default:
+		return connector_status_unknown;
+	}
+
+	I915_WRITE(PORT_HOTPLUG_EN, temp);
 
 	POSTING_READ(PORT_HOTPLUG_EN);
 
@@ -212,6 +219,7 @@ static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_hdmi_save,
 	.restore = intel_hdmi_restore,
 	.detect = intel_hdmi_detect,

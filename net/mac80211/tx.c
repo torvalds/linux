@@ -772,7 +772,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
 	/* internal error, why is TX_FRAGMENTED set? */
-	if (WARN_ON(skb->len <= frag_threshold))
+	if (WARN_ON(skb->len + FCS_LEN <= frag_threshold))
 		return TX_DROP;
 
 	/*

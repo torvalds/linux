@@ -1133,8 +1133,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
  free_cg_links:
 	free_cg_links(&tmp_cg_links);
  drop_new_super:
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	deactivate_locked_super(sb);
 	return ret;
 }
 

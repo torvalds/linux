@@ -3811,13 +3811,13 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	safepos = conf->reshape_safe;
 	sector_div(safepos, data_disks);
 	if (mddev->delta_disks < 0) {
-		writepos -= reshape_sectors;
+		writepos -= min_t(sector_t, reshape_sectors, writepos);
 		readpos += reshape_sectors;
 		safepos += reshape_sectors;
 	} else {
 		writepos += reshape_sectors;
-		readpos -= reshape_sectors;
-		safepos -= reshape_sectors;
+		readpos -= min_t(sector_t, reshape_sectors, readpos);
+		safepos -= min_t(sector_t, reshape_sectors, safepos);
 	}
 
 	/* 'writepos' is the most advanced device address we might write.

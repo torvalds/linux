@@ -57,9 +57,43 @@ find_section(struct bdb_header *bdb, int section_id)
 	return NULL;
 }
 
-/* Try to find panel data */
 static void
-parse_panel_data(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
+			struct lvds_dvo_timing *dvo_timing)
+{
+	panel_fixed_mode->hdisplay = (dvo_timing->hactive_hi << 8) |
+		dvo_timing->hactive_lo;
+	panel_fixed_mode->hsync_start = panel_fixed_mode->hdisplay +
+		((dvo_timing->hsync_off_hi << 8) | dvo_timing->hsync_off_lo);
+	panel_fixed_mode->hsync_end = panel_fixed_mode->hsync_start +
+		dvo_timing->hsync_pulse_width;
+	panel_fixed_mode->htotal = panel_fixed_mode->hdisplay +
+		((dvo_timing->hblank_hi << 8) | dvo_timing->hblank_lo);
+
+	panel_fixed_mode->vdisplay = (dvo_timing->vactive_hi << 8) |
+		dvo_timing->vactive_lo;
+	panel_fixed_mode->vsync_start = panel_fixed_mode->vdisplay +
+		dvo_timing->vsync_off;
+	panel_fixed_mode->vsync_end = panel_fixed_mode->vsync_start +
+		dvo_timing->vsync_pulse_width;
+	panel_fixed_mode->vtotal = panel_fixed_mode->vdisplay +
+		((dvo_timing->vblank_hi << 8) | dvo_timing->vblank_lo);
+	panel_fixed_mode->clock = dvo_timing->clock * 10;
+	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
+
+	/* Some VBTs have bogus h/vtotal values */
+	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
+		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
+	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
+		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
+
+	drm_mode_set_name(panel_fixed_mode);
+}
+
+/* Try to find integrated panel data */
+static void
+parse_lfp_panel_data(struct drm_i915_private *dev_priv,
+			    struct bdb_header *bdb)
 {
 	struct bdb_lvds_options *lvds_options;
 	struct bdb_lvds_lfp_data *lvds_lfp_data;
@@ -91,38 +125,45 @@ parse_panel_data(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
 				      DRM_MEM_DRIVER);
 
-	panel_fixed_mode->hdisplay = (dvo_timing->hactive_hi << 8) |
-		dvo_timing->hactive_lo;
-	panel_fixed_mode->hsync_start = panel_fixed_mode->hdisplay +
-		((dvo_timing->hsync_off_hi << 8) | dvo_timing->hsync_off_lo);
-	panel_fixed_mode->hsync_end = panel_fixed_mode->hsync_start +
-		dvo_timing->hsync_pulse_width;
-	panel_fixed_mode->htotal = panel_fixed_mode->hdisplay +
-		((dvo_timing->hblank_hi << 8) | dvo_timing->hblank_lo);
+	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
-	panel_fixed_mode->vdisplay = (dvo_timing->vactive_hi << 8) |
-		dvo_timing->vactive_lo;
-	panel_fixed_mode->vsync_start = panel_fixed_mode->vdisplay +
-		dvo_timing->vsync_off;
-	panel_fixed_mode->vsync_end = panel_fixed_mode->vsync_start +
-		dvo_timing->vsync_pulse_width;
-	panel_fixed_mode->vtotal = panel_fixed_mode->vdisplay +
-		((dvo_timing->vblank_hi << 8) | dvo_timing->vblank_lo);
-	panel_fixed_mode->clock = dvo_timing->clock * 10;
-	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
-
-	/* Some VBTs have bogus h/vtotal values */
-	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
-		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
-	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
-		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
-
-	drm_mode_set_name(panel_fixed_mode);
-
-	dev_priv->vbt_mode = panel_fixed_mode;
+	dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
 
 	DRM_DEBUG("Found panel mode in BIOS VBT tables:\n");
 	drm_mode_debug_printmodeline(panel_fixed_mode);
+
+	return;
+}
+
+/* Try to find sdvo panel data */
+static void
+parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
+		      struct bdb_header *bdb)
+{
+	struct bdb_sdvo_lvds_options *sdvo_lvds_options;
+	struct lvds_dvo_timing *dvo_timing;
+	struct drm_display_mode *panel_fixed_mode;
+
+	dev_priv->sdvo_lvds_vbt_mode = NULL;
+
+	sdvo_lvds_options = find_section(bdb, BDB_SDVO_LVDS_OPTIONS);
+	if (!sdvo_lvds_options)
+		return;
+
+	dvo_timing = find_section(bdb, BDB_SDVO_PANEL_DTDS);
+	if (!dvo_timing)
+		return;
+
+	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
+				      DRM_MEM_DRIVER);
+
+	if (!panel_fixed_mode)
+		return;
+
+	fill_detail_timing_data(panel_fixed_mode,
+			dvo_timing + sdvo_lvds_options->panel_type);
+
+	dev_priv->sdvo_lvds_vbt_mode = panel_fixed_mode;
 
 	return;
 }
@@ -199,7 +240,8 @@ intel_init_bios(struct drm_device *dev)
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
-	parse_panel_data(dev_priv, bdb);
+	parse_lfp_panel_data(dev_priv, bdb);
+	parse_sdvo_panel_data(dev_priv, bdb);
 
 	pci_unmap_rom(pdev, bios);
 

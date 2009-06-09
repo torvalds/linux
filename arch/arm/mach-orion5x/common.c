@@ -188,6 +188,9 @@ static struct platform_device orion5x_eth = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= orion5x_eth_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
@@ -248,12 +251,10 @@ static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 
 static struct resource orion5x_i2c_resources[] = {
 	{
-		.name	= "i2c base",
 		.start	= I2C_PHYS_BASE,
 		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "i2c irq",
 		.start	= IRQ_ORION5X_I2C,
 		.end	= IRQ_ORION5X_I2C,
 		.flags	= IORESOURCE_IRQ,

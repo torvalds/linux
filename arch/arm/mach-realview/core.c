@@ -750,14 +750,6 @@ void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	/*
-	 * The dummy clock device has to be registered before the main device
-	 * so that the latter will broadcast the clock events
-	 */
-	local_timer_setup();
-#endif
-
 	/* 
 	 * set clock frequency: 
 	 *	REALVIEW_REFCLK is 32KHz
