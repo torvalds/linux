@@ -15,6 +15,7 @@ else
     obj-y += time.o
 endif
 
+obj-$(CONFIG_FUNCTION_TRACER)        += ftrace-entry.o
 obj-$(CONFIG_IPIPE)                  += ipipe.o
 obj-$(CONFIG_IPIPE_TRACE_MCOUNT)     += mcount.o
 obj-$(CONFIG_BFIN_GPTIMERS)          += gptimers.o

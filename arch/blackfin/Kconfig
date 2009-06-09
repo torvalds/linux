@@ -19,6 +19,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config BLACKFIN
 	def_bool y
+	select HAVE_FUNCTION_TRACER
 	select HAVE_IDE
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
