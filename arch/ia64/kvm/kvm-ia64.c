@@ -337,13 +337,12 @@ static struct kvm_vcpu *lid_to_vcpu(struct kvm *kvm, unsigned long id,
 {
 	union ia64_lid lid;
 	int i;
+	struct kvm_vcpu *vcpu;
 
-	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
-		if (kvm->vcpus[i]) {
-			lid.val = VCPU_LID(kvm->vcpus[i]);
-			if (lid.id == id && lid.eid == eid)
-				return kvm->vcpus[i];
-		}
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		lid.val = VCPU_LID(vcpu);
+		if (lid.id == id && lid.eid == eid)
+			return vcpu;
 	}
 
 	return NULL;
@@ -409,21 +408,21 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	struct kvm *kvm = vcpu->kvm;
 	struct call_data call_data;
 	int i;
+	struct kvm_vcpu *vcpui;
 
 	call_data.ptc_g_data = p->u.ptc_g_data;
 
-	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
-		if (!kvm->vcpus[i] || kvm->vcpus[i]->arch.mp_state ==
-						KVM_MP_STATE_UNINITIALIZED ||
-					vcpu == kvm->vcpus[i])
+	kvm_for_each_vcpu(i, vcpui, kvm) {
+		if (vcpui->arch.mp_state == KVM_MP_STATE_UNINITIALIZED ||
+				vcpu == vcpui)
 			continue;
 
-		if (waitqueue_active(&kvm->vcpus[i]->wq))
-			wake_up_interruptible(&kvm->vcpus[i]->wq);
+		if (waitqueue_active(&vcpui->wq))
+			wake_up_interruptible(&vcpui->wq);
 
-		if (kvm->vcpus[i]->cpu != -1) {
-			call_data.vcpu = kvm->vcpus[i];
-			smp_call_function_single(kvm->vcpus[i]->cpu,
+		if (vcpui->cpu != -1) {
+			call_data.vcpu = vcpui;
+			smp_call_function_single(vcpui->cpu,
 					vcpu_global_purge, &call_data, 1);
 		} else
 			printk(KERN_WARNING"kvm: Uninit vcpu received ipi!\n");

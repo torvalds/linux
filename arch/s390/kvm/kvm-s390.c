@@ -211,13 +211,17 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 static void kvm_free_vcpus(struct kvm *kvm)
 {
 	unsigned int i;
+	struct kvm_vcpu *vcpu;
 
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			kvm_arch_vcpu_destroy(kvm->vcpus[i]);
-			kvm->vcpus[i] = NULL;
-		}
-	}
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_arch_vcpu_destroy(vcpu);
+
+	mutex_lock(&kvm->lock);
+	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++)
+		kvm->vcpus[i] = NULL;
+
+	atomic_set(&kvm->online_vcpus, 0);
+	mutex_unlock(&kvm->lock);
 }
 
 void kvm_arch_sync_events(struct kvm *kvm)
@@ -314,8 +318,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	BUG_ON(!kvm->arch.sca);
 	if (!kvm->arch.sca->cpu[id].sda)
 		kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
-	else
-		BUG_ON(!kvm->vcpus[id]); /* vcpu does already exist */
 	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
 	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 
@@ -683,6 +685,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				int user_alloc)
 {
 	int i;
+	struct kvm_vcpu *vcpu;
 
 	/* A few sanity checks. We can have exactly one memory slot which has
 	   to start at guest virtual zero and which has to be located at a
@@ -707,14 +710,10 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 		return -EINVAL;
 
 	/* request update of sie control block for all available vcpus */
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			if (test_and_set_bit(KVM_REQ_MMU_RELOAD,
-						&kvm->vcpus[i]->requests))
-				continue;
-			kvm_s390_inject_sigp_stop(kvm->vcpus[i],
-						  ACTION_RELOADVCPU_ON_STOP);
-		}
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (test_and_set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
+			continue;
+		kvm_s390_inject_sigp_stop(vcpu, ACTION_RELOADVCPU_ON_STOP);
 	}
 
 	return 0;

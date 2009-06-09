@@ -68,10 +68,8 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 			kvm_is_dm_lowest_prio(irq))
 		printk(KERN_INFO "kvm: apic: phys broadcast and lowest prio\n");
 
-	for (i = 0; i < KVM_MAX_VCPUS; i++) {
-		vcpu = kvm->vcpus[i];
-
-		if (!vcpu || !kvm_apic_present(vcpu))
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (!kvm_apic_present(vcpu))
 			continue;
 
 		if (!kvm_apic_match_dest(vcpu, src, irq->shorthand,

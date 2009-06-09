@@ -1347,10 +1347,10 @@ static void kvm_mmu_put_page(struct kvm_mmu_page *sp, u64 *parent_pte)
 static void kvm_mmu_reset_last_pte_updated(struct kvm *kvm)
 {
 	int i;
+	struct kvm_vcpu *vcpu;
 
-	for (i = 0; i < KVM_MAX_VCPUS; ++i)
-		if (kvm->vcpus[i])
-			kvm->vcpus[i]->arch.last_pte_updated = NULL;
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		vcpu->arch.last_pte_updated = NULL;
 }
 
 static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)

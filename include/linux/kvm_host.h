@@ -179,6 +179,17 @@ struct kvm {
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
 
+static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
+{
+	smp_rmb();
+	return kvm->vcpus[i];
+}
+
+#define kvm_for_each_vcpu(idx, vcpup, kvm) \
+	for (idx = 0, vcpup = kvm_get_vcpu(kvm, idx); \
+	     idx < atomic_read(&kvm->online_vcpus) && vcpup; \
+	     vcpup = kvm_get_vcpu(kvm, ++idx))
+
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 

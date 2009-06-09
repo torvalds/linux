@@ -2946,10 +2946,7 @@ static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long va
 
 	spin_lock(&kvm_lock);
 	list_for_each_entry(kvm, &vm_list, vm_list) {
-		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-			vcpu = kvm->vcpus[i];
-			if (!vcpu)
-				continue;
+		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (vcpu->cpu != freq->cpu)
 				continue;
 			if (!kvm_request_guest_time_update(vcpu))
@@ -4678,20 +4675,22 @@ static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
 static void kvm_free_vcpus(struct kvm *kvm)
 {
 	unsigned int i;
+	struct kvm_vcpu *vcpu;
 
 	/*
 	 * Unpin any mmu pages first.
 	 */
-	for (i = 0; i < KVM_MAX_VCPUS; ++i)
-		if (kvm->vcpus[i])
-			kvm_unload_vcpu_mmu(kvm->vcpus[i]);
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			kvm_arch_vcpu_free(kvm->vcpus[i]);
-			kvm->vcpus[i] = NULL;
-		}
-	}
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_unload_vcpu_mmu(vcpu);
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_arch_vcpu_free(vcpu);
 
+	mutex_lock(&kvm->lock);
+	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++)
+		kvm->vcpus[i] = NULL;
+
+	atomic_set(&kvm->online_vcpus, 0);
+	mutex_unlock(&kvm->lock);
 }
 
 void kvm_arch_sync_events(struct kvm *kvm)
