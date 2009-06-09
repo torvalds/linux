@@ -37,7 +37,8 @@ TRACE_EVENT(block_rq_abort,
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
-		  __entry->sector, __entry->nr_sector, __entry->errors)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->errors)
 );
 
 TRACE_EVENT(block_rq_insert,
@@ -71,7 +72,8 @@ TRACE_EVENT(block_rq_insert,
 	TP_printk("%d,%d %s %u (%s) %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __entry->bytes, __get_str(cmd),
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_rq_issue,
@@ -105,7 +107,8 @@ TRACE_EVENT(block_rq_issue,
 	TP_printk("%d,%d %s %u (%s) %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __entry->bytes, __get_str(cmd),
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_rq_requeue,
@@ -137,7 +140,8 @@ TRACE_EVENT(block_rq_requeue,
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
-		  __entry->sector, __entry->nr_sector, __entry->errors)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->errors)
 );
 
 TRACE_EVENT(block_rq_complete,
@@ -169,7 +173,8 @@ TRACE_EVENT(block_rq_complete,
 	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rwbs, __get_str(cmd),
-		  __entry->sector, __entry->nr_sector, __entry->errors)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->errors)
 );
 TRACE_EVENT(block_bio_bounce,
 
@@ -195,7 +200,8 @@ TRACE_EVENT(block_bio_bounce,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_bio_complete,
@@ -221,7 +227,8 @@ TRACE_EVENT(block_bio_complete,
 
 	TP_printk("%d,%d %s %llu + %u [%d]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->error)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->error)
 );
 
 TRACE_EVENT(block_bio_backmerge,
@@ -248,7 +255,8 @@ TRACE_EVENT(block_bio_backmerge,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_bio_frontmerge,
@@ -275,7 +283,8 @@ TRACE_EVENT(block_bio_frontmerge,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_bio_queue,
@@ -302,7 +311,8 @@ TRACE_EVENT(block_bio_queue,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_getrq,
@@ -330,7 +340,8 @@ TRACE_EVENT(block_getrq,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_sleeprq,
@@ -358,7 +369,8 @@ TRACE_EVENT(block_sleeprq,
 
 	TP_printk("%d,%d %s %llu + %u [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector, __entry->comm)
 );
 
 TRACE_EVENT(block_plug,
@@ -441,7 +453,9 @@ TRACE_EVENT(block_split,
 
 	TP_printk("%d,%d %s %llu / %llu [%s]",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->new_sector, __entry->comm)
+		  (unsigned long long)__entry->sector,
+		  (unsigned long long)__entry->new_sector,
+		  __entry->comm)
 );
 
 TRACE_EVENT(block_remap,
@@ -471,9 +485,10 @@ TRACE_EVENT(block_remap,
 
 	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  __entry->sector, __entry->nr_sector,
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sector,
 		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
-		  __entry->old_sector)
+		  (unsigned long long)__entry->old_sector)
 );
 
 #endif /* _TRACE_BLOCK_H */
