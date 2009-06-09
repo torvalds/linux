@@ -1145,17 +1145,6 @@ static int device_change_notifier(struct notifier_block *nb,
 			  "to a non-dma-ops domain\n", dev_name(dev));
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		if (domain)
-			goto out;
-		dma_domain = find_protection_domain(devid);
-		if (!dma_domain)
-			dma_domain = iommu->default_dom;
-		attach_device(iommu, &dma_domain->domain, devid);
-		DUMP_printk(KERN_INFO "AMD IOMMU: Using protection domain "
-			    "%d for device %s\n",
-			    dma_domain->domain.id, dev_name(dev));
-		break;
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (!domain)
 			goto out;
@@ -1277,9 +1266,8 @@ static int get_device_resources(struct device *dev,
 			dma_dom = (*iommu)->default_dom;
 		*domain = &dma_dom->domain;
 		attach_device(*iommu, *domain, *bdf);
-		DUMP_printk(KERN_INFO "AMD IOMMU: Using protection domain "
-				"%d for device %s\n",
-				(*domain)->id, dev_name(dev));
+		DUMP_printk("Using protection domain %d for device %s\n",
+			    (*domain)->id, dev_name(dev));
 	}
 
 	if (domain_for_device(_bdf) == NULL)
@@ -1779,8 +1767,10 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
-	if (*dma_addr == bad_dma_address)
+	if (*dma_addr == bad_dma_address) {
+		spin_unlock_irqrestore(&domain->lock, flags);
 		goto out_free;
+	}
 
 	iommu_completion_wait(iommu);
 
@@ -2082,7 +2072,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 
 	old_domain = domain_for_device(devid);
 	if (old_domain)
-		return -EBUSY;
+		detach_device(old_domain, devid);
 
 	attach_device(iommu, domain, devid);
 
