@@ -392,6 +392,10 @@ static int atc_pcm_playback_start(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	unsigned int max_cisz;
 	struct src *src = apcm->src;
 
+	if (apcm->started)
+		return 0;
+	apcm->started = 1;
+
 	max_cisz = src->multi * src->rsc.msr;
 	max_cisz = 0x80 * (max_cisz < 8 ? max_cisz : 8);
 
