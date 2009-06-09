@@ -802,6 +802,17 @@ struct v4l2_subdev *v4l2_i2c_new_subdev(struct v4l2_device *v4l2_dev,
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
 
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config, 0, NULL);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
 error:
 	/* If we have a client but no subdev, then something went wrong and
 	   we must unregister the client. */
@@ -852,6 +863,17 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct v4l2_device *v4l2_dev,
 	/* Decrease the module use count to match the first try_module_get. */
 	module_put(client->driver->driver.owner);
 
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config, 0, NULL);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
 error:
 	/* If we have a client but no subdev, then something went wrong and
 	   we must unregister the client. */
@@ -871,6 +893,89 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev_addr(struct v4l2_device *v4l2_dev
 			module_name, client_type, addrs);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev_addr);
+
+/* Load an i2c sub-device. */
+struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter, const char *module_name,
+		struct i2c_board_info *info, const unsigned short *probe_addrs)
+{
+	struct v4l2_subdev *sd = NULL;
+	struct i2c_client *client;
+
+	BUG_ON(!v4l2_dev);
+
+	if (module_name)
+		request_module(module_name);
+
+	/* Create the i2c client */
+	if (info->addr == 0 && probe_addrs)
+		client = i2c_new_probed_device(adapter, info, probe_addrs);
+	else
+		client = i2c_new_device(adapter, info);
+
+	/* Note: by loading the module first we are certain that c->driver
+	   will be set if the driver was found. If the module was not loaded
+	   first, then the i2c core tries to delay-load the module for us,
+	   and then c->driver is still NULL until the module is finally
+	   loaded. This delay-load mechanism doesn't work if other drivers
+	   want to use the i2c device, so explicitly loading the module
+	   is the best alternative. */
+	if (client == NULL || client->driver == NULL)
+		goto error;
+
+	/* Lock the module so we can safely get the v4l2_subdev pointer */
+	if (!try_module_get(client->driver->driver.owner))
+		goto error;
+	sd = i2c_get_clientdata(client);
+
+	/* Register with the v4l2_device which increases the module's
+	   use count as well. */
+	if (v4l2_device_register_subdev(v4l2_dev, sd))
+		sd = NULL;
+	/* Decrease the module use count to match the first try_module_get. */
+	module_put(client->driver->driver.owner);
+
+	if (sd) {
+		/* We return errors from v4l2_subdev_call only if we have the
+		   callback as the .s_config is not mandatory */
+		int err = v4l2_subdev_call(sd, core, s_config,
+				info->irq, info->platform_data);
+
+		if (err && err != -ENOIOCTLCMD) {
+			v4l2_device_unregister_subdev(sd);
+			sd = NULL;
+		}
+	}
+
+error:
+	/* If we have a client but no subdev, then something went wrong and
+	   we must unregister the client. */
+	if (client && sd == NULL)
+		i2c_unregister_device(client);
+	return sd;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_board);
+
+struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
+		struct i2c_adapter *adapter,
+		const char *module_name, const char *client_type,
+		int irq, void *platform_data,
+		u8 addr, const unsigned short *probe_addrs)
+{
+	struct i2c_board_info info;
+
+	/* Setup the i2c board info with the device type and
+	   the device address. */
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, client_type, sizeof(info.type));
+	info.addr = addr;
+	info.irq = irq;
+	info.platform_data = platform_data;
+
+	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, module_name,
+			&info, probe_addrs);
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_cfg);
 
 /* Return i2c client address of v4l2_subdev. */
 unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
