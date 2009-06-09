@@ -1109,6 +1109,6 @@ module_init(btmrvl_sdio_init_module);
 module_exit(btmrvl_sdio_exit_module);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell BT-over-SDIO Driver v" VERSION);
+MODULE_DESCRIPTION("Marvell BT-over-SDIO driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL v2");

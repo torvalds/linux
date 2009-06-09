@@ -710,6 +710,6 @@ int btmrvl_remove_card(struct btmrvl_private *priv)
 EXPORT_SYMBOL_GPL(btmrvl_remove_card);
 
 MODULE_AUTHOR("Marvell International Ltd.");
-MODULE_DESCRIPTION("Marvell Bluetooth Driver ver" VERSION);
+MODULE_DESCRIPTION("Marvell Bluetooth driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL v2");
