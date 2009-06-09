@@ -2442,10 +2442,7 @@ mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
 EXPORT_SYMBOL(mptscsih_get_scsi_lookup);
 
 /**
- * mptscsih_getclear_scsi_lookup
- *
- * retrieves and clears scmd entry from ScsiLookup[] array list
- *
+ * mptscsih_getclear_scsi_lookup -  retrieves and clears scmd entry from ScsiLookup[] array list
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
  *

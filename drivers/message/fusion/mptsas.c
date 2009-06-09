@@ -636,8 +636,7 @@ mptsas_add_device_component_by_fw(MPT_ADAPTER *ioc, u8 channel, u8 id)
 }
 
 /**
- *	mptsas_add_device_component_starget_ir - Handle Integrated RAID, adding
- *	each individual device to list
+ *	mptsas_add_device_component_starget_ir - Handle Integrated RAID, adding each individual device to list
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@channel: fw mapped id's
  *	@id:
@@ -776,8 +775,7 @@ mptsas_add_device_component_starget(MPT_ADAPTER *ioc,
 }
 
 /**
- *	mptsas_del_device_component_by_os - Once a device has been removed, we
- *	mark the entry in the list as being cached
+ *	mptsas_del_device_component_by_os - Once a device has been removed, we mark the entry in the list as being cached
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@channel: os mapped id's
  *	@id:
@@ -1125,11 +1123,12 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 }
 
 /**
- *	mptsas_taskmgmt_complete - Completion for TARGET_RESET after
- *	NOT_RESPONDING_EVENT, enable work queue to finish off removing device
- *	from upper layers. then send next TARGET_RESET in the queue.
+ *	mptsas_taskmgmt_complete - complete SAS task management function
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
+ *	Completion for TARGET_RESET after NOT_RESPONDING_EVENT, enable work
+ *	queue to finish off removing device from upper layers. then send next
+ *	TARGET_RESET in the queue.
  **/
 static int
 mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
@@ -1441,8 +1440,7 @@ mptsas_add_end_device(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info)
 }
 
 /**
- *	mptsas_del_end_device - report a deleted end device to sas transport
- *	layer
+ *	mptsas_del_end_device - report a deleted end device to sas transport layer
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@phy_info: decribes attached device
  *
