@@ -675,6 +675,7 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 	int status;
 	__le32 *p = (__le32 *)&qdev->flash;
 	u32 offset;
+	u8 mac_addr[6];
 
 	/* Get flash offset for function and adjust
 	 * for dword access.
@@ -705,14 +706,26 @@ static int ql_get_8000_flash_params(struct ql_adapter *qdev)
 		goto exit;
 	}
 
-	if (!is_valid_ether_addr(qdev->flash.flash_params_8000.mac_addr)) {
+	/* Extract either manufacturer or BOFM modified
+	 * MAC address.
+	 */
+	if (qdev->flash.flash_params_8000.data_type1 == 2)
+		memcpy(mac_addr,
+			qdev->flash.flash_params_8000.mac_addr1,
+			qdev->ndev->addr_len);
+	else
+		memcpy(mac_addr,
+			qdev->flash.flash_params_8000.mac_addr,
+			qdev->ndev->addr_len);
+
+	if (!is_valid_ether_addr(mac_addr)) {
 		QPRINTK(qdev, IFUP, ERR, "Invalid MAC address.\n");
 		status = -EINVAL;
 		goto exit;
 	}
 
 	memcpy(qdev->ndev->dev_addr,
-		qdev->flash.flash_params_8000.mac_addr,
+		mac_addr,
 		qdev->ndev->addr_len);
 
 exit:
