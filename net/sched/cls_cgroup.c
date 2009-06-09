@@ -167,6 +167,9 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 	struct tcf_exts e;
 	int err;
 
+	if (!tca[TCA_OPTIONS])
+		return -EINVAL;
+
 	if (head == NULL) {
 		if (!handle)
 			return -EINVAL;
