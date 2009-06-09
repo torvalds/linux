@@ -265,7 +265,21 @@ void omap3_save_scratchpad_contents(void)
 			(sdrc_read_reg(SDRC_ERR_TYPE) & 0xFFFF);
 	sdrc_block_contents.dll_a_ctrl = sdrc_read_reg(SDRC_DLLA_CTRL);
 	sdrc_block_contents.dll_b_ctrl = 0x0;
-	sdrc_block_contents.power = sdrc_read_reg(SDRC_POWER);
+	/*
+	 * Due to a OMAP3 errata (1.142), on EMU/HS devices SRDC should
+	 * be programed to issue automatic self refresh on timeout
+	 * of AUTO_CNT = 1 prior to any transition to OFF mode.
+	 */
+	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)
+			&& (omap_rev() >= OMAP3430_REV_ES3_0))
+		sdrc_block_contents.power = (sdrc_read_reg(SDRC_POWER) &
+				~(SDRC_POWER_AUTOCOUNT_MASK|
+				SDRC_POWER_CLKCTRL_MASK)) |
+				(1 << SDRC_POWER_AUTOCOUNT_SHIFT) |
+				SDRC_SELF_REFRESH_ON_AUTOCOUNT;
+	else
+		sdrc_block_contents.power = sdrc_read_reg(SDRC_POWER);
+
 	sdrc_block_contents.cs_0 = 0x0;
 	sdrc_block_contents.mcfg_0 = sdrc_read_reg(SDRC_MCFG_0);
 	sdrc_block_contents.mr_0 = (sdrc_read_reg(SDRC_MR_0) & 0xFFFF);
