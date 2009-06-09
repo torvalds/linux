@@ -1525,6 +1525,13 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		return;
 	}
 
+	/* Frame error, so drop the packet. */
+	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
+		QPRINTK(qdev, DRV, ERR, "Receive error, flags2 = 0x%x\n",
+					ib_mac_rsp->flags2);
+		dev_kfree_skb_any(skb);
+		return;
+	}
 	prefetch(skb->data);
 	skb->dev = ndev;
 	if (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) {
@@ -1547,7 +1554,6 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	 * csum or frame errors.
 	 */
 	if (qdev->rx_csum &&
-		!(ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
