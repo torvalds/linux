@@ -445,6 +445,8 @@ atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	u32 size, max_cisz;
 	int position;
 
+	if (!src)
+		return 0;
 	position = src->ops->get_ca(src);
 
 	size = apcm->vm_block->size;
@@ -782,6 +784,8 @@ atc_pcm_capture_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 {
 	struct src *src = apcm->src;
 
+	if (!src)
+		return 0;
 	return src->ops->get_ca(src) - apcm->vm_block->addr;
 }
 
