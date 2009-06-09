@@ -340,13 +340,67 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 
 static const struct cx18_card_pci_info cx18_pci_leadtek_pvr2100[] = {
 	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6f27 }, /* PVR2100   */
-	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6690 }, /* DVR3100 H */
 	{ 0, 0, 0 }
 };
 
 static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.type = CX18_CARD_LEADTEK_PVR2100,
-	.name = "Leadtek WinFast PVR2100/DVR3100 H",
+	.name = "Leadtek WinFast PVR2100",
+	.comment = "Experimenters and photos needed for device to work well.\n"
+		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+	.v4l2_capabilities = CX18_CAP_ENCODER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_GPIO_MUX,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_MUX |
+		  CX18_HW_GPIO_RESET_CTRL,
+	.video_inputs = {
+		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
+		{ CX18_CARD_INPUT_SVIDEO1,    1,
+			CX18_AV_SVIDEO_LUMA3 | CX18_AV_SVIDEO_CHROMA4 },
+		{ CX18_CARD_INPUT_COMPOSITE1, 1, CX18_AV_COMPOSITE7 },
+	},
+	.audio_inputs = {
+		{ CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 	    0 },
+		{ CX18_CARD_INPUT_LINE_IN1,  CX18_AV_AUDIO_SERIAL1, 1 },
+	},
+	.tuners = {
+		/* XC2028 tuner */
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
+	},
+	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 2 },
+	.ddr = {
+		/*
+		 * Pointer to proper DDR config values provided by
+		 * Terry Wu <terrywu at leadtek.com.tw>
+		 */
+		.chip_config = 0x303,
+		.refresh = 0x3bb,
+		.timing1 = 0x24220e83,
+		.timing2 = 0x1f,
+		.tune_lane = 0,
+		.initial_emrs = 0x2,
+	},
+	.gpio_init.initial_value = 0x6,
+	.gpio_init.direction = 0x7,
+	.gpio_audio_input = { .mask   = 0x7,
+			      .tuner  = 0x6, .linein = 0x2, .radio  = 0x2 },
+	.xceive_pin = 15,
+	.pci_list = cx18_pci_leadtek_pvr2100,
+	.i2c = &cx18_i2c_std,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* Leadtek WinFast DVR3100 H */
+
+static const struct cx18_card_pci_info cx18_pci_leadtek_dvr3100h[] = {
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6690 }, /* DVR3100 H */
+	{ 0, 0, 0 }
+};
+
+static const struct cx18_card cx18_card_leadtek_dvr3100h = {
+	.type = CX18_CARD_LEADTEK_DVR3100H,
+	.name = "Leadtek WinFast DVR3100 H",
 	.comment = "Experimenters and photos needed for device to work well.\n"
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
@@ -386,7 +440,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.gpio_audio_input = { .mask   = 0x7,
 			      .tuner  = 0x6, .linein = 0x2, .radio  = 0x2 },
 	.xceive_pin = 15,
-	.pci_list = cx18_pci_leadtek_pvr2100,
+	.pci_list = cx18_pci_leadtek_dvr3100h,
 	.i2c = &cx18_i2c_std,
 };
 
@@ -400,6 +454,7 @@ static const struct cx18_card *cx18_card_list[] = {
 	&cx18_card_cnxt_raptor_pal,
 	&cx18_card_toshiba_qosmio_dvbt,
 	&cx18_card_leadtek_pvr2100,
+	&cx18_card_leadtek_dvr3100h,
 };
 
 const struct cx18_card *cx18_get_card(u16 index)

@@ -152,7 +152,8 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t 4 = Yuan MPC718\n"
 		 "\t\t\t 5 = Conexant Raptor PAL/SECAM\n"
 		 "\t\t\t 6 = Toshiba Qosmio DVB-T/Analog\n"
-		 "\t\t\t 7 = Leadtek WinFast PVR2100/DVR3100 H\n"
+		 "\t\t\t 7 = Leadtek WinFast PVR2100\n"
+		 "\t\t\t 8 = Leadtek WinFast DVR3100 H\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");

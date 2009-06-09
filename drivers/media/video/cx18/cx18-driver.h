@@ -80,8 +80,9 @@
 #define CX18_CARD_YUAN_MPC718 	      3	/* Yuan MPC718 */
 #define CX18_CARD_CNXT_RAPTOR_PAL     4	/* Conexant Raptor PAL */
 #define CX18_CARD_TOSHIBA_QOSMIO_DVBT 5 /* Toshiba Qosmio Interal DVB-T/Analog*/
-#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100/DVR3100 H */
-#define CX18_CARD_LAST 		      6
+#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
+#define CX18_CARD_LEADTEK_DVR3100H    7 /* Leadtek WinFast DVR3100 H */
+#define CX18_CARD_LAST 		      7
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
