@@ -1820,7 +1820,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	if (netif_needs_gso(dev, skb))
 		goto gso;
 
-	if (skb_shinfo(skb)->frag_list &&
+	if (skb_has_frags(skb) &&
 	    !(dev->features & NETIF_F_FRAGLIST) &&
 	    __skb_linearize(skb))
 		goto out_kfree_skb;
@@ -2407,7 +2407,7 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
 
-	if (skb_is_gso(skb) || skb_shinfo(skb)->frag_list)
+	if (skb_is_gso(skb) || skb_has_frags(skb))
 		goto normal;
 
 	rcu_read_lock();
