@@ -1273,6 +1273,11 @@ free:
 	goto out;
 }
 
+void amd_iommu_shutdown(void)
+{
+	disable_iommus();
+}
+
 /****************************************************************************
  *
  * Early detect code. This code runs at IOMMU detection time in the DMA
