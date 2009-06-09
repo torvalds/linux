@@ -644,7 +644,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	_buflen = buflen;
 
 	/* Count the format and frame descriptors. */
-	while (_buflen > 2) {
+	while (_buflen > 2 && _buffer[1] == CS_INTERFACE) {
 		switch (_buffer[2]) {
 		case VS_FORMAT_UNCOMPRESSED:
 		case VS_FORMAT_MJPEG:
@@ -709,7 +709,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	streaming->nformats = nformats;
 
 	/* Parse the format descriptors. */
-	while (buflen > 2) {
+	while (buflen > 2 && buffer[1] == CS_INTERFACE) {
 		switch (buffer[2]) {
 		case VS_FORMAT_UNCOMPRESSED:
 		case VS_FORMAT_MJPEG:
