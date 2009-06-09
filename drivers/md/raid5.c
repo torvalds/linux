@@ -3916,7 +3916,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		raid5_compute_sector(conf, stripe_addr*(new_data_disks),
 				     1, &dd_idx, NULL);
 	last_sector =
-		raid5_compute_sector(conf, ((stripe_addr+conf->chunk_size/512)
+		raid5_compute_sector(conf, ((stripe_addr+reshape_sectors)
 					    *(new_data_disks) - 1),
 				     1, &dd_idx, NULL);
 	if (last_sector >= mddev->dev_sectors)
