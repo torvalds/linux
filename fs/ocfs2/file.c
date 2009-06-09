@@ -187,6 +187,9 @@ static int ocfs2_sync_file(struct file *file,
 	if (err)
 		goto bail;
 
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		goto bail;
+
 	journal = osb->journal->j_journal;
 	err = jbd2_journal_force_commit(journal);
 
