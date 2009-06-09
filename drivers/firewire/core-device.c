@@ -580,7 +580,9 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 
 	kfree(old_rom);
 	ret = 0;
-	device->cmc = rom[2] >> 30 & 1;
+	device->max_rec	= rom[2] >> 12 & 0xf;
+	device->cmc	= rom[2] >> 30 & 1;
+	device->irmc	= rom[2] >> 31 & 1;
  out:
 	kfree(rom);
 
@@ -841,6 +843,20 @@ static void set_broadcast_channel(struct fw_device *device, int generation)
 	if (!card->broadcast_channel_allocated)
 		return;
 
+	/*
+	 * The Broadcast_Channel Valid bit is required by nodes which want to
+	 * transmit on this channel.  Such transmissions are practically
+	 * exclusive to IP over 1394 (RFC 2734).  IP capable nodes are required
+	 * to be IRM capable and have a max_rec of 8 or more.  We use this fact
+	 * to narrow down to which nodes we send Broadcast_Channel updates.
+	 */
+	if (!device->irmc || device->max_rec < 8)
+		return;
+
+	/*
+	 * Some 1394-1995 nodes crash if this 1394a-2000 register is written.
+	 * Perform a read test first.
+	 */
 	if (device->bc_implemented == BC_UNKNOWN) {
 		rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
 				device->node_id, generation, device->max_speed,

@@ -191,7 +191,9 @@ struct fw_device {
 	size_t config_rom_length;
 	int config_rom_retries;
 	unsigned is_local:1;
+	unsigned max_rec:4;
 	unsigned cmc:1;
+	unsigned irmc:1;
 	unsigned bc_implemented:2;
 
 	struct delayed_work work;
