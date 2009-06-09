@@ -51,20 +51,15 @@ static int btmrvl_open_generic(struct inode *inode, struct file *file)
 }
 
 static ssize_t btmrvl_hscfgcmd_write(struct file *file,
-					const char __user *ubuf,
-					size_t count,
-					loff_t *ppos)
+			const char __user *ubuf, size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-
-	long result, ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 10, &result);
@@ -79,38 +74,35 @@ static ssize_t btmrvl_hscfgcmd_write(struct file *file,
 	return count;
 }
 
-static ssize_t btmrvl_hscfgcmd_read(struct file *file, char __user * userbuf,
-				    size_t count, loff_t *ppos)
+static ssize_t btmrvl_hscfgcmd_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->btmrvl_dev.hscfgcmd);
+						priv->btmrvl_dev.hscfgcmd);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_hscfgcmd_fops = {
-	.read = btmrvl_hscfgcmd_read,
-	.write = btmrvl_hscfgcmd_write,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_hscfgcmd_read,
+	.write	= btmrvl_hscfgcmd_write,
+	.open	= btmrvl_open_generic,
 };
 
 static ssize_t btmrvl_psmode_write(struct file *file, const char __user *ubuf,
-				   size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	long result, ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 10, &result);
@@ -120,38 +112,35 @@ static ssize_t btmrvl_psmode_write(struct file *file, const char __user *ubuf,
 	return count;
 }
 
-static ssize_t btmrvl_psmode_read(struct file *file, char __user * userbuf,
-				  size_t count, loff_t *ppos)
+static ssize_t btmrvl_psmode_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->btmrvl_dev.psmode);
+						priv->btmrvl_dev.psmode);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_psmode_fops = {
-	.read = btmrvl_psmode_read,
-	.write = btmrvl_psmode_write,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_psmode_read,
+	.write	= btmrvl_psmode_write,
+	.open	= btmrvl_open_generic,
 };
 
 static ssize_t btmrvl_pscmd_write(struct file *file, const char __user *ubuf,
-				  size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	long result, ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 10, &result);
@@ -167,13 +156,12 @@ static ssize_t btmrvl_pscmd_write(struct file *file, const char __user *ubuf,
 
 }
 
-static ssize_t btmrvl_pscmd_read(struct file *file, char __user * userbuf,
-				 size_t count, loff_t *ppos)
+static ssize_t btmrvl_pscmd_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->btmrvl_dev.pscmd);
 
@@ -187,17 +175,15 @@ static const struct file_operations btmrvl_pscmd_fops = {
 };
 
 static ssize_t btmrvl_gpiogap_write(struct file *file, const char __user *ubuf,
-				    size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	long result, ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 16, &result);
@@ -207,38 +193,35 @@ static ssize_t btmrvl_gpiogap_write(struct file *file, const char __user *ubuf,
 	return count;
 }
 
-static ssize_t btmrvl_gpiogap_read(struct file *file, char __user * userbuf,
-				   size_t count, loff_t *ppos)
+static ssize_t btmrvl_gpiogap_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "0x%x\n",
-			priv->btmrvl_dev.gpio_gap);
+						priv->btmrvl_dev.gpio_gap);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_gpiogap_fops = {
-	.read = btmrvl_gpiogap_read,
-	.write = btmrvl_gpiogap_write,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_gpiogap_read,
+	.write	= btmrvl_gpiogap_write,
+	.open	= btmrvl_open_generic,
 };
 
 static ssize_t btmrvl_hscmd_write(struct file *file, const char __user *ubuf,
-				  size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	long result, ret;
+	struct btmrvl_private *priv = (struct btmrvl_private *) file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 10, &result);
@@ -252,13 +235,12 @@ static ssize_t btmrvl_hscmd_write(struct file *file, const char __user *ubuf,
 	return count;
 }
 
-static ssize_t btmrvl_hscmd_read(struct file *file, char __user * userbuf,
-				 size_t count, loff_t *ppos)
+static ssize_t btmrvl_hscmd_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->btmrvl_dev.hscmd);
 
@@ -266,23 +248,21 @@ static ssize_t btmrvl_hscmd_read(struct file *file, char __user * userbuf,
 }
 
 static const struct file_operations btmrvl_hscmd_fops = {
-	.read = btmrvl_hscmd_read,
-	.write = btmrvl_hscmd_write,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_hscmd_read,
+	.write	= btmrvl_hscmd_write,
+	.open	= btmrvl_open_generic,
 };
 
 static ssize_t btmrvl_hsmode_write(struct file *file, const char __user *ubuf,
-				   size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	long result, ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	long result, ret;
 
 	memset(buf, 0, sizeof(buf));
 
-	if (copy_from_user(&buf, ubuf,
-				min_t(size_t, sizeof(buf) - 1, count)))
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
 	ret = strict_strtol(buf, 10, &result);
@@ -293,32 +273,29 @@ static ssize_t btmrvl_hsmode_write(struct file *file, const char __user *ubuf,
 }
 
 static ssize_t btmrvl_hsmode_read(struct file *file, char __user * userbuf,
-				  size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
-	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->btmrvl_dev.hsmode);
+	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->btmrvl_dev.hsmode);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_hsmode_fops = {
-	.read = btmrvl_hsmode_read,
-	.write = btmrvl_hsmode_write,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_hsmode_read,
+	.write	= btmrvl_hsmode_write,
+	.open	= btmrvl_open_generic,
 };
 
-static ssize_t btmrvl_curpsmode_read(struct file *file, char __user * userbuf,
-				     size_t count, loff_t *ppos)
+static ssize_t btmrvl_curpsmode_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->adapter->psmode);
 
@@ -326,71 +303,65 @@ static ssize_t btmrvl_curpsmode_read(struct file *file, char __user * userbuf,
 }
 
 static const struct file_operations btmrvl_curpsmode_fops = {
-	.read = btmrvl_curpsmode_read,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_curpsmode_read,
+	.open	= btmrvl_open_generic,
 };
 
 static ssize_t btmrvl_psstate_read(struct file *file, char __user * userbuf,
-				   size_t count, loff_t *ppos)
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
-	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->adapter->ps_state);
+	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->adapter->ps_state);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_psstate_fops = {
-	.read = btmrvl_psstate_read,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_psstate_read,
+	.open	= btmrvl_open_generic,
 };
 
-static ssize_t btmrvl_hsstate_read(struct file *file, char __user * userbuf,
-				   size_t count, loff_t *ppos)
+static ssize_t btmrvl_hsstate_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
-	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->adapter->hs_state);
+	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", priv->adapter->hs_state);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_hsstate_fops = {
-	.read = btmrvl_hsstate_read,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_hsstate_read,
+	.open	= btmrvl_open_generic,
 };
 
-static ssize_t btmrvl_txdnldready_read(struct file *file, char __user * userbuf,
-				       size_t count, loff_t *ppos)
+static ssize_t btmrvl_txdnldready_read(struct file *file, char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) file->private_data;
-	int ret;
+	struct btmrvl_private *priv = file->private_data;
 	char buf[16];
+	int ret;
 
 	ret = snprintf(buf, sizeof(buf) - 1, "%d\n",
-			priv->btmrvl_dev.tx_dnld_rdy);
+					priv->btmrvl_dev.tx_dnld_rdy);
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
 }
 
 static const struct file_operations btmrvl_txdnldready_fops = {
-	.read = btmrvl_txdnldready_read,
-	.open = btmrvl_open_generic,
+	.read	= btmrvl_txdnldready_read,
+	.open	= btmrvl_open_generic,
 };
 
 void btmrvl_debugfs_init(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) hdev->driver_data;
+	struct btmrvl_private *priv = hdev->driver_data;
 	struct btmrvl_debugfs_data *dbg;
 
 	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
@@ -406,22 +377,16 @@ void btmrvl_debugfs_init(struct hci_dev *hdev)
 	dbg->config_dir = debugfs_create_dir("config", dbg->root_dir);
 
 	dbg->psmode = debugfs_create_file("psmode", 0644, dbg->config_dir,
-					  hdev->driver_data,
-					  &btmrvl_psmode_fops);
-	dbg->pscmd =
-	    debugfs_create_file("pscmd", 0644, dbg->config_dir,
+				hdev->driver_data, &btmrvl_psmode_fops);
+	dbg->pscmd = debugfs_create_file("pscmd", 0644, dbg->config_dir,
 				hdev->driver_data, &btmrvl_pscmd_fops);
-	dbg->gpiogap =
-	    debugfs_create_file("gpiogap", 0644, dbg->config_dir,
+	dbg->gpiogap = debugfs_create_file("gpiogap", 0644, dbg->config_dir,
 				hdev->driver_data, &btmrvl_gpiogap_fops);
-	dbg->hsmode =
-	    debugfs_create_file("hsmode", 0644, dbg->config_dir,
+	dbg->hsmode =  debugfs_create_file("hsmode", 0644, dbg->config_dir,
 				hdev->driver_data, &btmrvl_hsmode_fops);
-	dbg->hscmd =
-	    debugfs_create_file("hscmd", 0644, dbg->config_dir,
+	dbg->hscmd = debugfs_create_file("hscmd", 0644, dbg->config_dir,
 				hdev->driver_data, &btmrvl_hscmd_fops);
-	dbg->hscfgcmd =
-	    debugfs_create_file("hscfgcmd", 0644, dbg->config_dir,
+	dbg->hscfgcmd = debugfs_create_file("hscfgcmd", 0644, dbg->config_dir,
 				hdev->driver_data, &btmrvl_hscfgcmd_fops);
 
 	dbg->status_dir = debugfs_create_dir("status", dbg->root_dir);
@@ -429,21 +394,19 @@ void btmrvl_debugfs_init(struct hci_dev *hdev)
 						dbg->status_dir,
 						hdev->driver_data,
 						&btmrvl_curpsmode_fops);
-	dbg->psstate =
-	    debugfs_create_file("psstate", 0444, dbg->status_dir,
+	dbg->psstate = debugfs_create_file("psstate", 0444, dbg->status_dir,
 				hdev->driver_data, &btmrvl_psstate_fops);
-	dbg->hsstate =
-	    debugfs_create_file("hsstate", 0444, dbg->status_dir,
+	dbg->hsstate = debugfs_create_file("hsstate", 0444, dbg->status_dir,
 				hdev->driver_data, &btmrvl_hsstate_fops);
-	dbg->txdnldready =
-	    debugfs_create_file("txdnldready", 0444, dbg->status_dir,
-				hdev->driver_data, &btmrvl_txdnldready_fops);
+	dbg->txdnldready = debugfs_create_file("txdnldready", 0444,
+						dbg->status_dir,
+						hdev->driver_data,
+						&btmrvl_txdnldready_fops);
 }
 
 void btmrvl_debugfs_remove(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv =
-				(struct btmrvl_private *) hdev->driver_data;
+	struct btmrvl_private *priv = hdev->driver_data;
 	struct btmrvl_debugfs_data *dbg = priv->debugfs_data;
 
 	if (!dbg)
