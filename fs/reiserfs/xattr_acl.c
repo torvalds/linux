@@ -194,7 +194,7 @@ static inline void iset_acl(struct inode *inode, struct posix_acl **i_acl,
 	spin_lock(&inode->i_lock);
 	if (*i_acl != ERR_PTR(-ENODATA))
 		posix_acl_release(*i_acl);
-	*i_acl = posix_acl_dup(acl);
+	*i_acl = acl ? posix_acl_dup(acl) : ERR_PTR(-ENODATA);
 	spin_unlock(&inode->i_lock);
 }
 
