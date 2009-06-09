@@ -369,10 +369,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 2 },
 	.ddr = {
-		/*
-		 * Pointer to proper DDR config values provided by
-		 * Terry Wu <terrywu at leadtek.com.tw>
-		 */
+		/* Pointer to proper DDR config values provided by Terry Wu */
 		.chip_config = 0x303,
 		.refresh = 0x3bb,
 		.timing1 = 0x24220e83,
@@ -401,13 +398,13 @@ static const struct cx18_card_pci_info cx18_pci_leadtek_dvr3100h[] = {
 static const struct cx18_card cx18_card_leadtek_dvr3100h = {
 	.type = CX18_CARD_LEADTEK_DVR3100H,
 	.name = "Leadtek WinFast DVR3100 H",
-	.comment = "Experimenters and photos needed for device to work well.\n"
-		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
+	.comment = "Simultaneous DVB-T and Analog capture supported,\n"
+		  "\texcept when capturing Analog from the antenna input.\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_GPIO_MUX,
 	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_MUX |
-		  CX18_HW_GPIO_RESET_CTRL,
+		  CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -424,10 +421,7 @@ static const struct cx18_card cx18_card_leadtek_dvr3100h = {
 	},
 	.radio_input = { CX18_CARD_INPUT_AUD_TUNER, CX18_AV_AUDIO5, 2 },
 	.ddr = {
-		/*
-		 * Pointer to proper DDR config values provided by
-		 * Terry Wu <terrywu at leadtek.com.tw>
-		 */
+		/* Pointer to proper DDR config values provided by Terry Wu */
 		.chip_config = 0x303,
 		.refresh = 0x3bb,
 		.timing1 = 0x24220e83,
@@ -439,7 +433,7 @@ static const struct cx18_card cx18_card_leadtek_dvr3100h = {
 	.gpio_init.direction = 0x7,
 	.gpio_audio_input = { .mask   = 0x7,
 			      .tuner  = 0x6, .linein = 0x2, .radio  = 0x2 },
-	.xceive_pin = 15,
+	.xceive_pin = 1,
 	.pci_list = cx18_pci_leadtek_dvr3100h,
 	.i2c = &cx18_i2c_std,
 };
