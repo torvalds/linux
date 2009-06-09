@@ -161,6 +161,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	int again = 0;
 	unsigned long num_run;
 	unsigned long num_sync_run;
+	unsigned long batch_run = 0;
 	unsigned long limit;
 	unsigned long last_waited = 0;
 	int force_reg = 0;
@@ -257,6 +258,8 @@ loop_lock:
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
 		submit_bio(cur->bi_rw, cur);
 		num_run++;
+		batch_run++;
+
 		if (bio_sync(cur))
 			num_sync_run++;
 
@@ -273,7 +276,7 @@ loop_lock:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
+		if (pending && bdi_write_congested(bdi) && batch_run > 32 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct io_context *ioc;
 
