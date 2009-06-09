@@ -22,6 +22,11 @@ config ARCH_DAVINCI_DM646x
         bool "DaVinci 646x based system"
 	select AINTC
 
+config ARCH_DAVINCI_DM365
+	bool "DaVinci 365 based system"
+	select AINTC
+	select ARCH_DAVINCI_DMx
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
@@ -61,6 +66,14 @@ config MACH_DAVINCI_DM6467_EVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
+
+config MACH_DAVINCI_DM365_EVM
+	bool "TI DM365 EVM"
+	default ARCH_DAVINCI_DM365
+	depends on ARCH_DAVINCI_DM365
+	help
+	  Configure this option to specify whether the board used
+	  for development is a DM365 EVM
 
 
 config DAVINCI_MUX
