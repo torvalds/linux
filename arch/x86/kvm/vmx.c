@@ -88,6 +88,14 @@ struct vcpu_vmx {
 		int           guest_efer_loaded;
 	} host_state;
 	struct {
+		int vm86_active;
+		u8 save_iopl;
+		struct kvm_save_segment {
+			u16 selector;
+			unsigned long base;
+			u32 limit;
+			u32 ar;
+		} tr, es, ds, fs, gs;
 		struct {
 			bool pending;
 			u8 vector;
@@ -516,7 +524,7 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
 			eb |= 1u << BP_VECTOR;
 	}
-	if (vcpu->arch.rmode.vm86_active)
+	if (to_vmx(vcpu)->rmode.vm86_active)
 		eb = ~0;
 	if (enable_ept)
 		eb &= ~(1u << PF_VECTOR); /* bypass_guest_pf = 0 */
@@ -752,7 +760,7 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
-	if (vcpu->arch.rmode.vm86_active)
+	if (to_vmx(vcpu)->rmode.vm86_active)
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
@@ -809,7 +817,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		intr_info |= INTR_INFO_DELIVER_CODE_MASK;
 	}
 
-	if (vcpu->arch.rmode.vm86_active) {
+	if (vmx->rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = nr;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -1395,15 +1403,15 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	vmx->emulation_required = 1;
-	vcpu->arch.rmode.vm86_active = 0;
+	vmx->rmode.vm86_active = 0;
 
-	vmcs_writel(GUEST_TR_BASE, vcpu->arch.rmode.tr.base);
-	vmcs_write32(GUEST_TR_LIMIT, vcpu->arch.rmode.tr.limit);
-	vmcs_write32(GUEST_TR_AR_BYTES, vcpu->arch.rmode.tr.ar);
+	vmcs_writel(GUEST_TR_BASE, vmx->rmode.tr.base);
+	vmcs_write32(GUEST_TR_LIMIT, vmx->rmode.tr.limit);
+	vmcs_write32(GUEST_TR_AR_BYTES, vmx->rmode.tr.ar);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
 	flags &= ~(X86_EFLAGS_IOPL | X86_EFLAGS_VM);
-	flags |= (vcpu->arch.rmode.save_iopl << IOPL_SHIFT);
+	flags |= (vmx->rmode.save_iopl << IOPL_SHIFT);
 	vmcs_writel(GUEST_RFLAGS, flags);
 
 	vmcs_writel(GUEST_CR4, (vmcs_readl(GUEST_CR4) & ~X86_CR4_VME) |
@@ -1414,10 +1422,10 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	if (emulate_invalid_guest_state)
 		return;
 
-	fix_pmode_dataseg(VCPU_SREG_ES, &vcpu->arch.rmode.es);
-	fix_pmode_dataseg(VCPU_SREG_DS, &vcpu->arch.rmode.ds);
-	fix_pmode_dataseg(VCPU_SREG_GS, &vcpu->arch.rmode.gs);
-	fix_pmode_dataseg(VCPU_SREG_FS, &vcpu->arch.rmode.fs);
+	fix_pmode_dataseg(VCPU_SREG_ES, &vmx->rmode.es);
+	fix_pmode_dataseg(VCPU_SREG_DS, &vmx->rmode.ds);
+	fix_pmode_dataseg(VCPU_SREG_GS, &vmx->rmode.gs);
+	fix_pmode_dataseg(VCPU_SREG_FS, &vmx->rmode.fs);
 
 	vmcs_write16(GUEST_SS_SELECTOR, 0);
 	vmcs_write32(GUEST_SS_AR_BYTES, 0x93);
@@ -1460,19 +1468,19 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 		return;
 
 	vmx->emulation_required = 1;
-	vcpu->arch.rmode.vm86_active = 1;
+	vmx->rmode.vm86_active = 1;
 
-	vcpu->arch.rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
+	vmx->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
 
-	vcpu->arch.rmode.tr.limit = vmcs_read32(GUEST_TR_LIMIT);
+	vmx->rmode.tr.limit = vmcs_read32(GUEST_TR_LIMIT);
 	vmcs_write32(GUEST_TR_LIMIT, RMODE_TSS_SIZE - 1);
 
-	vcpu->arch.rmode.tr.ar = vmcs_read32(GUEST_TR_AR_BYTES);
+	vmx->rmode.tr.ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
-	vcpu->arch.rmode.save_iopl
+	vmx->rmode.save_iopl
 		= (flags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
 
 	flags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
@@ -1494,10 +1502,10 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 		vmcs_writel(GUEST_CS_BASE, 0xf0000);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs_readl(GUEST_CS_BASE) >> 4);
 
-	fix_rmode_seg(VCPU_SREG_ES, &vcpu->arch.rmode.es);
-	fix_rmode_seg(VCPU_SREG_DS, &vcpu->arch.rmode.ds);
-	fix_rmode_seg(VCPU_SREG_GS, &vcpu->arch.rmode.gs);
-	fix_rmode_seg(VCPU_SREG_FS, &vcpu->arch.rmode.fs);
+	fix_rmode_seg(VCPU_SREG_ES, &vmx->rmode.es);
+	fix_rmode_seg(VCPU_SREG_DS, &vmx->rmode.ds);
+	fix_rmode_seg(VCPU_SREG_GS, &vmx->rmode.gs);
+	fix_rmode_seg(VCPU_SREG_FS, &vmx->rmode.fs);
 
 continue_rmode:
 	kvm_mmu_reset_context(vcpu);
@@ -1638,6 +1646,7 @@ static void ept_update_paging_mode_cr4(unsigned long *hw_cr4,
 
 static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long hw_cr0;
 
 	if (enable_unrestricted_guest)
@@ -1648,10 +1657,10 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	vmx_fpu_deactivate(vcpu);
 
-	if (vcpu->arch.rmode.vm86_active && (cr0 & X86_CR0_PE))
+	if (vmx->rmode.vm86_active && (cr0 & X86_CR0_PE))
 		enter_pmode(vcpu);
 
-	if (!vcpu->arch.rmode.vm86_active && !(cr0 & X86_CR0_PE))
+	if (!vmx->rmode.vm86_active && !(cr0 & X86_CR0_PE))
 		enter_rmode(vcpu);
 
 #ifdef CONFIG_X86_64
@@ -1707,7 +1716,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-	unsigned long hw_cr4 = cr4 | (vcpu->arch.rmode.vm86_active ?
+	unsigned long hw_cr4 = cr4 | (to_vmx(vcpu)->rmode.vm86_active ?
 		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
 
 	vcpu->arch.cr4 = cr4;
@@ -1787,20 +1796,21 @@ static u32 vmx_segment_access_rights(struct kvm_segment *var)
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	u32 ar;
 
-	if (vcpu->arch.rmode.vm86_active && seg == VCPU_SREG_TR) {
-		vcpu->arch.rmode.tr.selector = var->selector;
-		vcpu->arch.rmode.tr.base = var->base;
-		vcpu->arch.rmode.tr.limit = var->limit;
-		vcpu->arch.rmode.tr.ar = vmx_segment_access_rights(var);
+	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
+		vmx->rmode.tr.selector = var->selector;
+		vmx->rmode.tr.base = var->base;
+		vmx->rmode.tr.limit = var->limit;
+		vmx->rmode.tr.ar = vmx_segment_access_rights(var);
 		return;
 	}
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (vcpu->arch.rmode.vm86_active && var->s) {
+	if (vmx->rmode.vm86_active && var->s) {
 		/*
 		 * Hack real-mode segments into vm86 compatibility.
 		 */
@@ -2394,7 +2404,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vmx->vcpu.arch.rmode.vm86_active = 0;
+	vmx->rmode.vm86_active = 0;
 
 	vmx->soft_vnmi_blocked = 0;
 
@@ -2532,7 +2542,7 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 	KVMTRACE_1D(INJ_VIRQ, vcpu, (u32)irq, handler);
 
 	++vcpu->stat.irq_injections;
-	if (vcpu->arch.rmode.vm86_active) {
+	if (vmx->rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -2573,7 +2583,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	}
 
 	++vcpu->stat.nmi_injections;
-	if (vcpu->arch.rmode.vm86_active) {
+	if (vmx->rmode.vm86_active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = NMI_VECTOR;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
@@ -2737,7 +2747,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
-	if (vcpu->arch.rmode.vm86_active &&
+	if (vmx->rmode.vm86_active &&
 	    handle_rmode_exception(vcpu, intr_info & INTR_INFO_VECTOR_MASK,
 								error_code)) {
 		if (vcpu->arch.halt_request) {

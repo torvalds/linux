@@ -340,16 +340,6 @@ struct kvm_vcpu_arch {
 		u8 nr;
 	} interrupt;
 
-	struct {
-		int vm86_active;
-		u8 save_iopl;
-		struct kvm_save_segment {
-			u16 selector;
-			unsigned long base;
-			u32 limit;
-			u32 ar;
-		} tr, es, ds, fs, gs;
-	} rmode;
 	int halt_request; /* real mode on Intel only */
 
 	int cpuid_nent;
