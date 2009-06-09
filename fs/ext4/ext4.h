@@ -323,15 +323,13 @@ struct ext4_new_group_data {
 #define EXT4_GET_BLOCKS_UNINIT_EXT		0x0002
 #define EXT4_GET_BLOCKS_CREATE_UNINIT_EXT	(EXT4_GET_BLOCKS_UNINIT_EXT|\
 						 EXT4_GET_BLOCKS_CREATE)
-	/* Update the ext4_inode_info i_disksize field */
-#define EXT4_GET_BLOCKS_EXTEND_DISKSIZE		0x0004
 	/* Caller is from the delayed allocation writeout path,
 	   so set the magic i_delalloc_reserve_flag after taking the 
 	   inode allocation semaphore for */
-#define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0008
+#define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
 	/* Call ext4_da_update_reserve_space() after successfully 
 	   allocating the blocks */
-#define EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE	0x0010
+#define EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE	0x0008
 
 
 /*
