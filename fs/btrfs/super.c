@@ -66,8 +66,8 @@ static void btrfs_put_super(struct super_block *sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_notreelog,
-	Opt_ratio, Opt_flushoncommit, Opt_err,
+	Opt_ssd, Opt_nossd, Opt_thread_pool, Opt_noacl,  Opt_compress,
+	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -83,6 +83,7 @@ static match_table_t tokens = {
 	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_compress, "compress"},
 	{Opt_ssd, "ssd"},
+	{Opt_nossd, "nossd"},
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
 	{Opt_flushoncommit, "flushoncommit"},
@@ -172,6 +173,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_ssd:
 			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");
 			btrfs_set_opt(info->mount_opt, SSD);
+			break;
+		case Opt_nossd:
+			printk(KERN_INFO "btrfs: not using ssd allocation scheme\n");
+			btrfs_clear_opt(info->mount_opt, SSD);
 			break;
 		case Opt_nobarrier:
 			printk(KERN_INFO "btrfs: turning off barriers\n");
