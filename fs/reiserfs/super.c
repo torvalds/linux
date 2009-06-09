@@ -530,8 +530,8 @@ static void init_once(void *foo)
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	inode_init_once(&ei->vfs_inode);
 #ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	ei->i_acl_access = NULL;
-	ei->i_acl_default = NULL;
+	ei->i_acl_access = ACL_NOT_CACHED;
+	ei->i_acl_default = ACL_NOT_CACHED;
 #endif
 }
 
@@ -586,14 +586,14 @@ static void reiserfs_clear_inode(struct inode *inode)
 	struct posix_acl *acl;
 
 	acl = REISERFS_I(inode)->i_acl_access;
-	if (acl && !IS_ERR(acl))
+	if (acl && acl != ACL_NOT_CACHED)
 		posix_acl_release(acl);
-	REISERFS_I(inode)->i_acl_access = NULL;
+	REISERFS_I(inode)->i_acl_access = ACL_NOT_CACHED;
 
 	acl = REISERFS_I(inode)->i_acl_default;
-	if (acl && !IS_ERR(acl))
+	if (acl && acl != ACL_NOT_CACHED)
 		posix_acl_release(acl);
-	REISERFS_I(inode)->i_acl_default = NULL;
+	REISERFS_I(inode)->i_acl_default = ACL_NOT_CACHED;
 }
 #else
 #define reiserfs_clear_inode NULL

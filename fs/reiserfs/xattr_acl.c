@@ -192,19 +192,19 @@ static inline void iset_acl(struct inode *inode, struct posix_acl **i_acl,
 			    struct posix_acl *acl)
 {
 	spin_lock(&inode->i_lock);
-	if (*i_acl != ERR_PTR(-ENODATA))
+	if (*i_acl != ACL_NOT_CACHED)
 		posix_acl_release(*i_acl);
-	*i_acl = acl ? posix_acl_dup(acl) : ERR_PTR(-ENODATA);
+	*i_acl = posix_acl_dup(acl);
 	spin_unlock(&inode->i_lock);
 }
 
 static inline struct posix_acl *iget_acl(struct inode *inode,
 					 struct posix_acl **i_acl)
 {
-	struct posix_acl *acl = ERR_PTR(-ENODATA);
+	struct posix_acl *acl = ACL_NOT_CACHED;
 
 	spin_lock(&inode->i_lock);
-	if (*i_acl != ERR_PTR(-ENODATA))
+	if (*i_acl != ACL_NOT_CACHED)
 		acl = posix_acl_dup(*i_acl);
 	spin_unlock(&inode->i_lock);
 
@@ -239,15 +239,13 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 	}
 
 	acl = iget_acl(inode, p_acl);
-	if (acl && !IS_ERR(acl))
+	if (acl != ACL_NOT_CACHED)
 		return acl;
-	else if (PTR_ERR(acl) == -ENODATA)
-		return NULL;
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
 	if (size < 0) {
 		if (size == -ENODATA || size == -ENOSYS) {
-			*p_acl = ERR_PTR(-ENODATA);
+			*p_acl = NULL;
 			return NULL;
 		}
 		return ERR_PTR(size);
@@ -262,7 +260,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 		/* This shouldn't actually happen as it should have
 		   been caught above.. but just in case */
 		acl = NULL;
-		*p_acl = ERR_PTR(-ENODATA);
+		*p_acl = acl;
 	} else if (retval < 0) {
 		acl = ERR_PTR(retval);
 	} else {
@@ -379,11 +377,8 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 	}
 
 	acl = reiserfs_get_acl(dir, ACL_TYPE_DEFAULT);
-	if (IS_ERR(acl)) {
-		if (PTR_ERR(acl) == -ENODATA)
-			goto apply_umask;
+	if (IS_ERR(acl))
 		return PTR_ERR(acl);
-	}
 
 	if (acl) {
 		struct posix_acl *acl_copy;

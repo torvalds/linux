@@ -58,12 +58,12 @@ extern struct xattr_handler reiserfs_posix_acl_access_handler;
 
 static inline void reiserfs_init_acl_access(struct inode *inode)
 {
-	REISERFS_I(inode)->i_acl_access = NULL;
+	REISERFS_I(inode)->i_acl_access = ACL_NOT_CACHED;
 }
 
 static inline void reiserfs_init_acl_default(struct inode *inode)
 {
-	REISERFS_I(inode)->i_acl_default = NULL;
+	REISERFS_I(inode)->i_acl_default = ACL_NOT_CACHED;
 }
 #else
 
