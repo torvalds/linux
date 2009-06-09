@@ -793,13 +793,13 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		printk(KERN_DEBUG "%s: WMM queue=%d aci=%d acm=%d aifs=%d "
 		       "cWmin=%d cWmax=%d txop=%d\n",
-		       local->mdev->name, queue, aci, acm, params.aifs, params.cw_min,
-		       params.cw_max, params.txop);
+		       wiphy_name(local->hw.wiphy), queue, aci, acm,
+		       params.aifs, params.cw_min, params.cw_max, params.txop);
 #endif
 		if (drv_conf_tx(local, queue, &params) && local->ops->conf_tx)
 			printk(KERN_DEBUG "%s: failed to set TX queue "
-			       "parameters for queue %d\n", local->mdev->name,
-			       queue);
+			       "parameters for queue %d\n",
+			       wiphy_name(local->hw.wiphy), queue);
 	}
 }
 
