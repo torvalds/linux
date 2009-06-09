@@ -711,6 +711,7 @@ int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 		return 0;
 
 	if (!(txtid->state & AGGR_ADDBA_COMPLETE)) {
+		txtid->state &= ~AGGR_ADDBA_PROGRESS;
 		txtid->addba_exchangeattempts = 0;
 		return 0;
 	}
