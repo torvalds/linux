@@ -445,7 +445,7 @@ EXPORT_SYMBOL(blk_queue_stack_limits);
 /**
  * blk_stack_limits - adjust queue_limits for stacked devices
  * @t:	the stacking driver limits (top)
- * @bdev:  the underlying queue limits (bottom)
+ * @b:  the underlying queue limits (bottom)
  * @offset:  offset to beginning of data within component device
  *
  * Description:
@@ -458,6 +458,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 {
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+	t->bounce_pfn = min_not_zero(t->bounce_pfn, b->bounce_pfn);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
@@ -504,7 +505,7 @@ EXPORT_SYMBOL(blk_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers
- * @t:	MD/DM gendisk (top)
+ * @disk:  MD/DM gendisk (top)
  * @bdev:  the underlying block device (bottom)
  * @offset:  offset to beginning of data within component device
  *
