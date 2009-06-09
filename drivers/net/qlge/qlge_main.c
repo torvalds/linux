@@ -3367,7 +3367,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 	 * completion handler rx_rings.
 	 */
 	qdev->rx_ring_count = qdev->tx_ring_count + qdev->rss_ring_count + 1;
-	netif_set_gso_max_size(qdev->ndev, 65536);
 
 	for (i = 0; i < qdev->tx_ring_count; i++) {
 		tx_ring = &qdev->tx_ring[i];
