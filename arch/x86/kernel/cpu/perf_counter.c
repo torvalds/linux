@@ -119,7 +119,7 @@ static const u64 nehalem_hw_cache_event_ids
  },
  [ C(L1I ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0480, /* L1I.READS                    */
+		[ C(RESULT_ACCESS) ] = 0x0380, /* L1I.READS                    */
 		[ C(RESULT_MISS)   ] = 0x0280, /* L1I.MISSES                   */
 	},
 	[ C(OP_WRITE) ] = {
@@ -162,7 +162,7 @@ static const u64 nehalem_hw_cache_event_ids
  [ C(ITLB) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x01c0, /* INST_RETIRED.ANY_P           */
-		[ C(RESULT_MISS)   ] = 0x0185, /* ITLB_MISS_RETIRED            */
+		[ C(RESULT_MISS)   ] = 0x20c8, /* ITLB_MISS_RETIRED            */
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = -1,
@@ -291,7 +291,7 @@ static const u64 atom_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x2241, /* L1D_CACHE.ST               */
+		[ C(RESULT_ACCESS) ] = 0x2240, /* L1D_CACHE.ST               */
 		[ C(RESULT_MISS)   ] = 0,
 	},
 	[ C(OP_PREFETCH) ] = {
@@ -301,8 +301,8 @@ static const u64 atom_hw_cache_event_ids
  },
  [ C(L1I ) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0080, /* L1I.READS                  */
-		[ C(RESULT_MISS)   ] = 0x0081, /* L1I.MISSES                 */
+		[ C(RESULT_ACCESS) ] = 0x0380, /* L1I.READS                  */
+		[ C(RESULT_MISS)   ] = 0x0280, /* L1I.MISSES                 */
 	},
 	[ C(OP_WRITE) ] = {
 		[ C(RESULT_ACCESS) ] = -1,
@@ -329,11 +329,11 @@ static const u64 atom_hw_cache_event_ids
  },
  [ C(DTLB) ] = {
 	[ C(OP_READ) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f40, /* L1D_CACHE_LD.MESI  (alias) */
+		[ C(RESULT_ACCESS) ] = 0x2140, /* L1D_CACHE_LD.MESI  (alias) */
 		[ C(RESULT_MISS)   ] = 0x0508, /* DTLB_MISSES.MISS_LD        */
 	},
 	[ C(OP_WRITE) ] = {
-		[ C(RESULT_ACCESS) ] = 0x0f41, /* L1D_CACHE_ST.MESI  (alias) */
+		[ C(RESULT_ACCESS) ] = 0x2240, /* L1D_CACHE_ST.MESI  (alias) */
 		[ C(RESULT_MISS)   ] = 0x0608, /* DTLB_MISSES.MISS_ST        */
 	},
 	[ C(OP_PREFETCH) ] = {
