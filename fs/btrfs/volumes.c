@@ -163,6 +163,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	unsigned long num_sync_run;
 	unsigned long limit;
 	unsigned long last_waited = 0;
+	int force_reg = 0;
 
 	bdi = blk_get_backing_dev_info(device->bdev);
 	fs_info = device->dev_root->fs_info;
@@ -176,19 +177,22 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 
 loop:
 	spin_lock(&device->io_lock);
-	num_run = 0;
 
 loop_lock:
+	num_run = 0;
 
 	/* take all the bios off the list at once and process them
 	 * later on (without the lock held).  But, remember the
 	 * tail and other pointers so the bios can be properly reinserted
 	 * into the list if we hit congestion
 	 */
-	if (device->pending_sync_bios.head)
+	if (!force_reg && device->pending_sync_bios.head) {
 		pending_bios = &device->pending_sync_bios;
-	else
+		force_reg = 1;
+	} else {
 		pending_bios = &device->pending_bios;
+		force_reg = 0;
+	}
 
 	pending = pending_bios->head;
 	tail = pending_bios->tail;
@@ -228,10 +232,14 @@ loop_lock:
 	while (pending) {
 
 		rmb();
-		if (pending_bios != &device->pending_sync_bios &&
-		    device->pending_sync_bios.head &&
-		    num_run > 16) {
-			cond_resched();
+		/* we want to work on both lists, but do more bios on the
+		 * sync list than the regular list
+		 */
+		if ((num_run > 32 &&
+		    pending_bios != &device->pending_sync_bios &&
+		    device->pending_sync_bios.head) ||
+		   (num_run > 64 && pending_bios == &device->pending_sync_bios &&
+		    device->pending_bios.head)) {
 			spin_lock(&device->io_lock);
 			requeue_list(pending_bios, pending, tail);
 			goto loop_lock;
