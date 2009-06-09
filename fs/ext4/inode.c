@@ -4127,7 +4127,8 @@ void ext4_truncate(struct inode *inode)
 	if (!ext4_can_truncate(inode))
 		return;
 
-	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
+	if (ei->i_disksize && inode->i_size == 0 &&
+	    !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
 		ei->i_state |= EXT4_STATE_DA_ALLOC_CLOSE;
 
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
