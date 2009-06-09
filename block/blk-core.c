@@ -28,22 +28,14 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
-#include <trace/block.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/block.h>
 
 #include "blk.h"
 
-DEFINE_TRACE(block_plug);
-DEFINE_TRACE(block_unplug_io);
-DEFINE_TRACE(block_unplug_timer);
-DEFINE_TRACE(block_getrq);
-DEFINE_TRACE(block_sleeprq);
-DEFINE_TRACE(block_rq_requeue);
-DEFINE_TRACE(block_bio_backmerge);
-DEFINE_TRACE(block_bio_frontmerge);
-DEFINE_TRACE(block_bio_queue);
-DEFINE_TRACE(block_rq_complete);
-DEFINE_TRACE(block_remap);	/* Also used in drivers/md/dm.c */
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_remap);
+EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
 static int __make_request(struct request_queue *q, struct bio *bio);
 

@@ -26,10 +26,9 @@
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include <linux/blktrace_api.h>
-#include <trace/block.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
 
-DEFINE_TRACE(block_split);
+#include <trace/events/block.h>
 
 /*
  * Test patch to inline a certain number of bi_io_vec's inside the bio
