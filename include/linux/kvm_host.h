@@ -131,8 +131,12 @@ struct kvm {
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
 					KVM_PRIVATE_MEM_SLOTS];
+#ifdef CONFIG_KVM_APIC_ARCHITECTURE
+	u32 bsp_vcpu_id;
 	struct kvm_vcpu *bsp_vcpu;
+#endif
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
+	atomic_t online_vcpus;
 	struct list_head vm_list;
 	struct mutex lock;
 	struct kvm_io_bus mmio_bus;
@@ -550,8 +554,10 @@ static inline void kvm_irqfd_release(struct kvm *kvm) {}
 
 #endif /* CONFIG_HAVE_KVM_EVENTFD */
 
+#ifdef CONFIG_KVM_APIC_ARCHITECTURE
 static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->bsp_vcpu == vcpu;
 }
+#endif
 #endif

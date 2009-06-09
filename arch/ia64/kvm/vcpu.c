@@ -831,7 +831,7 @@ static void vcpu_set_itc(struct kvm_vcpu *vcpu, u64 val)
 	kvm = (struct kvm *)KVM_VM_BASE;
 
 	if (kvm_vcpu_is_bsp(vcpu)) {
-		for (i = 0; i < kvm->arch.online_vcpus; i++) {
+		for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
 			VMX(v, itc_offset) = itc_offset;

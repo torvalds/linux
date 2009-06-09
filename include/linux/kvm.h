@@ -430,6 +430,7 @@ struct kvm_trace_rec {
 #ifdef __KVM_HAVE_PIT
 #define KVM_CAP_PIT2 33
 #endif
+#define KVM_CAP_SET_BOOT_CPU_ID 34
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -537,6 +538,7 @@ struct kvm_irqfd {
 #define KVM_DEASSIGN_DEV_IRQ       _IOW(KVMIO, 0x75, struct kvm_assigned_irq)
 #define KVM_IRQFD                  _IOW(KVMIO, 0x76, struct kvm_irqfd)
 #define KVM_CREATE_PIT2		   _IOW(KVMIO, 0x77, struct kvm_pit_config)
+#define KVM_SET_BOOT_CPU_ID        _IO(KVMIO, 0x78)
 
 /*
  * ioctls for vcpu fds

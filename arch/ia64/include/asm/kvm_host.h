@@ -465,7 +465,6 @@ struct kvm_arch {
 	unsigned long	metaphysical_rr4;
 	unsigned long	vmm_init_rr;
 
-	int		online_vcpus;
 	int		is_sn2;
 
 	struct kvm_ioapic *vioapic;

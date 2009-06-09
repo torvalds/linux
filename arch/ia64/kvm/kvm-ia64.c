@@ -338,7 +338,7 @@ static struct kvm_vcpu *lid_to_vcpu(struct kvm *kvm, unsigned long id,
 	union ia64_lid lid;
 	int i;
 
-	for (i = 0; i < kvm->arch.online_vcpus; i++) {
+	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
 		if (kvm->vcpus[i]) {
 			lid.val = VCPU_LID(kvm->vcpus[i]);
 			if (lid.id == id && lid.eid == eid)
@@ -412,7 +412,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	call_data.ptc_g_data = p->u.ptc_g_data;
 
-	for (i = 0; i < kvm->arch.online_vcpus; i++) {
+	for (i = 0; i < atomic_read(&kvm->online_vcpus); i++) {
 		if (!kvm->vcpus[i] || kvm->vcpus[i]->arch.mp_state ==
 						KVM_MP_STATE_UNINITIALIZED ||
 					vcpu == kvm->vcpus[i])
@@ -851,8 +851,6 @@ struct  kvm *kvm_arch_create_vm(void)
 	kvm->arch.is_sn2 = ia64_platform_is("sn2");
 
 	kvm_init_vm(kvm);
-
-	kvm->arch.online_vcpus = 0;
 
 	return kvm;
 
@@ -1355,8 +1353,6 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		printk(KERN_DEBUG"kvm: vcpu_setup error!!\n");
 		goto fail;
 	}
-
-	kvm->arch.online_vcpus++;
 
 	return vcpu;
 fail:
