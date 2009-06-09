@@ -2360,6 +2360,8 @@ ath5k_init(struct ath5k_softc *sc)
 	if (ret)
 		goto done;
 
+	ath5k_rfkill_hw_start(ah);
+
 	/*
 	 * Reset the key cache since some parts do not reset the
 	 * contents on initial power up or resume from suspend.
@@ -2468,6 +2470,8 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	tasklet_kill(&sc->restq);
 	tasklet_kill(&sc->beacontq);
 
+	ath5k_rfkill_hw_stop(sc->ah);
+
 	return ret;
 }
 
@@ -2526,6 +2530,12 @@ ath5k_intr(int irq, void *dev_id)
 				 */
 				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 			}
+#ifdef CONFIG_ATH5K_RFKILL
+			if (status & AR5K_INT_GPIO)
+			{
+				tasklet_schedule(&sc->rf_kill.toggleq);
+			}
+#endif
 		}
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
