@@ -950,7 +950,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	apic->lapic_timer.timer.function = kvm_timer_fn;
 	apic->lapic_timer.t_ops = &lapic_timer_ops;
 	apic->lapic_timer.kvm = vcpu->kvm;
-	apic->lapic_timer.vcpu_id = vcpu->vcpu_id;
+	apic->lapic_timer.vcpu = vcpu;
 
 	apic->base_address = APIC_DEFAULT_PHYS_BASE;
 	vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE;

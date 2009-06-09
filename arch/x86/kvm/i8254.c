@@ -294,7 +294,7 @@ static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 	pt->timer.function = kvm_timer_fn;
 	pt->t_ops = &kpit_ops;
 	pt->kvm = ps->pit->kvm;
-	pt->vcpu_id = 0;
+	pt->vcpu = pt->kvm->bsp_vcpu;
 
 	atomic_set(&pt->pending, 0);
 	ps->irq_ack = 1;

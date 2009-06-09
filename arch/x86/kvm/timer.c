@@ -33,7 +33,7 @@ enum hrtimer_restart kvm_timer_fn(struct hrtimer *data)
 	struct kvm_vcpu *vcpu;
 	struct kvm_timer *ktimer = container_of(data, struct kvm_timer, timer);
 
-	vcpu = ktimer->kvm->vcpus[ktimer->vcpu_id];
+	vcpu = ktimer->vcpu;
 	if (!vcpu)
 		return HRTIMER_NORESTART;
 
