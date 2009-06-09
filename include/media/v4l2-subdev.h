@@ -385,7 +385,7 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
    Example: err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
-	(!(sd) ? -ENODEV : (((sd) && (sd)->ops->o && (sd)->ops->o->f) ?	\
+	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
 		(sd)->ops->o->f((sd) , ##args) : -ENOIOCTLCMD))
 
 /* Send a notification to v4l2_device. */
