@@ -2301,7 +2301,7 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 
 	bad_pfn = page_to_pfn(bad_page);
 
-	if (!alloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
 		goto out_free_0;
 	}

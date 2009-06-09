@@ -165,7 +165,7 @@ int __init_refok cpupri_init(struct cpupri *cp, bool bootmem)
 		vec->count = 0;
 		if (bootmem)
 			alloc_bootmem_cpumask_var(&vec->mask);
-		else if (!alloc_cpumask_var(&vec->mask, GFP_KERNEL))
+		else if (!zalloc_cpumask_var(&vec->mask, GFP_KERNEL))
 			goto cleanup;
 	}
 
