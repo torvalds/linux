@@ -90,7 +90,6 @@ struct btmrvl_sdio_card {
 };
 
 struct btmrvl_sdio_device {
-	unsigned short dev_id;
 	const char *helper;
 	const char *firmware;
 };
