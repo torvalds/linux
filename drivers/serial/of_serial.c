@@ -67,7 +67,7 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	port->type = type;
 	port->uartclk = *clk;
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
-		| UPF_FIXED_PORT;
+		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	port->dev = &ofdev->dev;
 	/* If current-speed was set, then try not to change it. */
 	if (spd)
