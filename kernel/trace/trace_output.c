@@ -14,7 +14,7 @@
 /* must be a power of 2 */
 #define EVENT_HASHSIZE	128
 
-static DECLARE_RWSEM(trace_event_mutex);
+DECLARE_RWSEM(trace_event_mutex);
 
 DEFINE_PER_CPU(struct trace_seq, ftrace_event_seq);
 EXPORT_PER_CPU_SYMBOL(ftrace_event_seq);
@@ -702,6 +702,16 @@ int register_ftrace_event(struct trace_event *event)
 }
 EXPORT_SYMBOL_GPL(register_ftrace_event);
 
+/*
+ * Used by module code with the trace_event_mutex held for write.
+ */
+int __unregister_ftrace_event(struct trace_event *event)
+{
+	hlist_del(&event->node);
+	list_del(&event->list);
+	return 0;
+}
+
 /**
  * unregister_ftrace_event - remove a no longer used event
  * @event: the event to remove
@@ -709,8 +719,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_event);
 int unregister_ftrace_event(struct trace_event *event)
 {
 	down_write(&trace_event_mutex);
-	hlist_del(&event->node);
-	list_del(&event->list);
+	__unregister_ftrace_event(event);
 	up_write(&trace_event_mutex);
 
 	return 0;

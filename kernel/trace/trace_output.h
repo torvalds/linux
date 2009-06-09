@@ -27,6 +27,10 @@ extern struct trace_event *ftrace_find_event(int type);
 extern enum print_line_t trace_nop_print(struct trace_iterator *iter,
 					 int flags);
 
+/* used by module unregistering */
+extern int __unregister_ftrace_event(struct trace_event *event);
+extern struct rw_semaphore trace_event_mutex;
+
 #define MAX_MEMHEX_BYTES	8
 #define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
 

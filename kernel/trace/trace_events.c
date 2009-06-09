@@ -1050,12 +1050,13 @@ static void trace_module_remove_events(struct module *mod)
 	struct ftrace_event_call *call, *p;
 	bool found = false;
 
+	down_write(&trace_event_mutex);
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
 		if (call->mod == mod) {
 			found = true;
 			ftrace_event_enable_disable(call, 0);
 			if (call->event)
-				unregister_ftrace_event(call->event);
+				__unregister_ftrace_event(call->event);
 			debugfs_remove_recursive(call->dir);
 			list_del(&call->list);
 			trace_destroy_fields(call);
@@ -1079,6 +1080,7 @@ static void trace_module_remove_events(struct module *mod)
 	 */
 	if (found)
 		tracing_reset_current_online_cpus();
+	up_write(&trace_event_mutex);
 }
 
 static int trace_module_notify(struct notifier_block *self,
