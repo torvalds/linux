@@ -645,7 +645,8 @@ again:
 		 * we haven't filled the empty size and the window is
 		 * very large.  reset and try again
 		 */
-		if (next->offset - window_start > (bytes + empty_size) * 2) {
+		if (next->offset - (last->offset + last->bytes) > 128 * 1024 ||
+		    next->offset - window_start > (bytes + empty_size) * 2) {
 			entry = next;
 			window_start = entry->offset;
 			window_free = entry->bytes;
