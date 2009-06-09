@@ -862,8 +862,7 @@ static int
 ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 {
 	int		ret = -EINVAL;
-	struct layer2	*l2;
-	u_long		flags;
+	struct layer2	*l2, *nl2;
 	u_char		mt;
 
 	if (skb->len < 8) {
@@ -908,11 +907,9 @@ ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 		new_tei_req(mgr, &skb->data[4]);
 		goto done;
 	}
-	read_lock_irqsave(&mgr->lock, flags);
-	list_for_each_entry(l2, &mgr->layer2, list) {
+	list_for_each_entry_safe(l2, nl2, &mgr->layer2, list) {
 		tei_ph_data_ind(l2->tm, mt, &skb->data[4], skb->len - 4);
 	}
-	read_unlock_irqrestore(&mgr->lock, flags);
 done:
 	return ret;
 }
