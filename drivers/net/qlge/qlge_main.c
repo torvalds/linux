@@ -1532,6 +1532,15 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		dev_kfree_skb_any(skb);
 		return;
 	}
+
+	/* The max framesize filter on this chip is set higher than
+	 * MTU since FCoE uses 2k frames.
+	 */
+	if (skb->len > ndev->mtu + ETH_HLEN) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
+
 	prefetch(skb->data);
 	skb->dev = ndev;
 	if (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) {
