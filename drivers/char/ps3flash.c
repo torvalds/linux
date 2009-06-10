@@ -104,18 +104,19 @@ out:
 	return res;
 }
 
-static ssize_t ps3flash_read(struct file *file, char __user *buf, size_t count,
-			     loff_t *pos)
+static ssize_t ps3flash_read(char __user *userbuf, void *kernelbuf,
+			     size_t count, loff_t *pos)
 {
 	struct ps3_storage_device *dev = ps3flash_dev;
 	struct ps3flash_private *priv = ps3_system_bus_get_drvdata(&dev->sbd);
 	u64 size, start_sector, end_sector, offset;
 	ssize_t sectors_read;
 	size_t remaining, n;
+	const void *src;
 
 	dev_dbg(&dev->sbd.core,
-		"%s:%u: Reading %zu bytes at position %lld to user 0x%p\n",
-		__func__, __LINE__, count, *pos, buf);
+		"%s:%u: Reading %zu bytes at position %lld to U0x%p/K0x%p\n",
+		__func__, __LINE__, count, *pos, userbuf, kernelbuf);
 
 	size = dev->regions[dev->region_idx].size*dev->blk_size;
 	if (*pos >= size || !count)
@@ -145,19 +146,26 @@ static ssize_t ps3flash_read(struct file *file, char __user *buf, size_t count,
 		}
 
 		n = min_t(u64, remaining, sectors_read*dev->blk_size-offset);
+		src = dev->bounce_buf+offset;
 		dev_dbg(&dev->sbd.core,
-			"%s:%u: copy %lu bytes from 0x%p to user 0x%p\n",
-			__func__, __LINE__, n, dev->bounce_buf+offset, buf);
-		if (copy_to_user(buf, dev->bounce_buf+offset, n)) {
-			mutex_unlock(&priv->mutex);
-			sectors_read = -EFAULT;
-			goto fail;
+			"%s:%u: copy %lu bytes from 0x%p to U0x%p/K0x%p\n",
+			__func__, __LINE__, n, src, userbuf, kernelbuf);
+		if (userbuf) {
+			if (copy_to_user(userbuf, src, n)) {
+				mutex_unlock(&priv->mutex);
+				sectors_read = -EFAULT;
+				goto fail;
+			}
+			userbuf += n;
+		}
+		if (kernelbuf) {
+			memcpy(kernelbuf, src, n);
+			kernelbuf += n;
 		}
 
 		mutex_unlock(&priv->mutex);
 
 		*pos += n;
-		buf += n;
 		remaining -= n;
 		start_sector += sectors_read;
 		offset = 0;
@@ -169,8 +177,8 @@ fail:
 	return sectors_read;
 }
 
-static ssize_t ps3flash_write(struct file *file, const char __user *buf,
-			      size_t count, loff_t *pos)
+static ssize_t ps3flash_write(const char __user *userbuf,
+			      const void *kernelbuf, size_t count, loff_t *pos)
 {
 	struct ps3_storage_device *dev = ps3flash_dev;
 	struct ps3flash_private *priv = ps3_system_bus_get_drvdata(&dev->sbd);
@@ -179,10 +187,11 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 	ssize_t res;
 	size_t remaining, n;
 	unsigned int sec_off;
+	void *dst;
 
 	dev_dbg(&dev->sbd.core,
-		"%s:%u: Writing %zu bytes at position %lld from user 0x%p\n",
-		__func__, __LINE__, count, *pos, buf);
+		"%s:%u: Writing %zu bytes at position %lld from U0x%p/K0x%p\n",
+		__func__, __LINE__, count, *pos, userbuf, kernelbuf);
 
 	size = dev->regions[dev->region_idx].size*dev->blk_size;
 	if (*pos >= size || !count)
@@ -259,12 +268,20 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 		}
 
 		n = min_t(u64, remaining, dev->bounce_size-offset);
+		dst = dev->bounce_buf+offset;
 		dev_dbg(&dev->sbd.core,
-			"%s:%u: copy %lu bytes from user 0x%p to 0x%p\n",
-			__func__, __LINE__, n, buf, dev->bounce_buf+offset);
-		if (copy_from_user(dev->bounce_buf+offset, buf, n)) {
-			res = -EFAULT;
-			goto fail;
+			"%s:%u: copy %lu bytes from U0x%p/K0x%p to 0x%p\n",
+			__func__, __LINE__, n, userbuf, kernelbuf, dst);
+		if (userbuf) {
+			if (copy_from_user(dst, userbuf, n)) {
+				res = -EFAULT;
+				goto fail;
+			}
+			userbuf += n;
+		}
+		if (kernelbuf) {
+			memcpy(dst, kernelbuf, n);
+			kernelbuf += n;
 		}
 
 		res = ps3flash_write_chunk(dev, start_write_sector);
@@ -274,7 +291,6 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 		mutex_unlock(&priv->mutex);
 
 		*pos += n;
-		buf += n;
 		remaining -= n;
 		start_write_sector += chunk_sectors;
 		head = 0;
@@ -286,6 +302,29 @@ static ssize_t ps3flash_write(struct file *file, const char __user *buf,
 fail:
 	mutex_unlock(&priv->mutex);
 	return res;
+}
+
+static ssize_t ps3flash_user_read(struct file *file, char __user *buf,
+				  size_t count, loff_t *pos)
+{
+	return ps3flash_read(buf, NULL, count, pos);
+}
+
+static ssize_t ps3flash_user_write(struct file *file, const char __user *buf,
+				   size_t count, loff_t *pos)
+{
+	return ps3flash_write(buf, NULL, count, pos);
+}
+
+static ssize_t ps3flash_kernel_read(void *buf, size_t count, loff_t pos)
+{
+	return ps3flash_read(NULL, buf, count, &pos);
+}
+
+static ssize_t ps3flash_kernel_write(const void *buf, size_t count,
+				     loff_t pos)
+{
+	return ps3flash_write(NULL, buf, count, &pos);
 }
 
 
@@ -312,12 +351,16 @@ static irqreturn_t ps3flash_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-
 static const struct file_operations ps3flash_fops = {
 	.owner	= THIS_MODULE,
 	.llseek	= ps3flash_llseek,
-	.read	= ps3flash_read,
-	.write	= ps3flash_write,
+	.read	= ps3flash_user_read,
+	.write	= ps3flash_user_write,
+};
+
+static const struct ps3_os_area_flash_ops ps3flash_kernel_ops = {
+	.read	= ps3flash_kernel_read,
+	.write	= ps3flash_kernel_write,
 };
 
 static struct miscdevice ps3flash_misc = {
@@ -386,6 +429,8 @@ static int __devinit ps3flash_probe(struct ps3_system_bus_device *_dev)
 
 	dev_info(&dev->sbd.core, "%s:%u: registered misc device %d\n",
 		 __func__, __LINE__, ps3flash_misc.minor);
+
+	ps3_os_area_flash_register(&ps3flash_kernel_ops);
 	return 0;
 
 fail_teardown:
@@ -402,6 +447,7 @@ static int ps3flash_remove(struct ps3_system_bus_device *_dev)
 {
 	struct ps3_storage_device *dev = to_ps3_storage_device(&_dev->core);
 
+	ps3_os_area_flash_register(NULL);
 	misc_deregister(&ps3flash_misc);
 	ps3stor_teardown(dev);
 	kfree(ps3_system_bus_get_drvdata(&dev->sbd));
