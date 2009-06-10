@@ -205,7 +205,7 @@ struct via_spec {
 
 	/* playback */
 	struct hda_multi_out multiout;
-	hda_nid_t extra_dig_out_nid;
+	hda_nid_t slave_dig_outs[2];
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -731,21 +731,6 @@ static int via_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
-/* setup SPDIF output stream */
-static void setup_dig_playback_stream(struct hda_codec *codec, hda_nid_t nid,
-				 unsigned int stream_tag, unsigned int format)
-{
-	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
-	if (codec->spdif_ctls & AC_DIG1_ENABLE)
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-				    codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
-	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
-	/* turn on again (if needed) */
-	if (codec->spdif_ctls & AC_DIG1_ENABLE)
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
-				    codec->spdif_ctls & 0xff);
-}
-
 static int via_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					unsigned int stream_tag,
@@ -753,19 +738,16 @@ static int via_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
-	hda_nid_t nid;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
+}
 
-	/* 1st or 2nd S/PDIF */
-	if (substream->number == 0)
-		nid = spec->multiout.dig_out_nid;
-	else if (substream->number == 1)
-		nid = spec->extra_dig_out_nid;
-	else
-		return -1;
-
-	mutex_lock(&codec->spdif_mutex);
-	setup_dig_playback_stream(codec, nid, stream_tag, format);
-	mutex_unlock(&codec->spdif_mutex);
+static int via_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+	snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
 	return 0;
 }
 
@@ -842,7 +824,8 @@ static struct hda_pcm_stream vt1708_pcm_digital_playback = {
 	.ops = {
 		.open = via_dig_playback_pcm_open,
 		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare
+		.prepare = via_dig_playback_pcm_prepare,
+		.cleanup = via_dig_playback_pcm_cleanup
 	},
 };
 
@@ -874,13 +857,6 @@ static int via_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		spec->multiout.share_spdif = 1;
-
-		if (spec->extra_dig_out_nid) {
-			err = snd_hda_create_spdif_out_ctls(codec,
-						    spec->extra_dig_out_nid);
-			if (err < 0)
-				return err;
-		}
 	}
 	if (spec->dig_in_nid) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
@@ -1013,10 +989,6 @@ static void via_unsol_event(struct hda_codec *codec,
 		via_gpio_control(codec);
 }
 
-static hda_nid_t slave_dig_outs[] = {
-	0,
-};
-
 static int via_init(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -1051,8 +1023,9 @@ static int via_init(struct hda_codec *codec)
 		snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
 
-	/* no slave outs */
-	codec->slave_dig_outs = slave_dig_outs;
+	/* assign slave outs */
+	if (spec->slave_dig_outs[0])
+		codec->slave_dig_outs = spec->slave_dig_outs;
 
  	return 0;
 }
@@ -2134,7 +2107,8 @@ static struct hda_pcm_stream vt1708B_pcm_digital_playback = {
 	.ops = {
 		.open = via_dig_playback_pcm_open,
 		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare
+		.prepare = via_dig_playback_pcm_prepare,
+		.cleanup = via_dig_playback_pcm_cleanup
 	},
 };
 
@@ -2589,14 +2563,15 @@ static struct hda_pcm_stream vt1708S_pcm_analog_capture = {
 };
 
 static struct hda_pcm_stream vt1708S_pcm_digital_playback = {
-	.substreams = 2,
+	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_dig_playback_pcm_open,
 		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare
+		.prepare = via_dig_playback_pcm_prepare,
+		.cleanup = via_dig_playback_pcm_cleanup
 	},
 };
 
@@ -2805,14 +2780,37 @@ static int vt1708S_auto_create_analog_input_ctls(struct via_spec *spec,
 	return 0;
 }
 
+/* fill out digital output widgets; one for master and one for slave outputs */
+static void fill_dig_outs(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->autocfg.dig_outs; i++) {
+		hda_nid_t nid;
+		int conn;
+
+		nid = spec->autocfg.dig_out_pins[i];
+		if (!nid)
+			continue;
+		conn = snd_hda_get_connections(codec, nid, &nid, 1);
+		if (conn < 1)
+			continue;
+		if (!spec->multiout.dig_out_nid)
+			spec->multiout.dig_out_nid = nid;
+		else {
+			spec->slave_dig_outs[0] = nid;
+			break; /* at most two dig outs */
+		}
+	}
+}
+
 static int vt1708S_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t vt1708s_ignore[] = {0x21, 0};
 
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-					   vt1708s_ignore);
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
 	err = vt1708S_auto_fill_dac_nids(spec, &spec->autocfg);
@@ -2833,10 +2831,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = VT1708S_DIGOUT_NID;
-
-	spec->extra_dig_out_nid = 0x15;
+	fill_dig_outs(codec);
 
 	if (spec->kctls.list)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
@@ -3000,7 +2995,8 @@ static struct hda_pcm_stream vt1702_pcm_digital_playback = {
 	.ops = {
 		.open = via_dig_playback_pcm_open,
 		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare
+		.prepare = via_dig_playback_pcm_prepare,
+		.cleanup = via_dig_playback_pcm_cleanup
 	},
 };
 
@@ -3128,10 +3124,8 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int err;
-	static hda_nid_t vt1702_ignore[] = {0x1C, 0};
 
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
-					   vt1702_ignore);
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
 	err = vt1702_auto_fill_dac_nids(spec, &spec->autocfg);
@@ -3152,10 +3146,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = VT1702_DIGOUT_NID;
-
-	spec->extra_dig_out_nid = 0x1B;
+	fill_dig_outs(codec);
 
 	if (spec->kctls.list)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
