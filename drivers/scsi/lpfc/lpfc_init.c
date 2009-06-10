@@ -3540,6 +3540,7 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 
 	/* Free the allocated rpi headers. */
 	lpfc_sli4_remove_rpi_hdrs(phba);
+	lpfc_sli4_remove_rpis(phba);
 
 	/* Free the ELS sgl list */
 	lpfc_free_active_sgl(phba);

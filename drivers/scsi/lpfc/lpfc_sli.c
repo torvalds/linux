@@ -4139,8 +4139,11 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 		return -EIO;
 	}
 	data_length = mqe->un.mb_words[5];
-	if (data_length > DMP_FCOEPARAM_RGN_SIZE)
+	if (data_length > DMP_FCOEPARAM_RGN_SIZE) {
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
 		return -EIO;
+	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -7351,6 +7354,32 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_chk_iocb_flg - Test IOCB flag with lock held.
+ * @phba: Pointer to HBA context object..
+ * @piocbq: Pointer to command iocb.
+ * @flag: Flag to test.
+ *
+ * This routine grabs the hbalock and then test the iocb_flag to
+ * see if the passed in flag is set.
+ * Returns:
+ * 1 if flag is set.
+ * 0 if flag is not set.
+ **/
+static int
+lpfc_chk_iocb_flg(struct lpfc_hba *phba,
+		 struct lpfc_iocbq *piocbq, uint32_t flag)
+{
+	unsigned long iflags;
+	int ret;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	ret = piocbq->iocb_flag & flag;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	return ret;
+
+}
+
+/**
  * lpfc_sli_issue_iocb_wait - Synchronous function to issue iocb commands
  * @phba: Pointer to HBA context object..
  * @pring: Pointer to sli ring.
@@ -7417,7 +7446,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	if (retval == IOCB_SUCCESS) {
 		timeout_req = timeout * HZ;
 		timeleft = wait_event_timeout(done_q,
-				piocb->iocb_flag & LPFC_IO_WAKE,
+				lpfc_chk_iocb_flg(phba, piocb, LPFC_IO_WAKE),
 				timeout_req);
 
 		if (piocb->iocb_flag & LPFC_IO_WAKE) {
@@ -7602,20 +7631,16 @@ lpfc_sli_eratt_read(struct lpfc_hba *phba)
 		if ((HS_FFER1 & phba->work_hs) &&
 		    ((HS_FFER2 | HS_FFER3 | HS_FFER4 | HS_FFER5 |
 		     HS_FFER6 | HS_FFER7) & phba->work_hs)) {
-			spin_lock_irq(&phba->hbalock);
 			phba->hba_flag |= DEFER_ERATT;
-			spin_unlock_irq(&phba->hbalock);
 			/* Clear all interrupt enable conditions */
 			writel(0, phba->HCregaddr);
 			readl(phba->HCregaddr);
 		}
 
 		/* Set the driver HA work bitmap */
-		spin_lock_irq(&phba->hbalock);
 		phba->work_ha |= HA_ERATT;
 		/* Indicate polling handles this ERATT */
 		phba->hba_flag |= HBA_ERATT_HANDLED;
-		spin_unlock_irq(&phba->hbalock);
 		return 1;
 	}
 	return 0;
@@ -7661,12 +7686,10 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 			return 0;
 			phba->work_status[0] = uerr_sta_lo;
 			phba->work_status[1] = uerr_sta_hi;
-			spin_lock_irq(&phba->hbalock);
 			/* Set the driver HA work bitmap */
 			phba->work_ha |= HA_ERATT;
 			/* Indicate polling handles this ERATT */
 			phba->hba_flag |= HBA_ERATT_HANDLED;
-			spin_unlock_irq(&phba->hbalock);
 			return 1;
 		}
 	}
@@ -9349,6 +9372,7 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 			kfree(dmabuf);
 			goto out_fail;
 		}
+		memset(dmabuf->virt, 0, PAGE_SIZE);
 		dmabuf->buffer_tag = x;
 		list_add_tail(&dmabuf->list, &queue->page_list);
 		/* initialize queue's entry array */
@@ -9771,7 +9795,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);
 out:
-	if (rc == MBX_TIMEOUT)
+	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	return status;
 }

@@ -1631,6 +1631,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 		/* In case of malloc fails, proceed with whatever we have */
 		if (!viraddr)
 			break;
+		memset(viraddr, 0, PAGE_SIZE);
 		mbox->sge_array->addr[pagen] = viraddr;
 		/* Keep the first page for later sub-header construction */
 		if (pagen == 0)
