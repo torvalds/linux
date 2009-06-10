@@ -2020,6 +2020,17 @@ struct buffer_head *btrfs_read_dev_super(struct block_device *bdev)
 	return latest;
 }
 
+/*
+ * this should be called twice, once with wait == 0 and
+ * once with wait == 1.  When wait == 0 is done, all the buffer heads
+ * we write are pinned.
+ *
+ * They are released when wait == 1 is done.
+ * max_mirrors must be the same for both runs, and it indicates how
+ * many supers on this one device should be written.
+ *
+ * max_mirrors == 0 means to write them all.
+ */
 static int write_dev_supers(struct btrfs_device *device,
 			    struct btrfs_super_block *sb,
 			    int do_barriers, int wait, int max_mirrors)
@@ -2055,12 +2066,16 @@ static int write_dev_supers(struct btrfs_device *device,
 			bh = __find_get_block(device->bdev, bytenr / 4096,
 					      BTRFS_SUPER_INFO_SIZE);
 			BUG_ON(!bh);
-			brelse(bh);
 			wait_on_buffer(bh);
-			if (buffer_uptodate(bh)) {
-				brelse(bh);
-				continue;
-			}
+			if (!buffer_uptodate(bh))
+				errors++;
+
+			/* drop our reference */
+			brelse(bh);
+
+			/* drop the reference from the wait == 0 run */
+			brelse(bh);
+			continue;
 		} else {
 			btrfs_set_super_bytenr(sb, bytenr);
 
@@ -2071,12 +2086,18 @@ static int write_dev_supers(struct btrfs_device *device,
 					      BTRFS_CSUM_SIZE);
 			btrfs_csum_final(crc, sb->csum);
 
+			/*
+			 * one reference for us, and we leave it for the
+			 * caller
+			 */
 			bh = __getblk(device->bdev, bytenr / 4096,
 				      BTRFS_SUPER_INFO_SIZE);
 			memcpy(bh->b_data, sb, BTRFS_SUPER_INFO_SIZE);
 
-			set_buffer_uptodate(bh);
+			/* one reference for submit_bh */
 			get_bh(bh);
+
+			set_buffer_uptodate(bh);
 			lock_buffer(bh);
 			bh->b_end_io = btrfs_end_buffer_write_sync;
 		}
@@ -2088,6 +2109,7 @@ static int write_dev_supers(struct btrfs_device *device,
 				       device->name);
 				set_buffer_uptodate(bh);
 				device->barriers = 0;
+				/* one reference for submit_bh */
 				get_bh(bh);
 				lock_buffer(bh);
 				ret = submit_bh(WRITE_SYNC, bh);
@@ -2096,15 +2118,8 @@ static int write_dev_supers(struct btrfs_device *device,
 			ret = submit_bh(WRITE_SYNC, bh);
 		}
 
-		if (!ret && wait) {
-			wait_on_buffer(bh);
-			if (!buffer_uptodate(bh))
-				errors++;
-		} else if (ret) {
+		if (ret)
 			errors++;
-		}
-		if (wait)
-			brelse(bh);
 	}
 	return errors < i ? 0 : -1;
 }
