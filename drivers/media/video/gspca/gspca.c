@@ -983,43 +983,54 @@ out:
 	return ret;
 }
 
+static const struct ctrl *get_ctrl(struct gspca_dev *gspca_dev,
+				   int id)
+{
+	const struct ctrl *ctrls;
+	int i;
+
+	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;
+	     i < gspca_dev->sd_desc->nctrls;
+	     i++, ctrls++) {
+		if (gspca_dev->ctrl_dis & (1 << i))
+			continue;
+		if (id == ctrls->qctrl.id)
+			return ctrls;
+	}
+	return NULL;
+}
+
 static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *q_ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i, ix;
+	const struct ctrl *ctrls;
+	int i;
 	u32 id;
 
-	ix = -1;
+	ctrls = NULL;
 	id = q_ctrl->id;
 	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
 		id &= V4L2_CTRL_ID_MASK;
 		id++;
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-			if (gspca_dev->sd_desc->ctrls[i].qctrl.id < id)
+			if (gspca_dev->ctrl_dis & (1 << i))
 				continue;
-			if (ix < 0) {
-				ix = i;
+			if (ctrls->qctrl.id < id)
 				continue;
+			if (ctrls != NULL) {
+				if (gspca_dev->sd_desc->ctrls[i].qctrl.id
+					    > ctrls->qctrl.id)
+					continue;
 			}
-			if (gspca_dev->sd_desc->ctrls[i].qctrl.id
-				    > gspca_dev->sd_desc->ctrls[ix].qctrl.id)
-				continue;
-			ix = i;
+			ctrls = &gspca_dev->sd_desc->ctrls[i];
 		}
+	} else {
+		ctrls = get_ctrl(gspca_dev, id);
 	}
-	for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-		if (id == gspca_dev->sd_desc->ctrls[i].qctrl.id) {
-			ix = i;
-			break;
-		}
-	}
-	if (ix < 0)
+	if (ctrls == NULL)
 		return -EINVAL;
-	memcpy(q_ctrl, &gspca_dev->sd_desc->ctrls[ix].qctrl,
-		sizeof *q_ctrl);
-	if (gspca_dev->ctrl_dis & (1 << ix))
-		q_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+	memcpy(q_ctrl, ctrls, sizeof *q_ctrl);
 	return 0;
 }
 
@@ -1028,56 +1039,45 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	const struct ctrl *ctrls;
-	int i, ret;
+	int ret;
 
-	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;
-	     i < gspca_dev->sd_desc->nctrls;
-	     i++, ctrls++) {
-		if (ctrl->id != ctrls->qctrl.id)
-			continue;
-		if (gspca_dev->ctrl_dis & (1 << i))
-			return -EINVAL;
-		if (ctrl->value < ctrls->qctrl.minimum
-		    || ctrl->value > ctrls->qctrl.maximum)
-			return -ERANGE;
-		PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
-		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
-			return -ERESTARTSYS;
-		if (gspca_dev->present)
-			ret = ctrls->set(gspca_dev, ctrl->value);
-		else
-			ret = -ENODEV;
-		mutex_unlock(&gspca_dev->usb_lock);
-		return ret;
-	}
-	return -EINVAL;
+	ctrls = get_ctrl(gspca_dev, ctrl->id);
+	if (ctrls == NULL)
+		return -EINVAL;
+
+	if (ctrl->value < ctrls->qctrl.minimum
+	    || ctrl->value > ctrls->qctrl.maximum)
+		return -ERANGE;
+	PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
+	if (gspca_dev->present)
+		ret = ctrls->set(gspca_dev, ctrl->value);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&gspca_dev->usb_lock);
+	return ret;
 }
 
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
-
 	const struct ctrl *ctrls;
-	int i, ret;
+	int ret;
 
-	for (i = 0, ctrls = gspca_dev->sd_desc->ctrls;
-	     i < gspca_dev->sd_desc->nctrls;
-	     i++, ctrls++) {
-		if (ctrl->id != ctrls->qctrl.id)
-			continue;
-		if (gspca_dev->ctrl_dis & (1 << i))
-			return -EINVAL;
-		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
-			return -ERESTARTSYS;
-		if (gspca_dev->present)
-			ret = ctrls->get(gspca_dev, &ctrl->value);
-		else
-			ret = -ENODEV;
-		mutex_unlock(&gspca_dev->usb_lock);
-		return ret;
-	}
-	return -EINVAL;
+	ctrls = get_ctrl(gspca_dev, ctrl->id);
+	if (ctrls == NULL)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
+		return -ERESTARTSYS;
+	if (gspca_dev->present)
+		ret = ctrls->get(gspca_dev, &ctrl->value);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&gspca_dev->usb_lock);
+	return ret;
 }
 
 /*fixme: have an audio flag in gspca_dev?*/
