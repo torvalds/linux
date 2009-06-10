@@ -500,18 +500,21 @@ int em28xx_audio_setup(struct em28xx *dev)
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
-	if (cfg < 0)
+	em28xx_info("Config register raw data: 0x%02x\n", cfg);
+	if (cfg < 0) {
+		/* Register read error?  */
 		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
-	else
-		em28xx_info("Config register raw data: 0x%02x\n", cfg);
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		    EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
+		/* The device doesn't have vendor audio at all */
+		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = 0;
+		return 0;
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
 		em28xx_info("I2S Audio (3 sample rates)\n");
 		dev->audio_mode.i2s_3rates = 1;
-	}
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		    EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
 		em28xx_info("I2S Audio (5 sample rates)\n");
 		dev->audio_mode.i2s_5rates = 1;
 	}
