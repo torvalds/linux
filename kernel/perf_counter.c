@@ -1184,13 +1184,33 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 static void perf_log_throttle(struct perf_counter *counter, int enable);
 static void perf_log_period(struct perf_counter *counter, u64 period);
 
-static void perf_adjust_freq(struct perf_counter_context *ctx)
+static void perf_adjust_period(struct perf_counter *counter, u64 events)
+{
+	struct hw_perf_counter *hwc = &counter->hw;
+	u64 period, sample_period;
+	s64 delta;
+
+	events *= hwc->sample_period;
+	period = div64_u64(events, counter->attr.sample_freq);
+
+	delta = (s64)(period - hwc->sample_period);
+	delta = (delta + 7) / 8; /* low pass filter */
+
+	sample_period = hwc->sample_period + delta;
+
+	if (!sample_period)
+		sample_period = 1;
+
+	perf_log_period(counter, sample_period);
+
+	hwc->sample_period = sample_period;
+}
+
+static void perf_ctx_adjust_freq(struct perf_counter_context *ctx)
 {
 	struct perf_counter *counter;
 	struct hw_perf_counter *hwc;
-	u64 interrupts, sample_period;
-	u64 events, period, freq;
-	s64 delta;
+	u64 interrupts, freq;
 
 	spin_lock(&ctx->lock);
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
@@ -1202,6 +1222,9 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		interrupts = hwc->interrupts;
 		hwc->interrupts = 0;
 
+		/*
+		 * unthrottle counters on the tick
+		 */
 		if (interrupts == MAX_INTERRUPTS) {
 			perf_log_throttle(counter, 1);
 			counter->pmu->unthrottle(counter);
@@ -1211,6 +1234,9 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		if (!counter->attr.freq || !counter->attr.sample_freq)
 			continue;
 
+		/*
+		 * if the specified freq < HZ then we need to skip ticks
+		 */
 		if (counter->attr.sample_freq < HZ) {
 			freq = counter->attr.sample_freq;
 
@@ -1226,20 +1252,20 @@ static void perf_adjust_freq(struct perf_counter_context *ctx)
 		} else
 			freq = HZ;
 
-		events = freq * interrupts * hwc->sample_period;
-		period = div64_u64(events, counter->attr.sample_freq);
+		perf_adjust_period(counter, freq * interrupts);
 
-		delta = (s64)(1 + period - hwc->sample_period);
-		delta >>= 1;
-
-		sample_period = hwc->sample_period + delta;
-
-		if (!sample_period)
-			sample_period = 1;
-
-		perf_log_period(counter, sample_period);
-
-		hwc->sample_period = sample_period;
+		/*
+		 * In order to avoid being stalled by an (accidental) huge
+		 * sample period, force reset the sample period if we didn't
+		 * get any events in this freq period.
+		 */
+		if (!interrupts) {
+			perf_disable();
+			counter->pmu->disable(counter);
+			atomic_set(&hwc->period_left, 0);
+			counter->pmu->enable(counter);
+			perf_enable();
+		}
 	}
 	spin_unlock(&ctx->lock);
 }
@@ -1279,9 +1305,9 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	cpuctx = &per_cpu(perf_cpu_context, cpu);
 	ctx = curr->perf_counter_ctxp;
 
-	perf_adjust_freq(&cpuctx->ctx);
+	perf_ctx_adjust_freq(&cpuctx->ctx);
 	if (ctx)
-		perf_adjust_freq(ctx);
+		perf_ctx_adjust_freq(ctx);
 
 	perf_counter_cpu_sched_out(cpuctx);
 	if (ctx)
@@ -1647,10 +1673,10 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 
 		counter->attr.sample_freq = value;
 	} else {
+		perf_log_period(counter, value);
+
 		counter->attr.sample_period = value;
 		counter->hw.sample_period = value;
-
-		perf_log_period(counter, value);
 	}
 unlock:
 	spin_unlock_irq(&ctx->lock);
@@ -2853,35 +2879,41 @@ void __perf_counter_mmap(struct vm_area_struct *vma)
  * event flow.
  */
 
+struct freq_event {
+	struct perf_event_header	header;
+	u64				time;
+	u64				id;
+	u64				period;
+};
+
 static void perf_log_period(struct perf_counter *counter, u64 period)
 {
 	struct perf_output_handle handle;
+	struct freq_event event;
 	int ret;
 
-	struct {
-		struct perf_event_header	header;
-		u64				time;
-		u64				id;
-		u64				period;
-	} freq_event = {
+	if (counter->hw.sample_period == period)
+		return;
+
+	if (counter->attr.sample_type & PERF_SAMPLE_PERIOD)
+		return;
+
+	event = (struct freq_event) {
 		.header = {
 			.type = PERF_EVENT_PERIOD,
 			.misc = 0,
-			.size = sizeof(freq_event),
+			.size = sizeof(event),
 		},
 		.time = sched_clock(),
 		.id = counter->id,
 		.period = period,
 	};
 
-	if (counter->hw.sample_period == period)
-		return;
-
-	ret = perf_output_begin(&handle, counter, sizeof(freq_event), 0, 0);
+	ret = perf_output_begin(&handle, counter, sizeof(event), 1, 0);
 	if (ret)
 		return;
 
-	perf_output_put(&handle, freq_event);
+	perf_output_put(&handle, event);
 	perf_output_end(&handle);
 }
 
@@ -2923,15 +2955,16 @@ int perf_counter_overflow(struct perf_counter *counter,
 {
 	int events = atomic_read(&counter->event_limit);
 	int throttle = counter->pmu->unthrottle != NULL;
+	struct hw_perf_counter *hwc = &counter->hw;
 	int ret = 0;
 
 	if (!throttle) {
-		counter->hw.interrupts++;
+		hwc->interrupts++;
 	} else {
-		if (counter->hw.interrupts != MAX_INTERRUPTS) {
-			counter->hw.interrupts++;
-			if (HZ*counter->hw.interrupts > (u64)sysctl_perf_counter_limit) {
-				counter->hw.interrupts = MAX_INTERRUPTS;
+		if (hwc->interrupts != MAX_INTERRUPTS) {
+			hwc->interrupts++;
+			if (HZ * hwc->interrupts > (u64)sysctl_perf_counter_limit) {
+				hwc->interrupts = MAX_INTERRUPTS;
 				perf_log_throttle(counter, 0);
 				ret = 1;
 			}
@@ -2943,6 +2976,16 @@ int perf_counter_overflow(struct perf_counter *counter,
 			 */
 			ret = 1;
 		}
+	}
+
+	if (counter->attr.freq) {
+		u64 now = sched_clock();
+		s64 delta = now - hwc->freq_stamp;
+
+		hwc->freq_stamp = now;
+
+		if (delta > 0 && delta < TICK_NSEC)
+			perf_adjust_period(counter, NSEC_PER_SEC / (int)delta);
 	}
 
 	/*
@@ -3379,7 +3422,6 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 		return NULL;
 
 	counter->destroy = tp_perf_counter_destroy;
-	counter->hw.sample_period = counter->attr.sample_period;
 
 	return &perf_ops_generic;
 }
@@ -3483,10 +3525,11 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	pmu = NULL;
 
 	hwc = &counter->hw;
+	hwc->sample_period = attr->sample_period;
 	if (attr->freq && attr->sample_freq)
-		hwc->sample_period = div64_u64(TICK_NSEC, attr->sample_freq);
-	else
-		hwc->sample_period = attr->sample_period;
+		hwc->sample_period = 1;
+
+	atomic64_set(&hwc->period_left, hwc->sample_period);
 
 	/*
 	 * we currently do not support PERF_SAMPLE_GROUP on inherited counters
@@ -3686,6 +3729,9 @@ inherit_counter(struct perf_counter *parent_counter,
 		child_counter->state = PERF_COUNTER_STATE_INACTIVE;
 	else
 		child_counter->state = PERF_COUNTER_STATE_OFF;
+
+	if (parent_counter->attr.freq)
+		child_counter->hw.sample_period = parent_counter->hw.sample_period;
 
 	/*
 	 * Link it up in the child's context:

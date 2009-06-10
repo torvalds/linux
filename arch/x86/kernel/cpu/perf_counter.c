@@ -696,10 +696,11 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (!attr->exclude_kernel)
 		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
 
-	if (!hwc->sample_period)
+	if (!hwc->sample_period) {
 		hwc->sample_period = x86_pmu.max_period;
+		atomic64_set(&hwc->period_left, hwc->sample_period);
+	}
 
-	atomic64_set(&hwc->period_left, hwc->sample_period);
 	counter->destroy = hw_perf_counter_destroy;
 
 	/*

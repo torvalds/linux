@@ -371,6 +371,7 @@ struct hw_perf_counter {
 
 	u64				freq_count;
 	u64				freq_interrupts;
+	u64				freq_stamp;
 #endif
 };
 
