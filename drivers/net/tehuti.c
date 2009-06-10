@@ -948,8 +948,7 @@ static void print_rxfd(struct rxf_desc *rxfd);
 
 static void bdx_rxdb_destroy(struct rxdb *db)
 {
-	if (db)
-		vfree(db);
+	vfree(db);
 }
 
 static struct rxdb *bdx_rxdb_create(int nelem)
@@ -1482,10 +1481,8 @@ static void bdx_tx_db_close(struct txdb *d)
 {
 	BDX_ASSERT(d == NULL);
 
-	if (d->start) {
-		vfree(d->start);
-		d->start = NULL;
-	}
+	vfree(d->start);
+	d->start = NULL;
 }
 
 /*************************************************************************
