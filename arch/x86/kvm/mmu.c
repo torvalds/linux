@@ -250,6 +250,15 @@ static int is_rmap_spte(u64 pte)
 	return is_shadow_present_pte(pte);
 }
 
+static int is_last_spte(u64 pte, int level)
+{
+	if (level == PT_PAGE_TABLE_LEVEL)
+		return 1;
+	if (level == PT_DIRECTORY_LEVEL && is_large_pte(pte))
+		return 1;
+	return 0;
+}
+
 static pfn_t spte_to_pfn(u64 pte)
 {
 	return (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
@@ -1313,25 +1322,17 @@ static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 
 	pt = sp->spt;
 
-	if (sp->role.level == PT_PAGE_TABLE_LEVEL) {
-		for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-			if (is_shadow_present_pte(pt[i]))
-				rmap_remove(kvm, &pt[i]);
-			pt[i] = shadow_trap_nonpresent_pte;
-		}
-		return;
-	}
-
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
 		ent = pt[i];
 
 		if (is_shadow_present_pte(ent)) {
-			if (!is_large_pte(ent)) {
+			if (!is_last_spte(ent, sp->role.level)) {
 				ent &= PT64_BASE_ADDR_MASK;
 				mmu_page_remove_parent_pte(page_header(ent),
 							   &pt[i]);
 			} else {
-				--kvm->stat.lpages;
+				if (is_large_pte(ent))
+					--kvm->stat.lpages;
 				rmap_remove(kvm, &pt[i]);
 			}
 		}
@@ -2381,8 +2382,7 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 
 	pte = *spte;
 	if (is_shadow_present_pte(pte)) {
-		if (sp->role.level == PT_PAGE_TABLE_LEVEL ||
-		    is_large_pte(pte))
+		if (is_last_spte(pte, sp->role.level))
 			rmap_remove(vcpu->kvm, spte);
 		else {
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
