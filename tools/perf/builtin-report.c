@@ -456,7 +456,7 @@ struct hist_entry {
 	uint64_t	 ip;
 	char		 level;
 
-	uint32_t	 count;
+	uint64_t	 count;
 };
 
 /*
@@ -726,7 +726,7 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, uint64_t total_samples)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, uint64_t ip, char level)
+		struct symbol *sym, uint64_t ip, char level, uint64_t count)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -738,7 +738,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		.sym	= sym,
 		.ip	= ip,
 		.level	= level,
-		.count	= 1,
+		.count	= count,
 	};
 	int cmp;
 
@@ -749,7 +749,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		cmp = hist_entry__cmp(&entry, he);
 
 		if (!cmp) {
-			he->count++;
+			he->count += count;
 			return 0;
 		}
 
@@ -942,7 +942,11 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	struct dso *dso = NULL;
 	struct thread *thread = threads__findnew(event->ip.pid);
 	uint64_t ip = event->ip.ip;
+	uint64_t period = 1;
 	struct map *map = NULL;
+
+	if (event->header.type & PERF_SAMPLE_PERIOD)
+		period = event->ip.period;
 
 	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p period: %Ld\n",
 		(void *)(offset + head),
@@ -950,7 +954,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		event->header.misc,
 		event->ip.pid,
 		(void *)(long)ip,
-		(long long)event->ip.period);
+		(long long)period);
 
 	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
@@ -1001,13 +1005,13 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		if (dso)
 			sym = dso->find_symbol(dso, ip);
 
-		if (hist_entry__add(thread, map, dso, sym, ip, level)) {
+		if (hist_entry__add(thread, map, dso, sym, ip, level, period)) {
 			fprintf(stderr,
 		"problem incrementing symbol count, skipping event\n");
 			return -1;
 		}
 	}
-	total++;
+	total += period;
 
 	return 0;
 }

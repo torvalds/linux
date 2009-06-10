@@ -350,8 +350,9 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	struct perf_counter_attr *attr = attrs + counter;
 	int track = 1;
 
-	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_PERIOD;
+	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 	if (freq) {
+		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 		attr->freq		= 1;
 		attr->sample_freq	= freq;
 	}
