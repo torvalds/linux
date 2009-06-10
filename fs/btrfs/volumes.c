@@ -377,6 +377,7 @@ static noinline int device_list_add(const char *path,
 		memcpy(fs_devices->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 		fs_devices->latest_devid = devid;
 		fs_devices->latest_trans = found_transid;
+		mutex_init(&fs_devices->device_list_mutex);
 		device = NULL;
 	} else {
 		device = __find_device(&fs_devices->devices, devid,
@@ -403,7 +404,11 @@ static noinline int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&device->dev_alloc_list);
+
+		mutex_lock(&fs_devices->device_list_mutex);
 		list_add(&device->dev_list, &fs_devices->devices);
+		mutex_unlock(&fs_devices->device_list_mutex);
+
 		device->fs_devices = fs_devices;
 		fs_devices->num_devices++;
 	}
@@ -429,10 +434,12 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 	INIT_LIST_HEAD(&fs_devices->devices);
 	INIT_LIST_HEAD(&fs_devices->alloc_list);
 	INIT_LIST_HEAD(&fs_devices->list);
+	mutex_init(&fs_devices->device_list_mutex);
 	fs_devices->latest_devid = orig->latest_devid;
 	fs_devices->latest_trans = orig->latest_trans;
 	memcpy(fs_devices->fsid, orig->fsid, sizeof(fs_devices->fsid));
 
+	mutex_lock(&orig->device_list_mutex);
 	list_for_each_entry(orig_dev, &orig->devices, dev_list) {
 		device = kzalloc(sizeof(*device), GFP_NOFS);
 		if (!device)
@@ -454,8 +461,10 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 		device->fs_devices = fs_devices;
 		fs_devices->num_devices++;
 	}
+	mutex_unlock(&orig->device_list_mutex);
 	return fs_devices;
 error:
+	mutex_unlock(&orig->device_list_mutex);
 	free_fs_devices(fs_devices);
 	return ERR_PTR(-ENOMEM);
 }
@@ -466,6 +475,7 @@ int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices)
 
 	mutex_lock(&uuid_mutex);
 again:
+	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
 		if (device->in_fs_metadata)
 			continue;
@@ -485,6 +495,7 @@ again:
 		kfree(device->name);
 		kfree(device);
 	}
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (fs_devices->seed) {
 		fs_devices = fs_devices->seed;
@@ -1135,12 +1146,14 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 		device = NULL;
 		devices = &root->fs_info->fs_devices->devices;
+		mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 		list_for_each_entry(tmp, devices, dev_list) {
 			if (tmp->in_fs_metadata && !tmp->bdev) {
 				device = tmp;
 				break;
 			}
 		}
+		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 		bdev = NULL;
 		bh = NULL;
 		disk_super = NULL;
@@ -1195,7 +1208,16 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		goto error_brelse;
 
 	device->in_fs_metadata = 0;
+
+	/*
+	 * the device list mutex makes sure that we don't change
+	 * the device list while someone else is writing out all
+	 * the device supers.
+	 */
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	list_del_init(&device->dev_list);
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+
 	device->fs_devices->num_devices--;
 
 	next_device = list_entry(root->fs_info->fs_devices->devices.next,
@@ -1289,6 +1311,7 @@ static int btrfs_prepare_sprout(struct btrfs_trans_handle *trans,
 	seed_devices->opened = 1;
 	INIT_LIST_HEAD(&seed_devices->devices);
 	INIT_LIST_HEAD(&seed_devices->alloc_list);
+	mutex_init(&seed_devices->device_list_mutex);
 	list_splice_init(&fs_devices->devices, &seed_devices->devices);
 	list_splice_init(&fs_devices->alloc_list, &seed_devices->alloc_list);
 	list_for_each_entry(device, &seed_devices->devices, dev_list) {
@@ -1414,6 +1437,10 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	mutex_lock(&root->fs_info->volume_mutex);
 
 	devices = &root->fs_info->fs_devices->devices;
+	/*
+	 * we have the volume lock, so we don't need the extra
+	 * device list mutex while reading the list here.
+	 */
 	list_for_each_entry(device, devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
@@ -1468,6 +1495,12 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	}
 
 	device->fs_devices = root->fs_info->fs_devices;
+
+	/*
+	 * we don't want write_supers to jump in here with our device
+	 * half setup
+	 */
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	list_add(&device->dev_list, &root->fs_info->fs_devices->devices);
 	list_add(&device->dev_alloc_list,
 		 &root->fs_info->fs_devices->alloc_list);
@@ -1486,6 +1519,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	total_bytes = btrfs_super_num_devices(&root->fs_info->super_copy);
 	btrfs_set_super_num_devices(&root->fs_info->super_copy,
 				    total_bytes + 1);
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
 		ret = init_first_rw_device(trans, root, device);

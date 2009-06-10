@@ -2111,7 +2111,7 @@ static int write_dev_supers(struct btrfs_device *device,
 
 int write_all_supers(struct btrfs_root *root, int max_mirrors)
 {
-	struct list_head *head = &root->fs_info->fs_devices->devices;
+	struct list_head *head;
 	struct btrfs_device *dev;
 	struct btrfs_super_block *sb;
 	struct btrfs_dev_item *dev_item;
@@ -2126,6 +2126,9 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 
 	sb = &root->fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
+
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
+	head = &root->fs_info->fs_devices->devices;
 	list_for_each_entry(dev, head, dev_list) {
 		if (!dev->bdev) {
 			total_errors++;
@@ -2169,6 +2172,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		if (ret)
 			total_errors++;
 	}
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	if (total_errors > max_errors) {
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);
