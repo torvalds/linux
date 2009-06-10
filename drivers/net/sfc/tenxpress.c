@@ -63,6 +63,7 @@
 
 /* extended status register */
 #define PMA_PMD_XSTATUS_REG	49153
+#define PMA_PMD_XSTAT_MDIX_LBN	14
 #define PMA_PMD_XSTAT_FLP_LBN   (12)
 
 /* LED control register */
@@ -741,9 +742,17 @@ tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 
 	mdio45_ethtool_gset_npage(&efx->mdio, ecmd, adv, lpa);
 
-	if (efx->phy_type != PHY_TYPE_SFX7101)
+	if (efx->phy_type != PHY_TYPE_SFX7101) {
 		ecmd->supported |= (SUPPORTED_100baseT_Full |
 				    SUPPORTED_1000baseT_Full);
+		if (ecmd->speed != SPEED_10000) {
+			ecmd->eth_tp_mdix =
+				(efx_mdio_read(efx, MDIO_MMD_PMAPMD,
+					       PMA_PMD_XSTATUS_REG) &
+				 (1 << PMA_PMD_XSTAT_MDIX_LBN))
+				? ETH_TP_MDI_X : ETH_TP_MDI;
+		}
+	}
 
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
