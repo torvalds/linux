@@ -532,6 +532,9 @@ static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
 					unsigned long size, unsigned long align,
 					unsigned long goal, unsigned long limit)
 {
+	if (WARN_ON_ONCE(slab_is_available()))
+		return kzalloc(size, GFP_NOWAIT);
+
 #ifdef CONFIG_HAVE_ARCH_BOOTMEM
 	bootmem_data_t *p_bdata;
 
