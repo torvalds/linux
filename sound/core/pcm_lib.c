@@ -22,6 +22,7 @@
 
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/math64.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -452,7 +453,7 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
 		*r = 0;
 		return UINT_MAX;
 	}
-	div64_32(&n, c, r);
+	n = div_u64_rem(n, c, r);
 	if (n >= UINT_MAX) {
 		*r = 0;
 		return UINT_MAX;
