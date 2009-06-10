@@ -3260,20 +3260,28 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	struct kvm_mmu_page *sp;
 	struct kvm_memory_slot *slot;
 	unsigned long *rmapp;
+	u64 *spte;
 	gfn_t gfn;
 
 	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
 		if (sp->role.direct)
 			continue;
+		if (sp->unsync)
+			continue;
 
 		gfn = unalias_gfn(vcpu->kvm, sp->gfn);
 		slot = gfn_to_memslot_unaliased(vcpu->kvm, sp->gfn);
 		rmapp = &slot->rmap[gfn - slot->base_gfn];
-		if (*rmapp)
-			printk(KERN_ERR "%s: (%s) shadow page has writable"
-			       " mappings: gfn %lx role %x\n",
+
+		spte = rmap_next(vcpu->kvm, rmapp, NULL);
+		while (spte) {
+			if (*spte & PT_WRITABLE_MASK)
+				printk(KERN_ERR "%s: (%s) shadow page has "
+				"writable mappings: gfn %lx role %x\n",
 			       __func__, audit_msg, sp->gfn,
 			       sp->role.word);
+			spte = rmap_next(vcpu->kvm, rmapp, spte);
+		}
 	}
 }
 
