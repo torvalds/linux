@@ -205,3 +205,5 @@ config SND_PCM_XRUN_DEBUG
 
 config SND_VMASTER
 	bool
+
+source "sound/core/seq/Kconfig"
