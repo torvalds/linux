@@ -38,6 +38,7 @@
 
 #include <asm/mach/time.h>
 #include <mach/dmtimer.h>
+#include <asm/localtimer.h>
 
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
@@ -229,6 +230,9 @@ static void __init omap2_gp_clocksource_init(void)
 
 static void __init omap2_gp_timer_init(void)
 {
+#ifdef CONFIG_LOCAL_TIMERS
+	twd_base = IO_ADDRESS(OMAP44XX_LOCAL_TWD_BASE);
+#endif
 	omap_dm_timer_init();
 
 	omap2_gp_clockevent_init();
