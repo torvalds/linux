@@ -11,6 +11,6 @@ ath5k-y				+= reset.o
 ath5k-y				+= attach.o
 ath5k-y				+= base.o
 ath5k-y				+= led.o
+ath5k-y				+= rfkill.o
 ath5k-$(CONFIG_ATH5K_DEBUG)	+= debug.o
-ath5k-$(CONFIG_ATH5K_RFKILL)	+= rfkill.o
 obj-$(CONFIG_ATH5K)		+= ath5k.o

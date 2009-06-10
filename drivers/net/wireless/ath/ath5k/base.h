@@ -177,9 +177,7 @@ struct ath5k_softc {
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
-#ifdef CONFIG_ATH5K_RFKILL
 	struct ath5k_rfkill	rf_kill;
-#endif
 
 	spinlock_t		block;		/* protects beacon */
 	struct tasklet_struct	beacontq;	/* beacon intr tasklet */

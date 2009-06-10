@@ -1257,13 +1257,8 @@ extern int ath5k_hw_set_gpio(struct ath5k_hw *ah, u32 gpio, u32 val);
 extern void ath5k_hw_set_gpio_intr(struct ath5k_hw *ah, unsigned int gpio, u32 interrupt_level);
 
 /* rfkill Functions */
-#ifdef CONFIG_ATH5K_RFKILL
 extern void ath5k_rfkill_hw_start(struct ath5k_hw *ah);
 extern void ath5k_rfkill_hw_stop(struct ath5k_hw *ah);
-#else
-static inline void ath5k_rfkill_hw_start(struct ath5k_hw *ah) {}
-static inline void ath5k_rfkill_hw_stop(struct ath5k_hw *ah) {}
-#endif
 
 /* Misc functions */
 int ath5k_hw_set_capabilities(struct ath5k_hw *ah);

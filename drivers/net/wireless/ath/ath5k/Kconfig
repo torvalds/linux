@@ -39,11 +39,3 @@ config ATH5K_DEBUG
 
 	  modprobe ath5k debug=0x00000400
 
-config ATH5K_RFKILL
-	bool "Atheros 5xxx rfkill support"
-	depends on ATH5K
-	default y
-	---help---
-	  Include support for enabling/disabling WiFi via rfkill switch
-	  with Atheros 5xxx cards
-

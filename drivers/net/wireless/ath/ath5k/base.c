@@ -2530,12 +2530,9 @@ ath5k_intr(int irq, void *dev_id)
 				 */
 				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 			}
-#ifdef CONFIG_ATH5K_RFKILL
 			if (status & AR5K_INT_GPIO)
-			{
 				tasklet_schedule(&sc->rf_kill.toggleq);
-			}
-#endif
+
 		}
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 

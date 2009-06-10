@@ -56,10 +56,12 @@ static inline void ath5k_rfkill_enable(struct ath5k_softc *sc)
 static inline void ath5k_rfkill_set_intr(struct ath5k_softc *sc, bool enable)
 {
 	struct ath5k_hw *ah = sc->ah;
+	u32 curval;
+
 	ath5k_hw_set_gpio_input(ah, sc->rf_kill.gpio);
-	ah->ah_gpio[0] = ath5k_hw_get_gpio(ah, sc->rf_kill.gpio);
+	curval = ath5k_hw_get_gpio(ah, sc->rf_kill.gpio);
 	ath5k_hw_set_gpio_intr(ah, sc->rf_kill.gpio, enable ?
-					!!ah->ah_gpio[0] : !ah->ah_gpio[0]);
+					!!curval : !curval);
 }
 
 static bool
@@ -97,9 +99,8 @@ ath5k_rfkill_hw_start(struct ath5k_hw *ah)
 	ath5k_rfkill_disable(sc);
 
 	/* enable interrupt for rfkill switch */
-	if (AR5K_EEPROM_HDR_RFKILL(ah->ah_capabilities.cap_eeprom.ee_header)) {
+	if (AR5K_EEPROM_HDR_RFKILL(ah->ah_capabilities.cap_eeprom.ee_header))
 		ath5k_rfkill_set_intr(sc, true);
-	}
 }
 
 
@@ -109,9 +110,8 @@ ath5k_rfkill_hw_stop(struct ath5k_hw *ah)
 	struct ath5k_softc *sc = ah->ah_sc;
 
 	/* disable interrupt for rfkill switch */
-	if (AR5K_EEPROM_HDR_RFKILL(ah->ah_capabilities.cap_eeprom.ee_header)) {
+	if (AR5K_EEPROM_HDR_RFKILL(ah->ah_capabilities.cap_eeprom.ee_header))
 		ath5k_rfkill_set_intr(sc, false);
-	}
 
 	tasklet_kill(&sc->rf_kill.toggleq);
 
