@@ -75,6 +75,7 @@ config LEDS_ALIX2
 	depends on LEDS_CLASS && X86 && EXPERIMENTAL
 	help
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
+	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
 config LEDS_H1940
 	tristate "LED Support for iPAQ H1940 device"
