@@ -1020,9 +1020,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->hw_host_to_card = btmrvl_sdio_host_to_card;
 	priv->hw_wakeup_firmware = btmrvl_sdio_wakeup_fw;
 
-	strncpy(priv->btmrvl_dev.name, "btmrvl_sdio0",
-			sizeof(priv->btmrvl_dev.name));
-
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
 	BT_DBG("Leave");

@@ -24,7 +24,6 @@
 #include <net/bluetooth/bluetooth.h>
 
 #define BTM_HEADER_LEN			4
-#define BTM_DEV_NAME_LEN		32
 #define BTM_UPLD_SIZE			2312
 
 /* Time to wait until Host Sleep state change in millisecond */
@@ -39,7 +38,6 @@ struct btmrvl_thread {
 };
 
 struct btmrvl_device {
-	char name[BTM_DEV_NAME_LEN];
 	void *card;
 	struct hci_dev *hcidev;
 
