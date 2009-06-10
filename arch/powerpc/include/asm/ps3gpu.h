@@ -31,6 +31,7 @@
 #define L1GPU_CONTEXT_ATTRIBUTE_FB_SETUP	0x600
 #define L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT		0x601
 #define L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT_SYNC	0x602
+#define L1GPU_CONTEXT_ATTRIBUTE_FB_CLOSE	0x603
 
 #define L1GPU_FB_BLIT_WAIT_FOR_COMPLETION	(1ULL << 32)
 
@@ -73,6 +74,13 @@ static inline int lv1_gpu_fb_blit(u64 context_handle, u64 ddr_offset,
 					 L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT,
 					 ddr_offset, ioif_offset, sync_width,
 					 pitch);
+}
+
+static inline int lv1_gpu_fb_close(u64 context_handle)
+{
+	return lv1_gpu_context_attribute(context_handle,
+					 L1GPU_CONTEXT_ATTRIBUTE_FB_CLOSE, 0,
+					 0, 0, 0);
 }
 
 #endif /* _ASM_POWERPC_PS3GPU_H */
