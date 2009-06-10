@@ -468,6 +468,17 @@ void smp_icache_flush_range_others(unsigned long start, unsigned long end)
 }
 EXPORT_SYMBOL_GPL(smp_icache_flush_range_others);
 
+#ifdef __ARCH_SYNC_CORE_ICACHE
+void resync_core_icache(void)
+{
+	unsigned int cpu = get_cpu();
+	blackfin_invalidate_entire_icache();
+	++per_cpu(cpu_data, cpu).icache_invld_count;
+	put_cpu();
+}
+EXPORT_SYMBOL(resync_core_icache);
+#endif
+
 #ifdef __ARCH_SYNC_CORE_DCACHE
 unsigned long barrier_mask __attribute__ ((__section__(".l2.bss")));
 

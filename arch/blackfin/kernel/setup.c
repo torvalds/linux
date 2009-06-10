@@ -1181,6 +1181,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef __ARCH_SYNC_CORE_DCACHE
 	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
 #endif
+#ifdef __ARCH_SYNC_CORE_ICACHE
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
+#endif
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 	switch ((cpudata->imemctl >> 3) & WAYALL_L) {
 	case WAY0_L:
