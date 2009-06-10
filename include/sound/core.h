@@ -300,16 +300,6 @@ int snd_card_create(int idx, const char *id,
 		    struct module *module, int extra_size,
 		    struct snd_card **card_ret);
 
-static inline __deprecated
-struct snd_card *snd_card_new(int idx, const char *id,
-			      struct module *module, int extra_size)
-{
-	struct snd_card *card;
-	if (snd_card_create(idx, id, module, extra_size, &card) < 0)
-		return NULL;
-	return card;
-}
-
 int snd_card_disconnect(struct snd_card *card);
 int snd_card_free(struct snd_card *card);
 int snd_card_free_when_closed(struct snd_card *card);
