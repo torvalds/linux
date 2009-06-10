@@ -2301,7 +2301,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options);
 int btrfs_sync_fs(struct super_block *sb, int wait);
 
 /* acl.c */
+#ifdef CONFIG_FS_POSIX_ACL
 int btrfs_check_acl(struct inode *inode, int mask);
+#else
+#define btrfs_check_acl NULL
+#endif
 int btrfs_init_acl(struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
 
