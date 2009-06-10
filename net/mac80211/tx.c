@@ -1415,7 +1415,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    local->hw.conf.dynamic_ps_timeout > 0) {
+	    local->hw.conf.dynamic_ps_timeout > 0 &&
+	    !local->sw_scanning && !local->hw_scanning && local->ps_sdata) {
 		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 			ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_PS);

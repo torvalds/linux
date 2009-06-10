@@ -621,9 +621,6 @@ static void ieee80211_change_ps(struct ieee80211_local *local)
 	struct ieee80211_conf *conf = &local->hw.conf;
 
 	if (local->ps_sdata) {
-		if (!(local->ps_sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED))
-			return;
-
 		ieee80211_enable_ps(local, local->ps_sdata);
 	} else if (conf->flags & IEEE80211_CONF_PS) {
 		conf->flags &= ~IEEE80211_CONF_PS;
@@ -653,7 +650,8 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		count++;
 	}
 
-	if (count == 1 && found->u.mgd.powersave) {
+	if (count == 1 && found->u.mgd.powersave &&
+	    (found->u.mgd.flags & IEEE80211_STA_ASSOCIATED)) {
 		s32 beaconint_us;
 
 		if (latency < 0)
