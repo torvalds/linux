@@ -166,7 +166,7 @@ static struct platform_device at2440evb_device_eth = {
 };
 
 static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
-	.gpio_detect	= S3C2410_GPG10,
+	.gpio_detect	= S3C2410_GPG(10),
 };
 
 /* 7" LCD panel */
