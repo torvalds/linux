@@ -42,6 +42,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
+#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_rw.h"
 #include "xfs_error.h"
@@ -467,8 +468,20 @@ xfs_setattr(
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 
-	if (code) {
+	if (code)
 		return code;
+
+	/*
+	 * XXX(hch): Updating the ACL entries is not atomic vs the i_mode
+	 * 	     update.  We could avoid this with linked transactions
+	 * 	     and passing down the transaction pointer all the way
+	 *	     to attr_set.  No previous user of the generic
+	 * 	     Posix ACL code seems to care about this issue either.
+	 */
+	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
+		code = -xfs_acl_chmod(inode);
+		if (code)
+			return XFS_ERROR(code);
 	}
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_ATTRIBUTE) &&

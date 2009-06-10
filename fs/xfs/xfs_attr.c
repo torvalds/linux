@@ -45,7 +45,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
-#include "xfs_acl.h"
 #include "xfs_rw.h"
 #include "xfs_vnodeops.h"
 

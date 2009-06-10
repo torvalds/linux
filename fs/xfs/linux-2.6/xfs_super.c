@@ -43,7 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_fsops.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -1735,18 +1734,8 @@ xfs_init_zones(void)
 	if (!xfs_ili_zone)
 		goto out_destroy_inode_zone;
 
-#ifdef CONFIG_XFS_POSIX_ACL
-	xfs_acl_zone = kmem_zone_init(sizeof(xfs_acl_t), "xfs_acl");
-	if (!xfs_acl_zone)
-		goto out_destroy_ili_zone;
-#endif
-
 	return 0;
 
-#ifdef CONFIG_XFS_POSIX_ACL
- out_destroy_ili_zone:
-#endif
-	kmem_zone_destroy(xfs_ili_zone);
  out_destroy_inode_zone:
 	kmem_zone_destroy(xfs_inode_zone);
  out_destroy_efi_zone:
@@ -1780,9 +1769,6 @@ xfs_init_zones(void)
 STATIC void
 xfs_destroy_zones(void)
 {
-#ifdef CONFIG_XFS_POSIX_ACL
-	kmem_zone_destroy(xfs_acl_zone);
-#endif
 	kmem_zone_destroy(xfs_ili_zone);
 	kmem_zone_destroy(xfs_inode_zone);
 	kmem_zone_destroy(xfs_efi_zone);

@@ -18,6 +18,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
+#include "xfs_acl.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
@@ -82,6 +83,7 @@ xfs_inode_alloc(
 	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
 	ip->i_size = 0;
 	ip->i_new_size = 0;
+	xfs_inode_init_acls(ip);
 
 	/*
 	 * Initialize inode's trace buffers.
@@ -558,6 +560,7 @@ xfs_ireclaim(
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
+	xfs_inode_clear_acls(ip);
 	kmem_zone_free(xfs_inode_zone, ip);
 }
 

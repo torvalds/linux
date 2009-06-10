@@ -40,7 +40,7 @@ xfs-$(CONFIG_PROC_FS)		+= quota/xfs_qm_stats.o
 endif
 
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
-xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
+xfs-$(CONFIG_XFS_POSIX_ACL)	+= $(XFS_LINUX)/xfs_acl.o
 xfs-$(CONFIG_PROC_FS)		+= $(XFS_LINUX)/xfs_stats.o
 xfs-$(CONFIG_SYSCTL)		+= $(XFS_LINUX)/xfs_sysctl.o
 xfs-$(CONFIG_COMPAT)		+= $(XFS_LINUX)/xfs_ioctl32.o
