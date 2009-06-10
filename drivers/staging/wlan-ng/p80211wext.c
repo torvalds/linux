@@ -66,10 +66,10 @@
 #include "p80211ioctl.h"
 #include "p80211req.h"
 
-static int p80211wext_giwrate(netdevice_t * dev,
+static int p80211wext_giwrate(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_param *rrq, char *extra);
-static int p80211wext_giwessid(netdevice_t * dev,
+static int p80211wext_giwessid(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *essid);
 
@@ -130,7 +130,7 @@ static int qual_as_percent(int snr)
 	return 100;
 }
 
-static int p80211wext_dorequest(wlandevice_t * wlandev, u32 did, u32 data)
+static int p80211wext_dorequest(wlandevice_t *wlandev, u32 did, u32 data)
 {
 	p80211msg_dot11req_mibset_t msg;
 	p80211item_uint32_t mibitem;
@@ -145,7 +145,7 @@ static int p80211wext_dorequest(wlandevice_t * wlandev, u32 did, u32 data)
 	return result;
 }
 
-static int p80211wext_autojoin(wlandevice_t * wlandev)
+static int p80211wext_autojoin(wlandevice_t *wlandev)
 {
 	p80211msg_lnxreq_autojoin_t msg;
 	struct iw_point data;
@@ -191,7 +191,7 @@ exit:
 }
 
 /* called by /proc/net/wireless */
-struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t * dev)
+struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t *dev)
 {
 	p80211msg_lnxreq_commsquality_t quality;
 	wlandevice_t *wlandev = dev->ml_priv;
@@ -232,7 +232,7 @@ struct iw_statistics *p80211wext_get_wireless_stats(netdevice_t * dev)
 	return wstats;
 }
 
-static int p80211wext_giwname(netdevice_t * dev,
+static int p80211wext_giwname(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      char *name, char *extra)
 {
@@ -261,7 +261,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwfreq(netdevice_t * dev,
+static int p80211wext_giwfreq(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_freq *freq, char *extra)
 {
@@ -296,7 +296,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwfreq(netdevice_t * dev,
+static int p80211wext_siwfreq(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_freq *freq, char *extra)
 {
@@ -332,9 +332,9 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwmode(netdevice_t * dev,
+static int p80211wext_giwmode(netdevice_t *dev,
 			      struct iw_request_info *info,
-			      __u32 * mode, char *extra)
+			      __u32 *mode, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 
@@ -356,9 +356,9 @@ static int p80211wext_giwmode(netdevice_t * dev,
 	return 0;
 }
 
-static int p80211wext_siwmode(netdevice_t * dev,
+static int p80211wext_siwmode(netdevice_t *dev,
 			      struct iw_request_info *info,
-			      __u32 * mode, char *extra)
+			      __u32 *mode, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 	p80211item_uint32_t mibitem;
@@ -411,7 +411,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwrange(netdevice_t * dev,
+static int p80211wext_giwrange(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *extra)
 {
@@ -480,7 +480,7 @@ static int p80211wext_giwrange(netdevice_t * dev,
 	return 0;
 }
 
-static int p80211wext_giwap(netdevice_t * dev,
+static int p80211wext_giwap(netdevice_t *dev,
 			    struct iw_request_info *info,
 			    struct sockaddr *ap_addr, char *extra)
 {
@@ -493,7 +493,7 @@ static int p80211wext_giwap(netdevice_t * dev,
 	return 0;
 }
 
-static int p80211wext_giwencode(netdevice_t * dev,
+static int p80211wext_giwencode(netdevice_t *dev,
 				struct iw_request_info *info,
 				struct iw_point *erq, char *key)
 {
@@ -534,7 +534,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwencode(netdevice_t * dev,
+static int p80211wext_siwencode(netdevice_t *dev,
 				struct iw_request_info *info,
 				struct iw_point *erq, char *key)
 {
@@ -681,7 +681,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwessid(netdevice_t * dev,
+static int p80211wext_giwessid(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *essid)
 {
@@ -704,7 +704,7 @@ static int p80211wext_giwessid(netdevice_t * dev,
 	return 0;
 }
 
-static int p80211wext_siwessid(netdevice_t * dev,
+static int p80211wext_siwessid(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *essid)
 {
@@ -752,7 +752,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwcommit(netdevice_t * dev,
+static int p80211wext_siwcommit(netdevice_t *dev,
 				struct iw_request_info *info,
 				struct iw_point *data, char *essid)
 {
@@ -771,7 +771,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwrate(netdevice_t * dev,
+static int p80211wext_giwrate(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_param *rrq, char *extra)
 {
@@ -822,7 +822,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwrts(netdevice_t * dev,
+static int p80211wext_giwrts(netdevice_t *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *rts, char *extra)
 {
@@ -852,7 +852,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwrts(netdevice_t * dev,
+static int p80211wext_siwrts(netdevice_t *dev,
 			     struct iw_request_info *info,
 			     struct iw_param *rts, char *extra)
 {
@@ -886,7 +886,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwfrag(netdevice_t * dev,
+static int p80211wext_giwfrag(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_param *frag, char *extra)
 {
@@ -917,7 +917,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwfrag(netdevice_t * dev,
+static int p80211wext_siwfrag(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_param *frag, char *extra)
 {
@@ -961,7 +961,7 @@ exit:
 #define IW_RETRY_SHORT IW_RETRY_MIN
 #endif
 
-static int p80211wext_giwretry(netdevice_t * dev,
+static int p80211wext_giwretry(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_param *rrq, char *extra)
 {
@@ -1038,7 +1038,7 @@ exit:
 
 }
 
-static int p80211wext_siwretry(netdevice_t * dev,
+static int p80211wext_siwretry(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_param *rrq, char *extra)
 {
@@ -1109,7 +1109,7 @@ exit:
 
 }
 
-static int p80211wext_siwtxpow(netdevice_t * dev,
+static int p80211wext_siwtxpow(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_param *rrq, char *extra)
 {
@@ -1143,7 +1143,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_giwtxpow(netdevice_t * dev,
+static int p80211wext_giwtxpow(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_param *rrq, char *extra)
 {
@@ -1178,7 +1178,7 @@ exit:
 	return err;
 }
 
-static int p80211wext_siwspy(netdevice_t * dev,
+static int p80211wext_siwspy(netdevice_t *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *srq, char *extra)
 {
@@ -1213,7 +1213,7 @@ static int p80211wext_siwspy(netdevice_t * dev,
 }
 
 /* jkriegl: from orinoco, modified */
-static int p80211wext_giwspy(netdevice_t * dev,
+static int p80211wext_giwspy(netdevice_t *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *srq, char *extra)
 {
@@ -1273,7 +1273,7 @@ static int prism2_result2err(int prism2_result)
 	return err;
 }
 
-static int p80211wext_siwscan(netdevice_t * dev,
+static int p80211wext_siwscan(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *srq, char *extra)
 {
@@ -1320,7 +1320,7 @@ exit:
  */
 static char *wext_translate_bss(struct iw_request_info *info, char *current_ev,
 				char *end_buf,
-				p80211msg_dot11req_scan_results_t * bss)
+				p80211msg_dot11req_scan_results_t *bss)
 {
 	struct iw_event iwe;	/* Temporary buffer */
 
@@ -1404,7 +1404,7 @@ static char *wext_translate_bss(struct iw_request_info *info, char *current_ev,
 	return current_ev;
 }
 
-static int p80211wext_giwscan(netdevice_t * dev,
+static int p80211wext_giwscan(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *srq, char *extra)
 {

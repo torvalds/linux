@@ -177,19 +177,19 @@ typedef struct imgchunk {
 /* s-record image processing */
 
 /* Data records */
-unsigned int ns3data = 0;
+unsigned int ns3data;
 s3datarec_t s3data[S3DATA_MAX];
 
 /* Plug records */
-unsigned int ns3plug = 0;
+unsigned int ns3plug;
 s3plugrec_t s3plug[S3PLUG_MAX];
 
 /* CRC records */
-unsigned int ns3crc = 0;
+unsigned int ns3crc;
 s3crcrec_t s3crc[S3CRC_MAX];
 
 /* Info records */
-unsigned int ns3info = 0;
+unsigned int ns3info;
 s3inforec_t s3info[S3INFO_MAX];
 
 /* S7 record (there _better_ be only one) */
@@ -216,17 +216,17 @@ hfa384x_caplevel_t priid;
 
 int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev);
 int read_srecfile(char *rfptr, int rfsize);
-int mkimage(imgchunk_t * clist, unsigned int *ccnt);
-int read_cardpda(pda_t * pda, wlandevice_t * wlandev);
-int mkpdrlist(pda_t * pda);
+int mkimage(imgchunk_t *clist, unsigned int *ccnt);
+int read_cardpda(pda_t *pda, wlandevice_t *wlandev);
+int mkpdrlist(pda_t *pda);
 int s3datarec_compare(const void *p1, const void *p2);
-int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	      s3plugrec_t * s3plug, unsigned int ns3plug, pda_t * pda);
-int crcimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	     s3crcrec_t * s3crc, unsigned int ns3crc);
-int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
+int plugimage(imgchunk_t *fchunk, unsigned int nfchunks,
+	      s3plugrec_t *s3plug, unsigned int ns3plug, pda_t * pda);
+int crcimage(imgchunk_t *fchunk, unsigned int nfchunks,
+	     s3crcrec_t *s3crc, unsigned int ns3crc);
+int writeimage(wlandevice_t *wlandev, imgchunk_t *fchunk,
 	       unsigned int nfchunks);
-void free_chunks(imgchunk_t * fchunk, unsigned int *nfchunks);
+void free_chunks(imgchunk_t *fchunk, unsigned int *nfchunks);
 void free_srecs(void);
 
 int validate_identity(void);
@@ -247,7 +247,7 @@ int validate_identity(void);
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwtry(struct usb_device *udev, wlandevice_t * wlandev)
+int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
 
@@ -283,7 +283,7 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t * wlandev)
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
+int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t *wlandev)
 {
 	signed int result = 0;
 	p80211msg_dot11req_mibget_t getmsg;
@@ -425,7 +425,7 @@ int prism2_fwapply(char *rfptr, int rfsize, wlandevice_t * wlandev)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int crcimage(imgchunk_t * fchunk, unsigned int nfchunks, s3crcrec_t * s3crc,
+int crcimage(imgchunk_t *fchunk, unsigned int nfchunks, s3crcrec_t *s3crc,
 	     unsigned int ns3crc)
 {
 	int result = 0;
@@ -490,7 +490,7 @@ int crcimage(imgchunk_t * fchunk, unsigned int nfchunks, s3crcrec_t * s3crc,
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-void free_chunks(imgchunk_t * fchunk, unsigned int *nfchunks)
+void free_chunks(imgchunk_t *fchunk, unsigned int *nfchunks)
 {
 	int i;
 	for (i = 0; i < *nfchunks; i++) {
@@ -545,7 +545,7 @@ void free_srecs(void)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkimage(imgchunk_t * clist, unsigned int *ccnt)
+int mkimage(imgchunk_t *clist, unsigned int *ccnt)
 {
 	int result = 0;
 	int i;
@@ -644,7 +644,7 @@ int mkimage(imgchunk_t * clist, unsigned int *ccnt)
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int mkpdrlist(pda_t * pda)
+int mkpdrlist(pda_t *pda)
 {
 	int result = 0;
 	u16 *pda16 = (u16 *) pda->buf;
@@ -717,8 +717,8 @@ int mkpdrlist(pda_t * pda)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
-	      s3plugrec_t * s3plug, unsigned int ns3plug, pda_t * pda)
+int plugimage(imgchunk_t *fchunk, unsigned int nfchunks,
+	      s3plugrec_t *s3plug, unsigned int ns3plug, pda_t * pda)
 {
 	int result = 0;
 	int i;			/* plug index */
@@ -825,7 +825,7 @@ int plugimage(imgchunk_t * fchunk, unsigned int nfchunks,
 *	0	- success
 *	~0	- failure (probably an errno)
 ----------------------------------------------------------------*/
-int read_cardpda(pda_t * pda, wlandevice_t * wlandev)
+int read_cardpda(pda_t *pda, wlandevice_t *wlandev)
 {
 	int result = 0;
 	p80211msg_p2req_readpda_t msg;
@@ -1175,7 +1175,7 @@ int s3datarec_compare(const void *p1, const void *p2)
 *	0	success
 *	~0	failure
 ----------------------------------------------------------------*/
-int writeimage(wlandevice_t * wlandev, imgchunk_t * fchunk,
+int writeimage(wlandevice_t *wlandev, imgchunk_t *fchunk,
 	       unsigned int nfchunks)
 {
 	int result = 0;

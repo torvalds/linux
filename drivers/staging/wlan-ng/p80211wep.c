@@ -54,7 +54,7 @@
 #include <linux/random.h>
 #include <linux/kernel.h>
 
-// #define WEP_DEBUG
+/* #define WEP_DEBUG	*/
 
 /*================================================================*/
 /* Project Includes */
@@ -136,7 +136,7 @@ static const u32 wep_crc32_table[256] = {
 
 /* keylen in bytes! */
 
-int wep_change_key(wlandevice_t * wlandev, int keynum, u8 * key, int keylen)
+int wep_change_key(wlandevice_t *wlandev, int keynum, u8 *key, int keylen)
 {
 	if (keylen < 0)
 		return -1;
@@ -166,8 +166,8 @@ int wep_change_key(wlandevice_t * wlandev, int keynum, u8 * key, int keylen)
   4-byte IV at start of buffer, 4-byte ICV at end of buffer.
   if successful, buf start is payload begin, length -= 8;
  */
-int wep_decrypt(wlandevice_t * wlandev, u8 * buf, u32 len, int key_override,
-		u8 * iv, u8 * icv)
+int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
+		u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64], c_crc[4];
@@ -245,8 +245,8 @@ int wep_decrypt(wlandevice_t * wlandev, u8 * buf, u32 len, int key_override,
 }
 
 /* encrypts in-place. */
-int wep_encrypt(wlandevice_t * wlandev, u8 * buf, u8 * dst, u32 len, int keynum,
-		u8 * iv, u8 * icv)
+int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
+		u8 *iv, u8 *icv)
 {
 	u32 i, j, k, crc, keylen;
 	u8 s[256], key[64];
