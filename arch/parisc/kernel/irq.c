@@ -144,7 +144,7 @@ static int cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 }
 #endif
 
-static struct hw_interrupt_type cpu_interrupt_type = {
+static struct irq_chip cpu_interrupt_type = {
 	.typename	= "CPU",
 	.startup	= cpu_startup_irq,
 	.shutdown	= cpu_disable_irq,
