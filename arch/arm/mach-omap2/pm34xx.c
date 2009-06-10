@@ -652,7 +652,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm)
 	return 0;
 }
 
-int __init omap3_pm_init(void)
+static int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
 	int ret;
