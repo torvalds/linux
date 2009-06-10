@@ -1590,6 +1590,8 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0xfb30,
+		      "SigmaTel",STAC_9205_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_REF),
 	/* Dell laptops have BIOS problem */
@@ -5938,6 +5940,7 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847661, .name = "CXD9872RD/K", .patch = patch_stac9872 },
  	{ .id = 0x83847662, .name = "STAC9872AK", .patch = patch_stac9872 },
  	{ .id = 0x83847664, .name = "CXD9872AKD", .patch = patch_stac9872 },
+	{ .id = 0x83847698, .name = "STAC9205", .patch = patch_stac9205 },
  	{ .id = 0x838476a0, .name = "STAC9205", .patch = patch_stac9205 },
  	{ .id = 0x838476a1, .name = "STAC9205D", .patch = patch_stac9205 },
  	{ .id = 0x838476a2, .name = "STAC9204", .patch = patch_stac9205 },
