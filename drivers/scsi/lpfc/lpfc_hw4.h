@@ -422,9 +422,9 @@ struct lpfc_wqe_generic{
 #define lpfc_wqe_gen_pri_WORD		word10
 	uint32_t word11;
 #define lpfc_wqe_gen_cq_id_SHIFT	16
-#define lpfc_wqe_gen_cq_id_MASK		0x000003FF
+#define lpfc_wqe_gen_cq_id_MASK		0x0000FFFF
 #define lpfc_wqe_gen_cq_id_WORD		word11
-#define LPFC_WQE_CQ_ID_DEFAULT	0x3ff
+#define LPFC_WQE_CQ_ID_DEFAULT	0xffff
 #define lpfc_wqe_gen_wqec_SHIFT		7
 #define lpfc_wqe_gen_wqec_MASK		0x00000001
 #define lpfc_wqe_gen_wqec_WORD		word11

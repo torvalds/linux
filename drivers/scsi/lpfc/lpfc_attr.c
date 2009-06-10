@@ -3113,6 +3113,9 @@ sysfs_ctlreg_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
+	if (phba->sli_rev >= LPFC_SLI_REV4)
+		return -EPERM;
+
 	if ((off + count) > FF_REG_AREA_SIZE)
 		return -ERANGE;
 
@@ -3162,6 +3165,9 @@ sysfs_ctlreg_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+
+	if (phba->sli_rev >= LPFC_SLI_REV4)
+		return -EPERM;
 
 	if (off > FF_REG_AREA_SIZE)
 		return -ERANGE;

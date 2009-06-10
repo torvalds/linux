@@ -116,6 +116,27 @@ lpfc_debug_save_dif(struct scsi_cmnd *cmnd)
 }
 
 /**
+ * lpfc_sli4_set_rsp_sgl_last - Set the last bit in the response sge.
+ * @phba: Pointer to HBA object.
+ * @lpfc_cmd: lpfc scsi command object pointer.
+ *
+ * This function is called from the lpfc_prep_task_mgmt_cmd function to
+ * set the last bit in the response sge entry.
+ **/
+static void
+lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
+				struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct sli4_sge *sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
+	if (sgl) {
+		sgl += 1;
+		sgl->word2 = le32_to_cpu(sgl->word2);
+		bf_set(lpfc_sli4_sge_last, sgl, 1);
+		sgl->word2 = cpu_to_le32(sgl->word2);
+	}
+}
+
+/**
  * lpfc_update_stats - Update statistical data for the command completion
  * @phba: Pointer to HBA object.
  * @lpfc_cmd: lpfc scsi command object pointer.
@@ -1978,7 +1999,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_scsi_unprep_dma_buf_s3 - Un-map DMA mapping of SG-list for SLI3 dev
+ * lpfc_scsi_unprep_dma_buf - Un-map DMA mapping of SG-list for dev
  * @phba: The HBA for which this call is being executed.
  * @psb: The scsi buffer which is going to be un-mapped.
  *
@@ -1986,7 +2007,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
  * field of @lpfc_cmd for device with SLI-3 interface spec.
  **/
 static void
-lpfc_scsi_unprep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
+lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
 	/*
 	 * There are only two special cases to consider.  (1) the scsi command
@@ -2000,36 +2021,6 @@ lpfc_scsi_unprep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 		dma_unmap_sg(&phba->pcidev->dev, scsi_prot_sglist(psb->pCmd),
 				scsi_prot_sg_count(psb->pCmd),
 				psb->pCmd->sc_data_direction);
-}
-
-/**
- * lpfc_scsi_unprep_dma_buf_s4 - Un-map DMA mapping of SG-list for SLI4 dev
- * @phba: The Hba for which this call is being executed.
- * @psb: The scsi buffer which is going to be un-mapped.
- *
- * This routine does DMA un-mapping of scatter gather list of scsi command
- * field of @lpfc_cmd for device with SLI-4 interface spec. If we have to
- * remove the sgl for this scsi buffer then we will do it here. For now
- * we should be able to just call the sli3 unprep routine.
- **/
-static void
-lpfc_scsi_unprep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
-{
-	lpfc_scsi_unprep_dma_buf_s3(phba, psb);
-}
-
-/**
- * lpfc_scsi_unprep_dma_buf - Wrapper function for unmap DMA mapping of SG-list
- * @phba: The Hba for which this call is being executed.
- * @psb: The scsi buffer which is going to be un-mapped.
- *
- * This routine does DMA un-mapping of scatter gather list of scsi command
- * field of @lpfc_cmd for device with SLI-4 interface spec.
- **/
-static void
-lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
-{
-	phba->lpfc_scsi_unprep_dma_buf(phba, psb);
 }
 
 /**
@@ -2461,7 +2452,7 @@ lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
 }
 
 /**
- * lpfc_scsi_prep_cmnd_s3 - Convert scsi cmnd to FCP infor unit for SLI3 dev
+ * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: The scsi command which needs to send.
  * @pnode: Pointer to lpfc_nodelist.
@@ -2470,7 +2461,7 @@ lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
  * to transfer for device with SLI3 interface spec.
  **/
 static void
-lpfc_scsi_prep_cmnd_s3(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
+lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		    struct lpfc_nodelist *pnode)
 {
 	struct lpfc_hba *phba = vport->phba;
@@ -2558,46 +2549,7 @@ lpfc_scsi_prep_cmnd_s3(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_scsi_prep_cmnd_s4 - Convert scsi cmnd to FCP infor unit for SLI4 dev
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: The scsi command which needs to send.
- * @pnode: Pointer to lpfc_nodelist.
- *
- * This routine initializes fcp_cmnd and iocb data structure from scsi command
- * to transfer for device with SLI4 interface spec.
- **/
-static void
-lpfc_scsi_prep_cmnd_s4(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
-		       struct lpfc_nodelist *pnode)
-{
-	/*
-	 * The prep cmnd routines do not touch the sgl or its
-	 * entries. We may not have to do anything different.
-	 * I will leave this function in place until we can
-	 * run some IO through the driver and determine if changes
-	 * are needed.
-	 */
-	return lpfc_scsi_prep_cmnd_s3(vport, lpfc_cmd, pnode);
-}
-
-/**
- * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: The scsi command which needs to send.
- * @pnode: Pointer to lpfc_nodelist.
- *
- * This routine wraps the actual convert SCSI cmnd function pointer from
- * the lpfc_hba struct.
- **/
-static inline void
-lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
-		    struct lpfc_nodelist *pnode)
-{
-	vport->phba->lpfc_scsi_prep_cmnd(vport, lpfc_cmd, pnode);
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd_s3 - Convert SLI3 scsi TM cmd to FCP info unit
+ * lpfc_scsi_prep_task_mgmt_cmnd - Convert SLI3 scsi TM cmd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
  * @lun: Logical unit number.
@@ -2611,7 +2563,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
  *   1 - Success
  **/
 static int
-lpfc_scsi_prep_task_mgmt_cmd_s3(struct lpfc_vport *vport,
+lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 			     struct lpfc_scsi_buf *lpfc_cmd,
 			     unsigned int lun,
 			     uint8_t task_mgmt_cmd)
@@ -2653,68 +2605,13 @@ lpfc_scsi_prep_task_mgmt_cmd_s3(struct lpfc_vport *vport,
 		 * The driver will provide the timeout mechanism.
 		 */
 		piocb->ulpTimeout = 0;
-	} else {
+	} else
 		piocb->ulpTimeout = lpfc_cmd->timeout;
-	}
+
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_set_rsp_sgl_last(vport->phba, lpfc_cmd);
 
 	return 1;
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd_s4 - Convert SLI4 scsi TM cmd to FCP info unit
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
- * @lun: Logical unit number.
- * @task_mgmt_cmd: SCSI task management command.
- *
- * This routine creates FCP information unit corresponding to @task_mgmt_cmd
- * for device with SLI-4 interface spec.
- *
- * Return codes:
- * 	0 - Error
- * 	1 - Success
- **/
-static int
-lpfc_scsi_prep_task_mgmt_cmd_s4(struct lpfc_vport *vport,
-				struct lpfc_scsi_buf *lpfc_cmd,
-				unsigned int lun,
-				uint8_t task_mgmt_cmd)
-{
-	/*
-	 * The prep cmnd routines do not touch the sgl or its
-	 * entries. We may not have to do anything different.
-	 * I will leave this function in place until we can
-	 * run some IO through the driver and determine if changes
-	 * are needed.
-	 */
-	return lpfc_scsi_prep_task_mgmt_cmd_s3(vport, lpfc_cmd, lun,
-						task_mgmt_cmd);
-}
-
-/**
- * lpfc_scsi_prep_task_mgmt_cmnd - Wrapper func convert scsi TM cmd to FCP info
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
- * @lun: Logical unit number.
- * @task_mgmt_cmd: SCSI task management command.
- *
- * This routine wraps the actual convert SCSI TM to FCP information unit
- * function pointer from the lpfc_hba struct.
- *
- * Return codes:
- * 	0 - Error
- * 	1 - Success
- **/
-static inline int
-lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
-			     struct lpfc_scsi_buf *lpfc_cmd,
-			     unsigned int lun,
-			     uint8_t task_mgmt_cmd)
-{
-	struct lpfc_hba *phba = vport->phba;
-
-	return phba->lpfc_scsi_prep_task_mgmt_cmd(vport, lpfc_cmd, lun,
-						  task_mgmt_cmd);
 }
 
 /**
@@ -2730,23 +2627,19 @@ int
 lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 
+	phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf;
+	phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd;
+	phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf;
+
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s3;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s3;
-		phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd_s3;
-		phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf_s3;
-		phba->lpfc_scsi_prep_task_mgmt_cmd =
-					lpfc_scsi_prep_task_mgmt_cmd_s3;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->lpfc_new_scsi_buf = lpfc_new_scsi_buf_s4;
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s4;
-		phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd_s4;
-		phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf_s4;
-		phba->lpfc_scsi_prep_task_mgmt_cmd =
-					lpfc_scsi_prep_task_mgmt_cmd_s4;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s4;
 		break;
 	default:
