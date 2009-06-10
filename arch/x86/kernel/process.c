@@ -11,6 +11,7 @@
 #include <trace/power.h>
 #include <asm/system.h>
 #include <asm/apic.h>
+#include <asm/syscalls.h>
 #include <asm/idle.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>

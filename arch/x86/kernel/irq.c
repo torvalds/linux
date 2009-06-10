@@ -12,6 +12,7 @@
 #include <asm/io_apic.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
+#include <asm/hw_irq.h>
 
 atomic_t irq_err_count;
 
