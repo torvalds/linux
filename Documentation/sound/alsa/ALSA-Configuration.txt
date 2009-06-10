@@ -460,6 +460,25 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-ctxfi
+  ----------------
+
+    Module for Creative Sound Blaster X-Fi boards (20k1 / 20k2 chips)
+	* Creative Sound Blaster X-Fi Titanium Fatal1ty Champion Series
+	* Creative Sound Blaster X-Fi Titanium Fatal1ty Professional Series
+	* Creative Sound Blaster X-Fi Titanium Professional Audio
+	* Creative Sound Blaster X-Fi Titanium
+	* Creative Sound Blaster X-Fi Elite Pro
+	* Creative Sound Blaster X-Fi Platinum
+	* Creative Sound Blaster X-Fi Fatal1ty
+	* Creative Sound Blaster X-Fi XtremeGamer
+	* Creative Sound Blaster X-Fi XtremeMusic
+
+    reference_rate	- reference sample rate, 44100 or 48000 (default)
+    multiple		- multiple to ref. sample rate, 1 or 2 (default)
+
+    This module supports multiple cards.
+
   Module snd-darla20
   ------------------
 

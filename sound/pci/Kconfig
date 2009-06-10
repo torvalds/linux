@@ -275,6 +275,16 @@ config SND_CS5535AUDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs5535audio.
 
+config SND_CTXFI
+	tristate "Creative Sound Blaster X-Fi"
+	select SND_PCM
+	help
+	  If you want to use soundcards based on Creative Sound Blastr X-Fi
+	  boards with 20k1 or 20k2 chips, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-ctxfi.
+
 config SND_DARLA20
 	tristate "(Echoaudio) Darla20"
 	select FW_LOADER
