@@ -253,7 +253,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
 		if (!is_present_gpte(gpte))
-			set_shadow_pte(spte, shadow_notrap_nonpresent_pte);
+			__set_spte(spte, shadow_notrap_nonpresent_pte);
 		return;
 	}
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
@@ -311,7 +311,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 		if (is_large_pte(*sptep)) {
 			rmap_remove(vcpu->kvm, sptep);
-			set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
+			__set_spte(sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
@@ -369,7 +369,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	int user_fault = error_code & PFERR_USER_MASK;
 	int fetch_fault = error_code & PFERR_FETCH_MASK;
 	struct guest_walker walker;
-	u64 *shadow_pte;
+	u64 *sptep;
 	int write_pt = 0;
 	int r;
 	pfn_t pfn;
@@ -422,11 +422,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
-	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-				  largepage, &write_pt, pfn);
+	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
+			     largepage, &write_pt, pfn);
 
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
-		 shadow_pte, *shadow_pte, write_pt);
+		 sptep, *sptep, write_pt);
 
 	if (!write_pt)
 		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
@@ -472,7 +472,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 					--vcpu->kvm->stat.lpages;
 				need_flush = 1;
 			}
-			set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
+			__set_spte(sptep, shadow_trap_nonpresent_pte);
 			break;
 		}
 
@@ -583,7 +583,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 				nonpresent = shadow_trap_nonpresent_pte;
 			else
 				nonpresent = shadow_notrap_nonpresent_pte;
-			set_shadow_pte(&sp->spt[i], nonpresent);
+			__set_spte(&sp->spt[i], nonpresent);
 			continue;
 		}
 
