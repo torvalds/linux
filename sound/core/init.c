@@ -153,7 +153,7 @@ int snd_card_create(int idx, const char *xid,
 	if (!card)
 		return -ENOMEM;
 	if (xid)
-		snd_card_set_id(card, xid);
+		strlcpy(card->id, xid, sizeof(card->id));
 	err = 0;
 	mutex_lock(&snd_card_mutex);
 	if (idx < 0) {
@@ -476,23 +476,12 @@ int snd_card_free(struct snd_card *card)
 
 EXPORT_SYMBOL(snd_card_free);
 
-/**
- *  snd_card_set_id - set card identification name
- *  @card: soundcard structure
- *  @nid: new identification string
- *
- *  This function sets the card identification and checks for name
- *  collisions.
- */
-void snd_card_set_id(struct snd_card *card, const char *nid)
+static void snd_card_set_id_no_lock(struct snd_card *card, const char *nid)
 {
 	int i, len, idx_flag = 0, loops = SNDRV_CARDS;
 	const char *spos, *src;
 	char *id;
 	
-	/* check if user specified own card->id */
-	if (card->id[0] != '\0')
-		return;
 	if (nid == NULL) {
 		id = card->shortname;
 		spos = src = id;
@@ -529,14 +518,10 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
       		}
 	      	if (!snd_info_check_reserved_words(id))
       			goto __change;
-		mutex_lock(&snd_card_mutex);
 		for (i = 0; i < snd_ecards_limit; i++) {
-			if (snd_cards[i] && !strcmp(snd_cards[i]->id, id)) {
-				mutex_unlock(&snd_card_mutex);
+			if (snd_cards[i] && !strcmp(snd_cards[i]->id, id))
 				goto __change;
-			}
 		}
-		mutex_unlock(&snd_card_mutex);
 		break;
 
 	      __change:
@@ -561,6 +546,23 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
 	}
 }
 
+/**
+ *  snd_card_set_id - set card identification name
+ *  @card: soundcard structure
+ *  @nid: new identification string
+ *
+ *  This function sets the card identification and checks for name
+ *  collisions.
+ */
+void snd_card_set_id(struct snd_card *card, const char *nid)
+{
+	/* check if user specified own card->id */
+	if (card->id[0] != '\0')
+		return;
+	mutex_lock(&snd_card_mutex);
+	snd_card_set_id_no_lock(card, nid);
+	mutex_unlock(&snd_card_mutex);
+}
 EXPORT_SYMBOL(snd_card_set_id);
 
 #ifndef CONFIG_SYSFS_DEPRECATED
@@ -656,8 +658,7 @@ int snd_card_register(struct snd_card *card)
 		mutex_unlock(&snd_card_mutex);
 		return 0;
 	}
-	if (card->id[0] == '\0')
-		snd_card_set_id(card, NULL);
+	snd_card_set_id_no_lock(card, card->id[0] == '\0' ? NULL : card->id);
 	snd_cards[card->number] = card;
 	mutex_unlock(&snd_card_mutex);
 	init_info_for_card(card);
