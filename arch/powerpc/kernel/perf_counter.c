@@ -1001,7 +1001,11 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 * Finally record data if requested.
 	 */
 	if (record) {
-		addr = 0;
+		struct perf_sample_data data = {
+			.regs = regs,
+			.addr = 0,
+		};
+
 		if (counter->attr.sample_type & PERF_SAMPLE_ADDR) {
 			/*
 			 * The user wants a data address recorded.
@@ -1016,9 +1020,9 @@ static void record_and_restart(struct perf_counter *counter, long val,
 			sdsync = (ppmu->flags & PPMU_ALT_SIPR) ?
 				POWER6_MMCRA_SDSYNC : MMCRA_SDSYNC;
 			if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
-				addr = mfspr(SPRN_SDAR);
+				data.addr = mfspr(SPRN_SDAR);
 		}
-		if (perf_counter_overflow(counter, nmi, regs, addr)) {
+		if (perf_counter_overflow(counter, nmi, &data)) {
 			/*
 			 * Interrupts are coming too fast - throttle them
 			 * by setting the counter to 0, so it will be

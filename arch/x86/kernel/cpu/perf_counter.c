@@ -1173,10 +1173,13 @@ static void intel_pmu_reset(void)
  */
 static int intel_pmu_handle_irq(struct pt_regs *regs)
 {
+	struct perf_sample_data data;
 	struct cpu_hw_counters *cpuc;
-	struct cpu_hw_counters;
 	int bit, cpu, loops;
 	u64 ack, status;
+
+	data.regs = regs;
+	data.addr = 0;
 
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
@@ -1210,7 +1213,7 @@ again:
 		if (!intel_pmu_save_and_restart(counter))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, regs, 0))
+		if (perf_counter_overflow(counter, 1, &data))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
 
@@ -1230,11 +1233,15 @@ again:
 
 static int amd_pmu_handle_irq(struct pt_regs *regs)
 {
-	int cpu, idx, handled = 0;
+	struct perf_sample_data data;
 	struct cpu_hw_counters *cpuc;
 	struct perf_counter *counter;
 	struct hw_perf_counter *hwc;
+	int cpu, idx, handled = 0;
 	u64 val;
+
+	data.regs = regs;
+	data.addr = 0;
 
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
@@ -1256,7 +1263,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 		if (!x86_perf_counter_set_period(counter, hwc, idx))
 			continue;
 
-		if (perf_counter_overflow(counter, 1, regs, 0))
+		if (perf_counter_overflow(counter, 1, &data))
 			amd_pmu_disable_counter(hwc, idx);
 	}
 

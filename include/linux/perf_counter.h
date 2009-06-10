@@ -605,8 +605,14 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	       struct perf_counter_context *ctx, int cpu);
 extern void perf_counter_update_userpage(struct perf_counter *counter);
 
-extern int perf_counter_overflow(struct perf_counter *counter,
-				 int nmi, struct pt_regs *regs, u64 addr);
+struct perf_sample_data {
+	struct pt_regs	*regs;
+	u64		addr;
+};
+
+extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
+				 struct perf_sample_data *data);
+
 /*
  * Return 1 for a software counter, 0 for a hardware counter
  */

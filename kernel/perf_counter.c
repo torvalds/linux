@@ -2378,8 +2378,8 @@ static u32 perf_counter_tid(struct perf_counter *counter, struct task_struct *p)
 	return task_pid_nr_ns(p, counter->ns);
 }
 
-static void perf_counter_output(struct perf_counter *counter,
-				int nmi, struct pt_regs *regs, u64 addr)
+static void perf_counter_output(struct perf_counter *counter, int nmi,
+				struct perf_sample_data *data)
 {
 	int ret;
 	u64 sample_type = counter->attr.sample_type;
@@ -2404,10 +2404,10 @@ static void perf_counter_output(struct perf_counter *counter,
 	header.size = sizeof(header);
 
 	header.misc = PERF_EVENT_MISC_OVERFLOW;
-	header.misc |= perf_misc_flags(regs);
+	header.misc |= perf_misc_flags(data->regs);
 
 	if (sample_type & PERF_SAMPLE_IP) {
-		ip = perf_instruction_pointer(regs);
+		ip = perf_instruction_pointer(data->regs);
 		header.type |= PERF_SAMPLE_IP;
 		header.size += sizeof(ip);
 	}
@@ -2460,7 +2460,7 @@ static void perf_counter_output(struct perf_counter *counter,
 	}
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
-		callchain = perf_callchain(regs);
+		callchain = perf_callchain(data->regs);
 
 		if (callchain) {
 			callchain_size = (1 + callchain->nr) * sizeof(u64);
@@ -2486,7 +2486,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		perf_output_put(&handle, time);
 
 	if (sample_type & PERF_SAMPLE_ADDR)
-		perf_output_put(&handle, addr);
+		perf_output_put(&handle, data->addr);
 
 	if (sample_type & PERF_SAMPLE_ID)
 		perf_output_put(&handle, counter->id);
@@ -2950,8 +2950,8 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
  * Generic counter overflow handling.
  */
 
-int perf_counter_overflow(struct perf_counter *counter,
-			  int nmi, struct pt_regs *regs, u64 addr)
+int perf_counter_overflow(struct perf_counter *counter, int nmi,
+			  struct perf_sample_data *data)
 {
 	int events = atomic_read(&counter->event_limit);
 	int throttle = counter->pmu->unthrottle != NULL;
@@ -3005,7 +3005,7 @@ int perf_counter_overflow(struct perf_counter *counter,
 			perf_counter_disable(counter);
 	}
 
-	perf_counter_output(counter, nmi, regs, addr);
+	perf_counter_output(counter, nmi, data);
 	return ret;
 }
 
@@ -3054,24 +3054,25 @@ static void perf_swcounter_set_period(struct perf_counter *counter)
 static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 {
 	enum hrtimer_restart ret = HRTIMER_RESTART;
+	struct perf_sample_data data;
 	struct perf_counter *counter;
-	struct pt_regs *regs;
 	u64 period;
 
 	counter	= container_of(hrtimer, struct perf_counter, hw.hrtimer);
 	counter->pmu->read(counter);
 
-	regs = get_irq_regs();
+	data.addr = 0;
+	data.regs = get_irq_regs();
 	/*
 	 * In case we exclude kernel IPs or are somehow not in interrupt
 	 * context, provide the next best thing, the user IP.
 	 */
-	if ((counter->attr.exclude_kernel || !regs) &&
+	if ((counter->attr.exclude_kernel || !data.regs) &&
 			!counter->attr.exclude_user)
-		regs = task_pt_regs(current);
+		data.regs = task_pt_regs(current);
 
-	if (regs) {
-		if (perf_counter_overflow(counter, 0, regs, 0))
+	if (data.regs) {
+		if (perf_counter_overflow(counter, 0, &data))
 			ret = HRTIMER_NORESTART;
 	}
 
@@ -3084,9 +3085,14 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 static void perf_swcounter_overflow(struct perf_counter *counter,
 				    int nmi, struct pt_regs *regs, u64 addr)
 {
+	struct perf_sample_data data = {
+		.regs = regs,
+		.addr = addr,
+	};
+
 	perf_swcounter_update(counter);
 	perf_swcounter_set_period(counter);
-	if (perf_counter_overflow(counter, nmi, regs, addr))
+	if (perf_counter_overflow(counter, nmi, &data))
 		/* soft-disable the counter */
 		;
 
