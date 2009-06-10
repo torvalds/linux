@@ -81,8 +81,8 @@ struct ps3vram_priv {
 
 	struct ps3vram_cache cache;
 
-	/* Used to serialize cache/DMA operations */
-	struct mutex lock;
+	spinlock_t lock;	/* protecting list of bios */
+	struct bio_list list;
 };
 
 
@@ -443,8 +443,6 @@ static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 		offset = (unsigned int) (from & (priv->cache.page_size - 1));
 		avail  = priv->cache.page_size - offset;
 
-		mutex_lock(&priv->lock);
-
 		entry = ps3vram_cache_match(dev, from);
 		cached = CACHE_OFFSET + entry * priv->cache.page_size + offset;
 
@@ -455,8 +453,6 @@ static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 		if (avail > count)
 			avail = count;
 		memcpy(buf, priv->xdr_buf + cached, avail);
-
-		mutex_unlock(&priv->lock);
 
 		buf += avail;
 		count -= avail;
@@ -488,8 +484,6 @@ static int ps3vram_write(struct ps3_system_bus_device *dev, loff_t to,
 		offset = (unsigned int) (to & (priv->cache.page_size - 1));
 		avail  = priv->cache.page_size - offset;
 
-		mutex_lock(&priv->lock);
-
 		entry = ps3vram_cache_match(dev, to);
 		cached = CACHE_OFFSET + entry * priv->cache.page_size + offset;
 
@@ -502,8 +496,6 @@ static int ps3vram_write(struct ps3_system_bus_device *dev, loff_t to,
 		memcpy(priv->xdr_buf + cached, buf, avail);
 
 		priv->cache.tags[entry].flags |= CACHE_PAGE_DIRTY;
-
-		mutex_unlock(&priv->lock);
 
 		buf += avail;
 		count -= avail;
@@ -546,17 +538,17 @@ static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
 		dev_warn(&dev->core, "failed to create /proc entry\n");
 }
 
-static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
+static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
+				  struct bio *bio)
 {
-	struct ps3_system_bus_device *dev = q->queuedata;
+	struct ps3vram_priv *priv = dev->core.driver_data;
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
 	loff_t offset = bio->bi_sector << 9;
 	int error = 0;
 	struct bio_vec *bvec;
 	unsigned int i;
-
-	dev_dbg(&dev->core, "%s\n", __func__);
+	struct bio *next;
 
 	bio_for_each_segment(bvec, bio, i) {
 		/* PS3 is ppc64, so we don't handle highmem */
@@ -587,7 +579,35 @@ static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
 	dev_dbg(&dev->core, "%s completed\n", op);
 
 out:
+	spin_lock_irq(&priv->lock);
+	bio_list_pop(&priv->list);
+	next = bio_list_peek(&priv->list);
+	spin_unlock_irq(&priv->lock);
+
 	bio_endio(bio, error);
+	return next;
+}
+
+static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
+{
+	struct ps3_system_bus_device *dev = q->queuedata;
+	struct ps3vram_priv *priv = dev->core.driver_data;
+	int busy;
+
+	dev_dbg(&dev->core, "%s\n", __func__);
+
+	spin_lock_irq(&priv->lock);
+	busy = !bio_list_empty(&priv->list);
+	bio_list_add(&priv->list, bio);
+	spin_unlock_irq(&priv->lock);
+
+	if (busy)
+		return 0;
+
+	do {
+		bio = ps3vram_do_bio(dev, bio);
+	} while (bio);
+
 	return 0;
 }
 
@@ -607,7 +627,8 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 		goto fail;
 	}
 
-	mutex_init(&priv->lock);
+	spin_lock_init(&priv->lock);
+	bio_list_init(&priv->list);
 	dev->core.driver_data = priv;
 
 	priv = dev->core.driver_data;
