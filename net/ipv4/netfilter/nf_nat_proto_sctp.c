@@ -58,7 +58,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	}
 
 	crc32 = sctp_start_cksum((u8 *)hdr, skb_headlen(skb) - hdroff);
-	skb_walk_frags(skb, frag);
+	skb_walk_frags(skb, frag)
 		crc32 = sctp_update_cksum((u8 *)frag->data, skb_headlen(frag),
 					  crc32);
 	crc32 = sctp_end_cksum(crc32);
