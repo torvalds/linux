@@ -722,7 +722,7 @@ static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
 
 		while (bv_len && iov_idx < iov_count) {
 			unsigned int bytes;
-			char *iov_addr;
+			char __user *iov_addr;
 
 			bytes = min_t(unsigned int,
 				      iov[iov_idx].iov_len - iov_off, bv_len);
