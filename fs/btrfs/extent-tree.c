@@ -312,7 +312,7 @@ btrfs_lookup_first_block_group(struct btrfs_fs_info *info, u64 bytenr)
 }
 
 /*
- * return the block group that contains teh given bytenr
+ * return the block group that contains the given bytenr
  */
 struct btrfs_block_group_cache *btrfs_lookup_block_group(
 						 struct btrfs_fs_info *info,
@@ -2622,7 +2622,18 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 						       search_start);
 		if (block_group && block_group_bits(block_group, data)) {
 			down_read(&space_info->groups_sem);
-			goto have_block_group;
+			if (list_empty(&block_group->list) ||
+			    block_group->ro) {
+				/*
+				 * someone is removing this block group,
+				 * we can't jump into the have_block_group
+				 * target because our list pointers are not
+				 * valid
+				 */
+				btrfs_put_block_group(block_group);
+				up_read(&space_info->groups_sem);
+			} else
+				goto have_block_group;
 		} else if (block_group) {
 			btrfs_put_block_group(block_group);
 		}
@@ -2656,6 +2667,13 @@ have_block_group:
 			 * people trying to start a new cluster
 			 */
 			spin_lock(&last_ptr->refill_lock);
+			if (last_ptr->block_group &&
+			    (last_ptr->block_group->ro ||
+			    !block_group_bits(last_ptr->block_group, data))) {
+				offset = 0;
+				goto refill_cluster;
+			}
+
 			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
 						 num_bytes, search_start);
 			if (offset) {
@@ -2681,10 +2699,17 @@ have_block_group:
 
 				last_ptr_loop = 1;
 				search_start = block_group->key.objectid;
+				/*
+				 * we know this block group is properly
+				 * in the list because
+				 * btrfs_remove_block_group, drops the
+				 * cluster before it removes the block
+				 * group from the list
+				 */
 				goto have_block_group;
 			}
 			spin_unlock(&last_ptr->lock);
-
+refill_cluster:
 			/*
 			 * this cluster didn't work out, free it and
 			 * start over
@@ -5968,6 +5993,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_path *path;
 	struct btrfs_block_group_cache *block_group;
+	struct btrfs_free_cluster *cluster;
 	struct btrfs_key key;
 	int ret;
 
@@ -5979,6 +6005,21 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	memcpy(&key, &block_group->key, sizeof(key));
 
+	/* make sure this block group isn't part of an allocation cluster */
+	cluster = &root->fs_info->data_alloc_cluster;
+	spin_lock(&cluster->refill_lock);
+	btrfs_return_cluster_to_free_space(block_group, cluster);
+	spin_unlock(&cluster->refill_lock);
+
+	/*
+	 * make sure this block group isn't part of a metadata
+	 * allocation cluster
+	 */
+	cluster = &root->fs_info->meta_alloc_cluster;
+	spin_lock(&cluster->refill_lock);
+	btrfs_return_cluster_to_free_space(block_group, cluster);
+	spin_unlock(&cluster->refill_lock);
+
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
@@ -5988,7 +6029,11 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	spin_unlock(&root->fs_info->block_group_cache_lock);
 	btrfs_remove_free_space_cache(block_group);
 	down_write(&block_group->space_info->groups_sem);
-	list_del(&block_group->list);
+	/*
+	 * we must use list_del_init so people can check to see if they
+	 * are still on the list after taking the semaphore
+	 */
+	list_del_init(&block_group->list);
 	up_write(&block_group->space_info->groups_sem);
 
 	spin_lock(&block_group->space_info->lock);

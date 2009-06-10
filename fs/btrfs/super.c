@@ -436,9 +436,9 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (btrfs_test_opt(root, SSD))
 		seq_puts(seq, ",ssd");
 	if (btrfs_test_opt(root, NOTREELOG))
-		seq_puts(seq, ",no-treelog");
+		seq_puts(seq, ",notreelog");
 	if (btrfs_test_opt(root, FLUSHONCOMMIT))
-		seq_puts(seq, ",flush-on-commit");
+		seq_puts(seq, ",flushoncommit");
 	if (!(root->fs_info->sb->s_flags & MS_POSIXACL))
 		seq_puts(seq, ",noacl");
 	return 0;
@@ -502,8 +502,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 
 	if (s->s_root) {
 		if ((flags ^ s->s_flags) & MS_RDONLY) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			error = -EBUSY;
 			goto error_close_devices;
 		}
@@ -517,8 +516,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			goto error_free_subvol_name;
 		}
 
@@ -535,15 +533,13 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		mutex_unlock(&s->s_root->d_inode->i_mutex);
 
 		if (IS_ERR(root)) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			error = PTR_ERR(root);
 			goto error_free_subvol_name;
 		}
 		if (!root->d_inode) {
 			dput(root);
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			error = -ENXIO;
 			goto error_free_subvol_name;
 		}

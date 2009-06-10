@@ -55,8 +55,16 @@ int reiserfs_security_init(struct inode *dir, struct inode *inode,
 			   struct reiserfs_security_handle *sec)
 {
 	int blocks = 0;
-	int error = security_inode_init_security(inode, dir, &sec->name,
-						 &sec->value, &sec->length);
+	int error;
+
+	sec->name = NULL;
+
+	/* Don't add selinux attributes on xattrs - they'll never get used */
+	if (IS_PRIVATE(dir))
+		return 0;
+
+	error = security_inode_init_security(inode, dir, &sec->name,
+					     &sec->value, &sec->length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
 			error = 0;

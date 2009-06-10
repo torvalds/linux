@@ -557,7 +557,8 @@ static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 	} else {
 		error = -ENODEV;
 		/* Fall back to PCI_D0 if native PM is not supported */
-		pci_update_current_state(dev, PCI_D0);
+		if (!dev->pm_cap)
+			dev->current_state = PCI_D0;
 	}
 
 	return error;

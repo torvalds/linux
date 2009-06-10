@@ -837,6 +837,7 @@ config NETFILTER_XT_MATCH_SOCKET
 	depends on NETFILTER_TPROXY
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
+	depends on !NF_CONNTRACK || NF_CONNTRACK
 	select NF_DEFRAG_IPV4
 	help
 	  This option adds a `socket' match, which can be used to match

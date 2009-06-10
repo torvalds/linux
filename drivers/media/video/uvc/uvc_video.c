@@ -742,7 +742,7 @@ static int uvc_alloc_urb_buffers(struct uvc_video_device *video,
 
 	/* Buffers are already allocated, bail out. */
 	if (video->urb_size)
-		return 0;
+		return video->urb_size / psize;
 
 	/* Compute the number of packets. Bulk endpoints might transfer UVC
 	 * payloads accross multiple URBs.

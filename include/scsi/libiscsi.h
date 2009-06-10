@@ -36,6 +36,7 @@ struct scsi_transport_template;
 struct scsi_host_template;
 struct scsi_device;
 struct Scsi_Host;
+struct scsi_target;
 struct scsi_cmnd;
 struct socket;
 struct iscsi_transport;
@@ -350,6 +351,7 @@ extern struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 					  bool xmit_can_sleep);
 extern void iscsi_host_remove(struct Scsi_Host *shost);
 extern void iscsi_host_free(struct Scsi_Host *shost);
+extern int iscsi_target_alloc(struct scsi_target *starget);
 
 /*
  * session management

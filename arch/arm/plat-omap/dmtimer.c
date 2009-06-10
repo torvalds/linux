@@ -238,7 +238,7 @@ static struct omap_dm_timer omap3_dm_timers[] = {
 	{ .phys_base = 0x49040000, .irq = INT_24XX_GPTIMER9 },
 	{ .phys_base = 0x48086000, .irq = INT_24XX_GPTIMER10 },
 	{ .phys_base = 0x48088000, .irq = INT_24XX_GPTIMER11 },
-	{ .phys_base = 0x48304000, .irq = INT_24XX_GPTIMER12 },
+	{ .phys_base = 0x48304000, .irq = INT_34XX_GPT12_IRQ },
 };
 
 static const char *omap3_dm_source_names[] __initdata = {
@@ -321,11 +321,9 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	l |= 0x2 << 8;   /* Set clock activity to perserve f-clock on idle */
 
 	/*
-	 * Enable wake-up only for GPT1 on OMAP2 CPUs.
-	 * FIXME: All timers should have wake-up enabled and clear
-	 * PRCM status.
+	 * Enable wake-up on OMAP2 CPUs.
 	 */
-	if (cpu_class_is_omap2() && (timer == &dm_timers[0]))
+	if (cpu_class_is_omap2())
 		l |= 1 << 2;
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_REG, l);
 
@@ -511,7 +509,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_stop);
 
 #ifdef CONFIG_ARCH_OMAP1
 
-void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
+int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
 	int n = (timer - dm_timers) << 1;
 	u32 l;
@@ -519,23 +517,31 @@ void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	l = omap_readl(MOD_CONF_CTRL_1) & ~(0x03 << n);
 	l |= source << n;
 	omap_writel(l, MOD_CONF_CTRL_1);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_source);
 
 #else
 
-void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
+int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
+	int ret = -EINVAL;
+
 	if (source < 0 || source >= 3)
-		return;
+		return -EINVAL;
 
 	clk_disable(timer->fclk);
-	clk_set_parent(timer->fclk, dm_source_clocks[source]);
+	ret = clk_set_parent(timer->fclk, dm_source_clocks[source]);
 	clk_enable(timer->fclk);
 
-	/* When the functional clock disappears, too quick writes seem to
-	 * cause an abort. */
+	/*
+	 * When the functional clock disappears, too quick writes seem
+	 * to cause an abort. XXX Is this still necessary?
+	 */
 	__delay(150000);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_source);
 

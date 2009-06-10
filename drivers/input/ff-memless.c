@@ -226,7 +226,7 @@ static int get_compatible_type(struct ff_device *ff, int effect_type)
  */
 static void ml_combine_effects(struct ff_effect *effect,
 			       struct ml_effect_state *state,
-			       int gain)
+			       unsigned int gain)
 {
 	struct ff_effect *new = state->effect;
 	unsigned int strong, weak, i;

@@ -357,6 +357,7 @@ static void dpm_power_up(pm_message_t state)
 {
 	struct device *dev;
 
+	mutex_lock(&dpm_list_mtx);
 	list_for_each_entry(dev, &dpm_list, power.entry)
 		if (dev->power.status > DPM_OFF) {
 			int error;
@@ -366,6 +367,7 @@ static void dpm_power_up(pm_message_t state)
 			if (error)
 				pm_dev_err(dev, state, " early", error);
 		}
+	mutex_unlock(&dpm_list_mtx);
 }
 
 /**
@@ -614,6 +616,7 @@ int device_power_down(pm_message_t state)
 	int error = 0;
 
 	suspend_device_irqs();
+	mutex_lock(&dpm_list_mtx);
 	list_for_each_entry_reverse(dev, &dpm_list, power.entry) {
 		error = suspend_device_noirq(dev, state);
 		if (error) {
@@ -622,6 +625,7 @@ int device_power_down(pm_message_t state)
 		}
 		dev->power.status = DPM_OFF_IRQ;
 	}
+	mutex_unlock(&dpm_list_mtx);
 	if (error)
 		device_power_up(resume_event(state));
 	return error;

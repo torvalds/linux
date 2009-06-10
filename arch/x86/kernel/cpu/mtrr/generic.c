@@ -275,7 +275,11 @@ static void __init print_mtrr_state(void)
 	}
 	printk(KERN_DEBUG "MTRR variable ranges %sabled:\n",
 	       mtrr_state.enabled & 2 ? "en" : "dis");
-	high_width = ((size_or_mask ? ffs(size_or_mask) - 1 : 32) - (32 - PAGE_SHIFT) + 3) / 4;
+	if (size_or_mask & 0xffffffffUL)
+		high_width = ffs(size_or_mask & 0xffffffffUL) - 1;
+	else
+		high_width = ffs(size_or_mask>>32) + 32 - 1;
+	high_width = (high_width - (32 - PAGE_SHIFT) + 3) / 4;
 	for (i = 0; i < num_var_ranges; ++i) {
 		if (mtrr_state.var_ranges[i].mask_lo & (1 << 11))
 			printk(KERN_DEBUG "  %u base %0*X%05X000 mask %0*X%05X000 %s\n",

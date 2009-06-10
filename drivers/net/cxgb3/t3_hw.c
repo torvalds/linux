@@ -1274,6 +1274,11 @@ void t3_link_fault(struct adapter *adapter, int port_id)
 				 A_XGM_INT_STATUS + mac->offset);
 	link_fault &= F_LINKFAULTCHANGE;
 
+	link_ok = lc->link_ok;
+	speed = lc->speed;
+	duplex = lc->duplex;
+	fc = lc->fc;
+
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
 	if (link_fault) {
@@ -3779,7 +3784,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 
 	adapter->params.info = ai;
 	adapter->params.nports = ai->nports0 + ai->nports1;
-	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
+	adapter->params.chan_map = (!!ai->nports0) | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 	/*
 	 * We used to only run the "adapter check task" once a second if

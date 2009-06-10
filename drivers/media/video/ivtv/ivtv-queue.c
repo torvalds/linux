@@ -230,7 +230,8 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		return -ENOMEM;
 	}
 	if (ivtv_might_use_dma(s)) {
-		s->sg_handle = pci_map_single(itv->pdev, s->sg_dma, sizeof(struct ivtv_sg_element), s->dma);
+		s->sg_handle = pci_map_single(itv->pdev, s->sg_dma,
+				sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
 		ivtv_stream_sync_for_cpu(s);
 	}
 

@@ -30,8 +30,6 @@
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
 
-extern pte_t *kmap_pte;
-extern pgprot_t kmap_prot;
 extern pte_t *pkmap_page_table;
 
 /*
@@ -61,6 +59,10 @@ extern struct page *__kmap_atomic_to_page(void *ptr);
 #define kmap_atomic_to_page	__kmap_atomic_to_page
 
 #define flush_cache_kmaps()	flush_cache_all()
+
+extern void kmap_init(void);
+
+#define kmap_prot PAGE_KERNEL
 
 #endif /* __KERNEL__ */
 

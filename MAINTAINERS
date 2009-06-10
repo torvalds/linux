@@ -434,7 +434,7 @@ F:	arch/alpha/
 
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 P:	Thomas Dahlmann
-M:	thomas.dahlmann@amd.com
+M:	dahlmann.thomas@arcor.de
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/usb/gadget/amd5536udc.*
@@ -624,6 +624,7 @@ M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 T:	git git://gitorious.org/linux-gemini/mainline.git
 S:	Maintained
+F:	arch/arm/mach-gemini/
 
 ARM/EBSA110 MACHINE SUPPORT
 P:	Russell King
@@ -650,6 +651,7 @@ P:	Paulius Zaleckas
 M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
 P:	Russell King
@@ -1132,17 +1134,17 @@ F:	fs/bfs/
 F:	include/linux/bfs_fs.h
 
 BLACKFIN ARCHITECTURE
-P:	Bryan Wu
-M:	cooloney@kernel.org
+P:	Mike Frysinger
+M:	vapier@gentoo.org
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
-P:	Bryan Wu
-M:	cooloney@kernel.org
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+P:	Michael Hennerich
+M:	michael.hennerich@analog.com
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/net/bfin_mac.*
@@ -1150,7 +1152,7 @@ F:	drivers/net/bfin_mac.*
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/rtc/rtc-bfin.c
@@ -1158,7 +1160,7 @@ F:	drivers/rtc/rtc-bfin.c
 BLACKFIN SERIAL DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/serial/bfin_5xx.c
@@ -1166,7 +1168,7 @@ F:	drivers/serial/bfin_5xx.c
 BLACKFIN WATCHDOG DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/watchdog/bfin_wdt.c
@@ -1174,7 +1176,7 @@ F:	drivers/watchdog/bfin_wdt.c
 BLACKFIN I2C TWI DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
@@ -1431,6 +1433,14 @@ P:	Russell King
 M:	linux@arm.linux.org.uk
 F:	include/linux/clk.h
 
+CISCO FCOE HBA DRIVER
+P:	Abhijeet Joglekar
+M:	abjoglek@cisco.com
+P:	Joe Eykholt
+M:	jeykholt@cisco.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+
 CODA FILE SYSTEM
 P:	Jan Harkes
 M:	jaharkes@cs.cmu.edu
@@ -1531,6 +1541,13 @@ M:	kas@fi.muni.cz
 W:	http://www.fi.muni.cz/~kas/cosa/
 S:	Maintained
 F:	drivers/net/wan/cosa*
+
+CPMAC ETHERNET DRIVER
+P:	Florian Fainelli
+M:	florian@openwrt.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/cpmac.c
 
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
@@ -1963,8 +1980,8 @@ F:	include/linux/edac.h
 
 EDAC-E752X
 P:	Mark Gross
-P:	Doug Thompson
 M:	mark.gross@intel.com
+P:	Doug Thompson
 M:	dougthompson@xmission.com
 L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
@@ -2241,7 +2258,7 @@ P:	Li Yang
 M:	leoli@freescale.com
 P:	Zhang Wei
 M:	zw@zh-kernel.org
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/dma/fsldma.*
@@ -3434,11 +3451,10 @@ L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
-P:	Sylvain Munaut
-M:	tnt@246tNt.com
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
@@ -3456,6 +3472,7 @@ P:	Grant Likely
 M:	grant.likely@secretlab.ca
 W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
@@ -4189,7 +4206,7 @@ P:	Joel Becker
 M:	joel.becker@oracle.com
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git
 S:	Supported
 F:	Documentation/filesystems/ocfs2.txt
 F:	Documentation/filesystems/dlmfs.txt
@@ -4521,6 +4538,19 @@ M:	jim@jtan.com
 L:	cbe-oss-dev@ozlabs.org
 S:	Maintained
 
+PTRACE SUPPORT
+P:	Roland McGrath
+M:	roland@redhat.com
+P:	Oleg Nesterov
+M:	oleg@redhat.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	include/asm-generic/syscall.h
+F:	include/linux/ptrace.h
+F:	include/linux/regset.h
+F:	include/linux/tracehook.h
+F:	kernel/ptrace.c
+
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
 M:	isely@pobox.com
@@ -4666,13 +4696,13 @@ F:	kernel/rcutorture.c
 
 RDC R-321X SoC
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 RDC R6040 FAST ETHERNET DRIVER
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/r6040.c
@@ -5565,6 +5595,14 @@ P:	Ian Molton
 M:	ian@mnementh.co.uk
 S:	Maintained
 F:	drivers/mmc/host/tmio_mmc.*
+
+TMPFS (SHMEM FILESYSTEM)
+P:	Hugh Dickins
+M:	hugh.dickins@tiscali.co.uk
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	include/linux/shmem_fs.h
+F:	mm/shmem.c
 
 TPM DEVICE DRIVER
 P:	Debora Velarde

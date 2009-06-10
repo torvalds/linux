@@ -180,7 +180,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 
 		/* Wait for any DMA to finish */
 		prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
-		while (itv->i_flags & IVTV_F_I_DMA) {
+		while (test_bit(IVTV_F_I_DMA, &itv->i_flags)) {
 			got_sig = signal_pending(current);
 			if (got_sig)
 				break;
@@ -1710,7 +1710,8 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			   we are waiting unlock first and later lock again. */
 			mutex_unlock(&itv->serialize_lock);
 			prepare_to_wait(&itv->event_waitq, &wait, TASK_INTERRUPTIBLE);
-			if ((itv->i_flags & (IVTV_F_I_EV_DEC_STOPPED|IVTV_F_I_EV_VSYNC)) == 0)
+			if (!test_bit(IVTV_F_I_EV_DEC_STOPPED, &itv->i_flags) &&
+			    !test_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags))
 				schedule();
 			finish_wait(&itv->event_waitq, &wait);
 			mutex_lock(&itv->serialize_lock);

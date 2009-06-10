@@ -64,8 +64,7 @@ static struct gpio_chip gpiochip = {
 	.exported = 0, /* no exporting to userspace */
 };
 
-static int gpio_init(void)
+int s6_gpio_init(void)
 {
 	return gpiochip_add(&gpiochip);
 }
-device_initcall(gpio_init);

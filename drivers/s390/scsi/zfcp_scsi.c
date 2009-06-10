@@ -171,7 +171,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
 		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL,
 					  old_req_id);
-		return SUCCESS;
+		return FAILED; /* completion could be in progress */
 	}
 	old_req->data = NULL;
 
@@ -486,10 +486,12 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  */
 static void zfcp_scsi_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
-	struct zfcp_port *port = rport->dd_data;
+	struct zfcp_port *port;
 
 	write_lock_irq(&zfcp_data.config_lock);
-	port->rport = NULL;
+	port = rport->dd_data;
+	if (port)
+		port->rport = NULL;
 	write_unlock_irq(&zfcp_data.config_lock);
 }
 
@@ -503,9 +505,18 @@ static void zfcp_scsi_dev_loss_tmo_callbk(struct fc_rport *rport)
  */
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 {
-	struct zfcp_port *port = rport->dd_data;
+	struct zfcp_port *port;
 
-	zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
+	write_lock_irq(&zfcp_data.config_lock);
+	port = rport->dd_data;
+	if (port)
+		zfcp_port_get(port);
+	write_unlock_irq(&zfcp_data.config_lock);
+
+	if (port) {
+		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
+		zfcp_port_put(port);
+	}
 }
 
 static void zfcp_scsi_rport_register(struct zfcp_port *port)
@@ -534,8 +545,10 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 
 static void zfcp_scsi_rport_block(struct zfcp_port *port)
 {
-	if (port->rport)
-		fc_remote_port_delete(port->rport);
+	struct fc_rport *rport = port->rport;
+
+	if (rport)
+		fc_remote_port_delete(rport);
 }
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
@@ -582,6 +595,23 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 	zfcp_port_put(port);
 }
 
+
+void zfcp_scsi_scan(struct work_struct *work)
+{
+	struct zfcp_unit *unit = container_of(work, struct zfcp_unit,
+					      scsi_work);
+	struct fc_rport *rport;
+
+	flush_work(&unit->port->rport_work);
+	rport = unit->port->rport;
+
+	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
+		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
+				 scsilun_to_int((struct scsi_lun *)
+						&unit->fcp_lun), 0);
+
+	zfcp_unit_put(unit);
+}
 
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,

@@ -113,7 +113,7 @@ versions of the sysfs interface.
   "devices" directory at /sys/subsystem/<name>/devices.
 
   If /sys/subsystem exists, /sys/bus, /sys/class and /sys/block can be
-  ignored. If it does not exist, you have always to scan all three
+  ignored. If it does not exist, you always have to scan all three
   places, as the kernel is free to move a subsystem from one place to
   the other, as long as the devices are still reachable by the same
   subsystem name.

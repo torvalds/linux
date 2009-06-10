@@ -380,7 +380,7 @@ titan_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-titan_machine_check(u64 vector, u64 la_ptr)
+titan_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 	struct el_TITAN_sysdata_mcheck *tmchk =
@@ -702,7 +702,7 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 }
 
 void
-privateer_machine_check(u64 vector, u64 la_ptr)
+privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	struct el_common *mchk_header = (struct el_common *)la_ptr;
 	struct el_TITAN_sysdata_mcheck *tmchk =

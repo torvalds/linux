@@ -891,7 +891,6 @@ config DYNAMIC_DEBUG
 	default n
 	depends on PRINTK
 	depends on DEBUG_FS
-	select PRINTK_DEBUG
 	help
 
 	  Compiles debug level messages into the kernel, which would not

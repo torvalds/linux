@@ -225,6 +225,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (!(oflags & FMODE_READ))
 		write_only = true;
 
+	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, cifs_sb->tcon, posix_flags, mode,
 			pnetfid, presp_data, &oplock, full_path,
 			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
@@ -281,6 +282,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int create_options = CREATE_NOT_DIR;
 	int oplock = 0;
 	int oflags;
+	bool posix_create = false;
 	/*
 	 * BB below access is probably too much for mknod to request
 	 *    but we have to do query and setpathinfo so requesting
@@ -309,7 +311,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		return -ENOMEM;
 	}
 
-	mode &= ~current_umask();
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 
@@ -328,12 +329,14 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		   negotation.  EREMOTE indicates DFS junction, which is not
 		   handled in posix open */
 
-		if ((rc == 0) && (newinode == NULL))
-			goto cifs_create_get_file_info; /* query inode info */
-		else if (rc == 0) /* success, no need to query */
-			goto cifs_create_set_dentry;
-		else if ((rc != -EIO) && (rc != -EREMOTE) &&
-			 (rc != -EOPNOTSUPP)) /* path not found or net err */
+		if (rc == 0) {
+			posix_create = true;
+			if (newinode == NULL) /* query inode info */
+				goto cifs_create_get_file_info;
+			else /* success, no need to query */
+				goto cifs_create_set_dentry;
+		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
+			 (rc != -EOPNOTSUPP) && (rc != -EINVAL))
 			goto cifs_create_out;
 		/* else fallthrough to retry, using older open call, this is
 		   case where server does not support this SMB level, and
@@ -464,7 +467,7 @@ cifs_create_set_dentry:
 	if ((nd == NULL) || (!(nd->flags & LOOKUP_OPEN))) {
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
-	} else if (newinode) {
+	} else if (!(posix_create) && (newinode)) {
 			cifs_fill_fileinfo(newinode, fileHandle,
 					cifs_sb->tcon, write_only);
 	}
@@ -606,7 +609,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */
 	int oplock = 0;
-	int mode;
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
@@ -655,30 +657,36 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 	cFYI(1, ("Full path: %s inode = 0x%p", full_path, direntry->d_inode));
 
+	/* Posix open is only called (at lookup time) for file create now.
+	 * For opens (rather than creates), because we do not know if it
+	 * is a file or directory yet, and current Samba no longer allows
+	 * us to do posix open on dirs, we could end up wasting an open call
+	 * on what turns out to be a dir. For file opens, we wait to call posix
+	 * open till cifs_open.  It could be added here (lookup) in the future
+	 * but the performance tradeoff of the extra network request when EISDIR
+	 * or EACCES is returned would have to be weighed against the 50%
+	 * reduction in network traffic in the other paths.
+	 */
 	if (pTcon->unix_ext) {
 		if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
-				(nd->flags & LOOKUP_OPEN)) {
-			if (!((nd->intent.open.flags & O_CREAT) &&
-					(nd->intent.open.flags & O_EXCL))) {
-				mode = nd->intent.open.create_mode &
-						~current_umask();
-				rc = cifs_posix_open(full_path, &newInode,
-					parent_dir_inode->i_sb, mode,
+		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
+		     (nd->intent.open.flags & O_CREAT)) {
+			rc = cifs_posix_open(full_path, &newInode,
+					parent_dir_inode->i_sb,
+					nd->intent.open.create_mode,
 					nd->intent.open.flags, &oplock,
 					&fileHandle, xid);
-				/*
-				 * This code works around a bug in
-				 * samba posix open in samba versions 3.3.1
-				 * and earlier where create works
-				 * but open fails with invalid parameter.
-				 * If either of these error codes are
-				 * returned, follow the normal lookup.
-				 * Otherwise, the error during posix open
-				 * is handled.
-				 */
-				if ((rc != -EINVAL) && (rc != -EOPNOTSUPP))
-					posix_open = true;
-			}
+			/*
+			 * The check below works around a bug in POSIX
+			 * open in samba versions 3.3.1 and earlier where
+			 * open could incorrectly fail with invalid parameter.
+			 * If either that or op not supported returned, follow
+			 * the normal lookup.
+			 */
+			if ((rc == 0) || (rc == -ENOENT))
+				posix_open = true;
+			else if ((rc == -EINVAL) || (rc != -EOPNOTSUPP))
+				pTcon->broken_posix_open = true;
 		}
 		if (!posix_open)
 			rc = cifs_get_inode_info_unix(&newInode, full_path,

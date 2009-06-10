@@ -175,9 +175,13 @@ static void service_arp_queue(struct netpoll_info *npi)
 void netpoll_poll(struct netpoll *np)
 {
 	struct net_device *dev = np->dev;
-	const struct net_device_ops *ops = dev->netdev_ops;
+	const struct net_device_ops *ops;
 
-	if (!dev || !netif_running(dev) || !ops->ndo_poll_controller)
+	if (!dev || !netif_running(dev))
+		return;
+
+	ops = dev->netdev_ops;
+	if (!ops->ndo_poll_controller)
 		return;
 
 	/* Process pending work on NIC */

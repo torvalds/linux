@@ -979,22 +979,7 @@ static int bfin_mac_open(struct net_device *dev)
 	return 0;
 }
 
-static const struct net_device_ops bfin_mac_netdev_ops = {
-	.ndo_open		= bfin_mac_open,
-	.ndo_stop		= bfin_mac_close,
-	.ndo_start_xmit		= bfin_mac_hard_start_xmit,
-	.ndo_set_mac_address	= bfin_mac_set_mac_address,
-	.ndo_tx_timeout		= bfin_mac_timeout,
-	.ndo_set_multicast_list	= bfin_mac_set_multicast_list,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bfin_mac_poll,
-#endif
-};
-
 /*
- *
  * this makes the board clean up everything that it can
  * and not talk to the outside world.   Caused by
  * an 'ifconfig ethX down'
@@ -1018,6 +1003,20 @@ static int bfin_mac_close(struct net_device *dev)
 
 	return 0;
 }
+
+static const struct net_device_ops bfin_mac_netdev_ops = {
+	.ndo_open		= bfin_mac_open,
+	.ndo_stop		= bfin_mac_close,
+	.ndo_start_xmit		= bfin_mac_hard_start_xmit,
+	.ndo_set_mac_address	= bfin_mac_set_mac_address,
+	.ndo_tx_timeout		= bfin_mac_timeout,
+	.ndo_set_multicast_list	= bfin_mac_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= bfin_mac_poll,
+#endif
+};
 
 static int __devinit bfin_mac_probe(struct platform_device *pdev)
 {

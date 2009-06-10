@@ -2214,6 +2214,15 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 	dentry = lookup_one_len(name, cd->rd_fhp->fh_dentry, namlen);
 	if (IS_ERR(dentry))
 		return nfserrno(PTR_ERR(dentry));
+	if (!dentry->d_inode) {
+		/*
+		 * nfsd_buffered_readdir drops the i_mutex between
+		 * readdir and calling this callback, leaving a window
+		 * where this directory entry could have gone away.
+		 */
+		dput(dentry);
+		return nfserr_noent;
+	}
 
 	exp_get(exp);
 	/*
@@ -2276,6 +2285,7 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	struct nfsd4_readdir *cd = container_of(ccd, struct nfsd4_readdir, common);
 	int buflen;
 	__be32 *p = cd->buffer;
+	__be32 *cookiep;
 	__be32 nfserr = nfserr_toosmall;
 
 	/* In nfsv4, "." and ".." never make it onto the wire.. */
@@ -2292,7 +2302,7 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		goto fail;
 
 	*p++ = xdr_one;                             /* mark entry present */
-	cd->offset = p;                             /* remember pointer */
+	cookiep = p;
 	p = xdr_encode_hyper(p, NFS_OFFSET_MAX);    /* offset of next entry */
 	p = xdr_encode_array(p, name, namlen);      /* name length & name */
 
@@ -2306,6 +2316,8 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		goto fail;
 	case nfserr_dropit:
 		goto fail;
+	case nfserr_noent:
+		goto skip_entry;
 	default:
 		/*
 		 * If the client requested the RDATTR_ERROR attribute,
@@ -2324,6 +2336,8 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	}
 	cd->buflen -= (p - cd->buffer);
 	cd->buffer = p;
+	cd->offset = cookiep;
+skip_entry:
 	cd->common.err = nfs_ok;
 	return 0;
 fail:

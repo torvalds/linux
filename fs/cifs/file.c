@@ -129,31 +129,13 @@ static inline int cifs_posix_open_inode_helper(struct inode *inode,
 			struct file *file, struct cifsInodeInfo *pCifsInode,
 			struct cifsFileInfo *pCifsFile, int oplock, u16 netfid)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-/*	struct timespec temp; */   /* BB REMOVEME BB */
 
-	file->private_data = kmalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-	if (file->private_data == NULL)
-		return -ENOMEM;
-	pCifsFile = cifs_init_private(file->private_data, inode, file, netfid);
 	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);
 
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 	if (pCifsInode == NULL) {
 		write_unlock(&GlobalSMBSeslock);
 		return -EINVAL;
-	}
-
-	/* want handles we can use to read with first
-	   in the list so we do not have to walk the
-	   list to search for one in write_begin */
-	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
-		list_add_tail(&pCifsFile->flist,
-			      &pCifsInode->openFileList);
-	} else {
-		list_add(&pCifsFile->flist,
-			 &pCifsInode->openFileList);
 	}
 
 	if (pCifsInode->clientCanCacheRead) {
@@ -196,6 +178,38 @@ psx_client_can_cache:
 	   filemap_fdatawrite (which does not seem necessary */
 	write_unlock(&GlobalSMBSeslock);
 	return 0;
+}
+
+static struct cifsFileInfo *
+cifs_fill_filedata(struct file *file)
+{
+	struct list_head *tmp;
+	struct cifsFileInfo *pCifsFile = NULL;
+	struct cifsInodeInfo *pCifsInode = NULL;
+
+	/* search inode for this file and fill in file->private_data */
+	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
+	read_lock(&GlobalSMBSeslock);
+	list_for_each(tmp, &pCifsInode->openFileList) {
+		pCifsFile = list_entry(tmp, struct cifsFileInfo, flist);
+		if ((pCifsFile->pfile == NULL) &&
+		    (pCifsFile->pid == current->tgid)) {
+			/* mode set in cifs_create */
+
+			/* needed for writepage */
+			pCifsFile->pfile = file;
+			file->private_data = pCifsFile;
+			break;
+		}
+	}
+	read_unlock(&GlobalSMBSeslock);
+
+	if (file->private_data != NULL) {
+		return pCifsFile;
+	} else if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
+			cERROR(1, ("could not find file instance for "
+				   "new file %p", file));
+	return NULL;
 }
 
 /* all arguments to this function must be checked for validity in caller */
@@ -272,7 +286,6 @@ int cifs_open(struct inode *inode, struct file *file)
 	struct cifsTconInfo *tcon;
 	struct cifsFileInfo *pCifsFile;
 	struct cifsInodeInfo *pCifsInode;
-	struct list_head *tmp;
 	char *full_path = NULL;
 	int desiredAccess;
 	int disposition;
@@ -284,32 +297,12 @@ int cifs_open(struct inode *inode, struct file *file)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	tcon = cifs_sb->tcon;
 
-	/* search inode for this file and fill in file->private_data */
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
-	read_lock(&GlobalSMBSeslock);
-	list_for_each(tmp, &pCifsInode->openFileList) {
-		pCifsFile = list_entry(tmp, struct cifsFileInfo,
-				       flist);
-		if ((pCifsFile->pfile == NULL) &&
-		    (pCifsFile->pid == current->tgid)) {
-			/* mode set in cifs_create */
-
-			/* needed for writepage */
-			pCifsFile->pfile = file;
-
-			file->private_data = pCifsFile;
-			break;
-		}
-	}
-	read_unlock(&GlobalSMBSeslock);
-
-	if (file->private_data != NULL) {
-		rc = 0;
+	pCifsFile = cifs_fill_filedata(file);
+	if (pCifsFile) {
 		FreeXid(xid);
-		return rc;
-	} else if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
-			cERROR(1, ("could not find file instance for "
-				   "new file %p", file));
+		return 0;
+	}
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -339,6 +332,7 @@ int cifs_open(struct inode *inode, struct file *file)
 			/* no need for special case handling of setting mode
 			   on read only files needed here */
 
+			pCifsFile = cifs_fill_filedata(file);
 			cifs_posix_open_inode_helper(inode, file, pCifsInode,
 						     pCifsFile, oplock, netfid);
 			goto out;

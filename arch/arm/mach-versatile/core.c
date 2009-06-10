@@ -413,7 +413,7 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 	{	/* UART0 */
 		.dev_id		= "dev:f1",
 		.clk		= &ref24_clk,

@@ -2447,7 +2447,7 @@ static inline void free_SAs(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->cflows) {
 		/* let go of the SAs if we have them */
 		int i = 0;
-		for (;  i < pkt_dev->nflows; i++){
+		for (;  i < pkt_dev->cflows; i++) {
 			struct xfrm_state *x = pkt_dev->flows[i].x;
 			if (x) {
 				xfrm_state_put(x);

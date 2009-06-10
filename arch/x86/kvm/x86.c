@@ -338,6 +338,9 @@ EXPORT_SYMBOL_GPL(kvm_lmsw);
 
 void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
+	unsigned long old_cr4 = vcpu->arch.cr4;
+	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
+
 	if (cr4 & CR4_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr4: #GP, reserved bits\n");
 		kvm_inject_gp(vcpu, 0);
@@ -351,7 +354,8 @@ void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
-	} else if (is_paging(vcpu) && !is_pae(vcpu) && (cr4 & X86_CR4_PAE)
+	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
+		   && ((cr4 ^ old_cr4) & pdptr_bits)
 		   && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
 		printk(KERN_DEBUG "set_cr4: #GP, pdptrs reserved bits\n");
 		kvm_inject_gp(vcpu, 0);
@@ -1121,9 +1125,9 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 static int is_efer_nx(void)
 {
-	u64 efer;
+	unsigned long long efer = 0;
 
-	rdmsrl(MSR_EFER, efer);
+	rdmsrl_safe(MSR_EFER, &efer);
 	return efer & EFER_NX;
 }
 
@@ -1259,7 +1263,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		bit(X86_FEATURE_CMOV) | bit(X86_FEATURE_PSE36) |
 		bit(X86_FEATURE_MMX) | bit(X86_FEATURE_FXSR) |
 		bit(X86_FEATURE_SYSCALL) |
-		(bit(X86_FEATURE_NX) && is_efer_nx()) |
+		(is_efer_nx() ? bit(X86_FEATURE_NX) : 0) |
 #ifdef CONFIG_X86_64
 		bit(X86_FEATURE_LM) |
 #endif

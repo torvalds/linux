@@ -549,6 +549,7 @@ static void br2684_setup(struct net_device *netdev)
 	struct br2684_dev *brdev = BRPRIV(netdev);
 
 	ether_setup(netdev);
+	brdev->net_dev = netdev;
 
 	netdev->netdev_ops = &br2684_netdev_ops;
 

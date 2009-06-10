@@ -245,7 +245,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 }
 
 
-int __cpuinit mips_clockevent_init(void)
+int __cpuinit smtc_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();

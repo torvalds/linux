@@ -23,9 +23,12 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <mach/cputype.h>
 #include <mach/hardware.h>
 #include <mach/psc.h>
 #include <mach/mux.h>
+
+#define DAVINCI_PWR_SLEEP_CNTRL_BASE 0x01C41000
 
 /* PSC register offsets */
 #define EPCPR		0x070
@@ -36,102 +39,61 @@
 #define MDSTAT		0x800
 #define MDCTL		0xA00
 
-/* System control register offsets */
-#define VDD3P3V_PWDN	0x48
+#define MDSTAT_STATE_MASK 0x1f
 
-static void davinci_psc_mux(unsigned int id)
+/* Return nonzero iff the domain's clock is active */
+int __init davinci_psc_is_clk_active(unsigned int id)
 {
-	switch (id) {
-	case DAVINCI_LPSC_ATA:
-		davinci_mux_peripheral(DAVINCI_MUX_HDIREN, 1);
-		davinci_mux_peripheral(DAVINCI_MUX_ATAEN, 1);
-		break;
-	case DAVINCI_LPSC_MMC_SD:
-		/* VDD power manupulations are done in U-Boot for CPMAC
-		 * so applies to MMC as well
-		 */
-		/*Set up the pull regiter for MMC */
-		davinci_writel(0, DAVINCI_SYSTEM_MODULE_BASE + VDD3P3V_PWDN);
-		davinci_mux_peripheral(DAVINCI_MUX_MSTK, 0);
-		break;
-	case DAVINCI_LPSC_I2C:
-		davinci_mux_peripheral(DAVINCI_MUX_I2C, 1);
-		break;
-	case DAVINCI_LPSC_McBSP:
-		davinci_mux_peripheral(DAVINCI_MUX_ASP, 1);
-		break;
-	default:
-		break;
-	}
+	void __iomem *psc_base = IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE);
+	u32 mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
+
+	/* if clocked, state can be "Enable" or "SyncReset" */
+	return mdstat & BIT(12);
 }
 
 /* Enable or disable a PSC domain */
 void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
 {
-	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl, mdstat_mask;
+	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl;
+	void __iomem *psc_base = IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE);
+	u32 next_state = enable ? 0x3 : 0x2; /* 0x3 enables, 0x2 disables */
 
-	mdctl = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
-	if (enable)
-		mdctl |= 0x00000003;	/* Enable Module */
-	else
-		mdctl &= 0xFFFFFFF2;	/* Disable Module */
-	davinci_writel(mdctl, DAVINCI_PWR_SLEEP_CNTRL_BASE + MDCTL + 4 * id);
+	mdctl = __raw_readl(psc_base + MDCTL + 4 * id);
+	mdctl &= ~MDSTAT_STATE_MASK;
+	mdctl |= next_state;
+	__raw_writel(mdctl, psc_base + MDCTL + 4 * id);
 
-	pdstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDSTAT);
+	pdstat = __raw_readl(psc_base + PDSTAT);
 	if ((pdstat & 0x00000001) == 0) {
-		pdctl1 = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		pdctl1 = __raw_readl(psc_base + PDCTL1);
 		pdctl1 |= 0x1;
-		davinci_writel(pdctl1, DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		__raw_writel(pdctl1, psc_base + PDCTL1);
 
 		ptcmd = 1 << domain;
-		davinci_writel(ptcmd, DAVINCI_PWR_SLEEP_CNTRL_BASE + PTCMD);
+		__raw_writel(ptcmd, psc_base + PTCMD);
 
 		do {
-			epcpr = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
-					      EPCPR);
+			epcpr = __raw_readl(psc_base + EPCPR);
 		} while ((((epcpr >> domain) & 1) == 0));
 
-		pdctl1 = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		pdctl1 = __raw_readl(psc_base + PDCTL1);
 		pdctl1 |= 0x100;
-		davinci_writel(pdctl1, DAVINCI_PWR_SLEEP_CNTRL_BASE + PDCTL1);
+		__raw_writel(pdctl1, psc_base + PDCTL1);
 
 		do {
-			ptstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
+			ptstat = __raw_readl(psc_base +
 					       PTSTAT);
 		} while (!(((ptstat >> domain) & 1) == 0));
 	} else {
 		ptcmd = 1 << domain;
-		davinci_writel(ptcmd, DAVINCI_PWR_SLEEP_CNTRL_BASE + PTCMD);
+		__raw_writel(ptcmd, psc_base + PTCMD);
 
 		do {
-			ptstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
-					       PTSTAT);
+			ptstat = __raw_readl(psc_base + PTSTAT);
 		} while (!(((ptstat >> domain) & 1) == 0));
 	}
 
-	if (enable)
-		mdstat_mask = 0x3;
-	else
-		mdstat_mask = 0x2;
-
 	do {
-		mdstat = davinci_readl(DAVINCI_PWR_SLEEP_CNTRL_BASE +
-				       MDSTAT + 4 * id);
-	} while (!((mdstat & 0x0000001F) == mdstat_mask));
-
-	if (enable)
-		davinci_psc_mux(id);
-}
-
-void __init davinci_psc_init(void)
-{
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_VPSSMSTR, 1);
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_VPSSSLV, 1);
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_TPCC, 1);
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_TPTC0, 1);
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_TPTC1, 1);
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_GPIO, 1);
-
-	/* Turn on WatchDog timer LPSC.	 Needed for RESET to work */
-	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_TIMER2, 1);
+		mdstat = __raw_readl(psc_base + MDSTAT + 4 * id);
+	} while (!((mdstat & MDSTAT_STATE_MASK) == next_state));
 }

@@ -1768,10 +1768,10 @@ static int __end_that_request_first(struct request *req, int error,
 		} else {
 			int idx = bio->bi_idx + next_idx;
 
-			if (unlikely(bio->bi_idx >= bio->bi_vcnt)) {
+			if (unlikely(idx >= bio->bi_vcnt)) {
 				blk_dump_rq_flags(req, "__end_that");
 				printk(KERN_ERR "%s: bio idx %d >= vcnt %d\n",
-				       __func__, bio->bi_idx, bio->bi_vcnt);
+				       __func__, idx, bio->bi_vcnt);
 				break;
 			}
 

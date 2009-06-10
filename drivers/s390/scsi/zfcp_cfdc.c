@@ -4,7 +4,7 @@
  * Userspace interface for accessing the
  * Access Control Lists / Control File Data Channel
  *
- * Copyright IBM Corporation 2008
+ * Copyright IBM Corporation 2008, 2009
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -197,6 +197,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		retval = -ENXIO;
 		goto free_buffer;
 	}
+	zfcp_adapter_get(adapter);
 
 	retval = zfcp_cfdc_sg_setup(data->command, fsf_cfdc->sg,
 				    data_user->control_file);

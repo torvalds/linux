@@ -482,19 +482,19 @@ fault:
 		return;
 
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	send_sig(SIGSEGV, current, 1);
+	force_sig(SIGSEGV, current);
 
 	return;
 
 sigbus:
 	die_if_kernel("Unhandled kernel unaligned access", regs);
-	send_sig(SIGBUS, current, 1);
+	force_sig(SIGBUS, current);
 
 	return;
 
 sigill:
 	die_if_kernel("Unhandled kernel unaligned access or invalid instruction", regs);
-	send_sig(SIGILL, current, 1);
+	force_sig(SIGILL, current);
 }
 
 asmlinkage void do_ade(struct pt_regs *regs)

@@ -87,7 +87,7 @@ SECTIONS
   {
     /* The HEAD_TEXT section must be the first section! */
     HEAD_TEXT
-    *(.literal .text)
+    TEXT_TEXT
     VMLINUX_SYMBOL(__sched_text_start) = .;
     *(.sched.literal .sched.text)
     VMLINUX_SYMBOL(__sched_text_end) = .;
@@ -139,8 +139,6 @@ SECTIONS
   __init_begin = .;
   .init.text : {
   	_sinittext = .;
-	*(.init.literal) *(.cpuinit.literal) 
-	*(.devinit.literal) *(.meminit.literal)
 	INIT_TEXT
 	_einittext = .;
   }

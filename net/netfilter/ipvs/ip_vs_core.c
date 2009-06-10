@@ -278,7 +278,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 */
 		if (svc->fwmark) {
 			union nf_inet_addr fwmark = {
-				.all = { 0, 0, 0, htonl(svc->fwmark) }
+				.ip = htonl(svc->fwmark)
 			};
 
 			ct = ip_vs_ct_in_get(svc->af, IPPROTO_IP, &snet, 0,
@@ -306,7 +306,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			 */
 			if (svc->fwmark) {
 				union nf_inet_addr fwmark = {
-					.all = { 0, 0, 0, htonl(svc->fwmark) }
+					.ip = htonl(svc->fwmark)
 				};
 
 				ct = ip_vs_conn_new(svc->af, IPPROTO_IP,

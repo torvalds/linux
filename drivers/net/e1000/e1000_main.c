@@ -3738,7 +3738,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, icr = er32(ICR);
 
-	if (unlikely((!icr) || test_bit(__E1000_RESETTING, &adapter->flags)))
+	if (unlikely((!icr) || test_bit(__E1000_DOWN, &adapter->flags)))
 		return IRQ_NONE;  /* Not our interrupt */
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
@@ -4027,8 +4027,9 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		                 PCI_DMA_FROMDEVICE);
 
 		length = le16_to_cpu(rx_desc->length);
-
-		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
+		/* !EOP means multiple descriptors were used to store a single
+		 * packet, also make sure the frame isn't just CRC only */
+		if (unlikely(!(status & E1000_RXD_STAT_EOP) || (length <= 4))) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);

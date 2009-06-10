@@ -472,7 +472,7 @@ static inline void xt_info_rdlock_bh(void)
 
 	local_bh_disable();
 	lock = &__get_cpu_var(xt_info_locks);
-	if (!lock->readers++)
+	if (likely(!lock->readers++))
 		spin_lock(&lock->lock);
 }
 
@@ -480,7 +480,7 @@ static inline void xt_info_rdunlock_bh(void)
 {
 	struct xt_info_lock *lock = &__get_cpu_var(xt_info_locks);
 
-	if (!--lock->readers)
+	if (likely(!--lock->readers))
 		spin_unlock(&lock->lock);
 	local_bh_enable();
 }

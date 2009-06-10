@@ -165,11 +165,11 @@ char *tomoyo_realpath_from_path(struct path *path)
  */
 char *tomoyo_realpath(const char *pathname)
 {
-	struct nameidata nd;
+	struct path path;
 
-	if (pathname && path_lookup(pathname, LOOKUP_FOLLOW, &nd) == 0) {
-		char *buf = tomoyo_realpath_from_path(&nd.path);
-		path_put(&nd.path);
+	if (pathname && kern_path(pathname, LOOKUP_FOLLOW, &path) == 0) {
+		char *buf = tomoyo_realpath_from_path(&path);
+		path_put(&path);
 		return buf;
 	}
 	return NULL;
@@ -184,11 +184,11 @@ char *tomoyo_realpath(const char *pathname)
  */
 char *tomoyo_realpath_nofollow(const char *pathname)
 {
-	struct nameidata nd;
+	struct path path;
 
-	if (pathname && path_lookup(pathname, 0, &nd) == 0) {
-		char *buf = tomoyo_realpath_from_path(&nd.path);
-		path_put(&nd.path);
+	if (pathname && kern_path(pathname, 0, &path) == 0) {
+		char *buf = tomoyo_realpath_from_path(&path);
+		path_put(&path);
 		return buf;
 	}
 	return NULL;

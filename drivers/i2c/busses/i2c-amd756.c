@@ -126,7 +126,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 		} while ((temp & (GS_HST_STS | GS_SMB_STS)) &&
 		         (timeout++ < MAX_TIMEOUT));
 		/* If the SMBus is still busy, we give up */
-		if (timeout >= MAX_TIMEOUT) {
+		if (timeout > MAX_TIMEOUT) {
 			dev_dbg(&adap->dev, "Busy wait timeout (%04x)\n", temp);
 			goto abort;
 		}
@@ -143,7 +143,7 @@ static int amd756_transaction(struct i2c_adapter *adap)
 	} while ((temp & GS_HST_STS) && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout >= MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "Completion timeout!\n");
 		goto abort;
 	}

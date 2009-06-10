@@ -192,16 +192,20 @@ config EDAC_PPC4XX
 
 config EDAC_AMD8131
 	tristate "AMD8131 HyperTransport PCI-X Tunnel"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && PPC_MAPLE
 	help
 	  Support for error detection and correction on the
 	  AMD8131 HyperTransport PCI-X Tunnel chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
 
 config EDAC_AMD8111
 	tristate "AMD8111 HyperTransport I/O Hub"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && PPC_MAPLE
 	help
 	  Support for error detection and correction on the
 	  AMD8111 HyperTransport I/O Hub chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
 
 endif # EDAC

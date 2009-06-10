@@ -774,6 +774,7 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = __cafe_cam_reset(cam);
 	if (ret)
 		goto out;
+	chip.ident = V4L2_IDENT_NONE;
 	chip.match.type = V4L2_CHIP_MATCH_I2C_ADDR;
 	chip.match.addr = cam->sensor_addr;
 	ret = sensor_call(cam, core, g_chip_ident, &chip);

@@ -713,7 +713,7 @@ done:
 static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 {
 	struct fc_fcp_pkt *fsp = (struct fc_fcp_pkt *)arg;
-	struct fc_lport *lp;
+	struct fc_lport *lport = fsp->lp;
 	struct fc_frame_header *fh;
 	struct fcp_txrdy *dd;
 	u8 r_ctl;
@@ -724,9 +724,8 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
-	lp = fsp->lp;
 
-	if (!(lp->state & LPORT_ST_READY))
+	if (!(lport->state & LPORT_ST_READY))
 		goto out;
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
@@ -779,7 +778,7 @@ errout:
 	if (IS_ERR(fp))
 		fc_fcp_error(fsp, fp);
 	else if (rc == -ENOMEM)
-		fc_fcp_reduce_can_queue(lp);
+		fc_fcp_reduce_can_queue(lport);
 }
 
 static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)

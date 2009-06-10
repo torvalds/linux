@@ -714,7 +714,7 @@ static int __init npe_init_module(void)
 	}
 
 	if (!found)
-		return -ENOSYS;
+		return -ENODEV;
 	return 0;
 }
 

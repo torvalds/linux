@@ -225,3 +225,31 @@ config HAVE_MLOCKED_PAGE_BIT
 
 config MMU_NOTIFIER
 	bool
+
+config NOMMU_INITIAL_TRIM_EXCESS
+	int "Turn on mmap() excess space trimming before booting"
+	depends on !MMU
+	default 1
+	help
+	  The NOMMU mmap() frequently needs to allocate large contiguous chunks
+	  of memory on which to store mappings, but it can only ask the system
+	  allocator for chunks in 2^N*PAGE_SIZE amounts - which is frequently
+	  more than it requires.  To deal with this, mmap() is able to trim off
+	  the excess and return it to the allocator.
+
+	  If trimming is enabled, the excess is trimmed off and returned to the
+	  system allocator, which can cause extra fragmentation, particularly
+	  if there are a lot of transient processes.
+
+	  If trimming is disabled, the excess is kept, but not used, which for
+	  long-term mappings means that the space is wasted.
+
+	  Trimming can be dynamically controlled through a sysctl option
+	  (/proc/sys/vm/nr_trim_pages) which specifies the minimum number of
+	  excess pages there must be before trimming should occur, or zero if
+	  no trimming is to occur.
+
+	  This option specifies the initial value of this option.  The default
+	  of 1 says that all excess pages should be trimmed.
+
+	  See Documentation/nommu-mmap.txt for more information.

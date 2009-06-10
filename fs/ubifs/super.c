@@ -2055,8 +2055,7 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	return 0;
 
 out_deact:
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	deactivate_locked_super(sb);
 out_close:
 	ubi_close_volume(ubi);
 	return err;

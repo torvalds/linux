@@ -81,10 +81,7 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = cpu_rate/2;
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
+unsigned int __init get_c0_compare_int(void)
 {
-#ifdef CONFIG_IRQ_MSP_CIC
-	/* we are using the vpe0 counter for timer interrupts */
-	setup_irq(MSP_INT_VPE0_TIMER, irq);
-#endif
+	return MSP_INT_VPE0_TIMER;
 }

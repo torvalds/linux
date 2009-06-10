@@ -40,12 +40,6 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
-#ifdef CONFIG_CRAMFS
-#include <linux/cramfs_fs.h>
-#endif
-#ifdef CONFIG_SQUASHFS
-#include <linux/squashfs_fs.h>
-#endif
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -435,10 +429,6 @@ struct prom_pmemblock *__init prom_getmdesc(void)
 	char		*str;
 	unsigned int	memsize;
 	unsigned int	heaptop;
-#ifdef CONFIG_MTD_PMC_MSP_RAMROOT
-	void		*ramroot_start;
-	unsigned long	ramroot_size;
-#endif
 	int i;
 
 	str = prom_getenv(memsz_env);
@@ -506,19 +496,7 @@ struct prom_pmemblock *__init prom_getmdesc(void)
 	i++;			/* 3 */
 	mdesc[i].type = BOOT_MEM_RESERVED;
 	mdesc[i].base = CPHYSADDR((u32)_text);
-#ifdef CONFIG_MTD_PMC_MSP_RAMROOT
-	if (get_ramroot(&ramroot_start, &ramroot_size)) {
-		/*
-		 * Rootfs in RAM -- follows kernel
-		 * Combine rootfs image with kernel block so a
-		 * page (4k) isn't wasted between memory blocks
-		 */
-		mdesc[i].size = CPHYSADDR(PAGE_ALIGN(
-			(u32)ramroot_start + ramroot_size)) - mdesc[i].base;
-	} else
-#endif
-		mdesc[i].size = CPHYSADDR(PAGE_ALIGN(
-			(u32)_end)) - mdesc[i].base;
+	mdesc[i].size = CPHYSADDR(PAGE_ALIGN((u32)_end)) - mdesc[i].base;
 
 	/* Remainder of RAM -- under memsize */
 	i++;			/* 5 */
@@ -528,39 +506,3 @@ struct prom_pmemblock *__init prom_getmdesc(void)
 
 	return &mdesc[0];
 }
-
-/* rootfs functions */
-#ifdef CONFIG_MTD_PMC_MSP_RAMROOT
-bool get_ramroot(void **start, unsigned long *size)
-{
-	extern char _end[];
-
-	/* Check for start following the end of the kernel */
-	void *check_start = (void *)_end;
-
-	/* Check for supported rootfs types */
-#ifdef CONFIG_CRAMFS
-	if (*(__u32 *)check_start == CRAMFS_MAGIC) {
-		/* Get CRAMFS size */
-		*start = check_start;
-		*size = PAGE_ALIGN(((struct cramfs_super *)
-				   check_start)->size);
-
-		return true;
-	}
-#endif
-#ifdef CONFIG_SQUASHFS
-	if (*((unsigned int *)check_start) == SQUASHFS_MAGIC) {
-		/* Get SQUASHFS size */
-		*start = check_start;
-		*size = PAGE_ALIGN(((struct squashfs_super_block *)
-				   check_start)->bytes_used);
-
-		return true;
-	}
-#endif
-
-	return false;
-}
-EXPORT_SYMBOL(get_ramroot);
-#endif

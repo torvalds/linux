@@ -120,20 +120,26 @@ static void clear_ddp_map(struct cxgb3i_ddp_info *ddp, unsigned int tag,
 }
 
 static inline int ddp_find_unused_entries(struct cxgb3i_ddp_info *ddp,
-					  int start, int max, int count,
+					  unsigned int start, unsigned int max,
+					  unsigned int count,
 					  struct cxgb3i_gather_list *gl)
 {
-	unsigned int i, j;
+	unsigned int i, j, k;
 
+	/* not enough entries */
+	if ((max - start) < count)
+		return -EBUSY;
+
+	max -= count;
 	spin_lock(&ddp->map_lock);
-	for (i = start; i <= max;) {
-		for (j = 0; j < count; j++) {
-			if (ddp->gl_map[i + j])
+	for (i = start; i < max;) {
+		for (j = 0, k = i; j < count; j++, k++) {
+			if (ddp->gl_map[k])
 				break;
 		}
 		if (j == count) {
-			for (j = 0; j < count; j++)
-				ddp->gl_map[i + j] = gl;
+			for (j = 0, k = i; j < count; j++, k++)
+				ddp->gl_map[k] = gl;
 			spin_unlock(&ddp->map_lock);
 			return i;
 		}
@@ -354,7 +360,7 @@ int cxgb3i_ddp_tag_reserve(struct t3cdev *tdev, unsigned int tid,
 	struct cxgb3i_ddp_info *ddp = tdev->ulp_iscsi;
 	struct pagepod_hdr hdr;
 	unsigned int npods;
-	int idx = -1, idx_max;
+	int idx = -1;
 	int err = -ENOMEM;
 	u32 sw_tag = *tagp;
 	u32 tag;
@@ -367,17 +373,17 @@ int cxgb3i_ddp_tag_reserve(struct t3cdev *tdev, unsigned int tid,
 	}
 
 	npods = (gl->nelem + PPOD_PAGES_MAX - 1) >> PPOD_PAGES_SHIFT;
-	idx_max = ddp->nppods - npods + 1;
 
 	if (ddp->idx_last == ddp->nppods)
-		idx = ddp_find_unused_entries(ddp, 0, idx_max, npods, gl);
+		idx = ddp_find_unused_entries(ddp, 0, ddp->nppods, npods, gl);
 	else {
 		idx = ddp_find_unused_entries(ddp, ddp->idx_last + 1,
-					      idx_max, npods, gl);
-		if (idx < 0 && ddp->idx_last >= npods)
+					      ddp->nppods, npods, gl);
+		if (idx < 0 && ddp->idx_last >= npods) {
 			idx = ddp_find_unused_entries(ddp, 0,
-						      ddp->idx_last - npods + 1,
+				min(ddp->idx_last + npods, ddp->nppods),
 						      npods, gl);
+		}
 	}
 	if (idx < 0) {
 		ddp_log_debug("xferlen %u, gl %u, npods %u NO DDP.\n",

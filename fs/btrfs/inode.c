@@ -3122,6 +3122,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->flags = 0;
 	bi->index_cnt = (u64)-1;
 	bi->last_unlink_trans = 0;
+	bi->ordered_data_close = 0;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);
@@ -4295,7 +4296,6 @@ out:
 	}
 	if (err) {
 		free_extent_map(em);
-		WARN_ON(1);
 		return ERR_PTR(err);
 	}
 	return em;

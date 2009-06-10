@@ -130,8 +130,6 @@ struct jsm_board
 	struct pci_dev	*pci_dev;
 	u32		maxports;	/* MAX ports this board can handle */
 
-	spinlock_t	bd_lock;	/* Used to protect board */
-
 	spinlock_t	bd_intr_lock;	/* Used to protect the poller tasklet and
 					 * the interrupt routine from each other.
 					 */

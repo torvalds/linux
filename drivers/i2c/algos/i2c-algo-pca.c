@@ -287,10 +287,21 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 
 		case 0x30: /* Data byte in I2CDAT has been transmitted; NOT ACK has been received */
 			DEB2("NOT ACK received after data byte\n");
+			pca_stop(adap);
 			goto out;
 
 		case 0x38: /* Arbitration lost during SLA+W, SLA+R or data bytes */
 			DEB2("Arbitration lost\n");
+			/*
+			 * The PCA9564 data sheet (2006-09-01) says "A
+			 * START condition will be transmitted when the
+			 * bus becomes free (STOP or SCL and SDA high)"
+			 * when the STA bit is set (p. 11).
+			 *
+			 * In case this won't work, try pca_reset()
+			 * instead.
+			 */
+			pca_start(adap);
 			goto out;
 
 		case 0x58: /* Data byte has been received; NOT ACK has been returned */

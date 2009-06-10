@@ -97,9 +97,7 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	ccw_device_set_online(adapter->ccw_device);
 
 	zfcp_erp_wait(adapter);
-	wait_event(adapter->erp_done_wqh,
-		   !(atomic_read(&unit->status) &
-				ZFCP_STATUS_UNIT_SCSI_WORK_PENDING));
+	flush_work(&unit->scsi_work);
 
 	down(&zfcp_data.config_sema);
 	zfcp_unit_put(unit);
@@ -279,6 +277,7 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 
 	atomic_set(&unit->refcount, 0);
 	init_waitqueue_head(&unit->remove_wq);
+	INIT_WORK(&unit->scsi_work, zfcp_scsi_scan);
 
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
@@ -525,6 +524,8 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
+	zfcp_fc_nameserver_init(adapter);
+
 	if (!zfcp_adapter_scsi_register(adapter))
 		return 0;
 
@@ -553,7 +554,6 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 
 	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
-	cancel_delayed_work_sync(&adapter->nsp.work);
 	zfcp_adapter_scsi_unregister(adapter);
 	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
 			   &zfcp_sysfs_adapter_attrs);
@@ -671,8 +671,7 @@ void zfcp_port_dequeue(struct zfcp_port *port)
 	list_del(&port->list);
 	write_unlock_irq(&zfcp_data.config_lock);
 	if (port->rport)
-		fc_remote_port_delete(port->rport);
-	port->rport = NULL;
+		port->rport->dd_data = NULL;
 	zfcp_adapter_put(port->adapter);
 	sysfs_remove_group(&port->sysfs_device.kobj, &zfcp_sysfs_port_attrs);
 	device_unregister(&port->sysfs_device);

@@ -78,13 +78,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	trace_hardirqs_off();
 
 	/*
-	 * the primary core may have used a "cross call" soft interrupt
-	 * to get this processor out of WFI in the BootMonitor - make
-	 * sure that we are no longer being sent this soft interrupt
-	 */
-	smp_cross_call_done(cpumask_of_cpu(cpu));
-
-	/*
 	 * if any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
@@ -136,7 +129,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Use smp_cross_call() for this, since there's little
 	 * point duplicating the code here
 	 */
-	smp_cross_call(cpumask_of_cpu(cpu));
+	smp_cross_call(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -224,11 +217,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
-#ifdef CONFIG_LOCAL_TIMERS
+#if defined(CONFIG_LOCAL_TIMERS) || defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 	/*
-	 * Enable the local timer for primary CPU. If the device is
-	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
-	 * realview_timer_init
+	 * Enable the local timer or broadcast device for the boot CPU.
 	 */
 	local_timer_setup();
 #endif

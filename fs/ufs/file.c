@@ -30,7 +30,7 @@
 #include "ufs.h"
 
 
-static int ufs_sync_file(struct file *file, struct dentry *dentry, int datasync)
+int ufs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	int err;

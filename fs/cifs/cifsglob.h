@@ -82,8 +82,8 @@ enum securityEnum {
 	LANMAN,			/* Legacy LANMAN auth */
 	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
-	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
-	NTLMSSP,		/* NTLMSSP via SPNEGO */
+	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
+	NTLMSSP,		/* NTLMSSP via SPNEGO, NTLMv2 hash */
 	Kerberos,		/* Kerberos via SPNEGO */
 	MSKerberos,		/* MS Kerberos via SPNEGO */
 };
@@ -531,6 +531,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFSSEC_MAY_PLNTXT    0
 #endif /* weak passwords */
 #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
+#define   CIFSSEC_MAY_NTLMSSP	0x00080 /* raw ntlmssp with ntlmv2 */
 
 #define   CIFSSEC_MUST_SIGN	0x01001
 /* note that only one of the following can be set so the
@@ -543,22 +544,23 @@ require use of the stronger protocol */
 #define   CIFSSEC_MUST_LANMAN	0x10010
 #define   CIFSSEC_MUST_PLNTXT	0x20020
 #ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0x3F03F /* allows weak security but also krb5 */
+#define   CIFSSEC_MASK          0xAF0AF /* allows weak security but also krb5 */
 #else
-#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#define   CIFSSEC_MASK          0xA70A7 /* current flags supported if weak */
 #endif /* UPCALL */
 #else /* do not allow weak pw hash */
 #ifdef CONFIG_CIFS_UPCALL
-#define   CIFSSEC_MASK          0x0F00F /* flags supported if no weak allowed */
+#define   CIFSSEC_MASK          0x8F08F /* flags supported if no weak allowed */
 #else
-#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak allowed */
+#define	  CIFSSEC_MASK          0x87087 /* flags supported if no weak allowed */
 #endif /* UPCALL */
 #endif /* WEAK_PW_HASH */
 #define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
+#define   CIFSSEC_MUST_NTLMSSP	0x80080 /* raw ntlmssp with ntlmv2 */
 
 #define   CIFSSEC_DEF (CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2)
 #define   CIFSSEC_MAX (CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2)
-#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5)
+#define   CIFSSEC_AUTH_MASK (CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2 | CIFSSEC_MAY_LANMAN | CIFSSEC_MAY_PLNTXT | CIFSSEC_MAY_KRB5 | CIFSSEC_MAY_NTLMSSP)
 /*
  *****************************************************************
  * All constants go here

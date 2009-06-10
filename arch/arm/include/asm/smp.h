@@ -53,17 +53,12 @@ extern void smp_store_cpu_info(unsigned int cpuid);
 /*
  * Raise an IPI cross call on CPUs in callmap.
  */
-extern void smp_cross_call(cpumask_t callmap);
-
-/*
- * Broadcast a timer interrupt to the other CPUs.
- */
-extern void smp_send_timer(void);
+extern void smp_cross_call(const struct cpumask *mask);
 
 /*
  * Broadcast a clock event to other CPUs.
  */
-extern void smp_timer_broadcast(cpumask_t mask);
+extern void smp_timer_broadcast(const struct cpumask *mask);
 
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
@@ -102,7 +97,8 @@ extern int platform_cpu_kill(unsigned int cpu);
 extern void platform_cpu_enable(unsigned int cpu);
 
 extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi(cpumask_t mask);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+#define arch_send_call_function_ipi_mask arch_send_call_function_ipi_mask
 
 /*
  * Local timer interrupt handling function (can be IPI'ed).

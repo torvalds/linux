@@ -4,6 +4,7 @@
  * compatible drivers/servers. */
 #include <linux/types.h>
 #include <linux/virtio_config.h>
+#include <linux/if_ether.h>
 
 /* The ID for virtio_net */
 #define VIRTIO_ID_NET	1

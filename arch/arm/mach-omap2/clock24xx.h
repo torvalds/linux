@@ -625,6 +625,14 @@ static struct clk func_32k_ck = {
 	.clkdm_name	= "wkup_clkdm",
 };
 
+static struct clk secure_32k_ck = {
+	.name		= "secure_32k_ck",
+	.ops		= &clkops_null,
+	.rate		= 32768,
+	.flags		= RATE_FIXED,
+	.clkdm_name	= "wkup_clkdm",
+};
+
 /* Typical 12/13MHz in standalone mode, will be 26Mhz in chassis mode */
 static struct clk osc_ck = {		/* (*12, *13, 19.2, *26, 38.4)MHz */
 	.name		= "osc_ck",
@@ -1790,7 +1798,7 @@ static struct clk gpt12_ick = {
 static struct clk gpt12_fck = {
 	.name		= "gpt12_fck",
 	.ops		= &clkops_omap2_dflt_wait,
-	.parent		= &func_32k_ck,
+	.parent		= &secure_32k_ck,
 	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP24XX_EN_GPT12_SHIFT,

@@ -43,8 +43,6 @@ core-y					+= arch/avr32/mm/
 drivers-$(CONFIG_OPROFILE)		+= arch/avr32/oprofile/
 libs-y					+= arch/avr32/lib/
 
-CLEAN_FILES += include/asm-avr32/.arch include/asm-avr32/arch
-
 BOOT_TARGETS := vmlinux.elf vmlinux.bin uImage uImage.srec
 
 .PHONY: $(BOOT_TARGETS) install

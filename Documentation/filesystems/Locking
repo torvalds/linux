@@ -512,16 +512,24 @@ locking rules:
 		BKL	mmap_sem	PageLocked(page)
 open:		no	yes
 close:		no	yes
-fault:		no	yes
-page_mkwrite:	no	yes		no
+fault:		no	yes		can return with page locked
+page_mkwrite:	no	yes		can return with page locked
 access:		no	yes
 
-	->page_mkwrite() is called when a previously read-only page is
-about to become writeable. The file system is responsible for
-protecting against truncate races. Once appropriate action has been
-taking to lock out truncate, the page range should be verified to be
-within i_size. The page mapping should also be checked that it is not
-NULL.
+	->fault() is called when a previously not present pte is about
+to be faulted in. The filesystem must find and return the page associated
+with the passed in "pgoff" in the vm_fault structure. If it is possible that
+the page may be truncated and/or invalidated, then the filesystem must lock
+the page, then ensure it is not already truncated (the page lock will block
+subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
+locked. The VM will unlock the page.
+
+	->page_mkwrite() is called when a previously read-only pte is
+about to become writeable. The filesystem again must ensure that there are
+no truncate/invalidate races, and then return with the page locked. If
+the page has been truncated, the filesystem should not look up a new page
+like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
+will cause the VM to retry the fault.
 
 	->access() is called when get_user_pages() fails in
 acces_process_vm(), typically used to debug a process through
