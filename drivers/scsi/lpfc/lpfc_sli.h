@@ -56,6 +56,7 @@ struct lpfc_iocbq {
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
 #define LPFC_DELAY_MEM_FREE	0x20    /* Defer free'ing of FC data */
+#define LPFC_FIP_ELS		0x40
 
 	uint8_t abort_count;
 	uint8_t rsvd2;

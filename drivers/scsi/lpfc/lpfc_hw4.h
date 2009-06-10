@@ -1128,7 +1128,7 @@ struct fcf_record {
 #define lpfc_fcf_record_mac_5_WORD		word4
 #define lpfc_fcf_record_fcf_avail_SHIFT		16
 #define lpfc_fcf_record_fcf_avail_MASK		0x000000FF
-#define lpfc_fcf_record_fc_avail_WORD		word4
+#define lpfc_fcf_record_fcf_avail_WORD		word4
 #define lpfc_fcf_record_mac_addr_prov_SHIFT	24
 #define lpfc_fcf_record_mac_addr_prov_MASK	0x000000FF
 #define lpfc_fcf_record_mac_addr_prov_WORD	word4

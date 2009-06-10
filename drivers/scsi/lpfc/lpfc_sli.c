@@ -4491,8 +4491,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		rc = -ENODEV;
 		goto out_free_vpd;
 	}
-	/* Temporary initialization of lpfc_fip_flag to non-fip */
-	bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 0);
+	if (phba->cfg_enable_fip)
+		bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 1);
+	else
+		bf_set(lpfc_fip_flag, &phba->sli4_hba.sli4_flags, 0);
 
 	/* Set up all the queues to the device */
 	rc = lpfc_sli4_queue_setup(phba);
@@ -5856,18 +5858,13 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 	fip = bf_get(lpfc_fip_flag, &phba->sli4_hba.sli4_flags);
 	/* The fcp commands will set command type */
-	if ((!(iocbq->iocb_flag &  LPFC_IO_FCP)) && (!fip))
-		command_type = ELS_COMMAND_NON_FIP;
-	else if (!(iocbq->iocb_flag &  LPFC_IO_FCP))
-		command_type = ELS_COMMAND_FIP;
-	else if (iocbq->iocb_flag &  LPFC_IO_FCP)
+	if (iocbq->iocb_flag &  LPFC_IO_FCP)
 		command_type = FCP_COMMAND;
-	else {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2019 Invalid cmd 0x%x\n",
-			iocbq->iocb.ulpCommand);
-		return IOCB_ERROR;
-	}
+	else if (fip && (iocbq->iocb_flag & LPFC_FIP_ELS))
+		command_type = ELS_COMMAND_FIP;
+	else
+		command_type = ELS_COMMAND_NON_FIP;
+
 	/* Some of the fields are in the right position already */
 	memcpy(wqe, &iocbq->iocb, sizeof(union lpfc_wqe));
 	abort_tag = (uint32_t) iocbq->iotag;
@@ -11467,6 +11464,7 @@ lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *phba,
 	bf_set(lpfc_fcf_record_fc_map_1, fcf_record, phba->fc_map[1]);
 	bf_set(lpfc_fcf_record_fc_map_2, fcf_record, phba->fc_map[2]);
 	bf_set(lpfc_fcf_record_fcf_valid, fcf_record, 1);
+	bf_set(lpfc_fcf_record_fcf_avail, fcf_record, 1);
 	bf_set(lpfc_fcf_record_fcf_index, fcf_record, fcf_index);
 	bf_set(lpfc_fcf_record_mac_addr_prov, fcf_record,
 		LPFC_FCF_FPMA | LPFC_FCF_SPMA);

@@ -1197,6 +1197,11 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 {
 	struct lpfc_fcf_conn_entry *conn_entry;
 
+	/* If FCF not available return 0 */
+	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
+		!bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record))
+		return 0;
+
 	if (!phba->cfg_enable_fip) {
 		*boot_flag = 0;
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
@@ -1216,6 +1221,14 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		*boot_flag = 0;
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
 			new_fcf_record);
+
+		/*
+		 * When there are no FCF connect entries, use driver's default
+		 * addressing mode - FPMA.
+		 */
+		if (*addr_mode & LPFC_FCF_FPMA)
+			*addr_mode = LPFC_FCF_FPMA;
+
 		*vlan_id = 0xFFFF;
 		return 1;
 	}
@@ -1239,6 +1252,14 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 				(1 << (conn_entry->conn_rec.vlan_tag % 8))))
 				continue;
 		}
+
+		/*
+		 * If connection record does not support any addressing mode,
+		 * skip the FCF record.
+		 */
+		if (!(bf_get(lpfc_fcf_record_mac_addr_prov, new_fcf_record)
+			& (LPFC_FCF_FPMA | LPFC_FCF_SPMA)))
+			continue;
 
 		/*
 		 * Check if the connection record specifies a required
@@ -1272,6 +1293,11 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		else
 			*boot_flag = 0;
 
+		/*
+		 * If user did not specify any addressing mode, or if the
+		 * prefered addressing mode specified by user is not supported
+		 * by FCF, allow fabric to pick the addressing mode.
+		 */
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
 				new_fcf_record);
 		/*
@@ -1297,12 +1323,6 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			!(conn_entry->conn_rec.flags & FCFCNCT_AM_SPMA) &&
 			(*addr_mode & LPFC_FCF_FPMA))
 				*addr_mode = LPFC_FCF_FPMA;
-		/*
-		 * If user did not specify any addressing mode, use FPMA if
-		 * possible else use SPMA.
-		 */
-		else if (*addr_mode & LPFC_FCF_FPMA)
-			*addr_mode = LPFC_FCF_FPMA;
 
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID)
 			*vlan_id = conn_entry->conn_rec.vlan_tag;
@@ -1864,7 +1884,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
 	spin_unlock_irq(shost->host_lock);
 
-	if (((phba->fc_eventTag + 1) < la->eventTag) ||
+	if ((phba->fc_eventTag  < la->eventTag) ||
 	    (phba->fc_eventTag == la->eventTag)) {
 		phba->fc_stat.LinkMultiEvent++;
 		if (la->attType == AT_LINK_UP)
@@ -2925,6 +2945,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		lpfc_no_rpi(phba, ndlp);
 		ndlp->nlp_rpi = 0;
 		ndlp->nlp_flag &= ~NLP_RPI_VALID;
+		ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 		return 1;
 	}
 	return 0;
