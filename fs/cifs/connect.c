@@ -958,7 +958,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 				}
 				strcpy(vol->password, value);
 			}
-		} else if (strnicmp(data, "ip", 2) == 0) {
+		} else if (!strnicmp(data, "ip", 2) ||
+			   !strnicmp(data, "addr", 4)) {
 			if (!value || !*value) {
 				vol->UNCip = NULL;
 			} else if (strnlen(value, INET6_ADDRSTRLEN) <
