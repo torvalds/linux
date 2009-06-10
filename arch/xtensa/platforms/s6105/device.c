@@ -143,6 +143,9 @@ static struct platform_device platform_devices[] = {
 		.resource = s6_gmac_resource,
 		.num_resources = ARRAY_SIZE(s6_gmac_resource),
 	},
+	{
+		I2C_BOARD_INFO("m41t62", S6I2C_ADDR_M41T62),
+	},
 };
 
 static int __init device_init(void)
