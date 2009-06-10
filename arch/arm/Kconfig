@@ -488,6 +488,8 @@ config ARCH_NS9XXX
 config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
 	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	help
 		Support for Nuvoton (Winbond logic dept.) ARM9 processor,You
 		can login www.mcuos.com or www.nuvoton.com to know more.
