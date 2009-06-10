@@ -876,10 +876,17 @@ static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
 
 	be_dws_le_to_cpu(rxcp, sizeof(*rxcp));
 
-	rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] = 0;
-
 	queue_tail_inc(&adapter->rx_obj.cq);
 	return rxcp;
+}
+
+/* To reset the valid bit, we need to reset the whole word as
+ * when walking the queue the valid entries are little-endian
+ * and invalid entries are host endian
+ */
+static inline void be_rx_compl_reset(struct be_eth_rx_compl *rxcp)
+{
+	rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] = 0;
 }
 
 static inline struct page *be_alloc_pages(u32 size)
@@ -1013,6 +1020,7 @@ static void be_rx_q_clean(struct be_adapter *adapter)
 	/* First cleanup pending rx completions */
 	while ((rxcp = be_rx_compl_get(adapter)) != NULL) {
 		be_rx_compl_discard(adapter, rxcp);
+		be_rx_compl_reset(rxcp);
 		be_cq_notify(&adapter->ctrl, rx_cq->id, true, 1);
 	}
 
@@ -1294,6 +1302,8 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 			be_rx_compl_process_lro(adapter, rxcp);
 		else
 			be_rx_compl_process(adapter, rxcp);
+
+		be_rx_compl_reset(rxcp);
 	}
 
 	lro_flush_all(&adapter->rx_obj.lro_mgr);
