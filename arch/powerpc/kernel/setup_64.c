@@ -424,8 +424,8 @@ void __init setup_system(void)
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	if (PHYSICAL_START > 0)
-		printk("physical_start                = 0x%lx\n",
-		       PHYSICAL_START);
+		printk("physical_start                = 0x%llx\n",
+		       (unsigned long long)PHYSICAL_START);
 	printk("-----------------------------------------------------\n");
 
 	DBG(" <- setup_system()\n");
