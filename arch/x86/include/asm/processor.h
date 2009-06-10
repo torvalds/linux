@@ -815,6 +815,7 @@ extern unsigned int		BIOS_revision;
 
 /* Boot loader type from the setup header: */
 extern int			bootloader_type;
+extern int			bootloader_version;
 
 extern char			ignore_fpu_irq;
 
