@@ -97,7 +97,7 @@ do { memcpy(dst, src, len);						\
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;
 
-static inline int bfin_addr_dcachable(unsigned long addr)
+static inline int bfin_addr_dcacheable(unsigned long addr)
 {
 #ifdef CONFIG_BFIN_DCACHE
 	if (addr < (_ramend - DMA_UNCACHED_REGION))
