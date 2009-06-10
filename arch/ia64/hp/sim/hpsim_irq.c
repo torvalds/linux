@@ -46,7 +46,7 @@ hpsim_irq_init (void)
 
 	for (i = 0; i < NR_IRQS; ++i) {
 		idesc = irq_desc + i;
-		if (idesc->chip == &no_irq_type)
+		if (idesc->chip == &no_irq_chip)
 			idesc->chip = &irq_type_hp_sim;
 	}
 }
