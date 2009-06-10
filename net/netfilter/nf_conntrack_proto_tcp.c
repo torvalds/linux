@@ -29,9 +29,6 @@
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
 
-/* Protects ct->proto.tcp */
-static DEFINE_RWLOCK(tcp_lock);
-
 /* "Be conservative in what you do,
     be liberal in what you accept from others."
     If it's non-zero, we mark only out of window RST segments as INVALID. */
@@ -309,13 +306,13 @@ static int tcp_print_tuple(struct seq_file *s,
 }
 
 /* Print out the private part of the conntrack. */
-static int tcp_print_conntrack(struct seq_file *s, const struct nf_conn *ct)
+static int tcp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	enum tcp_conntrack state;
 
-	read_lock_bh(&tcp_lock);
+	spin_lock_bh(&ct->lock);
 	state = ct->proto.tcp.state;
-	read_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 
 	return seq_printf(s, "%s ", tcp_conntrack_names[state]);
 }
@@ -725,14 +722,14 @@ void nf_conntrack_tcp_update(const struct sk_buff *skb,
 
 	end = segment_seq_plus_len(ntohl(tcph->seq), skb->len, dataoff, tcph);
 
-	write_lock_bh(&tcp_lock);
+	spin_lock_bh(&ct->lock);
 	/*
 	 * We have to worry for the ack in the reply packet only...
 	 */
 	if (after(end, ct->proto.tcp.seen[dir].td_end))
 		ct->proto.tcp.seen[dir].td_end = end;
 	ct->proto.tcp.last_end = end;
-	write_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 	pr_debug("tcp_update: sender end=%u maxend=%u maxwin=%u scale=%i "
 		 "receiver end=%u maxend=%u maxwin=%u scale=%i\n",
 		 sender->td_end, sender->td_maxend, sender->td_maxwin,
@@ -841,7 +838,7 @@ static int tcp_packet(struct nf_conn *ct,
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);
 
-	write_lock_bh(&tcp_lock);
+	spin_lock_bh(&ct->lock);
 	old_state = ct->proto.tcp.state;
 	dir = CTINFO2DIR(ctinfo);
 	index = get_conntrack_index(th);
@@ -871,7 +868,7 @@ static int tcp_packet(struct nf_conn *ct,
 		        && ct->proto.tcp.last_index == TCP_RST_SET)) {
 			/* Attempt to reopen a closed/aborted connection.
 			 * Delete this connection and look up again. */
-			write_unlock_bh(&tcp_lock);
+			spin_unlock_bh(&ct->lock);
 
 			/* Only repeat if we can actually remove the timer.
 			 * Destruction may already be in progress in process
@@ -907,7 +904,7 @@ static int tcp_packet(struct nf_conn *ct,
 			 * that the client cannot but retransmit its SYN and
 			 * thus initiate a clean new session.
 			 */
-			write_unlock_bh(&tcp_lock);
+			spin_unlock_bh(&ct->lock);
 			if (LOG_INVALID(net, IPPROTO_TCP))
 				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 					  "nf_ct_tcp: killing out of sync session ");
@@ -920,7 +917,7 @@ static int tcp_packet(struct nf_conn *ct,
 		ct->proto.tcp.last_end =
 		    segment_seq_plus_len(ntohl(th->seq), skb->len, dataoff, th);
 
-		write_unlock_bh(&tcp_lock);
+		spin_unlock_bh(&ct->lock);
 		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: invalid packet ignored ");
@@ -929,7 +926,7 @@ static int tcp_packet(struct nf_conn *ct,
 		/* Invalid packet */
 		pr_debug("nf_ct_tcp: Invalid dir=%i index=%u ostate=%u\n",
 			 dir, get_conntrack_index(th), old_state);
-		write_unlock_bh(&tcp_lock);
+		spin_unlock_bh(&ct->lock);
 		if (LOG_INVALID(net, IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: invalid state ");
@@ -960,7 +957,7 @@ static int tcp_packet(struct nf_conn *ct,
 
 	if (!tcp_in_window(ct, &ct->proto.tcp, dir, index,
 			   skb, dataoff, th, pf)) {
-		write_unlock_bh(&tcp_lock);
+		spin_unlock_bh(&ct->lock);
 		return -NF_ACCEPT;
 	}
      in_window:
@@ -989,7 +986,7 @@ static int tcp_packet(struct nf_conn *ct,
 		timeout = nf_ct_tcp_timeout_unacknowledged;
 	else
 		timeout = tcp_timeouts[new_state];
-	write_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 
 	if (new_state != old_state)
 		nf_conntrack_event_cache(IPCT_PROTOINFO, ct);
@@ -1106,12 +1103,12 @@ static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
 static int tcp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
-			 const struct nf_conn *ct)
+			 struct nf_conn *ct)
 {
 	struct nlattr *nest_parms;
 	struct nf_ct_tcp_flags tmp = {};
 
-	read_lock_bh(&tcp_lock);
+	spin_lock_bh(&ct->lock);
 	nest_parms = nla_nest_start(skb, CTA_PROTOINFO_TCP | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
@@ -1131,14 +1128,14 @@ static int tcp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	tmp.flags = ct->proto.tcp.seen[1].flags;
 	NLA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_REPLY,
 		sizeof(struct nf_ct_tcp_flags), &tmp);
-	read_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 
 	nla_nest_end(skb, nest_parms);
 
 	return 0;
 
 nla_put_failure:
-	read_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 	return -1;
 }
 
@@ -1169,7 +1166,7 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 	    nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]) >= TCP_CONNTRACK_MAX)
 		return -EINVAL;
 
-	write_lock_bh(&tcp_lock);
+	spin_lock_bh(&ct->lock);
 	if (tb[CTA_PROTOINFO_TCP_STATE])
 		ct->proto.tcp.state = nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]);
 
@@ -1196,7 +1193,7 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 		ct->proto.tcp.seen[1].td_scale =
 			nla_get_u8(tb[CTA_PROTOINFO_TCP_WSCALE_REPLY]);
 	}
-	write_unlock_bh(&tcp_lock);
+	spin_unlock_bh(&ct->lock);
 
 	return 0;
 }

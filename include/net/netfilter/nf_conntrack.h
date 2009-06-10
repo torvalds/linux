@@ -93,6 +93,8 @@ struct nf_conn {
            plus 1 for any connection(s) we are `master' for */
 	struct nf_conntrack ct_general;
 
+	spinlock_t lock;
+
 	/* XXX should I move this to the tail ? - Y.K */
 	/* These are my tuples; original and reply */
 	struct nf_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];

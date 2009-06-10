@@ -143,7 +143,7 @@ nla_put_failure:
 }
 
 static inline int
-ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
+ctnetlink_dump_protoinfo(struct sk_buff *skb, struct nf_conn *ct)
 {
 	struct nf_conntrack_l4proto *l4proto;
 	struct nlattr *nest_proto;
@@ -347,7 +347,7 @@ nla_put_failure:
 
 static int
 ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
-		    int event, const struct nf_conn *ct)
+		    int event, struct nf_conn *ct)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;

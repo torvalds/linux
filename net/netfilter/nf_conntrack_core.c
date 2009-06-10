@@ -519,6 +519,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	spin_lock_init(&ct->lock);
 	atomic_set(&ct->ct_general.use, 1);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
