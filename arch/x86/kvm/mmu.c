@@ -3109,12 +3109,7 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 
 		va = canonicalize(va);
 		if (level > 1) {
-			if (ent == shadow_notrap_nonpresent_pte)
-				printk(KERN_ERR "audit: (%s) nontrapping pte"
-				       " in nonleaf level: levels %d gva %lx"
-				       " level %d pte %llx\n", audit_msg,
-				       vcpu->arch.mmu.root_level, va, level, ent);
-			else
+			if (is_shadow_present_pte(ent))
 				audit_mappings_page(vcpu, ent, va, level - 1);
 		} else {
 			gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, va);
