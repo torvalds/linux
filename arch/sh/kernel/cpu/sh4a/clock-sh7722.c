@@ -130,11 +130,7 @@ static void adjust_clocks(int originate, int *l, unsigned long v[],
  * is quite simple..
  */
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7724)
-#define STCPLL(frqcr) ((((frqcr >> 24) & 0x3f) + 1) * 2)
-#else
 #define STCPLL(frqcr) (((frqcr >> 24) & 0x1f) + 1)
-#endif
 
 /*
  * Instead of having two separate multipliers/divisors set, like this:
@@ -145,11 +141,7 @@ static void adjust_clocks(int originate, int *l, unsigned long v[],
  * I created the divisors2 array, which is used to calculate rate like
  *   rate = parent * 2 / divisors2[ divisor ];
 */
-#if defined(CONFIG_CPU_SUBTYPE_SH7724)
-static int divisors2[] = { 4, 1, 8, 12, 16, 24, 32, 1, 48, 64, 72, 96, 1, 144 };
-#else
 static int divisors2[] = { 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40 };
-#endif
 
 static unsigned long master_clk_recalc(struct clk *clk)
 {
@@ -171,17 +163,10 @@ static unsigned long module_clk_recalc(struct clk *clk)
 	return clk->parent->rate / STCPLL(frqcr);
 }
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7724)
-#define MASTERDIVS	{ 12, 16, 24, 30, 32, 36, 48 }
-#define STCMASK		0x3f
-#define DIVCALC(div)	(div/2-1)
-#define FRQCRKICK	0x80000000
-#else
 #define MASTERDIVS	{ 2, 3, 4, 6, 8, 16 }
 #define STCMASK		0x1f
 #define DIVCALC(div)	(div-1)
 #define FRQCRKICK	0x00000000
-#endif
 
 static int master_clk_setrate(struct clk *clk, unsigned long rate, int id)
 {
@@ -557,8 +542,7 @@ static struct clk sh7722_r_clock = {
 	.rate = 32768,
 };
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
-    !defined(CONFIG_CPU_SUBTYPE_SH7724)
+#if !defined(CONFIG_CPU_SUBTYPE_SH7343)
 /*
  * these three clocks - SIU A, SIU B, IrDA - share the same clk_ops
  * methods of clk_ops determine which register they should access by
@@ -575,10 +559,9 @@ static struct clk sh7722_siu_b_clock = {
 	.arch_flags = SCLKBCR,
 	.ops = &sh7722_siu_clk_ops,
 };
-#endif /* CONFIG_CPU_SUBTYPE_SH7343, SH7724 */
+#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7722) ||\
-    defined(CONFIG_CPU_SUBTYPE_SH7724)
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 static struct clk sh7722_irda_clock = {
 	.name = "irda_clk",
 	.arch_flags = IrDACLKCR,
@@ -676,61 +659,6 @@ static struct clk sh7722_mstpcr_clocks[] = {
 	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
 	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
 #endif
-#if defined(CONFIG_CPU_SUBTYPE_SH7724)
-	/* See Datasheet : Overview -> Block Diagram */
-	MSTPCR("tlb0", "cpu_clk", 0, 31, 0),
-	MSTPCR("ic0", "cpu_clk", 0, 30, 0),
-	MSTPCR("oc0", "cpu_clk", 0, 29, 0),
-	MSTPCR("rs0", "bus_clk", 0, 28, 0),
-	MSTPCR("ilmem0", "cpu_clk", 0, 27, 0),
-	MSTPCR("l2c0", "sh_clk", 0, 26, 0),
-	MSTPCR("fpu0", "cpu_clk", 0, 24, 0),
-	MSTPCR("intc0", "peripheral_clk", 0, 22, 0),
-	MSTPCR("dmac0", "bus_clk", 0, 21, 0),
-	MSTPCR("sh0", "sh_clk", 0, 20, 0),
-	MSTPCR("hudi0", "peripheral_clk", 0, 19, 0),
-	MSTPCR("ubc0", "cpu_clk", 0, 17, 0),
-	MSTPCR("tmu0", "peripheral_clk", 0, 15, 0),
-	MSTPCR("cmt0", "r_clk", 0, 14, 0),
-	MSTPCR("rwdt0", "r_clk", 0, 13, 0),
-	MSTPCR("dmac1", "bus_clk", 0, 12, 0),
-	MSTPCR("tmu1", "peripheral_clk", 0, 10, 0),
-	MSTPCR("scif0", "peripheral_clk", 0, 9, 0),
-	MSTPCR("scif1", "peripheral_clk", 0, 8, 0),
-	MSTPCR("scif2", "peripheral_clk", 0, 7, 0),
-	MSTPCR("scif3", "bus_clk", 0, 6, 0),
-	MSTPCR("scif4", "bus_clk", 0, 5, 0),
-	MSTPCR("scif5", "bus_clk", 0, 4, 0),
-	MSTPCR("msiof0", "bus_clk", 0, 2, 0),
-	MSTPCR("msiof1", "bus_clk", 0, 1, 0),
-	MSTPCR("keysc0", "r_clk", 1, 12, 0),
-	MSTPCR("rtc0", "r_clk", 1, 11, 0),
-	MSTPCR("i2c0", "peripheral_clk", 1, 9, 0),
-	MSTPCR("i2c1", "peripheral_clk", 1, 8, 0),
-	MSTPCR("mmc0", "bus_clk", 2, 29, 0),
-	MSTPCR("eth0", "bus_clk", 2, 28, 0),
-	MSTPCR("atapi0", "bus_clk", 2, 26, 0),
-	MSTPCR("tpu0", "bus_clk", 2, 25, 0),
-	MSTPCR("irda0", "peripheral_clk", 2, 24, 0),
-	MSTPCR("tsif0", "bus_clk", 2, 22, 0),
-	MSTPCR("usb1", "bus_clk", 2, 21, 0),
-	MSTPCR("usb0", "bus_clk", 2, 20, 0),
-	MSTPCR("2dg0", "bus_clk", 2, 19, 0),
-	MSTPCR("sdhi0", "bus_clk", 2, 18, 0),
-	MSTPCR("sdhi1", "bus_clk", 2, 17, 0),
-	MSTPCR("veu1", "bus_clk", 2, 15, CLK_ENABLE_ON_INIT),
-	MSTPCR("ceu1", "bus_clk", 2, 13, 0),
-	MSTPCR("beu1", "bus_clk", 2, 12, 0),
-	MSTPCR("2ddmac0", "sh_clk", 2, 10, 0),
-	MSTPCR("spu0", "bus_clk", 2, 9, 0),
-	MSTPCR("jpu0", "bus_clk", 2, 6, 0),
-	MSTPCR("vou0", "bus_clk", 2, 5, 0),
-	MSTPCR("beu0", "bus_clk", 2, 4, 0),
-	MSTPCR("ceu0", "bus_clk", 2, 3, 0),
-	MSTPCR("veu0", "bus_clk", 2, 2, CLK_ENABLE_ON_INIT),
-	MSTPCR("vpu0", "bus_clk", 2, 1, CLK_ENABLE_ON_INIT),
-	MSTPCR("lcdc0", "bus_clk", 2, 0, 0),
-#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7343)
 	MSTPCR("uram0", "umem_clk", 0, 28, CLK_ENABLE_ON_INIT),
 	MSTPCR("xymem0", "bus_clk", 0, 26, CLK_ENABLE_ON_INIT),
@@ -802,14 +730,11 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sh_clock,
 	&sh7722_peripheral_clock,
 	&sh7722_sdram_clock,
-#if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
-    !defined(CONFIG_CPU_SUBTYPE_SH7724)
+#if !defined(CONFIG_CPU_SUBTYPE_SH7343)
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
 #endif
-/* 7724 should support FSI clock */
-#if defined(CONFIG_CPU_SUBTYPE_SH7722) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7724)
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
 	&sh7722_irda_clock,
 #endif
 	&sh7722_video_clock,
