@@ -1194,6 +1194,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		if (!new.dirty_bitmap)
 			goto out_free;
 		memset(new.dirty_bitmap, 0, dirty_bytes);
+		if (old.npages)
+			kvm_arch_flush_shadow(kvm);
 	}
 #endif /* not defined CONFIG_S390 */
 
