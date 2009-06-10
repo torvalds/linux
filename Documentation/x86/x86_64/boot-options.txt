@@ -150,11 +150,6 @@ NUMA
 		Otherwise, the remaining system RAM is allocated to an
 		additional node.
 
-  numa=hotadd=percent
-		Only allow hotadd memory to preallocate page structures upto
-		percent of already available memory.
-		numa=hotadd=0 will disable hotadd memory.
-
 ACPI
 
   acpi=off	Don't enable ACPI
