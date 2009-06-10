@@ -41,7 +41,7 @@ static struct hw_interrupt_type irq_type_hp_sim = {
 void __init
 hpsim_irq_init (void)
 {
-	irq_desc_t *idesc;
+	struct irq_desc *idesc;
 	int i;
 
 	for (i = 0; i < NR_IRQS; ++i) {
