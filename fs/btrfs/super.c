@@ -66,8 +66,8 @@ static void btrfs_put_super(struct super_block *sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_nossd, Opt_thread_pool, Opt_noacl,  Opt_compress,
-	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_err,
+	Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl,
+	Opt_compress, Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -83,6 +83,7 @@ static match_table_t tokens = {
 	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_compress, "compress"},
 	{Opt_ssd, "ssd"},
+	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd, "nossd"},
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
@@ -174,9 +175,17 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");
 			btrfs_set_opt(info->mount_opt, SSD);
 			break;
+		case Opt_ssd_spread:
+			printk(KERN_INFO "btrfs: use spread ssd "
+			       "allocation scheme\n");
+			btrfs_set_opt(info->mount_opt, SSD);
+			btrfs_set_opt(info->mount_opt, SSD_SPREAD);
+			break;
 		case Opt_nossd:
-			printk(KERN_INFO "btrfs: not using ssd allocation scheme\n");
+			printk(KERN_INFO "btrfs: not using ssd allocation "
+			       "scheme\n");
 			btrfs_clear_opt(info->mount_opt, SSD);
+			btrfs_clear_opt(info->mount_opt, SSD_SPREAD);
 			break;
 		case Opt_nobarrier:
 			printk(KERN_INFO "btrfs: turning off barriers\n");
@@ -429,7 +438,9 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
 	if (btrfs_test_opt(root, COMPRESS))
 		seq_puts(seq, ",compress");
-	if (btrfs_test_opt(root, SSD))
+	if (btrfs_test_opt(root, SSD_SPREAD))
+		seq_puts(seq, ",ssd_spread");
+	else if (btrfs_test_opt(root, SSD))
 		seq_puts(seq, ",ssd");
 	if (btrfs_test_opt(root, NOTREELOG))
 		seq_puts(seq, ",notreelog");

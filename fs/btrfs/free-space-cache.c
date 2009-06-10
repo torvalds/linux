@@ -579,6 +579,7 @@ out:
  * it returns -enospc
  */
 int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group,
 			     struct btrfs_free_cluster *cluster,
 			     u64 offset, u64 bytes, u64 empty_size)
@@ -595,7 +596,9 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 	int ret;
 
 	/* for metadata, allow allocates with more holes */
-	if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
+	if (btrfs_test_opt(root, SSD_SPREAD)) {
+		min_bytes = bytes + empty_size;
+	} else if (block_group->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		/*
 		 * we want to do larger allocations when we are
 		 * flushing out the delayed refs, it helps prevent

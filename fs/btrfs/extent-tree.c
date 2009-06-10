@@ -3607,7 +3607,7 @@ refill_cluster:
 			last_ptr_loop = 0;
 
 			/* allocate a cluster in this block group */
-			ret = btrfs_find_space_cluster(trans,
+			ret = btrfs_find_space_cluster(trans, root,
 					       block_group, last_ptr,
 					       offset, num_bytes,
 					       empty_cluster + empty_size);
