@@ -465,22 +465,7 @@ static u8 probe_for_drive(ide_drive_t *drive)
 	int rc;
 	u8 cmd;
 
-	/*
-	 *	In order to keep things simple we have an id
-	 *	block for all drives at all times. If the device
-	 *	is pre ATA or refuses ATA/ATAPI identify we
-	 *	will add faked data to this.
-	 *
-	 *	Also note that 0 everywhere means "can't do X"
-	 */
- 
 	drive->dev_flags &= ~IDE_DFLAG_ID_READ;
-
-	drive->id = kzalloc(SECTOR_SIZE, GFP_KERNEL);
-	if (drive->id == NULL) {
-		printk(KERN_ERR "ide: out of memory for id data.\n");
-		return 0;
-	}
 
 	m = (char *)&drive->id[ATA_ID_PROD];
 	strcpy(m, "UNKNOWN");
@@ -497,7 +482,7 @@ static u8 probe_for_drive(ide_drive_t *drive)
 		}
 
 		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-			goto out_free;
+			return 0;
 
 		/* identification failed? */
 		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
@@ -521,7 +506,7 @@ static u8 probe_for_drive(ide_drive_t *drive)
 	}
 
 	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
-		goto out_free;
+		return 0;
 
 	/* The drive wasn't being helpful. Add generic info only */
 	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
@@ -535,9 +520,6 @@ static u8 probe_for_drive(ide_drive_t *drive)
 	}
 
 	return 1;
-out_free:
-	kfree(drive->id);
-	return 0;
 }
 
 static void hwif_release_dev(struct device *dev)
@@ -825,8 +807,6 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 		if (ide_init_queue(drive)) {
 			printk(KERN_ERR "ide: failed to init %s\n",
 					drive->name);
-			kfree(drive->id);
-			drive->id = NULL;
 			drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			continue;
 		}
@@ -954,9 +934,6 @@ static void drive_release_dev (struct device *dev)
 
 	blk_cleanup_queue(drive->queue);
 	drive->queue = NULL;
-
-	kfree(drive->id);
-	drive->id = NULL;
 
 	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 
@@ -1140,8 +1117,11 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 
 	ide_port_for_each_dev(i, drive, hwif) {
 		u8 j = (hwif->index * MAX_DRIVES) + i;
+		u16 *saved_id = drive->id;
 
 		memset(drive, 0, sizeof(*drive));
+		memset(saved_id, 0, SECTOR_SIZE);
+		drive->id = saved_id;
 
 		drive->media			= ide_disk;
 		drive->select			= (i << 4) | ATA_DEVICE_OBS;
@@ -1248,8 +1228,10 @@ static void ide_port_free_devices(ide_hwif_t *hwif)
 	ide_drive_t *drive;
 	int i;
 
-	ide_port_for_each_dev(i, drive, hwif)
+	ide_port_for_each_dev(i, drive, hwif) {
+		kfree(drive->id);
 		kfree(drive);
+	}
 }
 
 static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
@@ -1261,6 +1243,18 @@ static int ide_port_alloc_devices(ide_hwif_t *hwif, int node)
 
 		drive = kzalloc_node(sizeof(*drive), GFP_KERNEL, node);
 		if (drive == NULL)
+			goto out_nomem;
+
+		/*
+		 * In order to keep things simple we have an id
+		 * block for all drives at all times. If the device
+		 * is pre ATA or refuses ATA/ATAPI identify we
+		 * will add faked data to this.
+		 *
+		 * Also note that 0 everywhere means "can't do X"
+		 */
+		drive->id = kzalloc_node(SECTOR_SIZE, GFP_KERNEL, node);
+		if (drive->id == NULL)
 			goto out_nomem;
 
 		hwif->devices[i] = drive;
@@ -1304,6 +1298,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d,
 		if (idx < 0) {
 			printk(KERN_ERR "%s: no free slot for interface\n",
 					d ? d->name : "ide");
+			ide_port_free_devices(hwif);
 			kfree(hwif);
 			continue;
 		}
