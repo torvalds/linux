@@ -603,7 +603,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 * -----------------------
 	 * Thus binding the ACPI and PCI devices.
 	 */
-	result = acpi_pci_bind_root(device, &root->id, root->bus);
+	result = acpi_pci_bind_root(device);
 	if (result)
 		goto end;
 
