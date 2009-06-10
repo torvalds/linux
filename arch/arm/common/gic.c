@@ -109,7 +109,7 @@ static void gic_unmask_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-static void gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
+static int gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
 {
 	void __iomem *reg = gic_dist_base(irq) + GIC_DIST_TARGET + (gic_irq(irq) & ~3);
 	unsigned int shift = (irq % 4) * 8;
@@ -122,6 +122,8 @@ static void gic_set_cpu(unsigned int irq, const struct cpumask *mask_val)
 	val |= 1 << (cpu + shift);
 	writel(val, reg);
 	spin_unlock(&irq_controller_lock);
+
+	return 0;
 }
 #endif
 

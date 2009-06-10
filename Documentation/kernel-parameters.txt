@@ -1575,6 +1575,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	noinitrd	[RAM] Tells the kernel not to load any configured
 			initial RAM disk.
 
+	nointremap	[X86-64, Intel-IOMMU] Do not enable interrupt
+			remapping.
+
 	nointroute	[IA-64]
 
 	nojitter	[IA64] Disables jitter checking for ITC timers.

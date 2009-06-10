@@ -1,20 +1,25 @@
+#include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/timex.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/kprobes.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
+#include <linux/acpi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/timer.h>
+#include <asm/hw_irq.h>
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
@@ -22,7 +27,23 @@
 #include <asm/i8259.h>
 #include <asm/traps.h>
 
+/*
+ * ISA PIC or low IO-APIC triggered (INTA-cycle or APIC) interrupts:
+ * (these are usually mapped to vectors 0x30-0x3f)
+ */
 
+/*
+ * The IO-APIC gives us many more interrupt sources. Most of these
+ * are unused but an SMP system is supposed to have enough memory ...
+ * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
+ * across the spectrum, so we really want to be prepared to get all
+ * of these. Plus, more powerful systems might have more than 64
+ * IO-APIC registers.
+ *
+ * (these are usually mapped into the 0x30-0xff vector range)
+ */
+
+#ifdef CONFIG_X86_32
 /*
  * Note that on a 486, we don't want to do a SIGFPE on an irq13
  * as the irq is unreliable, and exception 16 works correctly
@@ -52,30 +73,7 @@ static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
 	.name = "fpu",
 };
-
-void __init init_ISA_irqs(void)
-{
-	int i;
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	init_bsp_APIC();
 #endif
-	init_8259A(0);
-
-	/*
-	 * 16 old-style INTA-cycle interrupts:
-	 */
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		desc->status = IRQ_DISABLED;
-		desc->action = NULL;
-		desc->depth = 1;
-
-		set_irq_chip_and_handler_name(i, &i8259A_chip,
-					      handle_level_irq, "XT");
-	}
-}
 
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
@@ -118,29 +116,37 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	return 0;
 }
 
-/* Overridden in paravirt.c */
-void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
-
-void __init native_init_IRQ(void)
+static void __init init_ISA_irqs(void)
 {
 	int i;
 
-	/* Execute any quirks before the call gates are initialised: */
-	x86_quirk_pre_intr_init();
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
+	init_bsp_APIC();
+#endif
+	init_8259A(0);
 
 	/*
-	 * Cover the whole vector space, no vector can escape
-	 * us. (some of these will be overridden and become
-	 * 'special' SMP interrupts)
+	 * 16 old-style INTA-cycle interrupts:
 	 */
-	for (i =  FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
-		/* SYSCALL_VECTOR was reserved in trap_init. */
-		if (i != SYSCALL_VECTOR)
-			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+		struct irq_desc *desc = irq_to_desc(i);
+
+		desc->status = IRQ_DISABLED;
+		desc->action = NULL;
+		desc->depth = 1;
+
+		set_irq_chip_and_handler_name(i, &i8259A_chip,
+					      handle_level_irq, "XT");
 	}
+}
 
+/* Overridden in paravirt.c */
+void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
 
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_SMP)
+static void __init smp_intr_init(void)
+{
+#ifdef CONFIG_SMP
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
 	 * IPI, driven by wakeup.
@@ -160,16 +166,27 @@ void __init native_init_IRQ(void)
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 
-	/* IPI for single call function */
+	/* IPI for generic single function call */
 	alloc_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
-				 call_function_single_interrupt);
+			call_function_single_interrupt);
 
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
 	set_bit(IRQ_MOVE_CLEANUP_VECTOR, used_vectors);
 #endif
+#endif /* CONFIG_SMP */
+}
 
-#ifdef CONFIG_X86_LOCAL_APIC
+static void __init apic_intr_init(void)
+{
+	smp_intr_init();
+
+#ifdef CONFIG_X86_64
+	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
+	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
+#endif
+
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	/* self generated IPI for local APIC timer */
 	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
 
@@ -179,16 +196,67 @@ void __init native_init_IRQ(void)
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
+
+	/* Performance monitoring interrupts: */
+# ifdef CONFIG_PERF_COUNTERS
+	alloc_intr_gate(LOCAL_PERF_VECTOR, perf_counter_interrupt);
+	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
+# endif
+
 #endif
 
+#ifdef CONFIG_X86_32
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_MCE_P4THERMAL)
 	/* thermal monitor LVT interrupt */
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 #endif
+#endif
+}
+
+/**
+ * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
+ *
+ * Description:
+ *	Perform any necessary interrupt initialisation prior to setting up
+ *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
+ *	interrupts should be initialised here if the machine emulates a PC
+ *	in any way.
+ **/
+static void __init x86_quirk_pre_intr_init(void)
+{
+#ifdef CONFIG_X86_32
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
+#endif
+	init_ISA_irqs();
+}
+
+void __init native_init_IRQ(void)
+{
+	int i;
+
+	/* Execute any quirks before the call gates are initialised: */
+	x86_quirk_pre_intr_init();
+
+	apic_intr_init();
+
+	/*
+	 * Cover the whole vector space, no vector can escape
+	 * us. (some of these will be overridden and become
+	 * 'special' SMP interrupts)
+	 */
+	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
+		/* IA32_SYSCALL_VECTOR could be used in trap_init already. */
+		if (!test_bit(i, used_vectors))
+			set_intr_gate(i, interrupt[i-FIRST_EXTERNAL_VECTOR]);
+	}
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Call quirks after call gates are initialised (usually add in
 	 * the architecture specific gates):
@@ -203,4 +271,5 @@ void __init native_init_IRQ(void)
 		setup_irq(FPU_IRQ, &fpu_irq);
 
 	irq_ctx_init(smp_processor_id());
+#endif
 }

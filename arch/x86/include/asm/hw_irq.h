@@ -63,7 +63,26 @@ extern unsigned long io_apic_irqs;
 extern void init_VISWS_APIC_irqs(void);
 extern void setup_IO_APIC(void);
 extern void disable_IO_APIC(void);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
+
+struct io_apic_irq_attr {
+	int ioapic;
+	int ioapic_pin;
+	int trigger;
+	int polarity;
+};
+
+static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
+					int ioapic, int ioapic_pin,
+					int trigger, int polarity)
+{
+	irq_attr->ioapic     = ioapic;
+	irq_attr->ioapic_pin = ioapic_pin;
+	irq_attr->trigger    = trigger;
+	irq_attr->polarity   = polarity;
+}
+
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin,
+					struct io_apic_irq_attr *irq_attr);
 extern void setup_ioapic_dest(void);
 
 extern void enable_IO_APIC(void);

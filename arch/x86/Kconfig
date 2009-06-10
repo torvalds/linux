@@ -274,15 +274,9 @@ config SPARSE_IRQ
 
 	  If you don't know what to do here, say N.
 
-config NUMA_MIGRATE_IRQ_DESC
-	bool "Move irq desc when changing irq smp_affinity"
+config NUMA_IRQ_DESC
+	def_bool y
 	depends on SPARSE_IRQ && NUMA
-	depends on BROKEN
-	default n
-	---help---
-	  This enables moving irq_desc to cpu/node that irq will use handled.
-
-	  If you don't know what to do here, say N.
 
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
@@ -355,7 +349,7 @@ config X86_UV
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
-	select X86_X2APIC
+	depends on X86_X2APIC
 	---help---
 	  This option is needed in order to support SGI Ultraviolet systems.
 	  If you don't have one of these, you should say N here.
