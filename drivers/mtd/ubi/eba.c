@@ -941,6 +941,33 @@ write_error:
 }
 
 /**
+ * is_error_sane - check whether a read error is sane.
+ * @err: code of the error happened during reading
+ *
+ * This is a helper function for 'ubi_eba_copy_leb()' which is called when we
+ * cannot read data from the target PEB (an error @err happened). If the error
+ * code is sane, then we treat this error as non-fatal. Otherwise the error is
+ * fatal and UBI will be switched to R/O mode later.
+ *
+ * The idea is that we try not to switch to R/O mode if the read error is
+ * something which suggests there was a real read problem. E.g., %-EIO. Or a
+ * memory allocation failed (-%ENOMEM). Otherwise, it is safer to switch to R/O
+ * mode, simply because we do not know what happened at the MTD level, and we
+ * cannot handle this. E.g., the underlying driver may have become crazy, and
+ * it is safer to switch to R/O mode to preserve the data.
+ *
+ * And bear in mind, this is about reading from the target PEB, i.e. the PEB
+ * which we have just written.
+ */
+static int is_error_sane(int err)
+{
+	if (err == -EIO || err == -ENOMEM || err == UBI_IO_BAD_VID_HDR ||
+	    err == -ETIMEDOUT)
+		return 0;
+	return 1;
+}
+
+/**
  * ubi_eba_copy_leb - copy logical eraseblock.
  * @ubi: UBI device description object
  * @from: physical eraseblock number from where to copy
@@ -1033,8 +1060,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
 			 err, from);
-		if (err == -EIO)
-			err = MOVE_SOURCE_RD_ERR;
+		err = MOVE_SOURCE_RD_ERR;
 		goto out_unlock_buf;
 	}
 
@@ -1082,8 +1108,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	err = ubi_io_read_vid_hdr(ubi, to, vid_hdr, 1);
 	if (err) {
 		if (err != UBI_IO_BITFLIPS) {
-			ubi_warn("cannot read VID header back from PEB %d", to);
-			if (err == -EIO)
+			ubi_warn("error %d while reading VID header back from "
+				  "PEB %d", err, to);
+			if (is_error_sane(err))
 				err = MOVE_TARGET_RD_ERR;
 		} else
 			err = MOVE_CANCEL_BITFLIPS;
@@ -1108,9 +1135,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		err = ubi_io_read_data(ubi, ubi->peb_buf2, to, 0, aldata_size);
 		if (err) {
 			if (err != UBI_IO_BITFLIPS) {
-				ubi_warn("cannot read data back from PEB %d",
-					 to);
-				if (err == -EIO)
+				ubi_warn("error %d while reading data back "
+					 "from PEB %d", err, to);
+				if (is_error_sane(err))
 					err = MOVE_TARGET_RD_ERR;
 			} else
 				err = MOVE_CANCEL_BITFLIPS;
