@@ -542,6 +542,9 @@ config SND_HDSP
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdsp.
 
+comment "Don't forget to add built-in firmwares for HDSP driver"
+	depends on SND_HDSP=y
+
 config SND_HDSPM
 	tristate "RME Hammerfall DSP MADI"
 	select SND_HWDEP
