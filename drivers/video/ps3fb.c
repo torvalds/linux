@@ -32,6 +32,7 @@
 #include <linux/init.h>
 
 #include <asm/abs_addr.h>
+#include <asm/iommu.h>
 #include <asm/lv1call.h>
 #include <asm/ps3av.h>
 #include <asm/ps3fb.h>
@@ -1122,7 +1123,9 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	xdr_lpar = ps3_mm_phys_to_lpar(__pa(ps3fb_videomemory.address));
 
 	status = lv1_gpu_context_iomap(ps3fb.context_handle, GPU_IOIF,
-				       xdr_lpar, ps3fb_videomemory.size, 0);
+				       xdr_lpar, ps3fb_videomemory.size,
+				       CBE_IOPTE_PP_W | CBE_IOPTE_PP_R |
+				       CBE_IOPTE_M);
 	if (status) {
 		dev_err(&dev->core, "%s: lv1_gpu_context_iomap failed: %d\n",
 			__func__, status);
@@ -1143,12 +1146,12 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 			"%s: lv1_gpu_context_attribute FB_SETUP failed: %d\n",
 			__func__, status);
 		retval = -ENXIO;
-		goto err_free_irq;
+		goto err_context_unmap;
 	}
 
 	info = framebuffer_alloc(sizeof(struct ps3fb_par), &dev->core);
 	if (!info)
-		goto err_free_irq;
+		goto err_context_unmap;
 
 	par = info->par;
 	par->mode_id = ~ps3fb_mode;	/* != ps3fb_mode, to trigger change */
@@ -1213,6 +1216,9 @@ err_fb_dealloc:
 	fb_dealloc_cmap(&info->cmap);
 err_framebuffer_release:
 	framebuffer_release(info);
+err_context_unmap:
+	lv1_gpu_context_iomap(ps3fb.context_handle, GPU_IOIF, xdr_lpar,
+			      ps3fb_videomemory.size, CBE_IOPTE_M);
 err_free_irq:
 	free_irq(ps3fb.irq_no, &dev->core);
 err_destroy_plug:
@@ -1232,6 +1238,7 @@ err:
 static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 {
 	struct fb_info *info = dev->core.driver_data;
+	u64 xdr_lpar = ps3_mm_phys_to_lpar(__pa(ps3fb_videomemory.address));
 
 	dev_dbg(&dev->core, " -> %s:%d\n", __func__, __LINE__);
 
@@ -1254,6 +1261,8 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 		info = dev->core.driver_data = NULL;
 	}
 	iounmap((u8 __force __iomem *)ps3fb.dinfo);
+	lv1_gpu_context_iomap(ps3fb.context_handle, GPU_IOIF, xdr_lpar,
+			      ps3fb_videomemory.size, CBE_IOPTE_M);
 	lv1_gpu_context_free(ps3fb.context_handle);
 	lv1_gpu_memory_free(ps3fb.memory_handle);
 	ps3_close_hv_device(dev);
