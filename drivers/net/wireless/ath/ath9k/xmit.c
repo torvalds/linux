@@ -73,18 +73,6 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 /* Aggregation logic */
 /*********************/
 
-static int ath_aggr_query(struct ath_softc *sc, struct ath_node *an, u8 tidno)
-{
-	struct ath_atx_tid *tid;
-	tid = ATH_AN_2_TID(an, tidno);
-
-	if (tid->state & AGGR_ADDBA_COMPLETE ||
-	    tid->state & AGGR_ADDBA_PROGRESS)
-		return 1;
-	else
-		return 0;
-}
-
 static void ath_tx_queue_tid(struct ath_txq *txq, struct ath_atx_tid *tid)
 {
 	struct ath_atx_ac *ac = tid->ac;
@@ -1636,7 +1624,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			goto tx_done;
 		}
 
-		if (ath_aggr_query(sc, an, bf->bf_tidno)) {
+		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 			/*
 			 * Try aggregation if it's a unicast data frame
 			 * and the destination is HT capable.
