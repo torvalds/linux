@@ -242,7 +242,7 @@ static int is_writeble_pte(unsigned long pte)
 
 static int is_dirty_pte(unsigned long pte)
 {
-	return pte & shadow_dirty_mask;
+	return pte & PT_DIRTY_MASK;
 }
 
 static int is_rmap_pte(u64 pte)
