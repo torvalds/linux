@@ -2083,12 +2083,16 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 	ex = EXT_LAST_EXTENT(eh);
 
 	ex_ee_block = le32_to_cpu(ex->ee_block);
-	if (ext4_ext_is_uninitialized(ex))
-		uninitialized = 1;
 	ex_ee_len = ext4_ext_get_actual_len(ex);
 
 	while (ex >= EXT_FIRST_EXTENT(eh) &&
 			ex_ee_block + ex_ee_len > start) {
+
+		if (ext4_ext_is_uninitialized(ex))
+			uninitialized = 1;
+		else
+			uninitialized = 0;
+
 		ext_debug("remove ext %lu:%u\n", ex_ee_block, ex_ee_len);
 		path[depth].p_ext = ex;
 
