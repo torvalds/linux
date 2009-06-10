@@ -144,7 +144,7 @@ static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
 
 static irqreturn_t ipi_handler(int irq, void *dev_instance)
 {
-	struct ipi_message *msg, *mg;
+	struct ipi_message *msg;
 	struct ipi_message_queue *msg_queue;
 	unsigned int cpu = smp_processor_id();
 
@@ -154,7 +154,8 @@ static irqreturn_t ipi_handler(int irq, void *dev_instance)
 	msg_queue->count++;
 
 	spin_lock(&msg_queue->lock);
-	list_for_each_entry_safe(msg, mg, &msg_queue->head, list) {
+	while (!list_empty(&msg_queue->head)) {
+		msg = list_entry(msg_queue->head.next, typeof(*msg), list);
 		list_del(&msg->list);
 		switch (msg->type) {
 		case BFIN_IPI_RESCHEDULE:
@@ -221,7 +222,7 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 	for_each_cpu_mask(cpu, callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
-		list_add(&msg->list, &msg_queue->head);
+		list_add_tail(&msg->list, &msg_queue->head);
 		spin_unlock_irqrestore(&msg_queue->lock, flags);
 		platform_send_ipi_cpu(cpu);
 	}
@@ -261,7 +262,7 @@ int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 
 	msg_queue = &per_cpu(ipi_msg_queue, cpu);
 	spin_lock_irqsave(&msg_queue->lock, flags);
-	list_add(&msg->list, &msg_queue->head);
+	list_add_tail(&msg->list, &msg_queue->head);
 	spin_unlock_irqrestore(&msg_queue->lock, flags);
 	platform_send_ipi_cpu(cpu);
 
@@ -292,7 +293,7 @@ void smp_send_reschedule(int cpu)
 
 	msg_queue = &per_cpu(ipi_msg_queue, cpu);
 	spin_lock_irqsave(&msg_queue->lock, flags);
-	list_add(&msg->list, &msg_queue->head);
+	list_add_tail(&msg->list, &msg_queue->head);
 	spin_unlock_irqrestore(&msg_queue->lock, flags);
 	platform_send_ipi_cpu(cpu);
 
@@ -320,7 +321,7 @@ void smp_send_stop(void)
 	for_each_cpu_mask(cpu, callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
-		list_add(&msg->list, &msg_queue->head);
+		list_add_tail(&msg->list, &msg_queue->head);
 		spin_unlock_irqrestore(&msg_queue->lock, flags);
 		platform_send_ipi_cpu(cpu);
 	}
