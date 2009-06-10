@@ -1533,7 +1533,7 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	int vec;
 
-	cancel_delayed_work(&adapter->work);
+	cancel_delayed_work_sync(&adapter->work);
 
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
