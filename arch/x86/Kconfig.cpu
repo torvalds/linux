@@ -506,6 +506,7 @@ config X86_PTRACE_BTS
 	bool "Branch Trace Store"
 	default y
 	depends on X86_DEBUGCTLMSR
+	depends on BROKEN
 	---help---
 	  This adds a ptrace interface to the hardware's branch trace store.
 
