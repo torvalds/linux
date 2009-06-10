@@ -754,13 +754,13 @@ static void amd64_cpu_display_info(struct amd64_pvt *pvt)
 static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
 {
 	int bit;
-	enum dev_type edac_cap = EDAC_NONE;
+	enum dev_type edac_cap = EDAC_FLAG_NONE;
 
 	bit = (boot_cpu_data.x86 > 0xf || pvt->ext_model >= OPTERON_CPU_REV_F)
 		? 19
 		: 17;
 
-	if (pvt->dclr0 >> BIT(bit))
+	if (pvt->dclr0 & BIT(bit))
 		edac_cap = EDAC_FLAG_SECDED;
 
 	return edac_cap;
@@ -3006,7 +3006,6 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
-	mci->edac_cap		= EDAC_FLAG_NONE;
 
 	if (pvt->nbcap & K8_NBCAP_SECDED)
 		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
