@@ -605,6 +605,9 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		device->in_fs_metadata = 0;
 		device->mode = flags;
 
+		if (!blk_queue_nonrot(bdev_get_queue(bdev)))
+			fs_devices->rotating = 1;
+
 		fs_devices->open_devices++;
 		if (device->writeable) {
 			fs_devices->rw_devices++;
@@ -1472,6 +1475,9 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->open_devices++;
 	root->fs_info->fs_devices->rw_devices++;
 	root->fs_info->fs_devices->total_rw_bytes += device->total_bytes;
+
+	if (!blk_queue_nonrot(bdev_get_queue(bdev)))
+		root->fs_info->fs_devices->rotating = 1;
 
 	total_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	btrfs_set_super_total_bytes(&root->fs_info->super_copy,

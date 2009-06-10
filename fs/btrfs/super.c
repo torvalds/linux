@@ -184,6 +184,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_nossd:
 			printk(KERN_INFO "btrfs: not using ssd allocation "
 			       "scheme\n");
+			btrfs_set_opt(info->mount_opt, NOSSD);
 			btrfs_clear_opt(info->mount_opt, SSD);
 			btrfs_clear_opt(info->mount_opt, SSD_SPREAD);
 			break;
@@ -438,6 +439,8 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);
 	if (btrfs_test_opt(root, COMPRESS))
 		seq_puts(seq, ",compress");
+	if (btrfs_test_opt(root, NOSSD))
+		seq_puts(seq, ",nossd");
 	if (btrfs_test_opt(root, SSD_SPREAD))
 		seq_puts(seq, ",ssd_spread");
 	else if (btrfs_test_opt(root, SSD))

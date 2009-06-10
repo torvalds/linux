@@ -107,6 +107,11 @@ struct btrfs_fs_devices {
 	int seeding;
 
 	int opened;
+
+	/* set when we find or add a device that doesn't have the
+	 * nonrot flag set
+	 */
+	int rotating;
 };
 
 struct btrfs_bio_stripe {

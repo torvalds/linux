@@ -1850,6 +1850,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (IS_ERR(fs_info->transaction_kthread))
 		goto fail_cleaner;
 
+	if (!btrfs_test_opt(tree_root, SSD) &&
+	    !btrfs_test_opt(tree_root, NOSSD) &&
+	    !fs_info->fs_devices->rotating) {
+		printk(KERN_INFO "Btrfs detected SSD devices, enabling SSD "
+		       "mode\n");
+		btrfs_set_opt(fs_info->mount_opt, SSD);
+	}
+
 	if (btrfs_super_log_root(disk_super) != 0) {
 		u64 bytenr = btrfs_super_log_root(disk_super);
 
@@ -1893,6 +1901,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
 		goto fail_trans_kthread;
+
 	return tree_root;
 
 fail_trans_kthread:
