@@ -109,6 +109,51 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 
 EXPORT_SYMBOL(acpi_get_pci_id);
 
+static int acpi_pci_unbind(struct acpi_device *device)
+{
+	int result = 0;
+	acpi_status status;
+	struct acpi_pci_data *data;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+
+
+	if (!device || !device->parent)
+		return -EINVAL;
+
+	status = acpi_get_name(device->handle, ACPI_FULL_PATHNAME, &buffer);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Unbinding PCI device [%s]...\n",
+			  (char *) buffer.pointer));
+	kfree(buffer.pointer);
+
+	status =
+	    acpi_get_data(device->handle, acpi_pci_data_handler,
+			  (void **)&data);
+	if (ACPI_FAILURE(status)) {
+		result = -ENODEV;
+		goto end;
+	}
+
+	status = acpi_detach_data(device->handle, acpi_pci_data_handler);
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Unable to detach data from device %s",
+				acpi_device_bid(device)));
+		result = -ENODEV;
+		goto end;
+	}
+	if (data->dev->subordinate) {
+		acpi_pci_irq_del_prt(data->id.segment, data->bus->number);
+	}
+	pci_dev_put(data->dev);
+	kfree(data);
+
+      end:
+	return result;
+}
+
 static int acpi_pci_bind(struct acpi_device *device)
 {
 	int result = 0;
@@ -250,51 +295,6 @@ static int acpi_pci_bind(struct acpi_device *device)
 		pci_dev_put(data->dev);
 		kfree(data);
 	}
-	return result;
-}
-
-static int acpi_pci_unbind(struct acpi_device *device)
-{
-	int result = 0;
-	acpi_status status;
-	struct acpi_pci_data *data;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-
-	if (!device || !device->parent)
-		return -EINVAL;
-
-	status = acpi_get_name(device->handle, ACPI_FULL_PATHNAME, &buffer);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Unbinding PCI device [%s]...\n",
-			  (char *) buffer.pointer));
-	kfree(buffer.pointer);
-
-	status =
-	    acpi_get_data(device->handle, acpi_pci_data_handler,
-			  (void **)&data);
-	if (ACPI_FAILURE(status)) {
-		result = -ENODEV;
-		goto end;
-	}
-
-	status = acpi_detach_data(device->handle, acpi_pci_data_handler);
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status,
-				"Unable to detach data from device %s",
-				acpi_device_bid(device)));
-		result = -ENODEV;
-		goto end;
-	}
-	if (data->dev->subordinate) {
-		acpi_pci_irq_del_prt(data->id.segment, data->bus->number);
-	}
-	pci_dev_put(data->dev);
-	kfree(data);
-
-      end:
 	return result;
 }
 
