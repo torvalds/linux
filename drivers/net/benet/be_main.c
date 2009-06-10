@@ -743,7 +743,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 
 	if (pktsize <= rx_frag_size) {
 		BUG_ON(num_rcvd != 1);
-		return;
+		goto done;
 	}
 
 	/* More frags present for this completion */
@@ -765,6 +765,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		memset(page_info, 0, sizeof(*page_info));
 	}
 
+done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
 	return;
 }
