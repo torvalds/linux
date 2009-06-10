@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -74,9 +74,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -198,7 +198,7 @@ MODULE_PARM_DESC(et131x_nmi_disable, "Disable NMI (0-2) [0]");
 static u32 et131x_speed_set = PARM_SPEED_DUPLEX_DEF;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
-		 "Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
+		"Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
 
 /**
  * et131x_config_parse
@@ -242,7 +242,7 @@ void et131x_config_parse(struct et131x_adapter *pAdapter)
 		pAdapter->SpeedDuplex = PARM_SPEED_DUPLEX_DEF;
 	}
 
-	//  pAdapter->SpeedDuplex            = PARM_SPEED_DUPLEX_DEF;
+	/*  pAdapter->SpeedDuplex            = PARM_SPEED_DUPLEX_DEF; */
 
 	pAdapter->RegistryVlanTag = PARM_VLAN_TAG_DEF;
 	pAdapter->RegistryFlowControl = PARM_FLOW_CTL_DEF;
@@ -259,11 +259,10 @@ void et131x_config_parse(struct et131x_adapter *pAdapter)
 	pAdapter->RegistrySCGain = PARM_SC_GAIN_DEF;
 	pAdapter->RegistryPMWOL = PARM_PM_WOL_DEF;
 
-	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF) {
+	if (et131x_nmi_disable != PARM_NMI_DISABLE_DEF)
 		pAdapter->RegistryNMIDisable = et131x_nmi_disable;
-	} else {
+	else
 		pAdapter->RegistryNMIDisable = PARM_NMI_DISABLE_DEF;
-	}
 
 	pAdapter->RegistryDMACache = PARM_DMA_CACHE_DEF;
 	pAdapter->RegistryPhyLoopbk = PARM_PHY_LOOPBK_DEF;
@@ -283,39 +282,38 @@ void et131x_config_parse(struct et131x_adapter *pAdapter)
 	 * Set up as if we are auto negotiating always and then change if we
 	 * go into force mode
 	 */
-	pAdapter->AiForceSpeed = 0;	// Auto speed
-	pAdapter->AiForceDpx = 0;	// Auto FDX
+	pAdapter->AiForceSpeed = 0;	/* Auto speed */
+	pAdapter->AiForceDpx = 0;	/* Auto FDX */
 
 	/* If we are the 10/100 device, and gigabit is somehow requested then
 	 * knock it down to 100 full.
 	 */
-	if ((pAdapter->DeviceID == ET131X_PCI_DEVICE_ID_FAST) &&
-	    (pAdapter->SpeedDuplex == 5)) {
+	if (pAdapter->DeviceID == ET131X_PCI_DEVICE_ID_FAST &&
+	    pAdapter->SpeedDuplex == 5)
 		pAdapter->SpeedDuplex = 4;
-	}
 
 	switch (pAdapter->SpeedDuplex) {
-	case 1:		// 10Mb   Half-Duplex
+	case 1:		/* 10Mb   Half-Duplex */
 		pAdapter->AiForceSpeed = 10;
 		pAdapter->AiForceDpx = 1;
 		break;
 
-	case 2:		// 10Mb   Full-Duplex
+	case 2:		/* 10Mb   Full-Duplex */
 		pAdapter->AiForceSpeed = 10;
 		pAdapter->AiForceDpx = 2;
 		break;
 
-	case 3:		// 100Mb  Half-Duplex
+	case 3:		/* 100Mb  Half-Duplex */
 		pAdapter->AiForceSpeed = 100;
 		pAdapter->AiForceDpx = 1;
 		break;
 
-	case 4:		// 100Mb  Full-Duplex
+	case 4:		/* 100Mb  Full-Duplex */
 		pAdapter->AiForceSpeed = 100;
 		pAdapter->AiForceDpx = 2;
 		break;
 
-	case 5:		// 1000Mb Full-Duplex
+	case 5:		/* 1000Mb Full-Duplex */
 		pAdapter->AiForceSpeed = 1000;
 		pAdapter->AiForceDpx = 2;
 		break;

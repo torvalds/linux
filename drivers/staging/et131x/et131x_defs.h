@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -118,9 +118,9 @@
 #define ET1310_PCI_ADVANCED_ERR		0x100
 
 /* PCI Vendor/Product IDs */
-#define ET131X_PCI_VENDOR_ID		0x11C1	// Agere Systems
-#define ET131X_PCI_DEVICE_ID_GIG	0xED00	// ET1310 1000 Base-T
-#define ET131X_PCI_DEVICE_ID_FAST	0xED01	// ET1310 100  Base-T
+#define ET131X_PCI_VENDOR_ID		0x11C1	/* Agere Systems */
+#define ET131X_PCI_DEVICE_ID_GIG	0xED00	/* ET1310 1000 Base-T 8 */
+#define ET131X_PCI_DEVICE_ID_FAST	0xED01	/* ET1310 100  Base-T */
 
 /* Define order of magnitude converter */
 #define NANO_IN_A_MICRO	1000

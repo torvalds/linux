@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -19,7 +19,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -40,7 +40,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -74,9 +74,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -120,7 +120,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) & adapter->RxRing;
+	rx_ring = (RX_RING_t *) &adapter->RxRing;
 
 	/* Alloc memory for the lookup table */
 #ifdef USE_FBR0
@@ -250,11 +250,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		 * the size of FBR0.  By allocating N buffers at once, we
 		 * reduce this overhead.
 		 */
-		if (rx_ring->Fbr1BufferSize > 4096) {
+		if (rx_ring->Fbr1BufferSize > 4096)
 			Fbr1Align = 4096;
-		} else {
+		else
 			Fbr1Align = rx_ring->Fbr1BufferSize;
-		}
 
 		FBRChunkSize =
 		    (FBR_CHUNKS * rx_ring->Fbr1BufferSize) + Fbr1Align - 1;
@@ -443,7 +442,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) & adapter->RxRing;
+	rx_ring = (RX_RING_t *) &adapter->RxRing;
 
 	/* Free RFDs and associated packet descriptors */
 	DBG_ASSERT(rx_ring->nReadyRecv == rx_ring->NumRfd);
@@ -471,11 +470,10 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 			if (rx_ring->Fbr1MemVa[index]) {
 				uint32_t Fbr1Align;
 
-				if (rx_ring->Fbr1BufferSize > 4096) {
+				if (rx_ring->Fbr1BufferSize > 4096)
 					Fbr1Align = 4096;
-				} else {
+				else
 					Fbr1Align = rx_ring->Fbr1BufferSize;
-				}
 
 				bufsize =
 				    (rx_ring->Fbr1BufferSize * FBR_CHUNKS) +
@@ -491,8 +489,8 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		}
 
 		/* Now the FIFO itself */
-		rx_ring->pFbr1RingVa = (void *)((uint8_t *) rx_ring->pFbr1RingVa -
-						rx_ring->Fbr1offset);
+		rx_ring->pFbr1RingVa = (void *)((uint8_t *)
+				rx_ring->pFbr1RingVa - rx_ring->Fbr1offset);
 
 		bufsize =
 		    (sizeof(FBR_DESC_t) * rx_ring->Fbr1NumEntries) + 0xfff;
@@ -525,8 +523,8 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		}
 
 		/* Now the FIFO itself */
-		rx_ring->pFbr0RingVa = (void *)((uint8_t *) rx_ring->pFbr0RingVa -
-						rx_ring->Fbr0offset);
+		rx_ring->pFbr0RingVa = (void *)((uint8_t *)
+				rx_ring->pFbr0RingVa - rx_ring->Fbr0offset);
 
 		bufsize =
 		    (sizeof(FBR_DESC_t) * rx_ring->Fbr0NumEntries) + 0xfff;
@@ -556,12 +554,12 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free area of memory for the writeback of status information */
 	if (rx_ring->pRxStatusVa) {
-		rx_ring->pRxStatusVa = (void *)((uint8_t *) rx_ring->pRxStatusVa -
-						rx_ring->RxStatusOffset);
+		rx_ring->pRxStatusVa = (void *)((uint8_t *)
+				rx_ring->pRxStatusVa - rx_ring->RxStatusOffset);
 
 		pci_free_consistent(adapter->pdev,
-				    sizeof(RX_STATUS_BLOCK_t) + 0x7,
-				    rx_ring->pRxStatusVa, rx_ring->pRxStatusPa);
+				sizeof(RX_STATUS_BLOCK_t) + 0x7,
+				rx_ring->pRxStatusVa, rx_ring->pRxStatusPa);
 
 		rx_ring->pRxStatusVa = NULL;
 	}
@@ -606,7 +604,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) & adapter->RxRing;
+	rx_ring = (RX_RING_t *) &adapter->RxRing;
 
 	/* Setup each RFD */
 	for (RfdCount = 0; RfdCount < rx_ring->NumRfd; RfdCount++) {
@@ -636,9 +634,8 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 		TotalNumRfd++;
 	}
 
-	if (TotalNumRfd > NIC_MIN_NUM_RFD) {
+	if (TotalNumRfd > NIC_MIN_NUM_RFD)
 		status = 0;
-	}
 
 	rx_ring->NumRfd = TotalNumRfd;
 
@@ -841,11 +838,10 @@ void et131x_rx_dma_disable(struct et131x_adapter *pAdapter)
 	if (csr.bits.halt_status != 1) {
 		udelay(5);
 		csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
-		if (csr.bits.halt_status != 1) {
+		if (csr.bits.halt_status != 1)
 			DBG_ERROR(et131x_dbginfo,
-				  "RX Dma failed to enter halt state. CSR 0x%08x\n",
-				  csr.value);
-		}
+				"RX Dma failed to enter halt state. CSR 0x%08x\n",
+				csr.value);
 	}
 
 	DBG_LEAVE(et131x_dbginfo);
@@ -859,30 +855,28 @@ void et131x_rx_dma_enable(struct et131x_adapter *pAdapter)
 {
 	DBG_RX_ENTER(et131x_dbginfo);
 
-	if (pAdapter->RegistryPhyLoopbk) {
-	/* RxDMA is disabled for loopback operation. */
+	if (pAdapter->RegistryPhyLoopbk)
+		/* RxDMA is disabled for loopback operation. */
 		writel(0x1, &pAdapter->CSRAddress->rxdma.csr.value);
-	} else {
+	else {
 	/* Setup the receive dma configuration register for normal operation */
 		RXDMA_CSR_t csr = { 0 };
 
 		csr.bits.fbr1_enable = 1;
-		if (pAdapter->RxRing.Fbr1BufferSize == 4096) {
+		if (pAdapter->RxRing.Fbr1BufferSize == 4096)
 			csr.bits.fbr1_size = 1;
-		} else if (pAdapter->RxRing.Fbr1BufferSize == 8192) {
+		else if (pAdapter->RxRing.Fbr1BufferSize == 8192)
 			csr.bits.fbr1_size = 2;
-		} else if (pAdapter->RxRing.Fbr1BufferSize == 16384) {
+		else if (pAdapter->RxRing.Fbr1BufferSize == 16384)
 			csr.bits.fbr1_size = 3;
-		}
 #ifdef USE_FBR0
 		csr.bits.fbr0_enable = 1;
-		if (pAdapter->RxRing.Fbr0BufferSize == 256) {
+		if (pAdapter->RxRing.Fbr0BufferSize == 256)
 			csr.bits.fbr0_size = 1;
-		} else if (pAdapter->RxRing.Fbr0BufferSize == 512) {
+		else if (pAdapter->RxRing.Fbr0BufferSize == 512)
 			csr.bits.fbr0_size = 2;
-		} else if (pAdapter->RxRing.Fbr0BufferSize == 1024) {
+		else if (pAdapter->RxRing.Fbr0BufferSize == 1024)
 			csr.bits.fbr0_size = 3;
-		}
 #endif
 		writel(csr.value, &pAdapter->CSRAddress->rxdma.csr.value);
 
@@ -892,8 +886,8 @@ void et131x_rx_dma_enable(struct et131x_adapter *pAdapter)
 			csr.value = readl(&pAdapter->CSRAddress->rxdma.csr.value);
 			if (csr.bits.halt_status != 0) {
 				DBG_ERROR(et131x_dbginfo,
-					  "RX Dma failed to exit halt state.  CSR 0x%08x\n",
-					  csr.value);
+					"RX Dma failed to exit halt state.  CSR 0x%08x\n",
+					csr.value);
 			}
 		}
 	}
@@ -938,8 +932,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 
 	if (pRxStatusBlock->Word1.bits.PSRoffset ==
 			pRxLocal->local_psr_full.bits.psr_full &&
-	    pRxStatusBlock->Word1.bits.PSRwrap ==
-	    		pRxLocal->local_psr_full.bits.psr_full_wrap) {
+			pRxStatusBlock->Word1.bits.PSRwrap ==
+			pRxLocal->local_psr_full.bits.psr_full_wrap) {
 		/* Looks like this ring is not updated yet */
 		DBG_RX(et131x_dbginfo, "(0)\n");
 		DBG_RX_LEAVE(et131x_dbginfo);
@@ -999,13 +993,13 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 
 #ifdef USE_FBR0
 	if (ringIndex > 1 ||
-	    (ringIndex == 0 &&
-	     bufferIndex > pRxLocal->Fbr0NumEntries - 1) ||
-	    (ringIndex == 1 &&
-	     bufferIndex > pRxLocal->Fbr1NumEntries - 1))
+		(ringIndex == 0 &&
+		bufferIndex > pRxLocal->Fbr0NumEntries - 1) ||
+		(ringIndex == 1 &&
+		bufferIndex > pRxLocal->Fbr1NumEntries - 1))
 #else
 	if (ringIndex != 1 ||
-	    bufferIndex > pRxLocal->Fbr1NumEntries - 1)
+		bufferIndex > pRxLocal->Fbr1NumEntries - 1)
 #endif
 	{
 		/* Illegal buffer or ring index cannot be used by S/W*/
@@ -1124,30 +1118,27 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *pAdapter)
 				 * so we free our RFD when we return
 				 * from this function.
 				 */
-				if (nIndex == pAdapter->MCAddressCount) {
+				if (nIndex == pAdapter->MCAddressCount)
 					localLen = 0;
-				}
 			}
 
-			if (localLen > 0) {
+			if (localLen > 0)
 				pAdapter->Stats.multircv++;
-			}
-		} else if (Word0.value & ALCATEL_BROADCAST_PKT) {
+		} else if (Word0.value & ALCATEL_BROADCAST_PKT)
 			pAdapter->Stats.brdcstrcv++;
-		} else {
+		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
 			pAdapter->Stats.unircv++;
-		}
 	}
 
 	if (localLen > 0) {
 		struct sk_buff *skb = NULL;
 
-		//pMpRfd->PacketSize = localLen - 4;
+		/* pMpRfd->PacketSize = localLen - 4; */
 		pMpRfd->PacketSize = localLen;
 
 		skb = dev_alloc_skb(pMpRfd->PacketSize + 2);
@@ -1240,9 +1231,8 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 
 		pMpRfd = nic_rx_pkts(pAdapter);
 
-		if (pMpRfd == NULL) {
+		if (pMpRfd == NULL)
 			break;
-		}
 
 		/* Do not receive any packets until a filter has been set.
 		 * Do not receive any packets until we are at D0.
@@ -1270,12 +1260,13 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *pAdapter)
 			 * Besides, we don't really need (at this point) the
 			 * pending list anyway.
 			 */
-			//spin_lock_irqsave( &pAdapter->RcvPendLock, lockflags );
-			//list_add_tail( &pMpRfd->list_node, &pAdapter->RxRing.RecvPendingList );
-			//spin_unlock_irqrestore( &pAdapter->RcvPendLock, lockflags );
+			/* spin_lock_irqsave( &pAdapter->RcvPendLock, lockflags );
+			 * list_add_tail( &pMpRfd->list_node, &pAdapter->RxRing.RecvPendingList );
+			 * spin_unlock_irqrestore( &pAdapter->RcvPendLock, lockflags );
+			 */
 
 			/* Update the number of outstanding Recvs */
-			//MP_INC_RCV_REF( pAdapter );
+			/* MP_INC_RCV_REF( pAdapter ); */
 		} else {
 			RFDFreeArray[PacketFreeCount] = pMpRfd;
 			PacketFreeCount++;

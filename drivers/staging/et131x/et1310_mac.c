@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -19,7 +19,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -40,7 +40,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -73,9 +73,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -118,10 +118,10 @@ void ConfigMACRegs1(struct et131x_adapter *pAdapter)
 	writel(0xC00F0000, &pMac->cfg1.value);
 
 	/* Next lets configure the MAC Inter-packet gap register */
-	ipg.bits.non_B2B_ipg_1 = 0x38;		// 58d
-	ipg.bits.non_B2B_ipg_2 = 0x58;		// 88d
-	ipg.bits.min_ifg_enforce = 0x50;	// 80d
-	ipg.bits.B2B_ipg = 0x60;		// 96d
+	ipg.bits.non_B2B_ipg_1 = 0x38;		/* 58d */
+	ipg.bits.non_B2B_ipg_2 = 0x58;		/* 88d */
+	ipg.bits.min_ifg_enforce = 0x50;	/* 80d */
+	ipg.bits.B2B_ipg = 0x60;		/* 96d */
 	writel(ipg.value, &pMac->ipg.value);
 
 	/* Next lets configure the MAC Half Duplex register */
@@ -131,7 +131,7 @@ void ConfigMACRegs1(struct et131x_adapter *pAdapter)
 	hfdp.bits.no_backoff = 0x0;
 	hfdp.bits.excess_defer = 0x1;
 	hfdp.bits.rexmit_max = 0xF;
-	hfdp.bits.coll_window = 0x37;		// 55d
+	hfdp.bits.coll_window = 0x37;		/* 55d */
 	writel(hfdp.value, &pMac->hfdp.value);
 
 	/* Next lets configure the MAC Interface Control register */
@@ -251,21 +251,20 @@ void ConfigMACRegs2(struct et131x_adapter *pAdapter)
 		udelay(10);
 		delay++;
 		cfg1.value = readl(&pMac->cfg1.value);
-	} while ((!cfg1.bits.syncd_rx_en ||
-		  !cfg1.bits.syncd_tx_en) &&
-		 delay < 100);
+	} while ((!cfg1.bits.syncd_rx_en || !cfg1.bits.syncd_tx_en) &&
+								 delay < 100);
 
 	if (delay == 100) {
 		DBG_ERROR(et131x_dbginfo,
-			  "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
-			  cfg1.value);
+		    "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
+			cfg1.value);
 	}
 
 	DBG_TRACE(et131x_dbginfo,
-		  "Speed %d, Dup %d, CFG1 0x%08x, CFG2 0x%08x, if_ctrl 0x%08x\n",
-		  pAdapter->uiLinkSpeed, pAdapter->uiDuplexMode,
-		  readl(&pMac->cfg1.value), readl(&pMac->cfg2.value),
-		  readl(&pMac->if_ctrl.value));
+		"Speed %d, Dup %d, CFG1 0x%08x, CFG2 0x%08x, if_ctrl 0x%08x\n",
+		pAdapter->uiLinkSpeed, pAdapter->uiDuplexMode,
+		readl(&pMac->cfg1.value), readl(&pMac->cfg2.value),
+		readl(&pMac->if_ctrl.value));
 
 	/* Enable TXMAC */
 	ctl.bits.txmac_en = 0x1;
@@ -409,11 +408,10 @@ void ConfigRxMacRegs(struct et131x_adapter *pAdapter)
 	 * bit 16: Receive frame truncated.
 	 * bit 17: Drop packet enable
 	 */
-	if (pAdapter->uiLinkSpeed == TRUEPHY_SPEED_100MBPS) {
+	if (pAdapter->uiLinkSpeed == TRUEPHY_SPEED_100MBPS)
 		writel(0x30038, &pRxMac->mif_ctrl.value);
-	} else {
+	else
 		writel(0x30030, &pRxMac->mif_ctrl.value);
-	}
 
 	/* Finally we initialize RxMac to be enabled & WOL disabled.  Packet
 	 * filter is always enabled since it is where the runt packets are
@@ -540,7 +538,7 @@ void ConfigMacStatRegs(struct et131x_adapter *pAdapter)
 	DBG_LEAVE(et131x_dbginfo);
 }
 
-void ConfigFlowControl(struct et131x_adapter * pAdapter)
+void ConfigFlowControl(struct et131x_adapter *pAdapter)
 {
 	if (pAdapter->uiDuplexMode == 0) {
 		pAdapter->FlowControl = None;
@@ -558,21 +556,19 @@ void ConfigFlowControl(struct et131x_adapter * pAdapter)
 			pAdapter->FlowControl = pAdapter->RegistryFlowControl;
 		} else if ((RemotePause == TRUEPHY_BIT_SET) &&
 			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
-			if (pAdapter->RegistryFlowControl == Both) {
+			if (pAdapter->RegistryFlowControl == Both)
 				pAdapter->FlowControl = Both;
-			} else {
+			else
 				pAdapter->FlowControl = None;
-			}
 		} else if ((RemotePause == TRUEPHY_BIT_CLEAR) &&
 			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
 			pAdapter->FlowControl = None;
 		} else {/* if (RemotePause == TRUEPHY_CLEAR_BIT &&
 			       RemoteAsyncPause == TRUEPHY_SET_BIT) */
-			if (pAdapter->RegistryFlowControl == Both) {
+			if (pAdapter->RegistryFlowControl == Both)
 				pAdapter->FlowControl = RxOnly;
-			} else {
+			else
 				pAdapter->FlowControl = None;
-			}
 		}
 	}
 }
@@ -635,48 +631,34 @@ void HandleMacStatInterrupt(struct et131x_adapter *pAdapter)
 	 * revolution of the counter.  This routine is called when the counter
 	 * block indicates that one of the counters has wrapped.
 	 */
-	if (Carry1.bits.rfcs) {
+	if (Carry1.bits.rfcs)
 		pAdapter->Stats.code_violations += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry1.bits.raln) {
+	if (Carry1.bits.raln)
 		pAdapter->Stats.alignment_err += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry1.bits.rflr) {
+	if (Carry1.bits.rflr)
 		pAdapter->Stats.length_err += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry1.bits.rfrg) {
+	if (Carry1.bits.rfrg)
 		pAdapter->Stats.other_errors += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry1.bits.rcde) {
+	if (Carry1.bits.rcde)
 		pAdapter->Stats.crc_err += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry1.bits.rovr) {
+	if (Carry1.bits.rovr)
 		pAdapter->Stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry1.bits.rdrp) {
+	if (Carry1.bits.rdrp)
 		pAdapter->Stats.norcvbuf += COUNTER_WRAP_16_BIT;
-	}
-	if (Carry2.bits.tovr) {
+	if (Carry2.bits.tovr)
 		pAdapter->Stats.max_pkt_error += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tund) {
+	if (Carry2.bits.tund)
 		pAdapter->Stats.tx_uflo += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tscl) {
+	if (Carry2.bits.tscl)
 		pAdapter->Stats.first_collision += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tdfr) {
+	if (Carry2.bits.tdfr)
 		pAdapter->Stats.tx_deferred += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tmcl) {
+	if (Carry2.bits.tmcl)
 		pAdapter->Stats.excessive_collisions += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tlcl) {
+	if (Carry2.bits.tlcl)
 		pAdapter->Stats.late_collisions += COUNTER_WRAP_12_BIT;
-	}
-	if (Carry2.bits.tncl) {
+	if (Carry2.bits.tncl)
 		pAdapter->Stats.collisions += COUNTER_WRAP_12_BIT;
-	}
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -707,14 +689,14 @@ void SetupDeviceForMulticast(struct et131x_adapter *pAdapter)
 		/* Loop through our multicast array and set up the device */
 		for (nIndex = 0; nIndex < pAdapter->MCAddressCount; nIndex++) {
 			DBG_VERBOSE(et131x_dbginfo,
-				    "MCList[%d]: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				    nIndex,
-				    pAdapter->MCList[nIndex][0],
-				    pAdapter->MCList[nIndex][1],
-				    pAdapter->MCList[nIndex][2],
-				    pAdapter->MCList[nIndex][3],
-				    pAdapter->MCList[nIndex][4],
-				    pAdapter->MCList[nIndex][5]);
+			    "MCList[%d]: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			    nIndex,
+			    pAdapter->MCList[nIndex][0],
+			    pAdapter->MCList[nIndex][1],
+			    pAdapter->MCList[nIndex][2],
+			    pAdapter->MCList[nIndex][3],
+			    pAdapter->MCList[nIndex][4],
+			    pAdapter->MCList[nIndex][5]);
 
 			result = ether_crc(6, pAdapter->MCList[nIndex]);
 

@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -74,9 +74,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -151,29 +151,24 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 
 	/* This is our interrupt, so process accordingly */
 #ifdef CONFIG_ET131X_DEBUG
-	if (status.bits.rxdma_xfr_done) {
+	if (status.bits.rxdma_xfr_done)
 		adapter->Stats.RxDmaInterruptsPerSec++;
-	}
 
-	if (status.bits.txdma_isr) {
+	if (status.bits.txdma_isr)
 		adapter->Stats.TxDmaInterruptsPerSec++;
-	}
 #endif
 
 	if (status.bits.watchdog_interrupt) {
 		PMP_TCB pMpTcb = adapter->TxRing.CurrSendHead;
 
-		if (pMpTcb) {
-			if (++pMpTcb->PacketStaleCount > 1) {
+		if (pMpTcb)
+			if (++pMpTcb->PacketStaleCount > 1)
 				status.bits.txdma_isr = 1;
-			}
-		}
 
-		if (adapter->RxRing.UnfinishedReceives) {
+		if (adapter->RxRing.UnfinishedReceives)
 			status.bits.rxdma_xfr_done = 1;
-		} else if (pMpTcb == NULL) {
+		else if (pMpTcb == NULL)
 			writel(0, &adapter->CSRAddress->global.watchdog_timer);
-		}
 
 		status.bits.watchdog_interrupt = 0;
 #ifdef CONFIG_ET131X_DEBUG
@@ -284,7 +279,8 @@ void et131x_isr_handler(struct work_struct *work)
 				/* Tell the device to send a pause packet via
 				 * the back pressure register
 				 */
-				pm_csr.value = readl(&iomem->global.pm_csr.value);
+				pm_csr.value =
+					readl(&iomem->global.pm_csr.value);
 				if (pm_csr.bits.pm_phy_sw_coma == 0) {
 					TXMAC_BP_CTRL_t bp_ctrl = { 0 };
 
@@ -332,7 +328,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * something bad has occurred. A reset might be the
 			 * thing to do.
 			 */
-			// TRAP();
+			/* TRAP();*/
 
 			pAdapter->TxMacTest.value =
 				readl(&iomem->txmac.tx_test.value);
@@ -425,7 +421,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * otherwise we just want the device to be reset and
 			 * continue
 			 */
-			//DBG_TRAP();
+			/* DBG_TRAP(); */
 		}
 
 		/* Handle RXMAC Interrupt */
@@ -436,10 +432,11 @@ void et131x_isr_handler(struct work_struct *work)
 			 * set the flag to cause us to reset so we can solve
 			 * this issue.
 			 */
-			// MP_SET_FLAG( pAdapter, fMP_ADAPTER_HARDWARE_ERROR );
+			/* MP_SET_FLAG( pAdapter,
+						fMP_ADAPTER_HARDWARE_ERROR); */
 
 			DBG_WARNING(et131x_dbginfo,
-				    "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
+			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
 				    readl(&iomem->rxmac.err_reg.value));
 
 			DBG_WARNING(et131x_dbginfo,
@@ -452,7 +449,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * otherwise we just want the device to be reset and
 			 * continue
 			 */
-			// TRAP();
+			/* TRAP(); */
 		}
 
 		/* Handle MAC_STAT Interrupt */
@@ -482,7 +479,6 @@ void et131x_isr_handler(struct work_struct *work)
 		}
 	}
 
-	if (pAdapter->PoMgmt.PowerState == NdisDeviceStateD0) {
+	if (pAdapter->PoMgmt.PowerState == NdisDeviceStateD0)
 		et131x_enable_interrupts(pAdapter);
-	}
 }

@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -19,7 +19,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -40,7 +40,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -74,9 +74,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -127,7 +127,7 @@ int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	adapter->TxRing.MpTcbMem = (MP_TCB *) kcalloc(NUM_TCB, sizeof(MP_TCB),
+	adapter->TxRing.MpTcbMem = (MP_TCB *)kcalloc(NUM_TCB, sizeof(MP_TCB),
 						      GFP_ATOMIC | GFP_DMA);
 	if (!adapter->TxRing.MpTcbMem) {
 		DBG_ERROR(et131x_dbginfo, "Cannot alloc memory for TCBs\n");
@@ -238,10 +238,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 	}
 
 	/* Free the memory for MP_TCB structures */
-	if (adapter->TxRing.MpTcbMem) {
-		kfree(adapter->TxRing.MpTcbMem);
-		adapter->TxRing.MpTcbMem = NULL;
-	}
+	kfree(adapter->TxRing.MpTcbMem);
 
 	DBG_LEAVE(et131x_dbginfo);
 }
@@ -308,7 +305,7 @@ void et131x_tx_dma_enable(struct et131x_adapter *pAdapter)
 	DBG_ENTER(et131x_dbginfo);
 
 	if (pAdapter->RegistryPhyLoopbk) {
-	/* TxDMA is disabled for loopback operation. */
+		/* TxDMA is disabled for loopback operation. */
 		writel(0x101, &pAdapter->CSRAddress->txdma.csr.value);
 	} else {
 		TXDMA_CSR_t csr = { 0 };
@@ -405,11 +402,14 @@ int et131x_send_packets(struct sk_buff *skb, struct net_device *netdev)
 		/* We need to see if the link is up; if it's not, make the
 		 * netif layer think we're good and drop the packet
 		 */
-		//if( MP_SHOULD_FAIL_SEND( pAdapter ) || pAdapter->DriverNoPhyAccess )
+		/*
+		 * if( MP_SHOULD_FAIL_SEND( pAdapter ) ||
+		 *  pAdapter->DriverNoPhyAccess )
+		 */
 		if (MP_SHOULD_FAIL_SEND(pAdapter) || pAdapter->DriverNoPhyAccess
 		    || !netif_carrier_ok(netdev)) {
 			DBG_VERBOSE(et131x_dbginfo,
-				    "Can't Tx, Link is DOWN; drop the packet\n");
+				"Can't Tx, Link is DOWN; drop the packet\n");
 
 			dev_kfree_skb_any(skb);
 			skb = NULL;
@@ -496,9 +496,8 @@ static int et131x_send_packet(struct sk_buff *skb,
 
 	pAdapter->TxRing.TCBReadyQueueHead = pMpTcb->Next;
 
-	if (pAdapter->TxRing.TCBReadyQueueHead == NULL) {
+	if (pAdapter->TxRing.TCBReadyQueueHead == NULL)
 		pAdapter->TxRing.TCBReadyQueueTail = NULL;
-	}
 
 	spin_unlock_irqrestore(&pAdapter->TCBReadyQLock, lockflags);
 
@@ -519,9 +518,8 @@ static int et131x_send_packet(struct sk_buff *skb,
 	pMpTcb->Next = NULL;
 
 	/* Call the NIC specific send handler. */
-	if (status == 0) {
+	if (status == 0)
 		status = nic_send_packet(pAdapter, pMpTcb);
-	}
 
 	if (status != 0) {
 		spin_lock_irqsave(&pAdapter->TCBReadyQLock, lockflags);
@@ -749,11 +747,10 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 	if ((pAdapter->TxRing.txDmaReadyToSend.bits.val == 0) ||
 	    (pAdapter->TxRing.txDmaReadyToSend.bits.val ==
 	     NUM_DESC_PER_RING_TX)) {
-		if (pAdapter->TxRing.txDmaReadyToSend.bits.wrap) {
+		if (pAdapter->TxRing.txDmaReadyToSend.bits.wrap)
 			pAdapter->TxRing.txDmaReadyToSend.value = 0;
-		} else {
+		else
 			pAdapter->TxRing.txDmaReadyToSend.value = 0x400;
-		}
 	}
 
 	if (iRemainder) {
@@ -765,24 +762,21 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 	}
 
 	if (pAdapter->TxRing.txDmaReadyToSend.bits.val == 0) {
-		if (pAdapter->TxRing.txDmaReadyToSend.value) {
+		if (pAdapter->TxRing.txDmaReadyToSend.value)
 			pMpTcb->WrIndex.value = NUM_DESC_PER_RING_TX - 1;
-		} else {
+		else
 			pMpTcb->WrIndex.value =
 			    0x400 | (NUM_DESC_PER_RING_TX - 1);
-		}
-	} else {
+	} else
 		pMpTcb->WrIndex.value =
 		    pAdapter->TxRing.txDmaReadyToSend.value - 1;
-	}
 
 	spin_lock_irqsave(&pAdapter->TCBSendQLock, lockflags2);
 
-	if (pAdapter->TxRing.CurrSendTail) {
+	if (pAdapter->TxRing.CurrSendTail)
 		pAdapter->TxRing.CurrSendTail->Next = pMpTcb;
-	} else {
+	else
 		pAdapter->TxRing.CurrSendHead = pMpTcb;
-	}
 
 	pAdapter->TxRing.CurrSendTail = pMpTcb;
 
@@ -870,14 +864,14 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 			DBG_TX(et131x_dbginfo,
 			       "Even number of descs, split 1st elem\n");
 			iSplitFirstElement = 1;
-			//SegmentSize = pFragList[0].size / 2;
+			/* SegmentSize = pFragList[0].size / 2; */
 			SegmentSize = (pPacket->len - pPacket->data_len) / 2;
 		}
 	} else if (FragListCount & 0x1) {
 		DBG_TX(et131x_dbginfo, "Odd number of descs, split 1st elem\n");
 
 		iSplitFirstElement = 1;
-		//SegmentSize = pFragList[0].size / 2;
+		/* SegmentSize = pFragList[0].size / 2; */
 		SegmentSize = (pPacket->len - pPacket->data_len) / 2;
 	}
 
@@ -918,9 +912,8 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 	       FragListCount, iSplitFirstElement, loopEnd);
 
 	for (loopIndex = 0; loopIndex < loopEnd; loopIndex++) {
-		if (loopIndex > iSplitFirstElement) {
+		if (loopIndex > iSplitFirstElement)
 			fragIndex++;
-		}
 
 		DBG_TX(et131x_dbginfo,
 		       "In loop, loopIndex: %d\t fragIndex: %d\n", loopIndex,
@@ -935,13 +928,17 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 		       pPacket->len,
 		       pAdapter->TxRing.txDmaReadyToSend.bits.serv_req);
 
-		// NOTE - Should we do a paranoia check here to make sure the fragment
-		// actually has a length? It's HIGHLY unlikely the fragment would
-		// contain no data...
+		/*
+		 * NOTE - Should we do a paranoia check here to make sure the fragment
+		 * actually has a length? It's HIGHLY unlikely the fragment would
+		 * contain no data...
+		 */
 		if (1) {
-			// NOTE - Currently always getting 32-bit addrs, and dma_addr_t is
-			//        only 32-bit, so leave "high" ptr value out for now
-			CurDesc.DataBufferPtrHigh = 0;
+			/* NOTE - Currently always getting 32-bit addrs, and
+			 * dma_addr_t is only 32-bit, so leave "high" ptr
+			 * value out for now
+			 * CurDesc.DataBufferPtrHigh = 0;
+			 */
 
 			CurDesc.word2.value = 0;
 			CurDesc.word3.value = 0;
@@ -1128,7 +1125,7 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 
 	if (pAdapter->uiDuplexMode == 0 &&
 	    pMpTcb->PacketLength < NIC_MIN_PACKET_SIZE) {
-		// NOTE - Same 32/64-bit issue as above...
+		/* NOTE - Same 32/64-bit issue as above... */
 		CurDesc.DataBufferPtrHigh = 0x0;
 		CurDesc.DataBufferPtrLow = pAdapter->TxRing.pTxDummyBlkPa;
 		CurDesc.word2.value = 0;
@@ -1183,18 +1180,17 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
 		}
 
 		DBG_TX(et131x_dbginfo, "Padding descriptor %d by %d bytes\n",
-		       //pAdapter->TxRing.txDmaReadyToSend.value,
+		       /* pAdapter->TxRing.txDmaReadyToSend.value, */
 		       pAdapter->TxRing.txDmaReadyToSend.bits.serv_req,
 		       NIC_MIN_PACKET_SIZE - pMpTcb->PacketLength);
 	}
 
 	spin_lock_irqsave(&pAdapter->TCBSendQLock, lockflags2);
 
-	if (pAdapter->TxRing.CurrSendTail) {
+	if (pAdapter->TxRing.CurrSendTail)
 		pAdapter->TxRing.CurrSendTail->Next = pMpTcb;
-	} else {
+	else
 		pAdapter->TxRing.CurrSendHead = pMpTcb;
-	}
 
 	pAdapter->TxRing.CurrSendTail = pMpTcb;
 
@@ -1235,19 +1231,19 @@ static int nic_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
  *
  * Assumption - Send spinlock has been acquired
  */
-__inline void et131x_free_send_packet(struct et131x_adapter *pAdapter, PMP_TCB pMpTcb)
+inline void et131x_free_send_packet(struct et131x_adapter *pAdapter,
+							PMP_TCB pMpTcb)
 {
 	unsigned long lockflags;
 	TX_DESC_ENTRY_t *desc = NULL;
 	struct net_device_stats *stats = &pAdapter->net_stats;
 
-	if (MP_TEST_FLAG(pMpTcb, fMP_DEST_BROAD)) {
+	if (MP_TEST_FLAG(pMpTcb, fMP_DEST_BROAD))
 		atomic_inc(&pAdapter->Stats.brdcstxmt);
-	} else if (MP_TEST_FLAG(pMpTcb, fMP_DEST_MULTI)) {
+	else if (MP_TEST_FLAG(pMpTcb, fMP_DEST_MULTI))
 		atomic_inc(&pAdapter->Stats.multixmt);
-	} else {
+	else
 		atomic_inc(&pAdapter->Stats.unixmt);
-	}
 
 	if (pMpTcb->Packet) {
 		stats->tx_bytes += pMpTcb->Packet->len;
@@ -1298,14 +1294,12 @@ __inline void et131x_free_send_packet(struct et131x_adapter *pAdapter, PMP_TCB p
 
 			if (++pMpTcb->WrIndexStart.bits.val >=
 			    NUM_DESC_PER_RING_TX) {
-				if (pMpTcb->WrIndexStart.bits.wrap) {
+				if (pMpTcb->WrIndexStart.bits.wrap)
 					pMpTcb->WrIndexStart.value = 0;
-				} else {
+				else
 					pMpTcb->WrIndexStart.value = 0x400;
-				}
 			}
-		}
-		while (desc != (pAdapter->TxRing.pTxDescRingVa +
+		} while (desc != (pAdapter->TxRing.pTxDescRingVa +
 				pMpTcb->WrIndex.bits.val));
 
 		DBG_TX(et131x_dbginfo,
@@ -1371,9 +1365,8 @@ void et131x_free_busy_send_packets(struct et131x_adapter *pAdapter)
 
 		pAdapter->TxRing.CurrSendHead = pNext;
 
-		if (pNext == NULL) {
+		if (pNext == NULL)
 			pAdapter->TxRing.CurrSendTail = NULL;
-		}
 
 		pAdapter->TxRing.nBusySend--;
 
@@ -1391,7 +1384,7 @@ void et131x_free_busy_send_packets(struct et131x_adapter *pAdapter)
 
 	if (FreeCounter == NUM_TCB) {
 		DBG_ERROR(et131x_dbginfo,
-			  "MpFreeBusySendPackets exitted loop for a bad reason\n");
+		    "MpFreeBusySendPackets exitted loop for a bad reason\n");
 		BUG();
 	}
 
@@ -1454,9 +1447,8 @@ static void et131x_update_tcb_list(struct et131x_adapter *pAdapter)
 	       ServiceComplete.bits.val < pMpTcb->WrIndex.bits.val) {
 		pAdapter->TxRing.nBusySend--;
 		pAdapter->TxRing.CurrSendHead = pMpTcb->Next;
-		if (pMpTcb->Next == NULL) {
+		if (pMpTcb->Next == NULL)
 			pAdapter->TxRing.CurrSendTail = NULL;
-		}
 
 		spin_unlock_irqrestore(&pAdapter->TCBSendQLock, lockflags);
 		MP_FREE_SEND_PACKET_FUN(pAdapter, pMpTcb);
@@ -1470,9 +1462,8 @@ static void et131x_update_tcb_list(struct et131x_adapter *pAdapter)
 	       ServiceComplete.bits.val > pMpTcb->WrIndex.bits.val) {
 		pAdapter->TxRing.nBusySend--;
 		pAdapter->TxRing.CurrSendHead = pMpTcb->Next;
-		if (pMpTcb->Next == NULL) {
+		if (pMpTcb->Next == NULL)
 			pAdapter->TxRing.CurrSendTail = NULL;
-		}
 
 		spin_unlock_irqrestore(&pAdapter->TCBSendQLock, lockflags);
 		MP_FREE_SEND_PACKET_FUN(pAdapter, pMpTcb);
@@ -1483,9 +1474,8 @@ static void et131x_update_tcb_list(struct et131x_adapter *pAdapter)
 	}
 
 	/* Wake up the queue when we hit a low-water mark */
-	if (pAdapter->TxRing.nBusySend <= (NUM_TCB / 3)) {
+	if (pAdapter->TxRing.nBusySend <= (NUM_TCB / 3))
 		netif_wake_queue(pAdapter->netdev);
-	}
 
 	spin_unlock_irqrestore(&pAdapter->TCBSendQLock, lockflags);
 }
@@ -1504,7 +1494,7 @@ static void et131x_check_send_wait_list(struct et131x_adapter *pAdapter)
 	spin_lock_irqsave(&pAdapter->SendWaitLock, lockflags);
 
 	while (!list_empty(&pAdapter->TxRing.SendWaitQueue) &&
-	       MP_TCB_RESOURCES_AVAILABLE(pAdapter)) {
+				MP_TCB_RESOURCES_AVAILABLE(pAdapter)) {
 		struct list_head *pEntry;
 
 		DBG_VERBOSE(et131x_dbginfo, "Tx packets on the wait queue\n");
@@ -1514,8 +1504,8 @@ static void et131x_check_send_wait_list(struct et131x_adapter *pAdapter)
 		pAdapter->TxRing.nWaitSend--;
 
 		DBG_WARNING(et131x_dbginfo,
-			    "MpHandleSendInterrupt - sent a queued pkt. Waiting %d\n",
-			    pAdapter->TxRing.nWaitSend);
+		    "MpHandleSendInterrupt - sent a queued pkt. Waiting %d\n",
+				pAdapter->TxRing.nWaitSend);
 	}
 
 	spin_unlock_irqrestore(&pAdapter->SendWaitLock, lockflags);

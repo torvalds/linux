@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -20,7 +20,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -41,7 +41,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -67,7 +67,7 @@
  * Do not change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
  */
-#define NUM_DESC_PER_RING_TX         512	// TX Do not change these values
+#define NUM_DESC_PER_RING_TX         512	/* TX Do not change these values */
 #define NUM_TCB                      64
 
 /*
@@ -118,10 +118,10 @@
 
 #define MP_SHOULD_FAIL_SEND(_M)   ((_M)->Flags & fMP_ADAPTER_FAIL_SEND_MASK)
 #define MP_IS_NOT_READY(_M)       ((_M)->Flags & fMP_ADAPTER_NOT_READY_MASK)
-#define MP_IS_READY(_M)           !((_M)->Flags & fMP_ADAPTER_NOT_READY_MASK)
+#define MP_IS_READY(_M)           (!((_M)->Flags & fMP_ADAPTER_NOT_READY_MASK))
 
-#define MP_HAS_CABLE(_M)           !((_M)->Flags & fMP_ADAPTER_NO_CABLE)
-#define MP_LINK_DETECTED(_M)       !((_M)->Flags & fMP_ADAPTER_LINK_DETECTION)
+#define MP_HAS_CABLE(_M)           (!((_M)->Flags & fMP_ADAPTER_NO_CABLE))
+#define MP_LINK_DETECTED(_M)       (!((_M)->Flags & fMP_ADAPTER_LINK_DETECTION))
 
 /* Counters for error rate monitoring */
 typedef struct _MP_ERR_COUNTERS {
@@ -136,7 +136,7 @@ typedef struct _MP_ERR_COUNTERS {
 typedef struct _MP_RFD {
 	struct list_head list_node;
 	struct sk_buff *Packet;
-	u32 PacketSize;	// total size of receive frame
+	u32 PacketSize;	/* total size of receive frame */
 	u16 iBufferIndex;
 	u8 iRingIndex;
 } MP_RFD, *PMP_RFD;
@@ -152,8 +152,8 @@ typedef enum _eflow_control_t {
 /* Struct to define some device statistics */
 typedef struct _ce_stats_t {
 	/* Link Input/Output stats */
-	uint64_t ipackets;	// # of in packets
-	uint64_t opackets;	// # of out packets
+	uint64_t ipackets;	/* # of in packets */
+	uint64_t opackets;	/* # of out packets */
 
 	/* MIB II variables
 	 *
@@ -161,21 +161,21 @@ typedef struct _ce_stats_t {
 	 * MUST have 32, then we'll need another way to perform atomic
 	 * operations
 	 */
-	u32 unircv;	// # multicast packets received
-	atomic_t unixmt;	// # multicast packets for Tx
-	u32 multircv;	// # multicast packets received
-	atomic_t multixmt;	// # multicast packets for Tx
-	u32 brdcstrcv;	// # broadcast packets received
-	atomic_t brdcstxmt;	// # broadcast packets for Tx
-	u32 norcvbuf;	// # Rx packets discarded
-	u32 noxmtbuf;	// # Tx packets discarded
+	u32 unircv;	/* # multicast packets received */
+	atomic_t unixmt;	/* # multicast packets for Tx */
+	u32 multircv;	/* # multicast packets received */
+	atomic_t multixmt;	/* # multicast packets for Tx */
+	u32 brdcstrcv;	/* # broadcast packets received */
+	atomic_t brdcstxmt;	/* # broadcast packets for Tx */
+	u32 norcvbuf;	/* # Rx packets discarded */
+	u32 noxmtbuf;	/* # Tx packets discarded */
 
 	/* Transciever state informations. */
 	u8 xcvr_addr;
 	u32 xcvr_id;
 
 	/* Tx Statistics. */
-	u32 tx_uflo;		// Tx Underruns
+	u32 tx_uflo;		/* Tx Underruns */
 
 	u32 collisions;
 	u32 excessive_collisions;
@@ -185,7 +185,7 @@ typedef struct _ce_stats_t {
 	u32 tx_deferred;
 
 	/* Rx Statistics. */
-	u32 rx_ov_flow;	// Rx Over Flow
+	u32 rx_ov_flow;	/* Rx Over Flow */
 
 	u32 length_err;
 	u32 alignment_err;
@@ -268,16 +268,16 @@ struct et131x_adapter {
 	u32 pci_cfg_state[64 / sizeof(u32)];
 
 	/* Registry parameters */
-	u8 SpeedDuplex;		// speed/duplex
-	eFLOW_CONTROL_t RegistryFlowControl;	// for 802.3x flow control
-	u8 RegistryWOLMatch;	// Enable WOL pattern-matching
-	u8 RegistryWOLLink;	// Link state change is independant
-	u8 RegistryPhyComa;	// Phy Coma mode enable/disable
+	u8 SpeedDuplex;		/* speed/duplex */
+	eFLOW_CONTROL_t RegistryFlowControl;	/* for 802.3x flow control */
+	u8 RegistryWOLMatch;	/* Enable WOL pattern-matching */
+	u8 RegistryWOLLink;	/* Link state change is independant */
+	u8 RegistryPhyComa;	/* Phy Coma mode enable/disable */
 
-	u32 RegistryRxMemEnd;	// Size of internal rx memory
-	u8 RegistryMACStat;	// If set, read MACSTAT, else don't
-	u32 RegistryVlanTag;	// 802.1q Vlan TAG
-	u32 RegistryJumboPacket;	// Max supported ethernet packet size
+	u32 RegistryRxMemEnd;	/* Size of internal rx memory */
+	u8 RegistryMACStat;	/* If set, read MACSTAT, else don't */
+	u32 RegistryVlanTag;	/* 802.1q Vlan TAG */
+	u32 RegistryJumboPacket;	/* Max supported ethernet packet size */
 
 	u32 RegistryTxNumBuffers;
 	u32 RegistryTxTimeInterval;
@@ -290,12 +290,12 @@ struct et131x_adapter {
 	u8 RegistryNMIDisable;
 	u32 RegistryDMACache;
 	u32 RegistrySCGain;
-	u8 RegistryPhyLoopbk;	// Enable Phy loopback
+	u8 RegistryPhyLoopbk;	/* Enable Phy loopback */
 
 	/* Derived from the registry: */
-	u8 AiForceDpx;		// duplex setting
-	u16 AiForceSpeed;		// 'Speed', user over-ride of line speed
-	eFLOW_CONTROL_t FlowControl;	// flow control validated by the far-end
+	u8 AiForceDpx;		/* duplex setting */
+	u16 AiForceSpeed;		/* 'Speed', user over-ride of line speed */
+	eFLOW_CONTROL_t FlowControl;	/* flow control validated by the far-end */
 	enum {
 		NETIF_STATUS_INVALID = 0,
 		NETIF_STATUS_MEDIA_CONNECT,
@@ -313,7 +313,7 @@ struct et131x_adapter {
 	MP_POWER_MGMT PoMgmt;
 	INTERRUPT_t CachedMaskValue;
 
-	atomic_t RcvRefCount;	// Num packets not yet returned
+	atomic_t RcvRefCount;	/* Num packets not yet returned */
 
 	/* Xcvr status at last poll */
 	MI_BMSR_t Bmsr;
@@ -329,8 +329,8 @@ struct et131x_adapter {
 	PCI_CFG_SPACE_REGS PciCfgRegs;
 
 	/* Loopback specifics */
-	u8 ReplicaPhyLoopbk;	// Replica Enable
-	u8 ReplicaPhyLoopbkPF;	// Replica Enable Pass/Fail
+	u8 ReplicaPhyLoopbk;	/* Replica Enable */
+	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
 
 	/* Stats */
 	CE_STATS_t Stats;

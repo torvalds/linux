@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -21,7 +21,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -42,7 +42,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -97,7 +97,7 @@
 #endif /* DBG_PRINTC */
 
 #ifndef DBG_TRAP
-#define DBG_TRAP		{}	/* BUG() */
+#define DBG_TRAP		do {} while (0)	/* BUG() */
 #endif /* DBG_TRAP */
 
 #define _ENTER_STR	">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
@@ -227,16 +227,16 @@ typedef struct {
 #define DBG_PRINT(S...)
 #define DBG_ENTER(A)
 #define DBG_LEAVE(A)
-#define DBG_PARAM(A,N,F,S...)
-#define DBG_ERROR(A,S...)
-#define DBG_WARNING(A,S...)
-#define DBG_NOTICE(A,S...)
-#define DBG_TRACE(A,S...)
-#define DBG_VERBOSE(A,S...)
-#define DBG_RX(A,S...)
+#define DBG_PARAM(A, N, F, S...)
+#define DBG_ERROR(A, S...)
+#define DBG_WARNING(A, S...)
+#define DBG_NOTICE(A, S...)
+#define DBG_TRACE(A, S...)
+#define DBG_VERBOSE(A, S...)
+#define DBG_RX(A, S...)
 #define DBG_RX_ENTER(A)
 #define DBG_RX_LEAVE(A)
-#define DBG_TX(A,S...)
+#define DBG_TX(A, S...)
 #define DBG_TX_ENTER(A)
 #define DBG_TX_LEAVE(A)
 #define DBG_ASSERT(C)

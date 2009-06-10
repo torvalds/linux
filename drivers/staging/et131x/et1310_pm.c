@@ -2,7 +2,7 @@
  * Agere Systems Inc.
  * 10/100/1000 Base-T Ethernet Driver for the ET1301 and ET131x series MACs
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *   http://www.agere.com
  *
@@ -19,7 +19,7 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * Copyright © 2005 Agere Systems Inc.
+ * Copyright Â© 2005 Agere Systems Inc.
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without
@@ -40,7 +40,7 @@
  *
  * Disclaimer
  *
- * THIS SOFTWARE IS PROVIDED “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, INFRINGEMENT AND THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  ANY
  * USE, MODIFICATION OR DISTRIBUTION OF THIS SOFTWARE IS SOLELY AT THE USERS OWN
@@ -73,9 +73,9 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -139,9 +139,8 @@ void EnablePhyComa(struct et131x_adapter *pAdapter)
 	spin_unlock_irqrestore(&pAdapter->SendHWLock, lockflags);
 
 	/* Wait for outstanding Receive packets */
-	while ((MP_GET_RCV_REF(pAdapter) != 0) && (LoopCounter-- > 0)) {
+	while ((MP_GET_RCV_REF(pAdapter) != 0) && (LoopCounter-- > 0))
 		mdelay(2);
-	}
 
 	/* Gate off JAGCore 3 clock domains */
 	GlobalPmCSR.bits.pm_sysclk_gate = 0;
@@ -188,9 +187,9 @@ void DisablePhyComa(struct et131x_adapter *pAdapter)
 	et131x_reset_recv(pAdapter);
 
 	/* Bring the device back to the state it was during init prior to
-         * autonegotiation being complete.  This way, when we get the auto-neg
-         * complete interrupt, we can complete init by calling ConfigMacREGS2.
-         */
+	 * autonegotiation being complete.  This way, when we get the auto-neg
+	 * complete interrupt, we can complete init by calling ConfigMacREGS2.
+	 */
 	et131x_soft_reset(pAdapter);
 
 	/* setup et1310 as per the documentation ?? */
