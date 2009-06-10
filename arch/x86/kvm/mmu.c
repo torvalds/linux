@@ -3058,12 +3058,11 @@ static void __mmu_spte_walk(struct kvm *kvm, struct kvm_mmu_page *sp,
 		u64 ent = sp->spt[i];
 
 		if (is_shadow_present_pte(ent)) {
-			if (sp->role.level > 1 && !is_large_pte(ent)) {
+			if (!is_last_spte(ent, sp->role.level)) {
 				struct kvm_mmu_page *child;
 				child = page_header(ent & PT64_BASE_ADDR_MASK);
 				__mmu_spte_walk(kvm, child, fn);
-			}
-			if (sp->role.level == 1)
+			} else
 				fn(kvm, sp, &sp->spt[i]);
 		}
 	}
@@ -3108,10 +3107,9 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 			continue;
 
 		va = canonicalize(va);
-		if (level > 1) {
-			if (is_shadow_present_pte(ent))
-				audit_mappings_page(vcpu, ent, va, level - 1);
-		} else {
+		if (is_shadow_present_pte(ent) && !is_last_spte(ent, level))
+			audit_mappings_page(vcpu, ent, va, level - 1);
+		else {
 			gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, va);
 			gfn_t gfn = gpa >> PAGE_SHIFT;
 			pfn_t pfn = gfn_to_pfn(vcpu->kvm, gfn);
@@ -3208,7 +3206,8 @@ void inspect_spte_has_rmap(struct kvm *kvm, struct kvm_mmu_page *sp, u64 *sptep)
 			return;
 		}
 
-		rmapp = gfn_to_rmap(kvm, rev_sp->gfns[sptep - rev_sp->spt], 0);
+		rmapp = gfn_to_rmap(kvm, rev_sp->gfns[sptep - rev_sp->spt],
+				    is_large_pte(*sptep));
 		if (!*rmapp) {
 			if (!printk_ratelimit())
 				return;
