@@ -601,7 +601,7 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 	       unsigned long polarity, unsigned long trigger)
 {
 	struct irq_desc *idesc;
-	struct hw_interrupt_type *irq_type;
+	struct irq_chip *irq_type;
 	int index;
 	struct iosapic_rte_info *rte;
 

@@ -106,7 +106,7 @@ extern struct irq_cfg irq_cfg[NR_IRQS];
 #define irq_to_domain(x)	irq_cfg[(x)].domain
 DECLARE_PER_CPU(int[IA64_NUM_VECTORS], vector_irq);
 
-extern struct hw_interrupt_type irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
+extern struct irq_chip irq_type_ia64_lsapic;	/* CPU-internal interrupt controller */
 
 #ifdef CONFIG_PARAVIRT_GUEST
 #include <asm/paravirt.h>

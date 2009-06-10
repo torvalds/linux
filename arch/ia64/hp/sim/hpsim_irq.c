@@ -27,7 +27,7 @@ hpsim_set_affinity_noop(unsigned int a, const struct cpumask *b)
 	return 0;
 }
 
-static struct hw_interrupt_type irq_type_hp_sim = {
+static struct irq_chip irq_type_hp_sim = {
 	.name =		"hpsim",
 	.startup =	hpsim_irq_startup,
 	.shutdown =	hpsim_irq_noop,
