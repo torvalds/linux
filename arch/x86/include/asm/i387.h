@@ -304,18 +304,18 @@ static inline void kernel_fpu_end(void)
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
  * DNA fault but don't modify SSE registers. And these instructions
- * get used from interrupt context aswell. To prevent these kernel instructions
- * in interrupt context interact wrongly with other user/kernel fpu usage, we
+ * get used from interrupt context as well. To prevent these kernel instructions
+ * in interrupt context interacting wrongly with other user/kernel fpu usage, we
  * should use them only in the context of irq_ts_save/restore()
  */
 static inline int irq_ts_save(void)
 {
 	/*
-	 * If we are in process context, we are ok to take a spurious DNA fault.
-	 * Otherwise, doing clts() in process context require pre-emption to
-	 * be disabled or some heavy lifting like kernel_fpu_begin()
+	 * If in process context and not atomic, we can take a spurious DNA fault.
+	 * Otherwise, doing clts() in process context requires disabling preemption
+	 * or some heavy lifting like kernel_fpu_begin()
 	 */
-	if (!in_interrupt())
+	if (!in_atomic())
 		return 0;
 
 	if (read_cr0() & X86_CR0_TS) {
