@@ -614,6 +614,9 @@
 #define FTDI_CCSICDU20_0_PID    0xF9D0
 #define FTDI_CCSICDU40_1_PID    0xF9D1
 #define FTDI_CCSMACHX_2_PID     0xF9D2
+#define FTDI_CCSLOAD_N_GO_3_PID 0xF9D3
+#define FTDI_CCSICDU64_4_PID    0xF9D4
+#define FTDI_CCSPRIME8_5_PID    0xF9D5
 
 /* Inside Accesso contactless reader (http://www.insidefr.com) */
 #define INSIDE_ACCESSO		0xFAD0
