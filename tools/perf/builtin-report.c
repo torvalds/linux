@@ -47,6 +47,7 @@ struct ip_event {
 	struct perf_event_header header;
 	__u64 ip;
 	__u32 pid, tid;
+	__u64 period;
 };
 
 struct mmap_event {
@@ -943,12 +944,13 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	uint64_t ip = event->ip.ip;
 	struct map *map = NULL;
 
-	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
+	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
 		event->ip.pid,
-		(void *)(long)ip);
+		(void *)(long)ip,
+		(long long)event->ip.period);
 
 	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 

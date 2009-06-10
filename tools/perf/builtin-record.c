@@ -347,6 +347,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= (cpu < 0) && inherit;
+	attr->disabled		= 1;
 
 	track = 0; /* only the first counter needs these */
 
@@ -402,6 +403,8 @@ try_again:
 		error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 		exit(-1);
 	}
+
+	ioctl(fd[nr_cpu][counter], PERF_COUNTER_IOC_ENABLE);
 }
 
 static void open_counters(int cpu, pid_t pid)
