@@ -247,7 +247,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 static void __init w90p910evb_map_io(void)
 {
 	w90p910_map_io(w90p910_iodesc, ARRAY_SIZE(w90p910_iodesc));
-	w90p910_init_clocks(0);
+	w90p910_init_clocks();
 }
 
 static void __init w90p910evb_init(void)
