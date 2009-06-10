@@ -421,12 +421,12 @@ static inline struct ps3_system_bus_driver *
 static inline void ps3_system_bus_set_driver_data(
 	struct ps3_system_bus_device *dev, void *data)
 {
-	dev->core.driver_data = data;
+	dev_set_drvdata(&dev->core, data);
 }
 static inline void *ps3_system_bus_get_driver_data(
 	struct ps3_system_bus_device *dev)
 {
-	return dev->core.driver_data;
+	return dev_get_drvdata(&dev->core);
 }
 
 /* These two need global scope for get_dma_ops(). */
