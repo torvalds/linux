@@ -614,8 +614,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
 	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
-					      root->id.bus);
+		result = acpi_pci_irq_add_prt(device->handle, root->bus);
 
 	/*
 	 * Scan and bind all _ADR-Based Devices

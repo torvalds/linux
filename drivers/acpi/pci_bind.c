@@ -124,7 +124,7 @@ static int acpi_pci_bind(struct acpi_device *device)
 {
 	acpi_status status;
 	acpi_handle handle;
-	unsigned char bus;
+	struct pci_bus *bus;
 	struct pci_dev *dev;
 
 	dev = acpi_get_pci_dev(device->handle);
@@ -157,11 +157,11 @@ static int acpi_pci_bind(struct acpi_device *device)
 		goto out;
 
 	if (dev->subordinate)
-		bus = dev->subordinate->number;
+		bus = dev->subordinate;
 	else
-		bus = dev->bus->number;
+		bus = dev->bus;
 
-	acpi_pci_irq_add_prt(device->handle, pci_domain_nr(dev->bus), bus);
+	acpi_pci_irq_add_prt(device->handle, bus);
 
 out:
 	pci_dev_put(dev);
