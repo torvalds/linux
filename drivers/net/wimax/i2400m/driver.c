@@ -454,7 +454,7 @@ error_rx_setup:
 error_tx_setup:
 error_bootstrap:
 	if (result == -ERESTARTSYS && times-- > 0) {
-		flags = I2400M_BRI_SOFT;
+		flags = I2400M_BRI_SOFT|I2400M_BRI_MAC_REINIT;
 		goto retry;
 	}
 	d_fnend(3, dev, "(net_dev %p [i2400m %p]) = %d\n",
