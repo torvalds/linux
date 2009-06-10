@@ -329,11 +329,6 @@ and is between 256 and 4096 characters. It is defined in the file
 				    flushed before they will be reused, which
 				    is a lot of faster
 
-	amd_iommu_size= [HW,X86-64]
-			Define the size of the aperture for the AMD IOMMU
-			driver. Possible values are:
-			'32M', '64M' (default), '128M', '256M', '512M', '1G'
-
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
 			Format: <a>,<b>
@@ -645,6 +640,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			required per DMA-API allocation. Use this if the
 			DMA-API debugging code disables itself because the
 			architectural default is too low.
+
+	dma_debug_driver=<driver_name>
+			With this option the DMA-API debugging driver
+			filter feature can be enabled at boot time. Just
+			pass the driver to filter for as the parameter.
+			The filter can be disabled or changed to another
+			driver later using sysfs.
 
 	dscc4.setup=	[NET]
 
