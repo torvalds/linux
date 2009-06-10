@@ -937,7 +937,7 @@ int ps3av_audio_mute(int mute)
 
 EXPORT_SYMBOL_GPL(ps3av_audio_mute);
 
-static int ps3av_probe(struct ps3_system_bus_device *dev)
+static int __devinit ps3av_probe(struct ps3_system_bus_device *dev)
 {
 	int res;
 	int id;
@@ -1048,7 +1048,7 @@ static struct ps3_vuart_port_driver ps3av_driver = {
 	.shutdown = ps3av_shutdown,
 };
 
-static int ps3av_module_init(void)
+static int __init ps3av_module_init(void)
 {
 	int error;
 
