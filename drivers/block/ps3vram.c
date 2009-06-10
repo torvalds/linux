@@ -73,7 +73,6 @@ struct ps3vram_priv {
 	u64 context_handle;
 	u32 *ctrl;
 	u32 *reports;
-	u8 __iomem *ddr_base;
 	u8 *xdr_buf;
 
 	u32 *fifo_base;
@@ -702,19 +701,11 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 		goto out_free_context;
 	}
 
-	priv->ddr_base = ioremap_flags(ddr_lpar, ddr_size, _PAGE_NO_CACHE);
-
-	if (!priv->ddr_base) {
-		dev_err(&dev->core, "ioremap DDR failed\n");
-		error = -ENOMEM;
-		goto out_unmap_context;
-	}
-
 	priv->ctrl = ioremap(ctrl_lpar, 64 * 1024);
 	if (!priv->ctrl) {
 		dev_err(&dev->core, "ioremap CTRL failed\n");
 		error = -ENOMEM;
-		goto out_unmap_vram;
+		goto out_unmap_context;
 	}
 
 	priv->reports = ioremap(reports_lpar, reports_size);
@@ -791,8 +782,6 @@ out_unmap_reports:
 	iounmap(priv->reports);
 out_unmap_ctrl:
 	iounmap(priv->ctrl);
-out_unmap_vram:
-	iounmap(priv->ddr_base);
 out_unmap_context:
 	lv1_gpu_context_iomap(priv->context_handle, XDR_IOIF, xdr_lpar,
 			      XDR_BUF_SIZE, CBE_IOPTE_M);
@@ -822,7 +811,6 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	ps3vram_cache_cleanup(dev);
 	iounmap(priv->reports);
 	iounmap(priv->ctrl);
-	iounmap(priv->ddr_base);
 	lv1_gpu_context_iomap(priv->context_handle, XDR_IOIF,
 			      ps3_mm_phys_to_lpar(__pa(priv->xdr_buf)),
 			      XDR_BUF_SIZE, CBE_IOPTE_M);
