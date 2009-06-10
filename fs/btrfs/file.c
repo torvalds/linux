@@ -1157,6 +1157,8 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	root->log_batch++;
 
+	if (datasync && !(inode->i_state & I_DIRTY_PAGES))
+		goto out;
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
