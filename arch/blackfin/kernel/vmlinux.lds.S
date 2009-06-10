@@ -54,6 +54,7 @@ SECTIONS
 		SCHED_TEXT
 #endif
 		LOCK_TEXT
+		IRQENTRY_TEXT
 		KPROBES_TEXT
 		*(.text.*)
 		*(.fixup)

@@ -35,6 +35,28 @@ ENTRY(__mcount)
 	cc = r2 == r3;
 	if ! cc jump .Ldo_trace;
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	/* if the ftrace_graph_return function pointer is not set to
+	 * the ftrace_stub entry, call prepare_ftrace_return().
+	 */
+	p0.l = _ftrace_graph_return;
+	p0.h = _ftrace_graph_return;
+	r3 = [p0];
+	cc = r2 == r3;
+	if ! cc jump _ftrace_graph_caller;
+
+	/* similarly, if the ftrace_graph_entry function pointer is not
+	 * set to the ftrace_graph_entry_stub entry, ...
+	 */
+	p0.l = _ftrace_graph_entry;
+	p0.h = _ftrace_graph_entry;
+	r2.l = _ftrace_graph_entry_stub;
+	r2.h = _ftrace_graph_entry_stub;
+	r3 = [p0];
+	cc = r2 == r3;
+	if ! cc jump _ftrace_graph_caller;
+#endif
+
 	r2 = [sp++];
 	rts;
 
@@ -61,6 +83,7 @@ ENTRY(__mcount)
 	call (p0);
 
 	/* restore state and get out of dodge */
+.Lfinish_trace:
 	rets = [sp++];
 	r1 = [sp++];
 	r0 = [sp++];
@@ -70,3 +93,48 @@ ENTRY(__mcount)
 _ftrace_stub:
 	rts;
 ENDPROC(__mcount)
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/* The prepare_ftrace_return() function is similar to the trace function
+ * except it takes a pointer to the location of the frompc.  This is so
+ * the prepare_ftrace_return() can hijack it temporarily for probing
+ * purposes.
+ */
+ENTRY(_ftrace_graph_caller)
+	/* save first/second function arg and the return register */
+	[--sp] = r0;
+	[--sp] = r1;
+	[--sp] = rets;
+
+	r0 = fp;
+	r1 = rets;
+	r0 += 4;
+	r1 += -MCOUNT_INSN_SIZE;
+	call _prepare_ftrace_return;
+
+	jump .Lfinish_trace;
+ENDPROC(_ftrace_graph_caller)
+
+/* Undo the rewrite caused by ftrace_graph_caller().  The common function
+ * ftrace_return_to_handler() will return the original rets so we can
+ * restore it and be on our way.
+ */
+ENTRY(_return_to_handler)
+	/* make sure original return values are saved */
+	[--sp] = p0;
+	[--sp] = r0;
+	[--sp] = r1;
+
+	/* get original return address */
+	call _ftrace_return_to_handler;
+	rets = r0;
+
+	/* anomaly 05000371 - make sure we have at least three instructions
+	 * between rets setting and the return
+	 */
+	r1 = [sp++];
+	r0 = [sp++];
+	p0 = [sp++];
+	rts;
+ENDPROC(_return_to_handler)
+#endif

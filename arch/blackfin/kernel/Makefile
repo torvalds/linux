@@ -16,6 +16,9 @@ else
 endif
 
 obj-$(CONFIG_FUNCTION_TRACER)        += ftrace-entry.o
+obj-$(CONFIG_FUNCTION_GRAPH_TRACER)  += ftrace.o
+CFLAGS_REMOVE_ftrace.o = -pg
+
 obj-$(CONFIG_IPIPE)                  += ipipe.o
 obj-$(CONFIG_IPIPE_TRACE_MCOUNT)     += mcount.o
 obj-$(CONFIG_BFIN_GPTIMERS)          += gptimers.o
