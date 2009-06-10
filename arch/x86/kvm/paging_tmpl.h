@@ -132,7 +132,7 @@ walk:
 #if PTTYPE == 64
 	if (!is_long_mode(vcpu)) {
 		pte = kvm_pdptr_read(vcpu, (addr >> 30) & 3);
-		if (!is_present_pte(pte))
+		if (!is_present_gpte(pte))
 			goto not_present;
 		--walker->level;
 	}
@@ -155,7 +155,7 @@ walk:
 
 		kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 
-		if (!is_present_pte(pte))
+		if (!is_present_gpte(pte))
 			goto not_present;
 
 		rsvd_fault = is_rsvd_bits_set(vcpu, pte, walker->level);
@@ -205,7 +205,7 @@ walk:
 		--walker->level;
 	}
 
-	if (write_fault && !is_dirty_pte(pte)) {
+	if (write_fault && !is_dirty_gpte(pte)) {
 		bool ret;
 
 		mark_page_dirty(vcpu->kvm, table_gfn);
@@ -252,7 +252,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
-		if (!is_present_pte(gpte))
+		if (!is_present_gpte(gpte))
 			set_shadow_pte(spte, shadow_notrap_nonpresent_pte);
 		return;
 	}
@@ -289,7 +289,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	pt_element_t curr_pte;
 	struct kvm_shadow_walk_iterator iterator;
 
-	if (!is_present_pte(gw->ptes[gw->level - 1]))
+	if (!is_present_gpte(gw->ptes[gw->level - 1]))
 		return NULL;
 
 	for_each_shadow_entry(vcpu, addr, iterator) {
@@ -318,7 +318,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		if (level == PT_DIRECTORY_LEVEL
 		    && gw->level == PT_DIRECTORY_LEVEL) {
 			direct = 1;
-			if (!is_dirty_pte(gw->ptes[level - 1]))
+			if (!is_dirty_gpte(gw->ptes[level - 1]))
 				access &= ~ACC_WRITE_MASK;
 			table_gfn = gpte_to_gfn(gw->ptes[level - 1]);
 		} else {
@@ -489,7 +489,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	if (kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &gpte,
 				  sizeof(pt_element_t)))
 		return;
-	if (is_present_pte(gpte) && (gpte & PT_ACCESSED_MASK)) {
+	if (is_present_gpte(gpte) && (gpte & PT_ACCESSED_MASK)) {
 		if (mmu_topup_memory_caches(vcpu))
 			return;
 		kvm_mmu_pte_write(vcpu, pte_gpa, (const u8 *)&gpte,
@@ -536,7 +536,7 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, pt, sizeof pt);
 		pte_gpa += ARRAY_SIZE(pt) * sizeof(pt_element_t);
 		for (j = 0; j < ARRAY_SIZE(pt); ++j)
-			if (r || is_present_pte(pt[j]))
+			if (r || is_present_gpte(pt[j]))
 				sp->spt[i+j] = shadow_trap_nonpresent_pte;
 			else
 				sp->spt[i+j] = shadow_notrap_nonpresent_pte;
@@ -574,12 +574,12 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					  sizeof(pt_element_t)))
 			return -EINVAL;
 
-		if (gpte_to_gfn(gpte) != gfn || !is_present_pte(gpte) ||
+		if (gpte_to_gfn(gpte) != gfn || !is_present_gpte(gpte) ||
 		    !(gpte & PT_ACCESSED_MASK)) {
 			u64 nonpresent;
 
 			rmap_remove(vcpu->kvm, &sp->spt[i]);
-			if (is_present_pte(gpte))
+			if (is_present_gpte(gpte))
 				nonpresent = shadow_trap_nonpresent_pte;
 			else
 				nonpresent = shadow_notrap_nonpresent_pte;
@@ -590,7 +590,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_pte(gpte), 0, gfn,
+			 is_dirty_gpte(gpte), 0, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

@@ -240,12 +240,12 @@ static int is_writeble_pte(unsigned long pte)
 	return pte & PT_WRITABLE_MASK;
 }
 
-static int is_dirty_pte(unsigned long pte)
+static int is_dirty_gpte(unsigned long pte)
 {
 	return pte & PT_DIRTY_MASK;
 }
 
-static int is_rmap_pte(u64 pte)
+static int is_rmap_spte(u64 pte)
 {
 	return is_shadow_present_pte(pte);
 }
@@ -502,7 +502,7 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn, int lpage)
 	unsigned long *rmapp;
 	int i, count = 0;
 
-	if (!is_rmap_pte(*spte))
+	if (!is_rmap_spte(*spte))
 		return count;
 	gfn = unalias_gfn(vcpu->kvm, gfn);
 	sp = page_header(__pa(spte));
@@ -567,7 +567,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	unsigned long *rmapp;
 	int i;
 
-	if (!is_rmap_pte(*spte))
+	if (!is_rmap_spte(*spte))
 		return;
 	sp = page_header(__pa(spte));
 	pfn = spte_to_pfn(*spte);
@@ -1769,7 +1769,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		 __func__, *shadow_pte, pt_access,
 		 write_fault, user_fault, gfn);
 
-	if (is_rmap_pte(*shadow_pte)) {
+	if (is_rmap_spte(*shadow_pte)) {
 		/*
 		 * If we overwrite a PTE page pointer with a 2MB PMD, unlink
 		 * the parent of the now unreachable PTE.
@@ -1805,7 +1805,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	page_header_update_slot(vcpu->kvm, shadow_pte, gfn);
 	if (!was_rmapped) {
 		rmap_count = rmap_add(vcpu, shadow_pte, gfn, largepage);
-		if (!is_rmap_pte(*shadow_pte))
+		if (!is_rmap_spte(*shadow_pte))
 			kvm_release_pfn_clean(pfn);
 		if (rmap_count > RMAP_RECYCLE_THRESHOLD)
 			rmap_recycle(vcpu, gfn, largepage);
@@ -1984,7 +1984,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
 			pdptr = kvm_pdptr_read(vcpu, i);
-			if (!is_present_pte(pdptr)) {
+			if (!is_present_gpte(pdptr)) {
 				vcpu->arch.mmu.pae_root[i] = 0;
 				continue;
 			}
@@ -2475,7 +2475,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		if ((bytes == 4) && (gpa % 4 == 0))
 			memcpy((void *)&gpte, new, 4);
 	}
-	if (!is_present_pte(gpte))
+	if (!is_present_gpte(gpte))
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
