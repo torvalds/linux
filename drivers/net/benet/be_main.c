@@ -168,6 +168,7 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
 	struct net_device_stats *dev_stats = &adapter->stats.net_stats;
+	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
 	dev_stats->rx_packets = port_stats->rx_total_frames;
 	dev_stats->tx_packets = port_stats->tx_unicastframes +
@@ -181,29 +182,33 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->rx_errors = port_stats->rx_crc_errors +
 		port_stats->rx_alignment_symbol_errors +
 		port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors + port_stats->rx_frame_too_long;
+		port_stats->rx_out_range_errors +
+		port_stats->rx_frame_too_long +
+		port_stats->rx_dropped_too_small +
+		port_stats->rx_dropped_too_short +
+		port_stats->rx_dropped_header_too_small +
+		port_stats->rx_dropped_tcp_length +
+		port_stats->rx_dropped_runt +
+		port_stats->rx_tcp_checksum_errs +
+		port_stats->rx_ip_checksum_errs +
+		port_stats->rx_udp_checksum_errs;
 
-	/*  packet transmit problems */
-	dev_stats->tx_errors = 0;
-
-	/*  no space in linux buffers */
-	dev_stats->rx_dropped = 0;
-
-	/* no space available in linux */
-	dev_stats->tx_dropped = 0;
-
-	dev_stats->multicast = port_stats->tx_multicastframes;
-	dev_stats->collisions = 0;
+	/*  no space in linux buffers: best possible approximation */
+	dev_stats->rx_dropped = erx_stats->rx_drops_no_fragments[0];
 
 	/* detailed rx errors */
 	dev_stats->rx_length_errors = port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors + port_stats->rx_frame_too_long;
+		port_stats->rx_out_range_errors +
+		port_stats->rx_frame_too_long;
+
 	/* receive ring buffer overflow */
 	dev_stats->rx_over_errors = 0;
+
 	dev_stats->rx_crc_errors = port_stats->rx_crc_errors;
 
 	/* frame alignment errors */
 	dev_stats->rx_frame_errors = port_stats->rx_alignment_symbol_errors;
+
 	/* receiver fifo overrun */
 	/* drops_no_pbuf is no per i/f, it's per BE card */
 	dev_stats->rx_fifo_errors = port_stats->rx_fifo_overflow +
@@ -211,6 +216,16 @@ static void netdev_stats_update(struct be_adapter *adapter)
 					rxf_stats->rx_drops_no_pbuf;
 	/* receiver missed packetd */
 	dev_stats->rx_missed_errors = 0;
+
+	/*  packet transmit problems */
+	dev_stats->tx_errors = 0;
+
+	/* no space available in linux */
+	dev_stats->tx_dropped = 0;
+
+	dev_stats->multicast = port_stats->tx_multicastframes;
+	dev_stats->collisions = 0;
+
 	/* detailed tx_errors */
 	dev_stats->tx_aborted_errors = 0;
 	dev_stats->tx_carrier_errors = 0;
