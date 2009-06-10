@@ -1056,18 +1056,19 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	struct be_queue_info *q;
 
 	q = &adapter->tx_obj.q;
-	if (q->created)
+	if (q->created) {
 		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_TXQ);
+
+		/* No more tx completions can be rcvd now; clean up if there
+		 * are any pending completions or pending tx requests */
+		be_tx_q_clean(adapter);
+	}
 	be_queue_free(adapter, q);
 
 	q = &adapter->tx_obj.cq;
 	if (q->created)
 		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_CQ);
 	be_queue_free(adapter, q);
-
-	/* No more tx completions can be rcvd now; clean up if there are
-	 * any pending completions or pending tx requests */
-	be_tx_q_clean(adapter);
 
 	q = &adapter->tx_eq.q;
 	if (q->created)
