@@ -205,6 +205,7 @@ archprepare: maketools
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=arch/sh/kernel/vsyscall
 
 define archhelp
 	@echo '* zImage 	           - Compressed kernel image'
