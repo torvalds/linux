@@ -808,7 +808,7 @@ u64 ps3_os_area_get_rtc_diff(void)
 {
 	return saved_params.rtc_diff;
 }
-EXPORT_SYMBOL(ps3_os_area_get_rtc_diff);
+EXPORT_SYMBOL_GPL(ps3_os_area_get_rtc_diff);
 
 /**
  * ps3_os_area_set_rtc_diff - Set the rtc diff value.
@@ -824,7 +824,7 @@ void ps3_os_area_set_rtc_diff(u64 rtc_diff)
 		os_area_queue_work();
 	}
 }
-EXPORT_SYMBOL(ps3_os_area_set_rtc_diff);
+EXPORT_SYMBOL_GPL(ps3_os_area_set_rtc_diff);
 
 /**
  * ps3_os_area_get_av_multi_out - Returns the default video mode.
