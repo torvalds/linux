@@ -3117,6 +3117,11 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 			pfn_t pfn = gfn_to_pfn(vcpu->kvm, gfn);
 			hpa_t hpa = (hpa_t)pfn << PAGE_SHIFT;
 
+			if (is_error_pfn(pfn)) {
+				kvm_release_pfn_clean(pfn);
+				continue;
+			}
+
 			if (is_shadow_present_pte(ent)
 			    && (ent & PT64_BASE_ADDR_MASK) != hpa)
 				printk(KERN_ERR "xx audit error: (%s) levels %d"
@@ -3288,7 +3293,8 @@ static void kvm_mmu_audit(struct kvm_vcpu *vcpu, const char *msg)
 	audit_msg = msg;
 	audit_rmap(vcpu);
 	audit_write_protection(vcpu);
-	audit_mappings(vcpu);
+	if (strcmp("pre pte write", audit_msg) != 0)
+		audit_mappings(vcpu);
 	audit_writable_sptes_have_rmaps(vcpu);
 	dbg = olddbg;
 }
