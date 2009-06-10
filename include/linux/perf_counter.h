@@ -366,6 +366,7 @@ struct hw_perf_counter {
 	};
 	atomic64_t			prev_count;
 	u64				sample_period;
+	u64				last_period;
 	atomic64_t			period_left;
 	u64				interrupts;
 
@@ -606,8 +607,9 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 extern void perf_counter_update_userpage(struct perf_counter *counter);
 
 struct perf_sample_data {
-	struct pt_regs	*regs;
-	u64		addr;
+	struct pt_regs		*regs;
+	u64			addr;
+	u64			period;
 };
 
 extern int perf_counter_overflow(struct perf_counter *counter, int nmi,

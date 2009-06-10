@@ -698,6 +698,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 
 	if (!hwc->sample_period) {
 		hwc->sample_period = x86_pmu.max_period;
+		hwc->last_period = hwc->sample_period;
 		atomic64_set(&hwc->period_left, hwc->sample_period);
 	}
 
@@ -880,12 +881,14 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	if (unlikely(left <= -period)) {
 		left = period;
 		atomic64_set(&hwc->period_left, left);
+		hwc->last_period = period;
 		ret = 1;
 	}
 
 	if (unlikely(left <= 0)) {
 		left += period;
 		atomic64_set(&hwc->period_left, left);
+		hwc->last_period = period;
 		ret = 1;
 	}
 	/*
@@ -1257,15 +1260,21 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
 			continue;
 
-		/* counter overflow */
-		handled = 1;
-		inc_irq_stat(apic_perf_irqs);
+		/*
+		 * counter overflow
+		 */
+		handled		= 1;
+		data.period	= counter->hw.last_period;
+
 		if (!x86_perf_counter_set_period(counter, hwc, idx))
 			continue;
 
 		if (perf_counter_overflow(counter, 1, &data))
 			amd_pmu_disable_counter(hwc, idx);
 	}
+
+	if (handled)
+		inc_irq_stat(apic_perf_irqs);
 
 	return handled;
 }

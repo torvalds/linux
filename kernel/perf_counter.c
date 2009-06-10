@@ -2495,7 +2495,7 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		perf_output_put(&handle, cpu_entry);
 
 	if (sample_type & PERF_SAMPLE_PERIOD)
-		perf_output_put(&handle, counter->hw.sample_period);
+		perf_output_put(&handle, data->period);
 
 	/*
 	 * XXX PERF_SAMPLE_GROUP vs inherited counters seems difficult.
@@ -3040,11 +3040,13 @@ static void perf_swcounter_set_period(struct perf_counter *counter)
 	if (unlikely(left <= -period)) {
 		left = period;
 		atomic64_set(&hwc->period_left, left);
+		hwc->last_period = period;
 	}
 
 	if (unlikely(left <= 0)) {
 		left += period;
 		atomic64_add(period, &hwc->period_left);
+		hwc->last_period = period;
 	}
 
 	atomic64_set(&hwc->prev_count, -left);
@@ -3086,8 +3088,9 @@ static void perf_swcounter_overflow(struct perf_counter *counter,
 				    int nmi, struct pt_regs *regs, u64 addr)
 {
 	struct perf_sample_data data = {
-		.regs = regs,
-		.addr = addr,
+		.regs	= regs,
+		.addr	= addr,
+		.period	= counter->hw.last_period,
 	};
 
 	perf_swcounter_update(counter);

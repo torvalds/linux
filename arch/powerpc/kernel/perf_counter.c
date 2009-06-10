@@ -767,6 +767,7 @@ static void power_pmu_unthrottle(struct perf_counter *counter)
 	perf_disable();
 	power_pmu_read(counter);
 	left = counter->hw.sample_period;
+	counter->hw.last_period = left;
 	val = 0;
 	if (left < 0x80000000L)
 		val = 0x80000000L - left;
@@ -937,7 +938,8 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	counter->hw.config = events[n];
 	counter->hw.counter_base = cflags[n];
-	atomic64_set(&counter->hw.period_left, counter->hw.sample_period);
+	counter->hw.last_period = counter->hw.sample_period;
+	atomic64_set(&counter->hw.period_left, counter->hw.last_period);
 
 	/*
 	 * See if we need to reserve the PMU.
@@ -1002,8 +1004,9 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 */
 	if (record) {
 		struct perf_sample_data data = {
-			.regs = regs,
-			.addr = 0,
+			.regs	= regs,
+			.addr	= 0,
+			.period	= counter->hw.last_period,
 		};
 
 		if (counter->attr.sample_type & PERF_SAMPLE_ADDR) {
