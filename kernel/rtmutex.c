@@ -891,9 +891,9 @@ int __sched rt_mutex_lock_interruptible(struct rt_mutex *lock,
 EXPORT_SYMBOL_GPL(rt_mutex_lock_interruptible);
 
 /**
- * rt_mutex_lock_interruptible_ktime - lock a rt_mutex interruptible
- *				       the timeout structure is provided
- *				       by the caller
+ * rt_mutex_timed_lock - lock a rt_mutex interruptible
+ *			the timeout structure is provided
+ *			by the caller
  *
  * @lock: 		the rt_mutex to be locked
  * @timeout:		timeout structure or NULL (no timeout)
@@ -940,7 +940,7 @@ void __sched rt_mutex_unlock(struct rt_mutex *lock)
 }
 EXPORT_SYMBOL_GPL(rt_mutex_unlock);
 
-/***
+/**
  * rt_mutex_destroy - mark a mutex unusable
  * @lock: the mutex to be destroyed
  *
