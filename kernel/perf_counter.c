@@ -3879,7 +3879,18 @@ void perf_counter_exit_task(struct task_struct *child)
 	spin_unlock(&child_ctx->lock);
 	local_irq_restore(flags);
 
-	mutex_lock(&child_ctx->mutex);
+	/*
+	 * We can recurse on the same lock type through:
+	 *
+	 *   __perf_counter_exit_task()
+	 *     sync_child_counter()
+	 *       fput(parent_counter->filp)
+	 *         perf_release()
+	 *           mutex_lock(&ctx->mutex)
+	 *
+	 * But since its the parent context it won't be the same instance.
+	 */
+	mutex_lock_nested(&child_ctx->mutex, SINGLE_DEPTH_NESTING);
 
 again:
 	list_for_each_entry_safe(child_counter, tmp, &child_ctx->counter_list,
