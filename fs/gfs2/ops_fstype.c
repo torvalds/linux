@@ -1284,9 +1284,11 @@ static int set_meta_super(struct super_block *s, void *ptr)
 	return -EINVAL;
 }
 
-static struct super_block *get_gfs2_sb(const char *dev_name)
+static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
+			    const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	struct super_block *s;
+	struct gfs2_sbd *sdp;
 	struct path path;
 	int error;
 
@@ -1294,21 +1296,11 @@ static struct super_block *get_gfs2_sb(const char *dev_name)
 	if (error) {
 		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
 		       dev_name, error);
-		return ERR_PTR(-ENOENT);
+		return error;
 	}
 	s = sget(&gfs2_fs_type, test_meta_super, set_meta_super,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
-	return s;
-}
-
-static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
-			    const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	struct super_block *s;
-	struct gfs2_sbd *sdp;
-
-	s = get_gfs2_sb(dev_name);
 	if (IS_ERR(s)) {
 		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
 		return PTR_ERR(s);
