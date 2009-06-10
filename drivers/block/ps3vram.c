@@ -17,6 +17,7 @@
 #include <asm/iommu.h>
 #include <asm/lv1call.h>
 #include <asm/ps3.h>
+#include <asm/ps3gpu.h>
 
 
 #define DEVICE_NAME		"ps3vram"
@@ -45,8 +46,6 @@
 
 #define NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN	0x0000030c
 #define NV_MEMORY_TO_MEMORY_FORMAT_NOTIFY	0x00000104
-
-#define L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT 0x601
 
 #define CACHE_PAGE_PRESENT 1
 #define CACHE_PAGE_DIRTY   2
@@ -184,13 +183,10 @@ static void ps3vram_rewind_ring(struct ps3_system_bus_device *dev)
 	priv->ctrl[CTRL_PUT] = FIFO_BASE + FIFO_OFFSET;
 
 	/* asking the HV for a blit will kick the FIFO */
-	status = lv1_gpu_context_attribute(priv->context_handle,
-					   L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT, 0,
-					   0, 0, 0);
+	status = lv1_gpu_fb_blit(priv->context_handle, 0, 0, 0, 0);
 	if (status)
-		dev_err(&dev->core,
-			"%s: lv1_gpu_context_attribute failed %d\n", __func__,
-			status);
+		dev_err(&dev->core, "%s: lv1_gpu_fb_blit failed %d\n",
+			__func__, status);
 
 	priv->fifo_ptr = priv->fifo_base;
 }
@@ -206,13 +202,10 @@ static void ps3vram_fire_ring(struct ps3_system_bus_device *dev)
 			       (priv->fifo_ptr - priv->fifo_base) * sizeof(u32);
 
 	/* asking the HV for a blit will kick the FIFO */
-	status = lv1_gpu_context_attribute(priv->context_handle,
-					   L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT, 0,
-					   0, 0, 0);
+	status = lv1_gpu_fb_blit(priv->context_handle, 0, 0, 0, 0);
 	if (status)
-		dev_err(&dev->core,
-			"%s: lv1_gpu_context_attribute failed %d\n", __func__,
-			status);
+		dev_err(&dev->core, "%s: lv1_gpu_fb_blit failed %d\n",
+			__func__, status);
 
 	if ((priv->fifo_ptr - priv->fifo_base) * sizeof(u32) >
 	    FIFO_SIZE - 1024) {
