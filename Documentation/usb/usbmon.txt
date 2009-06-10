@@ -305,7 +305,7 @@ Before the call, hdr, data, and alloc should be filled. Upon return, the area
 pointed by hdr contains the next event structure, and the data buffer contains
 the data, if any. The event is removed from the kernel buffer.
 
-The MON_IOCX_GET copies 48 bytes, MON_IOCX_GETX copies 64 bytes.
+The MON_IOCX_GET copies 48 bytes to hdr area, MON_IOCX_GETX copies 64 bytes.
 
  MON_IOCX_MFETCH, defined as _IOWR(MON_IOC_MAGIC, 7, struct mon_mfetch_arg)
 
