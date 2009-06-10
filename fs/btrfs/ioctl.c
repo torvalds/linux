@@ -82,22 +82,25 @@ static noinline int create_subvol(struct btrfs_root *root,
 	if (ret)
 		goto fail;
 
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0,
-				      objectid, trans->transid, 0, 0, 0);
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+				      0, objectid, NULL, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
 		goto fail;
 	}
 
-	btrfs_set_header_nritems(leaf, 0);
-	btrfs_set_header_level(leaf, 0);
+	memset_extent_buffer(leaf, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(leaf, leaf->start);
 	btrfs_set_header_generation(leaf, trans->transid);
+	btrfs_set_header_backref_rev(leaf, BTRFS_MIXED_BACKREF_REV);
 	btrfs_set_header_owner(leaf, objectid);
 
 	write_extent_buffer(leaf, root->fs_info->fsid,
 			    (unsigned long)btrfs_header_fsid(leaf),
 			    BTRFS_FSID_SIZE);
+	write_extent_buffer(leaf, root->fs_info->chunk_tree_uuid,
+			    (unsigned long)btrfs_header_chunk_tree_uuid(leaf),
+			    BTRFS_UUID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
 	inode_item = &root_item.inode;
@@ -125,7 +128,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	btrfs_set_root_dirid(&root_item, new_dirid);
 
 	key.objectid = objectid;
-	key.offset = 1;
+	key.offset = 0;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&root_item);
@@ -911,10 +914,10 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				if (disko) {
 					inode_add_bytes(inode, datal);
 					ret = btrfs_inc_extent_ref(trans, root,
-						   disko, diskl, leaf->start,
-						   root->root_key.objectid,
-						   trans->transid,
-						   inode->i_ino);
+							disko, diskl, 0,
+							root->root_key.objectid,
+							inode->i_ino,
+							new_key.offset - datao);
 					BUG_ON(ret);
 				}
 			} else if (type == BTRFS_FILE_EXTENT_INLINE) {

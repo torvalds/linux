@@ -72,6 +72,9 @@ struct btrfs_inode {
 	 */
 	struct list_head ordered_operations;
 
+	/* node for the red-black tree that links inodes in subvolume root */
+	struct rb_node rb_node;
+
 	/* the space_info for where this inode's data allocations are done */
 	struct btrfs_space_info *space_info;
 
