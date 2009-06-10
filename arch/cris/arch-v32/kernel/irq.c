@@ -428,8 +428,8 @@ crisv32_do_multiple(struct pt_regs* regs)
 			 masked[i] &= ~TIMER_MASK;
 			 do_IRQ(TIMER0_INTR_VECT, regs);
 		}
-	}
 #endif
+	}
 
 #ifdef IGNORE_MASK
 	/* Remove IRQs that can't be handled as multiple. */
