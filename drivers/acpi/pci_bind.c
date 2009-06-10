@@ -44,6 +44,7 @@ struct acpi_pci_data {
 	struct pci_dev *dev;
 };
 
+static int acpi_pci_bind(struct acpi_device *device);
 static int acpi_pci_unbind(struct acpi_device *device);
 
 static void acpi_pci_data_handler(acpi_handle handle, u32 function,
@@ -108,7 +109,7 @@ acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id)
 
 EXPORT_SYMBOL(acpi_get_pci_id);
 
-int acpi_pci_bind(struct acpi_device *device)
+static int acpi_pci_bind(struct acpi_device *device)
 {
 	int result = 0;
 	acpi_status status;
