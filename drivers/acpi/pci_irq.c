@@ -280,16 +280,17 @@ int acpi_pci_irq_add_prt(acpi_handle handle, struct pci_bus *bus)
 	return 0;
 }
 
-void acpi_pci_irq_del_prt(int segment, int bus)
+void acpi_pci_irq_del_prt(struct pci_bus *bus)
 {
 	struct acpi_prt_entry *entry, *tmp;
 
 	printk(KERN_DEBUG
 	       "ACPI: Delete PCI Interrupt Routing Table for %04x:%02x\n",
-	       segment, bus);
+	       pci_domain_nr(bus), bus->number);
 	spin_lock(&acpi_prt_lock);
 	list_for_each_entry_safe(entry, tmp, &acpi_prt_list, list) {
-		if (segment == entry->id.segment && bus == entry->id.bus) {
+		if (pci_domain_nr(bus) == entry->id.segment
+			&& bus->number == entry->id.bus) {
 			list_del(&entry->list);
 			kfree(entry);
 		}

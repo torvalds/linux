@@ -113,8 +113,7 @@ static int acpi_pci_unbind(struct acpi_device *device)
 		return 0;
 
 	if (dev->subordinate)
-		acpi_pci_irq_del_prt(pci_domain_nr(dev->bus),
-				     dev->subordinate->number);
+		acpi_pci_irq_del_prt(dev->subordinate);
 
 	pci_dev_put(dev);
 	return 0;
