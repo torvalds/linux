@@ -1012,7 +1012,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	zero_user(page, offset, length);
-
+	mark_buffer_dirty(bh);
 unlock:
 	unlock_page(page);
 	page_cache_release(page);
