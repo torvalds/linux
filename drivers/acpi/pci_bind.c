@@ -109,12 +109,15 @@ static int acpi_pci_unbind(struct acpi_device *device)
 	struct pci_dev *dev;
 
 	dev = acpi_get_pci_dev(device->handle);
-	if (!dev)
-		return 0;
+	if (!dev || !dev->subordinate)
+		goto out;
 
-	if (dev->subordinate)
-		acpi_pci_irq_del_prt(dev->subordinate);
+	acpi_pci_irq_del_prt(dev->subordinate);
 
+	device->ops.bind = NULL;
+	device->ops.unbind = NULL;
+
+out:
 	pci_dev_put(dev);
 	return 0;
 }
