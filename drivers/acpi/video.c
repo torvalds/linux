@@ -1054,15 +1054,15 @@ static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 static int acpi_video_bus_check(struct acpi_video_bus *video)
 {
 	acpi_status status = -ENOENT;
-	struct device *dev;
+	struct pci_dev *dev;
 
 	if (!video)
 		return -EINVAL;
 
-	dev = acpi_get_physical_pci_device(video->device->handle);
+	dev = acpi_get_pci_dev(video->device->handle);
 	if (!dev)
 		return -ENODEV;
-	put_device(dev);
+	pci_dev_put(dev);
 
 	/* Since there is no HID, CID and so on for VGA driver, we have
 	 * to check well known required nodes.
