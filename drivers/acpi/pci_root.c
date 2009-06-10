@@ -142,6 +142,30 @@ acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 
 EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
 
+/**
+ * acpi_is_root_bridge - determine whether an ACPI CA node is a PCI root bridge
+ * @handle - the ACPI CA node in question.
+ *
+ * Note: we could make this API take a struct acpi_device * instead, but
+ * for now, it's more convenient to operate on an acpi_handle.
+ */
+int acpi_is_root_bridge(acpi_handle handle)
+{
+	int ret;
+	struct acpi_device *device;
+
+	ret = acpi_bus_get_device(handle, &device);
+	if (ret)
+		return 0;
+
+	ret = acpi_match_device_ids(device, root_device_ids);
+	if (ret)
+		return 0;
+	else
+		return 1;
+}
+EXPORT_SYMBOL_GPL(acpi_is_root_bridge);
+
 static acpi_status
 get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 {

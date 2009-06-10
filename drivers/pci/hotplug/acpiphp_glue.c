@@ -1631,7 +1631,7 @@ find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int *count = (int *)context;
 
-	if (acpi_root_bridge(handle)) {
+	if (acpi_is_root_bridge(handle)) {
 		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 				handle_hotplug_event_bridge, NULL);
 			(*count)++;
