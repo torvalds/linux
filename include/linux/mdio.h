@@ -45,6 +45,7 @@
 #define MDIO_PHYXS_LNSTAT	24	/* PHY XGXS lane state */
 
 /* Media-dependent registers. */
+#define MDIO_PMA_10GBT_SWAPPOL	130	/* 10GBASE-T pair swap & polarity */
 #define MDIO_PMA_10GBT_TXPWR	131	/* 10GBASE-T TX power control */
 #define MDIO_PMA_10GBT_SNR	133	/* 10GBASE-T SNR margin, lane A.
 					 * Lanes B-D are numbered 134-136. */
@@ -194,6 +195,14 @@
 #define MDIO_PHYXS_LNSTAT_SYNC2		0x0004
 #define MDIO_PHYXS_LNSTAT_SYNC3		0x0008
 #define MDIO_PHYXS_LNSTAT_ALIGN		0x1000
+
+/* PMA 10GBASE-T pair swap & polarity */
+#define MDIO_PMA_10GBT_SWAPPOL_ABNX	0x0001	/* Pair A/B uncrossed */
+#define MDIO_PMA_10GBT_SWAPPOL_CDNX	0x0002	/* Pair C/D uncrossed */
+#define MDIO_PMA_10GBT_SWAPPOL_AREV	0x0100	/* Pair A polarity reversed */
+#define MDIO_PMA_10GBT_SWAPPOL_BREV	0x0200	/* Pair B polarity reversed */
+#define MDIO_PMA_10GBT_SWAPPOL_CREV	0x0400	/* Pair C polarity reversed */
+#define MDIO_PMA_10GBT_SWAPPOL_DREV	0x0800	/* Pair D polarity reversed */
 
 /* PMA 10GBASE-T TX power register. */
 #define MDIO_PMA_10GBT_TXPWR_SHORT	0x0001	/* Short-reach mode */

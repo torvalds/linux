@@ -296,6 +296,23 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 		ecmd->duplex = (reg & MDIO_CTRL1_FULLDPLX ||
 				ecmd->speed == SPEED_10000);
 	}
+
+	/* 10GBASE-T MDI/MDI-X */
+	if (ecmd->port == PORT_TP && ecmd->speed == SPEED_10000) {
+		switch (mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_PMAPMD,
+					MDIO_PMA_10GBT_SWAPPOL)) {
+		case MDIO_PMA_10GBT_SWAPPOL_ABNX | MDIO_PMA_10GBT_SWAPPOL_CDNX:
+			ecmd->eth_tp_mdix = ETH_TP_MDI;
+			break;
+		case 0:
+			ecmd->eth_tp_mdix = ETH_TP_MDI_X;
+			break;
+		default:
+			/* It's complicated... */
+			ecmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
+			break;
+		}
+	}
 }
 EXPORT_SYMBOL(mdio45_ethtool_gset_npage);
 
