@@ -756,4 +756,4 @@ module_exit(bd2802_exit);
 
 MODULE_AUTHOR("Kim Kyuwon <q1.kim@samsung.com>");
 MODULE_DESCRIPTION("BD2802 LED driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
