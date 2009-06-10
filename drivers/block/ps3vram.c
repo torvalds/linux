@@ -110,7 +110,7 @@ static u32 *ps3vram_get_notifier(void *reports, int notifier)
 
 static void ps3vram_notifier_reset(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	u32 *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
 	int i;
 
@@ -121,7 +121,7 @@ static void ps3vram_notifier_reset(struct ps3_system_bus_device *dev)
 static int ps3vram_notifier_wait(struct ps3_system_bus_device *dev,
 				 unsigned int timeout_ms)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	u32 *notify = ps3vram_get_notifier(priv->reports, NOTIFIER);
 	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
@@ -136,7 +136,7 @@ static int ps3vram_notifier_wait(struct ps3_system_bus_device *dev,
 
 static void ps3vram_init_ring(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	priv->ctrl[CTRL_PUT] = FIFO_BASE + FIFO_OFFSET;
 	priv->ctrl[CTRL_GET] = FIFO_BASE + FIFO_OFFSET;
@@ -145,7 +145,7 @@ static void ps3vram_init_ring(struct ps3_system_bus_device *dev)
 static int ps3vram_wait_ring(struct ps3_system_bus_device *dev,
 			     unsigned int timeout_ms)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 
 	do {
@@ -174,7 +174,7 @@ static void ps3vram_begin_ring(struct ps3vram_priv *priv, u32 chan, u32 tag,
 
 static void ps3vram_rewind_ring(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	int status;
 
 	ps3vram_out_ring(priv, 0x20000000 | (FIFO_BASE + FIFO_OFFSET));
@@ -192,7 +192,7 @@ static void ps3vram_rewind_ring(struct ps3_system_bus_device *dev)
 
 static void ps3vram_fire_ring(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	int status;
 
 	mutex_lock(&ps3_gpu_mutex);
@@ -218,7 +218,7 @@ static void ps3vram_fire_ring(struct ps3_system_bus_device *dev)
 
 static void ps3vram_bind(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	ps3vram_begin_ring(priv, UPLOAD_SUBCH, 0, 1);
 	ps3vram_out_ring(priv, 0x31337303);
@@ -241,7 +241,7 @@ static int ps3vram_upload(struct ps3_system_bus_device *dev,
 			  unsigned int src_offset, unsigned int dst_offset,
 			  int len, int count)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	ps3vram_begin_ring(priv, UPLOAD_SUBCH,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
@@ -273,7 +273,7 @@ static int ps3vram_download(struct ps3_system_bus_device *dev,
 			    unsigned int src_offset, unsigned int dst_offset,
 			    int len, int count)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	ps3vram_begin_ring(priv, DOWNLOAD_SUBCH,
 			   NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
@@ -303,7 +303,7 @@ static int ps3vram_download(struct ps3_system_bus_device *dev,
 
 static void ps3vram_cache_evict(struct ps3_system_bus_device *dev, int entry)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	struct ps3vram_cache *cache = &priv->cache;
 
 	if (!(cache->tags[entry].flags & CACHE_PAGE_DIRTY))
@@ -325,7 +325,7 @@ static void ps3vram_cache_evict(struct ps3_system_bus_device *dev, int entry)
 static void ps3vram_cache_load(struct ps3_system_bus_device *dev, int entry,
 			       unsigned int address)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	struct ps3vram_cache *cache = &priv->cache;
 
 	dev_dbg(&dev->core, "Fetching %d: 0x%08x\n", entry, address);
@@ -345,7 +345,7 @@ static void ps3vram_cache_load(struct ps3_system_bus_device *dev, int entry,
 
 static void ps3vram_cache_flush(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	struct ps3vram_cache *cache = &priv->cache;
 	int i;
 
@@ -359,7 +359,7 @@ static void ps3vram_cache_flush(struct ps3_system_bus_device *dev)
 static unsigned int ps3vram_cache_match(struct ps3_system_bus_device *dev,
 					loff_t address)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	struct ps3vram_cache *cache = &priv->cache;
 	unsigned int base;
 	unsigned int offset;
@@ -393,7 +393,7 @@ static unsigned int ps3vram_cache_match(struct ps3_system_bus_device *dev,
 
 static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	priv->cache.page_count = CACHE_PAGE_COUNT;
 	priv->cache.page_size = CACHE_PAGE_SIZE;
@@ -412,7 +412,7 @@ static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
 
 static void ps3vram_cache_cleanup(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	ps3vram_cache_flush(dev);
 	kfree(priv->cache.tags);
@@ -421,7 +421,7 @@ static void ps3vram_cache_cleanup(struct ps3_system_bus_device *dev)
 static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 			size_t len, size_t *retlen, u_char *buf)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	unsigned int cached, count;
 
 	dev_dbg(&dev->core, "%s: from=0x%08x len=0x%zx\n", __func__,
@@ -465,7 +465,7 @@ static int ps3vram_read(struct ps3_system_bus_device *dev, loff_t from,
 static int ps3vram_write(struct ps3_system_bus_device *dev, loff_t to,
 			 size_t len, size_t *retlen, const u_char *buf)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	unsigned int cached, count;
 
 	if (to >= priv->size)
@@ -528,7 +528,7 @@ static const struct file_operations ps3vram_proc_fops = {
 
 static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	struct proc_dir_entry *pde;
 
 	pde = proc_create_data(DEVICE_NAME, 0444, NULL, &ps3vram_proc_fops,
@@ -540,7 +540,7 @@ static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
 static struct bio *ps3vram_do_bio(struct ps3_system_bus_device *dev,
 				  struct bio *bio)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	int write = bio_data_dir(bio) == WRITE;
 	const char *op = write ? "write" : "read";
 	loff_t offset = bio->bi_sector << 9;
@@ -590,7 +590,7 @@ out:
 static int ps3vram_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct ps3_system_bus_device *dev = q->queuedata;
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 	int busy;
 
 	dev_dbg(&dev->core, "%s\n", __func__);
@@ -628,9 +628,7 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 
 	spin_lock_init(&priv->lock);
 	bio_list_init(&priv->list);
-	dev->core.driver_data = priv;
-
-	priv = dev->core.driver_data;
+	ps3_system_bus_set_driver_data(dev, priv);
 
 	/* Allocate XDR buffer (1MiB aligned) */
 	priv->xdr_buf = (void *)__get_free_pages(GFP_KERNEL,
@@ -795,14 +793,14 @@ out_free_xdr_buf:
 	free_pages((unsigned long) priv->xdr_buf, get_order(XDR_BUF_SIZE));
 fail_free_priv:
 	kfree(priv);
-	dev->core.driver_data = NULL;
+	ps3_system_bus_set_driver_data(dev, NULL);
 fail:
 	return error;
 }
 
 static int ps3vram_remove(struct ps3_system_bus_device *dev)
 {
-	struct ps3vram_priv *priv = dev->core.driver_data;
+	struct ps3vram_priv *priv = ps3_system_bus_get_driver_data(dev);
 
 	del_gendisk(priv->gendisk);
 	put_disk(priv->gendisk);
@@ -819,7 +817,7 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	ps3_close_hv_device(dev);
 	free_pages((unsigned long) priv->xdr_buf, get_order(XDR_BUF_SIZE));
 	kfree(priv);
-	dev->core.driver_data = NULL;
+	ps3_system_bus_set_driver_data(dev, NULL);
 	return 0;
 }
 
