@@ -331,6 +331,18 @@ out:
 	return ERR_PTR(err);
 }
 
+static const struct net_device_ops sun3_82586_netdev_ops = {
+	.ndo_open		= sun3_82586_open,
+	.ndo_stop		= sun3_82586_close,
+	.ndo_start_xmit		= sun3_82586_send_packet,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_tx_timeout		= sun3_82586_timeout,
+	.ndo_get_stats		= sun3_82586_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 {
 	int i, size, retval;
@@ -381,13 +393,8 @@ static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 
 	printk("Memaddr: 0x%lx, Memsize: %d, IRQ %d\n",dev->mem_start,size, dev->irq);
 
-	dev->open		= sun3_82586_open;
-	dev->stop		= sun3_82586_close;
-	dev->get_stats		= sun3_82586_get_stats;
-	dev->tx_timeout 	= sun3_82586_timeout;
+	dev->netdev_ops		= &sun3_82586_netdev_ops;
 	dev->watchdog_timeo	= HZ/20;
-	dev->hard_start_xmit 	= sun3_82586_send_packet;
-	dev->set_multicast_list = set_multicast_list;
 
 	dev->if_port 		= 0;
 	return 0;

@@ -2,7 +2,7 @@
  * Frame buffer driver for Trident TGUI, Blade and Image series
  *
  * Copyright 2001, 2002 - Jani Monoses   <jani@iv.ro>
- *
+ * Copyright 2009 Krzysztof Helt <krzysztof.h1@wp.pl>
  *
  * CREDITS:(in order of appearance)
  *	skeletonfb.c by Geert Uytterhoeven and other fb code in drivers/video
@@ -490,7 +490,6 @@ static void tgui_copy_rect(struct tridentfb_par *par,
 /*
  * Accel functions called by the upper layers
  */
-#ifdef CONFIG_FB_TRIDENT_ACCEL
 static void tridentfb_fillrect(struct fb_info *info,
 			       const struct fb_fillrect *fr)
 {
@@ -565,11 +564,6 @@ static int tridentfb_sync(struct fb_info *info)
 		par->wait_engine(par);
 	return 0;
 }
-#else
-#define tridentfb_fillrect cfb_fillrect
-#define tridentfb_copyarea cfb_copyarea
-#define tridentfb_imageblit cfb_imageblit
-#endif /* CONFIG_FB_TRIDENT_ACCEL */
 
 /*
  * Hardware access functions
@@ -1333,9 +1327,7 @@ static struct fb_ops tridentfb_ops = {
 	.fb_fillrect = tridentfb_fillrect,
 	.fb_copyarea = tridentfb_copyarea,
 	.fb_imageblit = tridentfb_imageblit,
-#ifdef CONFIG_FB_TRIDENT_ACCEL
 	.fb_sync = tridentfb_sync,
-#endif
 };
 
 static int __devinit trident_pci_probe(struct pci_dev *dev,
@@ -1358,10 +1350,6 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	default_par = info->par;
 
 	chip_id = id->device;
-
-#ifndef CONFIG_FB_TRIDENT_ACCEL
-	noaccel = 1;
-#endif
 
 	/* If PCI id is 0x9660 then further detect chip type */
 
@@ -1490,6 +1478,9 @@ static int __devinit trident_pci_probe(struct pci_dev *dev,
 	} else
 		info->flags |= FBINFO_HWACCEL_DISABLED;
 
+	if (is_blade(chip_id) && chip_id != BLADE3D)
+		info->flags |= FBINFO_READS_FAST;
+
 	info->pixmap.addr = kmalloc(4096, GFP_KERNEL);
 	if (!info->pixmap.addr) {
 		err = -ENOMEM;
@@ -1563,6 +1554,7 @@ static void __devexit trident_pci_remove(struct pci_dev *dev)
 	release_mem_region(tridentfb_fix.mmio_start, tridentfb_fix.mmio_len);
 	pci_set_drvdata(dev, NULL);
 	kfree(info->pixmap.addr);
+	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
 
@@ -1663,4 +1655,5 @@ module_exit(tridentfb_exit);
 MODULE_AUTHOR("Jani Monoses <jani@iv.ro>");
 MODULE_DESCRIPTION("Framebuffer driver for Trident cards");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("cyblafb");
 

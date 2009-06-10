@@ -516,7 +516,7 @@ DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
 		.clk = &c, \
 	},
 
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
 	_REGISTER_CLOCK(NULL, "cspi", cspi1_clk)
 	_REGISTER_CLOCK(NULL, "cspi", cspi2_clk)
@@ -533,7 +533,7 @@ static struct clk_lookup lookups[] __initdata = {
 	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk1)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk2)
-	_REGISTER_CLOCK("mx3-camera.0", "csi", csi_clk)
+	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)

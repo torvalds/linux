@@ -46,6 +46,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR850",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		.i2c_clk_divider = AU0828_I2C_CLK_30KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -70,6 +71,13 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR950Q",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		/* The au0828 hardware i2c implementation does not properly
+		   support the xc5000's i2c clock stretching.  So we need to
+		   lower the clock frequency enough where the 15us clock
+		   stretch fits inside of a normal clock cycle, or else the
+		   au0828 fails to set the STOP bit.  A 30 KHz clock puts the
+		   clock pulse width at 18us */
+		.i2c_clk_divider = AU0828_I2C_CLK_30KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -94,16 +102,19 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR950Q rev xxF8",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
+		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 };
 
@@ -200,8 +211,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 		/* Load the analog demodulator driver (note this would need to
 		   be abstracted out if we ever need to support a different
 		   demod) */
-		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "au8522", "au8522",
-					 0x8e >> 1);
+		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"au8522", "au8522", 0x8e >> 1);
 		if (sd == NULL)
 			printk(KERN_ERR "analog subdev registration failed\n");
 	}
@@ -209,8 +220,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 	/* Setup tuners */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		/* Load the tuner module, which does the attach */
-		sd = v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner", "tuner",
-					 dev->board.tuner_addr);
+		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->board.tuner_addr);
 		if (sd == NULL)
 			printk(KERN_ERR "tuner subdev registration fail\n");
 

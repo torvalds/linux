@@ -74,8 +74,9 @@
 #define TIOCSHAYESESP   0x545F  /* Set Hayes ESP configuration */
 #define FIOQSIZE	0x5460
 
-#define TIOCSERSETRS485 0x5461  /* enable rs-485 */
-#define TIOCSERWRRS485  0x5462  /* write rs-485 */
+#define TIOCSERSETRS485	0x5461  /* enable rs-485 (deprecated) */
+#define TIOCSERWRRS485	0x5462  /* write rs-485 */
+#define TIOCSRS485	0x5463  /* enable rs-485 */
 
 /* Used for packet mode */
 #define TIOCPKT_DATA		 0

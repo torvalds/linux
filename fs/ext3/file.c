@@ -33,6 +33,10 @@
  */
 static int ext3_release_file (struct inode * inode, struct file * filp)
 {
+	if (EXT3_I(inode)->i_state & EXT3_STATE_FLUSH_ON_CLOSE) {
+		filemap_flush(inode->i_mapping);
+		EXT3_I(inode)->i_state &= ~EXT3_STATE_FLUSH_ON_CLOSE;
+	}
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
 			(atomic_read(&inode->i_writecount) == 1))
@@ -112,7 +116,7 @@ const struct file_operations ext3_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= generic_file_aio_read,
 	.aio_write	= ext3_file_write,
-	.ioctl		= ext3_ioctl,
+	.unlocked_ioctl	= ext3_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext3_compat_ioctl,
 #endif

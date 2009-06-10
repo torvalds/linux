@@ -14,6 +14,8 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 
+#define DAVINCI_USB_OTG_BASE 0x01C64000
+
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct musb_hdrc_eps_bits musb_eps[] = {
 	{ "ep1_tx", 8, },
@@ -64,7 +66,7 @@ static struct resource usb_resources[] = {
 	},
 };
 
-static u64 usb_dmamask = DMA_32BIT_MASK;
+static u64 usb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device usb_dev = {
 	.name           = "musb_hdrc",
@@ -72,7 +74,7 @@ static struct platform_device usb_dev = {
 	.dev = {
 		.platform_data		= &usb_data,
 		.dma_mask		= &usb_dmamask,
-		.coherent_dma_mask      = DMA_32BIT_MASK,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 	.resource       = usb_resources,
 	.num_resources  = ARRAY_SIZE(usb_resources),

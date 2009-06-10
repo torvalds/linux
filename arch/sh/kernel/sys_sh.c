@@ -63,6 +63,15 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
 	unsigned long fd, unsigned long pgoff)
 {
+	/*
+	 * The shift for mmap2 is constant, regardless of PAGE_SIZE
+	 * setting.
+	 */
+	if (pgoff & ((1 << (PAGE_SHIFT - 12)) - 1))
+		return -EINVAL;
+
+	pgoff >>= PAGE_SHIFT - 12;
+
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
 }
 

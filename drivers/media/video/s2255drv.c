@@ -722,7 +722,6 @@ static void free_buffer(struct videobuf_queue *vq, struct s2255_buffer *buf)
 {
 	dprintk(4, "%s\n", __func__);
 
-	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
@@ -1238,6 +1237,7 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 	buffer[1] = (u32) chn_rev;
 	buffer[2] = CMD_SET_MODE;
 	memcpy(&buffer[3], &dev->mode[chn], sizeof(struct s2255_mode));
+	dev->setmode_ready[chn] = 0;
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
 	if (debug)
 		dump_verify_mode(dev, mode);
@@ -1246,7 +1246,6 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 
 	/* wait at least 3 frames before continuing */
 	if (mode->restart) {
-		dev->setmode_ready[chn] = 0;
 		wait_event_timeout(dev->wait_setmode[chn],
 				   (dev->setmode_ready[chn] != 0),
 				   msecs_to_jiffies(S2255_SETMODE_TIMEOUT));
@@ -1324,7 +1323,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	int res;
 	struct s2255_fh *fh = priv;
 	struct s2255_dev *dev = fh->dev;
 
@@ -1338,9 +1336,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	}
 	s2255_stop_acquire(dev, fh->channel);
-	res = videobuf_streamoff(&fh->vb_vidq);
-	if (res < 0)
-		return res;
+	videobuf_streamoff(&fh->vb_vidq);
 	res_free(dev, fh);
 	return 0;
 }
@@ -1707,13 +1703,13 @@ static void s2255_destroy(struct kref *kref)
 	kfree(dev->fw_data);
 	usb_put_dev(dev->udev);
 	dprintk(1, "%s", __func__);
-	kfree(dev);
 
 	while (!list_empty(&s2255_devlist)) {
 		list = s2255_devlist.next;
 		list_del(list);
 	}
 	mutex_unlock(&dev->open_lock);
+	kfree(dev);
 }
 
 static int s2255_close(struct file *file)

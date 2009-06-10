@@ -250,6 +250,7 @@ static int ce6230_probe(struct usb_interface *intf,
 
 static struct usb_device_id ce6230_table[] = {
 	{ USB_DEVICE(USB_VID_INTEL, USB_PID_INTEL_CE9500) },
+	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A310) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, ce6230_table);
@@ -284,12 +285,17 @@ static struct dvb_usb_device_properties ce6230_properties = {
 
 	.i2c_algo = &ce6230_i2c_algo,
 
-	.num_device_descs = 1,
+	.num_device_descs = 2,
 	.devices = {
 		{
 			.name = "Intel CE9500 reference design",
 			.cold_ids = {NULL},
 			.warm_ids = {&ce6230_table[0], NULL},
+		},
+		{
+			.name = "AVerMedia A310 USB 2.0 DVB-T tuner",
+			.cold_ids = {NULL},
+			.warm_ids = {&ce6230_table[1], NULL},
 		},
 	}
 };

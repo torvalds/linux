@@ -267,13 +267,17 @@ int viafb_wait_engine_idle(void)
 	int loop = 0;
 
 	while (!(readl(viaparinfo->io_virt + VIA_REG_STATUS) &
-			VIA_VR_QUEUE_BUSY) && (loop++ < MAXLOOP))
+			VIA_VR_QUEUE_BUSY) && (loop < MAXLOOP)) {
+		loop++;
 		cpu_relax();
+	}
 
 	while ((readl(viaparinfo->io_virt + VIA_REG_STATUS) &
 		    (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY | VIA_3D_ENG_BUSY)) &&
-		    (loop++ < MAXLOOP))
+		    (loop < MAXLOOP)) {
+		loop++;
 		cpu_relax();
+	}
 
 	return loop >= MAXLOOP;
 }

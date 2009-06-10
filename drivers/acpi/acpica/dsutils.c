@@ -816,7 +816,7 @@ acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state)
 		goto push_result;
 	}
 
-	type = ACPI_GET_OBJECT_TYPE(*operand);
+	type = (*operand)->common.type;
 
 	status = acpi_ex_resolve_to_value(operand, walk_state);
 	if (ACPI_FAILURE(status)) {

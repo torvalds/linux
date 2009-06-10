@@ -256,7 +256,6 @@ static int __init sh7722_devices_setup(void)
 {
 	clk_always_enable("uram0"); /* URAM */
 	clk_always_enable("xymem0"); /* XYMEM */
-	clk_always_enable("rtc0"); /* RTC */
 	clk_always_enable("veu0"); /* VEU */
 	clk_always_enable("vpu0"); /* VPU */
 	clk_always_enable("jpu0"); /* JPU */

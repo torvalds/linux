@@ -103,7 +103,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nInitialized %hd/%hd Regions %hd/%hd Fields %hd/%hd Buffers %hd/%hd Packages (%hd nodes)\n",
+			      "\nInitialized %hd/%hd Regions %hd/%hd Fields %hd/%hd "
+			      "Buffers %hd/%hd Packages (%hd nodes)\n",
 			      info.op_region_init, info.op_region_count,
 			      info.field_init, info.field_count,
 			      info.buffer_init, info.buffer_count,
@@ -148,7 +149,8 @@ acpi_status acpi_ns_initialize_devices(void)
 	info.num_INI = 0;
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Initializing Device/Processor/Thermal objects by executing _INI methods:"));
+			      "Initializing Device/Processor/Thermal objects "
+			      "by executing _INI methods:"));
 
 	/* Tree analysis: find all subtrees that contain _INI methods */
 
@@ -180,7 +182,8 @@ acpi_status acpi_ns_initialize_devices(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nExecuted %hd _INI methods requiring %hd _STA executions (examined %hd objects)\n",
+			      "\nExecuted %hd _INI methods requiring %hd _STA executions "
+			      "(examined %hd objects)\n",
 			      info.num_INI, info.num_STA, info.device_count));
 
 	return_ACPI_STATUS(status);
@@ -263,16 +266,14 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	/*
-	 * If the object is already initialized, nothing else to do
-	 */
+	/* If the object is already initialized, nothing else to do */
+
 	if (obj_desc->common.flags & AOPOBJ_DATA_VALID) {
 		return (AE_OK);
 	}
 
-	/*
-	 * Must lock the interpreter before executing AML code
-	 */
+	/* Must lock the interpreter before executing AML code */
+
 	acpi_ex_enter_interpreter();
 
 	/*

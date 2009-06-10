@@ -23,7 +23,7 @@ static irqreturn_t power_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
+static int __devinit has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
 	if (irq == 0xffffffff)
 		return 0;

@@ -14,13 +14,16 @@
 #define	S1D13XXXFB_H
 
 #define S1D_PALETTE_SIZE		256
-#define S1D13506_CHIP_REV		4	/* expected chip revision number for s1d13506 */
-#define S1D13806_CHIP_REV		7	/* expected chip revision number for s1d13806 */
-#define S1D_FBID			"S1D13806"
-#define S1D_DEVICENAME			"s1d13806fb"
+#define S1D_FBID			"S1D13xxx"
+#define S1D_DEVICENAME			"s1d13xxxfb"
+
+/* S1DREG_REV_CODE register = prod_id (6 bits) + revision (2 bits) */
+#define S1D13505_PROD_ID		0x3	/* 000011 */
+#define S1D13506_PROD_ID		0x4	/* 000100 */
+#define S1D13806_PROD_ID		0x7	/* 000111 */
 
 /* register definitions (tested on s1d13896) */
-#define S1DREG_REV_CODE			0x0000	/* Revision Code Register */
+#define S1DREG_REV_CODE			0x0000	/* Prod + Rev Code Register */
 #define S1DREG_MISC			0x0001	/* Miscellaneous Register */
 #define S1DREG_GPIO_CNF0		0x0004	/* General IO Pins Configuration Register 0 */
 #define S1DREG_GPIO_CNF1		0x0005	/* General IO Pins Configuration Register 1 */
@@ -141,10 +144,11 @@ struct s1d13xxxfb_regval {
 	u8	value;
 };
 
-
 struct s1d13xxxfb_par {
 	void __iomem	*regs;
 	unsigned char	display;
+	unsigned char	prod_id;
+	unsigned char	revision;
 
 	unsigned int	pseudo_palette[16];
 #ifdef CONFIG_PM

@@ -240,8 +240,6 @@ config ORION5X_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called orion5x_wdt.
 
-# ARM26 Architecture
-
 # AVR32 Architecture
 
 config AT32AP700X_WDT

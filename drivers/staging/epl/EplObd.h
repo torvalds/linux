@@ -68,10 +68,10 @@
 
 ****************************************************************************/
 
-#include "EplInc.h"
-
 #ifndef _EPLOBD_H_
 #define _EPLOBD_H_
+
+#include "EplInc.h"
 
 // ============================================================================
 // defines
@@ -206,7 +206,7 @@ typedef unsigned int tEplObdSize;	// For all objects as objects size are used an
 // -------------------------------------------------------------------------
 
 // types of objects in object dictionary
-// DS-301 defines these types as WORD
+// DS-301 defines these types as u16
 typedef enum {
 // types which are always supported
 	kEplObdTypBool = 0x0001,
@@ -255,15 +255,15 @@ typedef unsigned char tEplObdDomain;	// 000F
 typedef signed long tEplObdInteger24;	// 0010
 typedef unsigned long tEplObdUnsigned24;	// 0016
 
-typedef signed QWORD tEplObdInteger40;	// 0012
-typedef signed QWORD tEplObdInteger48;	// 0013
-typedef signed QWORD tEplObdInteger56;	// 0014
-typedef signed QWORD tEplObdInteger64;	// 0015
+typedef s64 tEplObdInteger40;	// 0012
+typedef s64 tEplObdInteger48;	// 0013
+typedef s64 tEplObdInteger56;	// 0014
+typedef s64 tEplObdInteger64;	// 0015
 
-typedef unsigned QWORD tEplObdUnsigned40;	// 0018
-typedef unsigned QWORD tEplObdUnsigned48;	// 0019
-typedef unsigned QWORD tEplObdUnsigned56;	// 001A
-typedef unsigned QWORD tEplObdUnsigned64;	// 001B
+typedef u64 tEplObdUnsigned40;	// 0018
+typedef u64 tEplObdUnsigned48;	// 0019
+typedef u64 tEplObdUnsigned56;	// 001A
+typedef u64 tEplObdUnsigned64;	// 001B
 
 typedef double tEplObdReal64;	// 0011
 
@@ -283,22 +283,21 @@ typedef enum {
 	kVarValidAll = 0x03	// currently only size and data are implemented and used
 } tEplVarParamValid;
 
-typedef tEplKernel(PUBLIC ROM * tEplVarCallback) (CCM_DECL_INSTANCE_HDL_
-						  void *pParam_p);
+typedef tEplKernel(*tEplVarCallback) (CCM_DECL_INSTANCE_HDL_ void *pParam_p);
 
 typedef struct {
 	tEplVarParamValid m_ValidFlag;
 	unsigned int m_uiIndex;
 	unsigned int m_uiSubindex;
 	tEplObdSize m_Size;
-	void MEM *m_pData;
+	void *m_pData;
 //    tEplVarCallback     m_fpCallback;
 //    void *       m_pArg;
 
 } tEplVarParam;
 
 typedef struct {
-	void MEM *m_pData;
+	void *m_pData;
 	tEplObdSize m_Size;
 /*
     #if (EPL_PDO_USE_STATIC_MAPPING == FALSE)
@@ -310,7 +309,7 @@ typedef struct {
 
 typedef struct {
 	tEplObdSize m_Size;
-	BYTE *m_pString;
+	u8 *m_pString;
 
 } tEplObdOString;		// 000C
 
@@ -328,8 +327,8 @@ typedef struct {
 
 typedef struct {
 	tEplObdSize m_Size;
-	BYTE *m_pDefString;	// $$$ d.k. it is unused, so we could delete it
-	BYTE *m_pString;
+	u8 *m_pDefString;	// $$$ d.k. it is unused, so we could delete it
+	u8 *m_pString;
 
 } tEplObdOStringDef;
 
@@ -354,7 +353,7 @@ typedef struct {
 	tEplObdType m_Type;
 	tEplObdAccess m_Access;
 	void *m_pDefault;
-	void MEM *m_pCurrent;	// points always to RAM
+	void *m_pCurrent;	// points always to RAM
 
 } tEplObdSubEntry;
 
@@ -371,14 +370,12 @@ typedef struct {
 	unsigned int m_uiIndex;
 	unsigned int m_uiSubIndex;
 	void *m_pArg;
-	DWORD m_dwAbortCode;
+	u32 m_dwAbortCode;
 
 } tEplObdCbParam;
 
 // define type for callback function: pParam_p points to tEplObdCbParam
-typedef tEplKernel(PUBLIC ROM * tEplObdCallback) (CCM_DECL_INSTANCE_HDL_
-						  tEplObdCbParam MEM *
-						  pParam_p);
+typedef tEplKernel(*tEplObdCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbParam *pParam_p);
 
 // do not change the order for this struct!!!
 
@@ -417,19 +414,14 @@ typedef struct {
 typedef struct {
 	tEplObdCommand m_bCommand;
 	tEplObdPart m_bCurrentOdPart;
-	void MEM *m_pData;
+	void *m_pData;
 	tEplObdSize m_ObjSize;
 
 } tEplObdCbStoreParam;
 
-typedef tEplKernel(PUBLIC ROM * tInitTabEntryCallback) (void MEM * pTabEntry_p,
-							unsigned int
-							uiObjIndex_p);
+typedef tEplKernel(*tInitTabEntryCallback) (void *pTabEntry_p, unsigned int uiObjIndex_p);
 
-typedef tEplKernel(PUBLIC ROM *
-		   tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_
-						 tEplObdCbStoreParam MEM *
-						 pCbStoreParam_p);
+typedef tEplKernel(*tEplObdStoreLoadObjCallback) (CCM_DECL_INSTANCE_HDL_ tEplObdCbStoreParam *pCbStoreParam_p);
 
 // -------------------------------------------------------------------------
 // this stucture is used for parameters for function ObdInitModuleTab()
@@ -438,8 +430,8 @@ typedef struct {
 	unsigned int m_uiLowerObjIndex;	// lower limit of ObjIndex
 	unsigned int m_uiUpperObjIndex;	// upper limit of ObjIndex
 	tInitTabEntryCallback m_fpInitTabEntry;	// will be called if ObjIndex was found
-	void MEM *m_pTabBase;	// base address of table
-	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from BYTE to WORD necessary for PDO bit mapping
+	void *m_pTabBase;	// base address of table
+	unsigned int m_uiEntrySize;	// size of table entry      // 25-feb-2005 r.d.: expansion from u8 to u16 necessary for PDO bit mapping
 	unsigned int m_uiMaxEntries;	// max. tabel entries
 
 } tEplObdModulTabParam;

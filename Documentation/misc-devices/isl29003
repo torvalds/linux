@@ -1,0 +1,62 @@
+Kernel driver isl29003
+=====================
+
+Supported chips:
+* Intersil ISL29003
+Prefix: 'isl29003'
+Addresses scanned: none
+Datasheet:
+http://www.intersil.com/data/fn/fn7464.pdf
+
+Author: Daniel Mack <daniel@caiaq.de>
+
+
+Description
+-----------
+The ISL29003 is an integrated light sensor with a 16-bit integrating type
+ADC, I2C user programmable lux range select for optimized counts/lux, and
+I2C multi-function control and monitoring capabilities. The internal ADC
+provides 16-bit resolution while rejecting 50Hz and 60Hz flicker caused by
+artificial light sources.
+
+The driver allows to set the lux range, the bit resolution, the operational
+mode (see below) and the power state of device and can read the current lux
+value, of course.
+
+
+Detection
+---------
+
+The ISL29003 does not have an ID register which could be used to identify
+it, so the detection routine will just try to read from the configured I2C
+addess and consider the device to be present as soon as it ACKs the
+transfer.
+
+
+Sysfs entries
+-------------
+
+range:
+	0: 0 lux to 1000 lux (default)
+	1: 0 lux to 4000 lux
+	2: 0 lux to 16,000 lux
+	3: 0 lux to 64,000 lux
+
+resolution:
+	0: 2^16 cycles (default)
+	1: 2^12 cycles
+	2: 2^8 cycles
+	3: 2^4 cycles
+
+mode:
+	0: diode1's current (unsigned 16bit) (default)
+	1: diode1's current (unsigned 16bit)
+	2: difference between diodes (l1 - l2, signed 15bit)
+
+power_state:
+	0: device is disabled (default)
+	1: device is enabled
+
+lux (read only):
+	returns the value from the last sensor reading
+

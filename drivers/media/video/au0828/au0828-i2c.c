@@ -39,13 +39,15 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 static inline int i2c_slave_did_write_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x08 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_NO_WRITE_ACK ? 0 : 1;
 }
 
 static inline int i2c_slave_did_read_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x02 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_NO_READ_ACK ? 0 : 1;
 }
 
 static int i2c_wait_read_ack(struct i2c_adapter *i2c_adap)
@@ -67,7 +69,8 @@ static int i2c_wait_read_ack(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_read_busy(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x01 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_READ_DONE ? 0 : 1;
 }
 
 static int i2c_wait_read_done(struct i2c_adapter *i2c_adap)
@@ -89,7 +92,8 @@ static int i2c_wait_read_done(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_write_done(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x04 ? 1 : 0;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_WRITE_DONE ? 1 : 0;
 }
 
 static int i2c_wait_write_done(struct i2c_adapter *i2c_adap)
@@ -111,7 +115,8 @@ static int i2c_wait_write_done(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_busy(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x10 ? 1 : 0;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_BUSY ? 1 : 0;
 }
 
 static int i2c_wait_done(struct i2c_adapter *i2c_adap)
@@ -139,19 +144,14 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "%s()\n", __func__);
 
-	au0828_write(dev, REG_2FF, 0x01);
+	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
-	/* FIXME: There is a problem with i2c communications with xc5000 that
-	   requires us to slow down the i2c clock until we have a better
-	   strategy (such as using the secondary i2c bus to do firmware
-	   loading */
-	if ((msg->addr << 1) == 0xc2)
-		au0828_write(dev, REG_202, 0x40);
-	else
-		au0828_write(dev, REG_202, 0x07);
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
-	au0828_write(dev, REG_203, msg->addr << 1);
+	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
 
 	dprintk(4, "SEND: %02x\n", msg->addr);
 
@@ -163,7 +163,9 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		   actual bytes to the bus, just do a read check.  This is
 		   consistent with how I saw i2c device checking done in the
 		   USB trace of the Windows driver */
-		au0828_write(dev, REG_200, 0x20);
+		au0828_write(dev, AU0828_I2C_TRIGGER_200,
+			     AU0828_I2C_TRIGGER_READ);
+
 		if (!i2c_wait_done(i2c_adap))
 			return -EIO;
 
@@ -177,7 +179,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 		dprintk(4, " %02x\n", msg->buf[i]);
 
-		au0828_write(dev, REG_205, msg->buf[i]);
+		au0828_write(dev, AU0828_I2C_WRITE_FIFO_205, msg->buf[i]);
 
 		strobe++;
 		i++;
@@ -186,9 +188,12 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 			/* Strobe the byte into the bus */
 			if (i < msg->len)
-				au0828_write(dev, REG_200, 0x41);
+				au0828_write(dev, AU0828_I2C_TRIGGER_200,
+					     AU0828_I2C_TRIGGER_WRITE |
+					     AU0828_I2C_TRIGGER_HOLD);
 			else
-				au0828_write(dev, REG_200, 0x01);
+				au0828_write(dev, AU0828_I2C_TRIGGER_200,
+					     AU0828_I2C_TRIGGER_WRITE);
 
 			/* Reset strobe trigger */
 			strobe = 0;
@@ -216,25 +221,22 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "%s()\n", __func__);
 
-	au0828_write(dev, REG_2FF, 0x01);
+	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
-	/* FIXME: There is a problem with i2c communications with xc5000 that
-	   requires us to slow down the i2c clock until we have a better
-	   strategy (such as using the secondary i2c bus to do firmware
-	   loading */
-	if ((msg->addr << 1) == 0xc2)
-		au0828_write(dev, REG_202, 0x40);
-	else
-		au0828_write(dev, REG_202, 0x07);
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
-	au0828_write(dev, REG_203, msg->addr << 1);
+	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
 
 	dprintk(4, " RECV:\n");
 
 	/* Deal with i2c_scan */
 	if (msg->len == 0) {
-		au0828_write(dev, REG_200, 0x20);
+		au0828_write(dev, AU0828_I2C_TRIGGER_200,
+			     AU0828_I2C_TRIGGER_READ);
+
 		if (i2c_wait_read_ack(i2c_adap))
 			return -EIO;
 		return 0;
@@ -245,14 +247,18 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		i++;
 
 		if (i < msg->len)
-			au0828_write(dev, REG_200, 0x60);
+			au0828_write(dev, AU0828_I2C_TRIGGER_200,
+				     AU0828_I2C_TRIGGER_READ |
+				     AU0828_I2C_TRIGGER_HOLD);
 		else
-			au0828_write(dev, REG_200, 0x20);
+			au0828_write(dev, AU0828_I2C_TRIGGER_200,
+				     AU0828_I2C_TRIGGER_READ);
 
 		if (!i2c_wait_read_done(i2c_adap))
 			return -EIO;
 
-		msg->buf[i-1] = au0828_read(dev, REG_209) & 0xff;
+		msg->buf[i-1] = au0828_read(dev, AU0828_I2C_READ_FIFO_209) &
+			0xff;
 
 		dprintk(4, " %02x\n", msg->buf[i-1]);
 	}

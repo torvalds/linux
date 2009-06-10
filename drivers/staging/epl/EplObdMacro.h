@@ -80,7 +80,7 @@
 
 //        #pragma message ("EPL_OBD_CREATE_ROM_DATA")
 
-#define EPL_OBD_BEGIN()                                                         static  DWORD  dwObd_OBK_g = 0x0000;
+#define EPL_OBD_BEGIN()                                                         static  u32  dwObd_OBK_g = 0x0000;
 #define EPL_OBD_END()
 
 	//---------------------------------------------------------------------------------------
@@ -102,11 +102,11 @@
 #define EPL_OBD_SUBINDEX_RAM_VAR(ind,sub,typ,acc,dtyp,name,val)                 static  dtyp  xDef##ind##_##sub##_g        = val;
 #define EPL_OBD_SUBINDEX_RAM_VAR_RG(ind,sub,typ,acc,dtyp,name,val,low,high)     static  dtyp  xDef##ind##_##sub##_g[3]     = {val,low,high};
 #define EPL_OBD_SUBINDEX_RAM_VAR_NOINIT(ind,sub,typ,acc,dtyp,name)
-#define EPL_OBD_SUBINDEX_RAM_VSTRING(ind,sub,acc,name,size,val)                 static char  MEM szCur##ind##_##sub##_g[size+1]; \
+#define EPL_OBD_SUBINDEX_RAM_VSTRING(ind,sub,acc,name,size,val)                 static char  szCur##ind##_##sub##_g[size+1]; \
                                                                                         static  tEplObdVStringDef  xDef##ind##_##sub##_g = {size, val, szCur##ind##_##sub##_g};
 
-#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static  BYTE  MEM bCur##ind##_##sub##_g[size]; \
-                                                                                        static  tEplObdOStringDef  xDef##ind##_##sub##_g = {size, ((BYTE*)""), bCur##ind##_##sub##_g};
+#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static  u8  bCur##ind##_##sub##_g[size]; \
+                                                                                        static  tEplObdOStringDef  xDef##ind##_##sub##_g = {size, ((u8*)""), bCur##ind##_##sub##_g};
 #define EPL_OBD_SUBINDEX_RAM_DOMAIN(ind,sub,acc,name)
 #define EPL_OBD_SUBINDEX_RAM_USERDEF(ind,sub,typ,acc,dtyp,name,val)             static  dtyp  xDef##ind##_##sub##_g        = val;
 #define EPL_OBD_SUBINDEX_RAM_USERDEF_RG(ind,sub,typ,acc,dtyp,name,val,low,high) static  dtyp  xDef##ind##_##sub##_g[3]     = {val,low,high};
@@ -129,20 +129,20 @@
 	//---------------------------------------------------------------------------------------
 #define EPL_OBD_BEGIN_INDEX_RAM(ind,cnt,call)
 #define EPL_OBD_END_INDEX(ind)
-#define EPL_OBD_RAM_INDEX_RAM_ARRAY(ind,cnt,call,typ,acc,dtyp,name,def)         static dtyp         MEM axCur##ind##_g[cnt];
-#define EPL_OBD_RAM_INDEX_RAM_VARARRAY(ind,cnt,call,typ,acc,dtyp,name,def)      static tEplObdVarEntry MEM aVarEntry##ind##_g[cnt];
-#define EPL_OBD_RAM_INDEX_RAM_VARARRAY_NOINIT(ind,cnt,call,typ,acc,dtyp,name)   static tEplObdVarEntry MEM aVarEntry##ind##_g[cnt];
+#define EPL_OBD_RAM_INDEX_RAM_ARRAY(ind,cnt,call,typ,acc,dtyp,name,def)         static dtyp         axCur##ind##_g[cnt];
+#define EPL_OBD_RAM_INDEX_RAM_VARARRAY(ind,cnt,call,typ,acc,dtyp,name,def)      static tEplObdVarEntry aVarEntry##ind##_g[cnt];
+#define EPL_OBD_RAM_INDEX_RAM_VARARRAY_NOINIT(ind,cnt,call,typ,acc,dtyp,name)   static tEplObdVarEntry aVarEntry##ind##_g[cnt];
 
 	//---------------------------------------------------------------------------------------
-#define EPL_OBD_SUBINDEX_RAM_VAR(ind,sub,typ,acc,dtyp,name,val)                 static dtyp         MEM xCur##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_VAR_RG(ind,sub,typ,acc,dtyp,name,val,low,high)     static dtyp         MEM xCur##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_VSTRING(ind,sub,acc,name,size,val)                 static tEplObdVString  MEM xCur##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static tEplObdOString  MEM xCur##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_VAR_NOINIT(ind,sub,typ,acc,dtyp,name)              static dtyp         MEM xCur##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_DOMAIN(ind,sub,acc,name)                           static tEplObdVarEntry MEM VarEntry##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_USERDEF(ind,sub,typ,acc,dtyp,name,val)             static tEplObdVarEntry MEM VarEntry##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_USERDEF_RG(ind,sub,typ,acc,dtyp,name,val,low,high) static tEplObdVarEntry MEM VarEntry##ind##_##sub##_g;
-#define EPL_OBD_SUBINDEX_RAM_USERDEF_NOINIT(ind,sub,typ,acc,dtyp,name)          static tEplObdVarEntry MEM VarEntry##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_VAR(ind,sub,typ,acc,dtyp,name,val)                 static dtyp         xCur##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_VAR_RG(ind,sub,typ,acc,dtyp,name,val,low,high)     static dtyp         xCur##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_VSTRING(ind,sub,acc,name,size,val)                 static tEplObdVString  xCur##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_OSTRING(ind,sub,acc,name,size)                     static tEplObdOString  xCur##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_VAR_NOINIT(ind,sub,typ,acc,dtyp,name)              static dtyp         xCur##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_DOMAIN(ind,sub,acc,name)                           static tEplObdVarEntry VarEntry##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_USERDEF(ind,sub,typ,acc,dtyp,name,val)             static tEplObdVarEntry VarEntry##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_USERDEF_RG(ind,sub,typ,acc,dtyp,name,val,low,high) static tEplObdVarEntry VarEntry##ind##_##sub##_g;
+#define EPL_OBD_SUBINDEX_RAM_USERDEF_NOINIT(ind,sub,typ,acc,dtyp,name)          static tEplObdVarEntry VarEntry##ind##_##sub##_g;
 
     //-------------------------------------------------------------------------------------------
 #elif defined (EPL_OBD_CREATE_SUBINDEX_TAB)
@@ -159,17 +159,17 @@
 #define EPL_OBD_END_PART()
 
 	//---------------------------------------------------------------------------------------
-#define EPL_OBD_BEGIN_INDEX_RAM(ind,cnt,call)                                   static tEplObdSubEntry MEM aObdSubEntry##ind##Ram_g[cnt]= {
+#define EPL_OBD_BEGIN_INDEX_RAM(ind,cnt,call)                                   static tEplObdSubEntry aObdSubEntry##ind##Ram_g[cnt]= {
 #define EPL_OBD_END_INDEX(ind)                                                  EPL_OBD_END_SUBINDEX()};
-#define EPL_OBD_RAM_INDEX_RAM_ARRAY(ind,cnt,call,typ,acc,dtyp,name,def)         static tEplObdSubEntry MEM aObdSubEntry##ind##Ram_g[]= { \
+#define EPL_OBD_RAM_INDEX_RAM_ARRAY(ind,cnt,call,typ,acc,dtyp,name,def)         static tEplObdSubEntry aObdSubEntry##ind##Ram_g[]= { \
                                                                                         {0, kEplObdTypUInt8, kEplObdAccCR,          &xDef##ind##_0x00_g,   NULL}, \
                                                                                         {1, typ,          (acc)|kEplObdAccArray, &xDef##ind##_0x01_g,   &axCur##ind##_g[0]}, \
                                                                                         EPL_OBD_END_SUBINDEX()};
-#define EPL_OBD_RAM_INDEX_RAM_VARARRAY(ind,cnt,call,typ,acc,dtyp,name,def)      static tEplObdSubEntry MEM aObdSubEntry##ind##Ram_g[]= { \
+#define EPL_OBD_RAM_INDEX_RAM_VARARRAY(ind,cnt,call,typ,acc,dtyp,name,def)      static tEplObdSubEntry aObdSubEntry##ind##Ram_g[]= { \
                                                                                         {0, kEplObdTypUInt8, kEplObdAccCR,                     &xDef##ind##_0x00_g,   NULL}, \
                                                                                         {1, typ,          (acc)|kEplObdAccArray|kEplObdAccVar, &xDef##ind##_0x01_g,   &aVarEntry##ind##_g[0]}, \
                                                                                         EPL_OBD_END_SUBINDEX()};
-#define EPL_OBD_RAM_INDEX_RAM_VARARRAY_NOINIT(ind,cnt,call,typ,acc,dtyp,name)   static tEplObdSubEntry MEM aObdSubEntry##ind##Ram_g[]= { \
+#define EPL_OBD_RAM_INDEX_RAM_VARARRAY_NOINIT(ind,cnt,call,typ,acc,dtyp,name)   static tEplObdSubEntry aObdSubEntry##ind##Ram_g[]= { \
                                                                                         {0, kEplObdTypUInt8, kEplObdAccCR,                     &xDef##ind##_0x00_g,   NULL}, \
                                                                                         {1, typ,          (acc)|kEplObdAccArray|kEplObdAccVar, NULL,                  &aVarEntry##ind##_g[0]}, \
                                                                                         EPL_OBD_END_SUBINDEX()};

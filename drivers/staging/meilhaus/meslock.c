@@ -124,7 +124,7 @@ void me_slock_deinit(struct me_slock *slock)
 	PDEBUG_LOCKS("executed.\n");
 }
 
-int me_slock_init(me_slock_t * slock)
+int me_slock_init(me_slock_t *slock)
 {
 	PDEBUG_LOCKS("executed.\n");
 

@@ -19,7 +19,6 @@
 #include <asm/system.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/fs_struct.h>
 #include <linux/init_task.h>
 #include <linux/sched.h>
 #include <linux/fs.h>

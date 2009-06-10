@@ -29,8 +29,12 @@ config REGULATOR_DEBUG
 	  Say yes here to enable debugging support.
 
 config REGULATOR_FIXED_VOLTAGE
-	tristate
+	tristate "Fixed voltage regulator support"
 	default n
+	help
+	  This driver provides support for fixed voltage regulators,
+	  useful for systems which use a combination of software
+	  managed regulators and simple non-configurable regulators.
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
@@ -51,6 +55,13 @@ config REGULATOR_BQ24022
 	  GPIOs. The provided current regulator can enable/disable
 	  charging select between 100 mA and 500 mA charging current
 	  limit.
+
+config REGULATOR_TWL4030
+	bool "TI TWL4030/TWL5030/TPS695x0 PMIC"
+	depends on TWL4030_CORE
+	help
+	  This driver supports the voltage regulators provided by
+	  this family of companion chips.
 
 config REGULATOR_WM8350
 	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"

@@ -160,14 +160,14 @@ static int saa7191_write_block(struct v4l2_subdev *sd,
 /* Helper functions */
 
 static int saa7191_s_routing(struct v4l2_subdev *sd,
-				const struct v4l2_routing *route)
+			     u32 input, u32 output, u32 config)
 {
 	struct saa7191 *decoder = to_saa7191(sd);
 	u8 luma = saa7191_read_reg(sd, SAA7191_REG_LUMA);
 	u8 iock = saa7191_read_reg(sd, SAA7191_REG_IOCK);
 	int err;
 
-	switch (route->input) {
+	switch (input) {
 	case SAA7191_INPUT_COMPOSITE: /* Set Composite input */
 		iock &= ~(SAA7191_IOCK_CHRS | SAA7191_IOCK_GPSW1
 			  | SAA7191_IOCK_GPSW2);
@@ -190,7 +190,7 @@ static int saa7191_s_routing(struct v4l2_subdev *sd,
 	if (err)
 		return -EIO;
 
-	decoder->input = route->input;
+	decoder->input = input;
 
 	return 0;
 }
@@ -582,9 +582,6 @@ static const struct v4l2_subdev_core_ops saa7191_core_ops = {
 	.g_chip_ident = saa7191_g_chip_ident,
 	.g_ctrl = saa7191_g_ctrl,
 	.s_ctrl = saa7191_s_ctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops saa7191_tuner_ops = {
 	.s_std = saa7191_s_std,
 };
 
@@ -597,7 +594,6 @@ static const struct v4l2_subdev_video_ops saa7191_video_ops = {
 static const struct v4l2_subdev_ops saa7191_ops = {
 	.core = &saa7191_core_ops,
 	.video = &saa7191_video_ops,
-	.tuner = &saa7191_tuner_ops,
 };
 
 static int saa7191_probe(struct i2c_client *client,

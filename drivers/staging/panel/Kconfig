@@ -110,7 +110,7 @@ config PANEL_LCD_BWIDTH
 	---help---
 	  Most LCDs use a standard controller which supports hardware lines of 40
 	  characters, although sometimes only 16, 20 or 24 of them are really wired
-	  to the terminal. This results in some non-visible but adressable characters,
+	  to the terminal. This results in some non-visible but addressable characters,
 	  and is the case for most parallel LCDs. Other LCDs, and some serial ones,
 	  however, use the same line width internally as what is visible. The KS0074
 	  for example, uses 16 characters per line for 16 visible characters per line.

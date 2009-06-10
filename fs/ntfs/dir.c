@@ -32,8 +32,8 @@
 /**
  * The little endian Unicode string $I30 as a global constant.
  */
-ntfschar I30[5] = { const_cpu_to_le16('$'), const_cpu_to_le16('I'),
-		const_cpu_to_le16('3'),	const_cpu_to_le16('0'), 0 };
+ntfschar I30[5] = { cpu_to_le16('$'), cpu_to_le16('I'),
+		cpu_to_le16('3'),	cpu_to_le16('0'), 0 };
 
 /**
  * ntfs_lookup_inode_by_name - find an inode in a directory given its name

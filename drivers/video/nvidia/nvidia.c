@@ -1004,15 +1004,12 @@ static int nvidiafb_open(struct fb_info *info, int user)
 {
 	struct nvidia_par *par = info->par;
 
-	mutex_lock(&par->open_lock);
-
 	if (!par->open_count) {
 		save_vga_x86(par);
 		nvidia_save_vga(par, &par->initial_state);
 	}
 
 	par->open_count++;
-	mutex_unlock(&par->open_lock);
 	return 0;
 }
 
@@ -1020,8 +1017,6 @@ static int nvidiafb_release(struct fb_info *info, int user)
 {
 	struct nvidia_par *par = info->par;
 	int err = 0;
-
-	mutex_lock(&par->open_lock);
 
 	if (!par->open_count) {
 		err = -EINVAL;
@@ -1035,7 +1030,6 @@ static int nvidiafb_release(struct fb_info *info, int user)
 
 	par->open_count--;
 done:
-	mutex_unlock(&par->open_lock);
 	return err;
 }
 
@@ -1300,7 +1294,6 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	par = info->par;
 	par->pci_dev = pd;
-	mutex_init(&par->open_lock);
 	info->pixmap.addr = kzalloc(8 * 1024, GFP_KERNEL);
 
 	if (info->pixmap.addr == NULL)

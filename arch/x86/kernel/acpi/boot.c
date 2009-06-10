@@ -230,6 +230,35 @@ static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 }
 
 static int __init
+acpi_parse_x2apic(struct acpi_subtable_header *header, const unsigned long end)
+{
+	struct acpi_madt_local_x2apic *processor = NULL;
+
+	processor = (struct acpi_madt_local_x2apic *)header;
+
+	if (BAD_MADT_ENTRY(processor, end))
+		return -EINVAL;
+
+	acpi_table_print_madt_entry(header);
+
+#ifdef CONFIG_X86_X2APIC
+	/*
+	 * We need to register disabled CPU as well to permit
+	 * counting disabled CPUs. This allows us to size
+	 * cpus_possible_map more accurately, to permit
+	 * to not preallocating memory for all NR_CPUS
+	 * when we use CPU hotplug.
+	 */
+	acpi_register_lapic(processor->local_apic_id,	/* APIC ID */
+			    processor->lapic_flags & ACPI_MADT_ENABLED);
+#else
+	printk(KERN_WARNING PREFIX "x2apic entry ignored\n");
+#endif
+
+	return 0;
+}
+
+static int __init
 acpi_parse_lapic(struct acpi_subtable_header * header, const unsigned long end)
 {
 	struct acpi_madt_local_apic *processor = NULL;
@@ -284,6 +313,25 @@ acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 		return -EINVAL;
 
 	acpi_lapic_addr = lapic_addr_ovr->address;
+
+	return 0;
+}
+
+static int __init
+acpi_parse_x2apic_nmi(struct acpi_subtable_header *header,
+		      const unsigned long end)
+{
+	struct acpi_madt_local_x2apic_nmi *x2apic_nmi = NULL;
+
+	x2apic_nmi = (struct acpi_madt_local_x2apic_nmi *)header;
+
+	if (BAD_MADT_ENTRY(x2apic_nmi, end))
+		return -EINVAL;
+
+	acpi_table_print_madt_entry(header);
+
+	if (x2apic_nmi->lint != 1)
+		printk(KERN_WARNING PREFIX "NMI not connected to LINT 1!\n");
 
 	return 0;
 }
@@ -793,6 +841,7 @@ static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
+	int x2count = 0;
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -816,22 +865,28 @@ static int __init acpi_parse_madt_lapic_entries(void)
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
 				      acpi_parse_sapic, MAX_APICS);
 
-	if (!count)
+	if (!count) {
+		x2count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC,
+						acpi_parse_x2apic, MAX_APICS);
 		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
 					      acpi_parse_lapic, MAX_APICS);
-	if (!count) {
+	}
+	if (!count && !x2count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return -ENODEV;
-	} else if (count < 0) {
+	} else if (count < 0 || x2count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing LAPIC entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return count;
 	}
 
+	x2count =
+	    acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC_NMI,
+				  acpi_parse_x2apic_nmi, 0);
 	count =
 	    acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC_NMI, acpi_parse_lapic_nmi, 0);
-	if (count < 0) {
+	if (count < 0 || x2count < 0) {
 		printk(KERN_ERR PREFIX "Error parsing LAPIC NMI entry\n");
 		/* TBD: Cleanup to allow fallback to MPS */
 		return count;
@@ -1470,7 +1525,7 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 
 /*
  * If your system is blacklisted here, but you find that acpi=force
- * works for you, please contact acpi-devel@sourceforge.net
+ * works for you, please contact linux-acpi@vger.kernel.org
  */
 static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	/*

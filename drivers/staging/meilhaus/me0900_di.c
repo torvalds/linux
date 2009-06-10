@@ -35,7 +35,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
@@ -71,7 +71,7 @@ static int me0900_di_io_reset_subdevice(struct me_subdevice *subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me0900_di_io_single_config(me_subdevice_t * subdevice,
+static int me0900_di_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -115,7 +115,7 @@ static int me0900_di_io_single_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me0900_di_io_single_read(me_subdevice_t * subdevice,
+static int me0900_di_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -161,7 +161,7 @@ static int me0900_di_io_single_read(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me0900_di_query_number_channels(me_subdevice_t * subdevice,
+static int me0900_di_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	PDEBUG("executed.\n");
@@ -169,7 +169,7 @@ static int me0900_di_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me0900_di_query_subdevice_type(me_subdevice_t * subdevice,
+static int me0900_di_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype)
 {
 	PDEBUG("executed.\n");
@@ -178,7 +178,7 @@ static int me0900_di_query_subdevice_type(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me0900_di_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me0900_di_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	PDEBUG("executed.\n");
 	*caps = 0;

@@ -20,6 +20,7 @@
 #include <linux/efi.h>
 #include <linux/timex.h>
 #include <linux/clocksource.h>
+#include <linux/platform_device.h>
 
 #include <asm/machvec.h>
 #include <asm/delay.h>
@@ -32,7 +33,7 @@
 
 #include "fsyscall_gtod_data.h"
 
-static cycle_t itc_get_cycles(void);
+static cycle_t itc_get_cycles(struct clocksource *cs);
 
 struct fsyscall_gtod_data_t fsyscall_gtod_data = {
 	.lock = SEQLOCK_UNLOCKED,
@@ -47,6 +48,15 @@ volatile int time_keeper_id = 0; /* smp_processor_id() of time-keeper */
 unsigned long last_cli_ip;
 EXPORT_SYMBOL(last_cli_ip);
 
+#endif
+
+#ifdef CONFIG_PARAVIRT
+/* We need to define a real function for sched_clock, to override the
+   weak default version */
+unsigned long long sched_clock(void)
+{
+        return paravirt_sched_clock();
+}
 #endif
 
 #ifdef CONFIG_PARAVIRT
@@ -373,7 +383,7 @@ ia64_init_itm (void)
 	}
 }
 
-static cycle_t itc_get_cycles(void)
+static cycle_t itc_get_cycles(struct clocksource *cs)
 {
 	u64 lcycle, now, ret;
 
@@ -404,6 +414,21 @@ static struct irqaction timer_irqaction = {
 	.flags =	IRQF_DISABLED | IRQF_IRQPOLL,
 	.name =		"timer"
 };
+
+static struct platform_device rtc_efi_dev = {
+	.name = "rtc-efi",
+	.id = -1,
+};
+
+static int __init rtc_init(void)
+{
+	if (platform_device_register(&rtc_efi_dev) < 0)
+		printk(KERN_ERR "unable to register rtc device...\n");
+
+	/* not necessarily an error */
+	return 0;
+}
+module_init(rtc_init);
 
 void __init
 time_init (void)

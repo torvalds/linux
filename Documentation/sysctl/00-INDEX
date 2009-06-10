@@ -10,6 +10,8 @@ fs.txt
 	- documentation for /proc/sys/fs/*.
 kernel.txt
 	- documentation for /proc/sys/kernel/*.
+net.txt
+	- documentation for /proc/sys/net/*.
 sunrpc.txt
 	- documentation for /proc/sys/sunrpc/*.
 vm.txt

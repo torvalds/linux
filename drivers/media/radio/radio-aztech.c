@@ -318,20 +318,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-static int aztech_open(struct file *file)
-{
-	return 0;
-}
-
-static int aztech_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations aztech_fops = {
 	.owner		= THIS_MODULE,
-	.open           = aztech_open,
-	.release        = aztech_release,
 	.ioctl		= video_ioctl2,
 };
 

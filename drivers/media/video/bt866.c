@@ -99,7 +99,8 @@ static int bt866_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int bt866_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int bt866_s_routing(struct v4l2_subdev *sd,
+			   u32 input, u32 output, u32 config)
 {
 	static const __u8 init[] = {
 		0xc8, 0xcc, /* CRSCALE */
@@ -137,7 +138,7 @@ static int bt866_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *ro
 
 	val = encoder->reg[0xdc];
 
-	if (route->input == 0)
+	if (input == 0)
 		val |= 0x40; /* CBSWAP */
 	else
 		val &= ~0x40; /* !CBSWAP */
@@ -145,15 +146,15 @@ static int bt866_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *ro
 	bt866_write(encoder, 0xdc, val);
 
 	val = encoder->reg[0xcc];
-	if (route->input == 2)
+	if (input == 2)
 		val |= 0x01; /* OSDBAR */
 	else
 		val &= ~0x01; /* !OSDBAR */
 	bt866_write(encoder, 0xcc, val);
 
-	v4l2_dbg(1, debug, sd, "set input %d\n", route->input);
+	v4l2_dbg(1, debug, sd, "set input %d\n", input);
 
-	switch (route->input) {
+	switch (input) {
 	case 0:
 	case 1:
 	case 2:

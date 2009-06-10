@@ -20,7 +20,7 @@
 
 #if 0
 static uint8_t *udf_filead_read(struct inode *dir, uint8_t *tmpad,
-				uint8_t ad_size, kernel_lb_addr fe_loc,
+				uint8_t ad_size, struct kernel_lb_addr fe_loc,
 				int *pos, int *offset, struct buffer_head **bh,
 				int *error)
 {
@@ -75,7 +75,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,
 					 struct fileIdentDesc *cfi,
 					 struct extent_position *epos,
-					 kernel_lb_addr *eloc, uint32_t *elen,
+					 struct kernel_lb_addr *eloc, uint32_t *elen,
 					 sector_t *offset)
 {
 	struct fileIdentDesc *fi;
@@ -111,7 +111,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		    (EXT_RECORDED_ALLOCATED >> 30))
 			return NULL;
 
-		block = udf_get_lb_pblock(dir->i_sb, *eloc, *offset);
+		block = udf_get_lb_pblock(dir->i_sb, eloc, *offset);
 
 		(*offset)++;
 
@@ -131,7 +131,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			if (i + *offset > (*elen >> blocksize_bits))
 				i = (*elen >> blocksize_bits)-*offset;
 			for (num = 0; i > 0; i--) {
-				block = udf_get_lb_pblock(dir->i_sb, *eloc,
+				block = udf_get_lb_pblock(dir->i_sb, eloc,
 							  *offset + i);
 				tmp = udf_tgetblk(dir->i_sb, block);
 				if (tmp && !buffer_uptodate(tmp) &&
@@ -169,7 +169,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 		    (EXT_RECORDED_ALLOCATED >> 30))
 			return NULL;
 
-		block = udf_get_lb_pblock(dir->i_sb, *eloc, *offset);
+		block = udf_get_lb_pblock(dir->i_sb, eloc, *offset);
 
 		(*offset)++;
 
@@ -249,9 +249,9 @@ struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize, int *offset)
 }
 
 #if 0
-static extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
+static struct extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
 {
-	extent_ad *ext;
+	struct extent_ad *ext;
 	struct fileEntry *fe;
 	uint8_t *ptr;
 
@@ -274,54 +274,54 @@ static extent_ad *udf_get_fileextent(void *buffer, int bufsize, int *offset)
 	if ((*offset > 0) && (*offset < le32_to_cpu(fe->lengthAllocDescs)))
 		ptr += *offset;
 
-	ext = (extent_ad *)ptr;
+	ext = (struct extent_ad *)ptr;
 
-	*offset = *offset + sizeof(extent_ad);
+	*offset = *offset + sizeof(struct extent_ad);
 	return ext;
 }
 #endif
 
-short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, uint32_t *offset,
+struct short_ad *udf_get_fileshortad(uint8_t *ptr, int maxoffset, uint32_t *offset,
 			      int inc)
 {
-	short_ad *sa;
+	struct short_ad *sa;
 
 	if ((!ptr) || (!offset)) {
 		printk(KERN_ERR "udf: udf_get_fileshortad() invalidparms\n");
 		return NULL;
 	}
 
-	if ((*offset + sizeof(short_ad)) > maxoffset)
+	if ((*offset + sizeof(struct short_ad)) > maxoffset)
 		return NULL;
 	else {
-		sa = (short_ad *)ptr;
+		sa = (struct short_ad *)ptr;
 		if (sa->extLength == 0)
 			return NULL;
 	}
 
 	if (inc)
-		*offset += sizeof(short_ad);
+		*offset += sizeof(struct short_ad);
 	return sa;
 }
 
-long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, uint32_t *offset, int inc)
+struct long_ad *udf_get_filelongad(uint8_t *ptr, int maxoffset, uint32_t *offset, int inc)
 {
-	long_ad *la;
+	struct long_ad *la;
 
 	if ((!ptr) || (!offset)) {
 		printk(KERN_ERR "udf: udf_get_filelongad() invalidparms\n");
 		return NULL;
 	}
 
-	if ((*offset + sizeof(long_ad)) > maxoffset)
+	if ((*offset + sizeof(struct long_ad)) > maxoffset)
 		return NULL;
 	else {
-		la = (long_ad *)ptr;
+		la = (struct long_ad *)ptr;
 		if (la->extLength == 0)
 			return NULL;
 	}
 
 	if (inc)
-		*offset += sizeof(long_ad);
+		*offset += sizeof(struct long_ad);
 	return la;
 }

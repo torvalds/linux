@@ -69,11 +69,8 @@
 ****************************************************************************/
 
 #include "Epl.h"
-//#include "kernel/EplPdokCal.h"
 
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
-#include <asm/uaccess.h>
-#endif
+#include <linux/uaccess.h>
 
 /***************************************************************************/
 /*                                                                         */
@@ -129,10 +126,10 @@
 #if ((EPL_API_PROCESS_IMAGE_SIZE_IN > 0) || (EPL_API_PROCESS_IMAGE_SIZE_OUT > 0))
 typedef struct {
 #if EPL_API_PROCESS_IMAGE_SIZE_IN > 0
-	BYTE m_abProcessImageInput[EPL_API_PROCESS_IMAGE_SIZE_IN];
+	u8 m_abProcessImageInput[EPL_API_PROCESS_IMAGE_SIZE_IN];
 #endif
 #if EPL_API_PROCESS_IMAGE_SIZE_OUT > 0
-	BYTE m_abProcessImageOutput[EPL_API_PROCESS_IMAGE_SIZE_OUT];
+	u8 m_abProcessImageOutput[EPL_API_PROCESS_IMAGE_SIZE_OUT];
 #endif
 
 } tEplApiProcessImageInstance;
@@ -169,7 +166,7 @@ static tEplApiProcessImageInstance EplApiProcessImageInstance_g;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageSetup(void)
+tEplKernel EplApiProcessImageSetup(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #if ((EPL_API_PROCESS_IMAGE_SIZE_IN > 0) || (EPL_API_PROCESS_IMAGE_SIZE_OUT > 0))
@@ -280,24 +277,16 @@ tEplKernel PUBLIC EplApiProcessImageSetup(void)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageExchangeIn(tEplApiProcessImage * pPI_p)
+tEplKernel EplApiProcessImageExchangeIn(tEplApiProcessImage *pPI_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
 #if EPL_API_PROCESS_IMAGE_SIZE_IN > 0
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	copy_to_user(pPI_p->m_pImage,
 		     EplApiProcessImageInstance_g.m_abProcessImageInput,
 		     min(pPI_p->m_uiSize,
 			 sizeof(EplApiProcessImageInstance_g.
 				m_abProcessImageInput)));
-#else
-	EPL_MEMCPY(pPI_p->m_pImage,
-		   EplApiProcessImageInstance_g.m_abProcessImageInput,
-		   min(pPI_p->m_uiSize,
-		       sizeof(EplApiProcessImageInstance_g.
-			      m_abProcessImageInput)));
-#endif
 #endif
 
 	return Ret;
@@ -315,24 +304,16 @@ tEplKernel PUBLIC EplApiProcessImageExchangeIn(tEplApiProcessImage * pPI_p)
 // State:
 //----------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiProcessImageExchangeOut(tEplApiProcessImage * pPI_p)
+tEplKernel EplApiProcessImageExchangeOut(tEplApiProcessImage *pPI_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
 #if EPL_API_PROCESS_IMAGE_SIZE_OUT > 0
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 	copy_from_user(EplApiProcessImageInstance_g.m_abProcessImageOutput,
 		       pPI_p->m_pImage,
 		       min(pPI_p->m_uiSize,
 			   sizeof(EplApiProcessImageInstance_g.
 				  m_abProcessImageOutput)));
-#else
-	EPL_MEMCPY(EplApiProcessImageInstance_g.m_abProcessImageOutput,
-		   pPI_p->m_pImage,
-		   min(pPI_p->m_uiSize,
-		       sizeof(EplApiProcessImageInstance_g.
-			      m_abProcessImageOutput)));
-#endif
 #endif
 
 	return Ret;

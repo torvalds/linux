@@ -394,34 +394,19 @@ static int wis_saa7115_command(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_driver wis_saa7115_driver;
-
-static struct i2c_client wis_saa7115_client_templ = {
-	.name		= "SAA7115 (WIS)",
-	.driver		= &wis_saa7115_driver,
-};
-
-static int wis_saa7115_detect(struct i2c_adapter *adapter, int addr, int kind)
+static int wis_saa7115_probe(struct i2c_client *client,
+			     const struct i2c_device_id *id)
 {
-	struct i2c_client *client;
+	struct i2c_adapter *adapter = client->adapter;
 	struct wis_saa7115 *dec;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
-
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL)
-		return -ENOMEM;
-	memcpy(client, &wis_saa7115_client_templ,
-			sizeof(wis_saa7115_client_templ));
-	client->adapter = adapter;
-	client->addr = addr;
+		return -ENODEV;
 
 	dec = kmalloc(sizeof(struct wis_saa7115), GFP_KERNEL);
-	if (dec == NULL) {
-		kfree(client);
+	if (dec == NULL)
 		return -ENOMEM;
-	}
+
 	dec->norm = V4L2_STD_NTSC;
 	dec->brightness = 128;
 	dec->contrast = 64;
@@ -431,56 +416,49 @@ static int wis_saa7115_detect(struct i2c_adapter *adapter, int addr, int kind)
 
 	printk(KERN_DEBUG
 		"wis-saa7115: initializing SAA7115 at address %d on %s\n",
-		addr, adapter->name);
+		client->addr, adapter->name);
 
 	if (write_regs(client, initial_registers) < 0) {
 		printk(KERN_ERR
 			"wis-saa7115: error initializing SAA7115\n");
-		kfree(client);
 		kfree(dec);
-		return 0;
+		return -ENODEV;
 	}
 
-	i2c_attach_client(client);
 	return 0;
 }
 
-static int wis_saa7115_detach(struct i2c_client *client)
+static int wis_saa7115_remove(struct i2c_client *client)
 {
 	struct wis_saa7115 *dec = i2c_get_clientdata(client);
-	int r;
 
-	r = i2c_detach_client(client);
-	if (r < 0)
-		return r;
-
-	kfree(client);
+	i2c_set_clientdata(client, NULL);
 	kfree(dec);
 	return 0;
 }
+
+static struct i2c_device_id wis_saa7115_id[] = {
+	{ "wis_saa7115", 0 },
+	{ }
+};
 
 static struct i2c_driver wis_saa7115_driver = {
 	.driver = {
 		.name	= "WIS SAA7115 I2C driver",
 	},
-	.id		= I2C_DRIVERID_WIS_SAA7115,
-	.detach_client	= wis_saa7115_detach,
+	.probe		= wis_saa7115_probe,
+	.remove		= wis_saa7115_remove,
 	.command	= wis_saa7115_command,
+	.id_table	= wis_saa7115_id,
 };
 
 static int __init wis_saa7115_init(void)
 {
-	int r;
-
-	r = i2c_add_driver(&wis_saa7115_driver);
-	if (r < 0)
-		return r;
-	return wis_i2c_add_driver(wis_saa7115_driver.id, wis_saa7115_detect);
+	return i2c_add_driver(&wis_saa7115_driver);
 }
 
 static void __exit wis_saa7115_cleanup(void)
 {
-	wis_i2c_del_driver(wis_saa7115_detect);
 	i2c_del_driver(&wis_saa7115_driver);
 }
 

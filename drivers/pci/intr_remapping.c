@@ -9,6 +9,7 @@
 #include <asm/cpu.h>
 #include <linux/intel-iommu.h>
 #include "intr_remapping.h"
+#include <acpi/acpi.h>
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
@@ -415,11 +416,26 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 
 	/* Set interrupt-remapping table pointer */
 	cmd = iommu->gcmd | DMA_GCMD_SIRTP;
+	iommu->gcmd |= DMA_GCMD_SIRTP;
 	writel(cmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRTPS), sts);
 	spin_unlock_irqrestore(&iommu->register_lock, flags);
+
+	if (mode == 0) {
+		spin_lock_irqsave(&iommu->register_lock, flags);
+
+		/* enable comaptiblity format interrupt pass through */
+		cmd = iommu->gcmd | DMA_GCMD_CFI;
+		iommu->gcmd |= DMA_GCMD_CFI;
+		writel(cmd, iommu->reg + DMAR_GCMD_REG);
+
+		IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
+			      readl, (sts & DMA_GSTS_CFIS), sts);
+
+		spin_unlock_irqrestore(&iommu->register_lock, flags);
+	}
 
 	/*
 	 * global invalidation of interrupt entry cache before enabling
@@ -470,13 +486,19 @@ static int setup_intr_remapping(struct intel_iommu *iommu, int mode)
 /*
  * Disable Interrupt Remapping.
  */
-static void disable_intr_remapping(struct intel_iommu *iommu)
+static void iommu_disable_intr_remapping(struct intel_iommu *iommu)
 {
 	unsigned long flags;
 	u32 sts;
 
 	if (!ecap_ir_support(iommu->ecap))
 		return;
+
+	/*
+	 * global invalidation of interrupt entry cache before disabling
+	 * interrupt-remapping.
+	 */
+	qi_global_iec(iommu);
 
 	spin_lock_irqsave(&iommu->register_lock, flags);
 
@@ -503,6 +525,13 @@ int __init enable_intr_remapping(int eim)
 		struct intel_iommu *iommu = drhd->iommu;
 
 		/*
+		 * If the queued invalidation is already initialized,
+		 * shouldn't disable it.
+		 */
+		if (iommu->qi)
+			continue;
+
+		/*
 		 * Clear previous faults.
 		 */
 		dmar_fault(-1, iommu);
@@ -511,7 +540,7 @@ int __init enable_intr_remapping(int eim)
 		 * Disable intr remapping and queued invalidation, if already
 		 * enabled prior to OS handover.
 		 */
-		disable_intr_remapping(iommu);
+		iommu_disable_intr_remapping(iommu);
 
 		dmar_disable_qi(iommu);
 	}
@@ -639,3 +668,54 @@ int __init parse_ioapics_under_ir(void)
 
 	return ir_supported;
 }
+
+void disable_intr_remapping(void)
+{
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu = NULL;
+
+	/*
+	 * Disable Interrupt-remapping for all the DRHD's now.
+	 */
+	for_each_iommu(iommu, drhd) {
+		if (!ecap_ir_support(iommu->ecap))
+			continue;
+
+		iommu_disable_intr_remapping(iommu);
+	}
+}
+
+int reenable_intr_remapping(int eim)
+{
+	struct dmar_drhd_unit *drhd;
+	int setup = 0;
+	struct intel_iommu *iommu = NULL;
+
+	for_each_iommu(iommu, drhd)
+		if (iommu->qi)
+			dmar_reenable_qi(iommu);
+
+	/*
+	 * Setup Interrupt-remapping for all the DRHD's now.
+	 */
+	for_each_iommu(iommu, drhd) {
+		if (!ecap_ir_support(iommu->ecap))
+			continue;
+
+		/* Set up interrupt remapping for iommu.*/
+		iommu_set_intr_remapping(iommu, eim);
+		setup = 1;
+	}
+
+	if (!setup)
+		goto error;
+
+	return 0;
+
+error:
+	/*
+	 * handle error condition gracefully here!
+	 */
+	return -1;
+}
+

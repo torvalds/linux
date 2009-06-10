@@ -1180,7 +1180,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 #if 0
 // dma_supported() is deeply broken on almost all architectures
 	// possible with some EHCI controllers
-	if (dma_supported (&udev->dev, DMA_64BIT_MASK))
+	if (dma_supported (&udev->dev, DMA_BIT_MASK(64)))
 		net->features |= NETIF_F_HIGHDMA;
 #endif
 

@@ -963,16 +963,11 @@ static int __devinit snd_serial_probe(struct platform_device *devptr)
 	if (err < 0)
 		goto _err;
 
-	sprintf(card->longname, "%s at 0x%lx, irq %d speed %d div %d outs %d ins %d adaptor %s droponfull %d",
+	sprintf(card->longname, "%s [%s] at %#lx, irq %d",
 		card->shortname,
-		uart->base,
-		uart->irq,
-		uart->speed,
-		(int)uart->divisor,
-		outs[dev],
-		ins[dev],
 		adaptor_names[uart->adaptor],
-		uart->drop_on_full);
+		uart->base,
+		uart->irq);
 
 	snd_card_set_dev(card, &devptr->dev);
 

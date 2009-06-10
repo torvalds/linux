@@ -74,16 +74,5 @@ extern int platform_pcibios_fixup (void);
  */
 extern void platform_calibrate_ccount (void);
 
-/*
- * platform_get_rtc_time returns RTC seconds (returns 0 for no error)
- */
-extern int platform_get_rtc_time(time_t*);
-
-/*
- * platform_set_rtc_time set RTC seconds (returns 0 for no error)
- */
-extern int platform_set_rtc_time(time_t);
-
-
 #endif	/* _XTENSA_PLATFORM_H */
 

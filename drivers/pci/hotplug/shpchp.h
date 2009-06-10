@@ -48,10 +48,10 @@ extern int shpchp_debug;
 extern struct workqueue_struct *shpchp_wq;
 
 #define dbg(format, arg...)						\
-	do {								\
-		if (shpchp_debug)					\
-			printk("%s: " format, MY_NAME , ## arg);	\
-	} while (0)
+do {									\
+	if (shpchp_debug)						\
+		printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg);	\
+} while (0)
 #define err(format, arg...)						\
 	printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
 #define info(format, arg...)						\
@@ -62,7 +62,7 @@ extern struct workqueue_struct *shpchp_wq;
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
 		if (shpchp_debug)					\
-			dev_printk(, &ctrl->pci_dev->dev,		\
+			dev_printk(KERN_DEBUG, &ctrl->pci_dev->dev,	\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\

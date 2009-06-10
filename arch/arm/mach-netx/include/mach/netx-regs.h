@@ -80,7 +80,7 @@
 #define NETX_PA_XPEC(no) (NETX_IO_PHYS + NETX_OFS_XPEC(no))
 #define NETX_PA_VIC      (NETX_IO_PHYS + NETX_OFS_VIC)
 
-/* virual addresses */
+/* virtual addresses */
 #define NETX_VA_SYSTEM   (NETX_IO_VIRT + NETX_OFS_SYSTEM)
 #define NETX_VA_MEMCR    (NETX_IO_VIRT + NETX_OFS_MEMCR)
 #define NETX_VA_DPMAS    (NETX_IO_VIRT + NETX_OFS_DPMAS)

@@ -144,18 +144,19 @@ void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt)
 			gdt[i] = cpu->arch.gdt[i];
 }
 
-/*H:620 This is where the Guest asks us to load a new GDT (LHCALL_LOAD_GDT).
- * We copy it from the Guest and tweak the entries. */
-void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num)
+/*H:620 This is where the Guest asks us to load a new GDT entry
+ * (LHCALL_LOAD_GDT_ENTRY).  We tweak the entry and copy it in. */
+void load_guest_gdt_entry(struct lg_cpu *cpu, u32 num, u32 lo, u32 hi)
 {
 	/* We assume the Guest has the same number of GDT entries as the
 	 * Host, otherwise we'd have to dynamically allocate the Guest GDT. */
 	if (num > ARRAY_SIZE(cpu->arch.gdt))
 		kill_guest(cpu, "too many gdt entries %i", num);
 
-	/* We read the whole thing in, then fix it up. */
-	__lgread(cpu, cpu->arch.gdt, table, num * sizeof(cpu->arch.gdt[0]));
-	fixup_gdt_table(cpu, 0, ARRAY_SIZE(cpu->arch.gdt));
+	/* Set it up, then fix it. */
+	cpu->arch.gdt[num].a = lo;
+	cpu->arch.gdt[num].b = hi;
+	fixup_gdt_table(cpu, num, num+1);
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
 	cpu->changed |= CHANGED_GDT;

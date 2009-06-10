@@ -121,10 +121,9 @@
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntry(unsigned int uiIndex_p,
-						 unsigned int uiSubIndex_p,
-						 void *pSrcData_p,
-						 tEplObdSize Size_p)
+tEplKernel EplObduWriteEntry(unsigned int uiIndex_p,
+			     unsigned int uiSubIndex_p,
+			     void *pSrcData_p, tEplObdSize Size_p)
 {
 	tEplKernel Ret;
 
@@ -153,10 +152,10 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntry(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntry(unsigned int uiIndex_p,
-						unsigned int uiSubIndex_p,
-						void *pDstData_p,
-						tEplObdSize * pSize_p)
+tEplKernel EplObduReadEntry(unsigned int uiIndex_p,
+			    unsigned int uiSubIndex_p,
+			    void *pDstData_p,
+			    tEplObdSize *pSize_p)
 {
 	tEplKernel Ret;
 
@@ -179,8 +178,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntry(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduAccessOdPart(tEplObdPart ObdPart_p,
-						   tEplObdDir Direction_p)
+tEplKernel EplObduAccessOdPart(tEplObdPart ObdPart_p, tEplObdDir Direction_p)
 {
 	tEplKernel Ret;
 
@@ -202,7 +200,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduAccessOdPart(tEplObdPart ObdPart_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduDefineVar(tEplVarParam MEM * pVarParam_p)
+tEplKernel EplObduDefineVar(tEplVarParam *pVarParam_p)
 {
 	tEplKernel Ret;
 
@@ -226,8 +224,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduDefineVar(tEplVarParam MEM * pVarParam_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT void *PUBLIC EplObduGetObjectDataPtr(unsigned int uiIndex_p,
-						  unsigned int uiSubIndex_p)
+void *EplObduGetObjectDataPtr(unsigned int uiIndex_p, unsigned int uiSubIndex_p)
 {
 	void *pData;
 
@@ -250,7 +247,7 @@ EPLDLLEXPORT void *PUBLIC EplObduGetObjectDataPtr(unsigned int uiIndex_p,
 //
 //---------------------------------------------------------------------------
 #if (defined (EPL_OBD_USER_OD) && (EPL_OBD_USER_OD != FALSE))
-EPLDLLEXPORT tEplKernel PUBLIC EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p)
+tEplKernel EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p)
 {
 	tEplKernel Ret;
 
@@ -275,9 +272,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduRegisterUserOd(tEplObdEntryPtr pUserOd_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT void PUBLIC EplObduInitVarEntry(tEplObdVarEntry MEM * pVarEntry_p,
-					     BYTE bType_p,
-					     tEplObdSize ObdSize_p)
+void EplObduInitVarEntry(tEplObdVarEntry *pVarEntry_p, u8 bType_p, tEplObdSize ObdSize_p)
 {
 	EplObduCalInitVarEntry(pVarEntry_p, bType_p, ObdSize_p);
 }
@@ -299,8 +294,7 @@ EPLDLLEXPORT void PUBLIC EplObduInitVarEntry(tEplObdVarEntry MEM * pVarEntry_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplObdSize PUBLIC EplObduGetDataSize(unsigned int uiIndex_p,
-						   unsigned int uiSubIndex_p)
+tEplObdSize EplObduGetDataSize(unsigned int uiIndex_p, unsigned int uiSubIndex_p)
 {
 	tEplObdSize Size;
 
@@ -323,7 +317,7 @@ EPLDLLEXPORT tEplObdSize PUBLIC EplObduGetDataSize(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT unsigned int PUBLIC EplObduGetNodeId()
+unsigned int EplObduGetNodeId(void)
 {
 	unsigned int uiNodeId;
 
@@ -347,8 +341,7 @@ EPLDLLEXPORT unsigned int PUBLIC EplObduGetNodeId()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduSetNodeId(unsigned int uiNodeId_p,
-						tEplObdNodeIdType NodeIdType_p)
+tEplKernel EplObduSetNodeId(unsigned int uiNodeId_p, tEplObdNodeIdType NodeIdType_p)
 {
 	tEplKernel Ret;
 
@@ -373,10 +366,9 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduSetNodeId(unsigned int uiNodeId_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduGetAccessType(unsigned int uiIndex_p,
-						    unsigned int uiSubIndex_p,
-						    tEplObdAccess *
-						    pAccessTyp_p)
+tEplKernel EplObduGetAccessType(unsigned int uiIndex_p,
+				unsigned int uiSubIndex_p,
+				tEplObdAccess *pAccessTyp_p)
 {
 	tEplObdAccess AccessType;
 
@@ -410,10 +402,10 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduGetAccessType(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntryToLe(unsigned int uiIndex_p,
-						    unsigned int uiSubIndex_p,
-						    void *pDstData_p,
-						    tEplObdSize * pSize_p)
+tEplKernel EplObduReadEntryToLe(unsigned int uiIndex_p,
+				unsigned int uiSubIndex_p,
+				void *pDstData_p,
+				tEplObdSize *pSize_p)
 {
 	tEplKernel Ret;
 
@@ -445,11 +437,10 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduReadEntryToLe(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntryFromLe(unsigned int uiIndex_p,
-						       unsigned int
-						       uiSubIndex_p,
-						       void *pSrcData_p,
-						       tEplObdSize Size_p)
+tEplKernel EplObduWriteEntryFromLe(unsigned int uiIndex_p,
+				   unsigned int uiSubIndex_p,
+				   void *pSrcData_p,
+				   tEplObdSize Size_p)
 {
 	tEplKernel Ret;
 
@@ -475,11 +466,9 @@ EPLDLLEXPORT tEplKernel PUBLIC EplObduWriteEntryFromLe(unsigned int uiIndex_p,
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_
-						     unsigned int uiIndex_p,
-						     unsigned int uiSubindex_p,
-						     tEplObdVarEntry MEM **
-						     ppVarEntry_p)
+tEplKernel EplObduSearchVarEntry(EPL_MCO_DECL_INSTANCE_PTR_ unsigned int uiIndex_p,
+				 unsigned int uiSubindex_p,
+				 tEplObdVarEntry **ppVarEntry_p)
 {
 	tEplKernel Ret;
 

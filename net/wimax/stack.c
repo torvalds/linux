@@ -338,8 +338,21 @@ out:
  */
 void wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 {
+	/*
+	 * A driver cannot take the wimax_dev out of the
+	 * __WIMAX_ST_NULL state unless by calling wimax_dev_add(). If
+	 * the wimax_dev's state is still NULL, we ignore any request
+	 * to change its state because it means it hasn't been yet
+	 * registered.
+	 *
+	 * There is no need to complain about it, as routines that
+	 * call this might be shared from different code paths that
+	 * are called before or after wimax_dev_add() has done its
+	 * job.
+	 */
 	mutex_lock(&wimax_dev->mutex);
-	__wimax_state_change(wimax_dev, new_state);
+	if (wimax_dev->state > __WIMAX_ST_NULL)
+		__wimax_state_change(wimax_dev, new_state);
 	mutex_unlock(&wimax_dev->mutex);
 	return;
 }
@@ -376,7 +389,7 @@ EXPORT_SYMBOL_GPL(wimax_state_get);
 void wimax_dev_init(struct wimax_dev *wimax_dev)
 {
 	INIT_LIST_HEAD(&wimax_dev->id_table_node);
-	__wimax_state_set(wimax_dev, WIMAX_ST_UNINITIALIZED);
+	__wimax_state_set(wimax_dev, __WIMAX_ST_NULL);
 	mutex_init(&wimax_dev->mutex);
 	mutex_init(&wimax_dev->mutex_reset);
 }

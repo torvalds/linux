@@ -48,7 +48,6 @@ struct pasic3_leds_machinfo {
 
 struct pasic3_platform_data {
 	struct pasic3_leds_machinfo *led_pdata;
-	unsigned int                 bus_shift;
 	unsigned int                 clock_rate;
 };
 

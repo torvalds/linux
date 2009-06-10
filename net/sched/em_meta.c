@@ -176,8 +176,10 @@ META_COLLECTOR(var_dev)
 
 META_COLLECTOR(int_vlan_tag)
 {
-	unsigned short uninitialized_var(tag);
-	if (vlan_get_tag(skb, &tag) < 0)
+	unsigned short tag;
+
+	tag = vlan_tx_tag_get(skb);
+	if (!tag && __vlan_get_tag(skb, &tag))
 		*err = -1;
 	else
 		dst->value = tag;

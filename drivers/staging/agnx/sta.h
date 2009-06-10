@@ -16,7 +16,7 @@ struct agnx_hash_cmd {
 #define PASS		0x00000001
 #define PASS_SHIFT	1
 	__be32 cmdlo;
-}__attribute__((__packed__));
+} __attribute__((__packed__));
 
 
 /*

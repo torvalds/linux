@@ -208,6 +208,7 @@ static inline __u32 ext3_mask_flags(umode_t mode, __u32 flags)
 #define EXT3_STATE_JDATA		0x00000001 /* journaled data exists */
 #define EXT3_STATE_NEW			0x00000002 /* inode is newly created */
 #define EXT3_STATE_XATTR		0x00000004 /* has in-inode xattrs */
+#define EXT3_STATE_FLUSH_ON_CLOSE	0x00000008
 
 /* Used to pass group descriptor data when online resize is done */
 struct ext3_new_group_input {
@@ -893,9 +894,8 @@ extern int ext3_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len);
 
 /* ioctl.c */
-extern int ext3_ioctl (struct inode *, struct file *, unsigned int,
-		       unsigned long);
-extern long ext3_compat_ioctl (struct file *, unsigned int, unsigned long);
+extern long ext3_ioctl(struct file *, unsigned int, unsigned long);
+extern long ext3_compat_ioctl(struct file *, unsigned int, unsigned long);
 
 /* namei.c */
 extern int ext3_orphan_add(handle_t *, struct inode *);

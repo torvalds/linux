@@ -15,7 +15,7 @@
 //
 //  Copyright (c) 1996-2002 Winbond Electronics Corp. All Rights Reserved.
 //============================================================================
-#include "os_common.h"
+#include "sysdef.h"
 
 #include "mds_f.h"
 

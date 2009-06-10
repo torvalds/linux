@@ -33,7 +33,6 @@
 #ifndef __DRM_CRTC_HELPER_H__
 #define __DRM_CRTC_HELPER_H__
 
-#include <linux/i2c.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/idr.h>
@@ -92,13 +91,15 @@ struct drm_connector_helper_funcs {
 extern int drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
 extern int drm_helper_hotplug_stage_two(struct drm_device *dev);
-extern bool drm_helper_initial_config(struct drm_device *dev, bool can_grow);
+extern bool drm_helper_initial_config(struct drm_device *dev);
 extern int drm_crtc_helper_set_config(struct drm_mode_set *set);
 extern bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     int x, int y,
 				     struct drm_framebuffer *old_fb);
 extern bool drm_helper_crtc_in_use(struct drm_crtc *crtc);
+
+extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 
 extern int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 					  struct drm_mode_fb_cmd *mode_cmd);

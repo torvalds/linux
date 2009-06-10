@@ -131,7 +131,7 @@ Cpusets extends these two mechanisms as follows:
  - The hierarchy of cpusets can be mounted at /dev/cpuset, for
    browsing and manipulation from user space.
  - A cpuset may be marked exclusive, which ensures that no other
-   cpuset (except direct ancestors and descendents) may contain
+   cpuset (except direct ancestors and descendants) may contain
    any overlapping CPUs or Memory Nodes.
  - You can list all the tasks (by pid) attached to any cpuset.
 
@@ -226,7 +226,7 @@ nodes with memory--using the cpuset_track_online_nodes() hook.
 --------------------------------
 
 If a cpuset is cpu or mem exclusive, no other cpuset, other than
-a direct ancestor or descendent, may share any of the same CPUs or
+a direct ancestor or descendant, may share any of the same CPUs or
 Memory Nodes.
 
 A cpuset that is mem_exclusive *or* mem_hardwall is "hardwalled",
@@ -427,7 +427,7 @@ child cpusets have this flag enabled.
 When doing this, you don't usually want to leave any unpinned tasks in
 the top cpuset that might use non-trivial amounts of CPU, as such tasks
 may be artificially constrained to some subset of CPUs, depending on
-the particulars of this flag setting in descendent cpusets.  Even if
+the particulars of this flag setting in descendant cpusets.  Even if
 such a task could use spare CPU cycles in some other CPUs, the kernel
 scheduler might not consider the possibility of load balancing that
 task to that underused CPU.
@@ -531,9 +531,9 @@ be idle.
 
 Of course it takes some searching cost to find movable tasks and/or
 idle CPUs, the scheduler might not search all CPUs in the domain
-everytime.  In fact, in some architectures, the searching ranges on
+every time.  In fact, in some architectures, the searching ranges on
 events are limited in the same socket or node where the CPU locates,
-while the load balance on tick searchs all.
+while the load balance on tick searches all.
 
 For example, assume CPU Z is relatively far from CPU X.  Even if CPU Z
 is idle while CPU X and the siblings are busy, scheduler can't migrate
@@ -601,7 +601,7 @@ its new cpuset, then the task will continue to use whatever subset
 of MPOL_BIND nodes are still allowed in the new cpuset.  If the task
 was using MPOL_BIND and now none of its MPOL_BIND nodes are allowed
 in the new cpuset, then the task will be essentially treated as if it
-was MPOL_BIND bound to the new cpuset (even though its numa placement,
+was MPOL_BIND bound to the new cpuset (even though its NUMA placement,
 as queried by get_mempolicy(), doesn't change).  If a task is moved
 from one cpuset to another, then the kernel will adjust the tasks
 memory placement, as above, the next time that the kernel attempts

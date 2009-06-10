@@ -155,7 +155,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 		}
 
 
-		ACPI_DUMP_PATHNAME(info->resolved_node, "Execute Method:",
+		ACPI_DUMP_PATHNAME(info->resolved_node, "ACPI: Execute Method",
 				   ACPI_LV_INFO, _COMPONENT);
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,

@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
@@ -27,7 +28,7 @@
 #   command line string
 #
 ###############################################################################
-	.section	.text.head,"ax"
+	__HEAD
 	.balign		4
 
 	.globl		_boot, __head_reference

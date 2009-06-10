@@ -623,7 +623,7 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 	}
 
 	lock_kernel();
-	printk("Bad unaligned kernel access at %016lx: %p %lx %ld\n",
+	printk("Bad unaligned kernel access at %016lx: %p %lx %lu\n",
 		pc, va, opcode, reg);
 	do_exit(SIGSEGV);
 

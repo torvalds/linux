@@ -1,5 +1,6 @@
 config REISERFS_FS
 	tristate "Reiserfs support"
+	select CRC32
 	help
 	  Stores not just filenames but the files themselves in a balanced
 	  tree.  Uses journalling.

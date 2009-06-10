@@ -2299,7 +2299,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	eaddr = sc->sbm_hwaddr;
 
 	/*
-	 * Read the ethernet address.  The firwmare left this programmed
+	 * Read the ethernet address.  The firmware left this programmed
 	 * for us in the ethernet address register for each mac.
 	 */
 

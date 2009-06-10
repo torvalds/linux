@@ -265,5 +265,3 @@ static void tm_exit(void)
 module_init(tm_init);
 module_exit(tm_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(thrustmaster);

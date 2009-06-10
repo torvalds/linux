@@ -98,7 +98,7 @@ static int configure_memory(const unsigned char *buf,
 			res->start = mem_parent->start + get_24(buf+len+2);
 			res->end = res->start + get_16(buf+len+5)*1024;
 			res->flags = IORESOURCE_MEM;
-			printk("memory %lx-%lx ", res->start, res->end);
+			printk("memory %lx-%lx ", (unsigned long)res->start, (unsigned long)res->end);
 			result = request_resource(mem_parent, res);
 			if (result < 0) {
 				printk("\n" KERN_ERR "EISA Enumerator: failed to claim EISA Bus address space!\n");
@@ -188,7 +188,7 @@ static int configure_port(const unsigned char *buf, struct resource *io_parent,
 			res->start = get_16(buf+len+1);
 			res->end = get_16(buf+len+1)+(c&HPEE_PORT_SIZE_MASK)+1;
 			res->flags = IORESOURCE_IO;
-			printk("ioports %lx-%lx ", res->start, res->end);
+			printk("ioports %lx-%lx ", (unsigned long)res->start, (unsigned long)res->end);
 			result = request_resource(io_parent, res);
 			if (result < 0) {
 				printk("\n" KERN_ERR "EISA Enumerator: failed to claim EISA Bus address space!\n");

@@ -11,6 +11,8 @@
 
 #include <acpi/acpi_drivers.h>
 
+#include "internal.h"
+
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("scan");
 #define STRUCT_TO_INT(s)	(*((int*)&s))
@@ -22,7 +24,7 @@ extern struct acpi_device *acpi_root;
 
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
-DEFINE_SPINLOCK(acpi_device_lock);
+DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
 struct acpi_device_bus_id{
@@ -357,6 +359,61 @@ static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct acpi_device *device = data;
+
+	device->driver->ops.notify(device, event);
+}
+
+static acpi_status acpi_device_notify_fixed(void *data)
+{
+	struct acpi_device *device = data;
+
+	acpi_device_notify(device->handle, ACPI_FIXED_HARDWARE_EVENT, device);
+	return AE_OK;
+}
+
+static int acpi_device_install_notify_handler(struct acpi_device *device)
+{
+	acpi_status status;
+	char *hid;
+
+	hid = acpi_device_hid(device);
+	if (!strcmp(hid, ACPI_BUTTON_HID_POWERF))
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						     acpi_device_notify_fixed,
+						     device);
+	else if (!strcmp(hid, ACPI_BUTTON_HID_SLEEPF))
+		status =
+		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						     acpi_device_notify_fixed,
+						     device);
+	else
+		status = acpi_install_notify_handler(device->handle,
+						     ACPI_DEVICE_NOTIFY,
+						     acpi_device_notify,
+						     device);
+
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
+	return 0;
+}
+
+static void acpi_device_remove_notify_handler(struct acpi_device *device)
+{
+	if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_POWERF))
+		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
+						acpi_device_notify_fixed);
+	else if (!strcmp(acpi_device_hid(device), ACPI_BUTTON_HID_SLEEPF))
+		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
+						acpi_device_notify_fixed);
+	else
+		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					   acpi_device_notify);
+}
+
 static int acpi_bus_driver_init(struct acpi_device *, struct acpi_driver *);
 static int acpi_start_single_object(struct acpi_device *);
 static int acpi_device_probe(struct device * dev)
@@ -369,6 +426,20 @@ static int acpi_device_probe(struct device * dev)
 	if (!ret) {
 		if (acpi_dev->bus_ops.acpi_op_start)
 			acpi_start_single_object(acpi_dev);
+
+		if (acpi_drv->ops.notify) {
+			ret = acpi_device_install_notify_handler(acpi_dev);
+			if (ret) {
+				if (acpi_drv->ops.stop)
+					acpi_drv->ops.stop(acpi_dev,
+						   acpi_dev->removal_type);
+				if (acpi_drv->ops.remove)
+					acpi_drv->ops.remove(acpi_dev,
+						     acpi_dev->removal_type);
+				return ret;
+			}
+		}
+
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			"Found driver [%s] for device [%s]\n",
 			acpi_drv->name, acpi_dev->pnp.bus_id));
@@ -383,6 +454,8 @@ static int acpi_device_remove(struct device * dev)
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
 	if (acpi_drv) {
+		if (acpi_drv->ops.notify)
+			acpi_device_remove_notify_handler(acpi_dev);
 		if (acpi_drv->ops.stop)
 			acpi_drv->ops.stop(acpi_dev, acpi_dev->removal_type);
 		if (acpi_drv->ops.remove)
@@ -395,22 +468,10 @@ static int acpi_device_remove(struct device * dev)
 	return 0;
 }
 
-static void acpi_device_shutdown(struct device *dev)
-{
-	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = acpi_dev->driver;
-
-	if (acpi_drv && acpi_drv->ops.shutdown)
-		acpi_drv->ops.shutdown(acpi_dev);
-
-	return ;
-}
-
 struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.suspend	= acpi_device_suspend,
 	.resume		= acpi_device_resume,
-	.shutdown	= acpi_device_shutdown,
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,
 	.remove		= acpi_device_remove,
@@ -430,7 +491,6 @@ static int acpi_device_register(struct acpi_device *device,
 	 */
 	INIT_LIST_HEAD(&device->children);
 	INIT_LIST_HEAD(&device->node);
-	INIT_LIST_HEAD(&device->g_list);
 	INIT_LIST_HEAD(&device->wakeup_list);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
@@ -439,7 +499,7 @@ static int acpi_device_register(struct acpi_device *device,
 		return -ENOMEM;
 	}
 
-	spin_lock(&acpi_device_lock);
+	mutex_lock(&acpi_device_lock);
 	/*
 	 * Find suitable bus_id and instance number in acpi_bus_id_list
 	 * If failed, create one and link it into acpi_bus_id_list
@@ -460,14 +520,12 @@ static int acpi_device_register(struct acpi_device *device,
 	}
 	dev_set_name(&device->dev, "%s:%02x", acpi_device_bus_id->bus_id, acpi_device_bus_id->instance_no);
 
-	if (device->parent) {
+	if (device->parent)
 		list_add_tail(&device->node, &device->parent->children);
-		list_add_tail(&device->g_list, &device->parent->g_list);
-	} else
-		list_add_tail(&device->g_list, &acpi_device_list);
+
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 
 	if (device->parent)
 		device->dev.parent = &parent->dev;
@@ -488,28 +546,22 @@ static int acpi_device_register(struct acpi_device *device,
 	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
   end:
-	spin_lock(&acpi_device_lock);
-	if (device->parent) {
+	mutex_lock(&acpi_device_lock);
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 	list_del(&device->wakeup_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 	return result;
 }
 
 static void acpi_device_unregister(struct acpi_device *device, int type)
 {
-	spin_lock(&acpi_device_lock);
-	if (device->parent) {
+	mutex_lock(&acpi_device_lock);
+	if (device->parent)
 		list_del(&device->node);
-		list_del(&device->g_list);
-	} else
-		list_del(&device->g_list);
 
 	list_del(&device->wakeup_list);
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
 
@@ -1524,15 +1576,10 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	return result;
 }
 
-
-static int __init acpi_scan_init(void)
+int __init acpi_scan_init(void)
 {
 	int result;
 	struct acpi_bus_ops ops;
-
-
-	if (acpi_disabled)
-		return 0;
 
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
@@ -1566,5 +1613,3 @@ static int __init acpi_scan_init(void)
       Done:
 	return result;
 }
-
-subsys_initcall(acpi_scan_init);

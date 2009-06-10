@@ -325,9 +325,8 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 			next_external_char++;
 		}
 	} else {
-		/*
-		 * Handle Carat prefixes
-		 */
+		/* Handle Carat prefixes */
+
 		while (*next_external_char == '^') {
 			info->num_carats++;
 			next_external_char++;
@@ -552,9 +551,8 @@ acpi_ns_externalize_name(u32 internal_name_length,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * Check for a prefix (one '\' | one or more '^').
-	 */
+	/* Check for a prefix (one '\' | one or more '^') */
+
 	switch (internal_name[0]) {
 	case '\\':
 		prefix_length = 1;
@@ -580,7 +578,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	}
 
 	/*
-	 * Check for object names.  Note that there could be 0-255 of these
+	 * Check for object names. Note that there could be 0-255 of these
 	 * 4-byte elements.
 	 */
 	if (prefix_length < internal_name_length) {
@@ -637,9 +635,8 @@ acpi_ns_externalize_name(u32 internal_name_length,
 		return_ACPI_STATUS(AE_BAD_PATHNAME);
 	}
 
-	/*
-	 * Build converted_name
-	 */
+	/* Build the converted_name */
+
 	*converted_name = ACPI_ALLOCATE_ZEROED(required_length);
 	if (!(*converted_name)) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
@@ -685,6 +682,9 @@ acpi_ns_externalize_name(u32 internal_name_length,
  *       and keep all pointers within this subsystem - however this introduces
  *       more (and perhaps unnecessary) overhead.
  *
+ * The current implemenation is basically a placeholder until such time comes
+ * that it is needed.
+ *
  ******************************************************************************/
 
 struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
@@ -692,9 +692,8 @@ struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
 
 	ACPI_FUNCTION_ENTRY();
 
-	/*
-	 * Simple implementation
-	 */
+	/* Parameter validation */
+
 	if ((!handle) || (handle == ACPI_ROOT_OBJECT)) {
 		return (acpi_gbl_root_node);
 	}
@@ -872,7 +871,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
 				return_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s, %s\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s, %s\n",
 				  pathname, acpi_format_exception(status)));
 	}
 

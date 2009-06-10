@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2456
+# define AAC_DRIVER_BUILD 2461
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -865,7 +865,11 @@ struct aac_supplement_adapter_info
 	u8	MfgPcbaSerialNo[12];
 	u8	MfgWWNName[8];
 	__le32	SupportedOptions2;
-	__le32	ReservedGrowth[1];
+	__le32	StructExpansion;
+	/* StructExpansion == 1 */
+	__le32	FeatureBits3;
+	__le32	SupportedPerformanceModes;
+	__le32	ReservedForFutureGrowth[80];
 };
 #define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
 #define AAC_FEATURE_JBOD	cpu_to_le32(0x08000000)
@@ -1020,6 +1024,7 @@ struct aac_dev
 	u8			jbod;
 	u8			cache_protected;
 	u8			dac_support;
+	u8			needs_dac;
 	u8			raid_scsi_mode;
 	u8			comm_interface;
 #	define AAC_COMM_PRODUCER 0

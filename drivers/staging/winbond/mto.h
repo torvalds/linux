@@ -13,6 +13,8 @@
 
 #include <linux/types.h>
 
+struct wbsoft_priv;
+
 #define MTO_DEFAULT_TH_CNT              5
 #define MTO_DEFAULT_TH_SQ3              112  //OLD IS 13 reference JohnXu
 #define MTO_DEFAULT_TH_IDLE_SLOT        15
@@ -131,8 +133,6 @@ typedef struct _MTO_PARAMETERS
 } MTO_PARAMETERS, *PMTO_PARAMETERS;
 
 
-#define MTO_FUNC_INPUT              struct wbsoft_priv *	adapter
-#define MTO_FUNC_INPUT_DATA         adapter
 #define MTO_DATA()                  (adapter->sMtoPara)
 #define MTO_HAL()                   (&adapter->sHwData)
 #define MTO_SET_PREAMBLE_TYPE(x)    // 20040511 Turbo mark LM_PREAMBLE_TYPE(&pcore_data->lm_data) = (x)
@@ -140,7 +140,6 @@ typedef struct _MTO_PARAMETERS
 #define MTO_TXPOWER_FROM_EEPROM		(adapter->sHwData.PowerIndexFromEEPROM)
 #define LOCAL_ANTENNA_NO()			(adapter->sLocalPara.bAntennaNo)
 #define LOCAL_IS_CONNECTED()		(adapter->sLocalPara.wConnectedSTAindex != 0)
-#define LOCAL_IS_IBSS_MODE()		(adapter->asBSSDescriptElement[adapter->sLocalPara.wConnectedSTAindex].bBssType == IBSS_NET)
 #define MTO_INITTXRATE_MODE			(adapter->sHwData.SoftwareSet&0x2)	//bit 1
 // 20040510 Turbo add
 #define MTO_TMR_CNT()               MTO_DATA().TmrCnt
@@ -258,6 +257,13 @@ typedef struct _STATISTICS_INFO {
 	s32   TxBytes;
 	s32   Antenna;
 } STATISTICS_INFO, *PSTATISTICS_INFO;
+
+extern void MTO_Init(struct wbsoft_priv *);
+extern void MTO_PeriodicTimerExpired(struct wbsoft_priv *);
+extern void MTO_SetDTORateRange(struct wbsoft_priv *, u8 *, u8);
+extern u8 MTO_GetTxRate(struct wbsoft_priv *adapter, u32 fpdu_len);
+extern u8 MTO_GetTxFallbackRate(struct wbsoft_priv *adapter);
+extern void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
 
 #endif //__MTO_H__
 

@@ -139,11 +139,7 @@ typedef struct me4600_ai_subdevice {
 	wait_queue_head_t wait_queue;					/**< Wait queue to put on tasks waiting for data to arrive. */
 
 	struct workqueue_struct *me4600_workqueue;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	struct work_struct ai_control_task;
-#else
 	struct delayed_work ai_control_task;
-#endif
 
 	volatile int ai_control_task_flag;				/**< Flag controling reexecuting of control task */
 

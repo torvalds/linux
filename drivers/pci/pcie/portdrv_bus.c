@@ -26,20 +26,22 @@ EXPORT_SYMBOL_GPL(pcie_port_bus_type);
 static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct pcie_device *pciedev;
+	struct pcie_port_data *port_data;
 	struct pcie_port_service_driver *driver;
 
 	if (drv->bus != &pcie_port_bus_type || dev->bus != &pcie_port_bus_type)
 		return 0;
-	
+
 	pciedev = to_pcie_device(dev);
 	driver = to_service_driver(drv);
-	if (   (driver->id_table->vendor != PCI_ANY_ID && 
-		driver->id_table->vendor != pciedev->id.vendor) ||
-	       (driver->id_table->device != PCI_ANY_ID &&
-		driver->id_table->device != pciedev->id.device) ||	
-	       (driver->id_table->port_type != PCIE_ANY_PORT &&
-		driver->id_table->port_type != pciedev->id.port_type) ||
-		driver->id_table->service_type != pciedev->id.service_type )
+
+	if (driver->service != pciedev->service)
+		return 0;
+
+	port_data = pci_get_drvdata(pciedev->port);
+
+	if (driver->port_type != PCIE_ANY_PORT
+	     && driver->port_type != port_data->port_type)
 		return 0;
 
 	return 1;

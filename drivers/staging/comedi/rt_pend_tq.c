@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include "comedidev.h"	// for rt spinlocks
+#include "comedidev.h"	/* for rt spinlocks */
 #include "rt_pend_tq.h"
 #ifdef CONFIG_COMEDI_RTAI
 #include <rtai.h>
@@ -25,9 +25,9 @@ volatile static struct rt_pend_tq rt_pend_tq[RT_PEND_TQ_SIZE];
 volatile static struct rt_pend_tq *volatile rt_pend_head = rt_pend_tq,
 	*volatile rt_pend_tail = rt_pend_tq;
 int rt_pend_tq_irq = 0;
-spinlock_t rt_pend_tq_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rt_pend_tq_lock);
 
-// WARNING: following code not checked against race conditions yet.
+/* WARNING: following code not checked against race conditions yet. */
 #define INC_CIRCULAR_PTR(ptr,begin,size) do {if(++(ptr)>=(begin)+(size)) (ptr)=(begin); } while(0)
 #define DEC_CIRCULAR_PTR(ptr,begin,size) do {if(--(ptr)<(begin)) (ptr)=(begin)+(size)-1; } while(0)
 
@@ -42,7 +42,7 @@ int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1, void *arg2)
 	comedi_spin_lock_irqsave(&rt_pend_tq_lock, flags);
 	INC_CIRCULAR_PTR(rt_pend_head, rt_pend_tq, RT_PEND_TQ_SIZE);
 	if (rt_pend_head == rt_pend_tail) {
-		// overflow, we just refuse to take this request
+		/* overflow, we just refuse to take this request */
 		DEC_CIRCULAR_PTR(rt_pend_head, rt_pend_tq, RT_PEND_TQ_SIZE);
 		comedi_spin_unlock_irqrestore(&rt_pend_tq_lock, flags);
 		return -EAGAIN;

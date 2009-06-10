@@ -198,6 +198,8 @@ struct kernel_ipmi_msg {
 					      response.  When you send a
 					      response message, this will
 					      be returned. */
+#define IPMI_OEM_RECV_TYPE		5 /* The response for OEM Channels */
+
 /* Note that async events and received commands do not have a completion
    code as the first byte of the incoming data, unlike a response. */
 

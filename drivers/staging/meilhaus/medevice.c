@@ -390,9 +390,9 @@ static int me_device_io_single_write(struct me_device *device,
 static int me_device_io_stream_config(struct me_device *device,
 				      struct file *filep,
 				      int subdevice,
-				      meIOStreamConfig_t * config_list,
+				      meIOStreamConfig_t *config_list,
 				      int count,
-				      meIOStreamTrigger_t * trigger,
+				      meIOStreamTrigger_t *trigger,
 				      int fifo_irq_threshold, int flags)
 {
 	int err = ME_ERRNO_SUCCESS;
@@ -1040,7 +1040,7 @@ static int me_device_query_timer(struct me_device *device,
 				 int subdevice,
 				 int timer,
 				 int *base_frequency,
-				 uint64_t * min_ticks, uint64_t * max_ticks)
+				 uint64_t *min_ticks, uint64_t *max_ticks)
 {
 	int err = ME_ERRNO_SUCCESS;
 	me_subdevice_t *s;
@@ -1082,14 +1082,14 @@ static int me_device_query_version_device_driver(struct me_device *device,
 }
 
 static int me_device_config_load(struct me_device *device, struct file *filep,
-				 me_cfg_device_entry_t * config)
+				 me_cfg_device_entry_t *config)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_SUCCESS;	//If no need for config return success.
 //      return ME_ERRNO_NOT_SUPPORTED;
 }
 
-static void me_device_destructor(me_device_t * me_device)
+static void me_device_destructor(me_device_t *me_device)
 {
 	PDEBUG("executed.\n");
 	me_device_deinit(me_device);
@@ -1581,7 +1581,7 @@ static int get_device_descriptions(uint16_t device_id,
 	return 0;
 }
 
-int me_device_pci_init(me_device_t * me_device, struct pci_dev *pci_device)
+int me_device_pci_init(me_device_t *me_device, struct pci_dev *pci_device)
 {
 	int err;
 	int i;
@@ -1720,7 +1720,7 @@ int me_device_pci_init(me_device_t * me_device, struct pci_dev *pci_device)
 	return 1;
 }
 
-void me_device_deinit(me_device_t * me_device)
+void me_device_deinit(me_device_t *me_device)
 {
 	PDEBUG("executed.\n");
 

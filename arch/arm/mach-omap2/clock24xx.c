@@ -60,12 +60,13 @@ struct omap_clk {
 		},			\
 	}
 
-#define CK_243X	(1 << 0)
-#define CK_242X	(1 << 1)
+#define CK_243X			RATE_IN_243X
+#define CK_242X			RATE_IN_242X
 
 static struct omap_clk omap24xx_clks[] = {
 	/* external root sources */
 	CLK(NULL,	"func_32k_ck",	&func_32k_ck,	CK_243X | CK_242X),
+	CLK(NULL,	"secure_32k_ck", &secure_32k_ck, CK_243X | CK_242X),
 	CLK(NULL,	"osc_ck",	&osc_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"alt_ck",	&alt_ck,	CK_243X | CK_242X),
@@ -102,10 +103,10 @@ static struct omap_clk omap24xx_clks[] = {
 	CLK(NULL,	"mdm_ick",	&mdm_ick,	CK_243X),
 	CLK(NULL,	"mdm_osc_ck",	&mdm_osc_ck,	CK_243X),
 	/* DSS domain clocks */
-	CLK(NULL,	"dss_ick",	&dss_ick,	CK_243X | CK_242X),
-	CLK(NULL,	"dss1_fck",	&dss1_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"dss2_fck",	&dss2_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"dss_54m_fck",	&dss_54m_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"ick",		&dss_ick,	CK_243X | CK_242X),
+	CLK("omapfb",	"dss1_fck",	&dss1_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"dss2_fck",	&dss2_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"tv_fck",	&dss_54m_fck,	CK_243X | CK_242X),
 	/* L3 domain clocks */
 	CLK(NULL,	"core_l3_ck",	&core_l3_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"ssi_fck",	&ssi_ssr_sst_fck, CK_243X | CK_242X),
@@ -205,7 +206,7 @@ static struct omap_clk omap24xx_clks[] = {
 	CLK(NULL,	"aes_ick",	&aes_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"usbhs_ick",	&usbhs_ick,	CK_243X),
+	CLK("musb_hdrc",	"ick",	&usbhs_ick,	CK_243X),
 	CLK("mmci-omap-hs.0", "ick",	&mmchs1_ick,	CK_243X),
 	CLK("mmci-omap-hs.0", "fck",	&mmchs1_fck,	CK_243X),
 	CLK("mmci-omap-hs.1", "ick",	&mmchs2_ick,	CK_243X),
@@ -711,7 +712,7 @@ int __init omap2_clk_init(void)
 {
 	struct prcm_config *prcm;
 	struct omap_clk *c;
-	u32 clkrate, cpu_mask;
+	u32 clkrate;
 
 	if (cpu_is_omap242x())
 		cpu_mask = RATE_IN_242X;
@@ -720,19 +721,13 @@ int __init omap2_clk_init(void)
 
 	clk_init(&omap2_clk_functions);
 
+	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
+		clk_init_one(c->lk.clk);
+
 	osc_ck.rate = omap2_osc_clk_recalc(&osc_ck);
 	propagate_rate(&osc_ck);
 	sys_ck.rate = omap2_sys_clk_recalc(&sys_ck);
 	propagate_rate(&sys_ck);
-
-	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
-		clk_init_one(c->lk.clk);
-
-	cpu_mask = 0;
-	if (cpu_is_omap2420())
-		cpu_mask |= CK_242X;
-	if (cpu_is_omap2430())
-		cpu_mask |= CK_243X;
 
 	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
 		if (c->cpu & cpu_mask) {

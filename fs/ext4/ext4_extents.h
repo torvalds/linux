@@ -241,5 +241,6 @@ extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
 extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
 						ext4_lblk_t *, ext4_fsblk_t *);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
+extern int ext4_ext_check_inode(struct inode *inode);
 #endif /* _EXT4_EXTENTS */
 

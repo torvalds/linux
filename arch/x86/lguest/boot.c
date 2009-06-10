@@ -67,6 +67,7 @@
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/i387.h>
+#include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 
 /*G:010 Welcome to the Guest!
@@ -273,15 +274,15 @@ static void lguest_load_idt(const struct desc_ptr *desc)
  * controls the entire thing and the Guest asks it to make changes using the
  * LOAD_GDT hypercall.
  *
- * This is the opposite of the IDT code where we have a LOAD_IDT_ENTRY
- * hypercall and use that repeatedly to load a new IDT.  I don't think it
- * really matters, but wouldn't it be nice if they were the same?  Wouldn't
- * it be even better if you were the one to send the patch to fix it?
+ * This is the exactly like the IDT code.
  */
 static void lguest_load_gdt(const struct desc_ptr *desc)
 {
-	BUG_ON((desc->size + 1) / 8 != GDT_ENTRIES);
-	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES);
+	unsigned int i;
+	struct desc_struct *gdt = (void *)desc->address;
+
+	for (i = 0; i < (desc->size+1)/8; i++)
+		kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, i, gdt[i].a, gdt[i].b);
 }
 
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
@@ -291,7 +292,9 @@ static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
 {
 	native_write_gdt_entry(dt, entrynum, desc, type);
-	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES);
+	/* Tell Host about this new entry. */
+	kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, entrynum,
+		       dt[entrynum].a, dt[entrynum].b);
 }
 
 /* OK, I lied.  There are three "thread local storage" GDT entries which change
@@ -661,7 +664,7 @@ static unsigned long lguest_tsc_khz(void)
 
 /* If we can't use the TSC, the kernel falls back to our lower-priority
  * "lguest_clock", where we read the time value given to us by the Host. */
-static cycle_t lguest_clock_read(void)
+static cycle_t lguest_clock_read(struct clocksource *cs)
 {
 	unsigned long sec, nsec;
 
@@ -1086,12 +1089,20 @@ __init void lguest_init(void)
 	 * lguest_init() where the rest of the fairly chaotic boot setup
 	 * occurs. */
 
+	/* The stack protector is a weird thing where gcc places a canary
+	 * value on the stack and then checks it on return.  This file is
+	 * compiled with -fno-stack-protector it, so we got this far without
+	 * problems.  The value of the canary is kept at offset 20 from the
+	 * %gs register, so we need to set that up before calling C functions
+	 * in other files. */
+	setup_stack_canary_segment(0);
+	/* We could just call load_stack_canary_segment(), but we might as
+	 * call switch_to_new_gdt() which loads the whole table and sets up
+	 * the per-cpu segment descriptor register %fs as well. */
+	switch_to_new_gdt(0);
+
 	/* As described in head_32.S, we map the first 128M of memory. */
 	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
-
-	/* Load the %fs segment register (the per-cpu segment register) with
-	 * the normal data segment to get through booting. */
-	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
 	/* The Host<->Guest Switcher lives at the top of our address space, and
 	 * the Host told us how big it is when we made LGUEST_INIT hypercall:

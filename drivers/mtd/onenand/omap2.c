@@ -294,6 +294,10 @@ static int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
 	if (bram_offset & 3 || (size_t)buf & 3 || count < 384)
 		goto out_copy;
 
+	/* panic_write() may be in an interrupt context */
+	if (in_interrupt())
+		goto out_copy;
+
 	if (buf >= high_memory) {
 		struct page *p1;
 
@@ -671,6 +675,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	c->mtd.name = dev_name(&pdev->dev);
 	c->mtd.priv = &c->onenand;
 	c->mtd.owner = THIS_MODULE;
+
+	c->mtd.dev.parent = &pdev->dev;
 
 	if (c->dma_channel >= 0) {
 		struct onenand_chip *this = &c->onenand;

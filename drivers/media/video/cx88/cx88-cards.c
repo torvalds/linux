@@ -3049,7 +3049,7 @@ static void cx88_card_setup(struct cx88_core *core)
 			    ctl.fname);
 		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
-	call_all(core, core, s_standby, 0);
+	call_all(core, tuner, s_standby);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3221,16 +3221,19 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		   The radio_type is sometimes missing, or set to UNSET but
 		   later code configures a tea5767.
 		 */
-		v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner", "tuner",
+		v4l2_i2c_new_probed_subdev(&core->v4l2_dev, &core->i2c_adap,
+				"tuner", "tuner",
 				v4l2_i2c_tuner_addrs(ADDRS_RADIO));
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+			v4l2_i2c_new_probed_subdev(&core->v4l2_dev,
+				&core->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (core->board.tuner_addr == ADDR_UNSET) {
-			v4l2_i2c_new_probed_subdev(&core->i2c_adap, "tuner",
-				"tuner", has_demod ? tv_addrs + 4 : tv_addrs);
+			v4l2_i2c_new_probed_subdev(&core->v4l2_dev,
+				&core->i2c_adap, "tuner", "tuner",
+				has_demod ? tv_addrs + 4 : tv_addrs);
 		} else {
-			v4l2_i2c_new_subdev(&core->i2c_adap,
+			v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
 				"tuner", "tuner", core->board.tuner_addr);
 		}
 	}

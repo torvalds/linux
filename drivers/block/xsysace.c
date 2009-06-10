@@ -89,6 +89,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
 #if defined(CONFIG_OF)
@@ -208,7 +209,7 @@ struct ace_device {
 	struct gendisk *gd;
 
 	/* Inserted CF card parameters */
-	struct hd_driveid cf_id;
+	u16 cf_id[ATA_ID_WORDS];
 };
 
 static int ace_major;
@@ -402,21 +403,14 @@ static void ace_dump_regs(struct ace_device *ace)
 		 ace_in32(ace, ACE_CFGLBA), ace_in(ace, ACE_FATSTAT));
 }
 
-void ace_fix_driveid(struct hd_driveid *id)
+void ace_fix_driveid(u16 *id)
 {
 #if defined(__BIG_ENDIAN)
-	u16 *buf = (void *)id;
 	int i;
 
 	/* All half words have wrong byte order; swap the bytes */
-	for (i = 0; i < sizeof(struct hd_driveid); i += 2, buf++)
-		*buf = le16_to_cpu(*buf);
-
-	/* Some of the data values are 32bit; swap the half words  */
-	id->lba_capacity = ((id->lba_capacity >> 16) & 0x0000FFFF) |
-	    ((id->lba_capacity << 16) & 0xFFFF0000);
-	id->spg = ((id->spg >> 16) & 0x0000FFFF) |
-	    ((id->spg << 16) & 0xFFFF0000);
+	for (i = 0; i < ATA_ID_WORDS; i++, id++)
+		*id = le16_to_cpu(*id);
 #endif
 }
 
@@ -569,7 +563,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 	case ACE_FSM_STATE_IDENTIFY_PREPARE:
 		/* Send identify command */
 		ace->fsm_task = ACE_TASK_IDENTIFY;
-		ace->data_ptr = &ace->cf_id;
+		ace->data_ptr = ace->cf_id;
 		ace->data_count = ACE_BUF_PER_SECTOR;
 		ace_out(ace, ACE_SECCNTCMD, ACE_SECCNTCMD_IDENTIFY);
 
@@ -614,8 +608,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		break;
 
 	case ACE_FSM_STATE_IDENTIFY_COMPLETE:
-		ace_fix_driveid(&ace->cf_id);
-		ace_dump_mem(&ace->cf_id, 512);	/* Debug: Dump out disk ID */
+		ace_fix_driveid(ace->cf_id);
+		ace_dump_mem(ace->cf_id, 512);	/* Debug: Dump out disk ID */
 
 		if (ace->data_result) {
 			/* Error occured, disable the disk */
@@ -627,9 +621,10 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->media_change = 0;
 
 			/* Record disk parameters */
-			set_capacity(ace->gd, ace->cf_id.lba_capacity);
+			set_capacity(ace->gd,
+				ata_id_u32(ace->cf_id, ATA_ID_LBA_CAPACITY));
 			dev_info(ace->dev, "capacity: %i sectors\n",
-				 ace->cf_id.lba_capacity);
+				ata_id_u32(ace->cf_id, ATA_ID_LBA_CAPACITY));
 		}
 
 		/* We're done, drop to IDLE state and notify waiters */
@@ -928,12 +923,13 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct ace_device *ace = bdev->bd_disk->private_data;
+	u16 *cf_id = ace->cf_id;
 
 	dev_dbg(ace->dev, "ace_getgeo()\n");
 
-	geo->heads = ace->cf_id.heads;
-	geo->sectors = ace->cf_id.sectors;
-	geo->cylinders = ace->cf_id.cyls;
+	geo->heads	= cf_id[ATA_ID_HEADS];
+	geo->sectors	= cf_id[ATA_ID_SECTORS];
+	geo->cylinders	= cf_id[ATA_ID_CYLS];
 
 	return 0;
 }

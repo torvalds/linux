@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.3.2"
+#define DRIVER_VERSION "v.1.3.3"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -259,8 +259,20 @@ static int sierra_send_setup(struct tty_struct *tty,
 			val |= 0x02;
 
 		/* If composite device then properly report interface */
-		if (serial->num_ports == 1)
+		if (serial->num_ports == 1) {
 			interface = sierra_calc_interface(serial);
+
+			/* Control message is sent only to interfaces with
+			 * interrupt_in endpoints
+			 */
+			if (port->interrupt_in_urb) {
+				/* send control message */
+				return usb_control_msg(serial->dev,
+					usb_rcvctrlpipe(serial->dev, 0),
+					0x22, 0x21, val, interface,
+					NULL, 0, USB_CTRL_SET_TIMEOUT);
+			}
+		}
 
 		/* Otherwise the need to do non-composite mapping */
 		else {
@@ -270,12 +282,13 @@ static int sierra_send_setup(struct tty_struct *tty,
 				interface = 1;
 			else if (port->bulk_out_endpointAddress == 5)
 				interface = 2;
-		}
 
-		return usb_control_msg(serial->dev,
+			return usb_control_msg(serial->dev,
 				usb_rcvctrlpipe(serial->dev, 0),
 				0x22, 0x21, val, interface,
 				NULL, 0, USB_CTRL_SET_TIMEOUT);
+
+		}
 	}
 
 	return 0;
@@ -584,9 +597,6 @@ static int sierra_open(struct tty_struct *tty,
 				i, result, urb->transfer_buffer_length);
 		}
 	}
-
-	if (tty)
-		tty->low_latency = 1;
 
 	sierra_send_setup(tty, port);
 

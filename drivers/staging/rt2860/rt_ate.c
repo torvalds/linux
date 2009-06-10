@@ -68,7 +68,6 @@ static int CheckMCSValid(
 	IN UCHAR Mode,
 	IN UCHAR Mcs);
 
-#ifdef RT2860
 static VOID ATEWriteTxWI(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PTXWI_STRUC 	pOutTxWI,
@@ -87,7 +86,6 @@ static VOID ATEWriteTxWI(
 	IN	UCHAR			Txopmode,
 	IN	BOOLEAN			CfAck,
 	IN	HTTRANSMIT_SETTING	*pTransmit);
-#endif // RT2860 //
 
 
 static VOID SetJapanFilter(
@@ -95,7 +93,6 @@ static VOID SetJapanFilter(
 
 /*=========================end of prototype=========================*/
 
-#ifdef RT2860
 static INT TxDmaBusy(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -153,7 +150,6 @@ static VOID RtmpDmaEnable(
 
 	return;
 }
-#endif // RT2860 //
 
 
 static VOID BbpSoftReset(
@@ -488,7 +484,6 @@ static INT ATETxPwrHandler(
         TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-#ifdef RT2860
 static INT	ATECmdHandler(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
@@ -1297,7 +1292,6 @@ static INT	ATECmdHandler(
 
 	return TRUE;
 }
-#endif // RT2860 //
 /*                                                           */
 /*                                                           */
 /*=======================End of RT2860=======================*/
@@ -2907,7 +2901,6 @@ VOID ATEAsicAdjustTxPower(
 		None
 	========================================================================
 */
-#ifdef RT2860
 static VOID ATEWriteTxWI(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PTXWI_STRUC 	pOutTxWI,
@@ -2972,7 +2965,6 @@ static VOID ATEWriteTxWI(
 
         return;
 }
-#endif // RT2860 //
 
 /*
 	========================================================================
@@ -3249,13 +3241,11 @@ VOID RTMPStationStart(
     IN  PRTMP_ADAPTER   pAd)
 {
     ATEDBGPRINT(RT_DEBUG_TRACE, ("==> RTMPStationStart\n"));
-#ifdef RT2860
-	pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
+epAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 	//
 	// We did not cancel this timer when entering ATE mode.
 	//
 //	RTMPSetTimer(&pAd->Mlme.PeriodicTimer, MLME_TASK_EXEC_INTV);
-#endif // RT2860 //
 	ATEDBGPRINT(RT_DEBUG_TRACE, ("<== RTMPStationStart\n"));
 }
 #endif // CONFIG_STA_SUPPORT //
@@ -3268,7 +3258,6 @@ VOID RTMPStationStart(
 		This routine should only be used in ATE mode.
 	==========================================================================
  */
-#ifdef RT2860
 static INT ATESetUpFrame(
 	IN PRTMP_ADAPTER pAd,
 	IN UINT32 TxIdx)
@@ -3455,7 +3444,6 @@ static INT ATESetUpFrame(
 /*                                                           */
 /*                                                           */
 /*=======================End of RT2860=======================*/
-#endif // RT2860 //
 
 
 VOID rt_ee_read_all(PRTMP_ADAPTER pAd, USHORT *Data)
@@ -4578,9 +4566,7 @@ VOID RtmpDoAte(
 						{
 							if (pAdapter->ate.TxCount == 0)
 							{
-#ifdef RT2860
 								pAdapter->ate.TxCount = 0xFFFFFFFF;
-#endif // RT2860 //
 							}
 							ATEDBGPRINT(RT_DEBUG_TRACE,("START TXFRAME\n"));
 							pAdapter->ate.bQATxStart = TRUE;
@@ -5375,7 +5361,6 @@ TX_START_ERROR:
 
 				memcpy((PUCHAR)&value, (PUCHAR)&(pRaCfg->status), 2);
 				value = ntohs(value);
-#ifdef RT2860
 				/* TX_FRAME_COUNT == 0 means tx infinitely */
 				if (value == 0)
 				{
@@ -5387,7 +5372,6 @@ TX_START_ERROR:
 
 				}
 				else
-#endif // RT2860 //
 				{
 					sprintf((PCHAR)str, "%d", value);
 					Set_ATE_TX_COUNT_Proc(pAdapter, str);

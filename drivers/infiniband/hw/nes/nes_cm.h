@@ -149,6 +149,7 @@ struct nes_timer_entry {
 #endif
 #define NES_SHORT_TIME      (10)
 #define NES_LONG_TIME       (2000*HZ/1000)
+#define NES_MAX_TIMEOUT     ((unsigned long) (12*HZ))
 
 #define NES_CM_HASHTABLE_SIZE         1024
 #define NES_CM_TCP_TIMER_INTERVAL     3000
@@ -298,7 +299,6 @@ struct nes_cm_node {
 	struct nes_vnic           *nesvnic;
 	int                       apbvt_set;
 	int                       accept_pend;
-	int			freed;
 	struct list_head	timer_entry;
 	struct list_head	reset_entry;
 	struct nes_qp		*nesqp;

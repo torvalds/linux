@@ -44,22 +44,23 @@
 #define _SXG_DEBUG_H_
 
 #define ATKDBG  1
-#define ATK_TRACE_ENABLED 1
+#define ATK_TRACE_ENABLED 0
 
-#define DBG_ERROR(n, args...)	printk(KERN_EMERG n, ##args)
+#define DBG_ERROR(n, args...)	printk(KERN_WARNING n, ##args)
 
 #ifdef ASSERT
 #undef ASSERT
 #endif
 
+#define SXG_ASSERT_ENABLED
 #ifdef SXG_ASSERT_ENABLED
 #ifndef ASSERT
-#define ASSERT(a)                                                                 \
-    {                                                                             \
-        if (!(a)) {                                                               \
-            DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n",\
-                __FILE__, __func__, __LINE__);                                \
-        }                                                                         \
+#define ASSERT(a)                                                          \
+    {                                                                      \
+        if (!(a)) {                                                        \
+            DBG_ERROR("ASSERT() Failure: file %s, function %s  line %d\n", \
+                __FILE__, __func__, __LINE__);                             \
+        }                                                                  \
     }
 #endif
 #else
@@ -78,7 +79,7 @@
 extern ulong ATKTimerDiv;
 
 /*
- * trace_entry_t -
+ * trace_entry -
  *
  * This structure defines an entry in the trace buffer.  The
  * first few fields mean the same from entry to entry, while
@@ -86,34 +87,34 @@ extern ulong ATKTimerDiv;
  * needs of the trace entry.  Typically they are function call
  * parameters.
  */
-struct trace_entry_t {
-        char      name[8];        /* 8 character name - like 's'i'm'b'a'r'c'v' */
-        u32   time;           /* Current clock tic */
-        unsigned char     cpu;            /* Current CPU */
-        unsigned char     irql;           /* Current IRQL */
-        unsigned char     driver;         /* The driver which added the trace call */
-        unsigned char     pad2;           /* pad to 4 byte boundary - will probably get used */
-        u32   arg1;           /* Caller arg1 */
-        u32   arg2;           /* Caller arg2 */
-        u32   arg3;           /* Caller arg3 */
-        u32   arg4;           /* Caller arg4 */
+struct trace_entry {
+        char      	name[8];/* 8 character name - like 's'i'm'b'a'r'c'v' */
+        u32   		time;  /* Current clock tic */
+        unsigned char   cpu;   /* Current CPU */
+        unsigned char   irql;  /* Current IRQL */
+        unsigned char   driver;/* The driver which added the trace call */
+	/* pad to 4 byte boundary - will probably get used */
+        unsigned char   pad2;
+        u32		arg1;           /* Caller arg1 */
+        u32		arg2;           /* Caller arg2 */
+        u32		arg3;           /* Caller arg3 */
+        u32		arg4;           /* Caller arg4 */
 };
 
-/*
- * Driver types for driver field in trace_entry_t
- */
+/* Driver types for driver field in struct trace_entry */
 #define TRACE_SXG             1
 #define TRACE_VPCI            2
 #define TRACE_SLIC            3
 
 #define TRACE_ENTRIES   1024
 
-struct sxg_trace_buffer_t {
-        unsigned int                    size;                  /* aid for windbg extension */
-        unsigned int                    in;                    /* Where to add */
-        unsigned int                    level;                 /* Current Trace level */
-	spinlock_t	lock;                  /* For MP tracing */
-        struct trace_entry_t           entries[TRACE_ENTRIES];/* The circular buffer */
+struct sxg_trace_buffer {
+	/* aid for windbg extension */
+	unsigned int            size;
+	unsigned int            in;                    /* Where to add */
+	unsigned int            level;                 /* Current Trace level */
+	spinlock_t		lock;                  /* For MP tracing */
+	struct trace_entry	entries[TRACE_ENTRIES];/* The circular buffer */
 };
 
 /*
@@ -128,15 +129,11 @@ struct sxg_trace_buffer_t {
 #define TRACE_NOISY             10  /* Everything in the world */
 
 
-/**********************************************************************
- *
- * The macros themselves -
- *
- *********************************************************************/
+/* The macros themselves */
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE_INIT(buffer, tlevel)				\
 {								\
-	memset((buffer), 0, sizeof(struct sxg_trace_buffer_t));	\
+	memset((buffer), 0, sizeof(struct sxg_trace_buffer));	\
 	(buffer)->level = (tlevel);				\
 	(buffer)->size = TRACE_ENTRIES;				\
 	spin_lock_init(&(buffer)->lock);			\
@@ -145,40 +142,38 @@ struct sxg_trace_buffer_t {
 #define SXG_TRACE_INIT(buffer, tlevel)
 #endif
 
-/*
- * The trace macro.  This is active only if ATK_TRACE_ENABLED is set.
- */
+/*The trace macro.  This is active only if ATK_TRACE_ENABLED is set. */
 #if ATK_TRACE_ENABLED
 #define SXG_TRACE(tdriver, buffer, tlevel, tname, a1, a2, a3, a4) {        \
-        if ((buffer) && ((buffer)->level >= (tlevel))) {                      \
-                unsigned int            trace_irql = 0;    /* ?????? FIX THIS  */    \
-                unsigned int            trace_len;                                   \
-                struct trace_entry_t	*trace_entry;				\
-                struct timeval  timev;                                       \
-                                                                             \
-                spin_lock(&(buffer)->lock);                       \
-                trace_entry = &(buffer)->entries[(buffer)->in];              \
-                do_gettimeofday(&timev);                                     \
-                                                                             \
-                memset(trace_entry->name, 0, 8);                             \
-                trace_len = strlen(tname);                                   \
-                trace_len = trace_len > 8 ? 8 : trace_len;                   \
-                memcpy(trace_entry->name, (tname), trace_len);               \
-                trace_entry->time = timev.tv_usec;                           \
-                trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);       \
-                trace_entry->driver = (tdriver);                             \
-                trace_entry->irql = trace_irql;                              \
-                trace_entry->arg1 = (ulong)(a1);                             \
-                trace_entry->arg2 = (ulong)(a2);                             \
-                trace_entry->arg3 = (ulong)(a3);                             \
-                trace_entry->arg4 = (ulong)(a4);                             \
-                                                                             \
-                (buffer)->in++;                                              \
-                if ((buffer)->in == TRACE_ENTRIES)                           \
-                        (buffer)->in = 0;                                    \
-                                                                             \
-                spin_unlock(&(buffer)->lock);                       \
-        }                                                                    \
+        if ((buffer) && ((buffer)->level >= (tlevel))) {                   \
+                unsigned int            trace_irql = 0;/* ?????? FIX THIS */\
+                unsigned int            trace_len;                          \
+                struct trace_entry	*trace_entry;			    \
+                struct timeval  timev;                                      \
+		if(spin_trylock(&(buffer)->lock))	{		     \
+	                trace_entry = &(buffer)->entries[(buffer)->in];      \
+        	        do_gettimeofday(&timev);                             \
+                	                                                     \
+	                memset(trace_entry->name, 0, 8);                     \
+        	        trace_len = strlen(tname);                           \
+	                trace_len = trace_len > 8 ? 8 : trace_len;           \
+        	        memcpy(trace_entry->name, (tname), trace_len);       \
+	                trace_entry->time = timev.tv_usec;                   \
+			trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);\
+	                trace_entry->driver = (tdriver);                     \
+        	        trace_entry->irql = trace_irql;                      \
+	                trace_entry->arg1 = (ulong)(a1);                     \
+        	        trace_entry->arg2 = (ulong)(a2);                     \
+	                trace_entry->arg3 = (ulong)(a3);                     \
+        	        trace_entry->arg4 = (ulong)(a4);                     \
+	                                                                     \
+        	        (buffer)->in++;                                      \
+                	if ((buffer)->in == TRACE_ENTRIES)                   \
+	                        (buffer)->in = 0;                            \
+        	                                                             \
+			spin_unlock(&(buffer)->lock);                        \
+ 	       	}                                                            \
+	}								     \
 }
 #else
 #define SXG_TRACE(tdriver, buffer, tlevel, tname, a1, a2, a3, a4)

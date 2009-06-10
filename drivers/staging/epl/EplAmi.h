@@ -69,7 +69,7 @@
 
    16.09.2002  -as
                To save code space the functions AmiSetByte and AmiGetByte
-               are replaced by macros. For targets which assign BYTE by
+               are replaced by macros. For targets which assign u8 by
                an 16Bit type, the definition of macros must changed to
                functions.
 
@@ -86,11 +86,6 @@
 #ifndef _EPLAMI_H_
 #define _EPLAMI_H_
 
-#if ((DEV_SYSTEM & _DEV_64BIT_SUPPORT_) == 0)
-//    #ifdef USE_VAR64
-#error 'ERROR: development system does not support 64 bit operations!'
-//    #endif
-#endif
 
 //---------------------------------------------------------------------------
 //  types
@@ -104,44 +99,21 @@
 extern "C" {
 #endif
 
-#if (TARGET_SYSTEM == _WIN32_)
-#if defined(INLINE_FUNCTION_DEF)
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-#define INLINE_ENABLED      TRUE
-#define EPL_AMI_INLINED
-#include "../EplStack/amix86.c"
-#endif
-
-#elif (TARGET_SYSTEM == _LINUX_)
-#if defined(__m68k__)		// it is an big endian machine
-#if defined(INLINE_FUNCTION_DEF)
-#undef  INLINE_FUNCTION
-#define INLINE_FUNCTION     INLINE_FUNCTION_DEF
-#define INLINE_ENABLED      TRUE
-#define EPL_AMI_INLINED
-#include "../EplStack/amibe.c"
-#endif
-#endif
-#endif
-
 //---------------------------------------------------------------------------
 //
 // write functions
 //
 // To save code space the function AmiSetByte is replaced by
 // an macro.
-// void   PUBLIC  AmiSetByte  (void FAR* pAddr_p, BYTE bByteVal_p);
+// void  AmiSetByte  (void * pAddr_p, u8 bByteVal_p);
 
-#define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(BYTE FAR*)(pAddr_p) = (bByteVal_p);}
-#define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(BYTE FAR*)(pAddr_p) = (bByteVal_p);}
+#define AmiSetByteToBe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
+#define AmiSetByteToLe(pAddr_p, bByteVal_p)  {*(u8 *)(pAddr_p) = (bByteVal_p);}
 
-#if !defined(INLINE_ENABLED)
-	void PUBLIC AmiSetWordToBe(void FAR * pAddr_p, WORD wWordVal_p);
-	void PUBLIC AmiSetDwordToBe(void FAR * pAddr_p, DWORD dwDwordVal_p);
-	void PUBLIC AmiSetWordToLe(void FAR * pAddr_p, WORD wWordVal_p);
-	void PUBLIC AmiSetDwordToLe(void FAR * pAddr_p, DWORD dwDwordVal_p);
-#endif
+void AmiSetWordToBe(void *pAddr_p, u16 wWordVal_p);
+void AmiSetDwordToBe(void *pAddr_p, u32 dwDwordVal_p);
+void AmiSetWordToLe(void *pAddr_p, u16 wWordVal_p);
+void AmiSetDwordToLe(void *pAddr_p, u32 dwDwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -149,17 +121,15 @@ extern "C" {
 //
 // To save code space the function AmiGetByte is replaced by
 // an macro.
-// BYTE   PUBLIC  AmiGetByte  (void FAR* pAddr_p);
+// u8   AmiGetByte  (void * pAddr_p);
 
-#define AmiGetByteFromBe(pAddr_p)  (*(BYTE FAR*)(pAddr_p))
-#define AmiGetByteFromLe(pAddr_p)  (*(BYTE FAR*)(pAddr_p))
+#define AmiGetByteFromBe(pAddr_p)  (*(u8 *)(pAddr_p))
+#define AmiGetByteFromLe(pAddr_p)  (*(u8 *)(pAddr_p))
 
-#if !defined(INLINE_ENABLED)
-
-	WORD PUBLIC AmiGetWordFromBe(void FAR * pAddr_p);
-	DWORD PUBLIC AmiGetDwordFromBe(void FAR * pAddr_p);
-	WORD PUBLIC AmiGetWordFromLe(void FAR * pAddr_p);
-	DWORD PUBLIC AmiGetDwordFromLe(void FAR * pAddr_p);
+u16 AmiGetWordFromBe(void *pAddr_p);
+u32 AmiGetDwordFromBe(void *pAddr_p);
+u16 AmiGetWordFromLe(void *pAddr_p);
+u32 AmiGetDwordFromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -174,8 +144,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	void PUBLIC AmiSetDword24ToBe(void FAR * pAddr_p, DWORD dwDwordVal_p);
-	void PUBLIC AmiSetDword24ToLe(void FAR * pAddr_p, DWORD dwDwordVal_p);
+void AmiSetDword24ToBe(void *pAddr_p, u32 dwDwordVal_p);
+void AmiSetDword24ToLe(void *pAddr_p, u32 dwDwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -185,12 +155,12 @@ extern "C" {
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      DWORD           = read value
+// Return:      u32           = read value
 //
 //---------------------------------------------------------------------------
 
-	DWORD PUBLIC AmiGetDword24FromBe(void FAR * pAddr_p);
-	DWORD PUBLIC AmiGetDword24FromLe(void FAR * pAddr_p);
+u32 AmiGetDword24FromBe(void *pAddr_p);
+u32 AmiGetDword24FromLe(void *pAddr_p);
 
 //#ifdef USE_VAR64
 
@@ -207,8 +177,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	void PUBLIC AmiSetQword40ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
-	void PUBLIC AmiSetQword40ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword40ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword40ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -218,12 +188,12 @@ extern "C" {
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-	QWORD PUBLIC AmiGetQword40FromBe(void FAR * pAddr_p);
-	QWORD PUBLIC AmiGetQword40FromLe(void FAR * pAddr_p);
+u64 AmiGetQword40FromBe(void *pAddr_p);
+u64 AmiGetQword40FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -238,8 +208,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	void PUBLIC AmiSetQword48ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
-	void PUBLIC AmiSetQword48ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword48ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword48ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -249,12 +219,12 @@ extern "C" {
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-	QWORD PUBLIC AmiGetQword48FromBe(void FAR * pAddr_p);
-	QWORD PUBLIC AmiGetQword48FromLe(void FAR * pAddr_p);
+u64 AmiGetQword48FromBe(void *pAddr_p);
+u64 AmiGetQword48FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -269,8 +239,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	void PUBLIC AmiSetQword56ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
-	void PUBLIC AmiSetQword56ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword56ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword56ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -280,12 +250,12 @@ extern "C" {
 //
 // Parameters:  pAddr_p         = pointer to source buffer
 //
-// Return:      QWORD
+// Return:      u64
 //
 //---------------------------------------------------------------------------
 
-	QWORD PUBLIC AmiGetQword56FromBe(void FAR * pAddr_p);
-	QWORD PUBLIC AmiGetQword56FromLe(void FAR * pAddr_p);
+u64 AmiGetQword56FromBe(void *pAddr_p);
+u64 AmiGetQword56FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -300,8 +270,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	void PUBLIC AmiSetQword64ToBe(void FAR * pAddr_p, QWORD qwQwordVal_p);
-	void PUBLIC AmiSetQword64ToLe(void FAR * pAddr_p, QWORD qwQwordVal_p);
+void AmiSetQword64ToBe(void *pAddr_p, u64 qwQwordVal_p);
+void AmiSetQword64ToLe(void *pAddr_p, u64 qwQwordVal_p);
 
 //---------------------------------------------------------------------------
 //
@@ -315,8 +285,8 @@ extern "C" {
 //
 //---------------------------------------------------------------------------
 
-	QWORD PUBLIC AmiGetQword64FromBe(void FAR * pAddr_p);
-	QWORD PUBLIC AmiGetQword64FromLe(void FAR * pAddr_p);
+u64 AmiGetQword64FromBe(void *pAddr_p);
+u64 AmiGetQword64FromLe(void *pAddr_p);
 
 //---------------------------------------------------------------------------
 //
@@ -330,9 +300,7 @@ extern "C" {
 // Return:      void
 //
 //---------------------------------------------------------------------------
-
-	void PUBLIC AmiSetTimeOfDay(void FAR * pAddr_p,
-				    tTimeOfDay FAR * pTimeOfDay_p);
+void AmiSetTimeOfDay(void *pAddr_p, tTimeOfDay *pTimeOfDay_p);
 
 //---------------------------------------------------------------------------
 //
@@ -346,14 +314,7 @@ extern "C" {
 // Return:      void
 //
 //---------------------------------------------------------------------------
-
-	void PUBLIC AmiGetTimeOfDay(void FAR * pAddr_p,
-				    tTimeOfDay FAR * pTimeOfDay_p);
-
-#endif
-
-#undef  INLINE_ENABLED		// disable actual inlining of functions
-#define EPL_AMI_INCLUDED
+void AmiGetTimeOfDay(void *pAddr_p, tTimeOfDay *pTimeOfDay_p);
 
 #ifdef __cplusplus
 }

@@ -684,15 +684,16 @@ static int snd_sb_csp_load(struct snd_sb_csp * p, const unsigned char *buf, int 
  
 static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __user *buf, int size, int load_flags)
 {
-	int err = -ENOMEM;
-	unsigned char *kbuf = kmalloc(size, GFP_KERNEL);
-	if (kbuf) {
-		if (copy_from_user(kbuf, buf, size))
-			err = -EFAULT;
-		else
-			err = snd_sb_csp_load(p, kbuf, size, load_flags);
-		kfree(kbuf);
-	}
+	int err;
+	unsigned char *kbuf;
+
+	kbuf = memdup_user(buf, size);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
+
+	err = snd_sb_csp_load(p, kbuf, size, load_flags);
+
+	kfree(kbuf);
 	return err;
 }
 

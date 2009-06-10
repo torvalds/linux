@@ -61,8 +61,7 @@ static int bq24022_disable(struct regulator_dev *rdev)
 
 static int bq24022_is_enabled(struct regulator_dev *rdev)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
 	return !gpio_get_value(pdata->gpio_nce);
 }
@@ -105,7 +104,8 @@ static int __init bq24022_probe(struct platform_device *pdev)
 	ret = gpio_direction_output(pdata->gpio_iset2, 0);
 	ret = gpio_direction_output(pdata->gpio_nce, 1);
 
-	bq24022 = regulator_register(&bq24022_desc, &pdev->dev, pdata);
+	bq24022 = regulator_register(&bq24022_desc, &pdev->dev,
+				     pdata->init_data, pdata);
 	if (IS_ERR(bq24022)) {
 		dev_dbg(&pdev->dev, "couldn't register regulator\n");
 		ret = PTR_ERR(bq24022);

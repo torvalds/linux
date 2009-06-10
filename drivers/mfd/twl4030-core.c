@@ -592,11 +592,9 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 
 	/* maybe add LDOs that are omitted on cost-reduced parts */
 	if (twl_has_regulator() && !(features & TPS_SUBSET)) {
-		/*
 		child = add_regulator(TWL4030_REG_VPLL2, pdata->vpll2);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
-		*/
 
 		child = add_regulator(TWL4030_REG_VMMC2, pdata->vmmc2);
 		if (IS_ERR(child))

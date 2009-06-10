@@ -101,9 +101,9 @@ static int me_subdevice_io_single_write(struct me_subdevice *subdevice,
 
 static int me_subdevice_io_stream_config(struct me_subdevice *subdevice,
 					 struct file *filep,
-					 meIOStreamConfig_t * config_list,
+					 meIOStreamConfig_t *config_list,
 					 int count,
-					 meIOStreamTrigger_t * trigger,
+					 meIOStreamTrigger_t *trigger,
 					 int fifo_irq_threshold, int flags)
 {
 	PDEBUG("executed.\n");
@@ -162,7 +162,7 @@ static int me_subdevice_io_stream_write(struct me_subdevice *subdevice,
 	return ME_ERRNO_NOT_SUPPORTED;
 }
 
-static int me_subdevice_lock_subdevice(me_subdevice_t * subdevice,
+static int me_subdevice_lock_subdevice(me_subdevice_t *subdevice,
 				       struct file *filep, int lock, int flags)
 {
 	PDEBUG("executed.\n");
@@ -235,7 +235,7 @@ static int me_subdevice_query_timer(struct me_subdevice *subdevice,
 }
 
 static int me_subdevice_config_load(struct me_subdevice *subdevice,
-				    me_cfg_device_entry_t * config)
+				    me_cfg_device_entry_t *config)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_SUCCESS;
@@ -248,7 +248,7 @@ static void me_subdevice_destructor(struct me_subdevice *subdevice)
 	kfree(subdevice);
 }
 
-int me_subdevice_init(me_subdevice_t * subdevice)
+int me_subdevice_init(me_subdevice_t *subdevice)
 {
 	int err;
 
@@ -308,7 +308,7 @@ int me_subdevice_init(me_subdevice_t * subdevice)
 	return 0;
 }
 
-void me_subdevice_deinit(me_subdevice_t * subdevice)
+void me_subdevice_deinit(me_subdevice_t *subdevice)
 {
 	PDEBUG("executed.\n");
 	me_subdevice_io_reset_subdevice(subdevice, NULL,

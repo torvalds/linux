@@ -3104,7 +3104,6 @@ static int omap_udc_resume(struct platform_device *dev)
 /*-------------------------------------------------------------------------*/
 
 static struct platform_driver udc_driver = {
-	.probe		= omap_udc_probe,
 	.remove		= __exit_p(omap_udc_remove),
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
@@ -3122,7 +3121,7 @@ static int __init udc_init(void)
 #endif
 		"%s\n", driver_desc,
 		use_dma ?  " (dma)" : "");
-	return platform_driver_register(&udc_driver);
+	return platform_driver_probe(&udc_driver, omap_udc_probe);
 }
 module_init(udc_init);
 

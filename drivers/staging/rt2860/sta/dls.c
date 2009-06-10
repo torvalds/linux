@@ -1419,7 +1419,6 @@ BOOLEAN RTMPRcvFrameDLSCheck(
 				//AsicAddKeyEntry(pAd, (USHORT)(i + 2), BSS0, 0, &PairwiseKey, TRUE, TRUE);	// reserve 0 for multicast, 1 for unicast
 				//AsicUpdateRxWCIDTable(pAd, (USHORT)(i + 2), pAddr);
 				// Add Pair-wise key to Asic
-#ifdef RT2860
             	AsicAddPairwiseKeyEntry(pAd,
 										pAd->StaCfg.DLSEntry[i].MacAddr,
 										(UCHAR)pAd->StaCfg.DLSEntry[i].MacTabMatchWCID,
@@ -1431,7 +1430,6 @@ BOOLEAN RTMPRcvFrameDLSCheck(
 										  PairwiseKey.CipherAlg,
 										  pEntry);
 
-#endif // RT2860 //
 				NdisMoveMemory(&pEntry->PairwiseKey, &PairwiseKey, sizeof(CIPHER_KEY));
 				DBGPRINT(RT_DEBUG_TRACE,("DLS - Receive STAKey Message-1 (Peer STA MAC Address STAKey) \n"));
 
@@ -1477,7 +1475,6 @@ BOOLEAN RTMPRcvFrameDLSCheck(
 				//AsicAddKeyEntry(pAd, (USHORT)(i + 2), BSS0, 0, &PairwiseKey, TRUE, TRUE);	// reserve 0 for multicast, 1 for unicast
 				//AsicUpdateRxWCIDTable(pAd, (USHORT)(i + 2), pAddr);
 				// Add Pair-wise key to Asic
-#ifdef RT2860
             	AsicAddPairwiseKeyEntry(pAd,
 										pAd->StaCfg.DLSEntry[i].MacAddr,
 										(UCHAR)pAd->StaCfg.DLSEntry[i].MacTabMatchWCID,
@@ -1488,7 +1485,6 @@ BOOLEAN RTMPRcvFrameDLSCheck(
 										  0,
 										  PairwiseKey.CipherAlg,
 										  pEntry);
-#endif // RT2860 //
 				NdisMoveMemory(&pEntry->PairwiseKey, &PairwiseKey, sizeof(CIPHER_KEY));
 				DBGPRINT(RT_DEBUG_TRACE,("DLS - Receive STAKey Message-1 (Initiator STA MAC Address STAKey)\n"));
 

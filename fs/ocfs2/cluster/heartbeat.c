@@ -33,6 +33,7 @@
 #include <linux/random.h>
 #include <linux/crc32.h>
 #include <linux/time.h>
+#include <linux/debugfs.h>
 
 #include "heartbeat.h"
 #include "tcp.h"
@@ -59,6 +60,11 @@ static struct list_head o2hb_live_slots[O2NM_MAX_NODES];
 static unsigned long o2hb_live_node_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 static LIST_HEAD(o2hb_node_events);
 static DECLARE_WAIT_QUEUE_HEAD(o2hb_steady_queue);
+
+#define O2HB_DEBUG_DIR			"o2hb"
+#define O2HB_DEBUG_LIVENODES		"livenodes"
+static struct dentry *o2hb_debug_dir;
+static struct dentry *o2hb_debug_livenodes;
 
 static LIST_HEAD(o2hb_all_regions);
 
@@ -905,7 +911,77 @@ static int o2hb_thread(void *data)
 	return 0;
 }
 
-void o2hb_init(void)
+#ifdef CONFIG_DEBUG_FS
+static int o2hb_debug_open(struct inode *inode, struct file *file)
+{
+	unsigned long map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	char *buf = NULL;
+	int i = -1;
+	int out = 0;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		goto bail;
+
+	o2hb_fill_node_map(map, sizeof(map));
+
+	while ((i = find_next_bit(map, O2NM_MAX_NODES, i + 1)) < O2NM_MAX_NODES)
+		out += snprintf(buf + out, PAGE_SIZE - out, "%d ", i);
+	out += snprintf(buf + out, PAGE_SIZE - out, "\n");
+
+	i_size_write(inode, out);
+
+	file->private_data = buf;
+
+	return 0;
+bail:
+	return -ENOMEM;
+}
+
+static int o2hb_debug_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static ssize_t o2hb_debug_read(struct file *file, char __user *buf,
+				 size_t nbytes, loff_t *ppos)
+{
+	return simple_read_from_buffer(buf, nbytes, ppos, file->private_data,
+				       i_size_read(file->f_mapping->host));
+}
+#else
+static int o2hb_debug_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+static int o2hb_debug_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+static ssize_t o2hb_debug_read(struct file *file, char __user *buf,
+			       size_t nbytes, loff_t *ppos)
+{
+	return 0;
+}
+#endif  /* CONFIG_DEBUG_FS */
+
+static struct file_operations o2hb_debug_fops = {
+	.open =		o2hb_debug_open,
+	.release =	o2hb_debug_release,
+	.read =		o2hb_debug_read,
+	.llseek =	generic_file_llseek,
+};
+
+void o2hb_exit(void)
+{
+	if (o2hb_debug_livenodes)
+		debugfs_remove(o2hb_debug_livenodes);
+	if (o2hb_debug_dir)
+		debugfs_remove(o2hb_debug_dir);
+}
+
+int o2hb_init(void)
 {
 	int i;
 
@@ -918,6 +994,24 @@ void o2hb_init(void)
 	INIT_LIST_HEAD(&o2hb_node_events);
 
 	memset(o2hb_live_node_bitmap, 0, sizeof(o2hb_live_node_bitmap));
+
+	o2hb_debug_dir = debugfs_create_dir(O2HB_DEBUG_DIR, NULL);
+	if (!o2hb_debug_dir) {
+		mlog_errno(-ENOMEM);
+		return -ENOMEM;
+	}
+
+	o2hb_debug_livenodes = debugfs_create_file(O2HB_DEBUG_LIVENODES,
+						   S_IFREG|S_IRUSR,
+						   o2hb_debug_dir, NULL,
+						   &o2hb_debug_fops);
+	if (!o2hb_debug_livenodes) {
+		mlog_errno(-ENOMEM);
+		debugfs_remove(o2hb_debug_dir);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /* if we're already in a callback then we're already serialized by the sem */

@@ -12,6 +12,7 @@
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/cgroup.h>
+#include <linux/mm.h>
 
 #ifdef CONFIG_CPUSETS
 
@@ -29,19 +30,29 @@ void cpuset_init_current_mems_allowed(void);
 void cpuset_update_task_memory_state(void);
 int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
 
-extern int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask);
-extern int __cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask);
+extern int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask);
+extern int __cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask);
 
-static int inline cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
+static inline int cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
 {
 	return number_of_cpusets <= 1 ||
-		__cpuset_zone_allowed_softwall(z, gfp_mask);
+		__cpuset_node_allowed_softwall(node, gfp_mask);
 }
 
-static int inline cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
+static inline int cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask)
 {
 	return number_of_cpusets <= 1 ||
-		__cpuset_zone_allowed_hardwall(z, gfp_mask);
+		__cpuset_node_allowed_hardwall(node, gfp_mask);
+}
+
+static inline int cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask)
+{
+	return cpuset_node_allowed_softwall(zone_to_nid(z), gfp_mask);
+}
+
+static inline int cpuset_zone_allowed_hardwall(struct zone *z, gfp_t gfp_mask)
+{
+	return cpuset_node_allowed_hardwall(zone_to_nid(z), gfp_mask);
 }
 
 extern int cpuset_mems_allowed_intersects(const struct task_struct *tsk1,
@@ -108,6 +119,16 @@ static inline void cpuset_init_current_mems_allowed(void) {}
 static inline void cpuset_update_task_memory_state(void) {}
 
 static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+{
+	return 1;
+}
+
+static inline int cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
+{
+	return 1;
+}
+
+static inline int cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask)
 {
 	return 1;
 }

@@ -88,9 +88,15 @@ static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, __le16 data)
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, reg80);
 	udelay(10);
 
+	mutex_lock(&priv->io_mutex);
+
+	priv->io_dmabuf->bits16 = data;
 	usb_control_msg(priv->udev, usb_sndctrlpipe(priv->udev, 0),
 			RTL8187_REQ_SET_REG, RTL8187_REQT_WRITE,
-			addr, 0x8225, &data, sizeof(data), HZ / 2);
+			addr, 0x8225, &priv->io_dmabuf->bits16, sizeof(data),
+			HZ / 2);
+
+	mutex_unlock(&priv->io_mutex);
 
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, reg80 | (1 << 2));
 	udelay(10);

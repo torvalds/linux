@@ -2597,7 +2597,6 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	/* inputs #1 and #2 are variable for SAA7111 and SAA7113 */
 	int mode[4]= {SAA7115_COMPOSITE0, 0, 0, SAA7115_COMPOSITE3};
 	int audio[]= {1, 0, 0, 0};
-	struct v4l2_routing route;
 	//channel 0 is TV with audiochannel 1 (tuner mono)
 	//channel 1 is Composite with audio channel 0 (line in)
 	//channel 2 is S-Video with audio channel 0 (line in)
@@ -2630,9 +2629,7 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 			mode[2] = SAA7115_SVIDEO1;
 			break;
 	}
-	route.input = mode[channel];
-	route.output = 0;
-	call_all(usbvision, video, s_routing, &route);
+	call_all(usbvision, video, s_routing, mode[channel], 0, 0);
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }

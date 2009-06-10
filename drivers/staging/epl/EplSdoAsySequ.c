@@ -128,11 +128,11 @@ typedef enum {
 
 // structure for History-Buffer
 typedef struct {
-	BYTE m_bFreeEntries;
-	BYTE m_bWrite;		// index of the next free buffer entry
-	BYTE m_bAck;		// index of the next message which should become acknowledged
-	BYTE m_bRead;		// index between m_bAck and m_bWrite to the next message for retransmission
-	BYTE m_aabHistoryFrame[EPL_SDO_HISTORY_SIZE]
+	u8 m_bFreeEntries;
+	u8 m_bWrite;		// index of the next free buffer entry
+	u8 m_bAck;		// index of the next message which should become acknowledged
+	u8 m_bRead;		// index between m_bAck and m_bWrite to the next message for retransmission
+	u8 m_aabHistoryFrame[EPL_SDO_HISTORY_SIZE]
 	    [EPL_SEQ_HISTROY_FRAME_SIZE];
 	unsigned int m_auiFrameSize[EPL_SDO_HISTORY_SIZE];
 
@@ -152,8 +152,8 @@ typedef enum {
 typedef struct {
 	tEplSdoConHdl m_ConHandle;
 	tEplAsySdoState m_SdoState;
-	BYTE m_bRecSeqNum;	// name from view of the communication partner
-	BYTE m_bSendSeqNum;	// name from view of the communication partner
+	u8 m_bRecSeqNum;	// name from view of the communication partner
+	u8 m_bSendSeqNum;	// name from view of the communication partner
 	tEplAsySdoConHistory m_SdoConHistory;
 	tEplTimerHdl m_EplTimerHdl;
 	unsigned int m_uiRetryCount;	// retry counter
@@ -203,9 +203,9 @@ static tEplKernel EplSdoAsySeqSendLowerLayer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					     unsigned int uiDataSize_p,
 					     tEplFrame * pEplFrame_p);
 
-tEplKernel PUBLIC EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
-				     tEplAsySdoSeq * pSdoSeqData_p,
-				     unsigned int uiDataSize_p);
+tEplKernel EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
+			      tEplAsySdoSeq *pSdoSeqData_p,
+			      unsigned int uiDataSize_p);
 
 static tEplKernel EplSdoAsyInitHistory(void);
 
@@ -214,7 +214,7 @@ static tEplKernel EplSdoAsyAddFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					     unsigned int uiSize_p);
 
 static tEplKernel EplSdoAsyAckFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
-					     BYTE bRecSeqNumber_p);
+					     u8 bRecSeqNumber_p);
 
 static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					   tEplFrame ** ppFrame_p,
@@ -267,8 +267,8 @@ static tEplKernel EplSdoAsySeqSetTimer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
-				   tEplSdoComConCb fpSdoComConCb_p)
+tEplKernel EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
+			    tEplSdoComConCb fpSdoComConCb_p)
 {
 	tEplKernel Ret;
 
@@ -297,8 +297,8 @@ tEplKernel PUBLIC EplSdoAsySeqInit(tEplSdoComReceiveCb fpSdoComCb_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
-					  tEplSdoComConCb fpSdoComConCb_p)
+tEplKernel EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
+				   tEplSdoComConCb fpSdoComConCb_p)
 {
 	tEplKernel Ret;
 
@@ -380,7 +380,7 @@ tEplKernel PUBLIC EplSdoAsySeqAddInstance(tEplSdoComReceiveCb fpSdoComCb_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqDelInstance()
+tEplKernel EplSdoAsySeqDelInstance(void)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -439,9 +439,9 @@ tEplKernel PUBLIC EplSdoAsySeqDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqInitCon(tEplSdoSeqConHdl * pSdoSeqConHdl_p,
-				      unsigned int uiNodeId_p,
-				      tEplSdoType SdoType)
+tEplKernel EplSdoAsySeqInitCon(tEplSdoSeqConHdl *pSdoSeqConHdl_p,
+			       unsigned int uiNodeId_p,
+			       tEplSdoType SdoType)
 {
 	tEplKernel Ret;
 	unsigned int uiCount;
@@ -594,9 +594,9 @@ tEplKernel PUBLIC EplSdoAsySeqInitCon(tEplSdoSeqConHdl * pSdoSeqConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
-				       unsigned int uiDataSize_p,
-				       tEplFrame * pabData_p)
+tEplKernel EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
+				unsigned int uiDataSize_p,
+				tEplFrame *pabData_p)
 {
 	tEplKernel Ret;
 	unsigned int uiHandle;
@@ -640,7 +640,7 @@ tEplKernel PUBLIC EplSdoAsySeqSendData(tEplSdoSeqConHdl SdoSeqConHdl_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqProcessEvent(tEplEvent * pEvent_p)
+tEplKernel EplSdoAsySeqProcessEvent(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	tEplTimerEventArg *pTimerEventArg;
@@ -714,7 +714,7 @@ tEplKernel PUBLIC EplSdoAsySeqProcessEvent(tEplEvent * pEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p)
+tEplKernel EplSdoAsySeqDelCon(tEplSdoSeqConHdl SdoSeqConHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiHandle;
@@ -1498,7 +1498,7 @@ static tEplKernel EplSdoAsySeqProcess(unsigned int uiHandle_p,
 				// frame received
 			case kAsySdoSeqEventFrameRec:
 				{
-					BYTE bSendSeqNumCon =
+					u8 bSendSeqNumCon =
 					    AmiGetByteFromLe(&pRecFrame_p->
 							     m_le_bSendSeqNumCon);
 
@@ -2016,7 +2016,7 @@ static tEplKernel EplSdoAsySeqSendIntern(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 					 BOOL fFrameInHistory_p)
 {
 	tEplKernel Ret;
-	BYTE abFrame[EPL_SEQ_FRAME_SIZE];
+	u8 abFrame[EPL_SEQ_FRAME_SIZE];
 	tEplFrame *pEplFrame;
 	unsigned int uiFreeEntries;
 
@@ -2139,9 +2139,9 @@ static tEplKernel EplSdoAsySeqSendLowerLayer(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
-				     tEplAsySdoSeq * pSdoSeqData_p,
-				     unsigned int uiDataSize_p)
+tEplKernel EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
+			      tEplAsySdoSeq *pSdoSeqData_p,
+			      unsigned int uiDataSize_p)
 {
 	tEplKernel Ret;
 	unsigned int uiCount = 0;
@@ -2154,7 +2154,7 @@ tEplKernel PUBLIC EplSdoAsyReceiveCb(tEplSdoConHdl ConHdl_p,
 #endif
 
 	EPL_DBGLVL_SDO_TRACE2("Handle: 0x%x , First Databyte 0x%x\n", ConHdl_p,
-			      ((BYTE *) pSdoSeqData_p)[0]);
+			      ((u8 *) pSdoSeqData_p)[0]);
 
 	// search controll structure for this connection
 	pAsySdoSeqCon = &AsySdoSequInstance_g.m_AsySdoConnection[uiCount];
@@ -2328,12 +2328,12 @@ static tEplKernel EplSdoAsyAddFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 //
 //---------------------------------------------------------------------------
 static tEplKernel EplSdoAsyAckFrameToHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
-					     BYTE bRecSeqNumber_p)
+					     u8 bRecSeqNumber_p)
 {
 	tEplKernel Ret;
 	tEplAsySdoConHistory *pHistory;
-	BYTE bAckIndex;
-	BYTE bCurrentSeqNum;
+	u8 bAckIndex;
+	u8 bCurrentSeqNum;
 
 	Ret = kEplSuccessful;
 
@@ -2422,8 +2422,8 @@ static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 	// check if entries are available for reading
 	if ((pHistory->m_bFreeEntries < EPL_SDO_HISTORY_SIZE)
 	    && (pHistory->m_bWrite != pHistory->m_bRead)) {
-//        PRINTF4("EplSdoAsyReadFromHistory(): init = %d, read = %u, write = %u, ack = %u", (int) fInitRead_p, (WORD)pHistory->m_bRead, (WORD)pHistory->m_bWrite, (WORD)pHistory->m_bAck);
-//        PRINTF2(", free entries = %u, next frame size = %u\n", (WORD)pHistory->m_bFreeEntries, pHistory->m_auiFrameSize[pHistory->m_bRead]);
+//        PRINTF4("EplSdoAsyReadFromHistory(): init = %d, read = %u, write = %u, ack = %u", (int) fInitRead_p, (u16)pHistory->m_bRead, (u16)pHistory->m_bWrite, (u16)pHistory->m_bAck);
+//        PRINTF2(", free entries = %u, next frame size = %u\n", (u16)pHistory->m_bFreeEntries, pHistory->m_auiFrameSize[pHistory->m_bRead]);
 
 		// return pointer to stored frame
 		*ppFrame_p =
@@ -2439,7 +2439,7 @@ static tEplKernel EplSdoAsyReadFromHistory(tEplAsySdoSeqCon * pAsySdoSeqCon_p,
 		}
 
 	} else {
-//        PRINTF3("EplSdoAsyReadFromHistory(): read = %u, ack = %u, free entries = %u, no frame\n", (WORD)pHistory->m_bRead, (WORD)pHistory->m_bAck, (WORD)pHistory->m_bFreeEntries);
+//        PRINTF3("EplSdoAsyReadFromHistory(): read = %u, ack = %u, free entries = %u, no frame\n", (u16)pHistory->m_bRead, (u16)pHistory->m_bAck, (u16)pHistory->m_bFreeEntries);
 
 		// no more frames to send
 		// return null pointer

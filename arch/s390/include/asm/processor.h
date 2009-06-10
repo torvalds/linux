@@ -14,7 +14,10 @@
 #define __ASM_S390_PROCESSOR_H
 
 #include <linux/linkage.h>
+#include <asm/cpuid.h>
+#include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/setup.h>
 
 #ifdef __KERNEL__
 /*
@@ -22,20 +25,6 @@
  * instruction pointer ("program counter").
  */
 #define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
-
-/*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
- *  before touching them. [mj]
- */
-
-typedef struct
-{
-        unsigned int version :  8;
-        unsigned int ident   : 24;
-        unsigned int machine : 16;
-        unsigned int unused  : 16;
-} __attribute__ ((packed)) cpuid_t;
 
 static inline void get_cpu_id(cpuid_t *ptr)
 {

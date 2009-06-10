@@ -64,12 +64,20 @@ u32 acpi_hw_get_mode(void);
  */
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id);
 
-acpi_status
-acpi_hw_register_read(u32 register_id, u32 * return_value);
+acpi_status acpi_hw_write_pm1_control(u32 pm1a_control, u32 pm1b_control);
+
+acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value);
 
 acpi_status acpi_hw_register_write(u32 register_id, u32 value);
 
 acpi_status acpi_hw_clear_acpi_status(void);
+
+/*
+ * hwvalid - Port I/O with validation
+ */
+acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width);
+
+acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 
 /*
  * hwgpe - GPE support

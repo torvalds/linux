@@ -1226,7 +1226,7 @@ int agp_generic_alloc_pages(struct agp_bridge_data *bridge, struct agp_memory *m
 	int i, ret = -ENOMEM;
 
 	for (i = 0; i < num_pages; i++) {
-		page = alloc_page(GFP_KERNEL | GFP_DMA32);
+		page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 		/* agp_free_memory() needs gart address */
 		if (page == NULL)
 			goto out;
@@ -1257,7 +1257,7 @@ void *agp_generic_alloc_page(struct agp_bridge_data *bridge)
 {
 	struct page * page;
 
-	page = alloc_page(GFP_KERNEL | GFP_DMA32);
+	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
 		return NULL;
 

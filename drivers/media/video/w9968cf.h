@@ -134,7 +134,7 @@ static const struct w9968cf_format w9968cf_formatlist[] = {
 
 #define W9968CF_MODULE_NAME     "V4L driver for W996[87]CF JPEG USB " \
 				"Dual Mode Camera Chip"
-#define W9968CF_MODULE_VERSION  "1:1.33-basic"
+#define W9968CF_MODULE_VERSION  "1:1.34-basic"
 #define W9968CF_MODULE_AUTHOR   "(C) 2002-2004 Luca Risolia"
 #define W9968CF_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define W9968CF_MODULE_LICENSE  "GPL"

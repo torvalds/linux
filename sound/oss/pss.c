@@ -46,7 +46,7 @@
  *          load the driver as it did in previous versions.
  * 04-07-1999: Anthony Barbachan <barbcode@xmen.cis.fordham.edu>
  *          Added module parameter pss_firmware to allow the user to tell 
- *          the driver where the fireware file is located.  The default 
+ *          the driver where the firmware file is located.  The default 
  *          setting is the previous hardcoded setting "/etc/sound/pss_synth".
  * 00-03-03: Christoph Hellwig <chhellwig@infradead.org>
  *	    Adapted to module_init/module_exit

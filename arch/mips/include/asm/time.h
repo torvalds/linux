@@ -57,7 +57,11 @@ extern int r4k_clockevent_init(void);
 
 static inline int mips_clockevent_init(void)
 {
-#ifdef CONFIG_CEVT_R4K
+#ifdef CONFIG_MIPS_MT_SMTC
+	extern int smtc_clockevent_init(void);
+
+	return smtc_clockevent_init();
+#elif defined(CONFIG_CEVT_R4K)
 	return r4k_clockevent_init();
 #else
 	return -ENXIO;

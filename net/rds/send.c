@@ -615,7 +615,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 {
 	struct rds_message *rm, *tmp;
 	struct rds_connection *conn;
-	unsigned long flags;
+	unsigned long flags, flags2;
 	LIST_HEAD(list);
 	int wake = 0;
 
@@ -651,9 +651,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 	list_for_each_entry(rm, &list, m_sock_item) {
 		/* We do this here rather than in the loop above, so that
 		 * we don't have to nest m_rs_lock under rs->rs_lock */
-		spin_lock(&rm->m_rs_lock);
+		spin_lock_irqsave(&rm->m_rs_lock, flags2);
 		rm->m_rs = NULL;
-		spin_unlock(&rm->m_rs_lock);
+		spin_unlock_irqrestore(&rm->m_rs_lock, flags2);
 
 		/*
 		 * If we see this flag cleared then we're *sure* that someone

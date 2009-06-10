@@ -74,7 +74,8 @@ ide_startstop_t ide_do_park_unpark(ide_drive_t *drive, struct request *rq)
 		tf->lbal = 0x4c;
 		tf->lbam = 0x4e;
 		tf->lbah = 0x55;
-		cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+		cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+		cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 	} else		/* cmd == REQ_UNPARK_HEADS */
 		tf->command = ATA_CMD_CHK_POWER;
 

@@ -119,7 +119,7 @@ void *hcd_buffer_alloc(
 		if (size <= pool_max [i])
 			return dma_pool_alloc(hcd->pool [i], mem_flags, dma);
 	}
-	return dma_alloc_coherent(hcd->self.controller, size, dma, 0);
+	return dma_alloc_coherent(hcd->self.controller, size, dma, mem_flags);
 }
 
 void hcd_buffer_free(

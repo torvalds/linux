@@ -971,7 +971,6 @@ zr36057_enable_jpg (struct zoran          *zr,
 	struct vfe_settings cap;
 	int field_size =
 	    zr->jpg_buffers.buffer_size / zr->jpg_settings.field_per_buff;
-	struct v4l2_routing route = { 0, 0 };
 
 	zr->codec_mode = mode;
 
@@ -994,8 +993,7 @@ zr36057_enable_jpg (struct zoran          *zr,
 		 */
 		set_videobus_dir(zr, 0);
 		decoder_call(zr, video, s_stream, 1);
-		route.input = 0;
-		encoder_call(zr, video, s_routing, &route);
+		encoder_call(zr, video, s_routing, 0, 0, 0);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1043,8 +1041,7 @@ zr36057_enable_jpg (struct zoran          *zr,
 		 */
 		decoder_call(zr, video, s_stream, 0);
 		set_videobus_dir(zr, 1);
-		route.input = 1;
-		encoder_call(zr, video, s_routing, &route);
+		encoder_call(zr, video, s_routing, 1, 0, 0);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1089,8 +1086,7 @@ zr36057_enable_jpg (struct zoran          *zr,
 		zr36057_adjust_vfe(zr, mode);
 
 		decoder_call(zr, video, s_stream, 1);
-		route.input = 0;
-		encoder_call(zr, video, s_routing, &route);
+		encoder_call(zr, video, s_routing, 0, 0, 0);
 
 		dprintk(2, KERN_INFO "%s: enable_jpg(IDLE)\n", ZR_DEVNAME(zr));
 		break;
@@ -1571,8 +1567,6 @@ zoran_set_pci_master (struct zoran *zr,
 void
 zoran_init_hardware (struct zoran *zr)
 {
-	struct v4l2_routing route = { 0, 0 };
-
 	/* Enable bus-mastering */
 	zoran_set_pci_master(zr, 1);
 
@@ -1581,16 +1575,14 @@ zoran_init_hardware (struct zoran *zr)
 		zr->card.init(zr);
 	}
 
-	route.input = zr->card.input[zr->input].muxsel;
-
 	decoder_call(zr, core, init, 0);
-	decoder_call(zr, tuner, s_std, zr->norm);
-	decoder_call(zr, video, s_routing, &route);
+	decoder_call(zr, core, s_std, zr->norm);
+	decoder_call(zr, video, s_routing,
+		zr->card.input[zr->input].muxsel, 0, 0);
 
 	encoder_call(zr, core, init, 0);
 	encoder_call(zr, video, s_std_output, zr->norm);
-	route.input = 0;
-	encoder_call(zr, video, s_routing, &route);
+	encoder_call(zr, video, s_routing, 0, 0, 0);
 
 	/* toggle JPEG codec sleep to sync PLL */
 	jpeg_codec_sleep(zr, 1);

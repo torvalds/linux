@@ -57,8 +57,8 @@ MODULE_LICENSE("GPL");
  * In that case max_cstate would be n-1
  * GTHS returning '0' would mean that no bandwidth control states are supported
  */
-static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
-					unsigned long *max_state)
+static int memory_get_max_bandwidth(struct thermal_cooling_device *cdev,
+				    unsigned long *max_state)
 {
 	struct acpi_device *device = cdev->devdata;
 	acpi_handle handle = device->handle;
@@ -83,22 +83,12 @@ static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static int memory_get_max_bandwidth(struct thermal_cooling_device *cdev,
-				    char *buf)
-{
-	unsigned long value;
-	if (memory_get_int_max_bandwidth(cdev, &value))
-		return -EINVAL;
-
-	return sprintf(buf, "%ld\n", value);
-}
-
 static int memory_get_cur_bandwidth(struct thermal_cooling_device *cdev,
-				    char *buf)
+				    unsigned long *value)
 {
 	struct acpi_device *device = cdev->devdata;
 	acpi_handle handle = device->handle;
-	unsigned long long value;
+	unsigned long long result;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
@@ -108,15 +98,16 @@ static int memory_get_cur_bandwidth(struct thermal_cooling_device *cdev,
 	arg.type = ACPI_TYPE_INTEGER;
 	arg.integer.value = MEMORY_ARG_CUR_BANDWIDTH;
 	status = acpi_evaluate_integer(handle, MEMORY_GET_BANDWIDTH,
-				       &arg_list, &value);
+				       &arg_list, &result);
 	if (ACPI_FAILURE(status))
 		return -EFAULT;
 
-	return sprintf(buf, "%llu\n", value);
+	*value = result;
+	return 0;
 }
 
 static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
-				    unsigned int state)
+				    unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
 	acpi_handle handle = device->handle;
@@ -126,7 +117,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	unsigned long long temp;
 	unsigned long max_state;
 
-	if (memory_get_int_max_bandwidth(cdev, &max_state))
+	if (memory_get_max_bandwidth(cdev, &max_state))
 		return -EFAULT;
 
 	if (state > max_state)
@@ -142,7 +133,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 				  &temp);
 
 	printk(KERN_INFO
-	       "Bandwidth value was %d: status is %d\n", state, status);
+	       "Bandwidth value was %ld: status is %d\n", state, status);
 	if (ACPI_FAILURE(status))
 		return -EFAULT;
 

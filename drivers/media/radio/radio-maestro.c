@@ -292,20 +292,8 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int maestro_open(struct file *file)
-{
-	return 0;
-}
-
-static int maestro_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
-	.open           = maestro_open,
-	.release        = maestro_release,
 	.ioctl		= video_ioctl2,
 };
 

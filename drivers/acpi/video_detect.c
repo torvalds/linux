@@ -55,6 +55,9 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
 				  "support\n"));
 		*cap |= ACPI_VIDEO_BACKLIGHT;
+		if (ACPI_FAILURE(acpi_get_handle(handle, "_BQC", &h_dummy)))
+			printk(KERN_WARNING FW_BUG PREFIX "ACPI brightness "
+					"control misses _BQC function\n");
 		/* We have backlight support, no need to scan further */
 		return AE_CTRL_TERMINATE;
 	}

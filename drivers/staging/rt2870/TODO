@@ -1,7 +1,14 @@
+I'm hesitant to add a TODO file here, as the wireless developers would
+really have people help them out on the "clean" rt2870 driver that can
+be found at the http://rt2x00.serialmonkey.com/ site.
+
+But, if you wish to clean up this driver instead, here's a short list of
+things that need to be done to get it into a more mergable shape:
+
 TODO:
 	- checkpatch.pl clean
 	- sparse clean
-	- port to in-kernel 80211 stack
+	- port to in-kernel 80211 stack and common rt2x00 infrastructure
 	- remove reading from /etc/ config files
 	- review by the wireless developer community
 

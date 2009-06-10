@@ -209,6 +209,15 @@ struct mapped_regs {
 			unsigned long krs[8];	/* kernel registers */
 			unsigned long tmp[16];	/* temp registers
 						   (e.g. for hyperprivops) */
+
+			/* itc paravirtualization
+			 * vAR.ITC = mAR.ITC + itc_offset
+			 * itc_last is one which was lastly passed to
+			 * the guest OS in order to prevent it from
+			 * going backwords.
+			 */
+			unsigned long itc_offset;
+			unsigned long itc_last;
 		};
 	};
 };

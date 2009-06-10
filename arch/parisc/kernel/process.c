@@ -46,14 +46,15 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/kallsyms.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
 #include <asm/pdc.h>
 #include <asm/pdc_chassis.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
 #include <asm/unwind.h>
+#include <asm/sections.h>
 
 /*
  * The idle thread. There's no useful work to be
@@ -231,8 +232,8 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	   
 	   However, these last 3 args are only examined
 	   if the proper flags are set. */
-	int __user *child_tidptr;
-	int __user *parent_tidptr;
+	int __user *parent_tidptr = (int __user *)regs->gr[24];
+	int __user *child_tidptr  = (int __user *)regs->gr[22];
 
 	/* usp must be word aligned.  This also prevents users from
 	 * passing in the value 1 (which is the signal for a special
@@ -242,16 +243,6 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	/* A zero value for usp means use the current stack */
 	if (usp == 0)
 	  usp = regs->gr[30];
-
-	if (clone_flags & CLONE_PARENT_SETTID)
-	  parent_tidptr = (int __user *)regs->gr[24];
-	else
-	  parent_tidptr = NULL;
-	
-	if (clone_flags & (CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID))
-	  child_tidptr = (int __user *)regs->gr[22];
-	else
-	  child_tidptr = NULL;
 
 	return do_fork(clone_flags, usp, regs, 0, parent_tidptr, child_tidptr);
 }
@@ -263,7 +254,7 @@ sys_vfork(struct pt_regs *regs)
 }
 
 int
-copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
+copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long unused,	/* in ia64 this is "user_stack_size" */
 	    struct task_struct * p, struct pt_regs * pregs)
 {
@@ -400,3 +391,15 @@ get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
+
+#ifdef CONFIG_64BIT
+void *dereference_function_descriptor(void *ptr)
+{
+	Elf64_Fdesc *desc = ptr;
+	void *p;
+
+	if (!probe_kernel_address(&desc->addr, p))
+		ptr = p;
+	return ptr;
+}
+#endif

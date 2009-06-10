@@ -776,7 +776,7 @@ qla24xx_start_scsi(srb_t *sp)
 
 	req_cnt = qla24xx_calc_iocbs(tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
-		cnt = ha->isp_ops->rd_req_reg(ha, req->id);
+		cnt = RD_REG_DWORD_RELAXED(req->req_q_out);
 
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
@@ -836,7 +836,8 @@ qla24xx_start_scsi(srb_t *sp)
 	sp->flags |= SRB_DMA_VALID;
 
 	/* Set chip new ring index. */
-	ha->isp_ops->wrt_req_reg(ha, req->id, req->ring_index);
+	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	RD_REG_DWORD_RELAXED(&ha->iobase->isp24.hccr);
 
 	/* Manage unprocessed RIO/ZIO commands in response queue. */
 	if (vha->flags.process_response_queue &&
@@ -854,35 +855,3 @@ queuing_error:
 
 	return QLA_FUNCTION_FAILED;
 }
-
-uint16_t
-qla24xx_rd_req_reg(struct qla_hw_data *ha, uint16_t id)
-{
-	device_reg_t __iomem *reg = (void *) ha->iobase;
-	return RD_REG_DWORD_RELAXED(&reg->isp24.req_q_out);
-}
-
-uint16_t
-qla25xx_rd_req_reg(struct qla_hw_data *ha, uint16_t id)
-{
-	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
-	return RD_REG_DWORD_RELAXED(&reg->isp25mq.req_q_out);
-}
-
-void
-qla24xx_wrt_req_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
-{
-	device_reg_t __iomem *reg = (void *) ha->iobase;
-	WRT_REG_DWORD(&reg->isp24.req_q_in, index);
-	RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
-}
-
-void
-qla25xx_wrt_req_reg(struct qla_hw_data *ha, uint16_t id, uint16_t index)
-{
-	device_reg_t __iomem *reg = (void *) ha->mqiobase + QLA_QUE_PAGE * id;
-	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
-	WRT_REG_DWORD(&reg->isp25mq.req_q_in, index);
-	RD_REG_DWORD(&ioreg->hccr); /* PCI posting */
-}
-

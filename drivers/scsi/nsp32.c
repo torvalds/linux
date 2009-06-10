@@ -2672,7 +2672,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 	/*
 	 * setup DMA 
 	 */
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
 		nsp32_msg (KERN_ERR, "failed to set PCI DMA mask");
 		goto scsi_unregister;
 	}

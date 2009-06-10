@@ -54,7 +54,10 @@ static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
 static int cpu_family = CPU_OPTERON;
 
 #ifndef CONFIG_SMP
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+static inline const struct cpumask *cpu_core_mask(int cpu)
+{
+	return cpumask_of(0);
+}
 #endif
 
 /* Return a frequency in MHz, given an input fid */
@@ -646,6 +649,20 @@ static void print_basics(struct powernow_k8_data *data)
 				data->batps);
 }
 
+static u32 freq_from_fid_did(u32 fid, u32 did)
+{
+	u32 mhz = 0;
+
+	if (boot_cpu_data.x86 == 0x10)
+		mhz = (100 * (fid + 0x10)) >> did;
+	else if (boot_cpu_data.x86 == 0x11)
+		mhz = (100 * (fid + 8)) >> did;
+	else
+		BUG();
+
+	return mhz * 1000;
+}
+
 static int fill_powernow_table(struct powernow_k8_data *data,
 		struct pst_s *pst, u8 maxvid)
 {
@@ -699,7 +716,7 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	dprintk("cfid 0x%x, cvid 0x%x\n", data->currfid, data->currvid);
 	data->powernow_table = powernow_table;
-	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
 
 	for (j = 0; j < data->numps; j++)
@@ -818,7 +835,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
 	struct cpufreq_frequency_table *powernow_table;
 	int ret_val = -ENODEV;
-	acpi_integer space_id;
+	acpi_integer control, status;
 
 	if (acpi_processor_register_performance(&data->acpi_data, data->cpu)) {
 		dprintk("register performance failed: bad ACPI data\n");
@@ -831,12 +848,13 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		goto err_out;
 	}
 
-	space_id = data->acpi_data.control_register.space_id;
-	if ((space_id != ACPI_ADR_SPACE_FIXED_HARDWARE) ||
-		(space_id != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
+	control = data->acpi_data.control_register.space_id;
+	status = data->acpi_data.status_register.space_id;
+
+	if ((control != ACPI_ADR_SPACE_FIXED_HARDWARE) ||
+	    (status != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
 		dprintk("Invalid control/status registers (%x - %x)\n",
-			data->acpi_data.control_register.space_id,
-			space_id);
+			control, status);
 		goto err_out;
 	}
 
@@ -862,14 +880,14 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	/* fill in data */
 	data->numps = data->acpi_data.state_count;
-	if (first_cpu(per_cpu(cpu_core_map, data->cpu)) == data->cpu)
+	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
 		print_basics(data);
 	powernow_k8_acpi_pst_values(data, 0);
 
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
 
-	if (!alloc_cpumask_var(&data->acpi_data.shared_cpu_map, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&data->acpi_data.shared_cpu_map, GFP_KERNEL)) {
 		printk(KERN_ERR PFX
 				"unable to alloc powernow_k8_data cpumask\n");
 		ret_val = -ENOMEM;
@@ -920,8 +938,13 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 
 		powernow_table[i].index = index;
 
-		powernow_table[i].frequency =
-			data->acpi_data.states[i].core_frequency * 1000;
+		/* Frequency may be rounded for these */
+		if (boot_cpu_data.x86 == 0x10 || boot_cpu_data.x86 == 0x11) {
+			powernow_table[i].frequency =
+				freq_from_fid_did(lo & 0x3f, (lo >> 6) & 7);
+		} else
+			powernow_table[i].frequency =
+				data->acpi_data.states[i].core_frequency * 1000;
 	}
 	return 0;
 }
@@ -1212,13 +1235,16 @@ static int powernowk8_verify(struct cpufreq_policy *pol)
 	return cpufreq_frequency_table_verify(pol, data->powernow_table);
 }
 
+static const char ACPI_PSS_BIOS_BUG_MSG[] =
+	KERN_ERR FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
+	KERN_ERR FW_BUG PFX "Try again with latest BIOS.\n";
+
 /* per CPU init entry point to the driver */
 static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask;
 	int rc;
-	static int print_once;
 
 	if (!cpu_online(pol->cpu))
 		return -ENODEV;
@@ -1241,19 +1267,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			/*
-			 * Replace this one with print_once as soon as such a
-			 * thing gets introduced
-			 */
-			if (!print_once) {
-				WARN_ONCE(1, KERN_ERR FW_BUG PFX "Your BIOS "
-					"does not provide ACPI _PSS objects "
-					"in a way that Linux understands. "
-					"Please report this to the Linux ACPI"
-					" maintainers and complain to your "
-					"BIOS vendor.\n");
-				print_once++;
-			}
+			printk_once(ACPI_PSS_BIOS_BUG_MSG);
 			goto err_out;
 		}
 		if (pol->cpu != 0) {
@@ -1300,7 +1314,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (cpu_family == CPU_HW_PSTATE)
 		cpumask_copy(pol->cpus, cpumask_of(pol->cpu));
 	else
-		cpumask_copy(pol->cpus, &per_cpu(cpu_core_map, pol->cpu));
+		cpumask_copy(pol->cpus, cpu_core_mask(pol->cpu));
 	data->available_cores = pol->cpus;
 
 	if (cpu_family == CPU_HW_PSTATE)
@@ -1365,7 +1379,7 @@ static unsigned int powernowk8_get(unsigned int cpu)
 	unsigned int khz = 0;
 	unsigned int first;
 
-	first = first_cpu(per_cpu(cpu_core_map, cpu));
+	first = cpumask_first(cpu_core_mask(cpu));
 	data = per_cpu(powernow_data, first);
 
 	if (!data)

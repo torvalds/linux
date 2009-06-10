@@ -61,16 +61,6 @@
  */
 #define IDEFLOPPY_PC_DELAY	(HZ/20)	/* default delay for ZIP 100 (50ms) */
 
-static void idefloppy_update_buffers(ide_drive_t *drive,
-				struct ide_atapi_pc *pc)
-{
-	struct request *rq = pc->rq;
-	struct bio *bio = rq->bio;
-
-	while ((bio = rq->bio) != NULL)
-		ide_complete_rq(drive, 0, ide_rq_bytes(rq));
-}
-
 static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
@@ -213,7 +203,6 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	memcpy(rq->cmd, pc->c, 12);
 
 	pc->rq = rq;
-	pc->b_count = 0;
 	if (rq->cmd_flags & REQ_RW)
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = NULL;
@@ -227,7 +216,6 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 	ide_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
-	pc->b_count = 0;
 	if (rq->data_len && rq_data_dir(rq) == WRITE)
 		pc->flags |= PC_FLAG_WRITING;
 	pc->buf = rq->data;
@@ -244,9 +232,10 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 					     struct request *rq, sector_t block)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
-	ide_hwif_t *hwif = drive->hwif;
 	struct ide_cmd cmd;
 	struct ide_atapi_pc *pc;
+
+	ide_debug_log(IDE_DBG_FUNC, "enter, cmd: 0x%x\n", rq->cmd[0]);
 
 	if (drive->debug_mask & IDE_DBG_RQ)
 		blk_dump_rq_flags(rq, (rq->rq_disk
@@ -294,12 +283,9 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	cmd.rq = rq;
 
 	if (blk_fs_request(rq) || pc->req_xfer) {
-		ide_init_sg_cmd(&cmd, rq->nr_sectors << 9);
+		ide_init_sg_cmd(&cmd, pc->req_xfer);
 		ide_map_sg(drive, &cmd);
 	}
-
-	pc->sg = hwif->sg_table;
-	pc->sg_cnt = cmd.sg_nents;
 
 	pc->rq = rq;
 
@@ -385,8 +371,10 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	struct gendisk *disk = floppy->disk;
 	struct ide_atapi_pc pc;
 	u8 *cap_desc;
-	u8 header_len, desc_cnt;
+	u8 pc_buf[256], header_len, desc_cnt;
 	int i, rc = 1, blocks, length;
+
+	ide_debug_log(IDE_DBG_FUNC, "enter");
 
 	drive->bios_cyl = 0;
 	drive->bios_head = drive->bios_sect = 0;
@@ -395,6 +383,9 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	drive->capacity64 = 0;
 
 	ide_floppy_create_read_capacity_cmd(&pc);
+	pc.buf = &pc_buf[0];
+	pc.buf_size = sizeof(pc_buf);
+
 	if (ide_queue_pc_tail(drive, disk, &pc)) {
 		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;
@@ -485,8 +476,6 @@ static void ide_floppy_setup(ide_drive_t *drive)
 	u16 *id = drive->id;
 
 	drive->pc_callback	 = ide_floppy_callback;
-	drive->pc_update_buffers = idefloppy_update_buffers;
-	drive->pc_io_buffers	 = ide_io_buffers;
 
 	/*
 	 * We used to check revisions here. At this point however I'm giving up.

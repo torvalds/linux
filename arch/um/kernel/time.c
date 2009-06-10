@@ -65,7 +65,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static cycle_t itimer_read(void)
+static cycle_t itimer_read(struct clocksource *cs)
 {
 	return os_nsecs() / 1000;
 }

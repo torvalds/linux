@@ -127,7 +127,7 @@ static int pl031_remove(struct amba_device *adev)
 	return 0;
 }
 
-static int pl031_probe(struct amba_device *adev, void *id)
+static int pl031_probe(struct amba_device *adev, struct amba_id *id)
 {
 	int ret;
 	struct pl031_local *ldata;

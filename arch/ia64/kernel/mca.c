@@ -1456,9 +1456,9 @@ ia64_mca_cmc_int_caller(int cmc_irq, void *arg)
 
 	ia64_mca_cmc_int_handler(cmc_irq, arg);
 
-	for (++cpuid ; cpuid < NR_CPUS && !cpu_online(cpuid) ; cpuid++);
+	cpuid = cpumask_next(cpuid+1, cpu_online_mask);
 
-	if (cpuid < NR_CPUS) {
+	if (cpuid < nr_cpu_ids) {
 		platform_send_ipi(cpuid, IA64_CMCP_VECTOR, IA64_IPI_DM_INT, 0);
 	} else {
 		/* If no log record, switch out of polling mode */
@@ -1525,7 +1525,7 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg)
 
 	ia64_mca_cpe_int_handler(cpe_irq, arg);
 
-	for (++cpuid ; cpuid < NR_CPUS && !cpu_online(cpuid) ; cpuid++);
+	cpuid = cpumask_next(cpuid+1, cpu_online_mask);
 
 	if (cpuid < NR_CPUS) {
 		platform_send_ipi(cpuid, IA64_CPEP_VECTOR, IA64_IPI_DM_INT, 0);

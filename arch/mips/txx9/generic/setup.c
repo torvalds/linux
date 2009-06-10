@@ -32,6 +32,7 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9tmr.h>
+#include <asm/txx9/ndfmc.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -683,6 +684,26 @@ void __init txx9_physmap_flash_init(int no, unsigned long addr,
 	}
 #endif
 	pdev = platform_device_alloc("physmap-flash", no);
+	if (!pdev ||
+	    platform_device_add_resources(pdev, &res, 1) ||
+	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
+#endif
+}
+
+void __init txx9_ndfmc_init(unsigned long baseaddr,
+			    const struct txx9ndfmc_platform_data *pdata)
+{
+#if defined(CONFIG_MTD_NAND_TXX9NDFMC) || \
+	defined(CONFIG_MTD_NAND_TXX9NDFMC_MODULE)
+	struct resource res = {
+		.start = baseaddr,
+		.end = baseaddr + 0x1000 - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	struct platform_device *pdev = platform_device_alloc("txx9ndfmc", -1);
+
 	if (!pdev ||
 	    platform_device_add_resources(pdev, &res, 1) ||
 	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||

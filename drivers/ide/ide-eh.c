@@ -165,11 +165,12 @@ static ide_startstop_t do_reset1(ide_drive_t *, int);
 static ide_startstop_t atapi_reset_pollfunc(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
-	SELECT_DRIVE(drive);
+	tp_ops->dev_select(drive);
 	udelay(10);
-	stat = hwif->tp_ops->read_status(hwif);
+	stat = tp_ops->read_status(hwif);
 
 	if (OK_STAT(stat, 0, ATA_BUSY))
 		printk(KERN_INFO "%s: ATAPI reset complete\n", drive->name);
@@ -348,7 +349,7 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {
 		pre_reset(drive);
-		SELECT_DRIVE(drive);
+		tp_ops->dev_select(drive);
 		udelay(20);
 		tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 		ndelay(400);
@@ -401,15 +402,14 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	 * immediate interrupt due to the edge transition it produces.
 	 * This single interrupt gives us a "fast poll" for drives that
 	 * recover from reset very quickly, saving us the first 50ms wait time.
-	 *
-	 * TODO: add ->softreset method and stop abusing ->set_irq
 	 */
 	/* set SRST and nIEN */
-	tp_ops->set_irq(hwif, 4);
+	tp_ops->write_devctl(hwif, ATA_SRST | ATA_NIEN | ATA_DEVCTL_OBS);
 	/* more than enough time */
 	udelay(10);
 	/* clear SRST, leave nIEN (unless device is on the quirk list) */
-	tp_ops->set_irq(hwif, drive->quirk_list == 2);
+	tp_ops->write_devctl(hwif, (drive->quirk_list == 2 ? 0 : ATA_NIEN) |
+			     ATA_DEVCTL_OBS);
 	/* more than enough time */
 	udelay(10);
 	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;

@@ -4,4 +4,6 @@ TODO:
 	- Lindent cleanups
 	- move to use the in-kernel wireless stack
 
-Please send all patches to Greg Kroah-Hartman <greg@kroah.com>
+Please send any patches or complaints about this driver to Greg
+Kroah-Hartman <greg@kroah.com> and don't bother the upstream wireless
+kernel developers about it, they want nothing to do with it.

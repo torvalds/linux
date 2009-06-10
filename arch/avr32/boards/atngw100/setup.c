@@ -56,13 +56,8 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-#ifndef CONFIG_BOARD_ATNGW100_EVKLCD10X
 		.detect_pin	= GPIO_PIN_PC(25),
 		.wp_pin		= GPIO_PIN_PE(0),
-#else
-		.detect_pin	= GPIO_PIN_NONE,
-		.wp_pin		= GPIO_PIN_NONE,
-#endif
 	},
 };
 
@@ -123,7 +118,7 @@ static void __init set_hw_addr(struct platform_device *pdev)
 
 void __init setup_board(void)
 {
-	at32_map_usart(1, 0);	/* USART 1: /dev/ttyS0, DB9 */
+	at32_map_usart(1, 0, 0);	/* USART 1: /dev/ttyS0, DB9 */
 	at32_setup_serial_console(0);
 }
 

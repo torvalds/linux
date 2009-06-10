@@ -229,7 +229,7 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 static int v4l2_open(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev;
-	int ret;
+	int ret = 0;
 
 	/* Check if the video device is available */
 	mutex_lock(&videodev_lock);
@@ -243,7 +243,9 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	/* and increase the device refcount */
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
-	ret = vdev->fops->open(filp);
+	if (vdev->fops->open)
+		ret = vdev->fops->open(filp);
+
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
@@ -254,7 +256,10 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 static int v4l2_release(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret = vdev->fops->release(filp);
+	int ret = 0;
+
+	if (vdev->fops->release)
+		vdev->fops->release(filp);
 
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */

@@ -56,7 +56,9 @@ cflags-y	+= -mdisable-fpregs
 
 # Without this, "ld -r" results in .text sections that are too big
 # (> 0x40000) for branches to reach stubs.
-cflags-y	+= -ffunction-sections
+ifndef CONFIG_FUNCTION_TRACER
+  cflags-y	+= -ffunction-sections
+endif
 
 # select which processor to optimise for
 cflags-$(CONFIG_PA7100)		+= -march=1.1 -mschedule=7100

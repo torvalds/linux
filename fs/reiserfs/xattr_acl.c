@@ -428,7 +428,7 @@ reiserfs_inherit_default_acl(struct reiserfs_transaction_handle *th,
 	} else {
 	      apply_umask:
 		/* no ACL, apply umask */
-		inode->i_mode &= ~current->fs->umask;
+		inode->i_mode &= ~current_umask();
 	}
 
 	return err;

@@ -142,9 +142,9 @@ typedef struct {
 	tShbInstance m_ShbInstanceTxGen;	// FIFO for Tx frames with generic priority
 #else
 	unsigned int m_uiFrameSizeNmt;
-	BYTE m_abFrameNmt[1500];
+	u8 m_abFrameNmt[1500];
 	unsigned int m_uiFrameSizeGen;
-	BYTE m_abFrameGen[1500];
+	u8 m_abFrameGen[1500];
 #endif
 
 	tEplDllkCalStatistics m_Statistics;
@@ -202,7 +202,7 @@ static tEplDllkCalInstance EplDllkCalInstance_g;
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDllkCalAddInstance()
+tEplKernel EplDllkCalAddInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #ifndef EPL_NO_FIFO
@@ -279,7 +279,7 @@ tEplKernel EplDllkCalAddInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDllkCalDelInstance()
+tEplKernel EplDllkCalDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 #ifndef EPL_NO_FIFO
@@ -536,7 +536,7 @@ tEplKernel EplDllkCalAsyncGetTxFrame(void *pFrame_p,
 	case kEplDllAsyncReqPrioNmt:	// NMT request priority
 		ShbError =
 		    ShbCirReadDataBlock(EplDllkCalInstance_g.m_ShbInstanceTxNmt,
-					(BYTE *) pFrame_p, *puiFrameSize_p,
+					(u8 *) pFrame_p, *puiFrameSize_p,
 					&ulFrameSize);
 		// returns kShbOk, kShbDataTruncated, kShbInvalidArg, kShbNoReadableData
 		break;
@@ -544,7 +544,7 @@ tEplKernel EplDllkCalAsyncGetTxFrame(void *pFrame_p,
 	default:		// generic priority
 		ShbError =
 		    ShbCirReadDataBlock(EplDllkCalInstance_g.m_ShbInstanceTxGen,
-					(BYTE *) pFrame_p, *puiFrameSize_p,
+					(u8 *) pFrame_p, *puiFrameSize_p,
 					&ulFrameSize);
 		// returns kShbOk, kShbDataTruncated, kShbInvalidArg, kShbNoReadableData
 		break;
@@ -876,7 +876,7 @@ tEplKernel EplDllkCalGetStatistics(tEplDllkCalStatistics ** ppStatistics)
 //---------------------------------------------------------------------------
 
 tEplKernel EplDllkCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p)
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 

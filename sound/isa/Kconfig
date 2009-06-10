@@ -395,16 +395,6 @@ config SND_WAVEFRONT
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-wavefront.
 
-config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
-	bool "In-kernel firmware for Wavefront"
-	depends on SND_WAVEFRONT
-	default y
-	help
-	  Say Y here to include the static firmware for FX DSP built in
-	  the kernel for the Wavefront driver.  If you choose N here,
-	  you need to install the firmware files from the
-	  alsa-firmware package.
-
 config SND_MSND_PINNACLE
 	tristate "Turtle Beach MultiSound Pinnacle/Fiji driver"
 	depends on X86 && EXPERIMENTAL

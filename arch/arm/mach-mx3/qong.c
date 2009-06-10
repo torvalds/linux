@@ -251,32 +251,6 @@ static void __init qong_init_fpga(void)
 }
 
 /*
- * This structure defines the MX31 memory map.
- */
-static struct map_desc qong_io_desc[] __initdata = {
-	{
-		.virtual = AIPS1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length = AIPS1_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
-		.virtual = AIPS2_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length = AIPS2_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}
-};
-
-/*
- * Set up static virtual mappings.
- */
-static void __init qong_map_io(void)
-{
-	mxc_map_io();
-	iotable_init(qong_io_desc, ARRAY_SIZE(qong_io_desc));
-}
-
-/*
  * Board specific initialization.
  */
 static void __init mxc_board_init(void)
@@ -305,7 +279,7 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.phys_io        = AIPS1_BASE_ADDR,
 	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = qong_map_io,
+	.map_io         = mxc_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &qong_timer,

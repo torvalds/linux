@@ -375,20 +375,9 @@ static int gemtek_probe(struct gemtek *gt)
 /*
  * Video 4 Linux stuff.
  */
-static int gemtek_open(struct file *file)
-{
-	return 0;
-}
-
-static int gemtek_release(struct file *file)
-{
-	return 0;
-}
 
 static const struct v4l2_file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
-	.open		= gemtek_open,
-	.release	= gemtek_release,
 	.ioctl		= video_ioctl2,
 };
 

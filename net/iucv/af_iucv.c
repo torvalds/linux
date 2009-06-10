@@ -172,6 +172,7 @@ static void iucv_sock_close(struct sock *sk)
 			err = iucv_sock_wait_state(sk, IUCV_CLOSED, 0, timeo);
 		}
 
+	case IUCV_CLOSING:   /* fall through */
 		sk->sk_state = IUCV_CLOSED;
 		sk->sk_state_change(sk);
 
@@ -224,6 +225,8 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 	spin_lock_init(&iucv_sk(sk)->message_q.lock);
 	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
 	iucv_sk(sk)->send_tag = 0;
+	iucv_sk(sk)->path = NULL;
+	memset(&iucv_sk(sk)->src_user_id , 0, 32);
 
 	sk->sk_destruct = iucv_sock_destruct;
 	sk->sk_sndtimeo = IUCV_CONN_TIMEOUT;
@@ -811,6 +814,8 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
+	/* receive/dequeue next skb:
+	 * the function understands MSG_PEEK and, thus, does not dequeue skb */
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -858,9 +863,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				iucv_process_message_q(sk);
 			spin_unlock_bh(&iucv->message_q.lock);
 		}
-
-	} else
-		skb_queue_head(&sk->sk_receive_queue, skb);
+	}
 
 done:
 	return err ? : copied;
@@ -934,6 +937,9 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 
 	lock_sock(sk);
 	switch (sk->sk_state) {
+	case IUCV_DISCONN:
+	case IUCV_CLOSING:
+	case IUCV_SEVERED:
 	case IUCV_CLOSED:
 		err = -ENOTCONN;
 		goto fail;
@@ -1113,8 +1119,12 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 	struct sock_msg_q *save_msg;
 	int len;
 
-	if (sk->sk_shutdown & RCV_SHUTDOWN)
+	if (sk->sk_shutdown & RCV_SHUTDOWN) {
+		iucv_message_reject(path, msg);
 		return;
+	}
+
+	spin_lock(&iucv->message_q.lock);
 
 	if (!list_empty(&iucv->message_q.list) ||
 	    !skb_queue_empty(&iucv->backlog_skb_q))
@@ -1129,9 +1139,8 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 	if (!skb)
 		goto save_message;
 
-	spin_lock(&iucv->message_q.lock);
 	iucv_process_message(sk, skb, path, msg);
-	spin_unlock(&iucv->message_q.lock);
+	goto out_unlock;
 
 	return;
 
@@ -1142,8 +1151,9 @@ save_message:
 	save_msg->path = path;
 	save_msg->msg = *msg;
 
-	spin_lock(&iucv->message_q.lock);
 	list_add_tail(&save_msg->list, &iucv->message_q.list);
+
+out_unlock:
 	spin_unlock(&iucv->message_q.lock);
 }
 

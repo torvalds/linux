@@ -79,6 +79,7 @@ static char *serial_version = "4.30";
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
@@ -1825,14 +1826,13 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
  * /proc fs routines....
  */
 
-static inline int line_info(char *buf, struct serial_state *state)
+static inline void line_info(struct seq_file *m, struct serial_state *state)
 {
 	struct async_struct *info = state->info, scr_info;
 	char	stat_buf[30], control, status;
-	int	ret;
 	unsigned long flags;
 
-	ret = sprintf(buf, "%d: uart:amiga_builtin",state->line);
+	seq_printf(m, "%d: uart:amiga_builtin",state->line);
 
 	/*
 	 * Figure out the current RS-232 lines
@@ -1864,54 +1864,48 @@ static inline int line_info(char *buf, struct serial_state *state)
 		strcat(stat_buf, "|CD");
 
 	if (info->quot) {
-		ret += sprintf(buf+ret, " baud:%d",
-			       state->baud_base / info->quot);
+		seq_printf(m, " baud:%d", state->baud_base / info->quot);
 	}
 
-	ret += sprintf(buf+ret, " tx:%d rx:%d",
-		      state->icount.tx, state->icount.rx);
+	seq_printf(m, " tx:%d rx:%d", state->icount.tx, state->icount.rx);
 
 	if (state->icount.frame)
-		ret += sprintf(buf+ret, " fe:%d", state->icount.frame);
+		seq_printf(m, " fe:%d", state->icount.frame);
 
 	if (state->icount.parity)
-		ret += sprintf(buf+ret, " pe:%d", state->icount.parity);
+		seq_printf(m, " pe:%d", state->icount.parity);
 
 	if (state->icount.brk)
-		ret += sprintf(buf+ret, " brk:%d", state->icount.brk);
+		seq_printf(m, " brk:%d", state->icount.brk);
 
 	if (state->icount.overrun)
-		ret += sprintf(buf+ret, " oe:%d", state->icount.overrun);
+		seq_printf(m, " oe:%d", state->icount.overrun);
 
 	/*
 	 * Last thing is the RS-232 status lines
 	 */
-	ret += sprintf(buf+ret, " %s\n", stat_buf+1);
-	return ret;
+	seq_printf(m, " %s\n", stat_buf+1);
 }
 
-static int rs_read_proc(char *page, char **start, off_t off, int count,
-			int *eof, void *data)
+static int rs_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0, l;
-	off_t	begin = 0;
-
-	len += sprintf(page, "serinfo:1.0 driver:%s\n", serial_version);
-	l = line_info(page + len, &rs_table[0]);
-	len += l;
-	if (len+begin > off+count)
-	  goto done;
-	if (len+begin < off) {
-	  begin += len;
-	  len = 0;
-	}
-	*eof = 1;
-done:
-	if (off >= len+begin)
-		return 0;
-	*start = page + (off-begin);
-	return ((count < begin+len-off) ? count : begin+len-off);
+	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
+	line_info(m, &rs_table[0]);
+	return 0;
 }
+
+static int rs_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rs_proc_show, NULL);
+}
+
+static const struct file_operations rs_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rs_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * ---------------------------------------------------------------------
@@ -1951,9 +1945,9 @@ static const struct tty_operations serial_ops = {
 	.break_ctl = rs_break,
 	.send_xchar = rs_send_xchar,
 	.wait_until_sent = rs_wait_until_sent,
-	.read_proc = rs_read_proc,
 	.tiocmget = rs_tiocmget,
 	.tiocmset = rs_tiocmset,
+	.proc_fops = &rs_proc_fops,
 };
 
 /*

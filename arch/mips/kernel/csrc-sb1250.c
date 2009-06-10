@@ -33,7 +33,7 @@
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
  * again.
  */
-static cycle_t sb1250_hpt_read(void)
+static cycle_t sb1250_hpt_read(struct clocksource *cs)
 {
 	unsigned int count;
 

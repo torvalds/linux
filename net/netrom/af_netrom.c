@@ -1084,8 +1084,10 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* Build a packet - the conventional user limit is 236 bytes. We can
 	   do ludicrously large NetROM frames but must not overflow */
-	if (len > 65536)
-		return -EMSGSIZE;
+	if (len > 65536) {
+		err = -EMSGSIZE;
+		goto out;
+	}
 
 	SOCK_DEBUG(sk, "NET/ROM: sendto: building packet.\n");
 	size = len + NR_NETWORK_LEN + NR_TRANSPORT_LEN;

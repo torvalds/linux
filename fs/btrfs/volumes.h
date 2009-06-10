@@ -23,13 +23,22 @@
 #include "async-thread.h"
 
 struct buffer_head;
+struct btrfs_pending_bios {
+	struct bio *head;
+	struct bio *tail;
+};
+
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_root *dev_root;
-	struct bio *pending_bios;
-	struct bio *pending_bio_tail;
+
+	/* regular prio bios */
+	struct btrfs_pending_bios pending_bios;
+	/* WRITE_SYNC bios */
+	struct btrfs_pending_bios pending_sync_bios;
+
 	int running_pending;
 	u64 generation;
 
@@ -51,6 +60,9 @@ struct btrfs_device {
 
 	/* size of the device */
 	u64 total_bytes;
+
+	/* size of the disk */
+	u64 disk_total_bytes;
 
 	/* bytes used */
 	u64 bytes_used;
@@ -76,7 +88,7 @@ struct btrfs_device {
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 
-	/* the device with this id has the most recent coyp of the super */
+	/* the device with this id has the most recent copy of the super */
 	u64 latest_devid;
 	u64 latest_trans;
 	u64 num_devices;

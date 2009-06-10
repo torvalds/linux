@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
-#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -444,7 +443,7 @@ static irqreturn_t pcf50633_irq(int irq, void *data)
 	dev_dbg(pcf->dev, "pcf50633_irq\n");
 
 	get_device(pcf->dev);
-	disable_irq(pcf->irq);
+	disable_irq_nosync(pcf->irq);
 	schedule_work(&pcf->irq_work);
 
 	return IRQ_HANDLED;

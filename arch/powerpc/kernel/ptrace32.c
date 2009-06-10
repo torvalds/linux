@@ -67,7 +67,8 @@ static long compat_ptrace_old(struct task_struct *child, long request,
 /* Macros to workout the correct index for the FPR in the thread struct */
 #define FPRNUMBER(i) (((i) - PT_FPR0) >> 1)
 #define FPRHALF(i) (((i) - PT_FPR0) & 1)
-#define FPRINDEX(i) TS_FPRWIDTH * FPRNUMBER(i) + FPRHALF(i)
+#define FPRINDEX(i) TS_FPRWIDTH * FPRNUMBER(i) * 2 + FPRHALF(i)
+#define FPRINDEX_3264(i) (TS_FPRWIDTH * ((i) - PT_FPR0))
 
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
@@ -168,8 +169,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg >= PT_FPR0) {
 			flush_fp_to_thread(child);
-			tmp = ((unsigned long int *)child->thread.fpr)
-				[FPRINDEX(numReg)];
+			/* get 64 bit FPR */
+			tmp = ((u64 *)child->thread.fpr)
+				[FPRINDEX_3264(numReg)];
 		} else { /* register within PT_REGS struct */
 			tmp = ptrace_get_reg(child, numReg);
 		} 
@@ -262,8 +264,13 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 				freg = (freg & 0xfffffffful) | (data << 32);
 			ret = ptrace_put_reg(child, numReg, freg);
 		} else {
+			u64 *tmp;
 			flush_fp_to_thread(child);
-			((unsigned int *)child->thread.regs)[index] = data;
+			/* get 64 bit FPR ... */
+			tmp = &(((u64 *)child->thread.fpr)
+				[FPRINDEX_3264(numReg)]);
+			/* ... write the 32 bit part we want */
+			((u32 *)tmp)[index % 2] = data;
 			ret = 0;
 		}
 		break;

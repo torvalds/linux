@@ -82,9 +82,9 @@ static void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
 static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	DESCRIPTOR	RxDes;
-	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u16		PacketSize;
 	u16		stmp, BufferSize, stmp2 = 0;
@@ -118,7 +118,7 @@ static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 			// Basic check for Rx length. Is length valid?
 			if (PacketSize > MAX_PACKET_SIZE) {
 				#ifdef _PE_RX_DUMP_
-				WBDEBUG(("Serious ERROR : Rx data size too long, size =%d\n", PacketSize));
+				printk("Serious ERROR : Rx data size too long, size =%d\n", PacketSize);
 				#endif
 
 				pWb35Rx->EP3vm_state = VM_STOP;
@@ -161,8 +161,8 @@ static void Wb35Rx_Complete(struct urb *urb)
 {
 	struct ieee80211_hw *hw = urb->context;
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
+	struct hw_data * pHwData = &priv->sHwData;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
 	u16		BulkLength;
@@ -194,8 +194,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 	// The URB is completed, check the result
 	if (pWb35Rx->EP3VM_status != 0) {
 		#ifdef _PE_USB_STATE_DUMP_
-		WBDEBUG(("EP3 IoCompleteRoutine return error\n"));
-		DebugUsbdStatusInformation( pWb35Rx->EP3VM_status );
+		printk("EP3 IoCompleteRoutine return error\n");
 		#endif
 		pWb35Rx->EP3vm_state = VM_STOP;
 		goto error;
@@ -239,8 +238,8 @@ error:
 static void Wb35Rx(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
+	struct hw_data * pHwData = &priv->sHwData;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u8 *	pRxBufferAddress;
 	struct urb *urb = pWb35Rx->RxUrb;
 	int	retv;
@@ -260,7 +259,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 	if (!pWb35Rx->RxOwner[RxBufferId]) {
 		// It's impossible to run here.
 		#ifdef _PE_RX_DUMP_
-		WBDEBUG(("Rx driver fifo unavailable\n"));
+		printk("Rx driver fifo unavailable\n");
 		#endif
 		goto error;
 	}
@@ -302,8 +301,8 @@ error:
 void Wb35Rx_start(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct hw_data * pHwData = &priv->sHwData;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Allow only one thread to run into the Wb35Rx() function
 	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
@@ -314,9 +313,9 @@ void Wb35Rx_start(struct ieee80211_hw *hw)
 }
 
 //=====================================================================================
-static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
+static void Wb35Rx_reset_descriptor(  struct hw_data * pHwData )
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 	u32	i;
 
 	pWb35Rx->ByteReceived = 0;
@@ -330,9 +329,9 @@ static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 		pWb35Rx->RxOwner[i] = 1;
 }
 
-unsigned char Wb35Rx_initial(phw_data_t pHwData)
+unsigned char Wb35Rx_initial(struct hw_data * pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Initial the Buffer Queue
 	Wb35Rx_reset_descriptor( pHwData );
@@ -341,23 +340,23 @@ unsigned char Wb35Rx_initial(phw_data_t pHwData)
 	return (!!pWb35Rx->RxUrb);
 }
 
-void Wb35Rx_stop(phw_data_t pHwData)
+void Wb35Rx_stop(struct hw_data * pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	// Canceling the Irp if already sends it out.
 	if (pWb35Rx->EP3vm_state == VM_RUNNING) {
 		usb_unlink_urb( pWb35Rx->RxUrb ); // Only use unlink, let Wb35Rx_destroy to free them
 		#ifdef _PE_RX_DUMP_
-		WBDEBUG(("EP3 Rx stop\n"));
+		printk("EP3 Rx stop\n");
 		#endif
 	}
 }
 
 // Needs process context
-void Wb35Rx_destroy(phw_data_t pHwData)
+void Wb35Rx_destroy(struct hw_data * pHwData)
 {
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct wb35_rx *pWb35Rx = &pHwData->Wb35Rx;
 
 	do {
 		msleep(10); // Delay for waiting function enter 940623.1.a
@@ -367,7 +366,7 @@ void Wb35Rx_destroy(phw_data_t pHwData)
 	if (pWb35Rx->RxUrb)
 		usb_free_urb( pWb35Rx->RxUrb );
 	#ifdef _PE_RX_DUMP_
-	WBDEBUG(("Wb35Rx_destroy OK\n"));
+	printk("Wb35Rx_destroy OK\n");
 	#endif
 }
 

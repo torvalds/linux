@@ -287,12 +287,7 @@ static int icside_dma_end(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
-	drive->waiting_for_dma = 0;
-
 	disable_dma(ec->dma);
-
-	/* Teardown mappings after DMA has completed. */
-	ide_destroy_dmatable(drive);
 
 	return get_dma_residue(ec->dma) != 0;
 }
@@ -346,8 +341,6 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 	set_dma_sg(ec->dma, hwif->sg_table, cmd->sg_nents);
 	set_dma_mode(ec->dma, dma_mode);
 
-	drive->waiting_for_dma = 1;
-
 	return 0;
 }
 
@@ -377,7 +370,6 @@ static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_start		= icside_dma_start,
 	.dma_end		= icside_dma_end,
 	.dma_test_irq		= icside_dma_test_irq,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
 };
 #else
@@ -474,7 +466,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	struct ide_host *host;
 	unsigned int sel = 0;
 	int ret;
-	hw_regs_t hw[2], *hws[] = { &hw[0], NULL, NULL, NULL };
+	hw_regs_t hw[2], *hws[] = { &hw[0], &hw[1], NULL, NULL };
 	struct ide_port_info d = icside_v6_port_info;
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);

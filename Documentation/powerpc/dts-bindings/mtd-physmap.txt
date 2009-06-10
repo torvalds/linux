@@ -1,0 +1,80 @@
+CFI or JEDEC memory-mapped NOR flash
+
+Flash chips (Memory Technology Devices) are often used for solid state
+file systems on embedded devices.
+
+ - compatible : should contain the specific model of flash chip(s)
+   used, if known, followed by either "cfi-flash" or "jedec-flash"
+ - reg : Address range(s) of the flash chip(s)
+   It's possible to (optionally) define multiple "reg" tuples so that
+   non-identical NOR chips can be described in one flash node.
+ - bank-width : Width (in bytes) of the flash bank.  Equal to the
+   device width times the number of interleaved chips.
+ - device-width : (optional) Width of a single flash chip.  If
+   omitted, assumed to be equal to 'bank-width'.
+ - #address-cells, #size-cells : Must be present if the flash has
+   sub-nodes representing partitions (see below).  In this case
+   both #address-cells and #size-cells must be equal to 1.
+
+For JEDEC compatible devices, the following additional properties
+are defined:
+
+ - vendor-id : Contains the flash chip's vendor id (1 byte).
+ - device-id : Contains the flash chip's device id (1 byte).
+
+In addition to the information on the flash bank itself, the
+device tree may optionally contain additional information
+describing partitions of the flash address space.  This can be
+used on platforms which have strong conventions about which
+portions of the flash are used for what purposes, but which don't
+use an on-flash partition table such as RedBoot.
+
+Each partition is represented as a sub-node of the flash device.
+Each node's name represents the name of the corresponding
+partition of the flash device.
+
+Flash partitions
+ - reg : The partition's offset and size within the flash bank.
+ - label : (optional) The label / name for this flash partition.
+   If omitted, the label is taken from the node name (excluding
+   the unit address).
+ - read-only : (optional) This parameter, if present, is a hint to
+   Linux that this flash partition should only be mounted
+   read-only.  This is usually used for flash partitions
+   containing early-boot firmware images or data which should not
+   be clobbered.
+
+Example:
+
+	flash@ff000000 {
+		compatible = "amd,am29lv128ml", "cfi-flash";
+		reg = <ff000000 01000000>;
+		bank-width = <4>;
+		device-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		fs@0 {
+			label = "fs";
+			reg = <0 f80000>;
+		};
+		firmware@f80000 {
+			label ="firmware";
+			reg = <f80000 80000>;
+			read-only;
+		};
+	};
+
+Here an example with multiple "reg" tuples:
+
+	flash@f0000000,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "intel,PC48F4400P0VB", "cfi-flash";
+		reg = <0 0x00000000 0x02000000
+		       0 0x02000000 0x02000000>;
+		bank-width = <2>;
+		partition@0 {
+			label = "test-part1";
+			reg = <0 0x04000000>;
+		};
+	};

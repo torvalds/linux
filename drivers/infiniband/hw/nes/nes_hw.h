@@ -35,12 +35,14 @@
 
 #include <linux/inet_lro.h>
 
+#define NES_PHY_TYPE_CX4       1
 #define NES_PHY_TYPE_1G        2
 #define NES_PHY_TYPE_IRIS      3
 #define NES_PHY_TYPE_ARGUS     4
 #define NES_PHY_TYPE_PUMA_1G   5
 #define NES_PHY_TYPE_PUMA_10G  6
 #define NES_PHY_TYPE_GLADIUS   7
+#define NES_PHY_TYPE_SFP_D     8
 
 #define NES_MULTICAST_PF_MAX 8
 

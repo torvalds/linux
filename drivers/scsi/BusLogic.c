@@ -667,7 +667,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 		if (pci_enable_device(PCI_Device))
 			continue;
 
-		if (pci_set_dma_mask(PCI_Device, DMA_32BIT_MASK ))
+		if (pci_set_dma_mask(PCI_Device, DMA_BIT_MASK(32) ))
 			continue;
 
 		Bus = PCI_Device->bus->number;
@@ -834,7 +834,7 @@ static int __init BusLogic_InitializeMultiMasterProbeInfo(struct BusLogic_HostAd
 		if (pci_enable_device(PCI_Device))
 			continue;
 
-		if (pci_set_dma_mask(PCI_Device, DMA_32BIT_MASK))
+		if (pci_set_dma_mask(PCI_Device, DMA_BIT_MASK(32)))
 			continue;
 
 		Bus = PCI_Device->bus->number;
@@ -888,7 +888,7 @@ static int __init BusLogic_InitializeFlashPointProbeInfo(struct BusLogic_HostAda
 		if (pci_enable_device(PCI_Device))
 			continue;
 
-		if (pci_set_dma_mask(PCI_Device, DMA_32BIT_MASK))
+		if (pci_set_dma_mask(PCI_Device, DMA_BIT_MASK(32)))
 			continue;
 
 		Bus = PCI_Device->bus->number;

@@ -35,7 +35,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	si_meminfo(&i);
 	si_swapinfo(&i);
-	committed = atomic_long_read(&vm_committed_space);
+	committed = percpu_counter_read_positive(&vm_committed_as);
 	allowed = ((totalram_pages - hugetlb_total_pages())
 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
 
@@ -120,7 +120,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		K(i.freeram-i.freehigh),
 #endif
 #ifndef CONFIG_MMU
-		K((unsigned long) atomic_read(&mmap_pages_allocated)),
+		K((unsigned long) atomic_long_read(&mmap_pages_allocated)),
 #endif
 		K(i.totalswap),
 		K(i.freeswap),

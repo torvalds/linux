@@ -19,7 +19,11 @@
  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/raid/multipath.h>
+#include <linux/blkdev.h>
+#include <linux/raid/md_u.h>
+#include <linux/seq_file.h>
+#include "md.h"
+#include "multipath.h"
 
 #define MAX_WORK_PER_DISK 128
 
@@ -402,6 +406,14 @@ static void multipathd (mddev_t *mddev)
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 }
 
+static sector_t multipath_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	WARN_ONCE(sectors || raid_disks,
+		  "%s does not support generic reshape\n", __func__);
+
+	return mddev->dev_sectors;
+}
+
 static int multipath_run (mddev_t *mddev)
 {
 	multipath_conf_t *conf;
@@ -498,7 +510,7 @@ static int multipath_run (mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_sectors = mddev->size * 2;
+	md_set_array_sectors(mddev, multipath_size(mddev, 0, 0));
 
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->backing_dev_info.congested_fn = multipath_congested;
@@ -543,6 +555,7 @@ static struct mdk_personality multipath_personality =
 	.error_handler	= multipath_error,
 	.hot_add_disk	= multipath_add_disk,
 	.hot_remove_disk= multipath_remove_disk,
+	.size		= multipath_size,
 };
 
 static int __init multipath_init (void)

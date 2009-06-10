@@ -94,9 +94,8 @@ static int get_state(u32 *out, u8 instance)
 		return -ENODEV;
 
 	obj = (union acpi_object *) result.pointer;
-	if (obj && obj->type == ACPI_TYPE_BUFFER &&
-		obj->buffer.length == sizeof(u32)) {
-		tmp = *((u32 *) obj->buffer.pointer);
+	if (obj && obj->type == ACPI_TYPE_INTEGER) {
+		tmp = obj->integer.value;
 	} else {
 		tmp = 0;
 	}
@@ -109,7 +108,7 @@ static int get_state(u32 *out, u8 instance)
 		*out = (tmp == 3) ? 1 : 0;
 		return 0;
 	case TC1100_INSTANCE_JOGDIAL:
-		*out = (tmp == 1) ? 1 : 0;
+		*out = (tmp == 1) ? 0 : 1;
 		return 0;
 	default:
 		return -ENODEV;

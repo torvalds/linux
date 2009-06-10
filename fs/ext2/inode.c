@@ -590,9 +590,8 @@ static int ext2_get_blocks(struct inode *inode,
 
 	if (depth == 0)
 		return (err);
-reread:
-	partial = ext2_get_branch(inode, depth, offsets, chain, &err);
 
+	partial = ext2_get_branch(inode, depth, offsets, chain, &err);
 	/* Simplest case - block found, no allocation needed */
 	if (!partial) {
 		first_block = le32_to_cpu(chain[depth - 1].key);
@@ -602,15 +601,16 @@ reread:
 		while (count < maxblocks && count <= blocks_to_boundary) {
 			ext2_fsblk_t blk;
 
-			if (!verify_chain(chain, partial)) {
+			if (!verify_chain(chain, chain + depth - 1)) {
 				/*
 				 * Indirect block might be removed by
 				 * truncate while we were reading it.
 				 * Handling of that case: forget what we've
 				 * got now, go to reread.
 				 */
+				err = -EAGAIN;
 				count = 0;
-				goto changed;
+				break;
 			}
 			blk = le32_to_cpu(*(chain[depth-1].p + count));
 			if (blk == first_block + count)
@@ -618,7 +618,8 @@ reread:
 			else
 				break;
 		}
-		goto got_it;
+		if (err != -EAGAIN)
+			goto got_it;
 	}
 
 	/* Next simple case - plain lookup or failed read of indirect block */
@@ -626,6 +627,33 @@ reread:
 		goto cleanup;
 
 	mutex_lock(&ei->truncate_mutex);
+	/*
+	 * If the indirect block is missing while we are reading
+	 * the chain(ext3_get_branch() returns -EAGAIN err), or
+	 * if the chain has been changed after we grab the semaphore,
+	 * (either because another process truncated this branch, or
+	 * another get_block allocated this branch) re-grab the chain to see if
+	 * the request block has been allocated or not.
+	 *
+	 * Since we already block the truncate/other get_block
+	 * at this point, we will have the current copy of the chain when we
+	 * splice the branch into the tree.
+	 */
+	if (err == -EAGAIN || !verify_chain(chain, partial)) {
+		while (partial > chain) {
+			brelse(partial->bh);
+			partial--;
+		}
+		partial = ext2_get_branch(inode, depth, offsets, chain, &err);
+		if (!partial) {
+			count++;
+			mutex_unlock(&ei->truncate_mutex);
+			if (err)
+				goto cleanup;
+			clear_buffer_new(bh_result);
+			goto got_it;
+		}
+	}
 
 	/*
 	 * Okay, we need to do block allocation.  Lazily initialize the block
@@ -683,12 +711,6 @@ cleanup:
 		partial--;
 	}
 	return err;
-changed:
-	while (partial > chain) {
-		brelse(partial->bh);
-		partial--;
-	}
-	goto reread;
 }
 
 int ext2_get_block(struct inode *inode, sector_t iblock, struct buffer_head *bh_result, int create)

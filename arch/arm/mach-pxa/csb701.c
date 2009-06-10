@@ -5,6 +5,8 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 
+#include <asm/mach-types.h>
+
 static struct gpio_keys_button csb701_buttons[] = {
 	{
 		.code	= 0x7,
@@ -54,6 +56,9 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init csb701_init(void)
 {
+	if (!machine_is_csb726())
+		return -ENODEV;
+
 	return platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

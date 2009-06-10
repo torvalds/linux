@@ -172,8 +172,8 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	 * register bit)
 	 */
 	status =
-	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 1);
+	    acpi_write_bit_register(acpi_gbl_fixed_event_info[event].
+				    enable_register_id, ACPI_ENABLE_EVENT);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -181,8 +181,8 @@ acpi_status acpi_enable_event(u32 event, u32 flags)
 	/* Make sure that the hardware responded */
 
 	status =
-	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value);
+	    acpi_read_bit_register(acpi_gbl_fixed_event_info[event].
+				   enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -354,15 +354,15 @@ acpi_status acpi_disable_event(u32 event, u32 flags)
 	 * register bit)
 	 */
 	status =
-	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, 0);
+	    acpi_write_bit_register(acpi_gbl_fixed_event_info[event].
+				    enable_register_id, ACPI_DISABLE_EVENT);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	status =
-	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      enable_register_id, &value);
+	    acpi_read_bit_register(acpi_gbl_fixed_event_info[event].
+				   enable_register_id, &value);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -407,8 +407,8 @@ acpi_status acpi_clear_event(u32 event)
 	 * register bit)
 	 */
 	status =
-	    acpi_set_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, 1);
+	    acpi_write_bit_register(acpi_gbl_fixed_event_info[event].
+				    status_register_id, ACPI_CLEAR_STATUS);
 
 	return_ACPI_STATUS(status);
 }
@@ -495,7 +495,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	/* Get the status of the requested fixed event */
 
 	status =
-	    acpi_get_register(acpi_gbl_fixed_event_info[event].
+	    acpi_read_bit_register(acpi_gbl_fixed_event_info[event].
 			      enable_register_id, &value);
 	if (ACPI_FAILURE(status))
 		return_ACPI_STATUS(status);
@@ -503,7 +503,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	*event_status = value;
 
 	status =
-	    acpi_get_register(acpi_gbl_fixed_event_info[event].
+	    acpi_read_bit_register(acpi_gbl_fixed_event_info[event].
 			      status_register_id, &value);
 	if (ACPI_FAILURE(status))
 		return_ACPI_STATUS(status);

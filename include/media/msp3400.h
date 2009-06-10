@@ -54,13 +54,13 @@
    =======
 
    So to specify a complete routing scheme for the msp3400 you will have to
-   specify in the 'input' field of the v4l2_routing struct:
+   specify in the 'input' arg of the s_routing function:
 
    1) which tuner input to use
    2) which SCART input to use
    3) which DSP input to use for each DSP output
 
-   And in the 'output' field of the v4l2_routing struct you specify:
+   And in the 'output' arg of the s_routing function you specify:
 
    1) which SCART input to use for each SCART output
 

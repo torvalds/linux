@@ -360,6 +360,12 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	gspca_dev->cam.nmodes = ARRAY_SIZE(sq905_mode);
 	if (!(ident & SQ905_HIRES_MASK))
 		gspca_dev->cam.nmodes--;
+
+	if (ident & SQ905_ORIENTATION_MASK)
+		gspca_dev->cam.input_flags = V4L2_IN_ST_VFLIP;
+	else
+		gspca_dev->cam.input_flags = V4L2_IN_ST_VFLIP |
+					     V4L2_IN_ST_HFLIP;
 	return 0;
 }
 

@@ -70,8 +70,8 @@ extern struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
 
 #define MAX_BANKS	32
 
-static struct linux_prom64_registers pavail[MAX_BANKS] __initdata;
-static int pavail_ents __initdata;
+static struct linux_prom64_registers pavail[MAX_BANKS] __devinitdata;
+static int pavail_ents __devinitdata;
 
 static int cmp_p64(const void *a, const void *b)
 {
@@ -968,7 +968,7 @@ int of_node_to_nid(struct device_node *dp)
 	return nid;
 }
 
-static void add_node_ranges(void)
+static void __init add_node_ranges(void)
 {
 	int i;
 
@@ -1841,7 +1841,7 @@ void __init paging_init(void)
 	printk("Booting Linux...\n");
 }
 
-int __init page_in_phys_avail(unsigned long paddr)
+int __devinit page_in_phys_avail(unsigned long paddr)
 {
 	int i;
 

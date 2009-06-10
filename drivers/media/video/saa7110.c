@@ -299,17 +299,18 @@ static int saa7110_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int saa7110_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa7110_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa7110 *decoder = to_saa7110(sd);
 
-	if (route->input < 0 || route->input >= SAA7110_MAX_INPUT) {
-		v4l2_dbg(1, debug, sd, "input=%d not available\n", route->input);
+	if (input < 0 || input >= SAA7110_MAX_INPUT) {
+		v4l2_dbg(1, debug, sd, "input=%d not available\n", input);
 		return -EINVAL;
 	}
-	if (decoder->input != route->input) {
-		saa7110_selmux(sd, route->input);
-		v4l2_dbg(1, debug, sd, "switched to input=%d\n", route->input);
+	if (decoder->input != input) {
+		saa7110_selmux(sd, input);
+		v4l2_dbg(1, debug, sd, "switched to input=%d\n", input);
 	}
 	return 0;
 }
@@ -414,9 +415,6 @@ static const struct v4l2_subdev_core_ops saa7110_core_ops = {
 	.g_ctrl = saa7110_g_ctrl,
 	.s_ctrl = saa7110_s_ctrl,
 	.queryctrl = saa7110_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops saa7110_tuner_ops = {
 	.s_std = saa7110_s_std,
 };
 
@@ -429,7 +427,6 @@ static const struct v4l2_subdev_video_ops saa7110_video_ops = {
 
 static const struct v4l2_subdev_ops saa7110_ops = {
 	.core = &saa7110_core_ops,
-	.tuner = &saa7110_tuner_ops,
 	.video = &saa7110_video_ops,
 };
 

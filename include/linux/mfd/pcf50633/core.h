@@ -29,6 +29,8 @@ struct pcf50633_platform_data {
 	char **batteries;
 	int num_batteries;
 
+	int charging_restart_interval;
+
 	/* Callbacks */
 	void (*probe_done)(struct pcf50633 *);
 	void (*mbc_event_callback)(struct pcf50633 *, int);

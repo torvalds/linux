@@ -74,7 +74,6 @@
 
 ****************************************************************************/
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -285,7 +284,18 @@ static tEplKernel VEthRecvFrame(tEplFrameInfo * pFrameInfo_p)
 	return Ret;
 }
 
-tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p)
+static const struct net_device_ops epl_netdev_ops = {
+	.ndo_open		= VEthOpen,
+	.ndo_stop		= VEthClose,
+	.ndo_get_stats		= VEthGetStats,
+	.ndo_start_xmit		= VEthXmit,
+	.ndo_tx_timeout		= VEthTimeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+tEplKernel VEthAddInstance(tEplDllkInitParam *pInitParam_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -300,11 +310,7 @@ tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p)
 		goto Exit;
 	}
 
-	pVEthNetDevice_g->open = VEthOpen;
-	pVEthNetDevice_g->stop = VEthClose;
-	pVEthNetDevice_g->get_stats = VEthGetStats;
-	pVEthNetDevice_g->hard_start_xmit = VEthXmit;
-	pVEthNetDevice_g->tx_timeout = VEthTimeout;
+	pVEthNetDevice_g->netdev_ops = &epl_netdev_ops;
 	pVEthNetDevice_g->watchdog_timeo = EPL_VETH_TX_TIMEOUT;
 	pVEthNetDevice_g->destructor = free_netdev;
 
@@ -324,7 +330,7 @@ tEplKernel PUBLIC VEthAddInstance(tEplDllkInitParam * pInitParam_p)
 	return Ret;
 }
 
-tEplKernel PUBLIC VEthDelInstance(void)
+tEplKernel VEthDelInstance(void)
 {
 	tEplKernel Ret = kEplSuccessful;
 

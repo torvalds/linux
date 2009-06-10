@@ -209,30 +209,13 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 		unsigned long addr;
 
 		addr = (unsigned long) page_address(page) + offset;
-		dma_cache_wback_inv(addr, size);
+		__dma_sync(addr, size, direction);
 	}
 
 	return plat_map_dma_mem_page(dev, page) + offset;
 }
 
 EXPORT_SYMBOL(dma_map_page);
-
-void dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
-	enum dma_data_direction direction)
-{
-	BUG_ON(direction == DMA_NONE);
-
-	if (!plat_device_is_coherent(dev) && direction != DMA_TO_DEVICE) {
-		unsigned long addr;
-
-		addr = dma_addr_to_virt(dma_address);
-		dma_cache_wback_inv(addr, size);
-	}
-
-	plat_unmap_dma_mem(dev, dma_address);
-}
-
-EXPORT_SYMBOL(dma_unmap_page);
 
 void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 	enum dma_data_direction direction)

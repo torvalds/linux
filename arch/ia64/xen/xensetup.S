@@ -54,8 +54,6 @@ END(startup_xen)
 
 #define isBP	p3	// are we the Bootstrap Processor?
 
-	.text
-
 GLOBAL_ENTRY(xen_setup_hook)
 	mov r8=XEN_PV_DOMAIN_ASM
 (isBP)	movl r9=xen_domain_type;;

@@ -40,22 +40,12 @@
 #else
 #define IOMEM(x)                ((void __force __iomem *)(x))
 
-/*
- * Functions to access the DaVinci IO region
- *
- * NOTE: - Use davinci_read/write[bwl] for physical register addresses
- *	 - Use __raw_read/write[bwl]() for virtual register addresses
- *	 - Use IO_ADDRESS(phys_addr) to convert registers to virtual addresses
- *	 - DO NOT use hardcoded virtual addresses to allow changing the
- *	   IO address space again if needed
- */
-#define davinci_readb(a)	__raw_readb(IO_ADDRESS(a))
-#define davinci_readw(a)	__raw_readw(IO_ADDRESS(a))
-#define davinci_readl(a)	__raw_readl(IO_ADDRESS(a))
+#define __arch_ioremap(p, s, t)	davinci_ioremap(p, s, t)
+#define __arch_iounmap(v)	davinci_iounmap(v)
 
-#define davinci_writeb(v, a)	__raw_writeb(v, IO_ADDRESS(a))
-#define davinci_writew(v, a)	__raw_writew(v, IO_ADDRESS(a))
-#define davinci_writel(v, a)	__raw_writel(v, IO_ADDRESS(a))
+void __iomem *davinci_ioremap(unsigned long phys, size_t size,
+			      unsigned int type);
+void davinci_iounmap(volatile void __iomem *addr);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ASM_ARCH_IO_H */

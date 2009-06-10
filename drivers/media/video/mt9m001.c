@@ -207,7 +207,7 @@ static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
 	struct soc_camera_link *icl = mt9m001->client->dev.platform_data;
 	/* MT9M001 has all capture_format parameters fixed */
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING |
+	unsigned long flags = SOCAM_PCLK_SAMPLE_FALLING |
 		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | SOCAM_MASTER;
 

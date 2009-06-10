@@ -300,22 +300,22 @@ struct slot_dt9812 {
 	struct comedi_dt9812 *comedi;
 };
 
-static const comedi_lrange dt9812_10_ain_range = { 1, {
+static const struct comedi_lrange dt9812_10_ain_range = { 1, {
 			BIP_RANGE(10),
 	}
 };
 
-static const comedi_lrange dt9812_2pt5_ain_range = { 1, {
+static const struct comedi_lrange dt9812_2pt5_ain_range = { 1, {
 			UNI_RANGE(2.5),
 	}
 };
 
-static const comedi_lrange dt9812_10_aout_range = { 1, {
+static const struct comedi_lrange dt9812_10_aout_range = { 1, {
 			BIP_RANGE(10),
 	}
 };
 
-static const comedi_lrange dt9812_2pt5_aout_range = { 1, {
+static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
 			UNI_RANGE(2.5),
 	}
 };
@@ -892,12 +892,12 @@ static struct usb_driver dt9812_usb_driver = {
  * Comedi functions
  */
 
-static void dt9812_comedi_open(comedi_device *dev)
+static void dt9812_comedi_open(struct comedi_device *dev)
 {
 	down(&devpriv->slot->mutex);
 	if (devpriv->slot->usb) {
 		/* We have an attached device, fill in current range info */
-		comedi_subdevice *s;
+		struct comedi_subdevice *s;
 
 		s = &dev->subdevices[0];
 		s->n_chan = 8;
@@ -940,8 +940,8 @@ static void dt9812_comedi_open(comedi_device *dev)
 	up(&devpriv->slot->mutex);
 }
 
-static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int dt9812_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -952,8 +952,8 @@ static int dt9812_di_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int dt9812_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u8 bits = 0;
@@ -970,8 +970,8 @@ static int dt9812_do_winsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int dt9812_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 
@@ -985,8 +985,8 @@ static int dt9812_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int dt9812_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	u16 value;
@@ -999,8 +999,8 @@ static int dt9812_ao_rinsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_ao_winsn(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int dt9812_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 
@@ -1009,10 +1009,10 @@ static int dt9812_ao_winsn(comedi_device *dev, comedi_subdevice *s,
 	return n;
 }
 
-static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
+static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	dev->board_name = "dt9812";
 
@@ -1103,12 +1103,12 @@ static int dt9812_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int dt9812_detach(comedi_device *dev)
+static int dt9812_detach(struct comedi_device *dev)
 {
 	return 0;
 }
 
-static comedi_driver dt9812_comedi_driver = {
+static struct comedi_driver dt9812_comedi_driver = {
 	.module = THIS_MODULE,
 	.driver_name = "dt9812",
 	.attach = dt9812_attach,

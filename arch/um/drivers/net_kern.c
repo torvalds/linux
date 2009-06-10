@@ -757,7 +757,7 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 	void (*proc)(unsigned char *, unsigned char *, void *);
 	unsigned char addr_buf[4], netmask_buf[4];
 
-	if (dev->open != uml_net_open)
+	if (dev->netdev_ops->ndo_open != uml_net_open)
 		return NOTIFY_DONE;
 
 	lp = netdev_priv(dev);

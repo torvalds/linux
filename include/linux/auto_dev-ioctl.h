@@ -10,8 +10,13 @@
 #ifndef _LINUX_AUTO_DEV_IOCTL_H
 #define _LINUX_AUTO_DEV_IOCTL_H
 
+#include <linux/auto_fs.h>
+
+#ifdef __KERNEL__
 #include <linux/string.h>
-#include <linux/types.h>
+#else
+#include <string.h>
+#endif /* __KERNEL__ */
 
 #define AUTOFS_DEVICE_NAME		"autofs"
 

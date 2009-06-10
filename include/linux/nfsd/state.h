@@ -66,8 +66,7 @@ struct nfs4_cb_recall {
 	u32			cbr_ident;
 	int			cbr_trunc;
 	stateid_t		cbr_stateid;
-	u32			cbr_fhlen;
-	char			cbr_fhval[NFS4_FHSIZE];
+	struct knfsd_fh		cbr_fh;
 	struct nfs4_delegation	*cbr_dp;
 };
 
@@ -86,8 +85,7 @@ struct nfs4_delegation {
 };
 
 #define dl_stateid      dl_recall.cbr_stateid
-#define dl_fhlen        dl_recall.cbr_fhlen
-#define dl_fhval        dl_recall.cbr_fhval
+#define dl_fh           dl_recall.cbr_fh
 
 /* client delegation callback info */
 struct nfs4_callback {
@@ -99,6 +97,64 @@ struct nfs4_callback {
 	/* RPC client info */
 	atomic_t		cb_set;     /* successful CB_NULL call */
 	struct rpc_clnt *       cb_client;
+};
+
+/* Maximum number of slots per session. 128 is useful for long haul TCP */
+#define NFSD_MAX_SLOTS_PER_SESSION	128
+/* Maximum number of pages per slot cache entry */
+#define NFSD_PAGES_PER_SLOT	1
+/* Maximum number of operations per session compound */
+#define NFSD_MAX_OPS_PER_COMPOUND	16
+
+struct nfsd4_cache_entry {
+	__be32		ce_status;
+	struct kvec	ce_datav; /* encoded NFSv4.1 data in rq_res.head[0] */
+	struct page	*ce_respages[NFSD_PAGES_PER_SLOT + 1];
+	int		ce_cachethis;
+	short		ce_resused;
+	int		ce_opcnt;
+	int		ce_rpchdrlen;
+};
+
+struct nfsd4_slot {
+	bool				sl_inuse;
+	u32				sl_seqid;
+	struct nfsd4_cache_entry	sl_cache_entry;
+};
+
+struct nfsd4_session {
+	struct kref		se_ref;
+	struct list_head	se_hash;	/* hash by sessionid */
+	struct list_head	se_perclnt;
+	u32			se_flags;
+	struct nfs4_client	*se_client;	/* for expire_client */
+	struct nfs4_sessionid	se_sessionid;
+	u32			se_fmaxreq_sz;
+	u32			se_fmaxresp_sz;
+	u32			se_fmaxresp_cached;
+	u32			se_fmaxops;
+	u32			se_fnumslots;
+	struct nfsd4_slot	se_slots[];	/* forward channel slots */
+};
+
+static inline void
+nfsd4_put_session(struct nfsd4_session *ses)
+{
+	extern void free_session(struct kref *kref);
+	kref_put(&ses->se_ref, free_session);
+}
+
+static inline void
+nfsd4_get_session(struct nfsd4_session *ses)
+{
+	kref_get(&ses->se_ref);
+}
+
+/* formatted contents of nfs4_sessionid */
+struct nfsd4_sessionid {
+	clientid_t	clientid;
+	u32		sequence;
+	u32		reserved;
 };
 
 #define HEXDIR_LEN     33 /* hex version of 16 byte md5 of cl_name plus '\0' */
@@ -132,6 +188,12 @@ struct nfs4_client {
 	struct nfs4_callback	cl_callback;    /* callback info */
 	atomic_t		cl_count;	/* ref count */
 	u32			cl_firststate;	/* recovery dir creation */
+
+	/* for nfs41 */
+	struct list_head	cl_sessions;
+	struct nfsd4_slot	cl_slot;	/* create_session slot */
+	u32			cl_exchange_flags;
+	struct nfs4_sessionid	cl_sessionid;
 };
 
 /* struct nfs4_client_reset
@@ -168,8 +230,7 @@ struct nfs4_replay {
 	unsigned int		rp_buflen;
 	char			*rp_buf;
 	unsigned		intrp_allocated;
-	int			rp_openfh_len;
-	char			rp_openfh[NFS4_FHSIZE];
+	struct knfsd_fh		rp_openfh;
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
@@ -217,7 +278,7 @@ struct nfs4_stateowner {
 *      share_acces, share_deny on the file.
 */
 struct nfs4_file {
-	struct kref		fi_ref;
+	atomic_t		fi_ref;
 	struct list_head        fi_hash;    /* hash by "struct inode *" */
 	struct list_head        fi_stateids;
 	struct list_head	fi_delegations;
@@ -259,14 +320,13 @@ struct nfs4_stateid {
 };
 
 /* flags for preprocess_seqid_op() */
-#define CHECK_FH                0x00000001
+#define HAS_SESSION             0x00000001
 #define CONFIRM                 0x00000002
 #define OPEN_STATE              0x00000004
 #define LOCK_STATE              0x00000008
 #define RD_STATE	        0x00000010
 #define WR_STATE	        0x00000020
 #define CLOSE_STATE             0x00000040
-#define DELEG_RET               0x00000080
 
 #define seqid_mutating_err(err)                       \
 	(((err) != nfserr_stale_clientid) &&    \
@@ -274,7 +334,9 @@ struct nfs4_stateid {
 	((err) != nfserr_stale_stateid) &&      \
 	((err) != nfserr_bad_stateid))
 
-extern __be32 nfs4_preprocess_stateid_op(struct svc_fh *current_fh,
+struct nfsd4_compound_state;
+
+extern __be32 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
@@ -290,7 +352,7 @@ extern void nfsd4_init_recdir(char *recdir_name);
 extern int nfsd4_recdir_load(void);
 extern void nfsd4_shutdown_recdir(void);
 extern int nfs4_client_to_reclaim(const char *name);
-extern int nfs4_has_reclaimed_state(const char *name);
+extern int nfs4_has_reclaimed_state(const char *name, bool use_exchange_id);
 extern void nfsd4_recdir_purge_old(void);
 extern int nfsd4_create_clid_dir(struct nfs4_client *clp);
 extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);

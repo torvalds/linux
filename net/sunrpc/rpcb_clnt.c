@@ -63,9 +63,16 @@ enum {
  * r_owner
  *
  * The "owner" is allowed to unset a service in the rpcbind database.
- * We always use the following (arbitrary) fixed string.
+ *
+ * For AF_LOCAL SET/UNSET requests, rpcbind treats this string as a
+ * UID which it maps to a local user name via a password lookup.
+ * In all other cases it is ignored.
+ *
+ * For SET/UNSET requests, user space provides a value, even for
+ * network requests, and GETADDR uses an empty string.  We follow
+ * those precedents here.
  */
-#define RPCB_OWNER_STRING	"rpcb"
+#define RPCB_OWNER_STRING	"0"
 #define RPCB_MAXOWNERLEN	sizeof(RPCB_OWNER_STRING)
 
 static void			rpcb_getport_done(struct rpc_task *, void *);
@@ -124,12 +131,6 @@ static const struct sockaddr_in rpcb_inaddr_loopback = {
 	.sin_port		= htons(RPCBIND_PORT),
 };
 
-static const struct sockaddr_in6 rpcb_in6addr_loopback = {
-	.sin6_family		= AF_INET6,
-	.sin6_addr		= IN6ADDR_LOOPBACK_INIT,
-	.sin6_port		= htons(RPCBIND_PORT),
-};
-
 static struct rpc_clnt *rpcb_create_local(struct sockaddr *addr,
 					  size_t addrlen, u32 version)
 {
@@ -176,9 +177,10 @@ static struct rpc_clnt *rpcb_create(char *hostname, struct sockaddr *srvaddr,
 	return rpc_create(&args);
 }
 
-static int rpcb_register_call(struct sockaddr *addr, size_t addrlen,
-			      u32 version, struct rpc_message *msg)
+static int rpcb_register_call(const u32 version, struct rpc_message *msg)
 {
+	struct sockaddr *addr = (struct sockaddr *)&rpcb_inaddr_loopback;
+	size_t addrlen = sizeof(rpcb_inaddr_loopback);
 	struct rpc_clnt *rpcb_clnt;
 	int result, error = 0;
 
@@ -192,7 +194,7 @@ static int rpcb_register_call(struct sockaddr *addr, size_t addrlen,
 		error = PTR_ERR(rpcb_clnt);
 
 	if (error < 0) {
-		printk(KERN_WARNING "RPC: failed to contact local rpcbind "
+		dprintk("RPC:       failed to contact local rpcbind "
 				"server (errno %d).\n", -error);
 		return error;
 	}
@@ -254,25 +256,23 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port)
 	if (port)
 		msg.rpc_proc = &rpcb_procedures2[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_inaddr_loopback,
-					sizeof(rpcb_inaddr_loopback),
-					RPCBVERS_2, &msg);
+	return rpcb_register_call(RPCBVERS_2, &msg);
 }
 
 /*
  * Fill in AF_INET family-specific arguments to register
  */
-static int rpcb_register_netid4(struct sockaddr_in *address_to_register,
-				struct rpc_message *msg)
+static int rpcb_register_inet4(const struct sockaddr *sap,
+			       struct rpc_message *msg)
 {
+	const struct sockaddr_in *sin = (const struct sockaddr_in *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
-	unsigned short port = ntohs(address_to_register->sin_port);
+	unsigned short port = ntohs(sin->sin_port);
 	char buf[32];
 
 	/* Construct AF_INET universal address */
 	snprintf(buf, sizeof(buf), "%pI4.%u.%u",
-		 &address_to_register->sin_addr.s_addr,
-		 port >> 8, port & 0xff);
+		 &sin->sin_addr.s_addr, port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -284,29 +284,27 @@ static int rpcb_register_netid4(struct sockaddr_in *address_to_register,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_inaddr_loopback,
-					sizeof(rpcb_inaddr_loopback),
-					RPCBVERS_4, msg);
+	return rpcb_register_call(RPCBVERS_4, msg);
 }
 
 /*
  * Fill in AF_INET6 family-specific arguments to register
  */
-static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
-				struct rpc_message *msg)
+static int rpcb_register_inet6(const struct sockaddr *sap,
+			       struct rpc_message *msg)
 {
+	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sap;
 	struct rpcbind_args *map = msg->rpc_argp;
-	unsigned short port = ntohs(address_to_register->sin6_port);
+	unsigned short port = ntohs(sin6->sin6_port);
 	char buf[64];
 
 	/* Construct AF_INET6 universal address */
-	if (ipv6_addr_any(&address_to_register->sin6_addr))
+	if (ipv6_addr_any(&sin6->sin6_addr))
 		snprintf(buf, sizeof(buf), "::.%u.%u",
 				port >> 8, port & 0xff);
 	else
 		snprintf(buf, sizeof(buf), "%pI6.%u.%u",
-			 &address_to_register->sin6_addr,
-			 port >> 8, port & 0xff);
+			 &sin6->sin6_addr, port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
@@ -318,9 +316,21 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 	if (port)
 		msg->rpc_proc = &rpcb_procedures4[RPCBPROC_SET];
 
-	return rpcb_register_call((struct sockaddr *)&rpcb_in6addr_loopback,
-					sizeof(rpcb_in6addr_loopback),
-					RPCBVERS_4, msg);
+	return rpcb_register_call(RPCBVERS_4, msg);
+}
+
+static int rpcb_unregister_all_protofamilies(struct rpc_message *msg)
+{
+	struct rpcbind_args *map = msg->rpc_argp;
+
+	dprintk("RPC:       unregistering [%u, %u, '%s'] with "
+		"local rpcbind\n",
+			map->r_prog, map->r_vers, map->r_netid);
+
+	map->r_addr = "";
+	msg->rpc_proc = &rpcb_procedures4[RPCBPROC_UNSET];
+
+	return rpcb_register_call(RPCBVERS_4, msg);
 }
 
 /**
@@ -340,10 +350,11 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
  * invoke this function once for each [program, version, address,
  * netid] tuple they wish to advertise.
  *
- * Callers may also unregister RPC services that are no longer
- * available by setting the port number in the passed-in address
- * to zero.  Callers pass a netid of "" to unregister all
- * transport netids associated with [program, version, address].
+ * Callers may also unregister RPC services that are registered at a
+ * specific address by setting the port number in @address to zero.
+ * They may unregister all registered protocol families at once for
+ * a service by passing a NULL @address argument.  If @netid is ""
+ * then all netids for [program, version, address] are unregistered.
  *
  * This function uses rpcbind protocol version 4 to contact the
  * local rpcbind daemon.  The local rpcbind daemon must support
@@ -378,13 +389,14 @@ int rpcb_v4_register(const u32 program, const u32 version,
 		.rpc_argp	= &map,
 	};
 
+	if (address == NULL)
+		return rpcb_unregister_all_protofamilies(&msg);
+
 	switch (address->sa_family) {
 	case AF_INET:
-		return rpcb_register_netid4((struct sockaddr_in *)address,
-					    &msg);
+		return rpcb_register_inet4(address, &msg);
 	case AF_INET6:
-		return rpcb_register_netid6((struct sockaddr_in6 *)address,
-					    &msg);
+		return rpcb_register_inet6(address, &msg);
 	}
 
 	return -EAFNOSUPPORT;
@@ -579,7 +591,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_xprt = xprt_get(xprt);
 	map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
 	map->r_addr = rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR);
-	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
+	map->r_owner = "";
 	map->r_status = -EIO;
 
 	child = rpcb_call_async(rpcb_clnt, map, proc);
@@ -703,11 +715,16 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 	*portp = 0;
 	addr_len = ntohl(*p++);
 
+	if (addr_len == 0) {
+		dprintk("RPC:       rpcb_decode_getaddr: "
+					"service is not registered\n");
+		return 0;
+	}
+
 	/*
-	 * Simple sanity check.  The smallest possible universal
-	 * address is an IPv4 address string containing 11 bytes.
+	 * Simple sanity check.
 	 */
-	if (addr_len < 11 || addr_len > RPCBIND_MAXUADDRLEN)
+	if (addr_len > RPCBIND_MAXUADDRLEN)
 		goto out_err;
 
 	/*

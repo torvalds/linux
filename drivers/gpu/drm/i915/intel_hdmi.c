@@ -38,7 +38,7 @@
 struct intel_hdmi_priv {
 	u32 sdvox_reg;
 	u32 save_SDVOX;
-	int has_hdmi_sink;
+	bool has_hdmi_sink;
 };
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
@@ -128,6 +128,22 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static void
+intel_hdmi_sink_detect(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
+	struct edid *edid = NULL;
+
+	edid = drm_get_edid(&intel_output->base,
+			    &intel_output->ddc_bus->adapter);
+	if (edid != NULL) {
+		hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+		kfree(edid);
+		intel_output->base.display_info.raw_edid = NULL;
+	}
+}
+
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector)
 {
@@ -139,11 +155,18 @@ intel_hdmi_detect(struct drm_connector *connector)
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 
-	I915_WRITE(PORT_HOTPLUG_EN,
-		   temp |
-		   HDMIB_HOTPLUG_INT_EN |
-		   HDMIC_HOTPLUG_INT_EN |
-		   HDMID_HOTPLUG_INT_EN);
+	switch (hdmi_priv->sdvox_reg) {
+	case SDVOB:
+		temp |= HDMIB_HOTPLUG_INT_EN;
+		break;
+	case SDVOC:
+		temp |= HDMIC_HOTPLUG_INT_EN;
+		break;
+	default:
+		return connector_status_unknown;
+	}
+
+	I915_WRITE(PORT_HOTPLUG_EN, temp);
 
 	POSTING_READ(PORT_HOTPLUG_EN);
 
@@ -158,9 +181,10 @@ intel_hdmi_detect(struct drm_connector *connector)
 		return connector_status_unknown;
 	}
 
-	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0)
+	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0) {
+		intel_hdmi_sink_detect(connector);
 		return connector_status_connected;
-	else
+	} else
 		return connector_status_disconnected;
 }
 
@@ -195,6 +219,7 @@ static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_hdmi_save,
 	.restore = intel_hdmi_restore,
 	.detect = intel_hdmi_detect,

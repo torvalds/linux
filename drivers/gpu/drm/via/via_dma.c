@@ -481,11 +481,13 @@ static int via_wait_idle(drm_via_private_t * dev_priv)
 {
 	int count = 10000000;
 
-	while (!(VIA_READ(VIA_REG_STATUS) & VIA_VR_QUEUE_BUSY) && count--);
+	while (!(VIA_READ(VIA_REG_STATUS) & VIA_VR_QUEUE_BUSY) && --count)
+		;
 
-	while (count-- && (VIA_READ(VIA_REG_STATUS) &
+	while (count && (VIA_READ(VIA_REG_STATUS) &
 			   (VIA_CMD_RGTR_BUSY | VIA_2D_ENG_BUSY |
-			    VIA_3D_ENG_BUSY))) ;
+			    VIA_3D_ENG_BUSY)))
+		--count;
 	return count;
 }
 
@@ -705,7 +707,7 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 	switch (d_siz->func) {
 	case VIA_CMDBUF_SPACE:
 		while (((tmp_size = via_cmdbuf_space(dev_priv)) < d_siz->size)
-		       && count--) {
+		       && --count) {
 			if (!d_siz->wait) {
 				break;
 			}
@@ -717,7 +719,7 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 		break;
 	case VIA_CMDBUF_LAG:
 		while (((tmp_size = via_cmdbuf_lag(dev_priv)) > d_siz->size)
-		       && count--) {
+		       && --count) {
 			if (!d_siz->wait) {
 				break;
 			}

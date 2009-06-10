@@ -70,12 +70,14 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	 */
 	if (ppriv->pkey == pkey) {
 		result = -ENOTUNIQ;
+		priv = NULL;
 		goto err;
 	}
 
 	list_for_each_entry(priv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey) {
 			result = -ENOTUNIQ;
+			priv = NULL;
 			goto err;
 		}
 	}
@@ -96,7 +98,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	result = ipoib_set_dev_features(priv, ppriv->ca);
 	if (result)
-		goto device_init_failed;
+		goto err;
 
 	priv->pkey = pkey;
 
@@ -109,7 +111,7 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 		ipoib_warn(ppriv, "failed to initialize subinterface: "
 			   "device %s, port %d",
 			   ppriv->ca->name, ppriv->port);
-		goto device_init_failed;
+		goto err;
 	}
 
 	result = register_netdevice(priv->dev);
@@ -146,19 +148,19 @@ sysfs_failed:
 register_failed:
 	ipoib_dev_cleanup(priv->dev);
 
-device_init_failed:
-	free_netdev(priv->dev);
-
 err:
 	mutex_unlock(&ppriv->vlan_mutex);
 	rtnl_unlock();
+	if (priv)
+		free_netdev(priv->dev);
+
 	return result;
 }
 
 int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 {
 	struct ipoib_dev_priv *ppriv, *priv, *tpriv;
-	int ret = -ENOENT;
+	struct net_device *dev = NULL;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -172,14 +174,17 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 			unregister_netdevice(priv->dev);
 			ipoib_dev_cleanup(priv->dev);
 			list_del(&priv->list);
-			free_netdev(priv->dev);
-
-			ret = 0;
+			dev = priv->dev;
 			break;
 		}
 	}
 	mutex_unlock(&ppriv->vlan_mutex);
 	rtnl_unlock();
 
-	return ret;
+	if (dev) {
+		free_netdev(dev);
+		return 0;
+	}
+
+	return -ENODEV;
 }

@@ -1074,12 +1074,13 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 	u64 addr;
 	u64 start;
 
-	start = startt;
-	while (size < sizet && (start + 1))
+	for (start = startt; ; start += size) {
 		start = find_e820_area_size(start, &size, align);
-
-	if (size < sizet)
-		return 0;
+		if (!(start + 1))
+			return 0;
+		if (size >= sizet)
+			break;
+	}
 
 #ifdef CONFIG_X86_32
 	if (start >= MAXMEM)

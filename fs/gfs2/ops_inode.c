@@ -371,6 +371,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	ip = ghs[1].gh_gl->gl_object;
 
 	ip->i_disksize = size;
+	i_size_write(inode, size);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 

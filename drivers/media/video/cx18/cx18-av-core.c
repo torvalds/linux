@@ -203,43 +203,42 @@ static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
 
 static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 {
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	/*
+	 * The crystal freq used in calculations in this driver will be
+	 * 28.636360 MHz.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 */
+
+	/*
+	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+	 */
+	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+	/* VDCLK Fraction = 0x2be2fe */
+	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+	/* AIMCLK Fraction = 0x05227ad */
+	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
+	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+	return 0;
+}
+
+static int cx18_av_load_fw(struct v4l2_subdev *sd)
+{
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	switch (val) {
-	case CX18_AV_INIT_PLLS:
-		/*
-		 * The crystal freq used in calculations in this driver will be
-		 * 28.636360 MHz.
-		 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
-		 */
-
-		/*
-		 * VDCLK  Integer = 0x0f, Post Divider = 0x04
-		 * AIMCLK Integer = 0x0e, Post Divider = 0x16
-		 */
-		cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
-
-		/* VDCLK Fraction = 0x2be2fe */
-		/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
-		cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
-
-		/* AIMCLK Fraction = 0x05227ad */
-		/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
-		cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
-
-		/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
-		cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
-		break;
-
-	case CX18_AV_INIT_NORMAL:
-	default:
-		if (!state->is_initialized) {
-			/* initialize on first use */
-			state->is_initialized = 1;
-			cx18_av_initialize(cx);
-		}
-		break;
+	if (!state->is_initialized) {
+		/* initialize on first use */
+		state->is_initialized = 1;
+		cx18_av_initialize(cx);
 	}
 	return 0;
 }
@@ -548,19 +547,19 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 }
 
 static int cx18_av_s_video_routing(struct v4l2_subdev *sd,
-				   const struct v4l2_routing *route)
+				   u32 input, u32 output, u32 config)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return set_input(cx, route->input, state->aud_input);
+	return set_input(cx, input, state->aud_input);
 }
 
 static int cx18_av_s_audio_routing(struct v4l2_subdev *sd,
-				   const struct v4l2_routing *route)
+				   u32 input, u32 output, u32 config)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
-	return set_input(cx, state->vid_input, route->input);
+	return set_input(cx, state->vid_input, input);
 }
 
 static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
@@ -1185,10 +1184,12 @@ static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
 	.init = cx18_av_init,
+	.load_fw = cx18_av_load_fw,
 	.reset = cx18_av_reset,
 	.queryctrl = cx18_av_queryctrl,
 	.g_ctrl = cx18_av_g_ctrl,
 	.s_ctrl = cx18_av_s_ctrl,
+	.s_std = cx18_av_s_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx18_av_g_register,
 	.s_register = cx18_av_s_register,
@@ -1200,7 +1201,6 @@ static const struct v4l2_subdev_tuner_ops cx18_av_tuner_ops = {
 	.s_frequency = cx18_av_s_frequency,
 	.g_tuner = cx18_av_g_tuner,
 	.s_tuner = cx18_av_s_tuner,
-	.s_std = cx18_av_s_std,
 };
 
 static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {

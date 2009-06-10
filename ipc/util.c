@@ -47,15 +47,6 @@ struct ipc_proc_iface {
 	int (*show)(struct seq_file *, void *);
 };
 
-struct ipc_namespace init_ipc_ns = {
-	.kref = {
-		.refcount	= ATOMIC_INIT(2),
-	},
-};
-
-atomic_t nr_ipc_ns = ATOMIC_INIT(1);
-
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 
 static void ipc_memory_notifier(struct work_struct *work)

@@ -293,4 +293,43 @@
 			  0x02000000 0 0xa0000000 0xa0000000 0 0x10000000
 			  0x01000000 0 0x00000000 0xb0000000 0 0x01000000>;
 	};
+
+	localbus {
+		compatible = "fsl,mpc5200b-lpb","fsl,mpc5200-lpb","simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		ranges = <0 0 0xfe000000 0x02000000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x02000000>;
+			bank-width = <1>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x00000000 0x00200000>;
+			};
+			partition@200000 {
+				label = "rootfs";
+				reg = <0x00200000 0x01d00000>;
+			};
+			partition@1f00000 {
+				label = "u-boot";
+				reg = <0x01f00000 0x00060000>;
+			};
+			partition@1f60000 {
+				label = "u-boot-env";
+				reg = <0x01f60000 0x00020000>;
+			};
+			partition@1f80000 {
+				label = "dtb";
+				reg = <0x01f80000 0x00080000>;
+			};
+		};
+	};
+
 };

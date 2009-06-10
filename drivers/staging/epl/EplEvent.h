@@ -248,8 +248,8 @@ typedef struct {
 	tEplEventSource m_EventSource;	// module which posted this error event
 	tEplKernel m_EplError;	// EPL error which occured
 	union {
-		BYTE m_bArg;
-		DWORD m_dwArg;
+		u8 m_bArg;
+		u32 m_dwArg;
 		tEplEventSource m_EventSource;	// from Eventk/u module (originating error source)
 		tEplEventObdError m_ObdError;	// from Obd module
 //        tEplErrHistoryEntry     m_HistoryEntry; // from Nmtk/u module
@@ -267,10 +267,10 @@ typedef struct {
 } tEplErrorHandlerkEvent;
 
 // callback function to get informed about sync event
-typedef tEplKernel(PUBLIC * tEplSyncCb) (void);
+typedef tEplKernel(*tEplSyncCb) (void);
 
 // callback function for generic events
-typedef tEplKernel(PUBLIC * tEplProcessEventCb) (tEplEvent * pEplEvent_p);
+typedef tEplKernel(*tEplProcessEventCb) (tEplEvent *pEplEvent_p);
 
 //---------------------------------------------------------------------------
 // function prototypes

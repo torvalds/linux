@@ -52,6 +52,7 @@ config HTC_EGPIO
 
 config HTC_PASIC3
 	tristate "HTC PASIC3 LED/DS1WM chip support"
+	select MFD_CORE
 	help
 	  This core driver provides register access for the LED/DS1WM
 	  chips labeled "AIC2" and "AIC3", found on HTC Blueangel and
@@ -88,7 +89,7 @@ config MENELAUS
 	help
 	  If you say yes here you get support for the Texas Instruments
 	  TWL92330/Menelaus Power Management chip. This include voltage
-	  regulators, Dual slot memory card tranceivers, real-time clock
+	  regulators, Dual slot memory card transceivers, real-time clock
 	  and other features that are often used in portable devices like
 	  cell phones and PDAs.
 

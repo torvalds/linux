@@ -712,22 +712,43 @@ static int i8042_controller_check(void)
 static int i8042_controller_selftest(void)
 {
 	unsigned char param;
+	int i = 0;
 
 	if (!i8042_reset)
 		return 0;
 
-	if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
-		printk(KERN_ERR "i8042.c: i8042 controller self test timeout.\n");
-		return -ENODEV;
-	}
+	/*
+	 * We try this 5 times; on some really fragile systems this does not
+	 * take the first time...
+	 */
+	do {
 
-	if (param != I8042_RET_CTL_TEST) {
+		if (i8042_command(&param, I8042_CMD_CTL_TEST)) {
+			printk(KERN_ERR "i8042.c: i8042 controller self test timeout.\n");
+			return -ENODEV;
+		}
+
+		if (param == I8042_RET_CTL_TEST)
+			return 0;
+
 		printk(KERN_ERR "i8042.c: i8042 controller selftest failed. (%#x != %#x)\n",
-			 param, I8042_RET_CTL_TEST);
-		return -EIO;
-	}
+			param, I8042_RET_CTL_TEST);
+		msleep(50);
+	} while (i++ < 5);
 
+#ifdef CONFIG_X86
+	/*
+	 * On x86, we don't fail entire i8042 initialization if controller
+	 * reset fails in hopes that keyboard port will still be functional
+	 * and user will still get a working keyboard. This is especially
+	 * important on netbooks. On other arches we trust hardware more.
+	 */
+	printk(KERN_INFO
+		"i8042: giving up on controller selftest, continuing anyway...\n");
 	return 0;
+#else
+	return -EIO;
+#endif
 }
 
 /*

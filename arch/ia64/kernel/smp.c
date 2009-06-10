@@ -166,11 +166,11 @@ send_IPI_allbutself (int op)
  * Called with preemption disabled.
  */
 static inline void
-send_IPI_mask(cpumask_t mask, int op)
+send_IPI_mask(const struct cpumask *mask, int op)
 {
 	unsigned int cpu;
 
-	for_each_cpu_mask(cpu, mask) {
+	for_each_cpu(cpu, mask) {
 			send_IPI_single(cpu, op);
 	}
 }
@@ -225,6 +225,7 @@ smp_send_reschedule (int cpu)
 {
 	platform_send_ipi(cpu, IA64_IPI_RESCHEDULE, IA64_IPI_DM_INT, 0);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
 
 /*
  * Called with preemption disabled.
@@ -300,15 +301,12 @@ smp_flush_tlb_mm (struct mm_struct *mm)
 		return;
 	}
 
+	smp_call_function_mask(mm->cpu_vm_mask,
+		(void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
+	local_irq_disable();
+	local_finish_flush_tlb_mm(mm);
+	local_irq_enable();
 	preempt_enable();
-	/*
-	 * We could optimize this further by using mm->cpu_vm_mask to track which CPUs
-	 * have been running in the address space.  It's not clear that this is worth the
-	 * trouble though: to avoid races, we have to raise the IPI on the target CPU
-	 * anyhow, and once a CPU is interrupted, the cost of local_flush_tlb_all() is
-	 * rather trivial.
-	 */
-	on_each_cpu((void (*)(void *))local_finish_flush_tlb_mm, mm, 1);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
@@ -316,7 +314,7 @@ void arch_send_call_function_single_ipi(int cpu)
 	send_IPI_single(cpu, IPI_CALL_FUNC_SINGLE);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	send_IPI_mask(mask, IPI_CALL_FUNC);
 }

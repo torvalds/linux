@@ -124,13 +124,11 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 	}
 
 	/* attach the cache and volume location */
-#ifdef AFS_CACHING_SUPPORT
-	cachefs_acquire_cookie(vlocation->cache,
-			       &afs_vnode_cache_index_def,
-			       volume,
-			       &volume->cache);
+#ifdef CONFIG_AFS_FSCACHE
+	volume->cache = fscache_acquire_cookie(vlocation->cache,
+					       &afs_volume_cache_index_def,
+					       volume);
 #endif
-
 	afs_get_vlocation(vlocation);
 	volume->vlocation = vlocation;
 
@@ -194,8 +192,8 @@ void afs_put_volume(struct afs_volume *volume)
 	up_write(&vlocation->cell->vl_sem);
 
 	/* finish cleaning up the volume */
-#ifdef AFS_CACHING_SUPPORT
-	cachefs_relinquish_cookie(volume->cache, 0);
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_relinquish_cookie(volume->cache, 0);
 #endif
 	afs_put_vlocation(vlocation);
 

@@ -814,7 +814,6 @@ INT	Show_DescInfo_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
 {
-#ifdef RT2860
 	INT i, QueIdx=0;
 	PRT28XX_RXD_STRUC pRxD;
     PTXD_STRUC pTxD;
@@ -845,7 +844,6 @@ INT	Show_DescInfo_Proc(
 	    hex_dump("Rx Descriptor", (char *)pRxD, 16);
 		printk("pRxD->DDONE = %x\n", pRxD->DDONE);
 	}
-#endif // RT2860 //
 
 	return TRUE;
 }
@@ -1803,9 +1801,7 @@ VOID	RTMPAddWcidAttributeEntry(
 	}
 
 	// For key index and ext IV bit, so only need to update the position(offset+3).
-#ifdef RT2860
 	RTMP_IO_WRITE8(pAd, offset+3, IVEIV);
-#endif // RT2860 //
 
 	DBGPRINT(RT_DEBUG_TRACE,("RTMPAddWcidAttributeEntry: WCID #%d, KeyIndex #%d, Alg=%s\n",Wcid, KeyIdx, CipherName[CipherAlg]));
 	DBGPRINT(RT_DEBUG_TRACE,("	WCIDAttri = 0x%x \n",  WCIDAttri));
@@ -2827,9 +2823,7 @@ INT	Set_OpMode_Proc(
 
 	Value = simple_strtol(arg, 0, 10);
 
-#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))
-#endif // RT2860 //
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("Can not switch operate mode on interface up !! \n"));
 		return FALSE;

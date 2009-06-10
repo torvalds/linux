@@ -16,7 +16,7 @@ SECTIONS
 
 	_text = .;	/* Text and read-only data */
 	.text : {
-	*(.text.head)
+		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT

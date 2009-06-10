@@ -118,9 +118,9 @@ void __cpuinit smp_callin(void)
 	while (!cpu_isset(cpuid, smp_commenced_mask))
 		rmb();
 
-	ipi_call_lock();
+	ipi_call_lock_irq();
 	cpu_set(cpuid, cpu_online_map);
-	ipi_call_unlock();
+	ipi_call_unlock_irq();
 
 	/* idle thread is expected to have preempt disabled */
 	preempt_disable();

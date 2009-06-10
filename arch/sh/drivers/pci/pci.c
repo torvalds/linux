@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/dma-debug.h>
 #include <asm/io.h>
 
 static int __init pcibios_init(void)
@@ -42,6 +43,8 @@ static int __init pcibios_init(void)
 	}
 
 	pci_fixup_irqs(pci_common_swizzle, pcibios_map_platform_irq);
+
+	dma_debug_add_bus(&pci_bus_type);
 
 	return 0;
 }

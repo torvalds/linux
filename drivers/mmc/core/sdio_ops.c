@@ -76,6 +76,10 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 	BUG_ON(!card);
 	BUG_ON(fn > 7);
 
+	/* sanity check */
+	if (addr & ~0x1FFFF)
+		return -EINVAL;
+
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_IO_RW_DIRECT;
@@ -124,6 +128,10 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	BUG_ON(blocks == 1 && blksz > 512);
 	WARN_ON(blocks == 0);
 	WARN_ON(blksz == 0);
+
+	/* sanity check */
+	if (addr & ~0x1FFFF)
+		return -EINVAL;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
 	memset(&cmd, 0, sizeof(struct mmc_command));

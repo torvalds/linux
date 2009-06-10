@@ -828,6 +828,17 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 				BOOTMEM_DEFAULT);
 	}
 
+	if (machine_is_palmld() || machine_is_palmtx()) {
+		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+	}
+
+	if (machine_is_palmt5())
+		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
+				BOOTMEM_EXCLUSIVE);
+
 #ifdef CONFIG_SA1111
 	/*
 	 * Because of the SA1111 DMA bug, we want to preserve our

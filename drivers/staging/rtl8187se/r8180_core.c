@@ -640,11 +640,9 @@ void rtl8180_proc_init_one(struct net_device *dev)
 {
 	struct proc_dir_entry *e;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	priv->dir_dev = create_proc_entry(dev->name,
-					  S_IFDIR | S_IRUGO | S_IXUGO,
-					  rtl8180_proc);
+	priv->dir_dev = rtl8180_proc;
 	if (!priv->dir_dev) {
-		DMESGE("Unable to initialize /proc/net/rtl8180/%s\n",
+		DMESGE("Unable to initialize /proc/net/r8180/%s\n",
 		      dev->name);
 		return;
 	}
@@ -654,7 +652,7 @@ void rtl8180_proc_init_one(struct net_device *dev)
 
 	if (!e) {
 		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8180/%s/stats-hw\n",
+		      "/proc/net/r8180/%s/stats-hw\n",
 		      dev->name);
 	}
 
@@ -663,7 +661,7 @@ void rtl8180_proc_init_one(struct net_device *dev)
 
 	if (!e) {
 		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8180/%s/stats-rx\n",
+		      "/proc/net/r8180/%s/stats-rx\n",
 		      dev->name);
 	}
 
@@ -673,7 +671,7 @@ void rtl8180_proc_init_one(struct net_device *dev)
 
 	if (!e) {
 		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8180/%s/stats-tx\n",
+		      "/proc/net/r8180/%s/stats-tx\n",
 		      dev->name);
 	}
 	#if 0
@@ -702,7 +700,7 @@ void rtl8180_proc_init_one(struct net_device *dev)
 
 	if (!e) {
 		DMESGE("Unable to initialize "
-		      "/proc/net/rtl8180/%s/registers\n",
+		      "/proc/net/r8180/%s/registers\n",
 		      dev->name);
 	}
 }
@@ -977,13 +975,6 @@ void check_tx_ring(struct net_device *dev, int pri)
 			      *tmp & (1<<15)? "ok": "err", *(tmp+4));
 	}
 
-	DMESG("nic at %d",
-		(nic-nicbegin) / 8 /4);
-	DMESG("tail at %d", ((int)tail - (int)begin) /8 /4);
-	DMESG("head at %d", ((int)head - (int)begin) /8 /4);
-	DMESG("check free desc returns %d", check_nic_enought_desc(dev,pri));
-	DMESG("free desc is %d\n", get_curr_tx_free_desc(dev,pri));
-	//rtl8180_reset(dev);
 	return;
 }
 
@@ -1736,17 +1727,7 @@ short alloc_tx_desc_ring(struct net_device *dev, int bufsize, int count,
 		 * descriptor's buffer must be 256 byte aligned
 		 * we shouldn't be here, since we set DMA mask !
 		 */
-		DMESGW("Fixing TX alignment");
-		desc = (u32*)((u8*)desc + 256);
-#if (defined(CONFIG_HIGHMEM64G) || defined(CONFIG_64BIT_PHYS_ADDR))
-		desc = (u32*)((u64)desc &~ 0xff);
-		dma_desc = (dma_addr_t)((u8*)dma_desc + 256);
-		dma_desc = (dma_addr_t)((u64)dma_desc &~ 0xff);
-#else
-		desc = (u32*)((u32)desc &~ 0xff);
-		dma_desc = (dma_addr_t)((u8*)dma_desc + 256);
-		dma_desc = (dma_addr_t)((u32)dma_desc &~ 0xff);
-#endif
+		WARN(1, "DMA buffer is not aligned\n");
 	}
 	tmp=desc;
 	for (i=0;i<count;i++)
@@ -1984,18 +1965,7 @@ short alloc_rx_desc_ring(struct net_device *dev, u16 bufsize, int count)
 		 * descriptor's buffer must be 256 byte aligned
 		 * should never happen since we specify the DMA mask
 		 */
-
-		DMESGW("Fixing RX alignment");
-		desc = (u32*)((u8*)desc + 256);
-#if (defined(CONFIG_HIGHMEM64G) || defined(CONFIG_64BIT_PHYS_ADDR))
-		desc = (u32*)((u64)desc &~ 0xff);
-		dma_desc = (dma_addr_t)((u8*)dma_desc + 256);
-		dma_desc = (dma_addr_t)((u64)dma_desc &~ 0xff);
-#else
-		desc = (u32*)((u32)desc &~ 0xff);
-		dma_desc = (dma_addr_t)((u8*)dma_desc + 256);
-		dma_desc = (dma_addr_t)((u32)dma_desc &~ 0xff);
-#endif
+		WARN(1, "DMA buffer is not aligned\n");
 	}
 
 	priv->rxring=desc;
@@ -3161,7 +3131,7 @@ void rtl8180_prepare_beacon(struct net_device *dev)
 		return ;
 
 	}
-	//while(! *tail & (1<<31)){
+	//while(! (*tail & (1<<31))){
 		*tail= 0; // zeroes header
 
 		*tail = *tail| (1<<29) ; //fist segment of the packet
@@ -5438,7 +5408,7 @@ void rtl8180_hw_wakeup_wq (struct work_struct *work)
 //	struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
 //	struct ieee80211_device * ieee = (struct ieee80211_device*)
 //	                                       container_of(work, struct ieee80211_device, watch_dog_wq);
-	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
 #else
@@ -5459,7 +5429,7 @@ void rtl8180_hw_sleep_wq (struct work_struct *work)
 //      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
 //      struct ieee80211_device * ieee = (struct ieee80211_device*)
 //                                             container_of(work, struct ieee80211_device, watch_dog_wq);
-        struct delayed_work *dwork = container_of(work,struct delayed_work,work);
+	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
         struct net_device *dev = ieee->dev;
 #else
@@ -6407,7 +6377,7 @@ priv->txnpring)/8);
 void rtl8180_tx_irq_wq(struct work_struct *work)
 {
 	//struct r8180_priv *priv = container_of(work, struct r8180_priv, reset_wq);
-        struct delayed_work *dwork = container_of(work,struct delayed_work,work);
+	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device * ieee = (struct ieee80211_device*)
 	                                       container_of(dwork, struct ieee80211_device, watch_dog_wq);
 	struct net_device *dev = ieee->dev;
@@ -6691,7 +6661,7 @@ lizhaoming--------------------------- RF power on/power off -----------------
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 {
-	//struct delayed_work *dwork = container_of(work, struct delayed_work, work);
+	//struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, GPIOChangeRFWorkItem.work);
 	struct net_device *dev = ieee->dev;
 	struct r8180_priv *priv = ieee80211_priv(dev);

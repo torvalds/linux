@@ -15,7 +15,7 @@
 #include <asm/processor.h>
 #include <asm/cpu/intctl-regs.h>
 #include <asm/cpu/rtc-regs.h>
-#include <asm/unit/leds.h>
+#include <unit/leds.h>
 
 static const u8 asb2305_led_hex_tbl[16] = {
 	0x80, 0xf2, 0x48, 0x60, 0x32, 0x24, 0x04, 0xf0,

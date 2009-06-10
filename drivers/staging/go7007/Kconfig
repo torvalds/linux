@@ -10,7 +10,7 @@ config VIDEO_GO7007
 	select CRC32
 	default N
 	---help---
-	  This is a video4linux driver for some wierd device...
+	  This is a video4linux driver for some weird device...
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called go7007
@@ -20,7 +20,7 @@ config VIDEO_GO7007_USB
 	depends on VIDEO_GO7007 && USB
 	default N
 	---help---
-	  This is a video4linux driver for some wierd device...
+	  This is a video4linux driver for some weird device...
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called go7007-usb

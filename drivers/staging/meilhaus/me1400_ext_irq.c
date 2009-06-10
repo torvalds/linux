@@ -37,7 +37,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
@@ -323,12 +323,7 @@ static int me1400_ext_irq_query_subdevice_caps_args(struct me_subdevice
 	return ME_ERRNO_NOT_SUPPORTED;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me1400_ext_irq_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me1400_ext_irq_isr(int irq, void *dev_id,
-				      struct pt_regs *regs)
-#endif
 {
 	me1400_ext_irq_subdevice_t *instance;
 	uint32_t status;

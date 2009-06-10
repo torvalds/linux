@@ -474,7 +474,7 @@ static ssize_t recent_old_proc_write(struct file *file,
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+255.255.255.255")], *c = buf;
-	__be32 addr;
+	union nf_inet_addr addr = {};
 	int add;
 
 	if (size > sizeof(buf))
@@ -506,14 +506,13 @@ static ssize_t recent_old_proc_write(struct file *file,
 		add = 1;
 		break;
 	}
-	addr = in_aton(c);
+	addr.ip = in_aton(c);
 
 	spin_lock_bh(&recent_lock);
-	e = recent_entry_lookup(t, (const void *)&addr, NFPROTO_IPV4, 0);
+	e = recent_entry_lookup(t, &addr, NFPROTO_IPV4, 0);
 	if (e == NULL) {
 		if (add)
-			recent_entry_init(t, (const void *)&addr,
-					  NFPROTO_IPV4, 0);
+			recent_entry_init(t, &addr, NFPROTO_IPV4, 0);
 	} else {
 		if (add)
 			recent_entry_update(t, e);

@@ -489,170 +489,28 @@ enum gru_cbr_state {
  * 	 64m			26	8
  * 	...
  */
-#define GRU_PAGESIZE(sh)	((((sh) > 20 ? (sh) + 2: (sh)) >> 1) - 6)
+#define GRU_PAGESIZE(sh)	((((sh) > 20 ? (sh) + 2 : (sh)) >> 1) - 6)
 #define GRU_SIZEAVAIL(sh)	(1UL << GRU_PAGESIZE(sh))
 
 /* minimum TLB purge count to ensure a full purge */
 #define GRUMAXINVAL		1024UL
 
+int cch_allocate(struct gru_context_configuration_handle *cch,
+       int asidval, int sizeavail, unsigned long cbrmap, unsigned long dsrmap);
 
-/* Extract the status field from a kernel handle */
-#define GET_MSEG_HANDLE_STATUS(h)	(((*(unsigned long *)(h)) >> 16) & 3)
-
-static inline void start_instruction(void *h)
-{
-	unsigned long *w0 = h;
-
-	wmb();		/* setting CMD bit must be last */
-	*w0 = *w0 | 1;
-	gru_flush_cache(h);
-}
-
-static inline int wait_instruction_complete(void *h)
-{
-	int status;
-
-	do {
-		cpu_relax();
-		barrier();
-		status = GET_MSEG_HANDLE_STATUS(h);
-	} while (status == CCHSTATUS_ACTIVE);
-	return status;
-}
-
-#if defined CONFIG_IA64
-static inline void cch_allocate_set_asids(
-		  struct gru_context_configuration_handle *cch, int asidval)
-{
-	int i;
-
-	for (i = 0; i <= RGN_HPAGE; i++) {  /*  assume HPAGE is last region */
-		cch->asid[i] = (asidval++);
-#if 0
-		/* ZZZ hugepages not supported yet */
-		if (i == RGN_HPAGE)
-			cch->sizeavail[i] = GRU_SIZEAVAIL(hpage_shift);
-		else
-#endif
-			cch->sizeavail[i] = GRU_SIZEAVAIL(PAGE_SHIFT);
-	}
-}
-#elif defined CONFIG_X86_64
-static inline void cch_allocate_set_asids(
-		  struct gru_context_configuration_handle *cch, int asidval)
-{
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		cch->asid[i] = asidval++;
-		cch->sizeavail[i] = GRU_SIZEAVAIL(PAGE_SHIFT) |
-			GRU_SIZEAVAIL(21);
-	}
-}
-#endif
-
-static inline int cch_allocate(struct gru_context_configuration_handle *cch,
-			       int asidval, unsigned long cbrmap,
-			       unsigned long dsrmap)
-{
-	cch_allocate_set_asids(cch, asidval);
-	cch->dsr_allocation_map = dsrmap;
-	cch->cbr_allocation_map = cbrmap;
-	cch->opc = CCHOP_ALLOCATE;
-	start_instruction(cch);
-	return wait_instruction_complete(cch);
-}
-
-static inline int cch_start(struct gru_context_configuration_handle *cch)
-{
-	cch->opc = CCHOP_START;
-	start_instruction(cch);
-	return wait_instruction_complete(cch);
-}
-
-static inline int cch_interrupt(struct gru_context_configuration_handle *cch)
-{
-	cch->opc = CCHOP_INTERRUPT;
-	start_instruction(cch);
-	return wait_instruction_complete(cch);
-}
-
-static inline int cch_deallocate(struct gru_context_configuration_handle *cch)
-{
-	cch->opc = CCHOP_DEALLOCATE;
-	start_instruction(cch);
-	return wait_instruction_complete(cch);
-}
-
-static inline int cch_interrupt_sync(struct gru_context_configuration_handle
-				     *cch)
-{
-	cch->opc = CCHOP_INTERRUPT_SYNC;
-	start_instruction(cch);
-	return wait_instruction_complete(cch);
-}
-
-static inline int tgh_invalidate(struct gru_tlb_global_handle *tgh,
-				 unsigned long vaddr, unsigned long vaddrmask,
-				 int asid, int pagesize, int global, int n,
-				 unsigned short ctxbitmap)
-{
-	tgh->vaddr = vaddr;
-	tgh->asid = asid;
-	tgh->pagesize = pagesize;
-	tgh->n = n;
-	tgh->global = global;
-	tgh->vaddrmask = vaddrmask;
-	tgh->ctxbitmap = ctxbitmap;
-	tgh->opc = TGHOP_TLBINV;
-	start_instruction(tgh);
-	return wait_instruction_complete(tgh);
-}
-
-static inline void tfh_write_only(struct gru_tlb_fault_handle *tfh,
-				  unsigned long pfn, unsigned long vaddr,
-				  int asid, int dirty, int pagesize)
-{
-	tfh->fillasid = asid;
-	tfh->fillvaddr = vaddr;
-	tfh->pfn = pfn;
-	tfh->dirty = dirty;
-	tfh->pagesize = pagesize;
-	tfh->opc = TFHOP_WRITE_ONLY;
-	start_instruction(tfh);
-}
-
-static inline void tfh_write_restart(struct gru_tlb_fault_handle *tfh,
-				     unsigned long paddr, int gaa,
-				     unsigned long vaddr, int asid, int dirty,
-				     int pagesize)
-{
-	tfh->fillasid = asid;
-	tfh->fillvaddr = vaddr;
-	tfh->pfn = paddr >> GRU_PADDR_SHIFT;
-	tfh->gaa = gaa;
-	tfh->dirty = dirty;
-	tfh->pagesize = pagesize;
-	tfh->opc = TFHOP_WRITE_RESTART;
-	start_instruction(tfh);
-}
-
-static inline void tfh_restart(struct gru_tlb_fault_handle *tfh)
-{
-	tfh->opc = TFHOP_RESTART;
-	start_instruction(tfh);
-}
-
-static inline void tfh_user_polling_mode(struct gru_tlb_fault_handle *tfh)
-{
-	tfh->opc = TFHOP_USER_POLLING_MODE;
-	start_instruction(tfh);
-}
-
-static inline void tfh_exception(struct gru_tlb_fault_handle *tfh)
-{
-	tfh->opc = TFHOP_EXCEPTION;
-	start_instruction(tfh);
-}
+int cch_start(struct gru_context_configuration_handle *cch);
+int cch_interrupt(struct gru_context_configuration_handle *cch);
+int cch_deallocate(struct gru_context_configuration_handle *cch);
+int cch_interrupt_sync(struct gru_context_configuration_handle *cch);
+int tgh_invalidate(struct gru_tlb_global_handle *tgh, unsigned long vaddr,
+	unsigned long vaddrmask, int asid, int pagesize, int global, int n,
+	unsigned short ctxbitmap);
+void tfh_write_only(struct gru_tlb_fault_handle *tfh, unsigned long pfn,
+	unsigned long vaddr, int asid, int dirty, int pagesize);
+void tfh_write_restart(struct gru_tlb_fault_handle *tfh, unsigned long paddr,
+	int gaa, unsigned long vaddr, int asid, int dirty, int pagesize);
+void tfh_restart(struct gru_tlb_fault_handle *tfh);
+void tfh_user_polling_mode(struct gru_tlb_fault_handle *tfh);
+void tfh_exception(struct gru_tlb_fault_handle *tfh);
 
 #endif /* __GRUHANDLES_H__ */

@@ -49,7 +49,7 @@
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
 #define DRIVER_DESC         "Empia em28xx based USB video device driver"
-#define EM28XX_VERSION_CODE  KERNEL_VERSION(0, 1, 1)
+#define EM28XX_VERSION_CODE  KERNEL_VERSION(0, 1, 2)
 
 #define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
@@ -400,7 +400,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	f.frequency = dev->ctl_freq;
 	f.type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 
 	return 0;
 }
@@ -515,10 +515,6 @@ static struct videobuf_queue_ops em28xx_video_qops = {
 
 static void video_mux(struct em28xx *dev, int index)
 {
-	struct v4l2_routing route;
-
-	route.input = INPUT(index)->vmux;
-	route.output = 0;
 	dev->ctl_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
 	dev->ctl_aoutput = INPUT(index)->aout;
@@ -526,25 +522,22 @@ static void video_mux(struct em28xx *dev, int index)
 	if (!dev->ctl_aoutput)
 		dev->ctl_aoutput = EM28XX_AOUT_MASTER;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+			INPUT(index)->vmux, 0, 0);
 
 	if (dev->board.has_msp34xx) {
 		if (dev->i2s_speed) {
-			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ,
-				&dev->i2s_speed);
+			v4l2_device_call_all(&dev->v4l2_dev, 0, audio,
+				s_i2s_clock_freq, dev->i2s_speed);
 		}
-		route.input = dev->ctl_ainput;
-		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 		/* Note: this is msp3400 specific */
-		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
-			&route);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
+			 dev->ctl_ainput, MSP_OUTPUT(MSP_SC_IN_DSP_SCART1), 0);
 	}
 
 	if (dev->board.adecoder != EM28XX_NOADECODER) {
-		route.input = dev->ctl_ainput;
-		route.output = dev->ctl_aoutput;
-		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
-			&route);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
+			dev->ctl_ainput, dev->ctl_aoutput, 0);
 	}
 
 	em28xx_audio_analog_set(dev);
@@ -829,7 +822,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
-	em28xx_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -995,8 +988,9 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 			}
 		}
 	}
+
 	mutex_lock(&dev->lock);
-	em28xx_i2c_call_clients(dev, VIDIOC_QUERYCTRL, qc);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, queryctrl, qc);
 	mutex_unlock(&dev->lock);
 
 	if (qc->type)
@@ -1020,11 +1014,11 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	if (dev->board.has_msp34xx)
-		em28xx_i2c_call_clients(dev, VIDIOC_G_CTRL, ctrl);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
 	else {
 		rc = em28xx_get_ctrl(dev, ctrl);
 		if (rc < 0) {
-			em28xx_i2c_call_clients(dev, VIDIOC_G_CTRL, ctrl);
+			v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_ctrl, ctrl);
 			rc = 0;
 		}
 	}
@@ -1048,7 +1042,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	if (dev->board.has_msp34xx)
-		em28xx_i2c_call_clients(dev, VIDIOC_S_CTRL, ctrl);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 	else {
 		rc = 1;
 		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
@@ -1067,7 +1061,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	/* Control not found - try to send it to the attached devices */
 	if (rc == 1) {
-		em28xx_i2c_call_clients(dev, VIDIOC_S_CTRL, ctrl);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_ctrl, ctrl);
 		rc = 0;
 	}
 
@@ -1092,10 +1086,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	strcpy(t->name, "Tuner");
 
 	mutex_lock(&dev->lock);
-
-	em28xx_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
-
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
 	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
@@ -1114,10 +1107,9 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
-
-	em28xx_i2c_call_clients(dev, VIDIOC_S_TUNER, t);
-
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
 	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
@@ -1157,7 +1149,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	dev->ctl_freq = f->frequency;
-	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
 
 	mutex_unlock(&dev->lock);
 
@@ -1186,7 +1178,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
 
-	em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_CHIP_IDENT, chip);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
 
 	return 0;
 }
@@ -1211,7 +1203,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 		reg->size = 1;
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		em28xx_i2c_call_clients(dev, VIDIOC_DBG_G_REGISTER, reg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
 		/* Not supported yet */
@@ -1263,7 +1255,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 
 		return rc;
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		em28xx_i2c_call_clients(dev, VIDIOC_DBG_S_REGISTER, reg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	case V4L2_CHIP_MATCH_I2C_ADDR:
 		/* Not supported yet */
@@ -1406,13 +1398,13 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	f->fmt.sliced.service_set = 0;
-
-	em28xx_i2c_call_clients(dev, VIDIOC_G_FMT, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
 
 	mutex_unlock(&dev->lock);
+
 	return rc;
 }
 
@@ -1428,7 +1420,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	em28xx_i2c_call_clients(dev, VIDIOC_G_FMT, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
@@ -1532,7 +1524,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	t->type = V4L2_TUNER_RADIO;
 
 	mutex_lock(&dev->lock);
-	em28xx_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1567,7 +1559,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	mutex_lock(&dev->lock);
-	em28xx_i2c_call_clients(dev, VIDIOC_S_TUNER, t);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
 	mutex_unlock(&dev->lock);
 
 	return 0;
@@ -1655,7 +1647,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	}
 	if (fh->radio) {
 		em28xx_videodbg("video_open: setting radio device\n");
-		em28xx_i2c_call_clients(dev, AUDC_SET_RADIO, NULL);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_radio);
 	}
 
 	dev->users++;
@@ -1738,7 +1730,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		}
 
 		/* Save some power by putting tuner to sleep */
-		em28xx_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
 
 		/* do this before setting alternate! */
 		em28xx_uninit_isoc(dev);
@@ -1959,11 +1951,12 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd = video_device_alloc();
 	if (NULL == vfd)
 		return NULL;
-	*vfd = *template;
-	vfd->minor   = -1;
-	vfd->parent = &dev->udev->dev;
-	vfd->release = video_device_release;
-	vfd->debug = video_debug;
+
+	*vfd		= *template;
+	vfd->minor	= -1;
+	vfd->v4l2_dev	= &dev->v4l2_dev;
+	vfd->release	= video_device_release;
+	vfd->debug	= video_debug;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev->name, type_name);

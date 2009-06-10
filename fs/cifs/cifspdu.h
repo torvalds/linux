@@ -2163,7 +2163,7 @@ typedef struct {
 	__le32 Type;
 	__le64 DevMajor;
 	__le64 DevMinor;
-	__u64 UniqueId;
+	__le64 UniqueId;
 	__le64 Permissions;
 	__le64 Nlinks;
 } __attribute__((packed)) FILE_UNIX_BASIC_INFO;	/* level 0x200 QPathInfo */
@@ -2308,7 +2308,7 @@ struct unlink_psx_rq { /* level 0x20a SetPathInfo */
 } __attribute__((packed));
 
 struct file_internal_info {
-	__u64  UniqueId; /* inode number */
+	__le64  UniqueId; /* inode number */
 } __attribute__((packed));      /* level 0x3ee */
 
 struct file_mode_info {
@@ -2338,7 +2338,7 @@ typedef struct {
 	__le32 Type;
 	__le64 DevMajor;
 	__le64 DevMinor;
-	__u64 UniqueId;
+	__le64 UniqueId;
 	__le64 Permissions;
 	__le64 Nlinks;
 	char FileName[1];
@@ -2386,7 +2386,7 @@ typedef struct {
 	__le32 FileNameLength;
 	__le32 EaSize; /* EA size */
 	__le32 Reserved;
-	__u64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
+	__le64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
 	char FileName[1];
 } __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO; /* level 0x105 FF rsp data */
 

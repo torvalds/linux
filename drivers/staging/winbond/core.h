@@ -3,9 +3,9 @@
 
 #include <linux/wireless.h>
 
-#include "bssdscpt.h"
-#include "mto.h"
+#include "mlme_s.h"
 #include "wbhal_s.h"
+#include "mto.h"
 
 #define WBLINUX_PACKET_ARRAY_SIZE (ETHERNET_TX_DESCRIPTORS*4)
 
@@ -15,12 +15,11 @@ struct wbsoft_priv {
 	u32 adapterIndex;	// 20060703.4 Add for using padapterContext global adapter point
 
 	WB_LOCALDESCRIPT sLocalPara;	// Myself connected parameters
-	PWB_BSSDESCRIPTION asBSSDescriptElement;
 
 	MLME_FRAME sMlmeFrame;	// connect to peerSTA parameters
 
 	MTO_PARAMETERS sMtoPara;	// MTO_struct ...
-	hw_data_t sHwData;	//For HAL
+	struct hw_data sHwData;	//For HAL
 	MDS Mds;
 
 	spinlock_t SpinLock;

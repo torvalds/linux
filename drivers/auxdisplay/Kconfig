@@ -6,7 +6,6 @@
 #
 
 menuconfig AUXDISPLAY
-	depends on PARPORT
 	bool "Auxiliary Display support"
 	---help---
 	  Say Y here to get to see options for auxiliary display drivers.
@@ -14,7 +13,7 @@ menuconfig AUXDISPLAY
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
-if AUXDISPLAY && PARPORT
+if AUXDISPLAY
 
 config KS0108
 	tristate "KS0108 LCD Controller"

@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mtrr.h>
+#include <asm/suspend.h>
 
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;

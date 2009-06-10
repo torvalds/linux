@@ -78,5 +78,3 @@ static void mr_exit(void)
 module_init(mr_init);
 module_exit(mr_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(monterey);

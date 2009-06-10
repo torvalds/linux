@@ -520,16 +520,6 @@ static u32 pvr2_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static int pvr2_i2c_attach_inform(struct i2c_client *client)
-{
-	return 0;
-}
-
-static int pvr2_i2c_detach_inform(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_algorithm pvr2_i2c_algo_template = {
 	.master_xfer   = pvr2_i2c_xfer,
 	.functionality = pvr2_i2c_functionality,
@@ -539,8 +529,6 @@ static struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
 	.class	       = 0,
 	.id            = I2C_HW_B_BT848,
-	.client_register = pvr2_i2c_attach_inform,
-	.client_unregister = pvr2_i2c_detach_inform,
 };
 
 

@@ -10,8 +10,6 @@
  */
 
 #include <linux/audit.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
 #include <linux/tty.h>
 
 struct tty_audit_buf {

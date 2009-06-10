@@ -1016,9 +1016,9 @@ struct acpi_madt_interrupt_source {
 struct acpi_madt_local_x2apic {
 	struct acpi_subtable_header header;
 	u16 reserved;		/* Reserved - must be zero */
-	u32 local_apic_id;	/* Processor X2_APIC ID  */
+	u32 local_apic_id;	/* Processor x2APIC ID  */
 	u32 lapic_flags;
-	u32 uid;		/* Extended X2_APIC processor ID */
+	u32 uid;		/* ACPI processor UID */
 };
 
 /* 10: Local X2APIC NMI (07/2008) */
@@ -1026,7 +1026,7 @@ struct acpi_madt_local_x2apic {
 struct acpi_madt_local_x2apic_nmi {
 	struct acpi_subtable_header header;
 	u16 inti_flags;
-	u32 uid;		/* Processor X2_APIC ID */
+	u32 uid;		/* ACPI processor UID */
 	u8 lint;		/* LINTn to which NMI is connected */
 	u8 reserved[3];
 };

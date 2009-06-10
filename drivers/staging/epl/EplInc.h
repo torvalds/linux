@@ -140,8 +140,8 @@
 
 // IEEE 1588 conformant net time structure
 typedef struct {
-	DWORD m_dwSec;
-	DWORD m_dwNanoSec;
+	u32 m_dwSec;
+	u32 m_dwNanoSec;
 
 } tEplNetTime;
 
@@ -154,8 +154,8 @@ typedef struct {
 // -------------------------------------------------------------------------
 
 #define EPL_SPEC_VERSION                    0x20	// ETHERNET Powerlink V. 2.0
-#define EPL_STACK_VERSION(ver,rev,rel)      ((((DWORD)(ver)) & 0xFF)|((((DWORD)(rev))&0xFF)<<8)|(((DWORD)(rel))<<16))
-#define EPL_OBJ1018_VERSION(ver,rev,rel)    ((((DWORD)(ver))<<16) |(((DWORD)(rev))&0xFFFF))
+#define EPL_STACK_VERSION(ver,rev,rel)      ((((u32)(ver)) & 0xFF)|((((u32)(rev))&0xFF)<<8)|(((u32)(rel))<<16))
+#define EPL_OBJ1018_VERSION(ver,rev,rel)    ((((u32)(ver))<<16) |(((u32)(rev))&0xFFFF))
 #define EPL_STRING_VERSION(ver,rev,rel)     "V" #ver "." #rev " r" #rel
 
 #include "EplVersion.h"
@@ -234,21 +234,6 @@ typedef struct {
 
 #ifndef tabentries
 #define tabentries(a)   (sizeof(a)/sizeof(*(a)))
-#endif
-
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-// definitions for DLL export
-#if ((DEV_SYSTEM == _DEV_WIN32_) || (DEV_SYSTEM == _DEV_WIN_CE_)) && defined (COP_LIB)
-
-#define EPLDLLEXPORT    __declspec (dllexport)
-
-#else
-
-#define EPLDLLEXPORT
-
 #endif
 
 // ============================================================================

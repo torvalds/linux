@@ -511,9 +511,15 @@ SPI MASTER METHODS
 	This sets up the device clock rate, SPI mode, and word sizes.
 	Drivers may change the defaults provided by board_info, and then
 	call spi_setup(spi) to invoke this routine.  It may sleep.
+
 	Unless each SPI slave has its own configuration registers, don't
 	change them right away ... otherwise drivers could corrupt I/O
 	that's in progress for other SPI devices.
+
+		** BUG ALERT:  for some reason the first version of
+		** many spi_master drivers seems to get this wrong.
+		** When you code setup(), ASSUME that the controller
+		** is actively processing transfers for another device.
 
     master->transfer(struct spi_device *spi, struct spi_message *message)
     	This must not sleep.  Its responsibility is arrange that the

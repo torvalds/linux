@@ -22,7 +22,7 @@
 
 static struct txx9_tmr_reg __iomem *txx9_cs_tmrptr;
 
-static cycle_t txx9_cs_read(void)
+static cycle_t txx9_cs_read(struct clocksource *cs)
 {
 	return __raw_readl(&txx9_cs_tmrptr->trr);
 }

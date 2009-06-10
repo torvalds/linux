@@ -746,6 +746,18 @@ config SOC_CAMERA_OV772X
 	help
 	  This is a ov772x camera driver
 
+config MX1_VIDEO
+	bool
+
+config VIDEO_MX1
+	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
+	select FIQ
+	select VIDEOBUF_DMA_CONTIG
+	select MX1_VIDEO
+	---help---
+	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
+
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
@@ -794,6 +806,8 @@ source "drivers/media/video/pvrusb2/Kconfig"
 source "drivers/media/video/hdpvr/Kconfig"
 
 source "drivers/media/video/em28xx/Kconfig"
+
+source "drivers/media/video/cx231xx/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
@@ -904,5 +918,4 @@ config USB_S2255
 	  This driver can be compiled as a module, called s2255drv.
 
 endif # V4L_USB_DRIVERS
-
 endif # VIDEO_CAPTURE_DRIVERS

@@ -28,7 +28,8 @@ struct pcilst_struct {
 	unsigned int irq;
 };
 
-struct pcilst_struct *inova_devices;	// ptr to root list of all Inova devices
+struct pcilst_struct *inova_devices;
+/* ptr to root list of all Inova devices */
 
 /****************************************************************************/
 
@@ -150,14 +151,14 @@ static int find_free_pci_card_by_position(unsigned short vendor_id,
 			&& (inova->pci_slot == pci_slot)) {
 			if (!(inova->used)) {
 				*card = inova;
-				return 0;	// ok, card is found
+				return 0;	/* ok, card is found */
 			} else {
-				return 2;	// card exist but is used
+				return 2;	/* card exist but is used */
 			}
 		}
 	}
 
-	return 1;		// no card found
+	return 1;		/* no card found */
 }
 
 /****************************************************************************/
@@ -243,9 +244,10 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 	struct pcilst_struct *card;
 	int err;
 
-	if ((pci_bus < 1) & (pci_slot < 1)) {	// use autodetection
-		if ((card = find_free_pci_card_by_device(vendor_id,
-					device_id)) == NULL) {
+	if ((pci_bus < 1) & (pci_slot < 1)) {	/* use autodetection */
+
+		card = find_free_pci_card_by_device(vendor_id, device_id);
+		if (card == NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return NULL;
 		}
@@ -265,7 +267,8 @@ static struct pcilst_struct *select_and_alloc_pci_card(unsigned short vendor_id,
 		}
 	}
 
-	if ((err = pci_card_alloc(card)) != 0) {
+	err = pci_card_alloc(card);
+	if (err != 0) {
 		if (err > 0)
 			rt_printk(" - Can't allocate card!\n");
 		/* else: error already printed. */

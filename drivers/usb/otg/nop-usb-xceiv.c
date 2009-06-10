@@ -36,14 +36,14 @@ struct nop_usb_xceiv {
 	struct device		*dev;
 };
 
-static u64 nop_xceiv_dmamask = DMA_32BIT_MASK;
+static u64 nop_xceiv_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device nop_xceiv_device = {
 	.name           = "nop_usb_xceiv",
 	.id             = -1,
 	.dev = {
 		.dma_mask               = &nop_xceiv_dmamask,
-		.coherent_dma_mask      = DMA_32BIT_MASK,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
 		.platform_data          = NULL,
 	},
 };

@@ -202,7 +202,11 @@ extern long ia64_cmpxchg_called_with_bad_pointer (void);
 
 #ifndef __ASSEMBLY__
 #if defined(CONFIG_PARAVIRT) && defined(__KERNEL__)
-#define IA64_INTRINSIC_API(name)	pv_cpu_ops.name
+#ifdef ASM_SUPPORTED
+# define IA64_INTRINSIC_API(name)	paravirt_ ## name
+#else
+# define IA64_INTRINSIC_API(name)	pv_cpu_ops.name
+#endif
 #define IA64_INTRINSIC_MACRO(name)	paravirt_ ## name
 #else
 #define IA64_INTRINSIC_API(name)	ia64_native_ ## name

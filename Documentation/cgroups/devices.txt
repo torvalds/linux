@@ -42,7 +42,7 @@ suffice, but we can decide the best way to adequately restrict
 movement as people get some experience with this.  We may just want
 to require CAP_SYS_ADMIN, which at least is a separate bit from
 CAP_MKNOD.  We may want to just refuse moving to a cgroup which
-isn't a descendent of the current one.  Or we may want to use
+isn't a descendant of the current one.  Or we may want to use
 CAP_MAC_ADMIN, since we really are trying to lock down root.
 
 CAP_SYS_ADMIN is needed to modify the whitelist or move another

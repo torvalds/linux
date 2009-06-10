@@ -108,7 +108,6 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	/* initialize request counter */
 	BUG_ON(!zfcp_reqlist_isempty(adapter));
 	adapter->req_no = 0;
-	zfcp_fc_nameserver_init(adapter);
 
 	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
 				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
@@ -175,6 +174,11 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 					       ZFCP_SET);
 		zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 					"ccnoti4", NULL);
+		break;
+	case CIO_BOXED:
+		dev_warn(&adapter->ccw_device->dev,
+			 "The ccw device did not respond in time.\n");
+		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5", NULL);
 		break;
 	}
 	return 1;

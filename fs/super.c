@@ -208,6 +208,34 @@ void deactivate_super(struct super_block *s)
 EXPORT_SYMBOL(deactivate_super);
 
 /**
+ *	deactivate_locked_super	-	drop an active reference to superblock
+ *	@s: superblock to deactivate
+ *
+ *	Equivalent of up_write(&s->s_umount); deactivate_super(s);, except that
+ *	it does not unlock it until it's all over.  As the result, it's safe to
+ *	use to dispose of new superblock on ->get_sb() failure exits - nobody
+ *	will see the sucker until it's all over.  Equivalent using up_write +
+ *	deactivate_super is safe for that purpose only if superblock is either
+ *	safe to use or has NULL ->s_root when we unlock.
+ */
+void deactivate_locked_super(struct super_block *s)
+{
+	struct file_system_type *fs = s->s_type;
+	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
+		s->s_count -= S_BIAS-1;
+		spin_unlock(&sb_lock);
+		vfs_dq_off(s, 0);
+		fs->kill_sb(s);
+		put_filesystem(fs);
+		put_super(s);
+	} else {
+		up_write(&s->s_umount);
+	}
+}
+
+EXPORT_SYMBOL(deactivate_locked_super);
+
+/**
  *	grab_super - acquire an active reference
  *	@s: reference we are trying to make active
  *
@@ -287,6 +315,7 @@ int fsync_super(struct super_block *sb)
 	__fsync_super(sb);
 	return sync_blockdev(sb->s_bdev);
 }
+EXPORT_SYMBOL_GPL(fsync_super);
 
 /**
  *	generic_shutdown_super	-	common helper for ->kill_sb()
@@ -770,6 +799,45 @@ void kill_litter_super(struct super_block *sb)
 
 EXPORT_SYMBOL(kill_litter_super);
 
+static int ns_test_super(struct super_block *sb, void *data)
+{
+	return sb->s_fs_info == data;
+}
+
+static int ns_set_super(struct super_block *sb, void *data)
+{
+	sb->s_fs_info = data;
+	return set_anon_super(sb, NULL);
+}
+
+int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt)
+{
+	struct super_block *sb;
+
+	sb = sget(fs_type, ns_test_super, ns_set_super, data);
+	if (IS_ERR(sb))
+		return PTR_ERR(sb);
+
+	if (!sb->s_root) {
+		int err;
+		sb->s_flags = flags;
+		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		if (err) {
+			deactivate_locked_super(sb);
+			return err;
+		}
+
+		sb->s_flags |= MS_ACTIVE;
+	}
+
+	simple_set_mnt(mnt, sb);
+	return 0;
+}
+
+EXPORT_SYMBOL(get_sb_ns);
+
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
 {
@@ -813,8 +881,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 
 	if (s->s_root) {
 		if ((flags ^ s->s_flags) & MS_RDONLY) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			error = -EBUSY;
 			goto error_bdev;
 		}
@@ -829,8 +896,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			goto error;
 		}
 
@@ -856,7 +922,7 @@ void kill_block_super(struct super_block *sb)
 	struct block_device *bdev = sb->s_bdev;
 	fmode_t mode = sb->s_mode;
 
-	bdev->bd_super = 0;
+	bdev->bd_super = NULL;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
 	close_bdev_exclusive(bdev, mode);
@@ -880,8 +946,7 @@ int get_sb_nodev(struct file_system_type *fs_type,
 
 	error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
-		up_write(&s->s_umount);
-		deactivate_super(s);
+		deactivate_locked_super(s);
 		return error;
 	}
 	s->s_flags |= MS_ACTIVE;
@@ -911,8 +976,7 @@ int get_sb_single(struct file_system_type *fs_type,
 		s->s_flags = flags;
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
+			deactivate_locked_super(s);
 			return error;
 		}
 		s->s_flags |= MS_ACTIVE;
@@ -965,8 +1029,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	return mnt;
 out_sb:
 	dput(mnt->mnt_root);
-	up_write(&mnt->mnt_sb->s_umount);
-	deactivate_super(mnt->mnt_sb);
+	deactivate_locked_super(mnt->mnt_sb);
 out_free_secdata:
 	free_secdata(secdata);
 out_mnt:

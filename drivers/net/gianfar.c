@@ -1583,8 +1583,10 @@ static void gfar_reset_task(struct work_struct *work)
 	struct net_device *dev = priv->ndev;
 
 	if (dev->flags & IFF_UP) {
+		netif_stop_queue(dev);
 		stop_gfar(dev);
 		startup_gfar(dev);
+		netif_start_queue(dev);
 	}
 
 	netif_tx_schedule_all(dev);
@@ -1883,8 +1885,17 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 
 			if (unlikely(!newskb))
 				newskb = skb;
-			else if (skb)
+			else if (skb) {
+				/*
+				 * We need to reset ->data to what it
+				 * was before gfar_new_skb() re-aligned
+				 * it to an RXBUF_ALIGNMENT boundary
+				 * before we put the skb back on the
+				 * recycle list.
+				 */
+				skb->data = skb->head + NET_SKB_PAD;
 				__skb_queue_head(&priv->rx_recycle, skb);
+			}
 		} else {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;

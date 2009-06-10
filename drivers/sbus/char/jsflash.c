@@ -383,18 +383,22 @@ static int jsf_ioctl_program(void __user *arg)
 	return 0;
 }
 
-static int jsf_ioctl(struct inode *inode, struct file *f, unsigned int cmd,
-    unsigned long arg)
+static long jsf_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
+	lock_kernel();
 	int error = -ENOTTY;
 	void __user *argp = (void __user *)arg;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN)) {
+		unlock_kernel();
 		return -EPERM;
+	}
 	switch (cmd) {
 	case JSFLASH_IDENT:
-		if (copy_to_user(argp, &jsf0.id, JSFIDSZ))
+		if (copy_to_user(argp, &jsf0.id, JSFIDSZ)) {
+			unlock_kernel();
 			return -EFAULT;
+		}
 		break;
 	case JSFLASH_ERASE:
 		error = jsf_ioctl_erase(arg);
@@ -404,6 +408,7 @@ static int jsf_ioctl(struct inode *inode, struct file *f, unsigned int cmd,
 		break;
 	}
 
+	unlock_kernel();
 	return error;
 }
 
@@ -439,7 +444,7 @@ static const struct file_operations jsf_fops = {
 	.llseek =	jsf_lseek,
 	.read =		jsf_read,
 	.write =	jsf_write,
-	.ioctl =	jsf_ioctl,
+	.unlocked_ioctl =	jsf_ioctl,
 	.mmap =		jsf_mmap,
 	.open =		jsf_open,
 	.release =	jsf_release,

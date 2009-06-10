@@ -971,7 +971,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	struct device_node *p;
 	const u32 *intspec, *tmp, *addr;
 	u32 intsize, intlen;
-	int res;
+	int res = -EINVAL;
 
 	DBG("of_irq_map_one: dev=%s, index=%d\n", device->full_name, index);
 
@@ -995,21 +995,20 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 
 	/* Get size of interrupt specifier */
 	tmp = of_get_property(p, "#interrupt-cells", NULL);
-	if (tmp == NULL) {
-		of_node_put(p);
-		return -EINVAL;
-	}
+	if (tmp == NULL)
+		goto out;
 	intsize = *tmp;
 
 	DBG(" intsize=%d intlen=%d\n", intsize, intlen);
 
 	/* Check index */
 	if ((index + 1) * intsize > intlen)
-		return -EINVAL;
+		goto out;
 
 	/* Get new specifier and map it */
 	res = of_irq_map_raw(p, intspec + index * intsize, intsize,
 			     addr, out_irq);
+out:
 	of_node_put(p);
 	return res;
 }

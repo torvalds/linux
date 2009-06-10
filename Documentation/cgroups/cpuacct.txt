@@ -30,3 +30,21 @@ The above steps create a new group g1 and move the current shell
 process (bash) into it. CPU time consumed by this bash and its children
 can be obtained from g1/cpuacct.usage and the same is accumulated in
 /cgroups/cpuacct.usage also.
+
+cpuacct.stat file lists a few statistics which further divide the
+CPU time obtained by the cgroup into user and system times. Currently
+the following statistics are supported:
+
+user: Time spent by tasks of the cgroup in user mode.
+system: Time spent by tasks of the cgroup in kernel mode.
+
+user and system are in USER_HZ unit.
+
+cpuacct controller uses percpu_counter interface to collect user and
+system times. This has two side effects:
+
+- It is theoretically possible to see wrong values for user and system times.
+  This is because percpu_counter_read() on 32bit systems isn't safe
+  against concurrent writes.
+- It is possible to see slightly outdated values for user and system times
+  due to the batch processing nature of percpu_counter.

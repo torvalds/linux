@@ -158,5 +158,3 @@ static void zp_exit(void)
 module_init(zp_init);
 module_exit(zp_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(zeroplus);

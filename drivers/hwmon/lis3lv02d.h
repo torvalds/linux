@@ -159,14 +159,14 @@ struct axis_conversion {
 	s8	z;
 };
 
-struct acpi_lis3lv02d {
-	struct acpi_device	*device;   /* The ACPI device */
-	acpi_status (*init) (acpi_handle handle);
-	acpi_status (*write) (acpi_handle handle, int reg, u8 val);
-	acpi_status (*read) (acpi_handle handle, int reg, u8 *ret);
+struct lis3lv02d {
+	void			*bus_priv; /* used by the bus layer only */
+	int (*init) (struct lis3lv02d *lis3);
+	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
+	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
 
 	u8			whoami;    /* 3Ah: 2-byte registries, 3Bh: 1-byte registries */
-	s16 (*read_data) (acpi_handle handle, int reg);
+	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
 	int			mdps_max_val;
 
 	struct input_dev	*idev;     /* input device */
@@ -187,11 +187,11 @@ struct acpi_lis3lv02d {
 	unsigned long		misc_opened; /* bit0: whether the device is open */
 };
 
-int lis3lv02d_init_device(struct acpi_lis3lv02d *dev);
+int lis3lv02d_init_device(struct lis3lv02d *lis3);
 int lis3lv02d_joystick_enable(void);
 void lis3lv02d_joystick_disable(void);
-void lis3lv02d_poweroff(acpi_handle handle);
-void lis3lv02d_poweron(acpi_handle handle);
+void lis3lv02d_poweroff(struct lis3lv02d *lis3);
+void lis3lv02d_poweron(struct lis3lv02d *lis3);
 int lis3lv02d_remove_fs(void);
 
-extern struct acpi_lis3lv02d adev;
+extern struct lis3lv02d lis3_dev;

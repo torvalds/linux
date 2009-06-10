@@ -2,6 +2,7 @@
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author H. Peter Anvin
  *
  *   This file is part of the Linux kernel, and is made available under
  *   the terms of the GNU General Public License version 2.
@@ -20,20 +21,37 @@ static int detect_memory_e820(void)
 {
 	int count = 0;
 	u32 next = 0;
-	u32 size, id;
+	u32 size, id, edi;
 	u8 err;
 	struct e820entry *desc = boot_params.e820_map;
+	static struct e820entry buf; /* static so it is zeroed */
+
+	/*
+	 * Note: at least one BIOS is known which assumes that the
+	 * buffer pointed to by one e820 call is the same one as
+	 * the previous call, and only changes modified fields.  Therefore,
+	 * we use a temporary buffer and copy the results entry by entry.
+	 *
+	 * This routine deliberately does not try to account for
+	 * ACPI 3+ extended attributes.  This is because there are
+	 * BIOSes in the field which report zero for the valid bit for
+	 * all ranges, and we don't currently make any use of the
+	 * other attribute bits.  Revisit this if we see the extended
+	 * attribute bits deployed in a meaningful way in the future.
+	 */
 
 	do {
-		size = sizeof(struct e820entry);
+		size = sizeof buf;
 
-		/* Important: %edx is clobbered by some BIOSes,
-		   so it must be either used for the error output
-		   or explicitly marked clobbered. */
-		asm("int $0x15; setc %0"
+		/* Important: %edx and %esi are clobbered by some BIOSes,
+		   so they must be either used for the error output
+		   or explicitly marked clobbered.  Given that, assume there
+		   is something out there clobbering %ebp and %edi, too. */
+		asm("pushl %%ebp; int $0x15; popl %%ebp; setc %0"
 		    : "=d" (err), "+b" (next), "=a" (id), "+c" (size),
-		      "=m" (*desc)
-		    : "D" (desc), "d" (SMAP), "a" (0xe820));
+		      "=D" (edi), "+m" (buf)
+		    : "D" (&buf), "d" (SMAP), "a" (0xe820)
+		    : "esi");
 
 		/* BIOSes which terminate the chain with CF = 1 as opposed
 		   to %ebx = 0 don't always report the SMAP signature on
@@ -51,8 +69,8 @@ static int detect_memory_e820(void)
 			break;
 		}
 
+		*desc++ = buf;
 		count++;
-		desc++;
 	} while (next && count < ARRAY_SIZE(boot_params.e820_map));
 
 	return boot_params.e820_entries = count;

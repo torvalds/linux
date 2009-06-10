@@ -49,14 +49,14 @@ static struct resource msp_usbhost_resources [] = {
 	},
 };
 
-static u64 msp_usbhost_dma_mask = DMA_32BIT_MASK;
+static u64 msp_usbhost_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device msp_usbhost_device = {
 	.name	= "pmcmsp-ehci",
 	.id	= 0,
 	.dev	= {
 		.dma_mask = &msp_usbhost_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources 	= ARRAY_SIZE(msp_usbhost_resources),
 	.resource	= msp_usbhost_resources,
@@ -77,14 +77,14 @@ static struct resource msp_usbdev_resources [] = {
 	},
 };
 
-static u64 msp_usbdev_dma_mask = DMA_32BIT_MASK;
+static u64 msp_usbdev_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device msp_usbdev_device = {
 	.name	= "msp71xx_udc",
 	.id	= 0,
 	.dev	= {
 		.dma_mask = &msp_usbdev_dma_mask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(msp_usbdev_resources),
 	.resource	= msp_usbdev_resources,

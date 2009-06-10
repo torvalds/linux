@@ -316,10 +316,11 @@ static void macb_tx(struct macb *bp)
 	dev_dbg(&bp->pdev->dev, "macb_tx status = %02lx\n",
 		(unsigned long)status);
 
-	if (status & MACB_BIT(UND)) {
+	if (status & (MACB_BIT(UND) | MACB_BIT(TSR_RLE))) {
 		int i;
-		printk(KERN_ERR "%s: TX underrun, resetting buffers\n",
-			bp->dev->name);
+		printk(KERN_ERR "%s: TX %s, resetting buffers\n",
+			bp->dev->name, status & MACB_BIT(UND) ?
+			"underrun" : "retry limit exceeded");
 
 		/* Transfer ongoing, disable transmitter, to avoid confusion */
 		if (status & MACB_BIT(TGO))
@@ -520,26 +521,9 @@ static int macb_poll(struct napi_struct *napi, int budget)
 	macb_writel(bp, RSR, status);
 
 	work_done = 0;
-	if (!status) {
-		/*
-		 * This may happen if an interrupt was pending before
-		 * this function was called last time, and no packets
-		 * have been received since.
-		 */
-		napi_complete(napi);
-		goto out;
-	}
 
 	dev_dbg(&bp->pdev->dev, "poll: status = %08lx, budget = %d\n",
 		(unsigned long)status, budget);
-
-	if (!(status & MACB_BIT(REC))) {
-		dev_warn(&bp->pdev->dev,
-			 "No RX buffers complete, status = %02lx\n",
-			 (unsigned long)status);
-		napi_complete(napi);
-		goto out;
-	}
 
 	work_done = macb_rx(bp, budget);
 	if (work_done < budget)
@@ -549,7 +533,6 @@ static int macb_poll(struct napi_struct *napi, int budget)
 	 * We've done what we can to clean the buffers. Make sure we
 	 * get notified when new packets arrive.
 	 */
-out:
 	macb_writel(bp, IER, MACB_RX_INT_FLAGS);
 
 	/* TODO: Handle errors */
@@ -590,7 +573,8 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			}
 		}
 
-		if (status & (MACB_BIT(TCOMP) | MACB_BIT(ISR_TUND)))
+		if (status & (MACB_BIT(TCOMP) | MACB_BIT(ISR_TUND) |
+			    MACB_BIT(ISR_RLE)))
 			macb_tx(bp);
 
 		/*
@@ -1100,6 +1084,18 @@ static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
 }
 
+static const struct net_device_ops macb_netdev_ops = {
+	.ndo_open		= macb_open,
+	.ndo_stop		= macb_close,
+	.ndo_start_xmit		= macb_start_xmit,
+	.ndo_set_multicast_list	= macb_set_rx_mode,
+	.ndo_get_stats		= macb_get_stats,
+	.ndo_do_ioctl		= macb_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int __init macb_probe(struct platform_device *pdev)
 {
 	struct eth_platform_data *pdata;
@@ -1175,12 +1171,7 @@ static int __init macb_probe(struct platform_device *pdev)
 		goto err_out_iounmap;
 	}
 
-	dev->open = macb_open;
-	dev->stop = macb_close;
-	dev->hard_start_xmit = macb_start_xmit;
-	dev->get_stats = macb_get_stats;
-	dev->set_multicast_list = macb_set_rx_mode;
-	dev->do_ioctl = macb_ioctl;
+	dev->netdev_ops = &macb_netdev_ops;
 	netif_napi_add(dev, &bp->napi, macb_poll, 64);
 	dev->ethtool_ops = &macb_ethtool_ops;
 

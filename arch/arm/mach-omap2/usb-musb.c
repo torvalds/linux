@@ -131,14 +131,14 @@ static struct musb_hdrc_platform_data musb_plat = {
 	.power		= 50,			/* up to 100 mA */
 };
 
-static u64 musb_dmamask = DMA_32BIT_MASK;
+static u64 musb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device musb_device = {
 	.name		= "musb_hdrc",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &musb_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &musb_plat,
 	},
 	.num_resources	= ARRAY_SIZE(musb_resources),
@@ -146,14 +146,14 @@ static struct platform_device musb_device = {
 };
 
 #ifdef CONFIG_NOP_USB_XCEIV
-static u64 nop_xceiv_dmamask = DMA_32BIT_MASK;
+static u64 nop_xceiv_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device nop_xceiv_device = {
 	.name		= "nop_usb_xceiv",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &nop_xceiv_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= NULL,
 	},
 };

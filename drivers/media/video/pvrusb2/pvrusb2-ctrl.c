@@ -137,14 +137,12 @@ int pvr2_ctrl_get_min(struct pvr2_ctrl *cptr)
 int pvr2_ctrl_get_def(struct pvr2_ctrl *cptr, int *valptr)
 {
 	int ret = 0;
-	if (!cptr) return 0;
+	if (!cptr) return -EINVAL;
 	LOCK_TAKE(cptr->hdw->big_lock); do {
-		if (cptr->info->type == pvr2_ctl_int) {
-			if (cptr->info->get_def_value) {
-				ret = cptr->info->get_def_value(cptr, valptr);
-			} else {
-				*valptr = cptr->info->default_value;
-			}
+		if (cptr->info->get_def_value) {
+			ret = cptr->info->get_def_value(cptr, valptr);
+		} else {
+			*valptr = cptr->info->default_value;
 		}
 	} while(0); LOCK_GIVE(cptr->hdw->big_lock);
 	return ret;

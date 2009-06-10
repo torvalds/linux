@@ -543,6 +543,13 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		package_element = *top_object_list;
 
+		/* We must have a valid Package object */
+
+		if (!package_element ||
+		    (package_element->common.type != ACPI_TYPE_PACKAGE)) {
+			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+		}
+
 		/*
 		 * The sub_object_list will now point to an array of the
 		 * four IRQ elements: Address, Pin, Source and source_index
@@ -557,9 +564,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 		     table_index++) {
 			if (*sub_object_list &&	/* Null object allowed */
 			    ((ACPI_TYPE_STRING ==
-			      ACPI_GET_OBJECT_TYPE(*sub_object_list)) ||
+			      (*sub_object_list)->common.type) ||
 			     ((ACPI_TYPE_LOCAL_REFERENCE ==
-			       ACPI_GET_OBJECT_TYPE(*sub_object_list)) &&
+			       (*sub_object_list)->common.type) &&
 			      ((*sub_object_list)->reference.class ==
 			       ACPI_REFCLASS_NAME)))) {
 				name_found = TRUE;
@@ -575,8 +582,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 		/* Was a String type found? */
 
 		if (name_found) {
-			if (ACPI_GET_OBJECT_TYPE(*sub_object_list) ==
-			    ACPI_TYPE_STRING) {
+			if ((*sub_object_list)->common.type == ACPI_TYPE_STRING) {
 				/*
 				 * The length String.Length field does not include the
 				 * terminating NULL, add 1

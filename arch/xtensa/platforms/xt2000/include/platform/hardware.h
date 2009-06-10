@@ -16,7 +16,6 @@
 #define _XTENSA_XT2000_HARDWARE_H
 
 #include <variant/core.h>
-#include <asm/io.h>
 
 /* 
  * Memory configuration.

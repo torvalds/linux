@@ -467,7 +467,7 @@ jump_to_sun4u_init:
 	jmpl    %g2 + %g0, %g0
 	 nop
 
-	.section	.text.init.refok
+	__REF
 sun4u_init:
 	BRANCH_IF_SUN4V(g1, sun4v_init)
 
@@ -686,7 +686,7 @@ tlb_fixup_done:
 	 * point.
 	 *
 	 * There used to be enormous complexity wrt. transferring
-	 * over from the firwmare's trap table to the Linux kernel's.
+	 * over from the firmware's trap table to the Linux kernel's.
 	 * For example, there was a chicken & egg problem wrt. building
 	 * the OBP page tables, yet needing to be on the Linux kernel
 	 * trap table (to translate PAGE_OFFSET addresses) in order to

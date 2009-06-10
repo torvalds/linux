@@ -165,9 +165,15 @@ static void nuke(struct musb_ep *ep, const int status)
 	if (is_dma_capable() && ep->dma) {
 		struct dma_controller	*c = ep->musb->dma_controller;
 		int value;
+
 		if (ep->is_in) {
+			/*
+			 * The programming guide says that we must not clear
+			 * the DMAMODE bit before DMAENAB, so we only
+			 * clear it in the second write...
+			 */
 			musb_writew(epio, MUSB_TXCSR,
-					0 | MUSB_TXCSR_FLUSHFIFO);
+				    MUSB_TXCSR_DMAMODE | MUSB_TXCSR_FLUSHFIFO);
 			musb_writew(epio, MUSB_TXCSR,
 					0 | MUSB_TXCSR_FLUSHFIFO);
 		} else {
@@ -230,7 +236,7 @@ static inline int max_ep_writesize(struct musb *musb, struct musb_ep *ep)
 		  |	IN token(s) are recd from Host.
 		  |		-> DMA interrupt on completion
 		  |		   calls TxAvail.
-		  |		      -> stop DMA, ~DmaEenab,
+		  |		      -> stop DMA, ~DMAENAB,
 		  |		      -> set TxPktRdy for last short pkt or zlp
 		  |		      -> Complete Request
 		  |		      -> Continue next request (call txstate)
@@ -315,9 +321,17 @@ static void txstate(struct musb *musb, struct musb_request *req)
 					request->dma, request_size);
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
-					/* ASSERT: DMAENAB is clear */
-					csr &= ~(MUSB_TXCSR_AUTOSET |
-							MUSB_TXCSR_DMAMODE);
+					/*
+					 * We must not clear the DMAMODE bit
+					 * before the DMAENAB bit -- and the
+					 * latter doesn't always get cleared
+					 * before we get here...
+					 */
+					csr &= ~(MUSB_TXCSR_AUTOSET
+						| MUSB_TXCSR_DMAENAB);
+					musb_writew(epio, MUSB_TXCSR, csr
+						| MUSB_TXCSR_P_WZC_BITS);
+					csr &= ~MUSB_TXCSR_DMAMODE;
 					csr |= (MUSB_TXCSR_DMAENAB |
 							MUSB_TXCSR_MODE);
 					/* against programming guide */
@@ -334,10 +348,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 #elif defined(CONFIG_USB_TI_CPPI_DMA)
 		/* program endpoint CSR first, then setup DMA */
-		csr &= ~(MUSB_TXCSR_AUTOSET
-				| MUSB_TXCSR_DMAMODE
-				| MUSB_TXCSR_P_UNDERRUN
-				| MUSB_TXCSR_TXPKTRDY);
+		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
 		csr |= MUSB_TXCSR_MODE | MUSB_TXCSR_DMAENAB;
 		musb_writew(epio, MUSB_TXCSR,
 			(MUSB_TXCSR_P_WZC_BITS & ~MUSB_TXCSR_P_UNDERRUN)
@@ -364,8 +375,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		if (!use_dma) {
 			c->channel_release(musb_ep->dma);
 			musb_ep->dma = NULL;
-			/* ASSERT: DMAENAB clear */
-			csr &= ~(MUSB_TXCSR_DMAMODE | MUSB_TXCSR_MODE);
+			csr &= ~MUSB_TXCSR_DMAENAB;
+			musb_writew(epio, MUSB_TXCSR, csr);
 			/* invariant: prequest->buf is non-null */
 		}
 #elif defined(CONFIG_USB_TUSB_OMAP_DMA)

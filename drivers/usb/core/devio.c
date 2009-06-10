@@ -841,7 +841,7 @@ static int proc_resetep(struct dev_state *ps, void __user *arg)
 	ret = checkintf(ps, ret);
 	if (ret)
 		return ret;
-	usb_settoggle(ps->dev, ep & 0xf, !(ep & USB_DIR_IN), 0);
+	usb_reset_endpoint(ps->dev, ep);
 	return 0;
 }
 

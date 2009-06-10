@@ -567,7 +567,7 @@ static inline unsigned long __fls(unsigned long word)
 	int num;
 
 	if (BITS_PER_LONG == 32 &&
-	    __builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r) {
+	    __builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
 		__asm__(
 		"	.set	push					\n"
 		"	.set	mips32					\n"
@@ -644,7 +644,7 @@ static inline int fls(int x)
 {
 	int r;
 
-	if (__builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r) {
+	if (__builtin_constant_p(cpu_has_clo_clz) && cpu_has_clo_clz) {
 		__asm__("clz %0, %1" : "=r" (x) : "r" (x));
 
 		return 32 - x;

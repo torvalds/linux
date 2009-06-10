@@ -14,6 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/init.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/uaccess.h>
@@ -32,12 +33,24 @@ EXPORT_SYMBOL_GPL(trapped_mem);
 #endif
 static DEFINE_SPINLOCK(trapped_lock);
 
+static int trapped_io_disable __read_mostly;
+
+static int __init trapped_io_setup(char *__unused)
+{
+	trapped_io_disable = 1;
+	return 1;
+}
+__setup("noiotrap", trapped_io_setup);
+
 int register_trapped_io(struct trapped_io *tiop)
 {
 	struct resource *res;
 	unsigned long len = 0, flags = 0;
 	struct page *pages[TRAPPED_PAGES_MAX];
 	int k, n;
+
+	if (unlikely(trapped_io_disable))
+		return 0;
 
 	/* structure must be page aligned */
 	if ((unsigned long)tiop & (PAGE_SIZE - 1))

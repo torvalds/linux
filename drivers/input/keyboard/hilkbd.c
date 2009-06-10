@@ -198,45 +198,28 @@ static void hil_do(unsigned char cmd, unsigned char *data, unsigned int len)
 }
 
 
-/* initialise HIL */
-static int __init
-hil_keyb_init(void)
+/* initialize HIL */
+static int __devinit hil_keyb_init(void)
 {
 	unsigned char c;
 	unsigned int i, kbid;
 	wait_queue_head_t hil_wait;
 	int err;
 
-	if (hil_dev.dev) {
+	if (hil_dev.dev)
 		return -ENODEV; /* already initialized */
-	}
 
+	init_waitqueue_head(&hil_wait);
 	spin_lock_init(&hil_dev.lock);
+
 	hil_dev.dev = input_allocate_device();
 	if (!hil_dev.dev)
 		return -ENOMEM;
 
-#if defined(CONFIG_HP300)
-	if (!MACH_IS_HP300) {
-		err = -ENODEV;
-		goto err1;
-	}
-	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
-		printk(KERN_ERR "HIL: hardware register was not found\n");
-		err = -ENODEV;
-		goto err1;
-	}
-	if (!request_region(HILBASE + HIL_DATA, 2, "hil")) {
-		printk(KERN_ERR "HIL: IOPORT region already used\n");
-		err = -EIO;
-		goto err1;
-	}
-#endif
-
 	err = request_irq(HIL_IRQ, hil_interrupt, 0, "hil", hil_dev.dev_id);
 	if (err) {
 		printk(KERN_ERR "HIL: Can't get IRQ\n");
-		goto err2;
+		goto err1;
 	}
 
 	/* Turn on interrupts */
@@ -246,11 +229,9 @@ hil_keyb_init(void)
 	hil_dev.valid = 0;	/* clear any pending data */
 	hil_do(HIL_READKBDSADR, NULL, 0);
 
-	init_waitqueue_head(&hil_wait);
-	wait_event_interruptible_timeout(hil_wait, hil_dev.valid, 3*HZ);
-	if (!hil_dev.valid) {
+	wait_event_interruptible_timeout(hil_wait, hil_dev.valid, 3 * HZ);
+	if (!hil_dev.valid)
 		printk(KERN_WARNING "HIL: timed out, assuming no keyboard present\n");
-	}
 
 	c = hil_dev.c;
 	hil_dev.valid = 0;
@@ -268,7 +249,7 @@ hil_keyb_init(void)
 
 	for (i = 0; i < HIL_KEYCODES_SET1_TBLSIZE; i++)
 		if (hphilkeyb_keycode[i] != KEY_RESERVED)
-			set_bit(hphilkeyb_keycode[i], hil_dev.dev->keybit);
+			__set_bit(hphilkeyb_keycode[i], hil_dev.dev->keybit);
 
 	hil_dev.dev->evbit[0]	= BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	hil_dev.dev->ledbit[0]	= BIT_MASK(LED_NUML) | BIT_MASK(LED_CAPSL) |
@@ -287,34 +268,45 @@ hil_keyb_init(void)
 	err = input_register_device(hil_dev.dev);
 	if (err) {
 		printk(KERN_ERR "HIL: Can't register device\n");
-		goto err3;
+		goto err2;
 	}
+
 	printk(KERN_INFO "input: %s, ID %d at 0x%08lx (irq %d) found and attached\n",
 	       hil_dev.dev->name, kbid, HILBASE, HIL_IRQ);
 
 	return 0;
 
-err3:
-	hil_do(HIL_INTOFF, NULL, 0);
-	disable_irq(HIL_IRQ);
-	free_irq(HIL_IRQ, hil_dev.dev_id);
 err2:
-#if defined(CONFIG_HP300)
-	release_region(HILBASE + HIL_DATA, 2);
+	hil_do(HIL_INTOFF, NULL, 0);
+	free_irq(HIL_IRQ, hil_dev.dev_id);
 err1:
-#endif
 	input_free_device(hil_dev.dev);
 	hil_dev.dev = NULL;
 	return err;
 }
 
+static void __devexit hil_keyb_exit(void)
+{
+	if (HIL_IRQ)
+		free_irq(HIL_IRQ, hil_dev.dev_id);
+
+	/* Turn off interrupts */
+	hil_do(HIL_INTOFF, NULL, 0);
+
+	input_unregister_device(hil_dev.dev);
+	hil_dev.dev = NULL;
+}
 
 #if defined(CONFIG_PARISC)
-static int __init
-hil_init_chip(struct parisc_device *dev)
+static int __devinit hil_probe_chip(struct parisc_device *dev)
 {
+	/* Only allow one HIL keyboard */
+	if (hil_dev.dev)
+		return -ENODEV;
+
 	if (!dev->irq) {
-		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%08lx\n", dev->hpa.start);
+		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%p\n",
+			(void *)dev->hpa.start);
 		return -ENODEV;
 	}
 
@@ -327,51 +319,79 @@ hil_init_chip(struct parisc_device *dev)
 	return hil_keyb_init();
 }
 
+static int __devexit hil_remove_chip(struct parisc_device *dev)
+{
+	hil_keyb_exit();
+
+	return 0;
+}
+
 static struct parisc_device_id hil_tbl[] = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00073 },
 	{ 0, }
 };
 
+#if 0
+/* Disabled to avoid conflicts with the HP SDC HIL drivers */
 MODULE_DEVICE_TABLE(parisc, hil_tbl);
+#endif
 
 static struct parisc_driver hil_driver = {
-	.name =		"hil",
-	.id_table =	hil_tbl,
-	.probe =	hil_init_chip,
+	.name		= "hil",
+	.id_table	= hil_tbl,
+	.probe		= hil_probe_chip,
+	.remove		= __devexit_p(hil_remove_chip),
 };
-#endif /* CONFIG_PARISC */
-
 
 static int __init hil_init(void)
 {
-#if defined(CONFIG_PARISC)
 	return register_parisc_driver(&hil_driver);
-#else
-	return hil_keyb_init();
-#endif
 }
-
 
 static void __exit hil_exit(void)
 {
-	if (HIL_IRQ) {
-		disable_irq(HIL_IRQ);
-		free_irq(HIL_IRQ, hil_dev.dev_id);
+	unregister_parisc_driver(&hil_driver);
+}
+
+#else /* !CONFIG_PARISC */
+
+static int __init hil_init(void)
+{
+	int error;
+
+	/* Only allow one HIL keyboard */
+	if (hil_dev.dev)
+		return -EBUSY;
+
+	if (!MACH_IS_HP300)
+		return -ENODEV;
+
+	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
+		printk(KERN_ERR "HIL: hardware register was not found\n");
+		return -ENODEV;
 	}
 
-	/* Turn off interrupts */
-	hil_do(HIL_INTOFF, NULL, 0);
+	if (!request_region(HILBASE + HIL_DATA, 2, "hil")) {
+		printk(KERN_ERR "HIL: IOPORT region already used\n");
+		return -EIO;
+	}
 
-	input_unregister_device(hil_dev.dev);
+	error = hil_keyb_init();
+	if (error) {
+		release_region(HILBASE + HIL_DATA, 2);
+		return error;
+	}
 
-	hil_dev.dev = NULL;
-
-#if defined(CONFIG_PARISC)
-	unregister_parisc_driver(&hil_driver);
-#else
-	release_region(HILBASE+HIL_DATA, 2);
-#endif
+	return 0;
 }
+
+static void __exit hil_exit(void)
+{
+	hil_keyb_exit();
+	release_region(HILBASE + HIL_DATA, 2);
+}
+
+#endif /* CONFIG_PARISC */
 
 module_init(hil_init);
 module_exit(hil_exit);

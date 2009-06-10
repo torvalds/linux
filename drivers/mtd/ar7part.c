@@ -44,8 +44,6 @@ struct ar7_bin_rec {
 	unsigned int address;
 };
 
-static struct mtd_partition ar7_parts[AR7_PARTS];
-
 static int create_mtd_partitions(struct mtd_info *master,
 				 struct mtd_partition **pparts,
 				 unsigned long origin)
@@ -57,7 +55,11 @@ static int create_mtd_partitions(struct mtd_info *master,
 	unsigned int root_offset = ROOT_OFFSET;
 
 	int retries = 10;
+	struct mtd_partition *ar7_parts;
 
+	ar7_parts = kzalloc(sizeof(*ar7_parts) * AR7_PARTS, GFP_KERNEL);
+	if (!ar7_parts)
+		return -ENOMEM;
 	ar7_parts[0].name = "loader";
 	ar7_parts[0].offset = 0;
 	ar7_parts[0].size = master->erasesize;

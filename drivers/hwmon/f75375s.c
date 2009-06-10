@@ -1,7 +1,7 @@
 /*
  * f75375s.c - driver for the Fintek F75375/SP and F75373
  *             hardware monitoring features
- * Copyright (C) 2006-2007  Riku Voipio <riku.voipio@movial.fi>
+ * Copyright (C) 2006-2007  Riku Voipio
  *
  * Datasheets available at:
  *
@@ -721,7 +721,7 @@ static void __exit sensors_f75375_exit(void)
 	i2c_del_driver(&f75375_driver);
 }
 
-MODULE_AUTHOR("Riku Voipio <riku.voipio@movial.fi>");
+MODULE_AUTHOR("Riku Voipio");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("F75373/F75375 hardware monitoring driver");
 

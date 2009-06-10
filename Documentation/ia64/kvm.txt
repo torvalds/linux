@@ -42,7 +42,7 @@ Note: For step 2, please make sure that host page size == TARGET_PAGE_SIZE of qe
 		hg clone http://xenbits.xensource.com/ext/efi-vfirmware.hg
 	    you can get the firmware's binary in the directory of efi-vfirmware.hg/binaries.
 
-	(3) Rename the firware you owned to Flash.fd, and copy it to /usr/local/share/qemu
+	(3) Rename the firmware you owned to Flash.fd, and copy it to /usr/local/share/qemu
 
 4. Boot up Linux or Windows guests:
 	4.1 Create or install a image for guest boot. If you have xen experience, it should be easy.

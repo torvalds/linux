@@ -837,16 +837,29 @@ mcck_return:
 	__CPUINIT
 	.globl restart_int_handler
 restart_int_handler:
+	basr	%r1,0
+restart_base:
+	spt	restart_vtime-restart_base(%r1)
+	stck	__LC_LAST_UPDATE_CLOCK
+	mvc	__LC_LAST_UPDATE_TIMER(8),restart_vtime-restart_base(%r1)
+	mvc	__LC_EXIT_TIMER(8),restart_vtime-restart_base(%r1)
 	l	%r15,__LC_SAVE_AREA+60	# load ksp
 	lctl	%c0,%c15,__LC_CREGS_SAVE_AREA # get new ctl regs
 	lam	%a0,%a15,__LC_AREGS_SAVE_AREA
 	lm	%r6,%r15,__SF_GPRS(%r15) # load registers from clone
+	l	%r1,__LC_THREAD_INFO
+	mvc	__LC_USER_TIMER(8),__TI_user_timer(%r1)
+	mvc	__LC_SYSTEM_TIMER(8),__TI_system_timer(%r1)
+	xc	__LC_STEAL_TIMER(8),__LC_STEAL_TIMER
 	stosm	__SF_EMPTY(%r15),0x04	# now we can turn dat on
 	basr	%r14,0
 	l	%r14,restart_addr-.(%r14)
 	br	%r14			# branch to start_secondary
 restart_addr:
 	.long	start_secondary
+	.align	8
+restart_vtime:
+	.long	0x7fffffff,0xffffffff
 	.previous
 #else
 /*

@@ -618,7 +618,7 @@ static bool is_boot_sector_ntfs(const struct super_block *sb,
 	 * many BIOSes will refuse to boot from a bootsector if the magic is
 	 * incorrect, so we emit a warning.
 	 */
-	if (!silent && b->end_of_sector_marker != const_cpu_to_le16(0xaa55))
+	if (!silent && b->end_of_sector_marker != cpu_to_le16(0xaa55))
 		ntfs_warning(sb, "Invalid end of sector marker.");
 	return true;
 not_ntfs:
@@ -1242,13 +1242,13 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	u32 *kaddr, *kend;
 	ntfs_name *name = NULL;
 	int ret = 1;
-	static const ntfschar hiberfil[13] = { const_cpu_to_le16('h'),
-			const_cpu_to_le16('i'), const_cpu_to_le16('b'),
-			const_cpu_to_le16('e'), const_cpu_to_le16('r'),
-			const_cpu_to_le16('f'), const_cpu_to_le16('i'),
-			const_cpu_to_le16('l'), const_cpu_to_le16('.'),
-			const_cpu_to_le16('s'), const_cpu_to_le16('y'),
-			const_cpu_to_le16('s'), 0 };
+	static const ntfschar hiberfil[13] = { cpu_to_le16('h'),
+			cpu_to_le16('i'), cpu_to_le16('b'),
+			cpu_to_le16('e'), cpu_to_le16('r'),
+			cpu_to_le16('f'), cpu_to_le16('i'),
+			cpu_to_le16('l'), cpu_to_le16('.'),
+			cpu_to_le16('s'), cpu_to_le16('y'),
+			cpu_to_le16('s'), 0 };
 
 	ntfs_debug("Entering.");
 	/*
@@ -1296,7 +1296,7 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 		goto iput_out;
 	}
 	kaddr = (u32*)page_address(page);
-	if (*(le32*)kaddr == const_cpu_to_le32(0x72626968)/*'hibr'*/) {
+	if (*(le32*)kaddr == cpu_to_le32(0x72626968)/*'hibr'*/) {
 		ntfs_debug("Magic \"hibr\" found in hiberfil.sys.  Windows is "
 				"hibernated on the volume.  This is the "
 				"system volume.");
@@ -1337,12 +1337,12 @@ static bool load_and_init_quota(ntfs_volume *vol)
 	MFT_REF mref;
 	struct inode *tmp_ino;
 	ntfs_name *name = NULL;
-	static const ntfschar Quota[7] = { const_cpu_to_le16('$'),
-			const_cpu_to_le16('Q'), const_cpu_to_le16('u'),
-			const_cpu_to_le16('o'), const_cpu_to_le16('t'),
-			const_cpu_to_le16('a'), 0 };
-	static ntfschar Q[3] = { const_cpu_to_le16('$'),
-			const_cpu_to_le16('Q'), 0 };
+	static const ntfschar Quota[7] = { cpu_to_le16('$'),
+			cpu_to_le16('Q'), cpu_to_le16('u'),
+			cpu_to_le16('o'), cpu_to_le16('t'),
+			cpu_to_le16('a'), 0 };
+	static ntfschar Q[3] = { cpu_to_le16('$'),
+			cpu_to_le16('Q'), 0 };
 
 	ntfs_debug("Entering.");
 	/*
@@ -1416,16 +1416,16 @@ static bool load_and_init_usnjrnl(ntfs_volume *vol)
 	struct page *page;
 	ntfs_name *name = NULL;
 	USN_HEADER *uh;
-	static const ntfschar UsnJrnl[9] = { const_cpu_to_le16('$'),
-			const_cpu_to_le16('U'), const_cpu_to_le16('s'),
-			const_cpu_to_le16('n'), const_cpu_to_le16('J'),
-			const_cpu_to_le16('r'), const_cpu_to_le16('n'),
-			const_cpu_to_le16('l'), 0 };
-	static ntfschar Max[5] = { const_cpu_to_le16('$'),
-			const_cpu_to_le16('M'), const_cpu_to_le16('a'),
-			const_cpu_to_le16('x'), 0 };
-	static ntfschar J[3] = { const_cpu_to_le16('$'),
-			const_cpu_to_le16('J'), 0 };
+	static const ntfschar UsnJrnl[9] = { cpu_to_le16('$'),
+			cpu_to_le16('U'), cpu_to_le16('s'),
+			cpu_to_le16('n'), cpu_to_le16('J'),
+			cpu_to_le16('r'), cpu_to_le16('n'),
+			cpu_to_le16('l'), 0 };
+	static ntfschar Max[5] = { cpu_to_le16('$'),
+			cpu_to_le16('M'), cpu_to_le16('a'),
+			cpu_to_le16('x'), 0 };
+	static ntfschar J[3] = { cpu_to_le16('$'),
+			cpu_to_le16('J'), 0 };
 
 	ntfs_debug("Entering.");
 	/*

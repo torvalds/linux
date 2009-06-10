@@ -231,13 +231,7 @@ static int kobil_open(struct tty_struct *tty,
 	/* someone sets the dev to 0 if the close method has been called */
 	port->interrupt_in_urb->dev = port->serial->dev;
 
-
-	/* force low_latency on so that our tty_push actually forces
-	 * the data through, otherwise it is scheduled, and with high
-	 * data rates (like with OHCI) data can get lost.
-	 */
 	if (tty) {
-		tty->low_latency = 1;
 
 		/* Default to echo off and other sane device settings */
 		tty->termios->c_lflag = 0;

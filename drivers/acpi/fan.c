@@ -68,31 +68,35 @@ static struct acpi_driver acpi_fan_driver = {
 };
 
 /* thermal cooling device callbacks */
-static int fan_get_max_state(struct thermal_cooling_device *cdev, char *buf)
+static int fan_get_max_state(struct thermal_cooling_device *cdev, unsigned long
+			     *state)
 {
 	/* ACPI fan device only support two states: ON/OFF */
-	return sprintf(buf, "1\n");
+	*state = 1;
+	return 0;
 }
 
-static int fan_get_cur_state(struct thermal_cooling_device *cdev, char *buf)
+static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
+			     *state)
 {
 	struct acpi_device *device = cdev->devdata;
-	int state;
 	int result;
+	int acpi_state;
 
 	if (!device)
 		return -EINVAL;
 
-	result = acpi_bus_get_power(device->handle, &state);
+	result = acpi_bus_get_power(device->handle, &acpi_state);
 	if (result)
 		return result;
 
-	return sprintf(buf, "%s\n", state == ACPI_STATE_D3 ? "0" :
-			 (state == ACPI_STATE_D0 ? "1" : "unknown"));
+	*state = (acpi_state == ACPI_STATE_D3 ? 0 :
+		 (acpi_state == ACPI_STATE_D0 ? 1 : -1));
+	return 0;
 }
 
 static int
-fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned int state)
+fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
 	int result;

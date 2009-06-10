@@ -138,7 +138,7 @@ static tEplIdentuInstance EplIdentuInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplIdentuCbIdentResponse(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel EplIdentuCbIdentResponse(tEplFrameInfo *pFrameInfo_p);
 
 //=========================================================================//
 //                                                                         //
@@ -164,7 +164,7 @@ static tEplKernel PUBLIC EplIdentuCbIdentResponse(tEplFrameInfo * pFrameInfo_p);
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplIdentuInit()
+tEplKernel EplIdentuInit(void)
 {
 	tEplKernel Ret;
 
@@ -191,7 +191,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplIdentuInit()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplIdentuAddInstance()
+tEplKernel EplIdentuAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -228,7 +228,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplIdentuAddInstance()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplIdentuDelInstance()
+tEplKernel EplIdentuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -263,7 +263,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplIdentuDelInstance()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplIdentuReset()
+tEplKernel EplIdentuReset(void)
 {
 	tEplKernel Ret;
 	int iIndex;
@@ -300,9 +300,8 @@ EPLDLLEXPORT tEplKernel PUBLIC EplIdentuReset()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
-					    tEplIdentResponse **
-					    ppIdentResponse_p)
+tEplKernel EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
+				     tEplIdentResponse **ppIdentResponse_p)
 {
 	tEplKernel Ret;
 
@@ -338,9 +337,8 @@ tEplKernel PUBLIC EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
-						tEplIdentuCbResponse
-						pfnCbResponse_p)
+tEplKernel EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
+					 tEplIdentuCbResponse pfnCbResponse_p)
 {
 	tEplKernel Ret;
 
@@ -388,9 +386,9 @@ tEplKernel PUBLIC EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void)
+u32 EplIdentuGetRunningRequests(void)
 {
-	DWORD dwReqs = 0;
+	u32 dwReqs = 0;
 	unsigned int uiIndex;
 
 	for (uiIndex = 0; uiIndex < 32; uiIndex++) {
@@ -426,7 +424,7 @@ EPLDLLEXPORT DWORD PUBLIC EplIdentuGetRunningRequests(void)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplIdentuCbIdentResponse(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel EplIdentuCbIdentResponse(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiNodeId;

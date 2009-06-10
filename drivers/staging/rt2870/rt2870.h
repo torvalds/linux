@@ -86,6 +86,7 @@
 #define RT2870_USB_DEVICES	\
 {	\
 	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\
+	{USB_DEVICE(0x1737,0x0071)}, /* Linksys WUSB600N */	\
 	{USB_DEVICE(0x148F,0x2870)}, /* Ralink */		\
 	{USB_DEVICE(0x148F,0x3070)}, /* Ralink */		\
 	{USB_DEVICE(0x0B05,0x1731)}, /* Asus */			\
@@ -95,6 +96,7 @@
 	{USB_DEVICE(0x0DF6,0x002B)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x002C)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x002D)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x0039)}, /* Sitecom */		\
 	{USB_DEVICE(0x14B2,0x3C06)}, /* Conceptronic */		\
 	{USB_DEVICE(0x14B2,0x3C28)}, /* Conceptronic */		\
 	{USB_DEVICE(0x2019,0xED06)}, /* Planex Communications, Inc. */		\
@@ -143,6 +145,7 @@
 	{USB_DEVICE(0x0789,0x0162)}, /* Logitec */		\
 	{USB_DEVICE(0x0789,0x0163)}, /* Logitec */		\
 	{USB_DEVICE(0x0789,0x0164)}, /* Logitec */		\
+	{USB_DEVICE(0x7392,0x7717)}, /* Edimax */		\
 	{ }/* Terminating entry */                      \
 }
 
@@ -576,14 +579,16 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 #define RTUSBMlmeUp(pAd)	        \
 {								    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	CHECK_PID_LEGALITY(pObj->MLMEThr_pid)		    \
+	BUG_ON(pObj->MLMEThr_task == NULL);		    \
+	CHECK_PID_LEGALITY(task_pid(pObj->MLMEThr_task))		    \
         up(&(pAd->mlme_semaphore)); \
 }
 
 #define RTUSBCMDUp(pAd)	                \
 {									    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
-	CHECK_PID_LEGALITY(pObj->RTUSBCmdThr_pid)	    \
+	BUG_ON(pObj->RTUSBCmdThr_task == NULL);	    \
+	CHECK_PID_LEGALITY(task_pid(pObj->RTUSBCmdThr_task))	    \
 	    up(&(pAd->RTUSBCmd_semaphore)); \
 }
 

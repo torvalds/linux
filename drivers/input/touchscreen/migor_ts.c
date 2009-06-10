@@ -198,6 +198,7 @@ static int migor_ts_probe(struct i2c_client *client,
 		goto err2;
 	}
 
+	device_init_wakeup(&client->dev, 1);
 	return 0;
 
  err2:
@@ -224,6 +225,26 @@ static int migor_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int migor_ts_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
+
+	if (device_may_wakeup(&client->dev))
+		enable_irq_wake(priv->irq);
+
+	return 0;
+}
+
+static int migor_ts_resume(struct i2c_client *client)
+{
+	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
+
+	if (device_may_wakeup(&client->dev))
+		disable_irq_wake(priv->irq);
+
+	return 0;
+}
+
 static const struct i2c_device_id migor_ts_id[] = {
 	{ "migor_ts", 0 },
 	{ }
@@ -236,6 +257,8 @@ static struct i2c_driver migor_ts_driver = {
 	},
 	.probe = migor_ts_probe,
 	.remove = migor_ts_remove,
+	.suspend = migor_ts_suspend,
+	.resume = migor_ts_resume,
 	.id_table = migor_ts_id,
 };
 

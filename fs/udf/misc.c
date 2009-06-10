@@ -134,10 +134,10 @@ struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 			}
 		}
 		/* rewrite CRC + checksum of eahd */
-		crclen = sizeof(struct extendedAttrHeaderDesc) - sizeof(tag);
+		crclen = sizeof(struct extendedAttrHeaderDesc) - sizeof(struct tag);
 		eahd->descTag.descCRCLength = cpu_to_le16(crclen);
 		eahd->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)eahd +
-						sizeof(tag), crclen));
+						sizeof(struct tag), crclen));
 		eahd->descTag.tagChecksum = udf_tag_checksum(&eahd->descTag);
 		iinfo->i_lenEAttr += size;
 		return (struct genericFormat *)&ea[offset];
@@ -202,7 +202,7 @@ struct genericFormat *udf_get_extendedattr(struct inode *inode, uint32_t type,
 struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 				    uint32_t location, uint16_t *ident)
 {
-	tag *tag_p;
+	struct tag *tag_p;
 	struct buffer_head *bh = NULL;
 
 	/* Read the block */
@@ -216,7 +216,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 		return NULL;
 	}
 
-	tag_p = (tag *)(bh->b_data);
+	tag_p = (struct tag *)(bh->b_data);
 
 	*ident = le16_to_cpu(tag_p->tagIdent);
 
@@ -241,9 +241,9 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	}
 
 	/* Verify the descriptor CRC */
-	if (le16_to_cpu(tag_p->descCRCLength) + sizeof(tag) > sb->s_blocksize ||
+	if (le16_to_cpu(tag_p->descCRCLength) + sizeof(struct tag) > sb->s_blocksize ||
 	    le16_to_cpu(tag_p->descCRC) == crc_itu_t(0,
-					bh->b_data + sizeof(tag),
+					bh->b_data + sizeof(struct tag),
 					le16_to_cpu(tag_p->descCRCLength)))
 		return bh;
 
@@ -255,27 +255,28 @@ error_out:
 	return NULL;
 }
 
-struct buffer_head *udf_read_ptagged(struct super_block *sb, kernel_lb_addr loc,
+struct buffer_head *udf_read_ptagged(struct super_block *sb,
+				     struct kernel_lb_addr *loc,
 				     uint32_t offset, uint16_t *ident)
 {
 	return udf_read_tagged(sb, udf_get_lb_pblock(sb, loc, offset),
-			       loc.logicalBlockNum + offset, ident);
+			       loc->logicalBlockNum + offset, ident);
 }
 
 void udf_update_tag(char *data, int length)
 {
-	tag *tptr = (tag *)data;
-	length -= sizeof(tag);
+	struct tag *tptr = (struct tag *)data;
+	length -= sizeof(struct tag);
 
 	tptr->descCRCLength = cpu_to_le16(length);
-	tptr->descCRC = cpu_to_le16(crc_itu_t(0, data + sizeof(tag), length));
+	tptr->descCRC = cpu_to_le16(crc_itu_t(0, data + sizeof(struct tag), length));
 	tptr->tagChecksum = udf_tag_checksum(tptr);
 }
 
 void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
 		 uint32_t loc, int length)
 {
-	tag *tptr = (tag *)data;
+	struct tag *tptr = (struct tag *)data;
 	tptr->tagIdent = cpu_to_le16(ident);
 	tptr->descVersion = cpu_to_le16(version);
 	tptr->tagSerialNum = cpu_to_le16(snum);
@@ -283,12 +284,12 @@ void udf_new_tag(char *data, uint16_t ident, uint16_t version, uint16_t snum,
 	udf_update_tag(data, length);
 }
 
-u8 udf_tag_checksum(const tag *t)
+u8 udf_tag_checksum(const struct tag *t)
 {
 	u8 *data = (u8 *)t;
 	u8 checksum = 0;
 	int i;
-	for (i = 0; i < sizeof(tag); ++i)
+	for (i = 0; i < sizeof(struct tag); ++i)
 		if (i != 4) /* position of checksum */
 			checksum += data[i];
 	return checksum;

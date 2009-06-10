@@ -22,6 +22,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
+#include <sound/atmel-abdac.h>
+
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>
@@ -40,6 +42,9 @@ unsigned long at32_board_osc_rates[3] = {
 
 /* Initialized by bootloader-specific startup code. */
 struct tag *bootloader_tags __initdata;
+
+static struct atmel_abdac_pdata __initdata abdac0_data = {
+};
 
 struct eth_addr {
 	u8 addr[6];
@@ -245,7 +250,7 @@ static void __init favr32_setup_atmel_pwm_bl(void)
 
 void __init setup_board(void)
 {
-	at32_map_usart(3, 0);	/* USART 3 => /dev/ttyS0 */
+	at32_map_usart(3, 0, 0);	/* USART 3 => /dev/ttyS0 */
 	at32_setup_serial_console(0);
 }
 
@@ -326,7 +331,7 @@ static int __init favr32_init(void)
 
 	spi1_board_info[0].irq = gpio_to_irq(GPIO_PIN_PB(3));
 
-	set_abdac_rate(at32_add_device_abdac(0));
+	set_abdac_rate(at32_add_device_abdac(0, &abdac0_data));
 
 	at32_add_device_pwm(1 << atmel_pwm_bl_pdata.pwm_channel);
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));

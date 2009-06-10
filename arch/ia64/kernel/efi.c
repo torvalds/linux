@@ -456,6 +456,7 @@ efi_map_pal_code (void)
 		 GRANULEROUNDDOWN((unsigned long) pal_vaddr),
 		 pte_val(pfn_pte(__pa(pal_vaddr) >> PAGE_SHIFT, PAGE_KERNEL)),
 		 IA64_GRANULE_SHIFT);
+	paravirt_dv_serialize_data();
 	ia64_set_psr(psr);		/* restore psr */
 }
 

@@ -21,6 +21,7 @@
 
 #include <linux/sysdev.h>
 #include <asm/uv/bios.h>
+#include <asm/uv/uv.h>
 
 struct kobject *sgi_uv_kobj;
 
@@ -46,6 +47,9 @@ static struct kobj_attribute coherence_id_attr =
 static int __init sgi_uv_sysfs_init(void)
 {
 	unsigned long ret;
+
+	if (!is_uv_system())
+		return -ENODEV;
 
 	if (!sgi_uv_kobj)
 		sgi_uv_kobj = kobject_create_and_add("sgi_uv", firmware_kobj);

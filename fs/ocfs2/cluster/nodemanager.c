@@ -881,6 +881,7 @@ static void __exit exit_o2nm(void)
 	o2cb_sys_shutdown();
 
 	o2net_exit();
+	o2hb_exit();
 }
 
 static int __init init_o2nm(void)
@@ -889,11 +890,13 @@ static int __init init_o2nm(void)
 
 	cluster_print_version();
 
-	o2hb_init();
+	ret = o2hb_init();
+	if (ret)
+		goto out;
 
 	ret = o2net_init();
 	if (ret)
-		goto out;
+		goto out_o2hb;
 
 	ret = o2net_register_hb_callbacks();
 	if (ret)
@@ -916,6 +919,8 @@ out_callbacks:
 	o2net_unregister_hb_callbacks();
 out_o2net:
 	o2net_exit();
+out_o2hb:
+	o2hb_exit();
 out:
 	return ret;
 }

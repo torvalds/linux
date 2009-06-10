@@ -90,6 +90,8 @@ int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 			src_dcb_cfg->tc_config[i - DCB_PFC_UP_ATTR_0].dcb_pfc;
 	}
 
+	dst_dcb_cfg->pfc_mode_enable = src_dcb_cfg->pfc_mode_enable;
+
 	return 0;
 }
 
@@ -298,8 +300,10 @@ static void ixgbe_dcbnl_set_pfc_cfg(struct net_device *netdev, int priority,
 
 	adapter->temp_dcb_cfg.tc_config[priority].dcb_pfc = setting;
 	if (adapter->temp_dcb_cfg.tc_config[priority].dcb_pfc !=
-	    adapter->dcb_cfg.tc_config[priority].dcb_pfc)
+	    adapter->dcb_cfg.tc_config[priority].dcb_pfc) {
 		adapter->dcb_set_bitmap |= BIT_PFC;
+		adapter->temp_dcb_cfg.pfc_mode_enable = true;
+	}
 }
 
 static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,

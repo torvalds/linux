@@ -49,6 +49,9 @@ struct pxa3xx_nand_platform_data {
 	 */
 	int	enable_arbiter;
 
+	/* allow platform code to keep OBM/bootloader defined NFC config */
+	int	keep_config;
+
 	const struct mtd_partition		*parts;
 	unsigned int				nr_parts;
 

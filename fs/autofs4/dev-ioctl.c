@@ -54,11 +54,10 @@ static int check_name(const char *name)
  * Check a string doesn't overrun the chunk of
  * memory we copied from user land.
  */
-static int invalid_str(char *str, void *end)
+static int invalid_str(char *str, size_t size)
 {
-	while ((void *) str <= end)
-		if (!*str++)
-			return 0;
+	if (memchr(str, 0, size))
+		return 0;
 	return -EINVAL;
 }
 
@@ -138,8 +137,7 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 	}
 
 	if (param->size > sizeof(*param)) {
-		err = invalid_str(param->path,
-				 (void *) ((size_t) param + param->size));
+		err = invalid_str(param->path, param->size - sizeof(*param));
 		if (err) {
 			AUTOFS_WARN(
 			  "path string terminator missing for cmd(0x%08x)",
@@ -488,7 +486,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	}
 
 	path = param->path;
-	devid = sbi->sb->s_dev;
+	devid = new_encode_dev(sbi->sb->s_dev);
 
 	param->requester.uid = param->requester.gid = -1;
 
@@ -525,40 +523,13 @@ static int autofs_dev_ioctl_expire(struct file *fp,
 				   struct autofs_sb_info *sbi,
 				   struct autofs_dev_ioctl *param)
 {
-	struct dentry *dentry;
 	struct vfsmount *mnt;
-	int err = -EAGAIN;
 	int how;
 
 	how = param->expire.how;
 	mnt = fp->f_path.mnt;
 
-	if (autofs_type_trigger(sbi->type))
-		dentry = autofs4_expire_direct(sbi->sb, mnt, sbi, how);
-	else
-		dentry = autofs4_expire_indirect(sbi->sb, mnt, sbi, how);
-
-	if (dentry) {
-		struct autofs_info *ino = autofs4_dentry_ino(dentry);
-
-		/*
-		 * This is synchronous because it makes the daemon a
-		 * little easier
-		*/
-		err = autofs4_wait(sbi, dentry, NFY_EXPIRE);
-
-		spin_lock(&sbi->fs_lock);
-		if (ino->flags & AUTOFS_INF_MOUNTPOINT) {
-			ino->flags &= ~AUTOFS_INF_MOUNTPOINT;
-			sbi->sb->s_root->d_mounted++;
-		}
-		ino->flags &= ~AUTOFS_INF_EXPIRING;
-		complete_all(&ino->expire_complete);
-		spin_unlock(&sbi->fs_lock);
-		dput(dentry);
-	}
-
-	return err;
+	return autofs4_do_expire_multi(sbi->sb, mnt, sbi, how);
 }
 
 /* Check if autofs mount point is in use */

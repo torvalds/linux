@@ -470,7 +470,7 @@ static void ark_dac_read_regs(void *data, u8 *code, int count)
 
 	while (count != 0)
 	{
-		vga_wseq(NULL, 0x1C, regval | (code[0] & 4) ? 0x80 : 0);
+		vga_wseq(NULL, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
 		code[1] = vga_r(NULL, dac_regs[code[0] & 3]);
 		count--;
 		code += 2;
@@ -485,7 +485,7 @@ static void ark_dac_write_regs(void *data, u8 *code, int count)
 
 	while (count != 0)
 	{
-		vga_wseq(NULL, 0x1C, regval | (code[0] & 4) ? 0x80 : 0);
+		vga_wseq(NULL, 0x1C, regval | (code[0] & 4 ? 0x80 : 0));
 		vga_w(NULL, dac_regs[code[0] & 3], code[1]);
 		count--;
 		code += 2;

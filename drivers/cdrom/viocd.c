@@ -587,7 +587,7 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct device_node *node = vdev->dev.archdata.of_node;
 
 	deviceno = vdev->unit_address;
-	if (deviceno > VIOCD_MAX_CD)
+	if (deviceno >= VIOCD_MAX_CD)
 		return -ENODEV;
 	if (!node)
 		return -ENODEV;

@@ -148,9 +148,12 @@ ACPI_EXTERN struct acpi_internal_rsdt acpi_gbl_root_table_list;
 ACPI_EXTERN struct acpi_table_fadt acpi_gbl_FADT;
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
 
-/* These addresses are calculated from FADT address values */
+/* These addresses are calculated from the FADT Event Block addresses */
 
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_status;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1a_enable;
+
+ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_status;
 ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 
 /*
@@ -161,6 +164,10 @@ ACPI_EXTERN struct acpi_generic_address acpi_gbl_xpm1b_enable;
 ACPI_EXTERN u8 acpi_gbl_integer_bit_width;
 ACPI_EXTERN u8 acpi_gbl_integer_byte_width;
 ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
+
+/* Reader/Writer lock is used for namespace walk and dynamic table unload */
+
+ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
 
 /*****************************************************************************
  *
@@ -245,6 +252,7 @@ ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
 ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
+ACPI_EXTERN u8 acpi_gbl_osi_data;
 
 #ifndef DEFINE_ACPI_GLOBALS
 
@@ -371,7 +379,6 @@ ACPI_EXTERN char *acpi_gbl_db_buffer;
 ACPI_EXTERN char *acpi_gbl_db_filename;
 ACPI_EXTERN u32 acpi_gbl_db_debug_level;
 ACPI_EXTERN u32 acpi_gbl_db_console_debug_level;
-ACPI_EXTERN struct acpi_table_header *acpi_gbl_db_table_ptr;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_db_scope_node;
 
 /*

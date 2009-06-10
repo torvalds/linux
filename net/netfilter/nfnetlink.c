@@ -203,7 +203,7 @@ static int __init nfnetlink_init(void)
 				     nfnetlink_rcv, NULL, THIS_MODULE);
 	if (!nfnl) {
 		printk(KERN_ERR "cannot initialize nfnetlink!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	return 0;

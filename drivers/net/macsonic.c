@@ -167,6 +167,18 @@ static int macsonic_close(struct net_device* dev)
 	return err;
 }
 
+static const struct net_device_ops macsonic_netdev_ops = {
+	.ndo_open		= macsonic_open,
+	.ndo_stop		= macsonic_close,
+	.ndo_start_xmit		= sonic_send_packet,
+	.ndo_set_multicast_list	= sonic_multicast_list,
+	.ndo_tx_timeout		= sonic_tx_timeout,
+	.ndo_get_stats		= sonic_get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int __init macsonic_init(struct net_device *dev)
 {
 	struct sonic_local* lp = netdev_priv(dev);
@@ -198,12 +210,7 @@ static int __init macsonic_init(struct net_device *dev)
 	lp->rra_laddr = lp->rda_laddr + (SIZEOF_SONIC_RD * SONIC_NUM_RDS
 	                     * SONIC_BUS_SCALE(lp->dma_bitmode));
 
-	dev->open = macsonic_open;
-	dev->stop = macsonic_close;
-	dev->hard_start_xmit = sonic_send_packet;
-	dev->get_stats = sonic_get_stats;
-	dev->set_multicast_list = &sonic_multicast_list;
-	dev->tx_timeout = sonic_tx_timeout;
+	dev->netdev_ops = &macsonic_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	/*

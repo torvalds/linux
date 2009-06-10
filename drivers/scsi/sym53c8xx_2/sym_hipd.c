@@ -602,7 +602,7 @@ sym_getsync(struct sym_hcb *np, u_char dt, u_char sfac, u_char *divp, u_char *fa
 /*
  *  Set initial io register bits from burst code.
  */
-static __inline void sym_init_burst(struct sym_hcb *np, u_char bc)
+static inline void sym_init_burst(struct sym_hcb *np, u_char bc)
 {
 	np->rv_ctest4	&= ~0x80;
 	np->rv_dmode	&= ~(0x3 << 6);

@@ -45,13 +45,6 @@ struct iw_request_info
 #endif
 #endif
 
-#ifndef IRQ_NONE
-typedef void irqreturn_t;
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define IRQ_RETVAL(x)
-#endif
-
 #ifndef in_atomic
 #define in_atomic()  0
 #endif

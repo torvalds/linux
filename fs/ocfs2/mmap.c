@@ -154,8 +154,9 @@ out:
 	return ret;
 }
 
-static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct buffer_head *di_bh = NULL;
 	sigset_t blocked, oldset;
@@ -196,7 +197,8 @@ out:
 	ret2 = ocfs2_vm_op_unblock_sigs(&oldset);
 	if (ret2 < 0)
 		mlog_errno(ret2);
-
+	if (ret)
+		ret = VM_FAULT_SIGBUS;
 	return ret;
 }
 

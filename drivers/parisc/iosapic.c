@@ -714,7 +714,7 @@ static void iosapic_set_affinity_irq(unsigned int irq,
 	if (dest_cpu < 0)
 		return;
 
-	irq_desc[irq].affinity = cpumask_of_cpu(dest_cpu);
+	cpumask_copy(irq_desc[irq].affinity, cpumask_of(dest_cpu));
 	vi->txn_addr = txn_affinity_addr(irq, dest_cpu);
 
 	spin_lock_irqsave(&iosapic_lock, flags);

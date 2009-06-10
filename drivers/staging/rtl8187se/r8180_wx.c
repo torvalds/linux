@@ -1274,8 +1274,8 @@ static int r8180_wx_set_enc_ext(struct net_device *dev,
 
 }
 static int r8180_wx_set_auth(struct net_device *dev,
-                                        struct iw_request_info *info,
-                                        struct iw_param *data, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	//printk("====>%s()\n", __func__);
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -1285,7 +1285,7 @@ static int r8180_wx_set_auth(struct net_device *dev,
 		return 0;
 
 	down(&priv->wx_sem);
-	ret = ieee80211_wx_set_auth(priv->ieee80211, info, data, extra);
+	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &wrqu->param, extra);
 	up(&priv->wx_sem);
 	return ret;
 }
@@ -1312,8 +1312,8 @@ static int r8180_wx_set_mlme(struct net_device *dev,
 	return ret;
 }
 static int r8180_wx_set_gen_ie(struct net_device *dev,
-                                        struct iw_request_info *info,
-                                        struct iw_point *data, char *extra)
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
 {
 //	printk("====>%s(), len:%d\n", __func__, data->length);
 	int ret=0;
@@ -1325,7 +1325,7 @@ static int r8180_wx_set_gen_ie(struct net_device *dev,
 
         down(&priv->wx_sem);
 #if 1
-        ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->length);
+        ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, wrqu->data.length);
 #endif
         up(&priv->wx_sem);
 	//printk("<======%s(), ret:%d\n", __func__, ret);

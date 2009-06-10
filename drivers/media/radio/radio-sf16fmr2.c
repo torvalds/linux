@@ -233,7 +233,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	mult = (fmr2->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
 	v->rangelow = RSF16_MINFREQ / mult;
 	v->rangehigh = RSF16_MAXFREQ / mult;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	v->capability = fmr2->flags&V4L2_TUNER_CAP_LOW;
 	v->audmode = fmr2->stereo ? V4L2_TUNER_MODE_STEREO:
 				V4L2_TUNER_MODE_MONO;
@@ -377,20 +377,8 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int fmr2_open(struct file *file)
-{
-	return 0;
-}
-
-static int fmr2_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
-	.open           = fmr2_open,
-	.release        = fmr2_release,
 	.ioctl          = video_ioctl2,
 };
 

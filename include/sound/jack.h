@@ -50,6 +50,8 @@ struct snd_jack {
 	int type;
 	const char *id;
 	char name[100];
+	void *private_data;
+	void (*private_free)(struct snd_jack *);
 };
 
 #ifdef CONFIG_SND_JACK

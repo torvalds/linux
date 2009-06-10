@@ -37,7 +37,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
@@ -337,11 +337,7 @@ static void me0600_ext_irq_destructor(struct me_subdevice *subdevice)
 	kfree(instance);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me0600_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me0600_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me0600_ext_irq_subdevice_t *instance;
 	uint32_t status;
@@ -397,7 +393,7 @@ static irqreturn_t me0600_isr(int irq, void *dev_id, struct pt_regs *regs)
 
 me0600_ext_irq_subdevice_t *me0600_ext_irq_constructor(uint32_t plx_reg_base,
 						       uint32_t me0600_reg_base,
-						       spinlock_t * intcsr_lock,
+						       spinlock_t *intcsr_lock,
 						       unsigned ext_irq_idx,
 						       int irq)
 {

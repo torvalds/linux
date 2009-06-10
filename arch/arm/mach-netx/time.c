@@ -104,7 +104,7 @@ static struct irqaction netx_timer_irq = {
 	.handler	= netx_timer_interrupt,
 };
 
-cycle_t netx_get_cycles(void)
+cycle_t netx_get_cycles(struct clocksource *cs)
 {
 	return readl(NETX_GPIO_COUNTER_CURRENT(TIMER_CLOCKSOURCE));
 }

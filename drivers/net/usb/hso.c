@@ -5,6 +5,7 @@
  *  Copyright (C) 2008 Option International
  *                     Filip Aben <f.aben@option.com>
  *                     Denis Joseph Barrow <d.barow@option.com>
+ *                     Jan Dumon <j.dumon@option.com>
  *  Copyright (C) 2007 Andrew Bird (Sphere Systems Ltd)
  *  			<ajb@spheresystems.co.uk>
  *  Copyright (C) 2008 Greg Kroah-Hartman <gregkh@suse.de>
@@ -462,9 +463,16 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x7701)},
 	{USB_DEVICE(0x0af0, 0x7801)},
 	{USB_DEVICE(0x0af0, 0x7901)},
-	{USB_DEVICE(0x0af0, 0x7361)},
-	{USB_DEVICE(0x0af0, 0xd057)},
+	{USB_DEVICE(0x0af0, 0x8200)},
+	{USB_DEVICE(0x0af0, 0x8201)},
+	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
+	{USB_DEVICE(0x0af0, 0xd155)},
+	{USB_DEVICE(0x0af0, 0xd255)},
+	{USB_DEVICE(0x0af0, 0xd057)},
+	{USB_DEVICE(0x0af0, 0xd157)},
+	{USB_DEVICE(0x0af0, 0xd257)},
+	{USB_DEVICE(0x0af0, 0xd357)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, hso_ids);
@@ -2410,20 +2418,22 @@ static void hso_free_net_device(struct hso_device *hso_dev)
 	if (!hso_net)
 		return;
 
-	/* start freeing */
-	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
-		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
-		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
-	}
-	usb_free_urb(hso_net->mux_bulk_tx_urb);
-	kfree(hso_net->mux_bulk_tx_buf);
-
 	remove_net_device(hso_net->parent);
 
 	if (hso_net->net) {
 		unregister_netdev(hso_net->net);
 		free_netdev(hso_net->net);
 	}
+
+	/* start freeing */
+	for (i = 0; i < MUX_BULK_RX_BUF_COUNT; i++) {
+		usb_free_urb(hso_net->mux_bulk_rx_urb_pool[i]);
+		kfree(hso_net->mux_bulk_rx_buf_pool[i]);
+		hso_net->mux_bulk_rx_buf_pool[i] = NULL;
+	}
+	usb_free_urb(hso_net->mux_bulk_tx_urb);
+	kfree(hso_net->mux_bulk_tx_buf);
+	hso_net->mux_bulk_tx_buf = NULL;
 
 	kfree(hso_dev);
 }
@@ -2526,14 +2536,15 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 }
 
 /* Creates our network device */
-static struct hso_device *hso_create_net_device(struct usb_interface *interface)
+static struct hso_device *hso_create_net_device(struct usb_interface *interface,
+						int port_spec)
 {
 	int result, i;
 	struct net_device *net;
 	struct hso_net *hso_net;
 	struct hso_device *hso_dev;
 
-	hso_dev = hso_create_device(interface, HSO_INTF_MUX | HSO_PORT_NETWORK);
+	hso_dev = hso_create_device(interface, port_spec);
 	if (!hso_dev)
 		return NULL;
 
@@ -2613,12 +2624,12 @@ static void hso_free_tiomget(struct hso_serial *serial)
 {
 	struct hso_tiocmget *tiocmget = serial->tiocmget;
 	if (tiocmget) {
-		kfree(tiocmget);
 		if (tiocmget->urb) {
 			usb_free_urb(tiocmget->urb);
 			tiocmget->urb = NULL;
 		}
 		serial->tiocmget = NULL;
+		kfree(tiocmget);
 
 	}
 }
@@ -2933,7 +2944,8 @@ static int hso_probe(struct usb_interface *interface,
 		if ((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK) {
 			/* Create the network device */
 			if (!disable_net) {
-				hso_dev = hso_create_net_device(interface);
+				hso_dev = hso_create_net_device(interface,
+								port_spec);
 				if (!hso_dev)
 					goto exit;
 				tmp_dev = hso_dev;
@@ -2965,7 +2977,7 @@ static int hso_probe(struct usb_interface *interface,
 		/* It's a regular bulk interface */
 		if (((port_spec & HSO_PORT_MASK) == HSO_PORT_NETWORK)
 		    && !disable_net)
-			hso_dev = hso_create_net_device(interface);
+			hso_dev = hso_create_net_device(interface, port_spec);
 		else
 			hso_dev =
 			    hso_create_bulk_serial_device(interface, port_spec);

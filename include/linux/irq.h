@@ -22,6 +22,7 @@
 #include <linux/irqnr.h>
 #include <linux/errno.h>
 #include <linux/topology.h>
+#include <linux/wait.h>
 
 #include <asm/irq.h>
 #include <asm/ptrace.h>
@@ -158,6 +159,8 @@ struct irq_2_iommu;
  * @affinity:		IRQ affinity on SMP
  * @cpu:		cpu index useful for balancing
  * @pending_mask:	pending rebalanced interrupts
+ * @threads_active:	number of irqaction threads currently running
+ * @wait_for_threads:	wait queue for sync_irq to wait for threaded handlers
  * @dir:		/proc/irq/ procfs entry
  * @name:		flow handler name for /proc/interrupts output
  */
@@ -189,6 +192,8 @@ struct irq_desc {
 	cpumask_var_t		pending_mask;
 #endif
 #endif
+	atomic_t		threads_active;
+	wait_queue_head_t       wait_for_threads;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif
@@ -482,6 +487,16 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 #endif
 }
 
+static inline void free_desc_masks(struct irq_desc *old_desc,
+				   struct irq_desc *new_desc)
+{
+	free_cpumask_var(old_desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	free_cpumask_var(old_desc->pending_mask);
+#endif
+}
+
 #else /* !CONFIG_SMP */
 
 static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
@@ -495,6 +510,10 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 {
 }
 
+static inline void free_desc_masks(struct irq_desc *old_desc,
+				   struct irq_desc *new_desc)
+{
+}
 #endif	/* CONFIG_SMP */
 
 #endif /* _LINUX_IRQ_H */

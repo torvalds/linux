@@ -14,13 +14,15 @@ config MISDN_DSP
 	depends on MISDN
 	help
 	  Enable support for digital audio processing capability.
+
 	  This module may be used for special applications that require
-	  cross connecting of bchannels, conferencing, dtmf decoding
+	  cross connecting of bchannels, conferencing, dtmf decoding,
 	  echo cancelation, tone generation, and Blowfish encryption and
-	  decryption.
-	  It may use hardware features if available.
+	  decryption. It may use hardware features if available.
+
 	  E.g. it is required for PBX4Linux. Go to http://isdn.eversberg.eu
-	  and get more informations about this module and it's usage.
+	  and get more information about this module and its usage.
+
 	  If unsure, say 'N'.
 
 config MISDN_L1OIP

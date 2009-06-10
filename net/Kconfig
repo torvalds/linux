@@ -119,12 +119,6 @@ menuconfig NETFILTER
 	  <file:Documentation/Changes> under "iptables" for the location of
 	  these packages.
 
-	  Make sure to say N to "Fast switching" below if you intend to say Y
-	  here, as Fast switching currently bypasses netfilter.
-
-	  Chances are that you should say Y here if you compile a kernel which
-	  will run as a router and N for regular hosts. If unsure, say N.
-
 if NETFILTER
 
 config NETFILTER_DEBUG
@@ -140,7 +134,7 @@ config NETFILTER_ADVANCED
 	default y
 	help
 	  If you say Y here you can select between all the netfilter modules.
-	  If you say N the more ununsual ones will not be shown and the
+	  If you say N the more unusual ones will not be shown and the
 	  basic ones needed by most people will default to 'M'.
 
 	  If unsure, say Y.

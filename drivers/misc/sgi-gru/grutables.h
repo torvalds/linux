@@ -153,6 +153,7 @@
 extern struct gru_stats_s gru_stats;
 extern struct gru_blade_state *gru_base[];
 extern unsigned long gru_start_paddr, gru_end_paddr;
+extern unsigned int gru_max_gids;
 
 #define GRU_MAX_BLADES		MAX_NUMNODES
 #define GRU_MAX_GRUS		(GRU_MAX_BLADES * GRU_CHIPLETS_PER_BLADE)
@@ -184,7 +185,9 @@ struct gru_stats_s {
 	atomic_long_t asid_wrap;
 	atomic_long_t asid_reuse;
 	atomic_long_t intr;
+	atomic_long_t intr_mm_lock_failed;
 	atomic_long_t call_os;
+	atomic_long_t call_os_offnode_reference;
 	atomic_long_t call_os_check_for_bug;
 	atomic_long_t call_os_wait_queue;
 	atomic_long_t user_flush_tlb;
@@ -237,6 +240,17 @@ struct gru_stats_s {
 
 };
 
+enum mcs_op {cchop_allocate, cchop_start, cchop_interrupt, cchop_interrupt_sync,
+	cchop_deallocate, tghop_invalidate, mcsop_last};
+
+struct mcs_op_statistic {
+	atomic_long_t	count;
+	atomic_long_t	total;
+	unsigned long	max;
+};
+
+extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
+
 #define OPT_DPRINT	1
 #define OPT_STATS	2
 #define GRU_QUICKLOOK	4
@@ -278,13 +292,12 @@ struct gru_stats_s {
 /* Generate a GRU asid value from a GRU base asid & a virtual address. */
 #if defined CONFIG_IA64
 #define VADDR_HI_BIT		64
-#define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #elif defined CONFIG_X86_64
 #define VADDR_HI_BIT		48
-#define GRUREGION(addr)		(0)		/* ZZZ could do better */
 #else
 #error "Unsupported architecture"
 #endif
+#define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
 #define GRUASID(asid, addr)	((asid) + GRUREGION(addr))
 
 /*------------------------------------------------------------------------------
@@ -297,12 +310,12 @@ struct gru_state;
  * This structure is pointed to from the mmstruct via the notifier pointer.
  * There is one of these per address space.
  */
-struct gru_mm_tracker {
-	unsigned int		mt_asid_gen;	/* ASID wrap count */
-	int			mt_asid;	/* current base ASID for gru */
-	unsigned short		mt_ctxbitmap;	/* bitmap of contexts using
+struct gru_mm_tracker {				/* pack to reduce size */
+	unsigned int		mt_asid_gen:24;	/* ASID wrap count */
+	unsigned int		mt_asid:24;	/* current base ASID for gru */
+	unsigned short		mt_ctxbitmap:16;/* bitmap of contexts using
 						   asid */
-};
+} __attribute__ ((packed));
 
 struct gru_mm_struct {
 	struct mmu_notifier	ms_notifier;
@@ -348,6 +361,7 @@ struct gru_thread_state {
 	long			ts_user_options;/* misc user option flags */
 	pid_t			ts_tgid_owner;	/* task that is using the
 						   context - for migration */
+	unsigned short		ts_sizeavail;	/* Pagesizes in use */
 	int			ts_tsid;	/* thread that owns the
 						   structure */
 	int			ts_tlb_int_select;/* target cpu if interrupts
@@ -359,6 +373,9 @@ struct gru_thread_state {
 						   required for contest */
 	unsigned char		ts_cbr_au_count;/* Number of CBR resources
 						   required for contest */
+	char			ts_blade;	/* If >= 0, migrate context if
+						   ref from diferent blade */
+	char			ts_force_cch_reload;
 	char			ts_force_unload;/* force context to be unloaded
 						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
@@ -392,12 +409,12 @@ struct gru_state {
 							   gru segments (64) */
 	void			*gs_gru_base_vaddr;	/* Virtual address of
 							   gru segments (64) */
-	unsigned char		gs_gid;			/* unique GRU number */
+	unsigned short		gs_gid;			/* unique GRU number */
+	unsigned short		gs_blade_id;		/* blade of GRU */
 	unsigned char		gs_tgh_local_shift;	/* used to pick TGH for
 							   local flush */
 	unsigned char		gs_tgh_first_remote;	/* starting TGH# for
 							   remote flush */
-	unsigned short		gs_blade_id;		/* blade of GRU */
 	spinlock_t		gs_asid_lock;		/* lock used for
 							   assigning asids */
 	spinlock_t		gs_lock;		/* lock used for
@@ -492,6 +509,10 @@ struct gru_blade_state {
 			(i) < GRU_CHIPLETS_PER_BLADE;			\
 			(i)++, (gru)++)
 
+/* Scan all GRUs */
+#define foreach_gid(gid)						\
+	for ((gid) = 0; (gid) < gru_max_gids; (gid)++)
+
 /* Scan all active GTSs on a gru. Note: must hold ss_lock to use this macro. */
 #define for_each_gts_on_gru(gts, gru, ctxnum)				\
 	for ((ctxnum) = 0; (ctxnum) < GRU_NUM_CCH; (ctxnum)++)		\
@@ -578,9 +599,11 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
+extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
 extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(struct gru_state *gru);
+extern void gru_kservices_exit(struct gru_state *gru);
 extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);

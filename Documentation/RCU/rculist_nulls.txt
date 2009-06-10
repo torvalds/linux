@@ -21,7 +21,7 @@ if (obj) {
   /*
    * Because a writer could delete object, and a writer could
    * reuse these object before the RCU grace period, we
-   * must check key after geting the reference on object
+   * must check key after getting the reference on object
    */
   if (obj->key != key) { // not the object we expected
      put_ref(obj);
@@ -117,7 +117,7 @@ a race (some writer did a delete and/or a move of an object
 to another chain) checking the final 'nulls' value if
 the lookup met the end of chain. If final 'nulls' value
 is not the slot number, then we must restart the lookup at
-the begining. If the object was moved to same chain,
+the beginning. If the object was moved to the same chain,
 then the reader doesnt care : It might eventually
 scan the list again without harm.
 

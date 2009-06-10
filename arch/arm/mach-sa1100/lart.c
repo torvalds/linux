@@ -9,6 +9,7 @@
 #include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
+#include <asm/page.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

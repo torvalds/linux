@@ -23,7 +23,7 @@ static inline void agnx_bug(char *reason)
 
 static inline void agnx_print_desc(struct agnx_desc *desc)
 {
-        u32 reg = be32_to_cpu(desc->frag);
+	u32 reg = be32_to_cpu(desc->frag);
 
 	PRINTK_BITS(DESC, PACKET_LEN);
 
@@ -291,7 +291,7 @@ static inline void agnx_print_sta(struct agnx_priv *priv, unsigned int sta_idx)
 	PRINTK_LE32(STA, sta->phy_stats_high);
 	PRINTK_LE32(STA, sta->phy_stats_low);
 
-//	for (i = 0; i < 8; i++)
+	/* for (i = 0; i < 8; i++) */
 	agnx_print_sta_traffic(sta->traffic + 0);
 
 	PRINTK_LE16(STA, sta->traffic_class0_frag_success);
@@ -311,10 +311,10 @@ static inline void agnx_print_sta(struct agnx_priv *priv, unsigned int sta_idx)
 static inline void dump_ieee80211_hdr(struct ieee80211_hdr *hdr, char *tag)
 {
 	u16 fctl;
-        int hdrlen;
+	int hdrlen;
 	DECLARE_MAC_BUF(mac);
 
-        fctl = le16_to_cpu(hdr->frame_control);
+	fctl = le16_to_cpu(hdr->frame_control);
 	switch (fctl & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_DATA:
 		printk(PFX "%s DATA ", tag);
@@ -324,7 +324,7 @@ static inline void dump_ieee80211_hdr(struct ieee80211_hdr *hdr, char *tag)
 		break;
 	case IEEE80211_FTYPE_MGMT:
 		printk(PFX "%s MGMT ", tag);
-		switch(fctl & IEEE80211_FCTL_STYPE) {
+		switch (fctl & IEEE80211_FCTL_STYPE) {
 		case IEEE80211_STYPE_ASSOC_REQ:
 			printk("SubType: ASSOC_REQ ");
 			break;
@@ -369,7 +369,7 @@ static inline void dump_ieee80211_hdr(struct ieee80211_hdr *hdr, char *tag)
 		printk(PFX "%s Packet type: Unknow\n", tag);
 	}
 
-        hdrlen = ieee80211_hdrlen(fctl);
+	hdrlen = ieee80211_hdrlen(fctl);
 
 	if (hdrlen >= 4)
 		printk("FC=0x%04x DUR=0x%04x",
@@ -389,29 +389,28 @@ static inline void dump_txm_registers(struct agnx_priv *priv)
 {
 	void __iomem *ctl = priv->ctl;
 	int i;
-	for (i = 0; i <=0x1e8; i += 4) {
+	for (i = 0; i <= 0x1e8; i += 4)
 		printk(KERN_DEBUG PFX "TXM: %x---> 0x%.8x\n", i, ioread32(ctl + i));
-	}
 }
 static inline void dump_rxm_registers(struct agnx_priv *priv)
 {
 	void __iomem *ctl = priv->ctl;
 	int i;
-	for (i = 0; i <=0x108; i += 4)
+	for (i = 0; i <= 0x108; i += 4)
 		printk(KERN_DEBUG PFX "RXM: %x---> 0x%.8x\n", i, ioread32(ctl + 0x2000 + i));
 }
 static inline void dump_bm_registers(struct agnx_priv *priv)
 {
 	void __iomem *ctl = priv->ctl;
 	int i;
-	for (i = 0; i <=0x90; i += 4)
+	for (i = 0; i <= 0x90; i += 4)
 		printk(KERN_DEBUG PFX "BM: %x---> 0x%.8x\n", i, ioread32(ctl + 0x2c00 + i));
 }
 static inline void dump_cir_registers(struct agnx_priv *priv)
 {
 	void __iomem *ctl = priv->ctl;
 	int i;
-	for (i = 0; i <=0xb8; i += 4)
+	for (i = 0; i <= 0xb8; i += 4)
 		printk(KERN_DEBUG PFX "CIR: %x---> 0x%.8x\n", i, ioread32(ctl + 0x3000 + i));
 }
 

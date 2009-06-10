@@ -115,8 +115,7 @@ static u8 sc1200_udma_filter(ide_drive_t *drive)
 		if ((mateid[ATA_ID_FIELD_VALID] & 4) &&
 		    (mateid[ATA_ID_UDMA_MODES] & 7))
 			goto out;
-		if ((mateid[ATA_ID_FIELD_VALID] & 2) &&
-		    (mateid[ATA_ID_MWDMA_MODES] & 7))
+		if (mateid[ATA_ID_MWDMA_MODES] & 7)
 			mask = 0;
 	}
 out:
@@ -182,9 +181,6 @@ static int sc1200_dma_end(ide_drive_t *drive)
 
 	outb(dma_stat|0x1b, dma_base+2);	/* clear the INTR & ERROR bits */
 	outb(inb(dma_base)&~1, dma_base);	/* !! DO THIS HERE !! stop DMA */
-
-	drive->waiting_for_dma = 0;
-	ide_destroy_dmatable(drive);		/* purge DMA mappings */
 
 	return (dma_stat & 7) != 4;		/* verify good DMA status */
 }
@@ -291,7 +287,6 @@ static const struct ide_dma_ops sc1200_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 

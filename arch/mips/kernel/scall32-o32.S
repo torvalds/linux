@@ -650,6 +650,8 @@ einval:	li	v0, -ENOSYS
 	sys	sys_dup3		3
 	sys	sys_pipe2		2
 	sys	sys_inotify_init1	1
+	sys	sys_preadv		6	/* 4330 */
+	sys	sys_pwritev		6
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

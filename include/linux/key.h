@@ -20,6 +20,7 @@
 #include <linux/rbtree.h>
 #include <linux/rcupdate.h>
 #include <linux/sysctl.h>
+#include <linux/rwsem.h>
 #include <asm/atomic.h>
 
 #ifdef __KERNEL__

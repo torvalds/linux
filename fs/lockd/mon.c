@@ -16,6 +16,8 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 
+#include <asm/unaligned.h>
+
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 #define NSM_PROGRAM		100024
 #define NSM_VERSION		1
@@ -274,10 +276,12 @@ static void nsm_init_private(struct nsm_handle *nsm)
 {
 	u64 *p = (u64 *)&nsm->sm_priv.data;
 	struct timespec ts;
+	s64 ns;
 
 	ktime_get_ts(&ts);
-	*p++ = timespec_to_ns(&ts);
-	*p = (unsigned long)nsm;
+	ns = timespec_to_ns(&ts);
+	put_unaligned(ns, p);
+	put_unaligned((unsigned long)nsm, p + 1);
 }
 
 static struct nsm_handle *nsm_create_handle(const struct sockaddr *sap,

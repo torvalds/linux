@@ -272,11 +272,6 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	lock_page(page);
 
 	bio = bio_alloc(GFP_NOFS, 1);
-	if (unlikely(!bio)) {
-		__free_page(page);
-		return -ENOBUFS;
-	}
-
 	bio->bi_sector = sector * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio_add_page(bio, page, PAGE_SIZE, 0);
@@ -1287,21 +1282,21 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 static struct super_block *get_gfs2_sb(const char *dev_name)
 {
 	struct super_block *sb;
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
+	error = kern_path(dev_name, LOOKUP_FOLLOW, &path);
 	if (error) {
 		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
 		       dev_name, error);
 		return NULL;
 	}
-	sb = nd.path.dentry->d_inode->i_sb;
+	sb = path.dentry->d_inode->i_sb;
 	if (sb && (sb->s_type == &gfs2_fs_type))
 		atomic_inc(&sb->s_active);
 	else
 		sb = NULL;
-	path_put(&nd.path);
+	path_put(&path);
 	return sb;
 }
 

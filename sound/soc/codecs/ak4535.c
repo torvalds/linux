@@ -659,7 +659,8 @@ static int ak4535_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_unregister_device(codec->control_data);
+	if (codec->control_data)
+		i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&ak4535_i2c_driver);
 #endif
 	kfree(codec->private_data);

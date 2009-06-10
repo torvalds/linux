@@ -27,6 +27,8 @@ int main(void)
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));
 	DEFINE(__TI_cpu, offsetof(struct thread_info, cpu));
 	DEFINE(__TI_precount, offsetof(struct thread_info, preempt_count));
+	DEFINE(__TI_user_timer, offsetof(struct thread_info, user_timer));
+	DEFINE(__TI_system_timer, offsetof(struct thread_info, system_timer));
 	BLANK();
 	DEFINE(__PT_ARGS, offsetof(struct pt_regs, args));
 	DEFINE(__PT_PSW, offsetof(struct pt_regs, psw));

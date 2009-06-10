@@ -810,7 +810,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		CX18_ERR("Could not register A/V decoder subdevice\n");
 		goto free_map;
 	}
-	cx18_call_hw(cx, CX18_HW_418_AV, core, init, (u32) CX18_AV_INIT_PLLS);
+	cx18_call_hw(cx, CX18_HW_418_AV, core, init, 0);
 
 	/* Initialize GPIO Reset Controller to do chip resets during i2c init */
 	if (cx->card->hw_all & CX18_HW_GPIO_RESET_CTRL) {
@@ -1028,7 +1028,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	cx18_vapi(cx, CX18_APU_STOP, 1, CX18_APU_ENCODING_METHOD_MPEG);
 
 	/* Init the A/V decoder, if it hasn't been already */
-	v4l2_subdev_call(cx->sd_av, core, init, (u32) CX18_AV_INIT_NORMAL);
+	v4l2_subdev_call(cx->sd_av, core, load_fw);
 
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;

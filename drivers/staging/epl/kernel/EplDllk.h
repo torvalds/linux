@@ -74,18 +74,10 @@
 #include "../EplDll.h"
 #include "../EplEvent.h"
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
 typedef tEplKernel(*tEplDllkCbAsync) (tEplFrameInfo * pFrameInfo_p);
 
 typedef struct {
-	BYTE m_be_abSrcMac[6];
+	u8 m_be_abSrcMac[6];
 
 } tEplDllkInitParam;
 
@@ -96,21 +88,17 @@ struct _tEplDllkNodeInfo {
 	struct _tEplDllkNodeInfo *m_pNextNodeInfo;
 	struct _tEdrvTxBuffer *m_pPreqTxBuffer;
 	unsigned int m_uiNodeId;
-	DWORD m_dwPresTimeout;
+	u32 m_dwPresTimeout;
 	unsigned long m_ulDllErrorEvents;
 	tEplNmtState m_NmtState;
-	WORD m_wPresPayloadLimit;
-	BYTE m_be_abMacAddr[6];
-	BYTE m_bSoaFlag1;
+	u16 m_wPresPayloadLimit;
+	u8 m_be_abMacAddr[6];
+	u8 m_bSoaFlag1;
 	BOOL m_fSoftDelete;	// delete node after error and ignore error
 
 };
 
 typedef struct _tEplDllkNodeInfo tEplDllkNodeInfo;
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) != 0)
 
@@ -154,7 +142,7 @@ tEplKernel EplDllkDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDllkSoftDeleteNode(unsigned int uiNodeId_p);
 
-tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 tEplKernel EplDllkGetFirstNodeInfo(tEplDllkNodeInfo ** ppNodeInfo_p);
 

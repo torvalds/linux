@@ -36,9 +36,9 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive,
 					    int __user *arg)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
-	u8 header_len, desc_cnt;
 	int i, blocks, length, u_array_size, u_index;
 	int __user *argp;
+	u8 pc_buf[256], header_len, desc_cnt;
 
 	if (get_user(u_array_size, arg))
 		return -EFAULT;
@@ -47,6 +47,9 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive,
 		return -EINVAL;
 
 	ide_floppy_create_read_capacity_cmd(pc);
+	pc->buf = &pc_buf[0];
+	pc->buf_size = sizeof(pc_buf);
+
 	if (ide_queue_pc_tail(drive, floppy->disk, pc)) {
 		printk(KERN_ERR "ide-floppy: Can't get floppy parameters\n");
 		return -EIO;

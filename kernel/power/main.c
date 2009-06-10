@@ -289,22 +289,26 @@ static int suspend_enter(suspend_state_t state)
 {
 	int error;
 
-	device_pm_lock();
+	if (suspend_ops->prepare) {
+		error = suspend_ops->prepare();
+		if (error)
+			return error;
+	}
 
 	error = device_power_down(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
-		goto Done;
+		goto Platfrom_finish;
 	}
 
-	if (suspend_ops->prepare) {
-		error = suspend_ops->prepare();
+	if (suspend_ops->prepare_late) {
+		error = suspend_ops->prepare_late();
 		if (error)
 			goto Power_up_devices;
 	}
 
 	if (suspend_test(TEST_PLATFORM))
-		goto Platfrom_finish;
+		goto Platform_wake;
 
 	error = disable_nonboot_cpus();
 	if (error || suspend_test(TEST_CPUS))
@@ -326,15 +330,16 @@ static int suspend_enter(suspend_state_t state)
  Enable_cpus:
 	enable_nonboot_cpus();
 
- Platfrom_finish:
-	if (suspend_ops->finish)
-		suspend_ops->finish();
+ Platform_wake:
+	if (suspend_ops->wake)
+		suspend_ops->wake();
 
  Power_up_devices:
 	device_power_up(PMSG_RESUME);
 
- Done:
-	device_pm_unlock();
+ Platfrom_finish:
+	if (suspend_ops->finish)
+		suspend_ops->finish();
 
 	return error;
 }

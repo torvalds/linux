@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2006-2008 Marvell International Ltd.
  *	Fengwei Yin <fengwei.yin@marvell.com>
+ *	Bin Yang  <bin.yang@marvell.com>
  *	Eric Miao <eric.miao@marvell.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -175,6 +176,16 @@ static void da9034_event_handler(struct da9034_touch *touch, int event)
 			goto err_reset;
 
 		touch->state = STATE_STOP;
+
+		/* FIXME: PEN_{UP/DOWN} events are expected to be
+		 * available by stopping TSI, but this is found not
+		 * always true, delay and simulate such an event
+		 * here is more reliable
+		 */
+		mdelay(1);
+		da9034_event_handler(touch,
+				     is_pen_down(touch) ? EVENT_PEN_DOWN :
+							  EVENT_PEN_UP);
 		break;
 
 	case STATE_STOP:
@@ -189,8 +200,6 @@ static void da9034_event_handler(struct da9034_touch *touch, int event)
 			report_pen_up(touch);
 			touch->state = STATE_IDLE;
 		}
-
-		input_sync(touch->input_dev);
 		break;
 
 	case STATE_WAIT:
@@ -200,8 +209,10 @@ static void da9034_event_handler(struct da9034_touch *touch, int event)
 		if (is_pen_down(touch)) {
 			start_tsi(touch);
 			touch->state = STATE_BUSY;
-		} else
+		} else {
+			report_pen_up(touch);
 			touch->state = STATE_IDLE;
+		}
 		break;
 	}
 	return;
@@ -226,15 +237,11 @@ static int da9034_touch_notifier(struct notifier_block *nb,
 	struct da9034_touch *touch =
 		container_of(nb, struct da9034_touch, notifier);
 
-	if (event & DA9034_EVENT_PEN_DOWN) {
-		if (is_pen_down(touch))
-			da9034_event_handler(touch, EVENT_PEN_DOWN);
-		else
-			da9034_event_handler(touch, EVENT_PEN_UP);
-	}
-
 	if (event & DA9034_EVENT_TSI_READY)
 		da9034_event_handler(touch, EVENT_TSI_READY);
+
+	if ((event & DA9034_EVENT_PEN_DOWN) && touch->state == STATE_IDLE)
+		da9034_event_handler(touch, EVENT_PEN_DOWN);
 
 	return 0;
 }
@@ -385,6 +392,6 @@ static void __exit da9034_touch_exit(void)
 module_exit(da9034_touch_exit);
 
 MODULE_DESCRIPTION("Touchscreen driver for Dialog Semiconductor DA9034");
-MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
+MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>, Bin Yang <bin.yang@marvell.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:da9034-touch");

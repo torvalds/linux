@@ -259,12 +259,15 @@ static int sh_keysc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sh_keysc_priv *priv = platform_get_drvdata(pdev);
+	int irq = platform_get_irq(pdev, 0);
 	unsigned short value;
 
 	value = ioread16(priv->iomem_base + KYCR1_OFFS);
 
-	if (device_may_wakeup(dev))
+	if (device_may_wakeup(dev)) {
 		value |= 0x80;
+		enable_irq_wake(irq);
+	}
 	else
 		value &= ~0x80;
 
@@ -272,8 +275,20 @@ static int sh_keysc_suspend(struct device *dev)
 	return 0;
 }
 
+static int sh_keysc_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq = platform_get_irq(pdev, 0);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(irq);
+
+	return 0;
+}
+
 static struct dev_pm_ops sh_keysc_dev_pm_ops = {
 	.suspend = sh_keysc_suspend,
+	.resume = sh_keysc_resume,
 };
 
 struct platform_driver sh_keysc_device_driver = {

@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/fcntl.h>
 #include <linux/device_cgroup.h>
+#include <linux/fs_struct.h>
 #include <asm/uaccess.h>
 
 #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
@@ -1129,8 +1130,8 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
  * @nd: pointer to nameidata
  * @open_flags: open intent flags
  */
-int path_lookup_open(int dfd, const char *name, unsigned int lookup_flags,
-		struct nameidata *nd, int open_flags)
+static int path_lookup_open(int dfd, const char *name,
+		unsigned int lookup_flags, struct nameidata *nd, int open_flags)
 {
 	struct file *filp = get_empty_filp();
 	int err;
@@ -1246,6 +1247,8 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	int err;
 	struct qstr this;
+
+	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
 	err = __lookup_one_len(name, &this, base, len);
 	if (err)
@@ -1578,7 +1581,7 @@ static int __open_namei_create(struct nameidata *nd, struct path *path,
 	struct dentry *dir = nd->path.dentry;
 
 	if (!IS_POSIXACL(dir->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = security_path_mknod(&nd->path, path->dentry, mode, 0);
 	if (error)
 		goto out_unlock;
@@ -1634,18 +1637,19 @@ static int open_will_write_to_fs(int flag, struct inode *inode)
  * open_to_namei_flags() for more details.
  */
 struct file *do_filp_open(int dfd, const char *pathname,
-		int open_flag, int mode)
+		int open_flag, int mode, int acc_mode)
 {
 	struct file *filp;
 	struct nameidata nd;
-	int acc_mode, error;
+	int error;
 	struct path path;
 	struct dentry *dir;
 	int count = 0;
 	int will_write;
 	int flag = open_to_namei_flags(open_flag);
 
-	acc_mode = MAY_OPEN | ACC_MODE(flag);
+	if (!acc_mode)
+		acc_mode = MAY_OPEN | ACC_MODE(flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
@@ -1866,7 +1870,7 @@ do_link:
  */
 struct file *filp_open(const char *filename, int flags, int mode)
 {
-	return do_filp_open(AT_FDCWD, filename, flags, mode);
+	return do_filp_open(AT_FDCWD, filename, flags, mode, 0);
 }
 EXPORT_SYMBOL(filp_open);
 
@@ -1989,7 +1993,7 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
 		goto out_unlock;
 	}
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = may_mknod(mode);
 	if (error)
 		goto out_dput;
@@ -2067,7 +2071,7 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
 		goto out_unlock;
 
 	if (!IS_POSIXACL(nd.path.dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 	error = mnt_want_write(nd.path.mnt);
 	if (error)
 		goto out_dput;
@@ -2897,10 +2901,3 @@ EXPORT_SYMBOL(vfs_symlink);
 EXPORT_SYMBOL(vfs_unlink);
 EXPORT_SYMBOL(dentry_unhash);
 EXPORT_SYMBOL(generic_readlink);
-
-/* to be mentioned only in INIT_TASK */
-struct fs_struct init_fs = {
-	.count		= ATOMIC_INIT(1),
-	.lock		= __RW_LOCK_UNLOCKED(init_fs.lock),
-	.umask		= 0022,
-};

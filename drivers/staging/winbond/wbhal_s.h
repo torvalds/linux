@@ -2,8 +2,7 @@
 #define __WINBOND_WBHAL_S_H
 
 #include <linux/types.h>
-
-#include "common.h"
+#include <linux/if_ether.h> /* for ETH_ALEN */
 
 //[20040722 WK]
 #define HAL_LED_SET_MASK		0x001c	//20060901 Extend
@@ -86,19 +85,6 @@ enum {
 	VM_COMPLETED
 };
 
-// Be used for 802.11 mac header
-typedef struct _MAC_FRAME_CONTROL {
-	u8	mac_frame_info; // this is a combination of the protovl version, type and subtype
-	u8	to_ds:1;
-	u8	from_ds:1;
-	u8	more_frag:1;
-	u8	retry:1;
-	u8	pwr_mgt:1;
-	u8	more_data:1;
-	u8	WEP:1;
-	u8	order:1;
-} MAC_FRAME_CONTROL, *PMAC_FRAME_CONTROL;
-
 //-----------------------------------------------------
 // Normal Key table format
 //-----------------------------------------------------
@@ -106,28 +92,6 @@ typedef struct _MAC_FRAME_CONTROL {
 #define MAX_KEY_TABLE				24	// 24 entry for storing key data
 #define GROUP_KEY_START_INDEX		4
 #define MAPPING_KEY_START_INDEX		8
-typedef struct _KEY_TABLE
-{
-	u32	DW0_Valid:1;
-	u32	DW0_NullKey:1;
-	u32	DW0_Security_Mode:2;//0:WEP 40 bit 1:WEP 104 bit 2:TKIP 128 bit 3:CCMP 128 bit
-	u32	DW0_WEPON:1;
-	u32	DW0_RESERVED:11;
-	u32	DW0_Address1:16;
-
-	u32	DW1_Address2;
-
-	u32	DW2_RxSequenceCount1;
-
-	u32	DW3_RxSequenceCount2:16;
-	u32	DW3_RESERVED:16;
-
-	u32	DW4_TxSequenceCount1;
-
-	u32	DW5_TxSequenceCount2:16;
-	u32	DW5_RESERVED:16;
-
-} KEY_TABLE, *PKEY_TABLE;
 
 //--------------------------------------------------------
 // 			 Descriptor
@@ -413,8 +377,8 @@ typedef struct _DESCRIPTOR {		// Skip length = 8 DWORD
 #define MAX_RF_PARAMETER	32
 
 typedef struct _TXVGA_FOR_50 {
-	u8	ChanNo;
-	u8	TxVgaValue;
+	u8      ChanNo;
+	u8      TxVgaValue;
 } TXVGA_FOR_50;
 
 
@@ -427,10 +391,8 @@ typedef struct _TXVGA_FOR_50 {
 #include "wb35tx_s.h"
 #include "wb35rx_s.h"
 
-
 // For Hal using ==================================================================
-typedef struct _HW_DATA_T
-{
+struct hw_data {
 	// For compatible with 33
 	u32	revision;
 	u32	BB3c_cal; // The value for Tx calibration comes from EEPROM
@@ -452,8 +414,8 @@ typedef struct _HW_DATA_T
 	//===============================================
 	// Definition for MAC address
 	//===============================================
-	u8		PermanentMacAddress[ETH_LENGTH_OF_ADDRESS + 2]; // The Enthernet addr that are stored in EEPROM.  + 2 to 8-byte alignment
-	u8		CurrentMacAddress[ETH_LENGTH_OF_ADDRESS + 2]; // The Enthernet addr that are in used.  + 2 to 8-byte alignment
+	u8		PermanentMacAddress[ETH_ALEN + 2]; // The Enthernet addr that are stored in EEPROM.  + 2 to 8-byte alignment
+	u8		CurrentMacAddress[ETH_ALEN + 2]; // The Enthernet addr that are in used.  + 2 to 8-byte alignment
 
 	//=====================================================================
 	// Definition for 802.11
@@ -502,10 +464,10 @@ typedef struct _HW_DATA_T
 	//========================================================================
 	// Variable for each module
 	//========================================================================
-	WBUSB		WbUsb; // Need WbUsb.h
+	struct wb_usb	WbUsb; // Need WbUsb.h
 	struct wb35_reg	reg; // Need Wb35Reg.h
-	WB35TX		Wb35Tx; // Need Wb35Tx.h
-	WB35RX		Wb35Rx; // Need Wb35Rx.h
+	struct wb35_tx	Wb35Tx; // Need Wb35Tx.h
+	struct wb35_rx	Wb35Rx; // Need Wb35Rx.h
 
 	struct timer_list	LEDTimer;// For LED
 
@@ -578,35 +540,6 @@ typedef struct _HW_DATA_T
 	// 20060828.1 for avoid AP disconnect
 	u32		NullPacketCount;
 
-} hw_data_t, *phw_data_t;
-
-// The mapping of Rx and Tx descriptor field
-typedef struct _HAL_RATE
-{
-	// DSSS
-	u32	RESERVED_0;
-	u32   NumRate2MS;
-	u32   NumRate55MS;
-	u32   NumRate11MS;
-
-	u32	RESERVED_1[4];
-
-	u32   NumRate1M;
-	u32   NumRate2ML;
-	u32   NumRate55ML;
-	u32   NumRate11ML;
-
-	u32	RESERVED_2[4];
-
-	// OFDM
-	u32   NumRate6M;
-	u32   NumRate9M;
-	u32   NumRate12M;
-	u32   NumRate18M;
-	u32   NumRate24M;
-	u32   NumRate36M;
-	u32   NumRate48M;
-	u32   NumRate54M;
-} HAL_RATE, *PHAL_RATE;
+};
 
 #endif

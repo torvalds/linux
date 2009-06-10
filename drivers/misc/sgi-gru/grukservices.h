@@ -41,6 +41,15 @@
  * 	- gru_create_message_queue() needs interrupt vector info
  */
 
+struct gru_message_queue_desc {
+	void		*mq;			/* message queue vaddress */
+	unsigned long	mq_gpa;			/* global address of mq */
+	int		qlines;			/* queue size in CL */
+	int		interrupt_vector;	/* interrupt vector */
+	int		interrupt_pnode;	/* pnode for interrupt */
+	int		interrupt_apicid;	/* lapicid for interrupt */
+};
+
 /*
  * Initialize a user allocated chunk of memory to be used as
  * a message queue. The caller must ensure that the queue is
@@ -51,14 +60,19 @@
  * to manage the queue.
  *
  *  Input:
- * 	p	pointer to user allocated memory.
+ * 	mqd	pointer to message queue descriptor
+ * 	p	pointer to user allocated mesq memory.
  * 	bytes	size of message queue in bytes
+ *      vector	interrupt vector (zero if no interrupts)
+ *      nasid	nasid of blade where interrupt is delivered
+ *      apicid	apicid of cpu for interrupt
  *
  *  Errors:
  *  	0	OK
  *  	>0	error
  */
-extern int gru_create_message_queue(void *p, unsigned int bytes);
+extern int gru_create_message_queue(struct gru_message_queue_desc *mqd,
+		void *p, unsigned int bytes, int nasid, int vector, int apicid);
 
 /*
  * Send a message to a message queue.
@@ -68,7 +82,7 @@ extern int gru_create_message_queue(void *p, unsigned int bytes);
  *
  *
  *   Input:
- * 	xmq	message queue - must be a UV global physical address
+ * 	mqd	pointer to message queue descriptor
  * 	mesg	pointer to message. Must be 64-bit aligned
  * 	bytes	size of message in bytes
  *
@@ -77,8 +91,8 @@ extern int gru_create_message_queue(void *p, unsigned int bytes);
  *     >0	Send failure - see error codes below
  *
  */
-extern int gru_send_message_gpa(unsigned long mq_gpa, void *mesg,
-						unsigned int bytes);
+extern int gru_send_message_gpa(struct gru_message_queue_desc *mqd,
+			void *mesg, unsigned int bytes);
 
 /* Status values for gru_send_message() */
 #define MQE_OK			0	/* message sent successfully */
@@ -94,10 +108,11 @@ extern int gru_send_message_gpa(unsigned long mq_gpa, void *mesg,
  * API extensions may allow for out-of-order freeing.
  *
  *   Input
- * 	mq	message queue
+ * 	mqd	pointer to message queue descriptor
  * 	mesq	message being freed
  */
-extern void gru_free_message(void *mq, void *mesq);
+extern void gru_free_message(struct gru_message_queue_desc *mqd,
+			     void *mesq);
 
 /*
  * Get next message from message queue. Returns pointer to
@@ -106,13 +121,13 @@ extern void gru_free_message(void *mq, void *mesq);
  * in order to move the queue pointers to next message.
  *
  *   Input
- * 	mq	message queue
+ * 	mqd	pointer to message queue descriptor
  *
  *   Output:
  *	p	pointer to message
  *	NULL	no message available
  */
-extern void *gru_get_next_message(void *mq);
+extern void *gru_get_next_message(struct gru_message_queue_desc *mqd);
 
 
 /*

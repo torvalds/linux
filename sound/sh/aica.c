@@ -565,7 +565,7 @@ static int load_aica_firmware(void)
 	err = request_firmware(&fw_entry, "aica_firmware.bin", &pd->dev);
 	if (unlikely(err))
 		return err;
-	/* write firware into memory */
+	/* write firmware into memory */
 	spu_disable();
 	spu_memload(0, fw_entry->data, fw_entry->size);
 	spu_enable();

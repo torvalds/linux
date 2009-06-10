@@ -490,7 +490,7 @@ void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait)
 			if (newtime != curtime)
 				break;
 		}
-		if (count >= 16384)
+		if (count > 16384)
 			break;
 		curtime = newtime;
 	}

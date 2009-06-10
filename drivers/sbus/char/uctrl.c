@@ -197,9 +197,8 @@ static struct uctrl_driver {
 static void uctrl_get_event_status(struct uctrl_driver *);
 static void uctrl_get_external_status(struct uctrl_driver *);
 
-static int
-uctrl_ioctl(struct inode *inode, struct file *file,
-	      unsigned int cmd, unsigned long arg)
+static long
+uctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 		default:
@@ -226,7 +225,7 @@ static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 static const struct file_operations uctrl_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
-	.ioctl =	uctrl_ioctl,
+	.unlocked_ioctl =	uctrl_ioctl,
 	.open =		uctrl_open,
 };
 

@@ -135,11 +135,11 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 	 * In general, the external object will be the same type as
 	 * the internal object
 	 */
-	external_object->type = ACPI_GET_OBJECT_TYPE(internal_object);
+	external_object->type = internal_object->common.type;
 
 	/* However, only a limited number of external types are supported */
 
-	switch (ACPI_GET_OBJECT_TYPE(internal_object)) {
+	switch (internal_object->common.type) {
 	case ACPI_TYPE_STRING:
 
 		external_object->string.pointer = (char *)data_space;
@@ -222,8 +222,8 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		 */
 		ACPI_ERROR((AE_INFO,
 			    "Unsupported object type, cannot convert to external object: %s",
-			    acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE
-						  (internal_object))));
+			    acpi_ut_get_type_name(internal_object->common.
+						  type)));
 
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
@@ -355,7 +355,7 @@ acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
 	info.object_space = 0;
 	info.num_packages = 1;
 
-	external_object->type = ACPI_GET_OBJECT_TYPE(internal_object);
+	external_object->type = internal_object->common.type;
 	external_object->package.count = internal_object->package.count;
 	external_object->package.elements = ACPI_CAST_PTR(union acpi_object,
 							  info.free_space);
@@ -399,7 +399,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 
 	ACPI_FUNCTION_TRACE(ut_copy_iobject_to_eobject);
 
-	if (ACPI_GET_OBJECT_TYPE(internal_object) == ACPI_TYPE_PACKAGE) {
+	if (internal_object->common.type == ACPI_TYPE_PACKAGE) {
 		/*
 		 * Package object:  Copy all subobjects (including
 		 * nested packages)
@@ -496,8 +496,9 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_STRING:
 
 		internal_object->string.pointer =
-		    ACPI_ALLOCATE_ZEROED((acpi_size) external_object->string.
-					 length + 1);
+		    ACPI_ALLOCATE_ZEROED((acpi_size)
+					 external_object->string.length + 1);
+
 		if (!internal_object->string.pointer) {
 			goto error_exit;
 		}
@@ -697,7 +698,7 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 
 	/* Handle the objects with extra data */
 
-	switch (ACPI_GET_OBJECT_TYPE(dest_desc)) {
+	switch (dest_desc->common.type) {
 	case ACPI_TYPE_BUFFER:
 		/*
 		 * Allocate and copy the actual buffer if and only if:
@@ -814,8 +815,8 @@ acpi_ut_copy_ielement_to_ielement(u8 object_type,
 			 * This is a simple object, just copy it
 			 */
 			target_object =
-			    acpi_ut_create_internal_object(ACPI_GET_OBJECT_TYPE
-							   (source_object));
+			    acpi_ut_create_internal_object(source_object->
+							   common.type);
 			if (!target_object) {
 				return (AE_NO_MEMORY);
 			}
@@ -892,7 +893,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 
 	ACPI_FUNCTION_TRACE(ut_copy_ipackage_to_ipackage);
 
-	dest_obj->common.type = ACPI_GET_OBJECT_TYPE(source_obj);
+	dest_obj->common.type = source_obj->common.type;
 	dest_obj->common.flags = source_obj->common.flags;
 	dest_obj->package.count = source_obj->package.count;
 
@@ -950,15 +951,14 @@ acpi_ut_copy_iobject_to_iobject(union acpi_operand_object *source_desc,
 
 	/* Create the top level object */
 
-	*dest_desc =
-	    acpi_ut_create_internal_object(ACPI_GET_OBJECT_TYPE(source_desc));
+	*dest_desc = acpi_ut_create_internal_object(source_desc->common.type);
 	if (!*dest_desc) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Copy the object and possible subobjects */
 
-	if (ACPI_GET_OBJECT_TYPE(source_desc) == ACPI_TYPE_PACKAGE) {
+	if (source_desc->common.type == ACPI_TYPE_PACKAGE) {
 		status =
 		    acpi_ut_copy_ipackage_to_ipackage(source_desc, *dest_desc,
 						      walk_state);

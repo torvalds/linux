@@ -185,7 +185,7 @@ typedef struct {
 typedef struct {
 	unsigned int m_uiNodeId;	// NodeId
 	tEplNmtState m_NmtState;	// NMT state (remember distinguish between MN / CN)
-	WORD m_wErrorCode;	// EPL error code in case of NMT state NotActive
+	u16 m_wErrorCode;	// EPL error code in case of NMT state NotActive
 
 } tEplHeartbeatEvent;
 

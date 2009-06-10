@@ -300,7 +300,7 @@ void sysdev_unregister(struct sys_device *sysdev)
  *	and the class driver.
  *
  *	Note: The list is iterated in reverse order, so that we shut down
- *	child devices before we shut down thier parents. The list ordering
+ *	child devices before we shut down their parents. The list ordering
  *	is guaranteed by virtue of the fact that child devices are registered
  *	after their parents.
  */

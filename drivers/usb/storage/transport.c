@@ -247,10 +247,8 @@ int usb_stor_clear_halt(struct us_data *us, unsigned int pipe)
 		USB_ENDPOINT_HALT, endp,
 		NULL, 0, 3*HZ);
 
-	/* reset the endpoint toggle */
 	if (result >= 0)
-		usb_settoggle(us->pusb_dev, usb_pipeendpoint(pipe),
-				usb_pipeout(pipe), 0);
+		usb_reset_endpoint(us->pusb_dev, endp);
 
 	US_DEBUGP("%s: result = %d\n", __func__, result);
 	return result;

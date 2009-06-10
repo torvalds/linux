@@ -23,6 +23,9 @@
 #ifdef CONFIG_PAGE_SIZE_16KB
 #define PAGE_SHIFT	14
 #endif
+#ifdef CONFIG_PAGE_SIZE_32KB
+#define PAGE_SHIFT	15
+#endif
 #ifdef CONFIG_PAGE_SIZE_64KB
 #define PAGE_SHIFT	16
 #endif

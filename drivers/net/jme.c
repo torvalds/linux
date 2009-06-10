@@ -2591,17 +2591,17 @@ static int
 jme_pci_dma64(struct pci_dev *pdev)
 {
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
 			return 1;
 
 	if (pdev->device == PCI_DEVICE_ID_JMICRON_JMC250 &&
-	    !pci_set_dma_mask(pdev, DMA_40BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_40BIT_MASK))
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40)))
 			return 1;
 
-	if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK))
-		if (!pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
+		if (!pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))
 			return 0;
 
 	return -1;

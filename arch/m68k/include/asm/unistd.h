@@ -332,10 +332,12 @@
 #define __NR_dup3		326
 #define __NR_pipe2		327
 #define __NR_inotify_init1	328
+#define __NR_preadv		329
+#define __NR_pwritev		330
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		329
+#define NR_syscalls		331
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

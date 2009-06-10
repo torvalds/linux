@@ -40,19 +40,19 @@ typedef struct me_circ_buf {
 	int volatile tail;
 } me_circ_buf_t;
 
-static int inline me_circ_buf_values(me_circ_buf_t * buf)
+static inline int me_circ_buf_values(me_circ_buf_t * buf)
 {
 //      return ((buf->head - buf->tail) & (buf->count - 1));
 	return ((buf->head - buf->tail) & (buf->mask));
 }
 
-static int inline me_circ_buf_space(me_circ_buf_t * buf)
+static inline int me_circ_buf_space(me_circ_buf_t * buf)
 {
 //      return ((buf->tail - (buf->head + 1)) & (buf->count - 1));
 	return ((buf->tail - (buf->head + 1)) & (buf->mask));
 }
 
-static int inline me_circ_buf_values_to_end(me_circ_buf_t * buf)
+static inline int me_circ_buf_values_to_end(me_circ_buf_t * buf)
 {
 	int end;
 	int n;
@@ -63,7 +63,7 @@ static int inline me_circ_buf_values_to_end(me_circ_buf_t * buf)
 	return (n < end) ? n : end;
 }
 
-static int inline me_circ_buf_space_to_end(me_circ_buf_t * buf)
+static inline int me_circ_buf_space_to_end(me_circ_buf_t * buf)
 {
 	int end;
 	int n;
@@ -99,19 +99,19 @@ typedef struct me_circ_buf_16b {
 #   endif //_CBUFF_32b_t
 
 /** How many values is in buffer */
-static int inline me_circ_buf_values(me_circ_buf_t * buf)
+static inline int me_circ_buf_values(me_circ_buf_t * buf)
 {
 	return ((buf->head - buf->tail) & (buf->mask));
 }
 
 /** How many space left */
-static int inline me_circ_buf_space(me_circ_buf_t * buf)
+static inline int me_circ_buf_space(me_circ_buf_t * buf)
 {
 	return ((buf->tail - (buf->head + 1)) & (buf->mask));
 }
 
 /** How many values can be read from buffor in one chunck. */
-static int inline me_circ_buf_values_to_end(me_circ_buf_t * buf)
+static inline int me_circ_buf_values_to_end(me_circ_buf_t * buf)
 {
 	return (buf->tail <=
 		buf->head) ? (buf->head - buf->tail) : (buf->mask - buf->tail +
@@ -119,7 +119,7 @@ static int inline me_circ_buf_values_to_end(me_circ_buf_t * buf)
 }
 
 /** How many values can be write to buffer in one chunck. */
-static int inline me_circ_buf_space_to_end(me_circ_buf_t * buf)
+static inline int me_circ_buf_space_to_end(me_circ_buf_t * buf)
 {
 	return (buf->tail <=
 		buf->head) ? (buf->mask - buf->head + 1) : (buf->tail -

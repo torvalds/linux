@@ -22,9 +22,8 @@
 //============================================================================
 
 // LA20040210_DTO kevin
-#include "os_common.h"
+#include "sysdef.h"
 #include "sme_api.h"
-#include "gl_80211.h"
 #include "wbhal_f.h"
 
 // Declare SQ3 to rate and fragmentation threshold table
@@ -51,20 +50,14 @@ static int retryrate_rec[MTO_MAX_DATA_RATE_LEVELS];//this record the retry rate 
 static int PeriodTotalTxPkt = 0;
 static int PeriodTotalTxPktRetry = 0;
 
-typedef struct
-{
-	s32 RSSI;
-	u8  TxRate;
-}RSSI2RATE;
-
 static u8 boSparseTxTraffic = false;
 
-void MTO_Init(MTO_FUNC_INPUT);
-void TxRateReductionCtrl(MTO_FUNC_INPUT);
+void MTO_Init(struct wbsoft_priv *adapter);
+void TxRateReductionCtrl(struct wbsoft_priv *adapter);
 /** 1.1.31.1000 Turbo modify */
-void MTO_SetTxCount(MTO_FUNC_INPUT, u8 t0, u8 index);
-void MTO_TxFailed(MTO_FUNC_INPUT);
-void hal_get_dto_para(MTO_FUNC_INPUT, char *buffer);
+void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 t0, u8 index);
+void MTO_TxFailed(struct wbsoft_priv *adapter);
+void hal_get_dto_para(struct wbsoft_priv *adapter, char *buffer);
 
 //===========================================================================
 //  MTO_Init --
@@ -80,10 +73,9 @@ void hal_get_dto_para(MTO_FUNC_INPUT, char *buffer);
 //  Return Value:
 //    None
 //============================================================================
-void MTO_Init(MTO_FUNC_INPUT)
+void MTO_Init(struct wbsoft_priv *adapter)
 {
     int i;
-	//WBDEBUG(("[MTO] -> MTO_Init()\n"));
 	//[WKCHEN]pMTOcore_data = pcore_data;
 // 20040510 Turbo add for global variable
     MTO_TMR_CNT()       = 0;
@@ -196,7 +188,7 @@ void MTO_Init(MTO_FUNC_INPUT)
 //      If we enable DTO, we will ignore the tx count with different tx rate from
 //      DTO rate. This is because when we adjust DTO tx rate, there could be some
 //      packets in the tx queue with previous tx rate
-void MTO_SetTxCount(MTO_FUNC_INPUT, u8 tx_rate, u8 index)
+void MTO_SetTxCount(struct wbsoft_priv *adapter, u8 tx_rate, u8 index)
 {
 	MTO_TXFLOWCOUNT()++;
 	if ((MTO_ENABLE==1) && (MTO_RATE_CHANGE_ENABLE()==1))

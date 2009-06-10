@@ -8,7 +8,7 @@ struct ring_buffer;
 struct ring_buffer_iter;
 
 /*
- * Don't reference this struct directly, use functions below.
+ * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
 	u32		type:2, len:3, time_delta:27;
@@ -18,10 +18,13 @@ struct ring_buffer_event {
 /**
  * enum ring_buffer_type - internal ring buffer types
  *
- * @RINGBUF_TYPE_PADDING:	Left over page padding
- *				 array is ignored
- *				 size is variable depending on how much
+ * @RINGBUF_TYPE_PADDING:	Left over page padding or discarded event
+ *				 If time_delta is 0:
+ *				  array is ignored
+ *				  size is variable depending on how much
  *				  padding is needed
+ *				 If time_delta is non zero:
+ *				  everything else same as RINGBUF_TYPE_DATA
  *
  * @RINGBUF_TYPE_TIME_EXTEND:	Extend the time delta
  *				 array[0] = time delta (28 .. 59)
@@ -65,6 +68,8 @@ ring_buffer_event_time_delta(struct ring_buffer_event *event)
 	return event->time_delta;
 }
 
+void ring_buffer_event_discard(struct ring_buffer_event *event);
+
 /*
  * size is in bytes for each per CPU buffer.
  */
@@ -74,13 +79,10 @@ void ring_buffer_free(struct ring_buffer *buffer);
 
 int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size);
 
-struct ring_buffer_event *
-ring_buffer_lock_reserve(struct ring_buffer *buffer,
-			 unsigned long length,
-			 unsigned long *flags);
+struct ring_buffer_event *ring_buffer_lock_reserve(struct ring_buffer *buffer,
+						   unsigned long length);
 int ring_buffer_unlock_commit(struct ring_buffer *buffer,
-			      struct ring_buffer_event *event,
-			      unsigned long flags);
+			      struct ring_buffer_event *event);
 int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
 
@@ -121,17 +123,19 @@ unsigned long ring_buffer_overruns(struct ring_buffer *buffer);
 unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu);
 unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 
-u64 ring_buffer_time_stamp(int cpu);
-void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
+u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu);
+void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
+				      int cpu, u64 *ts);
+void ring_buffer_set_clock(struct ring_buffer *buffer,
+			   u64 (*clock)(void));
 
-void tracing_on(void);
-void tracing_off(void);
-void tracing_off_permanent(void);
+size_t ring_buffer_page_len(void *page);
+
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);
 void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
-int ring_buffer_read_page(struct ring_buffer *buffer,
-			  void **data_page, int cpu, int full);
+int ring_buffer_read_page(struct ring_buffer *buffer, void **data_page,
+			  size_t len, int cpu, int full);
 
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,

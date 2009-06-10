@@ -28,10 +28,10 @@ static unsigned int rx_frag_size = 2048;
 module_param(rx_frag_size, uint, S_IRUGO);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
-#define BE_VENDOR_ID 		0x19a2
-#define BE2_DEVICE_ID_1 	0x0211
 static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
-	{ PCI_DEVICE(BE_VENDOR_ID, BE2_DEVICE_ID_1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -1821,11 +1821,11 @@ static int __devinit be_probe(struct pci_dev *pdev,
 
 	be_msix_enable(adapter);
 
-	status = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	status = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!status) {
 		netdev->features |= NETIF_F_HIGHDMA;
 	} else {
-		status = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		status = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (status) {
 			dev_err(&pdev->dev, "Could not set PCI DMA Mask\n");
 			goto free_netdev;
@@ -1859,7 +1859,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status != 0)
 		goto stats_clean;
 
-	dev_info(&pdev->dev, BE_NAME " port %d\n", adapter->port_num);
+	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
 	return 0;
 
 stats_clean:
@@ -1873,7 +1873,7 @@ rel_reg:
 disable_dev:
 	pci_disable_device(pdev);
 do_none:
-	dev_warn(&pdev->dev, BE_NAME " initialization failed\n");
+	dev_err(&pdev->dev, "%s initialization failed\n", nic_name(pdev));
 	return status;
 }
 

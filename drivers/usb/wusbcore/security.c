@@ -562,7 +562,7 @@ void wusbhc_gtk_rekey(struct wusbhc *wusbhc)
 		struct wusb_dev *wusb_dev;
 
 		wusb_dev = wusbhc->port[p].wusb_dev;
-		if (!wusb_dev || !wusb_dev->usb_dev | !wusb_dev->usb_dev->authenticated)
+		if (!wusb_dev || !wusb_dev->usb_dev || !wusb_dev->usb_dev->authenticated)
 			continue;
 
 		usb_fill_control_urb(wusb_dev->set_gtk_urb, wusb_dev->usb_dev,

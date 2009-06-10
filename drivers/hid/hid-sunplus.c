@@ -78,5 +78,3 @@ static void sp_exit(void)
 module_init(sp_init);
 module_exit(sp_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(sunplus);

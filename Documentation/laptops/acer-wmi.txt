@@ -1,9 +1,9 @@
 Acer Laptop WMI Extras Driver
 http://code.google.com/p/aceracpi
-Version 0.2
-18th August 2008
+Version 0.3
+4th April 2009
 
-Copyright 2007-2008 Carlos Corbacho <carlos@strangeworlds.co.uk>
+Copyright 2007-2009 Carlos Corbacho <carlos@strangeworlds.co.uk>
 
 acer-wmi is a driver to allow you to control various parts of your Acer laptop
 hardware under Linux which are exposed via ACPI-WMI.
@@ -35,6 +35,10 @@ not possible in kernel space from a 64 bit OS.
 
 Supported Hardware
 ******************
+
+NOTE: The Acer Aspire One is not supported hardware. It cannot work with
+acer-wmi until Acer fix their ACPI-WMI implementation on them, so has been
+blacklisted until that happens.
 
 Please see the website for the current list of known working hardare:
 

@@ -23,6 +23,7 @@
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>
+#include <linux/slab.h>
 
 #define INBUF_LEN (16*1024)
 

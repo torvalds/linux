@@ -319,7 +319,7 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 
 static int vbus_is_present(struct usba_udc *udc)
 {
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		return gpio_get_value(udc->vbus_pin);
 
 	/* No Vbus detection: Assume always present */
@@ -794,7 +794,8 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (ep->desc) {
 		list_add_tail(&req->queue, &ep->queue);
 
-		if (ep->is_in || (ep_is_control(ep)
+		if ((!ep_is_control(ep) && ep->is_in) ||
+			(ep_is_control(ep)
 				&& (ep->state == DATA_STAGE_IN
 					|| ep->state == STATUS_STAGE_IN)))
 			usba_ep_writel(ep, CTL_ENB, USBA_TX_PK_RDY);
@@ -1821,7 +1822,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
 
 	udc->vbus_prev = 0;
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		enable_irq(gpio_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
@@ -1852,7 +1853,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		disable_irq(gpio_to_irq(udc->vbus_pin));
 
 	spin_lock_irqsave(&udc->lock, flags);
@@ -1910,7 +1911,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;
-	udc->vbus_pin = -1;
+	udc->vbus_pin = -ENODEV;
 
 	ret = -ENOMEM;
 	udc->regs = ioremap(regs->start, regs->end - regs->start + 1);
@@ -1940,7 +1941,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable(pclk);
 
-	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
+	usba_ep = kzalloc(sizeof(struct usba_ep) * pdata->num_ep,
 			  GFP_KERNEL);
 	if (!usba_ep)
 		goto err_alloc_ep;
@@ -1996,7 +1997,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_device_add;
 	}
 
-	if (pdata->vbus_pin >= 0) {
+	if (gpio_is_valid(pdata->vbus_pin)) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
 
@@ -2005,7 +2006,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 					"atmel_usba_udc", udc);
 			if (ret) {
 				gpio_free(udc->vbus_pin);
-				udc->vbus_pin = -1;
+				udc->vbus_pin = -ENODEV;
 				dev_warn(&udc->pdev->dev,
 					 "failed to request vbus irq; "
 					 "assuming always on\n");
@@ -2051,7 +2052,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);
 	usba_cleanup_debugfs(udc);
 
-	if (udc->vbus_pin != -1)
+	if (gpio_is_valid(udc->vbus_pin))
 		gpio_free(udc->vbus_pin);
 
 	free_irq(udc->irq, udc);

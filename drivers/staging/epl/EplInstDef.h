@@ -71,6 +71,8 @@
 #ifndef _EPLINSTDEF_H_
 #define _EPLINSTDEF_H_
 
+#include <linux/kernel.h>
+
 // =========================================================================
 // types and macros for generating instances
 // =========================================================================
@@ -83,8 +85,8 @@ typedef enum {
 
 //------------------------------------------------------------------------------------------
 
-typedef void MEM *tEplPtrInstance;
-typedef BYTE tEplInstanceHdl;
+typedef void *tEplPtrInstance;
+typedef u8 tEplInstanceHdl;
 
 // define const for illegale values
 #define CCM_ILLINSTANCE      NULL
@@ -99,8 +101,6 @@ typedef BYTE tEplInstanceHdl;
     //--------------------------------------------------------------------------------------
 
     // memory attributes for instance table
-#define INST_NEAR		// faster access to variables
-#define INST_FAR		// variables wich have to located in xdata
 #define STATIC			// prevent warnings for variables with same name
 
 #define INSTANCE_TYPE_BEGIN     typedef struct {
@@ -117,12 +117,12 @@ typedef BYTE tEplInstanceHdl;
 #define CCM_DECL_INSTANCE_HDL_                  tEplInstanceHdl InstanceHandle,
 
     // macros for declaration of pointer to instance handle within function header or prototype of API functions
-#define CCM_DECL_PTR_INSTANCE_HDL               tEplInstanceHdl MEM* pInstanceHandle
-#define CCM_DECL_PTR_INSTANCE_HDL_              tEplInstanceHdl MEM* pInstanceHandle,
+#define CCM_DECL_PTR_INSTANCE_HDL               tEplInstanceHdl *pInstanceHandle
+#define CCM_DECL_PTR_INSTANCE_HDL_              tEplInstanceHdl *pInstanceHandle,
 
     // macros for declaration instance as lokacl variable within functions
-#define CCM_DECL_INSTANCE_PTR_LOCAL             tCcmInstanceInfo MEM* pInstance;
-#define CCM_DECL_PTR_INSTANCE_HDL_LOCAL         tEplInstanceHdl  MEM* pInstanceHandle;
+#define CCM_DECL_INSTANCE_PTR_LOCAL             tCcmInstanceInfo *pInstance;
+#define CCM_DECL_PTR_INSTANCE_HDL_LOCAL         tEplInstanceHdl  *pInstanceHandle;
 
     // reference:
 
@@ -163,10 +163,10 @@ typedef BYTE tEplInstanceHdl;
     //--------------------------------------------------------------------------------------
 
     // macros for declaration within the function header, prototype or local var list
-    // Declaration of pointers within function paramater list must defined as void MEM*
+    // Declaration of pointers within function paramater list must defined as void *
     // pointer.
-#define EPL_MCO_DECL_INSTANCE_PTR                   void MEM* pInstance
-#define EPL_MCO_DECL_INSTANCE_PTR_                  void MEM* pInstance,
+#define EPL_MCO_DECL_INSTANCE_PTR                   void *pInstance
+#define EPL_MCO_DECL_INSTANCE_PTR_                  void *pInstance,
 #define EPL_MCO_DECL_INSTANCE_PTR_LOCAL             tEplPtrInstance  pInstance;
 
     // macros for reference of pointer to instance
@@ -191,8 +191,8 @@ typedef BYTE tEplInstanceHdl;
                                                     ASSERT (((tEplPtrInstance)pInstance)->m_InstState == kStateUsed);
 
     // macros for declaration of pointer to instance pointer
-#define EPL_MCO_DECL_PTR_INSTANCE_PTR               void MEM*  MEM* pInstancePtr
-#define EPL_MCO_DECL_PTR_INSTANCE_PTR_              void MEM*  MEM* pInstancePtr,
+#define EPL_MCO_DECL_PTR_INSTANCE_PTR               void **pInstancePtr
+#define EPL_MCO_DECL_PTR_INSTANCE_PTR_              void **pInstancePtr,
 
     // macros for reference of pointer to instance pointer
     // These macros are used for parameter passing to called function.
@@ -212,12 +212,12 @@ typedef BYTE tEplInstanceHdl;
     // this macro deletes all instance entries as unused
 #define EPL_MCO_DELETE_INSTANCE_TABLE()                                    \
     {                                                                      \
-        tEplInstanceInfo MEM*   pInstance       = &aEplInstanceTable_g[0]; \
-        tFastByte               InstNumber      = 0;                       \
-        tFastByte               i               = EPL_MAX_INSTANCES;       \
+        tEplInstanceInfo *   pInstance       = &aEplInstanceTable_g[0];    \
+        tFastByte            InstNumber      = 0;                          \
+        tFastByte            i               = EPL_MAX_INSTANCES;          \
         do {                                                               \
-            pInstance->m_InstState = (BYTE) kStateUnused;                  \
-            pInstance->m_bInstIndex = (BYTE) InstNumber;                   \
+            pInstance->m_InstState = (u8) kStateUnused;                  \
+            pInstance->m_bInstIndex = (u8) InstNumber;                   \
             pInstance++; InstNumber++; i--;                                \
         } while (i != 0);                                                  \
     }
@@ -230,8 +230,8 @@ typedef BYTE tEplInstanceHdl;
         static tEplPtrInstance GetInstancePtr (tEplInstanceHdl InstHandle_p) { \
             return &aEplInstanceTable_g[InstHandle_p]; }                       \
         static tEplPtrInstance GetFreeInstance (void) {                        \
-            tEplInstanceInfo MEM*   pInstance   = &aEplInstanceTable_g[0];     \
-            tFastByte               i           = EPL_MAX_INSTANCES;           \
+            tEplInstanceInfo *pInstance   = &aEplInstanceTable_g[0];           \
+            tFastByte         i           = EPL_MAX_INSTANCES;                 \
             do { if (pInstance->m_InstState != kStateUsed) {                   \
                     return (tEplPtrInstance) pInstance; }                      \
                 pInstance++; i--; }                                            \
@@ -240,13 +240,13 @@ typedef BYTE tEplInstanceHdl;
 
     // this macro defines the instance table. Each entry is reserved for an instance of CANopen.
 #define EPL_MCO_DECL_INSTANCE_VAR() \
-        static tEplInstanceInfo MEM aEplInstanceTable_g [EPL_MAX_INSTANCES];
+        static tEplInstanceInfo aEplInstanceTable_g [EPL_MAX_INSTANCES];
 
     // this macro defines member variables in instance table which are needed in
     // all modules of Epl stack
 #define EPL_MCO_DECL_INSTANCE_MEMBER() \
-        STATIC  BYTE                            m_InstState; \
-        STATIC  BYTE                            m_bInstIndex;
+        STATIC  u8                            m_InstState; \
+        STATIC  u8                            m_bInstIndex;
 
 #define EPL_MCO_INSTANCE_PARAM_IDX_()           EPL_MCO_INSTANCE_PARAM_ (EPL_MCO_GLB_VAR (m_bInstIndex))
 #define EPL_MCO_INSTANCE_PARAM_IDX()            EPL_MCO_INSTANCE_PARAM (EPL_MCO_GLB_VAR (m_bInstIndex))
@@ -254,8 +254,6 @@ typedef BYTE tEplInstanceHdl;
 #else // only one instance is used
 
     // Memory attributes for instance table.
-#define INST_NEAR   NEAR	// faster access to variables
-#define INST_FAR    MEM		// variables wich have to located in xdata
 #define STATIC      static	// prevent warnings for variables with same name
 
 #define INSTANCE_TYPE_BEGIN
@@ -358,18 +356,6 @@ typedef BYTE tEplInstanceHdl;
 #define EPL_MCO_DECL_INSTANCE_MEMBER()
 
 #endif
-
-/*
-#if (CDRV_MAX_INSTANCES > 1)
-
-    #define CDRV_REENTRANT                          REENTRANT
-
-#else
-
-    #define CDRV_REENTRANT
-
-#endif
-*/
 
 #endif // _EPLINSTDEF_H_
 

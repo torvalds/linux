@@ -31,6 +31,8 @@
 #include <media/msp3400.h>
 #include <media/saa7115.h>
 #include <media/tvp5150.h>
+#include <media/tvaudio.h>
+#include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
@@ -1240,6 +1242,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU] = {
 		.name         = "Compro VideoMate ForYou/Stereo",
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tvaudio_addr = 0xb0,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_TVP5150,
 		.adecoder     = EM28XX_TVAUDIO,
@@ -1442,6 +1445,24 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
 	{0x1ba50080, EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA, TUNER_ABSENT},
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
+};
+
+/* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
+static unsigned short saa711x_addrs[] = {
+	0x4a >> 1, 0x48 >> 1,   /* SAA7111, SAA7111A and SAA7113 */
+	0x42 >> 1, 0x40 >> 1,   /* SAA7114, SAA7115 and SAA7118 */
+	I2C_CLIENT_END };
+
+static unsigned short tvp5150_addrs[] = {
+	0xb8 >> 1,
+	0xba >> 1,
+	I2C_CLIENT_END
+};
+
+static unsigned short msp3400_addrs[] = {
+	0x80 >> 1,
+	0x88 >> 1,
+	I2C_CLIENT_END
 };
 
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
@@ -1672,31 +1693,55 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	}
 }
 
-static void em28xx_config_tuner(struct em28xx *dev)
+static void em28xx_tuner_setup(struct em28xx *dev)
 {
-	struct v4l2_priv_tun_config  xc2028_cfg;
 	struct tuner_setup           tun_setup;
 	struct v4l2_frequency        f;
 
 	if (dev->tuner_type == TUNER_ABSENT)
 		return;
 
+	memset(&tun_setup, 0, sizeof(tun_setup));
+
 	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-	tun_setup.type = dev->tuner_type;
-	tun_setup.addr = dev->tuner_addr;
 	tun_setup.tuner_callback = em28xx_tuner_callback;
 
-	em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+	if (dev->board.radio.type) {
+		tun_setup.type = dev->board.radio.type;
+		tun_setup.addr = dev->board.radio_addr;
+
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr, &tun_setup);
+	}
+
+	if ((dev->tuner_type != TUNER_ABSENT) && (dev->tuner_type)) {
+		tun_setup.type   = dev->tuner_type;
+		tun_setup.addr   = dev->tuner_addr;
+
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr, &tun_setup);
+	}
+
+	if (dev->tda9887_conf) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv = &dev->tda9887_conf;
+
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_config, &tda9887_cfg);
+	}
 
 	if (dev->tuner_type == TUNER_XC2028) {
+		struct v4l2_priv_tun_config  xc2028_cfg;
 		struct xc2028_ctrl           ctl;
+
+		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
+		memset(&ctl, 0, sizeof(ctl));
 
 		em28xx_setup_xc3028(dev, &ctl);
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
 
-		em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_config, &xc2028_cfg);
 	}
 
 	/* configure tuner */
@@ -1704,7 +1749,7 @@ static void em28xx_config_tuner(struct em28xx *dev)
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 9076;     /* just a magic number */
 	dev->ctl_freq = f.frequency;
-	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, &f);
 }
 
 static int em28xx_hint_board(struct em28xx *dev)
@@ -1911,22 +1956,52 @@ void em28xx_card_setup(struct em28xx *dev)
 	if (tuner >= 0)
 		dev->tuner_type = tuner;
 
-#ifdef CONFIG_MODULES
 	/* request some modules */
 	if (dev->board.has_msp34xx)
-		request_module("msp3400");
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"msp3400", "msp3400", msp3400_addrs);
+
 	if (dev->board.decoder == EM28XX_SAA711X)
-		request_module("saa7115");
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"saa7115", "saa7115_auto", saa711x_addrs);
+
 	if (dev->board.decoder == EM28XX_TVP5150)
-		request_module("tvp5150");
-	if (dev->board.tuner_type != TUNER_ABSENT)
-		request_module("tuner");
+		v4l2_i2c_new_probed_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvp5150", "tvp5150", tvp5150_addrs);
+
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
-		request_module("tvaudio");
-#endif
+		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+			"tvaudio", "tvaudio", dev->board.tvaudio_addr);
 
-	em28xx_config_tuner(dev);
+	if (dev->board.tuner_type != TUNER_ABSENT) {
+		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
+		if (dev->board.radio.type)
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->board.radio_addr);
+
+		if (has_demod)
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		if (dev->tuner_addr == 0) {
+			enum v4l2_i2c_tuner_type type =
+				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
+			struct v4l2_subdev *sd;
+
+			sd = v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(type));
+
+			if (sd)
+				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
+		} else {
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
+				"tuner", "tuner", dev->tuner_addr);
+		}
+	}
+
+	em28xx_tuner_setup(dev);
 	em28xx_ir_init(dev);
 }
 
@@ -1975,6 +2050,9 @@ void em28xx_release_resources(struct em28xx *dev)
 	em28xx_remove_from_devlist(dev);
 
 	em28xx_i2c_unregister(dev);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
@@ -1986,6 +2064,7 @@ void em28xx_release_resources(struct em28xx *dev)
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
 static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+			   struct usb_interface *interface,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
@@ -2019,9 +2098,16 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		}
 	}
 
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
+	if (retval < 0) {
+		em28xx_errdev("Call to v4l2_device_register() failed!\n");
+		return retval;
+	}
+
 	/* register i2c bus */
 	errCode = em28xx_i2c_register(dev);
 	if (errCode < 0) {
+		v4l2_device_unregister(&dev->v4l2_dev);
 		em28xx_errdev("%s: em28xx_i2c_register - errCode [%d]!\n",
 			__func__, errCode);
 		return errCode;
@@ -2033,6 +2119,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	/* Configure audio */
 	errCode = em28xx_audio_setup(dev);
 	if (errCode < 0) {
+		v4l2_device_unregister(&dev->v4l2_dev);
 		em28xx_errdev("%s: Error while setting audio - errCode [%d]!\n",
 			__func__, errCode);
 	}
@@ -2077,7 +2164,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_init_extension(dev);
 
 	/* Save some power by putting tuner to sleep */
-	em28xx_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
 
 	return 0;
 
@@ -2096,7 +2183,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
-	int retval = -ENODEV;
+	int retval;
 	int i, nr, ifnum, isoc_pipe;
 	char *speed;
 	char descr[255] = "";
@@ -2118,7 +2205,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			interface->altsetting[0].desc.bInterfaceClass);
 
 		em28xx_devused &= ~(1<<nr);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto err;
 	}
 
 	endpoint = &interface->cur_altsetting->endpoint[0].desc;
@@ -2151,7 +2239,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 				"interface not used by the driver\n");
 
 			em28xx_devused &= ~(1<<nr);
-			return -ENODEV;
+			retval = -ENODEV;
+			goto err;
 		}
 	}
 
@@ -2194,7 +2283,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
 				EM28XX_MAXBOARDS);
 		em28xx_devused &= ~(1<<nr);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err;
 	}
 
 	/* allocate memory for our device state and initialize it */
@@ -2202,7 +2292,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
 		em28xx_devused &= ~(1<<nr);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err;
 	}
 
 	snprintf(dev->name, 29, "em28xx #%d", nr);
@@ -2229,7 +2320,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		em28xx_errdev("out of memory!\n");
 		em28xx_devused &= ~(1<<nr);
 		kfree(dev);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err;
 	}
 
 	for (i = 0; i < dev->num_alt ; i++) {
@@ -2244,12 +2336,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* allocate device struct */
 	mutex_init(&dev->lock);
 	mutex_lock(&dev->lock);
-	retval = em28xx_init_dev(&dev, udev, nr);
+	retval = em28xx_init_dev(&dev, udev, interface, nr);
 	if (retval) {
 		em28xx_devused &= ~(1<<dev->devno);
 		kfree(dev);
-
-		return retval;
+		goto err;
 	}
 
 	/* save our data pointer in this interface device */
@@ -2263,6 +2354,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	mutex_unlock(&dev->lock);
 
 	return 0;
+
+err:
+	return retval;
 }
 
 /*
@@ -2287,6 +2381,8 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->lock);
 
 	wake_up_interruptible_all(&dev->open);
+
+	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	if (dev->users) {
 		em28xx_warn

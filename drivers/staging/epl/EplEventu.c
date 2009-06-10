@@ -96,8 +96,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -172,7 +172,7 @@ static void EplEventuRxSignalHandlerCb(tShbInstance pShbRxInstance_p,
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuInit(tEplProcessEventCb pfnApiProcessEventCb_p)
+tEplKernel EplEventuInit(tEplProcessEventCb pfnApiProcessEventCb_p)
 {
 	tEplKernel Ret;
 
@@ -199,8 +199,7 @@ tEplKernel PUBLIC EplEventuInit(tEplProcessEventCb pfnApiProcessEventCb_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuAddInstance(tEplProcessEventCb
-				       pfnApiProcessEventCb_p)
+tEplKernel EplEventuAddInstance(tEplProcessEventCb pfnApiProcessEventCb_p)
 {
 	tEplKernel Ret;
 #ifndef EPL_NO_FIFO
@@ -280,7 +279,7 @@ tEplKernel PUBLIC EplEventuAddInstance(tEplProcessEventCb
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuDelInstance()
+tEplKernel EplEventuDelInstance(void)
 {
 	tEplKernel Ret;
 #ifndef EPL_NO_FIFO
@@ -348,7 +347,7 @@ tEplKernel PUBLIC EplEventuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuProcess(tEplEvent * pEvent_p)
+tEplKernel EplEventuProcess(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 	tEplEventSource EventSource;
@@ -515,7 +514,7 @@ tEplKernel PUBLIC EplEventuProcess(tEplEvent * pEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuPost(tEplEvent * pEvent_p)
+tEplKernel EplEventuPost(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 #ifndef EPL_NO_FIFO
@@ -689,12 +688,12 @@ tEplKernel PUBLIC EplEventuPost(tEplEvent * pEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplEventuPostError(tEplEventSource EventSource_p,
-				     tEplKernel EplError_p,
-				     unsigned int uiArgSize_p, void *pArg_p)
+tEplKernel EplEventuPostError(tEplEventSource EventSource_p,
+			      tEplKernel EplError_p,
+			      unsigned int uiArgSize_p, void *pArg_p)
 {
 	tEplKernel Ret;
-	BYTE abBuffer[EPL_MAX_EVENT_ARG_SIZE];
+	u8 abBuffer[EPL_MAX_EVENT_ARG_SIZE];
 	tEplEventError *pEventError = (tEplEventError *) abBuffer;
 	tEplEvent EplEvent;
 
@@ -751,7 +750,7 @@ static void EplEventuRxSignalHandlerCb(tShbInstance pShbRxInstance_p,
 	tShbError ShbError;
 //unsigned long   ulBlockCount;
 //unsigned long   ulDataSize;
-	BYTE abDataBuffer[sizeof(tEplEvent) + EPL_MAX_EVENT_ARG_SIZE];
+	u8 abDataBuffer[sizeof(tEplEvent) + EPL_MAX_EVENT_ARG_SIZE];
 	// d.k.: abDataBuffer contains the complete tEplEvent structure
 	//       and behind this the argument
 

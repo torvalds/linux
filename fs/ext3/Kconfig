@@ -28,6 +28,25 @@ config EXT3_FS
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ext3.
 
+config EXT3_DEFAULTS_TO_ORDERED
+	bool "Default to 'data=ordered' in ext3 (legacy option)"
+	depends on EXT3_FS
+	help
+	  If a filesystem does not explicitly specify a data ordering
+	  mode, and the journal capability allowed it, ext3 used to
+	  historically default to 'data=ordered'.
+
+	  That was a rather unfortunate choice, because it leads to all
+	  kinds of latency problems, and the 'data=writeback' mode is more
+	  appropriate these days.
+
+	  You should probably always answer 'n' here, and if you really
+	  want to use 'data=ordered' mode, set it in the filesystem itself
+	  with 'tune2fs -o journal_data_ordered'.
+
+	  But if you really want to enable the legacy default, you can do
+	  so by answering 'y' to this question.
+
 config EXT3_FS_XATTR
 	bool "Ext3 extended attributes"
 	depends on EXT3_FS

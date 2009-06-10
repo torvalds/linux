@@ -36,13 +36,16 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
 	 * by the RTC when initially set to a non-zero value.
 	 */
-	mach_hwclk(0, time);
+	if (mach_hwclk)
+		mach_hwclk(0, time);
 	return RTC_24H;
 }
 
 static inline int set_rtc_time(struct rtc_time *time)
 {
-	return mach_hwclk(1, time);
+	if (mach_hwclk)
+		return mach_hwclk(1, time);
+	return -EINVAL;
 }
 
 static inline unsigned int get_rtc_ss(void)

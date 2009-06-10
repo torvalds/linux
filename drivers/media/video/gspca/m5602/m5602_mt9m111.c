@@ -18,6 +18,61 @@
 
 #include "m5602_mt9m111.h"
 
+static struct v4l2_pix_format mt9m111_modes[] = {
+	{
+		640,
+		480,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 640 * 480,
+		.bytesperline = 640,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
+const static struct ctrl mt9m111_ctrls[] = {
+	{
+		{
+			.id		= V4L2_CID_VFLIP,
+			.type           = V4L2_CTRL_TYPE_BOOLEAN,
+			.name           = "vertical flip",
+			.minimum        = 0,
+			.maximum        = 1,
+			.step           = 1,
+			.default_value  = 0
+		},
+		.set = mt9m111_set_vflip,
+		.get = mt9m111_get_vflip
+	}, {
+		{
+			.id             = V4L2_CID_HFLIP,
+			.type           = V4L2_CTRL_TYPE_BOOLEAN,
+			.name           = "horizontal flip",
+			.minimum        = 0,
+			.maximum        = 1,
+			.step           = 1,
+			.default_value  = 0
+		},
+		.set = mt9m111_set_hflip,
+		.get = mt9m111_get_hflip
+	}, {
+		{
+			.id             = V4L2_CID_GAIN,
+			.type           = V4L2_CTRL_TYPE_INTEGER,
+			.name           = "gain",
+			.minimum        = 0,
+			.maximum        = (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2,
+			.step           = 1,
+			.default_value  = DEFAULT_GAIN,
+			.flags          = V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = mt9m111_set_gain,
+		.get = mt9m111_get_gain
+	}
+};
+
+
 static void mt9m111_dump_registers(struct sd *sd);
 
 int mt9m111_probe(struct sd *sd)
@@ -62,10 +117,10 @@ int mt9m111_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sd->gspca_dev.cam.cam_mode = mt9m111.modes;
-	sd->gspca_dev.cam.nmodes = mt9m111.nmodes;
-	sd->desc->ctrls = mt9m111.ctrls;
-	sd->desc->nctrls = mt9m111.nctrls;
+	sd->gspca_dev.cam.cam_mode = mt9m111_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(mt9m111_modes);
+	sd->desc->ctrls = mt9m111_ctrls;
+	sd->desc->nctrls = ARRAY_SIZE(mt9m111_ctrls);
 	return 0;
 }
 
@@ -125,16 +180,15 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (data[0] & 0xfe) | val;
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				   data, 2);
-out:
 	return err;
 }
 
@@ -163,16 +217,15 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	data[0] = (data[0] & 0xfd) | ((val << 1) & 0x02);
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
-out:
 	return err;
 }
 
@@ -204,7 +257,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (val >= INITIAL_MAX_GAIN * 2 * 2 * 2)
 		return -EINVAL;
@@ -229,7 +282,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 	err = m5602_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
 				   data, 2);
-out:
+
 	return err;
 }
 

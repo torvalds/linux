@@ -409,8 +409,7 @@ static struct platform_device bast_sio = {
 static struct s3c2410_platform_i2c __initdata bast_i2c_info = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
-	.bus_freq	= 100*1000,
-	.max_freq	= 130*1000,
+	.frequency	= 100*1000,
 };
 
 /* Asix AX88796 10/100 ethernet controller */
@@ -589,8 +588,6 @@ static void __init bast_map_io(void)
 
 	s3c_device_nand.dev.platform_data = &bast_nand_info;
 
-	s3c_i2c0_set_platdata(&bast_i2c_info);
-
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(bast_uartcfgs, ARRAY_SIZE(bast_uartcfgs));
@@ -603,6 +600,7 @@ static void __init bast_init(void)
 	sysdev_class_register(&bast_pm_sysclass);
 	sysdev_register(&bast_pm_sysdev);
 
+	s3c_i2c0_set_platdata(&bast_i2c_info);
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
 

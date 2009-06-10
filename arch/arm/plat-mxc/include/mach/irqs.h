@@ -45,7 +45,7 @@
 
 #define NR_IRQS			(MXC_IPU_IRQ_START + MX3_IPU_IRQS)
 
-extern void imx_irq_set_priority(unsigned char irq, unsigned char prio);
+extern int imx_irq_set_priority(unsigned char irq, unsigned char prio);
 
 /* all normal IRQs can be FIQs */
 #define FIQ_START	0

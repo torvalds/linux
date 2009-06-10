@@ -1100,7 +1100,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	   have to make the au0828 bridge adjust the size of its capture
 	   buffer, which is currently hardcoded at 720x480 */
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_std, *norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, *norm);
 	return 0;
 }
 
@@ -1154,7 +1154,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 	int i;
-	struct v4l2_routing route;
 
 	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
 		index);
@@ -1180,9 +1179,8 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		break;
 	}
 
-	route.input = AUVI_INPUT(index).vmux;
-	route.output = 0;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing, &route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+			AUVI_INPUT(index).vmux, 0, 0);
 
 	for (i = 0; i < AU0828_MAX_INPUT; i++) {
 		int enable = 0;
@@ -1205,8 +1203,8 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		}
 	}
 
-	route.input = AUVI_INPUT(index).amux;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing, &route);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, audio, s_routing,
+			AUVI_INPUT(index).amux, 0, 0);
 	return 0;
 }
 

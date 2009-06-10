@@ -448,8 +448,11 @@ s32 igb_copper_link_setup_igp(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/* Wait 15ms for MAC to configure PHY from NVM settings. */
-	msleep(15);
+	/*
+	 * Wait 100ms for MAC to configure PHY from NVM settings, to avoid
+	 * timeout issues when LFS is enabled.
+	 */
+	msleep(100);
 
 	/*
 	 * The NVM settings will configure LPLU in D3 for

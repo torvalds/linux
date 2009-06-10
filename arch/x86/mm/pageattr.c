@@ -153,7 +153,7 @@ static void __cpa_flush_all(void *arg)
 	 */
 	__flush_tlb_all();
 
-	if (cache && boot_cpu_data.x86_model >= 4)
+	if (cache && boot_cpu_data.x86 >= 4)
 		wbinvd();
 }
 
@@ -208,20 +208,15 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 			    int in_flags, struct page **pages)
 {
 	unsigned int i, level;
+	unsigned long do_wbinvd = cache && numpages >= 1024; /* 4M threshold */
 
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_range, NULL, 1);
+	on_each_cpu(__cpa_flush_all, (void *) do_wbinvd, 1);
 
-	if (!cache)
+	if (!cache || do_wbinvd)
 		return;
 
-	/* 4M threshold */
-	if (numpages >= 1024) {
-		if (boot_cpu_data.x86_model >= 4)
-			wbinvd();
-		return;
-	}
 	/*
 	 * We only need to flush on one CPU,
 	 * clflush is a MESI-coherent instruction that
@@ -945,71 +940,94 @@ int _set_memory_uc(unsigned long addr, int numpages)
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
+	int ret;
+
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
-	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-			    _PAGE_CACHE_UC_MINUS, NULL))
-		return -EINVAL;
+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+			    _PAGE_CACHE_UC_MINUS, NULL);
+	if (ret)
+		goto out_err;
 
-	return _set_memory_uc(addr, numpages);
+	ret = _set_memory_uc(addr, numpages);
+	if (ret)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+out_err:
+	return ret;
 }
 EXPORT_SYMBOL(set_memory_uc);
 
 int set_memory_array_uc(unsigned long *addr, int addrinarray)
 {
-	unsigned long start;
-	unsigned long end;
-	int i;
+	int i, j;
+	int ret;
+
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
 	for (i = 0; i < addrinarray; i++) {
-		start = __pa(addr[i]);
-		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
-			if (end != __pa(addr[i + 1]))
-				break;
-			i++;
-		}
-		if (reserve_memtype(start, end, _PAGE_CACHE_UC_MINUS, NULL))
-			goto out;
+		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
+					_PAGE_CACHE_UC_MINUS, NULL);
+		if (ret)
+			goto out_free;
 	}
 
-	return change_page_attr_set(addr, addrinarray,
+	ret = change_page_attr_set(addr, addrinarray,
 				    __pgprot(_PAGE_CACHE_UC_MINUS), 1);
-out:
-	for (i = 0; i < addrinarray; i++) {
-		unsigned long tmp = __pa(addr[i]);
+	if (ret)
+		goto out_free;
 
-		if (tmp == start)
-			break;
-		for (end = tmp + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
-			if (end != __pa(addr[i + 1]))
-				break;
-			i++;
-		}
-		free_memtype(tmp, end);
-	}
-	return -EINVAL;
+	return 0;
+
+out_free:
+	for (j = 0; j < i; j++)
+		free_memtype(__pa(addr[j]), __pa(addr[j]) + PAGE_SIZE);
+
+	return ret;
 }
 EXPORT_SYMBOL(set_memory_array_uc);
 
 int _set_memory_wc(unsigned long addr, int numpages)
 {
-	return change_page_attr_set(&addr, numpages,
+	int ret;
+	ret = change_page_attr_set(&addr, numpages,
+				    __pgprot(_PAGE_CACHE_UC_MINUS), 0);
+
+	if (!ret) {
+		ret = change_page_attr_set(&addr, numpages,
 				    __pgprot(_PAGE_CACHE_WC), 0);
+	}
+	return ret;
 }
 
 int set_memory_wc(unsigned long addr, int numpages)
 {
+	int ret;
+
 	if (!pat_enabled)
 		return set_memory_uc(addr, numpages);
 
-	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-		_PAGE_CACHE_WC, NULL))
-		return -EINVAL;
+	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+		_PAGE_CACHE_WC, NULL);
+	if (ret)
+		goto out_err;
 
-	return _set_memory_wc(addr, numpages);
+	ret = _set_memory_wc(addr, numpages);
+	if (ret)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+out_err:
+	return ret;
 }
 EXPORT_SYMBOL(set_memory_wc);
 
@@ -1021,29 +1039,31 @@ int _set_memory_wb(unsigned long addr, int numpages)
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
-	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	int ret;
 
-	return _set_memory_wb(addr, numpages);
+	ret = _set_memory_wb(addr, numpages);
+	if (ret)
+		return ret;
+
+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
+	return 0;
 }
 EXPORT_SYMBOL(set_memory_wb);
 
 int set_memory_array_wb(unsigned long *addr, int addrinarray)
 {
 	int i;
+	int ret;
 
-	for (i = 0; i < addrinarray; i++) {
-		unsigned long start = __pa(addr[i]);
-		unsigned long end;
-
-		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
-			if (end != __pa(addr[i + 1]))
-				break;
-			i++;
-		}
-		free_memtype(start, end);
-	}
-	return change_page_attr_clear(addr, addrinarray,
+	ret = change_page_attr_clear(addr, addrinarray,
 				      __pgprot(_PAGE_CACHE_MASK), 1);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < addrinarray; i++)
+		free_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE);
+
+	return 0;
 }
 EXPORT_SYMBOL(set_memory_array_wb);
 
@@ -1136,6 +1156,8 @@ int set_pages_array_wb(struct page **pages, int addrinarray)
 
 	retval = cpa_clear_pages_array(pages, addrinarray,
 			__pgprot(_PAGE_CACHE_MASK));
+	if (retval)
+		return retval;
 
 	for (i = 0; i < addrinarray; i++) {
 		start = (unsigned long)page_address(pages[i]);
@@ -1143,7 +1165,7 @@ int set_pages_array_wb(struct page **pages, int addrinarray)
 		free_memtype(start, end);
 	}
 
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(set_pages_array_wb);
 

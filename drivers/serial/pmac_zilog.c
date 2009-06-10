@@ -1538,6 +1538,21 @@ no_dma:
 	uap->port.type = PORT_PMAC_ZILOG;
 	uap->port.flags = 0;
 
+	/*
+	 * Fixup for the port on Gatwick for which the device-tree has
+	 * missing interrupts. Normally, the macio_dev would contain
+	 * fixed up interrupt info, but we use the device-tree directly
+	 * here due to early probing so we need the fixup too.
+	 */
+	if (uap->port.irq == NO_IRQ &&
+	    np->parent && np->parent->parent &&
+	    of_device_is_compatible(np->parent->parent, "gatwick")) {
+		/* IRQs on gatwick are offset by 64 */
+		uap->port.irq = irq_create_mapping(NULL, 64 + 15);
+		uap->tx_dma_irq = irq_create_mapping(NULL, 64 + 4);
+		uap->rx_dma_irq = irq_create_mapping(NULL, 64 + 5);
+	}
+
 	/* Setup some valid baud rate information in the register
 	 * shadows so we don't write crap there before baud rate is
 	 * first initialized.

@@ -211,9 +211,11 @@ static int inline __write_trylock(raw_rwlock_t *lock)
 }
 
 #define __raw_read_lock(p)	__read_lock(p)
+#define __raw_read_lock_flags(p, f) __read_lock(p)
 #define __raw_read_trylock(p)	__read_trylock(p)
 #define __raw_read_unlock(p)	__read_unlock(p)
 #define __raw_write_lock(p)	__write_lock(p)
+#define __raw_write_lock_flags(p, f) __write_lock(p)
 #define __raw_write_unlock(p)	__write_unlock(p)
 #define __raw_write_trylock(p)	__write_trylock(p)
 

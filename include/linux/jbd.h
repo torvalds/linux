@@ -35,7 +35,7 @@
 #define journal_oom_retry 1
 
 /*
- * Define JBD_PARANIOD_IOFAIL to cause a kernel BUG() if ext3 finds
+ * Define JBD_PARANOID_IOFAIL to cause a kernel BUG() if ext3 finds
  * certain classes of error which can occur due to failed IOs.  Under
  * normal use we want ext3 to continue after such errors, because
  * hardware _can_ fail, but for debugging purposes when running tests on
@@ -552,6 +552,11 @@ struct transaction_s
 	 */
 	int t_handle_count;
 
+	/*
+	 * This transaction is being forced and some process is
+	 * waiting for it to finish.
+	 */
+	int t_synchronous_commit:1;
 };
 
 /**
@@ -973,7 +978,8 @@ extern void	   journal_destroy_revoke(journal_t *);
 extern int	   journal_revoke (handle_t *,
 				unsigned long, struct buffer_head *);
 extern int	   journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   journal_write_revoke_records(journal_t *, transaction_t *);
+extern void	   journal_write_revoke_records(journal_t *,
+						transaction_t *, int);
 
 /* Recovery revoke support */
 extern int	journal_set_revoke(journal_t *, unsigned long, tid_t);

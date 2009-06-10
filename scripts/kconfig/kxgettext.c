@@ -43,6 +43,10 @@ static char *escape(const char* text, char *bf, int len)
 			++text;
 			goto next;
 		}
+		else if (*text == '\\') {
+			*bfp++ = '\\';
+			len--;
+		}
 		*bfp++ = *text++;
 next:
 		--len;

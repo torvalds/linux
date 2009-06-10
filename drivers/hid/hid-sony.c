@@ -148,5 +148,3 @@ static void sony_exit(void)
 module_init(sony_init);
 module_exit(sony_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(sony);

@@ -8,4 +8,4 @@ config SXG
 	  10Gbe network cards.
 
 	  To compile this driver as a module, choose
-	  M here: the module will be called sxg.
+	  M here: the module will be called sxg_nic.

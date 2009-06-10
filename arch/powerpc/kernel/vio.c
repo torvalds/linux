@@ -482,7 +482,7 @@ static void vio_cmo_balance(struct work_struct *work)
 	cmo->excess.size = cmo->entitled - cmo->reserve.size;
 	cmo->excess.free = cmo->excess.size - need;
 
-	cancel_delayed_work(container_of(work, struct delayed_work, work));
+	cancel_delayed_work(to_delayed_work(work));
 	spin_unlock_irqrestore(&vio_cmo.lock, flags);
 }
 

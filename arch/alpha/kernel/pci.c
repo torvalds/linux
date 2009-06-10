@@ -168,7 +168,7 @@ pcibios_align_resource(void *data, struct resource *res,
 		 */
 
 		/* Align to multiple of size of minimum base.  */
-		alignto = max(0x1000UL, align);
+		alignto = max_t(resource_size_t, 0x1000, align);
 		start = ALIGN(start, alignto);
 		if (hose->sparse_mem_base && size <= 7 * 16*MB) {
 			if (((start / (16*MB)) & 0x7) == 0) {

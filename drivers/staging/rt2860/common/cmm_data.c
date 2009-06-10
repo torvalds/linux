@@ -105,9 +105,7 @@ NDIS_STATUS MiniportMMRequest(
 	PNDIS_PACKET	pPacket;
 	NDIS_STATUS  	Status = NDIS_STATUS_SUCCESS;
 	ULONG	 		FreeNum;
-#ifdef RT2860
 	unsigned long	IrqFlags = 0;
-#endif // RT2860 //
 	UCHAR			IrqState;
 	UCHAR			rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE]; //RTMP_HW_HDR_LEN];
 
@@ -118,10 +116,9 @@ NDIS_STATUS MiniportMMRequest(
 	// 2860C use Tx Ring
 
 	IrqState = pAd->irq_disabled;
-#ifdef RT2860
+
 	if ((pAd->MACVersion == 0x28600100) && (!IrqState))
 		RTMP_IRQ_LOCK(&pAd->irq_lock, IrqFlags);
-#endif // RT2860 //
 
 	do
 	{
@@ -175,17 +172,14 @@ NDIS_STATUS MiniportMMRequest(
 
 	} while (FALSE);
 
-#ifdef RT2860
 	// 2860C use Tx Ring
 	if ((pAd->MACVersion == 0x28600100) && (!IrqState))
 		RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
-#endif // RT2860 //
 
 	return Status;
 }
 
 
-#ifdef RT2860
 NDIS_STATUS MiniportMMRequestUnlock(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			QueIdx,
@@ -253,7 +247,6 @@ NDIS_STATUS MiniportMMRequestUnlock(
 
 	return Status;
 }
-#endif // RT2860 //
 
 
 /*
@@ -290,17 +283,14 @@ NDIS_STATUS MlmeHardTransmit(
 		return NDIS_STATUS_FAILURE;
 	}
 
-#ifdef RT2860
 	if ( pAd->MACVersion == 0x28600100 )
 		return MlmeHardTransmitTxRing(pAd,QueIdx,pPacket);
 	else
-#endif // RT2860 //
 		return MlmeHardTransmitMgmtRing(pAd,QueIdx,pPacket);
 
 }
 
 
-#ifdef RT2860
 NDIS_STATUS MlmeHardTransmitTxRing(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR	QueIdx,
@@ -366,7 +356,7 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	{
 		// outgoing frame always wakeup PHY to prevent frame lost
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
+			AsicForceWakeup(pAd, FROM_TX);
 	}
 #endif // CONFIG_STA_SUPPORT //
 	pFirstTxWI	=(PTXWI_STRUC)pSrcBufVA;
@@ -509,7 +499,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 
 	return NDIS_STATUS_SUCCESS;
 }
-#endif // RT2860 //
 
 
 NDIS_STATUS MlmeHardTransmitMgmtRing(
@@ -541,7 +530,7 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	{
 		// outgoing frame always wakeup PHY to prevent frame lost
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
+			AsicForceWakeup(pAd, FROM_TX);
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -1076,7 +1065,6 @@ VOID RTMPDeQueuePacket(
 				break;
 			}
 
-#ifdef RT2860
 			FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 
 #ifdef DBG_DIAGNOSE
@@ -1101,7 +1089,6 @@ VOID RTMPDeQueuePacket(
 				RTMPFreeTXDUponTxDmaDone(pAd, QueIdx);
 				FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 			}
-#endif // RT2860 //
 
 			// probe the Queue Head
 			pQueue = &pAd->TxSwQueue[QueIdx];
@@ -1180,12 +1167,10 @@ VOID RTMPDeQueuePacket(
 				Status = STAHardTransmit(pAd, pTxBlk, QueIdx);
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RT2860
 			DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 			// static rate also need NICUpdateFifoStaCounters() function.
 			//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
 				NICUpdateFifoStaCounters(pAd);
-#endif // RT2860 //
 		}
 
 		RT28XX_STOP_DEQUEUE(pAd, QueIdx, IrqFlags);
@@ -1764,7 +1749,6 @@ PQUEUE_HEADER	RTMPCheckTxSwQueue(
 }
 
 
-#ifdef RT2860
 BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 	IN PRTMP_ADAPTER	pAd,
 	IN UCHAR			QueIdx)
@@ -2309,7 +2293,6 @@ VOID DBGPRINT_RX_RING(
 	DBGPRINT_RAW(RT_DEBUG_TRACE,(" 	RxSwReadIdx [%d]=", AC0freeIdx));
 	DBGPRINT_RAW(RT_DEBUG_TRACE,("	pending-NDIS=%ld\n", pAd->RalinkCounters.PendingNdisPacketCount));
 }
-#endif // RT2860 //
 
 /*
 	========================================================================
@@ -2634,9 +2617,7 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 					pEntry->AuthMode = pAd->StaCfg.AuthMode;
 					pEntry->WepStatus = pAd->StaCfg.WepStatus;
 					pEntry->PrivacyFilter = Ndis802_11PrivFilterAcceptAll;
-#ifdef RT2860
 					AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)i);
-#endif // RT2860 //
 				}
 #endif // CONFIG_STA_SUPPORT //
 			}
@@ -2823,9 +2804,7 @@ VOID MacTableReset(
 
 	for (i=1; i<MAX_LEN_OF_MAC_TABLE; i++)
 	{
-#ifdef RT2860
 		RT28XX_STA_ENTRY_MAC_RESET(pAd, i);
-#endif // RT2860 //
 		if (pAd->MacTab.Content[i].ValidAsCLI == TRUE)
 	   {
 

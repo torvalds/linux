@@ -52,16 +52,12 @@
 enum dlm_mle_type {
 	DLM_MLE_BLOCK,
 	DLM_MLE_MASTER,
-	DLM_MLE_MIGRATION
-};
-
-struct dlm_lock_name {
-	u8 len;
-	u8 name[DLM_LOCKID_NAME_MAX];
+	DLM_MLE_MIGRATION,
+	DLM_MLE_NUM_TYPES
 };
 
 struct dlm_master_list_entry {
-	struct list_head list;
+	struct hlist_node master_hash_node;
 	struct list_head hb_events;
 	struct dlm_ctxt *dlm;
 	spinlock_t spinlock;
@@ -78,10 +74,10 @@ struct dlm_master_list_entry {
 	enum dlm_mle_type type;
 	struct o2hb_callback_func mle_hb_up;
 	struct o2hb_callback_func mle_hb_down;
-	union {
-		struct dlm_lock_resource *res;
-		struct dlm_lock_name name;
-	} u;
+	struct dlm_lock_resource *mleres;
+	unsigned char mname[DLM_LOCKID_NAME_MAX];
+	unsigned int mnamelen;
+	unsigned int mnamehash;
 };
 
 enum dlm_ast_type {
@@ -151,13 +147,14 @@ struct dlm_ctxt
 	unsigned long recovery_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	struct dlm_recovery_ctxt reco;
 	spinlock_t master_lock;
-	struct list_head master_list;
+	struct hlist_head **master_hash;
 	struct list_head mle_hb_events;
 
 	/* these give a really vague idea of the system load */
-	atomic_t local_resources;
-	atomic_t remote_resources;
-	atomic_t unknown_resources;
+	atomic_t mle_tot_count[DLM_MLE_NUM_TYPES];
+	atomic_t mle_cur_count[DLM_MLE_NUM_TYPES];
+	atomic_t res_tot_count;
+	atomic_t res_cur_count;
 
 	struct dlm_debug_ctxt *dlm_debug_ctxt;
 	struct dentry *dlm_debugfs_subroot;
@@ -193,6 +190,13 @@ struct dlm_ctxt
 static inline struct hlist_head *dlm_lockres_hash(struct dlm_ctxt *dlm, unsigned i)
 {
 	return dlm->lockres_hash[(i / DLM_BUCKETS_PER_PAGE) % DLM_HASH_PAGES] + (i % DLM_BUCKETS_PER_PAGE);
+}
+
+static inline struct hlist_head *dlm_master_hash(struct dlm_ctxt *dlm,
+						 unsigned i)
+{
+	return dlm->master_hash[(i / DLM_BUCKETS_PER_PAGE) % DLM_HASH_PAGES] +
+			(i % DLM_BUCKETS_PER_PAGE);
 }
 
 /* these keventd work queue items are for less-frequently
@@ -848,9 +852,7 @@ struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 					      unsigned int len);
 
 int dlm_is_host_down(int errno);
-void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
-			      struct dlm_lock_resource *res,
-			      u8 owner);
+
 struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 						 const char *lockid,
 						 int namelen,
@@ -1008,6 +1010,9 @@ static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)
 					  DLM_LOCK_RES_MIGRATING));
 }
 
+void __dlm_unlink_mle(struct dlm_ctxt *dlm, struct dlm_master_list_entry *mle);
+void __dlm_insert_mle(struct dlm_ctxt *dlm, struct dlm_master_list_entry *mle);
+
 /* create/destroy slab caches */
 int dlm_init_master_caches(void);
 void dlm_destroy_master_caches(void);
@@ -1110,6 +1115,23 @@ static inline int dlm_node_iter_next(struct dlm_node_iter *iter)
 	return bit;
 }
 
+static inline void dlm_set_lockres_owner(struct dlm_ctxt *dlm,
+					 struct dlm_lock_resource *res,
+					 u8 owner)
+{
+	assert_spin_locked(&res->spinlock);
 
+	res->owner = owner;
+}
+
+static inline void dlm_change_lockres_owner(struct dlm_ctxt *dlm,
+					    struct dlm_lock_resource *res,
+					    u8 owner)
+{
+	assert_spin_locked(&res->spinlock);
+
+	if (owner != res->owner)
+		dlm_set_lockres_owner(dlm, res, owner);
+}
 
 #endif /* DLMCOMMON_H */

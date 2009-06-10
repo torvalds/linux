@@ -6,6 +6,8 @@
 #include <linux/cdrom.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
+#include <linux/scatterlist.h>
+
 #include <scsi/scsi.h>
 
 #ifdef DEBUG
@@ -68,56 +70,6 @@ int ide_check_atapi_device(ide_drive_t *drive, const char *s)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ide_check_atapi_device);
-
-/* PIO data transfer routine using the scatter gather table. */
-int ide_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
-		    unsigned int bcount, int write)
-{
-	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
-	xfer_func_t *xf = write ? tp_ops->output_data : tp_ops->input_data;
-	struct scatterlist *sg = pc->sg;
-	char *buf;
-	int count, done = 0;
-
-	while (bcount) {
-		count = min(sg->length - pc->b_count, bcount);
-
-		if (PageHighMem(sg_page(sg))) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-			xf(drive, NULL, buf + pc->b_count, count);
-			kunmap_atomic(buf - sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = sg_virt(sg);
-			xf(drive, NULL, buf + pc->b_count, count);
-		}
-
-		bcount -= count;
-		pc->b_count += count;
-		done += count;
-
-		if (pc->b_count == sg->length) {
-			if (!--pc->sg_cnt)
-				break;
-			pc->sg = sg = sg_next(sg);
-			pc->b_count = 0;
-		}
-	}
-
-	if (bcount) {
-		printk(KERN_ERR "%s: %d leftover bytes, %s\n", drive->name,
-			bcount, write ? "padding with zeros"
-				      : "discarding data");
-		ide_pad_transfer(drive, write, bcount);
-	}
-
-	return done;
-}
-EXPORT_SYMBOL_GPL(ide_io_buffers);
 
 void ide_init_pc(struct ide_atapi_pc *pc)
 {
@@ -302,16 +254,13 @@ EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
 void ide_read_bcount_and_ireason(ide_drive_t *drive, u16 *bcount, u8 *ireason)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_LBAH | IDE_TFLAG_IN_LBAM |
-		       IDE_TFLAG_IN_NSECT;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_NSECT |
+				     IDE_VALID_LBAM | IDE_VALID_LBAH);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	*bcount = (cmd.tf.lbah << 8) | cmd.tf.lbam;
-	*ireason = cmd.tf.nsect & 3;
+	*bcount = (tf.lbah << 8) | tf.lbam;
+	*ireason = tf.nsect & 3;
 }
 EXPORT_SYMBOL_GPL(ide_read_bcount_and_ireason);
 
@@ -324,12 +273,14 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
+	struct ide_cmd *cmd = &hwif->cmd;
 	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
-	unsigned int timeout, temp;
+	unsigned int timeout, done;
 	u16 bcount;
 	u8 stat, ireason, dsc = 0;
+	u8 write = !!(pc->flags & PC_FLAG_WRITING);
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
@@ -340,8 +291,13 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	stat = tp_ops->read_status(hwif);
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
-		if (hwif->dma_ops->dma_end(drive) ||
-		    (drive->media == ide_tape && (stat & ATA_ERR))) {
+		int rc;
+
+		drive->waiting_for_dma = 0;
+		rc = hwif->dma_ops->dma_end(drive);
+		ide_dma_unmap_sg(drive, cmd);
+
+		if (rc || (drive->media == ide_tape && (stat & ATA_ERR))) {
 			if (drive->media == ide_floppy)
 				printk(KERN_ERR "%s: DMA %s error\n",
 					drive->name, rq_data_dir(pc->rq)
@@ -357,7 +313,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
-		int uptodate;
+		int uptodate, error;
+		unsigned int done;
 
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
@@ -404,16 +361,24 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		if (blk_special_request(rq)) {
 			rq->errors = 0;
-			ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+			done = blk_rq_bytes(rq);
+			error = 0;
 		} else {
+
 			if (blk_fs_request(rq) == 0 && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}
-			ide_complete_rq(drive, uptodate ? 0 : -EIO,
-					ide_rq_bytes(rq));
+
+			if (drive->media == ide_tape)
+				done = ide_rq_bytes(rq); /* FIXME */
+			else
+				done = blk_rq_bytes(rq);
+
+			error = uptodate ? 0 : -EIO;
 		}
 
+		ide_complete_rq(drive, error, done);
 		return ide_stopped;
 	}
 
@@ -433,8 +398,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	if (((ireason & ATAPI_IO) == ATAPI_IO) ==
-		!!(pc->flags & PC_FLAG_WRITING)) {
+	if (((ireason & ATAPI_IO) == ATAPI_IO) == write) {
 		/* Hopefully, we will never get here */
 		printk(KERN_ERR "%s: We wanted to %s, but the device wants us "
 				"to %s!\n", drive->name,
@@ -443,56 +407,41 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 
-	if (!(pc->flags & PC_FLAG_WRITING)) {
-		/* Reading - Check that we have enough space */
-		temp = pc->xferred + bcount;
-		if (temp > pc->req_xfer) {
-			if (temp > pc->buf_size) {
-				printk(KERN_ERR "%s: The device wants to send "
-						"us more data than expected - "
-						"discarding data\n",
-						drive->name);
+	xferfunc = write ? tp_ops->output_data : tp_ops->input_data;
 
-				ide_pad_transfer(drive, 0, bcount);
-				goto next_irq;
-			}
-			debug_log("The device wants to send us more data than "
-				  "expected - allowing transfer\n");
-		}
-		xferfunc = tp_ops->input_data;
-	} else
-		xferfunc = tp_ops->output_data;
-
-	if ((drive->media == ide_floppy && !pc->buf) ||
-	    (drive->media == ide_tape && pc->bh)) {
-		int done = drive->pc_io_buffers(drive, pc, bcount,
-				  !!(pc->flags & PC_FLAG_WRITING));
-
-		/* FIXME: don't do partial completions */
-		if (drive->media == ide_floppy)
-			ide_complete_rq(drive, 0,
-					done ? done : ide_rq_bytes(rq));
-	} else
-		xferfunc(drive, NULL, pc->cur_pos, bcount);
+	if (drive->media == ide_floppy && pc->buf == NULL) {
+		done = min_t(unsigned int, bcount, cmd->nleft);
+		ide_pio_bytes(drive, cmd, write, done);
+	} else if (drive->media == ide_tape && pc->bh) {
+		done = drive->pc_io_buffers(drive, pc, bcount, write);
+	} else {
+		done = min_t(unsigned int, bcount, pc->req_xfer - pc->xferred);
+		xferfunc(drive, NULL, pc->cur_pos, done);
+	}
 
 	/* Update the current position */
-	pc->xferred += bcount;
-	pc->cur_pos += bcount;
+	pc->xferred += done;
+	pc->cur_pos += done;
 
-	debug_log("[cmd %x] transferred %d bytes on that intr.\n",
-		  rq->cmd[0], bcount);
-next_irq:
+	bcount -= done;
+
+	if (bcount)
+		ide_pad_transfer(drive, write, bcount);
+
+	debug_log("[cmd %x] transferred %d bytes, padded %d bytes\n",
+		  rq->cmd[0], done, bcount);
+
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, ide_pc_intr, timeout);
 	return ide_started;
 }
 
-static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
+static void ide_init_packet_cmd(struct ide_cmd *cmd, u8 valid_tf,
 				u16 bcount, u8 dma)
 {
-	cmd->protocol  = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
-	cmd->tf_flags |= IDE_TFLAG_OUT_LBAH | IDE_TFLAG_OUT_LBAM |
-			 IDE_TFLAG_OUT_FEATURE | tf_flags;
+	cmd->protocol = dma ? ATAPI_PROT_DMA : ATAPI_PROT_PIO;
+	cmd->valid.out.tf = IDE_VALID_LBAH | IDE_VALID_LBAM |
+			    IDE_VALID_FEATURE | valid_tf;
 	cmd->tf.command = ATA_CMD_PACKET;
 	cmd->tf.feature = dma;		/* Use PIO/DMA */
 	cmd->tf.lbam    = bcount & 0xff;
@@ -501,14 +450,11 @@ static void ide_init_packet_cmd(struct ide_cmd *cmd, u32 tf_flags,
 
 static u8 ide_read_ireason(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_NSECT;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_NSECT);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.nsect & 3;
+	return tf.nsect & 3;
 }
 
 static u8 ide_wait_ireason(ide_drive_t *drive, u8 ireason)
@@ -611,6 +557,10 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 					     : ide_pc_intr),
 			timeout);
 
+	/* Send the actual packet */
+	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
+		hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
+
 	/* Begin DMA, if necessary */
 	if (dev_is_idecd(drive)) {
 		if (drive->dma)
@@ -622,10 +572,6 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		}
 	}
 
-	/* Send the actual packet */
-	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
-		hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
-
 	return ide_started;
 }
 
@@ -633,26 +579,21 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
-	const struct ide_dma_ops *dma_ops = hwif->dma_ops;
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
 	unsigned int timeout;
-	u32 tf_flags;
 	u16 bcount;
+	u8 valid_tf;
 	u8 drq_int = !!(drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT);
 
 	if (dev_is_idecd(drive)) {
-		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
+		valid_tf = IDE_VALID_NSECT | IDE_VALID_LBAL;
 		bcount = ide_cd_get_xferlen(rq);
 		expiry = ide_cd_expiry;
 		timeout = ATAPI_WAIT_PC;
 
-		if (drive->dma) {
-			if (ide_build_sglist(drive, cmd))
-				drive->dma = !dma_ops->dma_setup(drive, cmd);
-			else
-				drive->dma = 0;
-		}
+		if (drive->dma)
+			drive->dma = !ide_dma_prepare(drive, cmd);
 	} else {
 		pc = drive->pc;
 
@@ -660,7 +601,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 		pc->xferred = 0;
 		pc->cur_pos = pc->buf;
 
-		tf_flags = IDE_TFLAG_OUT_DEVICE;
+		valid_tf = IDE_VALID_DEVICE;
 		bcount = ((drive->media == ide_tape) ?
 				pc->req_xfer :
 				min(pc->req_xfer, 63 * 1024));
@@ -670,13 +611,8 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 			ide_dma_off(drive);
 		}
 
-		if ((pc->flags & PC_FLAG_DMA_OK) &&
-		     (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
-			if (ide_build_sglist(drive, cmd))
-				drive->dma = !dma_ops->dma_setup(drive, cmd);
-			else
-				drive->dma = 0;
-		}
+		if (pc->flags & PC_FLAG_DMA_OK)
+			drive->dma = !ide_dma_prepare(drive, cmd);
 
 		if (!drive->dma)
 			pc->flags &= ~PC_FLAG_DMA_OK;
@@ -685,7 +621,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 						       : WAIT_TAPE_CMD;
 	}
 
-	ide_init_packet_cmd(cmd, tf_flags, bcount, drive->dma);
+	ide_init_packet_cmd(cmd, valid_tf, bcount, drive->dma);
 
 	(void)do_rw_taskfile(drive, cmd);
 

@@ -1171,7 +1171,7 @@ static int __devinit add_card(struct pci_dev *dev,
 
         error = -ENXIO;
 
-        if (pci_set_dma_mask(dev, DMA_32BIT_MASK))
+        if (pci_set_dma_mask(dev, DMA_BIT_MASK(32)))
                 FAIL("DMA address limits not supported for PCILynx hardware");
         if (pci_enable_device(dev))
                 FAIL("failed to enable PCILynx hardware");

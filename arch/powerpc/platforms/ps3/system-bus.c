@@ -689,7 +689,7 @@ static void ps3_ioc0_unmap_sg(struct device *_dev, struct scatterlist *sg,
 
 static int ps3_dma_supported(struct device *_dev, u64 mask)
 {
-	return mask >= DMA_32BIT_MASK;
+	return mask >= DMA_BIT_MASK(32);
 }
 
 static struct dma_mapping_ops ps3_sb_dma_ops = {

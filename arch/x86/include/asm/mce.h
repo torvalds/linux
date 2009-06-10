@@ -137,6 +137,7 @@ DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
 enum mcp_flags {
 	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
 	MCP_UC = (1 << 1),		/* log uncorrected errors */
+	MCP_DONTLOG = (1 << 2),		/* only clear, don't log */
 };
 extern void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 

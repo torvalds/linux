@@ -103,12 +103,11 @@ static int __init early_parse_mem(char *p)
 	size = memparse(p, &p);
 
 	if (size > __MEMORY_SIZE) {
-		static char msg[] __initdata = KERN_ERR
+		printk(KERN_ERR
 			"Using mem= to increase the size of kernel memory "
 			"is not allowed.\n"
 			"  Recompile the kernel with the correct value for "
-			"CONFIG_MEMORY_SIZE.\n";
-		printk(msg);
+			"CONFIG_MEMORY_SIZE.\n");
 		return 0;
 	}
 

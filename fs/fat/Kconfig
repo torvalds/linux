@@ -95,3 +95,6 @@ config FAT_DEFAULT_IOCHARSET
 	  Note that "utf8" is not recommended for FAT filesystems.
 	  If unsure, you shouldn't set "utf8" here.
 	  See <file:Documentation/filesystems/vfat.txt> for more information.
+
+	  Enable any character sets you need in File Systems/Native Language
+	  Support.

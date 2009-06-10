@@ -37,8 +37,11 @@
 #define pcibus_to_node(bus)	((void)(bus), -1)
 #define pcibus_to_cpumask(bus)	(pcibus_to_node(bus) == -1 ? \
 					CPU_MASK_ALL : \
-					node_to_cpumask(pcibus_to_node(bus)) \
-				)
+					node_to_cpumask(pcibus_to_node(bus)))
+#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ? \
+					CPU_MASK_ALL_PTR : \
+					cpumask_of_node(pcibus_to_node(bus)))
+
 #endif
 
 #include <asm-generic/topology.h>

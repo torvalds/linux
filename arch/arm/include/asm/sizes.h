@@ -32,6 +32,7 @@
 #define SZ_4K                           0x00001000
 #define SZ_8K                           0x00002000
 #define SZ_16K                          0x00004000
+#define SZ_32K                          0x00008000
 #define SZ_64K                          0x00010000
 #define SZ_128K                         0x00020000
 #define SZ_256K                         0x00040000

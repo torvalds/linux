@@ -82,22 +82,22 @@ do {							\
 	case 1:						\
 		asm(op "b %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "ri" ((T__)val));			\
+		    : "qi" ((T__)(val)));		\
 		break;					\
 	case 2:						\
 		asm(op "w %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "ri" ((T__)val));			\
+		    : "ri" ((T__)(val)));		\
 		break;					\
 	case 4:						\
 		asm(op "l %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "ri" ((T__)val));			\
+		    : "ri" ((T__)(val)));		\
 		break;					\
 	case 8:						\
 		asm(op "q %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "re" ((T__)val));			\
+		    : "re" ((T__)(val)));		\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
@@ -109,7 +109,7 @@ do {							\
 	switch (sizeof(var)) {				\
 	case 1:						\
 		asm(op "b "__percpu_arg(1)",%0"		\
-		    : "=r" (ret__)			\
+		    : "=q" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 2:						\

@@ -857,15 +857,12 @@ int ivtv_v4l2_close(struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Switch tuner to TV */
-		ivtv_call_all(itv, tuner, s_std, itv->std);
+		ivtv_call_all(itv, core, s_std, itv->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		ivtv_audio_set_io(itv);
-		if (itv->hw_flags & IVTV_HW_SAA711X)
-		{
-			struct v4l2_crystal_freq crystal_freq;
-			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
-			crystal_freq.flags = 0;
-			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
+		if (itv->hw_flags & IVTV_HW_SAA711X) {
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq,
+					SAA7115_FREQ_32_11_MHZ, 0);
 		}
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
@@ -956,10 +953,8 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		/* Select the correct audio input (i.e. radio tuner) */
 		ivtv_audio_set_io(itv);
 		if (itv->hw_flags & IVTV_HW_SAA711X) {
-			struct v4l2_crystal_freq crystal_freq;
-			crystal_freq.freq = SAA7115_FREQ_32_11_MHZ;
-			crystal_freq.flags = SAA7115_FREQ_FL_APLL;
-			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq, &crystal_freq);
+			ivtv_call_hw(itv, IVTV_HW_SAA711X, video, s_crystal_freq,
+				SAA7115_FREQ_32_11_MHZ, SAA7115_FREQ_FL_APLL);
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);

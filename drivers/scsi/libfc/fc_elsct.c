@@ -41,7 +41,7 @@ static struct fc_seq *fc_elsct_send(struct fc_lport *lport,
 				    void *arg, u32 timer_msec)
 {
 	enum fc_rctl r_ctl;
-	u32 did;
+	u32 did = FC_FID_NONE;
 	enum fc_fh_type fh_type;
 	int rc;
 

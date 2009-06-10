@@ -478,12 +478,6 @@ static void empeg_set_termios(struct tty_struct *tty,
 	termios->c_cflag
 		|= CS8;		/* character size 8 bits */
 
-	/*
-	 * Force low_latency on; otherwise the pushes are scheduled;
-	 * this is bad as it opens up the possibility of dropping bytes
-	 * on the floor.  We don't want to drop bytes on the floor. :)
-	 */
-	tty->low_latency = 1;
 	tty_encode_baud_rate(tty, 115200, 115200);
 }
 

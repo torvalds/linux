@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <net/ax88796.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/sizes.h>
@@ -32,12 +32,13 @@
 
 #if defined(CONFIG_AX88796)
 #define COLIBRI_ETH_IRQ_GPIO	mfp_to_gpio(GPIO26_GPIO)
+
 /*
  * Asix AX88796 Ethernet
  */
 static struct ax_plat_data colibri_asix_platdata = {
-	.flags		= AXFLG_MAC_FROMDEV,
-	.wordlength	= 2
+	.flags		= 0, /* defined later */
+	.wordlength	= 2,
 };
 
 static struct resource colibri_asix_resource[] = {
@@ -49,7 +50,7 @@ static struct resource colibri_asix_resource[] = {
 	[1] = {
 		.start = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
 		.end   = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
 
@@ -70,8 +71,8 @@ static mfp_cfg_t colibri_pxa300_eth_pin_config[] __initdata = {
 
 static void __init colibri_pxa300_init_eth(void)
 {
+	colibri_pxa3xx_init_eth(&colibri_asix_platdata);
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa300_eth_pin_config));
-	set_irq_type(gpio_to_irq(COLIBRI_ETH_IRQ_GPIO), IRQ_TYPE_EDGE_FALLING);
 	platform_device_register(&asix_device);
 }
 #else

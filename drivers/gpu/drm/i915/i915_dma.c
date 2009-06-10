@@ -713,18 +713,18 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
-		goto fail_batch_free;
+		goto fail_clip_free;
 	}
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
-fail_batch_free:
-	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
 fail_clip_free:
 	drm_free(cliprects,
 		 cmdbuf->num_cliprects * sizeof(struct drm_clip_rect),
 		 DRM_MEM_DRIVER);
+fail_batch_free:
+	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
 
 	return ret;
 }
@@ -922,7 +922,7 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev))
+	if (IS_G4X(dev) || IS_IGD(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
@@ -987,12 +987,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
 
-	dev->devname = kstrdup(DRIVER_NAME, GFP_KERNEL);
-	if (!dev->devname) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
@@ -1006,17 +1000,25 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
 	if (ret)
-		goto kfree_devname;
+		goto out;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
 
-	/* Let GEM Manage from end of prealloc space to end of aperture */
-	i915_gem_do_init(dev, prealloc_size, agp_size);
+	/* Let GEM Manage from end of prealloc space to end of aperture.
+	 *
+	 * However, leave one page at the end still bound to the scratch page.
+	 * There are a number of places where the hardware apparently
+	 * prefetches past the end of the object, and we've seen multiple
+	 * hangs with the GPU head pointer stuck in a batchbuffer bound
+	 * at the last page of the aperture.  One page should be enough to
+	 * keep any prefetching inside of the aperture.
+	 */
+	i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
 
 	ret = i915_gem_init_ringbuffer(dev);
 	if (ret)
-		goto kfree_devname;
+		goto out;
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
@@ -1030,13 +1032,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto destroy_ringbuffer;
 
-	/* FIXME: re-add hotplug support */
-#if 0
-	ret = drm_hotplug_init(dev);
-	if (ret)
-		goto destroy_ringbuffer;
-#endif
-
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
@@ -1049,14 +1044,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_init(dev);
 
-	drm_helper_initial_config(dev, false);
+	drm_helper_initial_config(dev);
 
 	return 0;
 
 destroy_ringbuffer:
 	i915_gem_cleanup_ringbuffer(dev);
-kfree_devname:
-	kfree(dev->devname);
 out:
 	return ret;
 }
@@ -1186,8 +1179,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
-	intel_opregion_init(dev);
-
 	spin_lock_init(&dev_priv->user_irq_lock);
 	dev_priv->user_irq_refcount = 0;
 
@@ -1205,6 +1196,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_rmmap;
 		}
 	}
+
+	/* Must be done after probing outputs */
+	intel_opregion_init(dev, 0);
 
 	return 0;
 
@@ -1238,7 +1232,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		iounmap(dev_priv->regs);
 
-	intel_opregion_free(dev);
+	intel_opregion_free(dev, 0);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
@@ -1356,6 +1350,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GEM_SET_TILING, i915_gem_set_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_TILING, i915_gem_get_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GET_PIPE_FROM_CRTC_ID, intel_get_pipe_from_crtc_id, 0),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

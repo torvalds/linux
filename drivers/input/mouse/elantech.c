@@ -1,7 +1,7 @@
 /*
- * Elantech Touchpad driver (v5)
+ * Elantech Touchpad driver (v6)
  *
- * Copyright (C) 2007-2008 Arjan Opmeer <arjan@opmeer.net>
+ * Copyright (C) 2007-2009 Arjan Opmeer <arjan@opmeer.net>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -178,6 +178,7 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	struct elantech_data *etd = psmouse->private;
 	unsigned char *packet = psmouse->packet;
 	int fingers;
+	static int old_fingers;
 
 	if (etd->fw_version_maj == 0x01) {
 		/* byte 0:  D   U  p1  p2   1  p3   R   L
@@ -188,6 +189,14 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 		/* byte 0: n1  n0  p2  p1   1  p3   R   L
 		   byte 1:  0   0   0   0  x9  x8  y9  y8 */
 		fingers = (packet[0] & 0xc0) >> 6;
+	}
+
+	if (etd->jumpy_cursor) {
+		/* Discard packets that are likely to have bogus coordinates */
+		if (fingers > old_fingers) {
+			elantech_debug("elantech.c: discarding packet\n");
+			goto discard_packet_v1;
+		}
 	}
 
 	input_report_key(dev, BTN_TOUCH, fingers != 0);
@@ -216,6 +225,9 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	}
 
 	input_sync(dev);
+
+ discard_packet_v1:
+	old_fingers = fingers;
 }
 
 /*
@@ -363,9 +375,14 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 			rc = -1;
 			break;
 		}
+	}
+
+	if (rc == 0) {
 		/*
-		 * Read back reg 0x10. The touchpad is probably initalising
-		 * and not ready until we read back the value we just wrote.
+		 * Read back reg 0x10. For hardware version 1 we must make
+		 * sure the absolute mode bit is set. For hardware version 2
+		 * the touchpad is probably initalising and not ready until
+		 * we read back the value we just wrote.
 		 */
 		do {
 			rc = elantech_read_reg(psmouse, 0x10, &val);
@@ -373,12 +390,18 @@ static int elantech_set_absolute_mode(struct psmouse *psmouse)
 				break;
 			tries--;
 			elantech_debug("elantech.c: retrying read (%d).\n",
-				tries);
+					tries);
 			msleep(ETP_READ_BACK_DELAY);
 		} while (tries > 0);
-		if (rc)
+
+		if (rc) {
 			pr_err("elantech.c: failed to read back register 0x10.\n");
-		break;
+		} else if (etd->hw_version == 1 &&
+			   !(val & ETP_R10_ABSOLUTE_MODE)) {
+			pr_err("elantech.c: touchpad refuses "
+				"to switch to absolute mode.\n");
+			rc = -1;
+		}
 	}
 
 	if (rc)
@@ -661,6 +684,17 @@ int elantech_init(struct psmouse *psmouse)
 	pr_info("elantech.c: Synaptics capabilities query result 0x%02x, 0x%02x, 0x%02x.\n",
 		param[0], param[1], param[2]);
 	etd->capabilities = param[0];
+
+	/*
+	 * This firmware seems to suffer from misreporting coordinates when
+	 * a touch action starts causing the mouse cursor or scrolled page
+	 * to jump. Enable a workaround.
+	 */
+	if (etd->fw_version_maj == 0x02 && etd->fw_version_min == 0x22) {
+		pr_info("elantech.c: firmware version 2.34 detected, "
+			"enabling jumpy cursor workaround\n");
+		etd->jumpy_cursor = 1;
+	}
 
 	if (elantech_set_absolute_mode(psmouse)) {
 		pr_err("elantech.c: failed to put touchpad into absolute mode.\n");

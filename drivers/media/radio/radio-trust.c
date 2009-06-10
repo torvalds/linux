@@ -338,20 +338,8 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int trust_open(struct file *file)
-{
-	return 0;
-}
-
-static int trust_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations trust_fops = {
 	.owner		= THIS_MODULE,
-	.open           = trust_open,
-	.release        = trust_release,
 	.ioctl		= video_ioctl2,
 };
 

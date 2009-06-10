@@ -471,7 +471,8 @@ static int __devinit da903x_regulator_probe(struct platform_device *pdev)
 	if (ri->desc.id == DA9030_ID_LDO1 || ri->desc.id == DA9030_ID_LDO15)
 		ri->desc.ops = &da9030_regulator_ldo1_15_ops;
 
-	rdev = regulator_register(&ri->desc, &pdev->dev, ri);
+	rdev = regulator_register(&ri->desc, &pdev->dev,
+				  pdev->dev.platform_data, ri);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);
@@ -496,7 +497,7 @@ static struct platform_driver da903x_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_regulator_probe,
-	.remove		= da903x_regulator_remove,
+	.remove		= __devexit_p(da903x_regulator_remove),
 };
 
 static int __init da903x_regulator_init(void)

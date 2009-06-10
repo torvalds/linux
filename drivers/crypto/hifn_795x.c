@@ -1882,7 +1882,7 @@ static void hifn_clear_rings(struct hifn_device *dev, int error)
 
 static void hifn_work(struct work_struct *work)
 {
-	struct delayed_work *dw = container_of(work, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(work);
 	struct hifn_device *dev = container_of(dw, struct hifn_device, work);
 	unsigned long flags;
 	int reset = 0;
@@ -2575,7 +2575,7 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err)
 		goto err_out_disable_pci_device;
 

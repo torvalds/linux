@@ -94,8 +94,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -211,8 +211,8 @@ typedef struct {
 	tEplTimerHdl m_TimerHdlStatReq;	// timer to delay StatusRequests and IdentRequests
 	tEplTimerHdl m_TimerHdlLonger;	// 2nd timer for NMT command EnableReadyToOp and CheckCommunication
 	tEplNmtMnuNodeState m_NodeState;	// internal node state (kind of sub state of NMT state)
-	DWORD m_dwNodeCfg;	// subindex from 0x1F81
-	WORD m_wFlags;		// flags: CN is being accessed isochronously
+	u32 m_dwNodeCfg;	// subindex from 0x1F81
+	u16 m_wFlags;		// flags: CN is being accessed isochronously
 
 } tEplNmtMnuNodeInfo;
 
@@ -224,8 +224,8 @@ typedef struct {
 	unsigned long m_ulStatusRequestDelay;	// in [ms] (object 0x1006 * EPL_C_NMT_STATREQ_CYCLE)
 	unsigned long m_ulTimeoutReadyToOp;	// in [ms] (object 0x1F89/5)
 	unsigned long m_ulTimeoutCheckCom;	// in [ms] (object 0x1006 * MultiplexedCycleCount)
-	WORD m_wFlags;		// global flags
-	DWORD m_dwNmtStartup;	// object 0x1F80 NMT_StartUp_U32
+	u16 m_wFlags;		// global flags
+	u32 m_dwNmtStartup;	// object 0x1F80 NMT_StartUp_U32
 	tEplNmtMnuCbNodeEvent m_pfnCbNodeEvent;
 	tEplNmtMnuCbBootEvent m_pfnCbBootEvent;
 
@@ -241,20 +241,18 @@ static tEplNmtMnuInstance EplNmtMnuInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p);
+static tEplKernel EplNmtMnuCbNmtRequest(tEplFrameInfo *pFrameInfo_p);
 
-static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
-						  tEplIdentResponse *
-						  pIdentResponse_p);
+static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
+					   tEplIdentResponse *pIdentResponse_p);
 
-static tEplKernel PUBLIC EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
-						   tEplStatusResponse *
-						   pStatusResponse_p);
+static tEplKernel EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
+					    tEplStatusResponse *pStatusResponse_p);
 
 static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 					 tEplNmtMnuNodeInfo * pNodeInfo_p,
 					 tEplNmtState NodeNmtState_p,
-					 WORD wErrorCode_p,
+					 u16 wErrorCode_p,
 					 tEplNmtState LocalNmtState_p);
 
 static tEplKernel EplNmtMnuStartBootStep1(void);
@@ -273,7 +271,7 @@ static tEplKernel EplNmtMnuStartNodes(void);
 
 static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 						tEplNmtState NodeNmtState_p,
-						WORD wErrorCode_p,
+						u16 wErrorCode_p,
 						tEplNmtMnuIntNodeEvent
 						NodeEvent_p);
 
@@ -380,7 +378,7 @@ tEplKernel EplNmtMnuAddInstance(tEplNmtMnuCbNodeEvent pfnCbNodeEvent_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplNmtMnuDelInstance()
+tEplKernel EplNmtMnuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -419,7 +417,7 @@ tEplKernel EplNmtMnuSendNmtCommandEx(unsigned int uiNodeId_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplFrameInfo FrameInfo;
-	BYTE abBuffer[EPL_C_DLL_MINSIZE_NMTCMDEXT];
+	u8 abBuffer[EPL_C_DLL_MINSIZE_NMTCMDEXT];
 	tEplFrame *pFrame = (tEplFrame *) abBuffer;
 	BOOL fSoftDeleteNode = FALSE;
 
@@ -439,11 +437,11 @@ tEplKernel EplNmtMnuSendNmtCommandEx(unsigned int uiNodeId_p,
 
 	// build frame
 	EPL_MEMSET(pFrame, 0x00, sizeof(abBuffer));
-	AmiSetByteToLe(&pFrame->m_le_bDstNodeId, (BYTE) uiNodeId_p);
+	AmiSetByteToLe(&pFrame->m_le_bDstNodeId, (u8) uiNodeId_p);
 	AmiSetByteToLe(&pFrame->m_Data.m_Asnd.m_le_bServiceId,
-		       (BYTE) kEplDllAsndNmtCommand);
+		       (u8) kEplDllAsndNmtCommand);
 	AmiSetByteToLe(&pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.
-		       m_le_bNmtCommandId, (BYTE) NmtCommand_p);
+		       m_le_bNmtCommandId, (u8) NmtCommand_p);
 	if ((pNmtCommandData_p != NULL) && (uiDataSize_p > 0)) {	// copy command data to frame
 		EPL_MEMCPY(&pFrame->m_Data.m_Asnd.m_Payload.m_NmtCommandService.
 			   m_le_abNmtCommandData[0], pNmtCommandData_p,
@@ -574,8 +572,8 @@ tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtMnuIntNodeEvent NodeEvent;
 	tEplObdSize ObdSize;
-	BYTE bNmtState;
-	WORD wErrorCode = EPL_E_NO_ERROR;
+	u8 bNmtState;
+	u16 wErrorCode = EPL_E_NO_ERROR;
 
 	if ((uiNodeId_p == 0) || (uiNodeId_p >= EPL_C_ADR_BROADCAST)) {
 		Ret = kEplInvalidNodeId;
@@ -645,8 +643,7 @@ tEplKernel EplNmtMnuTriggerStateChange(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
-					    NmtStateChange_p)
+tEplKernel EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange NmtStateChange_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -676,7 +673,7 @@ tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
 		// build the configuration with infos from OD
 	case kEplNmtGsResetConfiguration:
 		{
-			DWORD dwTimeout;
+			u32 dwTimeout;
 			tEplObdSize ObdSize;
 
 			// read object 0x1F80 NMT_StartUp_U32
@@ -788,7 +785,7 @@ tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
 		// node processes only async frames
 	case kEplNmtMsPreOperational1:
 		{
-			DWORD dwTimeout;
+			u32 dwTimeout;
 			tEplTimerArg TimerArg;
 			tEplObdSize ObdSize;
 			tEplEvent Event;
@@ -928,7 +925,7 @@ tEplKernel PUBLIC EplNmtMnuCbNmtStateChange(tEplEventNmtStateChange
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
+tEplKernel EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -949,7 +946,7 @@ tEplKernel PUBLIC EplNmtMnuCbCheckEvent(tEplNmtEvent NmtEvent_p)
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
+tEplKernel EplNmtMnuProcessEvent(tEplEvent *pEvent_p)
 {
 	tEplKernel Ret;
 
@@ -970,7 +967,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
 					   EPL_NMTMNU_TIMERARG_NODE_MASK);
 			if (uiNodeId != 0) {
 				tEplObdSize ObdSize;
-				BYTE bNmtState;
+				u8 bNmtState;
 				tEplNmtMnuNodeInfo *pNodeInfo;
 
 				pNodeInfo = EPL_NMTMNU_GET_NODEINFO(uiNodeId);
@@ -1150,7 +1147,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
 			tEplFrame *pFrame = (tEplFrame *) pEvent_p->m_pArg;
 			unsigned int uiNodeId;
 			tEplNmtCommand NmtCommand;
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			uiNodeId = AmiGetByteFromLe(&pFrame->m_le_bDstNodeId);
 			NmtCommand =
@@ -1162,30 +1159,30 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
 			switch (NmtCommand) {
 			case kEplNmtCmdStartNode:
 				bNmtState =
-				    (BYTE) (kEplNmtCsOperational & 0xFF);
+				    (u8) (kEplNmtCsOperational & 0xFF);
 				break;
 
 			case kEplNmtCmdStopNode:
-				bNmtState = (BYTE) (kEplNmtCsStopped & 0xFF);
+				bNmtState = (u8) (kEplNmtCsStopped & 0xFF);
 				break;
 
 			case kEplNmtCmdEnterPreOperational2:
 				bNmtState =
-				    (BYTE) (kEplNmtCsPreOperational2 & 0xFF);
+				    (u8) (kEplNmtCsPreOperational2 & 0xFF);
 				break;
 
 			case kEplNmtCmdEnableReadyToOperate:
 				// d.k. do not change expected node state, because of DS 1.0.0 7.3.1.2.1 Plain NMT State Command
 				//      and because node may not change NMT state within EPL_C_NMT_STATE_TOLERANCE
 				bNmtState =
-				    (BYTE) (kEplNmtCsPreOperational2 & 0xFF);
+				    (u8) (kEplNmtCsPreOperational2 & 0xFF);
 				break;
 
 			case kEplNmtCmdResetNode:
 			case kEplNmtCmdResetCommunication:
 			case kEplNmtCmdResetConfiguration:
 			case kEplNmtCmdSwReset:
-				bNmtState = (BYTE) (kEplNmtCsNotActive & 0xFF);
+				bNmtState = (u8) (kEplNmtCsNotActive & 0xFF);
 				// EplNmtMnuProcessInternalEvent() sets internal node state to kEplNmtMnuNodeStateUnknown
 				// after next unresponded IdentRequest/StatusRequest
 				break;
@@ -1258,11 +1255,9 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtMnuProcessEvent(tEplEvent * pEvent_p)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplNmtMnuGetDiagnosticInfo(unsigned int
-					     *puiMandatorySlaveCount_p,
-					     unsigned int
-					     *puiSignalSlaveCount_p,
-					     WORD * pwFlags_p)
+tEplKernel EplNmtMnuGetDiagnosticInfo(unsigned int *puiMandatorySlaveCount_p,
+				      unsigned int *puiSignalSlaveCount_p,
+				      u16 *pwFlags_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1296,7 +1291,7 @@ tEplKernel PUBLIC EplNmtMnuGetDiagnosticInfo(unsigned int
 //
 //---------------------------------------------------------------------------
 /*
-DWORD EplNmtMnuGetRunningTimerStatReq(void)
+u32 EplNmtMnuGetRunningTimerStatReq(void)
 {
 tEplKernel      Ret = kEplSuccessful;
 unsigned int    uiIndex;
@@ -1347,7 +1342,7 @@ Exit:
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p)
+static tEplKernel EplNmtMnuCbNmtRequest(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1371,9 +1366,8 @@ static tEplKernel PUBLIC EplNmtMnuCbNmtRequest(tEplFrameInfo * pFrameInfo_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
-						  tEplIdentResponse *
-						  pIdentResponse_p)
+static tEplKernel EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
+					   tEplIdentResponse *pIdentResponse_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1382,8 +1376,8 @@ static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
 						    kEplNmtMnuIntNodeEventNoIdentResponse);
 	} else {		// node answered IdentRequest
 		tEplObdSize ObdSize;
-		DWORD dwDevType;
-		WORD wErrorCode = EPL_E_NO_ERROR;
+		u32 dwDevType;
+		u16 wErrorCode = EPL_E_NO_ERROR;
 		tEplNmtState NmtState =
 		    (tEplNmtState) (AmiGetByteFromLe
 				    (&pIdentResponse_p->
@@ -1431,9 +1425,8 @@ static tEplKernel PUBLIC EplNmtMnuCbIdentResponse(unsigned int uiNodeId_p,
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
-						   tEplStatusResponse *
-						   pStatusResponse_p)
+static tEplKernel EplNmtMnuCbStatusResponse(unsigned int uiNodeId_p,
+					    tEplStatusResponse *pStatusResponse_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 
@@ -1473,7 +1466,7 @@ static tEplKernel EplNmtMnuStartBootStep1(void)
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiSubIndex;
 	unsigned int uiLocalNodeId;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplObdSize ObdSize;
 
 	// $$$ d.k.: save current time for 0x1F89/2 MNTimeoutPreOp1_U32
@@ -1633,7 +1626,7 @@ static tEplKernel EplNmtMnuNodeBootStep2(unsigned int uiNodeId_p,
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplDllNodeInfo DllNodeInfo;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplObdSize ObdSize;
 	tEplTimerArg TimerArg;
 
@@ -1782,7 +1775,7 @@ static tEplKernel EplNmtMnuNodeCheckCom(unsigned int uiNodeId_p,
 					tEplNmtMnuNodeInfo * pNodeInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	DWORD dwNodeCfg;
+	u32 dwNodeCfg;
 	tEplTimerArg TimerArg;
 
 	dwNodeCfg = pNodeInfo_p->m_dwNodeCfg;
@@ -1916,7 +1909,7 @@ static tEplKernel EplNmtMnuStartNodes(void)
 
 static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 						tEplNmtState NodeNmtState_p,
-						WORD wErrorCode_p,
+						u16 wErrorCode_p,
 						tEplNmtMnuIntNodeEvent
 						NodeEvent_p)
 {
@@ -1934,7 +1927,7 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 	switch (NodeEvent_p) {
 	case kEplNmtMnuIntNodeEventIdentResponse:
 		{
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			EPL_NMTMNU_DBG_POST_TRACE_VALUE(NodeEvent_p,
 							uiNodeId_p,
@@ -1961,7 +1954,7 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 				    ~EPL_NMTMNU_NODE_FLAG_NOT_SCANNED;
 			}
 			// update object 0x1F8F NMT_MNNodeExpState_AU8 to PreOp1 (even if local state >= PreOp2)
-			bNmtState = (BYTE) (kEplNmtCsPreOperational1 & 0xFF);
+			bNmtState = (u8) (kEplNmtCsPreOperational1 & 0xFF);
 			Ret =
 			    EplObduWriteEntry(0x1F8F, uiNodeId_p, &bNmtState,
 					      1);
@@ -2441,11 +2434,11 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 
 	case kEplNmtMnuIntNodeEventNmtCmdSent:
 		{
-			BYTE bNmtState;
+			u8 bNmtState;
 
 			// update expected NMT state with the one that results
 			// from the sent NMT command
-			bNmtState = (BYTE) (NodeNmtState_p & 0xFF);
+			bNmtState = (u8) (NodeNmtState_p & 0xFF);
 
 			// write object 0x1F8F NMT_MNNodeExpState_AU8
 			Ret =
@@ -2630,13 +2623,13 @@ static tEplKernel EplNmtMnuProcessInternalEvent(unsigned int uiNodeId_p,
 static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 					 tEplNmtMnuNodeInfo * pNodeInfo_p,
 					 tEplNmtState NodeNmtState_p,
-					 WORD wErrorCode_p,
+					 u16 wErrorCode_p,
 					 tEplNmtState LocalNmtState_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplObdSize ObdSize;
-	BYTE bNmtState;
-	BYTE bNmtStatePrev;
+	u8 bNmtState;
+	u8 bNmtStatePrev;
 	tEplNmtState ExpNmtState;
 
 	ObdSize = 1;
@@ -2647,8 +2640,8 @@ static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 	}
 	// compute expected NMT state
 	ExpNmtState = (tEplNmtState) (bNmtState | EPL_NMT_TYPE_CS);
-	// compute BYTE of current NMT state
-	bNmtState = ((BYTE) NodeNmtState_p & 0xFF);
+	// compute u8 of current NMT state
+	bNmtState = ((u8) NodeNmtState_p & 0xFF);
 
 	if (ExpNmtState == kEplNmtCsNotActive) {	// ignore the current state, because the CN shall be not active
 		Ret = kEplReject;
@@ -2706,7 +2699,7 @@ static tEplKernel EplNmtMnuCheckNmtState(unsigned int uiNodeId_p,
 	} else if ((ExpNmtState != NodeNmtState_p)
 		   && !((ExpNmtState == kEplNmtCsPreOperational1)
 			&& (NodeNmtState_p == kEplNmtCsPreOperational2))) {	// CN is not in expected NMT state (without the exceptions above)
-		WORD wbeErrorCode;
+		u16 wbeErrorCode;
 
 		if ((pNodeInfo_p->
 		     m_wFlags & EPL_NMTMNU_NODE_FLAG_NOT_SCANNED) != 0) {

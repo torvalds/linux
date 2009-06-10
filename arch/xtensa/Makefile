@@ -15,6 +15,7 @@
 
 variant-$(CONFIG_XTENSA_VARIANT_FSF)		:= fsf
 variant-$(CONFIG_XTENSA_VARIANT_DC232B)		:= dc232b
+variant-$(CONFIG_XTENSA_VARIANT_S6000)		:= s6000
 variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
 
 VARIANT = $(variant-y)
@@ -24,6 +25,7 @@ export VARIANT
 
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
 platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
+platform-$(CONFIG_XTENSA_PLATFORM_S6105)	:= s6105
 
 PLATFORM = $(platform-y)
 export PLATFORM
@@ -62,19 +64,22 @@ ifneq ($(VARIANT),)
   endif
 endif
 
-#
+# Only build variant and/or platform if it includes a Makefile
+
+buildvar := $(shell test -a $(srctree)/arch/xtensa/variants/$(VARIANT)/Makefile && echo arch/xtensa/variants/$(VARIANT)/)
+buildplf := $(shell test -a $(srctree)/arch/xtensa/platforms/$(PLATFORM)/Makefile && echo arch/xtensa/platforms/$(PLATFORM)/)
+
+# Find libgcc.a
 
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 head-y		:= arch/xtensa/kernel/head.o
 core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
-ifneq ($(PLATFORM),)
-core-y		+= arch/xtensa/platforms/$(PLATFORM)/
-endif
+core-y		+= $(buildvar) $(buildplf)
+
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
 
 boot		:= arch/xtensa/boot
-
 
 all: zImage
 

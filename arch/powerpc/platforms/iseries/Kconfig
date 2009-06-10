@@ -17,6 +17,7 @@ config VIODASD
 
 config VIOCD
 	tristate "iSeries Virtual I/O CD support"
+	depends on BLOCK
 	select VIOPATH
 	help
 	  If you are running Linux on an IBM iSeries system and you want to

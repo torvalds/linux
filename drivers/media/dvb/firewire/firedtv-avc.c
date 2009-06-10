@@ -151,7 +151,7 @@ static void debug_fcp(const u8 *data, int length)
 		subunit_type = data[1] >> 3;
 		subunit_id = data[1] & 7;
 		op = subunit_type == 0x1e || subunit_id == 5 ? ~0 : data[2];
-		printk(KERN_INFO "%ssu=%x.%x l=%zu: %-8s - %s\n",
+		printk(KERN_INFO "%ssu=%x.%x l=%d: %-8s - %s\n",
 		       prefix, subunit_type, subunit_id, length,
 		       debug_fcp_ctype(data[0]),
 		       debug_fcp_opcode(op, data, length));

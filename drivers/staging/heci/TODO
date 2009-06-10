@@ -1,0 +1,6 @@
+TODO:
+	- fix user/kernel pointer mess in the ioctl handlers as pointed
+	  out by sparse.
+	- resolve the ioctls and see if most of them can just be simple
+	  sysfs files
+	- fix locking issues that sparse points out at the least.

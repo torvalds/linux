@@ -18,7 +18,7 @@
 #include <asm/timex.h>
 #include <asm/processor.h>
 #include <asm/intctl-regs.h>
-#include <asm/unit/smc91111.h>
+#include <unit/smc91111.h>
 
 static struct resource smc91c111_resources[] = {
 	[0] = {

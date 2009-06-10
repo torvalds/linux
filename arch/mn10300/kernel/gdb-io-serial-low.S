@@ -18,7 +18,7 @@
 #include <asm/thread_info.h>
 #include <asm/frame.inc>
 #include <asm/intctl-regs.h>
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
 
 	.text
 

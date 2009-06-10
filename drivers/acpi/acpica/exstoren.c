@@ -96,8 +96,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 		 * are all essentially the same.  This case handles the
 		 * "interchangeable" types Integer, String, and Buffer.
 		 */
-		if (ACPI_GET_OBJECT_TYPE(source_desc) ==
-		    ACPI_TYPE_LOCAL_REFERENCE) {
+		if (source_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
 
 			/* Resolve a reference object first */
 
@@ -117,13 +116,11 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 
 		/* Must have a Integer, Buffer, or String */
 
-		if ((ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_INTEGER) &&
-		    (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_BUFFER) &&
-		    (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_STRING) &&
-		    !((ACPI_GET_OBJECT_TYPE(source_desc) ==
-		       ACPI_TYPE_LOCAL_REFERENCE)
-		      && (source_desc->reference.class ==
-			  ACPI_REFCLASS_TABLE))) {
+		if ((source_desc->common.type != ACPI_TYPE_INTEGER) &&
+		    (source_desc->common.type != ACPI_TYPE_BUFFER) &&
+		    (source_desc->common.type != ACPI_TYPE_STRING) &&
+		    !((source_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) &&
+		      (source_desc->reference.class == ACPI_REFCLASS_TABLE))) {
 
 			/* Conversion successful but still not a valid type */
 
@@ -218,8 +215,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(status);
 	}
 
-	if (ACPI_GET_OBJECT_TYPE(source_desc) !=
-	    ACPI_GET_OBJECT_TYPE(dest_desc)) {
+	if (source_desc->common.type != dest_desc->common.type) {
 		/*
 		 * The source type does not match the type of the destination.
 		 * Perform the "implicit conversion" of the source to the current type
@@ -229,11 +225,10 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 		 * Otherwise, actual_src_desc is a temporary object to hold the
 		 * converted object.
 		 */
-		status =
-		    acpi_ex_convert_to_target_type(ACPI_GET_OBJECT_TYPE
-						   (dest_desc), source_desc,
-						   &actual_src_desc,
-						   walk_state);
+		status = acpi_ex_convert_to_target_type(dest_desc->common.type,
+							source_desc,
+							&actual_src_desc,
+							walk_state);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -252,7 +247,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 	 * We now have two objects of identical types, and we can perform a
 	 * copy of the *value* of the source object.
 	 */
-	switch (ACPI_GET_OBJECT_TYPE(dest_desc)) {
+	switch (dest_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
 
 		dest_desc->integer.value = actual_src_desc->integer.value;

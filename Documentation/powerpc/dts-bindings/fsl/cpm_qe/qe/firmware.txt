@@ -1,6 +1,6 @@
 * Uploaded QE firmware
 
-      If a new firwmare has been uploaded to the QE (usually by the
+      If a new firmware has been uploaded to the QE (usually by the
       boot loader), then a 'firmware' child node should be added to the QE
       node.  This node provides information on the uploaded firmware that
       device drivers may need.

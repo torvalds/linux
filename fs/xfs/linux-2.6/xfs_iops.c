@@ -230,7 +230,7 @@ xfs_vn_mknod(
 	}
 
 	if (IS_POSIXACL(dir) && !default_acl)
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 
 	xfs_dentry_to_name(&name, dentry);
 	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
@@ -404,7 +404,7 @@ xfs_vn_symlink(
 	mode_t		mode;
 
 	mode = S_IFLNK |
-		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
+		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
 	xfs_dentry_to_name(&name, dentry);
 
 	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip, NULL);

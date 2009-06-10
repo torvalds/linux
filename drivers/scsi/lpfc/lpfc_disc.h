@@ -99,6 +99,7 @@ struct lpfc_nodelist {
 #define NLP_USG_FREE_ACK_BIT	0x8	/* Indicate ndlp memory free invoked */
 
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
+	struct lpfc_hba *phba;
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
 	struct lpfc_vport *vport;

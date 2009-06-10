@@ -87,8 +87,8 @@ EXPORT_SYMBOL(pci_read_vpd);
  * pci_write_vpd - Write entry to Vital Product Data
  * @dev:	pci device struct
  * @pos:	offset in vpd space
- * @count:	number of bytes to read
- * @val:	value to write
+ * @count:	number of bytes to write
+ * @buf:	buffer containing write data
  *
  */
 ssize_t pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
@@ -356,7 +356,8 @@ int pci_vpd_truncate(struct pci_dev *dev, size_t size)
 		return -EINVAL;
 
 	dev->vpd->len = size;
-	dev->vpd->attr->size = size;
+	if (dev->vpd->attr)
+		dev->vpd->attr->size = size;
 
 	return 0;
 }

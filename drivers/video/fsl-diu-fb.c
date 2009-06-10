@@ -1352,14 +1352,15 @@ static int fsl_diu_resume(struct of_device *ofdev)
 #endif				/* CONFIG_PM */
 
 /* Align to 64-bit(8-byte), 32-byte, etc. */
-static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
+static int allocate_buf(struct device *dev, struct diu_addr *buf, u32 size,
+			u32 bytes_align)
 {
 	u32 offset, ssize;
 	u32 mask;
 	dma_addr_t paddr = 0;
 
 	ssize = size + bytes_align;
-	buf->vaddr = dma_alloc_coherent(NULL, ssize, &paddr, GFP_DMA |
+	buf->vaddr = dma_alloc_coherent(dev, ssize, &paddr, GFP_DMA |
 							     __GFP_ZERO);
 	if (!buf->vaddr)
 		return -ENOMEM;
@@ -1376,9 +1377,10 @@ static int allocate_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
 	return 0;
 }
 
-static void free_buf(struct diu_addr *buf, u32 size, u32 bytes_align)
+static void free_buf(struct device *dev, struct diu_addr *buf, u32 size,
+		     u32 bytes_align)
 {
-	dma_free_coherent(NULL, size + bytes_align,
+	dma_free_coherent(dev, size + bytes_align,
 				buf->vaddr, (buf->paddr - buf->offset));
 	return;
 }
@@ -1476,17 +1478,19 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	machine_data->monitor_port = monitor_port;
 
 	/* Area descriptor memory pool aligns to 64-bit boundary */
-	if (allocate_buf(&pool.ad, sizeof(struct diu_ad) * FSL_AOI_NUM, 8))
+	if (allocate_buf(&ofdev->dev, &pool.ad,
+			 sizeof(struct diu_ad) * FSL_AOI_NUM, 8))
 		return -ENOMEM;
 
 	/* Get memory for Gamma Table  - 32-byte aligned memory */
-	if (allocate_buf(&pool.gamma, 768, 32)) {
+	if (allocate_buf(&ofdev->dev, &pool.gamma, 768, 32)) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	/* For performance, cursor bitmap buffer aligns to 32-byte boundary */
-	if (allocate_buf(&pool.cursor, MAX_CURS * MAX_CURS * 2, 32)) {
+	if (allocate_buf(&ofdev->dev, &pool.cursor, MAX_CURS * MAX_CURS * 2,
+			 32)) {
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1554,11 +1558,13 @@ error:
 		i > 0; i--)
 		uninstall_fb(machine_data->fsl_diu_info[i - 1]);
 	if (pool.ad.vaddr)
-		free_buf(&pool.ad, sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
+		free_buf(&ofdev->dev, &pool.ad,
+			 sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
 	if (pool.gamma.vaddr)
-		free_buf(&pool.gamma, 768, 32);
+		free_buf(&ofdev->dev, &pool.gamma, 768, 32);
 	if (pool.cursor.vaddr)
-		free_buf(&pool.cursor, MAX_CURS * MAX_CURS * 2, 32);
+		free_buf(&ofdev->dev, &pool.cursor, MAX_CURS * MAX_CURS * 2,
+			 32);
 	if (machine_data->dummy_aoi_virt)
 		fsl_diu_free(machine_data->dummy_aoi_virt, 64);
 	iounmap(dr.diu_reg);
@@ -1584,11 +1590,13 @@ static int fsl_diu_remove(struct of_device *ofdev)
 	for (i = ARRAY_SIZE(machine_data->fsl_diu_info); i > 0; i--)
 		uninstall_fb(machine_data->fsl_diu_info[i - 1]);
 	if (pool.ad.vaddr)
-		free_buf(&pool.ad, sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
+		free_buf(&ofdev->dev, &pool.ad,
+			 sizeof(struct diu_ad) * FSL_AOI_NUM, 8);
 	if (pool.gamma.vaddr)
-		free_buf(&pool.gamma, 768, 32);
+		free_buf(&ofdev->dev, &pool.gamma, 768, 32);
 	if (pool.cursor.vaddr)
-		free_buf(&pool.cursor, MAX_CURS * MAX_CURS * 2, 32);
+		free_buf(&ofdev->dev, &pool.cursor, MAX_CURS * MAX_CURS * 2,
+			 32);
 	if (machine_data->dummy_aoi_virt)
 		fsl_diu_free(machine_data->dummy_aoi_virt, 64);
 	iounmap(dr.diu_reg);

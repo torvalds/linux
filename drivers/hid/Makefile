@@ -8,10 +8,6 @@ obj-$(CONFIG_HID)		+= hid.o
 hid-$(CONFIG_HID_DEBUG)		+= hid-debug.o
 hid-$(CONFIG_HIDRAW)		+= hidraw.o
 
-ifdef CONFIG_HID_COMPAT
-obj-m				+= hid-dummy.o
-endif
-
 hid-logitech-objs		:= hid-lg.o
 ifdef CONFIG_LOGITECH_FF
 	hid-logitech-objs	+= hid-lgff.o
@@ -26,8 +22,11 @@ obj-$(CONFIG_HID_BELKIN)	+= hid-belkin.o
 obj-$(CONFIG_HID_CHERRY)	+= hid-cherry.o
 obj-$(CONFIG_HID_CHICONY)	+= hid-chicony.o
 obj-$(CONFIG_HID_CYPRESS)	+= hid-cypress.o
+obj-$(CONFIG_DRAGONRISE_FF)	+= hid-drff.o
 obj-$(CONFIG_HID_EZKEY)		+= hid-ezkey.o
 obj-$(CONFIG_HID_GYRATION)	+= hid-gyration.o
+obj-$(CONFIG_HID_KENSINGTON)	+= hid-kensington.o
+obj-$(CONFIG_HID_KYE)		+= hid-kye.o
 obj-$(CONFIG_HID_LOGITECH)	+= hid-logitech.o
 obj-$(CONFIG_HID_MICROSOFT)	+= hid-microsoft.o
 obj-$(CONFIG_HID_MONTEREY)	+= hid-monterey.o

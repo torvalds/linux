@@ -135,8 +135,8 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type, struct 
  *              starting (and ending) at the node specified by start_handle.
  *              The user_function is called whenever a node that matches
  *              the type parameter is found.  If the user function returns
- *              a non-zero value, the search is terminated immediately and this
- *              value is returned to the caller.
+ *              a non-zero value, the search is terminated immediately and
+ *              this value is returned to the caller.
  *
  *              The point of this procedure is to provide a generic namespace
  *              walk routine that can be called from multiple places to
@@ -200,10 +200,10 @@ acpi_ns_walk_namespace(acpi_object_type type,
 			/*
 			 * Ignore all temporary namespace nodes (created during control
 			 * method execution) unless told otherwise. These temporary nodes
-			 * can cause a race condition because they can be deleted during the
-			 * execution of the user function (if the namespace is unlocked before
-			 * invocation of the user function.) Only the debugger namespace dump
-			 * will examine the temporary nodes.
+			 * can cause a race condition because they can be deleted during
+			 * the execution of the user function (if the namespace is
+			 * unlocked before invocation of the user function.) Only the
+			 * debugger namespace dump will examine the temporary nodes.
 			 */
 			if ((child_node->flags & ANOBJ_TEMPORARY) &&
 			    !(flags & ACPI_NS_WALK_TEMP_NODES)) {

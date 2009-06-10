@@ -1032,6 +1032,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 		fuse_put_request(fc, req);
 		return -ENOMEM;
 	}
+	req->out.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = page;
 	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);

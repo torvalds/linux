@@ -199,11 +199,6 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	}
 
-#ifdef CONFIG_SH_DIRECT_MAPPED
-	boot_cpu_data.icache.ways = 1;
-	boot_cpu_data.dcache.ways = 1;
-#endif
-
 #ifdef CONFIG_CPU_HAS_PTEA
 	boot_cpu_data.flags |= CPU_HAS_PTEA;
 #endif

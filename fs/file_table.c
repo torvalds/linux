@@ -169,7 +169,6 @@ struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
 		fmode_t mode, const struct file_operations *fop)
 {
 	struct file *file;
-	struct path;
 
 	file = get_empty_filp();
 	if (!file)

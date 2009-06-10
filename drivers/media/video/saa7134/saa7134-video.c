@@ -625,10 +625,10 @@ void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
 	saa7134_set_decoder(dev);
 
 	if (card_in(dev, dev->ctl_input).tv)
-		saa_call_all(dev, tuner, s_std, dev->tvnorm->id);
+		saa_call_all(dev, core, s_std, dev->tvnorm->id);
 	/* Set the correct norm for the saa6752hs. This function
 	   does nothing if there is no saa6752hs. */
-	saa_call_empress(dev, tuner, s_std, dev->tvnorm->id);
+	saa_call_empress(dev, core, s_std, dev->tvnorm->id);
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -1496,7 +1496,7 @@ static int video_release(struct file *file)
 	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
 
-	saa_call_all(dev, core, s_standby, 0);
+	saa_call_all(dev, tuner, s_standby);
 	if (fh->radio)
 		saa_call_all(dev, core, ioctl, RDS_CMD_CLOSE, &cmd);
 

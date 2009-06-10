@@ -20,7 +20,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,14)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,15)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>

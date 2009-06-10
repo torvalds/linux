@@ -495,6 +495,11 @@ S: Kopmansg 2
 S: 411 13  Goteborg
 S: Sweden
 
+N: Paul Bristow
+E: paul@paulbristow.net
+W: http://paulbristow.net/linux/idefloppy.html
+D: Maintainer of IDE/ATAPI floppy driver
+
 N: Dominik Brodowski
 E: linux@brodo.de
 W: http://www.brodo.de/
@@ -1407,8 +1412,8 @@ P: 1024D/77D4FC9B F5C5 1C20 1DFC DEC3 3107  54A4 2332 ADFC 77D4 FC9B
 D: National Language Support
 D: Linux Internationalization Project
 D: German Localization for Linux and GNU software
-S: Kriemhildring 12a
-S: 65795 Hattersheim am Main
+S: Auf der Fittel 18
+S: 53347 Alfter
 S: Germany
 
 N: Christoph Hellwig
@@ -2642,6 +2647,10 @@ S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
 
+N: Gadi Oxman
+E: gadio@netvision.net.il
+D: Original author and maintainer of IDE/ATAPI floppy/tape drivers
+
 N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support
@@ -3570,6 +3579,12 @@ S: USA
 N: Dirk Verworner
 D: Co-author of German book ``Linux-Kernel-Programmierung''
 D: Co-founder of Berlin Linux User Group
+
+N: Riku Voipio
+E: riku.voipio@iki.fi
+D: Author of PCA9532 LED and Fintek f75375s hwmon driver
+D: Some random ARM board patches
+S: Finland
 
 N: Patrick Volkerding
 E: volkerdi@ftp.cdrom.com

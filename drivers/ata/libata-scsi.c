@@ -313,7 +313,7 @@ ata_scsi_em_message_show(struct device *dev, struct device_attribute *attr,
 		return ap->ops->em_show(ap, buf);
 	return -EINVAL;
 }
-DEVICE_ATTR(em_message, S_IRUGO | S_IWUGO,
+DEVICE_ATTR(em_message, S_IRUGO | S_IWUSR,
 		ata_scsi_em_message_show, ata_scsi_em_message_store);
 EXPORT_SYMBOL_GPL(dev_attr_em_message);
 
@@ -366,7 +366,7 @@ ata_scsi_activity_store(struct device *dev, struct device_attribute *attr,
 	}
 	return -EINVAL;
 }
-DEVICE_ATTR(sw_activity, S_IWUGO | S_IRUGO, ata_scsi_activity_show,
+DEVICE_ATTR(sw_activity, S_IWUSR | S_IRUGO, ata_scsi_activity_show,
 			ata_scsi_activity_store);
 EXPORT_SYMBOL_GPL(dev_attr_sw_activity);
 
@@ -647,23 +647,45 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	return rc;
 }
 
+static int ata_ioc32(struct ata_port *ap)
+{
+	if (ap->flags & ATA_FLAG_PIO_DMA)
+		return 1;
+	if (ap->pflags & ATA_PFLAG_PIO32)
+		return 1;
+	return 0;
+}
+
 int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
 		     int cmd, void __user *arg)
 {
 	int val = -EINVAL, rc = -EINVAL;
+	unsigned long flags;
 
 	switch (cmd) {
 	case ATA_IOC_GET_IO32:
-		val = 0;
+		spin_lock_irqsave(ap->lock, flags);
+		val = ata_ioc32(ap);
+		spin_unlock_irqrestore(ap->lock, flags);
 		if (copy_to_user(arg, &val, 1))
 			return -EFAULT;
 		return 0;
 
 	case ATA_IOC_SET_IO32:
 		val = (unsigned long) arg;
-		if (val != 0)
-			return -EINVAL;
-		return 0;
+		rc = 0;
+		spin_lock_irqsave(ap->lock, flags);
+		if (ap->pflags & ATA_PFLAG_PIO32CHANGE) {
+			if (val)
+				ap->pflags |= ATA_PFLAG_PIO32;
+			else
+				ap->pflags &= ~ATA_PFLAG_PIO32;
+		} else {
+			if (val != ata_ioc32(ap))
+				rc = -EINVAL;
+		}
+		spin_unlock_irqrestore(ap->lock, flags);
+		return rc;
 
 	case HDIO_GET_IDENTITY:
 		return ata_get_identity(ap, scsidev, arg);
@@ -2120,13 +2142,14 @@ static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf)
 
 static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 {
+	int form_factor = ata_id_form_factor(args->id);
+	int media_rotation_rate = ata_id_rotation_rate(args->id);
+
 	rbuf[1] = 0xb1;
 	rbuf[3] = 0x3c;
-	if (ata_id_major_version(args->id) > 7) {
-		rbuf[4] = args->id[217] >> 8;
-		rbuf[5] = args->id[217];
-		rbuf[7] = args->id[168] & 0xf;
-	}
+	rbuf[4] = media_rotation_rate >> 8;
+	rbuf[5] = media_rotation_rate;
+	rbuf[7] = form_factor;
 
 	return 0;
 }
@@ -2354,7 +2377,23 @@ saving_not_supp:
  */
 static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 {
-	u64 last_lba = args->dev->n_sectors - 1; /* LBA of the last block */
+	struct ata_device *dev = args->dev;
+	u64 last_lba = dev->n_sectors - 1; /* LBA of the last block */
+	u8 log_per_phys = 0;
+	u16 lowest_aligned = 0;
+	u16 word_106 = dev->id[106];
+	u16 word_209 = dev->id[209];
+
+	if ((word_106 & 0xc000) == 0x4000) {
+		/* Number and offset of logical sectors per physical sector */
+		if (word_106 & (1 << 13))
+			log_per_phys = word_106 & 0xf;
+		if ((word_209 & 0xc000) == 0x4000) {
+			u16 first = dev->id[209] & 0x3fff;
+			if (first > 0)
+				lowest_aligned = (1 << log_per_phys) - first;
+		}
+	}
 
 	VPRINTK("ENTER\n");
 
@@ -2385,6 +2424,11 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		/* sector size */
 		rbuf[10] = ATA_SECT_SIZE >> 8;
 		rbuf[11] = ATA_SECT_SIZE & 0xff;
+
+		rbuf[12] = 0;
+		rbuf[13] = log_per_phys;
+		rbuf[14] = (lowest_aligned >> 8) & 0x3f;
+		rbuf[15] = lowest_aligned;
 	}
 
 	return 0;

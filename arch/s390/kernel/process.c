@@ -160,7 +160,7 @@ void release_thread(struct task_struct *dead_task)
 {
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
+int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {

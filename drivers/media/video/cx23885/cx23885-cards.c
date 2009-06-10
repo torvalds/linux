@@ -441,9 +441,9 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
 		/* Two identical tuners on two different i2c buses,
 		 * we need to reset the correct gpio. */
-		if (port->nr == 0)
+		if (port->nr == 1)
 			bitmask = 0x01;
-		else if (port->nr == 1)
+		else if (port->nr == 2)
 			bitmask = 0x04;
 		break;
 	}
@@ -739,9 +739,10 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
-		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->i2c_bus[2].i2c_adap,
+		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", "cx25840", 0x88 >> 1);
-		v4l2_subdev_call(dev->sd_cx25840, core, init, 0);
+		v4l2_subdev_call(dev->sd_cx25840, core, load_fw);
 		break;
 	}
 

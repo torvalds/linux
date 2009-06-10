@@ -99,8 +99,7 @@ static inline u64 of_read_addr(const u32 *cell, int size)
 	return r;
 }
 
-static void __init get_cells(struct device_node *dp,
-			     int *addrc, int *sizec)
+static void get_cells(struct device_node *dp, int *addrc, int *sizec)
 {
 	if (addrc)
 		*addrc = of_n_addr_cells(dp);
@@ -301,8 +300,25 @@ static unsigned long of_bus_pci_get_flags(const u32 *addr, unsigned long flags)
 
 static int of_bus_sbus_match(struct device_node *np)
 {
-	return !strcmp(np->name, "sbus") ||
-		!strcmp(np->name, "sbi");
+	struct device_node *dp = np;
+
+	while (dp) {
+		if (!strcmp(dp->name, "sbus") ||
+		    !strcmp(dp->name, "sbi"))
+			return 1;
+
+		/* Have a look at use_1to1_mapping().  We're trying
+		 * to match SBUS if that's the top-level bus and we
+		 * don't have some intervening real bus that provides
+		 * ranges based translations.
+		 */
+		if (of_find_property(dp, "ranges", NULL) != NULL)
+			break;
+
+		dp = dp->parent;
+	}
+
+	return 0;
 }
 
 static void of_bus_sbus_count_cells(struct device_node *child,

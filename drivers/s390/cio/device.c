@@ -310,8 +310,6 @@ static void ccw_device_remove_orphan_cb(struct work_struct *work)
 	put_device(&cdev->dev);
 }
 
-static void ccw_device_call_sch_unregister(struct work_struct *work);
-
 static void
 ccw_device_remove_disconnected(struct ccw_device *cdev)
 {
@@ -335,11 +333,10 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
 		PREPARE_WORK(&cdev->private->kick_work,
 				ccw_device_remove_orphan_cb);
+		queue_work(slow_path_wq, &cdev->private->kick_work);
 	} else
 		/* Deregister subchannel, which will kill the ccw device. */
-		PREPARE_WORK(&cdev->private->kick_work,
-				ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 }
 
 /**
@@ -471,7 +468,7 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 	int ret;
 
 	/* Do device recognition, if needed. */
-	if (cdev->id.cu_type == 0) {
+	if (cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_recognition(cdev);
 		if (ret) {
 			CIO_MSG_EVENT(0, "Couldn't start recognition "
@@ -482,17 +479,21 @@ static int online_store_recog_and_online(struct ccw_device *cdev)
 		}
 		wait_event(cdev->private->wait_q,
 			   cdev->private->flags.recog_done);
+		if (cdev->private->state != DEV_STATE_OFFLINE)
+			/* recognition failed */
+			return -EAGAIN;
 	}
 	if (cdev->drv && cdev->drv->set_online)
 		ccw_device_set_online(cdev);
 	return 0;
 }
+
 static int online_store_handle_online(struct ccw_device *cdev, int force)
 {
 	int ret;
 
 	ret = online_store_recog_and_online(cdev);
-	if (ret)
+	if (ret && !force)
 		return ret;
 	if (force && cdev->private->state == DEV_STATE_BOXED) {
 		ret = ccw_device_stlck(cdev);
@@ -500,7 +501,9 @@ static int online_store_handle_online(struct ccw_device *cdev, int force)
 			return ret;
 		if (cdev->id.cu_type == 0)
 			cdev->private->state = DEV_STATE_NOT_OPER;
-		online_store_recog_and_online(cdev);
+		ret = online_store_recog_and_online(cdev);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -512,7 +515,11 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	int force, ret;
 	unsigned long i;
 
-	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
+	if ((cdev->private->state != DEV_STATE_OFFLINE &&
+	     cdev->private->state != DEV_STATE_ONLINE &&
+	     cdev->private->state != DEV_STATE_BOXED &&
+	     cdev->private->state != DEV_STATE_DISCONNECTED) ||
+	    atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
 	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
@@ -1014,6 +1021,13 @@ static void ccw_device_call_sch_unregister(struct work_struct *work)
 	put_device(&sch->dev);
 }
 
+void ccw_device_schedule_sch_unregister(struct ccw_device *cdev)
+{
+	PREPARE_WORK(&cdev->private->kick_work,
+		     ccw_device_call_sch_unregister);
+	queue_work(slow_path_wq, &cdev->private->kick_work);
+}
+
 /*
  * subchannel recognition done. Called from the state machine.
  */
@@ -1025,19 +1039,17 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 		return;
 	}
 	switch (cdev->private->state) {
+	case DEV_STATE_BOXED:
+		/* Device did not respond in time. */
 	case DEV_STATE_NOT_OPER:
 		cdev->private->flags.recog_done = 1;
 		/* Remove device found not operational. */
 		if (!get_device(&cdev->dev))
 			break;
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_call_sch_unregister);
-		queue_work(slow_path_wq, &cdev->private->kick_work);
+		ccw_device_schedule_sch_unregister(cdev);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
 		break;
-	case DEV_STATE_BOXED:
-		/* Device did not respond in time. */
 	case DEV_STATE_OFFLINE:
 		/* 
 		 * We can't register the device in interrupt context so
@@ -1551,8 +1563,7 @@ static int purge_fn(struct device *dev, void *data)
 		goto out;
 	CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", priv->dev_id.ssid,
 		      priv->dev_id.devno);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_call_sch_unregister);
-	queue_work(slow_path_wq, &cdev->private->kick_work);
+	ccw_device_schedule_sch_unregister(cdev);
 
 out:
 	/* Abort loop in case of pending signal. */

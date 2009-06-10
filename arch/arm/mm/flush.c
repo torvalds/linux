@@ -18,6 +18,10 @@
 
 #include "mm.h"
 
+#ifdef CONFIG_ARM_ERRATA_411920
+extern void v6_icache_inval_all(void);
+#endif
+
 #ifdef CONFIG_CPU_CACHE_VIPT
 
 #define ALIAS_FLUSH_START	0xffff4000
@@ -32,10 +36,15 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 
 	asm(	"mcrr	p15, 0, %1, %0, c14\n"
 	"	mcr	p15, 0, %2, c7, c10, 4\n"
+#ifndef CONFIG_ARM_ERRATA_411920
 	"	mcr	p15, 0, %2, c7, c5, 0\n"
+#endif
 	    :
 	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
 	    : "cc");
+#ifdef CONFIG_ARM_ERRATA_411920
+	v6_icache_inval_all();
+#endif
 }
 
 void flush_cache_mm(struct mm_struct *mm)
@@ -48,11 +57,16 @@ void flush_cache_mm(struct mm_struct *mm)
 
 	if (cache_is_vipt_aliasing()) {
 		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4\n"
+#ifndef CONFIG_ARM_ERRATA_411920
 		"	mcr	p15, 0, %0, c7, c5, 0\n"
-		"	mcr	p15, 0, %0, c7, c10, 4"
+#endif
 		    :
 		    : "r" (0)
 		    : "cc");
+#ifdef CONFIG_ARM_ERRATA_411920
+		v6_icache_inval_all();
+#endif
 	}
 }
 
@@ -67,11 +81,16 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
 
 	if (cache_is_vipt_aliasing()) {
 		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4\n"
+#ifndef CONFIG_ARM_ERRATA_411920
 		"	mcr	p15, 0, %0, c7, c5, 0\n"
-		"	mcr	p15, 0, %0, c7, c10, 4"
+#endif
 		    :
 		    : "r" (0)
 		    : "cc");
+#ifdef CONFIG_ARM_ERRATA_411920
+		v6_icache_inval_all();
+#endif
 	}
 }
 

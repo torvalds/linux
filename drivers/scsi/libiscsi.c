@@ -1463,6 +1463,16 @@ int iscsi_change_queue_depth(struct scsi_device *sdev, int depth)
 }
 EXPORT_SYMBOL_GPL(iscsi_change_queue_depth);
 
+int iscsi_target_alloc(struct scsi_target *starget)
+{
+	struct iscsi_cls_session *cls_session = starget_to_session(starget);
+	struct iscsi_session *session = cls_session->dd_data;
+
+	starget->can_queue = session->scsi_cmds_max;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iscsi_target_alloc);
+
 void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
 {
 	struct iscsi_session *session = cls_session->dd_data;
@@ -1999,8 +2009,10 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 
 	q->queue = kfifo_init((void*)q->pool, max * sizeof(void*),
 			      GFP_KERNEL, NULL);
-	if (q->queue == ERR_PTR(-ENOMEM))
+	if (IS_ERR(q->queue)) {
+		q->queue = NULL;
 		goto enomem;
+	}
 
 	for (i = 0; i < max; i++) {
 		q->pool[i] = kzalloc(item_size, GFP_KERNEL);

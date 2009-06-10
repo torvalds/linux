@@ -76,4 +76,12 @@ void	nfsd_reply_cache_shutdown(void);
 int	nfsd_cache_lookup(struct svc_rqst *, int);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
 
+#ifdef CONFIG_NFSD_V4
+void	nfsd4_set_statp(struct svc_rqst *rqstp, __be32 *statp);
+#else  /* CONFIG_NFSD_V4 */
+static inline void nfsd4_set_statp(struct svc_rqst *rqstp, __be32 *statp)
+{
+}
+#endif /* CONFIG_NFSD_V4 */
+
 #endif /* NFSCACHE_H */

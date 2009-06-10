@@ -631,7 +631,8 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	/* Setup up dispatch flags to indicate handler (vs. method) */
 
-	gpe_event_info->flags &= ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);	/* Clear bits */
+	gpe_event_info->flags &=
+	    ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= (u8) (type | ACPI_GPE_DISPATCH_HANDLER);
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);

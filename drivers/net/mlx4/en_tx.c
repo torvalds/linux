@@ -112,6 +112,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		mlx4_err(mdev, "Failed allocating qp %d\n", ring->qpn);
 		goto err_reserve;
 	}
+	ring->qp.event = mlx4_en_sqp_event;
 
 	return 0;
 
@@ -425,7 +426,7 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 
 	INC_PERF_COUNTER(priv->pstats.tx_poll);
 
-	if (!spin_trylock(&ring->comp_lock)) {
+	if (!spin_trylock_irq(&ring->comp_lock)) {
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 		return;
 	}
@@ -438,7 +439,7 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 	if (inflight && priv->port_up)
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 
-	spin_unlock(&ring->comp_lock);
+	spin_unlock_irq(&ring->comp_lock);
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
@@ -481,9 +482,9 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 
 	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
 	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		if (spin_trylock(&ring->comp_lock)) {
+		if (spin_trylock_irq(&ring->comp_lock)) {
 			mlx4_en_process_tx_cq(priv->dev, cq);
-			spin_unlock(&ring->comp_lock);
+			spin_unlock_irq(&ring->comp_lock);
 		}
 }
 

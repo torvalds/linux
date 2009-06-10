@@ -115,6 +115,8 @@ void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
+int ocfs2_nfs_sync_lock(struct ocfs2_super *osb, int ex);
+void ocfs2_nfs_sync_unlock(struct ocfs2_super *osb, int ex);
 int ocfs2_dentry_lock(struct dentry *dentry, int ex);
 void ocfs2_dentry_unlock(struct dentry *dentry, int ex);
 int ocfs2_file_lock(struct file *file, int ex, int trylock);

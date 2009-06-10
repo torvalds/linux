@@ -85,7 +85,7 @@ struct appIdentSuffix {
 /* Logical Volume Integrity Descriptor (UDF 2.50 2.2.6) */
 /* Implementation Use (UDF 2.50 2.2.6.4) */
 struct logicalVolIntegrityDescImpUse {
-	regid		impIdent;
+	struct regid	impIdent;
 	__le32		numFiles;
 	__le32		numDirs;
 	__le16		minUDFReadRev;
@@ -97,12 +97,12 @@ struct logicalVolIntegrityDescImpUse {
 /* Implementation Use Volume Descriptor (UDF 2.50 2.2.7) */
 /* Implementation Use (UDF 2.50 2.2.7.2) */
 struct impUseVolDescImpUse {
-	charspec	LVICharset;
+	struct charspec	LVICharset;
 	dstring		logicalVolIdent[128];
 	dstring		LVInfo1[36];
 	dstring		LVInfo2[36];
 	dstring		LVInfo3[36];
-	regid		impIdent;
+	struct regid	impIdent;
 	uint8_t		impUse[128];
 } __attribute__ ((packed));
 
@@ -110,7 +110,7 @@ struct udfPartitionMap2 {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
-	regid		partIdent;
+	struct regid	partIdent;
 	__le16		volSeqNum;
 	__le16		partitionNum;
 } __attribute__ ((packed));
@@ -120,7 +120,7 @@ struct virtualPartitionMap {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
-	regid		partIdent;
+	struct regid	partIdent;
 	__le16		volSeqNum;
 	__le16		partitionNum;
 	uint8_t		reserved2[24];
@@ -131,7 +131,7 @@ struct sparablePartitionMap {
 	uint8_t partitionMapType;
 	uint8_t partitionMapLength;
 	uint8_t reserved1[2];
-	regid partIdent;
+	struct regid partIdent;
 	__le16 volSeqNum;
 	__le16 partitionNum;
 	__le16 packetLength;
@@ -146,7 +146,7 @@ struct metadataPartitionMap {
 	uint8_t		partitionMapType;
 	uint8_t		partitionMapLength;
 	uint8_t		reserved1[2];
-	regid		partIdent;
+	struct regid	partIdent;
 	__le16		volSeqNum;
 	__le16		partitionNum;
 	__le32		metadataFileLoc;
@@ -161,7 +161,7 @@ struct metadataPartitionMap {
 /* Virtual Allocation Table (UDF 1.5 2.2.10) */
 struct virtualAllocationTable15 {
 	__le32		VirtualSector[0];
-	regid		vatIdent;
+	struct regid	vatIdent;
 	__le32		previousVATICBLoc;
 } __attribute__ ((packed));
 
@@ -192,8 +192,8 @@ struct sparingEntry {
 } __attribute__ ((packed));
 
 struct sparingTable {
-	tag 		descTag;
-	regid		sparingIdent;
+	struct tag	descTag;
+	struct regid	sparingIdent;
 	__le16		reallocationTableLen;
 	__le16		reserved;
 	__le32		sequenceNum;
@@ -206,7 +206,7 @@ struct sparingTable {
 #define ICBTAG_FILE_TYPE_MIRROR		0xFB
 #define ICBTAG_FILE_TYPE_BITMAP		0xFC
 
-/* struct long_ad ICB - ADImpUse (UDF 2.50 2.2.4.3) */
+/* struct struct long_ad ICB - ADImpUse (UDF 2.50 2.2.4.3) */
 struct allocDescImpUse {
 	__le16		flags;
 	uint8_t		impUse[4];

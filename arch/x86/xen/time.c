@@ -213,6 +213,11 @@ cycle_t xen_clocksource_read(void)
 	return ret;
 }
 
+static cycle_t xen_clocksource_get_cycles(struct clocksource *cs)
+{
+	return xen_clocksource_read();
+}
+
 static void xen_read_wallclock(struct timespec *ts)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
@@ -241,7 +246,7 @@ int xen_set_wallclock(unsigned long now)
 static struct clocksource xen_clocksource __read_mostly = {
 	.name = "xen",
 	.rating = 400,
-	.read = xen_clocksource_read,
+	.read = xen_clocksource_get_cycles,
 	.mask = ~0,
 	.mult = 1<<XEN_SHIFT,		/* time directly in nanoseconds */
 	.shift = XEN_SHIFT,

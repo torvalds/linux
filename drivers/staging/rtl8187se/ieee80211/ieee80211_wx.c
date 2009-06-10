@@ -842,14 +842,14 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
 	{
-		printk("return error out, len:%d\n", len);
+		printk("return error out, len:%zu\n", len);
 	return -EINVAL;
 	}
 
 	if (len)
 	{
 		if (len != ie[1]+2){
-			printk("len:%d, ie:%d\n", len, ie[1]);
+			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
 		buf = kmalloc(len, GFP_KERNEL);

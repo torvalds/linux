@@ -87,6 +87,7 @@
 #define PALMLD_IDE_SIZE		0x00100000
 
 #define PALMLD_PHYS_IO_START	0x40000000
+#define PALMLD_STR_BASE		0xa0200000
 
 /* BATTERY */
 #define PALMLD_BAT_MAX_VOLTAGE		4000	/* 4.00V maximum voltage */

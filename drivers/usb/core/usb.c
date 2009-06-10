@@ -362,7 +362,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	dev->ep0.desc.bLength = USB_DT_ENDPOINT_SIZE;
 	dev->ep0.desc.bDescriptorType = USB_DT_ENDPOINT;
 	/* ep0 maxpacket comes later, from device descriptor */
-	usb_enable_endpoint(dev, &dev->ep0, true);
+	usb_enable_endpoint(dev, &dev->ep0, false);
 	dev->can_submit = 1;
 
 	/* Save readable and stable topology id, distinguishing devices

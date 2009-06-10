@@ -3,7 +3,7 @@
  *
  * simple PWM based backlight control, board code has to setup
  * 1) pin configuration so PWM waveforms can output
- * 2) platform_data casts to the PWM id (0/1/2/3 on PXA)
+ * 2) platform_data being correctly configured
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -97,7 +97,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	} else
 		dev_dbg(&pdev->dev, "got pwm for backlight\n");
 
-	bl = backlight_device_register(pdev->name, &pdev->dev,
+	bl = backlight_device_register(dev_name(&pdev->dev), &pdev->dev,
 			pb, &pwm_backlight_ops);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");

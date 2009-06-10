@@ -387,6 +387,8 @@
 #define __NR_dup3			(__NR_SYSCALL_BASE+358)
 #define __NR_pipe2			(__NR_SYSCALL_BASE+359)
 #define __NR_inotify_init1		(__NR_SYSCALL_BASE+360)
+#define __NR_preadv			(__NR_SYSCALL_BASE+361)
+#define __NR_pwritev			(__NR_SYSCALL_BASE+362)
 
 /*
  * The following SWIs are ARM private.

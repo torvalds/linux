@@ -74,19 +74,8 @@
 #include "../EplDll.h"
 #include "../EplEvent.h"
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
-typedef tEplKernel(PUBLIC * tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+typedef tEplKernel(* tEplDlluCbAsnd) (tEplFrameInfo * pFrameInfo_p);
 
 tEplKernel EplDlluCalAddInstance(void);
 
@@ -110,7 +99,7 @@ tEplKernel EplDlluCalDeleteNode(unsigned int uiNodeId_p);
 tEplKernel EplDlluCalSoftDeleteNode(unsigned int uiNodeId_p);
 
 tEplKernel EplDlluCalIssueRequest(tEplDllReqServiceId Service_p,
-				  unsigned int uiNodeId_p, BYTE bSoaFlag1_p);
+				  unsigned int uiNodeId_p, u8 bSoaFlag1_p);
 
 #endif
 

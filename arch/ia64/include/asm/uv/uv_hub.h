@@ -305,5 +305,11 @@ static inline int uv_num_possible_blades(void)
 	return 1;
 }
 
+static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
+{
+	/* not currently needed on ia64 */
+}
+
+
 #endif /* __ASM_IA64_UV_HUB__ */
 

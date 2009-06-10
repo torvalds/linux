@@ -1,6 +1,7 @@
 config NFSD
 	tristate "NFS server support"
 	depends on INET
+	depends on FILE_LOCKING
 	select LOCKD
 	select SUNRPC
 	select EXPORTFS

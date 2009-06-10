@@ -446,13 +446,6 @@ static int mos7720_open(struct tty_struct *tty,
 	data = 0x0c;
 	send_mos_cmd(serial, MOS_WRITE, port_number, 0x01, &data);
 
-	/* force low_latency on so that our tty_push actually forces *
-	 * the data through,otherwise it is scheduled, and with      *
-	 * high data rates (like with OHCI) data can get lost.       */
-
-	if (tty)
-		tty->low_latency = 1;
-
 	/* see if we've set up our endpoint info yet   *
 	 * (can't set it up in mos7720_startup as the  *
 	 * structures were not set up at that time.)   */

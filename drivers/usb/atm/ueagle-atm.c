@@ -626,7 +626,7 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 		goto err_fw_corrupted;
 
 	/*
-	 * Start to upload formware : send reset
+	 * Start to upload firmware : send reset
 	 */
 	value = 1;
 	ret = uea_send_modem_cmd(usb, F8051_USBCS, sizeof(value), &value);

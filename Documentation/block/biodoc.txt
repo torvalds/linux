@@ -1040,23 +1040,21 @@ Front merges are handled by the binary trees in AS and deadline schedulers.
 iii. Plugging the queue to batch requests in anticipation of opportunities for
      merge/sort optimizations
 
-This is just the same as in 2.4 so far, though per-device unplugging
-support is anticipated for 2.5. Also with a priority-based i/o scheduler,
-such decisions could be based on request priorities.
-
 Plugging is an approach that the current i/o scheduling algorithm resorts to so
 that it collects up enough requests in the queue to be able to take
 advantage of the sorting/merging logic in the elevator. If the
 queue is empty when a request comes in, then it plugs the request queue
-(sort of like plugging the bottom of a vessel to get fluid to build up)
+(sort of like plugging the bath tub of a vessel to get fluid to build up)
 till it fills up with a few more requests, before starting to service
 the requests. This provides an opportunity to merge/sort the requests before
 passing them down to the device. There are various conditions when the queue is
 unplugged (to open up the flow again), either through a scheduled task or
 could be on demand. For example wait_on_buffer sets the unplugging going
-(by running tq_disk) so the read gets satisfied soon. So in the read case,
-the queue gets explicitly unplugged as part of waiting for completion,
-in fact all queues get unplugged as a side-effect.
+through sync_buffer() running blk_run_address_space(mapping). Or the caller
+can do it explicity through blk_unplug(bdev). So in the read case,
+the queue gets explicitly unplugged as part of waiting for completion on that
+buffer. For page driven IO, the address space ->sync_page() takes care of
+doing the blk_run_address_space().
 
 Aside:
   This is kind of controversial territory, as it's not clear if plugging is
@@ -1066,11 +1064,6 @@ Aside:
   balance between when to plug and when to open up. Also now that we have
   multi-page bios being queued in one shot, we may not need to wait to merge
   a big request from the broken up pieces coming by.
-
-  Per-queue granularity unplugging (still a Todo) may help reduce some of the
-  concerns with just a single tq_disk flush approach. Something like
-  blk_kick_queue() to unplug a specific queue (right away ?)
-  or optionally, all queues, is in the plan.
 
 4.4 I/O contexts
 I/O contexts provide a dynamically allocated per process data area. They may

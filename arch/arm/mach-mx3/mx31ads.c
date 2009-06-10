@@ -102,7 +102,7 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static int uart_pins[] = {
+static unsigned int uart_pins[] = {
 	MX31_PIN_CTS1__CTS1,
 	MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1,
@@ -451,6 +451,8 @@ static int mx31_wm8350_init(struct wm8350 *wm8350)
 			    &wm8350_led_data);
 
 	wm8350->codec.platform_data = &imx32ads_wm8350_setup;
+
+	regulator_has_full_constraints();
 
 	return 0;
 }

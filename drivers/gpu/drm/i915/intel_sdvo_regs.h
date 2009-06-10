@@ -100,6 +100,9 @@ struct intel_sdvo_preferred_input_timing_args {
     u16 clock;
     u16 width;
     u16 height;
+    u8	interlace:1;
+    u8	scaled:1;
+    u8	pad:6;
 } __attribute__((packed));
 
 /* I2C registers for SDVO */

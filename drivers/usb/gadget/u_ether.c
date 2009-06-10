@@ -175,12 +175,6 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 	strlcpy(p->bus_info, dev_name(&dev->gadget->dev), sizeof p->bus_info);
 }
 
-static u32 eth_get_link(struct net_device *net)
-{
-	struct eth_dev	*dev = netdev_priv(net);
-	return dev->gadget->speed != USB_SPEED_UNKNOWN;
-}
-
 /* REVISIT can also support:
  *   - WOL (by tracking suspends and issuing remote wakeup)
  *   - msglevel (implies updated messaging)
@@ -189,7 +183,7 @@ static u32 eth_get_link(struct net_device *net)
 
 static struct ethtool_ops ops = {
 	.get_drvinfo = eth_get_drvinfo,
-	.get_link = eth_get_link
+	.get_link = ethtool_op_get_link,
 };
 
 static void defer_kevent(struct eth_dev *dev, int flag)

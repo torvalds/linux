@@ -1,4 +1,4 @@
-#include "os_common.h"
+#include "sysdef.h"
 #include "wbhal_f.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -915,7 +915,7 @@ u32 w89rf242_txvga_data[][5] =
 //    The address is stored in EthernetIDAddr.
 //=============================================================================================================
 void
-Uxx_ReadEthernetAddress(  phw_data_t pHwData )
+Uxx_ReadEthernetAddress(  struct hw_data * pHwData )
 {
 	u32	ltmp;
 
@@ -948,14 +948,13 @@ Uxx_ReadEthernetAddress(  phw_data_t pHwData )
 //  Return Value:
 //    None.
 //==============================================================================================================
-void CardGetMulticastBit(   u8 Address[ETH_LENGTH_OF_ADDRESS],
-						   u8 *Byte,  u8 *Value )
+void CardGetMulticastBit( u8 Address[ETH_ALEN], u8 *Byte, u8 *Value )
 {
     u32 Crc;
     u32 BitNumber;
 
     // First compute the CRC.
-    Crc = CardComputeCrc(Address, ETH_LENGTH_OF_ADDRESS);
+    Crc = CardComputeCrc(Address, ETH_ALEN);
 
 	// The computed CRC is bit0~31 from left to right
 	//At first we should do right shift 25bits, and read 7bits by using '&', 2^7=128
@@ -965,7 +964,7 @@ void CardGetMulticastBit(   u8 Address[ETH_LENGTH_OF_ADDRESS],
 	*Value = (u8) ((u8)1 << (BitNumber % 8));
 }
 
-void Uxx_power_on_procedure(  phw_data_t pHwData )
+void Uxx_power_on_procedure(  struct hw_data * pHwData )
 {
 	u32	ltmp, loop;
 
@@ -1009,7 +1008,7 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 	Wb35Reg_WriteSync( pHwData, 0x03f8, 0x7ff );
 }
 
-void Set_ChanIndep_RfData_al7230_24(  phw_data_t pHwData, u32 *pltmp ,char number)
+void Set_ChanIndep_RfData_al7230_24(  struct hw_data * pHwData, u32 *pltmp ,char number)
 {
 	u8	i;
 
@@ -1020,7 +1019,7 @@ void Set_ChanIndep_RfData_al7230_24(  phw_data_t pHwData, u32 *pltmp ,char numbe
 	}
 }
 
-void Set_ChanIndep_RfData_al7230_50(  phw_data_t pHwData, u32 *pltmp, char number)
+void Set_ChanIndep_RfData_al7230_50(  struct hw_data * pHwData, u32 *pltmp, char number)
 {
 	u8	i;
 
@@ -1036,7 +1035,7 @@ void Set_ChanIndep_RfData_al7230_50(  phw_data_t pHwData, u32 *pltmp, char numbe
 // RFSynthesizer_initial --
 //=============================================================================================================
 void
-RFSynthesizer_initial(phw_data_t pHwData)
+RFSynthesizer_initial(struct hw_data * pHwData)
 {
 	u32	altmp[32];
 	u32 *	pltmp = altmp;
@@ -1115,7 +1114,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 		//Start to fill RF parameters, PLL_ON should be pulled low.
 		Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
 #ifdef _PE_STATE_DUMP_
-		WBDEBUG(("* PLL_ON    low\n"));
+		printk("* PLL_ON    low\n");
 #endif
 
 		number = sizeof(al7230_rf_data_24)/sizeof(al7230_rf_data_24[0]);
@@ -1224,7 +1223,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//pulled high
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    high\n"));
+			printk("* PLL_ON    high\n");
 			#endif
 
 			//2.4GHz
@@ -1244,7 +1243,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//5GHz
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    low\n"));
+			printk("* PLL_ON    low\n");
 			#endif
 
 			number = sizeof(al7230_rf_data_50)/sizeof(al7230_rf_data_50[0]);
@@ -1256,7 +1255,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
-			WBDEBUG(("* PLL_ON    high\n"));
+			printk("* PLL_ON    high\n");
 			#endif
 
 			//ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x12BACF;
@@ -1272,7 +1271,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			msleep(5);
 
 			//Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
-			//WBDEBUG(("* PLL_ON    high\n"));
+			//printk("* PLL_ON    high\n");
 			break;
 
 		case RF_WB_242:
@@ -1414,7 +1413,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 	}
 }
 
-void BBProcessor_AL7230_2400(  phw_data_t pHwData)
+void BBProcessor_AL7230_2400(  struct hw_data * pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[12];
@@ -1456,7 +1455,7 @@ void BBProcessor_AL7230_2400(  phw_data_t pHwData)
 
 }
 
-void BBProcessor_AL7230_5000(  phw_data_t pHwData)
+void BBProcessor_AL7230_5000(  struct hw_data * pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[12];
@@ -1510,7 +1509,7 @@ void BBProcessor_AL7230_5000(  phw_data_t pHwData)
 //    None.
 //=============================================================================================================
 void
-BBProcessor_initial(  phw_data_t pHwData )
+BBProcessor_initial(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	i, pltmp[12];
@@ -1824,12 +1823,12 @@ BBProcessor_initial(  phw_data_t pHwData )
 		reg->SQ3_filter[i] = 0x2f; // half of Bit 0 ~ 6
 }
 
-void set_tx_power_per_channel_max2829(  phw_data_t pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_max2829(  struct hw_data * pHwData,  ChanInfo Channel)
 {
 	RFSynthesizer_SetPowerIndex( pHwData, 100 ); // 20060620.1 Modify
 }
 
-void set_tx_power_per_channel_al2230(  phw_data_t pHwData,  ChanInfo Channel )
+void set_tx_power_per_channel_al2230(  struct hw_data * pHwData,  ChanInfo Channel )
 {
 	u8	index = 100;
 
@@ -1839,7 +1838,7 @@ void set_tx_power_per_channel_al2230(  phw_data_t pHwData,  ChanInfo Channel )
 	RFSynthesizer_SetPowerIndex( pHwData, index );
 }
 
-void set_tx_power_per_channel_al7230(  phw_data_t pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_al7230(  struct hw_data * pHwData,  ChanInfo Channel)
 {
 	u8	i, index = 100;
 
@@ -1869,7 +1868,7 @@ void set_tx_power_per_channel_al7230(  phw_data_t pHwData,  ChanInfo Channel)
 	RFSynthesizer_SetPowerIndex( pHwData, index );
 }
 
-void set_tx_power_per_channel_wb242(  phw_data_t pHwData,  ChanInfo Channel)
+void set_tx_power_per_channel_wb242(  struct hw_data * pHwData,  ChanInfo Channel)
 {
 	u8	index = 100;
 
@@ -1902,7 +1901,7 @@ void set_tx_power_per_channel_wb242(  phw_data_t pHwData,  ChanInfo Channel)
 //   None.
 //=============================================================================================================
 void
-RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
+RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  ChanInfo Channel )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[16]; // The 16 is the maximum capability of hardware
@@ -2012,7 +2011,7 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 
 			//Start to fill RF parameters, PLL_ON should be pulled low.
 			//Wb35Reg_Write( pHwData, 0x03dc, 0x00000000 );
-			//WBDEBUG(("* PLL_ON    low\n"));
+			//printk("* PLL_ON    low\n");
 
 			//Channel independent registers
 			if( Channel.band != pHwData->band)
@@ -2037,7 +2036,7 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 				// Write to register. number must less and equal than 16
 				Wb35Reg_BurstWrite( pHwData, 0x0864, pltmp, number, NO_INCREMENT );
 				#ifdef _PE_STATE_DUMP_
-				WBDEBUG(("Band changed\n"));
+				printk("Band changed\n");
 				#endif
 			}
 
@@ -2130,7 +2129,7 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 }
 
 //Set the tx power directly from DUT GUI, not from the EEPROM. Return the current setting
-u8 RFSynthesizer_SetPowerIndex(  phw_data_t pHwData,  u8 PowerIndex )
+u8 RFSynthesizer_SetPowerIndex(  struct hw_data * pHwData,  u8 PowerIndex )
 {
 	u32	Band = pHwData->band;
 	u8	index=0;
@@ -2188,7 +2187,7 @@ u8 RFSynthesizer_SetPowerIndex(  phw_data_t pHwData,  u8 PowerIndex )
 }
 
 //-- Sub function
-u8 RFSynthesizer_SetMaxim2828_24Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetMaxim2828_24Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	if( index > 1 ) index = 1;
@@ -2197,7 +2196,7 @@ u8 RFSynthesizer_SetMaxim2828_24Power(  phw_data_t pHwData, u8 index )
 	return index;
 }
 //--
-u8 RFSynthesizer_SetMaxim2828_50Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetMaxim2828_50Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	if( index > 1 ) index = 1;
@@ -2206,7 +2205,7 @@ u8 RFSynthesizer_SetMaxim2828_50Power(  phw_data_t pHwData, u8 index )
 	return index;
 }
 //--
-u8 RFSynthesizer_SetMaxim2827_24Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetMaxim2827_24Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	if( index > 1 ) index = 1;
@@ -2215,7 +2214,7 @@ u8 RFSynthesizer_SetMaxim2827_24Power(  phw_data_t pHwData, u8 index )
 	return index;
 }
 //--
-u8 RFSynthesizer_SetMaxim2827_50Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetMaxim2827_50Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	if( index > 1 ) index = 1;
@@ -2224,7 +2223,7 @@ u8 RFSynthesizer_SetMaxim2827_50Power(  phw_data_t pHwData, u8 index )
 	return index;
 }
 //--
-u8 RFSynthesizer_SetMaxim2825Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetMaxim2825Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	if( index > 1 ) index = 1;
@@ -2233,7 +2232,7 @@ u8 RFSynthesizer_SetMaxim2825Power(  phw_data_t pHwData, u8 index )
 	return index;
 }
 //--
-u8 RFSynthesizer_SetAiroha2230Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetAiroha2230Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	u8		i,count;
@@ -2252,7 +2251,7 @@ u8 RFSynthesizer_SetAiroha2230Power(  phw_data_t pHwData, u8 index )
 	return i;
 }
 //--
-u8 RFSynthesizer_SetAiroha7230Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetAiroha7230Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	u8		i,count;
@@ -2271,7 +2270,7 @@ u8 RFSynthesizer_SetAiroha7230Power(  phw_data_t pHwData, u8 index )
 	return i;
 }
 
-u8 RFSynthesizer_SetWinbond242Power(  phw_data_t pHwData, u8 index )
+u8 RFSynthesizer_SetWinbond242Power(  struct hw_data * pHwData, u8 index )
 {
 	u32		PowerData;
 	u8		i,count;
@@ -2312,7 +2311,7 @@ u8 RFSynthesizer_SetWinbond242Power(  phw_data_t pHwData, u8 index )
 //		Initial the hardware setting and module variable
 	//
 //===========================================================================================================
-void Dxx_initial(  phw_data_t pHwData )
+void Dxx_initial(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -2326,7 +2325,7 @@ void Dxx_initial(  phw_data_t pHwData )
 	Wb35Reg_WriteSync( pHwData, 0x0400, reg->D00_DmaControl );
 }
 
-void Mxx_initial(  phw_data_t pHwData )
+void Mxx_initial(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32		tmp;
@@ -2417,7 +2416,7 @@ void Mxx_initial(  phw_data_t pHwData )
 }
 
 
-void Uxx_power_off_procedure(  phw_data_t pHwData )
+void Uxx_power_off_procedure(  struct hw_data * pHwData )
 {
 	// SW, PMU reset and turn off clock
 	Wb35Reg_WriteSync( pHwData, 0x03b0, 3 );
@@ -2425,7 +2424,7 @@ void Uxx_power_off_procedure(  phw_data_t pHwData )
 }
 
 //Decide the TxVga of every channel
-void GetTxVgaFromEEPROM(  phw_data_t pHwData )
+void GetTxVgaFromEEPROM(  struct hw_data * pHwData )
 {
 	u32		i, j, ltmp;
 	u16		Value[MAX_TXVGA_EEPROM];
@@ -2479,7 +2478,7 @@ void GetTxVgaFromEEPROM(  phw_data_t pHwData )
 // or RFSynthesizer_SetPowerIndex be called, new TxVga will take effect.
 // TxVgaSettingInEEPROM of sHwData is an u8 array point to EEPROM contain for IS89C35
 // This function will use default TxVgaSettingInEEPROM data to calculate new TxVga.
-void EEPROMTxVgaAdjust(  phw_data_t pHwData ) // 20060619.5 Add
+void EEPROMTxVgaAdjust(  struct hw_data * pHwData ) // 20060619.5 Add
 {
 	u8	*	pTxVga = pHwData->TxVgaSettingInEEPROM;
 	s16		i, stmp;
@@ -2612,14 +2611,14 @@ void EEPROMTxVgaAdjust(  phw_data_t pHwData ) // 20060619.5 Add
 	}
 
 	#ifdef _PE_STATE_DUMP_
-	WBDEBUG((" TxVgaFor24 : \n"));
+	printk(" TxVgaFor24 : \n");
 	DataDmp((u8 *)pHwData->TxVgaFor24, 14 ,0);
-	WBDEBUG((" TxVgaFor50 : \n"));
+	printk(" TxVgaFor50 : \n");
 	DataDmp((u8 *)pHwData->TxVgaFor50, 70 ,0);
 	#endif
 }
 
-void BBProcessor_RateChanging(  phw_data_t pHwData,  u8 rate ) // 20060613.1
+void BBProcessor_RateChanging(  struct hw_data * pHwData,  u8 rate ) // 20060613.1
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	unsigned char		Is11bRate;

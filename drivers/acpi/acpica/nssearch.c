@@ -167,7 +167,8 @@ acpi_ns_search_one_scope(u32 target_name,
 	/* Searched entire namespace level, not found */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
+			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] "
+			  "%p first child %p\n",
 			  ACPI_CAST_PTR(char, &target_name),
 			  acpi_ut_get_type_name(type),
 			  acpi_ut_get_node_name(parent_node), parent_node,
@@ -239,9 +240,8 @@ acpi_ns_search_parent_tree(u32 target_name,
 			  acpi_ut_get_node_name(parent_node),
 			  ACPI_CAST_PTR(char, &target_name)));
 
-	/*
-	 * Search parents until target is found or we have backed up to the root
-	 */
+	/* Search parents until target is found or we have backed up to the root */
+
 	while (parent_node) {
 		/*
 		 * Search parent scope. Use TYPE_ANY because we don't care about the
@@ -395,9 +395,9 @@ acpi_ns_search_and_enter(u32 target_name,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 #ifdef ACPI_ASL_COMPILER
-	/*
-	 * Node is an object defined by an External() statement
-	 */
+
+	/* Node is an object defined by an External() statement */
+
 	if (flags & ACPI_NS_EXTERNAL) {
 		new_node->flags |= ANOBJ_IS_EXTERNAL;
 	}

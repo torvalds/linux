@@ -1020,7 +1020,8 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Get current mode register */
 	mode = UART_GET_MR(port) & ~(ATMEL_US_USCLKS | ATMEL_US_CHRL
-					| ATMEL_US_NBSTOP | ATMEL_US_PAR);
+					| ATMEL_US_NBSTOP | ATMEL_US_PAR
+					| ATMEL_US_USMODE);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	quot = uart_get_divisor(port, baud);
@@ -1064,6 +1065,12 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 			mode |= ATMEL_US_PAR_EVEN;
 	} else
 		mode |= ATMEL_US_PAR_NONE;
+
+	/* hardware handshake (RTS/CTS) */
+	if (termios->c_cflag & CRTSCTS)
+		mode |= ATMEL_US_USMODE_HWHS;
+	else
+		mode |= ATMEL_US_USMODE_NORMAL;
 
 	spin_lock_irqsave(&port->lock, flags);
 

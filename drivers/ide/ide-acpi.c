@@ -318,8 +318,9 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 
 		/* convert GTF to taskfile */
 		memset(&cmd, 0, sizeof(cmd));
-		memcpy(&cmd.tf_array[7], gtf, REGS_PER_GTF);
-		cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+		memcpy(&cmd.tf.feature, gtf, REGS_PER_GTF);
+		cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+		cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
 		err = ide_no_data_taskfile(drive, &cmd);
 		if (err) {

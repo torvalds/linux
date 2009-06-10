@@ -33,47 +33,10 @@
 
 #define I2C_DRIVERID_MSP3400	 1
 #define I2C_DRIVERID_TUNER	 2
-#define I2C_DRIVERID_TEA6420	 5	/* audio matrix switch		*/
-#define I2C_DRIVERID_TEA6415C	 6	/* video matrix switch		*/
-#define I2C_DRIVERID_TDA9840	 7	/* stereo sound processor	*/
-#define I2C_DRIVERID_SAA7111A	 8	/* video input processor	*/
-#define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
-#define I2C_DRIVERID_SAA7110	22	/* video decoder		*/
-#define I2C_DRIVERID_SAA5249	24	/* SAA5249 and compatibles	*/
 #define I2C_DRIVERID_TDA7432	27	/* Stereo sound processor	*/
 #define I2C_DRIVERID_TVAUDIO    29      /* Generic TV sound driver      */
-#define I2C_DRIVERID_TDA9875    32      /* TV sound decoder chip        */
-#define I2C_DRIVERID_BT819	40     /* video decoder			*/
-#define I2C_DRIVERID_BT856	41     /* video encoder			*/
-#define I2C_DRIVERID_VPX3220	42     /* video decoder+vbi/vtxt	*/
-#define I2C_DRIVERID_ADV7175	48     /* ADV 7175/7176 video encoder	*/
-#define I2C_DRIVERID_SAA7114	49	/* video decoder		*/
-#define I2C_DRIVERID_ADV7170	54	/* video encoder		*/
-#define I2C_DRIVERID_SAA7191	57	/* video decoder		*/
-#define I2C_DRIVERID_INDYCAM	58	/* SGI IndyCam			*/
-#define I2C_DRIVERID_OVCAMCHIP	61	/* OmniVision CMOS image sens.	*/
-#define I2C_DRIVERID_SAA6752HS	67	/* MPEG2 encoder		*/
-#define I2C_DRIVERID_TVEEPROM	68	/* TV EEPROM			*/
-#define I2C_DRIVERID_WM8775	69	/* wm8775 audio processor	*/
-#define I2C_DRIVERID_CS53L32A	70	/* cs53l32a audio processor	*/
-#define I2C_DRIVERID_CX25840	71	/* cx2584x video encoder	*/
-#define I2C_DRIVERID_SAA7127	72	/* saa7127 video encoder	*/
 #define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
 #define I2C_DRIVERID_INFRARED	75	/* I2C InfraRed on Video boards */
-#define I2C_DRIVERID_TVP5150	76	/* TVP5150 video decoder        */
-#define I2C_DRIVERID_WM8739	77	/* wm8739 audio processor	*/
-#define I2C_DRIVERID_UPD64083	78	/* upd64083 video processor	*/
-#define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
-#define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
-#define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
-#define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
-#define I2C_DRIVERID_TLV320AIC23B 87	/* TI TLV320AIC23B audio codec  */
-#define I2C_DRIVERID_VP27SMPX	93	/* Panasonic VP27s tuner internal MPX */
-#define I2C_DRIVERID_M52790 	95      /* Mitsubishi M52790SP/FP AV switch */
-#define I2C_DRIVERID_CS5345	96	/* cs5345 audio processor	*/
-#define I2C_DRIVERID_AU8522	97	/* Auvitek au8522       */
-
-#define I2C_DRIVERID_OV7670 1048	/* Omnivision 7670 camera */
 
 /*
  * ---- Adapter types ----------------------------------------------------
@@ -88,6 +51,7 @@
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
 #define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
+#define I2C_HW_B_CX231XX	0x010024 /* Conexant CX231XX USB based cards */
 #define I2C_HW_B_HDPVR		0x010025 /* Hauppauge HD PVR */
 
 /* --- SGI adapters							*/

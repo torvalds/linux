@@ -126,6 +126,11 @@ void clflush_cache_range(void *addr, unsigned int size);
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 extern const int rodata_test_data;
+void set_kernel_text_rw(void);
+void set_kernel_text_ro(void);
+#else
+static inline void set_kernel_text_rw(void) { }
+static inline void set_kernel_text_ro(void) { }
 #endif
 
 #ifdef CONFIG_DEBUG_RODATA_TEST

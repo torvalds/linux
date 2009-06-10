@@ -705,7 +705,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 			(unsigned long long) cx->std);
 
 	/* Tuner */
-	cx18_call_all(cx, tuner, s_std, cx->std);
+	cx18_call_all(cx, core, s_std, cx->std);
 	return 0;
 }
 
@@ -926,16 +926,6 @@ static long cx18_default(struct file *file, void *fh, int cmd, void *arg)
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
 
 	switch (cmd) {
-	case VIDIOC_INT_S_AUDIO_ROUTING: {
-		struct v4l2_routing *route = arg;
-
-		CX18_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING(%d, %d)\n",
-			route->input, route->output);
-		cx18_call_hw(cx, cx->card->hw_audio_ctrl, audio, s_routing,
-			     route);
-		break;
-	}
-
 	case VIDIOC_INT_RESET: {
 		u32 val = *(u32 *)arg;
 

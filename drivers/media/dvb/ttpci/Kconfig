@@ -28,25 +28,12 @@ config DVB_AV7110
 	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
+	  Alternatively, you can download the file and use the kernel's
+	  EXTRA_FIRMWARE configuration option to build it into your
+	  kernel image by adding the filename to the EXTRA_FIRMWARE
+	  configuration option string.
+
 	  Say Y if you own such a card and want to use it.
-
-config DVB_AV7110_FIRMWARE
-	bool "Compile AV7110 firmware into the driver"
-	depends on DVB_AV7110 && !STANDALONE
-	default y if DVB_AV7110=y
-	help
-	  The AV7110 firmware is normally loaded by the firmware hotplug manager.
-	  If you want to compile the firmware into the driver you need to say
-	  Y here and provide the correct path of the firmware. You need this
-	  option if you want to compile the whole driver statically into the
-	  kernel.
-
-	  All other people say N.
-
-config DVB_AV7110_FIRMWARE_FILE
-	string "Full pathname of av7110 firmware file"
-	depends on DVB_AV7110_FIRMWARE
-	default "/usr/lib/hotplug/firmware/dvb-ttpci-01.fw"
 
 config DVB_AV7110_OSD
 	bool "AV7110 OSD support"

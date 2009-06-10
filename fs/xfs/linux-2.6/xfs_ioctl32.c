@@ -427,19 +427,15 @@ xfs_compat_attrmulti_by_handle(
 	if (!size || size > 16 * PAGE_SIZE)
 		goto out_dput;
 
-	error = ENOMEM;
-	ops = kmalloc(size, GFP_KERNEL);
-	if (!ops)
+	ops = memdup_user(compat_ptr(am_hreq.ops), size);
+	if (IS_ERR(ops)) {
+		error = PTR_ERR(ops);
 		goto out_dput;
-
-	error = EFAULT;
-	if (copy_from_user(ops, compat_ptr(am_hreq.ops), size))
-		goto out_kfree_ops;
+	}
 
 	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
 	if (!attr_name)
 		goto out_kfree_ops;
-
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {

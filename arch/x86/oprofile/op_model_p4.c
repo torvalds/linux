@@ -380,7 +380,7 @@ static unsigned int get_stagger(void)
 {
 #ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
-	return (cpu != first_cpu(per_cpu(cpu_sibling_map, cpu)));
+	return cpu != cpumask_first(__get_cpu_var(cpu_sibling_map));
 #endif
 	return 0;
 }

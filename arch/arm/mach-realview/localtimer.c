@@ -189,8 +189,11 @@ void __cpuinit local_timer_setup(void)
 	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
 
 	clk->name		= "dummy_timer";
-	clk->features		= CLOCK_EVT_FEAT_DUMMY;
-	clk->rating		= 200;
+	clk->features		= CLOCK_EVT_FEAT_ONESHOT |
+				  CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_DUMMY;
+	clk->rating		= 400;
+	clk->mult               = 1;
 	clk->set_mode		= dummy_timer_set_mode;
 	clk->broadcast		= smp_timer_broadcast;
 	clk->cpumask		= cpumask_of(cpu);

@@ -590,27 +590,28 @@ static void omap1_init_ext_clk(struct clk * clk)
 static int omap1_clk_enable(struct clk *clk)
 {
 	int ret = 0;
-	if (clk->usecount++ == 0) {
-		if (likely(clk->parent)) {
-			ret = omap1_clk_enable(clk->parent);
 
-			if (unlikely(ret != 0)) {
-				clk->usecount--;
-				return ret;
-			}
+	if (clk->usecount++ == 0) {
+		if (clk->parent) {
+			ret = omap1_clk_enable(clk->parent);
+			if (ret)
+				goto err;
 
 			if (clk->flags & CLOCK_NO_IDLE_PARENT)
 				omap1_clk_deny_idle(clk->parent);
 		}
 
 		ret = clk->ops->enable(clk);
-
-		if (unlikely(ret != 0) && clk->parent) {
-			omap1_clk_disable(clk->parent);
-			clk->usecount--;
+		if (ret) {
+			if (clk->parent)
+				omap1_clk_disable(clk->parent);
+			goto err;
 		}
 	}
+	return ret;
 
+err:
+	clk->usecount--;
 	return ret;
 }
 

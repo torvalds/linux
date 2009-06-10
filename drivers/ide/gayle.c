@@ -53,11 +53,6 @@
 
 #define GAYLE_NEXT_PORT	0x1000
 
-#ifndef CONFIG_BLK_DEV_IDEDOUBLER
-#define GAYLE_NUM_HWIFS		1
-#define GAYLE_NUM_PROBE_HWIFS	GAYLE_NUM_HWIFS
-#define GAYLE_HAS_CONTROL_REG	1
-#else /* CONFIG_BLK_DEV_IDEDOUBLER */
 #define GAYLE_NUM_HWIFS		2
 #define GAYLE_NUM_PROBE_HWIFS	(ide_doubler ? GAYLE_NUM_HWIFS : \
 					       GAYLE_NUM_HWIFS-1)
@@ -66,8 +61,6 @@
 static int ide_doubler;
 module_param_named(doubler, ide_doubler, bool, 0);
 MODULE_PARM_DESC(doubler, "enable support for IDE doublers");
-#endif /* CONFIG_BLK_DEV_IDEDOUBLER */
-
 
     /*
      *  Check and acknowledge the interrupt status
@@ -151,10 +144,7 @@ static int __init gayle_init(void)
 found:
 	printk(KERN_INFO "ide: Gayle IDE controller (A%d style%s)\n",
 			 a4000 ? 4000 : 1200,
-#ifdef CONFIG_BLK_DEV_IDEDOUBLER
-			 ide_doubler ? ", IDE doubler" :
-#endif
-			 "");
+			 ide_doubler ? ", IDE doubler" : "");
 
 	if (a4000) {
 	    phys_base = GAYLE_BASE_4000;

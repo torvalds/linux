@@ -173,26 +173,26 @@ static const struct file_operations osd_fops = {
 	.unlocked_ioctl = osd_uld_ioctl,
 };
 
-struct osd_dev *osduld_path_lookup(const char *path)
+struct osd_dev *osduld_path_lookup(const char *name)
 {
-	struct nameidata nd;
+	struct path path;
 	struct inode *inode;
 	struct cdev *cdev;
 	struct osd_uld_device *uninitialized_var(oud);
 	int error;
 
-	if (!path || !*path) {
+	if (!name || !*name) {
 		OSD_ERR("Mount with !path || !*path\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	error = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	error = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (error) {
-		OSD_ERR("path_lookup of %s faild=>%d\n", path, error);
+		OSD_ERR("path_lookup of %s failed=>%d\n", name, error);
 		return ERR_PTR(error);
 	}
 
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 	error = -EINVAL; /* Not the right device e.g osd_uld_device */
 	if (!S_ISCHR(inode->i_mode)) {
 		OSD_DEBUG("!S_ISCHR()\n");
@@ -202,15 +202,15 @@ struct osd_dev *osduld_path_lookup(const char *path)
 	cdev = inode->i_cdev;
 	if (!cdev) {
 		OSD_ERR("Before mounting an OSD Based filesystem\n");
-		OSD_ERR("  user-mode must open+close the %s device\n", path);
-		OSD_ERR("  Example: bash: echo < %s\n", path);
+		OSD_ERR("  user-mode must open+close the %s device\n", name);
+		OSD_ERR("  Example: bash: echo < %s\n", name);
 		goto out;
 	}
 
 	/* The Magic wand. Is it our char-dev */
 	/* TODO: Support sg devices */
 	if (cdev->owner != THIS_MODULE) {
-		OSD_ERR("Error mounting %s - is not an OSD device\n", path);
+		OSD_ERR("Error mounting %s - is not an OSD device\n", name);
 		goto out;
 	}
 
@@ -220,7 +220,7 @@ struct osd_dev *osduld_path_lookup(const char *path)
 	error = 0;
 
 out:
-	path_put(&nd.path);
+	path_put(&path);
 	return error ? ERR_PTR(error) : &oud->od;
 }
 EXPORT_SYMBOL(osduld_path_lookup);
@@ -345,10 +345,6 @@ static int osd_probe(struct device *dev)
 	}
 
 	dev_set_drvdata(oud->class_member, oud);
-	error = sysfs_create_link(&scsi_device->sdev_gendev.kobj,
-				  &oud->class_member->kobj, osd_symlink);
-	if (error)
-		OSD_ERR("warning: unable to make symlink\n");
 
 	OSD_INFO("osd_probe %s\n", disk->disk_name);
 	return 0;
@@ -376,8 +372,6 @@ static int osd_remove(struct device *dev)
 			dev, oud, oud ? oud->od.scsi_device : NULL,
 			scsi_device);
 	}
-
-	sysfs_remove_link(&oud->od.scsi_device->sdev_gendev.kobj, osd_symlink);
 
 	if (oud->class_member)
 		device_destroy(osd_sysfs_class,

@@ -42,6 +42,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/jiffies.h>
+#include <linux/firmware.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -55,17 +56,18 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
-/* Ositech Seven of Diamonds firmware */
-#include "ositech.h"
-
 /*====================================================================*/
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
+
+/* Firmware name */
+#define FIRMWARE_NAME		"ositech/Xilinx7OD.bin"
 
 /* Module parameters */
 
 MODULE_DESCRIPTION("SMC 91c92 series PCMCIA ethernet driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE_NAME);
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
@@ -771,6 +773,26 @@ static int osi_config(struct pcmcia_device *link)
     return i;
 }
 
+static int osi_load_firmware(struct pcmcia_device *link)
+{
+	const struct firmware *fw;
+	int i, err;
+
+	err = request_firmware(&fw, FIRMWARE_NAME, &link->dev);
+	if (err) {
+		pr_err("Failed to load firmware \"%s\"\n", FIRMWARE_NAME);
+		return err;
+	}
+
+	/* Download the Seven of Diamonds firmware */
+	for (i = 0; i < fw->size; i++) {
+	    outb(fw->data[i], link->io.BasePort1 + 2);
+	    udelay(50);
+	}
+	release_firmware(fw);
+	return err;
+}
+
 static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 {
     struct net_device *dev = link->priv;
@@ -811,11 +833,9 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 	 (cardid == PRODID_OSITECH_SEVEN)) ||
 	((manfid == MANFID_PSION) &&
 	 (cardid == PRODID_PSION_NET100))) {
-	/* Download the Seven of Diamonds firmware */
-	for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
-	    udelay(50);
-	}
+	rc = osi_load_firmware(link);
+	if (rc)
+		goto free_cfg_mem;
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
 	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
@@ -862,10 +882,10 @@ static int smc91c92_resume(struct pcmcia_device *link)
 	     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
 	    ((smc->manfid == MANFID_PSION) &&
 	     (smc->cardid == PRODID_PSION_NET100))) {
-		/* Download the Seven of Diamonds firmware */
-		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-			outb(__Xilinx7OD[i], link->io.BasePort1+2);
-			udelay(50);
+		i = osi_load_firmware(link);
+		if (i) {
+			pr_err("smc91c92_cs: Failed to load firmware\n");
+			return i;
 		}
 	}
 	if (link->open) {

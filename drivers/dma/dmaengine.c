@@ -507,6 +507,7 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 			 * published in the general-purpose allocator
 			 */
 			dma_cap_set(DMA_PRIVATE, device->cap_mask);
+			device->privatecnt++;
 			err = dma_chan_get(chan);
 
 			if (err == -ENODEV) {
@@ -518,6 +519,8 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				       dma_chan_name(chan), err);
 			else
 				break;
+			if (--device->privatecnt == 0)
+				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
 			chan->private = NULL;
 			chan = NULL;
 		}
@@ -537,6 +540,9 @@ void dma_release_channel(struct dma_chan *chan)
 	WARN_ONCE(chan->client_count != 1,
 		  "chan reference count %d != 1\n", chan->client_count);
 	dma_chan_put(chan);
+	/* drop PRIVATE cap enabled by __dma_request_channel() */
+	if (--chan->device->privatecnt == 0)
+		dma_cap_clear(DMA_PRIVATE, chan->device->cap_mask);
 	chan->private = NULL;
 	mutex_unlock(&dma_list_mutex);
 }
@@ -602,6 +608,24 @@ void dmaengine_put(void)
 }
 EXPORT_SYMBOL(dmaengine_put);
 
+static int get_dma_id(struct dma_device *device)
+{
+	int rc;
+
+ idr_retry:
+	if (!idr_pre_get(&dma_idr, GFP_KERNEL))
+		return -ENOMEM;
+	mutex_lock(&dma_list_mutex);
+	rc = idr_get_new(&dma_idr, NULL, &device->dev_id);
+	mutex_unlock(&dma_list_mutex);
+	if (rc == -EAGAIN)
+		goto idr_retry;
+	else if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
 /**
  * dma_async_device_register - registers DMA devices found
  * @device: &dma_device
@@ -640,27 +664,25 @@ int dma_async_device_register(struct dma_device *device)
 	idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
 	if (!idr_ref)
 		return -ENOMEM;
-	atomic_set(idr_ref, 0);
- idr_retry:
-	if (!idr_pre_get(&dma_idr, GFP_KERNEL))
-		return -ENOMEM;
-	mutex_lock(&dma_list_mutex);
-	rc = idr_get_new(&dma_idr, NULL, &device->dev_id);
-	mutex_unlock(&dma_list_mutex);
-	if (rc == -EAGAIN)
-		goto idr_retry;
-	else if (rc != 0)
+	rc = get_dma_id(device);
+	if (rc != 0) {
+		kfree(idr_ref);
 		return rc;
+	}
+
+	atomic_set(idr_ref, 0);
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
+		rc = -ENOMEM;
 		chan->local = alloc_percpu(typeof(*chan->local));
 		if (chan->local == NULL)
-			continue;
+			goto err_out;
 		chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
 		if (chan->dev == NULL) {
 			free_percpu(chan->local);
-			continue;
+			chan->local = NULL;
+			goto err_out;
 		}
 
 		chan->chan_id = chancnt++;
@@ -677,6 +699,8 @@ int dma_async_device_register(struct dma_device *device)
 		if (rc) {
 			free_percpu(chan->local);
 			chan->local = NULL;
+			kfree(chan->dev);
+			atomic_dec(idr_ref);
 			goto err_out;
 		}
 		chan->client_count = 0;
@@ -701,12 +725,23 @@ int dma_async_device_register(struct dma_device *device)
 			}
 		}
 	list_add_tail_rcu(&device->global_node, &dma_device_list);
+	if (dma_has_cap(DMA_PRIVATE, device->cap_mask))
+		device->privatecnt++;	/* Always private */
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
 
 	return 0;
 
 err_out:
+	/* if we never registered a channel just release the idr */
+	if (atomic_read(idr_ref) == 0) {
+		mutex_lock(&dma_list_mutex);
+		idr_remove(&dma_idr, device->dev_id);
+		mutex_unlock(&dma_list_mutex);
+		kfree(idr_ref);
+		return rc;
+	}
+
 	list_for_each_entry(chan, &device->channels, device_node) {
 		if (chan->local == NULL)
 			continue;
@@ -769,11 +804,14 @@ dma_async_memcpy_buf_to_buf(struct dma_chan *chan, void *dest,
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
+	unsigned long flags;
 
 	dma_src = dma_map_single(dev->dev, src, len, DMA_TO_DEVICE);
 	dma_dest = dma_map_single(dev->dev, dest, len, DMA_FROM_DEVICE);
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len,
-					 DMA_CTRL_ACK);
+	flags = DMA_CTRL_ACK |
+		DMA_COMPL_SRC_UNMAP_SINGLE |
+		DMA_COMPL_DEST_UNMAP_SINGLE;
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
 
 	if (!tx) {
 		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
@@ -815,11 +853,12 @@ dma_async_memcpy_buf_to_pg(struct dma_chan *chan, struct page *page,
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
+	unsigned long flags;
 
 	dma_src = dma_map_single(dev->dev, kdata, len, DMA_TO_DEVICE);
 	dma_dest = dma_map_page(dev->dev, page, offset, len, DMA_FROM_DEVICE);
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len,
-					 DMA_CTRL_ACK);
+	flags = DMA_CTRL_ACK | DMA_COMPL_SRC_UNMAP_SINGLE;
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
 
 	if (!tx) {
 		dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
@@ -863,12 +902,13 @@ dma_async_memcpy_pg_to_pg(struct dma_chan *chan, struct page *dest_pg,
 	dma_addr_t dma_dest, dma_src;
 	dma_cookie_t cookie;
 	int cpu;
+	unsigned long flags;
 
 	dma_src = dma_map_page(dev->dev, src_pg, src_off, len, DMA_TO_DEVICE);
 	dma_dest = dma_map_page(dev->dev, dest_pg, dest_off, len,
 				DMA_FROM_DEVICE);
-	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len,
-					 DMA_CTRL_ACK);
+	flags = DMA_CTRL_ACK;
+	tx = dev->device_prep_dma_memcpy(chan, dma_dest, dma_src, len, flags);
 
 	if (!tx) {
 		dma_unmap_page(dev->dev, dma_src, len, DMA_TO_DEVICE);
@@ -893,6 +933,7 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 {
 	tx->chan = chan;
 	spin_lock_init(&tx->lock);
+	INIT_LIST_HEAD(&tx->tx_list);
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 

@@ -82,9 +82,6 @@ EXPORT_SYMBOL(console_devno);
 unsigned int console_irq = -1;
 EXPORT_SYMBOL(console_irq);
 
-unsigned long machine_flags;
-EXPORT_SYMBOL(machine_flags);
-
 unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
@@ -426,6 +423,7 @@ setup_lowcore(void)
 		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0) + PAGE_SIZE;
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
+	lc->machine_flags = S390_lowcore.machine_flags;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = (__u32)
@@ -436,6 +434,14 @@ setup_lowcore(void)
 #else
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
+	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
+	lc->async_enter_timer = S390_lowcore.async_enter_timer;
+	lc->exit_timer = S390_lowcore.exit_timer;
+	lc->user_timer = S390_lowcore.user_timer;
+	lc->system_timer = S390_lowcore.system_timer;
+	lc->steal_timer = S390_lowcore.steal_timer;
+	lc->last_update_timer = S390_lowcore.last_update_timer;
+	lc->last_update_clock = S390_lowcore.last_update_clock;
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
 }

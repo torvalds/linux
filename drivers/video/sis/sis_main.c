@@ -1129,7 +1129,7 @@ sisfb_bpp_to_var(struct sis_video_info *ivideo, struct fb_var_screeninfo *var)
 	switch(var->bits_per_pixel) {
 	case 8:
 		var->red.offset = var->green.offset = var->blue.offset = 0;
-		var->red.length = var->green.length = var->blue.length = 6;
+		var->red.length = var->green.length = var->blue.length = 8;
 		break;
 	case 16:
 		var->red.offset = 11;

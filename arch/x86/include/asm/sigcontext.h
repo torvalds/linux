@@ -269,6 +269,11 @@ struct _xsave_hdr {
 	__u64 reserved2[5];
 };
 
+struct _ymmh_state {
+	/* 16 * 16 bytes for each YMMH-reg */
+	__u32 ymmh_space[64];
+};
+
 /*
  * Extended state pointed by the fpstate pointer in the sigcontext.
  * In addition to the fpstate, information encoded in the xstate_hdr
@@ -278,6 +283,7 @@ struct _xsave_hdr {
 struct _xstate {
 	struct _fpstate fpstate;
 	struct _xsave_hdr xstate_hdr;
+	struct _ymmh_state ymmh;
 	/* new processor state extensions go here */
 };
 

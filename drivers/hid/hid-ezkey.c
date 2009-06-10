@@ -91,5 +91,3 @@ static void ez_exit(void)
 module_init(ez_init);
 module_exit(ez_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(ezkey);

@@ -24,17 +24,18 @@ enum {
 	OSDv1_ADDITIONAL_CDB_LENGTH = 192,
 	OSDv1_TOTAL_CDB_LEN = OSDv1_ADDITIONAL_CDB_LENGTH + 8,
 	OSDv1_CAP_LEN = 80,
+
 	/* Latest supported version */
-/* 	OSD_ADDITIONAL_CDB_LENGTH = 216,*/
+	OSDv2_ADDITIONAL_CDB_LENGTH = 228,
 	OSD_ADDITIONAL_CDB_LENGTH =
-		OSDv1_ADDITIONAL_CDB_LENGTH, /* FIXME: Pete rev-001 sup */
+		OSDv2_ADDITIONAL_CDB_LENGTH,
 	OSD_TOTAL_CDB_LEN = OSD_ADDITIONAL_CDB_LENGTH + 8,
-/* 	OSD_CAP_LEN = 104,*/
-	OSD_CAP_LEN = OSDv1_CAP_LEN,/* FIXME: Pete rev-001 sup */
+	OSD_CAP_LEN = 104,
 
 	OSD_SYSTEMID_LEN = 20,
-	OSD_CRYPTO_KEYID_SIZE = 20,
-	/*FIXME: OSDv2_CRYPTO_KEYID_SIZE = 32,*/
+	OSDv1_CRYPTO_KEYID_SIZE = 20,
+	OSDv2_CRYPTO_KEYID_SIZE = 32,
+	OSD_CRYPTO_KEYID_SIZE = OSDv2_CRYPTO_KEYID_SIZE,
 	OSD_CRYPTO_SEED_SIZE = 4,
 	OSD_CRYPTO_NONCE_SIZE = 12,
 	OSD_MAX_SENSE_LEN = 252, /* from SPC-3 */
@@ -164,7 +165,11 @@ struct osd_cdb_head {
 			/* called allocation_length in some commands */
 /*32*/			__be64	length;
 /*40*/			__be64	start_address;
-/*48*/			__be32 list_identifier;/* Rarely used */
+			union {
+/*48*/				__be32 list_identifier;/* Rarely used */
+				/* OSD2r05 5.2.5 CDB continuation length */
+/*48*/				__be32 cdb_continuation_length;
+			};
 		} __packed v2;
 	};
 /*52*/	union { /* selected attributes mode Page/List/Single */
@@ -204,29 +209,40 @@ struct osd_cdb_head {
 /*80*/
 
 /*160 v1*/
-/*184 v2*/
-struct osd_security_parameters {
-/*160*/u8	integrity_check_value[OSD_CRYPTO_KEYID_SIZE];
+struct osdv1_security_parameters {
+/*160*/u8	integrity_check_value[OSDv1_CRYPTO_KEYID_SIZE];
 /*180*/u8	request_nonce[OSD_CRYPTO_NONCE_SIZE];
 /*192*/osd_cdb_offset	data_in_integrity_check_offset;
 /*196*/osd_cdb_offset	data_out_integrity_check_offset;
 } __packed;
 /*200 v1*/
-/*224 v2*/
 
-/* FIXME: osdv2_security_parameters */
+/*184 v2*/
+struct osdv2_security_parameters {
+/*184*/u8	integrity_check_value[OSDv2_CRYPTO_KEYID_SIZE];
+/*216*/u8	request_nonce[OSD_CRYPTO_NONCE_SIZE];
+/*228*/osd_cdb_offset	data_in_integrity_check_offset;
+/*232*/osd_cdb_offset	data_out_integrity_check_offset;
+} __packed;
+/*236 v2*/
+
+struct osd_security_parameters {
+	union {
+		struct osdv1_security_parameters v1;
+		struct osdv2_security_parameters v2;
+	};
+};
 
 struct osdv1_cdb {
 	struct osd_cdb_head h;
 	u8 caps[OSDv1_CAP_LEN];
-	struct osd_security_parameters sec_params;
+	struct osdv1_security_parameters sec_params;
 } __packed;
 
 struct osdv2_cdb {
 	struct osd_cdb_head h;
 	u8 caps[OSD_CAP_LEN];
-	struct osd_security_parameters sec_params;
-	/* FIXME: osdv2_security_parameters */
+	struct osdv2_security_parameters sec_params;
 } __packed;
 
 struct osd_cdb {
@@ -301,14 +317,25 @@ struct osd_attributes_list_attrid {
 } __packed;
 
 /*
- * osd2r03: 7.1.3.3 List entry format for retrieved attributes and
- *                  for setting attributes
- * NOTE: v2 is 8-bytes aligned, v1 is not aligned.
+ * NOTE: v1: is not aligned.
  */
-struct osd_attributes_list_element {
+struct osdv1_attributes_list_element {
 	__be32 attr_page;
 	__be32 attr_id;
-	__be16 attr_bytes;
+	__be16 attr_bytes; /* valid bytes at attr_val without padding */
+	u8 attr_val[0];
+} __packed;
+
+/*
+ * osd2r03: 7.1.3.3 List entry format for retrieved attributes and
+ *                  for setting attributes
+ * NOTE: v2 is 8-bytes aligned
+ */
+struct osdv2_attributes_list_element {
+	__be32 attr_page;
+	__be32 attr_id;
+	u8 reserved[6];
+	__be16 attr_bytes; /* valid bytes at attr_val without padding */
 	u8 attr_val[0];
 } __packed;
 
@@ -324,13 +351,13 @@ enum {
 
 static inline unsigned osdv1_attr_list_elem_size(unsigned len)
 {
-	return ALIGN(len + sizeof(struct osd_attributes_list_element),
+	return ALIGN(len + sizeof(struct osdv1_attributes_list_element),
 		     OSDv1_ATTRIBUTES_ELEM_ALIGN);
 }
 
 static inline unsigned osdv2_attr_list_elem_size(unsigned len)
 {
-	return ALIGN(len + sizeof(struct osd_attributes_list_element),
+	return ALIGN(len + sizeof(struct osdv2_attributes_list_element),
 		     OSD_ATTRIBUTES_ELEM_ALIGN);
 }
 
@@ -419,14 +446,34 @@ struct osd_data_out_integrity_info {
 	__be64 data_bytes;
 	__be64 set_attributes_bytes;
 	__be64 get_attributes_bytes;
-	__be64 integrity_check_value;
+	__u8 integrity_check_value[OSD_CRYPTO_KEYID_SIZE];
 } __packed;
+
+/* Same osd_data_out_integrity_info is used for OSD2/OSD1. The only difference
+ * Is the sizeof the structure since in OSD1 the last array is smaller. Use
+ * below for version independent handling of this structure
+ */
+static inline int osd_data_out_integrity_info_sizeof(bool is_ver1)
+{
+	return sizeof(struct osd_data_out_integrity_info) -
+		(is_ver1 * (OSDv2_CRYPTO_KEYID_SIZE - OSDv1_CRYPTO_KEYID_SIZE));
+}
 
 struct osd_data_in_integrity_info {
 	__be64 data_bytes;
 	__be64 retrieved_attributes_bytes;
-	__be64 integrity_check_value;
+	__u8 integrity_check_value[OSD_CRYPTO_KEYID_SIZE];
 } __packed;
+
+/* Same osd_data_in_integrity_info is used for OSD2/OSD1. The only difference
+ * Is the sizeof the structure since in OSD1 the last array is smaller. Use
+ * below for version independent handling of this structure
+ */
+static inline int osd_data_in_integrity_info_sizeof(bool is_ver1)
+{
+	return sizeof(struct osd_data_in_integrity_info) -
+		(is_ver1 * (OSDv2_CRYPTO_KEYID_SIZE - OSDv1_CRYPTO_KEYID_SIZE));
+}
 
 struct osd_timestamp {
 	u8 time[6]; /* number of milliseconds since 1/1/1970 UT (big endian) */
@@ -477,7 +524,7 @@ enum osd_capability_bit_masks {
 
 	OSD_SEC_CAP_NONE1	= BIT(8),
 	OSD_SEC_CAP_NONE2	= BIT(9),
-	OSD_SEC_CAP_NONE3	= BIT(10),
+	OSD_SEC_GBL_REM 	= BIT(10), /*v2 only*/
 	OSD_SEC_CAP_QUERY	= BIT(11), /*v2 only*/
 	OSD_SEC_CAP_M_OBJECT	= BIT(12), /*v2 only*/
 	OSD_SEC_CAP_POL_SEC	= BIT(13),
@@ -552,8 +599,7 @@ struct osdv1_capability {
 
 struct osd_capability {
 	struct osd_capability_head h;
-/* 	struct osd_cap_object_descriptor od;*/
-	struct osdv1_cap_object_descriptor od; /* FIXME: Pete rev-001 sup */
+	struct osd_cap_object_descriptor od;
 } __packed;
 
 /**

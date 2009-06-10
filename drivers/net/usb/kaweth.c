@@ -36,7 +36,6 @@
  * Run test procedures
  * Fix bugs from previous two steps
  * Snoop other OSs for any tricks we're not doing
- * SMP locking
  * Reduce arbitrary timeouts
  * Smart multicast support
  * Temporary MAC change support
@@ -796,7 +795,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	int res;
 
-	spin_lock(&kaweth->device_lock);
+	spin_lock_irq(&kaweth->device_lock);
 
 	kaweth_async_set_rx_mode(kaweth);
 	netif_stop_queue(net);
@@ -814,7 +813,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 		if (!copied_skb) {
 			kaweth->stats.tx_errors++;
 			netif_start_queue(net);
-			spin_unlock(&kaweth->device_lock);
+			spin_unlock_irq(&kaweth->device_lock);
 			return 0;
 		}
 	}
@@ -848,7 +847,7 @@ skip:
 		net->trans_start = jiffies;
 	}
 
-	spin_unlock(&kaweth->device_lock);
+	spin_unlock_irq(&kaweth->device_lock);
 
 	return 0;
 }

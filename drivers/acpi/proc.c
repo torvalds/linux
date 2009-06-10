@@ -343,9 +343,6 @@ acpi_system_write_alarm(struct file *file,
 }
 #endif				/* HAVE_ACPI_LEGACY_ALARM */
 
-extern struct list_head acpi_wakeup_device_list;
-extern spinlock_t acpi_device_lock;
-
 static int
 acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 {
@@ -353,7 +350,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "Device\tS-state\t  Status   Sysfs node\n");
 
-	spin_lock(&acpi_device_lock);
+	mutex_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
 		    container_of(node, struct acpi_device, wakeup_list);
@@ -361,7 +358,6 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 		if (!dev->wakeup.flags.valid)
 			continue;
-		spin_unlock(&acpi_device_lock);
 
 		ldev = acpi_get_physical_device(dev->handle);
 		seq_printf(seq, "%s\t  S%d\t%c%-8s  ",
@@ -376,9 +372,8 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "\n");
 		put_device(ldev);
 
-		spin_lock(&acpi_device_lock);
 	}
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 	return 0;
 }
 
@@ -409,7 +404,7 @@ acpi_system_write_wakeup_device(struct file *file,
 	strbuf[len] = '\0';
 	sscanf(strbuf, "%s", str);
 
-	spin_lock(&acpi_device_lock);
+	mutex_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 		struct acpi_device *dev =
 		    container_of(node, struct acpi_device, wakeup_list);
@@ -446,7 +441,7 @@ acpi_system_write_wakeup_device(struct file *file,
 			}
 		}
 	}
-	spin_unlock(&acpi_device_lock);
+	mutex_unlock(&acpi_device_lock);
 	return count;
 }
 
@@ -496,11 +491,8 @@ static u32 rtc_handler(void *context)
 }
 #endif				/* HAVE_ACPI_LEGACY_ALARM */
 
-static int __init acpi_sleep_proc_init(void)
+int __init acpi_sleep_proc_init(void)
 {
-	if (acpi_disabled)
-		return 0;
-
 #ifdef	CONFIG_ACPI_PROCFS
 	/* 'sleep' [R/W] */
 	proc_create("sleep", S_IFREG | S_IRUGO | S_IWUSR,
@@ -527,5 +519,3 @@ static int __init acpi_sleep_proc_init(void)
 
 	return 0;
 }
-
-late_initcall(acpi_sleep_proc_init);

@@ -64,6 +64,8 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO89_AC97_SYSCLK,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO40_GPIO,	/* ir disable */
@@ -72,13 +74,13 @@ static unsigned long palmt5_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO15_GPIO,	/* usb detect */
-	GPIO95_GPIO,	/* usb power */
+	GPIO93_GPIO,	/* usb power */
 
 	/* MATRIX KEYPAD */
-	GPIO100_KP_MKIN_0,
-	GPIO101_KP_MKIN_1,
-	GPIO102_KP_MKIN_2,
-	GPIO97_KP_MKIN_3,
+	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO101_KP_MKIN_1 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO102_KP_MKIN_2 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO97_KP_MKIN_3 | WAKEUP_ON_LEVEL_HIGH,
 	GPIO103_KP_MKOUT_0,
 	GPIO104_KP_MKOUT_1,
 	GPIO105_KP_MKOUT_2,
@@ -344,7 +346,7 @@ static struct pxaficp_platform_data palmt5_ficp_platform_data = {
 static struct pxa2xx_udc_mach_info palmt5_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMT5_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMT5_USB_POWER,
+	.gpio_pullup		= GPIO_NR_PALMT5_USB_PULLUP,
 	.gpio_pullup_inverted	= 0,
 };
 
@@ -419,8 +421,20 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 /******************************************************************************
  * aSoC audio
  ******************************************************************************/
-static struct palm27x_asoc_info palm27x_asoc_pdata = {
+static struct palm27x_asoc_info palmt5_asoc_pdata = {
 	.jack_gpio	= GPIO_NR_PALMT5_EARPHONE_DETECT,
+};
+
+static pxa2xx_audio_ops_t palmt5_ac97_pdata = {
+	.reset_gpio	= 95,
+};
+
+static struct platform_device palmt5_asoc = {
+	.name = "palm27x-asoc",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &palmt5_asoc_pdata,
+	},
 };
 
 /******************************************************************************
@@ -450,6 +464,33 @@ static struct pxafb_mach_info palmt5_lcd_screen = {
 };
 
 /******************************************************************************
+ * Power management - standby
+ ******************************************************************************/
+#ifdef CONFIG_PM
+static u32 *addr __initdata;
+static u32 resume[3] __initdata = {
+	0xe3a00101,	/* mov	r0,	#0x40000000 */
+	0xe380060f,	/* orr	r0, r0, #0x00f00000 */
+	0xe590f008,	/* ldr	pc, [r0, #0x08] */
+};
+
+static int __init palmt5_pm_init(void)
+{
+	int i;
+
+	/* this is where the bootloader jumps */
+	addr = phys_to_virt(PALMT5_STR_BASE);
+
+	for (i = 0; i < 3; i++)
+		addr[i] = resume[i];
+
+	return 0;
+}
+
+device_initcall(palmt5_pm_init);
+#endif
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static struct platform_device *devices[] __initdata = {
@@ -458,14 +499,15 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&palmt5_backlight,
 	&power_supply,
+	&palmt5_asoc,
 };
 
 /* setup udc GPIOs initial state */
 static void __init palmt5_udc_init(void)
 {
-	if (!gpio_request(GPIO_NR_PALMT5_USB_POWER, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_PALMT5_USB_POWER, 1);
-		gpio_free(GPIO_NR_PALMT5_USB_POWER);
+	if (!gpio_request(GPIO_NR_PALMT5_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMT5_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMT5_USB_PULLUP);
 	}
 }
 
@@ -476,12 +518,11 @@ static void __init palmt5_init(void)
 	set_pxa_fb_info(&palmt5_lcd_screen);
 	pxa_set_mci_info(&palmt5_mci_platform_data);
 	palmt5_udc_init();
+	pxa_set_ac97_info(&palmt5_ac97_pdata);
 	pxa_set_udc_info(&palmt5_udc_info);
-	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmt5_ficp_platform_data);
 	pxa_set_keypad_info(&palmt5_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
-	palm27x_asoc_set_pdata(&palm27x_asoc_pdata);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

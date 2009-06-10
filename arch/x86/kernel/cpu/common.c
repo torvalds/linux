@@ -41,8 +41,6 @@
 
 #include "cpu.h"
 
-#ifdef CONFIG_X86_64
-
 /* all of these masks are initialized in setup_cpu_local_masks() */
 cpumask_var_t cpu_initialized_mask;
 cpumask_var_t cpu_callout_mask;
@@ -59,16 +57,6 @@ void __init setup_cpu_local_masks(void)
 	alloc_bootmem_cpumask_var(&cpu_callout_mask);
 	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
 }
-
-#else /* CONFIG_X86_32 */
-
-cpumask_t cpu_sibling_setup_map;
-cpumask_t cpu_callout_map;
-cpumask_t cpu_initialized;
-cpumask_t cpu_callin_map;
-
-#endif /* CONFIG_X86_32 */
-
 
 static const struct cpu_dev *this_cpu __cpuinitdata;
 
@@ -125,6 +113,13 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #endif
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
+
+static int __init x86_xsave_setup(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+	return 1;
+}
+__setup("noxsave", x86_xsave_setup);
 
 #ifdef CONFIG_X86_32
 static int cachesize_override __cpuinitdata = -1;
@@ -859,6 +854,7 @@ static void vgetcpu_set_mode(void)
 void __init identify_boot_cpu(void)
 {
 	identify_cpu(&boot_cpu_data);
+	init_c1e_mask();
 #ifdef CONFIG_X86_32
 	sysenter_setup();
 	enable_sep_cpu();
@@ -1213,6 +1209,8 @@ void __cpuinit cpu_init(void)
 	set_tss_desc(cpu, t);
 	load_TR_desc();
 	load_LDT(&init_mm.context);
+
+	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 
 #ifdef CONFIG_DOUBLEFAULT
 	/* Set up doublefault TSS pointer in the GDT */

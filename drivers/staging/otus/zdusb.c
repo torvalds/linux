@@ -48,7 +48,8 @@ static const char driver_name[] = "Otus";
 static struct usb_device_id zd1221_ids [] = {
 	{ USB_DEVICE(VENDOR_ATHR, PRODUCT_AR9170) },
         { USB_DEVICE(VENDOR_DLINK, PRODUCT_DWA160A) },
-	{ USB_DEVICE(0x0846, 0x9010) },
+	{ USB_DEVICE(VENDOR_NETGEAR, PRODUCT_WNDA3100) },
+	{ USB_DEVICE(VENDOR_NETGEAR, PRODUCT_WN111v2) },
 	{ }					/* Terminating entry */
 };
 

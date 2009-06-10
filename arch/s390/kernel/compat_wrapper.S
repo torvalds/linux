@@ -1805,3 +1805,21 @@ compat_sys_keyctl_wrapper:
 	llgfr	%r5,%r5			# u32
 	llgfr	%r6,%r6			# u32
 	jg	compat_sys_keyctl	# branch to system call
+
+	.globl	compat_sys_preadv_wrapper
+compat_sys_preadv_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgtr	%r3,%r3			# compat_iovec *
+	llgfr	%r4,%r4			# unsigned long
+	llgfr	%r5,%r5			# u32
+	llgfr	%r6,%r6			# u32
+	jg	compat_sys_preadv	# branch to system call
+
+	.globl	compat_sys_pwritev_wrapper
+compat_sys_pwritev_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	llgtr	%r3,%r3			# compat_iovec *
+	llgfr	%r4,%r4			# unsigned long
+	llgfr	%r5,%r5			# u32
+	llgfr	%r6,%r6			# u32
+	jg	compat_sys_pwritev	# branch to system call

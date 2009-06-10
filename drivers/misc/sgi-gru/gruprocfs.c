@@ -62,7 +62,9 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, asid_wrap);
 	printstat(s, asid_reuse);
 	printstat(s, intr);
+	printstat(s, intr_mm_lock_failed);
 	printstat(s, call_os);
+	printstat(s, call_os_offnode_reference);
 	printstat(s, call_os_check_for_bug);
 	printstat(s, call_os_wait_queue);
 	printstat(s, user_flush_tlb);
@@ -120,6 +122,30 @@ static ssize_t statistics_write(struct file *file, const char __user *userbuf,
 	return count;
 }
 
+static int mcs_statistics_show(struct seq_file *s, void *p)
+{
+	int op;
+	unsigned long total, count, max;
+	static char *id[] = {"cch_allocate", "cch_start", "cch_interrupt",
+		"cch_interrupt_sync", "cch_deallocate", "tgh_invalidate"};
+
+	for (op = 0; op < mcsop_last; op++) {
+		count = atomic_long_read(&mcs_op_statistics[op].count);
+		total = atomic_long_read(&mcs_op_statistics[op].total);
+		max = mcs_op_statistics[op].max;
+		seq_printf(s, "%-20s%12ld%12ld%12ld\n", id[op], count,
+			   count ? total / count : 0, max);
+	}
+	return 0;
+}
+
+static ssize_t mcs_statistics_write(struct file *file,
+			const char __user *userbuf, size_t count, loff_t *data)
+{
+	memset(mcs_op_statistics, 0, sizeof(mcs_op_statistics));
+	return count;
+}
+
 static int options_show(struct seq_file *s, void *p)
 {
 	seq_printf(s, "0x%lx\n", gru_options);
@@ -135,6 +161,7 @@ static ssize_t options_write(struct file *file, const char __user *userbuf,
 	if (copy_from_user
 	    (buf, userbuf, count < sizeof(buf) ? count : sizeof(buf)))
 		return -EFAULT;
+	buf[count - 1] = '\0';
 	if (!strict_strtoul(buf, 10, &val))
 		gru_options = val;
 
@@ -199,7 +226,7 @@ static void seq_stop(struct seq_file *file, void *data)
 
 static void *seq_start(struct seq_file *file, loff_t *gid)
 {
-	if (*gid < GRU_MAX_GRUS)
+	if (*gid < gru_max_gids)
 		return gid;
 	return NULL;
 }
@@ -207,7 +234,7 @@ static void *seq_start(struct seq_file *file, loff_t *gid)
 static void *seq_next(struct seq_file *file, void *data, loff_t *gid)
 {
 	(*gid)++;
-	if (*gid < GRU_MAX_GRUS)
+	if (*gid < gru_max_gids)
 		return gid;
 	return NULL;
 }
@@ -231,6 +258,11 @@ static int statistics_open(struct inode *inode, struct file *file)
 	return single_open(file, statistics_show, NULL);
 }
 
+static int mcs_statistics_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, mcs_statistics_show, NULL);
+}
+
 static int options_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, options_show, NULL);
@@ -251,6 +283,14 @@ static const struct file_operations statistics_fops = {
 	.open 		= statistics_open,
 	.read 		= seq_read,
 	.write 		= statistics_write,
+	.llseek 	= seq_lseek,
+	.release 	= single_release,
+};
+
+static const struct file_operations mcs_statistics_fops = {
+	.open 		= mcs_statistics_open,
+	.read 		= seq_read,
+	.write 		= mcs_statistics_write,
 	.llseek 	= seq_lseek,
 	.release 	= single_release,
 };
@@ -283,6 +323,7 @@ static struct proc_entry {
 	struct proc_dir_entry *entry;
 } proc_files[] = {
 	{"statistics", 0644, &statistics_fops},
+	{"mcs_statistics", 0644, &mcs_statistics_fops},
 	{"debug_options", 0644, &options_fops},
 	{"cch_status", 0444, &cch_fops},
 	{"gru_status", 0444, &gru_fops},

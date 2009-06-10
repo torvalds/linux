@@ -181,7 +181,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mdev->workqueue = create_singlethread_workqueue("mlx4_en");
 	if (!mdev->workqueue) {
 		err = -ENOMEM;
-		goto err_close_nic;
+		goto err_mr;
 	}
 
 	/* At this stage all non-port specific tasks are complete:
@@ -214,9 +214,8 @@ err_free_netdev:
 	flush_workqueue(mdev->workqueue);
 
 	/* Stop event queue before we drop down to release shared SW state */
-
-err_close_nic:
 	destroy_workqueue(mdev->workqueue);
+
 err_mr:
 	mlx4_mr_free(dev, &mdev->mr);
 err_uar:

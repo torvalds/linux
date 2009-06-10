@@ -612,8 +612,8 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 
 	/* Good data.  Use specified location. */
 	loc = locations[1];
-	*start = le16_to_cpu(fltl->start_hi) << 16 |
-	    le16_to_cpu(fltl->start_lo);
+	*start = (le16_to_cpu(fltl->start_hi) << 16 |
+	    le16_to_cpu(fltl->start_lo)) >> 2;
 end:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLTL[%s] = 0x%x.\n", loc, *start));
 	return QLA_SUCCESS;
@@ -629,6 +629,14 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		{ FA_BOOT_CODE_ADDR, FA_BOOT_CODE_ADDR, FA_BOOT_CODE_ADDR_81 };
 	const uint32_t def_vpd_nvram[] =
 		{ FA_VPD_NVRAM_ADDR, FA_VPD_NVRAM_ADDR, FA_VPD_NVRAM_ADDR_81 };
+	const uint32_t def_vpd0[] =
+		{ 0, 0, FA_VPD0_ADDR_81 };
+	const uint32_t def_vpd1[] =
+		{ 0, 0, FA_VPD1_ADDR_81 };
+	const uint32_t def_nvram0[] =
+		{ 0, 0, FA_NVRAM0_ADDR_81 };
+	const uint32_t def_nvram1[] =
+		{ 0, 0, FA_NVRAM1_ADDR_81 };
 	const uint32_t def_fdt[] =
 		{ FA_FLASH_DESCR_ADDR_24, FA_FLASH_DESCR_ADDR,
 			FA_FLASH_DESCR_ADDR_81 };
@@ -693,6 +701,20 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			break;
 		case FLT_REG_VPD_0:
 			ha->flt_region_vpd_nvram = start;
+			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_VPD_1:
+			if (PCI_FUNC(ha->pdev->devfn) & 1)
+				ha->flt_region_vpd = start;
+			break;
+		case FLT_REG_NVRAM_0:
+			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+				ha->flt_region_nvram = start;
+			break;
+		case FLT_REG_NVRAM_1:
+			if (PCI_FUNC(ha->pdev->devfn) & 1)
+				ha->flt_region_nvram = start;
 			break;
 		case FLT_REG_FDT:
 			ha->flt_region_fdt = start;
@@ -722,13 +744,18 @@ no_flash_data:
 	ha->flt_region_fw = def_fw[def];
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
+	ha->flt_region_vpd = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	    def_vpd0[def]: def_vpd1[def];
+	ha->flt_region_nvram = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
+	    def_nvram0[def]: def_nvram1[def];
 	ha->flt_region_fdt = def_fdt[def];
 	ha->flt_region_npiv_conf = !(PCI_FUNC(ha->pdev->devfn) & 1) ?
 	    def_npiv_conf0[def]: def_npiv_conf1[def];
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
-	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x npiv=0x%x.\n", loc,
-	    ha->flt_region_boot, ha->flt_region_fw, ha->flt_region_vpd_nvram,
+	    "vpd_nvram=0x%x vpd=0x%x nvram=0x%x fdt=0x%x flt=0x%x "
+	    "npiv=0x%x.\n", loc, ha->flt_region_boot, ha->flt_region_fw,
+	    ha->flt_region_vpd_nvram, ha->flt_region_vpd, ha->flt_region_nvram,
 	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_npiv_conf));
 }
 
@@ -931,10 +958,14 @@ done:
 	ha->npiv_info = NULL;
 }
 
-static void
-qla24xx_unprotect_flash(struct qla_hw_data *ha)
+static int
+qla24xx_unprotect_flash(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (ha->flags.fac_supported)
+		return qla81xx_fac_do_write_enable(vha, 1);
 
 	/* Enable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
@@ -942,19 +973,25 @@ qla24xx_unprotect_flash(struct qla_hw_data *ha)
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
 
 	if (!ha->fdt_wrt_disable)
-		return;
+		goto done;
 
 	/* Disable flash write-protection, first clear SR protection bit */
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
 	/* Then write zero again to clear remaining SR bits.*/
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
+done:
+	return QLA_SUCCESS;
 }
 
-static void
-qla24xx_protect_flash(struct qla_hw_data *ha)
+static int
+qla24xx_protect_flash(scsi_qla_host_t *vha)
 {
 	uint32_t cnt;
+	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (ha->flags.fac_supported)
+		return qla81xx_fac_do_write_enable(vha, 0);
 
 	if (!ha->fdt_wrt_disable)
 		goto skip_wrt_protect;
@@ -973,6 +1010,26 @@ skip_wrt_protect:
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+
+	return QLA_SUCCESS;
+}
+
+static int
+qla24xx_erase_sector(scsi_qla_host_t *vha, uint32_t fdata)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t start, finish;
+
+	if (ha->flags.fac_supported) {
+		start = fdata >> 2;
+		finish = start + (ha->fdt_block_size >> 2) - 1;
+		return qla81xx_fac_erase_sector(vha, flash_data_addr(ha,
+		    start), flash_data_addr(ha, finish));
+	}
+
+	return qla24xx_write_flash_dword(ha, ha->fdt_erase_cmd,
+	    (fdata & 0xff00) | ((fdata << 16) & 0xff0000) |
+	    ((fdata >> 16) & 0xff));
 }
 
 static int
@@ -986,8 +1043,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	dma_addr_t optrom_dma;
 	void *optrom = NULL;
 	struct qla_hw_data *ha = vha->hw;
-
-	ret = QLA_SUCCESS;
 
 	/* Prepare burst-capable write on supported ISPs. */
 	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && !(faddr & 0xfff) &&
@@ -1004,7 +1059,12 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	rest_addr = (ha->fdt_block_size >> 2) - 1;
 	sec_mask = ~rest_addr;
 
-	qla24xx_unprotect_flash(ha);
+	ret = qla24xx_unprotect_flash(vha);
+	if (ret != QLA_SUCCESS) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to unprotect flash for update.\n");
+		goto done;
+	}
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
 		fdata = (faddr & sec_mask) << 2;
@@ -1017,9 +1077,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				    ha->fdt_unprotect_sec_cmd,
 				    (fdata & 0xff00) | ((fdata << 16) &
 				    0xff0000) | ((fdata >> 16) & 0xff));
-			ret = qla24xx_write_flash_dword(ha, ha->fdt_erase_cmd,
-			    (fdata & 0xff00) |((fdata << 16) &
-			    0xff0000) | ((fdata >> 16) & 0xff));
+			ret = qla24xx_erase_sector(vha, fdata);
 			if (ret != QLA_SUCCESS) {
 				DEBUG9(qla_printk("Unable to erase sector: "
 				    "address=%x.\n", faddr));
@@ -1073,8 +1131,11 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    0xff0000) | ((fdata >> 16) & 0xff));
 	}
 
-	qla24xx_protect_flash(ha);
-
+	ret = qla24xx_protect_flash(vha);
+	if (ret != QLA_SUCCESS)
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to protect flash after update.\n");
+done:
 	if (optrom)
 		dma_free_coherent(&ha->pdev->dev,
 		    OPTROM_BURST_SIZE, optrom, optrom_dma);
@@ -1915,7 +1976,7 @@ qla2x00_resume_hba(struct scsi_qla_host *vha)
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 	qla2xxx_wake_dpc(vha);
-	qla2x00_wait_for_hba_online(vha);
+	qla2x00_wait_for_chip_reset(vha);
 	scsi_unblock_requests(vha->host);
 }
 
@@ -2206,11 +2267,7 @@ qla24xx_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 	rval = qla24xx_write_flash_data(vha, (uint32_t *)buf, offset >> 2,
 	    length >> 2);
 
-	/* Resume HBA -- RISC reset needed. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
-	set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-	qla2xxx_wake_dpc(vha);
-	qla2x00_wait_for_hba_online(vha);
 	scsi_unblock_requests(vha->host);
 
 	return rval;
@@ -2518,7 +2575,7 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	dcode = mbuf;
 
 	/* Begin with first PCI expansion ROM header. */
-	pcihdr = ha->flt_region_boot;
+	pcihdr = ha->flt_region_boot << 2;
 	last_image = 1;
 	do {
 		/* Verify PCI expansion ROM header. */

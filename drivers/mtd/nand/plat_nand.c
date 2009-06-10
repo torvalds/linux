@@ -30,7 +30,7 @@ struct plat_nand_data {
 /*
  * Probe for the NAND device.
  */
-static int __init plat_nand_probe(struct platform_device *pdev)
+static int __devinit plat_nand_probe(struct platform_device *pdev)
 {
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
 	struct plat_nand_data *data;

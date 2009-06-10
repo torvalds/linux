@@ -3014,7 +3014,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		.dev_free =	snd_cmipci_dev_free,
 	};
 	unsigned int val;
-	long iomidi;
+	long iomidi = 0;
 	int integrated_midi = 0;
 	char modelstr[16];
 	int pcm_index, pcm_spdif_index;

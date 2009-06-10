@@ -289,12 +289,12 @@ config MACH_LITTLETON
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
 	select PXA3xx
-	select PXA930
+	select CPU_PXA930
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select PXA3xx
-	select PXA930
+	select CPU_PXA930
 
 config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"
@@ -342,6 +342,15 @@ config MACH_PCM027
 config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
 	select HAVE_PWM
+
+config MACH_PALMTE2
+	bool "Palm Tungsten|E2"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA25x
+	help
+	  Say Y here if you intend to run this kernel on a Palm Tungsten|E2
+	  handheld computer.
 
 config MACH_PALMT5
 	bool "Palm Tungsten|T5"

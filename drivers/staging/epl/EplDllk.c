@@ -121,8 +121,8 @@
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
-void PUBLIC TgtDbgPostTraceValue(DWORD dwTraceValue_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
+void TgtDbgPostTraceValue(u32 dwTraceValue_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #define TGT_DBG_POST_TRACE_VALUE(v)     TgtDbgPostTraceValue(v)
 #else
@@ -195,12 +195,12 @@ typedef enum {
 } tEplDllState;
 
 typedef struct {
-	BYTE m_be_abSrcMac[6];
+	u8 m_be_abSrcMac[6];
 	tEdrvTxBuffer *m_pTxBuffer;	// Buffers for Tx-Frames
 	unsigned int m_uiMaxTxFrames;
-	BYTE m_bFlag1;		// Flag 1 with EN, EC for PRes, StatusRes
-	BYTE m_bMnFlag1;	// Flag 1 with EA, ER from PReq, SoA of MN
-	BYTE m_bFlag2;		// Flag 2 with PR and RS for PRes, StatusRes, IdentRes
+	u8 m_bFlag1;		// Flag 1 with EN, EC for PRes, StatusRes
+	u8 m_bMnFlag1;	// Flag 1 with EA, ER from PReq, SoA of MN
+	u8 m_bFlag2;		// Flag 2 with PR and RS for PRes, StatusRes, IdentRes
 	tEplDllConfigParam m_DllConfigParam;
 	tEplDllIdentParam m_DllIdentParam;
 	tEplDllState m_DllState;
@@ -257,7 +257,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 
 // called by high resolution timer module to monitor EPL cycle as CN
 #if EPL_TIMER_USE_HIGHRES != FALSE
-static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p);
+static tEplKernel EplDllkCbCnTimer(tEplTimerEventArg *pEventArg_p);
 #endif
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
@@ -278,10 +278,9 @@ static tEplKernel EplDllkAsyncFrameNotReceived(tEplDllReqServiceId
 					       ReqServiceId_p,
 					       unsigned int uiNodeId_p);
 
-static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p);
+static tEplKernel EplDllkCbMnTimerCycle(tEplTimerEventArg *pEventArg_p);
 
-static tEplKernel PUBLIC EplDllkCbMnTimerResponse(tEplTimerEventArg *
-						  pEventArg_p);
+static tEplKernel EplDllkCbMnTimerResponse(tEplTimerEventArg *pEventArg_p);
 
 #endif
 
@@ -514,7 +513,7 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 			       EPL_C_DLL_ETHERTYPE_EPL);
 		// source node ID
 		AmiSetByteToLe(&pTxFrame->m_le_bSrcNodeId,
-			       (BYTE) EplDllkInstance_g.m_DllConfigParam.
+			       (u8) EplDllkInstance_g.m_DllConfigParam.
 			       m_uiNodeId);
 		// source MAC address
 		EPL_MEMCPY(&pTxFrame->m_be_abSrcMac[0],
@@ -531,7 +530,7 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 				{	// IdentResponses and StatusResponses are Broadcast
 					AmiSetByteToLe(&pTxFrame->
 						       m_le_bDstNodeId,
-						       (BYTE)
+						       (u8)
 						       EPL_C_ADR_BROADCAST);
 					break;
 				}
@@ -550,10 +549,10 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 					  EPL_C_DLL_MULTICAST_SOC);
 			// destination node ID
 			AmiSetByteToLe(&pTxFrame->m_le_bDstNodeId,
-				       (BYTE) EPL_C_ADR_BROADCAST);
+				       (u8) EPL_C_ADR_BROADCAST);
 			// reset Flags
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soc.m_le_bFlag1, (BYTE) 0);
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soc.m_le_bFlag2, (BYTE) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soc.m_le_bFlag1, (u8) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soc.m_le_bFlag2, (u8) 0);
 			break;
 
 		case kEplMsgTypeSoa:
@@ -562,13 +561,13 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 					  EPL_C_DLL_MULTICAST_SOA);
 			// destination node ID
 			AmiSetByteToLe(&pTxFrame->m_le_bDstNodeId,
-				       (BYTE) EPL_C_ADR_BROADCAST);
+				       (u8) EPL_C_ADR_BROADCAST);
 			// reset Flags
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bFlag1, (BYTE) 0);
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bFlag2, (BYTE) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bFlag1, (u8) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bFlag2, (u8) 0);
 			// EPL profile version
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bEplVersion,
-				       (BYTE) EPL_SPEC_VERSION);
+				       (u8) EPL_SPEC_VERSION);
 			break;
 
 		case kEplMsgTypePres:
@@ -577,18 +576,18 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 					  EPL_C_DLL_MULTICAST_PRES);
 			// destination node ID
 			AmiSetByteToLe(&pTxFrame->m_le_bDstNodeId,
-				       (BYTE) EPL_C_ADR_BROADCAST);
+				       (u8) EPL_C_ADR_BROADCAST);
 			// reset Flags
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.m_le_bFlag1, (BYTE) 0);
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.m_le_bFlag2, (BYTE) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.m_le_bFlag1, (u8) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.m_le_bFlag2, (u8) 0);
 			// PDO size
 			//AmiSetWordToLe(&pTxFrame->m_Data.m_Pres.m_le_wSize, 0);
 			break;
 
 		case kEplMsgTypePreq:
 			// reset Flags
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Preq.m_le_bFlag1, (BYTE) 0);
-			//AmiSetByteToLe(&pTxFrame->m_Data.m_Preq.m_le_bFlag2, (BYTE) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Preq.m_le_bFlag1, (u8) 0);
+			//AmiSetByteToLe(&pTxFrame->m_Data.m_Preq.m_le_bFlag2, (u8) 0);
 			// PDO size
 			//AmiSetWordToLe(&pTxFrame->m_Data.m_Preq.m_le_wSize, 0);
 			break;
@@ -597,7 +596,7 @@ tEplKernel EplDllkCreateTxFrame(unsigned int *puiHandle_p,
 			break;
 		}
 		// EPL message type
-		AmiSetByteToLe(&pTxFrame->m_le_bMessageType, (BYTE) MsgType_p);
+		AmiSetByteToLe(&pTxFrame->m_le_bMessageType, (u8) MsgType_p);
 	}
 
 	*ppFrame_p = pTxFrame;
@@ -673,7 +672,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 	tEdrvTxBuffer *pTxBuffer;
 	unsigned int uiHandle;
 	unsigned int uiFrameSize;
-	BYTE abMulticastMac[6];
+	u8 abMulticastMac[6];
 	tEplDllAsyncReqPriority AsyncReqPriority;
 	unsigned int uiFrameCount;
 	tEplNmtState NmtState;
@@ -712,7 +711,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 			// EPL profile version
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_bEplProfileVersion,
-				       (BYTE) EPL_SPEC_VERSION);
+				       (u8) EPL_SPEC_VERSION);
 			// FeatureFlags
 			AmiSetDwordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 					m_IdentResponse.m_le_dwFeatureFlags,
@@ -721,18 +720,18 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 			// MTU
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wMtu,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.m_uiAsyncMtu);
 			// PollInSize
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wPollInSize,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.
 				       m_uiPreqActPayloadLimit);
 			// PollOutSize
 			AmiSetWordToLe(&pTxFrame->m_Data.m_Asnd.m_Payload.
 				       m_IdentResponse.m_le_wPollOutSize,
-				       (WORD) EplDllkInstance_g.
+				       (u16) EplDllkInstance_g.
 				       m_DllConfigParam.
 				       m_uiPresActPayloadLimit);
 			// ResponseTime / PresMaxLatency
@@ -936,7 +935,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 //                    EplDllkInstance_g.m_aNodeInfo[uiIndex].m_uiNodeId = uiIndex + 1;
 					EplDllkInstance_g.m_aNodeInfo[uiIndex].
 					    m_wPresPayloadLimit =
-					    (WORD) EplDllkInstance_g.
+					    (u16) EplDllkInstance_g.
 					    m_DllConfigParam.
 					    m_uiIsochrRxMaxPayload;
 				}
@@ -1233,7 +1232,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 				}
 				if (uiFrameCount > 0) {
 					EplDllkInstance_g.m_bFlag2 =
-					    (BYTE) (((AsyncReqPriority <<
+					    (u8) (((AsyncReqPriority <<
 						      EPL_FRAME_FLAG2_PR_SHIFT)
 						     & EPL_FRAME_FLAG2_PR)
 						    | (uiFrameCount &
@@ -1307,7 +1306,7 @@ tEplKernel EplDllkProcess(tEplEvent * pEvent_p)
 					}
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bNmtStatus,
-						       (BYTE) NmtState);
+						       (u8) NmtState);
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bFlag2,
 						       EplDllkInstance_g.
@@ -1533,7 +1532,7 @@ tEplKernel EplDllkSetAsndServiceIdFilter(tEplDllAsndServiceId ServiceId_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, BYTE bSoaFlag1_p)
+tEplKernel EplDllkSetFlag1OfNode(unsigned int uiNodeId_p, u8 bSoaFlag1_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplDllkNodeInfo *pNodeInfo;
@@ -1664,7 +1663,7 @@ tEplKernel EplDllkAddNode(tEplDllNodeInfo * pNodeInfo_p)
 		pIntNodeInfo->m_pPreqTxBuffer =
 		    &EplDllkInstance_g.m_pTxBuffer[uiHandle];
 		AmiSetByteToLe(&pFrame->m_le_bDstNodeId,
-			       (BYTE) pNodeInfo_p->m_uiNodeId);
+			       (u8) pNodeInfo_p->m_uiNodeId);
 
 		// set up destination MAC address
 		EPL_MEMCPY(pFrame->m_be_abDstMac, pIntNodeInfo->m_be_abMacAddr,
@@ -2431,7 +2430,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 	tEplDllReqServiceId ReqServiceId;
 	unsigned int uiAsndServiceId;
 	unsigned int uiNodeId;
-	BYTE bFlag1;
+	u8 bFlag1;
 
 	BENCHMARK_MOD_02_SET(3);
 	NmtState = EplNmtkGetNmtState();
@@ -2466,7 +2465,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 					// update frame (NMT state, RD, RS, PR, MS, EN flags)
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bNmtStatus,
-						       (BYTE) NmtState);
+						       (u8) NmtState);
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bFlag2,
 						       EplDllkInstance_g.
@@ -2541,7 +2540,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 					// update frame (NMT state, RD, RS, PR, MS, EN flags)
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bNmtStatus,
-						       (BYTE) NmtState);
+						       (u8) NmtState);
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 						       m_le_bFlag2,
 						       EplDllkInstance_g.
@@ -2803,7 +2802,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 				}
 				AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 					       m_le_bNmtStatus,
-					       (BYTE) NmtState);
+					       (u8) NmtState);
 				AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.
 					       m_le_bFlag2,
 					       EplDllkInstance_g.m_bFlag2);
@@ -2888,7 +2887,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 							       m_Payload.
 							       m_StatusResponse.
 							       m_le_bNmtStatus,
-							       (BYTE) NmtState);
+							       (u8) NmtState);
 						AmiSetByteToLe(&pTxFrame->
 							       m_Data.m_Asnd.
 							       m_Payload.
@@ -2954,7 +2953,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 							       m_Payload.
 							       m_IdentResponse.
 							       m_le_bNmtStatus,
-							       (BYTE) NmtState);
+							       (u8) NmtState);
 						AmiSetByteToLe(&pTxFrame->
 							       m_Data.m_Asnd.
 							       m_Payload.
@@ -3155,7 +3154,7 @@ static void EplDllkCbFrameReceived(tEdrvRxBuffer * pRxBuffer_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3286,7 +3285,7 @@ static void EplDllkCbFrameTransmitted(tEdrvTxBuffer * pTxBuffer_p)
 						       m_Payload.
 						       m_StatusResponse.
 						       m_le_bNmtStatus,
-						       (BYTE) NmtState);
+						       (u8) NmtState);
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Asnd.
 						       m_Payload.
 						       m_StatusResponse.
@@ -3322,7 +3321,7 @@ static void EplDllkCbFrameTransmitted(tEdrvTxBuffer * pTxBuffer_p)
 						       m_Payload.
 						       m_IdentResponse.
 						       m_le_bNmtStatus,
-						       (BYTE) NmtState);
+						       (u8) NmtState);
 					AmiSetByteToLe(&pTxFrame->m_Data.m_Asnd.
 						       m_Payload.
 						       m_IdentResponse.
@@ -3362,12 +3361,12 @@ static void EplDllkCbFrameTransmitted(tEdrvTxBuffer * pTxBuffer_p)
 						if ((AmiGetByteFromLe
 						     (&pTxFrame->
 						      m_le_bMessageType)
-						     == (BYTE) kEplMsgTypeAsnd)
+						     == (u8) kEplMsgTypeAsnd)
 						    &&
 						    (AmiGetByteFromLe
 						     (&pTxFrame->m_Data.m_Asnd.
 						      m_le_bServiceId)
-						     == (BYTE) kEplDllAsndNmtCommand)) {	// post event directly to NmtMnu module
+						     == (u8) kEplDllAsndNmtCommand)) {	// post event directly to NmtMnu module
 							Event.m_EventSink =
 							    kEplEventSinkNmtMnu;
 							Event.m_EventType =
@@ -3449,7 +3448,7 @@ static void EplDllkCbFrameTransmitted(tEdrvTxBuffer * pTxBuffer_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3485,7 +3484,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 				    unsigned int uiFrameSize_p)
 {
 	tEplMsgType MsgType;
-	WORD wEtherType;
+	u16 wEtherType;
 
 	// check frame
 	if (pFrame_p != NULL) {
@@ -3506,7 +3505,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 		if (wEtherType == EPL_C_DLL_ETHERTYPE_EPL) {
 			// source node ID
 			AmiSetByteToLe(&pFrame_p->m_le_bSrcNodeId,
-				       (BYTE) EplDllkInstance_g.
+				       (u8) EplDllkInstance_g.
 				       m_DllConfigParam.m_uiNodeId);
 
 			// check message type
@@ -3515,7 +3514,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 			if (MsgType == 0) {
 				MsgType = kEplMsgTypeAsnd;
 				AmiSetByteToLe(&pFrame_p->m_le_bMessageType,
-					       (BYTE) MsgType);
+					       (u8) MsgType);
 			}
 
 			if (MsgType == kEplMsgTypeAsnd) {
@@ -3546,7 +3545,7 @@ static tEplKernel EplDllkCheckFrame(tEplFrame * pFrame_p,
 //---------------------------------------------------------------------------
 
 #if EPL_TIMER_USE_HIGHRES != FALSE
-static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p)
+static tEplKernel EplDllkCbCnTimer(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;
@@ -3583,7 +3582,7 @@ static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3617,7 +3616,7 @@ static tEplKernel PUBLIC EplDllkCbCnTimer(tEplTimerEventArg * pEventArg_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p)
+static tEplKernel EplDllkCbMnTimerCycle(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;
@@ -3639,7 +3638,7 @@ static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p)
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3670,8 +3669,7 @@ static tEplKernel PUBLIC EplDllkCbMnTimerCycle(tEplTimerEventArg * pEventArg_p)
 //
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplDllkCbMnTimerResponse(tEplTimerEventArg *
-						  pEventArg_p)
+static tEplKernel EplDllkCbMnTimerResponse(tEplTimerEventArg *pEventArg_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplNmtState NmtState;
@@ -3693,7 +3691,7 @@ static tEplKernel PUBLIC EplDllkCbMnTimerResponse(tEplTimerEventArg *
 
       Exit:
 	if (Ret != kEplSuccessful) {
-		DWORD dwArg;
+		u32 dwArg;
 
 		BENCHMARK_MOD_02_TOGGLE(9);
 
@@ -3827,24 +3825,24 @@ static tEplKernel EplDllkMnSendSoa(tEplNmtState NmtState_p,
 			// update frame (target)
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.
 				       m_le_bReqServiceId,
-				       (BYTE) EplDllkInstance_g.
+				       (u8) EplDllkInstance_g.
 				       m_LastReqServiceId);
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.
 				       m_le_bReqServiceTarget,
-				       (BYTE) EplDllkInstance_g.
+				       (u8) EplDllkInstance_g.
 				       m_uiLastTargetNodeId);
 
 		} else {	// invite nobody
 			// update frame (target)
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.
-				       m_le_bReqServiceId, (BYTE) 0);
+				       m_le_bReqServiceId, (u8) 0);
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.
-				       m_le_bReqServiceTarget, (BYTE) 0);
+				       m_le_bReqServiceTarget, (u8) 0);
 		}
 
 		// update frame (NMT state)
 		AmiSetByteToLe(&pTxFrame->m_Data.m_Soa.m_le_bNmtStatus,
-			       (BYTE) NmtState_p);
+			       (u8) NmtState_p);
 
 		// send SoA frame
 		Ret = EdrvSendTxMsg(pTxBuffer);
@@ -3921,7 +3919,7 @@ static tEplKernel EplDllkMnSendPreq(tEplNmtState NmtState_p,
 	tEplKernel Ret = kEplSuccessful;
 	tEdrvTxBuffer *pTxBuffer = NULL;
 	tEplFrame *pTxFrame;
-	BYTE bFlag1 = 0;
+	u8 bFlag1 = 0;
 
 	if (EplDllkInstance_g.m_pCurNodeInfo == NULL) {	// start with first isochronous CN
 		EplDllkInstance_g.m_pCurNodeInfo =
@@ -3972,7 +3970,7 @@ static tEplKernel EplDllkMnSendPreq(tEplNmtState NmtState_p,
 		if (pTxBuffer == &EplDllkInstance_g.m_pTxBuffer[EPL_DLLK_TXFRAME_PRES]) {	// PRes of MN will be sent
 			// update NMT state
 			AmiSetByteToLe(&pTxFrame->m_Data.m_Pres.m_le_bNmtStatus,
-				       (BYTE) NmtState_p);
+				       (u8) NmtState_p);
 			*pDllStateProposed_p = kEplDllMsWaitSoaTrig;
 		}
 		// $$$ d.k. set EPL_FRAME_FLAG1_MS if necessary
@@ -4015,7 +4013,7 @@ static tEplKernel EplDllkAsyncFrameNotReceived(tEplDllReqServiceId
 					       unsigned int uiNodeId_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	BYTE abBuffer[18];
+	u8 abBuffer[18];
 	tEplFrame *pFrame = (tEplFrame *) abBuffer;
 	tEplFrameInfo FrameInfo;
 
@@ -4026,13 +4024,13 @@ static tEplKernel EplDllkAsyncFrameNotReceived(tEplDllReqServiceId
 		// ASnd service registered?
 		if (EplDllkInstance_g.m_aAsndFilter[ReqServiceId_p] == kEplDllAsndFilterAny) {	// ASnd service ID is registered
 			AmiSetByteToLe(&pFrame->m_le_bSrcNodeId,
-				       (BYTE) uiNodeId_p);
+				       (u8) uiNodeId_p);
 			// EPL MsgType ASnd
 			AmiSetByteToLe(&pFrame->m_le_bMessageType,
-				       (BYTE) kEplMsgTypeAsnd);
+				       (u8) kEplMsgTypeAsnd);
 			// ASnd Service ID
 			AmiSetByteToLe(&pFrame->m_Data.m_Asnd.m_le_bServiceId,
-				       (BYTE) ReqServiceId_p);
+				       (u8) ReqServiceId_p);
 			// create frame info structure
 			FrameInfo.m_pFrame = pFrame;
 			FrameInfo.m_uiFrameSize = 18;	// empty non existing ASnd frame

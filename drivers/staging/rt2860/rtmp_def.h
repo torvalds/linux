@@ -111,7 +111,6 @@
 // Entry number for each DMA descriptor ring
 //
 
-#ifdef RT2860
 #define TX_RING_SIZE            64 //64
 #define MGMT_RING_SIZE          128
 #define RX_RING_SIZE            128 //64
@@ -119,7 +118,6 @@
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
 #define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
 #define LOCAL_TXBUF_SIZE        2
-#endif // RT2860 //
 
 
 #ifdef MULTIPLE_CARD_SUPPORT
@@ -211,6 +209,19 @@
 #define fOP_STATUS_MAX_RETRY_ENABLED		0x00004000
 #define fOP_STATUS_WAKEUP_NOW               0x00008000
 #define fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE       0x00020000
+
+//
+//  RTMP_ADAPTER PSFlags : related to advanced power save.
+//
+// Indicate whether driver can go to sleep mode from now. This flag is useful AFTER link up
+#define fRTMP_PS_CAN_GO_SLEEP          0x00000001
+// Indicate whether driver has issue a LinkControl command to PCIe L1
+#define fRTMP_PS_SET_PCI_CLK_OFF_COMMAND          0x00000002
+// Indicate driver should disable kick off hardware to send packets from now.
+#define fRTMP_PS_DISABLE_TX         0x00000004
+// Indicate driver should IMMEDIATELY fo to sleep after receiving AP's beacon in which  doesn't indicate unicate nor multicast packets for me
+//. This flag is used ONLY in RTMPHandleRxDoneInterrupt routine.
+#define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
 
 #ifdef DOT11N_DRAFT3
 #define fOP_STATUS_SCAN_2040               	    0x00040000
@@ -1514,12 +1525,14 @@
 #define MCAST_HTMIX		3
 #endif // MCAST_RATE_SPECIFIC //
 
-// For AsicRadioOff/AsicRadioOn function
-#define DOT11POWERSAVE		0
-#define GUIRADIO_OFF		1
-#define RTMP_HALT		    2
-#define GUI_IDLE_POWER_SAVE		3
-// --
+// For AsicRadioOff/AsicRadioOn/AsicForceWakeup function
+// This is to indicate from where to call this function.
+#define DOT11POWERSAVE		0	// TO do .11 power save sleep
+#define GUIRADIO_OFF		1	// To perform Radio OFf command from GUI
+#define RTMP_HALT			2	// Called from Halt handler.
+#define GUI_IDLE_POWER_SAVE	3	// Call to sleep before link up with AP
+#define FROM_TX				4	// Force wake up from Tx packet.
+
 
 
 // definition for WpaSupport flag

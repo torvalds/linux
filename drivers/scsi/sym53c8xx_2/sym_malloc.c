@@ -262,7 +262,7 @@ static void ___free_dma_mem_cluster(m_pool_p mp, void *m)
 #endif
 
 /* Fetch the memory pool for a given pool id (i.e. DMA constraints) */
-static __inline m_pool_p ___get_dma_pool(m_pool_ident_t dev_dmat)
+static inline m_pool_p ___get_dma_pool(m_pool_ident_t dev_dmat)
 {
 	m_pool_p mp;
 	for (mp = mp0.next;

@@ -1426,7 +1426,7 @@ static int port_detect(unsigned long port_base, unsigned int j,
 
 	if (ha->pdev) {
 		pci_set_master(ha->pdev);
-		if (pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK))
+		if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32)))
 			printk("%s: warning, pci_set_dma_mask failed.\n",
 			       ha->board_name);
 	}

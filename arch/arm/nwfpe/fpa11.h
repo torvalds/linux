@@ -114,4 +114,8 @@ extern unsigned int SingleCPDO(struct roundingData *roundData,
 extern unsigned int DoubleCPDO(struct roundingData *roundData,
 			       const unsigned int opcode, FPREG * rFd);
 
+/* extneded_cpdo.c */
+extern unsigned int ExtendedCPDO(struct roundingData *roundData,
+				 const unsigned int opcode, FPREG * rFd);
+
 #endif

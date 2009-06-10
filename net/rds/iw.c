@@ -51,6 +51,7 @@ MODULE_PARM_DESC(fastreg_message_size, " Max size of a RDMA transfer (fastreg MR
 
 struct list_head rds_iw_devices;
 
+/* NOTE: if also grabbing iwdev lock, grab this first */
 DEFINE_SPINLOCK(iw_nodev_conns_lock);
 LIST_HEAD(iw_nodev_conns);
 
@@ -145,7 +146,7 @@ void rds_iw_remove_one(struct ib_device *device)
 	}
 	spin_unlock_irq(&rds_iwdev->spinlock);
 
-	rds_iw_remove_conns(rds_iwdev);
+	rds_iw_destroy_conns(rds_iwdev);
 
 	if (rds_iwdev->mr_pool)
 		rds_iw_destroy_mr_pool(rds_iwdev->mr_pool);
@@ -258,7 +259,7 @@ static int rds_iw_laddr_check(__be32 addr)
 void rds_iw_exit(void)
 {
 	rds_info_deregister_func(RDS_INFO_IWARP_CONNECTIONS, rds_iw_ic_info);
-	rds_iw_remove_nodev_conns();
+	rds_iw_destroy_nodev_conns();
 	ib_unregister_client(&rds_iw_client);
 	rds_iw_sysctl_exit();
 	rds_iw_recv_exit();

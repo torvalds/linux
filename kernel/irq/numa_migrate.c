@@ -54,6 +54,7 @@ static bool init_copy_one_irq_desc(int irq, struct irq_desc *old_desc,
 static void free_one_irq_desc(struct irq_desc *old_desc, struct irq_desc *desc)
 {
 	free_kstat_irqs(old_desc, desc);
+	free_desc_masks(old_desc, desc);
 	arch_free_chip_data(old_desc, desc);
 }
 

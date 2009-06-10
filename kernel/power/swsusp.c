@@ -51,6 +51,7 @@
 #include <linux/highmem.h>
 #include <linux/time.h>
 #include <linux/rbtree.h>
+#include <linux/io.h>
 
 #include "power.h"
 
@@ -229,17 +230,16 @@ int swsusp_shrink_memory(void)
 		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
 		tmp = size;
 		size += highmem_size;
-		for_each_zone (zone)
-			if (populated_zone(zone)) {
-				tmp += snapshot_additional_pages(zone);
-				if (is_highmem(zone)) {
-					highmem_size -=
+		for_each_populated_zone(zone) {
+			tmp += snapshot_additional_pages(zone);
+			if (is_highmem(zone)) {
+				highmem_size -=
 					zone_page_state(zone, NR_FREE_PAGES);
-				} else {
-					tmp -= zone_page_state(zone, NR_FREE_PAGES);
-					tmp += zone->lowmem_reserve[ZONE_NORMAL];
-				}
+			} else {
+				tmp -= zone_page_state(zone, NR_FREE_PAGES);
+				tmp += zone->lowmem_reserve[ZONE_NORMAL];
 			}
+		}
 
 		if (highmem_size < 0)
 			highmem_size = 0;

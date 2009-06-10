@@ -275,7 +275,11 @@ static void __init print_mtrr_state(void)
 	}
 	printk(KERN_DEBUG "MTRR variable ranges %sabled:\n",
 	       mtrr_state.enabled & 2 ? "en" : "dis");
-	high_width = ((size_or_mask ? ffs(size_or_mask) - 1 : 32) - (32 - PAGE_SHIFT) + 3) / 4;
+	if (size_or_mask & 0xffffffffUL)
+		high_width = ffs(size_or_mask & 0xffffffffUL) - 1;
+	else
+		high_width = ffs(size_or_mask>>32) + 32 - 1;
+	high_width = (high_width - (32 - PAGE_SHIFT) + 3) / 4;
 	for (i = 0; i < num_var_ranges; ++i) {
 		if (mtrr_state.var_ranges[i].mask_lo & (1 << 11))
 			printk(KERN_DEBUG "  %u base %0*X%05X000 mask %0*X%05X000 %s\n",
@@ -462,9 +466,6 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 	*base = base_hi << (32 - PAGE_SHIFT) | base_lo >> PAGE_SHIFT;
 	*type = base_lo & 0xff;
 
-	printk(KERN_DEBUG "  get_mtrr: cpu%d reg%02d base=%010lx size=%010lx %s\n",
-			cpu, reg, *base, *size,
-			mtrr_attrib_to_str(*type & 0xff));
 out_put_cpu:
 	put_cpu();
 }

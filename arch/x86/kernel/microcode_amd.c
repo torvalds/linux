@@ -12,31 +12,30 @@
  *
  *  Licensed under the terms of the GNU General Public
  *  License version 2. See file COPYING for details.
-*/
-
-#include <linux/capability.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/cpumask.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/miscdevice.h>
-#include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/mutex.h>
-#include <linux/cpu.h>
-#include <linux/firmware.h>
+ */
 #include <linux/platform_device.h>
-#include <linux/pci.h>
+#include <linux/capability.h>
+#include <linux/miscdevice.h>
+#include <linux/firmware.h>
+#include <linux/spinlock.h>
+#include <linux/cpumask.h>
 #include <linux/pci_ids.h>
 #include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/cpu.h>
+#include <linux/pci.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 
-#include <asm/msr.h>
-#include <asm/processor.h>
 #include <asm/microcode.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("AMD Microcode Update Driver");
 MODULE_AUTHOR("Peter Oruba");
@@ -72,8 +71,8 @@ struct microcode_header_amd {
 } __attribute__((packed));
 
 struct microcode_amd {
-	struct microcode_header_amd hdr;
-	unsigned int mpb[0];
+	struct microcode_header_amd	hdr;
+	unsigned int			mpb[0];
 };
 
 #define UCODE_MAX_SIZE			2048
@@ -184,8 +183,8 @@ static int get_ucode_data(void *to, const u8 *from, size_t n)
 	return 0;
 }
 
-static void *get_next_ucode(const u8 *buf, unsigned int size,
-			    unsigned int *mc_size)
+static void *
+get_next_ucode(const u8 *buf, unsigned int size, unsigned int *mc_size)
 {
 	unsigned int total_size;
 	u8 section_hdr[UCODE_CONTAINER_SECTION_HDR];
@@ -222,7 +221,6 @@ static void *get_next_ucode(const u8 *buf, unsigned int size,
 	}
 	return mc;
 }
-
 
 static int install_equiv_cpu_table(const u8 *buf)
 {
@@ -372,4 +370,3 @@ struct microcode_ops * __init init_amd_microcode(void)
 {
 	return &microcode_amd_ops;
 }
-

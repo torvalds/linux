@@ -20,15 +20,4 @@ void ack_bad_irq(unsigned int irq);
 
 #endif /* __ASSEMBLY__ */
 
-#define HARDIRQ_BITS	12
-
-/*
- * The hardirq mask has to be large enough to have
- * space for potentially all IRQ sources in the system
- * nesting on a single CPU:
- */
-#if (1 << HARDIRQ_BITS) < NR_IRQS
-# error HARDIRQ_BITS is too low!
-#endif
-
 #endif /* __ASM_AVR32_HARDIRQ_H */

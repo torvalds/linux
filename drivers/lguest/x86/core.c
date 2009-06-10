@@ -324,6 +324,11 @@ static void rewrite_hypercall(struct lg_cpu *cpu)
 	u8 insn[3] = {0xcd, 0x1f, 0x90};
 
 	__lgwrite(cpu, guest_pa(cpu, cpu->regs->eip), insn, sizeof(insn));
+	/* The above write might have caused a copy of that page to be made
+	 * (if it was read-only).  We need to make sure the Guest has
+	 * up-to-date pagetables.  As this doesn't happen often, we can just
+	 * drop them all. */
+	guest_pagetable_clear_all(cpu);
 }
 
 static bool is_hypercall(struct lg_cpu *cpu)
@@ -352,6 +357,16 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		if (cpu->regs->errcode == 0) {
 			if (emulate_insn(cpu))
 				return;
+		}
+		/* If KVM is active, the vmcall instruction triggers a
+		 * General Protection Fault.  Normally it triggers an
+		 * invalid opcode fault (6): */
+	case 6:
+		/* We need to check if ring == GUEST_PL and
+		 * faulting instruction == vmcall. */
+		if (is_hypercall(cpu)) {
+			rewrite_hypercall(cpu);
+			return;
 		}
 		break;
 	case 14: /* We've intercepted a Page Fault. */
@@ -398,15 +413,6 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * up the pointer now to indicate a hypercall is pending. */
 		cpu->hcall = (struct hcall_args *)cpu->regs;
 		return;
-	case 6:
-		/* kvm hypercalls trigger an invalid opcode fault (6).
-		 * We need to check if ring == GUEST_PL and
-		 * faulting instruction == vmcall. */
-		if (is_hypercall(cpu)) {
-			rewrite_hypercall(cpu);
-			return;
-		}
-		break;
 	}
 
 	/* We didn't handle the trap, so it needs to go to the Guest. */
@@ -563,8 +569,8 @@ void __exit lguest_arch_host_fini(void)
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
 	switch (args->arg0) {
-	case LHCALL_LOAD_GDT:
-		load_guest_gdt(cpu, args->arg1, args->arg2);
+	case LHCALL_LOAD_GDT_ENTRY:
+		load_guest_gdt_entry(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_LOAD_IDT_ENTRY:
 		load_guest_idt_entry(cpu, args->arg1, args->arg2, args->arg3);

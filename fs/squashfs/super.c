@@ -157,6 +157,16 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (msblk->block_size > SQUASHFS_FILE_MAX_SIZE)
 		goto failed_mount;
 
+	/*
+	 * Check the system page size is not larger than the filesystem
+	 * block size (by default 128K).  This is currently not supported.
+	 */
+	if (PAGE_CACHE_SIZE > msblk->block_size) {
+		ERROR("Page size > filesystem block size (%d).  This is "
+			"currently not supported!\n", msblk->block_size);
+		goto failed_mount;
+	}
+
 	msblk->block_log = le16_to_cpu(sblk->block_log);
 	if (msblk->block_log > SQUASHFS_FILE_MAX_LOG)
 		goto failed_mount;
@@ -301,6 +311,7 @@ failure:
 static int squashfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct squashfs_sb_info *msblk = dentry->d_sb->s_fs_info;
+	u64 id = huge_encode_dev(dentry->d_sb->s_bdev->bd_dev);
 
 	TRACE("Entered squashfs_statfs\n");
 
@@ -311,6 +322,8 @@ static int squashfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = msblk->inodes;
 	buf->f_ffree = 0;
 	buf->f_namelen = SQUASHFS_NAME_LEN;
+	buf->f_fsid.val[0] = (u32)id;
+	buf->f_fsid.val[1] = (u32)(id >> 32);
 
 	return 0;
 }

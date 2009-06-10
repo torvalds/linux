@@ -65,7 +65,6 @@
 #include <linux/vmalloc.h>
 
 
-#include <linux/wireless.h>
 #include <net/iw_handler.h>
 
 // load firmware
@@ -90,28 +89,22 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 // add by kathy
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 #define STA_PROFILE_PATH			"/etc/Wireless/RT2860STA/RT2860STA.dat"
 #define STA_RTMP_FIRMWARE_FILE_NAME "/etc/Wireless/RT2860STA/RT2860STA.bin"
 #define STA_NIC_DEVICE_NAME			"RT2860STA"
-#define STA_DRIVER_VERSION			"1.8.0.0"
+#define STA_DRIVER_VERSION			"1.8.1.1"
 #ifdef MULTIPLE_CARD_SUPPORT
 #define CARD_INFO_PATH			"/etc/Wireless/RT2860STA/RT2860STACard.dat"
 #endif // MULTIPLE_CARD_SUPPORT //
-#endif // RT2860 //
 
 
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RT2860
 #ifndef PCI_DEVICE
 #define PCI_DEVICE(vend,dev) \
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 #endif // PCI_DEVICE //
-#endif // RT2860 //
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 
 #define RTMP_TIME_AFTER(a,b)		\
 	(typecheck(unsigned long, (unsigned long)a) && \
@@ -123,11 +116,7 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	 typecheck(unsigned long, (unsigned long)b) && \
 	 ((long)(a) - (long)(b) >= 0))
 #define RTMP_TIME_BEFORE(a,b)	RTMP_TIME_AFTER_EQ(b,a)
-#else
-#define RTMP_TIME_AFTER(a,b) time_after(a, b)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define RT_MOD_INC_USE_COUNT() \
 	if (!try_module_get(THIS_MODULE)) \
 	{ \
@@ -136,10 +125,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	}
 
 #define RT_MOD_DEC_USE_COUNT() module_put(THIS_MODULE);
-#else
-#define RT_MOD_INC_USE_COUNT()	MOD_INC_USE_COUNT;
-#define RT_MOD_DEC_USE_COUNT() MOD_DEC_USE_COUNT;
-#endif
 
 #define OS_HZ			HZ
 
@@ -171,21 +156,12 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 #endif // CONFIG_STA_SUPPORT //
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 typedef	struct pid *	THREAD_PID;
 #define	THREAD_PID_INIT_VALUE	NULL
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
-#else
-typedef	pid_t	THREAD_PID;
-#define	THREAD_PID_INIT_VALUE	-1
-#define	GET_PID(_v)	_v
-#define	GET_PID_NUMBER(_v)	_v
-#define CHECK_PID_LEGALITY(_pid)	if (_pid >= 0)
-#define KILL_THREAD_PID(_A, _B, _C)	kill_proc(_A, _B, _C)
-#endif
 
 struct os_lock  {
 	spinlock_t		lock;
@@ -194,11 +170,9 @@ struct os_lock  {
 
 
 struct os_cookie {
-#ifdef RT2860
 	struct pci_dev 			*pci_dev;
 	struct pci_dev 			*parent_pci_dev;
 	dma_addr_t		  		pAd_pa;
-#endif // RT2860 //
 
 
 	struct tasklet_struct 	rx_done_task;
@@ -209,9 +183,7 @@ struct os_cookie {
 	struct tasklet_struct 	ac3_dma_done_task;
 	struct tasklet_struct 	hcca_dma_done_task;
 	struct tasklet_struct	tbtt_task;
-#ifdef RT2860
 	struct tasklet_struct	fifo_statistic_full_task;
-#endif // RT2860 //
 
 
 	unsigned long			apd_pid; //802.1x daemon pid
@@ -266,7 +238,6 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 
 #define RT2860_PCI_DEVICE_ID		0x0601
 
-#ifdef RT2860
 #define PCI_MAP_SINGLE(_handle, _ptr, _size, _sd_idx, _dir) \
 	linux_pci_map_single(_handle, _ptr, _size, _sd_idx, _dir)
 
@@ -281,7 +252,6 @@ void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size, int 
 
 #define DEV_ALLOC_SKB(_length) \
 	dev_alloc_skb(_length)
-#endif // RT2860 //
 
 
 
@@ -401,7 +371,6 @@ extern ULONG    RTDebugLevel;
 	spin_unlock_irqrestore((spinlock_t *)(__lock), ((unsigned long)__irqflag));	\
 }
 
-#ifdef RT2860
 #if defined(INF_TWINPASS) || defined(INF_DANUBE) || defined(IKANOS_VX_1X0)
 //Patch for ASIC turst read/write bug, needs to remove after metel fix
 #define RTMP_IO_READ32(_A, _R, _pV)									\
@@ -412,6 +381,12 @@ extern ULONG    RTDebugLevel;
 	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
 	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
     }                                                                   \
+}
+#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
+{																	\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
+	(*_pV = SWAP32(*((UINT32 *)(_pV))));                           \
 }
 #define RTMP_IO_READ8(_A, _R, _pV)									\
 {																	\
@@ -451,6 +426,11 @@ extern ULONG    RTDebugLevel;
     }                                                               \
     else															\
 		*_pV = 0;													\
+}
+#define RTMP_IO_FORCE_READ32(_A, _R, _pV)							\
+{																	\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + MAC_CSR0)));		\
+	(*_pV = readl((void *)((_A)->CSRBaseAddress + (_R))));			\
 }
 #define RTMP_IO_READ8(_A, _R, _pV)								\
 {																\
@@ -492,7 +472,6 @@ extern ULONG    RTDebugLevel;
 	writew((_V), (PUSHORT)((_A)->CSRBaseAddress + (_R)));	\
 }
 #endif
-#endif // RT2860 //
 
 
 #ifndef wait_event_interruptible_timeout
@@ -544,7 +523,6 @@ typedef void (*TIMER_FUNCTION)(unsigned long);
 #define MlmeAllocateMemory(_pAd, _ppVA) os_alloc_mem(_pAd, _ppVA, MGMT_DMA_BUFFER_SIZE)
 #define MlmeFreeMemory(_pAd, _pVA)     os_free_mem(_pAd, _pVA)
 
-#ifdef RT2860
 #define BUILD_TIMER_FUNCTION(_func)												\
 void linux_##_func(unsigned long data)											\
 {																				\
@@ -554,7 +532,6 @@ void linux_##_func(unsigned long data)											\
 	if (pTimer->Repeat)															\
 		RTMP_OS_Add_Timer(&pTimer->TimerObj, pTimer->TimerValue);				\
 }
-#endif // RT2860 //
 
 
 
@@ -907,7 +884,6 @@ int rt28xx_packet_xmit(struct sk_buff *skb);
 
 void rtmp_os_thread_init(PUCHAR pThreadName, PVOID pNotify);
 
-#ifdef RT2860
 #if !defined(PCI_CAP_ID_EXP)
 #define PCI_CAP_ID_EXP			    0x10
 #endif
@@ -921,6 +897,5 @@ void rtmp_os_thread_init(PUCHAR pThreadName, PVOID pNotify);
 #endif
 
 #define PCIBUS_INTEL_VENDOR         0x8086
-#endif // RT2860 //
 
 

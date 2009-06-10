@@ -99,6 +99,52 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 }
 static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
 
+/**
+ * store_remove_id - remove a PCI device ID from this driver
+ * @driver: target device driver
+ * @buf: buffer for scanning device ID data
+ * @count: input size
+ *
+ * Removes a dynamic pci device ID to this driver.
+ */
+static ssize_t
+store_remove_id(struct device_driver *driver, const char *buf, size_t count)
+{
+	struct pci_dynid *dynid, *n;
+	struct pci_driver *pdrv = to_pci_driver(driver);
+	__u32 vendor, device, subvendor = PCI_ANY_ID,
+		subdevice = PCI_ANY_ID, class = 0, class_mask = 0;
+	int fields = 0;
+	int retval = -ENODEV;
+
+	fields = sscanf(buf, "%x %x %x %x %x %x",
+			&vendor, &device, &subvendor, &subdevice,
+			&class, &class_mask);
+	if (fields < 2)
+		return -EINVAL;
+
+	spin_lock(&pdrv->dynids.lock);
+	list_for_each_entry_safe(dynid, n, &pdrv->dynids.list, node) {
+		struct pci_device_id *id = &dynid->id;
+		if ((id->vendor == vendor) &&
+		    (id->device == device) &&
+		    (subvendor == PCI_ANY_ID || id->subvendor == subvendor) &&
+		    (subdevice == PCI_ANY_ID || id->subdevice == subdevice) &&
+		    !((id->class ^ class) & class_mask)) {
+			list_del(&dynid->node);
+			kfree(dynid);
+			retval = 0;
+			break;
+		}
+	}
+	spin_unlock(&pdrv->dynids.lock);
+
+	if (retval)
+		return retval;
+	return count;
+}
+static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
+
 static void
 pci_free_dynids(struct pci_driver *drv)
 {
@@ -125,6 +171,20 @@ static void pci_remove_newid_file(struct pci_driver *drv)
 {
 	driver_remove_file(&drv->driver, &driver_attr_new_id);
 }
+
+static int
+pci_create_removeid_file(struct pci_driver *drv)
+{
+	int error = 0;
+	if (drv->probe != NULL)
+		error = driver_create_file(&drv->driver,&driver_attr_remove_id);
+	return error;
+}
+
+static void pci_remove_removeid_file(struct pci_driver *drv)
+{
+	driver_remove_file(&drv->driver, &driver_attr_remove_id);
+}
 #else /* !CONFIG_HOTPLUG */
 static inline void pci_free_dynids(struct pci_driver *drv) {}
 static inline int pci_create_newid_file(struct pci_driver *drv)
@@ -132,6 +192,11 @@ static inline int pci_create_newid_file(struct pci_driver *drv)
 	return 0;
 }
 static inline void pci_remove_newid_file(struct pci_driver *drv) {}
+static inline int pci_create_removeid_file(struct pci_driver *drv)
+{
+	return 0;
+}
+static inline void pci_remove_removeid_file(struct pci_driver *drv) {}
 #endif
 
 /**
@@ -212,10 +277,9 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 	node = dev_to_node(&dev->dev);
 	if (node >= 0) {
 		int cpu;
-		node_to_cpumask_ptr(nodecpumask, node);
 
 		get_online_cpus();
-		cpu = cpumask_any_and(nodecpumask, cpu_online_mask);
+		cpu = cpumask_any_and(cpumask_of_node(node), cpu_online_mask);
 		if (cpu < nr_cpu_ids)
 			error = work_on_cpu(cpu, local_pci_probe, &ddi);
 		else
@@ -899,13 +963,23 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	/* register with core */
 	error = driver_register(&drv->driver);
 	if (error)
-		return error;
+		goto out;
 
 	error = pci_create_newid_file(drv);
 	if (error)
-		driver_unregister(&drv->driver);
+		goto out_newid;
 
+	error = pci_create_removeid_file(drv);
+	if (error)
+		goto out_removeid;
+out:
 	return error;
+
+out_removeid:
+	pci_remove_newid_file(drv);
+out_newid:
+	driver_unregister(&drv->driver);
+	goto out;
 }
 
 /**
@@ -921,6 +995,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 void
 pci_unregister_driver(struct pci_driver *drv)
 {
+	pci_remove_removeid_file(drv);
 	pci_remove_newid_file(drv);
 	driver_unregister(&drv->driver);
 	pci_free_dynids(drv);
@@ -1020,6 +1095,7 @@ struct bus_type pci_bus_type = {
 	.remove		= pci_device_remove,
 	.shutdown	= pci_device_shutdown,
 	.dev_attrs	= pci_dev_attrs,
+	.bus_attrs	= pci_bus_attrs,
 	.pm		= PCI_PM_OPS_PTR,
 };
 

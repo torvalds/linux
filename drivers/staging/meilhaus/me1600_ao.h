@@ -98,11 +98,7 @@ typedef struct me1600_ao_subdevice {
 	wait_queue_head_t wait_queue;							/**< Wait queue to put on tasks waiting for data to arrive. */
 	me1600_ao_timeout_t timeout;							/**< The timeout for start in blocking and non-blocking mode. */
 	struct workqueue_struct *me1600_workqueue;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	struct work_struct ao_control_task;
-#else
 	struct delayed_work ao_control_task;
-#endif
 
 	volatile int ao_control_task_flag;						/**< Flag controling reexecuting of control task */
 } me1600_ao_subdevice_t;

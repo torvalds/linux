@@ -54,10 +54,6 @@ ACPI_MODULE_NAME("power");
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 
-#ifdef MODULE_PARAM_PREFIX
-#undef MODULE_PARAM_PREFIX
-#endif
-#define MODULE_PARAM_PREFIX "acpi."
 int acpi_power_nocheck;
 module_param_named(power_nocheck, acpi_power_nocheck, bool, 000);
 
@@ -773,13 +769,9 @@ static int acpi_power_resume(struct acpi_device *device)
 	return 0;
 }
 
-static int __init acpi_power_init(void)
+int __init acpi_power_init(void)
 {
 	int result = 0;
-
-
-	if (acpi_disabled)
-		return 0;
 
 	INIT_LIST_HEAD(&acpi_power_resource_list);
 
@@ -795,5 +787,3 @@ static int __init acpi_power_init(void)
 
 	return 0;
 }
-
-subsys_initcall(acpi_power_init);

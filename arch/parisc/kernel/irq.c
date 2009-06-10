@@ -311,12 +311,12 @@ unsigned long txn_alloc_addr(unsigned int virt_irq)
 	next_cpu++; /* assign to "next" CPU we want this bugger on */
 
 	/* validate entry */
-	while ((next_cpu < NR_CPUS) &&
+	while ((next_cpu < nr_cpu_ids) &&
 		(!per_cpu(cpu_data, next_cpu).txn_addr ||
 		 !cpu_online(next_cpu)))
 		next_cpu++;
 
-	if (next_cpu >= NR_CPUS) 
+	if (next_cpu >= nr_cpu_ids) 
 		next_cpu = 0;	/* nothing else, assign monarch */
 
 	return txn_affinity_addr(virt_irq, next_cpu);

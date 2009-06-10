@@ -17,7 +17,8 @@ usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
 ifeq ($(CONFIG_USB_LIBUSUAL),)
 	usb-storage-objs	+= usual-tables.o
 else
-	obj-$(CONFIG_USB)	+= libusual.o usual-tables.o
+	obj-$(CONFIG_USB)	+= usb-libusual.o
+	usb-libusual-objs	:= libusual.o usual-tables.o
 endif
 
 obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= ums-alauda.o

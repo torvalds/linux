@@ -18,7 +18,7 @@
  *
  */
 
-/**
+/*
  * This driver uses a ring buffer for time critical reading of
  * interrupt in reports and provides read and write methods for
  * raw interrupt reports.
@@ -30,7 +30,7 @@
  * as we only have 17 commands for the tranzport. In particular this is
  * key for getting lights to flash in time as otherwise many commands
  * can be buffered up before the light change makes it to the interface.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -40,43 +40,33 @@
 #include <linux/mutex.h>
 #include <linux/version.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-#include frontier_compat.h
-#endif
-
 /* Define these values to match your devices */
 #define VENDOR_ID   0x165b
-#define PRODUCT_ID	0x8101
+#define PRODUCT_ID  0x8101
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define USB_TRANZPORT_MINOR_BASE	0
-#else
-// FIXME 176 - is the ldusb driver's minor - apply for a minor soon
+#else  /* FIXME 177- is the another driver's minor - apply for a minor soon */
 #define USB_TRANZPORT_MINOR_BASE	177
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id usb_tranzport_table [] = {
-	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
-	{ }					/* Terminating entry */
+static struct usb_device_id usb_tranzport_table[] = {
+	{USB_DEVICE(VENDOR_ID, PRODUCT_ID)},
+	{}			/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, usb_tranzport_table);
-MODULE_VERSION("0.33");
+MODULE_VERSION("0.35");
 MODULE_AUTHOR("Mike Taht <m@taht.net>");
 MODULE_DESCRIPTION("Tranzport USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("Frontier Designs Tranzport Control Surface");
-
-/* These two aren't done yet */
-
-#define SUPPRESS_EXTRA_ONLINE_EVENTS 0
-#define BUFFERED_WRITES 0
 
 #define SUPPRESS_EXTRA_OFFLINE_EVENTS 1
 #define COMPRESS_WHEEL_EVENTS 1
@@ -84,12 +74,13 @@ MODULE_SUPPORTED_DEVICE("Frontier Designs Tranzport Control Surface");
 #define RING_BUFFER_SIZE 1000
 #define WRITE_BUFFER_SIZE 34
 #define TRANZPORT_USB_TIMEOUT 10
+#define TRANZPORT_DEBUG 0
 
-
-static int debug = 0;
+static int debug = TRANZPORT_DEBUG;
 
 /* Use our own dbg macro */
-#define dbg_info(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
+#define dbg_info(dev, format, arg...) do			\
+	{ if (debug) dev_info(dev , format , ## arg); } while (0)
 
 /* Module parameters */
 
@@ -102,13 +93,13 @@ MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 static int ring_buffer_size = RING_BUFFER_SIZE;
 
-module_param(ring_buffer_size, int,  S_IRUGO);
+module_param(ring_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size in reports");
 
 /* The write_buffer can one day contain more than one interrupt out transfer.
  */
 static int write_buffer_size = WRITE_BUFFER_SIZE;
-module_param(write_buffer_size, int,  S_IRUGO);
+module_param(write_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(write_buffer_size, "Write buffer size");
 
 /*
@@ -118,69 +109,48 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size");
 
 static int min_interrupt_in_interval = TRANZPORT_USB_TIMEOUT;
 module_param(min_interrupt_in_interval, int, 0);
-MODULE_PARM_DESC(min_interrupt_in_interval, "Minimum interrupt in interval in ms");
+MODULE_PARM_DESC(min_interrupt_in_interval,
+		"Minimum interrupt in interval in ms");
 
 static int min_interrupt_out_interval = TRANZPORT_USB_TIMEOUT;
 module_param(min_interrupt_out_interval, int, 0);
-MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in ms");
+MODULE_PARM_DESC(min_interrupt_out_interval,
+		"Minimum interrupt out interval in ms");
 
 struct tranzport_cmd {
-    unsigned char cmd[8];
+	unsigned char cmd[8];
 };
-
-enum LightID {
-	LightRecord = 0,
-	LightTrackrec,
-	LightTrackmute,
-	LightTracksolo,
-	LightAnysolo,
-	LightLoop,
-	LightPunch
-	};
 
 /* Structure to hold all of our device specific stuff */
 
 struct usb_tranzport {
-	struct semaphore	sem;		/* locks this structure */
-	struct usb_interface*	intf;		/* save off the usb interface pointer */
+	struct semaphore sem;	/* locks this structure */
+	struct usb_interface *intf;	/* save off the usb interface pointer */
+	int open_count;		/* number of times this port opened */
+	struct tranzport_cmd (*ring_buffer)[RING_BUFFER_SIZE];
+	unsigned int ring_head;
+	unsigned int ring_tail;
+	wait_queue_head_t read_wait;
+	wait_queue_head_t write_wait;
+	unsigned char *interrupt_in_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb *interrupt_in_urb;
+	int interrupt_in_interval;
+	size_t interrupt_in_endpoint_size;
+	int interrupt_in_running;
+	int interrupt_in_done;
+	char *interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb *interrupt_out_urb;
+	int interrupt_out_interval;
+	size_t interrupt_out_endpoint_size;
+	int interrupt_out_busy;
 
-	int			open_count;	/* number of times this port has been opened */
+	/* Sysfs support */
 
-	struct tranzport_cmd	(*ring_buffer)[RING_BUFFER_SIZE]; /* just make c happy */
-	unsigned int		ring_head;
-	unsigned int		ring_tail;
-
-	wait_queue_head_t	read_wait;
-	wait_queue_head_t	write_wait;
-
-	unsigned char*		interrupt_in_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
-	int			interrupt_in_interval;
-	size_t	interrupt_in_endpoint_size;
-	int			interrupt_in_running;
-	int			interrupt_in_done;
-
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
-	int			interrupt_out_interval;
-	size_t	interrupt_out_endpoint_size;
-	int			interrupt_out_busy;
-
-	/* Sysfs and translation support */
-
-	int event; /* alternate interface to events */
-	int wheel; /* - for negative, 0 for none, + for positive */
-	unsigned char dump_state; /* 0 if disabled 1 if enabled */
-	unsigned char enable; /* 0 if disabled 1 if enabled */
-	unsigned char offline; /* if the device is out of range or asleep */
-	unsigned char compress_wheel; /* flag to compress wheel events */
-	unsigned char light; /* 7 bits used */
-	unsigned char last_cmd[8];
-	unsigned char last_input[8];
-	unsigned char screen[40]; // We'll also have cells
-
+	unsigned char enable;	/* 0 if disabled 1 if enabled */
+	unsigned char offline;	/* if the device is out of range or asleep */
+	unsigned char compress_wheel;	/* flag to compress wheel events */
 };
 
 /* prevent races between open() and disconnect() */
@@ -205,84 +175,39 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 			usb_kill_urb(dev->interrupt_out_urb);
 }
 
-// FIXME ~light not good enough or correct - need atomic set_bit
+#define show_int(value)							\
+  static ssize_t show_##value(struct device *dev,			\
+			      struct device_attribute *attr, char *buf)	\
+  {									\
+    struct usb_interface *intf = to_usb_interface(dev);			\
+    struct usb_tranzport *t = usb_get_intfdata(intf);			\
+    return sprintf(buf, "%d\n", t->value);			        \
+  }									\
+  static DEVICE_ATTR(value, S_IRUGO, show_##value, NULL);
 
-#define show_set_light(value)	\
-static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);		\
-	enum LightID light = value;					\
-	int temp = (1 && (t->light & (1 << light)));			\
-	return sprintf(buf, "%d\n", temp );				\
-}									\
-static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);		\
-	int temp = simple_strtoul(buf, NULL, 10);			\
-	enum LightID light = (temp << value) & (t->light << value);	\
-	t->light = (t->light & ~light) ;				\
-	return count;							\
-}									\
-static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
+#define show_set_int(value)						\
+  static ssize_t show_##value(struct device *dev,			\
+			      struct device_attribute *attr, char *buf)	\
+  {									\
+    struct usb_interface *intf = to_usb_interface(dev);			\
+    struct usb_tranzport *t = usb_get_intfdata(intf);			\
+    return sprintf(buf, "%d\n", t->value);			        \
+  }									\
+  static ssize_t set_##value(struct device *dev,			\
+			     struct device_attribute *attr,		\
+			     const char *buf, size_t count)		\
+  {									\
+    struct usb_interface *intf = to_usb_interface(dev);			\
+    struct usb_tranzport *t = usb_get_intfdata(intf);			\
+    int temp = simple_strtoul(buf, NULL, 10);				\
+    t->value = temp;							\
+    return count;							\
+  }									\
+  static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
 
-show_set_light(LightRecord);
-show_set_light(LightTrackrec);
-show_set_light(LightTrackmute);
-show_set_light(LightTracksolo);
-show_set_light(LightAnysolo);
-show_set_light(LightLoop);
-show_set_light(LightPunch);
-
-
-#define show_set_int(value)	\
-static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);			\
-									\
-	return sprintf(buf, "%d\n", t->value);			\
-}									\
-static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);			\
-	int temp = simple_strtoul(buf, NULL, 10);			\
-									\
-	t->value = temp;						\
-	return count;							\
-}									\
-static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
-
-show_set_int(enable);
-show_set_int(offline);
+show_int(enable);
+show_int(offline);
 show_set_int(compress_wheel);
-show_set_int(dump_state);
-show_set_int(wheel);
-show_set_int(event);
-
-#define show_set_cmd(value)	\
-static ssize_t show_##value(struct device *dev, struct device_attribute *attr, char *buf)		\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);			\
-									\
-	return sprintf(buf, "%d\n", t->value);			\
-}									\
-static ssize_t set_##value(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)	\
-{									\
-	struct usb_interface *intf = to_usb_interface(dev);		\
-	struct usb_tranzport *t = usb_get_intfdata(intf);			\
-	int temp = simple_strtoul(buf, NULL, 10);			\
-									\
-	t->value = temp;						\
-	return count;							\
-}									\
-static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
-
-
-
 
 /**
  *	usb_tranzport_delete
@@ -290,23 +215,10 @@ static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
 static void usb_tranzport_delete(struct usb_tranzport *dev)
 {
 	usb_tranzport_abort_transfers(dev);
-	/*  This is just too twisted to be correct */
-	if(dev->intf != NULL) {
-	device_remove_file(&dev->intf->dev, &dev_attr_LightRecord);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightTrackrec);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightTrackmute);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightTracksolo);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightTrackmute);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightAnysolo);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightLoop);
-	device_remove_file(&dev->intf->dev, &dev_attr_LightPunch);
-	device_remove_file(&dev->intf->dev, &dev_attr_wheel);
-	device_remove_file(&dev->intf->dev, &dev_attr_enable);
-	device_remove_file(&dev->intf->dev, &dev_attr_event);
-	device_remove_file(&dev->intf->dev, &dev_attr_offline);
-	device_remove_file(&dev->intf->dev, &dev_attr_compress_wheel);
-
-	device_remove_file(&dev->intf->dev, &dev_attr_dump_state);
+	if (dev->intf != NULL) {
+		device_remove_file(&dev->intf->dev, &dev_attr_enable);
+		device_remove_file(&dev->intf->dev, &dev_attr_offline);
+		device_remove_file(&dev->intf->dev, &dev_attr_compress_wheel);
 	}
 
 	/* free data structures */
@@ -330,37 +242,56 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 
 	if (urb->status) {
 		if (urb->status == -ENOENT ||
-		    urb->status == -ECONNRESET ||
-		    urb->status == -ESHUTDOWN) {
+			urb->status == -ECONNRESET ||
+			urb->status == -ESHUTDOWN) {
 			goto exit;
 		} else {
-			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
+			dbg_info(&dev->intf->dev,
+				 "%s: nonzero status received: %d\n",
 				 __func__, urb->status);
-			goto resubmit; /* maybe we can recover */
+			goto resubmit;	/* maybe we can recover */
 		}
 	}
 
 	if (urb->actual_length != 8) {
 		dev_warn(&dev->intf->dev,
-			 "Urb length was %d bytes!! Do something intelligent \n", urb->actual_length);
+			"Urb length was %d bytes!!"
+			"Do something intelligent \n",
+			 urb->actual_length);
 	} else {
-		dbg_info(&dev->intf->dev, "%s: received: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __func__, dev->interrupt_in_buffer[0],dev->interrupt_in_buffer[1],dev->interrupt_in_buffer[2],dev->interrupt_in_buffer[3],dev->interrupt_in_buffer[4],dev->interrupt_in_buffer[5],dev->interrupt_in_buffer[6],dev->interrupt_in_buffer[7]);
+		dbg_info(&dev->intf->dev,
+			 "%s: received: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+			 __func__, dev->interrupt_in_buffer[0],
+			 dev->interrupt_in_buffer[1],
+			 dev->interrupt_in_buffer[2],
+			 dev->interrupt_in_buffer[3],
+			 dev->interrupt_in_buffer[4],
+			 dev->interrupt_in_buffer[5],
+			 dev->interrupt_in_buffer[6],
+			 dev->interrupt_in_buffer[7]);
 #if SUPPRESS_EXTRA_OFFLINE_EVENTS
-		if(dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff) { goto resubmit; }
-		if(dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 2; goto resubmit; }
+	if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
+		goto resubmit;
+		if (dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) {
+			dev->offline = 2;
+			goto resubmit;
+		}
 
-/* Always pass one offline event up the stack */
-		if(dev->offline > 0 && dev->interrupt_in_buffer[1] != 0xff) { dev->offline = 0; }
-		if(dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 1; }
+		/* Always pass one offline event up the stack */
+		if (dev->offline > 0 && dev->interrupt_in_buffer[1] != 0xff)
+			dev->offline = 0;
+		if (dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff)
+			dev->offline = 1;
 
-#endif
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
+#endif	/* SUPPRESS_EXTRA_OFFLINE_EVENTS */
+	   dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+		__func__, dev->ring_head, dev->ring_tail);
 
-		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
+		next_ring_head = (dev->ring_head + 1) % ring_buffer_size;
 
 		if (next_ring_head != dev->ring_tail) {
-			memcpy(&((*dev->ring_buffer)[dev->ring_head]), dev->interrupt_in_buffer, urb->actual_length);
+			memcpy(&((*dev->ring_buffer)[dev->ring_head]),
+			       dev->interrupt_in_buffer, urb->actual_length);
 			dev->ring_head = next_ring_head;
 			retval = 0;
 			memset(dev->interrupt_in_buffer, 0, urb->actual_length);
@@ -373,7 +304,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 	}
 
 resubmit:
-	/* resubmit if we're still running */
+/* resubmit if we're still running */
 	if (dev->interrupt_in_running && dev->intf) {
 		retval = usb_submit_urb(dev->interrupt_in_urb, GFP_ATOMIC);
 		if (retval)
@@ -392,19 +323,17 @@ exit:
 static void usb_tranzport_interrupt_out_callback(struct urb *urb)
 {
 	struct usb_tranzport *dev = urb->context;
-
 	/* sync/async unlink faults aren't errors */
 	if (urb->status && !(urb->status == -ENOENT ||
-			     urb->status == -ECONNRESET ||
-			     urb->status == -ESHUTDOWN))
+				urb->status == -ECONNRESET ||
+				urb->status == -ESHUTDOWN))
 		dbg_info(&dev->intf->dev,
-			 "%s - nonzero write interrupt status received: %d\n",
-			 __func__, urb->status);
+			"%s - nonzero write interrupt status received: %d\n",
+			__func__, urb->status);
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
 }
-
 /**
  *	usb_tranzport_open
  */
@@ -424,7 +353,7 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
-		     __func__, subminor);
+			__func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
 	}
@@ -453,14 +382,14 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 	dev->ring_head = 0;
 	dev->ring_tail = 0;
 	usb_fill_int_urb(dev->interrupt_in_urb,
-			 interface_to_usbdev(interface),
-			 usb_rcvintpipe(interface_to_usbdev(interface),
-					dev->interrupt_in_endpoint->bEndpointAddress),
-			 dev->interrupt_in_buffer,
-			 dev->interrupt_in_endpoint_size,
-			 usb_tranzport_interrupt_in_callback,
-			 dev,
-			 dev->interrupt_in_interval);
+			interface_to_usbdev(interface),
+			usb_rcvintpipe(interface_to_usbdev(interface),
+				dev->interrupt_in_endpoint->
+				bEndpointAddress),
+			dev->interrupt_in_buffer,
+			dev->interrupt_in_endpoint_size,
+			usb_tranzport_interrupt_in_callback, dev,
+			dev->interrupt_in_interval);
 
 	dev->interrupt_in_running = 1;
 	dev->interrupt_in_done = 0;
@@ -470,7 +399,8 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 
 	retval = usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
-		dev_err(&interface->dev, "Couldn't submit interrupt_in_urb %d\n", retval);
+		dev_err(&interface->dev,
+			"Couldn't submit interrupt_in_urb %d\n", retval);
 		dev->interrupt_in_running = 0;
 		dev->open_count = 0;
 		goto unlock_exit;
@@ -478,7 +408,6 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 
 	/* save device in the file's private structure */
 	file->private_data = dev;
-
 
 unlock_exit:
 	up(&dev->sem);
@@ -525,7 +454,9 @@ static int usb_tranzport_release(struct inode *inode, struct file *file)
 
 	/* wait until write transfer is finished */
 	if (dev->interrupt_out_busy)
-		wait_event_interruptible_timeout(dev->write_wait, !dev->interrupt_out_busy, 2 * HZ);
+		wait_event_interruptible_timeout(dev->write_wait,
+						!dev->interrupt_out_busy,
+						2 * HZ);
 	usb_tranzport_abort_transfers(dev);
 	dev->open_count = 0;
 
@@ -539,37 +470,31 @@ exit:
 /**
  *	usb_tranzport_poll
  */
-static unsigned int usb_tranzport_poll(struct file *file, poll_table *wait)
+static unsigned int usb_tranzport_poll(struct file *file, poll_table * wait)
 {
 	struct usb_tranzport *dev;
 	unsigned int mask = 0;
-
 	dev = file->private_data;
-
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
-
 	if (dev->ring_head != dev->ring_tail)
 		mask |= POLLIN | POLLRDNORM;
 	if (!dev->interrupt_out_busy)
 		mask |= POLLOUT | POLLWRNORM;
-
 	return mask;
 }
-
 /**
  *	usb_tranzport_read
  */
-static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t count,
-			   loff_t *ppos)
+
+static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
+				size_t count, loff_t *ppos)
 {
 	struct usb_tranzport *dev;
 	int retval = 0;
-
 #if BUFFERED_READS
 	int c = 0;
 #endif
-
 #if COMPRESS_WHEEL_EVENTS
 	signed char oldwheel;
 	signed char newwheel;
@@ -577,7 +502,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 	int next_tail;
 #endif
 
-/* do I have such a thing as a null event? */
+	/* do I have such a thing as a null event? */
 
 	dev = file->private_data;
 
@@ -591,8 +516,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 		goto exit;
 	}
 
-	/* verify that the device wasn't unplugged */
-	if (dev->intf == NULL) {
+	/* verify that the device wasn't unplugged */ if (dev->intf == NULL) {
 		retval = -ENODEV;
 		err("No device or device unplugged %d\n", retval);
 		goto unlock_exit;
@@ -604,104 +528,149 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 			retval = -EAGAIN;
 			goto unlock_exit;
 		}
-		// atomic_cmp_exchange(&dev->interrupt_in_done,0,0);
-		dev->interrupt_in_done = 0 ; /* tiny race - FIXME: make atomic? */
-		retval = wait_event_interruptible(dev->read_wait, dev->interrupt_in_done);
-		if (retval < 0) {
+		/* tiny race - FIXME: make atomic? */
+		/* atomic_cmp_exchange(&dev->interrupt_in_done,0,0); */
+		dev->interrupt_in_done = 0;
+		retval = wait_event_interruptible(dev->read_wait,
+						  dev->interrupt_in_done);
+		if (retval < 0)
 			goto unlock_exit;
-		}
 	}
 
-	dbg_info(&dev->intf->dev, "%s: copying to userspace: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
+	dbg_info(&dev->intf->dev,
+		"%s: copying to userspace: "
+		"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		 __func__,
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[0],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[1],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[2],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[3],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[4],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[5],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[6],
+		 (*dev->ring_buffer)[dev->ring_tail].cmd[7]);
 
 #if BUFFERED_READS
-	   c = 0;
-	   while((c < count) && (dev->ring_tail != dev->ring_head)) {
+	c = 0;
+	while ((c < count) && (dev->ring_tail != dev->ring_head)) {
 
-/* This started off in the lower level service routine, and I moved it here. Then my brain died. Not done yet. */
 #if COMPRESS_WHEEL_EVENTS
 		next_tail = (dev->ring_tail+1) % ring_buffer_size;
-		if(dev->compress_wheel) cancompress = 1;
-		while(dev->ring_head != next_tail && cancompress == 1 ) {
+		if (dev->compress_wheel)
+			cancompress = 1;
+		while (dev->ring_head != next_tail && cancompress == 1) {
 			newwheel = (*dev->ring_buffer)[next_tail].cmd[6];
 			oldwheel = (*dev->ring_buffer)[dev->ring_tail].cmd[6];
-			// if both are wheel events, and no buttons have changes (FIXME, do I have to check?),
-			// and we are the same sign, we can compress +- 7F
-			// FIXME: saner check for overflow! - max of +- 7F
-			// FIXME the math is wrong for going in reverse, actually, as the midi spec doesn't allow signed chars
+			/* if both are wheel events, and
+			   no buttons have changes (FIXME, do I have to check?),
+			   and we are the same sign, we can compress +- 7F
+			*/
+			dbg_info(&dev->intf->dev,
+				"%s: trying to compress: "
+				"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				__func__,
+				(*dev->ring_buffer)[dev->ring_tail].cmd[0],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[1],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[2],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[3],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[4],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[5],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[6],
+				(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
 
-	dbg_info(&dev->intf->dev, "%s: trying to compress: %02x%02x%02x%02x%02x %02x %02x %02x\n",
-			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
-
-
-			if(((*dev->ring_buffer)[dev->ring_tail].cmd[6] != 0 &&
-			    (*dev->ring_buffer)[next_tail].cmd[6] != 0 ) &&
+			if (((*dev->ring_buffer)[dev->ring_tail].cmd[6] != 0 &&
+				(*dev->ring_buffer)[next_tail].cmd[6] != 0) &&
 				((newwheel > 0 && oldwheel > 0) ||
-				(newwheel < 0 && oldwheel < 0)) &&
-				((*dev->ring_buffer)[dev->ring_tail].cmd[2] == (*dev->ring_buffer)[next_tail].cmd[2]) &&
-				((*dev->ring_buffer)[dev->ring_tail].cmd[3] == (*dev->ring_buffer)[next_tail].cmd[3]) &&
-				((*dev->ring_buffer)[dev->ring_tail].cmd[4] == (*dev->ring_buffer)[next_tail].cmd[4]) &&
-				((*dev->ring_buffer)[dev->ring_tail].cmd[5] == (*dev->ring_buffer)[next_tail].cmd[5]))
- {
-	dbg_info(&dev->intf->dev, "%s: should compress: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
-
+					(newwheel < 0 && oldwheel < 0)) &&
+				((*dev->ring_buffer)[dev->ring_tail].cmd[2] ==
+				(*dev->ring_buffer)[next_tail].cmd[2]) &&
+				((*dev->ring_buffer)[dev->ring_tail].cmd[3] ==
+				(*dev->ring_buffer)[next_tail].cmd[3]) &&
+				((*dev->ring_buffer)[dev->ring_tail].cmd[4] ==
+				(*dev->ring_buffer)[next_tail].cmd[4]) &&
+				((*dev->ring_buffer)[dev->ring_tail].cmd[5] ==
+				(*dev->ring_buffer)[next_tail].cmd[5])) {
+				dbg_info(&dev->intf->dev,
+					"%s: should compress: "
+					"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+					__func__,
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[0],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[1],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[2],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[3],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[4],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[5],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[6],
+					(*dev->ring_buffer)[dev->ring_tail].
+					cmd[7]);
 				newwheel += oldwheel;
-				if(oldwheel > 0 && !(newwheel > 0)) {
+				if (oldwheel > 0 && !(newwheel > 0)) {
 					newwheel = 0x7f;
 					cancompress = 0;
 				}
-				if(oldwheel < 0 && !(newwheel < 0)) {
+				if (oldwheel < 0 && !(newwheel < 0)) {
 					newwheel = 0x80;
 					cancompress = 0;
 				}
 
-				(*dev->ring_buffer)[next_tail].cmd[6] = newwheel;
+				(*dev->ring_buffer)[next_tail].cmd[6] =
+					newwheel;
 				dev->ring_tail = next_tail;
-				next_tail = (dev->ring_tail+1) % ring_buffer_size;
+				next_tail =
+					(dev->ring_tail + 1) % ring_buffer_size;
 			} else {
 				cancompress = 0;
 			}
 		}
 #endif /* COMPRESS_WHEEL_EVENTS */
-
-		if (copy_to_user(&buffer[c], &(*dev->ring_buffer)[dev->ring_tail], 8)) {
+		if (copy_to_user(
+				&buffer[c],
+				&(*dev->ring_buffer)[dev->ring_tail], 8)) {
 			retval = -EFAULT;
 			goto unlock_exit;
 		}
-
-		dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
-		c+=8;
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
-	   }
-	   retval = c;
+		dev->ring_tail = (dev->ring_tail + 1) % ring_buffer_size;
+		c += 8;
+		dbg_info(&dev->intf->dev,
+			 "%s: head, tail are %x, %x\n",
+			 __func__, dev->ring_head, dev->ring_tail);
+	}
+	retval = c;
 
 #else
-	if (copy_to_user(buffer, &(*dev->ring_buffer)[dev->ring_tail], 8)) {
-		retval = -EFAULT;
-		goto unlock_exit;
-	}
+/*  if (copy_to_user(buffer, &(*dev->ring_buffer)[dev->ring_tail], 8)) { */
+	retval = -EFAULT;
+	goto unlock_exit;
+}
 
-	dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
-	dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
+dev->ring_tail = (dev->ring_tail + 1) % ring_buffer_size;
+dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+	 __func__, dev->ring_head, dev->ring_tail);
 
-	retval = 8;
+retval = 8;
 #endif /* BUFFERED_READS */
 
 unlock_exit:
-	/* unlock the device */
-	up(&dev->sem);
+/* unlock the device */
+up(&dev->sem);
 
 exit:
-	return retval;
+return retval;
 }
 
 /**
  *	usb_tranzport_write
  */
-static ssize_t usb_tranzport_write(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *ppos)
+static ssize_t usb_tranzport_write(struct file *file,
+				const char __user *buffer, size_t count,
+				loff_t *ppos)
 {
 	struct usb_tranzport *dev;
 	size_t bytes_to_write;
@@ -718,7 +687,6 @@ static ssize_t usb_tranzport_write(struct file *file, const char __user *buffer,
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
-
 	/* verify that the device wasn't unplugged */
 	if (dev->intf == NULL) {
 		retval = -ENODEV;
@@ -732,18 +700,24 @@ static ssize_t usb_tranzport_write(struct file *file, const char __user *buffer,
 			retval = -EAGAIN;
 			goto unlock_exit;
 		}
-		retval = wait_event_interruptible(dev->write_wait, !dev->interrupt_out_busy);
-		if (retval < 0) {
+		retval = wait_event_interruptible(dev->write_wait,
+						!dev->interrupt_out_busy);
+		if (retval < 0)
 			goto unlock_exit;
-		}
 	}
 
 	/* write the data into interrupt_out_buffer from userspace */
-	bytes_to_write = min(count, write_buffer_size*dev->interrupt_out_endpoint_size);
+	bytes_to_write = min(count,
+			write_buffer_size *
+			dev->interrupt_out_endpoint_size);
 	if (bytes_to_write < count)
-		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
+		dev_warn(&dev->intf->dev,
+			"Write buffer overflow, %zd bytes dropped\n",
+			count - bytes_to_write);
 
-	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __func__, count, bytes_to_write);
+	dbg_info(&dev->intf->dev,
+		"%s: count = %zd, bytes_to_write = %zd\n", __func__,
+		count, bytes_to_write);
 
 	if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;
@@ -757,14 +731,13 @@ static ssize_t usb_tranzport_write(struct file *file, const char __user *buffer,
 
 	/* send off the urb */
 	usb_fill_int_urb(dev->interrupt_out_urb,
-			 interface_to_usbdev(dev->intf),
-			 usb_sndintpipe(interface_to_usbdev(dev->intf),
-					dev->interrupt_out_endpoint->bEndpointAddress),
-			 dev->interrupt_out_buffer,
-			 bytes_to_write,
-			 usb_tranzport_interrupt_out_callback,
-			 dev,
-			 dev->interrupt_out_interval);
+			interface_to_usbdev(dev->intf),
+			usb_sndintpipe(interface_to_usbdev(dev->intf),
+				dev->interrupt_out_endpoint->
+				bEndpointAddress),
+			dev->interrupt_out_buffer, bytes_to_write,
+			usb_tranzport_interrupt_out_callback, dev,
+			dev->interrupt_out_interval);
 
 	dev->interrupt_out_busy = 1;
 	wmb();
@@ -787,12 +760,12 @@ exit:
 
 /* file operations needed when we register this driver */
 static const struct file_operations usb_tranzport_fops = {
-	.owner =	THIS_MODULE,
-	.read  =	usb_tranzport_read,
-	.write =	usb_tranzport_write,
-	.open =		usb_tranzport_open,
-	.release =	usb_tranzport_release,
-	.poll =		usb_tranzport_poll,
+	.owner = THIS_MODULE,
+	.read = usb_tranzport_read,
+	.write = usb_tranzport_write,
+	.open = usb_tranzport_open,
+	.release = usb_tranzport_release,
+	.poll = usb_tranzport_poll,
 };
 
 /*
@@ -800,11 +773,10 @@ static const struct file_operations usb_tranzport_fops = {
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver usb_tranzport_class = {
-	.name =		"tranzport%d",
-	.fops =		&usb_tranzport_fops,
-	.minor_base =	USB_TRANZPORT_MINOR_BASE,
+	.name = "tranzport%d",
+	.fops = &usb_tranzport_fops,
+	.minor_base = USB_TRANZPORT_MINOR_BASE,
 };
-
 
 /**
  *	usb_tranzport_probe
@@ -812,8 +784,8 @@ static struct usb_class_driver usb_tranzport_class = {
  *	Called by the usb core when a new device is connected that it thinks
  *	this driver might be interested in.
  */
-static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_device_id *id)
-{
+static int usb_tranzport_probe(struct usb_interface *intf,
+			       const struct usb_device_id *id) {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_tranzport *dev = NULL;
 	struct usb_host_interface *iface_desc;
@@ -824,7 +796,7 @@ static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_devi
 
 	/* allocate memory for our device state and intialize it */
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	 dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&intf->dev, "Out of memory\n");
 		goto exit;
@@ -851,25 +823,33 @@ static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_devi
 		goto error;
 	}
 	if (dev->interrupt_out_endpoint == NULL)
-		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
+		dev_warn(&intf->dev,
+			"Interrupt out endpoint not found"
+			"(using control endpoint instead)\n");
 
-
-	dev->interrupt_in_endpoint_size = le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
+	dev->interrupt_in_endpoint_size =
+	    le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
 
 	if (dev->interrupt_in_endpoint_size != 8)
-	    dev_warn(&intf->dev, "Interrupt in endpoint size is not 8!\n");
+		dev_warn(&intf->dev, "Interrupt in endpoint size is not 8!\n");
 
-	if(ring_buffer_size == 0) { ring_buffer_size = RING_BUFFER_SIZE; }
-	true_size = min(ring_buffer_size,RING_BUFFER_SIZE);
-	/* FIXME - there are more usb_alloc routines for dma correctness. Needed? */
+	if (ring_buffer_size == 0)
+		ring_buffer_size = RING_BUFFER_SIZE;
+	true_size = min(ring_buffer_size, RING_BUFFER_SIZE);
 
-	dev->ring_buffer = kmalloc((true_size*sizeof(struct tranzport_cmd))+8, GFP_KERNEL);
+	/* FIXME - there are more usb_alloc routines for dma correctness.
+	   Needed? */
+
+	dev->ring_buffer =
+	    kmalloc((true_size * sizeof(struct tranzport_cmd)) + 8, GFP_KERNEL);
 
 	if (!dev->ring_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate ring_buffer of size %d\n",true_size);
+		dev_err(&intf->dev,
+			"Couldn't allocate ring_buffer size %d\n", true_size);
 		goto error;
 	}
-	dev->interrupt_in_buffer = kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
+	dev->interrupt_in_buffer =
+	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
 	if (!dev->interrupt_in_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
 		goto error;
@@ -879,13 +859,18 @@ static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_devi
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
 		goto error;
 	}
-	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize) :
-									 udev->descriptor.bMaxPacketSize0;
+	dev->interrupt_out_endpoint_size =
+	    dev->interrupt_out_endpoint ?
+	    le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize) :
+	    udev->descriptor.bMaxPacketSize0;
 
-	if (dev->interrupt_out_endpoint_size !=8)
-		dev_warn(&intf->dev, "Interrupt out endpoint size is not 8!)\n");
+	if (dev->interrupt_out_endpoint_size != 8)
+		dev_warn(&intf->dev,
+			 "Interrupt out endpoint size is not 8!)\n");
 
-	dev->interrupt_out_buffer = kmalloc(write_buffer_size*dev->interrupt_out_endpoint_size, GFP_KERNEL);
+	dev->interrupt_out_buffer =
+	    kmalloc(write_buffer_size * dev->interrupt_out_endpoint_size,
+		    GFP_KERNEL);
 	if (!dev->interrupt_out_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
 		goto error;
@@ -895,9 +880,18 @@ static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_devi
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_urb\n");
 		goto error;
 	}
-	dev->interrupt_in_interval = min_interrupt_in_interval > dev->interrupt_in_endpoint->bInterval ? min_interrupt_in_interval : dev->interrupt_in_endpoint->bInterval;
-	if (dev->interrupt_out_endpoint)
-		dev->interrupt_out_interval = min_interrupt_out_interval > dev->interrupt_out_endpoint->bInterval ? min_interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
+	dev->interrupt_in_interval =
+	    min_interrupt_in_interval >
+	    dev->interrupt_in_endpoint->bInterval ? min_interrupt_in_interval
+	    : dev->interrupt_in_endpoint->bInterval;
+
+	if (dev->interrupt_out_endpoint) {
+		dev->interrupt_out_interval =
+		    min_interrupt_out_interval >
+		    dev->interrupt_out_endpoint->bInterval ?
+		    min_interrupt_out_interval :
+		    dev->interrupt_out_endpoint->bInterval;
+	}
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(intf, dev);
@@ -905,35 +899,33 @@ static int usb_tranzport_probe(struct usb_interface *intf, const struct usb_devi
 	retval = usb_register_dev(intf, &usb_tranzport_class);
 	if (retval) {
 		/* something prevented us from registering this driver */
-		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		dev_err(&intf->dev,
+			"Not able to get a minor for this device.\n");
 		usb_set_intfdata(intf, NULL);
 		goto error;
 	}
 
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightRecord))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightTrackrec))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightTrackmute))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightTracksolo))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightAnysolo))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightLoop))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_LightPunch))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_wheel))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_event))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_dump_state))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_compress_wheel))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_enable))) goto error;
-	if((retval = device_create_file(&intf->dev, &dev_attr_offline))) goto error;
+	retval = device_create_file(&intf->dev, &dev_attr_compress_wheel);
+	if (retval)
+		goto error;
+	retval = device_create_file(&intf->dev, &dev_attr_enable);
+	if (retval)
+		goto error;
+	retval = device_create_file(&intf->dev, &dev_attr_offline);
+	if (retval)
+		goto error;
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&intf->dev, "Tranzport Device #%d now attached to major %d minor %d\n",
-		(intf->minor - USB_TRANZPORT_MINOR_BASE), USB_MAJOR, intf->minor);
+	dev_info(&intf->dev,
+		"Tranzport Device #%d now attached to major %d minor %d\n",
+		(intf->minor - USB_TRANZPORT_MINOR_BASE), USB_MAJOR,
+		intf->minor);
 
 exit:
 	return retval;
 
 error:
 	usb_tranzport_delete(dev);
-
 	return retval;
 }
 
@@ -966,15 +958,15 @@ static void usb_tranzport_disconnect(struct usb_interface *intf)
 	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&intf->dev, "Tranzport Surface #%d now disconnected\n",
-		 (minor - USB_TRANZPORT_MINOR_BASE));
+		(minor - USB_TRANZPORT_MINOR_BASE));
 }
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver usb_tranzport_driver = {
-	.name =		"tranzport",
-	.probe =	usb_tranzport_probe,
-	.disconnect =	usb_tranzport_disconnect,
-	.id_table =	usb_tranzport_table,
+	.name = "tranzport",
+	.probe = usb_tranzport_probe,
+	.disconnect = usb_tranzport_disconnect,
+	.id_table = usb_tranzport_table,
 };
 
 /**
@@ -987,14 +979,14 @@ static int __init usb_tranzport_init(void)
 	/* register this driver with the USB subsystem */
 	retval = usb_register(&usb_tranzport_driver);
 	if (retval)
-		err("usb_register failed for the "__FILE__" driver. Error number %d\n", retval);
-
+		err("usb_register failed for the " __FILE__
+			" driver. Error number %d\n", retval);
 	return retval;
 }
-
 /**
  *	usb_tranzport_exit
  */
+
 static void __exit usb_tranzport_exit(void)
 {
 	/* deregister this driver with the USB subsystem */
@@ -1003,4 +995,3 @@ static void __exit usb_tranzport_exit(void)
 
 module_init(usb_tranzport_init);
 module_exit(usb_tranzport_exit);
-

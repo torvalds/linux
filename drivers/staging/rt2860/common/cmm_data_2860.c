@@ -634,7 +634,7 @@ VOID RT28xxPciAsicRadioOff(
 	}
 
     // Once go into this function, disable tx because don't want too many packets in queue to prevent HW stops.
-	pAd->bPCIclkOffDisableTx = TRUE;
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_DISABLE_TX);
 
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 	{
@@ -651,7 +651,7 @@ VOID RT28xxPciAsicRadioOff(
 			{
 				DBGPRINT(RT_DEBUG_TRACE, ("TbTTTime = 0x%x , give up this sleep. \n", TbTTTime));
 	            OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
-	            pAd->bPCIclkOffDisableTx = FALSE;
+				RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_DISABLE_TX);
 				return;
 			}
 			else
@@ -688,18 +688,25 @@ VOID RT28xxPciAsicRadioOff(
 	if (i >= 50)
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("DMA keeps busy.  return on RT28xxPciAsicRadioOff ()\n"));
-		pAd->bPCIclkOffDisableTx = FALSE;
 		RTMP_IO_READ32(pAd, WPDMA_GLO_CFG, &DmaCfg.word);
 		DmaCfg.field.EnableTxDMA = 1;
 		RTMP_IO_WRITE32(pAd, WPDMA_GLO_CFG, DmaCfg.word);
+		pAd->CheckDmaBusyCount++;
 		return;
+	}
+	else
+	{
+		pAd->CheckDmaBusyCount = 0;
 	}
 
     RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF);
 
     // Set to 1R.
-    tempBBP_R3 = (pAd->StaCfg.BBPR3 & 0xE7);
-	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, tempBBP_R3);
+	if (pAd->Antenna.field.RxPath > 1)
+	{
+		tempBBP_R3 = (pAd->StaCfg.BBPR3 & 0xE7);
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, tempBBP_R3);
+	}
 
 	// In Radio Off, we turn off RF clk, So now need to call ASICSwitchChannel again.
 	if (INFRA_ON(pAd) && (pAd->CommonCfg.CentralChannel != pAd->CommonCfg.Channel)
@@ -714,8 +721,15 @@ VOID RT28xxPciAsicRadioOff(
 		AsicTurnOffRFClk(pAd, pAd->CommonCfg.Channel);
 	}
 
-    // When PCI clock is off, don't want to service interrupt.
-	RTMP_IO_WRITE32(pAd, INT_MASK_CSR, AutoWakeupInt);
+	if (Level != RTMP_HALT)
+	{
+		// Change Interrupt bitmask.
+		RTMP_IO_WRITE32(pAd, INT_MASK_CSR, AutoWakeupInt);
+	}
+	else
+	{
+		NICDisableInterrupt(pAd);
+	}
 
     RTMP_IO_WRITE32(pAd, RX_CRX_IDX, pAd->RxRing.RxCpuIdx);
 	// Disable MAC Rx
@@ -726,7 +740,8 @@ VOID RT28xxPciAsicRadioOff(
 	//  2. Send Sleep command
 	RTMP_IO_WRITE32(pAd, H2M_MAILBOX_STATUS, 0xffffffff);
 	RTMP_IO_WRITE32(pAd, H2M_MAILBOX_CID, 0xffffffff);
-	AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x00);   // send POWER-SAVE command to MCU. Timeout unit:40us.
+	// send POWER-SAVE command to MCU. high-byte = 1 save power as much as possible. high byte = 0 save less power
+	AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x1);
 	//  2-1. Wait command success
 	// Status = 1 : success, Status = 2, already sleep, Status = 3, Maybe MAC is busy so can't finish this task.
 	brc = AsicCheckCommanOk(pAd, PowerSafeCID);
@@ -734,7 +749,7 @@ VOID RT28xxPciAsicRadioOff(
     if (brc == FALSE)
     {
         // try again
-    	AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x00);   // send POWER-SAVE command to MCU. Timeout unit:40us.
+    	AsicSendCommandToMcu(pAd, 0x30, PowerSafeCID, 0xff, 0x01);   // send POWER-SAVE command to MCU. Timeout unit:40us.
     	//RTMPusecDelay(200);
     	brc = AsicCheckCommanOk(pAd, PowerSafeCID);
     }
@@ -759,7 +774,7 @@ VOID RT28xxPciAsicRadioOff(
 	do
 	{
 		RTMP_IO_READ32(pAd, WPDMA_GLO_CFG, &DmaCfg.word);
-		if (DmaCfg.field.RxDMABusy == 0)
+		if ((DmaCfg.field.RxDMABusy == 0) && (DmaCfg.field.TxDMABusy == 0))
 			break;
 		RTMPusecDelay(20);
 		i++;
@@ -767,13 +782,12 @@ VOID RT28xxPciAsicRadioOff(
 
 	if (i >= 50)
 	{
+		pAd->CheckDmaBusyCount++;
 		DBGPRINT(RT_DEBUG_TRACE, ("DMA Rx keeps busy.  on RT28xxPciAsicRadioOff ()\n"));
 	}
-	// disable DMA Rx.
+	else
 	{
-		RTMP_IO_READ32(pAd, WPDMA_GLO_CFG, &DmaCfg.word);
-		DmaCfg.field.EnableRxDMA = 0;
-		RTMP_IO_WRITE32(pAd, WPDMA_GLO_CFG, DmaCfg.word);
+		pAd->CheckDmaBusyCount = 0;
 	}
 
 	if (Level == DOT11POWERSAVE)
@@ -799,7 +813,7 @@ VOID RT28xxPciAsicRadioOff(
 	if (Level == RTMP_HALT)
 	{
 		if ((brc == TRUE) && (i < 50))
-			RTMPPCIeLinkCtrlSetting(pAd, 1);
+			RTMPPCIeLinkCtrlSetting(pAd, 0);
 	}
 	//  4. Set PCI configuration Space Link Comtrol fields.  Only Radio Off needs to call this function
 	else
@@ -808,7 +822,7 @@ VOID RT28xxPciAsicRadioOff(
 			RTMPPCIeLinkCtrlSetting(pAd, 3);
 	}
 
-    pAd->bPCIclkOffDisableTx = FALSE;
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_DISABLE_TX);
 }
 
 
@@ -835,7 +849,8 @@ BOOLEAN RT28xxPciAsicRadioOn(
 	{
 	    pAd->Mlme.bPsPollTimerRunning = FALSE;
 		RTMPCancelTimer(&pAd->Mlme.PsPollTimer,	&Cancelled);
-		if ((Level == GUIRADIO_OFF) || (Level == GUI_IDLE_POWER_SAVE))
+		if ((Level == GUIRADIO_OFF) || (Level == GUI_IDLE_POWER_SAVE)
+		|| (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND)))
 		{
 			DBGPRINT(RT_DEBUG_TRACE, ("RT28xxPciAsicRadioOn ()\n"));
 			// 1. Set PCI Link Control in Configuration Space.
@@ -845,15 +860,14 @@ BOOLEAN RT28xxPciAsicRadioOn(
 	}
 
     pAd->bPCIclkOff = FALSE;
-
+	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, 0x3a80);
 	// 2. Send wake up command.
-	AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00, 0x00);
+	AsicSendCommandToMcu(pAd, 0x31, PowerWakeCID, 0x00, 0x02);
 
 	// 2-1. wait command ok.
 	brv = AsicCheckCommanOk(pAd, PowerWakeCID);
     if (brv)
     {
-    	//RTMP_IO_WRITE32(pAd, INT_MASK_CSR, (DELAYINTMASK|RxINT));
     	NICEnableInterrupt(pAd);
 
     	// 3. Enable Tx DMA.
@@ -893,12 +907,9 @@ BOOLEAN RT28xxPciAsicRadioOn(
 
 VOID RT28xxPciStaAsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
-	IN BOOLEAN       bFromTx)
+	IN UCHAR    	 Level)
 {
     AUTO_WAKEUP_STRUC	AutoWakeupCfg;
-
-    if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-        return;
 
     if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WAKEUP_NOW))
     {
@@ -907,38 +918,48 @@ VOID RT28xxPciStaAsicForceWakeup(
     }
 
     OPSTATUS_SET_FLAG(pAd, fOP_STATUS_WAKEUP_NOW);
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 
     if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
     {
         // Support PCIe Advance Power Save
-    	if (bFromTx == TRUE)
+    	if (((Level == FROM_TX) && (pAd->Mlme.bPsPollTimerRunning == TRUE)) ||
+			(Level == RTMP_HALT))
     	{
             pAd->Mlme.bPsPollTimerRunning = FALSE;
     		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_WAKEUP);
-    		RTMPusecDelay(3000);
+    		RTMPusecDelay(5000);
             DBGPRINT(RT_DEBUG_TRACE, ("=======AsicForceWakeup===bFromTx\n"));
     	}
 
 		AutoWakeupCfg.word = 0;
 		RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
 
-        if (RT28xxPciAsicRadioOn(pAd, DOT11POWERSAVE))
-        {
-            // In Radio Off, we turn off RF clk, So now need to call ASICSwitchChannel again.
-        	if (INFRA_ON(pAd) && (pAd->CommonCfg.CentralChannel != pAd->CommonCfg.Channel)
-        		&& (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
-        	{
-        		// Must using 40MHz.
-        		AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
-        		AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
-        	}
-        	else
-        	{
-        		// Must using 20MHz.
-        		AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
-        		AsicLockChannel(pAd, pAd->CommonCfg.Channel);
-        	}
-        }
+		// If this is called from Halt. ALWAYS force wakeup!!!
+		if (Level == RTMP_HALT)
+		{
+			RT28xxPciAsicRadioOn(pAd, RTMP_HALT);
+		}
+		else
+		{
+			if (RT28xxPciAsicRadioOn(pAd, DOT11POWERSAVE))
+			{
+				// In Radio Off, we turn off RF clk, So now need to call ASICSwitchChannel again.
+				if (INFRA_ON(pAd) && (pAd->CommonCfg.CentralChannel != pAd->CommonCfg.Channel)
+					&& (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
+				{
+					// Must using 40MHz.
+					AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
+					AsicLockChannel(pAd, pAd->CommonCfg.CentralChannel);
+				}
+				else
+				{
+					// Must using 20MHz.
+					AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
+					AsicLockChannel(pAd, pAd->CommonCfg.Channel);
+				}
+			}
+		}
     }
     else
     {
@@ -1122,6 +1143,7 @@ VOID RT28xxPciMlmeRadioOn(
     {
     	NICResetFromError(pAd);
 
+    	/*
     	RTMPRingCleanUp(pAd, QID_AC_BK);
     	RTMPRingCleanUp(pAd, QID_AC_BE);
     	RTMPRingCleanUp(pAd, QID_AC_VI);
@@ -1129,6 +1151,7 @@ VOID RT28xxPciMlmeRadioOn(
     	RTMPRingCleanUp(pAd, QID_HCCA);
     	RTMPRingCleanUp(pAd, QID_MGMT);
     	RTMPRingCleanUp(pAd, QID_RX);
+		*/
 
     	// Enable Tx/Rx
     	RTMPEnableRxTx(pAd);
@@ -1162,6 +1185,12 @@ VOID RT28xxPciMlmeRadioOFF(
     WPDMA_GLO_CFG_STRUC	GloCfg;
 	UINT32	i;
 
+	if (pAd->StaCfg.bRadio == TRUE)
+	{
+		DBGPRINT(RT_DEBUG_TRACE,("-->MlmeRadioOff() return on bRadio == TRUE; \n"));
+		return;
+	}
+
     if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
     	return;
 
@@ -1169,13 +1198,12 @@ VOID RT28xxPciMlmeRadioOFF(
 
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_OFF);
-	// Set Radio off flag
-	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     {
     	BOOLEAN		Cancelled;
+
     	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
     	{
 			RTMPCancelTimer(&pAd->MlmeAux.ScanTimer, &Cancelled);
@@ -1185,6 +1213,15 @@ VOID RT28xxPciMlmeRadioOFF(
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
         {
             BOOLEAN Cancelled;
+
+			// Always radio on since the NIC needs to set the MCU command (LED_RADIO_OFF).
+			if ((pAd->OpMode == OPMODE_STA) && 
+			     (IDLE_ON(pAd)) && 
+			     (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
+			{
+				RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
+			}
+
             pAd->Mlme.bPsPollTimerRunning = FALSE;
             RTMPCancelTimer(&pAd->Mlme.PsPollTimer,	&Cancelled);
 	        RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,	&Cancelled);
@@ -1197,8 +1234,25 @@ VOID RT28xxPciMlmeRadioOFF(
         //==========================================
         // Clean up old bss table
         BssTableInit(&pAd->ScanTab);
+
+		RTMPRingCleanUp(pAd, QID_AC_BK);
+    	RTMPRingCleanUp(pAd, QID_AC_BE);
+    	RTMPRingCleanUp(pAd, QID_AC_VI);
+    	RTMPRingCleanUp(pAd, QID_AC_VO);
+    	RTMPRingCleanUp(pAd, QID_HCCA);
+    	RTMPRingCleanUp(pAd, QID_MGMT);
+    	RTMPRingCleanUp(pAd, QID_RX);
+
+		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
+		{
+			RTMPSetTimer(&pAd->Mlme.RadioOnOffTimer, 500);
+			return;
+		}
     }
 #endif // CONFIG_STA_SUPPORT //
+
+	// Set Radio off flag
+	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
 	// Disable Tx/Rx DMA
 	RTMP_IO_READ32(pAd, WPDMA_GLO_CFG, &GloCfg.word);	   // disable DMA

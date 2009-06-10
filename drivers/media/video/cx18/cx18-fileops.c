@@ -608,7 +608,7 @@ int cx18_v4l2_close(struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(CX18_F_I_RADIO_USER, &cx->i_flags);
 		/* Switch tuner to TV */
-		cx18_call_all(cx, tuner, s_std, cx->std);
+		cx18_call_all(cx, core, s_std, cx->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		cx18_audio_set_io(cx);
 		if (atomic_read(&cx->ana_capturing) > 0) {

@@ -64,9 +64,10 @@ void zfAdjustCtrlSetting(zdev_t* dev, u16_t* header, zbuf_t* buf)
     u32_t oldPhyCtrl;
 
     u16_t tpc = 0;
+    struct zsHpPriv* hpPriv;
 
     zmw_get_wlan_dev(dev);
-    struct zsHpPriv* hpPriv=wd->hpPrivate;
+    hpPriv=wd->hpPrivate;
 
    /* mm */
     if (header == NULL)
@@ -330,8 +331,10 @@ u16_t zfHpSend(zdev_t* dev, u16_t* header, u16_t headerLen,
     u16_t i;
    	u16_t swlpOffset;
 #endif /* #if ZM_SW_LOOP_BACK == 1 */
+    struct zsHpPriv* hpPriv;
+
     zmw_get_wlan_dev(dev);
-    struct zsHpPriv* hpPriv=wd->hpPrivate;
+    hpPriv=wd->hpPrivate;
 
     zm_msg1_tx(ZM_LV_1, "zfHpSend(), len = ", 12 + headerLen-8 + snapLen + zfwBufGetSize(dev, buf) + 4 + 8);
 
@@ -576,8 +579,10 @@ void zfiUsbRecv(zdev_t *dev, zbuf_t *buf)
     u32_t               rxMCS;
     u32_t               rxBW;
     u32_t               rxSG;
+    struct zsHpPriv* hpPriv;
+
     zmw_get_wlan_dev(dev);
-    struct zsHpPriv* hpPriv=wd->hpPrivate;
+    hpPriv=wd->hpPrivate;
 
     //zm_msg0_rx(ZM_LV_0, "zfiUsbRecv()");
 

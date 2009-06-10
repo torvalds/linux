@@ -1395,13 +1395,10 @@ static int snd_timer_user_ginfo(struct file *file,
 	struct list_head *p;
 	int err = 0;
 
-	ginfo = kmalloc(sizeof(*ginfo), GFP_KERNEL);
-	if (! ginfo)
-		return -ENOMEM;
-	if (copy_from_user(ginfo, _ginfo, sizeof(*ginfo))) {
-		kfree(ginfo);
-		return -EFAULT;
-	}
+	ginfo = memdup_user(_ginfo, sizeof(*ginfo));
+	if (IS_ERR(ginfo))
+		return PTR_ERR(ginfo);
+
 	tid = ginfo->tid;
 	memset(ginfo, 0, sizeof(*ginfo));
 	ginfo->tid = tid;

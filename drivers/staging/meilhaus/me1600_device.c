@@ -48,7 +48,7 @@
 #include "mesubdevice.h"
 #include "me1600_device.h"
 
-static void me1600_set_registry(me1600_device_t * subdevice, uint32_t reg_base);
+static void me1600_set_registry(me1600_device_t *subdevice, uint32_t reg_base);
 static void me1600_destructor(struct me_device *device);
 
 /**
@@ -142,6 +142,7 @@ me_device_t *me1600_pci_constructor(struct pci_dev *pci_device)
 
 	return (me_device_t *) me1600_device;
 }
+EXPORT_SYMBOL(me1600_pci_constructor);
 
 static void me1600_destructor(struct me_device *device)
 {
@@ -157,7 +158,7 @@ static void me1600_destructor(struct me_device *device)
 	kfree(me1600_device);
 }
 
-static void me1600_set_registry(me1600_device_t * subdevice, uint32_t reg_base)
+static void me1600_set_registry(me1600_device_t *subdevice, uint32_t reg_base)
 {				// Create shadow structure.
 	if (subdevice->ao_regs_shadows.count >= 1) {
 		subdevice->ao_regs_shadows.registry[0] =
@@ -256,6 +257,3 @@ MODULE_AUTHOR
 MODULE_DESCRIPTION("Device Driver Module for ME-1600 Device");
 MODULE_SUPPORTED_DEVICE("Meilhaus ME-1600 Devices");
 MODULE_LICENSE("GPL");
-
-// Export the constructor.
-EXPORT_SYMBOL(me1600_pci_constructor);

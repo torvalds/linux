@@ -245,8 +245,10 @@ struct b43_phy {
 	atomic_t txerr_cnt;
 
 #ifdef CONFIG_B43_DEBUG
-	/* PHY registers locked by b43_phy_lock()? */
+	/* PHY registers locked (w.r.t. firmware) */
 	bool phy_locked;
+	/* Radio registers locked (w.r.t. firmware) */
+	bool radio_locked;
 #endif /* B43_DEBUG */
 };
 

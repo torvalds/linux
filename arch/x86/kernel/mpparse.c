@@ -679,7 +679,7 @@ void __init get_smp_config(void)
 	__get_smp_config(0);
 }
 
-static void smp_reserve_bootmem(struct mpf_intel *mpf)
+static void __init smp_reserve_bootmem(struct mpf_intel *mpf)
 {
 	unsigned long size = get_mpc_size(mpf->physptr);
 #ifdef CONFIG_X86_32
@@ -838,7 +838,7 @@ static int  __init get_MP_intsrc_index(struct mpc_intsrc *m)
 
 static struct mpc_intsrc __initdata *m_spare[SPARE_SLOT_NUM];
 
-static void check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
+static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 {
 	int i;
 
@@ -866,7 +866,8 @@ static void check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 	}
 }
 #else /* CONFIG_X86_IO_APIC */
-static inline void check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
+static
+inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
 #endif /* CONFIG_X86_IO_APIC */
 
 static int check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length,

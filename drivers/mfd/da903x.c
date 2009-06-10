@@ -413,7 +413,7 @@ static void da903x_irq_work(struct work_struct *work)
 	enable_irq(chip->client->irq);
 }
 
-static int da903x_irq_handler(int irq, void *data)
+static irqreturn_t da903x_irq_handler(int irq, void *data)
 {
 	struct da903x_chip *chip = data;
 

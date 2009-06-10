@@ -28,7 +28,7 @@ $(obj)/config.tmp: $(objtree)/.config FORCE
 	$(call if_changed,quote1)
 
 quiet_cmd_quote1 = QUOTE   $@
-      cmd_quote1 = sed -e 's/"/\\"/g' -e 's/^/"/' -e 's/$$/\\n"/' \
+      cmd_quote1 = sed -e 's/"/\\"/g' -e 's/^/"/' -e 's/$$/\\n",/' \
 		   $< > $@
 
 $(obj)/config.c: $(src)/config.c.in $(obj)/config.tmp FORCE
@@ -36,9 +36,9 @@ $(obj)/config.c: $(src)/config.c.in $(obj)/config.tmp FORCE
 
 quiet_cmd_quote2 = QUOTE   $@
       cmd_quote2 = sed -e '/CONFIG/{'          \
-		  -e 's/"CONFIG"\;/""/'        \
+		  -e 's/"CONFIG"//'            \
 		  -e 'r $(obj)/config.tmp'     \
 		  -e 'a \'                     \
-		  -e '""\;'                    \
+		  -e '""'                      \
 		  -e '}'                       \
 		  $< > $@

@@ -511,9 +511,9 @@ static int r128_do_init_cce(struct drm_device * dev, drm_r128_init_t * init)
 
 #if __OS_HAS_AGP
 	if (!dev_priv->is_pci) {
-		drm_core_ioremap(dev_priv->cce_ring, dev);
-		drm_core_ioremap(dev_priv->ring_rptr, dev);
-		drm_core_ioremap(dev->agp_buffer_map, dev);
+		drm_core_ioremap_wc(dev_priv->cce_ring, dev);
+		drm_core_ioremap_wc(dev_priv->ring_rptr, dev);
+		drm_core_ioremap_wc(dev->agp_buffer_map, dev);
 		if (!dev_priv->cce_ring->handle ||
 		    !dev_priv->ring_rptr->handle ||
 		    !dev->agp_buffer_map->handle) {

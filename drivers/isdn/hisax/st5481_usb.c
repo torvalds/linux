@@ -149,14 +149,7 @@ static void usb_ctrl_complete(struct urb *urb)
 	if (ctrl_msg->dr.bRequest == USB_REQ_CLEAR_FEATURE) {
 	        /* Special case handling for pipe reset */
 		le16_to_cpus(&ctrl_msg->dr.wIndex);
-
-		/* toggle is reset on clear */
-		usb_settoggle(adapter->usb_dev, 
-			      ctrl_msg->dr.wIndex & ~USB_DIR_IN, 
-			      (ctrl_msg->dr.wIndex & USB_DIR_IN) == 0,
-			      0);
-
-
+		usb_reset_endpoint(adapter->usb_dev, ctrl_msg->dr.wIndex);
 	}
 	
 	if (ctrl_msg->complete)

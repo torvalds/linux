@@ -78,6 +78,26 @@ DEFINE_PER_CPU(struct rcu_data, rcu_data);
 struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
+/*
+ * Increment the quiescent state counter.
+ * The counter is a bit degenerated: We do not need to know
+ * how many quiescent states passed, just if there was at least
+ * one since the start of the grace period. Thus just a flag.
+ */
+void rcu_qsctr_inc(int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+	rdp->passed_quiesc = 1;
+	rdp->passed_quiesc_completed = rdp->completed;
+}
+
+void rcu_bh_qsctr_inc(int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_bh_data, cpu);
+	rdp->passed_quiesc = 1;
+	rdp->passed_quiesc_completed = rdp->completed;
+}
+
 #ifdef CONFIG_NO_HZ
 DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = 1,
@@ -510,8 +530,6 @@ static void note_new_gpnum(struct rcu_state *rsp, struct rcu_data *rdp)
 	rdp->qs_pending = 1;
 	rdp->passed_quiesc = 0;
 	rdp->gpnum = rsp->gpnum;
-	rdp->n_rcu_pending_force_qs = rdp->n_rcu_pending +
-				      RCU_JIFFIES_TILL_FORCE_QS;
 }
 
 /*
@@ -558,8 +576,6 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	rsp->gpnum++;
 	rsp->signaled = RCU_GP_INIT; /* Hold off force_quiescent_state. */
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
-	rdp->n_rcu_pending_force_qs = rdp->n_rcu_pending +
-				      RCU_JIFFIES_TILL_FORCE_QS;
 	record_gp_stall_check_time(rsp);
 	dyntick_record_completed(rsp, rsp->completed - 1);
 	note_new_gpnum(rsp, rdp);
@@ -1035,7 +1051,6 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 {
 	unsigned long flags;
 	long lastcomp;
-	struct rcu_data *rdp = rsp->rda[smp_processor_id()];
 	struct rcu_node *rnp = rcu_get_root(rsp);
 	u8 signaled;
 
@@ -1046,16 +1061,13 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		return;	/* Someone else is already on the job. */
 	}
 	if (relaxed &&
-	    (long)(rsp->jiffies_force_qs - jiffies) >= 0 &&
-	    (rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending) >= 0)
+	    (long)(rsp->jiffies_force_qs - jiffies) >= 0)
 		goto unlock_ret; /* no emergency and done recently. */
 	rsp->n_force_qs++;
 	spin_lock(&rnp->lock);
 	lastcomp = rsp->completed;
 	signaled = rsp->signaled;
 	rsp->jiffies_force_qs = jiffies + RCU_JIFFIES_TILL_FORCE_QS;
-	rdp->n_rcu_pending_force_qs = rdp->n_rcu_pending +
-				      RCU_JIFFIES_TILL_FORCE_QS;
 	if (lastcomp == rsp->gpnum) {
 		rsp->n_force_qs_ngp++;
 		spin_unlock(&rnp->lock);
@@ -1124,8 +1136,7 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 	 * If an RCU GP has gone long enough, go check for dyntick
 	 * idle CPUs and, if needed, send resched IPIs.
 	 */
-	if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0 ||
-	    (rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending) < 0)
+	if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)
 		force_quiescent_state(rsp, 1);
 
 	/*
@@ -1210,8 +1221,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	if (unlikely(++rdp->qlen > qhimark)) {
 		rdp->blimit = LONG_MAX;
 		force_quiescent_state(rsp, 0);
-	} else if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0 ||
-		   (rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending) < 0)
+	} else if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)
 		force_quiescent_state(rsp, 1);
 	local_irq_restore(flags);
 }
@@ -1270,8 +1280,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Has an RCU GP gone long enough to send resched IPIs &c? */
 	if (ACCESS_ONCE(rsp->completed) != ACCESS_ONCE(rsp->gpnum) &&
-	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0 ||
-	     (rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending) < 0))
+	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0))
 		return 1;
 
 	/* nothing to do */

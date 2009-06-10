@@ -30,6 +30,7 @@
 #define UDF_FLAG_GID_SET	16
 #define UDF_FLAG_SESSION_SET	17
 #define UDF_FLAG_LASTBLOCK_SET	18
+#define UDF_FLAG_BLOCKSIZE_SET	19
 
 #define UDF_PART_FLAG_UNALLOC_BITMAP	0x0001
 #define UDF_PART_FLAG_UNALLOC_TABLE	0x0002
@@ -47,6 +48,8 @@
 #define UDF_VIRTUAL_MAP20		0x2012U
 #define UDF_SPARABLE_MAP15		0x1522U
 #define UDF_METADATA_MAP25		0x2511U
+
+#define UDF_INVALID_MODE		((mode_t)-1)
 
 #pragma pack(1) /* XXX(hch): Why?  This file just defines in-core structures */
 
@@ -114,7 +117,7 @@ struct udf_sb_info {
 
 	/* Sector headers */
 	__s32			s_session;
-	__u32			s_anchor[3];
+	__u32			s_anchor;
 	__u32			s_last_block;
 
 	struct buffer_head	*s_lvid_bh;
@@ -123,6 +126,8 @@ struct udf_sb_info {
 	mode_t			s_umask;
 	gid_t			s_gid;
 	uid_t			s_uid;
+	mode_t			s_fmode;
+	mode_t			s_dmode;
 
 	/* Root Info */
 	struct timespec		s_record_time;
@@ -143,6 +148,8 @@ struct udf_sb_info {
 	struct inode		*s_vat_inode;
 
 	struct mutex		s_alloc_mutex;
+	/* Protected by s_alloc_mutex */
+	unsigned int		s_lvid_dirty;
 };
 
 static inline struct udf_sb_info *UDF_SB(struct super_block *sb)

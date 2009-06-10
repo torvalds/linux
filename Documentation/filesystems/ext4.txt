@@ -85,7 +85,7 @@ Note: More extensive information for getting started with ext4 can be
 * extent format more robust in face of on-disk corruption due to magics,
 * internal redundancy in tree
 * improved file allocation (multi-block alloc)
-* fix 32000 subdirectory limit
+* lift 32000 subdirectory limit imposed by i_links_count[1]
 * nsec timestamps for mtime, atime, ctime, create time
 * inode version field on disk (NFSv4, Lustre)
 * reduced e2fsck time via uninit_bg feature
@@ -99,6 +99,9 @@ Note: More extensive information for getting started with ext4 can be
 * large block (up to pagesize) support
 * efficent new ordered mode in JBD2 and ext4(avoid using buffer head to force
   the ordering)
+
+[1] Filesystems with a block size of 1k may see a limit imposed by the
+directory hash tree having a maximum depth of two.
 
 2.2 Candidate features for future inclusion
 
@@ -180,8 +183,8 @@ commit=nrsec	(*)	Ext4 can be told to sync all its data and metadata
 			performance.
 
 barrier=<0|1(*)>	This enables/disables the use of write barriers in
-			the jbd code.  barrier=0 disables, barrier=1 enables.
-			This also requires an IO stack which can support
+barrier(*)		the jbd code.  barrier=0 disables, barrier=1 enables.
+nobarrier		This also requires an IO stack which can support
 			barriers, and if jbd gets an error on a barrier
 			write, it will disable again with a warning.
 			Write barriers enforce proper on-disk ordering
@@ -189,6 +192,9 @@ barrier=<0|1(*)>	This enables/disables the use of write barriers in
 			safe to use, at some performance penalty.  If
 			your disks are battery-backed in one way or another,
 			disabling barriers may safely improve performance.
+			The mount options "barrier" and "nobarrier" can
+			also be used to enable or disable barriers, for
+			consistency with other ext4 mount options.
 
 inode_readahead=n	This tuning parameter controls the maximum
 			number of inode table blocks that ext4's inode
@@ -309,6 +315,24 @@ journal_ioprio=prio	The I/O priority (from 0 to 7, where 0 is the
 			commit operation.  This defaults to 3, which is
 			a slightly higher priority than the default I/O
 			priority.
+
+auto_da_alloc(*)	Many broken applications don't use fsync() when 
+noauto_da_alloc		replacing existing files via patterns such as
+			fd = open("foo.new")/write(fd,..)/close(fd)/
+			rename("foo.new", "foo"), or worse yet,
+			fd = open("foo", O_TRUNC)/write(fd,..)/close(fd).
+			If auto_da_alloc is enabled, ext4 will detect
+			the replace-via-rename and replace-via-truncate
+			patterns and force that any delayed allocation
+			blocks are allocated such that at the next
+			journal commit, in the default data=ordered
+			mode, the data blocks of the new file are forced
+			to disk before the rename() operation is
+			commited.  This provides roughly the same level
+			of guarantees as ext3, and avoids the
+			"zero-length" problem that can happen when a
+			system crashes before the delayed allocation
+			blocks are forced to disk.
 
 Data Mode
 =========

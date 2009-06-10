@@ -237,15 +237,16 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int adv7175_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int adv7175_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct adv7175 *encoder = to_adv7175(sd);
 
-	/* RJ: route->input = 0: input is from decoder
-	   route->input = 1: input is from ZR36060
-	   route->input = 2: color bar */
+	/* RJ: input = 0: input is from decoder
+	   input = 1: input is from ZR36060
+	   input = 2: color bar */
 
-	switch (route->input) {
+	switch (input) {
 	case 0:
 		adv7175_write(sd, 0x01, 0x00);
 
@@ -288,11 +289,11 @@ static int adv7175_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 		break;
 
 	default:
-		v4l2_dbg(1, debug, sd, "illegal input: %d\n", route->input);
+		v4l2_dbg(1, debug, sd, "illegal input: %d\n", input);
 		return -EINVAL;
 	}
-	v4l2_dbg(1, debug, sd, "switched to %s\n", inputs[route->input]);
-	encoder->input = route->input;
+	v4l2_dbg(1, debug, sd, "switched to %s\n", inputs[input]);
+	encoder->input = input;
 	return 0;
 }
 

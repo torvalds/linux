@@ -72,24 +72,12 @@
 
 #include "../EplPdo.h"
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
-
 tEplKernel EplPdouAddInstance(void);
 
 tEplKernel EplPdouDelInstance(void);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOU)) != 0)
-tEplKernel PUBLIC EplPdouCbObdAccess(tEplObdCbParam MEM * pParam_p);
+tEplKernel EplPdouCbObdAccess(tEplObdCbParam *pParam_p);
 #else
 #define EplPdouCbObdAccess		NULL
 #endif
@@ -97,12 +85,12 @@ tEplKernel PUBLIC EplPdouCbObdAccess(tEplObdCbParam MEM * pParam_p);
 // returns error if bPdoId_p is already valid
 /*
 tEplKernel EplPdouSetMapping(
-    BYTE bPdoId_p, BOOL fTxRx_p, BYTE bNodeId, BYTE bMappingVersion,
-    tEplPdoMapping * pMapping_p, BYTE bMaxEntries_p);
+    u8 bPdoId_p, BOOL fTxRx_p, u8 bNodeId, u8 bMappingVersion,
+    tEplPdoMapping * pMapping_p, u8 bMaxEntries_p);
 
 tEplKernel EplPdouGetMapping(
-    BYTE bPdoId_p, BOOL fTxRx_p, BYTE * pbNodeId, BYTE * pbMappingVersion,
-    tEplPdoMapping * pMapping_p, BYTE * pbMaxEntries_p);
+    u8 bPdoId_p, BOOL fTxRx_p, u8 * pbNodeId, u8 * pbMappingVersion,
+    tEplPdoMapping * pMapping_p, u8 * pbMaxEntries_p);
 */
 
 #endif // #ifndef _EPL_PDOU_H_

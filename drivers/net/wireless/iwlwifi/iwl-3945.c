@@ -1192,7 +1192,7 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 			return -ENOMEM;
 		}
 	} else
-		iwl_rx_queue_reset(priv, rxq);
+		iwl3945_rx_queue_reset(priv, rxq);
 
 	iwl3945_rx_replenish(priv);
 

@@ -14,8 +14,4 @@ config I2C_ALGOPCF
 config I2C_ALGOPCA
 	tristate "I2C PCA 9564 interfaces"
 
-config I2C_ALGO_SGI
-	tristate
-	depends on SGI_IP22 || SGI_IP32 || X86_VISWS
-
 endmenu

@@ -73,7 +73,7 @@ static void __init imx_timer_hardware_init(void)
 	IMX_TCTL(TIMER_BASE) = TCTL_FRR | TCTL_CLK_PCLK1 | TCTL_TEN;
 }
 
-cycle_t imx_get_cycles(void)
+cycle_t imx_get_cycles(struct clocksource *cs)
 {
 	return IMX_TCN(TIMER_BASE);
 }

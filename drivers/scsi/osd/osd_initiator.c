@@ -205,6 +205,74 @@ static unsigned _osd_req_alist_elem_size(struct osd_request *or, unsigned len)
 		osdv2_attr_list_elem_size(len);
 }
 
+static void _osd_req_alist_elem_encode(struct osd_request *or,
+	void *attr_last, const struct osd_attr *oa)
+{
+	if (osd_req_is_ver1(or)) {
+		struct osdv1_attributes_list_element *attr = attr_last;
+
+		attr->attr_page = cpu_to_be32(oa->attr_page);
+		attr->attr_id = cpu_to_be32(oa->attr_id);
+		attr->attr_bytes = cpu_to_be16(oa->len);
+		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+	} else {
+		struct osdv2_attributes_list_element *attr = attr_last;
+
+		attr->attr_page = cpu_to_be32(oa->attr_page);
+		attr->attr_id = cpu_to_be32(oa->attr_id);
+		attr->attr_bytes = cpu_to_be16(oa->len);
+		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+	}
+}
+
+static int _osd_req_alist_elem_decode(struct osd_request *or,
+	void *cur_p, struct osd_attr *oa, unsigned max_bytes)
+{
+	unsigned inc;
+	if (osd_req_is_ver1(or)) {
+		struct osdv1_attributes_list_element *attr = cur_p;
+
+		if (max_bytes < sizeof(*attr))
+			return -1;
+
+		oa->len = be16_to_cpu(attr->attr_bytes);
+		inc = _osd_req_alist_elem_size(or, oa->len);
+		if (inc > max_bytes)
+			return -1;
+
+		oa->attr_page = be32_to_cpu(attr->attr_page);
+		oa->attr_id = be32_to_cpu(attr->attr_id);
+
+		/* OSD1: On empty attributes we return a pointer to 2 bytes
+		 * of zeros. This keeps similar behaviour with OSD2.
+		 * (See below)
+		 */
+		oa->val_ptr = likely(oa->len) ? attr->attr_val :
+						(u8 *)&attr->attr_bytes;
+	} else {
+		struct osdv2_attributes_list_element *attr = cur_p;
+
+		if (max_bytes < sizeof(*attr))
+			return -1;
+
+		oa->len = be16_to_cpu(attr->attr_bytes);
+		inc = _osd_req_alist_elem_size(or, oa->len);
+		if (inc > max_bytes)
+			return -1;
+
+		oa->attr_page = be32_to_cpu(attr->attr_page);
+		oa->attr_id = be32_to_cpu(attr->attr_id);
+
+		/* OSD2: For convenience, on empty attributes, we return 8 bytes
+		 * of zeros here. This keeps the same behaviour with OSD2r04,
+		 * and is nice with null terminating ASCII fields.
+		 * oa->val_ptr == NULL marks the end-of-list, or error.
+		 */
+		oa->val_ptr = likely(oa->len) ? attr->attr_val : attr->reserved;
+	}
+	return inc;
+}
+
 static unsigned _osd_req_alist_size(struct osd_request *or, void *list_head)
 {
 	return osd_req_is_ver1(or) ?
@@ -282,9 +350,9 @@ _osd_req_sec_params(struct osd_request *or)
 	struct osd_cdb *ocdb = &or->cdb;
 
 	if (osd_req_is_ver1(or))
-		return &ocdb->v1.sec_params;
+		return (struct osd_security_parameters *)&ocdb->v1.sec_params;
 	else
-		return &ocdb->v2.sec_params;
+		return (struct osd_security_parameters *)&ocdb->v2.sec_params;
 }
 
 void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
@@ -338,20 +406,6 @@ struct osd_request *osd_start_request(struct osd_dev *dev, gfp_t gfp)
 }
 EXPORT_SYMBOL(osd_start_request);
 
-/*
- * If osd_finalize_request() was called but the request was not executed through
- * the block layer, then we must release BIOs.
- */
-static void _abort_unexecuted_bios(struct request *rq)
-{
-	struct bio *bio;
-
-	while ((bio = rq->bio) != NULL) {
-		rq->bio = bio->bi_next;
-		bio_endio(bio, 0);
-	}
-}
-
 static void _osd_free_seg(struct osd_request *or __unused,
 	struct _osd_req_data_segment *seg)
 {
@@ -363,9 +417,30 @@ static void _osd_free_seg(struct osd_request *or __unused,
 	seg->alloc_size = 0;
 }
 
+static void _put_request(struct request *rq , bool is_async)
+{
+	if (is_async) {
+		WARN_ON(rq->bio);
+		__blk_put_request(rq->q, rq);
+	} else {
+		/*
+		 * If osd_finalize_request() was called but the request was not
+		 * executed through the block layer, then we must release BIOs.
+		 * TODO: Keep error code in or->async_error. Need to audit all
+		 *       code paths.
+		 */
+		if (unlikely(rq->bio))
+			blk_end_request(rq, -ENOMEM, blk_rq_bytes(rq));
+		else
+			blk_put_request(rq);
+	}
+}
+
 void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
+	/* IMPORTANT: make sure this agrees with osd_execute_request_async */
+	bool is_async = (or->request->end_io_data == or);
 
 	_osd_free_seg(or, &or->set_attr);
 	_osd_free_seg(or, &or->enc_get_attr);
@@ -373,12 +448,11 @@ void osd_end_request(struct osd_request *or)
 
 	if (rq) {
 		if (rq->next_rq) {
-			_abort_unexecuted_bios(rq->next_rq);
-			blk_put_request(rq->next_rq);
+			_put_request(rq->next_rq, is_async);
+			rq->next_rq = NULL;
 		}
 
-		_abort_unexecuted_bios(rq);
-		blk_put_request(rq);
+		_put_request(rq, is_async);
 	}
 	_osd_request_free(or);
 }
@@ -606,9 +680,9 @@ static int _osd_req_list_objects(struct osd_request *or,
 
 	WARN_ON(or->in.bio);
 	bio = bio_map_kern(q, list, len, or->alloc_flags);
-	if (!bio) {
+	if (IS_ERR(bio)) {
 		OSD_ERR("!!! Failed to allocate list_objects BIO\n");
-		return -ENOMEM;
+		return PTR_ERR(bio);
 	}
 
 	bio->bi_rw &= ~(1 << BIO_RW);
@@ -792,7 +866,6 @@ int osd_req_add_set_attr_list(struct osd_request *or,
 	attr_last = or->set_attr.buff + total_bytes;
 
 	for (; nelem; --nelem) {
-		struct osd_attributes_list_element *attr;
 		unsigned elem_size = _osd_req_alist_elem_size(or, oa->len);
 
 		total_bytes += elem_size;
@@ -805,11 +878,7 @@ int osd_req_add_set_attr_list(struct osd_request *or,
 				or->set_attr.buff + or->set_attr.total_bytes;
 		}
 
-		attr = attr_last;
-		attr->attr_page = cpu_to_be32(oa->attr_page);
-		attr->attr_id = cpu_to_be32(oa->attr_id);
-		attr->attr_bytes = cpu_to_be16(oa->len);
-		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+		_osd_req_alist_elem_encode(or, attr_last, oa);
 
 		attr_last += elem_size;
 		++oa;
@@ -1064,15 +1133,10 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 	}
 
 	for (n = 0; (n < *nelem) && (cur_bytes < returned_bytes); ++n) {
-		struct osd_attributes_list_element *attr = cur_p;
-		unsigned inc;
+		int inc = _osd_req_alist_elem_decode(or, cur_p, oa,
+						 returned_bytes - cur_bytes);
 
-		oa->len = be16_to_cpu(attr->attr_bytes);
-		inc = _osd_req_alist_elem_size(or, oa->len);
-		OSD_DEBUG("oa->len=%d inc=%d cur_bytes=%d\n",
-			  oa->len, inc, cur_bytes);
-		cur_bytes += inc;
-		if (cur_bytes > returned_bytes) {
+		if (inc < 0) {
 			OSD_ERR("BAD FOOD from target. list not valid!"
 				"c=%d r=%d n=%d\n",
 				cur_bytes, returned_bytes, n);
@@ -1080,10 +1144,7 @@ int osd_req_decode_get_attr_list(struct osd_request *or,
 			break;
 		}
 
-		oa->attr_page = be32_to_cpu(attr->attr_page);
-		oa->attr_id = be32_to_cpu(attr->attr_id);
-		oa->val_ptr = attr->attr_val;
-
+		cur_bytes += inc;
 		cur_p += inc;
 		++oa;
 	}
@@ -1153,6 +1214,24 @@ static int _osd_req_finalize_attr_page(struct osd_request *or)
 	return ret;
 }
 
+static inline void osd_sec_parms_set_out_offset(bool is_v1,
+	struct osd_security_parameters *sec_parms, osd_cdb_offset offset)
+{
+	if (is_v1)
+		sec_parms->v1.data_out_integrity_check_offset = offset;
+	else
+		sec_parms->v2.data_out_integrity_check_offset = offset;
+}
+
+static inline void osd_sec_parms_set_in_offset(bool is_v1,
+	struct osd_security_parameters *sec_parms, osd_cdb_offset offset)
+{
+	if (is_v1)
+		sec_parms->v1.data_in_integrity_check_offset = offset;
+	else
+		sec_parms->v2.data_in_integrity_check_offset = offset;
+}
+
 static int _osd_req_finalize_data_integrity(struct osd_request *or,
 	bool has_in, bool has_out, const u8 *cap_key)
 {
@@ -1176,8 +1255,8 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		or->out_data_integ.get_attributes_bytes = cpu_to_be64(
 			or->enc_get_attr.total_bytes);
 
-		sec_parms->data_out_integrity_check_offset =
-			osd_req_encode_offset(or, or->out.total_bytes, &pad);
+		osd_sec_parms_set_out_offset(osd_req_is_ver1(or), sec_parms,
+			osd_req_encode_offset(or, or->out.total_bytes, &pad));
 
 		ret = _req_append_segment(or, pad, &seg, or->out.last_seg,
 					  &or->out);
@@ -1197,8 +1276,8 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		};
 		unsigned pad;
 
-		sec_parms->data_in_integrity_check_offset =
-			osd_req_encode_offset(or, or->in.total_bytes, &pad);
+		osd_sec_parms_set_in_offset(osd_req_is_ver1(or), sec_parms,
+			osd_req_encode_offset(or, or->in.total_bytes, &pad));
 
 		ret = _req_append_segment(or, pad, &seg, or->in.last_seg,
 					  &or->in);

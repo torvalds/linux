@@ -153,5 +153,10 @@ EXPORT_SYMBOL(node_data);
 EXPORT_SYMBOL(pfnnid_map);
 #endif
 
+#ifdef CONFIG_FUNCTION_TRACER
+extern void _mcount(void);
+EXPORT_SYMBOL(_mcount);
+#endif
+
 /* from pacache.S -- needed for copy_page */
 EXPORT_SYMBOL(copy_user_page_asm);

@@ -59,7 +59,7 @@ Configuration Options:
  * Devices: a full list of the boards that attempt to be supported by
  *   the driver.  Format is "(manufacturer) board name [comedi name]",
  *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the comedi_driver structure
+ *   See the comment near board_name: in the struct comedi_driver structure
  *   below.  If (manufacturer) or [comedi name] is missing, the previous
  *   value is used.
  * Author: you
@@ -142,7 +142,7 @@ static const struct BondingBoard bondingBoards[] = {
 #define thisboard ((const struct BondingBoard *)dev->board_ptr)
 
 struct BondedDevice {
-	comedi_t *dev;
+	void *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
@@ -154,7 +154,7 @@ struct BondedDevice {
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct Private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
@@ -171,21 +171,21 @@ struct Private {
 #define devpriv ((struct Private *)dev->private)
 
 /*
- * The comedi_driver structure tells the Comedi core module
+ * The struct comedi_driver structure tells the Comedi core module
  * which functions to call to configure/deconfigure (attach/detach)
  * the board, and also about the kernel module that contains
  * the device code.
  */
-static int bonding_attach(comedi_device *dev, comedi_devconfig *it);
-static int bonding_detach(comedi_device *dev);
+static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int bonding_detach(struct comedi_device *dev);
 /** Build Private array of all devices.. */
-static int doDevConfig(comedi_device *dev, comedi_devconfig *it);
-static void doDevUnconfig(comedi_device *dev);
+static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it);
+static void doDevUnconfig(struct comedi_device *dev);
 /* Ugly implementation of realloc that always copies memory around -- I'm lazy,
  * what can I say?  I like to do wasteful memcopies.. :) */
 static void *Realloc(const void *ptr, size_t len, size_t old_len);
 
-static comedi_driver driver_bonding = {
+static struct comedi_driver driver_bonding = {
       .driver_name =	MODULE_NAME,
       .module =		THIS_MODULE,
       .attach =		bonding_attach,
@@ -213,10 +213,10 @@ static comedi_driver driver_bonding = {
       .num_names =	sizeof(bondingBoards) / sizeof(struct BondingBoard),
 };
 
-static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data);
-static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data);
+static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data);
+static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data);
 
 /*
  * Attach is called by the Comedi core to configure the driver
@@ -224,9 +224,9 @@ static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
  * in the driver structure, dev->board_ptr contains that
  * address.
  */
-static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
+static int bonding_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
@@ -281,7 +281,7 @@ static int bonding_attach(comedi_device *dev, comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int bonding_detach(comedi_device *dev)
+static int bonding_detach(struct comedi_device *dev)
 {
 	LOG_MSG("comedi%d: remove\n", dev->minor);
 	doDevUnconfig(dev);
@@ -293,10 +293,10 @@ static int bonding_detach(comedi_device *dev)
  * useful to applications if you implement the insn_bits interface.
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
-static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-				 comedi_insn *insn, lsampl_t *data)
+static int bonding_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+				 struct comedi_insn *insn, unsigned int *data)
 {
-#define LSAMPL_BITS (sizeof(lsampl_t)*8)
+#define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
 	if (insn->n != 2)
 		return -EINVAL;
@@ -312,12 +312,12 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 		   to this subdevice.. need to shift them to zero position of
 		   course. */
 		/* Bits corresponding to this subdev. */
-		lsampl_t subdevMask = ((1 << bdev->nchans) - 1);
-		lsampl_t writeMask, dataBits;
+		unsigned int subdevMask = ((1 << bdev->nchans) - 1);
+		unsigned int writeMask, dataBits;
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
 		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (lsampl_t) (-1);
+			subdevMask = (unsigned int) (-1);
 
 		writeMask = (data[0] >> num_done) & subdevMask;
 		dataBits = (data[1] >> num_done) & subdevMask;
@@ -340,8 +340,8 @@ static int bonding_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
 	return insn->n;
 }
 
-static int bonding_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-				   comedi_insn *insn, lsampl_t *data)
+static int bonding_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+				   struct comedi_insn *insn, unsigned int *data)
 {
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
@@ -394,10 +394,10 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 	return newmem;
 }
 
-static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
+static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int i;
-	comedi_t *devs_opened[COMEDI_NUM_BOARD_MINORS];
+	void *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
 	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;;
@@ -406,7 +406,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
-		comedi_t *d;
+		void *d;
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 
@@ -497,7 +497,7 @@ static int doDevConfig(comedi_device *dev, comedi_devconfig *it)
 	return 1;
 }
 
-static void doDevUnconfig(comedi_device *dev)
+static void doDevUnconfig(struct comedi_device *dev)
 {
 	unsigned long devs_closed = 0;
 

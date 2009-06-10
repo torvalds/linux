@@ -1004,12 +1004,12 @@ static void au1000_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static void set_rx_mode(struct net_device *dev)
+static void au1000_multicast_list(struct net_device *dev)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
 	if (au1000_debug > 4)
-		printk("%s: set_rx_mode: flags=%x\n", dev->name, dev->flags);
+		printk("%s: au1000_multicast_list: flags=%x\n", dev->name, dev->flags);
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		aup->mac->control |= MAC_PROMISCUOUS;
@@ -1046,6 +1046,18 @@ static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return phy_mii_ioctl(aup->phy_dev, if_mii(rq), cmd);
 }
+
+static const struct net_device_ops au1000_netdev_ops = {
+	.ndo_open		= au1000_open,
+	.ndo_stop		= au1000_close,
+	.ndo_start_xmit		= au1000_tx,
+	.ndo_set_multicast_list	= au1000_multicast_list,
+	.ndo_do_ioctl		= au1000_ioctl,
+	.ndo_tx_timeout		= au1000_tx_timeout,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
 
 static struct net_device * au1000_probe(int port_num)
 {
@@ -1197,13 +1209,8 @@ static struct net_device * au1000_probe(int port_num)
 
 	dev->base_addr = base;
 	dev->irq = irq;
-	dev->open = au1000_open;
-	dev->hard_start_xmit = au1000_tx;
-	dev->stop = au1000_close;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &au1000_ioctl;
+	dev->netdev_ops = &au1000_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
-	dev->tx_timeout = au1000_tx_timeout;
 	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
 	/*

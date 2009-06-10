@@ -2213,33 +2213,24 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int i, found = 0;
-
-	if (info->slave_id < 0) {
-		return -ENODEV;
-	}
+	int i, res = -ENODEV;
 
 	read_lock(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
 		if (i == (int)info->slave_id) {
-			found = 1;
+			res = 0;
+			strcpy(info->slave_name, slave->dev->name);
+			info->link = slave->link;
+			info->state = slave->state;
+			info->link_failure_count = slave->link_failure_count;
 			break;
 		}
 	}
 
 	read_unlock(&bond->lock);
 
-	if (found) {
-		strcpy(info->slave_name, slave->dev->name);
-		info->link = slave->link;
-		info->state = slave->state;
-		info->link_failure_count = slave->link_failure_count;
-	} else {
-		return -ENODEV;
-	}
-
-	return 0;
+	return res;
 }
 
 /*-------------------------------- Monitoring -------------------------------*/
@@ -2570,7 +2561,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 		if (!targets[i])
-			continue;
+			break;
 		pr_debug("basa: target %x\n", targets[i]);
 		if (list_empty(&bond->vlan_list)) {
 			pr_debug("basa: empty vlan: arp_send\n");
@@ -2677,7 +2668,6 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	int i;
 	__be32 *targets = bond->params.arp_targets;
 
-	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
 		pr_debug("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
 			&sip, &tip, i, &targets[i], bond_has_this_ip(bond, tip));
@@ -3303,7 +3293,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 		for(i = 0; (i < BOND_MAX_ARP_TARGETS) ;i++) {
 			if (!bond->params.arp_targets[i])
-				continue;
+				break;
 			if (printed)
 				seq_printf(seq, ",");
 			seq_printf(seq, " %pI4", &bond->params.arp_targets[i]);
@@ -5168,16 +5158,15 @@ int bond_create(char *name, struct bond_params *params)
 	up_write(&bonding_rwsem);
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
-	if (res < 0) {
-		rtnl_lock();
-		down_write(&bonding_rwsem);
-		bond_deinit(bond_dev);
-		unregister_netdevice(bond_dev);
-		goto out_rtnl;
-	}
+	if (res < 0)
+		goto out_unreg;
 
 	return 0;
 
+out_unreg:
+	rtnl_lock();
+	down_write(&bonding_rwsem);
+	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
@@ -5192,7 +5181,6 @@ static int __init bonding_init(void)
 {
 	int i;
 	int res;
-	struct bonding *bond;
 
 	printk(KERN_INFO "%s", version);
 
@@ -5223,13 +5211,6 @@ static int __init bonding_init(void)
 
 	goto out;
 err:
-	list_for_each_entry(bond, &bond_dev_list, bond_list) {
-		bond_work_cancel_all(bond);
-		destroy_workqueue(bond->wq);
-	}
-
-	bond_destroy_sysfs();
-
 	rtnl_lock();
 	bond_free_all();
 	rtnl_unlock();

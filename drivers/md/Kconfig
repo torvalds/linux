@@ -121,6 +121,7 @@ config MD_RAID10
 config MD_RAID456
 	tristate "RAID-4/RAID-5/RAID-6 mode"
 	depends on BLK_DEV_MD
+	select MD_RAID6_PQ
 	select ASYNC_MEMCPY
 	select ASYNC_XOR
 	---help---
@@ -151,34 +152,8 @@ config MD_RAID456
 
 	  If unsure, say Y.
 
-config MD_RAID5_RESHAPE
-	bool "Support adding drives to a raid-5 array"
-	depends on MD_RAID456
-	default y
-	---help---
-	  A RAID-5 set can be expanded by adding extra drives. This
-	  requires "restriping" the array which means (almost) every
-	  block must be written to a different place.
-
-          This option allows such restriping to be done while the array
-	  is online.
-
-	  You will need mdadm version 2.4.1 or later to use this
-	  feature safely.  During the early stage of reshape there is
-	  a critical section where live data is being over-written.  A
-	  crash during this time needs extra care for recovery.  The
-	  newer mdadm takes a copy of the data in the critical section
-	  and will restore it, if necessary, after a crash.
-
-	  The mdadm usage is e.g.
-	       mdadm --grow /dev/md1 --raid-disks=6
-	  to grow '/dev/md1' to having 6 disks.
-
-	  Note: The array can only be expanded, not contracted.
-	  There should be enough spares already present to make the new
-	  array workable.
-
-	  If unsure, say Y.
+config MD_RAID6_PQ
+	tristate
 
 config MD_MULTIPATH
 	tristate "Multipath I/O support"

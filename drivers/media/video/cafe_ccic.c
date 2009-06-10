@@ -774,6 +774,7 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	ret = __cafe_cam_reset(cam);
 	if (ret)
 		goto out;
+	chip.ident = V4L2_IDENT_NONE;
 	chip.match.type = V4L2_CHIP_MATCH_I2C_ADDR;
 	chip.match.addr = cam->sensor_addr;
 	ret = sensor_call(cam, core, g_chip_ident, &chip);
@@ -1954,7 +1955,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out_freeirq;
 
 	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev(&cam->i2c_adapter,
+	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
 			"ov7670", "ov7670", cam->sensor_addr);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;

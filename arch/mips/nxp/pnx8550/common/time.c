@@ -35,7 +35,7 @@
 
 static unsigned long cpj;
 
-static cycle_t hpt_read(void)
+static cycle_t hpt_read(struct clocksource *cs)
 {
 	return read_c0_count2();
 }

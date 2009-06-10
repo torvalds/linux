@@ -339,7 +339,7 @@ static int axnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
-    int i, j, last_ret, last_fn;
+    int i, j, j2, last_ret, last_fn;
 
     DEBUG(0, "axnet_config(0x%p)\n", link);
 
@@ -388,6 +388,8 @@ static int axnet_config(struct pcmcia_device *link)
 
     for (i = 0; i < 32; i++) {
 	j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
+	j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
+	if (j == j2) continue;
 	if ((j != 0) && (j != 0xffff)) break;
     }
 
@@ -398,6 +400,8 @@ static int axnet_config(struct pcmcia_device *link)
  	pcmcia_access_configuration_register(link, &reg);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
+	    j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
+	    if (j == j2) continue;
 	    if ((j != 0) && (j != 0xffff)) break;
 	}
     }
@@ -1766,6 +1770,9 @@ static void AX88190_init(struct net_device *dev, int startp)
 	netif_start_queue(dev);
 	ei_local->tx1 = ei_local->tx2 = 0;
 	ei_local->txing = 0;
+
+	if (info->flags & IS_AX88790)	/* select Internal PHY */
+		outb(0x10, e8390_base + AXNET_GPIO);
 
 	if (startp) 
 	{

@@ -716,8 +716,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	/* new style driver methods can't mix with legacy ones */
 	if (is_newstyle_driver(driver)) {
-		if (driver->attach_adapter || driver->detach_adapter
-				|| driver->detach_client) {
+		if (driver->detach_adapter || driver->detach_client) {
 			printk(KERN_WARNING
 					"i2c-core: driver [%s] is confused\n",
 					driver->driver.name);

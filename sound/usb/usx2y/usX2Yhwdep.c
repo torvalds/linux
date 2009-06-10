@@ -203,13 +203,12 @@ static int snd_usX2Y_hwdep_dsp_load(struct snd_hwdep *hw,
 
 	if (access_ok(VERIFY_READ, dsp->image, dsp->length)) {
 		struct usb_device* dev = priv->chip.dev;
-		char *buf = kmalloc(dsp->length, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-		if (copy_from_user(buf, dsp->image, dsp->length)) {
-			kfree(buf);
-			return -EFAULT;
-		}
+		char *buf;
+
+		buf = memdup_user(dsp->image, dsp->length);
+		if (IS_ERR(buf))
+			return PTR_ERR(buf);
+
 		err = usb_set_interface(dev, 0, 1);
 		if (err)
 			snd_printk(KERN_ERR "usb_set_interface error \n");

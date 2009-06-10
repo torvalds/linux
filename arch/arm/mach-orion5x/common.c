@@ -188,6 +188,9 @@ static struct platform_device orion5x_eth = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= orion5x_eth_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
@@ -248,12 +251,10 @@ static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 
 static struct resource orion5x_i2c_resources[] = {
 	{
-		.name	= "i2c base",
 		.start	= I2C_PHYS_BASE,
 		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "i2c irq",
 		.start	= IRQ_ORION5X_I2C,
 		.end	= IRQ_ORION5X_I2C,
 		.flags	= IORESOURCE_IRQ,
@@ -463,7 +464,7 @@ static struct platform_device orion5x_xor_shared = {
 	.resource	= orion5x_xor_shared_resources,
 };
 
-static u64 orion5x_xor_dmamask = DMA_32BIT_MASK;
+static u64 orion5x_xor_dmamask = DMA_BIT_MASK(32);
 
 static struct resource orion5x_xor0_resources[] = {
 	[0] = {
@@ -486,7 +487,7 @@ static struct platform_device orion5x_xor0_channel = {
 	.resource	= orion5x_xor0_resources,
 	.dev		= {
 		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&orion5x_xor0_data,
 	},
 };
@@ -512,7 +513,7 @@ static struct platform_device orion5x_xor1_channel = {
 	.resource	= orion5x_xor1_resources,
 	.dev		= {
 		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&orion5x_xor1_data,
 	},
 };

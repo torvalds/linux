@@ -169,11 +169,11 @@
 #define GAM15       0x8C /* Gamma Curve 15th segment input end point */
 #define SLOP        0x8D /* Gamma curve highest segment slope */
 #define DNSTH       0x8E /* De-noise threshold */
-#define EDGE0       0x8F /* Edge enhancement control 0 */
-#define EDGE1       0x90 /* Edge enhancement control 1 */
+#define EDGE_STRNGT 0x8F /* Edge strength  control when manual mode */
+#define EDGE_TRSHLD 0x90 /* Edge threshold control when manual mode */
 #define DNSOFF      0x91 /* Auto De-noise threshold control */
-#define EDGE2       0x92 /* Edge enhancement strength low  point control */
-#define EDGE3       0x93 /* Edge enhancement strength high point control */
+#define EDGE_UPPER  0x92 /* Edge strength upper limit when Auto mode */
+#define EDGE_LOWER  0x93 /* Edge strength lower limit when Auto mode */
 #define MTX1        0x94 /* Matrix coefficient 1 */
 #define MTX2        0x95 /* Matrix coefficient 2 */
 #define MTX3        0x96 /* Matrix coefficient 3 */
@@ -357,6 +357,14 @@
 /* VOUTSIZE */
 #define VOSZ_VGA        0xF0
 #define VOSZ_QVGA       0x78
+
+/* DSPAUTO (DSP Auto Function ON/OFF Control) */
+#define AWB_ACTRL       0x80 /* AWB auto threshold control */
+#define DENOISE_ACTRL   0x40 /* De-noise auto threshold control */
+#define EDGE_ACTRL      0x20 /* Edge enhancement auto strength control */
+#define UV_ACTRL        0x10 /* UV adjust auto slope control */
+#define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
+#define SCAL1_2_ACTRL   0x04 /* Auto scaling factor control */
 
 /*
  * ID
@@ -670,7 +678,7 @@ static int ov772x_set_bus_param(struct soc_camera_device *icd,
 static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	struct soc_camera_link *icl = priv->client->dev.platform_data;
+	struct soc_camera_link *icl = &priv->info->link;
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
 		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
@@ -814,6 +822,53 @@ static int ov772x_set_params(struct ov772x_priv *priv, u32 width, u32 height,
 	 * reset hardware
 	 */
 	ov772x_reset(priv->client);
+
+	/*
+	 * Edge Ctrl
+	 */
+	if (priv->info->edgectrl.strength & OV772X_MANUAL_EDGE_CTRL) {
+
+		/*
+		 * Manual Edge Control Mode
+		 *
+		 * Edge auto strength bit is set by default.
+		 * Remove it when manual mode.
+		 */
+
+		ret = ov772x_mask_set(priv->client, DSPAUTO, EDGE_ACTRL, 0x00);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_TRSHLD, EDGE_THRESHOLD_MASK,
+				      priv->info->edgectrl.threshold);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_STRNGT, EDGE_STRENGTH_MASK,
+				      priv->info->edgectrl.strength);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+	} else if (priv->info->edgectrl.upper > priv->info->edgectrl.lower) {
+		/*
+		 * Auto Edge Control Mode
+		 *
+		 * set upper and lower limit
+		 */
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_UPPER, EDGE_UPPER_MASK,
+				      priv->info->edgectrl.upper);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_LOWER, EDGE_LOWER_MASK,
+				      priv->info->edgectrl.lower);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
 
 	/*
 	 * set size format

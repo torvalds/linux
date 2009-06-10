@@ -29,7 +29,7 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 	if (pdev->is_pcie)
 		return NULL;
 	while (1) {
-		if (!pdev->bus->self)
+		if (!pdev->bus->parent)
 			break;
 		pdev = pdev->bus->self;
 		/* a p2p bridge */

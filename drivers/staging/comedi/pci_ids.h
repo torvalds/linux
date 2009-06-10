@@ -28,4 +28,4 @@
 #define PCI_DEVICE_ID_QUANCOM_GPIB	0x3302
 #endif
 
-#endif // __COMPAT_LINUX_PCI_IDS_H
+#endif /* __COMPAT_LINUX_PCI_IDS_H */

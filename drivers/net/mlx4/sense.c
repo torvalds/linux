@@ -103,7 +103,7 @@ void mlx4_do_sense_ports(struct mlx4_dev *dev,
 
 static void mlx4_sense_port(struct work_struct *work)
 {
-	struct delayed_work *delay = container_of(work, struct delayed_work, work);
+	struct delayed_work *delay = to_delayed_work(work);
 	struct mlx4_sense *sense = container_of(delay, struct mlx4_sense,
 						sense_poll);
 	struct mlx4_dev *dev = sense->dev;

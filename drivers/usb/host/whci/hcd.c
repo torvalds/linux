@@ -186,6 +186,28 @@ static void whc_endpoint_disable(struct usb_hcd *usb_hcd,
 	}
 }
 
+static void whc_endpoint_reset(struct usb_hcd *usb_hcd,
+			       struct usb_host_endpoint *ep)
+{
+	struct wusbhc *wusbhc = usb_hcd_to_wusbhc(usb_hcd);
+	struct whc *whc = wusbhc_to_whc(wusbhc);
+	struct whc_qset *qset;
+
+	qset = ep->hcpriv;
+	if (qset) {
+		qset->remove = 1;
+
+		if (usb_endpoint_xfer_bulk(&ep->desc)
+		    || usb_endpoint_xfer_control(&ep->desc))
+			queue_work(whc->workqueue, &whc->async_work);
+		else
+			queue_work(whc->workqueue, &whc->periodic_work);
+
+		qset_reset(whc, qset);
+	}
+}
+
+
 static struct hc_driver whc_hc_driver = {
 	.description = "whci-hcd",
 	.product_desc = "Wireless host controller",
@@ -200,6 +222,7 @@ static struct hc_driver whc_hc_driver = {
 	.urb_enqueue = whc_urb_enqueue,
 	.urb_dequeue = whc_urb_dequeue,
 	.endpoint_disable = whc_endpoint_disable,
+	.endpoint_reset = whc_endpoint_reset,
 
 	.hub_status_data = wusbhc_rh_status_data,
 	.hub_control = wusbhc_rh_control,
