@@ -4148,6 +4148,24 @@ static void floppy_device_release(struct device *dev)
 {
 }
 
+static int floppy_resume(struct platform_device *dev)
+{
+	int fdc;
+
+	for (fdc = 0; fdc < N_FDC; fdc++)
+		if (FDCS->address != -1)
+			user_reset_fdc(-1, FD_RESET_ALWAYS, 0);
+
+	return 0;
+}
+
+static struct platform_driver floppy_driver = {
+	.resume = floppy_resume,
+	.driver = {
+		.name = "floppy",
+	},
+};
+
 static struct platform_device floppy_device[N_DRIVE];
 
 static struct kobject *floppy_find(dev_t dev, int *part, void *data)
@@ -4196,10 +4214,14 @@ static int __init floppy_init(void)
 	if (err)
 		goto out_put_disk;
 
+	err = platform_driver_register(&floppy_driver);
+	if (err)
+		goto out_unreg_blkdev;
+
 	floppy_queue = blk_init_queue(do_fd_request, &floppy_lock);
 	if (!floppy_queue) {
 		err = -ENOMEM;
-		goto out_unreg_blkdev;
+		goto out_unreg_driver;
 	}
 	blk_queue_max_sectors(floppy_queue, 64);
 
@@ -4346,6 +4368,8 @@ out_flush_work:
 out_unreg_region:
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	blk_cleanup_queue(floppy_queue);
+out_unreg_driver:
+	platform_driver_unregister(&floppy_driver);
 out_unreg_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 out_put_disk:
@@ -4566,6 +4590,7 @@ static void __exit floppy_module_exit(void)
 
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
+	platform_driver_unregister(&floppy_driver);
 
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		del_timer_sync(&motor_off_timer[drive]);
