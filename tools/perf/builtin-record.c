@@ -169,10 +169,21 @@ static void mmap_read(struct mmap_data *md)
 }
 
 static volatile int done = 0;
+static volatile int signr = -1;
 
 static void sig_handler(int sig)
 {
 	done = 1;
+	signr = sig;
+}
+
+static void sig_atexit(void)
+{
+	if (signr == -1)
+		return;
+
+	signal(signr, SIG_DFL);
+	kill(getpid(), signr);
 }
 
 static void pid_synthesize_comm_event(pid_t pid, int full)
@@ -459,6 +470,7 @@ static int __cmd_record(int argc, const char **argv)
 	} else for (i = 0; i < nr_cpus; i++)
 		open_counters(i, target_pid);
 
+	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 

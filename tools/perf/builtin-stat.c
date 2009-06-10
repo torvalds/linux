@@ -296,8 +296,20 @@ static int do_perf_stat(int argc, const char **argv)
 	return 0;
 }
 
+static volatile int signr = -1;
+
 static void skip_signal(int signo)
 {
+	signr = signo;
+}
+
+static void sig_atexit(void)
+{
+	if (signr == -1)
+		return;
+
+	signal(signr, SIG_DFL);
+	kill(getpid(), signr);
 }
 
 static const char * const stat_usage[] = {
@@ -345,6 +357,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 	 * What we want is for Ctrl-C to work in the exec()-ed
 	 * task, but being ignored by perf stat itself:
 	 */
+	atexit(sig_atexit);
 	signal(SIGINT,  skip_signal);
 	signal(SIGALRM, skip_signal);
 	signal(SIGABRT, skip_signal);
