@@ -627,6 +627,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	subs->hwptr_done += offs;
 	if (subs->hwptr_done >= runtime->buffer_size)
 		subs->hwptr_done -= runtime->buffer_size;
+	runtime->delay += offs;
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = offs * stride;
 	if (period_elapsed)
@@ -636,12 +637,22 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 
 /*
  * process after playback data complete
- * - nothing to do
+ * - decrease the delay count again
  */
 static int retire_playback_urb(struct snd_usb_substream *subs,
 			       struct snd_pcm_runtime *runtime,
 			       struct urb *urb)
 {
+	unsigned long flags;
+	int stride = runtime->frame_bits >> 3;
+	int processed = urb->transfer_buffer_length / stride;
+
+	spin_lock_irqsave(&subs->lock, flags);
+	if (processed > runtime->delay)
+		runtime->delay = 0;
+	else
+		runtime->delay -= processed;
+	spin_unlock_irqrestore(&subs->lock, flags);
 	return 0;
 }
 
@@ -1520,6 +1531,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->hwptr_done = 0;
 	subs->transfer_done = 0;
 	subs->phase = 0;
+	runtime->delay = 0;
 
 	/* clear urbs (to be sure) */
 	deactivate_urbs(subs, 0, 1);
