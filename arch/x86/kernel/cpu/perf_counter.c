@@ -1407,7 +1407,10 @@ static int intel_pmu_init(void)
 	 * Install the hw-cache-events table:
 	 */
 	switch (boot_cpu_data.x86_model) {
-	case 17:
+	case 15: /* original 65 nm celeron/pentium/core2/xeon, "Merom"/"Conroe" */
+	case 22: /* single-core 65 nm celeron/core2solo "Merom-L"/"Conroe-L" */
+	case 23: /* current 45 nm celeron/core2/xeon "Penryn"/"Wolfdale" */
+	case 29: /* six-core 45 nm xeon "Dunnington" */
 		memcpy(hw_cache_event_ids, core2_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
