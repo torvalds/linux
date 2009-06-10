@@ -1269,7 +1269,7 @@ static int f10_early_channel_count(struct amd64_pvt *pvt)
 	if (channels == 0)
 		channels = 1;
 
-	debugf0("DIMM count= %d\n", channels);
+	debugf0("MCT channel count: %d\n", channels);
 
 	return channels;
 
@@ -3056,7 +3056,7 @@ static int amd64_probe_one_instance(struct pci_dev *dram_f2_ctl,
 	if (!pvt)
 		goto err_exit;
 
-	pvt->mc_node_id = get_mc_node_id_from_pdev(dram_f2_ctl);
+	pvt->mc_node_id = get_node_id(dram_f2_ctl);
 
 	pvt->dram_f2_ctl	= dram_f2_ctl;
 	pvt->ext_model		= boot_cpu_data.x86_model >> 4;
@@ -3183,8 +3183,7 @@ static int __devinit amd64_init_one_instance(struct pci_dev *pdev,
 {
 	int ret = 0;
 
-	debugf0("(MC node=%d,mc_type='%s')\n",
-		get_mc_node_id_from_pdev(pdev),
+	debugf0("(MC node=%d,mc_type='%s')\n", get_node_id(pdev),
 		get_amd_family_name(mc_type->driver_data));
 
 	ret = pci_enable_device(pdev);
@@ -3323,15 +3322,17 @@ static int __init amd64_edac_init(void)
 
 		err = amd64_init_2nd_stage(pvt_lookup[nb]);
 		if (err)
-			goto err_exit;
+			goto err_2nd_stage;
 	}
 
 	amd64_setup_pci_device();
 
 	return 0;
 
+err_2nd_stage:
+	debugf0("2nd stage failed\n");
+
 err_exit:
-	debugf0("'finish_setup' stage failed\n");
 	pci_unregister_driver(&amd64_pci_driver);
 
 	return err;
