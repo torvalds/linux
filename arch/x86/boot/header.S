@@ -237,7 +237,7 @@ init_size:		.long INIT_SIZE		# kernel initialization size
 
 # End of setup header #####################################################
 
-	.section ".inittext", "ax"
+	.section ".entrytext", "ax"
 start_of_setup:
 #ifdef SAFE_RESET_DISK_CONTROLLER
 # Reset the disk controller.
