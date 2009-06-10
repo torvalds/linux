@@ -24,6 +24,7 @@
 #include <linux/lmb.h>
 
 #include <asm/firmware.h>
+#include <asm/iommu.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/lv1call.h>
@@ -1001,7 +1002,8 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 		if (len > r->len)
 			len = r->len;
 		result = dma_sb_map_area(r, virt_addr, len, &tmp,
-			IOPTE_PP_W | IOPTE_PP_R | IOPTE_SO_RW | IOPTE_M);
+			CBE_IOPTE_PP_W | CBE_IOPTE_PP_R | CBE_IOPTE_SO_RW |
+			CBE_IOPTE_M);
 		BUG_ON(result);
 	}
 
@@ -1014,7 +1016,8 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 		else
 			len -= map.rm.size - r->offset;
 		result = dma_sb_map_area(r, virt_addr, len, &tmp,
-			IOPTE_PP_W | IOPTE_PP_R | IOPTE_SO_RW | IOPTE_M);
+			CBE_IOPTE_PP_W | CBE_IOPTE_PP_R | CBE_IOPTE_SO_RW |
+			CBE_IOPTE_M);
 		BUG_ON(result);
 	}
 
