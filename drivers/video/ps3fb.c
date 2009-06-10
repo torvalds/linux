@@ -1166,7 +1166,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	if (retval < 0)
 		goto err_fb_dealloc;
 
-	dev->core.driver_data = info;
+	ps3_system_bus_set_drvdata(dev, info);
 
 	dev_info(info->device, "%s %s, using %u KiB of video memory\n",
 		 dev_driver_string(info->dev), dev_name(info->dev),
@@ -1211,7 +1211,7 @@ err:
 
 static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 {
-	struct fb_info *info = dev->core.driver_data;
+	struct fb_info *info = ps3_system_bus_get_drvdata(dev);
 	u64 xdr_lpar = ps3_mm_phys_to_lpar(__pa(ps3fb_videomemory.address));
 
 	dev_dbg(&dev->core, " -> %s:%d\n", __func__, __LINE__);
@@ -1232,7 +1232,7 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
-		info = dev->core.driver_data = NULL;
+		ps3_system_bus_set_drvdata(dev, NULL);
 	}
 	iounmap((u8 __force __iomem *)ps3fb.dinfo);
 	lv1_gpu_fb_close(ps3fb.context_handle);
