@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 
 #include <asm/firmware.h>
+#include <asm/iommu.h>
 #include <asm/lv1call.h>
 #include <asm/ps3.h>
 
@@ -603,8 +604,8 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 	int error, status;
 	struct request_queue *queue;
 	struct gendisk *gendisk;
-	u64 ddr_lpar, ctrl_lpar, info_lpar, reports_lpar, ddr_size,
-	    reports_size;
+	u64 ddr_size, ddr_lpar, ctrl_lpar, info_lpar, reports_lpar,
+	    reports_size, xdr_lpar;
 	char *rest;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -675,9 +676,11 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 	}
 
 	/* Map XDR buffer to RSX */
+	xdr_lpar = ps3_mm_phys_to_lpar(__pa(priv->xdr_buf));
 	status = lv1_gpu_context_iomap(priv->context_handle, XDR_IOIF,
-				       ps3_mm_phys_to_lpar(__pa(priv->xdr_buf)),
-				       XDR_BUF_SIZE, 0);
+				       xdr_lpar, XDR_BUF_SIZE,
+				       CBE_IOPTE_PP_W | CBE_IOPTE_PP_R |
+				       CBE_IOPTE_M);
 	if (status) {
 		dev_err(&dev->core, "lv1_gpu_context_iomap failed %d\n",
 			status);
@@ -690,7 +693,7 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 	if (!priv->ddr_base) {
 		dev_err(&dev->core, "ioremap DDR failed\n");
 		error = -ENOMEM;
-		goto out_free_context;
+		goto out_unmap_context;
 	}
 
 	priv->ctrl = ioremap(ctrl_lpar, 64 * 1024);
@@ -776,6 +779,9 @@ out_unmap_ctrl:
 	iounmap(priv->ctrl);
 out_unmap_vram:
 	iounmap(priv->ddr_base);
+out_unmap_context:
+	lv1_gpu_context_iomap(priv->context_handle, XDR_IOIF, xdr_lpar,
+			      XDR_BUF_SIZE, CBE_IOPTE_M);
 out_free_context:
 	lv1_gpu_context_free(priv->context_handle);
 out_free_memory:
@@ -803,6 +809,9 @@ static int ps3vram_remove(struct ps3_system_bus_device *dev)
 	iounmap(priv->reports);
 	iounmap(priv->ctrl);
 	iounmap(priv->ddr_base);
+	lv1_gpu_context_iomap(priv->context_handle, XDR_IOIF,
+			      ps3_mm_phys_to_lpar(__pa(priv->xdr_buf)),
+			      XDR_BUF_SIZE, CBE_IOPTE_M);
 	lv1_gpu_context_free(priv->context_handle);
 	lv1_gpu_memory_free(priv->memory_handle);
 	ps3_close_hv_device(dev);
