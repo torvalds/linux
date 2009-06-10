@@ -2552,14 +2552,16 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 {
 	struct cqicb *cqicb = &rx_ring->cqicb;
 	void *shadow_reg = qdev->rx_ring_shadow_reg_area +
-	    (rx_ring->cq_id * sizeof(u64) * 4);
+		(rx_ring->cq_id * RX_RING_SHADOW_SPACE);
 	u64 shadow_reg_dma = qdev->rx_ring_shadow_reg_dma +
-	    (rx_ring->cq_id * sizeof(u64) * 4);
+		(rx_ring->cq_id * RX_RING_SHADOW_SPACE);
 	void __iomem *doorbell_area =
 	    qdev->doorbell_area + (DB_PAGE_SIZE * (128 + rx_ring->cq_id));
 	int err = 0;
 	u16 bq_len;
 	u64 tmp;
+	__le64 *base_indirect_ptr;
+	int page_entries;
 
 	/* Set up the shadow registers for this ring. */
 	rx_ring->prod_idx_sh_reg = shadow_reg;
@@ -2568,8 +2570,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	shadow_reg_dma += sizeof(u64);
 	rx_ring->lbq_base_indirect = shadow_reg;
 	rx_ring->lbq_base_indirect_dma = shadow_reg_dma;
-	shadow_reg += sizeof(u64);
-	shadow_reg_dma += sizeof(u64);
+	shadow_reg += (sizeof(u64) * MAX_DB_PAGES_PER_BQ(rx_ring->lbq_len));
+	shadow_reg_dma += (sizeof(u64) * MAX_DB_PAGES_PER_BQ(rx_ring->lbq_len));
 	rx_ring->sbq_base_indirect = shadow_reg;
 	rx_ring->sbq_base_indirect_dma = shadow_reg_dma;
 
@@ -2606,7 +2608,14 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->lbq_len) {
 		cqicb->flags |= FLAGS_LL;	/* Load lbq values */
 		tmp = (u64)rx_ring->lbq_base_dma;;
-		*((__le64 *) rx_ring->lbq_base_indirect) = cpu_to_le64(tmp);
+		base_indirect_ptr = (__le64 *) rx_ring->lbq_base_indirect;
+		page_entries = 0;
+		do {
+			*base_indirect_ptr = cpu_to_le64(tmp);
+			tmp += DB_PAGE_SIZE;
+			base_indirect_ptr++;
+			page_entries++;
+		} while (page_entries < MAX_DB_PAGES_PER_BQ(rx_ring->lbq_len));
 		cqicb->lbq_addr =
 		    cpu_to_le64(rx_ring->lbq_base_indirect_dma);
 		bq_len = (rx_ring->lbq_buf_size == 65536) ? 0 :
@@ -2623,7 +2632,14 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->sbq_len) {
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
 		tmp = (u64)rx_ring->sbq_base_dma;;
-		*((__le64 *) rx_ring->sbq_base_indirect) = cpu_to_le64(tmp);
+		base_indirect_ptr = (__le64 *) rx_ring->sbq_base_indirect;
+		page_entries = 0;
+		do {
+			*base_indirect_ptr = cpu_to_le64(tmp);
+			tmp += DB_PAGE_SIZE;
+			base_indirect_ptr++;
+			page_entries++;
+		} while (page_entries < MAX_DB_PAGES_PER_BQ(rx_ring->sbq_len));
 		cqicb->sbq_addr =
 		    cpu_to_le64(rx_ring->sbq_base_indirect_dma);
 		cqicb->sbq_buf_size =

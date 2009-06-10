@@ -41,7 +41,18 @@
 
 #define NUM_SMALL_BUFFERS   512
 #define NUM_LARGE_BUFFERS   512
+#define DB_PAGE_SIZE 4096
 
+/* Calculate the number of (4k) pages required to
+ * contain a buffer queue of the given length.
+ */
+#define MAX_DB_PAGES_PER_BQ(x) \
+		(((x * sizeof(u64)) / DB_PAGE_SIZE) + \
+		(((x * sizeof(u64)) % DB_PAGE_SIZE) ? 1 : 0))
+
+#define RX_RING_SHADOW_SPACE	(sizeof(u64) + \
+		MAX_DB_PAGES_PER_BQ(NUM_SMALL_BUFFERS) * sizeof(u64) + \
+		MAX_DB_PAGES_PER_BQ(NUM_LARGE_BUFFERS) * sizeof(u64))
 #define SMALL_BUFFER_SIZE 256
 #define LARGE_BUFFER_SIZE	PAGE_SIZE
 #define MAX_SPLIT_SIZE 1023
@@ -64,8 +75,6 @@
 #else /* all other page sizes */
 #define TX_DESC_PER_OAL 0
 #endif
-
-#define DB_PAGE_SIZE 4096
 
 /* MPI test register definitions. This register
  * is used for determining alternate NIC function's
