@@ -538,7 +538,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1r.brightness = LED_OFF;
 	led->cdev_led1r.brightness_set = bd2802_set_led1r_brightness;
 	led->cdev_led1r.blink_set = bd2802_set_led1r_blink;
-	led->cdev_led1r.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1r);
 	if (ret < 0) {
@@ -551,7 +550,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1g.brightness = LED_OFF;
 	led->cdev_led1g.brightness_set = bd2802_set_led1g_brightness;
 	led->cdev_led1g.blink_set = bd2802_set_led1g_blink;
-	led->cdev_led1g.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1g);
 	if (ret < 0) {
@@ -564,7 +562,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led1b.brightness = LED_OFF;
 	led->cdev_led1b.brightness_set = bd2802_set_led1b_brightness;
 	led->cdev_led1b.blink_set = bd2802_set_led1b_blink;
-	led->cdev_led1b.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led1b);
 	if (ret < 0) {
@@ -577,7 +574,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led2r.brightness = LED_OFF;
 	led->cdev_led2r.brightness_set = bd2802_set_led2r_brightness;
 	led->cdev_led2r.blink_set = bd2802_set_led2r_blink;
-	led->cdev_led2r.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led2r);
 	if (ret < 0) {
@@ -590,7 +586,6 @@ static int bd2802_register_led_classdev(struct bd2802_led *led)
 	led->cdev_led2g.brightness = LED_OFF;
 	led->cdev_led2g.brightness_set = bd2802_set_led2g_brightness;
 	led->cdev_led2g.blink_set = bd2802_set_led2g_blink;
-	led->cdev_led2g.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = led_classdev_register(&led->client->dev, &led->cdev_led2g);
 	if (ret < 0) {
@@ -723,8 +718,7 @@ static int bd2802_resume(struct i2c_client *client)
 	struct bd2802_led *led = i2c_get_clientdata(client);
 
 	if (!bd2802_is_all_off(led) || led->adf_on) {
-		gpio_set_value(led->pdata->reset_gpio, 1);
-		udelay(100);
+		bd2802_reset_cancel(led);
 		bd2802_restore_state(led);
 	}
 
