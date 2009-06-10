@@ -172,14 +172,13 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 		goto exit;
 	}
 
-	cmd = (struct btmrvl_cmd *) skb->tail;
-	cmd->ocf_ogf = cpu_to_le16((OGF << 10) | BT_CMD_MODULE_CFG_REQ);
+	cmd = skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_MODULE_CFG_REQ));
 	cmd->length = 1;
 	cmd->data[0] = subcmd;
 
 	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
-	skb_put(skb, sizeof(*cmd));
 	skb->dev = (void *) priv->btmrvl_dev.hcidev;
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -223,13 +222,12 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 		goto exit;
 	}
 
-	cmd = (struct btmrvl_cmd *) skb->tail;
-	cmd->ocf_ogf = cpu_to_le16((OGF << 10) | BT_CMD_HOST_SLEEP_ENABLE);
+	cmd = skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_ENABLE));
 	cmd->length = 0;
 
 	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
-	skb_put(skb, sizeof(*cmd));
 	skb->dev = (void *) priv->btmrvl_dev.hcidev;
 	skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -270,16 +268,14 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 			goto exit;
 		}
 
-		cmd = (struct btmrvl_cmd *) skb->tail;
-		cmd->ocf_ogf = cpu_to_le16((OGF << 10) |
-						BT_CMD_HOST_SLEEP_CONFIG);
+		cmd = skb_put(skb, sizeof(*cmd));
+		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_CONFIG));
 		cmd->length = 2;
 		cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
 		cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
 
 		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
-		skb_put(skb, sizeof(*cmd));
 		skb->dev = (void *) priv->btmrvl_dev.hcidev;
 		skb_queue_head(&priv->adapter->tx_queue, skb);
 
@@ -297,9 +293,8 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 			goto exit;
 		}
 
-		cmd = (struct btmrvl_cmd *) skb->tail;
-		cmd->ocf_ogf = cpu_to_le16((OGF << 10) |
-						BT_CMD_AUTO_SLEEP_MODE);
+		cmd = skb_put(skb, sizeof(*cmd));
+		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_AUTO_SLEEP_MODE));
 		cmd->length = 1;
 
 		if (priv->btmrvl_dev.psmode)
@@ -309,7 +304,6 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 
 		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
 
-		skb_put(skb, sizeof(*cmd));
 		skb->dev = (void *) priv->btmrvl_dev.hcidev;
 		skb_queue_head(&priv->adapter->tx_queue, skb);
 
