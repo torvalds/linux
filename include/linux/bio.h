@@ -590,6 +590,11 @@ static inline void bio_list_merge_head(struct bio_list *bl,
 	bl->head = bl2->head;
 }
 
+static inline struct bio *bio_list_peek(struct bio_list *bl)
+{
+	return bl->head;
+}
+
 static inline struct bio *bio_list_pop(struct bio_list *bl)
 {
 	struct bio *bio = bl->head;
