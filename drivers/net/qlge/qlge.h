@@ -27,6 +27,8 @@
 			   "%s: " fmt, __func__, ##args);  \
        } while (0)
 
+#define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
+
 #define QLGE_VENDOR_ID    0x1077
 #define QLGE_DEVICE_ID_8012	0x8012
 #define QLGE_DEVICE_ID_8000	0x8000
