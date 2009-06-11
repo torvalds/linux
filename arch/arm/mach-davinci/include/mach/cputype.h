@@ -30,6 +30,7 @@ struct davinci_id {
 #define	DAVINCI_CPU_ID_DM6446		0x64460000
 #define	DAVINCI_CPU_ID_DM6467		0x64670000
 #define	DAVINCI_CPU_ID_DM355		0x03550000
+#define	DAVINCI_CPU_ID_DM365		0x03650000
 
 #define IS_DAVINCI_CPU(type, id)					\
 static inline int is_davinci_ ##type(void)				\
@@ -40,6 +41,7 @@ static inline int is_davinci_ ##type(void)				\
 IS_DAVINCI_CPU(dm644x, DAVINCI_CPU_ID_DM6446)
 IS_DAVINCI_CPU(dm646x, DAVINCI_CPU_ID_DM6467)
 IS_DAVINCI_CPU(dm355, DAVINCI_CPU_ID_DM355)
+IS_DAVINCI_CPU(dm365, DAVINCI_CPU_ID_DM365)
 
 #ifdef CONFIG_ARCH_DAVINCI_DM644x
 #define cpu_is_davinci_dm644x() is_davinci_dm644x()
@@ -57,6 +59,12 @@ IS_DAVINCI_CPU(dm355, DAVINCI_CPU_ID_DM355)
 #define cpu_is_davinci_dm355() is_davinci_dm355()
 #else
 #define cpu_is_davinci_dm355() 0
+#endif
+
+#ifdef CONFIG_ARCH_DAVINCI_DM365
+#define cpu_is_davinci_dm365() is_davinci_dm365()
+#else
+#define cpu_is_davinci_dm365() 0
 #endif
 
 #endif
