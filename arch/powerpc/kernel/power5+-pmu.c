@@ -632,7 +632,7 @@ static int power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	0,		0		},
 	},
-	[C(L2)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0,		0		},
 		[C(OP_WRITE)] = {	0,		0		},
 		[C(OP_PREFETCH)] = {	0xc50c3,	0		},

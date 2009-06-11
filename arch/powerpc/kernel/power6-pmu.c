@@ -493,7 +493,7 @@ static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	0x4008c,	0		},
 	},
-	[C(L2)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
 		[C(OP_READ)] = {	0x150730,	0x250532	},
 		[C(OP_WRITE)] = {	0x250432,	0x150432	},
 		[C(OP_PREFETCH)] = {	0x810a6,	0		},

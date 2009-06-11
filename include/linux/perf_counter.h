@@ -56,14 +56,14 @@ enum perf_hw_id {
 /*
  * Generalized hardware cache counters:
  *
- *       { L1-D, L1-I, L2, LLC, ITLB, DTLB, BPU } x
+ *       { L1-D, L1-I, LLC, ITLB, DTLB, BPU } x
  *       { read, write, prefetch } x
  *       { accesses, misses }
  */
 enum perf_hw_cache_id {
 	PERF_COUNT_HW_CACHE_L1D		= 0,
 	PERF_COUNT_HW_CACHE_L1I		= 1,
-	PERF_COUNT_HW_CACHE_L2		= 2,
+	PERF_COUNT_HW_CACHE_LL		= 2,
 	PERF_COUNT_HW_CACHE_DTLB	= 3,
 	PERF_COUNT_HW_CACHE_ITLB	= 4,
 	PERF_COUNT_HW_CACHE_BPU		= 5,

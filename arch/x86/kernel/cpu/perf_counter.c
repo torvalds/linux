@@ -131,7 +131,7 @@ static const u64 nehalem_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0x0,
 	},
  },
- [ C(L2  ) ] = {
+ [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x0324, /* L2_RQSTS.LOADS               */
 		[ C(RESULT_MISS)   ] = 0x0224, /* L2_RQSTS.LD_MISS             */
@@ -141,8 +141,8 @@ static const u64 nehalem_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0x0824, /* L2_RQSTS.RFO_MISS            */
 	},
 	[ C(OP_PREFETCH) ] = {
-		[ C(RESULT_ACCESS) ] = 0xc024, /* L2_RQSTS.PREFETCHES          */
-		[ C(RESULT_MISS)   ] = 0x8024, /* L2_RQSTS.PREFETCH_MISS       */
+		[ C(RESULT_ACCESS) ] = 0x4f2e, /* LLC Reference                */
+		[ C(RESULT_MISS)   ] = 0x412e, /* LLC Misses                   */
 	},
  },
  [ C(DTLB) ] = {
@@ -222,7 +222,7 @@ static const u64 core2_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0,
 	},
  },
- [ C(L2  ) ] = {
+ [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x4f29, /* L2_LD.MESI                 */
 		[ C(RESULT_MISS)   ] = 0x4129, /* L2_LD.ISTATE               */
@@ -313,7 +313,7 @@ static const u64 atom_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0,
 	},
  },
- [ C(L2  ) ] = {
+ [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0x4f29, /* L2_LD.MESI                 */
 		[ C(RESULT_MISS)   ] = 0x4129, /* L2_LD.ISTATE               */
@@ -422,7 +422,7 @@ static const u64 amd_0f_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0,
 	},
  },
- [ C(L2  ) ] = {
+ [ C(LL  ) ] = {
 	[ C(OP_READ) ] = {
 		[ C(RESULT_ACCESS) ] = 0,
 		[ C(RESULT_MISS)   ] = 0,
