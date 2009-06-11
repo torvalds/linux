@@ -71,21 +71,17 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	struct inode *source = moved->d_inode;
 	u32 in_cookie = inotify_get_cookie();
 	u32 fs_cookie = fsnotify_get_cookie();
-	__u32 old_dir_mask = 0;
-	__u32 new_dir_mask = 0;
+	__u32 old_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_FROM);
+	__u32 new_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_TO);
 
-	if (old_dir == new_dir) {
-		old_dir_mask = FS_DN_RENAME;
-	}
+	if (old_dir == new_dir)
+		old_dir_mask |= FS_DN_RENAME;
 
 	if (isdir) {
 		isdir = IN_ISDIR;
 		old_dir_mask |= FS_IN_ISDIR;
 		new_dir_mask |= FS_IN_ISDIR;
 	}
-
-	old_dir_mask |= FS_MOVED_FROM;
-	new_dir_mask |= FS_MOVED_TO;
 
 	inotify_inode_queue_event(old_dir, IN_MOVED_FROM|isdir, in_cookie, old_name,
 				  source);
