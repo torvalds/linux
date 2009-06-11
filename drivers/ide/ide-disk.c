@@ -411,7 +411,6 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 	cmd->protocol = ATA_PROT_NODATA;
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
-	rq->cmd_flags |= REQ_SOFTBARRIER;
 	rq->special = cmd;
 }
 
