@@ -207,8 +207,7 @@ static void edge_bulk_out_cmd_callback(struct urb *urb);
 /* function prototypes for the usbserial callbacks */
 static int edge_open(struct tty_struct *tty, struct usb_serial_port *port,
 					struct file *filp);
-static void edge_close(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static void edge_close(struct usb_serial_port *port);
 static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
 static int edge_write_room(struct tty_struct *tty);
@@ -965,7 +964,7 @@ static int edge_open(struct tty_struct *tty,
 
 	if (!edge_port->txfifo.fifo) {
 		dbg("%s - no memory", __func__);
-		edge_close(tty, port, filp);
+		edge_close(port);
 		return -ENOMEM;
 	}
 
@@ -975,7 +974,7 @@ static int edge_open(struct tty_struct *tty,
 
 	if (!edge_port->write_urb) {
 		dbg("%s - no memory", __func__);
-		edge_close(tty, port, filp);
+		edge_close(port);
 		return -ENOMEM;
 	}
 
@@ -1099,8 +1098,7 @@ static void block_until_tx_empty(struct edgeport_port *edge_port)
  * edge_close
  *	this function is called by the tty driver when a port is closed
  *****************************************************************************/
-static void edge_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void edge_close(struct usb_serial_port *port)
 {
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;

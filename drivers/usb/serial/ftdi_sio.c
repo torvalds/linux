@@ -719,8 +719,8 @@ static int  ftdi_sio_port_probe(struct usb_serial_port *port);
 static int  ftdi_sio_port_remove(struct usb_serial_port *port);
 static int  ftdi_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void ftdi_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void ftdi_close(struct usb_serial_port *port);
+static void ftdi_dtr_rts(struct usb_serial_port *port, int on);
 static int  ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static int  ftdi_write_room(struct tty_struct *tty);
@@ -758,6 +758,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.port_remove =		ftdi_sio_port_remove,
 	.open =			ftdi_open,
 	.close =		ftdi_close,
+	.dtr_rts =		ftdi_dtr_rts,
 	.throttle =		ftdi_throttle,
 	.unthrottle =		ftdi_unthrottle,
 	.write =		ftdi_write,
@@ -1558,6 +1559,30 @@ static int ftdi_open(struct tty_struct *tty,
 } /* ftdi_open */
 
 
+static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	char buf[1];
+
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected) {
+		/* Disable flow control */
+		if (!on && usb_control_msg(port->serial->dev,
+			    usb_sndctrlpipe(port->serial->dev, 0),
+			    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
+			    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
+			    0, priv->interface, buf, 0,
+			    WDR_TIMEOUT) < 0) {
+			    dev_err(&port->dev, "error from flowcontrol urb\n");
+		}
+		/* drop RTS and DTR */
+		if (on)
+			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+		else
+			clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+	}
+	mutex_unlock(&port->serial->disc_mutex);
+}
 
 /*
  * usbserial:__serial_close  only calls ftdi_close if the point is open
@@ -1567,31 +1592,12 @@ static int ftdi_open(struct tty_struct *tty,
  *
  */
 
-static void ftdi_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void ftdi_close(struct usb_serial_port *port)
 { /* ftdi_close */
-	unsigned int c_cflag = tty->termios->c_cflag;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	char buf[1];
 
 	dbg("%s", __func__);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (c_cflag & HUPCL && !port->serial->disconnected) {
-		/* Disable flow control */
-		if (usb_control_msg(port->serial->dev,
-				    usb_sndctrlpipe(port->serial->dev, 0),
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-				    0, priv->interface, buf, 0,
-				    WDR_TIMEOUT) < 0) {
-			dev_err(&port->dev, "error from flowcontrol urb\n");
-		}
-
-		/* drop RTS and DTR */
-		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-	} /* Note change no line if hupcl is off */
-	mutex_unlock(&port->serial->disc_mutex);
 
 	/* cancel any scheduled reading */
 	cancel_delayed_work_sync(&priv->rx_work);

@@ -38,8 +38,7 @@
 /* function prototypes for a handspring visor */
 static int  visor_open(struct tty_struct *tty, struct usb_serial_port *port,
 					struct file *filp);
-static void visor_close(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp);
+static void visor_close(struct usb_serial_port *port);
 static int  visor_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count);
 static int  visor_write_room(struct tty_struct *tty);
@@ -324,8 +323,7 @@ exit:
 }
 
 
-static void visor_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void visor_close(struct usb_serial_port *port)
 {
 	struct visor_private *priv = usb_get_serial_port_data(port);
 	unsigned char *transfer_buffer;

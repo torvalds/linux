@@ -70,7 +70,6 @@ static void read_rxcmd_callback(struct urb *urb);
 struct iuu_private {
 	spinlock_t lock;	/* store irq state */
 	wait_queue_head_t delta_msr_wait;
-	u8 line_control;
 	u8 line_status;
 	u8 termios_initialized;
 	int tiostatus;		/* store IUART SIGNAL for tiocmget call */
@@ -946,19 +945,10 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud,
 	return status;
 }
 
-static int set_control_lines(struct usb_device *dev, u8 value)
-{
-	return 0;
-}
-
-static void iuu_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void iuu_close(struct usb_serial_port *port)
 {
 	/* iuu_led (port,255,0,0,0); */
 	struct usb_serial *serial;
-	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int c_cflag;
 
 	serial = port->serial;
 	if (!serial)
@@ -968,17 +958,6 @@ static void iuu_close(struct tty_struct *tty,
 
 	iuu_uart_off(port);
 	if (serial->dev) {
-		if (tty) {
-			c_cflag = tty->termios->c_cflag;
-			if (c_cflag & HUPCL) {
-				/* drop DTR and RTS */
-				priv = usb_get_serial_port_data(port);
-				spin_lock_irqsave(&priv->lock, flags);
-				priv->line_control = 0;
-				spin_unlock_irqrestore(&priv->lock, flags);
-				set_control_lines(port->serial->dev, 0);
-			}
-		}
 		/* free writebuf */
 		/* shutdown our urbs */
 		dbg("%s - shutting down urbs", __func__);
@@ -1154,7 +1133,7 @@ static int iuu_open(struct tty_struct *tty,
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting read urb,"
 			" error %d\n", __func__, result);
-		iuu_close(tty, port, NULL);
+		iuu_close(port);
 		return -EPROTO;
 	} else {
 		dbg("%s - rxcmd OK", __func__);

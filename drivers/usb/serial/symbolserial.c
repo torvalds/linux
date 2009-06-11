@@ -152,8 +152,7 @@ static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port,
 	return result;
 }
 
-static void symbol_close(struct tty_struct *tty, struct usb_serial_port *port,
-			  struct file *filp)
+static void symbol_close(struct usb_serial_port *port)
 {
 	struct symbol_private *priv = usb_get_serial_data(port->serial);
 

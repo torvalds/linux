@@ -240,57 +240,39 @@ struct sierra_port_private {
 	int ri_state;
 };
 
-static int sierra_send_setup(struct tty_struct *tty,
-						struct usb_serial_port *port)
+static int sierra_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
 	__u16 interface = 0;
+	int val = 0;
 
 	dev_dbg(&port->dev, "%s", __func__);
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (tty) {
-		int val = 0;
-		if (portdata->dtr_state)
-			val |= 0x01;
-		if (portdata->rts_state)
-			val |= 0x02;
+	if (portdata->dtr_state)
+		val |= 0x01;
+	if (portdata->rts_state)
+		val |= 0x02;
 
-		/* If composite device then properly report interface */
-		if (serial->num_ports == 1) {
-			interface = sierra_calc_interface(serial);
+	/* If composite device then properly report interface */
+	if (serial->num_ports == 1)
+		interface = sierra_calc_interface(serial);
 
-			/* Control message is sent only to interfaces with
-			 * interrupt_in endpoints
-			 */
-			if (port->interrupt_in_urb) {
-				/* send control message */
-				return usb_control_msg(serial->dev,
-					usb_rcvctrlpipe(serial->dev, 0),
-					0x22, 0x21, val, interface,
-					NULL, 0, USB_CTRL_SET_TIMEOUT);
-			}
-		}
-
-		/* Otherwise the need to do non-composite mapping */
-		else {
-			if (port->bulk_out_endpointAddress == 2)
-				interface = 0;
-			else if (port->bulk_out_endpointAddress == 4)
-				interface = 1;
-			else if (port->bulk_out_endpointAddress == 5)
-				interface = 2;
-
-			return usb_control_msg(serial->dev,
-				usb_rcvctrlpipe(serial->dev, 0),
-				0x22, 0x21, val, interface,
-				NULL, 0, USB_CTRL_SET_TIMEOUT);
-
-		}
+	/* Otherwise the need to do non-composite mapping */
+	else {
+		if (port->bulk_out_endpointAddress == 2)
+			interface = 0;
+		else if (port->bulk_out_endpointAddress == 4)
+			interface = 1;
+		else if (port->bulk_out_endpointAddress == 5)
+			interface = 2;
 	}
-
+	return usb_control_msg(serial->dev,
+			usb_rcvctrlpipe(serial->dev, 0),
+			0x22, 0x21, val, interface,
+			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	return 0;
 }
 
@@ -299,7 +281,7 @@ static void sierra_set_termios(struct tty_struct *tty,
 {
 	dev_dbg(&port->dev, "%s", __func__);
 	tty_termios_copy_hw(tty->termios, old_termios);
-	sierra_send_setup(tty, port);
+	sierra_send_setup(port);
 }
 
 static int sierra_tiocmget(struct tty_struct *tty, struct file *file)
@@ -338,7 +320,7 @@ static int sierra_tiocmset(struct tty_struct *tty, struct file *file,
 		portdata->rts_state = 0;
 	if (clear & TIOCM_DTR)
 		portdata->dtr_state = 0;
-	return sierra_send_setup(tty, port);
+	return sierra_send_setup(port);
 }
 
 static void sierra_outdat_callback(struct urb *urb)
@@ -598,7 +580,7 @@ static int sierra_open(struct tty_struct *tty,
 		}
 	}
 
-	sierra_send_setup(tty, port);
+	sierra_send_setup(port);
 
 	/* start up the interrupt endpoint if we have one */
 	if (port->interrupt_in_urb) {
@@ -610,8 +592,24 @@ static int sierra_open(struct tty_struct *tty,
 	return 0;
 }
 
-static void sierra_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void sierra_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct usb_serial *serial = port->serial;
+	struct sierra_port_private *portdata;
+
+	portdata = usb_get_serial_port_data(port);
+	portdata->rts_state = on;
+	portdata->dtr_state = on;
+
+	if (serial->dev) {
+		mutex_lock(&serial->disc_mutex);
+		if (!serial->disconnected)
+			sierra_send_setup(port);
+		mutex_unlock(&serial->disc_mutex);
+	}
+}
+
+static void sierra_close(struct usb_serial_port *port)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
@@ -620,22 +618,12 @@ static void sierra_close(struct tty_struct *tty,
 	dev_dbg(&port->dev, "%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
-	portdata->rts_state = 0;
-	portdata->dtr_state = 0;
-
 	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			sierra_send_setup(tty, port);
-		mutex_unlock(&serial->disc_mutex);
-
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)
 			usb_kill_urb(portdata->in_urbs[i]);
 	}
-
 	usb_kill_urb(port->interrupt_in_urb);
-	tty_port_tty_set(&port->port, NULL);
 }
 
 static int sierra_startup(struct usb_serial *serial)
@@ -737,6 +725,7 @@ static struct usb_serial_driver sierra_device = {
 	.probe		   = sierra_probe,
 	.open              = sierra_open,
 	.close             = sierra_close,
+	.dtr_rts	   = sierra_dtr_rts,
 	.write             = sierra_write,
 	.write_room        = sierra_write_room,
 	.set_termios       = sierra_set_termios,

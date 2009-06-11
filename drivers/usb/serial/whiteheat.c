@@ -147,8 +147,7 @@ static int  whiteheat_attach(struct usb_serial *serial);
 static void whiteheat_shutdown(struct usb_serial *serial);
 static int  whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void whiteheat_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void whiteheat_close(struct usb_serial_port *port);
 static int  whiteheat_write(struct tty_struct *tty,
 			struct usb_serial_port *port,
 			const unsigned char *buf, int count);
@@ -712,8 +711,7 @@ exit:
 }
 
 
-static void whiteheat_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void whiteheat_close(struct usb_serial_port *port)
 {
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	struct whiteheat_urb_wrap *wrap;
@@ -723,31 +721,7 @@ static void whiteheat_close(struct tty_struct *tty,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	mutex_lock(&port->serial->disc_mutex);
-	/* filp is NULL when called from usb_serial_disconnect */
-	if ((filp && (tty_hung_up_p(filp))) || port->serial->disconnected) {
-		mutex_unlock(&port->serial->disc_mutex);
-		return;
-	}
-	mutex_unlock(&port->serial->disc_mutex);
-
-	tty->closing = 1;
-
-/*
- * Not currently in use; tty_wait_until_sent() calls
- * serial_chars_in_buffer() which deadlocks on the second semaphore
- * acquisition. This should be fixed at some point. Greg's been
- * notified.
-	if ((filp->f_flags & (O_NDELAY | O_NONBLOCK)) == 0) {
-		tty_wait_until_sent(tty, CLOSING_DELAY);
-	}
-*/
-
-	tty_driver_flush_buffer(tty);
-	tty_ldisc_flush(tty);
-
 	firm_report_tx_done(port);
-
 	firm_close(port);
 
 	/* shutdown our bulk reads and writes */
@@ -775,10 +749,7 @@ static void whiteheat_close(struct tty_struct *tty,
 	}
 	spin_unlock_irq(&info->lock);
 	mutex_unlock(&info->deathwarrant);
-
 	stop_command_port(port->serial);
-
-	tty->closing = 0;
 }
 
 

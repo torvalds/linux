@@ -36,8 +36,7 @@
 static int cp2101_open(struct tty_struct *, struct usb_serial_port *,
 							struct file *);
 static void cp2101_cleanup(struct usb_serial_port *);
-static void cp2101_close(struct tty_struct *, struct usb_serial_port *,
-							struct file*);
+static void cp2101_close(struct usb_serial_port *);
 static void cp2101_get_termios(struct tty_struct *,
 	struct usb_serial_port *port);
 static void cp2101_get_termios_port(struct usb_serial_port *port,
@@ -398,8 +397,7 @@ static void cp2101_cleanup(struct usb_serial_port *port)
 	}
 }
 
-static void cp2101_close(struct tty_struct *tty, struct usb_serial_port *port,
-					struct file *filp)
+static void cp2101_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 
