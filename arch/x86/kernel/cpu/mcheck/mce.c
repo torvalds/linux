@@ -180,12 +180,8 @@ void mce_log(struct mce *mce)
 	set_bit(0, &notify_user);
 }
 
-static void print_mce(struct mce *m, int *first)
+static void print_mce(struct mce *m)
 {
-	if (*first) {
-		printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
-		*first = 0;
-	}
 	printk(KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
 	       m->extcpu, m->mcgstatus, m->bank, m->status);
@@ -206,6 +202,11 @@ static void print_mce(struct mce *m, int *first)
 	printk(KERN_EMERG "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x\n",
 			m->cpuvendor, m->cpuid, m->time, m->socketid,
 			m->apicid);
+}
+
+static void print_mce_head(void)
+{
+	printk(KERN_EMERG "\n" KERN_EMERG "HARDWARE ERROR\n");
 }
 
 static void print_mce_tail(void)
@@ -234,7 +235,6 @@ static void wait_for_panic(void)
 static void mce_panic(char *msg, struct mce *final, char *exp)
 {
 	int i;
-	int first = 1;
 
 	/*
 	 * Make sure only one CPU runs in machine check panic
@@ -245,23 +245,27 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 
 	bust_spinlocks(1);
 	console_verbose();
+	print_mce_head();
 	/* First print corrected ones that are still unlogged */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		struct mce *m = &mcelog.entry[i];
-		if ((m->status & MCI_STATUS_VAL) &&
-			!(m->status & MCI_STATUS_UC))
-			print_mce(m, &first);
+		if (!(m->status & MCI_STATUS_VAL))
+			continue;
+		if (!(m->status & MCI_STATUS_UC))
+			print_mce(m);
 	}
 	/* Now print uncorrected but with the final one last */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		struct mce *m = &mcelog.entry[i];
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
+		if (!(m->status & MCI_STATUS_UC))
+			continue;
 		if (!final || memcmp(m, final, sizeof(struct mce)))
-			print_mce(m, &first);
+			print_mce(m);
 	}
 	if (final)
-		print_mce(final, &first);
+		print_mce(final);
 	if (cpu_missing)
 		printk(KERN_EMERG "Some CPUs didn't answer in synchronization\n");
 	print_mce_tail();
