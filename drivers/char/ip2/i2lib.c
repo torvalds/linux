@@ -868,11 +868,11 @@ i2Input(i2ChanStrPtr pCh)
 		amountToMove = count;
 	}
 	// Move the first block
-	pCh->pTTY->ldisc.ops->receive_buf( pCh->pTTY,
+	pCh->pTTY->ldisc->ops->receive_buf( pCh->pTTY,
 		 &(pCh->Ibuf[stripIndex]), NULL, amountToMove );
 	// If we needed to wrap, do the second data move
 	if (count > amountToMove) {
-		pCh->pTTY->ldisc.ops->receive_buf( pCh->pTTY,
+		pCh->pTTY->ldisc->ops->receive_buf( pCh->pTTY,
 		 pCh->Ibuf, NULL, count - amountToMove );
 	}
 	// Bump and wrap the stripIndex all at once by the amount of data read. This

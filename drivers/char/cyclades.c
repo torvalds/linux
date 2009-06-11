@@ -5200,7 +5200,7 @@ static int cyclades_proc_show(struct seq_file *m, void *v)
 					(cur_jifs - info->idle_stats.recv_idle)/
 					HZ, info->idle_stats.overruns,
 					/* FIXME: double check locking */
-					(long)info->port.tty->ldisc.ops->num);
+					(long)info->port.tty->ldisc->ops->num);
 			else
 				seq_printf(m, "%3d %8lu %10lu %8lu "
 					"%10lu %8lu %9lu %6ld\n",

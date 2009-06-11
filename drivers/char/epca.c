@@ -2114,8 +2114,8 @@ static int pc_ioctl(struct tty_struct *tty, struct file *file,
 			tty_wait_until_sent(tty, 0);
 		} else {
 			/* ldisc lock already held in ioctl */
-			if (tty->ldisc.ops->flush_buffer)
-				tty->ldisc.ops->flush_buffer(tty);
+			if (tty->ldisc->ops->flush_buffer)
+				tty->ldisc->ops->flush_buffer(tty);
 		}
 		unlock_kernel();
 		/* Fall Thru */

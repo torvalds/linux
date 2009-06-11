@@ -226,8 +226,11 @@ struct tty_struct {
 	struct tty_driver *driver;
 	const struct tty_operations *ops;
 	int index;
-	/* The ldisc objects are protected by tty_ldisc_lock at the moment */
-	struct tty_ldisc ldisc;
+
+	/* Protects ldisc changes: Lock tty not pty */
+	struct mutex ldisc_mutex;
+	struct tty_ldisc *ldisc;
+
 	struct mutex termios_mutex;
 	spinlock_t ctrl_lock;
 	/* Termios values are protected by the termios mutex */
@@ -314,6 +317,7 @@ struct tty_struct {
 #define TTY_CLOSING 		7	/* ->close() in progress */
 #define TTY_LDISC 		9	/* Line discipline attached */
 #define TTY_LDISC_CHANGING 	10	/* Line discipline changing */
+#define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_HW_COOK_OUT 	14	/* Hardware can do output cooking */
 #define TTY_HW_COOK_IN 		15	/* Hardware can do input cooking */
 #define TTY_PTY_LOCK 		16	/* pty private */
@@ -406,6 +410,7 @@ extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
 extern struct tty_ldisc *tty_ldisc_ref(struct tty_struct *);
 extern void tty_ldisc_deref(struct tty_ldisc *);
 extern struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *);
+extern void tty_ldisc_hangup(struct tty_struct *tty);
 extern const struct file_operations tty_ldiscs_proc_fops;
 
 extern void tty_wakeup(struct tty_struct *tty);
