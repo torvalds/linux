@@ -46,20 +46,6 @@
 #define CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON	0
 #endif
 
-#ifdef CONFIG_PM
-/*
- * This will enable the device to be powered up when write() or read()
- * is called. If this is not defined, the driver will return -EBUSY.
- */
-#define WAKE_ON_ACCESS 1
-
-typedef struct {
-	spinlock_t		lock;	/* Used to block on state transitions */
-	au1xxx_power_dev_t	*dev;	/* Power Managers device structure */
-	unsigned		stopped; /* Used to signal device is stopped */
-} pm_state;
-#endif
-
 typedef struct {
 	u32			tx_dev_id, rx_dev_id, target_dev_id;
 	u32			tx_chan, rx_chan;
@@ -72,9 +58,6 @@ typedef struct {
 #endif
 	int			irq;
 	u32			regbase;
-#ifdef CONFIG_PM
-	pm_state		pm;
-#endif
 } _auide_hwif;
 
 /******************************************************************************/

@@ -149,7 +149,8 @@ struct sk_buff *wimax_msg_alloc(struct wimax_dev *wimax_dev,
 	}
 	result = nla_put(skb, WIMAX_GNL_MSG_DATA, size, msg);
 	if (result < 0) {
-		dev_err(dev, "no memory to add payload in attribute\n");
+		dev_err(dev, "no memory to add payload (msg %p size %zu) in "
+			"attribute: %d\n", msg, size, result);
 		goto error_nla_put;
 	}
 	genlmsg_end(skb, genl_msg);
@@ -299,10 +300,10 @@ int wimax_msg(struct wimax_dev *wimax_dev, const char *pipe_name,
 	struct sk_buff *skb;
 
 	skb = wimax_msg_alloc(wimax_dev, pipe_name, buf, size, gfp_flags);
-	if (skb == NULL)
-		goto error_msg_new;
-	result = wimax_msg_send(wimax_dev, skb);
-error_msg_new:
+	if (IS_ERR(skb))
+		result = PTR_ERR(skb);
+	else
+		result = wimax_msg_send(wimax_dev, skb);
 	return result;
 }
 EXPORT_SYMBOL_GPL(wimax_msg);

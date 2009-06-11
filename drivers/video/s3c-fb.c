@@ -947,7 +947,8 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	int win;
 
 	for (win = 0; win <= S3C_FB_MAX_WIN; win++)
-		s3c_fb_release_win(sfb, sfb->windows[win]);
+		if (sfb->windows[win])
+			s3c_fb_release_win(sfb, sfb->windows[win]);
 
 	iounmap(sfb->regs);
 
@@ -985,11 +986,20 @@ static int s3c_fb_suspend(struct platform_device *pdev, pm_message_t state)
 static int s3c_fb_resume(struct platform_device *pdev)
 {
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_platdata *pd = sfb->pdata;
 	struct s3c_fb_win *win;
 	int win_no;
 
 	clk_enable(sfb->bus_clk);
 
+	/* setup registers */
+	writel(pd->vidcon1, sfb->regs + VIDCON1);
+
+	/* zero all windows before we do anything */
+	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++)
+		s3c_fb_clear_win(sfb, win_no);
+
+	/* restore framebuffers */
 	for (win_no = 0; win_no < S3C_FB_MAX_WIN; win_no++) {
 		win = sfb->windows[win_no];
 		if (!win)

@@ -190,7 +190,8 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
-#define   I830_FENCE_MAX_PITCH_VAL	0x10
+#define   I915_FENCE_MAX_PITCH_VAL	0x10
+#define   I830_FENCE_MAX_PITCH_VAL	6
 #define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
 #define   I915_FENCE_START_MASK		0x0ff00000
@@ -526,6 +527,7 @@
 #define   DPLLA_INPUT_BUFFER_ENABLE	(1 << 0)
 #define D_STATE		0x6104
 #define CG_2D_DIS	0x6200
+#define DPCUNIT_CLOCK_GATE_DISABLE	(1 << 24)
 #define CG_3D_DIS	0x6204
 
 /*
@@ -1409,9 +1411,25 @@
 
 /* Cursor A & B regs */
 #define CURACNTR		0x70080
+/* Old style CUR*CNTR flags (desktop 8xx) */
+#define   CURSOR_ENABLE		0x80000000
+#define   CURSOR_GAMMA_ENABLE	0x40000000
+#define   CURSOR_STRIDE_MASK	0x30000000
+#define   CURSOR_FORMAT_SHIFT	24
+#define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_2C	(0x00 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_3C	(0x01 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_4C	(0x02 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_ARGB	(0x04 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_XRGB	(0x05 << CURSOR_FORMAT_SHIFT)
+/* New style CUR*CNTR flags */
+#define   CURSOR_MODE		0x27
 #define   CURSOR_MODE_DISABLE   0x00
 #define   CURSOR_MODE_64_32B_AX 0x07
 #define   CURSOR_MODE_64_ARGB_AX ((1 << 5) | CURSOR_MODE_64_32B_AX)
+#define   MCURSOR_PIPE_SELECT	(1 << 28)
+#define   MCURSOR_PIPE_A	0x00
+#define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
 #define CURABASE		0x70084
 #define CURAPOS			0x70088
@@ -1419,6 +1437,7 @@
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
+#define CURSIZE			0x700a0
 #define CURBCNTR		0x700c0
 #define CURBBASE		0x700c4
 #define CURBPOS			0x700c8

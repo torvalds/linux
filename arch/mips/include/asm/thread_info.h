@@ -75,6 +75,9 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #ifdef CONFIG_PAGE_SIZE_16KB
 #define THREAD_SIZE_ORDER (0)
 #endif
+#ifdef CONFIG_PAGE_SIZE_32KB
+#define THREAD_SIZE_ORDER (0)
+#endif
 #ifdef CONFIG_PAGE_SIZE_64KB
 #define THREAD_SIZE_ORDER (0)
 #endif

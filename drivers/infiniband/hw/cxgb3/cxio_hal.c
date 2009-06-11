@@ -410,6 +410,7 @@ int cxio_flush_sq(struct t3_wq *wq, struct t3_cq *cq, int count)
 	ptr = wq->sq_rptr + count;
 	sqp = wq->sq + Q_PTR2IDX(ptr, wq->sq_size_log2);
 	while (ptr != wq->sq_wptr) {
+		sqp->signaled = 0;
 		insert_sq_cqe(wq, cq, sqp);
 		ptr++;
 		sqp = wq->sq + Q_PTR2IDX(ptr, wq->sq_size_log2);

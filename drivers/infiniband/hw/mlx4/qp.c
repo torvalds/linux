@@ -1365,7 +1365,7 @@ static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 	int i;
 
 	for (i = 0; i < wr->wr.fast_reg.page_list_len; ++i)
-		wr->wr.fast_reg.page_list->page_list[i] =
+		mfrpl->mapped_page_list[i] =
 			cpu_to_be64(wr->wr.fast_reg.page_list->page_list[i] |
 				    MLX4_MTT_FLAG_PRESENT);
 

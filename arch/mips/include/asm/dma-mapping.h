@@ -24,8 +24,13 @@ extern int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	enum dma_data_direction direction);
 extern dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	unsigned long offset, size_t size, enum dma_data_direction direction);
-extern void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
-	size_t size, enum dma_data_direction direction);
+
+static inline void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
+	size_t size, enum dma_data_direction direction)
+{
+	dma_unmap_single(dev, dma_address, size, direction);
+}
+
 extern void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	int nhwentries, enum dma_data_direction direction);
 extern void dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,

@@ -10,13 +10,14 @@ config SND_DAVINCI_SOC_I2S
 	tristate
 
 config SND_DAVINCI_SOC_EVM
-	tristate "SoC Audio support for DaVinci EVM"
-	depends on SND_DAVINCI_SOC && MACH_DAVINCI_EVM
+	tristate "SoC Audio support for DaVinci DM6446 or DM355 EVM"
+	depends on SND_DAVINCI_SOC
+	depends on MACH_DAVINCI_EVM || MACH_DAVINCI_DM355_EVM
 	select SND_DAVINCI_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	help
 	  Say Y if you want to add support for SoC audio on TI
-	  DaVinci EVM platform.
+	  DaVinci DM6446 or DM355 EVM platforms.
 
 config SND_DAVINCI_SOC_SFFSDR
 	tristate "SoC Audio support for SFFSDR"

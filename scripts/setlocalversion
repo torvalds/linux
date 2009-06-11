@@ -1,5 +1,13 @@
 #!/bin/sh
-# Print additional version information for non-release trees.
+#
+# This scripts adds local version information from the version
+# control systems git, mercurial (hg) and subversion (svn).
+#
+# If something goes wrong, send a mail the kernel build mailinglist
+# (see MAINTAINERS) and CC Nico Schottelius
+# <nico-linuxsetlocalversion -at- schottelius.org>.
+#
+#
 
 usage() {
 	echo "Usage: $0 [srctree]" >&2
@@ -10,12 +18,20 @@ cd "${1:-.}" || usage
 
 # Check for git and a git repo.
 if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
-	# Do we have an untagged tag?
-	if atag=`git describe 2>/dev/null`; then
-		echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
-	# add -g${head}, if there is no usable tag
-	else
-		printf '%s%s' -g $head
+
+	# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore it,
+	# because this version is defined in the top level Makefile.
+	if [ -z "`git describe --exact-match 2>/dev/null`" ]; then
+
+		# If we are past a tagged commit (like "v2.6.30-rc5-302-g72357d5"),
+		# we pretty print it.
+		if atag="`git describe 2>/dev/null`"; then
+			echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
+
+		# If we don't have a tag at all we print -g{commitish}.
+		else
+			printf '%s%s' -g $head
+		fi
 	fi
 
 	# Is this git on svn?

@@ -28,7 +28,7 @@
 #define FSCACHE_MAX_THREADS	32
 
 /*
- * fsc-cache.c
+ * cache.c
  */
 extern struct list_head fscache_cache_list;
 extern struct rw_semaphore fscache_addremove_sem;
@@ -37,7 +37,7 @@ extern struct fscache_cache *fscache_select_cache_for_object(
 	struct fscache_cookie *);
 
 /*
- * fsc-cookie.c
+ * cookie.c
  */
 extern struct kmem_cache *fscache_cookie_jar;
 
@@ -45,13 +45,13 @@ extern void fscache_cookie_init_once(void *);
 extern void __fscache_cookie_put(struct fscache_cookie *);
 
 /*
- * fsc-fsdef.c
+ * fsdef.c
  */
 extern struct fscache_cookie fscache_fsdef_index;
 extern struct fscache_cookie_def fscache_fsdef_netfs_def;
 
 /*
- * fsc-histogram.c
+ * histogram.c
  */
 #ifdef CONFIG_FSCACHE_HISTOGRAM
 extern atomic_t fscache_obj_instantiate_histogram[HZ];
@@ -75,7 +75,7 @@ extern const struct file_operations fscache_histogram_fops;
 #endif
 
 /*
- * fsc-main.c
+ * main.c
  */
 extern unsigned fscache_defer_lookup;
 extern unsigned fscache_defer_create;
@@ -86,14 +86,14 @@ extern int fscache_wait_bit(void *);
 extern int fscache_wait_bit_interruptible(void *);
 
 /*
- * fsc-object.c
+ * object.c
  */
 extern void fscache_withdrawing_object(struct fscache_cache *,
 				       struct fscache_object *);
 extern void fscache_enqueue_object(struct fscache_object *);
 
 /*
- * fsc-operation.c
+ * operation.c
  */
 extern int fscache_submit_exclusive_op(struct fscache_object *,
 				       struct fscache_operation *);
@@ -104,7 +104,7 @@ extern void fscache_start_operations(struct fscache_object *);
 extern void fscache_operation_gc(struct work_struct *);
 
 /*
- * fsc-proc.c
+ * proc.c
  */
 #ifdef CONFIG_PROC_FS
 extern int __init fscache_proc_init(void);
@@ -115,7 +115,7 @@ extern void fscache_proc_cleanup(void);
 #endif
 
 /*
- * fsc-stats.c
+ * stats.c
  */
 #ifdef CONFIG_FSCACHE_STATS
 extern atomic_t fscache_n_ops_processed[FSCACHE_MAX_THREADS];

@@ -125,8 +125,8 @@ void __init reserve_crashkernel(void)
 	/* Crash kernel trumps memory limit */
 	if (memory_limit && memory_limit <= crashk_res.end) {
 		memory_limit = crashk_res.end + 1;
-		printk("Adjusted memory limit for crashkernel, now 0x%lx\n",
-				memory_limit);
+		printk("Adjusted memory limit for crashkernel, now 0x%llx\n",
+		       (unsigned long long)memory_limit);
 	}
 
 	printk(KERN_INFO "Reserving %ldMB of memory at %ldMB "

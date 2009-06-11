@@ -369,6 +369,18 @@ void show_regs(struct pt_regs * regs)
 		       regs->syscall);
 }
 
+static __always_inline unsigned long *stack_pointer(struct task_struct *task)
+{
+	unsigned long *sp;
+
+	if (!task || task == current)
+		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(sp));
+	else
+		sp = (unsigned long *)task->thread.sp;
+
+	return sp;
+}
+
 void show_trace(struct task_struct *task, unsigned long *sp)
 {
 	unsigned long a0, a1, pc;
@@ -377,7 +389,7 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 	if (sp)
 		a1 = (unsigned long)sp;
 	else
-		a1 = task->thread.sp;
+		a1 = (unsigned long)stack_pointer(task);
 
 	sp_start = a1 & ~(THREAD_SIZE-1);
 	sp_end = sp_start + THREAD_SIZE;
@@ -420,7 +432,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	unsigned long *stack;
 
 	if (!sp)
-		sp = (unsigned long *)task->thread.sp;
+		sp = stack_pointer(task);
  	stack = sp;
 
 	printk("\nStack: ");

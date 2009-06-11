@@ -62,15 +62,26 @@ void xen_setup_vcpu_info_placement(void);
 #ifdef CONFIG_SMP
 void xen_smp_init(void);
 
-void __init xen_init_spinlocks(void);
-__cpuinit void xen_init_lock_cpu(int cpu);
-void xen_uninit_lock_cpu(int cpu);
-
 extern cpumask_var_t xen_cpu_initialized_map;
 #else
 static inline void xen_smp_init(void) {}
 #endif
 
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+void __init xen_init_spinlocks(void);
+__cpuinit void xen_init_lock_cpu(int cpu);
+void xen_uninit_lock_cpu(int cpu);
+#else
+static inline void xen_init_spinlocks(void)
+{
+}
+static inline void xen_init_lock_cpu(int cpu)
+{
+}
+static inline void xen_uninit_lock_cpu(int cpu)
+{
+}
+#endif
 
 /* Declare an asm function, along with symbols needed to make it
    inlineable */

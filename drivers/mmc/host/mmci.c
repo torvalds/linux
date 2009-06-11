@@ -490,7 +490,7 @@ static void mmci_check_status(unsigned long data)
 	mod_timer(&host->timer, jiffies + HZ);
 }
 
-static int __devinit mmci_probe(struct amba_device *dev, void *id)
+static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct mmc_platform_data *plat = dev->dev.platform_data;
 	struct mmci_host *host;

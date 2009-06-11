@@ -386,7 +386,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (err)
 		goto error_free_hw;
 
-	usb_set_intfdata(intf, priv);
+	usb_set_intfdata(intf, dev);
 
 	return 0;
 
@@ -415,9 +415,14 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 
 static void wb35_disconnect(struct usb_interface *intf)
 {
-	struct wbsoft_priv *priv = usb_get_intfdata(intf);
+	struct ieee80211_hw *hw = usb_get_intfdata(intf);
+	struct wbsoft_priv *priv = hw->priv;
 
 	wb35_hw_halt(priv);
+
+	ieee80211_stop_queues(hw);
+	ieee80211_unregister_hw(hw);
+	ieee80211_free_hw(hw);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));

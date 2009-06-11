@@ -27,10 +27,6 @@
 #include "fpmodule.inl"
 #include "softfloat.h"
 
-#ifdef CONFIG_FPE_NWFPE_XP
-extern flag floatx80_is_nan(floatx80);
-#endif
-
 unsigned int PerformFLT(const unsigned int opcode);
 unsigned int PerformFIX(const unsigned int opcode);
 

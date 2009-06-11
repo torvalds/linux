@@ -82,10 +82,11 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 	if (err)
 		return err;
 
-	walk->offset = 0;
-
-	if (nbytes)
+	if (nbytes) {
+		walk->offset = 0;
+		walk->pg++;
 		return hash_walk_next(walk);
+	}
 
 	if (!walk->total)
 		return 0;

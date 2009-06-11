@@ -1673,7 +1673,7 @@ unsigned int get_random_int(void)
 	int ret;
 
 	keyptr = get_keyptr();
-	hash[0] += current->pid + jiffies + get_cycles() + (int)(long)&ret;
+	hash[0] += current->pid + jiffies + get_cycles();
 
 	ret = half_md4_transform(hash, keyptr->secret);
 	put_cpu_var(get_random_int_hash);

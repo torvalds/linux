@@ -80,6 +80,7 @@ config XTENSA_VARIANT_S6000
 	bool "s6000 - Stretch software configurable processor"
 	select VARIANT_IRQ_SWITCH
 	select ARCH_REQUIRE_GPIOLIB
+	select XTENSA_CALIBRATE_CCOUNT
 endchoice
 
 config XTENSA_UNALIGNED_USER
@@ -137,6 +138,8 @@ config PCI
 
 source "drivers/pci/Kconfig"
 
+endmenu
+
 menu "Platform options"
 
 choice
@@ -153,8 +156,6 @@ config XTENSA_PLATFORM_ISS
 
 config XTENSA_PLATFORM_XT2000
 	bool "XT2000"
-	select XTENSA_CALIBRATE_CCOUNT
-	select PCI
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
@@ -191,8 +192,6 @@ config CMDLINE
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
 source "mm/Kconfig"
-
-endmenu
 
 config HOTPLUG
 	bool "Support for hot-pluggable devices"

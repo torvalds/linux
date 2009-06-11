@@ -50,14 +50,14 @@ ipv6header_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 		struct ipv6_opt_hdr _hdr;
 		int hdrlen;
 
-		/* Is there enough space for the next ext header? */
-		if (len < (int)sizeof(struct ipv6_opt_hdr))
-			return false;
 		/* No more exthdr -> evaluate */
 		if (nexthdr == NEXTHDR_NONE) {
 			temp |= MASK_NONE;
 			break;
 		}
+		/* Is there enough space for the next ext header? */
+		if (len < (int)sizeof(struct ipv6_opt_hdr))
+			return false;
 		/* ESP -> evaluate */
 		if (nexthdr == NEXTHDR_ESP) {
 			temp |= MASK_ESP;

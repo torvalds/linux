@@ -229,7 +229,7 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 		goto out;
 	status = vfs_readdir(filp, nfsd4_build_namelist, &names);
 	fput(filp);
-	mutex_lock(&dir->d_inode->i_mutex);
+	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
 	while (!list_empty(&names)) {
 		entry = list_entry(names.next, struct name_list, list);
 
@@ -264,7 +264,7 @@ nfsd4_unlink_clid_dir(char *name, int namlen)
 
 	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
 
-	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
+	mutex_lock_nested(&rec_dir.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);

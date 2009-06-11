@@ -2294,7 +2294,12 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 		}
 	}
 
-	if (connector->funcs->set_property)
+	/* Do DPMS ourselves */
+	if (property == connector->dev->mode_config.dpms_property) {
+		if (connector->funcs->dpms)
+			(*connector->funcs->dpms)(connector, (int) out_resp->value);
+		ret = 0;
+	} else if (connector->funcs->set_property)
 		ret = connector->funcs->set_property(connector, property, out_resp->value);
 
 	/* store the property value if succesful */

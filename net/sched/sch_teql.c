@@ -303,6 +303,8 @@ restart:
 		switch (teql_resolve(skb, skb_res, slave)) {
 		case 0:
 			if (__netif_tx_trylock(slave_txq)) {
+				unsigned int length = qdisc_pkt_len(skb);
+
 				if (!netif_tx_queue_stopped(slave_txq) &&
 				    !netif_tx_queue_frozen(slave_txq) &&
 				    slave_ops->ndo_start_xmit(skb, slave) == 0) {
@@ -310,8 +312,7 @@ restart:
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
 					master->stats.tx_packets++;
-					master->stats.tx_bytes +=
-						qdisc_pkt_len(skb);
+					master->stats.tx_bytes += length;
 					return 0;
 				}
 				__netif_tx_unlock(slave_txq);

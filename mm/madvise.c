@@ -112,14 +112,6 @@ static long madvise_willneed(struct vm_area_struct * vma,
 	if (!file)
 		return -EBADF;
 
-	/*
-	 * Page cache readahead assumes page cache pages are order-0 which
-	 * is not the case for hugetlbfs. Do not give a bad return value
-	 * but ignore the advice.
-	 */
-	if (vma->vm_flags & VM_HUGETLB)
-		return 0;
-
 	if (file->f_mapping->a_ops->get_xip_mem) {
 		/* no bad return value, but ignore advice */
 		return 0;

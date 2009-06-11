@@ -222,7 +222,8 @@ extern int nilfs_construct_segment(struct super_block *);
 extern int nilfs_construct_dsync_segment(struct super_block *, struct inode *,
 					 loff_t, loff_t);
 extern void nilfs_flush_segment(struct super_block *, ino_t);
-extern int nilfs_clean_segments(struct super_block *, void __user *);
+extern int nilfs_clean_segments(struct super_block *, struct nilfs_argv *,
+				void **);
 
 extern int nilfs_segctor_add_segments_to_be_freed(struct nilfs_sc_info *,
 						  __u64 *, size_t);

@@ -125,8 +125,10 @@ void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 
 	if (cq->is_tx)
 		del_timer(&cq->timer);
-	else
+	else {
 		napi_disable(&cq->napi);
+		netif_napi_del(&cq->napi);
+	}
 
 	mlx4_cq_free(mdev->dev, &cq->mcq);
 }

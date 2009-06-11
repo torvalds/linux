@@ -1964,11 +1964,14 @@ do {								\
 
 #define RING_LOCALS	int write, _nr, _align_nr; unsigned int mask; u32 *ring;
 
+#define RADEON_RING_ALIGN 16
+
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_RING( %d )\n", (n));			\
 	}								\
-	_align_nr = (n + 0xf) & ~0xf;					\
+	_align_nr = RADEON_RING_ALIGN - ((dev_priv->ring.tail + n) & (RADEON_RING_ALIGN-1));	\
+	_align_nr += n;							\
 	if (dev_priv->ring.space <= (_align_nr * sizeof(u32))) {	\
                 COMMIT_RING();						\
 		radeon_wait_ring( dev_priv, _align_nr * sizeof(u32));	\

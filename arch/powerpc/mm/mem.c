@@ -57,7 +57,7 @@
 
 int init_bootmem_done;
 int mem_init_done;
-unsigned long memory_limit;
+phys_addr_t memory_limit;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -379,6 +379,23 @@ void __init mem_init(void)
 		datasize >> 10,
 		bsssize >> 10,
 		initsize >> 10);
+
+#ifdef CONFIG_PPC32
+	pr_info("Kernel virtual memory layout:\n");
+	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
+#ifdef CONFIG_HIGHMEM
+	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
+		PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP));
+#endif /* CONFIG_HIGHMEM */
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	pr_info("  * 0x%08lx..0x%08lx  : consistent mem\n",
+		IOREMAP_TOP, IOREMAP_TOP + CONFIG_CONSISTENT_SIZE);
+#endif /* CONFIG_NOT_COHERENT_CACHE */
+	pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
+		ioremap_bot, IOREMAP_TOP);
+	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
+		VMALLOC_START, VMALLOC_END);
+#endif /* CONFIG_PPC32 */
 
 	mem_init_done = 1;
 }

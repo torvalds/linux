@@ -455,8 +455,6 @@ static int msix_capability_init(struct pci_dev *dev,
 		entry->msi_attrib.default_irq = dev->irq;
 		entry->msi_attrib.pos = pos;
 		entry->mask_base = base;
-		entry->masked = readl(base + j * PCI_MSIX_ENTRY_SIZE +
-					PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET);
 		msix_mask_irq(entry, 1);
 
 		list_add_tail(&entry->list, &dev->msi_list);
@@ -492,6 +490,12 @@ static int msix_capability_init(struct pci_dev *dev,
 	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 1);
 	dev->msix_enabled = 1;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		int vector = entry->msi_attrib.entry_nr;
+		entry->masked = readl(base + vector * PCI_MSIX_ENTRY_SIZE +
+					PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET);
+	}
 
 	return 0;
 }

@@ -213,7 +213,8 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
+	if (!IS_I9XX(dev) ||
+	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
 		tile_width = 128;
 	else
 		tile_width = 512;
@@ -225,11 +226,18 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else if (IS_I9XX(dev)) {
-		if (stride / tile_width > I830_FENCE_MAX_PITCH_VAL ||
+		uint32_t pitch_val = ffs(stride / tile_width) - 1;
+
+		/* XXX: For Y tiling, FENCE_MAX_PITCH_VAL is actually 6 (8KB)
+		 * instead of 4 (2KB) on 945s.
+		 */
+		if (pitch_val > I915_FENCE_MAX_PITCH_VAL ||
 		    size > (I830_FENCE_MAX_SIZE_VAL << 20))
 			return false;
 	} else {
-		if (stride / 128 > I830_FENCE_MAX_PITCH_VAL ||
+		uint32_t pitch_val = ffs(stride / tile_width) - 1;
+
+		if (pitch_val > I830_FENCE_MAX_PITCH_VAL ||
 		    size > (I830_FENCE_MAX_SIZE_VAL << 19))
 			return false;
 	}

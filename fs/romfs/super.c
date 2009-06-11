@@ -298,7 +298,8 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	struct romfs_inode ri;
 	struct inode *i;
 	unsigned long nlen;
-	unsigned nextfh, ret;
+	unsigned nextfh;
+	int ret;
 	umode_t mode;
 
 	/* we might have to traverse a chain of "hard link" file entries to get

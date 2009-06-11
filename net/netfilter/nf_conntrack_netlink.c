@@ -1186,28 +1186,6 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 	return 0;
 }
 
-static inline void
-ctnetlink_event_report(struct nf_conn *ct, u32 pid, int report)
-{
-	unsigned int events = 0;
-
-	if (test_bit(IPS_EXPECTED_BIT, &ct->status))
-		events |= IPCT_RELATED;
-	else
-		events |= IPCT_NEW;
-
-	nf_conntrack_event_report(IPCT_STATUS |
-				  IPCT_HELPER |
-				  IPCT_REFRESH |
-				  IPCT_PROTOINFO |
-				  IPCT_NATSEQADJ |
-				  IPCT_MARK |
-				  events,
-				  ct,
-				  pid,
-				  report);
-}
-
 static struct nf_conn *
 ctnetlink_create_conntrack(struct nlattr *cda[],
 			   struct nf_conntrack_tuple *otuple,
@@ -1373,6 +1351,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		err = -ENOENT;
 		if (nlh->nlmsg_flags & NLM_F_CREATE) {
 			struct nf_conn *ct;
+			enum ip_conntrack_events events;
 
 			ct = ctnetlink_create_conntrack(cda, &otuple,
 							&rtuple, u3);
@@ -1383,9 +1362,18 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			err = 0;
 			nf_conntrack_get(&ct->ct_general);
 			spin_unlock_bh(&nf_conntrack_lock);
-			ctnetlink_event_report(ct,
-					       NETLINK_CB(skb).pid,
-					       nlmsg_report(nlh));
+			if (test_bit(IPS_EXPECTED_BIT, &ct->status))
+				events = IPCT_RELATED;
+			else
+				events = IPCT_NEW;
+
+			nf_conntrack_event_report(IPCT_STATUS |
+						  IPCT_HELPER |
+						  IPCT_PROTOINFO |
+						  IPCT_NATSEQADJ |
+						  IPCT_MARK | events,
+						  ct, NETLINK_CB(skb).pid,
+						  nlmsg_report(nlh));
 			nf_ct_put(ct);
 		} else
 			spin_unlock_bh(&nf_conntrack_lock);
@@ -1404,9 +1392,13 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		if (err == 0) {
 			nf_conntrack_get(&ct->ct_general);
 			spin_unlock_bh(&nf_conntrack_lock);
-			ctnetlink_event_report(ct,
-					       NETLINK_CB(skb).pid,
-					       nlmsg_report(nlh));
+			nf_conntrack_event_report(IPCT_STATUS |
+						  IPCT_HELPER |
+						  IPCT_PROTOINFO |
+						  IPCT_NATSEQADJ |
+						  IPCT_MARK,
+						  ct, NETLINK_CB(skb).pid,
+						  nlmsg_report(nlh));
 			nf_ct_put(ct);
 		} else
 			spin_unlock_bh(&nf_conntrack_lock);

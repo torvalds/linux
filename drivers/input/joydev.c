@@ -843,7 +843,13 @@ static const struct input_device_id joydev_blacklist[] = {
 				INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
 		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
-	},	/* Avoid itouchpads, touchscreens and tablets */
+	},	/* Avoid itouchpads and touchscreens */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+				INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(BTN_DIGI)] = BIT_MASK(BTN_DIGI) },
+	},	/* Avoid tablets, digitisers and similar devices */
 	{ }	/* Terminating entry */
 };
 
