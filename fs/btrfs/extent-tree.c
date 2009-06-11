@@ -1056,8 +1056,7 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	want = extent_ref_type(parent, owner);
 	if (insert) {
 		extra_size = btrfs_extent_inline_ref_size(want);
-		if (owner >= BTRFS_FIRST_FREE_OBJECTID)
-			path->keep_locks = 1;
+		path->keep_locks = 1;
 	} else
 		extra_size = -1;
 	ret = btrfs_search_slot(trans, root, &key, path, extra_size, 1);
@@ -1086,12 +1085,6 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	}
 #endif
 	BUG_ON(item_size < sizeof(*ei));
-
-	if (owner < BTRFS_FIRST_FREE_OBJECTID && insert &&
-	    item_size + extra_size >= BTRFS_MAX_EXTENT_ITEM_SIZE(root)) {
-		err = -EAGAIN;
-		goto out;
-	}
 
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	flags = btrfs_extent_flags(leaf, ei);
@@ -1165,15 +1158,15 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 		 * For simplicity, we just do not add new inline back
 		 * ref if there is any kind of item for this block
 		 */
-		if (owner >= BTRFS_FIRST_FREE_OBJECTID &&
-		    find_next_key(path, &key) == 0 && key.objectid == bytenr) {
+		if (find_next_key(path, &key) == 0 && key.objectid == bytenr &&
+		    key.type < BTRFS_BLOCK_GROUP_ITEM_KEY) {
 			err = -EAGAIN;
 			goto out;
 		}
 	}
 	*ref_ret = (struct btrfs_extent_inline_ref *)ptr;
 out:
-	if (insert && owner >= BTRFS_FIRST_FREE_OBJECTID) {
+	if (insert) {
 		path->keep_locks = 0;
 		btrfs_unlock_up_safe(path, 1);
 	}
