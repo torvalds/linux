@@ -266,7 +266,7 @@ static inline int omap2_onenand_bufferram_offset(struct mtd_info *mtd, int area)
 
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
 		if (area == ONENAND_DATARAM)
-			return mtd->writesize;
+			return this->writesize;
 		if (area == ONENAND_SPARERAM)
 			return mtd->oobsize;
 	}
