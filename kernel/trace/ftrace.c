@@ -3218,12 +3218,12 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 
 		if (t->ret_stack == NULL) {
-			t->curr_ret_stack = -1;
-			/* Make sure IRQs see the -1 first: */
-			barrier();
-			t->ret_stack = ret_stack_list[start++];
 			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
+			t->curr_ret_stack = -1;
+			/* Make sure the tasks see the -1 first: */
+			smp_wmb();
+			t->ret_stack = ret_stack_list[start++];
 		}
 	} while_each_thread(g, t);
 
@@ -3281,8 +3281,10 @@ static int start_graph_tracing(void)
 		return -ENOMEM;
 
 	/* The cpu_boot init_task->ret_stack will never be freed */
-	for_each_online_cpu(cpu)
-		ftrace_graph_init_task(idle_task(cpu));
+	for_each_online_cpu(cpu) {
+		if (!idle_task(cpu)->ret_stack)
+			ftrace_graph_init_task(idle_task(cpu));
+	}
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
@@ -3374,18 +3376,25 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
+	/* Make sure we do not use the parent ret_stack */
+	t->ret_stack = NULL;
+
 	if (ftrace_graph_active) {
-		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+		struct ftrace_ret_stack *ret_stack;
+
+		ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
 				* sizeof(struct ftrace_ret_stack),
 				GFP_KERNEL);
-		if (!t->ret_stack)
+		if (!ret_stack)
 			return;
 		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
 		t->ftrace_timestamp = 0;
-	} else
-		t->ret_stack = NULL;
+		/* make curr_ret_stack visable before we add the ret_stack */
+		smp_wmb();
+		t->ret_stack = ret_stack;
+	}
 }
 
 void ftrace_graph_exit_task(struct task_struct *t)
