@@ -634,6 +634,10 @@ static void imx_shutdown(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
 
+	temp = readl(sport->port.membase + UCR2);
+	temp &= ~(UCR2_TXEN);
+	writel(temp, sport->port.membase + UCR2);
+
 	/*
 	 * Stop our timer.
 	 */
