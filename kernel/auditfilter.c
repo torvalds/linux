@@ -1079,11 +1079,9 @@ static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
 			security_release_secctx(ctx, len);
 		}
 	}
-	audit_log_format(ab, " op=%s rule key=", action);
-	if (rule->filterkey)
-		audit_log_untrustedstring(ab, rule->filterkey);
-	else
-		audit_log_format(ab, "(null)");
+	audit_log_format(ab, " op=");
+	audit_log_string(ab, action);
+	audit_log_key(ab, rule->filterkey);
 	audit_log_format(ab, " list=%d res=%d", rule->listnr, res);
 	audit_log_end(ab);
 }
@@ -1147,7 +1145,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			return PTR_ERR(entry);
 
 		err = audit_add_rule(entry);
-		audit_log_rule_change(loginuid, sessionid, sid, "add",
+		audit_log_rule_change(loginuid, sessionid, sid, "add rule",
 				      &entry->rule, !err);
 
 		if (err)
@@ -1163,7 +1161,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			return PTR_ERR(entry);
 
 		err = audit_del_rule(entry);
-		audit_log_rule_change(loginuid, sessionid, sid, "remove",
+		audit_log_rule_change(loginuid, sessionid, sid, "remove rule",
 				      &entry->rule, !err);
 
 		audit_free_rule(entry);

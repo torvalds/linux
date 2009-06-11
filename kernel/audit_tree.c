@@ -441,13 +441,11 @@ static void kill_rules(struct audit_tree *tree)
 		if (rule->tree) {
 			/* not a half-baked one */
 			ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-			audit_log_format(ab, "op=remove rule dir=");
+			audit_log_format(ab, "op=");
+			audit_log_string(ab, "remove rule");
+			audit_log_format(ab, " dir=");
 			audit_log_untrustedstring(ab, rule->tree->pathname);
-			if (rule->filterkey) {
-				audit_log_format(ab, " key=");
-				audit_log_untrustedstring(ab, rule->filterkey);
-			} else
-				audit_log_format(ab, " key=(null)");
+			audit_log_key(ab, rule->filterkey);
 			audit_log_format(ab, " list=%d res=1", rule->listnr);
 			audit_log_end(ab);
 			rule->tree = NULL;

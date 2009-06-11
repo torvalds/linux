@@ -1137,7 +1137,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		if (has_cntl)
 			audit_log_n_hex(*ab, buf, to_send);
 		else
-			audit_log_format(*ab, "\"%s\"", buf);
+			audit_log_string(*ab, buf);
 
 		p += to_send;
 		len_left -= to_send;
@@ -1372,11 +1372,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 
 	audit_log_task_info(ab, tsk);
-	if (context->filterkey) {
-		audit_log_format(ab, " key=");
-		audit_log_untrustedstring(ab, context->filterkey);
-	} else
-		audit_log_format(ab, " key=(null)");
+	audit_log_key(ab, context->filterkey);
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {

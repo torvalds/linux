@@ -234,11 +234,7 @@ static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watc
 		audit_log_string(ab, op);
 		audit_log_format(ab, " path=");
 		audit_log_untrustedstring(ab, w->path);
-		if (r->filterkey) {
-			audit_log_format(ab, " key=");
-			audit_log_untrustedstring(ab, r->filterkey);
-		} else
-			audit_log_format(ab, " key=(null)");
+		audit_log_key(ab, r->filterkey);
 		audit_log_format(ab, " list=%d res=1", r->listnr);
 		audit_log_end(ab);
 	}

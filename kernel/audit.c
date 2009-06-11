@@ -1450,6 +1450,15 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	kfree(pathname);
 }
 
+void audit_log_key(struct audit_buffer *ab, char *key)
+{
+	audit_log_format(ab, " key=");
+	if (key)
+		audit_log_untrustedstring(ab, key);
+	else
+		audit_log_format(ab, "(null)");
+}
+
 /**
  * audit_log_end - end one audit record
  * @ab: the audit_buffer
