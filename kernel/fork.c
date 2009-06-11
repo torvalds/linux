@@ -62,6 +62,7 @@
 #include <linux/blkdev.h>
 #include <linux/fs_struct.h>
 #include <linux/magic.h>
+#include <linux/perf_counter.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -1096,6 +1097,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	sched_fork(p, clone_flags);
 
+	retval = perf_counter_init_task(p);
+	if (retval)
+		goto bad_fork_cleanup_policy;
+
 	if ((retval = audit_alloc(p)))
 		goto bad_fork_cleanup_policy;
 	/* copy all the process information */
@@ -1290,6 +1295,7 @@ bad_fork_cleanup_semundo:
 bad_fork_cleanup_audit:
 	audit_free(p);
 bad_fork_cleanup_policy:
+	perf_counter_free_task(p);
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
 bad_fork_cleanup_cgroup:
@@ -1403,6 +1409,12 @@ long do_fork(unsigned long clone_flags,
 		if (clone_flags & CLONE_VFORK) {
 			p->vfork_done = &vfork;
 			init_completion(&vfork);
+		} else if (!(clone_flags & CLONE_VM)) {
+			/*
+			 * vfork will do an exec which will call
+			 * set_task_comm()
+			 */
+			perf_counter_fork(p);
 		}
 
 		audit_finish_fork(p);

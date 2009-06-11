@@ -108,14 +108,14 @@
 #define LOCAL_TIMER_VECTOR		0xef
 
 /*
- * Performance monitoring interrupt vector:
- */
-#define LOCAL_PERF_VECTOR		0xee
-
-/*
  * Generic system vector for platform specific use
  */
 #define GENERIC_INTERRUPT_VECTOR	0xed
+
+/*
+ * Performance monitoring pending work vector:
+ */
+#define LOCAL_PENDING_VECTOR		0xec
 
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee) we

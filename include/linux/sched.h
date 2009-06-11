@@ -99,6 +99,7 @@ struct robust_list_head;
 struct bio;
 struct fs_struct;
 struct bts_context;
+struct perf_counter_context;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -139,6 +140,7 @@ extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_iowait(void);
 extern void calc_global_load(void);
+extern u64 cpu_nr_migrations(int cpu);
 
 extern unsigned long get_parent_ip(unsigned long addr);
 
@@ -674,6 +676,10 @@ struct user_struct {
 	struct work_struct work;
 #endif
 #endif
+
+#ifdef CONFIG_PERF_COUNTERS
+	atomic_long_t locked_vm;
+#endif
 };
 
 extern int uids_sysfs_init(void);
@@ -1073,9 +1079,10 @@ struct sched_entity {
 	u64			last_wakeup;
 	u64			avg_overlap;
 
+	u64			nr_migrations;
+
 	u64			start_runtime;
 	u64			avg_wakeup;
-	u64			nr_migrations;
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
@@ -1395,6 +1402,11 @@ struct task_struct {
 #endif
 	struct list_head pi_state_list;
 	struct futex_pi_state *pi_state_cache;
+#endif
+#ifdef CONFIG_PERF_COUNTERS
+	struct perf_counter_context *perf_counter_ctxp;
+	struct mutex perf_counter_mutex;
+	struct list_head perf_counter_list;
 #endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *mempolicy;
@@ -2409,6 +2421,13 @@ static inline void inc_syscw(struct task_struct *tsk)
 #ifndef TASK_SIZE_OF
 #define TASK_SIZE_OF(tsk)	TASK_SIZE
 #endif
+
+/*
+ * Call the function if the target task is executing on a CPU right now:
+ */
+extern void task_oncpu_function_call(struct task_struct *p,
+				     void (*func) (void *info), void *info);
+
 
 #ifdef CONFIG_MM_OWNER
 extern void mm_update_next_owner(struct mm_struct *mm);
