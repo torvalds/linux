@@ -815,7 +815,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
 	buf[0] = IUU_UART_ENABLE;
 	buf[1] = (u8) ((IUU_BAUD_9600 >> 8) & 0x00FF);
 	buf[2] = (u8) (0x00FF & IUU_BAUD_9600);
-	buf[3] = (u8) (0x0F0 & IUU_TWO_STOP_BITS) | (0x07 & IUU_PARITY_EVEN);
+	buf[3] = (u8) (0x0F0 & IUU_ONE_STOP_BIT) | (0x07 & IUU_PARITY_EVEN);
 
 	status = bulk_immediate(port, buf, 4);
 	if (status != IUU_OPERATION_OK) {
