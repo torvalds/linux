@@ -84,8 +84,8 @@ static void *ima_measurements_next(struct seq_file *m, void *v, loff_t *pos)
 	 * against concurrent list-extension
 	 */
 	rcu_read_lock();
-	qe = list_entry(rcu_dereference(qe->later.next),
-			struct ima_queue_entry, later);
+	qe = list_entry_rcu(qe->later.next,
+			    struct ima_queue_entry, later);
 	rcu_read_unlock();
 	(*pos)++;
 

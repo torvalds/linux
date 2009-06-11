@@ -734,8 +734,8 @@ static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
 		return;
 	}
 
-	m = list_entry(rcu_dereference(smk_netlbladdr_list.next),
-			 struct smk_netlbladdr, list);
+	m = list_entry_rcu(smk_netlbladdr_list.next,
+			   struct smk_netlbladdr, list);
 
 	/* the comparison '>' is a bit hacky, but works */
 	if (new->smk_mask.s_addr > m->smk_mask.s_addr) {
@@ -748,8 +748,8 @@ static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
 			list_add_rcu(&new->list, &m->list);
 			return;
 		}
-		m_next = list_entry(rcu_dereference(m->list.next),
-				 struct smk_netlbladdr, list);
+		m_next = list_entry_rcu(m->list.next,
+					struct smk_netlbladdr, list);
 		if (new->smk_mask.s_addr > m_next->smk_mask.s_addr) {
 			list_add_rcu(&new->list, &m->list);
 			return;
