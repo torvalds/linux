@@ -453,7 +453,7 @@ error_rx_setup:
 	i2400m_tx_release(i2400m);
 error_tx_setup:
 error_bootstrap:
-	if (result == -ERESTARTSYS && times-- > 0) {
+	if (result == -EL3RST && times-- > 0) {
 		flags = I2400M_BRI_SOFT|I2400M_BRI_MAC_REINIT;
 		goto retry;
 	}
@@ -560,7 +560,7 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		 * i2400m_dev_stop() [we are shutting down anyway, so
 		 * ignore it] or we are resetting somewhere else. */
 		dev_err(dev, "device rebooted\n");
-		i2400m_msg_to_dev_cancel_wait(i2400m, -ERESTARTSYS);
+		i2400m_msg_to_dev_cancel_wait(i2400m, -EL3RST);
 		complete(&i2400m->msg_completion);
 		goto out;
 	}

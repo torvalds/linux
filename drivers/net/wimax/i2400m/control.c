@@ -697,7 +697,7 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 
 	rmb();		/* Make sure we see what i2400m_dev_reset_handle() */
 	if (i2400m->boot_mode)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EL3RST);
 
 	msg_l3l4_hdr = buf;
 	/* Check msg & payload consistency */
