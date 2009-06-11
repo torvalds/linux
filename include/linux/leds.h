@@ -45,7 +45,9 @@ struct led_classdev {
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
-	/* Activate hardware accelerated blink */
+	/* Activate hardware accelerated blink, delays are in
+	 * miliseconds and if none is provided then a sensible default
+	 * should be chosen. */
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
