@@ -1631,7 +1631,8 @@ new_slab:
 		c->page = new;
 		goto load_freelist;
 	}
-	slab_out_of_memory(s, gfpflags, node);
+	if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+		slab_out_of_memory(s, gfpflags, node);
 	return NULL;
 debug:
 	if (!alloc_debug_processing(s, c->page, object, addr))
