@@ -528,22 +528,20 @@ struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
 {
 	struct sk_buff	*skb;
 	struct nlmsghdr	*nlh;
-	int		len = NLMSG_SPACE(size);
 	void		*data;
 	int		flags = multi ? NLM_F_MULTI : 0;
 	int		t     = done  ? NLMSG_DONE  : type;
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = nlmsg_new(size, GFP_KERNEL);
 	if (!skb)
 		return NULL;
 
-	nlh		 = NLMSG_PUT(skb, pid, seq, t, size);
-	nlh->nlmsg_flags = flags;
-	data		 = NLMSG_DATA(nlh);
+	nlh	= NLMSG_NEW(skb, pid, seq, t, size, flags);
+	data	= NLMSG_DATA(nlh);
 	memcpy(data, payload, size);
 	return skb;
 
-nlmsg_failure:			/* Used by NLMSG_PUT */
+nlmsg_failure:			/* Used by NLMSG_NEW */
 	if (skb)
 		kfree_skb(skb);
 	return NULL;
@@ -1083,18 +1081,20 @@ static struct audit_buffer * audit_buffer_alloc(struct audit_context *ctx,
 			goto err;
 	}
 
-	ab->skb = alloc_skb(AUDIT_BUFSIZ, gfp_mask);
-	if (!ab->skb)
-		goto err;
-
 	ab->ctx = ctx;
 	ab->gfp_mask = gfp_mask;
-	nlh = (struct nlmsghdr *)skb_put(ab->skb, NLMSG_SPACE(0));
-	nlh->nlmsg_type = type;
-	nlh->nlmsg_flags = 0;
-	nlh->nlmsg_pid = 0;
-	nlh->nlmsg_seq = 0;
+
+	ab->skb = nlmsg_new(AUDIT_BUFSIZ, gfp_mask);
+	if (!ab->skb)
+		goto nlmsg_failure;
+
+	nlh = NLMSG_NEW(ab->skb, 0, 0, type, 0, 0);
+
 	return ab;
+
+nlmsg_failure:                  /* Used by NLMSG_NEW */
+	kfree_skb(ab->skb);
+	ab->skb = NULL;
 err:
 	audit_buffer_free(ab);
 	return NULL;
