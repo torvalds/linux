@@ -3570,12 +3570,8 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
 		goto done;
 
-	if (attr->type == PERF_TYPE_RAW) {
-		pmu = hw_perf_counter_init(counter);
-		goto done;
-	}
-
 	switch (attr->type) {
+	case PERF_TYPE_RAW:
 	case PERF_TYPE_HARDWARE:
 	case PERF_TYPE_HW_CACHE:
 		pmu = hw_perf_counter_init(counter);
