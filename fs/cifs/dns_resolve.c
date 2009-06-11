@@ -35,7 +35,7 @@
  * 		0 - name is not IP
  */
 static int
-is_ip(const char *name)
+is_ip(char *name)
 {
 	struct sockaddr_storage ss;
 
@@ -57,7 +57,7 @@ dns_resolver_instantiate(struct key *key, const void *data,
 	ip[datalen] = '\0';
 
 	/* make sure this looks like an address */
-	if (!is_ip((const char *) ip)) {
+	if (!is_ip(ip)) {
 		kfree(ip);
 		return -EINVAL;
 	}

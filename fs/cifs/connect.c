@@ -1386,8 +1386,10 @@ cifs_find_tcp_session(struct sockaddr_storage *addr)
 		     server->addr.sockAddr.sin_addr.s_addr))
 			continue;
 		else if (addr->ss_family == AF_INET6 &&
-			 !ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
-					  &addr6->sin6_addr))
+			 (!ipv6_addr_equal(&server->addr.sockAddr6.sin6_addr,
+					   &addr6->sin6_addr) ||
+			  server->addr.sockAddr6.sin6_scope_id !=
+					   addr6->sin6_scope_id))
 			continue;
 
 		++server->srv_count;
