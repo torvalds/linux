@@ -2295,6 +2295,106 @@ int blk_lld_busy(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_lld_busy);
 
+/**
+ * blk_rq_unprep_clone - Helper function to free all bios in a cloned request
+ * @rq: the clone request to be cleaned up
+ *
+ * Description:
+ *     Free all bios in @rq for a cloned request.
+ */
+void blk_rq_unprep_clone(struct request *rq)
+{
+	struct bio *bio;
+
+	while ((bio = rq->bio) != NULL) {
+		rq->bio = bio->bi_next;
+
+		bio_put(bio);
+	}
+}
+EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
+
+/*
+ * Copy attributes of the original request to the clone request.
+ * The actual data parts (e.g. ->cmd, ->buffer, ->sense) are not copied.
+ */
+static void __blk_rq_prep_clone(struct request *dst, struct request *src)
+{
+	dst->cpu = src->cpu;
+	dst->cmd_flags = (rq_data_dir(src) | REQ_NOMERGE);
+	dst->cmd_type = src->cmd_type;
+	dst->__sector = blk_rq_pos(src);
+	dst->__data_len = blk_rq_bytes(src);
+	dst->nr_phys_segments = src->nr_phys_segments;
+	dst->ioprio = src->ioprio;
+	dst->extra_len = src->extra_len;
+}
+
+/**
+ * blk_rq_prep_clone - Helper function to setup clone request
+ * @rq: the request to be setup
+ * @rq_src: original request to be cloned
+ * @bs: bio_set that bios for clone are allocated from
+ * @gfp_mask: memory allocation mask for bio
+ * @bio_ctr: setup function to be called for each clone bio.
+ *           Returns %0 for success, non %0 for failure.
+ * @data: private data to be passed to @bio_ctr
+ *
+ * Description:
+ *     Clones bios in @rq_src to @rq, and copies attributes of @rq_src to @rq.
+ *     The actual data parts of @rq_src (e.g. ->cmd, ->buffer, ->sense)
+ *     are not copied, and copying such parts is the caller's responsibility.
+ *     Also, pages which the original bios are pointing to are not copied
+ *     and the cloned bios just point same pages.
+ *     So cloned bios must be completed before original bios, which means
+ *     the caller must complete @rq before @rq_src.
+ */
+int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
+		      struct bio_set *bs, gfp_t gfp_mask,
+		      int (*bio_ctr)(struct bio *, struct bio *, void *),
+		      void *data)
+{
+	struct bio *bio, *bio_src;
+
+	if (!bs)
+		bs = fs_bio_set;
+
+	blk_rq_init(NULL, rq);
+
+	__rq_for_each_bio(bio_src, rq_src) {
+		bio = bio_alloc_bioset(gfp_mask, bio_src->bi_max_vecs, bs);
+		if (!bio)
+			goto free_and_out;
+
+		__bio_clone(bio, bio_src);
+
+		if (bio_integrity(bio_src) &&
+		    bio_integrity_clone(bio, bio_src, gfp_mask))
+			goto free_and_out;
+
+		if (bio_ctr && bio_ctr(bio, bio_src, data))
+			goto free_and_out;
+
+		if (rq->bio) {
+			rq->biotail->bi_next = bio;
+			rq->biotail = bio;
+		} else
+			rq->bio = rq->biotail = bio;
+	}
+
+	__blk_rq_prep_clone(rq, rq_src);
+
+	return 0;
+
+free_and_out:
+	if (bio)
+		bio_free(bio, bs);
+	blk_rq_unprep_clone(rq);
+
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(blk_rq_prep_clone);
+
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work)
 {
 	return queue_work(kblockd_workqueue, work);
