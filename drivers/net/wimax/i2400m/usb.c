@@ -254,8 +254,10 @@ do_bus_reset:
 			dev_err(dev, "USB reset failed (%d), giving up!\n",
 				result);
 		}
-	} else
+	} else {
+		result = -EINVAL;	/* shut gcc up in certain arches */
 		BUG();
+	}
 	if (result < 0
 	    && result != -EINVAL	/* device is gone */
 	    && rt != I2400M_RT_BUS) {
