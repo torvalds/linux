@@ -1272,12 +1272,17 @@ static __init void early_serial_write(struct console *con, const char *s,
 	}
 }
 
+/*
+ * This should have a .setup or .early_setup in it, but then things get called
+ * without the command line options, and the baud rate gets messed up - so
+ * don't let the common infrastructure play with things. (see calls to setup
+ * & earlysetup in ./kernel/printk.c:register_console()
+ */
 static struct __initdata console bfin_early_serial_console = {
 	.name = "early_BFuart",
 	.write = early_serial_write,
 	.device = uart_console_device,
 	.flags = CON_PRINTBUFFER,
-	.setup = bfin_serial_console_setup,
 	.index = -1,
 	.data  = &bfin_serial_reg,
 };
