@@ -19,6 +19,9 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
+#include <linux/regset.h>
+#include <linux/elf.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -31,6 +34,169 @@
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
+
+/*
+ * retrieve the contents of FRV userspace general registers
+ */
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct user_int_regs *iregs = &target->thread.user->i;
+	int ret;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  iregs, 0, sizeof(*iregs));
+	if (ret < 0)
+		return ret;
+
+	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					sizeof(*iregs), -1);
+}
+
+/*
+ * update the contents of the FRV userspace general registers
+ */
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct user_int_regs *iregs = &target->thread.user->i;
+	unsigned int offs_gr0, offs_gr1;
+	int ret;
+
+	/* not allowed to set PSR or __status */
+	if (pos < offsetof(struct user_int_regs, psr) + sizeof(long) &&
+	    pos + count > offsetof(struct user_int_regs, psr))
+		return -EIO;
+
+	if (pos < offsetof(struct user_int_regs, __status) + sizeof(long) &&
+	    pos + count > offsetof(struct user_int_regs, __status))
+		return -EIO;
+
+	/* set the control regs */
+	offs_gr0 = offsetof(struct user_int_regs, gr[0]);
+	offs_gr1 = offsetof(struct user_int_regs, gr[1]);
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 iregs, 0, offs_gr0);
+	if (ret < 0)
+		return ret;
+
+	/* skip GR0/TBR */
+	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					offs_gr0, offs_gr1);
+	if (ret < 0)
+		return ret;
+
+	/* set the general regs */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &iregs->gr[1], offs_gr1, sizeof(*iregs));
+	if (ret < 0)
+		return ret;
+
+	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					sizeof(*iregs), -1);
+}
+
+/*
+ * retrieve the contents of FRV userspace FP/Media registers
+ */
+static int fpmregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct user_fpmedia_regs *fpregs = &target->thread.user->f;
+	int ret;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  fpregs, 0, sizeof(*fpregs));
+	if (ret < 0)
+		return ret;
+
+	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					sizeof(*fpregs), -1);
+}
+
+/*
+ * update the contents of the FRV userspace FP/Media registers
+ */
+static int fpmregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct user_fpmedia_regs *fpregs = &target->thread.user->f;
+	int ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 fpregs, 0, sizeof(*fpregs));
+	if (ret < 0)
+		return ret;
+
+	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					sizeof(*fpregs), -1);
+}
+
+/*
+ * determine if the FP/Media registers have actually been used
+ */
+static int fpmregs_active(struct task_struct *target,
+			  const struct user_regset *regset)
+{
+	return tsk_used_math(target) ? regset->n : 0;
+}
+
+/*
+ * Define the register sets available on the FRV under Linux
+ */
+enum frv_regset {
+	REGSET_GENERAL,
+	REGSET_FPMEDIA,
+};
+
+static const struct user_regset frv_regsets[] = {
+	/*
+	 * General register format is:
+	 *	PSR, ISR, CCR, CCCR, LR, LCR, PC, (STATUS), SYSCALLNO, ORIG_G8
+	 *	GNER0-1, IACC0, TBR, GR1-63
+	 */
+	[REGSET_GENERAL] = {
+		.core_note_type	= NT_PRSTATUS,
+		.n		= ELF_NGREG,
+		.size		= sizeof(long),
+		.align		= sizeof(long),
+		.get		= genregs_get,
+		.set		= genregs_set,
+	},
+	/*
+	 * FPU/Media register format is:
+	 *	FR0-63, FNER0-1, MSR0-1, ACC0-7, ACCG0-8, FSR
+	 */
+	[REGSET_FPMEDIA] = {
+		.core_note_type	= NT_PRFPREG,
+		.n		= sizeof(struct user_fpmedia_regs) / sizeof(long),
+		.size		= sizeof(long),
+		.align		= sizeof(long),
+		.get		= fpmregs_get,
+		.set		= fpmregs_set,
+		.active		= fpmregs_active,
+	},
+};
+
+static const struct user_regset_view user_frv_native_view = {
+	.name		= "frv",
+	.e_machine	= EM_FRV,
+	.regsets	= frv_regsets,
+	.n		= ARRAY_SIZE(frv_regsets),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_frv_native_view;
+}
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -69,40 +235,23 @@ static inline int put_reg(struct task_struct *task, int regno,
 }
 
 /*
- * check that an address falls within the bounds of the target process's memory
- * mappings
- */
-static inline int is_user_addr_valid(struct task_struct *child,
-				     unsigned long start, unsigned long len)
-{
-#ifdef CONFIG_MMU
-	if (start >= PAGE_OFFSET || len > PAGE_OFFSET - start)
-		return -EIO;
-	return 0;
-#else
-	struct vm_area_struct *vma;
-
-	vma = find_vma(child->mm, start);
-	if (vma && start >= vma->vm_start && start + len <= vma->vm_end)
-		return 0;
-
-	return -EIO;
-#endif
-}
-
-/*
  * Called by kernel/ptrace.c when detaching..
  *
  * Control h/w single stepping
  */
-void ptrace_disable(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
+{
+	child->thread.frame0->__status |= REG__STATUS_STEP;
+}
+
+void user_disable_single_step(struct task_struct *child)
 {
 	child->thread.frame0->__status &= ~REG__STATUS_STEP;
 }
 
-void ptrace_enable(struct task_struct *child)
+void ptrace_disable(struct task_struct *child)
 {
-	child->thread.frame0->__status |= REG__STATUS_STEP;
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -111,15 +260,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-		/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = -EIO;
-		if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
-			break;
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 		/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		tmp = 0;
@@ -163,15 +303,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-		/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = -EIO;
-		if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
-			break;
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
-
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
 		if ((addr & 3) || addr < 0)
@@ -179,7 +310,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		ret = 0;
 		switch (addr >> 2) {
-		case 0 ... PT__END-1:
+		case 0 ... PT__END - 1:
 			ret = put_reg(child, addr >> 2, data);
 			break;
 
@@ -189,95 +320,29 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		break;
 
-	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-	case PTRACE_CONT: /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		ptrace_disable(child);
-		wake_up_process(child);
-		ret = 0;
-		break;
+	case PTRACE_GETREGS:	/* Get all integer regs from the child. */
+		return copy_regset_to_user(child, &user_frv_native_view,
+					   REGSET_GENERAL,
+					   0, sizeof(child->thread.user->i),
+					   (void __user *)data);
 
-		/* make the child exit.  Best I can do is send it a sigkill.
-		 * perhaps it should be put in the status that it wants to
-		 * exit.
-		 */
-	case PTRACE_KILL:
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		clear_tsk_thread_flag(child, TIF_SINGLESTEP);
-		ptrace_disable(child);
-		wake_up_process(child);
-		break;
+	case PTRACE_SETREGS:	/* Set all integer regs in the child. */
+		return copy_regset_from_user(child, &user_frv_native_view,
+					     REGSET_GENERAL,
+					     0, sizeof(child->thread.user->i),
+					     (const void __user *)data);
 
-	case PTRACE_SINGLESTEP:  /* set the trap flag. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		ptrace_enable(child);
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
+	case PTRACE_GETFPREGS:	/* Get the child FP/Media state. */
+		return copy_regset_to_user(child, &user_frv_native_view,
+					   REGSET_FPMEDIA,
+					   0, sizeof(child->thread.user->f),
+					   (void __user *)data);
 
-	case PTRACE_DETACH:	/* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		break;
-
-	case PTRACE_GETREGS: { /* Get all integer regs from the child. */
-		int i;
-		for (i = 0; i < PT__GPEND; i++) {
-			tmp = get_reg(child, i);
-			if (put_user(tmp, (unsigned long *) data)) {
-				ret = -EFAULT;
-				break;
-			}
-			data += sizeof(long);
-		}
-		ret = 0;
-		break;
-	}
-
-	case PTRACE_SETREGS: { /* Set all integer regs in the child. */
-		int i;
-		for (i = 0; i < PT__GPEND; i++) {
-			if (get_user(tmp, (unsigned long *) data)) {
-				ret = -EFAULT;
-				break;
-			}
-			put_reg(child, i, tmp);
-			data += sizeof(long);
-		}
-		ret = 0;
-		break;
-	}
-
-	case PTRACE_GETFPREGS: { /* Get the child FP/Media state. */
-		ret = 0;
-		if (copy_to_user((void *) data,
-				 &child->thread.user->f,
-				 sizeof(child->thread.user->f)))
-			ret = -EFAULT;
-		break;
-	}
-
-	case PTRACE_SETFPREGS: { /* Set the child FP/Media state. */
-		ret = 0;
-		if (copy_from_user(&child->thread.user->f,
-				   (void *) data,
-				   sizeof(child->thread.user->f)))
-			ret = -EFAULT;
-		break;
-	}
+	case PTRACE_SETFPREGS:	/* Set the child FP/Media state. */
+		return copy_regset_from_user(child, &user_frv_native_view,
+					     REGSET_FPMEDIA,
+					     0, sizeof(child->thread.user->f),
+					     (const void __user *)data);
 
 	case PTRACE_GETFDPIC:
 		tmp = 0;
@@ -300,35 +365,36 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	default:
-		ret = -EIO;
+		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
 	return ret;
 }
 
-asmlinkage void do_syscall_trace(int leaving)
+/*
+ * handle tracing of system call entry
+ * - return the revised system call number or ULONG_MAX to cause ENOSYS
+ */
+asmlinkage unsigned long syscall_trace_entry(void)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
-	/* we need to indicate entry or exit to strace */
-	if (leaving)
-		__frame->__status |= REG__STATUS_SYSC_EXIT;
-	else
-		__frame->__status |= REG__STATUS_SYSC_ENTRY;
-
-	ptrace_notify(SIGTRAP);
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
+	__frame->__status |= REG__STATUS_SYSC_ENTRY;
+	if (tracehook_report_syscall_entry(__frame)) {
+		/* tracing decided this syscall should not happen, so
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in
+		 * __frame->syscallno
+		 */
+		return ULONG_MAX;
 	}
+
+	return __frame->syscallno;
+}
+
+/*
+ * handle tracing of system call exit
+ */
+asmlinkage void syscall_trace_exit(void)
+{
+	__frame->__status |= REG__STATUS_SYSC_EXIT;
+	tracehook_report_syscall_exit(__frame, 0);
 }
