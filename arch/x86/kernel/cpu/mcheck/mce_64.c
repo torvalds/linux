@@ -420,6 +420,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
  out2:
 	atomic_dec(&mce_entry);
 }
+EXPORT_SYMBOL_GPL(do_machine_check);
 
 #ifdef CONFIG_X86_MCE_INTEL
 /***

@@ -12,6 +12,8 @@
 
 #include <asm/lowcore.h>
 #include <asm/uaccess.h>
+#include <linux/hrtimer.h>
+#include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <linux/signal.h>
 #include "kvm-s390.h"
@@ -299,13 +301,13 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	if ((!rc) && atomic_read(&fi->active)) {
-		spin_lock_bh(&fi->lock);
+		spin_lock(&fi->lock);
 		list_for_each_entry(inti, &fi->list, list)
 			if (__interrupt_is_deliverable(vcpu, inti)) {
 				rc = 1;
 				break;
 			}
-		spin_unlock_bh(&fi->lock);
+		spin_unlock(&fi->lock);
 	}
 
 	if ((!rc) && (vcpu->arch.sie_block->ckc <
@@ -316,6 +318,12 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	return rc;
+}
+
+int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	/* do real check here */
+	return 1;
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
@@ -355,14 +363,12 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	sltime = (vcpu->arch.sie_block->ckc - now) / (0xf4240000ul / HZ) + 1;
+	sltime = ((vcpu->arch.sie_block->ckc - now)*125)>>9;
 
-	vcpu->arch.ckc_timer.expires = jiffies + sltime;
-
-	add_timer(&vcpu->arch.ckc_timer);
-	VCPU_EVENT(vcpu, 5, "enabled wait timer:%llx jiffies", sltime);
+	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
+	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
-	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
+	spin_lock(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	add_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	while (list_empty(&vcpu->arch.local_int.list) &&
@@ -371,33 +377,46 @@ no_timer:
 		!signal_pending(current)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&vcpu->arch.local_int.lock);
-		spin_unlock_bh(&vcpu->arch.local_int.float_int->lock);
+		spin_unlock(&vcpu->arch.local_int.float_int->lock);
 		vcpu_put(vcpu);
 		schedule();
 		vcpu_load(vcpu);
-		spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
+		spin_lock(&vcpu->arch.local_int.float_int->lock);
 		spin_lock_bh(&vcpu->arch.local_int.lock);
 	}
 	__unset_cpu_idle(vcpu);
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&vcpu->wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
-	spin_unlock_bh(&vcpu->arch.local_int.float_int->lock);
-	del_timer(&vcpu->arch.ckc_timer);
+	spin_unlock(&vcpu->arch.local_int.float_int->lock);
+	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
 
-void kvm_s390_idle_wakeup(unsigned long data)
+void kvm_s390_tasklet(unsigned long parm)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
 
-	spin_lock_bh(&vcpu->arch.local_int.lock);
+	spin_lock(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.timer_due = 1;
 	if (waitqueue_active(&vcpu->arch.local_int.wq))
 		wake_up_interruptible(&vcpu->arch.local_int.wq);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	spin_unlock(&vcpu->arch.local_int.lock);
 }
 
+/*
+ * low level hrtimer wake routine. Because this runs in hardirq context
+ * we schedule a tasklet to do the real work.
+ */
+enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu;
+
+	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
+	tasklet_schedule(&vcpu->arch.tasklet);
+
+	return HRTIMER_NORESTART;
+}
 
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
@@ -436,7 +455,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	if (atomic_read(&fi->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&fi->lock);
+			spin_lock(&fi->lock);
 			list_for_each_entry_safe(inti, n, &fi->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
@@ -447,7 +466,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&fi->list))
 				atomic_set(&fi->active, 0);
-			spin_unlock_bh(&fi->lock);
+			spin_unlock(&fi->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -512,7 +531,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	list_add_tail(&inti->list, &fi->list);
 	atomic_set(&fi->active, 1);
 	sigcpu = find_first_bit(fi->idle_mask, KVM_MAX_VCPUS);
@@ -529,7 +548,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
 	spin_unlock_bh(&li->lock);
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
