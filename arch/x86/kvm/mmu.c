@@ -2673,8 +2673,9 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 		++vcpu->stat.mmio_exits;
 		return 0;
 	case EMULATE_FAIL:
-		kvm_report_emulation_failure(vcpu, "pagetable");
-		return 1;
+		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
+		return 0;
 	default:
 		BUG();
 	}

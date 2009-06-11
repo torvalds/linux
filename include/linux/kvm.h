@@ -95,6 +95,10 @@ struct kvm_pit_config {
 #define KVM_EXIT_S390_RESET       14
 #define KVM_EXIT_DCR              15
 #define KVM_EXIT_NMI              16
+#define KVM_EXIT_INTERNAL_ERROR   17
+
+/* For KVM_EXIT_INTERNAL_ERROR */
+#define KVM_INTERNAL_ERROR_EMULATION 1
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
@@ -181,6 +185,9 @@ struct kvm_run {
 			__u32 data;
 			__u8  is_write;
 		} dcr;
+		struct {
+			__u32 suberror;
+		} internal;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
