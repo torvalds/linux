@@ -1334,9 +1334,6 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 	/* We reserved something on the buffer */
 
-	if (RB_WARN_ON(cpu_buffer, write > BUF_PAGE_SIZE))
-		return NULL;
-
 	event = __rb_page_index(tail_page, tail);
 	rb_update_event(event, type, length);
 
