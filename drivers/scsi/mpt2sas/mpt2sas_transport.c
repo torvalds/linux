@@ -1041,7 +1041,7 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
 		printk(MPT2SAS_ERR_FMT "%s: multiple segments req %u %u, "
 		    "rsp %u %u\n", ioc->name, __func__, req->bio->bi_vcnt,
-		    req->data_len, rsp->bio->bi_vcnt, rsp->data_len);
+		    blk_rq_bytes(req), rsp->bio->bi_vcnt, blk_rq_bytes(rsp));
 		return -EINVAL;
 	}
 
@@ -1104,7 +1104,7 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	*((u64 *)&mpi_request->SASAddress) = (rphy) ?
 	    cpu_to_le64(rphy->identify.sas_address) :
 	    cpu_to_le64(ioc->sas_hba.sas_address);
-	mpi_request->RequestDataLength = cpu_to_le16(req->data_len - 4);
+	mpi_request->RequestDataLength = cpu_to_le16(blk_rq_bytes(req) - 4);
 	psge = &mpi_request->SGL;
 
 	/* WRITE sgel first */
@@ -1112,13 +1112,13 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	    MPI2_SGE_FLAGS_END_OF_BUFFER | MPI2_SGE_FLAGS_HOST_TO_IOC);
 	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
 	dma_addr_out = pci_map_single(ioc->pdev, bio_data(req->bio),
-	      req->data_len, PCI_DMA_BIDIRECTIONAL);
+		blk_rq_bytes(req), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_out) {
 		mpt2sas_base_free_smid(ioc, le16_to_cpu(smid));
 		goto unmap;
 	}
 
-	ioc->base_add_sg_single(psge, sgl_flags | (req->data_len - 4),
+	ioc->base_add_sg_single(psge, sgl_flags | (blk_rq_bytes(req) - 4),
 	    dma_addr_out);
 
 	/* incr sgel */
@@ -1129,14 +1129,14 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	    MPI2_SGE_FLAGS_LAST_ELEMENT | MPI2_SGE_FLAGS_END_OF_BUFFER |
 	    MPI2_SGE_FLAGS_END_OF_LIST);
 	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
-	dma_addr_in =  pci_map_single(ioc->pdev, bio_data(rsp->bio),
-	      rsp->data_len, PCI_DMA_BIDIRECTIONAL);
+	dma_addr_in = pci_map_single(ioc->pdev, bio_data(rsp->bio),
+				     blk_rq_bytes(rsp), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_in) {
 		mpt2sas_base_free_smid(ioc, le16_to_cpu(smid));
 		goto unmap;
 	}
 
-	ioc->base_add_sg_single(psge, sgl_flags | (rsp->data_len + 4),
+	ioc->base_add_sg_single(psge, sgl_flags | (blk_rq_bytes(rsp) + 4),
 	    dma_addr_in);
 
 	dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s - "
@@ -1170,9 +1170,8 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 		memcpy(req->sense, mpi_reply, sizeof(*mpi_reply));
 		req->sense_len = sizeof(*mpi_reply);
-		req->data_len = 0;
-		rsp->data_len -= mpi_reply->ResponseDataLength;
-
+		req->resid_len = 0;
+		rsp->resid_len -= mpi_reply->ResponseDataLength;
 	} else {
 		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
 		    "%s - no reply\n", ioc->name, __func__));
@@ -1188,10 +1187,10 @@ transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
  unmap:
 	if (dma_addr_out)
-		pci_unmap_single(ioc->pdev, dma_addr_out, req->data_len,
+		pci_unmap_single(ioc->pdev, dma_addr_out, blk_rq_bytes(req),
 		    PCI_DMA_BIDIRECTIONAL);
 	if (dma_addr_in)
-		pci_unmap_single(ioc->pdev, dma_addr_in, rsp->data_len,
+		pci_unmap_single(ioc->pdev, dma_addr_in, blk_rq_bytes(rsp),
 		    PCI_DMA_BIDIRECTIONAL);
 
  out:

@@ -191,7 +191,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
 		/*
 		 * is destination page below bounce pfn?
 		 */
-		if (page_to_pfn(page) <= q->bounce_pfn)
+		if (page_to_pfn(page) <= queue_bounce_pfn(q))
 			continue;
 
 		/*
@@ -283,7 +283,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	 * don't waste time iterating over bio segments
 	 */
 	if (!(q->bounce_gfp & GFP_DMA)) {
-		if (q->bounce_pfn >= blk_max_pfn)
+		if (queue_bounce_pfn(q) >= blk_max_pfn)
 			return;
 		pool = page_pool;
 	} else {

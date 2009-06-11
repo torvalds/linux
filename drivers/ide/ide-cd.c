@@ -182,7 +182,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 				 (sense->information[2] <<  8) |
 				 (sense->information[3]);
 
-			if (drive->queue->hardsect_size == 2048)
+			if (queue_logical_block_size(drive->queue) == 2048)
 				/* device sector size is 2K */
 				sector <<= 2;
 
@@ -404,15 +404,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 
 end_request:
 	if (stat & ATA_ERR) {
-		struct request_queue *q = drive->queue;
-		unsigned long flags;
-
-		spin_lock_irqsave(q->queue_lock, flags);
-		blkdev_dequeue_request(rq);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-
 		hwif->rq = NULL;
-
 		return ide_queue_sense_rq(drive, rq) ? 2 : 1;
 	} else
 		return 2;
@@ -518,7 +510,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
 
 		if (buffer)
-			*bufflen = rq->data_len;
+			*bufflen = rq->resid_len;
 
 		flags = rq->cmd_flags;
 		blk_put_request(rq);
@@ -576,7 +568,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	struct request *rq = hwif->rq;
 	ide_expiry_t *expiry = NULL;
 	int dma_error = 0, dma, thislen, uptodate = 0;
-	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc = 0, nsectors;
+	int write = (rq_data_dir(rq) == WRITE) ? 1 : 0, rc = 0;
 	int sense = blk_sense_request(rq);
 	unsigned int timeout;
 	u16 len;
@@ -706,13 +698,8 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 out_end:
 	if (blk_pc_request(rq) && rc == 0) {
-		unsigned int dlen = rq->data_len;
-
-		rq->data_len = 0;
-
-		if (blk_end_request(rq, 0, dlen))
-			BUG();
-
+		rq->resid_len = 0;
+		blk_end_request_all(rq, 0);
 		hwif->rq = NULL;
 	} else {
 		if (sense && uptodate)
@@ -730,21 +717,13 @@ out_end:
 			ide_cd_error_cmd(drive, cmd);
 
 		/* make sure it's fully ended */
-		if (blk_pc_request(rq))
-			nsectors = (rq->data_len + 511) >> 9;
-		else
-			nsectors = rq->hard_nr_sectors;
-
-		if (nsectors == 0)
-			nsectors = 1;
-
 		if (blk_fs_request(rq) == 0) {
-			rq->data_len -= (cmd->nbytes - cmd->nleft);
+			rq->resid_len -= cmd->nbytes - cmd->nleft;
 			if (uptodate == 0 && (cmd->tf_flags & IDE_TFLAG_WRITE))
-				rq->data_len += cmd->last_xfer_len;
+				rq->resid_len += cmd->last_xfer_len;
 		}
 
-		ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);
+		ide_complete_rq(drive, uptodate ? 0 : -EIO, blk_rq_bytes(rq));
 
 		if (sense && rc == 2)
 			ide_error(drive, "request sense failure", stat);
@@ -758,7 +737,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	struct request_queue *q = drive->queue;
 	int write = rq_data_dir(rq) == WRITE;
 	unsigned short sectors_per_frame =
-		queue_hardsect_size(q) >> SECTOR_BITS;
+		queue_logical_block_size(q) >> SECTOR_BITS;
 
 	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, rq->cmd_flags: 0x%x, "
 				  "secs_per_frame: %u",
@@ -777,8 +756,8 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	}
 
 	/* fs requests *must* be hardware frame aligned */
-	if ((rq->nr_sectors & (sectors_per_frame - 1)) ||
-	    (rq->sector & (sectors_per_frame - 1)))
+	if ((blk_rq_sectors(rq) & (sectors_per_frame - 1)) ||
+	    (blk_rq_pos(rq) & (sectors_per_frame - 1)))
 		return ide_stopped;
 
 	/* use DMA, if possible */
@@ -821,7 +800,7 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		 */
 		alignment = queue_dma_alignment(q) | q->dma_pad_mask;
 		if ((unsigned long)buf & alignment
-		    || rq->data_len & q->dma_pad_mask
+		    || blk_rq_bytes(rq) & q->dma_pad_mask
 		    || object_is_on_stack(buf))
 			drive->dma = 0;
 	}
@@ -869,15 +848,14 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	cmd.rq = rq;
 
-	if (blk_fs_request(rq) || rq->data_len) {
-		ide_init_sg_cmd(&cmd, blk_fs_request(rq) ? (rq->nr_sectors << 9)
-							 : rq->data_len);
+	if (blk_fs_request(rq) || blk_rq_bytes(rq)) {
+		ide_init_sg_cmd(&cmd, blk_rq_bytes(rq));
 		ide_map_sg(drive, &cmd);
 	}
 
 	return ide_issue_pc(drive, &cmd);
 out_end:
-	nsectors = rq->hard_nr_sectors;
+	nsectors = blk_rq_sectors(rq);
 
 	if (nsectors == 0)
 		nsectors = 1;
@@ -1043,8 +1021,8 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	/* save a private copy of the TOC capacity for error handling */
 	drive->probed_capacity = toc->capacity * sectors_per_frame;
 
-	blk_queue_hardsect_size(drive->queue,
-				sectors_per_frame << SECTOR_BITS);
+	blk_queue_logical_block_size(drive->queue,
+				     sectors_per_frame << SECTOR_BITS);
 
 	/* first read just the header, so we know how long the TOC is */
 	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
@@ -1360,9 +1338,9 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 /* standard prep_rq_fn that builds 10 byte cmds */
 static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 {
-	int hard_sect = queue_hardsect_size(q);
-	long block = (long)rq->hard_sector / (hard_sect >> 9);
-	unsigned long blocks = rq->hard_nr_sectors / (hard_sect >> 9);
+	int hard_sect = queue_logical_block_size(q);
+	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
+	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
 
 	memset(rq->cmd, 0, BLK_MAX_CDB);
 
@@ -1565,7 +1543,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 
 	nslots = ide_cdrom_probe_capabilities(drive);
 
-	blk_queue_hardsect_size(q, CD_FRAMESIZE);
+	blk_queue_logical_block_size(q, CD_FRAMESIZE);
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR PFX "%s: %s failed to register device with the"

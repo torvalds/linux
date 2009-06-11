@@ -525,11 +525,11 @@ static int init_sb(struct gfs2_sbd *sdp, int silent)
 	}
 
 	/* Set up the buffer cache and SB for real */
-	if (sdp->sd_sb.sb_bsize < bdev_hardsect_size(sb->s_bdev)) {
+	if (sdp->sd_sb.sb_bsize < bdev_logical_block_size(sb->s_bdev)) {
 		ret = -EINVAL;
 		fs_err(sdp, "FS block size (%u) is too small for device "
 		       "block size (%u)\n",
-		       sdp->sd_sb.sb_bsize, bdev_hardsect_size(sb->s_bdev));
+		       sdp->sd_sb.sb_bsize, bdev_logical_block_size(sb->s_bdev));
 		goto out;
 	}
 	if (sdp->sd_sb.sb_bsize > PAGE_SIZE) {

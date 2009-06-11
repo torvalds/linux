@@ -1371,7 +1371,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 
 	bdevname(reg->hr_bdev, reg->hr_dev_name);
 
-	sectsize = bdev_hardsect_size(reg->hr_bdev);
+	sectsize = bdev_logical_block_size(reg->hr_bdev);
 	if (sectsize != reg->hr_block_bytes) {
 		mlog(ML_ERROR,
 		     "blocksize %u incorrect for device, expected %d",

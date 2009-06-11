@@ -177,7 +177,7 @@ static void pdc202xx_dma_start(ide_drive_t *drive)
 		u8 clock = inb(high_16 + 0x11);
 
 		outb(clock | (hwif->channel ? 0x08 : 0x02), high_16 + 0x11);
-		word_count = (rq->nr_sectors << 8);
+		word_count = (blk_rq_sectors(rq) << 8);
 		word_count = (rq_data_dir(rq) == READ) ?
 					word_count | 0x05000000 :
 					word_count | 0x06000000;

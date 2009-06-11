@@ -1085,12 +1085,12 @@ static struct buffer_head *
 __getblk_slow(struct block_device *bdev, sector_t block, int size)
 {
 	/* Size must be multiple of hard sectorsize */
-	if (unlikely(size & (bdev_hardsect_size(bdev)-1) ||
+	if (unlikely(size & (bdev_logical_block_size(bdev)-1) ||
 			(size < 512 || size > PAGE_SIZE))) {
 		printk(KERN_ERR "getblk(): invalid block size %d requested\n",
 					size);
-		printk(KERN_ERR "hardsect size: %d\n",
-					bdev_hardsect_size(bdev));
+		printk(KERN_ERR "logical block size: %d\n",
+					bdev_logical_block_size(bdev));
 
 		dump_stack();
 		return NULL;

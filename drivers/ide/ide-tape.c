@@ -380,7 +380,7 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 		}
 
 		tape->first_frame += blocks;
-		rq->data_len -= blocks * tape->blk_size;
+		rq->resid_len -= blocks * tape->blk_size;
 
 		if (pc->error) {
 			uptodate = 0;
@@ -586,7 +586,7 @@ static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
 				   struct ide_atapi_pc *pc, struct request *rq,
 				   u8 opcode)
 {
-	unsigned int length = rq->nr_sectors;
+	unsigned int length = blk_rq_sectors(rq);
 
 	ide_init_pc(pc);
 	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
@@ -617,8 +617,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	struct ide_cmd cmd;
 	u8 stat;
 
-	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %lu\n",
-		  (unsigned long long)rq->sector, rq->nr_sectors);
+	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %u\n"
+		  (unsigned long long)blk_rq_pos(rq), blk_rq_sectors(rq));
 
 	if (!(blk_special_request(rq) || blk_sense_request(rq))) {
 		/* We do not support buffer cache originated requests. */
@@ -892,7 +892,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->cmd[13] = cmd;
 	rq->rq_disk = tape->disk;
-	rq->sector = tape->first_frame;
+	rq->__sector = tape->first_frame;
 
 	if (size) {
 		ret = blk_rq_map_kern(drive->queue, rq, tape->buf, size,
@@ -904,7 +904,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	blk_execute_rq(drive->queue, tape->disk, rq, 0);
 
 	/* calculate the number of transferred bytes and update buffer state */
-	size -= rq->data_len;
+	size -= rq->resid_len;
 	tape->cur = tape->buf;
 	if (cmd == REQ_IDETAPE_READ)
 		tape->valid = size;

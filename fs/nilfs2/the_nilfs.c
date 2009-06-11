@@ -515,7 +515,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
 	if (sb->s_blocksize != blocksize) {
-		int hw_blocksize = bdev_hardsect_size(sb->s_bdev);
+		int hw_blocksize = bdev_logical_block_size(sb->s_bdev);
 
 		if (blocksize < hw_blocksize) {
 			printk(KERN_ERR

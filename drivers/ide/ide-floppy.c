@@ -194,7 +194,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	int block = sector / floppy->bs_factor;
-	int blocks = rq->nr_sectors / floppy->bs_factor;
+	int blocks = blk_rq_sectors(rq) / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
 	ide_debug_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
@@ -220,14 +220,14 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 	ide_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
-	if (rq->data_len) {
+	if (blk_rq_bytes(rq)) {
 		pc->flags |= PC_FLAG_DMA_OK;
 		if (rq_data_dir(rq) == WRITE)
 			pc->flags |= PC_FLAG_WRITING;
 	}
 	/* pio will be performed by ide_pio_bytes() which handles sg fine */
 	pc->buf = NULL;
-	pc->req_xfer = pc->buf_size = rq->data_len;
+	pc->req_xfer = pc->buf_size = blk_rq_bytes(rq);
 }
 
 static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
@@ -259,8 +259,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			goto out_end;
 	}
 	if (blk_fs_request(rq)) {
-		if (((long)rq->sector % floppy->bs_factor) ||
-		    (rq->nr_sectors % floppy->bs_factor)) {
+		if (((long)blk_rq_pos(rq) % floppy->bs_factor) ||
+		    (blk_rq_sectors(rq) % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
 				drive->name);
 			goto out_end;

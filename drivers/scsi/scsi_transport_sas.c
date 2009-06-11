@@ -163,11 +163,9 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 	int (*handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
 
 	while (!blk_queue_plugged(q)) {
-		req = elv_next_request(q);
+		req = blk_fetch_request(q);
 		if (!req)
 			break;
-
-		blkdev_dequeue_request(req);
 
 		spin_unlock_irq(q->queue_lock);
 

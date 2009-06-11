@@ -82,7 +82,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
 	ide_hwif_t *hwif	= drive->hwif;
-	u16 nsectors		= (u16)rq->nr_sectors;
+	u16 nsectors		= (u16)blk_rq_sectors(rq);
 	u8 lba48		= !!(drive->dev_flags & IDE_DFLAG_LBA48);
 	u8 dma			= !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 	struct ide_cmd		cmd;
@@ -90,7 +90,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 	ide_startstop_t		rc;
 
 	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
-		if (block + rq->nr_sectors > 1ULL << 28)
+		if (block + blk_rq_sectors(rq) > 1ULL << 28)
 			dma = 0;
 		else
 			lba48 = 0;
@@ -195,9 +195,9 @@ static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 
 	ledtrig_ide_activity();
 
-	pr_debug("%s: %sing: block=%llu, sectors=%lu, buffer=0x%08lx\n",
+	pr_debug("%s: %sing: block=%llu, sectors=%u, buffer=0x%08lx\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
-		 (unsigned long long)block, rq->nr_sectors,
+		 (unsigned long long)block, blk_rq_sectors(rq),
 		 (unsigned long)rq->buffer);
 
 	if (hwif->rw_disk)
@@ -639,7 +639,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 	}
 
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
-		q->max_sectors / 2);
+	       queue_max_sectors(q) / 2);
 
 	if (ata_id_is_ssd(id))
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);

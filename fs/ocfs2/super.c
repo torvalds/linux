@@ -713,7 +713,7 @@ static int ocfs2_sb_probe(struct super_block *sb,
 	*bh = NULL;
 
 	/* may be > 512 */
-	*sector_size = bdev_hardsect_size(sb->s_bdev);
+	*sector_size = bdev_logical_block_size(sb->s_bdev);
 	if (*sector_size > OCFS2_MAX_BLOCKSIZE) {
 		mlog(ML_ERROR, "Hardware sector size too large: %d (max=%d)\n",
 		     *sector_size, OCFS2_MAX_BLOCKSIZE);

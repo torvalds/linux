@@ -103,7 +103,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 				ide_finish_cmd(drive, cmd, stat);
 			else
 				ide_complete_rq(drive, 0,
-						cmd->rq->nr_sectors << 9);
+						blk_rq_sectors(cmd->rq) << 9);
 			return ide_stopped;
 		}
 		printk(KERN_ERR "%s: %s: bad DMA status (0x%02x)\n",

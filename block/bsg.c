@@ -446,15 +446,15 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	}
 
 	if (rq->next_rq) {
-		hdr->dout_resid = rq->data_len;
-		hdr->din_resid = rq->next_rq->data_len;
+		hdr->dout_resid = rq->resid_len;
+		hdr->din_resid = rq->next_rq->resid_len;
 		blk_rq_unmap_user(bidi_bio);
 		rq->next_rq->bio = NULL;
 		blk_put_request(rq->next_rq);
 	} else if (rq_data_dir(rq) == READ)
-		hdr->din_resid = rq->data_len;
+		hdr->din_resid = rq->resid_len;
 	else
-		hdr->dout_resid = rq->data_len;
+		hdr->dout_resid = rq->resid_len;
 
 	/*
 	 * If the request generated a negative error number, return it

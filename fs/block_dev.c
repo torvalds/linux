@@ -76,7 +76,7 @@ int set_blocksize(struct block_device *bdev, int size)
 		return -EINVAL;
 
 	/* Size cannot be smaller than the size supported by the device */
-	if (size < bdev_hardsect_size(bdev))
+	if (size < bdev_logical_block_size(bdev))
 		return -EINVAL;
 
 	/* Don't change the size if it is same as current */
@@ -106,7 +106,7 @@ EXPORT_SYMBOL(sb_set_blocksize);
 
 int sb_min_blocksize(struct super_block *sb, int size)
 {
-	int minsize = bdev_hardsect_size(sb->s_bdev);
+	int minsize = bdev_logical_block_size(sb->s_bdev);
 	if (size < minsize)
 		size = minsize;
 	return sb_set_blocksize(sb, size);
@@ -1111,7 +1111,7 @@ EXPORT_SYMBOL(check_disk_change);
 
 void bd_set_size(struct block_device *bdev, loff_t size)
 {
-	unsigned bsize = bdev_hardsect_size(bdev);
+	unsigned bsize = bdev_logical_block_size(bdev);
 
 	bdev->bd_inode->i_size = size;
 	while (bsize < PAGE_CACHE_SIZE) {
