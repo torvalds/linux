@@ -257,8 +257,19 @@ static int sierra_send_setup(struct usb_serial_port *port)
 		val |= 0x02;
 
 	/* If composite device then properly report interface */
-	if (serial->num_ports == 1)
+	if (serial->num_ports == 1) {
 		interface = sierra_calc_interface(serial);
+		/* Control message is sent only to interfaces with
+		 * interrupt_in endpoints
+		 */
+		if (port->interrupt_in_urb) {
+			/* send control message */
+			return usb_control_msg(serial->dev,
+				usb_rcvctrlpipe(serial->dev, 0),
+				0x22, 0x21, val, interface,
+				NULL, 0, USB_CTRL_SET_TIMEOUT);
+		}
+	}
 
 	/* Otherwise the need to do non-composite mapping */
 	else {
@@ -268,11 +279,11 @@ static int sierra_send_setup(struct usb_serial_port *port)
 			interface = 1;
 		else if (port->bulk_out_endpointAddress == 5)
 			interface = 2;
-	}
-	return usb_control_msg(serial->dev,
+		return usb_control_msg(serial->dev,
 			usb_rcvctrlpipe(serial->dev, 0),
 			0x22, 0x21, val, interface,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
+	}
 	return 0;
 }
 
