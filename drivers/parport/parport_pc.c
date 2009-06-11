@@ -626,7 +626,7 @@ static size_t parport_pc_fifo_write_block_dma(struct parport *port,
 	unsigned long start = (unsigned long) buf;
 	unsigned long end = (unsigned long) buf + length - 1;
 
-dump_parport_state("enter fifo_write_block_dma", port);
+	dump_parport_state("enter fifo_write_block_dma", port);
 	if (end < MAX_DMA_ADDRESS) {
 		/* If it would cross a 64k boundary, cap it at the end. */
 		if ((start ^ end) & ~0xffffUL)
@@ -737,7 +737,7 @@ false_alarm:
 	if (dma_handle)
 		dma_unmap_single(dev, dma_handle, length, DMA_TO_DEVICE);
 
-dump_parport_state("leave fifo_write_block_dma", port);
+	dump_parport_state("leave fifo_write_block_dma", port);
 	return length - left;
 }
 #endif
@@ -955,8 +955,8 @@ static size_t parport_pc_ecp_read_block_pio(struct parport *port,
 	char *bufp = buf;
 
 	port = port->physport;
-DPRINTK(KERN_DEBUG "parport_pc: parport_pc_ecp_read_block_pio\n");
-dump_parport_state("enter fcn", port);
+	DPRINTK(KERN_DEBUG "parport_pc: parport_pc_ecp_read_block_pio\n");
+	dump_parport_state("enter fcn", port);
 
 	/* Special case: a timeout of zero means we cannot call schedule().
 	 * Also if O_NONBLOCK is set then use the default implementation. */
@@ -1112,14 +1112,15 @@ false_alarm:
 
 		if (ecrval & 0x02) {
 			/* FIFO is full. */
-dump_parport_state("FIFO full", port);
+			dump_parport_state("FIFO full", port);
 			insb(fifo, bufp, fifo_depth);
 			bufp += fifo_depth;
 			left -= fifo_depth;
 			continue;
 		}
 
-DPRINTK(KERN_DEBUG "*** ecp_read_block_pio: reading one byte from the FIFO\n");
+		DPRINTK(KERN_DEBUG
+		  "*** ecp_read_block_pio: reading one byte from the FIFO\n");
 
 		/* FIFO not filled.  We will cycle this loop for a while
 		 * and either the peripheral will fill it faster,
@@ -1135,7 +1136,7 @@ DPRINTK(KERN_DEBUG "*** ecp_read_block_pio: reading one byte from the FIFO\n");
 	}
 
 	port->ieee1284.phase = IEEE1284_PH_REV_IDLE;
-dump_parport_state("rev idle2", port);
+	dump_parport_state("rev idle2", port);
 
 out_no_data:
 
@@ -1163,7 +1164,7 @@ out_no_data:
 				port->name, lost);
 	}
 
-dump_parport_state("fwd idle", port);
+	dump_parport_state("fwd idle", port);
 	return length - left;
 }
 #endif  /*  0  */
@@ -1216,10 +1217,23 @@ static const struct parport_operations parport_pc_ops = {
 };
 
 #ifdef CONFIG_PARPORT_PC_SUPERIO
+
+static struct superio_struct *find_free_superio(void)
+{
+	int i;
+	for (i = 0; i < NR_SUPERIOS; i++)
+		if (superios[i].io == 0)
+			return &superios[i];
+	return NULL;
+}
+
+
 /* Super-IO chipset detection, Winbond, SMSC */
 static void __devinit show_parconfig_smsc37c669(int io, int key)
 {
-	int cr1, cr4, cra, cr23, cr26, cr27, i = 0;
+	int cr1, cr4, cra, cr23, cr26, cr27;
+	struct superio_struct *s;
+
 	static const char *const modes[] = {
 		"SPP and Bidirectional (PS/2)",
 		"EPP and SPP",
@@ -1272,30 +1286,29 @@ static void __devinit show_parconfig_smsc37c669(int io, int key)
 	   are related, however DMA can be 1 or 3, assume DMA_A=DMA1,
 	   DMA_C=DMA3 (this is true e.g. for TYAN 1564D Tomcat IV) */
 	if (cr23 * 4 >= 0x100) { /* if active */
-		while ((i < NR_SUPERIOS) && (superios[i].io != 0))
-			i++;
-		if (i == NR_SUPERIOS) {
+		s = find_free_superio();
+		if (s == NULL)
 			printk(KERN_INFO "Super-IO: too many chips!\n");
-		} else {
+		else {
 			int d;
 			switch (cr23 * 4) {
 			case 0x3bc:
-				superios[i].io = 0x3bc;
-				superios[i].irq = 7;
+				s->io = 0x3bc;
+				s->irq = 7;
 				break;
 			case 0x378:
-				superios[i].io = 0x378;
-				superios[i].irq = 7;
+				s->io = 0x378;
+				s->irq = 7;
 				break;
 			case 0x278:
-				superios[i].io = 0x278;
-				superios[i].irq = 5;
+				s->io = 0x278;
+				s->irq = 5;
 			}
 			d = (cr26 & 0x0f);
 			if (d == 1 || d == 3)
-				superios[i].dma = d;
+				s->dma = d;
 			else
-				superios[i].dma = PARPORT_DMA_NONE;
+				s->dma = PARPORT_DMA_NONE;
 		}
 	}
 }
@@ -1303,7 +1316,8 @@ static void __devinit show_parconfig_smsc37c669(int io, int key)
 
 static void __devinit show_parconfig_winbond(int io, int key)
 {
-	int cr30, cr60, cr61, cr70, cr74, crf0, i = 0;
+	int cr30, cr60, cr61, cr70, cr74, crf0;
+	struct superio_struct *s;
 	static const char *const modes[] = {
 		"Standard (SPP) and Bidirectional(PS/2)", /* 0 */
 		"EPP-1.9 and SPP",
@@ -1356,14 +1370,13 @@ static void __devinit show_parconfig_winbond(int io, int key)
 	}
 
 	if (cr30 & 0x01) { /* the settings can be interrogated later ... */
-		while ((i < NR_SUPERIOS) && (superios[i].io != 0))
-			i++;
-		if (i == NR_SUPERIOS) {
+		s = find_free_superio();
+		if (s == NULL)
 			printk(KERN_INFO "Super-IO: too many chips!\n");
-		} else {
-			superios[i].io = (cr60<<8)|cr61;
-			superios[i].irq = cr70&0x0f;
-			superios[i].dma = (((cr74 & 0x07) > 3) ?
+		else {
+			s->io = (cr60 << 8) | cr61;
+			s->irq = cr70 & 0x0f;
+			s->dma = (((cr74 & 0x07) > 3) ?
 					   PARPORT_DMA_NONE : (cr74 & 0x07));
 		}
 	}
@@ -1618,25 +1631,28 @@ static void __devinit detect_and_report_it87(void)
 }
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
+static struct superio_struct *find_superio(struct parport *p)
+{
+	int i;
+	for (i = 0; i < NR_SUPERIOS; i++)
+		if (superios[i].io != p->base)
+			return &superios[i];
+	return NULL;
+}
+
 static int get_superio_dma(struct parport *p)
 {
-	int i = 0;
-
-	while ((i < NR_SUPERIOS) && (superios[i].io != p->base))
-		i++;
-	if (i != NR_SUPERIOS)
-		return superios[i].dma;
+	struct superio_struct *s = find_superio(p);
+	if (s)
+		return s->dma;
 	return PARPORT_DMA_NONE;
 }
 
 static int get_superio_irq(struct parport *p)
 {
-	int i = 0;
-
-	while ((i < NR_SUPERIOS) && (superios[i].io != p->base))
-		i++;
-	if (i != NR_SUPERIOS)
-		return superios[i].irq;
+	struct superio_struct *s = find_superio(p);
+	if (s)
+		return s->irq;
 	return PARPORT_IRQ_NONE;
 }
 
