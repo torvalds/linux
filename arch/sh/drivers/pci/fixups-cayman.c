@@ -75,15 +75,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	return result;
 }
-
-struct pci_channel board_pci_channels[] = {
-	{ &sh5_pci_ops, NULL, NULL, 0, 0xff },
-	{ NULL, NULL, NULL, 0, 0 },
-};
-EXPORT_SYMBOL(board_pci_channels);
-
-int __init pcibios_init_platform(void)
-{
-	return sh5pci_init(__pa(memory_start),
-			   __pa(memory_end) - __pa(memory_start));
-}

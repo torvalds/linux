@@ -62,6 +62,11 @@ static void __init speculative_execution_init(void)
 #define speculative_execution_init()	do { } while (0)
 #endif
 
+/* 2nd-level cache init */
+void __uses_jump_to_uncached __attribute__ ((weak)) l2_cache_init(void)
+{
+}
+
 /*
  * Generic first-level cache init
  */
@@ -145,6 +150,8 @@ static void __uses_jump_to_uncached cache_init(void)
 	/* Off */
 	flags &= ~CCR_CACHE_ENABLE;
 #endif
+
+	l2_cache_init();
 
 	ctrl_outl(flags, CCR);
 	back_to_cached();
