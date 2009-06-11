@@ -132,17 +132,22 @@ static void alps_process_packet(struct psmouse *psmouse)
 	ges = packet[2] & 1;
 	fin = packet[2] & 2;
 
-	input_report_key(dev, BTN_LEFT, left);
-	input_report_key(dev, BTN_RIGHT, right);
-	input_report_key(dev, BTN_MIDDLE, middle);
-
 	if ((priv->i->flags & ALPS_DUALPOINT) && z == 127) {
 		input_report_rel(dev2, REL_X,  (x > 383 ? (x - 768) : x));
 		input_report_rel(dev2, REL_Y, -(y > 255 ? (y - 512) : y));
+
+		input_report_key(dev2, BTN_LEFT, left);
+		input_report_key(dev2, BTN_RIGHT, right);
+		input_report_key(dev2, BTN_MIDDLE, middle);
+
 		input_sync(dev);
 		input_sync(dev2);
 		return;
 	}
+
+	input_report_key(dev, BTN_LEFT, left);
+	input_report_key(dev, BTN_RIGHT, right);
+	input_report_key(dev, BTN_MIDDLE, middle);
 
 	/* Convert hardware tap to a reasonable Z value */
 	if (ges && !fin) z = 40;
