@@ -678,6 +678,18 @@ config GUSA_RB
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on EXPERIMENTAL
+	help
+	  This enables support for sparse irqs. This is useful in general
+	  as most CPUs have a fairly sparse array of IRQ vectors, which
+	  the irq_desc then maps directly on to. Systems with a high
+	  number of off-chip IRQs will want to treat this as
+	  experimental until they have been independently verified.
+
+	  If you don't know what to do here, say N.
+
 endmenu
 
 menu "Boot options"

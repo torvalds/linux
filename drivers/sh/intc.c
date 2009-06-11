@@ -24,6 +24,7 @@
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
 #include <linux/list.h>
+#include <linux/topology.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -671,7 +672,7 @@ unsigned int intc_evt2irq(unsigned int vector)
 
 void __init register_intc_controller(struct intc_desc *desc)
 {
-	unsigned int i, k, smp, cpu = smp_processor_id();
+	unsigned int i, k, smp;
 	struct intc_desc_int *d;
 
 	d = alloc_bootmem(sizeof(*d));
@@ -771,19 +772,16 @@ void __init register_intc_controller(struct intc_desc *desc)
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
 		unsigned int irq = evt2irq(vect->vect);
-#ifdef CONFIG_SPARSE_IRQ
 		struct irq_desc *irq_desc;
-#endif
+
 		if (!vect->enum_id)
 			continue;
 
-#ifdef CONFIG_SPARSE_IRQ
-		irq_desc = irq_to_desc_alloc_cpu(irq, cpu);
+		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
 		if (unlikely(!irq_desc)) {
 			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
 			continue;
 		}
-#endif
 
 		intc_register_irq(desc, d, vect->enum_id, irq);
 	}
