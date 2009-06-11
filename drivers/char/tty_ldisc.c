@@ -396,6 +396,27 @@ void tty_ldisc_enable(struct tty_struct *tty)
 }
 
 /**
+ *	tty_ldisc_flush	-	flush line discipline queue
+ *	@tty: tty
+ *
+ *	Flush the line discipline queue (if any) for this tty. If there
+ *	is no line discipline active this is a no-op.
+ */
+
+void tty_ldisc_flush(struct tty_struct *tty)
+{
+	struct tty_ldisc *ld = tty_ldisc_ref(tty);
+	if (ld) {
+		if (ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
+		tty_ldisc_deref(ld);
+	}
+	tty_buffer_flush(tty);
+}
+
+EXPORT_SYMBOL_GPL(tty_ldisc_flush);
+
+/**
  *	tty_set_termios_ldisc		-	set ldisc field
  *	@tty: tty structure
  *	@num: line discipline number
