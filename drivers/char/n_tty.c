@@ -76,19 +76,12 @@
 static inline unsigned char *alloc_buf(void)
 {
 	gfp_t prio = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
-
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		return kmalloc(N_TTY_BUF_SIZE, prio);
-	else
-		return (unsigned char *)__get_free_page(prio);
+	return kmalloc(N_TTY_BUF_SIZE, prio);
 }
 
 static inline void free_buf(unsigned char *buf)
 {
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		kfree(buf);
-	else
-		free_page((unsigned long) buf);
+	kfree(buf);
 }
 
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
