@@ -1008,7 +1008,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 }
 EXPORT_SYMBOL(sk_alloc);
 
-void sk_free(struct sock *sk)
+static void __sk_free(struct sock *sk)
 {
 	struct sk_filter *filter;
 
@@ -1030,6 +1030,17 @@ void sk_free(struct sock *sk)
 
 	put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
+}
+
+void sk_free(struct sock *sk)
+{
+	/*
+	 * We substract one from sk_wmem_alloc and can know if
+	 * some packets are still in some tx queue.
+	 * If not null, sock_wfree() will call __sk_free(sk) later
+	 */
+	if (atomic_dec_and_test(&sk->sk_wmem_alloc))
+		__sk_free(sk);
 }
 EXPORT_SYMBOL(sk_free);
 
@@ -1071,7 +1082,10 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		newsk->sk_backlog.head	= newsk->sk_backlog.tail = NULL;
 
 		atomic_set(&newsk->sk_rmem_alloc, 0);
-		atomic_set(&newsk->sk_wmem_alloc, 0);
+		/*
+		 * sk_wmem_alloc set to one (see sk_free() and sock_wfree())
+		 */
+		atomic_set(&newsk->sk_wmem_alloc, 1);
 		atomic_set(&newsk->sk_omem_alloc, 0);
 		skb_queue_head_init(&newsk->sk_receive_queue);
 		skb_queue_head_init(&newsk->sk_write_queue);
@@ -1175,12 +1189,18 @@ void __init sk_init(void)
 void sock_wfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
+	int res;
 
 	/* In case it might be waiting for more memory. */
-	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
+	res = atomic_sub_return(skb->truesize, &sk->sk_wmem_alloc);
 	if (!sock_flag(sk, SOCK_USE_WRITE_QUEUE))
 		sk->sk_write_space(sk);
-	sock_put(sk);
+	/*
+	 * if sk_wmem_alloc reached 0, we are last user and should
+	 * free this sock, as sk_free() call could not do it.
+	 */
+	if (res == 0)
+		__sk_free(sk);
 }
 EXPORT_SYMBOL(sock_wfree);
 
@@ -1819,6 +1839,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_stamp = ktime_set(-1L, 0);
 
 	atomic_set(&sk->sk_refcnt, 1);
+	atomic_set(&sk->sk_wmem_alloc, 1);
 	atomic_set(&sk->sk_drops, 0);
 }
 EXPORT_SYMBOL(sock_init_data);

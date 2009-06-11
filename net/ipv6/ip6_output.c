@@ -680,7 +680,6 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 			BUG_ON(frag->sk);
 			if (skb->sk) {
-				sock_hold(skb->sk);
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
 				truesizes += frag->truesize;
