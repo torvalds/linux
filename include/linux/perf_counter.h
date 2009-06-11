@@ -286,6 +286,7 @@ enum perf_event_type {
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *	u64				time;
+	 *	u64				id;
 	 * };
 	 */
 	PERF_EVENT_THROTTLE		= 5,

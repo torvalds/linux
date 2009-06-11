@@ -2950,13 +2950,15 @@ static void perf_log_throttle(struct perf_counter *counter, int enable)
 	struct {
 		struct perf_event_header	header;
 		u64				time;
+		u64				id;
 	} throttle_event = {
 		.header = {
 			.type = PERF_EVENT_THROTTLE + 1,
 			.misc = 0,
 			.size = sizeof(throttle_event),
 		},
-		.time = sched_clock(),
+		.time	= sched_clock(),
+		.id	= counter->id,
 	};
 
 	ret = perf_output_begin(&handle, counter, sizeof(throttle_event), 1, 0);
