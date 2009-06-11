@@ -1433,28 +1433,15 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	memset(&addr, 0, sizeof(struct sockaddr_storage));
 
+	cFYI(1, ("UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip));
+
 	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_inet_pton(AF_INET, volume_info->UNCip,
-				    &sin_server->sin_addr.s_addr);
-
-		if (rc <= 0) {
-			/* not ipv4 address, try ipv6 */
-			rc = cifs_inet_pton(AF_INET6, volume_info->UNCip,
-					    &sin_server6->sin6_addr.in6_u);
-			if (rc > 0)
-				addr.ss_family = AF_INET6;
-		} else {
-			addr.ss_family = AF_INET;
-		}
-
-		if (rc <= 0) {
+		rc = cifs_convert_address(volume_info->UNCip, &addr);
+		if (!rc) {
 			/* we failed translating address */
 			rc = -EINVAL;
 			goto out_err;
 		}
-
-		cFYI(1, ("UNC: %s ip: %s", volume_info->UNC,
-			 volume_info->UNCip));
 	} else if (volume_info->UNCip) {
 		/* BB using ip addr as tcp_ses name to connect to the
 		   DFS root below */

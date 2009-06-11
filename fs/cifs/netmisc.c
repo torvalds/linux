@@ -133,10 +133,12 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 	{0, 0}
 };
 
-/* Convert string containing dotted ip address to binary form */
-/* returns 0 if invalid address */
-
-int
+/*
+ * Convert a string containing text IPv4 or IPv6 address to binary form.
+ *
+ * Returns 0 on failure.
+ */
+static int
 cifs_inet_pton(const int address_family, const char *cp, void *dst)
 {
 	int ret = 0;
@@ -151,6 +153,30 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
 	if (ret > 0)
 		ret = 1;
 	return ret;
+}
+
+/*
+ * Try to convert a string to an IPv4 address and then attempt to convert
+ * it to an IPv6 address if that fails. Set the family field if either
+ * succeeds.
+ *
+ * Returns 0 on failure.
+ */
+int
+cifs_convert_address(char *src, void *dst)
+{
+	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
+	struct sockaddr_in6 *s6 = (Struct sockaddr_in6 *) dst;
+
+	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
+		s4->sin_family = AF_INET;
+		return 1;
+	} else if (cifs_inet_pton(AF_INET6, src, &s6->sin6_addr.s6_addr)) {
+		s6->sin6_family = AF_INET6;
+		return 1;
+	}
+
+	return 0;
 }
 
 /*****************************************************************************

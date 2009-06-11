@@ -74,7 +74,7 @@ extern unsigned int smbCalcSize(struct smb_hdr *ptr);
 extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			enum securityEnum *secType);
-extern int cifs_inet_pton(const int, const char *source, void *dst);
+extern int cifs_convert_address(char *src, void *dst);
 extern int map_smb_to_linux_error(struct smb_hdr *smb, int logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
