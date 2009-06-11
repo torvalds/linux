@@ -415,6 +415,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	set_dma_start_addr(uart->tx_dma_channel, (unsigned long)(xmit->buf+xmit->tail));
 	set_dma_x_count(uart->tx_dma_channel, uart->tx_count);
 	set_dma_x_modify(uart->tx_dma_channel, 1);
+	SSYNC();
 	enable_dma(uart->tx_dma_channel);
 
 	UART_SET_IER(uart, ETBEI);
