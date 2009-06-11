@@ -112,7 +112,7 @@ extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsig
 #define atomic_clear_mask(mask, v)	atomic_test_and_ANDNOT_mask((mask), (v))
 #define atomic_set_mask(mask, v)	atomic_test_and_OR_mask((mask), (v))
 
-static inline int test_and_clear_bit(int nr, volatile void *addr)
+static inline int test_and_clear_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *ptr = addr;
 	unsigned long mask = 1UL << (nr & 31);
@@ -120,7 +120,7 @@ static inline int test_and_clear_bit(int nr, volatile void *addr)
 	return (atomic_test_and_ANDNOT_mask(mask, ptr) & mask) != 0;
 }
 
-static inline int test_and_set_bit(int nr, volatile void *addr)
+static inline int test_and_set_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *ptr = addr;
 	unsigned long mask = 1UL << (nr & 31);
@@ -128,7 +128,7 @@ static inline int test_and_set_bit(int nr, volatile void *addr)
 	return (atomic_test_and_OR_mask(mask, ptr) & mask) != 0;
 }
 
-static inline int test_and_change_bit(int nr, volatile void *addr)
+static inline int test_and_change_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *ptr = addr;
 	unsigned long mask = 1UL << (nr & 31);
@@ -136,22 +136,22 @@ static inline int test_and_change_bit(int nr, volatile void *addr)
 	return (atomic_test_and_XOR_mask(mask, ptr) & mask) != 0;
 }
 
-static inline void clear_bit(int nr, volatile void *addr)
+static inline void clear_bit(unsigned long nr, volatile void *addr)
 {
 	test_and_clear_bit(nr, addr);
 }
 
-static inline void set_bit(int nr, volatile void *addr)
+static inline void set_bit(unsigned long nr, volatile void *addr)
 {
 	test_and_set_bit(nr, addr);
 }
 
-static inline void change_bit(int nr, volatile void * addr)
+static inline void change_bit(unsigned long nr, volatile void *addr)
 {
 	test_and_change_bit(nr, addr);
 }
 
-static inline void __clear_bit(int nr, volatile void * addr)
+static inline void __clear_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask;
@@ -161,7 +161,7 @@ static inline void __clear_bit(int nr, volatile void * addr)
 	*a &= ~mask;
 }
 
-static inline void __set_bit(int nr, volatile void * addr)
+static inline void __set_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask;
@@ -171,7 +171,7 @@ static inline void __set_bit(int nr, volatile void * addr)
 	*a |= mask;
 }
 
-static inline void __change_bit(int nr, volatile void *addr)
+static inline void __change_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask;
@@ -181,7 +181,7 @@ static inline void __change_bit(int nr, volatile void *addr)
 	*a ^= mask;
 }
 
-static inline int __test_and_clear_bit(int nr, volatile void * addr)
+static inline int __test_and_clear_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask, retval;
@@ -193,7 +193,7 @@ static inline int __test_and_clear_bit(int nr, volatile void * addr)
 	return retval;
 }
 
-static inline int __test_and_set_bit(int nr, volatile void * addr)
+static inline int __test_and_set_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask, retval;
@@ -205,7 +205,7 @@ static inline int __test_and_set_bit(int nr, volatile void * addr)
 	return retval;
 }
 
-static inline int __test_and_change_bit(int nr, volatile void * addr)
+static inline int __test_and_change_bit(unsigned long nr, volatile void *addr)
 {
 	volatile unsigned long *a = addr;
 	int mask, retval;
@@ -220,12 +220,13 @@ static inline int __test_and_change_bit(int nr, volatile void * addr)
 /*
  * This routine doesn't need to be atomic.
  */
-static inline int __constant_test_bit(int nr, const volatile void * addr)
+static inline int
+__constant_test_bit(unsigned long nr, const volatile void *addr)
 {
 	return ((1UL << (nr & 31)) & (((const volatile unsigned int *) addr)[nr >> 5])) != 0;
 }
 
-static inline int __test_bit(int nr, const volatile void * addr)
+static inline int __test_bit(unsigned long nr, const volatile void *addr)
 {
 	int 	* a = (int *) addr;
 	int	mask;
