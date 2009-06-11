@@ -101,7 +101,7 @@ void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 	struct pci_root_info *info;
 
 	/* don't go for it if _CRS is used */
-	if (pci_probe & PCI_USE__CRS)
+	if (!(pci_probe & PCI_NO_ROOT_CRS))
 		return;
 
 	/* if only one root bus, don't need to anything */

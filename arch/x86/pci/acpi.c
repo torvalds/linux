@@ -217,7 +217,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 #endif
 	}
 
-	if (bus && (pci_probe & PCI_USE__CRS))
+	if (bus && !(pci_probe & PCI_NO_ROOT_CRS))
 		get_current_resources(device, busnum, domain, bus);
 	return bus;
 }
