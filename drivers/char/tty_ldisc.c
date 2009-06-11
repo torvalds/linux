@@ -444,6 +444,50 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 }
 
 /**
+ *	tty_ldisc_halt		-	shutdown the line discipline
+ *	@tty: tty device
+ *
+ *	Shut down the line discipline and work queue for this tty device.
+ *	The TTY_LDISC flag being cleared ensures no further references can
+ *	be obtained while the delayed work queue halt ensures that no more
+ *	data is fed to the ldisc.
+ *
+ *	In order to wait for any existing references to complete see 
+ *	tty_ldisc_wait_idle.
+ */
+
+static void tty_ldisc_halt(struct tty_struct *tty)
+{
+	clear_bit(TTY_LDISC, &tty->flags);
+	cancel_delayed_work(&tty->buf.work);
+	/*
+	 * Wait for ->hangup_work and ->buf.work handlers to terminate
+	 */
+	flush_scheduled_work();
+}
+
+/**
+ *	tty_ldisc_wait_idle	-	wait for the ldisc to become idle
+ *	@tty: tty to wait for
+ *
+ *	Wait for the line discipline to become idle. The discipline must
+ *	have been halted for this to guarantee it remains idle.
+ *
+ */
+
+static void tty_ldisc_wait_idle(struct tty_struct *tty)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tty_ldisc_lock, flags);
+	while (tty->ldisc.refcount) {
+		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+		wait_event(tty_ldisc_wait, tty->ldisc.refcount == 0);
+		spin_lock_irqsave(&tty_ldisc_lock, flags);
+	}
+	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+}
+
+/**
  *	tty_set_ldisc		-	set line discipline
  *	@tty: the terminal to set
  *	@ldisc: the line discipline
@@ -636,6 +680,21 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 	return 0;
 }
 
+static void tty_ldisc_reinit(struct tty_struct *tty)
+{
+	struct tty_ldisc ld;
+
+	if (tty->ldisc.ops->close)
+		(tty->ldisc.ops->close)(tty);
+	tty_ldisc_put(tty->ldisc.ops);
+	/*
+	 *	Switch the line discipline back
+	 */
+	WARN_ON(tty_ldisc_get(N_TTY, &ld));
+	tty_ldisc_assign(tty, &ld);
+	tty_set_termios_ldisc(tty, N_TTY);
+}
+
 /**
  *	tty_ldisc_release		-	release line discipline
  *	@tty: tty being shut down
@@ -647,58 +706,34 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
 
 void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty)
 {
-	unsigned long flags;
-	struct tty_ldisc ld;
+
 	/*
 	 * Prevent flush_to_ldisc() from rescheduling the work for later.  Then
 	 * kill any delayed work. As this is the final close it does not
 	 * race with the set_ldisc code path.
 	 */
-	clear_bit(TTY_LDISC, &tty->flags);
-	cancel_delayed_work(&tty->buf.work);
 
-	/*
-	 * Wait for ->hangup_work and ->buf.work handlers to terminate
-	 */
-
-	flush_scheduled_work();
+	tty_ldisc_halt(tty);
 
 	/*
 	 * Wait for any short term users (we know they are just driver
 	 * side waiters as the file is closing so user count on the file
 	 * side is zero.
 	 */
-	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	while (tty->ldisc.refcount) {
-		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-		wait_event(tty_ldisc_wait, tty->ldisc.refcount == 0);
-		spin_lock_irqsave(&tty_ldisc_lock, flags);
-	}
-	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+
+	tty_ldisc_wait_idle(tty);
+
 	/*
 	 * Shutdown the current line discipline, and reset it to N_TTY.
 	 *
 	 * FIXME: this MUST get fixed for the new reflocking
 	 */
-	if (tty->ldisc.ops->close)
-		(tty->ldisc.ops->close)(tty);
-	tty_ldisc_put(tty->ldisc.ops);
 
-	/*
-	 *	Switch the line discipline back
-	 */
-	WARN_ON(tty_ldisc_get(N_TTY, &ld));
-	tty_ldisc_assign(tty, &ld);
-	tty_set_termios_ldisc(tty, N_TTY);
+	tty_ldisc_reinit(tty);
 	if (o_tty) {
 		/* FIXME: could o_tty be in setldisc here ? */
 		clear_bit(TTY_LDISC, &o_tty->flags);
-		if (o_tty->ldisc.ops->close)
-			(o_tty->ldisc.ops->close)(o_tty);
-		tty_ldisc_put(o_tty->ldisc.ops);
-		WARN_ON(tty_ldisc_get(N_TTY, &ld));
-		tty_ldisc_assign(o_tty, &ld);
-		tty_set_termios_ldisc(o_tty, N_TTY);
+		tty_ldisc_reinit(o_tty);
 	}
 }
 

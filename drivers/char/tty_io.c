@@ -2481,6 +2481,24 @@ static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int 
 	return tty->ops->tiocmset(tty, file, set, clear);
 }
 
+struct tty_struct *tty_pair_get_tty(struct tty_struct *tty)
+{
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+	    tty->driver->subtype == PTY_TYPE_MASTER)
+		tty = tty->link;
+	return tty;
+}
+EXPORT_SYMBOL(tty_pair_get_tty);
+
+struct tty_struct *tty_pair_get_pty(struct tty_struct *tty)
+{
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+	    tty->driver->subtype == PTY_TYPE_MASTER)
+	    return tty;
+	return tty->link;
+}
+EXPORT_SYMBOL(tty_pair_get_pty);
+
 /*
  * Split this up, as gcc can choke on it otherwise..
  */
@@ -2496,11 +2514,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
 
-	real_tty = tty;
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
-	    tty->driver->subtype == PTY_TYPE_MASTER)
-		real_tty = tty->link;
-
+	real_tty = tty_pair_get_tty(tty);
 
 	/*
 	 * Factor out some common prep work
