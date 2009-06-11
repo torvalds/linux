@@ -3019,6 +3019,7 @@ again:
 		key.offset = found_key.offset - 1;
 		wc.replay_dest->log_root = NULL;
 		free_extent_buffer(log->node);
+		free_extent_buffer(log->commit_root);
 		kfree(log);
 
 		if (found_key.offset == 0)
