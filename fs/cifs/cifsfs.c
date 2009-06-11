@@ -333,6 +333,27 @@ cifs_destroy_inode(struct inode *inode)
 	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
 }
 
+static void
+cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
+{
+	seq_printf(s, ",addr=");
+
+	switch (server->addr.sockAddr.sin_family) {
+	case AF_INET:
+		seq_printf(s, "%pI4", &server->addr.sockAddr.sin_addr.s_addr);
+		break;
+	case AF_INET6:
+		seq_printf(s, "%pI6",
+			   &server->addr.sockAddr6.sin6_addr.s6_addr);
+		if (server->addr.sockAddr6.sin6_scope_id)
+			seq_printf(s, "%%%u",
+				   server->addr.sockAddr6.sin6_scope_id);
+		break;
+	default:
+		seq_printf(s, "(unknown)");
+	}
+}
+
 /*
  * cifs_show_options() is for displaying mount options in /proc/mounts.
  * Not all settable options are displayed but most of the important
@@ -343,7 +364,6 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 {
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
-	struct TCP_Server_Info *server;
 
 	cifs_sb = CIFS_SB(m->mnt_sb);
 	tcon = cifs_sb->tcon;
@@ -364,16 +384,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
 		seq_printf(s, ",forcegid");
 
-	server = tcon->ses->server;
-	seq_printf(s, ",addr=");
-	switch (server->addr.sockAddr6.sin6_family) {
-	case AF_INET6:
-		seq_printf(s, "%pI6", &server->addr.sockAddr6.sin6_addr);
-		break;
-	case AF_INET:
-		seq_printf(s, "%pI4", &server->addr.sockAddr.sin_addr.s_addr);
-		break;
-	}
+	cifs_show_address(s, tcon->ses->server);
 
 	if (!tcon->unix_ext)
 		seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
