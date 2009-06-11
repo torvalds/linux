@@ -252,7 +252,7 @@ int videobuf_dma_map(struct videobuf_queue* q, struct videobuf_dmabuf *dma)
 			vfree(dma->sglist);
 			dma->sglist = NULL;
 			dma->sglen = 0;
-			return -EIO;
+			return -ENOMEM;
 		}
 	}
 	return 0;
