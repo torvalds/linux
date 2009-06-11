@@ -1993,11 +1993,17 @@ unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
  *	Check if the current speed of the device requires IORDY. Used
  *	by various controllers for chip configuration.
  */
-
 unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 {
-	/* Controller doesn't support  IORDY. Probably a pointless check
-	   as the caller should know this */
+	/* Don't set IORDY if we're preparing for reset.  IORDY may
+	 * lead to controller lock up on certain controllers if the
+	 * port is not occupied.  See bko#11703 for details.
+	 */
+	if (adev->link->ap->pflags & ATA_PFLAG_RESETTING)
+		return 0;
+	/* Controller doesn't support IORDY.  Probably a pointless
+	 * check as the caller should know this.
+	 */
 	if (adev->link->ap->flags & ATA_FLAG_NO_IORDY)
 		return 0;
 	/* CF spec. r4.1 Table 22 says no iordy on PIO5 and PIO6.  */
@@ -2020,7 +2026,6 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	Compute the highest mode possible if we are not using iordy. Return
  *	-1 if no iordy mode is available.
  */
-
 static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 {
 	/* If we have no drive specific rule, then PIO 2 is non IORDY */
