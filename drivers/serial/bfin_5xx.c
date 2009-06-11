@@ -479,9 +479,9 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 {
 	int x_pos, pos;
-	unsigned long flags;
 
-	spin_lock_irqsave(&uart->port.lock, flags);
+	dma_disable_irq(uart->rx_dma_channel);
+	spin_lock_bh(&uart->port.lock);
 
 	/* 2D DMA RX buffer ring is used. Because curr_y_count and
 	 * curr_x_count can't be read as an atomic operation,
@@ -512,7 +512,8 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
 
-	spin_unlock_irqrestore(&uart->port.lock, flags);
+	spin_unlock_bh(&uart->port.lock);
+	dma_enable_irq(uart->rx_dma_channel);
 
 	mod_timer(&(uart->rx_dma_timer), jiffies + DMA_RX_FLUSH_JIFFIES);
 }
