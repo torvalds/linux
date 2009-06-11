@@ -621,7 +621,8 @@ extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
 static inline int is_software_counter(struct perf_counter *counter)
 {
 	return (counter->attr.type != PERF_TYPE_RAW) &&
-		(counter->attr.type != PERF_TYPE_HARDWARE);
+		(counter->attr.type != PERF_TYPE_HARDWARE) &&
+		(counter->attr.type != PERF_TYPE_HW_CACHE);
 }
 
 extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
