@@ -137,7 +137,12 @@ static LIST_HEAD(icom_adapter_head);
 static spinlock_t icom_lock;
 
 #ifdef ICOM_TRACE
-static inline void trace(struct icom_port *, char *, unsigned long) {};
+static inline void trace(struct icom_port *icom_port, char *trace_pt,
+			unsigned long trace_data)
+{
+	dev_info(&icom_port->adapter->pci_dev->dev, ":%d:%s - %lx\n",
+	icom_port->port, trace_pt, trace_data);
+}
 #else
 static inline void trace(struct icom_port *icom_port, char *trace_pt, unsigned long trace_data) {};
 #endif
@@ -1646,15 +1651,6 @@ static void __exit icom_exit(void)
 
 module_init(icom_init);
 module_exit(icom_exit);
-
-#ifdef ICOM_TRACE
-static inline void trace(struct icom_port *icom_port, char *trace_pt,
-		  unsigned long trace_data)
-{
-	dev_info(&icom_port->adapter->pci_dev->dev, ":%d:%s - %lx\n",
-		 icom_port->port, trace_pt, trace_data);
-}
-#endif
 
 MODULE_AUTHOR("Michael Anderson <mjanders@us.ibm.com>");
 MODULE_DESCRIPTION("IBM iSeries Serial IOA driver");
