@@ -89,6 +89,7 @@ struct ftdi_private {
 	int force_rtscts;	/* if non-zero, force RTS-CTS to always
 				   be enabled */
 
+	unsigned int latency;		/* latency setting in use */
 	spinlock_t tx_lock;	/* spinlock for transmit state */
 	unsigned long tx_bytes;
 	unsigned long tx_outstanding_bytes;
@@ -719,8 +720,8 @@ static int  ftdi_sio_port_probe(struct usb_serial_port *port);
 static int  ftdi_sio_port_remove(struct usb_serial_port *port);
 static int  ftdi_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void ftdi_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void ftdi_close(struct usb_serial_port *port);
+static void ftdi_dtr_rts(struct usb_serial_port *port, int on);
 static int  ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static int  ftdi_write_room(struct tty_struct *tty);
@@ -758,6 +759,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.port_remove =		ftdi_sio_port_remove,
 	.open =			ftdi_open,
 	.close =		ftdi_close,
+	.dtr_rts =		ftdi_dtr_rts,
 	.throttle =		ftdi_throttle,
 	.unthrottle =		ftdi_unthrottle,
 	.write =		ftdi_write,
@@ -1037,7 +1039,54 @@ static int change_speed(struct tty_struct *tty, struct usb_serial_port *port)
 	return rv;
 }
 
+static int write_latency_timer(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *udev = port->serial->dev;
+	char buf[1];
+	int rv = 0;
+	int l = priv->latency;
 
+	if (priv->flags & ASYNC_LOW_LATENCY)
+		l = 1;
+
+	dbg("%s: setting latency timer = %i", __func__, l);
+
+	rv = usb_control_msg(udev,
+			     usb_sndctrlpipe(udev, 0),
+			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
+			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
+			     l, priv->interface,
+			     buf, 0, WDR_TIMEOUT);
+
+	if (rv < 0)
+		dev_err(&port->dev, "Unable to write latency timer: %i\n", rv);
+	return rv;
+}
+
+static int read_latency_timer(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *udev = port->serial->dev;
+	unsigned short latency = 0;
+	int rv = 0;
+
+
+	dbg("%s", __func__);
+
+	rv = usb_control_msg(udev,
+			     usb_rcvctrlpipe(udev, 0),
+			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
+			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
+			     0, priv->interface,
+			     (char *) &latency, 1, WDR_TIMEOUT);
+
+	if (rv < 0) {
+		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
+		return -EIO;
+	}
+	return latency;
+}
 
 static int get_serial_info(struct usb_serial_port *port,
 				struct serial_struct __user *retinfo)
@@ -1097,6 +1146,7 @@ static int set_serial_info(struct tty_struct *tty,
 	priv->custom_divisor = new_serial.custom_divisor;
 
 	tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	write_latency_timer(port);
 
 check_and_exit:
 	if ((old_priv.flags & ASYNC_SPD_MASK) !=
@@ -1192,26 +1242,12 @@ static ssize_t show_latency_timer(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev = port->serial->dev;
-	unsigned short latency = 0;
-	int rv = 0;
-
-
-	dbg("%s", __func__);
-
-	rv = usb_control_msg(udev,
-			     usb_rcvctrlpipe(udev, 0),
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
-			     0, priv->interface,
-			     (char *) &latency, 1, WDR_TIMEOUT);
-
-	if (rv < 0) {
-		dev_err(dev, "Unable to read latency timer: %i\n", rv);
-		return -EIO;
-	}
-	return sprintf(buf, "%i\n", latency);
+	if (priv->flags & ASYNC_LOW_LATENCY)
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "%i\n", priv->latency);
 }
+
 
 /* Write a new value of the latency timer, in units of milliseconds. */
 static ssize_t store_latency_timer(struct device *dev,
@@ -1220,25 +1256,13 @@ static ssize_t store_latency_timer(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev = port->serial->dev;
-	char buf[1];
 	int v = simple_strtoul(valbuf, NULL, 10);
 	int rv = 0;
 
-	dbg("%s: setting latency timer = %i", __func__, v);
-
-	rv = usb_control_msg(udev,
-			     usb_sndctrlpipe(udev, 0),
-			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
-			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
-			     v, priv->interface,
-			     buf, 0, WDR_TIMEOUT);
-
-	if (rv < 0) {
-		dev_err(dev, "Unable to write latency timer: %i\n", rv);
+	priv->latency = v;
+	rv = write_latency_timer(port);
+	if (rv < 0)
 		return -EIO;
-	}
-
 	return count;
 }
 
@@ -1392,6 +1416,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, priv);
 
 	ftdi_determine_type(port);
+	read_latency_timer(port);
 	create_sysfs_attrs(port);
 	return 0;
 }
@@ -1514,6 +1539,8 @@ static int ftdi_open(struct tty_struct *tty,
 	if (tty)
 		tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
+	write_latency_timer(port);
+
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
 	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -1528,11 +1555,6 @@ static int ftdi_open(struct tty_struct *tty,
 	/* ftdi_set_termios  will send usb control messages */
 	if (tty)
 		ftdi_set_termios(tty, port, tty->termios);
-
-	/* FIXME: Flow control might be enabled, so it should be checked -
-	   we have no control of defaults! */
-	/* Turn on RTS and DTR since we are not flow controlling by default */
-	set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 
 	/* Not throttled */
 	spin_lock_irqsave(&priv->rx_lock, flags);
@@ -1558,6 +1580,30 @@ static int ftdi_open(struct tty_struct *tty,
 } /* ftdi_open */
 
 
+static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	char buf[1];
+
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected) {
+		/* Disable flow control */
+		if (!on && usb_control_msg(port->serial->dev,
+			    usb_sndctrlpipe(port->serial->dev, 0),
+			    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
+			    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
+			    0, priv->interface, buf, 0,
+			    WDR_TIMEOUT) < 0) {
+			    dev_err(&port->dev, "error from flowcontrol urb\n");
+		}
+		/* drop RTS and DTR */
+		if (on)
+			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+		else
+			clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+	}
+	mutex_unlock(&port->serial->disc_mutex);
+}
 
 /*
  * usbserial:__serial_close  only calls ftdi_close if the point is open
@@ -1567,31 +1613,12 @@ static int ftdi_open(struct tty_struct *tty,
  *
  */
 
-static void ftdi_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void ftdi_close(struct usb_serial_port *port)
 { /* ftdi_close */
-	unsigned int c_cflag = tty->termios->c_cflag;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	char buf[1];
 
 	dbg("%s", __func__);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (c_cflag & HUPCL && !port->serial->disconnected) {
-		/* Disable flow control */
-		if (usb_control_msg(port->serial->dev,
-				    usb_sndctrlpipe(port->serial->dev, 0),
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST,
-				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
-				    0, priv->interface, buf, 0,
-				    WDR_TIMEOUT) < 0) {
-			dev_err(&port->dev, "error from flowcontrol urb\n");
-		}
-
-		/* drop RTS and DTR */
-		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-	} /* Note change no line if hupcl is off */
-	mutex_unlock(&port->serial->disc_mutex);
 
 	/* cancel any scheduled reading */
 	cancel_delayed_work_sync(&priv->rx_work);

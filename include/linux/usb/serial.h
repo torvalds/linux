@@ -224,8 +224,7 @@ struct usb_serial_driver {
 	/* Called by console with tty = NULL and by tty */
 	int  (*open)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-	void (*close)(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+	void (*close)(struct usb_serial_port *port);
 	int  (*write)(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 	/* Called only by the tty layer */
@@ -241,6 +240,10 @@ struct usb_serial_driver {
 	int  (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int  (*tiocmset)(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
+	/* Called by the tty layer for port level work. There may or may not
+	   be an attached tty at this point */
+	void (*dtr_rts)(struct usb_serial_port *port, int on);
+	int  (*carrier_raised)(struct usb_serial_port *port);
 	/* USB events */
 	void (*read_int_callback)(struct urb *urb);
 	void (*write_int_callback)(struct urb *urb);
@@ -283,8 +286,7 @@ extern int usb_serial_generic_open(struct tty_struct *tty,
 		struct usb_serial_port *port, struct file *filp);
 extern int usb_serial_generic_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count);
-extern void usb_serial_generic_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+extern void usb_serial_generic_close(struct usb_serial_port *port);
 extern int usb_serial_generic_resume(struct usb_serial *serial);
 extern int usb_serial_generic_write_room(struct tty_struct *tty);
 extern int usb_serial_generic_chars_in_buffer(struct tty_struct *tty);

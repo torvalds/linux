@@ -446,65 +446,46 @@ static void spcp8x5_set_workMode(struct usb_device *dev, u16 value,
 			"RTSCTS usb_control_msg(enable flowctrl) = %d\n", ret);
 }
 
-/* close the serial port. We should wait for data sending to device 1st and
- * then kill all urb. */
-static void spcp8x5_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static int spcp8x5_carrier_raised(struct usb_serial_port *port)
+{
+	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	if (priv->line_status & MSR_STATUS_LINE_DCD)
+		return 1;
+	return 0;
+}
+
+static void spcp8x5_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	unsigned int c_cflag;
-	int bps;
-	long timeout;
-	wait_queue_t wait;
+	u8 control;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (on)
+		priv->line_control = MCR_CONTROL_LINE_DTR
+						| MCR_CONTROL_LINE_RTS;
+	else
+		priv->line_control &= ~ (MCR_CONTROL_LINE_DTR
+						| MCR_CONTROL_LINE_RTS);
+	control = priv->line_control;
+	spin_unlock_irqrestore(&priv->lock, flags);
+	spcp8x5_set_ctrlLine(port->serial->dev, control , priv->type);
+}
+
+/* close the serial port. We should wait for data sending to device 1st and
+ * then kill all urb. */
+static void spcp8x5_close(struct usb_serial_port *port)
+{
+	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
 	int result;
 
 	dbg("%s - port %d", __func__, port->number);
 
-	/* wait for data to drain from the buffer */
 	spin_lock_irqsave(&priv->lock, flags);
-	timeout = SPCP8x5_CLOSING_WAIT;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&tty->write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (ringbuf_avail_data(priv->buf) == 0 ||
-		    timeout == 0 || signal_pending(current))
-			break;
-		spin_unlock_irqrestore(&priv->lock, flags);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&priv->lock, flags);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tty->write_wait, &wait);
-
 	/* clear out any remaining data in the buffer */
 	clear_ringbuf(priv->buf);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* wait for characters to drain from the device (this is long enough
-	 * for the entire all byte spcp8x5 hardware buffer to drain with no
-	 * flow control for data rates of 1200 bps or more, for lower rates we
-	 * should really know how much data is in the buffer to compute a delay
-	 * that is not unnecessarily long) */
-	bps = tty_get_baud_rate(tty);
-	if (bps > 1200)
-		timeout = max((HZ*2560) / bps, HZ/10);
-	else
-		timeout = 2*HZ;
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
-
-	/* clear control lines */
-	if (tty) {
-		c_cflag = tty->termios->c_cflag;
-		if (c_cflag & HUPCL) {
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->line_control = 0;
-			spin_unlock_irqrestore(&priv->lock, flags);
-			spcp8x5_set_ctrlLine(port->serial->dev, 0 , priv->type);
-		}
-	}
 
 	/* kill urb */
 	if (port->write_urb != NULL) {
@@ -665,13 +646,6 @@ static int spcp8x5_open(struct tty_struct *tty,
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (tty && (tty->termios->c_cflag & CBAUD))
-		priv->line_control = MCR_DTR | MCR_RTS;
-	else
-		priv->line_control = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	spcp8x5_set_ctrlLine(serial->dev, priv->line_control , priv->type);
 
 	/* Setup termios */
@@ -691,9 +665,10 @@ static int spcp8x5_open(struct tty_struct *tty,
 	port->read_urb->dev = serial->dev;
 	ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (ret) {
-		spcp8x5_close(tty, port, NULL);
+		spcp8x5_close(port);
 		return -EPROTO;
 	}
+	port->port.drain_delay = 256;
 	return 0;
 }
 
@@ -1033,6 +1008,8 @@ static struct usb_serial_driver spcp8x5_device = {
 	.num_ports		= 1,
 	.open 			= spcp8x5_open,
 	.close 			= spcp8x5_close,
+	.dtr_rts		= spcp8x5_dtr_rts,
+	.carrier_raised		= spcp8x5_carrier_raised,
 	.write 			= spcp8x5_write,
 	.set_termios 		= spcp8x5_set_termios,
 	.ioctl 			= spcp8x5_ioctl,

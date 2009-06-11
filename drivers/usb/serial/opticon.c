@@ -173,8 +173,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port,
 	return result;
 }
 
-static void opticon_close(struct tty_struct *tty, struct usb_serial_port *port,
-			  struct file *filp)
+static void opticon_close(struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 
