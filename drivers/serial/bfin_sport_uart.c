@@ -419,7 +419,7 @@ static void sport_shutdown(struct uart_port *port)
 }
 
 static void sport_set_termios(struct uart_port *port,
-		struct termios *termios, struct termios *old)
+		struct ktermios *termios, struct ktermios *old)
 {
 	pr_debug("%s enter, c_cflag:%08x\n", __func__, termios->c_cflag);
 	uart_update_timeout(port, CS8 ,port->uartclk);
