@@ -132,7 +132,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	pr_debug("name = %s, mtu = %u\n", dev->name, mtu);
 
 	if (size > mtu) {
-		pr_debug("size = %u, mtu = %u\n", size, mtu);
+		pr_debug("size = %Zu, mtu = %u\n", size, mtu);
 		err = -EINVAL;
 		goto out_dev;
 	}
