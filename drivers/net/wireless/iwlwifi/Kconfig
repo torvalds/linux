@@ -10,10 +10,6 @@ config IWLWIFI_LEDS
 	bool "Enable LED support in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
 
-config IWLWIFI_RFKILL
-	def_bool y
-	depends on IWLWIFI && RFKILL
-
 config IWLWIFI_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwlagn driver"
 	depends on IWLWIFI

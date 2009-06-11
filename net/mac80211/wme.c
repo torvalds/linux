@@ -101,7 +101,7 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 	 * Now we know the 1d priority, fill in the QoS header if
 	 * there is one (and we haven't done this before).
 	 */
-	if (!skb->requeue && ieee80211_is_data_qos(hdr->frame_control)) {
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		u8 ack_policy = 0;
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;

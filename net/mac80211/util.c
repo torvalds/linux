@@ -341,6 +341,52 @@ void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
 
+void ieee80211_add_pending_skb(struct ieee80211_local *local,
+			       struct sk_buff *skb)
+{
+	struct ieee80211_hw *hw = &local->hw;
+	unsigned long flags;
+	int queue = skb_get_queue_mapping(skb);
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	__ieee80211_stop_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
+	__ieee80211_stop_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_PENDING);
+	skb_queue_tail(&local->pending[queue], skb);
+	__ieee80211_wake_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+}
+
+int ieee80211_add_pending_skbs(struct ieee80211_local *local,
+			       struct sk_buff_head *skbs)
+{
+	struct ieee80211_hw *hw = &local->hw;
+	struct sk_buff *skb;
+	unsigned long flags;
+	int queue, ret = 0, i;
+
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	for (i = 0; i < hw->queues; i++)
+		__ieee80211_stop_queue(hw, i,
+			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
+
+	while ((skb = skb_dequeue(skbs))) {
+		ret++;
+		queue = skb_get_queue_mapping(skb);
+		skb_queue_tail(&local->pending[queue], skb);
+	}
+
+	for (i = 0; i < hw->queues; i++) {
+		if (ret)
+			__ieee80211_stop_queue(hw, i,
+				IEEE80211_QUEUE_STOP_REASON_PENDING);
+		__ieee80211_wake_queue(hw, i,
+			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
+	}
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+	return ret;
+}
+
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 				    enum queue_stop_reason reason)
 {

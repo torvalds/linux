@@ -400,6 +400,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			sta_info_set_tim_bit(sta);
 
 		info->control.jiffies = jiffies;
+		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
 		return TX_QUEUED;
 	}
@@ -420,7 +421,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		 * frame filtering and keeps a station  blacklist on its own
 		 * (e.g: p54), so that frames can be delivered unimpeded.
 		 *
-		 * Note: It should be save to disable the filter now.
+		 * Note: It should be safe to disable the filter now.
 		 * As, it is really unlikely that we still have any pending
 		 * frame for this station in the hw's buffers/fifos left,
 		 * that is not rejected with a unsuccessful tx_status yet.
@@ -907,9 +908,8 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
  * deal with packet injection down monitor interface
  * with Radiotap Header -- only called for monitor mode interface
  */
-static ieee80211_tx_result
-__ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
-			      struct sk_buff *skb)
+static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
+					  struct sk_buff *skb)
 {
 	/*
 	 * this is the moment to interpret and discard the radiotap header that
@@ -960,7 +960,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 				 * on transmission
 				 */
 				if (skb->len < (iterator.max_length + FCS_LEN))
-					return TX_DROP;
+					return false;
 
 				skb_trim(skb, skb->len - FCS_LEN);
 			}
@@ -982,7 +982,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	}
 
 	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
-		return TX_DROP;
+		return false;
 
 	/*
 	 * remove the radiotap header
@@ -991,7 +991,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	 */
 	skb_pull(skb, iterator.max_length);
 
-	return TX_CONTINUE;
+	return true;
 }
 
 /*
@@ -1025,7 +1025,7 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED)) {
-		if (__ieee80211_parse_tx_radiotap(tx, skb) == TX_DROP)
+		if (!__ieee80211_parse_tx_radiotap(tx, skb))
 			return TX_DROP;
 
 		/*
@@ -1415,7 +1415,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    local->hw.conf.dynamic_ps_timeout > 0) {
+	    local->hw.conf.dynamic_ps_timeout > 0 &&
+	    !local->sw_scanning && !local->hw_scanning && local->ps_sdata) {
 		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 			ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_PS);

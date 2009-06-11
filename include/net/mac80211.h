@@ -239,6 +239,8 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
  *	used to indicate that a pending frame requires TX processing before
  *	it can be sent out.
+ * @IEEE80211_TX_INTFL_RETRIED: completely internal to mac80211,
+ *	used to indicate that a frame was already retried due to PS
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -256,6 +258,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
 	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
+	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 };
 
 /**

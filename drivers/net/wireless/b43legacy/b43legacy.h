@@ -602,9 +602,6 @@ struct b43legacy_wl {
 	char rng_name[30 + 1];
 #endif
 
-	/* The RF-kill button */
-	struct b43legacy_rfkill rfkill;
-
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
 	u8 nr_devs;

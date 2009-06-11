@@ -132,6 +132,9 @@ static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
+	if (*state == HT_AGG_STATE_OPERATIONAL)
+		sta->ampdu_mlme.addba_req_num[tid] = 0;
+
 	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
 
@@ -337,6 +340,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 			 sta->ampdu_mlme.tid_tx[tid]->dialog_token,
 			 sta->ampdu_mlme.tid_tx[tid]->ssn,
 			 0x40, 5000);
+	sta->ampdu_mlme.addba_req_num[tid]++;
 	/* activate the timer for the recipient's addBA response */
 	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.expires =
 				jiffies + ADDBA_RESP_INTERVAL;
@@ -606,7 +610,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 
 	*state = HT_AGG_STATE_IDLE;
 	/* from now on packets are no longer put onto sta->pending */
-	sta->ampdu_mlme.addba_req_num[tid] = 0;
 	kfree(sta->ampdu_mlme.tid_tx[tid]);
 	sta->ampdu_mlme.tid_tx[tid] = NULL;
 
@@ -689,7 +692,6 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
 	} else {
-		sta->ampdu_mlme.addba_req_num[tid]++;
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
 	}
 	spin_unlock_bh(&sta->lock);

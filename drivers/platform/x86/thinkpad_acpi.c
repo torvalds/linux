@@ -1168,21 +1168,6 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
-	initial_sw_status = (tp_rfkops->get_status)();
-	if (initial_sw_status < 0) {
-		printk(TPACPI_ERR
-			"failed to read initial state for %s, error %d; "
-			"will turn radio off\n", name, initial_sw_status);
-	} else {
-		initial_sw_state = (initial_sw_status == TPACPI_RFK_RADIO_OFF);
-		if (set_default) {
-			/* try to set the initial state as the default for the
-			 * rfkill type, since we ask the firmware to preserve
-			 * it across S5 in NVRAM */
-			rfkill_set_global_sw_state(rfktype, initial_sw_state);
-		}
-	}
-
 	atp_rfk = kzalloc(sizeof(struct tpacpi_rfk), GFP_KERNEL);
 	if (atp_rfk)
 		atp_rfk->rfkill = rfkill_alloc(name,
@@ -1200,8 +1185,20 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	atp_rfk->id = id;
 	atp_rfk->ops = tp_rfkops;
 
-	rfkill_set_states(atp_rfk->rfkill, initial_sw_state,
-				tpacpi_rfk_check_hwblock_state());
+	initial_sw_status = (tp_rfkops->get_status)();
+	if (initial_sw_status < 0) {
+		printk(TPACPI_ERR
+			"failed to read initial state for %s, error %d\n",
+			name, initial_sw_status);
+	} else {
+		initial_sw_state = (initial_sw_status == TPACPI_RFK_RADIO_OFF);
+		if (set_default) {
+			/* try to keep the initial state, since we ask the
+			 * firmware to preserve it across S5 in NVRAM */
+			rfkill_set_sw_state(atp_rfk->rfkill, initial_sw_state);
+		}
+	}
+	rfkill_set_hw_state(atp_rfk->rfkill, tpacpi_rfk_check_hwblock_state());
 
 	res = rfkill_register(atp_rfk->rfkill);
 	if (res < 0) {

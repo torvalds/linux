@@ -737,19 +737,13 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 
 
-	if (flags & SW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_SW, &priv->status);
-	else
-		clear_bit(STATUS_RF_KILL_SW, &priv->status);
-
 	if (!(flags & RXON_CARD_DISABLED))
 		iwl_scan_cancel(priv);
 
 	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &priv->status)) ||
-	    (test_bit(STATUS_RF_KILL_SW, &status) !=
-	     test_bit(STATUS_RF_KILL_SW, &priv->status)))
-		queue_work(priv->workqueue, &priv->rf_kill);
+	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
+			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
 		wake_up_interruptible(&priv->wait_command_queue);
 }
@@ -1045,7 +1039,7 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 				set_bit(STATUS_RF_KILL_HW, &priv->status);
 			else
 				clear_bit(STATUS_RF_KILL_HW, &priv->status);
-			queue_work(priv->workqueue, &priv->rf_kill);
+			wiphy_rfkill_set_hw_state(priv->hw->wiphy, hw_rf_kill);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
@@ -1218,7 +1212,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 				set_bit(STATUS_RF_KILL_HW, &priv->status);
 			else
 				clear_bit(STATUS_RF_KILL_HW, &priv->status);
-			queue_work(priv->workqueue, &priv->rf_kill);
+			wiphy_rfkill_set_hw_state(priv->hw->wiphy, hw_rf_kill);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
@@ -1726,12 +1720,10 @@ static void __iwl_down(struct iwl_priv *priv)
 		ieee80211_stop_queues(priv->hw);
 
 	/* If we have not previously called iwl_init() then
-	 * clear all bits but the RF Kill bits and return */
+	 * clear all bits but the RF Kill bit and return */
 	if (!iwl_is_init(priv)) {
 		priv->status = test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 					STATUS_RF_KILL_HW |
-			       test_bit(STATUS_RF_KILL_SW, &priv->status) <<
-					STATUS_RF_KILL_SW |
 			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 					STATUS_GEO_CONFIGURED |
 			       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
@@ -1740,11 +1732,9 @@ static void __iwl_down(struct iwl_priv *priv)
 	}
 
 	/* ...otherwise clear out all the status bits but the RF Kill
-	 * bits and continue taking the NIC down. */
+	 * bit and continue taking the NIC down. */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
-			test_bit(STATUS_RF_KILL_SW, &priv->status) <<
-				STATUS_RF_KILL_SW |
 			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<
@@ -1866,9 +1856,10 @@ static int __iwl_up(struct iwl_priv *priv)
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
 	if (iwl_is_rfkill(priv)) {
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+
 		iwl_enable_interrupts(priv);
-		IWL_WARN(priv, "Radio disabled by %s RF Kill switch\n",
-		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
+		IWL_WARN(priv, "Radio disabled by HW RF Kill switch\n");
 		return 0;
 	}
 
@@ -2001,7 +1992,6 @@ static void iwl_bg_up(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 	__iwl_up(priv);
 	mutex_unlock(&priv->mutex);
-	iwl_rfkill_set_hw_state(priv);
 }
 
 static void iwl_bg_restart(struct work_struct *data)
@@ -2178,8 +2168,6 @@ static int iwl_mac_start(struct ieee80211_hw *hw)
 	ret = __iwl_up(priv);
 
 	mutex_unlock(&priv->mutex);
-
-	iwl_rfkill_set_hw_state(priv);
 
 	if (ret)
 		return ret;
@@ -2775,7 +2763,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->up, iwl_bg_up);
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
-	INIT_WORK(&priv->rf_kill, iwl_bg_rf_kill);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
@@ -3046,12 +3033,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	err = iwl_rfkill_init(priv);
-	if (err)
-		IWL_ERR(priv, "Unable to initialize RFKILL system. "
-				  "Ignoring error: %d\n", err);
-	else
-		iwl_rfkill_set_hw_state(priv);
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy,
+		test_bit(STATUS_RF_KILL_HW, &priv->status));
 
 	iwl_power_initialize(priv);
 	return 0;
@@ -3115,7 +3098,6 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	iwl_synchronize_irq(priv);
 
-	iwl_rfkill_unregister(priv);
 	iwl_dealloc_ucode_pci(priv);
 
 	if (priv->rxq.bd)

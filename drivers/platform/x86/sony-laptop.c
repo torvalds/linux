@@ -1114,7 +1114,6 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 		return err;
 	}
 	sony_rfkill_devices[nc_type] = rfk;
-	sony_nc_rfkill_set((void *)nc_type, false);
 	return err;
 }
 
@@ -1135,8 +1134,7 @@ static void sony_nc_rfkill_update()
 
 		if (hwblock) {
 			if (rfkill_set_hw_state(sony_rfkill_devices[i], true))
-				sony_nc_rfkill_set(sony_rfkill_devices[i],
-						   true);
+				sony_nc_rfkill_set((void *)i, true);
 			continue;
 		}
 

@@ -988,7 +988,6 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 					   char *name, u32 cap)
 {
 	int err;
-	u32 state;
 	struct rfkill *rfkill_dev;
 
 	rfkill_dev = rfkill_alloc(name, dev, type,
@@ -996,8 +995,6 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 				  (void *)(unsigned long)cap);
 	if (!rfkill_dev)
 		return ERR_PTR(-ENOMEM);
-	get_u32(&state, cap);
-	rfkill_set_sw_state(rfkill_dev, !state);
 
 	err = rfkill_register(rfkill_dev);
 	if (err) {

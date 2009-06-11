@@ -552,7 +552,6 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->vlan_tci		= old->vlan_tci;
 #if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
 	new->do_not_encrypt	= old->do_not_encrypt;
-	new->requeue		= old->requeue;
 #endif
 
 	skb_copy_secmark(new, old);

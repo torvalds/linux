@@ -157,8 +157,14 @@ struct rfkill * __must_check rfkill_alloc(const char *name,
  * @rfkill: rfkill structure to be registered
  *
  * This function should be called by the transmitter driver to register
- * the rfkill structure needs to be registered. Before calling this function
- * the driver needs to be ready to service method calls from rfkill.
+ * the rfkill structure. Before calling this function the driver needs
+ * to be ready to service method calls from rfkill.
+ *
+ * If the software blocked state is not set before registration,
+ * set_block will be called to initialize it to a default value.
+ *
+ * If the hardware blocked state is not set before registration,
+ * it is assumed to be unblocked.
  */
 int __must_check rfkill_register(struct rfkill *rfkill);
 
@@ -206,7 +212,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  *
  * rfkill drivers that get events when the hard-blocked state changes
  * use this function to notify the rfkill core (and through that also
- * userspace) of the current state -- they should also use this after
+ * userspace) of the current state.  They should also use this after
  * resume if the state could have changed.
  *
  * You need not (but may) call this function if poll_state is assigned.
@@ -228,8 +234,9 @@ bool __must_check rfkill_set_hw_state(struct rfkill *rfkill, bool blocked);
  * rfkill drivers that get events when the soft-blocked state changes
  * (yes, some platforms directly act on input but allow changing again)
  * use this function to notify the rfkill core (and through that also
- * userspace) of the current state -- they should also use this after
- * resume if the state could have changed.
+ * userspace) of the current state.  It is not necessary to notify on
+ * resume; since hibernation can always change the soft-blocked state,
+ * the rfkill core will unconditionally restore the previous state.
  *
  * This function can be called in any context, even from within rfkill
  * callbacks.
@@ -249,19 +256,6 @@ bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked);
  * callbacks.
  */
 void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw);
-
-/**
- * rfkill_set_global_sw_state - set global sw block default
- * @type: rfkill type to set default for
- * @blocked: default to set
- *
- * This function sets the global default -- use at boot if your platform has
- * an rfkill switch. If not early enough this call may be ignored.
- *
- * XXX: instead of ignoring -- how about just updating all currently
- *	registered drivers?
- */
-void rfkill_set_global_sw_state(const enum rfkill_type type, bool blocked);
 
 /**
  * rfkill_blocked - query rfkill block
@@ -314,11 +308,6 @@ static inline bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
 }
 
 static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
-{
-}
-
-static inline void rfkill_set_global_sw_state(const enum rfkill_type type,
-					      bool blocked)
 {
 }
 

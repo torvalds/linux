@@ -1304,23 +1304,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	if (ah->ah_version != AR5K_AR5210)
 		ath5k_hw_set_imr(ah, ah->ah_imr);
 
-	/*
-	 * Setup RFKill interrupt if rfkill flag is set on eeprom.
-	 * TODO: Use gpio pin and polarity infos from eeprom
-	 * TODO: Handle this in ath5k_intr because it'll result
-	 * 	 a nasty interrupt storm.
-	 */
-#if 0
-	if (AR5K_EEPROM_HDR_RFKILL(ah->ah_capabilities.cap_eeprom.ee_header)) {
-		ath5k_hw_set_gpio_input(ah, 0);
-		ah->ah_gpio[0] = ath5k_hw_get_gpio(ah, 0);
-		if (ah->ah_gpio[0] == 0)
-			ath5k_hw_set_gpio_intr(ah, 0, 1);
-		else
-			ath5k_hw_set_gpio_intr(ah, 0, 0);
-	}
-#endif
-
 	/* Enable 32KHz clock function for AR5212+ chips
 	 * Set clocks to 32KHz operation and use an
 	 * external 32KHz crystal when sleeping if one

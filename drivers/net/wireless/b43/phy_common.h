@@ -1,7 +1,7 @@
 #ifndef LINUX_B43_PHY_COMMON_H_
 #define LINUX_B43_PHY_COMMON_H_
 
-#include <linux/rfkill.h>
+#include <linux/types.h>
 
 struct b43_wldev;
 
