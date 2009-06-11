@@ -81,12 +81,6 @@ enum {
 	BT_CLOSED
 };
 
-/* Endianness conversions */
-#define htobs(a)	__cpu_to_le16(a)
-#define htobl(a)	__cpu_to_le32(a)
-#define btohs(a)	__le16_to_cpu(a)
-#define btohl(a)	__le32_to_cpu(a)
-
 /* BD Address */
 typedef struct {
 	__u8 b[6];
