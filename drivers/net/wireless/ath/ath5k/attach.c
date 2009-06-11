@@ -319,6 +319,9 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	ath5k_hw_rfgain_opt_init(ah);
 
+	/* turn on HW LEDs */
+	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
+
 	return ah;
 err_free:
 	kfree(ah);

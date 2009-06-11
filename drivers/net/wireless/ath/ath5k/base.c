@@ -248,6 +248,8 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif,
 		struct ieee80211_bss_conf *bss_conf,
 		u32 changes);
+static void ath5k_sw_scan_start(struct ieee80211_hw *hw);
+static void ath5k_sw_scan_complete(struct ieee80211_hw *hw);
 
 static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
@@ -265,6 +267,8 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
 	.bss_info_changed = ath5k_bss_info_changed,
+	.sw_scan_start	= ath5k_sw_scan_start,
+	.sw_scan_complete = ath5k_sw_scan_complete,
 };
 
 /*
@@ -3167,6 +3171,8 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		sc->assoc = bss_conf->assoc;
 		if (sc->opmode == NL80211_IFTYPE_STATION)
 			set_beacon_filter(hw, sc->assoc);
+		ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
+			AR5K_LED_ASSOC : AR5K_LED_INIT);
 	}
 
 	if (changes & BSS_CHANGED_BEACON &&
@@ -3178,4 +3184,18 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 
  unlock:
 	mutex_unlock(&sc->lock);
+}
+
+static void ath5k_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct ath5k_softc *sc = hw->priv;
+	if (!sc->assoc)
+		ath5k_hw_set_ledstate(sc->ah, AR5K_LED_SCAN);
+}
+
+static void ath5k_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct ath5k_softc *sc = hw->priv;
+	ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
+		AR5K_LED_ASSOC : AR5K_LED_INIT);
 }
