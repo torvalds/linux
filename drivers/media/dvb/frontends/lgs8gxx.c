@@ -37,14 +37,14 @@
 	} while (0)
 
 static int debug;
-static int fake_signal_str;
+static int fake_signal_str = 1;
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 module_param(fake_signal_str, int, 0644);
 MODULE_PARM_DESC(fake_signal_str, "fake signal strength for LGS8913."
-"Signal strength calculation is slow.(default:off).");
+"Signal strength calculation is slow.(default:on).");
 
 /* LGS8GXX internal helper functions */
 
