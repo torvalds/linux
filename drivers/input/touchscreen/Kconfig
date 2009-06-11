@@ -490,4 +490,12 @@ config TOUCHSCREEN_TSC2007
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc2007.
 
+config TOUCHSCREEN_W90X900
+	tristate "W90P910 touchscreen driver"
+	help
+	  Say Y here if you have a W90P910 based touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w90p910_ts.
+
 endif
