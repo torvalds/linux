@@ -375,6 +375,25 @@ static void audit_hold_skb(struct sk_buff *skb)
 		kfree_skb(skb);
 }
 
+/*
+ * For one reason or another this nlh isn't getting delivered to the userspace
+ * audit daemon, just send it to printk.
+ */
+static void audit_printk_skb(struct sk_buff *skb)
+{
+	struct nlmsghdr *nlh = nlmsg_hdr(skb);
+	char *data = NLMSG_DATA(nlh);
+
+	if (nlh->nlmsg_type != AUDIT_EOE) {
+		if (printk_ratelimit())
+			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, data);
+		else
+			audit_log_lost("printk limit exceeded\n");
+	}
+
+	audit_hold_skb(skb);
+}
+
 static void kauditd_send_skb(struct sk_buff *skb)
 {
 	int err;
@@ -427,14 +446,8 @@ static int kauditd_thread(void *dummy)
 		if (skb) {
 			if (audit_pid)
 				kauditd_send_skb(skb);
-			else {
-				if (printk_ratelimit())
-					printk(KERN_NOTICE "%s\n", skb->data + NLMSG_SPACE(0));
-				else
-					audit_log_lost("printk limit exceeded\n");
-
-				audit_hold_skb(skb);
-			}
+			else
+				audit_printk_skb(skb);
 		} else {
 			DECLARE_WAITQUEUE(wait, current);
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -1475,15 +1488,7 @@ void audit_log_end(struct audit_buffer *ab)
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			wake_up_interruptible(&kauditd_wait);
 		} else {
-			if (nlh->nlmsg_type != AUDIT_EOE) {
-				if (printk_ratelimit()) {
-					printk(KERN_NOTICE "type=%d %s\n",
-						nlh->nlmsg_type,
-						ab->skb->data + NLMSG_SPACE(0));
-				} else
-					audit_log_lost("printk limit exceeded\n");
-			}
-			audit_hold_skb(ab->skb);
+			audit_printk_skb(ab->skb);
 		}
 		ab->skb = NULL;
 	}
