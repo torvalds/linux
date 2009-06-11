@@ -211,7 +211,7 @@ struct imx_port {
 	struct timer_list	timer;
 	unsigned int		old_status;
 	int			txirq,rxirq,rtsirq;
-	int			have_rtscts:1;
+	unsigned int		have_rtscts:1;
 	struct clk		*clk;
 };
 
