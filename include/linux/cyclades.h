@@ -507,16 +507,19 @@ struct ZFW_CTRL {
 
 /* Per card data structure */
 struct cyclades_card {
-    void __iomem *base_addr;
-    void __iomem *ctl_addr;
-    int irq;
-    unsigned int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
-    unsigned int first_line;	/* minor number of first channel on card */
-    unsigned int nports;	/* Number of ports in the card */
-    int bus_index;		/* address shift - 0 for ISA, 1 for PCI */
-    int intr_enabled;		/* FW Interrupt flag - 0 disabled, 1 enabled */
-    spinlock_t card_lock;
-    struct cyclades_port *ports;
+	void __iomem *base_addr;
+	union {
+		void __iomem *p9050;
+		struct RUNTIME_9060 __iomem *p9060;
+	} ctl_addr;
+	int irq;
+	unsigned int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
+	unsigned int first_line;	/* minor number of first channel on card */
+	unsigned int nports;	/* Number of ports in the card */
+	int bus_index;		/* address shift - 0 for ISA, 1 for PCI */
+	int intr_enabled;		/* FW Interrupt flag - 0 disabled, 1 enabled */
+	spinlock_t card_lock;
+	struct cyclades_port *ports;
 };
 
 /***************************************
