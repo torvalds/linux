@@ -34,7 +34,7 @@
  */
 typedef unsigned long elf_greg_t;
 
-#define ELF_NGREG (sizeof (struct pt_regs) / sizeof(elf_greg_t))
+#define ELF_NGREG ((sizeof(struct pt_regs) / sizeof(elf_greg_t)) - 1)
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 #define ELF_NFPREG 32
@@ -76,6 +76,7 @@ do {									\
 } while (0)
 
 #define USE_ELF_CORE_DUMP
+#define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	4096
 
 /*
