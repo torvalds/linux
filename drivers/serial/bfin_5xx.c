@@ -490,7 +490,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	uart->rx_dma_nrows = get_dma_curr_ycount(uart->rx_dma_channel);
 	x_pos = get_dma_curr_xcount(uart->rx_dma_channel);
 	uart->rx_dma_nrows = DMA_RX_YCOUNT - uart->rx_dma_nrows;
-	if (uart->rx_dma_nrows == DMA_RX_YCOUNT)
+	if (uart->rx_dma_nrows == DMA_RX_YCOUNT || x_pos == 0)
 		uart->rx_dma_nrows = 0;
 	x_pos = DMA_RX_XCOUNT - x_pos;
 	if (x_pos == DMA_RX_XCOUNT)
@@ -546,15 +546,16 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 	unsigned short irqstat;
-	int pos;
+	int x_pos, pos;
 
 	spin_lock(&uart->port.lock);
 	irqstat = get_dma_curr_irqstat(uart->rx_dma_channel);
 	clear_dma_irqstat(uart->rx_dma_channel);
 
 	uart->rx_dma_nrows = get_dma_curr_ycount(uart->rx_dma_channel);
+	x_pos = get_dma_curr_xcount(uart->rx_dma_channel);
 	uart->rx_dma_nrows = DMA_RX_YCOUNT - uart->rx_dma_nrows;
-	if (uart->rx_dma_nrows == DMA_RX_YCOUNT)
+	if (uart->rx_dma_nrows == DMA_RX_YCOUNT || x_pos == 0)
 		uart->rx_dma_nrows = 0;
 
 	pos = uart->rx_dma_nrows * DMA_RX_XCOUNT;
