@@ -185,7 +185,7 @@ struct tty_port;
 struct tty_port_operations {
 	/* Return 1 if the carrier is raised */
 	int (*carrier_raised)(struct tty_port *port);
-	void (*raise_dtr_rts)(struct tty_port *port);
+	void (*dtr_rts)(struct tty_port *port, int raise);
 };
 	
 struct tty_port {
@@ -438,6 +438,7 @@ extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
 extern int tty_port_carrier_raised(struct tty_port *port);
 extern void tty_port_raise_dtr_rts(struct tty_port *port);
+extern void tty_port_lower_dtr_rts(struct tty_port *port);
 extern void tty_port_hangup(struct tty_port *port);
 extern int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);

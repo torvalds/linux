@@ -872,11 +872,16 @@ static int carrier_raised(struct tty_port *port)
 	return (sGetChanStatusLo(&info->channel) & CD_ACT) ? 1 : 0;
 }
 
-static void raise_dtr_rts(struct tty_port *port)
+static void dtr_rts(struct tty_port *port, int on)
 {
 	struct r_port *info = container_of(port, struct r_port, port);
-	sSetDTR(&info->channel);
-	sSetRTS(&info->channel);
+	if (on) {
+		sSetDTR(&info->channel);
+		sSetRTS(&info->channel);
+	} else {
+		sClrDTR(&info->channel);
+		sClrRTS(&info->channel);
+	}
 }
 
 /*
@@ -2250,7 +2255,7 @@ static const struct tty_operations rocket_ops = {
 
 static const struct tty_port_operations rocket_port_ops = {
 	.carrier_raised = carrier_raised,
-	.raise_dtr_rts = raise_dtr_rts,
+	.dtr_rts = dtr_rts,
 };
 
 /*

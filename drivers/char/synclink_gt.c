@@ -3099,13 +3099,16 @@ static int carrier_raised(struct tty_port *port)
 	return (info->signals & SerialSignal_DCD) ? 1 : 0;
 }
 
-static void raise_dtr_rts(struct tty_port *port)
+static void dtr_rts(struct tty_port *port, int on)
 {
 	unsigned long flags;
 	struct slgt_info *info = container_of(port, struct slgt_info, port);
 
 	spin_lock_irqsave(&info->lock,flags);
-	info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	if (on)
+		info->signals |= SerialSignal_RTS + SerialSignal_DTR;
+	else
+		info->signals &= ~(SerialSignal_RTS + SerialSignal_DTR);
  	set_signals(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 }
@@ -3419,7 +3422,7 @@ static void add_device(struct slgt_info *info)
 
 static const struct tty_port_operations slgt_port_ops = {
 	.carrier_raised = carrier_raised,
-	.raise_dtr_rts = raise_dtr_rts,
+	.dtr_rts = dtr_rts,
 };
 
 /*
