@@ -255,12 +255,12 @@ usb_control_msg_failed:
 }
 
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
-static int dsbr100_setfreq(struct dsbr100_device *radio, int freq)
+static int dsbr100_setfreq(struct dsbr100_device *radio)
 {
 	int retval;
 	int request;
+	int freq = (radio->curfreq / 16 * 80) / 1000 + 856;
 
-	freq = (freq / 16 * 80) / 1000 + 856;
 	mutex_lock(&radio->lock);
 
 	retval = usb_control_msg(radio->usbdev,
@@ -428,7 +428,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	radio->curfreq = f->frequency;
 	mutex_unlock(&radio->lock);
 
-	retval = dsbr100_setfreq(radio, radio->curfreq);
+	retval = dsbr100_setfreq(radio);
 	if (retval < 0)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
