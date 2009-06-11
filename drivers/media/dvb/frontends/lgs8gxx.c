@@ -610,7 +610,7 @@ static int lgs8gxx_read_signal_agc(struct lgs8gxx_state *priv, u16 *signal)
 	else
 		cat = 0;
 
-	*signal = cat;
+	*signal = cat * 65535 / 5;
 
 	return 0;
 }
@@ -630,8 +630,8 @@ static int lgs8913_read_signal_strength(struct lgs8gxx_state *priv, u16 *signal)
 
 	if (fake_signal_str) {
 		if ((t & 0xC0) == 0xC0) {
-			dprintk("Fake signal strength as 50\n");
-			*signal = 0x32;
+			dprintk("Fake signal strength\n");
+			*signal = 0x7FFF;
 		} else
 			*signal = 0;
 		return 0;
