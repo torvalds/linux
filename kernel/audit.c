@@ -937,28 +937,29 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 }
 
 /*
- * Get message from skb (based on rtnetlink_rcv_skb).  Each message is
- * processed by audit_receive_msg.  Malformed skbs with wrong length are
- * discarded silently.
+ * Get message from skb.  Each message is processed by audit_receive_msg.
+ * Malformed skbs with wrong length are discarded silently.
  */
 static void audit_receive_skb(struct sk_buff *skb)
 {
-	int		err;
-	struct nlmsghdr	*nlh;
-	u32		rlen;
+	struct nlmsghdr *nlh;
+	/*
+	 * len MUST be signed for NLMSG_NEXT to be able to dec it below 0
+	 * if the nlmsg_len was not aligned
+	 */
+	int len;
+	int err;
 
-	while (skb->len >= NLMSG_SPACE(0)) {
-		nlh = nlmsg_hdr(skb);
-		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
-			return;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if ((err = audit_receive_msg(skb, nlh))) {
+	nlh = nlmsg_hdr(skb);
+	len = skb->len;
+
+	while (NLMSG_OK(nlh, len)) {
+		err = audit_receive_msg(skb, nlh);
+		/* if err or if this message says it wants a response */
+		if (err || (nlh->nlmsg_flags & NLM_F_ACK))
 			netlink_ack(skb, nlh, err);
-		} else if (nlh->nlmsg_flags & NLM_F_ACK)
-			netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
+
+		nlh = NLMSG_NEXT(nlh, len);
 	}
 }
 
