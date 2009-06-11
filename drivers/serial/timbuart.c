@@ -278,7 +278,7 @@ static int get_bindex(int baud)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(baudrates); i++)
-		if (baud == baudrates[i])
+		if (baud <= baudrates[i])
 			return i;
 
 	return -1;
@@ -296,14 +296,20 @@ static void timbuart_set_termios(struct uart_port *port,
 	bindex = get_bindex(baud);
 	dev_dbg(port->dev, "%s - bindex %d\n", __func__, bindex);
 
-	if (bindex < 0) {
-		printk(KERN_ALERT "timbuart: Unsupported baud rate\n");
-	} else {
-		spin_lock_irqsave(&port->lock, flags);
-		iowrite8((u8)bindex, port->membase + TIMBUART_BAUDRATE);
-		uart_update_timeout(port, termios->c_cflag, baud);
-		spin_unlock_irqrestore(&port->lock, flags);
-	}
+	if (bindex < 0)
+		bindex = 0;
+	baud = baudrates[bindex];
+
+	/* The serial layer calls into this once with old = NULL when setting
+	   up initially */
+	if (old)
+		tty_termios_copy_hw(termios, old);
+	tty_termios_encode_baud_rate(termios, baud, baud);
+
+	spin_lock_irqsave(&port->lock, flags);
+	iowrite8((u8)bindex, port->membase + TIMBUART_BAUDRATE);
+	uart_update_timeout(port, termios->c_cflag, baud);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static const char *timbuart_type(struct uart_port *port)
