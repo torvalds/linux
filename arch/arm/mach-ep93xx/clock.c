@@ -186,8 +186,8 @@ static unsigned long get_uart_rate(struct clk *clk)
 {
 	u32 value;
 
-	value = __raw_readl(EP93XX_SYSCON_CLOCK_CONTROL);
-	if (value & EP93XX_SYSCON_CLOCK_UARTBAUD)
+	value = __raw_readl(EP93XX_SYSCON_PWRCNT);
+	if (value & EP93XX_SYSCON_PWRCNT_UARTBAUD)
 		return EP93XX_EXT_CLK_RATE;
 	else
 		return EP93XX_EXT_CLK_RATE / 2;
