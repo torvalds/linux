@@ -1,12 +1,13 @@
 /*
  *  Performance counters:
  *
- *   Copyright(C) 2008, Thomas Gleixner <tglx@linutronix.de>
- *   Copyright(C) 2008, Red Hat, Inc., Ingo Molnar
+ *    Copyright (C) 2008-2009, Thomas Gleixner <tglx@linutronix.de>
+ *    Copyright (C) 2008-2009, Red Hat, Inc., Ingo Molnar
+ *    Copyright (C) 2008-2009, Red Hat, Inc., Peter Zijlstra
  *
  *  Data type definitions, declarations, prototypes.
  *
- *  Started by: Thomas Gleixner and Ingo Molnar
+ *    Started by: Thomas Gleixner and Ingo Molnar
  *
  *  For licencing details see kernel-base/COPYING
  */
@@ -25,18 +26,19 @@
  * attr.type
  */
 enum perf_type_id {
-	PERF_TYPE_HARDWARE		= 0,
-	PERF_TYPE_SOFTWARE		= 1,
-	PERF_TYPE_TRACEPOINT		= 2,
-	PERF_TYPE_HW_CACHE		= 3,
-	PERF_TYPE_RAW			= 4,
+	PERF_TYPE_HARDWARE			= 0,
+	PERF_TYPE_SOFTWARE			= 1,
+	PERF_TYPE_TRACEPOINT			= 2,
+	PERF_TYPE_HW_CACHE			= 3,
+	PERF_TYPE_RAW				= 4,
 
-	PERF_TYPE_MAX,			/* non ABI */
+	PERF_TYPE_MAX,				/* non-ABI */
 };
 
 /*
- * Generalized performance counter event types, used by the attr.event_id
- * parameter of the sys_perf_counter_open() syscall:
+ * Generalized performance counter event types, used by the
+ * attr.event_id parameter of the sys_perf_counter_open()
+ * syscall:
  */
 enum perf_hw_id {
 	/*
@@ -50,7 +52,7 @@ enum perf_hw_id {
 	PERF_COUNT_HW_BRANCH_MISSES		= 5,
 	PERF_COUNT_HW_BUS_CYCLES		= 6,
 
-	PERF_COUNT_HW_MAX,		/* non ABI */
+	PERF_COUNT_HW_MAX,			/* non-ABI */
 };
 
 /*
@@ -61,29 +63,29 @@ enum perf_hw_id {
  *       { accesses, misses }
  */
 enum perf_hw_cache_id {
-	PERF_COUNT_HW_CACHE_L1D		= 0,
-	PERF_COUNT_HW_CACHE_L1I		= 1,
-	PERF_COUNT_HW_CACHE_LL		= 2,
-	PERF_COUNT_HW_CACHE_DTLB	= 3,
-	PERF_COUNT_HW_CACHE_ITLB	= 4,
-	PERF_COUNT_HW_CACHE_BPU		= 5,
+	PERF_COUNT_HW_CACHE_L1D			= 0,
+	PERF_COUNT_HW_CACHE_L1I			= 1,
+	PERF_COUNT_HW_CACHE_LL			= 2,
+	PERF_COUNT_HW_CACHE_DTLB		= 3,
+	PERF_COUNT_HW_CACHE_ITLB		= 4,
+	PERF_COUNT_HW_CACHE_BPU			= 5,
 
-	PERF_COUNT_HW_CACHE_MAX,	/* non ABI */
+	PERF_COUNT_HW_CACHE_MAX,		/* non-ABI */
 };
 
 enum perf_hw_cache_op_id {
-	PERF_COUNT_HW_CACHE_OP_READ	= 0,
-	PERF_COUNT_HW_CACHE_OP_WRITE	= 1,
-	PERF_COUNT_HW_CACHE_OP_PREFETCH	= 2,
+	PERF_COUNT_HW_CACHE_OP_READ		= 0,
+	PERF_COUNT_HW_CACHE_OP_WRITE		= 1,
+	PERF_COUNT_HW_CACHE_OP_PREFETCH		= 2,
 
-	PERF_COUNT_HW_CACHE_OP_MAX,	/* non ABI */
+	PERF_COUNT_HW_CACHE_OP_MAX,		/* non-ABI */
 };
 
 enum perf_hw_cache_op_result_id {
 	PERF_COUNT_HW_CACHE_RESULT_ACCESS	= 0,
 	PERF_COUNT_HW_CACHE_RESULT_MISS		= 1,
 
-	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* non ABI */
+	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* non-ABI */
 };
 
 /*
@@ -93,15 +95,15 @@ enum perf_hw_cache_op_result_id {
  * well):
  */
 enum perf_sw_ids {
-	PERF_COUNT_SW_CPU_CLOCK		= 0,
-	PERF_COUNT_SW_TASK_CLOCK	= 1,
-	PERF_COUNT_SW_PAGE_FAULTS	= 2,
-	PERF_COUNT_SW_CONTEXT_SWITCHES	= 3,
-	PERF_COUNT_SW_CPU_MIGRATIONS	= 4,
-	PERF_COUNT_SW_PAGE_FAULTS_MIN	= 5,
-	PERF_COUNT_SW_PAGE_FAULTS_MAJ	= 6,
+	PERF_COUNT_SW_CPU_CLOCK			= 0,
+	PERF_COUNT_SW_TASK_CLOCK		= 1,
+	PERF_COUNT_SW_PAGE_FAULTS		= 2,
+	PERF_COUNT_SW_CONTEXT_SWITCHES		= 3,
+	PERF_COUNT_SW_CPU_MIGRATIONS		= 4,
+	PERF_COUNT_SW_PAGE_FAULTS_MIN		= 5,
+	PERF_COUNT_SW_PAGE_FAULTS_MAJ		= 6,
 
-	PERF_COUNT_SW_MAX,		/* non ABI */
+	PERF_COUNT_SW_MAX,			/* non-ABI */
 };
 
 /*
@@ -109,15 +111,15 @@ enum perf_sw_ids {
  * in the overflow packets.
  */
 enum perf_counter_sample_format {
-	PERF_SAMPLE_IP			= 1U << 0,
-	PERF_SAMPLE_TID			= 1U << 1,
-	PERF_SAMPLE_TIME		= 1U << 2,
-	PERF_SAMPLE_ADDR		= 1U << 3,
-	PERF_SAMPLE_GROUP		= 1U << 4,
-	PERF_SAMPLE_CALLCHAIN		= 1U << 5,
-	PERF_SAMPLE_ID			= 1U << 6,
-	PERF_SAMPLE_CPU			= 1U << 7,
-	PERF_SAMPLE_PERIOD		= 1U << 8,
+	PERF_SAMPLE_IP				= 1U << 0,
+	PERF_SAMPLE_TID				= 1U << 1,
+	PERF_SAMPLE_TIME			= 1U << 2,
+	PERF_SAMPLE_ADDR			= 1U << 3,
+	PERF_SAMPLE_GROUP			= 1U << 4,
+	PERF_SAMPLE_CALLCHAIN			= 1U << 5,
+	PERF_SAMPLE_ID				= 1U << 6,
+	PERF_SAMPLE_CPU				= 1U << 7,
+	PERF_SAMPLE_PERIOD			= 1U << 8,
 };
 
 /*
@@ -126,9 +128,9 @@ enum perf_counter_sample_format {
  * in increasing order of bit value, after the counter value.
  */
 enum perf_counter_read_format {
-	PERF_FORMAT_TOTAL_TIME_ENABLED	=  1U << 0,
-	PERF_FORMAT_TOTAL_TIME_RUNNING	=  1U << 1,
-	PERF_FORMAT_ID			=  1U << 2,
+	PERF_FORMAT_TOTAL_TIME_ENABLED		= 1U << 0,
+	PERF_FORMAT_TOTAL_TIME_RUNNING		= 1U << 1,
+	PERF_FORMAT_ID				= 1U << 2,
 };
 
 /*
@@ -229,12 +231,12 @@ struct perf_counter_mmap_page {
 	__u64   data_head;		/* head in the data section */
 };
 
-#define PERF_EVENT_MISC_CPUMODE_MASK	(3 << 0)
-#define PERF_EVENT_MISC_CPUMODE_UNKNOWN	(0 << 0)
-#define PERF_EVENT_MISC_KERNEL		(1 << 0)
-#define PERF_EVENT_MISC_USER		(2 << 0)
-#define PERF_EVENT_MISC_HYPERVISOR	(3 << 0)
-#define PERF_EVENT_MISC_OVERFLOW	(1 << 2)
+#define PERF_EVENT_MISC_CPUMODE_MASK		(3 << 0)
+#define PERF_EVENT_MISC_CPUMODE_UNKNOWN		(0 << 0)
+#define PERF_EVENT_MISC_KERNEL			(1 << 0)
+#define PERF_EVENT_MISC_USER			(2 << 0)
+#define PERF_EVENT_MISC_HYPERVISOR		(3 << 0)
+#define PERF_EVENT_MISC_OVERFLOW		(1 << 2)
 
 struct perf_event_header {
 	__u32	type;
@@ -351,14 +353,14 @@ struct hw_perf_counter {
 #ifdef CONFIG_PERF_COUNTERS
 	union {
 		struct { /* hardware */
-			u64				config;
-			unsigned long			config_base;
-			unsigned long			counter_base;
-			int				idx;
+			u64		config;
+			unsigned long	config_base;
+			unsigned long	counter_base;
+			int		idx;
 		};
 		union { /* software */
-			atomic64_t			count;
-			struct hrtimer			hrtimer;
+			atomic64_t	count;
+			struct hrtimer	hrtimer;
 		};
 	};
 	atomic64_t			prev_count;
@@ -523,37 +525,37 @@ struct perf_counter_context {
 	 * Protect the states of the counters in the list,
 	 * nr_active, and the list:
 	 */
-	spinlock_t		lock;
+	spinlock_t			lock;
 	/*
 	 * Protect the list of counters.  Locking either mutex or lock
 	 * is sufficient to ensure the list doesn't change; to change
 	 * the list you need to lock both the mutex and the spinlock.
 	 */
-	struct mutex		mutex;
+	struct mutex			mutex;
 
-	struct list_head	counter_list;
-	struct list_head	event_list;
-	int			nr_counters;
-	int			nr_active;
-	int			is_active;
-	atomic_t		refcount;
-	struct task_struct	*task;
+	struct list_head		counter_list;
+	struct list_head		event_list;
+	int				nr_counters;
+	int				nr_active;
+	int				is_active;
+	atomic_t			refcount;
+	struct task_struct		*task;
 
 	/*
 	 * Context clock, runs when context enabled.
 	 */
-	u64			time;
-	u64			timestamp;
+	u64				time;
+	u64				timestamp;
 
 	/*
 	 * These fields let us detect when two contexts have both
 	 * been cloned (inherited) from a common ancestor.
 	 */
-	struct perf_counter_context *parent_ctx;
-	u64			parent_gen;
-	u64			generation;
-	int			pin_count;
-	struct rcu_head		rcu_head;
+	struct perf_counter_context	*parent_ctx;
+	u64				parent_gen;
+	u64				generation;
+	int				pin_count;
+	struct rcu_head			rcu_head;
 };
 
 /**
@@ -604,9 +606,9 @@ extern int hw_perf_group_sched_in(struct perf_counter *group_leader,
 extern void perf_counter_update_userpage(struct perf_counter *counter);
 
 struct perf_sample_data {
-	struct pt_regs		*regs;
-	u64			addr;
-	u64			period;
+	struct pt_regs			*regs;
+	u64				addr;
+	u64				period;
 };
 
 extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
@@ -636,11 +638,14 @@ extern void perf_counter_fork(struct task_struct *tsk);
 
 extern void perf_counter_task_migration(struct task_struct *task, int cpu);
 
-#define MAX_STACK_DEPTH		255
+#define MAX_STACK_DEPTH			255
 
 struct perf_callchain_entry {
-	u16	nr, hv, kernel, user;
-	u64	ip[MAX_STACK_DEPTH];
+	u16				nr;
+	u16				hv;
+	u16				kernel;
+	u16				user;
+	u64				ip[MAX_STACK_DEPTH];
 };
 
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
