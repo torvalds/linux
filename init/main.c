@@ -533,6 +533,16 @@ void __init __weak thread_info_cache_init(void)
 {
 }
 
+/*
+ * Set up kernel memory allocators
+ */
+static void __init mm_init(void)
+{
+	mem_init();
+	kmem_cache_init();
+	vmalloc_init();
+}
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -590,12 +600,7 @@ asmlinkage void __init start_kernel(void)
 	vfs_caches_init_early();
 	sort_main_extable();
 	trap_init();
-	/*
-	 * Set up kernel memory allocators
-	 */
-	mem_init();
-	kmem_cache_init();
-	vmalloc_init();
+	mm_init();
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
