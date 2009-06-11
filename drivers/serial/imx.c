@@ -41,6 +41,7 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/clk.h>
+#include <linux/rational.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -670,7 +671,8 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int ucr2, old_ucr1, old_txrxen, baud, quot;
 	unsigned int old_csize = old ? old->c_cflag & CSIZE : CS8;
-	unsigned int div, num, denom, ufcr;
+	unsigned int div, ufcr;
+	unsigned long num, denom;
 
 	/*
 	 * If we don't support modem control lines, don't allow
@@ -772,31 +774,19 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (!div)
 		div = 1;
 
-	num = baud;
-	denom = port->uartclk / div / 16;
+	rational_best_approximation(16 * div * baud, sport->port.uartclk,
+		1 << 16, 1 << 16, &num, &denom);
 
-	/* shift num and denom right until they fit into 16 bits */
-	while (num > 0x10000 || denom > 0x10000) {
-		num >>= 1;
-		denom >>= 1;
-	}
-	if (num > 0)
-		num -= 1;
-	if (denom > 0)
-		denom -= 1;
-
-	writel(num, sport->port.membase + UBIR);
-	writel(denom, sport->port.membase + UBMR);
-
-	if (div == 7)
-		div = 6; /* 6 in RFDIV means divide by 7 */
-	else
-		div = 6 - div;
+	num -= 1;
+	denom -= 1;
 
 	ufcr = readl(sport->port.membase + UFCR);
 	ufcr = (ufcr & (~UFCR_RFDIV)) |
 	    (div << 7);
 	writel(ufcr, sport->port.membase + UFCR);
+
+	writel(num, sport->port.membase + UBIR);
+	writel(denom, sport->port.membase + UBMR);
 
 #ifdef ONEMS
 	writel(sport->port.uartclk / div / 1000, sport->port.membase + ONEMS);
