@@ -173,7 +173,7 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 	xfercap = (xfercap_scale == 0 ? -1 : (1UL << xfercap_scale));
 
 #ifdef  CONFIG_I7300_IDLE_IOAT_CHANNEL
-	if (i7300_idle_platform_probe(NULL, NULL) == 0) {
+	if (i7300_idle_platform_probe(NULL, NULL, 1) == 0) {
 		device->common.chancnt--;
 	}
 #endif

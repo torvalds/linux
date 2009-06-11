@@ -12,7 +12,7 @@ struct tracer_stat {
 	/* The name of your stat file */
 	const char		*name;
 	/* Iteration over statistic entries */
-	void			*(*stat_start)(void);
+	void			*(*stat_start)(struct tracer_stat *trace);
 	void			*(*stat_next)(void *prev, int idx);
 	/* Compare two entries for stats sorting */
 	int			(*stat_cmp)(void *p1, void *p2);

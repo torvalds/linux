@@ -168,10 +168,12 @@ static int check_powernow(void)
 	return 1;
 }
 
+#ifdef CONFIG_X86_POWERNOW_K7_ACPI
 static void invalidate_entry(unsigned int entry)
 {
 	powernow_table[entry].frequency = CPUFREQ_ENTRY_INVALID;
 }
+#endif
 
 static int get_ranges(unsigned char *pst)
 {
@@ -320,7 +322,7 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
-	if (!alloc_cpumask_var(&acpi_processor_perf->shared_cpu_map,
+	if (!zalloc_cpumask_var(&acpi_processor_perf->shared_cpu_map,
 								GFP_KERNEL)) {
 		retval = -ENOMEM;
 		goto err05;

@@ -808,7 +808,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		ret = -ENOMEM;
 		goto nomem_out;
 	}
-	if (!alloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
 		free_cpumask_var(policy->cpus);
 		kfree(policy);
 		ret = -ENOMEM;
@@ -1070,10 +1070,10 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 #endif
 
+	unlock_policy_rwsem_write(cpu);
+
 	if (cpufreq_driver->target)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
-
-	unlock_policy_rwsem_write(cpu);
 
 	kobject_put(&data->kobj);
 

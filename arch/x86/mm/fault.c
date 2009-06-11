@@ -3,40 +3,16 @@
  *  Copyright (C) 2001, 2002 Andi Kleen, SuSE Labs.
  *  Copyright (C) 2008-2009, Red Hat Inc., Ingo Molnar
  */
-#include <linux/interrupt.h>
-#include <linux/mmiotrace.h>
-#include <linux/bootmem.h>
-#include <linux/compiler.h>
-#include <linux/highmem.h>
-#include <linux/kprobes.h>
-#include <linux/uaccess.h>
-#include <linux/vmalloc.h>
-#include <linux/vt_kern.h>
-#include <linux/signal.h>
-#include <linux/kernel.h>
-#include <linux/ptrace.h>
-#include <linux/string.h>
-#include <linux/module.h>
-#include <linux/kdebug.h>
-#include <linux/errno.h>
-#include <linux/magic.h>
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/mman.h>
-#include <linux/tty.h>
-#include <linux/smp.h>
-#include <linux/mm.h>
+#include <linux/magic.h>		/* STACK_END_MAGIC		*/
+#include <linux/sched.h>		/* test_thread_flag(), ...	*/
+#include <linux/kdebug.h>		/* oops_begin/end, ...		*/
+#include <linux/module.h>		/* search_exception_table	*/
+#include <linux/bootmem.h>		/* max_low_pfn			*/
+#include <linux/kprobes.h>		/* __kprobes, ...		*/
+#include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
 
-#include <asm-generic/sections.h>
-
-#include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
-#include <asm/segment.h>
-#include <asm/system.h>
-#include <asm/proto.h>
-#include <asm/traps.h>
-#include <asm/desc.h>
+#include <asm/traps.h>			/* dotraplinkage, ...		*/
+#include <asm/pgalloc.h>		/* pgd_*(), ...			*/
 
 /*
  * Page fault error code bits:
@@ -225,12 +201,10 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	if (!pmd_present(*pmd_k))
 		return NULL;
 
-	if (!pmd_present(*pmd)) {
+	if (!pmd_present(*pmd))
 		set_pmd(pmd, *pmd_k);
-		arch_flush_lazy_mmu_mode();
-	} else {
+	else
 		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
-	}
 
 	return pmd_k;
 }
@@ -538,8 +512,6 @@ bad:
 static int is_errata93(struct pt_regs *regs, unsigned long address)
 {
 #ifdef CONFIG_X86_64
-	static int once;
-
 	if (address != regs->ip)
 		return 0;
 
@@ -549,10 +521,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	address |= 0xffffffffUL << 32;
 	if ((address >= (u64)_stext && address <= (u64)_etext) ||
 	    (address >= MODULES_VADDR && address <= MODULES_END)) {
-		if (!once) {
-			printk(errata93_warning);
-			once = 1;
-		}
+		printk_once(errata93_warning);
 		regs->ip = address;
 		return 1;
 	}

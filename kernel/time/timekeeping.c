@@ -22,7 +22,7 @@
 
 /*
  * This read-write spinlock protects us from races in SMP while
- * playing with xtime and avenrun.
+ * playing with xtime.
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(xtime_lock);
 

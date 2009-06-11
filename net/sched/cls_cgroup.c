@@ -104,8 +104,7 @@ static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
 			       struct tcf_result *res)
 {
 	struct cls_cgroup_head *head = tp->root;
-	struct cgroup_cls_state *cs;
-	int ret = 0;
+	u32 classid;
 
 	/*
 	 * Due to the nature of the classifier it is required to ignore all
@@ -121,17 +120,18 @@ static int cls_cgroup_classify(struct sk_buff *skb, struct tcf_proto *tp,
 		return -1;
 
 	rcu_read_lock();
-	cs = task_cls_state(current);
-	if (cs->classid && tcf_em_tree_match(skb, &head->ematches, NULL)) {
-		res->classid = cs->classid;
-		res->class = 0;
-		ret = tcf_exts_exec(skb, &head->exts, res);
-	} else
-		ret = -1;
-
+	classid = task_cls_state(current)->classid;
 	rcu_read_unlock();
 
-	return ret;
+	if (!classid)
+		return -1;
+
+	if (!tcf_em_tree_match(skb, &head->ematches, NULL))
+		return -1;
+
+	res->classid = classid;
+	res->class = 0;
+	return tcf_exts_exec(skb, &head->exts, res);
 }
 
 static unsigned long cls_cgroup_get(struct tcf_proto *tp, u32 handle)
@@ -166,6 +166,9 @@ static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
 	struct tcf_ematch_tree t;
 	struct tcf_exts e;
 	int err;
+
+	if (!tca[TCA_OPTIONS])
+		return -EINVAL;
 
 	if (head == NULL) {
 		if (!handle)

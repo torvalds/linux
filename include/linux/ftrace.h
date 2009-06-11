@@ -233,8 +233,6 @@ extern int ftrace_arch_read_dyn_info(char *buf, int size);
 
 extern int skip_trace(unsigned long ip);
 
-extern void ftrace_release(void *start, unsigned long size);
-
 extern void ftrace_disable_daemon(void);
 extern void ftrace_enable_daemon(void);
 #else
@@ -325,13 +323,8 @@ static inline void __ftrace_enabled_restore(int enabled)
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 extern void ftrace_init(void);
-extern void ftrace_init_module(struct module *mod,
-			       unsigned long *start, unsigned long *end);
 #else
 static inline void ftrace_init(void) { }
-static inline void
-ftrace_init_module(struct module *mod,
-		   unsigned long *start, unsigned long *end) { }
 #endif
 
 /*
@@ -368,6 +361,7 @@ struct ftrace_ret_stack {
 	unsigned long ret;
 	unsigned long func;
 	unsigned long long calltime;
+	unsigned long long subtime;
 };
 
 /*
@@ -379,8 +373,6 @@ extern void return_to_handler(void);
 
 extern int
 ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth);
-extern void
-ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret);
 
 /*
  * Sometimes we don't want to trace a function with the function
@@ -496,8 +488,15 @@ static inline int test_tsk_trace_graph(struct task_struct *tsk)
 
 extern int ftrace_dump_on_oops;
 
+#ifdef CONFIG_PREEMPT
+#define INIT_TRACE_RECURSION		.trace_recursion = 0,
+#endif
+
 #endif /* CONFIG_TRACING */
 
+#ifndef INIT_TRACE_RECURSION
+#define INIT_TRACE_RECURSION
+#endif
 
 #ifdef CONFIG_HW_BRANCH_TRACER
 

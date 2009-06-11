@@ -42,7 +42,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, fmt, __cpu_name[n],
 	                           (version >> 4) & 0x0f, version & 0x0f,
 	                           (fp_vers >> 4) & 0x0f, fp_vers & 0x0f);
-	seq_printf(m, "BogoMIPS\t\t: %lu.%02lu\n",
+	seq_printf(m, "BogoMIPS\t\t: %u.%02u\n",
 	              cpu_data[n].udelay_val / (500000/HZ),
 	              (cpu_data[n].udelay_val / (5000/HZ)) % 100);
 	seq_printf(m, "wait instruction\t: %s\n", cpu_wait ? "yes" : "no");

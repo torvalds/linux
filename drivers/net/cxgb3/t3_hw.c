@@ -1274,6 +1274,11 @@ void t3_link_fault(struct adapter *adapter, int port_id)
 				 A_XGM_INT_STATUS + mac->offset);
 	link_fault &= F_LINKFAULTCHANGE;
 
+	link_ok = lc->link_ok;
+	speed = lc->speed;
+	duplex = lc->duplex;
+	fc = lc->fc;
+
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
 	if (link_fault) {

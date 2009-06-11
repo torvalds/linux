@@ -50,7 +50,7 @@ static struct apic *apic_probe[] __initdata = {
 void __init default_setup_apic_routing(void)
 {
 #ifdef CONFIG_X86_X2APIC
-	if (x2apic && (apic != &apic_x2apic_phys &&
+	if (x2apic_mode && (apic != &apic_x2apic_phys &&
 #ifdef CONFIG_X86_UV
 		       apic != &apic_x2apic_uv_x &&
 #endif

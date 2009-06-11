@@ -26,9 +26,10 @@ targets		:= vmlinux.bin setup.bin setup.elf bzImage
 targets		+= fdimage fdimage144 fdimage288 image.iso mtools.conf
 subdir-		:= compressed
 
-setup-y		+= a20.o cmdline.o copy.o cpu.o cpucheck.o edd.o
+setup-y		+= a20.o bioscall.o cmdline.o copy.o cpu.o cpucheck.o edd.o
 setup-y		+= header.o main.o mca.o memory.o pm.o pmjump.o
-setup-y		+= printf.o string.o tty.o video.o video-mode.o version.o
+setup-y		+= printf.o regs.o string.o tty.o video.o video-mode.o
+setup-y		+= version.o
 setup-$(CONFIG_X86_APM_BOOT) += apm.o
 
 # The link order of the video-*.o modules can matter.  In particular,
@@ -86,19 +87,27 @@ $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 
 SETUP_OBJS = $(addprefix $(obj)/,$(setup-y))
 
-sed-offsets := -e 's/^00*/0/' \
-        -e 's/^\([0-9a-fA-F]*\) . \(input_data\|input_data_end\)$$/\#define \2 0x\1/p'
+sed-voffset := -e 's/^\([0-9a-fA-F]*\) . \(_text\|_end\)$$/\#define VO_\2 0x\1/p'
 
-quiet_cmd_offsets = OFFSETS $@
-      cmd_offsets = $(NM) $< | sed -n $(sed-offsets) > $@
+quiet_cmd_voffset = VOFFSET $@
+      cmd_voffset = $(NM) $< | sed -n $(sed-voffset) > $@
 
-$(obj)/offsets.h: $(obj)/compressed/vmlinux FORCE
-	$(call if_changed,offsets)
+targets += voffset.h
+$(obj)/voffset.h: vmlinux FORCE
+	$(call if_changed,voffset)
 
-targets += offsets.h
+sed-zoffset := -e 's/^\([0-9a-fA-F]*\) . \(startup_32\|input_data\|_end\|z_.*\)$$/\#define ZO_\2 0x\1/p'
+
+quiet_cmd_zoffset = ZOFFSET $@
+      cmd_zoffset = $(NM) $< | sed -n $(sed-zoffset) > $@
+
+targets += zoffset.h
+$(obj)/zoffset.h: $(obj)/compressed/vmlinux FORCE
+	$(call if_changed,zoffset)
+
 
 AFLAGS_header.o += -I$(obj)
-$(obj)/header.o: $(obj)/offsets.h
+$(obj)/header.o: $(obj)/voffset.h $(obj)/zoffset.h
 
 LDFLAGS_setup.elf	:= -T
 $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE

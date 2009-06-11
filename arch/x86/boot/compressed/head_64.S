@@ -21,8 +21,8 @@
 /*
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
-.code32
-.text
+	.code32
+	.text
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
@@ -33,12 +33,14 @@
 #include <asm/processor-flags.h>
 #include <asm/asm-offsets.h>
 
-.section ".text.head"
+	.section ".text.head"
 	.code32
 ENTRY(startup_32)
 	cld
-	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments */
+	/*
+	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
+	 * us to not reload segments
+	 */
 	testb $(1<<6), BP_loadflags(%esi)
 	jnz 1f
 
@@ -49,14 +51,15 @@ ENTRY(startup_32)
 	movl	%eax, %ss
 1:
 
-/* Calculate the delta between where we were compiled to run
+/*
+ * Calculate the delta between where we were compiled to run
  * at and where we were actually loaded at.  This can only be done
  * with a short local call on x86.  Nothing  else will tell us what
  * address we are running at.  The reserved chunk of the real-mode
  * data at 0x1e4 (defined as a scratch field) are used as the stack
  * for this calculation. Only 4 bytes are needed.
  */
-	leal	(0x1e4+4)(%esi), %esp
+	leal	(BP_scratch+4)(%esi), %esp
 	call	1f
 1:	popl	%ebp
 	subl	$1b, %ebp
@@ -70,32 +73,28 @@ ENTRY(startup_32)
 	testl	%eax, %eax
 	jnz	no_longmode
 
-/* Compute the delta between where we were compiled to run at
+/*
+ * Compute the delta between where we were compiled to run at
  * and where the code will actually run at.
- */
-/* %ebp contains the address we are loaded at by the boot loader and %ebx
+ *
+ * %ebp contains the address we are loaded at by the boot loader and %ebx
  * contains the address where we should move the kernel image temporarily
  * for safe in-place decompression.
  */
 
 #ifdef CONFIG_RELOCATABLE
 	movl	%ebp, %ebx
-	addl	$(PMD_PAGE_SIZE -1), %ebx
-	andl	$PMD_PAGE_MASK, %ebx
+	movl	BP_kernel_alignment(%esi), %eax
+	decl	%eax
+	addl	%eax, %ebx
+	notl	%eax
+	andl	%eax, %ebx
 #else
-	movl	$CONFIG_PHYSICAL_START, %ebx
+	movl	$LOAD_PHYSICAL_ADDR, %ebx
 #endif
 
-	/* Replace the compressed data size with the uncompressed size */
-	subl	input_len(%ebp), %ebx
-	movl	output_len(%ebp), %eax
-	addl	%eax, %ebx
-	/* Add 8 bytes for every 32K input block */
-	shrl	$12, %eax
-	addl	%eax, %ebx
-	/* Add 32K + 18 bytes of extra slack and align on a 4K boundary */
-	addl	$(32768 + 18 + 4095), %ebx
-	andl	$~4095, %ebx
+	/* Target address to relocate to for decompression */
+	addl	$z_extract_offset, %ebx
 
 /*
  * Prepare for entering 64 bit mode
@@ -114,7 +113,7 @@ ENTRY(startup_32)
  /*
   * Build early 4G boot pagetable
   */
-	/* Initialize Page tables to 0*/
+	/* Initialize Page tables to 0 */
 	leal	pgtable(%ebx), %edi
 	xorl	%eax, %eax
 	movl	$((4096*6)/4), %ecx
@@ -155,7 +154,8 @@ ENTRY(startup_32)
 	btsl	$_EFER_LME, %eax
 	wrmsr
 
-	/* Setup for the jump to 64bit mode
+	/*
+	 * Setup for the jump to 64bit mode
 	 *
 	 * When the jump is performend we will be in long mode but
 	 * in 32bit compatibility mode with EFER.LME = 1, CS.L = 0, CS.D = 1
@@ -184,7 +184,8 @@ no_longmode:
 
 #include "../../kernel/verify_cpu_64.S"
 
-	/* Be careful here startup_64 needs to be at a predictable
+	/*
+	 * Be careful here startup_64 needs to be at a predictable
 	 * address so I can export it in an ELF header.  Bootloaders
 	 * should look at the ELF header to find this address, as
 	 * it may change in the future.
@@ -192,7 +193,8 @@ no_longmode:
 	.code64
 	.org 0x200
 ENTRY(startup_64)
-	/* We come here either from startup_32 or directly from a
+	/*
+	 * We come here either from startup_32 or directly from a
 	 * 64bit bootloader.  If we come here from a bootloader we depend on
 	 * an identity mapped page table being provied that maps our
 	 * entire text+data+bss and hopefully all of memory.
@@ -209,50 +211,54 @@ ENTRY(startup_64)
 	movl    $0x20, %eax
 	ltr	%ax
 
-	/* Compute the decompressed kernel start address.  It is where
+	/*
+	 * Compute the decompressed kernel start address.  It is where
 	 * we were loaded at aligned to a 2M boundary. %rbp contains the
 	 * decompressed kernel start address.
 	 *
 	 * If it is a relocatable kernel then decompress and run the kernel
 	 * from load address aligned to 2MB addr, otherwise decompress and
-	 * run the kernel from CONFIG_PHYSICAL_START
+	 * run the kernel from LOAD_PHYSICAL_ADDR
+	 *
+	 * We cannot rely on the calculation done in 32-bit mode, since we
+	 * may have been invoked via the 64-bit entry point.
 	 */
 
 	/* Start with the delta to where the kernel will run at. */
 #ifdef CONFIG_RELOCATABLE
 	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
-	addq	$(PMD_PAGE_SIZE - 1), %rbp
-	andq	$PMD_PAGE_MASK, %rbp
-	movq	%rbp, %rbx
+	movl	BP_kernel_alignment(%rsi), %eax
+	decl	%eax
+	addq	%rax, %rbp
+	notq	%rax
+	andq	%rax, %rbp
 #else
-	movq	$CONFIG_PHYSICAL_START, %rbp
-	movq	%rbp, %rbx
+	movq	$LOAD_PHYSICAL_ADDR, %rbp
 #endif
 
-	/* Replace the compressed data size with the uncompressed size */
-	movl	input_len(%rip), %eax
-	subq	%rax, %rbx
-	movl	output_len(%rip), %eax
-	addq	%rax, %rbx
-	/* Add 8 bytes for every 32K input block */
-	shrq	$12, %rax
-	addq	%rax, %rbx
-	/* Add 32K + 18 bytes of extra slack and align on a 4K boundary */
-	addq	$(32768 + 18 + 4095), %rbx
-	andq	$~4095, %rbx
+	/* Target address to relocate to for decompression */
+	leaq	z_extract_offset(%rbp), %rbx
 
-/* Copy the compressed kernel to the end of our buffer
+	/* Set up the stack */
+	leaq	boot_stack_end(%rbx), %rsp
+
+	/* Zero EFLAGS */
+	pushq	$0
+	popfq
+
+/*
+ * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
-	leaq	_end_before_pgt(%rip), %r8
-	leaq	_end_before_pgt(%rbx), %r9
-	movq	$_end_before_pgt /* - $startup_32 */, %rcx
-1:	subq	$8, %r8
-	subq	$8, %r9
-	movq	0(%r8), %rax
-	movq	%rax, 0(%r9)
-	subq	$8, %rcx
-	jnz	1b
+	pushq	%rsi
+	leaq	(_bss-8)(%rip), %rsi
+	leaq	(_bss-8)(%rbx), %rdi
+	movq	$_bss /* - $startup_32 */, %rcx
+	shrq	$3, %rcx
+	std
+	rep	movsq
+	cld
+	popq	%rsi
 
 /*
  * Jump to the relocated address.
@@ -260,37 +266,28 @@ ENTRY(startup_64)
 	leaq	relocated(%rbx), %rax
 	jmp	*%rax
 
-.section ".text"
+	.text
 relocated:
 
 /*
- * Clear BSS
+ * Clear BSS (stack is currently empty)
  */
-	xorq	%rax, %rax
-	leaq    _edata(%rbx), %rdi
-	leaq    _end_before_pgt(%rbx), %rcx
+	xorl	%eax, %eax
+	leaq    _bss(%rip), %rdi
+	leaq    _ebss(%rip), %rcx
 	subq	%rdi, %rcx
-	cld
-	rep
-	stosb
-
-	/* Setup the stack */
-	leaq	boot_stack_end(%rip), %rsp
-
-	/* zero EFLAGS after setting rsp */
-	pushq	$0
-	popfq
+	shrq	$3, %rcx
+	rep	stosq
 
 /*
  * Do the decompression, and jump to the new kernel..
  */
-	pushq	%rsi			# Save the real mode argument
-	movq	%rsi, %rdi		# real mode address
-	leaq	boot_heap(%rip), %rsi	# malloc area for uncompression
-	leaq	input_data(%rip), %rdx  # input_data
-	movl	input_len(%rip), %eax
-	movq	%rax, %rcx		# input_len
-	movq	%rbp, %r8		# output
+	pushq	%rsi			/* Save the real mode argument */
+	movq	%rsi, %rdi		/* real mode address */
+	leaq	boot_heap(%rip), %rsi	/* malloc area for uncompression */
+	leaq	input_data(%rip), %rdx  /* input_data */
+	movl	$z_input_len, %ecx	/* input_len */
+	movq	%rbp, %r8		/* output target address */
 	call	decompress_kernel
 	popq	%rsi
 
@@ -311,11 +308,21 @@ gdt:
 	.quad   0x0000000000000000	/* TS continued */
 gdt_end:
 
-.bss
-/* Stack and heap for uncompression */
-.balign 4
+/*
+ * Stack and heap for uncompression
+ */
+	.bss
+	.balign 4
 boot_heap:
 	.fill BOOT_HEAP_SIZE, 1, 0
 boot_stack:
 	.fill BOOT_STACK_SIZE, 1, 0
 boot_stack_end:
+
+/*
+ * Space for page tables (not in .bss so not zeroed)
+ */
+	.section ".pgtable","a",@nobits
+	.balign 4096
+pgtable:
+	.fill 6*4096, 1, 0

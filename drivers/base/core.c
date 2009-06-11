@@ -879,7 +879,7 @@ int device_add(struct device *dev)
 	}
 
 	if (!dev_name(dev))
-		goto done;
+		goto name_error;
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
@@ -978,6 +978,9 @@ done:
 	cleanup_device_parent(dev);
 	if (parent)
 		put_device(parent);
+name_error:
+	kfree(dev->p);
+	dev->p = NULL;
 	goto done;
 }
 

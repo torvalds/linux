@@ -127,11 +127,11 @@ static unsigned int steal_context_up(unsigned int id)
 
 	pr_debug("[%d] steal context %d from mm @%p\n", cpu, id, mm);
 
-	/* Mark this mm has having no context anymore */
-	mm->context.id = MMU_NO_CONTEXT;
-
 	/* Flush the TLB for that context */
 	local_flush_tlb_mm(mm);
+
+	/* Mark this mm has having no context anymore */
+	mm->context.id = MMU_NO_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
 	__clear_bit(id, stale_map[cpu]);

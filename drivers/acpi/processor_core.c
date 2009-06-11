@@ -844,7 +844,7 @@ static int acpi_processor_add(struct acpi_device *device)
 	if (!pr)
 		return -ENOMEM;
 
-	if (!alloc_cpumask_var(&pr->throttling.shared_cpu_map, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&pr->throttling.shared_cpu_map, GFP_KERNEL)) {
 		kfree(pr);
 		return -ENOMEM;
 	}

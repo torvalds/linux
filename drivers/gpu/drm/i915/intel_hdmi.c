@@ -219,6 +219,7 @@ static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_hdmi_save,
 	.restore = intel_hdmi_restore,
 	.detect = intel_hdmi_detect,
