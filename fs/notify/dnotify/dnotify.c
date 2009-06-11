@@ -161,12 +161,6 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	return send;
 }
 
-static void dnotify_freeing_mark(struct fsnotify_mark_entry *entry,
-				 struct fsnotify_group *group)
-{
-	/* dnotify doesn't care than an inode is on the way out */
-}
-
 static void dnotify_free_mark(struct fsnotify_mark_entry *entry)
 {
 	struct dnotify_mark_entry *dnentry = container_of(entry,
@@ -182,7 +176,7 @@ static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
 	.should_send_event = dnotify_should_send_event,
 	.free_group_priv = NULL,
-	.freeing_mark = dnotify_freeing_mark,
+	.freeing_mark = NULL,
 	.free_event_priv = NULL,
 };
 

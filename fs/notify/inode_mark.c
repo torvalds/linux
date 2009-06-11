@@ -190,7 +190,8 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	 * callback to the group function to let it know that this entry
 	 * is being freed.
 	 */
-	group->ops->freeing_mark(entry, group);
+	if (group->ops->freeing_mark)
+		group->ops->freeing_mark(entry, group);
 
 	/*
 	 * __fsnotify_update_child_dentry_flags(inode);
