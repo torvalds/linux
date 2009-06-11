@@ -1181,6 +1181,7 @@ extern struct power_pmu ppc970_pmu;
 extern struct power_pmu power5_pmu;
 extern struct power_pmu power5p_pmu;
 extern struct power_pmu power6_pmu;
+extern struct power_pmu power7_pmu;
 
 static int init_perf_counters(void)
 {
@@ -1206,6 +1207,9 @@ static int init_perf_counters(void)
 		break;
 	case 0x3e:
 		ppmu = &power6_pmu;
+		break;
+	case 0x3f:
+		ppmu = &power7_pmu;
 		break;
 	}
 
