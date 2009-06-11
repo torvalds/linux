@@ -3038,6 +3038,24 @@ out:
 	return r;
 }
 
+int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4])
+{
+	struct kvm_shadow_walk_iterator iterator;
+	int nr_sptes = 0;
+
+	spin_lock(&vcpu->kvm->mmu_lock);
+	for_each_shadow_entry(vcpu, addr, iterator) {
+		sptes[iterator.level-1] = *iterator.sptep;
+		nr_sptes++;
+		if (!is_shadow_present_pte(*iterator.sptep))
+			break;
+	}
+	spin_unlock(&vcpu->kvm->mmu_lock);
+
+	return nr_sptes;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_get_spte_hierarchy);
+
 #ifdef AUDIT
 
 static const char *audit_msg;
