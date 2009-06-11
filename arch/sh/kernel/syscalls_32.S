@@ -350,4 +350,4 @@ ENTRY(sys_call_table)
 	.long sys_pipe2
 	.long sys_inotify_init1
 	.long sys_preadv
-	.long sys_writev
+	.long sys_pwritev
