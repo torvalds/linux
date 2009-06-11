@@ -28,6 +28,7 @@
 #endif /* __KERNEL__ */
 #include <linux/if_pppol2tp.h>
 #include <linux/if_pppolac.h>
+#include <linux/if_pppopns.h>
 
 /* For user-space programs to pick up these definitions
  * which they wouldn't get otherwise without defining __KERNEL__
@@ -62,7 +63,8 @@ struct pptp_addr {
 #define PX_PROTO_OL2TP 1 /* Now L2TP also */
 #define PX_PROTO_PPTP  2
 #define PX_PROTO_OLAC  3
-#define PX_MAX_PROTO   4
+#define PX_PROTO_OPNS  4
+#define PX_MAX_PROTO   5
 
 struct sockaddr_pppox {
 	sa_family_t     sa_family;            /* address family, AF_PPPOX */
@@ -177,6 +179,12 @@ struct pppolac_opt {
 	__u8	sequencing;
 };
 
+struct pppopns_opt {
+	__u16	local;
+	__u16	remote;
+	__u32	sequence;
+};
+
 #include <net/sock.h>
 
 struct pppox_sock {
@@ -188,6 +196,7 @@ struct pppox_sock {
 		struct pppoe_opt pppoe;
 		struct pptp_opt  pptp;
 		struct pppolac_opt lac;
+		struct pppopns_opt pns;
 	} proto;
 	__be16			num;
 };
