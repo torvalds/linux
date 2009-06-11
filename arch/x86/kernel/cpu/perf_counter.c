@@ -1459,6 +1459,10 @@ static int intel_pmu_init(void)
 
 static int amd_pmu_init(void)
 {
+	/* Performance-monitoring supported from K7 and later: */
+	if (boot_cpu_data.x86 < 6)
+		return -ENODEV;
+
 	x86_pmu = amd_pmu;
 
 	switch (boot_cpu_data.x86) {
