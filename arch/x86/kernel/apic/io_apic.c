@@ -187,8 +187,8 @@ int __init arch_early_irq_init(void)
 	for (i = 0; i < count; i++) {
 		desc = irq_to_desc(i);
 		desc->chip_data = &cfg[i];
-		alloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
-		alloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
+		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
+		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
 		if (i < NR_IRQS_LEGACY)
 			cpumask_setall(cfg[i].domain);
 	}
