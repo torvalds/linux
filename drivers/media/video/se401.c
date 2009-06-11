@@ -1244,17 +1244,18 @@ static int se401_init(struct usb_se401 *se401, int button)
 	int i=0, rc;
 	unsigned char cp[0x40];
 	char temp[200];
+	int slen;
 
 	/* led on */
 	se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
 
 	/* get camera descriptor */
 	rc=se401_sndctrl(0, se401, SE401_REQ_GET_CAMERA_DESCRIPTOR, 0, cp, sizeof(cp));
-	if (cp[1]!=0x41) {
+	if (cp[1] != 0x41) {
 		err("Wrong descriptor type");
 		return 1;
 	}
-	sprintf (temp, "ExtraFeatures: %d", cp[3]);
+	slen = snprintf(temp, 200, "ExtraFeatures: %d", cp[3]);
 
 	se401->sizes=cp[4]+cp[5]*256;
 	se401->width=kmalloc(se401->sizes*sizeof(int), GFP_KERNEL);
@@ -1269,9 +1270,10 @@ static int se401_init(struct usb_se401 *se401, int button)
 		    se401->width[i]=cp[6+i*4+0]+cp[6+i*4+1]*256;
 		    se401->height[i]=cp[6+i*4+2]+cp[6+i*4+3]*256;
 	}
-	sprintf (temp, "%s Sizes:", temp);
+	slen += snprintf (temp + slen, 200 - slen, " Sizes:");
 	for (i=0; i<se401->sizes; i++) {
-		sprintf(temp, "%s %dx%d", temp, se401->width[i], se401->height[i]);
+		slen += snprintf(temp + slen, 200 - slen,
+			" %dx%d", se401->width[i], se401->height[i]);
 	}
 	dev_info(&se401->dev->dev, "%s\n", temp);
 	se401->maxframesize=se401->width[se401->sizes-1]*se401->height[se401->sizes-1]*3;
