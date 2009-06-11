@@ -29,7 +29,6 @@
 #include "util.h"
 #include "log.h"
 #include "inode.h"
-#include "ops_address.h"
 
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)
@@ -442,6 +441,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 	for (x = 0; x < length; x++) {
 		bi = rgd->rd_bits + x;
 
+		bi->bi_flags = 0;
 		/* small rgrp; bitmap stored completely in header block */
 		if (length == 1) {
 			bytes = bytes_left;
@@ -580,7 +580,6 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 
 	rgd->rd_gl->gl_object = rgd;
 	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
-	rgd->rd_flags |= GFS2_RDF_CHECK;
 	return error;
 }
 
@@ -701,10 +700,9 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 	u32 rg_flags;
 
 	rg_flags = be32_to_cpu(str->rg_flags);
-	if (rg_flags & GFS2_RGF_NOALLOC)
-		rgd->rd_flags |= GFS2_RDF_NOALLOC;
-	else
-		rgd->rd_flags &= ~GFS2_RDF_NOALLOC;
+	rg_flags &= ~GFS2_RDF_MASK;
+	rgd->rd_flags &= GFS2_RDF_MASK;
+	rgd->rd_flags |= rg_flags;
 	rgd->rd_free = be32_to_cpu(str->rg_free);
 	rgd->rd_dinodes = be32_to_cpu(str->rg_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(str->rg_igeneration);
@@ -713,11 +711,8 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
-	u32 rg_flags = 0;
 
-	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
-		rg_flags |= GFS2_RGF_NOALLOC;
-	str->rg_flags = cpu_to_be32(rg_flags);
+	str->rg_flags = cpu_to_be32(rgd->rd_flags & ~GFS2_RDF_MASK);
 	str->rg_free = cpu_to_be32(rgd->rd_free);
 	str->rg_dinodes = cpu_to_be32(rgd->rd_dinodes);
 	str->__pad = cpu_to_be32(0);
@@ -775,8 +770,10 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	}
 
 	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
+		for (x = 0; x < length; x++)
+			clear_bit(GBF_FULL, &rgd->rd_bits[x].bi_flags);
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
-		rgd->rd_flags |= GFS2_RDF_UPTODATE;
+		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 	}
 
 	spin_lock(&sdp->sd_rindex_spin);
@@ -903,6 +900,7 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 			continue;
 		if (sdp->sd_args.ar_discard)
 			gfs2_rgrp_send_discards(sdp, rgd->rd_data0, bi);
+		clear_bit(GBF_FULL, &bi->bi_flags);
 		memcpy(bi->bi_clone + bi->bi_offset,
 		       bi->bi_bh->b_data + bi->bi_offset, bi->bi_len);
 	}
@@ -942,7 +940,7 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int ret = 0;
 
-	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
+	if (rgd->rd_flags & (GFS2_RGF_NOALLOC | GFS2_RDF_ERROR))
 		return 0;
 
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1315,30 +1313,37 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 {
 	struct gfs2_bitmap *bi = NULL;
 	const u32 length = rgd->rd_length;
-	u32 blk = 0;
+	u32 blk = BFITNOENT;
 	unsigned int buf, x;
 	const unsigned int elen = *n;
-	const u8 *buffer;
+	const u8 *buffer = NULL;
 
 	*n = 0;
 	/* Find bitmap block that contains bits for goal block */
 	for (buf = 0; buf < length; buf++) {
 		bi = rgd->rd_bits + buf;
-		if (goal < (bi->bi_start + bi->bi_len) * GFS2_NBBY)
-			break;
+		/* Convert scope of "goal" from rgrp-wide to within found bit block */
+		if (goal < (bi->bi_start + bi->bi_len) * GFS2_NBBY) {
+			goal -= bi->bi_start * GFS2_NBBY;
+			goto do_search;
+		}
 	}
+	buf = 0;
+	goal = 0;
 
-	gfs2_assert(rgd->rd_sbd, buf < length);
-
-	/* Convert scope of "goal" from rgrp-wide to within found bit block */
-	goal -= bi->bi_start * GFS2_NBBY;
-
+do_search:
 	/* Search (up to entire) bitmap in this rgrp for allocatable block.
 	   "x <= length", instead of "x < length", because we typically start
 	   the search in the middle of a bit block, but if we can't find an
 	   allocatable block anywhere else, we want to be able wrap around and
 	   search in the first part of our first-searched bit block.  */
 	for (x = 0; x <= length; x++) {
+		bi = rgd->rd_bits + buf;
+
+		if (test_bit(GBF_FULL, &bi->bi_flags) &&
+		    (old_state == GFS2_BLKST_FREE))
+			goto skip;
+
 		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
 		   bitmaps, so we must search the originals for that. */
 		buffer = bi->bi_bh->b_data + bi->bi_offset;
@@ -1349,33 +1354,39 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		if (blk != BFITNOENT)
 			break;
 
+		if ((goal == 0) && (old_state == GFS2_BLKST_FREE))
+			set_bit(GBF_FULL, &bi->bi_flags);
+
 		/* Try next bitmap block (wrap back to rgrp header if at end) */
-		buf = (buf + 1) % length;
-		bi = rgd->rd_bits + buf;
+skip:
+		buf++;
+		buf %= length;
 		goal = 0;
 	}
 
-	if (blk != BFITNOENT && old_state != new_state) {
-		*n = 1;
-		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
-			    bi->bi_len, blk, new_state);
-		goal = blk;
-		while (*n < elen) {
-			goal++;
-			if (goal >= (bi->bi_len * GFS2_NBBY))
-				break;
-			if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
-			    GFS2_BLKST_FREE)
-				break;
-			gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone,
-				    bi->bi_offset, bi->bi_len, goal,
-				    new_state);
-			(*n)++;
-		}
-	}
+	if (blk == BFITNOENT)
+		return blk;
+	*n = 1;
+	if (old_state == new_state)
+		goto out;
 
-	return (blk == BFITNOENT) ? blk : (bi->bi_start * GFS2_NBBY) + blk;
+	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
+	gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
+		    bi->bi_len, blk, new_state);
+	goal = blk;
+	while (*n < elen) {
+		goal++;
+		if (goal >= (bi->bi_len * GFS2_NBBY))
+			break;
+		if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
+		    GFS2_BLKST_FREE)
+			break;
+		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
+			    bi->bi_len, goal, new_state);
+		(*n)++;
+	}
+out:
+	return (bi->bi_start * GFS2_NBBY) + blk;
 }
 
 /**
@@ -1435,13 +1446,33 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 }
 
 /**
- * gfs2_alloc_block - Allocate a block
- * @ip: the inode to allocate the block for
+ * gfs2_rgrp_dump - print out an rgrp
+ * @seq: The iterator
+ * @gl: The glock in question
  *
- * Returns: the allocated block
  */
 
-u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
+int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+{
+	const struct gfs2_rgrpd *rgd = gl->gl_object;
+	if (rgd == NULL)
+		return 0;
+	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u\n",
+		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
+		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes);
+	return 0;
+}
+
+/**
+ * gfs2_alloc_block - Allocate one or more blocks
+ * @ip: the inode to allocate the block for
+ * @bn: Used to return the starting block number
+ * @n: requested number of blocks/extent length (value/result)
+ *
+ * Returns: 0 or error
+ */
+
+int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
@@ -1457,7 +1488,10 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 		goal = rgd->rd_last_alloc;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED, n);
-	BUG_ON(blk == BFITNOENT);
+
+	/* Since all blocks are reserved in advance, this shouldn't happen */
+	if (blk == BFITNOENT)
+		goto rgrp_error;
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
@@ -1469,7 +1503,9 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 		di->di_goal_meta = di->di_goal_data = cpu_to_be64(ip->i_goal);
 		brelse(dibh);
 	}
-	gfs2_assert_withdraw(sdp, rgd->rd_free >= *n);
+	if (rgd->rd_free < *n)
+		goto rgrp_error;
+
 	rgd->rd_free -= *n;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
@@ -1484,7 +1520,16 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 	rgd->rd_free_clone -= *n;
 	spin_unlock(&sdp->sd_rindex_spin);
 
-	return block;
+	*bn = block;
+	return 0;
+
+rgrp_error:
+	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
+	        (unsigned long long)rgd->rd_addr);
+	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
+	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	rgd->rd_flags |= GFS2_RDF_ERROR;
+	return -EIO;
 }
 
 /**

@@ -28,7 +28,6 @@
 #include "inode.h"
 #include "log.h"
 #include "meta_io.h"
-#include "ops_address.h"
 #include "quota.h"
 #include "trans.h"
 #include "rgrp.h"
@@ -781,10 +780,12 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	unlock_page(page);
 	page_cache_release(page);
 
-	if (inode->i_size < to) {
-		i_size_write(inode, to);
-		ip->i_disksize = inode->i_size;
-		di->di_size = cpu_to_be64(inode->i_size);
+	if (copied) {
+		if (inode->i_size < to) {
+			i_size_write(inode, to);
+			ip->i_disksize = inode->i_size;
+		}
+		gfs2_dinode_out(ip, di);
 		mark_inode_dirty(inode);
 	}
 
@@ -824,7 +825,6 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *dibh;
 	struct gfs2_alloc *al = ip->i_alloc;
-	struct gfs2_dinode *di;
 	unsigned int from = pos & (PAGE_CACHE_SIZE - 1);
 	unsigned int to = from + len;
 	int ret;
@@ -847,11 +847,10 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 		gfs2_page_add_databufs(ip, page, from, to);
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
-
-	if (likely(ret >= 0) && (inode->i_size > ip->i_disksize)) {
-		di = (struct gfs2_dinode *)dibh->b_data;
-		ip->i_disksize = inode->i_size;
-		di->di_size = cpu_to_be64(inode->i_size);
+	if (ret > 0) {
+		if (inode->i_size > ip->i_disksize)
+			ip->i_disksize = inode->i_size;
+		gfs2_dinode_out(ip, dibh->b_data);
 		mark_inode_dirty(inode);
 	}
 
