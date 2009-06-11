@@ -308,6 +308,9 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 			break;
 	}
 
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(&sport->port);
+
 	if (uart_circ_empty(xmit))
 		imx_stop_tx(&sport->port);
 }
