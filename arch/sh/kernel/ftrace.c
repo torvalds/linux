@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Matt Fleming <mjf@gentoo.org>
+ * Copyright (C) 2008 Matt Fleming <matt@console-pimps.org>
  * Copyright (C) 2008 Paul Mundt <lethal@linux-sh.org>
  *
  * Code for replacing ftrace calls with jumps.
