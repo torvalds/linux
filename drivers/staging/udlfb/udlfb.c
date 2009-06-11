@@ -7,6 +7,8 @@
  * Based on the amazing work of Florian Echtler and libdlo 0.1               *
  *                                                                           *
  *                                                                           *
+ * 10.06.09 release 0.2.3 (edid ioctl, fallback for unsupported modes)       *
+ * 05.06.09 release 0.2.2 (real screen blanking, rle compression, double buffer) *
  * 31.05.09 release 0.2                                                      *
  * 22.05.09 First public (ugly) release                                      *
  *****************************************************************************/
@@ -99,6 +101,7 @@ static int dlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 struct dloarea {
 	int x, y;
 	int w, h;
+	int x2, y2;
 };
 
 /*
@@ -116,6 +119,37 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver dlfb_driver;
 
+// thanks to Henrik Bjerregaard Pedersen for this function
+static char *rle_compress16(uint16_t * src, char *dst, int rem)
+{
+
+	int rl;
+	uint16_t pix0;
+	char *end_if_raw = dst + 6 + 2 * rem;
+
+	dst += 6;		// header will be filled in if RLE is worth it
+
+	while (rem && dst < end_if_raw) {
+		char *start = (char *)src;
+
+		pix0 = *src++;
+		rl = 1;
+		rem--;
+		while (rem && *src == pix0)
+			rem--, rl++, src++;
+		*dst++ = rl;
+		*dst++ = start[1];
+		*dst++ = start[0];
+	}
+
+	return dst;
+}
+
+/*
+Thanks to Henrik Bjerregaard Pedersen for rle implementation and code refactoring.
+Next step is huffman compression.
+*/
+
 static int
 image_blit(struct dlfb_data *dev_info, int x, int y, int width, int height,
 	   char *data)
@@ -125,7 +159,7 @@ image_blit(struct dlfb_data *dev_info, int x, int y, int width, int height,
 	int rem = width;
 	int ret;
 
-	int diff;
+	int firstdiff, thistime;
 
 	char *bufptr;
 
@@ -137,7 +171,8 @@ image_blit(struct dlfb_data *dev_info, int x, int y, int width, int height,
 
 	mutex_lock(&dev_info->bulk_mutex);
 
-	base = dev_info->base16 + (dev_info->info->var.xres * 2 * y) + (x * 2);
+	base =
+	    dev_info->base16 + ((dev_info->info->var.xres * 2 * y) + (x * 2));
 
 	data += (dev_info->info->var.xres * 2 * y) + (x * 2);
 
@@ -164,86 +199,84 @@ image_blit(struct dlfb_data *dev_info, int x, int y, int width, int height,
 						  bufptr - dev_info->buf);
 				bufptr = dev_info->buf;
 			}
+			// number of pixels to consider this time
+			thistime = rem;
+			if (thistime > 255)
+				thistime = 255;
 
-			if (rem > 255) {
-
-				diff = 0;
-				for (j = 0; j < 510; j++) {
-					if (dev_info->
-					    backing_buffer[base + j] !=
-					    data[j]) {
-						diff = 1;
-						break;
-					}
+			// find position of first pixel that has changed
+			firstdiff = -1;
+			for (j = 0; j < thistime * 2; j++) {
+				if (dev_info->backing_buffer
+				    [base - dev_info->base16 + j] != data[j]) {
+					firstdiff = j / 2;
+					break;
 				}
-
-				if (diff == 1) {
-					*bufptr++ = 0xAF;
-					*bufptr++ = 0x68;
-
-					*bufptr++ = (char)(base >> 16);
-					*bufptr++ = (char)(base >> 8);
-					*bufptr++ = (char)(base);
-					*bufptr++ = 255;
-					/* PUT COMPRESSION HERE */
-					for (j = 0; j < 510; j += 2) {
-						bufptr[j] = data[j + 1];
-						bufptr[j + 1] = data[j];
-					}
-					bufptr += 510;
-				}
-
-				rem -= 255;
-				base += 510;
-				data += 510;
-			} else {
-
-				diff = 0;
-
-				for (j = 0; j < rem * 2; j++) {
-					if (dev_info->
-					    backing_buffer[base + j] !=
-					    data[j]) {
-						diff = 1;
-						break;
-					}
-				}
-
-				if (diff == 1) {
-
-					*bufptr++ = 0xAF;
-					*bufptr++ = 0x68;
-
-					*bufptr++ = (char)(base >> 16);
-					*bufptr++ = (char)(base >> 8);
-					*bufptr++ = (char)(base);
-					*bufptr++ = rem;
-					/* PUT COMPRESSION HERE */
-					for (j = 0; j < rem * 2; j += 2) {
-						bufptr[j] = data[j + 1];
-						bufptr[j + 1] = data[j];
-					}
-					bufptr += rem * 2;
-
-				}
-
-				base += rem * 2;
-				data += rem * 2;
-				rem = 0;
 			}
 
+			if (firstdiff >= 0) {
+				char *end_of_rle;
+
+				end_of_rle =
+				    rle_compress16((uint16_t *) (data +
+								 firstdiff * 2),
+						   bufptr,
+						   thistime - firstdiff);
+
+				if (end_of_rle <
+				    bufptr + 6 + 2 * (thistime - firstdiff)) {
+					bufptr[0] = 0xAF;
+					bufptr[1] = 0x69;
+
+					bufptr[2] =
+					    (char)((base +
+						    firstdiff * 2) >> 16);
+					bufptr[3] =
+					    (char)((base + firstdiff * 2) >> 8);
+					bufptr[4] =
+					    (char)(base + firstdiff * 2);
+					bufptr[5] = thistime - firstdiff;
+
+					bufptr = end_of_rle;
+
+				} else {
+					// fallback to raw (or some other encoding?)
+					*bufptr++ = 0xAF;
+					*bufptr++ = 0x68;
+
+					*bufptr++ =
+					    (char)((base +
+						    firstdiff * 2) >> 16);
+					*bufptr++ =
+					    (char)((base + firstdiff * 2) >> 8);
+					*bufptr++ =
+					    (char)(base + firstdiff * 2);
+					*bufptr++ = thistime - firstdiff;
+					// PUT COMPRESSION HERE
+					for (j = firstdiff * 2;
+					     j < thistime * 2; j += 2) {
+						*bufptr++ = data[j + 1];
+						*bufptr++ = data[j];
+					}
+				}
+			}
+
+			base += thistime * 2;
+			data += thistime * 2;
+			rem -= thistime;
 		}
 
-		memcpy(dev_info->backing_buffer + base - (width * 2),
-		       data - (width * 2), width * 2);
+		memcpy(dev_info->backing_buffer + (base - dev_info->base16) -
+		       (width * 2), data - (width * 2), width * 2);
 
 		base += (dev_info->info->var.xres * 2) - (width * 2);
 		data += (dev_info->info->var.xres * 2) - (width * 2);
 
 	}
 
-	if (bufptr > dev_info->buf)
+	if (bufptr > dev_info->buf) {
 		ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
+	}
 
 	mutex_unlock(&dev_info->bulk_mutex);
 
@@ -280,8 +313,10 @@ draw_rect(struct dlfb_data *dev_info, int x, int y, int width, int height,
 	for (i = y; i < y + height; i++) {
 
 		for (j = 0; j < width * 2; j += 2) {
-			dev_info->backing_buffer[base + j] = (char)(col >> 8);
-			dev_info->backing_buffer[base + j + 1] = (char)(col);
+			dev_info->backing_buffer[base - dev_info->base16 + j] =
+			    (char)(col >> 8);
+			dev_info->backing_buffer[base - dev_info->base16 + j +
+						 1] = (char)(col);
 		}
 		if (dev_info->bufend - bufptr < BUF_HIGH_WATER_MARK) {
 			ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
@@ -335,6 +370,111 @@ draw_rect(struct dlfb_data *dev_info, int x, int y, int width, int height,
 	return 1;
 }
 
+static void swapfb(struct dlfb_data *dev_info)
+{
+
+	int tmpbase;
+	char *bufptr;
+
+	mutex_lock(&dev_info->bulk_mutex);
+
+	tmpbase = dev_info->base16;
+
+	dev_info->base16 = dev_info->base16d;
+	dev_info->base16d = tmpbase;
+
+	bufptr = dev_info->buf;
+
+	bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
+
+	// set addresses
+	bufptr =
+	    dlfb_set_register(bufptr, 0x20, (char)(dev_info->base16 >> 16));
+	bufptr = dlfb_set_register(bufptr, 0x21, (char)(dev_info->base16 >> 8));
+	bufptr = dlfb_set_register(bufptr, 0x22, (char)(dev_info->base16));
+
+	bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
+
+	dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
+
+	mutex_unlock(&dev_info->bulk_mutex);
+}
+
+static int copyfb(struct dlfb_data *dev_info)
+{
+	int base;
+	int source;
+	int rem;
+	int i, ret;
+
+	char *bufptr;
+
+	base = dev_info->base16d;
+
+	mutex_lock(&dev_info->bulk_mutex);
+
+	source = dev_info->base16;
+
+	bufptr = dev_info->buf;
+
+	for (i = 0; i < dev_info->info->var.yres; i++) {
+
+		if (dev_info->bufend - bufptr < BUF_HIGH_WATER_MARK) {
+			ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
+			bufptr = dev_info->buf;
+		}
+
+		rem = dev_info->info->var.xres;
+
+		while (rem) {
+
+			if (dev_info->bufend - bufptr < BUF_HIGH_WATER_MARK) {
+				ret =
+				    dlfb_bulk_msg(dev_info,
+						  bufptr - dev_info->buf);
+				bufptr = dev_info->buf;
+
+			}
+
+			*bufptr++ = 0xAF;
+			*bufptr++ = 0x6A;
+
+			*bufptr++ = (char)(base >> 16);
+			*bufptr++ = (char)(base >> 8);
+			*bufptr++ = (char)(base);
+
+			if (rem > 255) {
+				*bufptr++ = 255;
+				*bufptr++ = (char)(source >> 16);
+				*bufptr++ = (char)(source >> 8);
+				*bufptr++ = (char)(source);
+
+				rem -= 255;
+				base += 255 * 2;
+				source += 255 * 2;
+
+			} else {
+				*bufptr++ = rem;
+				*bufptr++ = (char)(source >> 16);
+				*bufptr++ = (char)(source >> 8);
+				*bufptr++ = (char)(source);
+
+				base += rem * 2;
+				source += rem * 2;
+				rem = 0;
+			}
+		}
+	}
+
+	if (bufptr > dev_info->buf)
+		ret = dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
+
+	mutex_unlock(&dev_info->bulk_mutex);
+
+	return 1;
+
+}
+
 static int
 copyarea(struct dlfb_data *dev_info, int dx, int dy, int sx, int sy,
 	 int width, int height)
@@ -362,7 +502,7 @@ copyarea(struct dlfb_data *dev_info, int dx, int dy, int sx, int sy,
 
 	for (i = sy; i < sy + height; i++) {
 
-		memcpy(dev_info->backing_buffer + base,
+		memcpy(dev_info->backing_buffer + base - dev_info->base16,
 		       dev_info->backing_buffer + source, width * 2);
 
 		if (dev_info->bufend - bufptr < BUF_HIGH_WATER_MARK) {
@@ -447,7 +587,8 @@ static void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
 	/* printk("IMAGE BLIT (2) %d %d %d %d DEPTH %d {%p} %d!!!\n", image->dx, image->dy, image->width, image->height, image->depth, dev->udev, ret); */
 }
 
-static void dlfb_fillrect(struct fb_info *info, const struct fb_fillrect *region)
+static void dlfb_fillrect(struct fb_info *info,
+			  const struct fb_fillrect *region)
 {
 
 	unsigned char red, green, blue;
@@ -466,9 +607,18 @@ static int dlfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 
 	struct dlfb_data *dev_info = info->par;
-	struct dloarea *area;
+	struct dloarea *area = NULL;
 
-	if (cmd == 0xAA) {
+	if (cmd == 0xAD) {
+		char *edid = (char *)arg;
+		dlfb_edid(dev_info);
+		if (copy_to_user(edid, dev_info->edid, 128)) {
+			return -EFAULT;
+		}
+		return 0;
+	}
+
+	if (cmd == 0xAA || cmd == 0xAB || cmd == 0xAC) {
 
 		area = (struct dloarea *)arg;
 
@@ -483,9 +633,28 @@ static int dlfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 		if (area->y > info->var.yres)
 			area->y = info->var.yres;
+	}
 
+	if (cmd == 0xAA) {
 		image_blit(dev_info, area->x, area->y, area->w, area->h,
 			   info->screen_base);
+	}
+	if (cmd == 0xAC) {
+		copyfb(dev_info);
+		image_blit(dev_info, area->x, area->y, area->w, area->h,
+			   info->screen_base);
+		swapfb(dev_info);
+	} else if (cmd == 0xAB) {
+
+		if (area->x2 < 0)
+			area->x2 = 0;
+
+		if (area->y2 < 0)
+			area->y2 = 0;
+
+		copyarea(dev_info,
+			 area->x2, area->y2, area->x, area->y, area->w,
+			 area->h);
 	}
 	return 0;
 }
@@ -528,6 +697,19 @@ static int dlfb_release(struct fb_info *info, int user)
 
 static int dlfb_blank(int blank_mode, struct fb_info *info)
 {
+	struct dlfb_data *dev_info = info->par;
+	char *bufptr = dev_info->buf;
+
+	bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
+	if (blank_mode != FB_BLANK_UNBLANK) {
+		bufptr = dlfb_set_register(bufptr, 0x1F, 0x01);
+	} else {
+		bufptr = dlfb_set_register(bufptr, 0x1F, 0x00);
+	}
+	bufptr = dlfb_set_register(bufptr, 0xFF, 0xFF);
+
+	dlfb_bulk_msg(dev_info, bufptr - dev_info->buf);
+
 	return 0;
 }
 
@@ -547,7 +729,6 @@ dlfb_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	struct dlfb_data *dev_info;
 	struct fb_info *info;
-	int i;
 
 	int ret;
 	char rbuf[4];
@@ -588,15 +769,7 @@ dlfb_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	printk("ret control msg 0: %d %x%x%x%x\n", ret, rbuf[0], rbuf[1],
 	       rbuf[2], rbuf[3]);
 
-	for (i = 0; i < 128; i++) {
-		ret =
-		    usb_control_msg(dev_info->udev,
-				    usb_rcvctrlpipe(dev_info->udev, 0), (0x02),
-				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
-				    0);
-		/* printk("ret control msg edid %d: %d [%d]\n",i, ret, rbuf[1]); */
-		dev_info->edid[i] = rbuf[1];
-	}
+	dlfb_edid(dev_info);
 
 	info = framebuffer_alloc(sizeof(u32) * 256, &dev_info->udev->dev);
 
@@ -609,8 +782,14 @@ dlfb_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	printk("EDID XRES %d YRES %d\n", info->var.xres, info->var.yres);
 
-	if (dlfb_set_video_mode(dev_info, info->var.xres, info->var.yres) != 0)
-		goto out;
+	if (dlfb_set_video_mode(dev_info, info->var.xres, info->var.yres) != 0) {
+		info->var.xres = 1280;
+		info->var.yres = 1024;
+		if (dlfb_set_video_mode
+		    (dev_info, info->var.xres, info->var.yres) != 0) {
+			goto out;
+		}
+	}
 
 	printk("found valid mode...%d\n", info->var.pixclock);
 
@@ -661,7 +840,12 @@ dlfb_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	info->fix.smem_start = (unsigned long)info->screen_base;
 	info->fix.smem_len = PAGE_ALIGN(dev_info->screen_size);
-	memcpy(info->fix.id, "DisplayLink FB", 14);
+	if (strlen(dev_info->udev->product) > 15) {
+		memcpy(info->fix.id, dev_info->udev->product, 15);
+	} else {
+		memcpy(info->fix.id, dev_info->udev->product,
+		       strlen(dev_info->udev->product));
+	}
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;
 	info->fix.accel = info->flags;
@@ -679,13 +863,13 @@ dlfb_probe(struct usb_interface *interface, const struct usb_device_id *id)
 
 	return 0;
 
- out2:
+out2:
 	fb_dealloc_cmap(&info->cmap);
- out1:
+out1:
 	rvfree(info->screen_base, dev_info->screen_size);
- out0:
+out0:
 	framebuffer_release(info);
- out:
+out:
 	usb_set_intfdata(interface, NULL);
 	usb_put_dev(dev_info->udev);
 	kfree(dev_info);

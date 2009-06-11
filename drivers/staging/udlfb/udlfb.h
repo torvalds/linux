@@ -26,7 +26,9 @@ struct dlfb_data {
 	int line_length;
 	struct completion done;
 	int base16;
+	int base16d;
 	int base8;
+	int base8d;
 };
 
 struct dlfb_video_mode {
@@ -46,6 +48,24 @@ static void dlfb_bulk_callback(struct urb *urb)
 {
 	struct dlfb_data *dev_info = urb->context;
 	complete(&dev_info->done);
+}
+
+static void dlfb_edid(struct dlfb_data *dev_info)
+{
+	int i;
+	int ret;
+	char rbuf[2];
+
+	for (i = 0; i < 128; i++) {
+		ret =
+		    usb_control_msg(dev_info->udev,
+				    usb_rcvctrlpipe(dev_info->udev, 0), (0x02),
+				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
+				    0);
+		/*printk("ret control msg edid %d: %d [%d]\n",i, ret, rbuf[1]); */
+		dev_info->edid[i] = rbuf[1];
+	}
+
 }
 
 static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
@@ -129,8 +149,12 @@ static int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height
 		    && dlfb_video_modes[i].yres == height) {
 
 			dev_info->base16 = 0;
+			dev_info->base16d = width * height * (FB_BPP / 8);
 
-			dev_info->base8 = width * height * (FB_BPP / 8);;
+			//dev_info->base8 = width * height * (FB_BPP / 8);
+
+			dev_info->base8 = dev_info->base16;
+			dev_info->base8d = dev_info->base16d;
 
 			/* set encryption key (null) */
 			memcpy(dev_info->buf, STD_CHANNEL, 16);
@@ -143,6 +167,9 @@ static int dlfb_set_video_mode(struct dlfb_data *dev_info, int width, int height
 
 			/* set registers */
 			bufptr = dlfb_set_register(bufptr, 0xFF, 0x00);
+
+			/* set color depth */
+			bufptr = dlfb_set_register(bufptr, 0x00, 0x00);
 
 			/* set addresses */
 			bufptr =
