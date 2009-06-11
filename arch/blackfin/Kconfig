@@ -414,12 +414,12 @@ comment "Clock/PLL Setup"
 
 config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
-	default "11059200" if BFIN533_STAMP
-	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN538_EZKIT || BFIN518F-EZBRD)
-	default "30000000" if BFIN561_EZKIT
-	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
+	default "11059200" if BFIN533_STAMP
+	default "24576000" if PNAV10
+	default "25000000" # most people use this
+	default "27000000" if BFIN533_EZKIT
+	default "30000000" if BFIN561_EZKIT
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
 	  Warning: This value should match the crystal on the board. Otherwise,
