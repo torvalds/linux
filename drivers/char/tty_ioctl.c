@@ -97,14 +97,19 @@ EXPORT_SYMBOL(tty_driver_flush_buffer);
  *	@tty: terminal
  *
  *	Indicate that a tty should stop transmitting data down the stack.
+ *	Takes the termios mutex to protect against parallel throttle/unthrottle
+ *	and also to ensure the driver can consistently reference its own
+ *	termios data at this point when implementing software flow control.
  */
 
 void tty_throttle(struct tty_struct *tty)
 {
+	mutex_lock(&tty->termios_mutex);
 	/* check TTY_THROTTLED first so it indicates our state */
 	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->throttle)
 		tty->ops->throttle(tty);
+	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_throttle);
 
@@ -113,13 +118,21 @@ EXPORT_SYMBOL(tty_throttle);
  *	@tty: terminal
  *
  *	Indicate that a tty may continue transmitting data down the stack.
+ *	Takes the termios mutex to protect against parallel throttle/unthrottle
+ *	and also to ensure the driver can consistently reference its own
+ *	termios data at this point when implementing software flow control.
+ *
+ *	Drivers should however remember that the stack can issue a throttle,
+ *	then change flow control method, then unthrottle.
  */
 
 void tty_unthrottle(struct tty_struct *tty)
 {
+	mutex_lock(&tty->termios_mutex);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
+	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_unthrottle);
 
