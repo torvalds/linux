@@ -126,7 +126,7 @@ static struct tty_ldisc *tty_ldisc_try_get(int disc)
 	struct tty_ldisc *ld;
 	struct tty_ldisc_ops *ldops;
 	int err = -EINVAL;
-	
+
 	ld = kmalloc(sizeof(struct tty_ldisc), GFP_KERNEL);
 	if (ld == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -208,12 +208,12 @@ static void tty_ldisc_put(struct tty_ldisc *ld)
 	kfree(ld);
 }
 
-static void * tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
+static void *tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
 {
 	return (*pos < NR_LDISCS) ? pos : NULL;
 }
 
-static void * tty_ldiscs_seq_next(struct seq_file *m, void *v, loff_t *pos)
+static void *tty_ldiscs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	(*pos)++;
 	return (*pos < NR_LDISCS) ? pos : NULL;
@@ -227,7 +227,7 @@ static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
 {
 	int i = *(loff_t *)v;
 	struct tty_ldisc *ld;
-	
+
 	ld = tty_ldisc_try_get(i);
 	if (IS_ERR(ld))
 		return 0;
@@ -325,7 +325,6 @@ struct tty_ldisc *tty_ldisc_ref_wait(struct tty_struct *tty)
 	WARN_ON(tty->ldisc->refcount == 0);
 	return tty->ldisc;
 }
-
 EXPORT_SYMBOL_GPL(tty_ldisc_ref_wait);
 
 /**
@@ -345,7 +344,6 @@ struct tty_ldisc *tty_ldisc_ref(struct tty_struct *tty)
 		return tty->ldisc;
 	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(tty_ldisc_ref);
 
 /**
@@ -373,7 +371,6 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 		wake_up(&tty_ldisc_wait);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
-
 EXPORT_SYMBOL_GPL(tty_ldisc_deref);
 
 /**
@@ -413,7 +410,6 @@ void tty_ldisc_flush(struct tty_struct *tty)
 	}
 	tty_buffer_flush(tty);
 }
-
 EXPORT_SYMBOL_GPL(tty_ldisc_flush);
 
 /**
@@ -492,7 +488,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
 	if (tty_ldisc_open(tty, old) < 0) {
 		tty_ldisc_put(old);
 		/* This driver is always present */
-		new_ldisc =tty_ldisc_get(N_TTY);
+		new_ldisc = tty_ldisc_get(N_TTY);
 		if (IS_ERR(new_ldisc))
 			panic("n_tty: get");
 		tty_ldisc_assign(tty, new_ldisc);
@@ -514,7 +510,7 @@ static void tty_ldisc_restore(struct tty_struct *tty, struct tty_ldisc *old)
  *	be obtained while the delayed work queue halt ensures that no more
  *	data is fed to the ldisc.
  *
- *	In order to wait for any existing references to complete see 
+ *	In order to wait for any existing references to complete see
  *	tty_ldisc_wait_idle.
  */
 
@@ -611,7 +607,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		mutex_lock(&tty->ldisc_mutex);
 	}
 	set_bit(TTY_LDISC_CHANGING, &tty->flags);
-		
+
 	/*
 	 *	No more input please, we are switching. The new ldisc
 	 *	will update this value in the ldisc open function
@@ -841,8 +837,8 @@ int tty_ldisc_setup(struct tty_struct *tty, struct tty_struct *o_tty)
  *	@tty: tty being shut down
  *	@o_tty: pair tty for pty/tty pairs
  *
- *	Called during the final close of a tty/pty pair in order to shut down the
- *	line discpline layer. On exit the ldisc assigned is N_TTY and the
+ *	Called during the final close of a tty/pty pair in order to shut down
+ *	the line discpline layer. On exit the ldisc assigned is N_TTY and the
  *	ldisc has not been opened.
  */
 
