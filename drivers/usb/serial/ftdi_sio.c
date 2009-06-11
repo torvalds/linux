@@ -89,6 +89,7 @@ struct ftdi_private {
 	int force_rtscts;	/* if non-zero, force RTS-CTS to always
 				   be enabled */
 
+	unsigned int latency;		/* latency setting in use */
 	spinlock_t tx_lock;	/* spinlock for transmit state */
 	unsigned long tx_bytes;
 	unsigned long tx_outstanding_bytes;
@@ -1038,7 +1039,54 @@ static int change_speed(struct tty_struct *tty, struct usb_serial_port *port)
 	return rv;
 }
 
+static int write_latency_timer(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *udev = port->serial->dev;
+	char buf[1];
+	int rv = 0;
+	int l = priv->latency;
 
+	if (priv->flags & ASYNC_LOW_LATENCY)
+		l = 1;
+
+	dbg("%s: setting latency timer = %i", __func__, l);
+
+	rv = usb_control_msg(udev,
+			     usb_sndctrlpipe(udev, 0),
+			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
+			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
+			     l, priv->interface,
+			     buf, 0, WDR_TIMEOUT);
+
+	if (rv < 0)
+		dev_err(&port->dev, "Unable to write latency timer: %i\n", rv);
+	return rv;
+}
+
+static int read_latency_timer(struct usb_serial_port *port)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct usb_device *udev = port->serial->dev;
+	unsigned short latency = 0;
+	int rv = 0;
+
+
+	dbg("%s", __func__);
+
+	rv = usb_control_msg(udev,
+			     usb_rcvctrlpipe(udev, 0),
+			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
+			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
+			     0, priv->interface,
+			     (char *) &latency, 1, WDR_TIMEOUT);
+
+	if (rv < 0) {
+		dev_err(&port->dev, "Unable to read latency timer: %i\n", rv);
+		return -EIO;
+	}
+	return latency;
+}
 
 static int get_serial_info(struct usb_serial_port *port,
 				struct serial_struct __user *retinfo)
@@ -1098,6 +1146,7 @@ static int set_serial_info(struct tty_struct *tty,
 	priv->custom_divisor = new_serial.custom_divisor;
 
 	tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	write_latency_timer(port);
 
 check_and_exit:
 	if ((old_priv.flags & ASYNC_SPD_MASK) !=
@@ -1193,26 +1242,12 @@ static ssize_t show_latency_timer(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev = port->serial->dev;
-	unsigned short latency = 0;
-	int rv = 0;
-
-
-	dbg("%s", __func__);
-
-	rv = usb_control_msg(udev,
-			     usb_rcvctrlpipe(udev, 0),
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST,
-			     FTDI_SIO_GET_LATENCY_TIMER_REQUEST_TYPE,
-			     0, priv->interface,
-			     (char *) &latency, 1, WDR_TIMEOUT);
-
-	if (rv < 0) {
-		dev_err(dev, "Unable to read latency timer: %i\n", rv);
-		return -EIO;
-	}
-	return sprintf(buf, "%i\n", latency);
+	if (priv->flags & ASYNC_LOW_LATENCY)
+		return sprintf(buf, "1\n");
+	else
+		return sprintf(buf, "%i\n", priv->latency);
 }
+
 
 /* Write a new value of the latency timer, in units of milliseconds. */
 static ssize_t store_latency_timer(struct device *dev,
@@ -1221,25 +1256,13 @@ static ssize_t store_latency_timer(struct device *dev,
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_device *udev = port->serial->dev;
-	char buf[1];
 	int v = simple_strtoul(valbuf, NULL, 10);
 	int rv = 0;
 
-	dbg("%s: setting latency timer = %i", __func__, v);
-
-	rv = usb_control_msg(udev,
-			     usb_sndctrlpipe(udev, 0),
-			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
-			     FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
-			     v, priv->interface,
-			     buf, 0, WDR_TIMEOUT);
-
-	if (rv < 0) {
-		dev_err(dev, "Unable to write latency timer: %i\n", rv);
+	priv->latency = v;
+	rv = write_latency_timer(port);
+	if (rv < 0)
 		return -EIO;
-	}
-
 	return count;
 }
 
@@ -1393,6 +1416,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, priv);
 
 	ftdi_determine_type(port);
+	read_latency_timer(port);
 	create_sysfs_attrs(port);
 	return 0;
 }
@@ -1514,6 +1538,8 @@ static int ftdi_open(struct tty_struct *tty,
 
 	if (tty)
 		tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+
+	write_latency_timer(port);
 
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
