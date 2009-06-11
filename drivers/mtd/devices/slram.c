@@ -303,7 +303,7 @@ __setup("slram=", mtd_slram_setup);
 
 #endif
 
-static int init_slram(void)
+static int __init init_slram(void)
 {
 	char *devname;
 	int i;
