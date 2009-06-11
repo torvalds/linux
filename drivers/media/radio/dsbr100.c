@@ -145,7 +145,6 @@ struct dsbr100_device {
 	struct mutex lock;	/* buffer locking */
 	int curfreq;
 	int stereo;
-	int users;
 	int removed;
 	int muted;
 };
@@ -549,14 +548,12 @@ static int usb_dsbr100_open(struct file *file)
 	int retval;
 
 	lock_kernel();
-	radio->users = 1;
 	radio->muted = 1;
 
 	retval = dsbr100_start(radio);
 	if (retval < 0) {
 		dev_warn(&radio->usbdev->dev,
 			 "Radio did not start up properly\n");
-		radio->users = 0;
 		unlock_kernel();
 		return -EIO;
 	}
@@ -577,10 +574,6 @@ static int usb_dsbr100_close(struct file *file)
 
 	if (!radio)
 		return -ENODEV;
-
-	mutex_lock(&radio->lock);
-	radio->users = 0;
-	mutex_unlock(&radio->lock);
 
 	if (!radio->removed) {
 		retval = dsbr100_stop(radio);
@@ -695,7 +688,6 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	mutex_init(&radio->lock);
 
 	radio->removed = 0;
-	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;
 
