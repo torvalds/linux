@@ -57,6 +57,9 @@ static int cmci_supported(int *banks)
 {
 	u64 cap;
 
+	if (mce_cmci_disabled || mce_ignore_ce)
+		return 0;
+
 	/*
 	 * Vendor check is not strictly needed, but the initial
 	 * initialization is vendor keyed and this

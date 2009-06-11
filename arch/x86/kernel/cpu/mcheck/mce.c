@@ -84,6 +84,9 @@ static int			rip_msr;
 static int			mce_bootlog = -1;
 static int			monarch_timeout = -1;
 static int			mce_panic_timeout;
+static int			mce_dont_log_ce;
+int				mce_cmci_disabled;
+int				mce_ignore_ce;
 int				mce_ser;
 
 static char			trigger[128];
@@ -526,7 +529,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-		if (!(flags & MCP_DONTLOG)) {
+		if (!(flags & MCP_DONTLOG) && !mce_dont_log_ce) {
 			mce_log(&m);
 			add_taint(TAINT_MACHINE_CHECK);
 		}
@@ -1307,6 +1310,9 @@ static void mce_init_timer(void)
 	struct timer_list *t = &__get_cpu_var(mce_timer);
 	int *n = &__get_cpu_var(next_interval);
 
+	if (mce_ignore_ce)
+		return;
+
 	*n = check_interval * HZ;
 	if (!*n)
 		return;
@@ -1517,7 +1523,10 @@ static struct miscdevice mce_log_device = {
 };
 
 /*
- * mce=off disables machine check
+ * mce=off Disables machine check
+ * mce=no_cmci Disables CMCI
+ * mce=dont_log_ce Clears corrected events silently, no log created for CEs.
+ * mce=ignore_ce Disables polling and CMCI, corrected events are not cleared.
  * mce=TOLERANCELEVEL[,monarchtimeout] (number, see above)
  *	monarchtimeout is how long to wait for other CPUs on machine
  *	check, or 0 to not wait
@@ -1532,6 +1541,12 @@ static int __init mcheck_enable(char *str)
 		str++;
 	if (!strcmp(str, "off"))
 		mce_disabled = 1;
+	else if (!strcmp(str, "no_cmci"))
+		mce_cmci_disabled = 1;
+	else if (!strcmp(str, "dont_log_ce"))
+		mce_dont_log_ce = 1;
+	else if (!strcmp(str, "ignore_ce"))
+		mce_ignore_ce = 1;
 	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
 		mce_bootlog = (str[0] == 'b');
 	else if (isdigit(str[0])) {

@@ -119,6 +119,8 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 #define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
 
 #ifdef CONFIG_X86_MCE_INTEL
+extern int mce_cmci_disabled;
+extern int mce_ignore_ce;
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
