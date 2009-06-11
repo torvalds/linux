@@ -1024,8 +1024,8 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 {
 	char arg_num_len_buf[12];
 	const char __user *tmp_p = p;
-	/* how many digits are in arg_num? 3 is the length of " a=" */
-	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 3;
+	/* how many digits are in arg_num? 5 is the length of ' a=""' */
+	size_t arg_num_len = snprintf(arg_num_len_buf, 12, "%d", arg_num) + 5;
 	size_t len, len_left, to_send;
 	size_t max_execve_audit_len = MAX_EXECVE_AUDIT_LEN;
 	unsigned int i, has_cntl = 0, too_long = 0;
