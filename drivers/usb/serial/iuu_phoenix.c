@@ -650,32 +650,33 @@ static int iuu_bulk_write(struct usb_serial_port *port)
 	unsigned long flags;
 	int result;
 	int i;
+	int buf_len;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	dbg("%s - enter", __func__);
 
+	spin_lock_irqsave(&priv->lock, flags);
 	*buf_ptr++ = IUU_UART_ESC;
 	*buf_ptr++ = IUU_UART_TX;
 	*buf_ptr++ = priv->writelen;
 
-	memcpy(buf_ptr, priv->writebuf,
-	       priv->writelen);
+	memcpy(buf_ptr, priv->writebuf, priv->writelen);
+	buf_len = priv->writelen;
+	priv->writelen = 0;
+	spin_unlock_irqrestore(&priv->lock, flags);
 	if (debug == 1) {
-		for (i = 0; i < priv->writelen; i++)
+		for (i = 0; i < buf_len; i++)
 			sprintf(priv->dbgbuf + i*2 ,
 				"%02X", priv->writebuf[i]);
-		priv->dbgbuf[priv->writelen+i*2] = 0;
+		priv->dbgbuf[buf_len+i*2] = 0;
 		dbg("%s - writing %i chars : %s", __func__,
-		    priv->writelen, priv->dbgbuf);
+		    buf_len, priv->dbgbuf);
 	}
 	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
 			  usb_sndbulkpipe(port->serial->dev,
 					  port->bulk_out_endpointAddress),
-			  port->write_urb->transfer_buffer, priv->writelen + 3,
+			  port->write_urb->transfer_buffer, buf_len + 3,
 			  iuu_rxcmd, port);
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->writelen = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
 	usb_serial_port_softint(port);
 	return result;
 }
@@ -769,14 +770,10 @@ static int iuu_uart_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENOMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->writelen > 0) {
-		/* buffer already filled but not commited */
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return 0;
-	}
+
 	/* fill the buffer */
-	memcpy(priv->writebuf, buf, count);
-	priv->writelen = count;
+	memcpy(priv->writebuf + priv->writelen, buf, count);
+	priv->writelen += count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return count;
