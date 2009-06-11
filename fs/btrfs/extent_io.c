@@ -476,6 +476,7 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
+	u64 last_end;
 	int err;
 	int set = 0;
 
@@ -498,6 +499,7 @@ again:
 	if (state->start > end)
 		goto out;
 	WARN_ON(state->end < start);
+	last_end = state->end;
 
 	/*
 	 *     | ---- desired range ---- |
@@ -524,9 +526,11 @@ again:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			start = state->end + 1;
 			set |= clear_state_bit(tree, state, bits,
 					wake, delete);
+			if (last_end == (u64)-1)
+				goto out;
+			start = last_end + 1;
 		} else {
 			start = state->start;
 		}
@@ -552,8 +556,10 @@ again:
 		goto out;
 	}
 
-	start = state->end + 1;
 	set |= clear_state_bit(tree, state, bits, wake, delete);
+	if (last_end == (u64)-1)
+		goto out;
+	start = last_end + 1;
 	goto search_again;
 
 out:
@@ -707,8 +713,10 @@ again:
 			goto out;
 		}
 		set_state_bits(tree, state, bits);
-		start = state->end + 1;
 		merge_state(tree, state);
+		if (last_end == (u64)-1)
+			goto out;
+		start = last_end + 1;
 		goto search_again;
 	}
 
@@ -742,8 +750,10 @@ again:
 			goto out;
 		if (state->end <= end) {
 			set_state_bits(tree, state, bits);
-			start = state->end + 1;
 			merge_state(tree, state);
+			if (last_end == (u64)-1)
+				goto out;
+			start = last_end + 1;
 		} else {
 			start = state->start;
 		}

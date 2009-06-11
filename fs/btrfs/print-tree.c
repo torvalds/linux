@@ -45,22 +45,132 @@ static void print_dev_item(struct extent_buffer *eb,
 	       (unsigned long long)btrfs_device_total_bytes(eb, dev_item),
 	       (unsigned long long)btrfs_device_bytes_used(eb, dev_item));
 }
+static void print_extent_data_ref(struct extent_buffer *eb,
+				  struct btrfs_extent_data_ref *ref)
+{
+	printk(KERN_INFO "\t\textent data backref root %llu "
+	       "objectid %llu offset %llu count %u\n",
+	       (unsigned long long)btrfs_extent_data_ref_root(eb, ref),
+	       (unsigned long long)btrfs_extent_data_ref_objectid(eb, ref),
+	       (unsigned long long)btrfs_extent_data_ref_offset(eb, ref),
+	       btrfs_extent_data_ref_count(eb, ref));
+}
+
+static void print_extent_item(struct extent_buffer *eb, int slot)
+{
+	struct btrfs_extent_item *ei;
+	struct btrfs_extent_inline_ref *iref;
+	struct btrfs_extent_data_ref *dref;
+	struct btrfs_shared_data_ref *sref;
+	struct btrfs_disk_key key;
+	unsigned long end;
+	unsigned long ptr;
+	int type;
+	u32 item_size = btrfs_item_size_nr(eb, slot);
+	u64 flags;
+	u64 offset;
+
+	if (item_size < sizeof(*ei)) {
+#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
+		struct btrfs_extent_item_v0 *ei0;
+		BUG_ON(item_size != sizeof(*ei0));
+		ei0 = btrfs_item_ptr(eb, slot, struct btrfs_extent_item_v0);
+		printk(KERN_INFO "\t\textent refs %u\n",
+		       btrfs_extent_refs_v0(eb, ei0));
+		return;
+#else
+		BUG();
+#endif
+	}
+
+	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
+	flags = btrfs_extent_flags(eb, ei);
+
+	printk(KERN_INFO "\t\textent refs %llu gen %llu flags %llu\n",
+	       (unsigned long long)btrfs_extent_refs(eb, ei),
+	       (unsigned long long)btrfs_extent_generation(eb, ei),
+	       (unsigned long long)flags);
+
+	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
+		struct btrfs_tree_block_info *info;
+		info = (struct btrfs_tree_block_info *)(ei + 1);
+		btrfs_tree_block_key(eb, info, &key);
+		printk(KERN_INFO "\t\ttree block key (%llu %x %llu) "
+		       "level %d\n",
+		       (unsigned long long)btrfs_disk_key_objectid(&key),
+		       key.type,
+		       (unsigned long long)btrfs_disk_key_offset(&key),
+		       btrfs_tree_block_level(eb, info));
+		iref = (struct btrfs_extent_inline_ref *)(info + 1);
+	} else {
+		iref = (struct btrfs_extent_inline_ref *)(ei + 1);
+	}
+
+	ptr = (unsigned long)iref;
+	end = (unsigned long)ei + item_size;
+	while (ptr < end) {
+		iref = (struct btrfs_extent_inline_ref *)ptr;
+		type = btrfs_extent_inline_ref_type(eb, iref);
+		offset = btrfs_extent_inline_ref_offset(eb, iref);
+		switch (type) {
+		case BTRFS_TREE_BLOCK_REF_KEY:
+			printk(KERN_INFO "\t\ttree block backref "
+				"root %llu\n", (unsigned long long)offset);
+			break;
+		case BTRFS_SHARED_BLOCK_REF_KEY:
+			printk(KERN_INFO "\t\tshared block backref "
+				"parent %llu\n", (unsigned long long)offset);
+			break;
+		case BTRFS_EXTENT_DATA_REF_KEY:
+			dref = (struct btrfs_extent_data_ref *)(&iref->offset);
+			print_extent_data_ref(eb, dref);
+			break;
+		case BTRFS_SHARED_DATA_REF_KEY:
+			sref = (struct btrfs_shared_data_ref *)(iref + 1);
+			printk(KERN_INFO "\t\tshared data backref "
+			       "parent %llu count %u\n",
+			       (unsigned long long)offset,
+			       btrfs_shared_data_ref_count(eb, sref));
+			break;
+		default:
+			BUG();
+		}
+		ptr += btrfs_extent_inline_ref_size(type);
+	}
+	WARN_ON(ptr > end);
+}
+
+#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
+static void print_extent_ref_v0(struct extent_buffer *eb, int slot)
+{
+	struct btrfs_extent_ref_v0 *ref0;
+
+	ref0 = btrfs_item_ptr(eb, slot, struct btrfs_extent_ref_v0);
+	printk("\t\textent back ref root %llu gen %llu "
+		"owner %llu num_refs %lu\n",
+		(unsigned long long)btrfs_ref_root_v0(eb, ref0),
+		(unsigned long long)btrfs_ref_generation_v0(eb, ref0),
+		(unsigned long long)btrfs_ref_objectid_v0(eb, ref0),
+		(unsigned long)btrfs_ref_count_v0(eb, ref0));
+}
+#endif
+
 void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 {
 	int i;
+	u32 type;
 	u32 nr = btrfs_header_nritems(l);
 	struct btrfs_item *item;
-	struct btrfs_extent_item *ei;
 	struct btrfs_root_item *ri;
 	struct btrfs_dir_item *di;
 	struct btrfs_inode_item *ii;
 	struct btrfs_block_group_item *bi;
 	struct btrfs_file_extent_item *fi;
+	struct btrfs_extent_data_ref *dref;
+	struct btrfs_shared_data_ref *sref;
+	struct btrfs_dev_extent *dev_extent;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct btrfs_extent_ref *ref;
-	struct btrfs_dev_extent *dev_extent;
-	u32 type;
 
 	printk(KERN_INFO "leaf %llu total ptrs %d free space %d\n",
 		(unsigned long long)btrfs_header_bytenr(l), nr,
@@ -100,20 +210,25 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 				btrfs_disk_root_refs(l, ri));
 			break;
 		case BTRFS_EXTENT_ITEM_KEY:
-			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
-			printk(KERN_INFO "\t\textent data refs %u\n",
-				btrfs_extent_refs(l, ei));
+			print_extent_item(l, i);
 			break;
-		case BTRFS_EXTENT_REF_KEY:
-			ref = btrfs_item_ptr(l, i, struct btrfs_extent_ref);
-			printk(KERN_INFO "\t\textent back ref root %llu "
-			       "gen %llu owner %llu num_refs %lu\n",
-			       (unsigned long long)btrfs_ref_root(l, ref),
-			       (unsigned long long)btrfs_ref_generation(l, ref),
-			       (unsigned long long)btrfs_ref_objectid(l, ref),
-			       (unsigned long)btrfs_ref_num_refs(l, ref));
+		case BTRFS_TREE_BLOCK_REF_KEY:
+			printk(KERN_INFO "\t\ttree block backref\n");
 			break;
-
+		case BTRFS_SHARED_BLOCK_REF_KEY:
+			printk(KERN_INFO "\t\tshared block backref\n");
+			break;
+		case BTRFS_EXTENT_DATA_REF_KEY:
+			dref = btrfs_item_ptr(l, i,
+					      struct btrfs_extent_data_ref);
+			print_extent_data_ref(l, dref);
+			break;
+		case BTRFS_SHARED_DATA_REF_KEY:
+			sref = btrfs_item_ptr(l, i,
+					      struct btrfs_shared_data_ref);
+			printk(KERN_INFO "\t\tshared data backref count %u\n",
+			       btrfs_shared_data_ref_count(l, sref));
+			break;
 		case BTRFS_EXTENT_DATA_KEY:
 			fi = btrfs_item_ptr(l, i,
 					    struct btrfs_file_extent_item);
@@ -139,6 +254,12 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			       (unsigned long long)
 			       btrfs_file_extent_ram_bytes(l, fi));
 			break;
+		case BTRFS_EXTENT_REF_V0_KEY:
+#ifdef BTRFS_COMPAT_EXTENT_TREE_V0
+			print_extent_ref_v0(l, i);
+#else
+			BUG();
+#endif
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
 					    struct btrfs_block_group_item);
