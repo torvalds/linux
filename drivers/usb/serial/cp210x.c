@@ -27,7 +27,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.08"
+#define DRIVER_VERSION "v0.09"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -144,23 +144,40 @@ static struct usb_serial_driver cp2101_device = {
 #define REQTYPE_HOST_TO_DEVICE	0x41
 #define REQTYPE_DEVICE_TO_HOST	0xc1
 
-/* Config SET requests. To GET, add 1 to the request number */
-#define CP2101_UART 		0x00	/* Enable / Disable */
-#define CP2101_BAUDRATE		0x01	/* (BAUD_RATE_GEN_FREQ / baudrate) */
-#define CP2101_BITS		0x03	/* 0x(0)(databits)(parity)(stopbits) */
-#define CP2101_BREAK		0x05	/* On / Off */
-#define CP2101_CONTROL		0x07	/* Flow control line states */
-#define CP2101_MODEMCTL		0x13	/* Modem controls */
-#define CP2101_CONFIG_6		0x19	/* 6 bytes of config data ??? */
+/* Config request codes */
+#define CP210X_IFC_ENABLE	0x00
+#define CP210X_SET_BAUDDIV	0x01
+#define CP210X_GET_BAUDDIV	0x02
+#define CP210X_SET_LINE_CTL	0x03
+#define CP210X_GET_LINE_CTL	0x04
+#define CP210X_SET_BREAK	0x05
+#define CP210X_IMM_CHAR		0x06
+#define CP210X_SET_MHS		0x07
+#define CP210X_GET_MDMSTS	0x08
+#define CP210X_SET_XON		0x09
+#define CP210X_SET_XOFF		0x0A
+#define CP210X_SET_EVENTMASK	0x0B
+#define CP210X_GET_EVENTMASK	0x0C
+#define CP210X_SET_CHAR		0x0D
+#define CP210X_GET_CHARS	0x0E
+#define CP210X_GET_PROPS	0x0F
+#define CP210X_GET_COMM_STATUS	0x10
+#define CP210X_RESET		0x11
+#define CP210X_PURGE		0x12
+#define CP210X_SET_FLOW		0x13
+#define CP210X_GET_FLOW		0x14
+#define CP210X_EMBED_EVENTS	0x15
+#define CP210X_GET_EVENTSTATE	0x16
+#define CP210X_SET_CHARS	0x19
 
-/* CP2101_UART */
+/* CP210X_IFC_ENABLE */
 #define UART_ENABLE		0x0001
 #define UART_DISABLE		0x0000
 
-/* CP2101_BAUDRATE */
+/* CP210X_(SET|GET)_BAUDDIV */
 #define BAUD_RATE_GEN_FREQ	0x384000
 
-/* CP2101_BITS */
+/* CP210X_(SET|GET)_LINE_CTL */
 #define BITS_DATA_MASK		0X0f00
 #define BITS_DATA_5		0X0500
 #define BITS_DATA_6		0X0600
@@ -180,11 +197,11 @@ static struct usb_serial_driver cp2101_device = {
 #define BITS_STOP_1_5		0x0001
 #define BITS_STOP_2		0x0002
 
-/* CP2101_BREAK */
+/* CP210X_SET_BREAK */
 #define BREAK_ON		0x0000
 #define BREAK_OFF		0x0001
 
-/* CP2101_CONTROL */
+/* CP210X_(SET_MHS|GET_MDMSTS) */
 #define CONTROL_DTR		0x0001
 #define CONTROL_RTS		0x0002
 #define CONTROL_CTS		0x0010
@@ -216,9 +233,6 @@ static int cp2101_get_config(struct usb_serial_port *port, u8 request,
 		dev_err(&port->dev, "%s - out of memory.\n", __func__);
 		return -ENOMEM;
 	}
-
-	/* For get requests, the request number must be incremented */
-	request++;
 
 	/* Issue the request, attempting to read 'size' bytes */
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
@@ -357,7 +371,7 @@ static int cp2101_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (cp2101_set_config_single(port, CP2101_UART, UART_ENABLE)) {
+	if (cp2101_set_config_single(port, CP210X_IFC_ENABLE, UART_ENABLE)) {
 		dev_err(&port->dev, "%s - Unable to enable UART\n",
 				__func__);
 		return -EPROTO;
@@ -415,7 +429,7 @@ static void cp2101_close(struct usb_serial_port *port)
 
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected)
-		cp2101_set_config_single(port, CP2101_UART, UART_DISABLE);
+		cp2101_set_config_single(port, CP210X_IFC_ENABLE, UART_DISABLE);
 	mutex_unlock(&port->serial->disc_mutex);
 }
 
@@ -456,7 +470,7 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	cp2101_get_config(port, CP2101_BAUDRATE, &baud, 2);
+	cp2101_get_config(port, CP210X_GET_BAUDDIV, &baud, 2);
 	/* Convert to baudrate */
 	if (baud)
 		baud = cp2101_quantise_baudrate((BAUD_RATE_GEN_FREQ + baud/2)/ baud);
@@ -466,7 +480,7 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 
 	cflag = *cflagp;
 
-	cp2101_get_config(port, CP2101_BITS, &bits, 2);
+	cp2101_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
 	cflag &= ~CSIZE;
 	switch (bits & BITS_DATA_MASK) {
 	case BITS_DATA_5:
@@ -491,14 +505,14 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 		cflag |= CS8;
 		bits &= ~BITS_DATA_MASK;
 		bits |= BITS_DATA_8;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	default:
 		dbg("%s - Unknown number of data bits, using 8", __func__);
 		cflag |= CS8;
 		bits &= ~BITS_DATA_MASK;
 		bits |= BITS_DATA_8;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	}
 
@@ -521,20 +535,20 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 				__func__);
 		cflag &= ~PARENB;
 		bits &= ~BITS_PARITY_MASK;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	case BITS_PARITY_SPACE:
 		dbg("%s - parity = SPACE (not supported, disabling parity)",
 				__func__);
 		cflag &= ~PARENB;
 		bits &= ~BITS_PARITY_MASK;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	default:
 		dbg("%s - Unknown parity mode, disabling parity", __func__);
 		cflag &= ~PARENB;
 		bits &= ~BITS_PARITY_MASK;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	}
 
@@ -547,7 +561,7 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 		dbg("%s - stop bits = 1.5 (not supported, using 1 stop bit)",
 								__func__);
 		bits &= ~BITS_STOP_MASK;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	case BITS_STOP_2:
 		dbg("%s - stop bits = 2", __func__);
@@ -557,11 +571,11 @@ static void cp2101_get_termios_port(struct usb_serial_port *port,
 		dbg("%s - Unknown number of stop bits, using 1 stop bit",
 								__func__);
 		bits &= ~BITS_STOP_MASK;
-		cp2101_set_config(port, CP2101_BITS, &bits, 2);
+		cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2);
 		break;
 	}
 
-	cp2101_get_config(port, CP2101_MODEMCTL, modem_ctl, 16);
+	cp2101_get_config(port, CP210X_GET_FLOW, modem_ctl, 16);
 	if (modem_ctl[0] & 0x0008) {
 		dbg("%s - flow control = CRTSCTS", __func__);
 		cflag |= CRTSCTS;
@@ -594,7 +608,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
 		dbg("%s - Setting baud rate to %d baud", __func__,
 				baud);
-		if (cp2101_set_config_single(port, CP2101_BAUDRATE,
+		if (cp2101_set_config_single(port, CP210X_SET_BAUDDIV,
 					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
 			dbg("Baud rate requested not supported by device\n");
 			baud = tty_termios_baud_rate(old_termios);
@@ -605,7 +619,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
-		cp2101_get_config(port, CP2101_BITS, &bits, 2);
+		cp2101_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
 		bits &= ~BITS_DATA_MASK;
 		switch (cflag & CSIZE) {
 		case CS5:
@@ -635,13 +649,13 @@ static void cp2101_set_termios(struct tty_struct *tty,
 				bits |= BITS_DATA_8;
 				break;
 		}
-		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
+		if (cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dbg("Number of data bits requested "
 					"not supported by device\n");
 	}
 
 	if ((cflag & (PARENB|PARODD)) != (old_cflag & (PARENB|PARODD))) {
-		cp2101_get_config(port, CP2101_BITS, &bits, 2);
+		cp2101_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
 		bits &= ~BITS_PARITY_MASK;
 		if (cflag & PARENB) {
 			if (cflag & PARODD) {
@@ -652,13 +666,13 @@ static void cp2101_set_termios(struct tty_struct *tty,
 				dbg("%s - parity = EVEN", __func__);
 			}
 		}
-		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
+		if (cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dbg("Parity mode not supported "
 					"by device\n");
 	}
 
 	if ((cflag & CSTOPB) != (old_cflag & CSTOPB)) {
-		cp2101_get_config(port, CP2101_BITS, &bits, 2);
+		cp2101_get_config(port, CP210X_GET_LINE_CTL, &bits, 2);
 		bits &= ~BITS_STOP_MASK;
 		if (cflag & CSTOPB) {
 			bits |= BITS_STOP_2;
@@ -667,13 +681,13 @@ static void cp2101_set_termios(struct tty_struct *tty,
 			bits |= BITS_STOP_1;
 			dbg("%s - stop bits = 1", __func__);
 		}
-		if (cp2101_set_config(port, CP2101_BITS, &bits, 2))
+		if (cp2101_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dbg("Number of stop bits requested "
 					"not supported by device\n");
 	}
 
 	if ((cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
-		cp2101_get_config(port, CP2101_MODEMCTL, modem_ctl, 16);
+		cp2101_get_config(port, CP210X_GET_FLOW, modem_ctl, 16);
 		dbg("%s - read modem controls = 0x%.4x 0x%.4x 0x%.4x 0x%.4x",
 				__func__, modem_ctl[0], modem_ctl[1],
 				modem_ctl[2], modem_ctl[3]);
@@ -693,7 +707,7 @@ static void cp2101_set_termios(struct tty_struct *tty,
 		dbg("%s - write modem controls = 0x%.4x 0x%.4x 0x%.4x 0x%.4x",
 				__func__, modem_ctl[0], modem_ctl[1],
 				modem_ctl[2], modem_ctl[3]);
-		cp2101_set_config(port, CP2101_MODEMCTL, modem_ctl, 16);
+		cp2101_set_config(port, CP210X_SET_FLOW, modem_ctl, 16);
 	}
 
 }
@@ -731,7 +745,7 @@ static int cp2101_tiocmset_port(struct usb_serial_port *port, struct file *file,
 
 	dbg("%s - control = 0x%.4x", __func__, control);
 
-	return cp2101_set_config(port, CP2101_CONTROL, &control, 2);
+	return cp2101_set_config(port, CP210X_SET_MHS, &control, 2);
 }
 
 static int cp2101_tiocmget (struct tty_struct *tty, struct file *file)
@@ -742,7 +756,7 @@ static int cp2101_tiocmget (struct tty_struct *tty, struct file *file)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	cp2101_get_config(port, CP2101_CONTROL, &control, 1);
+	cp2101_get_config(port, CP210X_GET_MDMSTS, &control, 1);
 
 	result = ((control & CONTROL_DTR) ? TIOCM_DTR : 0)
 		|((control & CONTROL_RTS) ? TIOCM_RTS : 0)
@@ -768,7 +782,7 @@ static void cp2101_break_ctl (struct tty_struct *tty, int break_state)
 		state = BREAK_ON;
 	dbg("%s - turning break %s", __func__,
 			state == BREAK_OFF ? "off" : "on");
-	cp2101_set_config(port, CP2101_BREAK, &state, 2);
+	cp2101_set_config(port, CP210X_SET_BREAK, &state, 2);
 }
 
 static int cp2101_startup(struct usb_serial *serial)
