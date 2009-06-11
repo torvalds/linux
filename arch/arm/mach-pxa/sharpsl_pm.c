@@ -892,6 +892,8 @@ static void sharpsl_apm_get_power_status(struct apm_power_info *info)
 
 #ifdef CONFIG_PM
 static struct platform_suspend_ops sharpsl_pm_ops = {
+	.prepare	= pxa_pm_prepare,
+	.finish		= pxa_pm_finish,
 	.enter		= corgi_pxa_pm_enter,
 	.valid		= suspend_valid_only_mem,
 };
