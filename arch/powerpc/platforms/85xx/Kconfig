@@ -67,6 +67,16 @@ config KSI8560
         help
           This option enables support for the Emerson KSI8560 board
 
+config XES_MPC85xx
+	bool "X-ES single-board computer"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the various single-board
+	  computers from Extreme Engineering Solutions (X-ES) based on
+	  Freescale MPC85xx processors.
+	  Manufacturer: Extreme Engineering Solutions, Inc.
+	  URL: <http://www.xes-inc.com/>
+
 config STX_GP3
 	bool "Silicon Turnkey Express GP3"
 	help
