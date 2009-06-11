@@ -55,6 +55,7 @@
 #include <linux/security.h>
 #endif /* CONFIG_NFSD_V4 */
 #include <linux/jhash.h>
+#include <linux/ima.h>
 
 #include <asm/uaccess.h>
 
@@ -735,6 +736,8 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			    flags, cred);
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
+	else
+		ima_counts_get(*filp);
 out_nfserr:
 	err = nfserrno(host_err);
 out:
@@ -2024,6 +2027,7 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 					struct dentry *dentry, int acc)
 {
 	struct inode	*inode = dentry->d_inode;
+	struct path	path;
 	int		err;
 
 	if (acc == NFSD_MAY_NOP)
@@ -2096,7 +2100,17 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 	if (err == -EACCES && S_ISREG(inode->i_mode) &&
 	    acc == (NFSD_MAY_READ | NFSD_MAY_OWNER_OVERRIDE))
 		err = inode_permission(inode, MAY_EXEC);
+	if (err)
+		goto nfsd_out;
 
+	/* Do integrity (permission) checking now, but defer incrementing
+	 * IMA counts to the actual file open.
+	 */
+	path.mnt = exp->ex_path.mnt;
+	path.dentry = dentry;
+	err = ima_path_check(&path, acc & (MAY_READ | MAY_WRITE | MAY_EXEC),
+			     IMA_COUNT_LEAVE);
+nfsd_out:
 	return err? nfserrno(err) : 0;
 }
 

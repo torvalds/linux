@@ -853,7 +853,8 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 			err = inode_permission(nd->path.dentry->d_inode,
 					       MAY_EXEC);
 		if (!err)
-			err = ima_path_check(&nd->path, MAY_EXEC);
+			err = ima_path_check(&nd->path, MAY_EXEC,
+				             IMA_COUNT_UPDATE);
  		if (err)
 			break;
 
@@ -1515,7 +1516,8 @@ int may_open(struct path *path, int acc_mode, int flag)
 		return error;
 
 	error = ima_path_check(path,
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC),
+			       IMA_COUNT_UPDATE);
 	if (error)
 		return error;
 	/*

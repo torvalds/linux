@@ -928,6 +928,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Formt: { "sha1" | "md5" }
 			default: "sha1"
 
+	ima_tcb		[IMA]
+			Load a policy which meets the needs of the Trusted
+			Computing Base.  This means IMA will measure all
+			programs exec'd, files mmap'd for exec, and all files
+			opened for read by uid=0.
+
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
 
