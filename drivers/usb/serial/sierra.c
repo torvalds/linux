@@ -37,6 +37,12 @@
 static int debug;
 static int nmea;
 
+/* Used in interface blacklisting */
+struct sierra_iface_info {
+	const u32 infolen;	/* number of interface numbers on blacklist */
+	const u8  *ifaceinfo;	/* pointer to the array holding the numbers */
+};
+
 static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 {
 	int result;
@@ -81,6 +87,23 @@ static int sierra_calc_num_ports(struct usb_serial *serial)
 	}
 
 	return result;
+}
+
+static int is_blacklisted(const u8 ifnum,
+				const struct sierra_iface_info *blacklist)
+{
+	const u8  *info;
+	int i;
+
+	if (blacklist) {
+		info = blacklist->ifaceinfo;
+
+		for (i = 0; i < blacklist->infolen; i++) {
+			if (info[i] == ifnum)
+				return 1;
+		}
+	}
+	return 0;
 }
 
 static int sierra_calc_interface(struct usb_serial *serial)
@@ -151,8 +174,24 @@ static int sierra_probe(struct usb_serial *serial,
 	 */
 	usb_set_serial_data(serial, (void *)num_ports);
 
+	/* ifnum could have changed - by calling usb_set_interface */
+	ifnum = sierra_calc_interface(serial);
+
+	if (is_blacklisted(ifnum,
+				(struct sierra_iface_info *)id->driver_info)) {
+		dev_dbg(&serial->dev->dev,
+			"Ignoring blacklisted interface #%d\n", ifnum);
+		return -ENODEV;
+	}
+
 	return result;
 }
+
+static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11 };
+static const struct sierra_iface_info direct_ip_interface_blacklist = {
+	.infolen = ARRAY_SIZE(direct_ip_non_serial_ifaces),
+	.ifaceinfo = direct_ip_non_serial_ifaces,
+};
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
@@ -186,9 +225,11 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
 	{ USB_DEVICE(0x1199, 0x683A) },	/* Sierra Wireless MC8785 */
 	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
-	{ USB_DEVICE(0x1199, 0x683C) },	/* Sierra Wireless MC8790 */
-	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8790 */
-	{ USB_DEVICE(0x1199, 0x683E) },	/* Sierra Wireless MC8790 */
+	/* Sierra Wireless MC8790, MC8791, MC8792 Composite */
+	{ USB_DEVICE(0x1199, 0x683C) },
+	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8791 Composite */
+	/* Sierra Wireless MC8790, MC8791, MC8792 */
+	{ USB_DEVICE(0x1199, 0x683E) },
 	{ USB_DEVICE(0x1199, 0x6850) },	/* Sierra Wireless AirCard 880 */
 	{ USB_DEVICE(0x1199, 0x6851) },	/* Sierra Wireless AirCard 881 */
 	{ USB_DEVICE(0x1199, 0x6852) },	/* Sierra Wireless AirCard 880 E */
@@ -208,6 +249,10 @@ static struct usb_device_id id_table [] = {
 
 	{ USB_DEVICE(0x1199, 0x0112) }, /* Sierra Wireless AirCard 580 */
 	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
+
+	{ USB_DEVICE(0x1199, 0x68A3), 	/* Sierra Wireless Direct IP modems */
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	},
 
 	{ }
 };
