@@ -92,15 +92,8 @@ int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
  */
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 {
-	if (likely(slab_is_available()))
-		*mask = kmalloc_node(cpumask_size(), flags, node);
-	else {
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-		printk(KERN_ERR
-			"=> alloc_cpumask_var: kmalloc not available!\n");
-#endif
-		*mask = NULL;
-	}
+	*mask = kmalloc_node(cpumask_size(), flags, node);
+
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (!*mask) {
 		printk(KERN_ERR "=> alloc_cpumask_var: failed!\n");

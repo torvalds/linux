@@ -430,23 +430,19 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
  * Returns true if successful (or not required).
  */
 static inline bool alloc_desc_masks(struct irq_desc *desc, int node,
-								bool boot)
+							bool boot)
 {
+	gfp_t gfp = GFP_ATOMIC;
+
+	if (boot)
+		gfp = GFP_NOWAIT;
+
 #ifdef CONFIG_CPUMASK_OFFSTACK
-	if (boot) {
-		alloc_bootmem_cpumask_var(&desc->affinity);
-
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-		alloc_bootmem_cpumask_var(&desc->pending_mask);
-#endif
-		return true;
-	}
-
-	if (!alloc_cpumask_var_node(&desc->affinity, GFP_ATOMIC, node))
+	if (!alloc_cpumask_var_node(&desc->affinity, gfp, node))
 		return false;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (!alloc_cpumask_var_node(&desc->pending_mask, GFP_ATOMIC, node)) {
+	if (!alloc_cpumask_var_node(&desc->pending_mask, gfp, node)) {
 		free_cpumask_var(desc->affinity);
 		return false;
 	}
