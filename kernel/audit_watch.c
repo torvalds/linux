@@ -345,7 +345,7 @@ void audit_inotify_unregister(struct list_head *in_list)
 }
 
 /* Get path information necessary for adding watches. */
-int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw)
+static int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw)
 {
 	struct nameidata *ndparent, *ndwatch;
 	int err;
@@ -380,7 +380,7 @@ int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw)
 }
 
 /* Release resources used for watch path information. */
-void audit_put_nd(struct nameidata *ndp, struct nameidata *ndw)
+static void audit_put_nd(struct nameidata *ndp, struct nameidata *ndw)
 {
 	if (ndp) {
 		path_put(&ndp->path);
@@ -426,13 +426,23 @@ static void audit_add_to_parent(struct audit_krule *krule,
 
 /* Find a matching watch entry, or add this one.
  * Caller must hold audit_filter_mutex. */
-int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
-		    struct nameidata *ndw)
+int audit_add_watch(struct audit_krule *krule)
 {
 	struct audit_watch *watch = krule->watch;
 	struct inotify_watch *i_watch;
 	struct audit_parent *parent;
+	struct nameidata *ndp = NULL, *ndw = NULL;
 	int ret = 0;
+
+	mutex_unlock(&audit_filter_mutex);
+
+	/* Avoid calling path_lookup under audit_filter_mutex. */
+	ret = audit_get_nd(watch->path, &ndp, &ndw);
+	if (ret) {
+		/* caller expects mutex locked */
+		mutex_lock(&audit_filter_mutex);
+		goto error;
+	}
 
 	/* update watch filter fields */
 	if (ndw) {
@@ -445,15 +455,14 @@ int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
 	 * inotify watch is found, inotify_find_watch() grabs a reference before
 	 * returning.
 	 */
-	mutex_unlock(&audit_filter_mutex);
-
 	if (inotify_find_watch(audit_ih, ndp->path.dentry->d_inode,
 			       &i_watch) < 0) {
 		parent = audit_init_parent(ndp);
 		if (IS_ERR(parent)) {
 			/* caller expects mutex locked */
 			mutex_lock(&audit_filter_mutex);
-			return PTR_ERR(parent);
+			ret = PTR_ERR(parent);
+			goto error;
 		}
 	} else
 		parent = container_of(i_watch, struct audit_parent, wdata);
@@ -468,7 +477,11 @@ int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
 
 	/* match get in audit_init_parent or inotify_find_watch */
 	put_inotify_watch(&parent->wdata);
+
+error:
+	audit_put_nd(ndp, ndw);		/* NULL args OK */
 	return ret;
+
 }
 
 void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list)

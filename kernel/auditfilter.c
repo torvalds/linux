@@ -864,7 +864,6 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	struct audit_entry *e;
 	struct audit_watch *watch = entry->rule.watch;
 	struct audit_tree *tree = entry->rule.tree;
-	struct nameidata *ndp = NULL, *ndw = NULL;
 	struct list_head *list;
 	int h, err;
 #ifdef CONFIG_AUDITSYSCALL
@@ -878,8 +877,8 @@ static inline int audit_add_rule(struct audit_entry *entry)
 
 	mutex_lock(&audit_filter_mutex);
 	e = audit_find_rule(entry, &list);
-	mutex_unlock(&audit_filter_mutex);
 	if (e) {
+		mutex_unlock(&audit_filter_mutex);
 		err = -EEXIST;
 		/* normally audit_add_tree_rule() will free it on failure */
 		if (tree)
@@ -887,17 +886,9 @@ static inline int audit_add_rule(struct audit_entry *entry)
 		goto error;
 	}
 
-	/* Avoid calling path_lookup under audit_filter_mutex. */
-	if (watch) {
-		err = audit_get_nd(audit_watch_path(watch), &ndp, &ndw);
-		if (err)
-			goto error;
-	}
-
-	mutex_lock(&audit_filter_mutex);
 	if (watch) {
 		/* audit_filter_mutex is dropped and re-taken during this call */
-		err = audit_add_watch(&entry->rule, ndp, ndw);
+		err = audit_add_watch(&entry->rule);
 		if (err) {
 			mutex_unlock(&audit_filter_mutex);
 			goto error;
@@ -942,11 +933,9 @@ static inline int audit_add_rule(struct audit_entry *entry)
 #endif
 	mutex_unlock(&audit_filter_mutex);
 
-	audit_put_nd(ndp, ndw);		/* NULL args OK */
  	return 0;
 
 error:
-	audit_put_nd(ndp, ndw);		/* NULL args OK */
 	if (watch)
 		audit_put_watch(watch); /* tmp watch, matches initial get */
 	return err;

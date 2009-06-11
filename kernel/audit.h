@@ -109,10 +109,7 @@ extern dev_t audit_watch_dev(struct audit_watch *watch);
 extern void audit_put_watch(struct audit_watch *watch);
 extern void audit_get_watch(struct audit_watch *watch);
 extern int audit_to_watch(struct audit_krule *krule, char *path, int len, u32 op);
-extern int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw);
-extern void audit_put_nd(struct nameidata *ndp, struct nameidata *ndw);
-extern int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
-			   struct nameidata *ndw);
+extern int audit_add_watch(struct audit_krule *krule);
 extern void audit_remove_watch(struct audit_watch *watch);
 extern void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list);
 extern void audit_inotify_unregister(struct list_head *in_list);
