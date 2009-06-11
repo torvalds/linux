@@ -157,6 +157,14 @@ config PPPOLAC
 	  and a PPP channel, but only permits one session per socket. Thus it is
 	  fairly simple and suited for clients.
 
+config PPPOPNS
+	tristate "PPP on PPTP Network Server"
+	depends on PPP && INET
+	help
+	  PPTP (RFC 2637) is a tunneling protocol widely used in virtual private
+	  networks. This driver handles PPTP data packets between a RAW socket
+	  and a PPP channel. It is fairly simple and easy to use.
+
 config PPP_ASYNC
 	tristate "PPP support for async serial ports"
 	depends on PPP
