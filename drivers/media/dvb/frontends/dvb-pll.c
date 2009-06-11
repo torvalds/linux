@@ -424,6 +424,19 @@ static struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
 	 { 0x1ffff * 125 + 125/2, 125, 0x84 | 0x60, }, */
 };
 
+/* Samsung TBMU24112 DVB-S NIM with SL1935 zero-IF tuner */
+static struct dvb_pll_desc dvb_pll_samsung_tbmu24112 = {
+	.name = "Samsung TBMU24112",
+	.min	=  950000,
+	.max	= 2150000, /* guesses */
+	.iffreq = 0,
+	.count = 2,
+	.entries = {
+		{ 1500000, 125, 0x84, 0x18 },
+		{ 9999999, 125, 0x84, 0x08 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -444,6 +457,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_SAMSUNG_DTOS403IH102A]  = &dvb_pll_samsung_dtos403ih102a,
 	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
 	[DVB_PLL_SAMSUNG_TBDU18132]	 = &dvb_pll_samsung_tbdu18132,
+	[DVB_PLL_SAMSUNG_TBMU24112]      = &dvb_pll_samsung_tbmu24112,
 };
 
 /* ----------------------------------------------------------- */
