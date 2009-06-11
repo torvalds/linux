@@ -66,7 +66,7 @@ static int flexcop_sleep(struct dvb_frontend* fe)
 #endif
 
 /* SkyStar2 DVB-S rev 2.3 */
-#if FE_SUPPORTED(MT312)
+#if FE_SUPPORTED(MT312) && FE_SUPPORTED(PLL)
 static int flexcop_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
 /* u16 wz_half_period_for_45_mhz[] = { 0x01ff, 0x0154, 0x00ff, 0x00cc }; */
@@ -155,55 +155,34 @@ static struct mt312_config skystar23_samsung_tbdu18132_config = {
 	.demod_address = 0x0e,
 };
 
-static int skystar23_samsung_tbdu18132_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	u32 div;
-	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf,
-	.len = sizeof(buf) };
-	struct flexcop_device *fc = fe->dvb->priv;
-	div = (params->frequency + (125/2)) / 125;
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = (div >> 0) & 0xff;
-	buf[2] = 0x84 | ((div >> 10) & 0x60);
-	buf[3] = 0x80;
-
-	if (params->frequency < 1550000)
-		buf[3] |= 0x02;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
-		return -EIO;
-	return 0;
-}
-
 static int skystar2_rev23_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
+	struct dvb_frontend_ops *ops;
+
 	fc->fe = dvb_attach(mt312_attach, &skystar23_samsung_tbdu18132_config, i2c);
-	if (fc->fe != NULL) {
-		struct dvb_frontend_ops *ops = &fc->fe->ops;
-		ops->tuner_ops.set_params   =
-			skystar23_samsung_tbdu18132_tuner_set_params;
-		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
-		ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
-		ops->set_tone               = flexcop_set_tone;
-		ops->set_voltage            = flexcop_set_voltage;
-		fc->fe_sleep                = ops->sleep;
-		ops->sleep                  = flexcop_sleep;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61, i2c,
+			DVB_PLL_SAMSUNG_TBDU18132))
+		return 0;
+
+	ops = &fc->fe->ops;
+	ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
+	ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
+	ops->set_tone               = flexcop_set_tone;
+	ops->set_voltage            = flexcop_set_voltage;
+	fc->fe_sleep                = ops->sleep;
+	ops->sleep                  = flexcop_sleep;
+	return 1;
 }
 #else
 #define skystar2_rev23_attach NULL
 #endif
 
 /* SkyStar2 DVB-S rev 2.6 */
-#if FE_SUPPORTED(STV0299)
+#if FE_SUPPORTED(STV0299) && FE_SUPPORTED(PLL)
 static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend *fe,
 	u32 srate, u32 ratio)
 {
@@ -229,31 +208,6 @@ static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend *fe,
 	stv0299_writereg(fe, 0x1f, (ratio >> 16) & 0xff);
 	stv0299_writereg(fe, 0x20, (ratio >>  8) & 0xff);
 	stv0299_writereg(fe, 0x21,  ratio        & 0xf0);
-	return 0;
-}
-
-static int samsung_tbmu24112_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
-{
-	u8 buf[4];
-	u32 div;
-	struct i2c_msg msg = {
-	.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
-	struct flexcop_device *fc = fe->dvb->priv;
-	div = params->frequency / 125;
-
-	buf[0] = (div >> 8) & 0x7f;
-	buf[1] = div & 0xff;
-	buf[2] = 0x84; /* 0xC4 */
-	buf[3] = 0x08;
-
-	if (params->frequency < 1500000)
-		buf[3] |= 0x10;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&fc->fc_i2c_adap[0].i2c_adap, &msg, 1) != 1)
-		return -EIO;
 	return 0;
 }
 
@@ -318,15 +272,18 @@ static int skystar2_rev26_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, i2c);
-	if (fc->fe != NULL) {
-		struct dvb_frontend_ops *ops  = &fc->fe->ops;
-		ops->tuner_ops.set_params = samsung_tbmu24112_tuner_set_params;
-		ops->set_voltage = flexcop_set_voltage;
-		fc->fe_sleep = ops->sleep;
-		ops->sleep = flexcop_sleep;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61, i2c,
+			DVB_PLL_SAMSUNG_TBMU24112))
+		return 0;
+
+	fc->fe->ops.set_voltage = flexcop_set_voltage;
+	fc->fe_sleep = fc->fe->ops.sleep;
+	fc->fe->ops.sleep = flexcop_sleep;
+	return 1;
+
 }
 #else
 #define skystar2_rev26_attach NULL
