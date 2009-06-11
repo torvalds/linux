@@ -1157,10 +1157,15 @@ static int serial_imx_probe(struct platform_device *pdev)
 			goto clkput;
 	}
 
-	uart_add_one_port(&imx_reg, &sport->port);
+	ret = uart_add_one_port(&imx_reg, &sport->port);
+	if (ret)
+		goto deinit;
 	platform_set_drvdata(pdev, &sport->port);
 
 	return 0;
+deinit:
+	if (pdata->exit)
+		pdata->exit(pdev);
 clkput:
 	clk_put(sport->clk);
 	clk_disable(sport->clk);
