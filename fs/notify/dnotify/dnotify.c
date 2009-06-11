@@ -153,9 +153,8 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	if (!entry)
 		return false;
 
-	spin_lock(&entry->lock);
 	send = (mask & entry->mask);
-	spin_unlock(&entry->lock);
+
 	fsnotify_put_mark(entry); /* matches fsnotify_find_mark_entry */
 
 	return send;
