@@ -548,9 +548,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_WATCH:
-			if (name && rule->watch->ino != (unsigned long)-1)
-				result = (name->dev == rule->watch->dev &&
-					  name->ino == rule->watch->ino);
+			if (name && audit_watch_inode(rule->watch) != (unsigned long)-1)
+				result = (name->dev == audit_watch_dev(rule->watch) &&
+					  name->ino == audit_watch_inode(rule->watch));
 			break;
 		case AUDIT_DIR:
 			if (ctx)

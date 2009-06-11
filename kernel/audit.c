@@ -115,9 +115,6 @@ static atomic_t    audit_lost = ATOMIC_INIT(0);
 /* The netlink socket. */
 static struct sock *audit_sock;
 
-/* Inotify handle. */
-struct inotify_handle *audit_ih;
-
 /* Hash for inode-based rules */
 struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
 
@@ -971,13 +968,6 @@ static void audit_receive(struct sk_buff  *skb)
 	mutex_unlock(&audit_cmd_mutex);
 }
 
-#ifdef CONFIG_AUDITSYSCALL
-static const struct inotify_operations audit_inotify_ops = {
-	.handle_event	= audit_handle_ievent,
-	.destroy_watch	= audit_free_parent,
-};
-#endif
-
 /* Initialize audit support at boot time. */
 static int __init audit_init(void)
 {
@@ -1002,12 +992,6 @@ static int __init audit_init(void)
 	audit_ever_enabled |= !!audit_default;
 
 	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
-
-#ifdef CONFIG_AUDITSYSCALL
-	audit_ih = inotify_init(&audit_inotify_ops);
-	if (IS_ERR(audit_ih))
-		audit_panic("cannot initialize inotify handle");
-#endif
 
 	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
 		INIT_LIST_HEAD(&audit_inode_hash[i]);

@@ -53,18 +53,7 @@ enum audit_state {
 };
 
 /* Rule lists */
-struct audit_parent;
-
-struct audit_watch {
-	atomic_t		count;	/* reference count */
-	char			*path;	/* insertion path */
-	dev_t			dev;	/* associated superblock device */
-	unsigned long		ino;	/* associated inode number */
-	struct audit_parent	*parent; /* associated parent */
-	struct list_head	wlist;	/* entry in parent->watches list */
-	struct list_head	rules;	/* associated rules */
-};
-
+struct audit_watch;
 struct audit_tree;
 struct audit_chunk;
 
@@ -108,18 +97,30 @@ struct audit_netlink_list {
 
 int audit_send_list(void *);
 
-struct inotify_watch;
-/* Inotify handle */
-extern struct inotify_handle *audit_ih;
-
-extern void audit_free_parent(struct inotify_watch *);
-extern void audit_handle_ievent(struct inotify_watch *, u32, u32, u32,
-				const char *, struct inode *);
 extern int selinux_audit_rule_update(void);
 
 extern struct mutex audit_filter_mutex;
 extern void audit_free_rule_rcu(struct rcu_head *);
 extern struct list_head audit_filter_list[];
+
+/* audit watch functions */
+extern unsigned long audit_watch_inode(struct audit_watch *watch);
+extern dev_t audit_watch_dev(struct audit_watch *watch);
+extern void audit_put_watch(struct audit_watch *watch);
+extern void audit_get_watch(struct audit_watch *watch);
+extern int audit_to_watch(struct audit_krule *krule, char *path, int len, u32 op);
+extern int audit_get_nd(char *path, struct nameidata **ndp, struct nameidata **ndw);
+extern void audit_put_nd(struct nameidata *ndp, struct nameidata *ndw);
+extern int audit_add_watch(struct audit_krule *krule, struct nameidata *ndp,
+			   struct nameidata *ndw);
+extern void audit_remove_watch(struct audit_watch *watch);
+extern void audit_remove_watch_rule(struct audit_krule *krule, struct list_head *list);
+extern void audit_inotify_unregister(struct list_head *in_list);
+extern char *audit_watch_path(struct audit_watch *watch);
+extern struct list_head *audit_watch_rules(struct audit_watch *watch);
+
+extern struct audit_entry *audit_dupe_rule(struct audit_krule *old,
+					   struct audit_watch *watch);
 
 #ifdef CONFIG_AUDIT_TREE
 extern struct audit_chunk *audit_tree_lookup(const struct inode *);
