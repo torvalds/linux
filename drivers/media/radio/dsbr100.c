@@ -126,8 +126,6 @@ devices, that would be 76 and 91.  */
 static int usb_dsbr100_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
 static void usb_dsbr100_disconnect(struct usb_interface *intf);
-static int usb_dsbr100_open(struct file *file);
-static int usb_dsbr100_close(struct file *file);
 static int usb_dsbr100_suspend(struct usb_interface *intf,
 						pm_message_t message);
 static int usb_dsbr100_resume(struct usb_interface *intf);
@@ -542,50 +540,6 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return 0;
 }
 
-static int usb_dsbr100_open(struct file *file)
-{
-	struct dsbr100_device *radio = video_drvdata(file);
-	int retval;
-
-	lock_kernel();
-	radio->muted = 1;
-
-	retval = dsbr100_start(radio);
-	if (retval < 0) {
-		dev_warn(&radio->usbdev->dev,
-			 "Radio did not start up properly\n");
-		unlock_kernel();
-		return -EIO;
-	}
-
-	retval = dsbr100_setfreq(radio, radio->curfreq);
-	if (retval < 0)
-		dev_warn(&radio->usbdev->dev,
-			"set frequency failed\n");
-
-	unlock_kernel();
-	return 0;
-}
-
-static int usb_dsbr100_close(struct file *file)
-{
-	struct dsbr100_device *radio = video_drvdata(file);
-	int retval;
-
-	if (!radio)
-		return -ENODEV;
-
-	if (!radio->removed) {
-		retval = dsbr100_stop(radio);
-		if (retval < 0) {
-			dev_warn(&radio->usbdev->dev,
-				"dsbr100_stop failed\n");
-		}
-
-	}
-	return 0;
-}
-
 /* Suspend device - stop device. */
 static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
 {
@@ -629,8 +583,6 @@ static void usb_dsbr100_video_device_release(struct video_device *videodev)
 /* File system interface */
 static const struct v4l2_file_operations usb_dsbr100_fops = {
 	.owner		= THIS_MODULE,
-	.open		= usb_dsbr100_open,
-	.release	= usb_dsbr100_close,
 	.ioctl		= video_ioctl2,
 };
 
