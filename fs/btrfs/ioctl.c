@@ -112,7 +112,12 @@ void btrfs_update_iflags(struct inode *inode)
  */
 void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
 {
-	unsigned int flags = BTRFS_I(dir)->flags;
+	unsigned int flags;
+
+	if (!dir)
+		return;
+
+	flags = BTRFS_I(dir)->flags;
 
 	if (S_ISREG(inode->i_mode))
 		flags &= ~BTRFS_INODE_DIRSYNC;
