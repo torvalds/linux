@@ -72,12 +72,14 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
-#include <trace/sched.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
 
 #include "sched_cpupri.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/sched.h>
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
@@ -117,12 +119,6 @@
  * single value that denotes runtime == period, ie unlimited time.
  */
 #define RUNTIME_INF	((u64)~0ULL)
-
-DEFINE_TRACE(sched_wait_task);
-DEFINE_TRACE(sched_wakeup);
-DEFINE_TRACE(sched_wakeup_new);
-DEFINE_TRACE(sched_switch);
-DEFINE_TRACE(sched_migrate_task);
 
 #ifdef CONFIG_SMP
 
@@ -1964,7 +1960,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 
 	clock_offset = old_rq->clock - new_rq->clock;
 
-	trace_sched_migrate_task(p, task_cpu(p), new_cpu);
+	trace_sched_migrate_task(p, new_cpu);
 
 #ifdef CONFIG_SCHEDSTATS
 	if (p->se.wait_start)
@@ -2018,6 +2014,49 @@ migrate_task(struct task_struct *p, int dest_cpu, struct migration_req *req)
 	list_add(&req->list, &rq->migration_queue);
 
 	return 1;
+}
+
+/*
+ * wait_task_context_switch -	wait for a thread to complete at least one
+ *				context switch.
+ *
+ * @p must not be current.
+ */
+void wait_task_context_switch(struct task_struct *p)
+{
+	unsigned long nvcsw, nivcsw, flags;
+	int running;
+	struct rq *rq;
+
+	nvcsw	= p->nvcsw;
+	nivcsw	= p->nivcsw;
+	for (;;) {
+		/*
+		 * The runqueue is assigned before the actual context
+		 * switch. We need to take the runqueue lock.
+		 *
+		 * We could check initially without the lock but it is
+		 * very likely that we need to take the lock in every
+		 * iteration.
+		 */
+		rq = task_rq_lock(p, &flags);
+		running = task_running(rq, p);
+		task_rq_unlock(rq, &flags);
+
+		if (likely(!running))
+			break;
+		/*
+		 * The switch count is incremented before the actual
+		 * context switch. We thus wait for two switches to be
+		 * sure at least one completed.
+		 */
+		if ((p->nvcsw - nvcsw) > 1)
+			break;
+		if ((p->nivcsw - nivcsw) > 1)
+			break;
+
+		cpu_relax();
+	}
 }
 
 /*

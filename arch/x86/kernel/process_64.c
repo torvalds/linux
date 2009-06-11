@@ -332,7 +332,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 			goto out;
 	}
 
-	ds_copy_thread(p, me);
+	clear_tsk_thread_flag(p, TIF_DS_AREA_MSR);
+	p->thread.ds_ctx = NULL;
 
 	clear_tsk_thread_flag(p, TIF_DEBUGCTLMSR);
 	p->thread.debugctlmsr = 0;

@@ -18,8 +18,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
-#include <trace/irq.h>
 #include <linux/bootmem.h>
+#include <trace/events/irq.h>
 
 #include "internals.h"
 
@@ -354,9 +354,6 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
 	       "but no thread function available.", irq, action->name);
 }
-
-DEFINE_TRACE(irq_handler_entry);
-DEFINE_TRACE(irq_handler_exit);
 
 /**
  * handle_IRQ_event - irq action chain handler

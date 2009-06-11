@@ -24,7 +24,9 @@
 #include <linux/ftrace.h>
 #include <linux/smp.h>
 #include <linux/tick.h>
-#include <trace/irq.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/irq.h>
 
 #include <asm/irq.h>
 /*
@@ -185,9 +187,6 @@ EXPORT_SYMBOL(local_bh_enable_ip);
  * should not be able to lock up the box.
  */
 #define MAX_SOFTIRQ_RESTART 10
-
-DEFINE_TRACE(softirq_entry);
-DEFINE_TRACE(softirq_exit);
 
 asmlinkage void __do_softirq(void)
 {

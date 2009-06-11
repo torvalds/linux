@@ -30,6 +30,7 @@ static struct trace_array *branch_tracer;
 static void
 probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 {
+	struct ftrace_event_call *call = &event_branch;
 	struct trace_array *tr = branch_tracer;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
@@ -73,7 +74,8 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->line = f->line;
 	entry->correct = val == expect;
 
-	ring_buffer_unlock_commit(tr->buffer, event);
+	if (!filter_check_discard(call, entry, tr->buffer, event))
+		ring_buffer_unlock_commit(tr->buffer, event);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);
@@ -271,7 +273,7 @@ static int branch_stat_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void *annotated_branch_stat_start(void)
+static void *annotated_branch_stat_start(struct tracer_stat *trace)
 {
 	return __start_annotated_branch_profile;
 }
@@ -346,7 +348,7 @@ static int all_branch_stat_headers(struct seq_file *m)
 	return 0;
 }
 
-static void *all_branch_stat_start(void)
+static void *all_branch_stat_start(struct tracer_stat *trace)
 {
 	return __start_branch_profile;
 }

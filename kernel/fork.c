@@ -61,7 +61,6 @@
 #include <linux/proc_fs.h>
 #include <linux/blkdev.h>
 #include <linux/fs_struct.h>
-#include <trace/sched.h>
 #include <linux/magic.h>
 
 #include <asm/pgtable.h>
@@ -70,6 +69,8 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+#include <trace/events/sched.h>
 
 /*
  * Protected counters by write_lock_irq(&tasklist_lock)
@@ -82,8 +83,6 @@ int max_threads;		/* tunable limit on nr_threads */
 DEFINE_PER_CPU(unsigned long, process_counts) = 0;
 
 __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
-
-DEFINE_TRACE(sched_process_fork);
 
 int nr_processes(void)
 {
@@ -1089,8 +1088,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
-	if (unlikely(current->ptrace))
-		ptrace_fork(p, clone_flags);
+
+	p->bts = NULL;
 
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	sched_fork(p, clone_flags);

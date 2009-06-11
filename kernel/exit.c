@@ -48,17 +48,13 @@
 #include <linux/tracehook.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include "cred-internals.h"
-
-DEFINE_TRACE(sched_process_free);
-DEFINE_TRACE(sched_process_exit);
-DEFINE_TRACE(sched_process_wait);
 
 static void exit_mm(struct task_struct * tsk);
 

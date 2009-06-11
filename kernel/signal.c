@@ -27,7 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #include <asm/param.h>
 #include <asm/uaccess.h>
@@ -40,8 +40,6 @@
  */
 
 static struct kmem_cache *sigqueue_cachep;
-
-DEFINE_TRACE(sched_signal_send);
 
 static void __user *sig_handler(struct task_struct *t, int sig)
 {

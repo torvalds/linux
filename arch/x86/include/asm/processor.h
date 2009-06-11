@@ -462,14 +462,8 @@ struct thread_struct {
 	unsigned		io_bitmap_max;
 /* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
 	unsigned long	debugctlmsr;
-#ifdef CONFIG_X86_DS
-/* Debug Store context; see include/asm-x86/ds.h; goes into MSR_IA32_DS_AREA */
+	/* Debug Store context; see asm/ds.h */
 	struct ds_context	*ds_ctx;
-#endif /* CONFIG_X86_DS */
-#ifdef CONFIG_X86_PTRACE_BTS
-/* the signal to send on a bts buffer overflow */
-	unsigned int	bts_ovfl_signal;
-#endif /* CONFIG_X86_PTRACE_BTS */
 };
 
 static inline unsigned long native_get_debugreg(int regno)
@@ -797,6 +791,21 @@ static inline unsigned long get_debugctlmsr(void)
     return debugctlmsr;
 }
 
+static inline unsigned long get_debugctlmsr_on_cpu(int cpu)
+{
+	u64 debugctlmsr = 0;
+	u32 val1, val2;
+
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return 0;
+#endif
+	rdmsr_on_cpu(cpu, MSR_IA32_DEBUGCTLMSR, &val1, &val2);
+	debugctlmsr = val1 | ((u64)val2 << 32);
+
+	return debugctlmsr;
+}
+
 static inline void update_debugctlmsr(unsigned long debugctlmsr)
 {
 #ifndef CONFIG_X86_DEBUGCTLMSR
@@ -804,6 +813,18 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 		return;
 #endif
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+}
+
+static inline void update_debugctlmsr_on_cpu(int cpu,
+					     unsigned long debugctlmsr)
+{
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return;
+#endif
+	wrmsr_on_cpu(cpu, MSR_IA32_DEBUGCTLMSR,
+		     (u32)((u64)debugctlmsr),
+		     (u32)((u64)debugctlmsr >> 32));
 }
 
 /*
