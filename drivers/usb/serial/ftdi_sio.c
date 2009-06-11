@@ -1556,11 +1556,6 @@ static int ftdi_open(struct tty_struct *tty,
 	if (tty)
 		ftdi_set_termios(tty, port, tty->termios);
 
-	/* FIXME: Flow control might be enabled, so it should be checked -
-	   we have no control of defaults! */
-	/* Turn on RTS and DTR since we are not flow controlling by default */
-	set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-
 	/* Not throttled */
 	spin_lock_irqsave(&priv->rx_lock, flags);
 	priv->rx_flags &= ~(THROTTLED | ACTUALLY_THROTTLED);
