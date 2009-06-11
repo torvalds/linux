@@ -222,7 +222,6 @@ int tty_port_block_til_ready(struct tty_port *port,
 	   before the next open may complete */
 
 	retval = 0;
-	add_wait_queue(&port->open_wait, &wait);
 
 	/* The port lock protects the port counts */
 	spin_lock_irqsave(&port->lock, flags);
@@ -236,7 +235,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 		if (tty->termios->c_cflag & CBAUD)
 			tty_port_raise_dtr_rts(port);
 
-		set_current_state(TASK_INTERRUPTIBLE);
+		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
 		/* Check for a hangup or uninitialised port. Return accordingly */
 		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
 			if (port->flags & ASYNC_HUP_NOTIFY)
@@ -257,8 +256,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 		}
 		schedule();
 	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&port->open_wait, &wait);
+	finish_wait(&port->open_wait, &wait);
 
 	/* Update counts. A parallel hangup will have set count to zero and
 	   we must not mess that up further */
