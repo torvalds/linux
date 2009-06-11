@@ -828,8 +828,16 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 			__func__);
 	}
 
-	if (termios->c_cflag & CSTOPB)
-		lcr |= STB;
+	/* Anomaly notes:
+	 *  05000231 -  STOP bit is always set to 1 whatever the user is set.
+	 */
+	if (termios->c_cflag & CSTOPB) {
+		if (ANOMALY_05000231)
+			printk(KERN_WARNING "STOP bits other than 1 is not "
+				"supported in case of anomaly 05000231.\n");
+		else
+			lcr |= STB;
+	}
 	if (termios->c_cflag & PARENB)
 		lcr |= PEN;
 	if (!(termios->c_cflag & PARODD))
