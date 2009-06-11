@@ -651,7 +651,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
@@ -1049,7 +1049,10 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
-	memcpy(data, cmd, size);
+	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
+	memcpy(addsta, cmd, size);
+	/* resrved in 5000 */
+	addsta->rate_n_flags = cpu_to_le16(0);
 	return size;
 }
 
@@ -1423,13 +1426,6 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
-struct iwl_station_mgmt_ops iwl5000_station_mgmt = {
-	.add_station = iwl_add_station_flags,
-	.remove_station = iwl_remove_station,
-	.find_station = iwl_find_station,
-	.clear_station_table = iwl_clear_stations_table,
-};
-
 struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
@@ -1549,14 +1545,12 @@ struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
-	.smgmt = &iwl5000_station_mgmt,
 };
 
 static struct iwl_ops iwl5150_ops = {
 	.lib = &iwl5150_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
-	.smgmt = &iwl5000_station_mgmt,
 };
 
 struct iwl_mod_params iwl50_mod_params = {

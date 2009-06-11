@@ -55,6 +55,7 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <asm/system.h>
+#include <linux/list.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -1721,20 +1722,20 @@ static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *addr)
 
 static u32 uc_addr_filter_mask(struct net_device *dev)
 {
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 nibbles;
 
 	if (dev->flags & IFF_PROMISC)
 		return 0;
 
 	nibbles = 1 << (dev->dev_addr[5] & 0x0f);
-	for (uc_ptr = dev->uc_list; uc_ptr != NULL; uc_ptr = uc_ptr->next) {
-		if (memcmp(dev->dev_addr, uc_ptr->da_addr, 5))
+	list_for_each_entry(ha, &dev->uc_list, list) {
+		if (memcmp(dev->dev_addr, ha->addr, 5))
 			return 0;
-		if ((dev->dev_addr[5] ^ uc_ptr->da_addr[5]) & 0xf0)
+		if ((dev->dev_addr[5] ^ ha->addr[5]) & 0xf0)
 			return 0;
 
-		nibbles |= 1 << (uc_ptr->da_addr[5] & 0x0f);
+		nibbles |= 1 << (ha->addr[5] & 0x0f);
 	}
 
 	return nibbles;

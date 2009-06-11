@@ -301,13 +301,17 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 			of_device_is_compatible(np, "ucc_geth_phy")) {
 #ifdef CONFIG_UCC_GETH
 		u32 id;
+		static u32 mii_mng_master;
 
 		tbipa = &regs->utbipar;
 
 		if ((err = get_ucc_id_for_range(addr, addr + size, &id)))
 			goto err_free_irqs;
 
-		ucc_set_qe_mux_mii_mng(id - 1);
+		if (!mii_mng_master) {
+			mii_mng_master = id;
+			ucc_set_qe_mux_mii_mng(id - 1);
+		}
 #else
 		err = -ENODEV;
 		goto err_free_irqs;

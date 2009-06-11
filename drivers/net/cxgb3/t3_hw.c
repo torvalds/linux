@@ -526,6 +526,11 @@ static const struct adapter_info t3_adap_info[] = {
 	 F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
 	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	 &mi1_mdio_ext_ops, "Chelsio T310" },
+	{1, 0, 0,
+	 F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
+	 F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL,
+	 { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	 &mi1_mdio_ext_ops, "Chelsio N320E-G2" },
 };
 
 /*
@@ -552,6 +557,8 @@ static const struct port_type_info port_types[] = {
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
 	{ NULL },
+	{ t3_aq100x_phy_prep },
+	{ t3_ael2020_phy_prep },
 };
 
 #define VPD_ENTRY(name, len) \
@@ -1280,6 +1287,11 @@ void t3_link_fault(struct adapter *adapter, int port_id)
 	link_fault = t3_read_reg(adapter,
 				 A_XGM_INT_STATUS + mac->offset);
 	link_fault &= F_LINKFAULTCHANGE;
+
+	link_ok = lc->link_ok;
+	speed = lc->speed;
+	duplex = lc->duplex;
+	fc = lc->fc;
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 

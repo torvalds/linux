@@ -22,6 +22,7 @@
 #include <linux/log2.h>
 #include <linux/jiffies.h>
 #include <linux/crc32.h>
+#include <linux/list.h>
 
 #include <linux/io.h>
 
@@ -6362,6 +6363,7 @@ static void niu_set_rx_mode(struct net_device *dev)
 	struct niu *np = netdev_priv(dev);
 	int i, alt_cnt, err;
 	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	unsigned long flags;
 	u16 hash[16] = { 0, };
 
@@ -6383,9 +6385,8 @@ static void niu_set_rx_mode(struct net_device *dev)
 	if (alt_cnt) {
 		int index = 0;
 
-		for (addr = dev->uc_list; addr; addr = addr->next) {
-			err = niu_set_alt_mac(np, index,
-					      addr->da_addr);
+		list_for_each_entry(ha, &dev->uc_list, list) {
+			err = niu_set_alt_mac(np, index, ha->addr);
 			if (err)
 				printk(KERN_WARNING PFX "%s: Error %d "
 				       "adding alt mac %d\n",
@@ -6776,8 +6777,6 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (niu_tx_avail(rp) > NIU_TX_WAKEUP_THRESH(rp))
 			netif_tx_wake_queue(txq);
 	}
-
-	dev->trans_start = jiffies;
 
 out:
 	return NETDEV_TX_OK;

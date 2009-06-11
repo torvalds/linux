@@ -83,15 +83,6 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
-struct iwl_station_mgmt_ops {
-	u8 (*add_station)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
-	int (*remove_station)(struct iwl_priv *priv, const u8 *addr,
-			int is_ap);
-	u8 (*find_station)(struct iwl_priv *priv, const u8 *addr);
-	void (*clear_station_table)(struct iwl_priv *priv);
-};
-
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
 	int (*commit_rxon)(struct iwl_priv *priv);
@@ -183,7 +174,6 @@ struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
-	const struct iwl_station_mgmt_ops *smgmt;
 };
 
 struct iwl_mod_params {
@@ -192,7 +182,7 @@ struct iwl_mod_params {
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
 	int num_of_ampdu_queues;/* def: HW dependent */
-	int disable_11n;	/* def: 0 = disable 11n capabilities */
+	int disable_11n;	/* def: 0 = 11n capabilities enabled */
 	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
 	int antenna;  		/* def: 0 = both antennas (use diversity) */
 	int restart_fw;		/* def: 1 = restart firmware */
@@ -358,14 +348,6 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
  ****************************************************/
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
-/*****************************************************
- * RF -Kill - here and not in iwl-rfkill.h to be available when
- * RF-kill subsystem is not compiled.
- ****************************************************/
-void iwl_bg_rf_kill(struct work_struct *work);
-void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv);
-int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
-
 /*******************************************************************************
  * Rate
  ******************************************************************************/
@@ -508,7 +490,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2
 #define STATUS_RF_KILL_HW	3
-#define STATUS_RF_KILL_SW	4
 #define STATUS_INIT		5
 #define STATUS_ALIVE		6
 #define STATUS_READY		7
@@ -543,11 +524,6 @@ static inline int iwl_is_init(struct iwl_priv *priv)
 	return test_bit(STATUS_INIT, &priv->status);
 }
 
-static inline int iwl_is_rfkill_sw(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_RF_KILL_SW, &priv->status);
-}
-
 static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
 {
 	return test_bit(STATUS_RF_KILL_HW, &priv->status);
@@ -555,7 +531,7 @@ static inline int iwl_is_rfkill_hw(struct iwl_priv *priv)
 
 static inline int iwl_is_rfkill(struct iwl_priv *priv)
 {
-	return iwl_is_rfkill_hw(priv) || iwl_is_rfkill_sw(priv);
+	return iwl_is_rfkill_hw(priv);
 }
 
 static inline int iwl_is_ready_rf(struct iwl_priv *priv)

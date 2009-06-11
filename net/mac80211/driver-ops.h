@@ -181,4 +181,11 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 						sta, tid, ssn);
 	return -EOPNOTSUPP;
 }
+
+
+static inline void drv_rfkill_poll(struct ieee80211_local *local)
+{
+	if (local->ops->rfkill_poll)
+		local->ops->rfkill_poll(&local->hw);
+}
 #endif /* __MAC80211_DRIVER_OPS */

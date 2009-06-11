@@ -280,7 +280,9 @@ out_noddp_unmap:
  *
  * This checks ddp status.
  *
- * Returns : 0 for success and skb will not be delivered to ULD
+ * Returns : < 0 indicates an error or not a FCiE ddp, 0 indicates
+ * not passing the skb to ULD, > 0 indicates is the length of data
+ * being ddped.
  */
 int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		   union ixgbe_adv_rx_desc *rx_desc,
@@ -334,6 +336,8 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		/* return 0 to bypass going to ULD for DDPed data */
 		if (fcstat == IXGBE_RXDADV_STAT_FCSTAT_DDP)
 			rc = 0;
+		else
+			rc = ddp->len;
 	}
 
 ddp_out:

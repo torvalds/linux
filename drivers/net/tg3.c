@@ -5021,7 +5021,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 		/* New SKB is guaranteed to be linear. */
 		entry = *start;
 		ret = skb_dma_map(&tp->pdev->dev, new_skb, DMA_TO_DEVICE);
-		new_addr = skb_shinfo(new_skb)->dma_maps[0];
+		new_addr = skb_shinfo(new_skb)->dma_head;
 
 		/* Make sure new skb does not cross any 4G boundaries.
 		 * Drop the packet if it does.
@@ -5155,7 +5155,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	sp = skb_shinfo(skb);
 
-	mapping = sp->dma_maps[0];
+	mapping = sp->dma_head;
 
 	tp->tx_buffers[entry].skb = skb;
 
@@ -5173,7 +5173,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			len = frag->size;
-			mapping = sp->dma_maps[i + 1];
+			mapping = sp->dma_maps[i];
 			tp->tx_buffers[entry].skb = NULL;
 
 			tg3_set_txd(tp, entry, mapping, len,
@@ -5194,9 +5194,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out_unlock:
-    	mmiowb();
-
-	dev->trans_start = jiffies;
+	mmiowb();
 
 	return NETDEV_TX_OK;
 }
@@ -5333,7 +5331,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 
 	sp = skb_shinfo(skb);
 
-	mapping = sp->dma_maps[0];
+	mapping = sp->dma_head;
 
 	tp->tx_buffers[entry].skb = skb;
 
@@ -5358,7 +5356,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			len = frag->size;
-			mapping = sp->dma_maps[i + 1];
+			mapping = sp->dma_maps[i];
 
 			tp->tx_buffers[entry].skb = NULL;
 
@@ -5407,9 +5405,7 @@ static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 	}
 
 out_unlock:
-    	mmiowb();
-
-	dev->trans_start = jiffies;
+	mmiowb();
 
 	return NETDEV_TX_OK;
 }

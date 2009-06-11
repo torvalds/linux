@@ -99,25 +99,21 @@ MODULE_DEVICE_TABLE(pci, ems_pci_tbl);
  */
 static u8 ems_pci_readb(struct ems_pci_card *card, unsigned int port)
 {
-	return readb((void __iomem *)card->base_addr
-			+ (port * EMS_PCI_PORT_BYTES));
+	return readb(card->base_addr + (port * EMS_PCI_PORT_BYTES));
 }
 
-static u8 ems_pci_read_reg(const struct net_device *dev, int port)
+static u8 ems_pci_read_reg(const struct sja1000_priv *priv, int port)
 {
-	return readb((void __iomem *)dev->base_addr
-			+ (port * EMS_PCI_PORT_BYTES));
+	return readb(priv->reg_base + (port * EMS_PCI_PORT_BYTES));
 }
 
-static void ems_pci_write_reg(const struct net_device *dev, int port, u8 val)
+static void ems_pci_write_reg(const struct sja1000_priv *priv, int port, u8 val)
 {
-	writeb(val, (void __iomem *)dev->base_addr
-		+ (port * EMS_PCI_PORT_BYTES));
+	writeb(val, priv->reg_base + (port * EMS_PCI_PORT_BYTES));
 }
 
-static void ems_pci_post_irq(const struct net_device *dev)
+static void ems_pci_post_irq(const struct sja1000_priv *priv)
 {
-	struct sja1000_priv *priv = netdev_priv(dev);
 	struct ems_pci_card *card = (struct ems_pci_card *)priv->priv;
 
 	/* reset int flag of pita */
@@ -129,17 +125,17 @@ static void ems_pci_post_irq(const struct net_device *dev)
  * Check if a CAN controller is present at the specified location
  * by trying to set 'em into the PeliCAN mode
  */
-static inline int ems_pci_check_chan(struct net_device *dev)
+static inline int ems_pci_check_chan(const struct sja1000_priv *priv)
 {
 	unsigned char res;
 
 	/* Make sure SJA1000 is in reset mode */
-	ems_pci_write_reg(dev, REG_MOD, 1);
+	ems_pci_write_reg(priv, REG_MOD, 1);
 
-	ems_pci_write_reg(dev, REG_CDR, CDR_PELICAN);
+	ems_pci_write_reg(priv, REG_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	res = ems_pci_read_reg(dev, REG_CDR);
+	res = ems_pci_read_reg(priv, REG_CDR);
 
 	if (res == CDR_PELICAN)
 		return 1;
@@ -218,14 +214,12 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	card->conf_addr = pci_iomap(pdev, 0, EMS_PCI_MEM_SIZE);
 	if (card->conf_addr == NULL) {
 		err = -ENOMEM;
-
 		goto failure_cleanup;
 	}
 
 	card->base_addr = pci_iomap(pdev, 1, EMS_PCI_MEM_SIZE);
 	if (card->base_addr == NULL) {
 		err = -ENOMEM;
-
 		goto failure_cleanup;
 	}
 
@@ -239,7 +233,6 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 	    ems_pci_readb(card, 3) != 0xCB ||
 	    ems_pci_readb(card, 4) != 0x11) {
 		dev_err(&pdev->dev, "Not EMS Dr. Thomas Wuensche interface\n");
-
 		err = -ENODEV;
 		goto failure_cleanup;
 	}
@@ -260,12 +253,11 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 		priv->irq_flags = IRQF_SHARED;
 
 		dev->irq = pdev->irq;
-		dev->base_addr = (unsigned long)(card->base_addr
-						+ EMS_PCI_CAN_BASE_OFFSET
-						+ (i * EMS_PCI_CAN_CTRL_SIZE));
+		priv->reg_base = card->base_addr + EMS_PCI_CAN_BASE_OFFSET
+					+ (i * EMS_PCI_CAN_CTRL_SIZE);
 
 		/* Check if channel is present */
-		if (ems_pci_check_chan(dev)) {
+		if (ems_pci_check_chan(priv)) {
 			priv->read_reg  = ems_pci_read_reg;
 			priv->write_reg = ems_pci_write_reg;
 			priv->post_irq  = ems_pci_post_irq;
@@ -289,9 +281,8 @@ static int __devinit ems_pci_add_card(struct pci_dev *pdev,
 
 			card->channels++;
 
-			dev_info(&pdev->dev, "Channel #%d at %#lX, irq %d\n",
-						i + 1, dev->base_addr,
-						dev->irq);
+			dev_info(&pdev->dev, "Channel #%d at 0x%p, irq %d\n",
+					i + 1, priv->reg_base, dev->irq);
 		} else {
 			free_sja1000dev(dev);
 		}

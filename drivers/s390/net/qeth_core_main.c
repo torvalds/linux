@@ -2937,8 +2937,8 @@ int qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return cast_type;
 
-	if (skb->dst && skb->dst->neighbour) {
-		cast_type = skb->dst->neighbour->type;
+	if (skb_dst(skb) && skb_dst(skb)->neighbour) {
+		cast_type = skb_dst(skb)->neighbour->type;
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))

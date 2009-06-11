@@ -2549,9 +2549,9 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
 		memset(hdr->hdr.l3.dest_addr, 0, 12);
-		if ((skb->dst) && (skb->dst->neighbour)) {
+		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
-			    *((u32 *) skb->dst->neighbour->primary_key);
+			    *((u32 *) skb_dst(skb)->neighbour->primary_key);
 		} else {
 			/* fill in destination address used in ip header */
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
@@ -2562,9 +2562,9 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags6(cast_type);
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
-		if ((skb->dst) && (skb->dst->neighbour)) {
+		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
 			memcpy(hdr->hdr.l3.dest_addr,
-			       skb->dst->neighbour->primary_key, 16);
+			       skb_dst(skb)->neighbour->primary_key, 16);
 		} else {
 			/* fill in destination address used in ip header */
 			memcpy(hdr->hdr.l3.dest_addr,
@@ -3012,6 +3012,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_HW_VLAN_FILTER;
+	card->dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	return register_netdev(card->dev);

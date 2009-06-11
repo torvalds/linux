@@ -323,6 +323,10 @@ struct i2400m_roq;
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
  *
+ * @src_mac_addr: MAC address used to make ethernet packets be coming
+ *     from. This is generated at i2400m_setup() time and used during
+ *     the life cycle of the instance. See i2400m_fake_eth_header().
+ *
  * @init_mutex: Mutex used for serializing the device bringup
  *     sequence; this way if the device reboots in the middle, we
  *     don't try to do a bringup again while we are tearing down the
@@ -421,6 +425,7 @@ struct i2400m {
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
 	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
+	u8 src_mac_addr[ETH_HLEN];
 
 	struct mutex msg_mutex;		/* serialize command execution */
 	struct completion msg_completion;

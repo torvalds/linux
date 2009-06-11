@@ -10617,7 +10617,6 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mmiowb();
 
 	fp->tx_bd_prod += nbd;
-	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2x_tx_avail(fp) < MAX_SKB_FRAGS + 3)) {
 		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod

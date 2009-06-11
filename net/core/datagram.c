@@ -282,6 +282,7 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
+	struct sk_buff *frag_iter;
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -322,28 +323,24 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+	skb_walk_frags(skb, frag_iter) {
+		int end;
 
-		for (; list; list = list->next) {
-			int end;
+		WARN_ON(start > offset + len);
 
-			WARN_ON(start > offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				if (copy > len)
-					copy = len;
-				if (skb_copy_datagram_iovec(list,
-							    offset - start,
-							    to, copy))
-					goto fault;
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-			}
-			start = end;
+		end = start + frag_iter->len;
+		if ((copy = end - offset) > 0) {
+			if (copy > len)
+				copy = len;
+			if (skb_copy_datagram_iovec(frag_iter,
+						    offset - start,
+						    to, copy))
+				goto fault;
+			if ((len -= copy) == 0)
+				return 0;
+			offset += copy;
 		}
+		start = end;
 	}
 	if (!len)
 		return 0;
@@ -369,6 +366,7 @@ int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
+	struct sk_buff *frag_iter;
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -411,30 +409,26 @@ int skb_copy_datagram_const_iovec(const struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+	skb_walk_frags(skb, frag_iter) {
+		int end;
 
-		for (; list; list = list->next) {
-			int end;
+		WARN_ON(start > offset + len);
 
-			WARN_ON(start > offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				if (copy > len)
-					copy = len;
-				if (skb_copy_datagram_const_iovec(list,
-							    offset - start,
-							    to, to_offset,
-							    copy))
-					goto fault;
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-				to_offset += copy;
-			}
-			start = end;
+		end = start + frag_iter->len;
+		if ((copy = end - offset) > 0) {
+			if (copy > len)
+				copy = len;
+			if (skb_copy_datagram_const_iovec(frag_iter,
+							  offset - start,
+							  to, to_offset,
+							  copy))
+				goto fault;
+			if ((len -= copy) == 0)
+				return 0;
+			offset += copy;
+			to_offset += copy;
 		}
+		start = end;
 	}
 	if (!len)
 		return 0;
@@ -461,12 +455,14 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
+	struct sk_buff *frag_iter;
 
 	/* Copy header. */
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		if (memcpy_fromiovecend(skb->data + offset, from, 0, copy))
+		if (memcpy_fromiovecend(skb->data + offset, from, from_offset,
+					copy))
 			goto fault;
 		if ((len -= copy) == 0)
 			return 0;
@@ -505,31 +501,27 @@ int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+	skb_walk_frags(skb, frag_iter) {
+		int end;
 
-		for (; list; list = list->next) {
-			int end;
+		WARN_ON(start > offset + len);
 
-			WARN_ON(start > offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				if (copy > len)
-					copy = len;
-				if (skb_copy_datagram_from_iovec(list,
-								 offset - start,
-								 from,
-								 from_offset,
-								 copy))
-					goto fault;
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-				from_offset += copy;
-			}
-			start = end;
+		end = start + frag_iter->len;
+		if ((copy = end - offset) > 0) {
+			if (copy > len)
+				copy = len;
+			if (skb_copy_datagram_from_iovec(frag_iter,
+							 offset - start,
+							 from,
+							 from_offset,
+							 copy))
+				goto fault;
+			if ((len -= copy) == 0)
+				return 0;
+			offset += copy;
+			from_offset += copy;
 		}
+		start = end;
 	}
 	if (!len)
 		return 0;
@@ -544,8 +536,9 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 				      __wsum *csump)
 {
 	int start = skb_headlen(skb);
-	int pos = 0;
 	int i, copy = start - offset;
+	struct sk_buff *frag_iter;
+	int pos = 0;
 
 	/* Copy header. */
 	if (copy > 0) {
@@ -596,33 +589,29 @@ static int skb_copy_and_csum_datagram(const struct sk_buff *skb, int offset,
 		start = end;
 	}
 
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+	skb_walk_frags(skb, frag_iter) {
+		int end;
 
-		for (; list; list=list->next) {
-			int end;
+		WARN_ON(start > offset + len);
 
-			WARN_ON(start > offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				__wsum csum2 = 0;
-				if (copy > len)
-					copy = len;
-				if (skb_copy_and_csum_datagram(list,
-							       offset - start,
-							       to, copy,
-							       &csum2))
-					goto fault;
-				*csump = csum_block_add(*csump, csum2, pos);
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-				to += copy;
-				pos += copy;
-			}
-			start = end;
+		end = start + frag_iter->len;
+		if ((copy = end - offset) > 0) {
+			__wsum csum2 = 0;
+			if (copy > len)
+				copy = len;
+			if (skb_copy_and_csum_datagram(frag_iter,
+						       offset - start,
+						       to, copy,
+						       &csum2))
+				goto fault;
+			*csump = csum_block_add(*csump, csum2, pos);
+			if ((len -= copy) == 0)
+				return 0;
+			offset += copy;
+			to += copy;
+			pos += copy;
 		}
+		start = end;
 	}
 	if (!len)
 		return 0;

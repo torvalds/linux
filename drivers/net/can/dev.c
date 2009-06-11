@@ -477,7 +477,7 @@ int open_candev(struct net_device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(open_candev);
+EXPORT_SYMBOL_GPL(open_candev);
 
 /*
  * Common close function for cleanup before the device gets closed.

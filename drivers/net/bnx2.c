@@ -48,6 +48,7 @@
 #include <linux/cache.h>
 #include <linux/firmware.h>
 #include <linux/log2.h>
+#include <linux/list.h>
 
 #include "bnx2.h"
 #include "bnx2_fw.h"
@@ -545,8 +546,7 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 						    rxr->rx_desc_mapping[j]);
 			rxr->rx_desc_ring[j] = NULL;
 		}
-		if (rxr->rx_buf_ring)
-			vfree(rxr->rx_buf_ring);
+		vfree(rxr->rx_buf_ring);
 		rxr->rx_buf_ring = NULL;
 
 		for (j = 0; j < bp->rx_max_pg_ring; j++) {
@@ -556,8 +556,7 @@ bnx2_free_rx_mem(struct bnx2 *bp)
 						    rxr->rx_pg_desc_mapping[j]);
 			rxr->rx_pg_desc_ring[j] = NULL;
 		}
-		if (rxr->rx_pg_ring)
-			vfree(rxr->rx_pg_ring);
+		vfree(rxr->rx_pg_ring);
 		rxr->rx_pg_ring = NULL;
 	}
 }
@@ -3310,7 +3309,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	u32 rx_mode, sort_mode;
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	if (!netif_running(dev))
@@ -3369,21 +3368,19 @@ bnx2_set_rx_mode(struct net_device *dev)
 		sort_mode |= BNX2_RPM_SORT_USER0_MC_HSH_EN;
 	}
 
-	uc_ptr = NULL;
 	if (dev->uc_count > BNX2_MAX_UNICAST_ADDRESSES) {
 		rx_mode |= BNX2_EMAC_RX_MODE_PROMISCUOUS;
 		sort_mode |= BNX2_RPM_SORT_USER0_PROM_EN |
 			     BNX2_RPM_SORT_USER0_PROM_VLAN;
 	} else if (!(dev->flags & IFF_PROMISC)) {
-		uc_ptr = dev->uc_list;
-
 		/* Add all entries into to the match filter list */
-		for (i = 0; i < dev->uc_count; i++) {
-			bnx2_set_mac_addr(bp, uc_ptr->da_addr,
+		i = 0;
+		list_for_each_entry(ha, &dev->uc_list, list) {
+			bnx2_set_mac_addr(bp, ha->addr,
 					  i + BNX2_START_UNICAST_ADDRESS_INDEX);
 			sort_mode |= (1 <<
 				      (i + BNX2_START_UNICAST_ADDRESS_INDEX));
-			uc_ptr = uc_ptr->next;
+			i++;
 		}
 
 	}
@@ -5488,7 +5485,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		dev_kfree_skb(skb);
 		return -EIO;
 	}
-	map = skb_shinfo(skb)->dma_maps[0];
+	map = skb_shinfo(skb)->dma_head;
 
 	REG_WR(bp, BNX2_HC_COMMAND,
 	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
@@ -6168,7 +6165,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	sp = skb_shinfo(skb);
-	mapping = sp->dma_maps[0];
+	mapping = sp->dma_head;
 
 	tx_buf = &txr->tx_buf_ring[ring_prod];
 	tx_buf->skb = skb;
@@ -6192,7 +6189,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = frag->size;
-		mapping = sp->dma_maps[i + 1];
+		mapping = sp->dma_maps[i];
 
 		txbd->tx_bd_haddr_hi = (u64) mapping >> 32;
 		txbd->tx_bd_haddr_lo = (u64) mapping & 0xffffffff;
@@ -6211,7 +6208,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	mmiowb();
 
 	txr->tx_prod = prod;
-	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2_tx_avail(bp, txr) <= MAX_SKB_FRAGS)) {
 		netif_tx_stop_queue(txq);

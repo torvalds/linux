@@ -89,7 +89,7 @@ static int sja1000_probe_chip(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 
-	if (dev->base_addr && (priv->read_reg(dev, 0) == 0xFF)) {
+	if (priv->reg_base && (priv->read_reg(priv, 0) == 0xFF)) {
 		printk(KERN_INFO "%s: probing @0x%lX failed\n",
 		       DRV_NAME, dev->base_addr);
 		return 0;
@@ -100,11 +100,11 @@ static int sja1000_probe_chip(struct net_device *dev)
 static void set_reset_mode(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
-	unsigned char status = priv->read_reg(dev, REG_MOD);
+	unsigned char status = priv->read_reg(priv, REG_MOD);
 	int i;
 
 	/* disable interrupts */
-	priv->write_reg(dev, REG_IER, IRQ_OFF);
+	priv->write_reg(priv, REG_IER, IRQ_OFF);
 
 	for (i = 0; i < 100; i++) {
 		/* check reset bit */
@@ -113,9 +113,9 @@ static void set_reset_mode(struct net_device *dev)
 			return;
 		}
 
-		priv->write_reg(dev, REG_MOD, MOD_RM);	/* reset chip */
+		priv->write_reg(priv, REG_MOD, MOD_RM);	/* reset chip */
 		udelay(10);
-		status = priv->read_reg(dev, REG_MOD);
+		status = priv->read_reg(priv, REG_MOD);
 	}
 
 	dev_err(dev->dev.parent, "setting SJA1000 into reset mode failed!\n");
@@ -124,7 +124,7 @@ static void set_reset_mode(struct net_device *dev)
 static void set_normal_mode(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
-	unsigned char status = priv->read_reg(dev, REG_MOD);
+	unsigned char status = priv->read_reg(priv, REG_MOD);
 	int i;
 
 	for (i = 0; i < 100; i++) {
@@ -132,14 +132,14 @@ static void set_normal_mode(struct net_device *dev)
 		if ((status & MOD_RM) == 0) {
 			priv->can.state = CAN_STATE_ERROR_ACTIVE;
 			/* enable all interrupts */
-			priv->write_reg(dev, REG_IER, IRQ_ALL);
+			priv->write_reg(priv, REG_IER, IRQ_ALL);
 			return;
 		}
 
 		/* set chip to normal mode */
-		priv->write_reg(dev, REG_MOD, 0x00);
+		priv->write_reg(priv, REG_MOD, 0x00);
 		udelay(10);
-		status = priv->read_reg(dev, REG_MOD);
+		status = priv->read_reg(priv, REG_MOD);
 	}
 
 	dev_err(dev->dev.parent, "setting SJA1000 into normal mode failed!\n");
@@ -154,9 +154,9 @@ static void sja1000_start(struct net_device *dev)
 		set_reset_mode(dev);
 
 	/* Clear error counters and error code capture */
-	priv->write_reg(dev, REG_TXERR, 0x0);
-	priv->write_reg(dev, REG_RXERR, 0x0);
-	priv->read_reg(dev, REG_ECC);
+	priv->write_reg(priv, REG_TXERR, 0x0);
+	priv->write_reg(priv, REG_RXERR, 0x0);
+	priv->read_reg(priv, REG_ECC);
 
 	/* leave reset mode */
 	set_normal_mode(dev);
@@ -198,8 +198,8 @@ static int sja1000_set_bittiming(struct net_device *dev)
 	dev_info(dev->dev.parent,
 		 "setting BTR0=0x%02x BTR1=0x%02x\n", btr0, btr1);
 
-	priv->write_reg(dev, REG_BTR0, btr0);
-	priv->write_reg(dev, REG_BTR1, btr1);
+	priv->write_reg(priv, REG_BTR0, btr0);
+	priv->write_reg(priv, REG_BTR1, btr1);
 
 	return 0;
 }
@@ -217,20 +217,20 @@ static void chipset_init(struct net_device *dev)
 	struct sja1000_priv *priv = netdev_priv(dev);
 
 	/* set clock divider and output control register */
-	priv->write_reg(dev, REG_CDR, priv->cdr | CDR_PELICAN);
+	priv->write_reg(priv, REG_CDR, priv->cdr | CDR_PELICAN);
 
 	/* set acceptance filter (accept all) */
-	priv->write_reg(dev, REG_ACCC0, 0x00);
-	priv->write_reg(dev, REG_ACCC1, 0x00);
-	priv->write_reg(dev, REG_ACCC2, 0x00);
-	priv->write_reg(dev, REG_ACCC3, 0x00);
+	priv->write_reg(priv, REG_ACCC0, 0x00);
+	priv->write_reg(priv, REG_ACCC1, 0x00);
+	priv->write_reg(priv, REG_ACCC2, 0x00);
+	priv->write_reg(priv, REG_ACCC3, 0x00);
 
-	priv->write_reg(dev, REG_ACCM0, 0xFF);
-	priv->write_reg(dev, REG_ACCM1, 0xFF);
-	priv->write_reg(dev, REG_ACCM2, 0xFF);
-	priv->write_reg(dev, REG_ACCM3, 0xFF);
+	priv->write_reg(priv, REG_ACCM0, 0xFF);
+	priv->write_reg(priv, REG_ACCM1, 0xFF);
+	priv->write_reg(priv, REG_ACCM2, 0xFF);
+	priv->write_reg(priv, REG_ACCM3, 0xFF);
 
-	priv->write_reg(dev, REG_OCR, priv->ocr | OCR_MODE_NORMAL);
+	priv->write_reg(priv, REG_OCR, priv->ocr | OCR_MODE_NORMAL);
 }
 
 /*
@@ -261,27 +261,27 @@ static int sja1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (id & CAN_EFF_FLAG) {
 		fi |= FI_FF;
 		dreg = EFF_BUF;
-		priv->write_reg(dev, REG_FI, fi);
-		priv->write_reg(dev, REG_ID1, (id & 0x1fe00000) >> (5 + 16));
-		priv->write_reg(dev, REG_ID2, (id & 0x001fe000) >> (5 + 8));
-		priv->write_reg(dev, REG_ID3, (id & 0x00001fe0) >> 5);
-		priv->write_reg(dev, REG_ID4, (id & 0x0000001f) << 3);
+		priv->write_reg(priv, REG_FI, fi);
+		priv->write_reg(priv, REG_ID1, (id & 0x1fe00000) >> (5 + 16));
+		priv->write_reg(priv, REG_ID2, (id & 0x001fe000) >> (5 + 8));
+		priv->write_reg(priv, REG_ID3, (id & 0x00001fe0) >> 5);
+		priv->write_reg(priv, REG_ID4, (id & 0x0000001f) << 3);
 	} else {
 		dreg = SFF_BUF;
-		priv->write_reg(dev, REG_FI, fi);
-		priv->write_reg(dev, REG_ID1, (id & 0x000007f8) >> 3);
-		priv->write_reg(dev, REG_ID2, (id & 0x00000007) << 5);
+		priv->write_reg(priv, REG_FI, fi);
+		priv->write_reg(priv, REG_ID1, (id & 0x000007f8) >> 3);
+		priv->write_reg(priv, REG_ID2, (id & 0x00000007) << 5);
 	}
 
 	for (i = 0; i < dlc; i++)
-		priv->write_reg(dev, dreg++, cf->data[i]);
+		priv->write_reg(priv, dreg++, cf->data[i]);
 
 	stats->tx_bytes += dlc;
 	dev->trans_start = jiffies;
 
 	can_put_echo_skb(skb, dev, 0);
 
-	priv->write_reg(dev, REG_CMR, CMD_TR);
+	priv->write_reg(priv, REG_CMR, CMD_TR);
 
 	return 0;
 }
@@ -304,22 +304,22 @@ static void sja1000_rx(struct net_device *dev)
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_CAN);
 
-	fi = priv->read_reg(dev, REG_FI);
+	fi = priv->read_reg(priv, REG_FI);
 	dlc = fi & 0x0F;
 
 	if (fi & FI_FF) {
 		/* extended frame format (EFF) */
 		dreg = EFF_BUF;
-		id = (priv->read_reg(dev, REG_ID1) << (5 + 16))
-		    | (priv->read_reg(dev, REG_ID2) << (5 + 8))
-		    | (priv->read_reg(dev, REG_ID3) << 5)
-		    | (priv->read_reg(dev, REG_ID4) >> 3);
+		id = (priv->read_reg(priv, REG_ID1) << (5 + 16))
+		    | (priv->read_reg(priv, REG_ID2) << (5 + 8))
+		    | (priv->read_reg(priv, REG_ID3) << 5)
+		    | (priv->read_reg(priv, REG_ID4) >> 3);
 		id |= CAN_EFF_FLAG;
 	} else {
 		/* standard frame format (SFF) */
 		dreg = SFF_BUF;
-		id = (priv->read_reg(dev, REG_ID1) << 3)
-		    | (priv->read_reg(dev, REG_ID2) >> 5);
+		id = (priv->read_reg(priv, REG_ID1) << 3)
+		    | (priv->read_reg(priv, REG_ID2) >> 5);
 	}
 
 	if (fi & FI_RTR)
@@ -330,13 +330,13 @@ static void sja1000_rx(struct net_device *dev)
 	cf->can_id = id;
 	cf->can_dlc = dlc;
 	for (i = 0; i < dlc; i++)
-		cf->data[i] = priv->read_reg(dev, dreg++);
+		cf->data[i] = priv->read_reg(priv, dreg++);
 
 	while (i < 8)
 		cf->data[i++] = 0;
 
 	/* release receive buffer */
-	priv->write_reg(dev, REG_CMR, CMD_RRB);
+	priv->write_reg(priv, REG_CMR, CMD_RRB);
 
 	netif_rx(skb);
 
@@ -371,7 +371,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
 		stats->rx_errors++;
-		priv->write_reg(dev, REG_CMR, CMD_CDO);	/* clear bit */
+		priv->write_reg(priv, REG_CMR, CMD_CDO);	/* clear bit */
 	}
 
 	if (isrc & IRQ_EI) {
@@ -392,7 +392,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		priv->can.can_stats.bus_error++;
 		stats->rx_errors++;
 
-		ecc = priv->read_reg(dev, REG_ECC);
+		ecc = priv->read_reg(priv, REG_ECC);
 
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
@@ -426,7 +426,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	if (isrc & IRQ_ALI) {
 		/* arbitration lost interrupt */
 		dev_dbg(dev->dev.parent, "arbitration lost interrupt\n");
-		alc = priv->read_reg(dev, REG_ALC);
+		alc = priv->read_reg(priv, REG_ALC);
 		priv->can.can_stats.arbitration_lost++;
 		stats->rx_errors++;
 		cf->can_id |= CAN_ERR_LOSTARB;
@@ -435,8 +435,8 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 
 	if (state != priv->can.state && (state == CAN_STATE_ERROR_WARNING ||
 					 state == CAN_STATE_ERROR_PASSIVE)) {
-		uint8_t rxerr = priv->read_reg(dev, REG_RXERR);
-		uint8_t txerr = priv->read_reg(dev, REG_TXERR);
+		uint8_t rxerr = priv->read_reg(priv, REG_RXERR);
+		uint8_t txerr = priv->read_reg(priv, REG_TXERR);
 		cf->can_id |= CAN_ERR_CRTL;
 		if (state == CAN_STATE_ERROR_WARNING) {
 			priv->can.can_stats.error_warning++;
@@ -471,15 +471,15 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 	int n = 0;
 
 	/* Shared interrupts and IRQ off? */
-	if (priv->read_reg(dev, REG_IER) == IRQ_OFF)
+	if (priv->read_reg(priv, REG_IER) == IRQ_OFF)
 		return IRQ_NONE;
 
 	if (priv->pre_irq)
-		priv->pre_irq(dev);
+		priv->pre_irq(priv);
 
-	while ((isrc = priv->read_reg(dev, REG_IR)) && (n < SJA1000_MAX_IRQ)) {
+	while ((isrc = priv->read_reg(priv, REG_IR)) && (n < SJA1000_MAX_IRQ)) {
 		n++;
-		status = priv->read_reg(dev, REG_SR);
+		status = priv->read_reg(priv, REG_SR);
 
 		if (isrc & IRQ_WUI)
 			dev_warn(dev->dev.parent, "wakeup interrupt\n");
@@ -494,7 +494,7 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 			/* receive interrupt */
 			while (status & SR_RBS) {
 				sja1000_rx(dev);
-				status = priv->read_reg(dev, REG_SR);
+				status = priv->read_reg(priv, REG_SR);
 			}
 		}
 		if (isrc & (IRQ_DOI | IRQ_EI | IRQ_BEI | IRQ_EPI | IRQ_ALI)) {
@@ -505,7 +505,7 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 	}
 
 	if (priv->post_irq)
-		priv->post_irq(dev);
+		priv->post_irq(priv);
 
 	if (n >= SJA1000_MAX_IRQ)
 		dev_dbg(dev->dev.parent, "%d messages handled in ISR", n);
@@ -532,8 +532,8 @@ static int sja1000_open(struct net_device *dev)
 		err = request_irq(dev->irq, &sja1000_interrupt, priv->irq_flags,
 				  dev->name, (void *)dev);
 		if (err) {
-			return -EAGAIN;
 			close_candev(dev);
+			return -EAGAIN;
 		}
 	}
 

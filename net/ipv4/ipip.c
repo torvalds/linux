@@ -370,8 +370,7 @@ static int ipip_rcv(struct sk_buff *skb)
 		tunnel->dev->stats.rx_packets++;
 		tunnel->dev->stats.rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		nf_reset(skb);
 		ipip_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
@@ -416,7 +415,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!dst) {
 		/* NBMA tunnel */
-		if ((rt = skb->rtable) == NULL) {
+		if ((rt = skb_rtable(skb)) == NULL) {
 			stats->tx_fifo_errors++;
 			goto tx_error;
 		}
@@ -447,15 +446,15 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tiph->frag_off)
 		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
 	else
-		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
+		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	if (mtu < 68) {
 		stats->collisions++;
 		ip_rt_put(rt);
 		goto tx_error;
 	}
-	if (skb->dst)
-		skb->dst->ops->update_pmtu(skb->dst, mtu);
+	if (skb_dst(skb))
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 	df |= (old_iph->frag_off&htons(IP_DF));
 
@@ -502,8 +501,8 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
-	dst_release(skb->dst);
-	skb->dst = &rt->u.dst;
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->u.dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -713,6 +712,7 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
+	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 }
 
 static void ipip_tunnel_init(struct net_device *dev)

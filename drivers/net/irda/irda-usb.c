@@ -1859,6 +1859,42 @@ static void irda_usb_disconnect(struct usb_interface *intf)
 	IRDA_DEBUG(0, "%s(), USB IrDA Disconnected\n", __func__);
 }
 
+#ifdef CONFIG_PM
+/* USB suspend, so power off the transmitter/receiver */
+static int irda_usb_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct irda_usb_cb *self = usb_get_intfdata(intf);
+	int i;
+
+	netif_device_detach(self->netdev);
+
+	if (self->tx_urb != NULL)
+		usb_kill_urb(self->tx_urb);
+	if (self->speed_urb != NULL)
+		usb_kill_urb(self->speed_urb);
+	for (i = 0; i < self->max_rx_urb; i++) {
+		if (self->rx_urb[i] != NULL)
+			usb_kill_urb(self->rx_urb[i]);
+	}
+	return 0;
+}
+
+/* Coming out of suspend, so reset hardware */
+static int irda_usb_resume(struct usb_interface *intf)
+{
+	struct irda_usb_cb *self = usb_get_intfdata(intf);
+	int i;
+
+	for (i = 0; i < self->max_rx_urb; i++) {
+		if (self->rx_urb[i] != NULL)
+			usb_submit_urb(self->rx_urb[i], GFP_KERNEL);
+	}
+
+	netif_device_attach(self->netdev);
+	return 0;
+}
+#endif
+
 /*------------------------------------------------------------------*/
 /*
  * USB device callbacks
@@ -1868,6 +1904,10 @@ static struct usb_driver irda_driver = {
 	.probe		= irda_usb_probe,
 	.disconnect	= irda_usb_disconnect,
 	.id_table	= dongles,
+#ifdef CONFIG_PM
+	.suspend	= irda_usb_suspend,
+	.resume		= irda_usb_resume,
+#endif
 };
 
 /************************* MODULE CALLBACKS *************************/

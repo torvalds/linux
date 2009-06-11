@@ -647,7 +647,7 @@ static void rt2500usb_config_ps(struct rt2x00_dev *rt2x00dev,
 	if (state == STATE_SLEEP) {
 		rt2500usb_register_read(rt2x00dev, MAC_CSR18, &reg);
 		rt2x00_set_field16(&reg, MAC_CSR18_DELAY_AFTER_BEACON,
-				   libconf->conf->beacon_int - 20);
+				   rt2x00dev->beacon_int - 20);
 		rt2x00_set_field16(&reg, MAC_CSR18_BEACONS_BEFORE_WAKEUP,
 				   libconf->conf->listen_interval - 1);
 

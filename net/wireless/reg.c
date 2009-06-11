@@ -2129,7 +2129,12 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		 * driver wanted to the wiphy to deal with conflicts
 		 */
 
-		BUG_ON(request_wiphy->regd);
+		/*
+		 * Userspace could have sent two replies with only
+		 * one kernel request.
+		 */
+		if (request_wiphy->regd)
+			return -EALREADY;
 
 		r = reg_copy_regd(&request_wiphy->regd, rd);
 		if (r)
@@ -2171,7 +2176,13 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	 * the country IE rd with what CRDA believes that country should have
 	 */
 
-	BUG_ON(!country_ie_regdomain);
+	/*
+	 * Userspace could have sent two replies with only
+	 * one kernel request. By the second reply we would have
+	 * already processed and consumed the country_ie_regdomain.
+	 */
+	if (!country_ie_regdomain)
+		return -EALREADY;
 	BUG_ON(rd == country_ie_regdomain);
 
 	/*

@@ -2155,7 +2155,7 @@ static int smsc911x_resume(struct platform_device *pdev)
 
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
-	.remove = smsc911x_drv_remove,
+	.remove = __devexit_p(smsc911x_drv_remove),
 	.driver = {
 		.name = SMSC_CHIPNAME,
 	},

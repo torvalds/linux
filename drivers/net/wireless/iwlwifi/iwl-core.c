@@ -36,7 +36,6 @@
 #include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-rfkill.h"
 #include "iwl-power.h"
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
@@ -1389,7 +1388,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	mutex_init(&priv->mutex);
 
 	/* Clear the driver's (not device's) station table */
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 
 	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
@@ -1704,8 +1703,9 @@ static irqreturn_t iwl_isr(int irq, void *data)
 {
 	struct iwl_priv *priv = data;
 	u32 inta, inta_mask;
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_fh;
-
+#endif
 	if (!priv)
 		return IRQ_NONE;
 
@@ -2210,126 +2210,6 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 }
 EXPORT_SYMBOL(iwl_send_card_state);
 
-void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	if (test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return;
-
-	IWL_DEBUG_RF_KILL(priv, "Manual SW RF KILL set to: RADIO OFF\n");
-
-	iwl_scan_cancel(priv);
-	/* FIXME: This is a workaround for AP */
-	if (priv->iw_mode != NL80211_IFTYPE_AP) {
-		spin_lock_irqsave(&priv->lock, flags);
-		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-			    CSR_UCODE_SW_BIT_RFKILL);
-		spin_unlock_irqrestore(&priv->lock, flags);
-		/* call the host command only if no hw rf-kill set */
-		if (!test_bit(STATUS_RF_KILL_HW, &priv->status) &&
-		    iwl_is_ready(priv))
-			iwl_send_card_state(priv,
-				CARD_STATE_CMD_DISABLE, 0);
-		set_bit(STATUS_RF_KILL_SW, &priv->status);
-			/* make sure mac80211 stop sending Tx frame */
-		if (priv->mac80211_registered)
-			ieee80211_stop_queues(priv->hw);
-	}
-}
-EXPORT_SYMBOL(iwl_radio_kill_sw_disable_radio);
-
-int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	if (!test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return 0;
-
-	IWL_DEBUG_RF_KILL(priv, "Manual SW RF KILL set to: RADIO ON\n");
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	/* If the driver is up it will receive CARD_STATE_NOTIFICATION
-	 * notification where it will clear SW rfkill status.
-	 * Setting it here would break the handler. Only if the
-	 * interface is down we can set here since we don't
-	 * receive any further notification.
-	 */
-	if (!priv->is_open)
-		clear_bit(STATUS_RF_KILL_SW, &priv->status);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* wake up ucode */
-	msleep(10);
-
-	iwl_read32(priv, CSR_UCODE_DRV_GP1);
-	spin_lock_irqsave(&priv->reg_lock, flags);
-	if (!iwl_grab_nic_access(priv))
-		iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->reg_lock, flags);
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_RF_KILL(priv, "Can not turn radio back on - "
-				  "disabled by HW switch\n");
-		return 0;
-	}
-
-	/* when driver is up while rfkill is on, it wont receive
-	 * any CARD_STATE_NOTIFICATION notifications so we have to
-	 * restart it in here
-	 */
-	if (priv->is_open && !test_bit(STATUS_ALIVE, &priv->status)) {
-		clear_bit(STATUS_RF_KILL_SW, &priv->status);
-		if (!iwl_is_rfkill(priv))
-			queue_work(priv->workqueue, &priv->up);
-	}
-
-	/* If the driver is already loaded, it will receive
-	 * CARD_STATE_NOTIFICATION notifications and the handler will
-	 * call restart to reload the driver.
-	 */
-	return 1;
-}
-EXPORT_SYMBOL(iwl_radio_kill_sw_enable_radio);
-
-void iwl_bg_rf_kill(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work, struct iwl_priv, rf_kill);
-
-	wake_up_interruptible(&priv->wait_command_queue);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	mutex_lock(&priv->mutex);
-
-	if (!iwl_is_rfkill(priv)) {
-		IWL_DEBUG_RF_KILL(priv,
-			  "HW and/or SW RF Kill no longer active, restarting "
-			  "device\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->status) &&
-		    priv->is_open)
-			queue_work(priv->workqueue, &priv->restart);
-	} else {
-		/* make sure mac80211 stop sending Tx frame */
-		if (priv->mac80211_registered)
-			ieee80211_stop_queues(priv->hw);
-
-		if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
-			IWL_DEBUG_RF_KILL(priv, "Can not turn radio back on - "
-					  "disabled by SW switch\n");
-		else
-			IWL_WARN(priv, "Radio Frequency Kill Switch is On:\n"
-				    "Kill switch must be turned off for "
-				    "wireless networking to work.\n");
-	}
-	mutex_unlock(&priv->mutex);
-	iwl_rfkill_set_hw_state(priv);
-}
-EXPORT_SYMBOL(iwl_bg_rf_kill);
-
 void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb)
 {
@@ -2679,18 +2559,11 @@ int iwl_set_mode(struct iwl_priv *priv, int mode)
 
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
-	priv->cfg->ops->smgmt->clear_station_table(priv);
+	iwl_clear_stations_table(priv);
 
 	/* dont commit rxon if rf-kill is on*/
 	if (!iwl_is_ready_rf(priv))
 		return -EAGAIN;
-
-	cancel_delayed_work(&priv->scan_check);
-	if (iwl_scan_cancel_timeout(priv, 100)) {
-		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
-		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
-		return -EAGAIN;
-	}
 
 	iwlcore_commit_rxon(priv);
 
@@ -2854,23 +2727,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 	/* call to ensure that 4965 rx_chain is set properly in monitor mode */
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
-
-	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
-		if (conf->radio_enabled &&
-			iwl_radio_kill_sw_enable_radio(priv)) {
-			IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - "
-						"waiting for uCode\n");
-			goto out;
-		}
-
-		if (!conf->radio_enabled)
-			iwl_radio_kill_sw_disable_radio(priv);
-	}
-
-	if (!conf->radio_enabled) {
-		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
-		goto out;
-	}
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");

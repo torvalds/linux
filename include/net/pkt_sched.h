@@ -41,9 +41,10 @@ static inline void *qdisc_priv(struct Qdisc *q)
 typedef u64	psched_time_t;
 typedef long	psched_tdiff_t;
 
-/* Avoid doing 64 bit divide by 1000 */
-#define PSCHED_US2NS(x)			((s64)(x) << 10)
-#define PSCHED_NS2US(x)			((x) >> 10)
+/* Avoid doing 64 bit divide */
+#define PSCHED_SHIFT			6
+#define PSCHED_US2NS(x)			((s64)(x) << PSCHED_SHIFT)
+#define PSCHED_NS2US(x)			((x) >> PSCHED_SHIFT)
 
 #define PSCHED_TICKS_PER_SEC		PSCHED_NS2US(NSEC_PER_SEC)
 #define PSCHED_PASTPERFECT		0

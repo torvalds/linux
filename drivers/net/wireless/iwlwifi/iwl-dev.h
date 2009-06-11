@@ -41,7 +41,6 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 #include "iwl-debug.h"
-#include "iwl-rfkill.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
 #include "iwl-3945-led.h"
@@ -70,7 +69,6 @@ extern struct iwl_ops iwl5000_ops;
 extern struct iwl_lib_ops iwl5000_lib;
 extern struct iwl_hcmd_ops iwl5000_hcmd;
 extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
-extern struct iwl_station_mgmt_ops iwl5000_station_mgmt;
 
 /* shared functions from iwl-5000.c */
 extern u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len);
@@ -290,11 +288,11 @@ struct iwl_frame {
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 
 enum {
-	/* CMD_SIZE_NORMAL = 0, */
+	CMD_SYNC = 0,
+	CMD_SIZE_NORMAL = 0,
+	CMD_NO_SKB = 0,
 	CMD_SIZE_HUGE = (1 << 0),
-	/* CMD_SYNC = 0, */
 	CMD_ASYNC = (1 << 1),
-	/* CMD_NO_SKB = 0, */
 	CMD_WANT_SKB = (1 << 2),
 };
 
@@ -937,9 +935,6 @@ struct iwl_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
-#if defined(CONFIG_IWLWIFI_RFKILL)
-	struct rfkill *rfkill;
-#endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	unsigned long last_blink_time;
@@ -1073,7 +1068,6 @@ struct iwl_priv {
 	struct work_struct calibrated_work;
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
-	struct work_struct rf_kill;
 	struct work_struct abort_scan;
 	struct work_struct update_link_led;
 	struct work_struct auth_work;
@@ -1118,8 +1112,6 @@ struct iwl_priv {
 #define IWL_DEFAULT_TX_POWER 0x0F
 
 	struct iwl3945_notif_statistics statistics_39;
-
-	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
 
 	u32 sta_supp_rates;
 }; /*iwl_priv */

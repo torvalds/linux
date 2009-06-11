@@ -1220,8 +1220,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	command = le16_to_cpu(cmd->command);
 
 	/* These commands take longer */
-	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE ||
-	    command == CMD_802_11_AUTHENTICATE)
+	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE)
 		timeo = 5 * HZ;
 
 	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
@@ -1415,15 +1414,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_ASSOCIATE:
-	case CMD_802_11_REASSOCIATE:
-		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_AUTHENTICATE:
-		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_MAC_REG_ACCESS:
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
@@ -1470,8 +1460,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 	case CMD_802_11_LED_GPIO_CTRL:
 		{
-			struct mrvlietypes_ledgpio *gpio =
-			    (struct mrvlietypes_ledgpio*)
+			struct mrvl_ie_ledgpio *gpio =
+			    (struct mrvl_ie_ledgpio*)
 			    cmdptr->params.ledgpio.data;
 
 			memmove(&cmdptr->params.ledgpio,

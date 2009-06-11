@@ -2892,7 +2892,6 @@ again:
 		tx->stop_queue++;
 		netif_tx_stop_queue(netdev_queue);
 	}
-	dev->trans_start = jiffies;
 	return 0;
 
 abort_linearize:

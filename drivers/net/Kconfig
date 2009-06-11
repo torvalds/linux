@@ -1001,7 +1001,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH
+	depends on ARM || SUPERH || BLACKFIN
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1723,6 +1723,11 @@ config TLAN
 
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
+config KS8842
+	tristate "Micrel KSZ8842"
+	help
+	  This platform driver is for Micrel KSZ8842 chip.
+
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on NET_PCI && PCI
@@ -1859,8 +1864,8 @@ config 68360_ENET
 	  the Motorola 68360 processor.
 
 config FEC
-	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27
+	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
@@ -2719,6 +2724,8 @@ source "drivers/net/pcmcia/Kconfig"
 source "drivers/net/wan/Kconfig"
 
 source "drivers/atm/Kconfig"
+
+source "drivers/ieee802154/Kconfig"
 
 source "drivers/s390/net/Kconfig"
 

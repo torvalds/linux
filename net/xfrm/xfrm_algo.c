@@ -696,8 +696,9 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
-	int err;
+	struct sk_buff *frag_iter;
 	struct scatterlist sg;
+	int err;
 
 	/* Checksum header. */
 	if (copy > 0) {
@@ -742,28 +743,24 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 		start = end;
 	}
 
-	if (skb_shinfo(skb)->frag_list) {
-		struct sk_buff *list = skb_shinfo(skb)->frag_list;
+	skb_walk_frags(skb, frag_iter) {
+		int end;
 
-		for (; list; list = list->next) {
-			int end;
+		WARN_ON(start > offset + len);
 
-			WARN_ON(start > offset + len);
-
-			end = start + list->len;
-			if ((copy = end - offset) > 0) {
-				if (copy > len)
-					copy = len;
-				err = skb_icv_walk(list, desc, offset-start,
-						   copy, icv_update);
-				if (unlikely(err))
-					return err;
-				if ((len -= copy) == 0)
-					return 0;
-				offset += copy;
-			}
-			start = end;
+		end = start + frag_iter->len;
+		if ((copy = end - offset) > 0) {
+			if (copy > len)
+				copy = len;
+			err = skb_icv_walk(frag_iter, desc, offset-start,
+					   copy, icv_update);
+			if (unlikely(err))
+				return err;
+			if ((len -= copy) == 0)
+				return 0;
+			offset += copy;
 		}
+		start = end;
 	}
 	BUG_ON(len);
 	return 0;

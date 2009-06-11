@@ -3691,8 +3691,7 @@ out1:
 #ifdef CONFIG_XFRM
 	free_SAs(pkt_dev);
 #endif
-	if (pkt_dev->flows)
-		vfree(pkt_dev->flows);
+	vfree(pkt_dev->flows);
 	kfree(pkt_dev);
 	return err;
 }
@@ -3791,8 +3790,7 @@ static int pktgen_remove_device(struct pktgen_thread *t,
 #ifdef CONFIG_XFRM
 	free_SAs(pkt_dev);
 #endif
-	if (pkt_dev->flows)
-		vfree(pkt_dev->flows);
+	vfree(pkt_dev->flows);
 	kfree(pkt_dev);
 	return 0;
 }

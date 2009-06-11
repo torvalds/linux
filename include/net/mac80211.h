@@ -239,6 +239,8 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
  *	used to indicate that a pending frame requires TX processing before
  *	it can be sent out.
+ * @IEEE80211_TX_INTFL_RETRIED: completely internal to mac80211,
+ *	used to indicate that a frame was already retried due to PS
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -256,6 +258,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
 	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
+	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 };
 
 /**
@@ -526,8 +529,7 @@ enum ieee80211_conf_flags {
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
- * @IEEE80211_CONF_CHANGE_RADIO_ENABLED: the value of radio_enabled changed
- * @_IEEE80211_CONF_CHANGE_BEACON_INTERVAL: DEPRECATED
+ * @_IEEE80211_CONF_CHANGE_RADIO_ENABLED: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
@@ -537,8 +539,7 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
-	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
-	_IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
+	_IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -549,12 +550,12 @@ enum ieee80211_conf_changed {
 };
 
 static inline __deprecated enum ieee80211_conf_changed
-__IEEE80211_CONF_CHANGE_BEACON_INTERVAL(void)
+__IEEE80211_CONF_CHANGE_RADIO_ENABLED(void)
 {
-	return _IEEE80211_CONF_CHANGE_BEACON_INTERVAL;
+	return _IEEE80211_CONF_CHANGE_RADIO_ENABLED;
 }
-#define IEEE80211_CONF_CHANGE_BEACON_INTERVAL \
-	__IEEE80211_CONF_CHANGE_BEACON_INTERVAL()
+#define IEEE80211_CONF_CHANGE_RADIO_ENABLED \
+	__IEEE80211_CONF_CHANGE_RADIO_ENABLED()
 
 /**
  * struct ieee80211_conf - configuration of the device
@@ -564,7 +565,7 @@ __IEEE80211_CONF_CHANGE_BEACON_INTERVAL(void)
  * @flags: configuration flags defined above
  *
  * @radio_enabled: when zero, driver is required to switch off the radio.
- * @beacon_int: beacon interval (TODO make interface config)
+ * @beacon_int: DEPRECATED, DO NOT USE
  *
  * @listen_interval: listen interval in units of beacon interval
  * @max_sleep_period: the maximum number of beacon intervals to sleep for
@@ -589,13 +590,13 @@ __IEEE80211_CONF_CHANGE_BEACON_INTERVAL(void)
  *    number of transmissions not the number of retries
  */
 struct ieee80211_conf {
-	int beacon_int;
+	int __deprecated beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
-	bool radio_enabled;
+	bool __deprecated radio_enabled;
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
@@ -1406,6 +1407,10 @@ enum ieee80211_ampdu_mlme_action {
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
  *	Returns a negative error code on failure.
+ *
+ * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
+ *	need to set wiphy->rfkill_poll to %true before registration,
+ *	and need to call wiphy_rfkill_set_hw_state() in the callback.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1454,6 +1459,8 @@ struct ieee80211_ops {
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+
+	void (*rfkill_poll)(struct ieee80211_hw *hw);
 };
 
 /**

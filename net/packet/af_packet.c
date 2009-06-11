@@ -372,8 +372,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 		goto oom;
 
 	/* drop any routing info */
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	skb_dst_drop(skb);
 
 	/* drop conntrack reference */
 	nf_reset(skb);
@@ -621,8 +620,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 
 	skb_set_owner_r(skb, sk);
 	skb->dev = NULL;
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	skb_dst_drop(skb);
 
 	/* drop conntrack reference */
 	nf_reset(skb);
@@ -1582,9 +1580,9 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		break;
 	case PACKET_MR_UNICAST:
 		if (what > 0)
-			return dev_unicast_add(dev, i->addr, i->alen);
+			return dev_unicast_add(dev, i->addr);
 		else
-			return dev_unicast_delete(dev, i->addr, i->alen);
+			return dev_unicast_delete(dev, i->addr);
 		break;
 	default:;
 	}

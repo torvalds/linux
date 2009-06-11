@@ -565,9 +565,13 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
 			return -EFAULT;
 
+		if ((gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
+		    gso.csum_start + gso.csum_offset + 2 > gso.hdr_len)
+			gso.hdr_len = gso.csum_start + gso.csum_offset + 2;
+
 		if (gso.hdr_len > len)
 			return -EINVAL;
-		offset += sizeof(pi);
+		offset += sizeof(gso);
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
@@ -844,11 +848,11 @@ static void tun_sock_write_space(struct sock *sk)
 	if (!sock_writeable(sk))
 		return;
 
-	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_sync(sk->sk_sleep);
-
 	if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
 		return;
+
+	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		wake_up_interruptible_sync(sk->sk_sleep);
 
 	tun = container_of(sk, struct tun_sock, sk)->tun;
 	kill_fasync(&tun->fasync, SIGIO, POLL_OUT);
@@ -1318,21 +1322,22 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 static int tun_chr_close(struct inode *inode, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
-	struct tun_struct *tun = __tun_get(tfile);
+	struct tun_struct *tun;
 
 
+	rtnl_lock();
+	tun = __tun_get(tfile);
 	if (tun) {
 		DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
 
-		rtnl_lock();
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
 		if (!(tun->flags & TUN_PERSIST))
 			unregister_netdevice(tun->dev);
 
-		rtnl_unlock();
 	}
+	rtnl_unlock();
 
 	tun = tfile->tun;
 	if (tun)

@@ -269,7 +269,8 @@ static const unsigned short netdev_lock_type[] =
 	 ARPHRD_IRDA, ARPHRD_FCPP, ARPHRD_FCAL, ARPHRD_FCPL,
 	 ARPHRD_FCFABRIC, ARPHRD_IEEE802_TR, ARPHRD_IEEE80211,
 	 ARPHRD_IEEE80211_PRISM, ARPHRD_IEEE80211_RADIOTAP, ARPHRD_PHONET,
-	 ARPHRD_PHONET_PIPE, ARPHRD_VOID, ARPHRD_NONE};
+	 ARPHRD_PHONET_PIPE, ARPHRD_IEEE802154, ARPHRD_IEEE802154_PHY,
+	 ARPHRD_VOID, ARPHRD_NONE};
 
 static const char *netdev_lock_name[] =
 	{"_xmit_NETROM", "_xmit_ETHER", "_xmit_EETHER", "_xmit_AX25",
@@ -286,7 +287,8 @@ static const char *netdev_lock_name[] =
 	 "_xmit_IRDA", "_xmit_FCPP", "_xmit_FCAL", "_xmit_FCPL",
 	 "_xmit_FCFABRIC", "_xmit_IEEE802_TR", "_xmit_IEEE80211",
 	 "_xmit_IEEE80211_PRISM", "_xmit_IEEE80211_RADIOTAP", "_xmit_PHONET",
-	 "_xmit_PHONET_PIPE", "_xmit_VOID", "_xmit_NONE"};
+	 "_xmit_PHONET_PIPE", "_xmit_IEEE802154", "_xmit_IEEE802154_PHY",
+	 "_xmit_VOID", "_xmit_NONE"};
 
 static struct lock_class_key netdev_xmit_lock_key[ARRAY_SIZE(netdev_lock_type)];
 static struct lock_class_key netdev_addr_lock_key[ARRAY_SIZE(netdev_lock_type)];
@@ -1048,7 +1050,7 @@ void dev_load(struct net *net, const char *name)
 int dev_open(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	int ret = 0;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -1064,6 +1066,11 @@ int dev_open(struct net_device *dev)
 	 */
 	if (!netif_device_present(dev))
 		return -ENODEV;
+
+	ret = call_netdevice_notifiers(NETDEV_PRE_UP, dev);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		return ret;
 
 	/*
 	 *	Call device private open method
@@ -1693,10 +1700,9 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		 * If device doesnt need skb->dst, release it right now while
 		 * its hot in this cpu cache
 		 */
-		if ((dev->priv_flags & IFF_XMIT_DST_RELEASE) && skb->dst) {
-			dst_release(skb->dst);
-			skb->dst = NULL;
-		}
+		if (dev->priv_flags & IFF_XMIT_DST_RELEASE)
+			skb_dst_drop(skb);
+
 		rc = ops->ndo_start_xmit(skb, dev);
 		if (rc == 0)
 			txq_trans_update(txq);
@@ -1816,7 +1822,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 	if (netif_needs_gso(dev, skb))
 		goto gso;
 
-	if (skb_shinfo(skb)->frag_list &&
+	if (skb_has_frags(skb) &&
 	    !(dev->features & NETIF_F_FRAGLIST) &&
 	    __skb_linearize(skb))
 		goto out_kfree_skb;
@@ -2403,7 +2409,7 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
 
-	if (skb_is_gso(skb) || skb_shinfo(skb)->frag_list)
+	if (skb_is_gso(skb) || skb_has_frags(skb))
 		goto normal;
 
 	rcu_read_lock();
@@ -3473,14 +3479,24 @@ void dev_set_rx_mode(struct net_device *dev)
 
 /* hw addresses list handling functions */
 
-static int __hw_addr_add(struct list_head *list, unsigned char *addr,
-			 int addr_len, unsigned char addr_type)
+static int __hw_addr_add(struct list_head *list, int *delta,
+			 unsigned char *addr, int addr_len,
+			 unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 	int alloc_size;
 
 	if (addr_len > MAX_ADDR_LEN)
 		return -EINVAL;
+
+	list_for_each_entry(ha, list, list) {
+		if (!memcmp(ha->addr, addr, addr_len) &&
+		    ha->type == addr_type) {
+			ha->refcount++;
+			return 0;
+		}
+	}
+
 
 	alloc_size = sizeof(*ha);
 	if (alloc_size < L1_CACHE_BYTES)
@@ -3490,7 +3506,11 @@ static int __hw_addr_add(struct list_head *list, unsigned char *addr,
 		return -ENOMEM;
 	memcpy(ha->addr, addr, addr_len);
 	ha->type = addr_type;
+	ha->refcount = 1;
+	ha->synced = false;
 	list_add_tail_rcu(&ha->list, list);
+	if (delta)
+		(*delta)++;
 	return 0;
 }
 
@@ -3502,29 +3522,30 @@ static void ha_rcu_free(struct rcu_head *head)
 	kfree(ha);
 }
 
-static int __hw_addr_del_ii(struct list_head *list, unsigned char *addr,
-			    int addr_len, unsigned char addr_type,
-			    int ignore_index)
+static int __hw_addr_del(struct list_head *list, int *delta,
+			 unsigned char *addr, int addr_len,
+			 unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
-	int i = 0;
 
 	list_for_each_entry(ha, list, list) {
-		if (i++ != ignore_index &&
-		    !memcmp(ha->addr, addr, addr_len) &&
+		if (!memcmp(ha->addr, addr, addr_len) &&
 		    (ha->type == addr_type || !addr_type)) {
+			if (--ha->refcount)
+				return 0;
 			list_del_rcu(&ha->list);
 			call_rcu(&ha->rcu_head, ha_rcu_free);
+			if (delta)
+				(*delta)--;
 			return 0;
 		}
 	}
 	return -ENOENT;
 }
 
-static int __hw_addr_add_multiple_ii(struct list_head *to_list,
-				     struct list_head *from_list,
-				     int addr_len, unsigned char addr_type,
-				     int ignore_index)
+static int __hw_addr_add_multiple(struct list_head *to_list, int *to_delta,
+				  struct list_head *from_list, int addr_len,
+				  unsigned char addr_type)
 {
 	int err;
 	struct netdev_hw_addr *ha, *ha2;
@@ -3532,7 +3553,8 @@ static int __hw_addr_add_multiple_ii(struct list_head *to_list,
 
 	list_for_each_entry(ha, from_list, list) {
 		type = addr_type ? addr_type : ha->type;
-		err = __hw_addr_add(to_list, ha->addr, addr_len, type);
+		err = __hw_addr_add(to_list, to_delta, ha->addr,
+				    addr_len, type);
 		if (err)
 			goto unroll;
 	}
@@ -3543,26 +3565,68 @@ unroll:
 		if (ha2 == ha)
 			break;
 		type = addr_type ? addr_type : ha2->type;
-		__hw_addr_del_ii(to_list, ha2->addr, addr_len, type,
-				 ignore_index);
+		__hw_addr_del(to_list, to_delta, ha2->addr,
+			      addr_len, type);
 	}
 	return err;
 }
 
-static void __hw_addr_del_multiple_ii(struct list_head *to_list,
-				      struct list_head *from_list,
-				      int addr_len, unsigned char addr_type,
-				      int ignore_index)
+static void __hw_addr_del_multiple(struct list_head *to_list, int *to_delta,
+				   struct list_head *from_list, int addr_len,
+				   unsigned char addr_type)
 {
 	struct netdev_hw_addr *ha;
 	unsigned char type;
 
 	list_for_each_entry(ha, from_list, list) {
 		type = addr_type ? addr_type : ha->type;
-		__hw_addr_del_ii(to_list, ha->addr, addr_len, addr_type,
-				 ignore_index);
+		__hw_addr_del(to_list, to_delta, ha->addr,
+			      addr_len, addr_type);
 	}
 }
+
+static int __hw_addr_sync(struct list_head *to_list, int *to_delta,
+			  struct list_head *from_list, int *from_delta,
+			  int addr_len)
+{
+	int err = 0;
+	struct netdev_hw_addr *ha, *tmp;
+
+	list_for_each_entry_safe(ha, tmp, from_list, list) {
+		if (!ha->synced) {
+			err = __hw_addr_add(to_list, to_delta, ha->addr,
+					    addr_len, ha->type);
+			if (err)
+				break;
+			ha->synced = true;
+			ha->refcount++;
+		} else if (ha->refcount == 1) {
+			__hw_addr_del(to_list, to_delta, ha->addr,
+				      addr_len, ha->type);
+			__hw_addr_del(from_list, from_delta, ha->addr,
+				      addr_len, ha->type);
+		}
+	}
+	return err;
+}
+
+static void __hw_addr_unsync(struct list_head *to_list, int *to_delta,
+			     struct list_head *from_list, int *from_delta,
+			     int addr_len)
+{
+	struct netdev_hw_addr *ha, *tmp;
+
+	list_for_each_entry_safe(ha, tmp, from_list, list) {
+		if (ha->synced) {
+			__hw_addr_del(to_list, to_delta, ha->addr,
+				      addr_len, ha->type);
+			ha->synced = false;
+			__hw_addr_del(from_list, from_delta, ha->addr,
+				      addr_len, ha->type);
+		}
+	}
+}
+
 
 static void __hw_addr_flush(struct list_head *list)
 {
@@ -3593,8 +3657,8 @@ static int dev_addr_init(struct net_device *dev)
 	/* rtnl_mutex must be held here */
 
 	INIT_LIST_HEAD(&dev->dev_addr_list);
-	memset(addr, 0, sizeof(*addr));
-	err = __hw_addr_add(&dev->dev_addr_list, addr, sizeof(*addr),
+	memset(addr, 0, sizeof(addr));
+	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, sizeof(addr),
 			    NETDEV_HW_ADDR_T_LAN);
 	if (!err) {
 		/*
@@ -3626,7 +3690,7 @@ int dev_addr_add(struct net_device *dev, unsigned char *addr,
 
 	ASSERT_RTNL();
 
-	err = __hw_addr_add(&dev->dev_addr_list, addr, dev->addr_len,
+	err = __hw_addr_add(&dev->dev_addr_list, NULL, addr, dev->addr_len,
 			    addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
@@ -3649,11 +3713,20 @@ int dev_addr_del(struct net_device *dev, unsigned char *addr,
 		 unsigned char addr_type)
 {
 	int err;
+	struct netdev_hw_addr *ha;
 
 	ASSERT_RTNL();
 
-	err = __hw_addr_del_ii(&dev->dev_addr_list, addr, dev->addr_len,
-			       addr_type, 0);
+	/*
+	 * We can not remove the first address from the list because
+	 * dev->dev_addr points to that.
+	 */
+	ha = list_first_entry(&dev->dev_addr_list, struct netdev_hw_addr, list);
+	if (ha->addr == dev->dev_addr && ha->refcount == 1)
+		return -ENOENT;
+
+	err = __hw_addr_del(&dev->dev_addr_list, NULL, addr, dev->addr_len,
+			    addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 	return err;
@@ -3680,9 +3753,9 @@ int dev_addr_add_multiple(struct net_device *to_dev,
 
 	if (from_dev->addr_len != to_dev->addr_len)
 		return -EINVAL;
-	err = __hw_addr_add_multiple_ii(&to_dev->dev_addr_list,
-					&from_dev->dev_addr_list,
-					to_dev->addr_len, addr_type, 0);
+	err = __hw_addr_add_multiple(&to_dev->dev_addr_list, NULL,
+				     &from_dev->dev_addr_list,
+				     to_dev->addr_len, addr_type);
 	if (!err)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
 	return err;
@@ -3707,9 +3780,9 @@ int dev_addr_del_multiple(struct net_device *to_dev,
 
 	if (from_dev->addr_len != to_dev->addr_len)
 		return -EINVAL;
-	__hw_addr_del_multiple_ii(&to_dev->dev_addr_list,
-				  &from_dev->dev_addr_list,
-				  to_dev->addr_len, addr_type, 0);
+	__hw_addr_del_multiple(&to_dev->dev_addr_list, NULL,
+			       &from_dev->dev_addr_list,
+			       to_dev->addr_len, addr_type);
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, to_dev);
 	return 0;
 }
@@ -3779,24 +3852,22 @@ int __dev_addr_add(struct dev_addr_list **list, int *count,
  *	dev_unicast_delete	- Release secondary unicast address.
  *	@dev: device
  *	@addr: address to delete
- *	@alen: length of @addr
  *
  *	Release reference to a secondary unicast address and remove it
  *	from the device if the reference count drops to zero.
  *
  * 	The caller must hold the rtnl_mutex.
  */
-int dev_unicast_delete(struct net_device *dev, void *addr, int alen)
+int dev_unicast_delete(struct net_device *dev, void *addr)
 {
 	int err;
 
 	ASSERT_RTNL();
 
-	netif_addr_lock_bh(dev);
-	err = __dev_addr_delete(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	err = __hw_addr_del(&dev->uc_list, &dev->uc_count, addr,
+			    dev->addr_len, NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
-	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_delete);
@@ -3805,24 +3876,22 @@ EXPORT_SYMBOL(dev_unicast_delete);
  *	dev_unicast_add		- add a secondary unicast address
  *	@dev: device
  *	@addr: address to add
- *	@alen: length of @addr
  *
  *	Add a secondary unicast address to the device or increase
  *	the reference count if it already exists.
  *
  *	The caller must hold the rtnl_mutex.
  */
-int dev_unicast_add(struct net_device *dev, void *addr, int alen)
+int dev_unicast_add(struct net_device *dev, void *addr)
 {
 	int err;
 
 	ASSERT_RTNL();
 
-	netif_addr_lock_bh(dev);
-	err = __dev_addr_add(&dev->uc_list, &dev->uc_count, addr, alen, 0);
+	err = __hw_addr_add(&dev->uc_list, &dev->uc_count, addr,
+			    dev->addr_len, NETDEV_HW_ADDR_T_UNICAST);
 	if (!err)
 		__dev_set_rx_mode(dev);
-	netif_addr_unlock_bh(dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_add);
@@ -3879,8 +3948,7 @@ void __dev_addr_unsync(struct dev_addr_list **to, int *to_count,
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
+ *	addresses that have no users left.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.
@@ -3889,12 +3957,15 @@ int dev_unicast_sync(struct net_device *to, struct net_device *from)
 {
 	int err = 0;
 
-	netif_addr_lock_bh(to);
-	err = __dev_addr_sync(&to->uc_list, &to->uc_count,
-			      &from->uc_list, &from->uc_count);
+	ASSERT_RTNL();
+
+	if (to->addr_len != from->addr_len)
+		return -EINVAL;
+
+	err = __hw_addr_sync(&to->uc_list, &to->uc_count,
+			     &from->uc_list, &from->uc_count, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
-	netif_addr_unlock_bh(to);
 	return err;
 }
 EXPORT_SYMBOL(dev_unicast_sync);
@@ -3910,17 +3981,32 @@ EXPORT_SYMBOL(dev_unicast_sync);
  */
 void dev_unicast_unsync(struct net_device *to, struct net_device *from)
 {
-	netif_addr_lock_bh(from);
-	netif_addr_lock(to);
+	ASSERT_RTNL();
 
-	__dev_addr_unsync(&to->uc_list, &to->uc_count,
-			  &from->uc_list, &from->uc_count);
+	if (to->addr_len != from->addr_len)
+		return;
+
+	__hw_addr_unsync(&to->uc_list, &to->uc_count,
+			 &from->uc_list, &from->uc_count, to->addr_len);
 	__dev_set_rx_mode(to);
-
-	netif_addr_unlock(to);
-	netif_addr_unlock_bh(from);
 }
 EXPORT_SYMBOL(dev_unicast_unsync);
+
+static void dev_unicast_flush(struct net_device *dev)
+{
+	/* rtnl_mutex must be held here */
+
+	__hw_addr_flush(&dev->uc_list);
+	dev->uc_count = 0;
+}
+
+static void dev_unicast_init(struct net_device *dev)
+{
+	/* rtnl_mutex must be held here */
+
+	INIT_LIST_HEAD(&dev->uc_list);
+}
+
 
 static void __dev_addr_discard(struct dev_addr_list **list)
 {
@@ -3939,9 +4025,6 @@ static void __dev_addr_discard(struct dev_addr_list **list)
 static void dev_addr_discard(struct net_device *dev)
 {
 	netif_addr_lock_bh(dev);
-
-	__dev_addr_discard(&dev->uc_list);
-	dev->uc_count = 0;
 
 	__dev_addr_discard(&dev->mc_list);
 	dev->mc_count = 0;
@@ -4535,6 +4618,7 @@ static void rollback_registered(struct net_device *dev)
 	/*
 	 *	Flush the unicast and multicast chains
 	 */
+	dev_unicast_flush(dev);
 	dev_addr_discard(dev);
 
 	if (dev->netdev_ops->ndo_uninit)
@@ -4988,18 +5072,18 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	struct netdev_queue *tx;
 	struct net_device *dev;
 	size_t alloc_size;
-	void *p;
+	struct net_device *p;
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
 	alloc_size = sizeof(struct net_device);
 	if (sizeof_priv) {
 		/* ensure 32-byte alignment of private area */
-		alloc_size = (alloc_size + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
+		alloc_size = ALIGN(alloc_size, NETDEV_ALIGN);
 		alloc_size += sizeof_priv;
 	}
 	/* ensure 32-byte alignment of whole construct */
-	alloc_size += NETDEV_ALIGN_CONST;
+	alloc_size += NETDEV_ALIGN - 1;
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
@@ -5014,12 +5098,13 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
-	dev = (struct net_device *)
-		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
+	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
 
 	if (dev_addr_init(dev))
 		goto free_tx;
+
+	dev_unicast_init(dev);
 
 	dev_net_set(dev, &init_net);
 
@@ -5224,6 +5309,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	/*
 	 *	Flush the unicast and multicast chains
 	 */
+	dev_unicast_flush(dev);
 	dev_addr_discard(dev);
 
 	netdev_unregister_kobject(dev);

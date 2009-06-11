@@ -51,8 +51,13 @@ MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Atheros AR9170 802.11n USB wireless");
+MODULE_FIRMWARE("ar9170.fw");
 MODULE_FIRMWARE("ar9170-1.fw");
 MODULE_FIRMWARE("ar9170-2.fw");
+
+enum ar9170_requirements {
+	AR9170_REQ_FW1_ONLY = 1,
+};
 
 static struct usb_device_id ar9170_usb_ids[] = {
 	/* Atheros 9170 */
@@ -81,25 +86,74 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x2019, 0x5304) },
 	/* IO-Data WNGDNUS2 */
 	{ USB_DEVICE(0x04bb, 0x093f) },
+	/* AVM FRITZ!WLAN USB Stick N */
+	{ USB_DEVICE(0x057C, 0x8401) },
+	/* AVM FRITZ!WLAN USB Stick N 2.4 */
+	{ USB_DEVICE(0x057C, 0x8402), .driver_info = AR9170_REQ_FW1_ONLY },
 
 	/* terminate */
 	{}
 };
 MODULE_DEVICE_TABLE(usb, ar9170_usb_ids);
 
-static void ar9170_usb_tx_urb_complete_free(struct urb *urb)
+static void ar9170_usb_submit_urb(struct ar9170_usb *aru)
+{
+	struct urb *urb;
+	unsigned long flags;
+	int err;
+
+	if (unlikely(!IS_STARTED(&aru->common)))
+		return ;
+
+	spin_lock_irqsave(&aru->tx_urb_lock, flags);
+	if (aru->tx_submitted_urbs >= AR9170_NUM_TX_URBS) {
+		spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+		return ;
+	}
+	aru->tx_submitted_urbs++;
+
+	urb = usb_get_from_anchor(&aru->tx_pending);
+	if (!urb) {
+		aru->tx_submitted_urbs--;
+		spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+
+		return ;
+	}
+	spin_unlock_irqrestore(&aru->tx_urb_lock, flags);
+
+	aru->tx_pending_urbs--;
+	usb_anchor_urb(urb, &aru->tx_submitted);
+
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (unlikely(err)) {
+		if (ar9170_nag_limiter(&aru->common))
+			dev_err(&aru->udev->dev, "submit_urb failed (%d).\n",
+				err);
+
+		usb_unanchor_urb(urb);
+		aru->tx_submitted_urbs--;
+		ar9170_tx_callback(&aru->common, urb->context);
+	}
+
+	usb_free_urb(urb);
+}
+
+static void ar9170_usb_tx_urb_complete_frame(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
 	struct ar9170_usb *aru = (struct ar9170_usb *)
 	      usb_get_intfdata(usb_ifnum_to_if(urb->dev, 0));
 
-	if (!aru) {
+	if (unlikely(!aru)) {
 		dev_kfree_skb_irq(skb);
 		return ;
 	}
 
-	ar9170_handle_tx_status(&aru->common, skb, false,
-				AR9170_TX_STATUS_COMPLETE);
+	aru->tx_submitted_urbs--;
+
+	ar9170_tx_callback(&aru->common, skb);
+
+	ar9170_usb_submit_urb(aru);
 }
 
 static void ar9170_usb_tx_urb_complete(struct urb *urb)
@@ -126,8 +180,8 @@ static void ar9170_usb_irq_completed(struct urb *urb)
 		goto resubmit;
 	}
 
-	print_hex_dump_bytes("ar9170 irq: ", DUMP_PREFIX_OFFSET,
-			     urb->transfer_buffer, urb->actual_length);
+	ar9170_handle_command_response(&aru->common, urb->transfer_buffer,
+				       urb->actual_length);
 
 resubmit:
 	usb_anchor_urb(urb, &aru->rx_submitted);
@@ -177,16 +231,15 @@ resubmit:
 
 	usb_anchor_urb(urb, &aru->rx_submitted);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (err) {
+	if (unlikely(err)) {
 		usb_unanchor_urb(urb);
-		dev_kfree_skb_irq(skb);
+		goto free;
 	}
 
 	return ;
 
 free:
 	dev_kfree_skb_irq(skb);
-	return;
 }
 
 static int ar9170_usb_prep_rx_urb(struct ar9170_usb *aru,
@@ -282,21 +335,47 @@ err_out:
 	return err;
 }
 
-static void ar9170_usb_cancel_urbs(struct ar9170_usb *aru)
+static int ar9170_usb_flush(struct ar9170 *ar)
 {
-	int ret;
+	struct ar9170_usb *aru = (void *) ar;
+	struct urb *urb;
+	int ret, err = 0;
 
-	aru->common.state = AR9170_UNKNOWN_STATE;
+	if (IS_STARTED(ar))
+		aru->common.state = AR9170_IDLE;
 
-	usb_unlink_anchored_urbs(&aru->tx_submitted);
+	usb_wait_anchor_empty_timeout(&aru->tx_pending,
+					    msecs_to_jiffies(800));
+	while ((urb = usb_get_from_anchor(&aru->tx_pending))) {
+		ar9170_tx_callback(&aru->common, (void *) urb->context);
+		usb_free_urb(urb);
+	}
 
-	/* give the LED OFF command and the deauth frame a chance to air. */
+	/* lets wait a while until the tx - queues are dried out */
 	ret = usb_wait_anchor_empty_timeout(&aru->tx_submitted,
 					    msecs_to_jiffies(100));
 	if (ret == 0)
-		dev_err(&aru->udev->dev, "kill pending tx urbs.\n");
-	usb_poison_anchored_urbs(&aru->tx_submitted);
+		err = -ETIMEDOUT;
 
+	usb_kill_anchored_urbs(&aru->tx_submitted);
+
+	if (IS_ACCEPTING_CMD(ar))
+		aru->common.state = AR9170_STARTED;
+
+	return err;
+}
+
+static void ar9170_usb_cancel_urbs(struct ar9170_usb *aru)
+{
+	int err;
+
+	aru->common.state = AR9170_UNKNOWN_STATE;
+
+	err = ar9170_usb_flush(&aru->common);
+	if (err)
+		dev_err(&aru->udev->dev, "stuck tx urbs!\n");
+
+	usb_poison_anchored_urbs(&aru->tx_submitted);
 	usb_poison_anchored_urbs(&aru->rx_submitted);
 }
 
@@ -337,7 +416,7 @@ static int ar9170_usb_exec_cmd(struct ar9170 *ar, enum ar9170_cmd cmd,
 
 	usb_anchor_urb(urb, &aru->tx_submitted);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (err) {
+	if (unlikely(err)) {
 		usb_unanchor_urb(urb);
 		usb_free_urb(urb);
 		goto err_unbuf;
@@ -380,12 +459,10 @@ err_free:
 	return err;
 }
 
-static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb,
-			 bool txstatus_needed, unsigned int extra_len)
+static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb)
 {
 	struct ar9170_usb *aru = (struct ar9170_usb *) ar;
 	struct urb *urb;
-	int err;
 
 	if (unlikely(!IS_STARTED(ar))) {
 		/* Seriously, what were you drink... err... thinking!? */
@@ -398,18 +475,17 @@ static int ar9170_usb_tx(struct ar9170 *ar, struct sk_buff *skb,
 
 	usb_fill_bulk_urb(urb, aru->udev,
 			  usb_sndbulkpipe(aru->udev, AR9170_EP_TX),
-			  skb->data, skb->len + extra_len, (txstatus_needed ?
-			  ar9170_usb_tx_urb_complete :
-			  ar9170_usb_tx_urb_complete_free), skb);
+			  skb->data, skb->len,
+			  ar9170_usb_tx_urb_complete_frame, skb);
 	urb->transfer_flags |= URB_ZERO_PACKET;
 
-	usb_anchor_urb(urb, &aru->tx_submitted);
-	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (unlikely(err))
-		usb_unanchor_urb(urb);
+	usb_anchor_urb(urb, &aru->tx_pending);
+	aru->tx_pending_urbs++;
 
 	usb_free_urb(urb);
-	return err;
+
+	ar9170_usb_submit_urb(aru);
+	return 0;
 }
 
 static void ar9170_usb_callback_cmd(struct ar9170 *ar, u32 len , void *buffer)
@@ -418,7 +494,7 @@ static void ar9170_usb_callback_cmd(struct ar9170 *ar, u32 len , void *buffer)
 	unsigned long flags;
 	u32 in, out;
 
-	if (!buffer)
+	if (unlikely(!buffer))
 		return ;
 
 	in = le32_to_cpup((__le32 *)buffer);
@@ -504,17 +580,29 @@ static int ar9170_usb_request_firmware(struct ar9170_usb *aru)
 {
 	int err = 0;
 
+	err = request_firmware(&aru->firmware, "ar9170.fw",
+			       &aru->udev->dev);
+	if (!err) {
+		aru->init_values = NULL;
+		return 0;
+	}
+
+	if (aru->req_one_stage_fw) {
+		dev_err(&aru->udev->dev, "ar9170.fw firmware file "
+			"not found and is required for this device\n");
+		return -EINVAL;
+	}
+
+	dev_err(&aru->udev->dev, "ar9170.fw firmware file "
+		"not found, trying old firmware...\n");
+
 	err = request_firmware(&aru->init_values, "ar9170-1.fw",
 			       &aru->udev->dev);
-	if (err) {
-		dev_err(&aru->udev->dev, "file with init values not found.\n");
-		return err;
-	}
 
 	err = request_firmware(&aru->firmware, "ar9170-2.fw", &aru->udev->dev);
 	if (err) {
 		release_firmware(aru->init_values);
-		dev_err(&aru->udev->dev, "firmware file not found.\n");
+		dev_err(&aru->udev->dev, "file with init values not found.\n");
 		return err;
 	}
 
@@ -548,6 +636,9 @@ static int ar9170_usb_upload_firmware(struct ar9170_usb *aru)
 {
 	int err;
 
+	if (!aru->init_values)
+		goto upload_fw_start;
+
 	/* First, upload initial values to device RAM */
 	err = ar9170_usb_upload(aru, aru->init_values->data,
 				aru->init_values->size, 0x102800, false);
@@ -556,6 +647,8 @@ static int ar9170_usb_upload_firmware(struct ar9170_usb *aru)
 			"upload failed (%d).\n", err);
 		return err;
 	}
+
+upload_fw_start:
 
 	/* Then, upload the firmware itself and start it */
 	return ar9170_usb_upload(aru, aru->firmware->data, aru->firmware->size,
@@ -592,10 +685,8 @@ static void ar9170_usb_stop(struct ar9170 *ar)
 	if (IS_ACCEPTING_CMD(ar))
 		aru->common.state = AR9170_STOPPED;
 
-	/* lets wait a while until the tx - queues are dried out */
-	ret = usb_wait_anchor_empty_timeout(&aru->tx_submitted,
-					    msecs_to_jiffies(1000));
-	if (ret == 0)
+	ret = ar9170_usb_flush(ar);
+	if (ret)
 		dev_err(&aru->udev->dev, "kill pending tx urbs.\n");
 
 	usb_poison_anchored_urbs(&aru->tx_submitted);
@@ -656,6 +747,15 @@ err_out:
 	return err;
 }
 
+static bool ar9170_requires_one_stage(const struct usb_device_id *id)
+{
+	if (!id->driver_info)
+		return false;
+	if (id->driver_info == AR9170_REQ_FW1_ONLY)
+		return true;
+	return false;
+}
+
 static int ar9170_usb_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
@@ -676,14 +776,22 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	aru->intf = intf;
 	ar = &aru->common;
 
+	aru->req_one_stage_fw = ar9170_requires_one_stage(id);
+
 	usb_set_intfdata(intf, aru);
 	SET_IEEE80211_DEV(ar->hw, &udev->dev);
 
 	init_usb_anchor(&aru->rx_submitted);
+	init_usb_anchor(&aru->tx_pending);
 	init_usb_anchor(&aru->tx_submitted);
 	init_completion(&aru->cmd_wait);
+	spin_lock_init(&aru->tx_urb_lock);
+
+	aru->tx_pending_urbs = 0;
+	aru->tx_submitted_urbs = 0;
 
 	aru->common.stop = ar9170_usb_stop;
+	aru->common.flush = ar9170_usb_flush;
 	aru->common.open = ar9170_usb_open;
 	aru->common.tx = ar9170_usb_tx;
 	aru->common.exec_cmd = ar9170_usb_exec_cmd;
@@ -691,7 +799,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 
 #ifdef CONFIG_PM
 	udev->reset_resume = 1;
-#endif
+#endif /* CONFIG_PM */
 	err = ar9170_usb_reset(aru);
 	if (err)
 		goto err_freehw;
@@ -775,11 +883,6 @@ static int ar9170_resume(struct usb_interface *intf)
 
 	usb_unpoison_anchored_urbs(&aru->rx_submitted);
 	usb_unpoison_anchored_urbs(&aru->tx_submitted);
-
-	/*
-	 * FIXME: firmware upload will fail on resume.
-	 * but this is better than a hang!
-	 */
 
 	err = ar9170_usb_init_device(aru);
 	if (err)

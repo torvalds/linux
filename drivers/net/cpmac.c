@@ -615,13 +615,13 @@ static void cpmac_end_xmit(struct net_device *dev, int queue)
 
 		dev_kfree_skb_irq(desc->skb);
 		desc->skb = NULL;
-		if (netif_subqueue_stopped(dev, queue))
+		if (__netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
 	} else {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			printk(KERN_WARNING
 			       "%s: end_xmit: spurious interrupt\n", dev->name);
-		if (netif_subqueue_stopped(dev, queue))
+		if (__netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
 	}
 }
@@ -731,7 +731,6 @@ static void cpmac_clear_tx(struct net_device *dev)
 
 static void cpmac_hw_error(struct work_struct *work)
 {
-	int i;
 	struct cpmac_priv *priv =
 		container_of(work, struct cpmac_priv, reset_work);
 
@@ -818,7 +817,6 @@ static irqreturn_t cpmac_irq(int irq, void *dev_id)
 
 static void cpmac_tx_timeout(struct net_device *dev)
 {
-	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
 
 	spin_lock(&priv->lock);
@@ -1110,7 +1108,7 @@ static int external_switch;
 
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
-	int rc, phy_id, i;
+	int rc, phy_id;
 	char *mdio_bus_id = "0";
 	struct resource *mem;
 	struct cpmac_priv *priv;

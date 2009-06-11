@@ -56,6 +56,7 @@
 /* Wake Up Control */
 #define E1000_WUC_APME       0x00000001 /* APM Enable */
 #define E1000_WUC_PME_EN     0x00000002 /* PME Enable */
+#define E1000_WUC_PHY_WAKE   0x00000100 /* if PHY supports wakeup */
 
 /* Wake Up Filter Control */
 #define E1000_WUFC_LNKC 0x00000001 /* Link Status Change Wakeup Enable */
@@ -64,6 +65,13 @@
 #define E1000_WUFC_MC   0x00000008 /* Directed Multicast Wakeup Enable */
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 #define E1000_WUFC_ARP  0x00000020 /* ARP Request Packet Wakeup Enable */
+
+/* Wake Up Status */
+#define E1000_WUS_LNKC         E1000_WUFC_LNKC
+#define E1000_WUS_MAG          E1000_WUFC_MAG
+#define E1000_WUS_EX           E1000_WUFC_EX
+#define E1000_WUS_MC           E1000_WUFC_MC
+#define E1000_WUS_BC           E1000_WUFC_BC
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_SDP7_DATA 0x00000080 /* Value of SW Definable Pin 7 */
@@ -77,6 +85,7 @@
 #define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
 #define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers after IMS clear */
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
+#define E1000_CTRL_EXT_PHYPDEN        0x00100000
 
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
@@ -140,6 +149,7 @@
 #define E1000_RCTL_DTYP_PS        0x00000400    /* Packet Split descriptor */
 #define E1000_RCTL_RDMTS_HALF     0x00000000    /* Rx desc min threshold size */
 #define E1000_RCTL_MO_SHIFT       12            /* multicast offset shift */
+#define E1000_RCTL_MO_3           0x00003000    /* multicast offset 15:4 */
 #define E1000_RCTL_BAM            0x00008000    /* broadcast enable */
 /* these buffer sizes are valid if E1000_RCTL_BSEX is 0 */
 #define E1000_RCTL_SZ_2048        0x00000000    /* Rx buffer size 2048 */
@@ -153,6 +163,7 @@
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
 #define E1000_RCTL_CFI            0x00100000    /* canonical form indicator */
+#define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
@@ -255,11 +266,16 @@
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT   E1000_ALL_SPEED_DUPLEX
 
 /* LED Control */
+#define E1000_PHY_LED0_MODE_MASK          0x00000007
+#define E1000_PHY_LED0_IVRT               0x00000008
+#define E1000_PHY_LED0_MASK               0x0000001F
+
 #define E1000_LEDCTL_LED0_MODE_MASK       0x0000000F
 #define E1000_LEDCTL_LED0_MODE_SHIFT      0
 #define E1000_LEDCTL_LED0_IVRT            0x00000040
 #define E1000_LEDCTL_LED0_BLINK           0x00000080
 
+#define E1000_LEDCTL_MODE_LINK_UP       0x2
 #define E1000_LEDCTL_MODE_LED_ON        0xE
 #define E1000_LEDCTL_MODE_LED_OFF       0xF
 
@@ -359,6 +375,8 @@
 #define E1000_SWSM_SMBI         0x00000001 /* Driver Semaphore bit */
 #define E1000_SWSM_SWESMBI      0x00000002 /* FW Semaphore bit */
 #define E1000_SWSM_DRV_LOAD     0x00000008 /* Driver Loaded Bit */
+
+#define E1000_SWSM2_LOCK        0x00000002 /* Secondary driver semaphore bit */
 
 /* Interrupt Cause Read */
 #define E1000_ICR_TXDW          0x00000001 /* Transmit desc written back */
@@ -469,6 +487,8 @@
 #define AUTO_READ_DONE_TIMEOUT      10
 
 /* Flow Control */
+#define E1000_FCRTH_RTH  0x0000FFF8     /* Mask Bits[15:3] for RTH */
+#define E1000_FCRTL_RTL  0x0000FFF8     /* Mask Bits[15:3] for RTL */
 #define E1000_FCRTL_XONE 0x80000000     /* Enable XON frame transmission */
 
 /* Transmit Configuration Word */
@@ -674,6 +694,8 @@
 #define IFE_C_E_PHY_ID       0x02A80310
 #define BME1000_E_PHY_ID     0x01410CB0
 #define BME1000_E_PHY_ID_R2  0x01410CB1
+#define I82577_E_PHY_ID      0x01540050
+#define I82578_E_PHY_ID      0x004DD040
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -726,6 +748,9 @@
 /* M88EC018 Rev 2 specific DownShift settings */
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK  0x0E00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X    0x0800
+
+#define I82578_EPSCR_DOWNSHIFT_ENABLE          0x0020
+#define I82578_EPSCR_DOWNSHIFT_COUNTER_MASK    0x001C
 
 /* BME1000 PHY Specific Control Register */
 #define BME1000_PSCR_ENABLE_DOWNSHIFT   0x0800 /* 1 = enable downshift */

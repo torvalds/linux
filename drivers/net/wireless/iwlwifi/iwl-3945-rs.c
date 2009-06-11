@@ -38,6 +38,7 @@
 
 #include "iwl-commands.h"
 #include "iwl-3945.h"
+#include "iwl-sta.h"
 
 #define RS_NAME "iwl-3945-rs"
 
@@ -714,13 +715,13 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 
 	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !rs_sta->ibss_sta_added) {
-		u8 sta_id = iwl3945_hw_find_station(priv, hdr->addr1);
+		u8 sta_id = iwl_find_station(priv, hdr->addr1);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pm\n",
 				       hdr->addr1);
-			sta_id = iwl3945_add_station(priv,
-				    hdr->addr1, 0, CMD_ASYNC, NULL);
+			sta_id = iwl_add_station(priv, hdr->addr1, false,
+				CMD_ASYNC, NULL);
 		}
 		if (sta_id != IWL_INVALID_STATION)
 			rs_sta->ibss_sta_added = 1;
@@ -975,7 +976,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta = ieee80211_find_sta(hw, priv->stations_39[sta_id].sta.sta.addr);
+	sta = ieee80211_find_sta(hw, priv->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		rcu_read_unlock();
 		return;

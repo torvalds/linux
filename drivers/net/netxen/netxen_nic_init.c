@@ -178,10 +178,8 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
-		if (rds_ring->rx_buf_arr) {
-			vfree(rds_ring->rx_buf_arr);
-			rds_ring->rx_buf_arr = NULL;
-		}
+		vfree(rds_ring->rx_buf_arr);
+		rds_ring->rx_buf_arr = NULL;
 	}
 	kfree(recv_ctx->rds_rings);
 
@@ -190,8 +188,7 @@ skip_rds:
 		return;
 
 	tx_ring = adapter->tx_ring;
-	if (tx_ring->cmd_buf_arr)
-		vfree(tx_ring->cmd_buf_arr);
+	vfree(tx_ring->cmd_buf_arr);
 }
 
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)

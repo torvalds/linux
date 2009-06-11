@@ -1541,6 +1541,7 @@ int bond_create_sysfs(void)
 			printk(KERN_ERR
 			       "network device named %s already exists in sysfs",
 			       class_attr_bonding_masters.attr.name);
+		ret = 0;
 	}
 
 	return ret;

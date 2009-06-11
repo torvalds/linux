@@ -321,8 +321,6 @@ struct lbs_private {
 
 	u32 monitormode;
 	u8 fw_ready;
-	u8 fn_init_required;
-	u8 fn_shutdown_required;
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;
@@ -340,7 +338,7 @@ struct bss_descriptor {
 	u32 rssi;
 	u32 channel;
 	u16 beaconperiod;
-	u32 atimwindow;
+	__le16 atimwindow;
 
 	/* IW_MODE_AUTO, IW_MODE_ADHOC, IW_MODE_INFRA */
 	u8 mode;
@@ -350,10 +348,10 @@ struct bss_descriptor {
 
 	unsigned long last_scanned;
 
-	union ieeetypes_phyparamset phyparamset;
-	union IEEEtypes_ssparamset ssparamset;
+	union ieee_phy_param_set phy;
+	union ieee_ss_param_set ss;
 
-	struct ieeetypes_countryinfofullset countryinfo;
+	struct ieee_ie_country_info_full_set countryinfo;
 
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	size_t wpa_ie_len;

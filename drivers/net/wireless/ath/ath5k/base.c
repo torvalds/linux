@@ -2070,6 +2070,13 @@ err_unmap:
 	return ret;
 }
 
+static void ath5k_beacon_disable(struct ath5k_softc *sc)
+{
+	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
+	ath5k_hw_set_imr(sc->ah, sc->imask);
+	ath5k_hw_stop_tx_dma(sc->ah, sc->bhalq);
+}
+
 /*
  * Transmit a beacon frame at SWBA.  Dynamic updates to the
  * frame contents are done as needed and the slot time is
@@ -2353,6 +2360,8 @@ ath5k_init(struct ath5k_softc *sc)
 	if (ret)
 		goto done;
 
+	ath5k_rfkill_hw_start(ah);
+
 	/*
 	 * Reset the key cache since some parts do not reset the
 	 * contents on initial power up or resume from suspend.
@@ -2461,6 +2470,8 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	tasklet_kill(&sc->restq);
 	tasklet_kill(&sc->beacontq);
 
+	ath5k_rfkill_hw_stop(sc->ah);
+
 	return ret;
 }
 
@@ -2519,6 +2530,9 @@ ath5k_intr(int irq, void *dev_id)
 				 */
 				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 			}
+			if (status & AR5K_INT_GPIO)
+				tasklet_schedule(&sc->rf_kill.toggleq);
+
 		}
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
@@ -2757,6 +2771,7 @@ ath5k_remove_interface(struct ieee80211_hw *hw,
 		goto end;
 
 	ath5k_hw_set_lladdr(sc->ah, mac);
+	ath5k_beacon_disable(sc);
 	sc->vif = NULL;
 end:
 	mutex_unlock(&sc->lock);
@@ -2775,11 +2790,9 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&sc->lock);
 
-	sc->bintval = conf->beacon_int;
-
 	ret = ath5k_chan_set(sc, conf->channel);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
 	(sc->power_level != conf->power_level)) {
@@ -2808,8 +2821,9 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
 
+unlock:
 	mutex_unlock(&sc->lock);
-	return 0;
+	return ret;
 }
 
 #define SUPPORTED_FIF_FLAGS \
@@ -3061,7 +3075,14 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	int ret;
 	struct ath5k_softc *sc = hw->priv;
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb;
+
+	if (WARN_ON(!vif)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	skb = ieee80211_beacon_get(hw, vif);
 
 	if (!skb) {
 		ret = -ENOMEM;

@@ -1687,6 +1687,12 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out_rtnl;
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
 	if (err)
 		goto out;
@@ -1738,7 +1744,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
+
 	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+	if (!params.aid || params.aid > IEEE80211_MAX_AID)
+		return -EINVAL;
+
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
 		params.ht_capa =
 			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
@@ -3559,11 +3569,43 @@ void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev)
 	genlmsg_multicast(msg, 0, nl80211_config_mcgrp.id, GFP_KERNEL);
 }
 
+static int nl80211_add_scan_req(struct sk_buff *msg,
+				struct cfg80211_registered_device *rdev)
+{
+	struct cfg80211_scan_request *req = rdev->scan_req;
+	struct nlattr *nest;
+	int i;
+
+	if (WARN_ON(!req))
+		return 0;
+
+	nest = nla_nest_start(msg, NL80211_ATTR_SCAN_SSIDS);
+	if (!nest)
+		goto nla_put_failure;
+	for (i = 0; i < req->n_ssids; i++)
+		NLA_PUT(msg, i, req->ssids[i].ssid_len, req->ssids[i].ssid);
+	nla_nest_end(msg, nest);
+
+	nest = nla_nest_start(msg, NL80211_ATTR_SCAN_FREQUENCIES);
+	if (!nest)
+		goto nla_put_failure;
+	for (i = 0; i < req->n_channels; i++)
+		NLA_PUT_U32(msg, i, req->channels[i]->center_freq);
+	nla_nest_end(msg, nest);
+
+	if (req->ie)
+		NLA_PUT(msg, NL80211_ATTR_IE, req->ie_len, req->ie);
+
+	return 0;
+ nla_put_failure:
+	return -ENOBUFS;
+}
+
 static int nl80211_send_scan_donemsg(struct sk_buff *msg,
-				    struct cfg80211_registered_device *rdev,
-				    struct net_device *netdev,
-				    u32 pid, u32 seq, int flags,
-				    u32 cmd)
+				     struct cfg80211_registered_device *rdev,
+				     struct net_device *netdev,
+				     u32 pid, u32 seq, int flags,
+				     u32 cmd)
 {
 	void *hdr;
 
@@ -3574,7 +3616,8 @@ static int nl80211_send_scan_donemsg(struct sk_buff *msg,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
 
-	/* XXX: we should probably bounce back the request? */
+	/* ignore errors and send incomplete event anyway */
+	nl80211_add_scan_req(msg, rdev);
 
 	return genlmsg_end(msg, hdr);
 
@@ -3828,7 +3871,7 @@ void nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!msg)
 		return;
 
@@ -3852,7 +3895,7 @@ void nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
 		return;
 	}
 
-	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, GFP_KERNEL);
+	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, GFP_ATOMIC);
 	return;
 
  nla_put_failure:

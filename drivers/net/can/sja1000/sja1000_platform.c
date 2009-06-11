@@ -37,14 +37,14 @@ MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("Socket-CAN driver for SJA1000 on the platform bus");
 MODULE_LICENSE("GPL v2");
 
-static u8 sp_read_reg(const struct net_device *dev, int reg)
+static u8 sp_read_reg(const struct sja1000_priv *priv, int reg)
 {
-	return ioread8((void __iomem *)(dev->base_addr + reg));
+	return ioread8(priv->reg_base + reg);
 }
 
-static void sp_write_reg(const struct net_device *dev, int reg, u8 val)
+static void sp_write_reg(const struct sja1000_priv *priv, int reg, u8 val)
 {
-	iowrite8(val, (void __iomem *)(dev->base_addr + reg));
+	iowrite8(val, priv->reg_base + reg);
 }
 
 static int sp_probe(struct platform_device *pdev)
@@ -89,9 +89,9 @@ static int sp_probe(struct platform_device *pdev)
 	}
 	priv = netdev_priv(dev);
 
-	dev->base_addr = (unsigned long)addr;
 	dev->irq = res_irq->start;
 	priv->irq_flags = res_irq->flags & IRQF_TRIGGER_MASK;
+	priv->reg_base = addr;
 	priv->read_reg = sp_read_reg;
 	priv->write_reg = sp_write_reg;
 	priv->can.clock.freq = pdata->clock;
@@ -108,8 +108,8 @@ static int sp_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
-	dev_info(&pdev->dev, "%s device registered (base_addr=%#lx, irq=%d)\n",
-		 DRV_NAME, dev->base_addr, dev->irq);
+	dev_info(&pdev->dev, "%s device registered (reg_base=%p, irq=%d)\n",
+		 DRV_NAME, priv->reg_base, dev->irq);
 	return 0;
 
  exit_free:
@@ -125,13 +125,14 @@ static int sp_probe(struct platform_device *pdev)
 static int sp_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct sja1000_priv *priv = netdev_priv(dev);
 	struct resource *res;
 
 	unregister_sja1000dev(dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 
-	if (dev->base_addr)
-		iounmap((void __iomem *)dev->base_addr);
+	if (priv->reg_base)
+		iounmap(priv->reg_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));

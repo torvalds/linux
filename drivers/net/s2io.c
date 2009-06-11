@@ -1764,7 +1764,7 @@ static int init_nic(struct s2io_nic *nic)
 		 * by then we return error.
 		 */
 		time = 0;
-		while (TRUE) {
+		while (true) {
 			val64 = readq(&bar0->rti_command_mem);
 			if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD))
 				break;
@@ -2137,7 +2137,7 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 
 	herc = (sp->device_type == XFRAME_II_DEVICE);
 
-	if (flag == FALSE) {
+	if (flag == false) {
 		if ((!herc && (sp->pdev->revision >= 4)) || herc) {
 			if (!(val64 & ADAPTER_STATUS_RMAC_PCC_IDLE))
 				ret = 1;
@@ -3587,7 +3587,7 @@ static void s2io_reset(struct s2io_nic * sp)
 		writeq(val64, &bar0->pcc_err_reg);
 	}
 
-	sp->device_enabled_once = FALSE;
+	sp->device_enabled_once = false;
 }
 
 /**
@@ -4299,7 +4299,6 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		s2io_stop_tx_queue(sp, fifo->fifo_no);
 	}
 	mac_control->stats_info->sw_stat.mem_allocated += skb->truesize;
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 
 	if (sp->config.intr_type == MSI_X)
@@ -5573,10 +5572,10 @@ static void s2io_ethtool_getpause_data(struct net_device *dev,
 
 	val64 = readq(&bar0->rmac_pause_cfg);
 	if (val64 & RMAC_PAUSE_GEN_ENABLE)
-		ep->tx_pause = TRUE;
+		ep->tx_pause = true;
 	if (val64 & RMAC_PAUSE_RX_ENABLE)
-		ep->rx_pause = TRUE;
-	ep->autoneg = FALSE;
+		ep->rx_pause = true;
+	ep->autoneg = false;
 }
 
 /**
@@ -6807,7 +6806,7 @@ static void s2io_set_link(struct work_struct *work)
 					val64 |= ADAPTER_LED_ON;
 					writeq(val64, &bar0->adapter_control);
 				}
-				nic->device_enabled_once = TRUE;
+				nic->device_enabled_once = true;
 			} else {
 				DBG_PRINT(ERR_DBG, "%s: Error: ", dev->name);
 				DBG_PRINT(ERR_DBG, "device is not Quiescent\n");
@@ -7755,7 +7754,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct s2io_nic *sp;
 	struct net_device *dev;
 	int i, j, ret;
-	int dma_flag = FALSE;
+	int dma_flag = false;
 	u32 mac_up, mac_down;
 	u64 val64 = 0, tmp64 = 0;
 	struct XENA_dev_config __iomem *bar0 = NULL;
@@ -7778,7 +7777,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		DBG_PRINT(INIT_DBG, "s2io_init_nic: Using 64bit DMA\n");
-		dma_flag = TRUE;
+		dma_flag = true;
 		if (pci_set_consistent_dma_mask
 		    (pdev, DMA_BIT_MASK(64))) {
 			DBG_PRINT(ERR_DBG,
@@ -7819,7 +7818,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	sp->dev = dev;
 	sp->pdev = pdev;
 	sp->high_dma_flag = dma_flag;
-	sp->device_enabled_once = FALSE;
+	sp->device_enabled_once = false;
 	if (rx_ring_mode == 1)
 		sp->rxd_mode = RXD_MODE_1;
 	if (rx_ring_mode == 2)
@@ -7965,7 +7964,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	if (sp->high_dma_flag == TRUE)
+	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_TSO;
 	dev->features |= NETIF_F_TSO6;

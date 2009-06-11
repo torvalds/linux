@@ -74,7 +74,7 @@ static void ar9170_update_leds(struct work_struct *work)
 
 	mutex_lock(&ar->mutex);
 	for (i = 0; i < AR9170_NUM_LEDS; i++)
-		if (ar->leds[i].toggled) {
+		if (ar->leds[i].registered && ar->leds[i].toggled) {
 			led_val |= 1 << i;
 
 			tmp = 70 + 200 / (ar->leds[i].toggled);
@@ -101,9 +101,15 @@ static void ar9170_led_brightness_set(struct led_classdev *led,
 	struct ar9170_led *arl = container_of(led, struct ar9170_led, l);
 	struct ar9170 *ar = arl->ar;
 
-	arl->toggled++;
+	if (unlikely(!arl->registered))
+		return ;
 
-	if (likely(IS_ACCEPTING_CMD(ar) && brightness))
+	if (arl->last_state != !!brightness) {
+		arl->toggled++;
+		arl->last_state = !!brightness;
+	}
+
+	if (likely(IS_ACCEPTING_CMD(ar) && arl->toggled))
 		queue_delayed_work(ar->hw->workqueue, &ar->led_work, HZ/10);
 }
 
@@ -136,13 +142,14 @@ void ar9170_unregister_leds(struct ar9170 *ar)
 {
 	int i;
 
-	cancel_delayed_work_sync(&ar->led_work);
-
 	for (i = 0; i < AR9170_NUM_LEDS; i++)
 		if (ar->leds[i].registered) {
 			led_classdev_unregister(&ar->leds[i].l);
 			ar->leds[i].registered = false;
+			ar->leds[i].toggled = 0;
 		}
+
+	cancel_delayed_work_sync(&ar->led_work);
 }
 
 int ar9170_register_leds(struct ar9170 *ar)

@@ -1300,7 +1300,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		buffer_info->length = size;
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = map[0] + offset;
+		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
 			pci_map_single(adapter->pdev,
 				skb->data + offset,
 				size,
@@ -1340,7 +1340,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
-			buffer_info->dma = map[f + 1] + offset;
+			buffer_info->dma = map[f] + offset;
 			buffer_info->next_to_watch = 0;
 
 			len -= size;
@@ -1488,7 +1488,6 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (count) {
 		ixgb_tx_queue(adapter, count, vlan_id, tx_flags);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		ixgb_maybe_stop_tx(netdev, &adapter->tx_ring, DESC_NEEDED);
 

@@ -470,7 +470,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		hdr->hdr_len = skb_transport_header(skb) - skb->data;
+		hdr->hdr_len = skb_headlen(skb);
 		hdr->gso_size = skb_shinfo(skb)->gso_size;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
@@ -680,6 +680,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	u8 promisc, allmulti;
 	struct virtio_net_ctrl_mac *mac_data;
 	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	void *buf;
 	int i;
 
@@ -718,9 +719,9 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 
 	/* Store the unicast list and count in the front of the buffer */
 	mac_data->entries = dev->uc_count;
-	addr = dev->uc_list;
-	for (i = 0; i < dev->uc_count; i++, addr = addr->next)
-		memcpy(&mac_data->macs[i][0], addr->da_addr, ETH_ALEN);
+	i = 0;
+	list_for_each_entry(ha, &dev->uc_list, list)
+		memcpy(&mac_data->macs[i++][0], ha->addr, ETH_ALEN);
 
 	sg_set_buf(&sg[0], mac_data,
 		   sizeof(mac_data->entries) + (dev->uc_count * ETH_ALEN));

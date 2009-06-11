@@ -112,9 +112,9 @@ int memcpy_toiovecend(const struct iovec *iov, unsigned char *kdata,
 			continue;
 		}
 		copy = min_t(unsigned int, iov->iov_len - offset, len);
-		offset = 0;
-		if (copy_to_user(iov->iov_base, kdata, copy))
+		if (copy_to_user(iov->iov_base + offset, kdata, copy))
 			return -EFAULT;
+		offset = 0;
 		kdata += copy;
 		len -= copy;
 	}

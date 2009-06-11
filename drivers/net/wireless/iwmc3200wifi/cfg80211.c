@@ -268,7 +268,7 @@ static int iwm_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 		iwm->conf.frag_threshold = wiphy->frag_threshold;
 
-		ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+		ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_FA_CFG_FIX,
 					     CFG_FRAG_THRESHOLD,
 					     iwm->conf.frag_threshold);
 		if (ret < 0)

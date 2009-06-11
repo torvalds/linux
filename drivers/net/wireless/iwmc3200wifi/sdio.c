@@ -395,7 +395,7 @@ static struct iwm_if_ops if_sdio_ops = {
 	.debugfs_init = if_sdio_debugfs_init,
 	.debugfs_exit = if_sdio_debugfs_exit,
 	.umac_name = "iwmc3200wifi-umac-sdio.bin",
-	.calib_lmac_name = "iwmc3200wifi-lmac-calib-sdio.bin",
+	.calib_lmac_name = "iwmc3200wifi-calib-sdio.bin",
 	.lmac_name = "iwmc3200wifi-lmac-sdio.bin",
 };
 

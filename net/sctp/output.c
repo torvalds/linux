@@ -405,10 +405,10 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 			sctp_assoc_sync_pmtu(asoc);
 		}
 	}
-	nskb->dst = dst_clone(tp->dst);
-	if (!nskb->dst)
+	dst = dst_clone(tp->dst);
+	skb_dst_set(nskb, dst);
+	if (dst)
 		goto no_route;
-	dst = nskb->dst;
 
 	/* Build the SCTP header.  */
 	sh = (struct sctphdr *)skb_push(nskb, sizeof(struct sctphdr));

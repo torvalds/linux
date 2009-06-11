@@ -222,7 +222,7 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 {
 	struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, 0);
 	struct teql_sched_data *q = qdisc_priv(dev_queue->qdisc);
-	struct neighbour *mn = skb->dst->neighbour;
+	struct neighbour *mn = skb_dst(skb)->neighbour;
 	struct neighbour *n = q->ncache;
 
 	if (mn->tbl == NULL)
@@ -262,8 +262,8 @@ static inline int teql_resolve(struct sk_buff *skb,
 		return -ENODEV;
 
 	if (dev->header_ops == NULL ||
-	    skb->dst == NULL ||
-	    skb->dst->neighbour == NULL)
+	    skb_dst(skb) == NULL ||
+	    skb_dst(skb)->neighbour == NULL)
 		return 0;
 	return __teql_resolve(skb, skb_res, dev);
 }

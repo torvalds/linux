@@ -82,6 +82,12 @@
 
 #include "atl1.h"
 
+#define ATLX_DRIVER_VERSION "2.1.3"
+MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, \
+	Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(ATLX_DRIVER_VERSION);
+
 /* Temporary hack for merging atl1 and atl2 */
 #include "atlx.c"
 
@@ -2431,7 +2437,6 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	atl1_tx_queue(adapter, count, ptpd);
 	atl1_update_mailbox(adapter);
 	mmiowb();
-	netdev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
