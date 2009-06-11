@@ -849,7 +849,8 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP ||ARCH_OMAP4)
+	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4)
 	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4)
@@ -920,7 +921,8 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || REALVIEW_EB_A9MP || ARCH_OMAP4)
+	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
+		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4)
 	default y
 	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4)
 	help
@@ -1031,7 +1033,7 @@ config LEDS
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
 		   ARCH_AT91 || ARCH_DAVINCI || \
-		   ARCH_KS8695 || MACH_RD88F5182
+		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
