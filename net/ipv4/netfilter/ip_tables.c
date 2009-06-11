@@ -418,7 +418,7 @@ ipt_do_table(struct sk_buff *skb,
 #endif
 		verdict = t->u.kernel.target->target(skb, &tgpar);
 #ifdef CONFIG_NETFILTER_DEBUG
-		if (comefrom != 0xeeeeeeec && verdict == IPT_CONTINUE) {
+		if (tb_comefrom != 0xeeeeeeec && verdict == IPT_CONTINUE) {
 			printk("Target %s reentered!\n",
 			       t->u.kernel.target->name);
 			verdict = NF_DROP;
