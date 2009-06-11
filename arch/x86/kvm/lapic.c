@@ -165,22 +165,34 @@ static int find_highest_vector(void *bitmap)
 
 static inline int apic_test_and_set_irr(int vec, struct kvm_lapic *apic)
 {
+	apic->irr_pending = true;
 	return apic_test_and_set_vector(vec, apic->regs + APIC_IRR);
 }
 
-static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
+static inline int apic_search_irr(struct kvm_lapic *apic)
 {
-	apic_clear_vector(vec, apic->regs + APIC_IRR);
+	return find_highest_vector(apic->regs + APIC_IRR);
 }
 
 static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 {
 	int result;
 
-	result = find_highest_vector(apic->regs + APIC_IRR);
+	if (!apic->irr_pending)
+		return -1;
+
+	result = apic_search_irr(apic);
 	ASSERT(result == -1 || result >= 16);
 
 	return result;
+}
+
+static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
+{
+	apic->irr_pending = false;
+	apic_clear_vector(vec, apic->regs + APIC_IRR);
+	if (apic_search_irr(apic) != -1)
+		apic->irr_pending = true;
 }
 
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
@@ -188,6 +200,11 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	int highest_irr;
 
+	/* This may race with setting of irr in __apic_accept_irq() and
+	 * value returned may be wrong, but kvm_vcpu_kick() in __apic_accept_irq
+	 * will cause vmexit immediately and the value will be recalculated
+	 * on the next vmentry.
+	 */
 	if (!apic)
 		return 0;
 	highest_irr = apic_find_highest_irr(apic);
@@ -843,6 +860,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_ISR + 0x10 * i, 0);
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
+	apic->irr_pending = false;
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
 	if (kvm_vcpu_is_bsp(vcpu))
