@@ -10,6 +10,9 @@ menu "Library routines"
 config BITREVERSE
 	tristate
 
+config RATIONAL
+	boolean
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
