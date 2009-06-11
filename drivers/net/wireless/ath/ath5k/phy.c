@@ -1085,8 +1085,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 				AR5K_PHY_CCKTXCTL_WORLD);
 	}
 
-	ah->ah_current_channel.center_freq = channel->center_freq;
-	ah->ah_current_channel.hw_value = channel->hw_value;
+	ah->ah_current_channel = channel;
 	ah->ah_turbo = channel->hw_value == CHANNEL_T ? true : false;
 
 	return 0;
@@ -1731,7 +1730,7 @@ ath5k_hw_set_fast_div(struct ath5k_hw *ah, u8 ee_mode, bool enable)
 void
 ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 {
-	struct ieee80211_channel *channel = &ah->ah_current_channel;
+	struct ieee80211_channel *channel = ah->ah_current_channel;
 	bool use_def_for_tx, update_def_on_tx, use_def_for_rts, fast_div;
 	bool use_def_for_sg;
 	u8 def_ant, tx_ant, ee_mode;
@@ -3011,7 +3010,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
 	/*Just a try M.F.*/
-	struct ieee80211_channel *channel = &ah->ah_current_channel;
+	struct ieee80211_channel *channel = ah->ah_current_channel;
 	u8 ee_mode;
 
 	ATH5K_TRACE(ah->ah_sc);

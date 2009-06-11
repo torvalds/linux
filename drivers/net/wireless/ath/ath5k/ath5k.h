@@ -713,8 +713,8 @@ struct ath5k_gain {
  * Used internaly for reset_tx_queue).
  * Also see struct struct ieee80211_channel.
  */
-#define IS_CHAN_XR(_c)	((_c.hw_value & CHANNEL_XR) != 0)
-#define IS_CHAN_B(_c)	((_c.hw_value & CHANNEL_B) != 0)
+#define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
+#define IS_CHAN_B(_c)	((_c->hw_value & CHANNEL_B) != 0)
 
 /*
  * The following structure is used to map 2GHz channels to
@@ -1029,27 +1029,21 @@ struct ath5k_hw {
 	enum ath5k_int		ah_imr;
 
 	enum nl80211_iftype	ah_op_mode;
-	enum ath5k_power_mode	ah_power_mode;
-	struct ieee80211_channel ah_current_channel;
+	struct ieee80211_channel *ah_current_channel;
 	bool			ah_turbo;
 	bool			ah_calibration;
-	bool			ah_running;
 	bool			ah_single_chip;
 	bool			ah_combined_mic;
 
+	enum ath5k_version	ah_version;
+	enum ath5k_radio	ah_radio;
+	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
 	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
-
-	enum ath5k_version	ah_version;
-	enum ath5k_radio	ah_radio;
-	u32			ah_phy;
-
-	bool			ah_5ghz;
-	bool			ah_2ghz;
 
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
@@ -1058,7 +1052,6 @@ struct ath5k_hw {
 	u32			ah_aifs;
 	u32			ah_cw_min;
 	u32			ah_cw_max;
-	bool			ah_software_retry;
 	u32			ah_limit_tx_retries;
 
 	/* Antenna Control */
@@ -1066,6 +1059,7 @@ struct ath5k_hw {
 	u8			ah_ant_mode;
 	u8			ah_tx_ant;
 	u8			ah_def_ant;
+	bool			ah_software_retry;
 
 	u8			ah_sta_id[ETH_ALEN];
 
@@ -1075,7 +1069,6 @@ struct ath5k_hw {
 	u8			ah_bssid[ETH_ALEN];
 	u8			ah_bssid_mask[ETH_ALEN];
 
-	u32			ah_gpio[AR5K_MAX_GPIO];
 	int			ah_gpio_npins;
 
 	struct ath_regulatory	ah_regulatory;

@@ -290,7 +290,6 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 	}
 
 commit:
-	ah->ah_power_mode = mode;
 	ath5k_hw_reg_write(ah, staid, AR5K_STA_ID1);
 
 	return 0;
