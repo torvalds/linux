@@ -302,7 +302,8 @@ config AUDITSYSCALL
 
 config AUDIT_TREE
 	def_bool y
-	depends on AUDITSYSCALL && INOTIFY
+	depends on AUDITSYSCALL
+	select INOTIFY
 
 menu "RCU Subsystem"
 
