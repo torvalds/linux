@@ -1150,9 +1150,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	if (request_irq(spi->irq, ads7846_irq, IRQF_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
-		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
-		err = -EBUSY;
-		goto err_free_gpio;
+		dev_info(&spi->dev,
+			"trying pin change workaround on irq %d\n", spi->irq);
+		err = request_irq(spi->irq, ads7846_irq,
+				  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+				  spi->dev.driver->name, ts);
+		if (err) {
+			dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
+			goto err_free_gpio;
+		}
 	}
 
 	err = ads784x_hwmon_register(spi, ts);
