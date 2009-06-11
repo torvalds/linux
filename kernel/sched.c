@@ -7795,7 +7795,7 @@ static int __init_refok init_rootdomain(struct root_domain *rd, bool bootmem)
 	if (!alloc_cpumask_var(&rd->rto_mask, gfp))
 		goto free_online;
 
-	if (cpupri_init(&rd->cpupri, false) != 0)
+	if (cpupri_init(&rd->cpupri, bootmem) != 0)
 		goto free_rto_mask;
 	return 0;
 
