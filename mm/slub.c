@@ -832,6 +832,11 @@ static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 	return atomic_long_read(&n->nr_slabs);
 }
 
+static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
+{
+	return atomic_long_read(&n->nr_slabs);
+}
+
 static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
 {
 	struct kmem_cache_node *n = get_node(s, node);
@@ -1049,6 +1054,8 @@ static inline unsigned long kmem_cache_flags(unsigned long objsize,
 #define slub_debug 0
 
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+							{ return 0; }
+static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
 							{ return 0; }
 static inline void inc_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
@@ -1503,6 +1510,15 @@ static unsigned long count_partial(struct kmem_cache_node *n,
 	return x;
 }
 
+static inline unsigned long node_nr_objs(struct kmem_cache_node *n)
+{
+#ifdef CONFIG_SLUB_DEBUG
+	return atomic_long_read(&n->total_objects);
+#else
+	return 0;
+#endif
+}
+
 static noinline void
 slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 {
@@ -1524,9 +1540,9 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 		if (!n)
 			continue;
 
-		nr_slabs = atomic_long_read(&n->nr_slabs);
-		nr_objs = atomic_long_read(&n->total_objects);
-		nr_free = count_partial(n, count_free);
+		nr_free  = count_partial(n, count_free);
+		nr_slabs = node_nr_slabs(n);
+		nr_objs  = node_nr_objs(n);
 
 		printk(KERN_WARNING
 			"  node %d: slabs: %ld, objs: %ld, free: %ld\n",
