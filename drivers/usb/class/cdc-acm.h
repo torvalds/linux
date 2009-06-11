@@ -90,7 +90,8 @@ struct acm {
 	struct usb_interface *control;			/* control interface */
 	struct usb_interface *data;			/* data interface */
 	struct tty_struct *tty;				/* the corresponding tty */
-	struct urb *ctrlurb;			/* urbs */
+	struct tty_port port;			 	/* our tty port data */
+	struct urb *ctrlurb;				/* urbs */
 	u8 *ctrl_buffer;				/* buffers of urbs */
 	dma_addr_t ctrl_dma;				/* dma handles of buffers */
 	u8 *country_codes;				/* country codes from device */

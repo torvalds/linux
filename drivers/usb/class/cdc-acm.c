@@ -89,6 +89,9 @@ static DEFINE_MUTEX(open_mutex);
 
 #define ACM_READY(acm)	(acm && acm->dev && acm->used)
 
+static const struct tty_port_operations acm_port_ops = {
+};
+
 #ifdef VERBOSE_DEBUG
 #define verbose	1
 #else
@@ -1082,6 +1085,8 @@ skip_normal_probe:
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
 	acm->rx_endpoint = usb_rcvbulkpipe(usb_dev, epread->bEndpointAddress);
+	tty_port_init(&acm->port);
+	acm->port.ops = &acm_port_ops;
 
 	buf = usb_buffer_alloc(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf) {
