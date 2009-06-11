@@ -43,7 +43,23 @@ static atomic_t nr_counters __read_mostly;
 static atomic_t nr_mmap_counters __read_mostly;
 static atomic_t nr_comm_counters __read_mostly;
 
-int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
+/*
+ * 0 - not paranoid
+ * 1 - disallow cpu counters to unpriv
+ * 2 - disallow kernel profiling to unpriv
+ */
+int sysctl_perf_counter_paranoid __read_mostly; /* do we need to be privileged */
+
+static inline bool perf_paranoid_cpu(void)
+{
+	return sysctl_perf_counter_paranoid > 0;
+}
+
+static inline bool perf_paranoid_kernel(void)
+{
+	return sysctl_perf_counter_paranoid > 1;
+}
+
 int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
 int sysctl_perf_counter_limit __read_mostly = 100000; /* max NMIs per second */
 
@@ -1385,7 +1401,7 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 	 */
 	if (cpu != -1) {
 		/* Must be root to operate on a CPU counter: */
-		if (sysctl_perf_counter_priv && !capable(CAP_SYS_ADMIN))
+		if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
 			return ERR_PTR(-EACCES);
 
 		if (cpu < 0 || cpu > num_possible_cpus())
@@ -3617,6 +3633,11 @@ SYSCALL_DEFINE5(perf_counter_open,
 
 	if (copy_from_user(&attr, attr_uptr, sizeof(attr)) != 0)
 		return -EFAULT;
+
+	if (!attr.exclude_kernel) {
+		if (perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
+	}
 
 	/*
 	 * Get the target context (task or percpu):

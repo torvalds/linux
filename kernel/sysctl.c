@@ -916,9 +916,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_PERF_COUNTERS
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "perf_counter_privileged",
-		.data		= &sysctl_perf_counter_priv,
-		.maxlen		= sizeof(sysctl_perf_counter_priv),
+		.procname	= "perf_counter_paranoid",
+		.data		= &sysctl_perf_counter_paranoid,
+		.maxlen		= sizeof(sysctl_perf_counter_paranoid),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
