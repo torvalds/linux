@@ -302,6 +302,46 @@ static int power7_generic_events[] = {
 	[PERF_COUNT_BRANCH_MISSES] = 0x400f6,		/* BR_MPRED */
 };
 
+#define C(x)	PERF_COUNT_HW_CACHE_##x
+
+/*
+ * Table of generalized cache-related events.
+ * 0 means not supported, -1 means nonsensical, other values
+ * are event codes.
+ */
+static int power7_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x400f0,	0xc880	},
+		[C(OP_WRITE)] = {	0,		0x300f0	},
+		[C(OP_PREFETCH)] = {	0xd8b8,		0	},
+	},
+	[C(L1I)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x200fc	},
+		[C(OP_WRITE)] = {	-1,		-1	},
+		[C(OP_PREFETCH)] = {	0x408a,		0	},
+	},
+	[C(L2)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x6080,		0x6084	},
+		[C(OP_WRITE)] = {	0x6082,		0x6086	},
+		[C(OP_PREFETCH)] = {	0,		0	},
+	},
+	[C(DTLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x300fc	},
+		[C(OP_WRITE)] = {	-1,		-1	},
+		[C(OP_PREFETCH)] = {	-1,		-1	},
+	},
+	[C(ITLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x400fc	},
+		[C(OP_WRITE)] = {	-1,		-1	},
+		[C(OP_PREFETCH)] = {	-1,		-1	},
+	},
+	[C(BPU)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x10068,	0x400f6	},
+		[C(OP_WRITE)] = {	-1,		-1	},
+		[C(OP_PREFETCH)] = {	-1,		-1	},
+	},
+};
+
 struct power_pmu power7_pmu = {
 	.n_counter = 6,
 	.max_alternatives = MAX_ALT + 1,
@@ -313,4 +353,5 @@ struct power_pmu power7_pmu = {
 	.disable_pmc = power7_disable_pmc,
 	.n_generic = ARRAY_SIZE(power7_generic_events),
 	.generic_events = power7_generic_events,
+	.cache_events = &power7_cache_events,
 };

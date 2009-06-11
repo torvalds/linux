@@ -856,6 +856,36 @@ static void hw_perf_counter_destroy(struct perf_counter *counter)
 	}
 }
 
+/*
+ * Translate a generic cache event config to a raw event code.
+ */
+static int hw_perf_cache_event(u64 config, u64 *eventp)
+{
+	unsigned long type, op, result;
+	int ev;
+
+	if (!ppmu->cache_events)
+		return -EINVAL;
+
+	/* unpack config */
+	type = config & 0xff;
+	op = (config >> 8) & 0xff;
+	result = (config >> 16) & 0xff;
+
+	if (type >= PERF_COUNT_HW_CACHE_MAX ||
+	    op >= PERF_COUNT_HW_CACHE_OP_MAX ||
+	    result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
+		return -EINVAL;
+
+	ev = (*ppmu->cache_events)[type][op][result];
+	if (ev == 0)
+		return -EOPNOTSUPP;
+	if (ev == -1)
+		return -EINVAL;
+	*eventp = ev;
+	return 0;
+}
+
 const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
 	u64 ev;
@@ -868,13 +898,21 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	if (!ppmu)
 		return ERR_PTR(-ENXIO);
-	if (counter->attr.type != PERF_TYPE_RAW) {
+	switch (counter->attr.type) {
+	case PERF_TYPE_HARDWARE:
 		ev = counter->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
 			return ERR_PTR(-EOPNOTSUPP);
 		ev = ppmu->generic_events[ev];
-	} else {
+		break;
+	case PERF_TYPE_HW_CACHE:
+		err = hw_perf_cache_event(counter->attr.config, &ev);
+		if (err)
+			return ERR_PTR(err);
+		break;
+	case PERF_TYPE_RAW:
 		ev = counter->attr.config;
+		break;
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;

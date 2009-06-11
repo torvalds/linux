@@ -614,6 +614,46 @@ static int power5p_generic_events[] = {
 	[PERF_COUNT_BRANCH_MISSES] = 0x230e5,		/* BR_MPRED_CR */
 };
 
+#define C(x)	PERF_COUNT_HW_CACHE_##x
+
+/*
+ * Table of generalized cache-related events.
+ * 0 means not supported, -1 means nonsensical, other values
+ * are event codes.
+ */
+static int power5p_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x1c10a8,	0x3c1088	},
+		[C(OP_WRITE)] = {	0x2c10a8,	0xc10c3		},
+		[C(OP_PREFETCH)] = {	0xc70e7,	-1		},
+	},
+	[C(L1I)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	0,		0		},
+	},
+	[C(L2)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0		},
+		[C(OP_WRITE)] = {	0,		0		},
+		[C(OP_PREFETCH)] = {	0xc50c3,	0		},
+	},
+	[C(DTLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0xc20e4,	0x800c4		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+	[C(ITLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x800c0		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+	[C(BPU)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x230e4,	0x230e5		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+};
+
 struct power_pmu power5p_pmu = {
 	.n_counter = 6,
 	.max_alternatives = MAX_ALT,
@@ -623,8 +663,9 @@ struct power_pmu power5p_pmu = {
 	.get_constraint = power5p_get_constraint,
 	.get_alternatives = power5p_get_alternatives,
 	.disable_pmc = power5p_disable_pmc,
+	.limited_pmc_event = power5p_limited_pmc_event,
+	.flags = PPMU_LIMITED_PMC5_6,
 	.n_generic = ARRAY_SIZE(power5p_generic_events),
 	.generic_events = power5p_generic_events,
-	.flags = PPMU_LIMITED_PMC5_6,
-	.limited_pmc_event = power5p_limited_pmc_event,
+	.cache_events = &power5p_cache_events,
 };

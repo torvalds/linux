@@ -33,6 +33,9 @@ struct power_pmu {
 	u32	flags;
 	int	n_generic;
 	int	*generic_events;
+	int	(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
+			       [PERF_COUNT_HW_CACHE_OP_MAX]
+			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 };
 
 extern struct power_pmu *ppmu;

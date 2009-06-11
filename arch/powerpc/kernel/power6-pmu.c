@@ -474,6 +474,47 @@ static int power6_generic_events[] = {
 	[PERF_COUNT_BRANCH_MISSES] = 0x400052,		/* BR_MPRED */
 };
 
+#define C(x)	PERF_COUNT_HW_CACHE_##x
+
+/*
+ * Table of generalized cache-related events.
+ * 0 means not supported, -1 means nonsensical, other values
+ * are event codes.
+ * The "DTLB" and "ITLB" events relate to the DERAT and IERAT.
+ */
+static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
+	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x80082,	0x80080		},
+		[C(OP_WRITE)] = {	0x80086,	0x80088		},
+		[C(OP_PREFETCH)] = {	0x810a4,	0		},
+	},
+	[C(L1I)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x100056 	},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	0x4008c,	0		},
+	},
+	[C(L2)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x150730,	0x250532	},
+		[C(OP_WRITE)] = {	0x250432,	0x150432	},
+		[C(OP_PREFETCH)] = {	0x810a6,	0		},
+	},
+	[C(DTLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x20000e	},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+	[C(ITLB)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0,		0x420ce		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+	[C(BPU)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	0x430e6,	0x400052	},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
+};
+
 struct power_pmu power6_pmu = {
 	.n_counter = 6,
 	.max_alternatives = MAX_ALT,
@@ -483,8 +524,9 @@ struct power_pmu power6_pmu = {
 	.get_constraint = p6_get_constraint,
 	.get_alternatives = p6_get_alternatives,
 	.disable_pmc = p6_disable_pmc,
+	.limited_pmc_event = p6_limited_pmc_event,
+	.flags = PPMU_LIMITED_PMC5_6 | PPMU_ALT_SIPR,
 	.n_generic = ARRAY_SIZE(power6_generic_events),
 	.generic_events = power6_generic_events,
-	.flags = PPMU_LIMITED_PMC5_6 | PPMU_ALT_SIPR,
-	.limited_pmc_event = p6_limited_pmc_event,
+	.cache_events = &power6_cache_events,
 };
