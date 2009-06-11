@@ -25,6 +25,7 @@
 #include <linux/uio.h>
 #include <linux/namei.h>
 #include <linux/log2.h>
+#include <linux/kmemleak.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -492,6 +493,11 @@ void __init bdev_cache_init(void)
 	bd_mnt = kern_mount(&bd_type);
 	if (IS_ERR(bd_mnt))
 		panic("Cannot create bdev pseudo-fs");
+	/*
+	 * This vfsmount structure is only used to obtain the
+	 * blockdev_superblock, so tell kmemleak not to report it.
+	 */
+	kmemleak_not_leak(bd_mnt);
 	blockdev_superblock = bd_mnt->mnt_sb;	/* For writeback */
 }
 
