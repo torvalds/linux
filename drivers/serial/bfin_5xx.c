@@ -330,6 +330,11 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		/* Clear TFI bit */
 		UART_PUT_LSR(uart, TFI);
 #endif
+		/* Anomaly notes:
+		 *  05000215 -	we always clear ETBEI within last UART TX
+		 *		interrupt to end a string. It is always set
+		 *		when start a new tx.
+		 */
 		UART_CLEAR_IER(uart, ETBEI);
 		return;
 	}
@@ -528,6 +533,11 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 	if (!(get_dma_curr_irqstat(uart->tx_dma_channel)&DMA_RUN)) {
 		disable_dma(uart->tx_dma_channel);
 		clear_dma_irqstat(uart->tx_dma_channel);
+		/* Anomaly notes:
+		 *  05000215 -	we always clear ETBEI within last UART TX
+		 *		interrupt to end a string. It is always set
+		 *		when start a new tx.
+		 */
 		UART_CLEAR_IER(uart, ETBEI);
 		xmit->tail = (xmit->tail + uart->tx_count) & (UART_XMIT_SIZE - 1);
 		uart->port.icount.tx += uart->tx_count;
@@ -969,6 +979,10 @@ static void bfin_serial_reset_irda(struct uart_port *port)
 }
 
 #ifdef CONFIG_CONSOLE_POLL
+/* Anomaly notes:
+ *  05000099 -  Because we only use THRE in poll_put and DR in poll_get,
+ *		losing other bits of UART_LSR is not a problem here.
+ */
 static void bfin_serial_poll_put_char(struct uart_port *port, unsigned char chr)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
