@@ -408,7 +408,7 @@ static void load_code(struct icom_port *icom_port)
 	release_firmware(fw);
 
 	/* Set Hardware level */
-	if ((icom_port->adapter->version | ADAPTER_V2) == ADAPTER_V2)
+	if (icom_port->adapter->version == ADAPTER_V2)
 		writeb(V2_HARDWARE, &(icom_port->dram->misc_flags));
 
 	/* Start the processor in Adapter */
@@ -861,7 +861,7 @@ static irqreturn_t icom_interrupt(int irq, void *dev_id)
 	/* find icom_port for this interrupt */
 	icom_adapter = (struct icom_adapter *) dev_id;
 
-	if ((icom_adapter->version | ADAPTER_V2) == ADAPTER_V2) {
+	if (icom_adapter->version == ADAPTER_V2) {
 		int_reg = icom_adapter->base_addr + 0x8024;
 
 		adapter_interrupts = readl(int_reg);
