@@ -74,7 +74,7 @@ extern asmlinkage int swsusp_arch_resume(void);
 
 extern int create_basic_memory_bitmaps(void);
 extern void free_basic_memory_bitmaps(void);
-extern unsigned int count_data_pages(void);
+extern int swsusp_shrink_memory(void);
 
 /**
  *	Auxiliary structure used for reading the snapshot image data and
@@ -149,7 +149,6 @@ extern int swsusp_swap_in_use(void);
 
 /* kernel/power/disk.c */
 extern int swsusp_check(void);
-extern int swsusp_shrink_memory(void);
 extern void swsusp_free(void);
 extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
@@ -176,7 +175,6 @@ extern int pm_notifier_call_chain(unsigned long val);
 #endif
 
 #ifdef CONFIG_HIGHMEM
-unsigned int count_highmem_pages(void);
 int restore_highmem(void);
 #else
 static inline unsigned int count_highmem_pages(void) { return 0; }
