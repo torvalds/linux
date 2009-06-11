@@ -1320,6 +1320,8 @@ static inline int audit_add_rule(struct audit_entry *entry)
 			mutex_unlock(&audit_filter_mutex);
 			goto error;
 		}
+		/* entry->rule.watch may have changed during audit_add_watch() */
+		watch = entry->rule.watch;
 		h = audit_hash_ino((u32)watch->ino);
 		list = &audit_inode_hash[h];
 	}
