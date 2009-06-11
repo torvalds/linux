@@ -727,17 +727,23 @@ unsigned int ata_sff_data_xfer(struct ata_device *dev, unsigned char *buf,
 	else
 		iowrite16_rep(data_addr, buf, words);
 
-	/* Transfer trailing 1 byte, if any. */
+	/* Transfer trailing byte, if any. */
 	if (unlikely(buflen & 0x01)) {
-		__le16 align_buf[1] = { 0 };
-		unsigned char *trailing_buf = buf + buflen - 1;
+		unsigned char pad[2];
 
+		/* Point buf to the tail of buffer */
+		buf += buflen - 1;
+
+		/*
+		 * Use io*16_rep() accessors here as well to avoid pointlessly
+		 * swapping bytes to and fro on the big endian machines...
+		 */
 		if (rw == READ) {
-			align_buf[0] = cpu_to_le16(ioread16(data_addr));
-			memcpy(trailing_buf, align_buf, 1);
+			ioread16_rep(data_addr, pad, 1);
+			*buf = pad[0];
 		} else {
-			memcpy(align_buf, trailing_buf, 1);
-			iowrite16(le16_to_cpu(align_buf[0]), data_addr);
+			pad[0] = *buf;
+			iowrite16_rep(data_addr, pad, 1);
 		}
 		words++;
 	}
