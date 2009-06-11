@@ -42,7 +42,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
@@ -111,7 +110,7 @@ xfs_trans_log_dquot(
  * Carry forward whatever is left of the quota blk reservation to
  * the spanky new transaction
  */
-STATIC void
+void
 xfs_trans_dup_dqinfo(
 	xfs_trans_t	*otp,
 	xfs_trans_t	*ntp)
@@ -167,19 +166,17 @@ xfs_trans_dup_dqinfo(
 /*
  * Wrap around mod_dquot to account for both user and group quotas.
  */
-STATIC void
+void
 xfs_trans_mod_dquot_byino(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*ip,
 	uint		field,
 	long		delta)
 {
-	xfs_mount_t	*mp;
+	xfs_mount_t	*mp = tp->t_mountp;
 
-	ASSERT(tp);
-	mp = tp->t_mountp;
-
-	if (!XFS_IS_QUOTA_ON(mp) ||
+	if (!XFS_IS_QUOTA_RUNNING(mp) ||
+	    !XFS_IS_QUOTA_ON(mp) ||
 	    ip->i_ino == mp->m_sb.sb_uquotino ||
 	    ip->i_ino == mp->m_sb.sb_gquotino)
 		return;
@@ -229,6 +226,7 @@ xfs_trans_mod_dquot(
 	xfs_dqtrx_t	*qtrx;
 
 	ASSERT(tp);
+	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
 	qtrx = NULL;
 
 	if (tp->t_dqinfo == NULL)
@@ -346,7 +344,7 @@ xfs_trans_dqlockedjoin(
  * Unreserve just the reservations done by this transaction.
  * dquot is still left locked at exit.
  */
-STATIC void
+void
 xfs_trans_apply_dquot_deltas(
 	xfs_trans_t		*tp)
 {
@@ -357,7 +355,7 @@ xfs_trans_apply_dquot_deltas(
 	long			totalbdelta;
 	long			totalrtbdelta;
 
-	if (! (tp->t_flags & XFS_TRANS_DQ_DIRTY))
+	if (!(tp->t_flags & XFS_TRANS_DQ_DIRTY))
 		return;
 
 	ASSERT(tp->t_dqinfo);
@@ -531,7 +529,7 @@ xfs_trans_apply_dquot_deltas(
  * we simply throw those away, since that's the expected behavior
  * when a transaction is curtailed without a commit.
  */
-STATIC void
+void
 xfs_trans_unreserve_and_mod_dquots(
 	xfs_trans_t		*tp)
 {
@@ -768,7 +766,7 @@ xfs_trans_reserve_quota_bydquots(
 {
 	int		resvd = 0, error;
 
-	if (!XFS_IS_QUOTA_ON(mp))
+	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	if (tp && tp->t_dqinfo == NULL)
@@ -811,18 +809,17 @@ xfs_trans_reserve_quota_bydquots(
  * This doesn't change the actual usage, just the reservation.
  * The inode sent in is locked.
  */
-STATIC int
+int
 xfs_trans_reserve_quota_nblks(
-	xfs_trans_t	*tp,
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip,
-	long		nblks,
-	long		ninos,
-	uint		flags)
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	long			nblks,
+	long			ninos,
+	uint			flags)
 {
-	int		error;
+	struct xfs_mount	*mp = ip->i_mount;
 
-	if (!XFS_IS_QUOTA_ON(mp))
+	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 	if (XFS_IS_PQUOTA_ON(mp))
 		flags |= XFS_QMOPT_ENOSPC;
@@ -831,7 +828,6 @@ xfs_trans_reserve_quota_nblks(
 	ASSERT(ip->i_ino != mp->m_sb.sb_gquotino);
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(XFS_IS_QUOTA_RUNNING(ip->i_mount));
 	ASSERT((flags & ~(XFS_QMOPT_FORCE_RES | XFS_QMOPT_ENOSPC)) ==
 				XFS_TRANS_DQ_RES_RTBLKS ||
 	       (flags & ~(XFS_QMOPT_FORCE_RES | XFS_QMOPT_ENOSPC)) ==
@@ -840,11 +836,9 @@ xfs_trans_reserve_quota_nblks(
 	/*
 	 * Reserve nblks against these dquots, with trans as the mediator.
 	 */
-	error = xfs_trans_reserve_quota_bydquots(tp, mp,
-						 ip->i_udquot, ip->i_gdquot,
-						 nblks, ninos,
-						 flags);
-	return error;
+	return xfs_trans_reserve_quota_bydquots(tp, mp,
+						ip->i_udquot, ip->i_gdquot,
+						nblks, ninos, flags);
 }
 
 /*
@@ -895,25 +889,15 @@ STATIC void
 xfs_trans_alloc_dqinfo(
 	xfs_trans_t	*tp)
 {
-	(tp)->t_dqinfo = kmem_zone_zalloc(xfs_Gqm->qm_dqtrxzone, KM_SLEEP);
+	tp->t_dqinfo = kmem_zone_zalloc(xfs_Gqm->qm_dqtrxzone, KM_SLEEP);
 }
 
-STATIC void
+void
 xfs_trans_free_dqinfo(
 	xfs_trans_t	*tp)
 {
 	if (!tp->t_dqinfo)
 		return;
-	kmem_zone_free(xfs_Gqm->qm_dqtrxzone, (tp)->t_dqinfo);
-	(tp)->t_dqinfo = NULL;
+	kmem_zone_free(xfs_Gqm->qm_dqtrxzone, tp->t_dqinfo);
+	tp->t_dqinfo = NULL;
 }
-
-xfs_dqtrxops_t	xfs_trans_dquot_ops = {
-	.qo_dup_dqinfo			= xfs_trans_dup_dqinfo,
-	.qo_free_dqinfo			= xfs_trans_free_dqinfo,
-	.qo_mod_dquot_byino		= xfs_trans_mod_dquot_byino,
-	.qo_apply_dquot_deltas		= xfs_trans_apply_dquot_deltas,
-	.qo_reserve_quota_nblks		= xfs_trans_reserve_quota_nblks,
-	.qo_reserve_quota_bydquots	= xfs_trans_reserve_quota_bydquots,
-	.qo_unreserve_and_mod_dquots	= xfs_trans_unreserve_and_mod_dquots,
-};

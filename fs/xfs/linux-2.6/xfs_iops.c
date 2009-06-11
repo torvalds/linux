@@ -17,6 +17,7 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_acl.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
@@ -51,6 +52,7 @@
 #include <linux/capability.h>
 #include <linux/xattr.h>
 #include <linux/namei.h>
+#include <linux/posix_acl.h>
 #include <linux/security.h>
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
@@ -202,9 +204,8 @@ xfs_vn_mknod(
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
-	xfs_acl_t	*default_acl = NULL;
+	struct posix_acl *default_acl = NULL;
 	struct xfs_name	name;
-	int (*test_default_acl)(struct inode *) = _ACL_DEFAULT_EXISTS;
 	int		error;
 
 	/*
@@ -219,18 +220,14 @@ xfs_vn_mknod(
 		rdev = 0;
 	}
 
-	if (test_default_acl && test_default_acl(dir)) {
-		if (!_ACL_ALLOC(default_acl)) {
-			return -ENOMEM;
-		}
-		if (!_ACL_GET_DEFAULT(dir, default_acl)) {
-			_ACL_FREE(default_acl);
-			default_acl = NULL;
-		}
-	}
+	if (IS_POSIXACL(dir)) {
+		default_acl = xfs_get_acl(dir, ACL_TYPE_DEFAULT);
+		if (IS_ERR(default_acl))
+			return -PTR_ERR(default_acl);
 
-	if (IS_POSIXACL(dir) && !default_acl)
+	if (!default_acl)
 		mode &= ~current_umask();
+	}
 
 	xfs_dentry_to_name(&name, dentry);
 	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
@@ -244,10 +241,10 @@ xfs_vn_mknod(
 		goto out_cleanup_inode;
 
 	if (default_acl) {
-		error = _ACL_INHERIT(inode, mode, default_acl);
+		error = -xfs_inherit_acl(inode, default_acl);
 		if (unlikely(error))
 			goto out_cleanup_inode;
-		_ACL_FREE(default_acl);
+		posix_acl_release(default_acl);
 	}
 
 
@@ -257,8 +254,7 @@ xfs_vn_mknod(
  out_cleanup_inode:
 	xfs_cleanup_inode(dir, inode, dentry);
  out_free_acl:
-	if (default_acl)
-		_ACL_FREE(default_acl);
+	posix_acl_release(default_acl);
 	return -error;
 }
 
@@ -488,26 +484,6 @@ xfs_vn_put_link(
 		kfree(s);
 }
 
-#ifdef CONFIG_XFS_POSIX_ACL
-STATIC int
-xfs_check_acl(
-	struct inode		*inode,
-	int			mask)
-{
-	struct xfs_inode	*ip = XFS_I(inode);
-	int			error;
-
-	xfs_itrace_entry(ip);
-
-	if (XFS_IFORK_Q(ip)) {
-		error = xfs_acl_iaccess(ip, mask, NULL);
-		if (error != -1)
-			return -error;
-	}
-
-	return -EAGAIN;
-}
-
 STATIC int
 xfs_vn_permission(
 	struct inode		*inode,
@@ -515,9 +491,6 @@ xfs_vn_permission(
 {
 	return generic_permission(inode, mask, xfs_check_acl);
 }
-#else
-#define xfs_vn_permission NULL
-#endif
 
 STATIC int
 xfs_vn_getattr(
