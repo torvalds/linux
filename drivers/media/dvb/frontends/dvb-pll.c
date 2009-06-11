@@ -403,6 +403,27 @@ static struct dvb_pll_desc dvb_pll_samsung_tdtc9251dh0 = {
 	}
 };
 
+/* Samsung TBDU18132 DVB-S NIM with TSA5059 PLL, used in SkyStar2 DVB-S 2.3 */
+static struct dvb_pll_desc dvb_pll_samsung_tbdu18132 = {
+	.name = "Samsung TBDU18132",
+	.min	=  950000,
+	.max	= 2150000, /* guesses */
+	.iffreq = 0,
+	.count = 2,
+	.entries = {
+		{ 1550000, 125, 0x84, 0x82 },
+		{ 4095937, 125, 0x84, 0x80 },
+	}
+	/* TSA5059 PLL has a 17 bit divisor rather than the 15 bits supported
+	 * by this driver.  The two extra bits are 0x60 in the third byte.  15
+	 * bits is enough for over 4 GHz, which is enough to cover the range
+	 * of this tuner.  We could use the additional divisor bits by adding
+	 * more entries, e.g.
+	 { 0x0ffff * 125 + 125/2, 125, 0x84 | 0x20, },
+	 { 0x17fff * 125 + 125/2, 125, 0x84 | 0x40, },
+	 { 0x1ffff * 125 + 125/2, 125, 0x84 | 0x60, }, */
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -422,6 +443,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
 	[DVB_PLL_SAMSUNG_DTOS403IH102A]  = &dvb_pll_samsung_dtos403ih102a,
 	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
+	[DVB_PLL_SAMSUNG_TBDU18132]	 = &dvb_pll_samsung_tbdu18132,
 };
 
 /* ----------------------------------------------------------- */
