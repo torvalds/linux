@@ -168,6 +168,9 @@
 /* MAX3100 */
 #define PORT_MAX3100    86
 
+/* Timberdale UART */
+#define PORT_TIMBUART	87
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
