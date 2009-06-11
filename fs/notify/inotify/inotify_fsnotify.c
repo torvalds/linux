@@ -95,6 +95,7 @@ static bool inotify_should_send_event(struct fsnotify_group *group, struct inode
 	if (!entry)
 		return false;
 
+	mask = (mask & ~FS_EVENT_ON_CHILD);
 	send = (entry->mask & mask);
 
 	/* find took a reference */

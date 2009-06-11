@@ -137,14 +137,16 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	struct fsnotify_group *group;
 	struct fsnotify_event *event = NULL;
 	int idx;
+	/* global tests shouldn't care about events on child only the specific event */
+	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
 	if (list_empty(&fsnotify_groups))
 		return;
 
-	if (!(mask & fsnotify_mask))
+	if (!(test_mask & fsnotify_mask))
 		return;
 
-	if (!(mask & to_tell->i_fsnotify_mask))
+	if (!(test_mask & to_tell->i_fsnotify_mask))
 		return;
 	/*
 	 * SRCU!!  the groups list is very very much read only and the path is
@@ -153,7 +155,7 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const 
 	 */
 	idx = srcu_read_lock(&fsnotify_grp_srcu);
 	list_for_each_entry_rcu(group, &fsnotify_groups, group_list) {
-		if (mask & group->mask) {
+		if (test_mask & group->mask) {
 			if (!group->ops->should_send_event(group, to_tell, mask))
 				continue;
 			if (!event) {

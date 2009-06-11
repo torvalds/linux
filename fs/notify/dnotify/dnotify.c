@@ -153,6 +153,7 @@ static bool dnotify_should_send_event(struct fsnotify_group *group,
 	if (!entry)
 		return false;
 
+	mask = (mask & ~FS_EVENT_ON_CHILD);
 	send = (mask & entry->mask);
 
 	fsnotify_put_mark(entry); /* matches fsnotify_find_mark_entry */
