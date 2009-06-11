@@ -317,7 +317,7 @@ sub nxt2002 {
 
 sub nxt2004 {
     my $sourcefile = "AVerTVHD_MCE_A180_Drv_v1.2.2.16.zip";
-    my $url = "http://www.aver.com/support/Drivers/$sourcefile";
+    my $url = "http://www.avermedia-usa.com/support/Drivers/$sourcefile";
     my $hash = "111cb885b1e009188346d72acfed024c";
     my $outfile = "dvb-fe-nxt2004.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
