@@ -1476,6 +1476,7 @@ static int wait_consider_task(struct task_struct *parent, int ptrace,
 		 */
 		if (*notask_error)
 			*notask_error = ret;
+		return 0;
 	}
 
 	if (likely(!ptrace) && unlikely(p->ptrace)) {

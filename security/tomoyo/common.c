@@ -28,7 +28,13 @@ static const char *tomoyo_mode_2[4] = {
 	"disabled", "enabled", "enabled", "enabled"
 };
 
-/* Table for profile. */
+/*
+ * tomoyo_control_array is a static data which contains
+ *
+ *  (1) functionality name used by /sys/kernel/security/tomoyo/profile .
+ *  (2) initial values for "struct tomoyo_profile".
+ *  (3) max values for "struct tomoyo_profile".
+ */
 static struct {
 	const char *keyword;
 	unsigned int current_value;
@@ -39,7 +45,13 @@ static struct {
 	[TOMOYO_VERBOSE]          = { "TOMOYO_VERBOSE",      1,       1 },
 };
 
-/* Profile table. Memory is allocated as needed. */
+/*
+ * tomoyo_profile is a structure which is used for holding the mode of access
+ * controls. TOMOYO has 4 modes: disabled, learning, permissive, enforcing.
+ * An administrator can define up to 256 profiles.
+ * The ->profile of "struct tomoyo_domain_info" is used for remembering
+ * the profile's number (0 - 255) assigned to that domain.
+ */
 static struct tomoyo_profile {
 	unsigned int value[TOMOYO_MAX_CONTROL_INDEX];
 	const struct tomoyo_path_info *comment;
@@ -428,7 +440,6 @@ void tomoyo_fill_path_info(struct tomoyo_path_info *ptr)
 	const char *name = ptr->name;
 	const int len = strlen(name);
 
-	ptr->total_len = len;
 	ptr->const_len = tomoyo_const_part_length(name);
 	ptr->is_dir = len && (name[len - 1] == '/');
 	ptr->is_patterned = (ptr->const_len < len);
@@ -866,7 +877,6 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 
 	if (profile >= TOMOYO_MAX_PROFILES)
 		return NULL;
-	/***** EXCLUSIVE SECTION START *****/
 	mutex_lock(&lock);
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
@@ -880,7 +890,6 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	tomoyo_profile_ptr[profile] = ptr;
  ok:
 	mutex_unlock(&lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return ptr;
 }
 
@@ -1009,7 +1018,19 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
 	return 0;
 }
 
-/* Structure for policy manager. */
+/*
+ * tomoyo_policy_manager_entry is a structure which is used for holding list of
+ * domainnames or programs which are permitted to modify configuration via
+ * /sys/kernel/security/tomoyo/ interface.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_policy_manager_list .
+ *  (2) "manager" is a domainname or a program's pathname.
+ *  (3) "is_domain" is a bool which is true if "manager" is a domainname, false
+ *      otherwise.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_policy_manager_entry {
 	struct list_head list;
 	/* A path to program or a domainname. */
@@ -1018,7 +1039,36 @@ struct tomoyo_policy_manager_entry {
 	bool is_deleted; /* True if this entry is deleted. */
 };
 
-/* The list for "struct tomoyo_policy_manager_entry". */
+/*
+ * tomoyo_policy_manager_list is used for holding list of domainnames or
+ * programs which are permitted to modify configuration via
+ * /sys/kernel/security/tomoyo/ interface.
+ *
+ * An entry is added by
+ *
+ * # echo '<kernel> /sbin/mingetty /bin/login /bin/bash' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *  (if you want to specify by a domainname)
+ *
+ *  or
+ *
+ * # echo '/usr/lib/ccs/editpolicy' > /sys/kernel/security/tomoyo/manager
+ *  (if you want to specify by a program's location)
+ *
+ * and is deleted by
+ *
+ * # echo 'delete <kernel> /sbin/mingetty /bin/login /bin/bash' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *
+ *  or
+ *
+ * # echo 'delete /usr/lib/ccs/editpolicy' > \
+ *                                        /sys/kernel/security/tomoyo/manager
+ *
+ * and all entries are retrieved by
+ *
+ * # cat /sys/kernel/security/tomoyo/manager
+ */
 static LIST_HEAD(tomoyo_policy_manager_list);
 static DECLARE_RWSEM(tomoyo_policy_manager_list_lock);
 
@@ -1050,7 +1100,6 @@ static int tomoyo_update_manager_entry(const char *manager,
 	saved_manager = tomoyo_save_name(manager);
 	if (!saved_manager)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_policy_manager_list_lock);
 	list_for_each_entry(ptr, &tomoyo_policy_manager_list, list) {
 		if (ptr->manager != saved_manager)
@@ -1072,7 +1121,6 @@ static int tomoyo_update_manager_entry(const char *manager,
 	error = 0;
  out:
 	up_write(&tomoyo_policy_manager_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -1117,10 +1165,9 @@ static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 				 list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, "%s\n", ptr->manager->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%s\n", ptr->manager->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_policy_manager_list_lock);
 	head->read_eof = done;
@@ -1197,13 +1244,11 @@ static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
 
 	if (sscanf(data, "pid=%u", &pid) == 1) {
 		struct task_struct *p;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_is_domain_def(data + 7)) {
 			down_read(&tomoyo_domain_list_lock);
@@ -1447,15 +1492,14 @@ static int tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
 		    TOMOYO_DOMAIN_FLAGS_IGNORE_GLOBAL_ALLOW_READ)
 			ignore_global_allow_read
 				= TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ "\n";
-		if (!tomoyo_io_printf(head,
-				      "%s\n" TOMOYO_KEYWORD_USE_PROFILE "%u\n"
-				      "%s%s%s\n", domain->domainname->name,
-				      domain->profile, quota_exceeded,
-				      transition_failed,
-				      ignore_global_allow_read)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%s\n" TOMOYO_KEYWORD_USE_PROFILE
+					"%u\n%s%s%s\n",
+					domain->domainname->name,
+					domain->profile, quota_exceeded,
+					transition_failed,
+					ignore_global_allow_read);
+		if (!done)
 			break;
-		}
 		head->read_step = 2;
 acl_loop:
 		if (head->read_step == 3)
@@ -1463,24 +1507,22 @@ acl_loop:
 		/* Print ACL entries in the domain. */
 		down_read(&tomoyo_domain_acl_info_list_lock);
 		list_for_each_cookie(apos, head->read_var2,
-				      &domain->acl_info_list) {
+				     &domain->acl_info_list) {
 			struct tomoyo_acl_info *ptr
 				= list_entry(apos, struct tomoyo_acl_info,
-					      list);
-			if (!tomoyo_print_entry(head, ptr)) {
-				done = false;
+					     list);
+			done = tomoyo_print_entry(head, ptr);
+			if (!done)
 				break;
-			}
 		}
 		up_read(&tomoyo_domain_acl_info_list_lock);
 		if (!done)
 			break;
 		head->read_step = 3;
 tail_mark:
-		if (!tomoyo_io_printf(head, "\n")) {
-			done = false;
+		done = tomoyo_io_printf(head, "\n");
+		if (!done)
 			break;
-		}
 		head->read_step = 1;
 		if (head->read_single_domain)
 			break;
@@ -1550,11 +1592,10 @@ static int tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
 		domain = list_entry(pos, struct tomoyo_domain_info, list);
 		if (domain->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, "%u %s\n", domain->profile,
-				      domain->domainname->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, "%u %s\n", domain->profile,
+					domain->domainname->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_domain_list_lock);
 	head->read_eof = done;
@@ -1594,13 +1635,11 @@ static int tomoyo_read_pid(struct tomoyo_io_buffer *head)
 		const int pid = head->read_step;
 		struct task_struct *p;
 		struct tomoyo_domain_info *domain = NULL;
-		/***** CRITICAL SECTION START *****/
 		read_lock(&tasklist_lock);
 		p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
 		read_unlock(&tasklist_lock);
-		/***** CRITICAL SECTION END *****/
 		if (domain)
 			tomoyo_io_printf(head, "%d %u %s", pid, domain->profile,
 					 domain->domainname->name);
@@ -2138,7 +2177,13 @@ static ssize_t tomoyo_write(struct file *file, const char __user *buf,
 	return tomoyo_write_control(file, buf, count);
 }
 
-/* Operations for /sys/kernel/security/tomoyo/ interface. */
+/*
+ * tomoyo_operations is a "struct file_operations" which is used for handling
+ * /sys/kernel/security/tomoyo/ interface.
+ *
+ * Some files under /sys/kernel/security/tomoyo/ directory accept open(O_RDWR).
+ * See tomoyo_io_buffer for internals.
+ */
 static const struct file_operations tomoyo_operations = {
 	.open    = tomoyo_open,
 	.release = tomoyo_release,
