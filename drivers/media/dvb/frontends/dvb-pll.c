@@ -389,6 +389,20 @@ static struct dvb_pll_desc dvb_pll_samsung_dtos403ih102a = {
 	}
 };
 
+/* Samsung TDTC9251DH0 DVB-T NIM, as used on AirStar 2 */
+static struct dvb_pll_desc dvb_pll_samsung_tdtc9251dh0 = {
+	.name	= "Samsung TDTC9251DH0",
+	.min	=  48000000,
+	.max	= 863000000,
+	.iffreq	=  36166667,
+	.count	= 3,
+	.entries = {
+		{ 157500000, 166667, 0xcc, 0x09 },
+		{ 443000000, 166667, 0xcc, 0x0a },
+		{ 863000000, 166667, 0xcc, 0x08 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -407,6 +421,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
 	[DVB_PLL_SAMSUNG_DTOS403IH102A]  = &dvb_pll_samsung_dtos403ih102a,
+	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
 };
 
 /* ----------------------------------------------------------- */
