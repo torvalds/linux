@@ -175,23 +175,23 @@ static int skystar23_samsung_tbdu18132_tuner_set_params(struct dvb_frontend *fe,
 	return 0;
 }
 
-static void skystar2_rev23_attach(struct flexcop_device *fc,
+static int skystar2_rev23_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
-	fc->fe = dvb_attach(mt312_attach,
-			&skystar23_samsung_tbdu18132_config, i2c);
+	fc->fe = dvb_attach(mt312_attach, &skystar23_samsung_tbdu18132_config, i2c);
 	if (fc->fe != NULL) {
 		struct dvb_frontend_ops *ops = &fc->fe->ops;
-		ops->tuner_ops.set_params \
-			= skystar23_samsung_tbdu18132_tuner_set_params;
+		ops->tuner_ops.set_params   =
+			skystar23_samsung_tbdu18132_tuner_set_params;
 		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
 		ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
 		ops->set_tone               = flexcop_set_tone;
 		ops->set_voltage            = flexcop_set_voltage;
 		fc->fe_sleep                = ops->sleep;
 		ops->sleep                  = flexcop_sleep;
-		fc->dev_type                = FC_SKY_REV23;
+		return 1;
 	}
+	return 0;
 }
 #endif
 
@@ -307,7 +307,7 @@ static struct stv0299_config samsung_tbmu24112_config = {
 	.set_symbol_rate = samsung_tbmu24112_set_symbol_rate,
 };
 
-static void skystar2_rev26_attach(struct flexcop_device *fc,
+static int skystar2_rev26_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, i2c);
@@ -317,7 +317,9 @@ static void skystar2_rev26_attach(struct flexcop_device *fc,
 		ops->set_voltage = flexcop_set_voltage;
 		fc->fe_sleep = ops->sleep;
 		ops->sleep = flexcop_sleep;
+		return 1;
 	}
+	return 0;
 }
 #endif
 
@@ -334,43 +336,54 @@ static struct itd1000_config skystar2_rev2_7_itd1000_config = {
 	.i2c_address = 0x61,
 };
 
-static void skystar2_rev27_attach(struct flexcop_device *fc,
+static int skystar2_rev27_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
+	flexcop_ibi_value r108;
+	struct i2c_adapter *i2c_tuner;
+
 	/* enable no_base_addr - no repeated start when reading */
 	fc->fc_i2c_adap[0].no_base_addr = 1;
-	fc->fe = dvb_attach(s5h1420_attach,
-		&skystar2_rev2_7_s5h1420_config, i2c);
-	if (fc->fe != NULL) {
-		flexcop_ibi_value r108;
-		struct i2c_adapter *i2c_tuner \
-		= s5h1420_get_tuner_i2c_adapter(fc->fe);
-		struct dvb_frontend_ops *ops = &fc->fe->ops;
+	fc->fe = dvb_attach(s5h1420_attach, &skystar2_rev2_7_s5h1420_config,
+			    i2c);
+	if (!fc->fe)
+		goto fail;
 
-		fc->fe_sleep = ops->sleep;
-		ops->sleep   = flexcop_sleep;
+	i2c_tuner = s5h1420_get_tuner_i2c_adapter(fc->fe);
+	if (!i2c_tuner)
+		goto fail;
 
-		/* enable no_base_addr - no repeated start when reading */
-		fc->fc_i2c_adap[2].no_base_addr = 1;
-		if (dvb_attach(isl6421_attach, fc->fe,
-			&fc->fc_i2c_adap[2].i2c_adap, 0x08, 1, 1) == NULL)
-			err("ISL6421 could NOT be attached");
-		else
-			info("ISL6421 successfully attached");
+	fc->fe_sleep = fc->fe->ops.sleep;
+	fc->fe->ops.sleep = flexcop_sleep;
 
-		/* the ITD1000 requires a lower i2c clock - is it a problem ? */
-		r108.raw = 0x00000506;
-		fc->write_ibi_reg(fc, tw_sm_c_108, r108);
-		if (i2c_tuner) {
-			if (dvb_attach(itd1000_attach, fc->fe, i2c_tuner,
-				&skystar2_rev2_7_itd1000_config) == NULL)
-				err("ITD1000 could NOT be attached");
-			else
-				info("ITD1000 successfully attached");
-		}
-	} else
-		fc->fc_i2c_adap[0].no_base_addr = 0;
-		/* for the next devices we need it again */
+	/* enable no_base_addr - no repeated start when reading */
+	fc->fc_i2c_adap[2].no_base_addr = 1;
+	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
+			0x08, 1, 1)) {
+		err("ISL6421 could NOT be attached");
+		goto fail_isl;
+	}
+	info("ISL6421 successfully attached");
+
+	/* the ITD1000 requires a lower i2c clock - is it a problem ? */
+	r108.raw = 0x00000506;
+	fc->write_ibi_reg(fc, tw_sm_c_108, r108);
+	if (!dvb_attach(itd1000_attach, fc->fe, i2c_tuner,
+			&skystar2_rev2_7_itd1000_config)) {
+		err("ITD1000 could NOT be attached");
+		/* Should i2c clock be restored? */
+		goto fail_isl;
+	}
+	info("ITD1000 successfully attached");
+
+	return 1;
+
+fail_isl:
+	fc->fc_i2c_adap[2].no_base_addr = 0;
+fail:
+	/* for the next devices we need it again */
+	fc->fc_i2c_adap[0].no_base_addr = 0;
+	return 0;
 }
 #endif
 
@@ -387,32 +400,38 @@ static const struct cx24113_config skystar2_rev2_8_cx24113_config = {
 	.xtal_khz = 10111,
 };
 
-static void skystar2_rev28_attach(struct flexcop_device *fc,
+static int skystar2_rev28_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
-	fc->fe = dvb_attach(cx24123_attach,
-			&skystar2_rev2_8_cx24123_config, i2c);
-	if (fc->fe != NULL) {
-		struct i2c_adapter *i2c_tuner \
-			= cx24123_get_tuner_i2c_adapter(fc->fe);
-		if (i2c_tuner != NULL) {
-			if (dvb_attach(cx24113_attach, fc->fe,
-						&skystar2_rev2_8_cx24113_config,
-						i2c_tuner) == NULL)
-				err("CX24113 could NOT be attached");
-			else
-				info("CX24113 successfully attached");
-		}
+	struct i2c_adapter *i2c_tuner;
 
-		fc->fc_i2c_adap[2].no_base_addr = 1;
-		if (dvb_attach(isl6421_attach, fc->fe,
-			&fc->fc_i2c_adap[2].i2c_adap, 0x08, 0, 0) == NULL)
-			err("ISL6421 could NOT be attached");
-		else
-			info("ISL6421 successfully attached");
+	fc->fe = dvb_attach(cx24123_attach, &skystar2_rev2_8_cx24123_config,
+			    i2c);
+	if (!fc->fe)
+		return 0;
+
+	i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);;
+	if (!i2c_tuner)
+		return 0;
+
+	if (!dvb_attach(cx24113_attach, fc->fe, &skystar2_rev2_8_cx24113_config,
+			i2c_tuner)) {
+		err("CX24113 could NOT be attached");
+		return 0;
+	}
+	info("CX24113 successfully attached");
+
+	fc->fc_i2c_adap[2].no_base_addr = 1;
+	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
+			0x08, 0, 0)) {
+		err("ISL6421 could NOT be attached");
+		fc->fc_i2c_adap[2].no_base_addr = 0;
+		return 0;
+	}
+	info("ISL6421 successfully attached");
 	/* TODO on i2c_adap[1] addr 0x11 (EEPROM) there seems to be an
 	 * IR-receiver (PIC16F818) - but the card has no input for that ??? */
-	}
+	return 1;
 }
 #endif
 
@@ -466,12 +485,15 @@ static struct mt352_config samsung_tdtc9251dh0_config = {
 	.demod_init    = samsung_tdtc9251dh0_demod_init,
 };
 
-static void airstar_dvbt_attach(struct flexcop_device *fc,
+static int airstar_dvbt_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, i2c);
-	if (fc->fe != NULL)
+	if (fc->fe != NULL) {
 		fc->fe->ops.tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
+		return 1;
+	}
+	return 0;
 }
 #endif
 
@@ -489,10 +511,11 @@ static struct bcm3510_config air2pc_atsc_first_gen_config = {
 	.request_firmware = flexcop_fe_request_firmware,
 };
 
-static void airstar_atsc1_attach(struct flexcop_device *fc,
+static int airstar_atsc1_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(bcm3510_attach, &air2pc_atsc_first_gen_config, i2c);
+	return fc->fe != NULL;
 }
 #endif
 
@@ -502,13 +525,15 @@ static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address = 0x0a,
 };
 
-static void airstar_atsc2_attach(struct flexcop_device *fc,
+static int airstar_atsc2_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(nxt200x_attach, &samsung_tbmv_config, i2c);
-	if (fc->fe != NULL)
-		dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
-				DVB_PLL_SAMSUNG_TBMV);
+	if (!fc->fe)
+		return 0;
+
+	return !!dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
+			    DVB_PLL_SAMSUNG_TBMV);
 }
 #endif
 
@@ -521,14 +546,15 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 	.clock_polarity_flip = 1,
 };
 
-static void airstar_atsc3_attach(struct flexcop_device *fc,
+static int airstar_atsc3_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, i2c);
-	if (fc->fe != NULL) {
-		dvb_attach(simple_tuner_attach, fc->fe, i2c, 0x61,
-				TUNER_LG_TDVS_H06XF);
-	}
+	if (!fc->fe)
+		return 0;
+
+	return !!dvb_attach(simple_tuner_attach, fc->fe, i2c, 0x61,
+			    TUNER_LG_TDVS_H06XF);
 }
 #endif
 
@@ -659,22 +685,24 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 	.inittab = alps_tdee4_stv0297_inittab,
 };
 
-static void cablestar2_attach(struct flexcop_device *fc,
+static int cablestar2_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fc_i2c_adap[0].no_base_addr = 1;
 	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
-	if (fc->fe != NULL)
-		fc->fe->ops.tuner_ops.set_params \
-		= alps_tdee4_stv0297_tuner_set_params;
-	else
+	if (!fc->fe) {
+		/* Reset for next frontend to try */
 		fc->fc_i2c_adap[0].no_base_addr = 0;
+		return 0;
+	}
+	fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
+	return 1;
 }
 #endif
 
 static struct {
 	flexcop_device_type_t type;
-	void (*attach)(struct flexcop_device *, struct i2c_adapter *);
+	int (*attach)(struct flexcop_device *, struct i2c_adapter *);
 } flexcop_frontends[] = {
 #if defined(CONFIG_DVB_S5H1420_MODULE)
 	{ FC_SKY_REV27, skystar2_rev27_attach },
@@ -713,9 +741,13 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		/* type needs to be set before, because of some workarounds
 		 * done based on the probed card type */
 		fc->dev_type = flexcop_frontends[i].type;
-		flexcop_frontends[i].attach(fc, &fc->fc_i2c_adap[0].i2c_adap);
-		if (fc->fe != NULL)
+		if (flexcop_frontends[i].attach(fc, &fc->fc_i2c_adap[0].i2c_adap))
 			goto fe_found;
+		/* Clean up partially attached frontend */
+		if (fc->fe) {
+			dvb_frontend_detach(fc->fe);
+			fc->fe = NULL;
+		}
 	}
 	fc->dev_type = FC_UNK;
 	err("no frontend driver found for this B2C2/FlexCop adapter");
@@ -724,10 +756,8 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 fe_found:
 	info("found '%s' .", fc->fe->ops.info.name);
 	if (dvb_register_frontend(&fc->dvb_adapter, fc->fe)) {
-		struct dvb_frontend_ops *ops = &fc->fe->ops;
 		err("frontend registration failed!");
-		if (ops->release != NULL)
-			ops->release(fc->fe);
+		dvb_frontend_detach(fc->fe);
 		fc->fe = NULL;
 		return -EINVAL;
 	}
