@@ -2963,7 +2963,6 @@ static void set_line_char(struct cyclades_port *info)
 	void __iomem *base_addr;
 	int chip, channel, index;
 	unsigned cflag, iflag;
-	unsigned short chip_number;
 	int baud, baud_rate = 0;
 	int i;
 
@@ -2992,7 +2991,6 @@ static void set_line_char(struct cyclades_port *info)
 
 	card = info->card;
 	channel = info->line - card->first_line;
-	chip_number = channel / 4;
 
 	if (!cy_is_Z(card)) {
 
@@ -3212,9 +3210,7 @@ static void set_line_char(struct cyclades_port *info)
 	} else {
 		struct FIRM_ID __iomem *firm_id;
 		struct ZFW_CTRL __iomem *zfw_ctrl;
-		struct BOARD_CTRL __iomem *board_ctrl;
 		struct CH_CTRL __iomem *ch_ctrl;
-		struct BUF_CTRL __iomem *buf_ctrl;
 		__u32 sw_flow;
 		int retval;
 
@@ -3224,9 +3220,7 @@ static void set_line_char(struct cyclades_port *info)
 
 		zfw_ctrl = card->base_addr +
 			(readl(&firm_id->zfwctrl_addr) & 0xfffff);
-		board_ctrl = &zfw_ctrl->board_ctrl;
 		ch_ctrl = &(zfw_ctrl->ch_ctrl[channel]);
-		buf_ctrl = &zfw_ctrl->buf_ctrl[channel];
 
 		/* baud rate */
 		baud = tty_get_baud_rate(info->port.tty);
