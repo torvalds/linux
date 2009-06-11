@@ -463,7 +463,6 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 				clear_bit(HCI_UART_PROTO_SET, &hu->flags);
 				return err;
 			}
-			tty->low_latency = 1;
 		} else
 			return -EBUSY;
 		break;
