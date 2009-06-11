@@ -159,7 +159,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			 */
 			break;
 		case Opt_nodatasum:
-			printk(KERN_INFO "btrfs: setting nodatacsum\n");
+			printk(KERN_INFO "btrfs: setting nodatasum\n");
 			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
 		case Opt_nodatacow:
