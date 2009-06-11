@@ -511,54 +511,7 @@ static int airstar_atsc3_attach(struct flexcop_device *fc,
 #endif
 
 /* CableStar2 DVB-C */
-#if FE_SUPPORTED(STV0297)
-static int alps_tdee4_stv0297_tuner_set_params(struct dvb_frontend* fe,
-		struct dvb_frontend_parameters *fep)
-{
-	struct flexcop_device *fc = fe->dvb->priv;
-	u8 buf[4];
-	u16 div;
-	int ret;
-
-/* 62.5 kHz * 10 */
-#define REF_FREQ    625
-#define FREQ_OFFSET 36125
-
-	div = ((fep->frequency/1000 + FREQ_OFFSET) * 10) / REF_FREQ;
-/* 4 MHz = 4000 KHz */
-
-	buf[0] = (u8)( div >> 8) & 0x7f;
-	buf[1] = (u8)        div & 0xff;
-
-/* F(osc) = N * Reference Freq. (62.5 kHz)
- * byte 2 :  0 N14 N13 N12 N11 N10 N9  N8
- * byte 3 : N7 N6  N5  N4  N3  N2  N1  N0
- * byte 4 : 1  *   *   AGD R3  R2  R1  R0
- * byte 5 : C1 *   RE  RTS BS4 BS3 BS2 BS1
- * AGD = 1, R3 R2 R1 R0 = 0 1 0 1 => byte 4 = 1**10101 = 0x95 */
-	buf[2] = 0x95;
-
-/* Range(MHz)  C1 *  RE RTS BS4 BS3 BS2 BS1  Byte 5
- *  47 - 153   0  *  0   0   0   0   0   1   0x01
- * 153 - 430   0  *  0   0   0   0   1   0   0x02
- * 430 - 822   0  *  0   0   1   0   0   0   0x08
- * 822 - 862   1  *  0   0   1   0   0   0   0x88 */
-
-	     if (fep->frequency <= 153000000) buf[3] = 0x01;
-	else if (fep->frequency <= 430000000) buf[3] = 0x02;
-	else if (fep->frequency <= 822000000) buf[3] = 0x08;
-	else buf[3] = 0x88;
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-	deb_tuner("tuner buffer for %d Hz: %x %x %x %x\n", fep->frequency,
-	buf[0], buf[1], buf[2], buf[3]);
-	ret = fc->i2c_request(&fc->fc_i2c_adap[2],
-			FC_WRITE, 0x61, buf[0], &buf[1], 3);
-	deb_tuner("tuner write returned: %d\n",ret);
-	return ret;
-}
-
+#if FE_SUPPORTED(STV0297) && FE_SUPPORTED(PLL)
 static u8 alps_tdee4_stv0297_inittab[] = {
 	0x80, 0x01,
 	0x80, 0x00,
@@ -642,13 +595,25 @@ static int cablestar2_attach(struct flexcop_device *fc,
 {
 	fc->fc_i2c_adap[0].no_base_addr = 1;
 	fc->fe = dvb_attach(stv0297_attach, &alps_tdee4_stv0297_config, i2c);
-	if (!fc->fe) {
-		/* Reset for next frontend to try */
-		fc->fc_i2c_adap[0].no_base_addr = 0;
-		return 0;
-	}
-	fc->fe->ops.tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
+	if (!fc->fe)
+		goto fail;
+
+	/* This tuner doesn't use the stv0297's I2C gate, but instead the
+	 * tuner is connected to a different flexcop I2C adapter.  */
+	if (fc->fe->ops.i2c_gate_ctrl)
+		fc->fe->ops.i2c_gate_ctrl(fc->fe, 0);
+	fc->fe->ops.i2c_gate_ctrl = NULL;
+
+	if (!dvb_attach(dvb_pll_attach, fc->fe, 0x61,
+			&fc->fc_i2c_adap[2].i2c_adap, DVB_PLL_TDEE4))
+		goto fail;
+
 	return 1;
+
+fail:
+	/* Reset for next frontend to try */
+	fc->fc_i2c_adap[0].no_base_addr = 0;
+	return 0;
 }
 #else
 #define cablestar2_attach NULL
