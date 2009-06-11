@@ -30,7 +30,6 @@
 
 #include <asm/system.h>
 
-/* These are global because they are accessed in tty_io.c */
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;
 static struct tty_driver *pts_driver;
