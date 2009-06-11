@@ -437,6 +437,29 @@ static struct dvb_pll_desc dvb_pll_samsung_tbmu24112 = {
 	}
 };
 
+/* Alps TDEE4 DVB-C NIM, used on Cablestar 2 */
+/* byte 4 : 1  *   *   AGD R3  R2  R1  R0
+ * byte 5 : C1 *   RE  RTS BS4 BS3 BS2 BS1
+ * AGD = 1, R3 R2 R1 R0 = 0 1 0 1 => byte 4 = 1**10101 = 0x95
+ * Range(MHz)  C1 *  RE RTS BS4 BS3 BS2 BS1  Byte 5
+ *  47 - 153   0  *  0   0   0   0   0   1   0x01
+ * 153 - 430   0  *  0   0   0   0   1   0   0x02
+ * 430 - 822   0  *  0   0   1   0   0   0   0x08
+ * 822 - 862   1  *  0   0   1   0   0   0   0x88 */
+static struct dvb_pll_desc dvb_pll_alps_tdee4 = {
+	.name = "ALPS TDEE4",
+	.min	=  47000000,
+	.max	= 862000000,
+	.iffreq	=  36125000,
+	.count = 4,
+	.entries = {
+		{ 153000000, 62500, 0x95, 0x01 },
+		{ 430000000, 62500, 0x95, 0x02 },
+		{ 822000000, 62500, 0x95, 0x08 },
+		{ 999999999, 62500, 0x95, 0x88 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -450,6 +473,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
 	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
 	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
+	[DVB_PLL_TDEE4]                  = &dvb_pll_alps_tdee4,
 	[DVB_PLL_TDHU2]                  = &dvb_pll_tdhu2,
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,

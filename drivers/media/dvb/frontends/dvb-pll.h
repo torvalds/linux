@@ -26,6 +26,7 @@
 #define DVB_PLL_SAMSUNG_TDTC9251DH0    15
 #define DVB_PLL_SAMSUNG_TBDU18132      16
 #define DVB_PLL_SAMSUNG_TBMU24112      17
+#define DVB_PLL_TDEE4		       18
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.
