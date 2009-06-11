@@ -346,80 +346,68 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	struct TCP_Server_Info *server;
 
 	cifs_sb = CIFS_SB(m->mnt_sb);
+	tcon = cifs_sb->tcon;
 
-	if (cifs_sb) {
-		tcon = cifs_sb->tcon;
-		if (tcon) {
-			seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
-			if (tcon->ses) {
-				if (tcon->ses->userName)
-					seq_printf(s, ",username=%s",
-					   tcon->ses->userName);
-				if (tcon->ses->domainName)
-					seq_printf(s, ",domain=%s",
-					   tcon->ses->domainName);
-				server = tcon->ses->server;
-				if (server) {
-					seq_printf(s, ",addr=");
-					switch (server->addr.sockAddr6.
-						sin6_family) {
-					case AF_INET6:
-						seq_printf(s, "%pI6",
-							   &server->addr.sockAddr6.sin6_addr);
-						break;
-					case AF_INET:
-						seq_printf(s, "%pI4",
-							   &server->addr.sockAddr.sin_addr.s_addr);
-						break;
-					}
-				}
-			}
-			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID) ||
-			   !(tcon->unix_ext))
-				seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
-			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID) ||
-			   !(tcon->unix_ext))
-				seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
-			if (!tcon->unix_ext) {
-				seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
+	seq_printf(s, ",unc=%s", cifs_sb->tcon->treeName);
+	if (tcon->ses->userName)
+		seq_printf(s, ",username=%s", tcon->ses->userName);
+	if (tcon->ses->domainName)
+		seq_printf(s, ",domain=%s", tcon->ses->domainName);
+
+	cifs_show_address(s, tcon->ses->server);
+
+	seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
+	seq_printf(s, ",gid=%d", cifs_sb->mnt_gid);
+
+	server = tcon->ses->server;
+	seq_printf(s, ",addr=");
+	switch (server->addr.sockAddr6.sin6_family) {
+	case AF_INET6:
+		seq_printf(s, "%pI6", &server->addr.sockAddr6.sin6_addr);
+		break;
+	case AF_INET:
+		seq_printf(s, "%pI4", &server->addr.sockAddr.sin_addr.s_addr);
+		break;
+	}
+
+	if (!tcon->unix_ext)
+		seq_printf(s, ",file_mode=0%o,dir_mode=0%o",
 					   cifs_sb->mnt_file_mode,
 					   cifs_sb->mnt_dir_mode);
-			}
-			if (tcon->seal)
-				seq_printf(s, ",seal");
-			if (tcon->nocase)
-				seq_printf(s, ",nocase");
-			if (tcon->retry)
-				seq_printf(s, ",hard");
-		}
-		if (cifs_sb->prepath)
-			seq_printf(s, ",prepath=%s", cifs_sb->prepath);
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
-			seq_printf(s, ",posixpaths");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
-			seq_printf(s, ",setuids");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
-			seq_printf(s, ",serverino");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
-			seq_printf(s, ",directio");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
-			seq_printf(s, ",nouser_xattr");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
-			seq_printf(s, ",mapchars");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
-			seq_printf(s, ",sfu");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-			seq_printf(s, ",nobrl");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
-			seq_printf(s, ",cifsacl");
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
-			seq_printf(s, ",dynperm");
-		if (m->mnt_sb->s_flags & MS_POSIXACL)
-			seq_printf(s, ",acl");
+	if (tcon->seal)
+		seq_printf(s, ",seal");
+	if (tcon->nocase)
+		seq_printf(s, ",nocase");
+	if (tcon->retry)
+		seq_printf(s, ",hard");
+	if (cifs_sb->prepath)
+		seq_printf(s, ",prepath=%s", cifs_sb->prepath);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+		seq_printf(s, ",posixpaths");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
+		seq_printf(s, ",setuids");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		seq_printf(s, ",serverino");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
+		seq_printf(s, ",directio");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+		seq_printf(s, ",nouser_xattr");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+		seq_printf(s, ",mapchars");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL)
+		seq_printf(s, ",sfu");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+		seq_printf(s, ",nobrl");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+		seq_printf(s, ",cifsacl");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
+		seq_printf(s, ",dynperm");
+	if (m->mnt_sb->s_flags & MS_POSIXACL)
+		seq_printf(s, ",acl");
 
-		seq_printf(s, ",rsize=%d", cifs_sb->rsize);
-		seq_printf(s, ",wsize=%d", cifs_sb->wsize);
-	}
+	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
+	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
+
 	return 0;
 }
 
