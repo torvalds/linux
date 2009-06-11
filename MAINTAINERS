@@ -159,7 +159,8 @@ F:	drivers/net/r8169.c
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
-S:	Orphan
+M:	alan@lxorguk.ukuu.org.uk
+S:	Odd Fixes
 F:	drivers/serial/8250*
 F:	include/linux/serial_8250.h
 
