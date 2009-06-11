@@ -343,7 +343,7 @@ static int __init xpram_setup_blkdev(void)
 			goto out;
 		}
 		blk_queue_make_request(xpram_queues[i], xpram_make_request);
-		blk_queue_hardsect_size(xpram_queues[i], 4096);
+		blk_queue_logical_block_size(xpram_queues[i], 4096);
 	}
 
 	/*

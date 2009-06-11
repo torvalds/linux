@@ -991,13 +991,15 @@ static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
  */
 static int pkt_set_segment_merging(struct pktcdvd_device *pd, struct request_queue *q)
 {
-	if ((pd->settings.size << 9) / CD_FRAMESIZE <= q->max_phys_segments) {
+	if ((pd->settings.size << 9) / CD_FRAMESIZE
+	    <= queue_max_phys_segments(q)) {
 		/*
 		 * The cdrom device can handle one segment/frame
 		 */
 		clear_bit(PACKET_MERGE_SEGS, &pd->flags);
 		return 0;
-	} else if ((pd->settings.size << 9) / PAGE_SIZE <= q->max_phys_segments) {
+	} else if ((pd->settings.size << 9) / PAGE_SIZE
+		   <= queue_max_phys_segments(q)) {
 		/*
 		 * We can handle this case at the expense of some extra memory
 		 * copies during write operations
@@ -2657,7 +2659,7 @@ static void pkt_init_queue(struct pktcdvd_device *pd)
 	struct request_queue *q = pd->disk->queue;
 
 	blk_queue_make_request(q, pkt_make_request);
-	blk_queue_hardsect_size(q, CD_FRAMESIZE);
+	blk_queue_logical_block_size(q, CD_FRAMESIZE);
 	blk_queue_max_sectors(q, PACKET_MAX_SECTORS);
 	blk_queue_merge_bvec(q, pkt_merge_bvec);
 	q->queuedata = pd;

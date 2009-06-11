@@ -1127,7 +1127,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		rw = WRITE_ODIRECT;
 
 	if (bdev)
-		bdev_blkbits = blksize_bits(bdev_hardsect_size(bdev));
+		bdev_blkbits = blksize_bits(bdev_logical_block_size(bdev));
 
 	if (offset & blocksize_mask) {
 		if (bdev)

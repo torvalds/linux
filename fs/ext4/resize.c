@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 
 #include "ext4_jbd2.h"
-#include "group.h"
 
 #define outside(b, first, last)	((b) < (first) || (b) >= (last))
 #define inside(b, first, last)	((b) >= (first) && (b) < (last))
@@ -193,7 +192,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_resize_lock);
 	if (input->group != sbi->s_groups_count) {
 		err = -EBUSY;
 		goto exit_journal;
@@ -302,7 +301,7 @@ exit_bh:
 	brelse(bh);
 
 exit_journal:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_resize_lock);
 	if ((err2 = ext4_journal_stop(handle)) && !err)
 		err = err2;
 
@@ -643,11 +642,12 @@ exit_free:
  * important part is that the new block and inode counts are in the backup
  * superblocks, and the location of the new group metadata in the GDT backups.
  *
- * We do not need lock_super() for this, because these blocks are not
- * otherwise touched by the filesystem code when it is mounted.  We don't
- * need to worry about last changing from sbi->s_groups_count, because the
- * worst that can happen is that we do not copy the full number of backups
- * at this time.  The resize which changed s_groups_count will backup again.
+ * We do not need take the s_resize_lock for this, because these
+ * blocks are not otherwise touched by the filesystem code when it is
+ * mounted.  We don't need to worry about last changing from
+ * sbi->s_groups_count, because the worst that can happen is that we
+ * do not copy the full number of backups at this time.  The resize
+ * which changed s_groups_count will backup again.
  */
 static void update_backups(struct super_block *sb,
 			   int blk_off, char *data, int size)
@@ -809,7 +809,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 		goto exit_put;
 	}
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_resize_lock);
 	if (input->group != sbi->s_groups_count) {
 		ext4_warning(sb, __func__,
 			     "multiple resizers run on filesystem!");
@@ -840,7 +840,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
         /*
          * OK, now we've set up the new group.  Time to make it active.
          *
-         * Current kernels don't lock all allocations via lock_super(),
+         * We do not lock all allocations via s_resize_lock
          * so we have to be safe wrt. concurrent accesses the group
          * data.  So we need to be careful to set all of the relevant
          * group descriptor data etc. *before* we enable the group.
@@ -900,12 +900,12 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 *
 	 * The precise rules we use are:
 	 *
-	 * * Writers of s_groups_count *must* hold lock_super
+	 * * Writers of s_groups_count *must* hold s_resize_lock
 	 * AND
 	 * * Writers must perform a smp_wmb() after updating all dependent
 	 *   data and before modifying the groups count
 	 *
-	 * * Readers must hold lock_super() over the access
+	 * * Readers must hold s_resize_lock over the access
 	 * OR
 	 * * Readers must perform an smp_rmb() after reading the groups count
 	 *   and before reading any dependent data.
@@ -948,7 +948,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	sb->s_dirt = 1;
 
 exit_journal:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_resize_lock);
 	if ((err2 = ext4_journal_stop(handle)) && !err)
 		err = err2;
 	if (!err) {
@@ -986,7 +986,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 
 	/* We don't need to worry about locking wrt other resizers just
 	 * yet: we're going to revalidate es->s_blocks_count after
-	 * taking lock_super() below. */
+	 * taking the s_resize_lock below. */
 	o_blocks_count = ext4_blocks_count(es);
 	o_groups_count = EXT4_SB(sb)->s_groups_count;
 
@@ -1056,11 +1056,11 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		goto exit_put;
 	}
 
-	lock_super(sb);
+	mutex_lock(&EXT4_SB(sb)->s_resize_lock);
 	if (o_blocks_count != ext4_blocks_count(es)) {
 		ext4_warning(sb, __func__,
 			     "multiple resizers run on filesystem!");
-		unlock_super(sb);
+		mutex_unlock(&EXT4_SB(sb)->s_resize_lock);
 		ext4_journal_stop(handle);
 		err = -EBUSY;
 		goto exit_put;
@@ -1070,14 +1070,14 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 						 EXT4_SB(sb)->s_sbh))) {
 		ext4_warning(sb, __func__,
 			     "error %d on journal write access", err);
-		unlock_super(sb);
+		mutex_unlock(&EXT4_SB(sb)->s_resize_lock);
 		ext4_journal_stop(handle);
 		goto exit_put;
 	}
 	ext4_blocks_count_set(es, o_blocks_count + add);
 	ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
 	sb->s_dirt = 1;
-	unlock_super(sb);
+	mutex_unlock(&EXT4_SB(sb)->s_resize_lock);
 	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	/* We add the blocks to the bitmap and set the group need init bit */

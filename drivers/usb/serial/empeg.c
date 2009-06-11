@@ -81,8 +81,7 @@ static int debug;
 /* function prototypes for an empeg-car player */
 static int  empeg_open(struct tty_struct *tty, struct usb_serial_port *port,
 						struct file *filp);
-static void empeg_close(struct tty_struct *tty, struct usb_serial_port *port,
-						struct file *filp);
+static void empeg_close(struct usb_serial_port *port);
 static int  empeg_write(struct tty_struct *tty, struct usb_serial_port *port,
 						const unsigned char *buf,
 						int count);
@@ -181,8 +180,7 @@ static int empeg_open(struct tty_struct *tty, struct usb_serial_port *port,
 }
 
 
-static void empeg_close(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static void empeg_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 

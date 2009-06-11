@@ -516,7 +516,7 @@ DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
 		.clk = &c, \
 	},
 
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
 	_REGISTER_CLOCK(NULL, "cspi", cspi1_clk)
 	_REGISTER_CLOCK(NULL, "cspi", cspi2_clk)

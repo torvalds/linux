@@ -384,7 +384,6 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto no_file;
-	ima_shm_check(file);
 
 	id = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
 	if (id < 0) {
@@ -891,7 +890,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	file = alloc_file(path.mnt, path.dentry, f_mode, &shm_file_operations);
 	if (!file)
 		goto out_free;
-	ima_shm_check(file);
+	ima_counts_get(file);
 
 	file->private_data = sfd;
 	file->f_mapping = shp->shm_file->f_mapping;
@@ -969,10 +968,13 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
 SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 {
 	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma, *next;
+	struct vm_area_struct *vma;
 	unsigned long addr = (unsigned long)shmaddr;
-	loff_t size = 0;
 	int retval = -EINVAL;
+#ifdef CONFIG_MMU
+	loff_t size = 0;
+	struct vm_area_struct *next;
+#endif
 
 	if (addr & ~PAGE_MASK)
 		return retval;

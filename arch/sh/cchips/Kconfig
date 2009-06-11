@@ -34,11 +34,6 @@ config HD64461_IRQ
 
 	  Do not change this unless you know what you are doing.
 
-config HD64461_IOBASE
-	hex "HD64461 start address"
-	depends on HD64461
-	default "0xb0000000"
-
 config HD64461_ENABLER
 	bool "HD64461 PCMCIA enabler"
 	depends on HD64461

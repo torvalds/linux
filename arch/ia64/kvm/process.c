@@ -652,20 +652,25 @@ void  kvm_ia64_handle_break(unsigned long ifa, struct kvm_pt_regs *regs,
 		unsigned long isr, unsigned long iim)
 {
 	struct kvm_vcpu *v = current_vcpu;
+	long psr;
 
 	if (ia64_psr(regs)->cpl == 0) {
 		/* Allow hypercalls only when cpl = 0.  */
 		if (iim == DOMN_PAL_REQUEST) {
+			local_irq_save(psr);
 			set_pal_call_data(v);
 			vmm_transition(v);
 			get_pal_call_result(v);
 			vcpu_increment_iip(v);
+			local_irq_restore(psr);
 			return;
 		} else if (iim == DOMN_SAL_REQUEST) {
+			local_irq_save(psr);
 			set_sal_call_data(v);
 			vmm_transition(v);
 			get_sal_call_result(v);
 			vcpu_increment_iip(v);
+			local_irq_restore(psr);
 			return;
 		}
 	}

@@ -886,7 +886,6 @@ system_call:
 	bnc		icc0,#0,__syscall_badsys
 
 	ldi		@(gr15,#TI_FLAGS),gr4
-	ori		gr4,#_TIF_SYSCALL_TRACE,gr4
 	andicc		gr4,#_TIF_SYSCALL_TRACE,gr0,icc0
 	bne		icc0,#0,__syscall_trace_entry
 
@@ -1150,11 +1149,10 @@ __entry_work_notifysig:
 	# perform syscall entry tracing
 __syscall_trace_entry:
 	LEDS		0x6320
-	setlos.p	#0,gr8
-	call		do_syscall_trace
+	call		syscall_trace_entry
 
-	ldi		@(gr28,#REG_SYSCALLNO),gr7
-	lddi		@(gr28,#REG_GR(8)) ,gr8
+	lddi.p		@(gr28,#REG_GR(8)) ,gr8
+	ori		gr8,#0,gr7		; syscall_trace_entry() returned new syscallno
 	lddi		@(gr28,#REG_GR(10)),gr10
 	lddi.p		@(gr28,#REG_GR(12)),gr12
 
@@ -1169,11 +1167,10 @@ __syscall_exit_work:
 	beq		icc0,#1,__entry_work_pending
 
 	movsg		psr,gr23
-	andi		gr23,#~PSR_PIL,gr23	; could let do_syscall_trace() call schedule()
+	andi		gr23,#~PSR_PIL,gr23	; could let syscall_trace_exit() call schedule()
 	movgs		gr23,psr
 
-	setlos.p	#1,gr8
-	call		do_syscall_trace
+	call		syscall_trace_exit
 	bra		__entry_resume_userspace
 
 __syscall_badsys:

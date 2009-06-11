@@ -146,7 +146,7 @@ cifs_read_super(struct super_block *sb, void *data,
 #endif
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
-	inode = cifs_iget(sb, ROOT_I);
+	inode = cifs_root_iget(sb, ROOT_I);
 
 	if (IS_ERR(inode)) {
 		rc = PTR_ERR(inode);

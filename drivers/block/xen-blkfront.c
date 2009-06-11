@@ -122,7 +122,7 @@ static DEFINE_SPINLOCK(blkif_io_lock);
 static int get_id_from_freelist(struct blkfront_info *info)
 {
 	unsigned long free = info->shadow_free;
-	BUG_ON(free > BLK_RING_SIZE);
+	BUG_ON(free >= BLK_RING_SIZE);
 	info->shadow_free = info->shadow[free].req.id;
 	info->shadow[free].req.id = 0x0fffffee; /* debug */
 	return free;
@@ -231,7 +231,7 @@ static int blkif_queue_request(struct request *req)
 	info->shadow[id].request = (unsigned long)req;
 
 	ring_req->id = id;
-	ring_req->sector_number = (blkif_sector_t)req->sector;
+	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
 	ring_req->handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
@@ -299,25 +299,25 @@ static void do_blkif_request(struct request_queue *rq)
 
 	queued = 0;
 
-	while ((req = elv_next_request(rq)) != NULL) {
+	while ((req = blk_peek_request(rq)) != NULL) {
 		info = req->rq_disk->private_data;
-		if (!blk_fs_request(req)) {
-			end_request(req, 0);
-			continue;
-		}
 
 		if (RING_FULL(&info->ring))
 			goto wait;
 
+		blk_start_request(req);
+
+		if (!blk_fs_request(req)) {
+			__blk_end_request_all(req, -EIO);
+			continue;
+		}
+
 		pr_debug("do_blk_req %p: cmd %p, sec %lx, "
-			 "(%u/%li) buffer:%p [%s]\n",
-			 req, req->cmd, (unsigned long)req->sector,
-			 req->current_nr_sectors,
-			 req->nr_sectors, req->buffer,
-			 rq_data_dir(req) ? "write" : "read");
+			 "(%u/%u) buffer:%p [%s]\n",
+			 req, req->cmd, (unsigned long)blk_rq_pos(req),
+			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
+			 req->buffer, rq_data_dir(req) ? "write" : "read");
 
-
-		blkdev_dequeue_request(req);
 		if (blkif_queue_request(req)) {
 			blk_requeue_request(rq, req);
 wait:
@@ -344,7 +344,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
-	blk_queue_hardsect_size(rq, sector_size);
+	blk_queue_logical_block_size(rq, sector_size);
 	blk_queue_max_sectors(rq, 512);
 
 	/* Each segment in a request is up to an aligned page in size. */
@@ -551,7 +551,6 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 	for (i = info->ring.rsp_cons; i != rp; i++) {
 		unsigned long id;
-		int ret;
 
 		bret = RING_GET_RESPONSE(&info->ring, i);
 		id   = bret->id;
@@ -578,8 +577,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				dev_dbg(&info->xbdev->dev, "Bad return from blkdev data "
 					"request: %x\n", bret->status);
 
-			ret = __blk_end_request(req, error, blk_rq_bytes(req));
-			BUG_ON(ret);
+			__blk_end_request_all(req, error);
 			break;
 		default:
 			BUG();

@@ -297,20 +297,14 @@ static int validate_request(struct autofs_wait_queue **wait,
 	 */
 	if (notify == NFY_MOUNT) {
 		/*
-		 * If the dentry isn't hashed just go ahead and try the
-		 * mount again with a new wait (not much else we can do).
-		*/
-		if (!d_unhashed(dentry)) {
-			/*
-			 * But if the dentry is hashed, that means that we
-			 * got here through the revalidate path.  Thus, we
-			 * need to check if the dentry has been mounted
-			 * while we waited on the wq_mutex. If it has,
-			 * simply return success.
-			 */
-			if (d_mountpoint(dentry))
-				return 0;
-		}
+		 * If the dentry was successfully mounted while we slept
+		 * on the wait queue mutex we can return success. If it
+		 * isn't mounted (doesn't have submounts for the case of
+		 * a multi-mount with no mount at it's base) we can
+		 * continue on and create a new request.
+		 */
+		if (have_submounts(dentry))
+			return 0;
 	}
 
 	return 1;

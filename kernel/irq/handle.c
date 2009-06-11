@@ -18,8 +18,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
-#include <trace/irq.h>
 #include <linux/bootmem.h>
+#include <trace/events/irq.h>
 
 #include "internals.h"
 
@@ -150,6 +150,7 @@ int __init early_irq_init(void)
 {
 	struct irq_desc *desc;
 	int legacy_count;
+	int node;
 	int i;
 
 	init_irq_default_affinity();
@@ -160,20 +161,20 @@ int __init early_irq_init(void)
 
 	desc = irq_desc_legacy;
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
+ 	node = first_online_node;
 
 	/* allocate irq_desc_ptrs array based on nr_irqs */
-	irq_desc_ptrs = alloc_bootmem(nr_irqs * sizeof(void *));
+	irq_desc_ptrs = kcalloc(nr_irqs, sizeof(void *), GFP_NOWAIT);
 
 	/* allocate based on nr_cpu_ids */
-	/* FIXME: invert kstat_irgs, and it'd be a per_cpu_alloc'd thing */
-	kstat_irqs_legacy = alloc_bootmem(NR_IRQS_LEGACY * nr_cpu_ids *
-					  sizeof(int));
+	kstat_irqs_legacy = kzalloc_node(NR_IRQS_LEGACY * nr_cpu_ids *
+					  sizeof(int), GFP_NOWAIT, node);
 
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
 		desc[i].kstat_irqs = kstat_irqs_legacy + i * nr_cpu_ids;
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
-		alloc_desc_masks(&desc[i], 0, true);
+		alloc_desc_masks(&desc[i], node, true);
 		init_desc_masks(&desc[i]);
 		irq_desc_ptrs[i] = desc + i;
 	}
@@ -354,9 +355,6 @@ static void warn_no_thread(unsigned int irq, struct irqaction *action)
 	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
 	       "but no thread function available.", irq, action->name);
 }
-
-DEFINE_TRACE(irq_handler_entry);
-DEFINE_TRACE(irq_handler_exit);
 
 /**
  * handle_IRQ_event - irq action chain handler

@@ -6,7 +6,6 @@
  *  2000-06-20  Pentium III FXSR, SSE support by Gareth Hughes
  *  2000-2002   x86-64 support by Andi Kleen
  */
-
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>

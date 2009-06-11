@@ -15,7 +15,6 @@
 #include <asm/hw_irq.h>
 #include <asm/idle.h>
 #include <asm/therm_throt.h>
-#include <asm/apic.h>
 
 #include "mce.h"
 

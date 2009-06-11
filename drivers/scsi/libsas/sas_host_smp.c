@@ -134,24 +134,24 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 {
 	u8 *req_data = NULL, *resp_data = NULL, *buf;
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
-	int error = -EINVAL, resp_data_len = rsp->data_len;
+	int error = -EINVAL;
 
 	/* eight is the minimum size for request and response frames */
-	if (req->data_len < 8 || rsp->data_len < 8)
+	if (blk_rq_bytes(req) < 8 || blk_rq_bytes(rsp) < 8)
 		goto out;
 
-	if (bio_offset(req->bio) + req->data_len > PAGE_SIZE ||
-	    bio_offset(rsp->bio) + rsp->data_len > PAGE_SIZE) {
+	if (bio_offset(req->bio) + blk_rq_bytes(req) > PAGE_SIZE ||
+	    bio_offset(rsp->bio) + blk_rq_bytes(rsp) > PAGE_SIZE) {
 		shost_printk(KERN_ERR, shost,
 			"SMP request/response frame crosses page boundary");
 		goto out;
 	}
 
-	req_data = kzalloc(req->data_len, GFP_KERNEL);
+	req_data = kzalloc(blk_rq_bytes(req), GFP_KERNEL);
 
 	/* make sure frame can always be built ... we copy
 	 * back only the requested length */
-	resp_data = kzalloc(max(rsp->data_len, 128U), GFP_KERNEL);
+	resp_data = kzalloc(max(blk_rq_bytes(rsp), 128U), GFP_KERNEL);
 
 	if (!req_data || !resp_data) {
 		error = -ENOMEM;
@@ -160,7 +160,7 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 
 	local_irq_disable();
 	buf = kmap_atomic(bio_page(req->bio), KM_USER0) + bio_offset(req->bio);
-	memcpy(req_data, buf, req->data_len);
+	memcpy(req_data, buf, blk_rq_bytes(req));
 	kunmap_atomic(buf - bio_offset(req->bio), KM_USER0);
 	local_irq_enable();
 
@@ -178,15 +178,15 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 
 	switch (req_data[1]) {
 	case SMP_REPORT_GENERAL:
-		req->data_len -= 8;
-		resp_data_len -= 32;
+		req->resid_len -= 8;
+		rsp->resid_len -= 32;
 		resp_data[2] = SMP_RESP_FUNC_ACC;
 		resp_data[9] = sas_ha->num_phys;
 		break;
 
 	case SMP_REPORT_MANUF_INFO:
-		req->data_len -= 8;
-		resp_data_len -= 64;
+		req->resid_len -= 8;
+		rsp->resid_len -= 64;
 		resp_data[2] = SMP_RESP_FUNC_ACC;
 		memcpy(resp_data + 12, shost->hostt->name,
 		       SAS_EXPANDER_VENDOR_ID_LEN);
@@ -199,13 +199,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_DISCOVER:
-		req->data_len -= 16;
-		if ((int)req->data_len < 0) {
-			req->data_len = 0;
+		req->resid_len -= 16;
+		if ((int)req->resid_len < 0) {
+			req->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		resp_data_len -= 56;
+		rsp->resid_len -= 56;
 		sas_host_smp_discover(sas_ha, resp_data, req_data[9]);
 		break;
 
@@ -215,13 +215,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_REPORT_PHY_SATA:
-		req->data_len -= 16;
-		if ((int)req->data_len < 0) {
-			req->data_len = 0;
+		req->resid_len -= 16;
+		if ((int)req->resid_len < 0) {
+			req->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		resp_data_len -= 60;
+		rsp->resid_len -= 60;
 		sas_report_phy_sata(sas_ha, resp_data, req_data[9]);
 		break;
 
@@ -238,13 +238,13 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 		break;
 
 	case SMP_PHY_CONTROL:
-		req->data_len -= 44;
-		if ((int)req->data_len < 0) {
-			req->data_len = 0;
+		req->resid_len -= 44;
+		if ((int)req->resid_len < 0) {
+			req->resid_len = 0;
 			error = -EINVAL;
 			goto out;
 		}
-		resp_data_len -= 8;
+		rsp->resid_len -= 8;
 		sas_phy_control(sas_ha, req_data[9], req_data[10],
 				req_data[32] >> 4, req_data[33] >> 4,
 				resp_data);
@@ -261,11 +261,10 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 
 	local_irq_disable();
 	buf = kmap_atomic(bio_page(rsp->bio), KM_USER0) + bio_offset(rsp->bio);
-	memcpy(buf, resp_data, rsp->data_len);
+	memcpy(buf, resp_data, blk_rq_bytes(rsp));
 	flush_kernel_dcache_page(bio_page(rsp->bio));
 	kunmap_atomic(buf - bio_offset(rsp->bio), KM_USER0);
 	local_irq_enable();
-	rsp->data_len = resp_data_len;
 
  out:
 	kfree(req_data);

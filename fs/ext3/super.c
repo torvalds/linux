@@ -1696,7 +1696,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	hblock = bdev_hardsect_size(sb->s_bdev);
+	hblock = bdev_logical_block_size(sb->s_bdev);
 	if (sb->s_blocksize != blocksize) {
 		/*
 		 * Make sure the blocksize for the filesystem is larger
@@ -2021,6 +2021,7 @@ failed_mount:
 	brelse(bh);
 out_fail:
 	sb->s_fs_info = NULL;
+	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	lock_kernel();
 	return ret;
@@ -2119,7 +2120,7 @@ static journal_t *ext3_get_dev_journal(struct super_block *sb,
 	}
 
 	blocksize = sb->s_blocksize;
-	hblock = bdev_hardsect_size(bdev);
+	hblock = bdev_logical_block_size(bdev);
 	if (blocksize < hblock) {
 		printk(KERN_ERR
 			"EXT3-fs: blocksize too small for journal device.\n");

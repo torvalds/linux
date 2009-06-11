@@ -93,8 +93,7 @@ static int  belkin_sa_startup(struct usb_serial *serial);
 static void belkin_sa_shutdown(struct usb_serial *serial);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void belkin_sa_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void belkin_sa_close(struct usb_serial_port *port);
 static void belkin_sa_read_int_callback(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios * old);
@@ -244,8 +243,7 @@ exit:
 } /* belkin_sa_open */
 
 
-static void belkin_sa_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void belkin_sa_close(struct usb_serial_port *port)
 {
 	dbg("%s port %d", __func__, port->number);
 

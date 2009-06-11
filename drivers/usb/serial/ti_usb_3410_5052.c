@@ -100,8 +100,7 @@ static int ti_startup(struct usb_serial *serial);
 static void ti_shutdown(struct usb_serial *serial);
 static int ti_open(struct tty_struct *tty, struct usb_serial_port *port,
 		struct file *file);
-static void ti_close(struct tty_struct *tty, struct usb_serial_port *port,
-		struct file *file);
+static void ti_close(struct usb_serial_port *port);
 static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 		const unsigned char *data, int count);
 static int ti_write_room(struct tty_struct *tty);
@@ -647,8 +646,7 @@ release_lock:
 }
 
 
-static void ti_close(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *file)
+static void ti_close(struct usb_serial_port *port)
 {
 	struct ti_device *tdev;
 	struct ti_port *tport;

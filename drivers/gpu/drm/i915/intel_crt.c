@@ -381,11 +381,6 @@ static int intel_crt_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t value)
 {
-	struct drm_device *dev = connector->dev;
-
-	if (property == dev->mode_config.dpms_property && connector->encoder)
-		intel_crt_dpms(connector->encoder, (uint32_t)(value & 0xf));
-
 	return 0;
 }
 
@@ -402,6 +397,7 @@ static const struct drm_encoder_helper_funcs intel_crt_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_crt_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.detect = intel_crt_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_crt_destroy,

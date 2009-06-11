@@ -704,11 +704,23 @@ this directory the following files can currently be found:
 				The current number of free dma_debug_entries
 				in the allocator.
 
+	dma-api/driver-filter
+				You can write a name of a driver into this file
+				to limit the debug output to requests from that
+				particular driver. Write an empty string to
+				that file to disable the filter and see
+				all errors again.
+
 If you have this code compiled into your kernel it will be enabled by default.
 If you want to boot without the bookkeeping anyway you can provide
 'dma_debug=off' as a boot parameter. This will disable DMA-API debugging.
 Notice that you can not enable it again at runtime. You have to reboot to do
 so.
+
+If you want to see debug messages only for a special device driver you can
+specify the dma_debug_driver=<drivername> parameter. This will enable the
+driver filter at boot time. The debug code will only print errors for that
+driver afterwards. This filter can be disabled or changed later using debugfs.
 
 When the code disables itself at runtime this is most likely because it ran
 out of dma_debug_entries. These entries are preallocated at boot. The number

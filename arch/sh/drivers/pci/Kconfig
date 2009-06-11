@@ -17,21 +17,3 @@ config SH_PCIDMA_NONCOHERENT
 	  code will not have to flush the CPU's caches. If you have a PCI host
 	  bridge integrated with your SH CPU, refer carefully to the chip specs
 	  to see if you can say 'N' here. Otherwise, leave it as 'Y'.
-
-# This is also board-specific
-config PCI_AUTO
-	bool
-	depends on PCI
-	default y
-
-config PCI_AUTO_UPDATE_RESOURCES
-	bool
-	depends on PCI_AUTO
-	default y if !SH_DREAMCAST
-	help
-	  Selecting this option will cause the PCI auto code to leave your
-	  BAR values alone. Otherwise they will be updated automatically. If
-	  for some reason, you have a board that simply refuses to work
-	  with its resources updated beyond what they are when the device
-	  is powered up, set this to N. Everyone else will want this as Y.
-

@@ -219,6 +219,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 void destroy_inode(struct inode *inode)
 {
 	BUG_ON(inode_has_buffers(inode));
+	ima_inode_free(inode);
 	security_inode_free(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
@@ -1053,13 +1054,22 @@ int insert_inode_locked(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	ino_t ino = inode->i_ino;
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
-	struct inode *old;
 
 	inode->i_state |= I_LOCK|I_NEW;
 	while (1) {
+		struct hlist_node *node;
+		struct inode *old = NULL;
 		spin_lock(&inode_lock);
-		old = find_inode_fast(sb, head, ino);
-		if (likely(!old)) {
+		hlist_for_each_entry(old, node, head, i_hash) {
+			if (old->i_ino != ino)
+				continue;
+			if (old->i_sb != sb)
+				continue;
+			if (old->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
+				continue;
+			break;
+		}
+		if (likely(!node)) {
 			hlist_add_head(&inode->i_hash, head);
 			spin_unlock(&inode_lock);
 			return 0;
@@ -1081,14 +1091,24 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 {
 	struct super_block *sb = inode->i_sb;
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *old;
 
 	inode->i_state |= I_LOCK|I_NEW;
 
 	while (1) {
+		struct hlist_node *node;
+		struct inode *old = NULL;
+
 		spin_lock(&inode_lock);
-		old = find_inode(sb, head, test, data);
-		if (likely(!old)) {
+		hlist_for_each_entry(old, node, head, i_hash) {
+			if (old->i_sb != sb)
+				continue;
+			if (!test(old, data))
+				continue;
+			if (old->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE))
+				continue;
+			break;
+		}
+		if (likely(!node)) {
 			hlist_add_head(&inode->i_hash, head);
 			spin_unlock(&inode_lock);
 			return 0;

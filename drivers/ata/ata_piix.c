@@ -223,10 +223,8 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* ICH8 Mobile PATA Controller */
 	{ 0x8086, 0x2850, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 
-	/* NOTE: The following PCI ids must be kept in sync with the
-	 * list in drivers/pci/quirks.c.
-	 */
-
+	/* SATA ports */
+	
 	/* 82801EB (ICH5) */
 	{ 0x8086, 0x24d1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_sata },
 	/* 82801EB (ICH5) */
@@ -1455,6 +1453,15 @@ static bool piix_broken_system_poweroff(struct pci_dev *pdev)
 			/* PCI slot number of the controller */
 			.driver_data = (void *)0x1FUL,
 		},
+		{
+			.ident = "HP Compaq nc6000",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nc6000"),
+			},
+			/* PCI slot number of the controller */
+			.driver_data = (void *)0x1FUL,
+		},
 
 		{ }	/* terminate list */
 	};
@@ -1500,8 +1507,8 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	/* no hotplugging support (FIXME) */
-	if (!in_module_init)
+	/* no hotplugging support for later devices (FIXME) */
+	if (!in_module_init && ent->driver_data >= ich5_sata)
 		return -ENODEV;
 
 	if (piix_broken_system_poweroff(pdev)) {
@@ -1582,6 +1589,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 		host->ports[1]->mwdma_mask = 0;
 		host->ports[1]->udma_mask = 0;
 	}
+	host->flags |= ATA_HOST_PARALLEL_SCAN;
 
 	pci_set_master(pdev);
 	return ata_pci_sff_activate_host(host, ata_sff_interrupt, &piix_sht);

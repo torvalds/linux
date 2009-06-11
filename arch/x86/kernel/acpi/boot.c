@@ -985,11 +985,8 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	mp_ioapics[idx].apicid = uniq_ioapic_id(id);
-#ifdef CONFIG_X86_32
 	mp_ioapics[idx].apicver = io_apic_get_version(idx);
-#else
-	mp_ioapics[idx].apicver = 0;
-#endif
+
 	/*
 	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
 	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).

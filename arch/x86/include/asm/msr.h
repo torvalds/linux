@@ -12,6 +12,17 @@
 
 #include <asm/asm.h>
 #include <asm/errno.h>
+#include <asm/cpumask.h>
+
+struct msr {
+	union {
+		struct {
+			u32 l;
+			u32 h;
+		};
+		u64 q;
+	};
+};
 
 static inline unsigned long long native_read_tscp(unsigned int *aux)
 {
@@ -216,6 +227,8 @@ do {                                                            \
 #ifdef CONFIG_SMP
 int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
+void rdmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs);
+void wrmsr_on_cpus(const cpumask_t *mask, u32 msr_no, struct msr *msrs);
 int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
 #else  /*  CONFIG_SMP  */
@@ -228,6 +241,16 @@ static inline int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 {
 	wrmsr(msr_no, l, h);
 	return 0;
+}
+static inline void rdmsr_on_cpus(const cpumask_t *m, u32 msr_no,
+				struct msr *msrs)
+{
+       rdmsr_on_cpu(0, msr_no, &(msrs[0].l), &(msrs[0].h));
+}
+static inline void wrmsr_on_cpus(const cpumask_t *m, u32 msr_no,
+				struct msr *msrs)
+{
+       wrmsr_on_cpu(0, msr_no, msrs[0].l, msrs[0].h);
 }
 static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no,
 				    u32 *l, u32 *h)

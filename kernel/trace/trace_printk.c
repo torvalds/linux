@@ -245,17 +245,13 @@ static const struct file_operations ftrace_formats_fops = {
 static __init int init_trace_printk_function_export(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
 		return 0;
 
-	entry = debugfs_create_file("printk_formats", 0444, d_tracer,
+	trace_create_file("printk_formats", 0444, d_tracer,
 				    NULL, &ftrace_formats_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'printk_formats' entry\n");
 
 	return 0;
 }

@@ -14,6 +14,7 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
+#include <linux/perf_counter.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi_pmtmr.h>
@@ -34,6 +35,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
+#include <asm/perf_counter.h>
 #include <asm/pgalloc.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>
@@ -249,7 +251,7 @@ static void native_apic_write_dummy(u32 reg, u32 v)
 
 static u32 native_apic_read_dummy(u32 reg)
 {
-	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
 	return 0;
 }
 
@@ -1187,6 +1189,7 @@ void __cpuinit setup_local_APIC(void)
 		apic_write(APIC_ESR, 0);
 	}
 #endif
+	perf_counters_lapic_init();
 
 	preempt_disable();
 
@@ -1609,6 +1612,13 @@ void __init init_apic_mappings(void)
 	new_apicid = read_apic_id();
 	if (boot_cpu_physical_apicid != new_apicid) {
 		boot_cpu_physical_apicid = new_apicid;
+		/*
+		 * yeah -- we lie about apic_version
+		 * in case if apic was disabled via boot option
+		 * but it's not a problem for SMP compiled kernel
+		 * since smp_sanity_check is prepared for such a case
+		 * and disable smp mode
+		 */
 		apic_version[new_apicid] =
 			 GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
@@ -2027,7 +2037,7 @@ static int lapic_resume(struct sys_device *dev)
 	unsigned int l, h;
 	unsigned long flags;
 	int maxlvt;
-	int ret;
+	int ret = 0;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
 	if (!apic_pm_state.active)
@@ -2038,14 +2048,15 @@ static int lapic_resume(struct sys_device *dev)
 		ioapic_entries = alloc_ioapic_entries();
 		if (!ioapic_entries) {
 			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto restore;
 		}
 
 		ret = save_IO_APIC_setup(ioapic_entries);
 		if (ret) {
 			WARN(1, "Saving IO-APIC state failed: %d\n", ret);
 			free_ioapic_entries(ioapic_entries);
-			return ret;
+			goto restore;
 		}
 
 		mask_IO_APIC_setup(ioapic_entries);
@@ -2097,10 +2108,10 @@ static int lapic_resume(struct sys_device *dev)
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}
-
+restore:
 	local_irq_restore(flags);
 
-	return 0;
+	return ret;
 }
 
 /*

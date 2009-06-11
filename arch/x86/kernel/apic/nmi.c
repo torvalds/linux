@@ -104,7 +104,7 @@ static __init void nmi_cpu_busy(void *data)
 }
 #endif
 
-static void report_broken_nmi(int cpu, int *prev_nmi_count)
+static void report_broken_nmi(int cpu, unsigned int *prev_nmi_count)
 {
 	printk(KERN_CONT "\n");
 

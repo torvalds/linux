@@ -1,0 +1,42 @@
+perf-record(1)
+==============
+
+NAME
+----
+perf-record - Run a command and record its profile into perf.data
+
+SYNOPSIS
+--------
+[verse]
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+
+DESCRIPTION
+-----------
+This command runs a command and gathers a performance counter profile
+from it, into perf.data - without displaying anything.
+
+This file can then be inspected later on, using 'perf report'.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-e::
+--event=::
+	Select the PMU event. Selection can be a symbolic event name
+	(use 'perf list' to list all events) or a raw PMU
+	event (eventsel+umask) in the form of rNNN where NNN is a
+	 hexadecimal event descriptor.
+
+-a::
+        system-wide collection
+
+-l::
+        scale counter values
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-list[1]

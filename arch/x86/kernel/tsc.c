@@ -384,13 +384,13 @@ unsigned long native_calibrate_tsc(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, latch, ms, fast_calibrate, tsc_khz;
+	unsigned long flags, latch, ms, fast_calibrate, hv_tsc_khz;
 	int hpet = is_hpet_enabled(), i, loopmin;
 
-	tsc_khz = get_hypervisor_tsc_freq();
-	if (tsc_khz) {
+	hv_tsc_khz = get_hypervisor_tsc_freq();
+	if (hv_tsc_khz) {
 		printk(KERN_INFO "TSC: Frequency read from the hypervisor\n");
-		return tsc_khz;
+		return hv_tsc_khz;
 	}
 
 	local_irq_save(flags);
@@ -710,7 +710,16 @@ static cycle_t read_tsc(struct clocksource *cs)
 #ifdef CONFIG_X86_64
 static cycle_t __vsyscall_fn vread_tsc(void)
 {
-	cycle_t ret = (cycle_t)vget_cycles();
+	cycle_t ret;
+
+	/*
+	 * Surround the RDTSC by barriers, to make sure it's not
+	 * speculated to outside the seqlock critical section and
+	 * does not cause time warps:
+	 */
+	rdtsc_barrier();
+	ret = (cycle_t)vget_cycles();
+	rdtsc_barrier();
 
 	return ret >= __vsyscall_gtod_data.clock.cycle_last ?
 		ret : __vsyscall_gtod_data.clock.cycle_last;

@@ -21,6 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
+#include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -516,6 +517,9 @@ static void do_signal(void)
 			 * clear the TIF_RESTORE_SIGMASK flag */
 			if (test_thread_flag(TIF_RESTORE_SIGMASK))
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+			tracehook_signal_handler(signr, &info, &ka, __frame,
+						 test_thread_flag(TIF_SINGLESTEP));
 		}
 
 		return;
@@ -563,5 +567,11 @@ asmlinkage void do_notify_resume(__u32 thread_info_flags)
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal();
+
+	/* deal with notification on about to resume userspace execution */
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(__frame);
+	}
 
 } /* end do_notify_resume() */
