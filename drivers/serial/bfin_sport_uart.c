@@ -149,7 +149,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int sclk, int baud_rate)
 	int tclkdiv, tfsdiv, rclkdiv;
 
 	/* Set TCR1 and TCR2 */
-	SPORT_PUT_TCR1(up, (LTFS | ITFS | TFSR | TLSBIT | ITCLK));
+	SPORT_PUT_TCR1(up, (LATFS | ITFS | TFSR | TLSBIT | ITCLK));
 	SPORT_PUT_TCR2(up, 10);
 	pr_debug("%s TCR1:%x, TCR2:%x\n", __func__, SPORT_GET_TCR1(up), SPORT_GET_TCR2(up));
 
