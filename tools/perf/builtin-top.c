@@ -79,8 +79,8 @@ static int			dump_symtab;
  * Symbols
  */
 
-static uint64_t			min_ip;
-static uint64_t			max_ip = -1ll;
+static __u64			min_ip;
+static __u64			max_ip = -1ll;
 
 struct sym_entry {
 	struct rb_node		rb_node;
@@ -372,7 +372,7 @@ out_delete_dso:
 /*
  * Binary search in the histogram table and record the hit:
  */
-static void record_ip(uint64_t ip, int counter)
+static void record_ip(__u64 ip, int counter)
 {
 	struct symbol *sym = dso__find_symbol(kernel_dso, ip);
 
@@ -392,7 +392,7 @@ static void record_ip(uint64_t ip, int counter)
 	samples--;
 }
 
-static void process_event(uint64_t ip, int counter)
+static void process_event(__u64 ip, int counter)
 {
 	samples++;
 

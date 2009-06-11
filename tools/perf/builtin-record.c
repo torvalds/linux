@@ -223,7 +223,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 	comm_ev.pid = pid;
 	comm_ev.header.type = PERF_EVENT_COMM;
-	size = ALIGN(size, sizeof(uint64_t));
+	size = ALIGN(size, sizeof(__u64));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
 
 	if (!full) {
@@ -304,7 +304,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
 			memcpy(mmap_ev.filename, execname, size);
-			size = ALIGN(size, sizeof(uint64_t));
+			size = ALIGN(size, sizeof(__u64));
 			mmap_ev.len -= mmap_ev.start;
 			mmap_ev.header.size = (sizeof(mmap_ev) -
 					       (sizeof(mmap_ev.filename) - size));

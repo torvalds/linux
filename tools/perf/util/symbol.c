@@ -9,9 +9,9 @@
 
 const char *sym_hist_filter;
 
-static struct symbol *symbol__new(uint64_t start, uint64_t len,
+static struct symbol *symbol__new(__u64 start, __u64 len,
 				  const char *name, unsigned int priv_size,
-				  uint64_t obj_start, int verbose)
+				  __u64 obj_start, int verbose)
 {
 	size_t namelen = strlen(name) + 1;
 	struct symbol *self = calloc(1, priv_size + sizeof(*self) + namelen);
@@ -89,7 +89,7 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 {
 	struct rb_node **p = &self->syms.rb_node;
 	struct rb_node *parent = NULL;
-	const uint64_t ip = sym->start;
+	const __u64 ip = sym->start;
 	struct symbol *s;
 
 	while (*p != NULL) {
@@ -104,7 +104,7 @@ static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 	rb_insert_color(&sym->rb_node, &self->syms);
 }
 
-struct symbol *dso__find_symbol(struct dso *self, uint64_t ip)
+struct symbol *dso__find_symbol(struct dso *self, __u64 ip)
 {
 	struct rb_node *n;
 
@@ -523,7 +523,7 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 
 	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
 		struct symbol *f;
-		uint64_t obj_start;
+		__u64 obj_start;
 
 		if (!elf_sym__is_function(&sym))
 			continue;

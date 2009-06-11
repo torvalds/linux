@@ -145,7 +145,7 @@ static void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-static struct symbol *vdso__find_symbol(struct dso *dso, uint64_t ip)
+static struct symbol *vdso__find_symbol(struct dso *dso, __u64 ip)
 {
 	return dso__find_symbol(kernel_dso, ip);
 }
@@ -178,19 +178,19 @@ static int load_kernel(void)
 
 struct map {
 	struct list_head node;
-	uint64_t	 start;
-	uint64_t	 end;
-	uint64_t	 pgoff;
-	uint64_t	 (*map_ip)(struct map *, uint64_t);
+	__u64	 start;
+	__u64	 end;
+	__u64	 pgoff;
+	__u64	 (*map_ip)(struct map *, __u64);
 	struct dso	 *dso;
 };
 
-static uint64_t map__map_ip(struct map *map, uint64_t ip)
+static __u64 map__map_ip(struct map *map, __u64 ip)
 {
 	return ip - map->start + map->pgoff;
 }
 
-static uint64_t vdso__map_ip(struct map *map, uint64_t ip)
+static __u64 vdso__map_ip(struct map *map, __u64 ip)
 {
 	return ip;
 }
@@ -249,7 +249,7 @@ static int map__overlap(struct map *l, struct map *r)
 
 static size_t map__fprintf(struct map *self, FILE *fp)
 {
-	return fprintf(fp, " %"PRIx64"-%"PRIx64" %"PRIx64" %s\n",
+	return fprintf(fp, " %Lx-%Lx %Lx %s\n",
 		       self->start, self->end, self->pgoff, self->dso->name);
 }
 
@@ -373,7 +373,7 @@ static int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-static struct map *thread__find_map(struct thread *self, uint64_t ip)
+static struct map *thread__find_map(struct thread *self, __u64 ip)
 {
 	struct map *pos;
 
@@ -414,7 +414,7 @@ struct hist_entry {
 	struct map	 *map;
 	struct dso	 *dso;
 	struct symbol	 *sym;
-	uint64_t	 ip;
+	__u64	 ip;
 	char		 level;
 
 	uint32_t	 count;
@@ -533,7 +533,7 @@ static struct sort_entry sort_dso = {
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	uint64_t ip_l, ip_r;
+	__u64 ip_l, ip_r;
 
 	if (left->sym == right->sym)
 		return 0;
@@ -647,7 +647,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 /*
  * collect histogram counts
  */
-static void hist_hit(struct hist_entry *he, uint64_t ip)
+static void hist_hit(struct hist_entry *he, __u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
@@ -676,7 +676,7 @@ static void hist_hit(struct hist_entry *he, uint64_t ip)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, uint64_t ip, char level)
+		struct symbol *sym, __u64 ip, char level)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -848,7 +848,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	int show = 0;
 	struct dso *dso = NULL;
 	struct thread *thread = threads__findnew(event->ip.pid);
-	uint64_t ip = event->ip.ip;
+	__u64 ip = event->ip.ip;
 	struct map *map = NULL;
 
 	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
@@ -1031,7 +1031,7 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 }
 
 static int
-parse_line(FILE *file, struct symbol *sym, uint64_t start, uint64_t len)
+parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 {
 	char *line = NULL, *tmp, *tmp2;
 	unsigned int offset;
@@ -1112,7 +1112,7 @@ parse_line(FILE *file, struct symbol *sym, uint64_t start, uint64_t len)
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
 	char *filename = dso->name;
-	uint64_t start, end, len;
+	__u64 start, end, len;
 	char command[PATH_MAX*2];
 	FILE *file;
 
