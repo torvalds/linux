@@ -1024,7 +1024,7 @@ void perf_counter_task_sched_out(struct task_struct *task,
 	int do_switch = 1;
 
 	regs = task_pt_regs(task);
-	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
+	perf_swcounter_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, regs, 0);
 
 	if (likely(!ctx || !cpuctx->task_ctx))
 		return;
@@ -3411,13 +3411,13 @@ void perf_counter_task_migration(struct task_struct *task, int cpu)
 	struct perf_counter_context *ctx;
 
 	perf_swcounter_ctx_event(&cpuctx->ctx, PERF_TYPE_SOFTWARE,
-				 PERF_COUNT_CPU_MIGRATIONS,
+				 PERF_COUNT_SW_CPU_MIGRATIONS,
 				 1, 1, NULL, 0);
 
 	ctx = perf_pin_task_context(task);
 	if (ctx) {
 		perf_swcounter_ctx_event(ctx, PERF_TYPE_SOFTWARE,
-					 PERF_COUNT_CPU_MIGRATIONS,
+					 PERF_COUNT_SW_CPU_MIGRATIONS,
 					 1, 1, NULL, 0);
 		perf_unpin_context(ctx);
 	}
@@ -3475,11 +3475,11 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * events.
 	 */
 	switch (counter->attr.config) {
-	case PERF_COUNT_CPU_CLOCK:
+	case PERF_COUNT_SW_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
 		break;
-	case PERF_COUNT_TASK_CLOCK:
+	case PERF_COUNT_SW_TASK_CLOCK:
 		/*
 		 * If the user instantiates this as a per-cpu counter,
 		 * use the cpu_clock counter instead.
@@ -3490,11 +3490,11 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 			pmu = &perf_ops_cpu_clock;
 
 		break;
-	case PERF_COUNT_PAGE_FAULTS:
-	case PERF_COUNT_PAGE_FAULTS_MIN:
-	case PERF_COUNT_PAGE_FAULTS_MAJ:
-	case PERF_COUNT_CONTEXT_SWITCHES:
-	case PERF_COUNT_CPU_MIGRATIONS:
+	case PERF_COUNT_SW_PAGE_FAULTS:
+	case PERF_COUNT_SW_PAGE_FAULTS_MIN:
+	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
+	case PERF_COUNT_SW_CONTEXT_SWITCHES:
+	case PERF_COUNT_SW_CPU_MIGRATIONS:
 		pmu = &perf_ops_generic;
 		break;
 	}

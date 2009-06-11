@@ -46,15 +46,16 @@
 
 static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
 
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_TASK_CLOCK		},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_CONTEXT_SWITCHES	},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_CPU_MIGRATIONS	},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_PAGE_FAULTS	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CPU_MIGRATIONS	},
+  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS	},
 
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CPU_CYCLES		},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_INSTRUCTIONS	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CACHE_REFERENCES	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_CACHE_MISSES	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CACHE_REFERENCES},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CACHE_MISSES	},
+
 };
 
 static int			system_wide			=  0;
@@ -120,10 +121,10 @@ static inline int nsec_counter(int counter)
 	if (attrs[counter].type != PERF_TYPE_SOFTWARE)
 		return 0;
 
-	if (attrs[counter].config == PERF_COUNT_CPU_CLOCK)
+	if (attrs[counter].config == PERF_COUNT_SW_CPU_CLOCK)
 		return 1;
 
-	if (attrs[counter].config == PERF_COUNT_TASK_CLOCK)
+	if (attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK)
 		return 1;
 
 	return 0;
@@ -176,10 +177,10 @@ static void read_counter(int counter)
 	 * Save the full runtime - to allow normalization during printout:
 	 */
 	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
-		attrs[counter].config == PERF_COUNT_TASK_CLOCK)
+		attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK)
 		runtime_nsecs = count[0];
 	if (attrs[counter].type == PERF_TYPE_HARDWARE &&
-		attrs[counter].config == PERF_COUNT_CPU_CYCLES)
+		attrs[counter].config == PERF_COUNT_HW_CPU_CYCLES)
 		runtime_cycles = count[0];
 }
 
@@ -206,7 +207,7 @@ static void print_counter(int counter)
 		fprintf(stderr, " %14.6f  %-20s",
 			msecs, event_name(counter));
 		if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
-			attrs[counter].config == PERF_COUNT_TASK_CLOCK) {
+			attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK) {
 
 			if (walltime_nsecs)
 				fprintf(stderr, " # %11.3f CPU utilization factor",
@@ -220,7 +221,7 @@ static void print_counter(int counter)
 				(double)count[0]/runtime_nsecs*1000.0);
 		if (runtime_cycles &&
 			attrs[counter].type == PERF_TYPE_HARDWARE &&
-				attrs[counter].config == PERF_COUNT_INSTRUCTIONS) {
+				attrs[counter].config == PERF_COUNT_HW_INSTRUCTIONS) {
 
 			fprintf(stderr, " # %1.3f per cycle",
 				(double)count[0] / (double)runtime_cycles);

@@ -22,26 +22,26 @@ struct event_symbol {
 #define CR(x, y) .type = PERF_TYPE_##x, .config = y
 
 static struct event_symbol event_symbols[] = {
-  { C(HARDWARE, CPU_CYCLES),		"cpu-cycles",		},
-  { C(HARDWARE, CPU_CYCLES),		"cycles",		},
-  { C(HARDWARE, INSTRUCTIONS),		"instructions",		},
-  { C(HARDWARE, CACHE_REFERENCES),	"cache-references",	},
-  { C(HARDWARE, CACHE_MISSES),		"cache-misses",		},
-  { C(HARDWARE, BRANCH_INSTRUCTIONS),	"branch-instructions",	},
-  { C(HARDWARE, BRANCH_INSTRUCTIONS),	"branches",		},
-  { C(HARDWARE, BRANCH_MISSES),		"branch-misses",	},
-  { C(HARDWARE, BUS_CYCLES),		"bus-cycles",		},
+  { C(HARDWARE, HW_CPU_CYCLES),		"cpu-cycles",		},
+  { C(HARDWARE, HW_CPU_CYCLES),		"cycles",		},
+  { C(HARDWARE, HW_INSTRUCTIONS),	"instructions",		},
+  { C(HARDWARE, HW_CACHE_REFERENCES),	"cache-references",	},
+  { C(HARDWARE, HW_CACHE_MISSES),	"cache-misses",		},
+  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branch-instructions",	},
+  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branches",		},
+  { C(HARDWARE, HW_BRANCH_MISSES),	"branch-misses",	},
+  { C(HARDWARE, HW_BUS_CYCLES),		"bus-cycles",		},
 
-  { C(SOFTWARE, CPU_CLOCK),		"cpu-clock",		},
-  { C(SOFTWARE, TASK_CLOCK),		"task-clock",		},
-  { C(SOFTWARE, PAGE_FAULTS),		"page-faults",		},
-  { C(SOFTWARE, PAGE_FAULTS),		"faults",		},
-  { C(SOFTWARE, PAGE_FAULTS_MIN),	"minor-faults",		},
-  { C(SOFTWARE, PAGE_FAULTS_MAJ),	"major-faults",		},
-  { C(SOFTWARE, CONTEXT_SWITCHES),	"context-switches",	},
-  { C(SOFTWARE, CONTEXT_SWITCHES),	"cs",			},
-  { C(SOFTWARE, CPU_MIGRATIONS),	"cpu-migrations",	},
-  { C(SOFTWARE, CPU_MIGRATIONS),	"migrations",		},
+  { C(SOFTWARE, SW_CPU_CLOCK),		"cpu-clock",		},
+  { C(SOFTWARE, SW_TASK_CLOCK),		"task-clock",		},
+  { C(SOFTWARE, SW_PAGE_FAULTS),	"page-faults",		},
+  { C(SOFTWARE, SW_PAGE_FAULTS),	"faults",		},
+  { C(SOFTWARE, SW_PAGE_FAULTS_MIN),	"minor-faults",		},
+  { C(SOFTWARE, SW_PAGE_FAULTS_MAJ),	"major-faults",		},
+  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"context-switches",	},
+  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"cs",			},
+  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"cpu-migrations",	},
+  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"migrations",		},
 };
 
 #define __PERF_COUNTER_FIELD(config, name) \
@@ -107,7 +107,7 @@ char *event_name(int counter)
 
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		if (config < PERF_HW_EVENTS_MAX)
+		if (config < PERF_COUNT_HW_MAX)
 			return hw_event_names[config];
 		return "unknown-hardware";
 
@@ -136,7 +136,7 @@ char *event_name(int counter)
 	}
 
 	case PERF_TYPE_SOFTWARE:
-		if (config < PERF_SW_EVENTS_MAX)
+		if (config < PERF_COUNT_SW_MAX)
 			return sw_event_names[config];
 		return "unknown-software";
 

@@ -69,13 +69,13 @@ static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters) = {
  */
 static const u64 intel_perfmon_event_map[] =
 {
-  [PERF_COUNT_CPU_CYCLES]		= 0x003c,
-  [PERF_COUNT_INSTRUCTIONS]		= 0x00c0,
-  [PERF_COUNT_CACHE_REFERENCES]		= 0x4f2e,
-  [PERF_COUNT_CACHE_MISSES]		= 0x412e,
-  [PERF_COUNT_BRANCH_INSTRUCTIONS]	= 0x00c4,
-  [PERF_COUNT_BRANCH_MISSES]		= 0x00c5,
-  [PERF_COUNT_BUS_CYCLES]		= 0x013c,
+  [PERF_COUNT_HW_CPU_CYCLES]		= 0x003c,
+  [PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
+  [PERF_COUNT_HW_CACHE_REFERENCES]	= 0x4f2e,
+  [PERF_COUNT_HW_CACHE_MISSES]		= 0x412e,
+  [PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c4,
+  [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
+  [PERF_COUNT_HW_BUS_CYCLES]		= 0x013c,
 };
 
 static u64 intel_pmu_event_map(int event)
@@ -485,12 +485,12 @@ static const u64 amd_0f_hw_cache_event_ids
  */
 static const u64 amd_perfmon_event_map[] =
 {
-  [PERF_COUNT_CPU_CYCLES]		= 0x0076,
-  [PERF_COUNT_INSTRUCTIONS]		= 0x00c0,
-  [PERF_COUNT_CACHE_REFERENCES]		= 0x0080,
-  [PERF_COUNT_CACHE_MISSES]		= 0x0081,
-  [PERF_COUNT_BRANCH_INSTRUCTIONS]	= 0x00c4,
-  [PERF_COUNT_BRANCH_MISSES]		= 0x00c5,
+  [PERF_COUNT_HW_CPU_CYCLES]		= 0x0076,
+  [PERF_COUNT_HW_INSTRUCTIONS]		= 0x00c0,
+  [PERF_COUNT_HW_CACHE_REFERENCES]	= 0x0080,
+  [PERF_COUNT_HW_CACHE_MISSES]		= 0x0081,
+  [PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= 0x00c4,
+  [PERF_COUNT_HW_BRANCH_MISSES]		= 0x00c5,
 };
 
 static u64 amd_pmu_event_map(int event)
@@ -970,11 +970,11 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 
 	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_INSTRUCTIONS)))
+	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
 		return X86_PMC_IDX_FIXED_INSTRUCTIONS;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_CPU_CYCLES)))
+	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_CPU_CYCLES)))
 		return X86_PMC_IDX_FIXED_CPU_CYCLES;
-	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_BUS_CYCLES)))
+	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_BUS_CYCLES)))
 		return X86_PMC_IDX_FIXED_BUS_CYCLES;
 
 	return -1;

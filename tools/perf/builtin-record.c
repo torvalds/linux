@@ -378,12 +378,12 @@ try_again:
 		 * is always available even if no PMU support:
 		 */
 		if (attr->type == PERF_TYPE_HARDWARE
-			&& attr->config == PERF_COUNT_CPU_CYCLES) {
+			&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
 			if (verbose)
 				warning(" ... trying to fall back to cpu-clock-ticks\n");
 			attr->type = PERF_TYPE_SOFTWARE;
-			attr->config = PERF_COUNT_CPU_CLOCK;
+			attr->config = PERF_COUNT_SW_CPU_CLOCK;
 			goto try_again;
 		}
 		printf("\n");
