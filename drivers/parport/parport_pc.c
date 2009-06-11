@@ -1246,17 +1246,17 @@ static void __devinit show_parconfig_smsc37c669(int io, int key)
 		       (cr1 & 0x08 ) ? "Standard mode only (SPP)" : modes[cr4 & 0x03], 
 		       (cr4 & 0x40) ? "1.7" : "1.9");
 	}
-		
+
 	/* Heuristics !  BIOS setup for this mainboard device limits
 	   the choices to standard settings, i.e. io-address and IRQ
 	   are related, however DMA can be 1 or 3, assume DMA_A=DMA1,
 	   DMA_C=DMA3 (this is true e.g. for TYAN 1564D Tomcat IV) */
-	if(cr23*4 >=0x100) { /* if active */
-		while((superios[i].io!= 0) && (i<NR_SUPERIOS))
+	if (cr23 * 4 >= 0x100) { /* if active */
+		while ((i < NR_SUPERIOS) && (superios[i].io != 0))
 			i++;
-		if(i==NR_SUPERIOS)
+		if (i == NR_SUPERIOS) {
 			printk(KERN_INFO "Super-IO: too many chips!\n");
-		else {
+		} else {
 			int d;
 			switch (cr23*4) {
 				case 0x3bc:
@@ -1332,12 +1332,12 @@ static void __devinit show_parconfig_winbond(int io, int key)
 		printk(KERN_INFO "Winbond LPT Config: Port mode=%s\n", modes[crf0 & 0x07]);
 	}
 
-	if(cr30 & 0x01) { /* the settings can be interrogated later ... */
-		while((superios[i].io!= 0) && (i<NR_SUPERIOS))
+	if (cr30 & 0x01) { /* the settings can be interrogated later ... */
+		while ((i < NR_SUPERIOS) && (superios[i].io != 0))
 			i++;
-		if(i==NR_SUPERIOS) 
+		if (i == NR_SUPERIOS) {
 			printk(KERN_INFO "Super-IO: too many chips!\n");
-		else {
+		} else {
 			superios[i].io = (cr60<<8)|cr61;
 			superios[i].irq = cr70&0x0f;
 			superios[i].dma = (((cr74 & 0x07) > 3) ?
@@ -1575,24 +1575,26 @@ static void __devinit detect_and_report_it87(void)
 
 static int get_superio_dma (struct parport *p)
 {
-	int i=0;
-	while( (superios[i].io != p->base) && (i<NR_SUPERIOS))
+	int i = 0;
+
+	while ((i < NR_SUPERIOS) && (superios[i].io != p->base))
 		i++;
-	if (i!=NR_SUPERIOS)
+	if (i != NR_SUPERIOS)
 		return superios[i].dma;
 	return PARPORT_DMA_NONE;
 }
 
 static int get_superio_irq (struct parport *p)
 {
-	int i=0;
-        while( (superios[i].io != p->base) && (i<NR_SUPERIOS))
+	int i = 0;
+
+        while ((i < NR_SUPERIOS) && (superios[i].io != p->base))
                 i++;
-        if (i!=NR_SUPERIOS)
+        if (i != NR_SUPERIOS)
                 return superios[i].irq;
         return PARPORT_IRQ_NONE;
 }
-	
+
 
 /* --- Mode detection ------------------------------------- */
 
