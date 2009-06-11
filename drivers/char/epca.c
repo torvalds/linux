@@ -1518,7 +1518,7 @@ static void doevent(int crd)
 		if (event & MODEMCHG_IND) {
 			/* A modem signal change has been indicated */
 			ch->imodem = mstat;
-			if (test_bit(ASYNC_CHECK_CD, &ch->port.flags)) {
+			if (test_bit(ASYNCB_CHECK_CD, &ch->port.flags)) {
 				/* We are now receiving dcd */
 				if (mstat & ch->dcd)
 					wake_up_interruptible(&ch->port.open_wait);
@@ -1765,9 +1765,9 @@ static void epcaparam(struct tty_struct *tty, struct channel *ch)
 		 * that the driver will wait on carrier detect.
 		 */
 		if (ts->c_cflag & CLOCAL)
-			clear_bit(ASYNC_CHECK_CD, &ch->port.flags);
+			clear_bit(ASYNCB_CHECK_CD, &ch->port.flags);
 		else
-			set_bit(ASYNC_CHECK_CD, &ch->port.flags);
+			set_bit(ASYNCB_CHECK_CD, &ch->port.flags);
 		mval = ch->m_dtr | ch->m_rts;
 	} /* End CBAUD not detected */
 	iflag = termios2digi_i(ch, ts->c_iflag);
@@ -2244,7 +2244,8 @@ static void do_softint(struct work_struct *work)
 			if (test_and_clear_bit(EPCA_EVENT_HANGUP, &ch->event)) {
 				tty_hangup(tty);
 				wake_up_interruptible(&ch->port.open_wait);
-				clear_bit(ASYNC_NORMAL_ACTIVE, &ch->port.flags);
+				clear_bit(ASYNCB_NORMAL_ACTIVE,
+						&ch->port.flags);
 			}
 		}
 		tty_kref_put(tty);
