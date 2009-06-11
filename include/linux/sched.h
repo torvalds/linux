@@ -77,6 +77,7 @@ struct sched_param {
 #include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
+#include <linux/rculist.h>
 #include <linux/rtmutex.h>
 
 #include <linux/time.h>
@@ -96,8 +97,8 @@ struct exec_domain;
 struct futex_pi_state;
 struct robust_list_head;
 struct bio;
-struct bts_tracer;
 struct fs_struct;
+struct bts_context;
 struct perf_counter_context;
 
 /*
@@ -117,6 +118,7 @@ struct perf_counter_context;
  *    11 bit fractions.
  */
 extern unsigned long avenrun[];		/* Load averages */
+extern void get_avenrun(unsigned long *loads, unsigned long offset, int shift);
 
 #define FSHIFT		11		/* nr of bits of precision */
 #define FIXED_1		(1<<FSHIFT)	/* 1.0 as fixed-point */
@@ -136,8 +138,8 @@ DECLARE_PER_CPU(unsigned long, process_counts);
 extern int nr_processes(void);
 extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
-extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
+extern void calc_global_load(void);
 extern u64 cpu_nr_migrations(int cpu);
 
 extern unsigned long get_parent_ip(unsigned long addr);
@@ -844,7 +846,17 @@ struct sched_group {
 	 */
 	u32 reciprocal_cpu_power;
 
-	unsigned long cpumask[];
+	/*
+	 * The CPUs this group covers.
+	 *
+	 * NOTE: this field is variable length. (Allocated dynamically
+	 * by attaching extra space to the end of the structure,
+	 * depending on how many CPUs the kernel has booted up with)
+	 *
+	 * It is also be embedded into static data structures at build
+	 * time. (See 'struct static_sched_group' in kernel/sched.c)
+	 */
+	unsigned long cpumask[0];
 };
 
 static inline struct cpumask *sched_group_cpus(struct sched_group *sg)
@@ -930,8 +942,17 @@ struct sched_domain {
 	char *name;
 #endif
 
-	/* span of all CPUs in this domain */
-	unsigned long span[];
+	/*
+	 * Span of all CPUs in this domain.
+	 *
+	 * NOTE: this field is variable length. (Allocated dynamically
+	 * by attaching extra space to the end of the structure,
+	 * depending on how many CPUs the kernel has booted up with)
+	 *
+	 * It is also be embedded into static data structures at build
+	 * time. (See 'struct static_sched_domain' in kernel/sched.c)
+	 */
+	unsigned long span[0];
 };
 
 static inline struct cpumask *sched_domain_span(struct sched_domain *sd)
@@ -1216,18 +1237,11 @@ struct task_struct {
 	struct list_head ptraced;
 	struct list_head ptrace_entry;
 
-#ifdef CONFIG_X86_PTRACE_BTS
 	/*
 	 * This is the tracer handle for the ptrace BTS extension.
 	 * This field actually belongs to the ptracer task.
 	 */
-	struct bts_tracer *bts;
-	/*
-	 * The buffer to hold the BTS data.
-	 */
-	void *bts_buffer;
-	size_t bts_size;
-#endif /* CONFIG_X86_PTRACE_BTS */
+	struct bts_context *bts;
 
 	/* PID/PID hash table linkage. */
 	struct pid_link pids[PIDTYPE_MAX];
@@ -1440,7 +1454,9 @@ struct task_struct {
 #ifdef CONFIG_TRACING
 	/* state flags for use by tracers */
 	unsigned long trace;
-#endif
+	/* bitmask of trace recursion */
+	unsigned long trace_recursion;
+#endif /* CONFIG_TRACING */
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */
@@ -2013,8 +2029,10 @@ extern void set_task_comm(struct task_struct *tsk, char *from);
 extern char *get_task_comm(char *to, struct task_struct *tsk);
 
 #ifdef CONFIG_SMP
+extern void wait_task_context_switch(struct task_struct *p);
 extern unsigned long wait_task_inactive(struct task_struct *, long match_state);
 #else
+static inline void wait_task_context_switch(struct task_struct *p) {}
 static inline unsigned long wait_task_inactive(struct task_struct *p,
 					       long match_state)
 {
@@ -2022,7 +2040,8 @@ static inline unsigned long wait_task_inactive(struct task_struct *p,
 }
 #endif
 
-#define next_task(p)	list_entry(rcu_dereference((p)->tasks.next), struct task_struct, tasks)
+#define next_task(p) \
+	list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
 #define for_each_process(p) \
 	for (p = &init_task ; (p = next_task(p)) != &init_task ; )
@@ -2061,8 +2080,8 @@ int same_thread_group(struct task_struct *p1, struct task_struct *p2)
 
 static inline struct task_struct *next_thread(const struct task_struct *p)
 {
-	return list_entry(rcu_dereference(p->thread_group.next),
-			  struct task_struct, thread_group);
+	return list_entry_rcu(p->thread_group.next,
+			      struct task_struct, thread_group);
 }
 
 static inline int thread_group_empty(struct task_struct *p)

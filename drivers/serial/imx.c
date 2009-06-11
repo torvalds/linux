@@ -1031,6 +1031,8 @@ imx_console_setup(struct console *co, char *options)
 	if (co->index == -1 || co->index >= ARRAY_SIZE(imx_ports))
 		co->index = 0;
 	sport = imx_ports[co->index];
+	if(sport == NULL)
+		return -ENODEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);

@@ -329,7 +329,7 @@ unmask_irq (unsigned int irq)
 }
 
 
-static void
+static int
 iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
@@ -343,15 +343,15 @@ iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	cpu = cpumask_first_and(cpu_online_mask, mask);
 	if (cpu >= nr_cpu_ids)
-		return;
+		return -1;
 
 	if (irq_prepare_move(irq, cpu))
-		return;
+		return -1;
 
 	dest = cpu_physical_id(cpu);
 
 	if (!iosapic_intr_info[irq].count)
-		return;			/* not an IOSAPIC interrupt */
+		return -1;			/* not an IOSAPIC interrupt */
 
 	set_irq_affinity_info(irq, dest, redir);
 
@@ -376,7 +376,9 @@ iosapic_set_affinity(unsigned int irq, const struct cpumask *mask)
 		iosapic_write(iosapic, IOSAPIC_RTE_HIGH(rte_index), high32);
 		iosapic_write(iosapic, IOSAPIC_RTE_LOW(rte_index), low32);
 	}
+
 #endif
+	return 0;
 }
 
 /*

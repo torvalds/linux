@@ -184,23 +184,37 @@ __v7_setup:
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
 	bl	v7_flush_dcache_all
 	ldmia	r12, {r0-r5, r7, r9, r11, lr}
+
+	mrc	p15, 0, r0, c0, c0, 0		@ read main ID register
+	and	r10, r0, #0xff000000		@ ARM?
+	teq	r10, #0x41000000
+	bne	2f
+	and	r5, r0, #0x00f00000		@ variant
+	and	r6, r0, #0x0000000f		@ revision
+	orr	r0, r6, r5, lsr #20-4		@ combine variant and revision
+
 #ifdef CONFIG_ARM_ERRATA_430973
-	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orr	r10, r10, #(1 << 6)		@ set IBE to 1
-	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+	teq	r5, #0x00100000			@ only present in r1p*
+	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orreq	r10, r10, #(1 << 6)		@ set IBE to 1
+	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
 #ifdef CONFIG_ARM_ERRATA_458693
-	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
-	orr	r10, r10, #(1 << 5)		@ set L1NEON to 1
-	orr	r10, r10, #(1 << 9)		@ set PLDNOP to 1
-	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+	teq	r0, #0x20			@ only present in r2p0
+	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orreq	r10, r10, #(1 << 5)		@ set L1NEON to 1
+	orreq	r10, r10, #(1 << 9)		@ set PLDNOP to 1
+	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
 #ifdef CONFIG_ARM_ERRATA_460075
-	mrc	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
-	orr	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
-	mcr	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
+	teq	r0, #0x20			@ only present in r2p0
+	mrceq	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
+	tsteq	r10, #1 << 22
+	orreq	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
+	mcreq	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
 #endif
-	mov	r10, #0
+
+2:	mov	r10, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 #endif

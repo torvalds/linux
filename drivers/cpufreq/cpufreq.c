@@ -808,7 +808,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		ret = -ENOMEM;
 		goto nomem_out;
 	}
-	if (!alloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&policy->related_cpus, GFP_KERNEL)) {
 		free_cpumask_var(policy->cpus);
 		kfree(policy);
 		ret = -ENOMEM;

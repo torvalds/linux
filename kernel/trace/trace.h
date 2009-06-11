@@ -9,8 +9,11 @@
 #include <linux/mmiotrace.h>
 #include <linux/ftrace.h>
 #include <trace/boot.h>
-#include <trace/kmemtrace.h>
+#include <linux/kmemtrace.h>
 #include <trace/power.h>
+
+#include <linux/trace_seq.h>
+#include <linux/ftrace_event.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
@@ -39,20 +42,6 @@ enum trace_type {
 	TRACE_BLK,
 
 	__TRACE_LAST_TYPE,
-};
-
-/*
- * The trace entry - the most basic unit of tracing. This is what
- * is printed in the end as a single line in the trace output, such as:
- *
- *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
- */
-struct trace_entry {
-	unsigned char		type;
-	unsigned char		flags;
-	unsigned char		preempt_count;
-	int			pid;
-	int			tgid;
 };
 
 /*
@@ -263,8 +252,6 @@ struct trace_array_cpu {
 	char			comm[TASK_COMM_LEN];
 };
 
-struct trace_iterator;
-
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
@@ -338,15 +325,6 @@ extern void __ftrace_bad_type(void);
 			  TRACE_SYSCALL_EXIT);				\
 		__ftrace_bad_type();					\
 	} while (0)
-
-/* Return values for print_line callback */
-enum print_line_t {
-	TRACE_TYPE_PARTIAL_LINE	= 0,	/* Retry after flushing the seq */
-	TRACE_TYPE_HANDLED	= 1,
-	TRACE_TYPE_UNHANDLED	= 2,	/* Relay to other output functions */
-	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
-};
-
 
 /*
  * An option specific to a tracer. This is a boolean value.
@@ -423,74 +401,36 @@ struct tracer {
 	struct tracer_stat	*stats;
 };
 
-struct trace_seq {
-	unsigned char		buffer[PAGE_SIZE];
-	unsigned int		len;
-	unsigned int		readpos;
-};
-
-static inline void
-trace_seq_init(struct trace_seq *s)
-{
-	s->len = 0;
-	s->readpos = 0;
-}
-
 
 #define TRACE_PIPE_ALL_CPU	-1
-
-/*
- * Trace iterator - used by printout routines who present trace
- * results to users and which routines might sleep, etc:
- */
-struct trace_iterator {
-	struct trace_array	*tr;
-	struct tracer		*trace;
-	void			*private;
-	int			cpu_file;
-	struct mutex		mutex;
-	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
-
-	/* The below is zeroed out in pipe_read */
-	struct trace_seq	seq;
-	struct trace_entry	*ent;
-	int			cpu;
-	u64			ts;
-
-	unsigned long		iter_flags;
-	loff_t			pos;
-	long			idx;
-
-	cpumask_var_t		started;
-};
 
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
 void tracing_reset_online_cpus(struct trace_array *tr);
+void tracing_reset_current(int cpu);
+void tracing_reset_current_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
+struct dentry *trace_create_file(const char *name,
+				 mode_t mode,
+				 struct dentry *parent,
+				 void *data,
+				 const struct file_operations *fops);
+
 struct dentry *tracing_init_dentry(void);
 void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
 
 struct ring_buffer_event;
 
 struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
-						    unsigned char type,
+						    int type,
 						    unsigned long len,
 						    unsigned long flags,
 						    int pc);
 void trace_buffer_unlock_commit(struct trace_array *tr,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc);
-
-struct ring_buffer_event *
-trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
-				  unsigned long flags, int pc);
-void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
-					unsigned long flags, int pc);
-void trace_nowake_buffer_unlock_commit(struct ring_buffer_event *event,
-					unsigned long flags, int pc);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -514,7 +454,6 @@ void tracing_sched_switch_trace(struct trace_array *tr,
 				struct task_struct *prev,
 				struct task_struct *next,
 				unsigned long flags, int pc);
-void tracing_record_cmdline(struct task_struct *tsk);
 
 void tracing_sched_wakeup_trace(struct trace_array *tr,
 				struct task_struct *wakee,
@@ -599,6 +538,8 @@ extern int trace_selftest_startup_sysprof(struct tracer *trace,
 					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
+extern int trace_selftest_startup_hw_branches(struct tracer *trace,
+					      struct trace_array *tr);
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
@@ -613,6 +554,8 @@ extern unsigned long trace_flags;
 /* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 extern enum print_line_t print_graph_function(struct trace_iterator *iter);
+extern enum print_line_t
+trace_print_graph_duration(unsigned long long duration, struct trace_seq *s);
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* TODO: make this variable */
@@ -644,7 +587,6 @@ static inline int ftrace_graph_addr(unsigned long addr)
 	return 1;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
-
 #else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
 print_graph_function(struct trace_iterator *iter)
@@ -692,6 +634,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_LATENCY_FMT		= 0x40000,
 	TRACE_ITER_GLOBAL_CLK		= 0x80000,
 	TRACE_ITER_SLEEP_TIME		= 0x100000,
+	TRACE_ITER_GRAPH_TIME		= 0x200000,
 };
 
 /*
@@ -790,103 +733,113 @@ struct ftrace_event_field {
 	char			*type;
 	int			offset;
 	int			size;
+	int			is_signed;
 };
 
-struct ftrace_event_call {
-	char			*name;
-	char			*system;
-	struct dentry		*dir;
-	int			enabled;
-	int			(*regfunc)(void);
-	void			(*unregfunc)(void);
-	int			id;
-	int			(*raw_init)(void);
-	int			(*show_format)(struct trace_seq *s);
-	int			(*define_fields)(void);
-	struct list_head	fields;
+struct event_filter {
+	int			n_preds;
 	struct filter_pred	**preds;
-
-#ifdef CONFIG_EVENT_PROFILE
-	atomic_t	profile_count;
-	int		(*profile_enable)(struct ftrace_event_call *);
-	void		(*profile_disable)(struct ftrace_event_call *);
-#endif
+	char			*filter_string;
 };
 
 struct event_subsystem {
 	struct list_head	list;
 	const char		*name;
 	struct dentry		*entry;
-	struct filter_pred	**preds;
+	void			*filter;
 };
-
-#define events_for_each(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
-
-#define MAX_FILTER_PRED 8
 
 struct filter_pred;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
+				 int val1, int val2);
 
 struct filter_pred {
 	filter_pred_fn_t fn;
 	u64 val;
-	char *str_val;
+	char str_val[MAX_FILTER_STR_VAL];
 	int str_len;
 	char *field_name;
 	int offset;
 	int not;
-	int or;
-	int compound;
-	int clear;
+	int op;
+	int pop_n;
 };
 
-int trace_define_field(struct ftrace_event_call *call, char *type,
-		       char *name, int offset, int size);
-extern void filter_free_pred(struct filter_pred *pred);
-extern void filter_print_preds(struct filter_pred **preds,
+extern void print_event_filter(struct ftrace_event_call *call,
 			       struct trace_seq *s);
-extern int filter_parse(char **pbuf, struct filter_pred *pred);
-extern int filter_add_pred(struct ftrace_event_call *call,
-			   struct filter_pred *pred);
-extern void filter_free_preds(struct ftrace_event_call *call);
-extern int filter_match_preds(struct ftrace_event_call *call, void *rec);
-extern void filter_free_subsystem_preds(struct event_subsystem *system);
-extern int filter_add_subsystem_pred(struct event_subsystem *system,
-				     struct filter_pred *pred);
+extern int apply_event_filter(struct ftrace_event_call *call,
+			      char *filter_string);
+extern int apply_subsystem_event_filter(struct event_subsystem *system,
+					char *filter_string);
+extern void print_subsystem_event_filter(struct event_subsystem *system,
+					 struct trace_seq *s);
 
-void event_trace_printk(unsigned long ip, const char *fmt, ...);
-extern struct ftrace_event_call __start_ftrace_events[];
-extern struct ftrace_event_call __stop_ftrace_events[];
+static inline int
+filter_check_discard(struct ftrace_event_call *call, void *rec,
+		     struct ring_buffer *buffer,
+		     struct ring_buffer_event *event)
+{
+	if (unlikely(call->filter_active) && !filter_match_preds(call, rec)) {
+		ring_buffer_discard_commit(buffer, event);
+		return 1;
+	}
 
-#define for_each_event(event)						\
-	for (event = __start_ftrace_events;				\
-	     (unsigned long)event < (unsigned long)__stop_ftrace_events; \
-	     event++)
+	return 0;
+}
+
+#define DEFINE_COMPARISON_PRED(type)					\
+static int filter_pred_##type(struct filter_pred *pred, void *event,	\
+			      int val1, int val2)			\
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = 0;							\
+									\
+	switch (pred->op) {						\
+	case OP_LT:							\
+		match = (*addr < val);					\
+		break;							\
+	case OP_LE:							\
+		match = (*addr <= val);					\
+		break;							\
+	case OP_GT:							\
+		match = (*addr > val);					\
+		break;							\
+	case OP_GE:							\
+		match = (*addr >= val);					\
+		break;							\
+	default:							\
+		break;							\
+	}								\
+									\
+	return match;							\
+}
+
+#define DEFINE_EQUALITY_PRED(size)					\
+static int filter_pred_##size(struct filter_pred *pred, void *event,	\
+			      int val1, int val2)			\
+{									\
+	u##size *addr = (u##size *)(event + pred->offset);		\
+	u##size val = (u##size)pred->val;				\
+	int match;							\
+									\
+	match = (val == *addr) ^ pred->not;				\
+									\
+	return match;							\
+}
+
+extern struct mutex event_mutex;
+extern struct list_head ftrace_events;
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
 
-/*
- * The double __builtin_constant_p is because gcc will give us an error
- * if we try to allocate the static variable to fmt if it is not a
- * constant. Even with the outer if statement optimizing out.
- */
-#define event_trace_printk(ip, fmt, args...)				\
-do {									\
-	__trace_printk_check_format(fmt, ##args);			\
-	tracing_record_cmdline(current);				\
-	if (__builtin_constant_p(fmt)) {				\
-		static const char *trace_printk_fmt			\
-		  __attribute__((section("__trace_printk_fmt"))) =	\
-			__builtin_constant_p(fmt) ? fmt : NULL;		\
-									\
-		__trace_bprintk(ip, trace_printk_fmt, ##args);		\
-	} else								\
-		__trace_printk(ip, fmt, ##args);			\
-} while (0)
+#undef TRACE_EVENT_FORMAT
+#define TRACE_EVENT_FORMAT(call, proto, args, fmt, tstruct, tpfmt)	\
+	extern struct ftrace_event_call event_##call;
+#undef TRACE_EVENT_FORMAT_NOFILTER
+#define TRACE_EVENT_FORMAT_NOFILTER(call, proto, args, fmt, tstruct, tpfmt)
+#include "trace_event_types.h"
 
 #endif /* _LINUX_KERNEL_TRACE_H */

@@ -112,6 +112,14 @@
 #define ARCH_SETUP
 #endif
 
+/*
+ * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
+ * The direct mapping extends to max_pfn_mapped, so that we can directly access
+ * apertures, ACPI and other tables without having to play with fixmaps.
+ */
+unsigned long max_low_pfn_mapped;
+unsigned long max_pfn_mapped;
+
 RESERVE_BRK(dmi_alloc, 65536);
 
 unsigned int boot_cpu_id __read_mostly;
@@ -214,8 +222,8 @@ unsigned long mmu_cr4_features;
 unsigned long mmu_cr4_features = X86_CR4_PAE;
 #endif
 
-/* Boot loader ID as an integer, for the benefit of proc_dointvec */
-int bootloader_type;
+/* Boot loader ID and version as integers, for the benefit of proc_dointvec */
+int bootloader_type, bootloader_version;
 
 /*
  * Setup options
@@ -706,6 +714,12 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	saved_video_mode = boot_params.hdr.vid_mode;
 	bootloader_type = boot_params.hdr.type_of_loader;
+	if ((bootloader_type >> 4) == 0xe) {
+		bootloader_type &= 0xf;
+		bootloader_type |= (boot_params.hdr.ext_loader_type+0x10) << 4;
+	}
+	bootloader_version  = bootloader_type & 0xf;
+	bootloader_version |= boot_params.hdr.ext_loader_ver << 4;
 
 #ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = boot_params.hdr.ram_size & RAMDISK_IMAGE_START_MASK;
@@ -854,11 +868,15 @@ void __init setup_arch(char **cmdline_p)
 		max_low_pfn = max_pfn;
 
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+	max_pfn_mapped = KERNEL_IMAGE_SIZE >> PAGE_SHIFT;
 #endif
 
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 	setup_bios_corruption_check();
 #endif
+
+	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
+			max_pfn_mapped<<PAGE_SHIFT);
 
 	reserve_brk();
 
@@ -995,24 +1013,6 @@ void __init setup_arch(char **cmdline_p)
 }
 
 #ifdef CONFIG_X86_32
-
-/**
- * x86_quirk_pre_intr_init - initialisation prior to setting up interrupt vectors
- *
- * Description:
- *	Perform any necessary interrupt initialisation prior to setting up
- *	the "ordinary" interrupt call gates.  For legacy reasons, the ISA
- *	interrupts should be initialised here if the machine emulates a PC
- *	in any way.
- **/
-void __init x86_quirk_pre_intr_init(void)
-{
-	if (x86_quirks->arch_pre_intr_init) {
-		if (x86_quirks->arch_pre_intr_init())
-			return;
-	}
-	init_ISA_irqs();
-}
 
 /**
  * x86_quirk_intr_init - post gate setup interrupt initialisation

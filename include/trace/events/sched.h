@@ -1,9 +1,8 @@
+#if !defined(_TRACE_SCHED_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_SCHED_H
 
-/* use <trace/sched.h> instead */
-#ifndef TRACE_EVENT
-# error Do not include this file directly.
-# error Unless you know what you are doing.
-#endif
+#include <linux/sched.h>
+#include <linux/tracepoint.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM sched
@@ -157,6 +156,7 @@ TRACE_EVENT(sched_switch,
 		__array(	char,	prev_comm,	TASK_COMM_LEN	)
 		__field(	pid_t,	prev_pid			)
 		__field(	int,	prev_prio			)
+		__field(	long,	prev_state			)
 		__array(	char,	next_comm,	TASK_COMM_LEN	)
 		__field(	pid_t,	next_pid			)
 		__field(	int,	next_prio			)
@@ -166,13 +166,19 @@ TRACE_EVENT(sched_switch,
 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
 		__entry->prev_prio	= prev->prio;
+		__entry->prev_state	= prev->state;
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
 		__entry->next_prio	= next->prio;
 	),
 
-	TP_printk("task %s:%d [%d] ==> %s:%d [%d]",
+	TP_printk("task %s:%d [%d] (%s) ==> %s:%d [%d]",
 		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
+		__entry->prev_state ?
+		  __print_flags(__entry->prev_state, "|",
+				{ 1, "S"} , { 2, "D" }, { 4, "T" }, { 8, "t" },
+				{ 16, "Z" }, { 32, "X" }, { 64, "x" },
+				{ 128, "W" }) : "R",
 		__entry->next_comm, __entry->next_pid, __entry->next_prio)
 );
 
@@ -181,9 +187,9 @@ TRACE_EVENT(sched_switch,
  */
 TRACE_EVENT(sched_migrate_task,
 
-	TP_PROTO(struct task_struct *p, int orig_cpu, int dest_cpu),
+	TP_PROTO(struct task_struct *p, int dest_cpu),
 
-	TP_ARGS(p, orig_cpu, dest_cpu),
+	TP_ARGS(p, dest_cpu),
 
 	TP_STRUCT__entry(
 		__array(	char,	comm,	TASK_COMM_LEN	)
@@ -197,7 +203,7 @@ TRACE_EVENT(sched_migrate_task,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->prio		= p->prio;
-		__entry->orig_cpu	= orig_cpu;
+		__entry->orig_cpu	= task_cpu(p);
 		__entry->dest_cpu	= dest_cpu;
 	),
 
@@ -334,4 +340,7 @@ TRACE_EVENT(sched_signal_send,
 		  __entry->sig, __entry->comm, __entry->pid)
 );
 
-#undef TRACE_SYSTEM
+#endif /* _TRACE_SCHED_H */
+
+/* This part must be outside protection */
+#include <trace/define_trace.h>

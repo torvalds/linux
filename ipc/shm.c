@@ -969,10 +969,13 @@ SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
 SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 {
 	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma, *next;
+	struct vm_area_struct *vma;
 	unsigned long addr = (unsigned long)shmaddr;
-	loff_t size = 0;
 	int retval = -EINVAL;
+#ifdef CONFIG_MMU
+	loff_t size = 0;
+	struct vm_area_struct *next;
+#endif
 
 	if (addr & ~PAGE_MASK)
 		return retval;

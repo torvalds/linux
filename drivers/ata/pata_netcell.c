@@ -26,7 +26,7 @@ static unsigned int netcell_read_id(struct ata_device *adev,
 	unsigned int err_mask = ata_do_dev_read_id(adev, tf, id);
 	/* Firmware forgets to mark words 85-87 valid */
 	if (err_mask == 0)
-		id[ATA_ID_CSF_DEFAULT] |= 0x0400;
+		id[ATA_ID_CSF_DEFAULT] |= 0x4000;
 	return err_mask;
 }
 

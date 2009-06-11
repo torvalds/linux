@@ -1440,6 +1440,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->io_align = root->sectorsize;
 	device->sector_size = root->sectorsize;
 	device->total_bytes = i_size_read(bdev->bd_inode);
+	device->disk_total_bytes = device->total_bytes;
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;

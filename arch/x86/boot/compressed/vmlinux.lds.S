@@ -1,6 +1,17 @@
-OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
+OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
+
+#undef i386
+
+#include <asm/page_types.h>
+
+#ifdef CONFIG_X86_64
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(startup_64)
+#else
+OUTPUT_ARCH(i386)
+ENTRY(startup_32)
+#endif
+
 SECTIONS
 {
 	/* Be careful parts of head_64.S assume startup_32 is at
@@ -33,16 +44,22 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
+	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
 	.bss : {
 		_bss = . ;
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
-		. = ALIGN(8);
-		_end_before_pgt = . ;
-		. = ALIGN(4096);
-		pgtable = . ;
-		. = . + 4096 * 6;
+		. = ALIGN(8);	/* For convenience during zeroing */
 		_ebss = .;
 	}
+#ifdef CONFIG_X86_64
+       . = ALIGN(PAGE_SIZE);
+       .pgtable : {
+		_pgtable = . ;
+		*(.pgtable)
+		_epgtable = . ;
+	}
+#endif
+	_end = .;
 }
