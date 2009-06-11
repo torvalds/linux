@@ -142,19 +142,6 @@ struct CYZ_BOOT_CTRL {
 
 
 #ifndef DP_WINDOW_SIZE
-/* #include "cyclomz.h" */
-/****************** ****************** *******************/
-/*
- *	The data types defined below are used in all ZFIRM interface
- *	data structures. They accomodate differences between HW
- *	architectures and compilers.
- */
-
-typedef __u64  ucdouble;		/* 64 bits, unsigned */
-typedef __u32  uclong;			/* 32 bits, unsigned */
-typedef __u16  ucshort;		/* 16 bits, unsigned */
-typedef __u8   ucchar;			/* 8 bits, unsigned */
-
 /*
  *	Memory Window Sizes
  */
