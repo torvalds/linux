@@ -308,6 +308,17 @@ int tty_port_close_start(struct tty_port *port, struct tty_struct *tty, struct f
 	if (port->flags & ASYNC_INITIALIZED &&
 			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, port->closing_wait);
+	if (port->drain_delay) {
+		unsigned int bps = tty_get_baud_rate(tty);
+		long timeout;
+
+		if (bps > 1200)
+			timeout = max_t(long, (HZ * 10 * port->drain_delay) / bps,
+								HZ / 10);
+		else
+			timeout = 2 * HZ;
+		schedule_timeout_interruptible(timeout);
+	}
 	return 1;
 }
 EXPORT_SYMBOL(tty_port_close_start);
