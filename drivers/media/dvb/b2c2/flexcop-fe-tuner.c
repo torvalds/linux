@@ -449,7 +449,7 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 #endif
 
 /* AirStar DVB-T */
-#if FE_SUPPORTED(MT352)
+#if FE_SUPPORTED(MT352) && FE_SUPPORTED(PLL)
 static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend *fe)
 {
 	static u8 mt352_clock_config[] = { 0x89, 0x18, 0x2d };
@@ -467,32 +467,6 @@ static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int samsung_tdtc9251dh0_calc_regs(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
-{
-	u32 div;
-	unsigned char bs = 0;
-
-	if (buf_len < 5)
-		return -EINVAL;
-
-#define IF_FREQUENCYx6 217    /* 6 * 36.16666666667MHz */
-	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
-	if (params->frequency >= 48000000 && params->frequency <= 154000000) \
-		bs = 0x09;
-	if (params->frequency >= 161000000 && params->frequency <= 439000000) \
-		bs = 0x0a;
-	if (params->frequency >= 447000000 && params->frequency <= 863000000) \
-		bs = 0x08;
-
-	pllbuf[0] = 0x61;
-	pllbuf[1] = div >> 8;
-	pllbuf[2] = div & 0xff;
-	pllbuf[3] = 0xcc;
-	pllbuf[4] = bs;
-	return 5;
-}
-
 static struct mt352_config samsung_tdtc9251dh0_config = {
 	.demod_address = 0x0f,
 	.demod_init    = samsung_tdtc9251dh0_demod_init,
@@ -502,11 +476,11 @@ static int airstar_dvbt_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(mt352_attach, &samsung_tdtc9251dh0_config, i2c);
-	if (fc->fe != NULL) {
-		fc->fe->ops.tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
-		return 1;
-	}
-	return 0;
+	if (!fc->fe)
+		return 0;
+
+	return !!dvb_attach(dvb_pll_attach, fc->fe, 0x61, NULL,
+			    DVB_PLL_SAMSUNG_TDTC9251DH0);
 }
 #else
 #define airstar_dvbt_attach NULL
