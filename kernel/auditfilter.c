@@ -977,6 +977,27 @@ static struct audit_entry *audit_dupe_rule(struct audit_krule *old,
 	return entry;
 }
 
+static void audit_watch_log_rule_change(struct audit_krule *r, struct audit_watch *w, char *op)
+{
+	if (audit_enabled) {
+		struct audit_buffer *ab;
+		ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
+		audit_log_format(ab, "auid=%u ses=%u op=",
+				 audit_get_loginuid(current),
+				 audit_get_sessionid(current));
+		audit_log_string(ab, op);
+		audit_log_format(ab, " path=");
+		audit_log_untrustedstring(ab, w->path);
+		if (r->filterkey) {
+			audit_log_format(ab, " key=");
+			audit_log_untrustedstring(ab, r->filterkey);
+		} else
+			audit_log_format(ab, " key=(null)");
+		audit_log_format(ab, " list=%d res=1", r->listnr);
+		audit_log_end(ab);
+	}
+}
+
 /* Update inode info in audit rules based on filesystem event. */
 static void audit_update_watch(struct audit_parent *parent,
 			       const char *dname, dev_t dev,
@@ -1023,24 +1044,11 @@ static void audit_update_watch(struct audit_parent *parent,
 					     &nentry->rule.list);
 			}
 
+			audit_watch_log_rule_change(r, owatch, "updated rules");
+
 			call_rcu(&oentry->rcu, audit_free_rule_rcu);
 		}
 
-		if (audit_enabled) {
-			struct audit_buffer *ab;
-			ab = audit_log_start(NULL, GFP_NOFS,
-				AUDIT_CONFIG_CHANGE);
-			audit_log_format(ab, "auid=%u ses=%u",
-				audit_get_loginuid(current),
-				audit_get_sessionid(current));
-			audit_log_format(ab,
-				" op=updated rules specifying path=");
-			audit_log_untrustedstring(ab, owatch->path);
-			audit_log_format(ab, " with dev=%u ino=%lu\n",
-				 dev, ino);
-			audit_log_format(ab, " list=%d res=1", r->listnr);
-			audit_log_end(ab);
-		}
 		audit_remove_watch(owatch);
 		goto add_watch_to_parent; /* event applies to a single watch */
 	}
@@ -1065,25 +1073,7 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 	list_for_each_entry_safe(w, nextw, &parent->watches, wlist) {
 		list_for_each_entry_safe(r, nextr, &w->rules, rlist) {
 			e = container_of(r, struct audit_entry, rule);
-			if (audit_enabled) {
-				struct audit_buffer *ab;
-				ab = audit_log_start(NULL, GFP_NOFS,
-					AUDIT_CONFIG_CHANGE);
-				audit_log_format(ab, "auid=%u ses=%u",
-					audit_get_loginuid(current),
-					audit_get_sessionid(current));
-				audit_log_format(ab, " op=remove rule path=");
-				audit_log_untrustedstring(ab, w->path);
-				if (r->filterkey) {
-					audit_log_format(ab, " key=");
-					audit_log_untrustedstring(ab,
-							r->filterkey);
-				} else
-					audit_log_format(ab, " key=(null)");
-				audit_log_format(ab, " list=%d res=1",
-					r->listnr);
-				audit_log_end(ab);
-			}
+			audit_watch_log_rule_change(r, w, "remove rule");
 			list_del(&r->rlist);
 			list_del(&r->list);
 			list_del_rcu(&e->list);
