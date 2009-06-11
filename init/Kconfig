@@ -941,7 +941,6 @@ menu "Performance Counters"
 config PERF_COUNTERS
 	bool "Kernel Performance Counters"
 	depends on HAVE_PERF_COUNTERS
-	default y
 	select ANON_INODES
 	help
 	  Enable kernel support for performance counter hardware.
