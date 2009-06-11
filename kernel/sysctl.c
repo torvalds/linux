@@ -932,9 +932,9 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "perf_counter_int_limit",
-		.data		= &sysctl_perf_counter_limit,
-		.maxlen		= sizeof(sysctl_perf_counter_limit),
+		.procname	= "perf_counter_max_sample_rate",
+		.data		= &sysctl_perf_counter_sample_rate,
+		.maxlen		= sizeof(sysctl_perf_counter_sample_rate),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},

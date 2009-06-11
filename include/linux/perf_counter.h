@@ -650,7 +650,7 @@ extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 extern int sysctl_perf_counter_paranoid;
 extern int sysctl_perf_counter_mlock;
-extern int sysctl_perf_counter_limit;
+extern int sysctl_perf_counter_sample_rate;
 
 extern void perf_counter_init(void);
 

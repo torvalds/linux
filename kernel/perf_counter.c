@@ -44,11 +44,12 @@ static atomic_t nr_mmap_counters __read_mostly;
 static atomic_t nr_comm_counters __read_mostly;
 
 /*
- * 0 - not paranoid
- * 1 - disallow cpu counters to unpriv
- * 2 - disallow kernel profiling to unpriv
+ * perf counter paranoia level:
+ *  0 - not paranoid
+ *  1 - disallow cpu counters to unpriv
+ *  2 - disallow kernel profiling to unpriv
  */
-int sysctl_perf_counter_paranoid __read_mostly; /* do we need to be privileged */
+int sysctl_perf_counter_paranoid __read_mostly;
 
 static inline bool perf_paranoid_cpu(void)
 {
@@ -61,7 +62,11 @@ static inline bool perf_paranoid_kernel(void)
 }
 
 int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
-int sysctl_perf_counter_limit __read_mostly = 100000; /* max NMIs per second */
+
+/*
+ * max perf counter sample rate
+ */
+int sysctl_perf_counter_sample_rate __read_mostly = 100000;
 
 static atomic64_t perf_counter_id;
 
@@ -1244,7 +1249,7 @@ static void perf_ctx_adjust_freq(struct perf_counter_context *ctx)
 		if (interrupts == MAX_INTERRUPTS) {
 			perf_log_throttle(counter, 1);
 			counter->pmu->unthrottle(counter);
-			interrupts = 2*sysctl_perf_counter_limit/HZ;
+			interrupts = 2*sysctl_perf_counter_sample_rate/HZ;
 		}
 
 		if (!counter->attr.freq || !counter->attr.sample_freq)
@@ -1682,7 +1687,7 @@ static int perf_counter_period(struct perf_counter *counter, u64 __user *arg)
 
 	spin_lock_irq(&ctx->lock);
 	if (counter->attr.freq) {
-		if (value > sysctl_perf_counter_limit) {
+		if (value > sysctl_perf_counter_sample_rate) {
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -2979,7 +2984,8 @@ int perf_counter_overflow(struct perf_counter *counter, int nmi,
 	} else {
 		if (hwc->interrupts != MAX_INTERRUPTS) {
 			hwc->interrupts++;
-			if (HZ * hwc->interrupts > (u64)sysctl_perf_counter_limit) {
+			if (HZ * hwc->interrupts >
+					(u64)sysctl_perf_counter_sample_rate) {
 				hwc->interrupts = MAX_INTERRUPTS;
 				perf_log_throttle(counter, 0);
 				ret = 1;
@@ -3637,6 +3643,11 @@ SYSCALL_DEFINE5(perf_counter_open,
 	if (!attr.exclude_kernel) {
 		if (perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
 			return -EACCES;
+	}
+
+	if (attr.freq) {
+		if (attr.sample_freq > sysctl_perf_counter_sample_rate)
+			return -EINVAL;
 	}
 
 	/*
