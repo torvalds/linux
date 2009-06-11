@@ -2445,6 +2445,14 @@ void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata)
 			ieee80211_set_disassoc(sdata, true, true,
 					       WLAN_REASON_DEAUTH_LEAVING);
 
+		if (ifmgd->ssid_len == 0) {
+			/*
+			 * Only allow association to be started if a valid SSID
+			 * is configured.
+			 */
+			return;
+		}
+
 		if (!(ifmgd->flags & IEEE80211_STA_EXT_SME) ||
 		    ifmgd->state != IEEE80211_STA_MLME_ASSOCIATE)
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifmgd->request);
