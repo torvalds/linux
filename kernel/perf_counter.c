@@ -3162,7 +3162,7 @@ static int perf_swcounter_is_counting(struct perf_counter *counter)
 }
 
 static int perf_swcounter_match(struct perf_counter *counter,
-				enum perf_event_types type,
+				enum perf_type_id type,
 				u32 event, struct pt_regs *regs)
 {
 	if (!perf_swcounter_is_counting(counter))
@@ -3194,7 +3194,7 @@ static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
 }
 
 static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
-				     enum perf_event_types type, u32 event,
+				     enum perf_type_id type, u32 event,
 				     u64 nr, int nmi, struct pt_regs *regs,
 				     u64 addr)
 {
@@ -3225,7 +3225,7 @@ static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
 	return &cpuctx->recursion[0];
 }
 
-static void __perf_swcounter_event(enum perf_event_types type, u32 event,
+static void __perf_swcounter_event(enum perf_type_id type, u32 event,
 				   u64 nr, int nmi, struct pt_regs *regs,
 				   u64 addr)
 {
