@@ -85,6 +85,8 @@ static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 
 static bool kvm_rebooting;
 
+static bool largepages_enabled = true;
+
 #ifdef KVM_CAP_DEVICE_ASSIGNMENT
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
 						      int assigned_dev_id)
@@ -1174,9 +1176,11 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		ugfn = new.userspace_addr >> PAGE_SHIFT;
 		/*
 		 * If the gfn and userspace address are not aligned wrt each
-		 * other, disable large page support for this slot
+		 * other, or if explicitly asked to, disable large page
+		 * support for this slot
 		 */
-		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE - 1))
+		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE - 1) ||
+		    !largepages_enabled)
 			for (i = 0; i < largepages; ++i)
 				new.lpage_info[i].write_count = 1;
 	}
@@ -1290,6 +1294,12 @@ int kvm_get_dirty_log(struct kvm *kvm,
 out:
 	return r;
 }
+
+void kvm_disable_largepages(void)
+{
+	largepages_enabled = false;
+}
+EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
 int is_error_page(struct page *page)
 {
