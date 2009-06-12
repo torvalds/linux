@@ -2336,9 +2336,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 {
 	int tpm, cmdrtd, cmdwtd;
 	int use_prefix;
-
-	struct dasd_eckd_private *private;
+#if defined(CONFIG_64BIT)
 	int fcx_in_css, fcx_in_gneq, fcx_in_features;
+#endif
+	struct dasd_eckd_private *private;
 	struct dasd_device *basedev;
 	sector_t first_rec, last_rec;
 	sector_t first_trk, last_trk;
@@ -2361,11 +2362,15 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	last_offs = sector_div(last_trk, blk_per_trk);
 	cdlspecial = (private->uses_cdl && first_rec < 2*blk_per_trk);
 
-	/* is transport mode supported ? */
+	/* is transport mode supported? */
+#if defined(CONFIG_64BIT)
 	fcx_in_css = css_general_characteristics.fcx;
 	fcx_in_gneq = private->gneq->reserved2[7] & 0x04;
 	fcx_in_features = private->features.feature[40] & 0x80;
 	tpm = fcx_in_css && fcx_in_gneq && fcx_in_features;
+#else
+	tpm = 0;
+#endif
 
 	/* is read track data and write track data in command mode supported? */
 	cmdrtd = private->features.feature[9] & 0x20;
