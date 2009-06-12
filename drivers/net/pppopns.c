@@ -3,7 +3,6 @@
  * Driver for PPP on PPTP Network Server / PPPoPNS Socket (RFC 2637)
  *
  * Copyright (C) 2009 Google, Inc.
- * Author: Chia-chi Yeh <chiachi@android.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -22,20 +21,24 @@
  * and IPv6. */
 
 #include <linux/module.h>
+#include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/file.h>
+#include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/ppp_defs.h>
 #include <linux/if.h>
 #include <linux/if_ppp.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp_channel.h>
+#include <asm/uaccess.h>
 
 #define GRE_HEADER_SIZE		8
 
-#define PPTP_GRE_MASK		htons(0x2001)
-#define PPTP_GRE_SEQ_MASK	htons(0x1000)
-#define PPTP_GRE_ACK_MASK	htons(0x0080)
+#define PPTP_GRE_BITS		htons(0x2001)
+#define PPTP_GRE_BITS_MASK	htons(0xEF7F)
+#define PPTP_GRE_SEQ_BIT	htons(0x1000)
+#define PPTP_GRE_ACK_BIT	htons(0x0080)
 #define PPTP_GRE_TYPE		htons(0x880B)
 
 #define PPP_ADDR	0xFF
@@ -49,76 +52,90 @@ struct header {
 	__u32	sequence;
 } __attribute__((packed));
 
-static void pppopns_recv(struct sock *sk_raw, int length)
+static int pppopns_recv_core(struct sock *sk_raw, struct sk_buff *skb)
 {
-	struct sock *sk;
-	struct pppopns_opt *opt;
-	struct sk_buff *skb;
+	struct sock *sk = (struct sock *)sk_raw->sk_user_data;
+	struct pppopns_opt *opt = &pppox_sk(sk)->proto.pns;
 	struct header *hdr;
 
-	/* Lock sk_raw to prevent sk from being closed. */
-	lock_sock(sk_raw);
-	sk = (struct sock *)sk_raw->sk_user_data;
-	if (!sk) {
-		release_sock(sk_raw);
-		return;
-	}
-	sock_hold(sk);
-	release_sock(sk_raw);
-	opt = &pppox_sk(sk)->proto.pns;
+	/* Skip transport header */
+	skb_pull(skb, skb_transport_header(skb) - skb->data);
 
-	/* Process packets from the receive queue. */
-	while ((skb = skb_dequeue(&sk_raw->sk_receive_queue))) {
-		skb_pull(skb, skb_transport_header(skb) - skb->data);
+	/* Drop the packet if it is too short. */
+	if (skb->len < GRE_HEADER_SIZE)
+		goto drop;
 
-		/* Drop the packet if it is too short. */
-		if (skb->len < GRE_HEADER_SIZE)
-			goto drop;
+	/* Check the header. */
+	hdr = (struct header *)skb->data;
+	if (hdr->type != PPTP_GRE_TYPE || hdr->call != opt->local ||
+			(hdr->bits & PPTP_GRE_BITS_MASK) != PPTP_GRE_BITS)
+		goto drop;
 
-		/* Check the header. */
-		hdr = (struct header *)skb->data;
-		if (hdr->type != PPTP_GRE_TYPE || hdr->call != opt->local ||
-				(hdr->bits & PPTP_GRE_MASK) != PPTP_GRE_MASK)
-			goto drop;
+	/* Skip all fields including optional ones. */
+	if (!skb_pull(skb, GRE_HEADER_SIZE +
+			(hdr->bits & PPTP_GRE_SEQ_BIT ? 4 : 0) +
+			(hdr->bits & PPTP_GRE_ACK_BIT ? 4 : 0)))
+		goto drop;
 
-		/* Skip all fields including optional ones. */
-		if (!skb_pull(skb, GRE_HEADER_SIZE +
-				(hdr->bits & PPTP_GRE_SEQ_MASK ? 4 : 0) +
-				(hdr->bits & PPTP_GRE_ACK_MASK ? 4 : 0)))
-			goto drop;
+	/* Check the length. */
+	if (skb->len != ntohs(hdr->length))
+		goto drop;
 
-		/* Check the length. */
-		if (skb->len != ntohs(hdr->length))
-			goto drop;
+	/* Skip PPP address and control if they are present. */
+	if (skb->len >= 2 && skb->data[0] == PPP_ADDR &&
+			skb->data[1] == PPP_CTRL)
+		skb_pull(skb, 2);
 
-		/* Skip PPP address and control if they are present. */
-		if (skb->len >= 2 && skb->data[0] == PPP_ADDR &&
-				skb->data[1] == PPP_CTRL)
-			skb_pull(skb, 2);
+	/* Fix PPP protocol if it is compressed. */
+	if (skb->len >= 1 && skb->data[0] & 1)
+		skb_push(skb, 1)[0] = 0;
 
-		/* Fix PPP protocol if it is compressed. */
-		if (skb->len >= 1 && skb->data[0] & 1)
-			skb_push(skb, 1)[0] = 0;
-
-		/* Deliver the packet to PPP channel. We have to lock sk to
-		 * prevent another thread from calling pppox_unbind_sock(). */
-		skb_orphan(skb);
-		lock_sock(sk);
-		ppp_input(&pppox_sk(sk)->chan, skb);
-		release_sock(sk);
-		continue;
+	/* Finally, deliver the packet to PPP channel. */
+	skb_orphan(skb);
+	ppp_input(&pppox_sk(sk)->chan, skb);
+	return NET_RX_SUCCESS;
 drop:
+	kfree_skb(skb);
+	return NET_RX_DROP;
+}
+
+static void pppopns_recv(struct sock *sk_raw, int length)
+{
+	struct sk_buff *skb;
+	while ((skb = skb_dequeue(&sk_raw->sk_receive_queue))) {
+		sock_hold(sk_raw);
+		sk_receive_skb(sk_raw, skb, 0);
+	}
+}
+
+static struct sk_buff_head delivery_queue;
+
+static void pppopns_xmit_core(struct work_struct *delivery_work)
+{
+	mm_segment_t old_fs = get_fs();
+	struct sk_buff *skb;
+
+	set_fs(KERNEL_DS);
+	while ((skb = skb_dequeue(&delivery_queue))) {
+		struct sock *sk_raw = skb->sk;
+		struct kvec iov = {.iov_base = skb->data, .iov_len = skb->len};
+		struct msghdr msg = {
+			.msg_iov = (struct iovec *)&iov,
+			.msg_iovlen = 1,
+			.msg_flags = MSG_NOSIGNAL | MSG_DONTWAIT,
+		};
+		sk_raw->sk_prot->sendmsg(NULL, sk_raw, &msg, skb->len);
 		kfree_skb(skb);
 	}
-	sock_put(sk);
+	set_fs(old_fs);
 }
+
+static DECLARE_WORK(delivery_work, pppopns_xmit_core);
 
 static int pppopns_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 {
 	struct sock *sk_raw = (struct sock *)chan->private;
 	struct pppopns_opt *opt = &pppox_sk(sk_raw->sk_user_data)->proto.pns;
-	struct msghdr msg = {.msg_flags = MSG_NOSIGNAL | MSG_DONTWAIT};
-	struct kvec iov;
 	struct header *hdr;
 	__u16 length;
 
@@ -130,18 +147,17 @@ static int pppopns_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 	/* Install PPTP GRE header. */
 	hdr = (struct header *)skb_push(skb, 12);
-	hdr->bits = PPTP_GRE_MASK | PPTP_GRE_SEQ_MASK;
+	hdr->bits = PPTP_GRE_BITS | PPTP_GRE_SEQ_BIT;
 	hdr->type = PPTP_GRE_TYPE;
 	hdr->length = htons(length);
 	hdr->call = opt->remote;
 	hdr->sequence = htonl(opt->sequence);
 	opt->sequence++;
 
-	/* Now send the packet via RAW socket. */
-	iov.iov_base = skb->data;
-	iov.iov_len = skb->len;
-	kernel_sendmsg(sk_raw->sk_socket, &msg, &iov, 1, skb->len);
-	kfree_skb(skb);
+	/* Now send the packet via the delivery queue. */
+	skb_set_owner_w(skb, sk_raw);
+	skb_queue_tail(&delivery_queue, skb);
+	schedule_work(&delivery_work);
 	return 1;
 }
 
@@ -160,6 +176,7 @@ static int pppopns_connect(struct socket *sock, struct sockaddr *useraddr,
 	struct sockaddr_storage ss;
 	struct socket *sock_tcp = NULL;
 	struct socket *sock_raw = NULL;
+	struct sock *sk_tcp;
 	struct sock *sk_raw;
 	int error;
 
@@ -174,21 +191,31 @@ static int pppopns_connect(struct socket *sock, struct sockaddr *useraddr,
 	sock_tcp = sockfd_lookup(addr->tcp_socket, &error);
 	if (!sock_tcp)
 		goto out;
+	sk_tcp = sock_tcp->sk;
 	error = -EPROTONOSUPPORT;
-	if (sock_tcp->sk->sk_protocol != IPPROTO_TCP)
+	if (sk_tcp->sk_protocol != IPPROTO_TCP)
 		goto out;
 	addrlen = sizeof(struct sockaddr_storage);
 	error = kernel_getpeername(sock_tcp, (struct sockaddr *)&ss, &addrlen);
 	if (error)
 		goto out;
+	if (!sk_tcp->sk_bound_dev_if) {
+		struct dst_entry *dst = sk_dst_get(sk_tcp);
+		error = -ENODEV;
+		if (!dst)
+			goto out;
+		sk_tcp->sk_bound_dev_if = dst->dev->ifindex;
+		dst_release(dst);
+	}
 
 	error = sock_create(ss.ss_family, SOCK_RAW, IPPROTO_GRE, &sock_raw);
 	if (error)
 		goto out;
+	sk_raw = sock_raw->sk;
+	sk_raw->sk_bound_dev_if = sk_tcp->sk_bound_dev_if;
 	error = kernel_connect(sock_raw, (struct sockaddr *)&ss, addrlen, 0);
 	if (error)
 		goto out;
-	sk_raw = sock_raw->sk;
 
 	po->chan.hdrlen = 14;
 	po->chan.private = sk_raw;
@@ -196,15 +223,19 @@ static int pppopns_connect(struct socket *sock, struct sockaddr *useraddr,
 	po->chan.mtu = PPP_MTU - 80;
 	po->proto.pns.local = addr->local;
 	po->proto.pns.remote = addr->remote;
+	po->proto.pns.data_ready = sk_raw->sk_data_ready;
+	po->proto.pns.backlog_rcv = sk_raw->sk_backlog_rcv;
 
 	error = ppp_register_channel(&po->chan);
 	if (error)
 		goto out;
 
 	sk->sk_state = PPPOX_CONNECTED;
-	sk_raw->sk_user_data = sk;
+	lock_sock(sk_raw);
 	sk_raw->sk_data_ready = pppopns_recv;
-
+	sk_raw->sk_backlog_rcv = pppopns_recv_core;
+	sk_raw->sk_user_data = sk;
+	release_sock(sk_raw);
 out:
 	if (sock_tcp)
 		sockfd_put(sock_tcp);
@@ -231,6 +262,8 @@ static int pppopns_release(struct socket *sock)
 		struct sock *sk_raw = (struct sock *)pppox_sk(sk)->chan.private;
 		lock_sock(sk_raw);
 		pppox_unbind_sock(sk);
+		sk_raw->sk_data_ready = pppox_sk(sk)->proto.pns.data_ready;
+		sk_raw->sk_backlog_rcv = pppox_sk(sk)->proto.pns.backlog_rcv;
 		sk_raw->sk_user_data = NULL;
 		release_sock(sk_raw);
 		sock_release(sk_raw->sk_socket);
@@ -305,6 +338,8 @@ static int __init pppopns_init(void)
 	error = register_pppox_proto(PX_PROTO_OPNS, &pppopns_pppox_proto);
 	if (error)
 		proto_unregister(&pppopns_proto);
+	else
+		skb_queue_head_init(&delivery_queue);
 	return error;
 }
 
