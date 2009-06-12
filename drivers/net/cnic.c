@@ -1454,6 +1454,7 @@ static inline u16 cnic_get_vlan(struct net_device *dev,
 static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 			     struct dst_entry **dst)
 {
+#if defined(CONFIG_INET)
 	struct flowi fl;
 	int err;
 	struct rtable *rt;
@@ -1465,12 +1466,15 @@ static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 	if (!err)
 		*dst = &rt->u.dst;
 	return err;
+#else
+	return -ENETUNREACH;
+#endif
 }
 
 static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 			     struct dst_entry **dst)
 {
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if defined(CONFIG_IPV6) || (defined(CONFIG_IPV6_MODULE) && defined(MODULE))
 	struct flowi fl;
 
 	memset(&fl, 0, sizeof(fl));
@@ -1550,7 +1554,7 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 	clear_bit(SK_F_IPV6, &csk->flags);
 
 	if (is_v6) {
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if defined(CONFIG_IPV6) || (defined(CONFIG_IPV6_MODULE) && defined(MODULE))
 		set_bit(SK_F_IPV6, &csk->flags);
 		err = cnic_get_v6_route(&saddr->remote.v6, &dst);
 		if (err)
