@@ -733,9 +733,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_NEED_DTLB_SW_LRU)
 AltiVecUnavailable:
 	EXCEPTION_PROLOG
 #ifdef CONFIG_ALTIVEC
-	bne	load_up_altivec		/* if from user, just load it up */
+	beq	1f
+	bl	load_up_altivec		/* if from user, just load it up */
+	b	fast_exception_return
 #endif /* CONFIG_ALTIVEC */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0xf20, altivec_unavailable_exception)
 
 PerformanceMonitor:
