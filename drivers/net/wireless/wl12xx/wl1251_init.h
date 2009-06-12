@@ -28,7 +28,6 @@
 
 int wl12xx_hw_init_hwenc_config(struct wl12xx *wl);
 int wl12xx_hw_init_templates_config(struct wl12xx *wl);
-int wl12xx_hw_init_mem_config(struct wl12xx *wl);
 int wl12xx_hw_init_rx_config(struct wl12xx *wl, u32 config, u32 filter);
 int wl12xx_hw_init_phy_config(struct wl12xx *wl);
 int wl12xx_hw_init_beacon_filter(struct wl12xx *wl);
