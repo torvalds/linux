@@ -415,8 +415,8 @@ static void wl1251_irq_work(struct work_struct *work)
 	wl12xx_debug(DEBUG_IRQ, "intr: 0x%x", intr);
 
 	if (wl->data_path) {
-		wl12xx_spi_mem_read(wl, wl->data_path->rx_control_addr,
-				    &wl->rx_counter, sizeof(u32));
+		wl->rx_counter =
+			wl12xx_mem_read32(wl, wl->data_path->rx_control_addr);
 
 		/* We handle a frmware bug here */
 		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
