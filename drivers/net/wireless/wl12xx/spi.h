@@ -81,6 +81,8 @@ u32 wl12xx_mem_read32(struct wl12xx *wl, int addr);
 void wl12xx_mem_write32(struct wl12xx *wl, int addr, u32 val);
 
 /* Registers IO */
+void wl12xx_spi_reg_read(struct wl12xx *wl, int addr, void *buf, size_t len);
+void wl12xx_spi_reg_write(struct wl12xx *wl, int addr, void *buf,size_t len);
 u32 wl12xx_reg_read32(struct wl12xx *wl, int addr);
 void wl12xx_reg_write32(struct wl12xx *wl, int addr, u32 val);
 

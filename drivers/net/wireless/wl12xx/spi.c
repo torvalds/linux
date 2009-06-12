@@ -348,6 +348,24 @@ void wl12xx_spi_mem_write(struct wl12xx *wl, int addr, void *buf,
 	wl12xx_spi_write(wl, physical, buf, len);
 }
 
+void wl12xx_spi_reg_read(struct wl12xx *wl, int addr, void *buf, size_t len)
+{
+	int physical;
+
+	physical = wl12xx_translate_reg_addr(wl, addr);
+
+	wl12xx_spi_read(wl, physical, buf, len);
+}
+
+void wl12xx_spi_reg_write(struct wl12xx *wl, int addr, void *buf, size_t len)
+{
+	int physical;
+
+	physical = wl12xx_translate_reg_addr(wl, addr);
+
+	wl12xx_spi_write(wl, physical, buf, len);
+}
+
 u32 wl12xx_mem_read32(struct wl12xx *wl, int addr)
 {
 	return wl12xx_read32(wl, wl12xx_translate_mem_addr(wl, addr));
