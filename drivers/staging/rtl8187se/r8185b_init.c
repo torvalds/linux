@@ -35,7 +35,7 @@ Notes:
 #endif
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 
 #ifdef CONFIG_RTL8185B

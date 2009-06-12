@@ -23,7 +23,7 @@
 #include "r8180_sa2400.h"
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 
 //#define RATE_COUNT 4
