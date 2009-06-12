@@ -875,7 +875,12 @@ static int lbs_spi_thread(void *data)
 			err = if_spi_c2h_data(card);
 			if (err)
 				goto err;
-		if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY) {
+
+		/* workaround: in PS mode, the card does not set the Command
+		 * Download Ready bit, but it sets TX Download Ready. */
+		if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY ||
+		   (card->priv->psstate != PS_STATE_FULL_POWER &&
+		    (hiStatus & IF_SPI_HIST_TX_DOWNLOAD_RDY))) {
 			/* This means two things. First of all,
 			 * if there was a previous command sent, the card has
 			 * successfully received it.
