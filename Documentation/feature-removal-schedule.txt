@@ -235,9 +235,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 ---------------------------
 
 What (Why):
-	- "forwarding" header files like ipt_mac.h in
-	  include/linux/netfilter_ipv4/ and include/linux/netfilter_ipv6/
-
 	- xt_recent: the old ipt_recent proc dir
 	  (superseded by /proc/net/xt_recent)
 
