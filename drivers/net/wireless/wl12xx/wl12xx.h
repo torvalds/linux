@@ -412,5 +412,6 @@ int wl12xx_plt_stop(struct wl12xx *wl);
 #define CHIP_ID_1251_PG11	           (0x7020101)
 #define CHIP_ID_1251_PG12	           (0x7030101)
 #define CHIP_ID_1271_PG10	           (0x4030101)
+#define CHIP_ID_1271_PG20	           (0x4030111)
 
 #endif
