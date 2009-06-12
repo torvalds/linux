@@ -101,7 +101,7 @@ static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
 static char *arp_validate = NULL;
 static char *fail_over_mac = NULL;
-struct bond_params bonding_defaults;
+static struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
@@ -4592,7 +4592,7 @@ static const struct net_device_ops bond_netdev_ops = {
  * Does not allocate but creates a /proc entry.
  * Allowed to fail.
  */
-static int bond_init(struct net_device *bond_dev, struct bond_params *params)
+static int bond_init(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
@@ -4602,7 +4602,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	rwlock_init(&bond->lock);
 	rwlock_init(&bond->curr_slave_lock);
 
-	bond->params = *params; /* copy params struct */
+	bond->params = bonding_defaults;
 
 	bond->wq = create_singlethread_workqueue(bond_dev->name);
 	if (!bond->wq)
@@ -5116,7 +5116,7 @@ static void bond_set_lockdep_class(struct net_device *dev)
  * Caller must NOT hold rtnl_lock; we need to release it here before we
  * set up our sysfs entries.
  */
-int bond_create(char *name, struct bond_params *params)
+int bond_create(const char *name)
 {
 	struct net_device *bond_dev;
 	struct bonding *bond;
@@ -5159,7 +5159,7 @@ int bond_create(char *name, struct bond_params *params)
 	 * need to set function pointers.
 	 */
 
-	res = bond_init(bond_dev, params);
+	res = bond_init(bond_dev);
 	if (res < 0) {
 		goto out_netdev;
 	}
@@ -5212,7 +5212,7 @@ static int __init bonding_init(void)
 	init_rwsem(&bonding_rwsem);
 
 	for (i = 0; i < max_bonds; i++) {
-		res = bond_create(NULL, &bonding_defaults);
+		res = bond_create(NULL);
 		if (res)
 			goto err;
 	}

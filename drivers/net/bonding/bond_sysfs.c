@@ -112,7 +112,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 	if (command[0] == '+') {
 		printk(KERN_INFO DRV_NAME
 			": %s is being created...\n", ifname);
-		rv = bond_create(ifname, &bonding_defaults);
+		rv = bond_create(ifname);
 		if (rv) {
 			printk(KERN_INFO DRV_NAME ": Bond creation failed.\n");
 			res = rv;
