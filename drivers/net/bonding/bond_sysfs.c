@@ -40,12 +40,6 @@
 #define to_dev(obj)	container_of(obj, struct device, kobj)
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
 
-/*---------------------------- Declarations -------------------------------*/
-
-static int expected_refcount = -1;
-
-/*------------------------------ Functions --------------------------------*/
-
 /*
  * "show" function for the bond_masters attribute.
  * The class parameter is ignored.
@@ -112,18 +106,6 @@ static ssize_t bonding_store_bonds(struct class *cls,
 
 		list_for_each_entry(bond, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				/* check the ref count on the bond's kobject.
-				 * If it's > expected, then there's a file open,
-				 * and we have to fail.
-				 */
-				if (atomic_read(&bond->dev->dev.kobj.kref.refcount)
-							> expected_refcount){
-					pr_info(DRV_NAME
-						": Unable remove bond %s due to open references.\n",
-						ifname);
-					res = -EPERM;
-					goto out_unlock;
-				}
 				pr_info(DRV_NAME
 					": %s is being deleted...\n",
 					bond->dev->name);
@@ -1578,9 +1560,6 @@ int bond_create_sysfs_entry(struct bonding *bond)
 	err = sysfs_create_group(&(dev->dev.kobj), &bonding_group);
 	if (err)
 		printk(KERN_EMERG "eek! didn't create group!\n");
-
-	if (expected_refcount < 1)
-		expected_refcount = atomic_read(&bond->dev->dev.kobj.kref.refcount);
 
 	return err;
 }
