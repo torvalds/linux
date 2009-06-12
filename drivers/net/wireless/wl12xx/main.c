@@ -239,11 +239,14 @@ static void wl12xx_filter_work(struct work_struct *work)
 	if (wl->state == WL12XX_STATE_OFF)
 		goto out;
 
+	wl12xx_ps_elp_wakeup(wl);
+
 	ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
 	if (ret < 0)
 		goto out;
 
 out:
+	wl12xx_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 }
 
@@ -521,6 +524,8 @@ static int wl12xx_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&wl->mutex);
 
+	wl12xx_ps_elp_wakeup(wl);
+
 	if (channel != wl->channel) {
 		/* FIXME: use beacon interval provided by mac80211 */
 		ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
@@ -564,6 +569,7 @@ static int wl12xx_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 out:
+	wl12xx_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 	return ret;
 }
@@ -702,6 +708,8 @@ static int wl12xx_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&wl->mutex);
 
+	wl12xx_ps_elp_wakeup(wl);
+
 	switch (cmd) {
 	case SET_KEY:
 		wl_cmd->key_action = KEY_ADD_OR_REPLACE;
@@ -752,6 +760,7 @@ static int wl12xx_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 out_unlock:
+	wl12xx_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 
 out:
@@ -946,7 +955,11 @@ static int wl12xx_op_hw_scan(struct ieee80211_hw *hw,
 	}
 
 	mutex_lock(&wl->mutex);
+	wl12xx_ps_elp_wakeup(wl);
+
 	ret = wl12xx_hw_scan(hw->priv, ssid, ssid_len, 1, 0, 13, 3);
+
+	wl12xx_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 
 	return ret;
@@ -959,10 +972,14 @@ static int wl12xx_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	mutex_lock(&wl->mutex);
 
+	wl12xx_ps_elp_wakeup(wl);
+
 	ret = wl12xx_acx_rts_threshold(wl, (u16) value);
 
 	if (ret < 0)
 		wl12xx_warning("wl12xx_op_set_rts_threshold failed: %d", ret);
+
+	wl12xx_ps_elp_sleep(wl);
 
 	mutex_unlock(&wl->mutex);
 
@@ -982,6 +999,8 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 	wl12xx_debug(DEBUG_MAC80211, "mac80211 bss info changed");
 
 	mutex_lock(&wl->mutex);
+
+	wl12xx_ps_elp_wakeup(wl);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
@@ -1072,6 +1091,7 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 out:
+	wl12xx_ps_elp_sleep(wl);
 	mutex_unlock(&wl->mutex);
 }
 

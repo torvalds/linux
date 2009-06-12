@@ -32,8 +32,6 @@ int wl12xx_cmd_send(struct wl12xx *wl, u16 id, void *buf, size_t len)
 
 	WARN_ON(len % 4 != 0);
 
-	wl12xx_ps_elp_wakeup(wl);
-
 	wl12xx_spi_mem_write(wl, wl->cmd_box_addr, buf, len);
 
 	wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
@@ -57,8 +55,6 @@ int wl12xx_cmd_send(struct wl12xx *wl, u16 id, void *buf, size_t len)
 			   wl->chip.intr_cmd_complete);
 
 out:
-	wl12xx_ps_elp_sleep(wl);
-
 	return ret;
 }
 
@@ -91,12 +87,7 @@ int wl12xx_cmd_test(struct wl12xx *wl, void *buf, size_t buf_len, u8 answer)
 		 * The answer would be a wl12xx_command, where the
 		 * parameter array contains the actual answer.
 		 */
-
-		wl12xx_ps_elp_wakeup(wl);
-
 		wl12xx_spi_mem_read(wl, wl->cmd_box_addr, buf, buf_len);
-
-		wl12xx_ps_elp_sleep(wl);
 
 		cmd_answer = buf;
 
@@ -134,12 +125,8 @@ int wl12xx_cmd_interrogate(struct wl12xx *wl, u16 id, void *buf, size_t len)
 		goto out;
 	}
 
-	wl12xx_ps_elp_wakeup(wl);
-
 	/* the interrogate command got in, we can read the answer */
 	wl12xx_spi_mem_read(wl, wl->cmd_box_addr, buf, len);
-
-	wl12xx_ps_elp_sleep(wl);
 
 	acx = buf;
 	if (acx->cmd.status != CMD_STATUS_SUCCESS)

@@ -27,6 +27,7 @@
 
 #include "wl12xx.h"
 #include "acx.h"
+#include "ps.h"
 
 /* ms */
 #define WL12XX_DEBUGFS_STATS_LIFETIME 1000
@@ -96,12 +97,16 @@ static void wl12xx_debugfs_update_stats(struct wl12xx *wl)
 {
 	mutex_lock(&wl->mutex);
 
+	wl12xx_ps_elp_wakeup(wl);
+
 	if (wl->state == WL12XX_STATE_ON &&
 	    time_after(jiffies, wl->stats.fw_stats_update +
 		       msecs_to_jiffies(WL12XX_DEBUGFS_STATS_LIFETIME))) {
 		wl12xx_acx_statistics(wl, wl->stats.fw_stats);
 		wl->stats.fw_stats_update = jiffies;
 	}
+
+	wl12xx_ps_elp_sleep(wl);
 
 	mutex_unlock(&wl->mutex);
 }
