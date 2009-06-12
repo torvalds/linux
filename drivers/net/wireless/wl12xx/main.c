@@ -1261,6 +1261,13 @@ static int __devinit wl12xx_probe(struct spi_device *spi)
 	wl->tx_mgmt_frm_rate = DEFAULT_HW_GEN_TX_RATE;
 	wl->tx_mgmt_frm_mod = DEFAULT_HW_GEN_MODULATION_TYPE;
 
+	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
+	if (!wl->rx_descriptor) {
+		wl12xx_error("could not allocate memory for rx descriptor");
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */
 	spi->bits_per_word = 32;
@@ -1313,6 +1320,9 @@ static int __devinit wl12xx_probe(struct spi_device *spi)
 	free_irq(wl->irq, wl);
 
  out_free:
+	kfree(wl->rx_descriptor);
+	wl->rx_descriptor = NULL;
+
 	ieee80211_free_hw(hw);
 
 	return ret;
@@ -1333,6 +1343,10 @@ static int __devexit wl12xx_remove(struct spi_device *spi)
 	wl->fw = NULL;
 	kfree(wl->nvs);
 	wl->nvs = NULL;
+
+	kfree(wl->rx_descriptor);
+	wl->rx_descriptor = NULL;
+
 	ieee80211_free_hw(wl->hw);
 
 	return 0;

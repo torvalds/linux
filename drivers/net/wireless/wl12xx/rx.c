@@ -39,8 +39,7 @@ static void wl12xx_rx_header(struct wl12xx *wl,
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
-	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, desc,
-			    sizeof(struct wl12xx_rx_descriptor));
+	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, desc, sizeof(*desc));
 }
 
 static void wl12xx_rx_status(struct wl12xx *wl,
@@ -175,16 +174,18 @@ static void wl12xx_rx_ack(struct wl12xx *wl)
 
 void wl12xx_rx(struct wl12xx *wl)
 {
-	struct wl12xx_rx_descriptor rx_desc;
+	struct wl12xx_rx_descriptor *rx_desc;
 
 	if (wl->state != WL12XX_STATE_ON)
 		return;
 
+	rx_desc = wl->rx_descriptor;
+
 	/* We first read the frame's header */
-	wl12xx_rx_header(wl, &rx_desc);
+	wl12xx_rx_header(wl, rx_desc);
 
 	/* Now we can read the body */
-	wl12xx_rx_body(wl, &rx_desc);
+	wl12xx_rx_body(wl, rx_desc);
 
 	/* Finally, we need to ACK the RX */
 	wl12xx_rx_ack(wl);

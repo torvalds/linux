@@ -387,6 +387,7 @@ struct wl12xx {
 	u32 buffer_32;
 	u32 buffer_cmd;
 	u8 buffer_busyword[WL12XX_BUSY_WORD_LEN];
+	struct wl12xx_rx_descriptor *rx_descriptor;
 };
 
 int wl12xx_plt_start(struct wl12xx *wl);
