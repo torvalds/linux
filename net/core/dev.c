@@ -4209,7 +4209,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 
 	switch (cmd) {
 		case SIOCGIFFLAGS:	/* Get interface flags */
-			ifr->ifr_flags = dev_get_flags(dev);
+			ifr->ifr_flags = (short) dev_get_flags(dev);
 			return 0;
 
 		case SIOCGIFMETRIC:	/* Get the metric on the interface
