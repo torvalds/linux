@@ -35,13 +35,13 @@
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "wl1251_ops.h"
-#include "spi.h"
-#include "event.h"
+#include "wl1251_spi.h"
+#include "wl1251_event.h"
 #include "wl1251_tx.h"
-#include "rx.h"
-#include "ps.h"
-#include "init.h"
-#include "debugfs.h"
+#include "wl1251_rx.h"
+#include "wl1251_ps.h"
+#include "wl1251_init.h"
+#include "wl1251_debugfs.h"
 
 static void wl12xx_disable_interrupts(struct wl12xx *wl)
 {

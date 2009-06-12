@@ -24,9 +24,9 @@
 #include <linux/gpio.h>
 
 #include "reg.h"
-#include "boot.h"
-#include "spi.h"
-#include "event.h"
+#include "wl1251_boot.h"
+#include "wl1251_spi.h"
+#include "wl1251_event.h"
 
 static void wl12xx_boot_enable_interrupts(struct wl12xx *wl)
 {

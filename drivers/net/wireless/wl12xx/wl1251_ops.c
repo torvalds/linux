@@ -26,14 +26,14 @@
 
 #include "wl1251_ops.h"
 #include "reg.h"
-#include "spi.h"
-#include "boot.h"
-#include "event.h"
-#include "acx.h"
+#include "wl1251_spi.h"
+#include "wl1251_boot.h"
+#include "wl1251_event.h"
+#include "wl1251_acx.h"
 #include "wl1251_tx.h"
-#include "rx.h"
-#include "ps.h"
-#include "init.h"
+#include "wl1251_rx.h"
+#include "wl1251_ps.h"
+#include "wl1251_init.h"
 
 static struct wl12xx_partition_set wl1251_part_table[PART_TABLE_LEN] = {
 	[PART_DOWN] = {

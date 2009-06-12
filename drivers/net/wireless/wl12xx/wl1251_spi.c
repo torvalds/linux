@@ -28,8 +28,7 @@
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
-#include "spi.h"
-#include "ps.h"
+#include "wl1251_spi.h"
 
 static int wl12xx_translate_reg_addr(struct wl12xx *wl, int addr)
 {

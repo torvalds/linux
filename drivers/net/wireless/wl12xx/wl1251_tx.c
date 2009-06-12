@@ -27,9 +27,9 @@
 
 #include "wl12xx.h"
 #include "reg.h"
-#include "spi.h"
+#include "wl1251_spi.h"
 #include "wl1251_tx.h"
-#include "ps.h"
+#include "wl1251_ps.h"
 
 static bool wl1251_tx_double_buffer_busy(struct wl12xx *wl, u32 data_out_count)
 {

@@ -27,8 +27,9 @@
 
 #include "wl12xx.h"
 #include "reg.h"
-#include "spi.h"
-#include "rx.h"
+#include "wl1251_spi.h"
+#include "wl1251_rx.h"
+#include "wl1251_acx.h"
 
 static void wl12xx_rx_header(struct wl12xx *wl,
 			     struct wl12xx_rx_descriptor *desc)

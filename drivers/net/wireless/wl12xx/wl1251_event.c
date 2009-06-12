@@ -24,9 +24,9 @@
 
 #include "wl12xx.h"
 #include "reg.h"
-#include "spi.h"
-#include "event.h"
-#include "ps.h"
+#include "wl1251_spi.h"
+#include "wl1251_event.h"
+#include "wl1251_ps.h"
 
 static int wl12xx_event_scan_complete(struct wl12xx *wl,
 				      struct event_mailbox *mbox)

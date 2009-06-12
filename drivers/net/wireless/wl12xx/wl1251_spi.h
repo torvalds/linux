@@ -25,8 +25,8 @@
 #ifndef __WL12XX_SPI_H__
 #define __WL12XX_SPI_H__
 
-#include "cmd.h"
-#include "acx.h"
+#include "wl1251_cmd.h"
+#include "wl1251_acx.h"
 #include "reg.h"
 
 #define HW_ACCESS_MEMORY_MAX_RANGE		0x1FFC0

@@ -27,7 +27,7 @@
 #include <linux/bitops.h>
 
 #include "wl12xx.h"
-#include "acx.h"
+#include "wl1251_acx.h"
 
 #define WL1251_FW_NAME "wl1251-fw.bin"
 #define WL1251_NVS_NAME "wl1251-nvs.bin"

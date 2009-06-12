@@ -24,10 +24,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "init.h"
+#include "wl1251_init.h"
 #include "wl12xx_80211.h"
-#include "acx.h"
-#include "cmd.h"
+#include "wl1251_acx.h"
+#include "wl1251_cmd.h"
 
 int wl12xx_hw_init_hwenc_config(struct wl12xx *wl)
 {

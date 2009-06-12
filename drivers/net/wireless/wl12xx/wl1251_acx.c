@@ -1,4 +1,4 @@
-#include "acx.h"
+#include "wl1251_acx.h"
 
 #include <linux/module.h>
 #include <linux/crc7.h>
@@ -7,8 +7,8 @@
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
-#include "spi.h"
-#include "ps.h"
+#include "wl1251_spi.h"
+#include "wl1251_ps.h"
 
 int wl12xx_acx_frame_rates(struct wl12xx *wl, u8 ctrl_rate, u8 ctrl_mod,
 			   u8 mgt_rate, u8 mgt_mod)
