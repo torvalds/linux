@@ -263,17 +263,19 @@ void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,
 	struct spi_transfer t[3];
 	struct spi_message m;
 	char busy_buf[TNETWIF_READ_OFFSET_BYTES];
-	u32 cmd;
+	u32 *cmd;
 
-	cmd = 0;
-	cmd |= WSPI_CMD_READ;
-	cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
-	cmd |= addr & WSPI_CMD_BYTE_ADDR;
+	cmd = &wl->buffer_cmd;
+
+	*cmd = 0;
+	*cmd |= WSPI_CMD_READ;
+	*cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
+	*cmd |= addr & WSPI_CMD_BYTE_ADDR;
 
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));
 
-	t[0].tx_buf = &cmd;
+	t[0].tx_buf = cmd;
 	t[0].len = 4;
 	spi_message_add_tail(&t[0], &m);
 
@@ -290,7 +292,7 @@ void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,
 
 	/* FIXME: check busy words */
 
-	wl12xx_dump(DEBUG_SPI, "spi_read cmd -> ", &cmd, sizeof(cmd));
+	wl12xx_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
 	wl12xx_dump(DEBUG_SPI, "spi_read buf <- ", buf, len);
 }
 
@@ -299,18 +301,20 @@ void wl12xx_spi_write(struct wl12xx *wl, int addr, void *buf,
 {
 	struct spi_transfer t[2];
 	struct spi_message m;
-	u32 cmd;
+	u32 *cmd;
 
-	cmd = 0;
-	cmd |= WSPI_CMD_WRITE;
-	cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
-	cmd |= addr & WSPI_CMD_BYTE_ADDR;
+	cmd = &wl->buffer_cmd;
+
+	*cmd = 0;
+	*cmd |= WSPI_CMD_WRITE;
+	*cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
+	*cmd |= addr & WSPI_CMD_BYTE_ADDR;
 
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));
 
-	t[0].tx_buf = &cmd;
-	t[0].len = sizeof(cmd);
+	t[0].tx_buf = cmd;
+	t[0].len = sizeof(*cmd);
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
@@ -319,7 +323,7 @@ void wl12xx_spi_write(struct wl12xx *wl, int addr, void *buf,
 
 	spi_sync(wl->spi, &m);
 
-	wl12xx_dump(DEBUG_SPI, "spi_write cmd -> ", &cmd, sizeof(cmd));
+	wl12xx_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
 	wl12xx_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
 }
 
