@@ -1754,14 +1754,6 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-static void tty3270_notifier(int index, int active)
-{
-	if (active)
-		tty_register_device(tty3270_driver, index, NULL);
-	else
-		tty_unregister_device(tty3270_driver, index);
-}
-
 /*
  * 3270 tty registration code called from tty_init().
  * Most kernel services (incl. kmalloc) are available at this poimt.
@@ -1796,12 +1788,6 @@ static int __init tty3270_init(void)
 		return ret;
 	}
 	tty3270_driver = driver;
-	ret = raw3270_register_notifier(tty3270_notifier);
-	if (ret) {
-		put_tty_driver(driver);
-		return ret;
-
-	}
 	return 0;
 }
 
@@ -1810,7 +1796,6 @@ tty3270_exit(void)
 {
 	struct tty_driver *driver;
 
-	raw3270_unregister_notifier(tty3270_notifier);
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
