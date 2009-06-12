@@ -122,7 +122,6 @@ struct cfq_data {
 	struct cfq_queue *async_idle_cfqq;
 
 	sector_t last_position;
-	unsigned long last_end_request;
 
 	/*
 	 * tunables, see top of file
@@ -2164,9 +2163,6 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	if (cfq_cfqq_sync(cfqq))
 		cfqd->sync_flight--;
 
-	if (!cfq_class_idle(cfqq))
-		cfqd->last_end_request = now;
-
 	if (sync)
 		RQ_CIC(rq)->last_end_request = now;
 
@@ -2479,7 +2475,6 @@ static void *cfq_init_queue(struct request_queue *q)
 
 	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue);
 
-	cfqd->last_end_request = jiffies;
 	cfqd->cfq_quantum = cfq_quantum;
 	cfqd->cfq_fifo_expire[0] = cfq_fifo_expire[0];
 	cfqd->cfq_fifo_expire[1] = cfq_fifo_expire[1];
