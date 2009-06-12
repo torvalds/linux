@@ -4571,7 +4571,7 @@ F:	drivers/media/video/pvrusb2/
 
 PXA2xx/PXA3xx SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 P:	Russell King
 M:	linux@arm.linux.org.uk
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
@@ -4585,19 +4585,19 @@ F:	sound/soc/pxa/pxa2xx*
 
 PXA168 SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 P:	Jason Chagas
 M:	jason.chagas@marvell.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Supported
+S:	Maintained
 
 PXA910 SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Supported
+S:	Maintained
 
 PXA MMCI DRIVER
 S:	Orphan
