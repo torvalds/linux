@@ -288,9 +288,6 @@ static int wl1251_boot(struct wl12xx *wl)
 	if (ret < 0)
 		goto out;
 
-	/* Get and save the firmware version */
-	wl12xx_acx_fw_version(wl, wl->chip.fw_ver, sizeof(wl->chip.fw_ver));
-
 out:
 	return ret;
 }
@@ -392,6 +389,11 @@ static void wl1251_target_enable_interrupts(struct wl12xx *wl)
 		WL1251_ACX_INTR_EVENT_B |
 		WL1251_ACX_INTR_INIT_COMPLETE;
 	wl12xx_boot_target_enable_interrupts(wl);
+}
+
+static void wl1251_fw_version(struct wl12xx *wl)
+{
+	wl12xx_acx_fw_version(wl, wl->chip.fw_ver, sizeof(wl->chip.fw_ver));
 }
 
 static void wl1251_irq_work(struct work_struct *work)
@@ -709,6 +711,7 @@ void wl1251_setup(struct wl12xx *wl)
 	wl->chip.op_target_enable_interrupts = wl1251_target_enable_interrupts;
 	wl->chip.op_hw_init = wl1251_hw_init;
 	wl->chip.op_plt_init = wl1251_plt_init;
+	wl->chip.op_fw_version = wl1251_fw_version;
 
 	wl->chip.p_table = wl1251_part_table;
 	wl->chip.acx_reg_table = wl1251_acx_reg_table;

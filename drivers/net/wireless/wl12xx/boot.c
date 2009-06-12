@@ -269,6 +269,8 @@ int wl12xx_boot_run_firmware(struct wl12xx *wl)
 	wl12xx_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x event_box_addr 0x%x",
 		     wl->cmd_box_addr, wl->event_box_addr);
 
+	wl->chip.op_fw_version(wl);
+
 	/*
 	 * in case of full asynchronous mode the firmware event must be
 	 * ready to receive event from the command mailbox

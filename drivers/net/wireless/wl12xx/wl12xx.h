@@ -163,6 +163,7 @@ struct wl12xx_chip {
 	void (*op_target_enable_interrupts)(struct wl12xx *wl);
 	int (*op_hw_init)(struct wl12xx *wl);
 	int (*op_plt_init)(struct wl12xx *wl);
+	void (*op_fw_version)(struct wl12xx *wl);
 
 	struct wl12xx_partition_set *p_table;
 	enum wl12xx_acx_int_reg *acx_reg_table;
