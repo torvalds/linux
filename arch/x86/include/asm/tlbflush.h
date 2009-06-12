@@ -172,6 +172,6 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 	flush_tlb_all();
 }
 
-extern void zap_low_mappings(void);
+extern void zap_low_mappings(bool early);
 
 #endif /* _ASM_X86_TLBFLUSH_H */
