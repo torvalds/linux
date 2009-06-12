@@ -1602,7 +1602,7 @@ static u16 atl1e_cal_tdp_req(const struct sk_buff *skb)
 	}
 
 	if (skb_is_gso(skb)) {
-		if (skb->protocol == ntohs(ETH_P_IP) ||
+		if (skb->protocol == htons(ETH_P_IP) ||
 		   (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6)) {
 			proto_hdr_len = skb_transport_offset(skb) +
 					tcp_hdrlen(skb);
@@ -1878,7 +1878,7 @@ static int atl1e_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 				TPD_VLAN_SHIFT;
 	}
 
-	if (skb->protocol == ntohs(ETH_P_8021Q))
+	if (skb->protocol == htons(ETH_P_8021Q))
 		tpd->word3 |= 1 << TPD_VL_TAGGED_SHIFT;
 
 	if (skb_network_offset(skb) != ETH_HLEN)

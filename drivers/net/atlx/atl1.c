@@ -2382,7 +2382,7 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			proto_hdr_len = (skb_transport_offset(skb) +
 					 tcp_hdrlen(skb));
 			if (unlikely(proto_hdr_len > len)) {
