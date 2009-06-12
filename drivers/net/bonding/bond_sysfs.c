@@ -68,6 +68,17 @@ static ssize_t bonding_show_bonds(struct class *cls, char *buf)
 	return res;
 }
 
+static struct net_device *bond_get_by_name(const char *ifname)
+{
+	struct bonding *bond;
+
+	list_for_each_entry(bond, &bond_dev_list, bond_list) {
+		if (strncmp(bond->dev->name, ifname, IFNAMSIZ) == 0)
+			return bond->dev;
+	}
+	return NULL;
+}
+
 /*
  * "store" function for the bond_masters attribute.  This is what
  * creates and deletes entire bonds.
@@ -82,7 +93,6 @@ static ssize_t bonding_store_bonds(struct class *cls,
 	char command[IFNAMSIZ + 1] = {0, };
 	char *ifname;
 	int rv, res = count;
-	struct bonding *bond;
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
@@ -98,41 +108,35 @@ static ssize_t bonding_store_bonds(struct class *cls,
 			pr_info(DRV_NAME ": Bond creation failed.\n");
 			res = rv;
 		}
-		goto out;
-	}
+	} else if (command[0] == '-') {
+		struct net_device *bond_dev;
 
-	if (command[0] == '-') {
 		rtnl_lock();
+		bond_dev = bond_get_by_name(ifname);
+		if (bond_dev) {
+			pr_info(DRV_NAME ": %s is being deleted...\n",
+				ifname);
+			unregister_netdevice(bond_dev);
+		} else {
+			pr_err(DRV_NAME ": unable to delete non-existent %s\n",
+			       ifname);
+			res = -ENODEV;
+		}
+		rtnl_unlock();
+	} else
+		goto err_no_cmd;
 
-		list_for_each_entry(bond, &bond_dev_list, bond_list)
-			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				pr_info(DRV_NAME
-					": %s is being deleted...\n",
-					bond->dev->name);
-				unregister_netdevice(bond->dev);
-				goto out_unlock;
-			}
-
-		pr_err(DRV_NAME
-			": unable to delete non-existent bond %s\n", ifname);
-		res = -ENODEV;
-		goto out_unlock;
-	}
+	/* Always return either count or an error.  If you return 0, you'll
+	 * get called forever, which is bad.
+	 */
+	return res;
 
 err_no_cmd:
 	pr_err(DRV_NAME ": no command found in bonding_masters."
 	       " Use +ifname or -ifname.\n");
 	return -EPERM;
-
-out_unlock:
-	rtnl_unlock();
-
-	/* Always return either count or an error.  If you return 0, you'll
-	 * get called forever, which is bad.
-	 */
-out:
-	return res;
 }
+
 /* class attribute for bond_masters file.  This ends up in /sys/class/net */
 static CLASS_ATTR(bonding_masters,  S_IWUSR | S_IRUGO,
 		  bonding_show_bonds, bonding_store_bonds);
@@ -233,29 +237,16 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 		/* Got a slave name in ifname.  Is it already in the list? */
 		found = 0;
-		read_lock(&bond->lock);
-		bond_for_each_slave(bond, slave, i)
-			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-				pr_err(DRV_NAME
-				       ": %s: Interface %s is already enslaved!\n",
-				       bond->dev->name, ifname);
-				ret = -EPERM;
-				read_unlock(&bond->lock);
-				goto out;
-			}
 
-		read_unlock(&bond->lock);
-		pr_info(DRV_NAME ": %s: Adding slave %s.\n",
-		       bond->dev->name, ifname);
-		dev = dev_get_by_name(&init_net, ifname);
+		/* FIXME: get netns from sysfs object */
+		dev = __dev_get_by_name(&init_net, ifname);
 		if (!dev) {
 			pr_info(DRV_NAME
 			       ": %s: Interface %s does not exist!\n",
 			       bond->dev->name, ifname);
-			ret = -EPERM;
+			ret = -ENODEV;
 			goto out;
-		} else
-			dev_put(dev);
+		}
 
 		if (dev->flags & IFF_UP) {
 			pr_err(DRV_NAME
@@ -265,6 +256,22 @@ static ssize_t bonding_store_slaves(struct device *d,
 			ret = -EPERM;
 			goto out;
 		}
+
+		read_lock(&bond->lock);
+		bond_for_each_slave(bond, slave, i)
+			if (slave->dev == dev) {
+				pr_err(DRV_NAME
+				       ": %s: Interface %s is already enslaved!\n",
+				       bond->dev->name, ifname);
+				ret = -EPERM;
+				read_unlock(&bond->lock);
+				goto out;
+			}
+		read_unlock(&bond->lock);
+
+		pr_info(DRV_NAME ": %s: Adding slave %s.\n",
+			bond->dev->name, ifname);
+
 		/* If this is the first slave, then we need to set
 		   the master's hardware address to be the same as the
 		   slave's. */

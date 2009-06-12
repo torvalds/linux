@@ -5064,19 +5064,16 @@ static void bond_set_lockdep_class(struct net_device *dev)
 int bond_create(const char *name)
 {
 	struct net_device *bond_dev;
-	struct bonding *bond;
 	int res;
 
 	rtnl_lock();
 	/* Check to see if the bond already exists. */
-	if (name) {
-		list_for_each_entry(bond, &bond_dev_list, bond_list)
-			if (strnicmp(bond->dev->name, name, IFNAMSIZ) == 0) {
-				pr_err(DRV_NAME ": cannot add bond %s;"
-				       " it already exists\n", name);
-				res = -EPERM;
-				goto out_rtnl;
-			}
+	/* FIXME: pass netns from caller */
+	if (name && __dev_get_by_name(&init_net, name)) {
+		pr_err(DRV_NAME ": cannot add bond %s; already exists\n",
+		       name);
+		res = -EEXIST;
+		goto out_rtnl;
 	}
 
 	bond_dev = alloc_netdev(sizeof(struct bonding), name ? name : "",
