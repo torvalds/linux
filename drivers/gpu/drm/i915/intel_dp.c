@@ -154,6 +154,36 @@ unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 		dst[i] = src >> ((3-i) * 8);
 }
 
+/* hrawclock is 1/4 the FSB frequency */
+static int
+intel_hrawclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t clkcfg;
+
+	clkcfg = I915_READ(CLKCFG);
+	switch (clkcfg & CLKCFG_FSB_MASK) {
+	case CLKCFG_FSB_400:
+		return 100;
+	case CLKCFG_FSB_533:
+		return 133;
+	case CLKCFG_FSB_667:
+		return 166;
+	case CLKCFG_FSB_800:
+		return 200;
+	case CLKCFG_FSB_1067:
+		return 266;
+	case CLKCFG_FSB_1333:
+		return 333;
+	/* these two are just a guess; one of them might be right */
+	case CLKCFG_FSB_1600:
+	case CLKCFG_FSB_1600_ALT:
+		return 400;
+	default:
+		return 133;
+	}
+}
+
 static int
 intel_dp_aux_ch(struct intel_output *intel_output,
 		uint8_t *send, int send_bytes,
@@ -169,43 +199,51 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	int recv_bytes;
 	uint32_t ctl;
 	uint32_t status;
-
-	/* Load the send data into the aux channel data registers */
-	for (i = 0; i < send_bytes; i += 4) {
-		uint32_t    d = pack_aux(send + i, send_bytes - i);;
-
-		I915_WRITE(ch_data + i, d);
-	}
+	uint32_t aux_clock_divider;
+	int try;
 
 	/* The clock divider is based off the hrawclk,
-	 * and would like to run at 2MHz. The 133 below assumes
-	 * a 266MHz hrawclk; need to figure out how we're supposed
-	 * to know what hrawclk is...
+	 * and would like to run at 2MHz. So, take the
+	 * hrawclk value and divide by 2 and use that
 	 */
-	ctl = (DP_AUX_CH_CTL_SEND_BUSY |
-	       DP_AUX_CH_CTL_TIME_OUT_1600us |
-	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-	       (5 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
-	       (133 << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
-	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
-	       DP_AUX_CH_CTL_RECEIVE_ERROR);
-
-	/* Send the command and wait for it to complete */
-	I915_WRITE(ch_ctl, ctl);
-	(void) I915_READ(ch_ctl);
-	for (;;) {
-		udelay(100);
-		status = I915_READ(ch_ctl);
-		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+	aux_clock_divider = intel_hrawclk(dev) / 2;
+	/* Must try at least 3 times according to DP spec */
+	for (try = 0; try < 5; try++) {
+		/* Load the send data into the aux channel data registers */
+		for (i = 0; i < send_bytes; i += 4) {
+			uint32_t    d = pack_aux(send + i, send_bytes - i);;
+	
+			I915_WRITE(ch_data + i, d);
+		}
+	
+		ctl = (DP_AUX_CH_CTL_SEND_BUSY |
+		       DP_AUX_CH_CTL_TIME_OUT_400us |
+		       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+		       (5 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+		       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
+		       DP_AUX_CH_CTL_DONE |
+		       DP_AUX_CH_CTL_TIME_OUT_ERROR |
+		       DP_AUX_CH_CTL_RECEIVE_ERROR);
+	
+		/* Send the command and wait for it to complete */
+		I915_WRITE(ch_ctl, ctl);
+		(void) I915_READ(ch_ctl);
+		for (;;) {
+			udelay(100);
+			status = I915_READ(ch_ctl);
+			if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+				break;
+		}
+	
+		/* Clear done status and any errors */
+		I915_WRITE(ch_ctl, (ctl |
+				DP_AUX_CH_CTL_DONE |
+				DP_AUX_CH_CTL_TIME_OUT_ERROR |
+				DP_AUX_CH_CTL_RECEIVE_ERROR));
+		(void) I915_READ(ch_ctl);
+		if ((status & DP_AUX_CH_CTL_TIME_OUT_ERROR) == 0)
 			break;
 	}
-
-	/* Clear done status and any errors */
-	I915_WRITE(ch_ctl, (ctl |
-			DP_AUX_CH_CTL_DONE |
-			DP_AUX_CH_CTL_TIME_OUT_ERROR |
-			DP_AUX_CH_CTL_RECEIVE_ERROR));
-	(void) I915_READ(ch_ctl);
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
 		printk(KERN_ERR "dp_aux_ch not done status 0x%08x\n", status);
