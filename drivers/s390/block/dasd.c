@@ -2427,12 +2427,12 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 
 int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
-				void **rdc_buffer, int rdc_buffer_size)
+				void *rdc_buffer, int rdc_buffer_size)
 {
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, *rdc_buffer, rdc_buffer_size,
+	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
 				     magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);

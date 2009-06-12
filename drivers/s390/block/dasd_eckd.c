@@ -1097,20 +1097,20 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
-	void *rdc_data;
 	int is_known, rc;
 
 	private = (struct dasd_eckd_private *) device->private;
-	if (private == NULL) {
-		private = kzalloc(sizeof(struct dasd_eckd_private),
-				  GFP_KERNEL | GFP_DMA);
-		if (private == NULL) {
+	if (!private) {
+		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD data "
 				 "failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
+	} else {
+		memset(private, 0, sizeof(*private));
 	}
 	/* Invalidate status of initial analysis. */
 	private->init_cqr_status = -1;
@@ -1161,9 +1161,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		goto out_err3;
 
 	/* Read Device Characteristics */
-	rdc_data = (void *) &(private->rdc_data);
-	memset(rdc_data, 0, sizeof(rdc_data));
-	rc = dasd_generic_read_dev_chars(device, "ECKD", &rdc_data, 64);
+	rc = dasd_generic_read_dev_chars(device, "ECKD", &private->rdc_data,
+					 64);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING,
 			  "Read device characteristics failed, rc=%d for "
@@ -1183,7 +1182,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		 private->rdc_data.dev_model,
 		 private->rdc_data.cu_type,
 		 private->rdc_data.cu_model.model,
-		    private->real_cyl,
+		 private->real_cyl,
 		 private->rdc_data.trk_per_cyl,
 		 private->rdc_data.sec_per_trk);
 	return 0;

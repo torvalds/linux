@@ -578,7 +578,7 @@ int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_handle_state_change(struct dasd_device *);
 
-int dasd_generic_read_dev_chars(struct dasd_device *, char *, void **, int);
+int dasd_generic_read_dev_chars(struct dasd_device *, char *, void *, int);
 char *dasd_get_sense(struct irb *);
 
 /* externals in dasd_devmap.c */
