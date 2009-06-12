@@ -764,7 +764,6 @@ void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	}
 	gfs2_log_unlock(sdp);
 
-	sdp->sd_vfs->s_dirt = 0;
 	up_write(&sdp->sd_log_flush_lock);
 
 	kfree(ai);
@@ -823,7 +822,6 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	log_refund(sdp, tr);
 	buf_lo_incore_commit(sdp, tr);
 
-	sdp->sd_vfs->s_dirt = 1;
 	up_read(&sdp->sd_log_flush_lock);
 
 	gfs2_log_lock(sdp);

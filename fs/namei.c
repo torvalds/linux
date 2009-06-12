@@ -552,6 +552,17 @@ static __always_inline int link_path_walk(const char *name, struct nameidata *nd
 	return result;
 }
 
+static __always_inline void set_root(struct nameidata *nd)
+{
+	if (!nd->root.mnt) {
+		struct fs_struct *fs = current->fs;
+		read_lock(&fs->lock);
+		nd->root = fs->root;
+		path_get(&nd->root);
+		read_unlock(&fs->lock);
+	}
+}
+
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
 	int res = 0;
@@ -560,14 +571,10 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		goto fail;
 
 	if (*link == '/') {
-		struct fs_struct *fs = current->fs;
-
+		set_root(nd);
 		path_put(&nd->path);
-
-		read_lock(&fs->lock);
-		nd->path = fs->root;
-		path_get(&fs->root);
-		read_unlock(&fs->lock);
+		nd->path = nd->root;
+		path_get(&nd->root);
 	}
 
 	res = link_path_walk(link, nd);
@@ -668,23 +675,23 @@ loop:
 	return err;
 }
 
-int follow_up(struct vfsmount **mnt, struct dentry **dentry)
+int follow_up(struct path *path)
 {
 	struct vfsmount *parent;
 	struct dentry *mountpoint;
 	spin_lock(&vfsmount_lock);
-	parent=(*mnt)->mnt_parent;
-	if (parent == *mnt) {
+	parent = path->mnt->mnt_parent;
+	if (parent == path->mnt) {
 		spin_unlock(&vfsmount_lock);
 		return 0;
 	}
 	mntget(parent);
-	mountpoint=dget((*mnt)->mnt_mountpoint);
+	mountpoint = dget(path->mnt->mnt_mountpoint);
 	spin_unlock(&vfsmount_lock);
-	dput(*dentry);
-	*dentry = mountpoint;
-	mntput(*mnt);
-	*mnt = parent;
+	dput(path->dentry);
+	path->dentry = mountpoint;
+	mntput(path->mnt);
+	path->mnt = parent;
 	return 1;
 }
 
@@ -695,7 +702,7 @@ static int __follow_mount(struct path *path)
 {
 	int res = 0;
 	while (d_mountpoint(path->dentry)) {
-		struct vfsmount *mounted = lookup_mnt(path->mnt, path->dentry);
+		struct vfsmount *mounted = lookup_mnt(path);
 		if (!mounted)
 			break;
 		dput(path->dentry);
@@ -708,32 +715,32 @@ static int __follow_mount(struct path *path)
 	return res;
 }
 
-static void follow_mount(struct vfsmount **mnt, struct dentry **dentry)
+static void follow_mount(struct path *path)
 {
-	while (d_mountpoint(*dentry)) {
-		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
+	while (d_mountpoint(path->dentry)) {
+		struct vfsmount *mounted = lookup_mnt(path);
 		if (!mounted)
 			break;
-		dput(*dentry);
-		mntput(*mnt);
-		*mnt = mounted;
-		*dentry = dget(mounted->mnt_root);
+		dput(path->dentry);
+		mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
 	}
 }
 
 /* no need for dcache_lock, as serialization is taken care in
  * namespace.c
  */
-int follow_down(struct vfsmount **mnt, struct dentry **dentry)
+int follow_down(struct path *path)
 {
 	struct vfsmount *mounted;
 
-	mounted = lookup_mnt(*mnt, *dentry);
+	mounted = lookup_mnt(path);
 	if (mounted) {
-		dput(*dentry);
-		mntput(*mnt);
-		*mnt = mounted;
-		*dentry = dget(mounted->mnt_root);
+		dput(path->dentry);
+		mntput(path->mnt);
+		path->mnt = mounted;
+		path->dentry = dget(mounted->mnt_root);
 		return 1;
 	}
 	return 0;
@@ -741,19 +748,16 @@ int follow_down(struct vfsmount **mnt, struct dentry **dentry)
 
 static __always_inline void follow_dotdot(struct nameidata *nd)
 {
-	struct fs_struct *fs = current->fs;
+	set_root(nd);
 
 	while(1) {
 		struct vfsmount *parent;
 		struct dentry *old = nd->path.dentry;
 
-                read_lock(&fs->lock);
-		if (nd->path.dentry == fs->root.dentry &&
-		    nd->path.mnt == fs->root.mnt) {
-                        read_unlock(&fs->lock);
+		if (nd->path.dentry == nd->root.dentry &&
+		    nd->path.mnt == nd->root.mnt) {
 			break;
 		}
-                read_unlock(&fs->lock);
 		spin_lock(&dcache_lock);
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			nd->path.dentry = dget(nd->path.dentry->d_parent);
@@ -775,7 +779,7 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 		mntput(nd->path.mnt);
 		nd->path.mnt = parent;
 	}
-	follow_mount(&nd->path.mnt, &nd->path.dentry);
+	follow_mount(&nd->path);
 }
 
 /*
@@ -1017,25 +1021,23 @@ static int path_walk(const char *name, struct nameidata *nd)
 	return link_path_walk(name, nd);
 }
 
-/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int do_path_lookup(int dfd, const char *name,
-				unsigned int flags, struct nameidata *nd)
+static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
 	int fput_needed;
 	struct file *file;
-	struct fs_struct *fs = current->fs;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
 	nd->depth = 0;
+	nd->root.mnt = NULL;
 
 	if (*name=='/') {
-		read_lock(&fs->lock);
-		nd->path = fs->root;
-		path_get(&fs->root);
-		read_unlock(&fs->lock);
+		set_root(nd);
+		nd->path = nd->root;
+		path_get(&nd->root);
 	} else if (dfd == AT_FDCWD) {
+		struct fs_struct *fs = current->fs;
 		read_lock(&fs->lock);
 		nd->path = fs->pwd;
 		path_get(&fs->pwd);
@@ -1063,17 +1065,29 @@ static int do_path_lookup(int dfd, const char *name,
 
 		fput_light(file, fput_needed);
 	}
-
-	retval = path_walk(name, nd);
-	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
-				nd->path.dentry->d_inode))
-		audit_inode(name, nd->path.dentry);
-out_fail:
-	return retval;
+	return 0;
 
 fput_fail:
 	fput_light(file, fput_needed);
-	goto out_fail;
+out_fail:
+	return retval;
+}
+
+/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
+static int do_path_lookup(int dfd, const char *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	int retval = path_init(dfd, name, flags, nd);
+	if (!retval)
+		retval = path_walk(name, nd);
+	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
+				nd->path.dentry->d_inode))
+		audit_inode(name, nd->path.dentry);
+	if (nd->root.mnt) {
+		path_put(&nd->root);
+		nd->root.mnt = NULL;
+	}
+	return retval;
 }
 
 int path_lookup(const char *name, unsigned int flags,
@@ -1113,14 +1127,18 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	nd->path.dentry = dentry;
 	nd->path.mnt = mnt;
 	path_get(&nd->path);
+	nd->root = nd->path;
+	path_get(&nd->root);
 
 	retval = path_walk(name, nd);
 	if (unlikely(!retval && !audit_dummy_context() && nd->path.dentry &&
 				nd->path.dentry->d_inode))
 		audit_inode(name, nd->path.dentry);
 
-	return retval;
+	path_put(&nd->root);
+	nd->root.mnt = NULL;
 
+	return retval;
 }
 
 /**
@@ -1676,9 +1694,14 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/*
 	 * Create - we need to know the parent.
 	 */
-	error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
+	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
+	error = path_walk(pathname, &nd);
+	if (error)
+		return ERR_PTR(error);
+	if (unlikely(!audit_dummy_context()))
+		audit_inode(pathname, nd.path.dentry);
 
 	/*
 	 * We have the parent and last component. First of all, check
@@ -1806,6 +1829,8 @@ exit:
 	if (!IS_ERR(nd.intent.open.file))
 		release_open_intent(&nd);
 exit_parent:
+	if (nd.root.mnt)
+		path_put(&nd.root);
 	path_put(&nd.path);
 	return ERR_PTR(error);
 

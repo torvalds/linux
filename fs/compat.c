@@ -812,10 +812,8 @@ asmlinkage long compat_sys_mount(char __user * dev_name, char __user * dir_name,
 		}
 	}
 
-	lock_kernel();
 	retval = do_mount((char*)dev_page, dir_page, (char*)type_page,
 			flags, (void*)data_page);
-	unlock_kernel();
 
  out4:
 	free_page(data_page);
