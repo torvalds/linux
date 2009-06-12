@@ -155,9 +155,8 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
 	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
-	if (!(elp_reg & ELPCTRL_WLAN_READY)) {
+	if (!(elp_reg & ELPCTRL_WLAN_READY))
 		wl1251_warning("WLAN not ready");
-	}
 }
 
 static int wl1251_chip_wakeup(struct wl1251 *wl)
