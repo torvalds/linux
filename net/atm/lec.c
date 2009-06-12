@@ -270,7 +270,8 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk("%s:No lecd attached\n", dev->name);
 		dev->stats.tx_errors++;
 		netif_stop_queue(dev);
-		return -EUNATCH;
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	pr_debug("skbuff head:%lx data:%lx tail:%lx end:%lx\n",
