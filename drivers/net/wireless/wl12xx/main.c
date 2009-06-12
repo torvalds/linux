@@ -957,10 +957,14 @@ static int wl12xx_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	struct wl12xx *wl = hw->priv;
 	int ret;
 
+	mutex_lock(&wl->mutex);
+
 	ret = wl12xx_acx_rts_threshold(wl, (u16) value);
 
 	if (ret < 0)
 		wl12xx_warning("wl12xx_op_set_rts_threshold failed: %d", ret);
+
+	mutex_unlock(&wl->mutex);
 
 	return ret;
 }
