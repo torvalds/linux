@@ -397,7 +397,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
 				 unsigned int direct, unsigned int do_csum)
 {
 	int ret;
-	size_t chunk_len = ALIGN(__chunk_len, I2400M_PL_PAD);
+	size_t chunk_len = ALIGN(__chunk_len, I2400M_PL_ALIGN);
 	struct device *dev = i2400m_dev(i2400m);
 	struct {
 		struct i2400m_bootrom_header cmd;
@@ -532,14 +532,14 @@ int i2400m_dnload_finalize(struct i2400m *i2400m,
 	cmd = (void *) bcf + offset;
 	if (i2400m->sboot == 0) {
 		struct i2400m_bootrom_header jump_ack;
-		d_printf(3, dev, "unsecure boot, jumping to 0x%08x\n",
+		d_printf(1, dev, "unsecure boot, jumping to 0x%08x\n",
 			le32_to_cpu(cmd->target_addr));
 		i2400m_brh_set_opcode(cmd, I2400M_BRH_JUMP);
 		cmd->data_size = 0;
 		ret = i2400m_bm_cmd(i2400m, cmd, sizeof(*cmd),
 				    &jump_ack, sizeof(jump_ack), 0);
 	} else {
-		d_printf(3, dev, "secure boot, jumping to 0x%08x\n",
+		d_printf(1, dev, "secure boot, jumping to 0x%08x\n",
 			 le32_to_cpu(cmd->target_addr));
 		cmd_buf = i2400m->bm_cmd_buf;
 		memcpy(&cmd_buf->cmd, cmd, sizeof(*cmd));
@@ -696,8 +696,7 @@ error_dev_gone:
 	return result;
 
 error_timeout:
-	dev_err(dev, "Timed out waiting for reboot ack, resetting\n");
-	i2400m->bus_reset(i2400m, I2400M_RT_BUS);
+	dev_err(dev, "Timed out waiting for reboot ack\n");
 	result = -ETIMEDOUT;
 	goto exit_timeout;
 }
@@ -770,40 +769,21 @@ error_read_mac:
 static
 int i2400m_dnload_init_nonsigned(struct i2400m *i2400m)
 {
-#define POKE(a, d) {					\
-	.address = cpu_to_le32(a),		\
-	.data = cpu_to_le32(d)		\
-}
-	static const struct {
-		__le32 address;
-		__le32 data;
-	} i2400m_pokes[] = {
-		POKE(0x081A58, 0xA7810230),
-		POKE(0x080040, 0x00000000),
-		POKE(0x080048, 0x00000082),
-		POKE(0x08004C, 0x0000081F),
-		POKE(0x080054, 0x00000085),
-		POKE(0x080058, 0x00000180),
-		POKE(0x08005C, 0x00000018),
-		POKE(0x080060, 0x00000010),
-		POKE(0x080574, 0x00000001),
-		POKE(0x080550, 0x00000005),
-		POKE(0xAE0000, 0x00000000),
-	};
-#undef POKE
-	unsigned i;
-	int ret;
+	unsigned i = 0;
+	int ret = 0;
 	struct device *dev = i2400m_dev(i2400m);
-
-	dev_warn(dev, "WARNING!!! non-signed boot UNTESTED PATH!\n");
-
 	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
-	for (i = 0; i < ARRAY_SIZE(i2400m_pokes); i++) {
-		ret = i2400m_download_chunk(i2400m, &i2400m_pokes[i].data,
-					    sizeof(i2400m_pokes[i].data),
-					    i2400m_pokes[i].address, 1, 1);
-		if (ret < 0)
-			break;
+	if (i2400m->bus_bm_pokes_table) {
+		while (i2400m->bus_bm_pokes_table[i].address) {
+			ret = i2400m_download_chunk(
+				i2400m,
+				&i2400m->bus_bm_pokes_table[i].data,
+				sizeof(i2400m->bus_bm_pokes_table[i].data),
+				i2400m->bus_bm_pokes_table[i].address, 1, 1);
+			if (ret < 0)
+				break;
+			i++;
+		}
 	}
 	d_fnend(5, dev, "(i2400m %p) = %d\n", i2400m, ret);
 	return ret;
@@ -980,11 +960,12 @@ int i2400m_fw_dnload(struct i2400m *i2400m, const struct i2400m_bcf_hdr *bcf,
 {
 	int ret = 0;
 	struct device *dev = i2400m_dev(i2400m);
-	int count = I2400M_BOOT_RETRIES;
+	int count = i2400m->bus_bm_retries;
 
 	d_fnstart(5, dev, "(i2400m %p bcf %p size %zu)\n",
 		  i2400m, bcf, bcf_size);
 	i2400m->boot_mode = 1;
+	wmb();		/* Make sure other readers see it */
 hw_reboot:
 	if (count-- == 0) {
 		ret = -ERESTARTSYS;
@@ -1033,6 +1014,7 @@ hw_reboot:
 	d_printf(2, dev, "fw %s successfully uploaded\n",
 		 i2400m->fw_name);
 	i2400m->boot_mode = 0;
+	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 error_dnload_finalize:
 error_dnload_bcf:
 error_dnload_init:

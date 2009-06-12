@@ -113,7 +113,8 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
 
-		rfkill_set_hw_state(wimax_dev->rfkill, state == WIMAX_RF_OFF);
+		result = rfkill_set_hw_state(wimax_dev->rfkill,
+					     state == WIMAX_RF_OFF);
 
 		__wimax_state_change(wimax_dev, wimax_state);
 	}
