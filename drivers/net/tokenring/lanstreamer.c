@@ -1187,7 +1187,7 @@ static int streamer_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 	        netif_stop_queue(dev);
 	        spin_unlock_irqrestore(&streamer_priv->streamer_lock,flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 }
 

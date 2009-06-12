@@ -1097,7 +1097,7 @@ again:
 	if (unlikely(dev->CFG_cache & CFG_LNKSTS)) {
 		netif_stop_queue(ndev);
 		if (unlikely(dev->CFG_cache & CFG_LNKSTS))
-			return 1;
+			return NETDEV_TX_BUSY;
 		netif_start_queue(ndev);
 	}
 
@@ -1115,7 +1115,7 @@ again:
 			netif_start_queue(ndev);
 			goto again;
 		}
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (free_idx == dev->tx_intr_idx) {

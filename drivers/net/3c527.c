@@ -1030,7 +1030,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	if(atomic_read(&lp->tx_count)==0) {
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (skb_padto(skb, ETH_ZLEN)) {

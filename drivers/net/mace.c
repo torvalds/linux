@@ -547,7 +547,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	mp->tx_fullup = 1;
 	spin_unlock_irqrestore(&mp->lock, flags);
-	return 1;		/* can't take it at the moment */
+	return NETDEV_TX_BUSY;		/* can't take it at the moment */
     }
     spin_unlock_irqrestore(&mp->lock, flags);
 

@@ -531,7 +531,7 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	case (TXBF0 | TXBF1): /* NONE!!! */
 		printk(KERN_WARNING "%s: No tx-buffer available!\n", dev->name);
 		spin_unlock_irqrestore(&de620_lock, flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	de620_write_block(dev, buffer, skb->len, len-skb->len);
 

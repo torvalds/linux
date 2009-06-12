@@ -957,7 +957,7 @@ static int depca_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (TX_BUFFS_AVAIL)
 			netif_start_queue(dev);
 	} else
-		status = -1;
+		status = NETDEV_TX_LOCKED;
 
       out:
 	return status;
@@ -1839,7 +1839,7 @@ static int load_packet(struct net_device *dev, struct sk_buff *skb)
 
 		lp->tx_new = (++end) & lp->txRingMask;	/* update current pointers */
 	} else {
-		status = -1;
+		status = NETDEV_TX_LOCKED;
 	}
 
 	return status;

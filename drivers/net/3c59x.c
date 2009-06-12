@@ -2107,7 +2107,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			pr_warning("%s: BUG! Tx Ring full, refusing to send buffer.\n",
 				   dev->name);
 		netif_stop_queue(dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	vp->tx_skbuff[entry] = skb;

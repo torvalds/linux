@@ -168,14 +168,14 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (free_tx_pages <= 0) {	/* Do timeouts, to avoid hangs. */
 		tickssofar = jiffies - dev->trans_start;
 		if (tickssofar < 5)
-			return 1;
+			return NETDEV_TX_BUSY;
 		/* else */
 		printk(KERN_WARNING "%s: transmit timed out (%d), %s?\n", dev->name, tickssofar, "network cable problem");
 		/* Restart the adapter. */
 		spin_lock_irqsave(&de600_lock, flags);
 		if (adapter_init(dev)) {
 			spin_unlock_irqrestore(&de600_lock, flags);
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 		spin_unlock_irqrestore(&de600_lock, flags);
 	}
@@ -199,7 +199,7 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (was_down || (de600_read_byte(READ_DATA, dev) != 0xde)) {
 			if (adapter_init(dev)) {
 				spin_unlock_irqrestore(&de600_lock, flags);
-				return 1;
+				return NETDEV_TX_BUSY;
 			}
 		}
 	}

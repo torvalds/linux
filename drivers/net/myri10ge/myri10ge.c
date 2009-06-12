@@ -2687,7 +2687,7 @@ again:
 		/* we are out of transmit resources */
 		tx->stop_queue++;
 		netif_tx_stop_queue(netdev_queue);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Setup checksum offloading, if needed */

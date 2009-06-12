@@ -1280,7 +1280,7 @@ static int hamachi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		status=readw(hmp->base + TxStatus);
 		if( !(status & 0x0001) || (status & 0x0002))
 			writew(0x0001, hmp->base + TxCmd);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Caution: the write order is important here, set the field

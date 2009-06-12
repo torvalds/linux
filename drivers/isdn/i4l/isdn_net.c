@@ -1069,7 +1069,7 @@ isdn_net_xmit(struct net_device *ndev, struct sk_buff *skb)
 	lp = isdn_net_get_locked_lp(nd);
 	if (!lp) {
 		printk(KERN_WARNING "%s: all channels busy - requeuing!\n", ndev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	/* we have our lp locked from now on */
 
@@ -1273,14 +1273,14 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 					spin_unlock_irqrestore(&dev->lock, flags);
 					isdn_net_dial();	/* Initiate dialing */
 					netif_stop_queue(ndev);
-					return 1;	/* let upper layer requeue skb packet */
+					return NETDEV_TX_BUSY;	/* let upper layer requeue skb packet */
 				}
 #endif
 				/* Initiate dialing */
 				spin_unlock_irqrestore(&dev->lock, flags);
 				isdn_net_dial();
 				isdn_net_device_stop_queue(lp);
-				return 1;
+				return NETDEV_TX_BUSY;
 			} else {
 				isdn_net_unreachable(ndev, skb,
 						     "No phone number");

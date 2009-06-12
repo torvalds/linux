@@ -612,7 +612,7 @@ static int de_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	if (tx_free == 0) {
 		netif_stop_queue(dev);
 		spin_unlock_irq(&de->lock);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	tx_free--;
 

@@ -526,7 +526,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	if (netif_queue_stopped(dev)) {
 		int tickssofar = jiffies - dev->trans_start;
 		if (tickssofar < 20)
-			return( 1 );
+			return NETDEV_TX_BUSY;
 
 		DPRINTK( 1, ( "%s: transmit timed out, status %04x, resetting.\n",
 					  dev->name, DREG ));
@@ -577,7 +577,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	if (test_and_set_bit( 0, (void*)&lp->lock ) != 0) {
 		printk( "%s: tx queue lock!.\n", dev->name);
 		/* don't clear dev->tbusy flag. */
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	AREG = CSR0;

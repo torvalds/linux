@@ -645,7 +645,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			"BUG! Tx Ring full when queue awake!\n");
 		dev_dbg(&bp->pdev->dev, "tx_head = %u, tx_tail = %u\n",
 			bp->tx_head, bp->tx_tail);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	entry = bp->tx_head;

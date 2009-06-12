@@ -756,7 +756,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&cp->lock, intr_flags);
 		pr_err(PFX "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 #if CP_VLAN_TAG_USED

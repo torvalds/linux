@@ -2084,7 +2084,7 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	dev->trans_start = jiffies;

@@ -512,13 +512,13 @@ static int au1k_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: tx_full\n", dev->name);
 		netif_stop_queue(dev);
 		aup->tx_full = 1;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	else if (((aup->tx_head + 1) & (NUM_IR_DESC - 1)) == aup->tx_tail) {
 		printk(KERN_DEBUG "%s: tx_full\n", dev->name);
 		netif_stop_queue(dev);
 		aup->tx_full = 1;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	pDB = aup->tx_db_inuse[aup->tx_head];

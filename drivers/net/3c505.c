@@ -1088,7 +1088,7 @@ static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			pr_debug("%s: failed to transmit packet\n", dev->name);
 		}
 		spin_unlock_irqrestore(&adapter->lock, flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	if (elp_debug >= 3)
 		pr_debug("%s: packet of length %d sent\n", dev->name, (int) skb->len);

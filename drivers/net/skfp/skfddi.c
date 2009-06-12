@@ -1082,7 +1082,7 @@ static int skfp_send_pkt(struct sk_buff *skb, struct net_device *dev)
 	if (bp->QueueSkb == 0) {	// return with tbusy set: queue full
 
 		netif_stop_queue(dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	bp->QueueSkb--;
 	skb_queue_tail(&bp->SendSkbQueue, skb);

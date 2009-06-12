@@ -338,7 +338,7 @@ restart:
 
 	if (busy) {
 		netif_stop_queue(dev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	dev->stats.tx_errors++;
 

@@ -1055,7 +1055,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	} else {
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	} 
 
 }

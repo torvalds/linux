@@ -1540,7 +1540,7 @@ static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "%s: xmit call when iface is down\n",
 		       dev->name);
-		return (1);
+		return NETDEV_TX_BUSY;
 	}
 
 	netif_stop_queue(dev);

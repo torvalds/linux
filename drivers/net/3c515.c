@@ -1014,7 +1014,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 		int i;
 
 		if (vp->tx_full)	/* No room to transmit with */
-			return 1;
+			return NETDEV_TX_BUSY;
 		if (vp->cur_tx != 0)
 			prev_entry = &vp->tx_ring[(vp->cur_tx - 1) % TX_RING_SIZE];
 		else

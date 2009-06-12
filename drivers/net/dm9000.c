@@ -756,7 +756,7 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dm9000_dbg(db, 3, "%s:\n", __func__);
 
 	if (db->tx_pkt_cnt > 1)
-		return 1;
+		return NETDEV_TX_BUSY;
 
 	spin_lock_irqsave(&db->lock, flags);
 

@@ -1716,7 +1716,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* This is a hard error - log it. */
 		DPRINTK(TX_ERR, DEBUG, "Out of Tx resources, returning skb\n");
 		netif_stop_queue(netdev);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	netdev->trans_start = jiffies;

@@ -1108,7 +1108,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		if (!sh_eth_txfree(ndev)) {
 			netif_stop_queue(ndev);
 			spin_unlock_irqrestore(&mdp->lock, flags);
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 	}
 	spin_unlock_irqrestore(&mdp->lock, flags);
