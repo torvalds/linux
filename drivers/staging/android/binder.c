@@ -1270,7 +1270,73 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 
 static void binder_transaction_buffer_release(struct binder_proc *proc,
 					      struct binder_buffer *buffer,
-					      size_t *failed_at);
+					      size_t *failed_at)
+{
+	size_t *offp, *off_end;
+	int debug_id = buffer->debug_id;
+
+	binder_debug(BINDER_DEBUG_TRANSACTION,
+		     "binder: %d buffer release %d, size %zd-%zd, failed at %p\n",
+		     proc->pid, buffer->debug_id,
+		     buffer->data_size, buffer->offsets_size, failed_at);
+
+	if (buffer->target_node)
+		binder_dec_node(buffer->target_node, 1, 0);
+
+	offp = (size_t *)(buffer->data + ALIGN(buffer->data_size, sizeof(void *)));
+	if (failed_at)
+		off_end = failed_at;
+	else
+		off_end = (void *)offp + buffer->offsets_size;
+	for (; offp < off_end; offp++) {
+		struct flat_binder_object *fp;
+		if (*offp > buffer->data_size - sizeof(*fp) ||
+		    buffer->data_size < sizeof(*fp) ||
+		    !IS_ALIGNED(*offp, sizeof(void *))) {
+			printk(KERN_ERR "binder: transaction release %d bad"
+					"offset %zd, size %zd\n", debug_id, *offp, buffer->data_size);
+			continue;
+		}
+		fp = (struct flat_binder_object *)(buffer->data + *offp);
+		switch (fp->type) {
+		case BINDER_TYPE_BINDER:
+		case BINDER_TYPE_WEAK_BINDER: {
+			struct binder_node *node = binder_get_node(proc, fp->binder);
+			if (node == NULL) {
+				printk(KERN_ERR "binder: transaction release %d bad node %p\n", debug_id, fp->binder);
+				break;
+			}
+			binder_debug(BINDER_DEBUG_TRANSACTION,
+				     "        node %d u%p\n",
+				     node->debug_id, node->ptr);
+			binder_dec_node(node, fp->type == BINDER_TYPE_BINDER, 0);
+		} break;
+		case BINDER_TYPE_HANDLE:
+		case BINDER_TYPE_WEAK_HANDLE: {
+			struct binder_ref *ref = binder_get_ref(proc, fp->handle);
+			if (ref == NULL) {
+				printk(KERN_ERR "binder: transaction release %d bad handle %ld\n", debug_id, fp->handle);
+				break;
+			}
+			binder_debug(BINDER_DEBUG_TRANSACTION,
+				     "        ref %d desc %d (node %d)\n",
+				     ref->debug_id, ref->desc, ref->node->debug_id);
+			binder_dec_ref(ref, fp->type == BINDER_TYPE_HANDLE);
+		} break;
+
+		case BINDER_TYPE_FD:
+			binder_debug(BINDER_DEBUG_TRANSACTION,
+				     "        fd %ld\n", fp->handle);
+			if (failed_at)
+				task_close_fd(proc, fp->handle);
+			break;
+
+		default:
+			printk(KERN_ERR "binder: transaction release %d bad object type %lx\n", debug_id, fp->type);
+			break;
+		}
+	}
+}
 
 static void binder_transaction(struct binder_proc *proc,
 			       struct binder_thread *thread,
@@ -1677,76 +1743,6 @@ err_no_context_mgr_node:
 		binder_send_failed_reply(in_reply_to, return_error);
 	} else
 		thread->return_error = return_error;
-}
-
-static void binder_transaction_buffer_release(struct binder_proc *proc,
-					      struct binder_buffer *buffer,
-					      size_t *failed_at)
-{
-	size_t *offp, *off_end;
-	int debug_id = buffer->debug_id;
-
-	binder_debug(BINDER_DEBUG_TRANSACTION,
-		     "binder: %d buffer release %d, size %zd-%zd, failed at %p\n",
-		     proc->pid, buffer->debug_id,
-		     buffer->data_size, buffer->offsets_size, failed_at);
-
-	if (buffer->target_node)
-		binder_dec_node(buffer->target_node, 1, 0);
-
-	offp = (size_t *)(buffer->data + ALIGN(buffer->data_size, sizeof(void *)));
-	if (failed_at)
-		off_end = failed_at;
-	else
-		off_end = (void *)offp + buffer->offsets_size;
-	for (; offp < off_end; offp++) {
-		struct flat_binder_object *fp;
-		if (*offp > buffer->data_size - sizeof(*fp) ||
-		    buffer->data_size < sizeof(*fp) ||
-		    !IS_ALIGNED(*offp, sizeof(void *))) {
-			printk(KERN_ERR "binder: transaction release %d bad"
-					"offset %zd, size %zd\n", debug_id, *offp, buffer->data_size);
-			continue;
-		}
-		fp = (struct flat_binder_object *)(buffer->data + *offp);
-		switch (fp->type) {
-		case BINDER_TYPE_BINDER:
-		case BINDER_TYPE_WEAK_BINDER: {
-			struct binder_node *node = binder_get_node(proc, fp->binder);
-			if (node == NULL) {
-				printk(KERN_ERR "binder: transaction release %d bad node %p\n", debug_id, fp->binder);
-				break;
-			}
-			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        node %d u%p\n",
-				     node->debug_id, node->ptr);
-			binder_dec_node(node, fp->type == BINDER_TYPE_BINDER, 0);
-		} break;
-		case BINDER_TYPE_HANDLE:
-		case BINDER_TYPE_WEAK_HANDLE: {
-			struct binder_ref *ref = binder_get_ref(proc, fp->handle);
-			if (ref == NULL) {
-				printk(KERN_ERR "binder: transaction release %d bad handle %ld\n", debug_id, fp->handle);
-				break;
-			}
-			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        ref %d desc %d (node %d)\n",
-				     ref->debug_id, ref->desc, ref->node->debug_id);
-			binder_dec_ref(ref, fp->type == BINDER_TYPE_HANDLE);
-		} break;
-
-		case BINDER_TYPE_FD:
-			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        fd %ld\n", fp->handle);
-			if (failed_at)
-				task_close_fd(proc, fp->handle);
-			break;
-
-		default:
-			printk(KERN_ERR "binder: transaction release %d bad object type %lx\n", debug_id, fp->type);
-			break;
-		}
-	}
 }
 
 int binder_thread_write(struct binder_proc *proc, struct binder_thread *thread,
