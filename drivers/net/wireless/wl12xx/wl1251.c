@@ -401,6 +401,7 @@ static void wl1251_irq_work(struct work_struct *work)
 	u32 intr;
 	struct wl12xx *wl =
 		container_of(work, struct wl12xx, irq_work);
+	int ret;
 
 	mutex_lock(&wl->mutex);
 
@@ -409,7 +410,9 @@ static void wl1251_irq_work(struct work_struct *work)
 	if (wl->state == WL12XX_STATE_OFF)
 		goto out;
 
-	wl12xx_ps_elp_wakeup(wl);
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
 
@@ -489,6 +492,7 @@ static void wl1251_irq_work(struct work_struct *work)
 
 out_sleep:
 	wl12xx_ps_elp_sleep(wl);
+
 out:
 	mutex_unlock(&wl->mutex);
 }

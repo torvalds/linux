@@ -239,14 +239,18 @@ static void wl12xx_filter_work(struct work_struct *work)
 	if (wl->state == WL12XX_STATE_OFF)
 		goto out;
 
-	wl12xx_ps_elp_wakeup(wl);
-
-	ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	ret = wl12xx_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-out:
+	ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
 	wl12xx_ps_elp_sleep(wl);
+
+out:
 	mutex_unlock(&wl->mutex);
 }
 
@@ -524,20 +528,22 @@ static int wl12xx_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&wl->mutex);
 
-	wl12xx_ps_elp_wakeup(wl);
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	if (channel != wl->channel) {
 		/* FIXME: use beacon interval provided by mac80211 */
 		ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
 		if (ret < 0)
-			goto out;
+			goto out_sleep;
 
 		wl->channel = channel;
 	}
 
 	ret = wl12xx_build_null_data(wl);
 	if (ret < 0)
-		goto out;
+		goto out_sleep;
 
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl12xx_info("psm enabled");
@@ -568,9 +574,12 @@ static int wl12xx_op_config(struct ieee80211_hw *hw, u32 changed)
 		wl->power_level = conf->power_level;
 	}
 
-out:
+out_sleep:
 	wl12xx_ps_elp_sleep(wl);
+
+out:
 	mutex_unlock(&wl->mutex);
+
 	return ret;
 }
 
@@ -708,7 +717,9 @@ static int wl12xx_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&wl->mutex);
 
-	wl12xx_ps_elp_wakeup(wl);
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
 
 	switch (cmd) {
 	case SET_KEY:
@@ -725,7 +736,7 @@ static int wl12xx_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	ret = wl12xx_set_key_type(wl, wl_cmd, cmd, key, addr);
 	if (ret < 0) {
 		wl12xx_error("Set KEY type failed");
-		goto out_unlock;
+		goto out_sleep;
 	}
 
 	if (wl_cmd->key_type != KEY_WEP_DEFAULT)
@@ -756,11 +767,13 @@ static int wl12xx_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	ret = wl12xx_cmd_send(wl, CMD_SET_KEYS, wl_cmd, sizeof(*wl_cmd));
 	if (ret < 0) {
 		wl12xx_warning("could not set keys");
-		goto out_unlock;
+		goto out_sleep;
 	}
 
-out_unlock:
+out_sleep:
 	wl12xx_ps_elp_sleep(wl);
+
+out_unlock:
 	mutex_unlock(&wl->mutex);
 
 out:
@@ -955,11 +968,16 @@ static int wl12xx_op_hw_scan(struct ieee80211_hw *hw,
 	}
 
 	mutex_lock(&wl->mutex);
-	wl12xx_ps_elp_wakeup(wl);
+
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wl12xx_hw_scan(hw->priv, ssid, ssid_len, 1, 0, 13, 3);
 
 	wl12xx_ps_elp_sleep(wl);
+
+out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
@@ -972,15 +990,17 @@ static int wl12xx_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	mutex_lock(&wl->mutex);
 
-	wl12xx_ps_elp_wakeup(wl);
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wl12xx_acx_rts_threshold(wl, (u16) value);
-
 	if (ret < 0)
 		wl12xx_warning("wl12xx_op_set_rts_threshold failed: %d", ret);
 
 	wl12xx_ps_elp_sleep(wl);
 
+out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
@@ -1000,7 +1020,9 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
-	wl12xx_ps_elp_wakeup(wl);
+	ret = wl12xx_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
@@ -1008,18 +1030,18 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			ret = wl12xx_build_ps_poll(wl, wl->aid);
 			if (ret < 0)
-				goto out;
+				goto out_sleep;
 
 			ret = wl12xx_acx_aid(wl, wl->aid);
 			if (ret < 0)
-				goto out;
+				goto out_sleep;
 
 			/* If we want to go in PSM but we're not there yet */
 			if (wl->psm_requested && !wl->psm) {
 				mode = STATION_POWER_SAVE_MODE;
 				ret = wl12xx_ps_set_mode(wl, mode);
 				if (ret < 0)
-					goto out;
+					goto out_sleep;
 			}
 		}
 	}
@@ -1030,7 +1052,7 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl12xx_acx_slot(wl, SLOT_TIME_LONG);
 		if (ret < 0) {
 			wl12xx_warning("Set slot time failed %d", ret);
-			goto out;
+			goto out_sleep;
 		}
 	}
 
@@ -1048,7 +1070,7 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 			ret = wl12xx_acx_cts_protect(wl, CTSPROTECT_DISABLE);
 		if (ret < 0) {
 			wl12xx_warning("Set ctsprotect failed %d", ret);
-			goto out;
+			goto out_sleep;
 		}
 	}
 
@@ -1090,8 +1112,10 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 	}
 
-out:
+out_sleep:
 	wl12xx_ps_elp_sleep(wl);
+
+out:
 	mutex_unlock(&wl->mutex);
 }
 
