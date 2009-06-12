@@ -177,12 +177,15 @@ struct pppolac_opt {
 	__u32	remote;
 	__u16	sequence;
 	__u8	sequencing;
+	int	(*backlog_rcv)(struct sock *sk_udp, struct sk_buff *skb);
 };
 
 struct pppopns_opt {
 	__u16	local;
 	__u16	remote;
 	__u32	sequence;
+	void	(*data_ready)(struct sock *sk_raw, int length);
+	int	(*backlog_rcv)(struct sock *sk_raw, struct sk_buff *skb);
 };
 
 #include <net/sock.h>
