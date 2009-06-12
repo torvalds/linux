@@ -215,7 +215,7 @@ static struct snd_kcontrol_new snd_pmac_beep_mixer = {
 };
 
 /* Initialize beep stuff */
-int __init snd_pmac_attach_beep(struct snd_pmac *chip)
+int __devinit snd_pmac_attach_beep(struct snd_pmac *chip)
 {
 	struct pmac_beep *beep;
 	struct input_dev *input_dev;

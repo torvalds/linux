@@ -217,7 +217,6 @@ struct wm8903_priv {
 	int sysclk;
 
 	/* Reference counts */
-	int charge_pump_users;
 	int class_w_users;
 	int playback_active;
 	int capture_active;
@@ -373,6 +372,15 @@ static void wm8903_reset(struct snd_soc_codec *codec)
 #define WM8903_OUTPUT_INT   0x2
 #define WM8903_OUTPUT_IN    0x1
 
+static int wm8903_cp_event(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
+{
+	WARN_ON(event != SND_SOC_DAPM_POST_PMU);
+	mdelay(4);
+
+	return 0;
+}
+
 /*
  * Event for headphone and line out amplifier power changes.  Special
  * power up/down sequences are required in order to maximise pop/click
@@ -382,19 +390,20 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
-	struct i2c_client *i2c = codec->control_data;
 	u16 val;
 	u16 reg;
+	u16 dcs_reg;
+	u16 dcs_bit;
 	int shift;
-	u16 cp_reg = wm8903_read(codec, WM8903_CHARGE_PUMP_0);
 
 	switch (w->reg) {
 	case WM8903_POWER_MANAGEMENT_2:
 		reg = WM8903_ANALOGUE_HP_0;
+		dcs_bit = 0 + w->shift;
 		break;
 	case WM8903_POWER_MANAGEMENT_3:
 		reg = WM8903_ANALOGUE_LINEOUT_0;
+		dcs_bit = 2 + w->shift;
 		break;
 	default:
 		BUG();
@@ -419,18 +428,6 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		/* Short the output */
 		val &= ~(WM8903_OUTPUT_SHORT << shift);
 		wm8903_write(codec, reg, val);
-
-		wm8903->charge_pump_users++;
-
-		dev_dbg(&i2c->dev, "Charge pump use count now %d\n",
-			wm8903->charge_pump_users);
-
-		if (wm8903->charge_pump_users == 1) {
-			dev_dbg(&i2c->dev, "Enabling charge pump\n");
-			wm8903_write(codec, WM8903_CHARGE_PUMP_0,
-				     cp_reg | WM8903_CP_ENA);
-			mdelay(4);
-		}
 	}
 
 	if (event & SND_SOC_DAPM_POST_PMU) {
@@ -446,6 +443,11 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		val |= (WM8903_OUTPUT_OUT << shift);
 		wm8903_write(codec, reg, val);
 
+		/* Enable the DC servo */
+		dcs_reg = wm8903_read(codec, WM8903_DC_SERVO_0);
+		dcs_reg |= dcs_bit;
+		wm8903_write(codec, WM8903_DC_SERVO_0, dcs_reg);
+
 		/* Remove the short */
 		val |= (WM8903_OUTPUT_SHORT << shift);
 		wm8903_write(codec, reg, val);
@@ -458,23 +460,15 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		val &= ~(WM8903_OUTPUT_SHORT << shift);
 		wm8903_write(codec, reg, val);
 
+		/* Disable the DC servo */
+		dcs_reg = wm8903_read(codec, WM8903_DC_SERVO_0);
+		dcs_reg &= ~dcs_bit;
+		wm8903_write(codec, WM8903_DC_SERVO_0, dcs_reg);
+
 		/* Then disable the intermediate and output stages */
 		val &= ~((WM8903_OUTPUT_OUT | WM8903_OUTPUT_INT |
 			  WM8903_OUTPUT_IN) << shift);
 		wm8903_write(codec, reg, val);
-	}
-
-	if (event & SND_SOC_DAPM_POST_PMD) {
-		wm8903->charge_pump_users--;
-
-		dev_dbg(&i2c->dev, "Charge pump use count now %d\n",
-			wm8903->charge_pump_users);
-
-		if (wm8903->charge_pump_users == 0) {
-			dev_dbg(&i2c->dev, "Disabling charge pump\n");
-			wm8903_write(codec, WM8903_CHARGE_PUMP_0,
-				     cp_reg & ~WM8903_CP_ENA);
-		}
 	}
 
 	return 0;
@@ -539,6 +533,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 /* ALSA can only do steps of .01dB */
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 
+static const DECLARE_TLV_DB_SCALE(digital_sidetone_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
 
 static const DECLARE_TLV_DB_SCALE(drc_tlv_thresh, 0, 75, 0);
@@ -657,6 +652,16 @@ static const struct soc_enum rinput_inv_enum =
 	SOC_ENUM_SINGLE(WM8903_ANALOGUE_RIGHT_INPUT_1, 4, 3, rinput_mux_text);
 
 
+static const char *sidetone_text[] = {
+	"None", "Left", "Right"
+};
+
+static const struct soc_enum lsidetone_enum =
+	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_0, 2, 3, sidetone_text);
+
+static const struct soc_enum rsidetone_enum =
+	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_0, 0, 3, sidetone_text);
+
 static const struct snd_kcontrol_new wm8903_snd_controls[] = {
 
 /* Input PGAs - No TLV since the scale depends on PGA mode */
@@ -699,6 +704,9 @@ SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8903_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8903_ADC_DIGITAL_VOLUME_RIGHT, 1, 96, 0, digital_tlv),
 SOC_ENUM("ADC Companding Mode", adc_companding),
 SOC_SINGLE("ADC Companding Switch", WM8903_AUDIO_INTERFACE_0, 3, 1, 0),
+
+SOC_DOUBLE_TLV("Digital Sidetone Volume", WM8903_DAC_DIGITAL_0, 4, 8,
+	       12, 0, digital_sidetone_tlv),
 
 /* DAC */
 SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
@@ -761,6 +769,12 @@ static const struct snd_kcontrol_new rinput_mux =
 
 static const struct snd_kcontrol_new rinput_inv_mux =
 	SOC_DAPM_ENUM("Right Inverting Input Mux", rinput_inv_enum);
+
+static const struct snd_kcontrol_new lsidetone_mux =
+	SOC_DAPM_ENUM("DACL Sidetone Mux", lsidetone_enum);
+
+static const struct snd_kcontrol_new rsidetone_mux =
+	SOC_DAPM_ENUM("DACR Sidetone Mux", rsidetone_enum);
 
 static const struct snd_kcontrol_new left_output_mixer[] = {
 SOC_DAPM_SINGLE("DACL Switch", WM8903_ANALOGUE_LEFT_MIX_0, 3, 1, 0),
@@ -828,6 +842,9 @@ SND_SOC_DAPM_PGA("Right Input PGA", WM8903_POWER_MANAGEMENT_0, 0, 0, NULL, 0),
 SND_SOC_DAPM_ADC("ADCL", "Left HiFi Capture", WM8903_POWER_MANAGEMENT_6, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", "Right HiFi Capture", WM8903_POWER_MANAGEMENT_6, 0, 0),
 
+SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &lsidetone_mux),
+SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &rsidetone_mux),
+
 SND_SOC_DAPM_DAC("DACL", "Left Playback", WM8903_POWER_MANAGEMENT_6, 3, 0),
 SND_SOC_DAPM_DAC("DACR", "Right Playback", WM8903_POWER_MANAGEMENT_6, 2, 0),
 
@@ -844,26 +861,29 @@ SND_SOC_DAPM_MIXER("Right Speaker Mixer", WM8903_POWER_MANAGEMENT_4, 0, 0,
 SND_SOC_DAPM_PGA_E("Left Headphone Output PGA", WM8903_POWER_MANAGEMENT_2,
 		   1, 0, NULL, 0, wm8903_output_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+		   SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_PGA_E("Right Headphone Output PGA", WM8903_POWER_MANAGEMENT_2,
 		   0, 0, NULL, 0, wm8903_output_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+		   SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_PGA_E("Left Line Output PGA", WM8903_POWER_MANAGEMENT_3, 1, 0,
 		   NULL, 0, wm8903_output_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+		   SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_PGA_E("Right Line Output PGA", WM8903_POWER_MANAGEMENT_3, 0, 0,
 		   NULL, 0, wm8903_output_event,
 		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+		   SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_PGA("Left Speaker PGA", WM8903_POWER_MANAGEMENT_5, 1, 0,
 		 NULL, 0),
 SND_SOC_DAPM_PGA("Right Speaker PGA", WM8903_POWER_MANAGEMENT_5, 0, 0,
 		 NULL, 0),
 
+SND_SOC_DAPM_SUPPLY("Charge Pump", WM8903_CHARGE_PUMP_0, 0, 0,
+		    wm8903_cp_event, SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8903_CLOCK_RATES_2, 1, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -909,7 +929,19 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "Right Input PGA", NULL, "Right Input Mode Mux" },
 
 	{ "ADCL", NULL, "Left Input PGA" },
+	{ "ADCL", NULL, "CLK_DSP" },
 	{ "ADCR", NULL, "Right Input PGA" },
+	{ "ADCR", NULL, "CLK_DSP" },
+
+	{ "DACL Sidetone", "Left", "ADCL" },
+	{ "DACL Sidetone", "Right", "ADCR" },
+	{ "DACR Sidetone", "Left", "ADCL" },
+	{ "DACR Sidetone", "Right", "ADCR" },
+
+	{ "DACL", NULL, "DACL Sidetone" },
+	{ "DACL", NULL, "CLK_DSP" },
+	{ "DACR", NULL, "DACR Sidetone" },
+	{ "DACR", NULL, "CLK_DSP" },
 
 	{ "Left Output Mixer", "Left Bypass Switch", "Left Input PGA" },
 	{ "Left Output Mixer", "Right Bypass Switch", "Right Input PGA" },
@@ -951,6 +983,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{ "ROP", NULL, "Right Speaker PGA" },
 	{ "RON", NULL, "Right Speaker PGA" },
+
+	{ "Left Headphone Output PGA", NULL, "Charge Pump" },
+	{ "Right Headphone Output PGA", NULL, "Charge Pump" },
+	{ "Left Line Output PGA", NULL, "Charge Pump" },
+	{ "Right Line Output PGA", NULL, "Charge Pump" },
 };
 
 static int wm8903_add_widgets(struct snd_soc_codec *codec)
@@ -984,6 +1021,11 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			wm8903_write(codec, WM8903_CLOCK_RATES_2,
 				     WM8903_CLK_SYS_ENA);
+
+			/* Change DC servo dither level in startup sequence */
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_0, 0x11);
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_1, 0x1257);
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_2, 0x2);
 
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
@@ -1277,14 +1319,8 @@ static int wm8903_startup(struct snd_pcm_substream *substream,
 	if (wm8903->master_substream) {
 		master_runtime = wm8903->master_substream->runtime;
 
-		dev_dbg(&i2c->dev, "Constraining to %d bits at %dHz\n",
-			master_runtime->sample_bits,
-			master_runtime->rate);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
-					     master_runtime->rate);
+		dev_dbg(&i2c->dev, "Constraining to %d bits\n",
+			master_runtime->sample_bits);
 
 		snd_pcm_hw_constraint_minmax(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
@@ -1523,6 +1559,7 @@ struct snd_soc_dai wm8903_dai = {
 		 .formats = WM8903_FORMATS,
 	 },
 	.ops = &wm8903_dai_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(wm8903_dai);
 

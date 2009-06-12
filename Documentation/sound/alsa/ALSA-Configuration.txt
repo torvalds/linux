@@ -460,6 +460,25 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-ctxfi
+  ----------------
+
+    Module for Creative Sound Blaster X-Fi boards (20k1 / 20k2 chips)
+	* Creative Sound Blaster X-Fi Titanium Fatal1ty Champion Series
+	* Creative Sound Blaster X-Fi Titanium Fatal1ty Professional Series
+	* Creative Sound Blaster X-Fi Titanium Professional Audio
+	* Creative Sound Blaster X-Fi Titanium
+	* Creative Sound Blaster X-Fi Elite Pro
+	* Creative Sound Blaster X-Fi Platinum
+	* Creative Sound Blaster X-Fi Fatal1ty
+	* Creative Sound Blaster X-Fi XtremeGamer
+	* Creative Sound Blaster X-Fi XtremeMusic
+
+    reference_rate	- reference sample rate, 44100 or 48000 (default)
+    multiple		- multiple to ref. sample rate, 1 or 2 (default)
+
+    This module supports multiple cards.
+
   Module snd-darla20
   ------------------
 
@@ -925,6 +944,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* Onkyo SE-90PCI
 			* Onkyo SE-200PCI
 			* ESI Juli@
+			* ESI Maya44
 			* Hercules Fortissimo IV
 			* EGO-SYS WaveTerminal 192M
 
@@ -933,7 +953,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  prodigy71xt, prodigy71hifi, prodigyhd2, prodigy192,
 		  juli, aureon51, aureon71, universe, ap192, k8x800,
 		  phase22, phase28, ms300, av710, se200pci, se90pci,
-		  fortissimo4, sn25p, WT192M
+		  fortissimo4, sn25p, WT192M, maya44
 
     This module supports multiple cards and autoprobe.
 
@@ -1092,6 +1112,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports multiple cards.
     The driver requires the firmware loader support on kernel.
+
+  Module snd-lx6464es
+  -------------------
+
+    Module for Digigram LX6464ES boards
+
+    This module supports multiple cards.
 
   Module snd-maestro3
   -------------------
@@ -1543,13 +1570,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-sc6000
   -----------------
 
-    Module for Gallant SC-6000 soundcard.
+    Module for Gallant SC-6000 soundcard and later models: SC-6600
+    and SC-7000.
 
     port	- Port # (0x220 or 0x240)
     mss_port	- MSS Port # (0x530 or 0xe80)
     irq		- IRQ # (5,7,9,10,11)
     mpu_irq	- MPU-401 IRQ # (5,7,9,10) ,0 - no MPU-401 irq
     dma		- DMA # (1,3,0)
+    joystick	- Enable gameport - 0 = disable (default), 1 = enable
 
     This module supports multiple cards.
 
@@ -1859,7 +1888,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   -------------------
 
     Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X, HDAV1.3 (Deluxe), and Essence STX.
+    i.e., Xonar D1, DX, D2, D2X, HDAV1.3 (Deluxe), Essence ST
+    (Deluxe) and Essence STX.
 
     This module supports autoprobe and multiple cards.
 

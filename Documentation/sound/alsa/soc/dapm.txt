@@ -62,6 +62,7 @@ Audio DAPM widgets fall into a number of types:-
  o Mic        - Mic (and optional Jack)
  o Line       - Line Input/Output (and optional Jack)
  o Speaker    - Speaker
+ o Supply     - Power or clock supply widget used by other widgets.
  o Pre        - Special PRE widget (exec before all others)
  o Post       - Special POST widget (exec after all others)
 
