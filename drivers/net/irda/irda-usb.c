@@ -389,7 +389,6 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	s32 speed;
 	s16 xbofs;
 	int res, mtt;
-	int	err = 1;	/* Failed */
 
 	IRDA_DEBUG(4, "%s() on %s\n", __func__, netdev->name);
 
@@ -430,7 +429,6 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 			irda_usb_change_speed_xbofs(self);
 			netdev->trans_start = jiffies;
 			/* Will netif_wake_queue() in callback */
-			err = 0;	/* No error */
 			goto drop;
 		}
 	}
@@ -542,7 +540,7 @@ drop:
 	/* Drop silently the skb and exit */
 	dev_kfree_skb(skb);
 	spin_unlock_irqrestore(&self->lock, flags);
-	return err;		/* Usually 1 */
+	return NETDEV_TX_OK;
 }
 
 /*------------------------------------------------------------------*/
