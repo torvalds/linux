@@ -31,18 +31,21 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
+
 #include "binder.h"
 
 static DEFINE_MUTEX(binder_lock);
+static DEFINE_MUTEX(binder_deferred_lock);
+
 static HLIST_HEAD(binder_procs);
+static HLIST_HEAD(binder_deferred_list);
+static HLIST_HEAD(binder_dead_nodes);
+
+static struct proc_dir_entry *binder_proc_dir_entry_root;
+static struct proc_dir_entry *binder_proc_dir_entry_proc;
 static struct binder_node *binder_context_mgr_node;
 static uid_t binder_context_mgr_uid = -1;
 static int binder_last_id;
-static struct proc_dir_entry *binder_proc_dir_entry_root;
-static struct proc_dir_entry *binder_proc_dir_entry_proc;
-static struct hlist_head binder_dead_nodes;
-static HLIST_HEAD(binder_deferred_list);
-static DEFINE_MUTEX(binder_deferred_lock);
 
 static int binder_read_proc_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data);
