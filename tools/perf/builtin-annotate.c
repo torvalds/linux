@@ -25,6 +25,10 @@
 #define SHOW_USER	2
 #define SHOW_HV		4
 
+#define MIN_GREEN		0.5
+#define MIN_RED		5.0
+
+
 static char		const *input_name = "perf.data";
 static char		*vmlinux = "vmlinux";
 
@@ -88,6 +92,7 @@ typedef union event_union {
 
 
 struct sym_ext {
+	struct rb_node	node;
 	double		percent;
 	char		*path;
 };
@@ -1038,6 +1043,24 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
+static char *get_color(double percent)
+{
+	char *color = PERF_COLOR_NORMAL;
+
+	/*
+	 * We color high-overhead entries in red, mid-overhead
+	 * entries in green - and keep the low overhead places
+	 * normal:
+	 */
+	if (percent >= MIN_RED)
+		color = PERF_COLOR_RED;
+	else {
+		if (percent > MIN_GREEN)
+			color = PERF_COLOR_GREEN;
+	}
+	return color;
+}
+
 static int
 parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 {
@@ -1086,7 +1109,7 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
-		char *color = PERF_COLOR_NORMAL;
+		char *color;
 		struct sym_ext *sym_ext = sym->priv;
 
 		offset = line_ip - start;
@@ -1099,17 +1122,7 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 		} else if (sym->hist_sum)
 			percent = 100.0 * hits / sym->hist_sum;
 
-		/*
-		 * We color high-overhead entries in red, mid-overhead
-		 * entries in green - and keep the low overhead places
-		 * normal:
-		 */
-		if (percent >= 5.0)
-			color = PERF_COLOR_RED;
-		else {
-			if (percent > 0.5)
-				color = PERF_COLOR_GREEN;
-		}
+		color = get_color(percent);
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -1138,6 +1151,28 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 	return 0;
 }
 
+static struct rb_root root_sym_ext;
+
+static void insert_source_line(struct sym_ext *sym_ext)
+{
+	struct sym_ext *iter;
+	struct rb_node **p = &root_sym_ext.rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		iter = rb_entry(parent, struct sym_ext, node);
+
+		if (sym_ext->percent > iter->percent)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&sym_ext->node, parent, p);
+	rb_insert_color(&sym_ext->node, &root_sym_ext);
+}
+
 static void free_source_line(struct symbol *sym, int len)
 {
 	struct sym_ext *sym_ext = sym->priv;
@@ -1151,6 +1186,7 @@ static void free_source_line(struct symbol *sym, int len)
 	free(sym_ext);
 
 	sym->priv = NULL;
+	root_sym_ext = RB_ROOT;
 }
 
 /* Get the filename:line for the colored entries */
@@ -1193,9 +1229,39 @@ static void get_source_line(struct symbol *sym, __u64 start, int len)
 			goto next;
 
 		strcpy(sym_ext[i].path, path);
+		insert_source_line(&sym_ext[i]);
 
 	next:
 		pclose(fp);
+	}
+}
+
+static void print_summary(char *filename)
+{
+	struct sym_ext *sym_ext;
+	struct rb_node *node;
+
+	printf("\nSorted summary for file %s\n", filename);
+	printf("----------------------------------------------\n\n");
+
+	if (RB_EMPTY_ROOT(&root_sym_ext)) {
+		printf(" Nothing higher than %1.1f%%\n", MIN_GREEN);
+		return;
+	}
+
+	node = rb_first(&root_sym_ext);
+	while (node) {
+		double percent;
+		char *color;
+		char *path;
+
+		sym_ext = rb_entry(node, struct sym_ext, node);
+		percent = sym_ext->percent;
+		color = get_color(percent);
+		path = sym_ext->path;
+
+		color_fprintf(stdout, color, " %7.2f %s", percent, path);
+		node = rb_next(node);
 	}
 }
 
@@ -1211,13 +1277,6 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	if (dso == kernel_dso)
 		filename = vmlinux;
 
-	printf("\n------------------------------------------------\n");
-	printf(" Percent |	Source code & Disassembly of %s\n", filename);
-	printf("------------------------------------------------\n");
-
-	if (verbose >= 2)
-		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
-
 	start = sym->obj_start;
 	if (!start)
 		start = sym->start;
@@ -1225,8 +1284,17 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	end = start + sym->end - sym->start + 1;
 	len = sym->end - sym->start;
 
-	if (print_line)
+	if (print_line) {
 		get_source_line(sym, start, len);
+		print_summary(filename);
+	}
+
+	printf("\n\n------------------------------------------------\n");
+	printf(" Percent |	Source code & Disassembly of %s\n", filename);
+	printf("------------------------------------------------\n");
+
+	if (verbose >= 2)
+		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
 
 	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (__u64)start, (__u64)end, filename);
 
@@ -1243,7 +1311,8 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	}
 
 	pclose(file);
-	free_source_line(sym, len);
+	if (print_line)
+		free_source_line(sym, len);
 }
 
 static void find_annotations(void)
