@@ -1972,16 +1972,12 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 * Destroy a bonding device.
 * Must be under rtnl_lock when this function is called.
 */
-void bond_destroy(struct bonding *bond)
-{
-	bond_deinit(bond->dev);
-	bond_destroy_sysfs_entry(bond);
-	unregister_netdevice(bond->dev);
-}
-
-static void bond_destructor(struct net_device *bond_dev)
+static void bond_uninit(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+
+	bond_deinit(bond_dev);
+	bond_destroy_sysfs_entry(bond);
 
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
@@ -1989,8 +1985,6 @@ static void bond_destructor(struct net_device *bond_dev)
 	netif_addr_lock_bh(bond_dev);
 	bond_mc_list_destroy(bond);
 	netif_addr_unlock_bh(bond_dev);
-
-	free_netdev(bond_dev);
 }
 
 /*
@@ -2006,7 +2000,7 @@ int  bond_release_and_destroy(struct net_device *bond_dev, struct net_device *sl
 	if ((ret == 0) && (bond->slave_cnt == 0)) {
 		printk(KERN_INFO DRV_NAME ": %s: destroying bond %s.\n",
 		       bond_dev->name, bond_dev->name);
-		bond_destroy(bond);
+		unregister_netdevice(bond_dev);
 	}
 	return ret;
 }
@@ -4572,6 +4566,7 @@ static const struct ethtool_ops bond_ethtool_ops = {
 };
 
 static const struct net_device_ops bond_netdev_ops = {
+	.ndo_uninit		= bond_uninit,
 	.ndo_open		= bond_open,
 	.ndo_stop		= bond_close,
 	.ndo_start_xmit		= bond_start_xmit,
@@ -4622,7 +4617,7 @@ static int bond_init(struct net_device *bond_dev)
 	bond_dev->ethtool_ops = &bond_ethtool_ops;
 	bond_set_mode_ops(bond, bond->params.mode);
 
-	bond_dev->destructor = bond_destructor;
+	bond_dev->destructor = free_netdev;
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -4706,7 +4701,7 @@ static void bond_free_all(void)
 		bond_work_cancel_all(bond);
 		/* Release the bonded slaves */
 		bond_release_all(bond_dev);
-		bond_destroy(bond);
+		unregister_netdevice(bond_dev);
 	}
 
 	bond_destroy_proc_dir();

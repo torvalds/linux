@@ -127,7 +127,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 				printk(KERN_INFO DRV_NAME
 					": %s is being deleted...\n",
 					bond->dev->name);
-				bond_destroy(bond);
+				unregister_netdevice(bond->dev);
 				goto out_unlock;
 			}
 
