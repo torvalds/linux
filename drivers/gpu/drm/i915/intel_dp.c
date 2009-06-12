@@ -209,15 +209,19 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 
 	if ((status & DP_AUX_CH_CTL_DONE) == 0) {
 		printk(KERN_ERR "dp_aux_ch not done status 0x%08x\n", status);
-		return -1;
+		return -EBUSY;
 	}
 
 	/* Check for timeout or receive error.
 	 * Timeouts occur when the sink is not connected
 	 */
-	if (status & (DP_AUX_CH_CTL_TIME_OUT_ERROR | DP_AUX_CH_CTL_RECEIVE_ERROR)) {
-		printk(KERN_ERR "dp_aux_ch error status 0x%08x\n", status);
-		return -1;
+	if (status & DP_AUX_CH_CTL_RECEIVE_ERROR) {
+		printk(KERN_ERR "dp_aux_ch receive error status 0x%08x\n", status);
+		return -EIO;
+	}
+	if (status & DP_AUX_CH_CTL_TIME_OUT_ERROR) {
+		printk(KERN_ERR "dp_aux_ch timeout status 0x%08x\n", status);
+		return -ETIMEDOUT;
 	}
 
 	/* Unload any bytes sent back from the other side */
@@ -263,7 +267,7 @@ intel_dp_aux_native_write(struct intel_output *intel_output,
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
-			return -1;
+			return -EIO;
 	}
 	return send_bytes;
 }
@@ -299,7 +303,9 @@ intel_dp_aux_native_read(struct intel_output *intel_output,
 	for (;;) {
 		ret = intel_dp_aux_ch(intel_output, msg, msg_bytes,
 				      reply, reply_bytes);
-		if (ret <= 0)
+		if (ret == 0)
+			return -EPROTO;
+		if (ret < 0)
 			return ret;
 		ack = reply[0];
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK) {
@@ -309,7 +315,7 @@ intel_dp_aux_native_read(struct intel_output *intel_output,
 		else if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_DEFER)
 			udelay(100);
 		else
-			return -1;
+			return -EIO;
 	}
 }
 
