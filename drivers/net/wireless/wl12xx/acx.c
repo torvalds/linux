@@ -317,6 +317,7 @@ int wl12xx_acx_rx_msdu_life_time(struct wl12xx *wl, u32 life_time)
 		goto out;
 	}
 
+	acx->lifetime = life_time;
 	ret = wl12xx_cmd_configure(wl, DOT11_RX_MSDU_LIFE_TIME,
 				   acx, sizeof(*acx));
 	if (ret < 0) {
