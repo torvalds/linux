@@ -1265,13 +1265,17 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t 
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 		drm_encoder_init(dev, encoder, &radeon_legacy_primary_dac_enc_funcs, DRM_MODE_ENCODER_DAC);
 		drm_encoder_helper_add(encoder, &radeon_legacy_primary_dac_helper_funcs);
-		if (!rdev->is_atom_bios)
+		if (rdev->is_atom_bios)
+			radeon_encoder->enc_priv = radeon_atombios_get_primary_dac_info(radeon_encoder);
+		else
 			radeon_encoder->enc_priv = radeon_combios_get_primary_dac_info(radeon_encoder);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 		drm_encoder_init(dev, encoder, &radeon_legacy_tv_dac_enc_funcs, DRM_MODE_ENCODER_TVDAC);
 		drm_encoder_helper_add(encoder, &radeon_legacy_tv_dac_helper_funcs);
-		if (!rdev->is_atom_bios)
+		if (rdev->is_atom_bios)
+			radeon_encoder->enc_priv = radeon_atombios_get_tv_dac_info(radeon_encoder);
+		else
 			radeon_encoder->enc_priv = radeon_combios_get_tv_dac_info(radeon_encoder);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:

@@ -783,6 +783,9 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 				tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 				tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
 			}
+		} else {
+			DRM_INFO("No TV DAC info found in BIOS\n");
+			return radeon_legacy_get_tv_dac_info_from_table(rdev);
 		}
 	}
 
@@ -964,8 +967,10 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 			}
 		}
 		encoder->native_mode = lvds->native_mode;
-	} else
+	} else {
 		DRM_INFO("No panel info found in BIOS\n");
+		return radeon_legacy_get_lvds_info_from_regs(rdev);
+	}
 	return lvds;
 }
 
