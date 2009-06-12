@@ -16,7 +16,7 @@
 #include <asm/lowcore.h>
 #include <asm/smp.h>
 #include <asm/etr.h>
-#include <asm/cpu.h>
+#include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
 

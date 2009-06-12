@@ -47,7 +47,7 @@
 #include <asm/timer.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include <asm/cpu.h>
+#include <asm/cputime.h>
 #include <asm/vdso.h>
 #include "entry.h"
 
