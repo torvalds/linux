@@ -451,6 +451,10 @@ struct hid_device {							/* device report descriptor */
 	char phys[64];							/* Device physical location */
 	char uniq[64];							/* Device unique identifier (serial #) */
 
+	/* debugfs */
+	struct dentry *debug_dir;
+	struct dentry *debug_rdesc;
+
 	void *driver_data;
 
 	/* temporary hid_ff handling (until moved to the drivers) */

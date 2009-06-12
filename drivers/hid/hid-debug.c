@@ -1,9 +1,9 @@
 /*
  *  (c) 1999 Andreas Gal		<gal@cs.uni-magdeburg.de>
  *  (c) 2000-2001 Vojtech Pavlik	<vojtech@ucw.cz>
- *  (c) 2007 Jiri Kosina
+ *  (c) 2007-2009 Jiri Kosina
  *
- *  Some debug stuff for the HID parser.
+ *  HID debugging support
  */
 
 /*
@@ -26,8 +26,12 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
+
+static struct dentry *hid_debug_root;
 
 struct hid_usage_entry {
 	unsigned  page;
@@ -331,72 +335,83 @@ static const struct hid_usage_entry hid_usage_table[] = {
   { 0, 0, NULL }
 };
 
-static void resolv_usage_page(unsigned page) {
+static void resolv_usage_page(unsigned page, struct seq_file *f) {
 	const struct hid_usage_entry *p;
 
 	for (p = hid_usage_table; p->description; p++)
 		if (p->page == page) {
-			printk("%s", p->description);
+			if (!f)
+				printk("%s", p->description);
+			else
+				seq_printf(f, "%s", p->description);
 			return;
 		}
-	printk("%04x", page);
+	if (!f)
+		printk("%04x", page);
+	else
+		seq_printf(f, "%04x", page);
 }
 
-void hid_resolv_usage(unsigned usage) {
+void hid_resolv_usage(unsigned usage, struct seq_file *f) {
 	const struct hid_usage_entry *p;
 
-	if (!hid_debug)
-		return;
-
-	resolv_usage_page(usage >> 16);
-	printk(".");
+	resolv_usage_page(usage >> 16, f);
+	if (!f)
+		printk(".");
+	else
+		seq_printf(f, ".");
 	for (p = hid_usage_table; p->description; p++)
 		if (p->page == (usage >> 16)) {
 			for(++p; p->description && p->usage != 0; p++)
 				if (p->usage == (usage & 0xffff)) {
-					printk("%s", p->description);
+					if (!f)
+						printk("%s", p->description);
+					else
+						seq_printf(f,
+							"%s",
+							p->description);
 					return;
 				}
 			break;
 		}
-	printk("%04x", usage & 0xffff);
+	if (!f)
+		printk("%04x", usage & 0xffff);
+	else
+		seq_printf(f, "%04x", usage & 0xffff);
 }
 EXPORT_SYMBOL_GPL(hid_resolv_usage);
 
-static void tab(int n) {
-	printk(KERN_DEBUG "%*s", n, "");
+static void tab(int n, struct seq_file *f) {
+	seq_printf(f, "%*s", n, "");
 }
 
-void hid_dump_field(struct hid_field *field, int n) {
+void hid_dump_field(struct hid_field *field, int n, struct seq_file *f) {
 	int j;
 
-	if (!hid_debug)
-		return;
-
 	if (field->physical) {
-		tab(n);
-		printk("Physical(");
-		hid_resolv_usage(field->physical); printk(")\n");
+		tab(n, f);
+		seq_printf(f, "Physical(");
+		hid_resolv_usage(field->physical, f); seq_printf(f, ")\n");
 	}
 	if (field->logical) {
-		tab(n);
-		printk("Logical(");
-		hid_resolv_usage(field->logical); printk(")\n");
+		tab(n, f);
+		seq_printf(f, "Logical(");
+		hid_resolv_usage(field->logical, f); seq_printf(f, ")\n");
 	}
-	tab(n); printk("Usage(%d)\n", field->maxusage);
+	tab(n, f); seq_printf(f, "Usage(%d)\n", field->maxusage);
 	for (j = 0; j < field->maxusage; j++) {
-		tab(n+2); hid_resolv_usage(field->usage[j].hid); printk("\n");
+		tab(n+2, f); hid_resolv_usage(field->usage[j].hid, f); seq_printf(f, "\n");
 	}
 	if (field->logical_minimum != field->logical_maximum) {
-		tab(n); printk("Logical Minimum(%d)\n", field->logical_minimum);
-		tab(n); printk("Logical Maximum(%d)\n", field->logical_maximum);
+		tab(n, f); seq_printf(f, "Logical Minimum(%d)\n", field->logical_minimum);
+		tab(n, f); seq_printf(f, "Logical Maximum(%d)\n", field->logical_maximum);
 	}
 	if (field->physical_minimum != field->physical_maximum) {
-		tab(n); printk("Physical Minimum(%d)\n", field->physical_minimum);
-		tab(n); printk("Physical Maximum(%d)\n", field->physical_maximum);
+		tab(n, f); seq_printf(f, "Physical Minimum(%d)\n", field->physical_minimum);
+		tab(n, f); seq_printf(f, "Physical Maximum(%d)\n", field->physical_maximum);
 	}
 	if (field->unit_exponent) {
-		tab(n); printk("Unit Exponent(%d)\n", field->unit_exponent);
+		tab(n, f); seq_printf(f, "Unit Exponent(%d)\n", field->unit_exponent);
 	}
 	if (field->unit) {
 		static const char *systems[5] = { "None", "SI Linear", "SI Rotation", "English Linear", "English Rotation" };
@@ -417,77 +432,75 @@ void hid_dump_field(struct hid_field *field, int n) {
 		data >>= 4;
 
 		if(sys > 4) {
-			tab(n); printk("Unit(Invalid)\n");
+			tab(n, f); seq_printf(f, "Unit(Invalid)\n");
 		}
 		else {
 			int earlier_unit = 0;
 
-			tab(n); printk("Unit(%s : ", systems[sys]);
+			tab(n, f); seq_printf(f, "Unit(%s : ", systems[sys]);
 
 			for (i=1 ; i<sizeof(__u32)*2 ; i++) {
 				char nibble = data & 0xf;
 				data >>= 4;
 				if (nibble != 0) {
 					if(earlier_unit++ > 0)
-						printk("*");
-					printk("%s", units[sys][i]);
+						seq_printf(f, "*");
+					seq_printf(f, "%s", units[sys][i]);
 					if(nibble != 1) {
 						/* This is a _signed_ nibble(!) */
 
 						int val = nibble & 0x7;
 						if(nibble & 0x08)
 							val = -((0x7 & ~val) +1);
-						printk("^%d", val);
+						seq_printf(f, "^%d", val);
 					}
 				}
 			}
-			printk(")\n");
+			seq_printf(f, ")\n");
 		}
 	}
-	tab(n); printk("Report Size(%u)\n", field->report_size);
-	tab(n); printk("Report Count(%u)\n", field->report_count);
-	tab(n); printk("Report Offset(%u)\n", field->report_offset);
+	tab(n, f); seq_printf(f, "Report Size(%u)\n", field->report_size);
+	tab(n, f); seq_printf(f, "Report Count(%u)\n", field->report_count);
+	tab(n, f); seq_printf(f, "Report Offset(%u)\n", field->report_offset);
 
-	tab(n); printk("Flags( ");
+	tab(n, f); seq_printf(f, "Flags( ");
 	j = field->flags;
-	printk("%s", HID_MAIN_ITEM_CONSTANT & j ? "Constant " : "");
-	printk("%s", HID_MAIN_ITEM_VARIABLE & j ? "Variable " : "Array ");
-	printk("%s", HID_MAIN_ITEM_RELATIVE & j ? "Relative " : "Absolute ");
-	printk("%s", HID_MAIN_ITEM_WRAP & j ? "Wrap " : "");
-	printk("%s", HID_MAIN_ITEM_NONLINEAR & j ? "NonLinear " : "");
-	printk("%s", HID_MAIN_ITEM_NO_PREFERRED & j ? "NoPreferredState " : "");
-	printk("%s", HID_MAIN_ITEM_NULL_STATE & j ? "NullState " : "");
-	printk("%s", HID_MAIN_ITEM_VOLATILE & j ? "Volatile " : "");
-	printk("%s", HID_MAIN_ITEM_BUFFERED_BYTE & j ? "BufferedByte " : "");
-	printk(")\n");
+	seq_printf(f, "%s", HID_MAIN_ITEM_CONSTANT & j ? "Constant " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_VARIABLE & j ? "Variable " : "Array ");
+	seq_printf(f, "%s", HID_MAIN_ITEM_RELATIVE & j ? "Relative " : "Absolute ");
+	seq_printf(f, "%s", HID_MAIN_ITEM_WRAP & j ? "Wrap " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_NONLINEAR & j ? "NonLinear " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_NO_PREFERRED & j ? "NoPreferredState " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_NULL_STATE & j ? "NullState " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_VOLATILE & j ? "Volatile " : "");
+	seq_printf(f, "%s", HID_MAIN_ITEM_BUFFERED_BYTE & j ? "BufferedByte " : "");
+	seq_printf(f, ")\n");
 }
 EXPORT_SYMBOL_GPL(hid_dump_field);
 
-void hid_dump_device(struct hid_device *device) {
+void hid_dump_device(struct hid_device *device, struct seq_file *f)
+{
 	struct hid_report_enum *report_enum;
 	struct hid_report *report;
 	struct list_head *list;
 	unsigned i,k;
 	static const char *table[] = {"INPUT", "OUTPUT", "FEATURE"};
 
-	if (!hid_debug)
-		return;
-
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		report_enum = device->report_enum + i;
 		list = report_enum->report_list.next;
 		while (list != &report_enum->report_list) {
 			report = (struct hid_report *) list;
-			tab(2);
-			printk("%s", table[i]);
+			tab(2, f);
+			seq_printf(f, "%s", table[i]);
 			if (report->id)
-				printk("(%d)", report->id);
-			printk("[%s]", table[report->type]);
-			printk("\n");
+				seq_printf(f, "(%d)", report->id);
+			seq_printf(f, "[%s]", table[report->type]);
+			seq_printf(f, "\n");
 			for (k = 0; k < report->maxfield; k++) {
-				tab(4);
-				printk("Field(%d)\n", k);
-				hid_dump_field(report->field[k], 6);
+				tab(4, f);
+				seq_printf(f, "Field(%d)\n", k);
+				hid_dump_field(report->field[k], 6, f);
 			}
 			list = list->next;
 		}
@@ -500,7 +513,7 @@ void hid_dump_input(struct hid_usage *usage, __s32 value) {
 		return;
 
 	printk(KERN_DEBUG "hid-debug: input ");
-	hid_resolv_usage(usage->hid);
+	hid_resolv_usage(usage->hid, NULL);
 	printk(" = %d\n", value);
 }
 EXPORT_SYMBOL_GPL(hid_dump_input);
@@ -767,12 +780,84 @@ static const char **names[EV_MAX + 1] = {
 	[EV_SND] = sounds,			[EV_REP] = repeats,
 };
 
-void hid_resolv_event(__u8 type, __u16 code) {
+void hid_resolv_event(__u8 type, __u16 code, struct seq_file *f) {
 
-	if (!hid_debug)
-		return;
-
-	printk("%s.%s", events[type] ? events[type] : "?",
+	seq_printf(f, "%s.%s", events[type] ? events[type] : "?",
 		names[type] ? (names[type][code] ? names[type][code] : "?") : "?");
 }
-EXPORT_SYMBOL_GPL(hid_resolv_event);
+
+void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
+{
+	int i, j, k;
+	struct hid_report *report;
+	struct hid_usage *usage;
+
+	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++) {
+		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
+			for (i = 0; i < report->maxfield; i++) {
+				for ( j = 0; j < report->field[i]->maxusage; j++) {
+					usage = report->field[i]->usage + j;
+					hid_resolv_usage(usage->hid, f);
+					seq_printf(f, " ---> ");
+					hid_resolv_event(usage->type, usage->code, f);
+					seq_printf(f, "\n");
+				}
+			}
+		}
+	}
+
+}
+
+static int hid_debug_rdesc_show(struct seq_file *f, void *p)
+{
+	struct hid_device *hdev = f->private;
+	int i;
+
+	/* dump HID report descriptor */
+	for (i = 0; i < hdev->rsize; i++)
+		seq_printf(f, "%02x ", hdev->rdesc[i]);
+	seq_printf(f, "\n\n");
+
+	/* dump parsed data and input mappings */
+	hid_dump_device(hdev, f);
+	seq_printf(f, "\n");
+	hid_dump_input_mapping(hdev, f);
+
+	return 0;
+}
+
+static int hid_debug_rdesc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hid_debug_rdesc_show, inode->i_private);
+}
+
+static const struct file_operations hid_debug_rdesc_fops = {
+	.open           = hid_debug_rdesc_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+void hid_debug_register(struct hid_device *hdev, const char *name)
+{
+	hdev->debug_dir = debugfs_create_dir(name, hid_debug_root);
+	hdev->debug_rdesc = debugfs_create_file("rdesc", 0400,
+			hdev->debug_dir, hdev, &hid_debug_rdesc_fops);
+}
+
+void hid_debug_unregister(struct hid_device *hdev)
+{
+	debugfs_remove(hdev->debug_rdesc);
+	debugfs_remove(hdev->debug_dir);
+}
+
+void hid_debug_init(void)
+{
+	hid_debug_root = debugfs_create_dir("hid", NULL);
+}
+
+void hid_debug_exit(void)
+{
+	debugfs_remove_recursive(hid_debug_root);
+}
+

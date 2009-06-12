@@ -44,12 +44,10 @@
 #define DRIVER_DESC "HID core driver"
 #define DRIVER_LICENSE "GPL"
 
-#ifdef CONFIG_HID_DEBUG
 int hid_debug = 0;
 module_param_named(debug, hid_debug, int, 0600);
 MODULE_PARM_DESC(debug, "HID debugging (0=off, 1=probing info, 2=continuous data dumping)");
 EXPORT_SYMBOL_GPL(hid_debug);
-#endif
 
 /*
  * Register a new report for a device.
@@ -987,7 +985,6 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 
 	if (offset >= field->report_count) {
 		dbg_hid("offset (%d) exceeds report_count (%d)\n", offset, field->report_count);
-		hid_dump_field(field, 8);
 		return -1;
 	}
 	if (field->logical_minimum < 0) {
@@ -1721,6 +1718,8 @@ int hid_add_device(struct hid_device *hdev)
 	if (!ret)
 		hdev->status |= HID_STAT_ADDED;
 
+	hid_debug_register(hdev, dev_name(&hdev->dev));
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hid_add_device);
@@ -1768,6 +1767,7 @@ static void hid_remove_device(struct hid_device *hdev)
 {
 	if (hdev->status & HID_STAT_ADDED) {
 		device_del(&hdev->dev);
+		hid_debug_unregister(hdev);
 		hdev->status &= ~HID_STAT_ADDED;
 	}
 }
@@ -1843,6 +1843,10 @@ static int __init hid_init(void)
 {
 	int ret;
 
+	if (hid_debug)
+		printk(KERN_WARNING "HID: hid_debug parameter has been deprecated. "
+				"Debugging data are now provided via debugfs\n");
+
 	ret = bus_register(&hid_bus_type);
 	if (ret) {
 		printk(KERN_ERR "HID: can't register hid bus\n");
@@ -1853,6 +1857,8 @@ static int __init hid_init(void)
 	if (ret)
 		goto err_bus;
 
+	hid_debug_init();
+
 	return 0;
 err_bus:
 	bus_unregister(&hid_bus_type);
@@ -1862,6 +1868,7 @@ err:
 
 static void __exit hid_exit(void)
 {
+	hid_debug_exit();
 	hidraw_exit();
 	bus_unregister(&hid_bus_type);
 }
