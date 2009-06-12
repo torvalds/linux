@@ -1,7 +1,5 @@
 /*
- *  arch/s390/kernel/head.S
- *
- * Copyright (C) IBM Corp. 1999,2006
+ * Copyright IBM Corp. 1999,2009
  *
  *    Author(s): Hartmut Penner <hp@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -494,7 +492,19 @@ startup:basr	%r13,0			# get base
 	n	%r0,2f+12-.LPG0(%r13)
 	cl	%r0,2f+12-.LPG0(%r13)
 	je	3f
-1:	lpsw	2f-.LPG0(13)		# machine type not good enough, crash
+1:	l	%r15,.Lstack-.LPG0(%r13)
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
+	ahi	%r15,-96
+	la	%r2,.Lals_string-.LPG0(%r13)
+	l	%r3,.Lsclp_print-.LPG0(%r13)
+	basr	%r14,%r3
+	lpsw	2f-.LPG0(%r13)		# machine type not good enough, crash
+.Lals_string:
+	.asciz	"The Linux kernel requires more recent processor hardware"
+.Lsclp_print:
+	.long	_sclp_print_early
+.Lstack:
+	.long	init_thread_union
 	.align 16
 2:	.long	0x000a0000,0x8badcccc
 #if defined(CONFIG_64BIT)
