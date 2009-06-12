@@ -530,7 +530,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&xctrl, 0, sizeof xctrl);
 		xctrl.id = ctrl->id;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		ret = uvc_ctrl_get(video, &xctrl);
 		uvc_ctrl_rollback(video);
 		if (ret >= 0)
@@ -547,7 +550,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		xctrl.id = ctrl->id;
 		xctrl.value = ctrl->value;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		ret = uvc_ctrl_set(video, &xctrl);
 		if (ret < 0) {
 			uvc_ctrl_rollback(video);
@@ -566,7 +572,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_ext_control *ctrl = ctrls->controls;
 		unsigned int i;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_get(video, ctrl);
 			if (ret < 0) {
