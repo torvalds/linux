@@ -351,9 +351,6 @@ extern const struct bond_parm_tbl arp_validate_tbl[];
 extern const struct bond_parm_tbl fail_over_mac_tbl[];
 extern struct bond_parm_tbl ad_select_tbl[];
 
-/* exported from bond_sysfs.c */
-extern struct rw_semaphore bonding_rwsem;
-
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 void bond_send_unsolicited_na(struct bonding *bond);
 void bond_register_ipv6_notifier(void);

@@ -44,20 +44,6 @@
 /*---------------------------- Declarations -------------------------------*/
 
 static int expected_refcount = -1;
-/*--------------------------- Data Structures -----------------------------*/
-
-/* Bonding sysfs lock.  Why can't we just use the subsystem lock?
- * Because kobject_register tries to acquire the subsystem lock.  If
- * we already hold the lock (which we would if the user was creating
- * a new bond through the sysfs interface), we deadlock.
- * This lock is only needed when deleting a bond - we need to make sure
- * that we don't collide with an ongoing ioctl.
- */
-
-struct rw_semaphore bonding_rwsem;
-
-
-
 
 /*------------------------------ Functions --------------------------------*/
 
@@ -70,7 +56,7 @@ static ssize_t bonding_show_bonds(struct class *cls, char *buf)
 	int res = 0;
 	struct bonding *bond;
 
-	down_read(&(bonding_rwsem));
+	rtnl_lock();
 
 	list_for_each_entry(bond, &bond_dev_list, bond_list) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
@@ -84,7 +70,8 @@ static ssize_t bonding_show_bonds(struct class *cls, char *buf)
 	}
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
-	up_read(&(bonding_rwsem));
+
+	rtnl_unlock();
 	return res;
 }
 
@@ -122,7 +109,6 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 
 	if (command[0] == '-') {
 		rtnl_lock();
-		down_write(&bonding_rwsem);
 
 		list_for_each_entry(bond, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
@@ -157,7 +143,6 @@ err_no_cmd:
 	return -EPERM;
 
 out_unlock:
-	up_write(&bonding_rwsem);
 	rtnl_unlock();
 
 	/* Always return either count or an error.  If you return 0, you'll
@@ -253,7 +238,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	down_write(&(bonding_rwsem));
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
@@ -357,7 +341,6 @@ err_no_cmd:
 	ret = -EPERM;
 
 out:
-	up_write(&(bonding_rwsem));
 	rtnl_unlock();
 	return ret;
 }

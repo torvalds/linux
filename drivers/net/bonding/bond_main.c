@@ -3489,10 +3489,10 @@ static int bond_event_changename(struct bonding *bond)
 {
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
-	down_write(&(bonding_rwsem));
+
         bond_destroy_sysfs_entry(bond);
         bond_create_sysfs_entry(bond);
-	up_write(&(bonding_rwsem));
+
 	return NOTIFY_DONE;
 }
 
@@ -4015,7 +4015,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		return -EPERM;
 	}
 
-	down_write(&(bonding_rwsem));
 	slave_dev = dev_get_by_name(&init_net, ifr->ifr_slave);
 
 	pr_debug("slave_dev=%p: \n", slave_dev);
@@ -4048,7 +4047,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		dev_put(slave_dev);
 	}
 
-	up_write(&(bonding_rwsem));
 	return res;
 }
 
@@ -5123,8 +5121,6 @@ int bond_create(const char *name)
 	int res;
 
 	rtnl_lock();
-	down_write(&bonding_rwsem);
-
 	/* Check to see if the bond already exists. */
 	if (name) {
 		list_for_each_entry(bond, &bond_dev_list, bond_list)
@@ -5173,24 +5169,20 @@ int bond_create(const char *name)
 		goto out_bond;
 	}
 
-	up_write(&bonding_rwsem);
-	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
 	if (res < 0)
 		goto out_unreg;
 
+	rtnl_unlock();
 	return 0;
 
 out_unreg:
-	rtnl_lock();
-	down_write(&bonding_rwsem);
 	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:
 	free_netdev(bond_dev);
 out_rtnl:
-	up_write(&bonding_rwsem);
 	rtnl_unlock();
 	return res;
 }
@@ -5208,8 +5200,6 @@ static int __init bonding_init(void)
 	}
 
 	bond_create_proc_dir();
-
-	init_rwsem(&bonding_rwsem);
 
 	for (i = 0; i < max_bonds; i++) {
 		res = bond_create(NULL);
