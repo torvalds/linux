@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL12XX_EVENT_H__
-#define __WL12XX_EVENT_H__
+#ifndef __WL1251_EVENT_H__
+#define __WL1251_EVENT_H__
 
 /*
  * Mbox events
@@ -114,8 +114,8 @@ struct event_mailbox {
 	u8 padding[19];
 } __attribute__ ((packed));
 
-int wl12xx_event_unmask(struct wl12xx *wl);
-void wl12xx_event_mbox_config(struct wl12xx *wl);
-int wl12xx_event_handle(struct wl12xx *wl, u8 mbox);
+int wl1251_event_unmask(struct wl1251 *wl);
+void wl1251_event_mbox_config(struct wl1251 *wl);
+int wl1251_event_handle(struct wl1251 *wl, u8 mbox);
 
 #endif

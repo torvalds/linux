@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
@@ -35,7 +35,7 @@
 #include "wl1251_ps.h"
 #include "wl1251_init.h"
 
-static struct wl12xx_partition_set wl1251_part_table[PART_TABLE_LEN] = {
+static struct wl1251_partition_set wl1251_part_table[PART_TABLE_LEN] = {
 	[PART_DOWN] = {
 		.mem = {
 			.start = 0x00000000,
@@ -75,31 +75,31 @@ static enum wl12xx_acx_int_reg wl1251_acx_reg_table[ACX_REG_TABLE_LEN] = {
 	[ACX_REG_ECPU_CONTROL]       = (REGISTERS_BASE + 0x0804)
 };
 
-static int wl1251_upload_firmware(struct wl12xx *wl)
+static int wl1251_upload_firmware(struct wl1251 *wl)
 {
-	struct wl12xx_partition_set *p_table = wl->chip.p_table;
+	struct wl1251_partition_set *p_table = wl->chip.p_table;
 	int addr, chunk_num, partition_limit;
 	size_t fw_data_len;
 	u8 *p;
 
 	/* whal_FwCtrl_LoadFwImageSm() */
 
-	wl12xx_debug(DEBUG_BOOT, "chip id before fw upload: 0x%x",
-		     wl12xx_reg_read32(wl, CHIP_ID_B));
+	wl1251_debug(DEBUG_BOOT, "chip id before fw upload: 0x%x",
+		     wl1251_reg_read32(wl, CHIP_ID_B));
 
 	/* 10.0 check firmware length and set partition */
 	fw_data_len =  (wl->fw[4] << 24) | (wl->fw[5] << 16) |
 		(wl->fw[6] << 8) | (wl->fw[7]);
 
-	wl12xx_debug(DEBUG_BOOT, "fw_data_len %zu chunk_size %d", fw_data_len,
+	wl1251_debug(DEBUG_BOOT, "fw_data_len %zu chunk_size %d", fw_data_len,
 		CHUNK_SIZE);
 
 	if ((fw_data_len % 4) != 0) {
-		wl12xx_error("firmware length not multiple of four");
+		wl1251_error("firmware length not multiple of four");
 		return -EIO;
 	}
 
-	wl12xx_set_partition(wl,
+	wl1251_set_partition(wl,
 			     p_table[PART_DOWN].mem.start,
 			     p_table[PART_DOWN].mem.size,
 			     p_table[PART_DOWN].reg.start,
@@ -118,7 +118,7 @@ static int wl1251_upload_firmware(struct wl12xx *wl)
 				chunk_num * CHUNK_SIZE;
 			partition_limit = chunk_num * CHUNK_SIZE +
 				p_table[PART_DOWN].mem.size;
-			wl12xx_set_partition(wl,
+			wl1251_set_partition(wl,
 					     addr,
 					     p_table[PART_DOWN].mem.size,
 					     p_table[PART_DOWN].reg.start,
@@ -128,9 +128,9 @@ static int wl1251_upload_firmware(struct wl12xx *wl)
 		/* 10.3 upload the chunk */
 		addr = p_table[PART_DOWN].mem.start + chunk_num * CHUNK_SIZE;
 		p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
-		wl12xx_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
+		wl1251_debug(DEBUG_BOOT, "uploading fw chunk 0x%p to 0x%x",
 			     p, addr);
-		wl12xx_spi_mem_write(wl, addr, p, CHUNK_SIZE);
+		wl1251_spi_mem_write(wl, addr, p, CHUNK_SIZE);
 
 		chunk_num++;
 	}
@@ -138,14 +138,14 @@ static int wl1251_upload_firmware(struct wl12xx *wl)
 	/* 10.4 upload the last chunk */
 	addr = p_table[PART_DOWN].mem.start + chunk_num * CHUNK_SIZE;
 	p = wl->fw + FW_HDR_SIZE + chunk_num * CHUNK_SIZE;
-	wl12xx_debug(DEBUG_BOOT, "uploading fw last chunk (%zu B) 0x%p to 0x%x",
+	wl1251_debug(DEBUG_BOOT, "uploading fw last chunk (%zu B) 0x%p to 0x%x",
 		     fw_data_len % CHUNK_SIZE, p, addr);
-	wl12xx_spi_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
+	wl1251_spi_mem_write(wl, addr, p, fw_data_len % CHUNK_SIZE);
 
 	return 0;
 }
 
-static int wl1251_upload_nvs(struct wl12xx *wl)
+static int wl1251_upload_nvs(struct wl1251 *wl)
 {
 	size_t nvs_len, nvs_bytes_written, burst_len;
 	int nvs_start, i;
@@ -181,10 +181,10 @@ static int wl1251_upload_nvs(struct wl12xx *wl)
 			val = (nvs_ptr[0] | (nvs_ptr[1] << 8)
 			       | (nvs_ptr[2] << 16) | (nvs_ptr[3] << 24));
 
-			wl12xx_debug(DEBUG_BOOT,
+			wl1251_debug(DEBUG_BOOT,
 				     "nvs burst write 0x%x: 0x%x",
 				     dest_addr, val);
-			wl12xx_mem_write32(wl, dest_addr, val);
+			wl1251_mem_write32(wl, dest_addr, val);
 
 			nvs_ptr += 4;
 			dest_addr += 4;
@@ -200,7 +200,7 @@ static int wl1251_upload_nvs(struct wl12xx *wl)
 	nvs_len = ALIGN(nvs_len, 4);
 
 	/* Now we must set the partition correctly */
-	wl12xx_set_partition(wl, nvs_start,
+	wl1251_set_partition(wl, nvs_start,
 			     wl->chip.p_table[PART_DOWN].mem.size,
 			     wl->chip.p_table[PART_DOWN].reg.start,
 			     wl->chip.p_table[PART_DOWN].reg.size);
@@ -213,10 +213,10 @@ static int wl1251_upload_nvs(struct wl12xx *wl)
 
 		val = cpu_to_le32(val);
 
-		wl12xx_debug(DEBUG_BOOT,
+		wl1251_debug(DEBUG_BOOT,
 			     "nvs write table 0x%x: 0x%x",
 			     nvs_start, val);
-		wl12xx_mem_write32(wl, nvs_start, val);
+		wl1251_mem_write32(wl, nvs_start, val);
 
 		nvs_ptr += 4;
 		nvs_bytes_written += 4;
@@ -226,12 +226,12 @@ static int wl1251_upload_nvs(struct wl12xx *wl)
 	return 0;
 }
 
-static int wl1251_boot(struct wl12xx *wl)
+static int wl1251_boot(struct wl1251 *wl)
 {
 	int ret = 0, minor_minor_e2_ver;
 	u32 tmp, boot_data;
 
-	ret = wl12xx_boot_soft_reset(wl);
+	ret = wl1251_boot_soft_reset(wl);
 	if (ret < 0)
 		goto out;
 
@@ -242,39 +242,39 @@ static int wl1251_boot(struct wl12xx *wl)
 
 	/* write firmware's last address (ie. it's length) to
 	 * ACX_EEPROMLESS_IND_REG */
-	wl12xx_reg_write32(wl, ACX_EEPROMLESS_IND_REG, wl->fw_len);
+	wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, wl->fw_len);
 
 	/* 6. read the EEPROM parameters */
-	tmp = wl12xx_reg_read32(wl, SCR_PAD2);
+	tmp = wl1251_reg_read32(wl, SCR_PAD2);
 
 	/* 7. read bootdata */
 	wl->boot_attr.radio_type = (tmp & 0x0000FF00) >> 8;
 	wl->boot_attr.major = (tmp & 0x00FF0000) >> 16;
-	tmp = wl12xx_reg_read32(wl, SCR_PAD3);
+	tmp = wl1251_reg_read32(wl, SCR_PAD3);
 
 	/* 8. check bootdata and call restart sequence */
 	wl->boot_attr.minor = (tmp & 0x00FF0000) >> 16;
 	minor_minor_e2_ver = (tmp & 0xFF000000) >> 24;
 
-	wl12xx_debug(DEBUG_BOOT, "radioType 0x%x majorE2Ver 0x%x "
+	wl1251_debug(DEBUG_BOOT, "radioType 0x%x majorE2Ver 0x%x "
 		     "minorE2Ver 0x%x minor_minor_e2_ver 0x%x",
 		     wl->boot_attr.radio_type, wl->boot_attr.major,
 		     wl->boot_attr.minor, minor_minor_e2_ver);
 
-	ret = wl12xx_boot_init_seq(wl);
+	ret = wl1251_boot_init_seq(wl);
 	if (ret < 0)
 		goto out;
 
 	/* 9. NVS processing done */
-	boot_data = wl12xx_reg_read32(wl, ACX_REG_ECPU_CONTROL);
+	boot_data = wl1251_reg_read32(wl, ACX_REG_ECPU_CONTROL);
 
-	wl12xx_debug(DEBUG_BOOT, "halt boot_data 0x%x", boot_data);
+	wl1251_debug(DEBUG_BOOT, "halt boot_data 0x%x", boot_data);
 
 	/* 10. check that ECPU_CONTROL_HALT bits are set in
 	 * pWhalBus->uBootData and start uploading firmware
 	 */
 	if ((boot_data & ECPU_CONTROL_HALT) == 0) {
-		wl12xx_error("boot failed, ECPU_CONTROL_HALT not set");
+		wl1251_error("boot failed, ECPU_CONTROL_HALT not set");
 		ret = -EIO;
 		goto out;
 	}
@@ -284,7 +284,7 @@ static int wl1251_boot(struct wl12xx *wl)
 		goto out;
 
 	/* 10.5 start firmware */
-	ret = wl12xx_boot_run_firmware(wl);
+	ret = wl1251_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
 
@@ -292,12 +292,12 @@ out:
 	return ret;
 }
 
-static int wl1251_mem_cfg(struct wl12xx *wl)
+static int wl1251_mem_cfg(struct wl1251 *wl)
 {
 	struct wl1251_acx_config_memory *mem_conf;
 	int ret, i;
 
-	wl12xx_debug(DEBUG_ACX, "wl1251 mem cfg");
+	wl1251_debug(DEBUG_ACX, "wl1251 mem cfg");
 
 	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
 	if (!mem_conf) {
@@ -327,10 +327,10 @@ static int wl1251_mem_cfg(struct wl12xx *wl)
 		mem_conf->tx_queue_config[i].attributes = i;
 	}
 
-	ret = wl12xx_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
+	ret = wl1251_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));
 	if (ret < 0) {
-		wl12xx_warning("wl1251 mem config failed: %d", ret);
+		wl1251_warning("wl1251 mem config failed: %d", ret);
 		goto out;
 	}
 
@@ -339,7 +339,7 @@ out:
 	return ret;
 }
 
-static int wl1251_hw_init_mem_config(struct wl12xx *wl)
+static int wl1251_hw_init_mem_config(struct wl1251 *wl)
 {
 	int ret;
 
@@ -350,15 +350,15 @@ static int wl1251_hw_init_mem_config(struct wl12xx *wl)
 	wl->target_mem_map = kzalloc(sizeof(struct wl1251_acx_mem_map),
 					  GFP_KERNEL);
 	if (!wl->target_mem_map) {
-		wl12xx_error("couldn't allocate target memory map");
+		wl1251_error("couldn't allocate target memory map");
 		return -ENOMEM;
 	}
 
 	/* we now ask for the firmware built memory map */
-	ret = wl12xx_acx_mem_map(wl, wl->target_mem_map,
+	ret = wl1251_acx_mem_map(wl, wl->target_mem_map,
 				 sizeof(struct wl1251_acx_mem_map));
 	if (ret < 0) {
-		wl12xx_error("couldn't retrieve firmware memory map");
+		wl1251_error("couldn't retrieve firmware memory map");
 		kfree(wl->target_mem_map);
 		wl->target_mem_map = NULL;
 		return ret;
@@ -367,19 +367,19 @@ static int wl1251_hw_init_mem_config(struct wl12xx *wl)
 	return 0;
 }
 
-static void wl1251_set_ecpu_ctrl(struct wl12xx *wl, u32 flag)
+static void wl1251_set_ecpu_ctrl(struct wl1251 *wl, u32 flag)
 {
 	u32 cpu_ctrl;
 
 	/* 10.5.0 run the firmware (I) */
-	cpu_ctrl = wl12xx_reg_read32(wl, ACX_REG_ECPU_CONTROL);
+	cpu_ctrl = wl1251_reg_read32(wl, ACX_REG_ECPU_CONTROL);
 
 	/* 10.5.1 run the firmware (II) */
 	cpu_ctrl &= ~flag;
-	wl12xx_reg_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
+	wl1251_reg_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
 }
 
-static void wl1251_target_enable_interrupts(struct wl12xx *wl)
+static void wl1251_target_enable_interrupts(struct wl1251 *wl)
 {
 	/* Enable target's interrupts */
 	wl->intr_mask = WL1251_ACX_INTR_RX0_DATA |
@@ -388,60 +388,60 @@ static void wl1251_target_enable_interrupts(struct wl12xx *wl)
 		WL1251_ACX_INTR_EVENT_A |
 		WL1251_ACX_INTR_EVENT_B |
 		WL1251_ACX_INTR_INIT_COMPLETE;
-	wl12xx_boot_target_enable_interrupts(wl);
+	wl1251_boot_target_enable_interrupts(wl);
 }
 
-static void wl1251_fw_version(struct wl12xx *wl)
+static void wl1251_fw_version(struct wl1251 *wl)
 {
-	wl12xx_acx_fw_version(wl, wl->chip.fw_ver, sizeof(wl->chip.fw_ver));
+	wl1251_acx_fw_version(wl, wl->chip.fw_ver, sizeof(wl->chip.fw_ver));
 }
 
 static void wl1251_irq_work(struct work_struct *work)
 {
 	u32 intr;
-	struct wl12xx *wl =
-		container_of(work, struct wl12xx, irq_work);
+	struct wl1251 *wl =
+		container_of(work, struct wl1251, irq_work);
 	int ret;
 
 	mutex_lock(&wl->mutex);
 
-	wl12xx_debug(DEBUG_IRQ, "IRQ work");
+	wl1251_debug(DEBUG_IRQ, "IRQ work");
 
-	if (wl->state == WL12XX_STATE_OFF)
+	if (wl->state == WL1251_STATE_OFF)
 		goto out;
 
-	ret = wl12xx_ps_elp_wakeup(wl);
+	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, WL1251_ACX_INTR_ALL);
 
-	intr = wl12xx_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
-	wl12xx_debug(DEBUG_IRQ, "intr: 0x%x", intr);
+	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
 
 	if (wl->data_path) {
 		wl->rx_counter =
-			wl12xx_mem_read32(wl, wl->data_path->rx_control_addr);
+			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
 
 		/* We handle a frmware bug here */
 		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
 		case 0:
-			wl12xx_debug(DEBUG_IRQ, "RX: FW and host in sync");
+			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
 			intr &= ~WL1251_ACX_INTR_RX0_DATA;
 			intr &= ~WL1251_ACX_INTR_RX1_DATA;
 			break;
 		case 1:
-			wl12xx_debug(DEBUG_IRQ, "RX: FW +1");
+			wl1251_debug(DEBUG_IRQ, "RX: FW +1");
 			intr |= WL1251_ACX_INTR_RX0_DATA;
 			intr &= ~WL1251_ACX_INTR_RX1_DATA;
 			break;
 		case 2:
-			wl12xx_debug(DEBUG_IRQ, "RX: FW +2");
+			wl1251_debug(DEBUG_IRQ, "RX: FW +2");
 			intr |= WL1251_ACX_INTR_RX0_DATA;
 			intr |= WL1251_ACX_INTR_RX1_DATA;
 			break;
 		default:
-			wl12xx_warning("RX: FW and host out of sync: %d",
+			wl1251_warning("RX: FW and host out of sync: %d",
 				       wl->rx_counter - wl->rx_handled);
 			break;
 		}
@@ -449,49 +449,49 @@ static void wl1251_irq_work(struct work_struct *work)
 		wl->rx_handled = wl->rx_counter;
 
 
-		wl12xx_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
+		wl1251_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
 	}
 
 	intr &= wl->intr_mask;
 
 	if (intr == 0) {
-		wl12xx_debug(DEBUG_IRQ, "INTR is 0");
-		wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
+		wl1251_debug(DEBUG_IRQ, "INTR is 0");
+		wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
 				   ~(wl->intr_mask));
 
 		goto out_sleep;
 	}
 
 	if (intr & WL1251_ACX_INTR_RX0_DATA) {
-		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
-		wl12xx_rx(wl);
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+		wl1251_rx(wl);
 	}
 
 	if (intr & WL1251_ACX_INTR_RX1_DATA) {
-		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
-		wl12xx_rx(wl);
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+		wl1251_rx(wl);
 	}
 
 	if (intr & WL1251_ACX_INTR_TX_RESULT) {
-		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
 		wl1251_tx_complete(wl);
 	}
 
 	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
-		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
 		if (intr & WL1251_ACX_INTR_EVENT_A)
-			wl12xx_event_handle(wl, 0);
+			wl1251_event_handle(wl, 0);
 		else
-			wl12xx_event_handle(wl, 1);
+			wl1251_event_handle(wl, 1);
 	}
 
 	if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
-		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
+		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
 
-	wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
 
 out_sleep:
-	wl12xx_ps_elp_sleep(wl);
+	wl1251_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -529,20 +529,20 @@ static int wl1251_hw_init_txq_fill(u8 qid,
 			(QOS_TX_LOW_VO_DEF * num_blocks) / 100;
 		break;
 	default:
-		wl12xx_error("Invalid TX queue id: %d", qid);
+		wl1251_error("Invalid TX queue id: %d", qid);
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int wl1251_hw_init_tx_queue_config(struct wl12xx *wl)
+static int wl1251_hw_init_tx_queue_config(struct wl1251 *wl)
 {
 	struct acx_tx_queue_qos_config *config;
 	struct wl1251_acx_mem_map *wl_mem_map = wl->target_mem_map;
 	int ret, i;
 
-	wl12xx_debug(DEBUG_ACX, "acx tx queue config");
+	wl1251_debug(DEBUG_ACX, "acx tx queue config");
 
 	config = kzalloc(sizeof(*config), GFP_KERNEL);
 	if (!config) {
@@ -556,7 +556,7 @@ static int wl1251_hw_init_tx_queue_config(struct wl12xx *wl)
 		if (ret < 0)
 			goto out;
 
-		ret = wl12xx_cmd_configure(wl, ACX_TX_QUEUE_CFG,
+		ret = wl1251_cmd_configure(wl, ACX_TX_QUEUE_CFG,
 					   config, sizeof(*config));
 		if (ret < 0)
 			goto out;
@@ -567,7 +567,7 @@ out:
 	return ret;
 }
 
-static int wl1251_hw_init_data_path_config(struct wl12xx *wl)
+static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 {
 	int ret;
 
@@ -575,11 +575,11 @@ static int wl1251_hw_init_data_path_config(struct wl12xx *wl)
 	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
 				GFP_KERNEL);
 	if (!wl->data_path) {
-		wl12xx_error("Couldnt allocate data path parameters");
+		wl1251_error("Couldnt allocate data path parameters");
 		return -ENOMEM;
 	}
 
-	ret = wl12xx_acx_data_path_params(wl, wl->data_path);
+	ret = wl1251_acx_data_path_params(wl, wl->data_path);
 	if (ret < 0) {
 		kfree(wl->data_path);
 		wl->data_path = NULL;
@@ -589,17 +589,17 @@ static int wl1251_hw_init_data_path_config(struct wl12xx *wl)
 	return 0;
 }
 
-static int wl1251_hw_init(struct wl12xx *wl)
+static int wl1251_hw_init(struct wl1251 *wl)
 {
 	struct wl1251_acx_mem_map *wl_mem_map;
 	int ret;
 
-	ret = wl12xx_hw_init_hwenc_config(wl);
+	ret = wl1251_hw_init_hwenc_config(wl);
 	if (ret < 0)
 		return ret;
 
 	/* Template settings */
-	ret = wl12xx_hw_init_templates_config(wl);
+	ret = wl1251_hw_init_templates_config(wl);
 	if (ret < 0)
 		return ret;
 
@@ -614,7 +614,7 @@ static int wl1251_hw_init(struct wl12xx *wl)
 		goto out_free_memmap;
 
 	/* RX config */
-	ret = wl12xx_hw_init_rx_config(wl,
+	ret = wl1251_hw_init_rx_config(wl,
 				       RX_CFG_PROMISCUOUS | RX_CFG_TSF,
 				       RX_FILTER_OPTION_DEF);
 	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
@@ -628,42 +628,42 @@ static int wl1251_hw_init(struct wl12xx *wl)
 		goto out_free_data_path;
 
 	/* PHY layer config */
-	ret = wl12xx_hw_init_phy_config(wl);
+	ret = wl1251_hw_init_phy_config(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Beacon filtering */
-	ret = wl12xx_hw_init_beacon_filter(wl);
+	ret = wl1251_hw_init_beacon_filter(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Bluetooth WLAN coexistence */
-	ret = wl12xx_hw_init_pta(wl);
+	ret = wl1251_hw_init_pta(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Energy detection */
-	ret = wl12xx_hw_init_energy_detection(wl);
+	ret = wl1251_hw_init_energy_detection(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Beacons and boradcast settings */
-	ret = wl12xx_hw_init_beacon_broadcast(wl);
+	ret = wl1251_hw_init_beacon_broadcast(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Enable data path */
-	ret = wl12xx_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1251_cmd_data_path(wl, wl->channel, 1);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	/* Default power state */
-	ret = wl12xx_hw_init_power_auth(wl);
+	ret = wl1251_hw_init_power_auth(wl);
 	if (ret < 0)
 		goto out_free_data_path;
 
 	wl_mem_map = wl->target_mem_map;
-	wl12xx_info("%d tx blocks at 0x%x, %d rx blocks at 0x%x",
+	wl1251_info("%d tx blocks at 0x%x, %d rx blocks at 0x%x",
 		    wl_mem_map->num_tx_mem_blocks,
 		    wl->data_path->tx_control_addr,
 		    wl_mem_map->num_rx_mem_blocks,
@@ -680,7 +680,7 @@ static int wl1251_hw_init(struct wl12xx *wl)
 	return ret;
 }
 
-static int wl1251_plt_init(struct wl12xx *wl)
+static int wl1251_plt_init(struct wl1251 *wl)
 {
 	int ret;
 
@@ -688,14 +688,14 @@ static int wl1251_plt_init(struct wl12xx *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1251_cmd_data_path(wl, wl->channel, 1);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-void wl1251_setup(struct wl12xx *wl)
+void wl1251_setup(struct wl1251 *wl)
 {
 	/* FIXME: Is it better to use strncpy here or is this ok? */
 	wl->chip.fw_filename = WL1251_FW_NAME;

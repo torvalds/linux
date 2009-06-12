@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -22,32 +22,32 @@
  *
  */
 
-#ifndef __WL12XX_CMD_H__
-#define __WL12XX_CMD_H__
+#ifndef __WL1251_CMD_H__
+#define __WL1251_CMD_H__
 
 #include "wl1251.h"
 
 struct acx_header;
 
-int wl12xx_cmd_send(struct wl12xx *wl, u16 type, void *buf, size_t buf_len);
-int wl12xx_cmd_test(struct wl12xx *wl, void *buf, size_t buf_len, u8 answer);
-int wl12xx_cmd_interrogate(struct wl12xx *wl, u16 id, void *buf, size_t len);
-int wl12xx_cmd_configure(struct wl12xx *wl, u16 id, void *buf, size_t len);
-int wl12xx_cmd_vbm(struct wl12xx *wl, u8 identity,
+int wl1251_cmd_send(struct wl1251 *wl, u16 type, void *buf, size_t buf_len);
+int wl1251_cmd_test(struct wl1251 *wl, void *buf, size_t buf_len, u8 answer);
+int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len);
+int wl1251_cmd_configure(struct wl1251 *wl, u16 id, void *buf, size_t len);
+int wl1251_cmd_vbm(struct wl1251 *wl, u8 identity,
 		   void *bitmap, u16 bitmap_len, u8 bitmap_control);
-int wl12xx_cmd_data_path(struct wl12xx *wl, u8 channel, bool enable);
-int wl1251_cmd_join(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
+int wl1251_cmd_data_path(struct wl1251 *wl, u8 channel, bool enable);
+int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
 		    u16 beacon_interval, u8 wait);
-int wl12xx_cmd_ps_mode(struct wl12xx *wl, u8 ps_mode);
-int wl12xx_cmd_read_memory(struct wl12xx *wl, u32 addr, void *answer,
+int wl1251_cmd_ps_mode(struct wl1251 *wl, u8 ps_mode);
+int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 			   size_t len);
-int wl12xx_cmd_template_set(struct wl12xx *wl, u16 cmd_id,
+int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 			    void *buf, size_t buf_len);
 
 /* unit ms */
-#define WL12XX_COMMAND_TIMEOUT 2000
+#define WL1251_COMMAND_TIMEOUT 2000
 
-enum wl12xx_commands {
+enum wl1251_commands {
 	CMD_RESET           = 0,
 	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
 	CMD_CONFIGURE       = 2,    /*use this to write information elements*/
@@ -95,15 +95,15 @@ enum wl12xx_commands {
 
 #define MAX_CMD_PARAMS 572
 
-struct wl12xx_cmd_header {
+struct wl1251_cmd_header {
 	u16 id;
 	u16 status;
 	/* payload */
 	u8 data[0];
 } __attribute__ ((packed));
 
-struct  wl12xx_command {
-	struct wl12xx_cmd_header header;
+struct  wl1251_command {
+	struct wl1251_cmd_header header;
 	u8  parameters[MAX_CMD_PARAMS];
 };
 
@@ -145,7 +145,7 @@ enum {
 #define MAX_READ_SIZE 256
 
 struct cmd_read_write_memory {
-	struct wl12xx_cmd_header header;
+	struct wl1251_cmd_header header;
 
 	/* The address of the memory to read from or write to.*/
 	u32 addr;
@@ -214,7 +214,7 @@ struct basic_scan_channel_parameters {
 #define SCAN_MAX_NUM_OF_CHANNELS 16
 
 struct cmd_scan {
-	struct wl12xx_cmd_header header;
+	struct wl1251_cmd_header header;
 
 	struct basic_scan_parameters params;
 	struct basic_scan_channel_parameters channels[SCAN_MAX_NUM_OF_CHANNELS];
@@ -232,7 +232,7 @@ enum {
 
 
 struct cmd_join {
-	struct wl12xx_cmd_header header;
+	struct wl1251_cmd_header header;
 
 	u32 bssid_lsb;
 	u16 bssid_msb;
@@ -269,16 +269,16 @@ struct cmd_join {
 } __attribute__ ((packed));
 
 struct cmd_enabledisable_path {
-	struct wl12xx_cmd_header header;
+	struct wl1251_cmd_header header;
 
 	u8 channel;
 	u8 padding[3];
 } __attribute__ ((packed));
 
-#define WL12XX_MAX_TEMPLATE_SIZE 300
+#define WL1251_MAX_TEMPLATE_SIZE 300
 
-struct wl12xx_cmd_packet_template {
-	struct wl12xx_cmd_header header;
+struct wl1251_cmd_packet_template {
+	struct wl1251_cmd_header header;
 
 	__le16 size;
 	u8 data[0];
@@ -287,7 +287,7 @@ struct wl12xx_cmd_packet_template {
 #define TIM_ELE_ID    5
 #define PARTIAL_VBM_MAX    251
 
-struct wl12xx_tim {
+struct wl1251_tim {
 	u8 identity;
 	u8 length;
 	u8 dtim_count;
@@ -297,20 +297,20 @@ struct wl12xx_tim {
 } __attribute__ ((packed));
 
 /* Virtual Bit Map update */
-struct wl12xx_cmd_vbm_update {
-	struct wl12xx_cmd_header header;
+struct wl1251_cmd_vbm_update {
+	struct wl1251_cmd_header header;
 	__le16 len;
 	u8  padding[2];
-	struct wl12xx_tim tim;
+	struct wl1251_tim tim;
 } __attribute__ ((packed));
 
-enum wl12xx_cmd_ps_mode {
+enum wl1251_cmd_ps_mode {
 	STATION_ACTIVE_MODE,
 	STATION_POWER_SAVE_MODE
 };
 
-struct wl12xx_cmd_ps_params {
-	struct wl12xx_cmd_header header;
+struct wl1251_cmd_ps_params {
+	struct wl1251_cmd_header header;
 
 	u8 ps_mode; /* STATION_* */
 	u8 send_null_data; /* Do we have to send NULL data packet ? */
@@ -325,8 +325,8 @@ struct wl12xx_cmd_ps_params {
 	u8 pad[2];
 } __attribute__ ((packed));
 
-struct wl12xx_cmd_trigger_scan_to {
-	struct wl12xx_cmd_header header;
+struct wl1251_cmd_trigger_scan_to {
+	struct wl1251_cmd_header header;
 
 	u32 timeout;
 };
@@ -340,14 +340,14 @@ struct wl12xx_cmd_trigger_scan_to {
 /* When set, disable HW decryption */
 #define DF_SNIFF_MODE_ENABLE       0x80
 
-enum wl12xx_cmd_key_action {
+enum wl1251_cmd_key_action {
 	KEY_ADD_OR_REPLACE = 1,
 	KEY_REMOVE         = 2,
 	KEY_SET_ID         = 3,
 	MAX_KEY_ACTION     = 0xffff,
 };
 
-enum wl12xx_cmd_key_type {
+enum wl1251_cmd_key_type {
 	KEY_WEP_DEFAULT       = 0,
 	KEY_WEP_ADDR          = 1,
 	KEY_AES_GROUP         = 4,
@@ -374,8 +374,8 @@ enum wl12xx_cmd_key_type {
  *
  */
 
-struct wl12xx_cmd_set_keys {
-	struct wl12xx_cmd_header header;
+struct wl1251_cmd_set_keys {
+	struct wl1251_cmd_header header;
 
 	/* Ignored for default WEP key */
 	u8 addr[ETH_ALEN];
@@ -404,4 +404,4 @@ struct wl12xx_cmd_set_keys {
 } __attribute__ ((packed));
 
 
-#endif /* __WL12XX_CMD_H__ */
+#endif /* __WL1251_CMD_H__ */

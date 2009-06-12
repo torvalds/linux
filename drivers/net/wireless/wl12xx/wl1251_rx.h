@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL12XX_RX_H__
-#define __WL12XX_RX_H__
+#ifndef __WL1251_RX_H__
+#define __WL1251_RX_H__
 
 #include <linux/bitops.h>
 
@@ -45,12 +45,12 @@
  * 4) The target prepares the next RX packet.
  */
 
-#define WL12XX_RX_MAX_RSSI -30
-#define WL12XX_RX_MIN_RSSI -95
+#define WL1251_RX_MAX_RSSI -30
+#define WL1251_RX_MIN_RSSI -95
 
-#define WL12XX_RX_ALIGN_TO 4
-#define WL12XX_RX_ALIGN(len) (((len) + WL12XX_RX_ALIGN_TO - 1) & \
-			     ~(WL12XX_RX_ALIGN_TO - 1))
+#define WL1251_RX_ALIGN_TO 4
+#define WL1251_RX_ALIGN(len) (((len) + WL1251_RX_ALIGN_TO - 1) & \
+			     ~(WL1251_RX_ALIGN_TO - 1))
 
 #define SHORT_PREAMBLE_BIT   BIT(0)
 #define OFDM_RATE_BIT        BIT(6)
@@ -74,7 +74,7 @@
 #define	RX_DESC_MIC_FAIL	  0x2000
 #define	RX_DESC_DECRYPT_FAIL	  0x4000
 
-struct wl12xx_rx_descriptor {
+struct wl1251_rx_descriptor {
 	u32 timestamp; /* In microseconds */
 	u16 length; /* Paylod length, including headers */
 	u16 flags;
@@ -119,6 +119,6 @@ struct wl12xx_rx_descriptor {
 	u8 snr; /* in dB */
 } __attribute__ ((packed));
 
-void wl12xx_rx(struct wl12xx *wl);
+void wl1251_rx(struct wl1251 *wl);
 
 #endif

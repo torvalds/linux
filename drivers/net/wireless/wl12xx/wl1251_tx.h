@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -210,7 +210,7 @@ struct tx_result {
 } __attribute__ ((packed));
 
 void wl1251_tx_work(struct work_struct *work);
-void wl1251_tx_complete(struct wl12xx *wl);
-void wl1251_tx_flush(struct wl12xx *wl);
+void wl1251_tx_complete(struct wl1251 *wl);
+void wl1251_tx_flush(struct wl1251 *wl);
 
 #endif

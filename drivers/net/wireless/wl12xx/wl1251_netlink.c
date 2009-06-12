@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2008 Nokia Corporation
  *
@@ -35,52 +35,52 @@
 #include "wl1251_acx.h"
 
 /* FIXME: this should be changed as soon as user space catches up */
-#define WL12XX_NL_NAME "wl1251"
-#define WL12XX_NL_VERSION 1
+#define WL1251_NL_NAME "wl1251"
+#define WL1251_NL_VERSION 1
 
-#define WL12XX_MAX_TEST_LENGTH 1024
-#define WL12XX_MAX_NVS_LENGTH 1024
+#define WL1251_MAX_TEST_LENGTH 1024
+#define WL1251_MAX_NVS_LENGTH 1024
 
-enum wl12xx_nl_commands {
-	WL12XX_NL_CMD_UNSPEC,
-	WL12XX_NL_CMD_TEST,
-	WL12XX_NL_CMD_INTERROGATE,
-	WL12XX_NL_CMD_CONFIGURE,
-	WL12XX_NL_CMD_PHY_REG_READ,
-	WL12XX_NL_CMD_NVS_PUSH,
-	WL12XX_NL_CMD_REG_WRITE,
-	WL12XX_NL_CMD_REG_READ,
-	WL12XX_NL_CMD_SET_PLT_MODE,
+enum wl1251_nl_commands {
+	WL1251_NL_CMD_UNSPEC,
+	WL1251_NL_CMD_TEST,
+	WL1251_NL_CMD_INTERROGATE,
+	WL1251_NL_CMD_CONFIGURE,
+	WL1251_NL_CMD_PHY_REG_READ,
+	WL1251_NL_CMD_NVS_PUSH,
+	WL1251_NL_CMD_REG_WRITE,
+	WL1251_NL_CMD_REG_READ,
+	WL1251_NL_CMD_SET_PLT_MODE,
 
-	__WL12XX_NL_CMD_AFTER_LAST
+	__WL1251_NL_CMD_AFTER_LAST
 };
-#define WL12XX_NL_CMD_MAX (__WL12XX_NL_CMD_AFTER_LAST - 1)
+#define WL1251_NL_CMD_MAX (__WL1251_NL_CMD_AFTER_LAST - 1)
 
-enum wl12xx_nl_attrs {
-	WL12XX_NL_ATTR_UNSPEC,
-	WL12XX_NL_ATTR_IFNAME,
-	WL12XX_NL_ATTR_CMD_TEST_PARAM,
-	WL12XX_NL_ATTR_CMD_TEST_ANSWER,
-	WL12XX_NL_ATTR_CMD_IE,
-	WL12XX_NL_ATTR_CMD_IE_LEN,
-	WL12XX_NL_ATTR_CMD_IE_BUFFER,
-	WL12XX_NL_ATTR_CMD_IE_ANSWER,
-	WL12XX_NL_ATTR_REG_ADDR,
-	WL12XX_NL_ATTR_REG_VAL,
-	WL12XX_NL_ATTR_NVS_BUFFER,
-	WL12XX_NL_ATTR_NVS_LEN,
-	WL12XX_NL_ATTR_PLT_MODE,
+enum wl1251_nl_attrs {
+	WL1251_NL_ATTR_UNSPEC,
+	WL1251_NL_ATTR_IFNAME,
+	WL1251_NL_ATTR_CMD_TEST_PARAM,
+	WL1251_NL_ATTR_CMD_TEST_ANSWER,
+	WL1251_NL_ATTR_CMD_IE,
+	WL1251_NL_ATTR_CMD_IE_LEN,
+	WL1251_NL_ATTR_CMD_IE_BUFFER,
+	WL1251_NL_ATTR_CMD_IE_ANSWER,
+	WL1251_NL_ATTR_REG_ADDR,
+	WL1251_NL_ATTR_REG_VAL,
+	WL1251_NL_ATTR_NVS_BUFFER,
+	WL1251_NL_ATTR_NVS_LEN,
+	WL1251_NL_ATTR_PLT_MODE,
 
-	__WL12XX_NL_ATTR_AFTER_LAST
+	__WL1251_NL_ATTR_AFTER_LAST
 };
-#define WL12XX_NL_ATTR_MAX (__WL12XX_NL_ATTR_AFTER_LAST - 1)
+#define WL1251_NL_ATTR_MAX (__WL1251_NL_ATTR_AFTER_LAST - 1)
 
-static struct genl_family wl12xx_nl_family = {
+static struct genl_family wl1251_nl_family = {
 	.id = GENL_ID_GENERATE,
-	.name = WL12XX_NL_NAME,
+	.name = WL1251_NL_NAME,
 	.hdrsize = 0,
-	.version = WL12XX_NL_VERSION,
-	.maxattr = WL12XX_NL_ATTR_MAX,
+	.version = WL1251_NL_VERSION,
+	.maxattr = WL1251_NL_ATTR_MAX,
 };
 
 static struct net_device *ifname_to_netdev(struct net *net,
@@ -88,17 +88,17 @@ static struct net_device *ifname_to_netdev(struct net *net,
 {
 	char *ifname;
 
-	if (!info->attrs[WL12XX_NL_ATTR_IFNAME])
+	if (!info->attrs[WL1251_NL_ATTR_IFNAME])
 		return NULL;
 
-	ifname = nla_data(info->attrs[WL12XX_NL_ATTR_IFNAME]);
+	ifname = nla_data(info->attrs[WL1251_NL_ATTR_IFNAME]);
 
-	wl12xx_debug(DEBUG_NETLINK, "Looking for %s", ifname);
+	wl1251_debug(DEBUG_NETLINK, "Looking for %s", ifname);
 
 	return dev_get_by_name(net, ifname);
 }
 
-static struct wl12xx *ifname_to_wl12xx(struct net *net, struct genl_info *info)
+static struct wl1251 *ifname_to_wl1251(struct net *net, struct genl_info *info)
 {
 	struct net_device *netdev;
 	struct wireless_dev *wdev;
@@ -107,25 +107,25 @@ static struct wl12xx *ifname_to_wl12xx(struct net *net, struct genl_info *info)
 
 	netdev = ifname_to_netdev(net, info);
 	if (netdev == NULL) {
-		wl12xx_error("Wrong interface");
+		wl1251_error("Wrong interface");
 		return NULL;
 	}
 
 	wdev = netdev->ieee80211_ptr;
 	if (wdev == NULL) {
-		wl12xx_error("ieee80211_ptr is NULL");
+		wl1251_error("ieee80211_ptr is NULL");
 		return NULL;
 	}
 
 	wiphy = wdev->wiphy;
 	if (wiphy == NULL) {
-		wl12xx_error("wiphy is NULL");
+		wl1251_error("wiphy is NULL");
 		return NULL;
 	}
 
 	hw = wiphy_priv(wiphy);
 	if (hw == NULL) {
-		wl12xx_error("hw is NULL");
+		wl1251_error("hw is NULL");
 		return NULL;
 	}
 
@@ -134,20 +134,20 @@ static struct wl12xx *ifname_to_wl12xx(struct net *net, struct genl_info *info)
 	return hw->priv;
 }
 
-static int wl12xx_nl_test_cmd(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_test_cmd(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
-	struct wl12xx_command *cmd;
+	struct wl1251 *wl;
+	struct wl1251_command *cmd;
 	char *buf;
 	int buf_len, ret, cmd_len;
 	u8 answer;
 
-	if (!info->attrs[WL12XX_NL_ATTR_CMD_TEST_PARAM])
+	if (!info->attrs[WL1251_NL_ATTR_CMD_TEST_PARAM])
 		return -EINVAL;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		return -EINVAL;
 	}
 
@@ -155,20 +155,20 @@ static int wl12xx_nl_test_cmd(struct sk_buff *skb, struct genl_info *info)
 	if (!cmd)
 		return -ENOMEM;
 
-	buf = nla_data(info->attrs[WL12XX_NL_ATTR_CMD_TEST_PARAM]);
-	buf_len = nla_len(info->attrs[WL12XX_NL_ATTR_CMD_TEST_PARAM]);
-	answer = nla_get_u8(info->attrs[WL12XX_NL_ATTR_CMD_TEST_ANSWER]);
+	buf = nla_data(info->attrs[WL1251_NL_ATTR_CMD_TEST_PARAM]);
+	buf_len = nla_len(info->attrs[WL1251_NL_ATTR_CMD_TEST_PARAM]);
+	answer = nla_get_u8(info->attrs[WL1251_NL_ATTR_CMD_TEST_ANSWER]);
 
 	cmd->header.id = CMD_TEST;
 	memcpy(cmd->parameters, buf, buf_len);
-	cmd_len = sizeof(struct wl12xx_cmd_header) + buf_len;
+	cmd_len = sizeof(struct wl1251_cmd_header) + buf_len;
 
 	mutex_lock(&wl->mutex);
-	ret = wl12xx_cmd_test(wl, cmd, cmd_len, answer);
+	ret = wl1251_cmd_test(wl, cmd, cmd_len, answer);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto out;
 	}
 
@@ -183,49 +183,49 @@ static int wl12xx_nl_test_cmd(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
-				  &wl12xx_nl_family, 0, WL12XX_NL_CMD_TEST);
+				  &wl1251_nl_family, 0, WL1251_NL_CMD_TEST);
 		if (IS_ERR(hdr)) {
 			ret = PTR_ERR(hdr);
 			goto nla_put_failure;
 		}
 
-		NLA_PUT_STRING(msg, WL12XX_NL_ATTR_IFNAME,
-			       nla_data(info->attrs[WL12XX_NL_ATTR_IFNAME]));
-		NLA_PUT(msg, WL12XX_NL_ATTR_CMD_TEST_ANSWER,
+		NLA_PUT_STRING(msg, WL1251_NL_ATTR_IFNAME,
+			       nla_data(info->attrs[WL1251_NL_ATTR_IFNAME]));
+		NLA_PUT(msg, WL1251_NL_ATTR_CMD_TEST_ANSWER,
 			sizeof(*cmd), cmd);
 
 		ret = genlmsg_end(msg, hdr);
 		if (ret < 0) {
-			wl12xx_error("%s() failed", __func__);
+			wl1251_error("%s() failed", __func__);
 			goto nla_put_failure;
 		}
 
-		wl12xx_debug(DEBUG_NETLINK, "TEST cmd sent, answer");
+		wl1251_debug(DEBUG_NETLINK, "TEST cmd sent, answer");
 		ret = genlmsg_reply(msg, info);
 		goto out;
 
  nla_put_failure:
 		nlmsg_free(msg);
 	} else
-		wl12xx_debug(DEBUG_NETLINK, "TEST cmd sent");
+		wl1251_debug(DEBUG_NETLINK, "TEST cmd sent");
 
 out:
 	kfree(cmd);
 	return ret;
 }
 
-static int wl12xx_nl_interrogate(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_interrogate(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	struct sk_buff *msg;
 	int ret = -ENOBUFS, cmd_ie, cmd_ie_len;
-	struct wl12xx_command *cmd;
+	struct wl1251_command *cmd;
 	void *hdr;
 
-	if (!info->attrs[WL12XX_NL_ATTR_CMD_IE])
+	if (!info->attrs[WL1251_NL_ATTR_CMD_IE])
 		return -EINVAL;
 
-	if (!info->attrs[WL12XX_NL_ATTR_CMD_IE_LEN])
+	if (!info->attrs[WL1251_NL_ATTR_CMD_IE_LEN])
 		return -EINVAL;
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -236,45 +236,45 @@ static int wl12xx_nl_interrogate(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		return -ENOMEM;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		ret = -EINVAL;
 		goto nla_put_failure;
 	}
 
 	/* acx id */
-	cmd_ie = nla_get_u32(info->attrs[WL12XX_NL_ATTR_CMD_IE]);
+	cmd_ie = nla_get_u32(info->attrs[WL1251_NL_ATTR_CMD_IE]);
 
 	/* maximum length of acx, including all headers */
-	cmd_ie_len = nla_get_u32(info->attrs[WL12XX_NL_ATTR_CMD_IE_LEN]);
+	cmd_ie_len = nla_get_u32(info->attrs[WL1251_NL_ATTR_CMD_IE_LEN]);
 
-	wl12xx_debug(DEBUG_NETLINK, "Getting IE 0x%x (len %d)",
+	wl1251_debug(DEBUG_NETLINK, "Getting IE 0x%x (len %d)",
 		     cmd_ie, cmd_ie_len);
 
 	mutex_lock(&wl->mutex);
-	ret = wl12xx_cmd_interrogate(wl, cmd_ie, cmd, cmd_ie_len);
+	ret = wl1251_cmd_interrogate(wl, cmd_ie, cmd, cmd_ie_len);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
 	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
-			  &wl12xx_nl_family, 0, WL12XX_NL_CMD_INTERROGATE);
+			  &wl1251_nl_family, 0, WL1251_NL_CMD_INTERROGATE);
 	if (IS_ERR(hdr)) {
 		ret = PTR_ERR(hdr);
 		goto nla_put_failure;
 	}
 
-	NLA_PUT_STRING(msg, WL12XX_NL_ATTR_IFNAME,
-		       nla_data(info->attrs[WL12XX_NL_ATTR_IFNAME]));
-	NLA_PUT(msg, WL12XX_NL_ATTR_CMD_IE_ANSWER, cmd_ie_len, cmd);
+	NLA_PUT_STRING(msg, WL1251_NL_ATTR_IFNAME,
+		       nla_data(info->attrs[WL1251_NL_ATTR_IFNAME]));
+	NLA_PUT(msg, WL1251_NL_ATTR_CMD_IE_ANSWER, cmd_ie_len, cmd);
 
 	ret = genlmsg_end(msg, hdr);
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
@@ -288,36 +288,36 @@ static int wl12xx_nl_interrogate(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static int wl12xx_nl_configure(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_configure(struct sk_buff *skb, struct genl_info *info)
 {
 	int ret = 0, cmd_ie_len, acx_len;
 	struct acx_header *acx = NULL;
 	struct sk_buff *msg;
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	void *cmd_ie;
 	u16 *id;
 
-	if (!info->attrs[WL12XX_NL_ATTR_CMD_IE_BUFFER])
+	if (!info->attrs[WL1251_NL_ATTR_CMD_IE_BUFFER])
 		return -EINVAL;
 
-	if (!info->attrs[WL12XX_NL_ATTR_CMD_IE_LEN])
+	if (!info->attrs[WL1251_NL_ATTR_CMD_IE_LEN])
 		return -EINVAL;
 
 	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		ret = -EINVAL;
 		goto nla_put_failure;
 	}
 
 	/* contains the acx header but not the cmd header */
-	cmd_ie = nla_data(info->attrs[WL12XX_NL_ATTR_CMD_IE_BUFFER]);
+	cmd_ie = nla_data(info->attrs[WL1251_NL_ATTR_CMD_IE_BUFFER]);
 
-	cmd_ie_len = nla_get_u32(info->attrs[WL12XX_NL_ATTR_CMD_IE_LEN]);
+	cmd_ie_len = nla_get_u32(info->attrs[WL1251_NL_ATTR_CMD_IE_LEN]);
 
 	/* acx id is in the first two bytes */
 	id = cmd_ie;
@@ -334,15 +334,15 @@ static int wl12xx_nl_configure(struct sk_buff *skb, struct genl_info *info)
 	memcpy(&acx->id, cmd_ie, cmd_ie_len);
 
 	mutex_lock(&wl->mutex);
-	ret = wl12xx_cmd_configure(wl, *id, acx, acx_len);
+	ret = wl1251_cmd_configure(wl, *id, acx, acx_len);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
-	wl12xx_debug(DEBUG_NETLINK, "CONFIGURE cmd sent");
+	wl1251_debug(DEBUG_NETLINK, "CONFIGURE cmd sent");
 
  nla_put_failure:
 	kfree(acx);
@@ -351,24 +351,24 @@ static int wl12xx_nl_configure(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static int wl12xx_nl_phy_reg_read(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_phy_reg_read(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	struct sk_buff *msg;
 	u32 reg_addr, *reg_value = NULL;
 	int ret = 0;
 	void *hdr;
 
-	if (!info->attrs[WL12XX_NL_ATTR_REG_ADDR])
+	if (!info->attrs[WL1251_NL_ATTR_REG_ADDR])
 		return -EINVAL;
 
 	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		ret = -EINVAL;
 		goto nla_put_failure;
 	}
@@ -379,36 +379,36 @@ static int wl12xx_nl_phy_reg_read(struct sk_buff *skb, struct genl_info *info)
 		goto nla_put_failure;
 	}
 
-	reg_addr = nla_get_u32(info->attrs[WL12XX_NL_ATTR_REG_ADDR]);
+	reg_addr = nla_get_u32(info->attrs[WL1251_NL_ATTR_REG_ADDR]);
 
-	wl12xx_debug(DEBUG_NETLINK, "Reading PHY reg 0x%x", reg_addr);
+	wl1251_debug(DEBUG_NETLINK, "Reading PHY reg 0x%x", reg_addr);
 
 	mutex_lock(&wl->mutex);
-	ret = wl12xx_cmd_read_memory(wl, reg_addr, reg_value,
+	ret = wl1251_cmd_read_memory(wl, reg_addr, reg_value,
 				     sizeof(*reg_value));
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
 
 	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
-			  &wl12xx_nl_family, 0, WL12XX_NL_CMD_PHY_REG_READ);
+			  &wl1251_nl_family, 0, WL1251_NL_CMD_PHY_REG_READ);
 	if (IS_ERR(hdr)) {
 		ret = PTR_ERR(hdr);
 		goto nla_put_failure;
 	}
 
-	NLA_PUT_STRING(msg, WL12XX_NL_ATTR_IFNAME,
-		       nla_data(info->attrs[WL12XX_NL_ATTR_IFNAME]));
+	NLA_PUT_STRING(msg, WL1251_NL_ATTR_IFNAME,
+		       nla_data(info->attrs[WL1251_NL_ATTR_IFNAME]));
 
-	NLA_PUT_U32(msg, WL12XX_NL_ATTR_REG_VAL, *reg_value);
+	NLA_PUT_U32(msg, WL1251_NL_ATTR_REG_VAL, *reg_value);
 
 	ret = genlmsg_end(msg, hdr);
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
@@ -423,27 +423,27 @@ static int wl12xx_nl_phy_reg_read(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static int wl12xx_nl_nvs_push(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_nvs_push(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	int ret = 0;
 
-	if (!info->attrs[WL12XX_NL_ATTR_NVS_BUFFER])
+	if (!info->attrs[WL1251_NL_ATTR_NVS_BUFFER])
 		return -EINVAL;
 
-	if (!info->attrs[WL12XX_NL_ATTR_NVS_LEN])
+	if (!info->attrs[WL1251_NL_ATTR_NVS_LEN])
 		return -EINVAL;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		return -EINVAL;
 	}
 
 	mutex_lock(&wl->mutex);
-	wl->nvs_len = nla_get_u32(info->attrs[WL12XX_NL_ATTR_NVS_LEN]);
+	wl->nvs_len = nla_get_u32(info->attrs[WL1251_NL_ATTR_NVS_LEN]);
 	if (wl->nvs_len % 4) {
-		wl12xx_error("NVS size is not multiple of 32: %d", wl->nvs_len);
+		wl1251_error("NVS size is not multiple of 32: %d", wl->nvs_len);
 		ret = -EILSEQ;
 		goto out;
 	}
@@ -453,16 +453,16 @@ static int wl12xx_nl_nvs_push(struct sk_buff *skb, struct genl_info *info)
 
 	wl->nvs = kzalloc(wl->nvs_len, GFP_KERNEL);
 	if (wl->nvs == NULL) {
-		wl12xx_error("Can't allocate NVS");
+		wl1251_error("Can't allocate NVS");
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	memcpy(wl->nvs,
-	       nla_data(info->attrs[WL12XX_NL_ATTR_NVS_BUFFER]),
+	       nla_data(info->attrs[WL1251_NL_ATTR_NVS_BUFFER]),
 	       wl->nvs_len);
 
-	wl12xx_debug(DEBUG_NETLINK, "got NVS from userspace, %d bytes",
+	wl1251_debug(DEBUG_NETLINK, "got NVS from userspace, %d bytes",
 		     wl->nvs_len);
 
 out:
@@ -471,48 +471,48 @@ out:
 	return ret;
 }
 
-static int wl12xx_nl_reg_read(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_reg_read(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	u32 addr, val;
 	int ret = 0;
 	struct sk_buff *msg;
 	void *hdr;
 
-	if (!info->attrs[WL12XX_NL_ATTR_REG_ADDR])
+	if (!info->attrs[WL1251_NL_ATTR_REG_ADDR])
 		return -EINVAL;
 
 	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		return -EINVAL;
 	}
 
-	addr = nla_get_u32(info->attrs[WL12XX_NL_ATTR_REG_ADDR]);
+	addr = nla_get_u32(info->attrs[WL1251_NL_ATTR_REG_ADDR]);
 
 	mutex_lock(&wl->mutex);
-	val = wl12xx_reg_read32(wl, addr);
+	val = wl1251_reg_read32(wl, addr);
 	mutex_unlock(&wl->mutex);
 
 	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq,
-			  &wl12xx_nl_family, 0, WL12XX_NL_CMD_PHY_REG_READ);
+			  &wl1251_nl_family, 0, WL1251_NL_CMD_PHY_REG_READ);
 	if (IS_ERR(hdr)) {
 		ret = PTR_ERR(hdr);
 		goto nla_put_failure;
 	}
 
-	NLA_PUT_STRING(msg, WL12XX_NL_ATTR_IFNAME,
-		       nla_data(info->attrs[WL12XX_NL_ATTR_IFNAME]));
+	NLA_PUT_STRING(msg, WL1251_NL_ATTR_IFNAME,
+		       nla_data(info->attrs[WL1251_NL_ATTR_IFNAME]));
 
-	NLA_PUT_U32(msg, WL12XX_NL_ATTR_REG_VAL, val);
+	NLA_PUT_U32(msg, WL1251_NL_ATTR_REG_VAL, val);
 
 	ret = genlmsg_end(msg, hdr);
 	if (ret < 0) {
-		wl12xx_error("%s() failed", __func__);
+		wl1251_error("%s() failed", __func__);
 		goto nla_put_failure;
 	}
 
@@ -524,56 +524,56 @@ static int wl12xx_nl_reg_read(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static int wl12xx_nl_reg_write(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_reg_write(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	u32 addr, val;
 
-	if (!info->attrs[WL12XX_NL_ATTR_REG_ADDR])
+	if (!info->attrs[WL1251_NL_ATTR_REG_ADDR])
 		return -EINVAL;
 
-	if (!info->attrs[WL12XX_NL_ATTR_REG_VAL])
+	if (!info->attrs[WL1251_NL_ATTR_REG_VAL])
 		return -EINVAL;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		return -EINVAL;
 	}
 
-	addr = nla_get_u32(info->attrs[WL12XX_NL_ATTR_REG_ADDR]);
-	val = nla_get_u32(info->attrs[WL12XX_NL_ATTR_REG_VAL]);
+	addr = nla_get_u32(info->attrs[WL1251_NL_ATTR_REG_ADDR]);
+	val = nla_get_u32(info->attrs[WL1251_NL_ATTR_REG_VAL]);
 
 	mutex_lock(&wl->mutex);
-	wl12xx_reg_write32(wl, addr, val);
+	wl1251_reg_write32(wl, addr, val);
 	mutex_unlock(&wl->mutex);
 
 	return 0;
 }
 
-static int wl12xx_nl_set_plt_mode(struct sk_buff *skb, struct genl_info *info)
+static int wl1251_nl_set_plt_mode(struct sk_buff *skb, struct genl_info *info)
 {
-	struct wl12xx *wl;
+	struct wl1251 *wl;
 	u32 val;
 	int ret;
 
-	if (!info->attrs[WL12XX_NL_ATTR_PLT_MODE])
+	if (!info->attrs[WL1251_NL_ATTR_PLT_MODE])
 		return -EINVAL;
 
-	wl = ifname_to_wl12xx(&init_net, info);
+	wl = ifname_to_wl1251(&init_net, info);
 	if (wl == NULL) {
-		wl12xx_error("wl12xx not found");
+		wl1251_error("wl1251 not found");
 		return -EINVAL;
 	}
 
-	val = nla_get_u32(info->attrs[WL12XX_NL_ATTR_PLT_MODE]);
+	val = nla_get_u32(info->attrs[WL1251_NL_ATTR_PLT_MODE]);
 
 	switch (val) {
 	case 0:
-		ret = wl12xx_plt_stop(wl);
+		ret = wl1251_plt_stop(wl);
 		break;
 	case 1:
-		ret = wl12xx_plt_start(wl);
+		ret = wl1251_plt_start(wl);
 		break;
 	default:
 		ret = -EINVAL;
@@ -583,97 +583,97 @@ static int wl12xx_nl_set_plt_mode(struct sk_buff *skb, struct genl_info *info)
 	return ret;
 }
 
-static struct nla_policy wl12xx_nl_policy[WL12XX_NL_ATTR_MAX + 1] = {
-	[WL12XX_NL_ATTR_IFNAME] =            { .type = NLA_NUL_STRING,
+static struct nla_policy wl1251_nl_policy[WL1251_NL_ATTR_MAX + 1] = {
+	[WL1251_NL_ATTR_IFNAME] =            { .type = NLA_NUL_STRING,
 					       .len = IFNAMSIZ-1 },
-	[WL12XX_NL_ATTR_CMD_TEST_PARAM] =    { .type = NLA_BINARY,
-					       .len = WL12XX_MAX_TEST_LENGTH },
-	[WL12XX_NL_ATTR_CMD_TEST_ANSWER] =   { .type = NLA_U8 },
-	[WL12XX_NL_ATTR_CMD_IE] =            { .type = NLA_U32 },
-	[WL12XX_NL_ATTR_CMD_IE_LEN] =        { .type = NLA_U32 },
-	[WL12XX_NL_ATTR_CMD_IE_BUFFER] =     { .type = NLA_BINARY,
-					       .len = WL12XX_MAX_TEST_LENGTH },
-	[WL12XX_NL_ATTR_CMD_IE_ANSWER] =     { .type = NLA_BINARY,
-					       .len = WL12XX_MAX_TEST_LENGTH },
-	[WL12XX_NL_ATTR_REG_ADDR] =          { .type = NLA_U32 },
-	[WL12XX_NL_ATTR_REG_VAL] =           { .type = NLA_U32 },
-	[WL12XX_NL_ATTR_NVS_BUFFER] =        { .type = NLA_BINARY,
-					       .len = WL12XX_MAX_NVS_LENGTH },
-	[WL12XX_NL_ATTR_NVS_LEN] =           { .type = NLA_U32 },
-	[WL12XX_NL_ATTR_PLT_MODE] =          { .type = NLA_U32 },
+	[WL1251_NL_ATTR_CMD_TEST_PARAM] =    { .type = NLA_BINARY,
+					       .len = WL1251_MAX_TEST_LENGTH },
+	[WL1251_NL_ATTR_CMD_TEST_ANSWER] =   { .type = NLA_U8 },
+	[WL1251_NL_ATTR_CMD_IE] =            { .type = NLA_U32 },
+	[WL1251_NL_ATTR_CMD_IE_LEN] =        { .type = NLA_U32 },
+	[WL1251_NL_ATTR_CMD_IE_BUFFER] =     { .type = NLA_BINARY,
+					       .len = WL1251_MAX_TEST_LENGTH },
+	[WL1251_NL_ATTR_CMD_IE_ANSWER] =     { .type = NLA_BINARY,
+					       .len = WL1251_MAX_TEST_LENGTH },
+	[WL1251_NL_ATTR_REG_ADDR] =          { .type = NLA_U32 },
+	[WL1251_NL_ATTR_REG_VAL] =           { .type = NLA_U32 },
+	[WL1251_NL_ATTR_NVS_BUFFER] =        { .type = NLA_BINARY,
+					       .len = WL1251_MAX_NVS_LENGTH },
+	[WL1251_NL_ATTR_NVS_LEN] =           { .type = NLA_U32 },
+	[WL1251_NL_ATTR_PLT_MODE] =          { .type = NLA_U32 },
 };
 
-static struct genl_ops wl12xx_nl_ops[] = {
+static struct genl_ops wl1251_nl_ops[] = {
 	{
-		.cmd = WL12XX_NL_CMD_TEST,
-		.doit = wl12xx_nl_test_cmd,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_TEST,
+		.doit = wl1251_nl_test_cmd,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_INTERROGATE,
-		.doit = wl12xx_nl_interrogate,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_INTERROGATE,
+		.doit = wl1251_nl_interrogate,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_CONFIGURE,
-		.doit = wl12xx_nl_configure,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_CONFIGURE,
+		.doit = wl1251_nl_configure,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_PHY_REG_READ,
-		.doit = wl12xx_nl_phy_reg_read,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_PHY_REG_READ,
+		.doit = wl1251_nl_phy_reg_read,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_NVS_PUSH,
-		.doit = wl12xx_nl_nvs_push,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_NVS_PUSH,
+		.doit = wl1251_nl_nvs_push,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_REG_WRITE,
-		.doit = wl12xx_nl_reg_write,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_REG_WRITE,
+		.doit = wl1251_nl_reg_write,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_REG_READ,
-		.doit = wl12xx_nl_reg_read,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_REG_READ,
+		.doit = wl1251_nl_reg_read,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = WL12XX_NL_CMD_SET_PLT_MODE,
-		.doit = wl12xx_nl_set_plt_mode,
-		.policy = wl12xx_nl_policy,
+		.cmd = WL1251_NL_CMD_SET_PLT_MODE,
+		.doit = wl1251_nl_set_plt_mode,
+		.policy = wl1251_nl_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
 };
 
-int wl12xx_nl_register(void)
+int wl1251_nl_register(void)
 {
 	int err, i;
 
-	err = genl_register_family(&wl12xx_nl_family);
+	err = genl_register_family(&wl1251_nl_family);
 	if (err)
 		return err;
 
-	for (i = 0; i < ARRAY_SIZE(wl12xx_nl_ops); i++) {
-		err = genl_register_ops(&wl12xx_nl_family, &wl12xx_nl_ops[i]);
+	for (i = 0; i < ARRAY_SIZE(wl1251_nl_ops); i++) {
+		err = genl_register_ops(&wl1251_nl_family, &wl1251_nl_ops[i]);
 		if (err)
 			goto err_out;
 	}
 	return 0;
  err_out:
-	genl_unregister_family(&wl12xx_nl_family);
+	genl_unregister_family(&wl1251_nl_family);
 	return err;
 }
 
-void wl12xx_nl_unregister(void)
+void wl1251_nl_unregister(void)
 {
-	genl_unregister_family(&wl12xx_nl_family);
+	genl_unregister_family(&wl1251_nl_family);
 }

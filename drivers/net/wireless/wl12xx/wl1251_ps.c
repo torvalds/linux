@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2008 Nokia Corporation
  *
@@ -25,22 +25,22 @@
 #include "wl1251_ps.h"
 #include "wl1251_spi.h"
 
-#define WL12XX_WAKEUP_TIMEOUT 2000
+#define WL1251_WAKEUP_TIMEOUT 2000
 
 /* Routines to toggle sleep mode while in ELP */
-void wl12xx_ps_elp_sleep(struct wl12xx *wl)
+void wl1251_ps_elp_sleep(struct wl1251 *wl)
 {
 	if (wl->elp || !wl->psm)
 		return;
 
-	wl12xx_debug(DEBUG_PSM, "chip to elp");
+	wl1251_debug(DEBUG_PSM, "chip to elp");
 
-	wl12xx_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
 
 	wl->elp = true;
 }
 
-int wl12xx_ps_elp_wakeup(struct wl12xx *wl)
+int wl1251_ps_elp_wakeup(struct wl1251 *wl)
 {
 	unsigned long timeout;
 	u32 elp_reg;
@@ -48,13 +48,13 @@ int wl12xx_ps_elp_wakeup(struct wl12xx *wl)
 	if (!wl->elp)
 		return 0;
 
-	wl12xx_debug(DEBUG_PSM, "waking up chip from elp");
+	wl1251_debug(DEBUG_PSM, "waking up chip from elp");
 
-	timeout = jiffies + msecs_to_jiffies(WL12XX_WAKEUP_TIMEOUT);
+	timeout = jiffies + msecs_to_jiffies(WL1251_WAKEUP_TIMEOUT);
 
-	wl12xx_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
+	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
 
-	elp_reg = wl12xx_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	/*
 	 * FIXME: we should wait for irq from chip but, as a temporary
@@ -62,36 +62,36 @@ int wl12xx_ps_elp_wakeup(struct wl12xx *wl)
 	 */
 	while (!(elp_reg & ELPCTRL_WLAN_READY)) {
 		if (time_after(jiffies, timeout)) {
-			wl12xx_error("elp wakeup timeout");
+			wl1251_error("elp wakeup timeout");
 			return -ETIMEDOUT;
 		}
 		msleep(1);
-		elp_reg = wl12xx_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+		elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 	}
 
-	wl12xx_debug(DEBUG_PSM, "wakeup time: %u ms",
+	wl1251_debug(DEBUG_PSM, "wakeup time: %u ms",
 		     jiffies_to_msecs(jiffies) -
-		     (jiffies_to_msecs(timeout) - WL12XX_WAKEUP_TIMEOUT));
+		     (jiffies_to_msecs(timeout) - WL1251_WAKEUP_TIMEOUT));
 
 	wl->elp = false;
 
 	return 0;
 }
 
-static int wl12xx_ps_set_elp(struct wl12xx *wl, bool enable)
+static int wl1251_ps_set_elp(struct wl1251 *wl, bool enable)
 {
 	int ret;
 
 	if (enable) {
-		wl12xx_debug(DEBUG_PSM, "sleep auth psm/elp");
+		wl1251_debug(DEBUG_PSM, "sleep auth psm/elp");
 
-		ret = wl12xx_acx_sleep_auth(wl, WL12XX_PSM_ELP);
+		ret = wl1251_acx_sleep_auth(wl, WL1251_PSM_ELP);
 		if (ret < 0)
 			return ret;
 
-		wl12xx_ps_elp_sleep(wl);
+		wl1251_ps_elp_sleep(wl);
 	} else {
-		wl12xx_debug(DEBUG_PSM, "sleep auth cam");
+		wl1251_debug(DEBUG_PSM, "sleep auth cam");
 
 		/*
 		 * When the target is in ELP, we can only
@@ -100,9 +100,9 @@ static int wl12xx_ps_set_elp(struct wl12xx *wl, bool enable)
 		 * changing the power authorization.
 		 */
 
-		wl12xx_ps_elp_wakeup(wl);
+		wl1251_ps_elp_wakeup(wl);
 
-		ret = wl12xx_acx_sleep_auth(wl, WL12XX_PSM_CAM);
+		ret = wl1251_acx_sleep_auth(wl, WL1251_PSM_CAM);
 		if (ret < 0)
 			return ret;
 	}
@@ -110,18 +110,18 @@ static int wl12xx_ps_set_elp(struct wl12xx *wl, bool enable)
 	return 0;
 }
 
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode)
+int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode)
 {
 	int ret;
 
 	switch (mode) {
 	case STATION_POWER_SAVE_MODE:
-		wl12xx_debug(DEBUG_PSM, "entering psm");
-		ret = wl12xx_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
+		wl1251_debug(DEBUG_PSM, "entering psm");
+		ret = wl1251_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_ps_set_elp(wl, true);
+		ret = wl1251_ps_set_elp(wl, true);
 		if (ret < 0)
 			return ret;
 
@@ -129,12 +129,12 @@ int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode)
 		break;
 	case STATION_ACTIVE_MODE:
 	default:
-		wl12xx_debug(DEBUG_PSM, "leaving psm");
-		ret = wl12xx_ps_set_elp(wl, false);
+		wl1251_debug(DEBUG_PSM, "leaving psm");
+		ret = wl1251_ps_set_elp(wl, false);
 		if (ret < 0)
 			return ret;
 
-		ret = wl12xx_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
+		ret = wl1251_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
 		if (ret < 0)
 			return ret;
 

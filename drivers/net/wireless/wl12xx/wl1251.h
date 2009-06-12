@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008-2009 Nokia Corporation
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef __WL12XX_H__
-#define __WL12XX_H__
+#ifndef __WL1251_H__
+#define __WL1251_H__
 
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/bitops.h>
 #include <net/mac80211.h>
 
-#define DRIVER_NAME "wl12xx"
+#define DRIVER_NAME "wl1251"
 #define DRIVER_PREFIX DRIVER_NAME ": "
 
 enum {
@@ -56,25 +56,25 @@ enum {
 
 #define DEBUG_DUMP_LIMIT 1024
 
-#define wl12xx_error(fmt, arg...) \
+#define wl1251_error(fmt, arg...) \
 	printk(KERN_ERR DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
 
-#define wl12xx_warning(fmt, arg...) \
+#define wl1251_warning(fmt, arg...) \
 	printk(KERN_WARNING DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
-#define wl12xx_notice(fmt, arg...) \
+#define wl1251_notice(fmt, arg...) \
 	printk(KERN_INFO DRIVER_PREFIX fmt "\n", ##arg)
 
-#define wl12xx_info(fmt, arg...) \
+#define wl1251_info(fmt, arg...) \
 	printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg)
 
-#define wl12xx_debug(level, fmt, arg...) \
+#define wl1251_debug(level, fmt, arg...) \
 	do { \
 		if (level & DEBUG_LEVEL) \
 			printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg); \
 	} while (0)
 
-#define wl12xx_dump(level, prefix, buf, len)	\
+#define wl1251_dump(level, prefix, buf, len)	\
 	do { \
 		if (level & DEBUG_LEVEL) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
@@ -84,7 +84,7 @@ enum {
 				       0);				\
 	} while (0)
 
-#define wl12xx_dump_ascii(level, prefix, buf, len)	\
+#define wl1251_dump_ascii(level, prefix, buf, len)	\
 	do { \
 		if (level & DEBUG_LEVEL) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
@@ -94,10 +94,10 @@ enum {
 				       true);				\
 	} while (0)
 
-#define WL12XX_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
+#define WL1251_DEFAULT_RX_CONFIG (CFG_UNI_FILTER_EN |	\
 				  CFG_BSSID_FILTER_EN)
 
-#define WL12XX_DEFAULT_RX_FILTER (CFG_RX_PRSP_EN |  \
+#define WL1251_DEFAULT_RX_FILTER (CFG_RX_PRSP_EN |  \
 				  CFG_RX_MGMT_EN |  \
 				  CFG_RX_DATA_EN |  \
 				  CFG_RX_CTL_EN |   \
@@ -105,7 +105,7 @@ enum {
 				  CFG_RX_AUTH_EN |  \
 				  CFG_RX_ASSOC_EN)
 
-#define WL12XX_BUSY_WORD_LEN 8
+#define WL1251_BUSY_WORD_LEN 8
 
 struct boot_attr {
 	u32 radio_type;
@@ -117,13 +117,13 @@ struct boot_attr {
 	u32 bugfix;
 };
 
-enum wl12xx_state {
-	WL12XX_STATE_OFF,
-	WL12XX_STATE_ON,
-	WL12XX_STATE_PLT,
+enum wl1251_state {
+	WL1251_STATE_OFF,
+	WL1251_STATE_ON,
+	WL1251_STATE_PLT,
 };
 
-enum wl12xx_partition_type {
+enum wl1251_partition_type {
 	PART_DOWN,
 	PART_WORK,
 	PART_DRPW,
@@ -131,20 +131,20 @@ enum wl12xx_partition_type {
 	PART_TABLE_LEN
 };
 
-struct wl12xx_partition {
+struct wl1251_partition {
 	u32 size;
 	u32 start;
 };
 
-struct wl12xx_partition_set {
-	struct wl12xx_partition mem;
-	struct wl12xx_partition reg;
+struct wl1251_partition_set {
+	struct wl1251_partition mem;
+	struct wl1251_partition reg;
 };
 
-struct wl12xx;
+struct wl1251;
 
 /* FIXME: I'm not sure about this structure name */
-struct wl12xx_chip {
+struct wl1251_chip {
 	u32 id;
 
 	const char *fw_filename;
@@ -156,23 +156,23 @@ struct wl12xx_chip {
 	int intr_cmd_complete;
 	int intr_init_complete;
 
-	int (*op_upload_fw)(struct wl12xx *wl);
-	int (*op_upload_nvs)(struct wl12xx *wl);
-	int (*op_boot)(struct wl12xx *wl);
-	void (*op_set_ecpu_ctrl)(struct wl12xx *wl, u32 flag);
-	void (*op_target_enable_interrupts)(struct wl12xx *wl);
-	int (*op_hw_init)(struct wl12xx *wl);
-	int (*op_plt_init)(struct wl12xx *wl);
-	void (*op_tx_flush)(struct wl12xx *wl);
-	void (*op_fw_version)(struct wl12xx *wl);
-	int (*op_cmd_join)(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
+	int (*op_upload_fw)(struct wl1251 *wl);
+	int (*op_upload_nvs)(struct wl1251 *wl);
+	int (*op_boot)(struct wl1251 *wl);
+	void (*op_set_ecpu_ctrl)(struct wl1251 *wl, u32 flag);
+	void (*op_target_enable_interrupts)(struct wl1251 *wl);
+	int (*op_hw_init)(struct wl1251 *wl);
+	int (*op_plt_init)(struct wl1251 *wl);
+	void (*op_tx_flush)(struct wl1251 *wl);
+	void (*op_fw_version)(struct wl1251 *wl);
+	int (*op_cmd_join)(struct wl1251 *wl, u8 bss_type, u8 dtim_interval,
 			    u16 beacon_interval, u8 wait);
 
-	struct wl12xx_partition_set *p_table;
+	struct wl1251_partition_set *p_table;
 	enum wl12xx_acx_int_reg *acx_reg_table;
 };
 
-struct wl12xx_stats {
+struct wl1251_stats {
 	struct acx_statistics *fw_stats;
 	unsigned long fw_stats_update;
 
@@ -180,7 +180,7 @@ struct wl12xx_stats {
 	unsigned int excessive_retries;
 };
 
-struct wl12xx_debugfs {
+struct wl1251_debugfs {
 	struct dentry *rootdir;
 	struct dentry *fw_statistics;
 
@@ -281,7 +281,7 @@ struct wl12xx_debugfs {
 	struct dentry *excessive_retries;
 };
 
-struct wl12xx {
+struct wl1251 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
@@ -290,7 +290,7 @@ struct wl12xx {
 	void (*set_power)(bool enable);
 	int irq;
 
-	enum wl12xx_state state;
+	enum wl1251_state state;
 	struct mutex mutex;
 
 	int physical_mem_addr;
@@ -298,7 +298,7 @@ struct wl12xx {
 	int virtual_mem_addr;
 	int virtual_reg_addr;
 
-	struct wl12xx_chip chip;
+	struct wl1251_chip chip;
 
 	int cmd_box_addr;
 	int event_box_addr;
@@ -385,31 +385,31 @@ struct wl12xx {
 	/* in dBm */
 	int power_level;
 
-	struct wl12xx_stats stats;
-	struct wl12xx_debugfs debugfs;
+	struct wl1251_stats stats;
+	struct wl1251_debugfs debugfs;
 
 	u32 buffer_32;
 	u32 buffer_cmd;
-	u8 buffer_busyword[WL12XX_BUSY_WORD_LEN];
-	struct wl12xx_rx_descriptor *rx_descriptor;
+	u8 buffer_busyword[WL1251_BUSY_WORD_LEN];
+	struct wl1251_rx_descriptor *rx_descriptor;
 };
 
-int wl12xx_plt_start(struct wl12xx *wl);
-int wl12xx_plt_stop(struct wl12xx *wl);
+int wl1251_plt_start(struct wl1251 *wl);
+int wl1251_plt_stop(struct wl1251 *wl);
 
 #define DEFAULT_HW_GEN_MODULATION_TYPE    CCK_LONG /* Long Preamble */
 #define DEFAULT_HW_GEN_TX_RATE          RATE_2MBPS
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 
-#define WL12XX_DEFAULT_POWER_LEVEL 20
+#define WL1251_DEFAULT_POWER_LEVEL 20
 
-#define WL12XX_TX_QUEUE_MAX_LENGTH 20
+#define WL1251_TX_QUEUE_MAX_LENGTH 20
 
 /* Different chips need different sleep times after power on.  WL1271 needs
  * 200ms, WL1251 needs only 10ms.  By default we use 200ms, but as soon as we
- * know the chip ID, we change the sleep value in the wl12xx chip structure,
+ * know the chip ID, we change the sleep value in the wl1251 chip structure,
  * so in subsequent power ons, we don't waste more time then needed.  */
-#define WL12XX_DEFAULT_POWER_ON_SLEEP 200
+#define WL1251_DEFAULT_POWER_ON_SLEEP 200
 
 #define CHIP_ID_1251_PG10	           (0x7010101)
 #define CHIP_ID_1251_PG11	           (0x7020101)

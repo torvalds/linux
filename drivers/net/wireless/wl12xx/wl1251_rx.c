@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -31,8 +31,8 @@
 #include "wl1251_rx.h"
 #include "wl1251_acx.h"
 
-static void wl12xx_rx_header(struct wl12xx *wl,
-			     struct wl12xx_rx_descriptor *desc)
+static void wl1251_rx_header(struct wl1251 *wl,
+			     struct wl1251_rx_descriptor *desc)
 {
 	u32 rx_packet_ring_addr;
 
@@ -40,11 +40,11 @@ static void wl12xx_rx_header(struct wl12xx *wl,
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
-	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, desc, sizeof(*desc));
+	wl1251_spi_mem_read(wl, rx_packet_ring_addr, desc, sizeof(*desc));
 }
 
-static void wl12xx_rx_status(struct wl12xx *wl,
-			     struct wl12xx_rx_descriptor *desc,
+static void wl1251_rx_status(struct wl1251 *wl,
+			     struct wl1251_rx_descriptor *desc,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
@@ -65,14 +65,14 @@ static void wl12xx_rx_status(struct wl12xx *wl,
 	 * this one must be atomic, while our SPI routines can sleep.
 	 */
 	if ((wl->bss_type == BSS_TYPE_IBSS) && beacon) {
-		ret = wl12xx_acx_tsf_info(wl, &mactime);
+		ret = wl1251_acx_tsf_info(wl, &mactime);
 		if (ret == 0)
 			status->mactime = mactime;
 	}
 
 	status->signal = desc->rssi;
-	status->qual = (desc->rssi - WL12XX_RX_MIN_RSSI) * 100 /
-		(WL12XX_RX_MAX_RSSI - WL12XX_RX_MIN_RSSI);
+	status->qual = (desc->rssi - WL1251_RX_MIN_RSSI) * 100 /
+		(WL1251_RX_MAX_RSSI - WL1251_RX_MIN_RSSI);
 	status->qual = min(status->qual, 100);
 	status->qual = max(status->qual, 0);
 
@@ -103,8 +103,8 @@ static void wl12xx_rx_status(struct wl12xx *wl,
 	/* FIXME: set status->rate_idx */
 }
 
-static void wl12xx_rx_body(struct wl12xx *wl,
-			   struct wl12xx_rx_descriptor *desc)
+static void wl1251_rx_body(struct wl1251 *wl,
+			   struct wl1251_rx_descriptor *desc)
 {
 	struct sk_buff *skb;
 	struct ieee80211_rx_status status;
@@ -112,12 +112,12 @@ static void wl12xx_rx_body(struct wl12xx *wl,
 	u16 length, *fc;
 	u32 curr_id, last_id_inc, rx_packet_ring_addr;
 
-	length = WL12XX_RX_ALIGN(desc->length  - PLCP_HEADER_LENGTH);
+	length = WL1251_RX_ALIGN(desc->length  - PLCP_HEADER_LENGTH);
 	curr_id = (desc->flags & RX_DESC_SEQNUM_MASK) >> RX_DESC_PACKETID_SHIFT;
 	last_id_inc = (wl->rx_last_id + 1) % (RX_MAX_PACKET_ID + 1);
 
 	if (last_id_inc != curr_id) {
-		wl12xx_warning("curr ID:%d, last ID inc:%d",
+		wl1251_warning("curr ID:%d, last ID inc:%d",
 			       curr_id, last_id_inc);
 		wl->rx_last_id = curr_id;
 	} else {
@@ -125,18 +125,18 @@ static void wl12xx_rx_body(struct wl12xx *wl,
 	}
 
 	rx_packet_ring_addr = wl->data_path->rx_packet_ring_addr +
-		sizeof(struct wl12xx_rx_descriptor) + 20;
+		sizeof(struct wl1251_rx_descriptor) + 20;
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
 	skb = dev_alloc_skb(length);
 	if (!skb) {
-		wl12xx_error("Couldn't allocate RX frame");
+		wl1251_error("Couldn't allocate RX frame");
 		return;
 	}
 
 	rx_buffer = skb_put(skb, length);
-	wl12xx_spi_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
+	wl1251_spi_mem_read(wl, rx_packet_ring_addr, rx_buffer, length);
 
 	/* The actual lenght doesn't include the target's alignment */
 	skb->len = desc->length  - PLCP_HEADER_LENGTH;
@@ -146,15 +146,15 @@ static void wl12xx_rx_body(struct wl12xx *wl,
 	if ((*fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON)
 		beacon = 1;
 
-	wl12xx_rx_status(wl, desc, &status, beacon);
+	wl1251_rx_status(wl, desc, &status, beacon);
 
-	wl12xx_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
+	wl1251_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb, skb->len,
 		     beacon ? "beacon" : "");
 
 	ieee80211_rx(wl->hw, skb, &status);
 }
 
-static void wl12xx_rx_ack(struct wl12xx *wl)
+static void wl1251_rx_ack(struct wl1251 *wl)
 {
 	u32 data, addr;
 
@@ -166,30 +166,30 @@ static void wl12xx_rx_ack(struct wl12xx *wl)
 		data = INTR_TRIG_RX_PROC0;
 	}
 
-	wl12xx_reg_write32(wl, addr, data);
+	wl1251_reg_write32(wl, addr, data);
 
 	/* Toggle buffer ring */
 	wl->rx_current_buffer = !wl->rx_current_buffer;
 }
 
 
-void wl12xx_rx(struct wl12xx *wl)
+void wl1251_rx(struct wl1251 *wl)
 {
-	struct wl12xx_rx_descriptor *rx_desc;
+	struct wl1251_rx_descriptor *rx_desc;
 
-	if (wl->state != WL12XX_STATE_ON)
+	if (wl->state != WL1251_STATE_ON)
 		return;
 
 	rx_desc = wl->rx_descriptor;
 
 	/* We first read the frame's header */
-	wl12xx_rx_header(wl, rx_desc);
+	wl1251_rx_header(wl, rx_desc);
 
 	/* Now we can read the body */
-	wl12xx_rx_body(wl, rx_desc);
+	wl1251_rx_body(wl, rx_desc);
 
 	/* Finally, we need to ACK the RX */
-	wl12xx_rx_ack(wl);
+	wl1251_rx_ack(wl);
 
 	return;
 }

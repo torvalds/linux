@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef __WL12XX_ACX_H__
-#define __WL12XX_ACX_H__
+#ifndef __WL1251_ACX_H__
+#define __WL1251_ACX_H__
 
 #include "wl1251.h"
 #include "wl1251_cmd.h"
 
 /* Target's information element */
 struct acx_header {
-	struct wl12xx_cmd_header cmd;
+	struct wl1251_cmd_header cmd;
 
 	/* acx (or information element) header */
 	u16 id;
@@ -91,15 +91,15 @@ struct acx_revision {
 	u32 hw_version;
 } __attribute__ ((packed));
 
-enum wl12xx_psm_mode {
+enum wl1251_psm_mode {
 	/* Active mode */
-	WL12XX_PSM_CAM = 0,
+	WL1251_PSM_CAM = 0,
 
 	/* Power save mode */
-	WL12XX_PSM_PS = 1,
+	WL1251_PSM_PS = 1,
 
 	/* Extreme low power */
-	WL12XX_PSM_ELP = 2,
+	WL1251_PSM_ELP = 2,
 };
 
 struct acx_sleep_auth {
@@ -1108,39 +1108,39 @@ enum {
 };
 
 
-int wl12xx_acx_frame_rates(struct wl12xx *wl, u8 ctrl_rate, u8 ctrl_mod,
+int wl1251_acx_frame_rates(struct wl1251 *wl, u8 ctrl_rate, u8 ctrl_mod,
 			   u8 mgt_rate, u8 mgt_mod);
-int wl12xx_acx_station_id(struct wl12xx *wl);
-int wl12xx_acx_default_key(struct wl12xx *wl, u8 key_id);
-int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 wake_up_event,
+int wl1251_acx_station_id(struct wl1251 *wl);
+int wl1251_acx_default_key(struct wl1251 *wl, u8 key_id);
+int wl1251_acx_wake_up_conditions(struct wl1251 *wl, u8 wake_up_event,
 				  u8 listen_interval);
-int wl12xx_acx_sleep_auth(struct wl12xx *wl, u8 sleep_auth);
-int wl12xx_acx_fw_version(struct wl12xx *wl, char *buf, size_t len);
-int wl12xx_acx_tx_power(struct wl12xx *wl, int power);
-int wl12xx_acx_feature_cfg(struct wl12xx *wl);
-int wl12xx_acx_mem_map(struct wl12xx *wl,
+int wl1251_acx_sleep_auth(struct wl1251 *wl, u8 sleep_auth);
+int wl1251_acx_fw_version(struct wl1251 *wl, char *buf, size_t len);
+int wl1251_acx_tx_power(struct wl1251 *wl, int power);
+int wl1251_acx_feature_cfg(struct wl1251 *wl);
+int wl1251_acx_mem_map(struct wl1251 *wl,
 		       struct acx_header *mem_map, size_t len);
-int wl12xx_acx_data_path_params(struct wl12xx *wl,
+int wl1251_acx_data_path_params(struct wl1251 *wl,
 				struct acx_data_path_params_resp *data_path);
-int wl12xx_acx_rx_msdu_life_time(struct wl12xx *wl, u32 life_time);
-int wl12xx_acx_rx_config(struct wl12xx *wl, u32 config, u32 filter);
-int wl12xx_acx_pd_threshold(struct wl12xx *wl);
-int wl12xx_acx_slot(struct wl12xx *wl, enum acx_slot_type slot_time);
-int wl12xx_acx_group_address_tbl(struct wl12xx *wl);
-int wl12xx_acx_service_period_timeout(struct wl12xx *wl);
-int wl12xx_acx_rts_threshold(struct wl12xx *wl, u16 rts_threshold);
-int wl12xx_acx_beacon_filter_opt(struct wl12xx *wl);
-int wl12xx_acx_beacon_filter_table(struct wl12xx *wl);
-int wl12xx_acx_sg_enable(struct wl12xx *wl);
-int wl12xx_acx_sg_cfg(struct wl12xx *wl);
-int wl12xx_acx_cca_threshold(struct wl12xx *wl);
-int wl12xx_acx_bcn_dtim_options(struct wl12xx *wl);
-int wl12xx_acx_aid(struct wl12xx *wl, u16 aid);
-int wl12xx_acx_event_mbox_mask(struct wl12xx *wl, u32 event_mask);
-int wl12xx_acx_set_preamble(struct wl12xx *wl, enum acx_preamble_type preamble);
-int wl12xx_acx_cts_protect(struct wl12xx *wl,
+int wl1251_acx_rx_msdu_life_time(struct wl1251 *wl, u32 life_time);
+int wl1251_acx_rx_config(struct wl1251 *wl, u32 config, u32 filter);
+int wl1251_acx_pd_threshold(struct wl1251 *wl);
+int wl1251_acx_slot(struct wl1251 *wl, enum acx_slot_type slot_time);
+int wl1251_acx_group_address_tbl(struct wl1251 *wl);
+int wl1251_acx_service_period_timeout(struct wl1251 *wl);
+int wl1251_acx_rts_threshold(struct wl1251 *wl, u16 rts_threshold);
+int wl1251_acx_beacon_filter_opt(struct wl1251 *wl);
+int wl1251_acx_beacon_filter_table(struct wl1251 *wl);
+int wl1251_acx_sg_enable(struct wl1251 *wl);
+int wl1251_acx_sg_cfg(struct wl1251 *wl);
+int wl1251_acx_cca_threshold(struct wl1251 *wl);
+int wl1251_acx_bcn_dtim_options(struct wl1251 *wl);
+int wl1251_acx_aid(struct wl1251 *wl, u16 aid);
+int wl1251_acx_event_mbox_mask(struct wl1251 *wl, u32 event_mask);
+int wl1251_acx_set_preamble(struct wl1251 *wl, enum acx_preamble_type preamble);
+int wl1251_acx_cts_protect(struct wl1251 *wl,
 			    enum acx_ctsprotect_type ctsprotect);
-int wl12xx_acx_statistics(struct wl12xx *wl, struct acx_statistics *stats);
-int wl12xx_acx_tsf_info(struct wl12xx *wl, u64 *mactime);
+int wl1251_acx_statistics(struct wl1251 *wl, struct acx_statistics *stats);
+int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 
-#endif /* __WL12XX_ACX_H__ */
+#endif /* __WL1251_ACX_H__ */

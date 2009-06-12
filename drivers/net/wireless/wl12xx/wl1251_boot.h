@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2008 Nokia Corporation
  *
@@ -26,10 +26,10 @@
 
 #include "wl1251.h"
 
-int wl12xx_boot_soft_reset(struct wl12xx *wl);
-int wl12xx_boot_init_seq(struct wl12xx *wl);
-int wl12xx_boot_run_firmware(struct wl12xx *wl);
-void wl12xx_boot_target_enable_interrupts(struct wl12xx *wl);
+int wl1251_boot_soft_reset(struct wl1251 *wl);
+int wl1251_boot_init_seq(struct wl1251 *wl);
+int wl1251_boot_run_firmware(struct wl1251 *wl);
+void wl1251_boot_target_enable_interrupts(struct wl1251 *wl);
 
 /* number of times we try to read the INIT interrupt */
 #define INIT_LOOP 20000

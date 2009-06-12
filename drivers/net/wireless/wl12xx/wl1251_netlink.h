@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2009 Nokia Corporation
  *
@@ -21,10 +21,10 @@
  *
  */
 
-#ifndef __WL12XX_NETLINK_H__
-#define __WL12XX_NETLINK_H__
+#ifndef __WL1251_NETLINK_H__
+#define __WL1251_NETLINK_H__
 
-int wl12xx_nl_register(void);
-void wl12xx_nl_unregister(void);
+int wl1251_nl_register(void);
+void wl1251_nl_unregister(void);
 
-#endif /* __WL12XX_NETLINK_H__ */
+#endif /* __WL1251_NETLINK_H__ */

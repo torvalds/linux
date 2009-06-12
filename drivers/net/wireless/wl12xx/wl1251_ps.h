@@ -1,8 +1,8 @@
-#ifndef __WL12XX_PS_H__
-#define __WL12XX_PS_H__
+#ifndef __WL1251_PS_H__
+#define __WL1251_PS_H__
 
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -28,9 +28,9 @@
 #include "wl1251.h"
 #include "wl1251_acx.h"
 
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode);
-void wl12xx_ps_elp_sleep(struct wl12xx *wl);
-int wl12xx_ps_elp_wakeup(struct wl12xx *wl);
+int wl1251_ps_set_mode(struct wl1251 *wl, enum wl1251_cmd_ps_mode mode);
+void wl1251_ps_elp_sleep(struct wl1251 *wl);
+int wl1251_ps_elp_wakeup(struct wl1251 *wl);
 
 
-#endif /* __WL12XX_PS_H__ */
+#endif /* __WL1251_PS_H__ */

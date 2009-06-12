@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
@@ -28,10 +28,10 @@
 #include "wl1251_event.h"
 #include "wl1251_ps.h"
 
-static int wl12xx_event_scan_complete(struct wl12xx *wl,
+static int wl1251_event_scan_complete(struct wl1251 *wl,
 				      struct event_mailbox *mbox)
 {
-	wl12xx_debug(DEBUG_EVENT, "status: 0x%x, channels: %d",
+	wl1251_debug(DEBUG_EVENT, "status: 0x%x, channels: %d",
 		     mbox->scheduled_scan_status,
 		     mbox->scheduled_scan_channels);
 
@@ -45,34 +45,34 @@ static int wl12xx_event_scan_complete(struct wl12xx *wl,
 	return 0;
 }
 
-static void wl12xx_event_mbox_dump(struct event_mailbox *mbox)
+static void wl1251_event_mbox_dump(struct event_mailbox *mbox)
 {
-	wl12xx_debug(DEBUG_EVENT, "MBOX DUMP:");
-	wl12xx_debug(DEBUG_EVENT, "\tvector: 0x%x", mbox->events_vector);
-	wl12xx_debug(DEBUG_EVENT, "\tmask: 0x%x", mbox->events_mask);
+	wl1251_debug(DEBUG_EVENT, "MBOX DUMP:");
+	wl1251_debug(DEBUG_EVENT, "\tvector: 0x%x", mbox->events_vector);
+	wl1251_debug(DEBUG_EVENT, "\tmask: 0x%x", mbox->events_mask);
 }
 
-static int wl12xx_event_process(struct wl12xx *wl, struct event_mailbox *mbox)
+static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 {
 	int ret;
 	u32 vector;
 
-	wl12xx_event_mbox_dump(mbox);
+	wl1251_event_mbox_dump(mbox);
 
 	vector = mbox->events_vector & ~(mbox->events_mask);
-	wl12xx_debug(DEBUG_EVENT, "vector: 0x%x", vector);
+	wl1251_debug(DEBUG_EVENT, "vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		ret = wl12xx_event_scan_complete(wl, mbox);
+		ret = wl1251_event_scan_complete(wl, mbox);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (vector & BSS_LOSE_EVENT_ID) {
-		wl12xx_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
+		wl1251_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
 
 		if (wl->psm_requested && wl->psm) {
-			ret = wl12xx_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
 			if (ret < 0)
 				return ret;
 		}
@@ -81,47 +81,47 @@ static int wl12xx_event_process(struct wl12xx *wl, struct event_mailbox *mbox)
 	return 0;
 }
 
-int wl12xx_event_unmask(struct wl12xx *wl)
+int wl1251_event_unmask(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_event_mbox_mask(wl, ~(wl->event_mask));
+	ret = wl1251_acx_event_mbox_mask(wl, ~(wl->event_mask));
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-void wl12xx_event_mbox_config(struct wl12xx *wl)
+void wl1251_event_mbox_config(struct wl1251 *wl)
 {
-	wl->mbox_ptr[0] = wl12xx_reg_read32(wl, REG_EVENT_MAILBOX_PTR);
+	wl->mbox_ptr[0] = wl1251_reg_read32(wl, REG_EVENT_MAILBOX_PTR);
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
-	wl12xx_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
+	wl1251_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 }
 
-int wl12xx_event_handle(struct wl12xx *wl, u8 mbox_num)
+int wl1251_event_handle(struct wl1251 *wl, u8 mbox_num)
 {
 	struct event_mailbox mbox;
 	int ret;
 
-	wl12xx_debug(DEBUG_EVENT, "EVENT on mbox %d", mbox_num);
+	wl1251_debug(DEBUG_EVENT, "EVENT on mbox %d", mbox_num);
 
 	if (mbox_num > 1)
 		return -EINVAL;
 
 	/* first we read the mbox descriptor */
-	wl12xx_spi_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
+	wl1251_spi_mem_read(wl, wl->mbox_ptr[mbox_num], &mbox,
 			    sizeof(struct event_mailbox));
 
 	/* process the descriptor */
-	ret = wl12xx_event_process(wl, &mbox);
+	ret = wl1251_event_process(wl, &mbox);
 	if (ret < 0)
 		return ret;
 
 	/* then we let the firmware know it can go on...*/
-	wl12xx_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;
 }

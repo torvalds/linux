@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2009 Nokia Corporation
  *
@@ -30,7 +30,7 @@
 #include "wl1251_ps.h"
 
 /* ms */
-#define WL12XX_DEBUGFS_STATS_LIFETIME 1000
+#define WL1251_DEBUGFS_STATS_LIFETIME 1000
 
 /* debugfs macros idea from mac80211 */
 
@@ -38,7 +38,7 @@
 static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 			    size_t count, loff_t *ppos)			\
 {									\
-	struct wl12xx *wl = file->private_data;				\
+	struct wl1251 *wl = file->private_data;				\
 	char buf[buflen];						\
 	int res;							\
 									\
@@ -48,7 +48,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 									\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
-	.open = wl12xx_open_file_generic,				\
+	.open = wl1251_open_file_generic,				\
 };
 
 #define DEBUGFS_ADD(name, parent)					\
@@ -71,11 +71,11 @@ static ssize_t sub## _ ##name## _read(struct file *file,		\
 				      char __user *userbuf,		\
 				      size_t count, loff_t *ppos)	\
 {									\
-	struct wl12xx *wl = file->private_data;				\
+	struct wl1251 *wl = file->private_data;				\
 	char buf[buflen];						\
 	int res;							\
 									\
-	wl12xx_debugfs_update_stats(wl);				\
+	wl1251_debugfs_update_stats(wl);				\
 									\
 	res = scnprintf(buf, buflen, fmt "\n",				\
 			wl->stats.fw_stats->sub.name);			\
@@ -84,7 +84,7 @@ static ssize_t sub## _ ##name## _read(struct file *file,		\
 									\
 static const struct file_operations sub## _ ##name## _ops = {		\
 	.read = sub## _ ##name## _read,					\
-	.open = wl12xx_open_file_generic,				\
+	.open = wl1251_open_file_generic,				\
 };
 
 #define DEBUGFS_FWSTATS_ADD(sub, name)				\
@@ -93,30 +93,30 @@ static const struct file_operations sub## _ ##name## _ops = {		\
 #define DEBUGFS_FWSTATS_DEL(sub, name)				\
 	DEBUGFS_DEL(sub## _ ##name)
 
-static void wl12xx_debugfs_update_stats(struct wl12xx *wl)
+static void wl1251_debugfs_update_stats(struct wl1251 *wl)
 {
 	int ret;
 
 	mutex_lock(&wl->mutex);
 
-	ret = wl12xx_ps_elp_wakeup(wl);
+	ret = wl1251_ps_elp_wakeup(wl);
 	if (ret < 0)
 		goto out;
 
-	if (wl->state == WL12XX_STATE_ON &&
+	if (wl->state == WL1251_STATE_ON &&
 	    time_after(jiffies, wl->stats.fw_stats_update +
-		       msecs_to_jiffies(WL12XX_DEBUGFS_STATS_LIFETIME))) {
-		wl12xx_acx_statistics(wl, wl->stats.fw_stats);
+		       msecs_to_jiffies(WL1251_DEBUGFS_STATS_LIFETIME))) {
+		wl1251_acx_statistics(wl, wl->stats.fw_stats);
 		wl->stats.fw_stats_update = jiffies;
 	}
 
-	wl12xx_ps_elp_sleep(wl);
+	wl1251_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
 }
 
-static int wl12xx_open_file_generic(struct inode *inode, struct file *file)
+static int wl1251_open_file_generic(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 	return 0;
@@ -221,7 +221,7 @@ DEBUGFS_READONLY_FILE(excessive_retries, 20, "%u",
 static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 				 size_t count, loff_t *ppos)
 {
-	struct wl12xx *wl = file->private_data;
+	struct wl1251 *wl = file->private_data;
 	u32 queue_len;
 	char buf[20];
 	int res;
@@ -234,10 +234,10 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 
 static const struct file_operations tx_queue_len_ops = {
 	.read = tx_queue_len_read,
-	.open = wl12xx_open_file_generic,
+	.open = wl1251_open_file_generic,
 };
 
-static void wl12xx_debugfs_delete_files(struct wl12xx *wl)
+static void wl1251_debugfs_delete_files(struct wl1251 *wl)
 {
 	DEBUGFS_FWSTATS_DEL(tx, internal_desc_overflow);
 
@@ -335,7 +335,7 @@ static void wl12xx_debugfs_delete_files(struct wl12xx *wl)
 	DEBUGFS_DEL(excessive_retries);
 }
 
-static int wl12xx_debugfs_add_files(struct wl12xx *wl)
+static int wl1251_debugfs_add_files(struct wl1251 *wl)
 {
 	int ret = 0;
 
@@ -436,19 +436,19 @@ static int wl12xx_debugfs_add_files(struct wl12xx *wl)
 
 out:
 	if (ret < 0)
-		wl12xx_debugfs_delete_files(wl);
+		wl1251_debugfs_delete_files(wl);
 
 	return ret;
 }
 
-void wl12xx_debugfs_reset(struct wl12xx *wl)
+void wl1251_debugfs_reset(struct wl1251 *wl)
 {
 	memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
 	wl->stats.retry_count = 0;
 	wl->stats.excessive_retries = 0;
 }
 
-int wl12xx_debugfs_init(struct wl12xx *wl)
+int wl1251_debugfs_init(struct wl1251 *wl)
 {
 	int ret;
 
@@ -479,7 +479,7 @@ int wl12xx_debugfs_init(struct wl12xx *wl)
 
 	wl->stats.fw_stats_update = jiffies;
 
-	ret = wl12xx_debugfs_add_files(wl);
+	ret = wl1251_debugfs_add_files(wl);
 
 	if (ret < 0)
 		goto err_file;
@@ -502,9 +502,9 @@ err:
 	return ret;
 }
 
-void wl12xx_debugfs_exit(struct wl12xx *wl)
+void wl1251_debugfs_exit(struct wl1251 *wl)
 {
-	wl12xx_debugfs_delete_files(wl);
+	wl1251_debugfs_delete_files(wl);
 
 	kfree(wl->stats.fw_stats);
 	wl->stats.fw_stats = NULL;

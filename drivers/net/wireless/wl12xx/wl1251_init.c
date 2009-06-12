@@ -1,5 +1,5 @@
 /*
- * This file is part of wl12xx
+ * This file is part of wl1251
  *
  * Copyright (C) 2009 Nokia Corporation
  *
@@ -29,59 +29,59 @@
 #include "wl1251_acx.h"
 #include "wl1251_cmd.h"
 
-int wl12xx_hw_init_hwenc_config(struct wl12xx *wl)
+int wl1251_hw_init_hwenc_config(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_feature_cfg(wl);
+	ret = wl1251_acx_feature_cfg(wl);
 	if (ret < 0) {
-		wl12xx_warning("couldn't set feature config");
+		wl1251_warning("couldn't set feature config");
 		return ret;
 	}
 
-	ret = wl12xx_acx_default_key(wl, wl->default_key);
+	ret = wl1251_acx_default_key(wl, wl->default_key);
 	if (ret < 0) {
-		wl12xx_warning("couldn't set default key");
+		wl1251_warning("couldn't set default key");
 		return ret;
 	}
 
 	return 0;
 }
 
-int wl12xx_hw_init_templates_config(struct wl12xx *wl)
+int wl1251_hw_init_templates_config(struct wl1251 *wl)
 {
 	int ret;
 	u8 partial_vbm[PARTIAL_VBM_MAX];
 
 	/* send empty templates for fw memory reservation */
-	ret = wl12xx_cmd_template_set(wl, CMD_PROBE_REQ, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, NULL,
 				      sizeof(struct wl12xx_probe_req_template));
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_template_set(wl, CMD_NULL_DATA, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_NULL_DATA, NULL,
 				      sizeof(struct wl12xx_null_data_template));
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_template_set(wl, CMD_PS_POLL, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_PS_POLL, NULL,
 				      sizeof(struct wl12xx_ps_poll_template));
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_template_set(wl, CMD_QOS_NULL_DATA, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_QOS_NULL_DATA, NULL,
 				      sizeof
 				      (struct wl12xx_qos_null_data_template));
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_template_set(wl, CMD_PROBE_RESP, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_PROBE_RESP, NULL,
 				      sizeof
 				      (struct wl12xx_probe_resp_template));
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_template_set(wl, CMD_BEACON, NULL,
+	ret = wl1251_cmd_template_set(wl, CMD_BEACON, NULL,
 				      sizeof
 				      (struct wl12xx_beacon_template));
 	if (ret < 0)
@@ -89,112 +89,112 @@ int wl12xx_hw_init_templates_config(struct wl12xx *wl)
 
 	/* tim templates, first reserve space then allocate an empty one */
 	memset(partial_vbm, 0, PARTIAL_VBM_MAX);
-	ret = wl12xx_cmd_vbm(wl, TIM_ELE_ID, partial_vbm, PARTIAL_VBM_MAX, 0);
+	ret = wl1251_cmd_vbm(wl, TIM_ELE_ID, partial_vbm, PARTIAL_VBM_MAX, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_cmd_vbm(wl, TIM_ELE_ID, partial_vbm, 1, 0);
+	ret = wl1251_cmd_vbm(wl, TIM_ELE_ID, partial_vbm, 1, 0);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_rx_config(struct wl12xx *wl, u32 config, u32 filter)
+int wl1251_hw_init_rx_config(struct wl1251 *wl, u32 config, u32 filter)
 {
 	int ret;
 
-	ret = wl12xx_acx_rx_msdu_life_time(wl, RX_MSDU_LIFETIME_DEF);
+	ret = wl1251_acx_rx_msdu_life_time(wl, RX_MSDU_LIFETIME_DEF);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_rx_config(wl, config, filter);
+	ret = wl1251_acx_rx_config(wl, config, filter);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_phy_config(struct wl12xx *wl)
+int wl1251_hw_init_phy_config(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_pd_threshold(wl);
+	ret = wl1251_acx_pd_threshold(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_slot(wl, DEFAULT_SLOT_TIME);
+	ret = wl1251_acx_slot(wl, DEFAULT_SLOT_TIME);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_group_address_tbl(wl);
+	ret = wl1251_acx_group_address_tbl(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_service_period_timeout(wl);
+	ret = wl1251_acx_service_period_timeout(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_rts_threshold(wl, RTS_THRESHOLD_DEF);
+	ret = wl1251_acx_rts_threshold(wl, RTS_THRESHOLD_DEF);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_beacon_filter(struct wl12xx *wl)
+int wl1251_hw_init_beacon_filter(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_beacon_filter_opt(wl);
+	ret = wl1251_acx_beacon_filter_opt(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_beacon_filter_table(wl);
+	ret = wl1251_acx_beacon_filter_table(wl);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_pta(struct wl12xx *wl)
+int wl1251_hw_init_pta(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_sg_enable(wl);
+	ret = wl1251_acx_sg_enable(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_acx_sg_cfg(wl);
+	ret = wl1251_acx_sg_cfg(wl);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_energy_detection(struct wl12xx *wl)
+int wl1251_hw_init_energy_detection(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_cca_threshold(wl);
+	ret = wl1251_acx_cca_threshold(wl);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_beacon_broadcast(struct wl12xx *wl)
+int wl1251_hw_init_beacon_broadcast(struct wl1251 *wl)
 {
 	int ret;
 
-	ret = wl12xx_acx_bcn_dtim_options(wl);
+	ret = wl1251_acx_bcn_dtim_options(wl);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-int wl12xx_hw_init_power_auth(struct wl12xx *wl)
+int wl1251_hw_init_power_auth(struct wl1251 *wl)
 {
-	return wl12xx_acx_sleep_auth(wl, WL12XX_PSM_CAM);
+	return wl1251_acx_sleep_auth(wl, WL1251_PSM_CAM);
 }
