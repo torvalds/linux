@@ -7,6 +7,10 @@ ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_early.o = -pg
 endif
 
+ifdef CONFIG_DYNAMIC_FTRACE
+CFLAGS_REMOVE_ftrace.o = -pg
+endif
+
 #
 # Passing null pointers is ok for smp code, since we access the lowcore here.
 #
@@ -41,6 +45,7 @@ obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o \
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
+obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2008
+ * Copyright IBM Corp. 2008,2009
  *
  *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
@@ -7,10 +7,101 @@
 
 #include <asm/asm-offsets.h>
 
-#ifndef CONFIG_64BIT
-.globl _mcount
+	.globl ftrace_stub
+ftrace_stub:
+	br	%r14
+
+#ifdef CONFIG_64BIT
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+	.globl _mcount
 _mcount:
-	stm	%r0,%r5,8(%r15)
+	br	%r14
+
+	.globl ftrace_caller
+ftrace_caller:
+	stmg	%r2,%r5,32(%r15)
+	stg	%r14,112(%r15)
+	lgr	%r1,%r15
+	aghi	%r15,-160
+	stg	%r1,__SF_BACKCHAIN(%r15)
+	lgr	%r2,%r14
+	lg	%r3,168(%r15)
+	larl	%r14,ftrace_dyn_func
+	lg	%r14,0(%r14)
+	basr	%r14,%r14
+	aghi	%r15,160
+	lmg	%r2,%r5,32(%r15)
+	lg	%r14,112(%r15)
+	br	%r14
+
+	.data
+	.globl	ftrace_dyn_func
+ftrace_dyn_func:
+	.quad	ftrace_stub
+	.previous
+
+#else /* CONFIG_DYNAMIC_FTRACE */
+
+	.globl _mcount
+_mcount:
+	stmg	%r2,%r5,32(%r15)
+	stg	%r14,112(%r15)
+	lgr	%r1,%r15
+	aghi	%r15,-160
+	stg	%r1,__SF_BACKCHAIN(%r15)
+	lgr	%r2,%r14
+	lg	%r3,168(%r15)
+	larl	%r14,ftrace_trace_function
+	lg	%r14,0(%r14)
+	basr	%r14,%r14
+	aghi	%r15,160
+	lmg	%r2,%r5,32(%r15)
+	lg	%r14,112(%r15)
+	br	%r14
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#else /* CONFIG_64BIT */
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+	.globl _mcount
+_mcount:
+	br	%r14
+
+	.globl ftrace_caller
+ftrace_caller:
+	stm	%r2,%r5,16(%r15)
+	st	%r14,56(%r15)
+	lr	%r1,%r15
+	ahi	%r15,-96
+	l	%r3,100(%r15)
+	la	%r2,0(%r14)
+	st	%r1,__SF_BACKCHAIN(%r15)
+	la	%r3,0(%r3)
+	bras	%r14,0f
+	.long	ftrace_dyn_func
+0:	l	%r14,0(%r14)
+	l	%r14,0(%r14)
+	basr	%r14,%r14
+	ahi	%r15,96
+	lm	%r2,%r5,16(%r15)
+	l	%r14,56(%r15)
+	br	%r14
+
+	.data
+	.globl	ftrace_dyn_func
+ftrace_dyn_func:
+	.long	ftrace_stub
+	.previous
+
+#else /* CONFIG_DYNAMIC_FTRACE */
+
+	.globl _mcount
+_mcount:
+	stm	%r2,%r5,16(%r15)
 	st	%r14,56(%r15)
 	lr	%r1,%r15
 	ahi	%r15,-96
@@ -24,35 +115,9 @@ _mcount:
 	l	%r14,0(%r14)
 	basr	%r14,%r14
 	ahi	%r15,96
-	lm	%r0,%r5,8(%r15)
+	lm	%r2,%r5,16(%r15)
 	l	%r14,56(%r15)
 	br	%r14
 
-.globl ftrace_stub
-ftrace_stub:
-	br	%r14
-
-#else /* CONFIG_64BIT */
-
-.globl _mcount
-_mcount:
-	stmg	%r0,%r5,16(%r15)
-	stg	%r14,112(%r15)
-	lgr	%r1,%r15
-	aghi	%r15,-160
-	stg	%r1,__SF_BACKCHAIN(%r15)
-	lgr	%r2,%r14
-	lg	%r3,168(%r15)
-	larl	%r14,ftrace_trace_function
-	lg	%r14,0(%r14)
-	basr	%r14,%r14
-	aghi	%r15,160
-	lmg	%r0,%r5,16(%r15)
-	lg	%r14,112(%r15)
-	br	%r14
-
-.globl ftrace_stub
-ftrace_stub:
-	br	%r14
-
+#endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_64BIT */
