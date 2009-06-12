@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
+static void __devinit plat_ide_setup_ports(struct ide_hw *hw,
 					   void __iomem *base,
 					   void __iomem *ctrl,
 					   struct pata_platform_info *pdata,
@@ -40,12 +40,11 @@ static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
 	hw->io_ports.ctl_addr = (unsigned long)ctrl;
 
 	hw->irq = irq;
-
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info platform_ide_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 static int __devinit plat_ide_probe(struct platform_device *pdev)
@@ -55,7 +54,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	struct pata_platform_info *pdata;
 	struct ide_host *host;
 	int ret = 0, mmio = 0;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;
@@ -99,7 +98,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	if (mmio)
 		d.host_flags |= IDE_HFLAG_MMIO;
 
-	ret = ide_host_add(&d, hws, &host);
+	ret = ide_host_add(&d, hws, 1, &host);
 	if (ret)
 		goto out;
 

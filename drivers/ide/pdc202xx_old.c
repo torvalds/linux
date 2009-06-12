@@ -23,18 +23,6 @@
 
 #define PDC202XX_DEBUG_DRIVE_INFO	0
 
-static const char *pdc_quirk_drives[] = {
-	"QUANTUM FIREBALLlct08 08",
-	"QUANTUM FIREBALLP KA6.4",
-	"QUANTUM FIREBALLP KA9.1",
-	"QUANTUM FIREBALLP LM20.4",
-	"QUANTUM FIREBALLP KX13.6",
-	"QUANTUM FIREBALLP KX20.5",
-	"QUANTUM FIREBALLP KX27.3",
-	"QUANTUM FIREBALLP LM20.5",
-	NULL
-};
-
 static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
 
 static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
@@ -151,19 +139,6 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
 }
 
-static void pdc202xx_quirkproc(ide_drive_t *drive)
-{
-	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
-
-	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(m, *list) != NULL) {
-			drive->quirk_list = 2;
-			return;
-		}
-
-	drive->quirk_list = 0;
-}
-
 static void pdc202xx_dma_start(ide_drive_t *drive)
 {
 	if (drive->current_speed > XFER_UDMA_2)
@@ -201,52 +176,6 @@ static int pdc202xx_dma_end(ide_drive_t *drive)
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_disable_66MHz_clock(drive->hwif);
 	return ide_dma_end(drive);
-}
-
-static int pdc202xx_dma_test_irq(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long high_16	= hwif->extra_base - 16;
-	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
-	u8 sc1d			= inb(high_16 + 0x001d);
-
-	if (hwif->channel) {
-		/* bit7: Error, bit6: Interrupting, bit5: FIFO Full, bit4: FIFO Empty */
-		if ((sc1d & 0x50) == 0x50)
-			goto somebody_else;
-		else if ((sc1d & 0x40) == 0x40)
-			return (dma_stat & 4) == 4;
-	} else {
-		/* bit3: Error, bit2: Interrupting, bit1: FIFO Full, bit0: FIFO Empty */
-		if ((sc1d & 0x05) == 0x05)
-			goto somebody_else;
-		else if ((sc1d & 0x04) == 0x04)
-			return (dma_stat & 4) == 4;
-	}
-somebody_else:
-	return (dma_stat & 4) == 4;	/* return 1 if INTR asserted */
-}
-
-static void pdc202xx_reset(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long high_16	= hwif->extra_base - 16;
-	u8 udma_speed_flag	= inb(high_16 | 0x001f);
-
-	printk(KERN_WARNING "PDC202xx: software reset...\n");
-
-	outb(udma_speed_flag | 0x10, high_16 | 0x001f);
-	mdelay(100);
-	outb(udma_speed_flag & ~0x10, high_16 | 0x001f);
-	mdelay(2000);	/* 2 seconds ?! */
-
-	ide_set_max_pio(drive);
-}
-
-static void pdc202xx_dma_lost_irq(ide_drive_t *drive)
-{
-	pdc202xx_reset(drive);
-	ide_dma_lost_irq(drive);
 }
 
 static int init_chipset_pdc202xx(struct pci_dev *dev)
@@ -302,26 +231,12 @@ static void __devinit pdc202ata4_fixup_irq(struct pci_dev *dev,
 static const struct ide_port_ops pdc20246_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
-	.quirkproc		= pdc202xx_quirkproc,
 };
 
 static const struct ide_port_ops pdc2026x_port_ops = {
 	.set_pio_mode		= pdc202xx_set_pio_mode,
 	.set_dma_mode		= pdc202xx_set_mode,
-	.quirkproc		= pdc202xx_quirkproc,
-	.resetproc		= pdc202xx_reset,
 	.cable_detect		= pdc2026x_cable_detect,
-};
-
-static const struct ide_dma_ops pdc20246_dma_ops = {
-	.dma_host_set		= ide_dma_host_set,
-	.dma_setup		= ide_dma_setup,
-	.dma_start		= ide_dma_start,
-	.dma_end		= ide_dma_end,
-	.dma_test_irq		= pdc202xx_dma_test_irq,
-	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_dma_ops pdc2026x_dma_ops = {
@@ -329,10 +244,9 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_start		= pdc202xx_dma_start,
 	.dma_end		= pdc202xx_dma_end,
-	.dma_test_irq		= pdc202xx_dma_test_irq,
-	.dma_lost_irq		= pdc202xx_dma_lost_irq,
+	.dma_test_irq		= ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_clear		= pdc202xx_reset,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
@@ -354,7 +268,7 @@ static const struct ide_port_info pdc202xx_chipsets[] __devinitdata = {
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_pdc202xx,
 		.port_ops	= &pdc20246_port_ops,
-		.dma_ops	= &pdc20246_dma_ops,
+		.dma_ops	= &sff_dma_ops,
 		.host_flags	= IDE_HFLAGS_PDC202XX,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,

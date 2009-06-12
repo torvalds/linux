@@ -216,6 +216,7 @@ static const struct ide_port_info at91_ide_port_info __initdata = {
 	.host_flags 	= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA | IDE_HFLAG_SINGLE |
 			  IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_UNMASK_IRQS,
 	.pio_mask 	= ATA_PIO6,
+	.chipset	= ide_generic,
 };
 
 /*
@@ -246,8 +247,7 @@ irqreturn_t at91_irq_handler(int irq, void *dev_id)
 static int __init at91_ide_probe(struct platform_device *pdev)
 {
 	int ret;
-	hw_regs_t hw;
-	hw_regs_t *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	unsigned long tf_base = 0, ctl_base = 0;
@@ -304,10 +304,9 @@ static int __init at91_ide_probe(struct platform_device *pdev)
 		ide_std_init_ports(&hw, tf_base, ctl_base + 6);
 
 	hw.irq = board->irq_pin;
-	hw.chipset = ide_generic;
 	hw.dev = &pdev->dev;
 
-	host = ide_host_alloc(&at91_ide_port_info, hws);
+	host = ide_host_alloc(&at91_ide_port_info, hws, 1);
 	if (!host) {
 		perr("failed to allocate ide host\n");
 		return -ENOMEM;
