@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
 #include <linux/tick.h>
-#include <linux/hrtimer.h>
 
 void timecounter_init(struct timecounter *tc,
 		      const struct cyclecounter *cc,
@@ -511,13 +510,13 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 	}
 
 	/*
-	 * Check to make sure we don't switch to a non-HRT usable
-	 * clocksource if HRT is enabled and running
+	 * Check to make sure we don't switch to a non-highres capable
+	 * clocksource if the tick code is in oneshot mode (highres or nohz)
 	 */
-	if (hrtimer_hres_active() &&
+	if (tick_oneshot_mode_active() &&
 	    !(ovr->flags & CLOCK_SOURCE_VALID_FOR_HRES)) {
 		printk(KERN_WARNING "%s clocksource is not HRT compatible. "
-			"Cannot switch while in HRT mode\n", ovr->name);
+			"Cannot switch while in HRT/NOHZ mode\n", ovr->name);
 		ovr = NULL;
 		override_name[0] = 0;
 	}
@@ -550,9 +549,12 @@ sysfs_show_available_clocksources(struct sys_device *dev,
 
 	spin_lock_irq(&clocksource_lock);
 	list_for_each_entry(src, &clocksource_list, list) {
-		/* Don't show non-HRES clocksource if HRES is enabled */
-		if (!hrtimer_hres_active() ||
-				(src->flags & CLOCK_SOURCE_VALID_FOR_HRES))
+		/*
+		 * Don't show non-HRES clocksource if the tick code is
+		 * in one shot mode (highres=on or nohz=on)
+		 */
+		if (!tick_oneshot_mode_active() ||
+		    (src->flags & CLOCK_SOURCE_VALID_FOR_HRES))
 			count += snprintf(buf + count,
 				  max((ssize_t)PAGE_SIZE - count, (ssize_t)0),
 				  "%s ", src->name);
