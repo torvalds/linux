@@ -33,6 +33,7 @@
 #include <linux/ctype.h>
 #include <linux/inet.h>
 #include <linux/rtnetlink.h>
+#include <linux/etherdevice.h>
 #include <net/net_namespace.h>
 
 #include "bonding.h"
@@ -275,10 +276,9 @@ static ssize_t bonding_store_slaves(struct device *d,
 		/* If this is the first slave, then we need to set
 		   the master's hardware address to be the same as the
 		   slave's. */
-		if (!(*((u32 *) & (bond->dev->dev_addr[0])))) {
+		if (is_zero_ether_addr(bond->dev->dev_addr))
 			memcpy(bond->dev->dev_addr, dev->dev_addr,
 			       dev->addr_len);
-		}
 
 		/* Set the slave's MTU to match the bond */
 		original_mtu = dev->mtu;
