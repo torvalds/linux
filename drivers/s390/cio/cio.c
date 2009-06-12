@@ -12,6 +12,7 @@
 #define KMSG_COMPONENT "cio"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -626,8 +627,7 @@ out:
  *	    handlers).
  *
  */
-void
-do_IRQ (struct pt_regs *regs)
+void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct tpi_info *tpi_info;
 	struct subchannel *sch;

@@ -7,13 +7,17 @@
  *
  */
 
+#include <linux/hardirq.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/lowcore.h>
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+
 void ftrace_disable_code(void);
+void ftrace_disable_return(void);
 void ftrace_call_code(void);
 void ftrace_nop_code(void);
 
@@ -28,6 +32,7 @@ asm(
 	"	.word	0x0024\n"
 	"	lg	%r1,"__stringify(__LC_FTRACE_FUNC)"\n"
 	"	basr	%r14,%r1\n"
+	"ftrace_disable_return:\n"
 	"	lg	%r14,8(15)\n"
 	"	lgr	%r0,%r0\n"
 	"0:\n");
@@ -50,6 +55,7 @@ asm(
 	"	j	0f\n"
 	"	l	%r1,"__stringify(__LC_FTRACE_FUNC)"\n"
 	"	basr	%r14,%r1\n"
+	"ftrace_disable_return:\n"
 	"	l	%r14,4(%r15)\n"
 	"	j	0f\n"
 	"	bcr	0,%r7\n"
@@ -130,3 +136,69 @@ int __init ftrace_dyn_arch_init(void *data)
 	*(unsigned long *)data = 0;
 	return 0;
 }
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#ifdef CONFIG_DYNAMIC_FTRACE
+/*
+ * Patch the kernel code at ftrace_graph_caller location:
+ * The instruction there is branch relative on condition. The condition mask
+ * is either all ones (always branch aka disable ftrace_graph_caller) or all
+ * zeroes (nop aka enable ftrace_graph_caller).
+ * Instruction format for brc is a7m4xxxx where m is the condition mask.
+ */
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned short opcode = 0xa704;
+
+	return probe_kernel_write(ftrace_graph_caller, &opcode, sizeof(opcode));
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned short opcode = 0xa7f4;
+
+	return probe_kernel_write(ftrace_graph_caller, &opcode, sizeof(opcode));
+}
+
+static inline unsigned long ftrace_mcount_call_adjust(unsigned long addr)
+{
+	return addr - (ftrace_disable_return - ftrace_disable_code);
+}
+
+#else /* CONFIG_DYNAMIC_FTRACE */
+
+static inline unsigned long ftrace_mcount_call_adjust(unsigned long addr)
+{
+	return addr - MCOUNT_OFFSET_RET;
+}
+
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+/*
+ * Hook the return address and push it in the stack of return addresses
+ * in current thread info.
+ */
+unsigned long prepare_ftrace_return(unsigned long ip, unsigned long parent)
+{
+	struct ftrace_graph_ent trace;
+
+	/* Nmi's are currently unsupported. */
+	if (unlikely(in_nmi()))
+		goto out;
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		goto out;
+	if (ftrace_push_return_trace(parent, ip, &trace.depth) == -EBUSY)
+		goto out;
+	trace.func = ftrace_mcount_call_adjust(ip) & PSW_ADDR_INSN;
+	/* Only trace if the calling function expects to. */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		goto out;
+	}
+	parent = (unsigned long)return_to_handler;
+out:
+	return parent;
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */

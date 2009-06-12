@@ -70,7 +70,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return ((get_clock_xt() - sched_clock_base_cc) * 125) >> 9;
 }

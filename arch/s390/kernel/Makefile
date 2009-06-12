@@ -3,11 +3,8 @@
 #
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early boot code
+# Don't trace early setup code and tracing code
 CFLAGS_REMOVE_early.o = -pg
-endif
-
-ifdef CONFIG_DYNAMIC_FTRACE
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
@@ -46,6 +43,7 @@ obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
+obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/ftrace.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
@@ -112,7 +113,7 @@ int unregister_early_external_interrupt(__u16 code, ext_int_handler_t handler,
 	return 0;
 }
 
-void do_extint(struct pt_regs *regs, unsigned short code)
+void __irq_entry do_extint(struct pt_regs *regs, unsigned short code)
 {
         ext_int_info_t *p;
         int index;
