@@ -886,6 +886,36 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
 		return set_msr_mce(vcpu, msr, data);
+
+	/* Performance counters are not protected by a CPUID bit,
+	 * so we should check all of them in the generic path for the sake of
+	 * cross vendor migration.
+	 * Writing a zero into the event select MSRs disables them,
+	 * which we perfectly emulate ;-). Any other value should be at least
+	 * reported, some guests depend on them.
+	 */
+	case MSR_P6_EVNTSEL0:
+	case MSR_P6_EVNTSEL1:
+	case MSR_K7_EVNTSEL0:
+	case MSR_K7_EVNTSEL1:
+	case MSR_K7_EVNTSEL2:
+	case MSR_K7_EVNTSEL3:
+		if (data != 0)
+			pr_unimpl(vcpu, "unimplemented perfctr wrmsr: "
+				"0x%x data 0x%llx\n", msr, data);
+		break;
+	/* at least RHEL 4 unconditionally writes to the perfctr registers,
+	 * so we ignore writes to make it happy.
+	 */
+	case MSR_P6_PERFCTR0:
+	case MSR_P6_PERFCTR1:
+	case MSR_K7_PERFCTR0:
+	case MSR_K7_PERFCTR1:
+	case MSR_K7_PERFCTR2:
+	case MSR_K7_PERFCTR3:
+		pr_unimpl(vcpu, "unimplemented perfctr wrmsr: "
+			"0x%x data 0x%llx\n", msr, data);
+		break;
 	default:
 		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n", msr, data);
 		return 1;
