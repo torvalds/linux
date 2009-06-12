@@ -212,7 +212,7 @@ config SPI_TXX9
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller"
-	depends on XILINX_VIRTEX && EXPERIMENTAL
+	depends on (XILINX_VIRTEX || MICROBLAZE) && EXPERIMENTAL
 	select SPI_BITBANG
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.

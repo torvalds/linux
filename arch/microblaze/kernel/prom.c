@@ -509,12 +509,13 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
 
 	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &l);
 	if (prop) {
-		initrd_start = (unsigned long)__va(of_read_ulong(prop, l/4));
+		initrd_start = (unsigned long)
+					__va((u32)of_read_ulong(prop, l/4));
 
 		prop = of_get_flat_dt_prop(node, "linux,initrd-end", &l);
 		if (prop) {
 			initrd_end = (unsigned long)
-					__va(of_read_ulong(prop, l/4));
+					__va((u32)of_read_ulong(prop, 1/4));
 			initrd_below_start_ok = 1;
 		} else {
 			initrd_start = 0;
@@ -563,7 +564,9 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
 
 #ifdef CONFIG_CMDLINE
+#ifndef CONFIG_CMDLINE_FORCE
 	if (p == NULL || l == 0 || (l == 1 && (*p) == 0))
+#endif
 		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 #endif /* CONFIG_CMDLINE */
 

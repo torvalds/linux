@@ -438,7 +438,7 @@ source "drivers/s390/block/Kconfig"
 
 config XILINX_SYSACE
 	tristate "Xilinx SystemACE support"
-	depends on 4xx
+	depends on 4xx || MICROBLAZE
 	help
 	  Include support for the Xilinx SystemACE CompactFlash interface
 

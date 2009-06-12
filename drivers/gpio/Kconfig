@@ -69,7 +69,7 @@ comment "Memory mapped GPIO expanders:"
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
-	depends on PPC_OF
+	depends on PPC_OF || MICROBLAZE
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
