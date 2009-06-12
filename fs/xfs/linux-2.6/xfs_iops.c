@@ -225,8 +225,8 @@ xfs_vn_mknod(
 		if (IS_ERR(default_acl))
 			return -PTR_ERR(default_acl);
 
-	if (!default_acl)
-		mode &= ~current_umask();
+		if (!default_acl)
+			mode &= ~current_umask();
 	}
 
 	xfs_dentry_to_name(&name, dentry);
