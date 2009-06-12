@@ -10,6 +10,7 @@
 
 /*
  * Superset of MCI IP registers integrated in Atmel AVR32 and AT91 Processors
+ * Registers and bitfields marked with [2] are only available in MCI2
  */
 
 #ifndef __DRIVERS_MMC_ATMEL_MCI_H__
@@ -39,6 +40,7 @@
 # define MCI_SDCSEL_MASK	(  3 <<  0)
 # define MCI_SDCBUS_1BIT	(  0 <<  6)	/* 1-bit data bus */
 # define MCI_SDCBUS_4BIT	(  2 <<  6)	/* 4-bit data bus */
+# define MCI_SDCBUS_8BIT	(  3 <<  6)	/* 8-bit data bus[2] */
 # define MCI_SDCBUS_MASK	(  3 <<  6)
 #define MCI_ARGR		0x0010	/* Command Argument */
 #define MCI_CMDR		0x0014	/* Command */
@@ -67,6 +69,9 @@
 #define MCI_BLKR		0x0018	/* Block */
 # define MCI_BCNT(x)		((x) <<  0)	/* Data Block Count */
 # define MCI_BLKLEN(x)		((x) << 16)	/* Data Block Length */
+#define MCI_CSTOR		0x001c	/* Completion Signal Timeout[2] */
+# define MCI_CSTOCYC(x)		((x) <<  0)	/* CST cycles */
+# define MCI_CSTOMUL(x)		((x) <<  4)	/* CST multiplier */
 #define MCI_RSPR		0x0020	/* Response 0 */
 #define MCI_RSPR1		0x0024	/* Response 1 */
 #define MCI_RSPR2		0x0028	/* Response 2 */
@@ -94,7 +99,24 @@
 # define MCI_DTOE		(  1 <<  22)	/* Data Time-Out Error */
 # define MCI_OVRE		(  1 <<  30)	/* RX Overrun Error */
 # define MCI_UNRE		(  1 <<  31)	/* TX Underrun Error */
+#define MCI_DMA			0x0050	/* DMA Configuration[2] */
+# define MCI_DMA_OFFSET(x)	((x) <<  0)	/* DMA Write Buffer Offset */
+# define MCI_DMA_CHKSIZE(x)	((x) <<  4)	/* DMA Channel Read and Write Chunk Size */
+# define MCI_DMAEN		(  1 <<  8)	/* DMA Hardware Handshaking Enable */
+#define MCI_CFG			0x0054	/* Configuration[2] */
+# define MCI_CFG_FIFOMODE_1DATA	(  1 <<  0)	/* MCI Internal FIFO control mode */
+# define MCI_CFG_FERRCTRL_COR	(  1 <<  4)	/* Flow Error flag reset control mode */
+# define MCI_CFG_HSMODE		(  1 <<  8)	/* High Speed Mode */
+# define MCI_CFG_LSYNC		(  1 << 12)	/* Synchronize on the last block */
+#define MCI_WPMR		0x00e4	/* Write Protection Mode[2] */
+# define MCI_WP_EN		(  1 <<  0)	/* WP Enable */
+# define MCI_WP_KEY		(0x4d4349 << 8)	/* WP Key */
+#define MCI_WPSR		0x00e8	/* Write Protection Status[2] */
+# define MCI_GET_WP_VS(x)	((x) & 0x0f)
+# define MCI_GET_WP_VSRC(x)	(((x) >> 8) & 0xffff)
+#define MCI_FIFO_APERTURE	0x0200	/* FIFO Aperture[2] */
 
+/* This is not including the FIFO Aperture on MCI2 */
 #define MCI_REGS_SIZE		0x100
 
 /* Register access macros */
