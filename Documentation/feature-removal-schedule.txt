@@ -238,9 +238,6 @@ What (Why):
 	- "forwarding" header files like ipt_mac.h in
 	  include/linux/netfilter_ipv4/ and include/linux/netfilter_ipv6/
 
-	- xt_MARK target revisions 0 and 1
-	  (superseded by xt_MARK match revision 2)
-
 	- xt_connmark match revision 0
 	  (superseded by xt_connmark match revision 1)
 
