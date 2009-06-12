@@ -105,6 +105,7 @@ enum {
 				  CFG_RX_AUTH_EN |  \
 				  CFG_RX_ASSOC_EN)
 
+#define WL12XX_BUSY_WORD_LEN 8
 
 struct boot_attr {
 	u32 radio_type;
@@ -385,6 +386,7 @@ struct wl12xx {
 
 	u32 buffer_32;
 	u32 buffer_cmd;
+	u8 buffer_busyword[WL12XX_BUSY_WORD_LEN];
 };
 
 int wl12xx_plt_start(struct wl12xx *wl);

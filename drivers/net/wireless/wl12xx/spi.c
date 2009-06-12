@@ -262,10 +262,11 @@ void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,
 {
 	struct spi_transfer t[3];
 	struct spi_message m;
-	char busy_buf[TNETWIF_READ_OFFSET_BYTES];
+	u8 *busy_buf;
 	u32 *cmd;
 
 	cmd = &wl->buffer_cmd;
+	busy_buf = wl->buffer_busyword;
 
 	*cmd = 0;
 	*cmd |= WSPI_CMD_READ;
@@ -281,7 +282,7 @@ void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,
 
 	/* Busy and non busy words read */
 	t[1].rx_buf = busy_buf;
-	t[1].len = TNETWIF_READ_OFFSET_BYTES;
+	t[1].len = WL12XX_BUSY_WORD_LEN;
 	spi_message_add_tail(&t[1], &m);
 
 	t[2].rx_buf = buf;
