@@ -38,6 +38,7 @@
 #include <asm/uaccess.h>
 
 #include "spufs.h"
+#include "sputrace.h"
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
 
