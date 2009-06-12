@@ -12,6 +12,7 @@
 #include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <trace/syscall.h>
 #include <asm/lowcore.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -202,3 +203,58 @@ out:
 	return parent;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+extern unsigned long __start_syscalls_metadata[];
+extern unsigned long __stop_syscalls_metadata[];
+extern unsigned int sys_call_table[];
+
+static struct syscall_metadata **syscalls_metadata;
+
+struct syscall_metadata *syscall_nr_to_meta(int nr)
+{
+	if (!syscalls_metadata || nr >= NR_syscalls || nr < 0)
+		return NULL;
+
+	return syscalls_metadata[nr];
+}
+
+static struct syscall_metadata *find_syscall_meta(unsigned long syscall)
+{
+	struct syscall_metadata *start;
+	struct syscall_metadata *stop;
+	char str[KSYM_SYMBOL_LEN];
+
+	start = (struct syscall_metadata *)__start_syscalls_metadata;
+	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
+	kallsyms_lookup(syscall, NULL, NULL, NULL, str);
+
+	for ( ; start < stop; start++) {
+		if (start->name && !strcmp(start->name + 3, str + 3))
+			return start;
+	}
+	return NULL;
+}
+
+void arch_init_ftrace_syscalls(void)
+{
+	struct syscall_metadata *meta;
+	int i;
+	static atomic_t refs;
+
+	if (atomic_inc_return(&refs) != 1)
+		goto out;
+	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) * NR_syscalls,
+				    GFP_KERNEL);
+	if (!syscalls_metadata)
+		goto out;
+	for (i = 0; i < NR_syscalls; i++) {
+		meta = find_syscall_meta((unsigned long)sys_call_table[i]);
+		syscalls_metadata[i] = meta;
+	}
+	return;
+out:
+	atomic_dec(&refs);
+}
+#endif

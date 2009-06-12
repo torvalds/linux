@@ -37,6 +37,7 @@
 #include <linux/regset.h>
 #include <linux/tracehook.h>
 #include <linux/seccomp.h>
+#include <trace/syscall.h>
 #include <asm/compat.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -661,6 +662,9 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		ret = -1;
 	}
 
+	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+		ftrace_syscall_enter(regs);
+
 	if (unlikely(current->audit_context))
 		audit_syscall_entry(is_compat_task() ?
 					AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
@@ -675,6 +679,9 @@ asmlinkage void do_syscall_trace_exit(struct pt_regs *regs)
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->gprs[2]),
 				   regs->gprs[2]);
+
+	if (unlikely(test_thread_flag(TIF_SYSCALL_FTRACE)))
+		ftrace_syscall_exit(regs);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);
