@@ -16,24 +16,32 @@
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
-EXPORT_SYMBOL_GPL(nf_conntrack_chain);
+static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
-ATOMIC_NOTIFIER_HEAD(nf_ct_expect_chain);
-EXPORT_SYMBOL_GPL(nf_ct_expect_chain);
+struct nf_ct_event_notifier *nf_conntrack_event_cb __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_event_cb);
+
+struct nf_exp_event_notifier *nf_expect_event_cb __read_mostly;
+EXPORT_SYMBOL_GPL(nf_expect_event_cb);
 
 /* deliver cached events and clear cache entry - must be called with locally
  * disabled softirqs */
 static inline void
 __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 {
+	struct nf_ct_event_notifier *notify;
+
+	rcu_read_lock();
+	notify = rcu_dereference(nf_conntrack_event_cb);
+	if (notify == NULL)
+		goto out_unlock;
+
 	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
 	    && ecache->events) {
 		struct nf_ct_event item = {
@@ -42,14 +50,15 @@ __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 			.report	= 0
 		};
 
-		atomic_notifier_call_chain(&nf_conntrack_chain,
-					   ecache->events,
-					   &item);
+		notify->fcn(ecache->events, &item);
 	}
 
 	ecache->events = 0;
 	nf_ct_put(ecache->ct);
 	ecache->ct = NULL;
+
+out_unlock:
+	rcu_read_unlock();
 }
 
 /* Deliver all cached events for a particular conntrack. This is called
@@ -111,26 +120,68 @@ void nf_conntrack_ecache_fini(struct net *net)
 	free_percpu(net->ct.ecache);
 }
 
-int nf_conntrack_register_notifier(struct notifier_block *nb)
+int nf_conntrack_register_notifier(struct nf_ct_event_notifier *new)
 {
-	return atomic_notifier_chain_register(&nf_conntrack_chain, nb);
+	int ret = 0;
+	struct nf_ct_event_notifier *notify;
+
+	mutex_lock(&nf_ct_ecache_mutex);
+	notify = rcu_dereference(nf_conntrack_event_cb);
+	if (notify != NULL) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+	rcu_assign_pointer(nf_conntrack_event_cb, new);
+	mutex_unlock(&nf_ct_ecache_mutex);
+	return ret;
+
+out_unlock:
+	mutex_unlock(&nf_ct_ecache_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_register_notifier);
 
-int nf_conntrack_unregister_notifier(struct notifier_block *nb)
+void nf_conntrack_unregister_notifier(struct nf_ct_event_notifier *new)
 {
-	return atomic_notifier_chain_unregister(&nf_conntrack_chain, nb);
+	struct nf_ct_event_notifier *notify;
+
+	mutex_lock(&nf_ct_ecache_mutex);
+	notify = rcu_dereference(nf_conntrack_event_cb);
+	BUG_ON(notify != new);
+	rcu_assign_pointer(nf_conntrack_event_cb, NULL);
+	mutex_unlock(&nf_ct_ecache_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
 
-int nf_ct_expect_register_notifier(struct notifier_block *nb)
+int nf_ct_expect_register_notifier(struct nf_exp_event_notifier *new)
 {
-	return atomic_notifier_chain_register(&nf_ct_expect_chain, nb);
+	int ret = 0;
+	struct nf_exp_event_notifier *notify;
+
+	mutex_lock(&nf_ct_ecache_mutex);
+	notify = rcu_dereference(nf_expect_event_cb);
+	if (notify != NULL) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+	rcu_assign_pointer(nf_expect_event_cb, new);
+	mutex_unlock(&nf_ct_ecache_mutex);
+	return ret;
+
+out_unlock:
+	mutex_unlock(&nf_ct_ecache_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_register_notifier);
 
-int nf_ct_expect_unregister_notifier(struct notifier_block *nb)
+void nf_ct_expect_unregister_notifier(struct nf_exp_event_notifier *new)
 {
-	return atomic_notifier_chain_unregister(&nf_ct_expect_chain, nb);
+	struct nf_exp_event_notifier *notify;
+
+	mutex_lock(&nf_ct_ecache_mutex);
+	notify = rcu_dereference(nf_expect_event_cb);
+	BUG_ON(notify != new);
+	rcu_assign_pointer(nf_expect_event_cb, NULL);
+	mutex_unlock(&nf_ct_ecache_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);

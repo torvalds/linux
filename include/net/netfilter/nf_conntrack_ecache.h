@@ -6,10 +6,54 @@
 #define _NF_CONNTRACK_ECACHE_H
 #include <net/netfilter/nf_conntrack.h>
 
-#include <linux/notifier.h>
 #include <linux/interrupt.h>
 #include <net/net_namespace.h>
 #include <net/netfilter/nf_conntrack_expect.h>
+
+/* Connection tracking event bits */
+enum ip_conntrack_events
+{
+	/* New conntrack */
+	IPCT_NEW_BIT = 0,
+	IPCT_NEW = (1 << IPCT_NEW_BIT),
+
+	/* Expected connection */
+	IPCT_RELATED_BIT = 1,
+	IPCT_RELATED = (1 << IPCT_RELATED_BIT),
+
+	/* Destroyed conntrack */
+	IPCT_DESTROY_BIT = 2,
+	IPCT_DESTROY = (1 << IPCT_DESTROY_BIT),
+
+	/* Status has changed */
+	IPCT_STATUS_BIT = 3,
+	IPCT_STATUS = (1 << IPCT_STATUS_BIT),
+
+	/* Update of protocol info */
+	IPCT_PROTOINFO_BIT = 4,
+	IPCT_PROTOINFO = (1 << IPCT_PROTOINFO_BIT),
+
+	/* New helper for conntrack */
+	IPCT_HELPER_BIT = 5,
+	IPCT_HELPER = (1 << IPCT_HELPER_BIT),
+
+	/* Mark is set */
+	IPCT_MARK_BIT = 6,
+	IPCT_MARK = (1 << IPCT_MARK_BIT),
+
+	/* NAT sequence adjustment */
+	IPCT_NATSEQADJ_BIT = 7,
+	IPCT_NATSEQADJ = (1 << IPCT_NATSEQADJ_BIT),
+
+	/* Secmark is set */
+	IPCT_SECMARK_BIT = 8,
+	IPCT_SECMARK = (1 << IPCT_SECMARK_BIT),
+};
+
+enum ip_conntrack_expect_events {
+	IPEXP_NEW_BIT = 0,
+	IPEXP_NEW = (1 << IPEXP_NEW_BIT),
+};
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 struct nf_conntrack_ecache {
@@ -24,9 +68,13 @@ struct nf_ct_event {
 	int report;
 };
 
-extern struct atomic_notifier_head nf_conntrack_chain;
-extern int nf_conntrack_register_notifier(struct notifier_block *nb);
-extern int nf_conntrack_unregister_notifier(struct notifier_block *nb);
+struct nf_ct_event_notifier {
+	int (*fcn)(unsigned int events, struct nf_ct_event *item);
+};
+
+extern struct nf_ct_event_notifier *nf_conntrack_event_cb;
+extern int nf_conntrack_register_notifier(struct nf_ct_event_notifier *nb);
+extern void nf_conntrack_unregister_notifier(struct nf_ct_event_notifier *nb);
 
 extern void nf_ct_deliver_cached_events(const struct nf_conn *ct);
 extern void __nf_ct_event_cache_init(struct nf_conn *ct);
@@ -52,13 +100,23 @@ nf_conntrack_event_report(enum ip_conntrack_events event,
 			  u32 pid,
 			  int report)
 {
-	struct nf_ct_event item = {
-		.ct 	= ct,
-		.pid	= pid,
-		.report = report
-	};
-	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct))
-		atomic_notifier_call_chain(&nf_conntrack_chain, event, &item);
+	struct nf_ct_event_notifier *notify;
+
+	rcu_read_lock();
+	notify = rcu_dereference(nf_conntrack_event_cb);
+	if (notify == NULL)
+		goto out_unlock;
+
+	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct)) {
+		struct nf_ct_event item = {
+			.ct 	= ct,
+			.pid	= pid,
+			.report = report
+		};
+		notify->fcn(event, &item);
+	}
+out_unlock:
+	rcu_read_unlock();
 }
 
 static inline void
@@ -73,9 +131,13 @@ struct nf_exp_event {
 	int report;
 };
 
-extern struct atomic_notifier_head nf_ct_expect_chain;
-extern int nf_ct_expect_register_notifier(struct notifier_block *nb);
-extern int nf_ct_expect_unregister_notifier(struct notifier_block *nb);
+struct nf_exp_event_notifier {
+	int (*fcn)(unsigned int events, struct nf_exp_event *item);
+};
+
+extern struct nf_exp_event_notifier *nf_expect_event_cb;
+extern int nf_ct_expect_register_notifier(struct nf_exp_event_notifier *nb);
+extern void nf_ct_expect_unregister_notifier(struct nf_exp_event_notifier *nb);
 
 static inline void
 nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
@@ -83,12 +145,23 @@ nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 			  u32 pid,
 			  int report)
 {
-	struct nf_exp_event item = {
-		.exp	= exp,
-		.pid	= pid,
-		.report = report
-	};
-	atomic_notifier_call_chain(&nf_ct_expect_chain, event, &item);
+	struct nf_exp_event_notifier *notify;
+
+	rcu_read_lock();
+	notify = rcu_dereference(nf_expect_event_cb);
+	if (notify == NULL)
+		goto out_unlock;
+
+	{
+		struct nf_exp_event item = {
+			.exp	= exp,
+			.pid	= pid,
+			.report = report
+		};
+		notify->fcn(event, &item);
+	}
+out_unlock:
+	rcu_read_unlock();
 }
 
 static inline void

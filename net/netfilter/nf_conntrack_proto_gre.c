@@ -219,8 +219,7 @@ static int gre_print_tuple(struct seq_file *s,
 }
 
 /* print private data for conntrack */
-static int gre_print_conntrack(struct seq_file *s,
-			       const struct nf_conn *ct)
+static int gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	return seq_printf(s, "timeout=%u, stream_timeout=%u ",
 			  (ct->proto.gre.timeout / HZ),

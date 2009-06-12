@@ -398,11 +398,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	help = nfct_help(ct);
 	if (help && help->helper)
 		nf_conntrack_event_cache(IPCT_HELPER, ct);
-#ifdef CONFIG_NF_NAT_NEEDED
-	if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
-	    test_bit(IPS_DST_NAT_DONE_BIT, &ct->status))
-		nf_conntrack_event_cache(IPCT_NATINFO, ct);
-#endif
+
 	nf_conntrack_event_cache(master_ct(ct) ?
 				 IPCT_RELATED : IPCT_NEW, ct);
 	return NF_ACCEPT;
@@ -523,6 +519,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	spin_lock_init(&ct->lock);
 	atomic_set(&ct->ct_general.use, 1);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
@@ -807,8 +804,6 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 			  unsigned long extra_jiffies,
 			  int do_acct)
 {
-	int event = 0;
-
 	NF_CT_ASSERT(ct->timeout.data == (unsigned long)ct);
 	NF_CT_ASSERT(skb);
 
@@ -821,7 +816,6 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	/* If not in hash table, timer will not be active yet */
 	if (!nf_ct_is_confirmed(ct)) {
 		ct->timeout.expires = extra_jiffies;
-		event = IPCT_REFRESH;
 	} else {
 		unsigned long newtime = jiffies + extra_jiffies;
 
@@ -832,7 +826,6 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		    && del_timer(&ct->timeout)) {
 			ct->timeout.expires = newtime;
 			add_timer(&ct->timeout);
-			event = IPCT_REFRESH;
 		}
 	}
 
@@ -849,10 +842,6 @@ acct:
 	}
 
 	spin_unlock_bh(&nf_conntrack_lock);
-
-	/* must be unlocked when calling event cache */
-	if (event)
-		nf_conntrack_event_cache(event, ct);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
@@ -1001,7 +990,7 @@ struct __nf_ct_flush_report {
 	int report;
 };
 
-static int kill_all(struct nf_conn *i, void *data)
+static int kill_report(struct nf_conn *i, void *data)
 {
 	struct __nf_ct_flush_report *fr = (struct __nf_ct_flush_report *)data;
 
@@ -1010,6 +999,11 @@ static int kill_all(struct nf_conn *i, void *data)
 				  i,
 				  fr->pid,
 				  fr->report);
+	return 1;
+}
+
+static int kill_all(struct nf_conn *i, void *data)
+{
 	return 1;
 }
 
@@ -1023,15 +1017,15 @@ void nf_ct_free_hashtable(void *hash, int vmalloced, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(nf_ct_free_hashtable);
 
-void nf_conntrack_flush(struct net *net, u32 pid, int report)
+void nf_conntrack_flush_report(struct net *net, u32 pid, int report)
 {
 	struct __nf_ct_flush_report fr = {
 		.pid 	= pid,
 		.report = report,
 	};
-	nf_ct_iterate_cleanup(net, kill_all, &fr);
+	nf_ct_iterate_cleanup(net, kill_report, &fr);
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_flush);
+EXPORT_SYMBOL_GPL(nf_conntrack_flush_report);
 
 static void nf_conntrack_cleanup_init_net(void)
 {
@@ -1045,7 +1039,7 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	nf_ct_event_cache_flush(net);
 	nf_conntrack_ecache_fini(net);
  i_see_dead_people:
-	nf_conntrack_flush(net, 0, 0);
+	nf_ct_iterate_cleanup(net, kill_all, NULL);
 	if (atomic_read(&net->ct.count) != 0) {
 		schedule();
 		goto i_see_dead_people;
