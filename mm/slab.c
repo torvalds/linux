@@ -304,6 +304,12 @@ struct kmem_list3 {
 };
 
 /*
+ * The slab allocator is initialized with interrupts disabled. Therefore, make
+ * sure early boot allocations don't accidentally enable interrupts.
+ */
+static gfp_t slab_gfp_mask __read_mostly = SLAB_GFP_BOOT_MASK;
+
+/*
  * Need this for bootstrapping a per node allocator.
  */
 #define NUM_INIT_LISTS (3 * MAX_NUMNODES)
@@ -1652,6 +1658,14 @@ void __init kmem_cache_init(void)
 	 * The reap timers are started later, with a module init call: That part
 	 * of the kernel is not yet operational.
 	 */
+}
+
+void __init kmem_cache_init_late(void)
+{
+	/*
+	 * Interrupts are enabled now so all GFP allocations are safe.
+	 */
+	slab_gfp_mask = __GFP_BITS_MASK;
 }
 
 static int __init cpucache_init(void)
@@ -3354,6 +3368,8 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 	unsigned long save_flags;
 	void *ptr;
 
+	flags &= slab_gfp_mask;
+
 	lockdep_trace_alloc(flags);
 
 	if (slab_should_failslab(cachep, flags))
@@ -3433,6 +3449,8 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
 {
 	unsigned long save_flags;
 	void *objp;
+
+	flags &= slab_gfp_mask;
 
 	lockdep_trace_alloc(flags);
 
