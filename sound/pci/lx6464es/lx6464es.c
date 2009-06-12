@@ -43,6 +43,13 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
+module_param_array(index, int, NULL, 0444);
+MODULE_PARM_DESC(index, "Index value for Digigram LX6464ES interface.");
+module_param_array(id, charp, NULL, 0444);
+MODULE_PARM_DESC(id, "ID string for  Digigram LX6464ES interface.");
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable/disable specific Digigram LX6464ES soundcards.");
+
 static const char card_name[] = "LX6464ES";
 
 
