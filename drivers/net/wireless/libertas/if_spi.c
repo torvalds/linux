@@ -812,7 +812,6 @@ out:
 static void if_spi_e2h(struct if_spi_card *card)
 {
 	int err = 0;
-	unsigned long flags;
 	u32 cause;
 	struct lbs_private *priv = card->priv;
 
@@ -827,10 +826,7 @@ static void if_spi_e2h(struct if_spi_card *card)
 	/* generate a card interrupt */
 	spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG, IF_SPI_CIC_HOST_EVENT);
 
-	spin_lock_irqsave(&priv->driver_lock, flags);
 	lbs_queue_event(priv, cause & 0xff);
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
-
 out:
 	if (err)
 		lbs_pr_err("%s: error %d\n", __func__, err);
