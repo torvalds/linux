@@ -936,6 +936,8 @@ config AIO
 
 config HAVE_PERF_COUNTERS
 	bool
+	help
+	  See tools/perf/design.txt for details.
 
 menu "Performance Counters"
 
