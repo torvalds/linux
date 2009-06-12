@@ -630,7 +630,7 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			return 0;
 	}
 
-	if (iwl_ht_conf->ht_protection & IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
+	if (iwl_ht_conf->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
 		return 1;
 	else
 		return iwl_is_channel_extension(priv, priv->band,
@@ -826,7 +826,7 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
 	if (iwl_is_fat_tx_allowed(priv, NULL)) {
 		/* pure 40 fat */
-		if (rxon->flags & RXON_FLG_FAT_PROT_MSK)
+		if (ht_info->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
 			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
 		else {
 			/* Note: control channel is opposite of extension channel */
