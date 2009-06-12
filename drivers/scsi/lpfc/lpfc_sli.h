@@ -29,13 +29,23 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
+/* This structure is used to carry the needed response IOCB states */
+struct lpfc_sli4_rspiocb_info {
+	uint8_t hw_status;
+	uint8_t bfield;
+#define LPFC_XB	0x1
+#define LPFC_PV	0x2
+	uint8_t priority;
+	uint8_t reserved;
+};
+
 /* This structure is used to handle IOCB requests / responses */
 struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
 	struct list_head clist;
 	uint16_t iotag;         /* pre-assigned IO tag */
-	uint16_t rsvd1;
+	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
@@ -65,7 +75,7 @@ struct lpfc_iocbq {
 			   struct lpfc_iocbq *);
 	void (*iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_iocbq *);
-
+	struct lpfc_sli4_rspiocb_info sli4_info;
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
@@ -81,14 +91,18 @@ struct lpfc_iocbq {
 typedef struct lpfcMboxq {
 	/* MBOXQs are used in single linked lists */
 	struct list_head list;	/* ptr to next mailbox command */
-	MAILBOX_t mb;		/* Mailbox cmd */
-	struct lpfc_vport *vport;/* virutal port pointer */
+	union {
+		MAILBOX_t mb;		/* Mailbox cmd */
+		struct lpfc_mqe mqe;
+	} u;
+	struct lpfc_vport *vport;/* virtual port pointer */
 	void *context1;		/* caller context information */
 	void *context2;		/* caller context information */
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;
-
+	struct lpfc_mcqe mcqe;
+	struct lpfc_mbx_nembed_sge_virt *sge_array;
 } LPFC_MBOXQ_t;
 
 #define MBX_POLL        1	/* poll mailbox till command done, then
@@ -230,10 +244,11 @@ struct lpfc_sli {
 
 	/* Additional sli_flags */
 #define LPFC_SLI_MBOX_ACTIVE      0x100	/* HBA mailbox is currently active */
-#define LPFC_SLI2_ACTIVE          0x200	/* SLI2 overlay in firmware is active */
+#define LPFC_SLI_ACTIVE           0x200	/* SLI in firmware is active */
 #define LPFC_PROCESS_LA           0x400	/* Able to process link attention */
 #define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
+#define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 
 	struct lpfc_sli_ring ring[LPFC_MAX_RING];
 	int fcp_ring;		/* ring used for FCP initiator commands */
@@ -260,6 +275,8 @@ struct lpfc_sli {
 };
 
 #define LPFC_MBOX_TMO           30	/* Sec tmo for outstanding mbox
+					   command */
+#define LPFC_MBOX_SLI4_CONFIG_TMO 60	/* Sec tmo for outstanding mbox
 					   command */
 #define LPFC_MBOX_TMO_FLASH_CMD 300     /* Sec tmo for outstanding FLASH write
 					 * or erase cmds. This is especially

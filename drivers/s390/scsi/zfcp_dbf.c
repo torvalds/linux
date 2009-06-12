@@ -163,7 +163,7 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 	}
 
 	response->fsf_command = fsf_req->fsf_command;
-	response->fsf_reqid = (unsigned long)fsf_req;
+	response->fsf_reqid = fsf_req->req_id;
 	response->fsf_seqno = fsf_req->seq_no;
 	response->fsf_issued = fsf_req->issued;
 	response->fsf_prot_status = qtcb->prefix.prot_status;
@@ -737,7 +737,7 @@ void zfcp_san_dbf_event_ct_request(struct zfcp_fsf_req *fsf_req)
 	spin_lock_irqsave(&adapter->san_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	strncpy(r->tag, "octc", ZFCP_DBF_TAG_SIZE);
-	r->fsf_reqid = (unsigned long)fsf_req;
+	r->fsf_reqid = fsf_req->req_id;
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = fc_host_port_id(adapter->scsi_host);
 	r->d_id = wka_port->d_id;
@@ -773,7 +773,7 @@ void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 	spin_lock_irqsave(&adapter->san_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	strncpy(r->tag, "rctc", ZFCP_DBF_TAG_SIZE);
-	r->fsf_reqid = (unsigned long)fsf_req;
+	r->fsf_reqid = fsf_req->req_id;
 	r->fsf_seqno = fsf_req->seq_no;
 	r->s_id = wka_port->d_id;
 	r->d_id = fc_host_port_id(adapter->scsi_host);
@@ -803,7 +803,7 @@ static void zfcp_san_dbf_event_els(const char *tag, int level,
 	spin_lock_irqsave(&adapter->san_dbf_lock, flags);
 	memset(rec, 0, sizeof(*rec));
 	strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
-	rec->fsf_reqid = (unsigned long)fsf_req;
+	rec->fsf_reqid = fsf_req->req_id;
 	rec->fsf_seqno = fsf_req->seq_no;
 	rec->s_id = s_id;
 	rec->d_id = d_id;
@@ -965,7 +965,7 @@ static void zfcp_scsi_dbf_event(const char *tag, const char *tag2, int level,
 						      ZFCP_DBF_SCSI_FCP_SNS_INFO);
 				}
 
-				rec->fsf_reqid = (unsigned long)fsf_req;
+				rec->fsf_reqid = fsf_req->req_id;
 				rec->fsf_seqno = fsf_req->seq_no;
 				rec->fsf_issued = fsf_req->issued;
 			}

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -22,6 +22,13 @@
 #include <scsi/scsi_host.h>
 
 struct lpfc_sli2_slim;
+
+#define LPFC_PCI_DEV_LP		0x1
+#define LPFC_PCI_DEV_OC		0x2
+
+#define LPFC_SLI_REV2		2
+#define LPFC_SLI_REV3		3
+#define LPFC_SLI_REV4		4
 
 #define LPFC_MAX_TARGET		4096	/* max number of targets supported */
 #define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
@@ -98,9 +105,11 @@ struct lpfc_dma_pool {
 };
 
 struct hbq_dmabuf {
+	struct lpfc_dmabuf hbuf;
 	struct lpfc_dmabuf dbuf;
 	uint32_t size;
 	uint32_t tag;
+	struct lpfc_rcqe rcqe;
 };
 
 /* Priority bit.  Set value to exceed low water mark in lpfc_mem. */
@@ -134,7 +143,10 @@ typedef struct lpfc_vpd {
 	} rev;
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		uint32_t rsvd2  :24;  /* Reserved                             */
+		uint32_t rsvd3  :19;  /* Reserved                             */
+		uint32_t cdss	: 1;  /* Configure Data Security SLI          */
+		uint32_t rsvd2	: 3;  /* Reserved                             */
+		uint32_t cbg	: 1;  /* Configure BlockGuard                 */
 		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
 		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
 		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
@@ -152,7 +164,10 @@ typedef struct lpfc_vpd {
 		uint32_t csah   : 1;  /* Configure Synchronous Abort Handling */
 		uint32_t ccrp   : 1;  /* Config Command Ring Polling          */
 		uint32_t cmv	: 1;  /* Configure Max VPIs                   */
-		uint32_t rsvd2  :24;  /* Reserved                             */
+		uint32_t cbg	: 1;  /* Configure BlockGuard                 */
+		uint32_t rsvd2	: 3;  /* Reserved                             */
+		uint32_t cdss	: 1;  /* Configure Data Security SLI          */
+		uint32_t rsvd3  :19;  /* Reserved                             */
 #endif
 	} sli3Feat;
 } lpfc_vpd_t;
@@ -264,8 +279,8 @@ enum hba_state {
 };
 
 struct lpfc_vport {
-	struct list_head listentry;
 	struct lpfc_hba *phba;
+	struct list_head listentry;
 	uint8_t port_type;
 #define LPFC_PHYSICAL_PORT 1
 #define LPFC_NPIV_PORT  2
@@ -273,6 +288,9 @@ struct lpfc_vport {
 	enum discovery_state port_state;
 
 	uint16_t vpi;
+	uint16_t vfi;
+	uint8_t vfi_state;
+#define LPFC_VFI_REGISTERED	0x1
 
 	uint32_t fc_flag;	/* FC flags */
 /* Several of these flags are HBA centric and should be moved to
@@ -385,6 +403,9 @@ struct lpfc_vport {
 #endif
 	uint8_t stat_data_enabled;
 	uint8_t stat_data_blocked;
+	struct list_head rcv_buffer_list;
+	uint32_t vport_flag;
+#define STATIC_VPORT	1
 };
 
 struct hbq_s {
@@ -420,8 +441,66 @@ enum intr_type_t {
 };
 
 struct lpfc_hba {
+	/* SCSI interface function jump table entries */
+	int (*lpfc_new_scsi_buf)
+		(struct lpfc_vport *, int);
+	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
+		(struct lpfc_hba *);
+	int (*lpfc_scsi_prep_dma_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_scsi_unprep_dma_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_release_scsi_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_rampdown_queue_depth)
+		(struct lpfc_hba *);
+	void (*lpfc_scsi_prep_cmnd)
+		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		 struct lpfc_nodelist *);
+	int (*lpfc_scsi_prep_task_mgmt_cmd)
+		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		 unsigned int, uint8_t);
+
+	/* IOCB interface function jump table entries */
+	int (*__lpfc_sli_issue_iocb)
+		(struct lpfc_hba *, uint32_t,
+		 struct lpfc_iocbq *, uint32_t);
+	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
+			 struct lpfc_iocbq *);
+	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
+
+
+	IOCB_t * (*lpfc_get_iocb_from_iocbq)
+		(struct lpfc_iocbq *);
+	void (*lpfc_scsi_cmd_iocb_cmpl)
+		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
+
+	/* MBOX interface function jump table entries */
+	int (*lpfc_sli_issue_mbox)
+		(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
+	/* Slow-path IOCB process function jump table entries */
+	void (*lpfc_sli_handle_slow_ring_event)
+		(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		 uint32_t mask);
+	/* INIT device interface function jump table entries */
+	int (*lpfc_sli_hbq_to_firmware)
+		(struct lpfc_hba *, uint32_t, struct hbq_dmabuf *);
+	int (*lpfc_sli_brdrestart)
+		(struct lpfc_hba *);
+	int (*lpfc_sli_brdready)
+		(struct lpfc_hba *, uint32_t);
+	void (*lpfc_handle_eratt)
+		(struct lpfc_hba *);
+	void (*lpfc_stop_port)
+		(struct lpfc_hba *);
+
+
+	/* SLI4 specific HBA data structure */
+	struct lpfc_sli4_hba sli4_hba;
+
 	struct lpfc_sli sli;
-	uint32_t sli_rev;		/* SLI2 or SLI3 */
+	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
+	uint32_t sli_rev;		/* SLI2, SLI3, or SLI4 */
 	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
 #define LPFC_SLI3_HBQ_ENABLED		0x01
 #define LPFC_SLI3_NPIV_ENABLED		0x02
@@ -429,6 +508,7 @@ struct lpfc_hba {
 #define LPFC_SLI3_CRP_ENABLED		0x08
 #define LPFC_SLI3_INB_ENABLED		0x10
 #define LPFC_SLI3_BG_ENABLED		0x20
+#define LPFC_SLI3_DSS_ENABLED		0x40
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
@@ -442,8 +522,13 @@ struct lpfc_hba {
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
-
-#define DEFER_ERATT		0x4 /* Deferred error attention in progress */
+#define DEFER_ERATT		0x2 /* Deferred error attention in progress */
+#define HBA_FCOE_SUPPORT	0x4 /* HBA function supports FCOE */
+#define HBA_RECEIVE_BUFFER	0x8 /* Rcv buffer posted to worker thread */
+#define HBA_POST_RECEIVE_BUFFER 0x10 /* Rcv buffers need to be posted */
+#define FCP_XRI_ABORT_EVENT	0x20
+#define ELS_XRI_ABORT_EVENT	0x40
+#define ASYNC_EVENT		0x80
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
@@ -502,6 +587,9 @@ struct lpfc_hba {
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
+	uint32_t cfg_fcp_imax;
+	uint32_t cfg_fcp_wq_count;
+	uint32_t cfg_fcp_eq_count;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_prot_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
@@ -511,6 +599,8 @@ struct lpfc_hba {
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
 	uint32_t cfg_enable_bg;
+	uint32_t cfg_enable_fip;
+	uint32_t cfg_log_verbose;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -526,11 +616,12 @@ struct lpfc_hba {
 	unsigned long data_flags;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
-	struct list_head hbqbuf_in_list;  /* in-fly hbq buffer list */
+	struct list_head rb_pend_list;  /* Received buffers to be processed */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
+	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
 	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
 					   PCI BAR0 */
@@ -593,7 +684,8 @@ struct lpfc_hba {
 	/* pci_mem_pools */
 	struct pci_pool *lpfc_scsi_dma_buf_pool;
 	struct pci_pool *lpfc_mbuf_pool;
-	struct pci_pool *lpfc_hbq_pool;
+	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
+	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
 
 	mempool_t *mbox_mem_pool;
@@ -609,6 +701,14 @@ struct lpfc_hba {
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
 #define LPFC_MAX_VPI 0xFFFF		/* Max number of VPI supported */
+	uint16_t max_vports;            /*
+					 * For IOV HBAs max_vpi can change
+					 * after a reset. max_vports is max
+					 * number of vports present. This can
+					 * be greater than max_vpi.
+					 */
+	uint16_t vpi_base;
+	uint16_t vfi_base;
 	unsigned long *vpi_bmask;	/* vpi allocation table */
 
 	/* Data structure used by fabric iocb scheduler */
@@ -667,6 +767,11 @@ struct lpfc_hba {
 /* Maximum number of events that can be outstanding at any time*/
 #define LPFC_MAX_EVT_COUNT 512
 	atomic_t fast_event_count;
+	struct lpfc_fcf fcf;
+	uint8_t fc_map[3];
+	uint8_t valid_vlan;
+	uint16_t vlan_id;
+	struct list_head fcf_conn_rec_list;
 };
 
 static inline struct Scsi_Host *
