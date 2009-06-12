@@ -9,7 +9,6 @@ header-y += ipt_NFQUEUE.h
 header-y += ipt_REJECT.h
 header-y += ipt_SAME.h
 header-y += ipt_TCPMSS.h
-header-y += ipt_TOS.h
 header-y += ipt_TTL.h
 header-y += ipt_ULOG.h
 header-y += ipt_addrtype.h
@@ -40,7 +39,6 @@ header-y += ipt_sctp.h
 header-y += ipt_state.h
 header-y += ipt_string.h
 header-y += ipt_tcpmss.h
-header-y += ipt_tos.h
 header-y += ipt_ttl.h
 
 unifdef-y += ip_queue.h
