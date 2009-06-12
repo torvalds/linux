@@ -40,6 +40,30 @@ static struct platform_device m5249_uart = {
 	.dev.platform_data	= m5249_uart_platform,
 };
 
+#ifdef CONFIG_M5249C3
+
+static struct resource m5249_smc91x_resources[] = {
+	{
+		.start		= 0xe0000300,
+		.end		= 0xe0000300 + 0x100,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCFINTC2_GPIOIRQ6,
+		.end		= MCFINTC2_GPIOIRQ6,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device m5249_smc91x = {
+	.name			= "smc91x",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(m5249_smc91x_resources),
+	.resource		= m5249_smc91x_resources,
+};
+
+#endif /* CONFIG_M5249C3 */
+
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 static struct resource m5249_qspi_resources[] = {
 	{
@@ -200,6 +224,9 @@ static void __init m5249_qspi_init(void)
 
 static struct platform_device *m5249_devices[] __initdata = {
 	&m5249_uart,
+#ifdef CONFIG_M5249C3
+	&m5249_smc91x,
+#endif
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 	&m5249_qspi,
 #endif
@@ -228,6 +255,24 @@ static void __init m5249_uarts_init(void)
 	for (line = 0; (line < nrlines); line++)
 		m5249_uart_init_line(line, m5249_uart_platform[line].irq);
 }
+
+/***************************************************************************/
+
+#ifdef CONFIG_M5249C3
+
+static void __init m5249_smc91x_init(void)
+{
+	u32  gpio;
+
+	/* Set the GPIO line as interrupt source for smc91x device */
+	gpio = readl(MCF_MBAR2 + MCFSIM2_GPIOINTENABLE);
+	writel(gpio | 0x40, MCF_MBAR2 + MCFSIM2_GPIOINTENABLE);
+
+	gpio = readl(MCF_MBAR2 + MCFSIM2_INTLEVEL5);
+	writel(gpio | 0x04000000, MCF_MBAR2 + MCFSIM2_INTLEVEL5);
+}
+
+#endif /* CONFIG_M5249C3 */
 
 /***************************************************************************/
 
@@ -264,6 +309,9 @@ void __init config_BSP(char *commandp, int size)
 	mach_reset = m5249_cpu_reset;
 	m5249_timers_init();
 	m5249_uarts_init();
+#ifdef CONFIG_M5249C3
+	m5249_smc91x_init();
+#endif
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 	m5249_qspi_init();
 #endif
