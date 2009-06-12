@@ -36,7 +36,8 @@
 #include <linux/elf.h>
 #include <linux/regset.h>
 #include <linux/tracehook.h>
-#include <linux/compat.h>
+#include <linux/seccomp.h>
+#include <asm/compat.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -639,6 +640,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	long ret;
+
+	/* Do the secure computing check first. */
+	secure_computing(regs->gprs[2]);
 
 	/*
 	 * The sysc_tracesys code in entry.S stored the system
