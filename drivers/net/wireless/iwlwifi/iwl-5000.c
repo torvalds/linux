@@ -407,6 +407,28 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.nrg_th_ofdm = 95,
 };
 
+static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
+	.min_nrg_cck = 95,
+	.max_nrg_cck = 0, /* not used, set to 0 */
+	.auto_corr_min_ofdm = 90,
+	.auto_corr_min_ofdm_mrc = 170,
+	.auto_corr_min_ofdm_x1 = 105,
+	.auto_corr_min_ofdm_mrc_x1 = 220,
+
+	.auto_corr_max_ofdm = 120,
+	.auto_corr_max_ofdm_mrc = 210,
+	/* max = min for performance bug in 5150 DSP */
+	.auto_corr_max_ofdm_x1 = 105,
+	.auto_corr_max_ofdm_mrc_x1 = 220,
+
+	.auto_corr_min_cck = 125,
+	.auto_corr_max_cck = 200,
+	.auto_corr_min_cck_mrc = 170,
+	.auto_corr_max_cck_mrc = 400,
+	.nrg_th_cck = 95,
+	.nrg_th_ofdm = 95,
+};
+
 static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 					   size_t offset)
 {
@@ -826,8 +848,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 					BIT(IEEE80211_BAND_5GHZ);
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
-	priv->hw_params.sens = &iwl5000_sensitivity;
-
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
@@ -836,9 +856,11 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
 		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
+	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
 	case CSR_HW_REV_TYPE_5150:
+		priv->hw_params.sens = &iwl5150_sensitivity;
 		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_DC)		|
 			BIT(IWL_CALIB_LO)		|
@@ -847,6 +869,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 		break;
 	default:
+		priv->hw_params.sens = &iwl5000_sensitivity;
 		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
