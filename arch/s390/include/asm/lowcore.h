@@ -30,6 +30,7 @@
 #define __LC_SUBCHANNEL_NR		0x00ba
 #define __LC_IO_INT_PARM		0x00bc
 #define __LC_IO_INT_WORD		0x00c0
+#define __LC_STFL_FAC_LIST		0x00c8
 #define __LC_MCCK_CODE			0x00e8
 
 #define __LC_DUMP_REIPL			0x0e00
