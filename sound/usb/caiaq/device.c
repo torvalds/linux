@@ -35,7 +35,7 @@
 #include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.15");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.16");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
@@ -426,6 +426,7 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 
 	strlcpy(card->driver, MODNAME, sizeof(card->driver));
 	strlcpy(card->shortname, dev->product_name, sizeof(card->shortname));
+	strlcpy(card->mixername, dev->product_name, sizeof(card->mixername));
 
 	/* if the id was not passed as module option, fill it with a shortened
 	 * version of the product string which does not contain any
