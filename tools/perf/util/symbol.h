@@ -12,6 +12,7 @@ struct symbol {
 	__u64		obj_start;
 	__u64		hist_sum;
 	__u64		*hist;
+	void		*priv;
 	char		name[0];
 };
 
