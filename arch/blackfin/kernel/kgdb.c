@@ -466,7 +466,7 @@ static int validate_memory_access_address(unsigned long addr, int size)
 	int cpu = raw_smp_processor_id();
 
 	if (size < 0)
-		return EFAULT;
+		return -EFAULT;
 	if (addr >= 0x1000 && (addr + size) <= physical_mem_end)
 		return 0;
 	if (addr >= SYSMMR_BASE)
@@ -498,7 +498,7 @@ static int validate_memory_access_address(unsigned long addr, int size)
 	if (IN_MEM(addr, size, L2_START, L2_LENGTH))
 		return 0;
 
-	return EFAULT;
+	return -EFAULT;
 }
 
 /*
@@ -508,14 +508,15 @@ static int validate_memory_access_address(unsigned long addr, int size)
 int kgdb_mem2hex(char *mem, char *buf, int count)
 {
 	char *tmp;
-	int err = 0;
+	int err;
 	unsigned char *pch;
 	unsigned short mmr16;
 	unsigned long mmr32;
 	int cpu = raw_smp_processor_id();
 
-	if (validate_memory_access_address((unsigned long)mem, count))
-		return EFAULT;
+	err = validate_memory_access_address((unsigned long)mem, count);
+	if (err)
+		return err;
 
 	/*
 	 * We use the upper half of buf as an intermediate buffer for the
@@ -533,7 +534,7 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 				*tmp++ = *pch++;
 				tmp -= 2;
 			} else
-				err = EFAULT;
+				err = -EFAULT;
 			break;
 		case 4:
 			if ((unsigned int)mem % 4 == 0) {
@@ -545,10 +546,10 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 				*tmp++ = *pch++;
 				tmp -= 4;
 			} else
-				err = EFAULT;
+				err = -EFAULT;
 			break;
 		default:
-			err = EFAULT;
+			err = -EFAULT;
 		}
 	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
 #ifdef CONFIG_SMP
@@ -557,7 +558,7 @@ int kgdb_mem2hex(char *mem, char *buf, int count)
 		) {
 		/* access L1 instruction SRAM*/
 		if (dma_memcpy(tmp, mem, count) == NULL)
-			err = EFAULT;
+			err = -EFAULT;
 	} else
 		err = probe_kernel_read(tmp, mem, count);
 
@@ -585,24 +586,24 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 	char *tmp_new;
 	unsigned short *mmr16;
 	unsigned long *mmr32;
-	int err = 0;
-	int size = 0;
+	int err;
+	int size;
 	int cpu = raw_smp_processor_id();
 
 	tmp_old = tmp_new = buf;
 
-	while (count-- > 0) {
+	for (size = 0; size < count; ++size) {
 		if (*tmp_old == 0x7d)
 			*tmp_new = *(++tmp_old) ^ 0x20;
 		else
 			*tmp_new = *tmp_old;
 		tmp_new++;
 		tmp_old++;
-		size++;
 	}
 
-	if (validate_memory_access_address((unsigned long)mem, size))
-		return EFAULT;
+	err = validate_memory_access_address((unsigned long)mem, size);
+	if (err)
+		return err;
 
 	if ((unsigned int)mem >= SYSMMR_BASE) { /*access MMR registers*/
 		switch (size) {
@@ -611,17 +612,17 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 				mmr16 = (unsigned short *)buf;
 				*(unsigned short *)mem = *mmr16;
 			} else
-				return EFAULT;
+				err = -EFAULT;
 			break;
 		case 4:
 			if ((unsigned int)mem % 4 == 0) {
 				mmr32 = (unsigned long *)buf;
 				*(unsigned long *)mem = *mmr32;
 			} else
-				return EFAULT;
+				err = -EFAULT;
 			break;
 		default:
-			return EFAULT;
+			err = -EFAULT;
 		}
 	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
 #ifdef CONFIG_SMP
@@ -630,7 +631,7 @@ int kgdb_ebin2mem(char *buf, char *mem, int count)
 		) {
 		/* access L1 instruction SRAM */
 		if (dma_memcpy(mem, buf, size) == NULL)
-			err = EFAULT;
+			err = -EFAULT;
 	} else
 		err = probe_kernel_write(mem, buf, size);
 
@@ -648,10 +649,12 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 	char *tmp_hex;
 	unsigned short *mmr16;
 	unsigned long *mmr32;
+	int err;
 	int cpu = raw_smp_processor_id();
 
-	if (validate_memory_access_address((unsigned long)mem, count))
-		return EFAULT;
+	err = validate_memory_access_address((unsigned long)mem, count);
+	if (err)
+		return err;
 
 	/*
 	 * We use the upper half of buf as an intermediate buffer for the
@@ -673,17 +676,17 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 				mmr16 = (unsigned short *)tmp_raw;
 				*(unsigned short *)mem = *mmr16;
 			} else
-				return EFAULT;
+				err = -EFAULT;
 			break;
 		case 4:
 			if ((unsigned int)mem % 4 == 0) {
 				mmr32 = (unsigned long *)tmp_raw;
 				*(unsigned long *)mem = *mmr32;
 			} else
-				return EFAULT;
+				err = -EFAULT;
 			break;
 		default:
-			return EFAULT;
+			err = -EFAULT;
 		}
 	} else if ((cpu == 0 && IN_MEM(mem, count, L1_CODE_START, L1_CODE_LENGTH))
 #ifdef CONFIG_SMP
@@ -692,10 +695,11 @@ int kgdb_hex2mem(char *buf, char *mem, int count)
 		) {
 		/* access L1 instruction SRAM */
 		if (dma_memcpy(mem, tmp_raw, count) == NULL)
-			return EFAULT;
+			err = -EFAULT;
 	} else
-		return probe_kernel_write(mem, tmp_raw, count);
-	return 0;
+		err = probe_kernel_write(mem, tmp_raw, count);
+
+	return err;
 }
 
 int kgdb_validate_break_address(unsigned long addr)
@@ -715,7 +719,7 @@ int kgdb_validate_break_address(unsigned long addr)
 	if (IN_MEM(addr, BREAK_INSTR_SIZE, L2_START, L2_LENGTH))
 		return 0;
 
-	return EFAULT;
+	return -EFAULT;
 }
 
 int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)

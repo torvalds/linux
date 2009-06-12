@@ -145,6 +145,14 @@ __common_int_entry:
 
 /* interrupt routine for ivhw - 5 */
 ENTRY(_evt_ivhw)
+	/* In case a single action kicks off multiple memory transactions, (like
+	 * a cache line fetch, - this can cause multiple hardware errors, let's
+	 * catch them all. First - make sure all the actions are complete, and
+	 * the core sees the hardware errors.
+	 */
+	SSYNC;
+	SSYNC;
+
 	SAVE_ALL_SYS
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
@@ -159,6 +167,25 @@ ENTRY(_evt_ivhw)
 1:
 #endif
 
+	/* Handle all stacked hardware errors
+	 * To make sure we don't hang forever, only do it 10 times
+	 */
+	R0 = 0;
+	R2 = 10;
+1:
+	P0.L = LO(ILAT);
+	P0.H = HI(ILAT);
+	R1 = [P0];
+	CC = BITTST(R1, EVT_IVHW_P);
+	IF ! CC JUMP 2f;
+	/* OK a hardware error is pending - clear it */
+	R1 = EVT_IVHW_P;
+	[P0] = R1;
+	R0 += 1;
+	CC = R1 == R2;
+	if CC JUMP 2f;
+	JUMP 1b;
+2:
 	# We are going to dump something out, so make sure we print IPEND properly
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);

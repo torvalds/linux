@@ -24,14 +24,10 @@
 
 static struct irqaction bfin_timer_irq = {
 	.name = "Blackfin Timer Tick",
-#ifdef CONFIG_IRQ_PER_CPU
-	.flags = IRQF_DISABLED | IRQF_PERCPU,
-#else
 	.flags = IRQF_DISABLED
-#endif
 };
 
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_IPIPE)
 void __init setup_system_timer0(void)
 {
 	/* Power down the core timer, just to play safe. */
@@ -74,7 +70,7 @@ void __init setup_core_timer(void)
 static void __init
 time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 {
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_IPIPE)
 	setup_system_timer0();
 	bfin_timer_irq.handler = timer_routine;
 	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
@@ -94,7 +90,7 @@ static unsigned long gettimeoffset(void)
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
 
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_IPIPE)
 	clocks_per_jiffy = bfin_read_TIMER0_PERIOD();
 	offset = bfin_read_TIMER0_COUNTER() / \
 		(((clocks_per_jiffy + 1) * HZ) / USEC_PER_SEC);
@@ -133,36 +129,25 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 	static long last_rtc_update;
 
 	write_seqlock(&xtime_lock);
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) && !defined(CONFIG_IPIPE)
-	/*
-	 * TIMIL0 is latched in __ipipe_grab_irq() when the I-Pipe is
-	 * enabled.
-	 */
-	if (get_gptimer_status(0) & TIMER_STATUS_TIMIL0) {
-#endif
-		do_timer(1);
+	do_timer(1);
 
-		/*
-		 * If we have an externally synchronized Linux clock, then update
-		 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-		 * called as close as possible to 500 ms before the new second starts.
-		 */
-		if (ntp_synced() &&
-		    xtime.tv_sec > last_rtc_update + 660 &&
-		    (xtime.tv_nsec / NSEC_PER_USEC) >=
-		    500000 - ((unsigned)TICK_SIZE) / 2
-		    && (xtime.tv_nsec / NSEC_PER_USEC) <=
-		    500000 + ((unsigned)TICK_SIZE) / 2) {
-			if (set_rtc_mmss(xtime.tv_sec) == 0)
-				last_rtc_update = xtime.tv_sec;
-			else
-				/* Do it again in 60s. */
-				last_rtc_update = xtime.tv_sec - 600;
-		}
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) && !defined(CONFIG_IPIPE)
-		set_gptimer_status(0, TIMER_STATUS_TIMIL0);
+	/*
+	 * If we have an externally synchronized Linux clock, then update
+	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
+	 * called as close as possible to 500 ms before the new second starts.
+	 */
+	if (ntp_synced() &&
+	    xtime.tv_sec > last_rtc_update + 660 &&
+	    (xtime.tv_nsec / NSEC_PER_USEC) >=
+	    500000 - ((unsigned)TICK_SIZE) / 2
+	    && (xtime.tv_nsec / NSEC_PER_USEC) <=
+	    500000 + ((unsigned)TICK_SIZE) / 2) {
+		if (set_rtc_mmss(xtime.tv_sec) == 0)
+			last_rtc_update = xtime.tv_sec;
+		else
+			/* Do it again in 60s. */
+			last_rtc_update = xtime.tv_sec - 600;
 	}
-#endif
 	write_sequnlock(&xtime_lock);
 
 #ifdef CONFIG_IPIPE
