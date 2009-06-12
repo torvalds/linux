@@ -71,7 +71,8 @@
 
 
 /* Raw target IO, address is not translated */
-void wl12xx_spi_write(struct wl12xx *wl, int addr, void *buf, size_t len);
+void wl12xx_spi_write(struct wl12xx *wl, int addr, void *buf,
+		      size_t len, bool fixed);
 void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,
 		     size_t len, bool fixed);
 
@@ -84,7 +85,8 @@ void wl12xx_mem_write32(struct wl12xx *wl, int addr, u32 val);
 /* Registers IO */
 void wl12xx_spi_reg_read(struct wl12xx *wl, int addr, void *buf, size_t len,
 			 bool fixed);
-void wl12xx_spi_reg_write(struct wl12xx *wl, int addr, void *buf,size_t len);
+void wl12xx_spi_reg_write(struct wl12xx *wl, int addr, void *buf, size_t len,
+			  bool fixed);
 u32 wl12xx_reg_read32(struct wl12xx *wl, int addr);
 void wl12xx_reg_write32(struct wl12xx *wl, int addr, u32 val);
 
@@ -106,7 +108,8 @@ static inline u32 wl12xx_read32(struct wl12xx *wl, int addr)
 static inline void wl12xx_write32(struct wl12xx *wl, int addr, u32 val)
 {
 	wl->buffer_32 = val;
-	wl12xx_spi_write(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
+	wl12xx_spi_write(wl, addr, &wl->buffer_32,
+			 sizeof(wl->buffer_32), false);
 }
 
 #endif /* __WL12XX_SPI_H__ */
