@@ -173,9 +173,9 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		agp_bridge->gatt_table[j] =
-		    cpu_to_le32((mem->memory[i] & 0xFFFFF000UL) | 0x1UL);
-		flush_dcache_range((unsigned long)__va(mem->memory[i]),
-				   (unsigned long)__va(mem->memory[i])+0x1000);
+			cpu_to_le32((page_to_phys(mem->pages[i]) & 0xFFFFF000UL) | 0x1UL);
+		flush_dcache_range((unsigned long)__va(page_to_phys(mem->pages[i])),
+				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
 	}
 	(void)in_le32((volatile u32*)&agp_bridge->gatt_table[pg_start]);
 	mb();
@@ -219,9 +219,9 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 	}
 
 	for (i = 0; i < mem->page_count; i++) {
-		gp[i] = (mem->memory[i] >> PAGE_SHIFT) | 0x80000000UL;
-		flush_dcache_range((unsigned long)__va(mem->memory[i]),
-				   (unsigned long)__va(mem->memory[i])+0x1000);
+		gp[i] = (page_to_phys(mem->pages[i]) >> PAGE_SHIFT) | 0x80000000UL;
+		flush_dcache_range((unsigned long)__va(page_to_phys(mem->pages[i])),
+				   (unsigned long)__va(page_to_phys(mem->pages[i]))+0x1000);
 	}
 	mb();
 	flush_dcache_range((unsigned long)gp, (unsigned long) &gp[i]);

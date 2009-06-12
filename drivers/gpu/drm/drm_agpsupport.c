@@ -482,7 +482,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 	}
 
 	for (i = 0; i < num_pages; i++)
-		mem->memory[i] = phys_to_gart(page_to_phys(pages[i]));
+		mem->pages[i] = pages[i];
 	mem->page_count = num_pages;
 
 	mem->is_flushed = true;
