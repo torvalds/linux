@@ -1494,7 +1494,7 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if ((bufnr > QDIO_MAX_BUFFERS_PER_Q) ||
 	    (count > QDIO_MAX_BUFFERS_PER_Q) ||
-	    (q_nr > QDIO_MAX_QUEUES_PER_IRQ))
+	    (q_nr >= QDIO_MAX_QUEUES_PER_IRQ))
 		return -EINVAL;
 
 	if (!count)
