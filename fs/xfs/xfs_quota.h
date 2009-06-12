@@ -335,6 +335,14 @@ extern void xfs_qm_unmount(struct xfs_mount *);
 extern void xfs_qm_unmount_quotas(struct xfs_mount *);
 
 #else
+static inline int
+xfs_qm_vop_dqalloc(struct xfs_inode *ip, uid_t uid, gid_t gid, prid_t prid,
+		uint flags, struct xfs_dquot **udqp, struct xfs_dquot **gdqp)
+{
+	*udqp = NULL;
+	*gdqp = NULL;
+	return 0;
+}
 #define xfs_trans_dup_dqinfo(tp, tp2)
 #define xfs_trans_free_dqinfo(tp)
 #define xfs_trans_mod_dquot_byino(tp, ip, fields, delta)
@@ -342,7 +350,6 @@ extern void xfs_qm_unmount_quotas(struct xfs_mount *);
 #define xfs_trans_unreserve_and_mod_dquots(tp)
 #define xfs_trans_reserve_quota_nblks(tp, ip, nblks, ninos, flags)	(0)
 #define xfs_trans_reserve_quota_bydquots(tp, mp, u, g, nb, ni, fl)	(0)
-#define xfs_qm_vop_dqalloc(ip, uid, gid, prid, fl, ou, og)		(0)
 #define xfs_qm_vop_create_dqattach(tp, ip, u, g)
 #define xfs_qm_vop_rename_dqattach(it)					(0)
 #define xfs_qm_vop_chown(tp, ip, old, new)				(NULL)
