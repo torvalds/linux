@@ -167,24 +167,26 @@ void wl12xx_spi_init(struct wl12xx *wl)
  *                                    |    |
  *
  */
-void wl12xx_set_partition(struct wl12xx *wl,
+int wl12xx_set_partition(struct wl12xx *wl,
 			  u32 mem_start, u32 mem_size,
 			  u32 reg_start, u32 reg_size)
 {
-	u8 tx_buf[sizeof(u32) + 2 * sizeof(struct wl12xx_partition)];
 	struct wl12xx_partition *partition;
 	struct spi_transfer t;
 	struct spi_message m;
+	size_t len, cmd_len;
 	u32 *cmd;
-	size_t len;
 	int addr;
+
+	cmd_len = sizeof(u32) + 2 * sizeof(struct wl12xx_partition);
+	cmd = kzalloc(cmd_len, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
 
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));
-	memset(tx_buf, 0, sizeof(tx_buf));
 
-	cmd = (u32 *) tx_buf;
-	partition = (struct wl12xx_partition *) (tx_buf + sizeof(u32));
+	partition = (struct wl12xx_partition *) (cmd + 1);
 	addr = HW_ACCESS_PART0_SIZE_ADDR;
 	len = 2 * sizeof(struct wl12xx_partition);
 
@@ -244,11 +246,15 @@ void wl12xx_set_partition(struct wl12xx *wl,
 	wl->virtual_mem_addr = 0;
 	wl->virtual_reg_addr = mem_size;
 
-	t.tx_buf = tx_buf;
-	t.len = sizeof(tx_buf);
+	t.tx_buf = cmd;
+	t.len = cmd_len;
 	spi_message_add_tail(&t, &m);
 
 	spi_sync(wl->spi, &m);
+
+	kfree(cmd);
+
+	return 0;
 }
 
 void wl12xx_spi_read(struct wl12xx *wl, int addr, void *buf,

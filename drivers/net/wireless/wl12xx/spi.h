@@ -88,9 +88,9 @@ void wl12xx_reg_write32(struct wl12xx *wl, int addr, u32 val);
 /* INIT and RESET words */
 void wl12xx_spi_reset(struct wl12xx *wl);
 void wl12xx_spi_init(struct wl12xx *wl);
-void wl12xx_set_partition(struct wl12xx *wl,
-			  u32 part_start, u32 part_size,
-			  u32 reg_start,  u32 reg_size);
+int wl12xx_set_partition(struct wl12xx *wl,
+			 u32 part_start, u32 part_size,
+			 u32 reg_start,  u32 reg_size);
 
 static inline u32 wl12xx_read32(struct wl12xx *wl, int addr)
 {
