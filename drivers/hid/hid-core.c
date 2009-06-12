@@ -46,7 +46,7 @@
 
 int hid_debug = 0;
 module_param_named(debug, hid_debug, int, 0600);
-MODULE_PARM_DESC(debug, "HID debugging (0=off, 1=probing info, 2=continuous data dumping)");
+MODULE_PARM_DESC(debug, "toggle HID debugging messages");
 EXPORT_SYMBOL_GPL(hid_debug);
 
 /*
@@ -859,7 +859,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field,
 	struct hid_driver *hdrv = hid->driver;
 	int ret;
 
-	hid_dump_input(usage, value);
+	hid_dump_input(hid, usage, value);
 
 	if (hdrv && hdrv->event && hid_match_usage(hid, usage)) {
 		ret = hdrv->event(hid, field, usage, value);
@@ -981,7 +981,7 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 {
 	unsigned size = field->report_size;
 
-	hid_dump_input(field->usage + offset, value);
+	hid_dump_input(field->report->device, field->usage + offset, value);
 
 	if (offset >= field->report_count) {
 		dbg_hid("offset (%d) exceeds report_count (%d)\n", offset, field->report_count);
@@ -1075,6 +1075,7 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_driver *hdrv = hid->driver;
 	struct hid_report *report;
+	char *buf;
 	unsigned int i;
 	int ret;
 
@@ -1086,18 +1087,36 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 		return -1;
 	}
 
-	dbg_hid("report (size %u) (%snumbered)\n", size, report_enum->numbered ? "" : "un");
+	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE,
+			interrupt ? GFP_ATOMIC : GFP_KERNEL);
+
+	if (!buf) {
+		report = hid_get_report(report_enum, data);
+		goto nomem;
+	}
+
+	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+			"\nreport (size %u) (%snumbered)\n", size, report_enum->numbered ? "" : "un");
+	hid_debug_event(hid, buf);
 
 	report = hid_get_report(report_enum, data);
 	if (!report)
 		return -1;
 
 	/* dump the report */
-	dbg_hid("report %d (size %u) = ", report->id, size);
-	for (i = 0; i < size; i++)
-		dbg_hid_line(" %02x", data[i]);
-	dbg_hid_line("\n");
+	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+			"report %d (size %u) = ", report->id, size);
+	hid_debug_event(hid, buf);
+	for (i = 0; i < size; i++) {
+		snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+				" %02x", data[i]);
+		hid_debug_event(hid, buf);
+	}
+	hid_debug_event(hid, "\n");
 
+	kfree(buf);
+
+nomem:
 	if (hdrv && hdrv->raw_event && hid_match_report(hid, report)) {
 		ret = hdrv->raw_event(hid, report, data, size);
 		if (ret != 0)
@@ -1756,6 +1775,9 @@ struct hid_device *hid_allocate_device(void)
 	for (i = 0; i < HID_REPORT_TYPES; i++)
 		INIT_LIST_HEAD(&hdev->report_enum[i].report_list);
 
+	init_waitqueue_head(&hdev->debug_wait);
+	INIT_LIST_HEAD(&hdev->debug_list);
+
 	return hdev;
 err:
 	put_device(&hdev->dev);
@@ -1844,8 +1866,8 @@ static int __init hid_init(void)
 	int ret;
 
 	if (hid_debug)
-		printk(KERN_WARNING "HID: hid_debug parameter has been deprecated. "
-				"Debugging data are now provided via debugfs\n");
+		printk(KERN_WARNING "HID: hid_debug is now used solely for parser and driver debugging.\n"
+				"HID: debugfs is now used for inspecting the device (report descriptor, reports)\n");
 
 	ret = bus_register(&hid_bus_type);
 	if (ret) {

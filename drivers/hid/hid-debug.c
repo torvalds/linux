@@ -28,6 +28,10 @@
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/sched.h>
+#include <linux/uaccess.h>
+#include <linux/poll.h>
+
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
@@ -335,49 +339,86 @@ static const struct hid_usage_entry hid_usage_table[] = {
   { 0, 0, NULL }
 };
 
-static void resolv_usage_page(unsigned page, struct seq_file *f) {
+/* Either output directly into simple seq_file, or (if f == NULL)
+ * allocate a separate buffer that will then be passed to the 'events'
+ * ringbuffer.
+ *
+ * This is because these functions can be called both for "one-shot"
+ * "rdesc" while resolving, or for blocking "events".
+ *
+ * This holds both for resolv_usage_page() and hid_resolv_usage().
+ */
+static char *resolv_usage_page(unsigned page, struct seq_file *f) {
 	const struct hid_usage_entry *p;
+	char *buf = NULL;
+
+	if (!f) {
+		buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+		if (!buf)
+			return ERR_PTR(-ENOMEM);
+	}
 
 	for (p = hid_usage_table; p->description; p++)
 		if (p->page == page) {
-			if (!f)
-				printk("%s", p->description);
-			else
+			if (!f) {
+				snprintf(buf, HID_DEBUG_BUFSIZE, "%s",
+						p->description);
+				return buf;
+			}
+			else {
 				seq_printf(f, "%s", p->description);
-			return;
+				return NULL;
+			}
 		}
 	if (!f)
-		printk("%04x", page);
+		snprintf(buf, HID_DEBUG_BUFSIZE, "%04x", page);
 	else
 		seq_printf(f, "%04x", page);
+	return buf;
 }
 
-void hid_resolv_usage(unsigned usage, struct seq_file *f) {
+char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 	const struct hid_usage_entry *p;
+	char *buf = NULL;
+	int len = 0;
 
-	resolv_usage_page(usage >> 16, f);
-	if (!f)
-		printk(".");
-	else
+	buf = resolv_usage_page(usage >> 16, f);
+	if (IS_ERR(buf)) {
+		printk(KERN_ERR "error allocating HID debug buffer\n");
+		return NULL;
+	}
+
+
+	if (!f) {
+		len = strlen(buf);
+		snprintf(buf+len, max(0, HID_DEBUG_BUFSIZE - len), ".");
+		len++;
+	}
+	else {
 		seq_printf(f, ".");
+	}
 	for (p = hid_usage_table; p->description; p++)
 		if (p->page == (usage >> 16)) {
 			for(++p; p->description && p->usage != 0; p++)
 				if (p->usage == (usage & 0xffff)) {
 					if (!f)
-						printk("%s", p->description);
+						snprintf(buf + len,
+							max(0,HID_DEBUG_BUFSIZE - len - 1),
+							"%s", p->description);
 					else
 						seq_printf(f,
 							"%s",
 							p->description);
-					return;
+					return buf;
 				}
 			break;
 		}
 	if (!f)
-		printk("%04x", usage & 0xffff);
+		snprintf(buf + len, max(0, HID_DEBUG_BUFSIZE - len - 1),
+				"%04x", usage & 0xffff);
 	else
 		seq_printf(f, "%04x", usage & 0xffff);
+	return buf;
 }
 EXPORT_SYMBOL_GPL(hid_resolv_usage);
 
@@ -508,13 +549,37 @@ void hid_dump_device(struct hid_device *device, struct seq_file *f)
 }
 EXPORT_SYMBOL_GPL(hid_dump_device);
 
-void hid_dump_input(struct hid_usage *usage, __s32 value) {
-	if (hid_debug < 2)
-		return;
+/* enqueue string to 'events' ring buffer */
+void hid_debug_event(struct hid_device *hdev, char *buf)
+{
+	int i;
+	struct hid_debug_list *list;
 
-	printk(KERN_DEBUG "hid-debug: input ");
-	hid_resolv_usage(usage->hid, NULL);
-	printk(" = %d\n", value);
+	list_for_each_entry(list, &hdev->debug_list, node) {
+		for (i = 0; i <= strlen(buf); i++)
+			list->hid_debug_buf[(list->tail + i) % (HID_DEBUG_BUFSIZE - 1)] =
+				buf[i];
+		list->tail = (list->tail + i) % (HID_DEBUG_BUFSIZE - 1);
+        }
+}
+EXPORT_SYMBOL_GPL(hid_debug_event);
+
+void hid_dump_input(struct hid_device *hdev, struct hid_usage *usage, __s32 value)
+{
+	char *buf;
+	int len;
+
+	buf = hid_resolv_usage(usage->hid, NULL);
+	if (!buf)
+		return;
+	len = strlen(buf);
+	snprintf(buf + len, HID_DEBUG_BUFSIZE - len - 1, " = %d\n", value);
+
+	hid_debug_event(hdev, buf);
+
+	kfree(buf);
+        wake_up_interruptible(&hdev->debug_wait);
+
 }
 EXPORT_SYMBOL_GPL(hid_dump_input);
 
@@ -808,6 +873,7 @@ void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
 
 }
 
+
 static int hid_debug_rdesc_show(struct seq_file *f, void *p)
 {
 	struct hid_device *hdev = f->private;
@@ -831,6 +897,126 @@ static int hid_debug_rdesc_open(struct inode *inode, struct file *file)
 	return single_open(file, hid_debug_rdesc_show, inode->i_private);
 }
 
+static int hid_debug_events_open(struct inode *inode, struct file *file)
+{
+	int err = 0;
+	struct hid_debug_list *list;
+
+	if (!(list = kzalloc(sizeof(struct hid_debug_list), GFP_KERNEL))) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	if (!(list->hid_debug_buf = kzalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_KERNEL))) {
+		err = -ENOMEM;
+		goto out;
+	}
+	list->hdev = (struct hid_device *) inode->i_private;
+	file->private_data = list;
+	mutex_init(&list->read_mutex);
+
+	list_add_tail(&list->node, &list->hdev->debug_list);
+
+out:
+	return err;
+}
+
+static ssize_t hid_debug_events_read(struct file *file, char __user *buffer,
+		size_t count, loff_t *ppos)
+{
+	struct hid_debug_list *list = file->private_data;
+	int ret = 0, len;
+	DECLARE_WAITQUEUE(wait, current);
+
+	while (ret == 0) {
+		mutex_lock(&list->read_mutex);
+		if (list->head == list->tail) {
+			add_wait_queue(&list->hdev->debug_wait, &wait);
+			set_current_state(TASK_INTERRUPTIBLE);
+
+			while (list->head == list->tail) {
+				if (file->f_flags & O_NONBLOCK) {
+					ret = -EAGAIN;
+					break;
+				}
+				if (signal_pending(current)) {
+					ret = -ERESTARTSYS;
+					break;
+				}
+
+				if (!list->hdev || !list->hdev->debug) {
+					ret = -EIO;
+					break;
+				}
+
+				/* allow O_NONBLOCK from other threads */
+				mutex_unlock(&list->read_mutex);
+				schedule();
+				mutex_lock(&list->read_mutex);
+				set_current_state(TASK_INTERRUPTIBLE);
+			}
+
+			set_current_state(TASK_RUNNING);
+			remove_wait_queue(&list->hdev->debug_wait, &wait);
+		}
+
+		if (ret)
+			goto out;
+
+		/* pass the ringbuffer contents to userspace */
+copy_rest:
+		if (list->tail == list->head)
+			goto out;
+		if (list->tail > list->head) {
+			len = list->tail - list->head;
+
+			if (copy_to_user(buffer + ret, &list->hid_debug_buf[list->head], len)) {
+				ret = -EFAULT;
+				goto out;
+			}
+			ret += len;
+			list->head += len;
+		} else {
+			len = HID_DEBUG_BUFSIZE - list->head;
+
+			if (copy_to_user(buffer, &list->hid_debug_buf[list->head], len)) {
+				ret = -EFAULT;
+				goto out;
+			}
+			list->head = 0;
+			ret += len;
+			goto copy_rest;
+		}
+
+	}
+out:
+	mutex_unlock(&list->read_mutex);
+	return ret;
+}
+
+static unsigned int hid_debug_events_poll(struct file *file, poll_table *wait)
+{
+	struct hid_debug_list *list = file->private_data;
+
+	poll_wait(file, &list->hdev->debug_wait, wait);
+	if (list->head != list->tail)
+		return POLLIN | POLLRDNORM;
+	if (!list->hdev->debug)
+		return POLLERR | POLLHUP;
+	return 0;
+}
+
+static int hid_debug_events_release(struct inode *inode, struct file *file)
+{
+	struct hid_debug_list *list = file->private_data;
+
+	list_del(&list->node);
+	kfree(list->hid_debug_buf);
+	kfree(list);
+
+	return 0;
+}
+
 static const struct file_operations hid_debug_rdesc_fops = {
 	.open           = hid_debug_rdesc_open,
 	.read           = seq_read,
@@ -838,16 +1024,31 @@ static const struct file_operations hid_debug_rdesc_fops = {
 	.release        = single_release,
 };
 
+static const struct file_operations hid_debug_events_fops = {
+	.owner =        THIS_MODULE,
+	.open           = hid_debug_events_open,
+	.read           = hid_debug_events_read,
+	.poll		= hid_debug_events_poll,
+	.release        = hid_debug_events_release,
+};
+
+
 void hid_debug_register(struct hid_device *hdev, const char *name)
 {
 	hdev->debug_dir = debugfs_create_dir(name, hid_debug_root);
 	hdev->debug_rdesc = debugfs_create_file("rdesc", 0400,
 			hdev->debug_dir, hdev, &hid_debug_rdesc_fops);
+	hdev->debug_events = debugfs_create_file("events", 0400,
+			hdev->debug_dir, hdev, &hid_debug_events_fops);
+	hdev->debug = 1;
 }
 
 void hid_debug_unregister(struct hid_device *hdev)
 {
+	hdev->debug = 0;
+	wake_up_interruptible(&hdev->debug_wait);
 	debugfs_remove(hdev->debug_rdesc);
+	debugfs_remove(hdev->debug_events);
 	debugfs_remove(hdev->debug_dir);
 }
 

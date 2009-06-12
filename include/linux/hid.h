@@ -451,10 +451,6 @@ struct hid_device {							/* device report descriptor */
 	char phys[64];							/* Device physical location */
 	char uniq[64];							/* Device unique identifier (serial #) */
 
-	/* debugfs */
-	struct dentry *debug_dir;
-	struct dentry *debug_rdesc;
-
 	void *driver_data;
 
 	/* temporary hid_ff handling (until moved to the drivers) */
@@ -468,6 +464,14 @@ struct hid_device {							/* device report descriptor */
 
 	/* handler for raw output data, used by hidraw */
 	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t);
+
+	/* debugging support via debugfs */
+	unsigned short debug;
+	struct dentry *debug_dir;
+	struct dentry *debug_rdesc;
+	struct dentry *debug_events;
+	struct list_head debug_list;
+	wait_queue_head_t debug_wait;
 };
 
 static inline void *hid_get_drvdata(struct hid_device *hdev)
@@ -625,9 +629,7 @@ struct hid_ll_driver {
 
 /* HID core API */
 
-#ifdef CONFIG_HID_DEBUG
 extern int hid_debug;
-#endif
 
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
@@ -783,21 +785,9 @@ int hid_pidff_init(struct hid_device *hid);
 #define hid_pidff_init NULL
 #endif
 
-#ifdef CONFIG_HID_DEBUG
 #define dbg_hid(format, arg...) if (hid_debug) \
 				printk(KERN_DEBUG "%s: " format ,\
 				__FILE__ , ## arg)
-#define dbg_hid_line(format, arg...) if (hid_debug) \
-				printk(format, ## arg)
-#else
-static inline int __attribute__((format(printf, 1, 2)))
-dbg_hid(const char *fmt, ...)
-{
-	return 0;
-}
-#define dbg_hid_line dbg_hid
-#endif /* HID_DEBUG */
-
 #define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
 		__FILE__ , ## arg)
 #endif /* HID_FF */
