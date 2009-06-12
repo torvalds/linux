@@ -629,13 +629,9 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
-
-	if (iwl_ht_conf->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
-		return 1;
-	else
-		return iwl_is_channel_extension(priv, priv->band,
-				le16_to_cpu(priv->staging_rxon.channel),
-				iwl_ht_conf->extension_chan_offset);
+	return iwl_is_channel_extension(priv, priv->band,
+			le16_to_cpu(priv->staging_rxon.channel),
+			iwl_ht_conf->extension_chan_offset);
 }
 EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
 
