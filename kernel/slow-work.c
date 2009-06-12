@@ -372,8 +372,8 @@ static int slow_work_thread(void *_data)
 		vsmax *= atomic_read(&slow_work_thread_count);
 		vsmax /= 100;
 
-		prepare_to_wait(&slow_work_thread_wq, &wait,
-				TASK_INTERRUPTIBLE);
+		prepare_to_wait_exclusive(&slow_work_thread_wq, &wait,
+					  TASK_INTERRUPTIBLE);
 		if (!freezing(current) &&
 		    !slow_work_threads_should_exit &&
 		    !slow_work_available(vsmax) &&

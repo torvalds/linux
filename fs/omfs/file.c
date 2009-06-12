@@ -11,21 +11,6 @@
 #include <linux/mpage.h>
 #include "omfs.h"
 
-static int omfs_sync_file(struct file *file, struct dentry *dentry,
-		int datasync)
-{
-	struct inode *inode = dentry->d_inode;
-	int err;
-
-	err = sync_mapping_buffers(inode->i_mapping);
-	if (!(inode->i_state & I_DIRTY))
-		return err;
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		return err;
-	err |= omfs_sync_inode(inode);
-	return err ? -EIO : 0;
-}
-
 static u32 omfs_max_extents(struct omfs_sb_info *sbi, int offset)
 {
 	return (sbi->s_sys_blocksize - offset -
@@ -344,7 +329,7 @@ struct file_operations omfs_file_operations = {
 	.aio_read = generic_file_aio_read,
 	.aio_write = generic_file_aio_write,
 	.mmap = generic_file_mmap,
-	.fsync = omfs_sync_file,
+	.fsync = simple_fsync,
 	.splice_read = generic_file_splice_read,
 };
 

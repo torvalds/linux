@@ -39,10 +39,15 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 	pfn_t pfn;
 	int i, r = 0;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
+	int flags;
 
 	/* check if iommu exists and in use */
 	if (!domain)
 		return 0;
+
+	flags = IOMMU_READ | IOMMU_WRITE;
+	if (kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY)
+		flags |= IOMMU_CACHE;
 
 	for (i = 0; i < npages; i++) {
 		/* check if already mapped */
@@ -53,8 +58,7 @@ int kvm_iommu_map_pages(struct kvm *kvm,
 		r = iommu_map_range(domain,
 				    gfn_to_gpa(gfn),
 				    pfn_to_hpa(pfn),
-				    PAGE_SIZE,
-				    IOMMU_READ | IOMMU_WRITE);
+				    PAGE_SIZE, flags);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
 			       "iommu failed to map pfn=%lx\n", pfn);
@@ -88,7 +92,7 @@ int kvm_assign_device(struct kvm *kvm,
 {
 	struct pci_dev *pdev = NULL;
 	struct iommu_domain *domain = kvm->arch.iommu_domain;
-	int r;
+	int r, last_flags;
 
 	/* check if iommu exists and in use */
 	if (!domain)
@@ -107,12 +111,29 @@ int kvm_assign_device(struct kvm *kvm,
 		return r;
 	}
 
+	last_flags = kvm->arch.iommu_flags;
+	if (iommu_domain_has_cap(kvm->arch.iommu_domain,
+				 IOMMU_CAP_CACHE_COHERENCY))
+		kvm->arch.iommu_flags |= KVM_IOMMU_CACHE_COHERENCY;
+
+	/* Check if need to update IOMMU page table for guest memory */
+	if ((last_flags ^ kvm->arch.iommu_flags) ==
+			KVM_IOMMU_CACHE_COHERENCY) {
+		kvm_iommu_unmap_memslots(kvm);
+		r = kvm_iommu_map_memslots(kvm);
+		if (r)
+			goto out_unmap;
+	}
+
 	printk(KERN_DEBUG "assign device: host bdf = %x:%x:%x\n",
 		assigned_dev->host_busnr,
 		PCI_SLOT(assigned_dev->host_devfn),
 		PCI_FUNC(assigned_dev->host_devfn));
 
 	return 0;
+out_unmap:
+	kvm_iommu_unmap_memslots(kvm);
+	return r;
 }
 
 int kvm_deassign_device(struct kvm *kvm,

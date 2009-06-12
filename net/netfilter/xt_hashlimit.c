@@ -926,7 +926,7 @@ static int dl_seq_show(struct seq_file *s, void *v)
 	if (!hlist_empty(&htable->hash[*bucket])) {
 		hlist_for_each_entry(ent, pos, &htable->hash[*bucket], node)
 			if (dl_seq_real_show(ent, htable->family, s))
-				return 1;
+				return -1;
 	}
 	return 0;
 }

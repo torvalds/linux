@@ -20,10 +20,27 @@
 MODULE_DESCRIPTION("Xen filesystem");
 MODULE_LICENSE("GPL");
 
+static ssize_t capabilities_read(struct file *file, char __user *buf,
+				 size_t size, loff_t *off)
+{
+	char *tmp = "";
+
+	if (xen_initial_domain())
+		tmp = "control_d\n";
+
+	return simple_read_from_buffer(buf, size, off, tmp, strlen(tmp));
+}
+
+static const struct file_operations capabilities_file_ops = {
+	.read = capabilities_read,
+};
+
 static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr xenfs_files[] = {
-		[2] = {"xenbus", &xenbus_file_ops, S_IRUSR|S_IWUSR},
+		[1] = {},
+		{ "xenbus", &xenbus_file_ops, S_IRUSR|S_IWUSR },
+		{ "capabilities", &capabilities_file_ops, S_IRUGO },
 		{""},
 	};
 

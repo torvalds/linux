@@ -14,13 +14,12 @@
 #ifndef _LINUX_AUTO_FS_H
 #define _LINUX_AUTO_FS_H
 
+#include <linux/types.h>
 #ifdef __KERNEL__
 #include <linux/fs.h>
 #include <linux/limits.h>
-#include <linux/types.h>
 #include <linux/ioctl.h>
 #else
-#include <asm/types.h>
 #include <sys/ioctl.h>
 #endif /* __KERNEL__ */
 

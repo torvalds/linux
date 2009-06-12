@@ -60,7 +60,7 @@ static inline void sh64_teardown_dtlb_cache_slot(void)
 static inline void sh64_icache_inv_all(void)
 {
 	unsigned long long addr, flag, data;
-	unsigned int flags;
+	unsigned long flags;
 
 	addr = ICCR0;
 	flag = ICCR0_ICI;
@@ -172,7 +172,7 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 		unsigned long eaddr;
 		unsigned long after_last_page_start;
 		unsigned long mm_asid, current_asid;
-		unsigned long long flags = 0ULL;
+		unsigned long flags = 0;
 
 		mm_asid = cpu_asid(smp_processor_id(), mm);
 		current_asid = get_asid();
@@ -236,7 +236,7 @@ static void sh64_icache_inv_user_small_range(struct mm_struct *mm,
 	unsigned long long eaddr = start;
 	unsigned long long eaddr_end = start + len;
 	unsigned long current_asid, mm_asid;
-	unsigned long long flags;
+	unsigned long flags;
 	unsigned long long epage_start;
 
 	/*
@@ -342,7 +342,7 @@ static void inline sh64_dcache_purge_sets(int sets_to_purge_base, int n_sets)
 			 * alloco is a NOP if the cache is write-through.
 			 */
 			if (test_bit(SH_CACHE_MODE_WT, &(cpu_data->dcache.flags)))
-				ctrl_inb(eaddr);
+				__raw_readb((unsigned long)eaddr);
 		}
 	}
 

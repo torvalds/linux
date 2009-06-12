@@ -160,8 +160,10 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
 	/*
 	 * If large page isn't supported, there's no benefit in doing
 	 * this.  Also, on non-NUMA, embedding is better.
+	 *
+	 * NOTE: disabled for now.
 	 */
-	if (!cpu_has_pse || !pcpu_need_numa())
+	if (true || !cpu_has_pse || !pcpu_need_numa())
 		return -EINVAL;
 
 	/*
@@ -421,6 +423,14 @@ void __init setup_per_cpu_areas(void)
 #endif
 #if defined(CONFIG_X86_64) && defined(CONFIG_NUMA)
 	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
+#endif
+
+#if defined(CONFIG_X86_64) && defined(CONFIG_NUMA)
+	/*
+	 * make sure boot cpu node_number is right, when boot cpu is on the
+	 * node that doesn't have mem installed
+	 */
+	per_cpu(node_number, boot_cpu_id) = cpu_to_node(boot_cpu_id);
 #endif
 
 	/* Setup node to cpumask map */

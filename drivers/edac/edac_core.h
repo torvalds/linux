@@ -76,10 +76,11 @@
 extern int edac_debug_level;
 
 #ifndef CONFIG_EDAC_DEBUG_VERBOSE
-#define edac_debug_printk(level, fmt, arg...)                            \
-	do {                                                             \
-		if (level <= edac_debug_level)                           \
-			edac_printk(KERN_DEBUG, EDAC_DEBUG, fmt, ##arg); \
+#define edac_debug_printk(level, fmt, arg...)                           \
+	do {                                                            \
+		if (level <= edac_debug_level)                          \
+			edac_printk(KERN_DEBUG, EDAC_DEBUG,		\
+				    "%s: " fmt, __func__, ##arg);	\
 	} while (0)
 #else  /* CONFIG_EDAC_DEBUG_VERBOSE */
 #define edac_debug_printk(level, fmt, arg...)                            \

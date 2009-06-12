@@ -533,8 +533,7 @@ static int mos7720_chars_in_buffer(struct tty_struct *tty)
 	return chars;
 }
 
-static void mos7720_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void mos7720_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct moschip_port *mos7720_port;

@@ -463,7 +463,7 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 	struct scsi_tape *STp = SRpnt->stp;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
-	STp->buffer->cmdstat.residual = req->data_len;
+	STp->buffer->cmdstat.residual = req->resid_len;
 
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);
@@ -3983,8 +3983,8 @@ static int st_probe(struct device *dev)
 		return -ENODEV;
 	}
 
-	i = min(SDp->request_queue->max_hw_segments,
-		SDp->request_queue->max_phys_segments);
+	i = min(queue_max_hw_segments(SDp->request_queue),
+		queue_max_phys_segments(SDp->request_queue));
 	if (st_max_sg_segs < i)
 		i = st_max_sg_segs;
 	buffer = new_tape_buffer((SDp->host)->unchecked_isa_dma, i);

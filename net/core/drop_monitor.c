@@ -23,7 +23,7 @@
 #include <linux/bitops.h>
 #include <net/genetlink.h>
 
-#include <trace/skb.h>
+#include <trace/events/skb.h>
 
 #include <asm/unaligned.h>
 

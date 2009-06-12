@@ -10,12 +10,8 @@
  * 30-06-1998 by Frank DENIS : ugly filler.
  */
 
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/qnx4_fs.h>
 #include <linux/smp_lock.h>
-#include <asm/uaccess.h>
+#include "qnx4.h"
 
 #ifdef CONFIG_QNX4FS_RW
 

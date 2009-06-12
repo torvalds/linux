@@ -987,12 +987,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
 
-	dev->devname = kstrdup(DRIVER_NAME, GFP_KERNEL);
-	if (!dev->devname) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
@@ -1006,7 +1000,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
 	if (ret)
-		goto kfree_devname;
+		goto out;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
@@ -1024,7 +1018,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = i915_gem_init_ringbuffer(dev);
 	if (ret)
-		goto kfree_devname;
+		goto out;
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
@@ -1056,8 +1050,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 destroy_ringbuffer:
 	i915_gem_cleanup_ringbuffer(dev);
-kfree_devname:
-	kfree(dev->devname);
 out:
 	return ret;
 }

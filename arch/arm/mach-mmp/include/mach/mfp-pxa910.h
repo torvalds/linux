@@ -3,6 +3,11 @@
 
 #include <mach/mfp.h>
 
+#define MFP_DRIVE_VERY_SLOW	(0x0 << 13)
+#define MFP_DRIVE_SLOW		(0x2 << 13)
+#define MFP_DRIVE_MEDIUM	(0x4 << 13)
+#define MFP_DRIVE_FAST		(0x8 << 13)
+
 /* UART2 */
 #define GPIO47_UART2_RXD	MFP_CFG(GPIO47, AF6)
 #define GPIO48_UART2_TXD	MFP_CFG(GPIO48, AF6)

@@ -1306,7 +1306,7 @@ static int u14_34f_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scs
    if (linked_comm && SCpnt->device->queue_depth > 2
                                      && TLDEV(SCpnt->device->type)) {
       HD(j)->cp_stat[i] = READY;
-      flush_dev(SCpnt->device, SCpnt->request->sector, j, FALSE);
+      flush_dev(SCpnt->device, blk_rq_pos(SCpnt->request), j, FALSE);
       return 0;
       }
 
@@ -1610,11 +1610,13 @@ static int reorder(unsigned int j, unsigned long cursec,
 
       if (!(cpp->xdir == DTD_IN)) input_only = FALSE;
 
-      if (SCpnt->request->sector < minsec) minsec = SCpnt->request->sector;
-      if (SCpnt->request->sector > maxsec) maxsec = SCpnt->request->sector;
+      if (blk_rq_pos(SCpnt->request) < minsec)
+	 minsec = blk_rq_pos(SCpnt->request);
+      if (blk_rq_pos(SCpnt->request) > maxsec)
+	 maxsec = blk_rq_pos(SCpnt->request);
 
-      sl[n] = SCpnt->request->sector;
-      ioseek += SCpnt->request->nr_sectors;
+      sl[n] = blk_rq_pos(SCpnt->request);
+      ioseek += blk_rq_sectors(SCpnt->request);
 
       if (!n) continue;
 
@@ -1642,7 +1644,7 @@ static int reorder(unsigned int j, unsigned long cursec,
 
    if (!input_only) for (n = 0; n < n_ready; n++) {
       k = il[n]; cpp = &HD(j)->cp[k]; SCpnt = cpp->SCpnt;
-      ll[n] = SCpnt->request->nr_sectors; pl[n] = SCpnt->serial_number;
+      ll[n] = blk_rq_sectors(SCpnt->request); pl[n] = SCpnt->serial_number;
 
       if (!n) continue;
 
@@ -1666,12 +1668,12 @@ static int reorder(unsigned int j, unsigned long cursec,
    if (link_statistics && (overlap || !(flushcount % link_statistics)))
       for (n = 0; n < n_ready; n++) {
          k = il[n]; cpp = &HD(j)->cp[k]; SCpnt = cpp->SCpnt;
-         printk("%s %d.%d:%d pid %ld mb %d fc %d nr %d sec %ld ns %ld"\
+         printk("%s %d.%d:%d pid %ld mb %d fc %d nr %d sec %ld ns %u"\
                 " cur %ld s:%c r:%c rev:%c in:%c ov:%c xd %d.\n",
                 (ihdlr ? "ihdlr" : "qcomm"), SCpnt->channel, SCpnt->target,
                 SCpnt->lun, SCpnt->serial_number, k, flushcount, n_ready,
-                SCpnt->request->sector, SCpnt->request->nr_sectors, cursec,
-                YESNO(s), YESNO(r), YESNO(rev), YESNO(input_only),
+                blk_rq_pos(SCpnt->request), blk_rq_sectors(SCpnt->request),
+		cursec, YESNO(s), YESNO(r), YESNO(rev), YESNO(input_only),
                 YESNO(overlap), cpp->xdir);
          }
 #endif
@@ -1799,7 +1801,7 @@ static irqreturn_t ihdlr(unsigned int j)
 
    if (linked_comm && SCpnt->device->queue_depth > 2
                                      && TLDEV(SCpnt->device->type))
-      flush_dev(SCpnt->device, SCpnt->request->sector, j, TRUE);
+      flush_dev(SCpnt->device, blk_rq_pos(SCpnt->request), j, TRUE);
 
    tstatus = status_byte(spp->target_status);
 

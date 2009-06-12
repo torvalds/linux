@@ -782,13 +782,6 @@ static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 	if (!iwl_is_ready_rf(priv))
 		return -EAGAIN;
 
-	cancel_delayed_work(&priv->scan_check);
-	if (iwl_scan_cancel_timeout(priv, 100)) {
-		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
-		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
-		return -EAGAIN;
-	}
-
 	iwl3945_commit_rxon(priv);
 
 	return 0;
@@ -3297,6 +3290,8 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	mutex_lock(&priv->mutex);
+
+	cancel_delayed_work(&priv->scan_check);
 
 	if (!iwl_is_ready(priv)) {
 		IWL_WARN(priv, "request scan called when driver not ready.\n");

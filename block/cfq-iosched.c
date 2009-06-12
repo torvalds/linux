@@ -349,8 +349,8 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
 	else if (rq_is_meta(rq2) && !rq_is_meta(rq1))
 		return rq2;
 
-	s1 = rq1->sector;
-	s2 = rq2->sector;
+	s1 = blk_rq_pos(rq1);
+	s2 = blk_rq_pos(rq2);
 
 	last = cfqd->last_position;
 
@@ -579,9 +579,9 @@ cfq_prio_tree_lookup(struct cfq_data *cfqd, struct rb_root *root,
 		 * Sort strictly based on sector.  Smallest to the left,
 		 * largest to the right.
 		 */
-		if (sector > cfqq->next_rq->sector)
+		if (sector > blk_rq_pos(cfqq->next_rq))
 			n = &(*p)->rb_right;
-		else if (sector < cfqq->next_rq->sector)
+		else if (sector < blk_rq_pos(cfqq->next_rq))
 			n = &(*p)->rb_left;
 		else
 			break;
@@ -611,8 +611,8 @@ static void cfq_prio_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		return;
 
 	cfqq->p_root = &cfqd->prio_trees[cfqq->org_ioprio];
-	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->p_root, cfqq->next_rq->sector,
-					 &parent, &p);
+	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->p_root,
+				      blk_rq_pos(cfqq->next_rq), &parent, &p);
 	if (!__cfqq) {
 		rb_link_node(&cfqq->p_node, parent, p);
 		rb_insert_color(&cfqq->p_node, cfqq->p_root);
@@ -760,7 +760,7 @@ static void cfq_activate_request(struct request_queue *q, struct request *rq)
 	cfq_log_cfqq(cfqd, RQ_CFQQ(rq), "activate rq, drv=%d",
 						cfqd->rq_in_driver);
 
-	cfqd->last_position = rq->hard_sector + rq->hard_nr_sectors;
+	cfqd->last_position = blk_rq_pos(rq) + blk_rq_sectors(rq);
 }
 
 static void cfq_deactivate_request(struct request_queue *q, struct request *rq)
@@ -949,10 +949,10 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd,
 static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 					  struct request *rq)
 {
-	if (rq->sector >= cfqd->last_position)
-		return rq->sector - cfqd->last_position;
+	if (blk_rq_pos(rq) >= cfqd->last_position)
+		return blk_rq_pos(rq) - cfqd->last_position;
 	else
-		return cfqd->last_position - rq->sector;
+		return cfqd->last_position - blk_rq_pos(rq);
 }
 
 #define CIC_SEEK_THR	8 * 1024
@@ -996,7 +996,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	if (cfq_rq_close(cfqd, __cfqq->next_rq))
 		return __cfqq;
 
-	if (__cfqq->next_rq->sector < sector)
+	if (blk_rq_pos(__cfqq->next_rq) < sector)
 		node = rb_next(&__cfqq->p_node);
 	else
 		node = rb_prev(&__cfqq->p_node);
@@ -1282,7 +1282,7 @@ static void cfq_dispatch_request(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	if (!cfqd->active_cic) {
 		struct cfq_io_context *cic = RQ_CIC(rq);
 
-		atomic_inc(&cic->ioc->refcount);
+		atomic_long_inc(&cic->ioc->refcount);
 		cfqd->active_cic = cic;
 	}
 }
@@ -1918,10 +1918,10 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
 
 	if (!cic->last_request_pos)
 		sdist = 0;
-	else if (cic->last_request_pos < rq->sector)
-		sdist = rq->sector - cic->last_request_pos;
+	else if (cic->last_request_pos < blk_rq_pos(rq))
+		sdist = blk_rq_pos(rq) - cic->last_request_pos;
 	else
-		sdist = cic->last_request_pos - rq->sector;
+		sdist = cic->last_request_pos - blk_rq_pos(rq);
 
 	/*
 	 * Don't allow the seek distance to get too large from the
@@ -2071,7 +2071,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_update_io_seektime(cfqd, cic, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
-	cic->last_request_pos = rq->sector + rq->nr_sectors;
+	cic->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
 		/*
@@ -2088,7 +2088,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
 			    cfqd->busy_queues > 1) {
 				del_timer(&cfqd->idle_slice_timer);
-				blk_start_queueing(cfqd->queue);
+			__blk_run_queue(cfqd->queue);
 			}
 			cfq_mark_cfqq_must_dispatch(cfqq);
 		}
@@ -2100,7 +2100,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * this new queue is RT and the current one is BE
 		 */
 		cfq_preempt_queue(cfqd, cfqq);
-		blk_start_queueing(cfqd->queue);
+		__blk_run_queue(cfqd->queue);
 	}
 }
 
@@ -2345,7 +2345,7 @@ static void cfq_kick_queue(struct work_struct *work)
 	struct request_queue *q = cfqd->queue;
 
 	spin_lock_irq(q->queue_lock);
-	blk_start_queueing(q);
+	__blk_run_queue(cfqd->queue);
 	spin_unlock_irq(q->queue_lock);
 }
 

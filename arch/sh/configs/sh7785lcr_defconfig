@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.30-rc2
-# Wed Apr 22 19:17:56 2009
+# Linux kernel version: 2.6.30-rc3
+# Mon Apr 27 13:11:48 2009
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
@@ -307,8 +307,6 @@ CONFIG_BOOT_LINK_OFFSET=0x00800000
 #
 CONFIG_PCI=y
 CONFIG_SH_PCIDMA_NONCOHERENT=y
-CONFIG_PCI_AUTO=y
-CONFIG_PCI_AUTO_UPDATE_RESOURCES=y
 # CONFIG_PCIEPORTBUS is not set
 # CONFIG_ARCH_SUPPORTS_MSI is not set
 CONFIG_PCI_LEGACY=y

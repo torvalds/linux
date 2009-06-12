@@ -47,6 +47,11 @@ config X86
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
 
+config OUTPUT_FORMAT
+	string
+	default "elf32-i386" if X86_32
+	default "elf64-x86-64" if X86_64
+
 config ARCH_DEFCONFIG
 	string
 	default "arch/x86/configs/i386_defconfig" if X86_32
@@ -274,15 +279,9 @@ config SPARSE_IRQ
 
 	  If you don't know what to do here, say N.
 
-config NUMA_MIGRATE_IRQ_DESC
-	bool "Move irq desc when changing irq smp_affinity"
+config NUMA_IRQ_DESC
+	def_bool y
 	depends on SPARSE_IRQ && NUMA
-	depends on BROKEN
-	default n
-	---help---
-	  This enables moving irq_desc to cpu/node that irq will use handled.
-
-	  If you don't know what to do here, say N.
 
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
@@ -355,7 +354,7 @@ config X86_UV
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
-	select X86_X2APIC
+	depends on X86_X2APIC
 	---help---
 	  This option is needed in order to support SGI Ultraviolet systems.
 	  If you don't have one of these, you should say N here.
@@ -740,6 +739,7 @@ config X86_UP_IOAPIC
 config X86_LOCAL_APIC
 	def_bool y
 	depends on X86_64 || SMP || X86_32_NON_STANDARD || X86_UP_APIC
+	select HAVE_PERF_COUNTERS if (!M386 && !M486)
 
 config X86_IO_APIC
 	def_bool y
@@ -1466,9 +1466,7 @@ config KEXEC_JUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
-	default "0x1000000" if X86_NUMAQ
-	default "0x200000" if X86_64
-	default "0x100000"
+	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.
 
@@ -1487,15 +1485,15 @@ config PHYSICAL_START
 	  to be specifically compiled to run from a specific memory area
 	  (normally a reserved region) and this option comes handy.
 
-	  So if you are using bzImage for capturing the crash dump, leave
-	  the value here unchanged to 0x100000 and set CONFIG_RELOCATABLE=y.
-	  Otherwise if you plan to use vmlinux for capturing the crash dump
-	  change this value to start of the reserved region (Typically 16MB
-	  0x1000000). In other words, it can be set based on the "X" value as
-	  specified in the "crashkernel=YM@XM" command line boot parameter
-	  passed to the panic-ed kernel. Typically this parameter is set as
-	  crashkernel=64M@16M. Please take a look at
-	  Documentation/kdump/kdump.txt for more details about crash dumps.
+	  So if you are using bzImage for capturing the crash dump,
+	  leave the value here unchanged to 0x1000000 and set
+	  CONFIG_RELOCATABLE=y.  Otherwise if you plan to use vmlinux
+	  for capturing the crash dump change this value to start of
+	  the reserved region.  In other words, it can be set based on
+	  the "X" value as specified in the "crashkernel=YM@XM"
+	  command line boot parameter passed to the panic-ed
+	  kernel. Please take a look at Documentation/kdump/kdump.txt
+	  for more details about crash dumps.
 
 	  Usage of bzImage for capturing the crash dump is recommended as
 	  one does not have to build two kernels. Same kernel can be used
@@ -1508,8 +1506,8 @@ config PHYSICAL_START
 	  Don't change this unless you know what you are doing.
 
 config RELOCATABLE
-	bool "Build a relocatable kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Build a relocatable kernel"
+	default y
 	---help---
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -1524,12 +1522,16 @@ config RELOCATABLE
 	  it has been loaded at and the compile time physical address
 	  (CONFIG_PHYSICAL_START) is ignored.
 
+# Relocation on x86-32 needs some additional build support
+config X86_NEED_RELOCS
+	def_bool y
+	depends on X86_32 && RELOCATABLE
+
 config PHYSICAL_ALIGN
 	hex
 	prompt "Alignment value to which kernel should be aligned" if X86_32
-	default "0x100000" if X86_32
-	default "0x200000" if X86_64
-	range 0x2000 0x400000
+	default "0x1000000"
+	range 0x2000 0x1000000
 	---help---
 	  This value puts the alignment restrictions on physical address
 	  where kernel is loaded and run from. Kernel is compiled for an

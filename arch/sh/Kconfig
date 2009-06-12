@@ -15,6 +15,7 @@ config SUPERH
 	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
+	select RTC_LIB
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -74,13 +75,17 @@ config GENERIC_IOMAP
 	bool
 
 config GENERIC_TIME
-	def_bool n
+	def_bool y
 
 config GENERIC_CLOCKEVENTS
-	def_bool n
+	def_bool y
 
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
+
+config GENERIC_CMOS_UPDATE
+	def_bool y
+	depends on SH_SH03 || SH_DREAMCAST
 
 config GENERIC_LOCKBREAK
 	def_bool y
@@ -110,6 +115,12 @@ config SYS_SUPPORTS_PCI
 	bool
 
 config SYS_SUPPORTS_CMT
+	bool
+
+config SYS_SUPPORTS_MTU2
+	bool
+
+config SYS_SUPPORTS_TMU
 	bool
 
 config STACKTRACE_SUPPORT
@@ -157,13 +168,14 @@ config CPU_SH3
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
+	select SYS_SUPPORTS_TMU
 
 config CPU_SH4
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
-	select CPU_HAS_PTEA if !CPU_SH4A || CPU_SHX2
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
+	select SYS_SUPPORTS_TMU
 
 config CPU_SH4A
 	bool
@@ -177,6 +189,7 @@ config CPU_SH4AL_DSP
 config CPU_SH5
 	bool
 	select CPU_HAS_FPU
+	select SYS_SUPPORTS_TMU
 
 config CPU_SHX2
 	bool
@@ -210,27 +223,32 @@ config CPU_SUBTYPE_SH7201
 	bool "Support SH7201 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
+	select SYS_SUPPORTS_MTU2
  
 config CPU_SUBTYPE_SH7203
 	bool "Support SH7203 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
 	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
 
 config CPU_SUBTYPE_SH7263
 	bool "Support SH7263 processor"
 	select CPU_SH2A
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
 
 config CPU_SUBTYPE_MXG
 	bool "Support MX-G processor"
 	select CPU_SH2A
+	select SYS_SUPPORTS_MTU2
 	help
 	  Select MX-G if running on an R8A03022BG part.
 
@@ -283,6 +301,7 @@ config CPU_SUBTYPE_SH7720
 	bool "Support SH7720 processor"
 	select CPU_SH3
 	select CPU_HAS_DSP
+	select SYS_SUPPORTS_CMT
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
@@ -290,6 +309,7 @@ config CPU_SUBTYPE_SH7721
 	bool "Support SH7721 processor"
 	select CPU_SH3
 	select CPU_HAS_DSP
+	select SYS_SUPPORTS_CMT
 	help
 	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
 
@@ -346,6 +366,16 @@ config CPU_SUBTYPE_SH7723
 	select SYS_SUPPORTS_CMT
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
+
+config CPU_SUBTYPE_SH7724
+	bool "Support SH7724 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_SHMOBILE
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_CMT
+	help
+	  Select SH7724 if you have an SH-MobileR2R CPU.
 
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
@@ -442,48 +472,26 @@ source "arch/sh/boards/Kconfig"
 
 menu "Timer and clock configuration"
 
-config SH_TMU
-	bool "TMU timer support"
-	depends on CPU_SH3 || CPU_SH4
-	default y
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
-	help
-	  This enables the use of the TMU as the system timer.
-
-config SH_CMT
-	bool "CMT timer support"
-	depends on SYS_SUPPORTS_CMT && CPU_SH2
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	depends on SYS_SUPPORTS_TMU
 	default y
 	help
-	  This enables the use of the CMT as the system timer.
+	  This enables the build of the TMU timer driver.
 
-#
-# Support for the new-style CMT driver. This will replace SH_CMT
-# once its other dependencies are merged.
-#
 config SH_TIMER_CMT
-	bool "CMT clockevents driver"
-	depends on SYS_SUPPORTS_CMT && !SH_CMT
-	select GENERIC_CLOCKEVENTS
-
-config SH_MTU2
-	bool "MTU2 timer support"
-	depends on CPU_SH2A
+	bool "CMT timer driver"
+	depends on SYS_SUPPORTS_CMT
 	default y
 	help
-	  This enables the use of the MTU2 as the system timer.
+	  This enables build of the CMT timer driver.
 
-config SH_TIMER_IRQ
-	int
-	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785 || \
-			CPU_SUBTYPE_SH7763
-	default "86" if CPU_SUBTYPE_SH7619
-	default "140" if CPU_SUBTYPE_SH7206
-	default "142" if CPU_SUBTYPE_SH7203 && SH_CMT
-	default "153" if CPU_SUBTYPE_SH7203 && SH_MTU2
-	default "238" if CPU_SUBTYPE_MXG
-	default "16"
+config SH_TIMER_MTU2
+	bool "MTU2 timer driver"
+	depends on SYS_SUPPORTS_MTU2
+	default y
+	help
+	  This enables build of the MTU2 timer driver.
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
@@ -494,7 +502,7 @@ config SH_PCLK_FREQ
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
 			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
 			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG    || \
-			      CPU_SUBTYPE_SH7786
+			      CPU_SUBTYPE_SH7786 || CPU_SUBTYPE_SH7724
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -502,6 +510,13 @@ config SH_PCLK_FREQ
 	  This option is used to specify the peripheral clock frequency.
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
+
+config SH_CLK_CPG
+	def_bool y
+
+config SH_CLK_CPG_LEGACY
+	depends on SH_CLK_CPG
+	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
@@ -663,26 +678,53 @@ config GUSA_RB
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
+config SPARSE_IRQ
+	bool "Support sparse irq numbering"
+	depends on EXPERIMENTAL
+	help
+	  This enables support for sparse irqs. This is useful in general
+	  as most CPUs have a fairly sparse array of IRQ vectors, which
+	  the irq_desc then maps directly on to. Systems with a high
+	  number of off-chip IRQs will want to treat this as
+	  experimental until they have been independently verified.
+
+	  If you don't know what to do here, say N.
+
 endmenu
 
 menu "Boot options"
 
 config ZERO_PAGE_OFFSET
-	hex "Zero page offset"
-	default "0x00004000" if SH_SH03
-	default "0x00010000" if PAGE_SIZE_64KB
+	hex
+	default "0x00010000" if PAGE_SIZE_64KB || SH_RTS7751R2D || \
+				SH_7751_SOLUTION_ENGINE
+	default "0x00004000" if PAGE_SIZE_16KB || SH_SH03
 	default "0x00002000" if PAGE_SIZE_8KB
 	default "0x00001000"
 	help
 	  This sets the default offset of zero page.
 
 config BOOT_LINK_OFFSET
-	hex "Link address offset for booting"
+	hex
+	default "0x00210000" if SH_SHMIN
+	default "0x00400000" if SH_CAYMAN
+	default "0x00810000" if SH_7780_SOLUTION_ENGINE
+	default "0x009e0000" if SH_TITAN
+	default "0x01800000" if SH_SDK7780
+	default "0x02000000" if SH_EDOSK7760
 	default "0x00800000"
 	help
 	  This option allows you to set the link address offset of the zImage.
 	  This can be useful if you are on a board which has a small amount of
 	  memory.
+
+config ENTRY_OFFSET
+	hex
+	default "0x00001000" if PAGE_SIZE_4KB
+	default "0x00002000" if PAGE_SIZE_8KB
+	default "0x00004000" if PAGE_SIZE_16KB
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00000000"
 
 config UBC_WAKEUP
 	bool "Wakeup UBC on startup"

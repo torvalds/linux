@@ -24,7 +24,7 @@ static int sysv_readdir(struct file *, void *, filldir_t);
 const struct file_operations sysv_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysv_readdir,
-	.fsync		= sysv_sync_file,
+	.fsync		= simple_fsync,
 };
 
 static inline void dir_put_page(struct page *page)

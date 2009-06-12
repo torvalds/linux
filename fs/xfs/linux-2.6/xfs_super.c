@@ -1104,15 +1104,6 @@ xfs_fs_put_super(
 	kfree(mp);
 }
 
-STATIC void
-xfs_fs_write_super(
-	struct super_block	*sb)
-{
-	if (!(sb->s_flags & MS_RDONLY))
-		xfs_sync_fsdata(XFS_M(sb), 0);
-	sb->s_dirt = 0;
-}
-
 STATIC int
 xfs_fs_sync_super(
 	struct super_block	*sb,
@@ -1137,7 +1128,6 @@ xfs_fs_sync_super(
 		error = xfs_quiesce_data(mp);
 	else
 		error = xfs_sync_fsdata(mp, 0);
-	sb->s_dirt = 0;
 
 	if (unlikely(laptop_mode)) {
 		int	prev_sync_seq = mp->m_sync_seq;
@@ -1443,7 +1433,6 @@ xfs_fs_fill_super(
 
 	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, mtpt, mp->m_fsname);
 
-	sb->s_dirt = 1;
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
 	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
@@ -1533,7 +1522,6 @@ static struct super_operations xfs_super_operations = {
 	.write_inode		= xfs_fs_write_inode,
 	.clear_inode		= xfs_fs_clear_inode,
 	.put_super		= xfs_fs_put_super,
-	.write_super		= xfs_fs_write_super,
 	.sync_fs		= xfs_fs_sync_super,
 	.freeze_fs		= xfs_fs_freeze,
 	.statfs			= xfs_fs_statfs,

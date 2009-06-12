@@ -55,7 +55,16 @@ struct iommu_cmd {
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 static struct dma_ops_domain *find_protection_domain(u16 devid);
+static u64* alloc_pte(struct protection_domain *dom,
+		      unsigned long address, u64
+		      **pte_page, gfp_t gfp);
+static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
+				      unsigned long start_page,
+				      unsigned int pages);
 
+#ifndef BUS_NOTIFY_UNBOUND_DRIVER
+#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
+#endif
 
 #ifdef CONFIG_AMD_IOMMU_STATS
 
@@ -213,7 +222,7 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
 {
 	struct amd_iommu *iommu;
 
-	list_for_each_entry(iommu, &amd_iommu_list, list)
+	for_each_iommu(iommu)
 		iommu_poll_events(iommu);
 
 	return IRQ_HANDLED;
@@ -440,12 +449,41 @@ static void iommu_flush_domain(u16 domid)
 	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 				      domid, 1, 1);
 
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		spin_lock_irqsave(&iommu->lock, flags);
 		__iommu_queue_command(iommu, &cmd);
 		__iommu_completion_wait(iommu);
 		__iommu_wait_for_completion(iommu);
 		spin_unlock_irqrestore(&iommu->lock, flags);
+	}
+}
+
+void amd_iommu_flush_all_domains(void)
+{
+	int i;
+
+	for (i = 1; i < MAX_DOMAIN_ID; ++i) {
+		if (!test_bit(i, amd_iommu_pd_alloc_bitmap))
+			continue;
+		iommu_flush_domain(i);
+	}
+}
+
+void amd_iommu_flush_all_devices(void)
+{
+	struct amd_iommu *iommu;
+	int i;
+
+	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
+		if (amd_iommu_pd_table[i] == NULL)
+			continue;
+
+		iommu = amd_iommu_rlookup_table[i];
+		if (!iommu)
+			continue;
+
+		iommu_queue_inv_dev_entry(iommu, i);
+		iommu_completion_wait(iommu);
 	}
 }
 
@@ -468,7 +506,7 @@ static int iommu_map_page(struct protection_domain *dom,
 			  unsigned long phys_addr,
 			  int prot)
 {
-	u64 __pte, *pte, *page;
+	u64 __pte, *pte;
 
 	bus_addr  = PAGE_ALIGN(bus_addr);
 	phys_addr = PAGE_ALIGN(phys_addr);
@@ -477,27 +515,7 @@ static int iommu_map_page(struct protection_domain *dom,
 	if (bus_addr > IOMMU_MAP_SIZE_L3 || !(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
 
-	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		*pte = IOMMU_L2_PDE(virt_to_phys(page));
-	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		*pte = IOMMU_L1_PDE(virt_to_phys(page));
-	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L0_INDEX(bus_addr)];
+	pte = alloc_pte(dom, bus_addr, NULL, GFP_KERNEL);
 
 	if (IOMMU_PTE_PRESENT(*pte))
 		return -EBUSY;
@@ -595,7 +613,8 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 		 * as allocated in the aperture
 		 */
 		if (addr < dma_dom->aperture_size)
-			__set_bit(addr >> PAGE_SHIFT, dma_dom->bitmap);
+			__set_bit(addr >> PAGE_SHIFT,
+				  dma_dom->aperture[0]->bitmap);
 	}
 
 	return 0;
@@ -632,42 +651,191 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  ****************************************************************************/
 
 /*
- * The address allocator core function.
+ * The address allocator core functions.
  *
  * called with domain->lock held
  */
+
+/*
+ * This function checks if there is a PTE for a given dma address. If
+ * there is one, it returns the pointer to it.
+ */
+static u64* fetch_pte(struct protection_domain *domain,
+		      unsigned long address)
+{
+	u64 *pte;
+
+	pte = &domain->pt_root[IOMMU_PTE_L2_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte))
+		return NULL;
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L1_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte))
+		return NULL;
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L0_INDEX(address)];
+
+	return pte;
+}
+
+/*
+ * This function is used to add a new aperture range to an existing
+ * aperture in case of dma_ops domain allocation or address allocation
+ * failure.
+ */
+static int alloc_new_range(struct amd_iommu *iommu,
+			   struct dma_ops_domain *dma_dom,
+			   bool populate, gfp_t gfp)
+{
+	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
+	int i;
+
+#ifdef CONFIG_IOMMU_STRESS
+	populate = false;
+#endif
+
+	if (index >= APERTURE_MAX_RANGES)
+		return -ENOMEM;
+
+	dma_dom->aperture[index] = kzalloc(sizeof(struct aperture_range), gfp);
+	if (!dma_dom->aperture[index])
+		return -ENOMEM;
+
+	dma_dom->aperture[index]->bitmap = (void *)get_zeroed_page(gfp);
+	if (!dma_dom->aperture[index]->bitmap)
+		goto out_free;
+
+	dma_dom->aperture[index]->offset = dma_dom->aperture_size;
+
+	if (populate) {
+		unsigned long address = dma_dom->aperture_size;
+		int i, num_ptes = APERTURE_RANGE_PAGES / 512;
+		u64 *pte, *pte_page;
+
+		for (i = 0; i < num_ptes; ++i) {
+			pte = alloc_pte(&dma_dom->domain, address,
+					&pte_page, gfp);
+			if (!pte)
+				goto out_free;
+
+			dma_dom->aperture[index]->pte_pages[i] = pte_page;
+
+			address += APERTURE_RANGE_SIZE / 64;
+		}
+	}
+
+	dma_dom->aperture_size += APERTURE_RANGE_SIZE;
+
+	/* Intialize the exclusion range if necessary */
+	if (iommu->exclusion_start &&
+	    iommu->exclusion_start >= dma_dom->aperture[index]->offset &&
+	    iommu->exclusion_start < dma_dom->aperture_size) {
+		unsigned long startpage = iommu->exclusion_start >> PAGE_SHIFT;
+		int pages = iommu_num_pages(iommu->exclusion_start,
+					    iommu->exclusion_length,
+					    PAGE_SIZE);
+		dma_ops_reserve_addresses(dma_dom, startpage, pages);
+	}
+
+	/*
+	 * Check for areas already mapped as present in the new aperture
+	 * range and mark those pages as reserved in the allocator. Such
+	 * mappings may already exist as a result of requested unity
+	 * mappings for devices.
+	 */
+	for (i = dma_dom->aperture[index]->offset;
+	     i < dma_dom->aperture_size;
+	     i += PAGE_SIZE) {
+		u64 *pte = fetch_pte(&dma_dom->domain, i);
+		if (!pte || !IOMMU_PTE_PRESENT(*pte))
+			continue;
+
+		dma_ops_reserve_addresses(dma_dom, i << PAGE_SHIFT, 1);
+	}
+
+	return 0;
+
+out_free:
+	free_page((unsigned long)dma_dom->aperture[index]->bitmap);
+
+	kfree(dma_dom->aperture[index]);
+	dma_dom->aperture[index] = NULL;
+
+	return -ENOMEM;
+}
+
+static unsigned long dma_ops_area_alloc(struct device *dev,
+					struct dma_ops_domain *dom,
+					unsigned int pages,
+					unsigned long align_mask,
+					u64 dma_mask,
+					unsigned long start)
+{
+	unsigned long next_bit = dom->next_address % APERTURE_RANGE_SIZE;
+	int max_index = dom->aperture_size >> APERTURE_RANGE_SHIFT;
+	int i = start >> APERTURE_RANGE_SHIFT;
+	unsigned long boundary_size;
+	unsigned long address = -1;
+	unsigned long limit;
+
+	next_bit >>= PAGE_SHIFT;
+
+	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
+			PAGE_SIZE) >> PAGE_SHIFT;
+
+	for (;i < max_index; ++i) {
+		unsigned long offset = dom->aperture[i]->offset >> PAGE_SHIFT;
+
+		if (dom->aperture[i]->offset >= dma_mask)
+			break;
+
+		limit = iommu_device_max_index(APERTURE_RANGE_PAGES, offset,
+					       dma_mask >> PAGE_SHIFT);
+
+		address = iommu_area_alloc(dom->aperture[i]->bitmap,
+					   limit, next_bit, pages, 0,
+					    boundary_size, align_mask);
+		if (address != -1) {
+			address = dom->aperture[i]->offset +
+				  (address << PAGE_SHIFT);
+			dom->next_address = address + (pages << PAGE_SHIFT);
+			break;
+		}
+
+		next_bit = 0;
+	}
+
+	return address;
+}
+
 static unsigned long dma_ops_alloc_addresses(struct device *dev,
 					     struct dma_ops_domain *dom,
 					     unsigned int pages,
 					     unsigned long align_mask,
 					     u64 dma_mask)
 {
-	unsigned long limit;
 	unsigned long address;
-	unsigned long boundary_size;
 
-	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
-			PAGE_SIZE) >> PAGE_SHIFT;
-	limit = iommu_device_max_index(dom->aperture_size >> PAGE_SHIFT, 0,
-				       dma_mask >> PAGE_SHIFT);
+#ifdef CONFIG_IOMMU_STRESS
+	dom->next_address = 0;
+	dom->need_flush = true;
+#endif
 
-	if (dom->next_bit >= limit) {
-		dom->next_bit = 0;
-		dom->need_flush = true;
-	}
+	address = dma_ops_area_alloc(dev, dom, pages, align_mask,
+				     dma_mask, dom->next_address);
 
-	address = iommu_area_alloc(dom->bitmap, limit, dom->next_bit, pages,
-				   0 , boundary_size, align_mask);
 	if (address == -1) {
-		address = iommu_area_alloc(dom->bitmap, limit, 0, pages,
-				0, boundary_size, align_mask);
+		dom->next_address = 0;
+		address = dma_ops_area_alloc(dev, dom, pages, align_mask,
+					     dma_mask, 0);
 		dom->need_flush = true;
 	}
 
-	if (likely(address != -1)) {
-		dom->next_bit = address + pages;
-		address <<= PAGE_SHIFT;
-	} else
+	if (unlikely(address == -1))
 		address = bad_dma_address;
 
 	WARN_ON((address + (PAGE_SIZE*pages)) > dom->aperture_size);
@@ -684,11 +852,23 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 				   unsigned long address,
 				   unsigned int pages)
 {
-	address >>= PAGE_SHIFT;
-	iommu_area_free(dom->bitmap, address, pages);
+	unsigned i = address >> APERTURE_RANGE_SHIFT;
+	struct aperture_range *range = dom->aperture[i];
 
-	if (address >= dom->next_bit)
+	BUG_ON(i >= APERTURE_MAX_RANGES || range == NULL);
+
+#ifdef CONFIG_IOMMU_STRESS
+	if (i < 4)
+		return;
+#endif
+
+	if (address >= dom->next_address)
 		dom->need_flush = true;
+
+	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
+
+	iommu_area_free(range->bitmap, address, pages);
+
 }
 
 /****************************************************************************
@@ -736,12 +916,16 @@ static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 				      unsigned long start_page,
 				      unsigned int pages)
 {
-	unsigned int last_page = dom->aperture_size >> PAGE_SHIFT;
+	unsigned int i, last_page = dom->aperture_size >> PAGE_SHIFT;
 
 	if (start_page + pages > last_page)
 		pages = last_page - start_page;
 
-	iommu_area_reserve(dom->bitmap, start_page, pages);
+	for (i = start_page; i < start_page + pages; ++i) {
+		int index = i / APERTURE_RANGE_PAGES;
+		int page  = i % APERTURE_RANGE_PAGES;
+		__set_bit(page, dom->aperture[index]->bitmap);
+	}
 }
 
 static void free_pagetable(struct protection_domain *domain)
@@ -780,14 +964,19 @@ static void free_pagetable(struct protection_domain *domain)
  */
 static void dma_ops_domain_free(struct dma_ops_domain *dom)
 {
+	int i;
+
 	if (!dom)
 		return;
 
 	free_pagetable(&dom->domain);
 
-	kfree(dom->pte_pages);
-
-	kfree(dom->bitmap);
+	for (i = 0; i < APERTURE_MAX_RANGES; ++i) {
+		if (!dom->aperture[i])
+			continue;
+		free_page((unsigned long)dom->aperture[i]->bitmap);
+		kfree(dom->aperture[i]);
+	}
 
 	kfree(dom);
 }
@@ -797,19 +986,9 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
  * It also intializes the page table and the address allocator data
  * structures required for the dma_ops interface
  */
-static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
-						   unsigned order)
+static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu)
 {
 	struct dma_ops_domain *dma_dom;
-	unsigned i, num_pte_pages;
-	u64 *l2_pde;
-	u64 address;
-
-	/*
-	 * Currently the DMA aperture must be between 32 MB and 1GB in size
-	 */
-	if ((order < 25) || (order > 30))
-		return NULL;
 
 	dma_dom = kzalloc(sizeof(struct dma_ops_domain), GFP_KERNEL);
 	if (!dma_dom)
@@ -826,55 +1005,20 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	dma_dom->domain.priv = dma_dom;
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
-	dma_dom->aperture_size = (1ULL << order);
-	dma_dom->bitmap = kzalloc(dma_dom->aperture_size / (PAGE_SIZE * 8),
-				  GFP_KERNEL);
-	if (!dma_dom->bitmap)
-		goto free_dma_dom;
-	/*
-	 * mark the first page as allocated so we never return 0 as
-	 * a valid dma-address. So we can use 0 as error value
-	 */
-	dma_dom->bitmap[0] = 1;
-	dma_dom->next_bit = 0;
 
 	dma_dom->need_flush = false;
 	dma_dom->target_dev = 0xffff;
 
-	/* Intialize the exclusion range if necessary */
-	if (iommu->exclusion_start &&
-	    iommu->exclusion_start < dma_dom->aperture_size) {
-		unsigned long startpage = iommu->exclusion_start >> PAGE_SHIFT;
-		int pages = iommu_num_pages(iommu->exclusion_start,
-					    iommu->exclusion_length,
-					    PAGE_SIZE);
-		dma_ops_reserve_addresses(dma_dom, startpage, pages);
-	}
+	if (alloc_new_range(iommu, dma_dom, true, GFP_KERNEL))
+		goto free_dma_dom;
 
 	/*
-	 * At the last step, build the page tables so we don't need to
-	 * allocate page table pages in the dma_ops mapping/unmapping
-	 * path.
+	 * mark the first page as allocated so we never return 0 as
+	 * a valid dma-address. So we can use 0 as error value
 	 */
-	num_pte_pages = dma_dom->aperture_size / (PAGE_SIZE * 512);
-	dma_dom->pte_pages = kzalloc(num_pte_pages * sizeof(void *),
-			GFP_KERNEL);
-	if (!dma_dom->pte_pages)
-		goto free_dma_dom;
+	dma_dom->aperture[0]->bitmap[0] = 1;
+	dma_dom->next_address = 0;
 
-	l2_pde = (u64 *)get_zeroed_page(GFP_KERNEL);
-	if (l2_pde == NULL)
-		goto free_dma_dom;
-
-	dma_dom->domain.pt_root[0] = IOMMU_L2_PDE(virt_to_phys(l2_pde));
-
-	for (i = 0; i < num_pte_pages; ++i) {
-		dma_dom->pte_pages[i] = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!dma_dom->pte_pages[i])
-			goto free_dma_dom;
-		address = virt_to_phys(dma_dom->pte_pages[i]);
-		l2_pde[i] = IOMMU_L1_PDE(address);
-	}
 
 	return dma_dom;
 
@@ -983,7 +1127,6 @@ static int device_change_notifier(struct notifier_block *nb,
 	struct protection_domain *domain;
 	struct dma_ops_domain *dma_domain;
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	unsigned long flags;
 
 	if (devid > amd_iommu_last_bdf)
@@ -1002,17 +1145,7 @@ static int device_change_notifier(struct notifier_block *nb,
 			  "to a non-dma-ops domain\n", dev_name(dev));
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		if (domain)
-			goto out;
-		dma_domain = find_protection_domain(devid);
-		if (!dma_domain)
-			dma_domain = iommu->default_dom;
-		attach_device(iommu, &dma_domain->domain, devid);
-		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
-		       "device %s\n", dma_domain->domain.id, dev_name(dev));
-		break;
-	case BUS_NOTIFY_UNBIND_DRIVER:
+	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (!domain)
 			goto out;
 		detach_device(domain, devid);
@@ -1022,7 +1155,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		dma_domain = find_protection_domain(devid);
 		if (dma_domain)
 			goto out;
-		dma_domain = dma_ops_domain_alloc(iommu, order);
+		dma_domain = dma_ops_domain_alloc(iommu);
 		if (!dma_domain)
 			goto out;
 		dma_domain->target_dev = devid;
@@ -1133,14 +1266,74 @@ static int get_device_resources(struct device *dev,
 			dma_dom = (*iommu)->default_dom;
 		*domain = &dma_dom->domain;
 		attach_device(*iommu, *domain, *bdf);
-		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
-				"device %s\n", (*domain)->id, dev_name(dev));
+		DUMP_printk("Using protection domain %d for device %s\n",
+			    (*domain)->id, dev_name(dev));
 	}
 
 	if (domain_for_device(_bdf) == NULL)
 		attach_device(*iommu, *domain, _bdf);
 
 	return 1;
+}
+
+/*
+ * If the pte_page is not yet allocated this function is called
+ */
+static u64* alloc_pte(struct protection_domain *dom,
+		      unsigned long address, u64 **pte_page, gfp_t gfp)
+{
+	u64 *pte, *page;
+
+	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte)) {
+		page = (u64 *)get_zeroed_page(gfp);
+		if (!page)
+			return NULL;
+		*pte = IOMMU_L2_PDE(virt_to_phys(page));
+	}
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L1_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte)) {
+		page = (u64 *)get_zeroed_page(gfp);
+		if (!page)
+			return NULL;
+		*pte = IOMMU_L1_PDE(virt_to_phys(page));
+	}
+
+	pte = IOMMU_PTE_PAGE(*pte);
+
+	if (pte_page)
+		*pte_page = pte;
+
+	pte = &pte[IOMMU_PTE_L0_INDEX(address)];
+
+	return pte;
+}
+
+/*
+ * This function fetches the PTE for a given address in the aperture
+ */
+static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
+			    unsigned long address)
+{
+	struct aperture_range *aperture;
+	u64 *pte, *pte_page;
+
+	aperture = dom->aperture[APERTURE_RANGE_INDEX(address)];
+	if (!aperture)
+		return NULL;
+
+	pte = aperture->pte_pages[APERTURE_PAGE_INDEX(address)];
+	if (!pte) {
+		pte = alloc_pte(&dom->domain, address, &pte_page, GFP_ATOMIC);
+		aperture->pte_pages[APERTURE_PAGE_INDEX(address)] = pte_page;
+	} else
+		pte += IOMMU_PTE_L0_INDEX(address);
+
+	return pte;
 }
 
 /*
@@ -1159,8 +1352,9 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 
 	paddr &= PAGE_MASK;
 
-	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
-	pte += IOMMU_PTE_L0_INDEX(address);
+	pte  = dma_ops_get_pte(dom, address);
+	if (!pte)
+		return bad_dma_address;
 
 	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
 
@@ -1185,14 +1379,20 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 				 struct dma_ops_domain *dom,
 				 unsigned long address)
 {
+	struct aperture_range *aperture;
 	u64 *pte;
 
 	if (address >= dom->aperture_size)
 		return;
 
-	WARN_ON(address & ~PAGE_MASK || address >= dom->aperture_size);
+	aperture = dom->aperture[APERTURE_RANGE_INDEX(address)];
+	if (!aperture)
+		return;
 
-	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	pte  = aperture->pte_pages[APERTURE_PAGE_INDEX(address)];
+	if (!pte)
+		return;
+
 	pte += IOMMU_PTE_L0_INDEX(address);
 
 	WARN_ON(!*pte);
@@ -1216,7 +1416,7 @@ static dma_addr_t __map_single(struct device *dev,
 			       u64 dma_mask)
 {
 	dma_addr_t offset = paddr & ~PAGE_MASK;
-	dma_addr_t address, start;
+	dma_addr_t address, start, ret;
 	unsigned int pages;
 	unsigned long align_mask = 0;
 	int i;
@@ -1232,14 +1432,33 @@ static dma_addr_t __map_single(struct device *dev,
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
+retry:
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
 					  dma_mask);
-	if (unlikely(address == bad_dma_address))
-		goto out;
+	if (unlikely(address == bad_dma_address)) {
+		/*
+		 * setting next_address here will let the address
+		 * allocator only scan the new allocated range in the
+		 * first run. This is a small optimization.
+		 */
+		dma_dom->next_address = dma_dom->aperture_size;
+
+		if (alloc_new_range(iommu, dma_dom, false, GFP_ATOMIC))
+			goto out;
+
+		/*
+		 * aperture was sucessfully enlarged by 128 MB, try
+		 * allocation again
+		 */
+		goto retry;
+	}
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
-		dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		ret = dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		if (ret == bad_dma_address)
+			goto out_unmap;
+
 		paddr += PAGE_SIZE;
 		start += PAGE_SIZE;
 	}
@@ -1255,6 +1474,17 @@ static dma_addr_t __map_single(struct device *dev,
 
 out:
 	return address;
+
+out_unmap:
+
+	for (--i; i >= 0; --i) {
+		start -= PAGE_SIZE;
+		dma_ops_domain_unmap(iommu, dma_dom, start);
+	}
+
+	dma_ops_free_addresses(dma_dom, address, pages);
+
+	return bad_dma_address;
 }
 
 /*
@@ -1537,8 +1767,10 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
 				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
-	if (*dma_addr == bad_dma_address)
+	if (*dma_addr == bad_dma_address) {
+		spin_unlock_irqrestore(&domain->lock, flags);
 		goto out_free;
+	}
 
 	iommu_completion_wait(iommu);
 
@@ -1625,7 +1857,6 @@ static void prealloc_protection_domains(void)
 	struct pci_dev *dev = NULL;
 	struct dma_ops_domain *dma_dom;
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	u16 devid;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
@@ -1638,7 +1869,7 @@ static void prealloc_protection_domains(void)
 		iommu = amd_iommu_rlookup_table[devid];
 		if (!iommu)
 			continue;
-		dma_dom = dma_ops_domain_alloc(iommu, order);
+		dma_dom = dma_ops_domain_alloc(iommu);
 		if (!dma_dom)
 			continue;
 		init_unity_mappings_for_device(dma_dom, devid);
@@ -1664,7 +1895,6 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 int __init amd_iommu_init_dma_ops(void)
 {
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	int ret;
 
 	/*
@@ -1672,8 +1902,8 @@ int __init amd_iommu_init_dma_ops(void)
 	 * found in the system. Devices not assigned to any other
 	 * protection domain will be assigned to the default one.
 	 */
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
-		iommu->default_dom = dma_ops_domain_alloc(iommu, order);
+	for_each_iommu(iommu) {
+		iommu->default_dom = dma_ops_domain_alloc(iommu);
 		if (iommu->default_dom == NULL)
 			return -ENOMEM;
 		iommu->default_dom->domain.flags |= PD_DEFAULT_MASK;
@@ -1710,7 +1940,7 @@ int __init amd_iommu_init_dma_ops(void)
 
 free_domains:
 
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		if (iommu->default_dom)
 			dma_ops_domain_free(iommu->default_dom);
 	}
@@ -1842,7 +2072,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 
 	old_domain = domain_for_device(devid);
 	if (old_domain)
-		return -EBUSY;
+		detach_device(old_domain, devid);
 
 	attach_device(iommu, domain, devid);
 

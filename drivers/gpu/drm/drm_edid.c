@@ -289,6 +289,11 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	struct drm_display_mode *mode;
 	struct detailed_pixel_timing *pt = &timing->data.pixel_data;
 
+	/* ignore tiny modes */
+	if (((pt->hactive_hi << 8) | pt->hactive_lo) < 64 ||
+	    ((pt->vactive_hi << 8) | pt->hactive_lo) < 64)
+		return NULL;
+
 	if (pt->stereo) {
 		printk(KERN_WARNING "stereo mode not supported\n");
 		return NULL;

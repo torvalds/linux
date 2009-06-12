@@ -73,24 +73,6 @@
 #define ECHO_OP_SET_CANON_COL 0x81
 #define ECHO_OP_ERASE_TAB 0x82
 
-static inline unsigned char *alloc_buf(void)
-{
-	gfp_t prio = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
-
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		return kmalloc(N_TTY_BUF_SIZE, prio);
-	else
-		return (unsigned char *)__get_free_page(prio);
-}
-
-static inline void free_buf(unsigned char *buf)
-{
-	if (PAGE_SIZE != N_TTY_BUF_SIZE)
-		kfree(buf);
-	else
-		free_page((unsigned long) buf);
-}
-
 static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 			       unsigned char __user *ptr)
 {
@@ -1558,11 +1540,11 @@ static void n_tty_close(struct tty_struct *tty)
 {
 	n_tty_flush_buffer(tty);
 	if (tty->read_buf) {
-		free_buf(tty->read_buf);
+		kfree(tty->read_buf);
 		tty->read_buf = NULL;
 	}
 	if (tty->echo_buf) {
-		free_buf(tty->echo_buf);
+		kfree(tty->echo_buf);
 		tty->echo_buf = NULL;
 	}
 }
@@ -1584,17 +1566,16 @@ static int n_tty_open(struct tty_struct *tty)
 
 	/* These are ugly. Currently a malloc failure here can panic */
 	if (!tty->read_buf) {
-		tty->read_buf = alloc_buf();
+		tty->read_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 		if (!tty->read_buf)
 			return -ENOMEM;
 	}
 	if (!tty->echo_buf) {
-		tty->echo_buf = alloc_buf();
+		tty->echo_buf = kzalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
+
 		if (!tty->echo_buf)
 			return -ENOMEM;
 	}
-	memset(tty->read_buf, 0, N_TTY_BUF_SIZE);
-	memset(tty->echo_buf, 0, N_TTY_BUF_SIZE);
 	reset_buffer_flags(tty);
 	tty->column = 0;
 	n_tty_set_termios(tty, NULL);

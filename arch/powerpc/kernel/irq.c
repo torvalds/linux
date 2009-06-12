@@ -53,6 +53,7 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
+#include <linux/perf_counter.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -133,6 +134,11 @@ notrace void raw_local_irq_restore(unsigned long en)
 		 */
 		if (local_paca->lppaca_ptr->int_dword.any_int)
 			iseries_handle_interrupts();
+	}
+
+	if (test_perf_counter_pending()) {
+		clear_perf_counter_pending();
+		perf_counter_do_pending();
 	}
 
 	/*

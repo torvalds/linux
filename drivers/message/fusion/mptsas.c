@@ -2135,8 +2135,8 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	/* do we need to support multiple segments? */
 	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
 		printk(MYIOC_s_ERR_FMT "%s: multiple segments req %u %u, rsp %u %u\n",
-		    ioc->name, __func__, req->bio->bi_vcnt, req->data_len,
-		    rsp->bio->bi_vcnt, rsp->data_len);
+		    ioc->name, __func__, req->bio->bi_vcnt, blk_rq_bytes(req),
+		    rsp->bio->bi_vcnt, blk_rq_bytes(rsp));
 		return -EINVAL;
 	}
 
@@ -2153,7 +2153,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	smpreq = (SmpPassthroughRequest_t *)mf;
 	memset(smpreq, 0, sizeof(*smpreq));
 
-	smpreq->RequestDataLength = cpu_to_le16(req->data_len - 4);
+	smpreq->RequestDataLength = cpu_to_le16(blk_rq_bytes(req) - 4);
 	smpreq->Function = MPI_FUNCTION_SMP_PASSTHROUGH;
 
 	if (rphy)
@@ -2179,10 +2179,10 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		       MPI_SGE_FLAGS_END_OF_BUFFER |
 		       MPI_SGE_FLAGS_DIRECTION)
 		       << MPI_SGE_FLAGS_SHIFT;
-	flagsLength |= (req->data_len - 4);
+	flagsLength |= (blk_rq_bytes(req) - 4);
 
 	dma_addr_out = pci_map_single(ioc->pcidev, bio_data(req->bio),
-				      req->data_len, PCI_DMA_BIDIRECTIONAL);
+				      blk_rq_bytes(req), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_out)
 		goto put_mf;
 	ioc->add_sge(psge, flagsLength, dma_addr_out);
@@ -2195,9 +2195,9 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		MPI_SGE_FLAGS_END_OF_BUFFER;
 
 	flagsLength = flagsLength << MPI_SGE_FLAGS_SHIFT;
-	flagsLength |= rsp->data_len + 4;
+	flagsLength |= blk_rq_bytes(rsp) + 4;
 	dma_addr_in =  pci_map_single(ioc->pcidev, bio_data(rsp->bio),
-				      rsp->data_len, PCI_DMA_BIDIRECTIONAL);
+				      blk_rq_bytes(rsp), PCI_DMA_BIDIRECTIONAL);
 	if (!dma_addr_in)
 		goto unmap;
 	ioc->add_sge(psge, flagsLength, dma_addr_in);
@@ -2221,8 +2221,8 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		smprep = (SmpPassthroughReply_t *)ioc->sas_mgmt.reply;
 		memcpy(req->sense, smprep, sizeof(*smprep));
 		req->sense_len = sizeof(*smprep);
-		req->data_len = 0;
-		rsp->data_len -= smprep->ResponseDataLength;
+		req->resid_len = 0;
+		rsp->resid_len -= smprep->ResponseDataLength;
 	} else {
 		printk(MYIOC_s_ERR_FMT
 		    "%s: smp passthru reply failed to be returned\n",
@@ -2231,10 +2231,10 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	}
 unmap:
 	if (dma_addr_out)
-		pci_unmap_single(ioc->pcidev, dma_addr_out, req->data_len,
+		pci_unmap_single(ioc->pcidev, dma_addr_out, blk_rq_bytes(req),
 				 PCI_DMA_BIDIRECTIONAL);
 	if (dma_addr_in)
-		pci_unmap_single(ioc->pcidev, dma_addr_in, rsp->data_len,
+		pci_unmap_single(ioc->pcidev, dma_addr_in, blk_rq_bytes(rsp),
 				 PCI_DMA_BIDIRECTIONAL);
 put_mf:
 	if (mf)

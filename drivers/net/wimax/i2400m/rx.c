@@ -819,10 +819,9 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 			roq_data = (struct i2400m_roq_data *) &skb->cb;
 			i2400m_net_erx(i2400m, skb, roq_data->cs);
 		}
-		else {
+		else
 			__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
-			__i2400m_roq_update_ws(i2400m, roq, sn + 1);
-		}
+		__i2400m_roq_update_ws(i2400m, roq, sn + 1);
 		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
 				   old_ws, len, sn, nsn, roq->ws);
 	}

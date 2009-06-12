@@ -311,7 +311,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
 		if (ret < 0) {
 			if (ret != -ENOENT)
-				goto out_sem;
+				goto out_header;
 			/* skip hole */
 			ret = 0;
 			continue;
@@ -344,7 +344,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 					continue;
 				printk(KERN_ERR "%s: cannot delete block\n",
 				       __func__);
-				goto out_sem;
+				goto out_header;
 			}
 		}
 
@@ -361,6 +361,8 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 		nilfs_mdt_mark_dirty(cpfile);
 		kunmap_atomic(kaddr, KM_USER0);
 	}
+
+ out_header:
 	brelse(header_bh);
 
  out_sem:
@@ -862,11 +864,11 @@ int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 	case NILFS_CHECKPOINT:
 		/*
 		 * Check for protecting existing snapshot mounts:
-		 * bd_mount_sem is used to make this operation atomic and
+		 * ns_mount_mutex is used to make this operation atomic and
 		 * exclusive with a new mount job.  Though it doesn't cover
 		 * umount, it's enough for the purpose.
 		 */
-		down(&nilfs->ns_bdev->bd_mount_sem);
+		mutex_lock(&nilfs->ns_mount_mutex);
 		if (nilfs_checkpoint_is_mounted(nilfs, cno, 1)) {
 			/* Current implementation does not have to protect
 			   plain read-only mounts since they are exclusive
@@ -875,7 +877,7 @@ int nilfs_cpfile_change_cpmode(struct inode *cpfile, __u64 cno, int mode)
 			ret = -EBUSY;
 		} else
 			ret = nilfs_cpfile_clear_snapshot(cpfile, cno);
-		up(&nilfs->ns_bdev->bd_mount_sem);
+		mutex_unlock(&nilfs->ns_mount_mutex);
 		return ret;
 	case NILFS_SNAPSHOT:
 		return nilfs_cpfile_set_snapshot(cpfile, cno);

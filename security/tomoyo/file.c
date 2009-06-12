@@ -14,21 +14,50 @@
 #include "realpath.h"
 #define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
 
-/* Structure for "allow_read" keyword. */
+/*
+ * tomoyo_globally_readable_file_entry is a structure which is used for holding
+ * "allow_read" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_globally_readable_list .
+ *  (2) "filename" is a pathname which is allowed to open(O_RDONLY).
+ *  (3) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_globally_readable_file_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *filename;
 	bool is_deleted;
 };
 
-/* Structure for "file_pattern" keyword. */
+/*
+ * tomoyo_pattern_entry is a structure which is used for holding
+ * "tomoyo_pattern_list" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_pattern_list .
+ *  (2) "pattern" is a pathname pattern which is used for converting pathnames
+ *      to pathname patterns during learning mode.
+ *  (3) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_pattern_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *pattern;
 	bool is_deleted;
 };
 
-/* Structure for "deny_rewrite" keyword. */
+/*
+ * tomoyo_no_rewrite_entry is a structure which is used for holding
+ * "deny_rewrite" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_no_rewrite_list .
+ *  (2) "pattern" is a pathname which is by default not permitted to modify
+ *      already existing content.
+ *  (3) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
 struct tomoyo_no_rewrite_entry {
 	struct list_head list;
 	const struct tomoyo_path_info *pattern;
@@ -141,7 +170,31 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 					 struct tomoyo_domain_info *
 					 const domain, const bool is_delete);
 
-/* The list for "struct tomoyo_globally_readable_file_entry". */
+/*
+ * tomoyo_globally_readable_list is used for holding list of pathnames which
+ * are by default allowed to be open()ed for reading by any process.
+ *
+ * An entry is added by
+ *
+ * # echo 'allow_read /lib/libc-2.5.so' > \
+ *                               /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete allow_read /lib/libc-2.5.so' > \
+ *                               /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^allow_read /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, any process is allowed to
+ * open("/lib/libc-2.5.so", O_RDONLY).
+ * One exception is, if the domain which current process belongs to is marked
+ * as "ignore_global_allow_read", current process can't do so unless explicitly
+ * given "allow_read /lib/libc-2.5.so" to the domain which current process
+ * belongs to.
+ */
 static LIST_HEAD(tomoyo_globally_readable_list);
 static DECLARE_RWSEM(tomoyo_globally_readable_list_lock);
 
@@ -166,7 +219,6 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_globally_readable_list_lock);
 	list_for_each_entry(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
@@ -187,7 +239,6 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	error = 0;
  out:
 	up_write(&tomoyo_globally_readable_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -249,17 +300,44 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
 				 list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
-				      ptr->filename->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
+					ptr->filename->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_globally_readable_list_lock);
 	return done;
 }
 
-/* The list for "struct tomoyo_pattern_entry". */
+/* tomoyo_pattern_list is used for holding list of pathnames which are used for
+ * converting pathnames to pathname patterns during learning mode.
+ *
+ * An entry is added by
+ *
+ * # echo 'file_pattern /proc/\$/mounts' > \
+ *                             /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete file_pattern /proc/\$/mounts' > \
+ *                             /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^file_pattern /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, if a process which belongs to a domain which is in
+ * learning mode requested open("/proc/1/mounts", O_RDONLY),
+ * "allow_read /proc/\$/mounts" is automatically added to the domain which that
+ * process belongs to.
+ *
+ * It is not a desirable behavior that we have to use /proc/\$/ instead of
+ * /proc/self/ when current process needs to access only current process's
+ * information. As of now, LSM version of TOMOYO is using __d_path() for
+ * calculating pathname. Non LSM version of TOMOYO is using its own function
+ * which pretends as if /proc/self/ is not a symlink; so that we can forbid
+ * current process from accessing other process's information.
+ */
 static LIST_HEAD(tomoyo_pattern_list);
 static DECLARE_RWSEM(tomoyo_pattern_list_lock);
 
@@ -284,7 +362,6 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_pattern_list_lock);
 	list_for_each_entry(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
@@ -305,7 +382,6 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	error = 0;
  out:
 	up_write(&tomoyo_pattern_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -373,17 +449,44 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_pattern_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN "%s\n",
-				      ptr->pattern->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN
+					"%s\n", ptr->pattern->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_pattern_list_lock);
 	return done;
 }
 
-/* The list for "struct tomoyo_no_rewrite_entry". */
+/*
+ * tomoyo_no_rewrite_list is used for holding list of pathnames which are by
+ * default forbidden to modify already written content of a file.
+ *
+ * An entry is added by
+ *
+ * # echo 'deny_rewrite /var/log/messages' > \
+ *                              /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and is deleted by
+ *
+ * # echo 'delete deny_rewrite /var/log/messages' > \
+ *                              /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^deny_rewrite /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, if a process requested to rewrite /var/log/messages ,
+ * the process can't rewrite unless the domain which that process belongs to
+ * has "allow_rewrite /var/log/messages" entry.
+ *
+ * It is not a desirable behavior that we have to add "\040(deleted)" suffix
+ * when we want to allow rewriting already unlink()ed file. As of now,
+ * LSM version of TOMOYO is using __d_path() for calculating pathname.
+ * Non LSM version of TOMOYO is using its own function which doesn't append
+ * " (deleted)" suffix if the file is already unlink()ed; so that we don't
+ * need to worry whether the file is already unlink()ed or not.
+ */
 static LIST_HEAD(tomoyo_no_rewrite_list);
 static DECLARE_RWSEM(tomoyo_no_rewrite_list_lock);
 
@@ -407,7 +510,6 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_no_rewrite_list_lock);
 	list_for_each_entry(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
@@ -428,7 +530,6 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	error = 0;
  out:
 	up_write(&tomoyo_no_rewrite_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -489,11 +590,10 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
 		ptr = list_entry(pos, struct tomoyo_no_rewrite_entry, list);
 		if (ptr->is_deleted)
 			continue;
-		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE "%s\n",
-				      ptr->pattern->name)) {
-			done = false;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE
+					"%s\n", ptr->pattern->name);
+		if (!done)
 			break;
-		}
 	}
 	up_read(&tomoyo_no_rewrite_list_lock);
 	return done;
@@ -745,7 +845,6 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_acl_info_list_lock);
 	if (is_delete)
 		goto delete;
@@ -800,7 +899,6 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	}
  out:
 	up_write(&tomoyo_domain_acl_info_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -836,7 +934,6 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	saved_filename2 = tomoyo_save_name(filename2);
 	if (!saved_filename1 || !saved_filename2)
 		return -ENOMEM;
-	/***** EXCLUSIVE SECTION START *****/
 	down_write(&tomoyo_domain_acl_info_list_lock);
 	if (is_delete)
 		goto delete;
@@ -884,7 +981,6 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	}
  out:
 	up_write(&tomoyo_domain_acl_info_list_lock);
-	/***** EXCLUSIVE SECTION END *****/
 	return error;
 }
 
@@ -1025,13 +1121,11 @@ int tomoyo_check_file_perm(struct tomoyo_domain_info *domain,
  *
  * @domain:   Pointer to "struct tomoyo_domain_info".
  * @filename: Check permission for "execute".
- * @tmp:      Buffer for temporary use.
  *
  * Returns 0 on success, negativevalue otherwise.
  */
 int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
-			   const struct tomoyo_path_info *filename,
-			   struct tomoyo_page_buffer *tmp)
+			   const struct tomoyo_path_info *filename)
 {
 	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
 

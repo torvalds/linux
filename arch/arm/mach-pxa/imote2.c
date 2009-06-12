@@ -412,7 +412,7 @@ static struct platform_device imote2_flash_device = {
  */
 static struct i2c_board_info __initdata imote2_i2c_board_info[] = {
 	{ /* UCAM sensor board */
-		.type = "max1238",
+		.type = "max1239",
 		.addr = 0x35,
 	}, { /* ITS400 Sensor board only */
 		.type = "max1363",

@@ -7,6 +7,7 @@ config GFS2_FS
 	select IP_SCTP if DLM_SCTP
 	select FS_POSIX_ACL
 	select CRC32
+	select SLOW_WORK
 	help
 	  A cluster filesystem.
 

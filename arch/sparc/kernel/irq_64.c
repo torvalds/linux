@@ -318,10 +318,12 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 	}
 }
 
-static void sun4u_set_affinity(unsigned int virt_irq,
+static int sun4u_set_affinity(unsigned int virt_irq,
 			       const struct cpumask *mask)
 {
 	sun4u_irq_enable(virt_irq);
+
+	return 0;
 }
 
 /* Don't do anything.  The desc->status check for IRQ_DISABLED in
@@ -377,7 +379,7 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 		       ino, err);
 }
 
-static void sun4v_set_affinity(unsigned int virt_irq,
+static int sun4v_set_affinity(unsigned int virt_irq,
 			       const struct cpumask *mask)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
@@ -388,6 +390,8 @@ static void sun4v_set_affinity(unsigned int virt_irq,
 	if (err != HV_EOK)
 		printk(KERN_ERR "sun4v_intr_settarget(%x,%lu): "
 		       "err(%d)\n", ino, cpuid, err);
+
+	return 0;
 }
 
 static void sun4v_irq_disable(unsigned int virt_irq)
@@ -445,7 +449,7 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 		       dev_handle, dev_ino, err);
 }
 
-static void sun4v_virt_set_affinity(unsigned int virt_irq,
+static int sun4v_virt_set_affinity(unsigned int virt_irq,
 				    const struct cpumask *mask)
 {
 	unsigned long cpuid, dev_handle, dev_ino;
@@ -461,6 +465,8 @@ static void sun4v_virt_set_affinity(unsigned int virt_irq,
 		printk(KERN_ERR "sun4v_vintr_set_target(%lx,%lx,%lu): "
 		       "err(%d)\n",
 		       dev_handle, dev_ino, cpuid, err);
+
+	return 0;
 }
 
 static void sun4v_virq_disable(unsigned int virt_irq)

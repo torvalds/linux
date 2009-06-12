@@ -50,6 +50,10 @@ Protocol 2.08:	(Kernel 2.6.26) Added crc32 checksum and ELF format
 Protocol 2.09:	(Kernel 2.6.26) Added a field of 64-bit physical
 		pointer to single linked list of struct	setup_data.
 
+Protocol 2.10:	(Kernel 2.6.31) Added a protocol for relaxed alignment
+		beyond the kernel_alignment added, new init_size and
+		pref_address fields.  Added extended boot loader IDs.
+
 **** MEMORY LAYOUT
 
 The traditional memory map for the kernel loader, used for Image or
@@ -168,12 +172,13 @@ Offset	Proto	Name		Meaning
 021C/4	2.00+	ramdisk_size	initrd size (set by boot loader)
 0220/4	2.00+	bootsect_kludge	DO NOT USE - for bootsect.S use only
 0224/2	2.01+	heap_end_ptr	Free memory after setup end
-0226/2	N/A	pad1		Unused
+0226/1	2.02+(3 ext_loader_ver	Extended boot loader version
+0227/1	2.02+(3	ext_loader_type	Extended boot loader ID
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
 022C/4	2.03+	ramdisk_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
-0235/1	N/A	pad2		Unused
+0235/1	2.10+	min_alignment	Minimum alignment, as a power of two
 0236/2	N/A	pad3		Unused
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 023C/4	2.07+	hardware_subarch Hardware subarchitecture
@@ -182,6 +187,8 @@ Offset	Proto	Name		Meaning
 024C/4	2.08+	payload_length	Length of kernel payload
 0250/8	2.09+	setup_data	64-bit physical pointer to linked list
 				of struct setup_data
+0258/8	2.10+	pref_address	Preferred loading address
+0260/4	2.10+	init_size	Linear memory required during initialization
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -189,6 +196,8 @@ Offset	Proto	Name		Meaning
 (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
     field are unusable, which means the size of a bzImage kernel
     cannot be determined.
+
+(3) Ignored, but safe to set, for boot protocols 2.02-2.09.
 
 If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
@@ -343,18 +352,32 @@ Protocol:	2.00+
   0xTV here, where T is an identifier for the boot loader and V is
   a version number.  Otherwise, enter 0xFF here.
 
+  For boot loader IDs above T = 0xD, write T = 0xE to this field and
+  write the extended ID minus 0x10 to the ext_loader_type field.
+  Similarly, the ext_loader_ver field can be used to provide more than
+  four bits for the bootloader version.
+
+  For example, for T = 0x15, V = 0x234, write:
+
+  type_of_loader  <- 0xE4
+  ext_loader_type <- 0x05
+  ext_loader_ver  <- 0x23
+
   Assigned boot loader ids:
 	0  LILO			(0x00 reserved for pre-2.00 bootloader)
 	1  Loadlin
 	2  bootsect-loader	(0x20, all other values reserved)
-	3  SYSLINUX
-	4  EtherBoot
+	3  Syslinux
+	4  Etherboot/gPXE
 	5  ELILO
 	7  GRUB
-	8  U-BOOT
+	8  U-Boot
 	9  Xen
 	A  Gujin
 	B  Qemu
+	C  Arcturus Networks uCbootloader
+	E  Extended		(see ext_loader_type)
+	F  Special		(0xFF = undefined)
 
   Please contact <hpa@zytor.com> if you need a bootloader ID
   value assigned.
@@ -453,6 +476,35 @@ Protocol:	2.01+
   Set this field to the offset (from the beginning of the real-mode
   code) of the end of the setup stack/heap, minus 0x0200.
 
+Field name:	ext_loader_ver
+Type:		write (optional)
+Offset/size:	0x226/1
+Protocol:	2.02+
+
+  This field is used as an extension of the version number in the
+  type_of_loader field.  The total version number is considered to be
+  (type_of_loader & 0x0f) + (ext_loader_ver << 4).
+
+  The use of this field is boot loader specific.  If not written, it
+  is zero.
+
+  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  to write for protocol version 2.02 or higher.
+
+Field name:	ext_loader_type
+Type:		write (obligatory if (type_of_loader & 0xf0) == 0xe0)
+Offset/size:	0x227/1
+Protocol:	2.02+
+
+  This field is used as an extension of the type number in
+  type_of_loader field.  If the type in type_of_loader is 0xE, then
+  the actual type is (ext_loader_type + 0x10).
+
+  This field is ignored if the type in type_of_loader is not 0xE.
+
+  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  to write for protocol version 2.02 or higher.
+
 Field name:	cmd_line_ptr
 Type:		write (obligatory)
 Offset/size:	0x228/4
@@ -482,11 +534,19 @@ Protocol:	2.03+
   0x37FFFFFF, you can start your ramdisk at 0x37FE0000.)
 
 Field name:	kernel_alignment
-Type:		read (reloc)
+Type:		read/modify (reloc)
 Offset/size:	0x230/4
-Protocol:	2.05+
+Protocol:	2.05+ (read), 2.10+ (modify)
 
-  Alignment unit required by the kernel (if relocatable_kernel is true.)
+  Alignment unit required by the kernel (if relocatable_kernel is
+  true.)  A relocatable kernel that is loaded at an alignment
+  incompatible with the value in this field will be realigned during
+  kernel initialization.
+
+  Starting with protocol version 2.10, this reflects the kernel
+  alignment preferred for optimal performance; it is possible for the
+  loader to modify this field to permit a lesser alignment.  See the
+  min_alignment and pref_address field below.
 
 Field name:	relocatable_kernel
 Type:		read (reloc)
@@ -497,6 +557,22 @@ Protocol:	2.05+
   be loaded at any address that satisfies the kernel_alignment field.
   After loading, the boot loader must set the code32_start field to
   point to the loaded code, or to a boot loader hook.
+
+Field name:	min_alignment
+Type:		read (reloc)
+Offset/size:	0x235/1
+Protocol:	2.10+
+
+  This field, if nonzero, indicates as a power of two the minimum
+  alignment required, as opposed to preferred, by the kernel to boot.
+  If a boot loader makes use of this field, it should update the
+  kernel_alignment field with the alignment unit desired; typically:
+
+	kernel_alignment = 1 << min_alignment
+
+  There may be a considerable performance cost with an excessively
+  misaligned kernel.  Therefore, a loader should typically try each
+  power-of-two alignment from kernel_alignment down to this alignment.
 
 Field name:	cmdline_size
 Type:		read
@@ -581,6 +657,36 @@ Protocol:	2.09+
   process.  Therefore, when modifying this list one should always make
   sure to consider the case where the linked list already contains
   entries.
+
+Field name:	pref_address
+Type:		read (reloc)
+Offset/size:	0x258/8
+Protocol:	2.10+
+
+  This field, if nonzero, represents a preferred load address for the
+  kernel.  A relocating bootloader should attempt to load at this
+  address if possible.
+
+  A non-relocatable kernel will unconditionally move itself and to run
+  at this address.
+
+Field name:	init_size
+Type:		read
+Offset/size:	0x25c/4
+
+  This field indicates the amount of linear contiguous memory starting
+  at the kernel runtime start address that the kernel needs before it
+  is capable of examining its memory map.  This is not the same thing
+  as the total amount of memory the kernel needs to boot, but it can
+  be used by a relocating boot loader to help select a safe load
+  address for the kernel.
+
+  The kernel runtime start address is determined by the following algorithm:
+
+  if (relocatable_kernel)
+	runtime_start = align_up(load_address, kernel_alignment)
+  else
+	runtime_start = pref_address
 
 
 **** THE IMAGE CHECKSUM

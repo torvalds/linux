@@ -254,7 +254,8 @@ u64 guest_vhpt_lookup(u64 iha, u64 *pte)
 			"(p7) st8 [%2]=r9;;"
 			"ssm psr.ic;;"
 			"srlz.d;;"
-			/* "ssm psr.i;;" Once interrupts in vmm open, need fix*/
+			"ssm psr.i;;"
+			"srlz.d;;"
 			: "=r"(ret) : "r"(iha), "r"(pte):"memory");
 
 	return ret;
