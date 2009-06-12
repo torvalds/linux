@@ -7210,7 +7210,7 @@ static struct pci_driver DAC960_pci_driver = {
 	.remove		= DAC960_Remove,
 };
 
-static int DAC960_init_module(void)
+static int __init DAC960_init_module(void)
 {
 	int ret;
 
@@ -7222,7 +7222,7 @@ static int DAC960_init_module(void)
 	return ret;
 }
 
-static void DAC960_cleanup_module(void)
+static void __exit DAC960_cleanup_module(void)
 {
 	int i;
 
