@@ -735,7 +735,7 @@ int wl12xx_acx_event_mbox_mask(struct wl12xx *wl, u32 event_mask)
 	ret = wl12xx_cmd_configure(wl, ACX_EVENT_MBOX_MASK,
 				   mask, sizeof(*mask));
 	if (ret < 0) {
-		wl12xx_warning("failed to set aid: %d", ret);
+		wl12xx_warning("failed to set acx_event_mbox_mask: %d", ret);
 		goto out;
 	}
 
