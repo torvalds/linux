@@ -1553,7 +1553,7 @@ static int perf_release(struct inode *inode, struct file *file)
 static ssize_t
 perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 {
-	u64 values[3];
+	u64 values[4];
 	int n;
 
 	/*
