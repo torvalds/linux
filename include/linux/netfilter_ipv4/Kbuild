@@ -28,7 +28,6 @@ header-y += ipt_limit.h
 header-y += ipt_mac.h
 header-y += ipt_mark.h
 header-y += ipt_multiport.h
-header-y += ipt_owner.h
 header-y += ipt_physdev.h
 header-y += ipt_pkttype.h
 header-y += ipt_policy.h
