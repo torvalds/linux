@@ -2193,7 +2193,8 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 	if (test_bit(FLAG_MPI, &priv->flags)) {
 		/* Not implemented yet for MPI350 */
 		netif_stop_queue(dev);
-		return -ENETDOWN;
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
 	}
 
 	if ( skb == NULL ) {

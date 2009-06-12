@@ -11524,7 +11524,8 @@ static int ipw_prom_stop(struct net_device *dev)
 static int ipw_prom_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	IPW_DEBUG_INFO("prom dev->xmit\n");
-	return -EOPNOTSUPP;
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops ipw_prom_netdev_ops = {
