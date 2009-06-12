@@ -25,7 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "reg.h"
 #include "wl1251_spi.h"
 #include "wl1251_tx.h"

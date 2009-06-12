@@ -25,7 +25,7 @@
  *
  */
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "wl1251_acx.h"
 
 int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode);

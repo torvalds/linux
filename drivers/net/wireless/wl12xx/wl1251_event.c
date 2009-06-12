@@ -22,7 +22,7 @@
  *
  */
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "reg.h"
 #include "wl1251_spi.h"
 #include "wl1251_event.h"

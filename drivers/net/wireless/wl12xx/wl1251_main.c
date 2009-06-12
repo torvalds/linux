@@ -31,7 +31,7 @@
 #include <linux/etherdevice.h>
 #include <linux/spi/wl12xx.h>
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "wl1251_ops.h"

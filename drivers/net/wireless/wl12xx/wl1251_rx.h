@@ -27,6 +27,8 @@
 
 #include <linux/bitops.h>
 
+#include "wl1251.h"
+
 /*
  * RX PATH
  *

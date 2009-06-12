@@ -4,7 +4,7 @@
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
 #include "wl1251_spi.h"

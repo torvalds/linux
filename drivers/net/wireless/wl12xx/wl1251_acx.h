@@ -25,7 +25,7 @@
 #ifndef __WL12XX_ACX_H__
 #define __WL12XX_ACX_H__
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "wl1251_cmd.h"
 
 /* Target's information element */

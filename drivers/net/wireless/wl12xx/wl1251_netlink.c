@@ -30,7 +30,7 @@
 #include <net/wireless.h>
 #include <net/mac80211.h>
 
-#include "wl12xx.h"
+#include "wl1251.h"
 #include "wl1251_spi.h"
 #include "wl1251_acx.h"
 

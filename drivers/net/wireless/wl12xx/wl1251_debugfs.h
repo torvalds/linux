@@ -24,7 +24,7 @@
 #ifndef WL12XX_DEBUGFS_H
 #define WL12XX_DEBUGFS_H
 
-#include "wl12xx.h"
+#include "wl1251.h"
 
 int wl12xx_debugfs_init(struct wl12xx *wl);
 void wl12xx_debugfs_exit(struct wl12xx *wl);

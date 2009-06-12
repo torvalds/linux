@@ -26,7 +26,6 @@
 #define __REG_H__
 
 #include <linux/bitops.h>
-#include "wl12xx.h"
 
 #define REGISTERS_BASE 0x00300000
 #define DRPW_BASE      0x00310000

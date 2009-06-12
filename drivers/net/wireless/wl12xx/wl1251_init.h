@@ -24,7 +24,7 @@
 #ifndef __WL12XX_INIT_H__
 #define __WL12XX_INIT_H__
 
-#include "wl12xx.h"
+#include "wl1251.h"
 
 int wl12xx_hw_init_hwenc_config(struct wl12xx *wl);
 int wl12xx_hw_init_templates_config(struct wl12xx *wl);
