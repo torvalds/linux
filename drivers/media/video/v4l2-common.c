@@ -1021,6 +1021,8 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
 
+#endif /* defined(CONFIG_I2C) */
+
 /* Clamp x to be between min and max, aligned to a multiple of 2^align.  min
  * and max don't have to be aligned, but there must be at least one valid
  * value.  E.g., min=17,max=31,align=4 is not allowed as there are no multiples
@@ -1094,4 +1096,3 @@ void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 	}
 }
 EXPORT_SYMBOL_GPL(v4l_bound_align_image);
-#endif /* defined(CONFIG_I2C) */
