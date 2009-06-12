@@ -195,14 +195,6 @@ static int wl12xx_chip_wakeup(struct wl12xx *wl)
 		wl1251_setup(wl);
 
 		break;
-	case CHIP_ID_1271_PG10:
-		wl12xx_warning("chip id 0x%x (1271 PG10) support is obsolete",
-			       wl->chip.id);
-		break;
-	case CHIP_ID_1271_PG20:
-		wl12xx_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
-			     wl->chip.id);
-		break;
 	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
 	default:
