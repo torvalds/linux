@@ -39,6 +39,8 @@
 #include "super.h"
 #include "util.h"
 #include "bmap.h"
+#define CREATE_TRACE_POINTS
+#include "trace_gfs2.h"
 
 struct gfs2_gl_hash_bucket {
         struct hlist_head hb_list;
@@ -155,7 +157,7 @@ static void glock_free(struct gfs2_glock *gl)
 
 	if (aspace)
 		gfs2_aspace_put(aspace);
-
+	trace_gfs2_glock_put(gl);
 	sdp->sd_lockstruct.ls_ops->lm_put_lock(gfs2_glock_cachep, gl);
 }
 
@@ -317,14 +319,17 @@ restart:
 						return 2;
 					gh->gh_error = ret;
 					list_del_init(&gh->gh_list);
+					trace_gfs2_glock_queue(gh, 0);
 					gfs2_holder_wake(gh);
 					goto restart;
 				}
 				set_bit(HIF_HOLDER, &gh->gh_iflags);
+				trace_gfs2_promote(gh, 1);
 				gfs2_holder_wake(gh);
 				goto restart;
 			}
 			set_bit(HIF_HOLDER, &gh->gh_iflags);
+			trace_gfs2_promote(gh, 0);
 			gfs2_holder_wake(gh);
 			continue;
 		}
@@ -354,6 +359,7 @@ static inline void do_error(struct gfs2_glock *gl, const int ret)
 		else
 			continue;
 		list_del_init(&gh->gh_list);
+		trace_gfs2_glock_queue(gh, 0);
 		gfs2_holder_wake(gh);
 	}
 }
@@ -422,6 +428,7 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	int rv;
 
 	spin_lock(&gl->gl_spin);
+	trace_gfs2_glock_state_change(gl, state);
 	state_change(gl, state);
 	gh = find_first_waiter(gl);
 
@@ -851,6 +858,7 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 			gl->gl_demote_state != state) {
 		gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
+	trace_gfs2_demote_rq(gl);
 }
 
 /**
@@ -936,6 +944,7 @@ fail:
 			goto do_cancel;
 		return;
 	}
+	trace_gfs2_glock_queue(gh, 1);
 	list_add_tail(&gh->gh_list, insert_pt);
 do_cancel:
 	gh = list_entry(gl->gl_holders.next, struct gfs2_holder, gh_list);
@@ -1032,6 +1041,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
 			fast_path = 1;
 	}
+	trace_gfs2_glock_queue(gh, 0);
 	spin_unlock(&gl->gl_spin);
 	if (likely(fast_path))
 		return;
