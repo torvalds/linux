@@ -498,6 +498,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
 	q->backing_dev_info.unplug_io_data = q;
+	q->backing_dev_info.ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	q->backing_dev_info.state = 0;
+	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
 		kmem_cache_free(blk_requestq_cachep, q);
