@@ -243,7 +243,7 @@ struct binder_buffer {
 	uint8_t data[0];
 };
 
-enum {
+enum binder_deferred_state {
 	BINDER_DEFERRED_PUT_FILES    = 0x01,
 	BINDER_DEFERRED_FLUSH        = 0x02,
 	BINDER_DEFERRED_RELEASE      = 0x04,
@@ -326,7 +326,8 @@ struct binder_transaction {
 	uid_t	sender_euid;
 };
 
-static void binder_defer_work(struct binder_proc *proc, int defer);
+static void
+binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 
 /*
  * copied from get_unused_fd_flags
@@ -3071,7 +3072,8 @@ static void binder_deferred_func(struct work_struct *work)
 }
 static DECLARE_WORK(binder_deferred_work, binder_deferred_func);
 
-static void binder_defer_work(struct binder_proc *proc, int defer)
+static void
+binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer)
 {
 	mutex_lock(&binder_deferred_lock);
 	proc->deferred_work |= defer;
