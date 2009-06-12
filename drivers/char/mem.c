@@ -822,6 +822,7 @@ static const struct file_operations zero_fops = {
  * - permits private mappings, "copies" are taken of the source of zeros
  */
 static struct backing_dev_info zero_bdi = {
+	.name		= "char/mem",
 	.capabilities	= BDI_CAP_MAP_COPY,
 };
 
