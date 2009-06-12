@@ -27,30 +27,25 @@
 
 #include "wl12xx.h"
 
+struct acx_header;
+
 int wl12xx_cmd_send(struct wl12xx *wl, u16 type, void *buf, size_t buf_len);
 int wl12xx_cmd_test(struct wl12xx *wl, void *buf, size_t buf_len, u8 answer);
-int wl12xx_cmd_interrogate(struct wl12xx *wl, u16 ie_id, u16 ie_len,
-			   void *answer);
-int wl12xx_cmd_configure(struct wl12xx *wl, void *ie, int ie_len);
+int wl12xx_cmd_interrogate(struct wl12xx *wl, u16 id, void *buf, size_t len);
+int wl12xx_cmd_configure(struct wl12xx *wl, u16 id, void *buf, size_t len);
 int wl12xx_cmd_vbm(struct wl12xx *wl, u8 identity,
 		   void *bitmap, u16 bitmap_len, u8 bitmap_control);
-int wl12xx_cmd_data_path(struct wl12xx *wl, u8 channel, u8 enable);
+int wl12xx_cmd_data_path(struct wl12xx *wl, u8 channel, bool enable);
 int wl12xx_cmd_join(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
 		    u16 beacon_interval, u8 wait);
 int wl12xx_cmd_ps_mode(struct wl12xx *wl, u8 ps_mode);
-int wl12xx_cmd_read_memory(struct wl12xx *wl, u32 addr, u32 len, void *answer);
+int wl12xx_cmd_read_memory(struct wl12xx *wl, u32 addr, void *answer,
+			   size_t len);
 int wl12xx_cmd_template_set(struct wl12xx *wl, u16 cmd_id,
 			    void *buf, size_t buf_len);
 
 /* unit ms */
 #define WL12XX_COMMAND_TIMEOUT 2000
-
-#define WL12XX_MAX_TEMPLATE_SIZE 300
-
-struct wl12xx_cmd_packet_template {
-	__le16 size;
-	u8 template[WL12XX_MAX_TEMPLATE_SIZE];
-} __attribute__ ((packed));
 
 enum wl12xx_commands {
 	CMD_RESET           = 0,
@@ -100,9 +95,15 @@ enum wl12xx_commands {
 
 #define MAX_CMD_PARAMS 572
 
-struct  wl12xx_command {
+struct wl12xx_cmd_header {
 	u16 id;
 	u16 status;
+	/* payload */
+	u8 data[0];
+} __attribute__ ((packed));
+
+struct  wl12xx_command {
+	struct wl12xx_cmd_header header;
 	u8  parameters[MAX_CMD_PARAMS];
 };
 
@@ -144,6 +145,8 @@ enum {
 #define MAX_READ_SIZE 256
 
 struct cmd_read_write_memory {
+	struct wl12xx_cmd_header header;
+
 	/* The address of the memory to read from or write to.*/
 	u32 addr;
 
@@ -211,6 +214,8 @@ struct basic_scan_channel_parameters {
 #define SCAN_MAX_NUM_OF_CHANNELS 16
 
 struct cmd_scan {
+	struct wl12xx_cmd_header header;
+
 	struct basic_scan_parameters params;
 	struct basic_scan_channel_parameters channels[SCAN_MAX_NUM_OF_CHANNELS];
 } __attribute__ ((packed));
@@ -227,6 +232,8 @@ enum {
 
 
 struct cmd_join {
+	struct wl12xx_cmd_header header;
+
 	u32 bssid_lsb;
 	u16 bssid_msb;
 	u16 beacon_interval; /* in TBTTs */
@@ -259,6 +266,141 @@ struct cmd_join {
 	u8 tx_mgt_frame_rate; /* OBSOLETE */
 	u8 tx_mgt_frame_mod;  /* OBSOLETE */
 	u8 reserved;
+} __attribute__ ((packed));
+
+struct cmd_enabledisable_path {
+	struct wl12xx_cmd_header header;
+
+	u8 channel;
+	u8 padding[3];
+} __attribute__ ((packed));
+
+#define WL12XX_MAX_TEMPLATE_SIZE 300
+
+struct wl12xx_cmd_packet_template {
+	struct wl12xx_cmd_header header;
+
+	__le16 size;
+	u8 data[0];
+} __attribute__ ((packed));
+
+#define TIM_ELE_ID    5
+#define PARTIAL_VBM_MAX    251
+
+struct wl12xx_tim {
+	u8 identity;
+	u8 length;
+	u8 dtim_count;
+	u8 dtim_period;
+	u8 bitmap_ctrl;
+	u8 pvb_field[PARTIAL_VBM_MAX]; /* Partial Virtual Bitmap */
+} __attribute__ ((packed));
+
+/* Virtual Bit Map update */
+struct wl12xx_cmd_vbm_update {
+	struct wl12xx_cmd_header header;
+	__le16 len;
+	u8  padding[2];
+	struct wl12xx_tim tim;
+} __attribute__ ((packed));
+
+enum wl12xx_cmd_ps_mode {
+	STATION_ACTIVE_MODE,
+	STATION_POWER_SAVE_MODE
+};
+
+struct wl12xx_cmd_ps_params {
+	struct wl12xx_cmd_header header;
+
+	u8 ps_mode; /* STATION_* */
+	u8 send_null_data; /* Do we have to send NULL data packet ? */
+	u8 retries; /* Number of retires for the initial NULL data packet */
+
+	 /*
+	  * TUs during which the target stays awake after switching
+	  * to power save mode.
+	  */
+	u8 hang_over_period;
+	u16 null_data_rate;
+	u8 pad[2];
+} __attribute__ ((packed));
+
+struct wl12xx_cmd_trigger_scan_to {
+	struct wl12xx_cmd_header header;
+
+	u32 timeout;
+};
+
+/* HW encryption keys */
+#define NUM_ACCESS_CATEGORIES_COPY 4
+#define MAX_KEY_SIZE 32
+
+/* When set, disable HW encryption */
+#define DF_ENCRYPTION_DISABLE      0x01
+/* When set, disable HW decryption */
+#define DF_SNIFF_MODE_ENABLE       0x80
+
+enum wl12xx_cmd_key_action {
+	KEY_ADD_OR_REPLACE = 1,
+	KEY_REMOVE         = 2,
+	KEY_SET_ID         = 3,
+	MAX_KEY_ACTION     = 0xffff,
+};
+
+enum wl12xx_cmd_key_type {
+	KEY_WEP_DEFAULT       = 0,
+	KEY_WEP_ADDR          = 1,
+	KEY_AES_GROUP         = 4,
+	KEY_AES_PAIRWISE      = 5,
+	KEY_WEP_GROUP         = 6,
+	KEY_TKIP_MIC_GROUP    = 10,
+	KEY_TKIP_MIC_PAIRWISE = 11,
+};
+
+/*
+ *
+ * key_type_e   key size    key format
+ * ----------   ---------   ----------
+ * 0x00         5, 13, 29   Key data
+ * 0x01         5, 13, 29   Key data
+ * 0x04         16          16 bytes of key data
+ * 0x05         16          16 bytes of key data
+ * 0x0a         32          16 bytes of TKIP key data
+ *                          8 bytes of RX MIC key data
+ *                          8 bytes of TX MIC key data
+ * 0x0b         32          16 bytes of TKIP key data
+ *                          8 bytes of RX MIC key data
+ *                          8 bytes of TX MIC key data
+ *
+ */
+
+struct wl12xx_cmd_set_keys {
+	struct wl12xx_cmd_header header;
+
+	/* Ignored for default WEP key */
+	u8 addr[ETH_ALEN];
+
+	/* key_action_e */
+	u16 key_action;
+
+	u16 reserved_1;
+
+	/* key size in bytes */
+	u8 key_size;
+
+	/* key_type_e */
+	u8 key_type;
+	u8 ssid_profile;
+
+	/*
+	 * TKIP, AES: frame's key id field.
+	 * For WEP default key: key id;
+	 */
+	u8 id;
+	u8 reserved_2[6];
+	u8 key[MAX_KEY_SIZE];
+	u16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
+	u32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
 } __attribute__ ((packed));
 
 

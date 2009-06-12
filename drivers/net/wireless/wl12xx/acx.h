@@ -26,10 +26,16 @@
 #define __WL12XX_ACX_H__
 
 #include "wl12xx.h"
+#include "cmd.h"
 
 /* Target's information element */
 struct acx_header {
+	struct wl12xx_cmd_header cmd;
+
+	/* acx (or information element) header */
 	u16 id;
+
+	/* payload length (not including headers */
 	u16 len;
 };
 
@@ -105,25 +111,6 @@ struct acx_sleep_auth {
 	/* 2 - ELP mode: Deep / Max sleep*/
 	u8  sleep_auth;
 	u8  padding[3];
-} __attribute__ ((packed));
-
-#define TIM_ELE_ID    5
-#define PARTIAL_VBM_MAX    251
-
-struct tim {
-	u8 identity;
-	u8 length;
-	u8 dtim_count;
-	u8 dtim_period;
-	u8 bitmap_ctrl;
-	u8 pvb_field[PARTIAL_VBM_MAX]; /* Partial Virtual Bitmap */
-} __attribute__ ((packed));
-
-/* Virtual Bit Map update */
-struct vbm_update_request {
-	__le16 len;
-	u8  padding[2];
-	struct tim tim;
 } __attribute__ ((packed));
 
 enum {
@@ -202,7 +189,7 @@ struct acx_data_path_params_resp {
 #define RX_MSDU_LIFETIME_MAX       0xFFFFFFFF
 #define RX_MSDU_LIFETIME_DEF       512000
 
-struct rx_msdu_lifetime {
+struct acx_rx_msdu_lifetime {
 	struct acx_header header;
 
 	/*
@@ -368,7 +355,7 @@ struct acx_slot {
 #define ADDRESS_GROUP_MAX	(8)
 #define ADDRESS_GROUP_MAX_LEN	(ETH_ALEN * ADDRESS_GROUP_MAX)
 
-struct multicast_grp_addr_start {
+struct acx_dot11_grp_addr_tbl {
 	struct acx_header header;
 
 	u8 enabled;
@@ -730,88 +717,18 @@ struct acx_fw_gen_frame_rates {
 } __attribute__ ((packed));
 
 /* STA MAC */
-struct dot11_station_id {
+struct acx_dot11_station_id {
 	struct acx_header header;
 
 	u8 mac[ETH_ALEN];
 	u8 pad[2];
 } __attribute__ ((packed));
 
-/* HW encryption keys */
-#define NUM_ACCESS_CATEGORIES_COPY 4
-#define MAX_KEY_SIZE 32
-
-/* When set, disable HW encryption */
-#define DF_ENCRYPTION_DISABLE      0x01
-/* When set, disable HW decryption */
-#define DF_SNIFF_MODE_ENABLE       0x80
-
 struct acx_feature_config {
 	struct acx_header header;
 
 	u32 options;
 	u32 data_flow_options;
-} __attribute__ ((packed));
-
-enum acx_key_action {
-	KEY_ADD_OR_REPLACE = 1,
-	KEY_REMOVE         = 2,
-	KEY_SET_ID         = 3,
-	MAX_KEY_ACTION     = 0xffff,
-};
-
-enum acx_key_type {
-	KEY_WEP_DEFAULT       = 0,
-	KEY_WEP_ADDR          = 1,
-	KEY_AES_GROUP         = 4,
-	KEY_AES_PAIRWISE      = 5,
-	KEY_WEP_GROUP         = 6,
-	KEY_TKIP_MIC_GROUP    = 10,
-	KEY_TKIP_MIC_PAIRWISE = 11,
-};
-
-/*
- *
- * key_type_e   key size    key format
- * ----------   ---------   ----------
- * 0x00         5, 13, 29   Key data
- * 0x01         5, 13, 29   Key data
- * 0x04         16          16 bytes of key data
- * 0x05         16          16 bytes of key data
- * 0x0a         32          16 bytes of TKIP key data
- *                          8 bytes of RX MIC key data
- *                          8 bytes of TX MIC key data
- * 0x0b         32          16 bytes of TKIP key data
- *                          8 bytes of RX MIC key data
- *                          8 bytes of TX MIC key data
- *
- */
-
-struct acx_set_key {
-	/* Ignored for default WEP key */
-	u8 addr[ETH_ALEN];
-
-	/* key_action_e */
-	u16 key_action;
-
-	u16 reserved_1;
-
-	/* key size in bytes */
-	u8 key_size;
-
-	/* key_type_e */
-	u8 key_type;
-	u8 ssid_profile;
-
-	/*
-	 * TKIP, AES: frame's key id field.
-	 * For WEP default key: key id;
-	 */
-	u8 id;
-	u8 reserved_2[6];
-	u8 key[MAX_KEY_SIZE];
-	u16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
-	u32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
 } __attribute__ ((packed));
 
 struct acx_current_tx_power {
@@ -837,26 +754,6 @@ struct acx_tsf_info {
 	u32 last_TBTT_lsb;
 	u8 last_dtim_count;
 	u8 pad[3];
-} __attribute__ ((packed));
-
-/* 802.11 PS */
-enum acx_ps_mode {
-	STATION_ACTIVE_MODE,
-	STATION_POWER_SAVE_MODE
-};
-
-struct acx_ps_params {
-	u8 ps_mode; /* STATION_* */
-	u8 send_null_data; /* Do we have to send NULL data packet ? */
-	u8 retries; /* Number of retires for the initial NULL data packet */
-
-	 /*
-	  * TUs during which the target stays awake after switching
-	  * to power save mode.
-	  */
-	u8 hang_over_period;
-	u16 null_data_rate;
-	u8 pad[2];
 } __attribute__ ((packed));
 
 enum acx_wake_up_event {
@@ -892,6 +789,7 @@ enum acx_preamble_type {
 
 struct acx_preamble {
 	struct acx_header header;
+
 	/*
 	 * When set, the WiLink transmits the frames with a short preamble and
 	 * when cleared, the WiLink transmits the frames with a long preamble.
@@ -1219,7 +1117,8 @@ int wl12xx_acx_sleep_auth(struct wl12xx *wl, u8 sleep_auth);
 int wl12xx_acx_fw_version(struct wl12xx *wl, char *buf, size_t len);
 int wl12xx_acx_tx_power(struct wl12xx *wl, int power);
 int wl12xx_acx_feature_cfg(struct wl12xx *wl);
-int wl12xx_acx_mem_map(struct wl12xx *wl, void *mem_map, size_t len);
+int wl12xx_acx_mem_map(struct wl12xx *wl,
+		       struct acx_header *mem_map, size_t len);
 int wl12xx_acx_data_path_params(struct wl12xx *wl,
 				struct acx_data_path_params_resp *data_path);
 int wl12xx_acx_rx_msdu_life_time(struct wl12xx *wl, u32 life_time);
@@ -1241,5 +1140,6 @@ int wl12xx_acx_set_preamble(struct wl12xx *wl, enum acx_preamble_type preamble);
 int wl12xx_acx_cts_protect(struct wl12xx *wl,
 			    enum acx_ctsprotect_type ctsprotect);
 int wl12xx_acx_statistics(struct wl12xx *wl, struct acx_statistics *stats);
+int wl12xx_acx_tsf_info(struct wl12xx *wl, u64 *mactime);
 
 #endif /* __WL12XX_ACX_H__ */

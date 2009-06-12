@@ -114,7 +114,7 @@ static int wl12xx_ps_set_elp(struct wl12xx *wl, bool enable)
 	return 0;
 }
 
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum acx_ps_mode mode)
+int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode)
 {
 	int ret;
 

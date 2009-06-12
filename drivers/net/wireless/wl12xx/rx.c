@@ -48,6 +48,9 @@ static void wl12xx_rx_status(struct wl12xx *wl,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
+	u64 mactime;
+	int ret;
+
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
 	status->band = IEEE80211_BAND_2GHZ;
@@ -62,27 +65,9 @@ static void wl12xx_rx_status(struct wl12xx *wl,
 	 * this one must be atomic, while our SPI routines can sleep.
 	 */
 	if ((wl->bss_type == BSS_TYPE_IBSS) && beacon) {
-		u64 mactime;
-		int ret;
-		struct wl12xx_command cmd;
-		struct acx_tsf_info *tsf_info;
-
-		memset(&cmd, 0, sizeof(cmd));
-
-		ret = wl12xx_cmd_interrogate(wl, ACX_TSF_INFO,
-					     sizeof(struct acx_tsf_info),
-					     &cmd);
-		if (ret < 0) {
-			wl12xx_warning("ACX_FW_REV interrogate failed");
-			return;
-		}
-
-		tsf_info = (struct acx_tsf_info *)&(cmd.parameters);
-
-		mactime = tsf_info->current_tsf_lsb |
-			(tsf_info->current_tsf_msb << 31);
-
-		status->mactime = mactime;
+		ret = wl12xx_acx_tsf_info(wl, &mactime);
+		if (ret == 0)
+			status->mactime = mactime;
 	}
 
 	status->signal = desc->rssi;

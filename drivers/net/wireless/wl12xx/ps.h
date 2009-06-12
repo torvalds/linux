@@ -28,7 +28,7 @@
 #include "wl12xx.h"
 #include "acx.h"
 
-int wl12xx_ps_set_mode(struct wl12xx *wl, enum acx_ps_mode mode);
+int wl12xx_ps_set_mode(struct wl12xx *wl, enum wl12xx_cmd_ps_mode mode);
 void wl12xx_ps_elp_sleep(struct wl12xx *wl);
 int wl12xx_ps_elp_wakeup(struct wl12xx *wl);
 
