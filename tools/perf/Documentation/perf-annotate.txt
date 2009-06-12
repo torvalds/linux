@@ -1,0 +1,29 @@
+perf-annotate(1)
+==============
+
+NAME
+----
+perf-annotate - Read perf.data (created by perf record) and display annotated code
+
+SYNOPSIS
+--------
+[verse]
+'perf annotate' [-i <file> | --input=file] symbol_name
+
+DESCRIPTION
+-----------
+This command reads the input file and displays an annotated version of the
+code. If the object file has debug symbols then the source code will be
+displayed alongside assembly code.
+
+If there is no debug info in the object, then annotated assembly is displayed.
+
+OPTIONS
+-------
+-i::
+--input=::
+        Input file name. (default: perf.data)
+
+SEE ALSO
+--------
+linkperf:perf-record[1]

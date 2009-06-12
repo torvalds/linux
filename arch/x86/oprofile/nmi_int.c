@@ -60,8 +60,9 @@ static int profile_exceptions_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_NMI:
-		if (model->check_ctrs(args->regs, &per_cpu(cpu_msrs, cpu)))
-			ret = NOTIFY_STOP;
+	case DIE_NMI_IPI:
+		model->check_ctrs(args->regs, &per_cpu(cpu_msrs, cpu));
+		ret = NOTIFY_STOP;
 		break;
 	default:
 		break;
@@ -146,7 +147,7 @@ static void nmi_cpu_setup(void *dummy)
 static struct notifier_block profile_exceptions_nb = {
 	.notifier_call = profile_exceptions_notify,
 	.next = NULL,
-	.priority = 0
+	.priority = 2
 };
 
 static int nmi_setup(void)

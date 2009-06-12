@@ -13,16 +13,13 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #define KTHREAD_NICE_LEVEL (-5)
 
 static DEFINE_SPINLOCK(kthread_create_lock);
 static LIST_HEAD(kthread_create_list);
 struct task_struct *kthreadd_task;
-
-DEFINE_TRACE(sched_kthread_stop);
-DEFINE_TRACE(sched_kthread_stop_ret);
 
 struct kthread_create_info
 {

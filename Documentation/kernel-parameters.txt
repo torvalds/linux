@@ -56,7 +56,6 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
-	KMEMTRACE kmemtrace is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
@@ -328,11 +327,6 @@ and is between 256 and 4096 characters. It is defined in the file
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
 				    is a lot of faster
-
-	amd_iommu_size= [HW,X86-64]
-			Define the size of the aperture for the AMD IOMMU
-			driver. Possible values are:
-			'32M', '64M' (default), '128M', '256M', '512M', '1G'
 
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
@@ -646,6 +640,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			DMA-API debugging code disables itself because the
 			architectural default is too low.
 
+	dma_debug_driver=<driver_name>
+			With this option the DMA-API debugging driver
+			filter feature can be enabled at boot time. Just
+			pass the driver to filter for as the parameter.
+			The filter can be disabled or changed to another
+			driver later using sysfs.
+
 	dscc4.setup=	[NET]
 
 	dtc3181e=	[HW,SCSI]
@@ -752,12 +753,25 @@ and is between 256 and 4096 characters. It is defined in the file
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	ftrace=[tracer]
-			[ftrace] will set and start the specified tracer
+			[FTRACE] will set and start the specified tracer
 			as early as possible in order to facilitate early
 			boot debugging.
 
 	ftrace_dump_on_oops
-			[ftrace] will dump the trace buffers on oops.
+			[FTRACE] will dump the trace buffers on oops.
+
+	ftrace_filter=[function-list]
+			[FTRACE] Limit the functions traced by the function
+			tracer at boot up. function-list is a comma separated
+			list of functions. This list can be changed at run
+			time by the set_ftrace_filter file in the debugfs
+			tracing directory. 
+
+	ftrace_notrace=[function-list]
+			[FTRACE] Do not trace the functions specified in
+			function-list. This list can be changed at run time
+			by the set_ftrace_notrace file in the debugfs
+			tracing directory.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -1053,15 +1067,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that allocations like PTEs-from-HighMem still
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
-
-	kmemtrace.enable=	[KNL,KMEMTRACE] Format: { yes | no }
-				Controls whether kmemtrace is enabled
-				at boot-time.
-
-	kmemtrace.subbufs=n	[KNL,KMEMTRACE] Overrides the number of
-			subbufs kmemtrace's relay channel has. Set this
-			higher than default (KMEMTRACE_N_SUBBUFS in code) if
-			you experience buffer overruns.
 
 	kgdboc=		[HW] kgdb over consoles.
 			Requires a tty driver that supports console polling.
@@ -1574,6 +1579,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	noinitrd	[RAM] Tells the kernel not to load any configured
 			initial RAM disk.
+
+	nointremap	[X86-64, Intel-IOMMU] Do not enable interrupt
+			remapping.
 
 	nointroute	[IA-64]
 

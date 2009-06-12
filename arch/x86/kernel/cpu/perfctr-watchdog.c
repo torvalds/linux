@@ -19,8 +19,8 @@
 #include <linux/nmi.h>
 #include <linux/kprobes.h>
 
-#include <asm/genapic.h>
-#include <asm/intel_arch_perfmon.h>
+#include <asm/apic.h>
+#include <asm/perf_counter.h>
 
 struct nmi_watchdog_ctlblk {
 	unsigned int cccr_msr;

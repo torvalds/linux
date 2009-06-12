@@ -13,7 +13,7 @@
 #define OP_X86_MODEL_H
 
 #include <asm/types.h>
-#include <asm/intel_arch_perfmon.h>
+#include <asm/perf_counter.h>
 
 struct op_msr {
 	unsigned long	addr;

@@ -188,20 +188,34 @@ cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
 # ---------------------------------------------------------------------------
 
 quiet_cmd_gzip = GZIP    $@
-cmd_gzip = gzip -f -9 < $< > $@
+cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -f -9 > $@) || \
+	(rm -f $@ ; false)
 
 
 # Bzip2
 # ---------------------------------------------------------------------------
 
-# Bzip2 does not include size in file... so we have to fake that
-size_append=$(CONFIG_SHELL) $(srctree)/scripts/bin_size
+# Bzip2 and LZMA do not include size in file... so we have to fake that;
+# append the size as a 32-bit littleendian number as gzip does.
+size_append = echo -ne $(shell						\
+dec_size=0;								\
+for F in $1; do								\
+	fsize=$$(stat -c "%s" $$F);					\
+	dec_size=$$(expr $$dec_size + $$fsize);				\
+done;									\
+printf "%08x" $$dec_size |						\
+	sed 's/\(..\)\(..\)\(..\)\(..\)/\\\\x\4\\\\x\3\\\\x\2\\\\x\1/g'	\
+)
 
-quiet_cmd_bzip2 = BZIP2    $@
-cmd_bzip2 = (bzip2 -9 < $< && $(size_append) $<) > $@ || (rm -f $@ ; false)
+quiet_cmd_bzip2 = BZIP2   $@
+cmd_bzip2 = (cat $(filter-out FORCE,$^) | \
+	bzip2 -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	(rm -f $@ ; false)
 
 # Lzma
 # ---------------------------------------------------------------------------
 
 quiet_cmd_lzma = LZMA    $@
-cmd_lzma = (lzma -9 -c $< && $(size_append) $<) >$@ || (rm -f $@ ; false)
+cmd_lzma = (cat $(filter-out FORCE,$^) | \
+	lzma -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	(rm -f $@ ; false)

@@ -161,13 +161,14 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 		   st->current_address >= st->marker[1].start_address) {
 		const char *unit = units;
 		unsigned long delta;
+		int width = sizeof(unsigned long) * 2;
 
 		/*
 		 * Now print the actual finished series
 		 */
-		seq_printf(m, "0x%p-0x%p   ",
-			   (void *)st->start_address,
-			   (void *)st->current_address);
+		seq_printf(m, "0x%0*lx-0x%0*lx   ",
+			   width, st->start_address,
+			   width, st->current_address);
 
 		delta = (st->current_address - st->start_address) >> 10;
 		while (!(delta & 1023) && unit[1]) {

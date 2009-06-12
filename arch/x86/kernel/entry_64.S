@@ -147,27 +147,14 @@ END(ftrace_graph_caller)
 GLOBAL(return_to_handler)
 	subq  $80, %rsp
 
+	/* Save the return values */
 	movq %rax, (%rsp)
-	movq %rcx, 8(%rsp)
-	movq %rdx, 16(%rsp)
-	movq %rsi, 24(%rsp)
-	movq %rdi, 32(%rsp)
-	movq %r8, 40(%rsp)
-	movq %r9, 48(%rsp)
-	movq %r10, 56(%rsp)
-	movq %r11, 64(%rsp)
+	movq %rdx, 8(%rsp)
 
 	call ftrace_return_to_handler
 
 	movq %rax, 72(%rsp)
-	movq 64(%rsp), %r11
-	movq 56(%rsp), %r10
-	movq 48(%rsp), %r9
-	movq 40(%rsp), %r8
-	movq 32(%rsp), %rdi
-	movq 24(%rsp), %rsi
-	movq 16(%rsp), %rdx
-	movq 8(%rsp), %rcx
+	movq 8(%rsp), %rdx
 	movq (%rsp), %rax
 	addq $72, %rsp
 	retq
@@ -1025,6 +1012,11 @@ apicinterrupt ERROR_APIC_VECTOR \
 apicinterrupt SPURIOUS_APIC_VECTOR \
 	spurious_interrupt smp_spurious_interrupt
 
+#ifdef CONFIG_PERF_COUNTERS
+apicinterrupt LOCAL_PENDING_VECTOR \
+	perf_pending_interrupt smp_perf_pending_interrupt
+#endif
+
 /*
  * Exception entry points.
  */
@@ -1379,6 +1371,11 @@ END(xen_failsafe_callback)
 paranoidzeroentry_ist debug do_debug DEBUG_STACK
 paranoidzeroentry_ist int3 do_int3 DEBUG_STACK
 paranoiderrorentry stack_segment do_stack_segment
+#ifdef CONFIG_XEN
+zeroentry xen_debug do_debug
+zeroentry xen_int3 do_int3
+errorentry xen_stack_segment do_stack_segment
+#endif
 errorentry general_protection do_general_protection
 errorentry page_fault do_page_fault
 #ifdef CONFIG_X86_MCE

@@ -4392,6 +4392,16 @@ S:	Maintained
 F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
 
+PERFORMANCE COUNTER SUBSYSTEM
+P:	Peter Zijlstra
+M:	a.p.zijlstra@chello.nl
+P:	Paul Mackerras
+M:	paulus@samba.org
+P:	Ingo Molnar
+M:	mingo@elte.hu
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+
 PERSONALITY HANDLING
 P:	Christoph Hellwig
 M:	hch@infradead.org

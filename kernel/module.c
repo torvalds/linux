@@ -18,6 +18,7 @@
 */
 #include <linux/module.h>
 #include <linux/moduleloader.h>
+#include <linux/ftrace_event.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
@@ -1489,9 +1490,6 @@ static void free_module(struct module *mod)
 	/* Free any allocated parameters. */
 	destroy_params(mod->kp, mod->num_kp);
 
-	/* release any pointers to mcount in this module */
-	ftrace_release(mod->module_core, mod->core_size);
-
 	/* This may be NULL, but that's OK */
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
@@ -1892,11 +1890,9 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int symindex = 0;
 	unsigned int strindex = 0;
 	unsigned int modindex, versindex, infoindex, pcpuindex;
-	unsigned int num_mcount;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
-	unsigned long *mseg;
 	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -2172,7 +2168,19 @@ static noinline struct module *load_module(void __user *umod,
 					sizeof(*mod->tracepoints),
 					&mod->num_tracepoints);
 #endif
-
+#ifdef CONFIG_EVENT_TRACING
+	mod->trace_events = section_objs(hdr, sechdrs, secstrings,
+					 "_ftrace_events",
+					 sizeof(*mod->trace_events),
+					 &mod->num_trace_events);
+#endif
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+	/* sechdrs[0].sh_size is always zero */
+	mod->ftrace_callsites = section_objs(hdr, sechdrs, secstrings,
+					     "__mcount_loc",
+					     sizeof(*mod->ftrace_callsites),
+					     &mod->num_ftrace_callsites);
+#endif
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
 	    || (mod->num_gpl_syms && !mod->gpl_crcs)
@@ -2237,11 +2245,6 @@ static noinline struct module *load_module(void __user *umod,
 			dynamic_debug_setup(debug, num_debug);
 	}
 
-	/* sechdrs[0].sh_size is always zero */
-	mseg = section_objs(hdr, sechdrs, secstrings, "__mcount_loc",
-			    sizeof(*mseg), &num_mcount);
-	ftrace_init_module(mod, mseg, mseg + num_mcount);
-
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
 		goto cleanup;
@@ -2302,7 +2305,6 @@ static noinline struct module *load_module(void __user *umod,
  cleanup:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
-	ftrace_release(mod->module_core, mod->core_size);
  free_unload:
 	module_unload_free(mod);
 #if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
