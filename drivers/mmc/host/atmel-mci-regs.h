@@ -7,6 +7,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * Superset of MCI IP registers integrated in Atmel AVR32 and AT91 Processors
+ */
+
 #ifndef __DRIVERS_MMC_ATMEL_MCI_H__
 #define __DRIVERS_MMC_ATMEL_MCI_H__
 
@@ -14,11 +19,17 @@
 #define MCI_CR			0x0000	/* Control */
 # define MCI_CR_MCIEN		(  1 <<  0)	/* MCI Enable */
 # define MCI_CR_MCIDIS		(  1 <<  1)	/* MCI Disable */
+# define MCI_CR_PWSEN		(  1 <<  2)	/* Power Save Enable */
+# define MCI_CR_PWSDIS		(  1 <<  3)	/* Power Save Disable */
 # define MCI_CR_SWRST		(  1 <<  7)	/* Software Reset */
 #define MCI_MR			0x0004	/* Mode */
 # define MCI_MR_CLKDIV(x)	((x) <<  0)	/* Clock Divider */
+# define MCI_MR_PWSDIV(x)	((x) <<  8)	/* Power Saving Divider */
 # define MCI_MR_RDPROOF		(  1 << 11)	/* Read Proof */
 # define MCI_MR_WRPROOF		(  1 << 12)	/* Write Proof */
+# define MCI_MR_PDCFBYTE	(  1 << 13)	/* Force Byte Transfer */
+# define MCI_MR_PDCPADV		(  1 << 14)	/* Padding Value */
+# define MCI_MR_PDCMODE		(  1 << 15)	/* PDC-oriented Mode */
 #define MCI_DTOR		0x0008	/* Data Timeout */
 # define MCI_DTOCYC(x)		((x) <<  0)	/* Data Timeout Cycles */
 # define MCI_DTOMUL(x)		((x) <<  4)	/* Data Timeout Multiplier */
