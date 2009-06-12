@@ -478,13 +478,13 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV770)) {
 		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
-		DRM_INFO("Loading RV770 PFP Microcode\n");
+		DRM_INFO("Loading RV770/RV790 PFP Microcode\n");
 		for (i = 0; i < R700_PFP_UCODE_SIZE; i++)
 			RADEON_WRITE(R600_CP_PFP_UCODE_DATA, RV770_pfp_microcode[i]);
 		RADEON_WRITE(R600_CP_PFP_UCODE_ADDR, 0);
 
 		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
-		DRM_INFO("Loading RV770 CP Microcode\n");
+		DRM_INFO("Loading RV770/RV790 CP Microcode\n");
 		for (i = 0; i < R700_PM4_UCODE_SIZE; i++)
 			RADEON_WRITE(R600_CP_ME_RAM_DATA, RV770_cp_microcode[i]);
 		RADEON_WRITE(R600_CP_ME_RAM_WADDR, 0);
