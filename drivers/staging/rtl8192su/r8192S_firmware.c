@@ -11,7 +11,6 @@
  *        NDIS_STATUS_FAILURE - the following initialization process should be terminated
  *        NDIS_STATUS_SUCCESS - if firmware initialization process success
 **************************************************************************************************/
-//#include "ieee80211.h"
 #if defined(RTL8192SE)||defined(RTL8192SU)
 #include "r8192U.h"
 #include "r8192S_firmware.h"

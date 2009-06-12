@@ -42,7 +42,7 @@
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
 #include <asm/semaphore.h>
 #endif
-#include "ieee80211.h"
+#include "ieee80211/ieee80211.h"
 
 #ifdef RTL8192SU
 #include "r8192S_firmware.h"

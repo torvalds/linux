@@ -7,7 +7,7 @@
 #include "r819xU_firmware_img.h"
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0,

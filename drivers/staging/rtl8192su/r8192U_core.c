@@ -85,7 +85,7 @@ double __extendsfdf2(float a) {return a;}
 #endif
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 
 #else
@@ -112,7 +112,7 @@ double __extendsfdf2(float a) {return a;}
 #endif
 
 #ifdef ENABLE_DOT11D
-#include "dot11d.h"
+#include "ieee80211/dot11d.h"
 #endif
 
 #endif
