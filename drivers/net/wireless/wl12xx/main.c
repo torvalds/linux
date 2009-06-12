@@ -157,8 +157,6 @@ static void wl12xx_fw_wakeup(struct wl12xx *wl)
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY)) {
 		wl12xx_warning("WLAN not ready");
-		elp_reg = ELPCTRL_WAKE_UP_WLAN_READY;
-		wl12xx_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
 	}
 }
 
