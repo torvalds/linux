@@ -382,6 +382,8 @@ struct wl12xx {
 
 	struct wl12xx_stats stats;
 	struct wl12xx_debugfs debugfs;
+
+	u32 buffer_32;
 };
 
 int wl12xx_plt_start(struct wl12xx *wl);

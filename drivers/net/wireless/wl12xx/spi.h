@@ -94,16 +94,15 @@ void wl12xx_set_partition(struct wl12xx *wl,
 
 static inline u32 wl12xx_read32(struct wl12xx *wl, int addr)
 {
-	u32 response;
+	wl12xx_spi_read(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
 
-	wl12xx_spi_read(wl, addr, &response, sizeof(u32));
-
-	return response;
+	return wl->buffer_32;
 }
 
 static inline void wl12xx_write32(struct wl12xx *wl, int addr, u32 val)
 {
-	wl12xx_spi_write(wl, addr, &val, sizeof(u32));
+	wl->buffer_32 = val;
+	wl12xx_spi_write(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
 }
 
 #endif /* __WL12XX_SPI_H__ */
