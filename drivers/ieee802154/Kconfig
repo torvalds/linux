@@ -1,5 +1,5 @@
 menuconfig IEEE802154_DRIVERS
-	bool "IEEE 802.15.4 drivers"
+	tristate "IEEE 802.15.4 drivers"
 	depends on NETDEVICES && IEEE802154
 	default y
 	---help---
