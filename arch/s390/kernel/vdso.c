@@ -53,8 +53,19 @@ unsigned int __read_mostly vdso_enabled = 1;
 
 static int __init vdso_setup(char *s)
 {
-	vdso_enabled = simple_strtoul(s, NULL, 0);
-	return 1;
+	unsigned long val;
+	int rc;
+
+	rc = 0;
+	if (strncmp(s, "on", 3) == 0)
+		vdso_enabled = 1;
+	else if (strncmp(s, "off", 4) == 0)
+		vdso_enabled = 0;
+	else {
+		rc = strict_strtoul(s, 0, &val);
+		vdso_enabled = rc ? 0 : !!val;
+	}
+	return !rc;
 }
 __setup("vdso=", vdso_setup);
 
