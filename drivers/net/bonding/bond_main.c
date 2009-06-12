@@ -5164,14 +5164,14 @@ int bond_create(const char *name)
 		goto out_netdev;
 	}
 
+	bond_set_lockdep_class(bond_dev);
+
+	netif_carrier_off(bond_dev);
+
 	res = register_netdevice(bond_dev);
 	if (res < 0) {
 		goto out_bond;
 	}
-
-	bond_set_lockdep_class(bond_dev);
-
-	netif_carrier_off(bond_dev);
 
 	up_write(&bonding_rwsem);
 	rtnl_unlock(); /* allows sysfs registration of net device */
