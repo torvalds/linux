@@ -95,6 +95,8 @@ obj-$(CONFIG_DMA_API_DEBUG) += dma-debug.o
 
 obj-$(CONFIG_GENERIC_CSUM) += checksum.o
 
+obj-$(CONFIG_GENERIC_ATOMIC64) += atomic64.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 
