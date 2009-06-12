@@ -569,6 +569,19 @@
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
 
+/* Clocking configuration register */
+#define CLKCFG			0x10c00
+#define CLKCFG_FSB_400					(0 << 0)	/* hrawclk 100 */
+#define CLKCFG_FSB_533					(1 << 0)	/* hrawclk 133 */
+#define CLKCFG_FSB_667					(3 << 0)	/* hrawclk 166 */
+#define CLKCFG_FSB_800					(2 << 0)	/* hrawclk 200 */
+#define CLKCFG_FSB_1067					(6 << 0)	/* hrawclk 266 */
+#define CLKCFG_FSB_1333					(7 << 0)	/* hrawclk 333 */
+/* this is a guess, could be 5 as well */
+#define CLKCFG_FSB_1600					(4 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_1600_ALT				(5 << 0)	/* hrawclk 400 */
+#define CLKCFG_FSB_MASK					(7 << 0)
+ 
 /** GM965 GM45 render standby register */
 #define MCHBAR_RENDER_STANDBY	0x111B8
 
