@@ -28,10 +28,10 @@
 #include "wl12xx.h"
 #include "reg.h"
 #include "spi.h"
-#include "tx.h"
+#include "wl1251_tx.h"
 #include "ps.h"
 
-static bool wl12xx_tx_double_buffer_busy(struct wl12xx *wl, u32 data_out_count)
+static bool wl1251_tx_double_buffer_busy(struct wl12xx *wl, u32 data_out_count)
 {
 	int used, data_in_count;
 
@@ -52,7 +52,7 @@ static bool wl12xx_tx_double_buffer_busy(struct wl12xx *wl, u32 data_out_count)
 		return false;
 }
 
-static int wl12xx_tx_path_status(struct wl12xx *wl)
+static int wl1251_tx_path_status(struct wl12xx *wl)
 {
 	u32 status, addr, data_out_count;
 	bool busy;
@@ -60,7 +60,7 @@ static int wl12xx_tx_path_status(struct wl12xx *wl)
 	addr = wl->data_path->tx_control_addr;
 	status = wl12xx_mem_read32(wl, addr);
 	data_out_count = status & TX_STATUS_DATA_OUT_COUNT_MASK;
-	busy = wl12xx_tx_double_buffer_busy(wl, data_out_count);
+	busy = wl1251_tx_double_buffer_busy(wl, data_out_count);
 
 	if (busy)
 		return -EBUSY;
@@ -68,7 +68,7 @@ static int wl12xx_tx_path_status(struct wl12xx *wl)
 	return 0;
 }
 
-static int wl12xx_tx_id(struct wl12xx *wl, struct sk_buff *skb)
+static int wl1251_tx_id(struct wl12xx *wl, struct sk_buff *skb)
 {
 	int i;
 
@@ -81,7 +81,7 @@ static int wl12xx_tx_id(struct wl12xx *wl, struct sk_buff *skb)
 	return -EBUSY;
 }
 
-static void wl12xx_tx_control(struct tx_double_buffer_desc *tx_hdr,
+static void wl1251_tx_control(struct tx_double_buffer_desc *tx_hdr,
 			      struct ieee80211_tx_info *control, u16 fc)
 {
 	*(u16 *)&tx_hdr->control = 0;
@@ -109,7 +109,7 @@ static void wl12xx_tx_control(struct tx_double_buffer_desc *tx_hdr,
 #define MAX_MPDU_HEADER_AND_SECURITY  (MAX_MPDU_SECURITY_LENGTH + \
 				       WLAN_QOS_HDR_LEN)
 #define HW_BLOCK_SIZE                 252
-static void wl12xx_tx_frag_block_num(struct tx_double_buffer_desc *tx_hdr)
+static void wl1251_tx_frag_block_num(struct tx_double_buffer_desc *tx_hdr)
 {
 	u16 payload_len, frag_threshold, mem_blocks;
 	u16 num_mpdus, mem_blocks_per_frag;
@@ -142,7 +142,7 @@ static void wl12xx_tx_frag_block_num(struct tx_double_buffer_desc *tx_hdr)
 	tx_hdr->num_mem_blocks = mem_blocks;
 }
 
-static int wl12xx_tx_fill_hdr(struct wl12xx *wl, struct sk_buff *skb,
+static int wl1251_tx_fill_hdr(struct wl12xx *wl, struct sk_buff *skb,
 			      struct ieee80211_tx_info *control)
 {
 	struct tx_double_buffer_desc *tx_hdr;
@@ -153,7 +153,7 @@ static int wl12xx_tx_fill_hdr(struct wl12xx *wl, struct sk_buff *skb,
 	if (!skb)
 		return -EINVAL;
 
-	id = wl12xx_tx_id(wl, skb);
+	id = wl1251_tx_id(wl, skb);
 	if (id < 0)
 		return id;
 
@@ -170,14 +170,14 @@ static int wl12xx_tx_fill_hdr(struct wl12xx *wl, struct sk_buff *skb,
 	/* FIXME: how to get the correct queue id? */
 	tx_hdr->xmit_queue = 0;
 
-	wl12xx_tx_control(tx_hdr, control, fc);
-	wl12xx_tx_frag_block_num(tx_hdr);
+	wl1251_tx_control(tx_hdr, control, fc);
+	wl1251_tx_frag_block_num(tx_hdr);
 
 	return 0;
 }
 
 /* We copy the packet to the target */
-static int wl12xx_tx_send_packet(struct wl12xx *wl, struct sk_buff *skb,
+static int wl1251_tx_send_packet(struct wl12xx *wl, struct sk_buff *skb,
 				 struct ieee80211_tx_info *control)
 {
 	struct tx_double_buffer_desc *tx_hdr;
@@ -196,12 +196,12 @@ static int wl12xx_tx_send_packet(struct wl12xx *wl, struct sk_buff *skb,
 		u8 *pos;
 
 		fc = *(u16 *)(skb->data + sizeof(*tx_hdr));
-		tx_hdr->length += WL12XX_TKIP_IV_SPACE;
+		tx_hdr->length += WL1251_TKIP_IV_SPACE;
 
 		hdrlen = ieee80211_hdrlen(fc);
 
-		pos = skb_push(skb, WL12XX_TKIP_IV_SPACE);
-		memmove(pos, pos + WL12XX_TKIP_IV_SPACE,
+		pos = skb_push(skb, WL1251_TKIP_IV_SPACE);
+		memmove(pos, pos + WL1251_TKIP_IV_SPACE,
 			sizeof(*tx_hdr) + hdrlen);
 	}
 
@@ -227,7 +227,7 @@ static int wl12xx_tx_send_packet(struct wl12xx *wl, struct sk_buff *skb,
 	}
 
 	/* Our skb->data at this point includes the HW header */
-	len = WL12XX_TX_ALIGN(skb->len);
+	len = WL1251_TX_ALIGN(skb->len);
 
 	if (wl->data_in_count & 0x1)
 		addr = wl->data_path->tx_packet_ring_addr +
@@ -243,7 +243,7 @@ static int wl12xx_tx_send_packet(struct wl12xx *wl, struct sk_buff *skb,
 	return 0;
 }
 
-static void wl12xx_tx_trigger(struct wl12xx *wl)
+static void wl1251_tx_trigger(struct wl12xx *wl)
 {
 	u32 data, addr;
 
@@ -263,7 +263,7 @@ static void wl12xx_tx_trigger(struct wl12xx *wl)
 }
 
 /* caller must hold wl->mutex */
-static int wl12xx_tx_frame(struct wl12xx *wl, struct sk_buff *skb)
+static int wl1251_tx_frame(struct wl12xx *wl, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info;
 	int ret = 0;
@@ -280,24 +280,24 @@ static int wl12xx_tx_frame(struct wl12xx *wl, struct sk_buff *skb)
 		}
 	}
 
-	ret = wl12xx_tx_path_status(wl);
+	ret = wl1251_tx_path_status(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_tx_fill_hdr(wl, skb, info);
+	ret = wl1251_tx_fill_hdr(wl, skb, info);
 	if (ret < 0)
 		return ret;
 
-	ret = wl12xx_tx_send_packet(wl, skb, info);
+	ret = wl1251_tx_send_packet(wl, skb, info);
 	if (ret < 0)
 		return ret;
 
-	wl12xx_tx_trigger(wl);
+	wl1251_tx_trigger(wl);
 
 	return ret;
 }
 
-void wl12xx_tx_work(struct work_struct *work)
+void wl1251_tx_work(struct work_struct *work)
 {
 	struct wl12xx *wl = container_of(work, struct wl12xx, tx_work);
 	struct sk_buff *skb;
@@ -315,7 +315,7 @@ void wl12xx_tx_work(struct work_struct *work)
 			woken_up = true;
 		}
 
-		ret = wl12xx_tx_frame(wl, skb);
+		ret = wl1251_tx_frame(wl, skb);
 		if (ret == -EBUSY) {
 			/* firmware buffer is full, stop queues */
 			wl12xx_debug(DEBUG_TX, "tx_work: fw buffer full, "
@@ -337,7 +337,7 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static const char *wl12xx_tx_parse_status(u8 status)
+static const char *wl1251_tx_parse_status(u8 status)
 {
 	/* 8 bit status field, one character per bit plus null */
 	static char buf[9];
@@ -365,7 +365,7 @@ static const char *wl12xx_tx_parse_status(u8 status)
 	return buf;
 }
 
-static void wl12xx_tx_packet_cb(struct wl12xx *wl,
+static void wl1251_tx_packet_cb(struct wl12xx *wl,
 				struct tx_result *result)
 {
 	struct ieee80211_tx_info *info;
@@ -396,14 +396,14 @@ static void wl12xx_tx_packet_cb(struct wl12xx *wl,
 	if (info->control.hw_key &&
 	    info->control.hw_key->alg == ALG_TKIP) {
 		hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-		memmove(frame + WL12XX_TKIP_IV_SPACE, frame, hdrlen);
-		skb_pull(skb, WL12XX_TKIP_IV_SPACE);
+		memmove(frame + WL1251_TKIP_IV_SPACE, frame, hdrlen);
+		skb_pull(skb, WL1251_TKIP_IV_SPACE);
 	}
 
 	wl12xx_debug(DEBUG_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
 		     " status 0x%x (%s)",
 		     result->id, skb, result->ack_failures, result->rate,
-		     result->status, wl12xx_tx_parse_status(result->status));
+		     result->status, wl1251_tx_parse_status(result->status));
 
 
 	ieee80211_tx_status(wl->hw, skb);
@@ -420,7 +420,7 @@ static void wl12xx_tx_packet_cb(struct wl12xx *wl,
 		   queue empty */
 
 		if (skb) {
-			ret = wl12xx_tx_frame(wl, skb);
+			ret = wl1251_tx_frame(wl, skb);
 			if (ret == -EBUSY) {
 				/* firmware buffer is still full */
 				wl12xx_debug(DEBUG_TX, "cb: fw buffer "
@@ -440,7 +440,7 @@ static void wl12xx_tx_packet_cb(struct wl12xx *wl,
 }
 
 /* Called upon reception of a TX complete interrupt */
-void wl12xx_tx_complete(struct wl12xx *wl)
+void wl1251_tx_complete(struct wl12xx *wl)
 {
 	int i, result_index, num_complete = 0;
 	struct tx_result result[FW_TX_CMPLT_BLOCK_SIZE], *result_ptr;
@@ -459,7 +459,7 @@ void wl12xx_tx_complete(struct wl12xx *wl)
 
 		if (result_ptr->done_1 == 1 &&
 		    result_ptr->done_2 == 1) {
-			wl12xx_tx_packet_cb(wl, result_ptr);
+			wl1251_tx_packet_cb(wl, result_ptr);
 
 			result_ptr->done_1 = 0;
 			result_ptr->done_2 = 0;
@@ -523,7 +523,7 @@ void wl12xx_tx_complete(struct wl12xx *wl)
 }
 
 /* caller must hold wl->mutex */
-void wl12xx_tx_flush(struct wl12xx *wl)
+void wl1251_tx_flush(struct wl12xx *wl)
 {
 	int i;
 	struct sk_buff *skb;

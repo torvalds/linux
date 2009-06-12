@@ -30,7 +30,7 @@
 #include "boot.h"
 #include "event.h"
 #include "acx.h"
-#include "tx.h"
+#include "wl1251_tx.h"
 #include "rx.h"
 #include "ps.h"
 #include "init.h"
@@ -471,7 +471,7 @@ static void wl1251_irq_work(struct work_struct *work)
 
 	if (intr & WL1251_ACX_INTR_TX_RESULT) {
 		wl12xx_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
-		wl12xx_tx_complete(wl);
+		wl1251_tx_complete(wl);
 	}
 
 	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
@@ -712,9 +712,12 @@ void wl1251_setup(struct wl12xx *wl)
 	wl->chip.op_hw_init = wl1251_hw_init;
 	wl->chip.op_plt_init = wl1251_plt_init;
 	wl->chip.op_fw_version = wl1251_fw_version;
+	wl->chip.op_tx_flush = wl1251_tx_flush;
 
 	wl->chip.p_table = wl1251_part_table;
 	wl->chip.acx_reg_table = wl1251_acx_reg_table;
 
 	INIT_WORK(&wl->irq_work, wl1251_irq_work);
+	INIT_WORK(&wl->tx_work, wl1251_tx_work);
+
 }

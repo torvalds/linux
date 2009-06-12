@@ -37,7 +37,7 @@
 #include "wl1251.h"
 #include "spi.h"
 #include "event.h"
-#include "tx.h"
+#include "wl1251_tx.h"
 #include "rx.h"
 #include "ps.h"
 #include "init.h"
@@ -303,6 +303,11 @@ static int wl12xx_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	skb_queue_tail(&wl->tx_queue, skb);
 
+	/*
+	 * The chip specific setup must run before the first TX packet -
+	 * before that, the tx_work will not be initialized!
+	 */
+
 	schedule_work(&wl->tx_work);
 
 	/*
@@ -400,8 +405,7 @@ static void wl12xx_op_stop(struct ieee80211_hw *hw)
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl12xx_tx_flush(wl);
-
+	wl->chip.op_tx_flush(wl);
 	wl12xx_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -1176,7 +1180,7 @@ static int wl12xx_init_ieee80211(struct wl12xx *wl)
 {
 	/* The tx descriptor buffer and the TKIP space */
 	wl->hw->extra_tx_headroom = sizeof(struct tx_double_buffer_desc)
-		+ WL12XX_TKIP_IV_SPACE;
+		+ WL1251_TKIP_IV_SPACE;
 
 	/* unit us */
 	/* FIXME: find a proper value */
@@ -1226,7 +1230,6 @@ static int __devinit wl12xx_probe(struct spi_device *spi)
 
 	skb_queue_head_init(&wl->tx_queue);
 
-	INIT_WORK(&wl->tx_work, wl12xx_tx_work);
 	INIT_WORK(&wl->filter_work, wl12xx_filter_work);
 	wl->channel = WL12XX_DEFAULT_CHANNEL;
 	wl->scanning = false;

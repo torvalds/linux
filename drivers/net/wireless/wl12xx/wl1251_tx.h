@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL12XX_TX_H__
-#define __WL12XX_TX_H__
+#ifndef __WL1251_TX_H__
+#define __WL1251_TX_H__
 
 #include <linux/bitops.h>
 
@@ -73,10 +73,11 @@
 
 #define TX_COMPLETE_REQUIRED_BIT	0x80
 #define TX_STATUS_DATA_OUT_COUNT_MASK   0xf
-#define WL12XX_TX_ALIGN_TO 4
-#define WL12XX_TX_ALIGN(len) (((len) + WL12XX_TX_ALIGN_TO - 1) & \
-			     ~(WL12XX_TX_ALIGN_TO - 1))
-#define WL12XX_TKIP_IV_SPACE 4
+
+#define WL1251_TX_ALIGN_TO 4
+#define WL1251_TX_ALIGN(len) (((len) + WL1251_TX_ALIGN_TO - 1) & \
+			     ~(WL1251_TX_ALIGN_TO - 1))
+#define WL1251_TKIP_IV_SPACE 4
 
 struct tx_control {
 	/* Rate Policy (class) index */
@@ -208,8 +209,8 @@ struct tx_result {
 	u8 done_2;
 } __attribute__ ((packed));
 
-void wl12xx_tx_work(struct work_struct *work);
-void wl12xx_tx_complete(struct wl12xx *wl);
-void wl12xx_tx_flush(struct wl12xx *wl);
+void wl1251_tx_work(struct work_struct *work);
+void wl1251_tx_complete(struct wl12xx *wl);
+void wl1251_tx_flush(struct wl12xx *wl);
 
 #endif
