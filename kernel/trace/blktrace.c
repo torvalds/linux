@@ -23,9 +23,13 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/time.h>
-#include <trace/block.h>
 #include <linux/uaccess.h>
+
+#include <trace/events/block.h>
+
 #include "trace_output.h"
+
+#ifdef CONFIG_BLK_DEV_IO_TRACE
 
 static unsigned int blktrace_seq __read_mostly = 1;
 
@@ -147,7 +151,7 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 {
 	if (((bt->act_mask << BLK_TC_SHIFT) & what) == 0)
 		return 1;
-	if (sector < bt->start_lba || sector > bt->end_lba)
+	if (sector && (sector < bt->start_lba || sector > bt->end_lba))
 		return 1;
 	if (bt->pid && pid != bt->pid)
 		return 1;
@@ -192,7 +196,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	what |= MASK_TC_BIT(rw, DISCARD);
 
 	pid = tsk->pid;
-	if (unlikely(act_log_check(bt, what, sector, pid)))
+	if (act_log_check(bt, what, sector, pid))
 		return;
 	cpu = raw_smp_processor_id();
 
@@ -262,6 +266,7 @@ static void blk_trace_free(struct blk_trace *bt)
 {
 	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
+	debugfs_remove(bt->dir);
 	relay_close(bt->rchan);
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
@@ -403,11 +408,29 @@ static struct rchan_callbacks blk_relay_callbacks = {
 	.remove_buf_file	= blk_remove_buf_file_callback,
 };
 
+static void blk_trace_setup_lba(struct blk_trace *bt,
+				struct block_device *bdev)
+{
+	struct hd_struct *part = NULL;
+
+	if (bdev)
+		part = bdev->bd_part;
+
+	if (part) {
+		bt->start_lba = part->start_sect;
+		bt->end_lba = part->start_sect + part->nr_sects;
+	} else {
+		bt->start_lba = 0;
+		bt->end_lba = -1ULL;
+	}
+}
+
 /*
  * Setup everything required to start tracing
  */
 int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
-			struct blk_user_trace_setup *buts)
+		       struct block_device *bdev,
+		       struct blk_user_trace_setup *buts)
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	struct dentry *dir = NULL;
@@ -480,10 +503,13 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->act_mask)
 		bt->act_mask = (u16) -1;
 
-	bt->start_lba = buts->start_lba;
-	bt->end_lba = buts->end_lba;
-	if (!bt->end_lba)
-		bt->end_lba = -1ULL;
+	blk_trace_setup_lba(bt, bdev);
+
+	/* overwrite with user settings */
+	if (buts->start_lba)
+		bt->start_lba = buts->start_lba;
+	if (buts->end_lba)
+		bt->end_lba = buts->end_lba;
 
 	bt->pid = buts->pid;
 	bt->trace_state = Blktrace_setup;
@@ -505,6 +531,7 @@ err:
 }
 
 int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
+		    struct block_device *bdev,
 		    char __user *arg)
 {
 	struct blk_user_trace_setup buts;
@@ -514,7 +541,7 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (ret)
 		return -EFAULT;
 
-	ret = do_blk_trace_setup(q, name, dev, &buts);
+	ret = do_blk_trace_setup(q, name, dev, bdev, &buts);
 	if (ret)
 		return ret;
 
@@ -582,7 +609,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 	switch (cmd) {
 	case BLKTRACESETUP:
 		bdevname(bdev, b);
-		ret = blk_trace_setup(q, b, bdev->bd_dev, arg);
+		ret = blk_trace_setup(q, b, bdev->bd_dev, bdev, arg);
 		break;
 	case BLKTRACESTART:
 		start = 1;
@@ -642,12 +669,12 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 
 	if (blk_pc_request(rq)) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors,
-				rq->cmd_len, rq->cmd);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
+				what, rq->errors, rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				rw, what, rq->errors, 0, NULL);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), rw,
+				what, rq->errors, 0, NULL);
 	}
 }
 
@@ -809,7 +836,6 @@ static void blk_add_trace_split(struct request_queue *q, struct bio *bio,
  * @bio:	the source bio
  * @dev:	target device
  * @from:	source sector
- * @to:		target sector
  *
  * Description:
  *     Device mapper or raid target sometimes need to split a bio because
@@ -817,7 +843,7 @@ static void blk_add_trace_split(struct request_queue *q, struct bio *bio,
  *
  **/
 static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
-				       dev_t dev, sector_t from, sector_t to)
+				       dev_t dev, sector_t from)
 {
 	struct blk_trace *bt = q->blk_trace;
 	struct blk_io_trace_remap r;
@@ -825,12 +851,13 @@ static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 	if (likely(!bt))
 		return;
 
-	r.device = cpu_to_be32(dev);
-	r.device_from = cpu_to_be32(bio->bi_bdev->bd_dev);
-	r.sector = cpu_to_be64(to);
+	r.device_from = cpu_to_be32(dev);
+	r.device_to   = cpu_to_be32(bio->bi_bdev->bd_dev);
+	r.sector_from = cpu_to_be64(from);
 
-	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP,
-			!bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
+	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw,
+			BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE),
+			sizeof(r), &r);
 }
 
 /**
@@ -854,11 +881,11 @@ void blk_add_driver_data(struct request_queue *q,
 		return;
 
 	if (blk_pc_request(rq))
-		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
-				rq->errors, len, data);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 	else
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				0, BLK_TA_DRV_DATA, rq->errors, len, data);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
 
@@ -971,6 +998,16 @@ static inline const void *pdu_start(const struct trace_entry *ent)
 	return te_blk_io_trace(ent) + 1;
 }
 
+static inline u32 t_action(const struct trace_entry *ent)
+{
+	return te_blk_io_trace(ent)->action;
+}
+
+static inline u32 t_bytes(const struct trace_entry *ent)
+{
+	return te_blk_io_trace(ent)->bytes;
+}
+
 static inline u32 t_sec(const struct trace_entry *ent)
 {
 	return te_blk_io_trace(ent)->bytes >> 9;
@@ -996,11 +1033,11 @@ static void get_pdu_remap(const struct trace_entry *ent,
 			  struct blk_io_trace_remap *r)
 {
 	const struct blk_io_trace_remap *__r = pdu_start(ent);
-	__u64 sector = __r->sector;
+	__u64 sector_from = __r->sector_from;
 
-	r->device = be32_to_cpu(__r->device);
 	r->device_from = be32_to_cpu(__r->device_from);
-	r->sector = be64_to_cpu(sector);
+	r->device_to   = be32_to_cpu(__r->device_to);
+	r->sector_from = be64_to_cpu(sector_from);
 }
 
 typedef int (blk_log_action_t) (struct trace_iterator *iter, const char *act);
@@ -1031,36 +1068,98 @@ static int blk_log_action(struct trace_iterator *iter, const char *act)
 				MAJOR(t->device), MINOR(t->device), act, rwbs);
 }
 
+static int blk_log_dump_pdu(struct trace_seq *s, const struct trace_entry *ent)
+{
+	const unsigned char *pdu_buf;
+	int pdu_len;
+	int i, end, ret;
+
+	pdu_buf = pdu_start(ent);
+	pdu_len = te_blk_io_trace(ent)->pdu_len;
+
+	if (!pdu_len)
+		return 1;
+
+	/* find the last zero that needs to be printed */
+	for (end = pdu_len - 1; end >= 0; end--)
+		if (pdu_buf[end])
+			break;
+	end++;
+
+	if (!trace_seq_putc(s, '('))
+		return 0;
+
+	for (i = 0; i < pdu_len; i++) {
+
+		ret = trace_seq_printf(s, "%s%02x",
+				       i == 0 ? "" : " ", pdu_buf[i]);
+		if (!ret)
+			return ret;
+
+		/*
+		 * stop when the rest is just zeroes and indicate so
+		 * with a ".." appended
+		 */
+		if (i == end && end != pdu_len - 1)
+			return trace_seq_puts(s, " ..) ");
+	}
+
+	return trace_seq_puts(s, ") ");
+}
+
 static int blk_log_generic(struct trace_seq *s, const struct trace_entry *ent)
 {
 	char cmd[TASK_COMM_LEN];
 
 	trace_find_cmdline(ent->pid, cmd);
 
-	if (t_sec(ent))
-		return trace_seq_printf(s, "%llu + %u [%s]\n",
-					t_sector(ent), t_sec(ent), cmd);
-	return trace_seq_printf(s, "[%s]\n", cmd);
+	if (t_action(ent) & BLK_TC_ACT(BLK_TC_PC)) {
+		int ret;
+
+		ret = trace_seq_printf(s, "%u ", t_bytes(ent));
+		if (!ret)
+			return 0;
+		ret = blk_log_dump_pdu(s, ent);
+		if (!ret)
+			return 0;
+		return trace_seq_printf(s, "[%s]\n", cmd);
+	} else {
+		if (t_sec(ent))
+			return trace_seq_printf(s, "%llu + %u [%s]\n",
+						t_sector(ent), t_sec(ent), cmd);
+		return trace_seq_printf(s, "[%s]\n", cmd);
+	}
 }
 
 static int blk_log_with_error(struct trace_seq *s,
 			      const struct trace_entry *ent)
 {
-	if (t_sec(ent))
-		return trace_seq_printf(s, "%llu + %u [%d]\n", t_sector(ent),
-					t_sec(ent), t_error(ent));
-	return trace_seq_printf(s, "%llu [%d]\n", t_sector(ent), t_error(ent));
+	if (t_action(ent) & BLK_TC_ACT(BLK_TC_PC)) {
+		int ret;
+
+		ret = blk_log_dump_pdu(s, ent);
+		if (ret)
+			return trace_seq_printf(s, "[%d]\n", t_error(ent));
+		return 0;
+	} else {
+		if (t_sec(ent))
+			return trace_seq_printf(s, "%llu + %u [%d]\n",
+						t_sector(ent),
+						t_sec(ent), t_error(ent));
+		return trace_seq_printf(s, "%llu [%d]\n",
+					t_sector(ent), t_error(ent));
+	}
 }
 
 static int blk_log_remap(struct trace_seq *s, const struct trace_entry *ent)
 {
-	struct blk_io_trace_remap r = { .device = 0, };
+	struct blk_io_trace_remap r = { .device_from = 0, };
 
 	get_pdu_remap(ent, &r);
 	return trace_seq_printf(s, "%llu + %u <- (%d,%d) %llu\n",
-			       t_sector(ent),
-			       t_sec(ent), MAJOR(r.device), MINOR(r.device),
-			       (unsigned long long)r.sector);
+				t_sector(ent), t_sec(ent),
+				MAJOR(r.device_from), MINOR(r.device_from),
+				(unsigned long long)r.sector_from);
 }
 
 static int blk_log_plug(struct trace_seq *s, const struct trace_entry *ent)
@@ -1117,7 +1216,6 @@ static void blk_tracer_print_header(struct seq_file *m)
 static void blk_tracer_start(struct trace_array *tr)
 {
 	blk_tracer_enabled = true;
-	trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
 }
 
 static int blk_tracer_init(struct trace_array *tr)
@@ -1130,7 +1228,6 @@ static int blk_tracer_init(struct trace_array *tr)
 static void blk_tracer_stop(struct trace_array *tr)
 {
 	blk_tracer_enabled = false;
-	trace_flags |= TRACE_ITER_CONTEXT_INFO;
 }
 
 static void blk_tracer_reset(struct trace_array *tr)
@@ -1182,7 +1279,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
-		ret = trace_seq_printf(s, "Bad pc action %x\n", what);
+		ret = trace_seq_printf(s, "Unknown action %x\n", what);
 	else {
 		ret = log_action(iter, what2act[what].act[long_act]);
 		if (ret)
@@ -1195,9 +1292,6 @@ out:
 static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
 					       int flags)
 {
-	if (!trace_print_context(iter))
-		return TRACE_TYPE_PARTIAL_LINE;
-
 	return print_one_line(iter, false);
 }
 
@@ -1232,6 +1326,18 @@ static enum print_line_t blk_tracer_print_line(struct trace_iterator *iter)
 	return print_one_line(iter, true);
 }
 
+static int blk_tracer_set_flag(u32 old_flags, u32 bit, int set)
+{
+	/* don't output context-info for blk_classic output */
+	if (bit == TRACE_BLK_OPT_CLASSIC) {
+		if (set)
+			trace_flags &= ~TRACE_ITER_CONTEXT_INFO;
+		else
+			trace_flags |= TRACE_ITER_CONTEXT_INFO;
+	}
+	return 0;
+}
+
 static struct tracer blk_tracer __read_mostly = {
 	.name		= "blk",
 	.init		= blk_tracer_init,
@@ -1241,6 +1347,7 @@ static struct tracer blk_tracer __read_mostly = {
 	.print_header	= blk_tracer_print_header,
 	.print_line	= blk_tracer_print_line,
 	.flags		= &blk_tracer_flags,
+	.set_flag	= blk_tracer_set_flag,
 };
 
 static struct trace_event trace_blk_event = {
@@ -1285,7 +1392,8 @@ static int blk_trace_remove_queue(struct request_queue *q)
 /*
  * Setup everything required to start tracing
  */
-static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
+static int blk_trace_setup_queue(struct request_queue *q,
+				 struct block_device *bdev)
 {
 	struct blk_trace *old_bt, *bt = NULL;
 	int ret = -ENOMEM;
@@ -1298,9 +1406,10 @@ static int blk_trace_setup_queue(struct request_queue *q, dev_t dev)
 	if (!bt->msg_data)
 		goto free_bt;
 
-	bt->dev = dev;
+	bt->dev = bdev->bd_dev;
 	bt->act_mask = (u16)-1;
-	bt->end_lba = -1ULL;
+
+	blk_trace_setup_lba(bt, bdev);
 
 	old_bt = xchg(&q->blk_trace, bt);
 	if (old_bt != NULL) {
@@ -1517,7 +1626,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 
 	if (attr == &dev_attr_enable) {
 		if (value)
-			ret = blk_trace_setup_queue(q, bdev->bd_dev);
+			ret = blk_trace_setup_queue(q, bdev);
 		else
 			ret = blk_trace_remove_queue(q);
 		goto out_unlock_bdev;
@@ -1525,7 +1634,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 
 	ret = 0;
 	if (q->blk_trace == NULL)
-		ret = blk_trace_setup_queue(q, bdev->bd_dev);
+		ret = blk_trace_setup_queue(q, bdev);
 
 	if (ret == 0) {
 		if (attr == &dev_attr_act_mask)
@@ -1547,4 +1656,78 @@ out_unlock_kernel:
 out:
 	return ret ? ret : count;
 }
+
+int blk_trace_init_sysfs(struct device *dev)
+{
+	return sysfs_create_group(&dev->kobj, &blk_trace_attr_group);
+}
+
+#endif /* CONFIG_BLK_DEV_IO_TRACE */
+
+#ifdef CONFIG_EVENT_TRACING
+
+void blk_dump_cmd(char *buf, struct request *rq)
+{
+	int i, end;
+	int len = rq->cmd_len;
+	unsigned char *cmd = rq->cmd;
+
+	if (!blk_pc_request(rq)) {
+		buf[0] = '\0';
+		return;
+	}
+
+	for (end = len - 1; end >= 0; end--)
+		if (cmd[end])
+			break;
+	end++;
+
+	for (i = 0; i < len; i++) {
+		buf += sprintf(buf, "%s%02x", i == 0 ? "" : " ", cmd[i]);
+		if (i == end && end != len - 1) {
+			sprintf(buf, " ..");
+			break;
+		}
+	}
+}
+
+void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
+{
+	int i = 0;
+
+	if (rw & WRITE)
+		rwbs[i++] = 'W';
+	else if (rw & 1 << BIO_RW_DISCARD)
+		rwbs[i++] = 'D';
+	else if (bytes)
+		rwbs[i++] = 'R';
+	else
+		rwbs[i++] = 'N';
+
+	if (rw & 1 << BIO_RW_AHEAD)
+		rwbs[i++] = 'A';
+	if (rw & 1 << BIO_RW_BARRIER)
+		rwbs[i++] = 'B';
+	if (rw & 1 << BIO_RW_SYNCIO)
+		rwbs[i++] = 'S';
+	if (rw & 1 << BIO_RW_META)
+		rwbs[i++] = 'M';
+
+	rwbs[i] = '\0';
+}
+
+void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
+{
+	int rw = rq->cmd_flags & 0x03;
+	int bytes;
+
+	if (blk_discard_rq(rq))
+		rw |= (1 << BIO_RW_DISCARD);
+
+	bytes = blk_rq_bytes(rq);
+
+	blk_fill_rwbs(rwbs, rw, bytes);
+}
+
+#endif /* CONFIG_EVENT_TRACING */
 

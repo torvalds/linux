@@ -154,7 +154,7 @@ out_err:
 	goto out;
 out_follow:
 	while (d_mountpoint(nd->path.dentry) &&
-	       follow_down(&nd->path.mnt, &nd->path.dentry))
+	       follow_down(&nd->path))
 		;
 	err = 0;
 	goto out;

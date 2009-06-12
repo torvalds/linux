@@ -295,7 +295,7 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 	struct tty_driver *p, *res = NULL;
 	int tty_line = 0;
 	int len;
-	char *str;
+	char *str, *stp;
 
 	for (str = name; *str; str++)
 		if ((*str >= '0' && *str <= '9') || *str == ',')
@@ -311,13 +311,14 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line)
 	list_for_each_entry(p, &tty_drivers, tty_drivers) {
 		if (strncmp(name, p->name, len) != 0)
 			continue;
-		if (*str == ',')
-			str++;
-		if (*str == '\0')
-			str = NULL;
+		stp = str;
+		if (*stp == ',')
+			stp++;
+		if (*stp == '\0')
+			stp = NULL;
 
 		if (tty_line >= 0 && tty_line <= p->num && p->ops &&
-		    p->ops->poll_init && !p->ops->poll_init(p, tty_line, str)) {
+		    p->ops->poll_init && !p->ops->poll_init(p, tty_line, stp)) {
 			res = tty_driver_kref_get(p);
 			*line = tty_line;
 			break;
@@ -470,43 +471,6 @@ void tty_wakeup(struct tty_struct *tty)
 EXPORT_SYMBOL_GPL(tty_wakeup);
 
 /**
- *	tty_ldisc_flush	-	flush line discipline queue
- *	@tty: tty
- *
- *	Flush the line discipline queue (if any) for this tty. If there
- *	is no line discipline active this is a no-op.
- */
-
-void tty_ldisc_flush(struct tty_struct *tty)
-{
-	struct tty_ldisc *ld = tty_ldisc_ref(tty);
-	if (ld) {
-		if (ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		tty_ldisc_deref(ld);
-	}
-	tty_buffer_flush(tty);
-}
-
-EXPORT_SYMBOL_GPL(tty_ldisc_flush);
-
-/**
- *	tty_reset_termios	-	reset terminal state
- *	@tty: tty to reset
- *
- *	Restore a terminal to the driver default state
- */
-
-static void tty_reset_termios(struct tty_struct *tty)
-{
-	mutex_lock(&tty->termios_mutex);
-	*tty->termios = tty->driver->init_termios;
-	tty->termios->c_ispeed = tty_termios_input_baud_rate(tty->termios);
-	tty->termios->c_ospeed = tty_termios_baud_rate(tty->termios);
-	mutex_unlock(&tty->termios_mutex);
-}
-
-/**
  *	do_tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
@@ -535,7 +499,6 @@ static void do_tty_hangup(struct work_struct *work)
 	struct file *cons_filp = NULL;
 	struct file *filp, *f = NULL;
 	struct task_struct *p;
-	struct tty_ldisc *ld;
 	int    closecount = 0, n;
 	unsigned long flags;
 	int refs = 0;
@@ -566,40 +529,8 @@ static void do_tty_hangup(struct work_struct *work)
 		filp->f_op = &hung_up_tty_fops;
 	}
 	file_list_unlock();
-	/*
-	 * FIXME! What are the locking issues here? This may me overdoing
-	 * things... This question is especially important now that we've
-	 * removed the irqlock.
-	 */
-	ld = tty_ldisc_ref(tty);
-	if (ld != NULL) {
-		/* We may have no line discipline at this point */
-		if (ld->ops->flush_buffer)
-			ld->ops->flush_buffer(tty);
-		tty_driver_flush_buffer(tty);
-		if ((test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags)) &&
-		    ld->ops->write_wakeup)
-			ld->ops->write_wakeup(tty);
-		if (ld->ops->hangup)
-			ld->ops->hangup(tty);
-	}
-	/*
-	 * FIXME: Once we trust the LDISC code better we can wait here for
-	 * ldisc completion and fix the driver call race
-	 */
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
-	wake_up_interruptible_poll(&tty->read_wait, POLLIN);
-	/*
-	 * Shutdown the current line discipline, and reset it to
-	 * N_TTY.
-	 */
-	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS)
-		tty_reset_termios(tty);
-	/* Defer ldisc switch */
-	/* tty_deferred_ldisc_switch(N_TTY);
 
-	  This should get done automatically when the port closes and
-	  tty_release is called */
+	tty_ldisc_hangup(tty);
 
 	read_lock(&tasklist_lock);
 	if (tty->session) {
@@ -628,12 +559,15 @@ static void do_tty_hangup(struct work_struct *work)
 	read_unlock(&tasklist_lock);
 
 	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	tty->flags = 0;
+	clear_bit(TTY_THROTTLED, &tty->flags);
+	clear_bit(TTY_PUSH, &tty->flags);
+	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 	put_pid(tty->session);
 	put_pid(tty->pgrp);
 	tty->session = NULL;
 	tty->pgrp = NULL;
 	tty->ctrl_status = 0;
+	set_bit(TTY_HUPPED, &tty->flags);
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
 	/* Account for the p->signal references we killed */
@@ -659,10 +593,7 @@ static void do_tty_hangup(struct work_struct *work)
 	 * can't yet guarantee all that.
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
-	if (ld) {
-		tty_ldisc_enable(tty);
-		tty_ldisc_deref(ld);
-	}
+	tty_ldisc_enable(tty);
 	unlock_kernel();
 	if (f)
 		fput(f);
@@ -2480,6 +2411,24 @@ static int tty_tiocmset(struct tty_struct *tty, struct file *file, unsigned int 
 	return tty->ops->tiocmset(tty, file, set, clear);
 }
 
+struct tty_struct *tty_pair_get_tty(struct tty_struct *tty)
+{
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+	    tty->driver->subtype == PTY_TYPE_MASTER)
+		tty = tty->link;
+	return tty;
+}
+EXPORT_SYMBOL(tty_pair_get_tty);
+
+struct tty_struct *tty_pair_get_pty(struct tty_struct *tty)
+{
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+	    tty->driver->subtype == PTY_TYPE_MASTER)
+	    return tty;
+	return tty->link;
+}
+EXPORT_SYMBOL(tty_pair_get_pty);
+
 /*
  * Split this up, as gcc can choke on it otherwise..
  */
@@ -2495,11 +2444,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (tty_paranoia_check(tty, inode, "tty_ioctl"))
 		return -EINVAL;
 
-	real_tty = tty;
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
-	    tty->driver->subtype == PTY_TYPE_MASTER)
-		real_tty = tty->link;
-
+	real_tty = tty_pair_get_tty(tty);
 
 	/*
 	 * Factor out some common prep work
@@ -2555,7 +2500,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TIOCGSID:
 		return tiocgsid(tty, real_tty, p);
 	case TIOCGETD:
-		return put_user(tty->ldisc.ops->num, (int __user *)p);
+		return put_user(tty->ldisc->ops->num, (int __user *)p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
 	/*
@@ -2770,6 +2715,7 @@ void initialize_tty_struct(struct tty_struct *tty,
 	tty->buf.head = tty->buf.tail = NULL;
 	tty_buffer_init(tty);
 	mutex_init(&tty->termios_mutex);
+	mutex_init(&tty->ldisc_mutex);
 	init_waitqueue_head(&tty->write_wait);
 	init_waitqueue_head(&tty->read_wait);
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);

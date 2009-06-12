@@ -1,3 +1,12 @@
+Version 1.59
+------------
+Client uses server inode numbers (which are persistent) rather than
+client generated ones by default (mount option "serverino" turned
+on by default if server supports it).  Add forceuid and forcegid
+mount options (so that when negotiating unix extensions specifying
+which uid mounted does not immediately force the server's reported
+uids to be overridden).
+
 Version 1.58
 ------------
 Guard against buffer overruns in various UCS-2 to UTF-8 string conversions
@@ -10,6 +19,8 @@ we converted from).  Fix endianness of the vcnum field used during
 session setup to distinguish multiple mounts to same server from different
 userids. Raw NTLMSSP fixed (it requires /proc/fs/cifs/experimental
 flag to be set to 2, and mount must enable krb5 to turn on extended security).
+Performance of file create to Samba improved (posix create on lookup
+removes 1 of 2 network requests sent on file create)
  
 Version 1.57
 ------------

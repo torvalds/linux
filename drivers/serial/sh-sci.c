@@ -47,10 +47,15 @@
 #include <linux/clk.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
+#include <linux/list.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/clock.h>
 #include <asm/sh_bios.h>
+#endif
+
+#ifdef CONFIG_H8300
+#include <asm/gpio.h>
 #endif
 
 #include "sh-sci.h"
@@ -75,14 +80,22 @@ struct sci_port {
 	int			break_flag;
 
 #ifdef CONFIG_HAVE_CLK
-	/* Port clock */
-	struct clk		*clk;
+	/* Interface clock */
+	struct clk		*iclk;
+	/* Data clock */
+	struct clk		*dclk;
 #endif
+	struct list_head	node;
 };
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-static struct sci_port *serial_console_port;
+struct sh_sci_priv {
+	spinlock_t lock;
+	struct list_head ports;
+
+#ifdef CONFIG_HAVE_CLK
+	struct notifier_block clk_nb;
 #endif
+};
 
 /* Function prototypes */
 static void sci_stop_tx(struct uart_port *port);
@@ -138,9 +151,8 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 		status = sci_in(port, SCxSR);
 	} while (!(status & SCxSR_TDxE(port)));
 
-	sci_in(port, SCxSR);            /* Dummy read */
-	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 	sci_out(port, SCxTDR, c);
+	sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port) & ~SCxSR_TEND(port));
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
 
@@ -159,12 +171,12 @@ static void h8300_sci_config(struct uart_port *port, unsigned int ctrl)
 		*mstpcrl &= ~mask;
 }
 
-static inline void h8300_sci_enable(struct uart_port *port)
+static void h8300_sci_enable(struct uart_port *port)
 {
 	h8300_sci_config(port, sci_enable);
 }
 
-static inline void h8300_sci_disable(struct uart_port *port)
+static void h8300_sci_disable(struct uart_port *port)
 {
 	h8300_sci_config(port, sci_disable);
 }
@@ -611,7 +623,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
 	struct tty_struct *tty = port->info->port.tty;
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (uart_handle_break(port))
 		return 0;
@@ -726,19 +738,43 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 static int sci_notifier(struct notifier_block *self,
 			unsigned long phase, void *p)
 {
-	int i;
+	struct sh_sci_priv *priv = container_of(self,
+						struct sh_sci_priv, clk_nb);
+	struct sci_port *sci_port;
+	unsigned long flags;
 
 	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE))
-		for (i = 0; i < SCI_NPORTS; i++) {
-			struct sci_port *s = &sci_ports[i];
-			s->port.uartclk = clk_get_rate(s->clk);
-		}
+	    (phase == CPUFREQ_RESUMECHANGE)) {
+		spin_lock_irqsave(&priv->lock, flags);
+		list_for_each_entry(sci_port, &priv->ports, node)
+			sci_port->port.uartclk = clk_get_rate(sci_port->dclk);
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sci_nb = { &sci_notifier, NULL, 0 };
+static void sci_clk_enable(struct uart_port *port)
+{
+	struct sci_port *sci_port = to_sci_port(port);
+
+	clk_enable(sci_port->dclk);
+	sci_port->port.uartclk = clk_get_rate(sci_port->dclk);
+
+	if (sci_port->iclk)
+		clk_enable(sci_port->iclk);
+}
+
+static void sci_clk_disable(struct uart_port *port)
+{
+	struct sci_port *sci_port = to_sci_port(port);
+
+	if (sci_port->iclk)
+		clk_disable(sci_port->iclk);
+
+	clk_disable(sci_port->dclk);
+}
 #endif
 
 static int sci_request_irq(struct sci_port *port)
@@ -865,14 +901,10 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 
 static int sci_startup(struct uart_port *port)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (s->enable)
 		s->enable(port);
-
-#ifdef CONFIG_HAVE_CLK
-	s->clk = clk_get(NULL, "module_clk");
-#endif
 
 	sci_request_irq(s);
 	sci_start_tx(port);
@@ -883,7 +915,7 @@ static int sci_startup(struct uart_port *port)
 
 static void sci_shutdown(struct uart_port *port)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	sci_stop_rx(port);
 	sci_stop_tx(port);
@@ -891,11 +923,6 @@ static void sci_shutdown(struct uart_port *port)
 
 	if (s->disable)
 		s->disable(port);
-
-#ifdef CONFIG_HAVE_CLK
-	clk_put(s->clk);
-	s->clk = NULL;
-#endif
 }
 
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
@@ -980,25 +1007,31 @@ static int sci_request_port(struct uart_port *port)
 
 static void sci_config_port(struct uart_port *port, int flags)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	port->type = s->type;
 
-	if (port->flags & UPF_IOREMAP && !port->membase) {
-#if defined(CONFIG_SUPERH64)
-		port->mapbase = onchip_remap(SCIF_ADDR_SH5, 1024, "SCIF");
-		port->membase = (void __iomem *)port->mapbase;
-#else
-		port->membase = ioremap_nocache(port->mapbase, 0x40);
-#endif
+	if (port->membase)
+		return;
 
-		dev_err(port->dev, "can't remap port#%d\n", port->line);
+	if (port->flags & UPF_IOREMAP) {
+		port->membase = ioremap_nocache(port->mapbase, 0x40);
+
+		if (IS_ERR(port->membase))
+			dev_err(port->dev, "can't remap port#%d\n", port->line);
+	} else {
+		/*
+		 * For the simple (and majority of) cases where we don't
+		 * need to do any remapping, just cast the cookie
+		 * directly.
+		 */
+		port->membase = (void __iomem *)port->mapbase;
 	}
 }
 
 static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (ser->irq != s->irqs[SCIx_TXI_IRQ] || ser->irq > nr_irqs)
 		return -EINVAL;
@@ -1032,63 +1065,60 @@ static struct uart_ops sci_uart_ops = {
 #endif
 };
 
-static void __init sci_init_ports(void)
+static void __devinit sci_init_single(struct platform_device *dev,
+				      struct sci_port *sci_port,
+				      unsigned int index,
+				      struct plat_sci_port *p)
 {
-	static int first = 1;
-	int i;
-
-	if (!first)
-		return;
-
-	first = 0;
-
-	for (i = 0; i < SCI_NPORTS; i++) {
-		sci_ports[i].port.ops		= &sci_uart_ops;
-		sci_ports[i].port.iotype	= UPIO_MEM;
-		sci_ports[i].port.line		= i;
-		sci_ports[i].port.fifosize	= 1;
+	sci_port->port.ops	= &sci_uart_ops;
+	sci_port->port.iotype	= UPIO_MEM;
+	sci_port->port.line	= index;
+	sci_port->port.fifosize	= 1;
 
 #if defined(__H8300H__) || defined(__H8300S__)
 #ifdef __H8300S__
-		sci_ports[i].enable	= h8300_sci_enable;
-		sci_ports[i].disable	= h8300_sci_disable;
+	sci_port->enable	= h8300_sci_enable;
+	sci_port->disable	= h8300_sci_disable;
 #endif
-		sci_ports[i].port.uartclk = CONFIG_CPU_CLOCK;
+	sci_port->port.uartclk	= CONFIG_CPU_CLOCK;
 #elif defined(CONFIG_HAVE_CLK)
-		/*
-		 * XXX: We should use a proper SCI/SCIF clock
-		 */
-		{
-			struct clk *clk = clk_get(NULL, "module_clk");
-			sci_ports[i].port.uartclk = clk_get_rate(clk);
-			clk_put(clk);
-		}
+	sci_port->iclk		= p->clk ? clk_get(&dev->dev, p->clk) : NULL;
+	sci_port->dclk		= clk_get(&dev->dev, "peripheral_clk");
+	sci_port->enable	= sci_clk_enable;
+	sci_port->disable	= sci_clk_disable;
 #else
 #error "Need a valid uartclk"
 #endif
 
-		sci_ports[i].break_timer.data = (unsigned long)&sci_ports[i];
-		sci_ports[i].break_timer.function = sci_break_timer;
+	sci_port->break_timer.data = (unsigned long)sci_port;
+	sci_port->break_timer.function = sci_break_timer;
+	init_timer(&sci_port->break_timer);
 
-		init_timer(&sci_ports[i].break_timer);
-	}
-}
+	sci_port->port.mapbase	= p->mapbase;
+	sci_port->port.membase	= p->membase;
 
-int __init early_sci_setup(struct uart_port *port)
-{
-	if (unlikely(port->line > SCI_NPORTS))
-		return -ENODEV;
+	sci_port->port.irq	= p->irqs[SCIx_TXI_IRQ];
+	sci_port->port.flags	= p->flags;
+	sci_port->port.dev	= &dev->dev;
+	sci_port->type		= sci_port->port.type = p->type;
 
-	sci_init_ports();
+	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
 
-	sci_ports[port->line].port.membase	= port->membase;
-	sci_ports[port->line].port.mapbase	= port->mapbase;
-	sci_ports[port->line].port.type		= port->type;
-
-	return 0;
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
+static struct tty_driver *serial_console_device(struct console *co, int *index)
+{
+	struct uart_driver *p = &sci_uart_driver;
+	*index = co->index;
+	return p->tty_driver;
+}
+
+static void serial_console_putchar(struct uart_port *port, int ch)
+{
+	sci_poll_put_char(port, ch);
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -1096,25 +1126,27 @@ int __init early_sci_setup(struct uart_port *port)
 static void serial_console_write(struct console *co, const char *s,
 				 unsigned count)
 {
-	struct uart_port *port = &serial_console_port->port;
+	struct uart_port *port = co->data;
+	struct sci_port *sci_port = to_sci_port(port);
 	unsigned short bits;
-	int i;
 
-	for (i = 0; i < count; i++) {
-		if (*s == 10)
-			sci_poll_put_char(port, '\r');
+	if (sci_port->enable)
+		sci_port->enable(port);
 
-		sci_poll_put_char(port, *s++);
-	}
+	uart_console_write(port, s, count, serial_console_putchar);
 
 	/* wait until fifo is empty and last bit has been transmitted */
 	bits = SCxSR_TDxE(port) | SCxSR_TEND(port);
 	while ((sci_in(port, SCxSR) & bits) != bits)
 		cpu_relax();
+
+	if (sci_port->disable);
+		sci_port->disable(port);
 }
 
 static int __init serial_console_setup(struct console *co, char *options)
 {
+	struct sci_port *sci_port;
 	struct uart_port *port;
 	int baud = 115200;
 	int bits = 8;
@@ -1130,8 +1162,9 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (co->index >= SCI_NPORTS)
 		co->index = 0;
 
-	serial_console_port = &sci_ports[co->index];
-	port = &serial_console_port->port;
+	sci_port = &sci_ports[co->index];
+	port = &sci_port->port;
+	co->data = port;
 
 	/*
 	 * Also need to check port->type, we don't actually have any
@@ -1141,21 +1174,11 @@ static int __init serial_console_setup(struct console *co, char *options)
 	 */
 	if (!port->type)
 		return -ENODEV;
-	if (!port->membase || !port->mapbase)
-		return -ENODEV;
 
-	port->type = serial_console_port->type;
+	sci_config_port(port, 0);
 
-#ifdef CONFIG_HAVE_CLK
-	if (!serial_console_port->clk)
-		serial_console_port->clk = clk_get(NULL, "module_clk");
-#endif
-
-	if (port->flags & UPF_IOREMAP)
-		sci_config_port(port, 0);
-
-	if (serial_console_port->enable)
-		serial_console_port->enable(port);
+	if (sci_port->enable)
+		sci_port->enable(port);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1166,22 +1189,21 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (ret == 0)
 		sci_stop_rx(port);
 #endif
+	/* TODO: disable clock */
 	return ret;
 }
 
 static struct console serial_console = {
 	.name		= "ttySC",
-	.device		= uart_console_device,
+	.device		= serial_console_device,
 	.write		= serial_console_write,
 	.setup		= serial_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
-	.data		= &sci_uart_driver,
 };
 
 static int __init sci_console_init(void)
 {
-	sci_init_ports();
 	register_console(&serial_console);
 	return 0;
 }
@@ -1207,6 +1229,61 @@ static struct uart_driver sci_uart_driver = {
 	.cons		= SCI_CONSOLE,
 };
 
+
+static int sci_remove(struct platform_device *dev)
+{
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
+
+#ifdef CONFIG_HAVE_CLK
+	cpufreq_unregister_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
+#endif
+
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_remove_one_port(&sci_uart_driver, &p->port);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	kfree(priv);
+	return 0;
+}
+
+static int __devinit sci_probe_single(struct platform_device *dev,
+				      unsigned int index,
+				      struct plat_sci_port *p,
+				      struct sci_port *sciport)
+{
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	unsigned long flags;
+	int ret;
+
+	/* Sanity check */
+	if (unlikely(index >= SCI_NPORTS)) {
+		dev_notice(&dev->dev, "Attempting to register port "
+			   "%d when only %d are available.\n",
+			   index+1, SCI_NPORTS);
+		dev_notice(&dev->dev, "Consider bumping "
+			   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+		return 0;
+	}
+
+	sci_init_single(dev, sciport, index, p);
+
+	ret = uart_add_one_port(&sci_uart_driver, &sciport->port);
+	if (ret)
+		return ret;
+
+	INIT_LIST_HEAD(&sciport->node);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	list_add(&sciport->node, &priv->ports);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 /*
  * Register a set of serial devices attached to a platform device.  The
  * list is terminated with a zero flags entry, which means we expect
@@ -1216,56 +1293,33 @@ static struct uart_driver sci_uart_driver = {
 static int __devinit sci_probe(struct platform_device *dev)
 {
 	struct plat_sci_port *p = dev->dev.platform_data;
+	struct sh_sci_priv *priv;
 	int i, ret = -EINVAL;
 
-	for (i = 0; p && p->flags != 0; p++, i++) {
-		struct sci_port *sciport = &sci_ports[i];
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
-		/* Sanity check */
-		if (unlikely(i == SCI_NPORTS)) {
-			dev_notice(&dev->dev, "Attempting to register port "
-				   "%d when only %d are available.\n",
-				   i+1, SCI_NPORTS);
-			dev_notice(&dev->dev, "Consider bumping "
-				   "CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
-			break;
-		}
-
-		sciport->port.mapbase	= p->mapbase;
-
-		if (p->mapbase && !p->membase) {
-			if (p->flags & UPF_IOREMAP) {
-				p->membase = ioremap_nocache(p->mapbase, 0x40);
-				if (IS_ERR(p->membase)) {
-					ret = PTR_ERR(p->membase);
-					goto err_unreg;
-				}
-			} else {
-				/*
-				 * For the simple (and majority of) cases
-				 * where we don't need to do any remapping,
-				 * just cast the cookie directly.
-				 */
-				p->membase = (void __iomem *)p->mapbase;
-			}
-		}
-
-		sciport->port.membase	= p->membase;
-
-		sciport->port.irq	= p->irqs[SCIx_TXI_IRQ];
-		sciport->port.flags	= p->flags;
-		sciport->port.dev	= &dev->dev;
-
-		sciport->type		= sciport->port.type = p->type;
-
-		memcpy(&sciport->irqs, &p->irqs, sizeof(p->irqs));
-
-		uart_add_one_port(&sci_uart_driver, &sciport->port);
-	}
+	INIT_LIST_HEAD(&priv->ports);
+	spin_lock_init(&priv->lock);
+	platform_set_drvdata(dev, priv);
 
 #ifdef CONFIG_HAVE_CLK
-	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
+	priv->clk_nb.notifier_call = sci_notifier;
+	cpufreq_register_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
 #endif
+
+	if (dev->id != -1) {
+		ret = sci_probe_single(dev, dev->id, p, &sci_ports[dev->id]);
+		if (ret)
+			goto err_unreg;
+	} else {
+		for (i = 0; p && p->flags != 0; p++, i++) {
+			ret = sci_probe_single(dev, i, p, &sci_ports[i]);
+			if (ret)
+				goto err_unreg;
+		}
+	}
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 	sh_bios_gdb_detach();
@@ -1274,50 +1328,36 @@ static int __devinit sci_probe(struct platform_device *dev)
 	return 0;
 
 err_unreg:
-	for (i = i - 1; i >= 0; i--)
-		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
-
+	sci_remove(dev);
 	return ret;
-}
-
-static int __devexit sci_remove(struct platform_device *dev)
-{
-	int i;
-
-#ifdef CONFIG_HAVE_CLK
-	cpufreq_unregister_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
-
-	for (i = 0; i < SCI_NPORTS; i++)
-		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
-
-	return 0;
 }
 
 static int sci_suspend(struct platform_device *dev, pm_message_t state)
 {
-	int i;
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
 
-	for (i = 0; i < SCI_NPORTS; i++) {
-		struct sci_port *p = &sci_ports[i];
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_suspend_port(&sci_uart_driver, &p->port);
 
-		if (p->type != PORT_UNKNOWN && p->port.dev == &dev->dev)
-			uart_suspend_port(&sci_uart_driver, &p->port);
-	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
 static int sci_resume(struct platform_device *dev)
 {
-	int i;
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
 
-	for (i = 0; i < SCI_NPORTS; i++) {
-		struct sci_port *p = &sci_ports[i];
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_resume_port(&sci_uart_driver, &p->port);
 
-		if (p->type != PORT_UNKNOWN && p->port.dev == &dev->dev)
-			uart_resume_port(&sci_uart_driver, &p->port);
-	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -1338,8 +1378,6 @@ static int __init sci_init(void)
 	int ret;
 
 	printk(banner);
-
-	sci_init_ports();
 
 	ret = uart_register_driver(&sci_uart_driver);
 	if (likely(ret == 0)) {

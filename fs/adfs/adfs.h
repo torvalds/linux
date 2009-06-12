@@ -53,6 +53,7 @@ struct adfs_dir_ops {
 	int	(*update)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*create)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*remove)(struct adfs_dir *dir, struct object_info *obj);
+	int	(*sync)(struct adfs_dir *dir);
 	void	(*free)(struct adfs_dir *dir);
 };
 
@@ -90,7 +91,8 @@ extern const struct dentry_operations adfs_dentry_operations;
 extern struct adfs_dir_ops adfs_f_dir_ops;
 extern struct adfs_dir_ops adfs_fplus_dir_ops;
 
-extern int adfs_dir_update(struct super_block *sb, struct object_info *obj);
+extern int adfs_dir_update(struct super_block *sb, struct object_info *obj,
+			   int wait);
 
 /* file.c */
 extern const struct inode_operations adfs_file_inode_operations;

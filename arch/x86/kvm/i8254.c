@@ -98,6 +98,37 @@ static int pit_get_gate(struct kvm *kvm, int channel)
 	return kvm->arch.vpit->pit_state.channels[channel].gate;
 }
 
+static s64 __kpit_elapsed(struct kvm *kvm)
+{
+	s64 elapsed;
+	ktime_t remaining;
+	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
+
+	/*
+	 * The Counter does not stop when it reaches zero. In
+	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to
+	 * the highest count, either FFFF hex for binary counting
+	 * or 9999 for BCD counting, and continues counting.
+	 * Modes 2 and 3 are periodic; the Counter reloads
+	 * itself with the initial count and continues counting
+	 * from there.
+	 */
+	remaining = hrtimer_expires_remaining(&ps->pit_timer.timer);
+	elapsed = ps->pit_timer.period - ktime_to_ns(remaining);
+	elapsed = mod_64(elapsed, ps->pit_timer.period);
+
+	return elapsed;
+}
+
+static s64 kpit_elapsed(struct kvm *kvm, struct kvm_kpit_channel_state *c,
+			int channel)
+{
+	if (channel == 0)
+		return __kpit_elapsed(kvm);
+
+	return ktime_to_ns(ktime_sub(ktime_get(), c->count_load_time));
+}
+
 static int pit_get_count(struct kvm *kvm, int channel)
 {
 	struct kvm_kpit_channel_state *c =
@@ -107,7 +138,7 @@ static int pit_get_count(struct kvm *kvm, int channel)
 
 	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
-	t = ktime_to_ns(ktime_sub(ktime_get(), c->count_load_time));
+	t = kpit_elapsed(kvm, c, channel);
 	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
 
 	switch (c->mode) {
@@ -137,7 +168,7 @@ static int pit_get_out(struct kvm *kvm, int channel)
 
 	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
-	t = ktime_to_ns(ktime_sub(ktime_get(), c->count_load_time));
+	t = kpit_elapsed(kvm, c, channel);
 	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
 
 	switch (c->mode) {
@@ -193,28 +224,6 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 	}
 }
 
-static int __pit_timer_fn(struct kvm_kpit_state *ps)
-{
-	struct kvm_vcpu *vcpu0 = ps->pit->kvm->vcpus[0];
-	struct kvm_kpit_timer *pt = &ps->pit_timer;
-
-	if (!atomic_inc_and_test(&pt->pending))
-		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
-
-	if (!pt->reinject)
-		atomic_set(&pt->pending, 1);
-
-	if (vcpu0 && waitqueue_active(&vcpu0->wq))
-		wake_up_interruptible(&vcpu0->wq);
-
-	hrtimer_add_expires_ns(&pt->timer, pt->period);
-	pt->scheduled = hrtimer_get_expires_ns(&pt->timer);
-	if (pt->period)
-		ps->channels[0].count_load_time = ktime_get();
-
-	return (pt->period == 0 ? 0 : 1);
-}
-
 int pit_has_pending_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
@@ -235,21 +244,6 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 	spin_unlock(&ps->inject_lock);
 }
 
-static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
-{
-	struct kvm_kpit_state *ps;
-	int restart_timer = 0;
-
-	ps = container_of(data, struct kvm_kpit_state, pit_timer.timer);
-
-	restart_timer = __pit_timer_fn(ps);
-
-	if (restart_timer)
-		return HRTIMER_RESTART;
-	else
-		return HRTIMER_NORESTART;
-}
-
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pit *pit = vcpu->kvm->arch.vpit;
@@ -263,15 +257,26 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
-static void destroy_pit_timer(struct kvm_kpit_timer *pt)
+static void destroy_pit_timer(struct kvm_timer *pt)
 {
 	pr_debug("pit: execute del timer!\n");
 	hrtimer_cancel(&pt->timer);
 }
 
+static bool kpit_is_periodic(struct kvm_timer *ktimer)
+{
+	struct kvm_kpit_state *ps = container_of(ktimer, struct kvm_kpit_state,
+						 pit_timer);
+	return ps->is_periodic;
+}
+
+static struct kvm_timer_ops kpit_ops = {
+	.is_periodic = kpit_is_periodic,
+};
+
 static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 {
-	struct kvm_kpit_timer *pt = &ps->pit_timer;
+	struct kvm_timer *pt = &ps->pit_timer;
 	s64 interval;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
@@ -280,8 +285,14 @@ static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&pt->timer);
-	pt->period = (is_period == 0) ? 0 : interval;
-	pt->timer.function = pit_timer_fn;
+	pt->period = interval;
+	ps->is_periodic = is_period;
+
+	pt->timer.function = kvm_timer_fn;
+	pt->t_ops = &kpit_ops;
+	pt->kvm = ps->pit->kvm;
+	pt->vcpu_id = 0;
+
 	atomic_set(&pt->pending, 0);
 	ps->irq_ack = 1;
 
@@ -298,23 +309,23 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	pr_debug("pit: load_count val is %d, channel is %d\n", val, channel);
 
 	/*
-	 * Though spec said the state of 8254 is undefined after power-up,
-	 * seems some tricky OS like Windows XP depends on IRQ0 interrupt
-	 * when booting up.
-	 * So here setting initialize rate for it, and not a specific number
+	 * The largest possible initial count is 0; this is equivalent
+	 * to 216 for binary counting and 104 for BCD counting.
 	 */
 	if (val == 0)
 		val = 0x10000;
 
-	ps->channels[channel].count_load_time = ktime_get();
 	ps->channels[channel].count = val;
 
-	if (channel != 0)
+	if (channel != 0) {
+		ps->channels[channel].count_load_time = ktime_get();
 		return;
+	}
 
 	/* Two types of timer
 	 * mode 1 is one shot, mode 2 is period, otherwise del timer */
 	switch (ps->channels[0].mode) {
+	case 0:
 	case 1:
         /* FIXME: enhance mode 4 precision */
 	case 4:

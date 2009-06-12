@@ -146,7 +146,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		 * a one page request is never in violation.
 		 */
 		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
+		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		disk->num_sectors = rdev->sectors;

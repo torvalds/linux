@@ -389,3 +389,4 @@ sys_call_table:
 	.long sys_inotify_init1		/* 360 */
 	.long sys_preadv
 	.long sys_pwritev
+	.long sys_rt_tgsigqueueinfo

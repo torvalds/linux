@@ -123,6 +123,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, pte_access;
 	gpa_t pte_gpa;
+	int rsvd_fault = 0;
 
 	pgprintk("%s: addr %lx\n", __func__, addr);
 walk:
@@ -156,6 +157,10 @@ walk:
 
 		if (!is_present_pte(pte))
 			goto not_present;
+
+		rsvd_fault = is_rsvd_bits_set(vcpu, pte, walker->level);
+		if (rsvd_fault)
+			goto access_error;
 
 		if (write_fault && !is_writeble_pte(pte))
 			if (user_fault || is_write_protection(vcpu))
@@ -209,7 +214,6 @@ walk:
 		if (ret)
 			goto walk;
 		pte |= PT_DIRTY_MASK;
-		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte), 0);
 		walker->ptes[walker->level - 1] = pte;
 	}
 
@@ -233,6 +237,8 @@ err:
 		walker->error_code |= PFERR_USER_MASK;
 	if (fetch_fault)
 		walker->error_code |= PFERR_FETCH_MASK;
+	if (rsvd_fault)
+		walker->error_code |= PFERR_RSVD_MASK;
 	return 0;
 }
 
@@ -262,8 +268,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage,
-		     gpte & PT_GLOBAL_MASK, gpte_to_gfn(gpte),
-		     pfn, true);
+		     gpte_to_gfn(gpte), pfn, true);
 }
 
 /*
@@ -297,7 +302,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 				     user_fault, write_fault,
 				     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
 				     ptwrite, largepage,
-				     gw->ptes[gw->level-1] & PT_GLOBAL_MASK,
 				     gw->gfn, pfn, false);
 			break;
 		}
@@ -380,7 +384,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		return r;
 
 	/*
-	 * Look up the shadow pte for the faulting address.
+	 * Look up the guest pte for the faulting address.
 	 */
 	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
 			     fetch_fault);
@@ -586,7 +590,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
-			 is_dirty_pte(gpte), 0, gpte & PT_GLOBAL_MASK, gfn,
+			 is_dirty_pte(gpte), 0, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false);
 	}
 

@@ -95,7 +95,6 @@ extern void __ptrace_link(struct task_struct *child,
 			  struct task_struct *new_parent);
 extern void __ptrace_unlink(struct task_struct *child);
 extern void exit_ptrace(struct task_struct *tracer);
-extern void ptrace_fork(struct task_struct *task, unsigned long clone_flags);
 #define PTRACE_MODE_READ   1
 #define PTRACE_MODE_ATTACH 2
 /* Returns 0 on success, -errno on denial. */
@@ -325,15 +324,6 @@ static inline void user_enable_block_step(struct task_struct *task)
  * Called with write_lock(&tasklist_lock) held.
  */
 #define arch_ptrace_untrace(task)		do { } while (0)
-#endif
-
-#ifndef arch_ptrace_fork
-/*
- * Do machine-specific work to initialize a new task.
- *
- * This is called from copy_process().
- */
-#define arch_ptrace_fork(child, clone_flags)	do { } while (0)
 #endif
 
 extern int task_current_syscall(struct task_struct *target, long *callno,

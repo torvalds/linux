@@ -133,6 +133,18 @@ static int fat_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+int fat_file_fsync(struct file *filp, struct dentry *dentry, int datasync)
+{
+	struct inode *inode = dentry->d_inode;
+	int res, err;
+
+	res = simple_fsync(filp, dentry, datasync);
+	err = sync_mapping_buffers(MSDOS_SB(inode->i_sb)->fat_inode->i_mapping);
+
+	return res ? res : err;
+}
+
+
 const struct file_operations fat_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
@@ -142,7 +154,7 @@ const struct file_operations fat_file_operations = {
 	.mmap		= generic_file_mmap,
 	.release	= fat_file_release,
 	.ioctl		= fat_generic_ioctl,
-	.fsync		= file_fsync,
+	.fsync		= fat_file_fsync,
 	.splice_read	= generic_file_splice_read,
 };
 

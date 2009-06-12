@@ -12,7 +12,7 @@
 static struct irq_chip	ia64_msi_chip;
 
 #ifdef CONFIG_SMP
-static void ia64_set_msi_irq_affinity(unsigned int irq,
+static int ia64_set_msi_irq_affinity(unsigned int irq,
 				      const cpumask_t *cpu_mask)
 {
 	struct msi_msg msg;
@@ -20,10 +20,10 @@ static void ia64_set_msi_irq_affinity(unsigned int irq,
 	int cpu = first_cpu(*cpu_mask);
 
 	if (!cpu_online(cpu))
-		return;
+		return -1;
 
 	if (irq_prepare_move(irq, cpu))
-		return;
+		return -1;
 
 	read_msi_msg(irq, &msg);
 
@@ -39,6 +39,8 @@ static void ia64_set_msi_irq_affinity(unsigned int irq,
 
 	write_msi_msg(irq, &msg);
 	cpumask_copy(irq_desc[irq].affinity, cpumask_of(cpu));
+
+	return 0;
 }
 #endif /* CONFIG_SMP */
 
@@ -130,17 +132,17 @@ void arch_teardown_msi_irq(unsigned int irq)
 
 #ifdef CONFIG_DMAR
 #ifdef CONFIG_SMP
-static void dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	struct irq_cfg *cfg = irq_cfg + irq;
 	struct msi_msg msg;
 	int cpu = cpumask_first(mask);
 
 	if (!cpu_online(cpu))
-		return;
+		return -1;
 
 	if (irq_prepare_move(irq, cpu))
-		return;
+		return -1;
 
 	dmar_msi_read(irq, &msg);
 
@@ -151,6 +153,8 @@ static void dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	dmar_msi_write(irq, &msg);
 	cpumask_copy(irq_desc[irq].affinity, mask);
+
+	return 0;
 }
 #endif /* CONFIG_SMP */
 

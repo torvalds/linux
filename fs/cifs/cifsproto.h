@@ -90,10 +90,10 @@ extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
 extern void DeleteTconOplockQEntries(struct cifsTconInfo *);
-extern struct timespec cifs_NTtimeToUnix(u64 utc_nanoseconds_since_1601);
+extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
-extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
-extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
+extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
+				      int offset);
 
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct super_block *sb, int mode, int oflags,
@@ -108,8 +108,8 @@ extern int cifs_get_inode_info(struct inode **pinode,
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void acl_to_uid_mode(struct inode *inode, const char *path,
-			    const __u16 *pfid);
+extern void acl_to_uid_mode(struct cifs_sb_info *cifs_sb, struct inode *inode,
+			    const char *path, const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,

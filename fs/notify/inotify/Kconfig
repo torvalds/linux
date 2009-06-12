@@ -1,26 +1,30 @@
 config INOTIFY
 	bool "Inotify file change notification support"
-	default y
+	default n
 	---help---
-	  Say Y here to enable inotify support.  Inotify is a file change
-	  notification system and a replacement for dnotify.  Inotify fixes
-	  numerous shortcomings in dnotify and introduces several new features
-	  including multiple file events, one-shot support, and unmount
-	  notification.
+	  Say Y here to enable legacy in kernel inotify support.  Inotify is a
+	  file change notification system.  It is a replacement for dnotify.
+	  This option only provides the legacy inotify in kernel API.  There
+	  are no in tree kernel users of this interface since it is deprecated.
+	  You only need this if you are loading an out of tree kernel module
+	  that uses inotify.
 
 	  For more information, see <file:Documentation/filesystems/inotify.txt>
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config INOTIFY_USER
 	bool "Inotify support for userspace"
-	depends on INOTIFY
+	depends on FSNOTIFY
 	default y
 	---help---
 	  Say Y here to enable inotify support for userspace, including the
 	  associated system calls.  Inotify allows monitoring of both files and
 	  directories via a single open fd.  Events are read from the file
 	  descriptor, which is also select()- and poll()-able.
+	  Inotify fixes numerous shortcomings in dnotify and introduces several
+	  new features including multiple file events, one-shot support, and
+	  unmount notification.
 
 	  For more information, see <file:Documentation/filesystems/inotify.txt>
 

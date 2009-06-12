@@ -46,6 +46,15 @@ config SH_7722_SOLUTION_ENGINE
 	  Select 7722 SolutionEngine if configuring for a Hitachi SH772
 	  evaluation board.
 
+config SH_7724_SOLUTION_ENGINE
+	bool "SolutionEngine7724"
+	select SOLUTION_ENGINE
+	depends on CPU_SUBTYPE_SH7724
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Select 7724 SolutionEngine if configuring for a Hitachi SH7724
+	  evaluation board.
+
 config SH_7751_SOLUTION_ENGINE
 	bool "SolutionEngine7751"
 	select SOLUTION_ENGINE
@@ -121,7 +130,7 @@ config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
 	select SYS_SUPPORTS_PCI
-	select IO_TRAPPED
+	select IO_TRAPPED if MMU
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
@@ -145,13 +154,13 @@ config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
-	select IO_TRAPPED
+	select IO_TRAPPED if MMU
 
 config SH_SH7785LCR
 	bool "SH7785LCR"
 	depends on CPU_SUBTYPE_SH7785
 	select SYS_SUPPORTS_PCI
-	select IO_TRAPPED
+	select IO_TRAPPED if MMU
 
 config SH_SH7785LCR_29BIT_PHYSMAPS
 	bool "SH7785LCR 29bit physmaps"

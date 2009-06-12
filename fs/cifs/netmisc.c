@@ -853,12 +853,12 @@ smbCalcSize_LE(struct smb_hdr *ptr)
 
 #define NTFS_TIME_OFFSET ((u64)(369*365 + 89) * 24 * 3600 * 10000000)
 
-    /*
-     * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
-     * into Unix UTC (based 1970-01-01, in seconds).
-     */
+/*
+ * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * into Unix UTC (based 1970-01-01, in seconds).
+ */
 struct timespec
-cifs_NTtimeToUnix(u64 ntutc)
+cifs_NTtimeToUnix(__le64 ntutc)
 {
 	struct timespec ts;
 	/* BB what about the timezone? BB */
@@ -866,7 +866,7 @@ cifs_NTtimeToUnix(u64 ntutc)
 	/* Subtract the NTFS time offset, then convert to 1s intervals. */
 	u64 t;
 
-	t = ntutc - NTFS_TIME_OFFSET;
+	t = le64_to_cpu(ntutc) - NTFS_TIME_OFFSET;
 	ts.tv_nsec = do_div(t, 10000000) * 100;
 	ts.tv_sec = t;
 	return ts;
@@ -883,16 +883,12 @@ cifs_UnixTimeToNT(struct timespec t)
 static int total_days_of_prev_months[] =
 {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
 
-
-__le64 cnvrtDosCifsTm(__u16 date, __u16 time)
-{
-	return cpu_to_le64(cifs_UnixTimeToNT(cnvrtDosUnixTm(date, time)));
-}
-
-struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
+struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 {
 	struct timespec ts;
 	int sec, min, days, month, year;
+	u16 date = le16_to_cpu(le_date);
+	u16 time = le16_to_cpu(le_time);
 	SMB_TIME *st = (SMB_TIME *)&time;
 	SMB_DATE *sd = (SMB_DATE *)&date;
 
@@ -933,7 +929,7 @@ struct timespec cnvrtDosUnixTm(__u16 date, __u16 time)
 		days -= ((year & 0x03) == 0) && (month < 2 ? 1 : 0);
 	sec += 24 * 60 * 60 * days;
 
-	ts.tv_sec = sec;
+	ts.tv_sec = sec + offset;
 
 	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
 

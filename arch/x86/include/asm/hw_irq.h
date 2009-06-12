@@ -29,6 +29,8 @@
 extern void apic_timer_interrupt(void);
 extern void generic_interrupt(void);
 extern void error_interrupt(void);
+extern void perf_pending_interrupt(void);
+
 extern void spurious_interrupt(void);
 extern void thermal_interrupt(void);
 extern void reschedule_interrupt(void);
@@ -63,7 +65,26 @@ extern unsigned long io_apic_irqs;
 extern void init_VISWS_APIC_irqs(void);
 extern void setup_IO_APIC(void);
 extern void disable_IO_APIC(void);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
+
+struct io_apic_irq_attr {
+	int ioapic;
+	int ioapic_pin;
+	int trigger;
+	int polarity;
+};
+
+static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
+					int ioapic, int ioapic_pin,
+					int trigger, int polarity)
+{
+	irq_attr->ioapic     = ioapic;
+	irq_attr->ioapic_pin = ioapic_pin;
+	irq_attr->trigger    = trigger;
+	irq_attr->polarity   = polarity;
+}
+
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin,
+					struct io_apic_irq_attr *irq_attr);
 extern void setup_ioapic_dest(void);
 
 extern void enable_IO_APIC(void);
@@ -78,7 +99,11 @@ extern void eisa_set_level_irq(unsigned int irq);
 /* SMP */
 extern void smp_apic_timer_interrupt(struct pt_regs *);
 extern void smp_spurious_interrupt(struct pt_regs *);
+extern void smp_generic_interrupt(struct pt_regs *);
 extern void smp_error_interrupt(struct pt_regs *);
+#ifdef CONFIG_X86_IO_APIC
+extern asmlinkage void smp_irq_move_cleanup_interrupt(void);
+#endif
 #ifdef CONFIG_SMP
 extern void smp_reschedule_interrupt(struct pt_regs *);
 extern void smp_call_function_interrupt(struct pt_regs *);

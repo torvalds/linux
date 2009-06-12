@@ -196,7 +196,7 @@ static void init_once(void *foo)
 	kref_set(&iint->refcount, 1);
 }
 
-void ima_iintcache_init(void)
+void __init ima_iintcache_init(void)
 {
 	iint_cache =
 	    kmem_cache_create("iint_cache", sizeof(struct ima_iint_cache), 0,

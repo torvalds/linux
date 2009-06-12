@@ -772,11 +772,11 @@ static int stl_carrier_raised(struct tty_port *port)
 	return (portp->sigs & TIOCM_CD) ? 1 : 0;
 }
 
-static void stl_raise_dtr_rts(struct tty_port *port)
+static void stl_dtr_rts(struct tty_port *port, int on)
 {
 	struct stlport *portp = container_of(port, struct stlport, port);
 	/* Takes brd_lock internally */
-	stl_setsignals(portp, 1, 1);
+	stl_setsignals(portp, on, on);
 }
 
 /*****************************************************************************/
@@ -2547,7 +2547,7 @@ static const struct tty_operations stl_ops = {
 
 static const struct tty_port_operations stl_port_ops = {
 	.carrier_raised = stl_carrier_raised,
-	.raise_dtr_rts = stl_raise_dtr_rts,
+	.dtr_rts = stl_dtr_rts,
 };
 
 /*****************************************************************************/

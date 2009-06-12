@@ -160,7 +160,6 @@ extern struct apic apic_summit;
 extern struct apic apic_bigsmp;
 extern struct apic apic_es7000;
 extern struct apic apic_es7000_cluster;
-extern struct apic apic_default;
 
 struct apic *apic = &apic_default;
 EXPORT_SYMBOL_GPL(apic);

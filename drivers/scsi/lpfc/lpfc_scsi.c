@@ -1312,10 +1312,10 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t bgstat = bgf->bgstat;
 	uint64_t failing_sector = 0;
 
-	printk(KERN_ERR "BG ERROR in cmd 0x%x lba 0x%llx blk cnt 0x%lx "
+	printk(KERN_ERR "BG ERROR in cmd 0x%x lba 0x%llx blk cnt 0x%x "
 			"bgstat=0x%x bghm=0x%x\n",
 			cmd->cmnd[0], (unsigned long long)scsi_get_lba(cmd),
-			cmd->request->nr_sectors, bgstat, bghm);
+			blk_rq_sectors(cmd->request), bgstat, bghm);
 
 	spin_lock(&_dump_buf_lock);
 	if (!_dump_buf_done) {
@@ -2378,15 +2378,15 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		if (cmnd->cmnd[0] == READ_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9035 BLKGRD: READ @ sector %llu, "
-					 "count %lu\n",
-					 (unsigned long long)scsi_get_lba(cmnd),
-					cmnd->request->nr_sectors);
+					"count %u\n",
+					(unsigned long long)scsi_get_lba(cmnd),
+					blk_rq_sectors(cmnd->request));
 		else if (cmnd->cmnd[0] == WRITE_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					"9036 BLKGRD: WRITE @ sector %llu, "
-					"count %lu cmd=%p\n",
+					"count %u cmd=%p\n",
 					(unsigned long long)scsi_get_lba(cmnd),
-					cmnd->request->nr_sectors,
+					blk_rq_sectors(cmnd->request),
 					cmnd);
 
 		err = lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
@@ -2406,15 +2406,15 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		if (cmnd->cmnd[0] == READ_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9040 dbg: READ @ sector %llu, "
-					 "count %lu\n",
+					 "count %u\n",
 					 (unsigned long long)scsi_get_lba(cmnd),
-					 cmnd->request->nr_sectors);
+					 blk_rq_sectors(cmnd->request));
 		else if (cmnd->cmnd[0] == WRITE_10)
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9041 dbg: WRITE @ sector %llu, "
-					 "count %lu cmd=%p\n",
+					 "count %u cmd=%p\n",
 					 (unsigned long long)scsi_get_lba(cmnd),
-					 cmnd->request->nr_sectors, cmnd);
+					 blk_rq_sectors(cmnd->request), cmnd);
 		else
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
 					 "9042 dbg: parser not implemented\n");

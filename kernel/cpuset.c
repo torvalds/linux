@@ -1857,7 +1857,7 @@ struct cgroup_subsys cpuset_subsys = {
 
 int __init cpuset_init_early(void)
 {
-	alloc_bootmem_cpumask_var(&top_cpuset.cpus_allowed);
+	alloc_cpumask_var(&top_cpuset.cpus_allowed, GFP_NOWAIT);
 
 	top_cpuset.mems_generation = cpuset_mems_generation++;
 	return 0;

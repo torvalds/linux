@@ -17,9 +17,6 @@ extern int compute_hash_shift(struct bootnode *nodes, int numblks,
 extern void numa_init_array(void);
 extern int numa_off;
 
-extern void srat_reserve_add_area(int nodeid);
-extern int hotadd_percent;
-
 extern s16 apicid_to_node[MAX_LOCAL_APIC];
 
 extern unsigned long numa_free_all_bootmem(void);
@@ -27,6 +24,13 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
 			       unsigned long end);
 
 #ifdef CONFIG_NUMA
+/*
+ * Too small node sizes may confuse the VM badly. Usually they
+ * result from BIOS bugs. So dont recognize nodes as standalone
+ * NUMA entities that have less than this amount of RAM listed:
+ */
+#define NODE_MIN_SIZE (4*1024*1024)
+
 extern void __init init_cpu_to_node(void);
 extern void __cpuinit numa_set_node(int cpu, int node);
 extern void __cpuinit numa_clear_node(int cpu);

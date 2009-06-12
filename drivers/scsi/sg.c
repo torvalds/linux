@@ -289,8 +289,8 @@ sg_open(struct inode *inode, struct file *filp)
 	if (list_empty(&sdp->sfds)) {	/* no existing opens on this device */
 		sdp->sgdebug = 0;
 		q = sdp->device->request_queue;
-		sdp->sg_tablesize = min(q->max_hw_segments,
-					q->max_phys_segments);
+		sdp->sg_tablesize = min(queue_max_hw_segments(q),
+					queue_max_phys_segments(q));
 	}
 	if ((sfp = sg_add_sfp(sdp, dev)))
 		filp->private_data = sfp;
@@ -909,7 +909,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
                 if (val < 0)
                         return -EINVAL;
 		val = min_t(int, val,
-				sdp->device->request_queue->max_sectors * 512);
+			    queue_max_sectors(sdp->device->request_queue) * 512);
 		if (val != sfp->reserve.bufflen) {
 			if (sg_res_in_use(sfp) || sfp->mmap_called)
 				return -EBUSY;
@@ -919,7 +919,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 		return 0;
 	case SG_GET_RESERVED_SIZE:
 		val = min_t(int, sfp->reserve.bufflen,
-				sdp->device->request_queue->max_sectors * 512);
+			    queue_max_sectors(sdp->device->request_queue) * 512);
 		return put_user(val, ip);
 	case SG_SET_COMMAND_Q:
 		result = get_user(val, ip);
@@ -1059,12 +1059,13 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			return -ENODEV;
 		return scsi_ioctl(sdp->device, cmd_in, p);
 	case BLKSECTGET:
-		return put_user(sdp->device->request_queue->max_sectors * 512,
+		return put_user(queue_max_sectors(sdp->device->request_queue) * 512,
 				ip);
 	case BLKTRACESETUP:
 		return blk_trace_setup(sdp->device->request_queue,
 				       sdp->disk->disk_name,
 				       MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
+				       NULL,
 				       (char *)arg);
 	case BLKTRACESTART:
 		return blk_trace_startstop(sdp->device->request_queue, 1);
@@ -1260,7 +1261,7 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 
 	sense = rq->sense;
 	result = rq->errors;
-	resid = rq->data_len;
+	resid = rq->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, printk("sg_cmd_done: %s, pack_id=%d, res=0x%x\n",
 		sdp->disk->disk_name, srp->header.pack_id, result));
@@ -1377,7 +1378,8 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	sdp->device = scsidp;
 	INIT_LIST_HEAD(&sdp->sfds);
 	init_waitqueue_head(&sdp->o_excl_wait);
-	sdp->sg_tablesize = min(q->max_hw_segments, q->max_phys_segments);
+	sdp->sg_tablesize = min(queue_max_hw_segments(q),
+				queue_max_phys_segments(q));
 	sdp->index = k;
 	kref_init(&sdp->d_ref);
 
@@ -2055,7 +2057,7 @@ sg_add_sfp(Sg_device * sdp, int dev)
 		sg_big_buff = def_reserved_size;
 
 	bufflen = min_t(int, sg_big_buff,
-			sdp->device->request_queue->max_sectors * 512);
+			queue_max_sectors(sdp->device->request_queue) * 512);
 	sg_build_reserve(sfp, bufflen);
 	SCSI_LOG_TIMEOUT(3, printk("sg_add_sfp:   bufflen=%d, k_use_sg=%d\n",
 			   sfp->reserve.bufflen, sfp->reserve.k_use_sg));

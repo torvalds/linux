@@ -22,31 +22,6 @@
 #include <asm/io.h>
 #include "pci-sh5.h"
 
-static void __init pci_fixup_ide_bases(struct pci_dev *d)
-{
-	int i;
-
-	/*
-	 * PCI IDE controllers use non-standard I/O port decoding, respect it.
-	 */
-	if ((d->class >> 8) != PCI_CLASS_STORAGE_IDE)
-		return;
-	printk("PCI: IDE base address fixup for %s\n", pci_name(d));
-	for(i=0; i<4; i++) {
-		struct resource *r = &d->resource[i];
-		if ((r->start & ~0x80) == 0x374) {
-			r->start |= 2;
-			r->end = r->start;
-		}
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
-
-char * __devinit pcibios_setup(char *str)
-{
-	return str;
-}
-
 static int sh5pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 			int size, u32 *val)
 {

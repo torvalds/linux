@@ -161,6 +161,22 @@ out:
 	return ret;
 }
 
+static int
+adfs_fplus_sync(struct adfs_dir *dir)
+{
+	int err = 0;
+	int i;
+
+	for (i = dir->nr_buffers - 1; i >= 0; i--) {
+		struct buffer_head *bh = dir->bh[i];
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
+
+	return err;
+}
+
 static void
 adfs_fplus_free(struct adfs_dir *dir)
 {
@@ -175,5 +191,6 @@ struct adfs_dir_ops adfs_fplus_dir_ops = {
 	.read		= adfs_fplus_read,
 	.setpos		= adfs_fplus_setpos,
 	.getnext	= adfs_fplus_getnext,
+	.sync		= adfs_fplus_sync,
 	.free		= adfs_fplus_free
 };

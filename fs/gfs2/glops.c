@@ -310,24 +310,6 @@ static void rgrp_go_unlock(struct gfs2_holder *gh)
 }
 
 /**
- * rgrp_go_dump - print out an rgrp
- * @seq: The iterator
- * @gl: The glock in question
- *
- */
-
-static int rgrp_go_dump(struct seq_file *seq, const struct gfs2_glock *gl)
-{
-	const struct gfs2_rgrpd *rgd = gl->gl_object;
-	if (rgd == NULL)
-		return 0;
-	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u\n",
-		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
-		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes);
-	return 0;
-}
-
-/**
  * trans_go_sync - promote/demote the transaction glock
  * @gl: the glock
  * @state: the requested state
@@ -410,7 +392,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_demote_ok = rgrp_go_demote_ok,
 	.go_lock = rgrp_go_lock,
 	.go_unlock = rgrp_go_unlock,
-	.go_dump = rgrp_go_dump,
+	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
 	.go_min_hold_time = HZ / 5,
 };

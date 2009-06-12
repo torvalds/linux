@@ -42,6 +42,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/quotaops.h>
+#include <linux/smp_lock.h>
 
 #define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
@@ -126,7 +127,6 @@ static int ocfs2_get_sector(struct super_block *sb,
 			    struct buffer_head **bh,
 			    int block,
 			    int sect_size);
-static void ocfs2_write_super(struct super_block *sb);
 static struct inode *ocfs2_alloc_inode(struct super_block *sb);
 static void ocfs2_destroy_inode(struct inode *inode);
 static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend);
@@ -141,7 +141,6 @@ static const struct super_operations ocfs2_sops = {
 	.clear_inode	= ocfs2_clear_inode,
 	.delete_inode	= ocfs2_delete_inode,
 	.sync_fs	= ocfs2_sync_fs,
-	.write_super	= ocfs2_write_super,
 	.put_super	= ocfs2_put_super,
 	.remount_fs	= ocfs2_remount,
 	.show_options   = ocfs2_show_options,
@@ -365,23 +364,11 @@ static struct file_operations ocfs2_osb_debug_fops = {
 	.llseek =	generic_file_llseek,
 };
 
-/*
- * write_super and sync_fs ripped right out of ext3.
- */
-static void ocfs2_write_super(struct super_block *sb)
-{
-	if (mutex_trylock(&sb->s_lock) != 0)
-		BUG();
-	sb->s_dirt = 0;
-}
-
 static int ocfs2_sync_fs(struct super_block *sb, int wait)
 {
 	int status;
 	tid_t target;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
-
-	sb->s_dirt = 0;
 
 	if (ocfs2_is_hard_readonly(osb))
 		return -EROFS;
@@ -595,6 +582,8 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	struct mount_options parsed_options;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
+	lock_kernel();
+
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 1)) {
 		ret = -EINVAL;
 		goto out;
@@ -698,6 +687,7 @@ unlock_osb:
 			ocfs2_set_journal_params(osb);
 	}
 out:
+	unlock_kernel();
 	return ret;
 }
 
@@ -713,7 +703,7 @@ static int ocfs2_sb_probe(struct super_block *sb,
 	*bh = NULL;
 
 	/* may be > 512 */
-	*sector_size = bdev_hardsect_size(sb->s_bdev);
+	*sector_size = bdev_logical_block_size(sb->s_bdev);
 	if (*sector_size > OCFS2_MAX_BLOCKSIZE) {
 		mlog(ML_ERROR, "Hardware sector size too large: %d (max=%d)\n",
 		     *sector_size, OCFS2_MAX_BLOCKSIZE);
@@ -1550,8 +1540,12 @@ static void ocfs2_put_super(struct super_block *sb)
 {
 	mlog_entry("(0x%p)\n", sb);
 
+	lock_kernel();
+
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
+
+	unlock_kernel();
 
 	mlog_exit_void();
 }

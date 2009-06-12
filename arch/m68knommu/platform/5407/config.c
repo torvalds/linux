@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
@@ -20,8 +19,6 @@
 #include <asm/mcfuart.h>
 
 /***************************************************************************/
-
-void coldfire_reset(void);
 
 extern unsigned int mcf_timervector;
 extern unsigned int mcf_profilevector;
@@ -110,6 +107,17 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 /***************************************************************************/
 
+void m5407_cpu_reset(void)
+{
+	local_irq_disable();
+	/* set watchdog to soft reset, and enabled */
+	__raw_writeb(0xc0, MCF_MBAR + MCFSIM_SYPCR);
+	for (;;)
+		/* wait for watchdog to timeout */;
+}
+
+/***************************************************************************/
+
 void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
@@ -121,7 +129,7 @@ void __init config_BSP(char *commandp, int size)
 	mcf_timerlevel = 6;
 #endif
 
-	mach_reset = coldfire_reset;
+	mach_reset = m5407_cpu_reset;
 }
 
 /***************************************************************************/

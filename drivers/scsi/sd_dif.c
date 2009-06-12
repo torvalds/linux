@@ -507,7 +507,7 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 	sector_sz = scmd->device->sector_size;
 	sectors = good_bytes / sector_sz;
 
-	phys = scmd->request->sector & 0xffffffff;
+	phys = blk_rq_pos(scmd->request) & 0xffffffff;
 	if (sector_sz == 4096)
 		phys >>= 3;
 

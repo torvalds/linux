@@ -46,6 +46,7 @@
 #include <linux/page-isolation.h>
 #include <linux/page_cgroup.h>
 #include <linux/debugobjects.h>
+#include <linux/kmemleak.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -149,10 +150,6 @@ static unsigned long __meminitdata dma_reserve;
   static int __meminitdata nr_nodemap_entries;
   static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
   static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-  static unsigned long __meminitdata node_boundary_start_pfn[MAX_NUMNODES];
-  static unsigned long __meminitdata node_boundary_end_pfn[MAX_NUMNODES];
-#endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
   static unsigned long __initdata required_kernelcore;
   static unsigned long __initdata required_movablecore;
   static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
@@ -3103,64 +3100,6 @@ void __init sparse_memory_present_with_active_regions(int nid)
 }
 
 /**
- * push_node_boundaries - Push node boundaries to at least the requested boundary
- * @nid: The nid of the node to push the boundary for
- * @start_pfn: The start pfn of the node
- * @end_pfn: The end pfn of the node
- *
- * In reserve-based hot-add, mem_map is allocated that is unused until hotadd
- * time. Specifically, on x86_64, SRAT will report ranges that can potentially
- * be hotplugged even though no physical memory exists. This function allows
- * an arch to push out the node boundaries so mem_map is allocated that can
- * be used later.
- */
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-void __init push_node_boundaries(unsigned int nid,
-		unsigned long start_pfn, unsigned long end_pfn)
-{
-	mminit_dprintk(MMINIT_TRACE, "zoneboundary",
-			"Entering push_node_boundaries(%u, %lu, %lu)\n",
-			nid, start_pfn, end_pfn);
-
-	/* Initialise the boundary for this node if necessary */
-	if (node_boundary_end_pfn[nid] == 0)
-		node_boundary_start_pfn[nid] = -1UL;
-
-	/* Update the boundaries */
-	if (node_boundary_start_pfn[nid] > start_pfn)
-		node_boundary_start_pfn[nid] = start_pfn;
-	if (node_boundary_end_pfn[nid] < end_pfn)
-		node_boundary_end_pfn[nid] = end_pfn;
-}
-
-/* If necessary, push the node boundary out for reserve hotadd */
-static void __meminit account_node_boundary(unsigned int nid,
-		unsigned long *start_pfn, unsigned long *end_pfn)
-{
-	mminit_dprintk(MMINIT_TRACE, "zoneboundary",
-			"Entering account_node_boundary(%u, %lu, %lu)\n",
-			nid, *start_pfn, *end_pfn);
-
-	/* Return if boundary information has not been provided */
-	if (node_boundary_end_pfn[nid] == 0)
-		return;
-
-	/* Check the boundaries and update if necessary */
-	if (node_boundary_start_pfn[nid] < *start_pfn)
-		*start_pfn = node_boundary_start_pfn[nid];
-	if (node_boundary_end_pfn[nid] > *end_pfn)
-		*end_pfn = node_boundary_end_pfn[nid];
-}
-#else
-void __init push_node_boundaries(unsigned int nid,
-		unsigned long start_pfn, unsigned long end_pfn) {}
-
-static void __meminit account_node_boundary(unsigned int nid,
-		unsigned long *start_pfn, unsigned long *end_pfn) {}
-#endif
-
-
-/**
  * get_pfn_range_for_nid - Return the start and end page frames for a node
  * @nid: The nid to return the range for. If MAX_NUMNODES, the min and max PFN are returned.
  * @start_pfn: Passed by reference. On return, it will have the node start_pfn.
@@ -3185,9 +3124,6 @@ void __meminit get_pfn_range_for_nid(unsigned int nid,
 
 	if (*start_pfn == -1UL)
 		*start_pfn = 0;
-
-	/* Push the node boundaries out if requested */
-	account_node_boundary(nid, start_pfn, end_pfn);
 }
 
 /*
@@ -3793,10 +3729,6 @@ void __init remove_all_active_ranges(void)
 {
 	memset(early_node_map, 0, sizeof(early_node_map));
 	nr_nodemap_entries = 0;
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-	memset(node_boundary_start_pfn, 0, sizeof(node_boundary_start_pfn));
-	memset(node_boundary_end_pfn, 0, sizeof(node_boundary_end_pfn));
-#endif /* CONFIG_MEMORY_HOTPLUG_RESERVE */
 }
 
 /* Compare two active node_active_regions */
@@ -4614,6 +4546,16 @@ void *__init alloc_large_system_hash(const char *tablename,
 		*_hash_shift = log2qty;
 	if (_hash_mask)
 		*_hash_mask = (1 << log2qty) - 1;
+
+	/*
+	 * If hashdist is set, the table allocation is done with __vmalloc()
+	 * which invokes the kmemleak_alloc() callback. This function may also
+	 * be called before the slab and kmemleak are initialised when
+	 * kmemleak simply buffers the request to be executed later
+	 * (GFP_ATOMIC flag ignored in this case).
+	 */
+	if (!hashdist)
+		kmemleak_alloc(table, size, 1, GFP_ATOMIC);
 
 	return table;
 }

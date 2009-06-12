@@ -30,9 +30,6 @@ struct btrfs_delayed_ref_node {
 	/* the starting bytenr of the extent */
 	u64 bytenr;
 
-	/* the parent our backref will point to */
-	u64 parent;
-
 	/* the size of the extent */
 	u64 num_bytes;
 
@@ -50,8 +47,19 @@ struct btrfs_delayed_ref_node {
 	 */
 	int ref_mod;
 
+	unsigned int action:8;
+	unsigned int type:8;
 	/* is this node still in the rbtree? */
+	unsigned int is_head:1;
 	unsigned int in_tree:1;
+};
+
+struct btrfs_delayed_extent_op {
+	struct btrfs_disk_key key;
+	u64 flags_to_set;
+	unsigned int update_key:1;
+	unsigned int update_flags:1;
+	unsigned int is_data:1;
 };
 
 /*
@@ -71,6 +79,7 @@ struct btrfs_delayed_ref_head {
 
 	struct list_head cluster;
 
+	struct btrfs_delayed_extent_op *extent_op;
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
@@ -84,27 +93,26 @@ struct btrfs_delayed_ref_head {
 	 * the free has happened.
 	 */
 	unsigned int must_insert_reserved:1;
+	unsigned int is_data:1;
 };
 
-struct btrfs_delayed_ref {
+struct btrfs_delayed_tree_ref {
 	struct btrfs_delayed_ref_node node;
+	union {
+		u64 root;
+		u64 parent;
+	};
+	int level;
+};
 
-	/* the root objectid our ref will point to */
-	u64 root;
-
-	/* the generation for the backref */
-	u64 generation;
-
-	/* owner_objectid of the backref  */
-	u64 owner_objectid;
-
-	/* operation done by this entry in the rbtree */
-	u8 action;
-
-	/* if pin == 1, when the extent is freed it will be pinned until
-	 * transaction commit
-	 */
-	unsigned int pin:1;
+struct btrfs_delayed_data_ref {
+	struct btrfs_delayed_ref_node node;
+	union {
+		u64 root;
+		u64 parent;
+	};
+	u64 objectid;
+	u64 offset;
 };
 
 struct btrfs_delayed_ref_root {
@@ -143,17 +151,25 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 	}
 }
 
-int btrfs_add_delayed_ref(struct btrfs_trans_handle *trans,
-			  u64 bytenr, u64 num_bytes, u64 parent, u64 ref_root,
-			  u64 ref_generation, u64 owner_objectid, int action,
-			  int pin);
+int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
+			       u64 bytenr, u64 num_bytes, u64 parent,
+			       u64 ref_root, int level, int action,
+			       struct btrfs_delayed_extent_op *extent_op);
+int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
+			       u64 bytenr, u64 num_bytes,
+			       u64 parent, u64 ref_root,
+			       u64 owner, u64 offset, int action,
+			       struct btrfs_delayed_extent_op *extent_op);
+int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
+				u64 bytenr, u64 num_bytes,
+				struct btrfs_delayed_extent_op *extent_op);
 
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_delayed_ref_pending(struct btrfs_trans_handle *trans, u64 bytenr);
-int btrfs_lookup_extent_ref(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root, u64 bytenr,
-			    u64 num_bytes, u32 *refs);
+int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root, u64 bytenr,
+			     u64 num_bytes, u64 *refs, u64 *flags);
 int btrfs_update_delayed_ref(struct btrfs_trans_handle *trans,
 			  u64 bytenr, u64 num_bytes, u64 orig_parent,
 			  u64 parent, u64 orig_ref_root, u64 ref_root,
@@ -169,18 +185,24 @@ int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
  */
 static int btrfs_delayed_ref_is_head(struct btrfs_delayed_ref_node *node)
 {
-	return node->parent == (u64)-1;
+	return node->is_head;
 }
 
 /*
  * helper functions to cast a node into its container
  */
-static inline struct btrfs_delayed_ref *
-btrfs_delayed_node_to_ref(struct btrfs_delayed_ref_node *node)
+static inline struct btrfs_delayed_tree_ref *
+btrfs_delayed_node_to_tree_ref(struct btrfs_delayed_ref_node *node)
 {
 	WARN_ON(btrfs_delayed_ref_is_head(node));
-	return container_of(node, struct btrfs_delayed_ref, node);
+	return container_of(node, struct btrfs_delayed_tree_ref, node);
+}
 
+static inline struct btrfs_delayed_data_ref *
+btrfs_delayed_node_to_data_ref(struct btrfs_delayed_ref_node *node)
+{
+	WARN_ON(btrfs_delayed_ref_is_head(node));
+	return container_of(node, struct btrfs_delayed_data_ref, node);
 }
 
 static inline struct btrfs_delayed_ref_head *
@@ -188,6 +210,5 @@ btrfs_delayed_node_to_head(struct btrfs_delayed_ref_node *node)
 {
 	WARN_ON(!btrfs_delayed_ref_is_head(node));
 	return container_of(node, struct btrfs_delayed_ref_head, node);
-
 }
 #endif

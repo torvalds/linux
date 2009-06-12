@@ -70,24 +70,11 @@
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
  *		Thanks to Stuart Swales for pointing out this bug.
  */
-#include <linux/platform_device.h>
-#include <linux/capability.h>
-#include <linux/miscdevice.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
-#include <linux/spinlock.h>
-#include <linux/cpumask.h>
 #include <linux/uaccess.h>
-#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/cpu.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
+#include <linux/vmalloc.h>
 
 #include <asm/microcode.h>
 #include <asm/processor.h>
@@ -150,13 +137,9 @@ struct extended_sigtable {
 
 #define exttable_size(et) ((et)->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE)
 
-/* serialize access to the physical write to MSR 0x79 */
-static DEFINE_SPINLOCK(microcode_update_lock);
-
 static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
-	unsigned long flags;
 	unsigned int val[2];
 
 	memset(csig, 0, sizeof(*csig));
@@ -176,18 +159,14 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 		csig->pf = 1 << ((val[1] >> 18) & 7);
 	}
 
-	/* serialize access to the physical write to MSR 0x79 */
-	spin_lock_irqsave(&microcode_update_lock, flags);
-
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 	/* see notes above for revision 1.07.  Apparent chip bug */
 	sync_core();
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], csig->rev);
-	spin_unlock_irqrestore(&microcode_update_lock, flags);
 
-	pr_debug("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n",
-			csig->sig, csig->pf, csig->rev);
+	printk(KERN_INFO "microcode: CPU%d sig=0x%x, pf=0x%x, revision=0x%x\n",
+			cpu_num, csig->sig, csig->pf, csig->rev);
 
 	return 0;
 }
@@ -318,11 +297,10 @@ get_matching_microcode(struct cpu_signature *cpu_sig, void *mc, int rev)
 	return 0;
 }
 
-static void apply_microcode(int cpu)
+static int apply_microcode(int cpu)
 {
 	struct microcode_intel *mc_intel;
 	struct ucode_cpu_info *uci;
-	unsigned long flags;
 	unsigned int val[2];
 	int cpu_num;
 
@@ -334,10 +312,7 @@ static void apply_microcode(int cpu)
 	BUG_ON(cpu_num != cpu);
 
 	if (mc_intel == NULL)
-		return;
-
-	/* serialize access to the physical write to MSR 0x79 */
-	spin_lock_irqsave(&microcode_update_lock, flags);
+		return 0;
 
 	/* write microcode via MSR 0x79 */
 	wrmsr(MSR_IA32_UCODE_WRITE,
@@ -351,30 +326,32 @@ static void apply_microcode(int cpu)
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
 
-	spin_unlock_irqrestore(&microcode_update_lock, flags);
 	if (val[1] != mc_intel->hdr.rev) {
-		printk(KERN_ERR "microcode: CPU%d update from revision "
-				"0x%x to 0x%x failed\n",
-			cpu_num, uci->cpu_sig.rev, val[1]);
-		return;
+		printk(KERN_ERR "microcode: CPU%d update "
+				"to revision 0x%x failed\n",
+			cpu_num, mc_intel->hdr.rev);
+		return -1;
 	}
-	printk(KERN_INFO "microcode: CPU%d updated from revision "
-			 "0x%x to 0x%x, date = %04x-%02x-%02x \n",
-		cpu_num, uci->cpu_sig.rev, val[1],
+	printk(KERN_INFO "microcode: CPU%d updated to revision "
+			 "0x%x, date = %04x-%02x-%02x \n",
+		cpu_num, val[1],
 		mc_intel->hdr.date & 0xffff,
 		mc_intel->hdr.date >> 24,
 		(mc_intel->hdr.date >> 16) & 0xff);
 
 	uci->cpu_sig.rev = val[1];
+
+	return 0;
 }
 
-static int generic_load_microcode(int cpu, void *data, size_t size,
-		int (*get_ucode_data)(void *, const void *, size_t))
+static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
+				int (*get_ucode_data)(void *, const void *, size_t))
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	u8 *ucode_ptr = data, *new_mc = NULL, *mc;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover = size;
+	enum ucode_state state = UCODE_OK;
 
 	while (leftover) {
 		struct microcode_header_intel mc_header;
@@ -412,11 +389,15 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 		leftover  -= mc_size;
 	}
 
-	if (!new_mc)
-		goto out;
-
 	if (leftover) {
-		vfree(new_mc);
+		if (new_mc)
+			vfree(new_mc);
+		state = UCODE_ERROR;
+		goto out;
+	}
+
+	if (!new_mc) {
+		state = UCODE_NFOUND;
 		goto out;
 	}
 
@@ -427,9 +408,8 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 	pr_debug("microcode: CPU%d found a matching microcode update with"
 		 " version 0x%x (current=0x%x)\n",
 			cpu, new_rev, uci->cpu_sig.rev);
-
- out:
-	return (int)leftover;
+out:
+	return state;
 }
 
 static int get_ucode_fw(void *to, const void *from, size_t n)
@@ -438,21 +418,19 @@ static int get_ucode_fw(void *to, const void *from, size_t n)
 	return 0;
 }
 
-static int request_microcode_fw(int cpu, struct device *device)
+static enum ucode_state request_microcode_fw(int cpu, struct device *device)
 {
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
-	int ret;
+	enum ucode_state ret;
 
-	/* We should bind the task to the CPU */
-	BUG_ON(cpu != raw_smp_processor_id());
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
-	ret = request_firmware(&firmware, name, device);
-	if (ret) {
+
+	if (request_firmware(&firmware, name, device)) {
 		pr_debug("microcode: data file %s load failed\n", name);
-		return ret;
+		return UCODE_NFOUND;
 	}
 
 	ret = generic_load_microcode(cpu, (void *)firmware->data,
@@ -468,11 +446,9 @@ static int get_ucode_user(void *to, const void *from, size_t n)
 	return copy_from_user(to, from, n);
 }
 
-static int request_microcode_user(int cpu, const void __user *buf, size_t size)
+static enum ucode_state
+request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
-	/* We should bind the task to the CPU */
-	BUG_ON(cpu != raw_smp_processor_id());
-
 	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
 }
 

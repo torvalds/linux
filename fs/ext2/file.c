@@ -55,7 +55,7 @@ const struct file_operations ext2_file_operations = {
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,
-	.fsync		= ext2_sync_file,
+	.fsync		= simple_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 };
@@ -72,7 +72,7 @@ const struct file_operations ext2_xip_file_operations = {
 	.mmap		= xip_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,
-	.fsync		= ext2_sync_file,
+	.fsync		= simple_fsync,
 };
 #endif
 
