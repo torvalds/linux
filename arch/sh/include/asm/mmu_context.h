@@ -122,11 +122,11 @@ static inline void switch_mm(struct mm_struct *prev,
 	unsigned int cpu = smp_processor_id();
 
 	if (likely(prev != next)) {
-		cpu_set(cpu, next->cpu_vm_mask);
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 		set_TTB(next->pgd);
 		activate_context(next, cpu);
 	} else
-		if (!cpu_test_and_set(cpu, next->cpu_vm_mask))
+		if (!cpumask_test_and_set_cpu(cpu, mm_cpumask(next)))
 			activate_context(next, cpu);
 }
 #else
