@@ -117,7 +117,7 @@ module_param_call(stop_on_user_error, binder_set_stop_on_user_error,
 			binder_stop_on_user_error = 2; \
 	} while (0)
 
-enum {
+enum binder_stat_types {
 	BINDER_STAT_PROC,
 	BINDER_STAT_THREAD,
 	BINDER_STAT_NODE,
@@ -136,6 +136,16 @@ struct binder_stats {
 };
 
 static struct binder_stats binder_stats;
+
+static inline void binder_stats_deleted(enum binder_stat_types type)
+{
+	binder_stats.obj_deleted[type]++;
+}
+
+static inline void binder_stats_created(enum binder_stat_types type)
+{
+	binder_stats.obj_created[type]++;
+}
 
 struct binder_transaction_log_entry {
 	int debug_id;
@@ -937,7 +947,7 @@ static struct binder_node *binder_new_node(struct binder_proc *proc,
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL)
 		return NULL;
-	binder_stats.obj_created[BINDER_STAT_NODE]++;
+	binder_stats_created(BINDER_STAT_NODE);
 	rb_link_node(&node->rb_node, parent, p);
 	rb_insert_color(&node->rb_node, &proc->nodes);
 	node->debug_id = ++binder_last_id;
@@ -1025,7 +1035,7 @@ static int binder_dec_node(struct binder_node *node, int strong, int internal)
 					     node->debug_id);
 			}
 			kfree(node);
-			binder_stats.obj_deleted[BINDER_STAT_NODE]++;
+			binder_stats_deleted(BINDER_STAT_NODE);
 		}
 	}
 
@@ -1074,7 +1084,7 @@ static struct binder_ref *binder_get_ref_for_node(struct binder_proc *proc,
 	new_ref = kzalloc(sizeof(*ref), GFP_KERNEL);
 	if (new_ref == NULL)
 		return NULL;
-	binder_stats.obj_created[BINDER_STAT_REF]++;
+	binder_stats_created(BINDER_STAT_REF);
 	new_ref->debug_id = ++binder_last_id;
 	new_ref->proc = proc;
 	new_ref->node = node;
@@ -1139,10 +1149,10 @@ static void binder_delete_ref(struct binder_ref *ref)
 		             ref->debug_id, ref->desc);
 		list_del(&ref->death->work.entry);
 		kfree(ref->death);
-		binder_stats.obj_deleted[BINDER_STAT_DEATH]++;
+		binder_stats_deleted(BINDER_STAT_DEATH);
 	}
 	kfree(ref);
-	binder_stats.obj_deleted[BINDER_STAT_REF]++;
+	binder_stats_deleted(BINDER_STAT_REF);
 }
 
 static int binder_inc_ref(struct binder_ref *ref, int strong,
@@ -1214,7 +1224,7 @@ static void binder_pop_transaction(struct binder_thread *target_thread,
 	if (t->buffer)
 		t->buffer->transaction = NULL;
 	kfree(t);
-	binder_stats.obj_deleted[BINDER_STAT_TRANSACTION]++;
+	binder_stats_deleted(BINDER_STAT_TRANSACTION);
 }
 
 static void binder_send_failed_reply(struct binder_transaction *t,
@@ -1471,14 +1481,14 @@ static void binder_transaction(struct binder_proc *proc,
 		return_error = BR_FAILED_REPLY;
 		goto err_alloc_t_failed;
 	}
-	binder_stats.obj_created[BINDER_STAT_TRANSACTION]++;
+	binder_stats_created(BINDER_STAT_TRANSACTION);
 
 	tcomplete = kzalloc(sizeof(*tcomplete), GFP_KERNEL);
 	if (tcomplete == NULL) {
 		return_error = BR_FAILED_REPLY;
 		goto err_alloc_tcomplete_failed;
 	}
-	binder_stats.obj_created[BINDER_STAT_TRANSACTION_COMPLETE]++;
+	binder_stats_created(BINDER_STAT_TRANSACTION_COMPLETE);
 
 	t->debug_id = ++binder_last_id;
 	e->debug_id = t->debug_id;
@@ -1720,10 +1730,10 @@ err_copy_data_failed:
 	binder_free_buf(target_proc, t->buffer);
 err_binder_alloc_buf_failed:
 	kfree(tcomplete);
-	binder_stats.obj_deleted[BINDER_STAT_TRANSACTION_COMPLETE]++;
+	binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
 err_alloc_tcomplete_failed:
 	kfree(t);
-	binder_stats.obj_deleted[BINDER_STAT_TRANSACTION]++;
+	binder_stats_deleted(BINDER_STAT_TRANSACTION);
 err_alloc_t_failed:
 err_bad_call_stack:
 err_empty_call_stack:
@@ -2039,7 +2049,7 @@ int binder_thread_write(struct binder_proc *proc, struct binder_thread *thread,
 						     proc->pid, thread->pid);
 					break;
 				}
-				binder_stats.obj_created[BINDER_STAT_DEATH]++;
+				binder_stats_created(BINDER_STAT_DEATH);
 				INIT_LIST_HEAD(&death->work.entry);
 				death->cookie = cookie;
 				ref->death = death;
@@ -2266,7 +2276,7 @@ retry:
 
 			list_del(&w->entry);
 			kfree(w);
-			binder_stats.obj_deleted[BINDER_STAT_TRANSACTION_COMPLETE]++;
+			binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
 		} break;
 		case BINDER_WORK_NODE: {
 			struct binder_node *node = container_of(w, struct binder_node, work);
@@ -2319,7 +2329,7 @@ retry:
 						     node->ptr, node->cookie);
 					rb_erase(&node->rb_node, &proc->nodes);
 					kfree(node);
-					binder_stats.obj_deleted[BINDER_STAT_NODE]++;
+					binder_stats_deleted(BINDER_STAT_NODE);
 				} else {
 					binder_debug(BINDER_DEBUG_INTERNAL_REFS,
 						     "binder: %d:%d node %d u%p c%p state unchanged\n",
@@ -2356,7 +2366,7 @@ retry:
 			if (w->type == BINDER_WORK_CLEAR_DEATH_NOTIFICATION) {
 				list_del(&w->entry);
 				kfree(death);
-				binder_stats.obj_deleted[BINDER_STAT_DEATH]++;
+				binder_stats_deleted(BINDER_STAT_DEATH);
 			} else
 				list_move(&w->entry, &proc->delivered_death);
 			if (cmd == BR_DEAD_BINDER)
@@ -2433,7 +2443,7 @@ retry:
 		} else {
 			t->buffer->transaction = NULL;
 			kfree(t);
-			binder_stats.obj_deleted[BINDER_STAT_TRANSACTION]++;
+			binder_stats_deleted(BINDER_STAT_TRANSACTION);
 		}
 		break;
 	}
@@ -2472,7 +2482,7 @@ static void binder_release_work(struct list_head *list)
 		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			kfree(w);
-			binder_stats.obj_deleted[BINDER_STAT_TRANSACTION_COMPLETE]++;
+			binder_stats_deleted(BINDER_STAT_TRANSACTION_COMPLETE);
 		} break;
 		default:
 			break;
@@ -2502,7 +2512,7 @@ static struct binder_thread *binder_get_thread(struct binder_proc *proc)
 		thread = kzalloc(sizeof(*thread), GFP_KERNEL);
 		if (thread == NULL)
 			return NULL;
-		binder_stats.obj_created[BINDER_STAT_THREAD]++;
+		binder_stats_created(BINDER_STAT_THREAD);
 		thread->proc = proc;
 		thread->pid = current->pid;
 		init_waitqueue_head(&thread->wait);
@@ -2553,7 +2563,7 @@ static int binder_free_thread(struct binder_proc *proc,
 		binder_send_failed_reply(send_reply, BR_DEAD_REPLY);
 	binder_release_work(&thread->todo);
 	kfree(thread);
-	binder_stats.obj_deleted[BINDER_STAT_THREAD]++;
+	binder_stats_deleted(BINDER_STAT_THREAD);
 	return active_transactions;
 }
 
@@ -2852,7 +2862,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	init_waitqueue_head(&proc->wait);
 	proc->default_priority = task_nice(current);
 	mutex_lock(&binder_lock);
-	binder_stats.obj_created[BINDER_STAT_PROC]++;
+	binder_stats_created(BINDER_STAT_PROC);
 	hlist_add_head(&proc->proc_node, &binder_procs);
 	proc->pid = current->group_leader->pid;
 	INIT_LIST_HEAD(&proc->delivered_death);
@@ -2948,7 +2958,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 		list_del_init(&node->work.entry);
 		if (hlist_empty(&node->refs)) {
 			kfree(node);
-			binder_stats.obj_deleted[BINDER_STAT_NODE]++;
+			binder_stats_deleted(BINDER_STAT_NODE);
 		} else {
 			struct binder_ref *ref;
 			int death = 0;
@@ -3002,7 +3012,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 		buffers++;
 	}
 
-	binder_stats.obj_deleted[BINDER_STAT_PROC]++;
+	binder_stats_deleted(BINDER_STAT_PROC);
 
 	page_count = 0;
 	if (proc->pages) {
