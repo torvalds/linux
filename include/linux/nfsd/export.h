@@ -125,11 +125,9 @@ void			nfsd_export_flush(void);
 void			exp_readlock(void);
 void			exp_readunlock(void);
 struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
-					     struct vfsmount *,
-					     struct dentry *);
+					     struct path *);
 struct svc_export *	rqst_exp_parent(struct svc_rqst *,
-					struct vfsmount *mnt,
-					struct dentry *dentry);
+					struct path *);
 int			exp_rootfh(struct auth_domain *, 
 					char *path, struct knfsd_fh *, int maxsize);
 __be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);

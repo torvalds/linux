@@ -129,6 +129,7 @@ void __init sh_mv_setup(void)
 	mv_set(ioport_map);
 	mv_set(ioport_unmap);
 	mv_set(irq_demux);
+	mv_set(mode_pins);
 
 	if (!sh_mv.mv_nr_irqs)
 		sh_mv.mv_nr_irqs = NR_IRQS;

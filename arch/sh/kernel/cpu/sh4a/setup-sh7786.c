@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2009  Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Paul Mundt <paul.mundt@renesas.com>
  *
  * Based on SH7785 Setup
  *
@@ -19,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/sh_timer.h>
 #include <asm/mmzone.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -69,6 +71,368 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct sh_timer_config tmu0_platform_data = {
+	.name = "TMU0",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+	.clockevent_rating = 200,
+};
+
+static struct resource tmu0_resources[] = {
+	[0] = {
+		.name	= "TMU0",
+		.start	= 0xffd80008,
+		.end	= 0xffd80013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 16,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu0_device = {
+	.name		= "sh_tmu",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &tmu0_platform_data,
+	},
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
+};
+
+static struct sh_timer_config tmu1_platform_data = {
+	.name = "TMU1",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+	.clocksource_rating = 200,
+};
+
+static struct resource tmu1_resources[] = {
+	[0] = {
+		.name	= "TMU1",
+		.start	= 0xffd80014,
+		.end	= 0xffd8001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 17,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu1_device = {
+	.name		= "sh_tmu",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &tmu1_platform_data,
+	},
+	.resource	= tmu1_resources,
+	.num_resources	= ARRAY_SIZE(tmu1_resources),
+};
+
+static struct sh_timer_config tmu2_platform_data = {
+	.name = "TMU2",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu2_resources[] = {
+	[0] = {
+		.name	= "TMU2",
+		.start	= 0xffd80020,
+		.end	= 0xffd8002f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 18,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu2_device = {
+	.name		= "sh_tmu",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &tmu2_platform_data,
+	},
+	.resource	= tmu2_resources,
+	.num_resources	= ARRAY_SIZE(tmu2_resources),
+};
+
+static struct sh_timer_config tmu3_platform_data = {
+	.name = "TMU3",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu3_resources[] = {
+	[0] = {
+		.name	= "TMU3",
+		.start	= 0xffda0008,
+		.end	= 0xffda0013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 20,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu3_device = {
+	.name		= "sh_tmu",
+	.id		= 3,
+	.dev = {
+		.platform_data	= &tmu3_platform_data,
+	},
+	.resource	= tmu3_resources,
+	.num_resources	= ARRAY_SIZE(tmu3_resources),
+};
+
+static struct sh_timer_config tmu4_platform_data = {
+	.name = "TMU4",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu4_resources[] = {
+	[0] = {
+		.name	= "TMU4",
+		.start	= 0xffda0014,
+		.end	= 0xffda001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 21,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu4_device = {
+	.name		= "sh_tmu",
+	.id		= 4,
+	.dev = {
+		.platform_data	= &tmu4_platform_data,
+	},
+	.resource	= tmu4_resources,
+	.num_resources	= ARRAY_SIZE(tmu4_resources),
+};
+
+static struct sh_timer_config tmu5_platform_data = {
+	.name = "TMU5",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu5_resources[] = {
+	[0] = {
+		.name	= "TMU5",
+		.start	= 0xffda0020,
+		.end	= 0xffda002b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 22,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu5_device = {
+	.name		= "sh_tmu",
+	.id		= 5,
+	.dev = {
+		.platform_data	= &tmu5_platform_data,
+	},
+	.resource	= tmu5_resources,
+	.num_resources	= ARRAY_SIZE(tmu5_resources),
+};
+
+static struct sh_timer_config tmu6_platform_data = {
+	.name = "TMU6",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu6_resources[] = {
+	[0] = {
+		.name	= "TMU6",
+		.start	= 0xffdc0008,
+		.end	= 0xffdc0013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 45,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu6_device = {
+	.name		= "sh_tmu",
+	.id		= 6,
+	.dev = {
+		.platform_data	= &tmu6_platform_data,
+	},
+	.resource	= tmu6_resources,
+	.num_resources	= ARRAY_SIZE(tmu6_resources),
+};
+
+static struct sh_timer_config tmu7_platform_data = {
+	.name = "TMU7",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu7_resources[] = {
+	[0] = {
+		.name	= "TMU7",
+		.start	= 0xffdc0014,
+		.end	= 0xffdc001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 45,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu7_device = {
+	.name		= "sh_tmu",
+	.id		= 7,
+	.dev = {
+		.platform_data	= &tmu7_platform_data,
+	},
+	.resource	= tmu7_resources,
+	.num_resources	= ARRAY_SIZE(tmu7_resources),
+};
+
+static struct sh_timer_config tmu8_platform_data = {
+	.name = "TMU8",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu8_resources[] = {
+	[0] = {
+		.name	= "TMU8",
+		.start	= 0xffdc0020,
+		.end	= 0xffdc002b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 45,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu8_device = {
+	.name		= "sh_tmu",
+	.id		= 8,
+	.dev = {
+		.platform_data	= &tmu8_platform_data,
+	},
+	.resource	= tmu8_resources,
+	.num_resources	= ARRAY_SIZE(tmu8_resources),
+};
+
+static struct sh_timer_config tmu9_platform_data = {
+	.name = "TMU9",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu9_resources[] = {
+	[0] = {
+		.name	= "TMU9",
+		.start	= 0xffde0008,
+		.end	= 0xffde0013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 46,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu9_device = {
+	.name		= "sh_tmu",
+	.id		= 9,
+	.dev = {
+		.platform_data	= &tmu9_platform_data,
+	},
+	.resource	= tmu9_resources,
+	.num_resources	= ARRAY_SIZE(tmu9_resources),
+};
+
+static struct sh_timer_config tmu10_platform_data = {
+	.name = "TMU10",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu10_resources[] = {
+	[0] = {
+		.name	= "TMU10",
+		.start	= 0xffde0014,
+		.end	= 0xffde001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 46,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu10_device = {
+	.name		= "sh_tmu",
+	.id		= 10,
+	.dev = {
+		.platform_data	= &tmu10_platform_data,
+	},
+	.resource	= tmu10_resources,
+	.num_resources	= ARRAY_SIZE(tmu10_resources),
+};
+
+static struct sh_timer_config tmu11_platform_data = {
+	.name = "TMU11",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu11_resources[] = {
+	[0] = {
+		.name	= "TMU11",
+		.start	= 0xffde0020,
+		.end	= 0xffde002b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 46,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu11_device = {
+	.name		= "sh_tmu",
+	.id		= 11,
+	.dev = {
+		.platform_data	= &tmu11_platform_data,
+	},
+	.resource	= tmu11_resources,
+	.num_resources	= ARRAY_SIZE(tmu11_resources),
+};
+
 static struct resource usb_ohci_resources[] = {
 	[0] = {
 		.start	= 0xffe70400,
@@ -92,6 +456,21 @@ static struct platform_device usb_ohci_device = {
 	},
 	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
 	.resource	= usb_ohci_resources,
+};
+
+static struct platform_device *sh7786_early_devices[] __initdata = {
+	&tmu0_device,
+	&tmu1_device,
+	&tmu2_device,
+	&tmu3_device,
+	&tmu4_device,
+	&tmu5_device,
+	&tmu6_device,
+	&tmu7_device,
+	&tmu8_device,
+	&tmu9_device,
+	&tmu10_device,
+	&tmu11_device,
 };
 
 static struct platform_device *sh7786_devices[] __initdata = {
@@ -156,11 +535,25 @@ static void __init sh7786_usb_setup(void)
 
 static int __init sh7786_devices_setup(void)
 {
+	int ret;
+
 	sh7786_usb_setup();
+
+	ret = platform_add_devices(sh7786_early_devices,
+				   ARRAY_SIZE(sh7786_early_devices));
+	if (unlikely(ret != 0))
+		return ret;
+
 	return platform_add_devices(sh7786_devices,
 				    ARRAY_SIZE(sh7786_devices));
 }
 device_initcall(sh7786_devices_setup);
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7786_early_devices,
+				   ARRAY_SIZE(sh7786_early_devices));
+}
 
 enum {
 	UNUSED = 0,

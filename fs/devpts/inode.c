@@ -557,8 +557,10 @@ static int __init init_devpts_fs(void)
 	int err = register_filesystem(&devpts_fs_type);
 	if (!err) {
 		devpts_mnt = kern_mount(&devpts_fs_type);
-		if (IS_ERR(devpts_mnt))
+		if (IS_ERR(devpts_mnt)) {
 			err = PTR_ERR(devpts_mnt);
+			unregister_filesystem(&devpts_fs_type);
+		}
 	}
 	return err;
 }

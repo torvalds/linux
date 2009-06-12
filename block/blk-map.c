@@ -20,11 +20,10 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->data_len += bio->bi_size;
+		rq->__data_len += bio->bi_size;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(blk_rq_append_bio);
 
 static int __blk_rq_unmap_user(struct bio *bio)
 {
@@ -116,7 +115,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	struct bio *bio = NULL;
 	int ret;
 
-	if (len > (q->max_hw_sectors << 9))
+	if (len > (queue_max_hw_sectors(q) << 9))
 		return -EINVAL;
 	if (!len)
 		return -EINVAL;
@@ -156,7 +155,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	if (!bio_flagged(bio, BIO_USER_MAPPED))
 		rq->cmd_flags |= REQ_COPY_USER;
 
-	rq->buffer = rq->data = NULL;
+	rq->buffer = NULL;
 	return 0;
 unmap_rq:
 	blk_rq_unmap_user(bio);
@@ -235,7 +234,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	blk_queue_bounce(q, &bio);
 	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);
-	rq->buffer = rq->data = NULL;
+	rq->buffer = NULL;
 	return 0;
 }
 EXPORT_SYMBOL(blk_rq_map_user_iov);
@@ -282,7 +281,8 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *
  * Description:
  *    Data will be mapped directly if possible. Otherwise a bounce
- *    buffer is used.
+ *    buffer is used. Can be called multple times to append multple
+ *    buffers.
  */
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
@@ -290,8 +290,9 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	int reading = rq_data_dir(rq) == READ;
 	int do_copy = 0;
 	struct bio *bio;
+	int ret;
 
-	if (len > (q->max_hw_sectors << 9))
+	if (len > (queue_max_hw_sectors(q) << 9))
 		return -EINVAL;
 	if (!len || !kbuf)
 		return -EINVAL;
@@ -311,9 +312,15 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (do_copy)
 		rq->cmd_flags |= REQ_COPY_USER;
 
-	blk_rq_bio_prep(q, rq, bio);
+	ret = blk_rq_append_bio(q, rq, bio);
+	if (unlikely(ret)) {
+		/* request is too big */
+		bio_put(bio);
+		return ret;
+	}
+
 	blk_queue_bounce(q, &rq->bio);
-	rq->buffer = rq->data = NULL;
+	rq->buffer = NULL;
 	return 0;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

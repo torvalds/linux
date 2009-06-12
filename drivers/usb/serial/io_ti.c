@@ -2009,8 +2009,7 @@ release_es_lock:
 	return status;
 }
 
-static void edge_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void edge_close(struct usb_serial_port *port)
 {
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;

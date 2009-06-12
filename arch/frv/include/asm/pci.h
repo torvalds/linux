@@ -87,8 +87,7 @@ static inline void pci_dma_sync_single(struct pci_dev *hwdev,
 				       dma_addr_t dma_handle,
 				       size_t size, int direction)
 {
-	if (direction == PCI_DMA_NONE)
-                BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 
 	frv_cache_wback_inv((unsigned long)bus_to_virt(dma_handle),
 			    (unsigned long)bus_to_virt(dma_handle) + size);
@@ -105,9 +104,7 @@ static inline void pci_dma_sync_sg(struct pci_dev *hwdev,
 				   int nelems, int direction)
 {
 	int i;
-
-	if (direction == PCI_DMA_NONE)
-                BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 
 	for (i = 0; i < nelems; i++)
 		frv_cache_wback_inv(sg_dma_address(&sg[i]),

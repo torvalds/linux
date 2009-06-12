@@ -23,9 +23,9 @@ typedef unsigned short umode_t;
 typedef u32 dma_addr_t;
 
 #ifdef CONFIG_SUPERH32
-typedef u16 opcode_t;
+typedef u16 insn_size_t;
 #else
-typedef u32 opcode_t;
+typedef u32 insn_size_t;
 #endif
 
 #endif /* __ASSEMBLY__ */

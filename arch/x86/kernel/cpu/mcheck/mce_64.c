@@ -420,6 +420,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
  out2:
 	atomic_dec(&mce_entry);
 }
+EXPORT_SYMBOL_GPL(do_machine_check);
 
 #ifdef CONFIG_X86_MCE_INTEL
 /***
@@ -1163,7 +1164,7 @@ static __init int mce_init_device(void)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	alloc_cpumask_var(&mce_device_initialized, GFP_KERNEL);
+	zalloc_cpumask_var(&mce_device_initialized, GFP_KERNEL);
 
 	err = mce_init_banks();
 	if (err)

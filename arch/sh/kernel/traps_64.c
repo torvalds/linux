@@ -370,7 +370,6 @@ static int generate_and_check_address(struct pt_regs *regs,
 		return -1;
 	}
 
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 	/* Check accessible.  For misaligned access in the kernel, assume the
 	   address is always accessible (and if not, just fault when the
 	   load/store gets done.) */
@@ -380,18 +379,13 @@ static int generate_and_check_address(struct pt_regs *regs,
 		}
 		/* Do access_ok check later - it depends on whether it's a load or a store. */
 	}
-#endif
 
 	*address = addr;
 	return 0;
 }
 
-/* Default value as for sh */
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 static int user_mode_unaligned_fixup_count = 10;
 static int user_mode_unaligned_fixup_enable = 1;
-#endif
-
 static int kernel_mode_unaligned_fixup_count = 32;
 
 static void misaligned_kernel_word_load(__u64 address, int do_sign_extend, __u64 *result)
@@ -440,7 +434,6 @@ static int misaligned_load(struct pt_regs *regs,
 	}
 
 	destreg = (opcode >> 4) & 0x3f;
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 	if (user_mode(regs)) {
 		__u64 buffer;
 
@@ -470,9 +463,7 @@ static int misaligned_load(struct pt_regs *regs,
 				width_shift, (unsigned long) regs->pc);
 			break;
 		}
-	} else
-#endif
-	{
+	} else {
 		/* kernel mode - we can take short cuts since if we fault, it's a genuine bug */
 		__u64 lo, hi;
 
@@ -519,7 +510,6 @@ static int misaligned_store(struct pt_regs *regs,
 	}
 
 	srcreg = (opcode >> 4) & 0x3f;
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 	if (user_mode(regs)) {
 		__u64 buffer;
 
@@ -546,9 +536,7 @@ static int misaligned_store(struct pt_regs *regs,
 		if (__copy_user((void *)(int)address, &buffer, (1 << width_shift)) > 0) {
 			return -1; /* fault */
 		}
-	} else
-#endif
-	{
+	} else {
 		/* kernel mode - we can take short cuts since if we fault, it's a genuine bug */
 		__u64 val = regs->regs[srcreg];
 
@@ -576,7 +564,6 @@ static int misaligned_store(struct pt_regs *regs,
 
 }
 
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 /* Never need to fix up misaligned FPU accesses within the kernel since that's a real
    error. */
 static int misaligned_fpu_load(struct pt_regs *regs,
@@ -727,7 +714,6 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		return -1;
 	}
 }
-#endif
 
 static int misaligned_fixup(struct pt_regs *regs)
 {
@@ -735,12 +721,8 @@ static int misaligned_fixup(struct pt_regs *regs)
 	int error;
 	int major, minor;
 
-#if !defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
-	/* Never fixup user mode misaligned accesses without this option enabled. */
-	return -1;
-#else
-	if (!user_mode_unaligned_fixup_enable) return -1;
-#endif
+	if (!user_mode_unaligned_fixup_enable)
+		return -1;
 
 	error = read_opcode(regs->pc, &opcode, user_mode(regs));
 	if (error < 0) {
@@ -749,15 +731,12 @@ static int misaligned_fixup(struct pt_regs *regs)
 	major = (opcode >> 26) & 0x3f;
 	minor = (opcode >> 16) & 0xf;
 
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 	if (user_mode(regs) && (user_mode_unaligned_fixup_count > 0)) {
 		--user_mode_unaligned_fixup_count;
 		/* Only do 'count' worth of these reports, to remove a potential DoS against syslog */
 		printk("Fixing up unaligned userspace access in \"%s\" pid=%d pc=0x%08x ins=0x%08lx\n",
 		       current->comm, task_pid_nr(current), (__u32)regs->pc, opcode);
-	} else
-#endif
-	if (!user_mode(regs) && (kernel_mode_unaligned_fixup_count > 0)) {
+	} else if (!user_mode(regs) && (kernel_mode_unaligned_fixup_count > 0)) {
 		--kernel_mode_unaligned_fixup_count;
 		if (in_interrupt()) {
 			printk("Fixing up unaligned kernelspace access in interrupt pc=0x%08x ins=0x%08lx\n",
@@ -830,7 +809,6 @@ static int misaligned_fixup(struct pt_regs *regs)
 			}
 			break;
 
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 		case (0x94>>2): /* FLD.S */
 			error = misaligned_fpu_load(regs, opcode, 1, 2, 0);
 			break;
@@ -881,7 +859,6 @@ static int misaligned_fixup(struct pt_regs *regs)
 				break;
 			}
 			break;
-#endif
 
 		default:
 			/* Fault */
@@ -907,7 +884,6 @@ static ctl_table unaligned_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
-#if defined(CONFIG_SH64_USER_MISALIGNED_FIXUP)
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "user_reports",
@@ -923,7 +899,6 @@ static ctl_table unaligned_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec},
-#endif
 	{}
 };
 

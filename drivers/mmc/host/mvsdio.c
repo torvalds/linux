@@ -64,6 +64,31 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	unsigned int tmout;
 	int tmout_index;
 
+	/*
+	 * Hardware weirdness.  The FIFO_EMPTY bit of the HW_STATE
+	 * register is sometimes not set before a while when some
+	 * "unusual" data block sizes are used (such as with the SWITCH
+	 * command), even despite the fact that the XFER_DONE interrupt
+	 * was raised.  And if another data transfer starts before
+	 * this bit comes to good sense (which eventually happens by
+	 * itself) then the new transfer simply fails with a timeout.
+	 */
+	if (!(mvsd_read(MVSD_HW_STATE) & (1 << 13))) {
+		unsigned long t = jiffies + HZ;
+		unsigned int hw_state,  count = 0;
+		do {
+			if (time_after(jiffies, t)) {
+				dev_warn(host->dev, "FIFO_EMPTY bit missing\n");
+				break;
+			}
+			hw_state = mvsd_read(MVSD_HW_STATE);
+			count++;
+		} while (!(hw_state & (1 << 13)));
+		dev_dbg(host->dev, "*** wait for FIFO_EMPTY bit "
+				   "(hw=0x%04x, count=%d, jiffies=%ld)\n",
+				   hw_state, count, jiffies - (t - HZ));
+	}
+
 	/* If timeout=0 then maximum timeout index is used. */
 	tmout = DIV_ROUND_UP(data->timeout_ns, host->ns_per_clk);
 	tmout += data->timeout_clks;
@@ -620,9 +645,18 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
 		ctrl_reg |= MVSD_HOST_CTRL_DATA_WIDTH_4_BITS;
 
+	/*
+	 * The HI_SPEED_EN bit is causing trouble with many (but not all)
+	 * high speed SD, SDHC and SDIO cards.  Not enabling that bit
+	 * makes all cards work.  So let's just ignore that bit for now
+	 * and revisit this issue if problems for not enabling this bit
+	 * are ever reported.
+	 */
+#if 0
 	if (ios->timing == MMC_TIMING_MMC_HS ||
 	    ios->timing == MMC_TIMING_SD_HS)
 		ctrl_reg |= MVSD_HOST_CTRL_HI_SPEED_EN;
+#endif
 
 	host->ctrl = ctrl_reg;
 	mvsd_write(MVSD_HOST_CTRL, ctrl_reg);
@@ -882,3 +916,4 @@ module_param(nodma, int, 0);
 MODULE_AUTHOR("Maen Suleiman, Nicolas Pitre");
 MODULE_DESCRIPTION("Marvell MMC,SD,SDIO Host Controller driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mvsdio");

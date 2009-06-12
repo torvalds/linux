@@ -1084,7 +1084,7 @@ static int atapi_drain_needed(struct request *rq)
 	if (likely(!blk_pc_request(rq)))
 		return 0;
 
-	if (!rq->data_len || (rq->cmd_flags & REQ_RW))
+	if (!blk_rq_bytes(rq) || (rq->cmd_flags & REQ_RW))
 		return 0;
 
 	return atapi_cmd_type(rq->cmd[0]) == ATAPI_MISC;

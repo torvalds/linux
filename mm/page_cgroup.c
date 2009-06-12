@@ -47,6 +47,8 @@ static int __init alloc_node_page_cgroup(int nid)
 	struct page_cgroup *base, *pc;
 	unsigned long table_size;
 	unsigned long start_pfn, nr_pages, index;
+	struct page *page;
+	unsigned int order;
 
 	start_pfn = NODE_DATA(nid)->node_start_pfn;
 	nr_pages = NODE_DATA(nid)->node_spanned_pages;
@@ -55,11 +57,13 @@ static int __init alloc_node_page_cgroup(int nid)
 		return 0;
 
 	table_size = sizeof(struct page_cgroup) * nr_pages;
-
-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-	if (!base)
+	order = get_order(table_size);
+	page = alloc_pages_node(nid, GFP_NOWAIT | __GFP_ZERO, order);
+	if (!page)
+		page = alloc_pages_node(-1, GFP_NOWAIT | __GFP_ZERO, order);
+	if (!page)
 		return -ENOMEM;
+	base = page_address(page);
 	for (index = 0; index < nr_pages; index++) {
 		pc = base + index;
 		__init_page_cgroup(pc, start_pfn + index);

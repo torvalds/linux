@@ -90,11 +90,7 @@ static int check_est_cpu(unsigned int cpuid)
 {
 	struct cpuinfo_x86 *cpu = &cpu_data(cpuid);
 
-	if (cpu->x86_vendor != X86_VENDOR_INTEL ||
-	    !cpu_has(cpu, X86_FEATURE_EST))
-		return 0;
-
-	return 1;
+	return cpu_has(cpu, X86_FEATURE_EST);
 }
 
 static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)
@@ -550,7 +546,7 @@ static int __init acpi_cpufreq_early_init(void)
 		return -ENOMEM;
 	}
 	for_each_possible_cpu(i) {
-		if (!alloc_cpumask_var_node(
+		if (!zalloc_cpumask_var_node(
 			&per_cpu_ptr(acpi_perf_data, i)->shared_cpu_map,
 			GFP_KERNEL, cpu_to_node(i))) {
 
@@ -693,8 +689,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (perf->control_register.space_id == ACPI_ADR_SPACE_FIXED_HARDWARE &&
 	    policy->cpuinfo.transition_latency > 20 * 1000) {
 		policy->cpuinfo.transition_latency = 20 * 1000;
-			printk_once(KERN_INFO "Capping off P-state tranision"
-				    " latency at 20 uS\n");
+		printk_once(KERN_INFO
+			    "P-state transition latency capped at 20 uS\n");
 	}
 
 	/* table init */

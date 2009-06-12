@@ -132,11 +132,15 @@ static void adfs_put_super(struct super_block *sb)
 	int i;
 	struct adfs_sb_info *asb = ADFS_SB(sb);
 
+	lock_kernel();
+
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
 	kfree(asb);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)

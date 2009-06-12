@@ -633,7 +633,7 @@ tape_3590_bread(struct tape_device *device, struct request *req)
 	struct req_iterator iter;
 
 	DBF_EVENT(6, "xBREDid:");
-	start_block = req->sector >> TAPEBLOCK_HSEC_S2B;
+	start_block = blk_rq_pos(req) >> TAPEBLOCK_HSEC_S2B;
 	DBF_EVENT(6, "start_block = %i\n", start_block);
 
 	rq_for_each_segment(bv, req, iter)

@@ -9,20 +9,31 @@ struct cpu_signature {
 
 struct device;
 
+enum ucode_state { UCODE_ERROR, UCODE_OK, UCODE_NFOUND };
+
 struct microcode_ops {
-	int  (*request_microcode_user) (int cpu, const void __user *buf, size_t size);
-	int  (*request_microcode_fw) (int cpu, struct device *device);
+	enum ucode_state (*request_microcode_user) (int cpu,
+				const void __user *buf, size_t size);
 
-	void (*apply_microcode) (int cpu);
+	enum ucode_state (*request_microcode_fw) (int cpu,
+				struct device *device);
 
-	int  (*collect_cpu_info) (int cpu, struct cpu_signature *csig);
 	void (*microcode_fini_cpu) (int cpu);
+
+	/*
+	 * The generic 'microcode_core' part guarantees that
+	 * the callbacks below run on a target cpu when they
+	 * are being called.
+	 * See also the "Synchronization" section in microcode_core.c.
+	 */
+	int (*apply_microcode) (int cpu);
+	int (*collect_cpu_info) (int cpu, struct cpu_signature *csig);
 };
 
 struct ucode_cpu_info {
-	struct cpu_signature cpu_sig;
-	int valid;
-	void *mc;
+	struct cpu_signature	cpu_sig;
+	int			valid;
+	void			*mc;
 };
 extern struct ucode_cpu_info ucode_cpu_info[];
 

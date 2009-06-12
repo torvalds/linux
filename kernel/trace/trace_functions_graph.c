@@ -65,6 +65,12 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	if (!current->ret_stack)
 		return -EBUSY;
 
+	/*
+	 * We must make sure the ret_stack is tested before we read
+	 * anything else.
+	 */
+	smp_rmb();
+
 	/* The return trace stack is full */
 	if (current->curr_ret_stack == FTRACE_RETFUNC_DEPTH - 1) {
 		atomic_inc(&current->trace_overrun);
@@ -78,13 +84,14 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth)
 	current->ret_stack[index].ret = ret;
 	current->ret_stack[index].func = func;
 	current->ret_stack[index].calltime = calltime;
+	current->ret_stack[index].subtime = 0;
 	*depth = index;
 
 	return 0;
 }
 
 /* Retrieve a function return address to the trace stack on thread info.*/
-void
+static void
 ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 {
 	int index;
@@ -104,9 +111,6 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret)
 	trace->calltime = current->ret_stack[index].calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = index;
-	barrier();
-	current->curr_ret_stack--;
-
 }
 
 /*
@@ -121,6 +125,8 @@ unsigned long ftrace_return_to_handler(void)
 	ftrace_pop_return_trace(&trace, &ret);
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
+	barrier();
+	current->curr_ret_stack--;
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();
@@ -426,8 +432,8 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 	return TRACE_TYPE_HANDLED;
 }
 
-static enum print_line_t
-print_graph_duration(unsigned long long duration, struct trace_seq *s)
+enum print_line_t
+trace_print_graph_duration(unsigned long long duration, struct trace_seq *s)
 {
 	unsigned long nsecs_rem = do_div(duration, 1000);
 	/* log10(ULONG_MAX) + '\0' */
@@ -464,12 +470,23 @@ print_graph_duration(unsigned long long duration, struct trace_seq *s)
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t
+print_graph_duration(unsigned long long duration, struct trace_seq *s)
+{
+	int ret;
+
+	ret = trace_print_graph_duration(duration, s);
+	if (ret != TRACE_TYPE_HANDLED)
+		return ret;
 
 	ret = trace_seq_printf(s, "|  ");
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
-	return TRACE_TYPE_HANDLED;
 
+	return TRACE_TYPE_HANDLED;
 }
 
 /* Case of a leaf function on its call entry */

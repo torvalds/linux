@@ -401,7 +401,8 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		/* Interrupt Line values above 0xF are forbidden */
 		if (dev->irq > 0 && (dev->irq <= 0xF)) {
 			printk(" - using IRQ %d\n", dev->irq);
-			acpi_register_gsi(dev->irq, ACPI_LEVEL_SENSITIVE,
+			acpi_register_gsi(&dev->dev, dev->irq,
+					  ACPI_LEVEL_SENSITIVE,
 					  ACPI_ACTIVE_LOW);
 			return 0;
 		} else {
@@ -410,7 +411,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		}
 	}
 
-	rc = acpi_register_gsi(gsi, triggering, polarity);
+	rc = acpi_register_gsi(&dev->dev, gsi, triggering, polarity);
 	if (rc < 0) {
 		dev_warn(&dev->dev, "PCI INT %c: failed to register GSI\n",
 			 pin_name(pin));

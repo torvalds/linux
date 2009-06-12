@@ -98,9 +98,8 @@ static void do_suspend(void)
 		goto out;
 	}
 
-	printk("suspending xenbus...\n");
-	/* XXX use normal device tree? */
-	xenbus_suspend();
+	printk(KERN_DEBUG "suspending xenstore...\n");
+	xs_suspend();
 
 	err = device_power_down(PMSG_SUSPEND);
 	if (err) {
@@ -116,9 +115,9 @@ static void do_suspend(void)
 
 	if (!cancelled) {
 		xen_arch_resume();
-		xenbus_resume();
+		xs_resume();
 	} else
-		xenbus_suspend_cancel();
+		xs_suspend_cancel();
 
 	device_power_up(PMSG_RESUME);
 

@@ -414,10 +414,6 @@ static int file_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case FIBMAP:
 		return ioctl_fibmap(filp, p);
-	case FS_IOC_FIEMAP:
-		return ioctl_fiemap(filp, arg);
-	case FIGETBSZ:
-		return put_user(inode->i_sb->s_blocksize, p);
 	case FIONREAD:
 		return put_user(i_size_read(inode) - filp->f_pos, p);
 	}
@@ -556,6 +552,16 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 	case FITHAW:
 		error = ioctl_fsthaw(filp);
 		break;
+
+	case FS_IOC_FIEMAP:
+		return ioctl_fiemap(filp, arg);
+
+	case FIGETBSZ:
+	{
+		struct inode *inode = filp->f_path.dentry->d_inode;
+		int __user *p = (int __user *)arg;
+		return put_user(inode->i_sb->s_blocksize, p);
+	}
 
 	default:
 		if (S_ISREG(filp->f_path.dentry->d_inode->i_mode))

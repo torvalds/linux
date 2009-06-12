@@ -19,6 +19,12 @@ config SAMPLE_TRACEPOINTS
 	help
 	  This build tracepoints example modules.
 
+config SAMPLE_TRACE_EVENTS
+	tristate "Build trace_events examples -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This build trace event example modules.
+
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
 	help

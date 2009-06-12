@@ -67,6 +67,7 @@
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/i387.h>
+#include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 
 /*G:010 Welcome to the Guest!
@@ -166,10 +167,16 @@ static void lazy_hcall3(unsigned long call,
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then
  * issue the do-nothing hypercall to flush any stored calls. */
-static void lguest_leave_lazy_mode(void)
+static void lguest_leave_lazy_mmu_mode(void)
 {
-	paravirt_leave_lazy(paravirt_get_lazy_mode());
 	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
+	paravirt_leave_lazy_mmu();
+}
+
+static void lguest_end_context_switch(struct task_struct *next)
+{
+	kvm_hypercall0(LHCALL_FLUSH_ASYNC);
+	paravirt_end_context_switch(next);
 }
 
 /*G:033
@@ -636,7 +643,7 @@ static void __init lguest_init_IRQ(void)
 
 void lguest_setup_irq(unsigned int irq)
 {
-	irq_to_desc_alloc_cpu(irq, 0);
+	irq_to_desc_alloc_node(irq, 0);
 	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
 }
@@ -1053,8 +1060,8 @@ __init void lguest_init(void)
 	pv_cpu_ops.write_gdt_entry = lguest_write_gdt_entry;
 	pv_cpu_ops.write_idt_entry = lguest_write_idt_entry;
 	pv_cpu_ops.wbinvd = lguest_wbinvd;
-	pv_cpu_ops.lazy_mode.enter = paravirt_enter_lazy_cpu;
-	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+	pv_cpu_ops.start_context_switch = paravirt_start_context_switch;
+	pv_cpu_ops.end_context_switch = lguest_end_context_switch;
 
 	/* pagetable management */
 	pv_mmu_ops.write_cr3 = lguest_write_cr3;
@@ -1067,7 +1074,7 @@ __init void lguest_init(void)
 	pv_mmu_ops.read_cr2 = lguest_read_cr2;
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
 	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;
-	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mmu_mode;
 	pv_mmu_ops.pte_update = lguest_pte_update;
 	pv_mmu_ops.pte_update_defer = lguest_pte_update;
 
@@ -1088,12 +1095,20 @@ __init void lguest_init(void)
 	 * lguest_init() where the rest of the fairly chaotic boot setup
 	 * occurs. */
 
+	/* The stack protector is a weird thing where gcc places a canary
+	 * value on the stack and then checks it on return.  This file is
+	 * compiled with -fno-stack-protector it, so we got this far without
+	 * problems.  The value of the canary is kept at offset 20 from the
+	 * %gs register, so we need to set that up before calling C functions
+	 * in other files. */
+	setup_stack_canary_segment(0);
+	/* We could just call load_stack_canary_segment(), but we might as
+	 * call switch_to_new_gdt() which loads the whole table and sets up
+	 * the per-cpu segment descriptor register %fs as well. */
+	switch_to_new_gdt(0);
+
 	/* As described in head_32.S, we map the first 128M of memory. */
 	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
-
-	/* Load the %fs segment register (the per-cpu segment register) with
-	 * the normal data segment to get through booting. */
-	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
 	/* The Host<->Guest Switcher lives at the top of our address space, and
 	 * the Host told us how big it is when we made LGUEST_INIT hypercall:

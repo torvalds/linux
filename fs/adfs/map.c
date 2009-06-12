@@ -62,7 +62,7 @@ static DEFINE_RWLOCK(adfs_map_lock);
 #define GET_FRAG_ID(_map,_start,_idmask)				\
 	({								\
 		unsigned char *_m = _map + (_start >> 3);		\
-		u32 _frag = get_unaligned((u32 *)_m);			\
+		u32 _frag = get_unaligned_le32(_m);			\
 		_frag >>= (_start & 7);					\
 		_frag & _idmask;					\
 	})

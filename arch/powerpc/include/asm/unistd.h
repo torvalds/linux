@@ -341,6 +341,7 @@
 #define __NR_dup3		316
 #define __NR_pipe2		317
 #define __NR_inotify_init1	318
+#define __NR_perf_counter_open	319
 #define __NR_preadv		320
 #define __NR_pwritev		321
 

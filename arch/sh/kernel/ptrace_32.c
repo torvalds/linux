@@ -334,6 +334,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					[(addr - (long)&dummy->fpu) >> 2];
 		} else if (addr == (long) &dummy->u_fpvalid)
 			tmp = !!tsk_used_math(child);
+		else if (addr == PT_TEXT_ADDR)
+			tmp = child->mm->start_code;
+		else if (addr == PT_DATA_ADDR)
+			tmp = child->mm->start_data;
+		else if (addr == PT_TEXT_END_ADDR)
+			tmp = child->mm->end_code;
+		else if (addr == PT_TEXT_LEN)
+			tmp = child->mm->end_code - child->mm->start_code;
 		else
 			tmp = 0;
 		ret = put_user(tmp, datap);

@@ -535,6 +535,18 @@ static int __init ap325rxa_devices_setup(void)
 }
 device_initcall(ap325rxa_devices_setup);
 
+/* Return the board specific boot mode pin configuration */
+static int ap325rxa_mode_pins(void)
+{
+	/* MD0=0, MD1=0, MD2=0: Clock Mode 0
+	 * MD3=0: 16-bit Area0 Bus Width
+	 * MD5=1: Little Endian
+	 * TSTMD=1, MD8=1: Test Mode Disabled
+	 */
+	return MODE_PIN5 | MODE_PIN8;
+}
+
 static struct sh_machine_vector mv_ap325rxa __initmv = {
 	.mv_name = "AP-325RXA",
+	.mv_mode_pins = ap325rxa_mode_pins,
 };

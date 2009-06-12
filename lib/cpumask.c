@@ -92,15 +92,8 @@ int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
  */
 bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 {
-	if (likely(slab_is_available()))
-		*mask = kmalloc_node(cpumask_size(), flags, node);
-	else {
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-		printk(KERN_ERR
-			"=> alloc_cpumask_var: kmalloc not available!\n");
-#endif
-		*mask = NULL;
-	}
+	*mask = kmalloc_node(cpumask_size(), flags, node);
+
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (!*mask) {
 		printk(KERN_ERR "=> alloc_cpumask_var: failed!\n");
@@ -119,6 +112,12 @@ bool alloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
 }
 EXPORT_SYMBOL(alloc_cpumask_var_node);
 
+bool zalloc_cpumask_var_node(cpumask_var_t *mask, gfp_t flags, int node)
+{
+	return alloc_cpumask_var_node(mask, flags | __GFP_ZERO, node);
+}
+EXPORT_SYMBOL(zalloc_cpumask_var_node);
+
 /**
  * alloc_cpumask_var - allocate a struct cpumask
  * @mask: pointer to cpumask_var_t where the cpumask is returned
@@ -134,6 +133,12 @@ bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
 	return alloc_cpumask_var_node(mask, flags, numa_node_id());
 }
 EXPORT_SYMBOL(alloc_cpumask_var);
+
+bool zalloc_cpumask_var(cpumask_var_t *mask, gfp_t flags)
+{
+	return alloc_cpumask_var(mask, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL(zalloc_cpumask_var);
 
 /**
  * alloc_bootmem_cpumask_var - allocate a struct cpumask from the bootmem arena.

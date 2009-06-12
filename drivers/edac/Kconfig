@@ -49,7 +49,6 @@ config EDAC_DEBUG_VERBOSE
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
-	default y
 	help
 	  Some systems are able to detect and correct errors in main
 	  memory.  EDAC can report statistics on memory error
@@ -58,6 +57,31 @@ config EDAC_MM_EDAC
 	  occurred so that a particular failing memory module can be
 	  replaced.  If unsure, select 'Y'.
 
+config EDAC_AMD64
+	tristate "AMD64 (Opteron, Athlon64) K8, F10h, F11h"
+	depends on EDAC_MM_EDAC && K8_NB && X86_64 && PCI
+	help
+	  Support for error detection and correction on the AMD 64
+	  Families of Memory Controllers (K8, F10h and F11h)
+
+config EDAC_AMD64_ERROR_INJECTION
+	bool "Sysfs Error Injection facilities"
+	depends on EDAC_AMD64
+	help
+	  Recent Opterons (Family 10h and later) provide for Memory Error
+	  Injection into the ECC detection circuits. The amd64_edac module
+	  allows the operator/user to inject Uncorrectable and Correctable
+	  errors into DRAM.
+
+	  When enabled, in each of the respective memory controller directories
+	  (/sys/devices/system/edac/mc/mcX), there are 3 input files:
+
+	  - inject_section (0..3, 16-byte section of 64-byte cacheline),
+	  - inject_word (0..8, 16-bit word of 16-byte section),
+	  - inject_ecc_vector (hex ecc vector: select bits of inject word)
+
+	  In addition, there are two control files, inject_read and inject_write,
+	  which trigger the DRAM ECC Read and Write respectively.
 
 config EDAC_AMD76X
 	tristate "AMD 76x (760, 762, 768)"
@@ -192,16 +216,20 @@ config EDAC_PPC4XX
 
 config EDAC_AMD8131
 	tristate "AMD8131 HyperTransport PCI-X Tunnel"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && PPC_MAPLE
 	help
 	  Support for error detection and correction on the
 	  AMD8131 HyperTransport PCI-X Tunnel chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
 
 config EDAC_AMD8111
 	tristate "AMD8111 HyperTransport I/O Hub"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && PPC_MAPLE
 	help
 	  Support for error detection and correction on the
 	  AMD8111 HyperTransport I/O Hub chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
 
 endif # EDAC

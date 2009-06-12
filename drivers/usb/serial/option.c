@@ -45,8 +45,9 @@
 /* Function prototypes */
 static int  option_open(struct tty_struct *tty, struct usb_serial_port *port,
 							struct file *filp);
-static void option_close(struct tty_struct *tty, struct usb_serial_port *port,
-							struct file *filp);
+static void option_close(struct usb_serial_port *port);
+static void option_dtr_rts(struct usb_serial_port *port, int on);
+
 static int  option_startup(struct usb_serial *serial);
 static void option_shutdown(struct usb_serial *serial);
 static int  option_write_room(struct tty_struct *tty);
@@ -61,7 +62,7 @@ static void option_set_termios(struct tty_struct *tty,
 static int  option_tiocmget(struct tty_struct *tty, struct file *file);
 static int  option_tiocmset(struct tty_struct *tty, struct file *file,
 				unsigned int set, unsigned int clear);
-static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *port);
+static int  option_send_setup(struct usb_serial_port *port);
 static int  option_suspend(struct usb_serial *serial, pm_message_t message);
 static int  option_resume(struct usb_serial *serial);
 
@@ -551,6 +552,7 @@ static struct usb_serial_driver option_1port_device = {
 	.num_ports         = 1,
 	.open              = option_open,
 	.close             = option_close,
+	.dtr_rts	   = option_dtr_rts,
 	.write             = option_write,
 	.write_room        = option_write_room,
 	.chars_in_buffer   = option_chars_in_buffer,
@@ -630,7 +632,7 @@ static void option_set_termios(struct tty_struct *tty,
 	dbg("%s", __func__);
 	/* Doesn't support option setting */
 	tty_termios_copy_hw(tty->termios, old_termios);
-	option_send_setup(tty, port);
+	option_send_setup(port);
 }
 
 static int option_tiocmget(struct tty_struct *tty, struct file *file)
@@ -669,7 +671,7 @@ static int option_tiocmset(struct tty_struct *tty, struct file *file,
 		portdata->rts_state = 0;
 	if (clear & TIOCM_DTR)
 		portdata->dtr_state = 0;
-	return option_send_setup(tty, port);
+	return option_send_setup(port);
 }
 
 /* Write */
@@ -897,10 +899,6 @@ static int option_open(struct tty_struct *tty,
 
 	dbg("%s", __func__);
 
-	/* Set some sane defaults */
-	portdata->rts_state = 1;
-	portdata->dtr_state = 1;
-
 	/* Reset low level data toggle and start reading from endpoints */
 	for (i = 0; i < N_IN_URB; i++) {
 		urb = portdata->in_urbs[i];
@@ -936,13 +934,28 @@ static int option_open(struct tty_struct *tty,
 				usb_pipeout(urb->pipe), 0); */
 	}
 
-	option_send_setup(tty, port);
+	option_send_setup(port);
 
 	return 0;
 }
 
-static void option_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void option_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct usb_serial *serial = port->serial;
+	struct option_port_private *portdata;
+
+	dbg("%s", __func__);
+	portdata = usb_get_serial_port_data(port);
+	mutex_lock(&serial->disc_mutex);
+	portdata->rts_state = on;
+	portdata->dtr_state = on;
+	if (serial->dev)
+		option_send_setup(port);
+	mutex_unlock(&serial->disc_mutex);
+}
+
+
+static void option_close(struct usb_serial_port *port)
 {
 	int i;
 	struct usb_serial *serial = port->serial;
@@ -951,22 +964,13 @@ static void option_close(struct tty_struct *tty,
 	dbg("%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
-	portdata->rts_state = 0;
-	portdata->dtr_state = 0;
-
 	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected)
-			option_send_setup(tty, port);
-		mutex_unlock(&serial->disc_mutex);
-
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)
 			usb_kill_urb(portdata->in_urbs[i]);
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
 	}
-	tty_port_tty_set(&port->port, NULL);
 }
 
 /* Helper functions used by option_setup_urbs */
@@ -1032,28 +1036,24 @@ static void option_setup_urbs(struct usb_serial *serial)
  * This is exactly the same as SET_CONTROL_LINE_STATE from the PSTN
  * CDC.
 */
-static int option_send_setup(struct tty_struct *tty,
-						struct usb_serial_port *port)
+static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
 	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	int val = 0;
 	dbg("%s", __func__);
 
 	portdata = usb_get_serial_port_data(port);
 
-	if (tty) {
-		int val = 0;
-		if (portdata->dtr_state)
-			val |= 0x01;
-		if (portdata->rts_state)
-			val |= 0x02;
+	if (portdata->dtr_state)
+		val |= 0x01;
+	if (portdata->rts_state)
+		val |= 0x02;
 
-		return usb_control_msg(serial->dev,
-			usb_rcvctrlpipe(serial->dev, 0),
-			0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
-	}
-	return 0;
+	return usb_control_msg(serial->dev,
+		usb_rcvctrlpipe(serial->dev, 0),
+		0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 static int option_startup(struct usb_serial *serial)

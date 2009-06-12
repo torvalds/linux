@@ -32,6 +32,8 @@ extern void dma_debug_add_bus(struct bus_type *bus);
 
 extern void dma_debug_init(u32 num_entries);
 
+extern int dma_debug_resize_entries(u32 num_entries);
+
 extern void debug_dma_map_page(struct device *dev, struct page *page,
 			       size_t offset, size_t size,
 			       int direction, dma_addr_t dma_addr,
@@ -89,6 +91,11 @@ static inline void dma_debug_add_bus(struct bus_type *bus)
 
 static inline void dma_debug_init(u32 num_entries)
 {
+}
+
+static inline int dma_debug_resize_entries(u32 num_entries)
+{
+	return 0;
 }
 
 static inline void debug_dma_map_page(struct device *dev, struct page *page,

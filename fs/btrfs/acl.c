@@ -351,9 +351,4 @@ int btrfs_init_acl(struct inode *inode, struct inode *dir)
 	return 0;
 }
 
-int btrfs_check_acl(struct inode *inode, int mask)
-{
-	return 0;
-}
-
 #endif /* CONFIG_FS_POSIX_ACL */

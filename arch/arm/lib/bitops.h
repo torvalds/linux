@@ -18,12 +18,14 @@
 	mov	r2, #1
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3		@ create mask
+	smp_dmb
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
 	\instr	r2, r2, r3			@ toggle bit
 	strexb	ip, r2, [r1]
 	cmp	ip, #0
 	bne	1b
+	smp_dmb
 	cmp	r0, #0
 	movne	r0, #1
 2:	mov	pc, lr

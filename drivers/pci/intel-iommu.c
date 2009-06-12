@@ -1972,15 +1972,6 @@ static int __init init_dmars(void)
 		}
 	}
 
-#ifdef CONFIG_INTR_REMAP
-	if (!intr_remapping_enabled) {
-		ret = enable_intr_remapping(0);
-		if (ret)
-			printk(KERN_ERR
-			       "IOMMU: enable interrupt remapping failed\n");
-	}
-#endif
-
 	/*
 	 * For each rmrr
 	 *   for each dev attached to rmrr

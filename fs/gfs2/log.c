@@ -120,7 +120,7 @@ __acquires(&sdp->sd_log_lock)
 			lock_buffer(bh);
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
-				submit_bh(WRITE, bh);
+				submit_bh(WRITE_SYNC_PLUG, bh);
 			} else {
 				unlock_buffer(bh);
 				brelse(bh);
@@ -604,7 +604,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
 		goto skip_barrier;
 	get_bh(bh);
-	submit_bh(WRITE_BARRIER | (1 << BIO_RW_META), bh);
+	submit_bh(WRITE_SYNC | (1 << BIO_RW_BARRIER) | (1 << BIO_RW_META), bh);
 	wait_on_buffer(bh);
 	if (buffer_eopnotsupp(bh)) {
 		clear_buffer_eopnotsupp(bh);
@@ -664,7 +664,7 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 		lock_buffer(bh);
 		if (buffer_mapped(bh) && test_clear_buffer_dirty(bh)) {
 			bh->b_end_io = end_buffer_write_sync;
-			submit_bh(WRITE, bh);
+			submit_bh(WRITE_SYNC_PLUG, bh);
 		} else {
 			unlock_buffer(bh);
 			brelse(bh);
@@ -764,7 +764,6 @@ void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	}
 	gfs2_log_unlock(sdp);
 
-	sdp->sd_vfs->s_dirt = 0;
 	up_write(&sdp->sd_log_flush_lock);
 
 	kfree(ai);
@@ -823,7 +822,6 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	log_refund(sdp, tr);
 	buf_lo_incore_commit(sdp, tr);
 
-	sdp->sd_vfs->s_dirt = 1;
 	up_read(&sdp->sd_log_flush_lock);
 
 	gfs2_log_lock(sdp);

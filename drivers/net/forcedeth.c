@@ -897,6 +897,12 @@ enum {
 };
 static int phy_cross = NV_CROSSOVER_DETECTION_DISABLED;
 
+/*
+ * Power down phy when interface is down (persists through reboot;
+ * older Linux and other OSes may not power it up again)
+ */
+static int phy_power_down = 0;
+
 static inline struct fe_priv *get_nvpriv(struct net_device *dev)
 {
 	return netdev_priv(dev);
@@ -1485,7 +1491,10 @@ static int phy_init(struct net_device *dev)
 
 	/* restart auto negotiation, power down phy */
 	mii_control = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
-	mii_control |= (BMCR_ANRESTART | BMCR_ANENABLE | BMCR_PDOWN);
+	mii_control |= (BMCR_ANRESTART | BMCR_ANENABLE);
+	if (phy_power_down) {
+		mii_control |= BMCR_PDOWN;
+	}
 	if (mii_rw(dev, np->phyaddr, MII_BMCR, mii_control)) {
 		return PHY_ERROR;
 	}
@@ -5513,7 +5522,7 @@ static int nv_close(struct net_device *dev)
 
 	nv_drain_rxtx(dev);
 
-	if (np->wolenabled) {
+	if (np->wolenabled || !phy_power_down) {
 		writel(NVREG_PFF_ALWAYS|NVREG_PFF_MYADDR, base + NvRegPacketFilterFlags);
 		nv_start_rx(dev);
 	} else {
@@ -6367,6 +6376,8 @@ module_param(dma_64bit, int, 0);
 MODULE_PARM_DESC(dma_64bit, "High DMA is enabled by setting to 1 and disabled by setting to 0.");
 module_param(phy_cross, int, 0);
 MODULE_PARM_DESC(phy_cross, "Phy crossover detection for Realtek 8201 phy is enabled by setting to 1 and disabled by setting to 0.");
+module_param(phy_power_down, int, 0);
+MODULE_PARM_DESC(phy_power_down, "Power down phy and disable link when interface is down (1), or leave phy powered up (0).");
 
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
