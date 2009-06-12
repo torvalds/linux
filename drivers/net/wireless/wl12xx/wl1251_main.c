@@ -542,7 +542,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out_sleep;
 
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
-		wl1251_info("psm enabled");
+		wl1251_debug(DEBUG_PSM, "psm enabled");
 
 		wl->psm_requested = true;
 
@@ -554,7 +554,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   wl->psm_requested) {
-		wl1251_info("psm disabled");
+		wl1251_debug(DEBUG_PSM, "psm disabled");
 
 		wl->psm_requested = false;
 
