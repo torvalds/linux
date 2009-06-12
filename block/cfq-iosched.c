@@ -1252,7 +1252,7 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 
 	BUG_ON(cfqd->busy_queues);
 
-	cfq_log(cfqd, "forced_dispatch=%d\n", dispatched);
+	cfq_log(cfqd, "forced_dispatch=%d", dispatched);
 	return dispatched;
 }
 
