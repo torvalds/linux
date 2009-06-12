@@ -406,6 +406,7 @@ module_param_call(cpu_type, force_cpu_type, NULL, NULL, 0);
 static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
+	struct op_x86_model_spec const *spec = &op_ppro_spec;	/* default */
 
 	if (force_arch_perfmon && cpu_has_arch_perfmon)
 		return 0;
@@ -432,7 +433,7 @@ static int __init ppro_init(char **cpu_type)
 		*cpu_type = "i386/core_2";
 		break;
 	case 26:
-		model = &op_arch_perfmon_spec;
+		spec = &op_arch_perfmon_spec;
 		*cpu_type = "i386/core_i7";
 		break;
 	case 28:
@@ -443,7 +444,7 @@ static int __init ppro_init(char **cpu_type)
 		return 0;
 	}
 
-	model = &op_ppro_spec;
+	model = spec;
 	return 1;
 }
 
