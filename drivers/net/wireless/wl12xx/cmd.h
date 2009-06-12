@@ -36,7 +36,7 @@ int wl12xx_cmd_configure(struct wl12xx *wl, u16 id, void *buf, size_t len);
 int wl12xx_cmd_vbm(struct wl12xx *wl, u8 identity,
 		   void *bitmap, u16 bitmap_len, u8 bitmap_control);
 int wl12xx_cmd_data_path(struct wl12xx *wl, u8 channel, bool enable);
-int wl12xx_cmd_join(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
+int wl1251_cmd_join(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
 		    u16 beacon_interval, u8 wait);
 int wl12xx_cmd_ps_mode(struct wl12xx *wl, u8 ps_mode);
 int wl12xx_cmd_read_memory(struct wl12xx *wl, u32 addr, void *answer,

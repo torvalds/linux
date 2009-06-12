@@ -243,7 +243,8 @@ static void wl12xx_filter_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
+	/* FIXME: replace the magic numbers with proper definitions */
+	ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -534,7 +535,7 @@ static int wl12xx_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (channel != wl->channel) {
 		/* FIXME: use beacon interval provided by mac80211 */
-		ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1082,7 +1083,7 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 			goto out;
 
 		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl12xx_cmd_join(wl, wl->bss_type, 5, 100, 1);
+			ret = wl->chip.op_cmd_join(wl, wl->bss_type, 5, 100, 1);
 			if (ret < 0)
 				goto out;
 		}
@@ -1106,7 +1107,7 @@ static void wl12xx_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto out;
 
-		ret = wl12xx_cmd_join(wl, wl->bss_type, 1, 100, 0);
+		ret = wl->chip.op_cmd_join(wl, wl->bss_type, 1, 100, 0);
 
 		if (ret < 0)
 			goto out;

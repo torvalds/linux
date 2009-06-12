@@ -717,6 +717,7 @@ void wl1251_setup(struct wl12xx *wl)
 	wl->chip.op_plt_init = wl1251_plt_init;
 	wl->chip.op_fw_version = wl1251_fw_version;
 	wl->chip.op_tx_flush = wl1251_tx_flush;
+	wl->chip.op_cmd_join = wl1251_cmd_join;
 
 	wl->chip.p_table = wl1251_part_table;
 	wl->chip.acx_reg_table = wl1251_acx_reg_table;

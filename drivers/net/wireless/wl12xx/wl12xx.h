@@ -165,6 +165,8 @@ struct wl12xx_chip {
 	int (*op_plt_init)(struct wl12xx *wl);
 	void (*op_tx_flush)(struct wl12xx *wl);
 	void (*op_fw_version)(struct wl12xx *wl);
+	int (*op_cmd_join)(struct wl12xx *wl, u8 bss_type, u8 dtim_interval,
+			    u16 beacon_interval, u8 wait);
 
 	struct wl12xx_partition_set *p_table;
 	enum wl12xx_acx_int_reg *acx_reg_table;
