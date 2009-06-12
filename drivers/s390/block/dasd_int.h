@@ -173,6 +173,7 @@ struct dasd_ccw_req {
 	void *data;			/* pointer to data area */
 
 	/* these are important for recovering erroneous requests          */
+	int intrc;			/* internal error, e.g. from start_IO */
 	struct irb irb;			/* device status in case of an error */
 	struct dasd_ccw_req *refers;	/* ERP-chain queueing. */
 	void *function; 		/* originating ERP action */

@@ -3017,8 +3017,9 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
-		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw));
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
+		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3119,9 +3120,10 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X "
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d "
 		       "fcxs: 0x%02X schxs: 0x%02X\n", req,
 		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc,
 		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing TCW: %p\n",
