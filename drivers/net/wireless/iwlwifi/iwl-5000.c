@@ -388,7 +388,7 @@ void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 
 static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 	.min_nrg_cck = 95,
-	.max_nrg_cck = 0,
+	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
 	.auto_corr_min_ofdm_x1 = 120,

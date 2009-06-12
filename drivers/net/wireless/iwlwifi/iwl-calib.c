@@ -251,12 +251,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 
 		/* increase energy threshold (reduce nrg value)
 		 *   to decrease sensitivity */
-		if (data->nrg_th_cck >
-			(ranges->max_nrg_cck + NRG_STEP_CCK))
-			data->nrg_th_cck = data->nrg_th_cck
-						 - NRG_STEP_CCK;
-		else
-			data->nrg_th_cck = ranges->max_nrg_cck;
+		data->nrg_th_cck = data->nrg_th_cck - NRG_STEP_CCK;
 	/* Else if we got fewer than desired, increase sensitivity */
 	} else if (false_alarms < min_false_alarms) {
 		data->nrg_curr_state = IWL_FA_TOO_FEW;
