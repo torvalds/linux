@@ -1112,7 +1112,8 @@ int wl12xx_acx_frame_rates(struct wl12xx *wl, u8 ctrl_rate, u8 ctrl_mod,
 			   u8 mgt_rate, u8 mgt_mod);
 int wl12xx_acx_station_id(struct wl12xx *wl);
 int wl12xx_acx_default_key(struct wl12xx *wl, u8 key_id);
-int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 listen_interval);
+int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 wake_up_event,
+				  u8 listen_interval);
 int wl12xx_acx_sleep_auth(struct wl12xx *wl, u8 sleep_auth);
 int wl12xx_acx_fw_version(struct wl12xx *wl, char *buf, size_t len);
 int wl12xx_acx_tx_power(struct wl12xx *wl, int power);

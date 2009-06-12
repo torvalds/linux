@@ -346,7 +346,8 @@ int wl12xx_cmd_ps_mode(struct wl12xx *wl, u8 ps_mode)
 	int ret = 0;
 
 	/* FIXME: this should be in ps.c */
-	ret = wl12xx_acx_wake_up_conditions(wl, wl->listen_int);
+	ret = wl12xx_acx_wake_up_conditions(wl, WAKE_UP_EVENT_DTIM_BITMAP,
+					    wl->listen_int);
 	if (ret < 0) {
 		wl12xx_error("couldn't set wake up conditions");
 		goto out;

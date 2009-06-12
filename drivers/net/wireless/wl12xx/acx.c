@@ -96,7 +96,8 @@ out:
 	return ret;
 }
 
-int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 listen_interval)
+int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 wake_up_event,
+				  u8 listen_interval)
 {
 	struct acx_wake_up_condition *wake_up;
 	int ret;
@@ -109,7 +110,7 @@ int wl12xx_acx_wake_up_conditions(struct wl12xx *wl, u8 listen_interval)
 		goto out;
 	}
 
-	wake_up->wake_up_event = WAKE_UP_EVENT_DTIM_BITMAP;
+	wake_up->wake_up_event = wake_up_event;
 	wake_up->listen_interval = listen_interval;
 
 	ret = wl12xx_cmd_configure(wl, ACX_WAKE_UP_CONDITIONS,
