@@ -36,7 +36,7 @@
 #include <linux/elf.h>
 #include <linux/regset.h>
 #include <linux/tracehook.h>
-
+#include <linux/compat.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -69,7 +69,7 @@ FixPerRegisters(struct task_struct *task)
 	if (per_info->single_step) {
 		per_info->control_regs.bits.starting_addr = 0;
 #ifdef CONFIG_COMPAT
-		if (test_thread_flag(TIF_31BIT))
+		if (is_compat_task())
 			per_info->control_regs.bits.ending_addr = 0x7fffffffUL;
 		else
 #endif
@@ -482,8 +482,7 @@ static int peek_user_compat(struct task_struct *child,
 {
 	__u32 tmp;
 
-	if (!test_thread_flag(TIF_31BIT) ||
-	    (addr & 3) || addr > sizeof(struct user) - 3)
+	if (!is_compat_task() || (addr & 3) || addr > sizeof(struct user) - 3)
 		return -EIO;
 
 	tmp = __peek_user_compat(child, addr);
@@ -584,8 +583,7 @@ static int __poke_user_compat(struct task_struct *child,
 static int poke_user_compat(struct task_struct *child,
 			    addr_t addr, addr_t data)
 {
-	if (!test_thread_flag(TIF_31BIT) ||
-	    (addr & 3) || addr > sizeof(struct user32) - 3)
+	if (!is_compat_task() || (addr & 3) || addr > sizeof(struct user32) - 3)
 		return -EIO;
 
 	return __poke_user_compat(child, addr, data);
@@ -660,7 +658,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	}
 
 	if (unlikely(current->audit_context))
-		audit_syscall_entry(test_thread_flag(TIF_31BIT) ?
+		audit_syscall_entry(is_compat_task() ?
 					AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
 				    regs->gprs[2], regs->orig_gpr2,
 				    regs->gprs[3], regs->gprs[4],

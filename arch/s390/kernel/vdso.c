@@ -22,7 +22,7 @@
 #include <linux/elf.h>
 #include <linux/security.h>
 #include <linux/bootmem.h>
-
+#include <linux/compat.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -214,7 +214,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (test_thread_flag(TIF_31BIT)) {
+	if (is_compat_task()) {
 		vdso_pagelist = vdso32_pagelist;
 		vdso_pages = vdso32_pages;
 	}
