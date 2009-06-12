@@ -24,7 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "wl1251.h"
+#include "wl1251_ops.h"
 #include "reg.h"
 #include "spi.h"
 #include "boot.h"

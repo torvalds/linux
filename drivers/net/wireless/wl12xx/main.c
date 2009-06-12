@@ -34,7 +34,7 @@
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
 #include "reg.h"
-#include "wl1251.h"
+#include "wl1251_ops.h"
 #include "spi.h"
 #include "event.h"
 #include "wl1251_tx.h"

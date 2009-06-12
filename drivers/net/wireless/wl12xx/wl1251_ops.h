@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef __WL1251_H__
-#define __WL1251_H__
+#ifndef __WL1251_OPS_H__
+#define __WL1251_OPS_H__
 
 #include <linux/bitops.h>
 
