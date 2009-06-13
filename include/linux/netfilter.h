@@ -196,25 +196,36 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
    coders :)
 */
 
-/* This is gross, but inline doesn't cut it for avoiding the function
-   call in fast path: gcc doesn't inline (needs value tracking?). --RR */
+static inline int
+NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	       struct net_device *in, struct net_device *out,
+	       int (*okfn)(struct sk_buff *), int thresh)
+{
+	int ret = nf_hook_thresh(pf, hook, skb, in, out, okfn, thresh);
+	if (ret == 1)
+		ret = okfn(skb);
+	return ret;
+}
 
-/* HX: It's slightly less gross now. */
+static inline int
+NF_HOOK_COND(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	     struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct sk_buff *), bool cond)
+{
+	int ret = 1;
+	if (cond ||
+	    (ret = nf_hook_thresh(pf, hook, skb, in, out, okfn, INT_MIN) == 1))
+		ret = okfn(skb);
+	return ret;
+}
 
-#define NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, thresh)	       \
-({int __ret;								       \
-if ((__ret=nf_hook_thresh(pf, hook, (skb), indev, outdev, okfn, thresh)) == 1)\
-	__ret = (okfn)(skb);						       \
-__ret;})
-
-#define NF_HOOK_COND(pf, hook, skb, indev, outdev, okfn, cond)		       \
-({int __ret;								       \
-if ((cond) || (__ret = nf_hook_thresh(pf, hook, (skb), indev, outdev, okfn, INT_MIN)) == 1)\
-	__ret = (okfn)(skb);						       \
-__ret;})
-
-#define NF_HOOK(pf, hook, skb, indev, outdev, okfn) \
-	NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, INT_MIN)
+static inline int
+NF_HOOK(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	struct net_device *in, struct net_device *out,
+	int (*okfn)(struct sk_buff *))
+{
+	return NF_HOOK_THRESH(pf, hook, skb, in, out, okfn, INT_MIN);
+}
 
 /* Call setsockopt() */
 int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
