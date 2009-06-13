@@ -836,7 +836,12 @@ static void handle_console_output(struct virtqueue *vq, bool timeout)
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
 		if (in)
 			errx(1, "Input buffers in output queue?");
-		writev(STDOUT_FILENO, iov, out);
+		while (!iov_empty(iov, out)) {
+			int len = writev(STDOUT_FILENO, iov, out);
+			if (len <= 0)
+				err(1, "Write to stdout gave %i", len);
+			iov_consume(iov, out, len);
+		}
 		add_used_and_trigger(vq, head, 0);
 	}
 }
