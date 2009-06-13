@@ -70,19 +70,16 @@ iptable_security_hook(unsigned int hook, struct sk_buff *skb,
 		      const struct net_device *out,
 		      int (*okfn)(struct sk_buff *))
 {
-	if (hook == NF_INET_LOCAL_OUT) {
-		if (skb->len < sizeof(struct iphdr) ||
-		    ip_hdrlen(skb) < sizeof(struct iphdr))
-			/* Somebody is playing with raw sockets. */
-			return NF_ACCEPT;
+	const struct net *net;
 
-		return ipt_do_table(skb, hook, in, out,
-				    dev_net(out)->ipv4.iptable_security);
-	}
+	if (hook == NF_INET_LOCAL_OUT &&
+	    (skb->len < sizeof(struct iphdr) ||
+	     ip_hdrlen(skb) < sizeof(struct iphdr)))
+		/* Somebody is playing with raw sockets. */
+		return NF_ACCEPT;
 
-	/* INPUT/FORWARD: */
-	return ipt_do_table(skb, hook, in, out,
-			    dev_net(in)->ipv4.iptable_security);
+	net = dev_net((in != NULL) ? in : out);
+	return ipt_do_table(skb, hook, in, out, net->ipv4.iptable_security);
 }
 
 static struct nf_hook_ops ipt_ops[] __read_mostly = {
