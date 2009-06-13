@@ -449,7 +449,6 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 #endif
 	down(&ieee->scan_sem);
 //	printk("==================> Sync scan\n");
-//	dump_chnl_map(channel_map);
 
 	while(1)
 	{

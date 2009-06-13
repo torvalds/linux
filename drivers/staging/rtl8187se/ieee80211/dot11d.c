@@ -130,16 +130,6 @@ Dot11d_UpdateCountryIe(
 	pDot11dInfo->State = DOT11D_STATE_LEARNED;
 }
 
-void dump_chnl_map(u8 * channel_map)
-{
-	int i;
-	printk("Channel List:");
-	for(i=1; i<= MAX_CHANNEL_NUMBER; i++)
-		if(channel_map[i] > 0)
-			printk(" %d(%d)", i, channel_map[i]);
-	printk("\n");
-}
-
 u8
 DOT11D_GetMaxTxPwrInDbm(
 	struct ieee80211_device *dev,
