@@ -19,10 +19,6 @@
 #include <asm/string.h>
 #include <asm/errno.h>
 
-#if (LINUX_VERSION_CODE<KERNEL_VERSION(2,6,18))
-#include<linux/config.h>
-#endif
-
 #include "ieee80211.h"
 
 MODULE_AUTHOR("Jouni Malinen");

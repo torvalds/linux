@@ -29,10 +29,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13))
 #include <linux/wireless.h>
-#endif
 
 /*
 #ifndef bool
@@ -47,11 +44,7 @@
 #define false  0
 #endif
 */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
+
 //#ifdef JOHN_HWSEC
 #define KEY_TYPE_NA		0x0
 #define KEY_TYPE_WEP40 		0x1
@@ -112,7 +105,6 @@ typedef enum{false = 0, true} bool;
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
 #define ieee80211_wx_get_scan ieee80211_wx_get_scan_rtl
 #define ieee80211_wx_set_encode ieee80211_wx_set_encode_rtl
 #define ieee80211_wx_get_encode ieee80211_wx_get_encode_rtl
@@ -122,7 +114,7 @@ typedef enum{false = 0, true} bool;
 #define free_ieee80211          free_ieee80211_rtl
 #define alloc_ieee80211        alloc_ieee80211_rtl
 ///////////////////////////////
-#endif
+
 //error in ubuntu2.6.22,so add these
 #define ieee80211_wake_queue ieee80211_wake_queue_rtl
 #define ieee80211_stop_queue ieee80211_stop_queue_rtl
@@ -205,23 +197,8 @@ typedef struct ieee_param {
 #define IW_QUAL_NOISE_UPDATED  0x4
 #endif
 
-// linux under 2.6.9 release may not support it, so modify it for common use
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-#define MSECS(t)	(1000 * ((t) / HZ) + 1000 * ((t) % HZ) / HZ)
-static inline unsigned long msleep_interruptible_rtl(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_UNINTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-         return timeout;
-}
-#else
 #define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rtl  msleep_interruptible
-#endif
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -1097,22 +1074,6 @@ enum ieee80211_state {
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,11))
-extern inline int is_multicast_ether_addr(const u8 *addr)
-{
-        return ((addr[0] != 0xff) && (0x01 & addr[0]));
-}
-#endif
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13))
-extern inline int is_broadcast_ether_addr(const u8 *addr)
-{
-	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
-}
-#endif
-
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 
@@ -1313,7 +1274,6 @@ struct ieee80211_device {
 	unsigned long NumRxOkTotal;
 	unsigned long NumRxUnicast;//YJ,add,080828,for keep alive
 	bool bHwRadioOff;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
         struct delayed_work softmac_scan_wq;
         struct delayed_work associate_retry_wq;
 	struct delayed_work hw_wakeup_wq;
@@ -1329,24 +1289,7 @@ struct ieee80211_device {
 
 //Added for RF power on power off by lizhaoming 080512
 	struct delayed_work GPIOChangeRFWorkItem;
-#else
 
-	struct work_struct start_ibss_wq;
-        struct work_struct softmac_scan_wq;
-        struct work_struct associate_retry_wq;
-	struct work_struct hw_wakeup_wq;
-	struct work_struct hw_sleep_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct sw_antenna_wq;
-//by amy for rate adaptive 080312
-    struct work_struct rate_adapter_wq;
-//by amy for rate adaptive
-	struct work_struct hw_dig_wq;
-	struct work_struct tx_pw_wq;
-
-//Added for RF power on power off by lizhaoming 080512
-	struct work_struct GPIOChangeRFWorkItem;
-#endif
 	struct workqueue_struct *wq;
 
 	/* Callback functions */
@@ -1690,12 +1633,8 @@ extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_reques
 
 extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
-#else
- extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
-#endif
-//extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 
 extern int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,

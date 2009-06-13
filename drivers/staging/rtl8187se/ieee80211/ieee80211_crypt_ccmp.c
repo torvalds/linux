@@ -24,18 +24,8 @@
 
 #include "ieee80211.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include "rtl_crypto.h"
-#else
 #include <linux/crypto.h>
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-    #include <asm/scatterlist.h>
-#else
-    #include <linux/scatterlist.h>
-#endif
-
-//#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Host AP crypt: CCMP");
@@ -77,21 +67,7 @@ struct ieee80211_ccmp_data {
 void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 			     const u8 pt[16], u8 ct[16])
 {
-      	#if((LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))||(IN_OPENSUSE_SLED))
 	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
-	#else
-	struct scatterlist src, dst;
-
-	src.page = virt_to_page(pt);
-	src.offset = offset_in_page(pt);
-	src.length = AES_BLOCK_LEN;
-
-	dst.page = virt_to_page(ct);
-	dst.offset = offset_in_page(ct);
-	dst.length = AES_BLOCK_LEN;
-
-	crypto_cipher_encrypt(tfm, &dst, &src, AES_BLOCK_LEN);
-	#endif
 }
 
 static void * ieee80211_ccmp_init(int key_idx)
@@ -104,33 +80,20 @@ static void * ieee80211_ccmp_init(int key_idx)
 	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 
-       #if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!IN_OPENSUSE_SLED))
-	priv->tfm = crypto_alloc_tfm("aes", 0);
-	if (priv->tfm == NULL) {
-		printk(KERN_DEBUG "ieee80211_crypt_ccmp: could not allocate "
-		       "crypto API aes\n");
-		goto fail;
-	}
-       #else
-       priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
+	priv->tfm = (void *)crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
 		printk(KERN_DEBUG "ieee80211_crypt_ccmp: could not allocate "
 		       "crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}
-	#endif
+
 	return priv;
 
 fail:
 	if (priv) {
 		if (priv->tfm)
-			//#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))
-       			#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!IN_OPENSUSE_SLED))
-			crypto_free_tfm(priv->tfm);
-                    #else
 			crypto_free_cipher((void *)priv->tfm);
-		      #endif
 		kfree(priv);
 	}
 
@@ -141,13 +104,9 @@ fail:
 static void ieee80211_ccmp_deinit(void *priv)
 {
 	struct ieee80211_ccmp_data *_priv = priv;
+
 	if (_priv && _priv->tfm)
-		//#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21))
-       		#if((LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)) && (!IN_OPENSUSE_SLED))
-		crypto_free_tfm(_priv->tfm);
-             #else
 		crypto_free_cipher((void *)_priv->tfm);
-		#endif
 	kfree(priv);
 }
 
@@ -522,11 +481,7 @@ void ieee80211_crypto_ccmp_exit(void)
 }
 
 #if 0
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 EXPORT_SYMBOL(ieee80211_ccmp_null);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_ccmp_null);
-#endif
 #endif
 
 //module_init(ieee80211_crypto_ccmp_init);

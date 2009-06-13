@@ -171,17 +171,10 @@ MODULE_PARM(channels,"i");
 MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 9)
 module_param(ifname, charp, S_IRUGO|S_IWUSR );
 module_param(hwseqnum,int, S_IRUGO|S_IWUSR);
 module_param(hwwep,int, S_IRUGO|S_IWUSR);
 module_param(channels,int, S_IRUGO|S_IWUSR);
-#else
-MODULE_PARM(ifname, "s");
-MODULE_PARM(hwseqnum,"i");
-MODULE_PARM(hwwep,"i");
-MODULE_PARM(channels,"i");
-#endif
 
 MODULE_PARM_DESC(devname," Net interface name, wlan%d=default");
 //MODULE_PARM_DESC(devname," Net interface name, ath%d=default");
@@ -603,21 +596,13 @@ static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 void rtl8180_proc_module_init(void)
 {
 	DMESG("Initializing proc filesystem");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-        rtl8180_proc=create_proc_entry(RTL8180_MODULE_NAME, S_IFDIR, proc_net);
-#else
         rtl8180_proc=create_proc_entry(RTL8180_MODULE_NAME, S_IFDIR, init_net.proc_net);
-#endif
 }
 
 
 void rtl8180_proc_module_remove(void)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-        remove_proc_entry(RTL8180_MODULE_NAME, proc_net);
-#else
         remove_proc_entry(RTL8180_MODULE_NAME, init_net.proc_net);
-#endif
 }
 
 
@@ -3759,18 +3744,11 @@ void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
 
 
 //void rtl8180_wmm_param_update(struct net_device *dev,u8 *ac_param)
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8180_wmm_param_update(struct work_struct * work)
 {
 	struct ieee80211_device * ieee = container_of(work, struct ieee80211_device,wmm_param_update_wq);
 	//struct r8180_priv *priv = (struct r8180_priv*)(ieee->priv);
 	struct net_device *dev = ieee->dev;
-#else
-void rtl8180_wmm_param_update(struct ieee80211_device *ieee)
-{
-	struct net_device *dev = ieee->dev;
-	struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
 	u8 *ac_param = (u8 *)(ieee->current_network.wmm_param);
 	u8 mode = ieee->current_network.mode;
 	AC_CODING	eACI;
@@ -3872,47 +3850,15 @@ void rtl8180_wmm_param_update(struct ieee80211_device *ieee)
 #endif
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_tx_irq_wq(struct work_struct *work);
-#else
-void rtl8180_tx_irq_wq(struct net_device *dev);
-#endif
-
-
-
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_restart_wq(struct work_struct *work);
 //void rtl8180_rq_tx_ack(struct work_struct *work);
-#else
- void rtl8180_restart_wq(struct net_device *dev);
-//void rtl8180_rq_tx_ack(struct net_device *dev);
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_watch_dog_wq(struct work_struct *work);
-#else
-void rtl8180_watch_dog_wq(struct net_device *dev);
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_hw_wakeup_wq(struct work_struct *work);
-#else
-void rtl8180_hw_wakeup_wq(struct net_device *dev);
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_hw_sleep_wq(struct work_struct *work);
-#else
-void rtl8180_hw_sleep_wq(struct net_device *dev);
-#endif
-
-
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_sw_antenna_wq(struct work_struct *work);
-#else
-void rtl8180_sw_antenna_wq(struct net_device *dev);
-#endif
- void rtl8180_watch_dog(struct net_device *dev);
+void rtl8180_watch_dog(struct net_device *dev);
+
 void watch_dog_adaptive(unsigned long data)
 {
     struct r8180_priv* priv = ieee80211_priv((struct net_device *)data);
@@ -4041,11 +3987,7 @@ static void rtl8180_set_channel_map(u8 channel_plan, struct ieee80211_device *ie
 #endif
 
 //Add for RF power on power off by lizhaoming 080512
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work);
-#else
-void GPIOChangeRFWorkItemCallBack(struct ieee80211_device *ieee);
-#endif
 
 //YJ,add,080828
 static void rtl8180_statistics_init(struct Stats *pstats)
@@ -4295,7 +4237,6 @@ short rtl8180_init(struct net_device *dev)
 	spin_lock_init(&priv->rf_ps_lock);
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_state,1);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	INIT_WORK(&priv->reset_wq,(void*) rtl8180_restart_wq);
 	INIT_WORK(&priv->tx_irq_wq,(void*) rtl8180_tx_irq_wq);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8180_hw_wakeup_wq);
@@ -4309,21 +4250,6 @@ short rtl8180_init(struct net_device *dev)
 
 	//add for RF power on power off by lizhaoming 080512
 	INIT_DELAYED_WORK(&priv->ieee80211->GPIOChangeRFWorkItem,(void*) GPIOChangeRFWorkItemCallBack);
-#else
-	INIT_WORK(&priv->reset_wq,(void*) rtl8180_restart_wq,dev);
-	INIT_WORK(&priv->tx_irq_wq,(void*) rtl8180_tx_irq_wq,dev);
-	//INIT_WORK(&priv->ieee80211->watch_dog_wq,(void*) rtl8180_watch_dog_wq,dev);
-	INIT_WORK(&priv->ieee80211->hw_wakeup_wq,(void*) rtl8180_hw_wakeup_wq,dev);
-	INIT_WORK(&priv->ieee80211->hw_sleep_wq,(void*) rtl8180_hw_sleep_wq,dev);
-	//INIT_WORK(&priv->ieee80211->sw_antenna_wq,(void*) rtl8180_sw_antenna_wq,dev);
-	INIT_WORK(&priv->ieee80211->wmm_param_update_wq,(void*) rtl8180_wmm_param_update,priv->ieee80211);
-    INIT_WORK(&priv->ieee80211->rate_adapter_wq,(void*)rtl8180_rate_adapter,dev);//+by amy 080312
-	INIT_WORK(&priv->ieee80211->hw_dig_wq,(void*)rtl8180_hw_dig_wq,dev);//+by amy 080312
-	INIT_WORK(&priv->ieee80211->tx_pw_wq,(void*)rtl8180_tx_pw_wq,dev);//+by amy 080312
-
-	//add for RF power on power off by lizhaoming 080512
-	INIT_WORK(&priv->ieee80211->GPIOChangeRFWorkItem,(void*) GPIOChangeRFWorkItemCallBack, priv->ieee80211);
-#endif
 	//INIT_WORK(&priv->reset_wq,(void*) rtl8180_restart_wq,dev);
 
 	tasklet_init(&priv->irq_rx_tasklet,
@@ -5401,7 +5327,7 @@ LeisurePSLeave(
 		}
 	}
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+
 void rtl8180_hw_wakeup_wq (struct work_struct *work)
 {
 //	struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -5410,11 +5336,6 @@ void rtl8180_hw_wakeup_wq (struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_wakeup_wq);
 	struct net_device *dev = ieee->dev;
-#else
-void rtl8180_hw_wakeup_wq(struct net_device *dev)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
 
 //	printk("dev is %d\n",dev);
 //	printk("&*&(^*(&(&=========>%s()\n", __func__);
@@ -5422,7 +5343,6 @@ void rtl8180_hw_wakeup_wq(struct net_device *dev)
 
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_hw_sleep_wq (struct work_struct *work)
 {
 //      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -5431,11 +5351,6 @@ void rtl8180_hw_sleep_wq (struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_sleep_wq);
         struct net_device *dev = ieee->dev;
-#else
-void rtl8180_hw_sleep_wq(struct net_device *dev)
-{
-        struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
 
         rtl8180_hw_sleep_down(dev);
 }
@@ -5700,16 +5615,11 @@ int rtl8180_down(struct net_device *dev)
 	return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_restart_wq(struct work_struct *work)
 {
 	struct r8180_priv *priv = container_of(work, struct r8180_priv, reset_wq);
 	struct net_device *dev = priv->dev;
-#else
-void rtl8180_restart_wq(struct net_device *dev)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
+
 	down(&priv->wx_sem);
 
 	rtl8180_commit(dev);
@@ -5876,9 +5786,6 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	priv = ieee80211_priv(dev);
 	priv->ieee80211 = netdev_priv(dev);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-        SET_MODULE_OWNER(dev);
-#endif
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -6117,11 +6024,7 @@ static int __init rtl8180_pci_module_init(void)
 	DMESG("Wireless extensions version %d", WIRELESS_EXT);
 	rtl8180_proc_module_init();
 
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22))
-      if(0!=pci_module_init(&rtl8180_pci_driver))
-#else
       if(0!=pci_register_driver(&rtl8180_pci_driver))
-#endif
 	//if(0!=pci_module_init(&rtl8180_pci_driver))
 	{
 		DMESG("No device found");
@@ -6378,7 +6281,6 @@ priv->txnpring)/8);
 
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_tx_irq_wq(struct work_struct *work)
 {
 	//struct r8180_priv *priv = container_of(work, struct r8180_priv, reset_wq);
@@ -6386,11 +6288,7 @@ void rtl8180_tx_irq_wq(struct work_struct *work)
 	struct ieee80211_device * ieee = (struct ieee80211_device*)
 	                                       container_of(dwork, struct ieee80211_device, watch_dog_wq);
 	struct net_device *dev = ieee->dev;
-#else
-void rtl8180_tx_irq_wq(struct net_device *dev)
-{
-	//struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
+
 	rtl8180_tx_isr(dev,MANAGE_PRIORITY,0);
 }
 irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
@@ -6663,19 +6561,12 @@ void rtl8180_irq_rx_tasklet(struct r8180_priv* priv)
 lizhaoming--------------------------- RF power on/power off -----------------
 *****************************************************************************/
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 {
 	//struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, GPIOChangeRFWorkItem.work);
 	struct net_device *dev = ieee->dev;
 	struct r8180_priv *priv = ieee80211_priv(dev);
-#else
-void GPIOChangeRFWorkItemCallBack(struct ieee80211_device *ieee)
-{
-	struct net_device *dev = ieee->dev;
-	struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
 
 	//u16 tmp2byte;
 	u8 btPSR;
@@ -6757,7 +6648,6 @@ void GPIOChangeRFWorkItemCallBack(struct ieee80211_device *ieee)
 
 static u8 read_acadapter_file(char *filename)
 {
-//#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
 #if 0
 	int fd;
 	char buf[1];

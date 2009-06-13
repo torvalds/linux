@@ -375,15 +375,8 @@ inline struct sk_buff *ieee80211_probe_req(struct ieee80211_device *ieee)
 
 struct sk_buff *ieee80211_get_beacon_(struct ieee80211_device *ieee);
 
-//#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
-//void ext_ieee80211_send_beacon_wq(struct work_struct *work)
-//{
-//	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, ext_send_beacon_wq);
-//#else
 void ext_ieee80211_send_beacon_wq(struct ieee80211_device *ieee)
 {
-//#endif
-
 	struct sk_buff *skb;
 
 	//unsigned long flags;
@@ -716,15 +709,10 @@ void ieee80211_softmac_scan(struct ieee80211_device *ieee)
 }
 #endif
 #ifdef ENABLE_IPS
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
-#else
-void ieee80211_softmac_scan_wq(struct ieee80211_device *ieee)
-{
-#endif
 	static short watchdog = 0;
 #ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
@@ -774,16 +762,10 @@ out:
 	return;
 }
 #else
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, softmac_scan_wq);
-#else
-void ieee80211_softmac_scan_wq(struct ieee80211_device *ieee)
-{
-#endif
-
         short watchdog = 0;
 #ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
@@ -826,18 +808,6 @@ out:
 }
 
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-void ieee80211_softmac_scan_cb(unsigned long _dev)
-{
-	unsigned long flags;
-	struct ieee80211_device *ieee = (struct ieee80211_device *)_dev;
-
-	spin_lock_irqsave(&ieee->lock, flags);
-	ieee80211_softmac_scan(ieee);
-	spin_unlock_irqrestore(&ieee->lock, flags);
-}
-#endif
-
 
 void ieee80211_beacons_start(struct ieee80211_device *ieee)
 {
@@ -1132,14 +1102,8 @@ struct sk_buff* ieee80211_ext_probe_resp_by_net(struct ieee80211_device *ieee, u
 	if( ieee->meshScanMode&4)
 		ieee->current_network.channel = ieee->ext_patch_ieee80211_ext_stop_scan_wq_set_channel(ieee);
 	if( ieee->meshScanMode&6)
-	{
-
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 		queue_work(ieee->wq, &ieee->ext_stop_scan_wq);
-#else
-		schedule_task(&ieee->ext_stop_scan_wq);
-#endif
-	}
+
 	if(ieee->current_network.capability & WLAN_CAPABILITY_IBSS) // use current_network here
 		atim_len = 4;
 	else
@@ -1945,14 +1909,10 @@ void ieee80211_associate_step2(struct ieee80211_device *ieee)
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void ieee80211_associate_complete_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_complete_wq);
-#else
-void ieee80211_associate_complete_wq(struct ieee80211_device *ieee)
-{
-#endif
+
 	printk(KERN_INFO "Associated successfully\n");
 	if(ieee80211_is_54g(ieee->current_network) &&
 		(ieee->modulation & IEEE80211_OFDM_MODULATION)){
@@ -1984,14 +1944,10 @@ void ieee80211_associate_complete(struct ieee80211_device *ieee)
 	queue_work(ieee->wq, &ieee->associate_complete_wq);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void ieee80211_associate_procedure_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_procedure_wq);
-#else
-void ieee80211_associate_procedure_wq(struct ieee80211_device *ieee)
-{
-#endif
+
 	ieee->sync_scan_hurryup = 1;
 	down(&ieee->wx_sem);
 
@@ -2009,16 +1965,11 @@ void ieee80211_associate_procedure_wq(struct ieee80211_device *ieee)
 #ifdef _RTL8187_EXT_PATCH_
 // based on ieee80211_associate_procedure_wq
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 void ieee80211_ext_stop_scan_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, ext_stop_scan_wq);
-#else
-void ieee80211_ext_stop_scan_wq(struct ieee80211_device *ieee)
-{
-#endif
-	  if (ieee->scanning == 0)
-	{
+
+	if (ieee->scanning == 0) {
 		if((ieee->iw_mode == ieee->iw_ext_mode) && ieee->ext_patch_ieee80211_ext_stop_scan_wq_set_channel
 				&& ( ieee->current_network.channel == ieee->ext_patch_ieee80211_ext_stop_scan_wq_set_channel(ieee) ) )
 		return;
@@ -2046,12 +1997,7 @@ void ieee80211_ext_stop_scan_wq(struct ieee80211_device *ieee)
 
 void ieee80211_ext_send_11s_beacon(struct ieee80211_device *ieee)
 {
-	#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-		queue_work(ieee->wq, &ieee->ext_send_beacon_wq);
-	#else
-		schedule_task(&ieee->ext_send_beacon_wq);
-	#endif
-
+	queue_work(ieee->wq, &ieee->ext_send_beacon_wq);
 }
 
 #endif // _RTL8187_EXT_PATCH_
@@ -2977,15 +2923,11 @@ void ieee80211_start_monitor_mode(struct ieee80211_device *ieee)
 		netif_carrier_on(ieee->dev);
 	}
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
+
 void ieee80211_start_ibss_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, start_ibss_wq);
-#else
-void ieee80211_start_ibss_wq(struct ieee80211_device *ieee)
-{
-#endif
 
 	/* iwconfig mode ad-hoc will schedule this and return
 	 * on the other hand this will block further iwconfig SET
@@ -3159,15 +3101,10 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	notify_wx_assoc_event(ieee);
 
 }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void ieee80211_associate_retry_wq(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, associate_retry_wq);
-#else
-void ieee80211_associate_retry_wq(struct ieee80211_device *ieee)
-{
-#endif
 	unsigned long flags;
 	down(&ieee->wx_sem);
 	if(!ieee->proto_started)
@@ -3278,10 +3215,8 @@ void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 		ieee->ext_patch_ieee80211_stop_protocol(ieee);
 //if call queue_delayed_work,can call this,or do nothing..
 //edit by lawrence,20071118
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 //	cancel_delayed_work(&ieee->ext_stop_scan_wq);
 //	cancel_delayed_work(&ieee->ext_send_beacon_wq);
-#endif
 #endif // _RTL8187_EXT_PATCH_
 
 	ieee80211_stop_send_beacons(ieee);
@@ -3372,9 +3307,8 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 			if((ieee->iw_mode == ieee->iw_ext_mode) &&\
 			    ieee->ext_patch_ieee80211_start_protocol &&\
                             ieee->ext_patch_ieee80211_start_protocol(ieee)) {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 				queue_work(ieee->wq, &ieee->ext_stop_scan_wq);
-#endif
+
 				// By default, WMM function will be disabled in
 				// EXTENSION mode
 				ieee->current_network.QoS_Enable = 0;
@@ -3522,7 +3456,6 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 #else
 	ieee->wq = create_workqueue(DRV_NAME);
 #endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)//added by lawrence,070702
 	INIT_DELAYED_WORK(&ieee->start_ibss_wq,(void*) ieee80211_start_ibss_wq);
 	INIT_WORK(&ieee->associate_complete_wq,(void*) ieee80211_associate_complete_wq);
 	INIT_WORK(&ieee->associate_procedure_wq,(void*) ieee80211_associate_procedure_wq);
@@ -3536,20 +3469,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	//INIT_WORK(&ieee->ext_send_beacon_wq,(void*) ieee80211_beacons_start,ieee);
 	INIT_WORK(&ieee->ext_send_beacon_wq,(void*) ext_ieee80211_send_beacon_wq);
 #endif //_RTL8187_EXT_PATCH_
-#else
-	INIT_WORK(&ieee->start_ibss_wq,(void*) ieee80211_start_ibss_wq,ieee);
-	INIT_WORK(&ieee->associate_retry_wq,(void*) ieee80211_associate_retry_wq,ieee);
-	INIT_WORK(&ieee->associate_complete_wq,(void*) ieee80211_associate_complete_wq,ieee);
-	INIT_WORK(&ieee->associate_procedure_wq,(void*) ieee80211_associate_procedure_wq,ieee);
-	INIT_WORK(&ieee->softmac_scan_wq,(void*) ieee80211_softmac_scan_wq,ieee);
-	INIT_WORK(&ieee->wx_sync_scan_wq,(void*) ieee80211_wx_sync_scan_wq,ieee);
-//	INIT_WORK(&ieee->watch_dog_wq,(void*) ieee80211_watch_dog_wq,ieee);
-#ifdef _RTL8187_EXT_PATCH_
-	INIT_WORK(&ieee->ext_stop_scan_wq,(void*) ieee80211_ext_stop_scan_wq,ieee);
-	//INIT_WORK(&ieee->ext_send_beacon_wq,(void*) ieee80211_beacons_start,ieee);
-	INIT_WORK(&ieee->ext_send_beacon_wq,(void*) ext_ieee80211_send_beacon_wq,ieee);
-#endif
-#endif
+
 	sema_init(&ieee->wx_sem, 1);
 	sema_init(&ieee->scan_sem, 1);
 

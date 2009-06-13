@@ -308,11 +308,7 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 // based on part of ieee80211_xmit. Mainly allocate txb. ieee->lock is held
 struct ieee80211_txb *ieee80211_ext_alloc_txb(struct sk_buff *skb, struct net_device *dev, struct ieee80211_hdr_3addr *header, int hdr_len, u8 isQoS, u16 *pQOS_ctl, int isEncrypt, struct ieee80211_crypt_data* crypt)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addr *frag_hdr;
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size;
@@ -459,11 +455,7 @@ struct ieee80211_txb *ieee80211_ext_alloc_txb(struct sk_buff *skb, struct net_de
 // Assume no encryption, no FCS computing
 struct ieee80211_txb *ieee80211_ext_reuse_txb(struct sk_buff *skb, struct net_device *dev, struct ieee80211_hdr_3addr *header, int hdr_len, u8 isQoS, u16 *pQOS_ctl, int isEncrypt, struct ieee80211_crypt_data* crypt)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);
-#else
-	struct ieee80211_device *ieee = (struct ieee80211_device *)dev->priv;
-#endif
 	struct ieee80211_txb *txb = NULL;
 	struct ieee80211_hdr_3addr *frag_hdr;
 	int ether_type;

@@ -750,11 +750,7 @@ void rtl8185b_irq_enable(struct net_device *dev);
 void fix_rx_fifo(struct net_device *dev);
 void fix_tx_fifo(struct net_device *dev);
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch);
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8180_rate_adapter(struct work_struct * work);
-#else
-void rtl8180_rate_adapter(struct net_device *dev);
-#endif
 //#endif
 bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u32 ChangeSource);
 

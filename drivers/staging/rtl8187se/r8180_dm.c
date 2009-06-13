@@ -126,7 +126,6 @@ DoTxHighPower(
 //		Because of some event happend, e.g. CCX TPC, High Power Mechanism,
 //		We update Tx power of current channel again.
 //
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_tx_pw_wq (struct work_struct *work)
 {
 //      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -135,11 +134,6 @@ void rtl8180_tx_pw_wq (struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,tx_pw_wq);
         struct net_device *dev = ieee->dev;
-#else
-void rtl8180_tx_pw_wq(struct net_device *dev)
-{
-	// struct r8180_priv *priv = ieee80211_priv(dev);
-#endif
 
 //	printk("----> UpdateTxPowerWorkItemCallback()\n");
 
@@ -308,7 +302,6 @@ DynamicInitGain(
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 void rtl8180_hw_dig_wq (struct work_struct *work)
 {
 //      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
@@ -317,11 +310,6 @@ void rtl8180_hw_dig_wq (struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_dig_wq);
         struct net_device *dev = ieee->dev;
-#else
-void rtl8180_hw_dig_wq(struct net_device *dev)
-{
-
-#endif
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
 	// Read CCK and OFDM False Alarm.
@@ -1245,19 +1233,13 @@ SetInitialGain:
 	priv->LastTxThroughput = TxThroughput;
 	priv->ieee80211->rate = priv->CurrentOperaRate * 5;
 }
-
 #endif
-#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
+
 void rtl8180_rate_adapter(struct work_struct * work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,rate_adapter_wq);
         struct net_device *dev = ieee->dev;
-#else
-void rtl8180_rate_adapter(struct net_device *dev)
-{
-
-#endif
         //struct r8180_priv *priv = ieee80211_priv(dev);
 //    DMESG("---->rtl8180_rate_adapter");
         StaRateAdaptive87SE(dev);
