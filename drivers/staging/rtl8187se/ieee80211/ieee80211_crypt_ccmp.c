@@ -118,7 +118,6 @@ static inline void xor_block(u8 *b, u8 *a, size_t len)
 		b[i] ^= a[i];
 }
 
-#ifndef JOHN_CCMP
 static void ccmp_init_blocks(struct crypto_tfm *tfm,
 			     struct ieee80211_hdr *hdr,
 			     u8 *pn, size_t dlen, u8 *b0, u8 *auth,
@@ -196,7 +195,6 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	b0[14] = b0[15] = 0;
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
-#endif
 
 static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
@@ -204,14 +202,13 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int data_len, i;
 	u8 *pos;
 	struct ieee80211_hdr *hdr;
-#ifndef JOHN_CCMP
 	int blocks, last, len;
 	u8 *mic;
 	u8 *b0 = key->tx_b0;
 	u8 *b = key->tx_b;
 	u8 *e = key->tx_e;
 	u8 *s0 = key->tx_s0;
-#endif
+
 	if (skb_headroom(skb) < CCMP_HDR_LEN ||
 	    skb_tailroom(skb) < CCMP_MIC_LEN ||
 	    skb->len < hdr_len)
@@ -241,7 +238,6 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[0];
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-#ifndef JOHN_CCMP
 	//mic is moved to here by john
 	mic = skb_put(skb, CCMP_MIC_LEN);
 
@@ -265,7 +261,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	for (i = 0; i < CCMP_MIC_LEN; i++)
 		mic[i] = b[i] ^ s0[i];
-#endif
+
 	return 0;
 }
 
@@ -276,14 +272,13 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 keyidx, *pos;
 	struct ieee80211_hdr *hdr;
 	u8 pn[6];
-#ifndef JOHN_CCMP
 	size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN - CCMP_MIC_LEN;
 	u8 *mic = skb->data + skb->len - CCMP_MIC_LEN;
 	u8 *b0 = key->rx_b0;
 	u8 *b = key->rx_b;
 	u8 *a = key->rx_a;
 	int i, blocks, last, len;
-#endif
+
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
 		key->dot11RSNAStatsCCMPFormatErrors++;
 		return -1;
@@ -335,7 +330,6 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -4;
 	}
 
-#ifndef JOHN_CCMP
 	ccmp_init_blocks(key->tfm, hdr, pn, data_len, b0, a, b);
 	xor_block(mic, b, CCMP_MIC_LEN);
 
@@ -366,7 +360,6 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	memcpy(key->rx_pn, pn, CCMP_PN_LEN);
 
-#endif
 	/* Remove hdr and MIC */
 	memmove(skb->data + CCMP_HDR_LEN, skb->data, hdr_len);
 	skb_pull(skb, CCMP_HDR_LEN);

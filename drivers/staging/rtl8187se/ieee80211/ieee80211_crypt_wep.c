@@ -116,11 +116,10 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 klen, len;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 *pos;
-#ifndef JOHN_HWSEC
 	u32 crc;
 	u8 *icv;
 	struct scatterlist sg;
-#endif
+
 	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len)
 		return -1;
@@ -152,7 +151,6 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(key + 3, wep->key, wep->key_len);
 
-#ifndef JOHN_HWSEC
 	/* Append little-endian CRC32 and encrypt it to produce ICV */
 	crc = ~crc32_le(~0, pos, len);
 	icv = skb_put(skb, 4);
@@ -165,8 +163,6 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	sg_init_one(&sg, pos, len + 4);
 
 	return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
-#endif /* JOHN_HWSEC */
-	return 0;
 }
 
 
@@ -184,11 +180,10 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos;
-#ifndef JOHN_HWSEC
 	u32 crc;
 	u8 icv[4];
 	struct scatterlist sg;
-#endif
+
 	if (skb->len < hdr_len + 8)
 		return -1;
 
@@ -207,7 +202,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	/* Apply RC4 to data and compute CRC32 over decrypted data */
 	plen = skb->len - hdr_len - 8;
-#ifndef JOHN_HWSEC
+
 	crypto_blkcipher_setkey(wep->rx_tfm, key, klen);
 	sg_init_one(&sg, pos, plen + 4);
 
@@ -224,7 +219,6 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		/* ICV mismatch - drop frame */
 		return -2;
 	}
-#endif 	/* JOHN_HWSEC */
 
 	/* Remove IV and ICV */
 	memmove(skb->data + 4, skb->data, hdr_len);

@@ -239,7 +239,6 @@ static inline u16 _S_(u16 v)
 	return Sbox[Lo8(v)] ^ ((t << 8) | (t >> 8));
 }
 
-#ifndef JOHN_TKIP
 #define PHASE1_LOOP_COUNT 8
 
 static void tkip_mixing_phase1(u16 *TTAK, const u8 *TK, const u8 *TA, u32 IV32)
@@ -309,7 +308,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	}
 #endif
 }
-#endif
+
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
         struct ieee80211_tkip_data *tkey = priv;
@@ -317,11 +316,9 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int len;
 	u8  *pos;
 	struct ieee80211_hdr *hdr;
-#ifndef JOHN_TKIP
 	u8 rc4key[16],*icv;
 	u32 crc;
 	struct scatterlist sg;
-#endif
 	int ret;
 
 	ret = 0;
@@ -342,7 +339,6 @@ printk("%x|", ((u32*)tkey->key)[6]);
 printk("%x\n", ((u32*)tkey->key)[7]);
 #endif
 
-#ifndef JOHN_TKIP
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
 				   tkey->tx_iv32);
@@ -350,30 +346,20 @@ printk("%x\n", ((u32*)tkey->key)[7]);
 	}
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
-#else
-	tkey->tx_phase1_done = 1;
-#endif  /*JOHN_TKIP*/
-
 	len = skb->len - hdr_len;
 	pos = skb_push(skb, 8);
 	memmove(pos, pos + 8, hdr_len);
 	pos += hdr_len;
 
-#ifdef JOHN_TKIP
-	*pos++ = Hi8(tkey->tx_iv16);
-	*pos++ = (Hi8(tkey->tx_iv16) | 0x20) & 0x7F;
-	*pos++ = Lo8(tkey->tx_iv16);
-#else
 	*pos++ = rc4key[0];
 	*pos++ = rc4key[1];
 	*pos++ = rc4key[2];
-#endif
 	*pos++ = (tkey->key_idx << 6) | (1 << 5) /* Ext IV included */;
 	*pos++ = tkey->tx_iv32 & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 8) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
-#ifndef JOHN_TKIP
+
 	icv = skb_put(skb, 4);
 	crc = ~crc32_le(~0, pos, len);
 	icv[0] = crc;
@@ -383,17 +369,13 @@ printk("%x\n", ((u32*)tkey->key)[7]);
 	crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
 	sg_init_one(&sg, pos, len + 4);
 	ret= crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
-#endif
+
 	tkey->tx_iv16++;
 	if (tkey->tx_iv16 == 0) {
 		tkey->tx_phase1_done = 0;
 		tkey->tx_iv32++;
 	}
-#ifndef JOHN_TKIP
 	   return ret;
-#else
-	return 0;
-#endif
 }
 
 static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
@@ -404,13 +386,12 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 iv32;
 	u16 iv16;
 	struct ieee80211_hdr *hdr;
-#ifndef JOHN_TKIP
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
 	u8 rc4key[16];
 	int plen;
-#endif
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
@@ -441,7 +422,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	iv16 = (pos[0] << 8) | pos[2];
 	iv32 = pos[4] | (pos[5] << 8) | (pos[6] << 16) | (pos[7] << 24);
 	pos += 8;
-#ifndef JOHN_TKIP
 
 	if (iv32 < tkey->rx_iv32 ||
 	    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
@@ -492,8 +472,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -5;
 	}
 
-#endif 	/* JOHN_TKIP */
-
 	/* Update real counters only after Michael MIC verification has
 	 * completed */
 	tkey->rx_iv32_new = iv32;
@@ -504,18 +482,6 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	skb_pull(skb, 8);
 	skb_trim(skb, skb->len - 4);
 
-//john's test
-#ifdef JOHN_DUMP
-if( ((u16*)skb->data)[0] & 0x4000){
-        printk("@@ rx decrypted skb->data");
-        int i;
-        for(i=0;i<skb->len;i++){
-                if( (i%24)==0 ) printk("\n");
-                printk("%2x ", ((u8*)skb->data)[i]);
-        }
-        printk("\n");
-}
-#endif /*JOHN_DUMP*/
 	return keyidx;
 }
 

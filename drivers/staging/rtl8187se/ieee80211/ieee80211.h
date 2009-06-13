@@ -45,14 +45,11 @@
 #endif
 */
 
-//#ifdef JOHN_HWSEC
 #define KEY_TYPE_NA		0x0
 #define KEY_TYPE_WEP40 		0x1
 #define KEY_TYPE_TKIP		0x2
 #define KEY_TYPE_CCMP		0x4
 #define KEY_TYPE_WEP104		0x5
-//#endif
-
 
 #define aSifsTime					10
 
