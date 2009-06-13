@@ -1655,15 +1655,17 @@ static UCHAR *Config_FileOperation(PSDevice pDevice) {
     UCHAR    *buffer=NULL;
     struct file   *filp=NULL;
     mm_segment_t old_fs = get_fs();
-    int oldfsuid=0,oldfsgid=0;
+    //int oldfsuid=0,oldfsgid=0;
     int result=0;
 
     set_fs (KERNEL_DS);
-//Make sure a caller can read or write power as root
-   oldfsuid=current->fsuid;
-   oldfsgid=current->fsgid;
+    /* Can't do this anymore, so we rely on correct filesystem permissions:
+    //Make sure a caller can read or write power as root
+    oldfsuid=current->fsuid;
+    oldfsgid=current->fsgid;
     current->fsuid = 0;
     current->fsgid = 0;
+    */
 
     //open file
       filp = filp_open(config_path, O_RDWR, 0);
@@ -1697,8 +1699,11 @@ error1:
 
 error2:
   set_fs (old_fs);
+
+  /*
   current->fsuid=oldfsuid;
   current->fsgid=oldfsgid;
+  */
 
 if(result!=0) {
     if(buffer)
