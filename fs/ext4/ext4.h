@@ -684,7 +684,6 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_ERRORS_PANIC		0x00040	/* Panic on errors */
 #define EXT4_MOUNT_MINIX_DF		0x00080	/* Mimics the Minix statfs */
 #define EXT4_MOUNT_NOLOAD		0x00100	/* Don't use existing journal*/
-#define EXT4_MOUNT_ABORT		0x00200	/* Fatal error detected */
 #define EXT4_MOUNT_DATA_FLAGS		0x00C00	/* Mode for data writes: */
 #define EXT4_MOUNT_JOURNAL_DATA		0x00400	/* Write data to journal */
 #define EXT4_MOUNT_ORDERED_DATA		0x00800	/* Flush data before commit */
@@ -706,17 +705,10 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
 #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
 
-/* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
-#ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt
 #define set_opt(o, opt)			o |= EXT4_MOUNT_##opt
 #define test_opt(sb, opt)		(EXT4_SB(sb)->s_mount_opt & \
 					 EXT4_MOUNT_##opt)
-#else
-#define EXT2_MOUNT_NOLOAD		EXT4_MOUNT_NOLOAD
-#define EXT2_MOUNT_ABORT		EXT4_MOUNT_ABORT
-#define EXT2_MOUNT_DATA_FLAGS		EXT4_MOUNT_DATA_FLAGS
-#endif
 
 #define ext4_set_bit			ext2_set_bit
 #define ext4_set_bit_atomic		ext2_set_bit_atomic
@@ -836,9 +828,10 @@ struct ext4_super_block {
 #ifdef __KERNEL__
 
 /*
- * Mount flags
+ * run-time mount flags
  */
 #define EXT4_MF_MNTDIR_SAMPLED	0x0001
+#define EXT4_MF_FS_ABORTED	0x0002	/* Fatal error detected */
 
 /*
  * fourth extended-fs super-block data in memory

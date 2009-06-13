@@ -303,7 +303,7 @@ static void ext4_handle_error(struct super_block *sb)
 	if (!test_opt(sb, ERRORS_CONT)) {
 		journal_t *journal = EXT4_SB(sb)->s_journal;
 
-		EXT4_SB(sb)->s_mount_opt |= EXT4_MOUNT_ABORT;
+		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 		if (journal)
 			jbd2_journal_abort(journal, -EIO);
 	}
@@ -416,7 +416,7 @@ void ext4_abort(struct super_block *sb, const char *function,
 	ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 	sb->s_flags |= MS_RDONLY;
-	EXT4_SB(sb)->s_mount_opt |= EXT4_MOUNT_ABORT;
+	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
 	if (EXT4_SB(sb)->s_journal)
 		jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
 }
@@ -1476,7 +1476,7 @@ set_qf_format:
 			break;
 #endif
 		case Opt_abort:
-			set_opt(sbi->s_mount_opt, ABORT);
+			sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
 			break;
 		case Opt_nobarrier:
 			clear_opt(sbi->s_mount_opt, BARRIER);
@@ -3452,7 +3452,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		goto restore_opts;
 	}
 
-	if (sbi->s_mount_opt & EXT4_MOUNT_ABORT)
+	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
 		ext4_abort(sb, __func__, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -3467,7 +3467,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 
 	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
 		n_blocks_count > ext4_blocks_count(es)) {
-		if (sbi->s_mount_opt & EXT4_MOUNT_ABORT) {
+		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
 			err = -EROFS;
 			goto restore_opts;
 		}

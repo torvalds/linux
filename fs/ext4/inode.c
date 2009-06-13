@@ -2670,13 +2670,13 @@ static int ext4_da_writepages(struct address_space *mapping,
 	 * If the filesystem has aborted, it is read-only, so return
 	 * right away instead of dumping stack traces later on that
 	 * will obscure the real source of the problem.  We test
-	 * EXT4_MOUNT_ABORT instead of sb->s_flag's MS_RDONLY because
+	 * EXT4_MF_FS_ABORTED instead of sb->s_flag's MS_RDONLY because
 	 * the latter could be true if the filesystem is mounted
 	 * read-only, and in that case, ext4_da_writepages should
 	 * *never* be called, so if that ever happens, we would want
 	 * the stack trace.
 	 */
-	if (unlikely(sbi->s_mount_opt & EXT4_MOUNT_ABORT))
+	if (unlikely(sbi->s_mount_flags & EXT4_MF_FS_ABORTED))
 		return -EROFS;
 
 	/*
