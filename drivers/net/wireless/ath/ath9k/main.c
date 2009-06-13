@@ -1123,6 +1123,9 @@ void ath_radio_enable(struct ath_softc *sc)
 	ath9k_ps_wakeup(sc);
 	ath9k_hw_configpcipowersave(ah, 0);
 
+	if (!ah->curchan)
+		ah->curchan = ath_get_curchannel(sc, sc->hw);
+
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
@@ -1174,6 +1177,9 @@ void ath_radio_disable(struct ath_softc *sc)
 	ath_drain_all_txq(sc, false);	/* clear pending tx frames */
 	ath_stoprecv(sc);		/* turn off frame recv */
 	ath_flushrecv(sc);		/* flush recv queue */
+
+	if (!ah->curchan)
+		ah->curchan = ath_get_curchannel(sc, sc->hw);
 
 	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, false);
