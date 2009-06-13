@@ -769,6 +769,16 @@ static void net_output(struct virtqueue *vq)
 	add_used(vq, head, 0);
 }
 
+/* Will reading from this file descriptor block? */
+static bool will_block(int fd)
+{
+	fd_set fdset;
+	struct timeval zero = { 0, 0 };
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	return select(fd+1, &fdset, NULL, NULL, &zero) != 1;
+}
+
 /* This is where we handle packets coming in from the tun device to our
  * Guest. */
 static void net_input(struct virtqueue *vq)
@@ -781,10 +791,15 @@ static void net_input(struct virtqueue *vq)
 	head = wait_for_vq_desc(vq, iov, &out, &in);
 	if (out)
 		errx(1, "Output buffers in net input queue?");
+
+	/* Deliver interrupt now, since we're about to sleep. */
+	if (vq->pending_used && will_block(net_info->tunfd))
+		trigger_irq(vq);
+
 	len = readv(net_info->tunfd, iov, in);
 	if (len <= 0)
 		err(1, "Failed to read from tun.");
-	add_used_and_trigger(vq, head, len);
+	add_used(vq, head, len);
 }
 
 /* This is the helper to create threads. */
