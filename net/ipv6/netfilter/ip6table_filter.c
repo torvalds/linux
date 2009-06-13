@@ -55,7 +55,7 @@ static struct xt_table packet_filter = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.me		= THIS_MODULE,
-	.af		= AF_INET6,
+	.af		= NFPROTO_IPV6,
 };
 
 /* The work comes in here from netfilter.c. */

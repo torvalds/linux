@@ -40,7 +40,7 @@ static struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
-	.af = AF_INET,
+	.af = NFPROTO_IPV4,
 };
 
 /* The work comes in here from netfilter.c. */
