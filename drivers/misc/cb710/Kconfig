@@ -19,3 +19,7 @@ config CB710_DEBUG
 	  This is an option for use by developers; most people should
 	  say N here.  This adds a lot of debugging output to dmesg.
 
+config CB710_DEBUG_ASSUMPTIONS
+	bool
+	depends on CB710_CORE != n
+	default y

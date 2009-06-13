@@ -10,9 +10,6 @@
 #ifndef LINUX_CB710_DRIVER_H
 #define LINUX_CB710_DRIVER_H
 
-/* verify assumptions on platform_device framework */
-#define CONFIG_CB710_DEBUG_ASSUMPTIONS
-
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
