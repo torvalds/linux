@@ -172,9 +172,6 @@ struct virtqueue
 	/* The routine to call when the Guest pings us, or timeout. */
 	void (*handle_output)(struct virtqueue *me, bool timeout);
 
-	/* Outstanding buffers */
-	unsigned int inflight;
-
 	/* Is this blocked awaiting a timer? */
 	bool blocked;
 };
@@ -699,7 +696,6 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 			errx(1, "Looped descriptor");
 	} while ((i = next_desc(vq, i)) != vq->vring.num);
 
-	vq->inflight++;
 	return head;
 }
 
@@ -717,7 +713,6 @@ static void add_used(struct virtqueue *vq, unsigned int head, int len)
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
-	vq->inflight--;
 }
 
 /* This actually sends the interrupt for this virtqueue */
@@ -727,7 +722,7 @@ static void trigger_irq(struct virtqueue *vq)
 
 	/* If they don't want an interrupt, don't send one, unless empty. */
 	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-	    && vq->inflight)
+	    && lg_last_avail(vq) != vq->vring.avail->idx)
 		return;
 
 	/* Send the Guest an interrupt tell them we used something up. */
@@ -1171,7 +1166,6 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->next = NULL;
 	vq->last_avail_idx = 0;
 	vq->dev = dev;
-	vq->inflight = 0;
 	vq->blocked = false;
 
 	/* Initialize the configuration. */
