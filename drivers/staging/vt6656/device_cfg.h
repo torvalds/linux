@@ -89,7 +89,7 @@ struct _version {
 #define VCAM_SIZE           32
 #define TX_QUEUE_NO         8
 
-#define DEVICE_NAME         "vntwusb"
+#define DEVICE_NAME         "vt6656"
 #define DEVICE_FULL_DRV_NAM "VIA Networking Wireless LAN USB Driver"
 
 #ifndef MAJOR_VERSION
