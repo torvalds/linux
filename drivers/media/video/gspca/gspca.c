@@ -1042,13 +1042,11 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
 			if (gspca_dev->ctrl_dis & (1 << i))
 				continue;
-			if (ctrls->qctrl.id < id)
+			if (gspca_dev->sd_desc->ctrls[i].qctrl.id < id)
 				continue;
-			if (ctrls != NULL) {
-				if (gspca_dev->sd_desc->ctrls[i].qctrl.id
+			if (ctrls && gspca_dev->sd_desc->ctrls[i].qctrl.id
 					    > ctrls->qctrl.id)
-					continue;
-			}
+				continue;
 			ctrls = &gspca_dev->sd_desc->ctrls[i];
 		}
 	} else {
