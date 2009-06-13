@@ -116,11 +116,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "TLB size\t: %d 4K pages\n", c->x86_tlbsize);
 #endif
 	seq_printf(m, "clflush size\t: %u\n", c->x86_clflush_size);
-#ifdef CONFIG_X86_64
 	seq_printf(m, "cache_alignment\t: %d\n", c->x86_cache_alignment);
 	seq_printf(m, "address sizes\t: %u bits physical, %u bits virtual\n",
 		   c->x86_phys_bits, c->x86_virt_bits);
-#endif
 
 	seq_printf(m, "power management:");
 	for (i = 0; i < 32; i++) {
