@@ -154,26 +154,25 @@ static unsigned long gpmd_addr(pgd_t gpgd, unsigned long vaddr)
 	BUG_ON(!(pgd_flags(gpgd) & _PAGE_PRESENT));
 	return gpage + pmd_index(vaddr) * sizeof(pmd_t);
 }
-#endif
 
+static unsigned long gpte_addr(struct lg_cpu *cpu,
+			       pmd_t gpmd, unsigned long vaddr)
+{
+	unsigned long gpage = pmd_pfn(gpmd) << PAGE_SHIFT;
+
+	BUG_ON(!(pmd_flags(gpmd) & _PAGE_PRESENT));
+	return gpage + pte_index(vaddr) * sizeof(pte_t);
+}
+#else
 static unsigned long gpte_addr(struct lg_cpu *cpu,
 				pgd_t gpgd, unsigned long vaddr)
 {
-#ifdef CONFIG_X86_PAE
-	pmd_t gpmd;
-#endif
-	unsigned long gpage;
+	unsigned long gpage = pgd_pfn(gpgd) << PAGE_SHIFT;
 
 	BUG_ON(!(pgd_flags(gpgd) & _PAGE_PRESENT));
-#ifdef CONFIG_X86_PAE
-	gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
-	gpage = pmd_pfn(gpmd) << PAGE_SHIFT;
-	BUG_ON(!(pmd_flags(gpmd) & _PAGE_PRESENT));
-#else
-	gpage = pgd_pfn(gpgd) << PAGE_SHIFT;
-#endif
 	return gpage + pte_index(vaddr) * sizeof(pte_t);
 }
+#endif
 /*:*/
 
 /*M:014 get_pfn is slow: we could probably try to grab batches of pages here as
@@ -339,10 +338,15 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		 * number in the shadow PMD is the page we just allocated. */
 		native_set_pmd(spmd, __pmd(__pa(ptepage) | pmd_flags(gpmd)));
 	}
-#endif
+
+	/* OK, now we look at the lower level in the Guest page table: keep its
+	 * address, because we might update it later. */
+	gpte_ptr = gpte_addr(cpu, gpmd, vaddr);
+#else
 	/* OK, now we look at the lower level in the Guest page table: keep its
 	 * address, because we might update it later. */
 	gpte_ptr = gpte_addr(cpu, gpgd, vaddr);
+#endif
 	gpte = lgread(cpu, gpte_ptr, pte_t);
 
 	/* If this page isn't in the Guest page tables, we can't page it in. */
@@ -522,7 +526,6 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	pgd_t gpgd;
 	pte_t gpte;
-
 #ifdef CONFIG_X86_PAE
 	pmd_t gpmd;
 #endif
@@ -534,13 +537,14 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 		return -1UL;
 	}
 
-	gpte = lgread(cpu, gpte_addr(cpu, gpgd, vaddr), pte_t);
 #ifdef CONFIG_X86_PAE
 	gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
 	if (!(pmd_flags(gpmd) & _PAGE_PRESENT))
 		kill_guest(cpu, "Bad address %#lx", vaddr);
-#endif
+	gpte = lgread(cpu, gpte_addr(cpu, gpmd, vaddr), pte_t);
+#else
 	gpte = lgread(cpu, gpte_addr(cpu, gpgd, vaddr), pte_t);
+#endif
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
 		kill_guest(cpu, "Bad address %#lx", vaddr);
 
@@ -847,7 +851,7 @@ static unsigned long setup_pagetables(struct lguest *lg,
 	/* The top level points to the linear page table pages above.
 	 * We setup the identity and linear mappings here. */
 #ifdef CONFIG_X86_PAE
-	for (i = 0, j; i < mapped_pages && j < PTRS_PER_PMD;
+	for (i = j = 0; i < mapped_pages && j < PTRS_PER_PMD;
 	     i += PTRS_PER_PTE, j++) {
 		native_set_pmd(&pmd, __pmd(((unsigned long)(linear + i)
 		- mem_base) | _PAGE_PRESENT | _PAGE_RW | _PAGE_USER));
