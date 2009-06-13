@@ -49,7 +49,7 @@ struct lg_cpu {
 	u32 cr2;
 	int ts;
 	u32 esp1;
-	u8 ss1;
+	u16 ss1;
 
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;
