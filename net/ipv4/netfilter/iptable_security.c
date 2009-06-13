@@ -65,59 +65,43 @@ static const struct xt_table security_table = {
 };
 
 static unsigned int
-ipt_local_in_hook(unsigned int hook,
-		  struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  int (*okfn)(struct sk_buff *))
+iptable_security_hook(unsigned int hook, struct sk_buff *skb,
+		      const struct net_device *in,
+		      const struct net_device *out,
+		      int (*okfn)(struct sk_buff *))
 {
+	if (hook == NF_INET_LOCAL_OUT) {
+		if (skb->len < sizeof(struct iphdr) ||
+		    ip_hdrlen(skb) < sizeof(struct iphdr))
+			/* Somebody is playing with raw sockets. */
+			return NF_ACCEPT;
+
+		return ipt_do_table(skb, hook, in, out,
+				    dev_net(out)->ipv4.iptable_security);
+	}
+
+	/* INPUT/FORWARD: */
 	return ipt_do_table(skb, hook, in, out,
 			    dev_net(in)->ipv4.iptable_security);
-}
-
-static unsigned int
-ipt_forward_hook(unsigned int hook,
-		 struct sk_buff *skb,
-		 const struct net_device *in,
-		 const struct net_device *out,
-		 int (*okfn)(struct sk_buff *))
-{
-	return ipt_do_table(skb, hook, in, out,
-			    dev_net(in)->ipv4.iptable_security);
-}
-
-static unsigned int
-ipt_local_out_hook(unsigned int hook,
-		   struct sk_buff *skb,
-		   const struct net_device *in,
-		   const struct net_device *out,
-		   int (*okfn)(struct sk_buff *))
-{
-	/* Somebody is playing with raw sockets. */
-	if (skb->len < sizeof(struct iphdr) ||
-	    ip_hdrlen(skb) < sizeof(struct iphdr))
-		return NF_ACCEPT;
-	return ipt_do_table(skb, hook, in, out,
-			    dev_net(out)->ipv4.iptable_security);
 }
 
 static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
-		.hook		= ipt_local_in_hook,
+		.hook		= iptable_security_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_SECURITY,
 	},
 	{
-		.hook		= ipt_forward_hook,
+		.hook		= iptable_security_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_FORWARD,
 		.priority	= NF_IP_PRI_SECURITY,
 	},
 	{
-		.hook		= ipt_local_out_hook,
+		.hook		= iptable_security_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV4,
 		.hooknum	= NF_INET_LOCAL_OUT,

@@ -45,23 +45,15 @@ static const struct xt_table packet_raw = {
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ipt_hook(unsigned int hook,
-	 struct sk_buff *skb,
-	 const struct net_device *in,
-	 const struct net_device *out,
-	 int (*okfn)(struct sk_buff *))
+iptable_raw_hook(unsigned int hook, struct sk_buff *skb,
+		 const struct net_device *in, const struct net_device *out,
+		 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out,
-			    dev_net(in)->ipv4.iptable_raw);
-}
+	if (hook == NF_INET_PRE_ROUTING)
+		return ipt_do_table(skb, hook, in, out,
+				    dev_net(in)->ipv4.iptable_raw);
 
-static unsigned int
-ipt_local_hook(unsigned int hook,
-	       struct sk_buff *skb,
-	       const struct net_device *in,
-	       const struct net_device *out,
-	       int (*okfn)(struct sk_buff *))
-{
+	/* OUTPUT: */
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr))
@@ -73,14 +65,14 @@ ipt_local_hook(unsigned int hook,
 /* 'raw' is the very first table. */
 static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
-		.hook = ipt_hook,
+		.hook = iptable_raw_hook,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_RAW,
 		.owner = THIS_MODULE,
 	},
 	{
-		.hook = ipt_local_hook,
+		.hook = iptable_raw_hook,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_LOCAL_OUT,
 		.priority = NF_IP_PRI_RAW,

@@ -53,43 +53,37 @@ static const struct xt_table packet_filter = {
 };
 
 /* The work comes in here from netfilter.c */
-static unsigned int arpt_in_hook(unsigned int hook,
-				 struct sk_buff *skb,
-				 const struct net_device *in,
-				 const struct net_device *out,
-				 int (*okfn)(struct sk_buff *))
+static unsigned int
+arptable_filter_hook(unsigned int hook, struct sk_buff *skb,
+		     const struct net_device *in, const struct net_device *out,
+		     int (*okfn)(struct sk_buff *))
 {
+	if (hook == NF_ARP_OUT)
+		return arpt_do_table(skb, hook, in, out,
+				     dev_net(out)->ipv4.arptable_filter);
+
+	/* INPUT/FORWARD: */
 	return arpt_do_table(skb, hook, in, out,
 			     dev_net(in)->ipv4.arptable_filter);
 }
 
-static unsigned int arpt_out_hook(unsigned int hook,
-				  struct sk_buff *skb,
-				  const struct net_device *in,
-				  const struct net_device *out,
-				  int (*okfn)(struct sk_buff *))
-{
-	return arpt_do_table(skb, hook, in, out,
-			     dev_net(out)->ipv4.arptable_filter);
-}
-
 static struct nf_hook_ops arpt_ops[] __read_mostly = {
 	{
-		.hook		= arpt_in_hook,
+		.hook		= arptable_filter_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_ARP,
 		.hooknum	= NF_ARP_IN,
 		.priority	= NF_IP_PRI_FILTER,
 	},
 	{
-		.hook		= arpt_out_hook,
+		.hook		= arptable_filter_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_ARP,
 		.hooknum	= NF_ARP_OUT,
 		.priority	= NF_IP_PRI_FILTER,
 	},
 	{
-		.hook		= arpt_in_hook,
+		.hook		= arptable_filter_hook,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_ARP,
 		.hooknum	= NF_ARP_FORWARD,
