@@ -32,6 +32,8 @@ enum ip_conntrack_expect_events {
 
 struct nf_conntrack_ecache {
 	unsigned long cache;		/* bitops want long */
+	unsigned long missed;		/* missed events */
+	u32 pid;			/* netlink pid of destroyer */
 };
 
 static inline struct nf_conntrack_ecache *
@@ -84,14 +86,16 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	set_bit(event, &e->cache);
 }
 
-static inline void
+static inline int
 nf_conntrack_eventmask_report(unsigned int eventmask,
 			      struct nf_conn *ct,
 			      u32 pid,
 			      int report)
 {
+	int ret = 0;
 	struct net *net = nf_ct_net(ct);
 	struct nf_ct_event_notifier *notify;
+	struct nf_conntrack_ecache *e;
 
 	rcu_read_lock();
 	notify = rcu_dereference(nf_conntrack_event_cb);
@@ -101,29 +105,52 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 	if (!net->ct.sysctl_events)
 		goto out_unlock;
 
+	e = nf_ct_ecache_find(ct);
+	if (e == NULL)
+		goto out_unlock;
+
 	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct)) {
 		struct nf_ct_event item = {
 			.ct 	= ct,
-			.pid	= pid,
+			.pid	= e->pid ? e->pid : pid,
 			.report = report
 		};
-		notify->fcn(eventmask, &item);
+		/* This is a resent of a destroy event? If so, skip missed */
+		unsigned long missed = e->pid ? 0 : e->missed;
+
+		ret = notify->fcn(eventmask | missed, &item);
+		if (unlikely(ret < 0 || missed)) {
+			spin_lock_bh(&ct->lock);
+			if (ret < 0) {
+				/* This is a destroy event that has been
+				 * triggered by a process, we store the PID
+				 * to include it in the retransmission. */
+				if (eventmask & (1 << IPCT_DESTROY) &&
+				    e->pid == 0 && pid != 0)
+					e->pid = pid;
+				else
+					e->missed |= eventmask;
+			} else
+				e->missed &= ~missed;
+			spin_unlock_bh(&ct->lock);
+		}
 	}
 out_unlock:
 	rcu_read_unlock();
+	return ret;
 }
 
-static inline void
+static inline int
 nf_conntrack_event_report(enum ip_conntrack_events event, struct nf_conn *ct,
 			  u32 pid, int report)
 {
-	nf_conntrack_eventmask_report(1 << event, ct, pid, report);
+	return nf_conntrack_eventmask_report(1 << event, ct, pid, report);
 }
 
-static inline void
+static inline int
 nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
 {
-	nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
+	return nf_conntrack_eventmask_report(1 << event, ct, 0, 0);
 }
 
 struct nf_exp_event {
@@ -183,16 +210,16 @@ extern void nf_conntrack_ecache_fini(struct net *net);
 
 static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,
 					    struct nf_conn *ct) {}
-static inline void nf_conntrack_eventmask_report(unsigned int eventmask,
-						 struct nf_conn *ct,
-						 u32 pid,
-						 int report) {}
-static inline void nf_conntrack_event(enum ip_conntrack_events event,
-				      struct nf_conn *ct) {}
-static inline void nf_conntrack_event_report(enum ip_conntrack_events event,
-					     struct nf_conn *ct,
-					     u32 pid,
-					     int report) {}
+static inline int nf_conntrack_eventmask_report(unsigned int eventmask,
+						struct nf_conn *ct,
+						u32 pid,
+						int report) { return 0; }
+static inline int nf_conntrack_event(enum ip_conntrack_events event,
+				     struct nf_conn *ct) { return 0; }
+static inline int nf_conntrack_event_report(enum ip_conntrack_events event,
+					    struct nf_conn *ct,
+					    u32 pid,
+					    int report) { return 0; }
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct) {}
 static inline void nf_ct_expect_event(enum ip_conntrack_expect_events event,
 				      struct nf_conntrack_expect *exp) {}
