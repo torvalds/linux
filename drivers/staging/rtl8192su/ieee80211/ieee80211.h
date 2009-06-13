@@ -214,55 +214,6 @@ typedef struct cb_desc {
 #define	MGN_MCS14_SG		0x9e
 #define	MGN_MCS15_SG		0x9f
 
-
-//----------------------------------------------------------------------------
-//		802.11 Management frame Reason Code field
-//----------------------------------------------------------------------------
-enum	_ReasonCode{
-	unspec_reason	= 0x1,
-	auth_not_valid	= 0x2,
-	deauth_lv_ss	= 0x3,
-	inactivity		= 0x4,
-	ap_overload 	= 0x5,
-	class2_err		= 0x6,
-	class3_err		= 0x7,
-	disas_lv_ss 	= 0x8,
-	asoc_not_auth	= 0x9,
-
-	//----MIC_CHECK
-	mic_failure 	= 0xe,
-	//----END MIC_CHECK
-
-	// Reason code defined in 802.11i D10.0 p.28.
-	invalid_IE		= 0x0d,
-	four_way_tmout	= 0x0f,
-	two_way_tmout	= 0x10,
-	IE_dismatch 	= 0x11,
-	invalid_Gcipher = 0x12,
-	invalid_Pcipher = 0x13,
-	invalid_AKMP	= 0x14,
-	unsup_RSNIEver = 0x15,
-	invalid_RSNIE	= 0x16,
-	auth_802_1x_fail= 0x17,
-	ciper_reject		= 0x18,
-
-	// Reason code defined in 7.3.1.7, 802.1e D13.0, p.42. Added by Annie, 2005-11-15.
-	QoS_unspec		= 0x20, // 32
-	QAP_bandwidth	= 0x21, // 33
-	poor_condition	= 0x22, // 34
-	no_facility 	= 0x23, // 35
-							// Where is 36???
-	req_declined	= 0x25, // 37
-	invalid_param	= 0x26, // 38
-	req_not_honored= 0x27,	// 39
-	TS_not_created	= 0x2F, // 47
-	DL_not_allowed	= 0x30, // 48
-	dest_not_exist	= 0x31, // 49
-	dest_not_QSTA	= 0x32, // 50
-};
-
-
-
 #define aSifsTime	 (((priv->ieee80211->current_network.mode == IEEE_A)||(priv->ieee80211->current_network.mode == IEEE_N_24G)||(priv->ieee80211->current_network.mode == IEEE_N_5G))? 16 : 10)
 
 #define MGMT_QUEUE_NUM 5
