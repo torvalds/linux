@@ -231,6 +231,19 @@ static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 	}
 }
 
+static struct ath9k_channel *ath_get_curchannel(struct ath_softc *sc,
+						struct ieee80211_hw *hw)
+{
+	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ath9k_channel *channel;
+	u8 chan_idx;
+
+	chan_idx = curchan->hw_value;
+	channel = &sc->sc_ah->channels[chan_idx];
+	ath9k_update_ichannel(sc, hw, channel);
+	return channel;
+}
+
 /*
  * Set/change channels.  If the channel is really being changed, it's done
  * by reseting the chip.  To accomplish this we must first cleanup any pending
@@ -1920,7 +1933,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ath9k_channel *init_channel;
-	int r, pos;
+	int r;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Starting driver with "
 		"initial channel: %d MHz\n", curchan->center_freq);
@@ -1950,11 +1963,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	/* setup initial channel */
 
-	pos = curchan->hw_value;
+	sc->chan_idx = curchan->hw_value;
 
-	sc->chan_idx = pos;
-	init_channel = &sc->sc_ah->channels[pos];
-	ath9k_update_ichannel(sc, hw, init_channel);
+	init_channel = ath_get_curchannel(sc, hw);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(sc->sc_ah, 0);
