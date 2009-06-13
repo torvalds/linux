@@ -788,6 +788,45 @@ static int soc_resume(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * snd_soc_suspend_device: Notify core of device suspend
+ *
+ * @dev: Device being suspended.
+ *
+ * In order to ensure that the entire audio subsystem is suspended in a
+ * coordinated fashion ASoC devices should suspend themselves when
+ * called by ASoC.  When the standard kernel suspend process asks the
+ * device to suspend it should call this function to initiate a suspend
+ * of the entire ASoC card.
+ *
+ * \note Currently this function is stubbed out.
+ */
+int snd_soc_suspend_device(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_suspend_device);
+
+/**
+ * snd_soc_resume_device: Notify core of device resume
+ *
+ * @dev: Device being resumed.
+ *
+ * In order to ensure that the entire audio subsystem is resumed in a
+ * coordinated fashion ASoC devices should resume themselves when called
+ * by ASoC.  When the standard kernel resume process asks the device
+ * to resume it should call this function.  Once all the components of
+ * the card have notified that they are ready to be resumed the card
+ * will be resumed.
+ *
+ * \note Currently this function is stubbed out.
+ */
+int snd_soc_resume_device(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_resume_device);
+
 #else
 #define soc_suspend	NULL
 #define soc_resume	NULL
