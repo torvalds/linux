@@ -21,6 +21,7 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 
 static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
@@ -32,93 +33,50 @@ EXPORT_SYMBOL_GPL(nf_expect_event_cb);
 
 /* deliver cached events and clear cache entry - must be called with locally
  * disabled softirqs */
-static inline void
-__nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
+void nf_ct_deliver_cached_events(struct nf_conn *ct)
 {
+	unsigned long events;
 	struct nf_ct_event_notifier *notify;
+	struct nf_conntrack_ecache *e;
 
 	rcu_read_lock();
 	notify = rcu_dereference(nf_conntrack_event_cb);
 	if (notify == NULL)
 		goto out_unlock;
 
-	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
-	    && ecache->events) {
+	e = nf_ct_ecache_find(ct);
+	if (e == NULL)
+		goto out_unlock;
+
+	events = xchg(&e->cache, 0);
+
+	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct) && events) {
 		struct nf_ct_event item = {
-			.ct 	= ecache->ct,
+			.ct	= ct,
 			.pid	= 0,
 			.report	= 0
 		};
+		int ret;
+		/* We make a copy of the missed event cache without taking
+		 * the lock, thus we may send missed events twice. However,
+		 * this does not harm and it happens very rarely. */
+		unsigned long missed = e->missed;
 
-		notify->fcn(ecache->events, &item);
+		ret = notify->fcn(events | missed, &item);
+		if (unlikely(ret < 0 || missed)) {
+			spin_lock_bh(&ct->lock);
+			if (ret < 0)
+				e->missed |= events;
+			else
+				e->missed &= ~missed;
+			spin_unlock_bh(&ct->lock);
+		} 
 	}
-
-	ecache->events = 0;
-	nf_ct_put(ecache->ct);
-	ecache->ct = NULL;
 
 out_unlock:
 	rcu_read_unlock();
 }
-
-/* Deliver all cached events for a particular conntrack. This is called
- * by code prior to async packet handling for freeing the skb */
-void nf_ct_deliver_cached_events(const struct nf_conn *ct)
-{
-	struct net *net = nf_ct_net(ct);
-	struct nf_conntrack_ecache *ecache;
-
-	local_bh_disable();
-	ecache = per_cpu_ptr(net->ct.ecache, raw_smp_processor_id());
-	if (ecache->ct == ct)
-		__nf_ct_deliver_cached_events(ecache);
-	local_bh_enable();
-}
 EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
-
-/* Deliver cached events for old pending events, if current conntrack != old */
-void __nf_ct_event_cache_init(struct nf_conn *ct)
-{
-	struct net *net = nf_ct_net(ct);
-	struct nf_conntrack_ecache *ecache;
-
-	/* take care of delivering potentially old events */
-	ecache = per_cpu_ptr(net->ct.ecache, raw_smp_processor_id());
-	BUG_ON(ecache->ct == ct);
-	if (ecache->ct)
-		__nf_ct_deliver_cached_events(ecache);
-	/* initialize for this conntrack/packet */
-	ecache->ct = ct;
-	nf_conntrack_get(&ct->ct_general);
-}
-EXPORT_SYMBOL_GPL(__nf_ct_event_cache_init);
-
-/* flush the event cache - touches other CPU's data and must not be called
- * while packets are still passing through the code */
-void nf_ct_event_cache_flush(struct net *net)
-{
-	struct nf_conntrack_ecache *ecache;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		ecache = per_cpu_ptr(net->ct.ecache, cpu);
-		if (ecache->ct)
-			nf_ct_put(ecache->ct);
-	}
-}
-
-int nf_conntrack_ecache_init(struct net *net)
-{
-	net->ct.ecache = alloc_percpu(struct nf_conntrack_ecache);
-	if (!net->ct.ecache)
-		return -ENOMEM;
-	return 0;
-}
-
-void nf_conntrack_ecache_fini(struct net *net)
-{
-	free_percpu(net->ct.ecache);
-}
 
 int nf_conntrack_register_notifier(struct nf_ct_event_notifier *new)
 {
@@ -185,3 +143,118 @@ void nf_ct_expect_unregister_notifier(struct nf_exp_event_notifier *new)
 	mutex_unlock(&nf_ct_ecache_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);
+
+#define NF_CT_EVENTS_DEFAULT 1
+static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
+static int nf_ct_events_retry_timeout __read_mostly = 15*HZ;
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table event_sysctl_table[] = {
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nf_conntrack_events",
+		.data		= &init_net.ct.sysctl_events,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nf_conntrack_events_retry_timeout",
+		.data		= &init_net.ct.sysctl_events_retry_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{}
+};
+#endif /* CONFIG_SYSCTL */
+
+static struct nf_ct_ext_type event_extend __read_mostly = {
+	.len	= sizeof(struct nf_conntrack_ecache),
+	.align	= __alignof__(struct nf_conntrack_ecache),
+	.id	= NF_CT_EXT_ECACHE,
+};
+
+#ifdef CONFIG_SYSCTL
+static int nf_conntrack_event_init_sysctl(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(event_sysctl_table, sizeof(event_sysctl_table),
+			GFP_KERNEL);
+	if (!table)
+		goto out;
+
+	table[0].data = &net->ct.sysctl_events;
+	table[1].data = &net->ct.sysctl_events_retry_timeout;
+
+	net->ct.event_sysctl_header =
+		register_net_sysctl_table(net,
+					  nf_net_netfilter_sysctl_path, table);
+	if (!net->ct.event_sysctl_header) {
+		printk(KERN_ERR "nf_ct_event: can't register to sysctl.\n");
+		goto out_register;
+	}
+	return 0;
+
+out_register:
+	kfree(table);
+out:
+	return -ENOMEM;
+}
+
+static void nf_conntrack_event_fini_sysctl(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = net->ct.event_sysctl_header->ctl_table_arg;
+	unregister_net_sysctl_table(net->ct.event_sysctl_header);
+	kfree(table);
+}
+#else
+static int nf_conntrack_event_init_sysctl(struct net *net)
+{
+	return 0;
+}
+
+static void nf_conntrack_event_fini_sysctl(struct net *net)
+{
+}
+#endif /* CONFIG_SYSCTL */
+
+int nf_conntrack_ecache_init(struct net *net)
+{
+	int ret;
+
+	net->ct.sysctl_events = nf_ct_events;
+	net->ct.sysctl_events_retry_timeout = nf_ct_events_retry_timeout;
+
+	if (net_eq(net, &init_net)) {
+		ret = nf_ct_extend_register(&event_extend);
+		if (ret < 0) {
+			printk(KERN_ERR "nf_ct_event: Unable to register "
+					"event extension.\n");
+			goto out_extend_register;
+		}
+	}
+
+	ret = nf_conntrack_event_init_sysctl(net);
+	if (ret < 0)
+		goto out_sysctl;
+
+	return 0;
+
+out_sysctl:
+	if (net_eq(net, &init_net))
+		nf_ct_extend_unregister(&event_extend);
+out_extend_register:
+	return ret;
+}
+
+void nf_conntrack_ecache_fini(struct net *net)
+{
+	nf_conntrack_event_fini_sysctl(net);
+	if (net_eq(net, &init_net))
+		nf_ct_extend_unregister(&event_extend);
+}

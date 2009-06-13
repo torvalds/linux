@@ -248,14 +248,14 @@ static int nf_log_proc_dostring(ctl_table *table, int write, struct file *filp,
 		rcu_assign_pointer(nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
 	} else {
-		rcu_read_lock();
-		logger = rcu_dereference(nf_loggers[tindex]);
+		mutex_lock(&nf_log_mutex);
+		logger = nf_loggers[tindex];
 		if (!logger)
 			table->data = "NONE";
 		else
 			table->data = logger->name;
 		r = proc_dostring(table, write, filp, buffer, lenp, ppos);
-		rcu_read_unlock();
+		mutex_unlock(&nf_log_mutex);
 	}
 
 	return r;

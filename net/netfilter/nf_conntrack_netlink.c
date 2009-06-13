@@ -463,15 +463,16 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	struct sk_buff *skb;
 	unsigned int type;
 	unsigned int flags = 0, group;
+	int err;
 
 	/* ignore our fake conntrack entry */
 	if (ct == &nf_conntrack_untracked)
 		return 0;
 
-	if (events & IPCT_DESTROY) {
+	if (events & (1 << IPCT_DESTROY)) {
 		type = IPCTNL_MSG_CT_DELETE;
 		group = NFNLGRP_CONNTRACK_DESTROY;
-	} else  if (events & (IPCT_NEW | IPCT_RELATED)) {
+	} else  if (events & ((1 << IPCT_NEW) | (1 << IPCT_RELATED))) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 		group = NFNLGRP_CONNTRACK_NEW;
@@ -519,7 +520,7 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	if (ctnetlink_dump_status(skb, ct) < 0)
 		goto nla_put_failure;
 
-	if (events & IPCT_DESTROY) {
+	if (events & (1 << IPCT_DESTROY)) {
 		if (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
 		    ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0)
 			goto nla_put_failure;
@@ -527,38 +528,41 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		if (ctnetlink_dump_timeout(skb, ct) < 0)
 			goto nla_put_failure;
 
-		if (events & IPCT_PROTOINFO
+		if (events & (1 << IPCT_PROTOINFO)
 		    && ctnetlink_dump_protoinfo(skb, ct) < 0)
 			goto nla_put_failure;
 
-		if ((events & IPCT_HELPER || nfct_help(ct))
+		if ((events & (1 << IPCT_HELPER) || nfct_help(ct))
 		    && ctnetlink_dump_helpinfo(skb, ct) < 0)
 			goto nla_put_failure;
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-		if ((events & IPCT_SECMARK || ct->secmark)
+		if ((events & (1 << IPCT_SECMARK) || ct->secmark)
 		    && ctnetlink_dump_secmark(skb, ct) < 0)
 			goto nla_put_failure;
 #endif
 
-		if (events & IPCT_RELATED &&
+		if (events & (1 << IPCT_RELATED) &&
 		    ctnetlink_dump_master(skb, ct) < 0)
 			goto nla_put_failure;
 
-		if (events & IPCT_NATSEQADJ &&
+		if (events & (1 << IPCT_NATSEQADJ) &&
 		    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
 			goto nla_put_failure;
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
-	if ((events & IPCT_MARK || ct->mark)
+	if ((events & (1 << IPCT_MARK) || ct->mark)
 	    && ctnetlink_dump_mark(skb, ct) < 0)
 		goto nla_put_failure;
 #endif
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, item->pid, group, item->report, GFP_ATOMIC);
+	err = nfnetlink_send(skb, item->pid, group, item->report, GFP_ATOMIC);
+	if (err == -ENOBUFS || err == -EAGAIN)
+		return -ENOBUFS;
+
 	return 0;
 
 nla_put_failure:
@@ -798,10 +802,15 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	nf_conntrack_event_report(IPCT_DESTROY,
-				  ct,
-				  NETLINK_CB(skb).pid,
-				  nlmsg_report(nlh));
+	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
+				      NETLINK_CB(skb).pid,
+				      nlmsg_report(nlh)) < 0) {
+		nf_ct_delete_from_lists(ct);
+		/* we failed to report the event, try later */
+		nf_ct_insert_dying_list(ct);
+		nf_ct_put(ct);
+		return 0;
+	}
 
 	/* death_by_timeout would report the event again */
 	set_bit(IPS_DYING_BIT, &ct->status);
@@ -1253,6 +1262,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	}
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
+	nf_ct_ecache_ext_add(ct, GFP_ATOMIC);
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
@@ -1340,13 +1350,13 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			else
 				events = IPCT_NEW;
 
-			nf_conntrack_event_report(IPCT_STATUS |
-						  IPCT_HELPER |
-						  IPCT_PROTOINFO |
-						  IPCT_NATSEQADJ |
-						  IPCT_MARK | events,
-						  ct, NETLINK_CB(skb).pid,
-						  nlmsg_report(nlh));
+			nf_conntrack_eventmask_report((1 << IPCT_STATUS) |
+						      (1 << IPCT_HELPER) |
+						      (1 << IPCT_PROTOINFO) |
+						      (1 << IPCT_NATSEQADJ) |
+						      (1 << IPCT_MARK) | events,
+						      ct, NETLINK_CB(skb).pid,
+						      nlmsg_report(nlh));
 			nf_ct_put(ct);
 		} else
 			spin_unlock_bh(&nf_conntrack_lock);
@@ -1365,13 +1375,13 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		if (err == 0) {
 			nf_conntrack_get(&ct->ct_general);
 			spin_unlock_bh(&nf_conntrack_lock);
-			nf_conntrack_event_report(IPCT_STATUS |
-						  IPCT_HELPER |
-						  IPCT_PROTOINFO |
-						  IPCT_NATSEQADJ |
-						  IPCT_MARK,
-						  ct, NETLINK_CB(skb).pid,
-						  nlmsg_report(nlh));
+			nf_conntrack_eventmask_report((1 << IPCT_STATUS) |
+						      (1 << IPCT_HELPER) |
+						      (1 << IPCT_PROTOINFO) |
+						      (1 << IPCT_NATSEQADJ) |
+						      (1 << IPCT_MARK),
+						      ct, NETLINK_CB(skb).pid,
+						      nlmsg_report(nlh));
 			nf_ct_put(ct);
 		} else
 			spin_unlock_bh(&nf_conntrack_lock);
@@ -1515,7 +1525,7 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	unsigned int type;
 	int flags = 0;
 
-	if (events & IPEXP_NEW) {
+	if (events & (1 << IPEXP_NEW)) {
 		type = IPCTNL_MSG_EXP_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 	} else
