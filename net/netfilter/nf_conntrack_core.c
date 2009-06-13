@@ -807,8 +807,6 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	NF_CT_ASSERT(ct->timeout.data == (unsigned long)ct);
 	NF_CT_ASSERT(skb);
 
-	spin_lock_bh(&nf_conntrack_lock);
-
 	/* Only update if this is not a fixed timeout */
 	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
 		goto acct;
@@ -822,11 +820,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		/* Only update the timeout if the new timeout is at least
 		   HZ jiffies from the old timeout. Need del_timer for race
 		   avoidance (may already be dying). */
-		if (newtime - ct->timeout.expires >= HZ
-		    && del_timer(&ct->timeout)) {
-			ct->timeout.expires = newtime;
-			add_timer(&ct->timeout);
-		}
+		if (newtime - ct->timeout.expires >= HZ)
+			mod_timer_pending(&ct->timeout, newtime);
 	}
 
 acct:
@@ -835,13 +830,13 @@ acct:
 
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
+			spin_lock_bh(&ct->lock);
 			acct[CTINFO2DIR(ctinfo)].packets++;
 			acct[CTINFO2DIR(ctinfo)].bytes +=
 				skb->len - skb_network_offset(skb);
+			spin_unlock_bh(&ct->lock);
 		}
 	}
-
-	spin_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 
@@ -853,14 +848,14 @@ bool __nf_ct_kill_acct(struct nf_conn *ct,
 	if (do_acct) {
 		struct nf_conn_counter *acct;
 
-		spin_lock_bh(&nf_conntrack_lock);
 		acct = nf_conn_acct_find(ct);
 		if (acct) {
+			spin_lock_bh(&ct->lock);
 			acct[CTINFO2DIR(ctinfo)].packets++;
 			acct[CTINFO2DIR(ctinfo)].bytes +=
 				skb->len - skb_network_offset(skb);
+			spin_unlock_bh(&ct->lock);
 		}
-		spin_unlock_bh(&nf_conntrack_lock);
 	}
 
 	if (del_timer(&ct->timeout)) {
