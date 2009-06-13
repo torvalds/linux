@@ -92,15 +92,15 @@ static void cdrom_saw_media_change(ide_drive_t *drive)
 	drive->atapi_flags &= ~IDE_AFLAG_TOC_VALID;
 }
 
-static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
-			   struct request_sense *sense)
+static int cdrom_log_sense(ide_drive_t *drive, struct request *rq)
 {
+	struct request_sense *sense = &drive->sense_data;
 	int log = 0;
-
-	ide_debug_log(IDE_DBG_SENSE, "sense_key: 0x%x", sense->sense_key);
 
 	if (!sense || !rq || (rq->cmd_flags & REQ_QUIET))
 		return 0;
+
+	ide_debug_log(IDE_DBG_SENSE, "sense_key: 0x%x", sense->sense_key);
 
 	switch (sense->sense_key) {
 	case NO_SENSE:
@@ -140,12 +140,12 @@ static int cdrom_log_sense(ide_drive_t *drive, struct request *rq,
 }
 
 static void cdrom_analyze_sense_data(ide_drive_t *drive,
-			      struct request *failed_command,
-			      struct request_sense *sense)
+				     struct request *failed_command)
 {
+	struct request_sense *sense = &drive->sense_data;
+	struct cdrom_info *info = drive->driver_data;
 	unsigned long sector;
 	unsigned long bio_sectors;
-	struct cdrom_info *info = drive->driver_data;
 
 	ide_debug_log(IDE_DBG_SENSE, "error_code: 0x%x, sense_key: 0x%x",
 				     sense->error_code, sense->sense_key);
@@ -154,7 +154,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 		ide_debug_log(IDE_DBG_SENSE, "failed cmd: 0x%x",
 					     failed_command->cmd[0]);
 
-	if (!cdrom_log_sense(drive, failed_command, sense))
+	if (!cdrom_log_sense(drive, failed_command))
 		return;
 
 	/*
@@ -225,15 +225,14 @@ static void ide_cd_complete_failed_rq(ide_drive_t *drive, struct request *rq)
 			 * sense pointer set.
 			 */
 			memcpy(failed->sense, sense, 18);
-			sense = failed->sense;
 			failed->sense_len = rq->sense_len;
 		}
-		cdrom_analyze_sense_data(drive, failed, sense);
+		cdrom_analyze_sense_data(drive, failed);
 
 		if (ide_end_rq(drive, failed, -EIO, blk_rq_bytes(failed)))
 			BUG();
 	} else
-		cdrom_analyze_sense_data(drive, NULL, sense);
+		cdrom_analyze_sense_data(drive, NULL);
 }
 
 
@@ -408,50 +407,6 @@ end_request:
 		return ide_queue_sense_rq(drive, rq) ? 2 : 1;
 	} else
 		return 2;
-}
-
-/*
- * Check the contents of the interrupt reason register from the cdrom
- * and attempt to recover if there are problems.  Returns  0 if everything's
- * ok; nonzero if the request has been terminated.
- */
-static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
-				int len, int ireason, int rw)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	ide_debug_log(IDE_DBG_FUNC, "ireason: 0x%x, rw: 0x%x", ireason, rw);
-
-	/*
-	 * ireason == 0: the drive wants to receive data from us
-	 * ireason == 2: the drive is expecting to transfer data to us
-	 */
-	if (ireason == (!rw << 1))
-		return 0;
-	else if (ireason == (rw << 1)) {
-
-		/* whoops... */
-		printk(KERN_ERR PFX "%s: %s: wrong transfer direction!\n",
-				drive->name, __func__);
-
-		ide_pad_transfer(drive, rw, len);
-	} else  if (rw == 0 && ireason == 1) {
-		/*
-		 * Some drives (ASUS) seem to tell us that status info is
-		 * available.  Just get it and ignore.
-		 */
-		(void)hwif->tp_ops->read_status(hwif);
-		return 0;
-	} else {
-		/* drive wants a command packet, or invalid ireason... */
-		printk(KERN_ERR PFX "%s: %s: bad interrupt reason 0x%02x\n",
-				drive->name, __func__, ireason);
-	}
-
-	if (rq->cmd_type == REQ_TYPE_ATA_PC)
-		rq->cmd_flags |= REQ_FAILED;
-
-	return -1;
 }
 
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct ide_cmd *cmd)
@@ -645,8 +600,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		goto out_end;
 	}
 
-	/* check which way to transfer data */
-	rc = ide_cd_check_ireason(drive, rq, len, ireason, write);
+	rc = ide_check_ireason(drive, rq, len, ireason, write);
 	if (rc)
 		goto out_end;
 
