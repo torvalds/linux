@@ -551,6 +551,21 @@ static unsigned next_desc(struct virtqueue *vq, unsigned int i)
 	return next;
 }
 
+/* This actually sends the interrupt for this virtqueue */
+static void trigger_irq(struct virtqueue *vq)
+{
+	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
+
+	/* If they don't want an interrupt, don't send one, unless empty. */
+	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+	    && lg_last_avail(vq) != vq->vring.avail->idx)
+		return;
+
+	/* Send the Guest an interrupt tell them we used something up. */
+	if (write(lguest_fd, buf, sizeof(buf)) != 0)
+		err(1, "Triggering irq %i", vq->config.irq);
+}
+
 /* This looks in the virtqueue and for the first available buffer, and converts
  * it to an iovec for convenient access.  Since descriptors consist of some
  * number of output then some number of input descriptors, it's actually two
@@ -566,6 +581,9 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 
 	while (last_avail == vq->vring.avail->idx) {
 		u64 event;
+
+		/* OK, tell Guest about progress up to now. */
+		trigger_irq(vq);
 
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (read(vq->eventfd, &event, sizeof(event)) != sizeof(event))
@@ -629,21 +647,6 @@ static void add_used(struct virtqueue *vq, unsigned int head, int len)
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
-}
-
-/* This actually sends the interrupt for this virtqueue */
-static void trigger_irq(struct virtqueue *vq)
-{
-	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
-
-	/* If they don't want an interrupt, don't send one, unless empty. */
-	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-	    && lg_last_avail(vq) != vq->vring.avail->idx)
-		return;
-
-	/* Send the Guest an interrupt tell them we used something up. */
-	if (write(lguest_fd, buf, sizeof(buf)) != 0)
-		err(1, "Triggering irq %i", vq->config.irq);
 }
 
 /* And here's the combo meal deal.  Supersize me! */
@@ -730,7 +733,7 @@ static void console_output(struct virtqueue *vq)
 			err(1, "Write to stdout gave %i", len);
 		iov_consume(iov, out, len);
 	}
-	add_used_and_trigger(vq, head, 0);
+	add_used(vq, head, 0);
 }
 
 /*
@@ -754,7 +757,7 @@ static void net_output(struct virtqueue *vq)
 		errx(1, "Input buffers in net output queue?");
 	if (writev(net_info->tunfd, iov, out) < 0)
 		errx(1, "Write to tun failed?");
-	add_used_and_trigger(vq, head, 0);
+	add_used(vq, head, 0);
 }
 
 /* This is where we handle packets coming in from the tun device to our
@@ -1422,7 +1425,7 @@ static void blk_request(struct virtqueue *vq)
 	if (out->type & VIRTIO_BLK_T_BARRIER)
 		fdatasync(vblk->fd);
 
-	add_used_and_trigger(vq, head, wlen);
+	add_used(vq, head, wlen);
 }
 
 /*L:198 This actually sets up a virtual block device. */
@@ -1496,7 +1499,7 @@ static void rng_input(struct virtqueue *vq)
 	}
 
 	/* Tell the Guest about the new input. */
-	add_used_and_trigger(vq, head, totlen);
+	add_used(vq, head, totlen);
 }
 
 /* And this creates a "hardware" random number device for the Guest. */
