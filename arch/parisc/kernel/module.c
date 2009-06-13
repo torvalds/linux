@@ -267,8 +267,6 @@ void module_free(struct module *mod, void *module_region)
 	mod->arch.section = NULL;
 
 	vfree(module_region);
-	/* FIXME: If module_region == mod->init_region, trim exception
-           table entries. */
 }
 
 /* Additional bytes needed in front of individual sections */
