@@ -99,8 +99,7 @@ void unregister_virtio_device(struct virtio_device *dev);
  * @id_table: the ids serviced by this driver.
  * @feature_table: an array of feature numbers supported by this device.
  * @feature_table_size: number of entries in the feature table array.
- * @probe: the function to call when a device is found.  Returns a token for
- *    remove, or PTR_ERR().
+ * @probe: the function to call when a device is found.  Returns 0 or -errno.
  * @remove: the function when a device is removed.
  * @config_changed: optional function to call when the device configuration
  *    changes; may be called in interrupt context.
