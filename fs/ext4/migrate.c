@@ -483,9 +483,8 @@ int ext4_ext_migrate(struct inode *inode)
 		retval = PTR_ERR(handle);
 		return retval;
 	}
-	tmp_inode = ext4_new_inode(handle,
-				inode->i_sb->s_root->d_inode,
-				S_IFREG);
+	tmp_inode = ext4_new_inode(handle, inode->i_sb->s_root->d_inode,
+				   S_IFREG, 0);
 	if (IS_ERR(tmp_inode)) {
 		retval = -ENOMEM;
 		ext4_journal_stop(handle);

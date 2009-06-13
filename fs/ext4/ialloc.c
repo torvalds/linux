@@ -470,7 +470,8 @@ void get_orlov_stats(struct super_block *sb, ext4_group_t g,
  */
 
 static int find_group_orlov(struct super_block *sb, struct inode *parent,
-			    ext4_group_t *group, int mode)
+			    ext4_group_t *group, int mode,
+			    const struct qstr *qstr)
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -485,6 +486,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	struct ext4_group_desc *desc;
 	struct orlov_stats stats;
 	int flex_size = ext4_flex_bg_size(sbi);
+	struct dx_hash_info hinfo;
 
 	ngroups = real_ngroups;
 	if (flex_size > 1) {
@@ -506,7 +508,13 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 		int best_ndir = inodes_per_group;
 		int ret = -1;
 
-		get_random_bytes(&grp, sizeof(grp));
+		if (qstr) {
+			hinfo.hash_version = DX_HASH_HALF_MD4;
+			hinfo.seed = sbi->s_hash_seed;
+			ext4fs_dirhash(qstr->name, qstr->len, &hinfo);
+			grp = hinfo.hash;
+		} else
+			get_random_bytes(&grp, sizeof(grp));
 		parent_group = (unsigned)grp % ngroups;
 		for (i = 0; i < ngroups; i++) {
 			g = (parent_group + i) % ngroups;
@@ -649,7 +657,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		*group = parent_group + flex_size;
 		if (*group > ngroups)
 			*group = 0;
-		return find_group_orlov(sb, parent, group, mode);
+		return find_group_orlov(sb, parent, group, mode, 0);
 	}
 
 	/*
@@ -790,7 +798,8 @@ err_ret:
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
+struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
+			     const struct qstr *qstr)
 {
 	struct super_block *sb;
 	struct buffer_head *inode_bitmap_bh = NULL;
@@ -839,7 +848,7 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 		if (test_opt(sb, OLDALLOC))
 			ret2 = find_group_dir(sb, dir, &group);
 		else
-			ret2 = find_group_orlov(sb, dir, &group, mode);
+			ret2 = find_group_orlov(sb, dir, &group, mode, qstr);
 	} else
 		ret2 = find_group_other(sb, dir, &group, mode);
 

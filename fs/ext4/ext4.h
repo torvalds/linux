@@ -1315,7 +1315,8 @@ extern int ext4fs_dirhash(const char *name, int len, struct
 			  dx_hash_info *hinfo);
 
 /* ialloc.c */
-extern struct inode * ext4_new_inode(handle_t *, struct inode *, int);
+extern struct inode *ext4_new_inode(handle_t *, struct inode *, int,
+				    const struct qstr *qstr);
 extern void ext4_free_inode(handle_t *, struct inode *);
 extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);
 extern unsigned long ext4_count_free_inodes(struct super_block *);
