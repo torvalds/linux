@@ -866,15 +866,8 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
   udev = usb_get_dev(udev);
 #endif
 
-	pDevice = kmalloc(sizeof(DEVICE_INFO), GFP_KERNEL);
-	if (pDevice == NULL) {
-	    printk(KERN_ERR DEVICE_NAME ": allocate usb device failed \n");
-	    goto err_nomem;
-	}
-    memset(pDevice, 0, sizeof(DEVICE_INFO));
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    netdev = alloc_etherdev(0);
+    netdev = alloc_etherdev(sizeof(DEVICE_INFO));
 #else
     netdev = init_etherdev(netdev, 0);
 #endif
@@ -884,6 +877,10 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
         kfree(pDevice);
 	    goto err_nomem;
     }
+
+    pDevice = netdev_priv(netdev);
+    memset(pDevice, 0, sizeof(DEVICE_INFO));
+
     pDevice->dev = netdev;
     pDevice->usb = udev;
 
@@ -899,7 +896,6 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
     pDevice->tx_80211 = device_dma0_tx_80211;
     pDevice->sMgmtObj.pAdapter = (PVOID)pDevice;
 
-	netdev->priv               = pDevice;
     netdev->open               = device_open;
     netdev->hard_start_xmit    = device_xmit;
     netdev->stop               = device_close;
@@ -1205,7 +1201,7 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 /*-----------------------------------------------------------------*/
 
 static int  device_open(struct net_device *dev) {
-    PSDevice    pDevice=(PSDevice) dev->priv;
+    PSDevice    pDevice=(PSDevice) netdev_priv(dev);
 
 #ifdef WPA_SM_Transtatus
      extern SWPAResult wpa_Result;
@@ -1348,7 +1344,7 @@ free_rx_tx:
 
 
 static int  device_close(struct net_device *dev) {
-    PSDevice    pDevice=(PSDevice) dev->priv;
+    PSDevice    pDevice=(PSDevice) netdev_priv(dev);
     PSMgmtObject     pMgmt = &(pDevice->sMgmtObj);
 
    #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
@@ -1507,7 +1503,7 @@ device_release_WPADEV(pDevice);
 
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice        pDevice=dev->priv;
+    PSDevice        pDevice=netdev_priv(dev);
     PBYTE           pbMPDU;
     UINT            cbMPDULen = 0;
 
@@ -1535,7 +1531,7 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
 
 
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice    pDevice=dev->priv;
+    PSDevice    pDevice=netdev_priv(dev);
     struct net_device_stats* pStats = &pDevice->stats;
 
 
@@ -1768,7 +1764,7 @@ static int Read_config_file(PSDevice pDevice) {
 }
 
 static void device_set_multi(struct net_device *dev) {
-    PSDevice         pDevice = (PSDevice) dev->priv;
+    PSDevice         pDevice = (PSDevice) netdev_priv(dev);
     PSMgmtObject     pMgmt = &(pDevice->sMgmtObj);
     u32              mc_filter[2];
     int              ii;
@@ -1833,14 +1829,14 @@ static void device_set_multi(struct net_device *dev) {
 
 
 static struct net_device_stats *device_get_stats(struct net_device *dev) {
-    PSDevice pDevice=(PSDevice) dev->priv;
+    PSDevice pDevice=(PSDevice) netdev_priv(dev);
 
     return &pDevice->stats;
 }
 
 
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     PSCmdRequest        pReq;
     //BOOL                bCommit = FALSE;

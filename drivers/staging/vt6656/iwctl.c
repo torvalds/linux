@@ -113,7 +113,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 {
-	PSDevice pDevice = dev->priv;
+	PSDevice pDevice = netdev_priv(dev);
 	long ldBm;
 
 	pDevice->wstats.status = pDevice->eOPMode;
@@ -172,7 +172,7 @@ static int iwctl_commit(struct net_device *dev,
 //2008-0409-02, <Mark> by Einsn Liu
 /*
 #ifdef Safe_Close
-  PSDevice	        pDevice = (PSDevice)dev->priv;
+  PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
   if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
         return -EINVAL;
 #endif
@@ -218,7 +218,7 @@ int iwctl_siwscan(struct net_device *dev,
 			 struct iw_point *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 	 PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 	struct iw_scan_req  *req = (struct iw_scan_req *)extra;
 	BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
@@ -299,7 +299,7 @@ int iwctl_giwscan(struct net_device *dev,
              char *extra)
 {
     int ii, jj, kk;
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     PKnownBSS           pBSS;
     PWLAN_IE_SSID       pItemSSID;
@@ -582,7 +582,7 @@ int iwctl_siwfreq(struct net_device *dev,
              struct iw_freq *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 	int rc = 0;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWFREQ \n");
@@ -625,7 +625,7 @@ int iwctl_giwfreq(struct net_device *dev,
              struct iw_freq *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWFREQ \n");
@@ -655,7 +655,7 @@ int iwctl_siwmode(struct net_device *dev,
              __u32 *wmode,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     int rc = 0;
 
@@ -722,7 +722,7 @@ int iwctl_giwmode(struct net_device *dev,
              __u32 *wmode,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 
 
@@ -764,7 +764,7 @@ int iwctl_giwrange(struct net_device *dev,
 //2008-0409-02, <Mark> by Einsn Liu
 /*
  #ifdef Safe_Close
-  PSDevice	        pDevice = (PSDevice)dev->priv;
+  PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
   if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
         return -EINVAL;
 #endif
@@ -883,7 +883,7 @@ int iwctl_siwap(struct net_device *dev,
 			 struct sockaddr *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     int rc = 0;
     BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
@@ -934,7 +934,7 @@ int iwctl_giwap(struct net_device *dev,
 			 struct sockaddr *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 
 
@@ -970,7 +970,7 @@ int iwctl_giwaplist(struct net_device *dev,
 	int ii,jj, rc = 0;
 	struct sockaddr sock[IW_MAX_AP];
 	struct iw_quality qual[IW_MAX_AP];
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 
 
@@ -1019,7 +1019,7 @@ int iwctl_siwessid(struct net_device *dev,
              struct iw_point *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     PWLAN_IE_SSID       pItemSSID;
 
@@ -1129,7 +1129,7 @@ int iwctl_giwessid(struct net_device *dev,
              char *extra)
 {
 
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 	PWLAN_IE_SSID       pItemSSID;
 
@@ -1164,7 +1164,7 @@ int iwctl_siwrate(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     int rc = 0;
 	u8	brate = 0;
 	int	i;
@@ -1246,7 +1246,7 @@ int iwctl_giwrate(struct net_device *dev,
              struct iw_param *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWRATE \n");
@@ -1295,7 +1295,7 @@ int iwctl_siwrts(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 	int rc = 0;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWRTS \n");
@@ -1323,7 +1323,7 @@ int iwctl_giwrts(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-	PSDevice	        pDevice = (PSDevice)dev->priv;
+	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWRTS \n");
 	wrq->value = pDevice->wRTSThreshold;
@@ -1342,7 +1342,7 @@ int iwctl_siwfrag(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     int rc = 0;
     int fthr = wrq->value;
 
@@ -1371,7 +1371,7 @@ int iwctl_giwfrag(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWFRAG \n");
 	wrq->value = pDevice->wFragmentationThreshold;
@@ -1391,7 +1391,7 @@ int iwctl_siwretry(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     int rc = 0;
 
 
@@ -1429,7 +1429,7 @@ int iwctl_giwretry(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWRETRY \n");
 	wrq->disabled = 0;      // Can't be disabled
 
@@ -1460,7 +1460,7 @@ int iwctl_siwencode(struct net_device *dev,
              struct iw_point *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
 	DWORD dwKeyIndex = (DWORD)(wrq->flags & IW_ENCODE_INDEX);
 	int ii,uu, rc = 0;
@@ -1570,7 +1570,7 @@ int iwctl_giwencode(struct net_device *dev,
              struct iw_point *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     int rc = 0;
     char abyKey[WLAN_WEP232_KEYLEN];
@@ -1616,7 +1616,7 @@ int iwctl_giwencode(struct net_device *dev,
 			struct iw_point *wrq,
 			char *extra)
 {
-	PSDevice			pDevice = (PSDevice)dev->priv;
+	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject		pMgmt = &(pDevice->sMgmtObj);
 	char abyKey[WLAN_WEP232_KEYLEN];
 
@@ -1678,7 +1678,7 @@ int iwctl_siwpower(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice            pDevice = (PSDevice)dev->priv;
+    PSDevice            pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     int rc = 0;
 
@@ -1728,7 +1728,7 @@ int iwctl_giwpower(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra)
 {
-    PSDevice            pDevice = (PSDevice)dev->priv;
+    PSDevice            pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     int mode = pDevice->ePSMode;
 
@@ -1760,7 +1760,7 @@ int iwctl_giwsens(struct net_device *dev,
 			 struct iw_param *wrq,
 			 char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     long ldBm;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSENS \n");
@@ -1786,7 +1786,7 @@ int iwctl_siwauth(struct net_device *dev,
 			  struct iw_param *wrq,
 			  char *extra)
 {
-	PSDevice			pDevice = (PSDevice)dev->priv;
+	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	int ret=0;
 	static int wpa_version=0;  //must be static to save the last value,einsn liu
@@ -1918,7 +1918,7 @@ int iwctl_siwgenie(struct net_device *dev,
 			  struct iw_point *wrq,
 			  char *extra)
 {
-	PSDevice			pDevice = (PSDevice)dev->priv;
+	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	int ret=0;
 
@@ -1951,7 +1951,7 @@ int iwctl_giwgenie(struct net_device *dev,
 			  struct iw_point *wrq,
 			  char *extra)
 {
-	PSDevice			pDevice = (PSDevice)dev->priv;
+	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	int ret=0;
 	int space = wrq->length;
@@ -1976,7 +1976,7 @@ int iwctl_siwencodeext(struct net_device *dev,
              struct iw_point *wrq,
              char *extra)
 {
-    PSDevice	        pDevice = (PSDevice)dev->priv;
+    PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	struct iw_encode_ext *ext = (struct iw_encode_ext*)extra;
     struct viawget_wpa_param *param=NULL;
@@ -2135,7 +2135,7 @@ int iwctl_siwmlme(struct net_device *dev,
 				struct iw_point *wrq,
 				char *extra)
 {
-	PSDevice			pDevice = (PSDevice)dev->priv;
+	PSDevice			pDevice = (PSDevice)netdev_priv(dev);
 	PSMgmtObject	pMgmt = &(pDevice->sMgmtObj);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	//u16 reason = cpu_to_le16(mlme->reason_code);

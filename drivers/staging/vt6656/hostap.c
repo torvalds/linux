@@ -103,6 +103,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 {
+    PSDevice apdev_priv;
 	struct net_device *dev = pDevice->dev;
 	int ret;
 
@@ -113,7 +114,8 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 		return -ENOMEM;
 	memset(pDevice->apdev, 0, sizeof(struct net_device));
 
-	pDevice->apdev->priv = pDevice;
+    apdev_priv = netdev_priv(pDevice->apdev);
+    *apdev_priv = *pDevice;
 	memcpy(pDevice->apdev->dev_addr, dev->dev_addr, ETH_ALEN);
 	pDevice->apdev->hard_start_xmit = pDevice->tx_80211;
 	pDevice->apdev->type = ARPHRD_IEEE80211;
