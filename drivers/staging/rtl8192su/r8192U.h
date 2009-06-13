@@ -39,9 +39,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
-#include <asm/semaphore.h>
-#endif
+
 #include "ieee80211/ieee80211.h"
 
 #ifdef RTL8192SU
@@ -1555,11 +1553,7 @@ typedef struct r8192_priv
 //	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t ps_lock;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	struct semaphore mutex;
-#else
         struct mutex mutex;
-#endif
 	spinlock_t rf_lock; //used to lock rf write operation added by wb
 
 	u16 irq_mask;
@@ -1619,11 +1613,9 @@ typedef struct r8192_priv
 /* modified by davad for Rx process */
        struct sk_buff_head rx_queue;
        struct sk_buff_head skb_queue;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct tq_struct qos_activate;
-#else
+
        struct work_struct qos_activate;
-#endif
+
 	short  tx_urb_index;
 	atomic_t tx_pending[0x10];//UART_PRIORITY+1
 
@@ -1653,11 +1645,8 @@ typedef struct r8192_priv
 	u16 rts;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
+
 	struct work_struct reset_wq;
-#else
-	struct tq_struct reset_wq;
-#endif
 
 /**********************************************************/
 	//for rtl819xUsb
@@ -1874,33 +1863,14 @@ typedef struct r8192_priv
 	u16		SifsTime;
 
 	//define work item by amy 080526
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	struct delayed_work update_beacon_wq;
 	struct delayed_work watch_dog_wq;
 	struct delayed_work txpower_tracking_wq;
 	struct delayed_work rfpath_check_wq;
 	struct delayed_work gpio_change_rf_wq;
 	struct delayed_work initialgain_operate_wq;
-#else
-	struct work_struct update_beacon_wq;
-	struct work_struct watch_dog_wq;
-	struct work_struct txpower_tracking_wq;
-	struct work_struct rfpath_check_wq;
-	struct work_struct gpio_change_rf_wq;
-	struct work_struct initialgain_operate_wq;
-#endif
+
 	struct workqueue_struct *priv_wq;
-#else
-	/* used for periodly scan */
-	struct tq_struct update_beacon_wq;
-	struct tq_struct txpower_tracking_wq;
-	struct tq_struct rfpath_check_wq;
-	struct tq_struct watch_dog_wq;
-	struct tq_struct gpio_change_rf_wq;
-	struct tq_struct initialgain_operate_wq;
-#endif
 //#ifdef RTL8192SU
 	//lzm add for 8192S
 	 u32 			IntrMask;

@@ -85,10 +85,6 @@ extern bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eR
 //added by amy
 extern void InitialGain819xUsb(struct net_device *dev,	u8 Operation);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern void InitialGainOperateWorkItemCallBack(struct work_struct *work);
-#else
-extern void InitialGainOperateWorkItemCallBack(struct net_device *dev);
-#endif
 
 #endif

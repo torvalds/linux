@@ -275,11 +275,7 @@ extern  void deinit_hal_dm(struct net_device *dev);
 extern void hal_dm_watchdog(struct net_device *dev);
 
 extern  void    init_rate_adaptive(struct net_device *dev);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern  void    dm_txpower_trackingcallback(struct work_struct *work);
-#else
-extern  void    dm_txpower_trackingcallback(struct net_device *dev);
-#endif
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
@@ -287,11 +283,7 @@ extern  void    dm_change_dynamic_initgain_thresh(struct net_device *dev,
 extern  void    dm_force_tx_fw_info(struct net_device *dev,u32 force_type, u32 force_value);
 extern  void    dm_init_edca_turbo(struct net_device *dev);
 extern  void    dm_rf_operation_test_callback(unsigned long data);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern  void    dm_rf_pathcheck_workitemcallback(struct work_struct *work);
-#else
-extern  void    dm_rf_pathcheck_workitemcallback(struct net_device *dev);
-#endif
 extern  void dm_fsync_timer_callback(unsigned long data);
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 #if 0

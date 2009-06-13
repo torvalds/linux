@@ -1726,29 +1726,15 @@ void InitialGain819xUsb(struct net_device *dev,	u8 Operation)
 
 	if(priv->up)
 	{
-	#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 		queue_delayed_work(priv->priv_wq,&priv->initialgain_operate_wq,0);
-	#else
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-		schedule_task(&priv->initialgain_operate_wq);
-		#else
-		queue_work(priv->priv_wq,&priv->initialgain_operate_wq);
-		#endif
-	#endif
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,initialgain_operate_wq);
        struct net_device *dev = priv->ieee80211->dev;
-#else
-extern void InitialGainOperateWorkItemCallBack(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-#endif
 #define SCAN_RX_INITIAL_GAIN	0x17
 #define POWER_DETECTION_TH	0x08
 	u32	BitMask;

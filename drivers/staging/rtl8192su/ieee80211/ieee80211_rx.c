@@ -55,11 +55,7 @@ static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 
 	skb->dev = ieee->dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
         skb_reset_mac_header(skb);
-#else
-        skb->mac.raw = skb->data;
-#endif
 
 	skb_pull(skb, ieee80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
@@ -2823,10 +2819,5 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 	}
 }
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 EXPORT_SYMBOL(ieee80211_rx_mgt);
 EXPORT_SYMBOL(ieee80211_rx);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_rx_mgt);
-EXPORT_SYMBOL_NOVERS(ieee80211_rx);
-#endif

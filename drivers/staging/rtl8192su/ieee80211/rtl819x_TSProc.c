@@ -2,13 +2,6 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define list_for_each_entry_safe(pos, n, head, member) \
-	for (pos = list_entry((head)->next, typeof(*pos), member), \
-		n = list_entry(pos->member.next, typeof(*pos), member); \
-		&pos->member != (head); \
-		pos = n, n = list_entry(n->member.next, typeof(*n), member))
-#endif
 void TsSetupTimeOut(unsigned long data)
 {
 	// Not implement yet
@@ -660,8 +653,5 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);
 }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-EXPORT_SYMBOL_NOVERS(RemovePeerTS);
-#else
+
 EXPORT_SYMBOL(RemovePeerTS);
-#endif

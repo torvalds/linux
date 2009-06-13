@@ -218,7 +218,7 @@ int ToLegalChannel(
 
 	return default_chn;
 }
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
+
 EXPORT_SYMBOL(Dot11d_Init);
 EXPORT_SYMBOL(Dot11d_Reset);
 EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
@@ -226,14 +226,5 @@ EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
 EXPORT_SYMBOL(DOT11D_ScanComplete);
 EXPORT_SYMBOL(IsLegalChannel);
 EXPORT_SYMBOL(ToLegalChannel);
-#else
-EXPORT_SYMBOL_NOVERS(Dot11d_Init);
-EXPORT_SYMBOL_NOVERS(Dot11d_Reset);
-EXPORT_SYMBOL_NOVERS(Dot11d_UpdateCountryIe);
-EXPORT_SYMBOL_NOVERS(DOT11D_GetMaxTxPwrInDbm);
-EXPORT_SYMBOL_NOVERS(DOT11D_ScanComplete);
-EXPORT_SYMBOL_NOVERS(IsLegalChannel);
-EXPORT_SYMBOL_NOVERS(ToLegalChannel);
-#endif
 
 #endif
