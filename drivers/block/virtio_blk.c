@@ -288,7 +288,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	sg_init_table(vblk->sg, vblk->sg_elems);
 
 	/* We expect one virtqueue, for output. */
-	vblk->vq = vdev->config->find_vq(vdev, 0, blk_done, "requests");
+	vblk->vq = virtio_find_single_vq(vdev, blk_done, "requests");
 	if (IS_ERR(vblk->vq)) {
 		err = PTR_ERR(vblk->vq);
 		goto out_free_vblk;
@@ -388,7 +388,7 @@ out_put_disk:
 out_mempool:
 	mempool_destroy(vblk->pool);
 out_free_vq:
-	vdev->config->del_vq(vblk->vq);
+	vdev->config->del_vqs(vdev);
 out_free_vblk:
 	kfree(vblk);
 out:
@@ -409,7 +409,7 @@ static void virtblk_remove(struct virtio_device *vdev)
 	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
 	mempool_destroy(vblk->pool);
-	vdev->config->del_vq(vblk->vq);
+	vdev->config->del_vqs(vdev);
 	kfree(vblk);
 }
 

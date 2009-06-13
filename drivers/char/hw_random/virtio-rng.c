@@ -94,13 +94,13 @@ static int virtrng_probe(struct virtio_device *vdev)
 	int err;
 
 	/* We expect a single virtqueue. */
-	vq = vdev->config->find_vq(vdev, 0, random_recv_done, "input");
+	vq = virtio_find_single_vq(vdev, random_recv_done, "input");
 	if (IS_ERR(vq))
 		return PTR_ERR(vq);
 
 	err = hwrng_register(&virtio_hwrng);
 	if (err) {
-		vdev->config->del_vq(vq);
+		vdev->config->del_vqs(vdev);
 		return err;
 	}
 
@@ -112,7 +112,7 @@ static void virtrng_remove(struct virtio_device *vdev)
 {
 	vdev->config->reset(vdev);
 	hwrng_unregister(&virtio_hwrng);
-	vdev->config->del_vq(vq);
+	vdev->config->del_vqs(vdev);
 }
 
 static struct virtio_device_id id_table[] = {

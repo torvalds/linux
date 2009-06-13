@@ -313,6 +313,38 @@ static void lg_del_vq(struct virtqueue *vq)
 	kfree(lvq);
 }
 
+static void lg_del_vqs(struct virtio_device *vdev)
+{
+	struct virtqueue *vq, *n;
+
+	list_for_each_entry_safe(vq, n, &vdev->vqs, list)
+		lg_del_vq(vq);
+}
+
+static int lg_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+		       struct virtqueue *vqs[],
+		       vq_callback_t *callbacks[],
+		       const char *names[])
+{
+	struct lguest_device *ldev = to_lgdev(vdev);
+	int i;
+
+	/* We must have this many virtqueues. */
+	if (nvqs > ldev->desc->num_vq)
+		return -ENOENT;
+
+	for (i = 0; i < nvqs; ++i) {
+		vqs[i] = lg_find_vq(vdev, i, callbacks[i], names[i]);
+		if (IS_ERR(vqs[i]))
+			goto error;
+	}
+	return 0;
+
+error:
+	lg_del_vqs(vdev);
+	return PTR_ERR(vqs[i]);
+}
+
 /* The ops structure which hooks everything together. */
 static struct virtio_config_ops lguest_config_ops = {
 	.get_features = lg_get_features,
@@ -322,8 +354,8 @@ static struct virtio_config_ops lguest_config_ops = {
 	.get_status = lg_get_status,
 	.set_status = lg_set_status,
 	.reset = lg_reset,
-	.find_vq = lg_find_vq,
-	.del_vq = lg_del_vq,
+	.find_vqs = lg_find_vqs,
+	.del_vqs = lg_del_vqs,
 };
 
 /* The root device for the lguest virtio devices.  This makes them appear as

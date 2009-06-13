@@ -227,6 +227,38 @@ static void kvm_del_vq(struct virtqueue *vq)
 				       KVM_S390_VIRTIO_RING_ALIGN));
 }
 
+static void kvm_del_vqs(struct virtio_device *vdev)
+{
+	struct virtqueue *vq, *n;
+
+	list_for_each_entry_safe(vq, n, &vdev->vqs, list)
+		kvm_del_vq(vq);
+}
+
+static int kvm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+			struct virtqueue *vqs[],
+			vq_callback_t *callbacks[],
+			const char *names[])
+{
+	struct kvm_device *kdev = to_kvmdev(vdev);
+	int i;
+
+	/* We must have this many virtqueues. */
+	if (nvqs > kdev->desc->num_vq)
+		return -ENOENT;
+
+	for (i = 0; i < nvqs; ++i) {
+		vqs[i] = kvm_find_vq(vdev, i, callbacks[i], names[i]);
+		if (IS_ERR(vqs[i]))
+			goto error;
+	}
+	return 0;
+
+error:
+	kvm_del_vqs(vdev);
+	return PTR_ERR(vqs[i]);
+}
+
 /*
  * The config ops structure as defined by virtio config
  */
@@ -238,8 +270,8 @@ static struct virtio_config_ops kvm_vq_configspace_ops = {
 	.get_status = kvm_get_status,
 	.set_status = kvm_set_status,
 	.reset = kvm_reset,
-	.find_vq = kvm_find_vq,
-	.del_vq = kvm_del_vq,
+	.find_vqs = kvm_find_vqs,
+	.del_vqs = kvm_del_vqs,
 };
 
 /*
