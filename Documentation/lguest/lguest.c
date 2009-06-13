@@ -126,8 +126,12 @@ struct device
 	/* The linked-list pointer. */
 	struct device *next;
 
-	/* The this device's descriptor, as mapped into the Guest. */
+	/* The device's descriptor, as mapped into the Guest. */
 	struct lguest_device_desc *desc;
+
+	/* We can't trust desc values once Guest has booted: we use these. */
+	unsigned int feature_len;
+	unsigned int num_vq;
 
 	/* The name of this device, for --verbose. */
 	const char *name;
@@ -245,7 +249,7 @@ static void iov_consume(struct iovec iov[], unsigned num_iov, unsigned len)
 static u8 *get_feature_bits(struct device *dev)
 {
 	return (u8 *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig);
+		+ dev->num_vq * sizeof(struct lguest_vqconfig);
 }
 
 /*L:100 The Launcher code itself takes us out into userspace, that scary place
@@ -979,8 +983,8 @@ static void update_device_status(struct device *dev)
 		verbose("Resetting device %s\n", dev->name);
 
 		/* Clear any features they've acked. */
-		memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
-		       dev->desc->feature_len);
+		memset(get_feature_bits(dev) + dev->feature_len, 0,
+		       dev->feature_len);
 
 		/* Zero out the virtqueues. */
 		for (vq = dev->vq; vq; vq = vq->next) {
@@ -994,12 +998,12 @@ static void update_device_status(struct device *dev)
 		unsigned int i;
 
 		verbose("Device %s OK: offered", dev->name);
-		for (i = 0; i < dev->desc->feature_len; i++)
+		for (i = 0; i < dev->feature_len; i++)
 			verbose(" %02x", get_feature_bits(dev)[i]);
 		verbose(", accepted");
-		for (i = 0; i < dev->desc->feature_len; i++)
+		for (i = 0; i < dev->feature_len; i++)
 			verbose(" %02x", get_feature_bits(dev)
-				[dev->desc->feature_len+i]);
+				[dev->feature_len+i]);
 
 		if (dev->ready)
 			dev->ready(dev);
@@ -1129,8 +1133,8 @@ static void handle_input(int fd)
 static u8 *device_config(const struct device *dev)
 {
 	return (void *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig)
-		+ dev->desc->feature_len * 2;
+		+ dev->num_vq * sizeof(struct lguest_vqconfig)
+		+ dev->feature_len * 2;
 }
 
 /* This routine allocates a new "struct lguest_device_desc" from descriptor
@@ -1191,6 +1195,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	 * yet, otherwise we'd be overwriting them. */
 	assert(dev->desc->config_len == 0 && dev->desc->feature_len == 0);
 	memcpy(device_config(dev), &vq->config, sizeof(vq->config));
+	dev->num_vq++;
 	dev->desc->num_vq++;
 
 	verbose("Virtqueue page %#lx\n", to_guest_phys(p));
@@ -1219,7 +1224,7 @@ static void add_feature(struct device *dev, unsigned bit)
 	/* We can't extend the feature bits once we've added config bytes */
 	if (dev->desc->feature_len <= bit / CHAR_BIT) {
 		assert(dev->desc->config_len == 0);
-		dev->desc->feature_len = (bit / CHAR_BIT) + 1;
+		dev->feature_len = dev->desc->feature_len = (bit/CHAR_BIT) + 1;
 	}
 
 	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
@@ -1259,6 +1264,8 @@ static struct device *new_device(const char *name, u16 type, int fd,
 	dev->name = name;
 	dev->vq = NULL;
 	dev->ready = NULL;
+	dev->feature_len = 0;
+	dev->num_vq = 0;
 
 	/* Append to device list.  Prepending to a single-linked list is
 	 * easier, but the user expects the devices to be arranged on the bus
