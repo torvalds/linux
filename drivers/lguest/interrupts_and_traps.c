@@ -511,9 +511,9 @@ static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 
 	/* Remember the first interrupt is the timer interrupt. */
 	set_bit(0, cpu->irqs_pending);
-	/* If the Guest is actually stopped, we need to wake it up. */
-	if (cpu->halted)
-		wake_up_process(cpu->tsk);
+	/* Guest may be stopped or running on another CPU. */
+	if (!wake_up_process(cpu->tsk))
+		kick_process(cpu->tsk);
 	return HRTIMER_NORESTART;
 }
 

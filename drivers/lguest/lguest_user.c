@@ -24,8 +24,8 @@ static int break_guest_out(struct lg_cpu *cpu, const unsigned long __user*input)
 
 	if (on) {
 		cpu->break_out = 1;
-		/* Pop it out of the Guest (may be running on different CPU) */
-		wake_up_process(cpu->tsk);
+		if (!wake_up_process(cpu->tsk))
+			kick_process(cpu->tsk);
 		/* Wait for them to reset it */
 		return wait_event_interruptible(cpu->break_wq, !cpu->break_out);
 	} else {
