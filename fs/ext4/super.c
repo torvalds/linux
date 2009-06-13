@@ -1655,7 +1655,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	ext4_commit_super(sb, 1);
 	if (test_opt(sb, DEBUG))
 		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
-				"bpg=%lu, ipg=%lu, mo=%04lx]\n",
+				"bpg=%lu, ipg=%lu, mo=%04x]\n",
 			sb->s_blocksize,
 			sbi->s_groups_count,
 			EXT4_BLOCKS_PER_GROUP(sb),
