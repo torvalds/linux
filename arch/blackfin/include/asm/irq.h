@@ -45,9 +45,6 @@
 		: "d" (bfin_irq_flags) \
 	)
 
-static inline int irq_canonicalize(int irq)
-{
-	return irq;
-}
+#include <asm-generic/irq.h>
 
 #endif				/* _BFIN_IRQ_H_ */
