@@ -87,7 +87,7 @@ struct lguest_data lguest_data = {
 
 /*G:037 async_hcall() is pretty simple: I'm quite proud of it really.  We have a
  * ring buffer of stored hypercalls which the Host will run though next time we
- * do a normal hypercall.  Each entry in the ring has 4 slots for the hypercall
+ * do a normal hypercall.  Each entry in the ring has 5 slots for the hypercall
  * arguments, and a "hcall_status" word which is 0 if the call is ready to go,
  * and 255 once the Host has finished with it.
  *
@@ -96,7 +96,8 @@ struct lguest_data lguest_data = {
  * effect of causing the Host to run all the stored calls in the ring buffer
  * which empties it for next time! */
 static void async_hcall(unsigned long call, unsigned long arg1,
-			unsigned long arg2, unsigned long arg3)
+			unsigned long arg2, unsigned long arg3,
+			unsigned long arg4)
 {
 	/* Note: This code assumes we're uniprocessor. */
 	static unsigned int next_call;
@@ -108,12 +109,13 @@ static void async_hcall(unsigned long call, unsigned long arg1,
 	local_irq_save(flags);
 	if (lguest_data.hcall_status[next_call] != 0xFF) {
 		/* Table full, so do normal hcall which will flush table. */
-		kvm_hypercall3(call, arg1, arg2, arg3);
+		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
 	} else {
 		lguest_data.hcalls[next_call].arg0 = call;
 		lguest_data.hcalls[next_call].arg1 = arg1;
 		lguest_data.hcalls[next_call].arg2 = arg2;
 		lguest_data.hcalls[next_call].arg3 = arg3;
+		lguest_data.hcalls[next_call].arg4 = arg4;
 		/* Arguments must all be written before we mark it to go */
 		wmb();
 		lguest_data.hcall_status[next_call] = 0;
@@ -141,7 +143,7 @@ static void lazy_hcall1(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall1(call, arg1);
 	else
-		async_hcall(call, arg1, 0, 0);
+		async_hcall(call, arg1, 0, 0, 0);
 }
 
 static void lazy_hcall2(unsigned long call,
@@ -151,7 +153,7 @@ static void lazy_hcall2(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall2(call, arg1, arg2);
 	else
-		async_hcall(call, arg1, arg2, 0);
+		async_hcall(call, arg1, arg2, 0, 0);
 }
 
 static void lazy_hcall3(unsigned long call,
@@ -162,7 +164,19 @@ static void lazy_hcall3(unsigned long call,
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
 		kvm_hypercall3(call, arg1, arg2, arg3);
 	else
-		async_hcall(call, arg1, arg2, arg3);
+		async_hcall(call, arg1, arg2, arg3, 0);
+}
+
+static void lazy_hcall4(unsigned long call,
+		       unsigned long arg1,
+		       unsigned long arg2,
+		       unsigned long arg3,
+		       unsigned long arg4)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		kvm_hypercall4(call, arg1, arg2, arg3, arg4);
+	else
+		async_hcall(call, arg1, arg2, arg3, arg4);
 }
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then

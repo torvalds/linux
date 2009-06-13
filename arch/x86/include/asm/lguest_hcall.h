@@ -35,8 +35,8 @@
  *
  * We use the KVM hypercall mechanism. Eighteen hypercalls are
  * available: the hypercall number is put in the %eax register, and the
- * arguments (when required) are placed in %ebx, %ecx and %edx.  If a return
- * value makes sense, it's returned in %eax.
+ * arguments (when required) are placed in %ebx, %ecx, %edx and %esi.
+ * If a return value makes sense, it's returned in %eax.
  *
  * Grossly invalid calls result in Sudden Death at the hands of the vengeful
  * Host, rather than returning failure.  This reflects Winston Churchill's
@@ -48,8 +48,9 @@
 
 #define LHCALL_RING_SIZE 64
 struct hcall_args {
-	/* These map directly onto eax, ebx, ecx, edx in struct lguest_regs */
-	unsigned long arg0, arg1, arg2, arg3;
+	/* These map directly onto eax, ebx, ecx, edx and esi
+	 * in struct lguest_regs */
+	unsigned long arg0, arg1, arg2, arg3, arg4;
 };
 
 #endif /* !__ASSEMBLY__ */
