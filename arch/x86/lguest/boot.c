@@ -179,7 +179,7 @@ static void lguest_end_context_switch(struct task_struct *next)
 	paravirt_end_context_switch(next);
 }
 
-/*G:033
+/*G:032
  * After that diversion we return to our first native-instruction
  * replacements: four functions for interrupt control.
  *
@@ -199,41 +199,28 @@ static unsigned long save_fl(void)
 {
 	return lguest_data.irq_enabled;
 }
-PV_CALLEE_SAVE_REGS_THUNK(save_fl);
-
-/* restore_flags() just sets the flags back to the value given. */
-static void restore_fl(unsigned long flags)
-{
-	lguest_data.irq_enabled = flags;
-	mb();
-	/* Null hcall forces interrupt delivery now, if irq_pending is
-	 * set to X86_EFLAGS_IF (ie. an interrupt is pending, and flags
-	 * enables interrupts. */
-	if (flags & lguest_data.irq_pending)
-		kvm_hypercall0(LHCALL_SEND_INTERRUPTS);
-}
-PV_CALLEE_SAVE_REGS_THUNK(restore_fl);
 
 /* Interrupts go off... */
 static void irq_disable(void)
 {
 	lguest_data.irq_enabled = 0;
 }
+
+/* Let's pause a moment.  Remember how I said these are called so often?
+ * Jeremy Fitzhardinge optimized them so hard early in 2009 that he had to
+ * break some rules.  In particular, these functions are assumed to save their
+ * own registers if they need to: normal C functions assume they can trash the
+ * eax register.  To use normal C functions, we use
+ * PV_CALLEE_SAVE_REGS_THUNK(), which pushes %eax onto the stack, calls the
+ * C function, then restores it. */
+PV_CALLEE_SAVE_REGS_THUNK(save_fl);
 PV_CALLEE_SAVE_REGS_THUNK(irq_disable);
-
-/* Interrupts go on... */
-static void irq_enable(void)
-{
-	lguest_data.irq_enabled = X86_EFLAGS_IF;
-	mb();
-	/* Null hcall forces interrupt delivery now. */
-	if (lguest_data.irq_pending)
-		kvm_hypercall0(LHCALL_SEND_INTERRUPTS);
-
-}
-PV_CALLEE_SAVE_REGS_THUNK(irq_enable);
-
 /*:*/
+
+/* These are in i386_head.S */
+extern void lg_irq_enable(void);
+extern void lg_restore_fl(unsigned long flags);
+
 /*M:003 Note that we don't check for outstanding interrupts when we re-enable
  * them (or when we unmask an interrupt).  This seems to work for the moment,
  * since interrupts are rare and we'll just get the interrupt on the next timer
@@ -1041,9 +1028,9 @@ __init void lguest_init(void)
 	/* interrupt-related operations */
 	pv_irq_ops.init_IRQ = lguest_init_IRQ;
 	pv_irq_ops.save_fl = PV_CALLEE_SAVE(save_fl);
-	pv_irq_ops.restore_fl = PV_CALLEE_SAVE(restore_fl);
+	pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(lg_restore_fl);
 	pv_irq_ops.irq_disable = PV_CALLEE_SAVE(irq_disable);
-	pv_irq_ops.irq_enable = PV_CALLEE_SAVE(irq_enable);
+	pv_irq_ops.irq_enable = __PV_IS_CALLEE_SAVE(lg_irq_enable);
 	pv_irq_ops.safe_halt = lguest_safe_halt;
 
 	/* init-time operations */
