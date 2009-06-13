@@ -628,13 +628,12 @@ static void __init lguest_init_IRQ(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < LGUEST_IRQS; i++) {
-		int vector = FIRST_EXTERNAL_VECTOR + i;
+	for (i = FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
 		 * a straightforward 1 to 1 mapping, so force that here. */
-		__get_cpu_var(vector_irq)[vector] = i;
-		if (vector != SYSCALL_VECTOR)
-			set_intr_gate(vector, interrupt[i]);
+		__get_cpu_var(vector_irq)[i] = i - FIRST_EXTERNAL_VECTOR;
+		if (i != SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i - FIRST_EXTERNAL_VECTOR]);
 	}
 	/* This call is required to set up for 4k stacks, where we have
 	 * separate stacks for hard and soft interrupts. */
