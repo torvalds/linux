@@ -371,7 +371,8 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	list->user_token = list->hash.key << PAGE_SHIFT;
 	mutex_unlock(&dev->struct_mutex);
 
-	list->master = dev->primary->master;
+	if (!(map->flags & _DRM_DRIVER))
+		list->master = dev->primary->master;
 	*maplist = list;
 	return 0;
 	}
