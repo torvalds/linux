@@ -11,32 +11,6 @@
 #include <linux/file.h>
 #include "lg.h"
 
-/*L:055 When something happens, the Waker process needs a way to stop the
- * kernel running the Guest and return to the Launcher.  So the Waker writes
- * LHREQ_BREAK and the value "1" to /dev/lguest to do this.  Once the Launcher
- * has done whatever needs attention, it writes LHREQ_BREAK and "0" to release
- * the Waker. */
-static int break_guest_out(struct lg_cpu *cpu, const unsigned long __user*input)
-{
-	unsigned long on;
-
-	/* Fetch whether they're turning break on or off. */
-	if (get_user(on, input) != 0)
-		return -EFAULT;
-
-	if (on) {
-		cpu->break_out = 1;
-		if (!wake_up_process(cpu->tsk))
-			kick_process(cpu->tsk);
-		/* Wait for them to reset it */
-		return wait_event_interruptible(cpu->break_wq, !cpu->break_out);
-	} else {
-		cpu->break_out = 0;
-		wake_up(&cpu->break_wq);
-		return 0;
-	}
-}
-
 bool send_notify_to_eventfd(struct lg_cpu *cpu)
 {
 	unsigned int i;
@@ -202,9 +176,6 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	 * address. */
 	lguest_arch_setup_regs(cpu, start_ip);
 
-	/* Initialize the queue for the Waker to wait on */
-	init_waitqueue_head(&cpu->break_wq);
-
 	/* We keep a pointer to the Launcher task (ie. current task) for when
 	 * other Guests want to wake this one (eg. console input). */
 	cpu->tsk = current;
@@ -344,8 +315,6 @@ static ssize_t write(struct file *file, const char __user *in,
 		return initialize(file, input);
 	case LHREQ_IRQ:
 		return user_send_irq(cpu, input);
-	case LHREQ_BREAK:
-		return break_guest_out(cpu, input);
 	case LHREQ_EVENTFD:
 		return attach_eventfd(lg, input);
 	default:

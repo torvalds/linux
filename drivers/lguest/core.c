@@ -209,10 +209,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 
-		/* If Waker set break_out, return to Launcher. */
-		if (cpu->break_out)
-			return -EAGAIN;
-
 		/* Check if there are any interrupts which can be delivered now:
 		 * if so, this sets up the hander to be executed when we next
 		 * run the Guest. */
@@ -231,13 +227,12 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			break;
 
 		/* If the Guest asked to be stopped, we sleep.  The Guest's
-		 * clock timer or LHREQ_BREAK from the Waker will wake us. */
+		 * clock timer will wake us. */
 		if (cpu->halted) {
 			set_current_state(TASK_INTERRUPTIBLE);
-			/* Just before we sleep, make sure nothing snuck in
+			/* Just before we sleep, make sure no interrupt snuck in
 			 * which we should be doing. */
-			if (interrupt_pending(cpu, &more) < LGUEST_IRQS
-			    || cpu->break_out)
+			if (interrupt_pending(cpu, &more) < LGUEST_IRQS)
 				set_current_state(TASK_RUNNING);
 			else
 				schedule();

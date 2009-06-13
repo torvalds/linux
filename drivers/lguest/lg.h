@@ -71,9 +71,7 @@ struct lg_cpu {
 	/* Virtual clock device */
 	struct hrtimer hrt;
 
-	/* Do we need to stop what we're doing and return to userspace? */
-	int break_out;
-	wait_queue_head_t break_wq;
+	/* Did the Guest tell us to halt? */
 	int halted;
 
 	/* Pending virtual interrupts */
