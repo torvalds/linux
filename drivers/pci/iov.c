@@ -110,7 +110,7 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	}
 
 	if (reset)
-		pci_execute_reset_function(virtfn);
+		__pci_reset_function(virtfn);
 
 	pci_device_add(virtfn, virtfn->bus);
 	mutex_unlock(&iov->dev->sriov->lock);
@@ -164,7 +164,7 @@ static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 
 	if (reset) {
 		device_release_driver(&virtfn->dev);
-		pci_execute_reset_function(virtfn);
+		__pci_reset_function(virtfn);
 	}
 
 	sprintf(buf, "virtfn%u", id);

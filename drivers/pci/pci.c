@@ -2055,111 +2055,112 @@ int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
 EXPORT_SYMBOL(pci_set_dma_seg_boundary);
 #endif
 
-static int __pcie_flr(struct pci_dev *dev, int probe)
+static int pcie_flr(struct pci_dev *dev, int probe)
 {
-	u16 status;
+	int i;
+	int pos;
 	u32 cap;
-	int exppos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	u16 status;
 
-	if (!exppos)
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
 		return -ENOTTY;
-	pci_read_config_dword(dev, exppos + PCI_EXP_DEVCAP, &cap);
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP, &cap);
 	if (!(cap & PCI_EXP_DEVCAP_FLR))
 		return -ENOTTY;
 
 	if (probe)
 		return 0;
 
-	pci_block_user_cfg_access(dev);
-
 	/* Wait for Transaction Pending bit clean */
-	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-	if (!(status & PCI_EXP_DEVSTA_TRPND))
-		goto transaction_done;
+	for (i = 0; i < 4; i++) {
+		if (i)
+			msleep((1 << (i - 1)) * 100);
 
-	msleep(100);
-	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-	if (!(status & PCI_EXP_DEVSTA_TRPND))
-		goto transaction_done;
+		pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+		if (!(status & PCI_EXP_DEVSTA_TRPND))
+			goto clear;
+	}
 
-	dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
-			"sleeping for 1 second\n");
-	ssleep(1);
-	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-	if (status & PCI_EXP_DEVSTA_TRPND)
-		dev_info(&dev->dev, "Still busy after 1s; "
-				"proceeding with reset anyway\n");
+	dev_err(&dev->dev, "transaction is not cleared; "
+			"proceeding with reset anyway\n");
 
-transaction_done:
-	pci_write_config_word(dev, exppos + PCI_EXP_DEVCTL,
+clear:
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL,
 				PCI_EXP_DEVCTL_BCR_FLR);
-	mdelay(100);
+	msleep(100);
 
-	pci_unblock_user_cfg_access(dev);
 	return 0;
 }
 
-static int __pci_af_flr(struct pci_dev *dev, int probe)
+static int pci_af_flr(struct pci_dev *dev, int probe)
 {
-	int cappos = pci_find_capability(dev, PCI_CAP_ID_AF);
-	u8 status;
+	int i;
+	int pos;
 	u8 cap;
+	u8 status;
 
-	if (!cappos)
+	pos = pci_find_capability(dev, PCI_CAP_ID_AF);
+	if (!pos)
 		return -ENOTTY;
-	pci_read_config_byte(dev, cappos + PCI_AF_CAP, &cap);
+
+	pci_read_config_byte(dev, pos + PCI_AF_CAP, &cap);
 	if (!(cap & PCI_AF_CAP_TP) || !(cap & PCI_AF_CAP_FLR))
 		return -ENOTTY;
 
 	if (probe)
 		return 0;
 
-	pci_block_user_cfg_access(dev);
-
 	/* Wait for Transaction Pending bit clean */
-	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
-	if (!(status & PCI_AF_STATUS_TP))
-		goto transaction_done;
+	for (i = 0; i < 4; i++) {
+		if (i)
+			msleep((1 << (i - 1)) * 100);
 
+		pci_read_config_byte(dev, pos + PCI_AF_STATUS, &status);
+		if (!(status & PCI_AF_STATUS_TP))
+			goto clear;
+	}
+
+	dev_err(&dev->dev, "transaction is not cleared; "
+			"proceeding with reset anyway\n");
+
+clear:
+	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	msleep(100);
-	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
-	if (!(status & PCI_AF_STATUS_TP))
-		goto transaction_done;
 
-	dev_info(&dev->dev, "Busy after 100ms while trying to"
-			" reset; sleeping for 1 second\n");
-	ssleep(1);
-	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
-	if (status & PCI_AF_STATUS_TP)
-		dev_info(&dev->dev, "Still busy after 1s; "
-				"proceeding with reset anyway\n");
-
-transaction_done:
-	pci_write_config_byte(dev, cappos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
-	mdelay(100);
-
-	pci_unblock_user_cfg_access(dev);
 	return 0;
 }
 
-static int __pci_reset_function(struct pci_dev *pdev, int probe)
+static int pci_dev_reset(struct pci_dev *dev, int probe)
 {
-	int res;
+	int rc;
 
-	res = __pcie_flr(pdev, probe);
-	if (res != -ENOTTY)
-		return res;
+	might_sleep();
 
-	res = __pci_af_flr(pdev, probe);
-	if (res != -ENOTTY)
-		return res;
+	if (!probe) {
+		pci_block_user_cfg_access(dev);
+		/* block PM suspend, driver probe, etc. */
+		down(&dev->dev.sem);
+	}
 
-	return res;
+	rc = pcie_flr(dev, probe);
+	if (rc != -ENOTTY)
+		goto done;
+
+	rc = pci_af_flr(dev, probe);
+done:
+	if (!probe) {
+		up(&dev->dev.sem);
+		pci_unblock_user_cfg_access(dev);
+	}
+
+	return rc;
 }
 
 /**
- * pci_execute_reset_function() - Reset a PCI device function
- * @dev: Device function to reset
+ * __pci_reset_function - reset a PCI device function
+ * @dev: PCI device to reset
  *
  * Some devices allow an individual function to be reset without affecting
  * other functions in the same device.  The PCI device must be responsive
@@ -2171,18 +2172,18 @@ static int __pci_reset_function(struct pci_dev *pdev, int probe)
  * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
  * etc.
  *
- * Returns 0 if the device function was successfully reset or -ENOTTY if the
+ * Returns 0 if the device function was successfully reset or negative if the
  * device doesn't support resetting a single function.
  */
-int pci_execute_reset_function(struct pci_dev *dev)
+int __pci_reset_function(struct pci_dev *dev)
 {
-	return __pci_reset_function(dev, 0);
+	return pci_dev_reset(dev, 0);
 }
-EXPORT_SYMBOL_GPL(pci_execute_reset_function);
+EXPORT_SYMBOL_GPL(__pci_reset_function);
 
 /**
- * pci_reset_function() - quiesce and reset a PCI device function
- * @dev: Device function to reset
+ * pci_reset_function - quiesce and reset a PCI device function
+ * @dev: PCI device to reset
  *
  * Some devices allow an individual function to be reset without affecting
  * other functions in the same device.  The PCI device must be responsive
@@ -2190,32 +2191,33 @@ EXPORT_SYMBOL_GPL(pci_execute_reset_function);
  *
  * This function does not just reset the PCI portion of a device, but
  * clears all the state associated with the device.  This function differs
- * from pci_execute_reset_function in that it saves and restores device state
+ * from __pci_reset_function in that it saves and restores device state
  * over the reset.
  *
- * Returns 0 if the device function was successfully reset or -ENOTTY if the
+ * Returns 0 if the device function was successfully reset or negative if the
  * device doesn't support resetting a single function.
  */
 int pci_reset_function(struct pci_dev *dev)
 {
-	int r = __pci_reset_function(dev, 1);
+	int rc;
 
-	if (r < 0)
-		return r;
+	rc = pci_dev_reset(dev, 1);
+	if (rc)
+		return rc;
 
-	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
-		disable_irq(dev->irq);
 	pci_save_state(dev);
 
+	/*
+	 * both INTx and MSI are disabled after the Interrupt Disable bit
+	 * is set and the Bus Master bit is cleared.
+	 */
 	pci_write_config_word(dev, PCI_COMMAND, PCI_COMMAND_INTX_DISABLE);
 
-	r = pci_execute_reset_function(dev);
+	rc = pci_dev_reset(dev, 0);
 
 	pci_restore_state(dev);
-	if (!dev->msi_enabled && !dev->msix_enabled && dev->irq != 0)
-		enable_irq(dev->irq);
 
-	return r;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(pci_reset_function);
 
