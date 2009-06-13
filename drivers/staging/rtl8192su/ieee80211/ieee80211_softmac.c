@@ -2014,7 +2014,8 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 }
 void ieee80211_process_action(struct ieee80211_device* ieee, struct sk_buff* skb)
 {
-	struct ieee80211_hdr* header = (struct ieee80211_hdr*)skb->data;
+	struct rtl_ieee80211_hdr *header =
+		(struct rtl_ieee80211_hdr *)skb->data;
 	u8* act = ieee80211_get_payload(header);
 	u8 tmp = 0;
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
@@ -3036,7 +3037,7 @@ static int ieee80211_wpa_set_auth_algs(struct ieee80211_device *ieee, int value)
 		ieee->auth_mode = 0;
 	}
 	else if (value & AUTH_ALG_LEAP){
-		sec.auth_mode = WLAN_AUTH_LEAP;
+		sec.auth_mode = RTL_WLAN_AUTH_LEAP;
 		ieee->open_wep = 1;
 		ieee->auth_mode = 2;
 	}
