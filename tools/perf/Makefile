@@ -160,7 +160,7 @@ uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 # CFLAGS and LDFLAGS are for the users to override from the command line.
 
 CFLAGS = -ggdb3 -Wall -Werror -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes -std=gnu99 -Wdeclaration-after-statement -O6
-LDFLAGS = -lpthread -lrt -lelf
+LDFLAGS = -lpthread -lrt -lelf -lm
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
 STRIP ?= strip

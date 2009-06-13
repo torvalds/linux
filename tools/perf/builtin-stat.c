@@ -324,9 +324,9 @@ static void print_counter(int counter)
 }
 
 /*
- * Normalize noise values down to stddev:
+ * normalize_noise noise values down to stddev:
  */
-static void normalize(__u64 *val)
+static void normalize_noise(__u64 *val)
 {
 	double res;
 
@@ -335,6 +335,13 @@ static void normalize(__u64 *val)
 	*val = (__u64)res;
 }
 
+static void update_avg(const char *name, int idx, __u64 *avg, __u64 *val)
+{
+	*avg += *val;
+
+	if (verbose > 1)
+		fprintf(stderr, "debug: %20s[%d]: %Ld\n", name, idx, *val);
+}
 /*
  * Calculate the averages and noises:
  */
@@ -342,16 +349,23 @@ static void calc_avg(void)
 {
 	int i, j;
 
+	if (verbose > 1)
+		fprintf(stderr, "\n");
+
 	for (i = 0; i < run_count; i++) {
-		runtime_nsecs_avg += runtime_nsecs[i];
-		walltime_nsecs_avg += walltime_nsecs[i];
-		runtime_cycles_avg += runtime_cycles[i];
+		update_avg("runtime", 0, &runtime_nsecs_avg, runtime_nsecs + i);
+		update_avg("walltime", 0, &walltime_nsecs_avg, walltime_nsecs + i);
+		update_avg("runtime_cycles", 0, &runtime_cycles_avg, runtime_cycles + i);
 
 		for (j = 0; j < nr_counters; j++) {
-			event_res_avg[j][0] += event_res[i][j][0];
-			event_res_avg[j][1] += event_res[i][j][1];
-			event_res_avg[j][2] += event_res[i][j][2];
-			event_scaled_avg[j] += event_scaled[i][j];
+			update_avg("counter/0", j,
+				event_res_avg[j]+0, event_res[i][j]+0);
+			update_avg("counter/1", j,
+				event_res_avg[j]+1, event_res[i][j]+1);
+			update_avg("counter/2", j,
+				event_res_avg[j]+2, event_res[i][j]+2);
+			update_avg("scaled", j,
+				event_scaled_avg + j, event_scaled[i]+j);
 		}
 	}
 	runtime_nsecs_avg /= run_count;
@@ -382,14 +396,14 @@ static void calc_avg(void)
 		}
 	}
 
-	normalize(&runtime_nsecs_noise);
-	normalize(&walltime_nsecs_noise);
-	normalize(&runtime_cycles_noise);
+	normalize_noise(&runtime_nsecs_noise);
+	normalize_noise(&walltime_nsecs_noise);
+	normalize_noise(&runtime_cycles_noise);
 
 	for (j = 0; j < nr_counters; j++) {
-		normalize(&event_res_noise[j][0]);
-		normalize(&event_res_noise[j][1]);
-		normalize(&event_res_noise[j][2]);
+		normalize_noise(&event_res_noise[j][0]);
+		normalize_noise(&event_res_noise[j][1]);
+		normalize_noise(&event_res_noise[j][2]);
 	}
 }
 
@@ -398,8 +412,6 @@ static void print_stat(int argc, const char **argv)
 	int i, counter;
 
 	calc_avg();
-
-	run_idx = 0;
 
 	fflush(stdout);
 
