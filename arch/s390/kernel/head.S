@@ -1,7 +1,5 @@
 /*
- *  arch/s390/kernel/head.S
- *
- * Copyright (C) IBM Corp. 1999,2006
+ * Copyright IBM Corp. 1999,2009
  *
  *    Author(s): Hartmut Penner <hp@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -479,27 +477,58 @@ startup:basr	%r13,0			# get base
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	mvc	__LC_EXIT_TIMER(8),5f-.LPG0(%r13)
 #ifndef CONFIG_MARCH_G5
-	# check processor version against MARCH_{G5,Z900,Z990,Z9_109,Z10}
-	stidp	__LC_CPUID		# store cpuid
-	lhi	%r0,(3f-2f) / 2
-	la	%r1,2f-.LPG0(%r13)
-0:	clc	__LC_CPUID+4(2),0(%r1)
-	jne	3f
-	lpsw	1f-.LPG0(13)		# machine type not good enough, crash
+	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
+	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
+	stfl	__LC_STFL_FAC_LIST	# store facility list
+	tm	__LC_STFL_FAC_LIST,0x01	# stfle available ?
+	jz	0f
+	la	%r0,0
+	.insn	s,0xb2b00000,__LC_STFL_FAC_LIST	# store facility list extended
+0:	l	%r0,__LC_STFL_FAC_LIST
+	n	%r0,2f+8-.LPG0(%r13)
+	cl	%r0,2f+8-.LPG0(%r13)
+	jne	1f
+	l	%r0,__LC_STFL_FAC_LIST+4
+	n	%r0,2f+12-.LPG0(%r13)
+	cl	%r0,2f+12-.LPG0(%r13)
+	je	3f
+1:	l	%r15,.Lstack-.LPG0(%r13)
+	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
+	ahi	%r15,-96
+	la	%r2,.Lals_string-.LPG0(%r13)
+	l	%r3,.Lsclp_print-.LPG0(%r13)
+	basr	%r14,%r3
+	lpsw	2f-.LPG0(%r13)		# machine type not good enough, crash
+.Lals_string:
+	.asciz	"The Linux kernel requires more recent processor hardware"
+.Lsclp_print:
+	.long	_sclp_print_early
+.Lstack:
+	.long	init_thread_union
 	.align 16
-1:	.long	0x000a0000,0x00000000
-2:
+2:	.long	0x000a0000,0x8badcccc
+#if defined(CONFIG_64BIT)
 #if defined(CONFIG_MARCH_Z10)
-	.short 0x9672, 0x2064, 0x2066, 0x2084, 0x2086, 0x2094, 0x2096
+	.long 0xc100efe3, 0xf0680000
 #elif defined(CONFIG_MARCH_Z9_109)
-	.short 0x9672, 0x2064, 0x2066, 0x2084, 0x2086
+	.long 0xc100efc3, 0x00000000
 #elif defined(CONFIG_MARCH_Z990)
-	.short 0x9672, 0x2064, 0x2066
+	.long 0xc0002000, 0x00000000
 #elif defined(CONFIG_MARCH_Z900)
-	.short 0x9672
+	.long 0xc0000000, 0x00000000
 #endif
-3:	la	%r1,2(%r1)
-	brct	%r0,0b
+#else
+#if defined(CONFIG_MARCH_Z10)
+	.long 0x8100c880, 0x00000000
+#elif defined(CONFIG_MARCH_Z9_109)
+	.long 0x8100c880, 0x00000000
+#elif defined(CONFIG_MARCH_Z990)
+	.long 0x80002000, 0x00000000
+#elif defined(CONFIG_MARCH_Z900)
+	.long 0x80000000, 0x00000000
+#endif
+#endif
+3:
 #endif
 
 	l	%r13,4f-.LPG0(%r13)

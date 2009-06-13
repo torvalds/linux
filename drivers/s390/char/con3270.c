@@ -64,7 +64,7 @@ static struct con3270 *condev;
 #define CON_UPDATE_ERASE	1	/* Use EWRITEA instead of WRITE. */
 #define CON_UPDATE_LIST		2	/* Update lines in tty3270->update. */
 #define CON_UPDATE_STATUS	4	/* Update status line. */
-#define CON_UPDATE_ALL		7
+#define CON_UPDATE_ALL		8	/* Recreate screen. */
 
 static void con3270_update(struct con3270 *);
 
@@ -73,18 +73,10 @@ static void con3270_update(struct con3270 *);
  */
 static void con3270_set_timer(struct con3270 *cp, int expires)
 {
-	if (expires == 0) {
-		if (timer_pending(&cp->timer))
-			del_timer(&cp->timer);
-		return;
-	}
-	if (timer_pending(&cp->timer) &&
-	    mod_timer(&cp->timer, jiffies + expires))
-		return;
-	cp->timer.function = (void (*)(unsigned long)) con3270_update;
-	cp->timer.data = (unsigned long) cp;
-	cp->timer.expires = jiffies + expires;
-	add_timer(&cp->timer);
+	if (expires == 0)
+		del_timer(&cp->timer);
+	else
+		mod_timer(&cp->timer, jiffies + expires);
 }
 
 /*
@@ -225,6 +217,12 @@ con3270_update(struct con3270 *cp)
 
 	spin_lock_irqsave(&cp->view.lock, flags);
 	updated = 0;
+	if (cp->update_flags & CON_UPDATE_ALL) {
+		con3270_rebuild_update(cp);
+		con3270_update_status(cp);
+		cp->update_flags = CON_UPDATE_ERASE | CON_UPDATE_LIST |
+			CON_UPDATE_STATUS;
+	}
 	if (cp->update_flags & CON_UPDATE_ERASE) {
 		/* Use erase write alternate to initialize display. */
 		raw3270_request_set_cmd(wrq, TC_EWRITEA);
@@ -302,7 +300,6 @@ con3270_read_tasklet(struct raw3270_request *rrq)
 		deactivate = 1;
 		break;
 	case 0x6d:	/* clear: start from scratch. */
-		con3270_rebuild_update(cp);
 		cp->update_flags = CON_UPDATE_ALL;
 		con3270_set_timer(cp, 1);
 		break;
@@ -382,30 +379,21 @@ con3270_issue_read(struct con3270 *cp)
 static int
 con3270_activate(struct raw3270_view *view)
 {
-	unsigned long flags;
 	struct con3270 *cp;
 
 	cp = (struct con3270 *) view;
-	spin_lock_irqsave(&cp->view.lock, flags);
-	cp->nr_up = 0;
-	con3270_rebuild_update(cp);
-	con3270_update_status(cp);
 	cp->update_flags = CON_UPDATE_ALL;
 	con3270_set_timer(cp, 1);
-	spin_unlock_irqrestore(&cp->view.lock, flags);
 	return 0;
 }
 
 static void
 con3270_deactivate(struct raw3270_view *view)
 {
-	unsigned long flags;
 	struct con3270 *cp;
 
 	cp = (struct con3270 *) view;
-	spin_lock_irqsave(&cp->view.lock, flags);
 	del_timer(&cp->timer);
-	spin_unlock_irqrestore(&cp->view.lock, flags);
 }
 
 static int
@@ -504,6 +492,7 @@ con3270_write(struct console *co, const char *str, unsigned int count)
 			con3270_cline_end(cp);
 	}
 	/* Setup timer to output current console buffer after 1/10 second */
+	cp->nr_up = 0;
 	if (cp->view.dev && !timer_pending(&cp->timer))
 		con3270_set_timer(cp, HZ/10);
 	spin_unlock_irqrestore(&cp->view.lock,flags);
@@ -624,7 +613,8 @@ con3270_init(void)
 
 	INIT_LIST_HEAD(&condev->lines);
 	INIT_LIST_HEAD(&condev->update);
-	init_timer(&condev->timer);
+	setup_timer(&condev->timer, (void (*)(unsigned long)) con3270_update,
+		    (unsigned long) condev);
 	tasklet_init(&condev->readlet, 
 		     (void (*)(unsigned long)) con3270_read_tasklet,
 		     (unsigned long) condev->read);

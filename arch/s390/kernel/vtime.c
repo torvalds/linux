@@ -23,7 +23,7 @@
 #include <asm/s390_ext.h>
 #include <asm/timer.h>
 #include <asm/irq_regs.h>
-#include <asm/cpu.h>
+#include <asm/cputime.h>
 
 static ext_int_info_t ext_int_info_timer;
 
