@@ -15,15 +15,14 @@ struct netns_ct {
 	struct hlist_head	*expect_hash;
 	struct hlist_nulls_head	unconfirmed;
 	struct ip_conntrack_stat *stat;
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	struct nf_conntrack_ecache *ecache;
-#endif
+	int			sysctl_events;
 	int			sysctl_acct;
 	int			sysctl_checksum;
 	unsigned int		sysctl_log_invalid; /* Log invalid packets */
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_header;
 	struct ctl_table_header	*acct_sysctl_header;
+	struct ctl_table_header	*event_sysctl_header;
 #endif
 	int			hash_vmalloc;
 	int			expect_vmalloc;
