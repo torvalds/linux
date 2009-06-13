@@ -137,6 +137,8 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
  * in the kernel. */
 #define pgd_flags(x)	(pgd_val(x) & ~PAGE_MASK)
 #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
+#define pmd_flags(x)    (pmd_val(x) & ~PAGE_MASK)
+#define pmd_pfn(x)	(pmd_val(x) >> PAGE_SHIFT)
 
 /* interrupts_and_traps.c: */
 unsigned int interrupt_pending(struct lg_cpu *cpu, bool *more);
@@ -170,6 +172,9 @@ int init_guest_pagetable(struct lguest *lg);
 void free_guest_pagetable(struct lguest *lg);
 void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable);
 void guest_set_pgd(struct lguest *lg, unsigned long gpgdir, u32 i);
+#ifdef CONFIG_X86_PAE
+void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);
+#endif
 void guest_pagetable_clear_all(struct lg_cpu *cpu);
 void guest_pagetable_flush_user(struct lg_cpu *cpu);
 void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,

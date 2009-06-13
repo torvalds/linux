@@ -167,6 +167,7 @@ static void lazy_hcall3(unsigned long call,
 		async_hcall(call, arg1, arg2, arg3, 0);
 }
 
+#ifdef CONFIG_X86_PAE
 static void lazy_hcall4(unsigned long call,
 		       unsigned long arg1,
 		       unsigned long arg2,
@@ -178,6 +179,7 @@ static void lazy_hcall4(unsigned long call,
 	else
 		async_hcall(call, arg1, arg2, arg3, arg4);
 }
+#endif
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then
  * issue the do-nothing hypercall to flush any stored calls. */
@@ -380,8 +382,8 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
 		*cx &= 0x00002201;
-		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, TSC, FPU. */
-		*dx &= 0x07808111;
+		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, TSC, FPU, PAE. */
+		*dx &= 0x07808151;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
@@ -399,6 +401,11 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 		 * processor information there is, limit it to known fields. */
 		if (*ax > 0x80000008)
 			*ax = 0x80000008;
+		break;
+	case 0x80000001:
+		/* Here we should fix nx cap depending on host. */
+		/* For this version of PAE, we just clear NX bit. */
+		*dx &= ~(1 << 20);
 		break;
 	}
 }
@@ -533,7 +540,12 @@ static void lguest_write_cr4(unsigned long val)
 static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
 			       pte_t *ptep)
 {
+#ifdef CONFIG_X86_PAE
+	lazy_hcall4(LHCALL_SET_PTE, __pa(mm->pgd), addr,
+		    ptep->pte_low, ptep->pte_high);
+#else
 	lazy_hcall3(LHCALL_SET_PTE, __pa(mm->pgd), addr, ptep->pte_low);
+#endif
 }
 
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -543,15 +555,37 @@ static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	lguest_pte_update(mm, addr, ptep);
 }
 
-/* The Guest calls this to set a top-level entry.  Again, we set the entry then
- * tell the Host which top-level page we changed, and the index of the entry we
- * changed. */
+/* The Guest calls lguest_set_pud to set a top-level entry and lguest_set_pmd
+ * to set a middle-level entry when PAE is activated.
+ * Again, we set the entry then tell the Host which page we changed,
+ * and the index of the entry we changed. */
+#ifdef CONFIG_X86_PAE
+static void lguest_set_pud(pud_t *pudp, pud_t pudval)
+{
+	native_set_pud(pudp, pudval);
+
+	/* 32 bytes aligned pdpt address and the index. */
+	lazy_hcall2(LHCALL_SET_PGD, __pa(pudp) & 0xFFFFFFE0,
+		   (__pa(pudp) & 0x1F) / sizeof(pud_t));
+}
+
+static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	native_set_pmd(pmdp, pmdval);
+	lazy_hcall2(LHCALL_SET_PMD, __pa(pmdp) & PAGE_MASK,
+		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
+}
+#else
+
+/* The Guest calls lguest_set_pmd to set a top-level entry when PAE is not
+ * activated. */
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	native_set_pmd(pmdp, pmdval);
 	lazy_hcall2(LHCALL_SET_PGD, __pa(pmdp) & PAGE_MASK,
 		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
 }
+#endif
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
  * don't know the top level any more.  This is useless for us, since we don't
@@ -568,6 +602,26 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 	if (cr3_changed)
 		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }
+
+#ifdef CONFIG_X86_PAE
+static void lguest_set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	native_set_pte_atomic(ptep, pte);
+	if (cr3_changed)
+		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
+}
+
+void lguest_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	native_pte_clear(mm, addr, ptep);
+	lguest_pte_update(mm, addr, ptep);
+}
+
+void lguest_pmd_clear(pmd_t *pmdp)
+{
+	lguest_set_pmd(pmdp, __pmd(0));
+}
+#endif
 
 /* Unfortunately for Lguest, the pv_mmu_ops for page tables were based on
  * native page table operations.  On native hardware you can set a new page
@@ -1035,6 +1089,7 @@ __init void lguest_init(void)
 	pv_info.name = "lguest";
 	pv_info.paravirt_enabled = 1;
 	pv_info.kernel_rpl = 1;
+	pv_info.shared_kernel_pmd = 1;
 
 	/* We set up all the lguest overrides for sensitive operations.  These
 	 * are detailed with the operations themselves. */
@@ -1080,6 +1135,12 @@ __init void lguest_init(void)
 	pv_mmu_ops.set_pte = lguest_set_pte;
 	pv_mmu_ops.set_pte_at = lguest_set_pte_at;
 	pv_mmu_ops.set_pmd = lguest_set_pmd;
+#ifdef CONFIG_X86_PAE
+	pv_mmu_ops.set_pte_atomic = lguest_set_pte_atomic;
+	pv_mmu_ops.pte_clear = lguest_pte_clear;
+	pv_mmu_ops.pmd_clear = lguest_pmd_clear;
+	pv_mmu_ops.set_pud = lguest_set_pud;
+#endif
 	pv_mmu_ops.read_cr2 = lguest_read_cr2;
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
 	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;

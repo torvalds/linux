@@ -12,6 +12,7 @@
 #define LHCALL_TS		8
 #define LHCALL_SET_CLOCKEVENT	9
 #define LHCALL_HALT		10
+#define LHCALL_SET_PMD		13
 #define LHCALL_SET_PTE		14
 #define LHCALL_SET_PGD		15
 #define LHCALL_LOAD_TLS		16
@@ -33,7 +34,7 @@
  * operations?  There are two ways: the direct way is to make a "hypercall",
  * to make requests of the Host Itself.
  *
- * We use the KVM hypercall mechanism. Eighteen hypercalls are
+ * We use the KVM hypercall mechanism. Seventeen hypercalls are
  * available: the hypercall number is put in the %eax register, and the
  * arguments (when required) are placed in %ebx, %ecx, %edx and %esi.
  * If a return value makes sense, it's returned in %eax.
