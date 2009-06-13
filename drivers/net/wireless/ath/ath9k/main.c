@@ -1197,8 +1197,6 @@ void ath_radio_disable(struct ath_softc *sc)
 	ath9k_ps_restore(sc);
 }
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-
 /*******************/
 /*	Rfkill	   */
 /*******************/
@@ -1211,81 +1209,27 @@ static bool ath_is_rfkill_set(struct ath_softc *sc)
 				  ah->rfkill_polarity;
 }
 
-/* s/w rfkill handlers */
-static int ath_rfkill_set_block(void *data, bool blocked)
+static void ath9k_rfkill_poll_state(struct ieee80211_hw *hw)
 {
-	struct ath_softc *sc = data;
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	bool blocked = !!ath_is_rfkill_set(sc);
+
+	wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
 
 	if (blocked)
 		ath_radio_disable(sc);
 	else
 		ath_radio_enable(sc);
-
-	return 0;
 }
 
-static void ath_rfkill_poll_state(struct rfkill *rfkill, void *data)
+static void ath_start_rfkill_poll(struct ath_softc *sc)
 {
-	struct ath_softc *sc = data;
-	bool blocked = !!ath_is_rfkill_set(sc);
+	struct ath_hw *ah = sc->sc_ah;
 
-	if (rfkill_set_hw_state(rfkill, blocked))
-		ath_radio_disable(sc);
-	else
-		ath_radio_enable(sc);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		wiphy_rfkill_start_polling(sc->hw->wiphy);
 }
-
-/* Init s/w rfkill */
-static int ath_init_sw_rfkill(struct ath_softc *sc)
-{
-	sc->rf_kill.ops.set_block = ath_rfkill_set_block;
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		sc->rf_kill.ops.poll = ath_rfkill_poll_state;
-
-	snprintf(sc->rf_kill.rfkill_name, sizeof(sc->rf_kill.rfkill_name),
-		"ath9k-%s::rfkill", wiphy_name(sc->hw->wiphy));
-
-	sc->rf_kill.rfkill = rfkill_alloc(sc->rf_kill.rfkill_name,
-					  wiphy_dev(sc->hw->wiphy),
-					  RFKILL_TYPE_WLAN,
-					  &sc->rf_kill.ops, sc);
-	if (!sc->rf_kill.rfkill) {
-		DPRINTF(sc, ATH_DBG_FATAL, "Failed to allocate rfkill\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
-/* Deinitialize rfkill */
-static void ath_deinit_rfkill(struct ath_softc *sc)
-{
-	if (sc->sc_flags & SC_OP_RFKILL_REGISTERED) {
-		rfkill_unregister(sc->rf_kill.rfkill);
-		rfkill_destroy(sc->rf_kill.rfkill);
-		sc->sc_flags &= ~SC_OP_RFKILL_REGISTERED;
-	}
-}
-
-static int ath_start_rfkill_poll(struct ath_softc *sc)
-{
-	if (!(sc->sc_flags & SC_OP_RFKILL_REGISTERED)) {
-		if (rfkill_register(sc->rf_kill.rfkill)) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"Unable to register rfkill\n");
-			rfkill_destroy(sc->rf_kill.rfkill);
-
-			/* Deinitialize the device */
-			ath_cleanup(sc);
-			return -EIO;
-		} else {
-			sc->sc_flags |= SC_OP_RFKILL_REGISTERED;
-		}
-	}
-
-	return 0;
-}
-#endif /* CONFIG_RFKILL */
 
 void ath_cleanup(struct ath_softc *sc)
 {
@@ -1305,9 +1249,6 @@ void ath_detach(struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	ath_deinit_rfkill(sc);
-#endif
 	ath_deinit_leds(sc);
 	cancel_work_sync(&sc->chan_work);
 	cancel_delayed_work_sync(&sc->wiphy_work);
@@ -1645,13 +1586,6 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	if (error != 0)
 		goto error_attach;
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	/* Initialize s/w rfkill */
-	error = ath_init_sw_rfkill(sc);
-	if (error)
-		goto error_attach;
-#endif
-
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
@@ -1667,6 +1601,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	/* Initialize LED control */
 	ath_init_leds(sc);
 
+	ath_start_rfkill_poll(sc);
 
 	return 0;
 
@@ -2035,10 +1970,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ieee80211_wake_queues(hw);
 
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	r = ath_start_rfkill_poll(sc);
-#endif
-
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
 
@@ -2176,7 +2107,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	} else
 		sc->rx.rxlink = NULL;
 
-	rfkill_pause_polling(sc->rf_kill.rfkill);
+	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
@@ -2782,6 +2713,7 @@ struct ieee80211_ops ath9k_ops = {
 	.ampdu_action       = ath9k_ampdu_action,
 	.sw_scan_start      = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
+	.rfkill_poll        = ath9k_rfkill_poll_state,
 };
 
 static struct {
