@@ -36,9 +36,13 @@ typedef int (*param_set_fn)(const char *val, struct kernel_param *kp);
 /* Returns length written or -errno.  Buffer is 4k (ie. be short!) */
 typedef int (*param_get_fn)(char *buffer, struct kernel_param *kp);
 
+/* Flag bits for kernel_param.flags */
+#define KPARAM_KMALLOCED	1
+
 struct kernel_param {
 	const char *name;
-	unsigned int perm;
+	u16 perm;
+	u16 flags;
 	param_set_fn set;
 	param_get_fn get;
 	union {
@@ -88,7 +92,7 @@ struct kparam_array
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
-	= { __param_str_##name, perm, set, get, { arg } }
+	= { __param_str_##name, perm, 0, set, get, { arg } }
 
 #define module_param_call(name, set, get, arg, perm)			      \
 	__module_param_call(MODULE_PARAM_PREFIX, name, set, get, arg, perm)
