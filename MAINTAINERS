@@ -645,6 +645,8 @@ M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
 S:	Maintained
+T:	topgit git://git.openezx.org/openezx.git
+F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
 P:	Paulius Zaleckas
