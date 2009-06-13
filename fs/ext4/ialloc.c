@@ -799,7 +799,7 @@ err_ret:
  * group to find a free inode.
  */
 struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
-			     const struct qstr *qstr)
+			     const struct qstr *qstr, __u32 goal)
 {
 	struct super_block *sb;
 	struct buffer_head *inode_bitmap_bh = NULL;
@@ -830,6 +830,16 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
 	ei = EXT4_I(inode);
 	sbi = EXT4_SB(sb);
 
+	if (!goal)
+		goal = sbi->s_inode_goal;
+
+	if (goal && goal < le32_to_cpu(sbi->s_es->s_inodes_count)) {
+		group = (goal - 1) / EXT4_INODES_PER_GROUP(sb);
+		ino = (goal - 1) % EXT4_INODES_PER_GROUP(sb);
+		ret2 = 0;
+		goto got_group;
+	}
+
 	if (sbi->s_log_groups_per_flex && test_opt(sb, OLDALLOC)) {
 		ret2 = find_group_flex(sb, dir, &group);
 		if (ret2 == -1) {
@@ -858,7 +868,7 @@ got_group:
 	if (ret2 == -1)
 		goto out;
 
-	for (i = 0; i < ngroups; i++) {
+	for (i = 0; i < ngroups; i++, ino = 0) {
 		err = -EIO;
 
 		gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
@@ -869,8 +879,6 @@ got_group:
 		inode_bitmap_bh = ext4_read_inode_bitmap(sb, group);
 		if (!inode_bitmap_bh)
 			goto fail;
-
-		ino = 0;
 
 repeat_in_this_group:
 		ino = ext4_find_next_zero_bit((unsigned long *)
