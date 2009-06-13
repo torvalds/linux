@@ -118,13 +118,14 @@ static int virtio_dev_probe(struct device *_d)
 		if (device_features & (1 << i))
 			set_bit(i, dev->features);
 
+	dev->config->finalize_features(dev);
+
 	err = drv->probe(dev);
 	if (err)
 		add_status(dev, VIRTIO_CONFIG_S_FAILED);
-	else {
-		dev->config->finalize_features(dev);
+	else
 		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
-	}
+
 	return err;
 }
 
