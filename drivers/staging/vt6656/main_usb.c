@@ -837,6 +837,17 @@ static int vntwusb_resume(struct usb_interface *intf)
 }
 #endif
 
+
+static const struct net_device_ops device_netdev_ops = {
+    .ndo_open               = device_open,
+    .ndo_stop               = device_close,
+    .ndo_do_ioctl           = device_ioctl,
+    .ndo_get_stats          = device_get_stats,
+    .ndo_start_xmit         = device_xmit,
+    .ndo_set_multicast_list = device_set_multi,
+};
+
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 
 static int
@@ -896,12 +907,8 @@ vntwusb_found1(struct usb_device *udev, UINT interface, const struct usb_device_
     pDevice->tx_80211 = device_dma0_tx_80211;
     pDevice->sMgmtObj.pAdapter = (PVOID)pDevice;
 
-    netdev->open               = device_open;
-    netdev->hard_start_xmit    = device_xmit;
-    netdev->stop               = device_close;
-    netdev->get_stats          = device_get_stats;
-    netdev->set_multicast_list = device_set_multi;
-    netdev->do_ioctl           = device_ioctl;
+    netdev->netdev_ops         = &device_netdev_ops;
+
 #ifdef WIRELESS_EXT
 
 //2007-0508-01<Add>by MikeLiu
