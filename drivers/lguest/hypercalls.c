@@ -37,6 +37,10 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		/* This call does nothing, except by breaking out of the Guest
 		 * it makes us process all the asynchronous hypercalls. */
 		break;
+	case LHCALL_SEND_INTERRUPTS:
+		/* This call does nothing too, but by breaking out of the Guest
+		 * it makes us process any pending interrupts. */
+		break;
 	case LHCALL_LGUEST_INIT:
 		/* You can't get here unless you're already initialized.  Don't
 		 * do that. */

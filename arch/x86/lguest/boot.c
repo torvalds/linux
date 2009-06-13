@@ -205,6 +205,12 @@ PV_CALLEE_SAVE_REGS_THUNK(save_fl);
 static void restore_fl(unsigned long flags)
 {
 	lguest_data.irq_enabled = flags;
+	mb();
+	/* Null hcall forces interrupt delivery now, if irq_pending is
+	 * set to X86_EFLAGS_IF (ie. an interrupt is pending, and flags
+	 * enables interrupts. */
+	if (flags & lguest_data.irq_pending)
+		kvm_hypercall0(LHCALL_SEND_INTERRUPTS);
 }
 PV_CALLEE_SAVE_REGS_THUNK(restore_fl);
 
@@ -219,6 +225,11 @@ PV_CALLEE_SAVE_REGS_THUNK(irq_disable);
 static void irq_enable(void)
 {
 	lguest_data.irq_enabled = X86_EFLAGS_IF;
+	mb();
+	/* Null hcall forces interrupt delivery now. */
+	if (lguest_data.irq_pending)
+		kvm_hypercall0(LHCALL_SEND_INTERRUPTS);
+
 }
 PV_CALLEE_SAVE_REGS_THUNK(irq_enable);
 
@@ -972,10 +983,10 @@ static void lguest_restart(char *reason)
  *
  * Our current solution is to allow the paravirt back end to optionally patch
  * over the indirect calls to replace them with something more efficient.  We
- * patch the four most commonly called functions: disable interrupts, enable
- * interrupts, restore interrupts and save interrupts.  We usually have 6 or 10
- * bytes to patch into: the Guest versions of these operations are small enough
- * that we can fit comfortably.
+ * patch two of the simplest of the most commonly called functions: disable
+ * interrupts and save interrupts.  We usually have 6 or 10 bytes to patch
+ * into: the Guest versions of these operations are small enough that we can
+ * fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
  * and these are in i386_head.S. */
@@ -986,8 +997,6 @@ static const struct lguest_insns
 	const char *start, *end;
 } lguest_insns[] = {
 	[PARAVIRT_PATCH(pv_irq_ops.irq_disable)] = { lgstart_cli, lgend_cli },
-	[PARAVIRT_PATCH(pv_irq_ops.irq_enable)] = { lgstart_sti, lgend_sti },
-	[PARAVIRT_PATCH(pv_irq_ops.restore_fl)] = { lgstart_popf, lgend_popf },
 	[PARAVIRT_PATCH(pv_irq_ops.save_fl)] = { lgstart_pushf, lgend_pushf },
 };
 

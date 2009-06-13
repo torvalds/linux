@@ -131,7 +131,7 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi,
  * interrupt_pending() returns the first pending interrupt which isn't blocked
  * by the Guest.  It is called before every entry to the Guest, and just before
  * we go to sleep when the Guest has halted itself. */
-unsigned int interrupt_pending(struct lg_cpu *cpu)
+unsigned int interrupt_pending(struct lg_cpu *cpu, bool *more)
 {
 	unsigned int irq;
 	DECLARE_BITMAP(blk, LGUEST_IRQS);
@@ -149,13 +149,14 @@ unsigned int interrupt_pending(struct lg_cpu *cpu)
 
 	/* Find the first interrupt. */
 	irq = find_first_bit(blk, LGUEST_IRQS);
+	*more = find_next_bit(blk, LGUEST_IRQS, irq+1);
 
 	return irq;
 }
 
 /* This actually diverts the Guest to running an interrupt handler, once an
  * interrupt has been identified by interrupt_pending(). */
-void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq)
+void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq, bool more)
 {
 	struct desc_struct *idt;
 
@@ -178,8 +179,12 @@ void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq)
 		u32 irq_enabled;
 		if (get_user(irq_enabled, &cpu->lg->lguest_data->irq_enabled))
 			irq_enabled = 0;
-		if (!irq_enabled)
+		if (!irq_enabled) {
+			/* Make sure they know an IRQ is pending. */
+			put_user(X86_EFLAGS_IF,
+				 &cpu->lg->lguest_data->irq_pending);
 			return;
+		}
 	}
 
 	/* Look at the IDT entry the Guest gave us for this interrupt.  The
@@ -202,6 +207,11 @@ void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq)
 	 * here is a compromise which means at least it gets updated every
 	 * timer interrupt. */
 	write_timestamp(cpu);
+
+	/* If there are no other interrupts we want to deliver, clear
+	 * the pending flag. */
+	if (!more)
+		put_user(0, &cpu->lg->lguest_data->irq_pending);
 }
 /*:*/
 

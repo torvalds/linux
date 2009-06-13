@@ -46,8 +46,6 @@ ENTRY(lguest_entry)
 	.globl lgstart_##name; .globl lgend_##name
 
 LGUEST_PATCH(cli, movl $0, lguest_data+LGUEST_DATA_irq_enabled)
-LGUEST_PATCH(sti, movl $X86_EFLAGS_IF, lguest_data+LGUEST_DATA_irq_enabled)
-LGUEST_PATCH(popf, movl %eax, lguest_data+LGUEST_DATA_irq_enabled)
 LGUEST_PATCH(pushf, movl lguest_data+LGUEST_DATA_irq_enabled, %eax)
 /*:*/
 

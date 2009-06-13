@@ -139,8 +139,8 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
 #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
 
 /* interrupts_and_traps.c: */
-unsigned int interrupt_pending(struct lg_cpu *cpu);
-void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq);
+unsigned int interrupt_pending(struct lg_cpu *cpu, bool *more);
+void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq, bool more);
 bool deliver_trap(struct lg_cpu *cpu, unsigned int num);
 void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int i,
 			  u32 low, u32 hi);

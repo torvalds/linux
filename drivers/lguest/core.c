@@ -189,6 +189,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 	/* We stop running once the Guest is dead. */
 	while (!cpu->lg->dead) {
 		unsigned int irq;
+		bool more;
 
 		/* First we run any hypercalls the Guest wants done. */
 		if (cpu->hcall)
@@ -213,9 +214,9 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		/* Check if there are any interrupts which can be delivered now:
 		 * if so, this sets up the hander to be executed when we next
 		 * run the Guest. */
-		irq = interrupt_pending(cpu);
+		irq = interrupt_pending(cpu, &more);
 		if (irq < LGUEST_IRQS)
-			try_deliver_interrupt(cpu, irq);
+			try_deliver_interrupt(cpu, irq, more);
 
 		/* All long-lived kernel loops need to check with this horrible
 		 * thing called the freezer.  If the Host is trying to suspend,
@@ -233,7 +234,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			set_current_state(TASK_INTERRUPTIBLE);
 			/* Just before we sleep, make sure nothing snuck in
 			 * which we should be doing. */
-			if (interrupt_pending(cpu) < LGUEST_IRQS
+			if (interrupt_pending(cpu, &more) < LGUEST_IRQS
 			    || cpu->break_out)
 				set_current_state(TASK_RUNNING);
 			else
