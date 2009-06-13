@@ -834,6 +834,12 @@ struct ext4_super_block {
 };
 
 #ifdef __KERNEL__
+
+/*
+ * Mount flags
+ */
+#define EXT4_MF_MNTDIR_SAMPLED	0x0001
+
 /*
  * fourth extended-fs super-block data in memory
  */
@@ -853,6 +859,7 @@ struct ext4_sb_info {
 	struct ext4_super_block *s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head **s_group_desc;
 	unsigned int s_mount_opt;
+	unsigned int s_mount_flags;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
 	gid_t s_resgid;
