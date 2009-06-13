@@ -63,8 +63,8 @@ static char *hw_event_names[] = {
 };
 
 static char *sw_event_names[] = {
-	"cpu-clock-ticks",
-	"task-clock-ticks",
+	"cpu-clock-msecs",
+	"task-clock-msecs",
 	"page-faults",
 	"context-switches",
 	"CPU-migrations",

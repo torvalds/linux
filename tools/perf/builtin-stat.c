@@ -184,6 +184,40 @@ static void read_counter(int counter)
 		runtime_cycles = count[0];
 }
 
+static void nsec_printout(int counter, __u64 *count)
+{
+	double msecs = (double)count[0] / 1000000;
+
+	fprintf(stderr, " %14.6f  %-20s", msecs, event_name(counter));
+
+	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
+		attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK) {
+
+		if (walltime_nsecs)
+			fprintf(stderr, " # %10.3f CPUs",
+				(double)count[0] / (double)walltime_nsecs);
+	}
+}
+
+static void abs_printout(int counter, __u64 *count)
+{
+	fprintf(stderr, " %14Ld  %-20s", count[0], event_name(counter));
+
+	if (runtime_cycles &&
+		attrs[counter].type == PERF_TYPE_HARDWARE &&
+			attrs[counter].config == PERF_COUNT_HW_INSTRUCTIONS) {
+
+		fprintf(stderr, " # %10.3f IPC",
+			(double)count[0] / (double)runtime_cycles);
+
+		return;
+	}
+
+	if (runtime_nsecs)
+		fprintf(stderr, " # %10.3f M/sec",
+			(double)count[0]/runtime_nsecs*1000.0);
+}
+
 /*
  * Print out the results of a single counter:
  */
@@ -201,35 +235,15 @@ static void print_counter(int counter)
 		return;
 	}
 
-	if (nsec_counter(counter)) {
-		double msecs = (double)count[0] / 1000000;
+	if (nsec_counter(counter))
+		nsec_printout(counter, count);
+	else
+		abs_printout(counter, count);
 
-		fprintf(stderr, " %14.6f  %-20s",
-			msecs, event_name(counter));
-		if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
-			attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK) {
-
-			if (walltime_nsecs)
-				fprintf(stderr, " # %11.3f CPU utilization factor",
-					(double)count[0] / (double)walltime_nsecs);
-		}
-	} else {
-		fprintf(stderr, " %14Ld  %-20s",
-			count[0], event_name(counter));
-		if (runtime_nsecs)
-			fprintf(stderr, " # %11.3f M/sec",
-				(double)count[0]/runtime_nsecs*1000.0);
-		if (runtime_cycles &&
-			attrs[counter].type == PERF_TYPE_HARDWARE &&
-				attrs[counter].config == PERF_COUNT_HW_INSTRUCTIONS) {
-
-			fprintf(stderr, " # %1.3f per cycle",
-				(double)count[0] / (double)runtime_cycles);
-		}
-	}
 	if (scaled)
 		fprintf(stderr, "  (scaled from %.2f%%)",
 			(double) count[2] / count[1] * 100);
+
 	fprintf(stderr, "\n");
 }
 
@@ -290,8 +304,7 @@ static int do_perf_stat(int argc, const char **argv)
 
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " Wall-clock time elapsed: %12.6f msecs\n",
-			(double)(t1-t0)/1e6);
+	fprintf(stderr, " %14.9f  seconds time elapsed.\n", (double)(t1-t0)/1e9);
 	fprintf(stderr, "\n");
 
 	return 0;
