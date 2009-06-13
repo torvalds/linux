@@ -119,7 +119,8 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      struct virtio_device *vdev,
 				      void *pages,
 				      void (*notify)(struct virtqueue *vq),
-				      void (*callback)(struct virtqueue *vq));
+				      void (*callback)(struct virtqueue *vq),
+				      const char *name);
 void vring_del_virtqueue(struct virtqueue *vq);
 /* Filter out transport-specific feature bits. */
 void vring_transport_features(struct virtio_device *vdev);

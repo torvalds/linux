@@ -173,8 +173,9 @@ static void kvm_notify(struct virtqueue *vq)
  * this device and sets it up.
  */
 static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
-				    unsigned index,
-				    void (*callback)(struct virtqueue *vq))
+				     unsigned index,
+				     void (*callback)(struct virtqueue *vq),
+				     const char *name)
 {
 	struct kvm_device *kdev = to_kvmdev(vdev);
 	struct kvm_vqconfig *config;
@@ -194,7 +195,7 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 
 	vq = vring_new_virtqueue(config->num, KVM_S390_VIRTIO_RING_ALIGN,
 				 vdev, (void *) config->address,
-				 kvm_notify, callback);
+				 kvm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;

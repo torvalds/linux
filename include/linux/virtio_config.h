@@ -55,7 +55,8 @@
  * @find_vq: find a virtqueue and instantiate it.
  *	vdev: the virtio_device
  *	index: the 0-based virtqueue number in case there's more than one.
- *	callback: the virqtueue callback
+ *	callback: the virtqueue callback
+ *	name: the virtqueue name (mainly for debugging)
  *	Returns the new virtqueue or ERR_PTR() (eg. -ENOENT).
  * @del_vq: free a virtqueue found by find_vq().
  * @get_features: get the array of feature bits for this device.
@@ -77,7 +78,8 @@ struct virtio_config_ops
 	void (*reset)(struct virtio_device *vdev);
 	struct virtqueue *(*find_vq)(struct virtio_device *vdev,
 				     unsigned index,
-				     void (*callback)(struct virtqueue *));
+				     void (*callback)(struct virtqueue *),
+				     const char *name);
 	void (*del_vq)(struct virtqueue *vq);
 	u32 (*get_features)(struct virtio_device *vdev);
 	void (*finalize_features)(struct virtio_device *vdev);

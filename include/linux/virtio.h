@@ -10,14 +10,17 @@
 
 /**
  * virtqueue - a queue to register buffers for sending or receiving.
+ * @list: the chain of virtqueues for this device
  * @callback: the function to call when buffers are consumed (can be NULL).
+ * @name: the name of this virtqueue (mainly for debugging)
  * @vdev: the virtio device this queue was created for.
  * @vq_ops: the operations for this virtqueue (see below).
  * @priv: a pointer for the virtqueue implementation to use.
  */
-struct virtqueue
-{
+struct virtqueue {
+	struct list_head list;
 	void (*callback)(struct virtqueue *vq);
+	const char *name;
 	struct virtio_device *vdev;
 	struct virtqueue_ops *vq_ops;
 	void *priv;
@@ -76,15 +79,16 @@ struct virtqueue_ops {
  * @dev: underlying device.
  * @id: the device type identification (used to match it with a driver).
  * @config: the configuration ops for this device.
+ * @vqs: the list of virtqueues for this device.
  * @features: the features supported by both driver and device.
  * @priv: private pointer for the driver's use.
  */
-struct virtio_device
-{
+struct virtio_device {
 	int index;
 	struct device dev;
 	struct virtio_device_id id;
 	struct virtio_config_ops *config;
+	struct list_head vqs;
 	/* Note that this is a Linux set_bit-style bitmap. */
 	unsigned long features[1];
 	void *priv;

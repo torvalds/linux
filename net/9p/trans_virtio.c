@@ -246,7 +246,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	chan->vdev = vdev;
 
 	/* We expect one virtqueue, for requests. */
-	chan->vq = vdev->config->find_vq(vdev, 0, req_done);
+	chan->vq = vdev->config->find_vq(vdev, 0, req_done, "requests");
 	if (IS_ERR(chan->vq)) {
 		err = PTR_ERR(chan->vq);
 		goto out_free_vq;

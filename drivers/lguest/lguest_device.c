@@ -228,7 +228,8 @@ extern void lguest_setup_irq(unsigned int irq);
  * function. */
 static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 				    unsigned index,
-				    void (*callback)(struct virtqueue *vq))
+				    void (*callback)(struct virtqueue *vq),
+				    const char *name)
 {
 	struct lguest_device *ldev = to_lgdev(vdev);
 	struct lguest_vq_info *lvq;
@@ -263,7 +264,7 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 	/* OK, tell virtio_ring.c to set up a virtqueue now we know its size
 	 * and we've got a pointer to its pages. */
 	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN,
-				 vdev, lvq->pages, lg_notify, callback);
+				 vdev, lvq->pages, lg_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;

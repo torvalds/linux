@@ -94,7 +94,7 @@ static int virtrng_probe(struct virtio_device *vdev)
 	int err;
 
 	/* We expect a single virtqueue. */
-	vq = vdev->config->find_vq(vdev, 0, random_recv_done);
+	vq = vdev->config->find_vq(vdev, 0, random_recv_done, "input");
 	if (IS_ERR(vq))
 		return PTR_ERR(vq);
 

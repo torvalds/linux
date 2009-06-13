@@ -218,13 +218,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->vdev = vdev;
 
 	/* We expect two virtqueues. */
-	vb->inflate_vq = vdev->config->find_vq(vdev, 0, balloon_ack);
+	vb->inflate_vq = vdev->config->find_vq(vdev, 0, balloon_ack, "inflate");
 	if (IS_ERR(vb->inflate_vq)) {
 		err = PTR_ERR(vb->inflate_vq);
 		goto out_free_vb;
 	}
 
-	vb->deflate_vq = vdev->config->find_vq(vdev, 1, balloon_ack);
+	vb->deflate_vq = vdev->config->find_vq(vdev, 1, balloon_ack, "deflate");
 	if (IS_ERR(vb->deflate_vq)) {
 		err = PTR_ERR(vb->deflate_vq);
 		goto out_del_inflate_vq;
