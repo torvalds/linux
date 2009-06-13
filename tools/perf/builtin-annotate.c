@@ -1116,7 +1116,7 @@ parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
 		if (offset < len)
 			hits = sym->hist[offset];
 
-		if (sym_ext) {
+		if (offset < len && sym_ext) {
 			path = sym_ext[offset].path;
 			percent = sym_ext[offset].percent;
 		} else if (sym->hist_sum)
@@ -1190,7 +1190,8 @@ static void free_source_line(struct symbol *sym, int len)
 }
 
 /* Get the filename:line for the colored entries */
-static void get_source_line(struct symbol *sym, __u64 start, int len)
+static void
+get_source_line(struct symbol *sym, __u64 start, int len, char *filename)
 {
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -1216,7 +1217,7 @@ static void get_source_line(struct symbol *sym, __u64 start, int len)
 			continue;
 
 		offset = start + i;
-		sprintf(cmd, "addr2line -e %s %016llx", vmlinux, offset);
+		sprintf(cmd, "addr2line -e %s %016llx", filename, offset);
 		fp = popen(cmd, "r");
 		if (!fp)
 			continue;
@@ -1224,7 +1225,7 @@ static void get_source_line(struct symbol *sym, __u64 start, int len)
 		if (getline(&path, &line_len, fp) < 0 || !line_len)
 			goto next;
 
-		sym_ext[i].path = malloc(sizeof(char) * line_len);
+		sym_ext[i].path = malloc(sizeof(char) * line_len + 1);
 		if (!sym_ext[i].path)
 			goto next;
 
@@ -1285,7 +1286,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	len = sym->end - sym->start;
 
 	if (print_line) {
-		get_source_line(sym, start, len);
+		get_source_line(sym, start, len, filename);
 		print_summary(filename);
 	}
 
