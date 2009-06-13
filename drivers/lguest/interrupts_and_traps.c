@@ -213,6 +213,20 @@ void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq, bool more)
 	if (!more)
 		put_user(0, &cpu->lg->lguest_data->irq_pending);
 }
+
+/* And this is the routine when we want to set an interrupt for the Guest. */
+void set_interrupt(struct lg_cpu *cpu, unsigned int irq)
+{
+	/* Next time the Guest runs, the core code will see if it can deliver
+	 * this interrupt. */
+	set_bit(irq, cpu->irqs_pending);
+
+	/* Make sure it sees it; it might be asleep (eg. halted), or
+	 * running the Guest right now, in which case kick_process()
+	 * will knock it out. */
+	if (!wake_up_process(cpu->tsk))
+		kick_process(cpu->tsk);
+}
 /*:*/
 
 /* Linux uses trap 128 for system calls.  Plan9 uses 64, and Ron Minnich sent
@@ -528,10 +542,7 @@ static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 	struct lg_cpu *cpu = container_of(timer, struct lg_cpu, hrt);
 
 	/* Remember the first interrupt is the timer interrupt. */
-	set_bit(0, cpu->irqs_pending);
-	/* Guest may be stopped or running on another CPU. */
-	if (!wake_up_process(cpu->tsk))
-		kick_process(cpu->tsk);
+	set_interrupt(cpu, 0);
 	return HRTIMER_NORESTART;
 }
 

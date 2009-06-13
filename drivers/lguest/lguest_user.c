@@ -45,9 +45,8 @@ static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 		return -EFAULT;
 	if (irq >= LGUEST_IRQS)
 		return -EINVAL;
-	/* Next time the Guest runs, the core code will see if it can deliver
-	 * this interrupt. */
-	set_bit(irq, cpu->irqs_pending);
+
+	set_interrupt(cpu, irq);
 	return 0;
 }
 
@@ -252,11 +251,6 @@ static ssize_t write(struct file *file, const char __user *in,
 		/* Once the Guest is dead, you can only read() why it died. */
 		if (lg->dead)
 			return -ENOENT;
-
-		/* If you're not the task which owns the Guest, all you can do
-		 * is break the Launcher out of running the Guest. */
-		if (current != cpu->tsk && req != LHREQ_BREAK)
-			return -EPERM;
 	}
 
 	switch (req) {
