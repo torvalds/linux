@@ -82,6 +82,16 @@ struct lg_cpu {
 	struct lg_cpu_arch arch;
 };
 
+struct lg_eventfd {
+	unsigned long addr;
+	struct file *event;
+};
+
+struct lg_eventfd_map {
+	unsigned int num;
+	struct lg_eventfd map[];
+};
+
 /* The private info the thread maintains about the guest. */
 struct lguest
 {
@@ -101,6 +111,8 @@ struct lguest
 
 	unsigned int stack_pages;
 	u32 tsc_khz;
+
+	struct lg_eventfd_map *eventfds;
 
 	/* Dead? */
 	const char *dead;
@@ -154,6 +166,7 @@ void setup_default_idt_entries(struct lguest_ro_state *state,
 void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
 		const unsigned long *def);
 void guest_set_clockevent(struct lg_cpu *cpu, unsigned long delta);
+bool send_notify_to_eventfd(struct lg_cpu *cpu);
 void init_clockdev(struct lg_cpu *cpu);
 bool check_syscall_vector(struct lguest *lg);
 int init_interrupts(void);

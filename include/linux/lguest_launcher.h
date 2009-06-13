@@ -58,6 +58,7 @@ enum lguest_req
 	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* + on/off flag (on blocks until someone does off) */
+	LHREQ_EVENTFD, /* + address, fd. */
 };
 
 /* The alignment to use between consumer and producer parts of vring.
