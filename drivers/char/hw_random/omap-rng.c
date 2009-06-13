@@ -89,7 +89,7 @@ static struct hwrng omap_rng_ops = {
 	.data_read	= omap_rng_data_read,
 };
 
-static int __init omap_rng_probe(struct platform_device *pdev)
+static int __devinit omap_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res, *mem;
 	int ret;
