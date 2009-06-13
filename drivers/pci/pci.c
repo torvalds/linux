@@ -2162,6 +2162,33 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 	return 0;
 }
 
+static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
+{
+	u16 ctrl;
+	struct pci_dev *pdev;
+
+	if (dev->subordinate)
+		return -ENOTTY;
+
+	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
+		if (pdev != dev)
+			return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pci_read_config_word(dev->bus->self, PCI_BRIDGE_CONTROL, &ctrl);
+	ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev->bus->self, PCI_BRIDGE_CONTROL, ctrl);
+	msleep(100);
+
+	ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
+	pci_write_config_word(dev->bus->self, PCI_BRIDGE_CONTROL, ctrl);
+	msleep(100);
+
+	return 0;
+}
+
 static int pci_dev_reset(struct pci_dev *dev, int probe)
 {
 	int rc;
@@ -2183,6 +2210,10 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 		goto done;
 
 	rc = pci_pm_reset(dev, probe);
+	if (rc != -ENOTTY)
+		goto done;
+
+	rc = pci_parent_bus_reset(dev, probe);
 done:
 	if (!probe) {
 		up(&dev->dev.sem);
