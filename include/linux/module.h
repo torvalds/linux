@@ -77,6 +77,7 @@ search_extable(const struct exception_table_entry *first,
 void sort_extable(struct exception_table_entry *start,
 		  struct exception_table_entry *finish);
 void sort_main_extable(void);
+void trim_init_extable(struct module *m);
 
 #ifdef MODULE
 #define MODULE_GENERIC_TABLE(gtype,name)			\
