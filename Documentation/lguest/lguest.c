@@ -182,9 +182,10 @@ struct virtqueue
 /* Remember the arguments to the program so we can "reboot" */
 static char **main_args;
 
-/* Since guest is UP and we don't run at the same time, we don't need barriers.
- * But I include them in the code in case others copy it. */
-#define wmb()
+/* We have to be careful with barriers: our devices are all run in separate
+ * threads and so we need to make sure that changes visible to the Guest happen
+ * in precise order. */
+#define wmb() __asm__ __volatile__("" : : : "memory")
 
 /* Convert an iovec element to the given type.
  *
