@@ -105,57 +105,6 @@
 
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
-#define ieee80211_wx_get_scan ieee80211_wx_get_scan_rtl
-#define ieee80211_wx_set_encode ieee80211_wx_set_encode_rtl
-#define ieee80211_wx_get_encode ieee80211_wx_get_encode_rtl
-////////////////////////////////
-// added for kernel conflict under FC5
-#define ieee80211_wx_get_name   ieee80211_wx_get_name_rtl
-#define free_ieee80211          free_ieee80211_rtl
-#define alloc_ieee80211        alloc_ieee80211_rtl
-///////////////////////////////
-
-//error in ubuntu2.6.22,so add these
-#define ieee80211_wake_queue ieee80211_wake_queue_rtl
-#define ieee80211_stop_queue ieee80211_stop_queue_rtl
-
-#define ieee80211_rx ieee80211_rx_rtl
-
-#define ieee80211_register_crypto_ops	ieee80211_register_crypto_ops_rtl
-#define ieee80211_unregister_crypto_ops	ieee80211_unregister_crypto_ops_rtl
-#define ieee80211_get_crypto_ops	ieee80211_get_crypto_ops_rtl
-#define ieee80211_crypt_deinit_entries	ieee80211_crypt_deinit_entries_rtl
-#define ieee80211_crypt_deinit_handler	ieee80211_crypt_deinit_handler_rtl
-#define ieee80211_crypt_delayed_deinit	ieee80211_crypt_delayed_deinit_rtl
-
-#define ieee80211_txb_free	ieee80211_txb_free_rtl
-#define ieee80211_wx_get_essid	ieee80211_wx_get_essid_rtl
-#define ieee80211_wx_set_essid	ieee80211_wx_set_essid_rtl
-#define ieee80211_wx_set_rate	ieee80211_wx_set_rate_rtl
-#define ieee80211_wx_get_rate	ieee80211_wx_get_rate_rtl
-#define ieee80211_wx_set_wap	ieee80211_wx_set_wap_rtl
-#define ieee80211_wx_get_wap	ieee80211_wx_get_wap_rtl
-#define ieee80211_wx_set_mode	ieee80211_wx_set_mode_rtl
-#define ieee80211_wx_get_mode	ieee80211_wx_get_mode_rtl
-#define ieee80211_wx_set_scan	ieee80211_wx_set_scan_rtl
-#define ieee80211_wx_get_freq	ieee80211_wx_get_freq_rtl
-#define ieee80211_wx_set_freq	ieee80211_wx_set_freq_rtl
-#define ieee80211_wx_set_rawtx	ieee80211_wx_set_rawtx_rtl
-#define ieee80211_wx_set_power	ieee80211_wx_set_power_rtl
-#define ieee80211_wx_get_power	ieee80211_wx_get_power_rtl
-#define ieee80211_wlan_frequencies	ieee80211_wlan_frequencies_rtl
-#define ieee80211_softmac_stop_protocol	ieee80211_softmac_stop_protocol_rtl
-#define ieee80211_softmac_start_protocol ieee80211_softmac_start_protocol_rtl
-#define	ieee80211_start_protocol	ieee80211_start_protocol_rtl
-#define	ieee80211_stop_protocol		ieee80211_stop_protocol_rtl
-#define	ieee80211_rx_mgt		ieee80211_rx_mgt_rtl
-
-#define ieee80211_wx_set_auth ieee80211_wx_set_auth_rtl
-//by amy for ps
-#define notify_wx_assoc_event  notify_wx_assoc_event_rtl
-#define ieee80211_stop_send_beacons ieee80211_stop_send_beacons_rtl
-#define ieee80211_disassociate ieee80211_disassociate_rtl
-#define ieee80211_start_scan ieee80211_start_scan_rtl
 //by amy for ps
 typedef struct ieee_param {
 	u32 cmd;
