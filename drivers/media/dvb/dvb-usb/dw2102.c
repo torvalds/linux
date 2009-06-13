@@ -51,7 +51,9 @@ struct dw210x_rc_keys {
 /* debug */
 static int dvb_usb_dw2102_debug;
 module_param_named(debug, dvb_usb_dw2102_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer (or-able))." DVB_USB_DEBUG_STATUS);
+MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer 4=rc(or-able))."
+						DVB_USB_DEBUG_STATUS);
+
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -553,26 +555,37 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct dw210x_state *st = d->priv;
 	u8 key[2];
-	struct i2c_msg msg[] = {
-		{.addr = DW2102_RC_QUERY, .flags = I2C_M_RD, .buf = key,
-		.len = 2},
+	struct i2c_msg msg = {
+		.addr = DW2102_RC_QUERY,
+		.flags = I2C_M_RD,
+		.buf = key,
+		.len = 2
 	};
 	int i;
 
 	*state = REMOTE_NO_KEY_PRESSED;
-	if (dw2102_i2c_transfer(&d->i2c_adap, msg, 1) == 1) {
+	if (dw2102_i2c_transfer(&d->i2c_adap, &msg, 1) == 1) {
 		for (i = 0; i < ARRAY_SIZE(dw210x_rc_keys); i++) {
-			if (dw210x_rc_keys[i].data == msg[0].buf[0]) {
+			if (dw210x_rc_keys[i].data == msg.buf[0]) {
 				*state = REMOTE_KEY_PRESSED;
 				*event = dw210x_rc_keys[i].event;
 				st->last_key_pressed =
 					dw210x_rc_keys[i].event;
 				break;
 			}
+
 		st->last_key_pressed = 0;
 		}
+
+		if ((*state) == REMOTE_KEY_PRESSED)
+			deb_rc("%s: found rc key: %x, %x, event: %x\n",
+					__func__, key[0], key[1], (*event));
+		else if (key[0] != 0xff)
+			deb_rc("%s: unknown rc key: %x, %x\n",
+					__func__, key[0], key[1]);
+
 	}
-	/* info("key: %x %x\n",key[0],key[1]); */
+
 	return 0;
 }
 
