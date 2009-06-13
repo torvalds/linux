@@ -188,15 +188,6 @@ typedef struct ieee_param {
 }ieee_param;
 
 
-#if WIRELESS_EXT < 17
-#define IW_QUAL_QUAL_INVALID   0x10
-#define IW_QUAL_LEVEL_INVALID  0x20
-#define IW_QUAL_NOISE_INVALID  0x40
-#define IW_QUAL_QUAL_UPDATED   0x1
-#define IW_QUAL_LEVEL_UPDATED  0x2
-#define IW_QUAL_NOISE_UPDATED  0x4
-#endif
-
 #define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rtl  msleep_interruptible
 

@@ -584,15 +584,6 @@ static int proc_get_stats_tx(char *page, char **start,
 	return len;
 }
 
-
-#if WIRELESS_EXT < 17
-static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
-{
-       struct r8180_priv *priv = ieee80211_priv(dev);
-
-       return &priv->wstats;
-}
-#endif
 void rtl8180_proc_module_init(void)
 {
 	DMESG("Initializing proc filesystem");
@@ -5856,13 +5847,6 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 
 	dev->netdev_ops = &rtl8180_netdev_ops;
 	dev->wireless_handlers = &r8180_wx_handlers_def;
-
-#if WIRELESS_EXT >= 12
-#if WIRELESS_EXT < 17
-	dev->get_wireless_stats = r8180_get_wireless_stats;
-#endif
-	dev->wireless_handlers = (struct iw_handler_def *) &r8180_wx_handlers_def;
-#endif
 
 	dev->type=ARPHRD_ETHER;
 	dev->watchdog_timeo = HZ*3; //added by david woo, 2007.12.13

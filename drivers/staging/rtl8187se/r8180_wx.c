@@ -1543,7 +1543,6 @@ static iw_handler r8180_private_handler[] = {
 	r8180_wx_set_forcerate,
 };
 
-#if WIRELESS_EXT >= 17
 static inline int is_same_network(struct ieee80211_network *src,
                                   struct ieee80211_network *dst,
 				  struct ieee80211_device *ieee)
@@ -1626,8 +1625,6 @@ static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED| IW_QUAL_DBM;
 	return wstats;
 }
-#endif
-
 
 struct iw_handler_def  r8180_wx_handlers_def={
 	.standard = r8180_wx_handlers,
@@ -1635,9 +1632,7 @@ struct iw_handler_def  r8180_wx_handlers_def={
 	.private = r8180_private_handler,
 	.num_private = sizeof(r8180_private_handler) / sizeof(iw_handler),
  	.num_private_args = sizeof(r8180_private_args) / sizeof(struct iw_priv_args),
-#if WIRELESS_EXT >= 17
 	.get_wireless_stats = r8180_get_wireless_stats,
-#endif
 	.private_args = (struct iw_priv_args *)r8180_private_args,
 };
 
