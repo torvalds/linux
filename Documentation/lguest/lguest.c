@@ -830,15 +830,14 @@ static bool handle_console_input(struct device *dev)
 static void handle_console_output(struct virtqueue *vq, bool timeout)
 {
 	unsigned int head, out, in;
-	int len;
 	struct iovec iov[vq->vring.num];
 
 	/* Keep getting output buffers from the Guest until we run out. */
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
 		if (in)
 			errx(1, "Input buffers in output queue?");
-		len = writev(STDOUT_FILENO, iov, out);
-		add_used_and_trigger(vq, head, len);
+		writev(STDOUT_FILENO, iov, out);
+		add_used_and_trigger(vq, head, 0);
 	}
 }
 
@@ -870,7 +869,6 @@ static void block_vq(struct virtqueue *vq)
 static void handle_net_output(struct virtqueue *vq, bool timeout)
 {
 	unsigned int head, out, in, num = 0;
-	int len;
 	struct iovec iov[vq->vring.num];
 	static int last_timeout_num;
 
@@ -878,10 +876,9 @@ static void handle_net_output(struct virtqueue *vq, bool timeout)
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
 		if (in)
 			errx(1, "Input buffers in output queue?");
-		len = writev(vq->dev->fd, iov, out);
-		if (len < 0)
+		if (writev(vq->dev->fd, iov, out) < 0)
 			err(1, "Writing network packet to tun");
-		add_used_and_trigger(vq, head, len);
+		add_used_and_trigger(vq, head, 0);
 		num++;
 	}
 
