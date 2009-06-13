@@ -172,7 +172,7 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 		goto exit;
 	}
 
-	cmd = skb_put(skb, sizeof(*cmd));
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
 	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_MODULE_CFG_REQ));
 	cmd->length = 1;
 	cmd->data[0] = subcmd;
@@ -222,7 +222,7 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 		goto exit;
 	}
 
-	cmd = skb_put(skb, sizeof(*cmd));
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
 	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_ENABLE));
 	cmd->length = 0;
 
@@ -268,7 +268,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 			goto exit;
 		}
 
-		cmd = skb_put(skb, sizeof(*cmd));
+		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
 		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_CONFIG));
 		cmd->length = 2;
 		cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
@@ -293,7 +293,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 			goto exit;
 		}
 
-		cmd = skb_put(skb, sizeof(*cmd));
+		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
 		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_AUTO_SLEEP_MODE));
 		cmd->length = 1;
 
