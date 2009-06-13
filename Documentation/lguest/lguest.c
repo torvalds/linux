@@ -151,6 +151,9 @@ struct virtqueue
 	/* Last available index we saw. */
 	u16 last_avail_idx;
 
+	/* How many are used since we sent last irq? */
+	unsigned int pending_used;
+
 	/* Eventfd where Guest notifications arrive. */
 	int eventfd;
 
@@ -556,6 +559,11 @@ static void trigger_irq(struct virtqueue *vq)
 {
 	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
 
+	/* Don't inform them if nothing used. */
+	if (!vq->pending_used)
+		return;
+	vq->pending_used = 0;
+
 	/* If they don't want an interrupt, don't send one, unless empty. */
 	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
 	    && lg_last_avail(vq) != vq->vring.avail->idx)
@@ -647,6 +655,7 @@ static void add_used(struct virtqueue *vq, unsigned int head, int len)
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
+	vq->pending_used++;
 }
 
 /* And here's the combo meal deal.  Supersize me! */
