@@ -2132,6 +2132,36 @@ clear:
 	return 0;
 }
 
+static int pci_pm_reset(struct pci_dev *dev, int probe)
+{
+	u16 csr;
+
+	if (!dev->pm_cap)
+		return -ENOTTY;
+
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &csr);
+	if (csr & PCI_PM_CTRL_NO_SOFT_RESET)
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	if (dev->current_state != PCI_D0)
+		return -EINVAL;
+
+	csr &= ~PCI_PM_CTRL_STATE_MASK;
+	csr |= PCI_D3hot;
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, csr);
+	msleep(pci_pm_d3_delay);
+
+	csr &= ~PCI_PM_CTRL_STATE_MASK;
+	csr |= PCI_D0;
+	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, csr);
+	msleep(pci_pm_d3_delay);
+
+	return 0;
+}
+
 static int pci_dev_reset(struct pci_dev *dev, int probe)
 {
 	int rc;
@@ -2149,6 +2179,10 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 		goto done;
 
 	rc = pci_af_flr(dev, probe);
+	if (rc != -ENOTTY)
+		goto done;
+
+	rc = pci_pm_reset(dev, probe);
 done:
 	if (!probe) {
 		up(&dev->dev.sem);
