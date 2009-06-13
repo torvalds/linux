@@ -2392,7 +2392,7 @@ static struct usb_driver vntwusb_driver = {
 
 static int __init vntwusb_init_module(void)
 {
-	info(DEVICE_FULL_DRV_NAM " " DEVICE_VERSION);
+    printk(KERN_NOTICE DEVICE_FULL_DRV_NAM " " DEVICE_VERSION);
     return usb_register(&vntwusb_driver);
 }
 
