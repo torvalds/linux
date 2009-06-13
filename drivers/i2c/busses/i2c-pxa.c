@@ -993,7 +993,6 @@ static const struct i2c_algorithm i2c_pxa_pio_algorithm = {
 	.functionality	= i2c_pxa_functionality,
 };
 
-#define res_len(r)		((r)->end - (r)->start + 1)
 static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c;
@@ -1008,7 +1007,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	if (res == NULL || irq < 0)
 		return -ENODEV;
 
-	if (!request_mem_region(res->start, res_len(res), res->name))
+	if (!request_mem_region(res->start, resource_size(res), res->name))
 		return -ENOMEM;
 
 	i2c = kzalloc(sizeof(struct pxa_i2c), GFP_KERNEL);
@@ -1038,7 +1037,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 		goto eclk;
 	}
 
-	i2c->reg_base = ioremap(res->start, res_len(res));
+	i2c->reg_base = ioremap(res->start, resource_size(res));
 	if (!i2c->reg_base) {
 		ret = -EIO;
 		goto eremap;
@@ -1046,7 +1045,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	i2c->reg_shift = REG_SHIFT(id->driver_data);
 
 	i2c->iobase = res->start;
-	i2c->iosize = res_len(res);
+	i2c->iosize = resource_size(res);
 
 	i2c->irq = irq;
 
@@ -1110,7 +1109,7 @@ eremap:
 eclk:
 	kfree(i2c);
 emalloc:
-	release_mem_region(res->start, res_len(res));
+	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 
