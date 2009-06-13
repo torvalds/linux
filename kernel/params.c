@@ -272,13 +272,13 @@ int param_set_invbool(const char *val, struct kernel_param *kp)
 	dummy.arg = &boolval;
 	ret = param_set_bool(val, &dummy);
 	if (ret == 0)
-		*(int *)kp->arg = !boolval;
+		*(bool *)kp->arg = !boolval;
 	return ret;
 }
 
 int param_get_invbool(char *buffer, struct kernel_param *kp)
 {
-	return sprintf(buffer, "%c", (*(int *)kp->arg) ? 'N' : 'Y');
+	return sprintf(buffer, "%c", (*(bool *)kp->arg) ? 'N' : 'Y');
 }
 
 /* We break the rule and mangle the string. */

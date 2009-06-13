@@ -192,7 +192,7 @@ extern int param_get_bool(char *buffer, struct kernel_param *kp);
 
 extern int param_set_invbool(const char *val, struct kernel_param *kp);
 extern int param_get_invbool(char *buffer, struct kernel_param *kp);
-#define param_check_invbool(name, p) __param_check(name, p, int)
+#define param_check_invbool(name, p) __param_check(name, p, bool)
 
 /* Comma-separated array: *nump is set to number they actually specified. */
 #define module_param_array_named(name, array, type, nump, perm)		\
