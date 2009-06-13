@@ -10,8 +10,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef ASM_PCI_H
-#define	ASM_PCI_H
+#ifndef _ASM_FRV_PCI_H
+#define _ASM_FRV_PCI_H
 
 #include <linux/mm.h>
 #include <asm/scatterlist.h>
@@ -42,12 +42,6 @@ extern void pci_free_consistent(struct pci_dev *hwdev, size_t size,
 
 /* Return the index of the PCI controller for device PDEV. */
 #define pci_controller_num(PDEV)	(0)
-
-/* The PCI address space does equal the physical memory
- * address space.  The networking and block device layers use
- * this boolean for bounce buffer decisions.
- */
-#define PCI_DMA_BUS_IS_PHYS	(1)
 
 /* pci_unmap_{page,single} is a nop so... */
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
@@ -111,5 +105,4 @@ static inline void pci_dma_sync_sg(struct pci_dev *hwdev,
 				    sg_dma_address(&sg[i])+sg_dma_len(&sg[i]));
 }
 
-
-#endif
+#endif /* _ASM_FRV_PCI_H */

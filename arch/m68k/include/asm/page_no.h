@@ -72,6 +72,6 @@ extern unsigned long memory_end;
 
 #endif /* __ASSEMBLY__ */
 
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif /* _M68KNOMMU_PAGE_H */

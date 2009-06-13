@@ -73,6 +73,6 @@ extern unsigned long memory_end;
 #endif /* __ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif /* _H8300_PAGE_H */

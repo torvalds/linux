@@ -163,7 +163,7 @@ typedef struct page *pgtable_t;
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 /* vDSO support */
 #ifdef CONFIG_VSYSCALL
