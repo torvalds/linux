@@ -172,6 +172,7 @@ static struct termios orig_term;
  * threads and so we need to make sure that changes visible to the Guest happen
  * in precise order. */
 #define wmb() __asm__ __volatile__("" : : : "memory")
+#define mb() __asm__ __volatile__("" : : : "memory")
 
 /* Convert an iovec element to the given type.
  *
@@ -593,9 +594,23 @@ static unsigned wait_for_vq_desc(struct virtqueue *vq,
 		/* OK, tell Guest about progress up to now. */
 		trigger_irq(vq);
 
+		/* OK, now we need to know about added descriptors. */
+		vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
+
+		/* They could have slipped one in as we were doing that: make
+		 * sure it's written, then check again. */
+		mb();
+		if (last_avail != vq->vring.avail->idx) {
+			vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+			break;
+		}
+
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (read(vq->eventfd, &event, sizeof(event)) != sizeof(event))
 			errx(1, "Event read failed?");
+
+		/* We don't need to be notified again. */
+		vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
 	}
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
