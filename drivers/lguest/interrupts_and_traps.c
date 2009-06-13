@@ -128,30 +128,38 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi,
 /*H:205
  * Virtual Interrupts.
  *
- * maybe_do_interrupt() gets called before every entry to the Guest, to see if
- * we should divert the Guest to running an interrupt handler. */
-void maybe_do_interrupt(struct lg_cpu *cpu)
+ * interrupt_pending() returns the first pending interrupt which isn't blocked
+ * by the Guest.  It is called before every entry to the Guest, and just before
+ * we go to sleep when the Guest has halted itself. */
+unsigned int interrupt_pending(struct lg_cpu *cpu)
 {
 	unsigned int irq;
 	DECLARE_BITMAP(blk, LGUEST_IRQS);
-	struct desc_struct *idt;
 
 	/* If the Guest hasn't even initialized yet, we can do nothing. */
 	if (!cpu->lg->lguest_data)
-		return;
+		return LGUEST_IRQS;
 
 	/* Take our "irqs_pending" array and remove any interrupts the Guest
 	 * wants blocked: the result ends up in "blk". */
 	if (copy_from_user(&blk, cpu->lg->lguest_data->blocked_interrupts,
 			   sizeof(blk)))
-		return;
+		return LGUEST_IRQS;
 	bitmap_andnot(blk, cpu->irqs_pending, blk, LGUEST_IRQS);
 
 	/* Find the first interrupt. */
 	irq = find_first_bit(blk, LGUEST_IRQS);
-	/* None?  Nothing to do */
-	if (irq >= LGUEST_IRQS)
-		return;
+
+	return irq;
+}
+
+/* This actually diverts the Guest to running an interrupt handler, once an
+ * interrupt has been identified by interrupt_pending(). */
+void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq)
+{
+	struct desc_struct *idt;
+
+	BUG_ON(irq >= LGUEST_IRQS);
 
 	/* They may be in the middle of an iret, where they asked us never to
 	 * deliver interrupts. */
