@@ -31,11 +31,27 @@ static ssize_t modalias_show(struct device *_d,
 	return sprintf(buf, "virtio:d%08Xv%08X\n",
 		       dev->id.device, dev->id.vendor);
 }
+static ssize_t features_show(struct device *_d,
+			     struct device_attribute *attr, char *buf)
+{
+	struct virtio_device *dev = container_of(_d, struct virtio_device, dev);
+	unsigned int i;
+	ssize_t len = 0;
+
+	/* We actually represent this as a bitstring, as it could be
+	 * arbitrary length in future. */
+	for (i = 0; i < ARRAY_SIZE(dev->features)*BITS_PER_LONG; i++)
+		len += sprintf(buf+len, "%c",
+			       test_bit(i, dev->features) ? '1' : '0');
+	len += sprintf(buf+len, "\n");
+	return len;
+}
 static struct device_attribute virtio_dev_attrs[] = {
 	__ATTR_RO(device),
 	__ATTR_RO(vendor),
 	__ATTR_RO(status),
 	__ATTR_RO(modalias),
+	__ATTR_RO(features),
 	__ATTR_NULL
 };
 
