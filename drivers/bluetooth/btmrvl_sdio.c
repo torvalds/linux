@@ -67,23 +67,17 @@ static int btmrvl_sdio_get_rx_unit(struct btmrvl_sdio_card *card)
 	u8 reg;
 	int ret;
 
-	BT_DBG("Enter");
-
 	reg = sdio_readb(card->func, CARD_RX_UNIT_REG, &ret);
 	if (!ret)
 		card->rx_unit = reg;
-
-	BT_DBG("Leave");
 
 	return ret;
 }
 
 static int btmrvl_sdio_read_fw_status(struct btmrvl_sdio_card *card, u16 *dat)
 {
-	int ret;
 	u8 fws0, fws1;
-
-	BT_DBG("Enter");
+	int ret;
 
 	*dat = 0;
 
@@ -92,30 +86,22 @@ static int btmrvl_sdio_read_fw_status(struct btmrvl_sdio_card *card, u16 *dat)
 	if (!ret)
 		fws1 = sdio_readb(card->func, CARD_FW_STATUS1_REG, &ret);
 
-	if (ret) {
-		BT_DBG("Leave");
+	if (ret)
 		return -EIO;
-	}
 
 	*dat = (((u16) fws1) << 8) | fws0;
-
-	BT_DBG("Leave");
 
 	return 0;
 }
 
 static int btmrvl_sdio_read_rx_len(struct btmrvl_sdio_card *card, u16 *dat)
 {
-	int ret;
 	u8 reg;
-
-	BT_DBG("Enter");
+	int ret;
 
 	reg = sdio_readb(card->func, CARD_RX_LEN_REG, &ret);
 	if (!ret)
 		*dat = (u16) reg << card->rx_unit;
-
-	BT_DBG("Leave");
 
 	return ret;
 }
@@ -125,15 +111,11 @@ static int btmrvl_sdio_enable_host_int_mask(struct btmrvl_sdio_card *card,
 {
 	int ret;
 
-	BT_DBG("Enter");
-
 	sdio_writeb(card->func, mask, HOST_INT_MASK_REG, &ret);
 	if (ret) {
 		BT_ERR("Unable to enable the host interrupt!");
 		ret = -EIO;
 	}
-
-	BT_DBG("Leave");
 
 	return ret;
 }
@@ -141,48 +123,36 @@ static int btmrvl_sdio_enable_host_int_mask(struct btmrvl_sdio_card *card,
 static int btmrvl_sdio_disable_host_int_mask(struct btmrvl_sdio_card *card,
 								u8 mask)
 {
-	int ret;
 	u8 host_int_mask;
-
-	BT_DBG("Enter");
+	int ret;
 
 	host_int_mask = sdio_readb(card->func, HOST_INT_MASK_REG, &ret);
-	if (ret) {
-		ret = -EIO;
-		goto done;
-	}
+	if (ret)
+		return -EIO;
 
 	host_int_mask &= ~mask;
 
 	sdio_writeb(card->func, host_int_mask, HOST_INT_MASK_REG, &ret);
 	if (ret < 0) {
 		BT_ERR("Unable to disable the host interrupt!");
-		ret = -EIO;
-		goto done;
+		return -EIO;
 	}
 
-	ret = 0;
-
-done:
-	BT_DBG("Leave");
-
-	return ret;
+	return 0;
 }
 
 static int btmrvl_sdio_poll_card_status(struct btmrvl_sdio_card *card, u8 bits)
 {
 	unsigned int tries;
-	int ret;
 	u8 status;
-
-	BT_DBG("Enter");
+	int ret;
 
 	for (tries = 0; tries < MAX_POLL_TRIES * 1000; tries++) {
 		status = sdio_readb(card->func, CARD_STATUS_REG, &ret);
 		if (ret)
 			goto failed;
 		if ((status & bits) == bits)
-			goto done;
+			return ret;
 
 		udelay(1);
 	}
@@ -191,9 +161,6 @@ static int btmrvl_sdio_poll_card_status(struct btmrvl_sdio_card *card, u8 bits)
 
 failed:
 	BT_ERR("FAILED! ret=%d", ret);
-
-done:
-	BT_DBG("Leave");
 
 	return ret;
 }
@@ -204,8 +171,6 @@ static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 	int ret = -ETIMEDOUT;
 	u16 firmwarestat;
 	unsigned int tries;
-
-	BT_DBG("Enter");
 
 	 /* Wait for firmware to become ready */
 	for (tries = 0; tries < pollnum; tries++) {
@@ -220,8 +185,6 @@ static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 		}
 	}
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -234,8 +197,6 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 	int tmphlprbufsz, hlprblknow, helperlen;
 	u8 *helperbuf;
 	u32 tx_len;
-
-	BT_DBG("Enter");
 
 	ret = request_firmware(&fw_helper, card->helper,
 						&card->func->dev);
@@ -326,8 +287,6 @@ done:
 	if (fw_helper)
 		release_firmware(fw_helper);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -342,8 +301,6 @@ static int btmrvl_sdio_download_fw_w_helper(struct btmrvl_sdio_card *card)
 	u8 *fwbuf;
 	u16 len;
 	int txlen = 0, tx_blocks = 0, count = 0;
-
-	BT_DBG("Enter");
 
 	ret = request_firmware(&fw_firmware, card->firmware,
 							&card->func->dev);
@@ -479,8 +436,6 @@ done:
 	if (fw_firmware)
 		release_firmware(fw_firmware);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -493,8 +448,6 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	u8 *payload = NULL;
 	struct hci_dev *hdev = priv->btmrvl_dev.hcidev;
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
-
-	BT_DBG("Enter");
 
 	if (!card || !card->func) {
 		BT_ERR("card or function is NULL!");
@@ -596,8 +549,6 @@ exit:
 			kfree_skb(skb);
 	}
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -606,8 +557,6 @@ static int btmrvl_sdio_get_int_status(struct btmrvl_private *priv, u8 * ireg)
 	int ret;
 	u8 sdio_ireg = 0;
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
-
-	BT_DBG("Enter");
 
 	*ireg = 0;
 
@@ -653,8 +602,6 @@ static int btmrvl_sdio_get_int_status(struct btmrvl_private *priv, u8 * ireg)
 	ret = 0;
 
 done:
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -664,8 +611,6 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 	struct hci_dev *hcidev;
 	struct btmrvl_sdio_card *card;
 	u8 ireg = 0;
-
-	BT_DBG("Enter");
 
 	card = sdio_get_drvdata(func);
 	if (card && card->priv) {
@@ -679,8 +624,6 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 
 		btmrvl_interrupt(priv);
 	}
-
-	BT_DBG("Leave");
 }
 
 static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
@@ -688,8 +631,6 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 	struct sdio_func *func;
 	u8 reg;
 	int ret = 0;
-
-	BT_DBG("Enter");
 
 	if (!card || !card->func) {
 		BT_ERR("Error: card or function is NULL!");
@@ -752,7 +693,6 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 
 	sdio_release_host(func);
 
-	BT_DBG("Leave");
 	return 0;
 
 release_irq:
@@ -765,14 +705,11 @@ release_host:
 	sdio_release_host(func);
 
 failed:
-	BT_DBG("Leave");
 	return ret;
 }
 
 static int btmrvl_sdio_unregister_dev(struct btmrvl_sdio_card *card)
 {
-	BT_DBG("Enter");
-
 	if (card && card->func) {
 		sdio_claim_host(card->func);
 		sdio_release_irq(card->func);
@@ -781,8 +718,6 @@ static int btmrvl_sdio_unregister_dev(struct btmrvl_sdio_card *card)
 		sdio_set_drvdata(card->func, NULL);
 	}
 
-	BT_DBG("Leave");
-
 	return 0;
 }
 
@@ -790,12 +725,8 @@ static int btmrvl_sdio_enable_host_int(struct btmrvl_sdio_card *card)
 {
 	int ret;
 
-	BT_DBG("Enter");
-
-	if (!card || !card->func) {
-		BT_DBG("Leave");
+	if (!card || !card->func)
 		return -EINVAL;
-	}
 
 	sdio_claim_host(card->func);
 
@@ -805,8 +736,6 @@ static int btmrvl_sdio_enable_host_int(struct btmrvl_sdio_card *card)
 
 	sdio_release_host(card->func);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -814,20 +743,14 @@ static int btmrvl_sdio_disable_host_int(struct btmrvl_sdio_card *card)
 {
 	int ret;
 
-	BT_DBG("Enter");
-
-	if (!card || !card->func) {
-		BT_DBG("Leave");
+	if (!card || !card->func)
 		return -EINVAL;
-	}
 
 	sdio_claim_host(card->func);
 
 	ret = btmrvl_sdio_disable_host_int_mask(card, HIM_DISABLE);
 
 	sdio_release_host(card->func);
-
-	BT_DBG("Leave");
 
 	return ret;
 }
@@ -844,11 +767,8 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 	void *tmpbuf = NULL;
 	int tmpbufsz;
 
-	BT_DBG("Enter");
-
 	if (!card || !card->func) {
 		BT_ERR("card or function is NULL!");
-		BT_DBG("Leave");
 		return -EINVAL;
 	}
 
@@ -886,8 +806,6 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 exit:
 	sdio_release_host(card->func);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -895,11 +813,8 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 {
 	int ret = 0;
 
-	BT_DBG("Enter");
-
 	if (!card || !card->func) {
 		BT_ERR("card or function is NULL!");
-		BT_DBG("Leave");
 		return -EINVAL;
 	}
 	sdio_claim_host(card->func);
@@ -931,8 +846,6 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 done:
 	sdio_release_host(card->func);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -941,11 +854,8 @@ static int btmrvl_sdio_wakeup_fw(struct btmrvl_private *priv)
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 	int ret = 0;
 
-	BT_DBG("Enter");
-
 	if (!card || !card->func) {
 		BT_ERR("card or function is NULL!");
-		BT_DBG("Leave");
 		return -EINVAL;
 	}
 
@@ -957,8 +867,6 @@ static int btmrvl_sdio_wakeup_fw(struct btmrvl_private *priv)
 
 	BT_DBG("wake up firmware");
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -968,8 +876,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	int ret = 0;
 	struct btmrvl_private *priv = NULL;
 	struct btmrvl_sdio_card *card = NULL;
-
-	BT_DBG("Enter");
 
 	BT_INFO("vendor=0x%x, device=0x%x, class=%d, fn=%d",
 			id->vendor, id->device, id->class, func->num);
@@ -1022,8 +928,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
 
-	BT_DBG("Leave");
-
 	return 0;
 
 disable_host_int:
@@ -1033,16 +937,12 @@ unreg_dev:
 free_card:
 	kfree(card);
 done:
-	BT_DBG("Leave");
-
 	return ret;
 }
 
 static void btmrvl_sdio_remove(struct sdio_func *func)
 {
 	struct btmrvl_sdio_card *card;
-
-	BT_DBG("Enter");
 
 	if (func) {
 		card = sdio_get_drvdata(func);
@@ -1061,8 +961,6 @@ static void btmrvl_sdio_remove(struct sdio_func *func)
 			kfree(card);
 		}
 	}
-
-	BT_DBG("Leave");
 }
 
 static struct sdio_driver bt_mrvl_sdio = {
@@ -1074,32 +972,23 @@ static struct sdio_driver bt_mrvl_sdio = {
 
 static int btmrvl_sdio_init_module(void)
 {
-	BT_DBG("Enter");
-
 	if (sdio_register_driver(&bt_mrvl_sdio) != 0) {
 		BT_ERR("SDIO Driver Registration Failed");
-		BT_DBG("Leave");
 		return -ENODEV;
 	}
 
 	/* Clear the flag in case user removes the card. */
 	user_rmmod = 0;
 
-	BT_DBG("Leave");
-
 	return 0;
 }
 
 static void btmrvl_sdio_exit_module(void)
 {
-	BT_DBG("Enter");
-
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
 	sdio_unregister_driver(&bt_mrvl_sdio);
-
-	BT_DBG("Leave");
 }
 
 module_init(btmrvl_sdio_init_module);

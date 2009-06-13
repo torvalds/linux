@@ -32,8 +32,6 @@
  */
 void btmrvl_interrupt(struct btmrvl_private *priv)
 {
-	BT_DBG("Enter");
-
 	priv->adapter->ps_state = PS_AWAKE;
 
 	priv->adapter->wakeup_tries = 0;
@@ -41,8 +39,6 @@ void btmrvl_interrupt(struct btmrvl_private *priv)
 	priv->adapter->int_count++;
 
 	wake_up_interruptible(&priv->main_thread.wait_q);
-
-	BT_DBG("Leave");
 }
 EXPORT_SYMBOL_GPL(btmrvl_interrupt);
 
@@ -51,8 +47,6 @@ void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 	struct hci_event_hdr *hdr = (void *) skb->data;
 	struct hci_ev_cmd_complete *ec;
 	u16 opcode, ocf;
-
-	BT_DBG("Enter");
 
 	if (hdr->evt == HCI_EV_CMD_COMPLETE) {
 		ec = (void *) (skb->data + HCI_EVENT_HDR_SIZE);
@@ -65,8 +59,6 @@ void btmrvl_check_evtpkt(struct btmrvl_private *priv, struct sk_buff *skb)
 			wake_up_interruptible(&priv->adapter->cmd_wait_q);
 		}
 	}
-
-	BT_DBG("Leave");
 }
 EXPORT_SYMBOL_GPL(btmrvl_check_evtpkt);
 
@@ -75,8 +67,6 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 	struct btmrvl_adapter *adapter = priv->adapter;
 	struct btmrvl_event *event;
 	u8 ret = 0;
-
-	BT_DBG("Enter");
 
 	event = (struct btmrvl_event *) skb->data;
 	if (event->ec != 0xff) {
@@ -151,8 +141,6 @@ exit:
 	if (!ret)
 		kfree_skb(skb);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(btmrvl_process_event);
@@ -161,15 +149,12 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 {
 	struct sk_buff *skb;
 	struct btmrvl_cmd *cmd;
-	u8 ret = 0;
-
-	BT_DBG("Enter");
+	int ret = 0;
 
 	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
-		ret = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
 	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
@@ -200,9 +185,6 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 
 	BT_DBG("module cfg Command done");
 
-exit:
-	BT_DBG("Leave");
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
@@ -211,15 +193,12 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
 	struct btmrvl_cmd *cmd;
-	u8 ret = 0;
-
-	BT_DBG("Enter");
+	int ret = 0;
 
 	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
-		ret = -ENOMEM;
-		goto exit;
+		return -ENOMEM;
 	}
 
 	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
@@ -244,9 +223,6 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 						priv->adapter->wakeup_tries);
 	}
 
-exit:
-	BT_DBG("Leave");
-
 	return ret;
 }
 
@@ -254,9 +230,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb = NULL;
 	struct btmrvl_cmd *cmd;
-	u8 ret = 0;
-
-	BT_DBG("Enter");
+	int ret = 0;
 
 	if (priv->btmrvl_dev.hscfgcmd) {
 		priv->btmrvl_dev.hscfgcmd = 0;
@@ -264,8 +238,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
 		if (skb == NULL) {
 			BT_ERR("No free skb");
-			ret = -ENOMEM;
-			goto exit;
+			return -ENOMEM;
 		}
 
 		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
@@ -289,8 +262,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
 		if (skb == NULL) {
 			BT_ERR("No free skb");
-			ret = -ENOMEM;
-			goto exit;
+			return -ENOMEM;
 		}
 
 		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
@@ -321,27 +293,19 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 		}
 	}
 
-exit:
-	BT_DBG("Leave");
-
 	return ret;
 }
 
 static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
-	u8 ret = 0;
+	int ret = 0;
 
-	BT_DBG("Enter");
-
-	if (!skb || !skb->data) {
-		BT_DBG("Leave");
+	if (!skb || !skb->data)
 		return -EINVAL;
-	}
 
 	if (!skb->len || ((skb->len + BTM_HEADER_LEN) > BTM_UPLD_SIZE)) {
 		BT_ERR("Tx Error: Bad skb length %d : %d",
 						skb->len, BTM_UPLD_SIZE);
-		BT_DBG("Leave");
 		return -EINVAL;
 	}
 
@@ -353,7 +317,6 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 			BT_ERR("Tx Error: realloc_headroom failed %d",
 				BTM_HEADER_LEN);
 			skb = tmp;
-			BT_DBG("Leave");
 			return -EINVAL;
 		}
 
@@ -375,52 +338,35 @@ static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 	if (priv->hw_host_to_card)
 		ret = priv->hw_host_to_card(priv, skb->data, skb->len);
 
-	BT_DBG("Leave");
-
 	return ret;
 }
 
 static void btmrvl_init_adapter(struct btmrvl_private *priv)
 {
-	BT_DBG("Enter");
-
 	skb_queue_head_init(&priv->adapter->tx_queue);
 
 	priv->adapter->ps_state = PS_AWAKE;
 
 	init_waitqueue_head(&priv->adapter->cmd_wait_q);
-
-	BT_DBG("Leave");
 }
 
 static void btmrvl_free_adapter(struct btmrvl_private *priv)
 {
-	BT_DBG("Enter");
-
 	skb_queue_purge(&priv->adapter->tx_queue);
 
 	kfree(priv->adapter);
 
 	priv->adapter = NULL;
-
-	BT_DBG("Leave");
 }
 
 static int btmrvl_ioctl(struct hci_dev *hdev,
 				unsigned int cmd, unsigned long arg)
 {
-	BT_DBG("Enter");
-
-	BT_DBG("Leave");
-
 	return -ENOIOCTLCMD;
 }
 
 static void btmrvl_destruct(struct hci_dev *hdev)
 {
-	BT_DBG("Enter");
-
-	BT_DBG("Leave");
 }
 
 static int btmrvl_send_frame(struct sk_buff *skb)
@@ -428,11 +374,10 @@ static int btmrvl_send_frame(struct sk_buff *skb)
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
 	struct btmrvl_private *priv = NULL;
 
-	BT_DBG("Enter: type=%d, len=%d", skb->pkt_type, skb->len);
+	BT_DBG("type=%d, len=%d", skb->pkt_type, skb->len);
 
 	if (!hdev || !hdev->driver_data) {
 		BT_ERR("Frame for unknown HCI device");
-		BT_DBG("Leave");
 		return -ENODEV;
 	}
 
@@ -441,7 +386,6 @@ static int btmrvl_send_frame(struct sk_buff *skb)
 		BT_ERR("Failed testing HCI_RUNING, flags=%lx", hdev->flags);
 		print_hex_dump_bytes("data: ", DUMP_PREFIX_OFFSET,
 							skb->data, skb->len);
-		BT_DBG("Leave");
 		return -EBUSY;
 	}
 
@@ -463,8 +407,6 @@ static int btmrvl_send_frame(struct sk_buff *skb)
 
 	wake_up_interruptible(&priv->main_thread.wait_q);
 
-	BT_DBG("Leave");
-
 	return 0;
 }
 
@@ -472,11 +414,7 @@ static int btmrvl_flush(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hdev->driver_data;
 
-	BT_DBG("Enter");
-
 	skb_queue_purge(&priv->adapter->tx_queue);
-
-	BT_DBG("Leave");
 
 	return 0;
 }
@@ -485,27 +423,17 @@ static int btmrvl_close(struct hci_dev *hdev)
 {
 	struct btmrvl_private *priv = hdev->driver_data;
 
-	BT_DBG("Enter");
-
-	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags)) {
-		BT_DBG("Leave");
+	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
-	}
 
 	skb_queue_purge(&priv->adapter->tx_queue);
-
-	BT_DBG("Leave");
 
 	return 0;
 }
 
 static int btmrvl_open(struct hci_dev *hdev)
 {
-	BT_DBG("Enter");
-
 	set_bit(HCI_RUNNING, &hdev->flags);
-
-	BT_DBG("Leave");
 
 	return 0;
 }
@@ -522,8 +450,6 @@ static int btmrvl_service_main_thread(void *data)
 	wait_queue_t wait;
 	struct sk_buff *skb;
 	ulong flags;
-
-	BT_DBG("Enter");
 
 	init_waitqueue_entry(&wait, current);
 
@@ -582,8 +508,6 @@ static int btmrvl_service_main_thread(void *data)
 		}
 	}
 
-	BT_DBG("Leave");
-
 	return 0;
 }
 
@@ -592,8 +516,6 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 	struct hci_dev *hdev = NULL;
 	struct btmrvl_private *priv;
 	int ret;
-
-	BT_DBG("Enter");
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -649,7 +571,6 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 	btmrvl_debugfs_init(hdev);
 #endif
 
-	BT_DBG("Leave");
 	return priv;
 
 err_hci_register_dev:
@@ -665,8 +586,6 @@ err_adapter:
 	kfree(priv);
 
 err_priv:
-	BT_DBG("Leave");
-
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(btmrvl_add_card);
@@ -674,8 +593,6 @@ EXPORT_SYMBOL_GPL(btmrvl_add_card);
 int btmrvl_remove_card(struct btmrvl_private *priv)
 {
 	struct hci_dev *hdev;
-
-	BT_DBG("Enter");
 
 	hdev = priv->btmrvl_dev.hcidev;
 
@@ -696,8 +613,6 @@ int btmrvl_remove_card(struct btmrvl_private *priv)
 	btmrvl_free_adapter(priv);
 
 	kfree(priv);
-
-	BT_DBG("Leave");
 
 	return 0;
 }
