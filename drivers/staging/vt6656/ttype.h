@@ -1,5 +1,6 @@
 /*
- * File: ttype.h
+ * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,6 +15,8 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * File: ttype.h
  *
  * Purpose: define basic common types and macros
  *
@@ -50,10 +53,12 @@
 #define OUT
 #endif
 
-//2007-0115-04<Add>by MikeLiu
+//2007-0115-05<Add>by MikeLiu
 #ifndef TxInSleep
 #define TxInSleep
 #endif
+
+//DavidWang
 
 
 //2007-0814-01<Add>by MikeLiu
@@ -61,7 +66,7 @@
 #define Safe_Close
 #endif
 
-//2008-0131-01<Add>by MikeLiu
+//2008-0131-02<Add>by MikeLiu
 #ifndef Adhoc_STA
 #define Adhoc_STA
 #endif
