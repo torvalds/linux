@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/io.h>
 #include <mach-se/mach/se7780.h>
 
