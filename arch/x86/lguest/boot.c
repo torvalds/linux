@@ -525,7 +525,7 @@ static void lguest_pte_update(struct mm_struct *mm, unsigned long addr,
 static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	native_set_pte(ptep, pteval);
 	lguest_pte_update(mm, addr, ptep);
 }
 
@@ -534,9 +534,9 @@ static void lguest_set_pte_at(struct mm_struct *mm, unsigned long addr,
  * changed. */
 static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
-	*pmdp = pmdval;
+	native_set_pmd(pmdp, pmdval);
 	lazy_hcall2(LHCALL_SET_PMD, __pa(pmdp) & PAGE_MASK,
-		   (__pa(pmdp) & (PAGE_SIZE - 1)) / 4);
+		   (__pa(pmdp) & (PAGE_SIZE - 1)) / sizeof(pmd_t));
 }
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
@@ -550,7 +550,7 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * which brings boot back to 0.25 seconds. */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
-	*ptep = pteval;
+	native_set_pte(ptep, pteval);
 	if (cr3_changed)
 		lazy_hcall1(LHCALL_FLUSH_TLB, 1);
 }

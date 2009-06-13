@@ -90,7 +90,7 @@ static pte_t *spte_addr(pgd_t spgd, unsigned long vaddr)
 	pte_t *page = __va(pgd_pfn(spgd) << PAGE_SHIFT);
 	/* You should never call this if the PGD entry wasn't valid */
 	BUG_ON(!(pgd_flags(spgd) & _PAGE_PRESENT));
-	return &page[(vaddr >> PAGE_SHIFT) % PTRS_PER_PTE];
+	return &page[pte_index(vaddr)];
 }
 
 /* These two functions just like the above two, except they access the Guest
@@ -105,7 +105,7 @@ static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
 {
 	unsigned long gpage = pgd_pfn(gpgd) << PAGE_SHIFT;
 	BUG_ON(!(pgd_flags(gpgd) & _PAGE_PRESENT));
-	return gpage + ((vaddr>>PAGE_SHIFT) % PTRS_PER_PTE) * sizeof(pte_t);
+	return gpage + pte_index(vaddr) * sizeof(pte_t);
 }
 /*:*/
 
@@ -171,7 +171,7 @@ static void release_pte(pte_t pte)
 	/* Remember that get_user_pages_fast() took a reference to the page, in
 	 * get_pfn()?  We have to put it back now. */
 	if (pte_flags(pte) & _PAGE_PRESENT)
-		put_page(pfn_to_page(pte_pfn(pte)));
+		put_page(pte_page(pte));
 }
 /*:*/
 
@@ -273,7 +273,7 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		 * table entry, even if the Guest says it's writable.  That way
 		 * we will come back here when a write does actually occur, so
 		 * we can update the Guest's _PAGE_DIRTY flag. */
-		*spte = gpte_to_spte(cpu, pte_wrprotect(gpte), 0);
+		native_set_pte(spte, gpte_to_spte(cpu, pte_wrprotect(gpte), 0));
 
 	/* Finally, we write the Guest PTE entry back: we've set the
 	 * _PAGE_ACCESSED and maybe the _PAGE_DIRTY flags. */
@@ -323,7 +323,7 @@ void pin_page(struct lg_cpu *cpu, unsigned long vaddr)
 }
 
 /*H:450 If we chase down the release_pgd() code, it looks like this: */
-static void release_pgd(struct lguest *lg, pgd_t *spgd)
+static void release_pgd(pgd_t *spgd)
 {
 	/* If the entry's not present, there's nothing to release. */
 	if (pgd_flags(*spgd) & _PAGE_PRESENT) {
@@ -350,7 +350,7 @@ static void flush_user_mappings(struct lguest *lg, int idx)
 	unsigned int i;
 	/* Release every pgd entry up to the kernel's address. */
 	for (i = 0; i < pgd_index(lg->kernel_address); i++)
-		release_pgd(lg, lg->pgdirs[idx].pgdir + i);
+		release_pgd(lg->pgdirs[idx].pgdir + i);
 }
 
 /*H:440 (v) Flushing (throwing away) page tables,
@@ -431,7 +431,7 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 
 /*H:430 (iv) Switching page tables
  *
- * Now we've seen all the page table setting and manipulation, let's see what
+ * Now we've seen all the page table setting and manipulation, let's see
  * what happens when the Guest changes page tables (ie. changes the top-level
  * pgdir).  This occurs on almost every context switch. */
 void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
@@ -463,7 +463,7 @@ static void release_all_pagetables(struct lguest *lg)
 		if (lg->pgdirs[i].pgdir)
 			/* Every PGD entry except the Switcher at the top */
 			for (j = 0; j < SWITCHER_PGD_INDEX; j++)
-				release_pgd(lg, lg->pgdirs[i].pgdir + j);
+				release_pgd(lg->pgdirs[i].pgdir + j);
 }
 
 /* We also throw away everything when a Guest tells us it's changed a kernel
@@ -581,7 +581,7 @@ void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 idx)
 	pgdir = find_pgdir(lg, gpgdir);
 	if (pgdir < ARRAY_SIZE(lg->pgdirs))
 		/* ... throw it away. */
-		release_pgd(lg, lg->pgdirs[pgdir].pgdir + idx);
+		release_pgd(lg->pgdirs[pgdir].pgdir + idx);
 }
 
 /* Once we know how much memory we have we can construct simple identity
@@ -726,8 +726,9 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * page is already mapped there, we don't have to copy them out
 	 * again. */
 	pfn = __pa(cpu->regs_page) >> PAGE_SHIFT;
-	regs_pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL));
-	switcher_pte_page[(unsigned long)pages/PAGE_SIZE%PTRS_PER_PTE] = regs_pte;
+	native_set_pte(&regs_pte, pfn_pte(pfn, PAGE_KERNEL));
+	native_set_pte(&switcher_pte_page[pte_index((unsigned long)pages)],
+			regs_pte);
 }
 /*:*/
 
@@ -752,21 +753,21 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
 
 	/* The first entries are easy: they map the Switcher code. */
 	for (i = 0; i < pages; i++) {
-		pte[i] = mk_pte(switcher_page[i],
-				__pgprot(_PAGE_PRESENT|_PAGE_ACCESSED));
+		native_set_pte(&pte[i], mk_pte(switcher_page[i],
+				__pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
 	}
 
 	/* The only other thing we map is this CPU's pair of pages. */
 	i = pages + cpu*2;
 
 	/* First page (Guest registers) is writable from the Guest */
-	pte[i] = pfn_pte(page_to_pfn(switcher_page[i]),
-			 __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED|_PAGE_RW));
+	native_set_pte(&pte[i], pfn_pte(page_to_pfn(switcher_page[i]),
+			 __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED|_PAGE_RW)));
 
 	/* The second page contains the "struct lguest_ro_state", and is
 	 * read-only. */
-	pte[i+1] = pfn_pte(page_to_pfn(switcher_page[i+1]),
-			   __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED));
+	native_set_pte(&pte[i+1], pfn_pte(page_to_pfn(switcher_page[i+1]),
+			   __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
 }
 
 /* We've made it through the page table code.  Perhaps our tired brains are
