@@ -5094,6 +5094,13 @@ L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 F:	drivers/mmc/host/sdhci.*
 
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+F:	drivers/mmc/host/sdhci-s3c.c
+
 SECURITY SUBSYSTEM
 P:	James Morris
 M:	jmorris@namei.org
