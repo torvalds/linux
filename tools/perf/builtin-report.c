@@ -1095,9 +1095,43 @@ process_period_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
+static void trace_event(event_t *event)
+{
+	unsigned char *raw_event = (void *)event;
+	int i, j;
+
+	if (!dump_trace)
+		return;
+
+	dprintf(".\n. ... raw event: size %d bytes\n", event->header.size);
+
+	for (i = 0; i < event->header.size; i++) {
+		if ((i & 15) == 0)
+			dprintf(".  %04x: ", i);
+
+		dprintf(" %02x", raw_event[i]);
+
+		if (((i & 15) == 15) || i == event->header.size-1) {
+			dprintf("  ");
+			for (j = 0; j < 15-(i & 15); j++)
+				dprintf("   ");
+			for (j = 0; j < (i & 15); j++) {
+				if (isprint(raw_event[i-15+j]))
+					dprintf("%c", raw_event[i-15+j]);
+				else
+					dprintf(".");
+			}
+			dprintf("\n");
+		}
+	}
+	dprintf(".\n");
+}
+
 static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
+	trace_event(event);
+
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
 		return process_overflow_event(event, offset, head);
 
@@ -1204,7 +1238,7 @@ more:
 
 	size = event->header.size;
 
-	dprintf("%p [%p]: event: %d\n",
+	dprintf("\n%p [%p]: event: %d\n",
 			(void *)(offset + head),
 			(void *)(long)event->header.size,
 			event->header.type);
