@@ -77,12 +77,13 @@ struct sd {
 #define SEN_UNKNOWN 0
 #define SEN_OV6620 1
 #define SEN_OV6630 2
-#define SEN_OV7610 3
-#define SEN_OV7620 4
-#define SEN_OV7640 5
-#define SEN_OV7670 6
-#define SEN_OV76BE 7
-#define SEN_OV8610 8
+#define SEN_OV66308AF 3
+#define SEN_OV7610 4
+#define SEN_OV7620 5
+#define SEN_OV7640 6
+#define SEN_OV7670 7
+#define SEN_OV76BE 8
+#define SEN_OV8610 9
 };
 
 /* V4L2 controls supported by the driver */
@@ -1415,13 +1416,14 @@ static int ov6xx0_configure(struct sd *sd)
 		break;
 	case 0x01:
 		sd->sensor = SEN_OV6620;
+		PDEBUG(D_PROBE, "Sensor is an OV6620");
 		break;
 	case 0x02:
 		sd->sensor = SEN_OV6630;
 		PDEBUG(D_PROBE, "Sensor is an OV66308AE");
 		break;
 	case 0x03:
-		sd->sensor = SEN_OV6630;
+		sd->sensor = SEN_OV66308AF;
 		PDEBUG(D_PROBE, "Sensor is an OV66308AF");
 		break;
 	case 0x90:
@@ -1745,6 +1747,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -EIO;
 		break;
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		if (write_i2c_regvals(sd, norm_6x30, ARRAY_SIZE(norm_6x30)))
 			return -EIO;
 		break;
@@ -2081,6 +2084,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		break;
 	case SEN_OV6620:
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		break;
 	default:
@@ -2101,7 +2105,8 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 
 	/* OV7640 is 8-bit only */
 
-	if (sd->sensor != SEN_OV6630 && sd->sensor != SEN_OV7640)
+	if (sd->sensor != SEN_OV6630 && sd->sensor != SEN_OV66308AF &&
+					sd->sensor != SEN_OV7640)
 		i2c_w_mask(sd, 0x13, 0x00, 0x20);
 
 	/******** Clock programming ********/
@@ -2188,15 +2193,14 @@ static int set_ov_sensor_window(struct sd *sd)
 		break;
 	case SEN_OV6620:
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		hwsbase = 0x38;
 		hwebase = 0x3a;
 		vwsbase = 0x05;
 		vwebase = 0x06;
-		if (qvga) {
+		if (sd->sensor == SEN_OV66308AF && qvga)
 			/* HDG: this fixes U and V getting swapped */
-			hwsbase--;
-			vwsbase--;
-		}
+			hwsbase++;
 		break;
 	case SEN_OV7620:
 		hwsbase = 0x2f;		/* From 7620.SET (spec is wrong) */
@@ -2220,6 +2224,7 @@ static int set_ov_sensor_window(struct sd *sd)
 	switch (sd->sensor) {
 	case SEN_OV6620:
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		if (qvga) {		/* QCIF */
 			hwscale = 0;
 			vwscale = 0;
@@ -2456,6 +2461,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SEN_OV76BE:
 	case SEN_OV6620:
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 	case SEN_OV7640:
 		i2c_w(sd, OV7610_REG_BRT, val);
 		break;
@@ -2484,6 +2490,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		i2c_w(sd, OV7610_REG_CNT, val);
 		break;
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		i2c_w_mask(sd, OV7610_REG_CNT, val >> 4, 0x0f);
 		break;
 	case SEN_OV8610: {
@@ -2528,6 +2535,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	case SEN_OV76BE:
 	case SEN_OV6620:
 	case SEN_OV6630:
+	case SEN_OV66308AF:
 		i2c_w(sd, OV7610_REG_SAT, val);
 		break;
 	case SEN_OV7620:
@@ -2591,7 +2599,8 @@ static void setfreq(struct sd *sd)
 			i2c_w_mask(sd, 0x2a, 0x80, 0x80);
 			/* 20 fps -> 16.667 fps */
 			if (sd->sensor == SEN_OV6620 ||
-			    sd->sensor == SEN_OV6630)
+			    sd->sensor == SEN_OV6630 ||
+			    sd->sensor == SEN_OV66308AF)
 				i2c_w(sd, 0x2b, 0x5e);
 			else
 				i2c_w(sd, 0x2b, 0xac);
@@ -2599,7 +2608,8 @@ static void setfreq(struct sd *sd)
 		case 2: /* 60 hz (filter on, ...) */
 			i2c_w_mask(sd, 0x2d, 0x04, 0x04);
 			if (sd->sensor == SEN_OV6620 ||
-			    sd->sensor == SEN_OV6630) {
+			    sd->sensor == SEN_OV6630 ||
+			    sd->sensor == SEN_OV66308AF) {
 				/* 20 fps -> 15 fps */
 				i2c_w_mask(sd, 0x2a, 0x80, 0x80);
 				i2c_w(sd, 0x2b, 0xa8);
