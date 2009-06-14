@@ -82,7 +82,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t == transaction) {
 			list_del(&t->link);
-			card->tlabel_mask &= ~(1 << t->tlabel);
+			card->tlabel_mask &= ~(1ULL << t->tlabel);
 			break;
 		}
 	}
@@ -288,14 +288,14 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	spin_lock_irqsave(&card->lock, flags);
 
 	tlabel = card->current_tlabel;
-	if (card->tlabel_mask & (1 << tlabel)) {
+	if (card->tlabel_mask & (1ULL << tlabel)) {
 		spin_unlock_irqrestore(&card->lock, flags);
 		callback(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
 		return;
 	}
 
-	card->current_tlabel = (card->current_tlabel + 1) & 0x1f;
-	card->tlabel_mask |= (1 << tlabel);
+	card->current_tlabel = (card->current_tlabel + 1) & 0x3f;
+	card->tlabel_mask |= (1ULL << tlabel);
 
 	t->node_id = destination_id;
 	t->tlabel = tlabel;

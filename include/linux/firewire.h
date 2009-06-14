@@ -98,7 +98,8 @@ struct fw_card {
 
 	int node_id;
 	int generation;
-	int current_tlabel, tlabel_mask;
+	int current_tlabel;
+	u64 tlabel_mask;
 	struct list_head transaction_list;
 	struct timer_list flush_timer;
 	unsigned long reset_jiffies;
