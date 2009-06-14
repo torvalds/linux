@@ -26,8 +26,6 @@ options:
 
 config doesn't check the validity of the .config file. This is done at next
  make time.
-The options need to be already in the file before they can be changed,
-but sometimes you can cheat with the --*-after options.
 EOL
 	exit 1
 }
@@ -45,8 +43,18 @@ checkarg() {
 	ARG="`echo $ARG | tr a-z A-Z`"
 }
 
-replace() {
-	sed -i -e "$@" $FN
+set_var() {
+	local name=$1 new=$2 before=$3
+
+	name_re="^($name=|# $name is not set)"
+	before_re="^($before=|# $before is not set)"
+	if test -n "$before" && grep -Eq "$before_re" "$FN"; then
+		sed -ri "/$before_re/a $new" "$FN"
+	elif grep -Eq "$name_re" "$FN"; then
+		sed -ri "s:$name_re.*:$new:" "$FN"
+	else
+		echo "$new" >>"$FN"
+	fi
 }
 
 if [ "$1" = "--file" ]; then
@@ -70,20 +78,19 @@ while [ "$1" != "" ] ; do
 	case "$CMD" in
 	--enable|-e)
 		checkarg "$1"
-		replace "s/# CONFIG_$ARG is not set/CONFIG_$ARG=y/"
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=y"
 		shift
 		;;
 
 	--disable|-d)
 		checkarg "$1"
-		replace "s/CONFIG_$ARG=[my]/# CONFIG_$ARG is not set/"
+		set_var "CONFIG_$ARG" "# CONFIG_$ARG is not set"
 		shift
 		;;
 
 	--module|-m)
 		checkarg "$1"
-		replace "s/CONFIG_$ARG=y/CONFIG_$ARG=m/" \
-			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=m/"
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=m"
 		shift
 		;;
 
@@ -109,9 +116,7 @@ while [ "$1" != "" ] ; do
 		A=$ARG
 		checkarg "$2"
 		B=$ARG
-		replace "/CONFIG_$A=[my]/aCONFIG_$B=y" \
-			-e "/# CONFIG_$ARG is not set/a/CONFIG_$ARG=y" \
-			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=y/"
+		set_var "CONFIG_$B" "CONFIG_$B=y" "CONFIG_$A"
 		shift
 		shift
 		;;
@@ -121,9 +126,7 @@ while [ "$1" != "" ] ; do
 		A=$ARG
 		checkarg "$2"
 		B=$ARG
-		replace "/CONFIG_$A=[my]/a# CONFIG_$B is not set" \
-		-e "/# CONFIG_$ARG is not set/a/# CONFIG_$ARG is not set" \
-		-e "s/CONFIG_$ARG=[my]/# CONFIG_$ARG is not set/"
+		set_var "CONFIG_$B" "# CONFIG_$B is not set" "CONFIG_$A"
 		shift
 		shift
 		;;
@@ -133,10 +136,7 @@ while [ "$1" != "" ] ; do
 		A=$ARG
 		checkarg "$2"
 		B=$ARG
-		replace "/CONFIG_$A=[my]/aCONFIG_$B=m" \
-			-e "/# CONFIG_$ARG is not set/a/CONFIG_$ARG=m" \
-			-e "s/CONFIG_$ARG=y/CONFIG_$ARG=m/" \
-			-e "s/# CONFIG_$ARG is not set/CONFIG_$ARG=m/"
+		set_var "CONFIG_$B" "CONFIG_$B=m" "CONFIG_$A"
 		shift
 		shift
 		;;
