@@ -25,6 +25,8 @@
 *.elf
 *.bin
 *.gz
+*.lzma
+*.patch
 
 #
 # Top-level generic files
@@ -61,6 +63,12 @@ series
 # cscope files
 cscope.*
 ncscope.*
+
+# gnu global files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
 
 *.orig
 *~
