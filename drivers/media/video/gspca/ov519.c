@@ -76,8 +76,8 @@ struct sd {
 
 	__u8 stopped;		/* Streaming is temporarily paused */
 
-	__u8 frame_rate;	/* current Framerate (OV519 only) */
-	__u8 clockdiv;		/* clockdiv override for OV519 only */
+	__u8 frame_rate;	/* current Framerate */
+	__u8 clockdiv;		/* clockdiv override */
 
 	char sensor;		/* Type of image sensor chip (SEN_*) */
 #define SEN_UNKNOWN 0
@@ -304,17 +304,77 @@ static const struct v4l2_pix_format ov518_sif_mode[] = {
 		.priv = 0},
 };
 
+static const struct v4l2_pix_format ov511_vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 2,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
+};
+static const struct v4l2_pix_format ov511_sif_mode[] = {
+	{160, 120, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 40000,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
+	{176, 144, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 40000,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
+	{352, 288, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
+};
 
 /* Registers common to OV511 / OV518 */
+#define R51x_FIFO_PSIZE			0x30	/* 2 bytes wide w/ OV518(+) */
 #define R51x_SYS_RESET          	0x50
+	/* Reset type flags */
+	#define	OV511_RESET_OMNICE	0x08
 #define R51x_SYS_INIT         		0x53
 #define R51x_SYS_SNAP			0x52
 #define R51x_SYS_CUST_ID		0x5F
 #define R51x_COMP_LUT_BEGIN		0x80
 
 /* OV511 Camera interface register numbers */
+#define R511_CAM_DELAY			0x10
+#define R511_CAM_EDGE			0x11
+#define R511_CAM_PXCNT			0x12
+#define R511_CAM_LNCNT			0x13
+#define R511_CAM_PXDIV			0x14
+#define R511_CAM_LNDIV			0x15
+#define R511_CAM_UV_EN			0x16
+#define R511_CAM_LINE_MODE		0x17
+#define R511_CAM_OPTS			0x18
+
+#define R511_SNAP_FRAME			0x19
+#define R511_SNAP_PXCNT			0x1A
+#define R511_SNAP_LNCNT			0x1B
+#define R511_SNAP_PXDIV			0x1C
+#define R511_SNAP_LNDIV			0x1D
+#define R511_SNAP_UV_EN			0x1E
+#define R511_SNAP_UV_EN			0x1E
+#define R511_SNAP_OPTS			0x1F
+
+#define R511_DRAM_FLOW_CTL		0x20
+#define R511_FIFO_OPTS			0x31
+#define R511_I2C_CTL			0x40
 #define R511_SYS_LED_CTL		0x55	/* OV511+ only */
-#define	OV511_RESET_NOREGS		0x3F	/* All but OV511 & regs */
+#define R511_COMP_EN			0x78
+#define R511_COMP_LUT_EN		0x79
 
 /* OV518 Camera interface register numbers */
 #define R518_GPIO_OUT			0x56	/* OV518(+) only */
@@ -1079,13 +1139,128 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 	return ret;
 }
 
+static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
+{
+	int rc, retries;
+
+	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+
+	/* Three byte write cycle */
+	for (retries = 6; ; ) {
+		/* Select camera register */
+		rc = reg_w(sd, R51x_I2C_SADDR_3, reg);
+		if (rc < 0)
+			return rc;
+
+		/* Write "value" to I2C data port of OV511 */
+		rc = reg_w(sd, R51x_I2C_DATA, value);
+		if (rc < 0)
+			return rc;
+
+		/* Initiate 3-byte write cycle */
+		rc = reg_w(sd, R511_I2C_CTL, 0x01);
+		if (rc < 0)
+			return rc;
+
+		do
+			rc = reg_r(sd, R511_I2C_CTL);
+		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+
+		if (rc < 0)
+			return rc;
+
+		if ((rc & 2) == 0) /* Ack? */
+			break;
+		if (--retries < 0) {
+			PDEBUG(D_USBO, "i2c write retries exhausted");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int ov511_i2c_r(struct sd *sd, __u8 reg)
+{
+	int rc, value, retries;
+
+	/* Two byte write cycle */
+	for (retries = 6; ; ) {
+		/* Select camera register */
+		rc = reg_w(sd, R51x_I2C_SADDR_2, reg);
+		if (rc < 0)
+			return rc;
+
+		/* Initiate 2-byte write cycle */
+		rc = reg_w(sd, R511_I2C_CTL, 0x03);
+		if (rc < 0)
+			return rc;
+
+		do
+			rc = reg_r(sd, R511_I2C_CTL);
+		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+
+		if (rc < 0)
+			return rc;
+
+		if ((rc & 2) == 0) /* Ack? */
+			break;
+
+		/* I2C abort */
+		reg_w(sd, R511_I2C_CTL, 0x10);
+
+		if (--retries < 0) {
+			PDEBUG(D_USBI, "i2c write retries exhausted");
+			return -1;
+		}
+	}
+
+	/* Two byte read cycle */
+	for (retries = 6; ; ) {
+		/* Initiate 2-byte read cycle */
+		rc = reg_w(sd, R511_I2C_CTL, 0x05);
+		if (rc < 0)
+			return rc;
+
+		do
+			rc = reg_r(sd, R511_I2C_CTL);
+		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+
+		if (rc < 0)
+			return rc;
+
+		if ((rc & 2) == 0) /* Ack? */
+			break;
+
+		/* I2C abort */
+		rc = reg_w(sd, R511_I2C_CTL, 0x10);
+		if (rc < 0)
+			return rc;
+
+		if (--retries < 0) {
+			PDEBUG(D_USBI, "i2c read retries exhausted");
+			return -1;
+		}
+	}
+
+	value = reg_r(sd, R51x_I2C_DATA);
+
+	PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
+
+	/* This is needed to make i2c_w() work */
+	rc = reg_w(sd, R511_I2C_CTL, 0x05);
+	if (rc < 0)
+		return rc;
+
+	return value;
+}
 
 /*
  * The OV518 I2C I/O procedure is different, hence, this function.
  * This is normally only called from i2c_w(). Note that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
-static int i2c_w(struct sd *sd,
+static int ov518_i2c_w(struct sd *sd,
 		__u8 reg,
 		__u8 value)
 {
@@ -1120,7 +1295,7 @@ static int i2c_w(struct sd *sd,
  * This is normally only called from i2c_r(). Note that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
-static int i2c_r(struct sd *sd, __u8 reg)
+static int ov518_i2c_r(struct sd *sd, __u8 reg)
 {
 	int rc, value;
 
@@ -1141,6 +1316,34 @@ static int i2c_r(struct sd *sd, __u8 reg)
 	value = reg_r(sd, R51x_I2C_DATA);
 	PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
 	return value;
+}
+
+static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
+{
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		return ov511_i2c_w(sd, reg, value);
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+	case BRIDGE_OV519:
+		return ov518_i2c_w(sd, reg, value);
+	}
+	return -1; /* Should never happen */
+}
+
+static int i2c_r(struct sd *sd, __u8 reg)
+{
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		return ov511_i2c_r(sd, reg);
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+	case BRIDGE_OV519:
+		return ov518_i2c_r(sd, reg);
+	}
+	return -1; /* Should never happen */
 }
 
 /* Writes bits at positions specified by mask to an I2C reg. Bits that are in
@@ -1490,9 +1693,31 @@ static void ov51x_led_control(struct sd *sd, int on)
 	}
 }
 
-/* OV518 quantization tables are 8x4 (instead of 8x8) */
-static int ov518_upload_quan_tables(struct sd *sd)
+static int ov51x_upload_quan_tables(struct sd *sd)
 {
+	const unsigned char yQuanTable511[] = {
+		0, 1, 1, 2, 2, 3, 3, 4,
+		1, 1, 1, 2, 2, 3, 4, 4,
+		1, 1, 2, 2, 3, 4, 4, 4,
+		2, 2, 2, 3, 4, 4, 4, 4,
+		2, 2, 3, 4, 4, 5, 5, 5,
+		3, 3, 4, 4, 5, 5, 5, 5,
+		3, 4, 4, 4, 5, 5, 5, 5,
+		4, 4, 4, 4, 5, 5, 5, 5
+	};
+
+	const unsigned char uvQuanTable511[] = {
+		0, 2, 2, 3, 4, 4, 4, 4,
+		2, 2, 2, 4, 4, 4, 4, 4,
+		2, 2, 3, 4, 4, 4, 4, 4,
+		3, 4, 4, 4, 4, 4, 4, 4,
+		4, 4, 4, 4, 4, 4, 4, 4,
+		4, 4, 4, 4, 4, 4, 4, 4,
+		4, 4, 4, 4, 4, 4, 4, 4,
+		4, 4, 4, 4, 4, 4, 4, 4
+	};
+
+	/* OV518 quantization tables are 8x4 (instead of 8x8) */
 	const unsigned char yQuanTable518[] = {
 		5, 4, 5, 6, 6, 7, 7, 7,
 		5, 5, 5, 5, 6, 7, 7, 7,
@@ -1507,14 +1732,23 @@ static int ov518_upload_quan_tables(struct sd *sd)
 		7, 7, 7, 7, 7, 7, 8, 8
 	};
 
-	const unsigned char *pYTable = yQuanTable518;
-	const unsigned char *pUVTable = uvQuanTable518;
+	const unsigned char *pYTable, *pUVTable;
 	unsigned char val0, val1;
-	int i, rc, reg = R51x_COMP_LUT_BEGIN;
+	int i, size, rc, reg = R51x_COMP_LUT_BEGIN;
 
 	PDEBUG(D_PROBE, "Uploading quantization tables");
 
-	for (i = 0; i < 16; i++) {
+	if (sd->bridge == BRIDGE_OV511 || sd->bridge == BRIDGE_OV511PLUS) {
+		pYTable = yQuanTable511;
+		pUVTable = uvQuanTable511;
+		size  = 32;
+	} else {
+		pYTable = yQuanTable518;
+		pUVTable = uvQuanTable518;
+		size  = 16;
+	}
+
+	for (i = 0; i < size; i++) {
 		val0 = *pYTable++;
 		val1 = *pYTable++;
 		val0 &= 0x0f;
@@ -1529,11 +1763,92 @@ static int ov518_upload_quan_tables(struct sd *sd)
 		val0 &= 0x0f;
 		val1 &= 0x0f;
 		val0 |= val1 << 4;
-		rc = reg_w(sd, reg + 16, val0);
+		rc = reg_w(sd, reg + size, val0);
 		if (rc < 0)
 			return rc;
 
 		reg++;
+	}
+
+	return 0;
+}
+
+/* This initializes the OV511/OV511+ and the sensor */
+static int ov511_configure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int rc;
+
+	/* For 511 and 511+ */
+	const struct ov_regvals init_511[] = {
+		{ R51x_SYS_RESET,	0x7f },
+		{ R51x_SYS_INIT,	0x01 },
+		{ R51x_SYS_RESET,	0x7f },
+		{ R51x_SYS_INIT,	0x01 },
+		{ R51x_SYS_RESET,	0x3f },
+		{ R51x_SYS_INIT,	0x01 },
+		{ R51x_SYS_RESET,	0x3d },
+	};
+
+	const struct ov_regvals norm_511[] = {
+		{ R511_DRAM_FLOW_CTL, 	0x01 },
+		{ R51x_SYS_SNAP,	0x00 },
+		{ R51x_SYS_SNAP,	0x02 },
+		{ R51x_SYS_SNAP,	0x00 },
+		{ R511_FIFO_OPTS,	0x1f },
+		{ R511_COMP_EN,		0x00 },
+		{ R511_COMP_LUT_EN,	0x03 },
+	};
+
+	const struct ov_regvals norm_511_p[] = {
+		{ R511_DRAM_FLOW_CTL,	0xff },
+		{ R51x_SYS_SNAP,	0x00 },
+		{ R51x_SYS_SNAP,	0x02 },
+		{ R51x_SYS_SNAP,	0x00 },
+		{ R511_FIFO_OPTS,	0xff },
+		{ R511_COMP_EN,		0x00 },
+		{ R511_COMP_LUT_EN,	0x03 },
+	};
+
+	const struct ov_regvals compress_511[] = {
+		{ 0x70, 0x1f },
+		{ 0x71, 0x05 },
+		{ 0x72, 0x06 },
+		{ 0x73, 0x06 },
+		{ 0x74, 0x14 },
+		{ 0x75, 0x03 },
+		{ 0x76, 0x04 },
+		{ 0x77, 0x04 },
+	};
+
+	PDEBUG(D_PROBE, "Device custom id %x", reg_r(sd, R51x_SYS_CUST_ID));
+
+	rc = write_regvals(sd, init_511, ARRAY_SIZE(init_511));
+	if (rc < 0)
+		return rc;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+		rc = write_regvals(sd, norm_511, ARRAY_SIZE(norm_511));
+		if (rc < 0)
+			return rc;
+		break;
+	case BRIDGE_OV511PLUS:
+		rc = write_regvals(sd, norm_511_p, ARRAY_SIZE(norm_511_p));
+		if (rc < 0)
+			return rc;
+		break;
+	}
+
+	/* Init compression */
+	rc = write_regvals(sd, compress_511, ARRAY_SIZE(compress_511));
+	if (rc < 0)
+		return rc;
+
+	rc = ov51x_upload_quan_tables(sd);
+	if (rc < 0) {
+		PDEBUG(D_ERR, "Error uploading quantization tables");
+		return rc;
 	}
 
 	return 0;
@@ -1615,7 +1930,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	rc = ov518_upload_quan_tables(sd);
+	rc = ov51x_upload_quan_tables(sd);
 	if (rc < 0) {
 		PDEBUG(D_ERR, "Error uploading quantization tables");
 		return rc;
@@ -1661,6 +1976,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->invert_led = id->driver_info & BRIDGE_INVERT_LED;
 
 	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		ret = ov511_configure(gspca_dev);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 		ret = ov518_configure(gspca_dev);
@@ -1719,6 +2038,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		if (!sd->sif) {
+			cam->cam_mode = ov511_vga_mode;
+			cam->nmodes = ARRAY_SIZE(ov511_vga_mode);
+		} else {
+			cam->cam_mode = ov511_sif_mode;
+			cam->nmodes = ARRAY_SIZE(ov511_sif_mode);
+		}
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 		if (!sd->sif) {
@@ -1807,6 +2136,126 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -EIO;
 		break;
 	}
+	return 0;
+}
+
+/* Set up the OV511/OV511+ with the given image parameters.
+ *
+ * Do not put any sensor-specific code in here (including I2C I/O functions)
+ */
+static int ov511_mode_init_regs(struct sd *sd)
+{
+	int hsegs, vsegs, packet_size, fps, needed;
+	int interlaced = 0;
+	struct usb_host_interface *alt;
+	struct usb_interface *intf;
+
+	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
+	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
+	if (!alt) {
+		PDEBUG(D_ERR, "Couldn't get altsetting");
+		return -EIO;
+	}
+
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	reg_w(sd, R51x_FIFO_PSIZE, packet_size >> 5);
+
+	reg_w(sd, R511_CAM_UV_EN, 0x01);
+	reg_w(sd, R511_SNAP_UV_EN, 0x01);
+	reg_w(sd, R511_SNAP_OPTS, 0x03);
+
+	/* Here I'm assuming that snapshot size == image size.
+	 * I hope that's always true. --claudio
+	 */
+	hsegs = (sd->gspca_dev.width >> 3) - 1;
+	vsegs = (sd->gspca_dev.height >> 3) - 1;
+
+	reg_w(sd, R511_CAM_PXCNT, hsegs);
+	reg_w(sd, R511_CAM_LNCNT, vsegs);
+	reg_w(sd, R511_CAM_PXDIV, 0x00);
+	reg_w(sd, R511_CAM_LNDIV, 0x00);
+
+	/* YUV420, low pass filter on */
+	reg_w(sd, R511_CAM_OPTS, 0x03);
+
+	/* Snapshot additions */
+	reg_w(sd, R511_SNAP_PXCNT, hsegs);
+	reg_w(sd, R511_SNAP_LNCNT, vsegs);
+	reg_w(sd, R511_SNAP_PXDIV, 0x00);
+	reg_w(sd, R511_SNAP_LNDIV, 0x00);
+
+	/******** Set the framerate ********/
+	if (frame_rate > 0)
+		sd->frame_rate = frame_rate;
+
+	switch (sd->sensor) {
+	case SEN_OV6620:
+		/* No framerate control, doesn't like higher rates yet */
+		sd->clockdiv = 3;
+		break;
+
+	/* Note once the FIXME's in mode_init_ov_sensor_regs() are fixed
+	   for more sensors we need to do this for them too */
+	case SEN_OV7620:
+	case SEN_OV7640:
+		if (sd->gspca_dev.width == 320)
+			interlaced = 1;
+		/* Fall through */
+	case SEN_OV6630:
+	case SEN_OV76BE:
+	case SEN_OV7610:
+	case SEN_OV7670:
+		switch (sd->frame_rate) {
+		case 30:
+		case 25:
+			/* Not enough bandwidth to do 640x480 @ 30 fps */
+			if (sd->gspca_dev.width != 640) {
+				sd->clockdiv = 0;
+				break;
+			}
+			/* Fall through for 640x480 case */
+		default:
+/*		case 20: */
+/*		case 15: */
+			sd->clockdiv = 1;
+			break;
+		case 10:
+			sd->clockdiv = 2;
+			break;
+		case 5:
+			sd->clockdiv = 5;
+			break;
+		}
+		if (interlaced) {
+			sd->clockdiv = (sd->clockdiv + 1) * 2 - 1;
+			/* Higher then 10 does not work */
+			if (sd->clockdiv > 10)
+				sd->clockdiv = 10;
+		}
+		break;
+
+	case SEN_OV8610:
+		/* No framerate control ?? */
+		sd->clockdiv = 0;
+		break;
+	}
+
+	/* Check if we have enough bandwidth to disable compression */
+	fps = (interlaced ? 60 : 30) / (sd->clockdiv + 1) + 1;
+	needed = fps * sd->gspca_dev.width * sd->gspca_dev.height * 3 / 2;
+	/* 1400 is a conservative estimate of the max nr of isoc packets/sec */
+	if (needed > 1400 * packet_size) {
+		/* Enable Y and UV quantization and compression */
+		reg_w(sd, R511_COMP_EN, 0x07);
+		reg_w(sd, R511_COMP_LUT_EN, 0x03);
+	} else {
+		reg_w(sd, R511_COMP_EN, 0x06);
+		reg_w(sd, R511_COMP_LUT_EN, 0x00);
+	}
+
+	reg_w(sd, R51x_SYS_RESET, OV511_RESET_OMNICE);
+	reg_w(sd, R51x_SYS_RESET, 0);
+
 	return 0;
 }
 
@@ -2363,6 +2812,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int ret = 0;
 
 	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		ret = ov511_mode_init_regs(sd);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 		ret = ov518_mode_init_regs(sd);
@@ -2401,6 +2854,56 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	ov51x_stop(sd);
 	ov51x_led_control(sd, 0);
+}
+
+static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame,	/* target */
+			__u8 *in,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* SOF/EOF packets have 1st to 8th bytes zeroed and the 9th
+	 * byte non-zero. The EOF packet has image width/height in the
+	 * 10th and 11th bytes. The 9th byte is given as follows:
+	 *
+	 * bit 7: EOF
+	 *     6: compression enabled
+	 *     5: 422/420/400 modes
+	 *     4: 422/420/400 modes
+	 *     3: 1
+	 *     2: snapshot button on
+	 *     1: snapshot frame
+	 *     0: even/odd field
+	 */
+	if (!(in[0] | in[1] | in[2] | in[3] | in[4] | in[5] | in[6] | in[7]) &&
+	    (in[8] & 0x08)) {
+		if (in[8] & 0x80) {
+			/* Frame end */
+			if ((in[9] + 1) * 8 != gspca_dev->width ||
+			    (in[10] + 1) * 8 != gspca_dev->height) {
+				PDEBUG(D_ERR, "Invalid frame size, got: %dx%d,"
+					" requested: %dx%d\n",
+					(in[9] + 1) * 8, (in[10] + 1) * 8,
+					gspca_dev->width, gspca_dev->height);
+				gspca_dev->last_packet_type = DISCARD_PACKET;
+				return;
+			}
+			/* Add 11 byte footer to frame, might be usefull */
+			gspca_frame_add(gspca_dev, LAST_PACKET, frame, in, 11);
+			return;
+		} else {
+			/* Frame start */
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame, in, 0);
+			sd->packet_nr = 0;
+		}
+	}
+
+	/* Ignore the packet number */
+	len--;
+
+	/* intermediate packet */
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, in, len);
 }
 
 static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
@@ -2495,6 +2998,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
+		ov511_pkt_scan(gspca_dev, frame, data, len);
 		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
@@ -2862,12 +3366,15 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0154), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0155), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x0511), .driver_info = BRIDGE_OV511 },
 	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
 	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x0530), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x4519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x8519), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0xa511), .driver_info = BRIDGE_OV511PLUS },
 	{USB_DEVICE(0x05a9, 0xa518), .driver_info = BRIDGE_OV518PLUS },
+	{USB_DEVICE(0x0813, 0x0002), .driver_info = BRIDGE_OV511PLUS },
 	{}
 };
 
