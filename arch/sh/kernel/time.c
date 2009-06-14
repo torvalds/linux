@@ -91,11 +91,6 @@ module_init(rtc_generic_init);
 
 void (*board_time_init)(void);
 
-unsigned long long sched_clock(void)
-{
-	return (jiffies_64 - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
-}
-
 void __init time_init(void)
 {
 	if (board_time_init)
