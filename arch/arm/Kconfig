@@ -1091,6 +1091,22 @@ config ALIGNMENT_TRAP
 	  correct operation of some network protocols. With an IP-only
 	  configuration it is safe to say N, otherwise say Y.
 
+config UACCESS_WITH_MEMCPY
+	bool "Use kernel mem{cpy,set}() for {copy_to,clear}_user() (EXPERIMENTAL)"
+	depends on MMU && EXPERIMENTAL
+	default y if CPU_FEROCEON
+	help
+	  Implement faster copy_to_user and clear_user methods for CPU
+	  cores where a 8-word STM instruction give significantly higher
+	  memory write throughput than a sequence of individual 32bit stores.
+
+	  A possible side effect is a slight increase in scheduling latency
+	  between threads sharing the same address space if they invoke
+	  such copy operations with large buffers.
+
+	  However, if the CPU data cache is using a write-allocate mode,
+	  this option is unlikely to provide any performance gain.
+
 endmenu
 
 menu "Boot options"
