@@ -71,6 +71,15 @@ config S3C2410_PM_DEBUG
 	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 	  for more information.
 
+config S3C_PM_DEBUG_LED_SMDK
+       bool "SMDK LED suspend/resume debugging"
+       depends on PM && (MACH_SMDK6410)
+       help
+         Say Y here to enable the use of the SMDK LEDs on the baseboard
+	 for debugging of the state of the suspend and resume process.
+
+	 Note, this currently only works for S3C64XX based SMDK boards.
+
 config S3C2410_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
 	depends on PM && CRC32
@@ -150,6 +159,13 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
+# DMA
+
+config S3C_DMA
+	bool
+	help
+	  Internal configuration for S3C DMA core
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
@@ -171,5 +187,15 @@ config S3C_DEV_FB
 	bool
 	help
 	  Compile in platform device definition for framebuffer
+
+config S3C_DEV_USB_HOST
+	bool
+	help
+	  Compile in platform device definition for USB host.
+
+config S3C_DEV_USB_HSOTG
+	bool
+	help
+	  Compile in platform device definition for USB high-speed OtG
 
 endif

@@ -70,6 +70,23 @@ struct uart_amba_port {
 	struct clk		*clk;
 	unsigned int		im;	/* interrupt mask */
 	unsigned int		old_status;
+	unsigned int		ifls;	/* vendor-specific */
+};
+
+/* There is by now at least one vendor with differing details, so handle it */
+struct vendor_data {
+	unsigned int		ifls;
+	unsigned int		fifosize;
+};
+
+static struct vendor_data vendor_arm = {
+	.ifls			= UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
+	.fifosize		= 16,
+};
+
+static struct vendor_data vendor_st = {
+	.ifls			= UART011_IFLS_RX_HALF|UART011_IFLS_TX_HALF,
+	.fifosize		= 64,
 };
 
 static void pl011_stop_tx(struct uart_port *port)
@@ -360,8 +377,7 @@ static int pl011_startup(struct uart_port *port)
 	if (retval)
 		goto clk_dis;
 
-	writew(UART011_IFLS_RX4_8|UART011_IFLS_TX4_8,
-	       uap->port.membase + UART011_IFLS);
+	writew(uap->ifls, uap->port.membase + UART011_IFLS);
 
 	/*
 	 * Provoke TX FIFO interrupt into asserting.
@@ -732,6 +748,7 @@ static struct uart_driver amba_reg = {
 static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct uart_amba_port *uap;
+	struct vendor_data *vendor = id->data;
 	void __iomem *base;
 	int i, ret;
 
@@ -750,7 +767,7 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 		goto out;
 	}
 
-	base = ioremap(dev->res.start, PAGE_SIZE);
+	base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!base) {
 		ret = -ENOMEM;
 		goto free;
@@ -762,12 +779,13 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 		goto unmap;
 	}
 
+	uap->ifls = vendor->ifls;
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
 	uap->port.iotype = UPIO_MEM;
 	uap->port.irq = dev->irq[0];
-	uap->port.fifosize = 16;
+	uap->port.fifosize = vendor->fifosize;
 	uap->port.ops = &amba_pl011_pops;
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = i;
@@ -812,6 +830,12 @@ static struct amba_id pl011_ids[] __initdata = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,
+		.data	= &vendor_arm,
+	},
+	{
+		.id	= 0x00380802,
+		.mask	= 0x00ffffff,
+		.data	= &vendor_st,
 	},
 	{ 0, 0 },
 };
@@ -845,7 +869,11 @@ static void __exit pl011_exit(void)
 	uart_unregister_driver(&amba_reg);
 }
 
-module_init(pl011_init);
+/*
+ * While this can be a module, if builtin it's most likely the console
+ * So let's leave module_exit but move module_init to an earlier place
+ */
+arch_initcall(pl011_init);
 module_exit(pl011_exit);
 
 MODULE_AUTHOR("ARM Ltd/Deep Blue Solutions Ltd");

@@ -42,7 +42,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/pxa25x.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
@@ -445,13 +445,8 @@ static struct ads7846_platform_data corgi_ads7846_info = {
 	.wait_for_sync		= corgi_wait_for_hsync,
 };
 
-static void corgi_ads7846_cs(u32 command)
-{
-	gpio_set_value(CORGI_GPIO_ADS7846_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip corgi_ads7846_chip = {
-	.cs_control	= corgi_ads7846_cs,
+	.gpio_cs	= CORGI_GPIO_ADS7846_CS,
 };
 
 static void corgi_bl_kick_battery(void)
@@ -475,22 +470,12 @@ static struct corgi_lcd_platform_data corgi_lcdcon_info = {
 	.kick_battery		= corgi_bl_kick_battery,
 };
 
-static void corgi_lcdcon_cs(u32 command)
-{
-	gpio_set_value(CORGI_GPIO_LCDCON_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip corgi_lcdcon_chip = {
-	.cs_control	= corgi_lcdcon_cs,
+	.gpio_cs	= CORGI_GPIO_LCDCON_CS,
 };
 
-static void corgi_max1111_cs(u32 command)
-{
-	gpio_set_value(CORGI_GPIO_MAX1111_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip corgi_max1111_chip = {
-	.cs_control	= corgi_max1111_cs,
+	.gpio_cs	= CORGI_GPIO_MAX1111_CS,
 };
 
 static struct spi_board_info corgi_spi_devices[] = {
@@ -520,32 +505,8 @@ static struct spi_board_info corgi_spi_devices[] = {
 
 static void __init corgi_init_spi(void)
 {
-	int err;
-
-	err = gpio_request(CORGI_GPIO_ADS7846_CS, "ADS7846_CS");
-	if (err)
-		return;
-
-	err = gpio_request(CORGI_GPIO_LCDCON_CS, "LCDCON_CS");
-	if (err)
-		goto err_free_1;
-
-	err = gpio_request(CORGI_GPIO_MAX1111_CS, "MAX1111_CS");
-	if (err)
-		goto err_free_2;
-
-	gpio_direction_output(CORGI_GPIO_ADS7846_CS, 1);
-	gpio_direction_output(CORGI_GPIO_LCDCON_CS, 1);
-	gpio_direction_output(CORGI_GPIO_MAX1111_CS, 1);
-
 	pxa2xx_set_spi_info(1, &corgi_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(corgi_spi_devices));
-	return;
-
-err_free_2:
-	gpio_free(CORGI_GPIO_LCDCON_CS);
-err_free_1:
-	gpio_free(CORGI_GPIO_ADS7846_CS);
 }
 #else
 static inline void corgi_init_spi(void) {}

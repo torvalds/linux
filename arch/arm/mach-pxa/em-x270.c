@@ -28,6 +28,8 @@
 #include <linux/spi/libertas_spi.h>
 #include <linux/power_supply.h>
 #include <linux/apm-emulation.h>
+#include <linux/i2c.h>
+#include <linux/i2c/pca953x.h>
 
 #include <media/soc_camera.h>
 
@@ -41,7 +43,7 @@
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 #include <mach/pxa27x_keypad.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/pxa2xx_spi.h>
 
@@ -52,23 +54,31 @@
 #define GPIO13_MMC_CD		(13)
 #define GPIO95_MMC_WP		(95)
 #define GPIO56_NAND_RB		(56)
+#define GPIO93_CAM_RESET	(93)
+#define GPIO16_USB_HUB_RESET	(16)
 
 /* eXeda specific GPIOs */
 #define GPIO114_MMC_CD		(114)
 #define GPIO20_NAND_RB		(20)
 #define GPIO38_SD_PWEN		(38)
+#define GPIO37_WLAN_RST		(37)
+#define GPIO95_TOUCHPAD_INT	(95)
+#define GPIO130_CAM_RESET	(130)
+#define GPIO10_USB_HUB_RESET	(10)
 
 /* common  GPIOs */
 #define GPIO11_NAND_CS		(11)
-#define GPIO93_CAM_RESET	(93)
 #define GPIO41_ETHIRQ		(41)
 #define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
 #define GPIO115_WLAN_PWEN	(115)
 #define GPIO19_WLAN_STRAP	(19)
+#define GPIO9_USB_VBUS_EN	(9)
 
 static int mmc_cd;
 static int nand_rb;
 static int dm9000_flags;
+static int cam_reset;
+static int usb_hub_reset;
 
 static unsigned long common_pin_config[] = {
 	/* AC'97 */
@@ -180,7 +190,6 @@ static unsigned long common_pin_config[] = {
 
 	/* power controls */
 	GPIO20_GPIO	| MFP_LPM_DRIVE_LOW,	/* GPRS_PWEN */
-	GPIO93_GPIO	| MFP_LPM_DRIVE_LOW,	/* Camera reset */
 	GPIO115_GPIO	| MFP_LPM_DRIVE_LOW,	/* WLAN_PWEN */
 
 	/* NAND controls */
@@ -191,14 +200,18 @@ static unsigned long common_pin_config[] = {
 };
 
 static unsigned long em_x270_pin_config[] = {
-	GPIO13_GPIO,	/* MMC card detect */
-	GPIO56_GPIO,	/* NAND Ready/Busy */
-	GPIO95_GPIO,	/* MMC Write protect */
+	GPIO13_GPIO,				/* MMC card detect */
+	GPIO16_GPIO,				/* USB hub reset */
+	GPIO56_GPIO,				/* NAND Ready/Busy */
+	GPIO93_GPIO	| MFP_LPM_DRIVE_LOW,	/* Camera reset */
+	GPIO95_GPIO,				/* MMC Write protect */
 };
 
 static unsigned long exeda_pin_config[] = {
+	GPIO10_GPIO,				/* USB hub reset */
 	GPIO20_GPIO,				/* NAND Ready/Busy */
 	GPIO38_GPIO	| MFP_LPM_DRIVE_LOW,	/* SD slot power */
+	GPIO95_GPIO,				/* touchpad IRQ */
 	GPIO114_GPIO,				/* MMC card detect */
 };
 
@@ -464,18 +477,79 @@ static inline void em_x270_init_nor(void) {}
 
 /* PXA27x OHCI controller setup */
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static struct regulator *em_x270_usb_ldo;
+
+static int em_x270_usb_hub_init(void)
+{
+	int err;
+
+	em_x270_usb_ldo = regulator_get(NULL, "vcc usb");
+	if (IS_ERR(em_x270_usb_ldo))
+		return PTR_ERR(em_x270_usb_ldo);
+
+	err = gpio_request(GPIO9_USB_VBUS_EN, "vbus en");
+	if (err)
+		goto err_free_usb_ldo;
+
+	err = gpio_request(usb_hub_reset, "hub rst");
+	if (err)
+		goto err_free_vbus_gpio;
+
+	/* USB Hub power-on and reset */
+	gpio_direction_output(usb_hub_reset, 0);
+	regulator_enable(em_x270_usb_ldo);
+	gpio_set_value(usb_hub_reset, 1);
+	gpio_set_value(usb_hub_reset, 0);
+	regulator_disable(em_x270_usb_ldo);
+	regulator_enable(em_x270_usb_ldo);
+	gpio_set_value(usb_hub_reset, 1);
+
+	/* enable VBUS */
+	gpio_direction_output(GPIO9_USB_VBUS_EN, 1);
+
+	return 0;
+
+err_free_vbus_gpio:
+	gpio_free(GPIO9_USB_VBUS_EN);
+err_free_usb_ldo:
+	regulator_put(em_x270_usb_ldo);
+
+	return err;
+}
+
 static int em_x270_ohci_init(struct device *dev)
 {
+	int err;
+
+	/* we don't want to entirely disable USB if the HUB init failed */
+	err = em_x270_usb_hub_init();
+	if (err)
+		pr_err("USB Hub initialization failed: %d\n", err);
+
 	/* enable port 2 transiever */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE;
 
 	return 0;
 }
 
+static void em_x270_ohci_exit(struct device *dev)
+{
+	gpio_free(usb_hub_reset);
+	gpio_free(GPIO9_USB_VBUS_EN);
+
+	if (!IS_ERR(em_x270_usb_ldo)) {
+		if (regulator_is_enabled(em_x270_usb_ldo))
+			regulator_disable(em_x270_usb_ldo);
+
+		regulator_put(em_x270_usb_ldo);
+	}
+}
+
 static struct pxaohci_platform_data em_x270_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
 	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
 	.init		= em_x270_ohci_init,
+	.exit		= em_x270_ohci_exit,
 };
 
 static void __init em_x270_init_ohci(void)
@@ -677,26 +751,52 @@ static int em_x270_libertas_setup(struct spi_device *spi)
 	if (err)
 		return err;
 
+	err = gpio_request(GPIO19_WLAN_STRAP, "WLAN STRAP");
+	if (err)
+		goto err_free_pwen;
+
+	if (machine_is_exeda()) {
+		err = gpio_request(GPIO37_WLAN_RST, "WLAN RST");
+		if (err)
+			goto err_free_strap;
+
+		gpio_direction_output(GPIO37_WLAN_RST, 1);
+		msleep(100);
+	}
+
 	gpio_direction_output(GPIO19_WLAN_STRAP, 1);
-	mdelay(100);
+	msleep(100);
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_libertas_pin_config));
 
 	gpio_direction_output(GPIO115_WLAN_PWEN, 0);
-	mdelay(100);
+	msleep(100);
 	gpio_set_value(GPIO115_WLAN_PWEN, 1);
-	mdelay(100);
+	msleep(100);
 
 	spi->bits_per_word = 16;
 	spi_setup(spi);
 
 	return 0;
+
+err_free_strap:
+	gpio_free(GPIO19_WLAN_STRAP);
+err_free_pwen:
+	gpio_free(GPIO115_WLAN_PWEN);
+
+	return err;
 }
 
 static int em_x270_libertas_teardown(struct spi_device *spi)
 {
 	gpio_set_value(GPIO115_WLAN_PWEN, 0);
 	gpio_free(GPIO115_WLAN_PWEN);
+	gpio_free(GPIO19_WLAN_STRAP);
+
+	if (machine_is_exeda()) {
+		gpio_set_value(GPIO37_WLAN_RST, 0);
+		gpio_free(GPIO37_WLAN_RST);
+	}
 
 	return 0;
 }
@@ -863,26 +963,26 @@ static int em_x270_sensor_init(struct device *dev)
 {
 	int ret;
 
-	ret = gpio_request(GPIO93_CAM_RESET, "camera reset");
+	ret = gpio_request(cam_reset, "camera reset");
 	if (ret)
 		return ret;
 
-	gpio_direction_output(GPIO93_CAM_RESET, 0);
+	gpio_direction_output(cam_reset, 0);
 
 	em_x270_camera_ldo = regulator_get(NULL, "vcc cam");
 	if (em_x270_camera_ldo == NULL) {
-		gpio_free(GPIO93_CAM_RESET);
+		gpio_free(cam_reset);
 		return -ENODEV;
 	}
 
 	ret = regulator_enable(em_x270_camera_ldo);
 	if (ret) {
 		regulator_put(em_x270_camera_ldo);
-		gpio_free(GPIO93_CAM_RESET);
+		gpio_free(cam_reset);
 		return ret;
 	}
 
-	gpio_set_value(GPIO93_CAM_RESET, 1);
+	gpio_set_value(cam_reset, 1);
 
 	return 0;
 }
@@ -902,7 +1002,7 @@ static int em_x270_sensor_power(struct device *dev, int on)
 	if (on == is_on)
 		return 0;
 
-	gpio_set_value(GPIO93_CAM_RESET, !on);
+	gpio_set_value(cam_reset, !on);
 
 	if (on)
 		ret = regulator_enable(em_x270_camera_ldo);
@@ -912,7 +1012,7 @@ static int em_x270_sensor_power(struct device *dev, int on)
 	if (ret)
 		return ret;
 
-	gpio_set_value(GPIO93_CAM_RESET, on);
+	gpio_set_value(cam_reset, on);
 
 	return 0;
 }
@@ -929,13 +1029,8 @@ static struct i2c_board_info em_x270_i2c_cam_info[] = {
 	},
 };
 
-static struct i2c_pxa_platform_data em_x270_i2c_info = {
-	.fast_mode = 1,
-};
-
 static void  __init em_x270_init_camera(void)
 {
-	pxa_set_i2c_info(&em_x270_i2c_info);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(em_x270_i2c_cam_info));
 	pxa_set_camera_info(&em_x270_camera_platform_data);
 }
@@ -985,7 +1080,7 @@ struct led_info em_x270_led_info = {
 };
 
 struct power_supply_info em_x270_psy_info = {
-	.name = "LP555597P6H-FPS",
+	.name = "battery",
 	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
 	.voltage_max_design = 4200000,
 	.voltage_min_design = 3000000,
@@ -1069,6 +1164,29 @@ static void __init em_x270_init_da9030(void)
 	i2c_register_board_info(1, &em_x270_i2c_pmic_info, 1);
 }
 
+static struct pca953x_platform_data exeda_gpio_ext_pdata = {
+	.gpio_base = 128,
+};
+
+static struct i2c_board_info exeda_i2c_info[] = {
+	{
+		I2C_BOARD_INFO("pca9555", 0x21),
+		.platform_data = &exeda_gpio_ext_pdata,
+	},
+};
+
+static struct i2c_pxa_platform_data em_x270_i2c_info = {
+	.fast_mode = 1,
+};
+
+static void __init em_x270_init_i2c(void)
+{
+	pxa_set_i2c_info(&em_x270_i2c_info);
+
+	if (machine_is_exeda())
+		i2c_register_board_info(0, ARRAY_AND_SIZE(exeda_i2c_info));
+}
+
 static void __init em_x270_module_init(void)
 {
 	pr_info("%s\n", __func__);
@@ -1077,6 +1195,8 @@ static void __init em_x270_module_init(void)
 	mmc_cd = GPIO13_MMC_CD;
 	nand_rb = GPIO56_NAND_RB;
 	dm9000_flags = DM9000_PLATF_32BITONLY;
+	cam_reset = GPIO93_CAM_RESET;
+	usb_hub_reset = GPIO16_USB_HUB_RESET;
 }
 
 static void __init em_x270_exeda_init(void)
@@ -1087,11 +1207,17 @@ static void __init em_x270_exeda_init(void)
 	mmc_cd = GPIO114_MMC_CD;
 	nand_rb = GPIO20_NAND_RB;
 	dm9000_flags = DM9000_PLATF_16BITONLY;
+	cam_reset = GPIO130_CAM_RESET;
+	usb_hub_reset = GPIO10_USB_HUB_RESET;
 }
 
 static void __init em_x270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
+
+#ifdef CONFIG_PM
+	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);
+#endif
 
 	if (machine_is_em_x270())
 		em_x270_module_init();
@@ -1111,8 +1237,9 @@ static void __init em_x270_init(void)
 	em_x270_init_keypad();
 	em_x270_init_gpio_keys();
 	em_x270_init_ac97();
-	em_x270_init_camera();
 	em_x270_init_spi();
+	em_x270_init_i2c();
+	em_x270_init_camera();
 }
 
 MACHINE_START(EM_X270, "Compulab EM-X270")

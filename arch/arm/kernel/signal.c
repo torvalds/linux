@@ -426,9 +426,13 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		 */
 		thumb = handler & 1;
 
-		if (thumb)
+		if (thumb) {
 			cpsr |= PSR_T_BIT;
-		else
+#if __LINUX_ARM_ARCH__ >= 7
+			/* clear the If-Then Thumb-2 execution state */
+			cpsr &= ~PSR_IT_MASK;
+#endif
+		} else
 			cpsr &= ~PSR_T_BIT;
 	}
 #endif

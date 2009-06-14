@@ -181,9 +181,9 @@ static void mss2_power_off(void)
 	/*
 	 * Enable and issue soft reset
 	 */
-	reg = readl(CPU_RESET_MASK);
+	reg = readl(RSTOUTn_MASK);
 	reg |= 1 << 2;
-	writel(reg, CPU_RESET_MASK);
+	writel(reg, RSTOUTn_MASK);
 
 	reg = readl(CPU_SOFT_RESET);
 	reg |= 1;

@@ -456,7 +456,8 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	debug_desc(phys, desc);
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
-	BUG_ON(qmgr_stat_overflow(queue));
+	/* Don't check for queue overflow here, we've allocated sufficient
+	   length and queues >= 32 don't support this check anyway. */
 }
 
 
@@ -512,8 +513,8 @@ static int eth_poll(struct napi_struct *napi, int budget)
 #endif
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
-			if (!qmgr_stat_empty(rxq) &&
-			    napi_reschedule(napi)) {
+			if (!qmgr_stat_below_low_watermark(rxq) &&
+			    napi_reschedule(napi)) { /* not empty again */
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: eth_poll"
 				       " napi_reschedule successed\n",
@@ -630,9 +631,9 @@ static void eth_txdone_irq(void *unused)
 			port->tx_buff_tab[n_desc] = NULL;
 		}
 
-		start = qmgr_stat_empty(port->plat->txreadyq);
+		start = qmgr_stat_below_low_watermark(port->plat->txreadyq);
 		queue_put_desc(port->plat->txreadyq, phys, desc);
-		if (start) {
+		if (start) { /* TX-ready queue was empty */
 #if DEBUG_TX
 			printk(KERN_DEBUG "%s: eth_txdone_irq xmit ready\n",
 			       port->netdev->name);
@@ -708,13 +709,14 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
 	dev->trans_start = jiffies;
 
-	if (qmgr_stat_empty(txreadyq)) {
+	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
 		printk(KERN_DEBUG "%s: eth_xmit queue full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
 		/* we could miss TX ready interrupt */
-		if (!qmgr_stat_empty(txreadyq)) {
+		/* really empty in fact */
+		if (!qmgr_stat_below_low_watermark(txreadyq)) {
 #if DEBUG_TX
 			printk(KERN_DEBUG "%s: eth_xmit ready again\n",
 			       dev->name);
@@ -814,29 +816,29 @@ static int request_queues(struct port *port)
 	int err;
 
 	err = qmgr_request_queue(RXFREE_QUEUE(port->id), RX_DESCS, 0, 0,
-			    "%s:RX-free", port->netdev->name);
+				 "%s:RX-free", port->netdev->name);
 	if (err)
 		return err;
 
 	err = qmgr_request_queue(port->plat->rxq, RX_DESCS, 0, 0,
-			    "%s:RX", port->netdev->name);
+				 "%s:RX", port->netdev->name);
 	if (err)
 		goto rel_rxfree;
 
 	err = qmgr_request_queue(TX_QUEUE(port->id), TX_DESCS, 0, 0,
-			    "%s:TX", port->netdev->name);
+				 "%s:TX", port->netdev->name);
 	if (err)
 		goto rel_rx;
 
 	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0,
-			    "%s:TX-ready", port->netdev->name);
+				 "%s:TX-ready", port->netdev->name);
 	if (err)
 		goto rel_tx;
 
 	/* TX-done queue handles skbs sent out by the NPEs */
 	if (!ports_open) {
 		err = qmgr_request_queue(TXDONE_QUEUE, TXDONE_QUEUE_LEN, 0, 0,
-				    "%s:TX-done", DRV_NAME);
+					 "%s:TX-done", DRV_NAME);
 		if (err)
 			goto rel_txready;
 	}
