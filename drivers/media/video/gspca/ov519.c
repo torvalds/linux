@@ -529,7 +529,7 @@ static const struct ov_i2c_regvals norm_6x20[] = {
 	{ 0x28, 0x05 },
 	{ 0x2a, 0x04 }, /* Disable framerate adjust */
 /*	{ 0x2b, 0xac },  * Framerate; Set 2a[7] first */
-	{ 0x2d, 0x99 },
+	{ 0x2d, 0x85 },
 	{ 0x33, 0xa0 }, /* Color Processing Parameter */
 	{ 0x34, 0xd2 }, /* Max A/D range */
 	{ 0x38, 0x8b },
@@ -2120,6 +2120,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /*	case SEN_OV76BE: */
 		if (write_i2c_regvals(sd, norm_7610, ARRAY_SIZE(norm_7610)))
 			return -EIO;
+		if (i2c_w_mask(sd, 0x0e, 0x00, 0x40))
+			return -EIO;
 		break;
 	case SEN_OV7620:
 		if (write_i2c_regvals(sd, norm_7620, ARRAY_SIZE(norm_7620)))
@@ -2597,10 +2599,6 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 	}
 
 	/******** Palette-specific regs ********/
-	if (sd->sensor == SEN_OV7610 || sd->sensor == SEN_OV76BE) {
-		/* not valid on the OV6620/OV7620/6630? */
-		i2c_w_mask(sd, 0x0e, 0x00, 0x40);
-	}
 
 	/* The OV518 needs special treatment. Although both the OV518
 	 * and the OV6630 support a 16-bit video bus, only the 8 bit Y
@@ -2615,21 +2613,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x13, 0x00, 0x20);
 
 	/******** Clock programming ********/
-	/* The OV6620 needs special handling. This prevents the
-	 * severe banding that normally occurs */
-	if (sd->sensor == SEN_OV6620) {
-
-		/* Clock down */
-		i2c_w(sd, 0x2a, 0x04);
-		i2c_w(sd, 0x11, sd->clockdiv);
-		i2c_w(sd, 0x2a, 0x84);
-		/* This next setting is critical. It seems to improve
-		 * the gain or the contrast. The "reserved" bits seem
-		 * to have some effect in this case. */
-		i2c_w(sd, 0x2d, 0x85);
-	} else {
-		i2c_w(sd, 0x11, sd->clockdiv);
-	}
+	i2c_w(sd, 0x11, sd->clockdiv);
 
 	/******** Special Features ********/
 /* no evidence this is possible with OV7670, either */
