@@ -736,7 +736,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x09))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x09))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 
@@ -756,7 +757,8 @@ static int dvb_register(struct cx23885_tsport *port)
 					if (!dvb_attach(lnbh24_attach,
 							fe0->dvb.frontend,
 							&i2c_bus->i2c_adap,
-							LNBH24_PCL, 0, 0x0a))
+							LNBH24_PCL,
+							LNBH24_TTX, 0x0a))
 						printk(KERN_ERR
 							"No LNBH24 found!\n");
 
