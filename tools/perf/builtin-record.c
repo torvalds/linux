@@ -37,6 +37,7 @@ static pid_t			target_pid			= -1;
 static int			inherit				= 1;
 static int			force				= 0;
 static int			append_file			= 0;
+static int			call_graph			= 0;
 static int			verbose				= 0;
 
 static long			samples;
@@ -351,11 +352,16 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	int track = 1;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+
 	if (freq) {
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 		attr->freq		= 1;
 		attr->sample_freq	= freq;
 	}
+
+	if (call_graph)
+		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= (cpu < 0) && inherit;
@@ -555,6 +561,8 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
+	OPT_BOOLEAN('g', "call-graph", &call_graph,
+		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
