@@ -1740,7 +1740,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 	sd->brightness = BRIGHTNESS_DEF;
-	sd->contrast = CONTRAST_DEF;
+	if (sd->sensor == SEN_OV6630 || sd->sensor == SEN_OV66308AF)
+		sd->contrast = 200; /* The default is too low for the ov6630 */
+	else
+		sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
