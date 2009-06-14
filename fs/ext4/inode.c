@@ -2305,15 +2305,9 @@ flush_it:
 	return;
 }
 
-static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
+static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh)
 {
-	/*
-	 * unmapped buffer is possible for holes.
-	 * delay buffer is possible with delayed allocation.
-	 * We also need to consider unwritten buffer as unmapped.
-	 */
-	return (!buffer_mapped(bh) || buffer_delay(bh) ||
-				buffer_unwritten(bh)) && buffer_dirty(bh);
+	return (buffer_delay(bh) || buffer_unwritten(bh)) && buffer_dirty(bh);
 }
 
 /*
@@ -2400,7 +2394,7 @@ static int __mpage_da_writepage(struct page *page,
 			 * Otherwise we won't make progress
 			 * with the page in ext4_da_writepage
 			 */
-			if (ext4_bh_unmapped_or_delay(NULL, bh)) {
+			if (ext4_bh_delay_or_unwritten(NULL, bh)) {
 				mpage_add_bh_to_extent(mpd, logical,
 						       bh->b_size,
 						       bh->b_state);
@@ -2517,7 +2511,6 @@ static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
 	 * so call get_block_wrap with create = 0
 	 */
 	ret = ext4_get_blocks(NULL, inode, iblock, max_blocks, bh_result, 0);
-	BUG_ON(create && ret == 0);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 		ret = 0;
@@ -2533,7 +2526,7 @@ static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
  *   - grab_page_cache when doing write_begin (have journal handle)
  */
 static int ext4_da_writepage(struct page *page,
-				struct writeback_control *wbc)
+			     struct writeback_control *wbc)
 {
 	int ret = 0;
 	loff_t size;
@@ -2551,7 +2544,7 @@ static int ext4_da_writepage(struct page *page,
 	if (page_has_buffers(page)) {
 		page_bufs = page_buffers(page);
 		if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
-					ext4_bh_unmapped_or_delay)) {
+					ext4_bh_delay_or_unwritten)) {
 			/*
 			 * We don't want to do  block allocation
 			 * So redirty the page and return
@@ -2584,7 +2577,7 @@ static int ext4_da_writepage(struct page *page,
 			page_bufs = page_buffers(page);
 			/* check whether all are mapped and non delay */
 			if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
-						ext4_bh_unmapped_or_delay)) {
+						ext4_bh_delay_or_unwritten)) {
 				redirty_page_for_writepage(wbc, page);
 				unlock_page(page);
 				return 0;
@@ -3232,7 +3225,7 @@ static int ext4_normal_writepage(struct page *page,
 		 * happily proceed with mapping them and writing the page.
 		 */
 		BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-					ext4_bh_unmapped_or_delay));
+					ext4_bh_delay_or_unwritten));
 	}
 
 	if (!ext4_journal_current_handle())
@@ -3322,7 +3315,7 @@ static int ext4_journalled_writepage(struct page *page,
 		 * happily proceed with mapping them and writing the page.
 		 */
 		BUG_ON(walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
-					ext4_bh_unmapped_or_delay));
+					ext4_bh_delay_or_unwritten));
 	}
 
 	if (ext4_journal_current_handle())
