@@ -1977,7 +1977,11 @@ static int ov519_mode_init_regs(struct sd *sd)
 
 	reg_w(sd, OV519_R10_H_SIZE,	sd->gspca_dev.width >> 4);
 	reg_w(sd, OV519_R11_V_SIZE,	sd->gspca_dev.height >> 3);
-	reg_w(sd, OV519_R12_X_OFFSETL,	0x00);
+	if (sd->sensor == SEN_OV7670 &&
+	    sd->gspca_dev.cam.cam_mode[sd->gspca_dev.curr_mode].priv)
+		reg_w(sd, OV519_R12_X_OFFSETL, 0x04);
+	else
+		reg_w(sd, OV519_R12_X_OFFSETL, 0x00);
 	reg_w(sd, OV519_R13_X_OFFSETH,	0x00);
 	reg_w(sd, OV519_R14_Y_OFFSETL,	0x00);
 	reg_w(sd, OV519_R15_Y_OFFSETH,	0x00);
@@ -2314,7 +2318,7 @@ static int set_ov_sensor_window(struct sd *sd)
 		if (qvga) {		/* QVGA from ov7670.c by
 					 * Jonathan Corbet */
 			hstart = 164;
-			hstop = 20;
+			hstop = 28;
 			vstart = 14;
 			vstop = 494;
 		} else {		/* VGA */
