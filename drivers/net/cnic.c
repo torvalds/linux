@@ -2519,9 +2519,9 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	struct cnic_dev *cdev;
 	struct cnic_local *cp;
 	struct cnic_eth_dev *ethdev = NULL;
-	struct cnic_eth_dev *(*probe)(void *) = NULL;
+	struct cnic_eth_dev *(*probe)(struct net_device *) = NULL;
 
-	probe = __symbol_get("bnx2_cnic_probe");
+	probe = symbol_get(bnx2_cnic_probe);
 	if (probe) {
 		ethdev = (*probe)(dev);
 		symbol_put_addr(probe);
