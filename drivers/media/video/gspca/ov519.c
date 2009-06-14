@@ -50,6 +50,8 @@ static int i2c_detect_tries = 10;
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
+	__u8 packet_nr;
+
 	char bridge;
 #define BRIDGE_OV511		0
 #define BRIDGE_OV511PLUS	1
@@ -2391,18 +2393,33 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	PDEBUG(D_STREAM, "ov518_pkt_scan: %d bytes", len);
-
-	if (len & 7) {
-		len--;
-		PDEBUG(D_STREAM, "packet number: %d\n", (int)data[len]);
-	}
+	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* A false positive here is likely, until OVT gives me
 	 * the definitive SOF/EOF format */
 	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
 		gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+		sd->packet_nr = 0;
+	}
+
+	if (gspca_dev->last_packet_type == DISCARD_PACKET)
+		return;
+
+	/* Does this device use packet numbers ? */
+	if (len & 7) {
+		len--;
+		if (sd->packet_nr == data[len])
+			sd->packet_nr++;
+		/* The last few packets of the frame (which are all 0's
+		   except that they may contain part of the footer), are
+		   numbered 0 */
+		else if (sd->packet_nr == 0 || data[len]) {
+			PDEBUG(D_ERR, "Invalid packet nr: %d (expect: %d)",
+				(int)data[len], (int)sd->packet_nr);
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 	}
 
 	/* intermediate packet */
