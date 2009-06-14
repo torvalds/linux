@@ -628,13 +628,8 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 				skb->pkt_type = PACKET_MULTICAST;
 #endif
 		} else {
-			if (memcmp(eth->h_dest, net->dev_addr, net->addr_len)) {
-				u64 a1, a2;
-
-				memcpy(&a1, eth->h_dest, sizeof(u64));
-				memcpy(&a2, net->dev_addr, sizeof(u64));
+			if (memcmp(eth->h_dest, net->dev_addr, net->addr_len))
 				skb->pkt_type = PACKET_OTHERHOST;
-			}
 		}
 		if (ntohs(eth->h_proto) >= 1536) {
 			protocol = eth->h_proto;
