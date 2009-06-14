@@ -65,6 +65,8 @@ struct sd {
 	__u8 colors;
 	__u8 hflip;
 	__u8 vflip;
+	__u8 autobrightness;
+	__u8 freq;
 
 	__u8 stopped;		/* Streaming is temporarily paused */
 
@@ -94,11 +96,17 @@ static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setautobrightness(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getautobrightness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setcontrast(struct gspca_dev *gspca_dev);
 static void setcolors(struct gspca_dev *gspca_dev);
+static void setautobrightness(struct sd *sd);
+static void setfreq(struct sd *sd);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -141,7 +149,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
-/* next controls work with ov7670 only */
+/* The flip controls work with ov7670 only */
 #define HFLIP_IDX 3
 	{
 	    {
@@ -171,6 +179,51 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setvflip,
 	    .get = sd_getvflip,
+	},
+#define AUTOBRIGHT_IDX 5
+	{
+	    {
+		.id      = V4L2_CID_AUTOBRIGHTNESS,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Auto Brightness",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define AUTOBRIGHT_DEF 1
+		.default_value = AUTOBRIGHT_DEF,
+	    },
+	    .set = sd_setautobrightness,
+	    .get = sd_getautobrightness,
+	},
+#define FREQ_IDX 6
+	{
+	    {
+		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type    = V4L2_CTRL_TYPE_MENU,
+		.name    = "Light frequency filter",
+		.minimum = 0,
+		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+		.step    = 1,
+#define FREQ_DEF 0
+		.default_value = FREQ_DEF,
+	    },
+	    .set = sd_setfreq,
+	    .get = sd_getfreq,
+	},
+#define OV7670_FREQ_IDX 7
+	{
+	    {
+		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type    = V4L2_CTRL_TYPE_MENU,
+		.name    = "Light frequency filter",
+		.minimum = 0,
+		.maximum = 3,	/* 0: 0, 1: 50Hz, 2:60Hz 3: Auto Hz */
+		.step    = 1,
+#define OV7670_FREQ_DEF 3
+		.default_value = OV7670_FREQ_DEF,
+	    },
+	    .set = sd_setfreq,
+	    .get = sd_getfreq,
 	},
 };
 
@@ -416,7 +469,7 @@ static const struct ov_i2c_regvals norm_6x30[] = {
 	{ 0x07, 0x2d }, /* Sharpness */
 	{ 0x0c, 0x20 },
 	{ 0x0d, 0x20 },
-	{ 0x0e, 0x20 },
+	{ 0x0e, 0xa0 }, /* Was 0x20, bit7 enables a 2x gain which we need */
 	{ 0x0f, 0x05 },
 	{ 0x10, 0x9a },
 	{ 0x11, 0x00 }, /* Pixel clock = fastest */
@@ -1659,9 +1712,21 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->colors = COLOR_DEF;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
-	if (sd->sensor != SEN_OV7670)
-		gspca_dev->ctrl_dis = (1 << HFLIP_IDX)
-					| (1 << VFLIP_IDX);
+	sd->autobrightness = AUTOBRIGHT_DEF;
+	if (sd->sensor == SEN_OV7670) {
+		sd->freq = OV7670_FREQ_DEF;
+		gspca_dev->ctrl_dis = 1 << FREQ_IDX;
+	} else {
+		sd->freq = FREQ_DEF;
+		gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) |
+				      (1 << OV7670_FREQ_IDX);
+	}
+	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
+		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT_IDX;
+	/* OV8610 Frequency filter control should work but needs testing */
+	if (sd->sensor == SEN_OV8610)
+		gspca_dev->ctrl_dis |= 1 << FREQ_IDX;
+
 	return 0;
 error:
 	PDEBUG(D_ERR, "OV519 Config failed");
@@ -2233,7 +2298,6 @@ static int set_ov_sensor_window(struct sd *sd)
 		msleep(10);	/* need to sleep between read and write to
 				 * same reg! */
 		i2c_w(sd, OV7670_REG_VREF, v);
-		sethvflip(sd);
 	} else {
 		i2c_w(sd, 0x17, hwsbase);
 		i2c_w(sd, 0x18, hwebase + (sd->gspca_dev.width >> hwscale));
@@ -2268,6 +2332,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setcontrast(gspca_dev);
 	setbrightness(gspca_dev);
 	setcolors(gspca_dev);
+	sethvflip(sd);
+	setautobrightness(sd);
+	setfreq(sd);
 
 	ret = ov51x_restart(sd);
 	if (ret < 0)
@@ -2394,8 +2461,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		break;
 	case SEN_OV7620:
 		/* 7620 doesn't like manual changes when in auto mode */
-/*fixme
- *		if (!sd->auto_brt) */
+		if (!sd->autobrightness)
 			i2c_w(sd, OV7610_REG_BRT, val);
 		break;
 	case SEN_OV7670:
@@ -2479,6 +2545,70 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		 * transparently fail now! */
 		/* set REG_COM13 values for UV sat auto mode */
 		break;
+	}
+}
+
+static void setautobrightness(struct sd *sd)
+{
+	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
+		return;
+
+	i2c_w_mask(sd, 0x2d, sd->autobrightness ? 0x10 : 0x00, 0x10);
+}
+
+static void setfreq(struct sd *sd)
+{
+	if (sd->sensor == SEN_OV7670) {
+		switch (sd->freq) {
+		case 0: /* Banding filter disabled */
+			i2c_w_mask(sd, OV7670_REG_COM8, 0, OV7670_COM8_BFILT);
+			break;
+		case 1: /* 50 hz */
+			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+				   OV7670_COM8_BFILT);
+			i2c_w_mask(sd, OV7670_REG_COM11, 0x08, 0x18);
+			break;
+		case 2: /* 60 hz */
+			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+				   OV7670_COM8_BFILT);
+			i2c_w_mask(sd, OV7670_REG_COM11, 0x00, 0x18);
+			break;
+		case 3: /* Auto hz */
+			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+				   OV7670_COM8_BFILT);
+			i2c_w_mask(sd, OV7670_REG_COM11, OV7670_COM11_HZAUTO,
+				   0x18);
+			break;
+		}
+	} else {
+		switch (sd->freq) {
+		case 0: /* Banding filter disabled */
+			i2c_w_mask(sd, 0x2d, 0x00, 0x04);
+			i2c_w_mask(sd, 0x2a, 0x00, 0x80);
+			break;
+		case 1: /* 50 hz (filter on and framerate adj) */
+			i2c_w_mask(sd, 0x2d, 0x04, 0x04);
+			i2c_w_mask(sd, 0x2a, 0x80, 0x80);
+			/* 20 fps -> 16.667 fps */
+			if (sd->sensor == SEN_OV6620 ||
+			    sd->sensor == SEN_OV6630)
+				i2c_w(sd, 0x2b, 0x5e);
+			else
+				i2c_w(sd, 0x2b, 0xac);
+			break;
+		case 2: /* 60 hz (filter on, ...) */
+			i2c_w_mask(sd, 0x2d, 0x04, 0x04);
+			if (sd->sensor == SEN_OV6620 ||
+			    sd->sensor == SEN_OV6630) {
+				/* 20 fps -> 15 fps */
+				i2c_w_mask(sd, 0x2a, 0x80, 0x80);
+				i2c_w(sd, 0x2b, 0xa8);
+			} else {
+				/* no framerate adj. */
+				i2c_w_mask(sd, 0x2a, 0x00, 0x80);
+			}
+			break;
+		}
 	}
 }
 
@@ -2572,6 +2702,71 @@ static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setautobrightness(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->autobrightness = val;
+	if (gspca_dev->streaming)
+		setautobrightness(sd);
+	return 0;
+}
+
+static int sd_getautobrightness(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->autobrightness;
+	return 0;
+}
+
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->freq = val;
+	if (gspca_dev->streaming)
+		setfreq(sd);
+	return 0;
+}
+
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->freq;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+			struct v4l2_querymenu *menu)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy((char *) menu->name, "NoFliker");
+			return 0;
+		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy((char *) menu->name, "50 Hz");
+			return 0;
+		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
+			strcpy((char *) menu->name, "60 Hz");
+			return 0;
+		case 3:
+			if (sd->sensor != SEN_OV7670)
+				return -EINVAL;
+
+			strcpy((char *) menu->name, "Automatic");
+			return 0;
+		}
+		break;
+	}
+	return -EINVAL;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -2582,6 +2777,7 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
