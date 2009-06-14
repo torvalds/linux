@@ -40,12 +40,9 @@
 #define DW2102_VOLTAGE_CTRL (0x1800)
 #define DW2102_RC_QUERY (0x1a00)
 
-struct dw210x_state {
-	u32 last_key_pressed;
-};
-struct dw210x_rc_keys {
-	u32 keycode;
-	u32 event;
+struct dvb_usb_rc_keys_table {
+	struct dvb_usb_rc_key *rc_keys;
+	int rc_keys_size;
 };
 
 /* debug */
@@ -54,6 +51,10 @@ module_param_named(debug, dvb_usb_dw2102_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info 2=xfer 4=rc(or-able))."
 						DVB_USB_DEBUG_STATUS);
 
+/* keymaps */
+static int ir_keymap;
+module_param_named(keymap, ir_keymap, int, 0644);
+MODULE_PARM_DESC(keymap, "set keymap 0=default 1=dvbworld 2=tevii 3=tbs  ...");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -462,6 +463,7 @@ static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
 }
 
 static struct dvb_usb_device_properties dw2102_properties;
+static struct dvb_usb_device_properties dw2104_properties;
 
 static int dw2102_frontend_attach(struct dvb_usb_adapter *d)
 {
@@ -546,14 +548,103 @@ static struct dvb_usb_rc_key dw210x_rc_keys[] = {
 	{ 0xf8, 0x40, KEY_F },		/*full*/
 	{ 0xf8, 0x1e, KEY_W },		/*tvmode*/
 	{ 0xf8, 0x1b, KEY_B },		/*recall*/
-
 };
 
+static struct dvb_usb_rc_key tevii_rc_keys[] = {
+	{ 0xf8, 0x0a, KEY_POWER },
+	{ 0xf8, 0x0c, KEY_MUTE },
+	{ 0xf8, 0x11, KEY_1 },
+	{ 0xf8, 0x12, KEY_2 },
+	{ 0xf8, 0x13, KEY_3 },
+	{ 0xf8, 0x14, KEY_4 },
+	{ 0xf8, 0x15, KEY_5 },
+	{ 0xf8, 0x16, KEY_6 },
+	{ 0xf8, 0x17, KEY_7 },
+	{ 0xf8, 0x18, KEY_8 },
+	{ 0xf8, 0x19, KEY_9 },
+	{ 0xf8, 0x10, KEY_0 },
+	{ 0xf8, 0x1c, KEY_MENU },
+	{ 0xf8, 0x0f, KEY_VOLUMEDOWN },
+	{ 0xf8, 0x1a, KEY_LAST },
+	{ 0xf8, 0x0e, KEY_OPEN },
+	{ 0xf8, 0x04, KEY_RECORD },
+	{ 0xf8, 0x09, KEY_VOLUMEUP },
+	{ 0xf8, 0x08, KEY_CHANNELUP },
+	{ 0xf8, 0x07, KEY_PVR },
+	{ 0xf8, 0x0b, KEY_TIME },
+	{ 0xf8, 0x02, KEY_RIGHT },
+	{ 0xf8, 0x03, KEY_LEFT },
+	{ 0xf8, 0x00, KEY_UP },
+	{ 0xf8, 0x1f, KEY_OK },
+	{ 0xf8, 0x01, KEY_DOWN },
+	{ 0xf8, 0x05, KEY_TUNER },
+	{ 0xf8, 0x06, KEY_CHANNELDOWN },
+	{ 0xf8, 0x40, KEY_PLAYPAUSE },
+	{ 0xf8, 0x1e, KEY_REWIND },
+	{ 0xf8, 0x1b, KEY_FAVORITES },
+	{ 0xf8, 0x1d, KEY_BACK },
+	{ 0xf8, 0x4d, KEY_FASTFORWARD },
+	{ 0xf8, 0x44, KEY_EPG },
+	{ 0xf8, 0x4c, KEY_INFO },
+	{ 0xf8, 0x41, KEY_AB },
+	{ 0xf8, 0x43, KEY_AUDIO },
+	{ 0xf8, 0x45, KEY_SUBTITLE },
+	{ 0xf8, 0x4a, KEY_LIST },
+	{ 0xf8, 0x46, KEY_F1 },
+	{ 0xf8, 0x47, KEY_F2 },
+	{ 0xf8, 0x5e, KEY_F3 },
+	{ 0xf8, 0x5c, KEY_F4 },
+	{ 0xf8, 0x52, KEY_F5 },
+	{ 0xf8, 0x5a, KEY_F6 },
+	{ 0xf8, 0x56, KEY_MODE },
+	{ 0xf8, 0x58, KEY_SWITCHVIDEOMODE },
+};
 
+static struct dvb_usb_rc_key tbs_rc_keys[] = {
+	{ 0xf8,	0x84, KEY_POWER },
+	{ 0xf8,	0x94, KEY_MUTE },
+	{ 0xf8,	0x87, KEY_1 },
+	{ 0xf8,	0x86, KEY_2 },
+	{ 0xf8,	0x85, KEY_3 },
+	{ 0xf8,	0x8b, KEY_4 },
+	{ 0xf8,	0x8a, KEY_5 },
+	{ 0xf8,	0x89, KEY_6 },
+	{ 0xf8,	0x8f, KEY_7 },
+	{ 0xf8,	0x8e, KEY_8 },
+	{ 0xf8,	0x8d, KEY_9 },
+	{ 0xf8, 0x92, KEY_0 },
+	{ 0xf8, 0x96, KEY_CHANNELUP },
+	{ 0xf8, 0x91, KEY_CHANNELDOWN },
+	{ 0xf8, 0x93, KEY_VOLUMEUP },
+	{ 0xf8, 0x8c, KEY_VOLUMEDOWN },
+	{ 0xf8, 0x83, KEY_RECORD },
+	{ 0xf8, 0x98, KEY_PAUSE  },
+	{ 0xf8, 0x99, KEY_OK },
+	{ 0xf8, 0x9a, KEY_SHUFFLE },
+	{ 0xf8, 0x81, KEY_UP },
+	{ 0xf8, 0x90, KEY_LEFT },
+	{ 0xf8, 0x82, KEY_RIGHT },
+	{ 0xf8, 0x88, KEY_DOWN },
+	{ 0xf8, 0x95, KEY_FAVORITES },
+	{ 0xf8, 0x97, KEY_SUBTITLE },
+	{ 0xf8, 0x9d, KEY_ZOOM },
+	{ 0xf8, 0x9f, KEY_EXIT },
+	{ 0xf8, 0x9e, KEY_MENU },
+	{ 0xf8, 0x9c, KEY_EPG },
+	{ 0xf8, 0x80, KEY_PREVIOUS },
+	{ 0xf8, 0x9b, KEY_MODE }
+};
+
+static struct dvb_usb_rc_keys_table keys_tables[] = {
+	{ dw210x_rc_keys, ARRAY_SIZE(dw210x_rc_keys) },
+	{ tevii_rc_keys, ARRAY_SIZE(tevii_rc_keys) },
+	{ tbs_rc_keys, ARRAY_SIZE(tbs_rc_keys) },
+};
 
 static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	struct dw210x_state *st = d->priv;
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	int keymap_size = d->props.rc_key_map_size;
 	u8 key[2];
 	struct i2c_msg msg = {
 		.addr = DW2102_RC_QUERY,
@@ -562,19 +653,21 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		.len = 2
 	};
 	int i;
+	/* override keymap */
+	if ((ir_keymap > 0) && (ir_keymap <= ARRAY_SIZE(keys_tables))) {
+		keymap = keys_tables[ir_keymap - 1].rc_keys ;
+		keymap_size = keys_tables[ir_keymap - 1].rc_keys_size;
+	}
 
 	*state = REMOTE_NO_KEY_PRESSED;
 	if (dw2102_i2c_transfer(&d->i2c_adap, &msg, 1) == 1) {
-		for (i = 0; i < ARRAY_SIZE(dw210x_rc_keys); i++) {
-			if (dw210x_rc_keys[i].data == msg.buf[0]) {
+		for (i = 0; i < keymap_size ; i++) {
+			if (keymap[i].data == msg.buf[0]) {
 				*state = REMOTE_KEY_PRESSED;
-				*event = dw210x_rc_keys[i].event;
-				st->last_key_pressed =
-					dw210x_rc_keys[i].event;
+				*event = keymap[i].event;
 				break;
 			}
 
-		st->last_key_pressed = 0;
 		}
 
 		if ((*state) == REMOTE_KEY_PRESSED)
@@ -655,8 +748,11 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		}
 		/* init registers */
 		switch (dev->descriptor.idProduct) {
-		case USB_PID_DW2104:
 		case 0xd650:
+			dw2104_properties.rc_key_map = tevii_rc_keys;
+			dw2104_properties.rc_key_map_size =
+					ARRAY_SIZE(tevii_rc_keys);
+		case USB_PID_DW2104:
 			reset = 1;
 			dw210x_op_rw(dev, 0xc4, 0x0000, 0, &reset, 1,
 					DW210X_WRITE_MSG);
@@ -713,7 +809,6 @@ static struct dvb_usb_device_properties dw2102_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-dw2102.fw",
-	.size_of_priv = sizeof(struct dw210x_state),
 	.no_reconnect = 1,
 
 	.i2c_algo = &dw2102_serit_i2c_algo,
@@ -765,7 +860,6 @@ static struct dvb_usb_device_properties dw2104_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 	.firmware = "dvb-usb-dw2104.fw",
-	.size_of_priv = sizeof(struct dw210x_state),
 	.no_reconnect = 1,
 
 	.i2c_algo = &dw2104_i2c_algo,
