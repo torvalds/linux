@@ -839,7 +839,7 @@ static void __init em_x270_init_spi(void)
 static inline void em_x270_init_spi(void) {}
 #endif
 
-#if defined(CONFIG_SND_PXA2XX_AC97_LIB)
+#if defined(CONFIG_SND_PXA2XX_LIB_AC97)
 static pxa2xx_audio_ops_t em_x270_ac97_info = {
 	.reset_gpio = 113,
 };
