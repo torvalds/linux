@@ -40,6 +40,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
+#include <linux/inetdevice.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1152,12 +1153,39 @@ static int iwch_query_device(struct ib_device *ibdev,
 static int iwch_query_port(struct ib_device *ibdev,
 			   u8 port, struct ib_port_attr *props)
 {
+	struct iwch_dev *dev;
+	struct net_device *netdev;
+	struct in_device *inetdev;
+
 	PDBG("%s ibdev %p\n", __func__, ibdev);
+
+	dev = to_iwch_dev(ibdev);
+	netdev = dev->rdev.port_info.lldevs[port-1];
 
 	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	props->active_mtu = IB_MTU_2048;
-	props->state = IB_PORT_ACTIVE;
+	if (netdev->mtu >= 4096)
+		props->active_mtu = IB_MTU_4096;
+	else if (netdev->mtu >= 2048)
+		props->active_mtu = IB_MTU_2048;
+	else if (netdev->mtu >= 1024)
+		props->active_mtu = IB_MTU_1024;
+	else if (netdev->mtu >= 512)
+		props->active_mtu = IB_MTU_512;
+	else
+		props->active_mtu = IB_MTU_256;
+
+	if (!netif_carrier_ok(netdev))
+		props->state = IB_PORT_DOWN;
+	else {
+		inetdev = in_dev_get(netdev);
+		if (inetdev->ifa_list)
+			props->state = IB_PORT_ACTIVE;
+		else
+			props->state = IB_PORT_INIT;
+		in_dev_put(inetdev);
+	}
+
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |
 	    IB_PORT_SNMP_TUNNEL_SUP |
