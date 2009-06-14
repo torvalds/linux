@@ -154,6 +154,9 @@ ino_t exofs_parent_ino(struct dentry *child);
 int exofs_set_link(struct inode *, struct exofs_dir_entry *, struct page *,
 		    struct inode *);
 
+/* super.c               */
+int exofs_sync_fs(struct super_block *sb, int wait);
+
 /*********************
  * operation vectors *
  *********************/

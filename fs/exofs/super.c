@@ -198,7 +198,7 @@ static const struct export_operations exofs_export_ops;
 /*
  * Write the superblock to the OSD
  */
-static int exofs_sync_fs(struct super_block *sb, int wait)
+int exofs_sync_fs(struct super_block *sb, int wait)
 {
 	struct exofs_sb_info *sbi;
 	struct exofs_fscb *fscb;
