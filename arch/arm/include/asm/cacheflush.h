@@ -429,6 +429,14 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 		__flush_anon_page(vma, page, vmaddr);
 }
 
+#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
+static inline void flush_kernel_dcache_page(struct page *page)
+{
+	/* highmem pages are always flushed upon kunmap already */
+	if ((cache_is_vivt() || cache_is_vipt_aliasing()) && !PageHighMem(page))
+		__cpuc_flush_dcache_page(page_address(page));
+}
+
 #define flush_dcache_mmap_lock(mapping) \
 	spin_lock_irq(&(mapping)->tree_lock)
 #define flush_dcache_mmap_unlock(mapping) \
