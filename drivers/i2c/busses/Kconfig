@@ -515,6 +515,7 @@ config I2C_SIMTEC
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
+	depends on MACH_U300
 	default y if MACH_U300
 	help
 	  If you say yes to this option, support will be included for the
