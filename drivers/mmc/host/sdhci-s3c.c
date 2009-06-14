@@ -329,6 +329,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	 * support as well. */
 	host->quirks |= SDHCI_QUIRK_BROKEN_DMA;
 
+	/* PIO currently has problems with multi-block IO */
+	host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK;
+
 #endif /* CONFIG_MMC_SDHCI_S3C_DMA */
 
 	/* It seems we do not get an DATA transfer complete on non-busy
