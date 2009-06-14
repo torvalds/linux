@@ -21,7 +21,7 @@ choice
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config PPC_BOOK3S
+config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
 
@@ -57,11 +57,14 @@ config E200
 
 endchoice
 
-config PPC_BOOK3S
-	default y
+config PPC_BOOK3S_64
+	def_bool y
 	depends on PPC64
 	select PPC_FPU
 
+config PPC_BOOK3S
+	def_bool y
+	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
 
 config POWER4_ONLY
 	bool "Optimize for POWER4"
