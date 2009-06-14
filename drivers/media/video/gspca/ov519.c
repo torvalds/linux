@@ -269,37 +269,43 @@ static const struct v4l2_pix_format ov519_sif_mode[] = {
 		.priv = 0},
 };
 
+/* Note some of the sizeimage values for the ov511 / ov518 may seem
+   larger then necessary, however they need to be this big as the ov511 /
+   ov518 always fills the entire isoc frame, using 0 padding bytes when
+   it doesn't have any data. So with low framerates the amount of data
+   transfered can become quite large (libv4l will remove all the 0 padding
+   in userspace). */
 static const struct v4l2_pix_format ov518_vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov518_sif_mode[] = {
 	{160, 120, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 40000,
+		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
 	{176, 144, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 40000,
+		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
 	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.sizeimage = 320 * 240 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2},
 	{352, 288, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 352,
-		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.sizeimage = 352 * 288 * 3,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
@@ -319,12 +325,12 @@ static const struct v4l2_pix_format ov511_vga_mode[] = {
 static const struct v4l2_pix_format ov511_sif_mode[] = {
 	{160, 120, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 40000,
+		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 3},
 	{176, 144, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 40000,
+		.sizeimage = 70000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
 	{320, 240, V4L2_PIX_FMT_OV511, V4L2_FIELD_NONE,
@@ -698,7 +704,7 @@ static const struct ov_i2c_regvals norm_7620[] = {
 	{ 0x23, 0x00 },
 	{ 0x26, 0xa2 },
 	{ 0x27, 0xea },
-	{ 0x28, 0x20 },
+	{ 0x28, 0x22 }, /* Was 0x20, bit1 enables a 2x gain which we need */
 	{ 0x29, 0x00 },
 	{ 0x2a, 0x10 },
 	{ 0x2b, 0x00 },
@@ -1525,7 +1531,6 @@ static int ov8xx0_configure(struct sd *sd)
 	}
 
 	/* Set sensor-specific vars */
-/*	sd->sif = 0;		already done */
 	return 0;
 }
 
@@ -1562,15 +1567,13 @@ static int ov7xx0_configure(struct sd *sd)
 		}
 	} else if ((rc & 3) == 1) {
 		/* I don't know what's different about the 76BE yet. */
-		if (i2c_r(sd, 0x15) & 1)
+		if (i2c_r(sd, 0x15) & 1) {
 			PDEBUG(D_PROBE, "Sensor is an OV7620AE");
-		else
+			sd->sensor = SEN_OV7620;
+		} else {
 			PDEBUG(D_PROBE, "Sensor is an OV76BE");
-
-		/* OV511+ will return all zero isoc data unless we
-		 * configure the sensor as a 7620. Someone needs to
-		 * find the exact reg. setting that causes this. */
-		sd->sensor = SEN_OV76BE;
+			sd->sensor = SEN_OV76BE;
+		}
 	} else if ((rc & 3) == 0) {
 		/* try to read product id registers */
 		high = i2c_r(sd, 0x0a);
@@ -1616,7 +1619,6 @@ static int ov7xx0_configure(struct sd *sd)
 	}
 
 	/* Set sensor-specific vars */
-/*	sd->sif = 0;		already done */
 	return 0;
 }
 
@@ -2198,11 +2200,11 @@ static int ov511_mode_init_regs(struct sd *sd)
 	   for more sensors we need to do this for them too */
 	case SEN_OV7620:
 	case SEN_OV7640:
+	case SEN_OV76BE:
 		if (sd->gspca_dev.width == 320)
 			interlaced = 1;
 		/* Fall through */
 	case SEN_OV6630:
-	case SEN_OV76BE:
 	case SEN_OV7610:
 	case SEN_OV7670:
 		switch (sd->frame_rate) {
@@ -2268,7 +2270,19 @@ static int ov511_mode_init_regs(struct sd *sd)
  */
 static int ov518_mode_init_regs(struct sd *sd)
 {
-	int hsegs, vsegs;
+	int hsegs, vsegs, packet_size;
+	struct usb_host_interface *alt;
+	struct usb_interface *intf;
+
+	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
+	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
+	if (!alt) {
+		PDEBUG(D_ERR, "Couldn't get altsetting");
+		return -EIO;
+	}
+
+	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	ov518_reg_w32(sd, R51x_FIFO_PSIZE, packet_size & ~7, 2);
 
 	/******** Set the mode ********/
 
@@ -2305,20 +2319,30 @@ static int ov518_mode_init_regs(struct sd *sd)
 	/* Windows driver does this here; who knows why */
 	reg_w(sd, 0x2f, 0x80);
 
-	/******** Set the framerate (to 30 FPS) ********/
-	if (sd->bridge == BRIDGE_OV518PLUS)
-		sd->clockdiv = 1;
-	else
-		sd->clockdiv = 0;
+	/******** Set the framerate  ********/
+	sd->clockdiv = 1;
 
 	/* Mode independent, but framerate dependent, regs */
-	reg_w(sd, 0x51, 0x04);	/* Clock divider; lower==faster */
+	/* 0x51: Clock divider; Only works on some cams which use 2 crystals */
+	reg_w(sd, 0x51, 0x04);
 	reg_w(sd, 0x22, 0x18);
 	reg_w(sd, 0x23, 0xff);
 
-	if (sd->bridge == BRIDGE_OV518PLUS)
-		reg_w(sd, 0x21, 0x19);
-	else
+	if (sd->bridge == BRIDGE_OV518PLUS) {
+		switch (sd->sensor) {
+		case SEN_OV7620:
+			if (sd->gspca_dev.width == 320) {
+				reg_w(sd, 0x20, 0x00);
+				reg_w(sd, 0x21, 0x19);
+			} else {
+				reg_w(sd, 0x20, 0x60);
+				reg_w(sd, 0x21, 0x1f);
+			}
+			break;
+		default:
+			reg_w(sd, 0x21, 0x19);
+		}
+	} else
 		reg_w(sd, 0x71, 0x17);	/* Compression-related? */
 
 	/* FIXME: Sensor-specific */
@@ -2537,21 +2561,16 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		break;
 	case SEN_OV7620:
-/*		i2c_w(sd, 0x2b, 0x00); */
+	case SEN_OV76BE:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
 		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a);
 		i2c_w(sd, 0x25, qvga ? 0x30 : 0x60);
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
-		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
+		i2c_w_mask(sd, 0x67, qvga ? 0xb0 : 0x90, 0xf0);
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
 		break;
-	case SEN_OV76BE:
-/*		i2c_w(sd, 0x2b, 0x00); */
-		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
-		break;
 	case SEN_OV7640:
-/*		i2c_w(sd, 0x2b, 0x00); */
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
 /*		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a); */
