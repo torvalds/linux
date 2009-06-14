@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -359,11 +360,18 @@ static struct pxaficp_platform_data palmtx_ficp_platform_data = {
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
+static struct gpio_vbus_mach_info palmtx_udc_info = {
 	.gpio_vbus		= GPIO_NR_PALMTX_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
 	.gpio_pullup		= GPIO_NR_PALMTX_USB_PULLUP,
-	.gpio_pullup_inverted	= 0,
+};
+
+static struct platform_device palmtx_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmtx_udc_info,
+	},
 };
 
 /******************************************************************************
@@ -483,29 +491,17 @@ static struct pxafb_mach_info palmtx_lcd_screen = {
 /******************************************************************************
  * Power management - standby
  ******************************************************************************/
-#ifdef CONFIG_PM
-static u32 *addr __initdata;
-static u32 resume[3] __initdata = {
-	0xe3a00101,	/* mov	r0,	#0x40000000 */
-	0xe380060f,	/* orr	r0, r0, #0x00f00000 */
-	0xe590f008,	/* ldr	pc, [r0, #0x08] */
-};
-
-static int __init palmtx_pm_init(void)
+static void __init palmtx_pm_init(void)
 {
-	int i;
+	static u32 resume[] = {
+		0xe3a00101,	/* mov	r0,	#0x40000000 */
+		0xe380060f,	/* orr	r0, r0, #0x00f00000 */
+		0xe590f008,	/* ldr	pc, [r0, #0x08] */
+	};
 
-	/* this is where the bootloader jumps */
-	addr = phys_to_virt(PALMTX_STR_BASE);
-
-	for (i = 0; i < 3; i++)
-		addr[i] = resume[i];
-
-	return 0;
+	/* copy the bootloader */
+	memcpy(phys_to_virt(PALMTX_STR_BASE), resume, sizeof(resume));
 }
-
-device_initcall(palmtx_pm_init);
-#endif
 
 /******************************************************************************
  * Machine init
@@ -517,6 +513,7 @@ static struct platform_device *devices[] __initdata = {
 	&palmtx_backlight,
 	&power_supply,
 	&palmtx_asoc,
+	&palmtx_gpio_vbus,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
@@ -548,11 +545,11 @@ static void __init palmtx_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtx_pin_config));
 
+	palmtx_pm_init();
 	set_pxa_fb_info(&palmtx_lcd_screen);
 	pxa_set_mci_info(&palmtx_mci_platform_data);
 	palmtx_udc_init();
 	pxa_set_ac97_info(&palmtx_ac97_pdata);
-	pxa_set_udc_info(&palmtx_udc_info);
 	pxa_set_ficp_info(&palmtx_ficp_platform_data);
 	pxa_set_keypad_info(&palmtx_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);

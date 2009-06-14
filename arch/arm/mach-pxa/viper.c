@@ -45,7 +45,7 @@
 #include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/regs-uart.h>
 #include <mach/viper.h>
 

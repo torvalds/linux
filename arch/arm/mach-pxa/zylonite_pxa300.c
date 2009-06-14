@@ -21,7 +21,7 @@
 #include <linux/gpio.h>
 
 #include <mach/pxa300.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/zylonite.h>
 
 #include "generic.h"

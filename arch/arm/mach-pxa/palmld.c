@@ -532,29 +532,17 @@ static struct pxafb_mach_info palmld_lcd_screen = {
 /******************************************************************************
  * Power management - standby
  ******************************************************************************/
-#ifdef CONFIG_PM
-static u32 *addr __initdata;
-static u32 resume[3] __initdata = {
-	0xe3a00101,	/* mov	r0,	#0x40000000 */
-	0xe380060f,	/* orr	r0, r0, #0x00f00000 */
-	0xe590f008,	/* ldr	pc, [r0, #0x08] */
-};
-
-static int __init palmld_pm_init(void)
+static void __init palmld_pm_init(void)
 {
-	int i;
+	static u32 resume[] = {
+		0xe3a00101,	/* mov	r0,	#0x40000000 */
+		0xe380060f,	/* orr	r0, r0, #0x00f00000 */
+		0xe590f008,	/* ldr	pc, [r0, #0x08] */
+	};
 
-	/* this is where the bootloader jumps */
-	addr = phys_to_virt(PALMLD_STR_BASE);
-
-	for (i = 0; i < 3; i++)
-		addr[i] = resume[i];
-
-	return 0;
+	/* copy the bootloader */
+	memcpy(phys_to_virt(PALMLD_STR_BASE), resume, sizeof(resume));
 }
-
-device_initcall(palmld_pm_init);
-#endif
 
 /******************************************************************************
  * Machine init
@@ -595,6 +583,7 @@ static void __init palmld_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmld_pin_config));
 
+	palmld_pm_init();
 	set_pxa_fb_info(&palmld_lcd_screen);
 	pxa_set_mci_info(&palmld_mci_platform_data);
 	pxa_set_ac97_info(&palmld_ac97_pdata);

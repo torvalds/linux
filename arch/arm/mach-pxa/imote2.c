@@ -22,6 +22,7 @@
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/mfd/da903x.h>
+#include <linux/sht15.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -29,7 +30,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/udc.h>
 #include <mach/mmc.h>
 #include <mach/pxa2xx_spi.h>
@@ -102,6 +103,10 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO96_GPIO,	/* accelerometer interrupt */
 	GPIO99_GPIO,	/* ADC interrupt */
 
+	/* SHT15 */
+	GPIO100_GPIO,
+	GPIO98_GPIO,
+
 	/* Connector pins specified as gpios */
 	GPIO94_GPIO, /* large basic connector pin 14 */
 	GPIO10_GPIO, /* large basic connector pin 23 */
@@ -110,6 +115,26 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO103_GPIO, /* red led */
 	GPIO104_GPIO, /* green led */
 	GPIO105_GPIO, /* blue led */
+};
+
+static struct sht15_platform_data platform_data_sht15 = {
+	.gpio_data =  100,
+	.gpio_sck  =  98,
+};
+
+static struct platform_device sht15 = {
+	.name = "sht15",
+	.id = -1,
+	.dev = {
+		.platform_data = &platform_data_sht15,
+	},
+};
+
+static struct regulator_consumer_supply imote2_sensor_3_con[] = {
+	{
+		.dev = &sht15.dev,
+		.supply = "vcc",
+	},
 };
 
 static struct gpio_led imote2_led_pins[] = {
@@ -257,6 +282,8 @@ static struct regulator_init_data imote2_ldo_init_data[] = {
 			.min_uV = 2800000,
 			.max_uV = 3000000,
 		},
+		.num_consumer_supplies = ARRAY_SIZE(imote2_sensor_3_con),
+		.consumer_supplies = imote2_sensor_3_con,
 	},
 	[vcc_pxa_pll] = { /* 1.17V - 1.43V, default 1.3V*/
 		.constraints = {
@@ -432,6 +459,9 @@ static struct i2c_board_info __initdata imote2_i2c_board_info[] = {
 		.type = "tmp175",
 		.addr = 0x4A,
 		.irq = IRQ_GPIO(96),
+	}, { /* IMB400 Multimedia board */
+		.type = "wm8940",
+		.addr = 0x1A,
 	},
 };
 
@@ -456,25 +486,12 @@ static struct pxa2xx_spi_master pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 
-/* Patch posted by Eric Miao <eric.miao@marvell.com> will remove
- * the need for these functions.
- */
-static void spi1control(u32 command)
-{
-	gpio_set_value(24, command & PXA2XX_CS_ASSERT ? 0 : 1);
-};
-
-static void spi3control(u32 command)
-{
-	gpio_set_value(39, command & PXA2XX_CS_ASSERT ? 0 : 1);
-};
-
 static struct pxa2xx_spi_chip staccel_chip_info = {
 	.tx_threshold = 8,
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.cs_control = spi1control,
+	.gpio_cs = 24,
 };
 
 static struct pxa2xx_spi_chip cc2420_info = {
@@ -482,7 +499,7 @@ static struct pxa2xx_spi_chip cc2420_info = {
 	.rx_threshold = 8,
 	.dma_burst_size = 8,
 	.timeout = 235,
-	.cs_control = spi3control,
+	.gpio_cs = 39,
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -521,6 +538,7 @@ static struct pxa2xx_udc_mach_info imote2_udc_info __initdata = {
 static struct platform_device *imote2_devices[] = {
 	&imote2_flash_device,
 	&imote2_leds,
+	&sht15,
 };
 
 static struct i2c_pxa_platform_data i2c_pwr_pdata = {
@@ -538,8 +556,6 @@ static void __init imote2_init(void)
 	/* SPI chip select directions - all other directions should
 	 * be handled by drivers.*/
 	gpio_direction_output(37, 0);
-	gpio_direction_output(24, 0);
-	gpio_direction_output(39, 0);
 
 	platform_add_devices(imote2_devices, ARRAY_SIZE(imote2_devices));
 

@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  *
  */
-
-#include <linux/interrupt.h>
+#ifndef _MACH_SHARPSL_PM
+#define _MACH_SHARPSL_PM
 
 struct sharpsl_charger_machinfo {
 	void (*init)(void);
@@ -100,7 +100,5 @@ extern struct sharpsl_pm_status sharpsl_pm;
 
 void sharpsl_battery_kick(void);
 void sharpsl_pm_led(int val);
-irqreturn_t sharpsl_ac_isr(int irq, void *dev_id);
-irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id);
-irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id);
 
+#endif
