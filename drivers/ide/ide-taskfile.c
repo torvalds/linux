@@ -98,7 +98,6 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	if ((cmd->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
 		ide_tf_dump(drive->name, cmd);
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
-		SELECT_MASK(drive, 0);
 
 		if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
 			u8 data[2] = { cmd->tf.data, cmd->hob.data };
@@ -166,7 +165,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
 		if (custom && tf->command == ATA_CMD_SET_MULTI) {
 			drive->mult_req = drive->mult_count = 0;
-			drive->special.b.recalibrate = 1;
+			drive->special_flags |= IDE_SFLAG_RECALIBRATE;
 			(void)ide_dump_status(drive, __func__, stat);
 			return ide_stopped;
 		} else if (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) {

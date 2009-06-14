@@ -211,6 +211,11 @@ static unsigned int ide_noflush;
 module_param_call(noflush, ide_set_dev_param_mask, NULL, &ide_noflush, 0);
 MODULE_PARM_DESC(noflush, "disable flush requests for a device");
 
+static unsigned int ide_nohpa;
+
+module_param_call(nohpa, ide_set_dev_param_mask, NULL, &ide_nohpa, 0);
+MODULE_PARM_DESC(nohpa, "disable Host Protected Area for a device");
+
 static unsigned int ide_noprobe;
 
 module_param_call(noprobe, ide_set_dev_param_mask, NULL, &ide_noprobe, 0);
@@ -280,6 +285,11 @@ static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 		printk(KERN_INFO "ide: disabling flush requests for %s\n",
 				 drive->name);
 		drive->dev_flags |= IDE_DFLAG_NOFLUSH;
+	}
+	if (ide_nohpa & (1 << i)) {
+		printk(KERN_INFO "ide: disabling Host Protected Area for %s\n",
+				 drive->name);
+		drive->dev_flags |= IDE_DFLAG_NOHPA;
 	}
 	if (ide_noprobe & (1 << i)) {
 		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);

@@ -641,7 +641,7 @@ static int do_virtio_entry(const char *filename, struct virtio_device_id *id,
 	id->vendor = TO_NATIVE(id->vendor);
 
 	strcpy(alias, "virtio:");
-	ADD(alias, "d", 1, id->device);
+	ADD(alias, "d", id->device != VIRTIO_DEV_ANY_ID, id->device);
 	ADD(alias, "v", id->vendor != VIRTIO_DEV_ANY_ID, id->vendor);
 
 	add_wildcard(alias);

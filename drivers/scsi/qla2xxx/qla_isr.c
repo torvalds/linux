@@ -13,10 +13,9 @@ static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_process_completed_request(struct scsi_qla_host *,
 	struct req_que *, uint32_t);
 static void qla2x00_status_entry(scsi_qla_host_t *, struct rsp_que *, void *);
-static void qla2x00_status_cont_entry(scsi_qla_host_t *, sts_cont_entry_t *);
+static void qla2x00_status_cont_entry(struct rsp_que *, sts_cont_entry_t *);
 static void qla2x00_error_entry(scsi_qla_host_t *, struct rsp_que *,
 	sts_entry_t *);
-static struct scsi_qla_host *qla2x00_get_rsp_host(struct rsp_que *);
 
 /**
  * qla2100_intr_handler() - Process interrupts for the ISP2100 and ISP2200.
@@ -51,7 +50,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock(&ha->hardware_lock);
-	vha = qla2x00_get_rsp_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		hccr = RD_REG_WORD(&reg->hccr);
 		if (hccr & HCCR_RISC_PAUSE) {
@@ -147,7 +146,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock(&ha->hardware_lock);
-	vha = qla2x00_get_rsp_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
 		if (stat & HSR_RISC_PAUSED) {
@@ -685,7 +684,7 @@ skip_rio:
 		    vha->host_no));
 
 		if (IS_FWI2_CAPABLE(ha))
-			qla24xx_process_response_queue(rsp);
+			qla24xx_process_response_queue(vha, rsp);
 		else
 			qla2x00_process_response_queue(rsp);
 		break;
@@ -766,7 +765,10 @@ qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = NULL;
 
-	req = ha->req_q_map[vha->req_ques[0]];
+	if (!ql2xqfulltracking)
+		return;
+
+	req = vha->req;
 	if (!req)
 		return;
 	if (req->max_q_depth <= sdev->queue_depth)
@@ -807,6 +809,9 @@ qla2x00_ramp_up_queue_depth(scsi_qla_host_t *vha, struct req_que *req,
 {
 	fc_port_t *fcport;
 	struct scsi_device *sdev;
+
+	if (!ql2xqfulltracking)
+		return;
 
 	sdev = sp->cmd->device;
 	if (sdev->queue_depth >= req->max_q_depth)
@@ -858,8 +863,8 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 		qla2x00_ramp_up_queue_depth(vha, req, sp);
 		qla2x00_sp_compl(ha, sp);
 	} else {
-		DEBUG2(printk("scsi(%ld): Invalid ISP SCSI completion handle\n",
-		    vha->host_no));
+		DEBUG2(printk("scsi(%ld) Req:%d: Invalid ISP SCSI completion"
+			" handle(%d)\n", vha->host_no, req->id, index));
 		qla_printk(KERN_WARNING, ha,
 		    "Invalid ISP SCSI completion handle\n");
 
@@ -881,7 +886,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 	uint16_t        handle_cnt;
 	uint16_t        cnt;
 
-	vha = qla2x00_get_rsp_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 
 	if (!vha->flags.online)
 		return;
@@ -926,7 +931,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 			}
 			break;
 		case STATUS_CONT_TYPE:
-			qla2x00_status_cont_entry(vha, (sts_cont_entry_t *)pkt);
+			qla2x00_status_cont_entry(rsp, (sts_cont_entry_t *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */
@@ -945,7 +950,8 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 }
 
 static inline void
-qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
+qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len,
+	struct rsp_que *rsp)
 {
 	struct scsi_cmnd *cp = sp->cmd;
 
@@ -962,7 +968,7 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
 	sp->request_sense_ptr += sense_len;
 	sp->request_sense_length -= sense_len;
 	if (sp->request_sense_length != 0)
-		sp->fcport->vha->status_srb = sp;
+		rsp->status_srb = sp;
 
 	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
 	    "cmd=%p pid=%ld\n", __func__, sp->fcport->vha->host_no,
@@ -992,7 +998,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	uint32_t	sense_len, rsp_info_len, resid_len, fw_resid_len;
 	uint8_t		*rsp_info, *sense_data;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = rsp->req;
+	uint32_t handle;
+	uint16_t que;
+	struct req_que *req;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
@@ -1003,18 +1011,20 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		comp_status = le16_to_cpu(sts->comp_status);
 		scsi_status = le16_to_cpu(sts->scsi_status) & SS_MASK;
 	}
-
+	handle = (uint32_t) LSW(sts->handle);
+	que = MSW(sts->handle);
+	req = ha->req_q_map[que];
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
-		qla2x00_process_completed_request(vha, req, sts->handle);
+		qla2x00_process_completed_request(vha, req, handle);
 
 		return;
 	}
 
 	/* Validate handle. */
-	if (sts->handle < MAX_OUTSTANDING_COMMANDS) {
-		sp = req->outstanding_cmds[sts->handle];
-		req->outstanding_cmds[sts->handle] = NULL;
+	if (handle < MAX_OUTSTANDING_COMMANDS) {
+		sp = req->outstanding_cmds[handle];
+		req->outstanding_cmds[handle] = NULL;
 	} else
 		sp = NULL;
 
@@ -1030,7 +1040,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	cp = sp->cmd;
 	if (cp == NULL) {
 		DEBUG2(printk("scsi(%ld): Command already returned back to OS "
-		    "pkt->handle=%d sp=%p.\n", vha->host_no, sts->handle, sp));
+		    "pkt->handle=%d sp=%p.\n", vha->host_no, handle, sp));
 		qla_printk(KERN_WARNING, ha,
 		    "Command is NULL: already returned to OS (sp=%p)\n", sp);
 
@@ -1121,6 +1131,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			    scsi_status));
 
 			/* Adjust queue depth for all luns on the port. */
+			if (!ql2xqfulltracking)
+				break;
 			fcport->last_queue_full = jiffies;
 			starget_for_each_device(cp->device->sdev_target,
 			    fcport, qla2x00_adjust_sdev_qdepth_down);
@@ -1133,7 +1145,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		if (!(scsi_status & SS_SENSE_LEN_VALID))
 			break;
 
-		qla2x00_handle_sense(sp, sense_data, sense_len);
+		qla2x00_handle_sense(sp, sense_data, sense_len, rsp);
 		break;
 
 	case CS_DATA_UNDERRUN:
@@ -1179,6 +1191,8 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				 * Adjust queue depth for all luns on the
 				 * port.
 				 */
+				if (!ql2xqfulltracking)
+					break;
 				fcport->last_queue_full = jiffies;
 				starget_for_each_device(
 				    cp->device->sdev_target, fcport,
@@ -1192,12 +1206,12 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			if (!(scsi_status & SS_SENSE_LEN_VALID))
 				break;
 
-			qla2x00_handle_sense(sp, sense_data, sense_len);
+			qla2x00_handle_sense(sp, sense_data, sense_len, rsp);
 		} else {
 			/*
 			 * If RISC reports underrun and target does not report
 			 * it then we must have a lost frame, so tell upper
-			 * layer to retry it by reporting a bus busy.
+			 * layer to retry it by reporting an error.
 			 */
 			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
 				DEBUG2(printk("scsi(%ld:%d:%d:%d) Dropped "
@@ -1207,7 +1221,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 					cp->device->id, cp->device->lun, resid,
 					scsi_bufflen(cp)));
 
-				cp->result = DID_BUS_BUSY << 16;
+				cp->result = DID_ERROR << 16;
 				break;
 			}
 
@@ -1334,7 +1348,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 
 	/* Place command on done queue. */
-	if (vha->status_srb == NULL)
+	if (rsp->status_srb == NULL)
 		qla2x00_sp_compl(ha, sp);
 }
 
@@ -1346,11 +1360,11 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
  * Extended sense data.
  */
 static void
-qla2x00_status_cont_entry(scsi_qla_host_t *vha, sts_cont_entry_t *pkt)
+qla2x00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 {
 	uint8_t		sense_sz = 0;
-	struct qla_hw_data *ha = vha->hw;
-	srb_t		*sp = vha->status_srb;
+	struct qla_hw_data *ha = rsp->hw;
+	srb_t		*sp = rsp->status_srb;
 	struct scsi_cmnd *cp;
 
 	if (sp != NULL && sp->request_sense_length != 0) {
@@ -1362,7 +1376,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *vha, sts_cont_entry_t *pkt)
 			    "cmd is NULL: already returned to OS (sp=%p)\n",
 			    sp);
 
-			vha->status_srb = NULL;
+			rsp->status_srb = NULL;
 			return;
 		}
 
@@ -1383,7 +1397,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *vha, sts_cont_entry_t *pkt)
 
 		/* Place command on done queue. */
 		if (sp->request_sense_length == 0) {
-			vha->status_srb = NULL;
+			rsp->status_srb = NULL;
 			qla2x00_sp_compl(ha, sp);
 		}
 	}
@@ -1399,7 +1413,9 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 {
 	srb_t *sp;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = rsp->req;
+	uint32_t handle = LSW(pkt->handle);
+	uint16_t que = MSW(pkt->handle);
+	struct req_que *req = ha->req_q_map[que];
 #if defined(QL_DEBUG_LEVEL_2)
 	if (pkt->entry_status & RF_INV_E_ORDER)
 		qla_printk(KERN_ERR, ha, "%s: Invalid Entry Order\n", __func__);
@@ -1417,14 +1433,14 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 #endif
 
 	/* Validate handle. */
-	if (pkt->handle < MAX_OUTSTANDING_COMMANDS)
-		sp = req->outstanding_cmds[pkt->handle];
+	if (handle < MAX_OUTSTANDING_COMMANDS)
+		sp = req->outstanding_cmds[handle];
 	else
 		sp = NULL;
 
 	if (sp) {
 		/* Free outstanding command slot. */
-		req->outstanding_cmds[pkt->handle] = NULL;
+		req->outstanding_cmds[handle] = NULL;
 
 		/* Bad payload or header */
 		if (pkt->entry_status &
@@ -1486,13 +1502,10 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
  * qla24xx_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
  */
-void
-qla24xx_process_response_queue(struct rsp_que *rsp)
+void qla24xx_process_response_queue(struct scsi_qla_host *vha,
+	struct rsp_que *rsp)
 {
 	struct sts_entry_24xx *pkt;
-	struct scsi_qla_host *vha;
-
-	vha = qla2x00_get_rsp_host(rsp);
 
 	if (!vha->flags.online)
 		return;
@@ -1523,7 +1536,7 @@ qla24xx_process_response_queue(struct rsp_que *rsp)
 			qla2x00_status_entry(vha, rsp, pkt);
 			break;
 		case STATUS_CONT_TYPE:
-			qla2x00_status_cont_entry(vha, (sts_cont_entry_t *)pkt);
+			qla2x00_status_cont_entry(rsp, (sts_cont_entry_t *)pkt);
 			break;
 		case VP_RPT_ID_IOCB_TYPE:
 			qla24xx_report_id_acquisition(vha,
@@ -1626,7 +1639,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock(&ha->hardware_lock);
-	vha = qla2x00_get_rsp_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
@@ -1664,7 +1677,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 			break;
 		case 0x13:
 		case 0x14:
-			qla24xx_process_response_queue(rsp);
+			qla24xx_process_response_queue(vha, rsp);
 			break;
 		default:
 			DEBUG2(printk("scsi(%ld): Unrecognized interrupt type "
@@ -1692,6 +1705,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
 	struct device_reg_24xx __iomem *reg;
+	struct scsi_qla_host *vha;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -1704,7 +1718,8 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 
 	spin_lock_irq(&ha->hardware_lock);
 
-	qla24xx_process_response_queue(rsp);
+	vha = qla25xx_get_host(rsp);
+	qla24xx_process_response_queue(vha, rsp);
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 
 	spin_unlock_irq(&ha->hardware_lock);
@@ -1717,7 +1732,6 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 {
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
-	struct device_reg_24xx __iomem *reg;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -1726,13 +1740,8 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 	ha = rsp->hw;
-	reg = &ha->iobase->isp24;
 
-	spin_lock_irq(&ha->hardware_lock);
-
-	qla24xx_process_response_queue(rsp);
-
-	spin_unlock_irq(&ha->hardware_lock);
+	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
 
 	return IRQ_HANDLED;
 }
@@ -1760,7 +1769,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock_irq(&ha->hardware_lock);
-	vha = qla2x00_get_rsp_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
@@ -1798,7 +1807,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 		case 0x13:
 		case 0x14:
-			qla24xx_process_response_queue(rsp);
+			qla24xx_process_response_queue(vha, rsp);
 			break;
 		default:
 			DEBUG2(printk("scsi(%ld): Unrecognized interrupt type "
@@ -1822,31 +1831,14 @@ qla24xx_msix_default(int irq, void *dev_id)
 /* Interrupt handling helpers. */
 
 struct qla_init_msix_entry {
-	uint16_t entry;
-	uint16_t index;
 	const char *name;
 	irq_handler_t handler;
 };
 
-static struct qla_init_msix_entry base_queue = {
-	.entry = 0,
-	.index = 0,
-	.name = "qla2xxx (default)",
-	.handler = qla24xx_msix_default,
-};
-
-static struct qla_init_msix_entry base_rsp_queue = {
-	.entry = 1,
-	.index = 1,
-	.name = "qla2xxx (rsp_q)",
-	.handler = qla24xx_msix_rsp_q,
-};
-
-static struct qla_init_msix_entry multi_rsp_queue = {
-	.entry = 1,
-	.index = 1,
-	.name = "qla2xxx (multi_q)",
-	.handler = qla25xx_msix_rsp_q,
+static struct qla_init_msix_entry msix_entries[3] = {
+	{ "qla2xxx (default)", qla24xx_msix_default },
+	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
+	{ "qla2xxx (multiq)", qla25xx_msix_rsp_q },
 };
 
 static void
@@ -1873,7 +1865,6 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	int i, ret;
 	struct msix_entry *entries;
 	struct qla_msix_entry *qentry;
-	struct qla_init_msix_entry *msix_queue;
 
 	entries = kzalloc(sizeof(struct msix_entry) * ha->msix_count,
 					GFP_KERNEL);
@@ -1900,7 +1891,7 @@ msix_failed:
 				ha->msix_count, ret);
 			goto msix_out;
 		}
-		ha->max_queues = ha->msix_count - 1;
+		ha->max_rsp_queues = ha->msix_count - 1;
 	}
 	ha->msix_entries = kzalloc(sizeof(struct qla_msix_entry) *
 				ha->msix_count, GFP_KERNEL);
@@ -1918,45 +1909,27 @@ msix_failed:
 		qentry->rsp = NULL;
 	}
 
-	/* Enable MSI-X for AENs for queue 0 */
-	qentry = &ha->msix_entries[0];
-	ret = request_irq(qentry->vector, base_queue.handler, 0,
-					base_queue.name, rsp);
-	if (ret) {
-		qla_printk(KERN_WARNING, ha,
+	/* Enable MSI-X vectors for the base queue */
+	for (i = 0; i < 2; i++) {
+		qentry = &ha->msix_entries[i];
+		ret = request_irq(qentry->vector, msix_entries[i].handler,
+					0, msix_entries[i].name, rsp);
+		if (ret) {
+			qla_printk(KERN_WARNING, ha,
 			"MSI-X: Unable to register handler -- %x/%d.\n",
 			qentry->vector, ret);
-		qla24xx_disable_msix(ha);
-		goto msix_out;
+			qla24xx_disable_msix(ha);
+			ha->mqenable = 0;
+			goto msix_out;
+		}
+		qentry->have_irq = 1;
+		qentry->rsp = rsp;
+		rsp->msix = qentry;
 	}
-	qentry->have_irq = 1;
-	qentry->rsp = rsp;
 
 	/* Enable MSI-X vector for response queue update for queue 0 */
-	if (ha->max_queues > 1 && ha->mqiobase) {
+	if (ha->mqiobase &&  (ha->max_rsp_queues > 1 || ha->max_req_queues > 1))
 		ha->mqenable = 1;
-		msix_queue = &multi_rsp_queue;
-		qla_printk(KERN_INFO, ha,
-				"MQ enabled, Number of Queue Resources: %d \n",
-				ha->max_queues);
-	} else {
-		ha->mqenable = 0;
-		msix_queue = &base_rsp_queue;
-	}
-
-	qentry = &ha->msix_entries[1];
-	ret = request_irq(qentry->vector, msix_queue->handler, 0,
-						msix_queue->name, rsp);
-	if (ret) {
-		qla_printk(KERN_WARNING, ha,
-			"MSI-X: Unable to register handler -- %x/%d.\n",
-			qentry->vector, ret);
-		qla24xx_disable_msix(ha);
-		ha->mqenable = 0;
-		goto msix_out;
-	}
-	qentry->have_irq = 1;
-	qentry->rsp = rsp;
 
 msix_out:
 	kfree(entries);
@@ -2063,35 +2036,11 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 	}
 }
 
-static struct scsi_qla_host *
-qla2x00_get_rsp_host(struct rsp_que *rsp)
-{
-	srb_t *sp;
-	struct qla_hw_data *ha = rsp->hw;
-	struct scsi_qla_host *vha = NULL;
-	struct sts_entry_24xx *pkt;
-	struct req_que *req;
-
-	if (rsp->id) {
-		pkt = (struct sts_entry_24xx *) rsp->ring_ptr;
-		req = rsp->req;
-		if (pkt && pkt->handle < MAX_OUTSTANDING_COMMANDS) {
-			sp = req->outstanding_cmds[pkt->handle];
-			if (sp)
-				vha = sp->fcport->vha;
-		}
-	}
-	if (!vha)
-	/* handle it in base queue */
-		vha = pci_get_drvdata(ha->pdev);
-
-	return vha;
-}
 
 int qla25xx_request_irq(struct rsp_que *rsp)
 {
 	struct qla_hw_data *ha = rsp->hw;
-	struct qla_init_msix_entry *intr = &multi_rsp_queue;
+	struct qla_init_msix_entry *intr = &msix_entries[2];
 	struct qla_msix_entry *msix = rsp->msix;
 	int ret;
 
@@ -2105,4 +2054,31 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
+}
+
+struct scsi_qla_host *
+qla25xx_get_host(struct rsp_que *rsp)
+{
+	srb_t *sp;
+	struct qla_hw_data *ha = rsp->hw;
+	struct scsi_qla_host *vha = NULL;
+	struct sts_entry_24xx *pkt;
+	struct req_que *req;
+	uint16_t que;
+	uint32_t handle;
+
+	pkt = (struct sts_entry_24xx *) rsp->ring_ptr;
+	que = MSW(pkt->handle);
+	handle = (uint32_t) LSW(pkt->handle);
+	req = ha->req_q_map[que];
+	if (handle < MAX_OUTSTANDING_COMMANDS) {
+		sp = req->outstanding_cmds[handle];
+		if (sp)
+			return  sp->fcport->vha;
+		else
+			goto base_que;
+	}
+base_que:
+	vha = pci_get_drvdata(ha->pdev);
+	return vha;
 }

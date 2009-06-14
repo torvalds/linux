@@ -70,7 +70,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return ((get_clock_xt() - sched_clock_base_cc) * 125) >> 9;
 }
@@ -95,12 +95,6 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 	xtime->tv_nsec = ((todval * 1000) >> 12);
 }
 
-#ifdef CONFIG_PROFILING
-#define s390_do_profile()	profile_tick(CPU_PROFILING)
-#else
-#define s390_do_profile()	do { ; } while(0)
-#endif /* CONFIG_PROFILING */
-
 void clock_comparator_work(void)
 {
 	struct clock_event_device *cd;
@@ -109,7 +103,6 @@ void clock_comparator_work(void)
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	cd = &__get_cpu_var(comparators);
 	cd->event_handler(cd);
-	s390_do_profile();
 }
 
 /*

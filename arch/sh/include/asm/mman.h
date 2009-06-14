@@ -1,7 +1,7 @@
 #ifndef __ASM_SH_MMAN_H
 #define __ASM_SH_MMAN_H
 
-#include <asm-generic/mman.h>
+#include <asm-generic/mman-common.h>
 
 #define MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define MAP_DENYWRITE	0x0800		/* ETXTBSY */

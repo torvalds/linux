@@ -1975,16 +1975,30 @@ xlog_recover_do_reg_buffer(
 		error = 0;
 		if (buf_f->blf_flags &
 		   (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+			if (item->ri_buf[i].i_addr == NULL) {
+				cmn_err(CE_ALERT,
+					"XFS: NULL dquot in %s.", __func__);
+				goto next;
+			}
+			if (item->ri_buf[i].i_len < sizeof(xfs_dqblk_t)) {
+				cmn_err(CE_ALERT,
+					"XFS: dquot too small (%d) in %s.",
+					item->ri_buf[i].i_len, __func__);
+				goto next;
+			}
 			error = xfs_qm_dqcheck((xfs_disk_dquot_t *)
 					       item->ri_buf[i].i_addr,
 					       -1, 0, XFS_QMOPT_DOWARN,
 					       "dquot_buf_recover");
+			if (error)
+				goto next;
 		}
-		if (!error)
-			memcpy(xfs_buf_offset(bp,
-				(uint)bit << XFS_BLI_SHIFT),	/* dest */
-				item->ri_buf[i].i_addr,		/* source */
-				nbits<<XFS_BLI_SHIFT);		/* length */
+
+		memcpy(xfs_buf_offset(bp,
+			(uint)bit << XFS_BLI_SHIFT),	/* dest */
+			item->ri_buf[i].i_addr,		/* source */
+			nbits<<XFS_BLI_SHIFT);		/* length */
+ next:
 		i++;
 		bit += nbits;
 	}
@@ -2615,7 +2629,19 @@ xlog_recover_do_dquot_trans(
 		return (0);
 
 	recddq = (xfs_disk_dquot_t *)item->ri_buf[1].i_addr;
-	ASSERT(recddq);
+
+	if (item->ri_buf[1].i_addr == NULL) {
+		cmn_err(CE_ALERT,
+			"XFS: NULL dquot in %s.", __func__);
+		return XFS_ERROR(EIO);
+	}
+	if (item->ri_buf[1].i_len < sizeof(xfs_dqblk_t)) {
+		cmn_err(CE_ALERT,
+			"XFS: dquot too small (%d) in %s.",
+			item->ri_buf[1].i_len, __func__);
+		return XFS_ERROR(EIO);
+	}
+
 	/*
 	 * This type of quotas was turned off, so ignore this record.
 	 */

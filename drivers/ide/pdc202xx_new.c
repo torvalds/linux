@@ -40,18 +40,6 @@
 #define DBG(fmt, args...)
 #endif
 
-static const char *pdc_quirk_drives[] = {
-	"QUANTUM FIREBALLlct08 08",
-	"QUANTUM FIREBALLP KA6.4",
-	"QUANTUM FIREBALLP KA9.1",
-	"QUANTUM FIREBALLP LM20.4",
-	"QUANTUM FIREBALLP KX13.6",
-	"QUANTUM FIREBALLP KX20.5",
-	"QUANTUM FIREBALLP KX27.3",
-	"QUANTUM FIREBALLP LM20.5",
-	NULL
-};
-
 static u8 max_dma_rate(struct pci_dev *pdev)
 {
 	u8 mode;
@@ -198,19 +186,6 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 		return ATA_CBL_PATA40;
 	else
 		return ATA_CBL_PATA80;
-}
-
-static void pdcnew_quirkproc(ide_drive_t *drive)
-{
-	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
-
-	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(m, *list) != NULL) {
-			drive->quirk_list = 2;
-			return;
-		}
-
-	drive->quirk_list = 0;
 }
 
 static void pdcnew_reset(ide_drive_t *drive)
@@ -473,7 +448,6 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 static const struct ide_port_ops pdcnew_port_ops = {
 	.set_pio_mode		= pdcnew_set_pio_mode,
 	.set_dma_mode		= pdcnew_set_dma_mode,
-	.quirkproc		= pdcnew_quirkproc,
 	.resetproc		= pdcnew_reset,
 	.cable_detect		= pdcnew_cable_detect,
 };

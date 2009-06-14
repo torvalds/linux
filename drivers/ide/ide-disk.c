@@ -302,14 +302,12 @@ static const struct drive_list_entry hpa_list[] = {
 	{ NULL,		NULL }
 };
 
-static void idedisk_check_hpa(ide_drive_t *drive)
+static u64 ide_disk_hpa_get_native_capacity(ide_drive_t *drive, int lba48)
 {
-	unsigned long long capacity, set_max;
-	int lba48 = ata_id_lba48_enabled(drive->id);
+	u64 capacity, set_max;
 
 	capacity = drive->capacity64;
-
-	set_max = idedisk_read_native_max_address(drive, lba48);
+	set_max  = idedisk_read_native_max_address(drive, lba48);
 
 	if (ide_in_drive_list(drive->id, hpa_list)) {
 		/*
@@ -320,8 +318,30 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 			set_max--;
 	}
 
+	return set_max;
+}
+
+static u64 ide_disk_hpa_set_capacity(ide_drive_t *drive, u64 set_max, int lba48)
+{
+	set_max = idedisk_set_max_address(drive, set_max, lba48);
+	if (set_max)
+		drive->capacity64 = set_max;
+
+	return set_max;
+}
+
+static void idedisk_check_hpa(ide_drive_t *drive)
+{
+	u64 capacity, set_max;
+	int lba48 = ata_id_lba48_enabled(drive->id);
+
+	capacity = drive->capacity64;
+	set_max  = ide_disk_hpa_get_native_capacity(drive, lba48);
+
 	if (set_max <= capacity)
 		return;
+
+	drive->probed_capacity = set_max;
 
 	printk(KERN_INFO "%s: Host Protected Area detected.\n"
 			 "\tcurrent capacity is %llu sectors (%llu MB)\n"
@@ -330,13 +350,13 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 			 capacity, sectors_to_MB(capacity),
 			 set_max, sectors_to_MB(set_max));
 
-	set_max = idedisk_set_max_address(drive, set_max, lba48);
+	if ((drive->dev_flags & IDE_DFLAG_NOHPA) == 0)
+		return;
 
-	if (set_max) {
-		drive->capacity64 = set_max;
+	set_max = ide_disk_hpa_set_capacity(drive, set_max, lba48);
+	if (set_max)
 		printk(KERN_INFO "%s: Host Protected Area disabled.\n",
 				 drive->name);
-	}
 }
 
 static int ide_disk_get_capacity(ide_drive_t *drive)
@@ -358,6 +378,8 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 		drive->capacity64 = drive->cyl * drive->head * drive->sect;
 	}
 
+	drive->probed_capacity = drive->capacity64;
+
 	if (lba) {
 		drive->dev_flags |= IDE_DFLAG_LBA;
 
@@ -376,7 +398,7 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 		       "%llu sectors (%llu MB)\n",
 		       drive->name, (unsigned long long)drive->capacity64,
 		       sectors_to_MB(drive->capacity64));
-		drive->capacity64 = 1ULL << 28;
+		drive->probed_capacity = drive->capacity64 = 1ULL << 28;
 	}
 
 	if ((drive->hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) &&
@@ -390,6 +412,34 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 	}
 
 	return 0;
+}
+
+static u64 ide_disk_set_capacity(ide_drive_t *drive, u64 capacity)
+{
+	u64 set = min(capacity, drive->probed_capacity);
+	u16 *id = drive->id;
+	int lba48 = ata_id_lba48_enabled(id);
+
+	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 ||
+	    ata_id_hpa_enabled(id) == 0)
+		goto out;
+
+	/*
+	 * according to the spec the SET MAX ADDRESS command shall be
+	 * immediately preceded by a READ NATIVE MAX ADDRESS command
+	 */
+	capacity = ide_disk_hpa_get_native_capacity(drive, lba48);
+	if (capacity == 0)
+		goto out;
+
+	set = ide_disk_hpa_set_capacity(drive, set, lba48);
+	if (set) {
+		/* needed for ->resume to disable HPA */
+		drive->dev_flags |= IDE_DFLAG_NOHPA;
+		return set;
+	}
+out:
+	return drive->capacity64;
 }
 
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
@@ -428,14 +478,14 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > (drive->id[ATA_ID_MAX_MULTSECT] & 0xff))
 		return -EINVAL;
 
-	if (drive->special.b.set_multmode)
+	if (drive->special_flags & IDE_SFLAG_SET_MULTMODE)
 		return -EBUSY;
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->mult_req = arg;
-	drive->special.b.set_multmode = 1;
+	drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
 	error = blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
 
@@ -740,6 +790,7 @@ static int ide_disk_set_doorlock(ide_drive_t *drive, struct gendisk *disk,
 
 const struct ide_disk_ops ide_ata_disk_ops = {
 	.check		= ide_disk_check,
+	.set_capacity	= ide_disk_set_capacity,
 	.get_capacity	= ide_disk_get_capacity,
 	.setup		= ide_disk_setup,
 	.flush		= ide_disk_flush,

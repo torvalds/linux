@@ -9,6 +9,7 @@ unifdef-y += a.out.h
 endif
 unifdef-y += auxvec.h
 unifdef-y += byteorder.h
+unifdef-y += bitsperlong.h
 unifdef-y += errno.h
 unifdef-y += fcntl.h
 unifdef-y += ioctl.h

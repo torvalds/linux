@@ -156,6 +156,7 @@ config IRQ_PORTH_INTB
 	default 11
 config IRQ_TIMER0
 	int "IRQ_TIMER0"
+	default 7 if TICKSOURCE_GPTMR0
 	default 8
 config IRQ_TIMER1
 	int "IRQ_TIMER1"

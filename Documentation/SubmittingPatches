@@ -91,6 +91,10 @@ Be as specific as possible.  The WORST descriptions possible include
 things like "update driver X", "bug fix for driver X", or "this patch
 includes updates for subsystem X.  Please apply."
 
+The maintainer will thank you if you write your patch description in a
+form which can be easily pulled into Linux's source code management
+system, git, as a "commit log".  See #15, below.
+
 If your description starts to get long, that's a sign that you probably
 need to split up your patch.  See #3, next.
 
@@ -405,7 +409,14 @@ person it names.  This tag documents that potentially interested parties
 have been included in the discussion
 
 
-14) Using Tested-by: and Reviewed-by:
+14) Using Reported-by:, Tested-by: and Reviewed-by:
+
+If this patch fixes a problem reported by somebody else, consider adding a
+Reported-by: tag to credit the reporter for their contribution.  Please
+note that this tag should not be added without the reporter's permission,
+especially if the problem was not reported in a public forum.  That said,
+if we diligently credit our bug reporters, they will, hopefully, be
+inspired to help us again in the future.
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
 some environment) by the person named.  This tag informs maintainers that
@@ -444,7 +455,7 @@ offer a Reviewed-by tag for a patch.  This tag serves to give credit to
 reviewers and to inform maintainers of the degree of review which has been
 done on the patch.  Reviewed-by: tags, when supplied by reviewers known to
 understand the subject area and to perform thorough reviews, will normally
-increase the liklihood of your patch getting into the kernel.
+increase the likelihood of your patch getting into the kernel.
 
 
 15) The canonical patch format
@@ -485,12 +496,33 @@ phrase" should not be a filename.  Do not use the same "summary
 phrase" for every patch in a whole patch series (where a "patch
 series" is an ordered sequence of multiple, related patches).
 
-Bear in mind that the "summary phrase" of your email becomes
-a globally-unique identifier for that patch.  It propagates
-all the way into the git changelog.  The "summary phrase" may
-later be used in developer discussions which refer to the patch.
-People will want to google for the "summary phrase" to read
-discussion regarding that patch.
+Bear in mind that the "summary phrase" of your email becomes a
+globally-unique identifier for that patch.  It propagates all the way
+into the git changelog.  The "summary phrase" may later be used in
+developer discussions which refer to the patch.  People will want to
+google for the "summary phrase" to read discussion regarding that
+patch.  It will also be the only thing that people may quickly see
+when, two or three months later, they are going through perhaps
+thousands of patches using tools such as "gitk" or "git log
+--oneline".
+
+For these reasons, the "summary" must be no more than 70-75
+characters, and it must describe both what the patch changes, as well
+as why the patch might be necessary.  It is challenging to be both
+succinct and descriptive, but that is what a well-written summary
+should do.
+
+The "summary phrase" may be prefixed by tags enclosed in square
+brackets: "Subject: [PATCH tag] <summary phrase>".  The tags are not
+considered part of the summary phrase, but describe how the patch
+should be treated.  Common tags might include a version descriptor if
+the multiple versions of the patch have been sent out in response to
+comments (i.e., "v1, v2, v3"), or "RFC" to indicate a request for
+comments.  If there are four patches in a patch series the individual
+patches may be numbered like this: 1/4, 2/4, 3/4, 4/4.  This assures
+that developers understand the order in which the patches should be
+applied and that they have reviewed or applied all of the patches in
+the patch series.
 
 A couple of example Subjects:
 
@@ -510,19 +542,31 @@ the patch author in the changelog.
 The explanation body will be committed to the permanent source
 changelog, so should make sense to a competent reader who has long
 since forgotten the immediate details of the discussion that might
-have led to this patch.
+have led to this patch.  Including symptoms of the failure which the
+patch addresses (kernel log messages, oops messages, etc.) is
+especially useful for people who might be searching the commit logs
+looking for the applicable patch.  If a patch fixes a compile failure,
+it may not be necessary to include _all_ of the compile failures; just
+enough that it is likely that someone searching for the patch can find
+it.  As in the "summary phrase", it is important to be both succinct as
+well as descriptive.
 
 The "---" marker line serves the essential purpose of marking for patch
 handling tools where the changelog message ends.
 
 One good use for the additional comments after the "---" marker is for
-a diffstat, to show what files have changed, and the number of inserted
-and deleted lines per file.  A diffstat is especially useful on bigger
-patches.  Other comments relevant only to the moment or the maintainer,
-not suitable for the permanent changelog, should also go here.
-Use diffstat options "-p 1 -w 70" so that filenames are listed from the
-top of the kernel source tree and don't use too much horizontal space
-(easily fit in 80 columns, maybe with some indentation).
+a diffstat, to show what files have changed, and the number of
+inserted and deleted lines per file.  A diffstat is especially useful
+on bigger patches.  Other comments relevant only to the moment or the
+maintainer, not suitable for the permanent changelog, should also go
+here.  A good example of such comments might be "patch changelogs"
+which describe what has changed between the v1 and v2 version of the
+patch.
+
+If you are going to include a diffstat after the "---" marker, please
+use diffstat options "-p 1 -w 70" so that filenames are listed from
+the top of the kernel source tree and don't use too much horizontal
+space (easily fit in 80 columns, maybe with some indentation).
 
 See more details on the proper patch format in the following
 references.

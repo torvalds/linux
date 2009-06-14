@@ -1,2 +1,15 @@
+config FSNOTIFY
+	bool "Filesystem notification backend"
+	default y
+	---help---
+	   fsnotify is a backend for filesystem notification.  fsnotify does
+	   not provide any userspace interface but does provide the basis
+	   needed for other notification schemes such as dnotify, inotify,
+	   and fanotify.
+
+	   Say Y here to enable fsnotify suport.
+
+	   If unsure, say Y.
+
 source "fs/notify/dnotify/Kconfig"
 source "fs/notify/inotify/Kconfig"

@@ -851,8 +851,10 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
-	if (rc)
+	if (rc) {
+		cqr->intrc = rc;
 		return rc;
+	}
 	device = (struct dasd_device *) cqr->startdev;
 	if (cqr->retries < 0) {
 		/* internal error 14 - start_IO run out of retries */
@@ -915,6 +917,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		BUG();
 		break;
 	}
+	cqr->intrc = rc;
 	return rc;
 }
 
@@ -1454,8 +1457,12 @@ int dasd_sleep_on(struct dasd_ccw_req *cqr)
 	dasd_add_request_tail(cqr);
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1477,8 +1484,15 @@ int dasd_sleep_on_interruptible(struct dasd_ccw_req *cqr)
 		dasd_cancel_req(cqr);
 		/* wait (non-interruptible) for final status */
 		wait_event(generic_waitq, _wait_for_wakeup(cqr));
+		cqr->intrc = rc;
 	}
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1523,8 +1537,12 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -2427,12 +2445,12 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 
 int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
-				void **rdc_buffer, int rdc_buffer_size)
+				void *rdc_buffer, int rdc_buffer_size)
 {
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, *rdc_buffer, rdc_buffer_size,
+	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
 				     magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);

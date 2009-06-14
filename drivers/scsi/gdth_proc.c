@@ -152,6 +152,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
                          struct Scsi_Host *host, gdth_ha_str *ha)
 {
     int size = 0,len = 0;
+    int hlen;
     off_t begin = 0,pos = 0;
     int id, i, j, k, sec, flag;
     int no_mdrv = 0, drv_no, is_mirr;
@@ -192,11 +193,11 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     if (reserve_list[0] == 0xff)
         strcpy(hrec, "--");
     else {
-        sprintf(hrec, "%d", reserve_list[0]);
+        hlen = sprintf(hrec, "%d", reserve_list[0]);
         for (i = 1;  i < MAX_RES_ARGS; i++) {
             if (reserve_list[i] == 0xff) 
                 break;
-            sprintf(hrec,"%s,%d", hrec, reserve_list[i]);
+            hlen += snprintf(hrec + hlen , 161 - hlen, ",%d", reserve_list[i]);
         }
     }
     size = sprintf(buffer+len,

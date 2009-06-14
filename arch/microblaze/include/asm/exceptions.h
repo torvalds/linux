@@ -1,8 +1,8 @@
 /*
  * Preliminary support for HW exception handing for Microblaze
  *
- * Copyright (C) 2008 Michal Simek
- * Copyright (C) 2008 PetaLogix
+ * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2008-2009 PetaLogix
  * Copyright (C) 2005 John Williams <jwilliams@itee.uq.edu.au>
  *
  * This file is subject to the terms and conditions of the GNU General
@@ -64,21 +64,13 @@ asmlinkage void full_exception(struct pt_regs *regs, unsigned int type,
 void die(const char *str, struct pt_regs *fp, long err);
 void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr);
 
-#if defined(CONFIG_XMON)
-extern void xmon(struct pt_regs *regs);
-extern int xmon_bpt(struct pt_regs *regs);
-extern int xmon_sstep(struct pt_regs *regs);
-extern int xmon_iabr_match(struct pt_regs *regs);
-extern int xmon_dabr_match(struct pt_regs *regs);
-extern void (*xmon_fault_handler)(struct pt_regs *regs);
+#ifdef CONFIG_MMU
+void __bug(const char *file, int line, void *data);
+int bad_trap(int trap_num, struct pt_regs *regs);
+int debug_trap(struct pt_regs *regs);
+#endif /* CONFIG_MMU */
 
-void (*debugger)(struct pt_regs *regs) = xmon;
-int (*debugger_bpt)(struct pt_regs *regs) = xmon_bpt;
-int (*debugger_sstep)(struct pt_regs *regs) = xmon_sstep;
-int (*debugger_iabr_match)(struct pt_regs *regs) = xmon_iabr_match;
-int (*debugger_dabr_match)(struct pt_regs *regs) = xmon_dabr_match;
-void (*debugger_fault_handler)(struct pt_regs *regs);
-#elif defined(CONFIG_KGDB)
+#if defined(CONFIG_KGDB)
 void (*debugger)(struct pt_regs *regs);
 int (*debugger_bpt)(struct pt_regs *regs);
 int (*debugger_sstep)(struct pt_regs *regs);

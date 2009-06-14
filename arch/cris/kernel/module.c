@@ -48,8 +48,6 @@ void *module_alloc(unsigned long size)
 void module_free(struct module *mod, void *module_region)
 {
 	FREE_MODULE(module_region);
-	/* FIXME: If module_region == mod->init_region, trim exception
-	   table entries. */
 }
 
 /* We don't need anything special. */

@@ -137,13 +137,13 @@ struct snd_soc_dai ad1980_dai = {
 		.channels_min = 2,
 		.channels_max = 6,
 		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
+		.formats = SND_SOC_STD_AC97_FMTS, },
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
+		.formats = SND_SOC_STD_AC97_FMTS, },
 };
 EXPORT_SYMBOL_GPL(ad1980_dai);
 

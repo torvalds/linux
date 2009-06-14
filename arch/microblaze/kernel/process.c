@@ -126,9 +126,54 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	else
 		childregs->r1 = ((unsigned long) ti) + THREAD_SIZE;
 
+#ifndef CONFIG_MMU
 	memset(&ti->cpu_context, 0, sizeof(struct cpu_context));
 	ti->cpu_context.r1 = (unsigned long)childregs;
 	ti->cpu_context.msr = (unsigned long)childregs->msr;
+#else
+
+	/* if creating a kernel thread then update the current reg (we don't
+	 * want to use the parent's value when restoring by POP_STATE) */
+	if (kernel_mode(regs))
+		/* save new current on stack to use POP_STATE */
+		childregs->CURRENT_TASK = (unsigned long)p;
+	/* if returning to user then use the parent's value of this register */
+
+	/* if we're creating a new kernel thread then just zeroing all
+	 * the registers. That's OK for a brand new thread.*/
+	/* Pls. note that some of them will be restored in POP_STATE */
+	if (kernel_mode(regs))
+		memset(&ti->cpu_context, 0, sizeof(struct cpu_context));
+	/* if this thread is created for fork/vfork/clone, then we want to
+	 * restore all the parent's context */
+	/* in addition to the registers which will be restored by POP_STATE */
+	else {
+		ti->cpu_context = *(struct cpu_context *)regs;
+		childregs->msr |= MSR_UMS;
+	}
+
+	/* FIXME STATE_SAVE_PT_OFFSET; */
+	ti->cpu_context.r1  = (unsigned long)childregs - STATE_SAVE_ARG_SPACE;
+	/* we should consider the fact that childregs is a copy of the parent
+	 * regs which were saved immediately after entering the kernel state
+	 * before enabling VM. This MSR will be restored in switch_to and
+	 * RETURN() and we want to have the right machine state there
+	 * specifically this state must have INTs disabled before and enabled
+	 * after performing rtbd
+	 * compose the right MSR for RETURN(). It will work for switch_to also
+	 * excepting for VM and UMS
+	 * don't touch UMS , CARRY and cache bits
+	 * right now MSR is a copy of parent one */
+	childregs->msr |= MSR_BIP;
+	childregs->msr &= ~MSR_EIP;
+	childregs->msr |= MSR_IE;
+	childregs->msr &= ~MSR_VM;
+	childregs->msr |= MSR_VMS;
+	childregs->msr |= MSR_EE; /* exceptions will be enabled*/
+
+	ti->cpu_context.msr = (childregs->msr|MSR_VM);
+	ti->cpu_context.msr &= ~MSR_UMS; /* switch_to to kernel mode */
+#endif
 	ti->cpu_context.r15 = (unsigned long)ret_from_fork - 8;
 
 	if (clone_flags & CLONE_SETTLS)
@@ -137,6 +182,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	return 0;
 }
 
+#ifndef CONFIG_MMU
 /*
  * Return saved PC of a blocked thread.
  */
@@ -151,6 +197,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	else
 		return ctx->r14;
 }
+#endif
 
 static void kernel_thread_helper(int (*fn)(void *), void *arg)
 {
@@ -173,6 +220,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 			&regs, 0, NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *p)
 {
@@ -188,3 +236,14 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
 	regs->r1 = usp;
 	regs->pt_mode = 0;
 }
+
+#ifdef CONFIG_MMU
+#include <linux/elfcore.h>
+/*
+ * Set up a thread for executing a new program
+ */
+int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpregs)
+{
+	return 0; /* MicroBlaze has no separate FPU registers */
+}
+#endif /* CONFIG_MMU */

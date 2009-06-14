@@ -708,7 +708,7 @@ static int __init cmd640x_init(void)
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
+	struct ide_hw hw[2], *hws[2];
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -762,11 +762,9 @@ static int __init cmd640x_init(void)
 
 	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
 	hw[0].irq = 14;
-	hw[0].chipset = ide_cmd640;
 
 	ide_std_init_ports(&hw[1], 0x170, 0x376);
 	hw[1].irq = 15;
-	hw[1].chipset = ide_cmd640;
 
 	printk(KERN_INFO "cmd640: buggy cmd640%c interface on %s, config=0x%02x"
 			 "\n", 'a' + cmd640_chip_version - 1, bus_type, cfr);
@@ -824,7 +822,8 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	return ide_host_add(&cmd640_port_info, hws, NULL);
+	return ide_host_add(&cmd640_port_info, hws, second_port_cmd640 ? 2 : 1,
+			    NULL);
 }
 
 module_param_named(probe_vlb, cmd640_vlb, bool, 0);

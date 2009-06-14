@@ -68,25 +68,6 @@
 #define OFFSET_SCR              0x1C	/* SCR Scratch Register                 */
 #define OFFSET_GCTL             0x24	/* Global Control Register              */
 
-
-#define bfin_write_MDMA_D0_IRQ_STATUS	bfin_write_MDMA0_D0_IRQ_STATUS
-#define bfin_write_MDMA_D0_START_ADDR   bfin_write_MDMA0_D0_START_ADDR
-#define bfin_write_MDMA_S0_START_ADDR   bfin_write_MDMA0_S0_START_ADDR
-#define bfin_write_MDMA_D0_X_COUNT      bfin_write_MDMA0_D0_X_COUNT
-#define bfin_write_MDMA_S0_X_COUNT      bfin_write_MDMA0_S0_X_COUNT
-#define bfin_write_MDMA_D0_Y_COUNT      bfin_write_MDMA0_D0_Y_COUNT
-#define bfin_write_MDMA_S0_Y_COUNT      bfin_write_MDMA0_S0_Y_COUNT
-#define bfin_write_MDMA_D0_X_MODIFY     bfin_write_MDMA0_D0_X_MODIFY
-#define bfin_write_MDMA_S0_X_MODIFY     bfin_write_MDMA0_S0_X_MODIFY
-#define bfin_write_MDMA_D0_Y_MODIFY     bfin_write_MDMA0_D0_Y_MODIFY
-#define bfin_write_MDMA_S0_Y_MODIFY     bfin_write_MDMA0_S0_Y_MODIFY
-#define bfin_write_MDMA_S0_CONFIG       bfin_write_MDMA0_S0_CONFIG
-#define bfin_write_MDMA_D0_CONFIG       bfin_write_MDMA0_D0_CONFIG
-#define bfin_read_MDMA_S0_CONFIG        bfin_read_MDMA0_S0_CONFIG
-#define bfin_read_MDMA_D0_IRQ_STATUS    bfin_read_MDMA0_D0_IRQ_STATUS
-#define bfin_write_MDMA_S0_IRQ_STATUS   bfin_write_MDMA0_S0_IRQ_STATUS
-
-
 /* DPMC*/
 #define bfin_read_STOPCK_OFF() bfin_read_STOPCK()
 #define bfin_write_STOPCK_OFF(val) bfin_write_STOPCK(val)

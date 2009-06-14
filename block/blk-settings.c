@@ -343,7 +343,7 @@ EXPORT_SYMBOL(blk_queue_physical_block_size);
 /**
  * blk_queue_alignment_offset - set physical block alignment offset
  * @q:	the request queue for the device
- * @alignment:	alignment offset in bytes
+ * @offset: alignment offset in bytes
  *
  * Description:
  *   Some devices are naturally misaligned to compensate for things like
@@ -362,7 +362,7 @@ EXPORT_SYMBOL(blk_queue_alignment_offset);
 /**
  * blk_queue_io_min - set minimum request size for the queue
  * @q:	the request queue for the device
- * @io_min:  smallest I/O size in bytes
+ * @min:  smallest I/O size in bytes
  *
  * Description:
  *   Some devices have an internal block size bigger than the reported
@@ -385,7 +385,7 @@ EXPORT_SYMBOL(blk_queue_io_min);
 /**
  * blk_queue_io_opt - set optimal request size for the queue
  * @q:	the request queue for the device
- * @io_opt:  optimal request size in bytes
+ * @opt:  optimal request size in bytes
  *
  * Description:
  *   Drivers can call this function to set the preferred I/O request

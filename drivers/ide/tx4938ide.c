@@ -130,8 +130,7 @@ static const struct ide_port_info tx4938ide_port_info __initdata = {
 
 static int __init tx4938ide_probe(struct platform_device *pdev)
 {
-	hw_regs_t hw;
-	hw_regs_t *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	struct tx4938ide_platform_info *pdata = pdev->dev.platform_data;
@@ -183,7 +182,7 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 		tx4938ide_tune_ebusc(pdata->ebus_ch, pdata->gbus_clock, 0);
 	else
 		d.port_ops = NULL;
-	ret = ide_host_add(&d, hws, &host);
+	ret = ide_host_add(&d, hws, 1, &host);
 	if (!ret)
 		platform_set_drvdata(pdev, host);
 	return ret;

@@ -88,7 +88,7 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
     return 1;
 }
 
-static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
+static void __init gayle_setup_ports(struct ide_hw *hw, unsigned long base,
 				     unsigned long ctl, unsigned long irq_port,
 				     ide_ack_intr_t *ack_intr)
 {
@@ -106,14 +106,13 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;
-
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info gayle_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_generic,
 };
 
     /*
@@ -126,7 +125,7 @@ static int __init gayle_init(void)
     unsigned long base, ctrlport, irqport;
     ide_ack_intr_t *ack_intr;
     int a4000, i, rc;
-    hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
+    struct ide_hw hw[GAYLE_NUM_HWIFS], *hws[GAYLE_NUM_HWIFS];
 
     if (!MACH_IS_AMIGA)
 	return -ENODEV;
@@ -171,7 +170,7 @@ found:
 	hws[i] = &hw[i];
     }
 
-    rc = ide_host_add(&gayle_port_info, hws, NULL);
+    rc = ide_host_add(&gayle_port_info, hws, i, NULL);
     if (rc)
 	release_mem_region(res_start, res_n);
 

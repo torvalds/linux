@@ -156,8 +156,6 @@ static inline void clear_perf_counter_pending(void)
 		"i" (offsetof(struct paca_struct, perf_counter_pending)));
 }
 
-extern void perf_counter_do_pending(void);
-
 #else
 
 static inline unsigned long test_perf_counter_pending(void)
@@ -167,7 +165,6 @@ static inline unsigned long test_perf_counter_pending(void)
 
 static inline void set_perf_counter_pending(void) {}
 static inline void clear_perf_counter_pending(void) {}
-static inline void perf_counter_do_pending(void) {}
 #endif /* CONFIG_PERF_COUNTERS */
 
 #endif	/* __KERNEL__ */

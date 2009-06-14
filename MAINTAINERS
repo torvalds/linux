@@ -1802,10 +1802,10 @@ F:	drivers/char/epca*
 F:	drivers/char/digi*
 
 DIRECTORY NOTIFICATION (DNOTIFY)
-P:	Stephen Rothwell
-M:	sfr@canb.auug.org.au
+P:	Eric Paris
+M:	eparis@parisplace.org
 L:	linux-kernel@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/filesystems/dnotify.txt
 F:	fs/notify/dnotify/
 F:	include/linux/dnotify.h
@@ -2858,6 +2858,8 @@ P:	John McCutchan
 M:	john@johnmccutchan.com
 P:	Robert Love
 M:	rlove@rlove.org
+P:	Eric Paris
+M:	eparis@parisplace.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/inotify.txt
@@ -3361,6 +3363,16 @@ F:	drivers/serial/kgdboc.c
 F:	include/linux/kgdb.h
 F:	kernel/kgdb.c
 
+KMEMLEAK
+P:	Catalin Marinas
+M:	catalin.marinas@arm.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/kmemleak.txt
+F:	include/linux/kmemleak.h
+F:	mm/kmemleak.c
+F:	mm/kmemleak-test.c
+
 KMEMTRACE
 P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
@@ -3369,12 +3381,6 @@ S:	Maintained
 F:	Documentation/trace/kmemtrace.txt
 F:	include/trace/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
-
-KMEMLEAK
-P:	Catalin Marinas
-M:	catalin.marinas@arm.com
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
 
 KPROBES
 P:	Ananth N Mavinakayanahalli
@@ -4601,7 +4607,8 @@ F:	drivers/pcmcia/pxa2xx*
 F:	drivers/spi/pxa2xx*
 F:	drivers/usb/gadget/pxa2*
 F:	include/sound/pxa2xx-lib.h
-F:	sound/soc/pxa/pxa2xx*
+F:	sound/arm/pxa*
+F:	sound/soc/pxa
 
 PXA168 SUPPORT
 P:	Eric Miao
@@ -5329,11 +5336,12 @@ P:	Liam Girdwood
 M:	lrg@slimlogic.co.uk
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
-T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
 L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 F:	sound/soc/
+F:	include/sound/soc*
 
 SPARC + UltraSPARC (sparc/sparc64)
 P:	David S. Miller

@@ -213,7 +213,7 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 	sol->desc.size.fd_size = htons(fcoe_size);
 
 	skb_put(skb, sizeof(*sol));
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -365,7 +365,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	}
 
 	skb_put(skb, len);
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -424,7 +424,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	if (dtype != ELS_FLOGI)
 		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
 
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	return 0;
@@ -447,14 +447,10 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	u16 old_xid;
 	u8 op;
 
-	if (fip->state == FIP_ST_NON_FIP)
-		return 0;
-
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
 
-	switch (op) {
-	case ELS_FLOGI:
+	if (op == ELS_FLOGI) {
 		old_xid = fip->flogi_oxid;
 		fip->flogi_oxid = ntohs(fh->fh_ox_id);
 		if (fip->state == FIP_ST_AUTO) {
@@ -466,6 +462,15 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			fip->map_dest = 1;
 			return 0;
 		}
+		if (fip->state == FIP_ST_NON_FIP)
+			fip->map_dest = 1;
+	}
+
+	if (fip->state == FIP_ST_NON_FIP)
+		return 0;
+
+	switch (op) {
+	case ELS_FLOGI:
 		op = FIP_DT_FLOGI;
 		break;
 	case ELS_FDISC:

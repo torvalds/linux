@@ -83,6 +83,14 @@ static struct kmem_cache *sram_piece_cache;
 static void __init l1sram_init(void)
 {
 	unsigned int cpu;
+	unsigned long reserve;
+
+#ifdef CONFIG_SMP
+	reserve = 0;
+#else
+	reserve = sizeof(struct l1_scratch_task_info);
+#endif
+
 	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
 		per_cpu(free_l1_ssram_head, cpu).next =
 			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
@@ -91,8 +99,8 @@ static void __init l1sram_init(void)
 			return;
 		}
 
-		per_cpu(free_l1_ssram_head, cpu).next->paddr = (void *)get_l1_scratch_start_cpu(cpu);
-		per_cpu(free_l1_ssram_head, cpu).next->size = L1_SCRATCH_LENGTH;
+		per_cpu(free_l1_ssram_head, cpu).next->paddr = (void *)get_l1_scratch_start_cpu(cpu) + reserve;
+		per_cpu(free_l1_ssram_head, cpu).next->size = L1_SCRATCH_LENGTH - reserve;
 		per_cpu(free_l1_ssram_head, cpu).next->pid = 0;
 		per_cpu(free_l1_ssram_head, cpu).next->next = NULL;
 
@@ -223,7 +231,7 @@ static void __init l2_sram_init(void)
 	spin_lock_init(&l2_sram_lock);
 }
 
-void __init bfin_sram_init(void)
+static int __init bfin_sram_init(void)
 {
 	sram_piece_cache = kmem_cache_create("sram_piece_cache",
 				sizeof(struct sram_piece),
@@ -233,7 +241,10 @@ void __init bfin_sram_init(void)
 	l1_data_sram_init();
 	l1_inst_sram_init();
 	l2_sram_init();
+
+	return 0;
 }
+pure_initcall(bfin_sram_init);
 
 /* SRAM allocate function */
 static void *_sram_alloc(size_t size, struct sram_piece *pfree_head,
@@ -732,6 +743,10 @@ found:
 }
 EXPORT_SYMBOL(sram_free_with_lsl);
 
+/* Allocate memory and keep in L1 SRAM List (lsl) so that the resources are
+ * tracked.  These are designed for userspace so that when a process exits,
+ * we can safely reap their resources.
+ */
 void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 {
 	void *addr = NULL;

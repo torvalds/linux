@@ -204,6 +204,9 @@ cifs_put_super(struct super_block *sb)
 		cFYI(1, ("Empty cifs superblock info passed to unmount"));
 		return;
 	}
+
+	lock_kernel();
+
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
@@ -216,7 +219,8 @@ cifs_put_super(struct super_block *sb)
 
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
-	return;
+
+	unlock_kernel();
 }
 
 static int

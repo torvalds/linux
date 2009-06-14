@@ -483,5 +483,5 @@ atomic64_add_negative(unsigned long long delta, atomic64_t *ptr)
 	return old_val < 0;
 }
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 #endif /* _ASM_X86_ATOMIC_32_H */

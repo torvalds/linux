@@ -59,12 +59,14 @@ static struct irq_chip bad_chip = {
 	.unmask = dummy_mask_unmask_irq,
 };
 
+static int bad_stats;
 static struct irq_desc bad_irq_desc = {
 	.status = IRQ_DISABLED,
 	.chip = &bad_chip,
 	.handle_irq = handle_bad_irq,
 	.depth = 1,
 	.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
+	.kstat_irqs = &bad_stats,
 #ifdef CONFIG_SMP
 	.affinity = CPU_MASK_ALL
 #endif
