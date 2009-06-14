@@ -456,7 +456,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core series)",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
 		},
 	},
@@ -464,7 +464,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.callback = intel_no_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core 2 series)",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini2,1"),
 		},
 	},
