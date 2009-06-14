@@ -226,9 +226,10 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops,
 	dev->destructor		= free_netdev;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
-static struct net_device *ipmr_reg_vif(void)
+static struct net_device *ipmr_reg_vif(struct net *net)
 {
 	struct net_device *dev;
 	struct in_device *in_dev;
@@ -237,6 +238,8 @@ static struct net_device *ipmr_reg_vif(void)
 
 	if (dev == NULL)
 		return NULL;
+
+	dev_net_set(dev, net);
 
 	if (register_netdevice(dev)) {
 		free_netdev(dev);
@@ -448,7 +451,7 @@ static int vif_add(struct net *net, struct vifctl *vifc, int mrtsock)
 		 */
 		if (net->ipv4.mroute_reg_vif_num >= 0)
 			return -EADDRINUSE;
-		dev = ipmr_reg_vif();
+		dev = ipmr_reg_vif(net);
 		if (!dev)
 			return -ENOBUFS;
 		err = dev_set_allmulti(dev, 1);
@@ -1031,16 +1034,6 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		if (v != net->ipv4.mroute_do_pim) {
 			net->ipv4.mroute_do_pim = v;
 			net->ipv4.mroute_do_assert = v;
-#ifdef CONFIG_IP_PIMSM_V2
-			if (net->ipv4.mroute_do_pim)
-				ret = inet_add_protocol(&pim_protocol,
-							IPPROTO_PIM);
-			else
-				ret = inet_del_protocol(&pim_protocol,
-							IPPROTO_PIM);
-			if (ret < 0)
-				ret = -EAGAIN;
-#endif
 		}
 		rtnl_unlock();
 		return ret;
@@ -1954,6 +1947,7 @@ static const struct file_operations ipmr_mfc_fops = {
 #ifdef CONFIG_IP_PIMSM_V2
 static struct net_protocol pim_protocol = {
 	.handler	=	pim_rcv,
+	.netns_ok	=	1,
 };
 #endif
 
@@ -2040,8 +2034,19 @@ int __init ip_mr_init(void)
 	err = register_netdevice_notifier(&ip_mr_notifier);
 	if (err)
 		goto reg_notif_fail;
+#ifdef CONFIG_IP_PIMSM_V2
+	if (inet_add_protocol(&pim_protocol, IPPROTO_PIM) < 0) {
+		printk(KERN_ERR "ip_mr_init: can't add PIM protocol\n");
+		err = -EAGAIN;
+		goto add_proto_fail;
+	}
+#endif
 	return 0;
 
+#ifdef CONFIG_IP_PIMSM_V2
+add_proto_fail:
+	unregister_netdevice_notifier(&ip_mr_notifier);
+#endif
 reg_notif_fail:
 	del_timer(&ipmr_expire_timer);
 	unregister_pernet_subsys(&ipmr_net_ops);

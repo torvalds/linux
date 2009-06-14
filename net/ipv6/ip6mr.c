@@ -441,6 +441,7 @@ static void reg_vif_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->netdev_ops		= &reg_vif_netdev_ops;
 	dev->destructor		= free_netdev;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
 static struct net_device *ip6mr_reg_vif(struct net *net)
@@ -1077,7 +1078,18 @@ int __init ip6_mr_init(void)
 	err = register_netdevice_notifier(&ip6_mr_notifier);
 	if (err)
 		goto reg_notif_fail;
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (inet6_add_protocol(&pim6_protocol, IPPROTO_PIM) < 0) {
+		printk(KERN_ERR "ip6_mr_init: can't add PIM protocol\n");
+		err = -EAGAIN;
+		goto add_proto_fail;
+	}
+#endif
 	return 0;
+#ifdef CONFIG_IPV6_PIMSM_V2
+add_proto_fail:
+	unregister_netdevice_notifier(&ip6_mr_notifier);
+#endif
 reg_notif_fail:
 	del_timer(&ipmr_expire_timer);
 	unregister_pernet_subsys(&ip6mr_net_ops);
@@ -1363,14 +1375,6 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		if (v != net->ipv6.mroute_do_pim) {
 			net->ipv6.mroute_do_pim = v;
 			net->ipv6.mroute_do_assert = v;
-			if (net->ipv6.mroute_do_pim)
-				ret = inet6_add_protocol(&pim6_protocol,
-							 IPPROTO_PIM);
-			else
-				ret = inet6_del_protocol(&pim6_protocol,
-							 IPPROTO_PIM);
-			if (ret < 0)
-				ret = -EAGAIN;
 		}
 		rtnl_unlock();
 		return ret;
