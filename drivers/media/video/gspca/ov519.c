@@ -241,11 +241,21 @@ static const struct v4l2_pix_format ov519_vga_mode[] = {
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov519_sif_mode[] = {
+	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
 	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
@@ -266,11 +276,21 @@ static const struct v4l2_pix_format ov518_vga_mode[] = {
 		.priv = 0},
 };
 static const struct v4l2_pix_format ov518_sif_mode[] = {
+	{160, 120, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 40000,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 3},
 	{176, 144, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 40000,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1},
+	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 2},
 	{352, 288, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 8 + 590,
@@ -2039,7 +2059,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 	int qvga;
 
 	gspca_dev = &sd->gspca_dev;
-	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
+	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
 
 	/******** Mode (VGA/QVGA) and sensor specific regs ********/
 	switch (sd->sensor) {
@@ -2168,13 +2188,14 @@ static void sethvflip(struct sd *sd)
 static int set_ov_sensor_window(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev;
-	int qvga;
+	int qvga, crop;
 	int hwsbase, hwebase, vwsbase, vwebase, hwscale, vwscale;
 	int ret, hstart, hstop, vstop, vstart;
 	__u8 v;
 
 	gspca_dev = &sd->gspca_dev;
-	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
+	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
+	crop = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 2;
 
 	/* The different sensor ICs handle setting up of window differently.
 	 * IF YOU SET IT WRONG, YOU WILL GET ALL ZERO ISOC DATA FROM OV51x!! */
@@ -2201,6 +2222,12 @@ static int set_ov_sensor_window(struct sd *sd)
 		if (sd->sensor == SEN_OV66308AF && qvga)
 			/* HDG: this fixes U and V getting swapped */
 			hwsbase++;
+		if (crop) {
+			hwsbase += 8;
+			hwebase += 8;
+			vwsbase += 11;
+			vwebase += 11;
+		}
 		break;
 	case SEN_OV7620:
 		hwsbase = 0x2f;		/* From 7620.SET (spec is wrong) */
