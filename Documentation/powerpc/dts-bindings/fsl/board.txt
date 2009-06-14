@@ -38,7 +38,7 @@ Required properities:
 - reg : Should contain the address and the length of the GPIO bank
   register.
 - #gpio-cells : Should be two. The first cell is the pin number and the
-  second cell is used to specify optional paramters (currently unused).
+  second cell is used to specify optional parameters (currently unused).
 - gpio-controller : Marks the port as GPIO controller.
 
 Example:

@@ -5,7 +5,7 @@ Copyright 2006, 2007 Simtec Electronics
 
 The Silicon Motion SM501 multimedia companion chip is a multifunction device
 which may provide numerous interfaces including USB host controller USB gadget,
-Asyncronous Serial ports, Audio functions and a dual display video interface.
+asynchronous serial ports, audio functions, and a dual display video interface.
 The device may be connected by PCI or local bus with varying functions enabled.
 
 Core

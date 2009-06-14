@@ -773,7 +773,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
-    power_save	- Automatic power-saving timtout (in second, 0 =
+    power_save	- Automatic power-saving timeout (in second, 0 =
 		disable)
     power_save_controller - Reset HD-audio controller in power-saving mode
 		(default = on)

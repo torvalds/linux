@@ -1073,7 +1073,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	kgdboc=		[HW] kgdb over consoles.
 			Requires a tty driver that supports console polling.
-			(only serial suported for now)
+			(only serial supported for now)
 			Format: <serial_device>[,baud]
 
 	kmac=		[MIPS] korina ethernet MAC address.
@@ -1402,7 +1402,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			('y', default) or cooked coordinates ('n')
 
 	mtrr_chunk_size=nn[KMG] [X86]
-			used for mtrr cleanup. It is largest continous chunk
+			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
 
 	mtrr_gran_size=nn[KMG] [X86]

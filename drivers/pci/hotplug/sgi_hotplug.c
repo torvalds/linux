@@ -679,7 +679,7 @@ alloc_err:
 	return rc;
 }
 
-static int sn_pci_hotplug_init(void)
+static int __init sn_pci_hotplug_init(void)
 {
 	struct pci_bus *pci_bus = NULL;
 	int rc;
@@ -716,7 +716,7 @@ static int sn_pci_hotplug_init(void)
 	return registered == 1 ? 0 : -ENODEV;
 }
 
-static void sn_pci_hotplug_exit(void)
+static void __exit sn_pci_hotplug_exit(void)
 {
 	struct hotplug_slot *bss_hotplug_slot;
 

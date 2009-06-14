@@ -73,13 +73,13 @@ this phase is triggered automatically. ACPI can notify this event. If not,
 (see Section 4.).
 
 Logical Memory Hotplug phase is to change memory state into
-avaiable/unavailable for users. Amount of memory from user's view is
+available/unavailable for users. Amount of memory from user's view is
 changed by this phase. The kernel makes all memory in it as free pages
 when a memory range is available.
 
 In this document, this phase is described as online/offline.
 
-Logical Memory Hotplug phase is triggred by write of sysfs file by system
+Logical Memory Hotplug phase is triggered by write of sysfs file by system
 administrator. For the hot-add case, it must be executed after Physical Hotplug
 phase by hand.
 (However, if you writes udev's hotplug scripts for memory hotplug, these
@@ -334,7 +334,7 @@ MEMORY_CANCEL_ONLINE
   Generated if MEMORY_GOING_ONLINE fails.
 
 MEMORY_ONLINE
-  Generated when memory has succesfully brought online. The callback may
+  Generated when memory has successfully brought online. The callback may
   allocate pages from the new memory.
 
 MEMORY_GOING_OFFLINE
@@ -359,7 +359,7 @@ The third argument is passed by pointer of struct memory_notify.
 struct memory_notify {
        unsigned long start_pfn;
        unsigned long nr_pages;
-       int status_cahnge_nid;
+       int status_change_nid;
 }
 
 start_pfn is start_pfn of online/offline memory.

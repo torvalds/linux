@@ -141,7 +141,7 @@ end:
 /* We are being asked by firmware to accept
  * a change to the port.  This is only
  * a change to max frame sizes (Tx/Rx), pause
- * paramters, or loopback mode. We wake up a worker
+ * parameters, or loopback mode. We wake up a worker
  * to handler processing this since a mailbox command
  * will need to be sent to ACK the request.
  */
@@ -371,7 +371,7 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	/* We are being asked by firmware to accept
 	 * a change to the port.  This is only
 	 * a change to max frame sizes (Tx/Rx), pause
-	 * paramters, or loopback mode.
+	 * parameters, or loopback mode.
 	 */
 	case AEN_IDC_REQ:
 		status = ql_idc_req_aen(qdev);
@@ -380,7 +380,7 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	/* Process and inbound IDC event.
 	 * This will happen when we're trying to
 	 * change tx/rx max frame size, change pause
-	 * paramters or loopback mode.
+	 * parameters or loopback mode.
 	 */
 	case AEN_IDC_CMPLT:
 	case AEN_IDC_EXT:

@@ -169,7 +169,7 @@ static char *open_min_error[] = {
 	"Monitor Contention failer for RPL", "FDX Protocol Error"
 };
 
-/* Module paramters */
+/* Module parameters */
 
 /* Ring Speed 0,4,16
  * 0 = Autosense         

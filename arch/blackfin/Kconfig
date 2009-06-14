@@ -885,7 +885,7 @@ config BFIN_GPTIMERS
 	  are unsure, say N.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called gptimers.ko.
+	  will be called gptimers.
 
 choice
 	prompt "Uncached DMA region"

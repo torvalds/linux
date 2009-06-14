@@ -138,7 +138,7 @@ psa_read(struct net_device *	dev,
 
 /*------------------------------------------------------------------*/
 /*
- * Write the Paramter Storage Area to the WaveLAN card's memory
+ * Write the Parameter Storage Area to the WaveLAN card's memory
  */
 static void
 psa_write(struct net_device *	dev,
