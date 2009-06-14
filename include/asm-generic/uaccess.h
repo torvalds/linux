@@ -291,6 +291,8 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 #ifndef strnlen_user
 static inline long strnlen_user(const char __user *src, long n)
 {
+	if (!access_ok(VERIFY_READ, src, 1))
+		return 0;
 	return strlen((void * __force)src) + 1;
 }
 #endif
