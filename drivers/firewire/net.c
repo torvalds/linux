@@ -1328,13 +1328,6 @@ static int fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	return NETDEV_TX_OK;
 }
 
-static void fwnet_tx_timeout(struct net_device *net)
-{
-	fw_error("%s: timeout\n", net->name);
-
-	/* FIXME: What to do if we timeout? */
-}
-
 static int fwnet_change_mtu(struct net_device *net, int new_mtu)
 {
 	if (new_mtu < 68)
@@ -1359,7 +1352,6 @@ static const struct net_device_ops fwnet_netdev_ops = {
 	.ndo_open       = fwnet_open,
 	.ndo_stop	= fwnet_stop,
 	.ndo_start_xmit = fwnet_tx,
-	.ndo_tx_timeout = fwnet_tx_timeout,
 	.ndo_change_mtu = fwnet_change_mtu,
 };
 
@@ -1367,13 +1359,13 @@ static void fwnet_init_dev(struct net_device *net)
 {
 	net->header_ops		= &fwnet_header_ops;
 	net->netdev_ops		= &fwnet_netdev_ops;
-	net->watchdog_timeo	= 100000; /* ? FIXME */
+	net->watchdog_timeo	= 2 * HZ;
 	net->flags		= IFF_BROADCAST | IFF_MULTICAST;
 	net->features		= NETIF_F_HIGHDMA;
 	net->addr_len		= FWNET_ALEN;
 	net->hard_header_len	= FWNET_HLEN;
 	net->type		= ARPHRD_IEEE1394;
-	net->tx_queue_len	= 1000; /* ? FIXME */
+	net->tx_queue_len	= 10;
 	SET_ETHTOOL_OPS(net, &fwnet_ethtool_ops);
 }
 
