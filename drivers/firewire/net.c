@@ -18,8 +18,10 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
 
 #include <asm/unaligned.h>
 #include <net/arp.h>
@@ -135,40 +137,11 @@ struct fwnet_partial_datagram {
 	u16 datagram_size;
 };
 
-/*
- * We keep one of these for each IPv4 capable device attached to a fw_card.
- * The list of them is stored in the fw_card structure rather than in the
- * fwnet_device because the remote IPv4 nodes may be probed before the card is,
- * so we need a place to store them before the fwnet_device structure is
- * allocated.
- */
-struct fwnet_peer {
-	struct list_head peer_link;
-	/* guid of the remote peer */
-	u64 guid;
-	/* FIFO address to transmit datagrams to, or FWNET_NO_FIFO_ADDR */
-	u64 fifo;
-
-	spinlock_t pdg_lock;	/* partial datagram lock		*/
-	/* List of partial datagrams received from this peer */
-	struct list_head pd_list;
-	/* Number of entries in pd_list at the moment */
-	unsigned pdg_size;
-
-	/* max payload to transmit to this remote peer */
-	/* This already includes the RFC2374_FRAG_HDR_SIZE overhead */
-	u16 max_payload;
-	/* outgoing datagram label */
-	u16 datagram_label;
-	/* Current node_id of the remote peer */
-	u16 node_id;
-	/* current generation of the remote peer */
-	u8 generation;
-	/* max speed that this peer can receive at */
-	u8 xmt_speed;
-};
+static DEFINE_MUTEX(fwnet_device_mutex);
+static LIST_HEAD(fwnet_device_list);
 
 struct fwnet_device {
+	struct list_head dev_link;
 	spinlock_t lock;
 	enum {
 		FWNET_BROADCAST_ERROR,
@@ -206,7 +179,26 @@ struct fwnet_device {
 	/* List of packets that have been sent but not yet acked */
 	struct list_head sent_list;
 
+	struct list_head peer_list;
 	struct fw_card *card;
+	struct net_device *netdev;
+};
+
+struct fwnet_peer {
+	struct list_head peer_link;
+	struct fwnet_device *dev;
+	u64 guid;
+	u64 fifo;
+
+	/* guarded by dev->lock */
+	struct list_head pd_list; /* received partial datagrams */
+	unsigned pdg_size;        /* pd_list size */
+
+	u16 datagram_label;       /* outgoing datagram label */
+	unsigned max_payload;     /* includes RFC2374_FRAG_HDR_SIZE overhead */
+	int node_id;
+	int generation;
+	unsigned speed;
 };
 
 /* This is our task struct. It's used for the packet complete callback.  */
@@ -479,101 +471,46 @@ static bool fwnet_pd_is_complete(struct fwnet_partial_datagram *pd)
 	return fi->len == pd->datagram_size;
 }
 
-static int fwnet_peer_new(struct fw_card *card, struct fw_device *device)
-{
-	struct fwnet_peer *peer;
-
-	peer = kmalloc(sizeof(*peer), GFP_KERNEL);
-	if (!peer) {
-		fw_error("out of memory\n");
-
-		return -ENOMEM;
-	}
-	peer->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
-	peer->fifo = FWNET_NO_FIFO_ADDR;
-	INIT_LIST_HEAD(&peer->pd_list);
-	spin_lock_init(&peer->pdg_lock);
-	peer->pdg_size = 0;
-	peer->generation = device->generation;
-	rmb();
-	peer->node_id = device->node_id;
-	 /* FIXME what should it really be? */
-	peer->max_payload = IEEE1394_MAX_PAYLOAD_S100 - RFC2374_UNFRAG_HDR_SIZE;
-	peer->datagram_label = 0U;
-	peer->xmt_speed = device->max_speed;
-	list_add_tail(&peer->peer_link, &card->peer_list);
-
-	return 0;
-}
-
-/* FIXME caller must take the lock, or peer needs to be reference-counted */
+/* caller must hold dev->lock */
 static struct fwnet_peer *fwnet_peer_find_by_guid(struct fwnet_device *dev,
 						  u64 guid)
 {
-	struct fwnet_peer *p, *peer = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->lock, flags);
-	list_for_each_entry(p, &dev->card->peer_list, peer_link)
-		if (p->guid == guid) {
-			peer = p;
-			break;
-		}
-	spin_unlock_irqrestore(&dev->lock, flags);
-
-	return peer;
-}
-
-/* FIXME caller must take the lock, or peer needs to be reference-counted */
-/* FIXME node_id doesn't mean anything without generation */
-static struct fwnet_peer *fwnet_peer_find_by_node_id(struct fwnet_device *dev,
-						     u16 node_id)
-{
-	struct fwnet_peer *p, *peer = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->lock, flags);
-	list_for_each_entry(p, &dev->card->peer_list, peer_link)
-		if (p->node_id == node_id) {
-			peer = p;
-			break;
-		}
-	spin_unlock_irqrestore(&dev->lock, flags);
-
-	return peer;
-}
-
-/* FIXME */
-static void fwnet_peer_delete(struct fw_card *card, struct fw_device *device)
-{
-	struct net_device *net;
-	struct fwnet_device *dev;
 	struct fwnet_peer *peer;
-	u64 guid;
-	unsigned long flags;
-	struct fwnet_partial_datagram *pd, *pd_next;
 
-	guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
-	net = card->netdev;
-	if (net)
-		dev = netdev_priv(net);
-	else
-		dev = NULL;
-	if (dev)
-		spin_lock_irqsave(&dev->lock, flags);
+	list_for_each_entry(peer, &dev->peer_list, peer_link)
+		if (peer->guid == guid)
+			return peer;
 
-	list_for_each_entry(peer, &card->peer_list, peer_link) {
-		if (peer->guid == guid) {
-			list_del(&peer->peer_link);
-			list_for_each_entry_safe(pd, pd_next, &peer->pd_list,
-						 pd_link)
-				fwnet_pd_delete(pd);
-			break;
-		}
-	}
-	if (dev)
-		spin_unlock_irqrestore(&dev->lock, flags);
+	return NULL;
 }
+
+/* caller must hold dev->lock */
+static struct fwnet_peer *fwnet_peer_find_by_node_id(struct fwnet_device *dev,
+						int node_id, int generation)
+{
+	struct fwnet_peer *peer;
+
+	list_for_each_entry(peer, &dev->peer_list, peer_link)
+		if (peer->node_id    == node_id &&
+		    peer->generation == generation)
+			return peer;
+
+	return NULL;
+}
+
+/* See IEEE 1394-2008 table 6-4, table 8-8, table 16-18. */
+static unsigned fwnet_max_payload(unsigned max_rec, unsigned speed)
+{
+	max_rec = min(max_rec, speed + 8);
+	max_rec = min(max_rec, 0xbU); /* <= 4096 */
+	if (max_rec < 8) {
+		fw_notify("max_rec %x out of range\n", max_rec);
+		max_rec = 8;
+	}
+
+	return (1 << (max_rec + 1)) - RFC2374_FRAG_HDR_SIZE;
+}
+
 
 static int fwnet_finish_incoming_packet(struct net_device *net,
 					struct sk_buff *skb, u16 source_node_id,
@@ -606,70 +543,43 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 		unsigned char *arp_ptr;
 		u64 fifo_addr;
 		u64 peer_guid;
-		u8 max_rec;
-		u8 sspd;
+		unsigned sspd;
 		u16 max_payload;
 		struct fwnet_peer *peer;
-		static const u16 fwnet_speed_to_max_payload[] = {
-			/* S100, S200, S400, S800, S1600, S3200 */
-			    512, 1024, 2048, 4096,  4096,  4096
-		};
+		unsigned long flags;
 
-		arp1394 = (struct rfc2734_arp *)skb->data;
-		arp = (struct arphdr *)skb->data;
-		arp_ptr = (unsigned char *)(arp + 1);
-		fifo_addr = (u64)ntohs(arp1394->fifo_hi) << 32
-				| ntohl(arp1394->fifo_lo);
-		max_rec = dev->card->max_receive;
-		if (arp1394->max_rec < max_rec)
-			max_rec = arp1394->max_rec;
+		arp1394   = (struct rfc2734_arp *)skb->data;
+		arp       = (struct arphdr *)skb->data;
+		arp_ptr   = (unsigned char *)(arp + 1);
+		peer_guid = get_unaligned_be64(&arp1394->s_uniq_id);
+		fifo_addr = (u64)get_unaligned_be16(&arp1394->fifo_hi) << 32
+				| get_unaligned_be32(&arp1394->fifo_lo);
+
 		sspd = arp1394->sspd;
 		/* Sanity check.  OS X 10.3 PPC reportedly sends 131. */
 		if (sspd > SCODE_3200) {
 			fw_notify("sspd %x out of range\n", sspd);
-			sspd = 0;
+			sspd = SCODE_3200;
 		}
+		max_payload = fwnet_max_payload(arp1394->max_rec, sspd);
 
-		max_payload = min(fwnet_speed_to_max_payload[sspd],
-			(u16)(1 << (max_rec + 1))) - RFC2374_UNFRAG_HDR_SIZE;
-
-		peer_guid = get_unaligned_be64(&arp1394->s_uniq_id);
+		spin_lock_irqsave(&dev->lock, flags);
 		peer = fwnet_peer_find_by_guid(dev, peer_guid);
+		if (peer) {
+			peer->fifo = fifo_addr;
+
+			if (peer->speed > sspd)
+				peer->speed = sspd;
+			if (peer->max_payload > max_payload)
+				peer->max_payload = max_payload;
+		}
+		spin_unlock_irqrestore(&dev->lock, flags);
+
 		if (!peer) {
 			fw_notify("No peer for ARP packet from %016llx\n",
 				  (unsigned long long)peer_guid);
 			goto failed_proto;
 		}
-
-		/* FIXME don't use card->generation */
-		if (peer->node_id != source_node_id ||
-		    peer->generation != dev->card->generation) {
-			fw_notify("Internal error: peer->node_id (%x) != "
-				  "source_node_id (%x) or peer->generation (%x)"
-				  " != dev->card->generation(%x)\n",
-				  peer->node_id, source_node_id,
-				  peer->generation, dev->card->generation);
-			peer->node_id = source_node_id;
-			peer->generation = dev->card->generation;
-		}
-
-		/* FIXME: for debugging */
-		if (sspd > SCODE_400)
-			sspd = SCODE_400;
-		/* Update our speed/payload/fifo_offset table */
-		/*
-		 * FIXME: this does not handle cases where two high-speed endpoints must use a slower speed because of
-		 * a lower speed hub between them.  We need to look at the actual topology map here.
-		 */
-		peer->fifo = fifo_addr;
-		peer->max_payload = max_payload;
-		/*
-		 * Only allow speeds to go down from their initial value.
-		 * Otherwise a local peer that can only do S400 or slower may
-		 * be told to transmit at S800 to a faster remote peer.
-		 */
-		if (peer->xmt_speed > sspd)
-			peer->xmt_speed = sspd;
 
 		/*
 		 * Now that we're done with the 1394 specific stuff, we'll
@@ -764,10 +674,11 @@ static int fwnet_finish_incoming_packet(struct net_device *net,
 }
 
 static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
-				 u16 source_node_id, bool is_broadcast)
+				 int source_node_id, int generation,
+				 bool is_broadcast)
 {
 	struct sk_buff *skb;
-	struct net_device *net;
+	struct net_device *net = dev->netdev;
 	struct rfc2734_header hdr;
 	unsigned lf;
 	unsigned long flags;
@@ -778,8 +689,6 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	u16 datagram_label;
 	int retval;
 	u16 ether_type;
-
-	net = dev->card->netdev;
 
 	hdr.w0 = be32_to_cpu(buf[0]);
 	lf = fwnet_get_hdr_lf(&hdr);
@@ -819,9 +728,12 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	}
 	datagram_label = fwnet_get_hdr_dgl(&hdr);
 	dg_size = fwnet_get_hdr_dg_size(&hdr); /* ??? + 1 */
-	peer = fwnet_peer_find_by_node_id(dev, source_node_id);
 
-	spin_lock_irqsave(&peer->pdg_lock, flags);
+	spin_lock_irqsave(&dev->lock, flags);
+
+	peer = fwnet_peer_find_by_node_id(dev, source_node_id, generation);
+	if (!peer)
+		goto bad_proto;
 
 	pd = fwnet_pd_find(peer, datagram_label);
 	if (pd == NULL) {
@@ -876,7 +788,7 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 		skb = skb_get(pd->skb);
 		fwnet_pd_delete(pd);
 
-		spin_unlock_irqrestore(&peer->pdg_lock, flags);
+		spin_unlock_irqrestore(&dev->lock, flags);
 
 		return fwnet_finish_incoming_packet(net, skb, source_node_id,
 						    false, ether_type);
@@ -885,12 +797,12 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 	 * Datagram is not complete, we're done for the
 	 * moment.
 	 */
-	spin_unlock_irqrestore(&peer->pdg_lock, flags);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return 0;
 
  bad_proto:
-	spin_unlock_irqrestore(&peer->pdg_lock, flags);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (netif_queue_stopped(net))
 		netif_wake_queue(net);
@@ -916,7 +828,8 @@ static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,
 		return;
 	}
 
-	status = fwnet_incoming_packet(dev, payload, length, source, false);
+	status = fwnet_incoming_packet(dev, payload, length,
+				       source, generation, false);
 	if (status != 0) {
 		fw_error("Incoming packet failure\n");
 		fw_send_response(card, r, RCODE_CONFLICT_ERROR);
@@ -966,7 +879,7 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 		buf_ptr += 2;
 		length -= IEEE1394_GASP_HDR_SIZE;
 		fwnet_incoming_packet(dev, buf_ptr, length,
-				      source_node_id, true);
+				      source_node_id, -1, true);
 	}
 
 	packet.payload_length = dev->rcv_buffer_size;
@@ -1073,7 +986,6 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	unsigned tx_len;
 	struct rfc2734_header *bufhdr;
 	unsigned long flags;
-	struct net_device *net;
 
 	dev = ptask->dev;
 	tx_len = ptask->max_payload;
@@ -1137,8 +1049,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	list_add_tail(&ptask->pt_link, &dev->sent_list);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	net = dev->card->netdev;
-	net->trans_start = jiffies;
+	dev->netdev->trans_start = jiffies;
 
 	return 0;
 }
@@ -1294,7 +1205,8 @@ static int fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	u16 dg_size;
 	u16 *datagram_label_ptr;
 	struct fwnet_packet_task *ptask;
-	struct fwnet_peer *peer = NULL;
+	struct fwnet_peer *peer;
+	unsigned long flags;
 
 	ptask = kmem_cache_alloc(fwnet_packet_task_cache, GFP_ATOMIC);
 	if (ptask == NULL)
@@ -1314,6 +1226,9 @@ static int fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	proto = hdr_buf.h_proto;
 	dg_size = skb->len;
 
+	/* serialize access to peer, including peer->datagram_label */
+	spin_lock_irqsave(&dev->lock, flags);
+
 	/*
 	 * Set the transmission type for the packet.  ARP packets and IP
 	 * broadcast packets are sent via GASP.
@@ -1322,35 +1237,30 @@ static int fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	    || proto == htons(ETH_P_ARP)
 	    || (proto == htons(ETH_P_IP)
 		&& IN_MULTICAST(ntohl(ip_hdr(skb)->daddr)))) {
-		max_payload = dev->broadcast_xmt_max_payload;
+		max_payload        = dev->broadcast_xmt_max_payload;
 		datagram_label_ptr = &dev->broadcast_xmt_datagramlabel;
 
-		ptask->fifo_addr = FWNET_NO_FIFO_ADDR;
-		ptask->generation = 0;
-		ptask->dest_node = IEEE1394_ALL_NODES;
-		ptask->speed = SCODE_100;
+		ptask->fifo_addr   = FWNET_NO_FIFO_ADDR;
+		ptask->generation  = 0;
+		ptask->dest_node   = IEEE1394_ALL_NODES;
+		ptask->speed       = SCODE_100;
 	} else {
 		__be64 guid = get_unaligned((__be64 *)hdr_buf.h_dest);
 		u8 generation;
 
 		peer = fwnet_peer_find_by_guid(dev, be64_to_cpu(guid));
-		if (!peer)
-			goto fail;
+		if (!peer || peer->fifo == FWNET_NO_FIFO_ADDR)
+			goto fail_unlock;
 
-		if (peer->fifo == FWNET_NO_FIFO_ADDR)
-			goto fail;
-
-		generation = peer->generation;
-		smp_rmb();
-		dest_node = peer->node_id;
-
-		max_payload = peer->max_payload;
+		generation         = peer->generation;
+		dest_node          = peer->node_id;
+		max_payload        = peer->max_payload;
 		datagram_label_ptr = &peer->datagram_label;
 
-		ptask->fifo_addr = peer->fifo;
-		ptask->generation = generation;
-		ptask->dest_node = dest_node;
-		ptask->speed = peer->xmt_speed;
+		ptask->fifo_addr   = peer->fifo;
+		ptask->generation  = generation;
+		ptask->dest_node   = dest_node;
+		ptask->speed       = peer->speed;
 	}
 
 	/* If this is an ARP packet, convert it */
@@ -1393,11 +1303,16 @@ static int fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		ptask->outstanding_pkts = DIV_ROUND_UP(dg_size, max_payload);
 		max_payload += RFC2374_FRAG_HDR_SIZE;
 	}
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+
 	ptask->max_payload = max_payload;
 	fwnet_send_packet(ptask);
 
 	return NETDEV_TX_OK;
 
+ fail_unlock:
+	spin_unlock_irqrestore(&dev->lock, flags);
  fail:
 	if (ptask)
 		kmem_cache_free(fwnet_packet_task_cache, ptask);
@@ -1467,7 +1382,48 @@ static void fwnet_init_dev(struct net_device *net)
 	SET_ETHTOOL_OPS(net, &fwnet_ethtool_ops);
 }
 
-/* FIXME create netdev upon first fw_unit of a card, not upon local fw_unit */
+/* caller must hold fwnet_device_mutex */
+static struct fwnet_device *fwnet_dev_find(struct fw_card *card)
+{
+	struct fwnet_device *dev;
+
+	list_for_each_entry(dev, &fwnet_device_list, dev_link)
+		if (dev->card == card)
+			return dev;
+
+	return NULL;
+}
+
+static int fwnet_add_peer(struct fwnet_device *dev,
+			  struct fw_unit *unit, struct fw_device *device)
+{
+	struct fwnet_peer *peer;
+
+	peer = kmalloc(sizeof(*peer), GFP_KERNEL);
+	if (!peer)
+		return -ENOMEM;
+
+	unit->device.driver_data = peer;
+	peer->dev = dev;
+	peer->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
+	peer->fifo = FWNET_NO_FIFO_ADDR;
+	INIT_LIST_HEAD(&peer->pd_list);
+	peer->pdg_size = 0;
+	peer->datagram_label = 0;
+	peer->speed = device->max_speed;
+	peer->max_payload = fwnet_max_payload(device->max_rec, peer->speed);
+
+	peer->generation = device->generation;
+	smp_rmb();
+	peer->node_id = device->node_id;
+
+	spin_lock_irq(&dev->lock);
+	list_add_tail(&peer->peer_link, &dev->peer_list);
+	spin_unlock_irq(&dev->lock);
+
+	return 0;
+}
+
 static int fwnet_probe(struct device *_dev)
 {
 	struct fw_unit *unit = fw_unit(_dev);
@@ -1476,16 +1432,22 @@ static int fwnet_probe(struct device *_dev)
 	struct net_device *net;
 	struct fwnet_device *dev;
 	unsigned max_mtu;
+	bool new_netdev;
+	int ret;
 
-	if (!device->is_local) {
-		int added;
+	mutex_lock(&fwnet_device_mutex);
 
-		added = fwnet_peer_new(card, device);
-		return added;
+	dev = fwnet_dev_find(card);
+	if (dev) {
+		new_netdev = false;
+		net = dev->netdev;
+		goto have_dev;
 	}
+
+	new_netdev = true;
 	net = alloc_netdev(sizeof(*dev), "firewire%d", fwnet_init_dev);
 	if (net == NULL) {
-		fw_error("out of memory\n");
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -1500,12 +1462,13 @@ static int fwnet_probe(struct device *_dev)
 
 	dev->local_fifo = FWNET_NO_FIFO_ADDR;
 
-	/* INIT_WORK(&dev->wake, fwnet_handle_queue);*/
 	INIT_LIST_HEAD(&dev->packet_list);
 	INIT_LIST_HEAD(&dev->broadcasted_list);
 	INIT_LIST_HEAD(&dev->sent_list);
+	INIT_LIST_HEAD(&dev->peer_list);
 
 	dev->card = card;
+	dev->netdev = net;
 
 	/*
 	 * Use the RFC 2734 default 1500 octets or the maximum payload
@@ -1518,43 +1481,57 @@ static int fwnet_probe(struct device *_dev)
 	/* Set our hardware address while we're at it */
 	put_unaligned_be64(card->guid, net->dev_addr);
 	put_unaligned_be64(~0ULL, net->broadcast);
-	if (register_netdev(net)) {
+	ret = register_netdev(net);
+	if (ret) {
 		fw_error("Cannot register the driver\n");
 		goto out;
 	}
 
+	list_add_tail(&dev->dev_link, &fwnet_device_list);
 	fw_notify("%s: IPv4 over FireWire on device %016llx\n",
 		  net->name, (unsigned long long)card->guid);
-	card->netdev = net;
-
-	return 0;
+ have_dev:
+	ret = fwnet_add_peer(dev, unit, device);
+	if (ret && new_netdev) {
+		unregister_netdev(net);
+		list_del(&dev->dev_link);
+	}
  out:
-	if (net)
+	if (ret && new_netdev)
 		free_netdev(net);
 
-	return -ENOENT;
+	mutex_unlock(&fwnet_device_mutex);
+
+	return ret;
+}
+
+static void fwnet_remove_peer(struct fwnet_peer *peer)
+{
+	struct fwnet_partial_datagram *pd, *pd_next;
+
+	spin_lock_irq(&peer->dev->lock);
+	list_del(&peer->peer_link);
+	spin_unlock_irq(&peer->dev->lock);
+
+	list_for_each_entry_safe(pd, pd_next, &peer->pd_list, pd_link)
+		fwnet_pd_delete(pd);
+
+	kfree(peer);
 }
 
 static int fwnet_remove(struct device *_dev)
 {
-	struct fw_unit *unit = fw_unit(_dev);
-	struct fw_device *device = fw_parent_device(unit);
-	struct fw_card *card = device->card;
+	struct fwnet_peer *peer = _dev->driver_data;
+	struct fwnet_device *dev = peer->dev;
 	struct net_device *net;
-	struct fwnet_device *dev;
-	struct fwnet_peer *peer;
-	struct fwnet_partial_datagram *pd, *pd_next;
 	struct fwnet_packet_task *ptask, *pt_next;
 
-	if (!device->is_local) {
-		fwnet_peer_delete(card, device);
+	mutex_lock(&fwnet_device_mutex);
 
-		return 0;
-	}
+	fwnet_remove_peer(peer);
 
-	net = card->netdev;
-	if (net) {
-		dev = netdev_priv(net);
+	if (list_empty(&dev->peer_list)) {
+		net = dev->netdev;
 		unregister_netdev(net);
 
 		if (dev->local_fifo != FWNET_NO_FIFO_ADDR)
@@ -1580,18 +1557,10 @@ static int fwnet_remove(struct device *_dev)
 			dev_kfree_skb_any(ptask->skb);
 			kmem_cache_free(fwnet_packet_task_cache, ptask);
 		}
-		list_for_each_entry(peer, &card->peer_list, peer_link) {
-			if (peer->pdg_size) {
-				list_for_each_entry_safe(pd, pd_next,
-						&peer->pd_list, pd_link)
-					fwnet_pd_delete(pd);
-				peer->pdg_size = 0;
-			}
-			peer->fifo = FWNET_NO_FIFO_ADDR;
-		}
 		free_netdev(net);
-		card->netdev = NULL;
 	}
+
+	mutex_unlock(&fwnet_device_mutex);
 
 	return 0;
 }
@@ -1603,24 +1572,15 @@ static int fwnet_remove(struct device *_dev)
 static void fwnet_update(struct fw_unit *unit)
 {
 	struct fw_device *device = fw_parent_device(unit);
-	struct net_device *net = device->card->netdev;
-	struct fwnet_device *dev;
-	struct fwnet_peer *peer;
-	u64 guid;
+	struct fwnet_peer *peer = unit->device.driver_data;
+	int generation;
 
-	if (net && !device->is_local) {
-		dev = netdev_priv(net);
-		guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
-		peer = fwnet_peer_find_by_guid(dev, guid);
-		if (!peer) {
-			fw_error("fwnet_update: no peer for device %016llx\n",
-				 (unsigned long long)guid);
-			return;
-		}
-		peer->generation = device->generation;
-		rmb();
-		peer->node_id = device->node_id;
-	}
+	generation = device->generation;
+
+	spin_lock_irq(&peer->dev->lock);
+	peer->node_id    = device->node_id;
+	peer->generation = generation;
+	spin_unlock_irq(&peer->dev->lock);
 }
 
 static const struct ieee1394_device_id fwnet_id_table[] = {

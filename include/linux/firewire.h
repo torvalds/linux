@@ -131,10 +131,6 @@ struct fw_card {
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
 	u32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
-
-	/* firewire-net driver data */
-	void *netdev;
-	struct list_head peer_list;
 };
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
