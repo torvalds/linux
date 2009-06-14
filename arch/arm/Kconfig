@@ -598,6 +598,20 @@ config ARCH_LH7A40X
 	  core with a wide array of integrated devices for
 	  hand-held and low-power applications.
 
+config ARCH_U300
+	bool "ST-Ericsson U300 Series"
+	depends on MMU
+	select CPU_ARM926T
+	select ARM_AMBA
+	select ARM_VIC
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_GPIO
+	help
+	  Support for ST-Ericsson U300 series mobile platforms.
+
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select CPU_ARM926T
@@ -711,6 +725,8 @@ source "arch/arm/mach-davinci/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-u300/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
