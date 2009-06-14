@@ -71,7 +71,7 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 	for (j = 0; j < i; j++) {
 		address = page_private(buffer->pages[j]);
 		dma_unmap_page(card->device, address,
-			       PAGE_SIZE, DMA_TO_DEVICE);
+			       PAGE_SIZE, direction);
 		__free_page(buffer->pages[j]);
 	}
 	kfree(buffer->pages);
@@ -108,7 +108,7 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 	for (i = 0; i < buffer->page_count; i++) {
 		address = page_private(buffer->pages[i]);
 		dma_unmap_page(card->device, address,
-			       PAGE_SIZE, DMA_TO_DEVICE);
+			       PAGE_SIZE, buffer->direction);
 		__free_page(buffer->pages[i]);
 	}
 
