@@ -58,6 +58,10 @@ struct sd {
 #define BRIDGE_OV518		2
 #define BRIDGE_OV518PLUS	3
 #define BRIDGE_OV519		4
+#define BRIDGE_MASK		7
+
+	char invert_led;
+#define BRIDGE_INVERT_LED	8
 
 	/* Determined by sensor type */
 	__u8 sif;
@@ -1468,6 +1472,9 @@ static int ov6xx0_configure(struct sd *sd)
 /* Turns on or off the LED. Only has an effect with OV511+/OV518(+)/OV519 */
 static void ov51x_led_control(struct sd *sd, int on)
 {
+	if (sd->invert_led)
+		on = !on;
+
 	switch (sd->bridge) {
 	/* OV511 has no LED control */
 	case BRIDGE_OV511PLUS:
@@ -1650,7 +1657,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 	int ret = 0;
 
-	sd->bridge = id->driver_info;
+	sd->bridge = id->driver_info & BRIDGE_MASK;
+	sd->invert_led = id->driver_info & BRIDGE_INVERT_LED;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV518:
@@ -2840,8 +2848,10 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x041e, 0x4064), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x041e, 0x4068), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4064),
+	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+	{USB_DEVICE(0x041e, 0x4068),
+	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0154), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0155), .driver_info = BRIDGE_OV519 },
