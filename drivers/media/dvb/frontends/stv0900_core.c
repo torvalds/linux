@@ -149,31 +149,31 @@ void stv0900_write_reg(struct stv0900_internal *i_params, u16 reg_addr,
 		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
 }
 
-u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg_addr)
+u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg)
 {
-	u8 data[2];
 	int ret;
-	struct i2c_msg i2cmsg = {
-		.addr  = i_params->i2c_addr,
-		.flags = 0,
-		.len   = 2,
-		.buf   = data,
+	u8 b0[] = { MSB(reg), LSB(reg) };
+	u8 buf = 0;
+	struct i2c_msg msg[] = {
+		{
+			.addr	= i_params->i2c_addr,
+			.flags	= 0,
+			.buf = b0,
+			.len = 2,
+		}, {
+			.addr	= i_params->i2c_addr,
+			.flags	= I2C_M_RD,
+			.buf = &buf,
+			.len = 1,
+		},
 	};
 
-	data[0] = MSB(reg_addr);
-	data[1] = LSB(reg_addr);
+	ret = i2c_transfer(i_params->i2c_adap, msg, 2);
+	if (ret != 2)
+		dprintk(KERN_ERR "%s: i2c error %d, reg[0x%02x]\n",
+				__func__, ret, reg);
 
-	ret = i2c_transfer(i_params->i2c_adap, &i2cmsg, 1);
-	if (ret != 1)
-		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
-
-	i2cmsg.flags = I2C_M_RD;
-	i2cmsg.len = 1;
-	ret = i2c_transfer(i_params->i2c_adap, &i2cmsg, 1);
-	if (ret != 1)
-		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
-
-	return data[0];
+	return buf;
 }
 
 void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
