@@ -119,7 +119,7 @@ which takes quite a bit of time and thought after the "real work" has been
 done.  When done properly, though, it is time well spent.
 
 
-5.4: PATCH FORMATTING
+5.4: PATCH FORMATTING AND CHANGELOGS
 
 So now you have a perfect series of patches for posting, but the work is
 not done quite yet.  Each patch needs to be formatted into a message which
@@ -146,8 +146,33 @@ that end, each patch will be composed of the following:
  - One or more tag lines, with, at a minimum, one Signed-off-by: line from
    the author of the patch.  Tags will be described in more detail below.
 
-The above three items should, normally, be the text used when committing
-the change to a revision control system.  They are followed by:
+The items above, together, form the changelog for the patch.  Writing good
+changelogs is a crucial but often-neglected art; it's worth spending
+another moment discussing this issue.  When writing a changelog, you should
+bear in mind that a number of different people will be reading your words.
+These include subsystem maintainers and reviewers who need to decide
+whether the patch should be included, distributors and other maintainers
+trying to decide whether a patch should be backported to other kernels, bug
+hunters wondering whether the patch is responsible for a problem they are
+chasing, users who want to know how the kernel has changed, and more.  A
+good changelog conveys the needed information to all of these people in the
+most direct and concise way possible.
+
+To that end, the summary line should describe the effects of and motivation
+for the change as well as possible given the one-line constraint.  The
+detailed description can then amplify on those topics and provide any
+needed additional information.  If the patch fixes a bug, cite the commit
+which introduced the bug if possible.  If a problem is associated with
+specific log or compiler output, include that output to help others
+searching for a solution to the same problem.  If the change is meant to
+support other changes coming in later patch, say so.  If internal APIs are
+changed, detail those changes and how other developers should respond.  In
+general, the more you can put yourself into the shoes of everybody who will
+be reading your changelog, the better that changelog (and the kernel as a
+whole) will be.
+
+Needless to say, the changelog should be the text used when committing the
+change to a revision control system.  It will be followed by:
 
  - The patch itself, in the unified ("-u") patch format.  Using the "-p"
    option to diff will associate function names with changes, making the

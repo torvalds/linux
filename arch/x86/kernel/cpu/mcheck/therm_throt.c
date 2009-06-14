@@ -1,7 +1,7 @@
 /*
- *
  * Thermal throttle event support code (such as syslog messaging and rate
  * limiting) that was factored out from x86_64 (mce_intel.c) and i386 (p4.c).
+ *
  * This allows consistent reporting of CPU thermal throttle events.
  *
  * Maintains a counter in /sys that keeps track of the number of thermal
@@ -13,43 +13,43 @@
  * Credits: Adapted from Zwane Mwaikambo's original code in mce_intel.c.
  *          Inspired by Ross Biro's and Al Borchers' counter code.
  */
-
+#include <linux/notifier.h>
+#include <linux/jiffies.h>
 #include <linux/percpu.h>
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
-#include <asm/cpu.h>
-#include <linux/notifier.h>
-#include <linux/jiffies.h>
+
 #include <asm/therm_throt.h>
 
 /* How long to wait between reporting thermal events */
-#define CHECK_INTERVAL              (300 * HZ)
+#define CHECK_INTERVAL		(300 * HZ)
 
 static DEFINE_PER_CPU(__u64, next_check) = INITIAL_JIFFIES;
 static DEFINE_PER_CPU(unsigned long, thermal_throttle_count);
-atomic_t therm_throt_en = ATOMIC_INIT(0);
+
+atomic_t therm_throt_en		= ATOMIC_INIT(0);
 
 #ifdef CONFIG_SYSFS
-#define define_therm_throt_sysdev_one_ro(_name)                              \
-        static SYSDEV_ATTR(_name, 0444, therm_throt_sysdev_show_##_name, NULL)
+#define define_therm_throt_sysdev_one_ro(_name)				\
+	static SYSDEV_ATTR(_name, 0444, therm_throt_sysdev_show_##_name, NULL)
 
-#define define_therm_throt_sysdev_show_func(name)                            \
-static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,        \
-					struct sysdev_attribute *attr,	     \
-                                              char *buf)                     \
-{                                                                            \
-	unsigned int cpu = dev->id;                                          \
-	ssize_t ret;                                                         \
-                                                                             \
-	preempt_disable();              /* CPU hotplug */                    \
-	if (cpu_online(cpu))                                                 \
-		ret = sprintf(buf, "%lu\n",                                  \
-			      per_cpu(thermal_throttle_##name, cpu));        \
-	else                                                                 \
-		ret = 0;                                                     \
-	preempt_enable();                                                    \
-                                                                             \
-	return ret;                                                          \
+#define define_therm_throt_sysdev_show_func(name)			\
+static ssize_t therm_throt_sysdev_show_##name(struct sys_device *dev,	\
+					struct sysdev_attribute *attr,	\
+					      char *buf)		\
+{									\
+	unsigned int cpu = dev->id;					\
+	ssize_t ret;							\
+									\
+	preempt_disable();	/* CPU hotplug */			\
+	if (cpu_online(cpu))						\
+		ret = sprintf(buf, "%lu\n",				\
+			      per_cpu(thermal_throttle_##name, cpu));	\
+	else								\
+		ret = 0;						\
+	preempt_enable();						\
+									\
+	return ret;							\
 }
 
 define_therm_throt_sysdev_show_func(count);
@@ -61,8 +61,8 @@ static struct attribute *thermal_throttle_attrs[] = {
 };
 
 static struct attribute_group thermal_throttle_attr_group = {
-	.attrs = thermal_throttle_attrs,
-	.name = "thermal_throttle"
+	.attrs	= thermal_throttle_attrs,
+	.name	= "thermal_throttle"
 };
 #endif /* CONFIG_SYSFS */
 
@@ -110,10 +110,11 @@ int therm_throt_process(int curr)
 }
 
 #ifdef CONFIG_SYSFS
-/* Add/Remove thermal_throttle interface for CPU device */
+/* Add/Remove thermal_throttle interface for CPU device: */
 static __cpuinit int thermal_throttle_add_dev(struct sys_device *sys_dev)
 {
-	return sysfs_create_group(&sys_dev->kobj, &thermal_throttle_attr_group);
+	return sysfs_create_group(&sys_dev->kobj,
+				  &thermal_throttle_attr_group);
 }
 
 static __cpuinit void thermal_throttle_remove_dev(struct sys_device *sys_dev)
@@ -121,19 +122,21 @@ static __cpuinit void thermal_throttle_remove_dev(struct sys_device *sys_dev)
 	sysfs_remove_group(&sys_dev->kobj, &thermal_throttle_attr_group);
 }
 
-/* Mutex protecting device creation against CPU hotplug */
+/* Mutex protecting device creation against CPU hotplug: */
 static DEFINE_MUTEX(therm_cpu_lock);
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static __cpuinit int thermal_throttle_cpu_callback(struct notifier_block *nfb,
-						   unsigned long action,
-						   void *hcpu)
+static __cpuinit int
+thermal_throttle_cpu_callback(struct notifier_block *nfb,
+			      unsigned long action,
+			      void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	struct sys_device *sys_dev;
 	int err = 0;
 
 	sys_dev = get_cpu_sysdev(cpu);
+
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
