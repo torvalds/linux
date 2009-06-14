@@ -12,7 +12,7 @@
  * {
  *	. = START;
  *	__init_begin = .;
- *	HEAD_SECTION
+ *	HEAD_TEXT_SECTION
  *	INIT_TEXT_SECTION(PAGE_SIZE)
  *	INIT_DATA_SECTION(...)
  *	PERCPU(PAGE_SIZE)
@@ -38,7 +38,7 @@
  *	/DISCARD/ : {
  *		EXIT_TEXT
  *		EXIT_DATA
- *		*(.exitcall.exit)
+ *		EXIT_CALL
  *	}
  *	STABS_DEBUG
  *	DWARF_DEBUG
@@ -52,7 +52,6 @@
  * Examples are: [__initramfs_start, __initramfs_end] for initramfs and
  *               [__nosave_begin, __nosave_end] for the nosave data
  */
- #include <linux/section-names.h>
 
 #ifndef LOAD_OFFSET
 #define LOAD_OFFSET 0
@@ -414,9 +413,9 @@
 #endif
 
 /* Section used for early init (in .S files) */
-#define HEAD_TEXT  *(HEAD_TEXT_SECTION)
+#define HEAD_TEXT  *(.head.text)
 
-#define HEAD_SECTION							\
+#define HEAD_TEXT_SECTION							\
 	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {		\
 		HEAD_TEXT						\
 	}
@@ -472,6 +471,9 @@
 	DEV_DISCARD(exit.text)						\
 	CPU_DISCARD(exit.text)						\
 	MEM_DISCARD(exit.text)
+
+#define EXIT_CALL							\
+	*(.exitcall.exit)
 
 /*
  * bss (Block Started by Symbol) - uninitialized data
@@ -692,7 +694,7 @@
  * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
  * matches the requirment of PAGE_ALIGNED_DATA.
  *
-/* use 0 as page_align if page_aligned data is not used */
+ * use 0 as page_align if page_aligned data is not used */
 #define RW_DATA_SECTION(cacheline, nosave, pagealigned, inittask)	\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
@@ -726,4 +728,5 @@
 #define BSS_SECTION(sbss_align, bss_align)				\
 	SBSS								\
 	BSS(bss_align)							\
-	. = ALIGN(4);							\
+	. = ALIGN(4);
+
