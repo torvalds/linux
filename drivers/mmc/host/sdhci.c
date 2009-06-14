@@ -1382,6 +1382,35 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 		sdhci_finish_command(host);
 }
 
+#ifdef DEBUG
+static void sdhci_show_adma_error(struct sdhci_host *host)
+{
+	const char *name = mmc_hostname(host->mmc);
+	u8 *desc = host->adma_desc;
+	__le32 *dma;
+	__le16 *len;
+	u8 attr;
+
+	sdhci_dumpregs(host);
+
+	while (true) {
+		dma = (__le32 *)(desc + 4);
+		len = (__le16 *)(desc + 2);
+		attr = *desc;
+
+		DBG("%s: %p: DMA 0x%08x, LEN 0x%04x, Attr=0x%02x\n",
+		    name, desc, le32_to_cpu(*dma), le16_to_cpu(*len), attr);
+
+		desc += 8;
+
+		if (attr & 2)
+			break;
+	}
+}
+#else
+static void sdhci_show_adma_error(struct sdhci_host *host) { }
+#endif
+
 static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 {
 	BUG_ON(intmask == 0);
@@ -1411,8 +1440,11 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		host->data->error = -ETIMEDOUT;
 	else if (intmask & (SDHCI_INT_DATA_CRC | SDHCI_INT_DATA_END_BIT))
 		host->data->error = -EILSEQ;
-	else if (intmask & SDHCI_INT_ADMA_ERROR)
+	else if (intmask & SDHCI_INT_ADMA_ERROR) {
+		printk(KERN_ERR "%s: ADMA error\n", mmc_hostname(host->mmc));
+		sdhci_show_adma_error(host);
 		host->data->error = -EIO;
+	}
 
 	if (host->data->error)
 		sdhci_finish_data(host);
