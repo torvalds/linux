@@ -486,6 +486,10 @@ static void iommu_enable_event_buffer(struct amd_iommu *iommu)
 	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
 		    &entry, sizeof(entry));
 
+	/* set head and tail to zero manually */
+	writel(0x00, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
+
 	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
 }
 
