@@ -178,25 +178,15 @@ int __init setup_early_printk(char *buf)
 
 asmlinkage void __init init_early_exception_vectors(void)
 {
+	u32 evt;
 	SSYNC();
 
 	/* cannot program in software:
 	 * evt0 - emulation (jtag)
 	 * evt1 - reset
 	 */
-	bfin_write_EVT2(early_trap);
-	bfin_write_EVT3(early_trap);
-	bfin_write_EVT5(early_trap);
-	bfin_write_EVT6(early_trap);
-	bfin_write_EVT7(early_trap);
-	bfin_write_EVT8(early_trap);
-	bfin_write_EVT9(early_trap);
-	bfin_write_EVT10(early_trap);
-	bfin_write_EVT11(early_trap);
-	bfin_write_EVT12(early_trap);
-	bfin_write_EVT13(early_trap);
-	bfin_write_EVT14(early_trap);
-	bfin_write_EVT15(early_trap);
+	for (evt = EVT2; evt <= EVT15; evt += 4)
+		bfin_write32(evt, early_trap);
 	CSYNC();
 
 	/* Set all the return from interrupt, exception, NMI to a known place

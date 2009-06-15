@@ -59,9 +59,11 @@ obj-$(CONFIG_SND) += \
 	ali5451/ \
 	au88x0/ \
 	aw2/ \
+	ctxfi/ \
 	ca0106/ \
 	cs46xx/ \
 	cs5535audio/ \
+	lx6464es/ \
 	echoaudio/ \
 	emu10k1/ \
 	hda/ \

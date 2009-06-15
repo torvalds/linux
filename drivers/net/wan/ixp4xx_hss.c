@@ -579,7 +579,8 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	debug_desc(phys, desc);
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
-	BUG_ON(qmgr_stat_overflow(queue));
+	/* Don't check for queue overflow here, we've allocated sufficient
+	   length and queues >= 32 don't support this check anyway. */
 }
 
 
@@ -789,10 +790,10 @@ static void hss_hdlc_txdone_irq(void *pdev)
 		free_buffer_irq(port->tx_buff_tab[n_desc]);
 		port->tx_buff_tab[n_desc] = NULL;
 
-		start = qmgr_stat_empty(port->plat->txreadyq);
+		start = qmgr_stat_below_low_watermark(port->plat->txreadyq);
 		queue_put_desc(port->plat->txreadyq,
 			       tx_desc_phys(port, n_desc), desc);
-		if (start) {
+		if (start) { /* TX-ready queue was empty */
 #if DEBUG_TX
 			printk(KERN_DEBUG "%s: hss_hdlc_txdone_irq xmit"
 			       " ready\n", dev->name);
@@ -867,13 +868,13 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue_put_desc(queue_ids[port->id].tx, tx_desc_phys(port, n), desc);
 	dev->trans_start = jiffies;
 
-	if (qmgr_stat_empty(txreadyq)) {
+	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
 		printk(KERN_DEBUG "%s: hss_hdlc_xmit queue full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
 		/* we could miss TX ready interrupt */
-		if (!qmgr_stat_empty(txreadyq)) {
+		if (!qmgr_stat_below_low_watermark(txreadyq)) {
 #if DEBUG_TX
 			printk(KERN_DEBUG "%s: hss_hdlc_xmit ready again\n",
 			       dev->name);

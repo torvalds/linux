@@ -679,6 +679,7 @@ struct fc_lport {
 	unsigned int		e_d_tov;
 	unsigned int		r_a_tov;
 	u8			max_retry_count;
+	u8			max_rport_retry_count;
 	u16			link_speed;
 	u16			link_supported_speeds;
 	u16			lro_xid;	/* max xid for fcoe lro */

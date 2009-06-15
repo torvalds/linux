@@ -366,7 +366,7 @@ just those considered 'most important'.  The new vectors are:
   RES, CAL, TLB -- rescheduling, call and TLB flush interrupts are
   sent from one CPU to another per the needs of the OS.  Typically,
   their statistics are used by kernel developers and interested users to
-  determine the occurance of interrupt of the given type.
+  determine the occurrence of interrupts of the given type.
 
 The above IRQ vectors are displayed only when relevent.  For example,
 the threshold vector does not exist on x86_64 platforms.  Others are
@@ -551,7 +551,7 @@ Committed_AS: The amount of memory presently allocated on the system.
               memory once that memory has been successfully allocated.
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
-VmallocChunk: largest contigious block of vmalloc area which is free
+VmallocChunk: largest contiguous block of vmalloc area which is free
 
 ..............................................................................
 

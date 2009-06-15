@@ -284,7 +284,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 	param->act_pages = (u32)outs[4];
 
 	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&cq->galpas, outs[5], outs[6]);
+		hcp_galpas_ctor(&cq->galpas, 0, outs[5], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lli", ret);
@@ -293,7 +293,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 }
 
 u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
-			     struct ehca_alloc_qp_parms *parms)
+			     struct ehca_alloc_qp_parms *parms, int is_user)
 {
 	u64 ret;
 	u64 allocate_controls, max_r10_reg, r11, r12;
@@ -359,7 +359,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 		(u32)EHCA_BMASK_GET(H_ALL_RES_QP_RQUEUE_SIZE_PAGES, outs[4]);
 
 	if (ret == H_SUCCESS)
-		hcp_galpas_ctor(&parms->galpas, outs[6], outs[6]);
+		hcp_galpas_ctor(&parms->galpas, is_user, outs[6], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
 		ehca_gen_err("Not enough resources. ret=%lli", ret);

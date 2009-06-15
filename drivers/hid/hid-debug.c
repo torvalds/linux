@@ -137,6 +137,14 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x44, "BarrelSwitch"},
     {0, 0x45, "Eraser"},
     {0, 0x46, "TabletPick"},
+    {0, 0x47, "Confidence"},
+    {0, 0x48, "Width"},
+    {0, 0x49, "Height"},
+    {0, 0x51, "ContactID"},
+    {0, 0x52, "InputMode"},
+    {0, 0x53, "DeviceIndex"},
+    {0, 0x54, "ContactCount"},
+    {0, 0x55, "ContactMaximumNumber"},
   { 15, 0, "PhysicalInterfaceDevice" },
     {0, 0x00, "Undefined"},
     {0, 0x01, "Physical_Interface_Device"},
@@ -514,9 +522,11 @@ static const char *events[EV_MAX + 1] = {
 	[EV_FF_STATUS] = "ForceFeedbackStatus",
 };
 
-static const char *syncs[2] = {
+static const char *syncs[3] = {
 	[SYN_REPORT] = "Report",		[SYN_CONFIG] = "Config",
+	[SYN_MT_REPORT] = "MT Report",
 };
+
 static const char *keys[KEY_MAX + 1] = {
 	[KEY_RESERVED] = "Reserved",		[KEY_ESC] = "Esc",
 	[KEY_1] = "1",				[KEY_2] = "2",
@@ -734,8 +744,17 @@ static const char *absolutes[ABS_MAX + 1] = {
 	[ABS_HAT2Y] = "Hat2Y",		[ABS_HAT3X] = "Hat3X",
 	[ABS_HAT3Y] = "Hat 3Y",		[ABS_PRESSURE] = "Pressure",
 	[ABS_DISTANCE] = "Distance",	[ABS_TILT_X] = "XTilt",
-	[ABS_TILT_Y] = "YTilt",		[ABS_TOOL_WIDTH] = "Tool Width",
+	[ABS_TILT_Y] = "YTilt",		[ABS_TOOL_WIDTH] = "ToolWidth",
 	[ABS_VOLUME] = "Volume",	[ABS_MISC] = "Misc",
+	[ABS_MT_TOUCH_MAJOR] = "MTMajor",
+	[ABS_MT_TOUCH_MINOR] = "MTMinor",
+	[ABS_MT_WIDTH_MAJOR] = "MTMajorW",
+	[ABS_MT_WIDTH_MINOR] = "MTMinorW",
+	[ABS_MT_ORIENTATION] = "MTOrientation",
+	[ABS_MT_POSITION_X] = "MTPositionX",
+	[ABS_MT_POSITION_Y] = "MTPositionY",
+	[ABS_MT_TOOL_TYPE] = "MTToolType",
+	[ABS_MT_BLOB_ID] = "MTBlobID",
 };
 
 static const char *misc[MSC_MAX + 1] = {

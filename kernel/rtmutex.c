@@ -902,7 +902,7 @@ EXPORT_SYMBOL_GPL(rt_mutex_lock_interruptible);
  * Returns:
  *  0 		on success
  * -EINTR 	when interrupted by a signal
- * -ETIMEOUT	when the timeout expired
+ * -ETIMEDOUT	when the timeout expired
  * -EDEADLK	when the lock would deadlock (when deadlock detection is on)
  */
 int

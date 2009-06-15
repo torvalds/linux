@@ -124,10 +124,10 @@ sys_immutable -- If set, ATTR_SYS attribute on FAT is handled as
 flush         -- If set, the filesystem will try to flush to disk more
 		 early than normal. Not set by default.
 
-rodir	      -- FAT has the ATTR_RO (read-only) attribute. But on Windows,
-		 the ATTR_RO of the directory will be just ignored actually,
-		 and is used by only applications as flag. E.g. it's setted
-		 for the customized folder.
+rodir	      -- FAT has the ATTR_RO (read-only) attribute. On Windows,
+		 the ATTR_RO of the directory will just be ignored,
+		 and is used only by applications as a flag (e.g. it's set
+		 for the customized folder).
 
 		 If you want to use ATTR_RO as read-only flag even for
 		 the directory, set this option.

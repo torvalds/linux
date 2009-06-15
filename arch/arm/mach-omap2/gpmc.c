@@ -5,6 +5,9 @@
  *
  * Author: Juha Yrjola
  *
+ * Copyright (C) 2009 Texas Instruments
+ * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -424,6 +427,9 @@ void __init gpmc_init(void)
 	} else if (cpu_is_omap34xx()) {
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
+	} else if (cpu_is_omap44xx()) {
+		ck = "gpmc_fck";
+		l = OMAP44XX_GPMC_BASE;
 	}
 
 	gpmc_l3_clk = clk_get(NULL, ck);

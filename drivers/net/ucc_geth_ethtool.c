@@ -7,7 +7,7 @@
  *
  * Limitation:
  * Can only get/set setttings of the first queue.
- * Need to re-open the interface manually after changing some paramters.
+ * Need to re-open the interface manually after changing some parameters.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

@@ -22,6 +22,11 @@
 #define ISCSI_IF_H
 
 #include <scsi/iscsi_proto.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+
+#define ISCSI_NL_GRP_ISCSID	1
+#define ISCSI_NL_GRP_UIP	2
 
 #define UEVENT_BASE			10
 #define KEVENT_BASE			100
@@ -50,7 +55,10 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
 	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
 	ISCSI_UEVENT_UNBIND_SESSION	= UEVENT_BASE + 17,
-	ISCSI_UEVENT_CREATE_BOUND_SESSION	= UEVENT_BASE + 18,
+	ISCSI_UEVENT_CREATE_BOUND_SESSION		= UEVENT_BASE + 18,
+	ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST	= UEVENT_BASE + 19,
+
+	ISCSI_UEVENT_PATH_UPDATE	= UEVENT_BASE + 20,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -59,6 +67,9 @@ enum iscsi_uevent_e {
 	ISCSI_KEVENT_DESTROY_SESSION	= KEVENT_BASE + 4,
 	ISCSI_KEVENT_UNBIND_SESSION	= KEVENT_BASE + 5,
 	ISCSI_KEVENT_CREATE_SESSION	= KEVENT_BASE + 6,
+
+	ISCSI_KEVENT_PATH_REQ		= KEVENT_BASE + 7,
+	ISCSI_KEVENT_IF_DOWN		= KEVENT_BASE + 8,
 };
 
 enum iscsi_tgt_dscvr {
@@ -131,6 +142,10 @@ struct iscsi_uevent {
 		struct msg_transport_connect {
 			uint32_t	non_blocking;
 		} ep_connect;
+		struct msg_transport_connect_through_host {
+			uint32_t	host_no;
+			uint32_t	non_blocking;
+		} ep_connect_through_host;
 		struct msg_transport_poll {
 			uint64_t	ep_handle;
 			uint32_t	timeout_ms;
@@ -154,6 +169,9 @@ struct iscsi_uevent {
 			uint32_t	param; /* enum iscsi_host_param */
 			uint32_t	len;
 		} set_host_param;
+		struct msg_set_path {
+			uint32_t	host_no;
+		} set_path;
 	} u;
 	union {
 		/* messages k -> u */
@@ -187,7 +205,36 @@ struct iscsi_uevent {
 		struct msg_transport_connect_ret {
 			uint64_t	handle;
 		} ep_connect_ret;
+		struct msg_req_path {
+			uint32_t	host_no;
+		} req_path;
+		struct msg_notify_if_down {
+			uint32_t	host_no;
+		} notify_if_down;
 	} r;
+} __attribute__ ((aligned (sizeof(uint64_t))));
+
+/*
+ * To keep the struct iscsi_uevent size the same for userspace code
+ * compatibility, the main structure for ISCSI_UEVENT_PATH_UPDATE and
+ * ISCSI_KEVENT_PATH_REQ is defined separately and comes after the
+ * struct iscsi_uevent in the NETLINK_ISCSI message.
+ */
+struct iscsi_path {
+	uint64_t	handle;
+	uint8_t		mac_addr[6];
+	uint8_t		mac_addr_old[6];
+	uint32_t	ip_addr_len;	/* 4 or 16 */
+	union {
+		struct in_addr	v4_addr;
+		struct in6_addr	v6_addr;
+	} src;
+	union {
+		struct in_addr	v4_addr;
+		struct in6_addr	v6_addr;
+	} dst;
+	uint16_t	vlan_id;
+	uint16_t	pmtu;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
 /*

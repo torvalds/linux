@@ -19,6 +19,7 @@
 
 #include <linux/gpio_keys.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -85,10 +86,10 @@ static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 {
 	switch (cmd) {
 	case S3C2410_UDC_P_ENABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB3, 1);
+		s3c2410_gpio_setpin(S3C2410_GPB(3), 1);
 		break;
 	case S3C2410_UDC_P_DISABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB3, 0);
+		s3c2410_gpio_setpin(S3C2410_GPB(3), 0);
 		break;
 	case S3C2410_UDC_P_RESET :
 		break;
@@ -99,55 +100,55 @@ static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 
 static struct s3c2410_udc_mach_info n30_udc_cfg __initdata = {
 	.udc_command		= n30_udc_pullup,
-	.vbus_pin		= S3C2410_GPG1,
+	.vbus_pin		= S3C2410_GPG(1),
 	.vbus_pin_inverted	= 0,
 };
 
 static struct gpio_keys_button n30_buttons[] = {
 	{
-		.gpio		= S3C2410_GPF0,
+		.gpio		= S3C2410_GPF(0),
 		.code		= KEY_POWER,
 		.desc		= "Power",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG9,
+		.gpio		= S3C2410_GPG(9),
 		.code		= KEY_UP,
 		.desc		= "Thumbwheel Up",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG8,
+		.gpio		= S3C2410_GPG(8),
 		.code		= KEY_DOWN,
 		.desc		= "Thumbwheel Down",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG7,
+		.gpio		= S3C2410_GPG(7),
 		.code		= KEY_ENTER,
 		.desc		= "Thumbwheel Press",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF7,
+		.gpio		= S3C2410_GPF(7),
 		.code		= KEY_HOMEPAGE,
 		.desc		= "Home",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF6,
+		.gpio		= S3C2410_GPF(6),
 		.code		= KEY_CALENDAR,
 		.desc		= "Calendar",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF5,
+		.gpio		= S3C2410_GPF(5),
 		.code		= KEY_ADDRESSBOOK,
 		.desc		= "Contacts",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF4,
+		.gpio		= S3C2410_GPF(4),
 		.code		= KEY_MAIL,
 		.desc		= "Mail",
 		.active_low	= 0,
@@ -169,73 +170,73 @@ static struct platform_device n30_button_device = {
 
 static struct gpio_keys_button n35_buttons[] = {
 	{
-		.gpio		= S3C2410_GPF0,
+		.gpio		= S3C2410_GPF(0),
 		.code		= KEY_POWER,
 		.desc		= "Power",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG9,
+		.gpio		= S3C2410_GPG(9),
 		.code		= KEY_UP,
 		.desc		= "Joystick Up",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG8,
+		.gpio		= S3C2410_GPG(8),
 		.code		= KEY_DOWN,
 		.desc		= "Joystick Down",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG6,
+		.gpio		= S3C2410_GPG(6),
 		.code		= KEY_DOWN,
 		.desc		= "Joystick Left",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG5,
+		.gpio		= S3C2410_GPG(5),
 		.code		= KEY_DOWN,
 		.desc		= "Joystick Right",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG7,
+		.gpio		= S3C2410_GPG(7),
 		.code		= KEY_ENTER,
 		.desc		= "Joystick Press",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF7,
+		.gpio		= S3C2410_GPF(7),
 		.code		= KEY_HOMEPAGE,
 		.desc		= "Home",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF6,
+		.gpio		= S3C2410_GPF(6),
 		.code		= KEY_CALENDAR,
 		.desc		= "Calendar",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF5,
+		.gpio		= S3C2410_GPF(5),
 		.code		= KEY_ADDRESSBOOK,
 		.desc		= "Contacts",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF4,
+		.gpio		= S3C2410_GPF(4),
 		.code		= KEY_MAIL,
 		.desc		= "Mail",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPF3,
+		.gpio		= S3C2410_GPF(3),
 		.code		= SW_RADIO,
 		.desc		= "GPS Antenna",
 		.active_low	= 0,
 	},
 	{
-		.gpio		= S3C2410_GPG2,
+		.gpio		= S3C2410_GPG(2),
 		.code		= SW_HEADPHONE_INSERT,
 		.desc		= "Headphone",
 		.active_low	= 0,
@@ -259,7 +260,7 @@ static struct platform_device n35_button_device = {
 /* This is the bluetooth LED on the device. */
 static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 	.name		= "blue_led",
-	.gpio		= S3C2410_GPG6,
+	.gpio		= S3C2410_GPG(6),
 	.def_trigger	= "",
 };
 
@@ -270,7 +271,7 @@ static struct s3c24xx_led_platdata n30_blue_led_pdata = {
 static struct s3c24xx_led_platdata n30_warning_led_pdata = {
 	.name		= "warning_led",
 	.flags          = S3C24XX_LEDF_ACTLOW,
-	.gpio		= S3C2410_GPD9,
+	.gpio		= S3C2410_GPD(9),
 	.def_trigger	= "",
 };
 

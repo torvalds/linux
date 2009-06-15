@@ -7,7 +7,7 @@ menuconfig CONNECTOR
 	  of the netlink socket protocol.
 
 	  Connector support can also be built as a module.  If so, the module
-	  will be called cn.ko.
+	  will be called cn.
 
 if CONNECTOR
 

@@ -758,6 +758,6 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
 
 
 asmlinkage long sys_perf_counter_open(
-		const struct perf_counter_attr __user *attr_uptr,
+		struct perf_counter_attr __user *attr_uptr,
 		pid_t pid, int cpu, int group_fd, unsigned long flags);
 #endif

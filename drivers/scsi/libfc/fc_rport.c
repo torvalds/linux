@@ -478,7 +478,7 @@ static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
 		return fc_rport_error(rport, fp);
 
-	if (rdata->retries < rdata->local_port->max_retry_count) {
+	if (rdata->retries < rdata->local_port->max_rport_retry_count) {
 		FC_DEBUG_RPORT("Error %ld in state %s, retrying\n",
 			       PTR_ERR(fp), fc_rport_state(rport));
 		rdata->retries++;
@@ -1330,7 +1330,7 @@ int fc_rport_init(struct fc_lport *lport)
 }
 EXPORT_SYMBOL(fc_rport_init);
 
-int fc_setup_rport()
+int fc_setup_rport(void)
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
@@ -1339,7 +1339,7 @@ int fc_setup_rport()
 }
 EXPORT_SYMBOL(fc_setup_rport);
 
-void fc_destroy_rport()
+void fc_destroy_rport(void)
 {
 	destroy_workqueue(rport_event_queue);
 }

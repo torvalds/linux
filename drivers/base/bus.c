@@ -279,7 +279,7 @@ static struct device *next_device(struct klist_iter *i)
  *
  * NOTE: The device that returns a non-zero value is not retained
  * in any way, nor is its refcount incremented. If the caller needs
- * to retain this data, it should do, and increment the reference
+ * to retain this data, it should do so, and increment the reference
  * count in the supplied callback.
  */
 int bus_for_each_dev(struct bus_type *bus, struct device *start,

@@ -24,6 +24,12 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/smsc911x.h>
+
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+#include <linux/mfd/wm8350/core.h>
+#include <linux/mfd/wm8350/pmic.h>
+#endif
 
 #include <video/platform_lcd.h>
 
@@ -39,8 +45,12 @@
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
+#include <plat/regs-modem.h>
+#include <plat/regs-gpio.h>
+#include <plat/regs-sys.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
+#include <plat/gpio-cfg.h>
 
 #include <plat/s3c6410.h>
 #include <plat/clock.h>
@@ -129,6 +139,37 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+static struct resource smdk6410_smsc911x_resources[] = {
+	[0] = {
+		.start = 0x18000000,
+		.end   = 0x18000000 + SZ_64K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = S3C_EINT(10),
+		.end   = S3C_EINT(10),
+		.flags = IORESOURCE_IRQ | IRQ_TYPE_LEVEL_LOW,
+	},
+};
+
+static struct smsc911x_platform_config smdk6410_smsc911x_pdata = {
+	.irq_polarity  = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type      = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags         = SMSC911X_USE_32BIT | SMSC911X_FORCE_INTERNAL_PHY,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
+};
+
+
+static struct platform_device smdk6410_smsc911x = {
+	.name          = "smsc911x",
+	.id            = -1,
+	.num_resources = ARRAY_SIZE(smdk6410_smsc911x_resources),
+	.resource      = &smdk6410_smsc911x_resources[0],
+	.dev = {
+		.platform_data = &smdk6410_smsc911x_pdata,
+	},
+};
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -141,12 +182,155 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_fb,
+	&s3c_device_usb,
+	&s3c_device_usb_hsotg,
 	&smdk6410_lcd_powerdev,
+
+	&smdk6410_smsc911x,
 };
+
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+/* S3C64xx internal logic & PLL */
+static struct regulator_init_data wm8350_dcdc1_data = {
+	.constraints = {
+		.name = "PVDD_INT/PVDD_PLL",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.always_on = 1,
+		.apply_uV = 1,
+	},
+};
+
+/* Memory */
+static struct regulator_init_data wm8350_dcdc3_data = {
+	.constraints = {
+		.name = "PVDD_MEM",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.always_on = 1,
+		.state_mem = {
+			 .uV = 1800000,
+			 .mode = REGULATOR_MODE_NORMAL,
+			 .enabled = 1,
+		 },
+		.initial_state = PM_SUSPEND_MEM,
+	},
+};
+
+/* USB, EXT, PCM, ADC/DAC, USB, MMC */
+static struct regulator_init_data wm8350_dcdc4_data = {
+	.constraints = {
+		.name = "PVDD_HI/PVDD_EXT/PVDD_SYS/PVCCM2MTV",
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+		.always_on = 1,
+	},
+};
+
+/* ARM core */
+static struct regulator_consumer_supply dcdc6_consumers[] = {
+	{
+		.supply = "vddarm",
+	}
+};
+
+static struct regulator_init_data wm8350_dcdc6_data = {
+	.constraints = {
+		.name = "PVDD_ARM",
+		.min_uV = 1000000,
+		.max_uV = 1300000,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(dcdc6_consumers),
+	.consumer_supplies = dcdc6_consumers,
+};
+
+/* Alive */
+static struct regulator_init_data wm8350_ldo1_data = {
+	.constraints = {
+		.name = "PVDD_ALIVE",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.always_on = 1,
+		.apply_uV = 1,
+	},
+};
+
+/* OTG */
+static struct regulator_init_data wm8350_ldo2_data = {
+	.constraints = {
+		.name = "PVDD_OTG",
+		.min_uV = 3300000,
+		.max_uV = 3300000,
+		.always_on = 1,
+	},
+};
+
+/* LCD */
+static struct regulator_init_data wm8350_ldo3_data = {
+	.constraints = {
+		.name = "PVDD_LCD",
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+		.always_on = 1,
+	},
+};
+
+/* OTGi/1190-EV1 HPVDD & AVDD */
+static struct regulator_init_data wm8350_ldo4_data = {
+	.constraints = {
+		.name = "PVDD_OTGI/HPVDD/AVDD",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.apply_uV = 1,
+		.always_on = 1,
+	},
+};
+
+static struct {
+	int regulator;
+	struct regulator_init_data *initdata;
+} wm1190_regulators[] = {
+	{ WM8350_DCDC_1, &wm8350_dcdc1_data },
+	{ WM8350_DCDC_3, &wm8350_dcdc3_data },
+	{ WM8350_DCDC_4, &wm8350_dcdc4_data },
+	{ WM8350_DCDC_6, &wm8350_dcdc6_data },
+	{ WM8350_LDO_1, &wm8350_ldo1_data },
+	{ WM8350_LDO_2, &wm8350_ldo2_data },
+	{ WM8350_LDO_3, &wm8350_ldo3_data },
+	{ WM8350_LDO_4, &wm8350_ldo4_data },
+};
+
+static int __init smdk6410_wm8350_init(struct wm8350 *wm8350)
+{
+	int i;
+
+	/* Instantiate the regulators */
+	for (i = 0; i < ARRAY_SIZE(wm1190_regulators); i++)
+		wm8350_register_regulator(wm8350,
+					  wm1190_regulators[i].regulator,
+					  wm1190_regulators[i].initdata);
+
+	return 0;
+}
+
+static struct wm8350_platform_data __initdata smdk6410_wm8350_pdata = {
+	.init = smdk6410_wm8350_init,
+	.irq_high = 1,
+};
+#endif
 
 static struct i2c_board_info i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },
 	{ I2C_BOARD_INFO("wm8580", 0x1b), },
+
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+	{ I2C_BOARD_INFO("wm8350", 0x1a),
+	  .platform_data = &smdk6410_wm8350_pdata,
+	  .irq = S3C_EINT(12),
+	},
+#endif
 };
 
 static struct i2c_board_info i2c_devs1[] __initdata = {
@@ -155,9 +339,23 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 
 static void __init smdk6410_map_io(void)
 {
+	u32 tmp;
+
 	s3c64xx_init_io(smdk6410_iodesc, ARRAY_SIZE(smdk6410_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk6410_uartcfgs, ARRAY_SIZE(smdk6410_uartcfgs));
+
+	/* set the LCD type */
+
+	tmp = __raw_readl(S3C64XX_SPCON);
+	tmp &= ~S3C64XX_SPCON_LCD_SEL_MASK;
+	tmp |= S3C64XX_SPCON_LCD_SEL_RGB;
+	__raw_writel(tmp, S3C64XX_SPCON);
+
+	/* remove the lcd bypass */
+	tmp = __raw_readl(S3C64XX_MODEM_MIFPCON);
+	tmp &= ~MIFPCON_LCD_BYPASS;
+	__raw_writel(tmp, S3C64XX_MODEM_MIFPCON);
 }
 
 static void __init smdk6410_machine_init(void)

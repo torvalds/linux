@@ -345,9 +345,11 @@ static void lm4857_write_regs(void)
 static int lm4857_get_reg(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	int reg = kcontrol->private_value & 0xFF;
-	int shift = (kcontrol->private_value >> 8) & 0x0F;
-	int mask = (kcontrol->private_value >> 16) & 0xFF;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int reg = mc->reg;
+	int shift = mc->shift;
+	int mask = mc->max;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -358,9 +360,11 @@ static int lm4857_get_reg(struct snd_kcontrol *kcontrol,
 static int lm4857_set_reg(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	int reg = kcontrol->private_value & 0xFF;
-	int shift = (kcontrol->private_value >> 8) & 0x0F;
-	int mask = (kcontrol->private_value >> 16) & 0xFF;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int reg = mc->reg;
+	int shift = mc->shift;
+	int mask = mc->max;
 
 	if (((lm4857_regs[reg] >> shift) & mask) ==
 		ucontrol->value.integer.value[0])

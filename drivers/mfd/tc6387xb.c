@@ -75,6 +75,10 @@ static int tc6387xb_mmc_disable(struct platform_device *mmc)
 
 /*--------------------------------------------------------------------------*/
 
+const static struct tmio_mmc_data tc6387xb_mmc_data = {
+	.hclk = 24000000,
+};
+
 static struct resource tc6387xb_mmc_resources[] = {
 	{
 		.start = 0x800,
@@ -98,6 +102,7 @@ static struct mfd_cell tc6387xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = tc6387xb_mmc_enable,
 		.disable = tc6387xb_mmc_disable,
+		.driver_data = &tc6387xb_mmc_data,
 		.num_resources = ARRAY_SIZE(tc6387xb_mmc_resources),
 		.resources = tc6387xb_mmc_resources,
 	},

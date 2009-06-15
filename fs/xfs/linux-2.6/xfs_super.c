@@ -43,7 +43,6 @@
 #include "xfs_itable.h"
 #include "xfs_fsops.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -404,6 +403,14 @@ xfs_parseargs(
 	"XFS: sunit and swidth options incompatible with the noalign option");
 		return EINVAL;
 	}
+
+#ifndef CONFIG_XFS_QUOTA
+	if (XFS_IS_QUOTA_RUNNING(mp)) {
+		cmn_err(CE_WARN,
+			"XFS: quota support not available in this kernel.");
+		return EINVAL;
+	}
+#endif
 
 	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
 	    (mp->m_qflags & (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE))) {
@@ -1063,7 +1070,18 @@ xfs_fs_put_super(
 	int			unmount_event_flags = 0;
 
 	xfs_syncd_stop(mp);
-	xfs_sync_inodes(mp, SYNC_ATTR|SYNC_DELWRI);
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		/*
+		 * XXX(hch): this should be SYNC_WAIT.
+		 *
+		 * Or more likely not needed at all because the VFS is already
+		 * calling ->sync_fs after shutting down all filestem
+		 * operations and just before calling ->put_super.
+		 */
+		xfs_sync_data(mp, 0);
+		xfs_sync_attr(mp, 0);
+	}
 
 #ifdef HAVE_DMAPI
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
@@ -1098,7 +1116,6 @@ xfs_fs_put_super(
 	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
-	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
 	xfs_free_fsname(mp);
 	kfree(mp);
@@ -1158,6 +1175,7 @@ xfs_fs_statfs(
 {
 	struct xfs_mount	*mp = XFS_M(dentry->d_sb);
 	xfs_sb_t		*sbp = &mp->m_sb;
+	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
 	__uint64_t		fakeinos, id;
 	xfs_extlen_t		lsize;
 
@@ -1186,7 +1204,10 @@ xfs_fs_statfs(
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
 	spin_unlock(&mp->m_sb_lock);
 
-	XFS_QM_DQSTATVFS(XFS_I(dentry->d_inode), statp);
+	if ((ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) ||
+	    ((mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))) ==
+			      (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))
+		xfs_qm_statvfs(ip, statp);
 	return 0;
 }
 
@@ -1394,16 +1415,13 @@ xfs_fs_fill_super(
 	error = xfs_dmops_get(mp);
 	if (error)
 		goto out_free_fsname;
-	error = xfs_qmops_get(mp);
-	if (error)
-		goto out_put_dmops;
 
 	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
 	error = xfs_open_devices(mp);
 	if (error)
-		goto out_put_qmops;
+		goto out_put_dmops;
 
 	if (xfs_icsb_init_counters(mp))
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
@@ -1471,8 +1489,6 @@ xfs_fs_fill_super(
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
- out_put_qmops:
-	xfs_qmops_put(mp);
  out_put_dmops:
 	xfs_dmops_put(mp);
  out_free_fsname:
@@ -1706,18 +1722,8 @@ xfs_init_zones(void)
 	if (!xfs_ili_zone)
 		goto out_destroy_inode_zone;
 
-#ifdef CONFIG_XFS_POSIX_ACL
-	xfs_acl_zone = kmem_zone_init(sizeof(xfs_acl_t), "xfs_acl");
-	if (!xfs_acl_zone)
-		goto out_destroy_ili_zone;
-#endif
-
 	return 0;
 
-#ifdef CONFIG_XFS_POSIX_ACL
- out_destroy_ili_zone:
-#endif
-	kmem_zone_destroy(xfs_ili_zone);
  out_destroy_inode_zone:
 	kmem_zone_destroy(xfs_inode_zone);
  out_destroy_efi_zone:
@@ -1751,9 +1757,6 @@ xfs_init_zones(void)
 STATIC void
 xfs_destroy_zones(void)
 {
-#ifdef CONFIG_XFS_POSIX_ACL
-	kmem_zone_destroy(xfs_acl_zone);
-#endif
 	kmem_zone_destroy(xfs_ili_zone);
 	kmem_zone_destroy(xfs_inode_zone);
 	kmem_zone_destroy(xfs_efi_zone);

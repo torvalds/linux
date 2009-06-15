@@ -30,6 +30,8 @@
 #include "i915_drv.h"
 #include "intel_bios.h"
 
+#define	SLAVE_ADDR1	0x70
+#define	SLAVE_ADDR2	0x72
 
 static void *
 find_section(struct bdb_header *bdb, int section_id)
@@ -193,6 +195,88 @@ parse_general_features(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void
+parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
+		       struct bdb_header *bdb)
+{
+	struct sdvo_device_mapping *p_mapping;
+	struct bdb_general_definitions *p_defs;
+	struct child_device_config *p_child;
+	int i, child_device_num, count;
+	u16	block_size, *block_ptr;
+
+	p_defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
+	if (!p_defs) {
+		DRM_DEBUG("No general definition block is found\n");
+		return;
+	}
+	/* judge whether the size of child device meets the requirements.
+	 * If the child device size obtained from general definition block
+	 * is different with sizeof(struct child_device_config), skip the
+	 * parsing of sdvo device info
+	 */
+	if (p_defs->child_dev_size != sizeof(*p_child)) {
+		/* different child dev size . Ignore it */
+		DRM_DEBUG("different child size is found. Invalid.\n");
+		return;
+	}
+	/* get the block size of general definitions */
+	block_ptr = (u16 *)((char *)p_defs - 2);
+	block_size = *block_ptr;
+	/* get the number of child device */
+	child_device_num = (block_size - sizeof(*p_defs)) /
+				sizeof(*p_child);
+	count = 0;
+	for (i = 0; i < child_device_num; i++) {
+		p_child = &(p_defs->devices[i]);
+		if (!p_child->device_type) {
+			/* skip the device block if device type is invalid */
+			continue;
+		}
+		if (p_child->slave_addr != SLAVE_ADDR1 &&
+			p_child->slave_addr != SLAVE_ADDR2) {
+			/*
+			 * If the slave address is neither 0x70 nor 0x72,
+			 * it is not a SDVO device. Skip it.
+			 */
+			continue;
+		}
+		if (p_child->dvo_port != DEVICE_PORT_DVOB &&
+			p_child->dvo_port != DEVICE_PORT_DVOC) {
+			/* skip the incorrect SDVO port */
+			DRM_DEBUG("Incorrect SDVO port. Skip it \n");
+			continue;
+		}
+		DRM_DEBUG("the SDVO device with slave addr %2x is found on "
+				"%s port\n",
+				p_child->slave_addr,
+				(p_child->dvo_port == DEVICE_PORT_DVOB) ?
+					"SDVOB" : "SDVOC");
+		p_mapping = &(dev_priv->sdvo_mappings[p_child->dvo_port - 1]);
+		if (!p_mapping->initialized) {
+			p_mapping->dvo_port = p_child->dvo_port;
+			p_mapping->slave_addr = p_child->slave_addr;
+			p_mapping->dvo_wiring = p_child->dvo_wiring;
+			p_mapping->initialized = 1;
+		} else {
+			DRM_DEBUG("Maybe one SDVO port is shared by "
+					 "two SDVO device.\n");
+		}
+		if (p_child->slave2_addr) {
+			/* Maybe this is a SDVO device with multiple inputs */
+			/* And the mapping info is not added */
+			DRM_DEBUG("there exists the slave2_addr. Maybe this "
+				"is a SDVO device with multiple inputs.\n");
+		}
+		count++;
+	}
+
+	if (!count) {
+		/* No SDVO device info is found */
+		DRM_DEBUG("No SDVO device info is found in VBT\n");
+	}
+	return;
+}
 /**
  * intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
@@ -242,7 +326,7 @@ intel_init_bios(struct drm_device *dev)
 	parse_general_features(dev_priv, bdb);
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
-
+	parse_sdvo_device_mapping(dev_priv, bdb);
 	pci_unmap_rom(pdev, bios);
 
 	return 0;

@@ -3570,12 +3570,8 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 	if (attr->inherit && (attr->sample_type & PERF_SAMPLE_GROUP))
 		goto done;
 
-	if (attr->type == PERF_TYPE_RAW) {
-		pmu = hw_perf_counter_init(counter);
-		goto done;
-	}
-
 	switch (attr->type) {
+	case PERF_TYPE_RAW:
 	case PERF_TYPE_HARDWARE:
 	case PERF_TYPE_HW_CACHE:
 		pmu = hw_perf_counter_init(counter);
@@ -3587,6 +3583,9 @@ perf_counter_alloc(struct perf_counter_attr *attr,
 
 	case PERF_TYPE_TRACEPOINT:
 		pmu = tp_perf_counter_init(counter);
+		break;
+
+	default:
 		break;
 	}
 done:
@@ -3614,6 +3613,85 @@ done:
 	return counter;
 }
 
+static int perf_copy_attr(struct perf_counter_attr __user *uattr,
+			  struct perf_counter_attr *attr)
+{
+	int ret;
+	u32 size;
+
+	if (!access_ok(VERIFY_WRITE, uattr, PERF_ATTR_SIZE_VER0))
+		return -EFAULT;
+
+	/*
+	 * zero the full structure, so that a short copy will be nice.
+	 */
+	memset(attr, 0, sizeof(*attr));
+
+	ret = get_user(size, &uattr->size);
+	if (ret)
+		return ret;
+
+	if (size > PAGE_SIZE)	/* silly large */
+		goto err_size;
+
+	if (!size)		/* abi compat */
+		size = PERF_ATTR_SIZE_VER0;
+
+	if (size < PERF_ATTR_SIZE_VER0)
+		goto err_size;
+
+	/*
+	 * If we're handed a bigger struct than we know of,
+	 * ensure all the unknown bits are 0.
+	 */
+	if (size > sizeof(*attr)) {
+		unsigned long val;
+		unsigned long __user *addr;
+		unsigned long __user *end;
+
+		addr = PTR_ALIGN((void __user *)uattr + sizeof(*attr),
+				sizeof(unsigned long));
+		end  = PTR_ALIGN((void __user *)uattr + size,
+				sizeof(unsigned long));
+
+		for (; addr < end; addr += sizeof(unsigned long)) {
+			ret = get_user(val, addr);
+			if (ret)
+				return ret;
+			if (val)
+				goto err_size;
+		}
+	}
+
+	ret = copy_from_user(attr, uattr, size);
+	if (ret)
+		return -EFAULT;
+
+	/*
+	 * If the type exists, the corresponding creation will verify
+	 * the attr->config.
+	 */
+	if (attr->type >= PERF_TYPE_MAX)
+		return -EINVAL;
+
+	if (attr->__reserved_1 || attr->__reserved_2 || attr->__reserved_3)
+		return -EINVAL;
+
+	if (attr->sample_type & ~(PERF_SAMPLE_MAX-1))
+		return -EINVAL;
+
+	if (attr->read_format & ~(PERF_FORMAT_MAX-1))
+		return -EINVAL;
+
+out:
+	return ret;
+
+err_size:
+	put_user(sizeof(*attr), &uattr->size);
+	ret = -E2BIG;
+	goto out;
+}
+
 /**
  * sys_perf_counter_open - open a performance counter, associate it to a task/cpu
  *
@@ -3623,7 +3701,7 @@ done:
  * @group_fd:		group leader counter fd
  */
 SYSCALL_DEFINE5(perf_counter_open,
-		const struct perf_counter_attr __user *, attr_uptr,
+		struct perf_counter_attr __user *, attr_uptr,
 		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
 {
 	struct perf_counter *counter, *group_leader;
@@ -3639,8 +3717,9 @@ SYSCALL_DEFINE5(perf_counter_open,
 	if (flags)
 		return -EINVAL;
 
-	if (copy_from_user(&attr, attr_uptr, sizeof(attr)) != 0)
-		return -EFAULT;
+	ret = perf_copy_attr(attr_uptr, &attr);
+	if (ret)
+		return ret;
 
 	if (!attr.exclude_kernel) {
 		if (perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))

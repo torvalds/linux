@@ -719,8 +719,6 @@ static void gfs2_put_super(struct super_block *sb)
 	int error;
 	struct gfs2_jdesc *jd;
 
-	lock_kernel();
-
 	/*  Unfreeze the filesystem, if we need to  */
 
 	mutex_lock(&sdp->sd_freeze_lock);
@@ -787,8 +785,6 @@ restart:
 
 	/*  At this point, we're through participating in the lockspace  */
 	gfs2_sys_fs_del(sdp);
-
-	unlock_kernel();
 }
 
 /**

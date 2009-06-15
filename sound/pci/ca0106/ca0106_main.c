@@ -1319,7 +1319,6 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
         }
 
 	pcm->info_flags = 0;
-	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "CA0106");
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 

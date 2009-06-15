@@ -62,8 +62,6 @@ struct bus_type {
 	void (*shutdown)(struct device *dev);
 
 	int (*suspend)(struct device *dev, pm_message_t state);
-	int (*suspend_late)(struct device *dev, pm_message_t state);
-	int (*resume_early)(struct device *dev);
 	int (*resume)(struct device *dev);
 
 	struct dev_pm_ops *pm;
@@ -290,9 +288,6 @@ struct device_type {
 	struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
 	void (*release)(struct device *dev);
-
-	int (*suspend)(struct device *dev, pm_message_t state);
-	int (*resume)(struct device *dev);
 
 	struct dev_pm_ops *pm;
 };

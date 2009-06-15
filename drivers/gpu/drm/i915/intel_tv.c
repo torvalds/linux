@@ -1392,6 +1392,9 @@ intel_tv_detect_type (struct drm_crtc *crtc, struct intel_output *intel_output)
 		tv_ctl &= ~TV_TEST_MODE_MASK;
 		tv_ctl |= TV_TEST_MODE_MONITOR_DETECT;
 		tv_dac &= ~TVDAC_SENSE_MASK;
+		tv_dac &= ~DAC_A_MASK;
+		tv_dac &= ~DAC_B_MASK;
+		tv_dac &= ~DAC_C_MASK;
 		tv_dac |= (TVDAC_STATE_CHG_EN |
 			   TVDAC_A_SENSE_CTL |
 			   TVDAC_B_SENSE_CTL |

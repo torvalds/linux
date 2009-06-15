@@ -277,11 +277,14 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 	}
 }
 
-static void fuse_put_super(struct super_block *sb)
+static void fuse_bdi_destroy(struct fuse_conn *fc)
 {
-	struct fuse_conn *fc = get_fuse_conn_super(sb);
+	if (fc->bdi_initialized)
+		bdi_destroy(&fc->bdi);
+}
 
-	fuse_send_destroy(fc);
+void fuse_conn_kill(struct fuse_conn *fc)
+{
 	spin_lock(&fc->lock);
 	fc->connected = 0;
 	fc->blocked = 0;
@@ -295,7 +298,16 @@ static void fuse_put_super(struct super_block *sb)
 	list_del(&fc->entry);
 	fuse_ctl_remove_conn(fc);
 	mutex_unlock(&fuse_mutex);
-	bdi_destroy(&fc->bdi);
+	fuse_bdi_destroy(fc);
+}
+EXPORT_SYMBOL_GPL(fuse_conn_kill);
+
+static void fuse_put_super(struct super_block *sb)
+{
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
+
+	fuse_send_destroy(fc);
+	fuse_conn_kill(fc);
 	fuse_conn_put(fc);
 }
 
@@ -466,10 +478,8 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
-int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb)
+void fuse_conn_init(struct fuse_conn *fc)
 {
-	int err;
-
 	memset(fc, 0, sizeof(*fc));
 	spin_lock_init(&fc->lock);
 	mutex_init(&fc->inst_mutex);
@@ -484,49 +494,12 @@ int fuse_conn_init(struct fuse_conn *fc, struct super_block *sb)
 	INIT_LIST_HEAD(&fc->bg_queue);
 	INIT_LIST_HEAD(&fc->entry);
 	atomic_set(&fc->num_waiting, 0);
-	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
-	fc->bdi.unplug_io_fn = default_unplug_io_fn;
-	/* fuse does it's own writeback accounting */
-	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
-	fc->dev = sb->s_dev;
-	err = bdi_init(&fc->bdi);
-	if (err)
-		goto error_mutex_destroy;
-	if (sb->s_bdev) {
-		err = bdi_register(&fc->bdi, NULL, "%u:%u-fuseblk",
-				   MAJOR(fc->dev), MINOR(fc->dev));
-	} else {
-		err = bdi_register_dev(&fc->bdi, fc->dev);
-	}
-	if (err)
-		goto error_bdi_destroy;
-	/*
-	 * For a single fuse filesystem use max 1% of dirty +
-	 * writeback threshold.
-	 *
-	 * This gives about 1M of write buffer for memory maps on a
-	 * machine with 1G and 10% dirty_ratio, which should be more
-	 * than enough.
-	 *
-	 * Privileged users can raise it by writing to
-	 *
-	 *    /sys/class/bdi/<bdi>/max_ratio
-	 */
-	bdi_set_max_ratio(&fc->bdi, 1);
 	fc->reqctr = 0;
 	fc->blocked = 1;
 	fc->attr_version = 1;
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
-
-	return 0;
-
- error_bdi_destroy:
-	bdi_destroy(&fc->bdi);
- error_mutex_destroy:
-	mutex_destroy(&fc->inst_mutex);
-	return err;
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -539,12 +512,14 @@ void fuse_conn_put(struct fuse_conn *fc)
 		fc->release(fc);
 	}
 }
+EXPORT_SYMBOL_GPL(fuse_conn_put);
 
 struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 {
 	atomic_inc(&fc->count);
 	return fc;
 }
+EXPORT_SYMBOL_GPL(fuse_conn_get);
 
 static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
 {
@@ -797,6 +772,48 @@ static void fuse_free_conn(struct fuse_conn *fc)
 	kfree(fc);
 }
 
+static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
+{
+	int err;
+
+	fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	fc->bdi.unplug_io_fn = default_unplug_io_fn;
+	/* fuse does it's own writeback accounting */
+	fc->bdi.capabilities = BDI_CAP_NO_ACCT_WB;
+
+	err = bdi_init(&fc->bdi);
+	if (err)
+		return err;
+
+	fc->bdi_initialized = 1;
+
+	if (sb->s_bdev) {
+		err =  bdi_register(&fc->bdi, NULL, "%u:%u-fuseblk",
+				    MAJOR(fc->dev), MINOR(fc->dev));
+	} else {
+		err = bdi_register_dev(&fc->bdi, fc->dev);
+	}
+
+	if (err)
+		return err;
+
+	/*
+	 * For a single fuse filesystem use max 1% of dirty +
+	 * writeback threshold.
+	 *
+	 * This gives about 1M of write buffer for memory maps on a
+	 * machine with 1G and 10% dirty_ratio, which should be more
+	 * than enough.
+	 *
+	 * Privileged users can raise it by writing to
+	 *
+	 *    /sys/class/bdi/<bdi>/max_ratio
+	 */
+	bdi_set_max_ratio(&fc->bdi, 1);
+
+	return 0;
+}
+
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct fuse_conn *fc;
@@ -843,11 +860,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (!fc)
 		goto err_fput;
 
-	err = fuse_conn_init(fc, sb);
-	if (err) {
-		kfree(fc);
-		goto err_fput;
-	}
+	fuse_conn_init(fc);
+
+	fc->dev = sb->s_dev;
+	err = fuse_bdi_init(fc, sb);
+	if (err)
+		goto err_put_conn;
 
 	fc->release = fuse_free_conn;
 	fc->flags = d.flags;
@@ -911,7 +929,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
  err_put_root:
 	dput(root_dentry);
  err_put_conn:
-	bdi_destroy(&fc->bdi);
+	fuse_bdi_destroy(fc);
 	fuse_conn_put(fc);
  err_fput:
 	fput(file);

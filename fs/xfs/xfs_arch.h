@@ -73,28 +73,6 @@ static inline void be64_add_cpu(__be64 *a, __s64 b)
 
 #endif	/* __KERNEL__ */
 
-/* do we need conversion? */
-#define ARCH_NOCONVERT 1
-#ifdef XFS_NATIVE_HOST
-# define ARCH_CONVERT	ARCH_NOCONVERT
-#else
-# define ARCH_CONVERT	0
-#endif
-
-/* generic swapping macros */
-
-#ifndef HAVE_SWABMACROS
-#define INT_SWAP16(type,var) ((typeof(type))(__swab16((__u16)(var))))
-#define INT_SWAP32(type,var) ((typeof(type))(__swab32((__u32)(var))))
-#define INT_SWAP64(type,var) ((typeof(type))(__swab64((__u64)(var))))
-#endif
-
-#define INT_SWAP(type, var) \
-    ((sizeof(type) == 8) ? INT_SWAP64(type,var) : \
-    ((sizeof(type) == 4) ? INT_SWAP32(type,var) : \
-    ((sizeof(type) == 2) ? INT_SWAP16(type,var) : \
-    (var))))
-
 /*
  * get and set integers from potentially unaligned locations
  */
@@ -106,16 +84,6 @@ static inline void be64_add_cpu(__be64 *a, __s64 b)
 	((__u8*)(pointer))[0] = (((value) >> 8) & 0xff); \
 	((__u8*)(pointer))[1] = (((value)     ) & 0xff); \
     }
-
-/* does not return a value */
-#define INT_SET(reference,arch,valueref) \
-    (__builtin_constant_p(valueref) ? \
-	(void)( (reference) = ( ((arch) != ARCH_NOCONVERT) ? (INT_SWAP((reference),(valueref))) : (valueref)) ) : \
-	(void)( \
-	    ((reference) = (valueref)), \
-	    ( ((arch) != ARCH_NOCONVERT) ? (reference) = INT_SWAP((reference),(reference)) : 0 ) \
-	) \
-    )
 
 /*
  * In directories inode numbers are stored as unaligned arrays of unsigned

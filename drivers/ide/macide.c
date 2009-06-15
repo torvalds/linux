@@ -62,7 +62,7 @@ int macide_ack_intr(ide_hwif_t* hwif)
 	return 0;
 }
 
-static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
+static void __init macide_setup_ports(struct ide_hw *hw, unsigned long base,
 				      int irq, ide_ack_intr_t *ack_intr)
 {
 	int i;
@@ -76,13 +76,12 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
-
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info macide_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_generic,
 };
 
 static const char *mac_ide_name[] =
@@ -97,7 +96,7 @@ static int __init macide_init(void)
 	ide_ack_intr_t *ack_intr;
 	unsigned long base;
 	int irq;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
@@ -127,7 +126,7 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	return ide_host_add(&macide_port_info, hws, NULL);
+	return ide_host_add(&macide_port_info, hws, 1, NULL);
 }
 
 module_init(macide_init);

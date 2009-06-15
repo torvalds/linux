@@ -126,6 +126,13 @@ struct drm_i915_fence_reg {
 	struct drm_gem_object *obj;
 };
 
+struct sdvo_device_mapping {
+	u8 dvo_port;
+	u8 slave_addr;
+	u8 dvo_wiring;
+	u8 initialized;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -143,6 +150,8 @@ typedef struct drm_i915_private {
 	drm_local_map_t hws_map;
 	struct drm_gem_object *hws_obj;
 
+	struct resource mch_res;
+
 	unsigned int cpp;
 	int back_offset;
 	int front_offset;
@@ -158,6 +167,11 @@ typedef struct drm_i915_private {
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
 	u32 pipestat[2];
+	/** splitted irq regs for graphics and display engine on IGDNG,
+	    irq_mask_reg is still used for display irq. */
+	u32 gt_irq_mask_reg;
+	u32 gt_irq_enable_reg;
+	u32 de_irq_enable_reg;
 
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
@@ -285,6 +299,13 @@ typedef struct drm_i915_private {
 	u8 saveDACMASK;
 	u8 saveCR[37];
 	uint64_t saveFENCE[16];
+	u32 saveCURACNTR;
+	u32 saveCURAPOS;
+	u32 saveCURABASE;
+	u32 saveCURBCNTR;
+	u32 saveCURBPOS;
+	u32 saveCURBBASE;
+	u32 saveCURSIZE;
 
 	struct {
 		struct drm_mm gtt_space;
@@ -382,6 +403,7 @@ typedef struct drm_i915_private {
 		/* storage for physical objects */
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
+	struct sdvo_device_mapping sdvo_mappings[2];
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
@@ -491,13 +513,16 @@ struct drm_i915_gem_request {
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
+	/** global list entry for this request */
 	struct list_head list;
+
+	/** file_priv list entry for this request */
+	struct list_head client_list;
 };
 
 struct drm_i915_file_private {
 	struct {
-		uint32_t last_gem_seqno;
-		uint32_t last_gem_throttle_seqno;
+		struct list_head request_list;
 	} mm;
 };
 
@@ -642,6 +667,7 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
+void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -785,7 +811,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
 		       (dev)->pci_device == 0x2E22 || \
-		       (dev)->pci_device == 0x2E32)
+		       (dev)->pci_device == 0x2E32 || \
+		       (dev)->pci_device == 0x0042 || \
+		       (dev)->pci_device == 0x0046)
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
 			(dev)->pci_device == 0x2A12)
@@ -807,20 +835,26 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			(dev)->pci_device == 0x29D2 ||  \
 			(IS_IGD(dev)))
 
+#define IS_IGDNG_D(dev)	((dev)->pci_device == 0x0042)
+#define IS_IGDNG_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_IGDNG(dev)	(IS_IGDNG_D(dev) || IS_IGDNG_M(dev))
+
 #define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
-		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
+		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev) || \
+		      IS_IGDNG(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
-			IS_IGD(dev))
+			IS_IGD(dev) || IS_IGDNG_M(dev))
 
-#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev) || \
+				IS_IGDNG(dev))
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
 #define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)

@@ -17,13 +17,17 @@
  * Boston, MA  02110-1301, USA.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/gpio.h>
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
+#include <mach/common.h>
 #include <mach/imx-uart.h>
+#include <mach/mx3_camera.h>
 
 #include "devices.h"
 
@@ -283,6 +287,21 @@ struct platform_device mxcsdhc_device1 = {
 	.num_resources = ARRAY_SIZE(mxcsdhc1_resources),
 	.resource = mxcsdhc1_resources,
 };
+
+static struct resource rnga_resources[] = {
+	{
+		.start = RNGA_BASE_ADDR,
+		.end = RNGA_BASE_ADDR + 0x28,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_rnga_device = {
+	.name = "mxc_rnga",
+	.id = -1,
+	.num_resources = 1,
+	.resource = rnga_resources,
+};
 #endif /* CONFIG_ARCH_MX31 */
 
 /* i.MX31 Image Processing Unit */
@@ -329,8 +348,52 @@ struct platform_device mx3_fb = {
 	.num_resources	= ARRAY_SIZE(fb_resources),
 	.resource	= fb_resources,
 	.dev		= {
-		.coherent_dma_mask = 0xffffffff,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
        },
+};
+
+static struct resource camera_resources[] = {
+	{
+		.start	= IPU_CTRL_BASE_ADDR + 0x60,
+		.end	= IPU_CTRL_BASE_ADDR + 0x87,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mx3_camera = {
+	.name		= "mx3-camera",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(camera_resources),
+	.resource	= camera_resources,
+	.dev		= {
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+static struct resource otg_resources[] = {
+	{
+		.start	= OTG_BASE_ADDR,
+		.end	= OTG_BASE_ADDR + 0x1ff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MXC_INT_USB3,
+		.end	= MXC_INT_USB3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 otg_dmamask = DMA_BIT_MASK(32);
+
+/* OTG gadget device */
+struct platform_device mxc_otg_udc_device = {
+	.name		= "fsl-usb2-udc",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &otg_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= otg_resources,
+	.num_resources	= ARRAY_SIZE(otg_resources),
 };
 
 #ifdef CONFIG_ARCH_MX35
@@ -359,6 +422,7 @@ static int mx3_devices_init(void)
 	if (cpu_is_mx31()) {
 		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
 		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
+		mxc_register_device(&mxc_rnga_device, NULL);
 	}
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;

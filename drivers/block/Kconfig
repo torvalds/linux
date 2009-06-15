@@ -112,7 +112,7 @@ config GDROM
 	  with up to 1 GB of data. This drive will also read standard CD ROM
 	  disks. Select this option to access any disks in your GD ROM drive.
 	  Most users will want to say "Y" here.
-	  You can also build this as a module which will be called gdrom.ko
+	  You can also build this as a module which will be called gdrom.
 
 source "drivers/block/paride/Kconfig"
 
@@ -438,7 +438,7 @@ source "drivers/s390/block/Kconfig"
 
 config XILINX_SYSACE
 	tristate "Xilinx SystemACE support"
-	depends on 4xx
+	depends on 4xx || MICROBLAZE
 	help
 	  Include support for the Xilinx SystemACE CompactFlash interface
 

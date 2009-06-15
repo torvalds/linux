@@ -189,6 +189,11 @@
 
 #define S3C2443_DIVSLOT		  (0x2C)
 
+/* S3C64XX interrupt registers. */
+#define S3C64XX_UINTP		0x30
+#define S3C64XX_UINTSP		0x34
+#define S3C64XX_UINTM		0x38
+
 #ifndef __ASSEMBLY__
 
 /* struct s3c24xx_uart_clksrc

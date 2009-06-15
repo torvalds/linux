@@ -1880,7 +1880,7 @@ config FEC_MPC52xx
 	---help---
 	  This option enables support for the MPC5200's on-chip
 	  Fast Ethernet Controller
-	  If compiled as module, it will be called 'fec_mpc52xx.ko'.
+	  If compiled as module, it will be called fec_mpc52xx.
 
 config FEC_MPC52xx_MDIO
 	bool "MPC52xx FEC MDIO bus driver"
@@ -1892,7 +1892,7 @@ config FEC_MPC52xx_MDIO
 	  (Motorola? industry standard).
 	  If your board uses an external PHY connected to FEC, enable this.
 	  If not sure, enable.
-	  If compiled as module, it will be called 'fec_mpc52xx_phy.ko'.
+	  If compiled as module, it will be called fec_mpc52xx_phy.
 
 config NE_H8300
 	tristate "NE2000 compatible support for H8/300"
@@ -2263,6 +2263,17 @@ config BNX2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
+
+config CNIC
+	tristate "Broadcom CNIC support"
+	depends on BNX2
+	depends on UIO
+	help
+	  This driver supports offload features of Broadcom NetXtremeII
+	  gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cnic.  This is recommended.
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"

@@ -9,6 +9,9 @@
 #ifndef _S390_CPUTIME_H
 #define _S390_CPUTIME_H
 
+#include <linux/types.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
 #include <asm/div64.h>
 
 /* We want to use full resolution of the CPU timer: 2**-12 micro-seconds. */
@@ -174,8 +177,24 @@ cputime64_to_clock_t(cputime64_t cputime)
        return __div(cputime, 4096000000ULL / USER_HZ);
 }
 
+struct s390_idle_data {
+	spinlock_t lock;
+	unsigned long long idle_count;
+	unsigned long long idle_enter;
+	unsigned long long idle_time;
+};
+
+DECLARE_PER_CPU(struct s390_idle_data, s390_idle);
+
+void vtime_start_cpu(void);
 cputime64_t s390_get_idle_time(int cpu);
 
 #define arch_idle_time(cpu) s390_get_idle_time(cpu)
+
+static inline void s390_idle_check(void)
+{
+	if ((&__get_cpu_var(s390_idle))->idle_enter != 0ULL)
+		vtime_start_cpu();
+}
 
 #endif /* _S390_CPUTIME_H */

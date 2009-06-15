@@ -18,8 +18,8 @@ struct qmgr_regs __iomem *qmgr_regs;
 static struct resource *mem_res;
 static spinlock_t qmgr_lock;
 static u32 used_sram_bitmap[4]; /* 128 16-dword pages */
-static void (*irq_handlers[HALF_QUEUES])(void *pdev);
-static void *irq_pdevs[HALF_QUEUES];
+static void (*irq_handlers[QUEUES])(void *pdev);
+static void *irq_pdevs[QUEUES];
 
 #if DEBUG_QMGR
 char qmgr_queue_descs[QUEUES][32];
@@ -28,51 +28,112 @@ char qmgr_queue_descs[QUEUES][32];
 void qmgr_set_irq(unsigned int queue, int src,
 		  void (*handler)(void *pdev), void *pdev)
 {
-	u32 __iomem *reg = &qmgr_regs->irqsrc[queue / 8]; /* 8 queues / u32 */
-	int bit = (queue % 8) * 4; /* 3 bits + 1 reserved bit per queue */
 	unsigned long flags;
 
-	src &= 7;
 	spin_lock_irqsave(&qmgr_lock, flags);
-	__raw_writel((__raw_readl(reg) & ~(7 << bit)) | (src << bit), reg);
+	if (queue < HALF_QUEUES) {
+		u32 __iomem *reg;
+		int bit;
+		BUG_ON(src > QUEUE_IRQ_SRC_NOT_FULL);
+		reg = &qmgr_regs->irqsrc[queue >> 3]; /* 8 queues per u32 */
+		bit = (queue % 8) * 4; /* 3 bits + 1 reserved bit per queue */
+		__raw_writel((__raw_readl(reg) & ~(7 << bit)) | (src << bit),
+			     reg);
+	} else
+		/* IRQ source for queues 32-63 is fixed */
+		BUG_ON(src != QUEUE_IRQ_SRC_NOT_NEARLY_EMPTY);
+
 	irq_handlers[queue] = handler;
 	irq_pdevs[queue] = pdev;
 	spin_unlock_irqrestore(&qmgr_lock, flags);
 }
 
 
-static irqreturn_t qmgr_irq1(int irq, void *pdev)
+static irqreturn_t qmgr_irq1_a0(int irq, void *pdev)
 {
-	int i;
-	u32 val = __raw_readl(&qmgr_regs->irqstat[0]);
-	__raw_writel(val, &qmgr_regs->irqstat[0]); /* ACK */
+	int i, ret = 0;
+	u32 en_bitmap, src, stat;
 
-	for (i = 0; i < HALF_QUEUES; i++)
-		if (val & (1 << i))
+	/* ACK - it may clear any bits so don't rely on it */
+	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[0]);
+
+	en_bitmap = qmgr_regs->irqen[0];
+	while (en_bitmap) {
+		i = __fls(en_bitmap); /* number of the last "low" queue */
+		en_bitmap &= ~BIT(i);
+		src = qmgr_regs->irqsrc[i >> 3];
+		stat = qmgr_regs->stat1[i >> 3];
+		if (src & 4) /* the IRQ condition is inverted */
+			stat = ~stat;
+		if (stat & BIT(src & 3)) {
 			irq_handlers[i](irq_pdevs[i]);
+			ret = IRQ_HANDLED;
+		}
+	}
+	return ret;
+}
 
-	return val ? IRQ_HANDLED : 0;
+
+static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
+{
+	int i, ret = 0;
+	u32 req_bitmap;
+
+	/* ACK - it may clear any bits so don't rely on it */
+	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[1]);
+
+	req_bitmap = qmgr_regs->irqen[1] & qmgr_regs->statne_h;
+	while (req_bitmap) {
+		i = __fls(req_bitmap); /* number of the last "high" queue */
+		req_bitmap &= ~BIT(i);
+		irq_handlers[HALF_QUEUES + i](irq_pdevs[HALF_QUEUES + i]);
+		ret = IRQ_HANDLED;
+	}
+	return ret;
+}
+
+
+static irqreturn_t qmgr_irq(int irq, void *pdev)
+{
+	int i, half = (irq == IRQ_IXP4XX_QM1 ? 0 : 1);
+	u32 req_bitmap = __raw_readl(&qmgr_regs->irqstat[half]);
+
+	if (!req_bitmap)
+		return 0;
+	__raw_writel(req_bitmap, &qmgr_regs->irqstat[half]); /* ACK */
+
+	while (req_bitmap) {
+		i = __fls(req_bitmap); /* number of the last queue */
+		req_bitmap &= ~BIT(i);
+		i += half * HALF_QUEUES;
+		irq_handlers[i](irq_pdevs[i]);
+	}
+	return IRQ_HANDLED;
 }
 
 
 void qmgr_enable_irq(unsigned int queue)
 {
 	unsigned long flags;
+	int half = queue / 32;
+	u32 mask = 1 << (queue & (HALF_QUEUES - 1));
 
 	spin_lock_irqsave(&qmgr_lock, flags);
-	__raw_writel(__raw_readl(&qmgr_regs->irqen[0]) | (1 << queue),
-		     &qmgr_regs->irqen[0]);
+	__raw_writel(__raw_readl(&qmgr_regs->irqen[half]) | mask,
+		     &qmgr_regs->irqen[half]);
 	spin_unlock_irqrestore(&qmgr_lock, flags);
 }
 
 void qmgr_disable_irq(unsigned int queue)
 {
 	unsigned long flags;
+	int half = queue / 32;
+	u32 mask = 1 << (queue & (HALF_QUEUES - 1));
 
 	spin_lock_irqsave(&qmgr_lock, flags);
-	__raw_writel(__raw_readl(&qmgr_regs->irqen[0]) & ~(1 << queue),
-		     &qmgr_regs->irqen[0]);
-	__raw_writel(1 << queue, &qmgr_regs->irqstat[0]); /* clear */
+	__raw_writel(__raw_readl(&qmgr_regs->irqen[half]) & ~mask,
+		     &qmgr_regs->irqen[half]);
+	__raw_writel(mask, &qmgr_regs->irqstat[half]); /* clear */
 	spin_unlock_irqrestore(&qmgr_lock, flags);
 }
 
@@ -98,8 +159,7 @@ int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 	u32 cfg, addr = 0, mask[4]; /* in 16-dwords */
 	int err;
 
-	if (queue >= HALF_QUEUES)
-		return -ERANGE;
+	BUG_ON(queue >= QUEUES);
 
 	if ((nearly_empty_watermark | nearly_full_watermark) & ~7)
 		return -EINVAL;
@@ -180,7 +240,7 @@ void qmgr_release_queue(unsigned int queue)
 {
 	u32 cfg, addr, mask[4];
 
-	BUG_ON(queue >= HALF_QUEUES); /* not in valid range */
+	BUG_ON(queue >= QUEUES); /* not in valid range */
 
 	spin_lock_irq(&qmgr_lock);
 	cfg = __raw_readl(&qmgr_regs->sram[queue]);
@@ -224,6 +284,8 @@ void qmgr_release_queue(unsigned int queue)
 static int qmgr_init(void)
 {
 	int i, err;
+	irq_handler_t handler1, handler2;
+
 	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
 				     IXP4XX_QMGR_REGION_SIZE,
 				     "IXP4xx Queue Manager");
@@ -247,15 +309,32 @@ static int qmgr_init(void)
 		__raw_writel(0, &qmgr_regs->irqen[i]);
 	}
 
+	__raw_writel(0xFFFFFFFF, &qmgr_regs->statne_h);
+	__raw_writel(0, &qmgr_regs->statf_h);
+
 	for (i = 0; i < QUEUES; i++)
 		__raw_writel(0, &qmgr_regs->sram[i]);
 
-	err = request_irq(IRQ_IXP4XX_QM1, qmgr_irq1, 0,
-			  "IXP4xx Queue Manager", NULL);
+	if (cpu_is_ixp42x_rev_a0()) {
+		handler1 = qmgr_irq1_a0;
+		handler2 = qmgr_irq2_a0;
+	} else
+		handler1 = handler2 = qmgr_irq;
+
+	err = request_irq(IRQ_IXP4XX_QM1, handler1, 0, "IXP4xx Queue Manager",
+			  NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i\n",
-		       IRQ_IXP4XX_QM1);
+		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
+		       IRQ_IXP4XX_QM1, err);
 		goto error_irq;
+	}
+
+	err = request_irq(IRQ_IXP4XX_QM2, handler2, 0, "IXP4xx Queue Manager",
+			  NULL);
+	if (err) {
+		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
+		       IRQ_IXP4XX_QM2, err);
+		goto error_irq2;
 	}
 
 	used_sram_bitmap[0] = 0xF; /* 4 first pages reserved for config */
@@ -264,6 +343,8 @@ static int qmgr_init(void)
 	printk(KERN_INFO "IXP4xx Queue Manager initialized.\n");
 	return 0;
 
+error_irq2:
+	free_irq(IRQ_IXP4XX_QM1, NULL);
 error_irq:
 	iounmap(qmgr_regs);
 error_map:
@@ -274,7 +355,9 @@ error_map:
 static void qmgr_remove(void)
 {
 	free_irq(IRQ_IXP4XX_QM1, NULL);
+	free_irq(IRQ_IXP4XX_QM2, NULL);
 	synchronize_irq(IRQ_IXP4XX_QM1);
+	synchronize_irq(IRQ_IXP4XX_QM2);
 	iounmap(qmgr_regs);
 	release_mem_region(IXP4XX_QMGR_BASE_PHYS, IXP4XX_QMGR_REGION_SIZE);
 }

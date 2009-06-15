@@ -147,7 +147,8 @@ struct mmc_blk_request {
 static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 {
 	int err;
-	__be32 blocks;
+	u32 result;
+	__be32 *blocks;
 
 	struct mmc_request mrq;
 	struct mmc_command cmd;
@@ -199,14 +200,21 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	mrq.cmd = &cmd;
 	mrq.data = &data;
 
-	sg_init_one(&sg, &blocks, 4);
+	blocks = kmalloc(4, GFP_KERNEL);
+	if (!blocks)
+		return (u32)-1;
+
+	sg_init_one(&sg, blocks, 4);
 
 	mmc_wait_for_req(card->host, &mrq);
 
-	if (cmd.error || data.error)
-		return (u32)-1;
+	result = ntohl(*blocks);
+	kfree(blocks);
 
-	return ntohl(blocks);
+	if (cmd.error || data.error)
+		result = (u32)-1;
+
+	return result;
 }
 
 static u32 get_card_status(struct mmc_card *card, struct request *req)

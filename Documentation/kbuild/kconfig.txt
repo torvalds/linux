@@ -35,6 +35,79 @@ new .config files to see the differences:
 
 (Yes, we need something better here.)
 
+______________________________________________________________________
+Environment variables for '*config'
+
+KCONFIG_CONFIG
+--------------------------------------------------
+This environment variable can be used to specify a default kernel config
+file name to override the default name of ".config".
+
+KCONFIG_OVERWRITECONFIG
+--------------------------------------------------
+If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will not
+break symlinks when .config is a symlink to somewhere else.
+
+KCONFIG_NOTIMESTAMP
+--------------------------------------------------
+If this environment variable exists and is non-null, the timestamp line
+in generated .config files is omitted.
+
+______________________________________________________________________
+Environment variables for '{allyes/allmod/allno/rand}config'
+
+KCONFIG_ALLCONFIG
+--------------------------------------------------
+(partially based on lkml email from/by Rob Landley, re: miniconfig)
+--------------------------------------------------
+The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
+also use the environment variable KCONFIG_ALLCONFIG as a flag or a
+filename that contains config symbols that the user requires to be
+set to a specific value.  If KCONFIG_ALLCONFIG is used without a
+filename, "make *config" checks for a file named
+"all{yes/mod/no/random}.config" (corresponding to the *config command
+that was used) for symbol values that are to be forced.  If this file
+is not found, it checks for a file named "all.config" to contain forced
+values.
+
+This enables you to create "miniature" config (miniconfig) or custom
+config files containing just the config symbols that you are interested
+in.  Then the kernel config system generates the full .config file,
+including symbols of your miniconfig file.
+
+This 'KCONFIG_ALLCONFIG' file is a config file which contains
+(usually a subset of all) preset config symbols.  These variable
+settings are still subject to normal dependency checks.
+
+Examples:
+	KCONFIG_ALLCONFIG=custom-notebook.config make allnoconfig
+or
+	KCONFIG_ALLCONFIG=mini.config make allnoconfig
+or
+	make KCONFIG_ALLCONFIG=mini.config allnoconfig
+
+These examples will disable most options (allnoconfig) but enable or
+disable the options that are explicitly listed in the specified
+mini-config files.
+
+______________________________________________________________________
+Environment variables for 'silentoldconfig'
+
+KCONFIG_NOSILENTUPDATE
+--------------------------------------------------
+If this variable has a non-blank value, it prevents silent kernel
+config udpates (requires explicit updates).
+
+KCONFIG_AUTOCONFIG
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"auto.conf" file.  Its default value is "include/config/auto.conf".
+
+KCONFIG_AUTOHEADER
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"autoconf.h" (header) file.  Its default value is "include/linux/autoconf.h".
+
 
 ======================================================================
 menuconfig
@@ -60,10 +133,11 @@ Searching in menuconfig:
 
 		/^hotplug
 
-
 ______________________________________________________________________
-Color Themes for 'menuconfig'
+User interface options for 'menuconfig'
 
+MENUCONFIG_COLOR
+--------------------------------------------------
 It is possible to select different color themes using the variable
 MENUCONFIG_COLOR.  To select a theme use:
 
@@ -75,83 +149,13 @@ Available themes are:
   classic    => theme with blue background. The classic look
   bluetitle  => a LCD friendly version of classic. (default)
 
-______________________________________________________________________
-Environment variables in 'menuconfig'
-
-KCONFIG_ALLCONFIG
---------------------------------------------------
-(partially based on lkml email from/by Rob Landley, re: miniconfig)
---------------------------------------------------
-The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
-also use the environment variable KCONFIG_ALLCONFIG as a flag or a
-filename that contains config symbols that the user requires to be
-set to a specific value.  If KCONFIG_ALLCONFIG is used without a
-filename, "make *config" checks for a file named
-"all{yes/mod/no/random}.config" (corresponding to the *config command
-that was used) for symbol values that are to be forced.  If this file
-is not found, it checks for a file named "all.config" to contain forced
-values.
-
-This enables you to create "miniature" config (miniconfig) or custom
-config files containing just the config symbols that you are interested
-in.  Then the kernel config system generates the full .config file,
-including dependencies of your miniconfig file, based on the miniconfig
-file.
-
-This 'KCONFIG_ALLCONFIG' file is a config file which contains
-(usually a subset of all) preset config symbols.  These variable
-settings are still subject to normal dependency checks.
-
-Examples:
-	KCONFIG_ALLCONFIG=custom-notebook.config make allnoconfig
-or
-	KCONFIG_ALLCONFIG=mini.config make allnoconfig
-or
-	make KCONFIG_ALLCONFIG=mini.config allnoconfig
-
-These examples will disable most options (allnoconfig) but enable or
-disable the options that are explicitly listed in the specified
-mini-config files.
-
-KCONFIG_NOSILENTUPDATE
---------------------------------------------------
-If this variable has a non-blank value, it prevents silent kernel
-config udpates (requires explicit updates).
-
-KCONFIG_CONFIG
---------------------------------------------------
-This environment variable can be used to specify a default kernel config
-file name to override the default name of ".config".
-
-KCONFIG_OVERWRITECONFIG
---------------------------------------------------
-If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will not
-break symlinks when .config is a symlink to somewhere else.
-
-KCONFIG_NOTIMESTAMP
---------------------------------------------------
-If this environment variable exists and is non-null, the timestamp line
-in generated .config files is omitted.
-
-KCONFIG_AUTOCONFIG
---------------------------------------------------
-This environment variable can be set to specify the path & name of the
-"auto.conf" file.  Its default value is "include/config/auto.conf".
-
-KCONFIG_AUTOHEADER
---------------------------------------------------
-This environment variable can be set to specify the path & name of the
-"autoconf.h" (header) file.  Its default value is "include/linux/autoconf.h".
-
-______________________________________________________________________
-menuconfig User Interface Options
-----------------------------------------------------------------------
 MENUCONFIG_MODE
 --------------------------------------------------
 This mode shows all sub-menus in one large tree.
 
 Example:
-	MENUCONFIG_MODE=single_menu make menuconfig
+	make MENUCONFIG_MODE=single_menu menuconfig
+
 
 ======================================================================
 xconfig
