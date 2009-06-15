@@ -1224,6 +1224,8 @@ again:
 		if (!intel_pmu_save_and_restart(counter))
 			continue;
 
+		data.period = counter->hw.last_period;
+
 		if (perf_counter_overflow(counter, 1, &data))
 			intel_pmu_disable_counter(&counter->hw, bit);
 	}
