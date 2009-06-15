@@ -913,6 +913,8 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	case PERF_TYPE_RAW:
 		ev = counter->attr.config;
 		break;
+	default:
+		return ERR_PTR(-EINVAL);
 	}
 	counter->hw.config_base = ev;
 	counter->hw.idx = 0;
@@ -1013,7 +1015,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	u64 period = counter->hw.sample_period;
 	s64 prev, delta, left;
 	int record = 0;
-	u64 addr, mmcra, sdsync;
+	u64 mmcra, sdsync;
 
 	/* we don't have to worry about interrupts here */
 	prev = atomic64_read(&counter->hw.prev_count);
