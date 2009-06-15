@@ -199,7 +199,6 @@ extern void (*mce_threshold_vector)(void);
  * Thermal handler
  */
 
-void intel_set_thermal_handler(void);
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
 #ifdef CONFIG_X86_NEW_MCE

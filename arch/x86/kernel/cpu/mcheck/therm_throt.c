@@ -202,7 +202,7 @@ device_initcall(thermal_throttle_init_device);
 #endif /* CONFIG_SYSFS */
 
 /* Thermal transition interrupt handler */
-void intel_thermal_interrupt(void)
+static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
@@ -229,11 +229,6 @@ asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
 	irq_exit();
 	/* Ack only at the end to avoid potential reentry */
 	ack_APIC_irq();
-}
-
-void intel_set_thermal_handler(void)
-{
-	smp_thermal_vector = intel_thermal_interrupt;
 }
 
 void intel_init_thermal(struct cpuinfo_x86 *c)
@@ -278,7 +273,7 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	wrmsr(MSR_IA32_THERM_INTERRUPT,
 		l | (THERM_INT_LOW_ENABLE | THERM_INT_HIGH_ENABLE), h);
 
-	intel_set_thermal_handler();
+	smp_thermal_vector = intel_thermal_interrupt;
 
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
