@@ -16,6 +16,14 @@
 #include <asm/idle.h>
 #include <asm/therm_throt.h>
 
+static void unexpected_thermal_interrupt(void)
+{
+	printk(KERN_ERR "CPU%d: Unexpected LVT TMR interrupt!\n",
+			smp_processor_id());
+	add_taint(TAINT_MACHINE_CHECK);
+}
+
+/* P4/Xeon Thermal transition interrupt handler: */
 static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
@@ -25,14 +33,22 @@ static void intel_thermal_interrupt(void)
 		mce_log_therm_throt_event(msr_val);
 }
 
+/* Thermal interrupt handler for this CPU setup: */
+static void (*vendor_thermal_interrupt)(void) = unexpected_thermal_interrupt;
+
 asmlinkage void smp_thermal_interrupt(void)
 {
-	ack_APIC_irq();
 	exit_idle();
 	irq_enter();
-	intel_thermal_interrupt();
 	inc_irq_stat(irq_thermal_count);
+	intel_thermal_interrupt();
 	irq_exit();
+	ack_APIC_irq();
+}
+
+void intel_set_thermal_handler(void)
+{
+	vendor_thermal_interrupt = intel_thermal_interrupt;
 }
 
 /*

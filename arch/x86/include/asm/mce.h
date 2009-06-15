@@ -110,6 +110,7 @@ extern int mce_disabled;
 extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_OLD_MCE
+extern int nr_mce_banks;
 void amd_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p4_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
@@ -127,15 +128,6 @@ static inline void enable_p5_mce(void) {}
 
 /* Call the installed machine check handler for this CPU setup. */
 extern void (*machine_check_vector)(struct pt_regs *, long error_code);
-
-#ifdef CONFIG_X86_OLD_MCE
-extern int nr_mce_banks;
-extern void intel_set_thermal_handler(void);
-#else
-static inline void intel_set_thermal_handler(void) { }
-#endif
-
-void intel_init_thermal(struct cpuinfo_x86 *c);
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
@@ -175,8 +167,6 @@ int mce_available(struct cpuinfo_x86 *c);
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
 
-void mce_log_therm_throt_event(__u64 status);
-
 extern atomic_t mce_entry;
 
 void do_machine_check(struct pt_regs *, long);
@@ -204,6 +194,19 @@ void mcheck_init(struct cpuinfo_x86 *c);
 #endif
 
 extern void (*mce_threshold_vector)(void);
+
+/*
+ * Thermal handler
+ */
+
+void intel_set_thermal_handler(void);
+void intel_init_thermal(struct cpuinfo_x86 *c);
+
+#ifdef CONFIG_X86_NEW_MCE
+void mce_log_therm_throt_event(__u64 status);
+#else
+static inline void mce_log_therm_throt_event(__u64 status) {}
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

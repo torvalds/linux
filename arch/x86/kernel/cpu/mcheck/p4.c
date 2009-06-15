@@ -12,6 +12,7 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/apic.h>
+#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -47,10 +48,9 @@ static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
-	ack_APIC_irq();
-
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	therm_throt_process(msr_val & THERM_STATUS_PROCHOT);
+	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
+		mce_log_therm_throt_event(msr_val);
 }
 
 /* Thermal interrupt handler for this CPU setup: */
@@ -58,10 +58,12 @@ static void (*vendor_thermal_interrupt)(void) = unexpected_thermal_interrupt;
 
 void smp_thermal_interrupt(struct pt_regs *regs)
 {
+	exit_idle();
 	irq_enter();
-	vendor_thermal_interrupt();
 	inc_irq_stat(irq_thermal_count);
+	vendor_thermal_interrupt();
 	irq_exit();
+	ack_APIC_irq();
 }
 
 void intel_set_thermal_handler(void)
