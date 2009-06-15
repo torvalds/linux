@@ -285,6 +285,8 @@ static int regulator_virtual_consumer_probe(struct platform_device *pdev)
 	drvdata->regulator = regulator_get(&pdev->dev, reg_id);
 	if (IS_ERR(drvdata->regulator)) {
 		ret = PTR_ERR(drvdata->regulator);
+		dev_err(&pdev->dev, "Failed to obtain supply '%s': %d\n",
+			reg_id, ret);
 		goto err;
 	}
 
