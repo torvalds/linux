@@ -107,6 +107,7 @@ struct mce_log {
 #include <asm/atomic.h>
 
 extern int mce_disabled;
+extern int mce_p5_enabled;
 
 #ifdef CONFIG_X86_OLD_MCE
 void amd_mcheck_init(struct cpuinfo_x86 *c);
@@ -117,14 +118,11 @@ void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
 #ifdef CONFIG_X86_ANCIENT_MCE
 void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
 void winchip_mcheck_init(struct cpuinfo_x86 *c);
-extern int mce_p5_enable;
-static inline int mce_p5_enabled(void) { return mce_p5_enable; }
-static inline void enable_p5_mce(void) { mce_p5_enable = 1; }
+static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
 #else
 static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
 static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline int mce_p5_enabled(void) { return 0; }
-static inline void enable_p5_mce(void) { }
+static inline void enable_p5_mce(void) {}
 #endif
 
 /* Call the installed machine check handler for this CPU setup. */

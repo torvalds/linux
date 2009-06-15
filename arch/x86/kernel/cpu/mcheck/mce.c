@@ -1286,8 +1286,7 @@ static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
 		return;
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
-		if (mce_p5_enabled())
-			intel_p5_mcheck_init(c);
+		intel_p5_mcheck_init(c);
 		break;
 	case X86_VENDOR_CENTAUR:
 		winchip_mcheck_init(c);
@@ -2002,7 +2001,7 @@ EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
 /* This has to be run for each processor */
 void mcheck_init(struct cpuinfo_x86 *c)
 {
-	if (mce_disabled == 1)
+	if (mce_disabled)
 		return;
 
 	switch (c->x86_vendor) {
@@ -2032,10 +2031,9 @@ void mcheck_init(struct cpuinfo_x86 *c)
 
 static int __init mcheck_enable(char *str)
 {
-	mce_disabled = -1;
+	mce_p5_enabled = 1;
 	return 1;
 }
-
 __setup("mce", mcheck_enable);
 
 #endif /* CONFIG_X86_OLD_MCE */
