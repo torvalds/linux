@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/eventfd.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -59,7 +60,6 @@ typedef uint8_t u8;
 /*:*/
 
 #define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
-#define NET_PEERNUM 1
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
@@ -76,19 +76,12 @@ static bool verbose;
 	do { if (verbose) printf(args); } while(0)
 /*:*/
 
-/* File descriptors for the Waker. */
-struct {
-	int pipe[2];
-	int lguest_fd;
-} waker_fds;
-
 /* The pointer to the start of guest memory. */
 static void *guest_base;
 /* The maximum guest physical address allowed, and maximum possible. */
 static unsigned long guest_limit, guest_max;
-/* The pipe for signal hander to write to. */
-static int timeoutpipe[2];
-static unsigned int timeout_usec = 500;
+/* The /dev/lguest file descriptor. */
+static int lguest_fd;
 
 /* a per-cpu variable indicating whose vcpu is currently running */
 static unsigned int __thread cpu_id;
@@ -96,11 +89,6 @@ static unsigned int __thread cpu_id;
 /* This is our list of devices. */
 struct device_list
 {
-	/* Summary information about the devices in our list: ready to pass to
-	 * select() to ask which need servicing.*/
-	fd_set infds;
-	int max_infd;
-
 	/* Counter to assign interrupt numbers. */
 	unsigned int next_irq;
 
@@ -126,22 +114,21 @@ struct device
 	/* The linked-list pointer. */
 	struct device *next;
 
-	/* The this device's descriptor, as mapped into the Guest. */
+	/* The device's descriptor, as mapped into the Guest. */
 	struct lguest_device_desc *desc;
+
+	/* We can't trust desc values once Guest has booted: we use these. */
+	unsigned int feature_len;
+	unsigned int num_vq;
 
 	/* The name of this device, for --verbose. */
 	const char *name;
 
-	/* If handle_input is set, it wants to be called when this file
-	 * descriptor is ready. */
-	int fd;
-	bool (*handle_input)(int fd, struct device *me);
-
 	/* Any queues attached to this device */
 	struct virtqueue *vq;
 
-	/* Handle status being finalized (ie. feature bits stable). */
-	void (*ready)(struct device *me);
+	/* Is it operational */
+	bool running;
 
 	/* Device-specific data. */
 	void *priv;
@@ -164,22 +151,28 @@ struct virtqueue
 	/* Last available index we saw. */
 	u16 last_avail_idx;
 
-	/* The routine to call when the Guest pings us, or timeout. */
-	void (*handle_output)(int fd, struct virtqueue *me, bool timeout);
+	/* How many are used since we sent last irq? */
+	unsigned int pending_used;
 
-	/* Outstanding buffers */
-	unsigned int inflight;
+	/* Eventfd where Guest notifications arrive. */
+	int eventfd;
 
-	/* Is this blocked awaiting a timer? */
-	bool blocked;
+	/* Function for the thread which is servicing this virtqueue. */
+	void (*service)(struct virtqueue *vq);
+	pid_t thread;
 };
 
 /* Remember the arguments to the program so we can "reboot" */
 static char **main_args;
 
-/* Since guest is UP and we don't run at the same time, we don't need barriers.
- * But I include them in the code in case others copy it. */
-#define wmb()
+/* The original tty settings to restore on exit. */
+static struct termios orig_term;
+
+/* We have to be careful with barriers: our devices are all run in separate
+ * threads and so we need to make sure that changes visible to the Guest happen
+ * in precise order. */
+#define wmb() __asm__ __volatile__("" : : : "memory")
+#define mb() __asm__ __volatile__("" : : : "memory")
 
 /* Convert an iovec element to the given type.
  *
@@ -245,7 +238,7 @@ static void iov_consume(struct iovec iov[], unsigned num_iov, unsigned len)
 static u8 *get_feature_bits(struct device *dev)
 {
 	return (u8 *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig);
+		+ dev->num_vq * sizeof(struct lguest_vqconfig);
 }
 
 /*L:100 The Launcher code itself takes us out into userspace, that scary place
@@ -505,98 +498,18 @@ static void concat(char *dst, char *args[])
  * saw the arguments it expects when we looked at initialize() in lguest_user.c:
  * the base of Guest "physical" memory, the top physical page to allow and the
  * entry point for the Guest. */
-static int tell_kernel(unsigned long start)
+static void tell_kernel(unsigned long start)
 {
 	unsigned long args[] = { LHREQ_INITIALIZE,
 				 (unsigned long)guest_base,
 				 guest_limit / getpagesize(), start };
-	int fd;
-
 	verbose("Guest: %p - %p (%#lx)\n",
 		guest_base, guest_base + guest_limit, guest_limit);
-	fd = open_or_die("/dev/lguest", O_RDWR);
-	if (write(fd, args, sizeof(args)) < 0)
+	lguest_fd = open_or_die("/dev/lguest", O_RDWR);
+	if (write(lguest_fd, args, sizeof(args)) < 0)
 		err(1, "Writing to /dev/lguest");
-
-	/* We return the /dev/lguest file descriptor to control this Guest */
-	return fd;
 }
 /*:*/
-
-static void add_device_fd(int fd)
-{
-	FD_SET(fd, &devices.infds);
-	if (fd > devices.max_infd)
-		devices.max_infd = fd;
-}
-
-/*L:200
- * The Waker.
- *
- * With console, block and network devices, we can have lots of input which we
- * need to process.  We could try to tell the kernel what file descriptors to
- * watch, but handing a file descriptor mask through to the kernel is fairly
- * icky.
- *
- * Instead, we clone off a thread which watches the file descriptors and writes
- * the LHREQ_BREAK command to the /dev/lguest file descriptor to tell the Host
- * stop running the Guest.  This causes the Launcher to return from the
- * /dev/lguest read with -EAGAIN, where it will write to /dev/lguest to reset
- * the LHREQ_BREAK and wake us up again.
- *
- * This, of course, is merely a different *kind* of icky.
- *
- * Given my well-known antipathy to threads, I'd prefer to use processes.  But
- * it's easier to share Guest memory with threads, and trivial to share the
- * devices.infds as the Launcher changes it.
- */
-static int waker(void *unused)
-{
-	/* Close the write end of the pipe: only the Launcher has it open. */
-	close(waker_fds.pipe[1]);
-
-	for (;;) {
-		fd_set rfds = devices.infds;
-		unsigned long args[] = { LHREQ_BREAK, 1 };
-		unsigned int maxfd = devices.max_infd;
-
-		/* We also listen to the pipe from the Launcher. */
-		FD_SET(waker_fds.pipe[0], &rfds);
-		if (waker_fds.pipe[0] > maxfd)
-			maxfd = waker_fds.pipe[0];
-
-		/* Wait until input is ready from one of the devices. */
-		select(maxfd+1, &rfds, NULL, NULL, NULL);
-
-		/* Message from Launcher? */
-		if (FD_ISSET(waker_fds.pipe[0], &rfds)) {
-			char c;
-			/* If this fails, then assume Launcher has exited.
-			 * Don't do anything on exit: we're just a thread! */
-			if (read(waker_fds.pipe[0], &c, 1) != 1)
-				_exit(0);
-			continue;
-		}
-
-		/* Send LHREQ_BREAK command to snap the Launcher out of it. */
-		pwrite(waker_fds.lguest_fd, args, sizeof(args), cpu_id);
-	}
-	return 0;
-}
-
-/* This routine just sets up a pipe to the Waker process. */
-static void setup_waker(int lguest_fd)
-{
-	/* This pipe is closed when Launcher dies, telling Waker. */
-	if (pipe(waker_fds.pipe) != 0)
-		err(1, "Creating pipe for Waker");
-
-	/* Waker also needs to know the lguest fd */
-	waker_fds.lguest_fd = lguest_fd;
-
-	if (clone(waker, malloc(4096) + 4096, CLONE_VM | SIGCHLD, NULL) == -1)
-		err(1, "Creating Waker");
-}
 
 /*
  * Device Handling.
@@ -623,23 +536,44 @@ static void *_check_pointer(unsigned long addr, unsigned int size,
 /* Each buffer in the virtqueues is actually a chain of descriptors.  This
  * function returns the next descriptor in the chain, or vq->vring.num if we're
  * at the end. */
-static unsigned next_desc(struct virtqueue *vq, unsigned int i)
+static unsigned next_desc(struct vring_desc *desc,
+			  unsigned int i, unsigned int max)
 {
 	unsigned int next;
 
 	/* If this descriptor says it doesn't chain, we're done. */
-	if (!(vq->vring.desc[i].flags & VRING_DESC_F_NEXT))
-		return vq->vring.num;
+	if (!(desc[i].flags & VRING_DESC_F_NEXT))
+		return max;
 
 	/* Check they're not leading us off end of descriptors. */
-	next = vq->vring.desc[i].next;
+	next = desc[i].next;
 	/* Make sure compiler knows to grab that: we don't want it changing! */
 	wmb();
 
-	if (next >= vq->vring.num)
+	if (next >= max)
 		errx(1, "Desc next is %u", next);
 
 	return next;
+}
+
+/* This actually sends the interrupt for this virtqueue */
+static void trigger_irq(struct virtqueue *vq)
+{
+	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
+
+	/* Don't inform them if nothing used. */
+	if (!vq->pending_used)
+		return;
+	vq->pending_used = 0;
+
+	/* If they don't want an interrupt, don't send one, unless empty. */
+	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
+	    && lg_last_avail(vq) != vq->vring.avail->idx)
+		return;
+
+	/* Send the Guest an interrupt tell them we used something up. */
+	if (write(lguest_fd, buf, sizeof(buf)) != 0)
+		err(1, "Triggering irq %i", vq->config.irq);
 }
 
 /* This looks in the virtqueue and for the first available buffer, and converts
@@ -647,24 +581,44 @@ static unsigned next_desc(struct virtqueue *vq, unsigned int i)
  * number of output then some number of input descriptors, it's actually two
  * iovecs, but we pack them into one and note how many of each there were.
  *
- * This function returns the descriptor number found, or vq->vring.num (which
- * is never a valid descriptor number) if none was found. */
-static unsigned get_vq_desc(struct virtqueue *vq,
-			    struct iovec iov[],
-			    unsigned int *out_num, unsigned int *in_num)
+ * This function returns the descriptor number found. */
+static unsigned wait_for_vq_desc(struct virtqueue *vq,
+				 struct iovec iov[],
+				 unsigned int *out_num, unsigned int *in_num)
 {
-	unsigned int i, head;
-	u16 last_avail;
+	unsigned int i, head, max;
+	struct vring_desc *desc;
+	u16 last_avail = lg_last_avail(vq);
+
+	while (last_avail == vq->vring.avail->idx) {
+		u64 event;
+
+		/* OK, tell Guest about progress up to now. */
+		trigger_irq(vq);
+
+		/* OK, now we need to know about added descriptors. */
+		vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
+
+		/* They could have slipped one in as we were doing that: make
+		 * sure it's written, then check again. */
+		mb();
+		if (last_avail != vq->vring.avail->idx) {
+			vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+			break;
+		}
+
+		/* Nothing new?  Wait for eventfd to tell us they refilled. */
+		if (read(vq->eventfd, &event, sizeof(event)) != sizeof(event))
+			errx(1, "Event read failed?");
+
+		/* We don't need to be notified again. */
+		vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
+	}
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
-	last_avail = lg_last_avail(vq);
 	if ((u16)(vq->vring.avail->idx - last_avail) > vq->vring.num)
 		errx(1, "Guest moved used index from %u to %u",
 		     last_avail, vq->vring.avail->idx);
-
-	/* If there's nothing new since last we looked, return invalid. */
-	if (vq->vring.avail->idx == last_avail)
-		return vq->vring.num;
 
 	/* Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen. */
@@ -678,15 +632,28 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 	/* When we start there are none of either input nor output. */
 	*out_num = *in_num = 0;
 
+	max = vq->vring.num;
+	desc = vq->vring.desc;
 	i = head;
+
+	/* If this is an indirect entry, then this buffer contains a descriptor
+	 * table which we handle as if it's any normal descriptor chain. */
+	if (desc[i].flags & VRING_DESC_F_INDIRECT) {
+		if (desc[i].len % sizeof(struct vring_desc))
+			errx(1, "Invalid size for indirect buffer table");
+
+		max = desc[i].len / sizeof(struct vring_desc);
+		desc = check_pointer(desc[i].addr, desc[i].len);
+		i = 0;
+	}
+
 	do {
 		/* Grab the first descriptor, and check it's OK. */
-		iov[*out_num + *in_num].iov_len = vq->vring.desc[i].len;
+		iov[*out_num + *in_num].iov_len = desc[i].len;
 		iov[*out_num + *in_num].iov_base
-			= check_pointer(vq->vring.desc[i].addr,
-					vq->vring.desc[i].len);
+			= check_pointer(desc[i].addr, desc[i].len);
 		/* If this is an input descriptor, increment that count. */
-		if (vq->vring.desc[i].flags & VRING_DESC_F_WRITE)
+		if (desc[i].flags & VRING_DESC_F_WRITE)
 			(*in_num)++;
 		else {
 			/* If it's an output descriptor, they're all supposed
@@ -697,11 +664,10 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 		}
 
 		/* If we've got too many, that implies a descriptor loop. */
-		if (*out_num + *in_num > vq->vring.num)
+		if (*out_num + *in_num > max)
 			errx(1, "Looped descriptor");
-	} while ((i = next_desc(vq, i)) != vq->vring.num);
+	} while ((i = next_desc(desc, i, max)) != max);
 
-	vq->inflight++;
 	return head;
 }
 
@@ -719,44 +685,20 @@ static void add_used(struct virtqueue *vq, unsigned int head, int len)
 	/* Make sure buffer is written before we update index. */
 	wmb();
 	vq->vring.used->idx++;
-	vq->inflight--;
-}
-
-/* This actually sends the interrupt for this virtqueue */
-static void trigger_irq(int fd, struct virtqueue *vq)
-{
-	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
-
-	/* If they don't want an interrupt, don't send one, unless empty. */
-	if ((vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
-	    && vq->inflight)
-		return;
-
-	/* Send the Guest an interrupt tell them we used something up. */
-	if (write(fd, buf, sizeof(buf)) != 0)
-		err(1, "Triggering irq %i", vq->config.irq);
+	vq->pending_used++;
 }
 
 /* And here's the combo meal deal.  Supersize me! */
-static void add_used_and_trigger(int fd, struct virtqueue *vq,
-				 unsigned int head, int len)
+static void add_used_and_trigger(struct virtqueue *vq, unsigned head, int len)
 {
 	add_used(vq, head, len);
-	trigger_irq(fd, vq);
+	trigger_irq(vq);
 }
 
 /*
  * The Console
  *
- * Here is the input terminal setting we save, and the routine to restore them
- * on exit so the user gets their terminal back. */
-static struct termios orig_term;
-static void restore_term(void)
-{
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
-}
-
-/* We associate some data with the console for our exit hack. */
+ * We associate some data with the console for our exit hack. */
 struct console_abort
 {
 	/* How many times have they hit ^C? */
@@ -766,276 +708,275 @@ struct console_abort
 };
 
 /* This is the routine which handles console input (ie. stdin). */
-static bool handle_console_input(int fd, struct device *dev)
+static void console_input(struct virtqueue *vq)
 {
 	int len;
 	unsigned int head, in_num, out_num;
-	struct iovec iov[dev->vq->vring.num];
-	struct console_abort *abort = dev->priv;
+	struct console_abort *abort = vq->dev->priv;
+	struct iovec iov[vq->vring.num];
 
-	/* First we need a console buffer from the Guests's input virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-
-	/* If they're not ready for input, stop listening to this file
-	 * descriptor.  We'll start again once they add an input buffer. */
-	if (head == dev->vq->vring.num)
-		return false;
-
+	/* Make sure there's a descriptor waiting. */
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 	if (out_num)
 		errx(1, "Output buffers in console in queue?");
 
-	/* This is why we convert to iovecs: the readv() call uses them, and so
-	 * it reads straight into the Guest's buffer. */
-	len = readv(dev->fd, iov, in_num);
+	/* Read it in. */
+	len = readv(STDIN_FILENO, iov, in_num);
 	if (len <= 0) {
-		/* This implies that the console is closed, is /dev/null, or
-		 * something went terribly wrong. */
+		/* Ran out of input? */
 		warnx("Failed to get console input, ignoring console.");
-		/* Put the input terminal back. */
-		restore_term();
-		/* Remove callback from input vq, so it doesn't restart us. */
-		dev->vq->handle_output = NULL;
-		/* Stop listening to this fd: don't call us again. */
-		return false;
+		/* For simplicity, dying threads kill the whole Launcher.  So
+		 * just nap here. */
+		for (;;)
+			pause();
 	}
 
-	/* Tell the Guest about the new input. */
-	add_used_and_trigger(fd, dev->vq, head, len);
+	add_used_and_trigger(vq, head, len);
 
 	/* Three ^C within one second?  Exit.
 	 *
-	 * This is such a hack, but works surprisingly well.  Each ^C has to be
-	 * in a buffer by itself, so they can't be too fast.  But we check that
-	 * we get three within about a second, so they can't be too slow. */
-	if (len == 1 && ((char *)iov[0].iov_base)[0] == 3) {
-		if (!abort->count++)
-			gettimeofday(&abort->start, NULL);
-		else if (abort->count == 3) {
-			struct timeval now;
-			gettimeofday(&now, NULL);
-			if (now.tv_sec <= abort->start.tv_sec+1) {
-				unsigned long args[] = { LHREQ_BREAK, 0 };
-				/* Close the fd so Waker will know it has to
-				 * exit. */
-				close(waker_fds.pipe[1]);
-				/* Just in case Waker is blocked in BREAK, send
-				 * unbreak now. */
-				write(fd, args, sizeof(args));
-				exit(2);
-			}
-			abort->count = 0;
-		}
-	} else
-		/* Any other key resets the abort counter. */
+	 * This is such a hack, but works surprisingly well.  Each ^C has to
+	 * be in a buffer by itself, so they can't be too fast.  But we check
+	 * that we get three within about a second, so they can't be too
+	 * slow. */
+	if (len != 1 || ((char *)iov[0].iov_base)[0] != 3) {
 		abort->count = 0;
+		return;
+	}
 
-	/* Everything went OK! */
-	return true;
-}
-
-/* Handling output for console is simple: we just get all the output buffers
- * and write them to stdout. */
-static void handle_console_output(int fd, struct virtqueue *vq, bool timeout)
-{
-	unsigned int head, out, in;
-	int len;
-	struct iovec iov[vq->vring.num];
-
-	/* Keep getting output buffers from the Guest until we run out. */
-	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
-		if (in)
-			errx(1, "Input buffers in output queue?");
-		len = writev(STDOUT_FILENO, iov, out);
-		add_used_and_trigger(fd, vq, head, len);
+	abort->count++;
+	if (abort->count == 1)
+		gettimeofday(&abort->start, NULL);
+	else if (abort->count == 3) {
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		/* Kill all Launcher processes with SIGINT, like normal ^C */
+		if (now.tv_sec <= abort->start.tv_sec+1)
+			kill(0, SIGINT);
+		abort->count = 0;
 	}
 }
 
-/* This is called when we no longer want to hear about Guest changes to a
- * virtqueue.  This is more efficient in high-traffic cases, but it means we
- * have to set a timer to check if any more changes have occurred. */
-static void block_vq(struct virtqueue *vq)
+/* This is the routine which handles console output (ie. stdout). */
+static void console_output(struct virtqueue *vq)
 {
-	struct itimerval itm;
+	unsigned int head, out, in;
+	struct iovec iov[vq->vring.num];
 
-	vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
-	vq->blocked = true;
-
-	itm.it_interval.tv_sec = 0;
-	itm.it_interval.tv_usec = 0;
-	itm.it_value.tv_sec = 0;
-	itm.it_value.tv_usec = timeout_usec;
-
-	setitimer(ITIMER_REAL, &itm, NULL);
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (in)
+		errx(1, "Input buffers in console output queue?");
+	while (!iov_empty(iov, out)) {
+		int len = writev(STDOUT_FILENO, iov, out);
+		if (len <= 0)
+			err(1, "Write to stdout gave %i", len);
+		iov_consume(iov, out, len);
+	}
+	add_used(vq, head, 0);
 }
 
 /*
  * The Network
  *
  * Handling output for network is also simple: we get all the output buffers
- * and write them (ignoring the first element) to this device's file descriptor
- * (/dev/net/tun).
+ * and write them to /dev/net/tun.
  */
-static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
+struct net_info {
+	int tunfd;
+};
+
+static void net_output(struct virtqueue *vq)
 {
-	unsigned int head, out, in, num = 0;
-	int len;
+	struct net_info *net_info = vq->dev->priv;
+	unsigned int head, out, in;
 	struct iovec iov[vq->vring.num];
-	static int last_timeout_num;
 
-	/* Keep getting output buffers from the Guest until we run out. */
-	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
-		if (in)
-			errx(1, "Input buffers in output queue?");
-		len = writev(vq->dev->fd, iov, out);
-		if (len < 0)
-			err(1, "Writing network packet to tun");
-		add_used_and_trigger(fd, vq, head, len);
-		num++;
-	}
-
-	/* Block further kicks and set up a timer if we saw anything. */
-	if (!timeout && num)
-		block_vq(vq);
-
-	/* We never quite know how long should we wait before we check the
-	 * queue again for more packets.  We start at 500 microseconds, and if
-	 * we get fewer packets than last time, we assume we made the timeout
-	 * too small and increase it by 10 microseconds.  Otherwise, we drop it
-	 * by one microsecond every time.  It seems to work well enough. */
-	if (timeout) {
-		if (num < last_timeout_num)
-			timeout_usec += 10;
-		else if (timeout_usec > 1)
-			timeout_usec--;
-		last_timeout_num = num;
-	}
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (in)
+		errx(1, "Input buffers in net output queue?");
+	if (writev(net_info->tunfd, iov, out) < 0)
+		errx(1, "Write to tun failed?");
+	add_used(vq, head, 0);
 }
 
-/* This is where we handle a packet coming in from the tun device to our
+/* Will reading from this file descriptor block? */
+static bool will_block(int fd)
+{
+	fd_set fdset;
+	struct timeval zero = { 0, 0 };
+	FD_ZERO(&fdset);
+	FD_SET(fd, &fdset);
+	return select(fd+1, &fdset, NULL, NULL, &zero) != 1;
+}
+
+/* This is where we handle packets coming in from the tun device to our
  * Guest. */
-static bool handle_tun_input(int fd, struct device *dev)
+static void net_input(struct virtqueue *vq)
 {
-	unsigned int head, in_num, out_num;
 	int len;
-	struct iovec iov[dev->vq->vring.num];
+	unsigned int head, out, in;
+	struct iovec iov[vq->vring.num];
+	struct net_info *net_info = vq->dev->priv;
 
-	/* First we need a network buffer from the Guests's recv virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-	if (head == dev->vq->vring.num) {
-		/* Now, it's expected that if we try to send a packet too
-		 * early, the Guest won't be ready yet.  Wait until the device
-		 * status says it's ready. */
-		/* FIXME: Actually want DRIVER_ACTIVE here. */
+	head = wait_for_vq_desc(vq, iov, &out, &in);
+	if (out)
+		errx(1, "Output buffers in net input queue?");
 
-		/* Now tell it we want to know if new things appear. */
-		dev->vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
-		wmb();
+	/* Deliver interrupt now, since we're about to sleep. */
+	if (vq->pending_used && will_block(net_info->tunfd))
+		trigger_irq(vq);
 
-		/* We'll turn this back on if input buffers are registered. */
-		return false;
-	} else if (out_num)
-		errx(1, "Output buffers in network recv queue?");
-
-	/* Read the packet from the device directly into the Guest's buffer. */
-	len = readv(dev->fd, iov, in_num);
+	len = readv(net_info->tunfd, iov, in);
 	if (len <= 0)
-		err(1, "reading network");
-
-	/* Tell the Guest about the new packet. */
-	add_used_and_trigger(fd, dev->vq, head, len);
-
-	verbose("tun input packet len %i [%02x %02x] (%s)\n", len,
-		((u8 *)iov[1].iov_base)[0], ((u8 *)iov[1].iov_base)[1],
-		head != dev->vq->vring.num ? "sent" : "discarded");
-
-	/* All good. */
-	return true;
+		err(1, "Failed to read from tun.");
+	add_used(vq, head, len);
 }
 
-/*L:215 This is the callback attached to the network and console input
- * virtqueues: it ensures we try again, in case we stopped console or net
- * delivery because Guest didn't have any buffers. */
-static void enable_fd(int fd, struct virtqueue *vq, bool timeout)
+/* This is the helper to create threads. */
+static int do_thread(void *_vq)
 {
-	add_device_fd(vq->dev->fd);
-	/* Snap the Waker out of its select loop. */
-	write(waker_fds.pipe[1], "", 1);
+	struct virtqueue *vq = _vq;
+
+	for (;;)
+		vq->service(vq);
+	return 0;
 }
 
-static void net_enable_fd(int fd, struct virtqueue *vq, bool timeout)
+/* When a child dies, we kill our entire process group with SIGTERM.  This
+ * also has the side effect that the shell restores the console for us! */
+static void kill_launcher(int signal)
 {
-	/* We don't need to know again when Guest refills receive buffer. */
-	vq->vring.used->flags |= VRING_USED_F_NO_NOTIFY;
-	enable_fd(fd, vq, timeout);
+	kill(0, SIGTERM);
+}
+
+static void reset_device(struct device *dev)
+{
+	struct virtqueue *vq;
+
+	verbose("Resetting device %s\n", dev->name);
+
+	/* Clear any features they've acked. */
+	memset(get_feature_bits(dev) + dev->feature_len, 0, dev->feature_len);
+
+	/* We're going to be explicitly killing threads, so ignore them. */
+	signal(SIGCHLD, SIG_IGN);
+
+	/* Zero out the virtqueues, get rid of their threads */
+	for (vq = dev->vq; vq; vq = vq->next) {
+		if (vq->thread != (pid_t)-1) {
+			kill(vq->thread, SIGTERM);
+			waitpid(vq->thread, NULL, 0);
+			vq->thread = (pid_t)-1;
+		}
+		memset(vq->vring.desc, 0,
+		       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
+		lg_last_avail(vq) = 0;
+	}
+	dev->running = false;
+
+	/* Now we care if threads die. */
+	signal(SIGCHLD, (void *)kill_launcher);
+}
+
+static void create_thread(struct virtqueue *vq)
+{
+	/* Create stack for thread and run it.  Since stack grows
+	 * upwards, we point the stack pointer to the end of this
+	 * region. */
+	char *stack = malloc(32768);
+	unsigned long args[] = { LHREQ_EVENTFD,
+				 vq->config.pfn*getpagesize(), 0 };
+
+	/* Create a zero-initialized eventfd. */
+	vq->eventfd = eventfd(0, 0);
+	if (vq->eventfd < 0)
+		err(1, "Creating eventfd");
+	args[2] = vq->eventfd;
+
+	/* Attach an eventfd to this virtqueue: it will go off
+	 * when the Guest does an LHCALL_NOTIFY for this vq. */
+	if (write(lguest_fd, &args, sizeof(args)) != 0)
+		err(1, "Attaching eventfd");
+
+	/* CLONE_VM: because it has to access the Guest memory, and
+	 * SIGCHLD so we get a signal if it dies. */
+	vq->thread = clone(do_thread, stack + 32768, CLONE_VM | SIGCHLD, vq);
+	if (vq->thread == (pid_t)-1)
+		err(1, "Creating clone");
+	/* We close our local copy, now the child has it. */
+	close(vq->eventfd);
+}
+
+static void start_device(struct device *dev)
+{
+	unsigned int i;
+	struct virtqueue *vq;
+
+	verbose("Device %s OK: offered", dev->name);
+	for (i = 0; i < dev->feature_len; i++)
+		verbose(" %02x", get_feature_bits(dev)[i]);
+	verbose(", accepted");
+	for (i = 0; i < dev->feature_len; i++)
+		verbose(" %02x", get_feature_bits(dev)
+			[dev->feature_len+i]);
+
+	for (vq = dev->vq; vq; vq = vq->next) {
+		if (vq->service)
+			create_thread(vq);
+	}
+	dev->running = true;
+}
+
+static void cleanup_devices(void)
+{
+	struct device *dev;
+
+	for (dev = devices.dev; dev; dev = dev->next)
+		reset_device(dev);
+
+	/* If we saved off the original terminal settings, restore them now. */
+	if (orig_term.c_lflag & (ISIG|ICANON|ECHO))
+		tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
 }
 
 /* When the Guest tells us they updated the status field, we handle it. */
 static void update_device_status(struct device *dev)
 {
-	struct virtqueue *vq;
-
-	/* This is a reset. */
-	if (dev->desc->status == 0) {
-		verbose("Resetting device %s\n", dev->name);
-
-		/* Clear any features they've acked. */
-		memset(get_feature_bits(dev) + dev->desc->feature_len, 0,
-		       dev->desc->feature_len);
-
-		/* Zero out the virtqueues. */
-		for (vq = dev->vq; vq; vq = vq->next) {
-			memset(vq->vring.desc, 0,
-			       vring_size(vq->config.num, LGUEST_VRING_ALIGN));
-			lg_last_avail(vq) = 0;
-		}
-	} else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
+	/* A zero status is a reset, otherwise it's a set of flags. */
+	if (dev->desc->status == 0)
+		reset_device(dev);
+	else if (dev->desc->status & VIRTIO_CONFIG_S_FAILED) {
 		warnx("Device %s configuration FAILED", dev->name);
+		if (dev->running)
+			reset_device(dev);
 	} else if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK) {
-		unsigned int i;
-
-		verbose("Device %s OK: offered", dev->name);
-		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %02x", get_feature_bits(dev)[i]);
-		verbose(", accepted");
-		for (i = 0; i < dev->desc->feature_len; i++)
-			verbose(" %02x", get_feature_bits(dev)
-				[dev->desc->feature_len+i]);
-
-		if (dev->ready)
-			dev->ready(dev);
+		if (!dev->running)
+			start_device(dev);
 	}
 }
 
 /* This is the generic routine we call when the Guest uses LHCALL_NOTIFY. */
-static void handle_output(int fd, unsigned long addr)
+static void handle_output(unsigned long addr)
 {
 	struct device *i;
-	struct virtqueue *vq;
 
-	/* Check each device and virtqueue. */
+	/* Check each device. */
 	for (i = devices.dev; i; i = i->next) {
+		struct virtqueue *vq;
+
 		/* Notifications to device descriptors update device status. */
 		if (from_guest_phys(addr) == i->desc) {
 			update_device_status(i);
 			return;
 		}
 
-		/* Notifications to virtqueues mean output has occurred. */
+		/* Devices *can* be used before status is set to DRIVER_OK. */
 		for (vq = i->vq; vq; vq = vq->next) {
-			if (vq->config.pfn != addr/getpagesize())
+			if (addr != vq->config.pfn*getpagesize())
 				continue;
-
-			/* Guest should acknowledge (and set features!)  before
-			 * using the device. */
-			if (i->desc->status == 0) {
-				warnx("%s gave early output", i->name);
-				return;
-			}
-
-			if (strcmp(vq->dev->name, "console") != 0)
-				verbose("Output to %s\n", vq->dev->name);
-			if (vq->handle_output)
-				vq->handle_output(fd, vq, false);
+			if (i->running)
+				errx(1, "Notification on running %s", i->name);
+			start_device(i);
 			return;
 		}
 	}
@@ -1047,71 +988,6 @@ static void handle_output(int fd, unsigned long addr)
 
 	write(STDOUT_FILENO, from_guest_phys(addr),
 	      strnlen(from_guest_phys(addr), guest_limit - addr));
-}
-
-static void handle_timeout(int fd)
-{
-	char buf[32];
-	struct device *i;
-	struct virtqueue *vq;
-
-	/* Clear the pipe */
-	read(timeoutpipe[0], buf, sizeof(buf));
-
-	/* Check each device and virtqueue: flush blocked ones. */
-	for (i = devices.dev; i; i = i->next) {
-		for (vq = i->vq; vq; vq = vq->next) {
-			if (!vq->blocked)
-				continue;
-
-			vq->vring.used->flags &= ~VRING_USED_F_NO_NOTIFY;
-			vq->blocked = false;
-			if (vq->handle_output)
-				vq->handle_output(fd, vq, true);
-		}
-	}
-}
-
-/* This is called when the Waker wakes us up: check for incoming file
- * descriptors. */
-static void handle_input(int fd)
-{
-	/* select() wants a zeroed timeval to mean "don't wait". */
-	struct timeval poll = { .tv_sec = 0, .tv_usec = 0 };
-
-	for (;;) {
-		struct device *i;
-		fd_set fds = devices.infds;
-		int num;
-
-		num = select(devices.max_infd+1, &fds, NULL, NULL, &poll);
-		/* Could get interrupted */
-		if (num < 0)
-			continue;
-		/* If nothing is ready, we're done. */
-		if (num == 0)
-			break;
-
-		/* Otherwise, call the device(s) which have readable file
-		 * descriptors and a method of handling them.  */
-		for (i = devices.dev; i; i = i->next) {
-			if (i->handle_input && FD_ISSET(i->fd, &fds)) {
-				if (i->handle_input(fd, i))
-					continue;
-
-				/* If handle_input() returns false, it means we
-				 * should no longer service it.  Networking and
-				 * console do this when there's no input
-				 * buffers to deliver into.  Console also uses
-				 * it when it discovers that stdin is closed. */
-				FD_CLR(i->fd, &devices.infds);
-			}
-		}
-
-		/* Is this the timeout fd? */
-		if (FD_ISSET(timeoutpipe[0], &fds))
-			handle_timeout(fd);
-	}
 }
 
 /*L:190
@@ -1129,8 +1005,8 @@ static void handle_input(int fd)
 static u8 *device_config(const struct device *dev)
 {
 	return (void *)(dev->desc + 1)
-		+ dev->desc->num_vq * sizeof(struct lguest_vqconfig)
-		+ dev->desc->feature_len * 2;
+		+ dev->num_vq * sizeof(struct lguest_vqconfig)
+		+ dev->feature_len * 2;
 }
 
 /* This routine allocates a new "struct lguest_device_desc" from descriptor
@@ -1159,7 +1035,7 @@ static struct lguest_device_desc *new_dev_desc(u16 type)
 /* Each device descriptor is followed by the description of its virtqueues.  We
  * specify how many descriptors the virtqueue is to have. */
 static void add_virtqueue(struct device *dev, unsigned int num_descs,
-			  void (*handle_output)(int, struct virtqueue *, bool))
+			  void (*service)(struct virtqueue *))
 {
 	unsigned int pages;
 	struct virtqueue **i, *vq = malloc(sizeof(*vq));
@@ -1174,8 +1050,8 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->next = NULL;
 	vq->last_avail_idx = 0;
 	vq->dev = dev;
-	vq->inflight = 0;
-	vq->blocked = false;
+	vq->service = service;
+	vq->thread = (pid_t)-1;
 
 	/* Initialize the configuration. */
 	vq->config.num = num_descs;
@@ -1191,6 +1067,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	 * yet, otherwise we'd be overwriting them. */
 	assert(dev->desc->config_len == 0 && dev->desc->feature_len == 0);
 	memcpy(device_config(dev), &vq->config, sizeof(vq->config));
+	dev->num_vq++;
 	dev->desc->num_vq++;
 
 	verbose("Virtqueue page %#lx\n", to_guest_phys(p));
@@ -1199,15 +1076,6 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	 * second.  */
 	for (i = &dev->vq; *i; i = &(*i)->next);
 	*i = vq;
-
-	/* Set the routine to call when the Guest does something to this
-	 * virtqueue. */
-	vq->handle_output = handle_output;
-
-	/* As an optimization, set the advisory "Don't Notify Me" flag if we
-	 * don't have a handler */
-	if (!handle_output)
-		vq->vring.used->flags = VRING_USED_F_NO_NOTIFY;
 }
 
 /* The first half of the feature bitmask is for us to advertise features.  The
@@ -1219,7 +1087,7 @@ static void add_feature(struct device *dev, unsigned bit)
 	/* We can't extend the feature bits once we've added config bytes */
 	if (dev->desc->feature_len <= bit / CHAR_BIT) {
 		assert(dev->desc->config_len == 0);
-		dev->desc->feature_len = (bit / CHAR_BIT) + 1;
+		dev->feature_len = dev->desc->feature_len = (bit/CHAR_BIT) + 1;
 	}
 
 	features[bit / CHAR_BIT] |= (1 << (bit % CHAR_BIT));
@@ -1243,22 +1111,17 @@ static void set_config(struct device *dev, unsigned len, const void *conf)
  * calling new_dev_desc() to allocate the descriptor and device memory.
  *
  * See what I mean about userspace being boring? */
-static struct device *new_device(const char *name, u16 type, int fd,
-				 bool (*handle_input)(int, struct device *))
+static struct device *new_device(const char *name, u16 type)
 {
 	struct device *dev = malloc(sizeof(*dev));
 
 	/* Now we populate the fields one at a time. */
-	dev->fd = fd;
-	/* If we have an input handler for this file descriptor, then we add it
-	 * to the device_list's fdset and maxfd. */
-	if (handle_input)
-		add_device_fd(dev->fd);
 	dev->desc = new_dev_desc(type);
-	dev->handle_input = handle_input;
 	dev->name = name;
 	dev->vq = NULL;
-	dev->ready = NULL;
+	dev->feature_len = 0;
+	dev->num_vq = 0;
+	dev->running = false;
 
 	/* Append to device list.  Prepending to a single-linked list is
 	 * easier, but the user expects the devices to be arranged on the bus
@@ -1286,13 +1149,10 @@ static void setup_console(void)
 		 * raw input stream to the Guest. */
 		term.c_lflag &= ~(ISIG|ICANON|ECHO);
 		tcsetattr(STDIN_FILENO, TCSANOW, &term);
-		/* If we exit gracefully, the original settings will be
-		 * restored so the user can see what they're typing. */
-		atexit(restore_term);
 	}
 
-	dev = new_device("console", VIRTIO_ID_CONSOLE,
-			 STDIN_FILENO, handle_console_input);
+	dev = new_device("console", VIRTIO_ID_CONSOLE);
+
 	/* We store the console state in dev->priv, and initialize it. */
 	dev->priv = malloc(sizeof(struct console_abort));
 	((struct console_abort *)dev->priv)->count = 0;
@@ -1301,30 +1161,12 @@ static void setup_console(void)
 	 * they put something the input queue, we make sure we're listening to
 	 * stdin.  When they put something in the output queue, we write it to
 	 * stdout. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_console_output);
+	add_virtqueue(dev, VIRTQUEUE_NUM, console_input);
+	add_virtqueue(dev, VIRTQUEUE_NUM, console_output);
 
-	verbose("device %u: console\n", devices.device_num++);
+	verbose("device %u: console\n", ++devices.device_num);
 }
 /*:*/
-
-static void timeout_alarm(int sig)
-{
-	write(timeoutpipe[1], "", 1);
-}
-
-static void setup_timeout(void)
-{
-	if (pipe(timeoutpipe) != 0)
-		err(1, "Creating timeout pipe");
-
-	if (fcntl(timeoutpipe[1], F_SETFL,
-		  fcntl(timeoutpipe[1], F_GETFL) | O_NONBLOCK) != 0)
-		err(1, "Making timeout pipe nonblocking");
-
-	add_device_fd(timeoutpipe[0]);
-	signal(SIGALRM, timeout_alarm);
-}
 
 /*M:010 Inter-guest networking is an interesting area.  Simplest is to have a
  * --sharenet=<name> option which opens or creates a named pipe.  This can be
@@ -1447,21 +1289,23 @@ static int get_tun_device(char tapif[IFNAMSIZ])
 static void setup_tun_net(char *arg)
 {
 	struct device *dev;
-	int netfd, ipfd;
+	struct net_info *net_info = malloc(sizeof(*net_info));
+	int ipfd;
 	u32 ip = INADDR_ANY;
 	bool bridging = false;
 	char tapif[IFNAMSIZ], *p;
 	struct virtio_net_config conf;
 
-	netfd = get_tun_device(tapif);
+	net_info->tunfd = get_tun_device(tapif);
 
 	/* First we create a new network device. */
-	dev = new_device("net", VIRTIO_ID_NET, netfd, handle_tun_input);
+	dev = new_device("net", VIRTIO_ID_NET);
+	dev->priv = net_info;
 
 	/* Network devices need a receive and a send queue, just like
 	 * console. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, net_enable_fd);
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_net_output);
+	add_virtqueue(dev, VIRTQUEUE_NUM, net_input);
+	add_virtqueue(dev, VIRTQUEUE_NUM, net_output);
 
 	/* We need a socket to perform the magic network ioctls to bring up the
 	 * tap interface, connect to the bridge etc.  Any socket will do! */
@@ -1502,6 +1346,8 @@ static void setup_tun_net(char *arg)
 	add_feature(dev, VIRTIO_NET_F_HOST_TSO4);
 	add_feature(dev, VIRTIO_NET_F_HOST_TSO6);
 	add_feature(dev, VIRTIO_NET_F_HOST_ECN);
+	/* We handle indirect ring entries */
+	add_feature(dev, VIRTIO_RING_F_INDIRECT_DESC);
 	set_config(dev, sizeof(conf), &conf);
 
 	/* We don't need the socket any more; setup is done. */
@@ -1550,20 +1396,18 @@ struct vblk_info
  * Remember that the block device is handled by a separate I/O thread.  We head
  * straight into the core of that thread here:
  */
-static bool service_io(struct device *dev)
+static void blk_request(struct virtqueue *vq)
 {
-	struct vblk_info *vblk = dev->priv;
+	struct vblk_info *vblk = vq->dev->priv;
 	unsigned int head, out_num, in_num, wlen;
 	int ret;
 	u8 *in;
 	struct virtio_blk_outhdr *out;
-	struct iovec iov[dev->vq->vring.num];
+	struct iovec iov[vq->vring.num];
 	off64_t off;
 
-	/* See if there's a request waiting.  If not, nothing to do. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-	if (head == dev->vq->vring.num)
-		return false;
+	/* Get the next request. */
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 
 	/* Every block request should contain at least one output buffer
 	 * (detailing the location on disk and the type of request) and one
@@ -1637,83 +1481,21 @@ static bool service_io(struct device *dev)
 	if (out->type & VIRTIO_BLK_T_BARRIER)
 		fdatasync(vblk->fd);
 
-	/* We can't trigger an IRQ, because we're not the Launcher.  It does
-	 * that when we tell it we're done. */
-	add_used(dev->vq, head, wlen);
-	return true;
-}
-
-/* This is the thread which actually services the I/O. */
-static int io_thread(void *_dev)
-{
-	struct device *dev = _dev;
-	struct vblk_info *vblk = dev->priv;
-	char c;
-
-	/* Close other side of workpipe so we get 0 read when main dies. */
-	close(vblk->workpipe[1]);
-	/* Close the other side of the done_fd pipe. */
-	close(dev->fd);
-
-	/* When this read fails, it means Launcher died, so we follow. */
-	while (read(vblk->workpipe[0], &c, 1) == 1) {
-		/* We acknowledge each request immediately to reduce latency,
-		 * rather than waiting until we've done them all.  I haven't
-		 * measured to see if it makes any difference.
-		 *
-		 * That would be an interesting test, wouldn't it?  You could
-		 * also try having more than one I/O thread. */
-		while (service_io(dev))
-			write(vblk->done_fd, &c, 1);
-	}
-	return 0;
-}
-
-/* Now we've seen the I/O thread, we return to the Launcher to see what happens
- * when that thread tells us it's completed some I/O. */
-static bool handle_io_finish(int fd, struct device *dev)
-{
-	char c;
-
-	/* If the I/O thread died, presumably it printed the error, so we
-	 * simply exit. */
-	if (read(dev->fd, &c, 1) != 1)
-		exit(1);
-
-	/* It did some work, so trigger the irq. */
-	trigger_irq(fd, dev->vq);
-	return true;
-}
-
-/* When the Guest submits some I/O, we just need to wake the I/O thread. */
-static void handle_virtblk_output(int fd, struct virtqueue *vq, bool timeout)
-{
-	struct vblk_info *vblk = vq->dev->priv;
-	char c = 0;
-
-	/* Wake up I/O thread and tell it to go to work! */
-	if (write(vblk->workpipe[1], &c, 1) != 1)
-		/* Presumably it indicated why it died. */
-		exit(1);
+	add_used(vq, head, wlen);
 }
 
 /*L:198 This actually sets up a virtual block device. */
 static void setup_block_file(const char *filename)
 {
-	int p[2];
 	struct device *dev;
 	struct vblk_info *vblk;
-	void *stack;
 	struct virtio_blk_config conf;
 
-	/* This is the pipe the I/O thread will use to tell us I/O is done. */
-	pipe(p);
-
 	/* The device responds to return from I/O thread. */
-	dev = new_device("block", VIRTIO_ID_BLOCK, p[0], handle_io_finish);
+	dev = new_device("block", VIRTIO_ID_BLOCK);
 
 	/* The device has one virtqueue, where the Guest places requests. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, handle_virtblk_output);
+	add_virtqueue(dev, VIRTQUEUE_NUM, blk_request);
 
 	/* Allocate the room for our own bookkeeping */
 	vblk = dev->priv = malloc(sizeof(*vblk));
@@ -1735,28 +1517,13 @@ static void setup_block_file(const char *filename)
 
 	set_config(dev, sizeof(conf), &conf);
 
-	/* The I/O thread writes to this end of the pipe when done. */
-	vblk->done_fd = p[1];
-
-	/* This is the second pipe, which is how we tell the I/O thread about
-	 * more work. */
-	pipe(vblk->workpipe);
-
-	/* Create stack for thread and run it.  Since stack grows upwards, we
-	 * point the stack pointer to the end of this region. */
-	stack = malloc(32768);
-	/* SIGCHLD - We dont "wait" for our cloned thread, so prevent it from
-	 * becoming a zombie. */
-	if (clone(io_thread, stack + 32768, CLONE_VM | SIGCHLD, dev) == -1)
-		err(1, "Creating clone");
-
-	/* We don't need to keep the I/O thread's end of the pipes open. */
-	close(vblk->done_fd);
-	close(vblk->workpipe[0]);
-
 	verbose("device %u: virtblock %llu sectors\n",
-		devices.device_num, le64_to_cpu(conf.capacity));
+		++devices.device_num, le64_to_cpu(conf.capacity));
 }
+
+struct rng_info {
+	int rfd;
+};
 
 /* Our random number generator device reads from /dev/random into the Guest's
  * input buffers.  The usual case is that the Guest doesn't want random numbers
@@ -1764,20 +1531,15 @@ static void setup_block_file(const char *filename)
  * console is the reverse.
  *
  * The same logic applies, however. */
-static bool handle_rng_input(int fd, struct device *dev)
+static void rng_input(struct virtqueue *vq)
 {
 	int len;
 	unsigned int head, in_num, out_num, totlen = 0;
-	struct iovec iov[dev->vq->vring.num];
+	struct rng_info *rng_info = vq->dev->priv;
+	struct iovec iov[vq->vring.num];
 
 	/* First we need a buffer from the Guests's virtqueue. */
-	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
-
-	/* If they're not ready for input, stop listening to this file
-	 * descriptor.  We'll start again once they add an input buffer. */
-	if (head == dev->vq->vring.num)
-		return false;
-
+	head = wait_for_vq_desc(vq, iov, &out_num, &in_num);
 	if (out_num)
 		errx(1, "Output buffers in rng?");
 
@@ -1785,7 +1547,7 @@ static bool handle_rng_input(int fd, struct device *dev)
 	 * it reads straight into the Guest's buffer.  We loop to make sure we
 	 * fill it. */
 	while (!iov_empty(iov, in_num)) {
-		len = readv(dev->fd, iov, in_num);
+		len = readv(rng_info->rfd, iov, in_num);
 		if (len <= 0)
 			err(1, "Read from /dev/random gave %i", len);
 		iov_consume(iov, in_num, len);
@@ -1793,25 +1555,23 @@ static bool handle_rng_input(int fd, struct device *dev)
 	}
 
 	/* Tell the Guest about the new input. */
-	add_used_and_trigger(fd, dev->vq, head, totlen);
-
-	/* Everything went OK! */
-	return true;
+	add_used(vq, head, totlen);
 }
 
 /* And this creates a "hardware" random number device for the Guest. */
 static void setup_rng(void)
 {
 	struct device *dev;
-	int fd;
+	struct rng_info *rng_info = malloc(sizeof(*rng_info));
 
-	fd = open_or_die("/dev/random", O_RDONLY);
+	rng_info->rfd = open_or_die("/dev/random", O_RDONLY);
 
 	/* The device responds to return from I/O thread. */
-	dev = new_device("rng", VIRTIO_ID_RNG, fd, handle_rng_input);
+	dev = new_device("rng", VIRTIO_ID_RNG);
+	dev->priv = rng_info;
 
 	/* The device has one virtqueue, where the Guest places inbufs. */
-	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
+	add_virtqueue(dev, VIRTQUEUE_NUM, rng_input);
 
 	verbose("device %u: rng\n", devices.device_num++);
 }
@@ -1827,17 +1587,18 @@ static void __attribute__((noreturn)) restart_guest(void)
 	for (i = 3; i < FD_SETSIZE; i++)
 		close(i);
 
-	/* The exec automatically gets rid of the I/O and Waker threads. */
+	/* Reset all the devices (kills all threads). */
+	cleanup_devices();
+
 	execv(main_args[0], main_args);
 	err(1, "Could not exec %s", main_args[0]);
 }
 
 /*L:220 Finally we reach the core of the Launcher which runs the Guest, serves
  * its input and output, and finally, lays it to rest. */
-static void __attribute__((noreturn)) run_guest(int lguest_fd)
+static void __attribute__((noreturn)) run_guest(void)
 {
 	for (;;) {
-		unsigned long args[] = { LHREQ_BREAK, 0 };
 		unsigned long notify_addr;
 		int readval;
 
@@ -1848,8 +1609,7 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* One unsigned long means the Guest did HCALL_NOTIFY */
 		if (readval == sizeof(notify_addr)) {
 			verbose("Notify on address %#lx\n", notify_addr);
-			handle_output(lguest_fd, notify_addr);
-			continue;
+			handle_output(notify_addr);
 		/* ENOENT means the Guest died.  Reading tells us why. */
 		} else if (errno == ENOENT) {
 			char reason[1024] = { 0 };
@@ -1858,19 +1618,9 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* ERESTART means that we need to reboot the guest */
 		} else if (errno == ERESTART) {
 			restart_guest();
-		/* EAGAIN means a signal (timeout).
-		 * Anything else means a bug or incompatible change. */
-		} else if (errno != EAGAIN)
+		/* Anything else means a bug or incompatible change. */
+		} else
 			err(1, "Running guest failed");
-
-		/* Only service input on thread for CPU 0. */
-		if (cpu_id != 0)
-			continue;
-
-		/* Service input, then unset the BREAK to release the Waker. */
-		handle_input(lguest_fd);
-		if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
-			err(1, "Resetting break");
 	}
 }
 /*L:240
@@ -1904,8 +1654,8 @@ int main(int argc, char *argv[])
 	/* Memory, top-level pagetable, code startpoint and size of the
 	 * (optional) initrd. */
 	unsigned long mem = 0, start, initrd_size = 0;
-	/* Two temporaries and the /dev/lguest file descriptor. */
-	int i, c, lguest_fd;
+	/* Two temporaries. */
+	int i, c;
 	/* The boot information for the Guest. */
 	struct boot_params *boot;
 	/* If they specify an initrd file to load. */
@@ -1913,18 +1663,10 @@ int main(int argc, char *argv[])
 
 	/* Save the args: we "reboot" by execing ourselves again. */
 	main_args = argv;
-	/* We don't "wait" for the children, so prevent them from becoming
-	 * zombies. */
-	signal(SIGCHLD, SIG_IGN);
 
-	/* First we initialize the device list.  Since console and network
-	 * device receive input from a file descriptor, we keep an fdset
-	 * (infds) and the maximum fd number (max_infd) with the head of the
-	 * list.  We also keep a pointer to the last device.  Finally, we keep
-	 * the next interrupt number to use for devices (1: remember that 0 is
-	 * used by the timer). */
-	FD_ZERO(&devices.infds);
-	devices.max_infd = -1;
+	/* First we initialize the device list.  We keep a pointer to the last
+	 * device, and the next interrupt number to use for devices (1:
+	 * remember that 0 is used by the timer). */
 	devices.lastdev = NULL;
 	devices.next_irq = 1;
 
@@ -1982,9 +1724,6 @@ int main(int argc, char *argv[])
 	/* We always have a console device */
 	setup_console();
 
-	/* We can timeout waiting for Guest network transmit. */
-	setup_timeout();
-
 	/* Now we load the kernel */
 	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY));
 
@@ -2023,15 +1762,16 @@ int main(int argc, char *argv[])
 
 	/* We tell the kernel to initialize the Guest: this returns the open
 	 * /dev/lguest file descriptor. */
-	lguest_fd = tell_kernel(start);
+	tell_kernel(start);
 
-	/* We clone off a thread, which wakes the Launcher whenever one of the
-	 * input file descriptors needs attention.  We call this the Waker, and
-	 * we'll cover it in a moment. */
-	setup_waker(lguest_fd);
+	/* Ensure that we terminate if a child dies. */
+	signal(SIGCHLD, kill_launcher);
+
+	/* If we exit via err(), this kills all the threads, restores tty. */
+	atexit(cleanup_devices);
 
 	/* Finally, run the Guest.  This doesn't return. */
-	run_guest(lguest_fd);
+	run_guest();
 }
 /*:*/
 

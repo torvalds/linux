@@ -968,6 +968,13 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 	if (!x86_pmu.num_counters_fixed)
 		return -1;
 
+	/*
+	 * Quirk, IA32_FIXED_CTRs do not work on current Atom processors:
+	 */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+					boot_cpu_data.x86_model == 28)
+		return -1;
+
 	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
 	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))

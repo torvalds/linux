@@ -83,6 +83,17 @@ config MMC_SDHCI_OF
 
 	  If unsure, say N.
 
+config MMC_SDHCI_PLTFM
+	tristate "SDHCI support on the platform specific bus"
+	depends on MMC_SDHCI
+	help
+	  This selects the platform specific bus support for Secure Digital Host
+	  Controller Interface.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
@@ -155,7 +166,7 @@ config MMC_ATMELMCI_DMA
 
 config MMC_IMX
 	tristate "Motorola i.MX Multimedia Card Interface support"
-	depends on ARCH_IMX
+	depends on ARCH_MX1
 	help
 	  This selects the Motorola i.MX Multimedia card Interface.
 	  If you have a i.MX platform with a Multimedia Card slot,
@@ -237,7 +248,20 @@ config MMC_SDRICOH_CS
 
 config MMC_TMIO
 	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
-	depends on MFD_TMIO
+	depends on MFD_TMIO || MFD_ASIC3
 	help
 	  This provides support for the SD/MMC cell found in TC6393XB,
-	  T7L66XB and also ipaq ASIC3
+	  T7L66XB and also HTC ASIC3
+
+config MMC_CB710
+	tristate "ENE CB710 MMC/SD Interface support"
+	depends on PCI
+	select CB710_CORE
+	help
+	  This option enables support for MMC/SD part of ENE CB710/720 Flash
+	  memory card reader found in some laptops (ie. some versions of
+	  HP Compaq nx9500).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called cb710-mmc.
+

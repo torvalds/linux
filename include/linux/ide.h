@@ -178,7 +178,7 @@ typedef u8 hwif_chipset_t;
 /*
  * Structure to hold all information about the location of this port
  */
-typedef struct hw_regs_s {
+struct ide_hw {
 	union {
 		struct ide_io_ports	io_ports;
 		unsigned long		io_ports_array[IDE_NR_PORTS];
@@ -186,12 +186,11 @@ typedef struct hw_regs_s {
 
 	int		irq;			/* our irq number */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
-	hwif_chipset_t  chipset;
 	struct device	*dev, *parent;
 	unsigned long	config;
-} hw_regs_t;
+};
 
-static inline void ide_std_init_ports(hw_regs_t *hw,
+static inline void ide_std_init_ports(struct ide_hw *hw,
 				      unsigned long io_addr,
 				      unsigned long ctl_addr)
 {
@@ -218,21 +217,12 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 /*
  * Special Driver Flags
- *
- * set_geometry	: respecify drive geometry
- * recalibrate	: seek to cyl 0
- * set_multmode	: set multmode count
- * reserved	: unused
  */
-typedef union {
-	unsigned all			: 8;
-	struct {
-		unsigned set_geometry	: 1;
-		unsigned recalibrate	: 1;
-		unsigned set_multmode	: 1;
-		unsigned reserved	: 5;
-	} b;
-} special_t;
+enum {
+	IDE_SFLAG_SET_GEOMETRY		= (1 << 0),
+	IDE_SFLAG_RECALIBRATE		= (1 << 1),
+	IDE_SFLAG_SET_MULTMODE		= (1 << 2),
+};
 
 /*
  * Status returned from various ide_ functions
@@ -391,6 +381,7 @@ struct ide_drive_s;
 struct ide_disk_ops {
 	int		(*check)(struct ide_drive_s *, const char *);
 	int		(*get_capacity)(struct ide_drive_s *);
+	u64		(*set_capacity)(struct ide_drive_s *, u64);
 	void		(*setup)(struct ide_drive_s *);
 	void		(*flush)(struct ide_drive_s *);
 	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
@@ -468,6 +459,8 @@ enum {
 	IDE_DFLAG_NICE1			= (1 << 5),
 	/* device is physically present */
 	IDE_DFLAG_PRESENT		= (1 << 6),
+	/* disable Host Protected Area */
+	IDE_DFLAG_NOHPA			= (1 << 7),
 	/* id read from device (synthetic if not set) */
 	IDE_DFLAG_ID_READ		= (1 << 8),
 	IDE_DFLAG_NOPROBE		= (1 << 9),
@@ -506,6 +499,7 @@ enum {
 	/* write protect */
 	IDE_DFLAG_WP			= (1 << 29),
 	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 30),
+	IDE_DFLAG_NIEN_QUIRK		= (1 << 31),
 };
 
 struct ide_drive_s {
@@ -530,14 +524,13 @@ struct ide_drive_s {
 	unsigned long sleep;		/* sleep until this time */
 	unsigned long timeout;		/* max time to wait for irq */
 
-	special_t	special;	/* special action flags */
+	u8	special_flags;		/* special action flags */
 
 	u8	select;			/* basic drive/head select reg value */
 	u8	retry_pio;		/* retrying dma capable host in pio */
 	u8	waiting_for_dma;	/* dma currently in progress */
 	u8	dma;			/* atapi dma flag */
 
-        u8	quirk_list;	/* considered quirky, set for a specific host */
         u8	init_speed;	/* transfer rate set at boot */
         u8	current_speed;	/* current transfer rate set */
 	u8	desired_speed;	/* desired transfer rate set */
@@ -562,8 +555,7 @@ struct ide_drive_s {
 	unsigned int	drive_data;	/* used by set_pio_mode/dev_select() */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
-	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
-
+	u64		probed_capacity;/* initial/native media capacity */
 	u64		capacity64;	/* total number of sectors */
 
 	int		lun;		/* logical unit */
@@ -1222,7 +1214,7 @@ static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
 }
 
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *,
-			 hw_regs_t *, hw_regs_t **);
+			 struct ide_hw *, struct ide_hw **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1461,16 +1453,18 @@ static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 void ide_register_region(struct gendisk *);
 void ide_unregister_region(struct gendisk *);
 
+void ide_check_nien_quirk_list(ide_drive_t *);
 void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
 int ide_sysfs_register_port(ide_hwif_t *);
 
-struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
+struct ide_host *ide_host_alloc(const struct ide_port_info *, struct ide_hw **,
+				unsigned int);
 void ide_host_free(struct ide_host *);
 int ide_host_register(struct ide_host *, const struct ide_port_info *,
-		      hw_regs_t **);
-int ide_host_add(const struct ide_port_info *, hw_regs_t **,
+		      struct ide_hw **);
+int ide_host_add(const struct ide_port_info *, struct ide_hw **, unsigned int,
 		 struct ide_host **);
 void ide_host_remove(struct ide_host *);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);

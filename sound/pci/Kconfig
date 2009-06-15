@@ -275,6 +275,16 @@ config SND_CS5535AUDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs5535audio.
 
+config SND_CTXFI
+	tristate "Creative Sound Blaster X-Fi"
+	select SND_PCM
+	help
+	  If you want to use soundcards based on Creative Sound Blastr X-Fi
+	  boards with 20k1 or 20k2 chips, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-ctxfi.
+
 config SND_DARLA20
 	tristate "(Echoaudio) Darla20"
 	select FW_LOADER
@@ -532,6 +542,9 @@ config SND_HDSP
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdsp.
 
+comment "Don't forget to add built-in firmwares for HDSP driver"
+	depends on SND_HDSP=y
+
 config SND_HDSPM
 	tristate "RME Hammerfall DSP MADI"
 	select SND_HWDEP
@@ -621,6 +634,16 @@ config SND_KORG1212
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-korg1212.
+
+config SND_LX6464ES
+	tristate "Digigram LX6464ES"
+	select SND_PCM
+	help
+	  Say Y here to include support for Digigram LX6464ES boards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-lx6464es.
+
 
 config SND_MAESTRO3
 	tristate "ESS Allegro/Maestro3"
@@ -764,8 +787,8 @@ config SND_VIRTUOSO
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, and
-	  Essence STX.
+	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X,
+	  Essence ST (Deluxe), and Essence STX.
 	  Support for the HDAV1.3 (Deluxe) is very experimental.
 
 	  To compile this driver as a module, choose M here: the module

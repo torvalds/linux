@@ -120,6 +120,8 @@ enum perf_counter_sample_format {
 	PERF_SAMPLE_ID				= 1U << 6,
 	PERF_SAMPLE_CPU				= 1U << 7,
 	PERF_SAMPLE_PERIOD			= 1U << 8,
+
+	PERF_SAMPLE_MAX = 1U << 9,		/* non-ABI */
 };
 
 /*
@@ -131,17 +133,26 @@ enum perf_counter_read_format {
 	PERF_FORMAT_TOTAL_TIME_ENABLED		= 1U << 0,
 	PERF_FORMAT_TOTAL_TIME_RUNNING		= 1U << 1,
 	PERF_FORMAT_ID				= 1U << 2,
+
+	PERF_FORMAT_MAX = 1U << 3, 		/* non-ABI */
 };
+
+#define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
 
 /*
  * Hardware event to monitor via a performance monitoring counter:
  */
 struct perf_counter_attr {
+
 	/*
 	 * Major type: hardware/software/tracepoint/etc.
 	 */
 	__u32			type;
-	__u32			__reserved_1;
+
+	/*
+	 * Size of the attr structure, for fwd/bwd compat.
+	 */
+	__u32			size;
 
 	/*
 	 * Type specific configuration information.
@@ -168,12 +179,12 @@ struct perf_counter_attr {
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
 
-				__reserved_2   : 53;
+				__reserved_1   : 53;
 
 	__u32			wakeup_events;	/* wakeup every n events */
-	__u32			__reserved_3;
+	__u32			__reserved_2;
 
-	__u64			__reserved_4;
+	__u64			__reserved_3;
 };
 
 /*
@@ -621,7 +632,8 @@ extern int perf_counter_overflow(struct perf_counter *counter, int nmi,
 static inline int is_software_counter(struct perf_counter *counter)
 {
 	return (counter->attr.type != PERF_TYPE_RAW) &&
-		(counter->attr.type != PERF_TYPE_HARDWARE);
+		(counter->attr.type != PERF_TYPE_HARDWARE) &&
+		(counter->attr.type != PERF_TYPE_HW_CACHE);
 }
 
 extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);

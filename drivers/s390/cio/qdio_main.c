@@ -881,42 +881,26 @@ no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 }
 
-static int qdio_establish_check_errors(struct ccw_device *cdev, int cstat,
-				       int dstat)
-{
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-
-	if (cstat || (dstat & ~(DEV_STAT_CHN_END | DEV_STAT_DEV_END))) {
-		DBF_ERROR("EQ:ck con");
-		goto error;
-	}
-
-	if (!(dstat & DEV_STAT_DEV_END)) {
-		DBF_ERROR("EQ:no dev");
-		goto error;
-	}
-
-	if (dstat & ~(DEV_STAT_CHN_END | DEV_STAT_DEV_END)) {
-		DBF_ERROR("EQ: bad io");
-		goto error;
-	}
-	return 0;
-error:
-	DBF_ERROR("%4x EQ:error", irq_ptr->schid.sch_no);
-	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
-
-	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
-	return 1;
-}
-
 static void qdio_establish_handle_irq(struct ccw_device *cdev, int cstat,
 				      int dstat)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "qest irq");
-	if (!qdio_establish_check_errors(cdev, cstat, dstat))
-		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ESTABLISHED);
+
+	if (cstat)
+		goto error;
+	if (dstat & ~(DEV_STAT_DEV_END | DEV_STAT_CHN_END))
+		goto error;
+	if (!(dstat & DEV_STAT_DEV_END))
+		goto error;
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ESTABLISHED);
+	return;
+
+error:
+	DBF_ERROR("%4x EQ:error", irq_ptr->schid.sch_no);
+	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
+	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 }
 
 /* qdio interrupt handler */
@@ -946,7 +930,6 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		}
 	}
 	qdio_irq_check_sense(irq_ptr, irb);
-
 	cstat = irb->scsw.cmd.cstat;
 	dstat = irb->scsw.cmd.dstat;
 
@@ -954,22 +937,19 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	case QDIO_IRQ_STATE_INACTIVE:
 		qdio_establish_handle_irq(cdev, cstat, dstat);
 		break;
-
 	case QDIO_IRQ_STATE_CLEANUP:
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 		break;
-
 	case QDIO_IRQ_STATE_ESTABLISHED:
 	case QDIO_IRQ_STATE_ACTIVE:
 		if (cstat & SCHN_STAT_PCI) {
 			qdio_int_handler_pci(irq_ptr);
 			return;
 		}
-		if ((cstat & ~SCHN_STAT_PCI) || dstat) {
+		if (cstat || dstat)
 			qdio_handle_activate_check(cdev, intparm, cstat,
 						   dstat);
-			break;
-		}
+		break;
 	default:
 		WARN_ON(1);
 	}
@@ -1514,7 +1494,7 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if ((bufnr > QDIO_MAX_BUFFERS_PER_Q) ||
 	    (count > QDIO_MAX_BUFFERS_PER_Q) ||
-	    (q_nr > QDIO_MAX_QUEUES_PER_IRQ))
+	    (q_nr >= QDIO_MAX_QUEUES_PER_IRQ))
 		return -EINVAL;
 
 	if (!count)

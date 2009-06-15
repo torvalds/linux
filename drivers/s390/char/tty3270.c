@@ -112,7 +112,7 @@ struct tty3270 {
 #define TTY_UPDATE_LIST		2	/* Update lines in tty3270->update. */
 #define TTY_UPDATE_INPUT	4	/* Update input line. */
 #define TTY_UPDATE_STATUS	8	/* Update status line. */
-#define TTY_UPDATE_ALL		15
+#define TTY_UPDATE_ALL		16	/* Recreate screen. */
 
 static void tty3270_update(struct tty3270 *);
 
@@ -121,19 +121,10 @@ static void tty3270_update(struct tty3270 *);
  */
 static void tty3270_set_timer(struct tty3270 *tp, int expires)
 {
-	if (expires == 0) {
-		if (timer_pending(&tp->timer) && del_timer(&tp->timer))
-			raw3270_put_view(&tp->view);
-		return;
-	}
-	if (timer_pending(&tp->timer) &&
-	    mod_timer(&tp->timer, jiffies + expires))
-		return;
-	raw3270_get_view(&tp->view);
-	tp->timer.function = (void (*)(unsigned long)) tty3270_update;
-	tp->timer.data = (unsigned long) tp;
-	tp->timer.expires = jiffies + expires;
-	add_timer(&tp->timer);
+	if (expires == 0)
+		del_timer(&tp->timer);
+	else
+		mod_timer(&tp->timer, jiffies + expires);
 }
 
 /*
@@ -337,7 +328,6 @@ tty3270_write_callback(struct raw3270_request *rq, void *data)
 	tp = (struct tty3270 *) rq->view;
 	if (rq->rc != 0) {
 		/* Write wasn't successfull. Refresh all. */
-		tty3270_rebuild_update(tp);
 		tp->update_flags = TTY_UPDATE_ALL;
 		tty3270_set_timer(tp, 1);
 	}
@@ -366,6 +356,12 @@ tty3270_update(struct tty3270 *tp)
 
 	spin_lock(&tp->view.lock);
 	updated = 0;
+	if (tp->update_flags & TTY_UPDATE_ALL) {
+		tty3270_rebuild_update(tp);
+		tty3270_update_status(tp);
+		tp->update_flags = TTY_UPDATE_ERASE | TTY_UPDATE_LIST |
+			TTY_UPDATE_INPUT | TTY_UPDATE_STATUS;
+	}
 	if (tp->update_flags & TTY_UPDATE_ERASE) {
 		/* Use erase write alternate to erase display. */
 		raw3270_request_set_cmd(wrq, TC_EWRITEA);
@@ -425,7 +421,6 @@ tty3270_update(struct tty3270 *tp)
 		xchg(&tp->write, wrq);
 	}
 	spin_unlock(&tp->view.lock);
-	raw3270_put_view(&tp->view);
 }
 
 /*
@@ -570,7 +565,6 @@ tty3270_read_tasklet(struct raw3270_request *rrq)
 		tty3270_set_timer(tp, 1);
 	} else if (tp->input->string[0] == 0x6d) {
 		/* Display has been cleared. Redraw. */
-		tty3270_rebuild_update(tp);
 		tp->update_flags = TTY_UPDATE_ALL;
 		tty3270_set_timer(tp, 1);
 	}
@@ -641,22 +635,20 @@ static int
 tty3270_activate(struct raw3270_view *view)
 {
 	struct tty3270 *tp;
-	unsigned long flags;
 
 	tp = (struct tty3270 *) view;
-	spin_lock_irqsave(&tp->view.lock, flags);
-	tp->nr_up = 0;
-	tty3270_rebuild_update(tp);
-	tty3270_update_status(tp);
 	tp->update_flags = TTY_UPDATE_ALL;
 	tty3270_set_timer(tp, 1);
-	spin_unlock_irqrestore(&tp->view.lock, flags);
 	return 0;
 }
 
 static void
 tty3270_deactivate(struct raw3270_view *view)
 {
+	struct tty3270 *tp;
+
+	tp = (struct tty3270 *) view;
+	del_timer(&tp->timer);
 }
 
 static int
@@ -743,6 +735,7 @@ tty3270_free_view(struct tty3270 *tp)
 {
 	int pages;
 
+	del_timer_sync(&tp->timer);
 	kbd_free(tp->kbd);
 	raw3270_request_free(tp->kreset);
 	raw3270_request_free(tp->read);
@@ -889,7 +882,8 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 	INIT_LIST_HEAD(&tp->update);
 	INIT_LIST_HEAD(&tp->rcl_lines);
 	tp->rcl_max = 20;
-	init_timer(&tp->timer);
+	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
+		    (unsigned long) tp);
 	tasklet_init(&tp->readlet, 
 		     (void (*)(unsigned long)) tty3270_read_tasklet,
 		     (unsigned long) tp->read);
@@ -1754,14 +1748,6 @@ static const struct tty_operations tty3270_ops = {
 	.set_termios = tty3270_set_termios
 };
 
-static void tty3270_notifier(int index, int active)
-{
-	if (active)
-		tty_register_device(tty3270_driver, index, NULL);
-	else
-		tty_unregister_device(tty3270_driver, index);
-}
-
 /*
  * 3270 tty registration code called from tty_init().
  * Most kernel services (incl. kmalloc) are available at this poimt.
@@ -1796,12 +1782,6 @@ static int __init tty3270_init(void)
 		return ret;
 	}
 	tty3270_driver = driver;
-	ret = raw3270_register_notifier(tty3270_notifier);
-	if (ret) {
-		put_tty_driver(driver);
-		return ret;
-
-	}
 	return 0;
 }
 
@@ -1810,7 +1790,6 @@ tty3270_exit(void)
 {
 	struct tty_driver *driver;
 
-	raw3270_unregister_notifier(tty3270_notifier);
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);

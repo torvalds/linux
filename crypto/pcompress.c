@@ -26,6 +26,7 @@
 #include <linux/string.h>
 
 #include <crypto/compress.h>
+#include <crypto/internal/compress.h>
 
 #include "internal.h"
 

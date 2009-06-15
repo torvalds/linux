@@ -327,7 +327,7 @@ config NETFILTER_XT_TARGET_CONNMARK
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  The module will be called
-	  ipt_CONNMARK.ko.  If unsure, say `N'.
+	  ipt_CONNMARK.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_CONNSECMARK
 	tristate '"CONNSECMARK" target support'
@@ -584,7 +584,7 @@ config NETFILTER_XT_MATCH_CONNMARK
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  The module will be called
-	  ipt_connmark.ko.  If unsure, say `N'.
+	  ipt_connmark.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNTRACK
 	tristate '"conntrack" connection tracking match support'

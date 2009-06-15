@@ -114,7 +114,7 @@ int ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 	struct subchannel *sch;
 	int ret;
 
-	if (!cdev)
+	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
@@ -122,8 +122,6 @@ int ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
-	if (!sch)
-		return -ENODEV;
 	ret = cio_clear(sch);
 	if (ret == 0)
 		cdev->private->intparm = intparm;
@@ -161,11 +159,9 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	struct subchannel *sch;
 	int ret;
 
-	if (!cdev)
+	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	sch = to_subchannel(cdev->dev.parent);
-	if (!sch)
-		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_VERIFY ||
@@ -339,7 +335,7 @@ int ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 	struct subchannel *sch;
 	int ret;
 
-	if (!cdev)
+	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
@@ -347,8 +343,6 @@ int ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 	    cdev->private->state != DEV_STATE_W4SENSE)
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
-	if (!sch)
-		return -ENODEV;
 	ret = cio_halt(sch);
 	if (ret == 0)
 		cdev->private->intparm = intparm;
@@ -372,11 +366,9 @@ int ccw_device_resume(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
-	if (!cdev)
+	if (!cdev || !cdev->dev.parent)
 		return -ENODEV;
 	sch = to_subchannel(cdev->dev.parent);
-	if (!sch)
-		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
 	if (cdev->private->state != DEV_STATE_ONLINE ||
@@ -471,11 +463,11 @@ __u8 ccw_device_get_path_mask(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
-	sch = to_subchannel(cdev->dev.parent);
-	if (!sch)
+	if (!cdev->dev.parent)
 		return 0;
-	else
-		return sch->lpm;
+
+	sch = to_subchannel(cdev->dev.parent);
+	return sch->lpm;
 }
 
 /*

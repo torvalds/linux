@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/dm9000.h>
 #include <linux/i2c.h>
 
@@ -277,19 +278,19 @@ static struct platform_device vr1000_dm9k1 = {
 
 static struct s3c24xx_led_platdata vr1000_led1_pdata = {
 	.name		= "led1",
-	.gpio		= S3C2410_GPB0,
+	.gpio		= S3C2410_GPB(0),
 	.def_trigger	= "",
 };
 
 static struct s3c24xx_led_platdata vr1000_led2_pdata = {
 	.name		= "led2",
-	.gpio		= S3C2410_GPB1,
+	.gpio		= S3C2410_GPB(1),
 	.def_trigger	= "",
 };
 
 static struct s3c24xx_led_platdata vr1000_led3_pdata = {
 	.name		= "led3",
-	.gpio		= S3C2410_GPB2,
+	.gpio		= S3C2410_GPB(2),
 	.def_trigger	= "",
 };
 
@@ -355,8 +356,8 @@ static struct clk *vr1000_clocks[] __initdata = {
 
 static void vr1000_power_off(void)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPB9, S3C2410_GPB9_OUTP);
-	s3c2410_gpio_setpin(S3C2410_GPB9, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPB(9), S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_setpin(S3C2410_GPB(9), 1);
 }
 
 static void __init vr1000_map_io(void)

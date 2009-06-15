@@ -75,7 +75,7 @@ static char *sw_event_names[] = {
 #define MAX_ALIASES 8
 
 static char *hw_cache [][MAX_ALIASES] = {
-	{ "L1-data"		, "l1-d", "l1d", "l1"				},
+	{ "L1-data"		, "l1-d", "l1d"					},
 	{ "L1-instruction"	, "l1-i", "l1i"					},
 	{ "L2"			, "l2"						},
 	{ "Data-TLB"		, "dtlb", "d-tlb"				},

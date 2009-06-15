@@ -108,6 +108,10 @@ static int t7l66xb_mmc_disable(struct platform_device *mmc)
 
 /*--------------------------------------------------------------------------*/
 
+static const struct tmio_mmc_data t7166xb_mmc_data = {
+	.hclk = 24000000,
+};
+
 static const struct resource t7l66xb_mmc_resources[] = {
 	{
 		.start = 0x800,
@@ -149,6 +153,7 @@ static struct mfd_cell t7l66xb_cells[] = {
 		.name = "tmio-mmc",
 		.enable = t7l66xb_mmc_enable,
 		.disable = t7l66xb_mmc_disable,
+		.driver_data = &t7166xb_mmc_data,
 		.num_resources = ARRAY_SIZE(t7l66xb_mmc_resources),
 		.resources = t7l66xb_mmc_resources,
 	},

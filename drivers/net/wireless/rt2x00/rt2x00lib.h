@@ -235,7 +235,7 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna);
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
  * Initialize work structure and all link tuning related
- * paramters. This will not start the link tuning process itself.
+ * parameters. This will not start the link tuning process itself.
  */
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev);
 

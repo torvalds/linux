@@ -23,6 +23,10 @@
 #include <string.h>
 #include <ctype.h>
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#endif
+
 #define KSYM_NAME_LEN		128
 
 struct sym_entry {
@@ -32,9 +36,23 @@ struct sym_entry {
 	unsigned char *sym;
 };
 
+struct text_range {
+	const char *stext, *etext;
+	unsigned long long start, end;
+};
+
+static unsigned long long _text;
+static struct text_range text_ranges[] = {
+	{ "_stext",     "_etext"     },
+	{ "_sinittext", "_einittext" },
+	{ "_stext_l1",  "_etext_l1"  },	/* Blackfin on-chip L1 inst SRAM */
+	{ "_stext_l2",  "_etext_l2"  },	/* Blackfin on-chip L2 SRAM */
+};
+#define text_range_text     (&text_ranges[0])
+#define text_range_inittext (&text_ranges[1])
+
 static struct sym_entry *table;
 static unsigned int table_size, table_cnt;
-static unsigned long long _text, _stext, _etext, _sinittext, _einittext;
 static int all_symbols = 0;
 static char symbol_prefix_char = '\0';
 
@@ -61,6 +79,26 @@ static inline int is_arm_mapping_symbol(const char *str)
 	       && (str[2] == '\0' || str[2] == '.');
 }
 
+static int read_symbol_tr(const char *sym, unsigned long long addr)
+{
+	size_t i;
+	struct text_range *tr;
+
+	for (i = 0; i < ARRAY_SIZE(text_ranges); ++i) {
+		tr = &text_ranges[i];
+
+		if (strcmp(sym, tr->stext) == 0) {
+			tr->start = addr;
+			return 0;
+		} else if (strcmp(sym, tr->etext) == 0) {
+			tr->end = addr;
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static int read_symbol(FILE *in, struct sym_entry *s)
 {
 	char str[500];
@@ -84,14 +122,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	/* Ignore most absolute/undefined (?) symbols. */
 	if (strcmp(sym, "_text") == 0)
 		_text = s->addr;
-	else if (strcmp(sym, "_stext") == 0)
-		_stext = s->addr;
-	else if (strcmp(sym, "_etext") == 0)
-		_etext = s->addr;
-	else if (strcmp(sym, "_sinittext") == 0)
-		_sinittext = s->addr;
-	else if (strcmp(sym, "_einittext") == 0)
-		_einittext = s->addr;
+	else if (read_symbol_tr(sym, s->addr) == 0)
+		/* nothing to do */;
 	else if (toupper(stype) == 'A')
 	{
 		/* Keep these useful absolute symbols */
@@ -127,6 +159,21 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	return 0;
 }
 
+static int symbol_valid_tr(struct sym_entry *s)
+{
+	size_t i;
+	struct text_range *tr;
+
+	for (i = 0; i < ARRAY_SIZE(text_ranges); ++i) {
+		tr = &text_ranges[i];
+
+		if (s->addr >= tr->start && s->addr < tr->end)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int symbol_valid(struct sym_entry *s)
 {
 	/* Symbols which vary between passes.  Passes 1 and 2 must have
@@ -156,8 +203,7 @@ static int symbol_valid(struct sym_entry *s)
 	/* if --all-symbols is not specified, then symbols outside the text
 	 * and inittext sections are discarded */
 	if (!all_symbols) {
-		if ((s->addr < _stext || s->addr > _etext)
-		    && (s->addr < _sinittext || s->addr > _einittext))
+		if (symbol_valid_tr(s) == 0)
 			return 0;
 		/* Corner case.  Discard any symbols with the same value as
 		 * _etext _einittext; they can move between pass 1 and 2 when
@@ -165,10 +211,10 @@ static int symbol_valid(struct sym_entry *s)
 		 * they may get dropped in pass 2, which breaks the kallsyms
 		 * rules.
 		 */
-		if ((s->addr == _etext &&
-				strcmp((char *)s->sym + offset, "_etext")) ||
-		    (s->addr == _einittext &&
-				strcmp((char *)s->sym + offset, "_einittext")))
+		if ((s->addr == text_range_text->end &&
+				strcmp((char *)s->sym + offset, text_range_text->etext)) ||
+		    (s->addr == text_range_inittext->end &&
+				strcmp((char *)s->sym + offset, text_range_inittext->etext)))
 			return 0;
 	}
 

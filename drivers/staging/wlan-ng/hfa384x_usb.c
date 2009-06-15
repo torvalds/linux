@@ -2424,7 +2424,7 @@ int hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 *	0		success
 *	>0		f/w reported error - f/w status code
 *	<0		driver reported error
-*	-ETIMEOUT	timout waiting for the cmd regs to become
+*	-ETIMEDOUT	timout waiting for the cmd regs to become
 *			available, or waiting for the control reg
 *			to indicate the Aux port is enabled.
 *	-ENODATA	the buffer does NOT contain a valid PDA.

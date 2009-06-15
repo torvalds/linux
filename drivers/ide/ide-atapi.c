@@ -259,7 +259,7 @@ void ide_retry_pc(ide_drive_t *drive)
 	pc->req_xfer = blk_rq_bytes(sense_rq);
 
 	if (drive->media == ide_tape)
-		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
+		drive->atapi_flags |= IDE_AFLAG_IGNORE_DSC;
 
 	/*
 	 * Push back the failed request and put request sense on top
@@ -577,7 +577,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 
 		/*
 		 * If necessary schedule the packet transfer to occur 'timeout'
-		 * miliseconds later in ide_delayed_transfer_pc() after the
+		 * milliseconds later in ide_delayed_transfer_pc() after the
 		 * device says it's ready for a packet.
 		 */
 		if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {

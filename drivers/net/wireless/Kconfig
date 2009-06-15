@@ -310,7 +310,7 @@ config PRISM54
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.
-	  The module will be called prism54.ko.
+	  The module will be called prism54.
 
 config USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"

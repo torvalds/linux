@@ -845,6 +845,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 	int err;
 	struct net_device *dev;
 	struct virtnet_info *vi;
+	struct virtqueue *vqs[3];
+	vq_callback_t *callbacks[] = { skb_recv_done, skb_xmit_done, NULL};
+	const char *names[] = { "input", "output", "control" };
+	int nvqs;
 
 	/* Allocate ourselves a network device with room for our info */
 	dev = alloc_etherdev(sizeof(struct virtnet_info));
@@ -905,25 +909,19 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_MRG_RXBUF))
 		vi->mergeable_rx_bufs = true;
 
-	/* We expect two virtqueues, receive then send. */
-	vi->rvq = vdev->config->find_vq(vdev, 0, skb_recv_done);
-	if (IS_ERR(vi->rvq)) {
-		err = PTR_ERR(vi->rvq);
-		goto free;
-	}
+	/* We expect two virtqueues, receive then send,
+	 * and optionally control. */
+	nvqs = virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ) ? 3 : 2;
 
-	vi->svq = vdev->config->find_vq(vdev, 1, skb_xmit_done);
-	if (IS_ERR(vi->svq)) {
-		err = PTR_ERR(vi->svq);
-		goto free_recv;
-	}
+	err = vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names);
+	if (err)
+		goto free;
+
+	vi->rvq = vqs[0];
+	vi->svq = vqs[1];
 
 	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ)) {
-		vi->cvq = vdev->config->find_vq(vdev, 2, NULL);
-		if (IS_ERR(vi->cvq)) {
-			err = PTR_ERR(vi->svq);
-			goto free_send;
-		}
+		vi->cvq = vqs[2];
 
 		if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VLAN))
 			dev->features |= NETIF_F_HW_VLAN_FILTER;
@@ -941,7 +939,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	err = register_netdev(dev);
 	if (err) {
 		pr_debug("virtio_net: registering device failed\n");
-		goto free_ctrl;
+		goto free_vqs;
 	}
 
 	/* Last of all, set up some receive buffers. */
@@ -962,13 +960,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 unregister:
 	unregister_netdev(dev);
-free_ctrl:
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ))
-		vdev->config->del_vq(vi->cvq);
-free_send:
-	vdev->config->del_vq(vi->svq);
-free_recv:
-	vdev->config->del_vq(vi->rvq);
+free_vqs:
+	vdev->config->del_vqs(vdev);
 free:
 	free_netdev(dev);
 	return err;
@@ -994,11 +987,9 @@ static void virtnet_remove(struct virtio_device *vdev)
 
 	BUG_ON(vi->num != 0);
 
-	vdev->config->del_vq(vi->svq);
-	vdev->config->del_vq(vi->rvq);
-	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ))
-		vdev->config->del_vq(vi->cvq);
 	unregister_netdev(vi->dev);
+
+	vdev->config->del_vqs(vi->vdev);
 
 	while (vi->pages)
 		__free_pages(get_a_page(vi, GFP_KERNEL), 0);

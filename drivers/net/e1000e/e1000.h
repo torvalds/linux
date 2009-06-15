@@ -62,7 +62,7 @@ struct e1000_info;
 	e_printk(KERN_NOTICE, adapter, format, ## arg)
 
 
-/* Interrupt modes, as used by the IntMode paramter */
+/* Interrupt modes, as used by the IntMode parameter */
 #define E1000E_INT_MODE_LEGACY		0
 #define E1000E_INT_MODE_MSI		1
 #define E1000E_INT_MODE_MSIX		2

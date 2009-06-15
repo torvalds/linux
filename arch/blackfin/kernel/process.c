@@ -322,6 +322,9 @@ void finish_atomic_sections (struct pt_regs *regs)
 }
 
 #if defined(CONFIG_ACCESS_CHECK)
+#ifdef CONFIG_ACCESS_OK_L1
+__attribute__((l1_text))
+#endif
 /* Return 1 if access to memory range is OK, 0 otherwise */
 int _access_ok(unsigned long addr, unsigned long size)
 {

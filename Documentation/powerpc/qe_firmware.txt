@@ -225,7 +225,7 @@ For example, to match the 8323, revision 1.0:
      soc.major = 1
      soc.minor = 0
 
-'padding' is neccessary for structure alignment.  This field ensures that the
+'padding' is necessary for structure alignment.  This field ensures that the
 'extended_modes' field is aligned on a 64-bit boundary.
 
 'extended_modes' is a bitfield that defines special functionality which has an

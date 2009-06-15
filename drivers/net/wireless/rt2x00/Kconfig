@@ -9,11 +9,11 @@ menuconfig RT2X00
 
 	  When building one of the individual drivers, the rt2x00 library
 	  will also be created. That library (when the driver is built as
-	  a module) will be called "rt2x00lib.ko".
+	  a module) will be called rt2x00lib.
 
 	  Additionally PCI and USB libraries will also be build depending
 	  on the types of drivers being selected, these libraries will be
-	  called "rt2x00pci.ko" and "rt2x00usb.ko".
+	  called rt2x00pci and rt2x00usb.
 
 if RT2X00
 
@@ -26,7 +26,7 @@ config RT2400PCI
 	  This adds support for rt2400 wireless chipset family.
 	  Supported chips: RT2460.
 
-	  When compiled as a module, this driver will be called "rt2400pci.ko".
+	  When compiled as a module, this driver will be called rt2400pci.
 
 config RT2500PCI
 	tristate "Ralink rt2500 (PCI/PCMCIA) support"
@@ -37,7 +37,7 @@ config RT2500PCI
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2560.
 
-	  When compiled as a module, this driver will be called "rt2500pci.ko".
+	  When compiled as a module, this driver will be called rt2500pci.
 
 config RT61PCI
 	tristate "Ralink rt2501/rt61 (PCI/PCMCIA) support"
@@ -51,7 +51,7 @@ config RT61PCI
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2561, RT2561S & RT2661.
 
-	  When compiled as a module, this driver will be called "rt61pci.ko".
+	  When compiled as a module, this driver will be called rt61pci.
 
 config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
@@ -62,7 +62,7 @@ config RT2500USB
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2571 & RT2572.
 
-	  When compiled as a module, this driver will be called "rt2500usb.ko".
+	  When compiled as a module, this driver will be called rt2500usb.
 
 config RT73USB
 	tristate "Ralink rt2501/rt73 (USB) support"
@@ -75,7 +75,7 @@ config RT73USB
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2571W, RT2573 & RT2671.
 
-	  When compiled as a module, this driver will be called "rt73usb.ko".
+	  When compiled as a module, this driver will be called rt73usb.
 
 config RT2X00_LIB_PCI
 	tristate

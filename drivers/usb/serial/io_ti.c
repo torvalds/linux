@@ -102,7 +102,7 @@ struct edgeport_port {
 	__u8 shadow_mcr;
 	__u8 shadow_lsr;
 	__u8 lsr_mask;
-	__u32 ump_read_timeout;		/* Number of miliseconds the UMP will
+	__u32 ump_read_timeout;		/* Number of milliseconds the UMP will
 					   wait without data before completing
 					   a read short */
 	int baud_rate;

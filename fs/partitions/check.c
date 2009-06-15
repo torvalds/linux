@@ -556,27 +556,49 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 
 	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
-		sector_t size = state->parts[p].size;
-		sector_t from = state->parts[p].from;
+		sector_t size, from;
+try_scan:
+		size = state->parts[p].size;
 		if (!size)
 			continue;
+
+		from = state->parts[p].from;
 		if (from >= get_capacity(disk)) {
 			printk(KERN_WARNING
 			       "%s: p%d ignored, start %llu is behind the end of the disk\n",
 			       disk->disk_name, p, (unsigned long long) from);
 			continue;
 		}
+
 		if (from + size > get_capacity(disk)) {
-			/*
-			 * we can not ignore partitions of broken tables
-			 * created by for example camera firmware, but we
-			 * limit them to the end of the disk to avoid
-			 * creating invalid block devices
-			 */
+			struct block_device_operations *bdops = disk->fops;
+			unsigned long long capacity;
+
 			printk(KERN_WARNING
-			       "%s: p%d size %llu limited to end of disk\n",
+			       "%s: p%d size %llu exceeds device capacity, ",
 			       disk->disk_name, p, (unsigned long long) size);
-			size = get_capacity(disk) - from;
+
+			if (bdops->set_capacity &&
+			    (disk->flags & GENHD_FL_NATIVE_CAPACITY) == 0) {
+				printk(KERN_CONT "enabling native capacity\n");
+				capacity = bdops->set_capacity(disk, ~0ULL);
+				disk->flags |= GENHD_FL_NATIVE_CAPACITY;
+				if (capacity > get_capacity(disk)) {
+					set_capacity(disk, capacity);
+					check_disk_size_change(disk, bdev);
+					bdev->bd_invalidated = 0;
+				}
+				goto try_scan;
+			} else {
+				/*
+				 * we can not ignore partitions of broken tables
+				 * created by for example camera firmware, but
+				 * we limit them to the end of the disk to avoid
+				 * creating invalid block devices
+				 */
+				printk(KERN_CONT "limited to end of disk\n");
+				size = get_capacity(disk) - from;
+			}
 		}
 		part = add_partition(disk, p, from, size,
 				     state->parts[p].flags);

@@ -1585,12 +1585,16 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				break;
 
 			case IB_WR_LOCAL_INV:
+				ctrl->srcrb_flags |=
+					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
 				set_local_inv_seg(wqe, wr->ex.invalidate_rkey);
 				wqe  += sizeof (struct mlx4_wqe_local_inval_seg);
 				size += sizeof (struct mlx4_wqe_local_inval_seg) / 16;
 				break;
 
 			case IB_WR_FAST_REG_MR:
+				ctrl->srcrb_flags |=
+					cpu_to_be32(MLX4_WQE_CTRL_STRONG_ORDER);
 				set_fmr_seg(wqe, wr);
 				wqe  += sizeof (struct mlx4_wqe_fmr_seg);
 				size += sizeof (struct mlx4_wqe_fmr_seg) / 16;

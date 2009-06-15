@@ -155,6 +155,7 @@ static const struct ide_port_info idecs_port_info = {
 	.port_ops		= &idecs_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_pci,
 };
 
 static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
@@ -163,7 +164,7 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     struct ide_host *host;
     ide_hwif_t *hwif;
     int i, rc;
-    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+    struct ide_hw hw, *hws[] = { &hw };
 
     if (!request_region(io, 8, DRV_NAME)) {
 	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -181,10 +182,9 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     memset(&hw, 0, sizeof(hw));
     ide_std_init_ports(&hw, io, ctl);
     hw.irq = irq;
-    hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    rc = ide_host_add(&idecs_port_info, hws, &host);
+    rc = ide_host_add(&idecs_port_info, hws, 1, &host);
     if (rc)
 	goto out_release;
 

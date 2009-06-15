@@ -14,12 +14,6 @@ typedef unsigned short umode_t;
  */
 #ifdef __KERNEL__
 
-#ifdef CONFIG_X86_32
-# define BITS_PER_LONG 32
-#else
-# define BITS_PER_LONG 64
-#endif
-
 #ifndef __ASSEMBLY__
 
 typedef u64 dma64_addr_t;

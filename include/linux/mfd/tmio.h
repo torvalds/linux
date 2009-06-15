@@ -19,6 +19,13 @@
 	} while (0)
 
 /*
+ * data for the MMC controller
+ */
+struct tmio_mmc_data {
+	unsigned int		hclk;
+};
+
+/*
  * data for the NAND controller
  */
 struct tmio_nand_data {

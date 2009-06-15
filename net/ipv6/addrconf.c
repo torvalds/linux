@@ -2765,7 +2765,7 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		spin_unlock_bh(&ifp->lock);
 		read_unlock_bh(&idev->lock);
 		/*
-		 * If the defice is not ready:
+		 * If the device is not ready:
 		 * - keep it tentative if it is a permanent address.
 		 * - otherwise, kill it.
 		 */

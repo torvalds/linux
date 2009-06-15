@@ -33,6 +33,7 @@
 #include "log.h"
 #include "quota.h"
 #include "dir.h"
+#include "trace_gfs2.h"
 
 #define DO 0
 #define UNDO 1
@@ -775,6 +776,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		/* Map the extents for this journal's blocks */
 		map_journal_extents(sdp);
 	}
+	trace_gfs2_log_blocks(sdp, atomic_read(&sdp->sd_log_blks_free));
 
 	if (sdp->sd_lockstruct.ls_first) {
 		unsigned int x;

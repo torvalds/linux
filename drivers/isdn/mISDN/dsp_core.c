@@ -502,7 +502,7 @@ tone_off:
 			break;
 		}
 		dsp->cmx_delay = (*((int *)data)) << 3;
-			/* miliseconds to samples */
+			/* milliseconds to samples */
 		if (dsp->cmx_delay >= (CMX_BUFF_HALF>>1))
 			/* clip to half of maximum usable buffer
 			(half of half buffer) */

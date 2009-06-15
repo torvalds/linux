@@ -526,6 +526,7 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 		break;
 	case FSF_TOPO_AL:
 		fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
+		/* fall through */
 	default:
 		dev_err(&adapter->ccw_device->dev,
 			"Unknown or unsupported arbitrated loop "
@@ -897,6 +898,7 @@ static void zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *req)
 		switch (fsq->word[0]) {
 		case FSF_SQ_INVOKE_LINK_TEST_PROCEDURE:
 			zfcp_test_link(unit->port);
+			/* fall through */
 		case FSF_SQ_ULP_DEPENDENT_ERP_REQUIRED:
 			req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 			break;
@@ -993,6 +995,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 		break;
 	case FSF_PORT_HANDLE_NOT_VALID:
 		zfcp_erp_adapter_reopen(adapter, 0, "fsscth1", req);
+		/* fall through */
 	case FSF_GENERIC_COMMAND_REJECTED:
 	case FSF_PAYLOAD_SIZE_MISMATCH:
 	case FSF_REQUEST_SIZE_TOO_LARGE:
@@ -1399,7 +1402,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	struct fsf_plogi *plogi;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		return;
+		goto out;
 
 	switch (header->fsf_status) {
 	case FSF_PORT_ALREADY_OPEN:
@@ -1461,6 +1464,9 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	}
+
+out:
+	zfcp_port_put(port);
 }
 
 /**
@@ -1473,6 +1479,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
+	struct zfcp_port *port = erp_action->port;
 	int retval = -EIO;
 
 	spin_lock_bh(&adapter->req_q_lock);
@@ -1493,16 +1500,18 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_port_handler;
-	req->qtcb->bottom.support.d_id = erp_action->port->d_id;
-	req->data = erp_action->port;
+	req->qtcb->bottom.support.d_id = port->d_id;
+	req->data = port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
+	zfcp_port_get(port);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
 		erp_action->fsf_req = NULL;
+		zfcp_port_put(port);
 	}
 out:
 	spin_unlock_bh(&adapter->req_q_lock);
@@ -1590,8 +1599,10 @@ static void zfcp_fsf_open_wka_port_handler(struct zfcp_fsf_req *req)
 	case FSF_MAXIMUM_NUMBER_OF_PORTS_EXCEEDED:
 		dev_warn(&req->adapter->ccw_device->dev,
 			 "Opening WKA port 0x%x failed\n", wka_port->d_id);
+		/* fall through */
 	case FSF_ADAPTER_STATUS_AVAILABLE:
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
+		/* fall through */
 	case FSF_ACCESS_DENIED:
 		wka_port->status = ZFCP_WKA_PORT_OFFLINE;
 		break;
@@ -1876,7 +1887,7 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 
 		if (!(adapter->connection_features & FSF_FEATURE_NPIV_MODE) &&
 		    (adapter->adapter_features & FSF_FEATURE_LUN_SHARING) &&
-		    (adapter->ccw_device->id.dev_model != ZFCP_DEVICE_MODEL_PRIV)) {
+		    !zfcp_ccw_priv_sch(adapter)) {
 			exclusive = (bottom->lun_access_info &
 					FSF_UNIT_ACCESS_EXCLUSIVE);
 			readwrite = (bottom->lun_access_info &
@@ -2314,7 +2325,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd_iu *fcp_cmnd_iu;
-	unsigned int sbtype;
+	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
@@ -2356,11 +2367,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	switch (scsi_cmnd->sc_data_direction) {
 	case DMA_NONE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
-		sbtype = SBAL_FLAGS0_TYPE_READ;
 		break;
 	case DMA_FROM_DEVICE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_READ;
-		sbtype = SBAL_FLAGS0_TYPE_READ;
 		fcp_cmnd_iu->rddata = 1;
 		break;
 	case DMA_TO_DEVICE:
@@ -2369,8 +2378,6 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		fcp_cmnd_iu->wddata = 1;
 		break;
 	case DMA_BIDIRECTIONAL:
-	default:
-		retval = -EIO;
 		goto failed_scsi_cmnd;
 	}
 
@@ -2394,9 +2401,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 					     scsi_sglist(scsi_cmnd),
 					     FSF_MAX_SBALS_PER_REQ);
 	if (unlikely(real_bytes < 0)) {
-		if (req->sbal_number < FSF_MAX_SBALS_PER_REQ)
-			retval = -EIO;
-		else {
+		if (req->sbal_number >= FSF_MAX_SBALS_PER_REQ) {
 			dev_err(&adapter->ccw_device->dev,
 				"Oversize data package, unit 0x%016Lx "
 				"on port 0x%016Lx closed\n",

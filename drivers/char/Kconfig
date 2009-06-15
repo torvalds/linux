@@ -692,7 +692,7 @@ config HVCS
 	  this driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hvcs.ko.  Additionally, this module
+	  module will be called hvcs.  Additionally, this module
 	  will depend on arch specific APIs exported from hvcserver.ko
 	  which will also be compiled when this driver is built as a
 	  module.
@@ -906,7 +906,7 @@ config DTLK
 
 config XILINX_HWICAP
 	tristate "Xilinx HWICAP Support"
-	depends on XILINX_VIRTEX
+	depends on XILINX_VIRTEX || MICROBLAZE
 	help
 	  This option enables support for Xilinx Internal Configuration
 	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex

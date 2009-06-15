@@ -118,7 +118,7 @@ config SPI_GPIO
 
 config SPI_IMX
 	tristate "Freescale iMX SPI controller"
-	depends on ARCH_IMX && EXPERIMENTAL
+	depends on ARCH_MX1 && EXPERIMENTAL
 	help
 	  This enables using the Freescale iMX SPI controller in master
 	  mode.
@@ -171,6 +171,15 @@ config SPI_ORION
 	help
 	  This enables using the SPI master controller on the Orion chips.
 
+config SPI_PL022
+	tristate "ARM AMBA PL022 SSP controller (EXPERIMENTAL)"
+	depends on ARM_AMBA && EXPERIMENTAL
+	default y if MACH_U300
+	help
+	  This selects the ARM(R) AMBA(R) PrimeCell PL022 SSP
+	  controller. If you have an embedded system with an AMBA(R)
+	  bus and a PL022 controller, say Y or M here.
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on ARCH_PXA && EXPERIMENTAL
@@ -212,7 +221,7 @@ config SPI_TXX9
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller"
-	depends on XILINX_VIRTEX && EXPERIMENTAL
+	depends on (XILINX_VIRTEX || MICROBLAZE) && EXPERIMENTAL
 	select SPI_BITBANG
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.

@@ -43,8 +43,13 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
+#include <asm/time.h>
 #include <linux/err.h>
 
+/*
+ * Anomaly notes:
+ * 05000120 - we always define corelock as 32-bit integer in L2
+ */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
@@ -352,7 +357,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#if !(defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE))
+#if !defined(CONFIG_TICKSOURCE_GPTMR0)
 	struct irq_desc *timer_desc;
 #endif
 	unsigned long ilat;
@@ -364,16 +369,13 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	bfin_write_ILAT(ilat);
 	CSYNC();
 
-	/* Reserve the PDA space for the secondary CPU. */
-	reserve_pda();
-
 	/* Enable interrupt levels IVG7-15. IARs have been already
 	 * programmed by the boot CPU.  */
 	bfin_irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);
 

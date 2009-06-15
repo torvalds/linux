@@ -255,6 +255,7 @@ const struct mem_type *get_mem_type(unsigned int type)
 {
 	return type < ARRAY_SIZE(mem_types) ? &mem_types[type] : NULL;
 }
+EXPORT_SYMBOL(get_mem_type);
 
 /*
  * Adjust the PMD section entries according to the CPU in use.
@@ -838,6 +839,20 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	if (machine_is_palmt5())
 		reserve_bootmem_node(pgdat, 0xa0200000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
+
+	/*
+	 * U300 - This platform family can share physical memory
+	 * between two ARM cpus, one running Linux and the other
+	 * running another OS.
+	 */
+	if (machine_is_u300()) {
+#ifdef CONFIG_MACH_U300_SINGLE_RAM
+#if ((CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1) == 1) &&	\
+	CONFIG_MACH_U300_2MB_ALIGNMENT_FIX
+		res_size = 0x00100000;
+#endif
+#endif
+	}
 
 #ifdef CONFIG_SA1111
 	/*

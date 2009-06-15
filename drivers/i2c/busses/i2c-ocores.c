@@ -216,6 +216,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	struct ocores_i2c_platform_data *pdata;
 	struct resource *res, *res2;
 	int ret;
+	int i;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -270,6 +271,10 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add adapter\n");
 		goto add_adapter_failed;
 	}
+
+	/* add in known devices to the bus */
+	for (i = 0; i < pdata->num_devices; i++)
+		i2c_new_device(&i2c->adap, pdata->devices + i);
 
 	return 0;
 

@@ -16,7 +16,6 @@ EXPORT_SYMBOL(bfin_return_from_exception);
 
 /* All the Blackfin cache functions: mach-common/cache.S */
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
-EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_icache_flush_range);
 EXPORT_SYMBOL(blackfin_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_dflush_page);

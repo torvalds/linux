@@ -27,7 +27,7 @@ struct ext2_inode_info {
 	/*
 	 * i_block_group is the number of the block group which contains
 	 * this file's inode.  Constant across the lifetime of the inode,
-	 * it is ued for making block allocation decisions - we try to
+	 * it is used for making block allocation decisions - we try to
 	 * place a file's data blocks near its inode block, and new inodes
 	 * near to their parent directory's inode.
 	 */

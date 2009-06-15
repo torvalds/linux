@@ -858,7 +858,6 @@ static int __devinit snd_emu10k1x_pcm(struct emu10k1x *emu, int device, struct s
 	}
 
 	pcm->info_flags = 0;
-	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	switch(device) {
 	case 0:
 		strcpy(pcm->name, "EMU10K1X Front");

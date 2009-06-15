@@ -37,7 +37,6 @@
 #define ISCSI_TRANSPORT_VERSION "2.0-870"
 
 struct iscsi_internal {
-	int daemon_pid;
 	struct scsi_transport_template t;
 	struct iscsi_transport *iscsi_transport;
 	struct list_head list;
@@ -938,23 +937,9 @@ iscsi_if_transport_lookup(struct iscsi_transport *tt)
 }
 
 static int
-iscsi_broadcast_skb(struct sk_buff *skb, gfp_t gfp)
+iscsi_multicast_skb(struct sk_buff *skb, uint32_t group, gfp_t gfp)
 {
-	return netlink_broadcast(nls, skb, 0, 1, gfp);
-}
-
-static int
-iscsi_unicast_skb(struct sk_buff *skb, int pid)
-{
-	int rc;
-
-	rc = netlink_unicast(nls, skb, pid, MSG_DONTWAIT);
-	if (rc < 0) {
-		printk(KERN_ERR "iscsi: can not unicast skb (%d)\n", rc);
-		return rc;
-	}
-
-	return 0;
+	return nlmsg_multicast(nls, skb, 0, group, gfp);
 }
 
 int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
@@ -980,7 +965,7 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 		return -ENOMEM;
 	}
 
-	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
 	ev = NLMSG_DATA(nlh);
 	memset(ev, 0, sizeof(*ev));
 	ev->transport_handle = iscsi_handle(conn->transport);
@@ -991,9 +976,44 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 	memcpy(pdu, hdr, sizeof(struct iscsi_hdr));
 	memcpy(pdu + sizeof(struct iscsi_hdr), data, data_size);
 
-	return iscsi_unicast_skb(skb, priv->daemon_pid);
+	return iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(iscsi_recv_pdu);
+
+int iscsi_offload_mesg(struct Scsi_Host *shost,
+		       struct iscsi_transport *transport, uint32_t type,
+		       char *data, uint16_t data_size)
+{
+	struct nlmsghdr	*nlh;
+	struct sk_buff *skb;
+	struct iscsi_uevent *ev;
+	int len = NLMSG_SPACE(sizeof(*ev) + data_size);
+
+	skb = alloc_skb(len, GFP_NOIO);
+	if (!skb) {
+		printk(KERN_ERR "can not deliver iscsi offload message:OOM\n");
+		return -ENOMEM;
+	}
+
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	memset(ev, 0, sizeof(*ev));
+	ev->type = type;
+	ev->transport_handle = iscsi_handle(transport);
+	switch (type) {
+	case ISCSI_KEVENT_PATH_REQ:
+		ev->r.req_path.host_no = shost->host_no;
+		break;
+	case ISCSI_KEVENT_IF_DOWN:
+		ev->r.notify_if_down.host_no = shost->host_no;
+		break;
+	}
+
+	memcpy((char *)ev + sizeof(*ev), data, data_size);
+
+	return iscsi_multicast_skb(skb, ISCSI_NL_GRP_UIP, GFP_NOIO);
+}
+EXPORT_SYMBOL_GPL(iscsi_offload_mesg);
 
 void iscsi_conn_error_event(struct iscsi_cls_conn *conn, enum iscsi_err error)
 {
@@ -1014,7 +1034,7 @@ void iscsi_conn_error_event(struct iscsi_cls_conn *conn, enum iscsi_err error)
 		return;
 	}
 
-	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
 	ev = NLMSG_DATA(nlh);
 	ev->transport_handle = iscsi_handle(conn->transport);
 	ev->type = ISCSI_KEVENT_CONN_ERROR;
@@ -1022,7 +1042,7 @@ void iscsi_conn_error_event(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	ev->r.connerror.cid = conn->cid;
 	ev->r.connerror.sid = iscsi_conn_get_sid(conn);
 
-	iscsi_broadcast_skb(skb, GFP_ATOMIC);
+	iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_ATOMIC);
 
 	iscsi_cls_conn_printk(KERN_INFO, conn, "detected conn error (%d)\n",
 			      error);
@@ -1030,8 +1050,8 @@ void iscsi_conn_error_event(struct iscsi_cls_conn *conn, enum iscsi_err error)
 EXPORT_SYMBOL_GPL(iscsi_conn_error_event);
 
 static int
-iscsi_if_send_reply(int pid, int seq, int type, int done, int multi,
-		      void *payload, int size)
+iscsi_if_send_reply(uint32_t group, int seq, int type, int done, int multi,
+		    void *payload, int size)
 {
 	struct sk_buff	*skb;
 	struct nlmsghdr	*nlh;
@@ -1045,10 +1065,10 @@ iscsi_if_send_reply(int pid, int seq, int type, int done, int multi,
 		return -ENOMEM;
 	}
 
-	nlh = __nlmsg_put(skb, pid, seq, t, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, 0, 0, t, (len - sizeof(*nlh)), 0);
 	nlh->nlmsg_flags = flags;
 	memcpy(NLMSG_DATA(nlh), payload, size);
-	return iscsi_unicast_skb(skb, pid);
+	return iscsi_multicast_skb(skb, group, GFP_ATOMIC);
 }
 
 static int
@@ -1085,7 +1105,7 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 			return -ENOMEM;
 		}
 
-		nlhstat = __nlmsg_put(skbstat, priv->daemon_pid, 0, 0,
+		nlhstat = __nlmsg_put(skbstat, 0, 0, 0,
 				      (len - sizeof(*nlhstat)), 0);
 		evstat = NLMSG_DATA(nlhstat);
 		memset(evstat, 0, sizeof(*evstat));
@@ -1109,7 +1129,8 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 		skb_trim(skbstat, NLMSG_ALIGN(actual_size));
 		nlhstat->nlmsg_len = actual_size;
 
-		err = iscsi_unicast_skb(skbstat, priv->daemon_pid);
+		err = iscsi_multicast_skb(skbstat, ISCSI_NL_GRP_ISCSID,
+					  GFP_ATOMIC);
 	} while (err < 0 && err != -ECONNREFUSED);
 
 	return err;
@@ -1143,7 +1164,7 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 		return -ENOMEM;
 	}
 
-	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
 	ev = NLMSG_DATA(nlh);
 	ev->transport_handle = iscsi_handle(session->transport);
 
@@ -1172,7 +1193,7 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 	 * this will occur if the daemon is not up, so we just warn
 	 * the user and when the daemon is restarted it will handle it
 	 */
-	rc = iscsi_broadcast_skb(skb, GFP_KERNEL);
+	rc = iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_KERNEL);
 	if (rc == -ESRCH)
 		iscsi_cls_session_printk(KERN_ERR, session,
 					 "Cannot notify userspace of session "
@@ -1268,26 +1289,54 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 	return err;
 }
 
+static int iscsi_if_ep_connect(struct iscsi_transport *transport,
+			       struct iscsi_uevent *ev, int msg_type)
+{
+	struct iscsi_endpoint *ep;
+	struct sockaddr *dst_addr;
+	struct Scsi_Host *shost = NULL;
+	int non_blocking, err = 0;
+
+	if (!transport->ep_connect)
+		return -EINVAL;
+
+	if (msg_type == ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST) {
+		shost = scsi_host_lookup(ev->u.ep_connect_through_host.host_no);
+		if (!shost) {
+			printk(KERN_ERR "ep connect failed. Could not find "
+			       "host no %u\n",
+			       ev->u.ep_connect_through_host.host_no);
+			return -ENODEV;
+		}
+		non_blocking = ev->u.ep_connect_through_host.non_blocking;
+	} else
+		non_blocking = ev->u.ep_connect.non_blocking;
+
+	dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
+	ep = transport->ep_connect(shost, dst_addr, non_blocking);
+	if (IS_ERR(ep)) {
+		err = PTR_ERR(ep);
+		goto release_host;
+	}
+
+	ev->r.ep_connect_ret.handle = ep->id;
+release_host:
+	if (shost)
+		scsi_host_put(shost);
+	return err;
+}
+
 static int
 iscsi_if_transport_ep(struct iscsi_transport *transport,
 		      struct iscsi_uevent *ev, int msg_type)
 {
 	struct iscsi_endpoint *ep;
-	struct sockaddr *dst_addr;
 	int rc = 0;
 
 	switch (msg_type) {
+	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST:
 	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT:
-		if (!transport->ep_connect)
-			return -EINVAL;
-
-		dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
-		ep = transport->ep_connect(dst_addr,
-					   ev->u.ep_connect.non_blocking);
-		if (IS_ERR(ep))
-			return PTR_ERR(ep);
-
-		ev->r.ep_connect_ret.handle = ep->id;
+		rc = iscsi_if_ep_connect(transport, ev, msg_type);
 		break;
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 		if (!transport->ep_poll)
@@ -1365,7 +1414,31 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 }
 
 static int
-iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+iscsi_set_path(struct iscsi_transport *transport, struct iscsi_uevent *ev)
+{
+	struct Scsi_Host *shost;
+	struct iscsi_path *params;
+	int err;
+
+	if (!transport->set_path)
+		return -ENOSYS;
+
+	shost = scsi_host_lookup(ev->u.set_path.host_no);
+	if (!shost) {
+		printk(KERN_ERR "set path could not find host no %u\n",
+		       ev->u.set_path.host_no);
+		return -ENODEV;
+	}
+
+	params = (struct iscsi_path *)((char *)ev + sizeof(*ev));
+	err = transport->set_path(shost, params);
+
+	scsi_host_put(shost);
+	return err;
+}
+
+static int
+iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 {
 	int err = 0;
 	struct iscsi_uevent *ev = NLMSG_DATA(nlh);
@@ -1375,6 +1448,11 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct iscsi_cls_conn *conn;
 	struct iscsi_endpoint *ep = NULL;
 
+	if (nlh->nlmsg_type == ISCSI_UEVENT_PATH_UPDATE)
+		*group = ISCSI_NL_GRP_UIP;
+	else
+		*group = ISCSI_NL_GRP_ISCSID;
+
 	priv = iscsi_if_transport_lookup(iscsi_ptr(ev->transport_handle));
 	if (!priv)
 		return -EINVAL;
@@ -1382,8 +1460,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if (!try_module_get(transport->owner))
 		return -EINVAL;
-
-	priv->daemon_pid = NETLINK_CREDS(skb)->pid;
 
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
@@ -1469,6 +1545,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT:
 	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
 	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
+	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST:
 		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type);
 		break;
 	case ISCSI_UEVENT_TGT_DSCVR:
@@ -1476,6 +1553,9 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case ISCSI_UEVENT_SET_HOST_PARAM:
 		err = iscsi_set_host_param(transport, ev);
+		break;
+	case ISCSI_UEVENT_PATH_UPDATE:
+		err = iscsi_set_path(transport, ev);
 		break;
 	default:
 		err = -ENOSYS;
@@ -1499,6 +1579,7 @@ iscsi_if_rx(struct sk_buff *skb)
 		uint32_t rlen;
 		struct nlmsghdr	*nlh;
 		struct iscsi_uevent *ev;
+		uint32_t group;
 
 		nlh = nlmsg_hdr(skb);
 		if (nlh->nlmsg_len < sizeof(*nlh) ||
@@ -1511,7 +1592,7 @@ iscsi_if_rx(struct sk_buff *skb)
 		if (rlen > skb->len)
 			rlen = skb->len;
 
-		err = iscsi_if_recv_msg(skb, nlh);
+		err = iscsi_if_recv_msg(skb, nlh, &group);
 		if (err) {
 			ev->type = ISCSI_KEVENT_IF_ERROR;
 			ev->iferror = err;
@@ -1525,8 +1606,7 @@ iscsi_if_rx(struct sk_buff *skb)
 			 */
 			if (ev->type == ISCSI_UEVENT_GET_STATS && !err)
 				break;
-			err = iscsi_if_send_reply(
-				NETLINK_CREDS(skb)->pid, nlh->nlmsg_seq,
+			err = iscsi_if_send_reply(group, nlh->nlmsg_seq,
 				nlh->nlmsg_type, 0, 0, ev, sizeof(*ev));
 		} while (err < 0 && err != -ECONNREFUSED);
 		skb_pull(skb, rlen);
@@ -1774,7 +1854,6 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	if (!priv)
 		return NULL;
 	INIT_LIST_HEAD(&priv->list);
-	priv->daemon_pid = -1;
 	priv->iscsi_transport = tt;
 	priv->t.user_scan = iscsi_user_scan;
 	priv->t.create_work_queue = 1;

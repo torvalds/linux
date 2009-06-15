@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -212,15 +213,15 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
 {
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_OUT);
+	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
 
 	return 0;
 }
 
 static int bast_pm_resume(struct sys_device *sd)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_nRSTOUT);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 	return 0;
 }
 
@@ -591,8 +592,6 @@ static void __init bast_map_io(void)
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(bast_uartcfgs, ARRAY_SIZE(bast_uartcfgs));
-
-	usb_simtec_init();
 }
 
 static void __init bast_init(void)
@@ -607,6 +606,7 @@ static void __init bast_init(void)
 	i2c_register_board_info(0, bast_i2c_devs,
 				ARRAY_SIZE(bast_i2c_devs));
 
+	usb_simtec_init();
 	nor_simtec_init();
 }
 

@@ -23,8 +23,8 @@ first time, it was renamed to 'EDAC'.
 The bluesmoke project at sourceforge.net is now utilized as a 'staging area'
 for EDAC development, before it is sent upstream to kernel.org
 
-At the bluesmoke/EDAC project site, is a series of quilt patches against
-recent kernels, stored in a SVN respository. For easier downloading, there
+At the bluesmoke/EDAC project site is a series of quilt patches against
+recent kernels, stored in a SVN repository. For easier downloading, there
 is also a tarball snapshot available.
 
 ============================================================================
@@ -73,9 +73,9 @@ the vendor should tie the parity status bits to 0 if they do not intend
 to generate parity.  Some vendors do not do this, and thus the parity bit
 can "float" giving false positives.
 
-In the kernel there is a pci device attribute located in sysfs that is
+In the kernel there is a PCI device attribute located in sysfs that is
 checked by the EDAC PCI scanning code. If that attribute is set,
-PCI parity/error scannining is skipped for that device. The attribute
+PCI parity/error scanning is skipped for that device. The attribute
 is:
 
 	broken_parity_status

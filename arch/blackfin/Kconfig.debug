@@ -54,6 +54,19 @@ config DEBUG_HWERR
 	  hardware error interrupts and need to know where they are coming
 	  from.
 
+config EXACT_HWERR
+	bool "Try to make Hardware errors exact"
+	depends on DEBUG_HWERR
+	help
+	  By default, the Blackfin hardware errors are not exact - the error
+          be reported multiple cycles after the error happens. This delay
+	  can cause the wrong application, or even the kernel to receive a
+	  signal to be killed. If you are getting HW errors in your system,
+	  try turning this on to ensure they are at least comming from the
+	  proper thread.
+
+	  On production systems, it is safe (and a small optimization) to say N.
+
 config DEBUG_DOUBLEFAULT
 	bool "Debug Double Faults"
 	default n
