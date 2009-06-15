@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/idr.h>
-#include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
@@ -450,16 +449,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	INIT_LIST_HEAD(&adap->clients);
 
 	mutex_lock(&core_lock);
-
-	/* Add the adapter to the driver core.
-	 * If the parent pointer is not set up,
-	 * we add this adapter to the host bus.
-	 */
-	if (adap->dev.parent == NULL) {
-		adap->dev.parent = &platform_bus;
-		pr_debug("I2C adapter driver [%s] forgot to specify "
-			 "physical device\n", adap->name);
-	}
 
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
