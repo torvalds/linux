@@ -472,6 +472,6 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 
 #endif /* __powerpc64__ */
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ATOMIC_H_ */

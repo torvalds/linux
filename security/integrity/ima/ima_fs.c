@@ -15,6 +15,7 @@
  *	implemenents security file system for reporting
  *	current measurement list and IMA statistics
  */
+#include <linux/fcntl.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/rculist.h>
@@ -84,8 +85,8 @@ static void *ima_measurements_next(struct seq_file *m, void *v, loff_t *pos)
 	 * against concurrent list-extension
 	 */
 	rcu_read_lock();
-	qe = list_entry(rcu_dereference(qe->later.next),
-			struct ima_queue_entry, later);
+	qe = list_entry_rcu(qe->later.next,
+			    struct ima_queue_entry, later);
 	rcu_read_unlock();
 	(*pos)++;
 
@@ -283,6 +284,9 @@ static atomic_t policy_opencount = ATOMIC_INIT(1);
  */
 int ima_open_policy(struct inode * inode, struct file * filp)
 {
+	/* No point in being allowed to open it if you aren't going to write */
+	if (!(filp->f_flags & O_WRONLY))
+		return -EACCES;
 	if (atomic_dec_and_test(&policy_opencount))
 		return 0;
 	return -EBUSY;
@@ -315,7 +319,7 @@ static struct file_operations ima_measure_policy_ops = {
 	.release = ima_release_policy
 };
 
-int ima_fs_init(void)
+int __init ima_fs_init(void)
 {
 	ima_dir = securityfs_create_dir("ima", NULL);
 	if (IS_ERR(ima_dir))
@@ -349,7 +353,7 @@ int ima_fs_init(void)
 		goto out;
 
 	ima_policy = securityfs_create_file("policy",
-					    S_IRUSR | S_IRGRP | S_IWUSR,
+					    S_IWUSR,
 					    ima_dir, NULL,
 					    &ima_measure_policy_ops);
 	if (IS_ERR(ima_policy))

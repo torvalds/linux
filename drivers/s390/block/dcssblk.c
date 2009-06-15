@@ -127,7 +127,7 @@ dcssblk_assign_free_minor(struct dcssblk_dev_info *dev_info)
 		found = 0;
 		// test if minor available
 		list_for_each_entry(entry, &dcssblk_devices, lh)
-			if (minor == MINOR(disk_devt(entry->gd)))
+			if (minor == entry->gd->first_minor)
 				found++;
 		if (!found) break; // got unused minor
 	}
@@ -602,7 +602,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->gd->private_data = dev_info;
 	dev_info->gd->driverfs_dev = &dev_info->dev;
 	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
-	blk_queue_hardsect_size(dev_info->dcssblk_queue, 4096);
+	blk_queue_logical_block_size(dev_info->dcssblk_queue, 4096);
 
 	seg_byte_size = (dev_info->end - dev_info->start + 1);
 	set_capacity(dev_info->gd, seg_byte_size >> 9); // size in sectors
@@ -625,7 +625,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	if (rc)
 		goto release_gd;
 	sprintf(dev_info->gd->disk_name, "dcssblk%d",
-		MINOR(disk_devt(dev_info->gd)));
+		dev_info->gd->first_minor);
 	list_add_tail(&dev_info->lh, &dcssblk_devices);
 
 	if (!try_module_get(THIS_MODULE)) {

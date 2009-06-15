@@ -97,6 +97,19 @@ config DEVKMEM
 	  kind of kernel debugging operations.
 	  When in doubt, say "N".
 
+config BFIN_JTAG_COMM
+	tristate "Blackfin JTAG Communication"
+	depends on BLACKFIN
+	help
+	  Add support for emulating a TTY device over the Blackfin JTAG.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_jtag_comm.
+
+config BFIN_JTAG_COMM_CONSOLE
+	bool "Console on Blackfin JTAG"
+	depends on BFIN_JTAG_COMM=y
+
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
 	depends on HAS_IOMEM
@@ -679,7 +692,7 @@ config HVCS
 	  this driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hvcs.ko.  Additionally, this module
+	  module will be called hvcs.  Additionally, this module
 	  will depend on arch specific APIs exported from hvcserver.ko
 	  which will also be compiled when this driver is built as a
 	  module.
@@ -893,7 +906,7 @@ config DTLK
 
 config XILINX_HWICAP
 	tristate "Xilinx HWICAP Support"
-	depends on XILINX_VIRTEX
+	depends on XILINX_VIRTEX || MICROBLAZE
 	help
 	  This option enables support for Xilinx Internal Configuration
 	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex

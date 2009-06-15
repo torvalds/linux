@@ -126,7 +126,7 @@
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
-#include <trace/napi.h>
+#include <trace/events/napi.h>
 
 #include "net-sysfs.h"
 

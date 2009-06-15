@@ -48,6 +48,9 @@
 
 #include <asm/hardware/gic.h>
 
+#include <mach/platform.h>
+#include <mach/irqs.h>
+
 #include "core.h"
 #include "clock.h"
 
@@ -578,21 +581,22 @@ void realview_leds_event(led_event_t ledevt)
 {
 	unsigned long flags;
 	u32 val;
+	u32 led = 1 << smp_processor_id();
 
 	local_irq_save(flags);
 	val = readl(VA_LEDS_BASE);
 
 	switch (ledevt) {
 	case led_idle_start:
-		val = val & ~REALVIEW_SYS_LED0;
+		val = val & ~led;
 		break;
 
 	case led_idle_end:
-		val = val | REALVIEW_SYS_LED0;
+		val = val | led;
 		break;
 
 	case led_timer:
-		val = val ^ REALVIEW_SYS_LED1;
+		val = val ^ REALVIEW_SYS_LED7;
 		break;
 
 	case led_halted:
@@ -749,14 +753,6 @@ static void __init realview_clocksource_init(void)
 void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
-
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	/*
-	 * The dummy clock device has to be registered before the main device
-	 * so that the latter will broadcast the clock events
-	 */
-	local_timer_setup();
-#endif
 
 	/* 
 	 * set clock frequency: 

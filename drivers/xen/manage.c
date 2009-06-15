@@ -43,7 +43,7 @@ static int xen_suspend(void *data)
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
 			err);
-		device_power_up(PMSG_RESUME);
+		dpm_resume_noirq(PMSG_RESUME);
 		return err;
 	}
 
@@ -69,7 +69,7 @@ static int xen_suspend(void *data)
 	}
 
 	sysdev_resume();
-	device_power_up(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
@@ -92,19 +92,18 @@ static void do_suspend(void)
 	}
 #endif
 
-	err = device_suspend(PMSG_SUSPEND);
+	err = dpm_suspend_start(PMSG_SUSPEND);
 	if (err) {
-		printk(KERN_ERR "xen suspend: device_suspend %d\n", err);
+		printk(KERN_ERR "xen suspend: dpm_suspend_start %d\n", err);
 		goto out;
 	}
 
-	printk("suspending xenbus...\n");
-	/* XXX use normal device tree? */
-	xenbus_suspend();
+	printk(KERN_DEBUG "suspending xenstore...\n");
+	xs_suspend();
 
-	err = device_power_down(PMSG_SUSPEND);
+	err = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (err) {
-		printk(KERN_ERR "device_power_down failed: %d\n", err);
+		printk(KERN_ERR "dpm_suspend_noirq failed: %d\n", err);
 		goto resume_devices;
 	}
 
@@ -116,14 +115,14 @@ static void do_suspend(void)
 
 	if (!cancelled) {
 		xen_arch_resume();
-		xenbus_resume();
+		xs_resume();
 	} else
-		xenbus_suspend_cancel();
+		xs_suspend_cancel();
 
-	device_power_up(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
 
 resume_devices:
-	device_resume(PMSG_RESUME);
+	dpm_resume_end(PMSG_RESUME);
 
 	/* Make sure timer events get retriggered on all CPUs */
 	clock_was_set();

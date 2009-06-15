@@ -50,7 +50,7 @@ static void enable_bcm1480_irq(unsigned int irq);
 static void disable_bcm1480_irq(unsigned int irq);
 static void ack_bcm1480_irq(unsigned int irq);
 #ifdef CONFIG_SMP
-static void bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask);
+static int bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask);
 #endif
 
 #ifdef CONFIG_PCI
@@ -109,7 +109,7 @@ void bcm1480_unmask_irq(int cpu, int irq)
 }
 
 #ifdef CONFIG_SMP
-static void bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
+static int bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
 {
 	int i = 0, old_cpu, cpu, int_on, k;
 	u64 cur_ints;
@@ -118,7 +118,7 @@ static void bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	if (cpumask_weight(mask) != 1) {
 		printk("attempted to set irq affinity for irq %d to multiple CPUs\n", irq);
-		return;
+		return -1;
 	}
 	i = cpumask_first(mask);
 
@@ -152,6 +152,8 @@ static void bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
 		}
 	}
 	spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
+
+	return 0;
 }
 #endif
 

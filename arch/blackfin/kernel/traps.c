@@ -68,6 +68,13 @@
 	({ if (0) printk(fmt, ##arg); 0; })
 #endif
 
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+u32 last_seqstat;
+#ifdef CONFIG_DEBUG_MMRS_MODULE
+EXPORT_SYMBOL(last_seqstat);
+#endif
+#endif
+
 /* Initiate the event table handler */
 void __init trap_init(void)
 {
@@ -79,7 +86,6 @@ void __init trap_init(void)
 static void decode_address(char *buf, unsigned long address)
 {
 #ifdef CONFIG_DEBUG_VERBOSE
-	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
 	unsigned long flags, offset;
@@ -196,6 +202,11 @@ done:
 
 asmlinkage void double_fault_c(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+	int j;
+	trace_buffer_save(j);
+#endif
+
 	console_verbose();
 	oops_in_progress = 1;
 #ifdef CONFIG_DEBUG_VERBOSE
@@ -220,9 +231,10 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
+		dump_bfin_trace_buffer();
 	}
 #endif
-	panic("Double Fault - unrecoverable event\n");
+	panic("Double Fault - unrecoverable event");
 
 }
 
@@ -239,6 +251,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	unsigned long trapnr = fp->seqstat & SEQSTAT_EXCAUSE;
 
 	trace_buffer_save(j);
+#if defined(CONFIG_DEBUG_MMRS) || defined(CONFIG_DEBUG_MMRS_MODULE)
+	last_seqstat = (u32)fp->seqstat;
+#endif
 
 	/* Important - be very careful dereferncing pointers - will lead to
 	 * double faults if the stack has become corrupt
@@ -588,6 +603,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		force_sig_info(sig, &info, current);
 	}
 
+	if (ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8))
+		fp->pc = SAFE_USER_INSTRUCTION;
+
 	trace_buffer_restore(j);
 	return;
 }
@@ -832,6 +850,11 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	decode_address(buf, (unsigned int)stack);
 	printk(KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
 
+	if (!access_ok(VERIFY_READ, stack, (unsigned int)endstack - (unsigned int)stack)) {
+		printk(KERN_NOTICE "Invalid stack pointer\n");
+		return;
+	}
+
 	/* First thing is to look for a frame pointer */
 	for (addr = (unsigned int *)((unsigned int)stack & ~0xF); addr < endstack; addr++) {
 		if (*addr & 0x1)
@@ -1066,6 +1089,29 @@ void show_regs(struct pt_regs *fp)
 	unsigned int cpu = smp_processor_id();
 	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
+	verbose_printk(KERN_NOTICE "\n");
+	if (CPUID != bfin_cpuid())
+		verbose_printk(KERN_NOTICE "Compiled for cpu family 0x%04x (Rev %d), "
+			"but running on:0x%04x (Rev %d)\n",
+			CPUID, bfin_compiled_revid(), bfin_cpuid(), bfin_revid());
+
+	verbose_printk(KERN_NOTICE "ADSP-%s-0.%d",
+		CPU, bfin_compiled_revid());
+
+	if (bfin_compiled_revid() !=  bfin_revid())
+		verbose_printk("(Detected 0.%d)", bfin_revid());
+
+	verbose_printk(" %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n",
+		get_cclk()/1000000, get_sclk()/1000000,
+#ifdef CONFIG_MPU
+		"mpu on"
+#else
+		"mpu off"
+#endif
+		);
+
+	verbose_printk(KERN_NOTICE "%s", linux_banner);
+
 	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
@@ -1246,5 +1292,5 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_stack();
-	panic("Unrecoverable event\n");
+	panic("Unrecoverable event");
 }

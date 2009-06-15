@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/acpi.h>
+#include <linux/pnp.h>
 #include "linux/string.h"
 #include "linux/bitops.h"
 #include "drmP.h"
@@ -81,6 +83,143 @@
  * to match what the GPU expects.
  */
 
+#define MCHBAR_I915 0x44
+#define MCHBAR_I965 0x48
+#define MCHBAR_SIZE (4*4096)
+
+#define DEVEN_REG 0x54
+#define   DEVEN_MCHBAR_EN (1 << 28)
+
+/* Allocate space for the MCH regs if needed, return nonzero on error */
+static int
+intel_alloc_mchbar_resource(struct drm_device *dev)
+{
+	struct pci_dev *bridge_dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp_lo, temp_hi = 0;
+	u64 mchbar_addr;
+	int ret = 0;
+
+	bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	if (!bridge_dev) {
+		DRM_DEBUG("no bridge dev?!\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (IS_I965G(dev))
+		pci_read_config_dword(bridge_dev, reg + 4, &temp_hi);
+	pci_read_config_dword(bridge_dev, reg, &temp_lo);
+	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
+
+	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
+	if (mchbar_addr &&
+	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE)) {
+		ret = 0;
+		goto out_put;
+	}
+
+	/* Get some space for it */
+	ret = pci_bus_alloc_resource(bridge_dev->bus, &dev_priv->mch_res,
+				     MCHBAR_SIZE, MCHBAR_SIZE,
+				     PCIBIOS_MIN_MEM,
+				     0,   pcibios_align_resource,
+				     bridge_dev);
+	if (ret) {
+		DRM_DEBUG("failed bus alloc: %d\n", ret);
+		dev_priv->mch_res.start = 0;
+		goto out_put;
+	}
+
+	if (IS_I965G(dev))
+		pci_write_config_dword(bridge_dev, reg + 4,
+				       upper_32_bits(dev_priv->mch_res.start));
+
+	pci_write_config_dword(bridge_dev, reg,
+			       lower_32_bits(dev_priv->mch_res.start));
+out_put:
+	pci_dev_put(bridge_dev);
+out:
+	return ret;
+}
+
+/* Setup MCHBAR if possible, return true if we should disable it again */
+static bool
+intel_setup_mchbar(struct drm_device *dev)
+{
+	struct pci_dev *bridge_dev;
+	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp;
+	bool need_disable = false, enabled;
+
+	bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	if (!bridge_dev) {
+		DRM_DEBUG("no bridge dev?!\n");
+		goto out;
+	}
+
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		pci_read_config_dword(bridge_dev, DEVEN_REG, &temp);
+		enabled = !!(temp & DEVEN_MCHBAR_EN);
+	} else {
+		pci_read_config_dword(bridge_dev, mchbar_reg, &temp);
+		enabled = temp & 1;
+	}
+
+	/* If it's already enabled, don't have to do anything */
+	if (enabled)
+		goto out_put;
+
+	if (intel_alloc_mchbar_resource(dev))
+		goto out_put;
+
+	need_disable = true;
+
+	/* Space is allocated or reserved, so enable it. */
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		pci_write_config_dword(bridge_dev, DEVEN_REG,
+				       temp | DEVEN_MCHBAR_EN);
+	} else {
+		pci_read_config_dword(bridge_dev, mchbar_reg, &temp);
+		pci_write_config_dword(bridge_dev, mchbar_reg, temp | 1);
+	}
+out_put:
+	pci_dev_put(bridge_dev);
+out:
+	return need_disable;
+}
+
+static void
+intel_teardown_mchbar(struct drm_device *dev, bool disable)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct pci_dev *bridge_dev;
+	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp;
+
+	bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	if (!bridge_dev) {
+		DRM_DEBUG("no bridge dev?!\n");
+		return;
+	}
+
+	if (disable) {
+		if (IS_I915G(dev) || IS_I915GM(dev)) {
+			pci_read_config_dword(bridge_dev, DEVEN_REG, &temp);
+			temp &= ~DEVEN_MCHBAR_EN;
+			pci_write_config_dword(bridge_dev, DEVEN_REG, temp);
+		} else {
+			pci_read_config_dword(bridge_dev, mchbar_reg, &temp);
+			temp &= ~1;
+			pci_write_config_dword(bridge_dev, mchbar_reg, temp);
+		}
+	}
+
+	if (dev_priv->mch_res.start)
+		release_resource(&dev_priv->mch_res);
+}
+
 /**
  * Detects bit 6 swizzling of address lookup between IGD access and CPU
  * access through main memory.
@@ -91,6 +230,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+	bool need_disable;
 
 	if (!IS_I9XX(dev)) {
 		/* As far as we know, the 865 doesn't have these bit 6
@@ -100,6 +240,9 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (IS_MOBILE(dev)) {
 		uint32_t dcc;
+
+		/* Try to make sure MCHBAR is enabled before poking at it */
+		need_disable = intel_setup_mchbar(dev);
 
 		/* On mobile 9xx chipsets, channel interleave by the CPU is
 		 * determined by DCC.  For single-channel, neither the CPU
@@ -140,6 +283,8 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 		}
+
+		intel_teardown_mchbar(dev, need_disable);
 	} else {
 		/* The 965, G33, and newer, have a very flexible memory
 		 * configuration.  It will enable dual-channel mode
@@ -168,6 +313,13 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
+	}
+
+	/* FIXME: check with memory config on IGDNG */
+	if (IS_IGDNG(dev)) {
+		DRM_ERROR("disable tiling on IGDNG...\n");
+		swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
+		swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 	}
 
 	dev_priv->mm.bit_6_swizzle_x = swizzle_x;
@@ -213,7 +365,8 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
+	if (!IS_I9XX(dev) ||
+	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
 		tile_width = 128;
 	else
 		tile_width = 512;
@@ -225,11 +378,18 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else if (IS_I9XX(dev)) {
-		if (stride / tile_width > I830_FENCE_MAX_PITCH_VAL ||
+		uint32_t pitch_val = ffs(stride / tile_width) - 1;
+
+		/* XXX: For Y tiling, FENCE_MAX_PITCH_VAL is actually 6 (8KB)
+		 * instead of 4 (2KB) on 945s.
+		 */
+		if (pitch_val > I915_FENCE_MAX_PITCH_VAL ||
 		    size > (I830_FENCE_MAX_SIZE_VAL << 20))
 			return false;
 	} else {
-		if (stride / 128 > I830_FENCE_MAX_PITCH_VAL ||
+		uint32_t pitch_val = ffs(stride / tile_width) - 1;
+
+		if (pitch_val > I830_FENCE_MAX_PITCH_VAL ||
 		    size > (I830_FENCE_MAX_SIZE_VAL << 19))
 			return false;
 	}

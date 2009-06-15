@@ -993,8 +993,7 @@ static int garmin_open(struct tty_struct *tty,
 }
 
 
-static void garmin_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void garmin_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);

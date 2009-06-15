@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
+#include <linux/perf_counter.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -756,6 +757,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	wake_up_idle_cpu(cpu);
 	spin_unlock_irqrestore(&base->lock, flags);
 }
+EXPORT_SYMBOL_GPL(add_timer_on);
 
 /**
  * del_timer - deactive a timer.
@@ -1123,52 +1125,13 @@ void update_process_times(int user_tick)
 }
 
 /*
- * Nr of active tasks - counted in fixed-point numbers
- */
-static unsigned long count_active_tasks(void)
-{
-	return nr_active() * FIXED_1;
-}
-
-/*
- * Hmm.. Changed this, as the GNU make sources (load.c) seems to
- * imply that avenrun[] is the standard name for this kind of thing.
- * Nothing else seems to be standardized: the fractional size etc
- * all seem to differ on different machines.
- *
- * Requires xtime_lock to access.
- */
-unsigned long avenrun[3];
-
-EXPORT_SYMBOL(avenrun);
-
-/*
- * calc_load - given tick count, update the avenrun load estimates.
- * This is called while holding a write_lock on xtime_lock.
- */
-static inline void calc_load(unsigned long ticks)
-{
-	unsigned long active_tasks; /* fixed-point */
-	static int count = LOAD_FREQ;
-
-	count -= ticks;
-	if (unlikely(count < 0)) {
-		active_tasks = count_active_tasks();
-		do {
-			CALC_LOAD(avenrun[0], EXP_1, active_tasks);
-			CALC_LOAD(avenrun[1], EXP_5, active_tasks);
-			CALC_LOAD(avenrun[2], EXP_15, active_tasks);
-			count += LOAD_FREQ;
-		} while (count < 0);
-	}
-}
-
-/*
  * This function runs timers and the timer-tq in bottom half context.
  */
 static void run_timer_softirq(struct softirq_action *h)
 {
 	struct tvec_base *base = __get_cpu_var(tvec_bases);
+
+	perf_counter_do_pending();
 
 	hrtimer_run_pending();
 
@@ -1187,16 +1150,6 @@ void run_local_timers(void)
 }
 
 /*
- * Called by the timer interrupt. xtime_lock must already be taken
- * by the timer IRQ!
- */
-static inline void update_times(unsigned long ticks)
-{
-	update_wall_time();
-	calc_load(ticks);
-}
-
-/*
  * The 64-bit jiffies value is not atomic - you MUST NOT read it
  * without sampling the sequence number in xtime_lock.
  * jiffies is defined in the linker script...
@@ -1205,7 +1158,8 @@ static inline void update_times(unsigned long ticks)
 void do_timer(unsigned long ticks)
 {
 	jiffies_64 += ticks;
-	update_times(ticks);
+	update_wall_time();
+	calc_global_load();
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
@@ -1406,37 +1360,17 @@ int do_sysinfo(struct sysinfo *info)
 {
 	unsigned long mem_total, sav_total;
 	unsigned int mem_unit, bitcount;
-	unsigned long seq;
+	struct timespec tp;
 
 	memset(info, 0, sizeof(struct sysinfo));
 
-	do {
-		struct timespec tp;
-		seq = read_seqbegin(&xtime_lock);
+	ktime_get_ts(&tp);
+	monotonic_to_bootbased(&tp);
+	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
 
-		/*
-		 * This is annoying.  The below is the same thing
-		 * posix_get_clock_monotonic() does, but it wants to
-		 * take the lock which we want to cover the loads stuff
-		 * too.
-		 */
+	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);
 
-		getnstimeofday(&tp);
-		tp.tv_sec += wall_to_monotonic.tv_sec;
-		tp.tv_nsec += wall_to_monotonic.tv_nsec;
-		monotonic_to_bootbased(&tp);
-		if (tp.tv_nsec - NSEC_PER_SEC >= 0) {
-			tp.tv_nsec = tp.tv_nsec - NSEC_PER_SEC;
-			tp.tv_sec++;
-		}
-		info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
-
-		info->loads[0] = avenrun[0] << (SI_LOAD_SHIFT - FSHIFT);
-		info->loads[1] = avenrun[1] << (SI_LOAD_SHIFT - FSHIFT);
-		info->loads[2] = avenrun[2] << (SI_LOAD_SHIFT - FSHIFT);
-
-		info->procs = nr_threads;
-	} while (read_seqretry(&xtime_lock, seq));
+	info->procs = nr_threads;
 
 	si_meminfo(info);
 	si_swapinfo(info);

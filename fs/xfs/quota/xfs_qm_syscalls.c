@@ -45,7 +45,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_rw.h"
-#include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
@@ -847,105 +846,55 @@ xfs_qm_export_flags(
 }
 
 
-/*
- * Release all the dquots on the inodes in an AG.
- */
-STATIC void
-xfs_qm_dqrele_inodes_ag(
-	xfs_mount_t	*mp,
-	int		ag,
-	uint		flags)
+STATIC int
+xfs_dqrele_inode(
+	struct xfs_inode	*ip,
+	struct xfs_perag	*pag,
+	int			flags)
 {
-	xfs_inode_t	*ip = NULL;
-	xfs_perag_t	*pag = &mp->m_perag[ag];
-	int		first_index = 0;
-	int		nr_found;
+	int			error;
 
-	do {
-		/*
-		 * use a gang lookup to find the next inode in the tree
-		 * as the tree is sparse and a gang lookup walks to find
-		 * the number of objects requested.
-		 */
-		read_lock(&pag->pag_ici_lock);
-		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
-				(void**)&ip, first_index, 1);
-
-		if (!nr_found) {
-			read_unlock(&pag->pag_ici_lock);
-			break;
-		}
-
-		/*
-		 * Update the index for the next lookup. Catch overflows
-		 * into the next AG range which can occur if we have inodes
-		 * in the last block of the AG and we are currently
-		 * pointing to the last inode.
-		 */
-		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
-		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino)) {
-			read_unlock(&pag->pag_ici_lock);
-			break;
-		}
-
-		/* skip quota inodes */
-		if (ip == XFS_QI_UQIP(mp) || ip == XFS_QI_GQIP(mp)) {
-			ASSERT(ip->i_udquot == NULL);
-			ASSERT(ip->i_gdquot == NULL);
-			read_unlock(&pag->pag_ici_lock);
-			continue;
-		}
-
-		/*
-		 * If we can't get a reference on the inode, it must be
-		 * in reclaim. Leave it for the reclaim code to flush.
-		 */
-		if (!igrab(VFS_I(ip))) {
-			read_unlock(&pag->pag_ici_lock);
-			continue;
-		}
+	/* skip quota inodes */
+	if (ip == XFS_QI_UQIP(ip->i_mount) || ip == XFS_QI_GQIP(ip->i_mount)) {
+		ASSERT(ip->i_udquot == NULL);
+		ASSERT(ip->i_gdquot == NULL);
 		read_unlock(&pag->pag_ici_lock);
+		return 0;
+	}
 
-		/* avoid new inodes though we shouldn't find any here */
-		if (xfs_iflags_test(ip, XFS_INEW)) {
-			IRELE(ip);
-			continue;
-		}
+	error = xfs_sync_inode_valid(ip, pag);
+	if (error)
+		return error;
 
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
-			xfs_qm_dqrele(ip->i_udquot);
-			ip->i_udquot = NULL;
-		}
-		if (flags & (XFS_PQUOTA_ACCT|XFS_GQUOTA_ACCT) &&
-		    ip->i_gdquot) {
-			xfs_qm_dqrele(ip->i_gdquot);
-			ip->i_gdquot = NULL;
-		}
-		xfs_iput(ip, XFS_ILOCK_EXCL);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
+		xfs_qm_dqrele(ip->i_udquot);
+		ip->i_udquot = NULL;
+	}
+	if (flags & (XFS_PQUOTA_ACCT|XFS_GQUOTA_ACCT) && ip->i_gdquot) {
+		xfs_qm_dqrele(ip->i_gdquot);
+		ip->i_gdquot = NULL;
+	}
+	xfs_iput(ip, XFS_ILOCK_EXCL);
+	IRELE(ip);
 
-	} while (nr_found);
+	return 0;
 }
+
 
 /*
  * Go thru all the inodes in the file system, releasing their dquots.
+ *
  * Note that the mount structure gets modified to indicate that quotas are off
- * AFTER this, in the case of quotaoff. This also gets called from
- * xfs_rootumount.
+ * AFTER this, in the case of quotaoff.
  */
 void
 xfs_qm_dqrele_all_inodes(
 	struct xfs_mount *mp,
 	uint		 flags)
 {
-	int		i;
-
 	ASSERT(mp->m_quotainfo);
-	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
-		if (!mp->m_perag[i].pag_ici_init)
-			continue;
-		xfs_qm_dqrele_inodes_ag(mp, i, flags);
-	}
+	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, XFS_ICI_NO_TAG);
 }
 
 /*------------------------------------------------------------------------*/

@@ -497,8 +497,10 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 	if (eq_table->have_irq)
 		free_irq(dev->pdev->irq, dev);
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
-		if (eq_table->eq[i].have_irq)
+		if (eq_table->eq[i].have_irq) {
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
+			eq_table->eq[i].have_irq = 0;
+		}
 
 	kfree(eq_table->irq_names);
 }

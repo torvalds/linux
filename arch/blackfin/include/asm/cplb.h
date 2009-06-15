@@ -53,28 +53,31 @@
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW  | CPLB_COMMON)
 #endif
 
-#define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
-
-#ifdef CONFIG_SMP
-#define L2_ATTR           (INITIAL_T | I_CPLB | D_CPLB)
-#define L2_IMEMORY         (CPLB_COMMON | CPLB_LOCK)
-#define L2_DMEMORY         (CPLB_COMMON | CPLB_LOCK)
-
-#else
-#ifdef CONFIG_BFIN_L2_CACHEABLE
-#define L2_IMEMORY        (SDRAM_IGENERIC)
-#define L2_DMEMORY        (SDRAM_DGENERIC)
-#else
-#define L2_IMEMORY        (CPLB_COMMON)
-#define L2_DMEMORY        (CPLB_COMMON)
-#endif /* CONFIG_BFIN_L2_CACHEABLE */
-
-#define L2_ATTR           (INITIAL_T | SWITCH_T | I_CPLB | D_CPLB)
-#endif /* CONFIG_SMP */
-
 #define SDRAM_DNON_CHBL  (CPLB_COMMON)
 #define SDRAM_EBIU       (CPLB_COMMON)
 #define SDRAM_OOPS       (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
+
+#define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
+
+#ifdef CONFIG_SMP
+#define L2_ATTR          (INITIAL_T | I_CPLB | D_CPLB)
+#define L2_IMEMORY       (CPLB_COMMON)
+#define L2_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
+
+#else
+#define L2_ATTR          (INITIAL_T | SWITCH_T | I_CPLB | D_CPLB)
+#define L2_IMEMORY       (SDRAM_IGENERIC)
+
+# if defined(CONFIG_BFIN_L2_WB)
+# define L2_DMEMORY      (CPLB_L1_CHBL | CPLB_COMMON)
+# elif defined(CONFIG_BFIN_L2_WT)
+# define L2_DMEMORY      (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW  | CPLB_COMMON)
+# elif defined(CONFIG_BFIN_L2_NOT_CACHED)
+# define L2_DMEMORY      (CPLB_COMMON)
+# else
+# define L2_DMEMORY      (0)
+# endif
+#endif /* CONFIG_SMP */
 
 #define SIZE_1K 0x00000400      /* 1K */
 #define SIZE_4K 0x00001000      /* 4K */

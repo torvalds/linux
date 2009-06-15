@@ -115,12 +115,12 @@ MODULE_PARM_DESC(max_report_luns,
 		 "REPORT LUNS maximum number of LUNS received (should be"
 		 " between 1 and 16384)");
 
-static unsigned int scsi_inq_timeout = SCSI_TIMEOUT/HZ+3;
+static unsigned int scsi_inq_timeout = SCSI_TIMEOUT/HZ + 18;
 
 module_param_named(inq_timeout, scsi_inq_timeout, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(inq_timeout, 
 		 "Timeout (in seconds) waiting for devices to answer INQUIRY."
-		 " Default is 5. Some non-compliant devices need more.");
+		 " Default is 20. Some devices may need more; most need less.");
 
 /* This lock protects only this list */
 static DEFINE_SPINLOCK(async_scan_lock);
@@ -425,6 +425,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	INIT_LIST_HEAD(&starget->devices);
 	starget->state = STARGET_CREATED;
 	starget->scsi_level = SCSI_2;
+	starget->max_target_blocked = SCSI_DEFAULT_TARGET_BLOCKED;
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 

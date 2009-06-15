@@ -172,7 +172,7 @@ static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> TICKET_SHIFT) - tmp) & ((1 << TICKET_SHIFT) - 1)) > 1;
 }
 
-#ifndef CONFIG_PARAVIRT
+#ifndef CONFIG_PARAVIRT_SPINLOCKS
 
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
@@ -206,7 +206,7 @@ static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 	__raw_spin_lock(lock);
 }
 
-#endif
+#endif	/* CONFIG_PARAVIRT_SPINLOCKS */
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {

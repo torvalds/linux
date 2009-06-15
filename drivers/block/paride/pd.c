@@ -410,10 +410,12 @@ static void run_fsm(void)
 				pd_claimed = 0;
 				phase = NULL;
 				spin_lock_irqsave(&pd_lock, saved_flags);
-				end_request(pd_req, res);
-				pd_req = elv_next_request(pd_queue);
-				if (!pd_req)
-					stop = 1;
+				if (!__blk_end_request_cur(pd_req,
+						res == Ok ? 0 : -EIO)) {
+					pd_req = blk_fetch_request(pd_queue);
+					if (!pd_req)
+						stop = 1;
+				}
 				spin_unlock_irqrestore(&pd_lock, saved_flags);
 				if (stop)
 					return;
@@ -443,11 +445,11 @@ static enum action do_pd_io_start(void)
 
 	pd_cmd = rq_data_dir(pd_req);
 	if (pd_cmd == READ || pd_cmd == WRITE) {
-		pd_block = pd_req->sector;
-		pd_count = pd_req->current_nr_sectors;
+		pd_block = blk_rq_pos(pd_req);
+		pd_count = blk_rq_cur_sectors(pd_req);
 		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
 			return Fail;
-		pd_run = pd_req->nr_sectors;
+		pd_run = blk_rq_sectors(pd_req);
 		pd_buf = pd_req->buffer;
 		pd_retries = 0;
 		if (pd_cmd == READ)
@@ -477,8 +479,8 @@ static int pd_next_buf(void)
 	if (pd_count)
 		return 0;
 	spin_lock_irqsave(&pd_lock, saved_flags);
-	end_request(pd_req, 1);
-	pd_count = pd_req->current_nr_sectors;
+	__blk_end_request_cur(pd_req, 0);
+	pd_count = blk_rq_cur_sectors(pd_req);
 	pd_buf = pd_req->buffer;
 	spin_unlock_irqrestore(&pd_lock, saved_flags);
 	return 0;
@@ -702,7 +704,7 @@ static void do_pd_request(struct request_queue * q)
 {
 	if (pd_req)
 		return;
-	pd_req = elv_next_request(q);
+	pd_req = blk_fetch_request(q);
 	if (!pd_req)
 		return;
 

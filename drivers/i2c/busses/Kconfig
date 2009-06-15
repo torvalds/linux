@@ -298,7 +298,7 @@ config I2C_BLACKFIN_TWI
 config I2C_BLACKFIN_TWI_CLK_KHZ
 	int "Blackfin TWI I2C clock (kHz)"
 	depends on I2C_BLACKFIN_TWI
-	range 10 400
+	range 21 400
 	default 50
 	help
 	  The unit of the TWI clock is kHz.

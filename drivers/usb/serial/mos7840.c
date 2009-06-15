@@ -1135,54 +1135,12 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 
 }
 
-/************************************************************************
- *
- * mos7840_block_until_tx_empty
- *
- *	This function will block the close until one of the following:
- *		1. TX count are 0
- *		2. The mos7840 has stopped
- *		3. A timeout of 3 seconds without activity has expired
- *
- ************************************************************************/
-static void mos7840_block_until_tx_empty(struct tty_struct *tty,
-				struct moschip_port *mos7840_port)
-{
-	int timeout = HZ / 10;
-	int wait = 30;
-	int count;
-
-	while (1) {
-
-		count = mos7840_chars_in_buffer(tty);
-
-		/* Check for Buffer status */
-		if (count <= 0)
-			return;
-
-		/* Block the thread for a while */
-		interruptible_sleep_on_timeout(&mos7840_port->wait_chase,
-					       timeout);
-
-		/* No activity.. count down section */
-		wait--;
-		if (wait == 0) {
-			dbg("%s - TIMEOUT", __func__);
-			return;
-		} else {
-			/* Reset timeout value back to seconds */
-			wait = 30;
-		}
-	}
-}
-
 /*****************************************************************************
  * mos7840_close
  *	this function is called by the tty driver when a port is closed
  *****************************************************************************/
 
-static void mos7840_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void mos7840_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
 	struct moschip_port *mos7840_port;
@@ -1222,10 +1180,6 @@ static void mos7840_close(struct tty_struct *tty,
 			usb_free_urb(mos7840_port->write_urb_pool[j]);
 		}
 	}
-
-	if (serial->dev)
-		/* flush and block until tx is empty */
-		mos7840_block_until_tx_empty(tty, mos7840_port);
 
 	/* While closing port, shutdown all bulk read, write  *
 	 * and interrupt read if they exists                  */

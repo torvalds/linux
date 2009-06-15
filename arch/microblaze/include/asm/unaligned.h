@@ -12,7 +12,8 @@
 
 # ifdef __KERNEL__
 
-# include <linux/unaligned/access_ok.h>
+# include <linux/unaligned/be_struct.h>
+# include <linux/unaligned/le_byteshift.h>
 # include <linux/unaligned/generic.h>
 
 # define get_unaligned	__get_unaligned_be

@@ -18,6 +18,7 @@
 */
 #include <linux/module.h>
 #include <linux/moduleloader.h>
+#include <linux/ftrace_event.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
@@ -52,6 +53,7 @@
 #include <linux/ftrace.h>
 #include <linux/async.h>
 #include <linux/percpu.h>
+#include <linux/kmemleak.h>
 
 #if 0
 #define DEBUGP printk
@@ -71,6 +73,9 @@
 DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
+
+/* Block module loading/unloading? */
+int modules_disabled = 0;
 
 /* Waiting for a module to finish initializing? */
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
@@ -429,6 +434,7 @@ static void *percpu_modalloc(unsigned long size, unsigned long align,
 	unsigned long extra;
 	unsigned int i;
 	void *ptr;
+	int cpu;
 
 	if (align > PAGE_SIZE) {
 		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
@@ -458,6 +464,11 @@ static void *percpu_modalloc(unsigned long size, unsigned long align,
 			if (!split_block(i, size))
 				return NULL;
 
+		/* add the per-cpu scanning areas */
+		for_each_possible_cpu(cpu)
+			kmemleak_alloc(ptr + per_cpu_offset(cpu), size, 0,
+				       GFP_KERNEL);
+
 		/* Mark allocated */
 		pcpu_size[i] = -pcpu_size[i];
 		return ptr;
@@ -472,6 +483,7 @@ static void percpu_modfree(void *freeme)
 {
 	unsigned int i;
 	void *ptr = __per_cpu_start + block_size(pcpu_size[0]);
+	int cpu;
 
 	/* First entry is core kernel percpu data. */
 	for (i = 1; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
@@ -483,6 +495,10 @@ static void percpu_modfree(void *freeme)
 	BUG();
 
  free:
+	/* remove the per-cpu scanning areas */
+	for_each_possible_cpu(cpu)
+		kmemleak_free(freeme + per_cpu_offset(cpu));
+
 	/* Merge with previous? */
 	if (pcpu_size[i-1] >= 0) {
 		pcpu_size[i-1] += pcpu_size[i];
@@ -777,7 +793,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	char name[MODULE_NAME_LEN];
 	int ret, forced = 0;
 
-	if (!capable(CAP_SYS_MODULE))
+	if (!capable(CAP_SYS_MODULE) || modules_disabled)
 		return -EPERM;
 
 	if (strncpy_from_user(name, name_user, MODULE_NAME_LEN-1) < 0)
@@ -1489,9 +1505,6 @@ static void free_module(struct module *mod)
 	/* Free any allocated parameters. */
 	destroy_params(mod->kp, mod->num_kp);
 
-	/* release any pointers to mcount in this module */
-	ftrace_release(mod->module_core, mod->core_size);
-
 	/* This may be NULL, but that's OK */
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
@@ -1878,6 +1891,36 @@ static void *module_alloc_update_bounds(unsigned long size)
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_KMEMLEAK
+static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
+				 Elf_Shdr *sechdrs, char *secstrings)
+{
+	unsigned int i;
+
+	/* only scan the sections containing data */
+	kmemleak_scan_area(mod->module_core, (unsigned long)mod -
+			   (unsigned long)mod->module_core,
+			   sizeof(struct module), GFP_KERNEL);
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
+			continue;
+		if (strncmp(secstrings + sechdrs[i].sh_name, ".data", 5) != 0
+		    && strncmp(secstrings + sechdrs[i].sh_name, ".bss", 4) != 0)
+			continue;
+
+		kmemleak_scan_area(mod->module_core, sechdrs[i].sh_addr -
+				   (unsigned long)mod->module_core,
+				   sechdrs[i].sh_size, GFP_KERNEL);
+	}
+}
+#else
+static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
+					Elf_Shdr *sechdrs, char *secstrings)
+{
+}
+#endif
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static noinline struct module *load_module(void __user *umod,
@@ -1892,11 +1935,9 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int symindex = 0;
 	unsigned int strindex = 0;
 	unsigned int modindex, versindex, infoindex, pcpuindex;
-	unsigned int num_mcount;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
-	unsigned long *mseg;
 	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -2050,6 +2091,12 @@ static noinline struct module *load_module(void __user *umod,
 
 	/* Do the allocs. */
 	ptr = module_alloc_update_bounds(mod->core_size);
+	/*
+	 * The pointer to this block is stored in the module structure
+	 * which is inside the block. Just mark it as not being a
+	 * leak.
+	 */
+	kmemleak_not_leak(ptr);
 	if (!ptr) {
 		err = -ENOMEM;
 		goto free_percpu;
@@ -2058,6 +2105,13 @@ static noinline struct module *load_module(void __user *umod,
 	mod->module_core = ptr;
 
 	ptr = module_alloc_update_bounds(mod->init_size);
+	/*
+	 * The pointer to this block is stored in the module structure
+	 * which is inside the block. This block doesn't need to be
+	 * scanned as it contains data and code that will be freed
+	 * after the module is initialized.
+	 */
+	kmemleak_ignore(ptr);
 	if (!ptr && mod->init_size) {
 		err = -ENOMEM;
 		goto free_core;
@@ -2088,6 +2142,7 @@ static noinline struct module *load_module(void __user *umod,
 	}
 	/* Module has been moved. */
 	mod = (void *)sechdrs[modindex].sh_addr;
+	kmemleak_load_module(mod, hdr, sechdrs, secstrings);
 
 #if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
 	mod->refptr = percpu_modalloc(sizeof(local_t), __alignof__(local_t),
@@ -2172,7 +2227,19 @@ static noinline struct module *load_module(void __user *umod,
 					sizeof(*mod->tracepoints),
 					&mod->num_tracepoints);
 #endif
-
+#ifdef CONFIG_EVENT_TRACING
+	mod->trace_events = section_objs(hdr, sechdrs, secstrings,
+					 "_ftrace_events",
+					 sizeof(*mod->trace_events),
+					 &mod->num_trace_events);
+#endif
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+	/* sechdrs[0].sh_size is always zero */
+	mod->ftrace_callsites = section_objs(hdr, sechdrs, secstrings,
+					     "__mcount_loc",
+					     sizeof(*mod->ftrace_callsites),
+					     &mod->num_ftrace_callsites);
+#endif
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
 	    || (mod->num_gpl_syms && !mod->gpl_crcs)
@@ -2237,11 +2304,6 @@ static noinline struct module *load_module(void __user *umod,
 			dynamic_debug_setup(debug, num_debug);
 	}
 
-	/* sechdrs[0].sh_size is always zero */
-	mseg = section_objs(hdr, sechdrs, secstrings, "__mcount_loc",
-			    sizeof(*mseg), &num_mcount);
-	ftrace_init_module(mod, mseg, mseg + num_mcount);
-
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
 		goto cleanup;
@@ -2302,7 +2364,6 @@ static noinline struct module *load_module(void __user *umod,
  cleanup:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
-	ftrace_release(mod->module_core, mod->core_size);
  free_unload:
 	module_unload_free(mod);
 #if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
@@ -2336,7 +2397,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	int ret = 0;
 
 	/* Must have permission */
-	if (!capable(CAP_SYS_MODULE))
+	if (!capable(CAP_SYS_MODULE) || modules_disabled)
 		return -EPERM;
 
 	/* Only one module load at a time, please */
@@ -2394,6 +2455,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	mutex_lock(&module_mutex);
 	/* Drop initial reference. */
 	module_put(mod);
+	trim_init_extable(mod);
 	module_free(mod, mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;

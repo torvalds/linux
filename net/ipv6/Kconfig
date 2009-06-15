@@ -168,7 +168,7 @@ config IPV6_SIT
 	  into IPv4 packets. This is useful if you want to connect two IPv6
 	  networks over an IPv4-only path.
 
-	  Saying M here will produce a module called sit.ko. If unsure, say Y.
+	  Saying M here will produce a module called sit. If unsure, say Y.
 
 config IPV6_NDISC_NODETYPE
 	bool

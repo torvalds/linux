@@ -437,6 +437,22 @@ bad_dir:
 #endif
 }
 
+static int
+adfs_f_sync(struct adfs_dir *dir)
+{
+	int err = 0;
+	int i;
+
+	for (i = dir->nr_buffers - 1; i >= 0; i--) {
+		struct buffer_head *bh = dir->bh[i];
+		sync_dirty_buffer(bh);
+		if (buffer_req(bh) && !buffer_uptodate(bh))
+			err = -EIO;
+	}
+
+	return err;
+}
+
 static void
 adfs_f_free(struct adfs_dir *dir)
 {
@@ -456,5 +472,6 @@ struct adfs_dir_ops adfs_f_dir_ops = {
 	.setpos		= adfs_f_setpos,
 	.getnext	= adfs_f_getnext,
 	.update		= adfs_f_update,
+	.sync		= adfs_f_sync,
 	.free		= adfs_f_free
 };

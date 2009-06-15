@@ -9,6 +9,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/swap.h> /* struct reclaim_state */
 #include <linux/module.h>
 #include <linux/bit_spinlock.h>
 #include <linux/interrupt.h>
@@ -16,9 +17,10 @@
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <trace/kmemtrace.h>
+#include <linux/kmemtrace.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
+#include <linux/kmemleak.h>
 #include <linux/mempolicy.h>
 #include <linux/ctype.h>
 #include <linux/debugobjects.h>
@@ -142,7 +144,7 @@
  * Set of flags that will prevent slab merging
  */
 #define SLUB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-		SLAB_TRACE | SLAB_DESTROY_BY_RCU)
+		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE)
 
 #define SLUB_MERGE_SAME (SLAB_DEBUG_FREE | SLAB_RECLAIM_ACCOUNT | \
 		SLAB_CACHE_DMA)
@@ -175,6 +177,12 @@ static enum {
 	UP,		/* Everything works but does not show up in sysfs */
 	SYSFS		/* Sysfs up */
 } slab_state = DOWN;
+
+/*
+ * The slab allocator is initialized with interrupts disabled. Therefore, make
+ * sure early boot allocations don't accidentally enable interrupts.
+ */
+static gfp_t slab_gfp_mask __read_mostly = SLAB_GFP_BOOT_MASK;
 
 /* A list of all slab caches on the system */
 static DECLARE_RWSEM(slub_lock);
@@ -1170,6 +1178,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 
 	__ClearPageSlab(page);
 	reset_page_mapcount(page);
+	if (current->reclaim_state)
+		current->reclaim_state->reclaimed_slab += pages;
 	__free_pages(page, order);
 }
 
@@ -1591,6 +1601,8 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	unsigned long flags;
 	unsigned int objsize;
 
+	gfpflags &= slab_gfp_mask;
+
 	lockdep_trace_alloc(gfpflags);
 	might_sleep_if(gfpflags & __GFP_WAIT);
 
@@ -1614,6 +1626,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 	if (unlikely((gfpflags & __GFP_ZERO) && object))
 		memset(object, 0, objsize);
 
+	kmemleak_alloc_recursive(object, objsize, 1, s->flags, gfpflags);
 	return object;
 }
 
@@ -1743,6 +1756,7 @@ static __always_inline void slab_free(struct kmem_cache *s,
 	struct kmem_cache_cpu *c;
 	unsigned long flags;
 
+	kmemleak_free_recursive(x, s->flags);
 	local_irq_save(flags);
 	c = get_cpu_slab(s, smp_processor_id());
 	debug_check_no_locks_freed(object, c->objsize);
@@ -1909,7 +1923,7 @@ static inline int calculate_order(int size)
 	 * Doh this slab cannot be placed using slub_max_order.
 	 */
 	order = slab_order(size, 1, MAX_ORDER, 1);
-	if (order <= MAX_ORDER)
+	if (order < MAX_ORDER)
 		return order;
 	return -ENOSYS;
 }
@@ -2522,6 +2536,7 @@ __setup("slub_min_order=", setup_slub_min_order);
 static int __init setup_slub_max_order(char *str)
 {
 	get_option(&str, &slub_max_order);
+	slub_max_order = min(slub_max_order, MAX_ORDER - 1);
 
 	return 1;
 }
@@ -2553,13 +2568,16 @@ static struct kmem_cache *create_kmalloc_cache(struct kmem_cache *s,
 	if (gfp_flags & SLUB_DMA)
 		flags = SLAB_CACHE_DMA;
 
-	down_write(&slub_lock);
+	/*
+	 * This function is called with IRQs disabled during early-boot on
+	 * single CPU so there's no need to take slub_lock here.
+	 */
 	if (!kmem_cache_open(s, gfp_flags, name, size, ARCH_KMALLOC_MINALIGN,
 								flags, NULL))
 		goto panic;
 
 	list_add(&s->list, &slab_caches);
-	up_write(&slub_lock);
+
 	if (sysfs_slab_add(s))
 		goto panic;
 	return s;
@@ -3017,7 +3035,7 @@ void __init kmem_cache_init(void)
 	 * kmem_cache_open for slab_state == DOWN.
 	 */
 	create_kmalloc_cache(&kmalloc_caches[0], "kmem_cache_node",
-		sizeof(struct kmem_cache_node), GFP_KERNEL);
+		sizeof(struct kmem_cache_node), GFP_NOWAIT);
 	kmalloc_caches[0].refcount = -1;
 	caches++;
 
@@ -3030,16 +3048,16 @@ void __init kmem_cache_init(void)
 	/* Caches that are not of the two-to-the-power-of size */
 	if (KMALLOC_MIN_SIZE <= 64) {
 		create_kmalloc_cache(&kmalloc_caches[1],
-				"kmalloc-96", 96, GFP_KERNEL);
+				"kmalloc-96", 96, GFP_NOWAIT);
 		caches++;
 		create_kmalloc_cache(&kmalloc_caches[2],
-				"kmalloc-192", 192, GFP_KERNEL);
+				"kmalloc-192", 192, GFP_NOWAIT);
 		caches++;
 	}
 
 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
 		create_kmalloc_cache(&kmalloc_caches[i],
-			"kmalloc", 1 << i, GFP_KERNEL);
+			"kmalloc", 1 << i, GFP_NOWAIT);
 		caches++;
 	}
 
@@ -3076,7 +3094,7 @@ void __init kmem_cache_init(void)
 	/* Provide the correct kmalloc names now that the caches are up */
 	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++)
 		kmalloc_caches[i]. name =
-			kasprintf(GFP_KERNEL, "kmalloc-%d", 1 << i);
+			kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
 
 #ifdef CONFIG_SMP
 	register_cpu_notifier(&slab_notifier);
@@ -3092,6 +3110,14 @@ void __init kmem_cache_init(void)
 		caches, cache_line_size(),
 		slub_min_order, slub_max_order, slub_min_objects,
 		nr_cpu_ids, nr_node_ids);
+}
+
+void __init kmem_cache_init_late(void)
+{
+	/*
+	 * Interrupts are enabled now so all GFP allocations are safe.
+	 */
+	slab_gfp_mask = __GFP_BITS_MASK;
 }
 
 /*

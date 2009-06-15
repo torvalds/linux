@@ -647,7 +647,7 @@ static int rndis_set_config_parameter(struct usbnet *dev, char *param,
 	ret = rndis_set_oid(dev, OID_GEN_RNDIS_CONFIG_PARAMETER,
 							infobuf, info_len);
 	if (ret != 0)
-		devdbg(dev, "setting rndis config paramater failed, %d.", ret);
+		devdbg(dev, "setting rndis config parameter failed, %d.", ret);
 
 	kfree(infobuf);
 	return ret;

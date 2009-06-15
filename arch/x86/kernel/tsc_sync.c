@@ -34,6 +34,7 @@ static __cpuinitdata atomic_t stop_count;
  * of a critical section, to be able to prove TSC time-warps:
  */
 static __cpuinitdata raw_spinlock_t sync_lock = __RAW_SPIN_LOCK_UNLOCKED;
+
 static __cpuinitdata cycles_t last_tsc;
 static __cpuinitdata cycles_t max_warp;
 static __cpuinitdata int nr_warps;
@@ -113,13 +114,12 @@ void __cpuinit check_tsc_sync_source(int cpu)
 		return;
 
 	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE)) {
-		printk(KERN_INFO
-		       "Skipping synchronization checks as TSC is reliable.\n");
+		pr_info("Skipping synchronization checks as TSC is reliable.\n");
 		return;
 	}
 
-	printk(KERN_INFO "checking TSC synchronization [CPU#%d -> CPU#%d]:",
-			  smp_processor_id(), cpu);
+	pr_info("checking TSC synchronization [CPU#%d -> CPU#%d]:",
+		smp_processor_id(), cpu);
 
 	/*
 	 * Reset it - in case this is a second bootup:
@@ -143,8 +143,8 @@ void __cpuinit check_tsc_sync_source(int cpu)
 
 	if (nr_warps) {
 		printk("\n");
-		printk(KERN_WARNING "Measured %Ld cycles TSC warp between CPUs,"
-				    " turning off TSC clock.\n", max_warp);
+		pr_warning("Measured %Ld cycles TSC warp between CPUs, "
+			   "turning off TSC clock.\n", max_warp);
 		mark_tsc_unstable("check_tsc_sync_source failed");
 	} else {
 		printk(" passed.\n");
@@ -195,5 +195,3 @@ void __cpuinit check_tsc_sync_target(void)
 	while (atomic_read(&stop_count) != cpus)
 		cpu_relax();
 }
-#undef NR_LOOPS
-

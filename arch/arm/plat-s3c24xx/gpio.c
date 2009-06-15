@@ -183,35 +183,19 @@ EXPORT_SYMBOL(s3c2410_modify_misccr);
 
 int s3c2410_gpio_getirq(unsigned int pin)
 {
-	if (pin < S3C2410_GPF0 || pin > S3C2410_GPG15)
-		return -1;	/* not valid interrupts */
+	if (pin < S3C2410_GPF(0) || pin > S3C2410_GPG(15))
+		return -EINVAL;	/* not valid interrupts */
 
-	if (pin < S3C2410_GPG0 && pin > S3C2410_GPF7)
-		return -1;	/* not valid pin */
+	if (pin < S3C2410_GPG(0) && pin > S3C2410_GPF(7))
+		return -EINVAL;	/* not valid pin */
 
-	if (pin < S3C2410_GPF4)
-		return (pin - S3C2410_GPF0) + IRQ_EINT0;
+	if (pin < S3C2410_GPF(4))
+		return (pin - S3C2410_GPF(0)) + IRQ_EINT0;
 
-	if (pin < S3C2410_GPG0)
-		return (pin - S3C2410_GPF4) + IRQ_EINT4;
+	if (pin < S3C2410_GPG(0))
+		return (pin - S3C2410_GPF(4)) + IRQ_EINT4;
 
-	return (pin - S3C2410_GPG0) + IRQ_EINT8;
+	return (pin - S3C2410_GPG(0)) + IRQ_EINT8;
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getirq);
-
-int s3c2410_gpio_irq2pin(unsigned int irq)
-{
-	if (irq >= IRQ_EINT0 && irq <= IRQ_EINT3)
-		return S3C2410_GPF0 + (irq - IRQ_EINT0);
-
-	if (irq >= IRQ_EINT4 && irq <= IRQ_EINT7)
-		return S3C2410_GPF4 + (irq - IRQ_EINT4);
-
-	if (irq >= IRQ_EINT8 && irq <= IRQ_EINT23)
-		return S3C2410_GPG0 + (irq - IRQ_EINT8);
-
-	return -EINVAL;
-}
-
-EXPORT_SYMBOL(s3c2410_gpio_irq2pin);

@@ -51,6 +51,12 @@ config MACH_INTELMOTE2
 	select IWMMXT
 	select PXA_HAVE_BOARD_IRQS
 
+config MACH_STARGATE2
+	bool "Intel Stargate 2 Platform"
+	select PXA27x
+	select IWMMXT
+	select PXA_HAVE_BOARD_IRQS
+
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform"
 	select PXA25x
@@ -87,6 +93,10 @@ config PXA_SHARPSL
 	  SL-C750 (Shepherd), SL-C760 (Husky), SL-C1000 (Akita),
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
+
+config SHARPSL_PM
+	bool
+	select APM_EMULATION
 
 config CORGI_SSP_DEPRECATED
 	bool
@@ -280,6 +290,7 @@ config MACH_ZYLONITE
 	select PXA3xx
 	select PXA_SSP
 	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"
@@ -307,6 +318,14 @@ config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
 	select PXA3xx
 	select CPU_PXA300
+
+config MACH_H4700
+	bool "HP iPAQ hx4700"
+	select PXA27x
+	select IWMMXT
+	select PXA_SSP
+	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
@@ -504,12 +523,6 @@ config PXA_SSP
 	tristate
 	help
 	  Enable support for PXA2xx SSP ports
-
-config PXA_PWM
-	tristate
-	default BACKLIGHT_PWM
-	help
-	  Enable support for PXA2xx/PXA3xx PWM controllers
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"

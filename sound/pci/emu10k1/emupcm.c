@@ -1736,7 +1736,7 @@ static struct snd_pcm_hardware snd_emu10k1_fx8010_playback =
 	.buffer_bytes_max =	(128*1024),
 	.period_bytes_min =	1024,
 	.period_bytes_max =	(128*1024),
-	.periods_min =		1,
+	.periods_min =		2,
 	.periods_max =		1024,
 	.fifo_size =		0,
 };

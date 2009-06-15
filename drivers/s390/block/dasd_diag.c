@@ -202,6 +202,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 		rc = -EIO;
 		break;
 	}
+	cqr->intrc = rc;
 	return rc;
 }
 
@@ -505,8 +506,9 @@ static struct dasd_ccw_req *dasd_diag_build_cp(struct dasd_device *memdev,
 		return ERR_PTR(-EINVAL);
 	blksize = block->bp_block;
 	/* Calculate record id of first and last block. */
-	first_rec = req->sector >> block->s2b_shift;
-	last_rec = (req->sector + req->nr_sectors - 1) >> block->s2b_shift;
+	first_rec = blk_rq_pos(req) >> block->s2b_shift;
+	last_rec =
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
 	/* Check struct bio and count the number of blocks for the request. */
 	count = 0;
 	rq_for_each_segment(bv, req, iter) {

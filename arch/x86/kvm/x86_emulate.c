@@ -59,13 +59,14 @@
 #define SrcImm      (5<<4)	/* Immediate operand. */
 #define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
 #define SrcOne      (7<<4)	/* Implied '1' */
-#define SrcMask     (7<<4)
+#define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
+#define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
-#define ModRM       (1<<7)
+#define ModRM       (1<<8)
 /* Destination is only written; never read. */
-#define Mov         (1<<8)
-#define BitOp       (1<<9)
-#define MemAbs      (1<<10)      /* Memory operand is absolute displacement */
+#define Mov         (1<<9)
+#define BitOp       (1<<10)
+#define MemAbs      (1<<11)      /* Memory operand is absolute displacement */
 #define String      (1<<12)     /* String instruction (rep capable) */
 #define Stack       (1<<13)     /* Stack instruction (push/pop) */
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
@@ -76,6 +77,7 @@
 #define Src2CL      (1<<29)
 #define Src2ImmByte (2<<29)
 #define Src2One     (3<<29)
+#define Src2Imm16   (4<<29)
 #define Src2Mask    (7<<29)
 
 enum {
@@ -135,11 +137,11 @@ static u32 opcode_table[256] = {
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x77 */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
 	/* 0x78 - 0x7F */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
+	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
 	/* 0x80 - 0x87 */
 	Group | Group1_80, Group | Group1_81,
 	Group | Group1_82, Group | Group1_83,
@@ -153,7 +155,8 @@ static u32 opcode_table[256] = {
 	/* 0x90 - 0x97 */
 	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
 	/* 0x98 - 0x9F */
-	0, 0, 0, 0, ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
+	0, 0, SrcImm | Src2Imm16, 0,
+	ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
 	ByteOp | DstMem | SrcReg | Mov | MemAbs, DstMem | SrcReg | Mov | MemAbs,
@@ -178,7 +181,8 @@ static u32 opcode_table[256] = {
 	0, ImplicitOps | Stack, 0, 0,
 	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
 	/* 0xC8 - 0xCF */
-	0, 0, 0, ImplicitOps | Stack, 0, 0, 0, 0,
+	0, 0, 0, ImplicitOps | Stack,
+	ImplicitOps, SrcImmByte, ImplicitOps, ImplicitOps,
 	/* 0xD0 - 0xD7 */
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
@@ -187,11 +191,11 @@ static u32 opcode_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
+	ByteOp | SrcImmUByte, SrcImmUByte,
+	ByteOp | SrcImmUByte, SrcImmUByte,
 	/* 0xE8 - 0xEF */
-	ImplicitOps | Stack, SrcImm | ImplicitOps,
-	ImplicitOps, SrcImmByte | ImplicitOps,
+	SrcImm | Stack, SrcImm | ImplicitOps,
+	SrcImm | Src2Imm16, SrcImmByte | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xF0 - 0xF7 */
@@ -230,10 +234,8 @@ static u32 twobyte_table[256] = {
 	/* 0x70 - 0x7F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x80 - 0x8F */
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm,
+	SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm, SrcImm,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
@@ -1044,10 +1046,14 @@ done_prefixes:
 		}
 		break;
 	case SrcImmByte:
+	case SrcImmUByte:
 		c->src.type = OP_IMM;
 		c->src.ptr = (unsigned long *)c->eip;
 		c->src.bytes = 1;
-		c->src.val = insn_fetch(s8, 1, c->eip);
+		if ((c->d & SrcMask) == SrcImmByte)
+			c->src.val = insn_fetch(s8, 1, c->eip);
+		else
+			c->src.val = insn_fetch(u8, 1, c->eip);
 		break;
 	case SrcOne:
 		c->src.bytes = 1;
@@ -1071,6 +1077,12 @@ done_prefixes:
 		c->src2.ptr = (unsigned long *)c->eip;
 		c->src2.bytes = 1;
 		c->src2.val = insn_fetch(u8, 1, c->eip);
+		break;
+	case Src2Imm16:
+		c->src2.type = OP_IMM;
+		c->src2.ptr = (unsigned long *)c->eip;
+		c->src2.bytes = 2;
+		c->src2.val = insn_fetch(u16, 2, c->eip);
 		break;
 	case Src2One:
 		c->src2.bytes = 1;
@@ -1349,6 +1361,20 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 	return 0;
 }
 
+void toggle_interruptibility(struct x86_emulate_ctxt *ctxt, u32 mask)
+{
+	u32 int_shadow = kvm_x86_ops->get_interrupt_shadow(ctxt->vcpu, mask);
+	/*
+	 * an sti; sti; sequence only disable interrupts for the first
+	 * instruction. So, if the last instruction, be it emulated or
+	 * not, left the system with the INT_STI flag enabled, it
+	 * means that the last instruction is an sti. We should not
+	 * leave the flag on in this case. The same goes for mov ss
+	 */
+	if (!(int_shadow & mask))
+		ctxt->interruptibility = mask;
+}
+
 int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
@@ -1359,6 +1385,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	unsigned int port;
 	int io_dir_in;
 	int rc = 0;
+
+	ctxt->interruptibility = 0;
 
 	/* Shadow copy of register state. Committed on successful emulation.
 	 * NOTE: we can copy them from vcpu as x86_decode_insn() doesn't
@@ -1531,13 +1559,10 @@ special_insn:
 			return -1;
 		}
 		return 0;
-	case 0x70 ... 0x7f: /* jcc (short) */ {
-		int rel = insn_fetch(s8, 1, c->eip);
-
+	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(c->b, ctxt->eflags))
-			jmp_rel(c, rel);
+			jmp_rel(c, c->src.val);
 		break;
-	}
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (c->modrm_reg) {
 		case 0:
@@ -1609,6 +1634,9 @@ special_insn:
 		int err;
 
 		sel = c->src.val;
+		if (c->modrm_reg == VCPU_SREG_SS)
+			toggle_interruptibility(ctxt, X86_SHADOW_INT_MOV_SS);
+
 		if (c->modrm_reg <= 5) {
 			type_bits = (c->modrm_reg == 1) ? 9 : 1;
 			err = kvm_load_segment_descriptor(ctxt->vcpu, sel,
@@ -1769,59 +1797,32 @@ special_insn:
 		break;
 	case 0xe4: 	/* inb */
 	case 0xe5: 	/* in */
-		port = insn_fetch(u8, 1, c->eip);
+		port = c->src.val;
 		io_dir_in = 1;
 		goto do_io;
 	case 0xe6: /* outb */
 	case 0xe7: /* out */
-		port = insn_fetch(u8, 1, c->eip);
+		port = c->src.val;
 		io_dir_in = 0;
 		goto do_io;
 	case 0xe8: /* call (near) */ {
-		long int rel;
-		switch (c->op_bytes) {
-		case 2:
-			rel = insn_fetch(s16, 2, c->eip);
-			break;
-		case 4:
-			rel = insn_fetch(s32, 4, c->eip);
-			break;
-		default:
-			DPRINTF("Call: Invalid op_bytes\n");
-			goto cannot_emulate;
-		}
+		long int rel = c->src.val;
 		c->src.val = (unsigned long) c->eip;
 		jmp_rel(c, rel);
-		c->op_bytes = c->ad_bytes;
 		emulate_push(ctxt);
 		break;
 	}
 	case 0xe9: /* jmp rel */
 		goto jmp;
-	case 0xea: /* jmp far */ {
-		uint32_t eip;
-		uint16_t sel;
-
-		switch (c->op_bytes) {
-		case 2:
-			eip = insn_fetch(u16, 2, c->eip);
-			break;
-		case 4:
-			eip = insn_fetch(u32, 4, c->eip);
-			break;
-		default:
-			DPRINTF("jmp far: Invalid op_bytes\n");
-			goto cannot_emulate;
-		}
-		sel = insn_fetch(u16, 2, c->eip);
-		if (kvm_load_segment_descriptor(ctxt->vcpu, sel, 9, VCPU_SREG_CS) < 0) {
+	case 0xea: /* jmp far */
+		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val, 9,
+					VCPU_SREG_CS) < 0) {
 			DPRINTF("jmp far: Failed to load CS descriptor\n");
 			goto cannot_emulate;
 		}
 
-		c->eip = eip;
+		c->eip = c->src.val;
 		break;
-	}
 	case 0xeb:
 	      jmp:		/* jmp rel short */
 		jmp_rel(c, c->src.val);
@@ -1865,6 +1866,7 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfb: /* sti */
+		toggle_interruptibility(ctxt, X86_SHADOW_INT_STI);
 		ctxt->eflags |= X86_EFLAGS_IF;
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
@@ -2039,28 +2041,11 @@ twobyte_insn:
 		if (!test_cc(c->b, ctxt->eflags))
 			c->dst.type = OP_NONE; /* no writeback */
 		break;
-	case 0x80 ... 0x8f: /* jnz rel, etc*/ {
-		long int rel;
-
-		switch (c->op_bytes) {
-		case 2:
-			rel = insn_fetch(s16, 2, c->eip);
-			break;
-		case 4:
-			rel = insn_fetch(s32, 4, c->eip);
-			break;
-		case 8:
-			rel = insn_fetch(s64, 8, c->eip);
-			break;
-		default:
-			DPRINTF("jnz: Invalid op_bytes\n");
-			goto cannot_emulate;
-		}
+	case 0x80 ... 0x8f: /* jnz rel, etc*/
 		if (test_cc(c->b, ctxt->eflags))
-			jmp_rel(c, rel);
+			jmp_rel(c, c->src.val);
 		c->dst.type = OP_NONE;
 		break;
-	}
 	case 0xa3:
 	      bt:		/* bt */
 		c->dst.type = OP_NONE;

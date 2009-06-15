@@ -8,7 +8,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
@@ -72,7 +72,10 @@ void __init pxa_set_mci_info(struct pxamci_platform_data *info)
 }
 
 
-static struct pxa2xx_udc_mach_info pxa_udc_info;
+static struct pxa2xx_udc_mach_info pxa_udc_info = {
+	.gpio_pullup = -1,
+	.gpio_vbus   = -1,
+};
 
 void __init pxa_set_udc_info(struct pxa2xx_udc_mach_info *info)
 {
@@ -287,7 +290,7 @@ static struct resource pxa3xx_resources_i2c_power[] = {
 };
 
 struct platform_device pxa3xx_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
+	.name		= "pxa3xx-pwri2c",
 	.id		= 1,
 	.resource	= pxa3xx_resources_i2c_power,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resources_i2c_power),

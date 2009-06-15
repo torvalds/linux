@@ -111,7 +111,7 @@ typedef unsigned long sigset_t;
 #define SIG_UNBLOCK        2	/* for unblocking signals */
 #define SIG_SETMASK        3	/* for setting the signal mask */
 
-#include <asm-generic/signal.h>
+#include <asm-generic/signal-defs.h>
 
 #ifdef __KERNEL__
 struct osf_sigaction {

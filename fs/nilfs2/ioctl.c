@@ -576,7 +576,7 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
 
  out_free:
-	while (--n > 0)
+	while (--n >= 0)
 		vfree(kbufs[n]);
 	kfree(kbufs[4]);
 	return ret;

@@ -56,7 +56,8 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	sdvox = SDVO_ENCODING_HDMI |
 		SDVO_BORDER_ENABLE |
 		SDVO_VSYNC_ACTIVE_HIGH |
-		SDVO_HSYNC_ACTIVE_HIGH;
+		SDVO_HSYNC_ACTIVE_HIGH |
+		SDVO_NULL_PACKETS_DURING_VSYNC;
 
 	if (hdmi_priv->has_hdmi_sink)
 		sdvox |= SDVO_AUDIO_ENABLE;
@@ -145,6 +146,22 @@ intel_hdmi_sink_detect(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
+igdng_hdmi_detect(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
+
+	/* FIXME hotplug detect */
+
+	hdmi_priv->has_hdmi_sink = false;
+	intel_hdmi_sink_detect(connector);
+	if (hdmi_priv->has_hdmi_sink)
+		return connector_status_connected;
+	else
+		return connector_status_disconnected;
+}
+
+static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -152,6 +169,9 @@ intel_hdmi_detect(struct drm_connector *connector)
 	struct intel_output *intel_output = to_intel_output(connector);
 	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
 	u32 temp, bit;
+
+	if (IS_IGDNG(dev))
+		return igdng_hdmi_detect(connector);
 
 	temp = I915_READ(PORT_HOTPLUG_EN);
 
@@ -219,6 +239,7 @@ static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_hdmi_save,
 	.restore = intel_hdmi_restore,
 	.detect = intel_hdmi_detect,
@@ -268,8 +289,17 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	/* Set up the DDC bus. */
 	if (sdvox_reg == SDVOB)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "HDMIB");
-	else
+	else if (sdvox_reg == SDVOC)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOD, "HDMIC");
+	else if (sdvox_reg == HDMIB)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOE,
+								"HDMIB");
+	else if (sdvox_reg == HDMIC)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOD,
+								"HDMIC");
+	else if (sdvox_reg == HDMID)
+		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOF,
+								"HDMID");
 
 	if (!intel_output->ddc_bus)
 		goto err_connector;

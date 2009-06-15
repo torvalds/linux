@@ -441,15 +441,34 @@ static void fat_clear_inode(struct inode *inode)
 
 static void fat_write_super(struct super_block *sb)
 {
+	lock_super(sb);
 	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY))
 		fat_clusters_flush(sb);
+	unlock_super(sb);
+}
+
+static int fat_sync_fs(struct super_block *sb, int wait)
+{
+	lock_super(sb);
+	fat_clusters_flush(sb);
+	sb->s_dirt = 0;
+	unlock_super(sb);
+
+	return 0;
 }
 
 static void fat_put_super(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+
+	lock_kernel();
+
+	if (sb->s_dirt)
+		fat_write_super(sb);
+
+	iput(sbi->fat_inode);
 
 	if (sbi->nls_disk) {
 		unload_nls(sbi->nls_disk);
@@ -467,6 +486,8 @@ static void fat_put_super(struct super_block *sb)
 
 	sb->s_fs_info = NULL;
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 static struct kmem_cache *fat_inode_cachep;
@@ -632,6 +653,7 @@ static const struct super_operations fat_sops = {
 	.delete_inode	= fat_delete_inode,
 	.put_super	= fat_put_super,
 	.write_super	= fat_write_super,
+	.sync_fs	= fat_sync_fs,
 	.statfs		= fat_statfs,
 	.clear_inode	= fat_clear_inode,
 	.remount_fs	= fat_remount,
@@ -1174,7 +1196,7 @@ static int fat_read_root(struct inode *inode)
 int fat_fill_super(struct super_block *sb, void *data, int silent,
 		   const struct inode_operations *fs_dir_inode_ops, int isvfat)
 {
-	struct inode *root_inode = NULL;
+	struct inode *root_inode = NULL, *fat_inode = NULL;
 	struct buffer_head *bh;
 	struct fat_boot_sector *b;
 	struct msdos_sb_info *sbi;
@@ -1414,6 +1436,11 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	}
 
 	error = -ENOMEM;
+	fat_inode = new_inode(sb);
+	if (!fat_inode)
+		goto out_fail;
+	MSDOS_I(fat_inode)->i_pos = 0;
+	sbi->fat_inode = fat_inode;
 	root_inode = new_inode(sb);
 	if (!root_inode)
 		goto out_fail;
@@ -1439,6 +1466,8 @@ out_invalid:
 		       " on dev %s.\n", sb->s_id);
 
 out_fail:
+	if (fat_inode)
+		iput(fat_inode);
 	if (root_inode)
 		iput(root_inode);
 	if (sbi->nls_io)

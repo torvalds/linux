@@ -122,20 +122,20 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	struct dasd_block *block;
 	struct dasd_fba_private *private;
 	struct ccw_device *cdev = device->cdev;
-	void *rdc_data;
 	int rc;
 
 	private = (struct dasd_fba_private *) device->private;
-	if (private == NULL) {
-		private = kzalloc(sizeof(struct dasd_fba_private),
-				  GFP_KERNEL | GFP_DMA);
-		if (private == NULL) {
+	if (!private) {
+		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD "
 				 "data failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
+	} else {
+		memset(private, 0, sizeof(*private));
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
@@ -150,8 +150,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	block->base = device;
 
 	/* Read Device Characteristics */
-	rdc_data = (void *) &(private->rdc_data);
-	rc = dasd_generic_read_dev_chars(device, "FBA ", &rdc_data, 32);
+	rc = dasd_generic_read_dev_chars(device, "FBA ", &private->rdc_data,
+					 32);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING, "Read device characteristics returned "
 			  "error %d for device: %s",
@@ -270,8 +270,9 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 		return ERR_PTR(-EINVAL);
 	blksize = block->bp_block;
 	/* Calculate record id of first and last block. */
-	first_rec = req->sector >> block->s2b_shift;
-	last_rec = (req->sector + req->nr_sectors - 1) >> block->s2b_shift;
+	first_rec = blk_rq_pos(req) >> block->s2b_shift;
+	last_rec =
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
 	/* Check struct bio and count the number of blocks for the request. */
 	count = 0;
 	cidaw = 0;
@@ -309,7 +310,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	ccw = cqr->cpaddr;
 	/* First ccw is define extent. */
 	define_extent(ccw++, cqr->data, rq_data_dir(req),
-		      block->bp_block, req->sector, req->nr_sectors);
+		      block->bp_block, blk_rq_pos(req), blk_rq_sectors(req));
 	/* Build locate_record + read/write ccws. */
 	idaws = (unsigned long *) (cqr->data + sizeof(struct DE_fba_data));
 	LO_data = (struct LO_fba_data *) (idaws + cidaw);
@@ -603,8 +604,14 @@ static struct dasd_discipline dasd_fba_discipline = {
 static int __init
 dasd_fba_init(void)
 {
+	int ret;
+
 	ASCEBC(dasd_fba_discipline.ebcname, 4);
-	return ccw_driver_register(&dasd_fba_driver);
+	ret = ccw_driver_register(&dasd_fba_driver);
+	if (!ret)
+		wait_for_device_probe();
+
+	return ret;
 }
 
 static void __exit

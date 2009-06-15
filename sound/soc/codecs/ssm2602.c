@@ -336,15 +336,17 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 			master_runtime->sample_bits,
 			master_runtime->rate);
 
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
-					     master_runtime->rate);
+		if (master_runtime->rate != 0)
+			snd_pcm_hw_constraint_minmax(substream->runtime,
+						     SNDRV_PCM_HW_PARAM_RATE,
+						     master_runtime->rate,
+						     master_runtime->rate);
 
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
-					     master_runtime->sample_bits,
-					     master_runtime->sample_bits);
+		if (master_runtime->sample_bits != 0)
+			snd_pcm_hw_constraint_minmax(substream->runtime,
+						     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+						     master_runtime->sample_bits,
+						     master_runtime->sample_bits);
 
 		ssm2602->slave_substream = substream;
 	} else
@@ -372,6 +374,11 @@ static void ssm2602_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct ssm2602_priv *ssm2602 = codec->private_data;
+
+	if (ssm2602->master_substream == substream)
+		ssm2602->master_substream = ssm2602->slave_substream;
+
+	ssm2602->slave_substream = NULL;
 	/* deactivate */
 	if (!codec->active)
 		ssm2602_write(codec, SSM2602_ACTIVE, 0);
@@ -497,11 +504,9 @@ static int ssm2602_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
-		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
-		SNDRV_PCM_RATE_96000)
+#define SSM2602_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_32000 |\
+		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |\
+		SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
 #define SSM2602_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)

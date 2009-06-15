@@ -24,6 +24,7 @@
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
 #include <linux/list.h>
+#include <linux/topology.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -770,11 +771,19 @@ void __init register_intc_controller(struct intc_desc *desc)
 	/* register the vectors one by one */
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
+		unsigned int irq = evt2irq(vect->vect);
+		struct irq_desc *irq_desc;
 
 		if (!vect->enum_id)
 			continue;
 
-		intc_register_irq(desc, d, vect->enum_id, evt2irq(vect->vect));
+		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
+		if (unlikely(!irq_desc)) {
+			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+			continue;
+		}
+
+		intc_register_irq(desc, d, vect->enum_id, irq);
 	}
 }
 

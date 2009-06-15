@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef __ASM_POWERPC_GPIO_H
-#define __ASM_POWERPC_GPIO_H
+#ifndef _ASM_MICROBLAZE_GPIO_H
+#define _ASM_MICROBLAZE_GPIO_H
 
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
@@ -53,4 +53,4 @@ static inline int irq_to_gpio(unsigned int irq)
 
 #endif /* CONFIG_GPIOLIB */
 
-#endif /* __ASM_POWERPC_GPIO_H */
+#endif /* _ASM_MICROBLAZE_GPIO_H */

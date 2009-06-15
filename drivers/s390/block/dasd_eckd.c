@@ -1097,20 +1097,20 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
-	void *rdc_data;
 	int is_known, rc;
 
 	private = (struct dasd_eckd_private *) device->private;
-	if (private == NULL) {
-		private = kzalloc(sizeof(struct dasd_eckd_private),
-				  GFP_KERNEL | GFP_DMA);
-		if (private == NULL) {
+	if (!private) {
+		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD data "
 				 "failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
+	} else {
+		memset(private, 0, sizeof(*private));
 	}
 	/* Invalidate status of initial analysis. */
 	private->init_cqr_status = -1;
@@ -1161,9 +1161,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		goto out_err3;
 
 	/* Read Device Characteristics */
-	rdc_data = (void *) &(private->rdc_data);
-	memset(rdc_data, 0, sizeof(rdc_data));
-	rc = dasd_generic_read_dev_chars(device, "ECKD", &rdc_data, 64);
+	rc = dasd_generic_read_dev_chars(device, "ECKD", &private->rdc_data,
+					 64);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING,
 			  "Read device characteristics failed, rc=%d for "
@@ -1183,7 +1182,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		 private->rdc_data.dev_model,
 		 private->rdc_data.cu_type,
 		 private->rdc_data.cu_model.model,
-		    private->real_cyl,
+		 private->real_cyl,
 		 private->rdc_data.trk_per_cyl,
 		 private->rdc_data.sec_per_trk);
 	return 0;
@@ -2336,9 +2335,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 {
 	int tpm, cmdrtd, cmdwtd;
 	int use_prefix;
-
-	struct dasd_eckd_private *private;
+#if defined(CONFIG_64BIT)
 	int fcx_in_css, fcx_in_gneq, fcx_in_features;
+#endif
+	struct dasd_eckd_private *private;
 	struct dasd_device *basedev;
 	sector_t first_rec, last_rec;
 	sector_t first_trk, last_trk;
@@ -2354,18 +2354,22 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	blksize = block->bp_block;
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
 	/* Calculate record id of first and last block. */
-	first_rec = first_trk = req->sector >> block->s2b_shift;
+	first_rec = first_trk = blk_rq_pos(req) >> block->s2b_shift;
 	first_offs = sector_div(first_trk, blk_per_trk);
 	last_rec = last_trk =
-		(req->sector + req->nr_sectors - 1) >> block->s2b_shift;
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
 	last_offs = sector_div(last_trk, blk_per_trk);
 	cdlspecial = (private->uses_cdl && first_rec < 2*blk_per_trk);
 
-	/* is transport mode supported ? */
+	/* is transport mode supported? */
+#if defined(CONFIG_64BIT)
 	fcx_in_css = css_general_characteristics.fcx;
 	fcx_in_gneq = private->gneq->reserved2[7] & 0x04;
 	fcx_in_features = private->features.feature[40] & 0x80;
 	tpm = fcx_in_css && fcx_in_gneq && fcx_in_features;
+#else
+	tpm = 0;
+#endif
 
 	/* is read track data and write track data in command mode supported? */
 	cmdrtd = private->features.feature[9] & 0x20;
@@ -2420,7 +2424,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 	private = (struct dasd_eckd_private *) cqr->block->base->private;
 	blksize = cqr->block->bp_block;
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
-	recid = req->sector >> cqr->block->s2b_shift;
+	recid = blk_rq_pos(req) >> cqr->block->s2b_shift;
 	ccw = cqr->cpaddr;
 	/* Skip over define extent & locate record. */
 	ccw++;
@@ -3013,8 +3017,9 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
-		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw));
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
+		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3115,9 +3120,10 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X "
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d "
 		       "fcxs: 0x%02X schxs: 0x%02X\n", req,
 		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc,
 		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing TCW: %p\n",
@@ -3273,8 +3279,14 @@ static struct dasd_discipline dasd_eckd_discipline = {
 static int __init
 dasd_eckd_init(void)
 {
+	int ret;
+
 	ASCEBC(dasd_eckd_discipline.ebcname, 4);
-	return ccw_driver_register(&dasd_eckd_driver);
+	ret = ccw_driver_register(&dasd_eckd_driver);
+	if (!ret)
+		wait_for_device_probe();
+
+	return ret;
 }
 
 static void __exit

@@ -111,12 +111,6 @@ int __ref profile_init(void)
 	/* only text is profiled */
 	prof_len = (_etext - _stext) >> prof_shift;
 	buffer_bytes = prof_len*sizeof(atomic_t);
-	if (!slab_is_available()) {
-		prof_buffer = alloc_bootmem(buffer_bytes);
-		alloc_bootmem_cpumask_var(&prof_cpu_mask);
-		cpumask_copy(prof_cpu_mask, cpu_possible_mask);
-		return 0;
-	}
 
 	if (!alloc_cpumask_var(&prof_cpu_mask, GFP_KERNEL))
 		return -ENOMEM;

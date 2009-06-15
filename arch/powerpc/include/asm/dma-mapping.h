@@ -26,7 +26,9 @@
  * allocate the space "normally" and use the cache management functions
  * to ensure it is consistent.
  */
-extern void *__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp);
+struct device;
+extern void *__dma_alloc_coherent(struct device *dev, size_t size,
+				  dma_addr_t *handle, gfp_t gfp);
 extern void __dma_free_coherent(size_t size, void *vaddr);
 extern void __dma_sync(void *vaddr, size_t size, int direction);
 extern void __dma_sync_page(struct page *page, unsigned long offset,
@@ -37,7 +39,7 @@ extern void __dma_sync_page(struct page *page, unsigned long offset,
  * Cache coherent cores.
  */
 
-#define __dma_alloc_coherent(gfp, size, handle)	NULL
+#define __dma_alloc_coherent(dev, gfp, size, handle)	NULL
 #define __dma_free_coherent(size, addr)		((void)0)
 #define __dma_sync(addr, size, rw)		((void)0)
 #define __dma_sync_page(pg, off, sz, rw)	((void)0)

@@ -22,11 +22,11 @@ static void handle_BUG(struct pt_regs *regs)
 
 int is_valid_bugaddr(unsigned long addr)
 {
-	unsigned short opcode;
+	insn_size_t opcode;
 
 	if (addr < PAGE_OFFSET)
 		return 0;
-	if (probe_kernel_address((u16 *)addr, opcode))
+	if (probe_kernel_address((insn_size_t *)addr, opcode))
 		return 0;
 
 	return opcode == TRAPA_BUG_OPCODE;
@@ -66,7 +66,7 @@ BUILD_TRAP_HANDLER(bug)
 
 #ifdef CONFIG_BUG
 	if (__kernel_text_address(instruction_pointer(regs))) {
-		opcode_t insn = *(opcode_t *)instruction_pointer(regs);
+		insn_size_t insn = *(insn_size_t *)instruction_pointer(regs);
 		if (insn == TRAPA_BUG_OPCODE)
 			handle_BUG(regs);
 	}

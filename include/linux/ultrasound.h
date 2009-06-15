@@ -34,7 +34,7 @@
  *		_GUS_VOICEOFF	- Stops voice (no parameters)
  *		_GUS_VOICEFADE	- Stops the voice smoothly.
  *		_GUS_VOICEMODE	- Alters the voice mode, don't start or stop voice (P1=voice mode)
- *		_GUS_VOICEBALA	- Sets voice balence (P1, 0=left, 7=middle and 15=right, default 7)
+ *		_GUS_VOICEBALA	- Sets voice balance (P1, 0=left, 7=middle and 15=right, default 7)
  *		_GUS_VOICEFREQ	- Sets voice (sample) playback frequency (P1=Hz)
  *		_GUS_VOICEVOL	- Sets voice volume (P1=volume, 0xfff=max, 0xeff=half, 0x000=off)
  *		_GUS_VOICEVOL2	- Sets voice volume (P1=volume, 0xfff=max, 0xeff=half, 0x000=off)

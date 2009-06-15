@@ -70,7 +70,7 @@ config IWLAGN
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwlagn.ko.
+	  module will be called iwlagn.
 
 
 config IWL4965
@@ -108,7 +108,7 @@ config IWL3945
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwl3945.ko.
+	  module will be called iwl3945.
 
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 driver"

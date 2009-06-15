@@ -703,7 +703,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int target,
 
 	if ((Ndiv < 6) || (Ndiv > 12))
 		printk(KERN_WARNING
-			"wm8753: unsupported N = %d\n", Ndiv);
+			"wm8753: unsupported N = %u\n", Ndiv);
 
 	pll_div->n = Ndiv;
 	Nmod = target % source;
@@ -1822,14 +1822,14 @@ static int __devinit wm8753_spi_probe(struct spi_device *spi)
 	codec->hw_write = (hw_write_t)wm8753_spi_write;
 	codec->dev = &spi->dev;
 
-	spi->dev.driver_data = wm8753;
+	dev_set_drvdata(&spi->dev, wm8753);
 
 	return wm8753_register(wm8753);
 }
 
 static int __devexit wm8753_spi_remove(struct spi_device *spi)
 {
-	struct wm8753_priv *wm8753 = spi->dev.driver_data;
+	struct wm8753_priv *wm8753 = dev_get_drvdata(&spi->dev);
 	wm8753_unregister(wm8753);
 	return 0;
 }

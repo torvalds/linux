@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -32,8 +32,10 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
@@ -267,8 +269,6 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	     uint32_t tmo, uint8_t retry)
 {
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_sli  *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	IOCB_t *icmd;
 	struct lpfc_iocbq *geniocb;
 	int rc;
@@ -331,7 +331,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
 	geniocb->vport = vport;
 	geniocb->retry = retry;
-	rc = lpfc_sli_issue_iocb(phba, pring, geniocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
 
 	if (rc == IOCB_ERROR) {
 		lpfc_sli_release_iocbq(phba, geniocb);
@@ -1578,6 +1578,9 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 				case LA_8GHZ_LINK:
 					ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
 				break;
+				case LA_10GHZ_LINK:
+					ae->un.PortSpeed = HBA_PORTSPEED_10GBIT;
+				break;
 				default:
 					ae->un.PortSpeed =
 						HBA_PORTSPEED_UNKNOWN;
@@ -1730,7 +1733,7 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 	uint8_t *fwname;
 
 	if (vp->rev.rBit) {
-		if (psli->sli_flag & LPFC_SLI2_ACTIVE)
+		if (psli->sli_flag & LPFC_SLI_ACTIVE)
 			rev = vp->rev.sli2FwRev;
 		else
 			rev = vp->rev.sli1FwRev;
@@ -1756,7 +1759,7 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 		}
 		b4 = (rev & 0x0000000f);
 
-		if (psli->sli_flag & LPFC_SLI2_ACTIVE)
+		if (psli->sli_flag & LPFC_SLI_ACTIVE)
 			fwname = vp->rev.sli2FwName;
 		else
 			fwname = vp->rev.sli1FwName;

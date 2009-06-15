@@ -31,10 +31,6 @@
 
 /***************************************************************************/
 
-void coldfire_reset(void);
-
-/***************************************************************************/
-
 static struct mcf_platform_uart m528x_uart_platform[] = {
 	{
 		.mapbase	= MCF_MBAR + MCFUART_BASE1,
@@ -171,6 +167,14 @@ void mcf_autovector(unsigned int vec)
 
 /***************************************************************************/
 
+static void m528x_cpu_reset(void)
+{
+	local_irq_disable();
+	__raw_writeb(MCF_RCR_SWRESET, MCF_IPSBAR + MCF_RCR);
+}
+
+/***************************************************************************/
+
 #ifdef CONFIG_WILDFIRE
 void wildfire_halt(void)
 {
@@ -214,6 +218,7 @@ void __init config_BSP(char *commandp, int size)
 
 static int __init init_BSP(void)
 {
+	mach_reset = m528x_cpu_reset;
 	m528x_uarts_init();
 	m528x_fec_init();
 	platform_add_devices(m528x_devices, ARRAY_SIZE(m528x_devices));

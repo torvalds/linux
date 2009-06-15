@@ -335,9 +335,9 @@ static int __init hitfb_probe(struct platform_device *dev)
 	if (fb_get_options("hitfb", NULL))
 		return -ENODEV;
 
-	hitfb_fix.mmio_start = CONFIG_HD64461_IOBASE+0x1000;
+	hitfb_fix.mmio_start = HD64461_IO_OFFSET(0x1000);
 	hitfb_fix.mmio_len = 0x1000;
-	hitfb_fix.smem_start = CONFIG_HD64461_IOBASE + 0x02000000;
+	hitfb_fix.smem_start = HD64461_IO_OFFSET(0x02000000);
 	hitfb_fix.smem_len = 512 * 1024;
 
 	lcdclor = fb_readw(HD64461_LCDCLOR);

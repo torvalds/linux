@@ -48,17 +48,14 @@
 #include <linux/tracehook.h>
 #include <linux/fs_struct.h>
 #include <linux/init_task.h>
-#include <trace/sched.h>
+#include <linux/perf_counter.h>
+#include <trace/events/sched.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 #include "cred-internals.h"
-
-DEFINE_TRACE(sched_process_free);
-DEFINE_TRACE(sched_process_exit);
-DEFINE_TRACE(sched_process_wait);
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -158,6 +155,9 @@ static void delayed_put_task_struct(struct rcu_head *rhp)
 {
 	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
 
+#ifdef CONFIG_PERF_COUNTERS
+	WARN_ON_ONCE(tsk->perf_counter_ctxp);
+#endif
 	trace_sched_process_free(tsk);
 	put_task_struct(tsk);
 }
@@ -174,6 +174,7 @@ repeat:
 	atomic_dec(&__task_cred(p)->user->processes);
 
 	proc_flush_task(p);
+
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
 	__exit_signal(p);
@@ -975,16 +976,19 @@ NORET_TYPE void do_exit(long code)
 		module_put(tsk->binfmt->module);
 
 	proc_exit_connector(tsk);
+
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 */
+	perf_counter_exit_task(tsk);
+
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
 	mpol_put(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
 #ifdef CONFIG_FUTEX
-	/*
-	 * This must happen late, after the PID is not
-	 * hashed anymore:
-	 */
 	if (unlikely(!list_empty(&tsk->pi_state_list)))
 		exit_pi_state_list(tsk);
 	if (unlikely(current->pi_state_cache))
@@ -1476,6 +1480,7 @@ static int wait_consider_task(struct task_struct *parent, int ptrace,
 		 */
 		if (*notask_error)
 			*notask_error = ret;
+		return 0;
 	}
 
 	if (likely(!ptrace) && unlikely(p->ptrace)) {

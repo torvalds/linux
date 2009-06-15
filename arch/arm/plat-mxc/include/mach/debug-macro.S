@@ -25,6 +25,9 @@
 #ifdef CONFIG_MACH_MX27ADS
 #include <mach/board-mx27ads.h>
 #endif
+#ifdef CONFIG_MACH_MX21ADS
+#include <mach/board-mx21ads.h>
+#endif
 #ifdef CONFIG_MACH_PCM038
 #include <mach/board-pcm038.h>
 #endif
@@ -33,6 +36,21 @@
 #endif
 #ifdef CONFIG_MACH_QONG
 #include <mach/board-qong.h>
+#endif
+#ifdef CONFIG_MACH_PCM043
+#include <mach/board-pcm043.h>
+#endif
+#ifdef CONFIG_MACH_MX27_3DS
+#include <mach/board-mx27pdk.h>
+#endif
+#ifdef CONFIG_MACH_ARMADILLO5X0
+#include <mach/board-armadillo5x0.h>
+#endif
+#ifdef CONFIG_MACH_MX35_3DS
+#include <mach/board-mx35pdk.h>
+#endif
+#ifdef CONFIG_MACH_MX27LITE
+#include <mach/board-mx27lite.h>
 #endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0

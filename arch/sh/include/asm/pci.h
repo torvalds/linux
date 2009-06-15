@@ -17,54 +17,29 @@
  * external) PCI controllers.
  */
 struct pci_channel {
-	struct pci_ops *pci_ops;
-	struct resource *io_resource;
-	struct resource *mem_resource;
-	int first_devfn;
-	int last_devfn;
+	struct pci_channel	*next;
+
+	struct pci_ops		*pci_ops;
+	struct resource		*io_resource;
+	struct resource		*mem_resource;
+
+	unsigned long		io_offset;
+	unsigned long		mem_offset;
+
+	unsigned long		reg_base;
+
+	unsigned long		io_map_base;
 };
 
-/*
- * Each board initializes this array and terminates it with a NULL entry.
- */
-extern struct pci_channel board_pci_channels[];
+extern void register_pci_controller(struct pci_channel *hose);
 
-#define PCIBIOS_MIN_IO		board_pci_channels->io_resource->start
-#define PCIBIOS_MIN_MEM		board_pci_channels->mem_resource->start
-
-/*
- * I/O routine helpers
- */
-#if defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
-#define PCI_IO_AREA		0xFE400000
-#define PCI_IO_SIZE		0x00400000
-#elif defined(CONFIG_CPU_SH5)
-extern unsigned long PCI_IO_AREA;
-#define PCI_IO_SIZE		0x00010000
-#else
-#define PCI_IO_AREA		0xFE240000
-#define PCI_IO_SIZE		0x00040000
-#endif
-
-#define PCI_MEM_SIZE		0x01000000
-
-#define SH4_PCIIOBR_MASK	0xFFFC0000
-#define pci_ioaddr(addr)	(PCI_IO_AREA + (addr & ~SH4_PCIIOBR_MASK))
-
-#if defined(CONFIG_PCI)
-#define is_pci_ioaddr(port)		\
-	(((port) >= PCIBIOS_MIN_IO) &&	\
-	 ((port) < (PCIBIOS_MIN_IO + PCI_IO_SIZE)))
-#define is_pci_memaddr(port)		\
-	(((port) >= PCIBIOS_MIN_MEM) &&	\
-	 ((port) < (PCIBIOS_MIN_MEM + PCI_MEM_SIZE)))
-#else
-#define is_pci_ioaddr(port)	(0)
-#define is_pci_memaddr(port)	(0)
-#endif
+extern unsigned long PCIBIOS_MIN_IO, PCIBIOS_MIN_MEM;
 
 struct pci_dev;
 
+#define HAVE_PCI_MMAP
+extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
+	enum pci_mmap_state mmap_state, int write_combine);
 extern void pcibios_set_master(struct pci_dev *dev);
 
 static inline void pcibios_penalize_isa_irq(int irq, int active)
@@ -114,31 +89,76 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 #endif
 
 #ifdef CONFIG_PCI
+/*
+ * None of the SH PCI controllers support MWI, it is always treated as a
+ * direct memory write.
+ */
+#define PCI_DISABLE_MWI
+
 static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 					enum pci_dma_burst_strategy *strat,
 					unsigned long *strategy_parameter)
 {
-	*strat = PCI_DMA_BURST_INFINITY;
-	*strategy_parameter = ~0UL;
+	unsigned long cacheline_size;
+	u8 byte;
+
+	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
+
+	if (byte == 0)
+		cacheline_size = L1_CACHE_BYTES;
+	else
+		cacheline_size = byte << 2;
+
+	*strat = PCI_DMA_BURST_MULTIPLE;
+	*strategy_parameter = cacheline_size;
 }
 #endif
 
-/* Board-specific fixup routines. */
-void pcibios_fixup(void);
-int pcibios_init_platform(void);
-int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
+#ifdef CONFIG_SUPERH32
+/*
+ * If we're on an SH7751 or SH7780 PCI controller, PCI memory is mapped
+ * at the end of the address space in a special non-translatable area.
+ */
+#define PCI_MEM_FIXED_START	0xfd000000
+#define PCI_MEM_FIXED_END	(PCI_MEM_FIXED_START + 0x01000000)
 
-#ifdef CONFIG_PCI_AUTO
-int pciauto_assign_resources(int busno, struct pci_channel *hose);
+#define is_pci_memory_fixed_range(s, e)	\
+	((s) >= PCI_MEM_FIXED_START && (e) < PCI_MEM_FIXED_END)
+#else
+#define is_pci_memory_fixed_range(s, e)	(0)
 #endif
 
-#endif /* __KERNEL__ */
+/* Board-specific fixup routines. */
+int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
 
-/* generic pci stuff */
-#include <asm-generic/pci.h>
+extern void pcibios_resource_to_bus(struct pci_dev *dev,
+	struct pci_bus_region *region, struct resource *res);
+
+extern void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+				    struct pci_bus_region *region);
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
+
+/* Chances are this interrupt is wired PC-style ...  */
+static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
+{
+	return channel ? 15 : 14;
+}
 
 /* generic DMA-mapping stuff */
 #include <asm-generic/pci-dma-compat.h>
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_SH_PCI_H */
 

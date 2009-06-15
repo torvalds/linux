@@ -3,7 +3,7 @@
 
 /* verbatim copy of asm-i386/ version */
 
-#include <asm-generic/mman.h>
+#include <asm-generic/mman-common.h>
 
 #define MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define MAP_DENYWRITE	0x0800		/* ETXTBSY */

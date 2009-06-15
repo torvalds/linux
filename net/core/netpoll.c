@@ -24,7 +24,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>
-#include <trace/napi.h>
+#include <trace/events/napi.h>
 
 /*
  * We maintain a small pool of fully-sized skbs, to make sure the

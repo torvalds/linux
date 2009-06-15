@@ -482,6 +482,9 @@ __und_usr:
 	subeq	r4, r2, #4			@ ARM instr at LR - 4
 	subne	r4, r2, #2			@ Thumb instr at LR - 2
 1:	ldreqt	r0, [r4]
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	reveq	r0, r0				@ little endian instruction
+#endif
 	beq	call_fpe
 	@ Thumb instruction
 #if __LINUX_ARM_ARCH__ >= 7
@@ -815,10 +818,7 @@ __kuser_helper_start:
  */
 
 __kuser_memory_barrier:				@ 0xffff0fa0
-
-#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
-	mcr	p15, 0, r0, c7, c10, 5	@ dmb
-#endif
+	smp_dmb
 	usr_ret	lr
 
 	.align	5

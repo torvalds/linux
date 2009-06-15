@@ -45,7 +45,7 @@ struct igbvf_adapter;
 /* Interrupt defines */
 #define IGBVF_START_ITR                 648 /* ~6000 ints/sec */
 
-/* Interrupt modes, as used by the IntMode paramter */
+/* Interrupt modes, as used by the IntMode parameter */
 #define IGBVF_INT_MODE_LEGACY           0
 #define IGBVF_INT_MODE_MSI              1
 #define IGBVF_INT_MODE_MSIX             2

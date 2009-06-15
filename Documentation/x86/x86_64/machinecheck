@@ -41,7 +41,9 @@ check_interval
 	the polling interval.  When the poller stops finding MCEs, it
 	triggers an exponential backoff (poll less often) on the polling
 	interval. The check_interval variable is both the initial and
-	maximum polling interval.
+	maximum polling interval. 0 means no polling for corrected machine
+	check errors (but some corrected errors might be still reported
+	in other ways)
 
 tolerant
 	Tolerance level. When a machine check exception occurs for a non
@@ -67,6 +69,10 @@ trigger
 	Program to run when a machine check event is detected.
 	This is an alternative to running mcelog regularly from cron
 	and allows to detect events faster.
+monarch_timeout
+	How long to wait for the other CPUs to machine check too on a
+	exception. 0 to disable waiting for other CPUs.
+	Unit: us
 
 TBD document entries for AMD threshold interrupt configuration
 

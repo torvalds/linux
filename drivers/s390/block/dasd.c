@@ -603,7 +603,7 @@ static void dasd_profile_end(struct dasd_block *block,
 	if (dasd_profile_level != DASD_PROFILE_ON)
 		return;
 
-	sectors = req->nr_sectors;
+	sectors = blk_rq_sectors(req);
 	if (!cqr->buildclk || !cqr->startclk ||
 	    !cqr->stopclk || !cqr->endclk ||
 	    !sectors)
@@ -851,8 +851,10 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
-	if (rc)
+	if (rc) {
+		cqr->intrc = rc;
 		return rc;
+	}
 	device = (struct dasd_device *) cqr->startdev;
 	if (cqr->retries < 0) {
 		/* internal error 14 - start_IO run out of retries */
@@ -915,6 +917,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		BUG();
 		break;
 	}
+	cqr->intrc = rc;
 	return rc;
 }
 
@@ -1454,8 +1457,12 @@ int dasd_sleep_on(struct dasd_ccw_req *cqr)
 	dasd_add_request_tail(cqr);
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1477,8 +1484,15 @@ int dasd_sleep_on_interruptible(struct dasd_ccw_req *cqr)
 		dasd_cancel_req(cqr);
 		/* wait (non-interruptible) for final status */
 		wait_event(generic_waitq, _wait_for_wakeup(cqr));
+		cqr->intrc = rc;
 	}
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1523,8 +1537,12 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1614,15 +1632,6 @@ void dasd_block_clear_timer(struct dasd_block *block)
 }
 
 /*
- * posts the buffer_cache about a finalized request
- */
-static inline void dasd_end_request(struct request *req, int error)
-{
-	if (__blk_end_request(req, error, blk_rq_bytes(req)))
-		BUG();
-}
-
-/*
  * Process finished error recovery ccw.
  */
 static inline void __dasd_block_process_erp(struct dasd_block *block,
@@ -1665,18 +1674,14 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 	if (basedev->state < DASD_STATE_READY)
 		return;
 	/* Now we try to fetch requests from the request queue */
-	while (!blk_queue_plugged(queue) &&
-	       elv_next_request(queue)) {
-
-		req = elv_next_request(queue);
-
+	while (!blk_queue_plugged(queue) && (req = blk_peek_request(queue))) {
 		if (basedev->features & DASD_FEATURE_READONLY &&
 		    rq_data_dir(req) == WRITE) {
 			DBF_DEV_EVENT(DBF_ERR, basedev,
 				      "Rejecting write request %p",
 				      req);
-			blkdev_dequeue_request(req);
-			dasd_end_request(req, -EIO);
+			blk_start_request(req);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 		cqr = basedev->discipline->build_cp(basedev, block, req);
@@ -1704,8 +1709,8 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "CCW creation failed (rc=%ld) "
 				      "on request %p",
 				      PTR_ERR(cqr), req);
-			blkdev_dequeue_request(req);
-			dasd_end_request(req, -EIO);
+			blk_start_request(req);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 		/*
@@ -1714,7 +1719,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 		 */
 		cqr->callback_data = (void *) req;
 		cqr->status = DASD_CQR_FILLED;
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 		list_add_tail(&cqr->blocklist, &block->ccw_queue);
 		dasd_profile_start(block, cqr, req);
 	}
@@ -1731,7 +1736,7 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status <= 0)
 		error = status ? status : -EIO;
-	dasd_end_request(req, error);
+	__blk_end_request_all(req, error);
 }
 
 /*
@@ -2003,7 +2008,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 {
 	int max;
 
-	blk_queue_hardsect_size(block->request_queue, block->bp_block);
+	blk_queue_logical_block_size(block->request_queue, block->bp_block);
 	max = block->base->discipline->max_blocks << block->s2b_shift;
 	blk_queue_max_sectors(block->request_queue, max);
 	blk_queue_max_phys_segments(block->request_queue, -1L);
@@ -2038,10 +2043,8 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 		return;
 
 	spin_lock_irq(&block->request_queue_lock);
-	while ((req = elv_next_request(block->request_queue))) {
-		blkdev_dequeue_request(req);
-		dasd_end_request(req, -EIO);
-	}
+	while ((req = blk_fetch_request(block->request_queue)))
+		__blk_end_request_all(req, -EIO);
 	spin_unlock_irq(&block->request_queue_lock);
 }
 
@@ -2442,12 +2445,12 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 
 int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
-				void **rdc_buffer, int rdc_buffer_size)
+				void *rdc_buffer, int rdc_buffer_size)
 {
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, *rdc_buffer, rdc_buffer_size,
+	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
 				     magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);

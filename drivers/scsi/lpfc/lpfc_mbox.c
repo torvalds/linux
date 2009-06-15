@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -28,8 +28,10 @@
 
 #include <scsi/scsi.h>
 
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
@@ -37,6 +39,44 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_compat.h"
+
+/**
+ * lpfc_dump_static_vport - Dump HBA's static vport information.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ * @offset: offset for dumping vport info.
+ *
+ * The dump mailbox command provides a method for the device driver to obtain
+ * various types of information from the HBA device.
+ *
+ * This routine prepares the mailbox command for dumping list of static
+ * vports to be created.
+ **/
+void
+lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
+		uint16_t offset)
+{
+	MAILBOX_t *mb;
+	void *ctx;
+
+	mb = &pmb->u.mb;
+	ctx = pmb->context2;
+
+	/* Setup to dump vport info region */
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_DUMP_MEMORY;
+	mb->un.varDmp.cv = 1;
+	mb->un.varDmp.type = DMP_NV_PARAMS;
+	mb->un.varDmp.entry_index = offset;
+	mb->un.varDmp.region_id = DMP_REGION_VPORT;
+	mb->un.varDmp.word_cnt = DMP_RSP_SIZE/sizeof(uint32_t);
+	mb->un.varDmp.co = 0;
+	mb->un.varDmp.resp_offset = 0;
+	pmb->context2 = ctx;
+	mb->mbxOwner = OWN_HOST;
+
+	return;
+}
 
 /**
  * lpfc_dump_mem - Prepare a mailbox command for retrieving HBA's VPD memory
@@ -58,7 +98,7 @@ lpfc_dump_mem(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint16_t offset)
 	MAILBOX_t *mb;
 	void *ctx;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	ctx = pmb->context2;
 
 	/* Setup to dump VPD region */
@@ -90,7 +130,7 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	MAILBOX_t *mb;
 	void *ctx;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	/* Save context so that we can restore after memset */
 	ctx = pmb->context2;
 
@@ -125,7 +165,7 @@ lpfc_read_nv(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_READ_NV;
 	mb->mbxOwner = OWN_HOST;
@@ -151,7 +191,7 @@ lpfc_config_async(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_ASYNCEVT_ENABLE;
 	mb->un.varCfgAsyncEvent.ring = ring;
@@ -177,7 +217,7 @@ lpfc_heart_beat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_HEARTBEAT;
 	mb->mbxOwner = OWN_HOST;
@@ -211,7 +251,7 @@ lpfc_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, struct lpfc_dmabuf *mp)
 	struct lpfc_sli *psli;
 
 	psli = &phba->sli;
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	INIT_LIST_HEAD(&mp->list);
@@ -248,7 +288,7 @@ lpfc_clear_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varClearLA.eventTag = phba->fc_eventTag;
@@ -275,7 +315,7 @@ void
 lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	struct lpfc_vport  *vport = phba->pport;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	/* NEW_FEATURE
@@ -321,7 +361,7 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 int
 lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t attentionConditions[2];
 
 	/* Sanity check */
@@ -405,7 +445,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 	struct lpfc_sli *psli;
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	psli = &phba->sli;
@@ -492,7 +532,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 	struct lpfc_sli *psli;
 
 	psli = &phba->sli;
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->mbxOwner = OWN_HOST;
@@ -515,7 +555,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 	mb->un.varRdSparm.un.sp64.tus.f.bdeSize = sizeof (struct serv_parm);
 	mb->un.varRdSparm.un.sp64.addrHigh = putPaddrHigh(mp->phys);
 	mb->un.varRdSparm.un.sp64.addrLow = putPaddrLow(mp->phys);
-	mb->un.varRdSparm.vpi = vpi;
+	mb->un.varRdSparm.vpi = vpi + phba->vpi_base;
 
 	/* save address for completion */
 	pmb->context1 = mp;
@@ -544,10 +584,12 @@ lpfc_unreg_did(struct lpfc_hba * phba, uint16_t vpi, uint32_t did,
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varUnregDID.did = did;
+	if (vpi != 0xffff)
+		vpi += phba->vpi_base;
 	mb->un.varUnregDID.vpi = vpi;
 
 	mb->mbxCommand = MBX_UNREG_D_ID;
@@ -573,7 +615,7 @@ lpfc_read_config(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->mbxCommand = MBX_READ_CONFIG;
@@ -598,7 +640,7 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->mbxCommand = MBX_READ_LNK_STAT;
@@ -607,7 +649,7 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 }
 
 /**
- * lpfc_reg_login - Prepare a mailbox command for registering remote login
+ * lpfc_reg_rpi - Prepare a mailbox command for registering remote login
  * @phba: pointer to lpfc hba data structure.
  * @vpi: virtual N_Port identifier.
  * @did: remote port identifier.
@@ -631,17 +673,23 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  *    1 - DMA memory allocation failed
  **/
 int
-lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
+lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	       uint8_t *param, LPFC_MBOXQ_t *pmb, uint32_t flag)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	uint8_t *sparam;
 	struct lpfc_dmabuf *mp;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varRegLogin.rpi = 0;
-	mb->un.varRegLogin.vpi = vpi;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		mb->un.varRegLogin.rpi = lpfc_sli4_alloc_rpi(phba);
+		if (mb->un.varRegLogin.rpi == LPFC_RPI_ALLOC_ERROR)
+			return 1;
+	}
+
+	mb->un.varRegLogin.vpi = vpi + phba->vpi_base;
 	mb->un.varRegLogin.did = did;
 	mb->un.varWords[30] = flag;	/* Set flag to issue action on cmpl */
 
@@ -697,15 +745,16 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
 {
 	MAILBOX_t *mb;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
 	mb->un.varUnregLogin.rpi = (uint16_t) rpi;
 	mb->un.varUnregLogin.rsvd1 = 0;
-	mb->un.varUnregLogin.vpi = vpi;
+	mb->un.varUnregLogin.vpi = vpi + phba->vpi_base;
 
 	mb->mbxCommand = MBX_UNREG_LOGIN;
 	mb->mbxOwner = OWN_HOST;
+
 	return;
 }
 
@@ -725,15 +774,15 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
  * This routine prepares the mailbox command for registering a virtual N_Port.
  **/
 void
-lpfc_reg_vpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t sid,
-	     LPFC_MBOXQ_t *pmb)
+lpfc_reg_vpi(struct lpfc_vport *vport, LPFC_MBOXQ_t *pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	mb->un.varRegVpi.vpi = vpi;
-	mb->un.varRegVpi.sid = sid;
+	mb->un.varRegVpi.vpi = vport->vpi + vport->phba->vpi_base;
+	mb->un.varRegVpi.sid = vport->fc_myDID;
+	mb->un.varRegVpi.vfi = vport->vfi + vport->phba->vfi_base;
 
 	mb->mbxCommand = MBX_REG_VPI;
 	mb->mbxOwner = OWN_HOST;
@@ -760,10 +809,10 @@ lpfc_reg_vpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t sid,
 void
 lpfc_unreg_vpi(struct lpfc_hba *phba, uint16_t vpi, LPFC_MBOXQ_t *pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 
-	mb->un.varUnregVpi.vpi = vpi;
+	mb->un.varUnregVpi.vpi = vpi + phba->vpi_base;
 
 	mb->mbxCommand = MBX_UNREG_VPI;
 	mb->mbxOwner = OWN_HOST;
@@ -852,7 +901,7 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 void
 lpfc_read_rev(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
 	mb->un.varRdRev.cv = 1;
 	mb->un.varRdRev.v3req = 1; /* Request SLI3 info */
@@ -945,7 +994,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, uint32_t id,
 		uint32_t hbq_entry_index, LPFC_MBOXQ_t *pmb)
 {
 	int i;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	struct config_hbq_var *hbqmb = &mb->un.varCfgHbq;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
@@ -1020,7 +1069,7 @@ void
 lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
 {
 	int i;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 
@@ -1075,7 +1124,7 @@ void
 lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t __iomem *mb_slim = (MAILBOX_t __iomem *) phba->MBslimaddr;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	dma_addr_t pdma_addr;
 	uint32_t bar_low, bar_high;
 	size_t offset;
@@ -1099,21 +1148,22 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* If HBA supports SLI=3 ask for it */
 
-	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
+	if (phba->sli_rev == LPFC_SLI_REV3 && phba->vpd.sli3Feat.cerbm) {
 		if (phba->cfg_enable_bg)
 			mb->un.varCfgPort.cbg = 1; /* configure BlockGuard */
+		mb->un.varCfgPort.cdss = 1; /* Configure Security */
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.ccrp = 1; /* Command Ring Polling */
 		mb->un.varCfgPort.cinb = 1; /* Interrupt Notification Block */
 		mb->un.varCfgPort.max_hbq = lpfc_sli_hbq_count();
 		if (phba->max_vpi && phba->cfg_enable_npiv &&
 		    phba->vpd.sli3Feat.cmv) {
-			mb->un.varCfgPort.max_vpi = phba->max_vpi;
+			mb->un.varCfgPort.max_vpi = LPFC_MAX_VPI;
 			mb->un.varCfgPort.cmv = 1;
 		} else
 			mb->un.varCfgPort.max_vpi = phba->max_vpi = 0;
 	} else
-		phba->sli_rev = 2;
+		phba->sli_rev = LPFC_SLI_REV2;
 	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
 	/* Now setup pcb */
@@ -1245,7 +1295,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 void
 lpfc_kill_board(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_KILL_BOARD;
@@ -1305,26 +1355,95 @@ lpfc_mbox_get(struct lpfc_hba * phba)
 }
 
 /**
+ * __lpfc_mbox_cmpl_put - Put mailbox cmd into mailbox cmd complete list
+ * @phba: pointer to lpfc hba data structure.
+ * @mbq: pointer to the driver internal queue element for mailbox command.
+ *
+ * This routine put the completed mailbox command into the mailbox command
+ * complete list. This is the unlocked version of the routine. The mailbox
+ * complete list is used by the driver worker thread to process mailbox
+ * complete callback functions outside the driver interrupt handler.
+ **/
+void
+__lpfc_mbox_cmpl_put(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbq)
+{
+	list_add_tail(&mbq->list, &phba->sli.mboxq_cmpl);
+}
+
+/**
  * lpfc_mbox_cmpl_put - Put mailbox command into mailbox command complete list
  * @phba: pointer to lpfc hba data structure.
  * @mbq: pointer to the driver internal queue element for mailbox command.
  *
  * This routine put the completed mailbox command into the mailbox command
- * complete list. This routine is called from driver interrupt handler
- * context.The mailbox complete list is used by the driver worker thread
- * to process mailbox complete callback functions outside the driver interrupt
- * handler.
+ * complete list. This is the locked version of the routine. The mailbox
+ * complete list is used by the driver worker thread to process mailbox
+ * complete callback functions outside the driver interrupt handler.
  **/
 void
-lpfc_mbox_cmpl_put(struct lpfc_hba * phba, LPFC_MBOXQ_t * mbq)
+lpfc_mbox_cmpl_put(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbq)
 {
 	unsigned long iflag;
 
 	/* This function expects to be called from interrupt context */
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	list_add_tail(&mbq->list, &phba->sli.mboxq_cmpl);
+	__lpfc_mbox_cmpl_put(phba, mbq);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 	return;
+}
+
+/**
+ * lpfc_mbox_cmd_check - Check the validality of a mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ * @mboxq: pointer to the driver internal queue element for mailbox command.
+ *
+ * This routine is to check whether a mailbox command is valid to be issued.
+ * This check will be performed by both the mailbox issue API when a client
+ * is to issue a mailbox command to the mailbox transport.
+ *
+ * Return 0 - pass the check, -ENODEV - fail the check
+ **/
+int
+lpfc_mbox_cmd_check(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	/* Mailbox command that have a completion handler must also have a
+	 * vport specified.
+	 */
+	if (mboxq->mbox_cmpl && mboxq->mbox_cmpl != lpfc_sli_def_mbox_cmpl &&
+	    mboxq->mbox_cmpl != lpfc_sli_wake_mbox_wait) {
+		if (!mboxq->vport) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_VPORT,
+					"1814 Mbox x%x failed, no vport\n",
+					mboxq->u.mb.mbxCommand);
+			dump_stack();
+			return -ENODEV;
+		}
+	}
+	return 0;
+}
+
+/**
+ * lpfc_mbox_dev_check - Check the device state for issuing a mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to check whether the HBA device is ready for posting a
+ * mailbox command. It is used by the mailbox transport API at the time the
+ * to post a mailbox command to the device.
+ *
+ * Return 0 - pass the check, -ENODEV - fail the check
+ **/
+int
+lpfc_mbox_dev_check(struct lpfc_hba *phba)
+{
+	/* If the PCI channel is in offline state, do not issue mbox */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return -ENODEV;
+
+	/* If the HBA is in error state, do not issue mbox */
+	if (phba->link_state == LPFC_HBA_ERROR)
+		return -ENODEV;
+
+	return 0;
 }
 
 /**
@@ -1350,6 +1469,475 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, int cmd)
 	case MBX_WRITE_WWN:     /* 0x98 */
 	case MBX_LOAD_EXP_ROM:	/* 0x9C */
 		return LPFC_MBOX_TMO_FLASH_CMD;
+	case MBX_SLI4_CONFIG:	/* 0x9b */
+		return LPFC_MBOX_SLI4_CONFIG_TMO;
 	}
 	return LPFC_MBOX_TMO;
+}
+
+/**
+ * lpfc_sli4_mbx_sge_set - Set a sge entry in non-embedded mailbox command
+ * @mbox: pointer to lpfc mbox command.
+ * @sgentry: sge entry index.
+ * @phyaddr: physical address for the sge
+ * @length: Length of the sge.
+ *
+ * This routine sets up an entry in the non-embedded mailbox command at the sge
+ * index location.
+ **/
+void
+lpfc_sli4_mbx_sge_set(struct lpfcMboxq *mbox, uint32_t sgentry,
+		      dma_addr_t phyaddr, uint32_t length)
+{
+	struct lpfc_mbx_nembed_cmd *nembed_sge;
+
+	nembed_sge = (struct lpfc_mbx_nembed_cmd *)
+				&mbox->u.mqe.un.nembed_cmd;
+	nembed_sge->sge[sgentry].pa_lo = putPaddrLow(phyaddr);
+	nembed_sge->sge[sgentry].pa_hi = putPaddrHigh(phyaddr);
+	nembed_sge->sge[sgentry].length = length;
+}
+
+/**
+ * lpfc_sli4_mbx_sge_get - Get a sge entry from non-embedded mailbox command
+ * @mbox: pointer to lpfc mbox command.
+ * @sgentry: sge entry index.
+ *
+ * This routine gets an entry from the non-embedded mailbox command at the sge
+ * index location.
+ **/
+void
+lpfc_sli4_mbx_sge_get(struct lpfcMboxq *mbox, uint32_t sgentry,
+		      struct lpfc_mbx_sge *sge)
+{
+	struct lpfc_mbx_nembed_cmd *nembed_sge;
+
+	nembed_sge = (struct lpfc_mbx_nembed_cmd *)
+				&mbox->u.mqe.un.nembed_cmd;
+	sge->pa_lo = nembed_sge->sge[sgentry].pa_lo;
+	sge->pa_hi = nembed_sge->sge[sgentry].pa_hi;
+	sge->length = nembed_sge->sge[sgentry].length;
+}
+
+/**
+ * lpfc_sli4_mbox_cmd_free - Free a sli4 mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to lpfc mbox command.
+ *
+ * This routine frees SLI4 specific mailbox command for sending IOCTL command.
+ **/
+void
+lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_sli4_config *sli4_cfg;
+	struct lpfc_mbx_sge sge;
+	dma_addr_t phyaddr;
+	uint32_t sgecount, sgentry;
+
+	sli4_cfg = &mbox->u.mqe.un.sli4_config;
+
+	/* For embedded mbox command, just free the mbox command */
+	if (bf_get(lpfc_mbox_hdr_emb, &sli4_cfg->header.cfg_mhdr)) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return;
+	}
+
+	/* For non-embedded mbox command, we need to free the pages first */
+	sgecount = bf_get(lpfc_mbox_hdr_sge_cnt, &sli4_cfg->header.cfg_mhdr);
+	/* There is nothing we can do if there is no sge address array */
+	if (unlikely(!mbox->sge_array)) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return;
+	}
+	/* Each non-embedded DMA memory was allocated in the length of a page */
+	for (sgentry = 0; sgentry < sgecount; sgentry++) {
+		lpfc_sli4_mbx_sge_get(mbox, sgentry, &sge);
+		phyaddr = getPaddr(sge.pa_hi, sge.pa_lo);
+		dma_free_coherent(&phba->pcidev->dev, PAGE_SIZE,
+				  mbox->sge_array->addr[sgentry], phyaddr);
+	}
+	/* Free the sge address array memory */
+	kfree(mbox->sge_array);
+	/* Finally, free the mailbox command itself */
+	mempool_free(mbox, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_config - Initialize the  SLI4 Config Mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to lpfc mbox command.
+ * @subsystem: The sli4 config sub mailbox subsystem.
+ * @opcode: The sli4 config sub mailbox command opcode.
+ * @length: Length of the sli4 config mailbox command.
+ *
+ * This routine sets up the header fields of SLI4 specific mailbox command
+ * for sending IOCTL command.
+ *
+ * Return: the actual length of the mbox command allocated (mostly useful
+ *         for none embedded mailbox command).
+ **/
+int
+lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
+		 uint8_t subsystem, uint8_t opcode, uint32_t length, bool emb)
+{
+	struct lpfc_mbx_sli4_config *sli4_config;
+	union lpfc_sli4_cfg_shdr *cfg_shdr = NULL;
+	uint32_t alloc_len;
+	uint32_t resid_len;
+	uint32_t pagen, pcount;
+	void *viraddr;
+	dma_addr_t phyaddr;
+
+	/* Set up SLI4 mailbox command header fields */
+	memset(mbox, 0, sizeof(*mbox));
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_SLI4_CONFIG);
+
+	/* Set up SLI4 ioctl command header fields */
+	sli4_config = &mbox->u.mqe.un.sli4_config;
+
+	/* Setup for the embedded mbox command */
+	if (emb) {
+		/* Set up main header fields */
+		bf_set(lpfc_mbox_hdr_emb, &sli4_config->header.cfg_mhdr, 1);
+		sli4_config->header.cfg_mhdr.payload_length =
+					LPFC_MBX_CMD_HDR_LENGTH + length;
+		/* Set up sub-header fields following main header */
+		bf_set(lpfc_mbox_hdr_opcode,
+			&sli4_config->header.cfg_shdr.request, opcode);
+		bf_set(lpfc_mbox_hdr_subsystem,
+			&sli4_config->header.cfg_shdr.request, subsystem);
+		sli4_config->header.cfg_shdr.request.request_length = length;
+		return length;
+	}
+
+	/* Setup for the none-embedded mbox command */
+	pcount = (PAGE_ALIGN(length))/PAGE_SIZE;
+	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
+				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
+	/* Allocate record for keeping SGE virtual addresses */
+	mbox->sge_array = kmalloc(sizeof(struct lpfc_mbx_nembed_sge_virt),
+				  GFP_KERNEL);
+	if (!mbox->sge_array)
+		return 0;
+
+	for (pagen = 0, alloc_len = 0; pagen < pcount; pagen++) {
+		/* The DMA memory is always allocated in the length of a
+		 * page even though the last SGE might not fill up to a
+		 * page, this is used as a priori size of PAGE_SIZE for
+		 * the later DMA memory free.
+		 */
+		viraddr = dma_alloc_coherent(&phba->pcidev->dev, PAGE_SIZE,
+					     &phyaddr, GFP_KERNEL);
+		/* In case of malloc fails, proceed with whatever we have */
+		if (!viraddr)
+			break;
+		mbox->sge_array->addr[pagen] = viraddr;
+		/* Keep the first page for later sub-header construction */
+		if (pagen == 0)
+			cfg_shdr = (union lpfc_sli4_cfg_shdr *)viraddr;
+		resid_len = length - alloc_len;
+		if (resid_len > PAGE_SIZE) {
+			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
+					      PAGE_SIZE);
+			alloc_len += PAGE_SIZE;
+		} else {
+			lpfc_sli4_mbx_sge_set(mbox, pagen, phyaddr,
+					      resid_len);
+			alloc_len = length;
+		}
+	}
+
+	/* Set up main header fields in mailbox command */
+	sli4_config->header.cfg_mhdr.payload_length = alloc_len;
+	bf_set(lpfc_mbox_hdr_sge_cnt, &sli4_config->header.cfg_mhdr, pagen);
+
+	/* Set up sub-header fields into the first page */
+	if (pagen > 0) {
+		bf_set(lpfc_mbox_hdr_opcode, &cfg_shdr->request, opcode);
+		bf_set(lpfc_mbox_hdr_subsystem, &cfg_shdr->request, subsystem);
+		cfg_shdr->request.request_length =
+				alloc_len - sizeof(union  lpfc_sli4_cfg_shdr);
+	}
+	/* The sub-header is in DMA memory, which needs endian converstion */
+	lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
+			      sizeof(union  lpfc_sli4_cfg_shdr));
+
+	return alloc_len;
+}
+
+/**
+ * lpfc_sli4_mbox_opcode_get - Get the opcode from a sli4 mailbox command
+ * @phba: pointer to lpfc hba data structure.
+ * @mbox: pointer to lpfc mbox command.
+ *
+ * This routine gets the opcode from a SLI4 specific mailbox command for
+ * sending IOCTL command. If the mailbox command is not MBX_SLI4_CONFIG
+ * (0x9B) or if the IOCTL sub-header is not present, opcode 0x0 shall be
+ * returned.
+ **/
+uint8_t
+lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_sli4_config *sli4_cfg;
+	union lpfc_sli4_cfg_shdr *cfg_shdr;
+
+	if (mbox->u.mb.mbxCommand != MBX_SLI4_CONFIG)
+		return 0;
+	sli4_cfg = &mbox->u.mqe.un.sli4_config;
+
+	/* For embedded mbox command, get opcode from embedded sub-header*/
+	if (bf_get(lpfc_mbox_hdr_emb, &sli4_cfg->header.cfg_mhdr)) {
+		cfg_shdr = &mbox->u.mqe.un.sli4_config.header.cfg_shdr;
+		return bf_get(lpfc_mbox_hdr_opcode, &cfg_shdr->request);
+	}
+
+	/* For non-embedded mbox command, get opcode from first dma page */
+	if (unlikely(!mbox->sge_array))
+		return 0;
+	cfg_shdr = (union lpfc_sli4_cfg_shdr *)mbox->sge_array->addr[0];
+	return bf_get(lpfc_mbox_hdr_opcode, &cfg_shdr->request);
+}
+
+/**
+ * lpfc_request_features: Configure SLI4 REQUEST_FEATURES mailbox
+ * @mboxq: pointer to lpfc mbox command.
+ *
+ * This routine sets up the mailbox for an SLI4 REQUEST_FEATURES
+ * mailbox command.
+ **/
+void
+lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
+{
+	/* Set up SLI4 mailbox command header fields */
+	memset(mboxq, 0, sizeof(LPFC_MBOXQ_t));
+	bf_set(lpfc_mqe_command, &mboxq->u.mqe, MBX_SLI4_REQ_FTRS);
+
+	/* Set up host requested features. */
+	bf_set(lpfc_mbx_rq_ftr_rq_fcpi, &mboxq->u.mqe.un.req_ftrs, 1);
+
+	/* Virtual fabrics and FIPs are not supported yet. */
+	bf_set(lpfc_mbx_rq_ftr_rq_ifip, &mboxq->u.mqe.un.req_ftrs, 0);
+
+	/* Enable DIF (block guard) only if configured to do so. */
+	if (phba->cfg_enable_bg)
+		bf_set(lpfc_mbx_rq_ftr_rq_dif, &mboxq->u.mqe.un.req_ftrs, 1);
+
+	/* Enable NPIV only if configured to do so. */
+	if (phba->max_vpi && phba->cfg_enable_npiv)
+		bf_set(lpfc_mbx_rq_ftr_rq_npiv, &mboxq->u.mqe.un.req_ftrs, 1);
+
+	return;
+}
+
+/**
+ * lpfc_init_vfi - Initialize the INIT_VFI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @vport: Vport associated with the VF.
+ *
+ * This routine initializes @mbox to all zeros and then fills in the mailbox
+ * fields from @vport. INIT_VFI configures virtual fabrics identified by VFI
+ * in the context of an FCF. The driver issues this command to setup a VFI
+ * before issuing a FLOGI to login to the VSAN. The driver should also issue a
+ * REG_VFI after a successful VSAN login.
+ **/
+void
+lpfc_init_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
+{
+	struct lpfc_mbx_init_vfi *init_vfi;
+
+	memset(mbox, 0, sizeof(*mbox));
+	init_vfi = &mbox->u.mqe.un.init_vfi;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_INIT_VFI);
+	bf_set(lpfc_init_vfi_vr, init_vfi, 1);
+	bf_set(lpfc_init_vfi_vt, init_vfi, 1);
+	bf_set(lpfc_init_vfi_vfi, init_vfi, vport->vfi + vport->phba->vfi_base);
+	bf_set(lpfc_init_vfi_fcfi, init_vfi, vport->phba->fcf.fcfi);
+}
+
+/**
+ * lpfc_reg_vfi - Initialize the REG_VFI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @vport: vport associated with the VF.
+ * @phys: BDE DMA bus address used to send the service parameters to the HBA.
+ *
+ * This routine initializes @mbox to all zeros and then fills in the mailbox
+ * fields from @vport, and uses @buf as a DMAable buffer to send the vport's
+ * fc service parameters to the HBA for this VFI. REG_VFI configures virtual
+ * fabrics identified by VFI in the context of an FCF.
+ **/
+void
+lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
+{
+	struct lpfc_mbx_reg_vfi *reg_vfi;
+
+	memset(mbox, 0, sizeof(*mbox));
+	reg_vfi = &mbox->u.mqe.un.reg_vfi;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_VFI);
+	bf_set(lpfc_reg_vfi_vp, reg_vfi, 1);
+	bf_set(lpfc_reg_vfi_vfi, reg_vfi, vport->vfi + vport->phba->vfi_base);
+	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, vport->phba->fcf.fcfi);
+	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->vpi + vport->phba->vpi_base);
+	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
+	reg_vfi->bde.addrLow = putPaddrLow(phys);
+	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
+	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
+}
+
+/**
+ * lpfc_init_vpi - Initialize the INIT_VPI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @vpi: VPI to be initialized.
+ *
+ * The INIT_VPI mailbox command supports virtual N_Ports. The driver uses the
+ * command to activate a virtual N_Port. The HBA assigns a MAC address to use
+ * with the virtual N Port.  The SLI Host issues this command before issuing a
+ * FDISC to connect to the Fabric. The SLI Host should issue a REG_VPI after a
+ * successful virtual NPort login.
+ **/
+void
+lpfc_init_vpi(struct lpfcMboxq *mbox, uint16_t vpi)
+{
+	memset(mbox, 0, sizeof(*mbox));
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_INIT_VPI);
+	bf_set(lpfc_init_vpi_vpi, &mbox->u.mqe.un.init_vpi, vpi);
+}
+
+/**
+ * lpfc_unreg_vfi - Initialize the UNREG_VFI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @vfi: VFI to be unregistered.
+ *
+ * The UNREG_VFI mailbox command causes the SLI Host to put a virtual fabric
+ * (logical NPort) into the inactive state. The SLI Host must have logged out
+ * and unregistered all remote N_Ports to abort any activity on the virtual
+ * fabric. The SLI Port posts the mailbox response after marking the virtual
+ * fabric inactive.
+ **/
+void
+lpfc_unreg_vfi(struct lpfcMboxq *mbox, uint16_t vfi)
+{
+	memset(mbox, 0, sizeof(*mbox));
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_UNREG_VFI);
+	bf_set(lpfc_unreg_vfi_vfi, &mbox->u.mqe.un.unreg_vfi, vfi);
+}
+
+/**
+ * lpfc_dump_fcoe_param - Dump config region 23 to get FCoe parameters.
+ * @phba: pointer to the hba structure containing.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * This function create a SLI4 dump mailbox command to dump FCoE
+ * parameters stored in region 23.
+ **/
+int
+lpfc_dump_fcoe_param(struct lpfc_hba *phba,
+		struct lpfcMboxq *mbox)
+{
+	struct lpfc_dmabuf *mp = NULL;
+	MAILBOX_t *mb;
+
+	memset(mbox, 0, sizeof(*mbox));
+	mb = &mbox->u.mb;
+
+	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+
+	if (!mp || !mp->virt) {
+		kfree(mp);
+		/* dump_fcoe_param failed to allocate memory */
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+			"2569 lpfc_dump_fcoe_param: memory"
+			" allocation failed \n");
+		return 1;
+	}
+
+	memset(mp->virt, 0, LPFC_BPL_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+
+	/* save address for completion */
+	mbox->context1 = (uint8_t *) mp;
+
+	mb->mbxCommand = MBX_DUMP_MEMORY;
+	mb->un.varDmp.type = DMP_NV_PARAMS;
+	mb->un.varDmp.region_id = DMP_REGION_FCOEPARAM;
+	mb->un.varDmp.sli4_length = DMP_FCOEPARAM_RGN_SIZE;
+	mb->un.varWords[3] = putPaddrLow(mp->phys);
+	mb->un.varWords[4] = putPaddrHigh(mp->phys);
+	return 0;
+}
+
+/**
+ * lpfc_reg_fcfi - Initialize the REG_FCFI mailbox command
+ * @phba: pointer to the hba structure containing the FCF index and RQ ID.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * The REG_FCFI mailbox command supports Fibre Channel Forwarders (FCFs). The
+ * SLI Host uses the command to activate an FCF after it has acquired FCF
+ * information via a READ_FCF mailbox command. This mailbox command also is used
+ * to indicate where received unsolicited frames from this FCF will be sent. By
+ * default this routine will set up the FCF to forward all unsolicited frames
+ * the the RQ ID passed in the @phba. This can be overridden by the caller for
+ * more complicated setups.
+ **/
+void
+lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_reg_fcfi *reg_fcfi;
+
+	memset(mbox, 0, sizeof(*mbox));
+	reg_fcfi = &mbox->u.mqe.un.reg_fcfi;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_FCFI);
+	bf_set(lpfc_reg_fcfi_rq_id0, reg_fcfi, phba->sli4_hba.hdr_rq->queue_id);
+	bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
+	bf_set(lpfc_reg_fcfi_rq_id2, reg_fcfi, REG_FCF_INVALID_QID);
+	bf_set(lpfc_reg_fcfi_rq_id3, reg_fcfi, REG_FCF_INVALID_QID);
+	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi, phba->fcf.fcf_indx);
+	/* reg_fcf addr mode is bit wise inverted value of fcf addr_mode */
+	bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
+		(~phba->fcf.addr_mode) & 0x3);
+	if (phba->fcf.fcf_flag & FCF_VALID_VLAN) {
+		bf_set(lpfc_reg_fcfi_vv, reg_fcfi, 1);
+		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi, phba->fcf.vlan_id);
+	}
+}
+
+/**
+ * lpfc_unreg_fcfi - Initialize the UNREG_FCFI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @fcfi: FCFI to be unregistered.
+ *
+ * The UNREG_FCFI mailbox command supports Fibre Channel Forwarders (FCFs).
+ * The SLI Host uses the command to inactivate an FCFI.
+ **/
+void
+lpfc_unreg_fcfi(struct lpfcMboxq *mbox, uint16_t fcfi)
+{
+	memset(mbox, 0, sizeof(*mbox));
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_UNREG_FCFI);
+	bf_set(lpfc_unreg_fcfi, &mbox->u.mqe.un.unreg_fcfi, fcfi);
+}
+
+/**
+ * lpfc_resume_rpi - Initialize the RESUME_RPI mailbox command
+ * @mbox: pointer to lpfc mbox command to initialize.
+ * @ndlp: The nodelist structure that describes the RPI to resume.
+ *
+ * The RESUME_RPI mailbox command is used to restart I/O to an RPI after a
+ * link event.
+ **/
+void
+lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_mbx_resume_rpi *resume_rpi;
+
+	memset(mbox, 0, sizeof(*mbox));
+	resume_rpi = &mbox->u.mqe.un.resume_rpi;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_RESUME_RPI);
+	bf_set(lpfc_resume_rpi_rpi, resume_rpi, ndlp->nlp_rpi);
+	bf_set(lpfc_resume_rpi_vpi, resume_rpi,
+	       ndlp->vport->vpi + ndlp->vport->phba->vpi_base);
+	bf_set(lpfc_resume_rpi_vfi, resume_rpi,
+	       ndlp->vport->vfi + ndlp->vport->phba->vfi_base);
 }

@@ -143,13 +143,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 
-#define task_pt_regs(task)						\
-({									\
-       struct pt_regs *__regs__;					\
-       __regs__ = (struct pt_regs *) (KSTK_TOP(task_stack_page(task)) - 8); \
-       __regs__ - 1;							\
-})
-
+#define task_pt_regs(task) ((task)->thread.uregs)
 #define KSTK_EIP(task) (task_pt_regs(task)->pc)
 #define KSTK_ESP(task) (task_pt_regs(task)->sp)
 

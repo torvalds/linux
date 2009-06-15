@@ -248,6 +248,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	unsigned int tmp;
 #endif
 
+	smp_mb();
+
 	switch (size) {
 #if __LINUX_ARM_ARCH__ >= 6
 	case 1:
@@ -307,6 +309,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		__bad_xchg(ptr, size), ret = 0;
 		break;
 	}
+	smp_mb();
 
 	return ret;
 }
@@ -315,6 +318,12 @@ extern void disable_hlt(void);
 extern void enable_hlt(void);
 
 #include <asm-generic/cmpxchg-local.h>
+
+#if __LINUX_ARM_ARCH__ < 6
+
+#ifdef CONFIG_SMP
+#error "SMP is not supported on this platform"
+#endif
 
 /*
  * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
@@ -328,6 +337,173 @@ extern void enable_hlt(void);
 #ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
 #endif
+
+#else	/* __LINUX_ARM_ARCH__ >= 6 */
+
+extern void __bad_cmpxchg(volatile void *ptr, int size);
+
+/*
+ * cmpxchg only support 32-bits operands on ARMv6.
+ */
+
+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+				      unsigned long new, int size)
+{
+	unsigned long oldval, res;
+
+	switch (size) {
+#ifdef CONFIG_CPU_32v6K
+	case 1:
+		do {
+			asm volatile("@ __cmpxchg1\n"
+			"	ldrexb	%1, [%2]\n"
+			"	mov	%0, #0\n"
+			"	teq	%1, %3\n"
+			"	strexbeq %0, %4, [%2]\n"
+				: "=&r" (res), "=&r" (oldval)
+				: "r" (ptr), "Ir" (old), "r" (new)
+				: "memory", "cc");
+		} while (res);
+		break;
+	case 2:
+		do {
+			asm volatile("@ __cmpxchg1\n"
+			"	ldrexh	%1, [%2]\n"
+			"	mov	%0, #0\n"
+			"	teq	%1, %3\n"
+			"	strexheq %0, %4, [%2]\n"
+				: "=&r" (res), "=&r" (oldval)
+				: "r" (ptr), "Ir" (old), "r" (new)
+				: "memory", "cc");
+		} while (res);
+		break;
+#endif /* CONFIG_CPU_32v6K */
+	case 4:
+		do {
+			asm volatile("@ __cmpxchg4\n"
+			"	ldrex	%1, [%2]\n"
+			"	mov	%0, #0\n"
+			"	teq	%1, %3\n"
+			"	strexeq %0, %4, [%2]\n"
+				: "=&r" (res), "=&r" (oldval)
+				: "r" (ptr), "Ir" (old), "r" (new)
+				: "memory", "cc");
+		} while (res);
+		break;
+	default:
+		__bad_cmpxchg(ptr, size);
+		oldval = 0;
+	}
+
+	return oldval;
+}
+
+static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
+					 unsigned long new, int size)
+{
+	unsigned long ret;
+
+	smp_mb();
+	ret = __cmpxchg(ptr, old, new, size);
+	smp_mb();
+
+	return ret;
+}
+
+#define cmpxchg(ptr,o,n)						\
+	((__typeof__(*(ptr)))__cmpxchg_mb((ptr),			\
+					  (unsigned long)(o),		\
+					  (unsigned long)(n),		\
+					  sizeof(*(ptr))))
+
+static inline unsigned long __cmpxchg_local(volatile void *ptr,
+					    unsigned long old,
+					    unsigned long new, int size)
+{
+	unsigned long ret;
+
+	switch (size) {
+#ifndef CONFIG_CPU_32v6K
+	case 1:
+	case 2:
+		ret = __cmpxchg_local_generic(ptr, old, new, size);
+		break;
+#endif	/* !CONFIG_CPU_32v6K */
+	default:
+		ret = __cmpxchg(ptr, old, new, size);
+	}
+
+	return ret;
+}
+
+#define cmpxchg_local(ptr,o,n)						\
+	((__typeof__(*(ptr)))__cmpxchg_local((ptr),			\
+				       (unsigned long)(o),		\
+				       (unsigned long)(n),		\
+				       sizeof(*(ptr))))
+
+#ifdef CONFIG_CPU_32v6K
+
+/*
+ * Note : ARMv7-M (currently unsupported by Linux) does not support
+ * ldrexd/strexd. If ARMv7-M is ever supported by the Linux kernel, it should
+ * not be allowed to use __cmpxchg64.
+ */
+static inline unsigned long long __cmpxchg64(volatile void *ptr,
+					     unsigned long long old,
+					     unsigned long long new)
+{
+	register unsigned long long oldval asm("r0");
+	register unsigned long long __old asm("r2") = old;
+	register unsigned long long __new asm("r4") = new;
+	unsigned long res;
+
+	do {
+		asm volatile(
+		"	@ __cmpxchg8\n"
+		"	ldrexd	%1, %H1, [%2]\n"
+		"	mov	%0, #0\n"
+		"	teq	%1, %3\n"
+		"	teqeq	%H1, %H3\n"
+		"	strexdeq %0, %4, %H4, [%2]\n"
+			: "=&r" (res), "=&r" (oldval)
+			: "r" (ptr), "Ir" (__old), "r" (__new)
+			: "memory", "cc");
+	} while (res);
+
+	return oldval;
+}
+
+static inline unsigned long long __cmpxchg64_mb(volatile void *ptr,
+						unsigned long long old,
+						unsigned long long new)
+{
+	unsigned long long ret;
+
+	smp_mb();
+	ret = __cmpxchg64(ptr, old, new);
+	smp_mb();
+
+	return ret;
+}
+
+#define cmpxchg64(ptr,o,n)						\
+	((__typeof__(*(ptr)))__cmpxchg64_mb((ptr),			\
+					    (unsigned long long)(o),	\
+					    (unsigned long long)(n)))
+
+#define cmpxchg64_local(ptr,o,n)					\
+	((__typeof__(*(ptr)))__cmpxchg64((ptr),				\
+					 (unsigned long long)(o),	\
+					 (unsigned long long)(n)))
+
+#else	/* !CONFIG_CPU_32v6K */
+
+#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+
+#endif	/* CONFIG_CPU_32v6K */
+
+#endif	/* __LINUX_ARM_ARCH__ >= 6 */
 
 #endif /* __ASSEMBLY__ */
 

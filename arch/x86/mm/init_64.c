@@ -50,17 +50,7 @@
 #include <asm/cacheflush.h>
 #include <asm/init.h>
 
-/*
- * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
- * The direct mapping extends to max_pfn_mapped, so that we can directly access
- * apertures, ACPI and other tables without having to play with fixmaps.
- */
-unsigned long max_low_pfn_mapped;
-unsigned long max_pfn_mapped;
-
 static unsigned long dma_reserve __initdata;
-
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 static int __init parse_direct_gbpages_off(char *arg)
 {
@@ -84,39 +74,6 @@ early_param("gbpages", parse_direct_gbpages_on);
 
 pteval_t __supported_pte_mask __read_mostly = ~_PAGE_IOMAP;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
-
-static int disable_nx __cpuinitdata;
-
-/*
- * noexec=on|off
- * Control non-executable mappings for 64-bit processes.
- *
- * on	Enable (default)
- * off	Disable
- */
-static int __init nonx_setup(char *str)
-{
-	if (!str)
-		return -EINVAL;
-	if (!strncmp(str, "on", 2)) {
-		__supported_pte_mask |= _PAGE_NX;
-		disable_nx = 0;
-	} else if (!strncmp(str, "off", 3)) {
-		disable_nx = 1;
-		__supported_pte_mask &= ~_PAGE_NX;
-	}
-	return 0;
-}
-early_param("noexec", nonx_setup);
-
-void __cpuinit check_efer(void)
-{
-	unsigned long efer;
-
-	rdmsrl(MSR_EFER, efer);
-	if (!(efer & EFER_NX) || disable_nx)
-		__supported_pte_mask &= ~_PAGE_NX;
-}
 
 int force_personality32;
 
@@ -628,6 +585,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	early_res_to_bootmem(0, end_pfn<<PAGE_SHIFT);
 	reserve_bootmem(bootmap, bootmap_size, BOOTMEM_DEFAULT);
 }
+#endif
 
 void __init paging_init(void)
 {
@@ -638,11 +596,10 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 
-	memory_present(0, 0, max_pfn);
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
 	free_area_init_nodes(max_zone_pfns);
 }
-#endif
 
 /*
  * Memory hotplug specific functions

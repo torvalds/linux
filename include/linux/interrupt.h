@@ -183,11 +183,17 @@ extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
 
 /* The following three functions are for the core kernel use only. */
+#ifdef CONFIG_GENERIC_HARDIRQS
 extern void suspend_device_irqs(void);
 extern void resume_device_irqs(void);
 #ifdef CONFIG_PM_SLEEP
 extern int check_wakeup_irqs(void);
 #else
+static inline int check_wakeup_irqs(void) { return 0; }
+#endif
+#else
+static inline void suspend_device_irqs(void) { };
+static inline void resume_device_irqs(void) { };
 static inline int check_wakeup_irqs(void) { return 0; }
 #endif
 
@@ -566,6 +572,6 @@ struct irq_desc;
 extern int early_irq_init(void);
 extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
-extern int arch_init_chip_data(struct irq_desc *desc, int cpu);
+extern int arch_init_chip_data(struct irq_desc *desc, int node);
 
 #endif

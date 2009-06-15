@@ -122,6 +122,8 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SINGLESTEP		4
 #define TIF_IRET		5 /* return with iret */
 #define TIF_MEMDIE		6
+#define TIF_SYSCALL_AUDIT	9       /* syscall auditing active */
+#define TIF_SECCOMP		10      /* secure computing */
 #define TIF_FREEZE		14	/* Freezing for suspend */
 
 /* FIXME change in entry.S */
@@ -138,10 +140,17 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_IRET		(1<<TIF_IRET)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
+#define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP		(1 << TIF_SECCOMP)
 #define _TIF_KERNEL_TRACE	(1 << TIF_KERNEL_TRACE)
+
+/* work to do in syscall trace */
+#define _TIF_WORK_SYSCALL_MASK  (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | \
+				 _TIF_SYSCALL_AUDIT | _TIF_SECCOMP)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		0x0000FFFE
+
 /* work to do on any return to u-space */
 #define _TIF_ALLWORK_MASK	0x0000FFFF
 
@@ -154,6 +163,17 @@ static inline struct thread_info *current_thread_info(void)
  */
 /* FPU was used by this task this quantum (SMP) */
 #define TS_USEDFPU		0x0001
+#define TS_RESTORE_SIGMASK	0x0002
+
+#ifndef __ASSEMBLY__
+#define HAVE_SET_RESTORE_SIGMASK 1
+static inline void set_restore_sigmask(void)
+{
+	struct thread_info *ti = current_thread_info();
+	ti->status |= TS_RESTORE_SIGMASK;
+	set_bit(TIF_SIGPENDING, (unsigned long *)&ti->flags);
+}
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_MICROBLAZE_THREAD_INFO_H */

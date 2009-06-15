@@ -72,7 +72,7 @@ The 'rom' file is special in that it provides read-only access to the device's
 ROM file, if available.  It's disabled by default, however, so applications
 should write the string "1" to the file to enable it before attempting a read
 call, and disable it following the access by writing "0" to the file.  Note
-that the device must be enabled for a rom read to return data succesfully.
+that the device must be enabled for a rom read to return data successfully.
 In the event a driver is not bound to the device, it can be enabled using the
 'enable' file, documented above.
 

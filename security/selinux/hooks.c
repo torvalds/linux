@@ -1980,10 +1980,6 @@ static int selinux_sysctl(ctl_table *table, int op)
 	u32 tsid, sid;
 	int rc;
 
-	rc = secondary_ops->sysctl(table, op);
-	if (rc)
-		return rc;
-
 	sid = current_sid();
 
 	rc = selinux_sysctl_get_sid(table, (op == 0001) ?
@@ -2375,10 +2371,8 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 {
 	const struct task_security_struct *tsec = current_security();
 	struct itimerval itimer;
-	struct sighand_struct *psig;
 	u32 osid, sid;
 	int rc, i;
-	unsigned long flags;
 
 	osid = tsec->osid;
 	sid = tsec->sid;
@@ -2398,22 +2392,20 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 		memset(&itimer, 0, sizeof itimer);
 		for (i = 0; i < 3; i++)
 			do_setitimer(i, &itimer, NULL);
-		flush_signals(current);
 		spin_lock_irq(&current->sighand->siglock);
-		flush_signal_handlers(current, 1);
-		sigemptyset(&current->blocked);
-		recalc_sigpending();
+		if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
+			__flush_signals(current);
+			flush_signal_handlers(current, 1);
+			sigemptyset(&current->blocked);
+		}
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
 	/* Wake up the parent if it is waiting so that it can recheck
 	 * wait permission to the new task SID. */
-	read_lock_irq(&tasklist_lock);
-	psig = current->parent->sighand;
-	spin_lock_irqsave(&psig->siglock, flags);
-	wake_up_interruptible(&current->parent->signal->wait_chldexit);
-	spin_unlock_irqrestore(&psig->siglock, flags);
-	read_unlock_irq(&tasklist_lock);
+	read_lock(&tasklist_lock);
+	wake_up_interruptible(&current->real_parent->signal->wait_chldexit);
+	read_unlock(&tasklist_lock);
 }
 
 /* superblock security operations */

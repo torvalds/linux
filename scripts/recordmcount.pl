@@ -26,7 +26,7 @@
 # which will also be the location of that section after final link.
 # e.g.
 #
-#  .section ".text.sched"
+#  .section ".sched.text", "ax"
 #  .globl my_func
 #  my_func:
 #        [...]
@@ -39,7 +39,7 @@
 #        [...]
 #
 # Both relocation offsets for the mcounts in the above example will be
-# offset from .text.sched. If we make another file called tmp.s with:
+# offset from .sched.text. If we make another file called tmp.s with:
 #
 #  .section __mcount_loc
 #  .quad  my_func + 0x5
@@ -51,7 +51,7 @@
 # But this gets hard if my_func is not globl (a static function).
 # In such a case we have:
 #
-#  .section ".text.sched"
+#  .section ".sched.text", "ax"
 #  my_func:
 #        [...]
 #        call mcount  (offset: 0x5)
@@ -184,6 +184,19 @@ if ($arch eq "x86_64") {
     $objdump .= " -M i386";
     $objcopy .= " -O elf32-i386";
     $cc .= " -m32";
+
+} elsif ($arch eq "s390" && $bits == 32) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_32\\s+_mcount\$";
+    $alignment = 4;
+    $ld .= " -m elf_s390";
+    $cc .= " -m31";
+
+} elsif ($arch eq "s390" && $bits == 64) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_(PC|PLT)32DBL\\s+_mcount\\+0x2\$";
+    $alignment = 8;
+    $type = ".quad";
+    $ld .= " -m elf64_s390";
+    $cc .= " -m64";
 
 } elsif ($arch eq "sh") {
     $alignment = 2;

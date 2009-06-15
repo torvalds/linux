@@ -31,7 +31,7 @@
 #include <plat/ehci-orion.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
-#include <plat/orion5x_wdt.h>
+#include <plat/orion_wdt.h>
 #include <plat/time.h>
 #include "common.h"
 
@@ -188,6 +188,9 @@ static struct platform_device orion5x_eth = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= orion5x_eth_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
@@ -248,12 +251,10 @@ static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 
 static struct resource orion5x_i2c_resources[] = {
 	{
-		.name	= "i2c base",
 		.start	= I2C_PHYS_BASE,
 		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "i2c irq",
 		.start	= IRQ_ORION5X_I2C,
 		.end	= IRQ_ORION5X_I2C,
 		.flags	= IORESOURCE_IRQ,
@@ -535,16 +536,52 @@ void __init orion5x_xor_init(void)
 	platform_device_register(&orion5x_xor1_channel);
 }
 
+static struct resource orion5x_crypto_res[] = {
+	{
+		.name   = "regs",
+		.start  = ORION5X_CRYPTO_PHYS_BASE,
+		.end    = ORION5X_CRYPTO_PHYS_BASE + 0xffff,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "sram",
+		.start  = ORION5X_SRAM_PHYS_BASE,
+		.end    = ORION5X_SRAM_PHYS_BASE + SZ_8K - 1,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.name   = "crypto interrupt",
+		.start  = IRQ_ORION5X_CESA,
+		.end    = IRQ_ORION5X_CESA,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion5x_crypto_device = {
+	.name           = "mv_crypto",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(orion5x_crypto_res),
+	.resource       = orion5x_crypto_res,
+};
+
+int __init orion5x_crypto_init(void)
+{
+	int ret;
+
+	ret = orion5x_setup_sram_win();
+	if (ret)
+		return ret;
+
+	return platform_device_register(&orion5x_crypto_device);
+}
 
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion5x_wdt_platform_data orion5x_wdt_data = {
+static struct orion_wdt_platform_data orion5x_wdt_data = {
 	.tclk			= 0,
 };
 
 static struct platform_device orion5x_wdt_device = {
-	.name		= "orion5x_wdt",
+	.name		= "orion_wdt",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &orion5x_wdt_data,

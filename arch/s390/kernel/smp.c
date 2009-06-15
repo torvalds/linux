@@ -47,7 +47,7 @@
 #include <asm/timer.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include <asm/cpu.h>
+#include <asm/cputime.h>
 #include <asm/vdso.h>
 #include "entry.h"
 
@@ -572,6 +572,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
 	cpu_lowcore->machine_flags = S390_lowcore.machine_flags;
+	cpu_lowcore->ftrace_func = S390_lowcore.ftrace_func;
 	eieio();
 
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)

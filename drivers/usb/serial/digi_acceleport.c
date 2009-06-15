@@ -422,7 +422,6 @@ struct digi_port {
 	int dp_throttled;
 	int dp_throttle_restart;
 	wait_queue_head_t dp_flush_wait;
-	int dp_in_close;			/* close in progress */
 	wait_queue_head_t dp_close_wait;	/* wait queue for close */
 	struct work_struct dp_wakeup_work;
 	struct usb_serial_port *dp_port;
@@ -456,8 +455,9 @@ static int digi_write_room(struct tty_struct *tty);
 static int digi_chars_in_buffer(struct tty_struct *tty);
 static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
 	struct file *filp);
-static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
-	struct file *filp);
+static void digi_close(struct usb_serial_port *port);
+static int digi_carrier_raised(struct usb_serial_port *port);
+static void digi_dtr_rts(struct usb_serial_port *port, int on);
 static int digi_startup_device(struct usb_serial *serial);
 static int digi_startup(struct usb_serial *serial);
 static void digi_shutdown(struct usb_serial *serial);
@@ -510,6 +510,8 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 	.num_ports =			3,
 	.open =				digi_open,
 	.close =			digi_close,
+	.dtr_rts =			digi_dtr_rts,
+	.carrier_raised =		digi_carrier_raised,
 	.write =			digi_write,
 	.write_room =			digi_write_room,
 	.write_bulk_callback = 		digi_write_bulk_callback,
@@ -1328,6 +1330,19 @@ static int digi_chars_in_buffer(struct tty_struct *tty)
 
 }
 
+static void digi_dtr_rts(struct usb_serial_port *port, int on)
+{
+	/* Adjust DTR and RTS */
+	digi_set_modem_signals(port, on * (TIOCM_DTR|TIOCM_RTS), 1);
+}
+
+static int digi_carrier_raised(struct usb_serial_port *port)
+{
+	struct digi_port *priv = usb_get_serial_port_data(port);
+	if (priv->dp_modem_signals & TIOCM_CD)
+		return 1;
+	return 0;
+}
 
 static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
 				struct file *filp)
@@ -1336,7 +1351,6 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	struct ktermios not_termios;
-	unsigned long flags = 0;
 
 	dbg("digi_open: TOP: port=%d, open_count=%d",
 		priv->dp_port_num, port->port.count);
@@ -1344,26 +1358,6 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
 	/* be sure the device is started up */
 	if (digi_startup_device(port->serial) != 0)
 		return -ENXIO;
-
-	spin_lock_irqsave(&priv->dp_port_lock, flags);
-
-	/* don't wait on a close in progress for non-blocking opens */
-	if (priv->dp_in_close && (filp->f_flags&(O_NDELAY|O_NONBLOCK)) == 0) {
-		spin_unlock_irqrestore(&priv->dp_port_lock, flags);
-		return -EAGAIN;
-	}
-
-	/* wait for a close in progress to finish */
-	while (priv->dp_in_close) {
-		cond_wait_interruptible_timeout_irqrestore(
-			&priv->dp_close_wait, DIGI_RETRY_TIMEOUT,
-			&priv->dp_port_lock, flags);
-		if (signal_pending(current))
-			return -EINTR;
-		spin_lock_irqsave(&priv->dp_port_lock, flags);
-	}
-
-	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
 	/* read modem signals automatically whenever they change */
 	buf[0] = DIGI_CMD_READ_INPUT_SIGNALS;
@@ -1387,16 +1381,11 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port,
 		not_termios.c_iflag = ~tty->termios->c_iflag;
 		digi_set_termios(tty, port, &not_termios);
 	}
-
-	/* set DTR and RTS */
-	digi_set_modem_signals(port, TIOCM_DTR|TIOCM_RTS, 1);
-
 	return 0;
 }
 
 
-static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
-				struct file *filp)
+static void digi_close(struct usb_serial_port *port)
 {
 	DEFINE_WAIT(wait);
 	int ret;
@@ -1411,28 +1400,9 @@ static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
 	if (port->serial->disconnected)
 		goto exit;
 
-	/* do cleanup only after final close on this port */
-	spin_lock_irq(&priv->dp_port_lock);
-	priv->dp_in_close = 1;
-	spin_unlock_irq(&priv->dp_port_lock);
-
-	/* tell line discipline to process only XON/XOFF */
-	tty->closing = 1;
-
-	/* wait for output to drain */
-	if ((filp->f_flags&(O_NDELAY|O_NONBLOCK)) == 0)
-		tty_wait_until_sent(tty, DIGI_CLOSE_TIMEOUT);
-
-	/* flush driver and line discipline buffers */
-	tty_driver_flush_buffer(tty);
-	tty_ldisc_flush(tty);
-
 	if (port->serial->dev) {
-		/* wait for transmit idle */
-		if ((filp->f_flags&(O_NDELAY|O_NONBLOCK)) == 0)
-			digi_transmit_idle(port, DIGI_CLOSE_TIMEOUT);
-		/* drop DTR and RTS */
-		digi_set_modem_signals(port, 0, 0);
+		/* FIXME: Transmit idle belongs in the wait_unti_sent path */
+		digi_transmit_idle(port, DIGI_CLOSE_TIMEOUT);
 
 		/* disable input flow control */
 		buf[0] = DIGI_CMD_SET_INPUT_FLOW_CONTROL;
@@ -1477,11 +1447,9 @@ static void digi_close(struct tty_struct *tty, struct usb_serial_port *port,
 		/* shutdown any outstanding bulk writes */
 		usb_kill_urb(port->write_urb);
 	}
-	tty->closing = 0;
 exit:
 	spin_lock_irq(&priv->dp_port_lock);
 	priv->dp_write_urb_in_use = 0;
-	priv->dp_in_close = 0;
 	wake_up_interruptible(&priv->dp_close_wait);
 	spin_unlock_irq(&priv->dp_port_lock);
 	mutex_unlock(&port->serial->disc_mutex);
@@ -1560,7 +1528,6 @@ static int digi_startup(struct usb_serial *serial)
 		priv->dp_throttled = 0;
 		priv->dp_throttle_restart = 0;
 		init_waitqueue_head(&priv->dp_flush_wait);
-		priv->dp_in_close = 0;
 		init_waitqueue_head(&priv->dp_close_wait);
 		INIT_WORK(&priv->dp_wakeup_work, digi_wakeup_write_lock);
 		priv->dp_port = serial->port[i];

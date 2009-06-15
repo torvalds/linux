@@ -40,7 +40,7 @@ static int debug;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.5"
+#define DRIVER_VERSION "v0.10"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
 static struct usb_device_id id_table[] = {
@@ -70,7 +70,6 @@ static void read_rxcmd_callback(struct urb *urb);
 struct iuu_private {
 	spinlock_t lock;	/* store irq state */
 	wait_queue_head_t delta_msr_wait;
-	u8 line_control;
 	u8 line_status;
 	u8 termios_initialized;
 	int tiostatus;		/* store IUART SIGNAL for tiocmget call */
@@ -651,32 +650,33 @@ static int iuu_bulk_write(struct usb_serial_port *port)
 	unsigned long flags;
 	int result;
 	int i;
+	int buf_len;
 	char *buf_ptr = port->write_urb->transfer_buffer;
 	dbg("%s - enter", __func__);
 
+	spin_lock_irqsave(&priv->lock, flags);
 	*buf_ptr++ = IUU_UART_ESC;
 	*buf_ptr++ = IUU_UART_TX;
 	*buf_ptr++ = priv->writelen;
 
-	memcpy(buf_ptr, priv->writebuf,
-	       priv->writelen);
+	memcpy(buf_ptr, priv->writebuf, priv->writelen);
+	buf_len = priv->writelen;
+	priv->writelen = 0;
+	spin_unlock_irqrestore(&priv->lock, flags);
 	if (debug == 1) {
-		for (i = 0; i < priv->writelen; i++)
+		for (i = 0; i < buf_len; i++)
 			sprintf(priv->dbgbuf + i*2 ,
 				"%02X", priv->writebuf[i]);
-		priv->dbgbuf[priv->writelen+i*2] = 0;
+		priv->dbgbuf[buf_len+i*2] = 0;
 		dbg("%s - writing %i chars : %s", __func__,
-		    priv->writelen, priv->dbgbuf);
+		    buf_len, priv->dbgbuf);
 	}
 	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
 			  usb_sndbulkpipe(port->serial->dev,
 					  port->bulk_out_endpointAddress),
-			  port->write_urb->transfer_buffer, priv->writelen + 3,
+			  port->write_urb->transfer_buffer, buf_len + 3,
 			  iuu_rxcmd, port);
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->writelen = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
 	usb_serial_port_softint(port);
 	return result;
 }
@@ -770,14 +770,10 @@ static int iuu_uart_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return -ENOMEM;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->writelen > 0) {
-		/* buffer already filled but not commited */
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return 0;
-	}
+
 	/* fill the buffer */
-	memcpy(priv->writebuf, buf, count);
-	priv->writelen = count;
+	memcpy(priv->writebuf + priv->writelen, buf, count);
+	priv->writelen += count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return count;
@@ -819,7 +815,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
 	buf[0] = IUU_UART_ENABLE;
 	buf[1] = (u8) ((IUU_BAUD_9600 >> 8) & 0x00FF);
 	buf[2] = (u8) (0x00FF & IUU_BAUD_9600);
-	buf[3] = (u8) (0x0F0 & IUU_TWO_STOP_BITS) | (0x07 & IUU_PARITY_EVEN);
+	buf[3] = (u8) (0x0F0 & IUU_ONE_STOP_BIT) | (0x07 & IUU_PARITY_EVEN);
 
 	status = bulk_immediate(port, buf, 4);
 	if (status != IUU_OPERATION_OK) {
@@ -946,19 +942,59 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud,
 	return status;
 }
 
-static int set_control_lines(struct usb_device *dev, u8 value)
+static void iuu_set_termios(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	return 0;
+	const u32 supported_mask = CMSPAR|PARENB|PARODD;
+
+	unsigned int cflag = tty->termios->c_cflag;
+	int status;
+	u32 actual;
+	u32 parity;
+	int csize = CS7;
+	int baud = 9600;	/* Fixed for the moment */
+	u32 newval = cflag & supported_mask;
+
+	/* compute the parity parameter */
+	parity = 0;
+	if (cflag & CMSPAR) {	/* Using mark space */
+		if (cflag & PARODD)
+			parity |= IUU_PARITY_SPACE;
+		else
+			parity |= IUU_PARITY_MARK;
+	} else if (!(cflag & PARENB)) {
+		parity |= IUU_PARITY_NONE;
+		csize = CS8;
+	} else if (cflag & PARODD)
+		parity |= IUU_PARITY_ODD;
+	else
+		parity |= IUU_PARITY_EVEN;
+
+	parity |= (cflag & CSTOPB ? IUU_TWO_STOP_BITS : IUU_ONE_STOP_BIT);
+
+	/* set it */
+	status = iuu_uart_baud(port,
+			(clockmode == 2) ? 16457 : 9600 * boost / 100,
+			&actual, parity);
+
+	/* set the termios value to the real one, so the user now what has
+	 * changed. We support few fields so its easies to copy the old hw
+	 * settings back over and then adjust them
+	 */
+ 	if (old_termios)
+ 		tty_termios_copy_hw(tty->termios, old_termios);
+	if (status != 0)	/* Set failed - return old bits */
+		return;
+	/* Re-encode speed, parity and csize */
+	tty_encode_baud_rate(tty, baud, baud);
+	tty->termios->c_cflag &= ~(supported_mask|CSIZE);
+	tty->termios->c_cflag |= newval | csize;
 }
 
-static void iuu_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void iuu_close(struct usb_serial_port *port)
 {
 	/* iuu_led (port,255,0,0,0); */
 	struct usb_serial *serial;
-	struct iuu_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	unsigned int c_cflag;
 
 	serial = port->serial;
 	if (!serial)
@@ -968,17 +1004,6 @@ static void iuu_close(struct tty_struct *tty,
 
 	iuu_uart_off(port);
 	if (serial->dev) {
-		if (tty) {
-			c_cflag = tty->termios->c_cflag;
-			if (c_cflag & HUPCL) {
-				/* drop DTR and RTS */
-				priv = usb_get_serial_port_data(port);
-				spin_lock_irqsave(&priv->lock, flags);
-				priv->line_control = 0;
-				spin_unlock_irqrestore(&priv->lock, flags);
-				set_control_lines(port->serial->dev, 0);
-			}
-		}
 		/* free writebuf */
 		/* shutdown our urbs */
 		dbg("%s - shutting down urbs", __func__);
@@ -1154,7 +1179,7 @@ static int iuu_open(struct tty_struct *tty,
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting read urb,"
 			" error %d\n", __func__, result);
-		iuu_close(tty, port, NULL);
+		iuu_close(port);
 		return -EPROTO;
 	} else {
 		dbg("%s - rxcmd OK", __func__);
@@ -1175,6 +1200,7 @@ static struct usb_serial_driver iuu_device = {
 	.read_bulk_callback = iuu_uart_read_callback,
 	.tiocmget = iuu_tiocmget,
 	.tiocmset = iuu_tiocmset,
+	.set_termios = iuu_set_termios,
 	.attach = iuu_startup,
 	.shutdown = iuu_shutdown,
 };

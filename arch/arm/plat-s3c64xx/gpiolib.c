@@ -57,7 +57,7 @@
 #if 1
 #define gpio_dbg(x...) do { } while(0)
 #else
-#define gpio_dbg(x...) printk(KERN_DEBUG ## x)
+#define gpio_dbg(x...) printk(KERN_DEBUG x)
 #endif
 
 /* The s3c64xx_gpiolib_4bit routines are to control the gpio banks where
@@ -385,12 +385,19 @@ static __init void s3c64xx_gpiolib_add_4bit(struct s3c_gpio_chip *chip)
 {
 	chip->chip.direction_input = s3c64xx_gpiolib_4bit_input;
 	chip->chip.direction_output = s3c64xx_gpiolib_4bit_output;
+	chip->pm = __gpio_pm(&s3c_gpio_pm_4bit);
 }
 
 static __init void s3c64xx_gpiolib_add_4bit2(struct s3c_gpio_chip *chip)
 {
 	chip->chip.direction_input = s3c64xx_gpiolib_4bit2_input;
 	chip->chip.direction_output = s3c64xx_gpiolib_4bit2_output;
+	chip->pm = __gpio_pm(&s3c_gpio_pm_4bit);
+}
+
+static __init void s3c64xx_gpiolib_add_2bit(struct s3c_gpio_chip *chip)
+{
+	chip->pm = __gpio_pm(&s3c_gpio_pm_2bit);
 }
 
 static __init void s3c64xx_gpiolib_add(struct s3c_gpio_chip *chips,
@@ -412,7 +419,8 @@ static __init int s3c64xx_gpiolib_init(void)
 	s3c64xx_gpiolib_add(gpio_4bit2, ARRAY_SIZE(gpio_4bit2),
 			    s3c64xx_gpiolib_add_4bit2);
 
-	s3c64xx_gpiolib_add(gpio_2bit, ARRAY_SIZE(gpio_2bit), NULL);
+	s3c64xx_gpiolib_add(gpio_2bit, ARRAY_SIZE(gpio_2bit),
+			    s3c64xx_gpiolib_add_2bit);
 
 	return 0;
 }

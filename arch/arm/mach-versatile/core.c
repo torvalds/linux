@@ -116,7 +116,7 @@ void __init versatile_init_irq(void)
 {
 	unsigned int i;
 
-	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0);
+	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
 
 	set_irq_chained_handler(IRQ_VICSOURCE31, sic_handle_irq);
 
@@ -413,7 +413,7 @@ static struct clk ref24_clk = {
 	.rate	= 24000000,
 };
 
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 	{	/* UART0 */
 		.dev_id		= "dev:f1",
 		.clk		= &ref24_clk,

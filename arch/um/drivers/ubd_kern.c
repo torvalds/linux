@@ -451,23 +451,6 @@ static void do_ubd_request(struct request_queue * q);
 
 /* Only changed by ubd_init, which is an initcall. */
 static int thread_fd = -1;
-
-static void ubd_end_request(struct request *req, int bytes, int error)
-{
-	blk_end_request(req, error, bytes);
-}
-
-/* Callable only from interrupt context - otherwise you need to do
- * spin_lock_irq()/spin_lock_irqsave() */
-static inline void ubd_finish(struct request *req, int bytes)
-{
-	if(bytes < 0){
-		ubd_end_request(req, 0, -EIO);
-		return;
-	}
-	ubd_end_request(req, bytes, 0);
-}
-
 static LIST_HEAD(restart);
 
 /* XXX - move this inside ubd_intr. */
@@ -475,7 +458,6 @@ static LIST_HEAD(restart);
 static void ubd_handler(void)
 {
 	struct io_thread_req *req;
-	struct request *rq;
 	struct ubd *ubd;
 	struct list_head *list, *next_ele;
 	unsigned long flags;
@@ -492,10 +474,7 @@ static void ubd_handler(void)
 			return;
 		}
 
-		rq = req->req;
-		rq->nr_sectors -= req->length >> 9;
-		if(rq->nr_sectors == 0)
-			ubd_finish(rq, rq->hard_nr_sectors << 9);
+		blk_end_request(req->req, 0, req->length);
 		kfree(req);
 	}
 	reactivate_fd(thread_fd, UBD_IRQ);
@@ -1243,27 +1222,26 @@ static void do_ubd_request(struct request_queue *q)
 {
 	struct io_thread_req *io_req;
 	struct request *req;
-	int n, last_sectors;
+	sector_t sector;
+	int n;
 
 	while(1){
 		struct ubd *dev = q->queuedata;
 		if(dev->end_sg == 0){
-			struct request *req = elv_next_request(q);
+			struct request *req = blk_fetch_request(q);
 			if(req == NULL)
 				return;
 
 			dev->request = req;
-			blkdev_dequeue_request(req);
 			dev->start_sg = 0;
 			dev->end_sg = blk_rq_map_sg(q, req, dev->sg);
 		}
 
 		req = dev->request;
-		last_sectors = 0;
+		sector = blk_rq_pos(req);
 		while(dev->start_sg < dev->end_sg){
 			struct scatterlist *sg = &dev->sg[dev->start_sg];
 
-			req->sector += last_sectors;
 			io_req = kmalloc(sizeof(struct io_thread_req),
 					 GFP_ATOMIC);
 			if(io_req == NULL){
@@ -1272,10 +1250,10 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 			}
 			prepare_request(req, io_req,
-					(unsigned long long) req->sector << 9,
+					(unsigned long long)sector << 9,
 					sg->offset, sg->length, sg_page(sg));
 
-			last_sectors = sg->length >> 9;
+			sector += sg->length >> 9;
 			n = os_write_file(thread_fd, &io_req,
 					  sizeof(struct io_thread_req *));
 			if(n != sizeof(struct io_thread_req *)){

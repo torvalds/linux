@@ -29,11 +29,13 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 
-#include <trace/sched.h>
+#include <trace/events/sched.h>
 
 #include <asm/ftrace.h>
+#include <asm/setup.h>
 
-#include "trace.h"
+#include "trace_output.h"
+#include "trace_stat.h"
 
 #define FTRACE_WARN_ON(cond)			\
 	do {					\
@@ -68,7 +70,7 @@ static DEFINE_MUTEX(ftrace_lock);
 
 static struct ftrace_ops ftrace_list_end __read_mostly =
 {
-	.func = ftrace_stub,
+	.func		= ftrace_stub,
 };
 
 static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
@@ -240,6 +242,580 @@ static void ftrace_update_pid_func(void)
 #endif
 }
 
+#ifdef CONFIG_FUNCTION_PROFILER
+struct ftrace_profile {
+	struct hlist_node		node;
+	unsigned long			ip;
+	unsigned long			counter;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	unsigned long long		time;
+#endif
+};
+
+struct ftrace_profile_page {
+	struct ftrace_profile_page	*next;
+	unsigned long			index;
+	struct ftrace_profile		records[];
+};
+
+struct ftrace_profile_stat {
+	atomic_t			disabled;
+	struct hlist_head		*hash;
+	struct ftrace_profile_page	*pages;
+	struct ftrace_profile_page	*start;
+	struct tracer_stat		stat;
+};
+
+#define PROFILE_RECORDS_SIZE						\
+	(PAGE_SIZE - offsetof(struct ftrace_profile_page, records))
+
+#define PROFILES_PER_PAGE					\
+	(PROFILE_RECORDS_SIZE / sizeof(struct ftrace_profile))
+
+static int ftrace_profile_bits __read_mostly;
+static int ftrace_profile_enabled __read_mostly;
+
+/* ftrace_profile_lock - synchronize the enable and disable of the profiler */
+static DEFINE_MUTEX(ftrace_profile_lock);
+
+static DEFINE_PER_CPU(struct ftrace_profile_stat, ftrace_profile_stats);
+
+#define FTRACE_PROFILE_HASH_SIZE 1024 /* must be power of 2 */
+
+static void *
+function_stat_next(void *v, int idx)
+{
+	struct ftrace_profile *rec = v;
+	struct ftrace_profile_page *pg;
+
+	pg = (struct ftrace_profile_page *)((unsigned long)rec & PAGE_MASK);
+
+ again:
+	rec++;
+	if ((void *)rec >= (void *)&pg->records[pg->index]) {
+		pg = pg->next;
+		if (!pg)
+			return NULL;
+		rec = &pg->records[0];
+		if (!rec->counter)
+			goto again;
+	}
+
+	return rec;
+}
+
+static void *function_stat_start(struct tracer_stat *trace)
+{
+	struct ftrace_profile_stat *stat =
+		container_of(trace, struct ftrace_profile_stat, stat);
+
+	if (!stat || !stat->start)
+		return NULL;
+
+	return function_stat_next(&stat->start->records[0], 0);
+}
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/* function graph compares on total time */
+static int function_stat_cmp(void *p1, void *p2)
+{
+	struct ftrace_profile *a = p1;
+	struct ftrace_profile *b = p2;
+
+	if (a->time < b->time)
+		return -1;
+	if (a->time > b->time)
+		return 1;
+	else
+		return 0;
+}
+#else
+/* not function graph compares against hits */
+static int function_stat_cmp(void *p1, void *p2)
+{
+	struct ftrace_profile *a = p1;
+	struct ftrace_profile *b = p2;
+
+	if (a->counter < b->counter)
+		return -1;
+	if (a->counter > b->counter)
+		return 1;
+	else
+		return 0;
+}
+#endif
+
+static int function_stat_headers(struct seq_file *m)
+{
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	seq_printf(m, "  Function                               "
+		   "Hit    Time            Avg\n"
+		      "  --------                               "
+		   "---    ----            ---\n");
+#else
+	seq_printf(m, "  Function                               Hit\n"
+		      "  --------                               ---\n");
+#endif
+	return 0;
+}
+
+static int function_stat_show(struct seq_file *m, void *v)
+{
+	struct ftrace_profile *rec = v;
+	char str[KSYM_SYMBOL_LEN];
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	static DEFINE_MUTEX(mutex);
+	static struct trace_seq s;
+	unsigned long long avg;
+#endif
+
+	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	seq_printf(m, "  %-30.30s  %10lu", str, rec->counter);
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	seq_printf(m, "    ");
+	avg = rec->time;
+	do_div(avg, rec->counter);
+
+	mutex_lock(&mutex);
+	trace_seq_init(&s);
+	trace_print_graph_duration(rec->time, &s);
+	trace_seq_puts(&s, "    ");
+	trace_print_graph_duration(avg, &s);
+	trace_print_seq(m, &s);
+	mutex_unlock(&mutex);
+#endif
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static void ftrace_profile_reset(struct ftrace_profile_stat *stat)
+{
+	struct ftrace_profile_page *pg;
+
+	pg = stat->pages = stat->start;
+
+	while (pg) {
+		memset(pg->records, 0, PROFILE_RECORDS_SIZE);
+		pg->index = 0;
+		pg = pg->next;
+	}
+
+	memset(stat->hash, 0,
+	       FTRACE_PROFILE_HASH_SIZE * sizeof(struct hlist_head));
+}
+
+int ftrace_profile_pages_init(struct ftrace_profile_stat *stat)
+{
+	struct ftrace_profile_page *pg;
+	int functions;
+	int pages;
+	int i;
+
+	/* If we already allocated, do nothing */
+	if (stat->pages)
+		return 0;
+
+	stat->pages = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!stat->pages)
+		return -ENOMEM;
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+	functions = ftrace_update_tot_cnt;
+#else
+	/*
+	 * We do not know the number of functions that exist because
+	 * dynamic tracing is what counts them. With past experience
+	 * we have around 20K functions. That should be more than enough.
+	 * It is highly unlikely we will execute every function in
+	 * the kernel.
+	 */
+	functions = 20000;
+#endif
+
+	pg = stat->start = stat->pages;
+
+	pages = DIV_ROUND_UP(functions, PROFILES_PER_PAGE);
+
+	for (i = 0; i < pages; i++) {
+		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!pg->next)
+			goto out_free;
+		pg = pg->next;
+	}
+
+	return 0;
+
+ out_free:
+	pg = stat->start;
+	while (pg) {
+		unsigned long tmp = (unsigned long)pg;
+
+		pg = pg->next;
+		free_page(tmp);
+	}
+
+	free_page((unsigned long)stat->pages);
+	stat->pages = NULL;
+	stat->start = NULL;
+
+	return -ENOMEM;
+}
+
+static int ftrace_profile_init_cpu(int cpu)
+{
+	struct ftrace_profile_stat *stat;
+	int size;
+
+	stat = &per_cpu(ftrace_profile_stats, cpu);
+
+	if (stat->hash) {
+		/* If the profile is already created, simply reset it */
+		ftrace_profile_reset(stat);
+		return 0;
+	}
+
+	/*
+	 * We are profiling all functions, but usually only a few thousand
+	 * functions are hit. We'll make a hash of 1024 items.
+	 */
+	size = FTRACE_PROFILE_HASH_SIZE;
+
+	stat->hash = kzalloc(sizeof(struct hlist_head) * size, GFP_KERNEL);
+
+	if (!stat->hash)
+		return -ENOMEM;
+
+	if (!ftrace_profile_bits) {
+		size--;
+
+		for (; size; size >>= 1)
+			ftrace_profile_bits++;
+	}
+
+	/* Preallocate the function profiling pages */
+	if (ftrace_profile_pages_init(stat) < 0) {
+		kfree(stat->hash);
+		stat->hash = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int ftrace_profile_init(void)
+{
+	int cpu;
+	int ret = 0;
+
+	for_each_online_cpu(cpu) {
+		ret = ftrace_profile_init_cpu(cpu);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/* interrupts must be disabled */
+static struct ftrace_profile *
+ftrace_find_profiled_func(struct ftrace_profile_stat *stat, unsigned long ip)
+{
+	struct ftrace_profile *rec;
+	struct hlist_head *hhd;
+	struct hlist_node *n;
+	unsigned long key;
+
+	key = hash_long(ip, ftrace_profile_bits);
+	hhd = &stat->hash[key];
+
+	if (hlist_empty(hhd))
+		return NULL;
+
+	hlist_for_each_entry_rcu(rec, n, hhd, node) {
+		if (rec->ip == ip)
+			return rec;
+	}
+
+	return NULL;
+}
+
+static void ftrace_add_profile(struct ftrace_profile_stat *stat,
+			       struct ftrace_profile *rec)
+{
+	unsigned long key;
+
+	key = hash_long(rec->ip, ftrace_profile_bits);
+	hlist_add_head_rcu(&rec->node, &stat->hash[key]);
+}
+
+/*
+ * The memory is already allocated, this simply finds a new record to use.
+ */
+static struct ftrace_profile *
+ftrace_profile_alloc(struct ftrace_profile_stat *stat, unsigned long ip)
+{
+	struct ftrace_profile *rec = NULL;
+
+	/* prevent recursion (from NMIs) */
+	if (atomic_inc_return(&stat->disabled) != 1)
+		goto out;
+
+	/*
+	 * Try to find the function again since an NMI
+	 * could have added it
+	 */
+	rec = ftrace_find_profiled_func(stat, ip);
+	if (rec)
+		goto out;
+
+	if (stat->pages->index == PROFILES_PER_PAGE) {
+		if (!stat->pages->next)
+			goto out;
+		stat->pages = stat->pages->next;
+	}
+
+	rec = &stat->pages->records[stat->pages->index++];
+	rec->ip = ip;
+	ftrace_add_profile(stat, rec);
+
+ out:
+	atomic_dec(&stat->disabled);
+
+	return rec;
+}
+
+static void
+function_profile_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct ftrace_profile_stat *stat;
+	struct ftrace_profile *rec;
+	unsigned long flags;
+
+	if (!ftrace_profile_enabled)
+		return;
+
+	local_irq_save(flags);
+
+	stat = &__get_cpu_var(ftrace_profile_stats);
+	if (!stat->hash || !ftrace_profile_enabled)
+		goto out;
+
+	rec = ftrace_find_profiled_func(stat, ip);
+	if (!rec) {
+		rec = ftrace_profile_alloc(stat, ip);
+		if (!rec)
+			goto out;
+	}
+
+	rec->counter++;
+ out:
+	local_irq_restore(flags);
+}
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static int profile_graph_entry(struct ftrace_graph_ent *trace)
+{
+	function_profile_call(trace->func, 0);
+	return 1;
+}
+
+static void profile_graph_return(struct ftrace_graph_ret *trace)
+{
+	struct ftrace_profile_stat *stat;
+	unsigned long long calltime;
+	struct ftrace_profile *rec;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	stat = &__get_cpu_var(ftrace_profile_stats);
+	if (!stat->hash || !ftrace_profile_enabled)
+		goto out;
+
+	calltime = trace->rettime - trace->calltime;
+
+	if (!(trace_flags & TRACE_ITER_GRAPH_TIME)) {
+		int index;
+
+		index = trace->depth;
+
+		/* Append this call time to the parent time to subtract */
+		if (index)
+			current->ret_stack[index - 1].subtime += calltime;
+
+		if (current->ret_stack[index].subtime < calltime)
+			calltime -= current->ret_stack[index].subtime;
+		else
+			calltime = 0;
+	}
+
+	rec = ftrace_find_profiled_func(stat, trace->func);
+	if (rec)
+		rec->time += calltime;
+
+ out:
+	local_irq_restore(flags);
+}
+
+static int register_ftrace_profiler(void)
+{
+	return register_ftrace_graph(&profile_graph_return,
+				     &profile_graph_entry);
+}
+
+static void unregister_ftrace_profiler(void)
+{
+	unregister_ftrace_graph();
+}
+#else
+static struct ftrace_ops ftrace_profile_ops __read_mostly =
+{
+	.func		= function_profile_call,
+};
+
+static int register_ftrace_profiler(void)
+{
+	return register_ftrace_function(&ftrace_profile_ops);
+}
+
+static void unregister_ftrace_profiler(void)
+{
+	unregister_ftrace_function(&ftrace_profile_ops);
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+static ssize_t
+ftrace_profile_write(struct file *filp, const char __user *ubuf,
+		     size_t cnt, loff_t *ppos)
+{
+	unsigned long val;
+	char buf[64];		/* big enough to hold a number */
+	int ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	val = !!val;
+
+	mutex_lock(&ftrace_profile_lock);
+	if (ftrace_profile_enabled ^ val) {
+		if (val) {
+			ret = ftrace_profile_init();
+			if (ret < 0) {
+				cnt = ret;
+				goto out;
+			}
+
+			ret = register_ftrace_profiler();
+			if (ret < 0) {
+				cnt = ret;
+				goto out;
+			}
+			ftrace_profile_enabled = 1;
+		} else {
+			ftrace_profile_enabled = 0;
+			/*
+			 * unregister_ftrace_profiler calls stop_machine
+			 * so this acts like an synchronize_sched.
+			 */
+			unregister_ftrace_profiler();
+		}
+	}
+ out:
+	mutex_unlock(&ftrace_profile_lock);
+
+	filp->f_pos += cnt;
+
+	return cnt;
+}
+
+static ssize_t
+ftrace_profile_read(struct file *filp, char __user *ubuf,
+		     size_t cnt, loff_t *ppos)
+{
+	char buf[64];		/* big enough to hold a number */
+	int r;
+
+	r = sprintf(buf, "%u\n", ftrace_profile_enabled);
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+}
+
+static const struct file_operations ftrace_profile_fops = {
+	.open		= tracing_open_generic,
+	.read		= ftrace_profile_read,
+	.write		= ftrace_profile_write,
+};
+
+/* used to initialize the real stat files */
+static struct tracer_stat function_stats __initdata = {
+	.name		= "functions",
+	.stat_start	= function_stat_start,
+	.stat_next	= function_stat_next,
+	.stat_cmp	= function_stat_cmp,
+	.stat_headers	= function_stat_headers,
+	.stat_show	= function_stat_show
+};
+
+static void ftrace_profile_debugfs(struct dentry *d_tracer)
+{
+	struct ftrace_profile_stat *stat;
+	struct dentry *entry;
+	char *name;
+	int ret;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		stat = &per_cpu(ftrace_profile_stats, cpu);
+
+		/* allocate enough for function name + cpu number */
+		name = kmalloc(32, GFP_KERNEL);
+		if (!name) {
+			/*
+			 * The files created are permanent, if something happens
+			 * we still do not free memory.
+			 */
+			kfree(stat);
+			WARN(1,
+			     "Could not allocate stat file for cpu %d\n",
+			     cpu);
+			return;
+		}
+		stat->stat = function_stats;
+		snprintf(name, 32, "function%d", cpu);
+		stat->stat.name = name;
+		ret = register_stat_tracer(&stat->stat);
+		if (ret) {
+			WARN(1,
+			     "Could not register function stat for cpu %d\n",
+			     cpu);
+			kfree(name);
+			return;
+		}
+	}
+
+	entry = debugfs_create_file("function_profile_enabled", 0644,
+				    d_tracer, NULL, &ftrace_profile_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'function_profile_enabled' entry\n");
+}
+
+#else /* CONFIG_FUNCTION_PROFILER */
+static void ftrace_profile_debugfs(struct dentry *d_tracer)
+{
+}
+#endif /* CONFIG_FUNCTION_PROFILER */
+
 /* set when tracing only a pid */
 struct pid *ftrace_pid_trace;
 static struct pid * const ftrace_swapper_pid = &init_struct_pid;
@@ -260,7 +836,6 @@ struct ftrace_func_probe {
 	void			*data;
 	struct rcu_head		rcu;
 };
-
 
 enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
@@ -344,30 +919,6 @@ static void ftrace_free_rec(struct dyn_ftrace *rec)
 	rec->freelist = ftrace_free_records;
 	ftrace_free_records = rec;
 	rec->flags |= FTRACE_FL_FREE;
-}
-
-void ftrace_release(void *start, unsigned long size)
-{
-	struct dyn_ftrace *rec;
-	struct ftrace_page *pg;
-	unsigned long s = (unsigned long)start;
-	unsigned long e = s + size;
-
-	if (ftrace_disabled || !start)
-		return;
-
-	mutex_lock(&ftrace_lock);
-	do_for_each_ftrace_rec(pg, rec) {
-		if ((rec->ip >= s) && (rec->ip < e)) {
-			/*
-			 * rec->ip is changed in ftrace_free_rec()
-			 * It should not between s and e if record was freed.
-			 */
-			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
-			ftrace_free_rec(rec);
-		}
-	} while_for_each_ftrace_rec();
-	mutex_unlock(&ftrace_lock);
 }
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
@@ -1408,7 +1959,7 @@ function_trace_probe_call(unsigned long ip, unsigned long parent_ip)
 
 static struct ftrace_ops trace_probe_ops __read_mostly =
 {
-	.func = function_trace_probe_call,
+	.func		= function_trace_probe_call,
 };
 
 static int ftrace_probe_registered;
@@ -1823,6 +2374,45 @@ void ftrace_set_notrace(unsigned char *buf, int len, int reset)
 	ftrace_set_regex(buf, len, reset, 0);
 }
 
+/*
+ * command line interface to allow users to set filters on boot up.
+ */
+#define FTRACE_FILTER_SIZE		COMMAND_LINE_SIZE
+static char ftrace_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
+static char ftrace_filter_buf[FTRACE_FILTER_SIZE] __initdata;
+
+static int __init set_ftrace_notrace(char *str)
+{
+	strncpy(ftrace_notrace_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_notrace=", set_ftrace_notrace);
+
+static int __init set_ftrace_filter(char *str)
+{
+	strncpy(ftrace_filter_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_filter=", set_ftrace_filter);
+
+static void __init set_ftrace_early_filter(char *buf, int enable)
+{
+	char *func;
+
+	while (buf) {
+		func = strsep(&buf, ",");
+		ftrace_set_regex(func, strlen(func), 0, enable);
+	}
+}
+
+static void __init set_ftrace_early_filters(void)
+{
+	if (ftrace_filter_buf[0])
+		set_ftrace_early_filter(ftrace_filter_buf, 1);
+	if (ftrace_notrace_buf[0])
+		set_ftrace_early_filter(ftrace_notrace_buf, 0);
+}
+
 static int
 ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
@@ -2128,38 +2718,23 @@ static const struct file_operations ftrace_graph_fops = {
 
 static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 {
-	struct dentry *entry;
 
-	entry = debugfs_create_file("available_filter_functions", 0444,
-				    d_tracer, NULL, &ftrace_avail_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'available_filter_functions' entry\n");
+	trace_create_file("available_filter_functions", 0444,
+			d_tracer, NULL, &ftrace_avail_fops);
 
-	entry = debugfs_create_file("failures", 0444,
-				    d_tracer, NULL, &ftrace_failures_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs 'failures' entry\n");
+	trace_create_file("failures", 0444,
+			d_tracer, NULL, &ftrace_failures_fops);
 
-	entry = debugfs_create_file("set_ftrace_filter", 0644, d_tracer,
-				    NULL, &ftrace_filter_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_filter' entry\n");
+	trace_create_file("set_ftrace_filter", 0644, d_tracer,
+			NULL, &ftrace_filter_fops);
 
-	entry = debugfs_create_file("set_ftrace_notrace", 0644, d_tracer,
+	trace_create_file("set_ftrace_notrace", 0644, d_tracer,
 				    NULL, &ftrace_notrace_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_notrace' entry\n");
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	entry = debugfs_create_file("set_graph_function", 0444, d_tracer,
+	trace_create_file("set_graph_function", 0444, d_tracer,
 				    NULL,
 				    &ftrace_graph_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_graph_function' entry\n");
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	return 0;
@@ -2197,13 +2772,71 @@ static int ftrace_convert_nops(struct module *mod,
 	return 0;
 }
 
-void ftrace_init_module(struct module *mod,
-			unsigned long *start, unsigned long *end)
+#ifdef CONFIG_MODULES
+void ftrace_release(void *start, void *end)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+	unsigned long s = (unsigned long)start;
+	unsigned long e = (unsigned long)end;
+
+	if (ftrace_disabled || !start || start == end)
+		return;
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+		if ((rec->ip >= s) && (rec->ip < e)) {
+			/*
+			 * rec->ip is changed in ftrace_free_rec()
+			 * It should not between s and e if record was freed.
+			 */
+			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
+			ftrace_free_rec(rec);
+		}
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
+}
+
+static void ftrace_init_module(struct module *mod,
+			       unsigned long *start, unsigned long *end)
 {
 	if (ftrace_disabled || start == end)
 		return;
 	ftrace_convert_nops(mod, start, end);
 }
+
+static int ftrace_module_notify(struct notifier_block *self,
+				unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		ftrace_init_module(mod, mod->ftrace_callsites,
+				   mod->ftrace_callsites +
+				   mod->num_ftrace_callsites);
+		break;
+	case MODULE_STATE_GOING:
+		ftrace_release(mod->ftrace_callsites,
+			       mod->ftrace_callsites +
+			       mod->num_ftrace_callsites);
+		break;
+	}
+
+	return 0;
+}
+#else
+static int ftrace_module_notify(struct notifier_block *self,
+				unsigned long val, void *data)
+{
+	return 0;
+}
+#endif /* CONFIG_MODULES */
+
+struct notifier_block ftrace_module_nb = {
+	.notifier_call = ftrace_module_notify,
+	.priority = 0,
+};
 
 extern unsigned long __start_mcount_loc[];
 extern unsigned long __stop_mcount_loc[];
@@ -2235,6 +2868,12 @@ void __init ftrace_init(void)
 	ret = ftrace_convert_nops(NULL,
 				  __start_mcount_loc,
 				  __stop_mcount_loc);
+
+	ret = register_module_notifier(&ftrace_module_nb);
+	if (ret)
+		pr_warning("Failed to register trace ftrace module notifier\n");
+
+	set_ftrace_early_filters();
 
 	return;
  failed:
@@ -2417,7 +3056,6 @@ static const struct file_operations ftrace_pid_fops = {
 static __init int ftrace_init_debugfs(void)
 {
 	struct dentry *d_tracer;
-	struct dentry *entry;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
@@ -2425,11 +3063,11 @@ static __init int ftrace_init_debugfs(void)
 
 	ftrace_init_dyn_debugfs(d_tracer);
 
-	entry = debugfs_create_file("set_ftrace_pid", 0644, d_tracer,
-				    NULL, &ftrace_pid_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'set_ftrace_pid' entry\n");
+	trace_create_file("set_ftrace_pid", 0644, d_tracer,
+			    NULL, &ftrace_pid_fops);
+
+	ftrace_profile_debugfs(d_tracer);
+
 	return 0;
 }
 fs_initcall(ftrace_init_debugfs);
@@ -2538,7 +3176,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-static atomic_t ftrace_graph_active;
+static int ftrace_graph_active;
 static struct notifier_block ftrace_suspend_notifier;
 
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
@@ -2580,12 +3218,12 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 
 		if (t->ret_stack == NULL) {
-			t->curr_ret_stack = -1;
-			/* Make sure IRQs see the -1 first: */
-			barrier();
-			t->ret_stack = ret_stack_list[start++];
 			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
+			t->curr_ret_stack = -1;
+			/* Make sure the tasks see the -1 first: */
+			smp_wmb();
+			t->ret_stack = ret_stack_list[start++];
 		}
 	} while_each_thread(g, t);
 
@@ -2643,8 +3281,10 @@ static int start_graph_tracing(void)
 		return -ENOMEM;
 
 	/* The cpu_boot init_task->ret_stack will never be freed */
-	for_each_online_cpu(cpu)
-		ftrace_graph_init_task(idle_task(cpu));
+	for_each_online_cpu(cpu) {
+		if (!idle_task(cpu)->ret_stack)
+			ftrace_graph_init_task(idle_task(cpu));
+	}
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
@@ -2690,7 +3330,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	mutex_lock(&ftrace_lock);
 
 	/* we currently allow only one tracer registered at a time */
-	if (atomic_read(&ftrace_graph_active)) {
+	if (ftrace_graph_active) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -2698,10 +3338,10 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
 	register_pm_notifier(&ftrace_suspend_notifier);
 
-	atomic_inc(&ftrace_graph_active);
+	ftrace_graph_active++;
 	ret = start_graph_tracing();
 	if (ret) {
-		atomic_dec(&ftrace_graph_active);
+		ftrace_graph_active--;
 		goto out;
 	}
 
@@ -2719,10 +3359,10 @@ void unregister_ftrace_graph(void)
 {
 	mutex_lock(&ftrace_lock);
 
-	if (!unlikely(atomic_read(&ftrace_graph_active)))
+	if (unlikely(!ftrace_graph_active))
 		goto out;
 
-	atomic_dec(&ftrace_graph_active);
+	ftrace_graph_active--;
 	unregister_trace_sched_switch(ftrace_graph_probe_sched_switch);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
 	ftrace_graph_entry = ftrace_graph_entry_stub;
@@ -2736,18 +3376,25 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
-	if (atomic_read(&ftrace_graph_active)) {
-		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+	/* Make sure we do not use the parent ret_stack */
+	t->ret_stack = NULL;
+
+	if (ftrace_graph_active) {
+		struct ftrace_ret_stack *ret_stack;
+
+		ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
 				* sizeof(struct ftrace_ret_stack),
 				GFP_KERNEL);
-		if (!t->ret_stack)
+		if (!ret_stack)
 			return;
 		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
 		t->ftrace_timestamp = 0;
-	} else
-		t->ret_stack = NULL;
+		/* make curr_ret_stack visable before we add the ret_stack */
+		smp_wmb();
+		t->ret_stack = ret_stack;
+	}
 }
 
 void ftrace_graph_exit_task(struct task_struct *t)

@@ -167,7 +167,7 @@ int __ipipe_check_root(void)
 void __ipipe_enable_irqdesc(struct ipipe_domain *ipd, unsigned irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	int prio = desc->ic_prio;
+	int prio = __ipipe_get_irq_priority(irq);
 
 	desc->depth = 0;
 	if (ipd != &ipipe_root &&
@@ -178,8 +178,7 @@ EXPORT_SYMBOL(__ipipe_enable_irqdesc);
 
 void __ipipe_disable_irqdesc(struct ipipe_domain *ipd, unsigned irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-	int prio = desc->ic_prio;
+	int prio = __ipipe_get_irq_priority(irq);
 
 	if (ipd != &ipipe_root &&
 	    atomic_dec_and_test(&__ipipe_irq_lvdepth[prio]))
@@ -310,11 +309,15 @@ int ipipe_trigger_irq(unsigned irq)
 
 asmlinkage void __ipipe_sync_root(void)
 {
+	void (*irq_tail_hook)(void) = (void (*)(void))__ipipe_irq_tail_hook;
 	unsigned long flags;
 
 	BUG_ON(irqs_disabled());
 
 	local_irq_save_hw(flags);
+
+	if (irq_tail_hook)
+		irq_tail_hook();
 
 	clear_thread_flag(TIF_IRQ_SYNC);
 

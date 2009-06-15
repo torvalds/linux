@@ -13,8 +13,9 @@ extern void clear_reset_status(unsigned int mask);
 /**
  * init_gpio_reset() - register GPIO as reset generator
  * @gpio: gpio nr
- * @output: set gpio as out/low instead of input during normal work
+ * @output: set gpio as output instead of input during normal work
+ * @level: output level
  */
-extern int init_gpio_reset(int gpio, int output);
+extern int init_gpio_reset(int gpio, int output, int level);
 
 #endif /* __ASM_ARCH_RESET_H */

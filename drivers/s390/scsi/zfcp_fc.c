@@ -116,7 +116,7 @@ static void zfcp_wka_port_put(struct zfcp_wka_port *wka_port)
 {
 	if (atomic_dec_return(&wka_port->refcount) != 0)
 		return;
-	/* wait 10 miliseconds, other reqs might pop in */
+	/* wait 10 milliseconds, other reqs might pop in */
 	schedule_delayed_work(&wka_port->work, HZ / 100);
 }
 
@@ -150,9 +150,14 @@ static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 	struct zfcp_port *port;
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list)
+	list_for_each_entry(port, &fsf_req->adapter->port_list_head, list) {
 		if ((port->d_id & range) == (elem->nport_did & range))
 			zfcp_test_link(port);
+		if (!port->d_id)
+			zfcp_erp_port_reopen(port,
+					     ZFCP_STATUS_COMMON_ERP_FAILED,
+					     "fcrscn1", NULL);
+	}
 
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }

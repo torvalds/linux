@@ -1130,7 +1130,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			 * a one page request is never in violation.
 			 */
 			if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-			    mddev->queue->max_sectors > (PAGE_SIZE>>9))
+			    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
 				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 			p->head_position = 0;
@@ -1996,7 +1996,7 @@ static int run(mddev_t *mddev)
 		 * a one page request is never in violation.
 		 */
 		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
+		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		disk->head_position = 0;

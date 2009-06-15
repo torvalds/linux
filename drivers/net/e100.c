@@ -2921,7 +2921,7 @@ static int e100_resume(struct pci_dev *pdev)
 	/* ack any pending wake events, disable PME */
 	pci_enable_wake(pdev, 0, 0);
 
-	/* disbale reverse auto-negotiation */
+	/* disable reverse auto-negotiation */
 	if (nic->phy == phy_82552_v) {
 		u16 smartspeed = mdio_read(netdev, nic->mii.phy_id,
 		                           E100_82552_SMARTSPEED);

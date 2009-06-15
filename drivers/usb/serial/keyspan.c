@@ -1298,8 +1298,16 @@ static inline void stop_urb(struct urb *urb)
 		usb_kill_urb(urb);
 }
 
-static void keyspan_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void keyspan_dtr_rts(struct usb_serial_port *port, int on)
+{
+	struct keyspan_port_private *p_priv = usb_get_serial_port_data(port);
+
+	p_priv->rts_state = on;
+	p_priv->dtr_state = on;
+	keyspan_send_setup(port, 0);
+}
+
+static void keyspan_close(struct usb_serial_port *port)
 {
 	int			i;
 	struct usb_serial	*serial = port->serial;
@@ -1336,7 +1344,6 @@ static void keyspan_close(struct tty_struct *tty,
 			stop_urb(p_priv->out_urbs[i]);
 		}
 	}
-	tty_port_tty_set(&port->port, NULL);
 }
 
 /* download the firmware to a pre-renumeration device */

@@ -56,7 +56,6 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
-	KMEMTRACE kmemtrace is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
@@ -328,11 +327,6 @@ and is between 256 and 4096 characters. It is defined in the file
 				    they are unmapped. Otherwise they are
 				    flushed before they will be reused, which
 				    is a lot of faster
-
-	amd_iommu_size= [HW,X86-64]
-			Define the size of the aperture for the AMD IOMMU
-			driver. Possible values are:
-			'32M', '64M' (default), '128M', '256M', '512M', '1G'
 
 	amijoy.map=	[HW,JOY] Amiga joystick support
 			Map of devices attached to JOY0DAT and JOY1DAT
@@ -646,6 +640,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			DMA-API debugging code disables itself because the
 			architectural default is too low.
 
+	dma_debug_driver=<driver_name>
+			With this option the DMA-API debugging driver
+			filter feature can be enabled at boot time. Just
+			pass the driver to filter for as the parameter.
+			The filter can be disabled or changed to another
+			driver later using sysfs.
+
 	dscc4.setup=	[NET]
 
 	dtc3181e=	[HW,SCSI]
@@ -752,12 +753,25 @@ and is between 256 and 4096 characters. It is defined in the file
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
 
 	ftrace=[tracer]
-			[ftrace] will set and start the specified tracer
+			[FTRACE] will set and start the specified tracer
 			as early as possible in order to facilitate early
 			boot debugging.
 
 	ftrace_dump_on_oops
-			[ftrace] will dump the trace buffers on oops.
+			[FTRACE] will dump the trace buffers on oops.
+
+	ftrace_filter=[function-list]
+			[FTRACE] Limit the functions traced by the function
+			tracer at boot up. function-list is a comma separated
+			list of functions. This list can be changed at run
+			time by the set_ftrace_filter file in the debugfs
+			tracing directory. 
+
+	ftrace_notrace=[function-list]
+			[FTRACE] Do not trace the functions specified in
+			function-list. This list can be changed at run time
+			by the set_ftrace_notrace file in the debugfs
+			tracing directory.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -873,11 +887,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ide-core.nodma=	[HW] (E)IDE subsystem
 			Format: =0.0 to prevent dma on hda, =0.1 hdb =1.0 hdc
-			.vlb_clock .pci_clock .noflush .noprobe .nowerr .cdrom
-			.chs .ignore_cable are additional options
-			See Documentation/ide/ide.txt.
-
-	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
+			.vlb_clock .pci_clock .noflush .nohpa .noprobe .nowerr
+			.cdrom .chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
@@ -913,6 +924,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	ima_hash=	[IMA]
 			Formt: { "sha1" | "md5" }
 			default: "sha1"
+
+	ima_tcb		[IMA]
+			Load a policy which meets the needs of the Trusted
+			Computing Base.  This means IMA will measure all
+			programs exec'd, files mmap'd for exec, and all files
+			opened for read by uid=0.
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
@@ -1054,23 +1071,18 @@ and is between 256 and 4096 characters. It is defined in the file
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
 
-	kmemtrace.enable=	[KNL,KMEMTRACE] Format: { yes | no }
-				Controls whether kmemtrace is enabled
-				at boot-time.
-
-	kmemtrace.subbufs=n	[KNL,KMEMTRACE] Overrides the number of
-			subbufs kmemtrace's relay channel has. Set this
-			higher than default (KMEMTRACE_N_SUBBUFS in code) if
-			you experience buffer overruns.
-
 	kgdboc=		[HW] kgdb over consoles.
 			Requires a tty driver that supports console polling.
-			(only serial suported for now)
+			(only serial supported for now)
 			Format: <serial_device>[,baud]
 
 	kmac=		[MIPS] korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
 			Ethernet adapter MAC address.
+
+	kmemleak=	[KNL] Boot-time kmemleak enable/disable
+			Valid arguments: on, off
+			Default: on
 
 	kstack=N	[X86] Print N words from the kernel stack
 			in oops dumps.
@@ -1390,7 +1402,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			('y', default) or cooked coordinates ('n')
 
 	mtrr_chunk_size=nn[KMG] [X86]
-			used for mtrr cleanup. It is largest continous chunk
+			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
 
 	mtrr_gran_size=nn[KMG] [X86]
@@ -1535,6 +1547,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
+	noxsave		[BUGS=X86] Disables x86 extended register state save
+			and restore using xsave. The kernel will fallback to
+			enabling legacy floating-point and sse state.
+
 	nohlt		[BUGS=ARM,SH] Tells the kernel that the sleep(SH) or
 			wfi(ARM) instruction doesn't work correctly and not to
 			use it. This is also useful when using JTAG debugger.
@@ -1570,6 +1586,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	noinitrd	[RAM] Tells the kernel not to load any configured
 			initial RAM disk.
+
+	nointremap	[X86-64, Intel-IOMMU] Do not enable interrupt
+			remapping.
 
 	nointroute	[IA-64]
 
@@ -1655,6 +1674,14 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	oprofile.timer=	[HW]
 			Use timer interrupt instead of performance counters
+
+	oprofile.cpu_type=	Force an oprofile cpu type
+			This might be useful if you have an older oprofile
+			userland or if you want common events.
+			Format: { archperfmon }
+			archperfmon: [X86] Force use of architectural
+				perfmon on Intel CPUs instead of the
+				CPU specific event set.
 
 	osst=		[HW,SCSI] SCSI Tape Driver
 			Format: <buffer_size>,<write_threshold>

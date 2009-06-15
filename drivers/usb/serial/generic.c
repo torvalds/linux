@@ -184,8 +184,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_resume);
 
-void usb_serial_generic_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+void usb_serial_generic_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 	generic_cleanup(port);

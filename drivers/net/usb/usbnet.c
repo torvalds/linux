@@ -429,7 +429,7 @@ static void rx_complete (struct urb *urb)
 
 	/* stalls need manual reset. this is rare ... except that
 	 * when going through USB 2.0 TTs, unplug appears this way.
-	 * we avoid the highspeed version of the ETIMEOUT/EILSEQ
+	 * we avoid the highspeed version of the ETIMEDOUT/EILSEQ
 	 * storm, recovering as needed.
 	 */
 	case -EPIPE:

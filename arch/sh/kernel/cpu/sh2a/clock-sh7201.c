@@ -34,37 +34,37 @@ static const int pfc_divisors[]={1,2,3,4,6,8,12};
 
 static void master_clk_init(struct clk *clk)
 {
-	clk->rate = 10000000 * PLL2 * pll1rate[(ctrl_inw(FREQCR) >> 8) & 0x0007];
+	return 10000000 * PLL2 * pll1rate[(ctrl_inw(FREQCR) >> 8) & 0x0007];
 }
 
 static struct clk_ops sh7201_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(FREQCR) & 0x0007);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops sh7201_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(FREQCR) & 0x0007);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops sh7201_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inw(FREQCR) >> 4) & 0x0007);
-	clk->rate = clk->parent->rate / ifc_divisors[idx];
+	return clk->parent->rate / ifc_divisors[idx];
 }
 
 static struct clk_ops sh7201_cpu_clk_ops = {

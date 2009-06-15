@@ -72,6 +72,7 @@ void init_clocks(void)
 #endif
 	bfin_write_PLL_LOCKCNT(0x300);
 	do_sync();
+	/* We always write PLL_CTL thus avoiding Anomaly 05000242 */
 	bfin_write16(PLL_CTL, PLL_CTL_VAL);
 	__asm__ __volatile__("IDLE;");
 	bfin_write_PLL_DIV(CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);

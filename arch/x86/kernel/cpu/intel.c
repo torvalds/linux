@@ -229,12 +229,12 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 }
 #endif
 
-static void __cpuinit srat_detect_node(void)
+static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 {
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
 	unsigned node;
 	int cpu = smp_processor_id();
-	int apicid = hard_smp_processor_id();
+	int apicid = cpu_has_apic ? hard_smp_processor_id() : c->apicid;
 
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
@@ -400,7 +400,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	}
 
 	/* Work around errata */
-	srat_detect_node();
+	srat_detect_node(c);
 
 	if (cpu_has(c, X86_FEATURE_VMX))
 		detect_vmx_virtcap(c);

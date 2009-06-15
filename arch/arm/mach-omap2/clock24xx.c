@@ -103,10 +103,10 @@ static struct omap_clk omap24xx_clks[] = {
 	CLK(NULL,	"mdm_ick",	&mdm_ick,	CK_243X),
 	CLK(NULL,	"mdm_osc_ck",	&mdm_osc_ck,	CK_243X),
 	/* DSS domain clocks */
-	CLK(NULL,	"dss_ick",	&dss_ick,	CK_243X | CK_242X),
-	CLK(NULL,	"dss1_fck",	&dss1_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"dss2_fck",	&dss2_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"dss_54m_fck",	&dss_54m_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"ick",		&dss_ick,	CK_243X | CK_242X),
+	CLK("omapfb",	"dss1_fck",	&dss1_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"dss2_fck",	&dss2_fck,	CK_243X | CK_242X),
+	CLK("omapfb",	"tv_fck",	&dss_54m_fck,	CK_243X | CK_242X),
 	/* L3 domain clocks */
 	CLK(NULL,	"core_l3_ck",	&core_l3_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"ssi_fck",	&ssi_ssr_sst_fck, CK_243X | CK_242X),
@@ -206,7 +206,7 @@ static struct omap_clk omap24xx_clks[] = {
 	CLK(NULL,	"aes_ick",	&aes_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_243X | CK_242X),
-	CLK(NULL,	"usbhs_ick",	&usbhs_ick,	CK_243X),
+	CLK("musb_hdrc",	"ick",	&usbhs_ick,	CK_243X),
 	CLK("mmci-omap-hs.0", "ick",	&mmchs1_ick,	CK_243X),
 	CLK("mmci-omap-hs.0", "fck",	&mmchs1_fck,	CK_243X),
 	CLK("mmci-omap-hs.1", "ick",	&mmchs2_ick,	CK_243X),
@@ -232,6 +232,8 @@ static struct omap_clk omap24xx_clks[] = {
 static struct prcm_config *curr_prcm_set;
 static struct clk *vclk;
 static struct clk *sclk;
+
+static void __iomem *prcm_clksrc_ctrl;
 
 /*-------------------------------------------------------------------------
  * Omap24xx specific clock functions
@@ -269,10 +271,9 @@ static int omap2_enable_osc_ck(struct clk *clk)
 {
 	u32 pcc;
 
-	pcc = __raw_readl(OMAP24XX_PRCM_CLKSRC_CTRL);
+	pcc = __raw_readl(prcm_clksrc_ctrl);
 
-	__raw_writel(pcc & ~OMAP_AUTOEXTCLKMODE_MASK,
-		      OMAP24XX_PRCM_CLKSRC_CTRL);
+	__raw_writel(pcc & ~OMAP_AUTOEXTCLKMODE_MASK, prcm_clksrc_ctrl);
 
 	return 0;
 }
@@ -281,10 +282,9 @@ static void omap2_disable_osc_ck(struct clk *clk)
 {
 	u32 pcc;
 
-	pcc = __raw_readl(OMAP24XX_PRCM_CLKSRC_CTRL);
+	pcc = __raw_readl(prcm_clksrc_ctrl);
 
-	__raw_writel(pcc | OMAP_AUTOEXTCLKMODE_MASK,
-		      OMAP24XX_PRCM_CLKSRC_CTRL);
+	__raw_writel(pcc | OMAP_AUTOEXTCLKMODE_MASK, prcm_clksrc_ctrl);
 }
 
 static const struct clkops clkops_oscck = {
@@ -654,7 +654,7 @@ static u32 omap2_get_sysclkdiv(void)
 {
 	u32 div;
 
-	div = __raw_readl(OMAP24XX_PRCM_CLKSRC_CTRL);
+	div = __raw_readl(prcm_clksrc_ctrl);
 	div &= OMAP_SYSCLKDIV_MASK;
 	div >>= OMAP_SYSCLKDIV_SHIFT;
 
@@ -714,15 +714,18 @@ int __init omap2_clk_init(void)
 	struct omap_clk *c;
 	u32 clkrate;
 
-	if (cpu_is_omap242x())
+	if (cpu_is_omap242x()) {
+		prcm_clksrc_ctrl = OMAP2420_PRCM_CLKSRC_CTRL;
 		cpu_mask = RATE_IN_242X;
-	else if (cpu_is_omap2430())
+	} else if (cpu_is_omap2430()) {
+		prcm_clksrc_ctrl = OMAP2430_PRCM_CLKSRC_CTRL;
 		cpu_mask = RATE_IN_243X;
+	}
 
 	clk_init(&omap2_clk_functions);
 
 	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
-		clk_init_one(c->lk.clk);
+		clk_preinit(c->lk.clk);
 
 	osc_ck.rate = omap2_osc_clk_recalc(&osc_ck);
 	propagate_rate(&osc_ck);

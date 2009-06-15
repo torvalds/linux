@@ -24,8 +24,8 @@
 #include <net/genetlink.h>
 #include <net/netevent.h>
 
-#include <trace/skb.h>
-#include <trace/napi.h>
+#include <trace/events/skb.h>
+#include <trace/events/napi.h>
 
 #include <asm/unaligned.h>
 

@@ -66,7 +66,7 @@ static inline unsigned int get_nmi_count(int cpu)
 
 static inline int mce_in_progress(void)
 {
-#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
+#if defined(CONFIG_X86_NEW_MCE)
 	return atomic_read(&mce_entry) > 0;
 #endif
 	return 0;
@@ -104,7 +104,7 @@ static __init void nmi_cpu_busy(void *data)
 }
 #endif
 
-static void report_broken_nmi(int cpu, int *prev_nmi_count)
+static void report_broken_nmi(int cpu, unsigned int *prev_nmi_count)
 {
 	printk(KERN_CONT "\n");
 

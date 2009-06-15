@@ -116,8 +116,7 @@ EXPORT_SYMBOL(dma_free_coherent);
 dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 			  enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-                BUG();
+	BUG_ON(direction == DMA_NONE);
 
 	frv_cache_wback_inv((unsigned long) ptr, (unsigned long) ptr + size);
 
@@ -151,8 +150,7 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		frv_cache_wback_inv(sg_dma_address(&sg[i]),
 				    sg_dma_address(&sg[i]) + sg_dma_len(&sg[i]));
 
-	if (direction == DMA_NONE)
-                BUG();
+	BUG_ON(direction == DMA_NONE);
 
 	return nents;
 }

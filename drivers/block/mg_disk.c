@@ -17,71 +17,220 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
-#include <linux/libata.h>
+#include <linux/ata.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/mg_disk.h>
 
 #define MG_RES_SEC (CONFIG_MG_DISK_RES << 1)
 
+/* name for block device */
+#define MG_DISK_NAME "mgd"
+/* name for platform device */
+#define MG_DEV_NAME "mg_disk"
+
+#define MG_DISK_MAJ 0
+#define MG_DISK_MAX_PART 16
+#define MG_SECTOR_SIZE 512
+#define MG_MAX_SECTS 256
+
+/* Register offsets */
+#define MG_BUFF_OFFSET			0x8000
+#define MG_STORAGE_BUFFER_SIZE		0x200
+#define MG_REG_OFFSET			0xC000
+#define MG_REG_FEATURE			(MG_REG_OFFSET + 2)	/* write case */
+#define MG_REG_ERROR			(MG_REG_OFFSET + 2)	/* read case */
+#define MG_REG_SECT_CNT			(MG_REG_OFFSET + 4)
+#define MG_REG_SECT_NUM			(MG_REG_OFFSET + 6)
+#define MG_REG_CYL_LOW			(MG_REG_OFFSET + 8)
+#define MG_REG_CYL_HIGH			(MG_REG_OFFSET + 0xA)
+#define MG_REG_DRV_HEAD			(MG_REG_OFFSET + 0xC)
+#define MG_REG_COMMAND			(MG_REG_OFFSET + 0xE)	/* write case */
+#define MG_REG_STATUS			(MG_REG_OFFSET + 0xE)	/* read  case */
+#define MG_REG_DRV_CTRL			(MG_REG_OFFSET + 0x10)
+#define MG_REG_BURST_CTRL		(MG_REG_OFFSET + 0x12)
+
+/* handy status */
+#define MG_STAT_READY	(ATA_DRDY | ATA_DSC)
+#define MG_READY_OK(s)	(((s) & (MG_STAT_READY | (ATA_BUSY | ATA_DF | \
+				 ATA_ERR))) == MG_STAT_READY)
+
+/* error code for others */
+#define MG_ERR_NONE		0
+#define MG_ERR_TIMEOUT		0x100
+#define MG_ERR_INIT_STAT	0x101
+#define MG_ERR_TRANSLATION	0x102
+#define MG_ERR_CTRL_RST		0x103
+#define MG_ERR_INV_STAT		0x104
+#define MG_ERR_RSTOUT		0x105
+
+#define MG_MAX_ERRORS	6	/* Max read/write errors */
+
+/* command */
+#define MG_CMD_RD 0x20
+#define MG_CMD_WR 0x30
+#define MG_CMD_SLEEP 0x99
+#define MG_CMD_WAKEUP 0xC3
+#define MG_CMD_ID 0xEC
+#define MG_CMD_WR_CONF 0x3C
+#define MG_CMD_RD_CONF 0x40
+
+/* operation mode */
+#define MG_OP_CASCADE (1 << 0)
+#define MG_OP_CASCADE_SYNC_RD (1 << 1)
+#define MG_OP_CASCADE_SYNC_WR (1 << 2)
+#define MG_OP_INTERLEAVE (1 << 3)
+
+/* synchronous */
+#define MG_BURST_LAT_4 (3 << 4)
+#define MG_BURST_LAT_5 (4 << 4)
+#define MG_BURST_LAT_6 (5 << 4)
+#define MG_BURST_LAT_7 (6 << 4)
+#define MG_BURST_LAT_8 (7 << 4)
+#define MG_BURST_LEN_4 (1 << 1)
+#define MG_BURST_LEN_8 (2 << 1)
+#define MG_BURST_LEN_16 (3 << 1)
+#define MG_BURST_LEN_32 (4 << 1)
+#define MG_BURST_LEN_CONT (0 << 1)
+
+/* timeout value (unit: ms) */
+#define MG_TMAX_CONF_TO_CMD	1
+#define MG_TMAX_WAIT_RD_DRQ	10
+#define MG_TMAX_WAIT_WR_DRQ	500
+#define MG_TMAX_RST_TO_BUSY	10
+#define MG_TMAX_HDRST_TO_RDY	500
+#define MG_TMAX_SWRST_TO_RDY	500
+#define MG_TMAX_RSTOUT		3000
+
+/* device attribution */
+/* use mflash as boot device */
+#define MG_BOOT_DEV		(1 << 0)
+/* use mflash as storage device */
+#define MG_STORAGE_DEV		(1 << 1)
+/* same as MG_STORAGE_DEV, but bootloader already done reset sequence */
+#define MG_STORAGE_DEV_SKIP_RST	(1 << 2)
+
+#define MG_DEV_MASK (MG_BOOT_DEV | MG_STORAGE_DEV | MG_STORAGE_DEV_SKIP_RST)
+
+/* names of GPIO resource */
+#define MG_RST_PIN	"mg_rst"
+/* except MG_BOOT_DEV, reset-out pin should be assigned */
+#define MG_RSTOUT_PIN	"mg_rstout"
+
+/* private driver data */
+struct mg_drv_data {
+	/* disk resource */
+	u32 use_polling;
+
+	/* device attribution */
+	u32 dev_attr;
+
+	/* internally used */
+	struct mg_host *host;
+};
+
+/* main structure for mflash driver */
+struct mg_host {
+	struct device *dev;
+
+	struct request_queue *breq;
+	struct request *req;
+	spinlock_t lock;
+	struct gendisk *gd;
+
+	struct timer_list timer;
+	void (*mg_do_intr) (struct mg_host *);
+
+	u16 id[ATA_ID_WORDS];
+
+	u16 cyls;
+	u16 heads;
+	u16 sectors;
+	u32 n_sectors;
+	u32 nres_sectors;
+
+	void __iomem *dev_base;
+	unsigned int irq;
+	unsigned int rst;
+	unsigned int rstout;
+
+	u32 major;
+	u32 error;
+};
+
+/*
+ * Debugging macro and defines
+ */
+#undef DO_MG_DEBUG
+#ifdef DO_MG_DEBUG
+#  define MG_DBG(fmt, args...) \
+	printk(KERN_DEBUG "%s:%d "fmt, __func__, __LINE__, ##args)
+#else /* CONFIG_MG_DEBUG */
+#  define MG_DBG(fmt, args...) do { } while (0)
+#endif /* CONFIG_MG_DEBUG */
+
 static void mg_request(struct request_queue *);
+
+static bool mg_end_request(struct mg_host *host, int err, unsigned int nr_bytes)
+{
+	if (__blk_end_request(host->req, err, nr_bytes))
+		return true;
+
+	host->req = NULL;
+	return false;
+}
+
+static bool mg_end_request_cur(struct mg_host *host, int err)
+{
+	return mg_end_request(host, err, blk_rq_cur_bytes(host->req));
+}
 
 static void mg_dump_status(const char *msg, unsigned int stat,
 		struct mg_host *host)
 {
 	char *name = MG_DISK_NAME;
-	struct request *req;
 
-	if (host->breq) {
-		req = elv_next_request(host->breq);
-		if (req)
-			name = req->rq_disk->disk_name;
-	}
+	if (host->req)
+		name = host->req->rq_disk->disk_name;
 
 	printk(KERN_ERR "%s: %s: status=0x%02x { ", name, msg, stat & 0xff);
-	if (stat & MG_REG_STATUS_BIT_BUSY)
+	if (stat & ATA_BUSY)
 		printk("Busy ");
-	if (stat & MG_REG_STATUS_BIT_READY)
+	if (stat & ATA_DRDY)
 		printk("DriveReady ");
-	if (stat & MG_REG_STATUS_BIT_WRITE_FAULT)
+	if (stat & ATA_DF)
 		printk("WriteFault ");
-	if (stat & MG_REG_STATUS_BIT_SEEK_DONE)
+	if (stat & ATA_DSC)
 		printk("SeekComplete ");
-	if (stat & MG_REG_STATUS_BIT_DATA_REQ)
+	if (stat & ATA_DRQ)
 		printk("DataRequest ");
-	if (stat & MG_REG_STATUS_BIT_CORRECTED_ERROR)
+	if (stat & ATA_CORR)
 		printk("CorrectedError ");
-	if (stat & MG_REG_STATUS_BIT_ERROR)
+	if (stat & ATA_ERR)
 		printk("Error ");
 	printk("}\n");
-	if ((stat & MG_REG_STATUS_BIT_ERROR) == 0) {
+	if ((stat & ATA_ERR) == 0) {
 		host->error = 0;
 	} else {
 		host->error = inb((unsigned long)host->dev_base + MG_REG_ERROR);
 		printk(KERN_ERR "%s: %s: error=0x%02x { ", name, msg,
 				host->error & 0xff);
-		if (host->error & MG_REG_ERR_BBK)
+		if (host->error & ATA_BBK)
 			printk("BadSector ");
-		if (host->error & MG_REG_ERR_UNC)
+		if (host->error & ATA_UNC)
 			printk("UncorrectableError ");
-		if (host->error & MG_REG_ERR_IDNF)
+		if (host->error & ATA_IDNF)
 			printk("SectorIdNotFound ");
-		if (host->error & MG_REG_ERR_ABRT)
+		if (host->error & ATA_ABORTED)
 			printk("DriveStatusError ");
-		if (host->error & MG_REG_ERR_AMNF)
+		if (host->error & ATA_AMNF)
 			printk("AddrMarkNotFound ");
 		printk("}");
-		if (host->error &
-				(MG_REG_ERR_BBK | MG_REG_ERR_UNC |
-				 MG_REG_ERR_IDNF | MG_REG_ERR_AMNF)) {
-			if (host->breq) {
-				req = elv_next_request(host->breq);
-				if (req)
-					printk(", sector=%u", (u32)req->sector);
-			}
-
+		if (host->error & (ATA_BBK | ATA_UNC | ATA_IDNF | ATA_AMNF)) {
+			if (host->req)
+				printk(", sector=%u",
+				       (unsigned int)blk_rq_pos(host->req));
 		}
 		printk("\n");
 	}
@@ -100,12 +249,12 @@ static unsigned int mg_wait(struct mg_host *host, u32 expect, u32 msec)
 
 	do {
 		cur_jiffies = jiffies;
-		if (status & MG_REG_STATUS_BIT_BUSY) {
-			if (expect == MG_REG_STATUS_BIT_BUSY)
+		if (status & ATA_BUSY) {
+			if (expect == ATA_BUSY)
 				break;
 		} else {
 			/* Check the error condition! */
-			if (status & MG_REG_STATUS_BIT_ERROR) {
+			if (status & ATA_ERR) {
 				mg_dump_status("mg_wait", status, host);
 				break;
 			}
@@ -114,8 +263,8 @@ static unsigned int mg_wait(struct mg_host *host, u32 expect, u32 msec)
 				if (MG_READY_OK(status))
 					break;
 
-			if (expect == MG_REG_STATUS_BIT_DATA_REQ)
-				if (status & MG_REG_STATUS_BIT_DATA_REQ)
+			if (expect == ATA_DRQ)
+				if (status & ATA_DRQ)
 					break;
 		}
 		if (!msec) {
@@ -173,6 +322,42 @@ static irqreturn_t mg_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* local copy of ata_id_string() */
+static void mg_id_string(const u16 *id, unsigned char *s,
+			 unsigned int ofs, unsigned int len)
+{
+	unsigned int c;
+
+	BUG_ON(len & 1);
+
+	while (len > 0) {
+		c = id[ofs] >> 8;
+		*s = c;
+		s++;
+
+		c = id[ofs] & 0xff;
+		*s = c;
+		s++;
+
+		ofs++;
+		len -= 2;
+	}
+}
+
+/* local copy of ata_id_c_string() */
+static void mg_id_c_string(const u16 *id, unsigned char *s,
+			   unsigned int ofs, unsigned int len)
+{
+	unsigned char *p;
+
+	mg_id_string(id, s, ofs, len - 1);
+
+	p = s + strnlen(s, len - 1);
+	while (p > s && p[-1] == ' ')
+		p--;
+	*p = '\0';
+}
+
 static int mg_get_disk_id(struct mg_host *host)
 {
 	u32 i;
@@ -184,12 +369,10 @@ static int mg_get_disk_id(struct mg_host *host)
 	char serial[ATA_ID_SERNO_LEN + 1];
 
 	if (!prv_data->use_polling)
-		outb(MG_REG_CTRL_INTR_DISABLE,
-				(unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		outb(ATA_NIEN, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 
 	outb(MG_CMD_ID, (unsigned long)host->dev_base + MG_REG_COMMAND);
-	err = mg_wait(host, MG_REG_STATUS_BIT_DATA_REQ, MG_TMAX_WAIT_RD_DRQ);
+	err = mg_wait(host, ATA_DRQ, MG_TMAX_WAIT_RD_DRQ);
 	if (err)
 		return err;
 
@@ -219,9 +402,9 @@ static int mg_get_disk_id(struct mg_host *host)
 		host->n_sectors -= host->nres_sectors;
 	}
 
-	ata_id_c_string(id, fwrev, ATA_ID_FW_REV, sizeof(fwrev));
-	ata_id_c_string(id, model, ATA_ID_PROD, sizeof(model));
-	ata_id_c_string(id, serial, ATA_ID_SERNO, sizeof(serial));
+	mg_id_c_string(id, fwrev, ATA_ID_FW_REV, sizeof(fwrev));
+	mg_id_c_string(id, model, ATA_ID_PROD, sizeof(model));
+	mg_id_c_string(id, serial, ATA_ID_SERNO, sizeof(serial));
 	printk(KERN_INFO "mg_disk: model: %s\n", model);
 	printk(KERN_INFO "mg_disk: firm: %.8s\n", fwrev);
 	printk(KERN_INFO "mg_disk: serial: %s\n", serial);
@@ -229,8 +412,7 @@ static int mg_get_disk_id(struct mg_host *host)
 			host->n_sectors, host->nres_sectors);
 
 	if (!prv_data->use_polling)
-		outb(MG_REG_CTRL_INTR_ENABLE, (unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		outb(0, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 
 	return err;
 }
@@ -244,7 +426,7 @@ static int mg_disk_init(struct mg_host *host)
 
 	/* hdd rst low */
 	gpio_set_value(host->rst, 0);
-	err = mg_wait(host, MG_REG_STATUS_BIT_BUSY, MG_TMAX_RST_TO_BUSY);
+	err = mg_wait(host, ATA_BUSY, MG_TMAX_RST_TO_BUSY);
 	if (err)
 		return err;
 
@@ -255,17 +437,14 @@ static int mg_disk_init(struct mg_host *host)
 		return err;
 
 	/* soft reset on */
-	outb(MG_REG_CTRL_RESET |
-			(prv_data->use_polling ? MG_REG_CTRL_INTR_DISABLE :
-			 MG_REG_CTRL_INTR_ENABLE),
+	outb(ATA_SRST | (prv_data->use_polling ? ATA_NIEN : 0),
 			(unsigned long)host->dev_base + MG_REG_DRV_CTRL);
-	err = mg_wait(host, MG_REG_STATUS_BIT_BUSY, MG_TMAX_RST_TO_BUSY);
+	err = mg_wait(host, ATA_BUSY, MG_TMAX_RST_TO_BUSY);
 	if (err)
 		return err;
 
 	/* soft reset off */
-	outb(prv_data->use_polling ? MG_REG_CTRL_INTR_DISABLE :
-			MG_REG_CTRL_INTR_ENABLE,
+	outb(prv_data->use_polling ? ATA_NIEN : 0,
 			(unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 	err = mg_wait(host, MG_STAT_READY, MG_TMAX_SWRST_TO_RDY);
 	if (err)
@@ -281,11 +460,10 @@ static int mg_disk_init(struct mg_host *host)
 
 static void mg_bad_rw_intr(struct mg_host *host)
 {
-	struct request *req = elv_next_request(host->breq);
-	if (req != NULL)
-		if (++req->errors >= MG_MAX_ERRORS ||
-				host->error == MG_ERR_TIMEOUT)
-			end_request(req, 0);
+	if (host->req)
+		if (++host->req->errors >= MG_MAX_ERRORS ||
+		    host->error == MG_ERR_TIMEOUT)
+			mg_end_request_cur(host, -EIO);
 }
 
 static unsigned int mg_out(struct mg_host *host,
@@ -311,7 +489,7 @@ static unsigned int mg_out(struct mg_host *host,
 			MG_REG_CYL_LOW);
 	outb((u8)(sect_num >> 16), (unsigned long)host->dev_base +
 			MG_REG_CYL_HIGH);
-	outb((u8)((sect_num >> 24) | MG_REG_HEAD_LBA_MODE),
+	outb((u8)((sect_num >> 24) | ATA_LBA | ATA_DEVICE_OBS),
 			(unsigned long)host->dev_base + MG_REG_DRV_HEAD);
 	outb(cmd, (unsigned long)host->dev_base + MG_REG_COMMAND);
 	return MG_ERR_NONE;
@@ -319,105 +497,77 @@ static unsigned int mg_out(struct mg_host *host,
 
 static void mg_read(struct request *req)
 {
-	u32 remains, j;
+	u32 j;
 	struct mg_host *host = req->rq_disk->private_data;
 
-	remains = req->nr_sectors;
-
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_RD, NULL) !=
-			MG_ERR_NONE)
+	if (mg_out(host, blk_rq_pos(req), blk_rq_sectors(req),
+		   MG_CMD_RD, NULL) != MG_ERR_NONE)
 		mg_bad_rw_intr(host);
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-			remains, req->sector, req->buffer);
+	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
 
-	while (remains) {
-		if (mg_wait(host, MG_REG_STATUS_BIT_DATA_REQ,
-					MG_TMAX_WAIT_RD_DRQ) != MG_ERR_NONE) {
+	do {
+		u16 *buff = (u16 *)req->buffer;
+
+		if (mg_wait(host, ATA_DRQ,
+			    MG_TMAX_WAIT_RD_DRQ) != MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return;
 		}
-		for (j = 0; j < MG_SECTOR_SIZE >> 1; j++) {
-			*(u16 *)req->buffer =
-				inw((unsigned long)host->dev_base +
-						MG_BUFF_OFFSET + (j << 1));
-			req->buffer += 2;
-		}
-
-		req->sector++;
-		req->errors = 0;
-		remains = --req->nr_sectors;
-		--req->current_nr_sectors;
-
-		if (req->current_nr_sectors <= 0) {
-			MG_DBG("remain : %d sects\n", remains);
-			end_request(req, 1);
-			if (remains > 0)
-				req = elv_next_request(host->breq);
-		}
+		for (j = 0; j < MG_SECTOR_SIZE >> 1; j++)
+			*buff++ = inw((unsigned long)host->dev_base +
+				      MG_BUFF_OFFSET + (j << 1));
 
 		outb(MG_CMD_RD_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
-	}
+	} while (mg_end_request(host, 0, MG_SECTOR_SIZE));
 }
 
 static void mg_write(struct request *req)
 {
-	u32 remains, j;
+	u32 j;
 	struct mg_host *host = req->rq_disk->private_data;
 
-	remains = req->nr_sectors;
-
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_WR, NULL) !=
-			MG_ERR_NONE) {
+	if (mg_out(host, blk_rq_pos(req), blk_rq_sectors(req),
+		   MG_CMD_WR, NULL) != MG_ERR_NONE) {
 		mg_bad_rw_intr(host);
 		return;
 	}
 
-
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-			remains, req->sector, req->buffer);
-	while (remains) {
-		if (mg_wait(host, MG_REG_STATUS_BIT_DATA_REQ,
-					MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
+	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
+
+	do {
+		u16 *buff = (u16 *)req->buffer;
+
+	if (mg_wait(host, ATA_DRQ, MG_TMAX_WAIT_WR_DRQ) != MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return;
 		}
-		for (j = 0; j < MG_SECTOR_SIZE >> 1; j++) {
-			outw(*(u16 *)req->buffer,
-					(unsigned long)host->dev_base +
-					MG_BUFF_OFFSET + (j << 1));
-			req->buffer += 2;
-		}
-		req->sector++;
-		remains = --req->nr_sectors;
-		--req->current_nr_sectors;
-
-		if (req->current_nr_sectors <= 0) {
-			MG_DBG("remain : %d sects\n", remains);
-			end_request(req, 1);
-			if (remains > 0)
-				req = elv_next_request(host->breq);
-		}
+		for (j = 0; j < MG_SECTOR_SIZE >> 1; j++)
+			outw(*buff++, (unsigned long)host->dev_base +
+				      MG_BUFF_OFFSET + (j << 1));
 
 		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
-	}
+	} while (mg_end_request(host, 0, MG_SECTOR_SIZE));
 }
 
 static void mg_read_intr(struct mg_host *host)
 {
+	struct request *req = host->req;
 	u32 i;
-	struct request *req;
+	u16 *buff;
 
 	/* check status */
 	do {
 		i = inb((unsigned long)host->dev_base + MG_REG_STATUS);
-		if (i & MG_REG_STATUS_BIT_BUSY)
+		if (i & ATA_BUSY)
 			break;
 		if (!MG_READY_OK(i))
 			break;
-		if (i & MG_REG_STATUS_BIT_DATA_REQ)
+		if (i & ATA_DRQ)
 			goto ok_to_read;
 	} while (0);
 	mg_dump_status("mg_read_intr", i, host);
@@ -427,60 +577,42 @@ static void mg_read_intr(struct mg_host *host)
 
 ok_to_read:
 	/* get current segment of request */
-	req = elv_next_request(host->breq);
+	buff = (u16 *)req->buffer;
 
 	/* read 1 sector */
-	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++) {
-		*(u16 *)req->buffer =
-			inw((unsigned long)host->dev_base + MG_BUFF_OFFSET +
-					(i << 1));
-		req->buffer += 2;
-	}
+	for (i = 0; i < MG_SECTOR_SIZE >> 1; i++)
+		*buff++ = inw((unsigned long)host->dev_base + MG_BUFF_OFFSET +
+			      (i << 1));
 
-	/* manipulate request */
 	MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-			req->sector, req->nr_sectors - 1, req->buffer);
-
-	req->sector++;
-	req->errors = 0;
-	i = --req->nr_sectors;
-	--req->current_nr_sectors;
-
-	/* let know if current segment done */
-	if (req->current_nr_sectors <= 0)
-		end_request(req, 1);
-
-	/* set handler if read remains */
-	if (i > 0) {
-		host->mg_do_intr = mg_read_intr;
-		mod_timer(&host->timer, jiffies + 3 * HZ);
-	}
+	       blk_rq_pos(req), blk_rq_sectors(req) - 1, req->buffer);
 
 	/* send read confirm */
 	outb(MG_CMD_RD_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
 
-	/* goto next request */
-	if (!i)
+	if (mg_end_request(host, 0, MG_SECTOR_SIZE)) {
+		/* set handler if read remains */
+		host->mg_do_intr = mg_read_intr;
+		mod_timer(&host->timer, jiffies + 3 * HZ);
+	} else /* goto next request */
 		mg_request(host->breq);
 }
 
 static void mg_write_intr(struct mg_host *host)
 {
+	struct request *req = host->req;
 	u32 i, j;
 	u16 *buff;
-	struct request *req;
-
-	/* get current segment of request */
-	req = elv_next_request(host->breq);
+	bool rem;
 
 	/* check status */
 	do {
 		i = inb((unsigned long)host->dev_base + MG_REG_STATUS);
-		if (i & MG_REG_STATUS_BIT_BUSY)
+		if (i & ATA_BUSY)
 			break;
 		if (!MG_READY_OK(i))
 			break;
-		if ((req->nr_sectors <= 1) || (i & MG_REG_STATUS_BIT_DATA_REQ))
+		if ((blk_rq_sectors(req) <= 1) || (i & ATA_DRQ))
 			goto ok_to_write;
 	} while (0);
 	mg_dump_status("mg_write_intr", i, host);
@@ -489,18 +621,8 @@ static void mg_write_intr(struct mg_host *host)
 	return;
 
 ok_to_write:
-	/* manipulate request */
-	req->sector++;
-	i = --req->nr_sectors;
-	--req->current_nr_sectors;
-	req->buffer += MG_SECTOR_SIZE;
-
-	/* let know if current segment or all done */
-	if (!i || (req->bio && req->current_nr_sectors <= 0))
-		end_request(req, 1);
-
-	/* write 1 sector and set handler if remains */
-	if (i > 0) {
+	if ((rem = mg_end_request(host, 0, MG_SECTOR_SIZE))) {
+		/* write 1 sector and set handler if remains */
 		buff = (u16 *)req->buffer;
 		for (j = 0; j < MG_STORAGE_BUFFER_SIZE >> 1; j++) {
 			outw(*buff, (unsigned long)host->dev_base +
@@ -508,7 +630,7 @@ ok_to_write:
 			buff++;
 		}
 		MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-				req->sector, req->nr_sectors, req->buffer);
+		       blk_rq_pos(req), blk_rq_sectors(req), req->buffer);
 		host->mg_do_intr = mg_write_intr;
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 	}
@@ -516,7 +638,7 @@ ok_to_write:
 	/* send write confirm */
 	outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
 
-	if (!i)
+	if (!rem)
 		mg_request(host->breq);
 }
 
@@ -524,49 +646,45 @@ void mg_times_out(unsigned long data)
 {
 	struct mg_host *host = (struct mg_host *)data;
 	char *name;
-	struct request *req;
 
 	spin_lock_irq(&host->lock);
 
-	req = elv_next_request(host->breq);
-	if (!req)
+	if (!host->req)
 		goto out_unlock;
 
 	host->mg_do_intr = NULL;
 
-	name = req->rq_disk->disk_name;
+	name = host->req->rq_disk->disk_name;
 	printk(KERN_DEBUG "%s: timeout\n", name);
 
 	host->error = MG_ERR_TIMEOUT;
 	mg_bad_rw_intr(host);
 
-	mg_request(host->breq);
 out_unlock:
+	mg_request(host->breq);
 	spin_unlock_irq(&host->lock);
 }
 
 static void mg_request_poll(struct request_queue *q)
 {
-	struct request *req;
-	struct mg_host *host;
+	struct mg_host *host = q->queuedata;
 
-	while ((req = elv_next_request(q)) != NULL) {
-		host = req->rq_disk->private_data;
-		if (blk_fs_request(req)) {
-			switch (rq_data_dir(req)) {
-			case READ:
-				mg_read(req);
+	while (1) {
+		if (!host->req) {
+			host->req = blk_fetch_request(q);
+			if (!host->req)
 				break;
-			case WRITE:
-				mg_write(req);
-				break;
-			default:
-				printk(KERN_WARNING "%s:%d unknown command\n",
-						__func__, __LINE__);
-				end_request(req, 0);
-				break;
-			}
 		}
+
+		if (unlikely(!blk_fs_request(host->req))) {
+			mg_end_request_cur(host, -EIO);
+			continue;
+		}
+
+		if (rq_data_dir(host->req) == READ)
+			mg_read(host->req);
+		else
+			mg_write(host->req);
 	}
 }
 
@@ -588,18 +706,15 @@ static unsigned int mg_issue_req(struct request *req,
 		break;
 	case WRITE:
 		/* TODO : handler */
-		outb(MG_REG_CTRL_INTR_DISABLE,
-				(unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		outb(ATA_NIEN, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 		if (mg_out(host, sect_num, sect_cnt, MG_CMD_WR, &mg_write_intr)
 				!= MG_ERR_NONE) {
 			mg_bad_rw_intr(host);
 			return host->error;
 		}
 		del_timer(&host->timer);
-		mg_wait(host, MG_REG_STATUS_BIT_DATA_REQ, MG_TMAX_WAIT_WR_DRQ);
-		outb(MG_REG_CTRL_INTR_ENABLE, (unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		mg_wait(host, ATA_DRQ, MG_TMAX_WAIT_WR_DRQ);
+		outb(0, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 		if (host->error) {
 			mg_bad_rw_intr(host);
 			return host->error;
@@ -614,11 +729,6 @@ static unsigned int mg_issue_req(struct request *req,
 		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
 		break;
-	default:
-		printk(KERN_WARNING "%s:%d unknown command\n",
-				__func__, __LINE__);
-		end_request(req, 0);
-		break;
 	}
 	return MG_ERR_NONE;
 }
@@ -626,16 +736,17 @@ static unsigned int mg_issue_req(struct request *req,
 /* This function also called from IRQ context */
 static void mg_request(struct request_queue *q)
 {
+	struct mg_host *host = q->queuedata;
 	struct request *req;
-	struct mg_host *host;
 	u32 sect_num, sect_cnt;
 
 	while (1) {
-		req = elv_next_request(q);
-		if (!req)
-			return;
-
-		host = req->rq_disk->private_data;
+		if (!host->req) {
+			host->req = blk_fetch_request(q);
+			if (!host->req)
+				break;
+		}
+		req = host->req;
 
 		/* check unwanted request call */
 		if (host->mg_do_intr)
@@ -643,9 +754,9 @@ static void mg_request(struct request_queue *q)
 
 		del_timer(&host->timer);
 
-		sect_num = req->sector;
+		sect_num = blk_rq_pos(req);
 		/* deal whole segments */
-		sect_cnt = req->nr_sectors;
+		sect_cnt = blk_rq_sectors(req);
 
 		/* sanity check */
 		if (sect_num >= get_capacity(req->rq_disk) ||
@@ -655,12 +766,14 @@ static void mg_request(struct request_queue *q)
 					"%s: bad access: sector=%d, count=%d\n",
 					req->rq_disk->disk_name,
 					sect_num, sect_cnt);
-			end_request(req, 0);
+			mg_end_request_cur(host, -EIO);
 			continue;
 		}
 
-		if (!blk_fs_request(req))
-			return;
+		if (unlikely(!blk_fs_request(req))) {
+			mg_end_request_cur(host, -EIO);
+			continue;
+		}
 
 		if (!mg_issue_req(req, host, sect_num, sect_cnt))
 			return;
@@ -690,9 +803,7 @@ static int mg_suspend(struct platform_device *plat_dev, pm_message_t state)
 		return -EIO;
 
 	if (!prv_data->use_polling)
-		outb(MG_REG_CTRL_INTR_DISABLE,
-				(unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		outb(ATA_NIEN, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 
 	outb(MG_CMD_SLEEP, (unsigned long)host->dev_base + MG_REG_COMMAND);
 	/* wait until mflash deep sleep */
@@ -700,9 +811,7 @@ static int mg_suspend(struct platform_device *plat_dev, pm_message_t state)
 
 	if (mg_wait(host, MG_STAT_READY, MG_TMAX_CONF_TO_CMD)) {
 		if (!prv_data->use_polling)
-			outb(MG_REG_CTRL_INTR_ENABLE,
-					(unsigned long)host->dev_base +
-					MG_REG_DRV_CTRL);
+			outb(0, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 		return -EIO;
 	}
 
@@ -725,8 +834,7 @@ static int mg_resume(struct platform_device *plat_dev)
 		return -EIO;
 
 	if (!prv_data->use_polling)
-		outb(MG_REG_CTRL_INTR_ENABLE, (unsigned long)host->dev_base +
-				MG_REG_DRV_CTRL);
+		outb(0, (unsigned long)host->dev_base + MG_REG_DRV_CTRL);
 
 	return 0;
 }
@@ -877,6 +985,7 @@ static int mg_probe(struct platform_device *plat_dev)
 				__func__, __LINE__);
 		goto probe_err_5;
 	}
+	host->breq->queuedata = host;
 
 	/* mflash is random device, thanx for the noop */
 	elevator_exit(host->breq->elevator);
@@ -887,7 +996,7 @@ static int mg_probe(struct platform_device *plat_dev)
 		goto probe_err_6;
 	}
 	blk_queue_max_sectors(host->breq, MG_MAX_SECTS);
-	blk_queue_hardsect_size(host->breq, MG_SECTOR_SIZE);
+	blk_queue_logical_block_size(host->breq, MG_SECTOR_SIZE);
 
 	init_timer(&host->timer);
 	host->timer.function = mg_times_out;

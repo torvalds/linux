@@ -174,8 +174,8 @@ static int  cypress_ca42v2_startup(struct usb_serial *serial);
 static void cypress_shutdown(struct usb_serial *serial);
 static int  cypress_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void cypress_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void cypress_close(struct usb_serial_port *port);
+static void cypress_dtr_rts(struct usb_serial_port *port, int on);
 static int  cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static void cypress_send(struct usb_serial_port *port);
@@ -218,6 +218,7 @@ static struct usb_serial_driver cypress_earthmate_device = {
 	.shutdown =			cypress_shutdown,
 	.open =				cypress_open,
 	.close =			cypress_close,
+	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
 	.ioctl =			cypress_ioctl,
@@ -244,6 +245,7 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.shutdown =			cypress_shutdown,
 	.open =				cypress_open,
 	.close =			cypress_close,
+	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
 	.ioctl =			cypress_ioctl,
@@ -270,6 +272,7 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.shutdown =			cypress_shutdown,
 	.open =				cypress_open,
 	.close =			cypress_close,
+	.dtr_rts =			cypress_dtr_rts,
 	.write =			cypress_write,
 	.write_room =			cypress_write_room,
 	.ioctl =			cypress_ioctl,
@@ -656,11 +659,7 @@ static int cypress_open(struct tty_struct *tty,
 	priv->rx_flags = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* raise both lines and set termios */
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->line_control = CONTROL_DTR | CONTROL_RTS;
-	priv->cmd_ctrl = 1;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	/* Set termios */
 	result = cypress_write(tty, port, NULL, 0);
 
 	if (result) {
@@ -694,43 +693,30 @@ static int cypress_open(struct tty_struct *tty,
 							__func__, result);
 		cypress_set_dead(port);
 	}
-
+	port->port.drain_delay = 256;
 	return result;
 } /* cypress_open */
 
-
-static void cypress_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void cypress_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	unsigned int c_cflag;
-	int bps;
-	long timeout;
-	wait_queue_t wait;
+	/* drop dtr and rts */
+	priv = usb_get_serial_port_data(port);
+	spin_lock_irq(&priv->lock);
+	if (on == 0)
+		priv->line_control = 0;
+	else 
+		priv->line_control = CONTROL_DTR | CONTROL_RTS;
+	priv->cmd_ctrl = 1;
+	spin_unlock_irq(&priv->lock);
+	cypress_write(NULL, port, NULL, 0);
+}
+
+static void cypress_close(struct usb_serial_port *port)
+{
+	struct cypress_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s - port %d", __func__, port->number);
-
-	/* wait for data to drain from buffer */
-	spin_lock_irq(&priv->lock);
-	timeout = CYPRESS_CLOSING_WAIT;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&tty->write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (cypress_buf_data_avail(priv->buf) == 0
-		|| timeout == 0 || signal_pending(current)
-		/* without mutex, allowed due to harmless failure mode */
-		|| port->serial->disconnected)
-			break;
-		spin_unlock_irq(&priv->lock);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irq(&priv->lock);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tty->write_wait, &wait);
-	/* clear out any remaining data in the buffer */
-	cypress_buf_clear(priv->buf);
-	spin_unlock_irq(&priv->lock);
 
 	/* writing is potentially harmful, lock must be taken */
 	mutex_lock(&port->serial->disc_mutex);
@@ -738,32 +724,11 @@ static void cypress_close(struct tty_struct *tty,
 		mutex_unlock(&port->serial->disc_mutex);
 		return;
 	}
-	/* wait for characters to drain from device */
-	if (tty) {
-		bps = tty_get_baud_rate(tty);
-		if (bps > 1200)
-			timeout = max((HZ * 2560) / bps, HZ / 10);
-		else
-			timeout = 2 * HZ;
-		schedule_timeout_interruptible(timeout);
-	}
-
+	cypress_buf_clear(priv->buf);
 	dbg("%s - stopping urbs", __func__);
 	usb_kill_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
 
-	if (tty) {
-		c_cflag = tty->termios->c_cflag;
-		if (c_cflag & HUPCL) {
-			/* drop dtr and rts */
-			priv = usb_get_serial_port_data(port);
-			spin_lock_irq(&priv->lock);
-			priv->line_control = 0;
-			priv->cmd_ctrl = 1;
-			spin_unlock_irq(&priv->lock);
-			cypress_write(tty, port, NULL, 0);
-		}
-	}
 
 	if (stats)
 		dev_info(&port->dev, "Statistics: %d Bytes In | %d Bytes Out | %d Commands Issued\n",

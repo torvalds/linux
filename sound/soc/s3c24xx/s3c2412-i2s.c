@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -120,7 +121,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 
 	s3c2412_i2s.iis_cclk = clk_get(&pdev->dev, "i2sclk");
 	if (s3c2412_i2s.iis_cclk == NULL) {
-		pr_debug("failed to get i2sclk clock\n");
+		pr_err("failed to get i2sclk clock\n");
 		iounmap(s3c2412_i2s.regs);
 		return -ENODEV;
 	}

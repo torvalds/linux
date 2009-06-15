@@ -57,4 +57,7 @@ struct xen_feature_info {
 /* Declares the features reported by XENVER_get_features. */
 #include "features.h"
 
+/* arg == NULL; returns host memory page size. */
+#define XENVER_pagesize 7
+
 #endif /* __XEN_PUBLIC_VERSION_H__ */
