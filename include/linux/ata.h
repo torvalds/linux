@@ -800,6 +800,20 @@ static inline int ata_id_is_ssd(const u16 *id)
 	return id[ATA_ID_ROT_SPEED] == 0x01;
 }
 
+static inline int ata_id_pio_need_iordy(const u16 *id, const u8 pio)
+{
+	/* CF spec. r4.1 Table 22 says no IORDY on PIO5 and PIO6. */
+	if (pio > 4 && ata_id_is_cfa(id))
+		return 0;
+	/* For PIO3 and higher it is mandatory. */
+	if (pio > 2)
+		return 1;
+	/* Turn it on when possible. */
+	if (ata_id_has_iordy(id))
+		return 1;
+	return 0;
+}
+
 static inline int ata_drive_40wire(const u16 *dev_id)
 {
 	if (ata_id_is_sata(dev_id))
