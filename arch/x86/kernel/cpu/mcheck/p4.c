@@ -35,7 +35,7 @@ static int mce_num_extended_msrs;
 
 #ifdef CONFIG_X86_MCE_P4THERMAL
 
-static void unexpected_thermal_interrupt(struct pt_regs *regs)
+static void unexpected_thermal_interrupt(void)
 {
 	printk(KERN_ERR "CPU%d: Unexpected LVT TMR interrupt!\n",
 			smp_processor_id());
@@ -43,7 +43,7 @@ static void unexpected_thermal_interrupt(struct pt_regs *regs)
 }
 
 /* P4/Xeon Thermal transition interrupt handler: */
-static void intel_thermal_interrupt(struct pt_regs *regs)
+static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
 
@@ -54,14 +54,13 @@ static void intel_thermal_interrupt(struct pt_regs *regs)
 }
 
 /* Thermal interrupt handler for this CPU setup: */
-static void (*vendor_thermal_interrupt)(struct pt_regs *regs) =
-						unexpected_thermal_interrupt;
+static void (*vendor_thermal_interrupt)(void) = unexpected_thermal_interrupt;
 
 void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
-	vendor_thermal_interrupt(regs);
-	__get_cpu_var(irq_stat).irq_thermal_count++;
+	vendor_thermal_interrupt();
+	inc_irq_stat(irq_thermal_count);
 	irq_exit();
 }
 
