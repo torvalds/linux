@@ -479,10 +479,10 @@ static void iwm_sdio_remove(struct sdio_func *func)
 	struct iwm_priv *iwm = hw_to_iwm(hw);
 	struct device *dev = &func->dev;
 
-	iwm_debugfs_exit(iwm);
 	iwm_if_remove(iwm);
-	iwm_if_free(iwm);
 	destroy_workqueue(hw->isr_wq);
+	iwm_debugfs_exit(iwm);
+	iwm_if_free(iwm);
 
 	sdio_set_drvdata(func, NULL);
 
