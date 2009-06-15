@@ -21,9 +21,15 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	int tm2 = 0;
 	u32 l, h;
 
-	/* Thermal monitoring depends on ACPI and clock modulation*/
-	if (!cpu_has(c, X86_FEATURE_ACPI) || !cpu_has(c, X86_FEATURE_ACC))
+	/*
+	 * Thermal monitoring depends on ACPI, clock modulation
+	 * and APIC as well
+	 */
+	if (!cpu_has(c, X86_FEATURE_ACPI) || !cpu_has(c, X86_FEATURE_ACC) ||
+		!cpu_has(c, X86_FEATURE_APIC)) {
+		pr_debug("Thermal monitoring disabled\n");
 		return;
+	}
 
 	/*
 	 * First check if its enabled already, in which case there might
