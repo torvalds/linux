@@ -88,6 +88,22 @@ int show_interrupts(struct seq_file *p, void *v)
 }
 #endif
 
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+static void check_stack_overflow(int irq)
+{
+	/* Debugging check for stack overflow: is there less than STACK_WARN free? */
+	long sp = __get_SP() & (THREAD_SIZE - 1);
+
+	if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
+		dump_stack();
+		pr_emerg("irq%i: possible stack overflow only %ld bytes free\n",
+			irq, sp - sizeof(struct thread_info));
+	}
+}
+#else
+static inline void check_stack_overflow(int irq) { }
+#endif
+
 /*
  * do_IRQ handles all hardware IRQs.  Decoded IRQs should not
  * come via this function.  Instead, they should provide their
@@ -105,21 +121,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_enter();
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than STACK_WARN free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			dump_stack();
-			printk(KERN_EMERG "%s: possible stack overflow while handling irq %i "
-					" only %ld bytes free\n",
-				__func__, irq, sp - sizeof(struct thread_info));
-		}
-	}
-#endif
+	check_stack_overflow(irq);
 
 	/*
 	 * Some hardware gives randomly wrong interrupts.  Rather
