@@ -55,11 +55,14 @@ volatile unsigned char *ide_ifr = (unsigned char *) (IDE_BASE + IDE_IFR);
 
 int macide_ack_intr(ide_hwif_t* hwif)
 {
-	if (*ide_ifr & 0x20) {
-		*ide_ifr &= ~0x20;
+	if (*ide_ifr & 0x20)
 		return 1;
-	}
 	return 0;
+}
+
+static void macide_clear_irq(ide_drive_t *drive)
+{
+	*ide_ifr &= ~0x20;
 }
 
 static void __init macide_setup_ports(struct ide_hw *hw, unsigned long base,
@@ -78,7 +81,12 @@ static void __init macide_setup_ports(struct ide_hw *hw, unsigned long base,
 	hw->ack_intr = ack_intr;
 }
 
+static const struct ide_port_ops macide_port_ops = {
+	.clear_irq		= macide_clear_irq,
+};
+
 static const struct ide_port_info macide_port_info = {
+	.port_ops		= &macide_port_ops,
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
 	.chipset		= ide_generic,
@@ -97,6 +105,7 @@ static int __init macide_init(void)
 	unsigned long base;
 	int irq;
 	struct ide_hw hw, *hws[] = { &hw };
+	struct ide_port_info d = macide_port_info;
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
@@ -115,6 +124,7 @@ static int __init macide_init(void)
 	case MAC_IDE_BABOON:
 		base = BABOON_BASE;
 		ack_intr = NULL;
+		d.port_ops = NULL;
 		irq = IRQ_BABOON_1;
 		break;
 	default:
@@ -126,7 +136,7 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	return ide_host_add(&macide_port_info, hws, 1, NULL);
+	return ide_host_add(&d, hws, 1, NULL);
 }
 
 module_init(macide_init);

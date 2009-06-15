@@ -109,16 +109,12 @@ static int buddha_ack_intr(ide_hwif_t *hwif)
     return 1;
 }
 
-static int xsurf_ack_intr(ide_hwif_t *hwif)
+static void xsurf_clear_irq(ide_drive_t *drive)
 {
-    unsigned char ch;
-
-    ch = z_readb(hwif->io_ports.irq_addr);
-    /* X-Surf needs a 0 written to IRQ register to ensure ISA bit A11 stays at 0 */
-    z_writeb(0, hwif->io_ports.irq_addr);
-    if (!(ch & 0x80))
-	    return 0;
-    return 1;
+    /*
+     * X-Surf needs 0 written to IRQ register to ensure ISA bit A11 stays at 0
+     */
+    z_writeb(0, drive->hwif->io_ports.irq_addr);
 }
 
 static void __init buddha_setup_ports(struct ide_hw *hw, unsigned long base,
@@ -141,6 +137,10 @@ static void __init buddha_setup_ports(struct ide_hw *hw, unsigned long base,
 	hw->ack_intr = ack_intr;
 }
 
+static const struct ide_port_ops xsurf_port_ops = {
+	.clear_irq		= xsurf_clear_irq,
+};
+
 static const struct ide_port_info buddha_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
@@ -161,6 +161,7 @@ static int __init buddha_init(void)
 	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
 		unsigned long board;
 		struct ide_hw hw[MAX_NUM_HWIFS], *hws[MAX_NUM_HWIFS];
+		struct ide_port_info d = buddha_port_info;
 
 		if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA) {
 			buddha_num_hwifs = BUDDHA_NUM_HWIFS;
@@ -171,6 +172,7 @@ static int __init buddha_init(void)
 		} else if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF) {
 			buddha_num_hwifs = XSURF_NUM_HWIFS;
 			type=BOARD_XSURF;
+			d.port_ops = &xsurf_port_ops;
 		} else 
 			continue;
 		
@@ -203,28 +205,25 @@ fail_base2:
 
 		for (i = 0; i < buddha_num_hwifs; i++) {
 			unsigned long base, ctl, irq_port;
-			ide_ack_intr_t *ack_intr;
 
 			if (type != BOARD_XSURF) {
 				base = buddha_board + buddha_bases[i];
 				ctl = base + BUDDHA_CONTROL;
 				irq_port = buddha_board + buddha_irqports[i];
-				ack_intr = buddha_ack_intr;
 			} else {
 				base = buddha_board + xsurf_bases[i];
 				/* X-Surf has no CS1* (Control/AltStat) */
 				ctl = 0;
 				irq_port = buddha_board + xsurf_irqports[i];
-				ack_intr = xsurf_ack_intr;
 			}
 
 			buddha_setup_ports(&hw[i], base, ctl, irq_port,
-					   ack_intr);
+					   buddha_ack_intr);
 
 			hws[i] = &hw[i];
 		}
 
-		ide_host_add(&buddha_port_info, hws, i, NULL);
+		ide_host_add(&d, hws, i, NULL);
 	}
 
 	return 0;
