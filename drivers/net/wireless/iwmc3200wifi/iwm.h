@@ -278,6 +278,9 @@ struct iwm_priv {
 	struct iwm_key keys[IWM_NUM_KEYS];
 	struct iwm_key *default_key;
 
+	DECLARE_BITMAP(wifi_ntfy, WIFI_IF_NTFY_MAX);
+	wait_queue_head_t wifi_ntfy_queue;
+
 	wait_queue_head_t mlme_queue;
 
 	struct iw_statistics wstats;

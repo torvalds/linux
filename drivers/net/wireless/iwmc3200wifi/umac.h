@@ -495,6 +495,8 @@ struct iwm_fw_alive_hdr {
 #define WIFI_DBG_IF_NTFY_COEX_HANDLE_ENVELOP		0xE8
 #define WIFI_DBG_IF_NTFY_COEX_HANDLE_RELEASE_ENVELOP	0xE9
 
+#define WIFI_IF_NTFY_MAX 0xff
+
 /* Notification structures */
 struct iwm_umac_notif_wifi_if {
 	struct iwm_umac_wifi_in_hdr hdr;

@@ -191,6 +191,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	INIT_LIST_HEAD(&iwm->pending_notif);
 	init_waitqueue_head(&iwm->notif_queue);
 	init_waitqueue_head(&iwm->nonwifi_queue);
+	init_waitqueue_head(&iwm->wifi_ntfy_queue);
 	init_waitqueue_head(&iwm->mlme_queue);
 	memcpy(&iwm->conf, &def_iwm_conf, sizeof(struct iwm_conf));
 	spin_lock_init(&iwm->tx_credit.lock);

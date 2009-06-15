@@ -70,14 +70,28 @@ static int iwm_send_lmac_ptrough_cmd(struct iwm_priv *iwm,
 int iwm_send_wifi_if_cmd(struct iwm_priv *iwm, void *payload, u16 payload_size,
 			 bool resp)
 {
+	struct iwm_umac_wifi_if *hdr = (struct iwm_umac_wifi_if *)payload;
 	struct iwm_udma_wifi_cmd udma_cmd = UDMA_UMAC_INIT;
 	struct iwm_umac_cmd umac_cmd;
+	int ret;
+	u8 oid = hdr->oid;
 
 	umac_cmd.id = UMAC_CMD_OPCODE_WIFI_IF_WRAPPER;
 	umac_cmd.resp = resp;
 
-	return iwm_hal_send_umac_cmd(iwm, &udma_cmd, &umac_cmd,
-				     payload, payload_size);
+	ret = iwm_hal_send_umac_cmd(iwm, &udma_cmd, &umac_cmd,
+				    payload, payload_size);
+
+	if (resp) {
+		ret = wait_event_interruptible_timeout(iwm->wifi_ntfy_queue,
+				   test_and_clear_bit(oid, &iwm->wifi_ntfy[0]),
+				   3 * HZ);
+
+		if (!ret)
+			ret = -EBUSY;
+	}
+
+	return ret;
 }
 
 static struct coex_event iwm_sta_xor_prio_tbl[COEX_EVENTS_NUM] =
@@ -746,14 +760,6 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 		return ret;
 	}
 
-	/* Wait for the profile to be active */
-	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
-					       iwm->umac_profile_active == 1,
-					       3 * HZ);
-	if (!ret)
-		return -EBUSY;
-
-
 	for (i = 0; i < IWM_NUM_KEYS; i++)
 		if (iwm->keys[i].in_use) {
 			int default_key = 0;
@@ -778,8 +784,8 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 {
-	int ret;
 	struct iwm_umac_invalidate_profile invalid;
+	int ret;
 
 	invalid.hdr.oid = UMAC_WIFI_IF_CMD_INVALIDATE_PROFILE;
 	invalid.hdr.buf_size =
@@ -793,8 +799,7 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 		return ret;
 
 	ret = wait_event_interruptible_timeout(iwm->mlme_queue,
-				 (iwm->umac_profile_active == 0),
-					       2 * HZ);
+				(iwm->umac_profile_active == 0), 2 * HZ);
 	if (!ret)
 		return -EBUSY;
 
