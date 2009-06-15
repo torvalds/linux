@@ -418,7 +418,7 @@ config SENSORS_IBMAEM
 	  power sensors and capping hardware in various IBM System X
 	  servers that support Active Energy Manager.  This includes
 	  the x3350, x3550, x3650, x3655, x3755, x3850 M2, x3950 M2,
-	  and certain HS2x/LS2x/QS2x blades.
+	  and certain HC10/HS2x/LS2x/QS2x blades.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmaem.
