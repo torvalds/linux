@@ -254,53 +254,34 @@ static void cmd64x_clear_irq(ide_drive_t *drive)
 	(void) pci_write_config_byte(dev, irq_reg, irq_stat | irq_mask);
 }
 
-static int cmd648_dma_test_irq(ide_drive_t *drive)
+static int cmd648_test_irq(ide_hwif_t *hwif)
 {
-	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	unsigned long base	= pci_resource_start(dev, 4);
 	u8 irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
 						  MRDMODE_INTR_CH0;
-	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 	u8 mrdmode		= inb(base + 1);
 
-#ifdef DEBUG
-	printk("%s: dma_stat: 0x%02x mrdmode: 0x%02x irq_mask: 0x%02x\n",
-	       drive->name, dma_stat, mrdmode, irq_mask);
-#endif
-	if (!(mrdmode & irq_mask))
-		return 0;
+	pr_debug("%s: mrdmode: 0x%02x irq_mask: 0x%02x\n",
+		 hwif->name, mrdmode, irq_mask);
 
-	/* return 1 if INTR asserted */
-	if (dma_stat & 4)
-		return 1;
-
-	return 0;
+	return (mrdmode & irq_mask) ? 1 : 0;
 }
 
-static int cmd64x_dma_test_irq(ide_drive_t *drive)
+static int cmd64x_test_irq(ide_hwif_t *hwif)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int irq_reg		= hwif->channel ? ARTTIM23 : CFR;
 	u8  irq_mask		= hwif->channel ? ARTTIM23_INTR_CH1 :
 						  CFR_INTR_CH0;
-	u8  dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 	u8  irq_stat		= 0;
 
 	(void) pci_read_config_byte(dev, irq_reg, &irq_stat);
 
-#ifdef DEBUG
-	printk("%s: dma_stat: 0x%02x irq_stat: 0x%02x irq_mask: 0x%02x\n",
-	       drive->name, dma_stat, irq_stat, irq_mask);
-#endif
-	if (!(irq_stat & irq_mask))
-		return 0;
+	pr_debug("%s: irq_stat: 0x%02x irq_mask: 0x%02x\n",
+		 hwif->name, irq_stat, irq_mask);
 
-	/* return 1 if INTR asserted */
-	if (dma_stat & 4)
-		return 1;
-
-	return 0;
+	return (irq_stat & irq_mask) ? 1 : 0;
 }
 
 /*
@@ -366,6 +347,7 @@ static const struct ide_port_ops cmd64x_port_ops = {
 	.set_pio_mode		= cmd64x_set_pio_mode,
 	.set_dma_mode		= cmd64x_set_dma_mode,
 	.clear_irq		= cmd64x_clear_irq,
+	.test_irq		= cmd64x_test_irq,
 	.cable_detect		= cmd64x_cable_detect,
 };
 
@@ -373,18 +355,8 @@ static const struct ide_port_ops cmd648_port_ops = {
 	.set_pio_mode		= cmd64x_set_pio_mode,
 	.set_dma_mode		= cmd64x_set_dma_mode,
 	.clear_irq		= cmd648_clear_irq,
+	.test_irq		= cmd648_test_irq,
 	.cable_detect		= cmd64x_cable_detect,
-};
-
-static const struct ide_dma_ops cmd64x_dma_ops = {
-	.dma_host_set		= ide_dma_host_set,
-	.dma_setup		= ide_dma_setup,
-	.dma_start		= ide_dma_start,
-	.dma_end		= ide_dma_end,
-	.dma_test_irq		= cmd64x_dma_test_irq,
-	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_dma_ops cmd646_rev1_dma_ops = {
@@ -398,24 +370,12 @@ static const struct ide_dma_ops cmd646_rev1_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_dma_ops cmd648_dma_ops = {
-	.dma_host_set		= ide_dma_host_set,
-	.dma_setup		= ide_dma_setup,
-	.dma_start		= ide_dma_start,
-	.dma_end		= ide_dma_end,
-	.dma_test_irq		= cmd648_dma_test_irq,
-	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
-	.dma_sff_read_status	= ide_dma_sff_read_status,
-};
-
 static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 	{	/* 0: CMD643 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x00,0x00,0x00}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd64x_port_ops,
-		.dma_ops	= &cmd64x_dma_ops,
 		.host_flags	= IDE_HFLAG_CLEAR_SIMPLEX |
 				  IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
@@ -427,7 +387,6 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd648_port_ops,
-		.dma_ops	= &cmd648_dma_ops,
 		.host_flags	= IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
@@ -439,7 +398,6 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd648_port_ops,
-		.dma_ops	= &cmd648_dma_ops,
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -450,7 +408,6 @@ static const struct ide_port_info cmd64x_chipsets[] __devinitdata = {
 		.init_chipset	= init_chipset_cmd64x,
 		.enablebits	= {{0x51,0x04,0x04}, {0x51,0x08,0x08}},
 		.port_ops	= &cmd648_port_ops,
-		.dma_ops	= &cmd648_dma_ops,
 		.host_flags	= IDE_HFLAG_ABUSE_PREFETCH,
 		.pio_mask	= ATA_PIO5,
 		.mwdma_mask	= ATA_MWDMA2,
@@ -490,8 +447,6 @@ static int __devinit cmd64x_init_one(struct pci_dev *dev, const struct pci_devic
 				d.port_ops = &cmd64x_port_ops;
 				if (dev->revision == 1)
 					d.dma_ops = &cmd646_rev1_dma_ops;
-				else
-					d.dma_ops = &cmd64x_dma_ops;
 			}
 		}
 	}
