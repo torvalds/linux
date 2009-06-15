@@ -23,3 +23,5 @@ config PCIE_ECRC
 	  (transaction layer end-to-end CRC checking).
 
 	  When in doubt, say N.
+
+source "drivers/pci/pcie/aer/Kconfig.debug"
