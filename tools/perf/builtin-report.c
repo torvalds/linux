@@ -40,6 +40,7 @@ static int		dump_trace = 0;
 
 static int		verbose;
 static int		full_paths;
+static int		collapse_syscalls;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -983,6 +984,15 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 			for (i = 0; i < chain->nr; i++)
 				dprintf("..... %2d: %p\n", i, (void *)chain->ips[i]);
 		}
+		if (collapse_syscalls) {
+			/*
+			 * Find the all-but-last kernel entry
+			 * amongst the call-chains - to get
+			 * to the level of system calls:
+			 */
+			if (chain->kernel >= 2)
+				ip = chain->ips[chain->kernel-2];
+		}
 	}
 
 	dprintf(" ... thread: %s:%d\n", thread->comm, thread->pid);
@@ -1343,6 +1353,8 @@ static const struct option options[] = {
 		   "sort by key(s): pid, comm, dso, symbol. Default: pid,symbol"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
+	OPT_BOOLEAN('S', "syscalls", &collapse_syscalls,
+		    "show per syscall summary overhead, using call graph"),
 	OPT_END()
 };
 
