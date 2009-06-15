@@ -856,10 +856,6 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 	}
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
-
-	inode->i_ctime = ext4_current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
-
 	/* had we spliced it onto indirect block? */
 	if (where->bh) {
 		/*
@@ -878,8 +874,8 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 	} else {
 		/*
 		 * OK, we spliced it into the inode itself on a direct block.
-		 * Inode was dirtied above.
 		 */
+		ext4_mark_inode_dirty(handle, inode);
 		jbd_debug(5, "splicing direct\n");
 	}
 	return err;
