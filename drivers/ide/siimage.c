@@ -338,6 +338,16 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	sil_iowrite16(dev, ultra, ua);
 }
 
+static int sil_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	unsigned long addr	= siimage_selreg(hwif, 1);
+	u8 val			= sil_ioread8(dev, addr);
+
+	/* Return 1 if INTRQ asserted */
+	return (val & 8) ? 1 : 0;
+}
+
 /**
  *	siimage_mmio_dma_test_irq	-	check we caused an IRQ
  *	@drive: drive we are testing
@@ -670,6 +680,7 @@ static const struct ide_port_ops sil_pata_port_ops = {
 	.set_pio_mode		= sil_set_pio_mode,
 	.set_dma_mode		= sil_set_dma_mode,
 	.quirkproc		= sil_quirkproc,
+	.test_irq		= sil_test_irq,
 	.udma_filter		= sil_pata_udma_filter,
 	.cable_detect		= sil_cable_detect,
 };
@@ -680,6 +691,7 @@ static const struct ide_port_ops sil_sata_port_ops = {
 	.reset_poll		= sil_sata_reset_poll,
 	.pre_reset		= sil_sata_pre_reset,
 	.quirkproc		= sil_quirkproc,
+	.test_irq		= sil_test_irq,
 	.udma_filter		= sil_sata_udma_filter,
 	.cable_detect		= sil_cable_detect,
 };
