@@ -57,7 +57,7 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
 
-int				mce_disabled;
+int mce_disabled __read_mostly;
 
 #ifdef CONFIG_X86_NEW_MCE
 
@@ -76,19 +76,19 @@ DEFINE_PER_CPU(unsigned, mce_exception_count);
  *   2: SIGBUS or log uncorrected errors (if possible), log corrected errors
  *   3: never panic or SIGBUS, log all errors (for testing only)
  */
-static int			tolerant = 1;
-static int			banks;
-static u64			*bank;
-static unsigned long		notify_user;
-static int			rip_msr;
-static int			mce_bootlog = -1;
-static int			monarch_timeout = -1;
-static int			mce_panic_timeout;
-static int			mce_dont_log_ce;
-int				mce_cmci_disabled;
-int				mce_ignore_ce;
-int				mce_ser;
+static int			tolerant		__read_mostly = 1;
+static int			banks			__read_mostly;
+static u64			*bank			__read_mostly;
+static int			rip_msr			__read_mostly;
+static int			mce_bootlog		__read_mostly = -1;
+static int			monarch_timeout		__read_mostly = -1;
+static int			mce_panic_timeout	__read_mostly;
+static int			mce_dont_log_ce		__read_mostly;
+int				mce_cmci_disabled	__read_mostly;
+int				mce_ignore_ce		__read_mostly;
+int				mce_ser			__read_mostly;
 
+static unsigned long		notify_user;
 static char			trigger[128];
 static char			*trigger_argv[2] = { trigger, NULL };
 
