@@ -691,23 +691,21 @@ static atomic_t global_nwo;
  * in the entry order.
  * TBD double check parallel CPU hotunplug
  */
-static int mce_start(int no_way_out, int *order)
+static int mce_start(int *no_way_out)
 {
-	int nwo;
+	int order;
 	int cpus = num_online_cpus();
 	u64 timeout = (u64)monarch_timeout * NSEC_PER_USEC;
 
-	if (!timeout) {
-		*order = -1;
-		return no_way_out;
-	}
+	if (!timeout)
+		return -1;
 
-	atomic_add(no_way_out, &global_nwo);
+	atomic_add(*no_way_out, &global_nwo);
 	/*
 	 * global_nwo should be updated before mce_callin
 	 */
 	smp_wmb();
-	*order = atomic_add_return(1, &mce_callin);
+	order = atomic_add_return(1, &mce_callin);
 
 	/*
 	 * Wait for everyone.
@@ -715,8 +713,7 @@ static int mce_start(int no_way_out, int *order)
 	while (atomic_read(&mce_callin) != cpus) {
 		if (mce_timed_out(&timeout)) {
 			atomic_set(&global_nwo, 0);
-			*order = -1;
-			return no_way_out;
+			return -1;
 		}
 		ndelay(SPINUNIT);
 	}
@@ -725,34 +722,34 @@ static int mce_start(int no_way_out, int *order)
 	 * mce_callin should be read before global_nwo
 	 */
 	smp_rmb();
+
+	if (order == 1) {
+		/*
+		 * Monarch: Starts executing now, the others wait.
+		 */
+		atomic_set(&mce_executing, 1);
+	} else {
+		/*
+		 * Subject: Now start the scanning loop one by one in
+		 * the original callin order.
+		 * This way when there are any shared banks it will be
+		 * only seen by one CPU before cleared, avoiding duplicates.
+		 */
+		while (atomic_read(&mce_executing) < order) {
+			if (mce_timed_out(&timeout)) {
+				atomic_set(&global_nwo, 0);
+				return -1;
+			}
+			ndelay(SPINUNIT);
+		}
+	}
+
 	/*
 	 * Cache the global no_way_out state.
 	 */
-	nwo = atomic_read(&global_nwo);
+	*no_way_out = atomic_read(&global_nwo);
 
-	/*
-	 * Monarch starts executing now, the others wait.
-	 */
-	if (*order == 1) {
-		atomic_set(&mce_executing, 1);
-		return nwo;
-	}
-
-	/*
-	 * Now start the scanning loop one by one
-	 * in the original callin order.
-	 * This way when there are any shared banks it will
-	 * be only seen by one CPU before cleared, avoiding duplicates.
-	 */
-	while (atomic_read(&mce_executing) < *order) {
-		if (mce_timed_out(&timeout)) {
-			atomic_set(&global_nwo, 0);
-			*order = -1;
-			return no_way_out;
-		}
-		ndelay(SPINUNIT);
-	}
-	return nwo;
+	return order;
 }
 
 /*
@@ -871,8 +868,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * Establish sequential order between the CPUs entering the machine
 	 * check handler.
 	 */
-	int order = -1;
-
+	int order;
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If tolerant is cranked up, we'll try anyway.
@@ -917,7 +913,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * This way we don't report duplicated events on shared banks
 	 * because the first one to see it will clear it.
 	 */
-	no_way_out = mce_start(no_way_out, &order);
+	order = mce_start(&no_way_out);
 	for (i = 0; i < banks; i++) {
 		__clear_bit(i, toclear);
 		if (!bank[i])
