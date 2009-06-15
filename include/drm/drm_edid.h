@@ -28,53 +28,49 @@
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
 
-#ifdef BIG_ENDIAN
-#error "EDID structure is little endian, need big endian versions"
-#else
-
 struct est_timings {
 	u8 t1;
 	u8 t2;
 	u8 mfg_rsvd;
 } __attribute__((packed));
 
+/* 00=16:10, 01=4:3, 10=5:4, 11=16:9 */
+#define EDID_TIMING_ASPECT_SHIFT 0
+#define EDID_TIMING_ASPECT_MASK  (0x3 << EDID_TIMING_ASPECT_SHIFT)
+
+/* need to add 60 */
+#define EDID_TIMING_VFREQ_SHIFT  2
+#define EDID_TIMING_VFREQ_MASK   (0x3f << EDID_TIMING_VFREQ_SHIFT)
+
 struct std_timing {
 	u8 hsize; /* need to multiply by 8 then add 248 */
-	u8 vfreq:6; /* need to add 60 */
-	u8 aspect_ratio:2; /* 00=16:10, 01=4:3, 10=5:4, 11=16:9 */
+	u8 vfreq_aspect;
 } __attribute__((packed));
+
+#define DRM_EDID_PT_HSYNC_POSITIVE (1 << 6)
+#define DRM_EDID_PT_VSYNC_POSITIVE (1 << 5)
+#define DRM_EDID_PT_SEPARATE_SYNC  (3 << 3)
+#define DRM_EDID_PT_STEREO         (1 << 2)
+#define DRM_EDID_PT_INTERLACED     (1 << 1)
 
 /* If detailed data is pixel timing */
 struct detailed_pixel_timing {
 	u8 hactive_lo;
 	u8 hblank_lo;
-	u8 hblank_hi:4;
-	u8 hactive_hi:4;
+	u8 hactive_hblank_hi;
 	u8 vactive_lo;
 	u8 vblank_lo;
-	u8 vblank_hi:4;
-	u8 vactive_hi:4;
+	u8 vactive_vblank_hi;
 	u8 hsync_offset_lo;
 	u8 hsync_pulse_width_lo;
-	u8 vsync_pulse_width_lo:4;
-	u8 vsync_offset_lo:4;
-	u8 vsync_pulse_width_hi:2;
-	u8 vsync_offset_hi:2;
-	u8 hsync_pulse_width_hi:2;
-	u8 hsync_offset_hi:2;
+	u8 vsync_offset_pulse_width_lo;
+	u8 hsync_vsync_offset_pulse_width_hi;
 	u8 width_mm_lo;
 	u8 height_mm_lo;
-	u8 height_mm_hi:4;
-	u8 width_mm_hi:4;
+	u8 width_height_mm_hi;
 	u8 hborder;
 	u8 vborder;
-	u8 unknown0:1;
-	u8 hsync_positive:1;
-	u8 vsync_positive:1;
-	u8 separate_sync:2;
-	u8 stereo:1;
-	u8 unknown6:1;
-	u8 interlaced:1;
+	u8 misc;
 } __attribute__((packed));
 
 /* If it's not pixel timing, it'll be one of the below */
@@ -88,18 +84,16 @@ struct detailed_data_monitor_range {
 	u8 min_hfreq_khz;
 	u8 max_hfreq_khz;
 	u8 pixel_clock_mhz; /* need to multiply by 10 */
-	u16 sec_gtf_toggle; /* A000=use above, 20=use below */ /* FIXME: byte order */
+	__le16 sec_gtf_toggle; /* A000=use above, 20=use below */
 	u8 hfreq_start_khz; /* need to multiply by 2 */
 	u8 c; /* need to divide by 2 */
-	u16 m; /* FIXME: byte order */
+	__le16 m;
 	u8 k;
 	u8 j; /* need to divide by 2 */
 } __attribute__((packed));
 
 struct detailed_data_wpindex {
-	u8 white_y_lo:2;
-	u8 white_x_lo:2;
-	u8 pad:4;
+	u8 white_xy_lo; /* Upper 2 bits each */
 	u8 white_x_hi;
 	u8 white_y_hi;
 	u8 gamma; /* need to divide by 100 then add 1 */
@@ -134,12 +128,28 @@ struct detailed_non_pixel {
 #define EDID_DETAIL_MONITOR_SERIAL 0xff
 
 struct detailed_timing {
-	u16 pixel_clock; /* need to multiply by 10 KHz */ /* FIXME: byte order */
+	__le16 pixel_clock; /* need to multiply by 10 KHz */
 	union {
 		struct detailed_pixel_timing pixel_data;
 		struct detailed_non_pixel other_data;
 	} data;
 } __attribute__((packed));
+
+#define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 7)
+#define DRM_EDID_INPUT_SYNC_ON_GREEN   (1 << 5)
+#define DRM_EDID_INPUT_COMPOSITE_SYNC  (1 << 4)
+#define DRM_EDID_INPUT_SEPARATE_SYNCS  (1 << 3)
+#define DRM_EDID_INPUT_BLANK_TO_BLACK  (1 << 2)
+#define DRM_EDID_INPUT_VIDEO_LEVEL     (3 << 1)
+#define DRM_EDID_INPUT_DIGITAL         (1 << 0) /* bits above must be zero if set */
+
+#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 7)
+#define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 6)
+#define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 5)
+#define DRM_EDID_FEATURE_DISPLAY_TYPE     (3 << 3) /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
+#define DRM_EDID_FEATURE_PM_ACTIVE_OFF    (1 << 2)
+#define DRM_EDID_FEATURE_PM_SUSPEND       (1 << 1)
+#define DRM_EDID_FEATURE_PM_STANDBY       (1 << 0)
 
 struct edid {
 	u8 header[8];
@@ -153,25 +163,11 @@ struct edid {
 	u8 version;
 	u8 revision;
 	/* Display info: */
-	/*   input definition */
-	u8 serration_vsync:1;
-	u8 sync_on_green:1;
-	u8 composite_sync:1;
-	u8 separate_syncs:1;
-	u8 blank_to_black:1;
-	u8 video_level:2;
-	u8 digital:1; /* bits below must be zero if set */
+	u8 input;
 	u8 width_cm;
 	u8 height_cm;
 	u8 gamma;
-	/*   feature support */
-	u8 default_gtf:1;
-	u8 preferred_timing:1;
-	u8 standard_color:1;
-	u8 display_type:2; /* 00=mono, 01=rgb, 10=non-rgb, 11=unknown */
-	u8 pm_active_off:1;
-	u8 pm_suspend:1;
-	u8 pm_standby:1;
+	u8 features;
 	/* Color characteristics */
 	u8 red_green_lo;
 	u8 black_white_lo;
@@ -194,8 +190,6 @@ struct edid {
 	/* Checksum */
 	u8 checksum;
 } __attribute__((packed));
-
-#endif /* little endian structs */
 
 #define EDID_PRODUCT_ID(e) ((e)->prod_code[0] | ((e)->prod_code[1] << 8))
 
