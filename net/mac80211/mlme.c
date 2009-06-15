@@ -1102,14 +1102,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	u32 changed = 0, config_changed = 0;
 
-	rcu_read_lock();
-
-	sta = sta_info_get(local, ifmgd->bssid);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-
 	if (deauth) {
 		ifmgd->direct_probe_tries = 0;
 		ifmgd->auth_tries = 0;
@@ -1120,7 +1112,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
-	ieee80211_sta_tear_down_BA_sessions(sta);
+	rcu_read_lock();
+	sta = sta_info_get(local, ifmgd->bssid);
+	if (sta)
+		ieee80211_sta_tear_down_BA_sessions(sta);
+	rcu_read_unlock();
 
 	bss = ieee80211_rx_bss_get(local, ifmgd->bssid,
 				   conf->channel->center_freq,
@@ -1155,8 +1151,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 				sdata->local->hw.conf.channel->center_freq,
 				ifmgd->ssid, ifmgd->ssid_len);
 	}
-
-	rcu_read_unlock();
 
 	ieee80211_set_wmm_default(sdata);
 
@@ -2487,6 +2481,10 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 	ifmgd = &sdata->u.mgd;
 
 	if (ifmgd->ssid_len != len || memcmp(ifmgd->ssid, ssid, len) != 0) {
+		if (ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED)
+			ieee80211_set_disassoc(sdata, true, true,
+					       WLAN_REASON_DEAUTH_LEAVING);
+
 		/*
 		 * Do not use reassociation if SSID is changed (different ESS).
 		 */
@@ -2510,6 +2508,11 @@ int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (compare_ether_addr(bssid, ifmgd->bssid) != 0 &&
+	    ifmgd->state == IEEE80211_STA_MLME_ASSOCIATED)
+		ieee80211_set_disassoc(sdata, true, true,
+				       WLAN_REASON_DEAUTH_LEAVING);
 
 	if (is_valid_ether_addr(bssid)) {
 		memcpy(ifmgd->bssid, bssid, ETH_ALEN);
