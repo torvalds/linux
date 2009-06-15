@@ -343,6 +343,7 @@ extern unsigned char sane_ctype[256];
 #define isdigit(x) sane_istest(x,GIT_DIGIT)
 #define isalpha(x) sane_istest(x,GIT_ALPHA)
 #define isalnum(x) sane_istest(x,GIT_ALPHA | GIT_DIGIT)
+#define issane(x)  sane_istest(x,GIT_SPACE | GIT_DIGIT | GIT_ALPHA | GIT_GLOB_SPECIAL | GIT_REGEX_SPECIAL)
 #define is_glob_special(x) sane_istest(x,GIT_GLOB_SPECIAL)
 #define is_regex_special(x) sane_istest(x,GIT_GLOB_SPECIAL | GIT_REGEX_SPECIAL)
 #define tolower(x) sane_case((unsigned char)(x), 0x20)

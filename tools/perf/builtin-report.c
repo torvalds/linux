@@ -1266,7 +1266,7 @@ static void trace_event(event_t *event)
 			for (j = 0; j < 15-(i & 15); j++)
 				cdprintf("   ");
 			for (j = 0; j < (i & 15); j++) {
-				if (isprint(raw_event[i-15+j]))
+				if (issane(raw_event[i-15+j]))
 					cdprintf("%c", raw_event[i-15+j]);
 				else
 					cdprintf(".");
