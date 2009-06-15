@@ -982,7 +982,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 				chain->nr);
 
 			for (i = 0; i < chain->nr; i++)
-				dprintf("..... %2d: %p\n", i, (void *)chain->ips[i]);
+				dprintf("..... %2d: %016Lx\n", i, chain->ips[i]);
 		}
 		if (collapse_syscalls) {
 			/*
