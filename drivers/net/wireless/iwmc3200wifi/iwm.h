@@ -288,6 +288,7 @@ struct iwm_priv {
 	u8 *eeprom;
 	struct timer_list watchdog;
 	struct work_struct reset_worker;
+	struct mutex mutex;
 	struct rfkill *rfkill;
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
