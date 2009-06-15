@@ -1612,7 +1612,8 @@ static int nested_svm_vmexit_real(struct vcpu_svm *svm, void *arg1,
 	/* Kill any pending exceptions */
 	if (svm->vcpu.arch.exception.pending == true)
 		nsvm_printk("WARNING: Pending Exception\n");
-	svm->vcpu.arch.exception.pending = false;
+	kvm_clear_exception_queue(&svm->vcpu);
+	kvm_clear_interrupt_queue(&svm->vcpu);
 
 	/* Restore selected save entries */
 	svm->vmcb->save.es = hsave->save.es;
@@ -1680,7 +1681,8 @@ static int nested_svm_vmrun(struct vcpu_svm *svm, void *arg1,
 	svm->nested_vmcb = svm->vmcb->save.rax;
 
 	/* Clear internal status */
-	svm->vcpu.arch.exception.pending = false;
+	kvm_clear_exception_queue(&svm->vcpu);
+	kvm_clear_interrupt_queue(&svm->vcpu);
 
 	/* Save the old vmcb, so we don't need to pick what we save, but
 	   can restore everything when a VMEXIT occurs */
@@ -2362,21 +2364,14 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 }
 
-static void svm_queue_irq(struct kvm_vcpu *vcpu, unsigned nr)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	svm->vmcb->control.event_inj = nr |
-		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
-}
-
 static void svm_set_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	nested_svm_intr(svm);
+	BUG_ON(!(svm->vcpu.arch.hflags & HF_GIF_MASK));
 
-	svm_queue_irq(vcpu, vcpu->arch.interrupt.nr);
+	svm->vmcb->control.event_inj = vcpu->arch.interrupt.nr |
+		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
@@ -2404,13 +2399,25 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 	struct vmcb *vmcb = svm->vmcb;
 	return (vmcb->save.rflags & X86_EFLAGS_IF) &&
 		!(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		(svm->vcpu.arch.hflags & HF_GIF_MASK);
+		(svm->vcpu.arch.hflags & HF_GIF_MASK) &&
+		!is_nested(svm);
 }
 
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
-	svm_set_vintr(to_svm(vcpu));
-	svm_inject_irq(to_svm(vcpu), 0x0);
+	struct vcpu_svm *svm = to_svm(vcpu);
+	nsvm_printk("Trying to open IRQ window\n");
+
+	nested_svm_intr(svm);
+
+	/* In case GIF=0 we can't rely on the CPU to tell us when
+	 * GIF becomes 1, because that's a separate STGI/VMRUN intercept.
+	 * The next time we get that intercept, this function will be
+	 * called again though and we'll get the vintr intercept. */
+	if (svm->vcpu.arch.hflags & HF_GIF_MASK) {
+		svm_set_vintr(svm);
+		svm_inject_irq(svm, 0x0);
+	}
 }
 
 static void enable_nmi_window(struct kvm_vcpu *vcpu)
@@ -2489,6 +2496,8 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 	case SVM_EXITINTINFO_TYPE_EXEPT:
 		/* In case of software exception do not reinject an exception
 		   vector, but re-execute and instruction instead */
+		if (is_nested(svm))
+			break;
 		if (kvm_exception_is_soft(vector))
 			break;
 		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
