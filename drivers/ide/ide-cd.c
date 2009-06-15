@@ -785,12 +785,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 		/* right now this can only be a reset... */
 		uptodate = 1;
 		goto out_end;
-	} else {
-		blk_dump_rq_flags(rq, DRV_NAME " bad flags");
-		if (rq->errors == 0)
-			rq->errors = -EIO;
-		goto out_end;
-	}
+	} else
+		BUG();
 
 	/* prepare sense request for this command */
 	ide_prep_sense(drive, rq);

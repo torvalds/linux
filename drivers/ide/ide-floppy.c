@@ -269,10 +269,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 	} else if (blk_pc_request(rq)) {
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
-	} else {
-		blk_dump_rq_flags(rq, PFX "unsupported command in queue");
-		goto out_end;
-	}
+	} else
+		BUG();
 
 	ide_prep_sense(drive, rq);
 

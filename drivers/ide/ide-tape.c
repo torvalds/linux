@@ -586,15 +586,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %u\n"
 		  (unsigned long long)blk_rq_pos(rq), blk_rq_sectors(rq));
 
-	if (!(blk_special_request(rq) || blk_sense_request(rq))) {
-		/* We do not support buffer cache originated requests. */
-		printk(KERN_NOTICE "ide-tape: %s: Unsupported request in "
-			"request queue (%d)\n", drive->name, rq->cmd_type);
-		if (blk_fs_request(rq) == 0 && rq->errors == 0)
-			rq->errors = -EIO;
-		ide_complete_rq(drive, -EIO, ide_rq_bytes(rq));
-		return ide_stopped;
-	}
+	BUG_ON(!(blk_special_request(rq) || blk_sense_request(rq)));
 
 	/* Retry a failed packet command */
 	if (drive->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
