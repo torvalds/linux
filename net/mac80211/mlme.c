@@ -2223,7 +2223,10 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 				       capa_mask, capa_val);
 
 	if (bss) {
-		ieee80211_set_freq(sdata, bss->cbss.channel->center_freq);
+		local->oper_channel = bss->cbss.channel;
+		local->oper_channel_type = NL80211_CHAN_NO_HT;
+		ieee80211_hw_config(local, 0);
+
 		if (!(ifmgd->flags & IEEE80211_STA_SSID_SET))
 			ieee80211_sta_set_ssid(sdata, bss->ssid,
 					       bss->ssid_len);

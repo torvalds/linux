@@ -55,6 +55,8 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 				   struct iw_freq *freq, char *extra)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_channel *chan;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
@@ -69,17 +71,38 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
 		} else
-			return ieee80211_set_freq(sdata,
+			chan = ieee80211_get_channel(local->hw.wiphy,
 				ieee80211_channel_to_frequency(freq->m));
 	} else {
 		int i, div = 1000000;
 		for (i = 0; i < freq->e; i++)
 			div /= 10;
-		if (div > 0)
-			return ieee80211_set_freq(sdata, freq->m / div);
-		else
+		if (div <= 0)
 			return -EINVAL;
+		chan = ieee80211_get_channel(local->hw.wiphy, freq->m / div);
 	}
+
+	if (!chan)
+		return -EINVAL;
+
+	if (chan->flags & IEEE80211_CHAN_DISABLED)
+		return -EINVAL;
+
+	/*
+	 * no change except maybe auto -> fixed, ignore the HT
+	 * setting so you can fix a channel you're on already
+	 */
+	if (local->oper_channel == chan)
+		return 0;
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		ieee80211_sta_req_auth(sdata);
+
+	local->oper_channel = chan;
+	local->oper_channel_type = NL80211_CHAN_NO_HT;
+	ieee80211_hw_config(local, 0);
+
+	return 0;
 }
 
 
