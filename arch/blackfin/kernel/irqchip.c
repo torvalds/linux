@@ -104,6 +104,29 @@ static void check_stack_overflow(int irq)
 static inline void check_stack_overflow(int irq) { }
 #endif
 
+#ifndef CONFIG_IPIPE
+static void maybe_lower_to_irq14(void)
+{
+	unsigned short pending, other_ints;
+
+	/*
+	 * If we're the only interrupt running (ignoring IRQ15 which
+	 * is for syscalls), lower our priority to IRQ14 so that
+	 * softirqs run at that level.  If there's another,
+	 * lower-level interrupt, irq_exit will defer softirqs to
+	 * that. If the interrupt pipeline is enabled, we are already
+	 * running at IRQ14 priority, so we don't need this code.
+	 */
+	CSYNC();
+	pending = bfin_read_IPEND() & ~0x8000;
+	other_ints = pending & (pending - 1);
+	if (other_ints == 0)
+		lower_to_irq14();
+}
+#else
+static inline void maybe_lower_to_irq14(void) { }
+#endif
+
 /*
  * do_IRQ handles all hardware IRQs.  Decoded IRQs should not
  * come via this function.  Instead, they should provide their
@@ -114,9 +137,6 @@ __attribute__((l1_text))
 #endif
 asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-#ifndef CONFIG_IPIPE
-	unsigned short pending, other_ints;
-#endif
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
@@ -132,21 +152,8 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	else
 		generic_handle_irq(irq);
 
-#ifndef CONFIG_IPIPE
-	/*
-	 * If we're the only interrupt running (ignoring IRQ15 which
-	 * is for syscalls), lower our priority to IRQ14 so that
-	 * softirqs run at that level.  If there's another,
-	 * lower-level interrupt, irq_exit will defer softirqs to
-	 * that. If the interrupt pipeline is enabled, we are already
-	 * running at IRQ14 priority, so we don't need this code.
-	 */
-	CSYNC();
-	pending = bfin_read_IPEND() & ~0x8000;
-	other_ints = pending & (pending - 1);
-	if (other_ints == 0)
-		lower_to_irq14();
-#endif /* !CONFIG_IPIPE */
+	maybe_lower_to_irq14();
+
 	irq_exit();
 
 	set_irq_regs(old_regs);
