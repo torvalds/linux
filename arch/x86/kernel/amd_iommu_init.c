@@ -260,6 +260,14 @@ static void iommu_enable(struct amd_iommu *iommu)
 
 static void iommu_disable(struct amd_iommu *iommu)
 {
+	/* Disable command buffer */
+	iommu_feature_disable(iommu, CONTROL_CMDBUF_EN);
+
+	/* Disable event logging and event interrupts */
+	iommu_feature_disable(iommu, CONTROL_EVT_INT_EN);
+	iommu_feature_disable(iommu, CONTROL_EVT_LOG_EN);
+
+	/* Disable IOMMU hardware itself */
 	iommu_feature_disable(iommu, CONTROL_IOMMU_EN);
 }
 
@@ -1042,6 +1050,7 @@ static void enable_iommus(void)
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
+		iommu_disable(iommu);
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
