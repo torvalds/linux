@@ -804,7 +804,8 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 
 	spin_lock_irqsave(&hwif->lock, flags);
 
-	if (hwif->ack_intr && hwif->ack_intr(hwif) == 0)
+	if (hwif->port_ops && hwif->port_ops->test_irq &&
+	    hwif->port_ops->test_irq(hwif) == 0)
 		goto out;
 
 	handler = hwif->handler;

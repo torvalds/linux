@@ -99,7 +99,7 @@ static const char *buddha_board_name[] = { "Buddha", "Catweasel", "X-Surf" };
      *  Check and acknowledge the interrupt status
      */
 
-static int buddha_ack_intr(ide_hwif_t *hwif)
+static int buddha_test_irq(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
@@ -118,8 +118,7 @@ static void xsurf_clear_irq(ide_drive_t *drive)
 }
 
 static void __init buddha_setup_ports(struct ide_hw *hw, unsigned long base,
-				      unsigned long ctl, unsigned long irq_port,
-				      ide_ack_intr_t *ack_intr)
+				      unsigned long ctl, unsigned long irq_port)
 {
 	int i;
 
@@ -134,14 +133,19 @@ static void __init buddha_setup_ports(struct ide_hw *hw, unsigned long base,
 	hw->io_ports.irq_addr = irq_port;
 
 	hw->irq = IRQ_AMIGA_PORTS;
-	hw->ack_intr = ack_intr;
 }
+
+static const struct ide_port_ops buddha_port_ops = {
+	.test_irq		= buddha_test_irq,
+};
 
 static const struct ide_port_ops xsurf_port_ops = {
 	.clear_irq		= xsurf_clear_irq,
+	.test_irq		= buddha_test_irq,
 };
 
 static const struct ide_port_info buddha_port_info = {
+	.port_ops		= &buddha_port_ops,
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
 	.chipset		= ide_generic,
@@ -217,8 +221,7 @@ fail_base2:
 				irq_port = buddha_board + xsurf_irqports[i];
 			}
 
-			buddha_setup_ports(&hw[i], base, ctl, irq_port,
-					   buddha_ack_intr);
+			buddha_setup_ports(&hw[i], base, ctl, irq_port);
 
 			hws[i] = &hw[i];
 		}

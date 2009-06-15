@@ -66,7 +66,7 @@ MODULE_PARM_DESC(doubler, "enable support for IDE doublers");
      *  Check and acknowledge the interrupt status
      */
 
-static int gayle_ack_intr(ide_hwif_t *hwif)
+static int gayle_test_irq(ide_hwif_t *hwif)
 {
     unsigned char ch;
 
@@ -85,8 +85,7 @@ static void gayle_a1200_clear_irq(ide_drive_t *drive)
 }
 
 static void __init gayle_setup_ports(struct ide_hw *hw, unsigned long base,
-				     unsigned long ctl, unsigned long irq_port,
-				     ide_ack_intr_t *ack_intr)
+				     unsigned long ctl, unsigned long irq_port)
 {
 	int i;
 
@@ -101,11 +100,15 @@ static void __init gayle_setup_ports(struct ide_hw *hw, unsigned long base,
 	hw->io_ports.irq_addr = irq_port;
 
 	hw->irq = IRQ_AMIGA_PORTS;
-	hw->ack_intr = ack_intr;
 }
+
+static const struct ide_port_ops gayle_a4000_port_ops = {
+	.test_irq		= gayle_test_irq,
+};
 
 static const struct ide_port_ops gayle_a1200_port_ops = {
 	.clear_irq		= gayle_a1200_clear_irq,
+	.test_irq		= gayle_test_irq,
 };
 
 static const struct ide_port_info gayle_port_info = {
@@ -148,6 +151,7 @@ found:
 	if (a4000) {
 	    phys_base = GAYLE_BASE_4000;
 	    irqport = (unsigned long)ZTWO_VADDR(GAYLE_IRQ_4000);
+	    d.port_ops = &gayle_a4000_port_ops;
 	} else {
 	    phys_base = GAYLE_BASE_1200;
 	    irqport = (unsigned long)ZTWO_VADDR(GAYLE_IRQ_1200);
@@ -164,7 +168,7 @@ found:
 	base = (unsigned long)ZTWO_VADDR(phys_base + i * GAYLE_NEXT_PORT);
 	ctrlport = GAYLE_HAS_CONTROL_REG ? (base + GAYLE_CONTROL) : 0;
 
-	gayle_setup_ports(&hw[i], base, ctrlport, irqport, gayle_ack_intr);
+	gayle_setup_ports(&hw[i], base, ctrlport, irqport);
 
 	hws[i] = &hw[i];
     }

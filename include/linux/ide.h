@@ -157,12 +157,6 @@ enum {
 #define REQ_UNPARK_HEADS	0x23
 
 /*
- * Check for an interrupt and acknowledge the interrupt status
- */
-struct hwif_s;
-typedef int (ide_ack_intr_t)(struct hwif_s *);
-
-/*
  * hwif_chipset_t is used to keep track of the specific hardware
  * chipset used by each IDE interface, if known.
  */
@@ -185,7 +179,6 @@ struct ide_hw {
 	};
 
 	int		irq;			/* our irq number */
-	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	struct device	*dev, *parent;
 	unsigned long	config;
 };
@@ -636,6 +629,7 @@ struct ide_port_ops {
 	void	(*maskproc)(ide_drive_t *, int);
 	void	(*quirkproc)(ide_drive_t *);
 	void	(*clear_irq)(ide_drive_t *);
+	int	(*test_irq)(struct hwif_s *);
 
 	u8	(*mdma_filter)(ide_drive_t *);
 	u8	(*udma_filter)(ide_drive_t *);
@@ -700,8 +694,6 @@ typedef struct hwif_s {
 	hwif_chipset_t chipset;	/* sub-module for tuning.. */
 
 	struct device *dev;
-
-	ide_ack_intr_t *ack_intr;
 
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
