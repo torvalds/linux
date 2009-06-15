@@ -206,6 +206,31 @@ int cxgb3i_ddp_find_page_index(unsigned long pgsz)
 	return DDP_PGIDX_MAX;
 }
 
+/**
+ * cxgb3i_ddp_adjust_page_table - adjust page table with PAGE_SIZE
+ * return the ddp page index, if no match is found return DDP_PGIDX_MAX.
+ */
+int cxgb3i_ddp_adjust_page_table(void)
+{
+	int i;
+	unsigned int base_order, order;
+
+	if (PAGE_SIZE < (1UL << ddp_page_shift[0])) {
+		ddp_log_info("PAGE_SIZE 0x%lx too small, min. 0x%lx.\n",
+				PAGE_SIZE, 1UL << ddp_page_shift[0]);
+		return -EINVAL;
+	}
+
+	base_order = get_order(1UL << ddp_page_shift[0]);
+	order = get_order(1 << PAGE_SHIFT);
+	for (i = 0; i < DDP_PGIDX_MAX; i++) {
+		/* first is the kernel page size, then just doubling the size */
+		ddp_page_order[i] = order - base_order + i;
+		ddp_page_shift[i] = PAGE_SHIFT + i;
+	}
+	return 0;
+}
+
 static inline void ddp_gl_unmap(struct pci_dev *pdev,
 				struct cxgb3i_gather_list *gl)
 {
@@ -727,6 +752,17 @@ void cxgb3i_ddp_init(struct t3cdev *tdev)
 {
 	if (page_idx == DDP_PGIDX_MAX) {
 		page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
+
+		if (page_idx == DDP_PGIDX_MAX) {
+			ddp_log_info("system PAGE_SIZE %lu, update hw.\n",
+					PAGE_SIZE);
+			if (cxgb3i_ddp_adjust_page_table() < 0) {
+				ddp_log_info("PAGE_SIZE %lu, ddp disabled.\n",
+						PAGE_SIZE);
+				return;
+			}
+			page_idx = cxgb3i_ddp_find_page_index(PAGE_SIZE);
+		}
 		ddp_log_info("system PAGE_SIZE %lu, ddp idx %u.\n",
 				PAGE_SIZE, page_idx);
 	}
