@@ -118,8 +118,9 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_timing *t	= ide_timing_find_mode(XFER_PIO_0 + pio);
+	unsigned long setup_count;
 	unsigned int cycle_time;
-	u8 setup_count, arttim = 0;
+	u8 arttim = 0;
 
 	static const u8 setup_values[] = {0x40, 0x40, 0x40, 0x80, 0, 0xc0};
 	static const u8 arttim_regs[4] = {ARTTIM0, ARTTIM1, ARTTIM23, ARTTIM23};
@@ -140,10 +141,11 @@ static void cmd64x_tune_pio(ide_drive_t *drive, const u8 pio)
 	if (hwif->channel) {
 		ide_drive_t *pair = ide_get_pair_dev(drive);
 
-		drive->drive_data = setup_count;
+		ide_set_drivedata(drive, (void *)setup_count);
 
 		if (pair)
-			setup_count = max_t(u8, setup_count, pair->drive_data);
+			setup_count = max_t(u8, setup_count,
+					(unsigned long)ide_get_drivedata(pair));
 	}
 
 	if (setup_count > 5)		/* shouldn't actually happen... */
