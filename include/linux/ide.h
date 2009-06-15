@@ -661,6 +661,10 @@ struct ide_dma_ops {
 	u8	(*dma_sff_read_status)(struct hwif_s *);
 };
 
+enum {
+	IDE_PFLAG_PROBING		= (1 << 0),
+};
+
 struct ide_host;
 
 typedef struct hwif_s {
@@ -676,6 +680,8 @@ typedef struct hwif_s {
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
 	ide_drive_t	*devices[MAX_DRIVES + 1];
+
+	unsigned long	port_flags;
 
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
