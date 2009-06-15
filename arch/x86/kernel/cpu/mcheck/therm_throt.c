@@ -24,7 +24,6 @@
 #include <linux/smp.h>
 #include <linux/cpu.h>
 
-#include <asm/therm_throt.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/apic.h>
@@ -38,7 +37,7 @@
 static DEFINE_PER_CPU(__u64, next_check) = INITIAL_JIFFIES;
 static DEFINE_PER_CPU(unsigned long, thermal_throttle_count);
 
-atomic_t therm_throt_en		= ATOMIC_INIT(0);
+static atomic_t therm_throt_en		= ATOMIC_INIT(0);
 
 #ifdef CONFIG_SYSFS
 #define define_therm_throt_sysdev_one_ro(_name)				\
@@ -93,7 +92,7 @@ static struct attribute_group thermal_throttle_attr_group = {
  *          1 : Event should be logged further, and a message has been
  *              printed to the syslog.
  */
-int therm_throt_process(int curr)
+static int therm_throt_process(int curr)
 {
 	unsigned int cpu = smp_processor_id();
 	__u64 tmp_jiffs = get_jiffies_64();

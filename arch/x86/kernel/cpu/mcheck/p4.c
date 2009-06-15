@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 
-#include <asm/therm_throt.h>
 #include <asm/processor.h>
 #include <asm/mce.h>
 #include <asm/msr.h>

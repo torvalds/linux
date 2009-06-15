@@ -11,7 +11,6 @@
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/mce.h>
-#include <asm/therm_throt.h>
 
 /*
  * Support for Intel Correct Machine Check Interrupts. This allows
