@@ -1542,5 +1542,5 @@ void __init setup_per_cpu_areas(void)
 
 	of_fill_in_cpu_data();
 	if (tlb_type == hypervisor)
-		mdesc_fill_in_cpu_data(CPU_MASK_ALL_PTR);
+		mdesc_fill_in_cpu_data(cpu_all_mask);
 }
