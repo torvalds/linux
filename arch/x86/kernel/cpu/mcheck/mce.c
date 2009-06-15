@@ -1617,8 +1617,9 @@ static int mce_resume(struct sys_device *dev)
 static void mce_cpu_restart(void *data)
 {
 	del_timer_sync(&__get_cpu_var(mce_timer));
-	if (mce_available(&current_cpu_data))
-		mce_init();
+	if (!mce_available(&current_cpu_data))
+		return;
+	mce_init();
 	mce_init_timer();
 }
 
