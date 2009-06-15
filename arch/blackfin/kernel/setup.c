@@ -837,7 +837,8 @@ void __init setup_arch(char **cmdline_p)
     defined(CONFIG_BF538) || defined(CONFIG_BF539)
 	_bfin_swrst = bfin_read_SWRST();
 #else
-	_bfin_swrst = bfin_read_SYSCR();
+	/* Clear boot mode field */
+	_bfin_swrst = bfin_read_SYSCR() & ~0xf;
 #endif
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
