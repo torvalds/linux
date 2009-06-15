@@ -1509,7 +1509,7 @@ struct i2c_adapter* i2c_get_adapter(int id)
 	struct i2c_adapter *adapter;
 
 	mutex_lock(&core_lock);
-	adapter = (struct i2c_adapter *)idr_find(&i2c_adapter_idr, id);
+	adapter = idr_find(&i2c_adapter_idr, id);
 	if (adapter && !try_module_get(adapter->owner))
 		adapter = NULL;
 
