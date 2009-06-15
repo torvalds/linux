@@ -1626,6 +1626,26 @@ static void mce_restart(void)
 	on_each_cpu(mce_cpu_restart, NULL, 1);
 }
 
+/* Toggle features for corrected errors */
+static void mce_disable_ce(void *all)
+{
+	if (!mce_available(&current_cpu_data))
+		return;
+	if (all)
+		del_timer_sync(&__get_cpu_var(mce_timer));
+	cmci_clear();
+}
+
+static void mce_enable_ce(void *all)
+{
+	if (!mce_available(&current_cpu_data))
+		return;
+	cmci_reenable();
+	cmci_recheck();
+	if (all)
+		mce_init_timer();
+}
+
 static struct sysdev_class mce_sysclass = {
 	.suspend	= mce_suspend,
 	.shutdown	= mce_shutdown,
@@ -1687,6 +1707,52 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 	return len;
 }
 
+static ssize_t set_ignore_ce(struct sys_device *s,
+			     struct sysdev_attribute *attr,
+			     const char *buf, size_t size)
+{
+	u64 new;
+
+	if (strict_strtoull(buf, 0, &new) < 0)
+		return -EINVAL;
+
+	if (mce_ignore_ce ^ !!new) {
+		if (new) {
+			/* disable ce features */
+			on_each_cpu(mce_disable_ce, (void *)1, 1);
+			mce_ignore_ce = 1;
+		} else {
+			/* enable ce features */
+			mce_ignore_ce = 0;
+			on_each_cpu(mce_enable_ce, (void *)1, 1);
+		}
+	}
+	return size;
+}
+
+static ssize_t set_cmci_disabled(struct sys_device *s,
+				 struct sysdev_attribute *attr,
+				 const char *buf, size_t size)
+{
+	u64 new;
+
+	if (strict_strtoull(buf, 0, &new) < 0)
+		return -EINVAL;
+
+	if (mce_cmci_disabled ^ !!new) {
+		if (new) {
+			/* disable cmci */
+			on_each_cpu(mce_disable_ce, NULL, 1);
+			mce_cmci_disabled = 1;
+		} else {
+			/* enable cmci */
+			mce_cmci_disabled = 0;
+			on_each_cpu(mce_enable_ce, NULL, 1);
+		}
+	}
+	return size;
+}
+
 static ssize_t store_int_with_restart(struct sys_device *s,
 				      struct sysdev_attribute *attr,
 				      const char *buf, size_t size)
@@ -1699,6 +1765,7 @@ static ssize_t store_int_with_restart(struct sys_device *s,
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
 static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 static SYSDEV_INT_ATTR(monarch_timeout, 0644, monarch_timeout);
+static SYSDEV_INT_ATTR(dont_log_ce, 0644, mce_dont_log_ce);
 
 static struct sysdev_ext_attribute attr_check_interval = {
 	_SYSDEV_ATTR(check_interval, 0644, sysdev_show_int,
@@ -1706,9 +1773,24 @@ static struct sysdev_ext_attribute attr_check_interval = {
 	&check_interval
 };
 
+static struct sysdev_ext_attribute attr_ignore_ce = {
+	_SYSDEV_ATTR(ignore_ce, 0644, sysdev_show_int, set_ignore_ce),
+	&mce_ignore_ce
+};
+
+static struct sysdev_ext_attribute attr_cmci_disabled = {
+	_SYSDEV_ATTR(ignore_ce, 0644, sysdev_show_int, set_cmci_disabled),
+	&mce_cmci_disabled
+};
+
 static struct sysdev_attribute *mce_attrs[] = {
-	&attr_tolerant.attr, &attr_check_interval.attr, &attr_trigger,
+	&attr_tolerant.attr,
+	&attr_check_interval.attr,
+	&attr_trigger,
 	&attr_monarch_timeout.attr,
+	&attr_dont_log_ce.attr,
+	&attr_ignore_ce.attr,
+	&attr_cmci_disabled.attr,
 	NULL
 };
 
