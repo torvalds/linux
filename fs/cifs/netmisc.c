@@ -166,7 +166,7 @@ int
 cifs_convert_address(char *src, void *dst)
 {
 	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
-	struct sockaddr_in6 *s6 = (Struct sockaddr_in6 *) dst;
+	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
 
 	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
 		s4->sin_family = AF_INET;
