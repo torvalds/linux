@@ -524,9 +524,6 @@ int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx)
 {
 	struct iwm_umac_tx_key_id tx_key_id;
 
-	if (!iwm->default_key || !iwm->default_key->in_use)
-		return -EINVAL;
-
 	tx_key_id.hdr.oid = UMAC_WIFI_IF_CMD_GLOBAL_TX_KEY_ID;
 	tx_key_id.hdr.buf_size = cpu_to_le16(sizeof(struct iwm_umac_tx_key_id) -
 					     sizeof(struct iwm_umac_wifi_if));
@@ -569,10 +566,9 @@ static int iwm_check_profile(struct iwm_priv *iwm)
 	return 0;
 }
 
-int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
-		struct iwm_key *key)
+int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key)
 {
-	int ret;
+	int ret = 0;
 	u8 cmd[64], *sta_addr, *key_data, key_len;
 	s8 key_idx;
 	u16 cmd_size = 0;
@@ -581,9 +577,6 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 	struct iwm_umac_key_wep104 *wep104 = (struct iwm_umac_key_wep104 *)cmd;
 	struct iwm_umac_key_tkip *tkip = (struct iwm_umac_key_tkip *)cmd;
 	struct iwm_umac_key_ccmp *ccmp = (struct iwm_umac_key_ccmp *)cmd;
-
-	if (set_tx_key)
-		iwm->default_key = key;
 
 	/*
 	 * We check if our current profile is valid.
@@ -603,8 +596,7 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 	key_idx = key->hdr.key_idx;
 
 	if (!remove) {
-		IWM_DBG_WEXT(iwm, DBG, "key_idx:%d set tx key:%d\n",
-			     key_idx, set_tx_key);
+		IWM_DBG_WEXT(iwm, DBG, "key_idx:%d\n", key_idx);
 		IWM_DBG_WEXT(iwm, DBG, "key_len:%d\n", key_len);
 		IWM_DBG_WEXT(iwm, DBG, "MAC:%pM, idx:%d, multicast:%d\n",
 		       key_hdr->mac, key_hdr->key_idx, key_hdr->multicast);
@@ -616,8 +608,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			     iwm->umac_profile->sec.auth_type,
 			     iwm->umac_profile->sec.flags);
 
-		switch (key->alg) {
-		case UMAC_CIPHER_TYPE_WEP_40:
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
 			wep40->hdr.oid = UMAC_WIFI_IF_CMD_ADD_WEP40_KEY;
 			wep40->hdr.buf_size =
 				cpu_to_le16(sizeof(struct iwm_umac_key_wep40) -
@@ -631,7 +623,7 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			cmd_size = sizeof(struct iwm_umac_key_wep40);
 			break;
 
-		case UMAC_CIPHER_TYPE_WEP_104:
+		case WLAN_CIPHER_SUITE_WEP104:
 			wep104->hdr.oid = UMAC_WIFI_IF_CMD_ADD_WEP104_KEY;
 			wep104->hdr.buf_size =
 				cpu_to_le16(sizeof(struct iwm_umac_key_wep104) -
@@ -645,7 +637,7 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			cmd_size = sizeof(struct iwm_umac_key_wep104);
 			break;
 
-		case UMAC_CIPHER_TYPE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			key_hdr->key_idx++;
 			ccmp->hdr.oid = UMAC_WIFI_IF_CMD_ADD_CCMP_KEY;
 			ccmp->hdr.buf_size =
@@ -657,13 +649,13 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 
 			memcpy(ccmp->key, key_data, key_len);
 
-			if (key->flags & IW_ENCODE_EXT_RX_SEQ_VALID)
-				memcpy(ccmp->iv_count, key->rx_seq, 6);
+			if (key->seq_len)
+				memcpy(ccmp->iv_count, key->seq, key->seq_len);
 
 			cmd_size = sizeof(struct iwm_umac_key_ccmp);
 			break;
 
-		case UMAC_CIPHER_TYPE_TKIP:
+		case WLAN_CIPHER_SUITE_TKIP:
 			key_hdr->key_idx++;
 			tkip->hdr.oid = UMAC_WIFI_IF_CMD_ADD_TKIP_KEY;
 			tkip->hdr.buf_size =
@@ -680,8 +672,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			       key_data + IWM_TKIP_KEY_SIZE + IWM_TKIP_MIC_SIZE,
 			       IWM_TKIP_MIC_SIZE);
 
-			if (key->flags & IW_ENCODE_EXT_RX_SEQ_VALID)
-				memcpy(ccmp->iv_count, key->rx_seq, 6);
+			if (key->seq_len)
+				memcpy(ccmp->iv_count, key->seq, key->seq_len);
 
 			cmd_size = sizeof(struct iwm_umac_key_tkip);
 			break;
@@ -690,8 +682,8 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			return -ENOTSUPP;
 		}
 
-		if ((key->alg == UMAC_CIPHER_TYPE_CCMP) ||
-		    (key->alg == UMAC_CIPHER_TYPE_TKIP))
+		if ((key->cipher == WLAN_CIPHER_SUITE_TKIP) ||
+		    (key->cipher == WLAN_CIPHER_SUITE_CCMP))
 			/*
 			 * UGLY_UGLY_UGLY
 			 * Copied HACK from the MWG driver.
@@ -702,22 +694,10 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 			schedule_timeout_interruptible(usecs_to_jiffies(300));
 
 		ret =  iwm_send_wifi_if_cmd(iwm, cmd, cmd_size, 1);
-		if (ret < 0)
-			goto err;
-
-		/*
-		 * We need a default key only if it is set and
-		 * if we're doing WEP.
-		 */
-		if (iwm->default_key == key &&
-			((key->alg == UMAC_CIPHER_TYPE_WEP_40) ||
-			 (key->alg == UMAC_CIPHER_TYPE_WEP_104))) {
-			ret = iwm_set_tx_key(iwm, key_idx);
-			if (ret < 0)
-				goto err;
-		}
 	} else {
 		struct iwm_umac_key_remove key_remove;
+
+		IWM_DBG_WEXT(iwm, ERR, "Removing key_idx:%d\n", key_idx);
 
 		key_remove.hdr.oid = UMAC_WIFI_IF_CMD_REMOVE_KEY;
 		key_remove.hdr.buf_size =
@@ -732,13 +712,9 @@ int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
 		if (ret < 0)
 			return ret;
 
-		iwm->keys[key_idx].in_use = 0;
+		iwm->keys[key_idx].key_len = 0;
 	}
 
-	return 0;
-
- err:
-	kfree(key);
 	return ret;
 }
 
@@ -761,12 +737,8 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 	}
 
 	for (i = 0; i < IWM_NUM_KEYS; i++)
-		if (iwm->keys[i].in_use) {
-			int default_key = 0;
+		if (iwm->keys[i].key_len) {
 			struct iwm_key *key = &iwm->keys[i];
-
-			if (key == iwm->default_key)
-				default_key = 1;
 
 			/* Wait for the profile before sending the keys */
 			wait_event_interruptible_timeout(iwm->mlme_queue,
@@ -774,9 +746,15 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 			      test_bit(IWM_STATUS_ASSOCIATED, &iwm->status)),
 							 3 * HZ);
 
-			ret = iwm_set_key(iwm, 0, default_key, key);
+			ret = iwm_set_key(iwm, 0, key);
 			if (ret < 0)
 				return ret;
+
+			if (iwm->default_key == i) {
+				ret = iwm_set_tx_key(iwm, i);
+				if (ret < 0)
+					return ret;
+			}
 		}
 
 	return 0;

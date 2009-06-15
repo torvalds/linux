@@ -230,7 +230,7 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	for (i = 0; i < IWM_NUM_KEYS; i++)
 		memset(&iwm->keys[i], 0, sizeof(struct iwm_key));
 
-	iwm->default_key = NULL;
+	iwm->default_key = -1;
 
 	init_timer(&iwm->watchdog);
 	iwm->watchdog.function = iwm_watchdog;
@@ -709,7 +709,7 @@ int __iwm_down(struct iwm_priv *iwm)
 	iwm->umac_profile = NULL;
 	iwm_bss_list_clean(iwm);
 
-	iwm->default_key = NULL;
+	iwm->default_key = -1;
 	iwm->core_enabled = 0;
 
 	ret = iwm_bus_disable(iwm);

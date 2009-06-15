@@ -84,6 +84,8 @@ static int iwm_wext_siwap(struct net_device *dev, struct iw_request_info *info,
 	struct iwm_priv *iwm = ndev_to_iwm(dev);
 	int ret;
 
+	IWM_DBG_WEXT(iwm, DBG, "Set BSSID: %pM\n", ap_addr->sa_data);
+
 	if (iwm->conf.mode == UMAC_MODE_IBSS)
 		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
 
@@ -116,8 +118,7 @@ static int iwm_wext_siwap(struct net_device *dev, struct iw_request_info *info,
 		 */
 		if (is_zero_ether_addr(ap_addr->sa_data)) {
 			for (i = 0; i < IWM_NUM_KEYS; i++)
-				iwm->keys[i].in_use = 0;
-
+				iwm->keys[i].key_len = 0;
 		}
 
 		ret = iwm_invalidate_mlme_profile(iwm);
@@ -162,6 +163,8 @@ static int iwm_wext_siwessid(struct net_device *dev,
 	struct iwm_priv *iwm = ndev_to_iwm(dev);
 	size_t len = data->length;
 	int ret;
+
+	IWM_DBG_WEXT(iwm, DBG, "Set ESSID: >%s<\n", ssid);
 
 	if (iwm->conf.mode == UMAC_MODE_IBSS)
 		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
@@ -212,27 +215,6 @@ static int iwm_wext_giwessid(struct net_device *dev,
 	return 0;
 }
 
-static struct iwm_key *
-iwm_key_init(struct iwm_priv *iwm, u8 key_idx, bool in_use,
-	     struct iw_encode_ext *ext, u8 alg)
-{
-	struct iwm_key *key = &iwm->keys[key_idx];
-
-	memset(key, 0, sizeof(struct iwm_key));
-	memcpy(key->hdr.mac, ext->addr.sa_data, ETH_ALEN);
-	key->hdr.key_idx = key_idx;
-	if (is_broadcast_ether_addr(ext->addr.sa_data))
-		key->hdr.multicast = 1;
-
-	key->in_use = in_use;
-	key->flags = ext->ext_flags;
-	key->alg = alg;
-	key->key_len = ext->key_len;
-	memcpy(key->key, ext->key, ext->key_len);
-
-	return key;
-}
-
 static int iwm_wext_giwrate(struct net_device *dev,
 			    struct iw_request_info *info,
 			    struct iw_param *rate, char *extra)
@@ -240,184 +222,6 @@ static int iwm_wext_giwrate(struct net_device *dev,
 	struct iwm_priv *iwm = ndev_to_iwm(dev);
 
 	rate->value = iwm->rate * 1000000;
-
-	return 0;
-}
-
-static int iwm_wext_siwencode(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_point *erq, char *key_buf)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-	struct iwm_key *uninitialized_var(key);
-	int idx, i, uninitialized_var(alg), remove = 0, ret;
-
-	IWM_DBG_WEXT(iwm, DBG, "key len: %d\n", erq->length);
-	IWM_DBG_WEXT(iwm, DBG, "flags: 0x%x\n", erq->flags);
-
-	if (!iwm->umac_profile) {
-		IWM_ERR(iwm, "UMAC profile not allocated yet\n");
-		return -ENODEV;
-	}
-
-	if (erq->length == WLAN_KEY_LEN_WEP40) {
-		alg = UMAC_CIPHER_TYPE_WEP_40;
-		iwm->umac_profile->sec.ucast_cipher = UMAC_CIPHER_TYPE_WEP_40;
-		iwm->umac_profile->sec.mcast_cipher = UMAC_CIPHER_TYPE_WEP_40;
-	} else if (erq->length == WLAN_KEY_LEN_WEP104) {
-		alg = UMAC_CIPHER_TYPE_WEP_104;
-		iwm->umac_profile->sec.ucast_cipher = UMAC_CIPHER_TYPE_WEP_104;
-		iwm->umac_profile->sec.mcast_cipher = UMAC_CIPHER_TYPE_WEP_104;
-	}
-
-	if (erq->flags & IW_ENCODE_RESTRICTED)
-		iwm->umac_profile->sec.auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
-	else
-		iwm->umac_profile->sec.auth_type = UMAC_AUTH_TYPE_OPEN;
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx == 0) {
-		if (iwm->default_key)
-			for (i = 0; i < IWM_NUM_KEYS; i++) {
-				if (iwm->default_key == &iwm->keys[i]) {
-					idx = i;
-					break;
-				}
-			}
-		else
-			iwm->default_key = &iwm->keys[idx];
-	} else if (idx < 1 || idx > 4) {
-		return -EINVAL;
-	} else
-		idx--;
-
-	if (erq->flags & IW_ENCODE_DISABLED)
-		remove = 1;
-	else if (erq->length == 0) {
-		if (!iwm->keys[idx].in_use)
-			return -EINVAL;
-		iwm->default_key = &iwm->keys[idx];
-	}
-
-	if (erq->length) {
-		key = &iwm->keys[idx];
-		memset(key, 0, sizeof(struct iwm_key));
-		memset(key->hdr.mac, 0xff, ETH_ALEN);
-		key->hdr.key_idx = idx;
-		key->hdr.multicast = 1;
-		key->in_use = !remove;
-		key->alg = alg;
-		key->key_len = erq->length;
-		memcpy(key->key, key_buf, erq->length);
-
-		IWM_DBG_WEXT(iwm, DBG, "Setting key %d, default: %d\n",
-			     idx, !!iwm->default_key);
-	}
-
-	if (remove) {
-		if ((erq->flags & IW_ENCODE_NOKEY) || (erq->length == 0)) {
-			int j;
-			for (j = 0; j < IWM_NUM_KEYS; j++)
-				if (iwm->keys[j].in_use) {
-					struct iwm_key *k = &iwm->keys[j];
-
-					k->in_use = 0;
-					ret = iwm_set_key(iwm, remove, 0, k);
-					if (ret < 0)
-						return ret;
-				}
-
-			iwm->umac_profile->sec.ucast_cipher =
-							UMAC_CIPHER_TYPE_NONE;
-			iwm->umac_profile->sec.mcast_cipher =
-							UMAC_CIPHER_TYPE_NONE;
-			iwm->umac_profile->sec.auth_type =
-							UMAC_AUTH_TYPE_OPEN;
-
-			return 0;
-		} else {
-			key->in_use = 0;
-			return iwm_set_key(iwm, remove, 0, key);
-		}
-	}
-
-	/*
-	 * If we havent set a profile yet, we cant set keys.
-	 * Keys will be pushed after we're associated.
-	 */
-	if (!iwm->umac_profile_active)
-		return 0;
-
-	/*
-	 * If there is a current active profile, but no
-	 * default key, it's not worth trying to associate again.
-	 */
-	if (!iwm->default_key)
-		return 0;
-
-	/*
-	 * Here we have an active profile, but a key setting changed.
-	 * We thus have to invalidate the current profile, and push the
-	 * new one. Keys will be pushed when association takes place.
-	 */
-	ret = iwm_invalidate_mlme_profile(iwm);
-	if (ret < 0) {
-		IWM_ERR(iwm, "Couldn't invalidate profile\n");
-		return ret;
-	}
-
-	return iwm_send_mlme_profile(iwm);
-}
-
-static int iwm_wext_giwencode(struct net_device *dev,
-			      struct iw_request_info *info,
-			      struct iw_point *erq, char *key)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-	int idx, i;
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx < 1 || idx > 4) {
-		idx = -1;
-		if (!iwm->default_key) {
-			erq->length = 0;
-			erq->flags |= IW_ENCODE_NOKEY;
-			return 0;
-		} else
-			for (i = 0; i < IWM_NUM_KEYS; i++) {
-				if (iwm->default_key == &iwm->keys[i]) {
-					idx = i;
-					break;
-				}
-			}
-		if (idx < 0)
-			return -EINVAL;
-	} else
-		idx--;
-
-	erq->flags = idx + 1;
-
-	if (!iwm->keys[idx].in_use) {
-		erq->length = 0;
-		erq->flags |= IW_ENCODE_DISABLED;
-		return 0;
-	}
-
-	memcpy(key, iwm->keys[idx].key,
-	       min_t(int, erq->length, iwm->keys[idx].key_len));
-	erq->length = iwm->keys[idx].key_len;
-	erq->flags |= IW_ENCODE_ENABLED;
-
-	if (iwm->umac_profile->mode == UMAC_MODE_BSS) {
-		switch (iwm->umac_profile->sec.auth_type) {
-		case UMAC_AUTH_TYPE_OPEN:
-			erq->flags |= IW_ENCODE_OPEN;
-			break;
-		default:
-			erq->flags |= IW_ENCODE_RESTRICTED;
-			break;
-		}
-	}
 
 	return 0;
 }
@@ -481,6 +285,8 @@ static int iwm_set_key_mgt(struct iwm_priv *iwm, u8 key_mgt)
 {
 	u8 *auth_type = &iwm->umac_profile->sec.auth_type;
 
+	IWM_DBG_WEXT(iwm, DBG, "key_mgt: 0x%x\n", key_mgt);
+
 	if (key_mgt == IW_AUTH_KEY_MGMT_802_1X)
 		*auth_type = UMAC_AUTH_TYPE_8021X;
 	else if (key_mgt == IW_AUTH_KEY_MGMT_PSK) {
@@ -530,6 +336,8 @@ static int iwm_set_auth_alg(struct iwm_priv *iwm, u8 auth_alg)
 {
 	u8 *auth_type = &iwm->umac_profile->sec.auth_type;
 
+	IWM_DBG_WEXT(iwm, DBG, "auth_alg: 0x%x\n", auth_alg);
+
 	switch (auth_alg) {
 	case IW_AUTH_ALG_OPEN_SYSTEM:
 		*auth_type = UMAC_AUTH_TYPE_OPEN;
@@ -541,6 +349,7 @@ static int iwm_set_auth_alg(struct iwm_priv *iwm, u8 auth_alg)
 				return -EINVAL;
 			*auth_type = UMAC_AUTH_TYPE_RSNA_PSK;
 		} else {
+			IWM_DBG_WEXT(iwm, DBG, "WEP shared key\n");
 			*auth_type = UMAC_AUTH_TYPE_LEGACY_PSK;
 		}
 		break;
@@ -603,75 +412,6 @@ static int iwm_wext_giwauth(struct net_device *dev,
 	return 0;
 }
 
-static int iwm_wext_siwencodeext(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_point *erq, char *extra)
-{
-	struct iwm_priv *iwm = ndev_to_iwm(dev);
-	struct iwm_key *key;
-	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
-	int uninitialized_var(alg), idx, i, remove = 0;
-
-	IWM_DBG_WEXT(iwm, DBG, "alg: 0x%x\n", ext->alg);
-	IWM_DBG_WEXT(iwm, DBG, "key len: %d\n", ext->key_len);
-	IWM_DBG_WEXT(iwm, DBG, "ext_flags: 0x%x\n", ext->ext_flags);
-	IWM_DBG_WEXT(iwm, DBG, "flags: 0x%x\n", erq->flags);
-	IWM_DBG_WEXT(iwm, DBG, "length: 0x%x\n", erq->length);
-
-	switch (ext->alg) {
-	case IW_ENCODE_ALG_NONE:
-		remove = 1;
-		break;
-	case IW_ENCODE_ALG_WEP:
-		if (ext->key_len == WLAN_KEY_LEN_WEP40)
-			alg = UMAC_CIPHER_TYPE_WEP_40;
-		else if (ext->key_len == WLAN_KEY_LEN_WEP104)
-			alg = UMAC_CIPHER_TYPE_WEP_104;
-		else {
-			IWM_ERR(iwm, "Invalid key length: %d\n", ext->key_len);
-			return -EINVAL;
-		}
-
-		break;
-	case IW_ENCODE_ALG_TKIP:
-		alg = UMAC_CIPHER_TYPE_TKIP;
-		break;
-	case IW_ENCODE_ALG_CCMP:
-		alg = UMAC_CIPHER_TYPE_CCMP;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-
-	if (idx == 0) {
-		if (iwm->default_key)
-			for (i = 0; i < IWM_NUM_KEYS; i++) {
-				if (iwm->default_key == &iwm->keys[i]) {
-					idx = i;
-					break;
-				}
-			}
-	} else if (idx < 1 || idx > 4) {
-		return -EINVAL;
-	} else
-		idx--;
-
-	if (erq->flags & IW_ENCODE_DISABLED)
-		remove = 1;
-	else if ((erq->length == 0) ||
-		 (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)) {
-		iwm->default_key = &iwm->keys[idx];
-		if (iwm->umac_profile_active && ext->alg == IW_ENCODE_ALG_WEP)
-			return iwm_set_tx_key(iwm, idx);
-	}
-
-	key = iwm_key_init(iwm, idx, !remove, ext, alg);
-
-	return iwm_set_key(iwm, remove, !iwm->default_key, key);
-}
-
 static const iw_handler iwm_handlers[] =
 {
 	(iw_handler) NULL,				/* SIOCSIWCOMMIT */
@@ -716,8 +456,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) NULL,				/* SIOCGIWTXPOW */
 	(iw_handler) NULL,				/* SIOCSIWRETRY */
 	(iw_handler) NULL,				/* SIOCGIWRETRY */
-	(iw_handler) iwm_wext_siwencode,		/* SIOCSIWENCODE */
-	(iw_handler) iwm_wext_giwencode,		/* SIOCGIWENCODE */
+	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */
+	(iw_handler) cfg80211_wext_giwencode,		/* SIOCGIWENCODE */
 	(iw_handler) iwm_wext_siwpower,			/* SIOCSIWPOWER */
 	(iw_handler) iwm_wext_giwpower,			/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
@@ -726,7 +466,7 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) NULL,				/* SIOCGIWGENIE */
 	(iw_handler) iwm_wext_siwauth,			/* SIOCSIWAUTH */
 	(iw_handler) iwm_wext_giwauth,			/* SIOCGIWAUTH */
-	(iw_handler) iwm_wext_siwencodeext,	        /* SIOCSIWENCODEEXT */
+	(iw_handler) cfg80211_wext_siwencodeext,	/* SIOCSIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCSIWPMKSA */
 	(iw_handler) NULL,				/* -- hole -- */

@@ -406,8 +406,7 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm);
 int iwm_invalidate_mlme_profile(struct iwm_priv *iwm);
 int iwm_send_packet(struct iwm_priv *iwm, struct sk_buff *skb, int pool_id);
 int iwm_set_tx_key(struct iwm_priv *iwm, u8 key_idx);
-int iwm_set_key(struct iwm_priv *iwm, bool remove, bool set_tx_key,
-		struct iwm_key *key);
+int iwm_set_key(struct iwm_priv *iwm, bool remove, struct iwm_key *key);
 int iwm_send_umac_stats_req(struct iwm_priv *iwm, u32 flags);
 int iwm_send_umac_channel_list(struct iwm_priv *iwm);
 int iwm_scan_ssids(struct iwm_priv *iwm, struct cfg80211_ssid *ssids,
