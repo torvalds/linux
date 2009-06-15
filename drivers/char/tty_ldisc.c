@@ -148,8 +148,10 @@ static struct tty_ldisc *tty_ldisc_try_get(int disc)
 		}
 	}
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	if (err)
+	if (err) {
+		kfree(ld);
 		return ERR_PTR(err);
+	}
 	return ld;
 }
 
@@ -262,7 +264,7 @@ const struct file_operations tty_ldiscs_proc_fops = {
  *	@ld: line discipline
  *
  *	Install an instance of a line discipline into a tty structure. The
- *	ldisc must have a reference count above zero to ensure it remains/
+ *	ldisc must have a reference count above zero to ensure it remains.
  *	The tty instance refcount starts at zero.
  *
  *	Locking:
