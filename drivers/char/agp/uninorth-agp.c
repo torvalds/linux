@@ -146,13 +146,20 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 {
 	int i, j, num_entries;
 	void *temp;
+	int mask_type;
 
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_32(temp)->num_entries;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type)
+		return -EINVAL;
+
+	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
+	if (mask_type != 0) {
 		/* We know nothing of memory types */
 		return -EINVAL;
+	}
+
 	if ((pg_start + mem->page_count) > num_entries)
 		return -EINVAL;
 
@@ -184,13 +191,20 @@ static int u3_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 	int i, num_entries;
 	void *temp;
 	u32 *gp;
+	int mask_type;
 
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_32(temp)->num_entries;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type)
+		return -EINVAL;
+
+	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
+	if (mask_type != 0) {
 		/* We know nothing of memory types */
 		return -EINVAL;
+	}
+
 	if ((pg_start + mem->page_count) > num_entries)
 		return -EINVAL;
 
