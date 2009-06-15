@@ -1575,8 +1575,8 @@ static void backtrace_warning(void *data, char *msg)
 
 static int backtrace_stack(void *data, char *name)
 {
-	/* Don't bother with IRQ stacks for now */
-	return -1;
+	/* Process all stacks: */
+	return 0;
 }
 
 static void backtrace_address(void *data, unsigned long addr, int reliable)
@@ -1594,6 +1594,8 @@ static const struct stacktrace_ops backtrace_ops = {
 	.address		= backtrace_address,
 };
 
+#include "../dumpstack.h"
+
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
@@ -1601,25 +1603,19 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	char *stack;
 	int nr = entry->nr;
 
-	callchain_store(entry, instruction_pointer(regs));
+	callchain_store(entry, regs->ip);
 
 	stack = ((char *)regs + sizeof(struct pt_regs));
 #ifdef CONFIG_FRAME_POINTER
-	bp = frame_pointer(regs);
+	get_bp(bp);
 #else
 	bp = 0;
 #endif
 
-	dump_trace(NULL, regs, (void *)stack, bp, &backtrace_ops, entry);
+	dump_trace(NULL, regs, (void *)&stack, bp, &backtrace_ops, entry);
 
 	entry->kernel = entry->nr - nr;
 }
-
-
-struct stack_frame {
-	const void __user	*next_fp;
-	unsigned long		return_address;
-};
 
 static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
 {
@@ -1652,7 +1648,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	callchain_store(entry, regs->ip);
 
 	while (entry->nr < MAX_STACK_DEPTH) {
-		frame.next_fp	     = NULL;
+		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
 		if (!copy_stack_frame(fp, &frame))
@@ -1662,7 +1658,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 			break;
 
 		callchain_store(entry, frame.return_address);
-		fp = frame.next_fp;
+		fp = frame.next_frame;
 	}
 
 	entry->user = entry->nr - nr;
