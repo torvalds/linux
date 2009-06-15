@@ -787,6 +787,16 @@ config SENSORS_THMC50
 	  This driver can also be built as a module.  If so, the module
 	  will be called thmc50.
 
+config SENSORS_TMP401
+	tristate "Texas Instruments TMP401 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Texas Instruments TMP401 and
+	  TMP411 temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp401.
+
 config SENSORS_VIA686A
 	tristate "VIA686A"
 	depends on PCI
