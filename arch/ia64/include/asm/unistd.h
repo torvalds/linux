@@ -329,6 +329,7 @@
 #define __IGNORE_utime		/* utimes() */
 #define __IGNORE_getpgrp	/* getpgid() */
 #define __IGNORE_vfork		/* clone() */
+#define __IGNORE_umount2	/* umount() */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
