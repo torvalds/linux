@@ -1,8 +1,6 @@
 /*
  * P4 specific Machine Check Exception Reporting
  */
-
-#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -10,9 +8,6 @@
 
 #include <asm/therm_throt.h>
 #include <asm/processor.h>
-#include <asm/system.h>
-#include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -32,46 +27,6 @@ struct intel_mce_extended_msrs {
 };
 
 static int mce_num_extended_msrs;
-
-
-#ifdef CONFIG_X86_MCE_P4THERMAL
-
-static void unexpected_thermal_interrupt(void)
-{
-	printk(KERN_ERR "CPU%d: Unexpected LVT TMR interrupt!\n",
-			smp_processor_id());
-	add_taint(TAINT_MACHINE_CHECK);
-}
-
-/* P4/Xeon Thermal transition interrupt handler: */
-static void intel_thermal_interrupt(void)
-{
-	__u64 msr_val;
-
-	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
-		mce_log_therm_throt_event(msr_val);
-}
-
-/* Thermal interrupt handler for this CPU setup: */
-static void (*vendor_thermal_interrupt)(void) = unexpected_thermal_interrupt;
-
-void smp_thermal_interrupt(struct pt_regs *regs)
-{
-	exit_idle();
-	irq_enter();
-	inc_irq_stat(irq_thermal_count);
-	vendor_thermal_interrupt();
-	irq_exit();
-	ack_APIC_irq();
-}
-
-void intel_set_thermal_handler(void)
-{
-	vendor_thermal_interrupt = intel_thermal_interrupt;
-}
-
-#endif /* CONFIG_X86_MCE_P4THERMAL */
 
 /* P4/Xeon Extended MCE MSR retrieval, return 0 if unsupported */
 static void intel_get_extended_msrs(struct intel_mce_extended_msrs *r)

@@ -13,6 +13,7 @@
  * Credits: Adapted from Zwane Mwaikambo's original code in mce_intel.c.
  *          Inspired by Ross Biro's and Al Borchers' counter code.
  */
+#include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/jiffies.h>
 #include <linux/percpu.h>
@@ -20,6 +21,8 @@
 #include <linux/cpu.h>
 
 #include <asm/therm_throt.h>
+#include <asm/idle.h>
+#include <asm/mce.h>
 
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
@@ -186,6 +189,41 @@ static __init int thermal_throttle_init_device(void)
 
 	return 0;
 }
-
 device_initcall(thermal_throttle_init_device);
+
 #endif /* CONFIG_SYSFS */
+
+/* Thermal transition interrupt handler */
+void intel_thermal_interrupt(void)
+{
+	__u64 msr_val;
+
+	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
+	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
+		mce_log_therm_throt_event(msr_val);
+}
+
+static void unexpected_thermal_interrupt(void)
+{
+	printk(KERN_ERR "CPU%d: Unexpected LVT TMR interrupt!\n",
+			smp_processor_id());
+	add_taint(TAINT_MACHINE_CHECK);
+}
+
+static void (*smp_thermal_vector)(void) = unexpected_thermal_interrupt;
+
+asmlinkage void smp_thermal_interrupt(struct pt_regs *regs)
+{
+	exit_idle();
+	irq_enter();
+	inc_irq_stat(irq_thermal_count);
+	smp_thermal_vector();
+	irq_exit();
+	/* Ack only at the end to avoid potential reentry */
+	ack_APIC_irq();
+}
+
+void intel_set_thermal_handler(void)
+{
+	smp_thermal_vector = intel_thermal_interrupt;
+}
