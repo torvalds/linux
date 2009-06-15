@@ -349,7 +349,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
 			hrtimer_start(&ts->sched_timer, expires,
-				      HRTIMER_MODE_ABS);
+				      HRTIMER_MODE_ABS_PINNED);
 			/* Check, if the timer was already in the past */
 			if (hrtimer_active(&ts->sched_timer))
 				goto out;
@@ -395,7 +395,7 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
 			hrtimer_start_expires(&ts->sched_timer,
-				      HRTIMER_MODE_ABS);
+					      HRTIMER_MODE_ABS_PINNED);
 			/* Check, if the timer was already in the past */
 			if (hrtimer_active(&ts->sched_timer))
 				break;
@@ -698,7 +698,8 @@ void tick_setup_sched_timer(void)
 
 	for (;;) {
 		hrtimer_forward(&ts->sched_timer, now, tick_period);
-		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(&ts->sched_timer,
+				      HRTIMER_MODE_ABS_PINNED);
 		/* Check, if the timer was already in the past */
 		if (hrtimer_active(&ts->sched_timer))
 			break;
