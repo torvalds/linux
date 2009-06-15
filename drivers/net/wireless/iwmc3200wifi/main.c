@@ -219,6 +219,16 @@ int iwm_priv_init(struct iwm_priv *iwm)
 	return 0;
 }
 
+void iwm_priv_deinit(struct iwm_priv *iwm)
+{
+	int i;
+
+	for (i = 0; i < IWM_TX_QUEUES; i++)
+		destroy_workqueue(iwm->txq[i].wq);
+
+	destroy_workqueue(iwm->rx_wq);
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload

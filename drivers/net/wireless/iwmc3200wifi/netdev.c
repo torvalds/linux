@@ -114,14 +114,20 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	iwm = wdev_to_iwm(wdev);
 	iwm->bus_ops = if_ops;
 	iwm->wdev = wdev;
-	iwm_priv_init(iwm);
+
+	ret = iwm_priv_init(iwm);
+	if (ret) {
+		dev_err(dev, "failed to init iwm_priv\n");
+		goto out_wdev;
+	}
+
 	wdev->iftype = iwm_mode_to_nl80211_iftype(iwm->conf.mode);
 
 	ndev = alloc_netdev_mq(0, "wlan%d", ether_setup,
 			       IWM_TX_QUEUES);
 	if (!ndev) {
 		dev_err(dev, "no memory for network device instance\n");
-		goto out_wdev;
+		goto out_priv;
 	}
 
 	ndev->netdev_ops = &iwm_netdev_ops;
@@ -141,6 +147,9 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
  out_ndev:
 	free_netdev(ndev);
 
+ out_priv:
+	iwm_priv_deinit(iwm);
+
  out_wdev:
 	iwm_wdev_free(iwm);
 	return ERR_PTR(ret);
@@ -148,15 +157,11 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 
 void iwm_if_free(struct iwm_priv *iwm)
 {
-	int i;
-
 	if (!iwm_to_ndev(iwm))
 		return;
 
 	unregister_netdev(iwm_to_ndev(iwm));
 	free_netdev(iwm_to_ndev(iwm));
 	iwm_wdev_free(iwm);
-	destroy_workqueue(iwm->rx_wq);
-	for (i = 0; i < IWM_TX_QUEUES; i++)
-		destroy_workqueue(iwm->txq[i].wq);
+	iwm_priv_deinit(iwm);
 }
