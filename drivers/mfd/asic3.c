@@ -17,6 +17,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -24,6 +25,8 @@
 #include <linux/platform_device.h>
 
 #include <linux/mfd/asic3.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/ds1wm.h>
 
 enum {
 	ASIC3_CLOCK_SPI,
@@ -616,6 +619,98 @@ static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
 	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
+/* MFD cells (SPI, PWM, LED, DS1WM, MMC) */
+static struct ds1wm_driver_data ds1wm_pdata = {
+	.active_high = 1,
+};
+
+static struct resource ds1wm_resources[] = {
+	{
+		.start = ASIC3_OWM_BASE,
+		.end   = ASIC3_OWM_BASE + 0x13,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = ASIC3_IRQ_OWM,
+		.start = ASIC3_IRQ_OWM,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static int ds1wm_enable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Turn on external clocks and the OWM clock */
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_OWM]);
+	msleep(1);
+
+	/* Reset and enable DS1WM */
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, RESET),
+			   ASIC3_EXTCF_OWM_RESET, 1);
+	msleep(1);
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, RESET),
+			   ASIC3_EXTCF_OWM_RESET, 0);
+	msleep(1);
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_EN, 1);
+	msleep(1);
+
+	return 0;
+}
+
+static int ds1wm_disable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_EN, 0);
+
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_OWM]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+
+	return 0;
+}
+
+static struct mfd_cell asic3_cell_ds1wm = {
+	.name          = "ds1wm",
+	.enable        = ds1wm_enable,
+	.disable       = ds1wm_disable,
+	.driver_data   = &ds1wm_pdata,
+	.num_resources = ARRAY_SIZE(ds1wm_resources),
+	.resources     = ds1wm_resources,
+};
+
+static int __init asic3_mfd_probe(struct platform_device *pdev,
+				  struct resource *mem)
+{
+	struct asic3 *asic = platform_get_drvdata(pdev);
+	int ret;
+
+	/* DS1WM */
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_SMB, 0);
+
+	ds1wm_resources[0].start >>= asic->bus_shift;
+	ds1wm_resources[0].end   >>= asic->bus_shift;
+
+	asic3_cell_ds1wm.platform_data = &asic3_cell_ds1wm;
+	asic3_cell_ds1wm.data_size = sizeof(asic3_cell_ds1wm);
+
+	ret = mfd_add_devices(&pdev->dev, pdev->id,
+			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
+
+	return ret;
+}
+
+static void asic3_mfd_remove(struct platform_device *pdev)
+{
+	mfd_remove_devices(&pdev->dev);
+}
+
 /* Core */
 static int __init asic3_probe(struct platform_device *pdev)
 {
@@ -683,6 +778,8 @@ static int __init asic3_probe(struct platform_device *pdev)
 	 */
 	memcpy(asic->clocks, asic3_clk_init, sizeof(asic3_clk_init));
 
+	asic3_mfd_probe(pdev, mem);
+
 	dev_info(asic->dev, "ASIC3 Core driver\n");
 
 	return 0;
@@ -703,6 +800,8 @@ static int asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);
+
+	asic3_mfd_remove(pdev);
 
 	ret = asic3_gpio_remove(pdev);
 	if (ret < 0)
