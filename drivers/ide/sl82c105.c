@@ -114,6 +114,16 @@ static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	drive->drive_data |= (unsigned long)drv_ctrl << 16;
 }
 
+static int sl82c105_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	u32 val, mask		= hwif->channel ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
+
+	pci_read_config_dword(dev, 0x40, &val);
+
+	return (val & mask) ? 1 : 0;
+}
+
 /*
  * The SL82C105 holds off all IDE interrupts while in DMA mode until
  * all DMA activity is completed.  Sometimes this causes problems (eg,
@@ -288,6 +298,7 @@ static const struct ide_port_ops sl82c105_port_ops = {
 	.set_pio_mode		= sl82c105_set_pio_mode,
 	.set_dma_mode		= sl82c105_set_dma_mode,
 	.resetproc		= sl82c105_resetproc,
+	.test_irq		= sl82c105_test_irq,
 };
 
 static const struct ide_dma_ops sl82c105_dma_ops = {
