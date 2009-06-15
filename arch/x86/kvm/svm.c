@@ -2131,6 +2131,11 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 	case MSR_VM_HSAVE_PA:
 		svm->hsave_msr = data;
 		break;
+	case MSR_VM_CR:
+	case MSR_VM_IGNNE:
+	case MSR_K7_HWCR:
+		pr_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
+		break;
 	default:
 		return kvm_set_msr_common(vcpu, ecx, data);
 	}
