@@ -9,4 +9,4 @@ obj-$(CONFIG_X86_MCE_NONFATAL)	+= non-fatal.o
 obj-$(CONFIG_X86_MCE_THRESHOLD) += threshold.o
 obj-$(CONFIG_X86_MCE_INJECT)	+= mce-inject.o
 
-obj-$(CONFIG_X86_THERMAL_VECTOR) += therm_throt.o mce_intel.o
+obj-$(CONFIG_X86_THERMAL_VECTOR) += therm_throt.o
