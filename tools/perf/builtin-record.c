@@ -202,8 +202,12 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "couldn't open %s\n", filename);
-		exit(EXIT_FAILURE);
+		/*
+		 * We raced with a task exiting - just return:
+		 */
+		if (verbose)
+			fprintf(stderr, "couldn't open %s\n", filename);
+		return;
 	}
 	if (read(fd, bf, sizeof(bf)) < 0) {
 		fprintf(stderr, "couldn't read %s\n", filename);
@@ -273,8 +277,12 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
-		fprintf(stderr, "couldn't open %s\n", filename);
-		exit(EXIT_FAILURE);
+		/*
+		 * We raced with a task exiting - just return:
+		 */
+		if (verbose)
+			fprintf(stderr, "couldn't open %s\n", filename);
+		return;
 	}
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
