@@ -976,9 +976,8 @@ static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 	 * In general, the skb passed from IP can have only 1 level of
 	 * fragments. But we allow multiple levels of fragments.
 	 */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
+	skb_walk_frags(skb, frag)
 		sctp_ulpevent_receive_data(sctp_skb2event(frag), asoc);
-	}
 }
 
 /* Do accounting for bytes just read by user and release the references to
@@ -1003,7 +1002,7 @@ static void sctp_ulpevent_release_data(struct sctp_ulpevent *event)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
+	skb_walk_frags(skb, frag) {
 		/* NOTE:  skb_shinfos are recursive. Although IP returns
 		 * skb's with only 1 level of fragments, SCTP reassembly can
 		 * increase the levels.
@@ -1026,7 +1025,7 @@ static void sctp_ulpevent_release_frag_data(struct sctp_ulpevent *event)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
+	skb_walk_frags(skb, frag) {
 		/* NOTE:  skb_shinfos are recursive. Although IP returns
 		 * skb's with only 1 level of fragments, SCTP reassembly can
 		 * increase the levels.

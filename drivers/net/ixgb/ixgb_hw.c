@@ -192,7 +192,7 @@ ixgb_identify_xpak_vendor(struct ixgb_hw *hw)
 		vendor_name[i] = ixgb_read_phy_reg(hw,
 						   MDIO_PMA_PMD_XPAK_VENDOR_NAME
 						   + i, IXGB_PHY_ADDRESS,
-						   MDIO_PMA_PMD_DID);
+						   MDIO_MMD_PMAPMD);
 	}
 
 	/* Determine the actual vendor */
@@ -1225,15 +1225,15 @@ ixgb_optics_reset(struct ixgb_hw *hw)
 		u16 mdio_reg;
 
 		ixgb_write_phy_reg(hw,
-					MDIO_PMA_PMD_CR1,
-					IXGB_PHY_ADDRESS,
-					MDIO_PMA_PMD_DID,
-					MDIO_PMA_PMD_CR1_RESET);
+				   MDIO_CTRL1,
+				   IXGB_PHY_ADDRESS,
+				   MDIO_MMD_PMAPMD,
+				   MDIO_CTRL1_RESET);
 
-		mdio_reg = ixgb_read_phy_reg( hw,
-						MDIO_PMA_PMD_CR1,
-						IXGB_PHY_ADDRESS,
-						MDIO_PMA_PMD_DID);
+		mdio_reg = ixgb_read_phy_reg(hw,
+					     MDIO_CTRL1,
+					     IXGB_PHY_ADDRESS,
+					     MDIO_MMD_PMAPMD);
 	}
 
 	return;

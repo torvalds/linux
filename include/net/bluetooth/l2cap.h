@@ -26,8 +26,13 @@
 #define __L2CAP_H
 
 /* L2CAP defaults */
-#define L2CAP_DEFAULT_MTU	672
-#define L2CAP_DEFAULT_FLUSH_TO	0xFFFF
+#define L2CAP_DEFAULT_MTU		672
+#define L2CAP_DEFAULT_FLUSH_TO		0xffff
+#define L2CAP_DEFAULT_RX_WINDOW		1
+#define L2CAP_DEFAULT_MAX_RECEIVE	1
+#define L2CAP_DEFAULT_RETRANS_TO	300    /* 300 milliseconds */
+#define L2CAP_DEFAULT_MONITOR_TO	1000   /* 1 second */
+#define L2CAP_DEFAULT_MAX_RX_APDU	0xfff7
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -64,17 +69,29 @@ struct l2cap_conninfo {
 #define L2CAP_LM_SECURE		0x0020
 
 /* L2CAP command codes */
-#define L2CAP_COMMAND_REJ 0x01
-#define L2CAP_CONN_REQ    0x02
-#define L2CAP_CONN_RSP    0x03
-#define L2CAP_CONF_REQ    0x04
-#define L2CAP_CONF_RSP    0x05
-#define L2CAP_DISCONN_REQ 0x06
-#define L2CAP_DISCONN_RSP 0x07
-#define L2CAP_ECHO_REQ    0x08
-#define L2CAP_ECHO_RSP    0x09
-#define L2CAP_INFO_REQ    0x0a
-#define L2CAP_INFO_RSP    0x0b
+#define L2CAP_COMMAND_REJ	0x01
+#define L2CAP_CONN_REQ		0x02
+#define L2CAP_CONN_RSP		0x03
+#define L2CAP_CONF_REQ		0x04
+#define L2CAP_CONF_RSP		0x05
+#define L2CAP_DISCONN_REQ	0x06
+#define L2CAP_DISCONN_RSP	0x07
+#define L2CAP_ECHO_REQ		0x08
+#define L2CAP_ECHO_RSP		0x09
+#define L2CAP_INFO_REQ		0x0a
+#define L2CAP_INFO_RSP		0x0b
+
+/* L2CAP feature mask */
+#define L2CAP_FEAT_FLOWCTL	0x00000001
+#define L2CAP_FEAT_RETRANS	0x00000002
+#define L2CAP_FEAT_ERTM		0x00000008
+#define L2CAP_FEAT_STREAMING	0x00000010
+#define L2CAP_FEAT_FCS		0x00000020
+#define L2CAP_FEAT_FIXED_CHAN	0x00000080
+
+/* L2CAP checksum option */
+#define L2CAP_FCS_NONE		0x00
+#define L2CAP_FCS_CRC16		0x01
 
 /* L2CAP structures */
 struct l2cap_hdr {
@@ -106,17 +123,23 @@ struct l2cap_conn_rsp {
 	__le16     status;
 } __attribute__ ((packed));
 
+/* channel indentifier */
+#define L2CAP_CID_SIGNALING	0x0001
+#define L2CAP_CID_CONN_LESS	0x0002
+#define L2CAP_CID_DYN_START	0x0040
+#define L2CAP_CID_DYN_END	0xffff
+
 /* connect result */
-#define L2CAP_CR_SUCCESS    0x0000
-#define L2CAP_CR_PEND       0x0001
-#define L2CAP_CR_BAD_PSM    0x0002
-#define L2CAP_CR_SEC_BLOCK  0x0003
-#define L2CAP_CR_NO_MEM     0x0004
+#define L2CAP_CR_SUCCESS	0x0000
+#define L2CAP_CR_PEND		0x0001
+#define L2CAP_CR_BAD_PSM	0x0002
+#define L2CAP_CR_SEC_BLOCK	0x0003
+#define L2CAP_CR_NO_MEM		0x0004
 
 /* connect status */
-#define L2CAP_CS_NO_INFO      0x0000
-#define L2CAP_CS_AUTHEN_PEND  0x0001
-#define L2CAP_CS_AUTHOR_PEND  0x0002
+#define L2CAP_CS_NO_INFO	0x0000
+#define L2CAP_CS_AUTHEN_PEND	0x0001
+#define L2CAP_CS_AUTHOR_PEND	0x0002
 
 struct l2cap_conf_req {
 	__le16     dcid;
@@ -143,10 +166,14 @@ struct l2cap_conf_opt {
 } __attribute__ ((packed));
 #define L2CAP_CONF_OPT_SIZE	2
 
+#define L2CAP_CONF_HINT		0x80
+#define L2CAP_CONF_MASK		0x7f
+
 #define L2CAP_CONF_MTU		0x01
 #define L2CAP_CONF_FLUSH_TO	0x02
 #define L2CAP_CONF_QOS		0x03
 #define L2CAP_CONF_RFC		0x04
+#define L2CAP_CONF_FCS		0x05
 
 #define L2CAP_CONF_MAX_SIZE	22
 
@@ -162,6 +189,8 @@ struct l2cap_conf_rfc {
 #define L2CAP_MODE_BASIC	0x00
 #define L2CAP_MODE_RETRANS	0x01
 #define L2CAP_MODE_FLOWCTL	0x02
+#define L2CAP_MODE_ERTM		0x03
+#define L2CAP_MODE_STREAM	0x04
 
 struct l2cap_disconn_req {
 	__le16     dcid;

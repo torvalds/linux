@@ -29,8 +29,8 @@
  * A non-polled generic rfkill device is embedded into the WiMAX
  * subsystem's representation of a device.
  *
- * FIXME: Need polled support? use a timer or add the implementation
- *     to the stack.
+ * FIXME: Need polled support? Let drivers provide a poll routine
+ *	  and hand it to rfkill ops then?
  *
  * All device drivers have to do is after wimax_dev_init(), call
  * wimax_report_rfkill_hw() and wimax_report_rfkill_sw() to update
@@ -43,7 +43,7 @@
  *   wimax_rfkill()             Kernel calling wimax_rfkill()
  *     __wimax_rf_toggle_radio()
  *
- * wimax_rfkill_toggle_radio()  RF-Kill subsytem calling
+ * wimax_rfkill_set_radio_block()  RF-Kill subsytem calling
  *   __wimax_rf_toggle_radio()
  *
  * __wimax_rf_toggle_radio()
@@ -65,14 +65,10 @@
 #include <linux/wimax.h>
 #include <linux/security.h>
 #include <linux/rfkill.h>
-#include <linux/input.h>
 #include "wimax-internal.h"
 
 #define D_SUBMODULE op_rfkill
 #include "debug-levels.h"
-
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-
 
 /**
  * wimax_report_rfkill_hw - Reports changes in the hardware RF switch
@@ -99,7 +95,6 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 	int result;
 	struct device *dev = wimax_dev_to_dev(wimax_dev);
 	enum wimax_st wimax_state;
-	enum rfkill_state rfkill_state;
 
 	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
 	BUG_ON(state == WIMAX_RF_QUERY);
@@ -112,16 +107,16 @@ void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
 
 	if (state != wimax_dev->rf_hw) {
 		wimax_dev->rf_hw = state;
-		rfkill_state = state == WIMAX_RF_ON ?
-			RFKILL_STATE_OFF : RFKILL_STATE_ON;
 		if (wimax_dev->rf_hw == WIMAX_RF_ON
 		    && wimax_dev->rf_sw == WIMAX_RF_ON)
 			wimax_state = WIMAX_ST_READY;
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
+
+		result = rfkill_set_hw_state(wimax_dev->rfkill,
+					     state == WIMAX_RF_OFF);
+
 		__wimax_state_change(wimax_dev, wimax_state);
-		input_report_key(wimax_dev->rfkill_input, KEY_WIMAX,
-				 rfkill_state);
 	}
 error_not_ready:
 	mutex_unlock(&wimax_dev->mutex);
@@ -174,6 +169,7 @@ void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
 		else
 			wimax_state = WIMAX_ST_RADIO_OFF;
 		__wimax_state_change(wimax_dev, wimax_state);
+		rfkill_set_sw_state(wimax_dev->rfkill, state == WIMAX_RF_OFF);
 	}
 error_not_ready:
 	mutex_unlock(&wimax_dev->mutex);
@@ -249,36 +245,31 @@ out_no_change:
  *
  * NOTE: This call will block until the operation is completed.
  */
-static
-int wimax_rfkill_toggle_radio(void *data, enum rfkill_state state)
+static int wimax_rfkill_set_radio_block(void *data, bool blocked)
 {
 	int result;
 	struct wimax_dev *wimax_dev = data;
 	struct device *dev = wimax_dev_to_dev(wimax_dev);
 	enum wimax_rf_state rf_state;
 
-	d_fnstart(3, dev, "(wimax_dev %p state %u)\n", wimax_dev, state);
-	switch (state) {
-	case RFKILL_STATE_ON:
+	d_fnstart(3, dev, "(wimax_dev %p blocked %u)\n", wimax_dev, blocked);
+	rf_state = WIMAX_RF_ON;
+	if (blocked)
 		rf_state = WIMAX_RF_OFF;
-		break;
-	case RFKILL_STATE_OFF:
-		rf_state = WIMAX_RF_ON;
-		break;
-	default:
-		BUG();
-	}
 	mutex_lock(&wimax_dev->mutex);
 	if (wimax_dev->state <= __WIMAX_ST_QUIESCING)
-		result = 0;	/* just pretend it didn't happen */
+		result = 0;
 	else
 		result = __wimax_rf_toggle_radio(wimax_dev, rf_state);
 	mutex_unlock(&wimax_dev->mutex);
-	d_fnend(3, dev, "(wimax_dev %p state %u) = %d\n",
-		wimax_dev, state, result);
+	d_fnend(3, dev, "(wimax_dev %p blocked %u) = %d\n",
+		wimax_dev, blocked, result);
 	return result;
 }
 
+static const struct rfkill_ops wimax_rfkill_ops = {
+	.set_block = wimax_rfkill_set_radio_block,
+};
 
 /**
  * wimax_rfkill - Set the software RF switch state for a WiMAX device
@@ -322,6 +313,7 @@ int wimax_rfkill(struct wimax_dev *wimax_dev, enum wimax_rf_state state)
 		result = __wimax_rf_toggle_radio(wimax_dev, state);
 		if (result < 0)
 			goto error;
+		rfkill_set_sw_state(wimax_dev->rfkill, state == WIMAX_RF_OFF);
 		break;
 	case WIMAX_RF_QUERY:
 		break;
@@ -349,41 +341,20 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 {
 	int result;
 	struct rfkill *rfkill;
-	struct input_dev *input_dev;
 	struct device *dev = wimax_dev_to_dev(wimax_dev);
 
 	d_fnstart(3, dev, "(wimax_dev %p)\n", wimax_dev);
 	/* Initialize RF Kill */
 	result = -ENOMEM;
-	rfkill = rfkill_allocate(dev, RFKILL_TYPE_WIMAX);
+	rfkill = rfkill_alloc(wimax_dev->name, dev, RFKILL_TYPE_WIMAX,
+			      &wimax_rfkill_ops, wimax_dev);
 	if (rfkill == NULL)
 		goto error_rfkill_allocate;
+
+	d_printf(1, dev, "rfkill %p\n", rfkill);
+
 	wimax_dev->rfkill = rfkill;
 
-	rfkill->name = wimax_dev->name;
-	rfkill->state = RFKILL_STATE_OFF;
-	rfkill->data = wimax_dev;
-	rfkill->toggle_radio = wimax_rfkill_toggle_radio;
-	rfkill->user_claim_unsupported = 1;
-
-	/* Initialize the input device for the hw key */
-	input_dev = input_allocate_device();
-	if (input_dev == NULL)
-		goto error_input_allocate;
-	wimax_dev->rfkill_input = input_dev;
-	d_printf(1, dev, "rfkill %p input %p\n", rfkill, input_dev);
-
-	input_dev->name = wimax_dev->name;
-	/* FIXME: get a real device bus ID and stuff? do we care? */
-	input_dev->id.bustype = BUS_HOST;
-	input_dev->id.vendor = 0xffff;
-	input_dev->evbit[0] = BIT(EV_KEY);
-	set_bit(KEY_WIMAX, input_dev->keybit);
-
-	/* Register both */
-	result = input_register_device(wimax_dev->rfkill_input);
-	if (result < 0)
-		goto error_input_register;
 	result = rfkill_register(wimax_dev->rfkill);
 	if (result < 0)
 		goto error_rfkill_register;
@@ -395,17 +366,8 @@ int wimax_rfkill_add(struct wimax_dev *wimax_dev)
 	d_fnend(3, dev, "(wimax_dev %p) = 0\n", wimax_dev);
 	return 0;
 
-	/* if rfkill_register() suceeds, can't use rfkill_free() any
-	 * more, only rfkill_unregister() [it owns the refcount]; with
-	 * the input device we have the same issue--hence the if. */
 error_rfkill_register:
-	input_unregister_device(wimax_dev->rfkill_input);
-	wimax_dev->rfkill_input = NULL;
-error_input_register:
-	if (wimax_dev->rfkill_input)
-		input_free_device(wimax_dev->rfkill_input);
-error_input_allocate:
-	rfkill_free(wimax_dev->rfkill);
+	rfkill_destroy(wimax_dev->rfkill);
 error_rfkill_allocate:
 	d_fnend(3, dev, "(wimax_dev %p) = %d\n", wimax_dev, result);
 	return result;
@@ -424,43 +386,10 @@ void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
 {
 	struct device *dev = wimax_dev_to_dev(wimax_dev);
 	d_fnstart(3, dev, "(wimax_dev %p)\n", wimax_dev);
-	rfkill_unregister(wimax_dev->rfkill);	/* frees */
-	input_unregister_device(wimax_dev->rfkill_input);
+	rfkill_unregister(wimax_dev->rfkill);
+	rfkill_destroy(wimax_dev->rfkill);
 	d_fnend(3, dev, "(wimax_dev %p)\n", wimax_dev);
 }
-
-
-#else /* #ifdef CONFIG_RFKILL */
-
-void wimax_report_rfkill_hw(struct wimax_dev *wimax_dev,
-			    enum wimax_rf_state state)
-{
-}
-EXPORT_SYMBOL_GPL(wimax_report_rfkill_hw);
-
-void wimax_report_rfkill_sw(struct wimax_dev *wimax_dev,
-			    enum wimax_rf_state state)
-{
-}
-EXPORT_SYMBOL_GPL(wimax_report_rfkill_sw);
-
-int wimax_rfkill(struct wimax_dev *wimax_dev,
-		 enum wimax_rf_state state)
-{
-	return WIMAX_RF_ON << 1 | WIMAX_RF_ON;
-}
-EXPORT_SYMBOL_GPL(wimax_rfkill);
-
-int wimax_rfkill_add(struct wimax_dev *wimax_dev)
-{
-	return 0;
-}
-
-void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
-{
-}
-
-#endif /* #ifdef CONFIG_RFKILL */
 
 
 /*

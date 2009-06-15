@@ -20,7 +20,7 @@ int skb_dma_map(struct device *dev, struct sk_buff *skb,
 	if (dma_mapping_error(dev, map))
 		goto out_err;
 
-	sp->dma_maps[0] = map;
+	sp->dma_head = map;
 	for (i = 0; i < sp->nr_frags; i++) {
 		skb_frag_t *fp = &sp->frags[i];
 
@@ -28,9 +28,8 @@ int skb_dma_map(struct device *dev, struct sk_buff *skb,
 				   fp->size, dir);
 		if (dma_mapping_error(dev, map))
 			goto unwind;
-		sp->dma_maps[i + 1] = map;
+		sp->dma_maps[i] = map;
 	}
-	sp->num_dma_maps = i + 1;
 
 	return 0;
 
@@ -38,10 +37,10 @@ unwind:
 	while (--i >= 0) {
 		skb_frag_t *fp = &sp->frags[i];
 
-		dma_unmap_page(dev, sp->dma_maps[i + 1],
+		dma_unmap_page(dev, sp->dma_maps[i],
 			       fp->size, dir);
 	}
-	dma_unmap_single(dev, sp->dma_maps[0],
+	dma_unmap_single(dev, sp->dma_head,
 			 skb_headlen(skb), dir);
 out_err:
 	return -ENOMEM;
@@ -54,12 +53,12 @@ void skb_dma_unmap(struct device *dev, struct sk_buff *skb,
 	struct skb_shared_info *sp = skb_shinfo(skb);
 	int i;
 
-	dma_unmap_single(dev, sp->dma_maps[0],
+	dma_unmap_single(dev, sp->dma_head,
 			 skb_headlen(skb), dir);
 	for (i = 0; i < sp->nr_frags; i++) {
 		skb_frag_t *fp = &sp->frags[i];
 
-		dma_unmap_page(dev, sp->dma_maps[i + 1],
+		dma_unmap_page(dev, sp->dma_maps[i],
 			       fp->size, dir);
 	}
 }

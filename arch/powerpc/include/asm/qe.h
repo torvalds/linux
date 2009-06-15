@@ -675,6 +675,8 @@ struct ucc_slow_pram {
 #define UCC_GETH_UPSMR_RMM      0x00001000
 #define UCC_GETH_UPSMR_CAM      0x00000400
 #define UCC_GETH_UPSMR_BRO      0x00000200
+#define UCC_GETH_UPSMR_SMM	0x00000080
+#define UCC_GETH_UPSMR_SGMM	0x00000020
 
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000

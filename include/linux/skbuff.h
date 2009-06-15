@@ -189,20 +189,23 @@ struct skb_shared_info {
 	atomic_t	dataref;
 	unsigned short	nr_frags;
 	unsigned short	gso_size;
+#ifdef CONFIG_HAS_DMA
+	dma_addr_t	dma_head;
+#endif
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
 	__be32          ip6_frag_id;
 	union skb_shared_tx tx_flags;
-#ifdef CONFIG_HAS_DMA
-	unsigned int	num_dma_maps;
-#endif
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 #ifdef CONFIG_HAS_DMA
-	dma_addr_t	dma_maps[MAX_SKB_FRAGS + 1];
+	dma_addr_t	dma_maps[MAX_SKB_FRAGS];
 #endif
+	/* Intermediate layers must ensure that destructor_arg
+	 * remains valid until skb destructor */
+	void *		destructor_arg;
 };
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
@@ -301,9 +304,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@tc_verd: traffic control verdict
  *	@ndisc_nodetype: router type (from link layer)
  *	@do_not_encrypt: set to prevent encryption of this frame
- *	@requeue: set to indicate that the wireless core should attempt
- *		a software retry on this frame if we failed to
- *		receive an ACK for it
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
@@ -319,10 +319,7 @@ struct sk_buff {
 	ktime_t			tstamp;
 	struct net_device	*dev;
 
-	union {
-		struct  dst_entry	*dst;
-		struct  rtable		*rtable;
-	};
+	unsigned long		_skb_dst;
 #ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
 #endif
@@ -380,7 +377,6 @@ struct sk_buff {
 #endif
 #if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
 	__u8			do_not_encrypt:1;
-	__u8			requeue:1;
 #endif
 	/* 0/13/14 bit hole */
 
@@ -422,6 +418,21 @@ extern int skb_dma_map(struct device *dev, struct sk_buff *skb,
 extern void skb_dma_unmap(struct device *dev, struct sk_buff *skb,
 			  enum dma_data_direction dir);
 #endif
+
+static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
+{
+	return (struct dst_entry *)skb->_skb_dst;
+}
+
+static inline void skb_dst_set(struct sk_buff *skb, struct dst_entry *dst)
+{
+	skb->_skb_dst = (unsigned long)dst;
+}
+
+static inline struct rtable *skb_rtable(const struct sk_buff *skb)
+{
+	return (struct rtable *)skb_dst(skb);
+}
 
 extern void kfree_skb(struct sk_buff *skb);
 extern void consume_skb(struct sk_buff *skb);
@@ -1062,7 +1073,7 @@ extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
 			    int off, int size);
 
 #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
-#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->frag_list)
+#define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frags(skb))
 #define SKB_LINEAR_ASSERT(skb)  BUG_ON(skb_is_nonlinear(skb))
 
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
@@ -1701,6 +1712,25 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb = skb->prev)
 
 
+static inline bool skb_has_frags(const struct sk_buff *skb)
+{
+	return skb_shinfo(skb)->frag_list != NULL;
+}
+
+static inline void skb_frag_list_init(struct sk_buff *skb)
+{
+	skb_shinfo(skb)->frag_list = NULL;
+}
+
+static inline void skb_frag_add_head(struct sk_buff *skb, struct sk_buff *frag)
+{
+	frag->next = skb_shinfo(skb)->frag_list;
+	skb_shinfo(skb)->frag_list = frag;
+}
+
+#define skb_walk_frags(skb, iter)	\
+	for (iter = skb_shinfo(skb)->frag_list; iter; iter = iter->next)
+
 extern struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 					   int *peeked, int *err);
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
@@ -1715,8 +1745,14 @@ extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							struct iovec *iov);
 extern int	       skb_copy_datagram_from_iovec(struct sk_buff *skb,
 						    int offset,
-						    struct iovec *from,
+						    const struct iovec *from,
+						    int from_offset,
 						    int len);
+extern int	       skb_copy_datagram_const_iovec(const struct sk_buff *from,
+						     int offset,
+						     const struct iovec *to,
+						     int to_offset,
+						     int size);
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 extern int	       skb_kill_datagram(struct sock *sk, struct sk_buff *skb,
 					 unsigned int flags);

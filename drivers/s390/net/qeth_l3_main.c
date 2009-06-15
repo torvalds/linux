@@ -1920,16 +1920,22 @@ static inline __u16 qeth_l3_rebuild_skb(struct qeth_card *card,
 		 hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
 	}
 
-	skb->ip_summed = card->options.checksum_type;
-	if (card->options.checksum_type == HW_CHECKSUMMING) {
+	switch (card->options.checksum_type) {
+	case SW_CHECKSUMMING:
+		skb->ip_summed = CHECKSUM_NONE;
+		break;
+	case NO_CHECKSUMMING:
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		break;
+	case HW_CHECKSUMMING:
 		if ((hdr->hdr.l3.ext_flags &
-		      (QETH_HDR_EXT_CSUM_HDR_REQ |
-		       QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
-		     (QETH_HDR_EXT_CSUM_HDR_REQ |
-		      QETH_HDR_EXT_CSUM_TRANSP_REQ))
+		    (QETH_HDR_EXT_CSUM_HDR_REQ |
+		     QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
+		    (QETH_HDR_EXT_CSUM_HDR_REQ |
+		     QETH_HDR_EXT_CSUM_TRANSP_REQ))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = SW_CHECKSUMMING;
+			skb->ip_summed = CHECKSUM_NONE;
 	}
 
 	return vlan_id;
@@ -2543,9 +2549,9 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
 		memset(hdr->hdr.l3.dest_addr, 0, 12);
-		if ((skb->dst) && (skb->dst->neighbour)) {
+		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
-			    *((u32 *) skb->dst->neighbour->primary_key);
+			    *((u32 *) skb_dst(skb)->neighbour->primary_key);
 		} else {
 			/* fill in destination address used in ip header */
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
@@ -2556,9 +2562,9 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags6(cast_type);
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
-		if ((skb->dst) && (skb->dst->neighbour)) {
+		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
 			memcpy(hdr->hdr.l3.dest_addr,
-			       skb->dst->neighbour->primary_key, 16);
+			       skb_dst(skb)->neighbour->primary_key, 16);
 		} else {
 			/* fill in destination address used in ip header */
 			memcpy(hdr->hdr.l3.dest_addr,
@@ -3006,6 +3012,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
 				NETIF_F_HW_VLAN_FILTER;
+	card->dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	return register_netdev(card->dev);
@@ -3070,6 +3077,7 @@ static void qeth_l3_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
+	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (cgdev->state == CCWGROUP_ONLINE) {
@@ -3141,8 +3149,9 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			dev_warn(&card->gdev->dev,
 				"The LAN is offline\n");
 			card->lan_online = 0;
+			return 0;
 		}
-		return rc;
+		goto out_remove;
 	} else
 		card->lan_online = 1;
 	qeth_set_large_send(card, card->options.large_send);

@@ -61,4 +61,6 @@ source "drivers/isdn/hardware/Kconfig"
 
 endif # ISDN_CAPI
 
+source "drivers/isdn/gigaset/Kconfig"
+
 endif # ISDN

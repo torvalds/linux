@@ -2063,26 +2063,6 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
  **************************************************************************
  */
 
-/* Use the top bit of the MII PHY id to indicate the PHY type
- * (1G/10G), with the remaining bits as the actual PHY id.
- *
- * This allows us to avoid leaking information from the mii_if_info
- * structure into other data structures.
- */
-#define FALCON_PHY_ID_ID_WIDTH  EFX_WIDTH(MD_PRT_DEV_ADR)
-#define FALCON_PHY_ID_ID_MASK   ((1 << FALCON_PHY_ID_ID_WIDTH) - 1)
-#define FALCON_PHY_ID_WIDTH     (FALCON_PHY_ID_ID_WIDTH + 1)
-#define FALCON_PHY_ID_MASK      ((1 << FALCON_PHY_ID_WIDTH) - 1)
-#define FALCON_PHY_ID_10G       (1 << (FALCON_PHY_ID_WIDTH - 1))
-
-
-/* Packing the clause 45 port and device fields into a single value */
-#define MD_PRT_ADR_COMP_LBN   (MD_PRT_ADR_LBN - MD_DEV_ADR_LBN)
-#define MD_PRT_ADR_COMP_WIDTH  MD_PRT_ADR_WIDTH
-#define MD_DEV_ADR_COMP_LBN    0
-#define MD_DEV_ADR_COMP_WIDTH  MD_DEV_ADR_WIDTH
-
-
 /* Wait for GMII access to complete */
 static int falcon_gmii_wait(struct efx_nic *efx)
 {
@@ -2108,49 +2088,29 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 	return -ETIMEDOUT;
 }
 
-/* Writes a GMII register of a PHY connected to Falcon using MDIO. */
-static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
-			      int addr, int value)
+/* Write an MDIO register of a PHY connected to Falcon. */
+static int falcon_mdio_write(struct net_device *net_dev,
+			     int prtad, int devad, u16 addr, u16 value)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	unsigned int phy_id2 = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
+	int rc;
 
-	/* The 'generic' prt/dev packing in mdio_10g.h is conveniently
-	 * chosen so that the only current user, Falcon, can take the
-	 * packed value and use them directly.
-	 * Fail to build if this assumption is broken.
-	 */
-	BUILD_BUG_ON(FALCON_PHY_ID_10G != MDIO45_XPRT_ID_IS10G);
-	BUILD_BUG_ON(FALCON_PHY_ID_ID_WIDTH != MDIO45_PRT_DEV_WIDTH);
-	BUILD_BUG_ON(MD_PRT_ADR_COMP_LBN != MDIO45_PRT_ID_COMP_LBN);
-	BUILD_BUG_ON(MD_DEV_ADR_COMP_LBN != MDIO45_DEV_ID_COMP_LBN);
-
-	if (phy_id2 == PHY_ADDR_INVALID)
-		return;
-
-	/* See falcon_mdio_read for an explanation. */
-	if (!(phy_id & FALCON_PHY_ID_10G)) {
-		int mmd = ffs(efx->phy_op->mmds) - 1;
-		EFX_TRACE(efx, "Fixing erroneous clause22 write\n");
-		phy_id2 = mdio_clause45_pack(phy_id2, mmd)
-			& FALCON_PHY_ID_ID_MASK;
-	}
-
-	EFX_REGDUMP(efx, "writing GMII %d register %02x with %04x\n", phy_id,
-		    addr, value);
+	EFX_REGDUMP(efx, "writing MDIO %d register %d.%d with 0x%04x\n",
+		    prtad, devad, addr, value);
 
 	spin_lock_bh(&efx->phy_lock);
 
-	/* Check MII not currently being accessed */
-	if (falcon_gmii_wait(efx) != 0)
+	/* Check MDIO not currently being accessed */
+	rc = falcon_gmii_wait(efx);
+	if (rc)
 		goto out;
 
 	/* Write the address/ID register */
 	EFX_POPULATE_OWORD_1(reg, MD_PHY_ADR, addr);
 	falcon_write(efx, &reg, MD_PHY_ADR_REG_KER);
 
-	EFX_POPULATE_OWORD_1(reg, MD_PRT_DEV_ADR, phy_id2);
+	EFX_POPULATE_OWORD_2(reg, MD_PRT_ADR, prtad, MD_DEV_ADR, devad);
 	falcon_write(efx, &reg, MD_ID_REG_KER);
 
 	/* Write data */
@@ -2163,7 +2123,8 @@ static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
 	falcon_write(efx, &reg, MD_CS_REG_KER);
 
 	/* Wait for data to be written */
-	if (falcon_gmii_wait(efx) != 0) {
+	rc = falcon_gmii_wait(efx);
+	if (rc) {
 		/* Abort the write operation */
 		EFX_POPULATE_OWORD_2(reg,
 				     MD_WRC, 0,
@@ -2174,45 +2135,28 @@ static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
 
  out:
 	spin_unlock_bh(&efx->phy_lock);
+	return rc;
 }
 
-/* Reads a GMII register from a PHY connected to Falcon.  If no value
- * could be read, -1 will be returned. */
-static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
+/* Read an MDIO register of a PHY connected to Falcon. */
+static int falcon_mdio_read(struct net_device *net_dev,
+			    int prtad, int devad, u16 addr)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	unsigned int phy_addr = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
-	int value = -1;
-
-	if (phy_addr == PHY_ADDR_INVALID)
-		return -1;
-
-	/* Our PHY code knows whether it needs to talk clause 22(1G) or 45(10G)
-	 * but the generic Linux code does not make any distinction or have
-	 * any state for this.
-	 * We spot the case where someone tried to talk 22 to a 45 PHY and
-	 * redirect the request to the lowest numbered MMD as a clause45
-	 * request. This is enough to allow simple queries like id and link
-	 * state to succeed. TODO: We may need to do more in future.
-	 */
-	if (!(phy_id & FALCON_PHY_ID_10G)) {
-		int mmd = ffs(efx->phy_op->mmds) - 1;
-		EFX_TRACE(efx, "Fixing erroneous clause22 read\n");
-		phy_addr = mdio_clause45_pack(phy_addr, mmd)
-			& FALCON_PHY_ID_ID_MASK;
-	}
+	int rc;
 
 	spin_lock_bh(&efx->phy_lock);
 
-	/* Check MII not currently being accessed */
-	if (falcon_gmii_wait(efx) != 0)
+	/* Check MDIO not currently being accessed */
+	rc = falcon_gmii_wait(efx);
+	if (rc)
 		goto out;
 
 	EFX_POPULATE_OWORD_1(reg, MD_PHY_ADR, addr);
 	falcon_write(efx, &reg, MD_PHY_ADR_REG_KER);
 
-	EFX_POPULATE_OWORD_1(reg, MD_PRT_DEV_ADR, phy_addr);
+	EFX_POPULATE_OWORD_2(reg, MD_PRT_ADR, prtad, MD_DEV_ADR, devad);
 	falcon_write(efx, &reg, MD_ID_REG_KER);
 
 	/* Request data to be read */
@@ -2220,12 +2164,12 @@ static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
 	falcon_write(efx, &reg, MD_CS_REG_KER);
 
 	/* Wait for data to become available */
-	value = falcon_gmii_wait(efx);
-	if (value == 0) {
+	rc = falcon_gmii_wait(efx);
+	if (rc == 0) {
 		falcon_read(efx, &reg, MD_RXD_REG_KER);
-		value = EFX_OWORD_FIELD(reg, MD_RXD);
-		EFX_REGDUMP(efx, "read from GMII %d register %02x, got %04x\n",
-			    phy_id, addr, value);
+		rc = EFX_OWORD_FIELD(reg, MD_RXD);
+		EFX_REGDUMP(efx, "read from MDIO %d register %d.%d, got %04x\n",
+			    prtad, devad, addr, rc);
 	} else {
 		/* Abort the read operation */
 		EFX_POPULATE_OWORD_2(reg,
@@ -2233,22 +2177,13 @@ static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
 				     MD_GC, 1);
 		falcon_write(efx, &reg, MD_CS_REG_KER);
 
-		EFX_LOG(efx, "read from GMII 0x%x register %02x, got "
-			"error %d\n", phy_id, addr, value);
+		EFX_LOG(efx, "read from MDIO %d register %d.%d, got error %d\n",
+			prtad, devad, addr, rc);
 	}
 
  out:
 	spin_unlock_bh(&efx->phy_lock);
-
-	return value;
-}
-
-static void falcon_init_mdio(struct mii_if_info *gmii)
-{
-	gmii->mdio_read = falcon_mdio_read;
-	gmii->mdio_write = falcon_mdio_write;
-	gmii->phy_id_mask = FALCON_PHY_ID_MASK;
-	gmii->reg_num_mask = ((1 << EFX_WIDTH(MD_PHY_ADR)) - 1);
+	return rc;
 }
 
 static int falcon_probe_phy(struct efx_nic *efx)
@@ -2342,9 +2277,11 @@ int falcon_probe_port(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	/* Set up GMII structure for PHY */
-	efx->mii.supports_gmii = true;
-	falcon_init_mdio(&efx->mii);
+	/* Set up MDIO structure for PHY */
+	efx->mdio.mmds = efx->phy_op->mmds;
+	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+	efx->mdio.mdio_read = falcon_mdio_read;
+	efx->mdio.mdio_write = falcon_mdio_write;
 
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */
 	if (falcon_rev(efx) >= FALCON_REV_B0)
@@ -2761,7 +2698,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	if (rc == -EINVAL) {
 		EFX_ERR(efx, "NVRAM is invalid therefore using defaults\n");
 		efx->phy_type = PHY_TYPE_NONE;
-		efx->mii.phy_id = PHY_ADDR_INVALID;
+		efx->mdio.prtad = MDIO_PRTAD_NONE;
 		board_rev = 0;
 		rc = 0;
 	} else if (rc) {
@@ -2771,7 +2708,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 		struct falcon_nvconfig_board_v3 *v3 = &nvconfig->board_v3;
 
 		efx->phy_type = v2->port0_phy_type;
-		efx->mii.phy_id = v2->port0_phy_addr;
+		efx->mdio.prtad = v2->port0_phy_addr;
 		board_rev = le16_to_cpu(v2->board_revision);
 
 		if (le16_to_cpu(nvconfig->board_struct_ver) >= 3) {
@@ -2793,7 +2730,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 	/* Read the MAC addresses */
 	memcpy(efx->mac_address, nvconfig->mac_address[0], ETH_ALEN);
 
-	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mii.phy_id);
+	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mdio.prtad);
 
 	efx_set_board_info(efx, board_rev);
 

@@ -947,6 +947,12 @@ P:	Luis R. Rodriguez
 M:	lrodriguez@atheros.com
 P:	Jouni Malinen
 M:	jmalinen@atheros.com
+P:	Sujith Manoharan
+M:	Sujith.Manoharan@atheros.com
+P:	Vasanthakumar Thiagarajan
+M:	vasanth@atheros.com
+P:	Senthil Balasubramanian
+M:	senthilkumar@atheros.com
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
@@ -1338,6 +1344,13 @@ S:	Maintained
 F:	drivers/net/can/
 F:	include/linux/can/
 F:	include/linux/can.h
+
+CAN NETWORK DRIVERS
+P:	Wolfgang Grandegger
+M:	wg@grandegger.com
+L:	socketcan-core@lists.berlios.de (subscribers-only)
+W:	http://developer.berlios.de/projects/socketcan/
+S:	Maintained
 
 CELL BROADBAND ENGINE ARCHITECTURE
 P:	Arnd Bergmann
@@ -2843,6 +2856,18 @@ L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 F:	drivers/ieee1394/raw1394*
 
+IEEE 802.15.4 SUBSYSTEM
+P:	Dmitry Eremin-Solenikov
+M:	dbaryshkov@gmail.com
+P:	Sergey Lapin
+M:	slapin@ossfans.org
+L:	linux-zigbee-devel@lists.sourceforge.net
+W:	http://apps.sourceforge.net/trac/linux-zigbee
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lumag/lowpan.git
+S:	Maintained
+F:	net/ieee802154/
+F:	drivers/ieee801254/
+
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 P:	Mimi Zohar
 M:	zohar@us.ibm.com
@@ -3136,6 +3161,7 @@ M:	samuel@sortiz.org
 L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/irda-2.6.git
 F:	Documentation/networking/irda.txt
 F:	drivers/net/irda/
 F:	include/net/irda/
@@ -4621,8 +4647,8 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 PS3 NETWORK SUPPORT
-P:	Masakazu Mokuno
-M:	mokuno@sm.sony.co.jp
+P:	Geoff Levand
+M:	geoffrey.levand@am.sony.com
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported
@@ -4823,7 +4849,7 @@ F:	drivers/net/r6040.c
 RDS - RELIABLE DATAGRAM SOCKETS
 P:	Andy Grover
 M:	andy.grover@oracle.com
-L:	rds-devel@oss.oracle.com
+L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 F:	net/rds/
 
@@ -4863,9 +4889,9 @@ S:	Supported
 F:	fs/reiserfs/
 
 RFKILL
-P:	Ivo van Doorn
-M:	IvDoorn@gmail.com
-L:	netdev@vger.kernel.org
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F	Documentation/rfkill.txt
 F:	net/rfkill/

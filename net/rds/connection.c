@@ -148,13 +148,11 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	if (conn)
 		goto out;
 
-	conn = kmem_cache_alloc(rds_conn_slab, gfp);
+	conn = kmem_cache_zalloc(rds_conn_slab, gfp);
 	if (conn == NULL) {
 		conn = ERR_PTR(-ENOMEM);
 		goto out;
 	}
-
-	memset(conn, 0, sizeof(*conn));
 
 	INIT_HLIST_NODE(&conn->c_hash_node);
 	conn->c_version = RDS_PROTOCOL_3_0;

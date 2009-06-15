@@ -26,10 +26,10 @@
 #include <asm/byteorder.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 
 // General definitions
-#define BOND_ETH_P_LACPDU       0x8809
-#define PKT_TYPE_LACPDU         cpu_to_be16(BOND_ETH_P_LACPDU)
+#define PKT_TYPE_LACPDU         cpu_to_be16(ETH_P_SLOW)
 #define AD_TIMER_INTERVAL       100 /*msec*/
 
 #define MULTICAST_LACPDU_ADDR    {0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}

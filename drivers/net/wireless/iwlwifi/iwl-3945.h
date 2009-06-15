@@ -36,10 +36,6 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-/*used for rfkill*/
-#include <linux/rfkill.h>
-#include <linux/input.h>
-
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 extern struct pci_device_id iwl3945_hw_card_ids[];
 
@@ -155,14 +151,12 @@ struct iwl3945_frame {
 #define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
 #define STATUS_INT_ENABLED	2
 #define STATUS_RF_KILL_HW	3
-#define STATUS_RF_KILL_SW	4
 #define STATUS_INIT		5
 #define STATUS_ALIVE		6
 #define STATUS_READY		7
 #define STATUS_TEMPERATURE	8
 #define STATUS_GEO_CONFIGURED	9
 #define STATUS_EXIT_PENDING	10
-#define STATUS_IN_SUSPEND	11
 #define STATUS_STATISTICS	12
 #define STATUS_SCANNING		13
 #define STATUS_SCAN_ABORTING	14
@@ -203,11 +197,6 @@ struct iwl3945_ibss_seq {
  * for use by iwl-*.c
  *
  *****************************************************************************/
-struct iwl3945_addsta_cmd;
-extern int iwl3945_send_add_station(struct iwl_priv *priv,
-				struct iwl3945_addsta_cmd *sta, u8 flags);
-extern u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *bssid,
-			  int is_ap, u8 flags);
 extern int iwl3945_power_init_handle(struct iwl_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl_priv *priv);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
@@ -278,6 +267,8 @@ extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
+extern void iwl3945_post_associate(struct iwl_priv *priv);
+extern void iwl3945_config_ap(struct iwl_priv *priv);
 
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID

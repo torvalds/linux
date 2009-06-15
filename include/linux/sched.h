@@ -2212,6 +2212,12 @@ static inline int test_tsk_need_resched(struct task_struct *tsk)
 	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
 }
 
+static inline int restart_syscall(void)
+{
+	set_tsk_thread_flag(current, TIF_SIGPENDING);
+	return -ERESTARTNOINTR;
+}
+
 static inline int signal_pending(struct task_struct *p)
 {
 	return unlikely(test_tsk_thread_flag(p,TIF_SIGPENDING));

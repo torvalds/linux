@@ -732,8 +732,8 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		dma_unmap_single(&dev->dev, desc->data,
 				 RX_SIZE, DMA_FROM_DEVICE);
 #else
-		dma_sync_single(&dev->dev, desc->data,
-				RX_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(&dev->dev, desc->data,
+					RX_SIZE, DMA_FROM_DEVICE);
 		memcpy_swab32((u32 *)skb->data, (u32 *)port->rx_buff_tab[n],
 			      ALIGN(desc->pkt_len, 4) / 4);
 #endif

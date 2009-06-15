@@ -1315,9 +1315,9 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 	dev->trans_start = jiffies;
-	rc = netiucv_transmit_skb(privptr->conn, skb) != 0;
+	rc = netiucv_transmit_skb(privptr->conn, skb);
 	netiucv_clear_busy(dev);
-	return rc;
+	return rc ? NETDEV_TX_BUSY : NETDEV_TX_OK;
 }
 
 /**

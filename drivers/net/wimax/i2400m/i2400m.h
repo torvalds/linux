@@ -150,10 +150,32 @@
 enum {
 	/* Firmware uploading */
 	I2400M_BOOT_RETRIES = 3,
+	I3200_BOOT_RETRIES = 3,
 	/* Size of the Boot Mode Command buffer */
 	I2400M_BM_CMD_BUF_SIZE = 16 * 1024,
 	I2400M_BM_ACK_BUF_SIZE = 256,
 };
+
+/**
+ * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
+ *
+ * This structure will be used to create a device specific poke table
+ * to put the device in a consistant state at boot time.
+ *
+ * @address: The device address to poke
+ *
+ * @data: The data value to poke to the device address
+ *
+ */
+struct i2400m_poke_table{
+	__le32 address;
+	__le32 data;
+};
+
+#define I2400M_FW_POKE(a, d) {		\
+	.address = cpu_to_le32(a),	\
+	.data = cpu_to_le32(d)		\
+}
 
 
 /**
@@ -224,6 +246,17 @@ struct i2400m_roq;
  *     process, so it cannot rely on common infrastructure being laid
  *     out.
  *
+ * @bus_bm_retries: [fill] How many times shall a firmware upload /
+ *     device initialization be retried? Different models of the same
+ *     device might need different values, hence it is set by the
+ *     bus-specific driver. Note this value is used in two places,
+ *     i2400m_fw_dnload() and __i2400m_dev_start(); they won't become
+ *     multiplicative (__i2400m_dev_start() calling N times
+ *     i2400m_fw_dnload() and this trying N times to download the
+ *     firmware), as if __i2400m_dev_start() only retries if the
+ *     firmware crashed while initializing the device (not in a
+ *     general case).
+ *
  * @bus_bm_cmd_send: [fill] Function called to send a boot-mode
  *     command. Flags are defined in 'enum i2400m_bm_cmd_flags'. This
  *     is synchronous and has to return 0 if ok or < 0 errno code in
@@ -251,6 +284,12 @@ struct i2400m_roq;
  * @bus_bm_mac_addr_impaired: [fill] Set to true if the device's MAC
  *     address provided in boot mode is kind of broken and needs to
  *     be re-read later on.
+ *
+ * @bus_bm_pokes_table: [fill/optional] A table of device addresses
+ *     and values that will be poked at device init time to move the
+ *     device to the correct state for the type of boot/firmware being
+ *     used.  This table MUST be terminated with (0x000000,
+ *     0x00000000) or bad things will happen.
  *
  *
  * @wimax_dev: WiMAX generic device for linkage into the kernel WiMAX
@@ -322,6 +361,10 @@ struct i2400m_roq;
  *     packets until the ones that are received out of order can be
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
+ *
+ * @src_mac_addr: MAC address used to make ethernet packets be coming
+ *     from. This is generated at i2400m_setup() time and used during
+ *     the life cycle of the instance. See i2400m_fake_eth_header().
  *
  * @init_mutex: Mutex used for serializing the device bringup
  *     sequence; this way if the device reboots in the middle, we
@@ -395,6 +438,8 @@ struct i2400m {
 
 	size_t bus_tx_block_size;
 	size_t bus_pl_size_max;
+	unsigned bus_bm_retries;
+
 	int (*bus_dev_start)(struct i2400m *);
 	void (*bus_dev_stop)(struct i2400m *);
 	void (*bus_tx_kick)(struct i2400m *);
@@ -406,6 +451,7 @@ struct i2400m {
 				       struct i2400m_bootrom_header *, size_t);
 	const char **bus_fw_names;
 	unsigned bus_bm_mac_addr_impaired:1;
+	const struct i2400m_poke_table *bus_bm_pokes_table;
 
 	spinlock_t tx_lock;		/* protect TX state */
 	void *tx_buf;
@@ -421,6 +467,7 @@ struct i2400m {
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
 	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
+	u8 src_mac_addr[ETH_HLEN];
 
 	struct mutex msg_mutex;		/* serialize command execution */
 	struct completion msg_completion;
@@ -704,6 +751,7 @@ static const __le32 i2400m_SBOOT_BARKER[4] = {
 	cpu_to_le32(I2400M_SBOOT_BARKER)
 };
 
+extern int i2400m_power_save_disabled;
 
 /*
  * Utility functions

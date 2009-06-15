@@ -661,8 +661,6 @@ static int enic_hard_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (vnic_wq_desc_avail(wq) < MAX_SKB_FRAGS + 1)
 		netif_stop_queue(netdev);
 
-	netdev->trans_start = jiffies;
-
 	spin_unlock_irqrestore(&enic->wq_lock[0], flags);
 
 	return NETDEV_TX_OK;

@@ -625,8 +625,10 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		err = mlx4_create_eq(dev, dev->caps.num_cqs + MLX4_NUM_SPARE_EQE,
 				     (dev->flags & MLX4_FLAG_MSI_X) ? i : 0,
 				     &priv->eq_table.eq[i]);
-		if (err)
+		if (err) {
+			--i;
 			goto err_out_unmap;
+		}
 	}
 
 	err = mlx4_create_eq(dev, MLX4_NUM_ASYNC_EQE + MLX4_NUM_SPARE_EQE,

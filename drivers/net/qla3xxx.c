@@ -2617,7 +2617,6 @@ static int ql3xxx_send(struct sk_buff *skb, struct net_device *ndev)
 			    &port_regs->CommonRegs.reqQProducerIndex,
 			    qdev->req_producer_index);
 
-	ndev->trans_start = jiffies;
 	if (netif_msg_tx_queued(qdev))
 		printk(KERN_DEBUG PFX "%s: tx queued, slot %d, len %d\n",
 		       ndev->name, qdev->req_producer_index, skb->len);

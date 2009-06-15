@@ -79,10 +79,6 @@ int llc_conn_state_process(struct sock *sk, struct sk_buff *skb)
 
 	if (unlikely(!ev->ind_prim && !ev->cfm_prim)) {
 		/* indicate or confirm not required */
-		/* XXX this is not very pretty, perhaps we should store
-		 * XXX indicate/confirm-needed state in the llc_conn_state_ev
-		 * XXX control block of the SKB instead? -DaveM
-		 */
 		if (!skb->next)
 			goto out_kfree_skb;
 		goto out_skb_put;

@@ -289,13 +289,15 @@ rate_control_pid_get_rate(void *priv, struct ieee80211_sta *sta,
 		info->control.rates[0].count =
 			txrc->hw->conf.short_frame_max_tx_count;
 
-	/* Send management frames and broadcast/multicast data using lowest
-	 * rate. */
+	/* Send management frames and NO_ACK data using lowest rate. */
 	fc = le16_to_cpu(hdr->frame_control);
 	if (!sta || !spinfo ||
 	    (fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    is_multicast_ether_addr(hdr->addr1)) {
+	    info->flags & IEEE80211_TX_CTL_NO_ACK) {
 		info->control.rates[0].idx = rate_lowest_index(sband, sta);
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->control.rates[0].count = 1;
+
 		return;
 	}
 

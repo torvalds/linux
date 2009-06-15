@@ -782,7 +782,7 @@ static int b44_rx(struct b44 *bp, int budget)
 		drop_it:
 			b44_recycle_rx(bp, cons, bp->rx_prod);
 		drop_it_no_recycle:
-			bp->stats.rx_dropped++;
+			bp->dev->stats.rx_dropped++;
 			goto next_pkt;
 		}
 
@@ -1647,7 +1647,7 @@ static int b44_close(struct net_device *dev)
 static struct net_device_stats *b44_get_stats(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
-	struct net_device_stats *nstat = &bp->stats;
+	struct net_device_stats *nstat = &dev->stats;
 	struct b44_hw_stats *hwstat = &bp->hw_stats;
 
 	/* Convert HW stats into netdevice stats. */

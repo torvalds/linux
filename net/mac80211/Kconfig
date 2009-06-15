@@ -1,15 +1,34 @@
 config MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
+	depends on CFG80211
 	select CRYPTO
 	select CRYPTO_ECB
 	select CRYPTO_ARC4
 	select CRYPTO_AES
 	select CRC32
 	select WIRELESS_EXT
-	select CFG80211
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.
+
+comment "CFG80211 needs to be enabled for MAC80211"
+	depends on CFG80211=n
+
+config MAC80211_DEFAULT_PS
+	bool "enable powersave by default"
+	depends on MAC80211
+	default y
+	help
+	  This option enables powersave mode by default.
+
+	  If this causes your applications to misbehave you should fix your
+	  applications instead -- they need to register their network
+	  latency requirement, see Documentation/power/pm_qos_interface.txt.
+
+config MAC80211_DEFAULT_PS_VALUE
+	int
+	default 1 if MAC80211_DEFAULT_PS
+	default 0
 
 menu "Rate control algorithm selection"
 	depends on MAC80211 != n

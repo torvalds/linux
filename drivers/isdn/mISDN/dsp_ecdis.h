@@ -91,7 +91,7 @@ int16_t amp)
 					&& det->tone_cycle_duration <= 475*8) {
 					det->good_cycles++;
 					if (det->good_cycles > 2)
-					det->hit = TRUE;
+						det->hit = TRUE;
 				}
 				det->tone_cycle_duration = 0;
 			}

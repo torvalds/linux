@@ -293,7 +293,8 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * told otherwise.
 	 */
 	asoc->peer.ipv4_address = 1;
-	asoc->peer.ipv6_address = 1;
+	if (asoc->base.sk->sk_family == PF_INET6)
+		asoc->peer.ipv6_address = 1;
 	INIT_LIST_HEAD(&asoc->asocs);
 
 	asoc->autoclose = sp->autoclose;
@@ -565,6 +566,21 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	 */
 	if (asoc->init_last_sent_to == peer)
 		asoc->init_last_sent_to = NULL;
+
+	/* If we remove the transport an SHUTDOWN was last sent to, set it
+	 * to NULL. Combined with the update of the retran path above, this
+	 * will cause the next SHUTDOWN to be sent to the next available
+	 * transport, maintaining the cycle.
+	 */
+	if (asoc->shutdown_last_sent_to == peer)
+		asoc->shutdown_last_sent_to = NULL;
+
+	/* If we remove the transport an ASCONF was last sent to, set it to
+	 * NULL.
+	 */
+	if (asoc->addip_last_asconf &&
+	    asoc->addip_last_asconf->transport == peer)
+		asoc->addip_last_asconf->transport = NULL;
 
 	asoc->peer.transport_count--;
 
@@ -1268,49 +1284,21 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 				 ntohs(t->ipaddr.v4.sin_port));
 }
 
-/* Choose the transport for sending a INIT packet.  */
-struct sctp_transport *sctp_assoc_choose_init_transport(
-	struct sctp_association *asoc)
+/* Choose the transport for sending retransmit packet.  */
+struct sctp_transport *sctp_assoc_choose_alter_transport(
+	struct sctp_association *asoc, struct sctp_transport *last_sent_to)
 {
-	struct sctp_transport *t;
-
-	/* Use the retran path. If the last INIT was sent over the
+	/* If this is the first time packet is sent, use the active path,
+	 * else use the retran path. If the last packet was sent over the
 	 * retran path, update the retran path and use it.
 	 */
-	if (!asoc->init_last_sent_to) {
-		t = asoc->peer.active_path;
-	} else {
-		if (asoc->init_last_sent_to == asoc->peer.retran_path)
-			sctp_assoc_update_retran_path(asoc);
-		t = asoc->peer.retran_path;
-	}
-
-	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_update_retran_path:association"
-				 " %p addr: ",
-				 " port: %d\n",
-				 asoc,
-				 (&t->ipaddr),
-				 ntohs(t->ipaddr.v4.sin_port));
-
-	return t;
-}
-
-/* Choose the transport for sending a SHUTDOWN packet.  */
-struct sctp_transport *sctp_assoc_choose_shutdown_transport(
-	struct sctp_association *asoc)
-{
-	/* If this is the first time SHUTDOWN is sent, use the active path,
-	 * else use the retran path. If the last SHUTDOWN was sent over the
-	 * retran path, update the retran path and use it.
-	 */
-	if (!asoc->shutdown_last_sent_to)
+	if (!last_sent_to)
 		return asoc->peer.active_path;
 	else {
-		if (asoc->shutdown_last_sent_to == asoc->peer.retran_path)
+		if (last_sent_to == asoc->peer.retran_path)
 			sctp_assoc_update_retran_path(asoc);
 		return asoc->peer.retran_path;
 	}
-
 }
 
 /* Update the association's pmtu and frag_point by going through all the
@@ -1482,6 +1470,10 @@ int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
 	int assoc_id;
 	int error = 0;
+
+	/* If the id is already assigned, keep it. */
+	if (asoc->assoc_id)
+		return error;
 retry:
 	if (unlikely(!idr_pre_get(&sctp_assocs_id, gfp)))
 		return -ENOMEM;

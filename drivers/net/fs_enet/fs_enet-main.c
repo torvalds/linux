@@ -36,6 +36,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of.h>
+#include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 
@@ -752,9 +754,10 @@ static int fs_init_phy(struct net_device *dev)
 	fep->oldlink = 0;
 	fep->oldspeed = 0;
 	fep->oldduplex = -1;
-	if(fep->fpi->bus_id)
-		phydev = phy_connect(dev, fep->fpi->bus_id, &fs_adjust_link, 0,
-				PHY_INTERFACE_MODE_MII);
+	if(fep->fpi->phy_node)
+		phydev = of_phy_connect(dev, fep->fpi->phy_node,
+					&fs_adjust_link, 0,
+					PHY_INTERFACE_MODE_MII);
 	else {
 		printk("No phy bus ID specified in BSP code\n");
 		return -EINVAL;
@@ -938,81 +941,6 @@ extern void fs_mii_disconnect(struct net_device *dev);
 
 /**************************************************************************************/
 
-/* handy pointer to the immap */
-void __iomem *fs_enet_immap = NULL;
-
-static int setup_immap(void)
-{
-#ifdef CONFIG_CPM1
-	fs_enet_immap = ioremap(IMAP_ADDR, 0x4000);
-	WARN_ON(!fs_enet_immap);
-#elif defined(CONFIG_CPM2)
-	fs_enet_immap = cpm2_immr;
-#endif
-
-	return 0;
-}
-
-static void cleanup_immap(void)
-{
-#if defined(CONFIG_CPM1)
-	iounmap(fs_enet_immap);
-#endif
-}
-
-/**************************************************************************************/
-
-static int __devinit find_phy(struct device_node *np,
-                              struct fs_platform_info *fpi)
-{
-	struct device_node *phynode, *mdionode;
-	int ret = 0, len, bus_id;
-	const u32 *data;
-
-	data  = of_get_property(np, "fixed-link", NULL);
-	if (data) {
-		snprintf(fpi->bus_id, 16, "%x:%02x", 0, *data);
-		return 0;
-	}
-
-	data = of_get_property(np, "phy-handle", &len);
-	if (!data || len != 4)
-		return -EINVAL;
-
-	phynode = of_find_node_by_phandle(*data);
-	if (!phynode)
-		return -EINVAL;
-
-	data = of_get_property(phynode, "reg", &len);
-	if (!data || len != 4) {
-		ret = -EINVAL;
-		goto out_put_phy;
-	}
-
-	mdionode = of_get_parent(phynode);
-	if (!mdionode) {
-		ret = -EINVAL;
-		goto out_put_phy;
-	}
-
-	bus_id = of_get_gpio(mdionode, 0);
-	if (bus_id < 0) {
-		struct resource res;
-		ret = of_address_to_resource(mdionode, 0, &res);
-		if (ret)
-			goto out_put_mdio;
-		bus_id = res.start;
-	}
-
-	snprintf(fpi->bus_id, 16, "%x:%02x", bus_id, *data);
-
-out_put_mdio:
-	of_node_put(mdionode);
-out_put_phy:
-	of_node_put(phynode);
-	return ret;
-}
-
 #ifdef CONFIG_FS_ENET_HAS_FEC
 #define IS_FEC(match) ((match)->data == &fs_fec_ops)
 #else
@@ -1062,9 +990,9 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	fpi->rx_copybreak = 240;
 	fpi->use_napi = 1;
 	fpi->napi_weight = 17;
-
-	ret = find_phy(ofdev->node, fpi);
-	if (ret)
+	fpi->phy_node = of_parse_phandle(ofdev->node, "phy-handle", 0);
+	if ((!fpi->phy_node) && (!of_get_property(ofdev->node, "fixed-link",
+						  NULL)))
 		goto out_free_fpi;
 
 	privsize = sizeof(*fep) +
@@ -1136,6 +1064,7 @@ out_cleanup_data:
 out_free_dev:
 	free_netdev(ndev);
 	dev_set_drvdata(&ofdev->dev, NULL);
+	of_node_put(fpi->phy_node);
 out_free_fpi:
 	kfree(fpi);
 	return ret;
@@ -1151,7 +1080,7 @@ static int fs_enet_remove(struct of_device *ofdev)
 	fep->ops->free_bd(ndev);
 	fep->ops->cleanup_data(ndev);
 	dev_set_drvdata(fep->dev, NULL);
-
+	of_node_put(fep->fpi->phy_node);
 	free_netdev(ndev);
 	return 0;
 }
@@ -1191,25 +1120,12 @@ static struct of_platform_driver fs_enet_driver = {
 
 static int __init fs_init(void)
 {
-	int r = setup_immap();
-	if (r != 0)
-		return r;
-
-	r = of_register_platform_driver(&fs_enet_driver);
-	if (r != 0)
-		goto out;
-
-	return 0;
-
-out:
-	cleanup_immap();
-	return r;
+	return of_register_platform_driver(&fs_enet_driver);
 }
 
 static void __exit fs_cleanup(void)
 {
 	of_unregister_platform_driver(&fs_enet_driver);
-	cleanup_immap();
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

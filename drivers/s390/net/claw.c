@@ -338,12 +338,6 @@ claw_tx(struct sk_buff *skb, struct net_device *dev)
 
 	CLAW_DBF_TEXT(4, trace, "claw_tx");
         p_ch=&privptr->channel[WRITE];
-        if (skb == NULL) {
-                privptr->stats.tx_dropped++;
-		privptr->stats.tx_errors++;
-		CLAW_DBF_TEXT_(2, trace, "clawtx%d", -EIO);
-                return -EIO;
-        }
         spin_lock_irqsave(get_ccwdev_lock(p_ch->cdev), saveflags);
         rc=claw_hw_tx( skb, dev, 1 );
         spin_unlock_irqrestore(get_ccwdev_lock(p_ch->cdev), saveflags);
