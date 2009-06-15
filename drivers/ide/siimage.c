@@ -32,7 +32,6 @@
  *  smarter code in libata.
  *
  * TODO:
- * - IORDY fixes
  * - VDMA support
  */
 
@@ -234,8 +233,7 @@ static u8 sil_sata_udma_filter(ide_drive_t *drive)
  *	@pio: PIO mode number
  *
  *	Load the timing settings for this device mode into the
- *	controller. If we are in PIO mode 3 or 4 turn on IORDY
- *	monitoring (bit 9). The TF timing is bits 31:16
+ *	controller.
  */
 
 static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
@@ -276,13 +274,16 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	/* now set up IORDY */
 	speedp = sil_ioread16(dev, tfaddr - 2);
 	speedp &= ~0x200;
-	if (pio > 2)
-		speedp |= 0x200;
-	sil_iowrite16(dev, speedp, tfaddr - 2);
 
 	mode = sil_ioread8(dev, base + addr_mask);
 	mode &= ~(unit ? 0x30 : 0x03);
-	mode |= unit ? 0x10 : 0x01;
+
+	if (ide_pio_need_iordy(drive, pio)) {
+		speedp |= 0x200;
+		mode |= unit ? 0x10 : 0x01;
+	}
+
+	sil_iowrite16(dev, speedp, tfaddr - 2);
 	sil_iowrite8(dev, mode, base + addr_mask);
 }
 

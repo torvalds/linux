@@ -61,8 +61,7 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 	if (cmd_off == 0)
 		cmd_off = 1;
 
-	if ((pio > 2 || ata_id_has_iordy(drive->id)) &&
-	    !(pio > 4 && ata_id_is_cfa(drive->id)))
+	if (ide_pio_need_iordy(drive, pio))
 		iordy = 0x40;
 
 	return (cmd_on - 1) << 8 | (cmd_off - 1) | iordy;
