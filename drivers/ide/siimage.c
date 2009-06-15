@@ -338,26 +338,6 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	sil_iowrite16(dev, ultra, ua);
 }
 
-/* returns 1 if dma irq issued, 0 otherwise */
-static int siimage_io_dma_test_irq(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= drive->hwif;
-	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u8 dma_altstat		= 0;
-	unsigned long addr	= siimage_selreg(hwif, 1);
-
-	/* return 1 if INTR asserted */
-	if (inb(hwif->dma_base + ATA_DMA_STATUS) & 4)
-		return 1;
-
-	/* return 1 if Device INTR asserted */
-	pci_read_config_byte(dev, addr, &dma_altstat);
-	if (dma_altstat & 8)
-		return 0;	/* return 1; */
-
-	return 0;
-}
-
 /**
  *	siimage_mmio_dma_test_irq	-	check we caused an IRQ
  *	@drive: drive we are testing
@@ -369,7 +349,6 @@ static int siimage_io_dma_test_irq(ide_drive_t *drive)
 static int siimage_mmio_dma_test_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= drive->hwif;
-	unsigned long addr	= siimage_selreg(hwif, 0x1);
 	void __iomem *sata_error_addr
 		= (void __iomem *)hwif->sata_scr[SATA_ERROR_OFFSET];
 
@@ -398,10 +377,6 @@ static int siimage_mmio_dma_test_irq(ide_drive_t *drive)
 	if (readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS)) & 4)
 		return 1;
 
-	/* return 1 if Device INTR asserted */
-	if (readb((void __iomem *)addr) & 8)
-		return 0;	/* return 1; */
-
 	return 0;
 }
 
@@ -410,7 +385,7 @@ static int siimage_dma_test_irq(ide_drive_t *drive)
 	if (drive->hwif->host_flags & IDE_HFLAG_MMIO)
 		return siimage_mmio_dma_test_irq(drive);
 	else
-		return siimage_io_dma_test_irq(drive);
+		return ide_dma_test_irq(drive);
 }
 
 /**
