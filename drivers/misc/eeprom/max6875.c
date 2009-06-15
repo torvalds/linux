@@ -3,7 +3,7 @@
 
     Copyright (C) 2005 Ben Gardner <bgardner@wabtec.com>
 
-    Based on i2c/chips/eeprom.c
+    Based on eeprom.c
 
     The MAX6875 has a bank of registers and two banks of EEPROM.
     Address ranges are defined as follows:
