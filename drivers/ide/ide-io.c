@@ -685,6 +685,9 @@ void ide_timer_expiry (unsigned long data)
 				hwif->dma_ops->dma_lost_irq(drive);
 			if (hwif->ack_intr)
 				hwif->ack_intr(hwif);
+			if (hwif->port_ops && hwif->port_ops->clear_irq)
+				hwif->port_ops->clear_irq(drive);
+
 			printk(KERN_WARNING "%s: lost interrupt\n",
 				drive->name);
 			startstop = handler(drive);
