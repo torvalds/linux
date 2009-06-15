@@ -54,6 +54,7 @@ static struct irq_desc bad_irq_desc = {
 #error "Blackfin architecture does not support CONFIG_CPUMASK_OFFSTACK."
 #endif
 
+#ifdef CONFIG_PROC_FS
 int show_interrupts(struct seq_file *p, void *v)
 {
 	int i = *(loff_t *) v, j;
@@ -85,6 +86,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 	return 0;
 }
+#endif
 
 /*
  * do_IRQ handles all hardware IRQs.  Decoded IRQs should not
