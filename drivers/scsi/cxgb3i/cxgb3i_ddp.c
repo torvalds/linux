@@ -598,30 +598,40 @@ int cxgb3i_adapter_ddp_info(struct t3cdev *tdev,
  * release all the resource held by the ddp pagepod manager for a given
  * adapter if needed
  */
+
+static void ddp_cleanup(struct kref *kref)
+{
+	struct cxgb3i_ddp_info *ddp = container_of(kref,
+						struct cxgb3i_ddp_info,
+						refcnt);
+	int i = 0;
+
+	ddp_log_info("kref release ddp 0x%p, t3dev 0x%p.\n", ddp, ddp->tdev);
+
+	ddp->tdev->ulp_iscsi = NULL;
+	while (i < ddp->nppods) {
+		struct cxgb3i_gather_list *gl = ddp->gl_map[i];
+		if (gl) {
+			int npods = (gl->nelem + PPOD_PAGES_MAX - 1)
+					>> PPOD_PAGES_SHIFT;
+			ddp_log_info("t3dev 0x%p, ddp %d + %d.\n",
+					ddp->tdev, i, npods);
+			kfree(gl);
+			ddp_free_gl_skb(ddp, i, npods);
+			i += npods;
+		} else
+			i++;
+	}
+	cxgb3i_free_big_mem(ddp);
+}
+
 void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
 {
-	int i = 0;
 	struct cxgb3i_ddp_info *ddp = (struct cxgb3i_ddp_info *)tdev->ulp_iscsi;
 
 	ddp_log_info("t3dev 0x%p, release ddp 0x%p.\n", tdev, ddp);
-
-	if (ddp) {
-		tdev->ulp_iscsi = NULL;
-		while (i < ddp->nppods) {
-			struct cxgb3i_gather_list *gl = ddp->gl_map[i];
-			if (gl) {
-				int npods = (gl->nelem + PPOD_PAGES_MAX - 1)
-						>> PPOD_PAGES_SHIFT;
-				ddp_log_info("t3dev 0x%p, ddp %d + %d.\n",
-						tdev, i, npods);
-				kfree(gl);
-				ddp_free_gl_skb(ddp, i, npods);
-				i += npods;
-			} else
-				i++;
-		}
-		cxgb3i_free_big_mem(ddp);
-	}
+	if (ddp)
+		kref_put(&ddp->refcnt, ddp_cleanup);
 }
 
 /**
@@ -631,12 +641,13 @@ void cxgb3i_ddp_cleanup(struct t3cdev *tdev)
  */
 static void ddp_init(struct t3cdev *tdev)
 {
-	struct cxgb3i_ddp_info *ddp;
+	struct cxgb3i_ddp_info *ddp = tdev->ulp_iscsi;
 	struct ulp_iscsi_info uinfo;
 	unsigned int ppmax, bits;
 	int i, err;
 
-	if (tdev->ulp_iscsi) {
+	if (ddp) {
+		kref_get(&ddp->refcnt);
 		ddp_log_warn("t3dev 0x%p, ddp 0x%p already set up.\n",
 				tdev, tdev->ulp_iscsi);
 		return;
@@ -670,6 +681,7 @@ static void ddp_init(struct t3cdev *tdev)
 					  ppmax *
 					  sizeof(struct cxgb3i_gather_list *));
 	spin_lock_init(&ddp->map_lock);
+	kref_init(&ddp->refcnt);
 
 	ddp->tdev = tdev;
 	ddp->pdev = uinfo.pdev;
