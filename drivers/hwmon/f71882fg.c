@@ -1735,19 +1735,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		goto exit_free;
 	}
 
-	data->pwm_enable = f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
-	/* If it is a 71862 and the fan / pwm part is enabled sanity check
-	   the pwm settings */
-	if (data->type == f71862fg && (start_reg & 0x02)) {
-		if ((data->pwm_enable & 0x15) != 0x15) {
-			dev_err(&pdev->dev,
-				"Invalid (reserved) pwm settings: 0x%02x\n",
-				(unsigned int)data->pwm_enable);
-			err = -ENODEV;
-			goto exit_free;
-		}
-	}
-
 	/* Register sysfs interface files */
 	err = device_create_file(&pdev->dev, &dev_attr_name);
 	if (err)
@@ -1778,6 +1765,29 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	}
 
 	if (start_reg & 0x02) {
+		data->pwm_enable =
+			f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
+
+		/* Sanity check the pwm settings */
+		switch (data->type) {
+		case f71862fg:
+			err = (data->pwm_enable & 0x15) != 0x15;
+			break;
+		case f71882fg:
+			err = 0;
+			break;
+		case f8000:
+			err = data->pwm_enable & 0x20;
+			break;
+		}
+		if (err) {
+			dev_err(&pdev->dev,
+				"Invalid (reserved) pwm settings: 0x%02x\n",
+				(unsigned int)data->pwm_enable);
+			err = -ENODEV;
+			goto exit_unregister_sysfs;
+		}
+
 		err = f71882fg_create_sysfs_files(pdev, fxxxx_fan_attr,
 					ARRAY_SIZE(fxxxx_fan_attr));
 		if (err)
