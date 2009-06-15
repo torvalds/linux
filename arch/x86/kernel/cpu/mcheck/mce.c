@@ -703,6 +703,11 @@ static int mce_start(int no_way_out, int *order)
 	}
 
 	atomic_add(no_way_out, &global_nwo);
+	/*
+	 * global_nwo should be updated before mce_callin
+	 */
+	smp_wmb();
+	*order = atomic_add_return(1, &mce_callin);
 
 	/*
 	 * Wait for everyone.
@@ -716,6 +721,10 @@ static int mce_start(int no_way_out, int *order)
 		ndelay(SPINUNIT);
 	}
 
+	/*
+	 * mce_callin should be read before global_nwo
+	 */
+	smp_rmb();
 	/*
 	 * Cache the global no_way_out state.
 	 */
@@ -862,7 +871,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * Establish sequential order between the CPUs entering the machine
 	 * check handler.
 	 */
-	int order;
+	int order = -1;
 
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
@@ -887,7 +896,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	if (!banks)
 		goto out;
 
-	order = atomic_add_return(1, &mce_callin);
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
