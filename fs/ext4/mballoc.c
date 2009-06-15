@@ -4689,7 +4689,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
  * Main entry point into mballoc to free blocks
  */
 void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
-			unsigned long block, unsigned long count,
+			ext4_fsblk_t block, unsigned long count,
 			int metadata, unsigned long *freed)
 {
 	struct buffer_head *bitmap_bh = NULL;
@@ -4715,11 +4715,11 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 	    block + count > ext4_blocks_count(es)) {
 		ext4_error(sb, __func__,
 			    "Freeing blocks not in datazone - "
-			    "block = %lu, count = %lu", block, count);
+			    "block = %llu, count = %lu", block, count);
 		goto error_return;
 	}
 
-	ext4_debug("freeing block %lu\n", block);
+	ext4_debug("freeing block %llu\n", block);
 	trace_ext4_free_blocks(inode, block, count, metadata);
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
@@ -4761,7 +4761,7 @@ do_more:
 
 		ext4_error(sb, __func__,
 			   "Freeing blocks in system zone - "
-			   "Block = %lu, count = %lu", block, count);
+			   "Block = %llu, count = %lu", block, count);
 		/* err = 0. ext4_std_error should be a no op */
 		goto error_return;
 	}
