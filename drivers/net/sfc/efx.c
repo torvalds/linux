@@ -884,13 +884,12 @@ static int efx_wanted_rx_queues(void)
 	int count;
 	int cpu;
 
-	if (unlikely(!alloc_cpumask_var(&core_mask, GFP_KERNEL))) {
+	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
 		return 1;
 	}
 
-	cpumask_clear(core_mask);
 	count = 0;
 	for_each_online_cpu(cpu) {
 		if (!cpumask_test_cpu(cpu, core_mask)) {
