@@ -10,6 +10,8 @@
  */
 #include <linux/types.h>
 
+#include <asm/hw_irq.h>
+
 #define MAX_HWCOUNTERS		8
 #define MAX_EVENT_ALTERNATIVES	8
 #define MAX_LIMITED_HWCOUNTERS	2

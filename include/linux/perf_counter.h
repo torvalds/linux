@@ -604,6 +604,7 @@ extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern int perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
 extern void perf_counter_free_task(struct task_struct *task);
+extern void set_perf_counter_pending(void);
 extern void perf_counter_do_pending(void);
 extern void perf_counter_print_debug(void);
 extern void __perf_disable(void);

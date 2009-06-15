@@ -163,7 +163,6 @@ static inline unsigned long test_perf_counter_pending(void)
 	return 0;
 }
 
-static inline void set_perf_counter_pending(void) {}
 static inline void clear_perf_counter_pending(void) {}
 #endif /* CONFIG_PERF_COUNTERS */
 
