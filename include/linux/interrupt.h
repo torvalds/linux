@@ -84,7 +84,6 @@ typedef irqreturn_t (*irq_handler_t)(int, void *);
  * struct irqaction - per interrupt action descriptor
  * @handler:	interrupt handler function
  * @flags:	flags (see IRQF_* above)
- * @mask:	no comment as it is useless and about to be removed
  * @name:	name of the device
  * @dev_id:	cookie to identify the device
  * @next:	pointer to the next irqaction for shared interrupts
