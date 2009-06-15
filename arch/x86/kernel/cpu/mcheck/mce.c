@@ -88,9 +88,10 @@ int				mce_cmci_disabled	__read_mostly;
 int				mce_ignore_ce		__read_mostly;
 int				mce_ser			__read_mostly;
 
-static unsigned long		notify_user;
-static char			trigger[128];
-static char			*trigger_argv[2] = { trigger, NULL };
+/* User mode helper program triggered by machine check event */
+static unsigned long		mce_need_notify;
+static char			mce_helper[128];
+static char			*mce_helper_argv[2] = { mce_helper, NULL };
 
 static unsigned long		dont_init_banks;
 
@@ -180,7 +181,7 @@ void mce_log(struct mce *mce)
 	wmb();
 
 	mce->finished = 1;
-	set_bit(0, &notify_user);
+	set_bit(0, &mce_need_notify);
 }
 
 static void print_mce(struct mce *m)
@@ -1122,7 +1123,7 @@ static void mcheck_timer(unsigned long data)
 
 static void mce_do_trigger(struct work_struct *work)
 {
-	call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
+	call_usermodehelper(mce_helper, mce_helper_argv, NULL, UMH_NO_WAIT);
 }
 
 static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
@@ -1139,7 +1140,7 @@ int mce_notify_irq(void)
 
 	clear_thread_flag(TIF_MCE_NOTIFY);
 
-	if (test_and_clear_bit(0, &notify_user)) {
+	if (test_and_clear_bit(0, &mce_need_notify)) {
 		wake_up_interruptible(&mce_wait);
 
 		/*
@@ -1147,7 +1148,7 @@ int mce_notify_irq(void)
 		 * work_pending is always cleared before the function is
 		 * executed.
 		 */
-		if (trigger[0] && !work_pending(&mce_trigger_work))
+		if (mce_helper[0] && !work_pending(&mce_trigger_work))
 			schedule_work(&mce_trigger_work);
 
 		if (__ratelimit(&ratelimit))
@@ -1664,9 +1665,9 @@ static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
 static ssize_t
 show_trigger(struct sys_device *s, struct sysdev_attribute *attr, char *buf)
 {
-	strcpy(buf, trigger);
+	strcpy(buf, mce_helper);
 	strcat(buf, "\n");
-	return strlen(trigger) + 1;
+	return strlen(mce_helper) + 1;
 }
 
 static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
@@ -1675,10 +1676,10 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 	char *p;
 	int len;
 
-	strncpy(trigger, buf, sizeof(trigger));
-	trigger[sizeof(trigger)-1] = 0;
-	len = strlen(trigger);
-	p = strchr(trigger, '\n');
+	strncpy(mce_helper, buf, sizeof(mce_helper));
+	mce_helper[sizeof(mce_helper)-1] = 0;
+	len = strlen(mce_helper);
+	p = strchr(mce_helper, '\n');
 
 	if (*p)
 		*p = 0;
