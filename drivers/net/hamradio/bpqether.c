@@ -260,7 +260,7 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (!netif_running(dev)) {
 		kfree_skb(skb);
-		return -ENODEV;
+		return NETDEV_TX_OK;
 	}
 
 	skb_pull(skb, 1);
