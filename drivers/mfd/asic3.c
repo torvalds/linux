@@ -27,6 +27,7 @@
 #include <linux/mfd/asic3.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/ds1wm.h>
+#include <linux/mfd/tmio.h>
 
 enum {
 	ASIC3_CLOCK_SPI,
@@ -684,11 +685,106 @@ static struct mfd_cell asic3_cell_ds1wm = {
 	.resources     = ds1wm_resources,
 };
 
+static struct tmio_mmc_data asic3_mmc_data = {
+	.hclk = 24576000,
+};
+
+static struct resource asic3_mmc_resources[] = {
+	{
+		.start = ASIC3_SD_CTRL_BASE,
+		.end   = ASIC3_SD_CTRL_BASE + 0x3ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = ASIC3_SD_CONFIG_BASE,
+		.end   = ASIC3_SD_CONFIG_BASE + 0x1ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = 0,
+		.end   = 0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static int asic3_mmc_enable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Not sure if it must be done bit by bit, but leaving as-is */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_LEVCD, 1);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_LEVWP, 1);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SUSPEND, 0);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_PCLR, 0);
+
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	/* CLK32 used for card detection and for interruption detection
+	 * when HCLK is stopped.
+	 */
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	msleep(1);
+
+	/* HCLK 24.576 MHz, BCLK 12.288 MHz: */
+	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL),
+		CLOCK_SEL_CX | CLOCK_SEL_SD_HCLK_SEL);
+
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_SD_HOST]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_SD_BUS]);
+	msleep(1);
+
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_SD_MEM_ENABLE, 1);
+
+	/* Enable SD card slot 3.3V power supply */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SDPWR, 1);
+
+	return 0;
+}
+
+static int asic3_mmc_disable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Put in suspend mode */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SUSPEND, 1);
+
+	/* Disable clocks */
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_SD_HOST]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_SD_BUS]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	return 0;
+}
+
+static struct mfd_cell asic3_cell_mmc = {
+	.name          = "tmio-mmc",
+	.enable        = asic3_mmc_enable,
+	.disable       = asic3_mmc_disable,
+	.driver_data   = &asic3_mmc_data,
+	.num_resources = ARRAY_SIZE(asic3_mmc_resources),
+	.resources     = asic3_mmc_resources,
+};
+
 static int __init asic3_mfd_probe(struct platform_device *pdev,
 				  struct resource *mem)
 {
 	struct asic3 *asic = platform_get_drvdata(pdev);
-	int ret;
+	struct resource *mem_sdio;
+	int irq, ret;
+
+	mem_sdio = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!mem_sdio)
+		dev_dbg(asic->dev, "no SDIO MEM resource\n");
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		dev_dbg(asic->dev, "no SDIO IRQ resource\n");
 
 	/* DS1WM */
 	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
@@ -700,9 +796,25 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	asic3_cell_ds1wm.platform_data = &asic3_cell_ds1wm;
 	asic3_cell_ds1wm.data_size = sizeof(asic3_cell_ds1wm);
 
+	/* MMC */
+	asic3_mmc_resources[0].start >>= asic->bus_shift;
+	asic3_mmc_resources[0].end   >>= asic->bus_shift;
+	asic3_mmc_resources[1].start >>= asic->bus_shift;
+	asic3_mmc_resources[1].end   >>= asic->bus_shift;
+
+	asic3_cell_mmc.platform_data = &asic3_cell_mmc;
+	asic3_cell_mmc.data_size = sizeof(asic3_cell_mmc);
+
 	ret = mfd_add_devices(&pdev->dev, pdev->id,
 			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
+	if (ret < 0)
+		goto out;
 
+	if (mem_sdio && (irq >= 0))
+		ret = mfd_add_devices(&pdev->dev, pdev->id,
+			&asic3_cell_mmc, 1, mem_sdio, irq);
+
+ out:
 	return ret;
 }
 
