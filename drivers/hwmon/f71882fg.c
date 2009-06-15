@@ -247,7 +247,7 @@ static struct platform_driver f71882fg_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f71882fg_probe,
-	.remove		= __devexit_p(f71882fg_remove),
+	.remove		= f71882fg_remove,
 };
 
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
