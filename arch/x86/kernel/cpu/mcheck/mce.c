@@ -1245,7 +1245,7 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		 * Various K7s with broken bank 0 around. Always disable
 		 * by default.
 		 */
-		 if (c->x86 == 6)
+		 if (c->x86 == 6 && banks > 0)
 			bank[0] = 0;
 	}
 
