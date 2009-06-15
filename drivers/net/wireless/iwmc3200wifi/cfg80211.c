@@ -271,6 +271,10 @@ static int iwm_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (key_index == iwm->default_key)
 		iwm->default_key = -1;
 
+	/* If the interface is down, we just cache this */
+	if (!test_bit(IWM_STATUS_READY, &iwm->status))
+		return 0;
+
 	return iwm_set_key(iwm, 1, key);
 }
 
@@ -288,11 +292,15 @@ static int iwm_cfg80211_set_default_key(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	iwm->default_key = key_index;
+
+	/* If the interface is down, we just cache this */
+	if (!test_bit(IWM_STATUS_READY, &iwm->status))
+		return 0;
+
 	ret = iwm_set_tx_key(iwm, key_index);
 	if (ret < 0)
 		return ret;
-
-	iwm->default_key = key_index;
 
 	return iwm_reset_profile(iwm);
 }

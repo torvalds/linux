@@ -48,6 +48,7 @@
 #include <linux/netdevice.h>
 
 #include "iwm.h"
+#include "commands.h"
 #include "cfg80211.h"
 #include "debug.h"
 
@@ -135,7 +136,19 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 
+	iwm->umac_profile = kmalloc(sizeof(struct iwm_umac_profile),
+				    GFP_KERNEL);
+	if (!iwm->umac_profile) {
+		dev_err(dev, "Couldn't alloc memory for profile\n");
+		goto out_profile;
+	}
+
+	iwm_init_default_profile(iwm, iwm->umac_profile);
+
 	return iwm;
+
+ out_profile:
+	free_netdev(ndev);
 
  out_priv:
 	iwm_priv_deinit(iwm);
@@ -153,6 +166,8 @@ void iwm_if_free(struct iwm_priv *iwm)
 	free_netdev(iwm_to_ndev(iwm));
 	iwm_wdev_free(iwm);
 	iwm_priv_deinit(iwm);
+	kfree(iwm->umac_profile);
+	iwm->umac_profile = NULL;
 }
 
 int iwm_if_add(struct iwm_priv *iwm)

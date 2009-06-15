@@ -643,29 +643,16 @@ int __iwm_up(struct iwm_priv *iwm)
 		}
 	}
 
-	iwm->umac_profile = kmalloc(sizeof(struct iwm_umac_profile),
-				    GFP_KERNEL);
-	if (!iwm->umac_profile) {
-		IWM_ERR(iwm, "Couldn't alloc memory for profile\n");
-		goto err_fw;
-	}
-
-	iwm_init_default_profile(iwm, iwm->umac_profile);
-
 	ret = iwm_channels_init(iwm);
 	if (ret < 0) {
 		IWM_ERR(iwm, "Couldn't init channels\n");
-		goto err_profile;
+		goto err_fw;
 	}
 
 	/* Set the READY bit to indicate interface is brought up successfully */
 	set_bit(IWM_STATUS_READY, &iwm->status);
 
 	return 0;
-
- err_profile:
-	kfree(iwm->umac_profile);
-	iwm->umac_profile = NULL;
 
  err_fw:
 	iwm_eeprom_exit(iwm);
@@ -705,10 +692,9 @@ int __iwm_down(struct iwm_priv *iwm)
 	clear_bit(IWM_STATUS_READY, &iwm->status);
 
 	iwm_eeprom_exit(iwm);
-	kfree(iwm->umac_profile);
-	iwm->umac_profile = NULL;
 	iwm_bss_list_clean(iwm);
-
+	iwm_init_default_profile(iwm, iwm->umac_profile);
+	iwm->umac_profile_active = false;
 	iwm->default_key = -1;
 	iwm->core_enabled = 0;
 
