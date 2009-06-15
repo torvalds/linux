@@ -44,7 +44,6 @@
 #include <asm/msr.h>
 
 #include "mce-internal.h"
-#include "mce.h"
 
 /* Handle unconfigured int18 (should never happen) */
 static void unexpected_machine_check(struct pt_regs *regs, long error_code)

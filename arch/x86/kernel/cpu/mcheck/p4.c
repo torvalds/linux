@@ -12,9 +12,8 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/apic.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
-
-#include "mce.h"
 
 /* as supported by the P4/Xeon family */
 struct intel_mce_extended_msrs {

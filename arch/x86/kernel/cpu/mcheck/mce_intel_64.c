@@ -16,8 +16,6 @@
 #include <asm/idle.h>
 #include <asm/therm_throt.h>
 
-#include "mce.h"
-
 asmlinkage void smp_thermal_interrupt(void)
 {
 	__u64 msr_val;

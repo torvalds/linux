@@ -11,9 +11,8 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/apic.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
-
-#include "mce.h"
 
 void intel_init_thermal(struct cpuinfo_x86 *c)
 {

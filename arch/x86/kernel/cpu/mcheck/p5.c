@@ -10,9 +10,8 @@
 
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
-
-#include "mce.h"
 
 /* By default disabled */
 int		mce_p5_enable;
