@@ -120,7 +120,7 @@ static struct coex_event iwm_sta_cm_prio_tbl[COEX_EVENTS_NUM] =
 	{4, 3, 0, COEX_UNASSOC_MANUAL_SCAN_FLAGS},
 	{3, 3, 0, COEX_UNASSOC_AUTO_SCAN_FLAGS},
 	{5, 5, 0, COEX_CALIBRATION_FLAGS},
-	{4, 4, 0, COEX_PERIODIC_CALIBRATION_FLAGS},
+	{3, 3, 0, COEX_PERIODIC_CALIBRATION_FLAGS},
 	{5, 4, 0, COEX_CONNECTION_ESTAB_FLAGS},
 	{4, 4, 0, COEX_ASSOCIATED_IDLE_FLAGS},
 	{4, 4, 0, COEX_ASSOC_MANUAL_SCAN_FLAGS},
@@ -345,8 +345,7 @@ int iwm_umac_set_config_var(struct iwm_priv *iwm, u16 key,
 	return ret;
 }
 
-int iwm_send_umac_config(struct iwm_priv *iwm,
-			 __le32 reset_flags)
+int iwm_send_umac_config(struct iwm_priv *iwm, __le32 reset_flags)
 {
 	int ret;
 
@@ -370,6 +369,12 @@ int iwm_send_umac_config(struct iwm_priv *iwm,
 
 	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
 				      CFG_CTS_TO_SELF, iwm->conf.cts_to_self);
+	if (ret < 0)
+		return ret;
+
+	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
+				      CFG_WIRELESS_MODE,
+				      iwm->conf.wireless_mode);
 	if (ret < 0)
 		return ret;
 
@@ -415,7 +420,7 @@ int iwm_send_umac_config(struct iwm_priv *iwm,
 		return ret;
 
 	ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
-				      CFG_PM_CTRL_FLAGS, 0x30001);
+				      CFG_PM_CTRL_FLAGS, 0x1);
 	if (ret < 0)
 		return ret;
 
