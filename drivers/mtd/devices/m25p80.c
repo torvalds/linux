@@ -641,6 +641,10 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "sst25vf080b", 0xbf258e, 0, 64 * 1024, 16, SECT_4K, },
 	{ "sst25vf016b", 0xbf2541, 0, 64 * 1024, 32, SECT_4K, },
 	{ "sst25vf032b", 0xbf254a, 0, 64 * 1024, 64, SECT_4K, },
+	{ "sst25wf512",  0xbf2501, 0, 64 * 1024, 1, SECT_4K, },
+	{ "sst25wf010",  0xbf2502, 0, 64 * 1024, 2, SECT_4K, },
+	{ "sst25wf020",  0xbf2503, 0, 64 * 1024, 4, SECT_4K, },
+	{ "sst25wf040",  0xbf2504, 0, 64 * 1024, 8, SECT_4K, },
 
 	/* ST Microelectronics -- newer production may have feature updates */
 	{ "m25p05",  0x202010,  0, 32 * 1024, 2, },
