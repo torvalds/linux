@@ -16,19 +16,21 @@
 #include <asm/idle.h>
 #include <asm/therm_throt.h>
 
-asmlinkage void smp_thermal_interrupt(void)
+static void intel_thermal_interrupt(void)
 {
 	__u64 msr_val;
-
-	ack_APIC_irq();
-
-	exit_idle();
-	irq_enter();
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
 	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
 		mce_log_therm_throt_event(msr_val);
+}
 
+asmlinkage void smp_thermal_interrupt(void)
+{
+	ack_APIC_irq();
+	exit_idle();
+	irq_enter();
+	intel_thermal_interrupt();
 	inc_irq_stat(irq_thermal_count);
 	irq_exit();
 }
