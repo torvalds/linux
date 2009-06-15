@@ -19,6 +19,7 @@
 #include <linux/kdebug.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
+#include <linux/highmem.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -1617,20 +1618,48 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	entry->kernel = entry->nr - nr;
 }
 
-static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+/*
+ * best effort, GUP based copy_from_user() that assumes IRQ or NMI context
+ */
+static unsigned long
+copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 {
+	unsigned long offset, addr = (unsigned long)from;
+	int type = in_nmi() ? KM_NMI : KM_IRQ0;
+	unsigned long size, len = 0;
+	struct page *page;
+	void *map;
 	int ret;
 
-	if (!access_ok(VERIFY_READ, fp, sizeof(*frame)))
-		return 0;
+	do {
+		ret = __get_user_pages_fast(addr, 1, 0, &page);
+		if (!ret)
+			break;
 
-	ret = 1;
-	pagefault_disable();
-	if (__copy_from_user_inatomic(frame, fp, sizeof(*frame)))
-		ret = 0;
-	pagefault_enable();
+		offset = addr & (PAGE_SIZE - 1);
+		size = min(PAGE_SIZE - offset, n - len);
 
-	return ret;
+		map = kmap_atomic(page, type);
+		memcpy(to, map+offset, size);
+		kunmap_atomic(map, type);
+		put_page(page);
+
+		len  += size;
+		to   += size;
+		addr += size;
+
+	} while (len < n);
+
+	return len;
+}
+
+static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+{
+	unsigned long bytes;
+
+	bytes = copy_from_user_nmi(frame, fp, sizeof(*frame));
+
+	return bytes == sizeof(*frame);
 }
 
 static void
@@ -1643,7 +1672,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	if (!user_mode(regs))
 		regs = task_pt_regs(current);
 
-	fp   = (void __user *)regs->bp;
+	fp = (void __user *)regs->bp;
 
 	callchain_store(entry, regs->ip);
 
