@@ -104,7 +104,7 @@ static int pty_write(struct tty_struct *tty, const unsigned char *buf,
 	struct tty_struct *to = tty->link;
 	int	c;
 
-	if (!to || tty->stopped)
+	if (!to || !to->ldisc || tty->stopped)
 		return 0;
 
 	c = to->receive_room;
@@ -148,7 +148,7 @@ static int pty_chars_in_buffer(struct tty_struct *tty)
 	int count;
 
 	/* We should get the line discipline lock for "tty->link" */
-	if (!to || !to->ldisc->ops->chars_in_buffer)
+	if (!to || !to->ldisc || !to->ldisc->ops->chars_in_buffer)
 		return 0;
 
 	/* The ldisc must report 0 if no characters available to be read */
@@ -183,7 +183,7 @@ static void pty_flush_buffer(struct tty_struct *tty)
 	struct tty_struct *to = tty->link;
 	unsigned long flags;
 
-	if (!to)
+	if (!to || !to->ldisc)
 		return;
 
 	if (to->ldisc->ops->flush_buffer)
