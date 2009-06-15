@@ -123,8 +123,7 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 
 	wdev->iftype = iwm_mode_to_nl80211_iftype(iwm->conf.mode);
 
-	ndev = alloc_netdev_mq(0, "wlan%d", ether_setup,
-			       IWM_TX_QUEUES);
+	ndev = alloc_netdev_mq(0, "wlan%d", ether_setup, IWM_TX_QUEUES);
 	if (!ndev) {
 		dev_err(dev, "no memory for network device instance\n");
 		goto out_priv;
@@ -134,18 +133,9 @@ void *iwm_if_alloc(int sizeof_bus, struct device *dev,
 	ndev->wireless_handlers = &iwm_iw_handler_def;
 	ndev->ieee80211_ptr = wdev;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
-	ret = register_netdev(ndev);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register netdev: %d\n", ret);
-		goto out_ndev;
-	}
-
 	wdev->netdev = ndev;
 
 	return iwm;
-
- out_ndev:
-	free_netdev(ndev);
 
  out_priv:
 	iwm_priv_deinit(iwm);
@@ -160,8 +150,26 @@ void iwm_if_free(struct iwm_priv *iwm)
 	if (!iwm_to_ndev(iwm))
 		return;
 
-	unregister_netdev(iwm_to_ndev(iwm));
 	free_netdev(iwm_to_ndev(iwm));
 	iwm_wdev_free(iwm);
 	iwm_priv_deinit(iwm);
+}
+
+int iwm_if_add(struct iwm_priv *iwm)
+{
+	struct net_device *ndev = iwm_to_ndev(iwm);
+	int ret;
+
+	ret = register_netdev(ndev);
+	if (ret < 0) {
+		dev_err(&ndev->dev, "Failed to register netdev: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+void iwm_if_remove(struct iwm_priv *iwm)
+{
+	unregister_netdev(iwm_to_ndev(iwm));
 }
