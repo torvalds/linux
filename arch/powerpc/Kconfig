@@ -42,6 +42,10 @@ config GENERIC_HARDIRQS
 	bool
 	default y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	bool
+	default y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool PPC64
 
@@ -296,9 +300,19 @@ config IOMMU_VMERGE
 config IOMMU_HELPER
 	def_bool PPC64
 
+config SWIOTLB
+	bool "SWIOTLB support"
+	default n
+	select IOMMU_HELPER
+	---help---
+	  Support for IO bounce buffering for systems without an IOMMU.
+	  This allows us to DMA to the full physical address space on
+	  platforms where the size of a physical address is larger
+	  than the bus address.  Not all platforms support this.
+
 config PPC_NEED_DMA_SYNC_OPS
 	def_bool y
-	depends on NOT_COHERENT_CACHE
+	depends on (NOT_COHERENT_CACHE || SWIOTLB)
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"

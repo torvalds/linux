@@ -491,6 +491,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Also note the kernel might malfunction if you disable
 			some critical bits.
 
+	cmo_free_hint=	[PPC] Format: { yes | no }
+			Specify whether pages are marked as being inactive
+			when they are freed.  This is used in CMO environments
+			to determine OS memory pressure for page stealing by
+			a hypervisor.
+			Default: yes
+
 	code_bytes	[X86] How many bytes of object code to print
 			in an oops report.
 			Range: 0 - 8192

@@ -22,7 +22,7 @@
 #include <asm/cpm.h>
 #include <asm/immap_qe.h>
 
-#define QE_NUM_OF_SNUM	28
+#define QE_NUM_OF_SNUM	256	/* There are 256 serial number in QE */
 #define QE_NUM_OF_BRGS	16
 #define QE_NUM_OF_PORTS	1024
 
@@ -152,6 +152,9 @@ unsigned int qe_get_brg_clk(void);
 int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
+unsigned int qe_get_num_of_risc(void);
+unsigned int qe_get_num_of_snums(void);
+
 /* we actually use cpm_muram implementation, define this for convenience */
 #define qe_muram_init cpm_muram_init
 #define qe_muram_alloc cpm_muram_alloc
@@ -231,12 +234,16 @@ struct qe_bd {
 #define QE_ALIGNMENT_OF_PRAM	64
 
 /* RISC allocation */
-enum qe_risc_allocation {
-	QE_RISC_ALLOCATION_RISC1 = 1,	/* RISC 1 */
-	QE_RISC_ALLOCATION_RISC2 = 2,	/* RISC 2 */
-	QE_RISC_ALLOCATION_RISC1_AND_RISC2 = 3	/* Dynamically choose
-						   RISC 1 or RISC 2 */
-};
+#define QE_RISC_ALLOCATION_RISC1	0x1  /* RISC 1 */
+#define QE_RISC_ALLOCATION_RISC2	0x2  /* RISC 2 */
+#define QE_RISC_ALLOCATION_RISC3	0x4  /* RISC 3 */
+#define QE_RISC_ALLOCATION_RISC4	0x8  /* RISC 4 */
+#define QE_RISC_ALLOCATION_RISC1_AND_RISC2	(QE_RISC_ALLOCATION_RISC1 | \
+						 QE_RISC_ALLOCATION_RISC2)
+#define QE_RISC_ALLOCATION_FOUR_RISCS	(QE_RISC_ALLOCATION_RISC1 | \
+					 QE_RISC_ALLOCATION_RISC2 | \
+					 QE_RISC_ALLOCATION_RISC3 | \
+					 QE_RISC_ALLOCATION_RISC4)
 
 /* QE extended filtering Table Lookup Key Size */
 enum qe_fltr_tbl_lookup_key_size {

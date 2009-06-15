@@ -270,7 +270,7 @@ static int fill_init_enet_entries(struct ucc_geth_private *ugeth,
 				  u8 num_entries,
 				  u32 thread_size,
 				  u32 thread_alignment,
-				  enum qe_risc_allocation risc,
+				  unsigned int risc,
 				  int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -307,7 +307,7 @@ static int fill_init_enet_entries(struct ucc_geth_private *ugeth,
 static int return_init_enet_entries(struct ucc_geth_private *ugeth,
 				    u32 *p_start,
 				    u8 num_entries,
-				    enum qe_risc_allocation risc,
+				    unsigned int risc,
 				    int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -342,7 +342,7 @@ static int dump_init_enet_entries(struct ucc_geth_private *ugeth,
 				  u32 __iomem *p_start,
 				  u8 num_entries,
 				  u32 thread_size,
-				  enum qe_risc_allocation risc,
+				  unsigned int risc,
 				  int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -2135,6 +2135,14 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 		return -ENOMEM;
 	}
 
+	/* read the number of risc engines, update the riscTx and riscRx
+	 * if there are 4 riscs in QE
+	 */
+	if (qe_get_num_of_risc() == 4) {
+		ug_info->riscTx = QE_RISC_ALLOCATION_FOUR_RISCS;
+		ug_info->riscRx = QE_RISC_ALLOCATION_FOUR_RISCS;
+	}
+
 	ugeth->ug_regs = ioremap(uf_info->regs, sizeof(*ugeth->ug_regs));
 	if (!ugeth->ug_regs) {
 		if (netif_msg_probe(ugeth))
@@ -3702,7 +3710,15 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		ug_info->uf_info.utfet = UCC_GETH_UTFET_GIGA_INIT;
 		ug_info->uf_info.utftt = UCC_GETH_UTFTT_GIGA_INIT;
 		ug_info->numThreadsTx = UCC_GETH_NUM_OF_THREADS_4;
-		ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
+
+		/* If QE's snum number is 46 which means we need to support
+		 * 4 UECs at 1000Base-T simultaneously, we need to allocate
+		 * more Threads to Rx.
+		 */
+		if (qe_get_num_of_snums() == 46)
+			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_6;
+		else
+			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
 	}
 
 	if (netif_msg_probe(&debug))

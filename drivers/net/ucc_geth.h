@@ -1120,8 +1120,8 @@ struct ucc_geth_info {
 	enum ucc_geth_maccfg2_pad_and_crc_mode padAndCrc;
 	enum ucc_geth_num_of_threads numThreadsTx;
 	enum ucc_geth_num_of_threads numThreadsRx;
-	enum qe_risc_allocation riscTx;
-	enum qe_risc_allocation riscRx;
+	unsigned int riscTx;
+	unsigned int riscRx;
 };
 
 /* structure representing UCC GETH */

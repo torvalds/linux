@@ -107,7 +107,7 @@ static int
 mpc52xx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	u32 value;
 
 	if (ppc_md.pci_exclude_device)
@@ -164,7 +164,7 @@ static int
 mpc52xx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 				int offset, int len, u32 val)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	u32 value, mask;
 
 	if (ppc_md.pci_exclude_device)

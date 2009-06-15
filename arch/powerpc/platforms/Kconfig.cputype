@@ -10,7 +10,6 @@ menu "Processor support"
 choice
 	prompt "Processor Type"
 	depends on PPC32
-	default 6xx
 	help
 	  There are five families of 32 bit PowerPC chips supported.
 	  The most common ones are the desktop and server CPUs (601, 603,
@@ -22,7 +21,7 @@ choice
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config 6xx
+config PPC_BOOK3S
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
 
@@ -58,13 +57,11 @@ config E200
 
 endchoice
 
-# Until we have a choice of exclusive CPU types on 64-bit, we always
-# use PPC_BOOK3S. On 32-bit, this is equivalent to 6xx which is
-# "classic" MMU
-
 config PPC_BOOK3S
-       def_bool y
-       depends on PPC64 || 6xx
+	default y
+	depends on PPC64
+	select PPC_FPU
+
 
 config POWER4_ONLY
 	bool "Optimize for POWER4"
@@ -74,6 +71,10 @@ config POWER4_ONLY
 	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
 	  The resulting binary will not work on POWER3 or RS64 processors
 	  when compiled with binutils 2.15 or later.
+
+config 6xx
+	def_bool y
+	depends on PPC32 && PPC_BOOK3S
 
 config POWER3
 	bool
@@ -203,9 +204,8 @@ config SPE
 	  If in doubt, say Y here.
 
 config PPC_STD_MMU
-	bool
-	depends on 6xx || PPC64
-	default y
+	def_bool y
+	depends on PPC_BOOK3S
 
 config PPC_STD_MMU_32
 	def_bool y
@@ -263,8 +263,8 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-1024)"
-	range 2 1024
+	int "Maximum number of CPUs (2-8192)"
+	range 2 8192
 	depends on SMP
 	default "32" if PPC64
 	default "4"
