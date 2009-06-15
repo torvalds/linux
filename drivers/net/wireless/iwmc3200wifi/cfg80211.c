@@ -500,6 +500,28 @@ static int iwm_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+static int iwm_cfg80211_set_txpower(struct wiphy *wiphy,
+				    enum tx_power_setting type, int dbm)
+{
+	switch (type) {
+	case TX_POWER_AUTOMATIC:
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int iwm_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
+{
+	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
+
+	*dbm = iwm->txpower;
+
+	return 0;
+}
+
 static struct cfg80211_ops iwm_cfg80211_ops = {
 	.change_virtual_intf = iwm_cfg80211_change_iface,
 	.add_key = iwm_cfg80211_add_key,
@@ -510,6 +532,8 @@ static struct cfg80211_ops iwm_cfg80211_ops = {
 	.set_wiphy_params = iwm_cfg80211_set_wiphy_params,
 	.join_ibss = iwm_cfg80211_join_ibss,
 	.leave_ibss = iwm_cfg80211_leave_ibss,
+	.set_tx_power = iwm_cfg80211_set_txpower,
+	.get_tx_power = iwm_cfg80211_get_txpower,
 };
 
 struct wireless_dev *iwm_wdev_alloc(int sizeof_bus, struct device *dev)

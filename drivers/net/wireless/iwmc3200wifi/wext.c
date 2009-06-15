@@ -452,8 +452,8 @@ static const iw_handler iwm_handlers[] =
 	(iw_handler) cfg80211_wext_giwrts,		/* SIOCGIWRTS */
 	(iw_handler) cfg80211_wext_siwfrag,	        /* SIOCSIWFRAG */
 	(iw_handler) cfg80211_wext_giwfrag,		/* SIOCGIWFRAG */
-	(iw_handler) NULL,				/* SIOCSIWTXPOW */
-	(iw_handler) NULL,				/* SIOCGIWTXPOW */
+	(iw_handler) cfg80211_wext_siwtxpower,		/* SIOCSIWTXPOW */
+	(iw_handler) cfg80211_wext_giwtxpower,		/* SIOCGIWTXPOW */
 	(iw_handler) NULL,				/* SIOCSIWRETRY */
 	(iw_handler) NULL,				/* SIOCGIWRETRY */
 	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */

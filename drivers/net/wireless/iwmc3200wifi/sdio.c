@@ -506,11 +506,7 @@ static struct sdio_driver iwm_sdio_driver = {
 
 static int __init iwm_sdio_init_module(void)
 {
-	int ret;
-
-	ret = sdio_register_driver(&iwm_sdio_driver);
-
-	return ret;
+	return sdio_register_driver(&iwm_sdio_driver);
 }
 
 static void __exit iwm_sdio_exit_module(void)

@@ -184,10 +184,6 @@ struct iwm_key {
 #define IWM_STATUS_ASSOCIATING		3
 #define IWM_STATUS_ASSOCIATED		4
 
-#define IWM_RADIO_RFKILL_OFF		0
-#define IWM_RADIO_RFKILL_HW		1
-#define IWM_RADIO_RFKILL_SW		2
-
 struct iwm_tx_queue {
 	int id;
 	struct sk_buff_head queue;
@@ -221,7 +217,6 @@ struct iwm_priv {
 	struct iwm_conf conf;
 
 	unsigned long status;
-	unsigned long radio;
 
 	struct list_head pending_notif;
 	wait_queue_head_t notif_queue;
@@ -240,6 +235,7 @@ struct iwm_priv {
 	u8 bssid[ETH_ALEN];
 	u8 channel;
 	u16 rate;
+	u32 txpower;
 
 	struct iwm_sta_info sta_table[IWM_STA_TABLE_NUM];
 	struct list_head bss_list;
@@ -290,7 +286,6 @@ struct iwm_priv {
 	struct timer_list watchdog;
 	struct work_struct reset_worker;
 	struct mutex mutex;
-	struct rfkill *rfkill;
 
 	char private[0] __attribute__((__aligned__(NETDEV_ALIGN)));
 };
