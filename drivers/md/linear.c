@@ -27,14 +27,26 @@
  */
 static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
-	dev_info_t *hash;
+	int lo, mid, hi;
 	linear_conf_t *conf = mddev->private;
 
-	hash = conf->disks;
+	lo = 0;
+	hi = mddev->raid_disks - 1;
 
-	while (sector >= hash->end_sector)
-		hash++;
-	return hash;
+	/*
+	 * Binary Search
+	 */
+
+	while (hi > lo) {
+
+		mid = (hi + lo) / 2;
+		if (sector < conf->disks[mid].end_sector)
+			hi = mid;
+		else
+			lo = mid + 1;
+	}
+
+	return conf->disks + lo;
 }
 
 /**
