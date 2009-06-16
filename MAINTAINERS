@@ -36,6 +36,12 @@ trivial patch so apply some common sense.
 	(scripts/checkpatch.pl) to catch trival style violations.
 	See Documentation/CodingStyle for guidance here.
 
+	PLEASE CC: the maintainers and mailing lists that are generated
+	by scripts/get_maintainer.pl.  The results returned by the
+	script will be best if you have git installed and are making
+	your changes in a branch derived from Linus' latest git tree.
+	See Documentation/SubmittingPatches for details.
+
 	PLEASE try to include any credit lines you want added with the
 	patch. It avoids people being missed off by mistake and makes
 	it easier to know who wants adding and who doesn't.
