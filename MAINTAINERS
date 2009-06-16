@@ -6281,6 +6281,14 @@ F:	drivers/net/macvlan.c
 F:	include/linux/if_*vlan.h
 F:	net/8021q/
 
+VLYNQ BUS
+P:	Florian Fainelli
+M:	florian@openwrt.org
+L:	openwrt-devel@lists.openwrt.org
+S:	Maintained
+F:	drivers/vlynq/vlynq.c
+F:	include/linux/vlynq.h
+
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 P:	Liam Girdwood
 M:	lrg@slimlogic.co.uk
