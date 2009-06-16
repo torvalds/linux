@@ -153,7 +153,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	mult = (fmi->flags & V4L2_TUNER_CAP_LOW) ? 1 : 1000;
 	v->rangelow = RSF16_MINFREQ / mult;
 	v->rangehigh = RSF16_MAXFREQ / mult;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_MODE_STEREO;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	v->capability = fmi->flags & V4L2_TUNER_CAP_LOW;
 	v->audmode = V4L2_TUNER_MODE_STEREO;
 	v->signal = fmi_getsigstr(fmi);

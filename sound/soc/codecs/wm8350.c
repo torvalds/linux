@@ -968,7 +968,7 @@ static int wm8350_pcm_trigger(struct snd_pcm_substream *substream,
 	 * required for LRC in master mode. The DACs or ADCs need a
 	 * valid audio path i.e. pin -> ADC or DAC -> pin before
 	 * the LRC will be enabled in master mode. */
-	if (!master && cmd != SNDRV_PCM_TRIGGER_START)
+	if (!master || cmd != SNDRV_PCM_TRIGGER_START)
 		return 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {

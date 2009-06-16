@@ -75,14 +75,16 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 		}
 	}
 
-	kfree(s->s_options);
-	s->s_options = new_opt;
+	mutex_lock(&s->s_root->d_inode->i_mutex);
 
+	replace_mount_options(s, new_opt);
 	config.setuid  = setuid;
 	config.setgid  = setgid;
 	config.uid     = uid;
 	config.gid     = gid;
 	config.mode    = mode;
+
+	mutex_unlock(&s->s_root->d_inode->i_mutex);
 
 	return 0;
 }
@@ -154,13 +156,16 @@ void capifs_new_ncci(unsigned int number, dev_t device)
 	if (!inode)
 		return;
 	inode->i_ino = number+2;
+
+	dentry = get_node(number);
+
+	/* config contents is protected by root's i_mutex */
 	inode->i_uid = config.setuid ? config.uid : current_fsuid();
 	inode->i_gid = config.setgid ? config.gid : current_fsgid();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	init_special_inode(inode, S_IFCHR|config.mode, device);
 	//inode->i_op = &capifs_file_inode_operations;
 
-	dentry = get_node(number);
 	if (!IS_ERR(dentry) && !dentry->d_inode)
 		d_instantiate(dentry, inode);
 	mutex_unlock(&capifs_root->d_inode->i_mutex);

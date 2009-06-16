@@ -332,13 +332,17 @@ int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 			printk(KERN_ERR "couldn't find space %llu to free\n",
 			       (unsigned long long)offset);
 			printk(KERN_ERR "cached is %d, offset %llu bytes %llu\n",
-			       block_group->cached, block_group->key.objectid,
-			       block_group->key.offset);
+			       block_group->cached,
+			       (unsigned long long)block_group->key.objectid,
+			       (unsigned long long)block_group->key.offset);
 			btrfs_dump_free_space(block_group, bytes);
 		} else if (info) {
 			printk(KERN_ERR "hmm, found offset=%llu bytes=%llu, "
 			       "but wanted offset=%llu bytes=%llu\n",
-			       info->offset, info->bytes, offset, bytes);
+			       (unsigned long long)info->offset,
+			       (unsigned long long)info->bytes,
+			       (unsigned long long)offset,
+			       (unsigned long long)bytes);
 		}
 		WARN_ON(1);
 	}
@@ -357,8 +361,9 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 		info = rb_entry(n, struct btrfs_free_space, offset_index);
 		if (info->bytes >= bytes)
 			count++;
-		printk(KERN_ERR "entry offset %llu, bytes %llu\n", info->offset,
-		       info->bytes);
+		printk(KERN_ERR "entry offset %llu, bytes %llu\n",
+		       (unsigned long long)info->offset,
+		       (unsigned long long)info->bytes);
 	}
 	printk(KERN_INFO "%d blocks of free space at or bigger than bytes is"
 	       "\n", count);

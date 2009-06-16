@@ -149,6 +149,7 @@ enum fc_rctl {
  * Well-known fabric addresses.
  */
 enum fc_well_known_fid {
+	FC_FID_NONE =           0x000000,       /* No destination */
 	FC_FID_BCAST =		0xffffff,	/* broadcast */
 	FC_FID_FLOGI =		0xfffffe,	/* fabric login */
 	FC_FID_FCTRL =		0xfffffd,	/* fabric controller */

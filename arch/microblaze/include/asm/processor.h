@@ -15,6 +15,8 @@
 #include <asm/setup.h>
 #include <asm/registers.h>
 #include <asm/segment.h>
+#include <asm/entry.h>
+#include <asm/current.h>
 
 # ifndef __ASSEMBLY__
 /* from kernel/cpu/mb.c */
@@ -25,6 +27,12 @@ extern const struct seq_operations cpuinfo_op;
 # define prepare_to_copy(tsk)	do {} while (0)
 
 # endif /* __ASSEMBLY__ */
+
+#define task_pt_regs(tsk) \
+		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
+
+/* Do necessary setup to start up a newly executed thread. */
+void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp);
 
 /*
  * User space process size: memory size
@@ -55,16 +63,6 @@ struct task_struct;
 struct thread_struct { };
 # define INIT_THREAD	{ }
 
-/* Do necessary setup to start up a newly executed thread. */
-static inline void start_thread(struct pt_regs *regs,
-				unsigned long pc,
-				unsigned long usp)
-{
-	regs->pc = pc;
-	regs->r1 = usp;
-	regs->kernel_mode = 0;
-}
-
 /* Free all resources held by a thread. */
 static inline void release_thread(struct task_struct *dead_task)
 {
@@ -83,9 +81,6 @@ extern unsigned long get_wchan(struct task_struct *p);
  * create a kernel thread without removing it from tasklists
  */
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
-
-# define task_pt_regs(tsk) \
-		(((struct pt_regs *)(THREAD_SIZE + task_stack_page(tsk))) - 1)
 
 # define KSTK_EIP(tsk)	(0)
 # define KSTK_ESP(tsk)	(0)

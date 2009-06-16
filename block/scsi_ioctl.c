@@ -290,6 +290,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 
 	if (hdr->iovec_count) {
 		const int size = sizeof(struct sg_iovec) * hdr->iovec_count;
+		size_t iov_data_len;
 		struct sg_iovec *iov;
 
 		iov = kmalloc(size, GFP_KERNEL);
@@ -304,8 +305,18 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 			goto out;
 		}
 
+		/* SG_IO howto says that the shorter of the two wins */
+		iov_data_len = iov_length((struct iovec *)iov,
+					  hdr->iovec_count);
+		if (hdr->dxfer_len < iov_data_len) {
+			hdr->iovec_count = iov_shorten((struct iovec *)iov,
+						       hdr->iovec_count,
+						       hdr->dxfer_len);
+			iov_data_len = hdr->dxfer_len;
+		}
+
 		ret = blk_rq_map_user_iov(q, rq, NULL, iov, hdr->iovec_count,
-					  hdr->dxfer_len, GFP_KERNEL);
+					  iov_data_len, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
 		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,

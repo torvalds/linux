@@ -28,7 +28,7 @@ struct amba_id {
 
 struct amba_driver {
 	struct device_driver	drv;
-	int			(*probe)(struct amba_device *, void *);
+	int			(*probe)(struct amba_device *, struct amba_id *);
 	int			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	int			(*suspend)(struct amba_device *, pm_message_t);

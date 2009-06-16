@@ -836,6 +836,12 @@ static DECLARE_TLV_DB_SCALE(analog_tlv, -2400, 200, 0);
 static DECLARE_TLV_DB_SCALE(output_tvl, -1200, 600, 1);
 
 /*
+ * Gain control for earpiece amplifier
+ * 0 dB to 12 dB in 6 dB steps (mute instead of -6)
+ */
+static DECLARE_TLV_DB_SCALE(output_ear_tvl, -600, 600, 1);
+
+/*
  * Capture gain after the ADCs
  * from 0 dB to 31 dB in 1 dB steps
  */
@@ -900,7 +906,7 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 		4, 3, 0, output_tvl),
 
 	SOC_SINGLE_TLV_TWL4030("Earpiece Playback Volume",
-		TWL4030_REG_EAR_CTL, 4, 3, 0, output_tvl),
+		TWL4030_REG_EAR_CTL, 4, 3, 0, output_ear_tvl),
 
 	/* Common capture gain controls */
 	SOC_DOUBLE_R_TLV("TX1 Digital Capture Volume",

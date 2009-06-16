@@ -920,6 +920,12 @@
 #define JETI_SPC1201_PID	0x04b2
 
 /*
+ * Marvell SheevaPlug
+ */
+#define MARVELL_VID		0x9e88
+#define MARVELL_SHEEVAPLUG_PID	0x9e8f
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0

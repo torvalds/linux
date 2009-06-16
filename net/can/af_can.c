@@ -674,8 +674,8 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	rcu_read_unlock();
 
-	/* free the skbuff allocated by the netdevice driver */
-	kfree_skb(skb);
+	/* consume the skbuff allocated by the netdevice driver */
+	consume_skb(skb);
 
 	if (matches > 0) {
 		can_stats.matches++;

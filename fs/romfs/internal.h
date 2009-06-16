@@ -43,5 +43,5 @@ extern int romfs_dev_read(struct super_block *sb, unsigned long pos,
 			  void *buf, size_t buflen);
 extern ssize_t romfs_dev_strnlen(struct super_block *sb,
 				 unsigned long pos, size_t maxlen);
-extern int romfs_dev_strncmp(struct super_block *sb, unsigned long pos,
-			     const char *str, size_t size);
+extern int romfs_dev_strcmp(struct super_block *sb, unsigned long pos,
+			    const char *str, size_t size);

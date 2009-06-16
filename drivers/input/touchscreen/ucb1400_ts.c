@@ -256,7 +256,7 @@ static irqreturn_t ucb1400_hard_irq(int irqnr, void *devid)
 	struct ucb1400_ts *ucb = devid;
 
 	if (irqnr == ucb->irq) {
-		disable_irq(ucb->irq);
+		disable_irq_nosync(ucb->irq);
 		ucb->irq_pending = 1;
 		wake_up(&ucb->ts_wait);
 		return IRQ_HANDLED;
@@ -419,7 +419,7 @@ static int ucb1400_ts_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int ucb1400_ts_resume(struct platform_device *dev)
 {
-	struct ucb1400_ts *ucb = platform_get_drvdata(dev);
+	struct ucb1400_ts *ucb = dev->dev.platform_data;
 
 	if (ucb->ts_task) {
 		/*

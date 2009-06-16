@@ -42,7 +42,7 @@ SECTIONS
 	} = 0
 
 	.text : C_PHYS(.text) {
-		*(.text.head)
+		HEAD_TEXT
 		TEXT_TEXT
 		*(.text64)
 		*(.text..SHmedia32)

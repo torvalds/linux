@@ -771,8 +771,6 @@ static int pci_netmos_init(struct pci_dev *dev)
 }
 
 /*
- * ITE support by Niels de Vos <niels.devos@wincor-nixdorf.com>
- *
  * These chips are available with optionally one parallel port and up to
  * two serial ports. Unfortunately they all have the same product id.
  *

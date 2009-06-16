@@ -195,11 +195,14 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 
 	debug("%s(%p)\n", __func__, substream);
 	
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		dev->period_out_count[index] = BYTES_PER_SAMPLE + 1;
 		dev->audio_out_buf_pos[index] = BYTES_PER_SAMPLE + 1;
-	else
+	} else {
+		dev->period_in_count[index] = BYTES_PER_SAMPLE;
 		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE;
-	
+	}
+
 	if (dev->streaming)
 		return 0;
 	
@@ -300,8 +303,7 @@ static void check_for_elapsed_periods(struct snd_usb_caiaqdev *dev,
 		if (!sub)
 			continue;
 
-		pb = frames_to_bytes(sub->runtime, 
-				     sub->runtime->period_size);
+		pb = snd_pcm_lib_period_bytes(sub);
 		cnt = (sub->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 					&dev->period_out_count[stream] :
 					&dev->period_in_count[stream];

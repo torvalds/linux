@@ -174,4 +174,8 @@ cputime64_to_clock_t(cputime64_t cputime)
        return __div(cputime, 4096000000ULL / USER_HZ);
 }
 
+cputime64_t s390_get_idle_time(int cpu);
+
+#define arch_idle_time(cpu) s390_get_idle_time(cpu)
+
 #endif /* _S390_CPUTIME_H */

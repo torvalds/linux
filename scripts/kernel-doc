@@ -1411,7 +1411,8 @@ sub dump_struct($$) {
     my $file = shift;
     my $nested;
 
-    if ($x =~/(struct|union)\s+(\w+)\s*{(.*)}/) {
+    if ($x =~ /(struct|union)\s+(\w+)\s*{(.*)}/) {
+	#my $decl_type = $1;
 	$declaration_name = $2;
 	my $members = $3;
 
@@ -1420,8 +1421,8 @@ sub dump_struct($$) {
 	$nested = $1;
 
 	# ignore members marked private:
-	$members =~ s/\/\*.*?private:.*?public:.*?\*\///gos;
-	$members =~ s/\/\*.*?private:.*//gos;
+	$members =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gos;
+	$members =~ s/\/\*\s*private:.*//gos;
 	# strip comments:
 	$members =~ s/\/\*.*?\*\///gos;
 	$nested =~ s/\/\*.*?\*\///gos;

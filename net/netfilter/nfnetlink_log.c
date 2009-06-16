@@ -581,6 +581,12 @@ nfulnl_log_packet(u_int8_t pf,
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hw))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_timestamp));
 
+	if (in && skb_mac_header_was_set(skb)) {
+		size +=   nla_total_size(skb->dev->hard_header_len)
+			+ nla_total_size(sizeof(u_int16_t))	/* hwtype */
+			+ nla_total_size(sizeof(u_int16_t));	/* hwlen */
+	}
+
 	spin_lock_bh(&inst->lock);
 
 	if (inst->flags & NFULNL_CFG_F_SEQ)

@@ -142,6 +142,8 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP1_SPI_MOSI,
 	MPP2_SPI_SCK,
 	MPP3_SPI_MISO,
+	MPP4_SATA1_ACTn,
+	MPP5_SATA0_ACTn,
 	MPP8_TW_SDA,
 	MPP9_TW_SCK,
 	MPP10_UART0_TXD,
@@ -150,10 +152,6 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP14_UART1_RXD,	/* PIC controller */
 	MPP15_GPIO,		/* USB Copy button */
 	MPP16_GPIO,		/* Reset button */
-	MPP20_SATA1_ACTn,
-	MPP21_SATA0_ACTn,
-	MPP22_SATA1_PRESENTn,
-	MPP23_SATA0_PRESENTn,
 	0
 };
 

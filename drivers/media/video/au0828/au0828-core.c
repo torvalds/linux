@@ -192,8 +192,6 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->usbdev = usbdev;
 	dev->boardnr = id->driver_info;
 
-	usb_set_intfdata(interface, dev);
-
 	/* Create the v4l2_device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
@@ -221,6 +219,10 @@ static int au0828_usb_probe(struct usb_interface *interface,
 
 	/* Digital TV */
 	au0828_dvb_register(dev);
+
+	/* Store the pointer to the au0828_dev so it can be accessed in
+	   au0828_usb_disconnect */
+	usb_set_intfdata(interface, dev);
 
 	printk(KERN_INFO "Registered device AU0828 [%s]\n",
 		dev->board.name == NULL ? "Unset" : dev->board.name);

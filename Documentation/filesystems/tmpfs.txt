@@ -133,4 +133,4 @@ RAM/SWAP in 10240 inodes and it is only accessible by root.
 Author:
    Christoph Rohland <cr@sap.com>, 1.12.01
 Updated:
-   Hugh Dickins <hugh@veritas.com>, 4 June 2007
+   Hugh Dickins, 4 June 2007

@@ -47,6 +47,7 @@ struct sh_mobile_lcdc_priv {
 #endif
 	unsigned long lddckr;
 	struct sh_mobile_lcdc_chan ch[2];
+	int started;
 };
 
 /* shared registers */
@@ -451,6 +452,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 	/* start the lcdc */
 	sh_mobile_lcdc_start_stop(priv, 1);
+	priv->started = 1;
 
 	/* tell the board code to enable the panel */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -493,7 +495,10 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	/* stop the lcdc */
-	sh_mobile_lcdc_start_stop(priv, 0);
+	if (priv->started) {
+		sh_mobile_lcdc_start_stop(priv, 0);
+		priv->started = 0;
+	}
 
 	/* stop clocks */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++)

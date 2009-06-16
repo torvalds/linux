@@ -37,9 +37,4 @@ void _invalidate_dcache(unsigned int addr);
 #define __disable_dcache()		_disable_dcache()
 #define __invalidate_dcache(addr)	_invalidate_dcache(addr)
 
-/* FIXME - I don't think this is right */
-#ifdef CONFIG_XILINX_UNCACHED_SHADOW
-#define UNCACHED_SHADOW_MASK (CONFIG_XILINX_ERAM_SIZE)
-#endif
-
 #endif /* _ASM_MICROBLAZE_CACHE_H */

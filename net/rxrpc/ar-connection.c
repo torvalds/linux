@@ -343,9 +343,9 @@ static int rxrpc_connect_exclusive(struct rxrpc_sock *rx,
 		/* not yet present - create a candidate for a new connection
 		 * and then redo the check */
 		conn = rxrpc_alloc_connection(gfp);
-		if (IS_ERR(conn)) {
-			_leave(" = %ld", PTR_ERR(conn));
-			return PTR_ERR(conn);
+		if (!conn) {
+			_leave(" = -ENOMEM");
+			return -ENOMEM;
 		}
 
 		conn->trans = trans;
@@ -508,9 +508,9 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 		/* not yet present - create a candidate for a new connection and then
 		 * redo the check */
 		candidate = rxrpc_alloc_connection(gfp);
-		if (IS_ERR(candidate)) {
-			_leave(" = %ld", PTR_ERR(candidate));
-			return PTR_ERR(candidate);
+		if (!candidate) {
+			_leave(" = -ENOMEM");
+			return -ENOMEM;
 		}
 
 		candidate->trans = trans;

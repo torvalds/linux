@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/init.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -38,7 +39,7 @@
 #else
 #define DO_8xx_CPU6(val, reg)
 #endif
-	.section	.text.head, "ax"
+	__HEAD
 _ENTRY(_stext);
 _ENTRY(_start);
 

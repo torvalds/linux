@@ -10,6 +10,7 @@
  * for more details.
  */
 #include <linux/errno.h>
+#include <linux/init.h>
 #include <linux/sys.h>
 #include <cpu/registers.h>
 #include <asm/processor.h>
@@ -2058,10 +2059,10 @@ asm_uaccess_end:
 
 
 /*
- * --- .text.init Section
+ * --- .init.text Section
  */
 
-	.section	.text.init, "ax"
+	__INIT
 
 /*
  * void trap_init (void)

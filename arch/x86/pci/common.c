@@ -147,10 +147,13 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
  *  are examined.
  */
 
-void __devinit  pcibios_fixup_bus(struct pci_bus *b)
+void __devinit pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
+	/* root bus? */
+	if (!b->parent)
+		x86_pci_root_bus_res_quirks(b);
 	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);

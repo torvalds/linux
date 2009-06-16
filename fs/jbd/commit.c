@@ -241,7 +241,7 @@ write_out_data:
 			spin_lock(&journal->j_list_lock);
 		}
 		/* Someone already cleaned up the buffer? */
-		if (!buffer_jbd(bh)
+		if (!buffer_jbd(bh) || bh2jh(bh) != jh
 			|| jh->b_transaction != commit_transaction
 			|| jh->b_jlist != BJ_SyncData) {
 			jbd_unlock_bh_state(bh);
@@ -478,7 +478,9 @@ void journal_commit_transaction(journal_t *journal)
 			spin_lock(&journal->j_list_lock);
 			continue;
 		}
-		if (buffer_jbd(bh) && jh->b_jlist == BJ_Locked) {
+		if (buffer_jbd(bh) && bh2jh(bh) == jh &&
+		    jh->b_transaction == commit_transaction &&
+		    jh->b_jlist == BJ_Locked) {
 			__journal_unfile_buffer(jh);
 			jbd_unlock_bh_state(bh);
 			journal_remove_journal_head(bh);
@@ -502,7 +504,7 @@ void journal_commit_transaction(journal_t *journal)
 		err = 0;
 	}
 
-	journal_write_revoke_records(journal, commit_transaction);
+	journal_write_revoke_records(journal, commit_transaction, write_op);
 
 	/*
 	 * If we found any dirty or locked buffers, then we should have

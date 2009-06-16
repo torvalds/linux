@@ -3,7 +3,7 @@
  *
  * This driver supports USB CDC WCM Device Management.
  *
- * Copyright (c) 2007-2008 Oliver Neukum
+ * Copyright (c) 2007-2009 Oliver Neukum
  *
  * Some code taken from cdc-acm.c
  *
@@ -610,7 +610,7 @@ static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!buffer)
 		goto out;
 
-	while (buflen > 0) {
+	while (buflen > 2) {
 		if (buffer [1] != USB_DT_CS_INTERFACE) {
 			dev_err(&intf->dev, "skipping garbage\n");
 			goto next_desc;
@@ -646,16 +646,18 @@ next_desc:
 	spin_lock_init(&desc->iuspin);
 	init_waitqueue_head(&desc->wait);
 	desc->wMaxCommand = maxcom;
+	/* this will be expanded and needed in hardware endianness */
 	desc->inum = cpu_to_le16((u16)intf->cur_altsetting->desc.bInterfaceNumber);
 	desc->intf = intf;
 	INIT_WORK(&desc->rxwork, wdm_rxwork);
 
-	iface = &intf->altsetting[0];
-	ep = &iface->endpoint[0].desc;
-	if (!ep || !usb_endpoint_is_int_in(ep)) {
-		rv = -EINVAL;
+	rv = -EINVAL;
+	iface = intf->cur_altsetting;
+	if (iface->desc.bNumEndpoints != 1)
 		goto err;
-	}
+	ep = &iface->endpoint[0].desc;
+	if (!ep || !usb_endpoint_is_int_in(ep))
+		goto err;
 
 	desc->wMaxPacketSize = le16_to_cpu(ep->wMaxPacketSize);
 	desc->bMaxPacketSize0 = udev->descriptor.bMaxPacketSize0;
@@ -711,12 +713,19 @@ next_desc:
 
 	usb_set_intfdata(intf, desc);
 	rv = usb_register_dev(intf, &wdm_class);
-	dev_info(&intf->dev, "cdc-wdm%d: USB WDM device\n",
-		 intf->minor - WDM_MINOR_BASE);
 	if (rv < 0)
-		goto err;
+		goto err3;
+	else
+		dev_info(&intf->dev, "cdc-wdm%d: USB WDM device\n",
+			intf->minor - WDM_MINOR_BASE);
 out:
 	return rv;
+err3:
+	usb_set_intfdata(intf, NULL);
+	usb_buffer_free(interface_to_usbdev(desc->intf),
+			desc->bMaxPacketSize0,
+			desc->inbuf,
+			desc->response->transfer_dma);
 err2:
 	usb_buffer_free(interface_to_usbdev(desc->intf),
 			desc->wMaxPacketSize,

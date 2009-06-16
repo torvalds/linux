@@ -1626,6 +1626,7 @@ static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
 };
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
 	.save = intel_tv_save,
 	.restore = intel_tv_restore,
 	.detect = intel_tv_detect,

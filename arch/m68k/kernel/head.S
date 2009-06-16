@@ -577,7 +577,7 @@ func_define	putn,1
 #endif
 .endm
 
-.section ".text.head","ax"
+__HEAD
 ENTRY(_stext)
 /*
  * Version numbers of the bootinfo interface

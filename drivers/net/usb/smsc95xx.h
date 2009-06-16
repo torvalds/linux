@@ -99,6 +99,9 @@
 #define PM_CTL_WUPS_MULTI_		(0x00000003)
 
 #define LED_GPIO_CFG			(0x24)
+#define LED_GPIO_CFG_SPD_LED		(0x01000000)
+#define LED_GPIO_CFG_LNK_LED		(0x00100000)
+#define LED_GPIO_CFG_FDX_LED		(0x00010000)
 
 #define GPIO_CFG			(0x28)
 

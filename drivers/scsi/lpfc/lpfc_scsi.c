@@ -112,7 +112,7 @@ lpfc_debug_save_dif(struct scsi_cmnd *cmnd)
 }
 
 /**
- * lpfc_update_stats: Update statistical data for the command completion.
+ * lpfc_update_stats - Update statistical data for the command completion
  * @phba: Pointer to HBA object.
  * @lpfc_cmd: lpfc scsi command object pointer.
  *
@@ -165,8 +165,7 @@ lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
 }
 
 /**
- * lpfc_send_sdev_queuedepth_change_event: Posts a queuedepth change
- *                   event.
+ * lpfc_send_sdev_queuedepth_change_event - Posts a queuedepth change event
  * @phba: Pointer to HBA context object.
  * @vport: Pointer to vport object.
  * @ndlp: Pointer to FC node associated with the target.
@@ -220,7 +219,7 @@ lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_rampdown_queue_depth: Post RAMP_DOWN_QUEUE event to worker thread.
+ * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
  * This routine is called when there is resource error in driver or firmware.
@@ -261,7 +260,7 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_rampup_queue_depth: Post RAMP_UP_QUEUE event for worker thread.
+ * lpfc_rampup_queue_depth - Post RAMP_UP_QUEUE event for worker thread
  * @phba: The Hba for which this call is being executed.
  *
  * This routine post WORKER_RAMP_UP_QUEUE event for @phba vport. This routine
@@ -273,14 +272,14 @@ lpfc_rampdown_queue_depth(struct lpfc_hba *phba)
  **/
 static inline void
 lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
-			struct scsi_device *sdev)
+			uint32_t queue_depth)
 {
 	unsigned long flags;
 	struct lpfc_hba *phba = vport->phba;
 	uint32_t evt_posted;
 	atomic_inc(&phba->num_cmd_success);
 
-	if (vport->cfg_lun_queue_depth <= sdev->queue_depth)
+	if (vport->cfg_lun_queue_depth <= queue_depth)
 		return;
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (((phba->last_ramp_up_time + QUEUE_RAMP_UP_INTERVAL) > jiffies) ||
@@ -303,7 +302,7 @@ lpfc_rampup_queue_depth(struct lpfc_vport  *vport,
 }
 
 /**
- * lpfc_ramp_down_queue_handler: WORKER_RAMP_DOWN_QUEUE event handler.
+ * lpfc_ramp_down_queue_handler - WORKER_RAMP_DOWN_QUEUE event handler
  * @phba: The Hba for which this call is being executed.
  *
  * This routine is called to  process WORKER_RAMP_DOWN_QUEUE event for worker
@@ -361,7 +360,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_ramp_up_queue_handler: WORKER_RAMP_UP_QUEUE event handler.
+ * lpfc_ramp_up_queue_handler - WORKER_RAMP_UP_QUEUE event handler
  * @phba: The Hba for which this call is being executed.
  *
  * This routine is called to  process WORKER_RAMP_UP_QUEUE event for worker
@@ -410,7 +409,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_scsi_dev_block: set all scsi hosts to block state.
+ * lpfc_scsi_dev_block - set all scsi hosts to block state
  * @phba: Pointer to HBA context object.
  *
  * This function walks vport list and set each SCSI host to block state
@@ -439,7 +438,7 @@ lpfc_scsi_dev_block(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_new_scsi_buf: Scsi buffer allocator.
+ * lpfc_new_scsi_buf - Scsi buffer allocator
  * @vport: The virtual port for which this call being executed.
  *
  * This routine allocates a scsi buffer, which contains all the necessary
@@ -563,7 +562,7 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_get_scsi_buf: Get a scsi buffer from lpfc_scsi_buf_list list of Hba.
+ * lpfc_get_scsi_buf - Get a scsi buffer from lpfc_scsi_buf_list list of Hba
  * @phba: The Hba for which this call is being executed.
  *
  * This routine removes a scsi buffer from head of @phba lpfc_scsi_buf_list list
@@ -592,7 +591,7 @@ lpfc_get_scsi_buf(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_release_scsi_buf: Return a scsi buffer back to hba lpfc_scsi_buf_list list.
+ * lpfc_release_scsi_buf - Return a scsi buffer back to hba's lpfc_scsi_buf_list
  * @phba: The Hba for which this call is being executed.
  * @psb: The scsi buffer which is being released.
  *
@@ -611,7 +610,7 @@ lpfc_release_scsi_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 }
 
 /**
- * lpfc_scsi_prep_dma_buf: Routine to do DMA mapping for scsi buffer.
+ * lpfc_scsi_prep_dma_buf - Routine to do DMA mapping for scsi buffer
  * @phba: The Hba for which this call is being executed.
  * @lpfc_cmd: The scsi buffer which is going to be mapped.
  *
@@ -738,7 +737,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	 * Due to difference in data length between DIF/non-DIF paths,
 	 * we need to set word 4 of IOCB here
 	 */
-	iocb_cmd->un.fcpi.fcpi_parm = le32_to_cpu(scsi_bufflen(scsi_cmnd));
+	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
 	return 0;
 }
 
@@ -823,9 +822,9 @@ lpfc_cmd_blksize(struct scsi_cmnd *sc)
 /**
  * lpfc_get_cmd_dif_parms - Extract DIF parameters from SCSI command
  * @sc:             in: SCSI command
- * @apptagmask      out: app tag mask
- * @apptagval       out: app tag value
- * @reftag          out: ref tag (reference tag)
+ * @apptagmask:     out: app tag mask
+ * @apptagval:      out: app tag value
+ * @reftag:         out: ref tag (reference tag)
  *
  * Description:
  *   Extract DIF paramters from the command if possible.  Otherwise,
@@ -1413,7 +1412,7 @@ out:
 }
 
 /**
- * lpfc_send_scsi_error_event: Posts an event when there is SCSI error.
+ * lpfc_send_scsi_error_event - Posts an event when there is SCSI error
  * @phba: Pointer to hba context object.
  * @vport: Pointer to vport object.
  * @lpfc_cmd: Pointer to lpfc scsi command which reported the error.
@@ -1505,7 +1504,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_scsi_unprep_dma_buf: Routine to un-map DMA mapping of scatter gather.
+ * lpfc_scsi_unprep_dma_buf - Routine to un-map DMA mapping of scatter gather
  * @phba: The Hba for which this call is being executed.
  * @psb: The scsi buffer which is going to be un-mapped.
  *
@@ -1530,7 +1529,7 @@ lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 }
 
 /**
- * lpfc_handler_fcp_err: FCP response handler.
+ * lpfc_handler_fcp_err - FCP response handler
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
  * @rsp_iocb: The response IOCB which contains FCP error.
@@ -1674,7 +1673,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_scsi_cmd_iocb_cmpl: Scsi cmnd IOCB completion routine.
+ * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
  * @phba: The Hba for which this call is being executed.
  * @pIocbIn: The command IOCBQ for the scsi cmnd.
  * @pIocbOut: The response IOCBQ for the scsi cmnd .
@@ -1694,10 +1693,12 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
 	int result;
-	struct scsi_device *sdev, *tmp_sdev;
+	struct scsi_device *tmp_sdev;
 	int depth = 0;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
+	struct Scsi_Host *shost = cmd->device->host;
+	uint32_t queue_depth, scsi_id;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -1808,11 +1809,10 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 	lpfc_update_stats(phba, lpfc_cmd);
 	result = cmd->result;
-	sdev = cmd->device;
 	if (vport->cfg_max_scsicmpl_time &&
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
-		spin_lock_irqsave(sdev->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
 		if (pnode && NLP_CHK_NODE_ACT(pnode)) {
 			if (pnode->cmd_qdepth >
 				atomic_read(&pnode->cmd_pending) &&
@@ -1825,22 +1825,26 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 			pnode->last_change_time = jiffies;
 		}
-		spin_unlock_irqrestore(sdev->host->host_lock, flags);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
 		if ((pnode->cmd_qdepth < LPFC_MAX_TGT_QDEPTH) &&
 		   time_after(jiffies, pnode->last_change_time +
 			      msecs_to_jiffies(LPFC_TGTQ_INTERVAL))) {
-			spin_lock_irqsave(sdev->host->host_lock, flags);
+			spin_lock_irqsave(shost->host_lock, flags);
 			pnode->cmd_qdepth += pnode->cmd_qdepth *
 				LPFC_TGTQ_RAMPUP_PCENT / 100;
 			if (pnode->cmd_qdepth > LPFC_MAX_TGT_QDEPTH)
 				pnode->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
 			pnode->last_change_time = jiffies;
-			spin_unlock_irqrestore(sdev->host->host_lock, flags);
+			spin_unlock_irqrestore(shost->host_lock, flags);
 		}
 	}
 
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
+
+	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
+	queue_depth = cmd->device->queue_depth;
+	scsi_id = cmd->device->id;
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
@@ -1848,28 +1852,28 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		 * If there is a thread waiting for command completion
 		 * wake up the thread.
 		 */
-		spin_lock_irqsave(sdev->host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
 		lpfc_cmd->pCmd = NULL;
 		if (lpfc_cmd->waitq)
 			wake_up(lpfc_cmd->waitq);
-		spin_unlock_irqrestore(sdev->host->host_lock, flags);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
 
 
 	if (!result)
-		lpfc_rampup_queue_depth(vport, sdev);
+		lpfc_rampup_queue_depth(vport, queue_depth);
 
 	if (!result && pnode && NLP_CHK_NODE_ACT(pnode) &&
 	   ((jiffies - pnode->last_ramp_up_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
 	   ((jiffies - pnode->last_q_full_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
-	   (vport->cfg_lun_queue_depth > sdev->queue_depth)) {
-		shost_for_each_device(tmp_sdev, sdev->host) {
+	   (vport->cfg_lun_queue_depth > queue_depth)) {
+		shost_for_each_device(tmp_sdev, shost) {
 			if (vport->cfg_lun_queue_depth > tmp_sdev->queue_depth){
-				if (tmp_sdev->id != sdev->id)
+				if (tmp_sdev->id != scsi_id)
 					continue;
 				if (tmp_sdev->ordered_tags)
 					scsi_adjust_queue_depth(tmp_sdev,
@@ -1885,7 +1889,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 		lpfc_send_sdev_queuedepth_change_event(phba, vport, pnode,
 			0xFFFFFFFF,
-			sdev->queue_depth - 1, sdev->queue_depth);
+			queue_depth , queue_depth + 1);
 	}
 
 	/*
@@ -1896,8 +1900,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	    NLP_CHK_NODE_ACT(pnode)) {
 		pnode->last_q_full_time = jiffies;
 
-		shost_for_each_device(tmp_sdev, sdev->host) {
-			if (tmp_sdev->id != sdev->id)
+		shost_for_each_device(tmp_sdev, shost) {
+			if (tmp_sdev->id != scsi_id)
 				continue;
 			depth = scsi_track_queue_full(tmp_sdev,
 					tmp_sdev->queue_depth - 1);
@@ -1909,7 +1913,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		 * scsi_track_queue_full.
 		 */
 		if (depth == -1)
-			depth = sdev->host->cmd_per_lun;
+			depth = shost->cmd_per_lun;
 
 		if (depth) {
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
@@ -1925,17 +1929,17 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 * If there is a thread waiting for command completion
 	 * wake up the thread.
 	 */
-	spin_lock_irqsave(sdev->host->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	lpfc_cmd->pCmd = NULL;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
-	spin_unlock_irqrestore(sdev->host->host_lock, flags);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
 /**
- * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB.
+ * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB
  * @data: A pointer to the immediate command data portion of the IOCB.
  * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
  *
@@ -1953,7 +1957,7 @@ lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
 }
 
 /**
- * lpfc_scsi_prep_cmnd:  Routine to convert scsi cmnd to FCP information unit.
+ * lpfc_scsi_prep_cmnd -  Routine to convert scsi cmnd to FCP information unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: The scsi command which needs to send.
  * @pnode: Pointer to lpfc_nodelist.
@@ -2047,7 +2051,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_scsi_prep_task_mgmt_cmnd: Convert scsi TM cmnd to FCP information unit.
+ * lpfc_scsi_prep_task_mgmt_cmnd - Convert scsi TM cmnd to FCP information unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
  * @lun: Logical unit number.
@@ -2110,7 +2114,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 }
 
 /**
- * lpc_taskmgmt_def_cmpl: IOCB completion routine for task management command.
+ * lpfc_taskmgmt_def_cmpl - IOCB completion routine for task management command
  * @phba: The Hba for which this call is being executed.
  * @cmdiocbq: Pointer to lpfc_iocbq data structure.
  * @rspiocbq: Pointer to lpfc_iocbq data structure.
@@ -2131,7 +2135,7 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_scsi_tgt_reset: Target reset handler.
+ * lpfc_scsi_tgt_reset - Target reset handler
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure
  * @vport: The virtual port for which this call is being executed.
  * @tgt_id: Target ID.
@@ -2198,7 +2202,7 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf *lpfc_cmd, struct lpfc_vport *vport,
 }
 
 /**
- * lpfc_info: Info entry point of scsi_host_template data structure.
+ * lpfc_info - Info entry point of scsi_host_template data structure
  * @host: The scsi host for which this call is being executed.
  *
  * This routine provides module information about hba.
@@ -2236,7 +2240,7 @@ lpfc_info(struct Scsi_Host *host)
 }
 
 /**
- * lpfc_poll_rearm_time: Routine to modify fcp_poll timer of hba.
+ * lpfc_poll_rearm_time - Routine to modify fcp_poll timer of hba
  * @phba: The Hba for which this call is being executed.
  *
  * This routine modifies fcp_poll_timer  field of @phba by cfg_poll_tmo.
@@ -2253,7 +2257,7 @@ static __inline__ void lpfc_poll_rearm_timer(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_poll_start_timer: Routine to start fcp_poll_timer of HBA.
+ * lpfc_poll_start_timer - Routine to start fcp_poll_timer of HBA
  * @phba: The Hba for which this call is being executed.
  *
  * This routine starts the fcp_poll_timer of @phba.
@@ -2264,7 +2268,7 @@ void lpfc_poll_start_timer(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_poll_timeout: Restart polling timer.
+ * lpfc_poll_timeout - Restart polling timer
  * @ptr: Map to lpfc_hba data structure pointer.
  *
  * This routine restarts fcp_poll timer, when FCP ring  polling is enable
@@ -2283,8 +2287,7 @@ void lpfc_poll_timeout(unsigned long ptr)
 }
 
 /**
- * lpfc_queuecommand: Queuecommand entry point of Scsi Host Templater data
- * structure.
+ * lpfc_queuecommand - scsi_host_template queuecommand entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  * @done: Pointer to done routine.
  *
@@ -2450,7 +2453,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 }
 
 /**
- * lpfc_block_error_handler: Routine to block error  handler.
+ * lpfc_block_error_handler - Routine to block error  handler
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
  *  This routine blocks execution till fc_rport state is not FC_PORSTAT_BLCOEKD.
@@ -2472,8 +2475,7 @@ lpfc_block_error_handler(struct scsi_cmnd *cmnd)
 }
 
 /**
- * lpfc_abort_handler: Eh_abort_handler entry point of Scsi Host Template data
- *structure.
+ * lpfc_abort_handler - scsi_host_template eh_abort_handler entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
  * This routine aborts @cmnd pending in base driver.
@@ -2578,8 +2580,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 }
 
 /**
- * lpfc_device_reset_handler: eh_device_reset entry point of Scsi Host Template
- *data structure.
+ * lpfc_device_reset_handler - scsi_host_template eh_device_reset entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
  * This routine does a device reset by sending a TARGET_RESET task management
@@ -2587,7 +2588,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
  *
  * Return code :
  *  0x2003 - Error
- *  0ex2002 - Success
+ *  0x2002 - Success
  **/
 static int
 lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
@@ -2707,8 +2708,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 }
 
 /**
- * lpfc_bus_reset_handler: eh_bus_reset_handler entry point of Scsi Host
- * Template data structure.
+ * lpfc_bus_reset_handler - scsi_host_template eh_bus_reset_handler entry point
  * @cmnd: Pointer to scsi_cmnd data structure.
  *
  * This routine does target reset to all target on @cmnd->device->host.
@@ -2808,8 +2808,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 }
 
 /**
- * lpfc_slave_alloc: slave_alloc entry point of Scsi Host Template data
- * structure.
+ * lpfc_slave_alloc - scsi_host_template slave_alloc entry point
  * @sdev: Pointer to scsi_device.
  *
  * This routine populates the cmds_per_lun count + 2 scsi_bufs into  this host's
@@ -2883,8 +2882,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_configure: slave_configure entry point of Scsi Host Templater data
- *  structure.
+ * lpfc_slave_configure - scsi_host_template slave_configure entry point
  * @sdev: Pointer to scsi_device.
  *
  * This routine configures following items
@@ -2925,7 +2923,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_destroy: slave_destroy entry point of SHT data structure.
+ * lpfc_slave_destroy - slave_destroy entry point of SHT data structure
  * @sdev: Pointer to scsi_device.
  *
  * This routine sets @sdev hostatdata filed to null.

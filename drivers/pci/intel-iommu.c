@@ -59,6 +59,10 @@
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 #define DMA_64BIT_PFN		IOVA_PFN(DMA_BIT_MASK(64))
 
+#ifndef PHYSICAL_PAGE_MASK
+#define PHYSICAL_PAGE_MASK PAGE_MASK
+#endif
+
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
@@ -1216,7 +1220,7 @@ static void dmar_init_reserved_ranges(void)
 			if (!r->flags || !(r->flags & IORESOURCE_MEM))
 				continue;
 			addr = r->start;
-			addr &= PAGE_MASK;
+			addr &= PHYSICAL_PAGE_MASK;
 			size = r->end - addr;
 			size = PAGE_ALIGN(size);
 			iova = reserve_iova(&reserved_iova_list, IOVA_PFN(addr),
@@ -2173,7 +2177,8 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	 * is not a big problem
 	 */
 	ret = domain_page_mapping(domain, start_paddr,
-		((u64)paddr) & PAGE_MASK, size, prot);
+				  ((u64)paddr) & PHYSICAL_PAGE_MASK,
+				  size, prot);
 	if (ret)
 		goto error;
 
@@ -2463,8 +2468,8 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 		addr = page_to_phys(sg_page(sg)) + sg->offset;
 		size = aligned_size((u64)addr, sg->length);
 		ret = domain_page_mapping(domain, start_addr + offset,
-			((u64)addr) & PAGE_MASK,
-			size, prot);
+					  ((u64)addr) & PHYSICAL_PAGE_MASK,
+					  size, prot);
 		if (ret) {
 			/*  clear the page */
 			dma_pte_clear_range(domain, start_addr,

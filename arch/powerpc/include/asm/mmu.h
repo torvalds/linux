@@ -52,12 +52,6 @@
  */
 #define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
 
-/* This indicates that the processor uses the wrong opcode for tlbilx
- * instructions.  During the ISA 2.06 development the opcode for tlbilx
- * changed and some early implementations used to old opcode
- */
-#define MMU_FTR_TLBILX_EARLY_OPCODE	ASM_CONST(0x00400000)
-
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 

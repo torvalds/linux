@@ -2380,7 +2380,7 @@ static const char readme_msg[] =
 	"# echo print-parent > /debug/tracing/trace_options\n"
 	"# echo 1 > /debug/tracing/tracing_enabled\n"
 	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
-	"echo 0 > /debug/tracing/tracing_enabled\n"
+	"# echo 0 > /debug/tracing/tracing_enabled\n"
 ;
 
 static ssize_t
@@ -3448,6 +3448,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		if (!ref)
 			break;
 
+		ref->ref = 1;
 		ref->buffer = info->tr->buffer;
 		ref->page = ring_buffer_alloc_read_page(ref->buffer);
 		if (!ref->page) {

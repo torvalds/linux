@@ -317,7 +317,8 @@ static void sony_laptop_report_input_event(u8 event)
 	struct input_dev *key_dev = sony_laptop_input.key_dev;
 	struct sony_laptop_keypress kp = { NULL };
 
-	if (event == SONYPI_EVENT_FNKEY_RELEASED) {
+	if (event == SONYPI_EVENT_FNKEY_RELEASED ||
+			event == SONYPI_EVENT_ANYBUTTON_RELEASED) {
 		/* Nothing, not all VAIOs generate this event */
 		return;
 	}
@@ -905,7 +906,6 @@ static struct sony_nc_event sony_127_events[] = {
 	{ 0x05, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x86, SONYPI_EVENT_PKEY_P5 },
 	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
-	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x87, SONYPI_EVENT_SETTINGKEY_PRESSED },
 	{ 0x07, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
@@ -1004,6 +1004,7 @@ static int sony_nc_function_setup(struct acpi_device *device)
 	sony_call_snc_handle(0x0100, 0, &result);
 	sony_call_snc_handle(0x0101, 0, &result);
 	sony_call_snc_handle(0x0102, 0x100, &result);
+	sony_call_snc_handle(0x0127, 0, &result);
 
 	return 0;
 }
@@ -1040,7 +1041,7 @@ static int sony_nc_resume(struct acpi_device *device)
 
 	/* set the last requested brightness level */
 	if (sony_backlight_device &&
-			!sony_backlight_update_status(sony_backlight_device))
+			sony_backlight_update_status(sony_backlight_device) < 0)
 		printk(KERN_WARNING DRV_PFX "unable to restore brightness level\n");
 
 	return 0;
@@ -1102,8 +1103,11 @@ static int sony_nc_setup_wifi_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wifi_rfkill);
 	if (err)
 		rfkill_free(sony_wifi_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIFI] = sony_wifi_rfkill;
+		sony_nc_rfkill_set(sony_wifi_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1124,8 +1128,11 @@ static int sony_nc_setup_bluetooth_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_bluetooth_rfkill);
 	if (err)
 		rfkill_free(sony_bluetooth_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_BLUETOOTH] = sony_bluetooth_rfkill;
+		sony_nc_rfkill_set(sony_bluetooth_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1145,8 +1152,11 @@ static int sony_nc_setup_wwan_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wwan_rfkill);
 	if (err)
 		rfkill_free(sony_wwan_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WWAN] = sony_wwan_rfkill;
+		sony_nc_rfkill_set(sony_wwan_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1166,8 +1176,11 @@ static int sony_nc_setup_wimax_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wimax_rfkill);
 	if (err)
 		rfkill_free(sony_wimax_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIMAX] = sony_wimax_rfkill;
+		sony_nc_rfkill_set(sony_wimax_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 

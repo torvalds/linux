@@ -377,7 +377,7 @@ struct pxacamera_platform_data pcm990_pxacamera_platform_data = {
 #include <linux/i2c/pca953x.h>
 
 static struct pca953x_platform_data pca9536_data = {
-	.gpio_base	= NR_BUILTIN_GPIO + 1,
+	.gpio_base	= NR_BUILTIN_GPIO,
 };
 
 static int gpio_bus_switch;
@@ -405,9 +405,9 @@ static unsigned long pcm990_camera_query_bus_param(struct soc_camera_link *link)
 	int ret;
 
 	if (!gpio_bus_switch) {
-		ret = gpio_request(NR_BUILTIN_GPIO + 1, "camera");
+		ret = gpio_request(NR_BUILTIN_GPIO, "camera");
 		if (!ret) {
-			gpio_bus_switch = NR_BUILTIN_GPIO + 1;
+			gpio_bus_switch = NR_BUILTIN_GPIO;
 			gpio_direction_output(gpio_bus_switch, 0);
 		} else
 			gpio_bus_switch = -EINVAL;

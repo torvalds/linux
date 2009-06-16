@@ -157,8 +157,6 @@ struct mmc_omap_host {
 	struct timer_list	dma_timer;
 	unsigned		dma_len;
 
-	short			power_pin;
-
 	struct mmc_omap_slot    *slots[OMAP_MMC_MAX_SLOTS];
 	struct mmc_omap_slot    *current_slot;
 	spinlock_t              slot_lock;
@@ -824,7 +822,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		del_timer(&host->cmd_abort_timer);
 		host->abort = 1;
 		OMAP_MMC_WRITE(host, IE, 0);
-		disable_irq(host->irq);
+		disable_irq_nosync(host->irq);
 		schedule_work(&host->cmd_abort_work);
 		return IRQ_HANDLED;
 	}

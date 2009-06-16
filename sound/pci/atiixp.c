@@ -1393,6 +1393,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.name = "HP nx6125",
 		.type = AC97_TUNE_MUTE_LED
 	},
+	{
+		.subvendor = 0x103c,
+		.subdevice = 0x3091,
+		.name = "unknown HP",
+		.type = AC97_TUNE_MUTE_LED
+	},
 	{ } /* terminator */
 };
 

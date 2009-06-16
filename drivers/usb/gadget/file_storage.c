@@ -738,7 +738,6 @@ static struct fsg_dev			*the_fsg;
 static struct usb_gadget_driver		fsg_driver;
 
 static void	close_backing_file(struct lun *curlun);
-static void	close_all_backing_files(struct fsg_dev *fsg);
 
 
 /*-------------------------------------------------------------------------*/
@@ -3593,12 +3592,10 @@ static int fsg_main_thread(void *fsg_)
 	fsg->thread_task = NULL;
 	spin_unlock_irq(&fsg->lock);
 
-	/* In case we are exiting because of a signal, unregister the
-	 * gadget driver and close the backing file. */
-	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags)) {
+	/* If we are exiting because of a signal, unregister the
+	 * gadget driver. */
+	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags))
 		usb_gadget_unregister_driver(&fsg_driver);
-		close_all_backing_files(fsg);
-	}
 
 	/* Let the unbind and cleanup routines know the thread has exited */
 	complete_and_exit(&fsg->thread_notifier, 0);
@@ -3701,14 +3698,6 @@ static void close_backing_file(struct lun *curlun)
 		fput(curlun->filp);
 		curlun->filp = NULL;
 	}
-}
-
-static void close_all_backing_files(struct fsg_dev *fsg)
-{
-	int	i;
-
-	for (i = 0; i < fsg->nluns; ++i)
-		close_backing_file(&fsg->luns[i]);
 }
 
 
@@ -3845,6 +3834,7 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 		if (curlun->registered) {
 			device_remove_file(&curlun->dev, &dev_attr_ro);
 			device_remove_file(&curlun->dev, &dev_attr_file);
+			close_backing_file(curlun);
 			device_unregister(&curlun->dev);
 			curlun->registered = 0;
 		}
@@ -4190,7 +4180,6 @@ autoconf_fail:
 out:
 	fsg->state = FSG_STATE_TERMINATED;	// The thread is dead
 	fsg_unbind(gadget);
-	close_all_backing_files(fsg);
 	complete(&fsg->thread_notifier);
 	return rc;
 }
@@ -4284,7 +4273,6 @@ static void __exit fsg_cleanup(void)
 	/* Wait for the thread to finish up */
 	wait_for_completion(&fsg->thread_notifier);
 
-	close_all_backing_files(fsg);
 	kref_put(&fsg->ref, fsg_release);
 }
 module_exit(fsg_cleanup);

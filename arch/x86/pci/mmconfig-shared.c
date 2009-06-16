@@ -418,7 +418,7 @@ static int __init is_acpi_reserved(u64 start, u64 end, unsigned not_used)
 	struct resource mcfg_res;
 
 	mcfg_res.start = start;
-	mcfg_res.end = end;
+	mcfg_res.end = end - 1;
 	mcfg_res.flags = 0;
 
 	acpi_get_devices("PNP0C01", find_mboard_resource, &mcfg_res, NULL);
@@ -439,7 +439,7 @@ static int __init is_mmconf_reserved(check_reserved_t is_reserved,
 	u64 old_size = size;
 	int valid = 0;
 
-	while (!is_reserved(addr, addr + size - 1, E820_RESERVED)) {
+	while (!is_reserved(addr, addr + size, E820_RESERVED)) {
 		size >>= 1;
 		if (size < (16UL<<20))
 			break;

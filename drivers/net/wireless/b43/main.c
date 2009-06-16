@@ -3974,6 +3974,11 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	phy->next_txpwr_check_time = jiffies;
 	/* PHY TX errors counter. */
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
+
+#if B43_DEBUG
+	phy->phy_locked = 0;
+	phy->radio_locked = 0;
+#endif
 }
 
 static void setup_struct_wldev_for_init(struct b43_wldev *dev)

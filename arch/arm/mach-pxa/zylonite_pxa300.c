@@ -72,6 +72,7 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO25_AC97_SDATA_IN_0,
 	GPIO27_AC97_SDATA_OUT,
 	GPIO28_AC97_SYNC,
+	GPIO17_GPIO,	/* SDATA_IN_1 but unused - configure to GPIO */
 
 	/* SSP3 */
 	GPIO91_SSP3_SCLK,
@@ -126,6 +127,10 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
+
+	/* GPIO */
+	GPIO18_GPIO,	/* GPIO Expander #0 INT_N */
+	GPIO19_GPIO,	/* GPIO Expander #1 INT_N */
 };
 
 static mfp_cfg_t pxa300_mfp_cfg[] __initdata = {

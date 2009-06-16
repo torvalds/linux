@@ -115,8 +115,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			cpuinfo.hw_debug ? "yes" : "no");
 
 	count += seq_printf(m,
-			"PVR-USR1:\t%x\n"
-			"PVR-USR2:\t%x\n",
+			"PVR-USR1:\t%02x\n"
+			"PVR-USR2:\t%08x\n",
 			cpuinfo.pvr_user1,
 			cpuinfo.pvr_user2);
 

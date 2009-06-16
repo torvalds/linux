@@ -745,6 +745,8 @@ int pci_setup_device(struct pci_dev *dev)
 
 	/* Early fixups, before probing the BARs */
 	pci_fixup_device(pci_fixup_early, dev);
+	/* device class may be changed after fixup */
+	class = dev->class >> 8;
 
 	switch (dev->hdr_type) {		    /* header type */
 	case PCI_HEADER_TYPE_NORMAL:		    /* standard header */
@@ -1118,10 +1120,6 @@ unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 	return max;
 }
 
-void __attribute__((weak)) set_pci_bus_resources_arch_default(struct pci_bus *b)
-{
-}
-
 struct pci_bus * pci_create_bus(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
 {
@@ -1179,8 +1177,6 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	b->number = b->secondary = bus;
 	b->resource[0] = &ioport_resource;
 	b->resource[1] = &iomem_resource;
-
-	set_pci_bus_resources_arch_default(b);
 
 	return b;
 

@@ -314,6 +314,7 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
 	.no_tuner      = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 static struct stv0900_config netup_stv0900_config = {
@@ -471,7 +472,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
-				.scode_table = XC3028_FE_OREN538,
+				.demod       = XC3028_FE_OREN538,
 			};
 
 			fe = dvb_attach(xc2028_attach,

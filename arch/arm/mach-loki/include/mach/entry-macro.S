@@ -8,7 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <mach/loki.h>
+#include <mach/bridge-regs.h>
 
 	.macro  disable_fiq
 	.endm

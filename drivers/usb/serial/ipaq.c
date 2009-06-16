@@ -631,13 +631,7 @@ static int ipaq_open(struct tty_struct *tty,
 		priv->free_len += PACKET_SIZE;
 	}
 
-	/*
-	 * Force low latency on. This will immediately push data to the line
-	 * discipline instead of queueing.
-	 */
-
 	if (tty) {
-		tty->low_latency = 1;
 		/* FIXME: These two are bogus */
 		tty->raw = 1;
 		tty->real_raw = 1;

@@ -44,7 +44,7 @@ int cx18_audio_set_io(struct cx18 *cx)
 
 	/* handle muxer chips */
 	v4l2_subdev_call(cx->sd_extmux, audio, s_routing,
-			in->audio_input, 0, 0);
+			 (u32) in->muxer_input, 0, 0);
 
 	err = cx18_call_hw_err(cx, cx->card->hw_audio_ctrl,
 			       audio, s_routing, in->audio_input, 0, 0);

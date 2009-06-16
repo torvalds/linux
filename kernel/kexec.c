@@ -1451,7 +1451,6 @@ int kernel_kexec(void)
 		error = device_suspend(PMSG_FREEZE);
 		if (error)
 			goto Resume_console;
-		device_pm_lock();
 		/* At this point, device_suspend() has been called,
 		 * but *not* device_power_down(). We *must*
 		 * device_power_down() now.  Otherwise, drivers for
@@ -1489,7 +1488,6 @@ int kernel_kexec(void)
 		enable_nonboot_cpus();
 		device_power_up(PMSG_RESTORE);
  Resume_devices:
-		device_pm_unlock();
 		device_resume(PMSG_RESTORE);
  Resume_console:
 		resume_console();

@@ -474,6 +474,14 @@ static bool us122l_create_card(struct snd_card *card)
 	return true;
 }
 
+static void snd_us122l_free(struct snd_card *card)
+{
+	struct us122l	*us122l = US122L(card);
+	int		index = us122l->chip.index;
+	if (index >= 0  &&  index < SNDRV_CARDS)
+		snd_us122l_card_used[index] = 0;
+}
+
 static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 {
 	int		dev;
@@ -490,7 +498,7 @@ static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 	if (err < 0)
 		return err;
 	snd_us122l_card_used[US122L(card)->chip.index = dev] = 1;
-
+	card->private_free = snd_us122l_free;
 	US122L(card)->chip.dev = device;
 	US122L(card)->chip.card = card;
 	mutex_init(&US122L(card)->mutex);
@@ -584,7 +592,7 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	}
 
 	usb_put_intf(intf);
-	usb_put_dev(US122L(card)->chip.dev);
+	usb_put_dev(us122l->chip.dev);
 
 	while (atomic_read(&us122l->mmap_count))
 		msleep(500);

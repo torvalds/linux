@@ -10,6 +10,8 @@
 #include <asm/bootparam.h>
 
 #include <variant/hardware.h>
+#include <variant/gpio.h>
+
 #include <platform/gpio.h>
 
 void platform_halt(void)
@@ -47,6 +49,7 @@ void __init platform_setup(char **cmdline)
 
 void __init platform_init(bp_tag_t *first)
 {
+	s6_gpio_init();
 	gpio_request(GPIO_LED1_NGREEN, "led1_green");
 	gpio_request(GPIO_LED1_RED, "led1_red");
 	gpio_direction_output(GPIO_LED1_NGREEN, 1);

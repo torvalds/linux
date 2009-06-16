@@ -742,6 +742,10 @@ struct i2c_pxa_platform_data i2c_pdata = {
 	.fast_mode = 1,
 };
 
+static pxa2xx_audio_ops_t mioa701_ac97_info = {
+	.reset_gpio = 95,
+};
+
 /*
  * Mio global
  */
@@ -815,7 +819,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	wm97xx_bat_set_pdata(&mioa701_battery_data);
 	pxa_set_udc_info(&mioa701_udc_info);
-	pxa_set_ac97_info(NULL);
+	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
 	arm_pm_restart = mioa701_restart;
 	platform_add_devices(devices, ARRAY_SIZE(devices));

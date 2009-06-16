@@ -1830,6 +1830,10 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.rpl_err = 0;
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
+
+	if (peer2peer && ep->ird == 0)
+		ep->ird = 1;
+
 	PDBG("%s %d ird %d ord %d\n", __func__, __LINE__, ep->ird, ep->ord);
 
 	get_ep(&ep->com);
@@ -1915,6 +1919,10 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		       conn_param->private_data, ep->plen);
 	ep->ird = conn_param->ird;
 	ep->ord = conn_param->ord;
+
+	if (peer2peer && ep->ord == 0)
+		ep->ord = 1;
+
 	ep->com.tdev = h->rdev.t3cdev_p;
 
 	cm_id->add_ref(cm_id);

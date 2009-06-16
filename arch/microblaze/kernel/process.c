@@ -18,7 +18,7 @@
 
 void show_regs(struct pt_regs *regs)
 {
-	printk(KERN_INFO " Registers dump: mode=%X\r\n", regs->kernel_mode);
+	printk(KERN_INFO " Registers dump: mode=%X\r\n", regs->pt_mode);
 	printk(KERN_INFO " r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
 				regs->r1, regs->r2, regs->r3, regs->r4);
 	printk(KERN_INFO " r5=%08lX, r6=%08lX, r7=%08lX, r8=%08lX\n",
@@ -37,8 +37,6 @@ void show_regs(struct pt_regs *regs)
 				regs->r29, regs->r30, regs->r31, regs->pc);
 	printk(KERN_INFO " msr=%08lX, ear=%08lX, esr=%08lX, fsr=%08lX\n",
 				regs->msr, regs->ear, regs->esr, regs->fsr);
-	while (1)
-		;
 }
 
 void (*pm_idle)(void);
@@ -163,7 +161,6 @@ static void kernel_thread_helper(int (*fn)(void *), void *arg)
 int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 {
 	struct pt_regs regs;
-	int ret;
 
 	memset(&regs, 0, sizeof(regs));
 	/* store them in non-volatile registers */
@@ -171,16 +168,23 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.r6 = (unsigned long)arg;
 	local_save_flags(regs.msr);
 	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.kernel_mode = 1;
+	regs.pt_mode = 1;
 
-	ret = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 			&regs, 0, NULL, NULL);
-
-	return ret;
 }
 
 unsigned long get_wchan(struct task_struct *p)
 {
 /* TBD (used by procfs) */
 	return 0;
+}
+
+/* Set up a thread for executing a new program */
+void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
+{
+	set_fs(USER_DS);
+	regs->pc = pc;
+	regs->r1 = usp;
+	regs->pt_mode = 0;
 }

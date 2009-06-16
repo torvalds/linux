@@ -122,12 +122,6 @@ int usb_serial_generic_open(struct tty_struct *tty,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	/* force low_latency on so that our tty_push actually forces the data
-	   through, otherwise it is scheduled, and with high data rates (like
-	   with OHCI) data can get lost. */
-	if (tty)
-		tty->low_latency = 1;
-
 	/* clear the throttle flags */
 	spin_lock_irqsave(&port->lock, flags);
 	port->throttled = 0;

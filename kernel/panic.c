@@ -221,7 +221,7 @@ void add_taint(unsigned flag)
 	 * post-warning case.
 	 */
 	if (flag != TAINT_CRAP && flag != TAINT_WARN && __debug_locks_off())
-		printk(KERN_WARNING "Disabling lockdep due to kernel taint\n");
+		printk(KERN_WARNING "Disabling lock debugging due to kernel taint\n");
 
 	set_bit(flag, &tainted_mask);
 }
@@ -340,34 +340,46 @@ void oops_exit(void)
 }
 
 #ifdef WANT_WARN_ON_SLOWPATH
-void warn_slowpath(const char *file, int line, const char *fmt, ...)
-{
+struct slowpath_args {
+	const char *fmt;
 	va_list args;
-	char function[KSYM_SYMBOL_LEN];
-	unsigned long caller = (unsigned long)__builtin_return_address(0);
+};
+
+static void warn_slowpath_common(const char *file, int line, void *caller, struct slowpath_args *args)
+{
 	const char *board;
 
-	sprint_symbol(function, caller);
-
 	printk(KERN_WARNING "------------[ cut here ]------------\n");
-	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
-		line, function);
+	printk(KERN_WARNING "WARNING: at %s:%d %pS()\n", file, line, caller);
 	board = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (board)
 		printk(KERN_WARNING "Hardware name: %s\n", board);
 
-	if (fmt) {
-		va_start(args, fmt);
-		vprintk(fmt, args);
-		va_end(args);
-	}
+	if (args)
+		vprintk(args->fmt, args->args);
 
 	print_modules();
 	dump_stack();
 	print_oops_end_marker();
 	add_taint(TAINT_WARN);
 }
-EXPORT_SYMBOL(warn_slowpath);
+
+void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
+{
+	struct slowpath_args args;
+
+	args.fmt = fmt;
+	va_start(args.args, fmt);
+	warn_slowpath_common(file, line, __builtin_return_address(0), &args);
+	va_end(args.args);
+}
+EXPORT_SYMBOL(warn_slowpath_fmt);
+
+void warn_slowpath_null(const char *file, int line)
+{
+	warn_slowpath_common(file, line, __builtin_return_address(0), NULL);
+}
+EXPORT_SYMBOL(warn_slowpath_null);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR

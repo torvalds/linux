@@ -1809,17 +1809,17 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 				r10_bio->sector = sect;
 
 				raid10_find_phys(conf, r10_bio);
-				/* Need to check if this section will still be
+
+				/* Need to check if the array will still be
 				 * degraded
 				 */
-				for (j=0; j<conf->copies;j++) {
-					int d = r10_bio->devs[j].devnum;
-					if (conf->mirrors[d].rdev == NULL ||
-					    test_bit(Faulty, &conf->mirrors[d].rdev->flags)) {
+				for (j=0; j<conf->raid_disks; j++)
+					if (conf->mirrors[j].rdev == NULL ||
+					    test_bit(Faulty, &conf->mirrors[j].rdev->flags)) {
 						still_degraded = 1;
 						break;
 					}
-				}
+
 				must_sync = bitmap_start_sync(mddev->bitmap, sect,
 							      &sync_blocks, still_degraded);
 

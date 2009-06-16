@@ -1237,6 +1237,7 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 	buffer[1] = (u32) chn_rev;
 	buffer[2] = CMD_SET_MODE;
 	memcpy(&buffer[3], &dev->mode[chn], sizeof(struct s2255_mode));
+	dev->setmode_ready[chn] = 0;
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
 	if (debug)
 		dump_verify_mode(dev, mode);
@@ -1245,7 +1246,6 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 
 	/* wait at least 3 frames before continuing */
 	if (mode->restart) {
-		dev->setmode_ready[chn] = 0;
 		wait_event_timeout(dev->wait_setmode[chn],
 				   (dev->setmode_ready[chn] != 0),
 				   msecs_to_jiffies(S2255_SETMODE_TIMEOUT));

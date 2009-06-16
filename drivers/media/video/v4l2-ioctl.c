@@ -42,6 +42,12 @@
 			printk(KERN_DEBUG "%s: " fmt, vfd->name, ## arg);\
 		} while (0)
 
+/* Zero out the end of the struct pointed to by p.  Everthing after, but
+ * not including, the specified field is cleared. */
+#define CLEAR_AFTER_FIELD(p, field) \
+	memset((u8 *)(p) + offsetof(typeof(*(p)), field) + sizeof((p)->field), \
+	0, sizeof(*(p)) - offsetof(typeof(*(p)), field) - sizeof((p)->field))
+
 struct std_descr {
 	v4l2_std_id std;
 	const char *descr;
@@ -544,39 +550,39 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (ops->vidioc_try_fmt_vid_cap)
+		if (ops->vidioc_g_fmt_vid_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-		if (ops->vidioc_try_fmt_vid_overlay)
+		if (ops->vidioc_g_fmt_vid_overlay)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		if (ops->vidioc_try_fmt_vid_out)
+		if (ops->vidioc_g_fmt_vid_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-		if (ops->vidioc_try_fmt_vid_out_overlay)
+		if (ops->vidioc_g_fmt_vid_out_overlay)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		if (ops->vidioc_try_fmt_vbi_cap)
+		if (ops->vidioc_g_fmt_vbi_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
-		if (ops->vidioc_try_fmt_vbi_out)
+		if (ops->vidioc_g_fmt_vbi_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		if (ops->vidioc_try_fmt_sliced_vbi_cap)
+		if (ops->vidioc_g_fmt_sliced_vbi_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-		if (ops->vidioc_try_fmt_sliced_vbi_out)
+		if (ops->vidioc_g_fmt_sliced_vbi_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_PRIVATE:
-		if (ops->vidioc_try_fmt_type_private)
+		if (ops->vidioc_g_fmt_type_private)
 			return 0;
 		break;
 	}
@@ -782,44 +788,53 @@ static long __video_do_ioctl(struct file *file,
 
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.pix);
 			v4l_print_pix_fmt(vfd, &f->fmt.pix);
 			if (ops->vidioc_s_fmt_vid_cap)
 				ret = ops->vidioc_s_fmt_vid_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			CLEAR_AFTER_FIELD(f, fmt.win);
 			if (ops->vidioc_s_fmt_vid_overlay)
 				ret = ops->vidioc_s_fmt_vid_overlay(file,
 								    fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.pix);
 			v4l_print_pix_fmt(vfd, &f->fmt.pix);
 			if (ops->vidioc_s_fmt_vid_out)
 				ret = ops->vidioc_s_fmt_vid_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
+			CLEAR_AFTER_FIELD(f, fmt.win);
 			if (ops->vidioc_s_fmt_vid_out_overlay)
 				ret = ops->vidioc_s_fmt_vid_out_overlay(file,
 					fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.vbi);
 			if (ops->vidioc_s_fmt_vbi_cap)
 				ret = ops->vidioc_s_fmt_vbi_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.vbi);
 			if (ops->vidioc_s_fmt_vbi_out)
 				ret = ops->vidioc_s_fmt_vbi_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.sliced);
 			if (ops->vidioc_s_fmt_sliced_vbi_cap)
 				ret = ops->vidioc_s_fmt_sliced_vbi_cap(file,
 									fh, f);
 			break;
 		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.sliced);
 			if (ops->vidioc_s_fmt_sliced_vbi_out)
 				ret = ops->vidioc_s_fmt_sliced_vbi_out(file,
 									fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
+			/* CLEAR_AFTER_FIELD(f, fmt.raw_data); <- does nothing */
 			if (ops->vidioc_s_fmt_type_private)
 				ret = ops->vidioc_s_fmt_type_private(file,
 								fh, f);
@@ -836,46 +851,55 @@ static long __video_do_ioctl(struct file *file,
 						v4l2_type_names));
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.pix);
 			if (ops->vidioc_try_fmt_vid_cap)
 				ret = ops->vidioc_try_fmt_vid_cap(file, fh, f);
 			if (!ret)
 				v4l_print_pix_fmt(vfd, &f->fmt.pix);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			CLEAR_AFTER_FIELD(f, fmt.win);
 			if (ops->vidioc_try_fmt_vid_overlay)
 				ret = ops->vidioc_try_fmt_vid_overlay(file,
 					fh, f);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.pix);
 			if (ops->vidioc_try_fmt_vid_out)
 				ret = ops->vidioc_try_fmt_vid_out(file, fh, f);
 			if (!ret)
 				v4l_print_pix_fmt(vfd, &f->fmt.pix);
 			break;
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
+			CLEAR_AFTER_FIELD(f, fmt.win);
 			if (ops->vidioc_try_fmt_vid_out_overlay)
 				ret = ops->vidioc_try_fmt_vid_out_overlay(file,
 				       fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.vbi);
 			if (ops->vidioc_try_fmt_vbi_cap)
 				ret = ops->vidioc_try_fmt_vbi_cap(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_VBI_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.vbi);
 			if (ops->vidioc_try_fmt_vbi_out)
 				ret = ops->vidioc_try_fmt_vbi_out(file, fh, f);
 			break;
 		case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+			CLEAR_AFTER_FIELD(f, fmt.sliced);
 			if (ops->vidioc_try_fmt_sliced_vbi_cap)
 				ret = ops->vidioc_try_fmt_sliced_vbi_cap(file,
 								fh, f);
 			break;
 		case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+			CLEAR_AFTER_FIELD(f, fmt.sliced);
 			if (ops->vidioc_try_fmt_sliced_vbi_out)
 				ret = ops->vidioc_try_fmt_sliced_vbi_out(file,
 								fh, f);
 			break;
 		case V4L2_BUF_TYPE_PRIVATE:
+			/* CLEAR_AFTER_FIELD(f, fmt.raw_data); <- does nothing */
 			if (ops->vidioc_try_fmt_type_private)
 				ret = ops->vidioc_try_fmt_type_private(file,
 								fh, f);
@@ -897,6 +921,9 @@ static long __video_do_ioctl(struct file *file,
 		ret = check_fmt(ops, p->type);
 		if (ret)
 			break;
+
+		if (p->type < V4L2_BUF_TYPE_PRIVATE)
+			CLEAR_AFTER_FIELD(p, memory);
 
 		ret = ops->vidioc_reqbufs(file, fh, p);
 		dbgarg(cmd, "count=%d, type=%s, memory=%s\n",

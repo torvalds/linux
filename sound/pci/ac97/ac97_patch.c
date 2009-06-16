@@ -958,10 +958,13 @@ static int patch_sigmatel_stac9708_3d(struct snd_ac97 * ac97)
 }
 
 static const struct snd_kcontrol_new snd_ac97_sigmatel_4speaker =
-AC97_SINGLE("Sigmatel 4-Speaker Stereo Playback Switch", AC97_SIGMATEL_DAC2INVERT, 2, 1, 0);
+AC97_SINGLE("Sigmatel 4-Speaker Stereo Playback Switch",
+		AC97_SIGMATEL_DAC2INVERT, 2, 1, 0);
 
+/* "Sigmatel " removed due to excessive name length: */
 static const struct snd_kcontrol_new snd_ac97_sigmatel_phaseinvert =
-AC97_SINGLE("Sigmatel Surround Phase Inversion Playback Switch", AC97_SIGMATEL_DAC2INVERT, 3, 1, 0);
+AC97_SINGLE("Surround Phase Inversion Playback Switch",
+		AC97_SIGMATEL_DAC2INVERT, 3, 1, 0);
 
 static const struct snd_kcontrol_new snd_ac97_sigmatel_controls[] = {
 AC97_SINGLE("Sigmatel DAC 6dB Attenuate", AC97_SIGMATEL_ANALOG, 1, 1, 0),

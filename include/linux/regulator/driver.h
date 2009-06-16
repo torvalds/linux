@@ -50,6 +50,7 @@ enum regulator_status {
  * @set_current_limit: Configure a limit for a current-limited regulator.
  * @get_current_limit: Get the configured limit for a current-limited regulator.
  *
+ * @set_mode: Set the configured operating mode for the regulator.
  * @get_mode: Get the configured operating mode for the regulator.
  * @get_status: Return actual (not as-configured) status of regulator, as a
  *	REGULATOR_STATUS value (or negative errno)

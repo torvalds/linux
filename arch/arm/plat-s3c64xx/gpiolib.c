@@ -57,7 +57,7 @@
 #if 1
 #define gpio_dbg(x...) do { } while(0)
 #else
-#define gpio_dbg(x...) printk(KERN_DEBUG ## x)
+#define gpio_dbg(x...) printk(KERN_DEBUG x)
 #endif
 
 /* The s3c64xx_gpiolib_4bit routines are to control the gpio banks where

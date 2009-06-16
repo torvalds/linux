@@ -193,26 +193,20 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 	int rc = 0;
 
 	mutex_lock(&msg_ctx->mux);
-	if (data) {
-		msg_ctx->msg = kmalloc((sizeof(*msg_ctx->msg) + data_size),
-				       GFP_KERNEL);
-		if (!msg_ctx->msg) {
-			rc = -ENOMEM;
-			printk(KERN_ERR "%s: Out of memory whilst attempting "
-			       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
-			       (sizeof(*msg_ctx->msg) + data_size));
-			goto out_unlock;
-		}
-	} else
-		msg_ctx->msg = NULL;
+	msg_ctx->msg = kmalloc((sizeof(*msg_ctx->msg) + data_size),
+			       GFP_KERNEL);
+	if (!msg_ctx->msg) {
+		rc = -ENOMEM;
+		printk(KERN_ERR "%s: Out of memory whilst attempting "
+		       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
+		       (sizeof(*msg_ctx->msg) + data_size));
+		goto out_unlock;
+	}
 	msg_ctx->msg->index = msg_ctx->index;
 	msg_ctx->msg->data_len = data_size;
 	msg_ctx->type = msg_type;
-	if (data) {
-		memcpy(msg_ctx->msg->data, data, data_size);
-		msg_ctx->msg_size = (sizeof(*msg_ctx->msg) + data_size);
-	} else
-		msg_ctx->msg_size = 0;
+	memcpy(msg_ctx->msg->data, data, data_size);
+	msg_ctx->msg_size = (sizeof(*msg_ctx->msg) + data_size);
 	mutex_lock(&daemon->mux);
 	list_add_tail(&msg_ctx->daemon_out_list, &daemon->msg_ctx_out_queue);
 	daemon->num_queued_msg_ctx++;

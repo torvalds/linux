@@ -15,7 +15,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#define JTAG_ID_BASE		0x01c40028
+#define JTAG_ID_BASE		IO_ADDRESS(0x01c40028)
+
+static unsigned int davinci_revision;
 
 struct davinci_id {
 	u8	variant;	/* JTAG ID bits 31:28 */
@@ -33,6 +35,20 @@ static struct davinci_id davinci_ids[] __initdata = {
 		.manufacturer = 0x017,
 		.type	      = 0x64460000,
 	},
+	{
+		/* DM646X */
+		.part_no      = 0xb770,
+		.variant      = 0x0,
+		.manufacturer = 0x017,
+		.type         = 0x64670000,
+	},
+	{
+		/* DM355 */
+		.part_no	= 0xb73b,
+		.variant	= 0x0,
+		.manufacturer	= 0x00f,
+		.type		= 0x03550000,
+	},
 };
 
 /*
@@ -42,7 +58,7 @@ static u16 __init davinci_get_part_no(void)
 {
 	u32 dev_id, part_no;
 
-	dev_id = davinci_readl(JTAG_ID_BASE);
+	dev_id = __raw_readl(JTAG_ID_BASE);
 
 	part_no = ((dev_id >> 12) & 0xffff);
 
@@ -56,12 +72,18 @@ static u8 __init davinci_get_variant(void)
 {
 	u32 variant;
 
-	variant = davinci_readl(JTAG_ID_BASE);
+	variant = __raw_readl(JTAG_ID_BASE);
 
 	variant = (variant >> 28) & 0xf;
 
 	return variant;
 }
+
+unsigned int davinci_rev(void)
+{
+	return davinci_revision >> 16;
+}
+EXPORT_SYMBOL(davinci_rev);
 
 void __init davinci_check_revision(void)
 {
@@ -75,7 +97,7 @@ void __init davinci_check_revision(void)
 	/* First check only the major version in a safe way */
 	for (i = 0; i < ARRAY_SIZE(davinci_ids); i++) {
 		if (part_no == (davinci_ids[i].part_no)) {
-			system_rev = davinci_ids[i].type;
+			davinci_revision = davinci_ids[i].type;
 			break;
 		}
 	}
@@ -84,10 +106,11 @@ void __init davinci_check_revision(void)
 	for (i = 0; i < ARRAY_SIZE(davinci_ids); i++) {
 		if (part_no == davinci_ids[i].part_no &&
 		    variant == davinci_ids[i].variant) {
-			system_rev = davinci_ids[i].type;
+			davinci_revision = davinci_ids[i].type;
 			break;
 		}
 	}
 
-	printk("DaVinci DM%04x variant 0x%x\n", system_rev >> 16, variant);
+	printk(KERN_INFO "DaVinci DM%04x variant 0x%x\n",
+	       davinci_rev(), variant);
 }

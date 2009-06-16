@@ -1069,7 +1069,6 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 			goto out;
 		}
 		qhp->attr.state = IWCH_QP_STATE_IDLE;
-		memset(&qhp->attr, 0, sizeof(qhp->attr));
 		break;
 	case IWCH_QP_STATE_TERMINATE:
 		if (!internal) {

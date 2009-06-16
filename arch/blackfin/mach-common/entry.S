@@ -1581,6 +1581,8 @@ ENTRY(_sys_call_table)
 	.long _sys_dup3
 	.long _sys_pipe2
 	.long _sys_inotify_init1	/* 365 */
+	.long _sys_preadv
+	.long _sys_pwritev
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

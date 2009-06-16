@@ -23,7 +23,7 @@ __INITDATA
 /*
  * References to members of the boot_cpu_data structure.
  */
-.section .text.head, "ax"
+__HEAD
 	.global	start_kernel
 	.global __bss_start
 	.global _end

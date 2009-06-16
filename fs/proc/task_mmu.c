@@ -665,6 +665,10 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out_task;
 
 	ret = 0;
+
+	if (!count)
+		goto out_task;
+
 	mm = get_task_mm(task);
 	if (!mm)
 		goto out_task;

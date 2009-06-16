@@ -3738,7 +3738,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, icr = er32(ICR);
 
-	if (unlikely((!icr) || test_bit(__E1000_RESETTING, &adapter->flags)))
+	if (unlikely((!icr) || test_bit(__E1000_DOWN, &adapter->flags)))
 		return IRQ_NONE;  /* Not our interrupt */
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
@@ -3834,7 +3834,6 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	struct e1000_buffer *buffer_info;
 	unsigned int i, eop;
 	unsigned int count = 0;
-	bool cleaned = false;
 	unsigned int total_tx_bytes=0, total_tx_packets=0;
 
 	i = tx_ring->next_to_clean;
@@ -3843,7 +3842,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
-		for (cleaned = false; !cleaned; count++) {
+		bool cleaned = false;
+		for ( ; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
@@ -3871,7 +3871,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	tx_ring->next_to_clean = i;
 
 #define TX_WAKE_THRESHOLD 32
-	if (unlikely(cleaned && netif_carrier_ok(netdev) &&
+	if (unlikely(count && netif_carrier_ok(netdev) &&
 		     E1000_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD)) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
@@ -4027,8 +4027,9 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		                 PCI_DMA_FROMDEVICE);
 
 		length = le16_to_cpu(rx_desc->length);
-
-		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
+		/* !EOP means multiple descriptors were used to store a single
+		 * packet, also make sure the frame isn't just CRC only */
+		if (unlikely(!(status & E1000_RXD_STAT_EOP) || (length <= 4))) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);

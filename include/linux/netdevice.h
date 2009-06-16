@@ -104,7 +104,7 @@ struct wireless_dev;
 # else
 #  define LL_MAX_HEADER 96
 # endif
-#elif defined(CONFIG_TR)
+#elif defined(CONFIG_TR) || defined(CONFIG_TR_MODULE)
 # define LL_MAX_HEADER 48
 #else
 # define LL_MAX_HEADER 32
@@ -500,7 +500,7 @@ struct netdev_queue {
  *
  * int (*ndo_set_mac_address)(struct net_device *dev, void *addr);
  *	This function  is called when the Media Access Control address
- *	needs to be changed. If not this interface is not defined, the
+ *	needs to be changed. If this interface is not defined, the
  *	mac address can not be changed.
  *
  * int (*ndo_validate_addr)(struct net_device *dev);

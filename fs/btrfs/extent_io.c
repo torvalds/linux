@@ -17,12 +17,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 
-/* temporary define until extent_map moves out of btrfs */
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long));
-
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
 
@@ -58,15 +52,15 @@ struct extent_page_data {
 
 int __init extent_io_init(void)
 {
-	extent_state_cache = btrfs_cache_create("extent_state",
-					    sizeof(struct extent_state), 0,
-					    NULL);
+	extent_state_cache = kmem_cache_create("extent_state",
+			sizeof(struct extent_state), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
 
-	extent_buffer_cache = btrfs_cache_create("extent_buffers",
-					    sizeof(struct extent_buffer), 0,
-					    NULL);
+	extent_buffer_cache = kmem_cache_create("extent_buffers",
+			sizeof(struct extent_buffer), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_buffer_cache)
 		goto free_state_cache;
 	return 0;
@@ -1406,69 +1400,6 @@ out:
 	spin_unlock(&tree->lock);
 	return total_bytes;
 }
-
-#if 0
-/*
- * helper function to lock both pages and extents in the tree.
- * pages must be locked first.
- */
-static int lock_range(struct extent_io_tree *tree, u64 start, u64 end)
-{
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
-	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
-	struct page *page;
-	int err;
-
-	while (index <= end_index) {
-		page = grab_cache_page(tree->mapping, index);
-		if (!page) {
-			err = -ENOMEM;
-			goto failed;
-		}
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
-			goto failed;
-		}
-		index++;
-	}
-	lock_extent(tree, start, end, GFP_NOFS);
-	return 0;
-
-failed:
-	/*
-	 * we failed above in getting the page at 'index', so we undo here
-	 * up to but not including the page at 'index'
-	 */
-	end_index = index;
-	index = start >> PAGE_CACHE_SHIFT;
-	while (index < end_index) {
-		page = find_get_page(tree->mapping, index);
-		unlock_page(page);
-		page_cache_release(page);
-		index++;
-	}
-	return err;
-}
-
-/*
- * helper function to unlock both pages and extents in the tree.
- */
-static int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
-{
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
-	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
-	struct page *page;
-
-	while (index <= end_index) {
-		page = find_get_page(tree->mapping, index);
-		unlock_page(page);
-		page_cache_release(page);
-		index++;
-	}
-	unlock_extent(tree, start, end, GFP_NOFS);
-	return 0;
-}
-#endif
 
 /*
  * set the private field for a given byte offset in the tree.  If there isn't

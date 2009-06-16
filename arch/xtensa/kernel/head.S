@@ -19,6 +19,7 @@
 #include <asm/page.h>
 #include <asm/cacheasm.h>
 
+#include <linux/init.h>
 #include <linux/linkage.h>
 
 /*
@@ -45,7 +46,7 @@
 	 * instruction.
 	 */
 
-	.section .head.text, "ax"
+	__HEAD
 	.globl _start
 _start:	_j	2f
 	.align	4

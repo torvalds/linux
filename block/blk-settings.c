@@ -156,26 +156,28 @@ EXPORT_SYMBOL(blk_queue_make_request);
 
 /**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
- * @q:  the request queue for the device
- * @dma_addr:   bus address limit
+ * @q: the request queue for the device
+ * @dma_mask: the maximum address the device can handle
  *
  * Description:
  *    Different hardware can have different requirements as to what pages
  *    it can do I/O directly to. A low level driver can call
  *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @dma_addr.
+ *    buffers for doing I/O to pages residing above @dma_mask.
  **/
-void blk_queue_bounce_limit(struct request_queue *q, u64 dma_addr)
+void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 {
-	unsigned long b_pfn = dma_addr >> PAGE_SHIFT;
+	unsigned long b_pfn = dma_mask >> PAGE_SHIFT;
 	int dma = 0;
 
 	q->bounce_gfp = GFP_NOIO;
 #if BITS_PER_LONG == 64
-	/* Assume anything <= 4GB can be handled by IOMMU.
-	   Actually some IOMMUs can handle everything, but I don't
-	   know of a way to test this here. */
-	if (b_pfn < (min_t(u64, 0x100000000UL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
+	/*
+	 * Assume anything <= 4GB can be handled by IOMMU.  Actually
+	 * some IOMMUs can handle everything, but I don't know of a
+	 * way to test this here.
+	 */
+	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
 	q->bounce_pfn = max_low_pfn;
 #else

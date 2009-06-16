@@ -215,8 +215,6 @@ static int create_image(int platform_mode)
 	if (error)
 		return error;
 
-	device_pm_lock();
-
 	/* At this point, device_suspend() has been called, but *not*
 	 * device_power_down(). We *must* call device_power_down() now.
 	 * Otherwise, drivers for some devices (e.g. interrupt controllers)
@@ -227,7 +225,7 @@ static int create_image(int platform_mode)
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down, "
 			"aborting hibernation\n");
-		goto Unlock;
+		return error;
 	}
 
 	error = platform_pre_snapshot(platform_mode);
@@ -241,9 +239,9 @@ static int create_image(int platform_mode)
 
 	local_irq_disable();
 
-	sysdev_suspend(PMSG_FREEZE);
+	error = sysdev_suspend(PMSG_FREEZE);
 	if (error) {
-		printk(KERN_ERR "PM: Some devices failed to power down, "
+		printk(KERN_ERR "PM: Some system devices failed to power down, "
 			"aborting hibernation\n");
 		goto Enable_irqs;
 	}
@@ -279,9 +277,6 @@ static int create_image(int platform_mode)
 
 	device_power_up(in_suspend ?
 		(error ? PMSG_RECOVER : PMSG_THAW) : PMSG_RESTORE);
-
- Unlock:
-	device_pm_unlock();
 
 	return error;
 }
@@ -344,13 +339,11 @@ static int resume_target_kernel(bool platform_mode)
 {
 	int error;
 
-	device_pm_lock();
-
 	error = device_power_down(PMSG_QUIESCE);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down, "
 			"aborting resume\n");
-		goto Unlock;
+		return error;
 	}
 
 	error = platform_pre_restore(platform_mode);
@@ -402,9 +395,6 @@ static int resume_target_kernel(bool platform_mode)
 	platform_restore_cleanup(platform_mode);
 
 	device_power_up(PMSG_RECOVER);
-
- Unlock:
-	device_pm_unlock();
 
 	return error;
 }
@@ -464,11 +454,9 @@ int hibernation_platform_enter(void)
 		goto Resume_devices;
 	}
 
-	device_pm_lock();
-
 	error = device_power_down(PMSG_HIBERNATE);
 	if (error)
-		goto Unlock;
+		goto Resume_devices;
 
 	error = hibernation_ops->prepare();
 	if (error)
@@ -492,9 +480,6 @@ int hibernation_platform_enter(void)
 	hibernation_ops->finish();
 
 	device_power_up(PMSG_RESTORE);
-
- Unlock:
-	device_pm_unlock();
 
  Resume_devices:
 	entering_platform_hibernation = false;
@@ -646,13 +631,6 @@ static int software_resume(void)
 		return 0;
 
 	/*
-	 * We can't depend on SCSI devices being available after loading one of
-	 * their modules if scsi_complete_async_scans() is not called and the
-	 * resume device usually is a SCSI one.
-	 */
-	scsi_complete_async_scans();
-
-	/*
 	 * name_to_dev_t() below takes a sysfs buffer mutex when sysfs
 	 * is configured into the kernel. Since the regular hibernate
 	 * trigger path is via sysfs which takes a buffer mutex before
@@ -663,32 +641,42 @@ static int software_resume(void)
 	 * here to avoid lockdep complaining.
 	 */
 	mutex_lock_nested(&pm_mutex, SINGLE_DEPTH_NESTING);
+
+	if (swsusp_resume_device)
+		goto Check_image;
+
+	if (!strlen(resume_file)) {
+		error = -ENOENT;
+		goto Unlock;
+	}
+
+	pr_debug("PM: Checking image partition %s\n", resume_file);
+
+	/* Check if the device is there */
+	swsusp_resume_device = name_to_dev_t(resume_file);
 	if (!swsusp_resume_device) {
-		if (!strlen(resume_file)) {
-			mutex_unlock(&pm_mutex);
-			return -ENOENT;
-		}
 		/*
 		 * Some device discovery might still be in progress; we need
 		 * to wait for this to finish.
 		 */
 		wait_for_device_probe();
+		/*
+		 * We can't depend on SCSI devices being available after loading
+		 * one of their modules until scsi_complete_async_scans() is
+		 * called and the resume device usually is a SCSI one.
+		 */
+		scsi_complete_async_scans();
+
 		swsusp_resume_device = name_to_dev_t(resume_file);
-		pr_debug("PM: Resume from partition %s\n", resume_file);
-	} else {
-		pr_debug("PM: Resume from partition %d:%d\n",
-				MAJOR(swsusp_resume_device),
-				MINOR(swsusp_resume_device));
+		if (!swsusp_resume_device) {
+			error = -ENODEV;
+			goto Unlock;
+		}
 	}
 
-	if (noresume) {
-		/**
-		 * FIXME: If noresume is specified, we need to find the
-		 * partition and reset it back to normal swap space.
-		 */
-		mutex_unlock(&pm_mutex);
-		return 0;
-	}
+ Check_image:
+	pr_debug("PM: Resume from partition %d:%d\n",
+		MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
 
 	pr_debug("PM: Checking hibernation image.\n");
 	error = swsusp_check();

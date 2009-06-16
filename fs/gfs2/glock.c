@@ -1304,6 +1304,7 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 				nr--;
 				if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 					gfs2_glock_put(gl);
+				got_ref = 0;
 			}
 			spin_lock(&lru_lock);
 			if (may_demote)

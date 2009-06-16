@@ -3,7 +3,6 @@
  * Some code has been taken from tusb6010.c
  * Copyrights for that are attributable to:
  * Copyright (C) 2006 Nokia Corporation
- * Jarkko Nikula <jarkko.nikula@nokia.com>
  * Tony Lindgren <tony@atomide.com>
  *
  * This file is part of the Inventra Controller Driver for Linux.

@@ -94,11 +94,15 @@ struct pci_root_info {
 static int pci_root_num;
 static struct pci_root_info pci_root_info[PCI_ROOT_NR];
 
-void set_pci_bus_resources_arch_default(struct pci_bus *b)
+void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 {
 	int i;
 	int j;
 	struct pci_root_info *info;
+
+	/* don't go for it if _CRS is used */
+	if (pci_probe & PCI_USE__CRS)
+		return;
 
 	/* if only one root bus, don't need to anything */
 	if (pci_root_num < 2)

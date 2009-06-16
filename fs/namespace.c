@@ -695,12 +695,16 @@ static inline void mangle(struct seq_file *m, const char *s)
  */
 int generic_show_options(struct seq_file *m, struct vfsmount *mnt)
 {
-	const char *options = mnt->mnt_sb->s_options;
+	const char *options;
+
+	rcu_read_lock();
+	options = rcu_dereference(mnt->mnt_sb->s_options);
 
 	if (options != NULL && options[0]) {
 		seq_putc(m, ',');
 		mangle(m, options);
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -721,10 +725,21 @@ EXPORT_SYMBOL(generic_show_options);
  */
 void save_mount_options(struct super_block *sb, char *options)
 {
-	kfree(sb->s_options);
-	sb->s_options = kstrdup(options, GFP_KERNEL);
+	BUG_ON(sb->s_options);
+	rcu_assign_pointer(sb->s_options, kstrdup(options, GFP_KERNEL));
 }
 EXPORT_SYMBOL(save_mount_options);
+
+void replace_mount_options(struct super_block *sb, char *options)
+{
+	char *old = sb->s_options;
+	rcu_assign_pointer(sb->s_options, options);
+	if (old) {
+		synchronize_rcu();
+		kfree(old);
+	}
+}
+EXPORT_SYMBOL(replace_mount_options);
 
 #ifdef CONFIG_PROC_FS
 /* iterator */
@@ -1073,9 +1088,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 */
 
 	if (flags & MNT_FORCE && sb->s_op->umount_begin) {
-		lock_kernel();
 		sb->s_op->umount_begin(sb);
-		unlock_kernel();
 	}
 
 	/*

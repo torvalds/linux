@@ -508,6 +508,7 @@ s3c24xx_serial_setsource(struct uart_port *port, struct s3c24xx_uart_clksrc *c)
 struct baud_calc {
 	struct s3c24xx_uart_clksrc	*clksrc;
 	unsigned int			 calc;
+	unsigned int			 divslot;
 	unsigned int			 quot;
 	struct clk			*src;
 };
@@ -517,6 +518,7 @@ static int s3c24xx_serial_calcbaud(struct baud_calc *calc,
 				   struct s3c24xx_uart_clksrc *clksrc,
 				   unsigned int baud)
 {
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	unsigned long rate;
 
 	calc->src = clk_get(port->dev, clksrc->name);
@@ -527,8 +529,24 @@ static int s3c24xx_serial_calcbaud(struct baud_calc *calc,
 	rate /= clksrc->divisor;
 
 	calc->clksrc = clksrc;
-	calc->quot = (rate + (8 * baud)) / (16 * baud);
-	calc->calc = (rate / (calc->quot * 16));
+
+	if (ourport->info->has_divslot) {
+		unsigned long div = rate / baud;
+
+		/* The UDIVSLOT register on the newer UARTs allows us to
+		 * get a divisor adjustment of 1/16th on the baud clock.
+		 *
+		 * We don't keep the UDIVSLOT value (the 16ths we calculated
+		 * by not multiplying the baud by 16) as it is easy enough
+		 * to recalculate.
+		 */
+
+		calc->quot = div / 16;
+		calc->calc = rate / div;
+	} else {
+		calc->quot = (rate + (8 * baud)) / (16 * baud);
+		calc->calc = (rate / (calc->quot * 16));
+	}
 
 	calc->quot--;
 	return 1;
@@ -611,6 +629,30 @@ static unsigned int s3c24xx_serial_getclk(struct uart_port *port,
 	return best->quot;
 }
 
+/* udivslot_table[]
+ *
+ * This table takes the fractional value of the baud divisor and gives
+ * the recommended setting for the UDIVSLOT register.
+ */
+static u16 udivslot_table[16] = {
+	[0] = 0x0000,
+	[1] = 0x0080,
+	[2] = 0x0808,
+	[3] = 0x0888,
+	[4] = 0x2222,
+	[5] = 0x4924,
+	[6] = 0x4A52,
+	[7] = 0x54AA,
+	[8] = 0x5555,
+	[9] = 0xD555,
+	[10] = 0xD5D5,
+	[11] = 0xDDD5,
+	[12] = 0xDDDD,
+	[13] = 0xDFDD,
+	[14] = 0xDFDF,
+	[15] = 0xFFDF,
+};
+
 static void s3c24xx_serial_set_termios(struct uart_port *port,
 				       struct ktermios *termios,
 				       struct ktermios *old)
@@ -623,6 +665,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	unsigned int baud, quot;
 	unsigned int ulcon;
 	unsigned int umcon;
+	unsigned int udivslot = 0;
 
 	/*
 	 * We don't support modem control lines.
@@ -644,6 +687,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	/* check to see if we need  to change clock source */
 
 	if (ourport->clksrc != clksrc || ourport->baudclk != clk) {
+		dbg("selecting clock %p\n", clk);
 		s3c24xx_serial_setsource(port, clksrc);
 
 		if (ourport->baudclk != NULL && !IS_ERR(ourport->baudclk)) {
@@ -656,6 +700,13 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		ourport->clksrc = clksrc;
 		ourport->baudclk = clk;
 		ourport->baudclk_rate = clk ? clk_get_rate(clk) : 0;
+	}
+
+	if (ourport->info->has_divslot) {
+		unsigned int div = ourport->baudclk_rate / baud;
+
+		udivslot = udivslot_table[div & 15];
+		dbg("udivslot = %04x (div %d)\n", udivslot, div & 15);
 	}
 
 	switch (termios->c_cflag & CSIZE) {
@@ -697,11 +748,15 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	dbg("setting ulcon to %08x, brddiv to %d\n", ulcon, quot);
+	dbg("setting ulcon to %08x, brddiv to %d, udivslot %08x\n",
+	    ulcon, quot, udivslot);
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
 	wr_regl(port, S3C2410_UMCON, umcon);
+
+	if (ourport->info->has_divslot)
+		wr_regl(port, S3C2443_DIVSLOT, udivslot);
 
 	dbg("uart: ulcon = 0x%08x, ucon = 0x%08x, ufcon = 0x%08x\n",
 	    rd_regl(port, S3C2410_ULCON),

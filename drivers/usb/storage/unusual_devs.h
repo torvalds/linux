@@ -160,8 +160,9 @@ UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
-/* Reported by Andrew Nayenko <relan@bk.ru> */
-UNUSUAL_DEV(  0x0421, 0x0019, 0x0592, 0x0592,
+/* Reported by Andrew Nayenko <relan@bk.ru>
+ * Updated for new firmware by Phillip Potter <phillipinda@hotmail.com> */
+UNUSUAL_DEV(  0x0421, 0x0019, 0x0592, 0x0610,
 		"Nokia",
 		"Nokia 6288",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -1850,6 +1851,12 @@ UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
 		"USB4500 FW1.04",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_CAPACITY_HEURISTICS),
+
+/* Reported by Alessio Treglia <quadrispro@ubuntu.com> */
+UNUSUAL_DEV( 0xed10, 0x7636, 0x0001, 0x0001,
+		"TGE",
+		"Digital MP3 Audio Player",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),

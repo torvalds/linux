@@ -264,8 +264,8 @@ EXPORT_SYMBOL_GPL(pci_create_slot);
 
 /**
  * pci_renumber_slot - update %struct pci_slot -> number
- * @slot - %struct pci_slot to update
- * @slot_nr - new number for slot
+ * @slot: &struct pci_slot to update
+ * @slot_nr: new number for slot
  *
  * The primary purpose of this interface is to allow callers who earlier
  * created a placeholder slot in pci_create_slot() by passing a -1 as

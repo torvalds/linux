@@ -664,7 +664,7 @@ static int netconsole_netdev_event(struct notifier_block *this,
 	struct netconsole_target *nt;
 	struct net_device *dev = ptr;
 
-	if (!(event == NETDEV_CHANGENAME))
+	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER))
 		goto done;
 
 	spin_lock_irqsave(&target_list_lock, flags);
@@ -674,6 +674,15 @@ static int netconsole_netdev_event(struct notifier_block *this,
 			switch (event) {
 			case NETDEV_CHANGENAME:
 				strlcpy(nt->np.dev_name, dev->name, IFNAMSIZ);
+				break;
+			case NETDEV_UNREGISTER:
+				if (!nt->enabled)
+					break;
+				netpoll_cleanup(&nt->np);
+				nt->enabled = 0;
+				printk(KERN_INFO "netconsole: network logging stopped"
+					", interface %s unregistered\n",
+					dev->name);
 				break;
 			}
 		}

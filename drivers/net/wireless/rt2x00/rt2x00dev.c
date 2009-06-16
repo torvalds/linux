@@ -646,10 +646,8 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * Register HW.
 	 */
 	status = ieee80211_register_hw(rt2x00dev->hw);
-	if (status) {
-		rt2x00lib_remove_hw(rt2x00dev);
+	if (status)
 		return status;
-	}
 
 	set_bit(DEVICE_STATE_REGISTERED_HW, &rt2x00dev->flags);
 

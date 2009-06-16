@@ -77,7 +77,7 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 		drm_irq_uninstall(dev);
 	}
 
-	intel_opregion_free(dev);
+	intel_opregion_free(dev, 1);
 
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */

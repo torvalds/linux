@@ -75,7 +75,7 @@ struct gbefb_par {
 static unsigned int gbe_mem_size = CONFIG_FB_GBE_MEM * 1024*1024;
 static void *gbe_mem;
 static dma_addr_t gbe_dma_addr;
-unsigned long gbe_mem_phys;
+static unsigned long gbe_mem_phys;
 
 static struct {
 	uint16_t *cpu;
@@ -185,8 +185,8 @@ static struct fb_videomode default_mode_LCD __initdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-struct fb_videomode *default_mode __initdata = &default_mode_CRT;
-struct fb_var_screeninfo *default_var __initdata = &default_var_CRT;
+static struct fb_videomode *default_mode __initdata = &default_mode_CRT;
+static struct fb_var_screeninfo *default_var __initdata = &default_var_CRT;
 
 static int flat_panel_enabled = 0;
 
@@ -205,7 +205,7 @@ static void gbe_reset(void)
  *              console.
  */
 
-void gbe_turn_off(void)
+static void gbe_turn_off(void)
 {
 	int i;
 	unsigned int val, x, y, vpixen_off;
@@ -1097,7 +1097,7 @@ static void gbefb_create_sysfs(struct device *dev)
  * Initialization
  */
 
-int __init gbefb_setup(char *options)
+static int __init gbefb_setup(char *options)
 {
 	char *this_opt;
 
@@ -1283,7 +1283,7 @@ static struct platform_driver gbefb_driver = {
 
 static struct platform_device *gbefb_device;
 
-int __init gbefb_init(void)
+static int __init gbefb_init(void)
 {
 	int ret = platform_driver_register(&gbefb_driver);
 	if (!ret) {
@@ -1301,7 +1301,7 @@ int __init gbefb_init(void)
 	return ret;
 }
 
-void __exit gbefb_exit(void)
+static void __exit gbefb_exit(void)
 {
 	platform_device_unregister(gbefb_device);
 	platform_driver_unregister(&gbefb_driver);

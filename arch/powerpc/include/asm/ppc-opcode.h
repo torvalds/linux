@@ -44,7 +44,6 @@
 #define PPC_INST_STSWI			0x7c0005aa
 #define PPC_INST_STSWX			0x7c00052a
 #define PPC_INST_TLBILX			0x7c000024
-#define PPC_INST_TLBILX_EARLY		0x7c000626
 #define PPC_INST_WAIT			0x7c00007c
 
 /* macros to insert fields into opcodes */
@@ -64,18 +63,10 @@
 #define PPC_RFDI		stringify_in_c(.long PPC_INST_RFDI)
 #define PPC_RFMCI		stringify_in_c(.long PPC_INST_RFMCI)
 #define PPC_TLBILX(t, a, b)	stringify_in_c(.long PPC_INST_TLBILX | \
-					__PPC_T_TLB(t) | \
-					__PPC_RA(a) | __PPC_RB(b))
+					__PPC_T_TLB(t) | __PPC_RA(a) | __PPC_RB(b))
 #define PPC_TLBILX_ALL(a, b)	PPC_TLBILX(0, a, b)
 #define PPC_TLBILX_PID(a, b)	PPC_TLBILX(1, a, b)
 #define PPC_TLBILX_VA(a, b)	PPC_TLBILX(3, a, b)
-
-#define PPC_TLBILX_EARLY(t, a, b) stringify_in_c(.long PPC_INST_TLBILX_EARLY | \
-						__PPC_T_TLB(t) | \
-						__PPC_RA(a) | __PPC_RB(b))
-#define PPC_TLBILX_ALL_EARLY(a, b)	PPC_TLBILX_EARLY(0, a, b)
-#define PPC_TLBILX_PID_EARLY(a, b)	PPC_TLBILX_EARLY(1, a, b)
-#define PPC_TLBILX_VA_EARLY(a, b)	PPC_TLBILX_EARLY(3, a, b)
 #define PPC_WAIT(w)		stringify_in_c(.long PPC_INST_WAIT | \
 					__PPC_WC(w))
 

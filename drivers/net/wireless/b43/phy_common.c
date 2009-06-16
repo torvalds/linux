@@ -131,12 +131,16 @@ void b43_radio_lock(struct b43_wldev *dev)
 {
 	u32 macctl;
 
+#if B43_DEBUG
+	B43_WARN_ON(dev->phy.radio_locked);
+	dev->phy.radio_locked = 1;
+#endif
+
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	B43_WARN_ON(macctl & B43_MACCTL_RADIOLOCK);
 	macctl |= B43_MACCTL_RADIOLOCK;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
-	/* Commit the write and wait for the device
-	 * to exit any radio register access. */
+	/* Commit the write and wait for the firmware
+	 * to finish any radio register access. */
 	b43_read32(dev, B43_MMIO_MACCTL);
 	udelay(10);
 }
@@ -145,11 +149,15 @@ void b43_radio_unlock(struct b43_wldev *dev)
 {
 	u32 macctl;
 
+#if B43_DEBUG
+	B43_WARN_ON(!dev->phy.radio_locked);
+	dev->phy.radio_locked = 0;
+#endif
+
 	/* Commit any write */
 	b43_read16(dev, B43_MMIO_PHY_VER);
 	/* unlock */
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	B43_WARN_ON(!(macctl & B43_MACCTL_RADIOLOCK));
 	macctl &= ~B43_MACCTL_RADIOLOCK;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 }

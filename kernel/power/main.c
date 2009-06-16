@@ -289,12 +289,10 @@ static int suspend_enter(suspend_state_t state)
 {
 	int error;
 
-	device_pm_lock();
-
 	if (suspend_ops->prepare) {
 		error = suspend_ops->prepare();
 		if (error)
-			goto Done;
+			return error;
 	}
 
 	error = device_power_down(PMSG_SUSPEND);
@@ -342,9 +340,6 @@ static int suspend_enter(suspend_state_t state)
  Platfrom_finish:
 	if (suspend_ops->finish)
 		suspend_ops->finish();
-
- Done:
-	device_pm_unlock();
 
 	return error;
 }

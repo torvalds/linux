@@ -399,8 +399,6 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
 static int fixmaps;
-unsigned long FIXADDR_TOP = (-PAGE_SIZE);
-EXPORT_SYMBOL(FIXADDR_TOP);
 
 void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 {

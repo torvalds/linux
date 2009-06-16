@@ -319,6 +319,22 @@ struct kprobe __kprobes *get_kprobe(void *addr)
 	return NULL;
 }
 
+/* Arm a kprobe with text_mutex */
+static void __kprobes arm_kprobe(struct kprobe *kp)
+{
+	mutex_lock(&text_mutex);
+	arch_arm_kprobe(kp);
+	mutex_unlock(&text_mutex);
+}
+
+/* Disarm a kprobe with text_mutex */
+static void __kprobes disarm_kprobe(struct kprobe *kp)
+{
+	mutex_lock(&text_mutex);
+	arch_disarm_kprobe(kp);
+	mutex_unlock(&text_mutex);
+}
+
 /*
  * Aggregate handlers for multiple kprobes support - these handlers
  * take care of invoking the individual kprobe handlers on p->list
@@ -538,7 +554,7 @@ static int __kprobes add_new_kprobe(struct kprobe *ap, struct kprobe *p)
 		ap->flags &= ~KPROBE_FLAG_DISABLED;
 		if (!kprobes_all_disarmed)
 			/* Arm the breakpoint again. */
-			arch_arm_kprobe(ap);
+			arm_kprobe(ap);
 	}
 	return 0;
 }
@@ -789,11 +805,8 @@ static int __kprobes __unregister_kprobe_top(struct kprobe *p)
 		 * enabled and not gone - otherwise, the breakpoint would
 		 * already have been removed. We save on flushing icache.
 		 */
-		if (!kprobes_all_disarmed && !kprobe_disabled(old_p)) {
-			mutex_lock(&text_mutex);
-			arch_disarm_kprobe(p);
-			mutex_unlock(&text_mutex);
-		}
+		if (!kprobes_all_disarmed && !kprobe_disabled(old_p))
+			disarm_kprobe(p);
 		hlist_del_rcu(&old_p->hlist);
 	} else {
 		if (p->break_handler && !kprobe_gone(p))
@@ -810,7 +823,7 @@ noclean:
 		if (!kprobe_disabled(old_p)) {
 			try_to_disable_aggr_kprobe(old_p);
 			if (!kprobes_all_disarmed && kprobe_disabled(old_p))
-				arch_disarm_kprobe(old_p);
+				disarm_kprobe(old_p);
 		}
 	}
 	return 0;
@@ -1364,7 +1377,7 @@ int __kprobes disable_kprobe(struct kprobe *kp)
 		try_to_disable_aggr_kprobe(p);
 
 	if (!kprobes_all_disarmed && kprobe_disabled(p))
-		arch_disarm_kprobe(p);
+		disarm_kprobe(p);
 out:
 	mutex_unlock(&kprobe_mutex);
 	return ret;
@@ -1393,7 +1406,7 @@ int __kprobes enable_kprobe(struct kprobe *kp)
 	}
 
 	if (!kprobes_all_disarmed && kprobe_disabled(p))
-		arch_arm_kprobe(p);
+		arm_kprobe(p);
 
 	p->flags &= ~KPROBE_FLAG_DISABLED;
 	if (p != kp)

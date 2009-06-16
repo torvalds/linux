@@ -237,7 +237,7 @@ static int i801_transaction(int xact)
 		status = inb_p(SMBHSTSTS);
 	} while ((status & SMBHSTSTS_HOST_BUSY) && (timeout++ < MAX_TIMEOUT));
 
-	result = i801_check_post(status, timeout >= MAX_TIMEOUT);
+	result = i801_check_post(status, timeout > MAX_TIMEOUT);
 	if (result < 0)
 		return result;
 
@@ -257,9 +257,9 @@ static void i801_wait_hwpec(void)
 	} while ((!(status & SMBHSTSTS_INTR))
 		 && (timeout++ < MAX_TIMEOUT));
 
-	if (timeout >= MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT)
 		dev_dbg(&I801_dev->dev, "PEC Timeout!\n");
-	}
+
 	outb_p(status, SMBHSTSTS);
 }
 
@@ -344,7 +344,7 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		while ((!(status & SMBHSTSTS_BYTE_DONE))
 		       && (timeout++ < MAX_TIMEOUT));
 
-		result = i801_check_post(status, timeout >= MAX_TIMEOUT);
+		result = i801_check_post(status, timeout > MAX_TIMEOUT);
 		if (result < 0)
 			return result;
 

@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Jarkko Nikula <jarkko.nikula@nokia.com>
+ * Contact: Jarkko Nikula <jhnikula@gmail.com>
+ *          Peter Ujfalusi <peter.ujfalusi@nokia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -532,6 +533,6 @@ static void __exit snd_omap_mcbsp_exit(void)
 }
 module_exit(snd_omap_mcbsp_exit);
 
-MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
+MODULE_AUTHOR("Jarkko Nikula <jhnikula@gmail.com>");
 MODULE_DESCRIPTION("OMAP I2S SoC Interface");
 MODULE_LICENSE("GPL");

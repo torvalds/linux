@@ -26,10 +26,6 @@ struct vio_dev;
 struct device_node;
 struct iommu_table;
 
-/* Creates table for an individual device node */
-extern void iommu_devnode_init_iSeries(struct pci_dev *pdev,
-				       struct device_node *dn);
-
 /* Get table parameters from HV */
 extern void iommu_table_getparms_iSeries(unsigned long busno,
 		unsigned char slotno, unsigned char virtbus,

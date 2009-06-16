@@ -78,12 +78,18 @@ enum dma_transaction_type {
  * 	dependency chains
  * @DMA_COMPL_SKIP_SRC_UNMAP - set to disable dma-unmapping the source buffer(s)
  * @DMA_COMPL_SKIP_DEST_UNMAP - set to disable dma-unmapping the destination(s)
+ * @DMA_COMPL_SRC_UNMAP_SINGLE - set to do the source dma-unmapping as single
+ * 	(if not set, do the source dma-unmapping as page)
+ * @DMA_COMPL_DEST_UNMAP_SINGLE - set to do the destination dma-unmapping as single
+ * 	(if not set, do the destination dma-unmapping as page)
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
 	DMA_CTRL_ACK = (1 << 1),
 	DMA_COMPL_SKIP_SRC_UNMAP = (1 << 2),
 	DMA_COMPL_SKIP_DEST_UNMAP = (1 << 3),
+	DMA_COMPL_SRC_UNMAP_SINGLE = (1 << 4),
+	DMA_COMPL_DEST_UNMAP_SINGLE = (1 << 5),
 };
 
 /**

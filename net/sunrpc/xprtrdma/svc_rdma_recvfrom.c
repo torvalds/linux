@@ -265,7 +265,7 @@ static int fast_reg_read_chunks(struct svcxprt_rdma *xprt,
 		frmr->page_list->page_list[page_no] =
 			ib_dma_map_single(xprt->sc_cm_id->device,
 					  page_address(rqstp->rq_arg.pages[page_no]),
-					  PAGE_SIZE, DMA_TO_DEVICE);
+					  PAGE_SIZE, DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 frmr->page_list->page_list[page_no]))
 			goto fatal_err;

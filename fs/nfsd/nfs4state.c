@@ -578,7 +578,6 @@ free_session(struct kref *kref)
 		struct nfsd4_cache_entry *e = &ses->se_slots[i].sl_cache_entry;
 		nfsd4_release_respages(e->ce_respages, e->ce_resused);
 	}
-	kfree(ses->se_slots);
 	kfree(ses);
 }
 

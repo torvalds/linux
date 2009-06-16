@@ -1238,7 +1238,8 @@ static struct snd_pcm_hardware snd_korg1212_playback_info =
 {
 	.info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |
-                              SNDRV_PCM_INFO_INTERLEAVED),
+			      SNDRV_PCM_INFO_INTERLEAVED |
+			      SNDRV_PCM_INFO_BATCH),
 	.formats =	      SNDRV_PCM_FMTBIT_S16_LE,
         .rates =              (SNDRV_PCM_RATE_44100 |
                               SNDRV_PCM_RATE_48000),
@@ -1258,7 +1259,8 @@ static struct snd_pcm_hardware snd_korg1212_capture_info =
 {
         .info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |
-                              SNDRV_PCM_INFO_INTERLEAVED),
+			      SNDRV_PCM_INFO_INTERLEAVED |
+			      SNDRV_PCM_INFO_BATCH),
         .formats =	      SNDRV_PCM_FMTBIT_S16_LE,
         .rates =	      (SNDRV_PCM_RATE_44100 |
                               SNDRV_PCM_RATE_48000),

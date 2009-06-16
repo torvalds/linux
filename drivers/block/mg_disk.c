@@ -79,7 +79,7 @@ static void mg_dump_status(const char *msg, unsigned int stat,
 			if (host->breq) {
 				req = elv_next_request(host->breq);
 				if (req)
-					printk(", sector=%ld", req->sector);
+					printk(", sector=%u", (u32)req->sector);
 			}
 
 		}
@@ -160,11 +160,16 @@ static irqreturn_t mg_irq(int irq, void *dev_id)
 	struct mg_host *host = dev_id;
 	void (*handler)(struct mg_host *) = host->mg_do_intr;
 
-	host->mg_do_intr = 0;
+	spin_lock(&host->lock);
+
+	host->mg_do_intr = NULL;
 	del_timer(&host->timer);
 	if (!handler)
 		handler = mg_unexpected_intr;
 	handler(host);
+
+	spin_unlock(&host->lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -319,7 +324,7 @@ static void mg_read(struct request *req)
 
 	remains = req->nr_sectors;
 
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_RD, 0) !=
+	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_RD, NULL) !=
 			MG_ERR_NONE)
 		mg_bad_rw_intr(host);
 
@@ -363,7 +368,7 @@ static void mg_write(struct request *req)
 
 	remains = req->nr_sectors;
 
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_WR, 0) !=
+	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_WR, NULL) !=
 			MG_ERR_NONE) {
 		mg_bad_rw_intr(host);
 		return;
@@ -521,9 +526,11 @@ void mg_times_out(unsigned long data)
 	char *name;
 	struct request *req;
 
+	spin_lock_irq(&host->lock);
+
 	req = elv_next_request(host->breq);
 	if (!req)
-		return;
+		goto out_unlock;
 
 	host->mg_do_intr = NULL;
 
@@ -534,6 +541,8 @@ void mg_times_out(unsigned long data)
 	mg_bad_rw_intr(host);
 
 	mg_request(host->breq);
+out_unlock:
+	spin_unlock_irq(&host->lock);
 }
 
 static void mg_request_poll(struct request_queue *q)

@@ -181,11 +181,7 @@ static struct omap_usb_config nokia770_usb_config __initdata = {
 static int nokia770_mmc_set_power(struct device *dev, int slot, int power_on,
 				int vdd)
 {
-	if (power_on)
-		gpio_set_value(NOKIA770_GPIO_MMC_POWER, 1);
-	else
-		gpio_set_value(NOKIA770_GPIO_MMC_POWER, 0);
-
+	gpio_set_value(NOKIA770_GPIO_MMC_POWER, power_on);
 	return 0;
 }
 

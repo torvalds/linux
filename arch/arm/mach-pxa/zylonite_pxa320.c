@@ -68,6 +68,7 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO38_AC97_SYNC,
 	GPIO39_AC97_BITCLK,
 	GPIO40_AC97_nACRESET,
+	GPIO36_GPIO,	/* SDATA_IN_1 but unused - configure to GPIO */
 
 	/* SSP3 */
 	GPIO89_SSP3_SCLK,

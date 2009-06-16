@@ -38,8 +38,10 @@ struct nameidata;
 int reiserfs_xattr_register_handlers(void) __init;
 void reiserfs_xattr_unregister_handlers(void);
 int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
+int reiserfs_lookup_privroot(struct super_block *sb);
 int reiserfs_delete_xattrs(struct inode *inode);
 int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
+int reiserfs_permission(struct inode *inode, int mask);
 
 #ifdef CONFIG_REISERFS_FS_XATTR
 #define has_xattr_dir(inode) (REISERFS_I(inode)->i_flags & i_has_xattr_dir)
@@ -49,7 +51,6 @@ int reiserfs_setxattr(struct dentry *dentry, const char *name,
 		      const void *value, size_t size, int flags);
 ssize_t reiserfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int reiserfs_removexattr(struct dentry *dentry, const char *name);
-int reiserfs_permission(struct inode *inode, int mask);
 
 int reiserfs_xattr_get(struct inode *, const char *, void *, size_t);
 int reiserfs_xattr_set(struct inode *, const char *, const void *, size_t, int);
@@ -97,7 +98,7 @@ static inline size_t reiserfs_xattr_jcreate_nblocks(struct inode *inode)
 
 	if ((REISERFS_I(inode)->i_flags & i_has_xattr_dir) == 0) {
 		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
-		if (REISERFS_SB(inode->i_sb)->xattr_root == NULL)
+		if (!REISERFS_SB(inode->i_sb)->xattr_root->d_inode)
 			nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
 	}
 
@@ -115,8 +116,6 @@ static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 #define reiserfs_setxattr NULL
 #define reiserfs_listxattr NULL
 #define reiserfs_removexattr NULL
-
-#define reiserfs_permission NULL
 
 static inline void reiserfs_init_xattr_rwsem(struct inode *inode)
 {

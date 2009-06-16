@@ -353,8 +353,10 @@ static irqreturn_t acpi_irq(int irq, void *dev_id)
 	if (handled) {
 		acpi_irq_handled++;
 		return IRQ_HANDLED;
-	} else
+	} else {
+		acpi_irq_not_handled++;
 		return IRQ_NONE;
+	}
 }
 
 acpi_status

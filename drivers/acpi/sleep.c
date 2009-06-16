@@ -713,6 +713,32 @@ static void acpi_power_off(void)
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
 
+/*
+ * ACPI 2.0 created the optional _GTS and _BFS,
+ * but industry adoption has been neither rapid nor broad.
+ *
+ * Linux gets into trouble when it executes poorly validated
+ * paths through the BIOS, so disable _GTS and _BFS by default,
+ * but do speak up and offer the option to enable them.
+ */
+void __init acpi_gts_bfs_check(void)
+{
+	acpi_handle dummy;
+
+	if (ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT, METHOD_NAME__GTS, &dummy)))
+	{
+		printk(KERN_NOTICE PREFIX "BIOS offers _GTS\n");
+		printk(KERN_NOTICE PREFIX "If \"acpi.gts=1\" improves suspend, "
+			"please notify linux-acpi@vger.kernel.org\n");
+	}
+	if (ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT, METHOD_NAME__BFS, &dummy)))
+	{
+		printk(KERN_NOTICE PREFIX "BIOS offers _BFS\n");
+		printk(KERN_NOTICE PREFIX "If \"acpi.bfs=1\" improves resume, "
+			"please notify linux-acpi@vger.kernel.org\n");
+	}
+}
+
 int __init acpi_sleep_init(void)
 {
 	acpi_status status;
@@ -771,5 +797,6 @@ int __init acpi_sleep_init(void)
 	 * object can also be evaluated when the system enters S5.
 	 */
 	register_reboot_notifier(&tts_notifier);
+	acpi_gts_bfs_check();
 	return 0;
 }

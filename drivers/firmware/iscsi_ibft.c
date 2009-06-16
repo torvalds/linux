@@ -754,11 +754,11 @@ static int __init ibft_check_nic_for(struct ibft_nic *nic, int entry)
 		rc = 1;
 		break;
 	case ibft_eth_ip_addr:
-		if (!memcmp(nic->dhcp, nulls, sizeof(nic->dhcp)))
+		if (memcmp(nic->ip_addr, nulls, sizeof(nic->ip_addr)))
 			rc = 1;
 		break;
 	case ibft_eth_subnet_mask:
-		if (!memcmp(nic->dhcp, nulls, sizeof(nic->dhcp)))
+		if (nic->subnet_mask_prefix)
 			rc = 1;
 		break;
 	case ibft_eth_origin:

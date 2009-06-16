@@ -70,7 +70,7 @@ SRC_ARCH              = $(srctree)/arch/cris
 # cris object files path
 OBJ_ARCH              = $(objtree)/arch/cris
 
-boot := arch/cris/$(SARCH)/boot
+boot := arch/cris/boot
 MACHINE := arch/cris/$(SARCH)
 
 all: zImage
@@ -81,15 +81,15 @@ zImage Image: vmlinux
 archprepare:
 
 archclean:
-	$(Q)if [ -e arch/cris/$(SARCH)/boot ]; then \
-		$(MAKE) $(clean)=arch/cris/$(SARCH)/boot; \
+	$(Q)if [ -e arch/cris/boot ]; then \
+		$(MAKE) $(clean)=arch/cris/boot; \
 	fi
 
 CLEAN_FILES += \
-	$(MACHINE)/boot/zImage \
-	$(MACHINE)/boot/compressed/decompress.bin \
-	$(MACHINE)/boot/compressed/piggy.gz \
-	$(MACHINE)/boot/rescue/rescue.bin
+	$(boot)/zImage \
+	$(boot)/compressed/decompress.bin \
+	$(boot)/compressed/piggy.gz \
+	$(boot)/rescue/rescue.bin
 
 
 # MRPROPER_FILES +=

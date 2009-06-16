@@ -1193,7 +1193,8 @@ extern int	   jbd2_journal_init_revoke_caches(void);
 extern void	   jbd2_journal_destroy_revoke(journal_t *);
 extern int	   jbd2_journal_revoke (handle_t *, unsigned long long, struct buffer_head *);
 extern int	   jbd2_journal_cancel_revoke(handle_t *, struct journal_head *);
-extern void	   jbd2_journal_write_revoke_records(journal_t *, transaction_t *);
+extern void	   jbd2_journal_write_revoke_records(journal_t *,
+						     transaction_t *, int);
 
 /* Recovery revoke support */
 extern int	jbd2_journal_set_revoke(journal_t *, unsigned long long, tid_t);

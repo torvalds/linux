@@ -402,7 +402,10 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 
 	elv_merge_requests(q, req, next);
 
-	blk_account_io_merge(req);
+	/*
+	 * 'next' is going away, so update stats accordingly
+	 */
+	blk_account_io_merge(next);
 
 	req->ioprio = ioprio_best(req->ioprio, next->ioprio);
 	if (blk_rq_cpu_valid(next))

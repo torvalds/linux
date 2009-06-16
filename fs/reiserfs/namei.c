@@ -338,21 +338,8 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 				&path_to_entry, &de);
 	pathrelse(&path_to_entry);
 	if (retval == NAME_FOUND) {
-		/* Hide the .reiserfs_priv directory */
-		if (reiserfs_xattrs(dir->i_sb) &&
-		    !old_format_only(dir->i_sb) &&
-		    REISERFS_SB(dir->i_sb)->priv_root &&
-		    REISERFS_SB(dir->i_sb)->priv_root->d_inode &&
-		    de.de_objectid ==
-		    le32_to_cpu(INODE_PKEY
-				(REISERFS_SB(dir->i_sb)->priv_root->d_inode)->
-				k_objectid)) {
-			reiserfs_write_unlock(dir->i_sb);
-			return ERR_PTR(-EACCES);
-		}
-
-		inode =
-		    reiserfs_iget(dir->i_sb, (struct cpu_key *)&(de.de_dir_id));
+		inode = reiserfs_iget(dir->i_sb,
+				      (struct cpu_key *)&(de.de_dir_id));
 		if (!inode || IS_ERR(inode)) {
 			reiserfs_write_unlock(dir->i_sb);
 			return ERR_PTR(-EACCES);

@@ -289,12 +289,12 @@ config MACH_LITTLETON
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
 	select PXA3xx
-	select PXA930
+	select CPU_PXA930
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
 	select PXA3xx
-	select PXA930
+	select CPU_PXA930
 
 config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"

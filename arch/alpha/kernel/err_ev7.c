@@ -117,7 +117,7 @@ ev7_collect_logout_frame_subpackets(struct el_subpacket *el_ptr,
 }
 
 void
-ev7_machine_check(u64 vector, u64 la_ptr)
+ev7_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	struct el_subpacket *el_ptr = (struct el_subpacket *)la_ptr;
 	char *saved_err_prefix = err_print_prefix;
@@ -246,7 +246,7 @@ ev7_process_pal_subpacket(struct el_subpacket *header)
 
 	switch(header->type) {
 	case EL_TYPE__PAL__LOGOUT_FRAME:
-		printk("%s*** MCHK occurred on LPID %ld (RBOX %llx)\n",
+		printk("%s*** MCHK occurred on LPID %lld (RBOX %llx)\n",
 		       err_print_prefix,
 		       packet->by_type.logout.whami, 
 		       packet->by_type.logout.rbox_whami);

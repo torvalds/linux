@@ -340,28 +340,24 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	for (i = 0; i < num_referrals; i++) {
+		int len;
 		dump_referral(referrals+i);
-		/* connect to a storage node */
-		if (referrals[i].flags & DFSREF_STORAGE_SERVER) {
-			int len;
-			len = strlen(referrals[i].node_name);
-			if (len < 2) {
-				cERROR(1, ("%s: Net Address path too short: %s",
+		/* connect to a node */
+		len = strlen(referrals[i].node_name);
+		if (len < 2) {
+			cERROR(1, ("%s: Net Address path too short: %s",
 					__func__, referrals[i].node_name));
-				rc = -EINVAL;
-				goto out_err;
-			}
-			mnt = cifs_dfs_do_refmount(nd->path.mnt,
-						nd->path.dentry,
-						referrals + i);
-			cFYI(1, ("%s: cifs_dfs_do_refmount:%s , mnt:%p",
-					 __func__,
+			rc = -EINVAL;
+			goto out_err;
+		}
+		mnt = cifs_dfs_do_refmount(nd->path.mnt,
+				nd->path.dentry, referrals + i);
+		cFYI(1, ("%s: cifs_dfs_do_refmount:%s , mnt:%p", __func__,
 					referrals[i].node_name, mnt));
 
-			/* complete mount procedure if we accured submount */
-			if (!IS_ERR(mnt))
-				break;
-		}
+		/* complete mount procedure if we accured submount */
+		if (!IS_ERR(mnt))
+			break;
 	}
 
 	/* we need it cause for() above could exit without valid submount */

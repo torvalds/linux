@@ -149,6 +149,7 @@ struct nes_timer_entry {
 #endif
 #define NES_SHORT_TIME      (10)
 #define NES_LONG_TIME       (2000*HZ/1000)
+#define NES_MAX_TIMEOUT     ((unsigned long) (12*HZ))
 
 #define NES_CM_HASHTABLE_SIZE         1024
 #define NES_CM_TCP_TIMER_INTERVAL     3000

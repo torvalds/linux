@@ -230,13 +230,13 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	 * sysfs_streq() doesn't need the \n's, but we add them so the strings
 	 * will be shared with show_mode(), above.
 	 */
-	if (sysfs_streq(buf, "fast\n") == 0)
+	if (sysfs_streq(buf, "fast\n"))
 		mode = REGULATOR_MODE_FAST;
-	else if (sysfs_streq(buf, "normal\n") == 0)
+	else if (sysfs_streq(buf, "normal\n"))
 		mode = REGULATOR_MODE_NORMAL;
-	else if (sysfs_streq(buf, "idle\n") == 0)
+	else if (sysfs_streq(buf, "idle\n"))
 		mode = REGULATOR_MODE_IDLE;
-	else if (sysfs_streq(buf, "standby\n") == 0)
+	else if (sysfs_streq(buf, "standby\n"))
 		mode = REGULATOR_MODE_STANDBY;
 	else {
 		dev_err(dev, "Configuring invalid mode\n");

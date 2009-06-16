@@ -122,7 +122,7 @@ static void fcoe_ctlr_reset_fcfs(struct fcoe_ctlr *fip)
 }
 
 /**
- * fcoe_ctrl_destroy() - Disable and tear-down the FCoE controller.
+ * fcoe_ctlr_destroy() - Disable and tear-down the FCoE controller.
  * @fip:	FCoE controller.
  *
  * This is called by FCoE drivers before freeing the &fcoe_ctlr.

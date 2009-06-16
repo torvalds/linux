@@ -148,9 +148,13 @@ static void *ax25_uid_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ax25_uid_assoc *pt;
 	struct hlist_node *node;
-	int i = 0;
+	int i = 1;
 
 	read_lock(&ax25_uid_lock);
+
+	if (*pos == 0)
+		return SEQ_START_TOKEN;
+
 	ax25_uid_for_each(pt, node, &ax25_uid_list) {
 		if (i == *pos)
 			return pt;
@@ -162,8 +166,10 @@ static void *ax25_uid_seq_start(struct seq_file *seq, loff_t *pos)
 static void *ax25_uid_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-
-	return hlist_entry(((ax25_uid_assoc *)v)->uid_node.next,
+	if (v == SEQ_START_TOKEN)
+		return ax25_uid_list.first;
+	else
+		return hlist_entry(((ax25_uid_assoc *)v)->uid_node.next,
 			   ax25_uid_assoc, uid_node);
 }
 

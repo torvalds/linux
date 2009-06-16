@@ -832,7 +832,7 @@ static int __init uv_bau_init(void)
 		return 0;
 
 	for_each_possible_cpu(cur_cpu)
-		alloc_cpumask_var_node(&per_cpu(uv_flush_tlb_mask, cur_cpu),
+		zalloc_cpumask_var_node(&per_cpu(uv_flush_tlb_mask, cur_cpu),
 				       GFP_KERNEL, cpu_to_node(cur_cpu));
 
 	uv_bau_retry_limit = 1;

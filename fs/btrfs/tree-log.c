@@ -536,7 +536,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
 	ret = btrfs_drop_extents(trans, root, inode,
-			 start, extent_end, start, &alloc_hint);
+			 start, extent_end, extent_end, start, &alloc_hint);
 	BUG_ON(ret);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||

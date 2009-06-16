@@ -2,6 +2,8 @@
 #define _LINUX_INIT_H
 
 #include <linux/compiler.h>
+#include <linux/section-names.h>
+#include <linux/stringify.h>
 
 /* These macros are used to mark some functions or 
  * initialized data (doesn't apply to uninitialized data)
@@ -60,14 +62,6 @@
 #define __refdata        __section(.ref.data)
 #define __refconst       __section(.ref.rodata)
 
-/* backward compatibility note
- *  A few places hardcode the old section names:
- *  .text.init.refok
- *  .data.init.refok
- *  .exit.text.refok
- *  They should be converted to use the defines from this file
- */
-
 /* compatibility defines */
 #define __init_refok     __ref
 #define __initdata_refok __refdata
@@ -107,7 +101,7 @@
 #define __memexitconst   __section(.memexit.rodata)
 
 /* For assembly routines */
-#define __HEAD		.section	".head.text","ax"
+#define __HEAD		.section	__stringify(HEAD_TEXT_SECTION),"ax"
 #define __INIT		.section	".init.text","ax"
 #define __FINIT		.previous
 

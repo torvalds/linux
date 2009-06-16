@@ -108,7 +108,6 @@ static int zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	/* initialize request counter */
 	BUG_ON(!zfcp_reqlist_isempty(adapter));
 	adapter->req_no = 0;
-	zfcp_fc_nameserver_init(adapter);
 
 	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
 				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);

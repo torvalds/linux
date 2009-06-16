@@ -200,7 +200,7 @@ static inline void arch_fix_phys_package_id(int num, u32 slot)
 }
 
 struct pci_bus;
-void set_pci_bus_resources_arch_default(struct pci_bus *b);
+void x86_pci_root_bus_res_quirks(struct pci_bus *b);
 
 #ifdef CONFIG_SMP
 #define mc_capable()	(cpumask_weight(cpu_core_mask(0)) != nr_cpu_ids)

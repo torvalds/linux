@@ -407,6 +407,7 @@ void nilfs_dispose_segment_list(struct list_head *head)
 }
 
 static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
+					      struct nilfs_sb_info *sbi,
 					      struct nilfs_recovery_info *ri)
 {
 	struct list_head *head = &ri->ri_used_segments;
@@ -421,6 +422,7 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	segnum[2] = ri->ri_segnum;
 	segnum[3] = ri->ri_nextnum;
 
+	nilfs_attach_writer(nilfs, sbi);
 	/*
 	 * Releasing the next segment of the latest super root.
 	 * The next segment is invalidated by this recovery.
@@ -459,10 +461,10 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	nilfs->ns_pseg_offset = 0;
 	nilfs->ns_seg_seq = ri->ri_seq + 2;
 	nilfs->ns_nextnum = nilfs->ns_segnum = segnum[0];
-	return 0;
 
  failed:
 	/* No need to recover sufile because it will be destroyed on error */
+	nilfs_detach_writer(nilfs, sbi);
 	return err;
 }
 
@@ -728,7 +730,7 @@ int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
 		goto failed;
 
 	if (ri->ri_need_recovery == NILFS_RECOVERY_ROLLFORWARD_DONE) {
-		err = nilfs_prepare_segment_for_recovery(nilfs, ri);
+		err = nilfs_prepare_segment_for_recovery(nilfs, sbi, ri);
 		if (unlikely(err)) {
 			printk(KERN_ERR "NILFS: Error preparing segments for "
 			       "recovery.\n");

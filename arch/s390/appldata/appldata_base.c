@@ -98,7 +98,7 @@ static DECLARE_WORK(appldata_work, appldata_work_fn);
 /*
  * Ops list
  */
-static DEFINE_SPINLOCK(appldata_ops_lock);
+static DEFINE_MUTEX(appldata_ops_mutex);
 static LIST_HEAD(appldata_ops_list);
 
 
@@ -129,14 +129,14 @@ static void appldata_work_fn(struct work_struct *work)
 
 	i = 0;
 	get_online_cpus();
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	list_for_each(lh, &appldata_ops_list) {
 		ops = list_entry(lh, struct appldata_ops, list);
 		if (ops->active == 1) {
 			ops->callback(ops->data);
 		}
 	}
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 	put_online_cpus();
 }
 
@@ -338,7 +338,7 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 	struct list_head *lh;
 
 	found = 0;
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	list_for_each(lh, &appldata_ops_list) {
 		tmp_ops = list_entry(lh, struct appldata_ops, list);
 		if (&tmp_ops->ctl_table[2] == ctl) {
@@ -346,15 +346,15 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 		}
 	}
 	if (!found) {
-		spin_unlock(&appldata_ops_lock);
+		mutex_unlock(&appldata_ops_mutex);
 		return -ENODEV;
 	}
 	ops = ctl->data;
 	if (!try_module_get(ops->owner)) {	// protect this function
-		spin_unlock(&appldata_ops_lock);
+		mutex_unlock(&appldata_ops_mutex);
 		return -ENODEV;
 	}
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 
 	if (!*lenp || *ppos) {
 		*lenp = 0;
@@ -378,11 +378,11 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 		return -EFAULT;
 	}
 
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	if ((buf[0] == '1') && (ops->active == 0)) {
 		// protect work queue callback
 		if (!try_module_get(ops->owner)) {
-			spin_unlock(&appldata_ops_lock);
+			mutex_unlock(&appldata_ops_mutex);
 			module_put(ops->owner);
 			return -ENODEV;
 		}
@@ -407,7 +407,7 @@ appldata_generic_handler(ctl_table *ctl, int write, struct file *filp,
 			       "failed with rc=%d\n", ops->name, rc);
 		module_put(ops->owner);
 	}
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 out:
 	*lenp = len;
 	*ppos += len;
@@ -433,9 +433,9 @@ int appldata_register_ops(struct appldata_ops *ops)
 	if (!ops->ctl_table)
 		return -ENOMEM;
 
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	list_add(&ops->list, &appldata_ops_list);
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 
 	ops->ctl_table[0].procname = appldata_proc_name;
 	ops->ctl_table[0].maxlen   = 0;
@@ -452,9 +452,9 @@ int appldata_register_ops(struct appldata_ops *ops)
 		goto out;
 	return 0;
 out:
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	list_del(&ops->list);
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 	kfree(ops->ctl_table);
 	return -ENOMEM;
 }
@@ -466,9 +466,9 @@ out:
  */
 void appldata_unregister_ops(struct appldata_ops *ops)
 {
-	spin_lock(&appldata_ops_lock);
+	mutex_lock(&appldata_ops_mutex);
 	list_del(&ops->list);
-	spin_unlock(&appldata_ops_lock);
+	mutex_unlock(&appldata_ops_mutex);
 	unregister_sysctl_table(ops->sysctl_header);
 	kfree(ops->ctl_table);
 }

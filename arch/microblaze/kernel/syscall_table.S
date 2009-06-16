@@ -363,3 +363,5 @@ ENTRY(sys_call_table)
 	.long sys_sendmsg		/* 360 */
 	.long sys_recvmsg
 	.long sys_ni_syscall
+	.long sys_ni_syscall
+	.long sys_ni_syscall

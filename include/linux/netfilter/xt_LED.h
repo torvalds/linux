@@ -1,6 +1,8 @@
 #ifndef _XT_LED_H
 #define _XT_LED_H
 
+#include <linux/types.h>
+
 struct xt_led_info {
 	char id[27];        /* Unique ID for this trigger in the LED class */
 	__u8 always_blink;  /* Blink even if the LED is already on */

@@ -2728,7 +2728,7 @@ static void __devexit e100_remove(struct pci_dev *pdev)
 #define E100_82552_SMARTSPEED   0x14   /* SmartSpeed Ctrl register */
 #define E100_82552_REV_ANEG     0x0200 /* Reverse auto-negotiation */
 #define E100_82552_ANEG_NOW     0x0400 /* Auto-negotiate now */
-static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
+static void __e100_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct nic *nic = netdev_priv(netdev);
@@ -2749,19 +2749,32 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 			           E100_82552_SMARTSPEED, smartspeed |
 			           E100_82552_REV_ANEG | E100_82552_ANEG_NOW);
 		}
-		if (pci_enable_wake(pdev, PCI_D3cold, true))
-			pci_enable_wake(pdev, PCI_D3hot, true);
+		*enable_wake = true;
 	} else {
-		pci_enable_wake(pdev, PCI_D3hot, false);
+		*enable_wake = false;
 	}
 
 	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
+}
 
-	return 0;
+static int __e100_power_off(struct pci_dev *pdev, bool wake)
+{
+	if (wake) {
+		return pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		return pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
 #ifdef CONFIG_PM
+static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	bool wake;
+	__e100_shutdown(pdev, &wake);
+	return __e100_power_off(pdev, wake);
+}
+
 static int e100_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -2792,7 +2805,10 @@ static int e100_resume(struct pci_dev *pdev)
 
 static void e100_shutdown(struct pci_dev *pdev)
 {
-	e100_suspend(pdev, PMSG_SUSPEND);
+	bool wake;
+	__e100_shutdown(pdev, &wake);
+	if (system_state == SYSTEM_POWER_OFF)
+		__e100_power_off(pdev, wake);
 }
 
 /* ------------------ PCI Error Recovery infrastructure  -------------- */

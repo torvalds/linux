@@ -134,6 +134,7 @@ static void req_done(struct virtqueue *vq)
 		P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
 		P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n", rc->tag);
 		req = p9_tag_lookup(chan->client, rc->tag);
+		req->status = REQ_STATUS_RCVD;
 		p9_client_cb(chan->client, req);
 	}
 }

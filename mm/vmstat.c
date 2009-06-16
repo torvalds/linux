@@ -509,22 +509,11 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
 			continue;
 
 		page = pfn_to_page(pfn);
-#ifdef CONFIG_ARCH_FLATMEM_HAS_HOLES
-		/*
-		 * Ordinarily, memory holes in flatmem still have a valid
-		 * memmap for the PFN range. However, an architecture for
-		 * embedded systems (e.g. ARM) can free up the memmap backing
-		 * holes to save memory on the assumption the memmap is
-		 * never used. The page_zone linkages are then broken even
-		 * though pfn_valid() returns true. Skip the page if the
-		 * linkages are broken. Even if this test passed, the impact
-		 * is that the counters for the movable type are off but
-		 * fragmentation monitoring is likely meaningless on small
-		 * systems.
-		 */
-		if (page_zone(page) != zone)
+
+		/* Watch for unexpected holes punched in the memmap */
+		if (!memmap_valid_within(pfn, page, zone))
 			continue;
-#endif
+
 		mtype = get_pageblock_migratetype(page);
 
 		if (mtype < MIGRATE_TYPES)

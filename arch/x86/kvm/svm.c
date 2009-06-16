@@ -411,7 +411,6 @@ static __init int svm_hardware_setup(void)
 
 	iopm_va = page_address(iopm_pages);
 	memset(iopm_va, 0xff, PAGE_SIZE * (1 << IOPM_ALLOC_ORDER));
-	clear_bit(0x80, iopm_va); /* allow direct access to PC debug port */
 	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -796,6 +795,11 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	var->db = (s->attrib >> SVM_SELECTOR_DB_SHIFT) & 1;
 	var->g = (s->attrib >> SVM_SELECTOR_G_SHIFT) & 1;
 
+	/* AMD's VMCB does not have an explicit unusable field, so emulate it
+	 * for cross vendor migration purposes by "not present"
+	 */
+	var->unusable = !var->present || (var->type == 0);
+
 	switch (seg) {
 	case VCPU_SREG_CS:
 		/*
@@ -827,8 +831,6 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 			var->type |= 0x1;
 		break;
 	}
-
-	var->unusable = !var->present;
 }
 
 static int svm_get_cpl(struct kvm_vcpu *vcpu)

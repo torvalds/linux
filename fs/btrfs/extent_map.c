@@ -6,19 +6,14 @@
 #include <linux/hardirq.h>
 #include "extent_map.h"
 
-/* temporary define until extent_map moves out of btrfs */
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long));
 
 static struct kmem_cache *extent_map_cache;
 
 int __init extent_map_init(void)
 {
-	extent_map_cache = btrfs_cache_create("extent_map",
-					    sizeof(struct extent_map), 0,
-					    NULL);
+	extent_map_cache = kmem_cache_create("extent_map",
+			sizeof(struct extent_map), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_map_cache)
 		return -ENOMEM;
 	return 0;
@@ -43,7 +38,6 @@ void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 	tree->map.rb_node = NULL;
 	spin_lock_init(&tree->lock);
 }
-EXPORT_SYMBOL(extent_map_tree_init);
 
 /**
  * alloc_extent_map - allocate new extent map structure
@@ -64,7 +58,6 @@ struct extent_map *alloc_extent_map(gfp_t mask)
 	atomic_set(&em->refs, 1);
 	return em;
 }
-EXPORT_SYMBOL(alloc_extent_map);
 
 /**
  * free_extent_map - drop reference count of an extent_map
@@ -83,7 +76,6 @@ void free_extent_map(struct extent_map *em)
 		kmem_cache_free(extent_map_cache, em);
 	}
 }
-EXPORT_SYMBOL(free_extent_map);
 
 static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 				   struct rb_node *node)
@@ -264,7 +256,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 out:
 	return ret;
 }
-EXPORT_SYMBOL(add_extent_mapping);
 
 /* simple helper to do math around the end of an extent, handling wrap */
 static u64 range_end(u64 start, u64 len)
@@ -326,7 +317,6 @@ found:
 out:
 	return em;
 }
-EXPORT_SYMBOL(lookup_extent_mapping);
 
 /**
  * remove_extent_mapping - removes an extent_map from the extent tree
@@ -346,4 +336,3 @@ int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	em->in_tree = 0;
 	return ret;
 }
-EXPORT_SYMBOL(remove_extent_mapping);

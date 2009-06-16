@@ -30,6 +30,13 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 	int temp; /* for saving temp value */
 	get_pvr(&pvr);
 
+	CI(ver_code, VERSION);
+	if (!ci->ver_code) {
+		printk(KERN_ERR "ERROR: MB has broken PVR regs "
+						"-> use DTS setting\n");
+		return;
+	}
+
 	temp = PVR_USE_BARREL(pvr) | PVR_USE_MSR_INSTR(pvr) |\
 		PVR_USE_PCMP_INSTR(pvr) | PVR_USE_DIV(pvr);
 	if (ci->use_instr != temp)
@@ -59,8 +66,6 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 	CI(pvr_user2, USER2);
 
 	CI(mmu, USE_MMU);
-
-	CI(ver_code, VERSION);
 
 	CI(use_icache, USE_ICACHE);
 	CI(icache_tagbits, ICACHE_ADDR_TAG_BITS);

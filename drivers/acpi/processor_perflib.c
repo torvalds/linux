@@ -309,9 +309,15 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 				  (u32) px->bus_master_latency,
 				  (u32) px->control, (u32) px->status));
 
-		if (!px->core_frequency) {
-			printk(KERN_ERR PREFIX
-				    "Invalid _PSS data: freq is zero\n");
+		/*
+ 		 * Check that ACPI's u64 MHz will be valid as u32 KHz in cpufreq
+		 */
+		if (!px->core_frequency ||
+		    ((u32)(px->core_frequency * 1000) !=
+		     (px->core_frequency * 1000))) {
+			printk(KERN_ERR FW_BUG PREFIX
+			       "Invalid BIOS _PSS frequency: 0x%llx MHz\n",
+			       px->core_frequency);
 			result = -EFAULT;
 			kfree(pr->performance->states);
 			goto end;

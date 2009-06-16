@@ -10,6 +10,7 @@
  *
  * Head.S contains the SH exception handlers and startup code.
  */
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 
@@ -40,7 +41,7 @@ ENTRY(empty_zero_page)
 1:
 	.skip	PAGE_SIZE - empty_zero_page - 1b
 
-	.section	.text.head, "ax"
+	__HEAD
 
 /*
  * Condition at the entry of _stext:

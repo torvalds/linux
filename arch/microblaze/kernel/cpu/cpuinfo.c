@@ -71,7 +71,7 @@ void __init setup_cpuinfo(void)
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		break;
-/* FIXME I found weird behavior with MB 7.00.a/b
+/* FIXME I found weird behavior with MB 7.00.a/b 7.10.a
  * please do not use FULL PVR with MMU */
 	case 1:
 		printk(KERN_INFO "%s: Using full CPU PVR support\n",

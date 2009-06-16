@@ -760,18 +760,11 @@ void omap_free_dma(int lch)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&dma_chan_lock, flags);
 	if (dma_chan[lch].dev_id == -1) {
 		pr_err("omap_dma: trying to free unallocated DMA channel %d\n",
 		       lch);
-		spin_unlock_irqrestore(&dma_chan_lock, flags);
 		return;
 	}
-
-	dma_chan[lch].dev_id = -1;
-	dma_chan[lch].next_lch = -1;
-	dma_chan[lch].callback = NULL;
-	spin_unlock_irqrestore(&dma_chan_lock, flags);
 
 	if (cpu_class_is_omap1()) {
 		/* Disable all DMA interrupts for the channel. */
@@ -798,6 +791,12 @@ void omap_free_dma(int lch)
 		dma_write(0, CCR(lch));
 		omap_clear_dma(lch);
 	}
+
+	spin_lock_irqsave(&dma_chan_lock, flags);
+	dma_chan[lch].dev_id = -1;
+	dma_chan[lch].next_lch = -1;
+	dma_chan[lch].callback = NULL;
+	spin_unlock_irqrestore(&dma_chan_lock, flags);
 }
 EXPORT_SYMBOL(omap_free_dma);
 
