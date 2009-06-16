@@ -75,22 +75,17 @@ void arch_teardown_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-static void __msi_set_enable(struct pci_dev *dev, int pos, int enable)
+static void msi_set_enable(struct pci_dev *dev, int pos, int enable)
 {
 	u16 control;
 
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-		control &= ~PCI_MSI_FLAGS_ENABLE;
-		if (enable)
-			control |= PCI_MSI_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
-	}
-}
+	BUG_ON(!pos);
 
-static void msi_set_enable(struct pci_dev *dev, int enable)
-{
-	__msi_set_enable(dev, pci_find_capability(dev, PCI_CAP_ID_MSI), enable);
+	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
+	control &= ~PCI_MSI_FLAGS_ENABLE;
+	if (enable)
+		control |= PCI_MSI_FLAGS_ENABLE;
+	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 }
 
 static void msix_set_enable(struct pci_dev *dev, int enable)
@@ -300,7 +295,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	pos = entry->msi_attrib.pos;
 
 	pci_intx_for_msi(dev, 0);
-	msi_set_enable(dev, 0);
+	msi_set_enable(dev, pos, 0);
 	write_msi_msg(dev->irq, &entry->msg);
 
 	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
@@ -362,9 +357,9 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	u16 control;
 	unsigned mask;
 
-	msi_set_enable(dev, 0);	/* Ensure msi is disabled as I set it up */
-
    	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	msi_set_enable(dev, pos, 0);	/* Disable MSI during set up */
+
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	/* MSI Entry Initialization */
 	entry = alloc_msi_entry(dev);
@@ -396,7 +391,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 
 	/* Set MSI enabled bits	 */
 	pci_intx_for_msi(dev, 0);
-	msi_set_enable(dev, 1);
+	msi_set_enable(dev, pos, 1);
 	dev->msi_enabled = 1;
 
 	dev->irq = entry->irq;
@@ -593,17 +588,20 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	struct msi_desc *desc;
 	u32 mask;
 	u16 ctrl;
+	unsigned pos;
 
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
 
-	msi_set_enable(dev, 0);
+	BUG_ON(list_empty(&dev->msi_list));
+	desc = list_first_entry(&dev->msi_list, struct msi_desc, list);
+	pos = desc->msi_attrib.pos;
+
+	msi_set_enable(dev, pos, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 
-	BUG_ON(list_empty(&dev->msi_list));
-	desc = list_first_entry(&dev->msi_list, struct msi_desc, list);
-	pci_read_config_word(dev, desc->msi_attrib.pos + PCI_MSI_FLAGS, &ctrl);
+	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &ctrl);
 	mask = msi_capable_mask(ctrl);
 	msi_mask_irq(desc, mask, ~mask);
 
