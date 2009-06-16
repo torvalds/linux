@@ -725,9 +725,12 @@ static void s3c_fb_free_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
  */
 static void s3c_fb_release_win(struct s3c_fb *sfb, struct s3c_fb_win *win)
 {
-	fb_dealloc_cmap(&win->fbinfo->cmap);
-	unregister_framebuffer(win->fbinfo);
-	s3c_fb_free_memory(sfb, win);
+	if (win->fbinfo) {
+		unregister_framebuffer(win->fbinfo);
+		fb_dealloc_cmap(&win->fbinfo->cmap);
+		s3c_fb_free_memory(sfb, win);
+		framebuffer_release(win->fbinfo);
+	}
 }
 
 /**
@@ -778,7 +781,7 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 	ret = s3c_fb_alloc_memory(sfb, win);
 	if (ret) {
 		dev_err(sfb->dev, "failed to allocate display memory\n");
-		goto err_framebuffer;
+		return ret;
 	}
 
 	/* setup the r/b/g positions for the window's palette */
@@ -801,7 +804,7 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 	ret = s3c_fb_check_var(&fbinfo->var, fbinfo);
 	if (ret < 0) {
 		dev_err(sfb->dev, "check_var failed on initial video params\n");
-		goto err_alloc_mem;
+		return ret;
 	}
 
 	/* create initial colour map */
@@ -821,20 +824,13 @@ static int __devinit s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 	ret = register_framebuffer(fbinfo);
 	if (ret < 0) {
 		dev_err(sfb->dev, "failed to register framebuffer\n");
-		goto err_alloc_mem;
+		return ret;
 	}
 
 	*res = win;
 	dev_info(sfb->dev, "window %d: fb %s\n", win_no, fbinfo->fix.id);
 
 	return 0;
-
-err_alloc_mem:
-	s3c_fb_free_memory(sfb, win);
-
-err_framebuffer:
-	unregister_framebuffer(fbinfo);
-	return ret;
 }
 
 /**
