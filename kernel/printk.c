@@ -696,6 +696,8 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 			switch (c) {
 			case '0' ... '7': /* loglevel */
 				current_log_level = c - '0';
+			/* Fallthrough - make sure we're on a new line */
+			case 'd': /* KERN_DEFAULT */
 				if (!new_text_line) {
 					emit_log_char('\n');
 					new_text_line = 1;
