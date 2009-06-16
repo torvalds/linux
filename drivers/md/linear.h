@@ -24,6 +24,4 @@ struct linear_private_data
 
 typedef struct linear_private_data linear_conf_t;
 
-#define mddev_to_conf(mddev) ((linear_conf_t *) mddev->private)
-
 #endif

@@ -26,7 +26,7 @@
 static void raid0_unplug(struct request_queue *q)
 {
 	mddev_t *mddev = q->queuedata;
-	raid0_conf_t *conf = mddev_to_conf(mddev);
+	raid0_conf_t *conf = mddev->private;
 	mdk_rdev_t **devlist = conf->devlist;
 	int i;
 
@@ -40,7 +40,7 @@ static void raid0_unplug(struct request_queue *q)
 static int raid0_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
-	raid0_conf_t *conf = mddev_to_conf(mddev);
+	raid0_conf_t *conf = mddev->private;
 	mdk_rdev_t **devlist = conf->devlist;
 	int i, ret = 0;
 
@@ -294,7 +294,7 @@ static int raid0_run(mddev_t *mddev)
 
 static int raid0_stop(mddev_t *mddev)
 {
-	raid0_conf_t *conf = mddev_to_conf(mddev);
+	raid0_conf_t *conf = mddev->private;
 
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
@@ -327,7 +327,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
 	unsigned int sect_in_chunk, chunksect_bits, chunk_sects;
-	raid0_conf_t *conf = mddev_to_conf(mddev);
+	raid0_conf_t *conf = mddev->private;
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
 	sector_t chunk;
@@ -406,7 +406,7 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 #ifdef MD_DEBUG
 	int j, k, h;
 	char b[BDEVNAME_SIZE];
-	raid0_conf_t *conf = mddev_to_conf(mddev);
+	raid0_conf_t *conf = mddev->private;
 
 	h = 0;
 	for (j = 0; j < conf->nr_strip_zones; j++) {

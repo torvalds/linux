@@ -28,7 +28,7 @@
 static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
-	linear_conf_t *conf = mddev_to_conf(mddev);
+	linear_conf_t *conf = mddev->private;
 	sector_t idx = sector >> conf->sector_shift;
 
 	/*
@@ -79,7 +79,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 static void linear_unplug(struct request_queue *q)
 {
 	mddev_t *mddev = q->queuedata;
-	linear_conf_t *conf = mddev_to_conf(mddev);
+	linear_conf_t *conf = mddev->private;
 	int i;
 
 	for (i=0; i < mddev->raid_disks; i++) {
@@ -91,7 +91,7 @@ static void linear_unplug(struct request_queue *q)
 static int linear_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
-	linear_conf_t *conf = mddev_to_conf(mddev);
+	linear_conf_t *conf = mddev->private;
 	int i, ret = 0;
 
 	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
@@ -103,7 +103,7 @@ static int linear_congested(void *data, int bits)
 
 static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 {
-	linear_conf_t *conf = mddev_to_conf(mddev);
+	linear_conf_t *conf = mddev->private;
 
 	WARN_ONCE(sectors || raid_disks,
 		  "%s does not support generic reshape\n", __func__);
@@ -294,7 +294,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!newconf)
 		return -ENOMEM;
 
-	newconf->prev = mddev_to_conf(mddev);
+	newconf->prev = mddev->private;
 	mddev->private = newconf;
 	mddev->raid_disks++;
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
@@ -304,7 +304,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 
 static int linear_stop (mddev_t *mddev)
 {
-	linear_conf_t *conf = mddev_to_conf(mddev);
+	linear_conf_t *conf = mddev->private;
   
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	do {

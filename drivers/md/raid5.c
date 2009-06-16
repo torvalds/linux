@@ -3284,7 +3284,7 @@ static void activate_bit_delay(raid5_conf_t *conf)
 
 static void unplug_slaves(mddev_t *mddev)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	int i;
 
 	rcu_read_lock();
@@ -3308,7 +3308,7 @@ static void unplug_slaves(mddev_t *mddev)
 static void raid5_unplug_device(struct request_queue *q)
 {
 	mddev_t *mddev = q->queuedata;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&conf->device_lock, flags);
@@ -3327,7 +3327,7 @@ static void raid5_unplug_device(struct request_queue *q)
 static int raid5_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	/* No difference between reads and writes.  Just check
 	 * how busy the stripe_cache is
@@ -3440,7 +3440,7 @@ static void raid5_align_endio(struct bio *bi, int error)
 	bio_put(bi);
 
 	mddev = raid_bi->bi_bdev->bd_disk->queue->queuedata;
-	conf = mddev_to_conf(mddev);
+	conf = mddev->private;
 	rdev = (void*)raid_bi->bi_next;
 	raid_bi->bi_next = NULL;
 
@@ -3482,7 +3482,7 @@ static int bio_fits_rdev(struct bio *bi)
 static int chunk_aligned_read(struct request_queue *q, struct bio * raid_bio)
 {
 	mddev_t *mddev = q->queuedata;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	unsigned int dd_idx;
 	struct bio* align_bi;
 	mdk_rdev_t *rdev;
@@ -3599,7 +3599,7 @@ static struct stripe_head *__get_priority_stripe(raid5_conf_t *conf)
 static int make_request(struct request_queue *q, struct bio * bi)
 {
 	mddev_t *mddev = q->queuedata;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	int dd_idx;
 	sector_t new_sector;
 	sector_t logical_sector, last_sector;
@@ -4129,7 +4129,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 static void raid5d(mddev_t *mddev)
 {
 	struct stripe_head *sh;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	int handled;
 
 	pr_debug("+++ raid5d active\n");
@@ -4185,7 +4185,7 @@ static void raid5d(mddev_t *mddev)
 static ssize_t
 raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	if (conf)
 		return sprintf(page, "%d\n", conf->max_nr_stripes);
 	else
@@ -4195,7 +4195,7 @@ raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 static ssize_t
 raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	unsigned long new;
 	int err;
 
@@ -4233,7 +4233,7 @@ raid5_stripecache_size = __ATTR(stripe_cache_size, S_IRUGO | S_IWUSR,
 static ssize_t
 raid5_show_preread_threshold(mddev_t *mddev, char *page)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	if (conf)
 		return sprintf(page, "%d\n", conf->bypass_threshold);
 	else
@@ -4243,7 +4243,7 @@ raid5_show_preread_threshold(mddev_t *mddev, char *page)
 static ssize_t
 raid5_store_preread_threshold(mddev_t *mddev, const char *page, size_t len)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	unsigned long new;
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
@@ -4267,7 +4267,7 @@ raid5_preread_bypass_threshold = __ATTR(preread_bypass_threshold,
 static ssize_t
 stripe_cache_active_show(mddev_t *mddev, char *page)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	if (conf)
 		return sprintf(page, "%d\n", atomic_read(&conf->active_stripes));
 	else
@@ -4291,7 +4291,7 @@ static struct attribute_group raid5_attrs_group = {
 static sector_t
 raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	if (!sectors)
 		sectors = mddev->dev_sectors;
@@ -4845,7 +4845,7 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 
 static int raid5_check_reshape(mddev_t *mddev)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	if (mddev->delta_disks == 0 &&
 	    mddev->new_layout == mddev->layout &&
@@ -4890,7 +4890,7 @@ static int raid5_check_reshape(mddev_t *mddev)
 
 static int raid5_start_reshape(mddev_t *mddev)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 	mdk_rdev_t *rdev;
 	int spares = 0;
 	int added_devices = 0;
@@ -5022,7 +5022,7 @@ static void end_reshape(raid5_conf_t *conf)
 static void raid5_finish_reshape(mddev_t *mddev)
 {
 	struct block_device *bdev;
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 
@@ -5061,7 +5061,7 @@ static void raid5_finish_reshape(mddev_t *mddev)
 
 static void raid5_quiesce(mddev_t *mddev, int state)
 {
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	switch(state) {
 	case 2: /* resume for a suspend */
@@ -5157,7 +5157,7 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	 * For larger arrays we record the new value - after validation
 	 * to be used by a reshape pass.
 	 */
-	raid5_conf_t *conf = mddev_to_conf(mddev);
+	raid5_conf_t *conf = mddev->private;
 
 	if (new_layout >= 0 && !algorithm_valid_raid5(new_layout))
 		return -EINVAL;

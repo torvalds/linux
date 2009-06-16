@@ -17,6 +17,4 @@ struct raid0_private_data
 
 typedef struct raid0_private_data raid0_conf_t;
 
-#define mddev_to_conf(mddev) ((raid0_conf_t *) mddev->private)
-
 #endif

@@ -408,8 +408,6 @@ struct raid5_private_data {
 
 typedef struct raid5_private_data raid5_conf_t;
 
-#define mddev_to_conf(mddev) ((raid5_conf_t *) mddev->private)
-
 /*
  * Our supported algorithms
  */

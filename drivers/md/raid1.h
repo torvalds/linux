@@ -64,12 +64,6 @@ struct r1_private_data_s {
 typedef struct r1_private_data_s conf_t;
 
 /*
- * this is the only point in the RAID code where we violate
- * C type safety. mddev->private is an 'opaque' pointer.
- */
-#define mddev_to_conf(mddev) ((conf_t *) mddev->private)
-
-/*
  * this is our 'private' RAID1 bio.
  *
  * it contains information about what kind of IO operations were started
