@@ -1321,7 +1321,6 @@ out:
 
 static int __init asus_laptop_init(void)
 {
-	struct device *dev;
 	int result;
 
 	if (acpi_disabled)
@@ -1343,23 +1342,9 @@ static int __init asus_laptop_init(void)
 		return -ENODEV;
 	}
 
-	dev = acpi_get_physical_device(hotk->device->handle);
-
-	if (!acpi_video_backlight_support()) {
-		result = asus_backlight_init(dev);
-		if (result)
-			goto fail_backlight;
-	} else
-		printk(ASUS_INFO "Brightness ignored, must be controlled by "
-		       "ACPI video driver\n");
-
 	result = asus_input_init();
 	if (result)
 		goto fail_input;
-
-	result = asus_led_init(dev);
-	if (result)
-		goto fail_led;
 
 	/* Register platform stuff */
 	result = platform_driver_register(&asuspf_driver);
@@ -1381,7 +1366,26 @@ static int __init asus_laptop_init(void)
 	if (result)
 		goto fail_sysfs;
 
+	result = asus_led_init(&asuspf_device->dev);
+	if (result)
+		goto fail_led;
+
+	if (!acpi_video_backlight_support()) {
+		result = asus_backlight_init(&asuspf_device->dev);
+		if (result)
+			goto fail_backlight;
+	} else
+		printk(ASUS_INFO "Brightness ignored, must be controlled by "
+		       "ACPI video driver\n");
+
 	return 0;
+
+fail_backlight:
+       asus_led_exit();
+
+fail_led:
+       sysfs_remove_group(&asuspf_device->dev.kobj,
+			  &asuspf_attribute_group);
 
 fail_sysfs:
 	platform_device_del(asuspf_device);
@@ -1393,15 +1397,9 @@ fail_platform_device1:
 	platform_driver_unregister(&asuspf_driver);
 
 fail_platform_driver:
-	asus_led_exit();
-
-fail_led:
 	asus_input_exit();
 
 fail_input:
-	asus_backlight_exit();
-
-fail_backlight:
 
 	return result;
 }
