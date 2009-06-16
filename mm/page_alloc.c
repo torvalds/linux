@@ -4511,7 +4511,10 @@ void *__init alloc_large_system_hash(const char *tablename,
 			table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
 		else {
 			unsigned long order = get_order(size);
-			table = (void*) __get_free_pages(GFP_ATOMIC, order);
+
+			if (order < MAX_ORDER)
+				table = (void *)__get_free_pages(GFP_ATOMIC,
+								order);
 			/*
 			 * If bucketsize is not a power-of-two, we may free
 			 * some pages at the end of hash table.
