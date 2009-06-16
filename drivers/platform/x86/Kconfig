@@ -52,7 +52,7 @@ config ACERHDF
 	  here.
 
 config ASUS_LAPTOP
-	tristate "Asus Laptop Extras (EXPERIMENTAL)"
+	tristate "Asus Laptop Extras"
 	depends on ACPI
 	depends on EXPERIMENTAL && !ACPI_ASUS
 	select LEDS_CLASS
@@ -389,7 +389,7 @@ config ACPI_WMI
 	  any ACPI-WMI devices.
 
 config ACPI_ASUS
-	tristate "ASUS/Medion Laptop Extras"
+	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
 	depends on ACPI
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
