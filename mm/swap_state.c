@@ -124,7 +124,6 @@ void __delete_from_swap_cache(struct page *page)
 /**
  * add_to_swap - allocate swap space for a page
  * @page: page we want to move to swap
- * @gfp_mask: memory allocation flags
  *
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
