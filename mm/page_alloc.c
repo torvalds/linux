@@ -1446,9 +1446,6 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 	int zlc_active = 0;		/* set if using zonelist_cache */
 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
 
-	if (WARN_ON_ONCE(order >= MAX_ORDER))
-		return NULL;
-
 	classzone_idx = zone_idx(preferred_zone);
 zonelist_scan:
 	/*
@@ -1705,6 +1702,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	unsigned long pages_reclaimed = 0;
 	unsigned long did_some_progress;
 	struct task_struct *p = current;
+
+	/*
+	 * In the slowpath, we sanity check order to avoid ever trying to
+	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
+	 * be using allocators in order of preference for an area that is
+	 * too large.
+	 */
+	if (WARN_ON_ONCE(order >= MAX_ORDER))
+		return NULL;
 
 	/*
 	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
