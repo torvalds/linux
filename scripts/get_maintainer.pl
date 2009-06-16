@@ -356,6 +356,7 @@ sub format_email {
     my ($name, $email) = @_;
 
     $name =~ s/^\s+|\s+$//g;
+    $name =~ s/^\"|\"$//g;
     $email =~ s/^\s+|\s+$//g;
 
     my $formatted_email = "";
