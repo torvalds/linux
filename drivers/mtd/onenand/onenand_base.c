@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -33,6 +34,14 @@
 
 /* Default Flex-OneNAND boundary and lock respectively */
 static int flex_bdry[MAX_DIES * 2] = { -1, 0, -1, 0 };
+
+module_param_array(flex_bdry, int, NULL, 0400);
+MODULE_PARM_DESC(flex_bdry,	"SLC Boundary information for Flex-OneNAND"
+				"Syntax:flex_bdry=DIE_BDRY,LOCK,..."
+				"DIE_BDRY: SLC boundary of the die"
+				"LOCK: Locking information for SLC boundary"
+				"    : 0->Set boundary in unlocked status"
+				"    : 1->Set boundary in locked status");
 
 /**
  *  onenand_oob_128 - oob info for Flex-Onenand with 4KB page
@@ -3257,25 +3266,6 @@ out:
 
 	return ret;
 }
-
-/**
- * flexonenand_setup - 	capture Flex-OneNAND boundary and lock
- * 			values  passed as kernel parameters
- * @param s	kernel parameter string
- */
-static int flexonenand_setup(char *s)
-{
-	int ints[5], i;
-
-	s = get_options(s, 5, ints);
-
-	for (i = 0; i < ints[0]; i++)
-		flex_bdry[i] = ints[i + 1];
-
-	return 1;
-}
-
-__setup("onenand.bdry=", flexonenand_setup);
 
 /**
  * onenand_probe - [OneNAND Interface] Probe the OneNAND device
