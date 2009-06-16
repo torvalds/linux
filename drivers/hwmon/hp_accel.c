@@ -324,7 +324,7 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 	flush_work(&hpled_led.work);
 	led_classdev_unregister(&hpled_led.led_classdev);
 
-	return lis3lv02d_remove_fs();
+	return lis3lv02d_remove_fs(&lis3_dev);
 }
 
 
@@ -338,13 +338,7 @@ static int lis3lv02d_suspend(struct acpi_device *device, pm_message_t state)
 
 static int lis3lv02d_resume(struct acpi_device *device)
 {
-	/* put back the device in the right state (ACPI might turn it on) */
-	mutex_lock(&lis3_dev.lock);
-	if (lis3_dev.usage > 0)
-		lis3lv02d_poweron(&lis3_dev);
-	else
-		lis3lv02d_poweroff(&lis3_dev);
-	mutex_unlock(&lis3_dev.lock);
+	lis3lv02d_poweron(&lis3_dev);
 	return 0;
 }
 #else
