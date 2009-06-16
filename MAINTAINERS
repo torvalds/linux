@@ -4778,6 +4778,8 @@ F:	drivers/net/wireless/ray*
 RCUTORTURE MODULE
 P:	Josh Triplett
 M:	josh@freedesktop.org
+P:	Paul E. McKenney
+M:	paulmck@linux.vnet.ibm.com
 S:	Maintained
 F:	Documentation/RCU/torture.txt
 F:	kernel/rcutorture.c
@@ -4804,6 +4806,8 @@ F:	net/rds/
 READ-COPY UPDATE (RCU)
 P:	Dipankar Sarma
 M:	dipankar@in.ibm.com
+P:	Paul E. McKenney
+M:	paulmck@linux.vnet.ibm.com
 W:	http://www.rdrop.com/users/paulmck/rclock/
 S:	Supported
 F:	Documentation/RCU/rcu.txt
