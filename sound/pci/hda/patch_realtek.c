@@ -8068,7 +8068,7 @@ static struct snd_kcontrol_new alc883_fivestack_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new alc883_tagra_mixer[] = {
+static struct snd_kcontrol_new alc883_targa_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
@@ -8088,7 +8088,7 @@ static struct snd_kcontrol_new alc883_tagra_mixer[] = {
 	{ } /* end */
 };
 
-static struct snd_kcontrol_new alc883_tagra_2ch_mixer[] = {
+static struct snd_kcontrol_new alc883_targa_2ch_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
@@ -8417,7 +8417,7 @@ static struct hda_verb alc883_2ch_fujitsu_pi2515_verbs[] = {
 	{ } /* end */
 };
 
-static struct hda_verb alc883_tagra_verbs[] = {
+static struct hda_verb alc883_targa_verbs[] = {
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 
@@ -8626,8 +8626,8 @@ static void alc883_medion_md2_init_hook(struct hda_codec *codec)
 }
 
 /* toggle speaker-output according to the hp-jack state */
-#define alc883_tagra_init_hook		alc882_targa_init_hook
-#define alc883_tagra_unsol_event	alc882_targa_unsol_event
+#define alc883_targa_init_hook		alc882_targa_init_hook
+#define alc883_targa_unsol_event	alc882_targa_unsol_event
 
 static void alc883_clevo_m720_mic_automute(struct hda_codec *codec)
 {
@@ -9166,8 +9166,8 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_capture_source,
 	},
 	[ALC883_TARGA_DIG] = {
-		.mixers = { alc883_tagra_mixer, alc883_chmode_mixer },
-		.init_verbs = { alc883_init_verbs, alc883_tagra_verbs},
+		.mixers = { alc883_targa_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc883_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
@@ -9175,12 +9175,12 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_3ST_6ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
-		.unsol_event = alc883_tagra_unsol_event,
-		.init_hook = alc883_tagra_init_hook,
+		.unsol_event = alc883_targa_unsol_event,
+		.init_hook = alc883_targa_init_hook,
 	},
 	[ALC883_TARGA_2ch_DIG] = {
-		.mixers = { alc883_tagra_2ch_mixer},
-		.init_verbs = { alc883_init_verbs, alc883_tagra_verbs},
+		.mixers = { alc883_targa_2ch_mixer},
+		.init_verbs = { alc883_init_verbs, alc883_targa_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.adc_nids = alc883_adc_nids_alt,
@@ -9189,13 +9189,13 @@ static struct alc_config_preset alc883_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
 		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
-		.unsol_event = alc883_tagra_unsol_event,
-		.init_hook = alc883_tagra_init_hook,
+		.unsol_event = alc883_targa_unsol_event,
+		.init_hook = alc883_targa_init_hook,
 	},
 	[ALC883_TARGA_8ch_DIG] = {
 		.mixers = { alc883_base_mixer, alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs, alc880_gpio3_init_verbs,
-				alc883_tagra_verbs },
+				alc883_targa_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids_rev),
@@ -9207,8 +9207,8 @@ static struct alc_config_preset alc883_presets[] = {
 		.channel_mode = alc883_4ST_8ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc883_capture_source,
-		.unsol_event = alc883_tagra_unsol_event,
-		.init_hook = alc883_tagra_init_hook,
+		.unsol_event = alc883_targa_unsol_event,
+		.init_hook = alc883_targa_init_hook,
 	},
 	[ALC883_ACER] = {
 		.mixers = { alc883_base_mixer },
@@ -9362,7 +9362,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.init_hook = alc888_lenovo_ms7195_front_automute,
 	},
 	[ALC883_HAIER_W66] = {
-		.mixers = { alc883_tagra_2ch_mixer},
+		.mixers = { alc883_targa_2ch_mixer},
 		.init_verbs = { alc883_init_verbs, alc883_haier_w66_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
