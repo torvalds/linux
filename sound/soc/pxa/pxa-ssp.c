@@ -375,21 +375,34 @@ static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai,
  * Set the active slots in TDM/Network mode
  */
 static int pxa_ssp_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
-	unsigned int mask, int slots)
+	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
 	struct ssp_device *ssp = priv->dev.ssp;
 	u32 sscr0;
 
-	sscr0 = ssp_read_reg(ssp, SSCR0) & ~SSCR0_SlotsPerFrm(7);
+	sscr0 = ssp_read_reg(ssp, SSCR0);
+	sscr0 &= ~(SSCR0_MOD | SSCR0_SlotsPerFrm(8) | SSCR0_EDSS | SSCR0_DSS);
 
-	/* set number of active slots */
-	sscr0 |= SSCR0_SlotsPerFrm(slots);
+	/* set slot width */
+	if (slot_width > 16)
+		sscr0 |= SSCR0_EDSS | SSCR0_DataSize(slot_width - 16);
+	else
+		sscr0 |= SSCR0_DataSize(slot_width);
+
+	if (slots > 1) {
+		/* enable network mode */
+		sscr0 |= SSCR0_MOD;
+
+		/* set number of active slots */
+		sscr0 |= SSCR0_SlotsPerFrm(slots);
+
+		/* set active slot mask */
+		ssp_write_reg(ssp, SSTSA, tx_mask);
+		ssp_write_reg(ssp, SSRSA, rx_mask);
+	}
 	ssp_write_reg(ssp, SSCR0, sscr0);
 
-	/* set active slot mask */
-	ssp_write_reg(ssp, SSTSA, mask);
-	ssp_write_reg(ssp, SSRSA, mask);
 	return 0;
 }
 
