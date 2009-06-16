@@ -13,6 +13,36 @@
 
 #define ZFCP_MODEL_PRIV 0x4
 
+static int zfcp_ccw_suspend(struct ccw_device *cdev)
+
+{
+	struct zfcp_adapter *adapter = dev_get_drvdata(&cdev->dev);
+
+	down(&zfcp_data.config_sema);
+
+	zfcp_erp_adapter_shutdown(adapter, 0, "ccsusp1", NULL);
+	zfcp_erp_wait(adapter);
+
+	up(&zfcp_data.config_sema);
+
+	return 0;
+}
+
+static int zfcp_ccw_activate(struct ccw_device *cdev)
+
+{
+	struct zfcp_adapter *adapter = dev_get_drvdata(&cdev->dev);
+
+	zfcp_erp_modify_adapter_status(adapter, "ccresu1", NULL,
+				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
+				"ccresu2", NULL);
+	zfcp_erp_wait(adapter);
+	flush_work(&adapter->scan_work);
+
+	return 0;
+}
+
 static struct ccw_device_id zfcp_ccw_device_id[] = {
 	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x3) },
 	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, ZFCP_MODEL_PRIV) },
@@ -227,6 +257,9 @@ static struct ccw_driver zfcp_ccw_driver = {
 	.set_offline = zfcp_ccw_set_offline,
 	.notify      = zfcp_ccw_notify,
 	.shutdown    = zfcp_ccw_shutdown,
+	.freeze      = zfcp_ccw_suspend,
+	.thaw	     = zfcp_ccw_activate,
+	.restore     = zfcp_ccw_activate,
 };
 
 /**
