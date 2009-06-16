@@ -712,7 +712,7 @@ static int lbs_set_power(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (!priv->ps_supported) {
+	if (!(priv->fwcapinfo & FW_CAPINFO_PS)) {
 		if (vwrq->disabled)
 			return 0;
 		else

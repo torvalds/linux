@@ -933,9 +933,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out3;
 	}
 
-	/* The firmware for the CF card supports powersave */
-	priv->ps_supported = 1;
-
 	ret = 0;
 	goto out;
 

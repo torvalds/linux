@@ -260,7 +260,6 @@ struct lbs_private {
 	u16 psmode;		/* Wlan802_11PowermodeCAM=disable
 				   Wlan802_11PowermodeMAX_PSP=enable */
 	u32 psstate;
-	char ps_supported;
 	u8 needtowakeup;
 
 	struct assoc_request * pending_assoc_req;

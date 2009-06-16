@@ -1039,9 +1039,6 @@ static int if_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto err_activate_card;
 
-	if (priv->fwcapinfo & FW_CAPINFO_PS)
-		priv->ps_supported = 1;
-
 out:
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 

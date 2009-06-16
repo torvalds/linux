@@ -1118,7 +1118,6 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 	priv->card = card;
 	priv->hw_host_to_card = if_spi_host_to_card;
 	priv->fw_ready = 1;
-	priv->ps_supported = 1;
 
 	/* Initialize interrupt handling stuff. */
 	card->run_thread = 1;
