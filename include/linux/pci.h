@@ -1261,5 +1261,10 @@ static inline irqreturn_t pci_sriov_migration(struct pci_dev *dev)
 }
 #endif
 
+#if defined(CONFIG_HOTPLUG_PCI) || defined(CONFIG_HOTPLUG_PCI_MODULE)
+extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
+extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
