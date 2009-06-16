@@ -129,9 +129,10 @@ enum {
 
 #define SWAP_CLUSTER_MAX 32
 
-#define SWAP_MAP_MAX	0x7fff
-#define SWAP_MAP_BAD	0x8000
-
+#define SWAP_MAP_MAX	0x7ffe
+#define SWAP_MAP_BAD	0x7fff
+#define SWAP_HAS_CACHE  0x8000		/* There is a swap cache of entry. */
+#define SWAP_COUNT_MASK (~SWAP_HAS_CACHE)
 /*
  * The in-memory structure used to track swap areas.
  */
@@ -281,7 +282,7 @@ extern long total_swap_pages;
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
 extern swp_entry_t get_swap_page_of_type(int);
-extern int swap_duplicate(swp_entry_t);
+extern void swap_duplicate(swp_entry_t);
 extern int swapcache_prepare(swp_entry_t);
 extern int valid_swaphandles(swp_entry_t, unsigned long *);
 extern void swap_free(swp_entry_t);
@@ -353,8 +354,11 @@ static inline void show_swap_cache_info(void)
 }
 
 #define free_swap_and_cache(swp)	is_migration_entry(swp)
-#define swap_duplicate(swp)		is_migration_entry(swp)
 #define swapcache_prepare(swp)		is_migration_entry(swp)
+
+static inline void swap_duplicate(swp_entry_t swp)
+{
+}
 
 static inline void swap_free(swp_entry_t swp)
 {

@@ -292,7 +292,10 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		/*
 		 * Swap entry may have been freed since our caller observed it.
 		 */
-		if (!swapcache_prepare(entry))
+		err = swapcache_prepare(entry);
+		if (err == -EEXIST) /* seems racy */
+			continue;
+		if (err)           /* swp entry is obsolete ? */
 			break;
 
 		/*
