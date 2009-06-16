@@ -345,7 +345,7 @@ static void __exit radeon_exit(void)
 	drm_exit(driver);
 }
 
-module_init(radeon_init);
+late_initcall(radeon_init);
 module_exit(radeon_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
