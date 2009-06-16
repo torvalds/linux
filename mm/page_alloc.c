@@ -4397,7 +4397,7 @@ static void setup_per_zone_lowmem_reserve(void)
 
 /**
  * setup_per_zone_wmarks - called when min_free_kbytes changes
- * or when memory is hot-added
+ * or when memory is hot-{added|removed}
  *
  * Ensures that the watermark[min,low,high] values for each zone are set
  * correctly with respect to min_free_kbytes.
