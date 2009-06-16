@@ -1079,12 +1079,6 @@ static void disable_iommus(void)
 
 static int amd_iommu_resume(struct sys_device *dev)
 {
-	/*
-	 * Disable IOMMUs before reprogramming the hardware registers.
-	 * IOMMU is still enabled from the resume kernel.
-	 */
-	disable_iommus();
-
 	/* re-load the hardware */
 	enable_iommus();
 
@@ -1092,8 +1086,8 @@ static int amd_iommu_resume(struct sys_device *dev)
 	 * we have to flush after the IOMMUs are enabled because a
 	 * disabled IOMMU will never execute the commands we send
 	 */
-	amd_iommu_flush_all_domains();
 	amd_iommu_flush_all_devices();
+	amd_iommu_flush_all_domains();
 
 	return 0;
 }
