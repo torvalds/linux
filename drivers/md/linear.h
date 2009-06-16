@@ -12,12 +12,7 @@ typedef struct dev_info dev_info_t;
 struct linear_private_data
 {
 	struct linear_private_data *prev;	/* earlier version */
-	dev_info_t		**hash_table;
-	sector_t		spacing;
 	sector_t		array_sectors;
-	int			sector_shift;	/* shift before dividing
-						 * by spacing
-						 */
 	dev_info_t		disks[0];
 };
 

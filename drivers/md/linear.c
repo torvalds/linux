@@ -29,13 +29,8 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 {
 	dev_info_t *hash;
 	linear_conf_t *conf = mddev->private;
-	sector_t idx = sector >> conf->sector_shift;
 
-	/*
-	 * sector_div(a,b) returns the remainer and sets a to a/b
-	 */
-	(void)sector_div(idx, conf->spacing);
-	hash = conf->hash_table[idx];
+	hash = conf->disks;
 
 	while (sector >= hash->num_sectors + hash->start_sector)
 		hash++;
@@ -114,11 +109,8 @@ static sector_t linear_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 {
 	linear_conf_t *conf;
-	dev_info_t **table;
 	mdk_rdev_t *rdev;
-	int i, nb_zone, cnt;
-	sector_t min_sectors;
-	sector_t curr_sector;
+	int i, cnt;
 
 	conf = kzalloc (sizeof (*conf) + raid_disks*sizeof(dev_info_t),
 			GFP_KERNEL);
@@ -159,92 +151,14 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		goto out;
 	}
 
-	min_sectors = conf->array_sectors;
-	sector_div(min_sectors, PAGE_SIZE/sizeof(struct dev_info *));
-	if (min_sectors == 0)
-		min_sectors = 1;
-
-	/* min_sectors is the minimum spacing that will fit the hash
-	 * table in one PAGE.  This may be much smaller than needed.
-	 * We find the smallest non-terminal set of consecutive devices
-	 * that is larger than min_sectors and use the size of that as
-	 * the actual spacing
-	 */
-	conf->spacing = conf->array_sectors;
-	for (i=0; i < cnt-1 ; i++) {
-		sector_t tmp = 0;
-		int j;
-		for (j = i; j < cnt - 1 && tmp < min_sectors; j++)
-			tmp += conf->disks[j].num_sectors;
-		if (tmp >= min_sectors && tmp < conf->spacing)
-			conf->spacing = tmp;
-	}
-
-	/* spacing may be too large for sector_div to work with,
-	 * so we might need to pre-shift
-	 */
-	conf->sector_shift = 0;
-	if (sizeof(sector_t) > sizeof(u32)) {
-		sector_t space = conf->spacing;
-		while (space > (sector_t)(~(u32)0)) {
-			space >>= 1;
-			conf->sector_shift++;
-		}
-	}
 	/*
-	 * This code was restructured to work around a gcc-2.95.3 internal
-	 * compiler error.  Alter it with care.
-	 */
-	{
-		sector_t sz;
-		unsigned round;
-		unsigned long base;
-
-		sz = conf->array_sectors >> conf->sector_shift;
-		sz += 1; /* force round-up */
-		base = conf->spacing >> conf->sector_shift;
-		round = sector_div(sz, base);
-		nb_zone = sz + (round ? 1 : 0);
-	}
-	BUG_ON(nb_zone > PAGE_SIZE / sizeof(struct dev_info *));
-
-	conf->hash_table = kmalloc (sizeof (struct dev_info *) * nb_zone,
-					GFP_KERNEL);
-	if (!conf->hash_table)
-		goto out;
-
-	/*
-	 * Here we generate the linear hash table
-	 * First calculate the device offsets.
+	 * Here we calculate the device offsets.
 	 */
 	conf->disks[0].start_sector = 0;
 	for (i = 1; i < raid_disks; i++)
 		conf->disks[i].start_sector =
 			conf->disks[i-1].start_sector +
 			conf->disks[i-1].num_sectors;
-
-	table = conf->hash_table;
-	i = 0;
-	for (curr_sector = 0;
-	     curr_sector < conf->array_sectors;
-	     curr_sector += conf->spacing) {
-
-		while (i < raid_disks-1 &&
-		       curr_sector >= conf->disks[i+1].start_sector)
-			i++;
-
-		*table ++ = conf->disks + i;
-	}
-
-	if (conf->sector_shift) {
-		conf->spacing >>= conf->sector_shift;
-		/* round spacing up so that when we divide by it,
-		 * we err on the side of "too-low", which is safest.
-		 */
-		conf->spacing++;
-	}
-
-	BUG_ON(table - conf->hash_table > nb_zone);
 
 	return conf;
 
@@ -309,7 +223,6 @@ static int linear_stop (mddev_t *mddev)
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	do {
 		linear_conf_t *t = conf->prev;
-		kfree(conf->hash_table);
 		kfree(conf);
 		conf = t;
 	} while (conf);
