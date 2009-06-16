@@ -62,7 +62,10 @@ enum {
 	DISABLE_ASL_GPS = 0x0020,
 	DISABLE_ASL_DISPLAYSWITCH = 0x0040,
 	DISABLE_ASL_MODEM = 0x0080,
-	DISABLE_ASL_CARDREADER = 0x0100
+	DISABLE_ASL_CARDREADER = 0x0100,
+	DISABLE_ASL_3G = 0x0200,
+	DISABLE_ASL_WIMAX = 0x0400,
+	DISABLE_ASL_HWCF = 0x0800
 };
 
 enum {
@@ -87,7 +90,13 @@ enum {
 	CM_ASL_USBPORT3,
 	CM_ASL_MODEM,
 	CM_ASL_CARDREADER,
-	CM_ASL_LID
+	CM_ASL_3G,
+	CM_ASL_WIMAX,
+	CM_ASL_HWCF,
+	CM_ASL_LID,
+	CM_ASL_TYPE,
+	CM_ASL_PANELPOWER,	/*P901*/
+	CM_ASL_TPD
 };
 
 static const char *cm_getv[] = {
@@ -96,7 +105,8 @@ static const char *cm_getv[] = {
 	NULL, "PBLG", NULL, NULL,
 	"CFVG", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODG",
-	"CRDG", "LIDG"
+	"CRDG", "M3GG", "WIMG", "HWCF",
+	"LIDG",	"TYPE", "PBPG",	"TPDG"
 };
 
 static const char *cm_setv[] = {
@@ -105,7 +115,8 @@ static const char *cm_setv[] = {
 	"SDSP", "PBLS", "HDPS", NULL,
 	"CFVS", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODS",
-	"CRDS", NULL
+	"CRDS", "M3GS", "WIMS", NULL,
+	NULL, NULL, "PBPS", "TPDS"
 };
 
 #define EEEPC_EC	"\\_SB.PCI0.SBRG.EC0."
