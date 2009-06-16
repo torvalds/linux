@@ -330,8 +330,7 @@ void ax25_destroy_socket(ax25_cb *ax25)
 	}
 
 	if (ax25->sk != NULL) {
-		if (atomic_read(&ax25->sk->sk_wmem_alloc) ||
-		    atomic_read(&ax25->sk->sk_rmem_alloc)) {
+		if (sk_has_allocations(ax25->sk)) {
 			/* Defer: outstanding buffers */
 			setup_timer(&ax25->dtimer, ax25_destroy_timer,
 					(unsigned long)ax25);

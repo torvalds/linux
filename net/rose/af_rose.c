@@ -356,8 +356,7 @@ void rose_destroy_socket(struct sock *sk)
 		kfree_skb(skb);
 	}
 
-	if (atomic_read(&sk->sk_wmem_alloc) ||
-	    atomic_read(&sk->sk_rmem_alloc)) {
+	if (sk_has_allocations(sk)) {
 		/* Defer: outstanding buffers */
 		setup_timer(&sk->sk_timer, rose_destroy_timer,
 				(unsigned long)sk);

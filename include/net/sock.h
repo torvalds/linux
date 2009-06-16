@@ -1206,6 +1206,39 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 	return 0;
 }
 
+/**
+ * sk_wmem_alloc_get - returns write allocations
+ * @sk: socket
+ *
+ * Returns sk_wmem_alloc minus initial offset of one
+ */
+static inline int sk_wmem_alloc_get(const struct sock *sk)
+{
+	return atomic_read(&sk->sk_wmem_alloc) - 1;
+}
+
+/**
+ * sk_rmem_alloc_get - returns read allocations
+ * @sk: socket
+ *
+ * Returns sk_rmem_alloc
+ */
+static inline int sk_rmem_alloc_get(const struct sock *sk)
+{
+	return atomic_read(&sk->sk_rmem_alloc);
+}
+
+/**
+ * sk_has_allocations - check if allocations are outstanding
+ * @sk: socket
+ *
+ * Returns true if socket has write or read allocations
+ */
+static inline int sk_has_allocations(const struct sock *sk)
+{
+	return sk_wmem_alloc_get(sk) || sk_rmem_alloc_get(sk);
+}
+
 /*
  * 	Queue a received datagram if it will fit. Stream and sequenced
  *	protocols can't normally use this as they need to fit buffers in
