@@ -428,9 +428,12 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
 
+static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed);
+
 static struct cfg80211_ops rndis_config_ops = {
 	.change_virtual_intf = rndis_change_virtual_intf,
 	.scan = rndis_scan,
+	.set_wiphy_params = rndis_set_wiphy_params,
 };
 
 static void *rndis_wiphy_privid = &rndis_wiphy_privid;
@@ -969,6 +972,36 @@ static int set_infra_mode(struct usbnet *usbdev, int mode)
 }
 
 
+static int set_rts_threshold(struct usbnet *usbdev, u32 rts_threshold)
+{
+	__le32 tmp;
+
+	devdbg(usbdev, "set_rts_threshold %i", rts_threshold);
+
+	if (rts_threshold < 0 || rts_threshold > 2347)
+		rts_threshold = 2347;
+
+	tmp = cpu_to_le32(rts_threshold);
+	return rndis_set_oid(usbdev, OID_802_11_RTS_THRESHOLD, &tmp,
+								sizeof(tmp));
+}
+
+
+static int set_frag_threshold(struct usbnet *usbdev, u32 frag_threshold)
+{
+	__le32 tmp;
+
+	devdbg(usbdev, "set_frag_threshold %i", frag_threshold);
+
+	if (frag_threshold < 256 || frag_threshold > 2346)
+		frag_threshold = 2346;
+
+	tmp = cpu_to_le32(frag_threshold);
+	return rndis_set_oid(usbdev, OID_802_11_FRAGMENTATION_THRESHOLD, &tmp,
+								sizeof(tmp));
+}
+
+
 static void set_default_iw_params(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
@@ -1243,6 +1276,28 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 	}
 
 	return set_infra_mode(usbdev, mode);
+}
+
+
+static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+	struct usbnet *usbdev = priv->usbdev;
+	int err;
+
+	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+		err = set_frag_threshold(usbdev, wiphy->frag_threshold);
+		if (err < 0)
+			return err;
+	}
+
+	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+		err = set_rts_threshold(usbdev, wiphy->rts_threshold);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 
@@ -1761,74 +1816,6 @@ static int rndis_iw_get_genie(struct net_device *dev,
 }
 
 
-static int rndis_iw_set_rts(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	__le32 tmp;
-	devdbg(usbdev, "SIOCSIWRTS");
-
-	tmp = cpu_to_le32(wrqu->rts.value);
-	return rndis_set_oid(usbdev, OID_802_11_RTS_THRESHOLD, &tmp,
-								sizeof(tmp));
-}
-
-
-static int rndis_iw_get_rts(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	__le32 tmp;
-	int len, ret;
-
-	len = sizeof(tmp);
-	ret = rndis_query_oid(usbdev, OID_802_11_RTS_THRESHOLD, &tmp, &len);
-	if (ret == 0) {
-		wrqu->rts.value = le32_to_cpu(tmp);
-		wrqu->rts.flags = 1;
-		wrqu->rts.disabled = 0;
-	}
-
-	devdbg(usbdev, "SIOCGIWRTS: %d", wrqu->rts.value);
-
-	return ret;
-}
-
-
-static int rndis_iw_set_frag(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	__le32 tmp;
-
-	devdbg(usbdev, "SIOCSIWFRAG");
-
-	tmp = cpu_to_le32(wrqu->frag.value);
-	return rndis_set_oid(usbdev, OID_802_11_FRAGMENTATION_THRESHOLD, &tmp,
-								sizeof(tmp));
-}
-
-
-static int rndis_iw_get_frag(struct net_device *dev,
-    struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
-{
-	struct usbnet *usbdev = netdev_priv(dev);
-	__le32 tmp;
-	int len, ret;
-
-	len = sizeof(tmp);
-	ret = rndis_query_oid(usbdev, OID_802_11_FRAGMENTATION_THRESHOLD, &tmp,
-									&len);
-	if (ret == 0) {
-		wrqu->frag.value = le32_to_cpu(tmp);
-		wrqu->frag.flags = 1;
-		wrqu->frag.disabled = 0;
-	}
-	devdbg(usbdev, "SIOCGIWFRAG: %d", wrqu->frag.value);
-	return ret;
-}
-
-
 static int rndis_iw_set_freq(struct net_device *dev,
     struct iw_request_info *info, union iwreq_data *wrqu, char *extra)
 {
@@ -2017,10 +2004,10 @@ static const iw_handler rndis_iw_handler[] =
 	IW_IOCTL(SIOCSIWESSID)     = rndis_iw_set_essid,
 	IW_IOCTL(SIOCGIWESSID)     = rndis_iw_get_essid,
 	IW_IOCTL(SIOCGIWRATE)      = rndis_iw_get_rate,
-	IW_IOCTL(SIOCSIWRTS)       = rndis_iw_set_rts,
-	IW_IOCTL(SIOCGIWRTS)       = rndis_iw_get_rts,
-	IW_IOCTL(SIOCSIWFRAG)      = rndis_iw_set_frag,
-	IW_IOCTL(SIOCGIWFRAG)      = rndis_iw_get_frag,
+	IW_IOCTL(SIOCSIWRTS)       = (iw_handler) cfg80211_wext_siwrts,
+	IW_IOCTL(SIOCGIWRTS)       = (iw_handler) cfg80211_wext_giwrts,
+	IW_IOCTL(SIOCSIWFRAG)      = (iw_handler) cfg80211_wext_siwfrag,
+	IW_IOCTL(SIOCGIWFRAG)      = (iw_handler) cfg80211_wext_giwfrag,
 	IW_IOCTL(SIOCSIWTXPOW)     = rndis_iw_set_txpower,
 	IW_IOCTL(SIOCGIWTXPOW)     = rndis_iw_get_txpower,
 	IW_IOCTL(SIOCSIWENCODE)    = rndis_iw_set_encode,
@@ -2469,6 +2456,10 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	}
 
 	set_default_iw_params(usbdev);
+
+	/* set default rts/frag */
+	rndis_set_wiphy_params(wiphy,
+			WIPHY_PARAM_FRAG_THRESHOLD | WIPHY_PARAM_RTS_THRESHOLD);
 
 	/* turn radio on */
 	priv->radio_on = 1;
