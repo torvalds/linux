@@ -4478,22 +4478,26 @@ void setup_per_zone_wmarks(void)
  *    1TB     101        10GB
  *   10TB     320        32GB
  */
+void calculate_zone_inactive_ratio(struct zone *zone)
+{
+	unsigned int gb, ratio;
+
+	/* Zone size in gigabytes */
+	gb = zone->present_pages >> (30 - PAGE_SHIFT);
+	if (gb)
+		ratio = int_sqrt(10 * gb);
+	else
+		ratio = 1;
+
+	zone->inactive_ratio = ratio;
+}
+
 static void __init setup_per_zone_inactive_ratio(void)
 {
 	struct zone *zone;
 
-	for_each_zone(zone) {
-		unsigned int gb, ratio;
-
-		/* Zone size in gigabytes */
-		gb = zone->present_pages >> (30 - PAGE_SHIFT);
-		if (gb)
-			ratio = int_sqrt(10 * gb);
-		else
-			ratio = 1;
-
-		zone->inactive_ratio = ratio;
-	}
+	for_each_zone(zone)
+		calculate_zone_inactive_ratio(zone);
 }
 
 /*
