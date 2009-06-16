@@ -26,7 +26,6 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
 
 #define CREATE_TRACE_POINTS
