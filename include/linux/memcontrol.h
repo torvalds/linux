@@ -94,6 +94,7 @@ extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
 extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
 							int priority);
 int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
 unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
 				       struct zone *zone,
 				       enum lru_list lru);
@@ -235,6 +236,12 @@ static inline bool mem_cgroup_oom_called(struct task_struct *task)
 
 static inline int
 mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+{
+	return 1;
+}
+
+static inline int
+mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
 {
 	return 1;
 }
