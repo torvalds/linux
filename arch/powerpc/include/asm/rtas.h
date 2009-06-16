@@ -245,5 +245,8 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 			(devfn << 8) | (reg & 0xff);
 }
 
+extern void __cpuinit rtas_give_timebase(void);
+extern void __cpuinit rtas_take_timebase(void);
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

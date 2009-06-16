@@ -38,6 +38,7 @@
 #include <asm/syscalls.h>
 #include <asm/smp.h>
 #include <asm/atomic.h>
+#include <asm/time.h>
 
 struct rtas_t rtas = {
 	.lock = __RAW_SPIN_LOCK_UNLOCKED
@@ -970,4 +971,34 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 
 	/* break now */
 	return 1;
+}
+
+static raw_spinlock_t timebase_lock;
+static u64 timebase = 0;
+
+void __cpuinit rtas_give_timebase(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	hard_irq_disable();
+	__raw_spin_lock(&timebase_lock);
+	rtas_call(rtas_token("freeze-time-base"), 0, 1, NULL);
+	timebase = get_tb();
+	__raw_spin_unlock(&timebase_lock);
+
+	while (timebase)
+		barrier();
+	rtas_call(rtas_token("thaw-time-base"), 0, 1, NULL);
+	local_irq_restore(flags);
+}
+
+void __cpuinit rtas_take_timebase(void)
+{
+	while (!timebase)
+		barrier();
+	__raw_spin_lock(&timebase_lock);
+	set_tb(timebase >> 32, timebase & 0xffffffff);
+	timebase = 0;
+	__raw_spin_unlock(&timebase_lock);
 }
