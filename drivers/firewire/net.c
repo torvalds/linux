@@ -1390,7 +1390,8 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 	if (!peer)
 		return -ENOMEM;
 
-	unit->device.driver_data = peer;
+	dev_set_drvdata(&unit->device, peer);
+
 	peer->dev = dev;
 	peer->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
 	peer->fifo = FWNET_NO_FIFO_ADDR;
@@ -1417,27 +1418,26 @@ static int fwnet_probe(struct device *_dev)
 	struct fw_device *device = fw_parent_device(unit);
 	struct fw_card *card = device->card;
 	struct net_device *net;
+	bool allocated_netdev = false;
 	struct fwnet_device *dev;
 	unsigned max_mtu;
-	bool new_netdev;
 	int ret;
 
 	mutex_lock(&fwnet_device_mutex);
 
 	dev = fwnet_dev_find(card);
 	if (dev) {
-		new_netdev = false;
 		net = dev->netdev;
 		goto have_dev;
 	}
 
-	new_netdev = true;
 	net = alloc_netdev(sizeof(*dev), "firewire%d", fwnet_init_dev);
 	if (net == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
+	allocated_netdev = true;
 	SET_NETDEV_DEV(net, card->device);
 	dev = netdev_priv(net);
 
@@ -1479,12 +1479,12 @@ static int fwnet_probe(struct device *_dev)
 		  net->name, (unsigned long long)card->guid);
  have_dev:
 	ret = fwnet_add_peer(dev, unit, device);
-	if (ret && new_netdev) {
+	if (ret && allocated_netdev) {
 		unregister_netdev(net);
 		list_del(&dev->dev_link);
 	}
  out:
-	if (ret && new_netdev)
+	if (ret && allocated_netdev)
 		free_netdev(net);
 
 	mutex_unlock(&fwnet_device_mutex);
@@ -1508,7 +1508,7 @@ static void fwnet_remove_peer(struct fwnet_peer *peer)
 
 static int fwnet_remove(struct device *_dev)
 {
-	struct fwnet_peer *peer = _dev->driver_data;
+	struct fwnet_peer *peer = dev_get_drvdata(_dev);
 	struct fwnet_device *dev = peer->dev;
 	struct net_device *net;
 	struct fwnet_packet_task *ptask, *pt_next;
@@ -1544,6 +1544,8 @@ static int fwnet_remove(struct device *_dev)
 			dev_kfree_skb_any(ptask->skb);
 			kmem_cache_free(fwnet_packet_task_cache, ptask);
 		}
+		list_del(&dev->dev_link);
+
 		free_netdev(net);
 	}
 
@@ -1559,7 +1561,7 @@ static int fwnet_remove(struct device *_dev)
 static void fwnet_update(struct fw_unit *unit)
 {
 	struct fw_device *device = fw_parent_device(unit);
-	struct fwnet_peer *peer = unit->device.driver_data;
+	struct fwnet_peer *peer = dev_get_drvdata(&unit->device);
 	int generation;
 
 	generation = device->generation;
