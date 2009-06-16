@@ -207,6 +207,7 @@ static void tty_ldisc_put(struct tty_ldisc *ld)
 	ldo->refcount--;
 	module_put(ldo->owner);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	WARN_ON(ld->refcount);
 	kfree(ld);
 }
 
