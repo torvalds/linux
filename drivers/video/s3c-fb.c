@@ -358,9 +358,16 @@ static int s3c_fb_set_par(struct fb_info *info)
 	writel(data, regs + VIDOSD_B(win_no));
 
 	data = var->xres * var->yres;
+
+	u32 osdc_data = 0;
+
+	osdc_data = VIDISD14C_ALPHA1_R(0xf) |
+		VIDISD14C_ALPHA1_G(0xf) |
+		VIDISD14C_ALPHA1_B(0xf);
+
 	if (s3c_fb_has_osd_d(win_no)) {
 		writel(data, regs + VIDOSD_D(win_no));
-		writel(0, regs + VIDOSD_C(win_no));
+		writel(osdc_data, regs + VIDOSD_C(win_no));
 	} else
 		writel(data, regs + VIDOSD_C(win_no));
 
@@ -409,13 +416,31 @@ static int s3c_fb_set_par(struct fb_info *info)
 				data |= WINCON1_BPPMODE_19BPP_A1666;
 			else
 				data |= WINCON1_BPPMODE_18BPP_666;
-		} else if (var->transp.length != 0)
-			data |= WINCON1_BPPMODE_25BPP_A1888;
+		} else if (var->transp.length == 1)
+			data |= WINCON1_BPPMODE_25BPP_A1888
+				| WINCON1_BLD_PIX;
+		else if (var->transp.length == 4)
+			data |= WINCON1_BPPMODE_28BPP_A4888
+				| WINCON1_BLD_PIX | WINCON1_ALPHA_SEL;
 		else
 			data |= WINCON0_BPPMODE_24BPP_888;
 
 		data |= WINCONx_BURSTLEN_16WORD;
 		break;
+	}
+
+	/* It has no color key control register for window0 */
+	if (win_no > 0) {
+		u32 keycon0_data = 0, keycon1_data = 0;
+
+		keycon0_data = ~(WxKEYCON0_KEYBL_EN |
+				WxKEYCON0_KEYEN_F |
+				WxKEYCON0_DIRCON) | WxKEYCON0_COMPKEY(0);
+
+		keycon1_data = WxKEYCON1_COLVAL(0xffffff);
+
+		writel(keycon0_data, regs + WxKEYCONy(win_no-1, 0));
+		writel(keycon1_data, regs + WxKEYCONy(win_no-1, 1));
 	}
 
 	writel(data, regs + WINCON(win_no));
