@@ -623,7 +623,6 @@ choice
 config TICKSOURCE_GPTMR0
 	bool "Gptimer0 (SCLK domain)"
 	select BFIN_GPTIMERS
-	depends on !IPIPE
 
 config TICKSOURCE_CORETMR
 	bool "Core timer (CCLK domain)"
