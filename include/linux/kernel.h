@@ -102,7 +102,7 @@ extern const char linux_proc_banner[];
  * line that had no enclosing \n). Only to be used by core/arch code
  * during early bootup (a continued line is not SMP-safe otherwise).
  */
-#define	KERN_CONT	""
+#define	KERN_CONT	"<c>"
 
 extern int console_printk[];
 
