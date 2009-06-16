@@ -675,8 +675,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
 		if (!ehotk->eeepc_wlan_rfkill)
 			goto wlan_fail;
 
-		rfkill_set_sw_state(ehotk->eeepc_wlan_rfkill,
-				    get_acpi(CM_ASL_WLAN) != 1);
+		rfkill_init_sw_state(ehotk->eeepc_wlan_rfkill,
+				     get_acpi(CM_ASL_WLAN) != 1);
 		result = rfkill_register(ehotk->eeepc_wlan_rfkill);
 		if (result)
 			goto wlan_fail;
@@ -693,8 +693,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
 		if (!ehotk->eeepc_bluetooth_rfkill)
 			goto bluetooth_fail;
 
-		rfkill_set_sw_state(ehotk->eeepc_bluetooth_rfkill,
-				    get_acpi(CM_ASL_BLUETOOTH) != 1);
+		rfkill_init_sw_state(ehotk->eeepc_bluetooth_rfkill,
+				     get_acpi(CM_ASL_BLUETOOTH) != 1);
 		result = rfkill_register(ehotk->eeepc_bluetooth_rfkill);
 		if (result)
 			goto bluetooth_fail;
