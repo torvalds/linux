@@ -504,6 +504,14 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 	info->fbops = &intelfb_ops;
 
 	info->fix.line_length = fb->pitch;
+
+	/* setup aperture base/size for vesafb takeover */
+	info->aperture_base = dev->mode_config.fb_base;
+	if (IS_I9XX(dev))
+		info->aperture_size = pci_resource_len(dev->pdev, 2);
+	else
+		info->aperture_size = pci_resource_len(dev->pdev, 0);
+
 	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
 	info->fix.smem_len = size;
 
