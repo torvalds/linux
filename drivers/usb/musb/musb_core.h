@@ -40,6 +40,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/errno.h>
+#include <linux/timer.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
@@ -171,7 +172,8 @@ enum musb_h_ep0_state {
 
 /* peripheral side ep0 states */
 enum musb_g_ep0_state {
-	MUSB_EP0_STAGE_SETUP,		/* idle, waiting for setup */
+	MUSB_EP0_STAGE_IDLE,		/* idle, waiting for SETUP */
+	MUSB_EP0_STAGE_SETUP,		/* received SETUP */
 	MUSB_EP0_STAGE_TX,		/* IN data */
 	MUSB_EP0_STAGE_RX,		/* OUT data */
 	MUSB_EP0_STAGE_STATUSIN,	/* (after OUT data) */
@@ -179,10 +181,15 @@ enum musb_g_ep0_state {
 	MUSB_EP0_STAGE_ACKWAIT,		/* after zlp, before statusin */
 } __attribute__ ((packed));
 
-/* OTG protocol constants */
+/*
+ * OTG protocol constants.  See USB OTG 1.3 spec,
+ * sections 5.5 "Device Timings" and 6.6.5 "Timers".
+ */
 #define OTG_TIME_A_WAIT_VRISE	100		/* msec (max) */
-#define OTG_TIME_A_WAIT_BCON	0		/* 0=infinite; min 1000 msec */
-#define OTG_TIME_A_IDLE_BDIS	200		/* msec (min) */
+#define OTG_TIME_A_WAIT_BCON	1100		/* min 1 second */
+#define OTG_TIME_A_AIDL_BDIS	200		/* min 200 msec */
+#define OTG_TIME_B_ASE0_BRST	100		/* min 3.125 ms */
+
 
 /*************************** REGISTER ACCESS ********************************/
 
@@ -331,6 +338,8 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
+
+	struct timer_list	otg_timer;
 #endif
 
 	/* called with IRQs blocked; ON/nonzero implies starting a session,
@@ -355,7 +364,7 @@ struct musb {
 	u16			int_rx;
 	u16			int_tx;
 
-	struct otg_transceiver	xceiv;
+	struct otg_transceiver	*xceiv;
 
 	int nIrq;
 	unsigned		irq_wake:1;
@@ -385,6 +394,9 @@ struct musb {
 
 	unsigned is_multipoint:1;
 	unsigned ignore_disconnect:1;	/* during bus resets */
+
+	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
+	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
 
 #ifdef C_MP_TX
 	unsigned bulk_split:1;

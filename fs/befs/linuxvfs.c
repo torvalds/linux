@@ -513,7 +513,7 @@ befs_utf2nls(struct super_block *sb, const char *in,
 {
 	struct nls_table *nls = BEFS_SB(sb)->nls;
 	int i, o;
-	wchar_t uni;
+	unicode_t uni;
 	int unilen, utflen;
 	char *result;
 	/* The utf8->nls conversion won't make the final nls string bigger
@@ -539,16 +539,16 @@ befs_utf2nls(struct super_block *sb, const char *in,
 	for (i = o = 0; i < in_len; i += utflen, o += unilen) {
 
 		/* convert from UTF-8 to Unicode */
-		utflen = utf8_mbtowc(&uni, &in[i], in_len - i);
-		if (utflen < 0) {
+		utflen = utf8_to_utf32(&in[i], in_len - i, &uni);
+		if (utflen < 0)
 			goto conv_err;
-		}
 
 		/* convert from Unicode to nls */
-		unilen = nls->uni2char(uni, &result[o], in_len - o);
-		if (unilen < 0) {
+		if (uni > MAX_WCHAR_T)
 			goto conv_err;
-		}
+		unilen = nls->uni2char(uni, &result[o], in_len - o);
+		if (unilen < 0)
+			goto conv_err;
 	}
 	result[o] = '\0';
 	*out_len = o;
@@ -619,15 +619,13 @@ befs_nls2utf(struct super_block *sb, const char *in,
 
 		/* convert from nls to unicode */
 		unilen = nls->char2uni(&in[i], in_len - i, &uni);
-		if (unilen < 0) {
+		if (unilen < 0)
 			goto conv_err;
-		}
 
 		/* convert from unicode to UTF-8 */
-		utflen = utf8_wctomb(&result[o], uni, 3);
-		if (utflen <= 0) {
+		utflen = utf32_to_utf8(uni, &result[o], 3);
+		if (utflen <= 0)
 			goto conv_err;
-		}
 	}
 
 	result[o] = '\0';

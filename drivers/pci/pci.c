@@ -24,6 +24,11 @@
 #include <asm/setup.h>
 #include "pci.h"
 
+const char *pci_power_names[] = {
+	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
+};
+EXPORT_SYMBOL_GPL(pci_power_names);
+
 unsigned int pci_pm_d3_delay = PCI_PM_D3_WAIT;
 
 #ifdef CONFIG_PCI_DOMAINS

@@ -485,7 +485,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
-	tmp = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	tmp = usb_endpoint_type(desc);
 	switch (tmp) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		DBG("only one control endpoint\n");
@@ -517,7 +517,7 @@ ok:
 	local_irq_save(flags);
 
 	/* initialize endpoint to match this descriptor */
-	ep->is_in = (desc->bEndpointAddress & USB_DIR_IN) != 0;
+	ep->is_in = usb_endpoint_dir_in(desc);
 	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC);
 	ep->stopped = 0;
 	if (ep->is_in)

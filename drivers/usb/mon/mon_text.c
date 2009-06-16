@@ -733,7 +733,7 @@ int __init mon_text_init(void)
 {
 	struct dentry *mondir;
 
-	mondir = debugfs_create_dir("usbmon", NULL);
+	mondir = debugfs_create_dir("usbmon", usb_debug_root);
 	if (IS_ERR(mondir)) {
 		printk(KERN_NOTICE TAG ": debugfs is not available\n");
 		return -ENODEV;
