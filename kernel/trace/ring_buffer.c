@@ -1233,7 +1233,6 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 {
 	struct buffer_page *next_page, *head_page, *reader_page;
 	struct ring_buffer *buffer = cpu_buffer->buffer;
-	struct ring_buffer_event *event;
 	bool lock_taken = false;
 	unsigned long flags;
 
