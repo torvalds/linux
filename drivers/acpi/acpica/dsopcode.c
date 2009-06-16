@@ -1386,14 +1386,19 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 	case AML_BREAK_POINT_OP:
 
-		/* Call up to the OS service layer to handle this */
+		/*
+		 * Set the single-step flag. This will cause the debugger (if present)
+		 * to break to the console within the AML debugger at the start of the
+		 * next AML instruction.
+		 */
+		ACPI_DEBUGGER_EXEC(acpi_gbl_cm_single_step = TRUE);
+		ACPI_DEBUGGER_EXEC(acpi_os_printf
+				   ("**break** Executed AML BreakPoint opcode\n"));
 
-		status =
-		    acpi_os_signal(ACPI_SIGNAL_BREAKPOINT,
-				   "Executed AML Breakpoint opcode");
+		/* Call to the OSL in case OS wants a piece of the action */
 
-		/* If and when it returns, all done. */
-
+		status = acpi_os_signal(ACPI_SIGNAL_BREAKPOINT,
+					"Executed AML Breakpoint opcode");
 		break;
 
 	case AML_BREAK_OP:
