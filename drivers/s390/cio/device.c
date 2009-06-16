@@ -1789,6 +1789,15 @@ ccw_device_probe_console(void)
 	return &console_cdev;
 }
 
+static int ccw_device_pm_restore(struct device *dev);
+
+int ccw_device_force_console(void)
+{
+	if (!console_cdev_in_use)
+		return -ENODEV;
+	return ccw_device_pm_restore(&console_cdev.dev);
+}
+EXPORT_SYMBOL_GPL(ccw_device_force_console);
 
 const char *cio_get_console_cdev_name(struct subchannel *sch)
 {

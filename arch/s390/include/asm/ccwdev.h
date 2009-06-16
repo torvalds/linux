@@ -192,6 +192,7 @@ extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 #define to_ccwdrv(n) container_of(n, struct ccw_driver, driver)
 
 extern struct ccw_device *ccw_device_probe_console(void);
+extern int ccw_device_force_console(void);
 
 // FIXME: these have to go
 extern int _ccw_device_get_subchannel_number(struct ccw_device *);
