@@ -298,16 +298,15 @@ static int raid0_run(mddev_t *mddev)
 	return 0;
 }
 
-static int raid0_stop (mddev_t *mddev)
+static int raid0_stop(mddev_t *mddev)
 {
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf->strip_zone);
-	conf->strip_zone = NULL;
+	kfree(conf->devlist);
 	kfree(conf);
 	mddev->private = NULL;
-
 	return 0;
 }
 
