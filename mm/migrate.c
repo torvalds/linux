@@ -820,7 +820,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 	struct page_to_node *pp;
 	LIST_HEAD(pagelist);
 
-	migrate_prep();
 	down_read(&mm->mmap_sem);
 
 	/*
@@ -907,6 +906,9 @@ static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
 	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
 	if (!pm)
 		goto out;
+
+	migrate_prep();
+
 	/*
 	 * Store a chunk of page_to_node array in a page,
 	 * but keep the last one as a marker
