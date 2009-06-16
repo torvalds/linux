@@ -117,15 +117,49 @@ void __cpuinit bfin_setup_caches(unsigned int cpu)
 	 */
 #ifdef CONFIG_BFIN_ICACHE
 	printk(KERN_INFO "Instruction Cache Enabled for CPU%u\n", cpu);
-#endif
-#ifdef CONFIG_BFIN_DCACHE
-	printk(KERN_INFO "Data Cache Enabled for CPU%u"
-# if defined CONFIG_BFIN_WB
-		" (write-back)"
-# elif defined CONFIG_BFIN_WT
-		" (write-through)"
+	printk(KERN_INFO "  External memory:"
+# ifdef CONFIG_BFIN_EXTMEM_ICACHEABLE
+	       " cacheable"
+# else
+	       " uncacheable"
 # endif
-		"\n", cpu);
+	       " in instruction cache\n");
+	if (L2_LENGTH)
+		printk(KERN_INFO "  L2 SRAM        :"
+# ifdef CONFIG_BFIN_L2_ICACHEABLE
+		       " cacheable"
+# else
+		       " uncacheable"
+# endif
+		       " in instruction cache\n");
+
+#else
+	printk(KERN_INFO "Instruction Cache Disabled for CPU%u\n", cpu);
+#endif
+
+#ifdef CONFIG_BFIN_DCACHE
+	printk(KERN_INFO "Data Cache Enabled for CPU%u\n", cpu);
+	printk(KERN_INFO "  External memory:"
+# if defined CONFIG_BFIN_EXTMEM_WRITEBACK
+	       " cacheable (write-back)"
+# elif defined CONFIG_BFIN_EXTMEM_WRITETHROUGH
+	       " cacheable (write-through)"
+# else
+	       " uncacheable"
+# endif
+	       " in data cache\n");
+	if (L2_LENGTH)
+		printk(KERN_INFO "  L2 SRAM        :"
+# if defined CONFIG_BFIN_L2_WRITEBACK
+		       " cacheable (write-back)"
+# elif defined CONFIG_BFIN_L2_WRITETHROUGH
+		       " cacheable (write-through)"
+# else
+		       " uncacheable"
+# endif
+		       " in data cache\n");
+#else
+	printk(KERN_INFO "Data Cache Disabled for CPU%u\n", cpu);
 #endif
 }
 
@@ -516,7 +550,7 @@ static __init void memory_setup(void)
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#  if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
+#  if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -544,7 +578,7 @@ static __init void memory_setup(void)
 	dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 #endif				/* CONFIG_MTD_UCLINUX */
 
-#if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
+#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
@@ -1158,16 +1192,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
-		"%d KB(L1 dcache%s) %d KB(L2 cache)\n",
-		icache_size, dcache_size,
-#if defined CONFIG_BFIN_WB
-		"-wb"
-#elif defined CONFIG_BFIN_WT
-		"-wt"
-#endif
-		"", 0);
-
+		"%d KB(L1 dcache) %d KB(L2 cache)\n",
+		icache_size, dcache_size, 0);
 	seq_printf(m, "%s\n", cache);
+	seq_printf(m, "external memory\t: "
+#if defined(CONFIG_BFIN_EXTMEM_ICACHEABLE)
+		   "cacheable"
+#else
+		   "uncacheable"
+#endif
+		   " in instruction cache\n");
+	seq_printf(m, "external memory\t: "
+#if defined(CONFIG_BFIN_EXTMEM_WRITEBACK)
+		      "cacheable (write-back)"
+#elif defined(CONFIG_BFIN_EXTMEM_WRITETHROUGH)
+		      "cacheable (write-through)"
+#else
+		      "uncacheable"
+#endif
+		      " in data cache\n");
 
 	if (icache_size)
 		seq_printf(m, "icache setup\t: %d Sub-banks/%d Ways, %d Lines/Way\n",
@@ -1240,8 +1283,25 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_num != num_possible_cpus() - 1)
 		return 0;
 
-	if (L2_LENGTH)
+	if (L2_LENGTH) {
 		seq_printf(m, "L2 SRAM\t\t: %dKB\n", L2_LENGTH/0x400);
+		seq_printf(m, "L2 SRAM\t\t: "
+#if defined(CONFIG_BFIN_L2_ICACHEABLE)
+			      "cacheable"
+#else
+			      "uncacheable"
+#endif
+			      " in instruction cache\n");
+		seq_printf(m, "L2 SRAM\t\t: "
+#if defined(CONFIG_BFIN_L2_WRITEBACK)
+			      "cacheable (write-back)"
+#elif defined(CONFIG_BFIN_L2_WRITETHROUGH)
+			      "cacheable (write-through)"
+#else
+			      "uncacheable"
+#endif
+			      " in data cache\n");
+	}
 	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);

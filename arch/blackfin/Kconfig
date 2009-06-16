@@ -907,76 +907,97 @@ endchoice
 
 
 comment "Cache Support"
+
 config BFIN_ICACHE
 	bool "Enable ICACHE"
+	default y
+config BFIN_ICACHE_LOCK
+	bool "Enable Instruction Cache Locking"
+	depends on BFIN_ICACHE
+	default n
+config BFIN_EXTMEM_ICACHEABLE
+	bool "Enable ICACHE for external memory"
+	depends on BFIN_ICACHE
+	default y
+config BFIN_L2_ICACHEABLE
+	bool "Enable ICACHE for L2 SRAM"
+	depends on BFIN_ICACHE
+	depends on BF54x || BF561
+	default n
+
 config BFIN_DCACHE
 	bool "Enable DCACHE"
+	default y
 config BFIN_DCACHE_BANKA
 	bool "Enable only 16k BankA DCACHE - BankB is SRAM"
 	depends on BFIN_DCACHE && !BF531
 	default n
-config BFIN_ICACHE_LOCK
-	bool "Enable Instruction Cache Locking"
-
-choice
-	prompt "External memory cache policy"
+config BFIN_EXTMEM_DCACHEABLE
+	bool "Enable DCACHE for external memory"
 	depends on BFIN_DCACHE
-	default BFIN_WB if !SMP
-	default BFIN_WT if SMP
-config BFIN_WB
-	bool "Write back"
-	depends on !SMP
-	help
-	  Write Back Policy:
-	    Cached data will be written back to SDRAM only when needed.
-	    This can give a nice increase in performance, but beware of
-	    broken drivers that do not properly invalidate/flush their
-	    cache.
-
-	  Write Through Policy:
-	    Cached data will always be written back to SDRAM when the
-	    cache is updated.  This is a completely safe setting, but
-	    performance is worse than Write Back.
-
-	  If you are unsure of the options and you want to be safe,
-	  then go with Write Through.
-
-config BFIN_WT
-	bool "Write through"
-	help
-	  Write Back Policy:
-	    Cached data will be written back to SDRAM only when needed.
-	    This can give a nice increase in performance, but beware of
-	    broken drivers that do not properly invalidate/flush their
-	    cache.
-
-	  Write Through Policy:
-	    Cached data will always be written back to SDRAM when the
-	    cache is updated.  This is a completely safe setting, but
-	    performance is worse than Write Back.
-
-	  If you are unsure of the options and you want to be safe,
-	  then go with Write Through.
-
-endchoice
-
+	default y
 choice
-	prompt "L2 SRAM cache policy"
-	depends on (BF54x || BF561)
-	default BFIN_L2_WT
-config BFIN_L2_WB
+	prompt "External memory DCACHE policy"
+	depends on BFIN_EXTMEM_DCACHEABLE
+	default BFIN_EXTMEM_WRITEBACK if !SMP
+	default BFIN_EXTMEM_WRITETHROUGH if SMP
+config BFIN_EXTMEM_WRITEBACK
 	bool "Write back"
 	depends on !SMP
+	help
+	  Write Back Policy:
+	    Cached data will be written back to SDRAM only when needed.
+	    This can give a nice increase in performance, but beware of
+	    broken drivers that do not properly invalidate/flush their
+	    cache.
 
-config BFIN_L2_WT
+	  Write Through Policy:
+	    Cached data will always be written back to SDRAM when the
+	    cache is updated.  This is a completely safe setting, but
+	    performance is worse than Write Back.
+
+	  If you are unsure of the options and you want to be safe,
+	  then go with Write Through.
+
+config BFIN_EXTMEM_WRITETHROUGH
 	bool "Write through"
-	depends on !SMP
+	help
+	  Write Back Policy:
+	    Cached data will be written back to SDRAM only when needed.
+	    This can give a nice increase in performance, but beware of
+	    broken drivers that do not properly invalidate/flush their
+	    cache.
 
-config BFIN_L2_NOT_CACHED
-	bool "Not cached"
+	  Write Through Policy:
+	    Cached data will always be written back to SDRAM when the
+	    cache is updated.  This is a completely safe setting, but
+	    performance is worse than Write Back.
+
+	  If you are unsure of the options and you want to be safe,
+	  then go with Write Through.
 
 endchoice
 
+config BFIN_L2_DCACHEABLE
+	bool "Enable DCACHE for L2 SRAM"
+	depends on BFIN_DCACHE
+	depends on BF54x || BF561
+	default n
+choice
+	prompt "L2 SRAM DCACHE policy"
+	depends on BFIN_L2_DCACHEABLE
+	default BFIN_L2_WRITEBACK
+config BFIN_L2_WRITEBACK
+	bool "Write back"
+	depends on !SMP
+
+config BFIN_L2_WRITETHROUGH
+	bool "Write through"
+	depends on !SMP
+endchoice
+
+
+comment "Memory Protection Unit"
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
 	default n
