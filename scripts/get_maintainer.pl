@@ -380,7 +380,7 @@ sub add_categories {
 		    $list_address = $1;
 		    $list_additional = $2;
 		}
-		if ($list_additional =~ m/\(subscribers-only\)/) {
+		if ($list_additional =~ m/subscribers-only/) {
 		    if ($email_subscriber_list) {
 			push(@list_to, $list_address);
 		    }
