@@ -735,6 +735,7 @@ static struct pxa2xx_spi_chip em_x270_libertas_chip = {
 	.rx_threshold	= 1,
 	.tx_threshold	= 1,
 	.timeout	= 1000,
+	.gpio_cs	= 14,
 };
 
 static unsigned long em_x270_libertas_pin_config[] = {
@@ -803,7 +804,6 @@ static int em_x270_libertas_teardown(struct spi_device *spi)
 
 struct libertas_spi_platform_data em_x270_libertas_pdata = {
 	.use_dummy_writes	= 1,
-	.gpio_cs		= 14,
 	.setup			= em_x270_libertas_setup,
 	.teardown		= em_x270_libertas_teardown,
 };
