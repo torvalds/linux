@@ -165,7 +165,7 @@ foreach my $file (@ARGV) {
 	}
 	close(PATCH);
 	if ($file_cnt == @files) {
-	    die "$P: file '${file}' doesn't appear to be a patch.  "
+	    warn "$P: file '${file}' doesn't appear to be a patch.  "
 		. "Add -f to options?\n";
 	}
 	@files = sort_and_uniq(@files);
