@@ -234,6 +234,16 @@ static int create_strip_zones(mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 
+	/*
+	 * now since we have the hard sector sizes, we can make sure
+	 * chunk size is a multiple of that sector size
+	 */
+	if (mddev->chunk_size % queue_logical_block_size(mddev->queue)) {
+		printk(KERN_ERR "%s chunk_size of %d not valid\n",
+		       mdname(mddev),
+		       mddev->chunk_size);
+		goto abort;
+	}
 	printk(KERN_INFO "raid0: done.\n");
 	mddev->private = conf;
 	return 0;
@@ -289,8 +299,9 @@ static int raid0_run(mddev_t *mddev)
 {
 	int ret;
 
-	if (mddev->chunk_size == 0) {
-		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
+	if (mddev->chunk_size == 0 ||
+	    !is_power_of_2(mddev->chunk_size)) {
+		printk(KERN_ERR "md/raid0: chunk size must be a power of 2.\n");
 		return -EINVAL;
 	}
 	blk_queue_max_sectors(mddev->queue, mddev->chunk_size >> 9);
