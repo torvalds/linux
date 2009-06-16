@@ -27,9 +27,6 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
-#include <linux/kthread.h>
-#include <linux/semaphore.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/poll.h>

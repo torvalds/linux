@@ -27,9 +27,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/input.h>
-#include <linux/kthread.h>
-#include <linux/semaphore.h>
+#include <linux/input-polldev.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/poll.h>
@@ -270,43 +268,16 @@ static struct miscdevice lis3lv02d_misc_device = {
 	.fops    = &lis3lv02d_misc_fops,
 };
 
-/**
- * lis3lv02d_joystick_kthread - Kthread polling function
- * @data: unused - here to conform to threadfn prototype
- */
-static int lis3lv02d_joystick_kthread(void *data)
+static void lis3lv02d_joystick_poll(struct input_polled_dev *pidev)
 {
 	int x, y, z;
 
-	while (!kthread_should_stop()) {
-		lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
-		input_report_abs(lis3_dev.idev, ABS_X, x - lis3_dev.xcalib);
-		input_report_abs(lis3_dev.idev, ABS_Y, y - lis3_dev.ycalib);
-		input_report_abs(lis3_dev.idev, ABS_Z, z - lis3_dev.zcalib);
-
-		input_sync(lis3_dev.idev);
-
-		try_to_freeze();
-		msleep_interruptible(MDPS_POLL_INTERVAL);
-	}
-
-	return 0;
+	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
+	input_report_abs(pidev->input, ABS_X, x - lis3_dev.xcalib);
+	input_report_abs(pidev->input, ABS_Y, y - lis3_dev.ycalib);
+	input_report_abs(pidev->input, ABS_Z, z - lis3_dev.zcalib);
 }
 
-static int lis3lv02d_joystick_open(struct input_dev *input)
-{
-	lis3_dev.kthread = kthread_run(lis3lv02d_joystick_kthread, NULL, "klis3lv02d");
-	if (IS_ERR(lis3_dev.kthread)) {
-		return PTR_ERR(lis3_dev.kthread);
-	}
-
-	return 0;
-}
-
-static void lis3lv02d_joystick_close(struct input_dev *input)
-{
-	kthread_stop(lis3_dev.kthread);
-}
 
 static inline void lis3lv02d_calibrate_joystick(void)
 {
@@ -316,33 +287,36 @@ static inline void lis3lv02d_calibrate_joystick(void)
 
 int lis3lv02d_joystick_enable(void)
 {
+	struct input_dev *input_dev;
 	int err;
 
 	if (lis3_dev.idev)
 		return -EINVAL;
 
-	lis3_dev.idev = input_allocate_device();
+	lis3_dev.idev = input_allocate_polled_device();
 	if (!lis3_dev.idev)
 		return -ENOMEM;
 
+	lis3_dev.idev->poll = lis3lv02d_joystick_poll;
+	lis3_dev.idev->poll_interval = MDPS_POLL_INTERVAL;
+	input_dev = lis3_dev.idev->input;
+
 	lis3lv02d_calibrate_joystick();
 
-	lis3_dev.idev->name       = "ST LIS3LV02DL Accelerometer";
-	lis3_dev.idev->phys       = DRIVER_NAME "/input0";
-	lis3_dev.idev->id.bustype = BUS_HOST;
-	lis3_dev.idev->id.vendor  = 0;
-	lis3_dev.idev->dev.parent = &lis3_dev.pdev->dev;
-	lis3_dev.idev->open       = lis3lv02d_joystick_open;
-	lis3_dev.idev->close      = lis3lv02d_joystick_close;
+	input_dev->name       = "ST LIS3LV02DL Accelerometer";
+	input_dev->phys       = DRIVER_NAME "/input0";
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor  = 0;
+	input_dev->dev.parent = &lis3_dev.pdev->dev;
 
-	set_bit(EV_ABS, lis3_dev.idev->evbit);
-	input_set_abs_params(lis3_dev.idev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(lis3_dev.idev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(lis3_dev.idev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	set_bit(EV_ABS, input_dev->evbit);
+	input_set_abs_params(input_dev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	input_set_abs_params(input_dev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	input_set_abs_params(input_dev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
 
-	err = input_register_device(lis3_dev.idev);
+	err = input_register_polled_device(lis3_dev.idev);
 	if (err) {
-		input_free_device(lis3_dev.idev);
+		input_free_polled_device(lis3_dev.idev);
 		lis3_dev.idev = NULL;
 	}
 
@@ -357,7 +331,7 @@ void lis3lv02d_joystick_disable(void)
 
 	if (lis3_dev.irq)
 		misc_deregister(&lis3lv02d_misc_device);
-	input_unregister_device(lis3_dev.idev);
+	input_unregister_polled_device(lis3_dev.idev);
 	lis3_dev.idev = NULL;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_disable);
