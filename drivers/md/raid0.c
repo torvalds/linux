@@ -55,7 +55,7 @@ static int raid0_congested(void *data, int bits)
 static int create_strip_zones (mddev_t *mddev)
 {
 	int i, c, j;
-	sector_t current_start, curr_zone_start;
+	sector_t curr_zone_end;
 	sector_t min_spacing;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev;
@@ -159,8 +159,7 @@ static int create_strip_zones (mddev_t *mddev)
 	zone->sectors = smallest->sectors * cnt;
 	zone->zone_end = zone->sectors;
 
-	current_start = smallest->sectors;
-	curr_zone_start = zone->sectors;
+	curr_zone_end = zone->sectors;
 
 	/* now do the other zones */
 	for (i = 1; i < conf->nr_strip_zones; i++)
@@ -169,7 +168,7 @@ static int create_strip_zones (mddev_t *mddev)
 		zone->dev = conf->strip_zone[i-1].dev + mddev->raid_disks;
 
 		printk(KERN_INFO "raid0: zone %d\n", i);
-		zone->dev_start = current_start;
+		zone->dev_start = smallest->sectors;
 		smallest = NULL;
 		c = 0;
 
@@ -178,7 +177,7 @@ static int create_strip_zones (mddev_t *mddev)
 			rdev = conf->strip_zone[0].dev[j];
 			printk(KERN_INFO "raid0: checking %s ...",
 				bdevname(rdev->bdev, b));
-			if (rdev->sectors <= current_start) {
+			if (rdev->sectors <= zone->dev_start) {
 				printk(KERN_INFO " nope.\n");
 				continue;
 			}
@@ -193,16 +192,15 @@ static int create_strip_zones (mddev_t *mddev)
 		}
 
 		zone->nb_dev = c;
-		zone->sectors = (smallest->sectors - current_start) * c;
+		zone->sectors = (smallest->sectors - zone->dev_start) * c;
 		printk(KERN_INFO "raid0: zone->nb_dev: %d, sectors: %llu\n",
 			zone->nb_dev, (unsigned long long)zone->sectors);
 
-		zone->zone_end = curr_zone_start + zone->sectors;
-		curr_zone_start += zone->sectors;
+		curr_zone_end += zone->sectors;
+		zone->zone_end = curr_zone_end;
 
-		current_start = smallest->sectors;
 		printk(KERN_INFO "raid0: current zone start: %llu\n",
-			(unsigned long long)current_start);
+			(unsigned long long)smallest->sectors);
 	}
 	/* Now find appropriate hash spacing.
 	 * We want a number which causes most hash entries to cover
@@ -212,8 +210,8 @@ static int create_strip_zones (mddev_t *mddev)
 	 * strip though as it's size has no bearing on the efficacy of the hash
 	 * table.
 	 */
-	conf->spacing = curr_zone_start;
-	min_spacing = curr_zone_start;
+	conf->spacing = curr_zone_end;
+	min_spacing = curr_zone_end;
 	sector_div(min_spacing, PAGE_SIZE/sizeof(struct strip_zone*));
 	for (i=0; i < conf->nr_strip_zones-1; i++) {
 		sector_t s = 0;
