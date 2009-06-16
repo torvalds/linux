@@ -342,8 +342,3 @@ void ___ipipe_sync_pipeline(unsigned long syncmask)
 }
 
 EXPORT_SYMBOL(show_stack);
-
-#ifdef CONFIG_IPIPE_TRACE_MCOUNT
-void notrace _mcount(void);
-EXPORT_SYMBOL(_mcount);
-#endif /* CONFIG_IPIPE_TRACE_MCOUNT */
