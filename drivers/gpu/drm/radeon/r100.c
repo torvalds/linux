@@ -551,6 +551,9 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	/* cp setup */
 	WREG32(0x718, pre_write_timer | (pre_write_limit << 28));
 	WREG32(RADEON_CP_RB_CNTL,
+#ifdef __BIG_ENDIAN
+	       RADEON_BUF_SWAP_32BIT |
+#endif
 	       REG_SET(RADEON_RB_BUFSZ, rb_bufsz) |
 	       REG_SET(RADEON_RB_BLKSZ, rb_blksz) |
 	       REG_SET(RADEON_MAX_FETCH, max_fetch) |
