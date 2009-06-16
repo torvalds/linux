@@ -55,7 +55,7 @@ foreach my $chief (@penguin_chief) {
 }
 my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
 
-# rfc822 - preloaded methods go here.
+# rfc822 email address - preloaded methods go here.
 my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
 my $rfc822_char = '[\\000-\\177]';
 
@@ -396,7 +396,19 @@ sub add_categories {
 		    }
 		}
 	    } elsif ($ptype eq "M") {
-		if ($email_maintainer) {
+		my $p_used = 0;
+		if ($index >= 0) {
+		    my $tv = $typevalue[$index - 1];
+		    if ($tv =~ m/^(\C):\s*(.*)/) {
+			if ($1 eq "P") {
+			    if ($email_usename) {
+				push_email_address(format_email($2, $pvalue));
+				$p_used = 1;
+			    }
+			}
+		    }
+		}
+		if (!$p_used) {
 		    push_email_addresses($pvalue);
 		}
 	    } elsif ($ptype eq "T") {
@@ -436,13 +448,16 @@ sub push_email_addresses {
 
     my @address_list = ();
 
-    if (@address_list = rfc822_validlist($address)) {
+    if (rfc822_valid($address)) {
+	push_email_address($address);
+    } elsif (@address_list = rfc822_validlist($address)) {
 	my $array_count = shift(@address_list);
 	while (my $entry = shift(@address_list)) {
 	    push_email_address($entry);
 	}
+    } else {
+	warn("Invalid MAINTAINERS address: '" . $address . "'\n");
     }
-
 }
 
 sub which {
@@ -471,9 +486,8 @@ sub recent_git_signoffs {
 	return;
     }
     if (!(-d ".git")) {
-	warn("$P: .git repository not found.\n");
-	warn("Use a .git repository for better results.\n");
-	warn("ie: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git\n");
+	warn("$P: .git directory not found.  Use a git repository for better results.\n");
+	warn("$P: perhaps 'git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git'\n");
 	return;
     }
 
@@ -632,7 +646,7 @@ sub rfc822_validlist ($) {
     my @r;
     if ($s =~ m/^(?:$rfc822re)?(?:,(?:$rfc822re)?)*$/so &&
 	$s =~ m/^$rfc822_char*$/) {
-        while($s =~ m/(?:^|,$rfc822_lwsp*)($rfc822re)/gos) {
+        while ($s =~ m/(?:^|,$rfc822_lwsp*)($rfc822re)/gos) {
             push @r, $1;
         }
         return wantarray ? (scalar(@r), @r) : 1;
