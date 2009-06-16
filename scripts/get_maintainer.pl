@@ -216,15 +216,19 @@ foreach my $file (@files) {
 
 }
 
-if ($email_git_penguin_chiefs) {
+if ($email) {
     foreach my $chief (@penguin_chief) {
 	if ($chief =~ m/^(.*):(.*)/) {
-	    my $chief_name = $1;
-	    my $chief_addr = $2;
+	    my $email_address;
 	    if ($email_usename) {
-		push(@email_to, format_email($chief_name, $chief_addr));
+		$email_address = format_email($1, $2);
 	    } else {
-		push(@email_to, $chief_addr);
+		$email_address = $2;
+	    }
+	    if ($email_git_penguin_chiefs) {
+		push(@email_to, $email_address);
+	    } else {
+		@email_to = grep(!/${email_address}/, @email_to);
 	    }
 	}
     }
@@ -236,10 +240,7 @@ if ($email || $email_list) {
 	@to = (@to, @email_to);
     }
     if ($email_list) {
-	if (@list_to == 0) {
-	    push(@list_to, "linux-kernel\@vger.kernel.org");
 	@to = (@to, @list_to);
-	}
     }
     output(uniq(@to));
 }
@@ -314,7 +315,7 @@ Default options:
   [--email --git --m --n --l --multiline]
 
 Other options:
-  --version -> show version
+  --version => show version
   --help => show this help information
 
 EOT
@@ -423,7 +424,7 @@ sub add_categories {
 sub which {
     my ($bin) = @_;
 
-    foreach my $path (split /:/, $ENV{PATH}) {
+    foreach my $path (split(/:/, $ENV{PATH})) {
 	if (-e "$path/$bin") {
 	    return "$path/$bin";
 	}
@@ -446,12 +447,8 @@ sub recent_git_signoffs {
     }
 
     $cmd = "git log --since=${email_git_since} -- ${file}";
-    $cmd .= " | grep -Pi \"^[-_ 	a-z]+by:.*\\\@\"";
-    if (!$email_git_penguin_chiefs) {
-	$cmd .= " | grep -Pv \"${penguin_chiefs}\"";
-    }
+    $cmd .= " | grep -Pi \"^[-_ 	a-z]+by:.*\\\@.*\$\"";
     $cmd .= " | cut -f2- -d\":\"";
-    $cmd .= " | sed -e \"s/^\\s+//g\"";
     $cmd .= " | sort | uniq -c | sort -rn";
 
     $output = `${cmd}`;
