@@ -102,8 +102,10 @@ static enum event_status read_page(int cpu)
 			event = (void *)&rpage->data[i];
 			switch (event->type_len) {
 			case RINGBUF_TYPE_PADDING:
-				/* We don't expect any padding */
-				KILL_TEST();
+				/* failed writes may be discarded events */
+				if (!event->time_delta)
+					KILL_TEST();
+				inc = event->array[0] + 4;
 				break;
 			case RINGBUF_TYPE_TIME_EXTEND:
 				inc = 8;
@@ -119,7 +121,7 @@ static enum event_status read_page(int cpu)
 					KILL_TEST();
 					break;
 				}
-				inc = event->array[0];
+				inc = event->array[0] + 4;
 				break;
 			default:
 				entry = ring_buffer_event_data(event);
