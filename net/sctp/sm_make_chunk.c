@@ -2861,6 +2861,11 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	addr_param = (union sctp_addr_param *)
 			((void *)asconf_param + sizeof(sctp_addip_param_t));
 
+	if (asconf_param->param_hdr.type != SCTP_PARAM_ADD_IP &&
+	    asconf_param->param_hdr.type != SCTP_PARAM_DEL_IP &&
+	    asconf_param->param_hdr.type != SCTP_PARAM_SET_PRIMARY)
+		return SCTP_ERROR_UNKNOWN_PARAM;
+
 	switch (addr_param->v4.param_hdr.type) {
 	case SCTP_PARAM_IPV6_ADDRESS:
 		if (!asoc->peer.ipv6_address)
@@ -2957,9 +2962,6 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 			return SCTP_ERROR_DNS_FAILED;
 
 		sctp_assoc_set_primary(asoc, peer);
-		break;
-	default:
-		return SCTP_ERROR_UNKNOWN_PARAM;
 		break;
 	}
 
