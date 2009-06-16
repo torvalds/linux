@@ -527,6 +527,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				   &hauppauge_hvr127x_config);
 		}
 
+		/* FIXME: temporary hack */
 		/* define bridge override to set_frontend */
 		port->set_frontend_save = fe0->dvb.frontend->ops.set_frontend;
 		fe0->dvb.frontend->ops.set_frontend = cx23885_dvb_set_frontend;
