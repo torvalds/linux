@@ -1981,8 +1981,8 @@ F:	net/bridge/netfilter/ebt*.c
 ECRYPT FILE SYSTEM
 P:	Tyler Hicks
 M:	tyhicks@linux.vnet.ibm.com
-M:	Dustin Kirkland
-P:	kirkland@canonical.com
+P:	Dustin Kirkland
+M:	kirkland@canonical.com
 L:	ecryptfs-devel@lists.launchpad.net
 W:	https://launchpad.net/ecryptfs
 S:	Supported
