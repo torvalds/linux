@@ -158,6 +158,17 @@ static inline int compare_device_id(struct pci_dev *dev,
 	return 0;
 }
 
+static int add_error_device(struct aer_err_info *e_info, struct pci_dev *dev)
+{
+	if (e_info->error_dev_num < AER_MAX_MULTI_ERR_DEVICES) {
+		e_info->dev[e_info->error_dev_num] = dev;
+		e_info->error_dev_num++;
+		return 1;
+	} else
+		return 0;
+}
+
+
 #define	PCI_BUS(x)	(((x) >> 8) & 0xff)
 
 static int find_device_iter(struct pci_dev *dev, void *data)
@@ -176,15 +187,31 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 	if (!nosourceid && (PCI_BUS(e_info->id) != 0)) {
 		result = compare_device_id(dev, e_info);
 		if (result)
-			e_info->dev = dev;
-		return result;
+			add_error_device(e_info, dev);
+
+		/*
+		 * If there is no multiple error, we stop
+		 * or continue based on the id comparing.
+		 */
+		if (!(e_info->flags & AER_MULTI_ERROR_VALID_FLAG))
+			return result;
+
+		/*
+		 * If there are multiple errors and id does match,
+		 * We need continue to search other devices under
+		 * the root port. Return 0 means that.
+		 */
+		if (result)
+			return 0;
 	}
 
 	/*
-	 * Next is to check when bus id is equal to 0 or
-	 * nosourceid==y. Some ports might lose the bus
-	 * id of error source id. We check AER status
-	 * registers to find the initial reporter.
+	 * When either
+	 *      1) nosourceid==y;
+	 *      2) bus id is equal to 0. Some ports might lose the bus
+	 *              id of error source id;
+	 *      3) There are multiple errors and prior id comparing fails;
+	 * We check AER status registers to find the initial reporter.
 	 */
 	if (atomic_read(&dev->enable_cnt) == 0)
 		return 0;
@@ -213,8 +240,8 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 				pos + PCI_ERR_COR_MASK,
 				&mask);
 		if (status & ERR_CORRECTABLE_ERROR_MASK & ~mask) {
-			e_info->dev = dev;
-			return 1;
+			add_error_device(e_info, dev);
+			goto added;
 		}
 	} else {
 		pci_read_config_dword(dev,
@@ -224,12 +251,18 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 				pos + PCI_ERR_UNCOR_MASK,
 				&mask);
 		if (status & ERR_UNCORRECTABLE_ERROR_MASK & ~mask) {
-			e_info->dev = dev;
-			return 1;
+			add_error_device(e_info, dev);
+			goto added;
 		}
 	}
 
 	return 0;
+
+added:
+	if (e_info->flags & AER_MULTI_ERROR_VALID_FLAG)
+		return 0;
+	else
+		return 1;
 }
 
 /**
@@ -709,6 +742,28 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 	return AER_SUCCESS;
 }
 
+static inline void aer_process_err_devices(struct pcie_device *p_device,
+			struct aer_err_info *e_info)
+{
+	int i;
+
+	if (!e_info->dev[0]) {
+		dev_printk(KERN_DEBUG, &p_device->port->dev,
+				"can't find device of ID%04x\n",
+				e_info->id);
+	}
+
+	for (i = 0; i < e_info->error_dev_num && e_info->dev[i]; i++) {
+		if (get_device_error_info(e_info->dev[i], e_info) ==
+				AER_SUCCESS) {
+			aer_print_error(e_info->dev[i], e_info);
+			handle_error_source(p_device,
+					e_info->dev[i],
+					e_info);
+		}
+	}
+}
+
 /**
  * aer_isr_one_error - consume an error detected by root port
  * @p_device: pointer to error root port service device
@@ -754,18 +809,7 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 			e_info->flags |= AER_MULTI_ERROR_VALID_FLAG;
 
 		find_source_device(p_device->port, e_info);
-		if (e_info->dev == NULL) {
-			printk(KERN_DEBUG "%s->can't find device of ID%04x\n",
-				__func__, e_info->id);
-			continue;
-		}
-		if (get_device_error_info(e_info->dev, e_info) ==
-				AER_SUCCESS) {
-			aer_print_error(e_info->dev, e_info);
-			handle_error_source(p_device,
-				e_info->dev,
-				e_info);
-		}
+		aer_process_err_devices(p_device, e_info);
 	}
 
 	kfree(e_info);
