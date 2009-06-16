@@ -493,7 +493,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 		iounmap(par->cmap_adr);
 		par->cmap_adr = NULL;
 		iounmap(info->screen_base);
-		kfree(info);
+		framebuffer_release(info);
 		release_mem_region(res_start, res_size);
 		return;
 	}
