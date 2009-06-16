@@ -1205,7 +1205,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
  * Error code depending on the platform is returned if both the platform and
  * the native mechanism fail to enable the generation of wake-up events
  */
-int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
+int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 {
 	int error = 0;
 	bool pme_done = false;
