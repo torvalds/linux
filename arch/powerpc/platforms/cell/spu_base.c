@@ -752,17 +752,8 @@ static int __init init_spu_base(void)
 		goto out_unregister_sysdev_class;
 	}
 
-	if (ret > 0) {
-		/*
-		 * We cannot put the forward declaration in
-		 * <linux/linux_logo.h> because of conflicting session type
-		 * conflicts for const and __initdata with different compiler
-		 * versions
-		 */
-		extern const struct linux_logo logo_spe_clut224;
-
+	if (ret > 0)
 		fb_append_extra_logo(&logo_spe_clut224, ret);
-	}
 
 	mutex_lock(&spu_full_list_mutex);
 	xmon_register_spus(&spu_full_list);
