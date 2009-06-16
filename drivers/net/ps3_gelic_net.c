@@ -1648,7 +1648,7 @@ static int ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 		result = -ENOMEM;
 		goto fail_alloc_card;
 	}
-	ps3_system_bus_set_driver_data(dev, card);
+	ps3_system_bus_set_drvdata(dev, card);
 	card->dev = dev;
 
 	/* get internal vlan info */
@@ -1749,7 +1749,7 @@ fail_alloc_irq:
 					       bus_id(card),
 					       0, 0);
 fail_status_indicator:
-	ps3_system_bus_set_driver_data(dev, NULL);
+	ps3_system_bus_set_drvdata(dev, NULL);
 	kfree(netdev_card(netdev)->unalign);
 	free_netdev(netdev);
 fail_alloc_card:
@@ -1766,7 +1766,7 @@ fail_open:
 
 static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 {
-	struct gelic_card *card = ps3_system_bus_get_driver_data(dev);
+	struct gelic_card *card = ps3_system_bus_get_drvdata(dev);
 	struct net_device *netdev0;
 	pr_debug("%s: called\n", __func__);
 
@@ -1803,7 +1803,7 @@ static int ps3_gelic_driver_remove(struct ps3_system_bus_device *dev)
 	kfree(netdev_card(netdev0)->unalign);
 	free_netdev(netdev0);
 
-	ps3_system_bus_set_driver_data(dev, NULL);
+	ps3_system_bus_set_drvdata(dev, NULL);
 
 	ps3_dma_region_free(dev->d_region);
 

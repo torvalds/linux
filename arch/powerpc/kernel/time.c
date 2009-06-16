@@ -52,6 +52,7 @@
 #include <linux/jiffies.h>
 #include <linux/posix-timers.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -1141,6 +1142,15 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 	dr->result_high = ((u64)w << 32) + x;
 	dr->result_low  = ((u64)y << 32) + z;
 
+}
+
+/* We don't need to calibrate delay, we use the CPU timebase for that */
+void calibrate_delay(void)
+{
+	/* Some generic code (such as spinlock debug) use loops_per_jiffy
+	 * as the number of __delay(1) in a jiffy, so make it so
+	 */
+	loops_per_jiffy = tb_ticks_per_jiffy;
 }
 
 static int __init rtc_init(void)

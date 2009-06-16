@@ -93,10 +93,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
 config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
@@ -129,6 +125,7 @@ config PPC
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS if PPC64
+	select GENERIC_ATOMIC64 if PPC32
 
 config EARLY_PRINTK
 	bool

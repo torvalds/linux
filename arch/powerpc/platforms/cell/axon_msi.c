@@ -329,7 +329,7 @@ static struct irq_host_ops msic_host_ops = {
 
 static int axon_msi_shutdown(struct of_device *device)
 {
-	struct axon_msic *msic = device->dev.platform_data;
+	struct axon_msic *msic = dev_get_drvdata(&device->dev);
 	u32 tmp;
 
 	pr_debug("axon_msi: disabling %s\n",
@@ -416,7 +416,7 @@ static int axon_msi_probe(struct of_device *device,
 	msic->read_offset = dcr_read(msic->dcr_host, MSIC_WRITE_OFFSET_REG)
 				& MSIC_FIFO_SIZE_MASK;
 
-	device->dev.platform_data = msic;
+	dev_set_drvdata(&device->dev, msic);
 
 	ppc_md.setup_msi_irqs = axon_msi_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = axon_msi_teardown_msi_irqs;
