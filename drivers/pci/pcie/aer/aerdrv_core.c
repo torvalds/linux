@@ -109,7 +109,7 @@ int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 #endif  /*  0  */
 
 
-static void set_device_error_reporting(struct pci_dev *dev, void *data)
+static int set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
 
@@ -124,6 +124,8 @@ static void set_device_error_reporting(struct pci_dev *dev, void *data)
 
 	if (enable)
 		pcie_set_ecrc_checking(dev);
+
+	return 0;
 }
 
 /**
@@ -207,7 +209,7 @@ static struct device* find_source_device(struct pci_dev *parent, u16 id)
 	return NULL;
 }
 
-static void report_error_detected(struct pci_dev *dev, void *data)
+static int report_error_detected(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -232,16 +234,16 @@ static void report_error_detected(struct pci_dev *dev, void *data)
 				   dev->driver ?
 				   "no AER-aware driver" : "no driver");
 		}
-		return;
+		return 0;
 	}
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->error_detected(dev, result_data->state);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_mmio_enabled(struct pci_dev *dev, void *data)
+static int report_mmio_enabled(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -251,15 +253,15 @@ static void report_mmio_enabled(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->mmio_enabled)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->mmio_enabled(dev);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_slot_reset(struct pci_dev *dev, void *data)
+static int report_slot_reset(struct pci_dev *dev, void *data)
 {
 	pci_ers_result_t vote;
 	struct pci_error_handlers *err_handler;
@@ -269,15 +271,15 @@ static void report_slot_reset(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->slot_reset)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	vote = err_handler->slot_reset(dev);
 	result_data->result = merge_result(result_data->result, vote);
-	return;
+	return 0;
 }
 
-static void report_resume(struct pci_dev *dev, void *data)
+static int report_resume(struct pci_dev *dev, void *data)
 {
 	struct pci_error_handlers *err_handler;
 
@@ -286,11 +288,11 @@ static void report_resume(struct pci_dev *dev, void *data)
 	if (!dev->driver ||
 		!dev->driver->err_handler ||
 		!dev->driver->err_handler->resume)
-		return;
+		return 0;
 
 	err_handler = dev->driver->err_handler;
 	err_handler->resume(dev);
-	return;
+	return 0;
 }
 
 /**
@@ -307,7 +309,7 @@ static void report_resume(struct pci_dev *dev, void *data)
 static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	enum pci_channel_state state,
 	char *error_mesg,
-	void (*cb)(struct pci_dev *, void *))
+	int (*cb)(struct pci_dev *, void *))
 {
 	struct aer_broadcast_data result_data;
 

@@ -206,13 +206,18 @@ void pci_enable_bridges(struct pci_bus *bus)
  *  Walk the given bus, including any bridged devices
  *  on buses under this bus.  Call the provided callback
  *  on each device found.
+ *
+ *  We check the return of @cb each time. If it returns anything
+ *  other than 0, we break out.
+ *
  */
-void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
+void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 		  void *userdata)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus;
 	struct list_head *next;
+	int retval;
 
 	bus = top;
 	down_read(&pci_bus_sem);
@@ -236,8 +241,10 @@ void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 
 		/* Run device routines with the device locked */
 		down(&dev->dev.sem);
-		cb(dev, userdata);
+		retval = cb(dev, userdata);
 		up(&dev->dev.sem);
+		if (retval)
+			break;
 	}
 	up_read(&pci_bus_sem);
 }
