@@ -1026,7 +1026,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (host_err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
 		kill_suid(dentry);
 
-	if (host_err >= 0 && stable) {
+	if (host_err >= 0 && stable && use_wgather) {
 		static ino_t	last_ino;
 		static dev_t	last_dev;
 
@@ -1042,21 +1042,16 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		 * nice and simple solution (IMHO), and it seems to
 		 * work:-)
 		 */
-		if (use_wgather) {
-			if (atomic_read(&inode->i_writecount) > 1
-			    || (last_ino == inode->i_ino && last_dev == inode->i_sb->s_dev)) {
-				dprintk("nfsd: write defer %d\n", task_pid_nr(current));
-				msleep(10);
-				dprintk("nfsd: write resume %d\n", task_pid_nr(current));
-			}
+		if (atomic_read(&inode->i_writecount) > 1
+		    || (last_ino == inode->i_ino && last_dev == inode->i_sb->s_dev)) {
+			dprintk("nfsd: write defer %d\n", task_pid_nr(current));
+			msleep(10);
+			dprintk("nfsd: write resume %d\n", task_pid_nr(current));
+		}
 
-			if (inode->i_state & I_DIRTY) {
-				dprintk("nfsd: write sync %d\n", task_pid_nr(current));
-				host_err=nfsd_sync(file);
-			}
-#if 0
-			wake_up(&inode->i_wait);
-#endif
+		if (inode->i_state & I_DIRTY) {
+			dprintk("nfsd: write sync %d\n", task_pid_nr(current));
+			host_err=nfsd_sync(file);
 		}
 		last_ino = inode->i_ino;
 		last_dev = inode->i_sb->s_dev;
