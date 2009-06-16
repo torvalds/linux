@@ -65,6 +65,7 @@
 #include <linux/idr.h>
 #include <linux/ftrace.h>
 #include <linux/async.h>
+#include <linux/kmemcheck.h>
 #include <linux/kmemtrace.h>
 #include <trace/boot.h>
 

@@ -3406,6 +3406,14 @@ F:	drivers/serial/kgdboc.c
 F:	include/linux/kgdb.h
 F:	kernel/kgdb.c
 
+KMEMCHECK
+P:	Vegard Nossum
+M:	vegardno@ifi.uio.no
+P	Pekka Enberg
+M:	penberg@cs.helsinki.fi
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 KMEMLEAK
 P:	Catalin Marinas
 M:	catalin.marinas@arm.com
