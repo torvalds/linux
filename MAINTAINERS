@@ -768,6 +768,13 @@ P:	Philipp Zabel
 M:	philipp.zabel@gmail.com
 S:	Maintained
 
+ARM/MIOA701 MACHINE SUPPORT
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+F:	arch/arm/mach-pxa/mioa701.c
+S:	Maintained
+
 ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 P:	Michael Petchkovsky
 M:	mkpetch@internode.on.net
