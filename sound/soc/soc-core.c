@@ -1389,6 +1389,9 @@ int snd_soc_init_card(struct snd_soc_device *socdev)
 	snprintf(codec->card->longname, sizeof(codec->card->longname),
 		 "%s (%s)", card->name, codec->name);
 
+	/* Make sure all DAPM widgets are instantiated */
+	snd_soc_dapm_new_widgets(codec);
+
 	ret = snd_card_register(codec->card);
 	if (ret < 0) {
 		printk(KERN_ERR "asoc: failed to register soundcard for %s\n",
