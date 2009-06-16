@@ -1401,6 +1401,9 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 
 	classzone_idx = zone_idx(preferred_zone);
 
+	if (WARN_ON_ONCE(order >= MAX_ORDER))
+		return NULL;
+
 zonelist_scan:
 	/*
 	 * Scan zonelist, looking for a zone with enough free.
