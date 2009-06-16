@@ -3658,7 +3658,6 @@ L:	linux-m32r-ja@ml.linux-m32r.org (in Japanese)
 W:	http://www.linux-m32r.org/
 S:	Maintained
 F:	arch/m32r/
-F:	include/asm-m32r/
 
 M68K ARCHITECTURE
 P:	Geert Uytterhoeven
