@@ -1,11 +1,9 @@
 /*
- *  drivers/s390/char/sclp_con.c
- *    SCLP line mode console driver
+ * SCLP line mode console driver
  *
- *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ * Copyright IBM Corp. 1999, 2009
+ * Author(s): Martin Peschke <mpeschke@de.ibm.com>
+ *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #include <linux/kmod.h>
@@ -32,13 +30,14 @@ static spinlock_t sclp_con_lock;
 static struct list_head sclp_con_pages;
 /* List of full struct sclp_buffer structures ready for output */
 static struct list_head sclp_con_outqueue;
-/* Counter how many buffers are emitted (max 1) and how many */
-/* are on the output queue. */
-static int sclp_con_buffer_count;
 /* Pointer to current console buffer */
 static struct sclp_buffer *sclp_conbuf;
 /* Timer for delayed output of console messages */
 static struct timer_list sclp_con_timer;
+/* Suspend mode flag */
+static int sclp_con_suspended;
+/* Flag that output queue is currently running */
+static int sclp_con_queue_running;
 
 /* Output format for console messages */
 static unsigned short sclp_con_columns;
@@ -53,42 +52,71 @@ sclp_conbuf_callback(struct sclp_buffer *buffer, int rc)
 	do {
 		page = sclp_unmake_buffer(buffer);
 		spin_lock_irqsave(&sclp_con_lock, flags);
+
 		/* Remove buffer from outqueue */
 		list_del(&buffer->list);
-		sclp_con_buffer_count--;
 		list_add_tail((struct list_head *) page, &sclp_con_pages);
+
 		/* Check if there is a pending buffer on the out queue. */
 		buffer = NULL;
 		if (!list_empty(&sclp_con_outqueue))
-			buffer = list_entry(sclp_con_outqueue.next,
-					    struct sclp_buffer, list);
+			buffer = list_first_entry(&sclp_con_outqueue,
+						  struct sclp_buffer, list);
+		if (!buffer || sclp_con_suspended) {
+			sclp_con_queue_running = 0;
+			spin_unlock_irqrestore(&sclp_con_lock, flags);
+			break;
+		}
 		spin_unlock_irqrestore(&sclp_con_lock, flags);
-	} while (buffer && sclp_emit_buffer(buffer, sclp_conbuf_callback));
+	} while (sclp_emit_buffer(buffer, sclp_conbuf_callback));
 }
 
-static void
-sclp_conbuf_emit(void)
+/*
+ * Finalize and emit first pending buffer.
+ */
+static void sclp_conbuf_emit(void)
 {
 	struct sclp_buffer* buffer;
 	unsigned long flags;
-	int count;
 	int rc;
 
 	spin_lock_irqsave(&sclp_con_lock, flags);
-	buffer = sclp_conbuf;
+	if (sclp_conbuf)
+		list_add_tail(&sclp_conbuf->list, &sclp_con_outqueue);
 	sclp_conbuf = NULL;
-	if (buffer == NULL) {
-		spin_unlock_irqrestore(&sclp_con_lock, flags);
-		return;
-	}
-	list_add_tail(&buffer->list, &sclp_con_outqueue);
-	count = sclp_con_buffer_count++;
+	if (sclp_con_queue_running || sclp_con_suspended)
+		goto out_unlock;
+	if (list_empty(&sclp_con_outqueue))
+		goto out_unlock;
+	buffer = list_first_entry(&sclp_con_outqueue, struct sclp_buffer,
+				  list);
+	sclp_con_queue_running = 1;
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
-	if (count)
-		return;
+
 	rc = sclp_emit_buffer(buffer, sclp_conbuf_callback);
 	if (rc)
 		sclp_conbuf_callback(buffer, rc);
+	return;
+out_unlock:
+	spin_unlock_irqrestore(&sclp_con_lock, flags);
+}
+
+/*
+ * Wait until out queue is empty
+ */
+static void sclp_console_sync_queue(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sclp_con_lock, flags);
+	if (timer_pending(&sclp_con_timer))
+		del_timer_sync(&sclp_con_timer);
+	while (sclp_con_queue_running) {
+		spin_unlock_irqrestore(&sclp_con_lock, flags);
+		sclp_sync_wait();
+		spin_lock_irqsave(&sclp_con_lock, flags);
+	}
+	spin_unlock_irqrestore(&sclp_con_lock, flags);
 }
 
 /*
@@ -123,6 +151,8 @@ sclp_console_write(struct console *console, const char *message,
 		/* make sure we have a console output buffer */
 		if (sclp_conbuf == NULL) {
 			while (list_empty(&sclp_con_pages)) {
+				if (sclp_con_suspended)
+					goto out;
 				spin_unlock_irqrestore(&sclp_con_lock, flags);
 				sclp_sync_wait();
 				spin_lock_irqsave(&sclp_con_lock, flags);
@@ -157,6 +187,7 @@ sclp_console_write(struct console *console, const char *message,
 		sclp_con_timer.expires = jiffies + HZ/10;
 		add_timer(&sclp_con_timer);
 	}
+out:
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
 }
 
@@ -168,30 +199,43 @@ sclp_console_device(struct console *c, int *index)
 }
 
 /*
- * This routine is called from panic when the kernel
- * is going to give up. We have to make sure that all buffers
- * will be flushed to the SCLP.
+ * Make sure that all buffers will be flushed to the SCLP.
  */
 static void
 sclp_console_flush(void)
 {
-	unsigned long flags;
-
 	sclp_conbuf_emit();
-	spin_lock_irqsave(&sclp_con_lock, flags);
-	if (timer_pending(&sclp_con_timer))
-		del_timer(&sclp_con_timer);
-	while (sclp_con_buffer_count > 0) {
-		spin_unlock_irqrestore(&sclp_con_lock, flags);
-		sclp_sync_wait();
-		spin_lock_irqsave(&sclp_con_lock, flags);
-	}
-	spin_unlock_irqrestore(&sclp_con_lock, flags);
+	sclp_console_sync_queue();
 }
 
-static int
-sclp_console_notify(struct notifier_block *self,
-			  unsigned long event, void *data)
+/*
+ * Resume console: If there are cached messages, emit them.
+ */
+static void sclp_console_resume(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sclp_con_lock, flags);
+	sclp_con_suspended = 0;
+	spin_unlock_irqrestore(&sclp_con_lock, flags);
+	sclp_conbuf_emit();
+}
+
+/*
+ * Suspend console: Set suspend flag and flush console
+ */
+static void sclp_console_suspend(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&sclp_con_lock, flags);
+	sclp_con_suspended = 1;
+	spin_unlock_irqrestore(&sclp_con_lock, flags);
+	sclp_console_flush();
+}
+
+static int sclp_console_notify(struct notifier_block *self,
+			       unsigned long event, void *data)
 {
 	sclp_console_flush();
 	return NOTIFY_OK;
@@ -199,7 +243,7 @@ sclp_console_notify(struct notifier_block *self,
 
 static struct notifier_block on_panic_nb = {
 	.notifier_call = sclp_console_notify,
-	.priority = 1,
+	.priority = SCLP_PANIC_PRIO_CLIENT,
 };
 
 static struct notifier_block on_reboot_nb = {
@@ -219,6 +263,22 @@ static struct console sclp_console =
 	.flags = CON_PRINTBUFFER,
 	.index = 0 /* ttyS0 */
 };
+
+/*
+ * This function is called for SCLP suspend and resume events.
+ */
+void sclp_console_pm_event(enum sclp_pm_event sclp_pm_event)
+{
+	switch (sclp_pm_event) {
+	case SCLP_PM_EVENT_FREEZE:
+		sclp_console_suspend();
+		break;
+	case SCLP_PM_EVENT_RESTORE:
+	case SCLP_PM_EVENT_THAW:
+		sclp_console_resume();
+		break;
+	}
+}
 
 /*
  * called by console_init() in drivers/char/tty_io.c at boot-time.
@@ -243,7 +303,6 @@ sclp_console_init(void)
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);
 	spin_lock_init(&sclp_con_lock);
-	sclp_con_buffer_count = 0;
 	sclp_conbuf = NULL;
 	init_timer(&sclp_con_timer);
 

@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/net/qeth_l2_main.c
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,
@@ -1141,12 +1141,62 @@ static void qeth_l2_shutdown(struct ccwgroup_device *gdev)
 	qeth_clear_qdio_buffers(card);
 }
 
+static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+
+	if (card->dev)
+		netif_device_detach(card->dev);
+	qeth_set_allowed_threads(card, 0, 1);
+	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
+	if (gdev->state == CCWGROUP_OFFLINE)
+		return 0;
+	if (card->state == CARD_STATE_UP) {
+		card->use_hard_stop = 1;
+		__qeth_l2_set_offline(card->gdev, 1);
+	} else
+		__qeth_l2_set_offline(card->gdev, 0);
+	return 0;
+}
+
+static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	int rc = 0;
+
+	if (gdev->state == CCWGROUP_OFFLINE)
+		goto out;
+
+	if (card->state == CARD_STATE_RECOVER) {
+		rc = __qeth_l2_set_online(card->gdev, 1);
+		if (rc) {
+			if (card->dev) {
+				rtnl_lock();
+				dev_close(card->dev);
+				rtnl_unlock();
+			}
+		}
+	} else
+		rc = __qeth_l2_set_online(card->gdev, 0);
+out:
+	qeth_set_allowed_threads(card, 0xffffffff, 0);
+	if (card->dev)
+		netif_device_attach(card->dev);
+	if (rc)
+		dev_warn(&card->gdev->dev, "The qeth device driver "
+			"failed to recover an error on the device\n");
+	return rc;
+}
+
 struct ccwgroup_driver qeth_l2_ccwgroup_driver = {
 	.probe = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,
 	.set_offline = qeth_l2_set_offline,
 	.shutdown = qeth_l2_shutdown,
+	.freeze = qeth_l2_pm_suspend,
+	.thaw = qeth_l2_pm_resume,
+	.restore = qeth_l2_pm_resume,
 };
 EXPORT_SYMBOL_GPL(qeth_l2_ccwgroup_driver);
 
