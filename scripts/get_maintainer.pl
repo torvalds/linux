@@ -443,11 +443,21 @@ sub recent_git_signoffs {
     my @lines = ();
 
     if (which("git") eq "") {
-	die("$P: git not found.  Add --nogit to options?\n");
+	warn("$P: git not found.  Add --nogit to options?\n");
+	return;
+    }
+    if (!(-d ".git")) {
+	warn("$P: .git repository not found.\n");
+	warn("Use a .git repository for better results.\n");
+	warn("ie: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git\n");
+	return;
     }
 
     $cmd = "git log --since=${email_git_since} -- ${file}";
-    $cmd .= " | grep -Pi \"^[-_ 	a-z]+by:.*\\\@.*\$\"";
+    $cmd .= " | grep -Ei \"^[-_ 	a-z]+by:.*\\\@.*\$\"";
+    if (!$email_git_penguin_chiefs) {
+	$cmd .= " | grep -Ev \"${penguin_chiefs}\"";
+    }
     $cmd .= " | cut -f2- -d\":\"";
     $cmd .= " | sort | uniq -c | sort -rn";
 
@@ -486,7 +496,6 @@ sub recent_git_signoffs {
 	    push(@email_to, $line);
 	}
     }
-    return $output;
 }
 
 sub uniq {
