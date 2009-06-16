@@ -4471,8 +4471,9 @@ static void setup_per_zone_inactive_ratio(void)
 
 		/* Zone size in gigabytes */
 		gb = zone->present_pages >> (30 - PAGE_SHIFT);
-		ratio = int_sqrt(10 * gb);
-		if (!ratio)
+		if (gb)
+			ratio = int_sqrt(10 * gb);
+		else
 			ratio = 1;
 
 		zone->inactive_ratio = ratio;
