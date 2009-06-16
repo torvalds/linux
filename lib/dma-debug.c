@@ -862,7 +862,7 @@ static inline bool overlap(void *addr, u64 size, void *start, void *end)
 
 	return ((addr >= start && addr < end) ||
 		(addr2 >= start && addr2 < end) ||
-		((addr < start) && (addr2 >= end)));
+		((addr < start) && (addr2 > end)));
 }
 
 static void check_for_illegal_area(struct device *dev, void *addr, u64 size)
