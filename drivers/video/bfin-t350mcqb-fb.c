@@ -599,7 +599,7 @@ out1:
 	return ret;
 }
 
-static int bfin_t350mcqb_remove(struct platform_device *pdev)
+static int __devexit bfin_t350mcqb_remove(struct platform_device *pdev)
 {
 
 	struct fb_info *fbinfo = platform_get_drvdata(pdev);
@@ -655,7 +655,7 @@ static int bfin_t350mcqb_resume(struct platform_device *pdev)
 
 static struct platform_driver bfin_t350mcqb_driver = {
 	.probe = bfin_t350mcqb_probe,
-	.remove = bfin_t350mcqb_remove,
+	.remove = __devexit_p(bfin_t350mcqb_remove),
 	.suspend = bfin_t350mcqb_suspend,
 	.resume = bfin_t350mcqb_resume,
 	.driver = {
@@ -664,7 +664,7 @@ static struct platform_driver bfin_t350mcqb_driver = {
 		   },
 };
 
-static int __devinit bfin_t350mcqb_driver_init(void)
+static int __init bfin_t350mcqb_driver_init(void)
 {
 	return platform_driver_register(&bfin_t350mcqb_driver);
 }
