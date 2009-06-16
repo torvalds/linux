@@ -57,7 +57,7 @@ my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
 
 # rfc822 email address - preloaded methods go here.
 my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
-my $rfc822_char = '[\\000-\\177]';
+my $rfc822_char = '[\\000-\\377]';
 
 if (!GetOptions(
 		'email!' => \$email,
