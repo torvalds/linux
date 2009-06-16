@@ -357,7 +357,7 @@ raw3270_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct raw3270_request *rq;
 	int rc;
 
-	rp = (struct raw3270 *) cdev->dev.driver_data;
+	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return;
 	rq = (struct raw3270_request *) intparm;
@@ -831,7 +831,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 	if (rp->minor == -1)
 		return -EUSERS;
 	rp->cdev = cdev;
-	cdev->dev.driver_data = rp;
+	dev_set_drvdata(&cdev->dev, rp);
 	cdev->handler = raw3270_irq;
 	return 0;
 }
@@ -1112,7 +1112,7 @@ raw3270_delete_device(struct raw3270 *rp)
 	/* Disconnect from ccw_device. */
 	cdev = rp->cdev;
 	rp->cdev = NULL;
-	cdev->dev.driver_data = NULL;
+	dev_set_drvdata(&cdev->dev, NULL);
 	cdev->handler = NULL;
 
 	/* Put ccw_device structure. */
@@ -1136,7 +1136,7 @@ static ssize_t
 raw3270_model_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
-			((struct raw3270 *) dev->driver_data)->model);
+			((struct raw3270 *) dev_get_drvdata(dev))->model);
 }
 static DEVICE_ATTR(model, 0444, raw3270_model_show, NULL);
 
@@ -1144,7 +1144,7 @@ static ssize_t
 raw3270_rows_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
-			((struct raw3270 *) dev->driver_data)->rows);
+			((struct raw3270 *) dev_get_drvdata(dev))->rows);
 }
 static DEVICE_ATTR(rows, 0444, raw3270_rows_show, NULL);
 
@@ -1152,7 +1152,7 @@ static ssize_t
 raw3270_columns_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%i\n",
-			((struct raw3270 *) dev->driver_data)->cols);
+			((struct raw3270 *) dev_get_drvdata(dev))->cols);
 }
 static DEVICE_ATTR(columns, 0444, raw3270_columns_show, NULL);
 
@@ -1289,7 +1289,7 @@ raw3270_remove (struct ccw_device *cdev)
 	struct raw3270_view *v;
 	struct raw3270_notifier *np;
 
-	rp = cdev->dev.driver_data;
+	rp = dev_get_drvdata(&cdev->dev);
 	/*
 	 * _remove is the opposite of _probe; it's probe that
 	 * should set up rp.  raw3270_remove gets entered for
@@ -1337,7 +1337,7 @@ raw3270_set_offline (struct ccw_device *cdev)
 {
 	struct raw3270 *rp;
 
-	rp = cdev->dev.driver_data;
+	rp = dev_get_drvdata(&cdev->dev);
 	if (test_bit(RAW3270_FLAGS_CONSOLE, &rp->flags))
 		return -EBUSY;
 	raw3270_remove(cdev);

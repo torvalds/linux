@@ -92,7 +92,7 @@ tape_medium_state_show(struct device *dev, struct device_attribute *attr, char *
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->medium_state);
 }
 
@@ -104,7 +104,7 @@ tape_first_minor_show(struct device *dev, struct device_attribute *attr, char *b
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->first_minor);
 }
 
@@ -116,7 +116,7 @@ tape_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%s\n", (tdev->first_minor < 0) ?
 		"OFFLINE" : tape_state_verbose[tdev->tape_state]);
 }
@@ -130,7 +130,7 @@ tape_operation_show(struct device *dev, struct device_attribute *attr, char *buf
 	struct tape_device *tdev;
 	ssize_t rc;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	if (tdev->first_minor < 0)
 		return scnprintf(buf, PAGE_SIZE, "N/A\n");
 
@@ -156,7 +156,7 @@ tape_blocksize_show(struct device *dev, struct device_attribute *attr, char *buf
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->char_data.block_size);
 }
@@ -440,7 +440,7 @@ tape_generic_offline(struct ccw_device *cdev)
 {
 	struct tape_device *device;
 
-	device = cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (!device) {
 		return -ENODEV;
 	}
@@ -583,7 +583,7 @@ tape_generic_probe(struct ccw_device *cdev)
 		tape_put_device(device);
 		return ret;
 	}
-	cdev->dev.driver_data = device;
+	dev_set_drvdata(&cdev->dev, device);
 	cdev->handler = __tape_do_irq;
 	device->cdev = cdev;
 	ccw_device_get_id(cdev, &dev_id);
@@ -622,7 +622,7 @@ tape_generic_remove(struct ccw_device *cdev)
 {
 	struct tape_device *	device;
 
-	device = cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (!device) {
 		return;
 	}
@@ -662,9 +662,9 @@ tape_generic_remove(struct ccw_device *cdev)
 			tape_cleanup_device(device);
 	}
 
-	if (cdev->dev.driver_data != NULL) {
+	if (!dev_get_drvdata(&cdev->dev)) {
 		sysfs_remove_group(&cdev->dev.kobj, &tape_attr_group);
-		cdev->dev.driver_data = tape_put_device(cdev->dev.driver_data);
+		dev_set_drvdata(&cdev->dev, tape_put_device(dev_get_drvdata(&cdev->dev)));
 	}
 }
 
@@ -1060,7 +1060,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct tape_request *request;
 	int rc;
 
-	device = (struct tape_device *) cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (device == NULL) {
 		return;
 	}

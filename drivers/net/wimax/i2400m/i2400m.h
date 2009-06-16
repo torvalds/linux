@@ -432,7 +432,7 @@ struct i2400m {
 	unsigned ready:1;		/* all probing steps done */
 	unsigned rx_reorder:1;		/* RX reorder is enabled */
 	u8 trace_msg_from_user;		/* echo rx msgs to 'trace' pipe */
-					/* typed u8 so debugfs/u8 can tweak */
+					/* typed u8 so /sys/kernel/debug/u8 can tweak */
 	enum i2400m_system_state state;
 	wait_queue_head_t state_wq;	/* Woken up when on state updates */
 

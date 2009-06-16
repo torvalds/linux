@@ -147,7 +147,7 @@ config IRQSOFF_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /debugfs/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increases with this option
 	  enabled. This option and the preempt-off timing option can be
@@ -168,7 +168,7 @@ config PREEMPT_TRACER
 	  disabled by default and can be runtime (re-)started
 	  via:
 
-	      echo 0 > /debugfs/tracing/tracing_max_latency
+	      echo 0 > /sys/kernel/debug/tracing/tracing_max_latency
 
 	  (Note that kernel size and overhead increases with this option
 	  enabled. This option and the irqs-off timing option can be
@@ -261,7 +261,7 @@ config PROFILE_ANNOTATED_BRANCHES
 	  This tracer profiles all the the likely and unlikely macros
 	  in the kernel. It will display the results in:
 
-	  /debugfs/tracing/profile_annotated_branch
+	  /sys/kernel/debug/tracing/profile_annotated_branch
 
 	  Note: this will add a significant overhead, only turn this
 	  on if you need to profile the system's use of these macros.
@@ -274,7 +274,7 @@ config PROFILE_ALL_BRANCHES
 	  taken in the kernel is recorded whether it hit or miss.
 	  The results will be displayed in:
 
-	  /debugfs/tracing/profile_branch
+	  /sys/kernel/debug/tracing/profile_branch
 
 	  This option also enables the likely/unlikely profiler.
 
@@ -323,7 +323,7 @@ config STACK_TRACER
 	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
-	  kernel and displays it in debugfs/tracing/stack_trace.
+	  kernel and displays it in /sys/kernel/debug/tracing/stack_trace.
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and

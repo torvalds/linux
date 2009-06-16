@@ -28,11 +28,10 @@ config ATH5K_DEBUG
 	  Say Y, if and you will get debug options for ath5k.
 	  To use this, you need to mount debugfs:
 
-	  mkdir /debug/
-	  mount -t debugfs debug /debug/
+	  mount -t debugfs debug /sys/kernel/debug
 
 	  You will get access to files under:
-	  /debug/ath5k/phy0/
+	  /sys/kernel/debug/ath5k/phy0/
 
 	  To enable debug, pass the debug level to the debug module
 	  parameter. For example:

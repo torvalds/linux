@@ -3,7 +3,8 @@
 
 int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
-	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
+	ide_drive_t *drive = dev_get_drvdata(dev);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
 	struct request_pm_state rqpm;
@@ -34,7 +35,8 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 
 int generic_ide_resume(struct device *dev)
 {
-	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
+	ide_drive_t *drive = dev_get_drvdata(dev);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
 	struct request_pm_state rqpm;

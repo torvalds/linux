@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 
-#define FIRMWARE_NAME_MAX 30 
 #define FW_ACTION_NOHOTPLUG 0
 #define FW_ACTION_HOTPLUG 1
 

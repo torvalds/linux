@@ -1289,7 +1289,7 @@ static int
 tape_34xx_online(struct ccw_device *cdev)
 {
 	return tape_generic_online(
-		cdev->dev.driver_data,
+		dev_get_drvdata(&cdev->dev),
 		&tape_discipline_34xx
 	);
 }

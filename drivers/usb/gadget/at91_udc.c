@@ -1574,7 +1574,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	udc->driver = driver;
 	udc->gadget.dev.driver = &driver->driver;
-	udc->gadget.dev.driver_data = &driver->driver;
+	dev_set_drvdata(&udc->gadget.dev, &driver->driver);
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
@@ -1583,7 +1583,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		DBG("driver->bind() returned %d\n", retval);
 		udc->driver = NULL;
 		udc->gadget.dev.driver = NULL;
-		udc->gadget.dev.driver_data = NULL;
+		dev_set_drvdata(&udc->gadget.dev, NULL);
 		udc->enabled = 0;
 		udc->selfpowered = 0;
 		return retval;
@@ -1613,7 +1613,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
-	udc->gadget.dev.driver_data = NULL;
+	dev_set_drvdata(&udc->gadget.dev, NULL);
 	udc->driver = NULL;
 
 	DBG("unbound from %s\n", driver->driver.name);
