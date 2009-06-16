@@ -1,0 +1,42 @@
+Kernel driver tmp401
+====================
+
+Supported chips:
+  * Texas Instruments TMP401
+    Prefix: 'tmp401'
+    Addresses scanned: I2C 0x4c
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp401.html
+  * Texas Instruments TMP411
+    Prefix: 'tmp411'
+    Addresses scanned: I2C 0x4c
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp411.html
+
+Authors:
+         Hans de Goede <hdegoede@redhat.com>
+	 Andre Prendel <andre.prendel@gmx.de>
+
+Description
+-----------
+
+This driver implements support for Texas Instruments TMP401 and
+TMP411 chips. These chips implements one remote and one local
+temperature sensor. Temperature is measured in degrees
+Celsius. Resolution of the remote sensor is 0.0625 degree. Local
+sensor resolution can be set to 0.5, 0.25, 0.125 or 0.0625 degree (not
+supported by the driver so far, so using the default resolution of 0.5
+degree).
+
+The driver provides the common sysfs-interface for temperatures (see
+/Documentation/hwmon/sysfs-interface under Temperatures).
+
+The TMP411 chip is compatible with TMP401. It provides some additional
+features.
+
+* Minimum and Maximum temperature measured since power-on, chip-reset
+
+  Exported via sysfs attributes tempX_lowest and tempX_highest.
+
+* Reset of historical minimum/maximum temperature measurements
+
+  Exported via sysfs attribute temp_reset_history. Writing 1 to this
+  file triggers a reset.
