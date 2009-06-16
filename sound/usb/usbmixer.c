@@ -470,6 +470,15 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	 */
 	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
 	scale[3] = (convert_signed_value(cval, cval->max) * 100) / 256;
+	if (scale[3] <= scale[2]) {
+		/* something is wrong; assume it's either from/to 0dB */
+		if (scale[2] < 0)
+			scale[3] = 0;
+		else if (scale[2] > 0)
+			scale[2] = 0;
+		else /* totally crap, return an error */
+			return -EINVAL;
+	}
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
 		return -EFAULT;
 	return 0;
