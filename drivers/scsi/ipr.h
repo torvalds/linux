@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.4.2"
-#define IPR_DRIVER_DATE "(January 21, 2009)"
+#define IPR_DRIVER_VERSION "2.4.3"
+#define IPR_DRIVER_DATE "(June 10, 2009)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -1094,6 +1094,7 @@ struct ipr_ioa_cfg {
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
 	u8 needs_warm_reset:1;
+	u8 msi_received:1;
 
 	u8 revid;
 
@@ -1179,6 +1180,7 @@ struct ipr_ioa_cfg {
 	struct work_struct work_q;
 
 	wait_queue_head_t reset_wait_q;
+	wait_queue_head_t msi_wait_q;
 
 	struct ipr_dump *dump;
 	enum ipr_sdt_state sdt_state;
