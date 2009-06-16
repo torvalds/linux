@@ -575,7 +575,9 @@ EXPORT_SYMBOL_GPL(usbnet_unlink_rx_urbs);
 int usbnet_stop (struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
+	struct driver_info	*info = dev->driver_info;
 	int			temp;
+	int			retval;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK (unlink_wakeup);
 	DECLARE_WAITQUEUE (wait, current);
 
@@ -586,6 +588,18 @@ int usbnet_stop (struct net_device *net)
 			net->stats.rx_packets, net->stats.tx_packets,
 			net->stats.rx_errors, net->stats.tx_errors
 			);
+
+	/* allow minidriver to stop correctly (wireless devices to turn off
+	 * radio etc) */
+	if (info->stop) {
+		retval = info->stop(dev);
+		if (retval < 0 && netif_msg_ifdown(dev))
+			devinfo(dev,
+				"stop fail (%d) usbnet usb-%s-%s, %s",
+				retval,
+				dev->udev->bus->bus_name, dev->udev->devpath,
+				info->description);
+	}
 
 	// ensure there are no more active urbs
 	add_wait_queue (&unlink_wakeup, &wait);

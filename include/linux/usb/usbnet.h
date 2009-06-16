@@ -97,6 +97,9 @@ struct driver_info {
 	/* reset device ... can sleep */
 	int	(*reset)(struct usbnet *);
 
+	/* stop device ... can sleep */
+	int	(*stop)(struct usbnet *);
+
 	/* see if peer is connected ... can sleep */
 	int	(*check_connect)(struct usbnet *);
 
