@@ -2839,6 +2839,9 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	drv->scan_req = request;
 	err = drv->ops->scan(&drv->wiphy, dev, request);
 
+	if (!err)
+		nl80211_send_scan_start(drv, dev);
+
  out_free:
 	if (err) {
 		drv->scan_req = NULL;
@@ -3665,11 +3668,11 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	return -ENOBUFS;
 }
 
-static int nl80211_send_scan_donemsg(struct sk_buff *msg,
-				     struct cfg80211_registered_device *rdev,
-				     struct net_device *netdev,
-				     u32 pid, u32 seq, int flags,
-				     u32 cmd)
+static int nl80211_send_scan_msg(struct sk_buff *msg,
+				 struct cfg80211_registered_device *rdev,
+				 struct net_device *netdev,
+				 u32 pid, u32 seq, int flags,
+				 u32 cmd)
 {
 	void *hdr;
 
@@ -3690,6 +3693,24 @@ static int nl80211_send_scan_donemsg(struct sk_buff *msg,
 	return -EMSGSIZE;
 }
 
+void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
+			     struct net_device *netdev)
+{
+	struct sk_buff *msg;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	if (nl80211_send_scan_msg(msg, rdev, netdev, 0, 0, 0,
+				  NL80211_CMD_TRIGGER_SCAN) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_scan_mcgrp.id, GFP_KERNEL);
+}
+
 void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
 			    struct net_device *netdev)
 {
@@ -3699,8 +3720,8 @@ void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return;
 
-	if (nl80211_send_scan_donemsg(msg, rdev, netdev, 0, 0, 0,
-				      NL80211_CMD_NEW_SCAN_RESULTS) < 0) {
+	if (nl80211_send_scan_msg(msg, rdev, netdev, 0, 0, 0,
+				  NL80211_CMD_NEW_SCAN_RESULTS) < 0) {
 		nlmsg_free(msg);
 		return;
 	}
@@ -3717,8 +3738,8 @@ void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return;
 
-	if (nl80211_send_scan_donemsg(msg, rdev, netdev, 0, 0, 0,
-				      NL80211_CMD_SCAN_ABORTED) < 0) {
+	if (nl80211_send_scan_msg(msg, rdev, netdev, 0, 0, 0,
+				  NL80211_CMD_SCAN_ABORTED) < 0) {
 		nlmsg_free(msg);
 		return;
 	}

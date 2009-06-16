@@ -647,7 +647,8 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (err) {
 		rdev->scan_req = NULL;
 		kfree(creq);
-	}
+	} else
+		nl80211_send_scan_start(rdev, dev);
  out:
 	cfg80211_put_dev(rdev);
 	return err;
