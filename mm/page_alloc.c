@@ -2077,19 +2077,14 @@ void show_free_areas(void)
 
 	printk("Active_anon:%lu active_file:%lu inactive_anon:%lu\n"
 		" inactive_file:%lu"
-//TODO:  check/adjust line lengths
-#ifdef CONFIG_UNEVICTABLE_LRU
 		" unevictable:%lu"
-#endif
 		" dirty:%lu writeback:%lu unstable:%lu\n"
 		" free:%lu slab:%lu mapped:%lu pagetables:%lu bounce:%lu\n",
 		global_page_state(NR_ACTIVE_ANON),
 		global_page_state(NR_ACTIVE_FILE),
 		global_page_state(NR_INACTIVE_ANON),
 		global_page_state(NR_INACTIVE_FILE),
-#ifdef CONFIG_UNEVICTABLE_LRU
 		global_page_state(NR_UNEVICTABLE),
-#endif
 		global_page_state(NR_FILE_DIRTY),
 		global_page_state(NR_WRITEBACK),
 		global_page_state(NR_UNSTABLE_NFS),
@@ -2113,9 +2108,7 @@ void show_free_areas(void)
 			" inactive_anon:%lukB"
 			" active_file:%lukB"
 			" inactive_file:%lukB"
-#ifdef CONFIG_UNEVICTABLE_LRU
 			" unevictable:%lukB"
-#endif
 			" present:%lukB"
 			" pages_scanned:%lu"
 			" all_unreclaimable? %s"
@@ -2129,9 +2122,7 @@ void show_free_areas(void)
 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
 			K(zone_page_state(zone, NR_INACTIVE_FILE)),
-#ifdef CONFIG_UNEVICTABLE_LRU
 			K(zone_page_state(zone, NR_UNEVICTABLE)),
-#endif
 			K(zone->present_pages),
 			zone->pages_scanned,
 			(zone_is_all_unreclaimable(zone) ? "yes" : "no")

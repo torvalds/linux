@@ -73,7 +73,6 @@ static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
 }
 #endif
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * unevictable_migrate_page() called only from migrate_page_copy() to
  * migrate unevictable flag to new page.
@@ -85,11 +84,6 @@ static inline void unevictable_migrate_page(struct page *new, struct page *old)
 	if (TestClearPageUnevictable(old))
 		SetPageUnevictable(new);
 }
-#else
-static inline void unevictable_migrate_page(struct page *new, struct page *old)
-{
-}
-#endif
 
 #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
 /*

@@ -629,10 +629,8 @@ static const char * const vmstat_text[] = {
 	"nr_active_anon",
 	"nr_inactive_file",
 	"nr_active_file",
-#ifdef CONFIG_UNEVICTABLE_LRU
 	"nr_unevictable",
 	"nr_mlock",
-#endif
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",
@@ -687,7 +685,6 @@ static const char * const vmstat_text[] = {
 	"htlb_buddy_alloc_success",
 	"htlb_buddy_alloc_fail",
 #endif
-#ifdef CONFIG_UNEVICTABLE_LRU
 	"unevictable_pgs_culled",
 	"unevictable_pgs_scanned",
 	"unevictable_pgs_rescued",
@@ -696,7 +693,6 @@ static const char * const vmstat_text[] = {
 	"unevictable_pgs_cleared",
 	"unevictable_pgs_stranded",
 	"unevictable_pgs_mlockfreed",
-#endif
 #endif
 };
 

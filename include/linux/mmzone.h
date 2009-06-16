@@ -83,13 +83,8 @@ enum zone_stat_item {
 	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
-#ifdef CONFIG_UNEVICTABLE_LRU
 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
-#else
-	NR_UNEVICTABLE = NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
-	NR_MLOCK = NR_ACTIVE_FILE,
-#endif
 	NR_ANON_PAGES,	/* Mapped anonymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
@@ -132,11 +127,7 @@ enum lru_list {
 	LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
-#ifdef CONFIG_UNEVICTABLE_LRU
 	LRU_UNEVICTABLE,
-#else
-	LRU_UNEVICTABLE = LRU_ACTIVE_FILE, /* avoid compiler errors in dead code */
-#endif
 	NR_LRU_LISTS
 };
 
@@ -156,11 +147,7 @@ static inline int is_active_lru(enum lru_list l)
 
 static inline int is_unevictable_lru(enum lru_list l)
 {
-#ifdef CONFIG_UNEVICTABLE_LRU
 	return (l == LRU_UNEVICTABLE);
-#else
-	return 0;
-#endif
 }
 
 enum zone_watermarks {

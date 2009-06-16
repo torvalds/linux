@@ -514,7 +514,6 @@ int remove_mapping(struct address_space *mapping, struct page *page)
  *
  * lru_lock must not be held, interrupts must be enabled.
  */
-#ifdef CONFIG_UNEVICTABLE_LRU
 void putback_lru_page(struct page *page)
 {
 	int lru;
@@ -567,20 +566,6 @@ redo:
 
 	put_page(page);		/* drop ref from isolate */
 }
-
-#else /* CONFIG_UNEVICTABLE_LRU */
-
-void putback_lru_page(struct page *page)
-{
-	int lru;
-	VM_BUG_ON(PageLRU(page));
-
-	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
-	lru_cache_add_lru(page, lru);
-	put_page(page);
-}
-#endif /* CONFIG_UNEVICTABLE_LRU */
-
 
 /*
  * shrink_page_list() returns the number of reclaimed pages
@@ -2470,7 +2455,6 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 }
 #endif
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * page_evictable - test whether a page is evictable
  * @page: the page to test
@@ -2717,4 +2701,3 @@ void scan_unevictable_unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pages);
 }
 
-#endif

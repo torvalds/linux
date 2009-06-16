@@ -235,7 +235,6 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 }
 #endif
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 extern int page_evictable(struct page *page, struct vm_area_struct *vma);
 extern void scan_mapping_unevictable_pages(struct address_space *);
 
@@ -244,24 +243,6 @@ extern int scan_unevictable_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
 extern int scan_unevictable_register_node(struct node *node);
 extern void scan_unevictable_unregister_node(struct node *node);
-#else
-static inline int page_evictable(struct page *page,
-						struct vm_area_struct *vma)
-{
-	return 1;
-}
-
-static inline void scan_mapping_unevictable_pages(struct address_space *mapping)
-{
-}
-
-static inline int scan_unevictable_register_node(struct node *node)
-{
-	return 0;
-}
-
-static inline void scan_unevictable_unregister_node(struct node *node) { }
-#endif
 
 extern int kswapd_run(int nid);
 
