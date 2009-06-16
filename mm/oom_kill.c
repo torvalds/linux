@@ -325,11 +325,8 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 		return;
 	}
 
-	if (!p->mm) {
-		WARN_ON(1);
-		printk(KERN_WARNING "tried to kill an mm-less task!\n");
+	if (!p->mm)
 		return;
-	}
 
 	if (verbose)
 		printk(KERN_ERR "Killed process %d (%s)\n",
@@ -397,8 +394,9 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+	 * if its mm is still attached.
 	 */
-	if (p->flags & PF_EXITING) {
+	if (p->mm && (p->flags & PF_EXITING)) {
 		__oom_kill_task(p, 0);
 		return 0;
 	}
