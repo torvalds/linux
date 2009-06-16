@@ -55,7 +55,7 @@ static int raid0_congested(void *data, int bits)
 static int create_strip_zones(mddev_t *mddev)
 {
 	int i, c, j, err;
-	sector_t curr_zone_end;
+	sector_t curr_zone_end, sectors;
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev;
 	struct strip_zone *zone;
 	int cnt;
@@ -153,10 +153,9 @@ static int create_strip_zones(mddev_t *mddev)
 		goto abort;
 	}
 	zone->nb_dev = cnt;
-	zone->sectors = smallest->sectors * cnt;
-	zone->zone_end = zone->sectors;
+	zone->zone_end = smallest->sectors * cnt;
 
-	curr_zone_end = zone->sectors;
+	curr_zone_end = zone->zone_end;
 
 	/* now do the other zones */
 	for (i = 1; i < conf->nr_strip_zones; i++)
@@ -189,11 +188,11 @@ static int create_strip_zones(mddev_t *mddev)
 		}
 
 		zone->nb_dev = c;
-		zone->sectors = (smallest->sectors - zone->dev_start) * c;
+		sectors = (smallest->sectors - zone->dev_start) * c;
 		printk(KERN_INFO "raid0: zone->nb_dev: %d, sectors: %llu\n",
-			zone->nb_dev, (unsigned long long)zone->sectors);
+			zone->nb_dev, (unsigned long long)sectors);
 
-		curr_zone_end += zone->sectors;
+		curr_zone_end += sectors;
 		zone->zone_end = curr_zone_end;
 
 		printk(KERN_INFO "raid0: current zone start: %llu\n",
@@ -310,16 +309,22 @@ static int raid0_stop(mddev_t *mddev)
 	return 0;
 }
 
-/* Find the zone which holds a particular offset */
+/* Find the zone which holds a particular offset
+ * Update *sectorp to be an offset in that zone
+ */
 static struct strip_zone *find_zone(struct raid0_private_data *conf,
-		sector_t sector)
+				    sector_t *sectorp)
 {
 	int i;
 	struct strip_zone *z = conf->strip_zone;
+	sector_t sector = *sectorp;
 
 	for (i = 0; i < conf->nr_strip_zones; i++)
-		if (sector < z[i].zone_end)
+		if (sector < z[i].zone_end) {
+			if (i)
+				*sectorp = sector - z[i-1].zone_end;
 			return z + i;
+		}
 	BUG();
 }
 
@@ -331,7 +336,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
 	sector_t chunk;
-	sector_t sector, rsect;
+	sector_t sector, rsect, sector_offset;
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
@@ -368,11 +373,11 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		bio_pair_release(bp);
 		return 0;
 	}
-	zone = find_zone(conf, sector);
+	sector_offset = sector;
+	zone = find_zone(conf, &sector_offset);
 	sect_in_chunk = bio->bi_sector & (chunk_sects - 1);
 	{
-		sector_t x = (zone->sectors + sector - zone->zone_end)
-				>> chunksect_bits;
+		sector_t x = sector_offset >> chunksect_bits;
 
 		sector_div(x, zone->nb_dev);
 		chunk = x;
