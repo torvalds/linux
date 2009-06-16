@@ -1247,12 +1247,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 			expire_client(conf);
 			goto out_new;
 		}
-		if (ip_addr != conf->cl_addr &&
-		    !(exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A)) {
-			/* Client collision. 18.35.4 case 3 */
-			status = nfserr_clid_inuse;
-			goto out;
-		}
 		/*
 		 * Set bit when the owner id and verifier map to an already
 		 * confirmed client id (18.35.3).
@@ -1266,12 +1260,12 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		copy_verf(conf, &verf);
 		new = conf;
 		goto out_copy;
-	} else {
-		/* 18.35.4 case 7 */
-		if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
-			status = nfserr_noent;
-			goto out;
-		}
+	}
+
+	/* 18.35.4 case 7 */
+	if (exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A) {
+		status = nfserr_noent;
+		goto out;
 	}
 
 	unconf  = find_unconfirmed_client_by_str(dname, strhashval, true);
