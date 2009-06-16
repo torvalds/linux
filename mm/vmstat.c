@@ -710,7 +710,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        min      %lu"
 		   "\n        low      %lu"
 		   "\n        high     %lu"
-		   "\n        scanned  %lu (aa: %lu ia: %lu af: %lu if: %lu)"
+		   "\n        scanned  %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu",
 		   zone_page_state(zone, NR_FREE_PAGES),
@@ -718,10 +718,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
 		   zone->pages_scanned,
-		   zone->lru[LRU_ACTIVE_ANON].nr_saved_scan,
-		   zone->lru[LRU_INACTIVE_ANON].nr_saved_scan,
-		   zone->lru[LRU_ACTIVE_FILE].nr_saved_scan,
-		   zone->lru[LRU_INACTIVE_FILE].nr_saved_scan,
 		   zone->spanned_pages,
 		   zone->present_pages);
 
