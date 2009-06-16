@@ -4336,7 +4336,8 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!mddev->new_chunk || mddev->new_chunk % PAGE_SIZE) {
+	if (!mddev->new_chunk || mddev->new_chunk % PAGE_SIZE ||
+	    !is_power_of_2(mddev->new_chunk)) {
 		printk(KERN_ERR "raid5: invalid chunk size %d for %s\n",
 			mddev->new_chunk, mdname(mddev));
 		return ERR_PTR(-EINVAL);
