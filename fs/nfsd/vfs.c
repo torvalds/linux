@@ -1053,19 +1053,20 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	oldfs = get_fs(); set_fs(KERNEL_DS);
 	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &offset);
 	set_fs(oldfs);
-	if (host_err >= 0) {
-		*cnt = host_err;
-		nfsdstats.io_write += host_err;
-		fsnotify_modify(file->f_path.dentry);
-	}
+	if (host_err < 0)
+		goto out_nfserr;
+	*cnt = host_err;
+	nfsdstats.io_write += host_err;
+	fsnotify_modify(file->f_path.dentry);
 
 	/* clear setuid/setgid flag after write */
-	if (host_err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
+	if (inode->i_mode & (S_ISUID | S_ISGID))
 		kill_suid(dentry);
 
-	if (host_err >= 0 && stable && use_wgather)
+	if (stable && use_wgather)
 		host_err = wait_for_concurrent_writes(file);
 
+out_nfserr:
 	dprintk("nfsd: write complete host_err=%d\n", host_err);
 	if (host_err >= 0)
 		err = 0;
