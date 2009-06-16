@@ -438,6 +438,26 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (lis3lv02d_joystick_enable())
 		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");
 
+	/* passing in platform specific data is purely optional and only
+	 * used by the SPI transport layer at the moment */
+	if (dev->pdata) {
+		struct lis3lv02d_platform_data *p = dev->pdata;
+
+		if (p->click_flags && (dev->whoami == LIS_SINGLE_ID)) {
+			dev->write(dev, CLICK_CFG, p->click_flags);
+			dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
+			dev->write(dev, CLICK_LATENCY, p->click_latency);
+			dev->write(dev, CLICK_WINDOW, p->click_window);
+			dev->write(dev, CLICK_THSZ, p->click_thresh_z & 0xf);
+			dev->write(dev, CLICK_THSY_X,
+					(p->click_thresh_x & 0xf) |
+					(p->click_thresh_y << 4));
+		}
+
+		if (p->irq_cfg)
+			dev->write(dev, CTRL_REG3, p->irq_cfg);
+	}
+
 	/* bail if we did not get an IRQ from the bus layer */
 	if (!dev->irq) {
 		printk(KERN_ERR DRIVER_NAME
