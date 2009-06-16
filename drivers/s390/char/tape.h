@@ -3,7 +3,7 @@
  *    tape device driver for 3480/3490E/3590 tapes.
  *
  *  S390 and zSeries version
- *    Copyright IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2009
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -286,6 +286,7 @@ extern void tape_state_set(struct tape_device *, enum tape_state);
 
 extern int tape_generic_online(struct tape_device *, struct tape_discipline *);
 extern int tape_generic_offline(struct ccw_device *);
+extern int tape_generic_pm_suspend(struct ccw_device *);
 
 /* Externals from tape_devmap.c */
 extern int tape_generic_probe(struct ccw_device *);
