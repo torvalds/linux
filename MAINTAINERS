@@ -1457,6 +1457,7 @@ P:	Joe Eykholt
 M:	jeykholt@cisco.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
+F:	drivers/scsi/fnic/
 
 CODA FILE SYSTEM
 P:	Jan Harkes
