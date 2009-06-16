@@ -12,7 +12,6 @@ struct strip_zone
 
 struct raid0_private_data
 {
-	struct strip_zone **hash_table; /* Table of indexes into strip_zone */
 	struct strip_zone *strip_zone;
 	mdk_rdev_t **devlist; /* lists of rdevs, pointed to by strip_zone->dev */
 	int nr_strip_zones;

@@ -326,22 +326,14 @@ static int raid0_run (mddev_t *mddev)
 		nb_zone = s + round;
 	}
 	printk(KERN_INFO "raid0 : nb_zone is %d.\n", nb_zone);
-
-	printk(KERN_INFO "raid0 : Allocating %zu bytes for hash.\n",
-				nb_zone*sizeof(struct strip_zone*));
-	conf->hash_table = kmalloc (sizeof (struct strip_zone *)*nb_zone, GFP_KERNEL);
-	if (!conf->hash_table)
-		goto out_free_conf;
 	sectors = conf->strip_zone[cur].sectors;
 
-	conf->hash_table[0] = conf->strip_zone + cur;
 	for (i=1; i< nb_zone; i++) {
 		while (sectors <= conf->spacing) {
 			cur++;
 			sectors += conf->strip_zone[cur].sectors;
 		}
 		sectors -= conf->spacing;
-		conf->hash_table[i] = conf->strip_zone + cur;
 	}
 	if (conf->sector_shift) {
 		conf->spacing >>= conf->sector_shift;
@@ -384,8 +376,6 @@ static int raid0_stop (mddev_t *mddev)
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
-	kfree(conf->hash_table);
-	conf->hash_table = NULL;
 	kfree(conf->strip_zone);
 	conf->strip_zone = NULL;
 	kfree(conf);
@@ -494,8 +484,6 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 	h = 0;
 	for (j = 0; j < conf->nr_strip_zones; j++) {
 		seq_printf(seq, "      z%d", j);
-		if (conf->hash_table[h] == conf->strip_zone+j)
-			seq_printf(seq, "(h%d)", h++);
 		seq_printf(seq, "=[");
 		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
 			seq_printf(seq, "%s/", bdevname(
