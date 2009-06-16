@@ -452,15 +452,17 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
  */
 
 static inline void __free_one_page(struct page *page,
-		struct zone *zone, unsigned int order)
+		struct zone *zone, unsigned int order,
+		int migratetype)
 {
 	unsigned long page_idx;
 	int order_size = 1 << order;
-	int migratetype = get_pageblock_migratetype(page);
 
 	if (unlikely(PageCompound(page)))
 		if (unlikely(destroy_compound_page(page, order)))
 			return;
+
+	VM_BUG_ON(migratetype == -1);
 
 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
 
@@ -530,17 +532,18 @@ static void free_pages_bulk(struct zone *zone, int count,
 		page = list_entry(list->prev, struct page, lru);
 		/* have to delete it as __free_one_page list manipulates */
 		list_del(&page->lru);
-		__free_one_page(page, zone, order);
+		__free_one_page(page, zone, order, page_private(page));
 	}
 	spin_unlock(&zone->lock);
 }
 
-static void free_one_page(struct zone *zone, struct page *page, int order)
+static void free_one_page(struct zone *zone, struct page *page, int order,
+				int migratetype)
 {
 	spin_lock(&zone->lock);
 	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
 	zone->pages_scanned = 0;
-	__free_one_page(page, zone, order);
+	__free_one_page(page, zone, order, migratetype);
 	spin_unlock(&zone->lock);
 }
 
@@ -565,7 +568,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 
 	local_irq_save(flags);
 	__count_vm_events(PGFREE, 1 << order);
-	free_one_page(page_zone(page), page, order);
+	free_one_page(page_zone(page), page, order,
+					get_pageblock_migratetype(page));
 	local_irq_restore(flags);
 }
 
