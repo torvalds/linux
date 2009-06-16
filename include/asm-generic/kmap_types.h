@@ -1,7 +1,7 @@
 #ifndef _ASM_GENERIC_KMAP_TYPES_H
 #define _ASM_GENERIC_KMAP_TYPES_H
 
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef __WITH_KM_FENCE
 # define D(n) __KM_FENCE_##n ,
 #else
 # define D(n)
