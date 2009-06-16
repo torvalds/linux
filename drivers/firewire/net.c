@@ -810,29 +810,27 @@ static void fwnet_receive_packet(struct fw_card *card, struct fw_request *r,
 		int speed, unsigned long long offset, void *payload,
 		size_t length, void *callback_data)
 {
-	struct fwnet_device *dev;
-	int status;
+	struct fwnet_device *dev = callback_data;
+	int rcode;
 
-	dev = callback_data;
-	if (tcode != TCODE_WRITE_BLOCK_REQUEST
-	    || destination != card->node_id	/* <- FIXME */
-	    || generation != card->generation	/* <- FIXME */
-	    || offset != dev->handler.offset) {
-		fw_send_response(card, r, RCODE_CONFLICT_ERROR);
+	if (destination == IEEE1394_ALL_NODES) {
+		kfree(r);
 
 		return;
 	}
 
-	status = fwnet_incoming_packet(dev, payload, length,
-				       source, generation, false);
-	if (status != 0) {
+	if (offset != dev->handler.offset)
+		rcode = RCODE_ADDRESS_ERROR;
+	else if (tcode != TCODE_WRITE_BLOCK_REQUEST)
+		rcode = RCODE_TYPE_ERROR;
+	else if (fwnet_incoming_packet(dev, payload, length,
+				       source, generation, false) != 0) {
 		fw_error("Incoming packet failure\n");
-		fw_send_response(card, r, RCODE_CONFLICT_ERROR);
+		rcode = RCODE_CONFLICT_ERROR;
+	} else
+		rcode = RCODE_COMPLETE;
 
-		return;
-	}
-
-	fw_send_response(card, r, RCODE_COMPLETE);
+	fw_send_response(card, r, rcode);
 }
 
 static void fwnet_receive_broadcast(struct fw_iso_context *context,
