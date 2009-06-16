@@ -2050,9 +2050,10 @@ static int run(mddev_t *mddev)
 	int nc, fc, fo;
 	sector_t stride, size;
 
-	if (mddev->chunk_size < PAGE_SIZE) {
+	if (mddev->chunk_size < PAGE_SIZE ||
+	    !is_power_of_2(mddev->chunk_size)) {
 		printk(KERN_ERR "md/raid10: chunk size must be "
-		       "at least PAGE_SIZE(%ld).\n", PAGE_SIZE);
+		       "at least PAGE_SIZE(%ld) and be a power of 2.\n", PAGE_SIZE);
 		return -EINVAL;
 	}
 
