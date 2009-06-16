@@ -5,6 +5,7 @@
 #include <linux/stddef.h>
 #include <linux/linkage.h>
 #include <linux/topology.h>
+#include <linux/mmdebug.h>
 
 struct vm_area_struct;
 
@@ -188,6 +189,14 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 	/* Unknown node is current node */
 	if (nid < 0)
 		nid = numa_node_id();
+
+	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
+}
+
+static inline struct page *alloc_pages_exact_node(int nid, gfp_t gfp_mask,
+						unsigned int order)
+{
+	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
 
 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
 }
