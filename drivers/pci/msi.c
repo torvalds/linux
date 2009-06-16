@@ -131,9 +131,6 @@ static inline __attribute_const__ u32 msi_enabled_mask(u16 control)
  * mask all MSI interrupts by clearing the MSI enable bit does not work
  * reliably as devices without an INTx disable bit will then generate a
  * level IRQ which will never be cleared.
- *
- * Returns 1 if it succeeded in masking the interrupt and 0 if the device
- * doesn't support MSI masking.
  */
 static void msi_mask_irq(struct msi_desc *desc, u32 mask, u32 flag)
 {
