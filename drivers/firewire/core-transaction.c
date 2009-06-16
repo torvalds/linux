@@ -18,24 +18,28 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bug.h>
 #include <linux/completion.h>
-#include <linux/idr.h>
-#include <linux/kernel.h>
-#include <linux/kref.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
+#include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/delay.h>
-#include <linux/poll.h>
+#include <linux/idr.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/kthread.h>
-#include <asm/uaccess.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/timer.h>
+#include <linux/types.h>
 
-#include "fw-transaction.h"
-#include "fw-topology.h"
-#include "fw-device.h"
+#include <asm/byteorder.h>
+
+#include "core.h"
 
 #define HEADER_PRI(pri)			((pri) << 0)
 #define HEADER_TCODE(tcode)		((tcode) << 4)
@@ -60,6 +64,10 @@
 #define HEADER_DESTINATION_IS_BROADCAST(q) \
 	(((q) & HEADER_DESTINATION(0x3f)) == HEADER_DESTINATION(0x3f))
 
+#define PHY_PACKET_CONFIG	0x0
+#define PHY_PACKET_LINK_ON	0x1
+#define PHY_PACKET_SELF_ID	0x2
+
 #define PHY_CONFIG_GAP_COUNT(gap_count)	(((gap_count) << 16) | (1 << 22))
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
@@ -74,7 +82,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t == transaction) {
 			list_del(&t->link);
-			card->tlabel_mask &= ~(1 << t->tlabel);
+			card->tlabel_mask &= ~(1ULL << t->tlabel);
 			break;
 		}
 	}
@@ -280,14 +288,14 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	spin_lock_irqsave(&card->lock, flags);
 
 	tlabel = card->current_tlabel;
-	if (card->tlabel_mask & (1 << tlabel)) {
+	if (card->tlabel_mask & (1ULL << tlabel)) {
 		spin_unlock_irqrestore(&card->lock, flags);
 		callback(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
 		return;
 	}
 
-	card->current_tlabel = (card->current_tlabel + 1) & 0x1f;
-	card->tlabel_mask |= (1 << tlabel);
+	card->current_tlabel = (card->current_tlabel + 1) & 0x3f;
+	card->tlabel_mask |= (1ULL << tlabel);
 
 	t->node_id = destination_id;
 	t->tlabel = tlabel;

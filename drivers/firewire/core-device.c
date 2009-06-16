@@ -22,10 +22,14 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/idr.h>
 #include <linux/jiffies.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
@@ -33,11 +37,11 @@
 #include <linux/string.h>
 #include <linux/workqueue.h>
 
+#include <asm/atomic.h>
+#include <asm/byteorder.h>
 #include <asm/system.h>
 
-#include "fw-device.h"
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include "core.h"
 
 void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
 {
@@ -55,9 +59,10 @@ int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value)
 }
 EXPORT_SYMBOL(fw_csr_iterator_next);
 
-static int is_fw_unit(struct device *dev);
+static bool is_fw_unit(struct device *dev);
 
-static int match_unit_directory(u32 * directory, const struct fw_device_id *id)
+static int match_unit_directory(u32 *directory, u32 match_flags,
+				const struct ieee1394_device_id *id)
 {
 	struct fw_csr_iterator ci;
 	int key, value, match;
@@ -65,31 +70,42 @@ static int match_unit_directory(u32 * directory, const struct fw_device_id *id)
 	match = 0;
 	fw_csr_iterator_init(&ci, directory);
 	while (fw_csr_iterator_next(&ci, &key, &value)) {
-		if (key == CSR_VENDOR && value == id->vendor)
-			match |= FW_MATCH_VENDOR;
-		if (key == CSR_MODEL && value == id->model)
-			match |= FW_MATCH_MODEL;
+		if (key == CSR_VENDOR && value == id->vendor_id)
+			match |= IEEE1394_MATCH_VENDOR_ID;
+		if (key == CSR_MODEL && value == id->model_id)
+			match |= IEEE1394_MATCH_MODEL_ID;
 		if (key == CSR_SPECIFIER_ID && value == id->specifier_id)
-			match |= FW_MATCH_SPECIFIER_ID;
+			match |= IEEE1394_MATCH_SPECIFIER_ID;
 		if (key == CSR_VERSION && value == id->version)
-			match |= FW_MATCH_VERSION;
+			match |= IEEE1394_MATCH_VERSION;
 	}
 
-	return (match & id->match_flags) == id->match_flags;
+	return (match & match_flags) == match_flags;
 }
 
 static int fw_unit_match(struct device *dev, struct device_driver *drv)
 {
 	struct fw_unit *unit = fw_unit(dev);
-	struct fw_driver *driver = fw_driver(drv);
-	int i;
+	struct fw_device *device;
+	const struct ieee1394_device_id *id;
 
 	/* We only allow binding to fw_units. */
 	if (!is_fw_unit(dev))
 		return 0;
 
-	for (i = 0; driver->id_table[i].match_flags != 0; i++) {
-		if (match_unit_directory(unit->directory, &driver->id_table[i]))
+	device = fw_parent_device(unit);
+	id = container_of(drv, struct fw_driver, driver)->id_table;
+
+	for (; id->match_flags != 0; id++) {
+		if (match_unit_directory(unit->directory, id->match_flags, id))
+			return 1;
+
+		/* Also check vendor ID in the root directory. */
+		if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
+		    match_unit_directory(&device->config_rom[5],
+				IEEE1394_MATCH_VENDOR_ID, id) &&
+		    match_unit_directory(unit->directory, id->match_flags
+				& ~IEEE1394_MATCH_VENDOR_ID, id))
 			return 1;
 	}
 
@@ -98,7 +114,7 @@ static int fw_unit_match(struct device *dev, struct device_driver *drv)
 
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 {
-	struct fw_device *device = fw_device(unit->device.parent);
+	struct fw_device *device = fw_parent_device(unit);
 	struct fw_csr_iterator ci;
 
 	int key, value;
@@ -292,8 +308,7 @@ static void init_fw_attribute_group(struct device *dev,
 		group->attrs[j++] = &attr->attr;
 	}
 
-	BUG_ON(j >= ARRAY_SIZE(group->attrs));
-	group->attrs[j++] = NULL;
+	group->attrs[j] = NULL;
 	group->groups[0] = &group->group;
 	group->groups[1] = NULL;
 	group->group.attrs = group->attrs;
@@ -356,9 +371,56 @@ static ssize_t guid_show(struct device *dev,
 	return ret;
 }
 
+static int units_sprintf(char *buf, u32 *directory)
+{
+	struct fw_csr_iterator ci;
+	int key, value;
+	int specifier_id = 0;
+	int version = 0;
+
+	fw_csr_iterator_init(&ci, directory);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		switch (key) {
+		case CSR_SPECIFIER_ID:
+			specifier_id = value;
+			break;
+		case CSR_VERSION:
+			version = value;
+			break;
+		}
+	}
+
+	return sprintf(buf, "0x%06x:0x%06x ", specifier_id, version);
+}
+
+static ssize_t units_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev);
+	struct fw_csr_iterator ci;
+	int key, value, i = 0;
+
+	down_read(&fw_device_rwsem);
+	fw_csr_iterator_init(&ci, &device->config_rom[5]);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		if (key != (CSR_UNIT | CSR_DIRECTORY))
+			continue;
+		i += units_sprintf(&buf[i], ci.p + value - 1);
+		if (i >= PAGE_SIZE - (8 + 1 + 8 + 1))
+			break;
+	}
+	up_read(&fw_device_rwsem);
+
+	if (i)
+		buf[i - 1] = '\n';
+
+	return i;
+}
+
 static struct device_attribute fw_device_attributes[] = {
 	__ATTR_RO(config_rom),
 	__ATTR_RO(guid),
+	__ATTR_RO(units),
 	__ATTR_NULL,
 };
 
@@ -518,7 +580,9 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 
 	kfree(old_rom);
 	ret = 0;
-	device->cmc = rom[2] >> 30 & 1;
+	device->max_rec	= rom[2] >> 12 & 0xf;
+	device->cmc	= rom[2] >> 30 & 1;
+	device->irmc	= rom[2] >> 31 & 1;
  out:
 	kfree(rom);
 
@@ -537,7 +601,7 @@ static struct device_type fw_unit_type = {
 	.release	= fw_unit_release,
 };
 
-static int is_fw_unit(struct device *dev)
+static bool is_fw_unit(struct device *dev)
 {
 	return dev->type == &fw_unit_type;
 }
@@ -570,9 +634,13 @@ static void create_units(struct fw_device *device)
 		unit->device.parent = &device->device;
 		dev_set_name(&unit->device, "%s.%d", dev_name(&device->device), i++);
 
+		BUILD_BUG_ON(ARRAY_SIZE(unit->attribute_group.attrs) <
+				ARRAY_SIZE(fw_unit_attributes) +
+				ARRAY_SIZE(config_rom_attributes));
 		init_fw_attribute_group(&unit->device,
 					fw_unit_attributes,
 					&unit->attribute_group);
+
 		if (device_register(&unit->device) < 0)
 			goto skip_unit;
 
@@ -683,6 +751,11 @@ static struct device_type fw_device_type = {
 	.release = fw_device_release,
 };
 
+static bool is_fw_device(struct device *dev)
+{
+	return dev->type == &fw_device_type;
+}
+
 static int update_unit(struct device *dev, void *data)
 {
 	struct fw_unit *unit = fw_unit(dev);
@@ -718,6 +791,9 @@ static int lookup_existing_device(struct device *dev, void *data)
 	struct fw_device *new = data;
 	struct fw_card *card = new->card;
 	int match = 0;
+
+	if (!is_fw_device(dev))
+		return 0;
 
 	down_read(&fw_device_rwsem); /* serialize config_rom access */
 	spin_lock_irq(&card->lock);  /* serialize node access */
@@ -758,7 +834,7 @@ static int lookup_existing_device(struct device *dev, void *data)
 
 enum { BC_UNKNOWN = 0, BC_UNIMPLEMENTED, BC_IMPLEMENTED, };
 
-void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
+static void set_broadcast_channel(struct fw_device *device, int generation)
 {
 	struct fw_card *card = device->card;
 	__be32 data;
@@ -767,6 +843,20 @@ void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
 	if (!card->broadcast_channel_allocated)
 		return;
 
+	/*
+	 * The Broadcast_Channel Valid bit is required by nodes which want to
+	 * transmit on this channel.  Such transmissions are practically
+	 * exclusive to IP over 1394 (RFC 2734).  IP capable nodes are required
+	 * to be IRM capable and have a max_rec of 8 or more.  We use this fact
+	 * to narrow down to which nodes we send Broadcast_Channel updates.
+	 */
+	if (!device->irmc || device->max_rec < 8)
+		return;
+
+	/*
+	 * Some 1394-1995 nodes crash if this 1394a-2000 register is written.
+	 * Perform a read test first.
+	 */
 	if (device->bc_implemented == BC_UNKNOWN) {
 		rcode = fw_run_transaction(card, TCODE_READ_QUADLET_REQUEST,
 				device->node_id, generation, device->max_speed,
@@ -792,6 +882,14 @@ void fw_device_set_broadcast_channel(struct fw_device *device, int generation)
 				CSR_REGISTER_BASE + CSR_BROADCAST_CHANNEL,
 				&data, 4);
 	}
+}
+
+int fw_device_set_broadcast_channel(struct device *dev, void *gen)
+{
+	if (is_fw_device(dev))
+		set_broadcast_channel(fw_device(dev), (long)gen);
+
+	return 0;
 }
 
 static void fw_device_init(struct work_struct *work)
@@ -849,9 +947,13 @@ static void fw_device_init(struct work_struct *work)
 	device->device.devt = MKDEV(fw_cdev_major, minor);
 	dev_set_name(&device->device, "fw%d", minor);
 
+	BUILD_BUG_ON(ARRAY_SIZE(device->attribute_group.attrs) <
+			ARRAY_SIZE(fw_device_attributes) +
+			ARRAY_SIZE(config_rom_attributes));
 	init_fw_attribute_group(&device->device,
 				fw_device_attributes,
 				&device->attribute_group);
+
 	if (device_add(&device->device)) {
 		fw_error("Failed to add device.\n");
 		goto error_with_cdev;
@@ -888,7 +990,7 @@ static void fw_device_init(struct work_struct *work)
 				  1 << device->max_speed);
 		device->config_rom_retries = 0;
 
-		fw_device_set_broadcast_channel(device, device->generation);
+		set_broadcast_channel(device, device->generation);
 	}
 
 	/*
@@ -993,6 +1095,9 @@ static void fw_device_refresh(struct work_struct *work)
 
 	create_units(device);
 
+	/* Userspace may want to re-read attributes. */
+	kobject_uevent(&device->device.kobj, KOBJ_CHANGE);
+
 	if (atomic_cmpxchg(&device->state,
 			   FW_DEVICE_INITIALIZING,
 			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE)
@@ -1042,6 +1147,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
+		device->is_local = node == card->local_node;
 		mutex_init(&device->client_list_mutex);
 		INIT_LIST_HEAD(&device->client_list);
 
@@ -1075,7 +1181,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 			    FW_DEVICE_INITIALIZING) == FW_DEVICE_RUNNING) {
 			PREPARE_DELAYED_WORK(&device->work, fw_device_refresh);
 			schedule_delayed_work(&device->work,
-				node == card->local_node ? 0 : INITIAL_DELAY);
+				device->is_local ? 0 : INITIAL_DELAY);
 		}
 		break;
 

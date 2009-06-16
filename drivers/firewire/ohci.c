@@ -20,17 +20,25 @@
 
 #include <linux/compiler.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 
+#include <asm/atomic.h>
+#include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/system.h>
 
@@ -38,8 +46,8 @@
 #include <asm/pmac_feature.h>
 #endif
 
-#include "fw-ohci.h"
-#include "fw-transaction.h"
+#include "core.h"
+#include "ohci.h"
 
 #define DESCRIPTOR_OUTPUT_MORE		0
 #define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
@@ -178,7 +186,7 @@ struct fw_ohci {
 	int node_id;
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
-	u32 bus_seconds;
+	atomic_t bus_seconds;
 
 	bool use_dualbuffer;
 	bool old_uninorth;
@@ -231,7 +239,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_MAX_AT_RESP_RETRIES	0x2
 #define OHCI1394_MAX_PHYS_RESP_RETRIES	0x8
 
-#define FW_OHCI_MAJOR			240
 #define OHCI1394_REGISTER_SIZE		0x800
 #define OHCI_LOOP_COUNT			500
 #define OHCI1394_PCI_HCI_Control	0x40
@@ -1434,7 +1441,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
-			ohci->bus_seconds++;
+			atomic_inc(&ohci->bus_seconds);
 	}
 
 	return IRQ_HANDLED;
@@ -1770,7 +1777,7 @@ static u64 ohci_get_bus_time(struct fw_card *card)
 	u64 bus_time;
 
 	cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-	bus_time = ((u64) ohci->bus_seconds << 32) | cycle_time;
+	bus_time = ((u64)atomic_read(&ohci->bus_seconds) << 32) | cycle_time;
 
 	return bus_time;
 }

@@ -22,14 +22,16 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
+#include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 
-#include "fw-topology.h"
-#include "fw-transaction.h"
+#include <asm/byteorder.h>
+
+#include "core.h"
 
 /*
  * Isochronous DMA context management
