@@ -608,7 +608,6 @@ static int get_cur_bus_speed (struct hotplug_slot *hotplug_slot, enum pci_bus_sp
 }
 
 static struct hotplug_slot_ops cpqphp_hotplug_slot_ops = {
-	.owner =		THIS_MODULE,
 	.set_attention_status =	set_attention_status,
 	.enable_slot =		process_SI,
 	.disable_slot =		process_SS,
