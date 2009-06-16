@@ -1183,6 +1183,27 @@ static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
 static int nfs4_initialize_session(struct nfs_client *clp) { return 0; }
 #endif /* CONFIG_NFS_V4_1 */
 
+/* Set NFS4CLNT_LEASE_EXPIRED for all v4.0 errors and for recoverable errors
+ * on EXCHANGE_ID for v4.1
+ */
+static void nfs4_set_lease_expired(struct nfs_client *clp, int status)
+{
+	if (nfs4_has_session(clp)) {
+		switch (status) {
+		case -NFS4ERR_DELAY:
+		case -NFS4ERR_CLID_INUSE:
+		case -EAGAIN:
+			break;
+
+		case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
+					 * in nfs4_exchange_id */
+		default:
+			return;
+		}
+	}
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+}
+
 static void nfs4_state_manager(struct nfs_client *clp)
 {
 	int status = 0;
@@ -1193,7 +1214,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
 			if (status) {
-				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+				nfs4_set_lease_expired(clp, status);
 				if (status == -EAGAIN)
 					continue;
 				if (clp->cl_cons_state ==
