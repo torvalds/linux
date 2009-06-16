@@ -7,14 +7,10 @@
 
 #include <asm/ftrace.h>
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 static const u32 ftrace_nop = 0x01000000;
 
-unsigned char *ftrace_nop_replace(void)
-{
-	return (char *)&ftrace_nop;
-}
-
-unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+static u32 ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static u32 call;
 	s32 off;
@@ -22,15 +18,11 @@ unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	off = ((s32)addr - (s32)ip);
 	call = 0x40000000 | ((u32)off >> 2);
 
-	return (unsigned char *) &call;
+	return call;
 }
 
-int
-ftrace_modify_code(unsigned long ip, unsigned char *old_code,
-		   unsigned char *new_code)
+static int ftrace_modify_code(unsigned long ip, u32 old, u32 new)
 {
-	u32 old = *(u32 *)old_code;
-	u32 new = *(u32 *)new_code;
 	u32 replaced;
 	int faulted;
 
@@ -59,18 +51,43 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	return faulted;
 }
 
+int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long ip = rec->ip;
+	u32 old, new;
+
+	old = ftrace_call_replace(ip, addr);
+	new = ftrace_nop;
+	return ftrace_modify_code(ip, old, new);
+}
+
+int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
+{
+	unsigned long ip = rec->ip;
+	u32 old, new;
+
+	old = ftrace_nop;
+	new = ftrace_call_replace(ip, addr);
+	return ftrace_modify_code(ip, old, new);
+}
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
-	unsigned char old[MCOUNT_INSN_SIZE], *new;
+	u32 old, new;
 
-	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
+	old = *(u32 *) &ftrace_call;
 	new = ftrace_call_replace(ip, (unsigned long)func);
 	return ftrace_modify_code(ip, old, new);
 }
 
 int __init ftrace_dyn_arch_init(void *data)
 {
-	ftrace_mcount_set(data);
+	unsigned long *p = data;
+
+	*p = 0;
+
 	return 0;
 }
+#endif
+
