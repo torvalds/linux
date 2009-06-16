@@ -296,9 +296,10 @@ device_initcall(r7780rp_devices_setup);
 /*
  * Platform specific clocks
  */
-static void ivdr_clk_enable(struct clk *clk)
+static int ivdr_clk_enable(struct clk *clk)
 {
 	ctrl_outw(ctrl_inw(PA_IVDRCTL) | (1 << IVDR_CK_ON), PA_IVDRCTL);
+	return 0;
 }
 
 static void ivdr_clk_disable(struct clk *clk)
