@@ -2519,6 +2519,9 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	ret = __zone_reclaim(zone, gfp_mask, order);
 	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
 
+	if (!ret)
+		count_vm_event(PGSCAN_ZONE_RECLAIM_FAILED);
+
 	return ret;
 }
 #endif
