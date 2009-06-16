@@ -141,6 +141,7 @@ struct nfs4_cb_compound_hdr {
 	u32		ident;
 	u32		nops;
 	__be32		*nops_p;
+	u32		minorversion;
 	u32		taglen;
 	char		*tag;
 };
@@ -209,7 +210,7 @@ encode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 
 	RESERVE_SPACE(16);
 	WRITE32(0);            /* tag length is always 0 */
-	WRITE32(NFS4_MINOR_VERSION);
+	WRITE32(hdr->minorversion);
 	WRITE32(hdr->ident);
 	hdr->nops_p = p;
 	WRITE32(hdr->nops);
