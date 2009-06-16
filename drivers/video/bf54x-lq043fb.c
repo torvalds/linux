@@ -323,7 +323,6 @@ static int bfin_bf54x_fb_release(struct fb_info *info, int user)
 		bfin_write_EPPI0_CONTROL(0);
 		SSYNC();
 		disable_dma(CH_EPPI0);
-		memset(fbi->fb_buffer, 0, info->fix.smem_len);
 	}
 
 	spin_unlock(&fbi->lock);
@@ -625,8 +624,6 @@ static int __init bfin_bf54x_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out3;
 	}
-
-	memset(info->fb_buffer, 0, fbinfo->fix.smem_len);
 
 	fbinfo->screen_base = (void *)info->fb_buffer;
 	fbinfo->fix.smem_start = (int)info->fb_buffer;

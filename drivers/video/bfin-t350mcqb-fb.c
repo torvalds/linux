@@ -242,7 +242,6 @@ static int bfin_t350mcqb_fb_release(struct fb_info *info, int user)
 		SSYNC();
 		disable_dma(CH_PPI);
 		bfin_t350mcqb_stop_timers();
-		memset(fbi->fb_buffer, 0, info->fix.smem_len);
 	}
 
 	spin_unlock(&fbi->lock);
@@ -526,8 +525,6 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out3;
 	}
-
-	memset(info->fb_buffer, 0, fbinfo->fix.smem_len);
 
 	fbinfo->screen_base = (void *)info->fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
 	fbinfo->fix.smem_start = (int)info->fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
