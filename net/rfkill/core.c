@@ -610,6 +610,15 @@ static ssize_t rfkill_idx_show(struct device *dev,
 	return sprintf(buf, "%d\n", rfkill->idx);
 }
 
+static ssize_t rfkill_persistent_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", rfkill->persistent);
+}
+
 static u8 user_state_from_blocked(unsigned long state)
 {
 	if (state & RFKILL_BLOCK_HW)
@@ -668,6 +677,7 @@ static struct device_attribute rfkill_dev_attrs[] = {
 	__ATTR(name, S_IRUGO, rfkill_name_show, NULL),
 	__ATTR(type, S_IRUGO, rfkill_type_show, NULL),
 	__ATTR(index, S_IRUGO, rfkill_idx_show, NULL),
+	__ATTR(persistent, S_IRUGO, rfkill_persistent_show, NULL),
 	__ATTR(state, S_IRUGO|S_IWUSR, rfkill_state_show, rfkill_state_store),
 	__ATTR(claim, S_IRUGO|S_IWUSR, rfkill_claim_show, rfkill_claim_store),
 	__ATTR_NULL

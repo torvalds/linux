@@ -259,8 +259,9 @@ bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked);
  * userspace) of their initial state.  It should only be used before
  * registration.
  *
- * In addition, it marks the device as "persistent".  Persistent devices
- * are expected to preserve preserve their own state when suspended.
+ * In addition, it marks the device as "persistent", an attribute which
+ * can be read by userspace.  Persistent devices are expected to preserve
+ * their own state when suspended.
  */
 void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked);
 
