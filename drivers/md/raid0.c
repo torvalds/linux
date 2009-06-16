@@ -273,7 +273,12 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 	unsigned int chunk_sectors = mddev->chunk_size >> 9;
 	unsigned int bio_sectors = bvm->bi_size >> 9;
 
-	max =  (chunk_sectors - ((sector & (chunk_sectors - 1)) + bio_sectors)) << 9;
+	if (is_power_of_2(mddev->chunk_size))
+		max =  (chunk_sectors - ((sector & (chunk_sectors-1))
+						+ bio_sectors)) << 9;
+	else
+		max =  (chunk_sectors - (sector_div(sector, chunk_sectors)
+						+ bio_sectors)) << 9;
 	if (max < 0) max = 0; /* bio_add cannot handle a negative return */
 	if (max <= biovec->bv_len && bio_sectors == 0)
 		return biovec->bv_len;
@@ -299,9 +304,8 @@ static int raid0_run(mddev_t *mddev)
 {
 	int ret;
 
-	if (mddev->chunk_size == 0 ||
-	    !is_power_of_2(mddev->chunk_size)) {
-		printk(KERN_ERR "md/raid0: chunk size must be a power of 2.\n");
+	if (mddev->chunk_size == 0) {
+		printk(KERN_ERR "md/raid0: chunk size must be set.\n");
 		return -EINVAL;
 	}
 	blk_queue_max_sectors(mddev->queue, mddev->chunk_size >> 9);
@@ -367,15 +371,65 @@ static struct strip_zone *find_zone(struct raid0_private_data *conf,
 	BUG();
 }
 
-static int raid0_make_request (struct request_queue *q, struct bio *bio)
+/*
+ * remaps the bio to the target device. we separate two flows.
+ * power 2 flow and a general flow for the sake of perfromance
+*/
+static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
+				sector_t sector, sector_t *sector_offset)
+{
+	unsigned int sect_in_chunk;
+	sector_t chunk;
+	raid0_conf_t *conf = mddev->private;
+	unsigned int chunk_sects = mddev->chunk_size >> 9;
+
+	if (is_power_of_2(mddev->chunk_size)) {
+		int chunksect_bits = ffz(~chunk_sects);
+		/* find the sector offset inside the chunk */
+		sect_in_chunk  = sector & (chunk_sects - 1);
+		sector >>= chunksect_bits;
+		/* chunk in zone */
+		chunk = *sector_offset;
+		/* quotient is the chunk in real device*/
+		sector_div(chunk, zone->nb_dev << chunksect_bits);
+	} else{
+		sect_in_chunk = sector_div(sector, chunk_sects);
+		chunk = *sector_offset;
+		sector_div(chunk, chunk_sects * zone->nb_dev);
+	}
+	/*
+	*  position the bio over the real device
+	*  real sector = chunk in device + starting of zone
+	*	+ the position in the chunk
+	*/
+	*sector_offset = (chunk * chunk_sects) + sect_in_chunk;
+	return conf->devlist[(zone - conf->strip_zone)*mddev->raid_disks
+			     + sector_div(sector, zone->nb_dev)];
+}
+
+/*
+ * Is io distribute over 1 or more chunks ?
+*/
+static inline int is_io_in_chunk_boundary(mddev_t *mddev,
+			unsigned int chunk_sects, struct bio *bio)
+{
+	if (likely(is_power_of_2(mddev->chunk_size))) {
+		return chunk_sects >= ((bio->bi_sector & (chunk_sects-1))
+					+ (bio->bi_size >> 9));
+	} else{
+		sector_t sector = bio->bi_sector;
+		return chunk_sects >= (sector_div(sector, chunk_sects)
+						+ (bio->bi_size >> 9));
+	}
+}
+
+static int raid0_make_request(struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
-	unsigned int sect_in_chunk, chunksect_bits, chunk_sects;
-	raid0_conf_t *conf = mddev->private;
+	unsigned int chunk_sects;
+	sector_t sector_offset;
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
-	sector_t chunk;
-	sector_t sector, rsect, sector_offset;
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
@@ -391,10 +445,8 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	chunk_sects = mddev->chunk_size >> 9;
-	chunksect_bits = ffz(~chunk_sects);
-	sector = bio->bi_sector;
-
-	if (unlikely(chunk_sects < (bio->bi_sector & (chunk_sects - 1)) + (bio->bi_size >> 9))) {
+	if (unlikely(!is_io_in_chunk_boundary(mddev, chunk_sects, bio))) {
+		sector_t sector = bio->bi_sector;
 		struct bio_pair *bp;
 		/* Sanity check -- queue functions should prevent this happening */
 		if (bio->bi_vcnt != 1 ||
@@ -403,7 +455,12 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		/* This is a one page bio that upper layers
 		 * refuse to split for us, so we need to split it.
 		 */
-		bp = bio_split(bio, chunk_sects - (bio->bi_sector & (chunk_sects - 1)));
+		if (likely(is_power_of_2(mddev->chunk_size)))
+			bp = bio_split(bio, chunk_sects - (sector &
+							   (chunk_sects-1)));
+		else
+			bp = bio_split(bio, chunk_sects -
+				       sector_div(sector, chunk_sects));
 		if (raid0_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (raid0_make_request(q, &bp->bio2))
@@ -412,24 +469,14 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		bio_pair_release(bp);
 		return 0;
 	}
-	sector_offset = sector;
-	zone = find_zone(conf, &sector_offset);
-	sect_in_chunk = bio->bi_sector & (chunk_sects - 1);
-	{
-		sector_t x = sector_offset >> chunksect_bits;
 
-		sector_div(x, zone->nb_dev);
-		chunk = x;
-
-		x = sector >> chunksect_bits;
-		tmp_dev = conf->devlist[(zone - conf->strip_zone)*mddev->raid_disks
-					+ sector_div(x, zone->nb_dev)];
-	}
-	rsect = (chunk << chunksect_bits) + zone->dev_start + sect_in_chunk;
- 
+	sector_offset = bio->bi_sector;
+	zone =  find_zone(mddev->private, &sector_offset);
+	tmp_dev = map_sector(mddev, zone, bio->bi_sector,
+			     &sector_offset);
 	bio->bi_bdev = tmp_dev->bdev;
-	bio->bi_sector = rsect + tmp_dev->data_offset;
-
+	bio->bi_sector = sector_offset + zone->dev_start +
+		tmp_dev->data_offset;
 	/*
 	 * Let the main block layer submit the IO and resolve recursion:
 	 */
