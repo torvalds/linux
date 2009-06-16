@@ -670,7 +670,6 @@ asmlinkage void __init start_kernel(void)
 		initrd_start = 0;
 	}
 #endif
-	cpuset_init_early();
 	page_cgroup_init();
 	enable_debug_pagealloc();
 	cpu_hotplug_init();
@@ -867,6 +866,11 @@ static noinline int init_post(void)
 static int __init kernel_init(void * unused)
 {
 	lock_kernel();
+
+	/*
+	 * init can allocate pages on any node
+	 */
+	set_mems_allowed(node_possible_map);
 	/*
 	 * init can run on any cpu.
 	 */

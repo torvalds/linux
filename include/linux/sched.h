@@ -1318,7 +1318,8 @@ struct task_struct {
 /* Thread group tracking */
    	u32 parent_exec_id;
    	u32 self_exec_id;
-/* Protection of (de-)allocation: mm, files, fs, tty, keyrings */
+/* Protection of (de-)allocation: mm, files, fs, tty, keyrings, mems_allowed,
+ * mempolicy */
 	spinlock_t alloc_lock;
 
 #ifdef CONFIG_GENERIC_HARDIRQS
@@ -1386,8 +1387,7 @@ struct task_struct {
 	cputime_t acct_timexpd;	/* stime + utime since last update */
 #endif
 #ifdef CONFIG_CPUSETS
-	nodemask_t mems_allowed;
-	int cpuset_mems_generation;
+	nodemask_t mems_allowed;	/* Protected by alloc_lock */
 	int cpuset_mem_spread_rotor;
 #endif
 #ifdef CONFIG_CGROUPS
@@ -1410,7 +1410,7 @@ struct task_struct {
 	struct list_head perf_counter_list;
 #endif
 #ifdef CONFIG_NUMA
-	struct mempolicy *mempolicy;
+	struct mempolicy *mempolicy;	/* Protected by alloc_lock */
 	short il_next;
 #endif
 	atomic_t fs_excl;	/* holding fs exclusive resources */
