@@ -47,6 +47,9 @@
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
 
+/* For struct ocfs2_blockcheck_stats */
+#include "blockcheck.h"
+
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small
@@ -149,6 +152,16 @@ struct ocfs2_lock_res {
 	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
 	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
 #endif
+};
+
+struct ocfs2_orphan_scan {
+	struct mutex 		os_lock;
+	struct ocfs2_super 	*os_osb;
+	struct ocfs2_lock_res 	os_lockres;     /* lock to synchronize scans */
+	struct delayed_work 	os_orphan_scan_work;
+	struct timespec		os_scantime;  /* time this node ran the scan */
+	u32			os_count;      /* tracks node specific scans */
+	u32  			os_seqno;       /* tracks cluster wide scans */
 };
 
 struct ocfs2_dlm_debug {
@@ -295,6 +308,7 @@ struct ocfs2_super
 	struct ocfs2_dinode *local_alloc_copy;
 	struct ocfs2_quota_recovery *quota_rec;
 
+	struct ocfs2_blockcheck_stats osb_ecc_stats;
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
 
@@ -340,6 +354,8 @@ struct ocfs2_super
 	struct ocfs2_node_map		osb_recovering_orphan_dirs;
 	unsigned int			*osb_orphan_wipes;
 	wait_queue_head_t		osb_wipe_event;
+
+	struct ocfs2_orphan_scan	osb_orphan_scan;
 
 	/* used to protect metaecc calculation check of xattr. */
 	spinlock_t osb_xattr_lock;
