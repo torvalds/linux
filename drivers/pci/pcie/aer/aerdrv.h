@@ -58,6 +58,8 @@ struct header_log_regs {
 };
 
 struct aer_err_info {
+	struct pci_dev *dev;
+	u16 id;
 	int severity;			/* 0:NONFATAL | 1:FATAL | 2:COR */
 	int flags;
 	unsigned int status;		/* COR/UNCOR Error Status */
