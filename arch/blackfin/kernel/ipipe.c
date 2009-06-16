@@ -52,7 +52,7 @@ EXPORT_SYMBOL(__ipipe_freq_scale);
 
 atomic_t __ipipe_irq_lvdepth[IVG15 + 1];
 
-unsigned long __ipipe_irq_lvmask = __all_masked_irq_flags;
+unsigned long __ipipe_irq_lvmask = bfin_no_irqs;
 EXPORT_SYMBOL(__ipipe_irq_lvmask);
 
 static void __ipipe_ack_irq(unsigned irq, struct irq_desc *desc)
