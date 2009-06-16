@@ -812,7 +812,6 @@ out:
 static void if_spi_e2h(struct if_spi_card *card)
 {
 	int err = 0;
-	unsigned long flags;
 	u32 cause;
 	struct lbs_private *priv = card->priv;
 
@@ -827,10 +826,7 @@ static void if_spi_e2h(struct if_spi_card *card)
 	/* generate a card interrupt */
 	spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG, IF_SPI_CIC_HOST_EVENT);
 
-	spin_lock_irqsave(&priv->driver_lock, flags);
 	lbs_queue_event(priv, cause & 0xff);
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
-
 out:
 	if (err)
 		lbs_pr_err("%s: error %d\n", __func__, err);
@@ -875,7 +871,12 @@ static int lbs_spi_thread(void *data)
 			err = if_spi_c2h_data(card);
 			if (err)
 				goto err;
-		if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY) {
+
+		/* workaround: in PS mode, the card does not set the Command
+		 * Download Ready bit, but it sets TX Download Ready. */
+		if (hiStatus & IF_SPI_HIST_CMD_DOWNLOAD_RDY ||
+		   (card->priv->psstate != PS_STATE_FULL_POWER &&
+		    (hiStatus & IF_SPI_HIST_TX_DOWNLOAD_RDY))) {
 			/* This means two things. First of all,
 			 * if there was a previous command sent, the card has
 			 * successfully received it.

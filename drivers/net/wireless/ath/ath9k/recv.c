@@ -817,6 +817,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		}
 
 		if (unlikely(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+					     SC_OP_WAIT_FOR_CAB |
 					     SC_OP_WAIT_FOR_PSPOLL_DATA)))
 			ath_rx_ps(sc, skb);
 
