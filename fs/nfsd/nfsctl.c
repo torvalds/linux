@@ -207,10 +207,14 @@ static struct file_operations pool_stats_operations = {
 static ssize_t write_svc(struct file *file, char *buf, size_t size)
 {
 	struct nfsctl_svc *data;
+	int err;
 	if (size < sizeof(*data))
 		return -EINVAL;
 	data = (struct nfsctl_svc*) buf;
-	return nfsd_svc(data->svc_port, data->svc_nthreads);
+	err = nfsd_svc(data->svc_port, data->svc_nthreads);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 /**
@@ -692,12 +696,12 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 		if (newthreads < 0)
 			return -EINVAL;
 		rv = nfsd_svc(NFS_PORT, newthreads);
-		if (rv)
+		if (rv < 0)
 			return rv;
-	}
+	} else
+		rv = nfsd_nrthreads();
 
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n",
-							nfsd_nrthreads());
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n", rv);
 }
 
 /**
