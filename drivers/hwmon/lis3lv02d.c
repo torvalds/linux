@@ -199,7 +199,6 @@ static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 	lis3lv02d_increase_use(&lis3_dev);
-	printk("lis3: registered interrupt %d\n", lis3_dev.irq);
 	return 0;
 }
 
@@ -378,7 +377,8 @@ void lis3lv02d_joystick_disable(void)
 	if (!lis3_dev.idev)
 		return;
 
-	misc_deregister(&lis3lv02d_misc_device);
+	if (lis3_dev.irq)
+		misc_deregister(&lis3lv02d_misc_device);
 	input_unregister_device(lis3_dev.idev);
 	lis3_dev.idev = NULL;
 }
@@ -493,8 +493,6 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (lis3lv02d_joystick_enable())
 		printk(KERN_ERR DRIVER_NAME ": joystick initialization failed\n");
 
-	printk("lis3_init_device: irq %d\n", dev->irq);
-
 	/* bail if we did not get an IRQ from the bus layer */
 	if (!dev->irq) {
 		printk(KERN_ERR DRIVER_NAME
@@ -502,7 +500,6 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 		goto out;
 	}
 
-	printk("lis3: registering device\n");
 	if (misc_register(&lis3lv02d_misc_device))
 		printk(KERN_ERR DRIVER_NAME ": misc_register failed\n");
 out:
