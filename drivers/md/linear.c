@@ -32,7 +32,7 @@ static inline dev_info_t *which_dev(mddev_t *mddev, sector_t sector)
 
 	hash = conf->disks;
 
-	while (sector >= hash->num_sectors + hash->start_sector)
+	while (sector >= hash->end_sector)
 		hash++;
 	return hash;
 }
@@ -55,7 +55,7 @@ static int linear_mergeable_bvec(struct request_queue *q,
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 
 	dev0 = which_dev(mddev, sector);
-	maxsectors = dev0->num_sectors - (sector - dev0->start_sector);
+	maxsectors = dev0->end_sector - sector;
 
 	if (maxsectors < bio_sectors)
 		maxsectors = 0;
@@ -141,10 +141,9 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		disk->num_sectors = rdev->sectors;
 		conf->array_sectors += rdev->sectors;
-
 		cnt++;
+
 	}
 	if (cnt != raid_disks) {
 		printk("linear: not enough drives present. Aborting!\n");
@@ -154,11 +153,12 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	/*
 	 * Here we calculate the device offsets.
 	 */
-	conf->disks[0].start_sector = 0;
+	conf->disks[0].end_sector = conf->disks[0].rdev->sectors;
+
 	for (i = 1; i < raid_disks; i++)
-		conf->disks[i].start_sector =
-			conf->disks[i-1].start_sector +
-			conf->disks[i-1].num_sectors;
+		conf->disks[i].end_sector =
+			conf->disks[i-1].end_sector +
+			conf->disks[i].rdev->sectors;
 
 	return conf;
 
@@ -235,6 +235,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	const int rw = bio_data_dir(bio);
 	mddev_t *mddev = q->queuedata;
 	dev_info_t *tmp_dev;
+	sector_t start_sector;
 	int cpu;
 
 	if (unlikely(bio_barrier(bio))) {
@@ -249,32 +250,30 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	part_stat_unlock();
 
 	tmp_dev = which_dev(mddev, bio->bi_sector);
-    
-	if (unlikely(bio->bi_sector >= (tmp_dev->num_sectors +
-					tmp_dev->start_sector)
-		     || (bio->bi_sector <
-			 tmp_dev->start_sector))) {
+	start_sector = tmp_dev->end_sector - tmp_dev->rdev->sectors;
+
+	if (unlikely(bio->bi_sector >= (tmp_dev->end_sector)
+		     || (bio->bi_sector < start_sector))) {
 		char b[BDEVNAME_SIZE];
 
 		printk("linear_make_request: Sector %llu out of bounds on "
 			"dev %s: %llu sectors, offset %llu\n",
 			(unsigned long long)bio->bi_sector,
 			bdevname(tmp_dev->rdev->bdev, b),
-			(unsigned long long)tmp_dev->num_sectors,
-			(unsigned long long)tmp_dev->start_sector);
+			(unsigned long long)tmp_dev->rdev->sectors,
+			(unsigned long long)start_sector);
 		bio_io_error(bio);
 		return 0;
 	}
 	if (unlikely(bio->bi_sector + (bio->bi_size >> 9) >
-		     tmp_dev->start_sector + tmp_dev->num_sectors)) {
+		     tmp_dev->end_sector)) {
 		/* This bio crosses a device boundary, so we have to
 		 * split it.
 		 */
 		struct bio_pair *bp;
 
 		bp = bio_split(bio,
-			       tmp_dev->start_sector + tmp_dev->num_sectors
-			       - bio->bi_sector);
+			       tmp_dev->end_sector - bio->bi_sector);
 
 		if (linear_make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
@@ -285,7 +284,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	}
 		    
 	bio->bi_bdev = tmp_dev->rdev->bdev;
-	bio->bi_sector = bio->bi_sector - tmp_dev->start_sector
+	bio->bi_sector = bio->bi_sector - start_sector
 		+ tmp_dev->rdev->data_offset;
 
 	return 1;
