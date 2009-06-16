@@ -115,6 +115,17 @@ struct nfsd4_slot {
 	struct nfsd4_cache_entry	sl_cache_entry;
 };
 
+struct nfsd4_channel_attrs {
+	u32		headerpadsz;
+	u32		maxreq_sz;
+	u32		maxresp_sz;
+	u32		maxresp_cached;
+	u32		maxops;
+	u32		maxreqs;
+	u32		nr_rdma_attrs;
+	u32		rdma_attrs;
+};
+
 struct nfsd4_session {
 	struct kref		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
@@ -122,11 +133,8 @@ struct nfsd4_session {
 	u32			se_flags;
 	struct nfs4_client	*se_client;	/* for expire_client */
 	struct nfs4_sessionid	se_sessionid;
-	u32			se_fmaxreq_sz;
-	u32			se_fmaxresp_sz;
-	u32			se_fmaxresp_cached;
-	u32			se_fmaxops;
-	u32			se_fnumslots;
+	struct nfsd4_channel_attrs se_fchannel;
+	struct nfsd4_channel_attrs se_bchannel;
 	struct nfsd4_slot	se_slots[];	/* forward channel slots */
 };
 

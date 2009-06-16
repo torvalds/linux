@@ -3183,7 +3183,7 @@ static int nfsd4_check_drc_limit(struct nfsd4_compoundres *resp)
 	dprintk("%s length %u, xb->page_len %u tlen %u pad %u\n", __func__,
 		length, xb->page_len, tlen, pad);
 
-	if (length <= session->se_fmaxresp_cached)
+	if (length <= session->se_fchannel.maxresp_cached)
 		return status;
 	else
 		return nfserr_rep_too_big_to_cache;

@@ -366,17 +366,6 @@ struct nfsd4_exchange_id {
 	int		spa_how;
 };
 
-struct nfsd4_channel_attrs {
-	u32		headerpadsz;
-	u32		maxreq_sz;
-	u32		maxresp_sz;
-	u32		maxresp_cached;
-	u32		maxops;
-	u32		maxreqs;
-	u32		nr_rdma_attrs;
-	u32		rdma_attrs;
-};
-
 struct nfsd4_create_session {
 	clientid_t		clientid;
 	struct nfs4_sessionid	sessionid;
