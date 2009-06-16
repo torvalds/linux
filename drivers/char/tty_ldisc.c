@@ -207,6 +207,7 @@ static void tty_ldisc_put(struct tty_ldisc *ld)
 	ldo->refcount--;
 	module_put(ldo->owner);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+	WARN_ON(ld->refcount);
 	kfree(ld);
 }
 
@@ -793,6 +794,8 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 		/* Avoid racing set_ldisc */
 		mutex_lock(&tty->ldisc_mutex);
 		/* Switch back to N_TTY */
+		tty_ldisc_halt(tty);
+		tty_ldisc_wait_idle(tty);
 		tty_ldisc_reinit(tty);
 		/* At this point we have a closed ldisc and we want to
 		   reopen it. We could defer this to the next open but

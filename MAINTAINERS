@@ -157,9 +157,10 @@ S:	Maintained
 F:	drivers/net/r8169.c
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
+P:	Alan Cox
+M:	alan@lxorguk.ukuu.org.uk
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
-M:	alan@lxorguk.ukuu.org.uk
 S:	Odd Fixes
 F:	drivers/serial/8250*
 F:	include/linux/serial_8250.h
