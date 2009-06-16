@@ -81,7 +81,6 @@ struct vcpu_svm {
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
 	u64 host_gs_base;
-	unsigned long host_cr2;
 
 	u32 *msrpm;
 	struct vmcb *hsave;
@@ -184,19 +183,6 @@ static inline void stgi(void)
 static inline void invlpga(unsigned long addr, u32 asid)
 {
 	asm volatile (__ex(SVM_INVLPGA) :: "a"(addr), "c"(asid));
-}
-
-static inline unsigned long kvm_read_cr2(void)
-{
-	unsigned long cr2;
-
-	asm volatile ("mov %%cr2, %0" : "=r" (cr2));
-	return cr2;
-}
-
-static inline void kvm_write_cr2(unsigned long val)
-{
-	asm volatile ("mov %0, %%cr2" :: "r" (val));
 }
 
 static inline void force_new_asid(struct kvm_vcpu *vcpu)
@@ -2527,7 +2513,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	fs_selector = kvm_read_fs();
 	gs_selector = kvm_read_gs();
 	ldt_selector = kvm_read_ldt();
-	svm->host_cr2 = kvm_read_cr2();
 	if (!is_nested(svm))
 		svm->vmcb->save.cr2 = vcpu->arch.cr2;
 	/* required for live migration with NPT */
@@ -2613,8 +2598,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	vcpu->arch.regs[VCPU_REGS_RAX] = svm->vmcb->save.rax;
 	vcpu->arch.regs[VCPU_REGS_RSP] = svm->vmcb->save.rsp;
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
-
-	kvm_write_cr2(svm->host_cr2);
 
 	kvm_load_fs(fs_selector);
 	kvm_load_gs(gs_selector);
