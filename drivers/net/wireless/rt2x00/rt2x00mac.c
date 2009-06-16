@@ -73,7 +73,8 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	else
 		rts_info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
 
-	skb->do_not_encrypt = 1;
+	/* Disable hardware encryption */
+	rts_info->control.hw_key = NULL;
 
 	/*
 	 * RTS/CTS frame should use the length of the frame plus any
