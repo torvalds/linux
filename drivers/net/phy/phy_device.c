@@ -244,7 +244,7 @@ EXPORT_SYMBOL(get_phy_device);
 
 /**
  * phy_device_register - Register the phy device on the MDIO bus
- * @phy_device: phy_device structure to be added to the MDIO bus
+ * @phydev: phy_device structure to be added to the MDIO bus
  */
 int phy_device_register(struct phy_device *phydev)
 {
