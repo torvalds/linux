@@ -7,14 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/adfs_fs.h>
-#include <linux/spinlock.h>
 #include <linux/buffer_head.h>
-
 #include <asm/unaligned.h>
-
 #include "adfs.h"
 
 /*
