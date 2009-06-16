@@ -637,9 +637,6 @@ static int bfin_t350mcqb_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_t350mcqb_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct fb_info *fbinfo = platform_get_drvdata(pdev);
-	struct bfin_t350mcqbfb_info *info = fbinfo->par;
-
 	bfin_t350mcqb_disable_ppi();
 	disable_dma(CH_PPI);
 	bfin_write_PPI_STATUS(0xFFFF);
@@ -649,9 +646,6 @@ static int bfin_t350mcqb_suspend(struct platform_device *pdev, pm_message_t stat
 
 static int bfin_t350mcqb_resume(struct platform_device *pdev)
 {
-	struct fb_info *fbinfo = platform_get_drvdata(pdev);
-	struct bfin_t350mcqbfb_info *info = fbinfo->par;
-
 	enable_dma(CH_PPI);
 	bfin_t350mcqb_enable_ppi();
 
