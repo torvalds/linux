@@ -187,7 +187,7 @@ readpages:		no
 write_begin:		no	locks the page		yes
 write_end:		no	yes, unlocks		yes
 perform_write:		no	n/a			yes
-bmap:			yes
+bmap:			no
 invalidatepage:		no	yes
 releasepage:		no	yes
 direct_IO:		no
