@@ -436,10 +436,12 @@ sub push_email_address {
 	$email_address = $2;
     }
 
-    if ($email_usename && $email_name) {
-	push(@email_to,	format_email($email_name, $email_address));
-    } else {
-	push(@email_to, $email_address);
+    if ($email_maintainer) {
+	if ($email_usename && $email_name) {
+	    push(@email_to, format_email($email_name, $email_address));
+	} else {
+	    push(@email_to, $email_address);
+	}
     }
 }
 
