@@ -630,7 +630,7 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 
 	fbinfo->fbops = &bfin_bf54x_fb_ops;
 
-	fbinfo->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
+	fbinfo->pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbinfo->pseudo_palette) {
 		printk(KERN_ERR DRIVER_NAME
 		       "Fail to allocate pseudo_palette\n");
@@ -638,8 +638,6 @@ static int __devinit bfin_bf54x_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out4;
 	}
-
-	memset(fbinfo->pseudo_palette, 0, sizeof(u32) * 16);
 
 	if (fb_alloc_cmap(&fbinfo->cmap, BFIN_LCD_NBR_PALETTE_ENTRIES, 0)
 	    < 0) {
