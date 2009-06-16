@@ -61,12 +61,29 @@ struct smem_shared
 #define SMSM_V1_SIZE		(sizeof(unsigned) * 8)
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
 
+#ifndef CONFIG_ARCH_MSM_SCORPION
 struct smsm_interrupt_info
 {
-	uint32_t aArm_en_mask;
-	uint32_t aArm_interrupts_pending;
-	uint32_t aArm_wakeup_reason;
+	uint32_t interrupt_mask;
+	uint32_t pending_interrupts;
+	uint32_t wakeup_reason;
 };
+#else
+#define DEM_MAX_PORT_NAME_LEN (20)
+struct msm_dem_slave_data {
+	uint32_t sleep_time;
+	uint32_t interrupt_mask;
+	uint32_t resources_used;
+	uint32_t reserved1;
+
+	uint32_t wakeup_reason;
+	uint32_t pending_interrupts;
+	uint32_t rpc_prog;
+	uint32_t rpc_proc;
+	char     smd_port_name[DEM_MAX_PORT_NAME_LEN];
+	uint32_t reserved2;
+};
+#endif
 
 #define SZ_DIAG_ERR_MSG 0xC8
 #define ID_DIAG_ERR_MSG SMEM_DIAG_ERR_MESSAGE
@@ -131,7 +148,6 @@ void *smem_alloc(unsigned id, unsigned size);
 int smsm_change_state(enum smsm_state_item item, uint32_t clear_mask, uint32_t set_mask);
 uint32_t smsm_get_state(enum smsm_state_item item);
 int smsm_set_sleep_duration(uint32_t delay);
-int smsm_set_interrupt_info(struct smsm_interrupt_info *info);
 void smsm_print_sleep_info(void);
 
 #define SMEM_NUM_SMD_CHANNELS        64

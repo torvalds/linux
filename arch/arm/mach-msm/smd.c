@@ -1038,6 +1038,25 @@ uint32_t smsm_get_state(enum smsm_state_item item)
 	return rv;
 }
 
+#ifdef CONFIG_ARCH_MSM_SCORPION
+
+int smsm_set_sleep_duration(uint32_t delay)
+{
+	struct msm_dem_slave_data *ptr = smem_alloc(SMEM_APPS_DEM_SLAVE_DATA,
+						    sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_set_sleep_duration <SM NO APPS_DEM_SLAVE_DATA>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_sleep_duration %d -> %d\n",
+		       ptr->sleep_time, delay);
+	ptr->sleep_time = delay;
+	return 0;
+}
+
+#else
+
 int smsm_set_sleep_duration(uint32_t delay)
 {
 	uint32_t *ptr;
@@ -1054,22 +1073,7 @@ int smsm_set_sleep_duration(uint32_t delay)
 	return 0;
 }
 
-int smsm_set_interrupt_info(struct smsm_interrupt_info *info)
-{
-	struct smsm_interrupt_info *ptr;
-
-	ptr = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*ptr));
-	if (ptr == NULL) {
-		pr_err("smsm_set_sleep_duration <SM NO INT_INFO>\n");
-		return -EIO;
-	}
-	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
-		pr_info("smsm_set_interrupt_info %x %x -> %x %x\n",
-		       ptr->aArm_en_mask, ptr->aArm_interrupts_pending,
-		       info->aArm_en_mask, info->aArm_interrupts_pending);
-	*ptr = *info;
-	return 0;
-}
+#endif
 
 #define MAX_NUM_SLEEP_CLIENTS		64
 #define MAX_SLEEP_NAME_LEN		8
@@ -1115,12 +1119,13 @@ void smsm_print_sleep_info(void)
 	if (ptr)
 		pr_info("SMEM_SLEEP_POWER_COLLAPSE_DISABLED: %x\n", *ptr);
 
+#ifndef CONFIG_ARCH_MSM_SCORPION
 	int_info = smem_alloc(SMEM_SMSM_INT_INFO, sizeof(*int_info));
 	if (int_info)
 		pr_info("SMEM_SMSM_INT_INFO %x %x %x\n",
-			int_info->aArm_en_mask,
-			int_info->aArm_interrupts_pending,
-			int_info->aArm_wakeup_reason);
+			int_info->interrupt_mask,
+			int_info->pending_interrupts,
+			int_info->wakeup_reason);
 
 	gpio = smem_alloc(SMEM_GPIO_INT, sizeof(*gpio));
 	if (gpio) {
@@ -1135,7 +1140,8 @@ void smsm_print_sleep_info(void)
 				i, gpio->num_fired[i], gpio->fired[i][0],
 				gpio->fired[i][1]);
 	}
-
+#else
+#endif
 	spin_unlock_irqrestore(&smem_lock, flags);
 }
 
@@ -1180,7 +1186,10 @@ int smd_core_init(void)
 
 	/* indicate that we're up and running */
 	smsm_change_state(SMSM_STATE_APPS,
-			  ~0, SMSM_INIT | SMSM_SMDINIT | SMSM_RPCINIT);
+			  ~0, SMSM_INIT | SMSM_SMDINIT | SMSM_RPCINIT | SMSM_RUN);
+#ifdef CONFIG_ARCH_MSM_SCORPION
+	smsm_change_state(SMSM_STATE_APPS_DEM, ~0, 0);
+#endif
 
 	pr_info("smd_core_init() done\n");
 
@@ -1232,7 +1241,15 @@ static int debug_read_stat(char *buf, int max)
 	i += scnprintf(buf + i, max - i, "smsm: a9: %08x a11: %08x\n",
 		       raw_smsm_get_state(SMSM_STATE_MODEM),
 		       raw_smsm_get_state(SMSM_STATE_APPS));
-
+#ifdef CONFIG_ARCH_MSM_SCORPION
+	i += scnprintf(buf + i, max - i, "smsm dem: apps: %08x modem: %08x "
+		       "qdsp6: %08x power: %08x time: %08x\n",
+		       raw_smsm_get_state(SMSM_STATE_APPS_DEM),
+		       raw_smsm_get_state(SMSM_STATE_MODEM_DEM),
+		       raw_smsm_get_state(SMSM_STATE_QDSP6_DEM),
+		       raw_smsm_get_state(SMSM_STATE_POWER_MASTER_DEM),
+		       raw_smsm_get_state(SMSM_STATE_TIME_MASTER_DEM));
+#endif
 	if (msg) {
 		msg[SZ_DIAG_ERR_MSG - 1] = 0;
 		i += scnprintf(buf + i, max - i, "diag: '%s'\n", msg);
