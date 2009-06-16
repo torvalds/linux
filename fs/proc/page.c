@@ -6,6 +6,7 @@
 #include <linux/mmzone.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/hugetlb.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
