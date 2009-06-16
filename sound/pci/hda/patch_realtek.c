@@ -970,7 +970,7 @@ static void alc_automute_pin(struct hda_codec *codec)
 	}
 }
 
-#if 0 /* it's broken in some acses -- temporarily disabled */
+#if 0 /* it's broken in some cases -- temporarily disabled */
 static void alc_mic_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1170,7 +1170,7 @@ static int alc_subsystem_id(struct hda_codec *codec,
 
 	/* invalid SSID, check the special NID pin defcfg instead */
 	/*
-	 * 31~30	: port conetcivity
+	 * 31~30	: port connectivity
 	 * 29~21	: reserve
 	 * 20		: PCBEEP input
 	 * 19~16	: Check sum (15:1)
@@ -6347,7 +6347,7 @@ static struct hda_channel_mode alc882_sixstack_modes[2] = {
 };
 
 /*
- * macbook pro ALC885 can switch LineIn to LineOut without loosing Mic
+ * macbook pro ALC885 can switch LineIn to LineOut without losing Mic
  */
 
 /*
@@ -7047,7 +7047,7 @@ static struct hda_verb alc882_auto_init_verbs[] = {
 #define alc882_loopbacks	alc880_loopbacks
 #endif
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc882_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc882_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc882_pcm_digital_playback	alc880_pcm_digital_playback
@@ -8957,7 +8957,7 @@ static void alc889A_mb31_unsol_event(struct hda_codec *codec, unsigned int res)
 #define alc883_loopbacks	alc880_loopbacks
 #endif
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc883_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc883_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc883_pcm_analog_alt_capture	alc880_pcm_analog_alt_capture
@@ -11132,7 +11132,7 @@ static struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
 #define alc262_loopbacks	alc880_loopbacks
 #endif
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc262_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc262_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc262_pcm_digital_playback	alc880_pcm_digital_playback
@@ -12287,7 +12287,7 @@ static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
 			    AC_VERB_SET_AMP_GAIN_MUTE, dac_vol2);
 }
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc268_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc268_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc268_pcm_analog_alt_capture	alc880_pcm_analog_alt_capture
@@ -13198,7 +13198,7 @@ static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
 #define alc269_loopbacks	alc880_loopbacks
 #endif
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc269_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc269_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc269_pcm_digital_playback	alc880_pcm_digital_playback
@@ -14060,7 +14060,7 @@ static void alc861_toshiba_unsol_event(struct hda_codec *codec,
 		alc861_toshiba_automute(codec);
 }
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc861_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc861_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc861_pcm_digital_playback	alc880_pcm_digital_playback
@@ -14583,7 +14583,7 @@ static hda_nid_t alc861vd_dac_nids[4] = {
 
 /* dac_nids for ALC660vd are in a different order - according to
  * Realtek's driver.
- * This should probably tesult in a different mixer for 6stack models
+ * This should probably result in a different mixer for 6stack models
  * of ALC660vd codecs, but for now there is only 3stack mixer
  * - and it is the same as in 861vd.
  * adc_nids in ALC660vd are (is) the same as in 861vd
@@ -15028,7 +15028,7 @@ static void alc861vd_dallas_init_hook(struct hda_codec *codec)
 #define alc861vd_loopbacks	alc880_loopbacks
 #endif
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc861vd_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc861vd_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc861vd_pcm_digital_playback	alc880_pcm_digital_playback
@@ -15207,7 +15207,7 @@ static void alc861vd_auto_init_hp_out(struct hda_codec *codec)
 	hda_nid_t pin;
 
 	pin = spec->autocfg.hp_pins[0];
-	if (pin) /* connect to front and  use dac 0 */
+	if (pin) /* connect to front and use dac 0 */
 		alc861vd_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
 	pin = spec->autocfg.speaker_pins[0];
 	if (pin)
@@ -16670,7 +16670,7 @@ static struct snd_kcontrol_new alc272_nc10_mixer[] = {
 #endif
 
 
-/* pcm configuration: identiacal with ALC880 */
+/* pcm configuration: identical with ALC880 */
 #define alc662_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc662_pcm_analog_capture	alc880_pcm_analog_capture
 #define alc662_pcm_digital_playback	alc880_pcm_digital_playback
