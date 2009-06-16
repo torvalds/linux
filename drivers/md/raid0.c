@@ -52,21 +52,18 @@ static int raid0_congested(void *data, int bits)
 	return ret;
 }
 
-static int create_strip_zones (mddev_t *mddev)
+static int create_strip_zones(mddev_t *mddev)
 {
-	int i, c, j;
+	int i, c, j, err;
 	sector_t curr_zone_end;
-	raid0_conf_t *conf = mddev_to_conf(mddev);
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev;
 	struct strip_zone *zone;
 	int cnt;
 	char b[BDEVNAME_SIZE];
- 
-	/*
-	 * The number of 'same size groups'
-	 */
-	conf->nr_strip_zones = 0;
- 
+	raid0_conf_t *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
+
+	if (!conf)
+		return -ENOMEM;
 	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		printk(KERN_INFO "raid0: looking at %s\n",
 			bdevname(rdev1->bdev,b));
@@ -101,16 +98,16 @@ static int create_strip_zones (mddev_t *mddev)
 		}
 	}
 	printk(KERN_INFO "raid0: FINAL %d zones\n", conf->nr_strip_zones);
-
+	err = -ENOMEM;
 	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
 	if (!conf->strip_zone)
-		return -ENOMEM;
+		goto abort;
 	conf->devlist = kzalloc(sizeof(mdk_rdev_t*)*
 				conf->nr_strip_zones*mddev->raid_disks,
 				GFP_KERNEL);
 	if (!conf->devlist)
-		return -ENOMEM;
+		goto abort;
 
 	/* The first zone must contain all devices, so here we check that
 	 * there is a proper alignment of slots to devices and find them all
@@ -119,6 +116,7 @@ static int create_strip_zones (mddev_t *mddev)
 	cnt = 0;
 	smallest = NULL;
 	zone->dev = conf->devlist;
+	err = -EINVAL;
 	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		int j = rdev1->raid_disk;
 
@@ -206,9 +204,14 @@ static int create_strip_zones (mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_data = mddev;
 
 	printk(KERN_INFO "raid0: done.\n");
+	mddev->private = conf;
 	return 0;
 abort:
-	return -EINVAL;
+	kfree(conf->strip_zone);
+	kfree(conf->devlist);
+	kfree(conf);
+	mddev->private = NULL;
+	return err;
 }
 
 /**
@@ -253,7 +256,6 @@ static sector_t raid0_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 
 static int raid0_run(mddev_t *mddev)
 {
-	raid0_conf_t *conf;
 	int ret;
 
 	if (mddev->chunk_size == 0) {
@@ -268,16 +270,9 @@ static int raid0_run(mddev_t *mddev)
 	blk_queue_segment_boundary(mddev->queue, (mddev->chunk_size>>1) - 1);
 	mddev->queue->queue_lock = &mddev->queue->__queue_lock;
 
-	conf = kmalloc(sizeof (raid0_conf_t), GFP_KERNEL);
-	if (!conf)
-		return -ENOMEM;
-	mddev->private = (void *)conf;
- 
-	conf->strip_zone = NULL;
-	conf->devlist = NULL;
 	ret = create_strip_zones(mddev);
 	if (ret < 0)
-		goto out_free_conf;
+		return ret;
 
 	/* calculate array device size */
 	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
@@ -299,16 +294,8 @@ static int raid0_run(mddev_t *mddev)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;
 	}
 
-
 	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	return 0;
-
-out_free_conf:
-	kfree(conf->strip_zone);
-	kfree(conf->devlist);
-	kfree(conf);
-	mddev->private = NULL;
-	return ret;
 }
 
 static int raid0_stop (mddev_t *mddev)
