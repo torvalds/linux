@@ -202,11 +202,15 @@ asmlinkage void __init init_early_exception_vectors(void)
 asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
 {
 	/* This can happen before the uart is initialized, so initialize
-	 * the UART now
+	 * the UART now (but only if we are running on the processor we think
+	 * we are compiled for - otherwise we write to MMRs that don't exist,
+	 * and cause other problems. Nothing comes out the UART, but it does
+	 * end up in the __buf_log.
 	 */
-	if (likely(early_console == NULL))
+	if (likely(early_console == NULL) && CPUID == bfin_cpuid())
 		setup_early_printk(DEFAULT_EARLY_PORT);
 
+	printk(KERN_EMERG "Early panic\n");
 	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_bfin_trace_buffer();

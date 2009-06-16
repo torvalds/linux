@@ -35,10 +35,10 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.9-01"
+#define IPIPE_ARCH_STRING     "1.10-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    9
-#define IPIPE_PATCH_NUMBER    1
+#define IPIPE_MINOR_NUMBER    10
+#define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
 #error "I-pipe/blackfin: SMP not implemented"
@@ -54,10 +54,11 @@ do {						\
 
 #define task_hijacked(p)						\
 	({								\
-		int __x__ = ipipe_current_domain != ipipe_root_domain;	\
-		/* We would need to clear the SYNC flag for the root domain */ \
-		/* over the current processor in SMP mode. */		\
-		local_irq_enable_hw(); __x__;				\
+		int __x__ = __ipipe_root_domain_p;			\
+		__clear_bit(IPIPE_SYNC_FLAG, &ipipe_root_cpudom_var(status)); \
+		if (__x__)						\
+			local_irq_enable_hw();				\
+		!__x__;							\
 	})
 
 struct ipipe_domain;
@@ -179,23 +180,24 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 
 #define __ipipe_run_isr(ipd, irq)					\
 	do {								\
-		if (ipd == ipipe_root_domain) {				\
+		if (!__ipipe_pipeline_head_p(ipd))			\
 			local_irq_enable_hw();				\
-			if (ipipe_virtual_irq_p(irq))			\
+		if (ipd == ipipe_root_domain) {				\
+			if (unlikely(ipipe_virtual_irq_p(irq))) {	\
+				irq_enter();				\
 				ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
-			else						\
+				irq_exit();				\
+			} else 						\
 				ipd->irqs[irq].handler(irq, &__raw_get_cpu_var(__ipipe_tick_regs)); \
-			local_irq_disable_hw();				\
 		} else {						\
 			__clear_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
-			local_irq_enable_nohead(ipd);			\
 			ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
 			/* Attempt to exit the outer interrupt level before \
 			 * starting the deferred IRQ processing. */	\
-			local_irq_disable_nohead(ipd);			\
 			__ipipe_run_irqtail();				\
 			__set_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
 		}							\
+		local_irq_disable_hw();					\
 	} while (0)
 
 #define __ipipe_syscall_watched_p(p, sc)	\

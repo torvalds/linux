@@ -42,6 +42,7 @@
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
+#include <asm/traps.h>
 
 #include <asm/context.S>
 
@@ -84,13 +85,15 @@ ENTRY(_ex_workaround_261)
 	if !cc jump _bfin_return_from_exception;
 	/* fall through */
 	R7 = P4;
-	R6 = 0x26;	/* Data CPLB Miss */
+	R6 = VEC_CPLB_M;	/* Data CPLB Miss */
 	cc = R6 == R7;
 	if cc jump _ex_dcplb_miss (BP);
-	R6 = 0x23;	/* Data CPLB Miss */
+#ifdef CONFIG_MPU
+	R6 = VEC_CPLB_VL;	/* Data CPLB Violation */
 	cc = R6 == R7;
 	if cc jump _ex_dcplb_viol (BP);
-	/* Handle 0x23 Data CPLB Protection Violation
+#endif
+	/* Handle Data CPLB Protection Violation
 	 * and Data CPLB Multiple Hits - Linux Trap Zero
 	 */
 	jump _ex_trap_c;
@@ -270,7 +273,7 @@ ENTRY(_bfin_return_from_exception)
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
-	r6 = 0x25;
+	r6 = VEC_UNCOV;
 	CC = R7 == R6;
 	if CC JUMP _double_fault;
 #endif
@@ -1605,6 +1608,7 @@ ENTRY(_sys_call_table)
 	.long _sys_inotify_init1	/* 365 */
 	.long _sys_preadv
 	.long _sys_pwritev
+	.long _sys_rt_tgsigqueueinfo
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

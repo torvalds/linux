@@ -37,6 +37,7 @@ extern void blackfin_dcache_flush_range(unsigned long start_address, unsigned lo
 extern void blackfin_dcache_invalidate_range(unsigned long start_address, unsigned long end_address);
 extern void blackfin_dflush_page(void *page);
 extern void blackfin_invalidate_entire_dcache(void);
+extern void blackfin_invalidate_entire_icache(void);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
@@ -97,7 +98,7 @@ do { memcpy(dst, src, len);						\
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;
 
-static inline int bfin_addr_dcachable(unsigned long addr)
+static inline int bfin_addr_dcacheable(unsigned long addr)
 {
 #ifdef CONFIG_BFIN_DCACHE
 	if (addr < (_ramend - DMA_UNCACHED_REGION))

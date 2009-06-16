@@ -34,6 +34,7 @@ struct blackfin_cpudata {
 	unsigned int dmemctl;
 	unsigned long loops_per_jiffy;
 	unsigned long dcache_invld_count;
+	unsigned long icache_invld_count;
 };
 
 DECLARE_PER_CPU(struct blackfin_cpudata, cpu_data);
