@@ -321,7 +321,7 @@ __sync_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	spin_lock(&inode_lock);
 	inode->i_state &= ~I_SYNC;
-	if (!(inode->i_state & I_FREEING)) {
+	if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
 		if (!(inode->i_state & I_DIRTY) &&
 		    mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 			/*
@@ -492,7 +492,7 @@ void generic_sync_sb_inodes(struct super_block *sb,
 			break;
 		}
 
-		if (inode->i_state & I_NEW) {
+		if (inode->i_state & (I_NEW | I_WILL_FREE)) {
 			requeue_io(inode);
 			continue;
 		}
@@ -523,7 +523,7 @@ void generic_sync_sb_inodes(struct super_block *sb,
 		if (current_is_pdflush() && !writeback_acquire(bdi))
 			break;
 
-		BUG_ON(inode->i_state & I_FREEING);
+		BUG_ON(inode->i_state & (I_FREEING | I_CLEAR));
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		__writeback_single_inode(inode, wbc);
