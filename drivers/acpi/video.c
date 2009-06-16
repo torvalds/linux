@@ -76,6 +76,7 @@ MODULE_LICENSE("GPL");
 static int brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
+static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 static int acpi_video_resume(struct acpi_device *device);
@@ -2318,6 +2319,13 @@ static int __init intel_opregion_present(void)
 int acpi_video_register(void)
 {
 	int result = 0;
+	if (register_count) {
+		/*
+		 * if the function of acpi_video_register is already called,
+		 * don't register the acpi_vide_bus again and return no error.
+		 */
+		return 0;
+	}
 
 	acpi_video_dir = proc_mkdir(ACPI_VIDEO_CLASS, acpi_root_dir);
 	if (!acpi_video_dir)
@@ -2329,9 +2337,34 @@ int acpi_video_register(void)
 		return -ENODEV;
 	}
 
+	/*
+	 * When the acpi_video_bus is loaded successfully, increase
+	 * the counter reference.
+	 */
+	register_count = 1;
+
 	return 0;
 }
 EXPORT_SYMBOL(acpi_video_register);
+
+void acpi_video_unregister(void)
+{
+	if (!register_count) {
+		/*
+		 * If the acpi video bus is already unloaded, don't
+		 * unload it again and return directly.
+		 */
+		return;
+	}
+	acpi_bus_unregister_driver(&acpi_video_bus);
+
+	remove_proc_entry(ACPI_VIDEO_CLASS, acpi_root_dir);
+
+	register_count = 0;
+
+	return;
+}
+EXPORT_SYMBOL(acpi_video_unregister);
 
 /*
  * This is kind of nasty. Hardware using Intel chipsets may require
@@ -2350,16 +2383,12 @@ static int __init acpi_video_init(void)
 	return acpi_video_register();
 }
 
-void acpi_video_exit(void)
+static void __exit acpi_video_exit(void)
 {
-
-	acpi_bus_unregister_driver(&acpi_video_bus);
-
-	remove_proc_entry(ACPI_VIDEO_CLASS, acpi_root_dir);
+	acpi_video_unregister();
 
 	return;
 }
-EXPORT_SYMBOL(acpi_video_exit);
 
 module_init(acpi_video_init);
 module_exit(acpi_video_exit);
