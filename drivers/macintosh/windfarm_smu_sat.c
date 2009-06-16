@@ -39,7 +39,7 @@ struct wf_sat {
 	struct mutex		mutex;
 	unsigned long		last_read; /* jiffies when cache last updated */
 	u8			cache[16];
-	struct i2c_client	i2c;
+	struct i2c_client	*i2c;
 	struct device_node	*node;
 };
 
@@ -54,18 +54,6 @@ struct wf_sat_sensor {
 };
 
 #define wf_to_sat(c)	container_of(c, struct wf_sat_sensor, sens)
-#define i2c_to_sat(c)	container_of(c, struct wf_sat, i2c)
-
-static int wf_sat_attach(struct i2c_adapter *adapter);
-static int wf_sat_detach(struct i2c_client *client);
-
-static struct i2c_driver wf_sat_driver = {
-	.driver = {
-		.name		= "wf_smu_sat",
-	},
-	.attach_adapter	= wf_sat_attach,
-	.detach_client	= wf_sat_detach,
-};
 
 struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 						  unsigned int *size)
@@ -81,13 +69,13 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 	if (sat_id > 1 || (sat = sats[sat_id]) == NULL)
 		return NULL;
 
-	err = i2c_smbus_write_word_data(&sat->i2c, 8, id << 8);
+	err = i2c_smbus_write_word_data(sat->i2c, 8, id << 8);
 	if (err) {
 		printk(KERN_ERR "smu_sat_get_sdb_part wr error %d\n", err);
 		return NULL;
 	}
 
-	err = i2c_smbus_read_word_data(&sat->i2c, 9);
+	err = i2c_smbus_read_word_data(sat->i2c, 9);
 	if (err < 0) {
 		printk(KERN_ERR "smu_sat_get_sdb_part rd len error\n");
 		return NULL;
@@ -105,7 +93,7 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 		return NULL;
 
 	for (i = 0; i < len; i += 4) {
-		err = i2c_smbus_read_i2c_block_data(&sat->i2c, 0xa, 4, data);
+		err = i2c_smbus_read_i2c_block_data(sat->i2c, 0xa, 4, data);
 		if (err < 0) {
 			printk(KERN_ERR "smu_sat_get_sdb_part rd err %d\n",
 			       err);
@@ -138,7 +126,7 @@ static int wf_sat_read_cache(struct wf_sat *sat)
 {
 	int err;
 
-	err = i2c_smbus_read_i2c_block_data(&sat->i2c, 0x3f, 16, sat->cache);
+	err = i2c_smbus_read_i2c_block_data(sat->i2c, 0x3f, 16, sat->cache);
 	if (err < 0)
 		return err;
 	sat->last_read = jiffies;
@@ -161,7 +149,7 @@ static int wf_sat_get(struct wf_sensor *sr, s32 *value)
 	int i, err;
 	s32 val;
 
-	if (sat->i2c.adapter == NULL)
+	if (sat->i2c == NULL)
 		return -ENODEV;
 
 	mutex_lock(&sat->mutex);
@@ -193,10 +181,6 @@ static void wf_sat_release(struct wf_sensor *sr)
 	struct wf_sat *sat = sens->sat;
 
 	if (atomic_dec_and_test(&sat->refcnt)) {
-		if (sat->i2c.adapter) {
-			i2c_detach_client(&sat->i2c);
-			sat->i2c.adapter = NULL;
-		}
 		if (sat->nr >= 0)
 			sats[sat->nr] = NULL;
 		kfree(sat);
@@ -212,15 +196,10 @@ static struct wf_sensor_ops wf_sat_ops = {
 
 static void wf_sat_create(struct i2c_adapter *adapter, struct device_node *dev)
 {
-	struct wf_sat *sat;
-	struct wf_sat_sensor *sens;
+	struct i2c_board_info info;
+	struct i2c_client *client;
 	const u32 *reg;
-	const char *loc, *type;
-	u8 addr, chip, core;
-	struct device_node *child;
-	int shift, cpu, index;
-	char *name;
-	int vsens[2], isens[2];
+	u8 addr;
 
 	reg = of_get_property(dev, "reg", NULL);
 	if (reg == NULL)
@@ -228,22 +207,47 @@ static void wf_sat_create(struct i2c_adapter *adapter, struct device_node *dev)
 	addr = *reg;
 	DBG(KERN_DEBUG "wf_sat: creating sat at address %x\n", addr);
 
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = (addr >> 1) & 0x7f;
+	info.platform_data = dev;
+	strlcpy(info.type, "wf_sat", I2C_NAME_SIZE);
+
+	client = i2c_new_device(adapter, &info);
+	if (client == NULL) {
+		printk(KERN_ERR "windfarm: failed to attach smu-sat to i2c\n");
+		return;
+	}
+
+	/*
+	 * Let i2c-core delete that device on driver removal.
+	 * This is safe because i2c-core holds the core_lock mutex for us.
+	 */
+	list_add_tail(&client->detected, &client->driver->clients);
+}
+
+static int wf_sat_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct device_node *dev = client->dev.platform_data;
+	struct wf_sat *sat;
+	struct wf_sat_sensor *sens;
+	const u32 *reg;
+	const char *loc, *type;
+	u8 chip, core;
+	struct device_node *child;
+	int shift, cpu, index;
+	char *name;
+	int vsens[2], isens[2];
+
 	sat = kzalloc(sizeof(struct wf_sat), GFP_KERNEL);
 	if (sat == NULL)
-		return;
+		return -ENOMEM;
 	sat->nr = -1;
 	sat->node = of_node_get(dev);
 	atomic_set(&sat->refcnt, 0);
 	mutex_init(&sat->mutex);
-	sat->i2c.addr = (addr >> 1) & 0x7f;
-	sat->i2c.adapter = adapter;
-	sat->i2c.driver = &wf_sat_driver;
-	strncpy(sat->i2c.name, "smu-sat", I2C_NAME_SIZE-1);
-
-	if (i2c_attach_client(&sat->i2c)) {
-		printk(KERN_ERR "windfarm: failed to attach smu-sat to i2c\n");
-		goto fail;
-	}
+	sat->i2c = client;
+	i2c_set_clientdata(client, sat);
 
 	vsens[0] = vsens[1] = -1;
 	isens[0] = isens[1] = -1;
@@ -344,10 +348,7 @@ static void wf_sat_create(struct i2c_adapter *adapter, struct device_node *dev)
 	if (sat->nr >= 0)
 		sats[sat->nr] = sat;
 
-	return;
-
- fail:
-	kfree(sat);
+	return 0;
 }
 
 static int wf_sat_attach(struct i2c_adapter *adapter)
@@ -366,15 +367,31 @@ static int wf_sat_attach(struct i2c_adapter *adapter)
 	return 0;
 }
 
-static int wf_sat_detach(struct i2c_client *client)
+static int wf_sat_remove(struct i2c_client *client)
 {
-	struct wf_sat *sat = i2c_to_sat(client);
+	struct wf_sat *sat = i2c_get_clientdata(client);
 
 	/* XXX TODO */
 
-	sat->i2c.adapter = NULL;
+	sat->i2c = NULL;
+	i2c_set_clientdata(client, NULL);
 	return 0;
 }
+
+static const struct i2c_device_id wf_sat_id[] = {
+	{ "wf_sat", 0 },
+	{ }
+};
+
+static struct i2c_driver wf_sat_driver = {
+	.driver = {
+		.name		= "wf_smu_sat",
+	},
+	.attach_adapter	= wf_sat_attach,
+	.probe		= wf_sat_probe,
+	.remove		= wf_sat_remove,
+	.id_table	= wf_sat_id,
+};
 
 static int __init sat_sensors_init(void)
 {
