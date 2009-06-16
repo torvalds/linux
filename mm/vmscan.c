@@ -1492,6 +1492,26 @@ static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
 	percent[1] = 100 - percent[0];
 }
 
+/*
+ * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
+ * until we collected @swap_cluster_max pages to scan.
+ */
+static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
+				       unsigned long *nr_saved_scan,
+				       unsigned long swap_cluster_max)
+{
+	unsigned long nr;
+
+	*nr_saved_scan += nr_to_scan;
+	nr = *nr_saved_scan;
+
+	if (nr >= swap_cluster_max)
+		*nr_saved_scan = 0;
+	else
+		nr = 0;
+
+	return nr;
+}
 
 /*
  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
@@ -1517,14 +1537,11 @@ static void shrink_zone(int priority, struct zone *zone,
 			scan >>= priority;
 			scan = (scan * percent[file]) / 100;
 		}
-		if (scanning_global_lru(sc)) {
-			zone->lru[l].nr_scan += scan;
-			nr[l] = zone->lru[l].nr_scan;
-			if (nr[l] >= swap_cluster_max)
-				zone->lru[l].nr_scan = 0;
-			else
-				nr[l] = 0;
-		} else
+		if (scanning_global_lru(sc))
+			nr[l] = nr_scan_try_batch(scan,
+						  &zone->lru[l].nr_saved_scan,
+						  swap_cluster_max);
+		else
 			nr[l] = scan;
 	}
 
@@ -2124,11 +2141,11 @@ static void shrink_all_zones(unsigned long nr_pages, int prio,
 						l == LRU_ACTIVE_FILE))
 				continue;
 
-			zone->lru[l].nr_scan += (lru_pages >> prio) + 1;
-			if (zone->lru[l].nr_scan >= nr_pages || pass > 3) {
+			zone->lru[l].nr_saved_scan += (lru_pages >> prio) + 1;
+			if (zone->lru[l].nr_saved_scan >= nr_pages || pass > 3) {
 				unsigned long nr_to_scan;
 
-				zone->lru[l].nr_scan = 0;
+				zone->lru[l].nr_saved_scan = 0;
 				nr_to_scan = min(nr_pages, lru_pages);
 				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
 								sc, prio);
