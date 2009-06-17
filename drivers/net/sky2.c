@@ -1495,6 +1495,7 @@ static int sky2_up(struct net_device *dev)
 	imask = sky2_read32(hw, B0_IMSK);
 	imask |= portirq_msk[port];
 	sky2_write32(hw, B0_IMSK, imask);
+	sky2_read32(hw, B0_IMSK);
 
 	sky2_set_multicast(dev);
 
@@ -1812,6 +1813,7 @@ static int sky2_down(struct net_device *dev)
 	imask = sky2_read32(hw, B0_IMSK);
 	imask &= ~portirq_msk[port];
 	sky2_write32(hw, B0_IMSK, imask);
+	sky2_read32(hw, B0_IMSK);
 
 	synchronize_irq(hw->pdev->irq);
 
