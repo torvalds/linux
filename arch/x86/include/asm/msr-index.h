@@ -121,7 +121,6 @@
 #define MSR_K8_TOP_MEM1			0xc001001a
 #define MSR_K8_TOP_MEM2			0xc001001d
 #define MSR_K8_SYSCFG			0xc0010010
-#define MSR_K8_HWCR			0xc0010015
 #define MSR_K8_INT_PENDING_MSG		0xc0010055
 /* C1E active bits in int pending message */
 #define K8_INTP_C1E_ACTIVE_MASK		0x18000000
@@ -208,7 +207,14 @@
 
 #define MSR_IA32_THERM_CONTROL		0x0000019a
 #define MSR_IA32_THERM_INTERRUPT	0x0000019b
+
+#define THERM_INT_LOW_ENABLE		(1 << 0)
+#define THERM_INT_HIGH_ENABLE		(1 << 1)
+
 #define MSR_IA32_THERM_STATUS		0x0000019c
+
+#define THERM_STATUS_PROCHOT		(1 << 0)
+
 #define MSR_IA32_MISC_ENABLE		0x000001a0
 
 /* MISC_ENABLE bits: architectural */

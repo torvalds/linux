@@ -35,7 +35,7 @@
 #include "input.h"
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.14");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.16");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
@@ -79,7 +79,7 @@ static struct usb_device_id snd_usb_id_table[] = {
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
-		.idProduct =	USB_PID_RIGKONTROL2 
+		.idProduct =	USB_PID_RIGKONTROL2
 	},
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
@@ -197,7 +197,7 @@ int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
 
 	if (buffer && len > 0)
 		memcpy(dev->ep1_out_buf+1, buffer, len);
-	
+
 	dev->ep1_out_buf[0] = command;
 	return usb_bulk_msg(usb_dev, usb_sndbulkpipe(usb_dev, 1),
 			   dev->ep1_out_buf, len+1, &actual_len, 200);
@@ -208,7 +208,7 @@ int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev,
 {
 	int ret;
 	char tmp[5];
-	
+
 	switch (rate) {
 	case 44100:	tmp[0] = SAMPLERATE_44100;   break;
 	case 48000:	tmp[0] = SAMPLERATE_48000;   break;
@@ -237,12 +237,12 @@ int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev,
 
 	if (ret)
 		return ret;
-	
-	if (!wait_event_timeout(dev->ep1_wait_queue, 
+
+	if (!wait_event_timeout(dev->ep1_wait_queue,
 	    dev->audio_parm_answer >= 0, HZ))
 		return -EPIPE;
-		
-	if (dev->audio_parm_answer != 1) 
+
+	if (dev->audio_parm_answer != 1)
 		debug("unable to set the device's audio params\n");
 	else
 		dev->bpp = bpp;
@@ -250,8 +250,8 @@ int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev,
 	return dev->audio_parm_answer == 1 ? 0 : -EINVAL;
 }
 
-int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev, 
-				int digital, int analog, int erp)
+int snd_usb_caiaq_set_auto_msg(struct snd_usb_caiaqdev *dev,
+			       int digital, int analog, int erp)
 {
 	char tmp[3] = { digital, analog, erp };
 	return snd_usb_caiaq_send_command(dev, EP1_CMD_AUTO_MSG,
@@ -262,7 +262,7 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 {
 	int ret;
 	char val[4];
-	
+
 	/* device-specific startup specials */
 	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
@@ -314,7 +314,7 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 			dev->control_state, 1);
 		break;
 	}
-	
+
 	if (dev->spec.num_analog_audio_out +
 	    dev->spec.num_analog_audio_in +
 	    dev->spec.num_digital_audio_out +
@@ -323,7 +323,7 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 		if (ret < 0)
 			log("Unable to set up audio system (ret=%d)\n", ret);
 	}
-	
+
 	if (dev->spec.num_midi_in +
 	    dev->spec.num_midi_out > 0) {
 		ret = snd_usb_caiaq_midi_init(dev);
@@ -363,7 +363,7 @@ static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 	if (devnum >= SNDRV_CARDS)
 		return -ENODEV;
 
-	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE, 
+	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE,
 			      sizeof(struct snd_usb_caiaqdev), &card);
 	if (err < 0)
 		return err;
@@ -382,11 +382,11 @@ static int create_card(struct usb_device* usb_dev, struct snd_card **cardp)
 
 static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 {
-	char *c;
+	char *c, usbpath[32];
 	struct usb_device *usb_dev = dev->chip.dev;
 	struct snd_card *card = dev->chip.card;
 	int err, len;
-	
+
 	if (usb_set_interface(usb_dev, 0, 1) != 0) {
 		log("can't set alt interface.\n");
 		return -EIO;
@@ -395,19 +395,19 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 	usb_init_urb(&dev->ep1_in_urb);
 	usb_init_urb(&dev->midi_out_urb);
 
-	usb_fill_bulk_urb(&dev->ep1_in_urb, usb_dev, 
+	usb_fill_bulk_urb(&dev->ep1_in_urb, usb_dev,
 			  usb_rcvbulkpipe(usb_dev, 0x1),
-			  dev->ep1_in_buf, EP1_BUFSIZE, 
+			  dev->ep1_in_buf, EP1_BUFSIZE,
 			  usb_ep1_command_reply_dispatch, dev);
 
-	usb_fill_bulk_urb(&dev->midi_out_urb, usb_dev, 
+	usb_fill_bulk_urb(&dev->midi_out_urb, usb_dev,
 			  usb_sndbulkpipe(usb_dev, 0x1),
-			  dev->midi_out_buf, EP1_BUFSIZE, 
+			  dev->midi_out_buf, EP1_BUFSIZE,
 			  snd_usb_caiaq_midi_output_done, dev);
-	
+
 	init_waitqueue_head(&dev->ep1_wait_queue);
 	init_waitqueue_head(&dev->prepare_wait_queue);
-	
+
 	if (usb_submit_urb(&dev->ep1_in_urb, GFP_KERNEL) != 0)
 		return -EIO;
 
@@ -420,47 +420,52 @@ static int __devinit init_card(struct snd_usb_caiaqdev *dev)
 
 	usb_string(usb_dev, usb_dev->descriptor.iManufacturer,
 		   dev->vendor_name, CAIAQ_USB_STR_LEN);
-	
+
 	usb_string(usb_dev, usb_dev->descriptor.iProduct,
 		   dev->product_name, CAIAQ_USB_STR_LEN);
-	
-	usb_string(usb_dev, usb_dev->descriptor.iSerialNumber,
-		   dev->serial, CAIAQ_USB_STR_LEN);
 
-	/* terminate serial string at first white space occurence */
-	c = strchr(dev->serial, ' ');
-	if (c)
-		*c = '\0';
-	
-	strcpy(card->driver, MODNAME);
-	strcpy(card->shortname, dev->product_name);
+	strlcpy(card->driver, MODNAME, sizeof(card->driver));
+	strlcpy(card->shortname, dev->product_name, sizeof(card->shortname));
+	strlcpy(card->mixername, dev->product_name, sizeof(card->mixername));
 
-	len = snprintf(card->longname, sizeof(card->longname),
-		       "%s %s (serial %s, ",
-		       dev->vendor_name, dev->product_name, dev->serial);
+	/* if the id was not passed as module option, fill it with a shortened
+	 * version of the product string which does not contain any
+	 * whitespaces */
 
-	if (len < sizeof(card->longname) - 2)
-		len += usb_make_path(usb_dev, card->longname + len,
-				     sizeof(card->longname) - len);
+	if (*card->id == '\0') {
+		char id[sizeof(card->id)];
 
-	card->longname[len++] = ')';
-	card->longname[len] = '\0';
+		memset(id, 0, sizeof(id));
+
+		for (c = card->shortname, len = 0;
+			*c && len < sizeof(card->id); c++)
+			if (*c != ' ')
+				id[len++] = *c;
+
+		snd_card_set_id(card, id);
+	}
+
+	usb_make_path(usb_dev, usbpath, sizeof(usbpath));
+	snprintf(card->longname, sizeof(card->longname),
+		       "%s %s (%s)",
+		       dev->vendor_name, dev->product_name, usbpath);
+
 	setup_card(dev);
 	return 0;
 }
 
-static int __devinit snd_probe(struct usb_interface *intf, 
+static int __devinit snd_probe(struct usb_interface *intf,
 		     const struct usb_device_id *id)
 {
 	int ret;
 	struct snd_card *card;
 	struct usb_device *device = interface_to_usbdev(intf);
-	
+
 	ret = create_card(device, &card);
-	
+
 	if (ret < 0)
 		return ret;
-			
+
 	usb_set_intfdata(intf, card);
 	ret = init_card(caiaqdev(card));
 	if (ret < 0) {
@@ -468,7 +473,7 @@ static int __devinit snd_probe(struct usb_interface *intf,
 		snd_card_free(card);
 		return ret;
 	}
-	
+
 	return 0;
 }
 
@@ -489,10 +494,10 @@ static void snd_disconnect(struct usb_interface *intf)
 	snd_usb_caiaq_input_free(dev);
 #endif
 	snd_usb_caiaq_audio_free(dev);
-	
+
 	usb_kill_urb(&dev->ep1_in_urb);
 	usb_kill_urb(&dev->midi_out_urb);
-	
+
 	snd_card_free(card);
 	usb_reset_device(interface_to_usbdev(intf));
 }

@@ -680,7 +680,7 @@ static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
 	host->dma_ch = -1;
 	/*
 	 * DMA Callback: run in interrupt context.
-	 * mutex_unlock will through a kernel warning if used.
+	 * mutex_unlock will throw a kernel warning if used.
 	 */
 	up(&host->sem);
 }
@@ -1073,7 +1073,6 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
-	mmc->ocr_avail = mmc_slot(host).ocr_mask;
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED;
 
 	if (pdata->slots[host->slot_id].wires >= 8)
@@ -1110,13 +1109,14 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
+	/* initialize power supplies, gpios, etc */
 	if (pdata->init != NULL) {
 		if (pdata->init(&pdev->dev) != 0) {
-			dev_dbg(mmc_dev(host->mmc),
-				"Unable to configure MMC IRQs\n");
+			dev_dbg(mmc_dev(host->mmc), "late init error\n");
 			goto err_irq_cd_init;
 		}
 	}
+	mmc->ocr_avail = mmc_slot(host).ocr_mask;
 
 	/* Request IRQ for card detect */
 	if ((mmc_slot(host).card_detect_irq)) {

@@ -354,10 +354,12 @@ static void omap_init_mcspi(void)
 	platform_device_register(&omap2_mcspi1);
 	platform_device_register(&omap2_mcspi2);
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
-	platform_device_register(&omap2_mcspi3);
+	if (cpu_is_omap2430() || cpu_is_omap343x())
+		platform_device_register(&omap2_mcspi3);
 #endif
 #ifdef CONFIG_ARCH_OMAP3
-	platform_device_register(&omap2_mcspi4);
+	if (cpu_is_omap343x())
+		platform_device_register(&omap2_mcspi4);
 #endif
 }
 

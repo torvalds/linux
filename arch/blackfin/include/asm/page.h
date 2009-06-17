@@ -81,7 +81,7 @@ extern unsigned long memory_end;
 #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
 				((void *)(kaddr) < (void *)memory_end))
 
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif				/* __ASSEMBLY__ */
 

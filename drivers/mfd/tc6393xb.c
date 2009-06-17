@@ -136,6 +136,10 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
+const static struct tmio_mmc_data tc6393xb_mmc_data = {
+	.hclk = 24000000,
+};
+
 static struct resource __devinitdata tc6393xb_nand_resources[] = {
 	{
 		.start	= 0x1000,
@@ -351,6 +355,7 @@ static struct mfd_cell __devinitdata tc6393xb_cells[] = {
 	},
 	[TC6393XB_CELL_MMC] = {
 		.name = "tmio-mmc",
+		.driver_data = &tc6393xb_mmc_data,
 		.num_resources = ARRAY_SIZE(tc6393xb_mmc_resources),
 		.resources = tc6393xb_mmc_resources,
 	},

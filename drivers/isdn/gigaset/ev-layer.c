@@ -160,7 +160,7 @@
 
 
 // 100: init, 200: dle0, 250:dle1, 300: get cid (dial), 350: "hup" (no cid), 400: hup, 500: reset, 600: dial, 700: ring
-struct reply_t gigaset_tab_nocid_m10x[]= /* with dle mode */
+struct reply_t gigaset_tab_nocid[] =
 {
 	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
 
@@ -280,7 +280,7 @@ struct reply_t gigaset_tab_nocid_m10x[]= /* with dle mode */
 };
 
 // 600: start dialing, 650: dial in progress, 800: connection is up, 700: ring, 400: hup, 750: accepted icall
-struct reply_t gigaset_tab_cid_m10x[] = /* for M10x */
+struct reply_t gigaset_tab_cid[] =
 {
 	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
 

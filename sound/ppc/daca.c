@@ -244,7 +244,7 @@ static void daca_cleanup(struct snd_pmac *chip)
 }
 
 /* exported */
-int __init snd_pmac_daca_init(struct snd_pmac *chip)
+int __devinit snd_pmac_daca_init(struct snd_pmac *chip)
 {
 	int i, err;
 	struct pmac_daca *mix;

@@ -107,7 +107,7 @@ static void amba_kmi_close(struct serio *io)
 	clk_disable(kmi->clk);
 }
 
-static int amba_kmi_probe(struct amba_device *dev, void *id)
+static int amba_kmi_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct amba_kmi_port *kmi;
 	struct serio *io;
@@ -135,7 +135,7 @@ static int amba_kmi_probe(struct amba_device *dev, void *id)
 	io->dev.parent	= &dev->dev;
 
 	kmi->io 	= io;
-	kmi->base	= ioremap(dev->res.start, KMI_SIZE);
+	kmi->base	= ioremap(dev->res.start, resource_size(&dev->res));
 	if (!kmi->base) {
 		ret = -ENOMEM;
 		goto out;

@@ -694,6 +694,8 @@ static ssize_t read_zero(struct file * file, char __user * buf,
 		written += chunk - unwritten;
 		if (unwritten)
 			break;
+		if (signal_pending(current))
+			return written ? written : -ERESTARTSYS;
 		buf += chunk;
 		count -= chunk;
 		cond_resched();

@@ -15,16 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
-
-/***************************************************************************/
-
-void coldfire_reset(void);
 
 /***************************************************************************/
 
@@ -145,13 +140,20 @@ void mcf_autovector(unsigned int vec)
 {
 	/* Everything is auto-vectored on the 523x */
 }
+/***************************************************************************/
+
+static void m523x_cpu_reset(void)
+{
+	local_irq_disable();
+	__raw_writeb(MCF_RCR_SWRESET, MCF_IPSBAR + MCF_RCR);
+}
 
 /***************************************************************************/
 
 void __init config_BSP(char *commandp, int size)
 {
 	mcf_disableall();
-	mach_reset = coldfire_reset;
+	mach_reset = m523x_cpu_reset;
 	m523x_uarts_init();
 	m523x_fec_init();
 }

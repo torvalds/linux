@@ -22,6 +22,19 @@
 #include <asm/uaccess.h>
 #include "fat.h"
 
+/*
+ * Maximum buffer size of short name.
+ * [(MSDOS_NAME + '.') * max one char + nul]
+ * For msdos style, ['.' (hidden) + MSDOS_NAME + '.' + nul]
+ */
+#define FAT_MAX_SHORT_SIZE	((MSDOS_NAME + 1) * NLS_MAX_CHARSET_SIZE + 1)
+/*
+ * Maximum buffer size of unicode chars from slots.
+ * [(max longname slots * 13 (size in a slot) + nul) * sizeof(wchar_t)]
+ */
+#define FAT_MAX_UNI_CHARS	((MSDOS_SLOTS - 1) * 13 + 1)
+#define FAT_MAX_UNI_SIZE	(FAT_MAX_UNI_CHARS * sizeof(wchar_t))
+
 static inline loff_t fat_make_i_pos(struct super_block *sb,
 				    struct buffer_head *bh,
 				    struct msdos_dir_entry *de)
@@ -171,7 +184,8 @@ static inline int fat_uni_to_x8(struct msdos_sb_info *sbi, const wchar_t *uni,
 				unsigned char *buf, int size)
 {
 	if (sbi->options.utf8)
-		return utf8_wcstombs(buf, uni, size);
+		return utf16s_to_utf8s(uni, FAT_MAX_UNI_CHARS,
+				UTF16_HOST_ENDIAN, buf, size);
 	else
 		return uni16_to_x8(buf, uni, size, sbi->options.unicode_xlate,
 				   sbi->nls_io);
@@ -323,19 +337,6 @@ parse_long:
 
 	return 0;
 }
-
-/*
- * Maximum buffer size of short name.
- * [(MSDOS_NAME + '.') * max one char + nul]
- * For msdos style, ['.' (hidden) + MSDOS_NAME + '.' + nul]
- */
-#define FAT_MAX_SHORT_SIZE	((MSDOS_NAME + 1) * NLS_MAX_CHARSET_SIZE + 1)
-/*
- * Maximum buffer size of unicode chars from slots.
- * [(max longname slots * 13 (size in a slot) + nul) * sizeof(wchar_t)]
- */
-#define FAT_MAX_UNI_CHARS	((MSDOS_SLOTS - 1) * 13 + 1)
-#define FAT_MAX_UNI_SIZE	(FAT_MAX_UNI_CHARS * sizeof(wchar_t))
 
 /*
  * Return values: negative -> error, 0 -> not found, positive -> found,
@@ -840,7 +841,7 @@ const struct file_operations fat_dir_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= fat_compat_dir_ioctl,
 #endif
-	.fsync		= file_fsync,
+	.fsync		= fat_file_fsync,
 };
 
 static int fat_get_short_entry(struct inode *dir, loff_t *pos,
@@ -967,7 +968,7 @@ static int __fat_remove_entries(struct inode *dir, loff_t pos, int nr_slots)
 			de++;
 			nr_slots--;
 		}
-		mark_buffer_dirty(bh);
+		mark_buffer_dirty_inode(bh, dir);
 		if (IS_DIRSYNC(dir))
 			err = sync_dirty_buffer(bh);
 		brelse(bh);
@@ -1001,7 +1002,7 @@ int fat_remove_entries(struct inode *dir, struct fat_slot_info *sinfo)
 		de--;
 		nr_slots--;
 	}
-	mark_buffer_dirty(bh);
+	mark_buffer_dirty_inode(bh, dir);
 	if (IS_DIRSYNC(dir))
 		err = sync_dirty_buffer(bh);
 	brelse(bh);
@@ -1051,7 +1052,7 @@ static int fat_zeroed_cluster(struct inode *dir, sector_t blknr, int nr_used,
 		}
 		memset(bhs[n]->b_data, 0, sb->s_blocksize);
 		set_buffer_uptodate(bhs[n]);
-		mark_buffer_dirty(bhs[n]);
+		mark_buffer_dirty_inode(bhs[n], dir);
 
 		n++;
 		blknr++;
@@ -1131,7 +1132,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 	de[0].size = de[1].size = 0;
 	memset(de + 2, 0, sb->s_blocksize - 2 * sizeof(*de));
 	set_buffer_uptodate(bhs[0]);
-	mark_buffer_dirty(bhs[0]);
+	mark_buffer_dirty_inode(bhs[0], dir);
 
 	err = fat_zeroed_cluster(dir, blknr, 1, bhs, MAX_BUF_PER_PAGE);
 	if (err)
@@ -1193,7 +1194,7 @@ static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 			slots += copy;
 			size -= copy;
 			set_buffer_uptodate(bhs[n]);
-			mark_buffer_dirty(bhs[n]);
+			mark_buffer_dirty_inode(bhs[n], dir);
 			if (!size)
 				break;
 			n++;
@@ -1293,7 +1294,7 @@ found:
 		for (i = 0; i < long_bhs; i++) {
 			int copy = min_t(int, sb->s_blocksize - offset, size);
 			memcpy(bhs[i]->b_data + offset, slots, copy);
-			mark_buffer_dirty(bhs[i]);
+			mark_buffer_dirty_inode(bhs[i], dir);
 			offset = 0;
 			slots += copy;
 			size -= copy;
@@ -1304,7 +1305,7 @@ found:
 			/* Fill the short name slot. */
 			int copy = min_t(int, sb->s_blocksize - offset, size);
 			memcpy(bhs[i]->b_data + offset, slots, copy);
-			mark_buffer_dirty(bhs[i]);
+			mark_buffer_dirty_inode(bhs[i], dir);
 			if (IS_DIRSYNC(dir))
 				err = sync_dirty_buffer(bhs[i]);
 		}
@@ -1334,7 +1335,7 @@ found:
 			goto error_remove;
 		}
 		if (dir->i_size & (sbi->cluster_size - 1)) {
-			fat_fs_panic(sb, "Odd directory size");
+			fat_fs_error(sb, "Odd directory size");
 			dir->i_size = (dir->i_size + sbi->cluster_size - 1)
 				& ~((loff_t)sbi->cluster_size - 1);
 		}

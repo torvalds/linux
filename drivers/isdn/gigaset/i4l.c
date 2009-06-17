@@ -544,11 +544,11 @@ int gigaset_register_to_LL(struct cardstate *cs, const char *isdnid)
 
 	gig_dbg(DEBUG_ANY, "Register driver capabilities to LL");
 
-	//iif->id[sizeof(iif->id) - 1]=0;
-	//strncpy(iif->id, isdnid, sizeof(iif->id) - 1);
 	if (snprintf(iif->id, sizeof iif->id, "%s_%u", isdnid, cs->minor_index)
-	    >= sizeof iif->id)
-		return -ENOMEM; //FIXME EINVAL/...??
+	    >= sizeof iif->id) {
+		pr_err("ID too long: %s\n", isdnid);
+		return 0;
+	}
 
 	iif->owner = THIS_MODULE;
 	iif->channels = cs->channels;
@@ -568,8 +568,10 @@ int gigaset_register_to_LL(struct cardstate *cs, const char *isdnid)
 	iif->rcvcallb_skb = NULL;		/* Will be set by LL */
 	iif->statcallb = NULL;			/* Will be set by LL */
 
-	if (!register_isdn(iif))
+	if (!register_isdn(iif)) {
+		pr_err("register_isdn failed\n");
 		return 0;
+	}
 
 	cs->myid = iif->channels;		/* Set my device id */
 	return 1;

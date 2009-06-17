@@ -1023,13 +1023,14 @@ static const struct ide_port_info pmac_port_info = {
  * Setup, register & probe an IDE channel driven by this driver, this is
  * called by one of the 2 probe functions (macio or PCI).
  */
-static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
+static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif,
+					   struct ide_hw *hw)
 {
 	struct device_node *np = pmif->node;
 	const int *bidp;
 	struct ide_host *host;
 	ide_hwif_t *hwif;
-	hw_regs_t *hws[] = { hw, NULL, NULL, NULL };
+	struct ide_hw *hws[] = { hw };
 	struct ide_port_info d = pmac_port_info;
 	int rc;
 
@@ -1077,7 +1078,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	/* Make sure we have sane timings */
 	sanitize_timings(pmif);
 
-	host = ide_host_alloc(&d, hws);
+	host = ide_host_alloc(&d, hws, 1);
 	if (host == NULL)
 		return -ENOMEM;
 	hwif = host->ports[0];
@@ -1124,7 +1125,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	return 0;
 }
 
-static void __devinit pmac_ide_init_ports(hw_regs_t *hw, unsigned long base)
+static void __devinit pmac_ide_init_ports(struct ide_hw *hw, unsigned long base)
 {
 	int i;
 
@@ -1144,7 +1145,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	unsigned long regbase;
 	pmac_ide_hwif_t *pmif;
 	int irq, rc;
-	hw_regs_t hw;
+	struct ide_hw hw;
 
 	pmif = kzalloc(sizeof(*pmif), GFP_KERNEL);
 	if (pmif == NULL)
@@ -1268,7 +1269,7 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem *base;
 	unsigned long rbase, rlen;
 	int rc;
-	hw_regs_t hw;
+	struct ide_hw hw;
 
 	np = pci_device_to_OF_node(pdev);
 	if (np == NULL) {

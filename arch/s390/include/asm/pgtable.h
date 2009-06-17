@@ -112,12 +112,15 @@ extern char empty_zero_page[PAGE_SIZE];
  * effect, this also makes sure that 64 bit module code cannot be used
  * as system call address.
  */
+
+extern unsigned long VMALLOC_START;
+
 #ifndef __s390x__
-#define VMALLOC_START	0x78000000UL
+#define VMALLOC_SIZE	(96UL << 20)
 #define VMALLOC_END	0x7e000000UL
 #define VMEM_MAP_END	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_START	0x3e000000000UL
+#define VMALLOC_SIZE	(1UL << 30)
 #define VMALLOC_END	0x3e040000000UL
 #define VMEM_MAP_END	0x40000000000UL
 #endif /* __s390x__ */

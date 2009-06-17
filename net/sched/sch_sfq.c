@@ -149,7 +149,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		break;
 	}
 	default:
-		h = (unsigned long)skb->dst ^ skb->protocol;
+		h = (unsigned long)skb_dst(skb) ^ skb->protocol;
 		h2 = (unsigned long)skb->sk;
 	}
 

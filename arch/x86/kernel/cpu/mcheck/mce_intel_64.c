@@ -15,7 +15,8 @@
 #include <asm/hw_irq.h>
 #include <asm/idle.h>
 #include <asm/therm_throt.h>
-#include <asm/apic.h>
+
+#include "mce.h"
 
 asmlinkage void smp_thermal_interrupt(void)
 {
@@ -27,65 +28,11 @@ asmlinkage void smp_thermal_interrupt(void)
 	irq_enter();
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
-	if (therm_throt_process(msr_val & 1))
+	if (therm_throt_process(msr_val & THERM_STATUS_PROCHOT))
 		mce_log_therm_throt_event(msr_val);
 
 	inc_irq_stat(irq_thermal_count);
 	irq_exit();
-}
-
-static void intel_init_thermal(struct cpuinfo_x86 *c)
-{
-	u32 l, h;
-	int tm2 = 0;
-	unsigned int cpu = smp_processor_id();
-
-	if (!cpu_has(c, X86_FEATURE_ACPI))
-		return;
-
-	if (!cpu_has(c, X86_FEATURE_ACC))
-		return;
-
-	/* first check if TM1 is already enabled by the BIOS, in which
-	 * case there might be some SMM goo which handles it, so we can't even
-	 * put a handler since it might be delivered via SMI already.
-	 */
-	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
-	h = apic_read(APIC_LVTTHMR);
-	if ((l & MSR_IA32_MISC_ENABLE_TM1) && (h & APIC_DM_SMI)) {
-		printk(KERN_DEBUG
-		       "CPU%d: Thermal monitoring handled by SMI\n", cpu);
-		return;
-	}
-
-	if (cpu_has(c, X86_FEATURE_TM2) && (l & MSR_IA32_MISC_ENABLE_TM2))
-		tm2 = 1;
-
-	if (h & APIC_VECTOR_MASK) {
-		printk(KERN_DEBUG
-		       "CPU%d: Thermal LVT vector (%#x) already "
-		       "installed\n", cpu, (h & APIC_VECTOR_MASK));
-		return;
-	}
-
-	h = THERMAL_APIC_VECTOR;
-	h |= (APIC_DM_FIXED | APIC_LVT_MASKED);
-	apic_write(APIC_LVTTHMR, h);
-
-	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
-	wrmsr(MSR_IA32_THERM_INTERRUPT, l | 0x03, h);
-
-	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
-	wrmsr(MSR_IA32_MISC_ENABLE, l | MSR_IA32_MISC_ENABLE_TM1, h);
-
-	l = apic_read(APIC_LVTTHMR);
-	apic_write(APIC_LVTTHMR, l & ~APIC_LVT_MASKED);
-	printk(KERN_INFO "CPU%d: Thermal monitoring enabled (%s)\n",
-		cpu, tm2 ? "TM2" : "TM1");
-
-	/* enable thermal throttle processing */
-	atomic_set(&therm_throt_en, 1);
-	return;
 }
 
 /*
@@ -108,6 +55,9 @@ static DEFINE_SPINLOCK(cmci_discover_lock);
 static int cmci_supported(int *banks)
 {
 	u64 cap;
+
+	if (mce_cmci_disabled || mce_ignore_ce)
+		return 0;
 
 	/*
 	 * Vendor check is not strictly needed, but the initial
@@ -132,7 +82,7 @@ static int cmci_supported(int *banks)
 static void intel_threshold_interrupt(void)
 {
 	machine_check_poll(MCP_TIMESTAMP, &__get_cpu_var(mce_banks_owned));
-	mce_notify_user();
+	mce_notify_irq();
 }
 
 static void print_update(char *type, int *hdr, int num)
@@ -248,7 +198,7 @@ void cmci_rediscover(int dying)
 		return;
 	cpumask_copy(old, &current->cpus_allowed);
 
-	for_each_online_cpu (cpu) {
+	for_each_online_cpu(cpu) {
 		if (cpu == dying)
 			continue;
 		if (set_cpus_allowed_ptr(current, cpumask_of(cpu)))

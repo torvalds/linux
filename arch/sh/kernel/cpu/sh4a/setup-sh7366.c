@@ -14,7 +14,7 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
-#include <linux/sh_cmt.h>
+#include <linux/sh_timer.h>
 #include <asm/clock.h>
 
 static struct resource iic_resources[] = {
@@ -148,7 +148,7 @@ static struct platform_device veu1_device = {
 	.num_resources	= ARRAY_SIZE(veu1_resources),
 };
 
-static struct sh_cmt_config cmt_platform_data = {
+static struct sh_timer_config cmt_platform_data = {
 	.name = "CMT",
 	.channel_offset = 0x60,
 	.timer_bit = 5,
@@ -180,12 +180,105 @@ static struct platform_device cmt_device = {
 	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
+static struct sh_timer_config tmu0_platform_data = {
+	.name = "TMU0",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "tmu0",
+	.clockevent_rating = 200,
+};
+
+static struct resource tmu0_resources[] = {
+	[0] = {
+		.name	= "TMU0",
+		.start	= 0xffd80008,
+		.end	= 0xffd80013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 16,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu0_device = {
+	.name		= "sh_tmu",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &tmu0_platform_data,
+	},
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
+};
+
+static struct sh_timer_config tmu1_platform_data = {
+	.name = "TMU1",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "tmu0",
+	.clocksource_rating = 200,
+};
+
+static struct resource tmu1_resources[] = {
+	[0] = {
+		.name	= "TMU1",
+		.start	= 0xffd80014,
+		.end	= 0xffd8001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 17,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu1_device = {
+	.name		= "sh_tmu",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &tmu1_platform_data,
+	},
+	.resource	= tmu1_resources,
+	.num_resources	= ARRAY_SIZE(tmu1_resources),
+};
+
+static struct sh_timer_config tmu2_platform_data = {
+	.name = "TMU2",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "tmu0",
+};
+
+static struct resource tmu2_resources[] = {
+	[0] = {
+		.name	= "TMU2",
+		.start	= 0xffd80020,
+		.end	= 0xffd8002b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 18,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu2_device = {
+	.name		= "sh_tmu",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &tmu2_platform_data,
+	},
+	.resource	= tmu2_resources,
+	.num_resources	= ARRAY_SIZE(tmu2_resources),
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 80, 80, 80, 80 },
+		.clk		= "scif0",
 	}, {
 		.flags = 0,
 	}
@@ -201,6 +294,9 @@ static struct platform_device sci_device = {
 
 static struct platform_device *sh7366_devices[] __initdata = {
 	&cmt_device,
+	&tmu0_device,
+	&tmu1_device,
+	&tmu2_device,
 	&iic_device,
 	&sci_device,
 	&usb_host_device,
@@ -211,12 +307,6 @@ static struct platform_device *sh7366_devices[] __initdata = {
 
 static int __init sh7366_devices_setup(void)
 {
-	clk_always_enable("rsmem0"); /* RSMEM */
-	clk_always_enable("xymem0"); /* XYMEM */
-	clk_always_enable("veu1"); /* VEU-2 */
-	clk_always_enable("veu0"); /* VEU-1 */
-	clk_always_enable("vpu0"); /* VPU */
-
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
 	platform_resource_setup_memory(&veu1_device, "veu1", 2 << 20);
@@ -225,6 +315,19 @@ static int __init sh7366_devices_setup(void)
 				    ARRAY_SIZE(sh7366_devices));
 }
 __initcall(sh7366_devices_setup);
+
+static struct platform_device *sh7366_early_devices[] __initdata = {
+	&cmt_device,
+	&tmu0_device,
+	&tmu1_device,
+	&tmu2_device,
+};
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7366_early_devices,
+				   ARRAY_SIZE(sh7366_early_devices));
+}
 
 enum {
 	UNUSED=0,

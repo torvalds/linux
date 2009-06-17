@@ -23,7 +23,8 @@ extern u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass);
 
 extern u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl,
 				     u32 sdrc_actim_ctrla,
-				     u32 sdrc_actim_ctrlb, u32 m2);
+				     u32 sdrc_actim_ctrlb, u32 m2,
+				     u32 unlock_dll);
 
 /* Do not use these */
 extern void omap1_sram_reprogram_clock(u32 ckctl, u32 dpllctl);
@@ -60,7 +61,8 @@ extern unsigned long omap243x_sram_reprogram_sdrc_sz;
 
 extern u32 omap3_sram_configure_core_dpll(u32 sdrc_rfr_ctrl,
 					  u32 sdrc_actim_ctrla,
-					  u32 sdrc_actim_ctrlb, u32 m2);
+					  u32 sdrc_actim_ctrlb, u32 m2,
+					  u32 unlock_dll);
 extern unsigned long omap3_sram_configure_core_dpll_sz;
 
 #endif

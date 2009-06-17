@@ -339,7 +339,7 @@ static int __init drm_core_init(void)
 
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
 	if (!drm_debugfs_root) {
-		DRM_ERROR("Cannot create /debugfs/dri\n");
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
 		ret = -1;
 		goto err_p3;
 	}
@@ -481,7 +481,7 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		}
 		retcode = func(dev, kdata, file_priv);
 
-		if ((retcode == 0) && (cmd & IOC_OUT)) {
+		if (cmd & IOC_OUT) {
 			if (copy_to_user((void __user *)arg, kdata,
 					 _IOC_SIZE(cmd)) != 0)
 				retcode = -EFAULT;

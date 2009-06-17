@@ -497,14 +497,14 @@ static struct platform_driver da903x_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_regulator_probe,
-	.remove		= da903x_regulator_remove,
+	.remove		= __devexit_p(da903x_regulator_remove),
 };
 
 static int __init da903x_regulator_init(void)
 {
 	return platform_driver_register(&da903x_regulator_driver);
 }
-module_init(da903x_regulator_init);
+subsys_initcall(da903x_regulator_init);
 
 static void __exit da903x_regulator_exit(void)
 {

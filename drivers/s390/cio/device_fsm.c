@@ -177,29 +177,21 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	panic("Can't stop i/o on subchannel.\n");
 }
 
-static int
-ccw_device_handle_oper(struct ccw_device *cdev)
+void ccw_device_update_sense_data(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
+	memset(&cdev->id, 0, sizeof(cdev->id));
+	cdev->id.cu_type   = cdev->private->senseid.cu_type;
+	cdev->id.cu_model  = cdev->private->senseid.cu_model;
+	cdev->id.dev_type  = cdev->private->senseid.dev_type;
+	cdev->id.dev_model = cdev->private->senseid.dev_model;
+}
 
-	sch = to_subchannel(cdev->dev.parent);
-	cdev->private->flags.recog_done = 1;
-	/*
-	 * Check if cu type and device type still match. If
-	 * not, it is certainly another device and we have to
-	 * de- and re-register.
-	 */
-	if (cdev->id.cu_type != cdev->private->senseid.cu_type ||
-	    cdev->id.cu_model != cdev->private->senseid.cu_model ||
-	    cdev->id.dev_type != cdev->private->senseid.dev_type ||
-	    cdev->id.dev_model != cdev->private->senseid.dev_model) {
-		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_do_unbind_bind);
-		queue_work(ccw_device_work, &cdev->private->kick_work);
-		return 0;
-	}
-	cdev->private->flags.donotify = 1;
-	return 1;
+int ccw_device_test_sense_data(struct ccw_device *cdev)
+{
+	return cdev->id.cu_type == cdev->private->senseid.cu_type &&
+		cdev->id.cu_model == cdev->private->senseid.cu_model &&
+		cdev->id.dev_type == cdev->private->senseid.dev_type &&
+		cdev->id.dev_model == cdev->private->senseid.dev_model;
 }
 
 /*
@@ -233,7 +225,7 @@ static void
 ccw_device_recog_done(struct ccw_device *cdev, int state)
 {
 	struct subchannel *sch;
-	int notify, old_lpm, same_dev;
+	int old_lpm;
 
 	sch = to_subchannel(cdev->dev.parent);
 
@@ -263,8 +255,12 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		wake_up(&cdev->private->wait_q);
 		return;
 	}
-	notify = 0;
-	same_dev = 0; /* Keep the compiler quiet... */
+	if (cdev->private->flags.resuming) {
+		cdev->private->state = state;
+		cdev->private->flags.recog_done = 1;
+		wake_up(&cdev->private->wait_q);
+		return;
+	}
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
 		CIO_MSG_EVENT(2, "SenseID : unknown device %04x on "
@@ -273,34 +269,31 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			      sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
-		if (cdev->online) {
-			same_dev = ccw_device_handle_oper(cdev);
-			notify = 1;
+		if (!cdev->online) {
+			ccw_device_update_sense_data(cdev);
+			/* Issue device info message. */
+			CIO_MSG_EVENT(4, "SenseID : device 0.%x.%04x reports: "
+				      "CU  Type/Mod = %04X/%02X, Dev Type/Mod "
+				      "= %04X/%02X\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno,
+				      cdev->id.cu_type, cdev->id.cu_model,
+				      cdev->id.dev_type, cdev->id.dev_model);
+			break;
 		}
-		/* fill out sense information */
-		memset(&cdev->id, 0, sizeof(cdev->id));
-		cdev->id.cu_type   = cdev->private->senseid.cu_type;
-		cdev->id.cu_model  = cdev->private->senseid.cu_model;
-		cdev->id.dev_type  = cdev->private->senseid.dev_type;
-		cdev->id.dev_model = cdev->private->senseid.dev_model;
-		if (notify) {
-			cdev->private->state = DEV_STATE_OFFLINE;
-			if (same_dev) {
-				/* Get device online again. */
-				ccw_device_online(cdev);
-				wake_up(&cdev->private->wait_q);
-			}
-			return;
+		cdev->private->state = DEV_STATE_OFFLINE;
+		cdev->private->flags.recog_done = 1;
+		if (ccw_device_test_sense_data(cdev)) {
+			cdev->private->flags.donotify = 1;
+			ccw_device_online(cdev);
+			wake_up(&cdev->private->wait_q);
+		} else {
+			ccw_device_update_sense_data(cdev);
+			PREPARE_WORK(&cdev->private->kick_work,
+				     ccw_device_do_unbind_bind);
+			queue_work(ccw_device_work, &cdev->private->kick_work);
 		}
-		/* Issue device info message. */
-		CIO_MSG_EVENT(4, "SenseID : device 0.%x.%04x reports: "
-			      "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
-			      "%04X/%02X\n",
-			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno,
-			      cdev->id.cu_type, cdev->id.cu_model,
-			      cdev->id.dev_type, cdev->id.dev_model);
-		break;
+		return;
 	case DEV_STATE_BOXED:
 		CIO_MSG_EVENT(0, "SenseID : boxed device %04x on "
 			      " subchannel 0.%x.%04x\n",
@@ -502,9 +495,6 @@ ccw_device_recognition(struct ccw_device *cdev)
 	struct subchannel *sch;
 	int ret;
 
-	if ((cdev->private->state != DEV_STATE_NOT_OPER) &&
-	    (cdev->private->state != DEV_STATE_BOXED))
-		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
 	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
 	if (ret != 0)

@@ -133,9 +133,9 @@ void __init platform_request_ipi(irq_handler_t handler)
 	int ret;
 
 	ret = request_irq(IRQ_SUPPLE_0, handler, IRQF_DISABLED,
-			  "SMP interrupt", handler);
+			  "Supplemental Interrupt0", handler);
 	if (ret)
-		panic("Cannot request supplemental interrupt 0 for IPI service\n");
+		panic("Cannot request supplemental interrupt 0 for IPI service");
 }
 
 void platform_send_ipi(cpumask_t callmap)

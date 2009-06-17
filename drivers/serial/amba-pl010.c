@@ -665,7 +665,7 @@ static struct uart_driver amba_reg = {
 	.cons			= AMBA_CONSOLE,
 };
 
-static int pl010_probe(struct amba_device *dev, void *id)
+static int pl010_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	void __iomem *base;
@@ -686,7 +686,7 @@ static int pl010_probe(struct amba_device *dev, void *id)
 		goto out;
 	}
 
-	base = ioremap(dev->res.start, PAGE_SIZE);
+	base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!base) {
 		ret = -ENOMEM;
 		goto free;

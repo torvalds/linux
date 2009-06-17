@@ -1679,11 +1679,6 @@ pgd_t swapper_pg_dir[2048];
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
 
-/* Dummy function */
-void __init setup_per_cpu_areas(void)
-{
-}
-
 void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
@@ -1799,16 +1794,13 @@ void __init paging_init(void)
 	if (tlb_type == hypervisor)
 		sun4v_ktsb_register();
 
-	/* We must setup the per-cpu areas before we pull in the
-	 * PROM and the MDESC.  The code there fills in cpu and
-	 * other information into per-cpu data structures.
-	 */
-	real_setup_per_cpu_areas();
-
 	prom_build_devicetree();
+	of_populate_present_mask();
 
-	if (tlb_type == hypervisor)
+	if (tlb_type == hypervisor) {
 		sun4v_mdesc_init();
+		mdesc_populate_present_mask(cpu_all_mask);
+	}
 
 	/* Once the OF device tree and MDESC have been setup, we know
 	 * the list of possible cpus.  Therefore we can allocate the

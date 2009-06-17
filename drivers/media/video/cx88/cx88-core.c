@@ -231,7 +231,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
  * can use the whole SDRAM for the DMA fifos.  To simplify things, we
  * use a static memory layout.  That surely will waste memory in case
  * we don't use all DMA channels at the same time (which will be the
- * case most of the time).  But that still gives us enougth FIFO space
+ * case most of the time).  But that still gives us enough FIFO space
  * to be able to deal with insane long pci latencies ...
  *
  * FIFO space allocations:
@@ -241,6 +241,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
  *    channel  24    (vbi)      -  4.0k
  *    channels 25+26 (audio)    -  4.0k
  *    channel  28    (mpeg)     -  4.0k
+ *    channel  27    (audio rds)-  3.0k
  *    TOTAL                     = 29.0k
  *
  * Every channel has 160 bytes control data (64 bytes instruction
@@ -336,6 +337,18 @@ struct sram_channel cx88_sram_channels[] = {
 		.ptr2_reg   = MO_DMA28_PTR2,
 		.cnt1_reg   = MO_DMA28_CNT1,
 		.cnt2_reg   = MO_DMA28_CNT2,
+	},
+	[SRAM_CH27] = {
+		.name       = "audio rds",
+		.cmds_start = 0x1801C0,
+		.ctrl_start = 0x180860,
+		.cdt        = 0x180860 + 64,
+		.fifo_start = 0x187400,
+		.fifo_size  = 0x000C00,
+		.ptr1_reg   = MO_DMA27_PTR1,
+		.ptr2_reg   = MO_DMA27_PTR2,
+		.cnt1_reg   = MO_DMA27_CNT1,
+		.cnt2_reg   = MO_DMA27_CNT2,
 	},
 };
 
@@ -598,6 +611,7 @@ int cx88_reset(struct cx88_core *core)
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], 128, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28], 188*4, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH27], 128, 0);
 
 	/* misc init ... */
 	cx_write(MO_INPUT_FORMAT, ((1 << 13) |   // agc enable
@@ -796,6 +810,8 @@ int cx88_start_audio_dma(struct cx88_core *core)
 	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
 	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
 
+	int rds_bpl = cx88_sram_channels[SRAM_CH27].fifo_size/AUD_RDS_LINES;
+
 	/* If downstream RISC is enabled, bail out; ALSA is managing DMA */
 	if (cx_read(MO_AUD_DMACNTRL) & 0x10)
 		return 0;
@@ -803,12 +819,14 @@ int cx88_start_audio_dma(struct cx88_core *core)
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH27],
+				rds_bpl, 0);
 
 	cx_write(MO_AUDD_LNGTH, bpl); /* fifo bpl size */
-	cx_write(MO_AUDR_LNGTH, bpl); /* fifo bpl size */
+	cx_write(MO_AUDR_LNGTH, rds_bpl); /* fifo bpl size */
 
-	/* start dma */
-	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+	/* enable Up, Down and Audio RDS fifo */
+	cx_write(MO_AUD_DMACNTRL, 0x0007);
 
 	return 0;
 }
@@ -1010,7 +1028,6 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->parent = &pci->dev;
 	vfd->release = video_device_release;

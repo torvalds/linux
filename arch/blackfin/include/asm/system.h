@@ -35,10 +35,10 @@
 #define _BLACKFIN_SYSTEM_H
 
 #include <linux/linkage.h>
-#include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <mach/anomaly.h>
+#include <asm/cache.h>
 #include <asm/pda.h>
-#include <asm/processor.h>
 #include <asm/irq.h>
 
 /*

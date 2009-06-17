@@ -106,10 +106,7 @@ bool blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	 */
 	q->ordseq = 0;
 	rq = q->orig_bar_rq;
-
-	if (__blk_end_request(rq, q->orderr, blk_rq_bytes(rq)))
-		BUG();
-
+	__blk_end_request_all(rq, q->orderr);
 	return true;
 }
 
@@ -166,7 +163,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	 * For an empty barrier, there's no actual BAR request, which
 	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
 	 */
-	if (!rq->hard_nr_sectors) {
+	if (!blk_rq_sectors(rq)) {
 		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
 				QUEUE_ORDERED_DO_POSTFLUSH);
 		/*
@@ -183,7 +180,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	}
 
 	/* stash away the original request */
-	elv_dequeue_request(q, rq);
+	blk_dequeue_request(rq);
 	q->orig_bar_rq = rq;
 	rq = NULL;
 
@@ -221,7 +218,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	} else
 		skip |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && q->in_flight)
+	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && queue_in_flight(q))
 		rq = NULL;
 	else
 		skip |= QUEUE_ORDSEQ_DRAIN;
@@ -251,10 +248,8 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 * Queue ordering not supported.  Terminate
 			 * with prejudice.
 			 */
-			elv_dequeue_request(q, rq);
-			if (__blk_end_request(rq, -EOPNOTSUPP,
-					      blk_rq_bytes(rq)))
-				BUG();
+			blk_dequeue_request(rq);
+			__blk_end_request_all(rq, -EOPNOTSUPP);
 			*rqp = NULL;
 			return false;
 		}
@@ -329,7 +324,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	/*
 	 * The driver must store the error location in ->bi_sector, if
 	 * it supports it. For non-stacked drivers, this should be copied
-	 * from rq->sector.
+	 * from blk_rq_pos(rq).
 	 */
 	if (error_sector)
 		*error_sector = bio->bi_sector;
@@ -393,10 +388,10 @@ int blkdev_issue_discard(struct block_device *bdev,
 
 		bio->bi_sector = sector;
 
-		if (nr_sects > q->max_hw_sectors) {
-			bio->bi_size = q->max_hw_sectors << 9;
-			nr_sects -= q->max_hw_sectors;
-			sector += q->max_hw_sectors;
+		if (nr_sects > queue_max_hw_sectors(q)) {
+			bio->bi_size = queue_max_hw_sectors(q) << 9;
+			nr_sects -= queue_max_hw_sectors(q);
+			sector += queue_max_hw_sectors(q);
 		} else {
 			bio->bi_size = nr_sects << 9;
 			nr_sects = 0;

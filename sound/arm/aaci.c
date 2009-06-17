@@ -1074,7 +1074,7 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	return i;
 }
 
-static int __devinit aaci_probe(struct amba_device *dev, void *id)
+static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct aaci *aaci;
 	int ret, i;
@@ -1089,7 +1089,7 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 		goto out;
 	}
 
-	aaci->base = ioremap(dev->res.start, SZ_4K);
+	aaci->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!aaci->base) {
 		ret = -ENOMEM;
 		goto out;

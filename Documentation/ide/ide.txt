@@ -216,6 +216,8 @@ Other kernel parameters for ide_core are:
 
 * "noflush=[interface_number.device_number]" to disable flush requests
 
+* "nohpa=[interface_number.device_number]" to disable Host Protected Area
+
 * "noprobe=[interface_number.device_number]" to skip probing
 
 * "nowerr=[interface_number.device_number]" to ignore the WRERR_STAT bit

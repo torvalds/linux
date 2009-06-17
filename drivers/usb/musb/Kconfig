@@ -10,6 +10,7 @@ comment "Enable Host or Gadget support to see Inventra options"
 config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET) && HAVE_CLK
 	depends on !SUPERH
+	select NOP_USB_XCEIV if ARCH_DAVINCI
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select USB_OTG_UTILS
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
@@ -55,6 +56,7 @@ comment "Blackfin high speed USB Support"
 config USB_TUSB6010
 	boolean "TUSB 6010 support"
 	depends on USB_MUSB_HDRC && !USB_MUSB_SOC
+	select NOP_USB_XCEIV
 	default y
 	help
 	  The TUSB 6010 chip, from Texas Instruments, connects a discrete

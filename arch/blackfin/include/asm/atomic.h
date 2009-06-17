@@ -90,7 +90,7 @@ static inline int atomic_test_mask(int mask, atomic_t *v)
 
 static inline void atomic_add(int i, atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter += i;
@@ -99,7 +99,7 @@ static inline void atomic_add(int i, atomic_t *v)
 
 static inline void atomic_sub(int i, atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter -= i;
@@ -110,7 +110,7 @@ static inline void atomic_sub(int i, atomic_t *v)
 static inline int atomic_add_return(int i, atomic_t *v)
 {
 	int __temp = 0;
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter += i;
@@ -124,7 +124,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 static inline int atomic_sub_return(int i, atomic_t *v)
 {
 	int __temp = 0;
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter -= i;
@@ -136,7 +136,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 
 static inline void atomic_inc(volatile atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter++;
@@ -145,7 +145,7 @@ static inline void atomic_inc(volatile atomic_t *v)
 
 static inline void atomic_dec(volatile atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter--;
@@ -154,7 +154,7 @@ static inline void atomic_dec(volatile atomic_t *v)
 
 static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter &= ~mask;
@@ -163,7 +163,7 @@ static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 
 static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 {
-	long flags;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 	v->counter |= mask;
@@ -208,6 +208,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 #define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 
 #endif				/* __ARCH_BLACKFIN_ATOMIC __ */

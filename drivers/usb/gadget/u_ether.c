@@ -520,7 +520,7 @@ static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
 	 */
 	if (list_empty(&dev->tx_reqs)) {
 		spin_unlock_irqrestore(&dev->req_lock, flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	req = container_of(dev->tx_reqs.next, struct usb_request, list);

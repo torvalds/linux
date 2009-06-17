@@ -30,7 +30,7 @@ MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(debug, "0 (default) powers device off when not used.\n"
+MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 	"1 keep device energized and with tuner ready all the times.\n"
 	"  Faster, but consumes more power and keeps the device hotter\n");
 
@@ -48,7 +48,7 @@ MODULE_PARM_DESC(audio_std,
 	"NICAM/A\n"
 	"NICAM/B\n");
 
-static char firmware_name[FIRMWARE_NAME_MAX];
+static char firmware_name[30];
 module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
 MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the "
 				"default firmware name\n");
@@ -272,7 +272,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		fname = firmware_name;
 
 	tuner_dbg("Reading firmware %s\n", fname);
-	rc = request_firmware(&fw, fname, &priv->i2c_props.adap->dev);
+	rc = request_firmware(&fw, fname, priv->i2c_props.adap->dev.parent);
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			tuner_err("Error: firmware %s not found.\n",
@@ -917,22 +917,29 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_mode == T_ANALOG_TV) {
+	if (new_mode == T_ANALOG_TV)
 		rc = send_seq(priv, {0x00, 0x00});
-	} else if (priv->cur_fw.type & ATSC) {
-		offset = 1750000;
-	} else {
-		offset = 2750000;
+
+	/*
+	 * Digital modes require an offset to adjust to the
+	 * proper frequency.
+	 * Analog modes require offset = 0
+	 */
+	if (new_mode == T_DIGITAL_TV) {
+		/* Sets the offset according with firmware */
+		if (priv->cur_fw.type & DTV6)
+			offset = 1750000;
+		else if (priv->cur_fw.type & DTV7)
+			offset = 2250000;
+		else	/* DTV8 or DTV78 */
+			offset = 2750000;
+
 		/*
-		 * We must adjust the offset by 500kHz in two cases in order
-		 * to correctly center the IF output:
-		 * 1) When the ZARLINK456 or DIBCOM52 tables were explicitly
-		 *    selected and a 7MHz channel is tuned;
-		 * 2) When tuning a VHF channel with DTV78 firmware.
+		 * We must adjust the offset by 500kHz  when
+		 * tuning a 7MHz VHF channel with DTV78 firmware
+		 * (used in Australia, Italy and Germany)
 		 */
-		if (((priv->cur_fw.type & DTV7) &&
-		     (priv->cur_fw.scode_table & (ZARLINK456 | DIBCOM52))) ||
-		    ((priv->cur_fw.type & DTV78) && freq < 470000000))
+		if ((priv->cur_fw.type & DTV78) && freq < 470000000)
 			offset -= 500000;
 	}
 
@@ -991,7 +998,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 		if (priv->ctrl.input1)
 			type |= INPUT1;
 		return generic_set_freq(fe, (625l * p->frequency) / 10,
-				T_ANALOG_TV, type, 0, 0);
+				T_RADIO, type, 0, 0);
 	}
 
 	/* if std is not defined, choose one */
@@ -1022,21 +1029,20 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	switch(fe->ops.info.type) {
 	case FE_OFDM:
 		bw = p->u.ofdm.bandwidth;
-		break;
-	case FE_QAM:
-		tuner_info("WARN: There are some reports that "
-			   "QAM 6 MHz doesn't work.\n"
-			   "If this works for you, please report by "
-			   "e-mail to: v4l-dvb-maintainer@linuxtv.org\n");
-		bw = BANDWIDTH_6_MHZ;
-		type |= QAM;
+		/*
+		 * The only countries with 6MHz seem to be Taiwan/Uruguay.
+		 * Both seem to require QAM firmware for OFDM decoding
+		 * Tested in Taiwan by Terry Wu <terrywu2009@gmail.com>
+		 */
+		if (bw == BANDWIDTH_6_MHZ)
+			type |= QAM;
 		break;
 	case FE_ATSC:
 		bw = BANDWIDTH_6_MHZ;
 		/* The only ATSC firmware (at least on v2.7) is D2633 */
 		type |= ATSC | D2633;
 		break;
-	/* DVB-S is not supported */
+	/* DVB-S and pure QAM (FE_QAM) are not supported */
 	default:
 		return -EINVAL;
 	}

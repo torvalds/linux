@@ -631,10 +631,6 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 	if (IS_ERR(dentry))
 		goto out_dir;
 
-	ret = -EEXIST;
-	if (dentry->d_inode)
-		goto out_dput;
-
 	mode &= ~current_umask();
 
 	if (flags & SPU_CREATE_GANG)
@@ -648,8 +644,6 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 		fsnotify_mkdir(nd->path.dentry->d_inode, dentry);
 	return ret;
 
-out_dput:
-	dput(dentry);
 out_dir:
 	mutex_unlock(&nd->path.dentry->d_inode->i_mutex);
 out:

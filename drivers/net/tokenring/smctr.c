@@ -4601,7 +4601,7 @@ static int smctr_send_packet(struct sk_buff *skb, struct net_device *dev)
         netif_stop_queue(dev);
 
         if(tp->QueueSkb == 0)
-                return (1);     /* Return with tbusy set: queue full */
+                return NETDEV_TX_BUSY;     /* Return with tbusy set: queue full */
 
         tp->QueueSkb--;
         skb_queue_tail(&tp->SendSkbQueue, skb);

@@ -32,6 +32,7 @@
 #include <trace/events/sched.h>
 
 #include <asm/ftrace.h>
+#include <asm/setup.h>
 
 #include "trace_output.h"
 #include "trace_stat.h"
@@ -598,7 +599,7 @@ function_profile_call(unsigned long ip, unsigned long parent_ip)
 	local_irq_save(flags);
 
 	stat = &__get_cpu_var(ftrace_profile_stats);
-	if (!stat->hash)
+	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
 	rec = ftrace_find_profiled_func(stat, ip);
@@ -629,7 +630,7 @@ static void profile_graph_return(struct ftrace_graph_ret *trace)
 
 	local_irq_save(flags);
 	stat = &__get_cpu_var(ftrace_profile_stats);
-	if (!stat->hash)
+	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
 	calltime = trace->rettime - trace->calltime;
@@ -723,6 +724,10 @@ ftrace_profile_write(struct file *filp, const char __user *ubuf,
 			ftrace_profile_enabled = 1;
 		} else {
 			ftrace_profile_enabled = 0;
+			/*
+			 * unregister_ftrace_profiler calls stop_machine
+			 * so this acts like an synchronize_sched.
+			 */
 			unregister_ftrace_profiler();
 		}
 	}
@@ -2369,6 +2374,45 @@ void ftrace_set_notrace(unsigned char *buf, int len, int reset)
 	ftrace_set_regex(buf, len, reset, 0);
 }
 
+/*
+ * command line interface to allow users to set filters on boot up.
+ */
+#define FTRACE_FILTER_SIZE		COMMAND_LINE_SIZE
+static char ftrace_notrace_buf[FTRACE_FILTER_SIZE] __initdata;
+static char ftrace_filter_buf[FTRACE_FILTER_SIZE] __initdata;
+
+static int __init set_ftrace_notrace(char *str)
+{
+	strncpy(ftrace_notrace_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_notrace=", set_ftrace_notrace);
+
+static int __init set_ftrace_filter(char *str)
+{
+	strncpy(ftrace_filter_buf, str, FTRACE_FILTER_SIZE);
+	return 1;
+}
+__setup("ftrace_filter=", set_ftrace_filter);
+
+static void __init set_ftrace_early_filter(char *buf, int enable)
+{
+	char *func;
+
+	while (buf) {
+		func = strsep(&buf, ",");
+		ftrace_set_regex(func, strlen(func), 0, enable);
+	}
+}
+
+static void __init set_ftrace_early_filters(void)
+{
+	if (ftrace_filter_buf[0])
+		set_ftrace_early_filter(ftrace_filter_buf, 1);
+	if (ftrace_notrace_buf[0])
+		set_ftrace_early_filter(ftrace_notrace_buf, 0);
+}
+
 static int
 ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 {
@@ -2829,6 +2873,8 @@ void __init ftrace_init(void)
 	if (ret)
 		pr_warning("Failed to register trace ftrace module notifier\n");
 
+	set_ftrace_early_filters();
+
 	return;
  failed:
 	ftrace_disabled = 1;
@@ -3172,12 +3218,12 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 
 		if (t->ret_stack == NULL) {
-			t->curr_ret_stack = -1;
-			/* Make sure IRQs see the -1 first: */
-			barrier();
-			t->ret_stack = ret_stack_list[start++];
 			atomic_set(&t->tracing_graph_pause, 0);
 			atomic_set(&t->trace_overrun, 0);
+			t->curr_ret_stack = -1;
+			/* Make sure the tasks see the -1 first: */
+			smp_wmb();
+			t->ret_stack = ret_stack_list[start++];
 		}
 	} while_each_thread(g, t);
 
@@ -3235,8 +3281,10 @@ static int start_graph_tracing(void)
 		return -ENOMEM;
 
 	/* The cpu_boot init_task->ret_stack will never be freed */
-	for_each_online_cpu(cpu)
-		ftrace_graph_init_task(idle_task(cpu));
+	for_each_online_cpu(cpu) {
+		if (!idle_task(cpu)->ret_stack)
+			ftrace_graph_init_task(idle_task(cpu));
+	}
 
 	do {
 		ret = alloc_retstack_tasklist(ret_stack_list);
@@ -3328,18 +3376,25 @@ void unregister_ftrace_graph(void)
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
+	/* Make sure we do not use the parent ret_stack */
+	t->ret_stack = NULL;
+
 	if (ftrace_graph_active) {
-		t->ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+		struct ftrace_ret_stack *ret_stack;
+
+		ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
 				* sizeof(struct ftrace_ret_stack),
 				GFP_KERNEL);
-		if (!t->ret_stack)
+		if (!ret_stack)
 			return;
 		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
 		t->ftrace_timestamp = 0;
-	} else
-		t->ret_stack = NULL;
+		/* make curr_ret_stack visable before we add the ret_stack */
+		smp_wmb();
+		t->ret_stack = ret_stack;
+	}
 }
 
 void ftrace_graph_exit_task(struct task_struct *t)

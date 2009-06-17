@@ -154,8 +154,3 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 }
 EXPORT_SYMBOL(memcpy);
 #endif /* __HAVE_ARCH_MEMCPY */
-
-void *cacheable_memcpy(void *d, const void *s, __kernel_size_t c)
-{
-	return memcpy(d, s, c);
-}

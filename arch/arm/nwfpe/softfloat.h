@@ -226,6 +226,8 @@ char floatx80_le_quiet( floatx80, floatx80 );
 char floatx80_lt_quiet( floatx80, floatx80 );
 char floatx80_is_signaling_nan( floatx80 );
 
+extern flag floatx80_is_nan(floatx80);
+
 #endif
 
 static inline flag extractFloat32Sign(float32 a)

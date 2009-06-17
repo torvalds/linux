@@ -39,6 +39,13 @@ config FS_POSIX_ACL
 	bool
 	default n
 
+source "fs/xfs/Kconfig"
+source "fs/gfs2/Kconfig"
+source "fs/ocfs2/Kconfig"
+source "fs/btrfs/Kconfig"
+
+endif # BLOCK
+
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EMBEDDED
 	default y
@@ -47,13 +54,6 @@ config FILE_LOCKING
           for filesystems like NFS and for the flock() system
           call. Disabling this option saves about 11k.
 
-source "fs/xfs/Kconfig"
-source "fs/gfs2/Kconfig"
-source "fs/ocfs2/Kconfig"
-source "fs/btrfs/Kconfig"
-
-endif # BLOCK
-
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
@@ -61,6 +61,16 @@ source "fs/quota/Kconfig"
 source "fs/autofs/Kconfig"
 source "fs/autofs4/Kconfig"
 source "fs/fuse/Kconfig"
+
+config CUSE
+	tristate "Character device in Userpace support"
+	depends on FUSE_FS
+	help
+	  This FUSE extension allows character devices to be
+	  implemented in userspace.
+
+	  If you want to develop or use userspace character device
+	  based on CUSE, answer Y or M.
 
 config GENERIC_ACL
 	bool

@@ -58,6 +58,47 @@
 					 DRM_I915_VBLANK_PIPE_B)
 
 void
+igdng_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	if ((dev_priv->gt_irq_mask_reg & mask) != 0) {
+		dev_priv->gt_irq_mask_reg &= ~mask;
+		I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
+		(void) I915_READ(GTIMR);
+	}
+}
+
+static inline void
+igdng_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	if ((dev_priv->gt_irq_mask_reg & mask) != mask) {
+		dev_priv->gt_irq_mask_reg |= mask;
+		I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
+		(void) I915_READ(GTIMR);
+	}
+}
+
+/* For display hotplug interrupt */
+void
+igdng_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	if ((dev_priv->irq_mask_reg & mask) != 0) {
+		dev_priv->irq_mask_reg &= ~mask;
+		I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
+		(void) I915_READ(DEIMR);
+	}
+}
+
+static inline void
+igdng_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	if ((dev_priv->irq_mask_reg & mask) != mask) {
+		dev_priv->irq_mask_reg |= mask;
+		I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
+		(void) I915_READ(DEIMR);
+	}
+}
+
+void
 i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->irq_mask_reg & mask) != 0) {
@@ -196,6 +237,47 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_sysfs_hotplug_event(dev);
 }
 
+irqreturn_t igdng_irq_handler(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int ret = IRQ_NONE;
+	u32 de_iir, gt_iir;
+	u32 new_de_iir, new_gt_iir;
+	struct drm_i915_master_private *master_priv;
+
+	de_iir = I915_READ(DEIIR);
+	gt_iir = I915_READ(GTIIR);
+
+	for (;;) {
+		if (de_iir == 0 && gt_iir == 0)
+			break;
+
+		ret = IRQ_HANDLED;
+
+		I915_WRITE(DEIIR, de_iir);
+		new_de_iir = I915_READ(DEIIR);
+		I915_WRITE(GTIIR, gt_iir);
+		new_gt_iir = I915_READ(GTIIR);
+
+		if (dev->primary->master) {
+			master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->last_dispatch =
+					READ_BREADCRUMB(dev_priv);
+		}
+
+		if (gt_iir & GT_USER_INTERRUPT) {
+			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			DRM_WAKEUP(&dev_priv->irq_queue);
+		}
+
+		de_iir = new_de_iir;
+		gt_iir = new_gt_iir;
+	}
+
+	return ret;
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -211,6 +293,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	int ret = IRQ_NONE;
 
 	atomic_inc(&dev_priv->irq_received);
+
+	if (IS_IGDNG(dev))
+		return igdng_irq_handler(dev);
 
 	iir = I915_READ(IIR);
 
@@ -349,8 +434,12 @@ void i915_user_irq_get(struct drm_device *dev)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1))
-		i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
+	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1)) {
+		if (IS_IGDNG(dev))
+			igdng_enable_graphics_irq(dev_priv, GT_USER_INTERRUPT);
+		else
+			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
+	}
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
@@ -361,8 +450,12 @@ void i915_user_irq_put(struct drm_device *dev)
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	BUG_ON(dev->irq_enabled && dev_priv->user_irq_refcount <= 0);
-	if (dev->irq_enabled && (--dev_priv->user_irq_refcount == 0))
-		i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
+	if (dev->irq_enabled && (--dev_priv->user_irq_refcount == 0)) {
+		if (IS_IGDNG(dev))
+			igdng_disable_graphics_irq(dev_priv, GT_USER_INTERRUPT);
+		else
+			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
+	}
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
@@ -455,6 +548,9 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	if (!(pipeconf & PIPEACONF_ENABLE))
 		return -EINVAL;
 
+	if (IS_IGDNG(dev))
+		return 0;
+
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	if (IS_I965G(dev))
 		i915_enable_pipestat(dev_priv, pipe,
@@ -474,6 +570,9 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
 
+	if (IS_IGDNG(dev))
+		return;
+
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	i915_disable_pipestat(dev_priv, pipe,
 			      PIPE_VBLANK_INTERRUPT_ENABLE |
@@ -484,7 +583,9 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 void i915_enable_interrupt (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	opregion_enable_asle(dev);
+
+	if (!IS_IGDNG(dev))
+		opregion_enable_asle(dev);
 	dev_priv->irq_enabled = 1;
 }
 
@@ -545,11 +646,64 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 
 /* drm_dma.h hooks
 */
+static void igdng_irq_preinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	I915_WRITE(HWSTAM, 0xeffe);
+
+	/* XXX hotplug from PCH */
+
+	I915_WRITE(DEIMR, 0xffffffff);
+	I915_WRITE(DEIER, 0x0);
+	(void) I915_READ(DEIER);
+
+	/* and GT */
+	I915_WRITE(GTIMR, 0xffffffff);
+	I915_WRITE(GTIER, 0x0);
+	(void) I915_READ(GTIER);
+}
+
+static int igdng_irq_postinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	/* enable kind of interrupts always enabled */
+	u32 display_mask = DE_MASTER_IRQ_CONTROL /*| DE_PCH_EVENT */;
+	u32 render_mask = GT_USER_INTERRUPT;
+
+	dev_priv->irq_mask_reg = ~display_mask;
+	dev_priv->de_irq_enable_reg = display_mask;
+
+	/* should always can generate irq */
+	I915_WRITE(DEIIR, I915_READ(DEIIR));
+	I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
+	I915_WRITE(DEIER, dev_priv->de_irq_enable_reg);
+	(void) I915_READ(DEIER);
+
+	/* user interrupt should be enabled, but masked initial */
+	dev_priv->gt_irq_mask_reg = 0xffffffff;
+	dev_priv->gt_irq_enable_reg = render_mask;
+
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
+	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
+	(void) I915_READ(GTIER);
+
+	return 0;
+}
+
 void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
 	atomic_set(&dev_priv->irq_received, 0);
+
+	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
+
+	if (IS_IGDNG(dev)) {
+		igdng_irq_preinstall(dev);
+		return;
+	}
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);
@@ -562,7 +716,6 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
 	(void) I915_READ(IER);
-	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 }
 
 int i915_driver_irq_postinstall(struct drm_device *dev)
@@ -570,9 +723,12 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
 
+	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
+
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
+	if (IS_IGDNG(dev))
+		return igdng_irq_postinstall(dev);
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask_reg = ~I915_INTERRUPT_ENABLE_FIX;
@@ -613,9 +769,22 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	(void) I915_READ(IER);
 
 	opregion_enable_asle(dev);
-	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 
 	return 0;
+}
+
+static void igdng_irq_uninstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	I915_WRITE(HWSTAM, 0xffffffff);
+
+	I915_WRITE(DEIMR, 0xffffffff);
+	I915_WRITE(DEIER, 0x0);
+	I915_WRITE(DEIIR, I915_READ(DEIIR));
+
+	I915_WRITE(GTIMR, 0xffffffff);
+	I915_WRITE(GTIER, 0x0);
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
 }
 
 void i915_driver_irq_uninstall(struct drm_device * dev)
@@ -626,6 +795,11 @@ void i915_driver_irq_uninstall(struct drm_device * dev)
 		return;
 
 	dev_priv->vblank_pipe = 0;
+
+	if (IS_IGDNG(dev)) {
+		igdng_irq_uninstall(dev);
+		return;
+	}
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);

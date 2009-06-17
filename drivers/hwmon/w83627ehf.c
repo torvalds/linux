@@ -36,6 +36,7 @@
     w83627ehf   10      5       4       3      0x8850 0x88    0x5ca3
                                                0x8860 0xa1
     w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
+    w83627dhg-p  9      5       4       3      0xb070 0xc1    0x5ca3
     w83667hg     9      5       3       3      0xa510 0xc1    0x5ca3
 */
 
@@ -53,11 +54,12 @@
 #include <asm/io.h>
 #include "lm75.h"
 
-enum kinds { w83627ehf, w83627dhg, w83667hg };
+enum kinds { w83627ehf, w83627dhg, w83627dhg_p, w83667hg };
 
 /* used to set data->name = w83627ehf_device_names[data->sio_kind] */
 static const char * w83627ehf_device_names[] = {
 	"w83627ehf",
+	"w83627dhg",
 	"w83627dhg",
 	"w83667hg",
 };
@@ -86,6 +88,7 @@ MODULE_PARM_DESC(force_id, "Override the detected device ID");
 #define SIO_W83627EHF_ID	0x8850
 #define SIO_W83627EHG_ID	0x8860
 #define SIO_W83627DHG_ID	0xa020
+#define SIO_W83627DHG_P_ID	0xb070
 #define SIO_W83667HG_ID 	0xa510
 #define SIO_ID_MASK		0xFFF0
 
@@ -1517,6 +1520,7 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	static const char __initdata sio_name_W83627EHF[] = "W83627EHF";
 	static const char __initdata sio_name_W83627EHG[] = "W83627EHG";
 	static const char __initdata sio_name_W83627DHG[] = "W83627DHG";
+	static const char __initdata sio_name_W83627DHG_P[] = "W83627DHG-P";
 	static const char __initdata sio_name_W83667HG[] = "W83667HG";
 
 	u16 val;
@@ -1541,6 +1545,10 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 	case SIO_W83627DHG_ID:
 		sio_data->kind = w83627dhg;
 		sio_name = sio_name_W83627DHG;
+		break;
+	case SIO_W83627DHG_P_ID:
+		sio_data->kind = w83627dhg_p;
+		sio_name = sio_name_W83627DHG_P;
 		break;
 	case SIO_W83667HG_ID:
 		sio_data->kind = w83667hg;

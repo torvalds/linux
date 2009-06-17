@@ -7,18 +7,18 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM irq
 
-#define softirq_name(sirq) { sirq, #sirq }
-#define show_softirq_name(val)						\
-	__print_symbolic(val,						\
-			 softirq_name(HI_SOFTIRQ),			\
-			 softirq_name(TIMER_SOFTIRQ),			\
-			 softirq_name(NET_TX_SOFTIRQ),			\
-			 softirq_name(NET_RX_SOFTIRQ),			\
-			 softirq_name(BLOCK_SOFTIRQ),			\
-			 softirq_name(TASKLET_SOFTIRQ),			\
-			 softirq_name(SCHED_SOFTIRQ),			\
-			 softirq_name(HRTIMER_SOFTIRQ),			\
-			 softirq_name(RCU_SOFTIRQ))
+#define softirq_name(sirq) { sirq##_SOFTIRQ, #sirq }
+#define show_softirq_name(val)			\
+	__print_symbolic(val,			\
+			 softirq_name(HI),	\
+			 softirq_name(TIMER),	\
+			 softirq_name(NET_TX),	\
+			 softirq_name(NET_RX),	\
+			 softirq_name(BLOCK),	\
+			 softirq_name(TASKLET),	\
+			 softirq_name(SCHED),	\
+			 softirq_name(HRTIMER),	\
+			 softirq_name(RCU))
 
 /**
  * irq_handler_entry - called immediately before the irq action handler

@@ -67,7 +67,6 @@ static const char *ext3_decode_error(struct super_block * sb, int errno,
 static int ext3_remount (struct super_block * sb, int * flags, char * data);
 static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf);
 static int ext3_unfreeze(struct super_block *sb);
-static void ext3_write_super (struct super_block * sb);
 static int ext3_freeze(struct super_block *sb);
 
 /*
@@ -399,6 +398,8 @@ static void ext3_put_super (struct super_block * sb)
 	struct ext3_super_block *es = sbi->s_es;
 	int i, err;
 
+	lock_kernel();
+
 	ext3_xattr_put_super(sb);
 	err = journal_destroy(sbi->s_journal);
 	sbi->s_journal = NULL;
@@ -447,7 +448,8 @@ static void ext3_put_super (struct super_block * sb)
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
-	return;
+
+	unlock_kernel();
 }
 
 static struct kmem_cache *ext3_inode_cachep;
@@ -761,7 +763,6 @@ static const struct super_operations ext3_sops = {
 	.dirty_inode	= ext3_dirty_inode,
 	.delete_inode	= ext3_delete_inode,
 	.put_super	= ext3_put_super,
-	.write_super	= ext3_write_super,
 	.sync_fs	= ext3_sync_fs,
 	.freeze_fs	= ext3_freeze,
 	.unfreeze_fs	= ext3_unfreeze,
@@ -1696,7 +1697,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	hblock = bdev_hardsect_size(sb->s_bdev);
+	hblock = bdev_logical_block_size(sb->s_bdev);
 	if (sb->s_blocksize != blocksize) {
 		/*
 		 * Make sure the blocksize for the filesystem is larger
@@ -1785,7 +1786,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 #else
 		es->s_flags |= cpu_to_le32(EXT2_FLAGS_SIGNED_HASH);
 #endif
-		sb->s_dirt = 1;
 	}
 
 	if (sbi->s_blocks_per_group > blocksize * 8) {
@@ -2021,6 +2021,7 @@ failed_mount:
 	brelse(bh);
 out_fail:
 	sb->s_fs_info = NULL;
+	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	lock_kernel();
 	return ret;
@@ -2119,7 +2120,7 @@ static journal_t *ext3_get_dev_journal(struct super_block *sb,
 	}
 
 	blocksize = sb->s_blocksize;
-	hblock = bdev_hardsect_size(bdev);
+	hblock = bdev_logical_block_size(bdev);
 	if (blocksize < hblock) {
 		printk(KERN_ERR
 			"EXT3-fs: blocksize too small for journal device.\n");
@@ -2264,7 +2265,6 @@ static int ext3_load_journal(struct super_block *sb,
 	if (journal_devnum &&
 	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
 		es->s_journal_dev = cpu_to_le32(journal_devnum);
-		sb->s_dirt = 1;
 
 		/* Make sure we flush the recovery flag to disk. */
 		ext3_commit_super(sb, es, 1);
@@ -2307,7 +2307,6 @@ static int ext3_create_journal(struct super_block * sb,
 	EXT3_SET_COMPAT_FEATURE(sb, EXT3_FEATURE_COMPAT_HAS_JOURNAL);
 
 	es->s_journal_inum = cpu_to_le32(journal_inum);
-	sb->s_dirt = 1;
 
 	/* Make sure we flush the recovery flag to disk. */
 	ext3_commit_super(sb, es, 1);
@@ -2353,7 +2352,6 @@ static void ext3_mark_recovery_complete(struct super_block * sb,
 	if (EXT3_HAS_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER) &&
 	    sb->s_flags & MS_RDONLY) {
 		EXT3_CLEAR_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER);
-		sb->s_dirt = 0;
 		ext3_commit_super(sb, es, 1);
 	}
 	unlock_super(sb);
@@ -2412,29 +2410,14 @@ int ext3_force_commit(struct super_block *sb)
 		return 0;
 
 	journal = EXT3_SB(sb)->s_journal;
-	sb->s_dirt = 0;
 	ret = ext3_journal_force_commit(journal);
 	return ret;
-}
-
-/*
- * Ext3 always journals updates to the superblock itself, so we don't
- * have to propagate any other updates to the superblock on disk at this
- * point.  (We can probably nuke this function altogether, and remove
- * any mention to sb->s_dirt in all of fs/ext3; eventual cleanup...)
- */
-static void ext3_write_super (struct super_block * sb)
-{
-	if (mutex_trylock(&sb->s_lock) != 0)
-		BUG();
-	sb->s_dirt = 0;
 }
 
 static int ext3_sync_fs(struct super_block *sb, int wait)
 {
 	tid_t target;
 
-	sb->s_dirt = 0;
 	if (journal_start_commit(EXT3_SB(sb)->s_journal, &target)) {
 		if (wait)
 			log_wait_commit(EXT3_SB(sb)->s_journal, target);
@@ -2450,7 +2433,6 @@ static int ext3_freeze(struct super_block *sb)
 {
 	int error = 0;
 	journal_t *journal;
-	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		journal = EXT3_SB(sb)->s_journal;
@@ -2508,7 +2490,10 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	int i;
 #endif
 
+	lock_kernel();
+
 	/* Store the original options */
+	lock_super(sb);
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
 	old_opts.s_resuid = sbi->s_resuid;
@@ -2616,6 +2601,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
 			kfree(old_opts.s_qf_names[i]);
 #endif
+	unlock_super(sb);
+	unlock_kernel();
 	return 0;
 restore_opts:
 	sb->s_flags = old_sb_flags;
@@ -2632,6 +2619,8 @@ restore_opts:
 		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
 	}
 #endif
+	unlock_super(sb);
+	unlock_kernel();
 	return err;
 }
 

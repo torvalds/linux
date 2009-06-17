@@ -232,7 +232,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset,
 		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev->bdev, target,
-				 roundup(size, bdev_hardsect_size(rdev->bdev)),
+				 roundup(size, bdev_logical_block_size(rdev->bdev)),
 				 page, READ)) {
 			page->index = index;
 			attach_page_buffers(page, NULL); /* so that free_buffer will
@@ -287,7 +287,7 @@ static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 			int size = PAGE_SIZE;
 			if (page->index == bitmap->file_pages-1)
 				size = roundup(bitmap->last_page_size,
-					       bdev_hardsect_size(rdev->bdev));
+					       bdev_logical_block_size(rdev->bdev));
 			/* Just make sure we aren't corrupting data or
 			 * metadata
 			 */
@@ -1097,14 +1097,12 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 	}
 	bitmap->allclean = 1;
 
+	spin_lock_irqsave(&bitmap->lock, flags);
 	for (j = 0; j < bitmap->chunks; j++) {
 		bitmap_counter_t *bmc;
-		spin_lock_irqsave(&bitmap->lock, flags);
-		if (!bitmap->filemap) {
+		if (!bitmap->filemap)
 			/* error or shutdown */
-			spin_unlock_irqrestore(&bitmap->lock, flags);
 			break;
-		}
 
 		page = filemap_get_page(bitmap, j);
 
@@ -1121,6 +1119,8 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 					write_page(bitmap, page, 0);
 					bitmap->allclean = 0;
 				}
+				spin_lock_irqsave(&bitmap->lock, flags);
+				j |= (PAGE_BITS - 1);
 				continue;
 			}
 
@@ -1181,9 +1181,10 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 					ext2_clear_bit(file_page_offset(j), paddr);
 				kunmap_atomic(paddr, KM_USER0);
 			}
-		}
-		spin_unlock_irqrestore(&bitmap->lock, flags);
+		} else
+			j |= PAGE_COUNTER_MASK;
 	}
+	spin_unlock_irqrestore(&bitmap->lock, flags);
 
 	/* now sync the final page */
 	if (lastpage != NULL) {

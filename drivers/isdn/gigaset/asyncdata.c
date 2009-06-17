@@ -174,9 +174,8 @@ byte_stuff:
 
 				if (unlikely(fcs != PPP_GOODFCS)) {
 					dev_err(cs->dev,
-					    "Packet checksum at %lu failed, "
-					    "packet is corrupted (%u bytes)!\n",
-					    bcs->rcvbytes, skb->len);
+				"Checksum failed, %u bytes corrupted!\n",
+						skb->len);
 					compskb = NULL;
 					gigaset_rcv_error(compskb, cs, bcs);
 					error = 1;

@@ -37,6 +37,8 @@ config SPARC64
 	select HAVE_KPROBES
 	select HAVE_LMB
 	select HAVE_SYSCALL_WRAPPERS
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -91,6 +93,9 @@ config AUDIT_ARCH
 	default y
 
 config HAVE_SETUP_PER_CPU_AREA
+	def_bool y if SPARC64
+
+config HAVE_DYNAMIC_PER_CPU_AREA
 	def_bool y if SPARC64
 
 config GENERIC_HARDIRQS_NO__DO_IRQ

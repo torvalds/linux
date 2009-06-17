@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/pwm_backlight.h>
 #include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -25,12 +26,18 @@
 #include <mach/pxa27x.h>
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/hardware.h>
 #include <mach/pxa27x_keypad.h>
 
 #include "devices.h"
 #include "generic.h"
+
+#define GPIO12_A780_FLIP_LID 		12
+#define GPIO15_A1200_FLIP_LID 		15
+#define GPIO15_A910_FLIP_LID 		15
+#define GPIO12_E680_LOCK_SWITCH 	12
+#define GPIO15_E6_LOCK_SWITCH 		15
 
 static struct platform_pwm_backlight_data ezx_backlight_data = {
 	.pwm_id		= 0,
@@ -88,7 +95,7 @@ static struct pxafb_mach_info ezx_fb_info_2 = {
 	.lcd_conn	= LCD_COLOR_TFT_18BPP,
 };
 
-static struct platform_device *devices[] __initdata = {
+static struct platform_device *ezx_devices[] __initdata = {
 	&ezx_backlight_device,
 };
 
@@ -111,9 +118,9 @@ static unsigned long ezx_pin_config[] __initdata = {
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
 	GPIO24_GPIO,				/* pcap chip select */
-	GPIO1_GPIO,				/* pcap interrupt */
-	GPIO4_GPIO,				/* WDI_AP */
-	GPIO55_GPIO,				/* SYS_RESTART */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,	/* pcap interrupt */
+	GPIO4_GPIO | MFP_LPM_DRIVE_HIGH,	/* WDI_AP */
+	GPIO55_GPIO | MFP_LPM_DRIVE_HIGH,	/* SYS_RESTART */
 
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -144,20 +151,20 @@ static unsigned long ezx_pin_config[] __initdata = {
 #if defined(CONFIG_MACH_EZX_A780) || defined(CONFIG_MACH_EZX_E680)
 static unsigned long gen1_pin_config[] __initdata = {
 	/* flip / lockswitch */
-	GPIO12_GPIO,
+	GPIO12_GPIO | WAKEUP_ON_EDGE_BOTH,
 
 	/* bluetooth (bcm2035) */
-	GPIO14_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* HOSTWAKE */
+	GPIO14_GPIO | WAKEUP_ON_EDGE_RISE,	/* HOSTWAKE */
 	GPIO48_GPIO,				/* RESET */
 	GPIO28_GPIO,				/* WAKEUP */
 
 	/* Neptune handshake */
-	GPIO0_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* BP_RDY */
-	GPIO57_GPIO,				/* AP_RDY */
-	GPIO13_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI */
-	GPIO3_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI2 */
-	GPIO82_GPIO,				/* RESET */
-	GPIO99_GPIO,				/* TC_MM_EN */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_FALL,	/* BP_RDY */
+	GPIO57_GPIO | MFP_LPM_DRIVE_HIGH,	/* AP_RDY */
+	GPIO13_GPIO | WAKEUP_ON_EDGE_BOTH,	/* WDI */
+	GPIO3_GPIO | WAKEUP_ON_EDGE_BOTH,	/* WDI2 */
+	GPIO82_GPIO | MFP_LPM_DRIVE_HIGH,	/* RESET */
+	GPIO99_GPIO | MFP_LPM_DRIVE_HIGH,	/* TC_MM_EN */
 
 	/* sound */
 	GPIO52_SSP3_SCLK,
@@ -199,21 +206,21 @@ static unsigned long gen1_pin_config[] __initdata = {
 	defined(CONFIG_MACH_EZX_E2) || defined(CONFIG_MACH_EZX_E6)
 static unsigned long gen2_pin_config[] __initdata = {
 	/* flip / lockswitch */
-	GPIO15_GPIO,
+	GPIO15_GPIO | WAKEUP_ON_EDGE_BOTH,
 
 	/* EOC */
-	GPIO10_GPIO,
+	GPIO10_GPIO | WAKEUP_ON_EDGE_RISE,
 
 	/* bluetooth (bcm2045) */
-	GPIO13_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* HOSTWAKE */
+	GPIO13_GPIO | WAKEUP_ON_EDGE_RISE,	/* HOSTWAKE */
 	GPIO37_GPIO,				/* RESET */
 	GPIO57_GPIO,				/* WAKEUP */
 
 	/* Neptune handshake */
-	GPIO0_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* BP_RDY */
-	GPIO96_GPIO,				/* AP_RDY */
-	GPIO3_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI */
-	GPIO116_GPIO,				/* RESET */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_FALL,	/* BP_RDY */
+	GPIO96_GPIO | MFP_LPM_DRIVE_HIGH,	/* AP_RDY */
+	GPIO3_GPIO | WAKEUP_ON_EDGE_FALL,	/* WDI */
+	GPIO116_GPIO | MFP_LPM_DRIVE_HIGH,	/* RESET */
 	GPIO41_GPIO,				/* BP_FLASH */
 
 	/* sound */
@@ -651,6 +658,35 @@ static struct pxa27x_keypad_platform_data e2_keypad_platform_data = {
 #endif /* CONFIG_MACH_EZX_E2 */
 
 #ifdef CONFIG_MACH_EZX_A780
+/* gpio_keys */
+static struct gpio_keys_button a780_buttons[] = {
+	[0] = {
+		.code       = SW_LID,
+		.gpio       = GPIO12_A780_FLIP_LID,
+		.active_low = 0,
+		.desc       = "A780 flip lid",
+		.type       = EV_SW,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data a780_gpio_keys_platform_data = {
+	.buttons  = a780_buttons,
+	.nbuttons = ARRAY_SIZE(a780_buttons),
+};
+
+static struct platform_device a780_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &a780_gpio_keys_platform_data,
+	},
+};
+
+static struct platform_device *a780_devices[] __initdata = {
+	&a780_gpio_keys,
+};
+
 static void __init a780_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(ezx_pin_config));
@@ -663,7 +699,8 @@ static void __init a780_init(void)
 
 	pxa_set_keypad_info(&a780_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(a780_devices));
 }
 
 MACHINE_START(EZX_A780, "Motorola EZX A780")
@@ -678,8 +715,37 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_EZX_E680
+/* gpio_keys */
+static struct gpio_keys_button e680_buttons[] = {
+	[0] = {
+		.code       = KEY_SCREENLOCK,
+		.gpio       = GPIO12_E680_LOCK_SWITCH,
+		.active_low = 0,
+		.desc       = "E680 lock switch",
+		.type       = EV_KEY,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data e680_gpio_keys_platform_data = {
+	.buttons  = e680_buttons,
+	.nbuttons = ARRAY_SIZE(e680_buttons),
+};
+
+static struct platform_device e680_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &e680_gpio_keys_platform_data,
+	},
+};
+
 static struct i2c_board_info __initdata e680_i2c_board_info[] = {
 	{ I2C_BOARD_INFO("tea5767", 0x81) },
+};
+
+static struct platform_device *e680_devices[] __initdata = {
+	&e680_gpio_keys,
 };
 
 static void __init e680_init(void)
@@ -695,7 +761,8 @@ static void __init e680_init(void)
 
 	pxa_set_keypad_info(&e680_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(e680_devices));
 }
 
 MACHINE_START(EZX_E680, "Motorola EZX E680")
@@ -710,8 +777,37 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_EZX_A1200
+/* gpio_keys */
+static struct gpio_keys_button a1200_buttons[] = {
+	[0] = {
+		.code       = SW_LID,
+		.gpio       = GPIO15_A1200_FLIP_LID,
+		.active_low = 0,
+		.desc       = "A1200 flip lid",
+		.type       = EV_SW,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data a1200_gpio_keys_platform_data = {
+	.buttons  = a1200_buttons,
+	.nbuttons = ARRAY_SIZE(a1200_buttons),
+};
+
+static struct platform_device a1200_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &a1200_gpio_keys_platform_data,
+	},
+};
+
 static struct i2c_board_info __initdata a1200_i2c_board_info[] = {
 	{ I2C_BOARD_INFO("tea5767", 0x81) },
+};
+
+static struct platform_device *a1200_devices[] __initdata = {
+	&a1200_gpio_keys,
 };
 
 static void __init a1200_init(void)
@@ -727,7 +823,8 @@ static void __init a1200_init(void)
 
 	pxa_set_keypad_info(&a1200_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(a1200_devices));
 }
 
 MACHINE_START(EZX_A1200, "Motorola EZX A1200")
@@ -742,6 +839,35 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_EZX_A910
+/* gpio_keys */
+static struct gpio_keys_button a910_buttons[] = {
+	[0] = {
+		.code       = SW_LID,
+		.gpio       = GPIO15_A910_FLIP_LID,
+		.active_low = 0,
+		.desc       = "A910 flip lid",
+		.type       = EV_SW,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data a910_gpio_keys_platform_data = {
+	.buttons  = a910_buttons,
+	.nbuttons = ARRAY_SIZE(a910_buttons),
+};
+
+static struct platform_device a910_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &a910_gpio_keys_platform_data,
+	},
+};
+
+static struct platform_device *a910_devices[] __initdata = {
+	&a910_gpio_keys,
+};
+
 static void __init a910_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(ezx_pin_config));
@@ -754,7 +880,8 @@ static void __init a910_init(void)
 
 	pxa_set_keypad_info(&a910_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(a910_devices));
 }
 
 MACHINE_START(EZX_A910, "Motorola EZX A910")
@@ -769,8 +896,37 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_EZX_E6
+/* gpio_keys */
+static struct gpio_keys_button e6_buttons[] = {
+	[0] = {
+		.code       = KEY_SCREENLOCK,
+		.gpio       = GPIO15_E6_LOCK_SWITCH,
+		.active_low = 0,
+		.desc       = "E6 lock switch",
+		.type       = EV_KEY,
+		.wakeup     = 1,
+	},
+};
+
+static struct gpio_keys_platform_data e6_gpio_keys_platform_data = {
+	.buttons  = e6_buttons,
+	.nbuttons = ARRAY_SIZE(e6_buttons),
+};
+
+static struct platform_device e6_gpio_keys = {
+	.name = "gpio-keys",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &e6_gpio_keys_platform_data,
+	},
+};
+
 static struct i2c_board_info __initdata e6_i2c_board_info[] = {
 	{ I2C_BOARD_INFO("tea5767", 0x81) },
+};
+
+static struct platform_device *e6_devices[] __initdata = {
+	&e6_gpio_keys,
 };
 
 static void __init e6_init(void)
@@ -786,7 +942,8 @@ static void __init e6_init(void)
 
 	pxa_set_keypad_info(&e6_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(e6_devices));
 }
 
 MACHINE_START(EZX_E6, "Motorola EZX E6")
@@ -805,6 +962,9 @@ static struct i2c_board_info __initdata e2_i2c_board_info[] = {
 	{ I2C_BOARD_INFO("tea5767", 0x81) },
 };
 
+static struct platform_device *e2_devices[] __initdata = {
+};
+
 static void __init e2_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(ezx_pin_config));
@@ -818,7 +978,8 @@ static void __init e2_init(void)
 
 	pxa_set_keypad_info(&e2_keypad_platform_data);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(ezx_devices));
+	platform_add_devices(ARRAY_AND_SIZE(e2_devices));
 }
 
 MACHINE_START(EZX_E2, "Motorola EZX E2")

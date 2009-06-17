@@ -376,7 +376,7 @@ out:
  * The adfs-specific inode data has already been updated by
  * adfs_notify_change()
  */
-int adfs_write_inode(struct inode *inode, int unused)
+int adfs_write_inode(struct inode *inode, int wait)
 {
 	struct super_block *sb = inode->i_sb;
 	struct object_info obj;
@@ -391,7 +391,7 @@ int adfs_write_inode(struct inode *inode, int unused)
 	obj.attr	= ADFS_I(inode)->attr;
 	obj.size	= inode->i_size;
 
-	ret = adfs_dir_update(sb, &obj);
+	ret = adfs_dir_update(sb, &obj, wait);
 	unlock_kernel();
 	return ret;
 }

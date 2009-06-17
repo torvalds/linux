@@ -70,6 +70,7 @@ are interpreted as 0! For more on how written strings are interpreted see the
 [0-*]	denotes any positive number starting from 0
 [1-*]	denotes any positive number starting from 1
 RO	read only value
+WO	write only value
 RW	read/write value
 
 Read/write values may be read-only for some chips, depending on the
@@ -148,6 +149,11 @@ Also see the Alarms section for status flags associated with voltages.
 
 fan[1-*]_min	Fan minimum value
 		Unit: revolution/min (RPM)
+		RW
+
+fan[1-*]_max	Fan maximum value
+		Unit: revolution/min (RPM)
+		Only rarely supported by the hardware.
 		RW
 
 fan[1-*]_input	Fan input value.
@@ -290,6 +296,24 @@ temp[1-*]_label	Suggested temperature channel label.
 		user-space.
 		RO
 
+temp[1-*]_lowest
+		Historical minimum temperature
+		Unit: millidegree Celsius
+		RO
+
+temp[1-*]_highest
+		Historical maximum temperature
+		Unit: millidegree Celsius
+		RO
+
+temp[1-*]_reset_history
+		Reset temp_lowest and temp_highest
+		WO
+
+temp_reset_history
+		Reset temp_lowest and temp_highest for all sensors
+		WO
+
 Some chips measure temperature using external thermistors and an ADC, and
 report the temperature measurement as a voltage. Converting this voltage
 back to a temperature (or the other way around for limits) requires
@@ -390,6 +414,7 @@ OR
 in[0-*]_min_alarm
 in[0-*]_max_alarm
 fan[1-*]_min_alarm
+fan[1-*]_max_alarm
 temp[1-*]_min_alarm
 temp[1-*]_max_alarm
 temp[1-*]_crit_alarm

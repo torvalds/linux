@@ -366,7 +366,7 @@ just those considered 'most important'.  The new vectors are:
   RES, CAL, TLB -- rescheduling, call and TLB flush interrupts are
   sent from one CPU to another per the needs of the OS.  Typically,
   their statistics are used by kernel developers and interested users to
-  determine the occurance of interrupt of the given type.
+  determine the occurrence of interrupts of the given type.
 
 The above IRQ vectors are displayed only when relevent.  For example,
 the threshold vector does not exist on x86_64 platforms.  Others are
@@ -551,7 +551,7 @@ Committed_AS: The amount of memory presently allocated on the system.
               memory once that memory has been successfully allocated.
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
-VmallocChunk: largest contigious block of vmalloc area which is free
+VmallocChunk: largest contiguous block of vmalloc area which is free
 
 ..............................................................................
 
@@ -1003,11 +1003,13 @@ CHAPTER 3: PER-PROCESS PARAMETERS
 3.1 /proc/<pid>/oom_adj - Adjust the oom-killer score
 ------------------------------------------------------
 
-This file can be used to adjust the score used to select which processes
-should be killed in an  out-of-memory  situation.  Giving it a high score will
-increase the likelihood of this process being killed by the oom-killer.  Valid
-values are in the range -16 to +15, plus the special value -17, which disables
-oom-killing altogether for this process.
+This file can be used to adjust the score used to select which processes should
+be killed in an out-of-memory situation.  The oom_adj value is a characteristic
+of the task's mm, so all threads that share an mm with pid will have the same
+oom_adj value.  A high value will increase the likelihood of this process being
+killed by the oom-killer.  Valid values are in the range -16 to +15 as
+explained below and a special value of -17, which disables oom-killing
+altogether for threads sharing pid's mm.
 
 The process to be killed in an out-of-memory situation is selected among all others
 based on its badness score. This value equals the original memory size of the process
@@ -1020,6 +1022,9 @@ Swapped out tasks are killed first. Half of each child's memory size is added to
 the parent's score if they do not share the same memory. Thus forking servers
 are the prime candidates to be killed. Having only one 'hungry' child will make
 parent less preferable than the child.
+
+/proc/<pid>/oom_adj cannot be changed for kthreads since they are immune from
+oom-killing already.
 
 /proc/<pid>/oom_score shows process' current badness score.
 

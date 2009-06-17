@@ -80,10 +80,10 @@ struct otg_transceiver {
 
 /* for board-specific init logic */
 extern int otg_set_transceiver(struct otg_transceiver *);
-#ifdef CONFIG_NOP_USB_XCEIV
+
+/* sometimes transceivers are accessed only through e.g. ULPI */
 extern void usb_nop_xceiv_register(void);
 extern void usb_nop_xceiv_unregister(void);
-#endif
 
 
 /* for usb host and peripheral controller drivers */

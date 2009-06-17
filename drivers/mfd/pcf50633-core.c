@@ -443,7 +443,7 @@ static irqreturn_t pcf50633_irq(int irq, void *data)
 	dev_dbg(pcf->dev, "pcf50633_irq\n");
 
 	get_device(pcf->dev);
-	disable_irq(pcf->irq);
+	disable_irq_nosync(pcf->irq);
 	schedule_work(&pcf->irq_work);
 
 	return IRQ_HANDLED;
@@ -618,7 +618,7 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 
 		pdev->dev.parent = pcf->dev;
 		pdev->dev.platform_data = &pdata->reg_init_data[i];
-		pdev->dev.driver_data = pcf;
+		dev_set_drvdata(&pdev->dev, pcf);
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);

@@ -49,26 +49,42 @@
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"1.4.0"
-#define DRV_RELDATE	"Sep 2008"
+#define DRV_VERSION	"1.4.1.1"
+#define DRV_RELDATE	"June 2009"
 
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
-#define mlx4_dbg(mlevel, priv, format, arg...)	\
-	if (NETIF_MSG_##mlevel & priv->msg_enable) \
-	printk(KERN_DEBUG "%s %s: " format , DRV_NAME ,\
-		(dev_name(&priv->mdev->pdev->dev)) , ## arg)
+#define en_print(level, priv, format, arg...)			\
+	{							\
+	if ((priv)->registered)					\
+		printk(level "%s: %s: " format, DRV_NAME,	\
+			(priv->dev)->name, ## arg);		\
+	else							\
+		printk(level "%s: %s: Port %d: " format,	\
+			DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
+			(priv)->port, ## arg);			\
+	}
+
+#define en_dbg(mlevel, priv, format, arg...)			\
+	{							\
+	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
+		en_print(KERN_DEBUG, priv, format, ## arg)	\
+	}
+#define en_warn(priv, format, arg...)				\
+	en_print(KERN_WARNING, priv, format, ## arg)
+#define en_err(priv, format, arg...)				\
+	en_print(KERN_ERR, priv, format, ## arg)
 
 #define mlx4_err(mdev, format, arg...) \
 	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 #define mlx4_info(mdev, format, arg...) \
 	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 #define mlx4_warn(mdev, format, arg...) \
 	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		(dev_name(&mdev->pdev->dev)) , ## arg)
+		dev_name(&mdev->pdev->dev) , ## arg)
 
 /*
  * Device constants
@@ -123,12 +139,14 @@ enum {
 #define MLX4_EN_MIN_RX_SIZE	(MLX4_EN_ALLOC_SIZE / SMP_CACHE_BYTES)
 #define MLX4_EN_MIN_TX_SIZE	(4096 / TXBB_SIZE)
 
-#define MLX4_EN_TX_RING_NUM		9
-#define MLX4_EN_DEF_TX_RING_SIZE	1024
+#define MLX4_EN_SMALL_PKT_SIZE		64
+#define MLX4_EN_NUM_TX_RINGS		8
+#define MLX4_EN_NUM_PPP_RINGS		8
+#define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
-/* Target number of bytes to coalesce with interrupt moderation */
-#define MLX4_EN_RX_COAL_TARGET	0x20000
+/* Target number of packets to coalesce with interrupt moderation */
+#define MLX4_EN_RX_COAL_TARGET	44
 #define MLX4_EN_RX_COAL_TIME	0x10
 
 #define MLX4_EN_TX_COAL_PKTS	5
@@ -462,7 +480,6 @@ struct mlx4_en_priv {
 	int base_qpn;
 
 	struct mlx4_en_rss_map rss_map;
-	u16 tx_prio_map[8];
 	u32 flags;
 #define MLX4_EN_FLAG_PROMISC	0x1
 	u32 tx_ring_num;
@@ -500,8 +517,6 @@ void mlx4_en_stop_port(struct net_device *dev);
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);
 
-int mlx4_en_get_profile(struct mlx4_en_dev *mdev);
-
 int mlx4_en_create_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		      int entries, int ring, enum cq_type mode);
 void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
@@ -512,6 +527,7 @@ int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
 void mlx4_en_poll_tx_cq(unsigned long data);
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
+u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
 int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv, struct mlx4_en_tx_ring *ring,
@@ -546,7 +562,6 @@ void mlx4_en_calc_rx_buf(struct net_device *dev);
 void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 				 struct mlx4_en_rss_map *rss_map,
 				 int num_entries, int num_rings);
-void mlx4_en_set_prio_map(struct mlx4_en_priv *priv, u16 *prio_map, u32 ring_num);
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring);

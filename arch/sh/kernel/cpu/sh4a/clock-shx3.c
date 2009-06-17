@@ -40,30 +40,30 @@ static struct clk_ops shx3_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> PFC_POS) & PFC_MSK);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops shx3_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> BFC_POS) & BFC_MSK);
-	clk->rate = clk->parent->rate / bfc_divisors[idx];
+	return clk->parent->rate / bfc_divisors[idx];
 }
 
 static struct clk_ops shx3_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> IFC_POS) & IFC_MSK);
-	clk->rate = clk->parent->rate / ifc_divisors[idx];
+	return clk->parent->rate / ifc_divisors[idx];
 }
 
 static struct clk_ops shx3_cpu_clk_ops = {
@@ -83,10 +83,10 @@ void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 		*ops = shx3_clk_ops[idx];
 }
 
-static void shyway_clk_recalc(struct clk *clk)
+static unsigned long shyway_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> CFC_POS) & CFC_MSK);
-	clk->rate = clk->parent->rate / cfc_divisors[idx];
+	return clk->parent->rate / cfc_divisors[idx];
 }
 
 static struct clk_ops shx3_shyway_clk_ops = {
@@ -95,7 +95,7 @@ static struct clk_ops shx3_shyway_clk_ops = {
 
 static struct clk shx3_shyway_clk = {
 	.name		= "shyway_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &shx3_shyway_clk_ops,
 };
 
@@ -107,29 +107,22 @@ static struct clk *shx3_onchip_clocks[] = {
 	&shx3_shyway_clk,
 };
 
-static int __init shx3_clk_init(void)
+int __init arch_clk_init(void)
 {
-	struct clk *clk = clk_get(NULL, "master_clk");
-	int i;
+	struct clk *clk;
+	int i, ret = 0;
 
+	cpg_clk_init();
+
+	clk = clk_get(NULL, "master_clk");
 	for (i = 0; i < ARRAY_SIZE(shx3_onchip_clocks); i++) {
 		struct clk *clkp = shx3_onchip_clocks[i];
 
 		clkp->parent = clk;
-		clk_register(clkp);
-		clk_enable(clkp);
+		ret |= clk_register(clkp);
 	}
-
-	/*
-	 * Now that we have the rest of the clocks registered, we need to
-	 * force the parent clock to propagate so that these clocks will
-	 * automatically figure out their rate. We cheat by handing the
-	 * parent clock its current rate and forcing child propagation.
-	 */
-	clk_set_rate(clk, clk_get_rate(clk));
 
 	clk_put(clk);
 
-	return 0;
+	return ret;
 }
-arch_initcall(shx3_clk_init);

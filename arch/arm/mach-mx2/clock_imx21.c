@@ -48,6 +48,25 @@ static void _clk_disable(struct clk *clk)
 	__raw_writel(reg, clk->enable_reg);
 }
 
+static unsigned long _clk_generic_round_rate(struct clk *clk,
+			unsigned long rate,
+			u32 max_divisor)
+{
+	u32 div;
+	unsigned long parent_rate;
+
+	parent_rate = clk_get_rate(clk->parent);
+
+	div = parent_rate / rate;
+	if (parent_rate % rate)
+		div++;
+
+	if (div > max_divisor)
+		div = max_divisor;
+
+	return parent_rate / div;
+}
+
 static int _clk_spll_enable(struct clk *clk)
 {
 	u32 reg;
@@ -78,19 +97,7 @@ static void _clk_spll_disable(struct clk *clk)
 static unsigned long _clk_perclkx_round_rate(struct clk *clk,
 					     unsigned long rate)
 {
-	u32 div;
-	unsigned long parent_rate;
-
-	parent_rate = clk_get_rate(clk->parent);
-
-	div = parent_rate / rate;
-	if (parent_rate % rate)
-		div++;
-
-	if (div > 64)
-		div = 64;
-
-	return parent_rate / div;
+	return _clk_generic_round_rate(clk, rate, 64);
 }
 
 static int _clk_perclkx_set_rate(struct clk *clk, unsigned long rate)
@@ -128,6 +135,32 @@ static unsigned long _clk_usb_recalc(struct clk *clk)
 	usb_pdf = (CSCR() & CCM_CSCR_USB_MASK) >> CCM_CSCR_USB_OFFSET;
 
 	return parent_rate / (usb_pdf + 1U);
+}
+
+static unsigned long _clk_usb_round_rate(struct clk *clk,
+					     unsigned long rate)
+{
+	return _clk_generic_round_rate(clk, rate, 8);
+}
+
+static int _clk_usb_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 reg;
+	u32 div;
+	unsigned long parent_rate;
+
+	parent_rate = clk_get_rate(clk->parent);
+
+	div = parent_rate / rate;
+	if (div > 8 || div < 1 || ((parent_rate / div) != rate))
+		return -EINVAL;
+	div--;
+
+	reg = CSCR() & ~CCM_CSCR_USB_MASK;
+	reg |= div << CCM_CSCR_USB_OFFSET;
+	__raw_writel(reg, CCM_CSCR);
+
+	return 0;
 }
 
 static unsigned long _clk_ssix_recalc(struct clk *clk, unsigned long pdf)
@@ -595,11 +628,14 @@ static struct clk csi_clk[] = {
 static struct clk usb_clk[] = {
 	{
 		.parent = &spll_clk,
+		.secondary = &usb_clk[1],
 		.get_rate = _clk_usb_recalc,
 		.enable = _clk_enable,
 		.enable_reg = CCM_PCCR_USBOTG_REG,
 		.enable_shift = CCM_PCCR_USBOTG_OFFSET,
 		.disable = _clk_disable,
+		.round_rate = _clk_usb_round_rate,
+		.set_rate = _clk_usb_set_rate,
 	}, {
 		.parent = &hclk_clk,
 		.enable = _clk_enable,
@@ -768,18 +804,7 @@ static struct clk rtc_clk = {
 
 static unsigned long _clk_clko_round_rate(struct clk *clk, unsigned long rate)
 {
-	u32 div;
-	unsigned long parent_rate;
-
-	parent_rate = clk_get_rate(clk->parent);
-	div = parent_rate / rate;
-	if (parent_rate % rate)
-		div++;
-
-	if (div > 8)
-		div = 8;
-
-	return parent_rate / div;
+	return _clk_generic_round_rate(clk, rate, 8);
 }
 
 static int _clk_clko_set_rate(struct clk *clk, unsigned long rate)
@@ -890,7 +915,7 @@ static struct clk clko_clk = {
 		.con_id = n, \
 		.clk = &c, \
 	},
-static struct clk_lookup lookups[] __initdata = {
+static struct clk_lookup lookups[] = {
 /* It's unlikely that any driver wants one of them directly:
 	_REGISTER_CLOCK(NULL, "ckih", ckih_clk)
 	_REGISTER_CLOCK(NULL, "ckil", ckil_clk)
@@ -921,7 +946,7 @@ static struct clk_lookup lookups[] __initdata = {
 	_REGISTER_CLOCK(NULL, "cspi3", cspi_clk[2])
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk[0])
 	_REGISTER_CLOCK(NULL, "csi", csi_clk[0])
-	_REGISTER_CLOCK(NULL, "usb", usb_clk[0])
+	_REGISTER_CLOCK("imx21-hcd.0", NULL, usb_clk[0])
 	_REGISTER_CLOCK(NULL, "ssi1", ssi_clk[0])
 	_REGISTER_CLOCK(NULL, "ssi2", ssi_clk[1])
 	_REGISTER_CLOCK("mxc_nand.0", NULL, nfc_clk)

@@ -10,6 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#include <linux/kmemcheck.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/mutex.h>
@@ -370,6 +371,9 @@ static inline int test_time_stamp(u64 delta)
 /* Max payload is BUF_PAGE_SIZE - header (8bytes) */
 #define BUF_MAX_DATA_SIZE (BUF_PAGE_SIZE - (sizeof(u32) * 2))
 
+/* Max number of timestamps that can fit on a page */
+#define RB_TIMESTAMPS_PER_PAGE	(BUF_PAGE_SIZE / RB_LEN_TIME_STAMP)
+
 int ring_buffer_print_page_header(struct trace_seq *s)
 {
 	struct buffer_data_page field;
@@ -422,6 +426,8 @@ struct ring_buffer {
 	int				cpus;
 	atomic_t			record_disabled;
 	cpumask_var_t			cpumask;
+
+	struct lock_class_key		*reader_lock_key;
 
 	struct mutex			mutex;
 
@@ -562,6 +568,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	cpu_buffer->cpu = cpu;
 	cpu_buffer->buffer = buffer;
 	spin_lock_init(&cpu_buffer->reader_lock);
+	lockdep_set_class(&cpu_buffer->reader_lock, buffer->reader_lock_key);
 	cpu_buffer->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	INIT_LIST_HEAD(&cpu_buffer->pages);
 
@@ -632,7 +639,8 @@ static int rb_cpu_notify(struct notifier_block *self,
  * when the buffer wraps. If this flag is not set, the buffer will
  * drop data when the tail hits the head.
  */
-struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
+struct ring_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
+					struct lock_class_key *key)
 {
 	struct ring_buffer *buffer;
 	int bsize;
@@ -655,6 +663,7 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 	buffer->pages = DIV_ROUND_UP(size, BUF_PAGE_SIZE);
 	buffer->flags = flags;
 	buffer->clock = trace_clock_local;
+	buffer->reader_lock_key = key;
 
 	/* need at least two pages */
 	if (buffer->pages == 1)
@@ -712,7 +721,7 @@ struct ring_buffer *ring_buffer_alloc(unsigned long size, unsigned flags)
 	kfree(buffer);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(ring_buffer_alloc);
+EXPORT_SYMBOL_GPL(__ring_buffer_alloc);
 
 /**
  * ring_buffer_free - free a ring buffer.
@@ -1262,6 +1271,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	if (tail < BUF_PAGE_SIZE) {
 		/* Mark the rest of the page with padding */
 		event = __rb_page_index(tail_page, tail);
+		kmemcheck_annotate_bitfield(event, bitfield);
 		rb_event_set_padding(event);
 	}
 
@@ -1319,6 +1329,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		return NULL;
 
 	event = __rb_page_index(tail_page, tail);
+	kmemcheck_annotate_bitfield(event, bitfield);
 	rb_update_event(event, type, length);
 
 	/* The passed in type is zero for DATA */
@@ -1333,6 +1344,38 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		cpu_buffer->commit_page->page->time_stamp = *ts;
 
 	return event;
+}
+
+static inline int
+rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
+		  struct ring_buffer_event *event)
+{
+	unsigned long new_index, old_index;
+	struct buffer_page *bpage;
+	unsigned long index;
+	unsigned long addr;
+
+	new_index = rb_event_index(event);
+	old_index = new_index + rb_event_length(event);
+	addr = (unsigned long)event;
+	addr &= PAGE_MASK;
+
+	bpage = cpu_buffer->tail_page;
+
+	if (bpage->page == (void *)addr && rb_page_write(bpage) == old_index) {
+		/*
+		 * This is on the tail page. It is possible that
+		 * a write could come in and move the tail page
+		 * and write to the next page. That is fine
+		 * because we just shorten what is on this page.
+		 */
+		index = local_cmpxchg(&bpage->write, old_index, new_index);
+		if (index == old_index)
+			return 1;
+	}
+
+	/* could not discard */
+	return 0;
 }
 
 static int
@@ -1377,16 +1420,23 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 			event->array[0] = *delta >> TS_SHIFT;
 		} else {
 			cpu_buffer->commit_page->page->time_stamp = *ts;
-			event->time_delta = 0;
-			event->array[0] = 0;
+			/* try to discard, since we do not need this */
+			if (!rb_try_to_discard(cpu_buffer, event)) {
+				/* nope, just zero it */
+				event->time_delta = 0;
+				event->array[0] = 0;
+			}
 		}
 		cpu_buffer->write_stamp = *ts;
 		/* let the caller know this was the commit */
 		ret = 1;
 	} else {
-		/* Darn, this is just wasted space */
-		event->time_delta = 0;
-		event->array[0] = 0;
+		/* Try to discard the event */
+		if (!rb_try_to_discard(cpu_buffer, event)) {
+			/* Darn, this is just wasted space */
+			event->time_delta = 0;
+			event->array[0] = 0;
+		}
 		ret = 0;
 	}
 
@@ -1682,10 +1732,6 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 				struct ring_buffer_event *event)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
-	unsigned long new_index, old_index;
-	struct buffer_page *bpage;
-	unsigned long index;
-	unsigned long addr;
 	int cpu;
 
 	/* The event is discarded regardless */
@@ -1701,24 +1747,8 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	cpu = smp_processor_id();
 	cpu_buffer = buffer->buffers[cpu];
 
-	new_index = rb_event_index(event);
-	old_index = new_index + rb_event_length(event);
-	addr = (unsigned long)event;
-	addr &= PAGE_MASK;
-
-	bpage = cpu_buffer->tail_page;
-
-	if (bpage == (void *)addr && rb_page_write(bpage) == old_index) {
-		/*
-		 * This is on the tail page. It is possible that
-		 * a write could come in and move the tail page
-		 * and write to the next page. That is fine
-		 * because we just shorten what is on this page.
-		 */
-		index = local_cmpxchg(&bpage->write, old_index, new_index);
-		if (index == old_index)
-			goto out;
-	}
+	if (!rb_try_to_discard(cpu_buffer, event))
+		goto out;
 
 	/*
 	 * The commit is still visible by the reader, so we
@@ -2253,8 +2283,8 @@ static void rb_advance_iter(struct ring_buffer_iter *iter)
 	 * Check if we are at the end of the buffer.
 	 */
 	if (iter->head >= rb_page_size(iter->head_page)) {
-		if (RB_WARN_ON(buffer,
-			       iter->head_page == cpu_buffer->commit_page))
+		/* discarded commits can make the page empty */
+		if (iter->head_page == cpu_buffer->commit_page)
 			return;
 		rb_inc_iter(iter);
 		return;
@@ -2297,12 +2327,10 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	/*
 	 * We repeat when a timestamp is encountered. It is possible
 	 * to get multiple timestamps from an interrupt entering just
-	 * as one timestamp is about to be written. The max times
-	 * that this can happen is the number of nested interrupts we
-	 * can have.  Nesting 10 deep of interrupts is clearly
-	 * an anomaly.
+	 * as one timestamp is about to be written, or from discarded
+	 * commits. The most that we can have is the number on a single page.
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 10))
+	if (RB_WARN_ON(cpu_buffer, ++nr_loops > RB_TIMESTAMPS_PER_PAGE))
 		return NULL;
 
 	reader = rb_get_reader_page(cpu_buffer);
@@ -2368,14 +2396,14 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
  again:
 	/*
-	 * We repeat when a timestamp is encountered. It is possible
-	 * to get multiple timestamps from an interrupt entering just
-	 * as one timestamp is about to be written. The max times
-	 * that this can happen is the number of nested interrupts we
-	 * can have. Nesting 10 deep of interrupts is clearly
-	 * an anomaly.
+	 * We repeat when a timestamp is encountered.
+	 * We can get multiple timestamps by nested interrupts or also
+	 * if filtering is on (discarding commits). Since discarding
+	 * commits can be frequent we can get a lot of timestamps.
+	 * But we limit them by not adding timestamps if they begin
+	 * at the start of a page.
 	 */
-	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 10))
+	if (RB_WARN_ON(cpu_buffer, ++nr_loops > RB_TIMESTAMPS_PER_PAGE))
 		return NULL;
 
 	if (rb_per_cpu_empty(cpu_buffer))

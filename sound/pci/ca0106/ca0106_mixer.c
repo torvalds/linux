@@ -739,7 +739,7 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 	} while (0)
 
 static __devinitdata
-DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 50, 1);
+DECLARE_TLV_DB_SCALE(snd_ca0106_master_db_scale, -6375, 25, 1);
 
 static char *slave_vols[] __devinitdata = {
 	"Analog Front Playback Volume",
@@ -800,7 +800,7 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 		"Capture Volume",
 		"External Amplifier",
 		"Sigmatel 4-Speaker Stereo Playback Switch",
-		"Sigmatel Surround Phase Inversion Playback ",
+		"Surround Phase Inversion Playback Switch",
 		NULL
 	};
 	static char *ca0106_rename_ctls[] = {
@@ -841,6 +841,9 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 					      snd_ca0106_master_db_scale);
 	if (!vmaster)
 		return -ENOMEM;
+	err = snd_ctl_add(card, vmaster);
+	if (err < 0)
+		return err;
 	add_slaves(card, vmaster, slave_vols);
 
 	if (emu->details->spi_dac == 1) {
@@ -848,8 +851,13 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 						      NULL);
 		if (!vmaster)
 			return -ENOMEM;
+		err = snd_ctl_add(card, vmaster);
+		if (err < 0)
+			return err;
 		add_slaves(card, vmaster, slave_sws);
 	}
+
+	strcpy(card->mixername, "CA0106");
         return 0;
 }
 

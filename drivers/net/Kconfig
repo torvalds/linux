@@ -1,4 +1,3 @@
-
 #
 # Network device configuration
 #
@@ -25,15 +24,6 @@ menuconfig NETDEVICES
 # All the following symbols are dependent on NETDEVICES - do not repeat
 # that for each of the symbols.
 if NETDEVICES
-
-config COMPAT_NET_DEV_OPS
-       default y
-       bool "Enable older network device API compatibility"
-       ---help---
-          This option enables kernel compatibility with older network devices
-          that do not use net_device_ops interface.
-
-	  If unsure, say Y.
 
 config IFB
 	tristate "Intermediate Functional Block support"
@@ -526,15 +516,16 @@ config STNIC
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
 	depends on SUPERH && \
-		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7763 || \
-		 CPU_SUBTYPE_SH7619)
+		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || \
+		 CPU_SUBTYPE_SH7763 || CPU_SUBTYPE_SH7619 || \
+		 CPU_SUBTYPE_SH7724)
 	select CRC32
 	select MII
 	select MDIO_BITBANG
 	select PHYLIB
 	help
 	  Renesas SuperH Ethernet device driver.
-	  This driver support SH7710, SH7712, SH7763 and SH7619.
+	  This driver support SH7710, SH7712, SH7763, SH7619, and SH7724.
 
 config SUNLANCE
 	tristate "Sun LANCE support"
@@ -927,6 +918,16 @@ config NET_NETX
 	  To compile this driver as a module, choose M here. The module
 	  will be called netx-eth.
 
+config TI_DAVINCI_EMAC
+	tristate "TI DaVinci EMAC Support"
+	depends on ARM && ARCH_DAVINCI
+	select PHYLIB
+	help
+	  This driver supports TI's DaVinci Ethernet .
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_emac_driver.  This is recommended.
+
 config DM9000
 	tristate "DM9000 support"
 	depends on ARM || BLACKFIN || MIPS
@@ -1000,7 +1001,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH
+	depends on ARM || SUPERH || BLACKFIN
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1722,6 +1723,11 @@ config TLAN
 
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
+config KS8842
+	tristate "Micrel KSZ8842"
+	help
+	  This platform driver is for Micrel KSZ8842 chip.
+
 config VIA_RHINE
 	tristate "VIA Rhine support"
 	depends on NET_PCI && PCI
@@ -1858,8 +1864,8 @@ config 68360_ENET
 	  the Motorola 68360 processor.
 
 config FEC
-	bool "FEC ethernet controller (of ColdFire CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27
+	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
@@ -1880,7 +1886,7 @@ config FEC_MPC52xx
 	---help---
 	  This option enables support for the MPC5200's on-chip
 	  Fast Ethernet Controller
-	  If compiled as module, it will be called 'fec_mpc52xx.ko'.
+	  If compiled as module, it will be called fec_mpc52xx.
 
 config FEC_MPC52xx_MDIO
 	bool "MPC52xx FEC MDIO bus driver"
@@ -1892,7 +1898,7 @@ config FEC_MPC52xx_MDIO
 	  (Motorola? industry standard).
 	  If your board uses an external PHY connected to FEC, enable this.
 	  If not sure, enable.
-	  If compiled as module, it will be called 'fec_mpc52xx_phy.ko'.
+	  If compiled as module, it will be called fec_mpc52xx_phy.
 
 config NE_H8300
 	tristate "NE2000 compatible support for H8/300"
@@ -2200,7 +2206,7 @@ config SKGE_DEBUG
        depends on SKGE && DEBUG_FS
        help
 	 This option adds the ability to dump driver state for debugging.
-	 The file debugfs/skge/ethX displays the state of the internal
+	 The file /sys/kernel/debug/skge/ethX displays the state of the internal
 	 transmit and receive rings.
 
 	 If unsure, say N.
@@ -2226,7 +2232,7 @@ config SKY2_DEBUG
        depends on SKY2 && DEBUG_FS
        help
 	 This option adds the ability to dump driver state for debugging.
-	 The file debugfs/sky2/ethX displays the state of the internal
+	 The file /sys/kernel/debug/sky2/ethX displays the state of the internal
 	 transmit and receive rings.
 
 	 If unsure, say N.
@@ -2263,6 +2269,17 @@ config BNX2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
+
+config CNIC
+	tristate "Broadcom CNIC support"
+	depends on BNX2
+	depends on UIO
+	help
+	  This driver supports offload features of Broadcom NetXtremeII
+	  gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called cnic.  This is recommended.
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
@@ -2351,7 +2368,7 @@ config UGETH_TX_ON_DEMAND
 
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
-	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || PLAT_ORION
+	depends on MV64X60 || PPC32 || PLAT_ORION
 	select INET_LRO
 	select PHYLIB
 	help
@@ -2361,6 +2378,14 @@ config MV643XX_ETH
 
 	  Some boards that use the Discovery chipset are the Momenco
 	  Ocelot C and Jaguar ATX and Pegasos II.
+
+config XILINX_LL_TEMAC
+	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
+	select PHYLIB
+	depends on PPC_DCR_NATIVE
+	help
+	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
+	  core used in Xilinx Spartan and Virtex FPGAs
 
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
@@ -2435,10 +2460,14 @@ menuconfig NETDEV_10000
 
 if NETDEV_10000
 
+config MDIO
+	tristate
+
 config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI
 	select CRC32
+	select MDIO
         help
           This driver supports Chelsio gigabit and 10-gigabit
           Ethernet cards. More information about adapter features and
@@ -2471,6 +2500,7 @@ config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
 	depends on CHELSIO_T3_DEPENDS
 	select FW_LOADER
+	select MDIO
 	help
 	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
 	  adapters.
@@ -2506,6 +2536,7 @@ config ENIC
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI && INET
+	select MDIO
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -2668,6 +2699,7 @@ config TEHUTI
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
+	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
 	help
@@ -2703,6 +2735,8 @@ source "drivers/net/pcmcia/Kconfig"
 source "drivers/net/wan/Kconfig"
 
 source "drivers/atm/Kconfig"
+
+source "drivers/ieee802154/Kconfig"
 
 source "drivers/s390/net/Kconfig"
 

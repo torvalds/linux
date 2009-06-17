@@ -125,6 +125,7 @@ struct p54_led_dev {
 	struct led_classdev led_dev;
 	char name[P54_LED_MAX_NAME_LEN + 1];
 
+	unsigned int toggled;
 	unsigned int index;
 	unsigned int registered;
 };
@@ -133,55 +134,74 @@ struct p54_led_dev {
 
 struct p54_common {
 	struct ieee80211_hw *hw;
-	u32 rx_start;
-	u32 rx_end;
-	struct sk_buff_head tx_queue;
+	struct ieee80211_vif *vif;
 	void (*tx)(struct ieee80211_hw *dev, struct sk_buff *skb);
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
-	int mode;
+	struct sk_buff_head tx_queue;
+	struct mutex conf_mutex;
+
+	/* memory management (as seen by the firmware) */
+	u32 rx_start;
+	u32 rx_end;
 	u16 rx_mtu;
 	u8 headroom;
 	u8 tailroom;
-	struct mutex conf_mutex;
-	u8 mac_addr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
-	u8 rx_diversity_mask;
-	u8 tx_diversity_mask;
-	struct pda_iq_autocal_entry *iq_autocal;
-	unsigned int iq_autocal_len;
-	struct p54_cal_database *output_limit;
-	struct p54_cal_database *curve_data;
-	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
-	unsigned int filter_flags;
-	bool use_short_slot;
-	u16 rxhw;
-	u8 version;
+
+	/* firmware/hardware info */
 	unsigned int tx_hdr_len;
 	unsigned int fw_var;
 	unsigned int fw_interface;
-	unsigned int output_power;
-	u32 tsf_low32;
-	u32 tsf_high32;
-	u32 basic_rate_mask;
-	u16 wakeup_timer;
-	u16 aid;
+	u8 version;
+
+	/* (e)DCF / QOS state */
+	bool use_short_slot;
 	struct ieee80211_tx_queue_stats tx_stats[8];
 	struct p54_edcf_queue_param qos_params[8];
-	struct ieee80211_low_level_stats stats;
-	struct delayed_work work;
-	struct sk_buff *cached_beacon;
+
+	/* Radio data */
+	u16 rxhw;
+	u8 rx_diversity_mask;
+	u8 tx_diversity_mask;
+	unsigned int output_power;
 	int noise;
-	void *eeprom;
-	struct completion eeprom_comp;
+	/* calibration, output power limit and rssi<->dBm conversation data */
+	struct pda_iq_autocal_entry *iq_autocal;
+	unsigned int iq_autocal_len;
+	struct p54_cal_database *curve_data;
+	struct p54_cal_database *output_limit;
+	struct p54_rssi_linear_approximation rssical_db[IEEE80211_NUM_BANDS];
+
+	/* BBP/MAC state */
+	u8 mac_addr[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	u16 wakeup_timer;
+	unsigned int filter_flags;
+	int mode;
+	u32 tsf_low32, tsf_high32;
+	u32 basic_rate_mask;
+	u16 aid;
+	struct sk_buff *cached_beacon;
+
+	/* cryptographic engine information */
 	u8 privacy_caps;
 	u8 rx_keycache_size;
+	unsigned long *used_rxkeys;
+
 	/* LED management */
 #ifdef CONFIG_P54_LEDS
-	struct p54_led_dev assoc_led;
-	struct p54_led_dev tx_led;
+	struct p54_led_dev leds[4];
+	struct delayed_work led_work;
 #endif /* CONFIG_P54_LEDS */
 	u16 softled_state;		/* bit field of glowing LEDs */
+
+	/* statistics */
+	struct ieee80211_low_level_stats stats;
+	struct delayed_work work;
+
+	/* eeprom handling */
+	void *eeprom;
+	struct completion eeprom_comp;
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);

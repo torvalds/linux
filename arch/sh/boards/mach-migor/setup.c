@@ -584,3 +584,22 @@ static int __init migor_devices_setup(void)
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
 __initcall(migor_devices_setup);
+
+/* Return the board specific boot mode pin configuration */
+static int migor_mode_pins(void)
+{
+	/* MD0=1, MD1=1, MD2=0: Clock Mode 3
+	 * MD3=0: 16-bit Area0 Bus Width
+	 * MD5=1: Little Endian
+	 * TSTMD=1, MD8=0: Test Mode Disabled
+	 */
+	return MODE_PIN0 | MODE_PIN1 | MODE_PIN5;
+}
+
+/*
+ * The Machine Vector
+ */
+static struct sh_machine_vector mv_migor __initmv = {
+	.mv_name		= "Migo-R",
+	.mv_mode_pins		= migor_mode_pins,
+};

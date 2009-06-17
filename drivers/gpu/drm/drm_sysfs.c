@@ -70,6 +70,11 @@ static ssize_t version_show(struct class *dev, char *buf)
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 }
 
+static char *drm_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
+}
+
 static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
 
 /**
@@ -100,6 +105,8 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	err = class_create_file(class, &class_attr_version);
 	if (err)
 		goto err_out_class;
+
+	class->nodename = drm_nodename;
 
 	return class;
 
@@ -147,7 +154,7 @@ static ssize_t status_show(struct device *device,
 	enum drm_connector_status status;
 
 	status = connector->funcs->detect(connector);
-	return snprintf(buf, PAGE_SIZE, "%s",
+	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_connector_status_name(status));
 }
 
@@ -166,7 +173,7 @@ static ssize_t dpms_show(struct device *device,
 	if (ret)
 		return 0;
 
-	return snprintf(buf, PAGE_SIZE, "%s",
+	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_dpms_name((int)dpms_status));
 }
 
@@ -176,7 +183,7 @@ static ssize_t enabled_show(struct device *device,
 {
 	struct drm_connector *connector = to_drm_connector(device);
 
-	return snprintf(buf, PAGE_SIZE, connector->encoder ? "enabled" :
+	return snprintf(buf, PAGE_SIZE, "%s\n", connector->encoder ? "enabled" :
 			"disabled");
 }
 
@@ -317,6 +324,7 @@ static struct device_attribute connector_attrs_opt1[] = {
 
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
+	.attr.mode = 0444,
 	.size = 128,
 	.read = edid_show,
 };

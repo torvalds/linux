@@ -19,6 +19,7 @@
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/compat.h>
 #include <linux/smp.h>
 #include <linux/kdebug.h>
 #include <linux/smp_lock.h>
@@ -239,7 +240,7 @@ static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 	up_read(&mm->mmap_sem);
 	clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
 #ifdef CONFIG_COMPAT
-	compat = test_tsk_thread_flag(current, TIF_31BIT);
+	compat = is_compat_task();
 	if (compat && instruction == 0x0a77)
 		sys32_sigreturn();
 	else if (compat && instruction == 0x0aad)

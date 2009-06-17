@@ -927,7 +927,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	if (denied) {
 		if (flags & AVC_STRICT)
 			rc = -EACCES;
-		else if (!selinux_enforcing || security_permissive_sid(ssid))
+		else if (!selinux_enforcing || (avd->flags & AVD_FLAGS_PERMISSIVE))
 			avc_update_node(AVC_CALLBACK_GRANT, requested, ssid,
 					tsid, tclass, avd->seqno);
 		else

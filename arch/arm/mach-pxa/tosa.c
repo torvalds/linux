@@ -31,7 +31,6 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
-#include <linux/rfkill.h>
 #include <linux/spi/spi.h>
 
 #include <asm/setup.h>
@@ -40,7 +39,7 @@
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/irda.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
@@ -897,7 +896,7 @@ static void __init tosa_init(void)
 	gpio_set_wake(MFP_PIN_GPIO1, 1);
 	/* We can't pass to gpio-keys since it will drop the Reset altfunc */
 
-	init_gpio_reset(TOSA_GPIO_ON_RESET, 0);
+	init_gpio_reset(TOSA_GPIO_ON_RESET, 0, 0);
 
 	pm_power_off = tosa_poweroff;
 	arm_pm_restart = tosa_restart;

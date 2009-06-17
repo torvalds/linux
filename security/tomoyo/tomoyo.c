@@ -27,6 +27,12 @@ static int tomoyo_cred_prepare(struct cred *new, const struct cred *old,
 
 static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 {
+	int rc;
+
+	rc = cap_bprm_set_creds(bprm);
+	if (rc)
+		return rc;
+
 	/*
 	 * Do only if this function is called for the first time of an execve
 	 * operation.
@@ -256,6 +262,10 @@ static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path, flags);
 }
 
+/*
+ * tomoyo_security_ops is a "struct security_operations" which is used for
+ * registering TOMOYO.
+ */
 static struct security_operations tomoyo_security_ops = {
 	.name                = "tomoyo",
 	.cred_prepare        = tomoyo_cred_prepare,

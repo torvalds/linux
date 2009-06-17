@@ -27,6 +27,8 @@
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 
+#define OMAP_CM_REGADDR		OMAP34XX_CM_REGADDR
+
 static unsigned long omap3_dpll_recalc(struct clk *clk);
 static unsigned long omap3_clkoutx2_recalc(struct clk *clk);
 static void omap3_dpll_allow_idle(struct clk *clk);
@@ -1228,6 +1230,37 @@ static struct clk d2d_26m_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+static struct clk modem_fck = {
+	.name		= "modem_fck",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &sys_ck,
+	.init		= &omap2_init_clk_clkdm,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
+	.enable_bit	= OMAP3430_EN_MODEM_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk sad2d_ick = {
+	.name		= "sad2d_ick",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &l3_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= OMAP3430_EN_SAD2D_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk mad2d_ick = {
+	.name		= "mad2d_ick",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &l3_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN3),
+	.enable_bit	= OMAP3430_EN_MAD2D_SHIFT,
+	.clkdm_name	= "d2d_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 static const struct clksel omap343x_gpt_clksel[] = {
 	{ .parent = &omap_32k_fck, .rates = gpt_32k_rates },
 	{ .parent = &sys_ck,	   .rates = gpt_sys_rates },
@@ -1945,8 +1978,6 @@ static struct clk usb_l4_ick = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-/* XXX MDM_INTC_ICK, SAD2D_ICK ?? */
-
 /* SECURITY_L4_ICK2 based clocks */
 
 static struct clk security_l4_ick2 = {
@@ -2182,7 +2213,7 @@ static struct clk wkup_32k_fck = {
 
 static struct clk gpio1_dbck = {
 	.name		= "gpio1_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &wkup_32k_fck,
 	.enable_reg	= OMAP_CM_REGADDR(WKUP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO1_SHIFT,
@@ -2427,7 +2458,7 @@ static struct clk per_32k_alwon_fck = {
 
 static struct clk gpio6_dbck = {
 	.name		= "gpio6_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO6_SHIFT,
@@ -2437,7 +2468,7 @@ static struct clk gpio6_dbck = {
 
 static struct clk gpio5_dbck = {
 	.name		= "gpio5_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO5_SHIFT,
@@ -2447,7 +2478,7 @@ static struct clk gpio5_dbck = {
 
 static struct clk gpio4_dbck = {
 	.name		= "gpio4_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO4_SHIFT,
@@ -2457,7 +2488,7 @@ static struct clk gpio4_dbck = {
 
 static struct clk gpio3_dbck = {
 	.name		= "gpio3_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO3_SHIFT,
@@ -2467,7 +2498,7 @@ static struct clk gpio3_dbck = {
 
 static struct clk gpio2_dbck = {
 	.name		= "gpio2_dbck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &per_32k_alwon_fck,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_PER_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_EN_GPIO2_SHIFT,

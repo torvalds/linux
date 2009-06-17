@@ -92,11 +92,11 @@ static int debug;
  * Function prototypes
  */
 static int  mct_u232_startup(struct usb_serial *serial);
-static void mct_u232_shutdown(struct usb_serial *serial);
+static void mct_u232_release(struct usb_serial *serial);
 static int  mct_u232_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
-static void mct_u232_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp);
+static void mct_u232_close(struct usb_serial_port *port);
+static void mct_u232_dtr_rts(struct usb_serial_port *port, int on);
 static void mct_u232_read_int_callback(struct urb *urb);
 static void mct_u232_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
@@ -140,6 +140,7 @@ static struct usb_serial_driver mct_u232_device = {
 	.num_ports =	     1,
 	.open =		     mct_u232_open,
 	.close =	     mct_u232_close,
+	.dtr_rts =	     mct_u232_dtr_rts,
 	.throttle =	     mct_u232_throttle,
 	.unthrottle =	     mct_u232_unthrottle,
 	.read_int_callback = mct_u232_read_int_callback,
@@ -148,7 +149,7 @@ static struct usb_serial_driver mct_u232_device = {
 	.tiocmget =	     mct_u232_tiocmget,
 	.tiocmset =	     mct_u232_tiocmset,
 	.attach =	     mct_u232_startup,
-	.shutdown =	     mct_u232_shutdown,
+	.release =	     mct_u232_release,
 };
 
 
@@ -406,7 +407,7 @@ static int mct_u232_startup(struct usb_serial *serial)
 } /* mct_u232_startup */
 
 
-static void mct_u232_shutdown(struct usb_serial *serial)
+static void mct_u232_release(struct usb_serial *serial)
 {
 	struct mct_u232_private *priv;
 	int i;
@@ -416,12 +417,9 @@ static void mct_u232_shutdown(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
 		priv = usb_get_serial_port_data(serial->port[i]);
-		if (priv) {
-			usb_set_serial_port_data(serial->port[i], NULL);
-			kfree(priv);
-		}
+		kfree(priv);
 	}
-} /* mct_u232_shutdown */
+} /* mct_u232_release */
 
 static int  mct_u232_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)
@@ -496,29 +494,29 @@ error:
 	return retval;
 } /* mct_u232_open */
 
-
-static void mct_u232_close(struct tty_struct *tty,
-			struct usb_serial_port *port, struct file *filp)
+static void mct_u232_dtr_rts(struct usb_serial_port *port, int on)
 {
-	unsigned int c_cflag;
 	unsigned int control_state;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
-	dbg("%s port %d", __func__, port->number);
 
-	if (tty) {
-		c_cflag = tty->termios->c_cflag;
-		mutex_lock(&port->serial->disc_mutex);
-		if (c_cflag & HUPCL && !port->serial->disconnected) {
-			/* drop DTR and RTS */
-			spin_lock_irq(&priv->lock);
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected) {
+		/* drop DTR and RTS */
+		spin_lock_irq(&priv->lock);
+		if (on)
+			priv->control_state |= TIOCM_DTR | TIOCM_RTS;
+		else
 			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-			control_state = priv->control_state;
-			spin_unlock_irq(&priv->lock);
-			mct_u232_set_modem_ctrl(port->serial, control_state);
-		}
-		mutex_unlock(&port->serial->disc_mutex);
+		control_state = priv->control_state;
+		spin_unlock_irq(&priv->lock);
+		mct_u232_set_modem_ctrl(port->serial, control_state);
 	}
+	mutex_unlock(&port->serial->disc_mutex);
+}
 
+static void mct_u232_close(struct usb_serial_port *port)
+{
+	dbg("%s port %d", __func__, port->number);
 
 	if (port->serial->dev) {
 		/* shutdown our urbs */

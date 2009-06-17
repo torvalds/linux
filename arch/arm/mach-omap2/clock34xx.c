@@ -129,6 +129,9 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"sgx_fck",	&sgx_fck,	CK_3430ES2),
 	CLK(NULL,	"sgx_ick",	&sgx_ick,	CK_3430ES2),
 	CLK(NULL,	"d2d_26m_fck",	&d2d_26m_fck,	CK_3430ES1),
+	CLK(NULL,	"modem_fck",	&modem_fck,	CK_343X),
+	CLK(NULL,	"sad2d_ick",	&sad2d_ick,	CK_343X),
+	CLK(NULL,	"mad2d_ick",	&mad2d_ick,	CK_343X),
 	CLK(NULL,	"gpt10_fck",	&gpt10_fck,	CK_343X),
 	CLK(NULL,	"gpt11_fck",	&gpt11_fck,	CK_343X),
 	CLK(NULL,	"cpefuse_fck",	&cpefuse_fck,	CK_3430ES2),
@@ -157,7 +160,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"ssi_ssr_fck",	&ssi_ssr_fck,	CK_343X),
 	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck,	CK_343X),
 	CLK(NULL,	"core_l3_ick",	&core_l3_ick,	CK_343X),
-	CLK(NULL,	"hsotgusb_ick",	&hsotgusb_ick,	CK_343X),
+	CLK("musb_hdrc",	"ick",	&hsotgusb_ick,	CK_343X),
 	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_343X),
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_343X),
 	CLK(NULL,	"security_l3_ick", &security_l3_ick, CK_343X),
@@ -197,11 +200,11 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK("omap_rng",	"ick",		&rng_ick,	CK_343X),
 	CLK(NULL,	"sha11_ick",	&sha11_ick,	CK_343X),
 	CLK(NULL,	"des1_ick",	&des1_ick,	CK_343X),
-	CLK(NULL,	"dss1_alwon_fck", &dss1_alwon_fck, CK_343X),
-	CLK(NULL,	"dss_tv_fck",	&dss_tv_fck,	CK_343X),
-	CLK(NULL,	"dss_96m_fck",	&dss_96m_fck,	CK_343X),
-	CLK(NULL,	"dss2_alwon_fck", &dss2_alwon_fck, CK_343X),
-	CLK(NULL,	"dss_ick",	&dss_ick,	CK_343X),
+	CLK("omapfb",	"dss1_fck",	&dss1_alwon_fck, CK_343X),
+	CLK("omapfb",	"tv_fck",	&dss_tv_fck,	CK_343X),
+	CLK("omapfb",	"video_fck",	&dss_96m_fck,	CK_343X),
+	CLK("omapfb",	"dss2_fck",	&dss2_alwon_fck, CK_343X),
+	CLK("omapfb",	"ick",		&dss_ick,	CK_343X),
 	CLK(NULL,	"cam_mclk",	&cam_mclk,	CK_343X),
 	CLK(NULL,	"cam_ick",	&cam_ick,	CK_343X),
 	CLK(NULL,	"csi2_96m_fck",	&csi2_96m_fck,	CK_343X),
@@ -280,6 +283,8 @@ static struct omap_clk omap34xx_clks[] = {
 #define DPLL_AUTOIDLE_LOW_POWER_STOP		0x1
 
 #define MAX_DPLL_WAIT_TRIES		1000000
+
+#define MIN_SDRC_DLL_LOCK_FREQ		83000000
 
 /**
  * omap3_dpll_recalc - recalculate DPLL rate
@@ -703,6 +708,7 @@ static int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 new_div = 0;
+	u32 unlock_dll = 0;
 	unsigned long validrate, sdrcrate;
 	struct omap_sdrc_params *sp;
 
@@ -729,17 +735,22 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	if (!sp)
 		return -EINVAL;
 
-	pr_info("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
-		validrate);
-	pr_info("clock: SDRC timing params used: %08x %08x %08x\n",
-		sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
+	if (sdrcrate < MIN_SDRC_DLL_LOCK_FREQ) {
+		pr_debug("clock: will unlock SDRC DLL\n");
+		unlock_dll = 1;
+	}
+
+	pr_debug("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
+		 validrate);
+	pr_debug("clock: SDRC timing params used: %08x %08x %08x\n",
+		 sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
 
 	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
 	WARN_ON(new_div != 1 && new_div != 2);
 
 	/* REVISIT: Add SDRC_MR changing to this code also */
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
-				  sp->actim_ctrlb, new_div);
+				  sp->actim_ctrlb, new_div, unlock_dll);
 
 	return 0;
 }
@@ -956,7 +967,7 @@ int __init omap2_clk_init(void)
 	clk_init(&omap2_clk_functions);
 
 	for (c = omap34xx_clks; c < omap34xx_clks + ARRAY_SIZE(omap34xx_clks); c++)
-		clk_init_one(c->lk.clk);
+		clk_preinit(c->lk.clk);
 
 	for (c = omap34xx_clks; c < omap34xx_clks + ARRAY_SIZE(omap34xx_clks); c++)
 		if (c->cpu & cpu_clkflg) {

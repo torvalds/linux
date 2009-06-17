@@ -18,7 +18,19 @@ struct page_cgroup {
 };
 
 void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
-void __init page_cgroup_init(void);
+
+#ifdef CONFIG_SPARSEMEM
+static inline void __init page_cgroup_init_flatmem(void)
+{
+}
+extern void __init page_cgroup_init(void);
+#else
+void __init page_cgroup_init_flatmem(void);
+static inline void __init page_cgroup_init(void)
+{
+}
+#endif
+
 struct page_cgroup *lookup_page_cgroup(struct page *page);
 
 enum {
@@ -84,6 +96,10 @@ static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
 }
 
 static inline void page_cgroup_init(void)
+{
+}
+
+static inline void __init page_cgroup_init_flatmem(void)
 {
 }
 

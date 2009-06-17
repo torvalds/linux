@@ -23,9 +23,13 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/time.h>
-#include <trace/block.h>
 #include <linux/uaccess.h>
+
+#include <trace/events/block.h>
+
 #include "trace_output.h"
+
+#ifdef CONFIG_BLK_DEV_IO_TRACE
 
 static unsigned int blktrace_seq __read_mostly = 1;
 
@@ -665,12 +669,12 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 
 	if (blk_pc_request(rq)) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
-		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors,
-				rq->cmd_len, rq->cmd);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), rw,
+				what, rq->errors, rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				rw, what, rq->errors, 0, NULL);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), rw,
+				what, rq->errors, 0, NULL);
 	}
 }
 
@@ -877,11 +881,11 @@ void blk_add_driver_data(struct request_queue *q,
 		return;
 
 	if (blk_pc_request(rq))
-		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
-				rq->errors, len, data);
+		__blk_add_trace(bt, 0, blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 	else
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
-				0, BLK_TA_DRV_DATA, rq->errors, len, data);
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_bytes(rq), 0,
+				BLK_TA_DRV_DATA, rq->errors, len, data);
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);
 
@@ -1657,4 +1661,73 @@ int blk_trace_init_sysfs(struct device *dev)
 {
 	return sysfs_create_group(&dev->kobj, &blk_trace_attr_group);
 }
+
+#endif /* CONFIG_BLK_DEV_IO_TRACE */
+
+#ifdef CONFIG_EVENT_TRACING
+
+void blk_dump_cmd(char *buf, struct request *rq)
+{
+	int i, end;
+	int len = rq->cmd_len;
+	unsigned char *cmd = rq->cmd;
+
+	if (!blk_pc_request(rq)) {
+		buf[0] = '\0';
+		return;
+	}
+
+	for (end = len - 1; end >= 0; end--)
+		if (cmd[end])
+			break;
+	end++;
+
+	for (i = 0; i < len; i++) {
+		buf += sprintf(buf, "%s%02x", i == 0 ? "" : " ", cmd[i]);
+		if (i == end && end != len - 1) {
+			sprintf(buf, " ..");
+			break;
+		}
+	}
+}
+
+void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
+{
+	int i = 0;
+
+	if (rw & WRITE)
+		rwbs[i++] = 'W';
+	else if (rw & 1 << BIO_RW_DISCARD)
+		rwbs[i++] = 'D';
+	else if (bytes)
+		rwbs[i++] = 'R';
+	else
+		rwbs[i++] = 'N';
+
+	if (rw & 1 << BIO_RW_AHEAD)
+		rwbs[i++] = 'A';
+	if (rw & 1 << BIO_RW_BARRIER)
+		rwbs[i++] = 'B';
+	if (rw & 1 << BIO_RW_SYNCIO)
+		rwbs[i++] = 'S';
+	if (rw & 1 << BIO_RW_META)
+		rwbs[i++] = 'M';
+
+	rwbs[i] = '\0';
+}
+
+void blk_fill_rwbs_rq(char *rwbs, struct request *rq)
+{
+	int rw = rq->cmd_flags & 0x03;
+	int bytes;
+
+	if (blk_discard_rq(rq))
+		rw |= (1 << BIO_RW_DISCARD);
+
+	bytes = blk_rq_bytes(rq);
+
+	blk_fill_rwbs(rwbs, rw, bytes);
+}
+
+#endif /* CONFIG_EVENT_TRACING */
 

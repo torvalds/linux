@@ -8,24 +8,41 @@
 
 MKIMAGE := $(srctree)/scripts/mkuboot.sh
 
-targets := vmImage
-extra-y += vmlinux.bin vmlinux.gz
+targets := vmImage vmImage.bz2 vmImage.gz vmImage.lzma
+extra-y += vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A $(ARCH) -O linux -T kernel \
-                   -C gzip -n 'Linux-$(KERNELRELEASE)' -a $(CONFIG_BOOT_LOAD) \
+                   -C $(2) -n 'Linux-$(KERNELRELEASE)' -a $(CONFIG_BOOT_LOAD) \
                    -e $(shell $(NM) vmlinux | awk '$$NF == "__start" {print $$1}') \
                    -d $< $@
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/vmlinux.gz: $(obj)/vmlinux.bin FORCE
+$(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,gzip)
 
-$(obj)/vmImage: $(obj)/vmlinux.gz
-	$(call if_changed,uimage)
-	@$(kecho) 'Kernel: $@ is ready'
+$(obj)/vmlinux.bin.bz2: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,bzip2)
+
+$(obj)/vmlinux.bin.lzma: $(obj)/vmlinux.bin FORCE
+	$(call if_changed,lzma)
+
+$(obj)/vmImage.bz2: $(obj)/vmlinux.bin.bz2
+	$(call if_changed,uimage,bzip2)
+
+$(obj)/vmImage.gz: $(obj)/vmlinux.bin.gz
+	$(call if_changed,uimage,gzip)
+
+$(obj)/vmImage.lzma: $(obj)/vmlinux.bin.lzma
+	$(call if_changed,uimage,lzma)
+
+suffix-$(CONFIG_KERNEL_GZIP)  := gz
+suffix-$(CONFIG_KERNEL_BZIP2) := bz2
+suffix-$(CONFIG_KERNEL_LZMA)  := lzma
+$(obj)/vmImage: $(obj)/vmImage.$(suffix-y)
+	@ln -sf $(notdir $<) $@
 
 install:
 	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(BOOTIMAGE) System.map "$(INSTALL_PATH)"

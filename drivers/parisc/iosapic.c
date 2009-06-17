@@ -702,7 +702,7 @@ static unsigned int iosapic_startup_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-static void iosapic_set_affinity_irq(unsigned int irq,
+static int iosapic_set_affinity_irq(unsigned int irq,
 				     const struct cpumask *dest)
 {
 	struct vector_info *vi = iosapic_get_vector(irq);
@@ -712,7 +712,7 @@ static void iosapic_set_affinity_irq(unsigned int irq,
 
 	dest_cpu = cpu_check_affinity(irq, dest);
 	if (dest_cpu < 0)
-		return;
+		return -1;
 
 	cpumask_copy(irq_desc[irq].affinity, cpumask_of(dest_cpu));
 	vi->txn_addr = txn_affinity_addr(irq, dest_cpu);
@@ -724,6 +724,8 @@ static void iosapic_set_affinity_irq(unsigned int irq,
 	iosapic_set_irt_data(vi, &dummy_d0, &d1);
 	iosapic_wr_irt_entry(vi, d0, d1);
 	spin_unlock_irqrestore(&iosapic_lock, flags);
+
+	return 0;
 }
 #endif
 

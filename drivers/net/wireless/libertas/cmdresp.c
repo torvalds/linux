@@ -5,7 +5,7 @@
 #include <linux/delay.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
-
+#include <asm/unaligned.h>
 #include <net/iw_handler.h>
 
 #include "host.h"
@@ -154,11 +154,11 @@ static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	/* store the non average value */
-	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->SNR);
-	priv->NF[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->noisefloor);
+	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&rssirsp->SNR);
+	priv->NF[TYPE_BEACON][TYPE_NOAVG] = get_unaligned_le16(&rssirsp->noisefloor);
 
-	priv->SNR[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgSNR);
-	priv->NF[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgnoisefloor);
+	priv->SNR[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&rssirsp->avgSNR);
+	priv->NF[TYPE_BEACON][TYPE_AVG] = get_unaligned_le16(&rssirsp->avgnoisefloor);
 
 	priv->RSSI[TYPE_BEACON][TYPE_NOAVG] =
 	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],
@@ -210,12 +210,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_reg_access(priv, respcmd, resp);
 		break;
 
-	case CMD_RET_802_11_ASSOCIATE:
-	case CMD_RET(CMD_802_11_ASSOCIATE):
-	case CMD_RET(CMD_802_11_REASSOCIATE):
-		ret = lbs_ret_80211_associate(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_SET_AFC):
 	case CMD_RET(CMD_802_11_GET_AFC):
 		spin_lock_irqsave(&priv->driver_lock, flags);
@@ -225,7 +219,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 		break;
 
-	case CMD_RET(CMD_802_11_AUTHENTICATE):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;
 

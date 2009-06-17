@@ -42,6 +42,7 @@ static unsigned int input_abs_bypass_init_data[] __initdata = {
 	ABS_MT_POSITION_Y,
 	ABS_MT_TOOL_TYPE,
 	ABS_MT_BLOB_ID,
+	ABS_MT_TRACKING_ID,
 	0
 };
 static unsigned long input_abs_bypass[BITS_TO_LONGS(ABS_CNT)];
@@ -1264,8 +1265,14 @@ static struct device_type input_dev_type = {
 	.uevent		= input_dev_uevent,
 };
 
+static char *input_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "input/%s", dev_name(dev));
+}
+
 struct class input_class = {
 	.name		= "input",
+	.nodename	= input_nodename,
 };
 EXPORT_SYMBOL_GPL(input_class);
 

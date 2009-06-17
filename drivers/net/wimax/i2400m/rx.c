@@ -177,7 +177,8 @@ void i2400m_report_hook_work(struct work_struct *ws)
 	struct i2400m_work *iw =
 		container_of(ws, struct i2400m_work, ws);
 	struct i2400m_report_hook_args *args = (void *) iw->pl;
-	i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
+	if (iw->i2400m->ready)
+		i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
 	kfree_skb(args->skb_rx);
 	i2400m_put(iw->i2400m);
 	kfree(iw);
@@ -309,6 +310,9 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		skb_get(skb_rx);
 		i2400m_queue_work(i2400m, i2400m_report_hook_work,
 				  GFP_KERNEL, &args, sizeof(args));
+		if (unlikely(i2400m->trace_msg_from_user))
+			wimax_msg(&i2400m->wimax_dev, "echo",
+				  l3l4_hdr, size, GFP_KERNEL);
 		result = wimax_msg(&i2400m->wimax_dev, NULL, l3l4_hdr, size,
 				   GFP_KERNEL);
 		if (result < 0)
@@ -819,10 +823,9 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 			roq_data = (struct i2400m_roq_data *) &skb->cb;
 			i2400m_net_erx(i2400m, skb, roq_data->cs);
 		}
-		else {
+		else
 			__i2400m_roq_queue(i2400m, roq, skb, sn, nsn);
-			__i2400m_roq_update_ws(i2400m, roq, sn + 1);
-		}
+		__i2400m_roq_update_ws(i2400m, roq, sn + 1);
 		i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_PACKET_WS,
 				   old_ws, len, sn, nsn, roq->ws);
 	}
@@ -1145,7 +1148,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 	num_pls = le16_to_cpu(msg_hdr->num_pls);
 	pl_itr = sizeof(*msg_hdr) +	/* Check payload descriptor(s) */
 		num_pls * sizeof(msg_hdr->pld[0]);
-	pl_itr = ALIGN(pl_itr, I2400M_PL_PAD);
+	pl_itr = ALIGN(pl_itr, I2400M_PL_ALIGN);
 	if (pl_itr > skb->len) {	/* got all the payload descriptors? */
 		dev_err(dev, "RX: HW BUG? message too short (%u bytes) for "
 			"%u payload descriptors (%zu each, total %zu)\n",
@@ -1163,7 +1166,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 		single_last = num_pls == 1 || i == num_pls - 1;
 		i2400m_rx_payload(i2400m, skb, single_last, &msg_hdr->pld[i],
 				  skb->data + pl_itr);
-		pl_itr += ALIGN(pl_size, I2400M_PL_PAD);
+		pl_itr += ALIGN(pl_size, I2400M_PL_ALIGN);
 		cond_resched();		/* Don't monopolize */
 	}
 	kfree_skb(skb);

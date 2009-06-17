@@ -95,7 +95,7 @@ static __init int map_switcher(void)
 	 * array of struct pages.  It increments that pointer, but we don't
 	 * care. */
 	pagep = switcher_page;
-	err = map_vm_area(switcher_vma, PAGE_KERNEL, &pagep);
+	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, &pagep);
 	if (err) {
 		printk("lguest: map_vm_area failed: %i\n", err);
 		goto free_vma;
@@ -188,6 +188,9 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 {
 	/* We stop running once the Guest is dead. */
 	while (!cpu->lg->dead) {
+		unsigned int irq;
+		bool more;
+
 		/* First we run any hypercalls the Guest wants done. */
 		if (cpu->hcall)
 			do_hypercalls(cpu);
@@ -195,23 +198,23 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		/* It's possible the Guest did a NOTIFY hypercall to the
 		 * Launcher, in which case we return from the read() now. */
 		if (cpu->pending_notify) {
-			if (put_user(cpu->pending_notify, user))
-				return -EFAULT;
-			return sizeof(cpu->pending_notify);
+			if (!send_notify_to_eventfd(cpu)) {
+				if (put_user(cpu->pending_notify, user))
+					return -EFAULT;
+				return sizeof(cpu->pending_notify);
+			}
 		}
 
 		/* Check for signals */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 
-		/* If Waker set break_out, return to Launcher. */
-		if (cpu->break_out)
-			return -EAGAIN;
-
 		/* Check if there are any interrupts which can be delivered now:
 		 * if so, this sets up the hander to be executed when we next
 		 * run the Guest. */
-		maybe_do_interrupt(cpu);
+		irq = interrupt_pending(cpu, &more);
+		if (irq < LGUEST_IRQS)
+			try_deliver_interrupt(cpu, irq, more);
 
 		/* All long-lived kernel loops need to check with this horrible
 		 * thing called the freezer.  If the Host is trying to suspend,
@@ -224,10 +227,15 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			break;
 
 		/* If the Guest asked to be stopped, we sleep.  The Guest's
-		 * clock timer or LHREQ_BREAK from the Waker will wake us. */
+		 * clock timer will wake us. */
 		if (cpu->halted) {
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
+			/* Just before we sleep, make sure no interrupt snuck in
+			 * which we should be doing. */
+			if (interrupt_pending(cpu, &more) < LGUEST_IRQS)
+				set_current_state(TASK_RUNNING);
+			else
+				schedule();
 			continue;
 		}
 

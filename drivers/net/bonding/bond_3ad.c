@@ -1465,6 +1465,12 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 	return best;
 }
 
+static int agg_device_up(const struct aggregator *agg)
+{
+	return (netif_running(agg->slave->dev) &&
+		netif_carrier_ok(agg->slave->dev));
+}
+
 /**
  * ad_agg_selection_logic - select an aggregation group for a team
  * @aggregator: the aggregator we're looking at
@@ -1496,14 +1502,13 @@ static void ad_agg_selection_logic(struct aggregator *agg)
 	struct port *port;
 
 	origin = agg;
-
 	active = __get_active_agg(agg);
-	best = active;
+	best = (active && agg_device_up(active)) ? active : NULL;
 
 	do {
 		agg->is_active = 0;
 
-		if (agg->num_of_ports)
+		if (agg->num_of_ports && agg_device_up(agg))
 			best = ad_agg_selection_test(best, agg);
 
 	} while ((agg = __get_next_agg(agg)));
@@ -1845,9 +1850,10 @@ static u16 aggregator_identifier;
  * Can be called only after the mac address of the bond is set.
  */
 void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fast)
-{                         
+{
 	// check that the bond is not initialized yet
-	if (MAC_ADDRESS_COMPARE(&(BOND_AD_INFO(bond).system.sys_mac_addr), &(bond->dev->dev_addr))) {
+	if (MAC_ADDRESS_COMPARE(&(BOND_AD_INFO(bond).system.sys_mac_addr),
+				bond->dev->dev_addr)) {
 
 		aggregator_identifier = 0;
 

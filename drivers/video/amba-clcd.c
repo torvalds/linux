@@ -351,7 +351,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	}
 
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
-	fb->fb.fix.mmio_len	= 4096;
+	fb->fb.fix.mmio_len	= resource_size(&fb->dev->res);
 
 	fb->regs = ioremap(fb->fb.fix.mmio_start, fb->fb.fix.mmio_len);
 	if (!fb->regs) {
@@ -437,7 +437,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	return ret;
 }
 
-static int clcdfb_probe(struct amba_device *dev, void *id)
+static int clcdfb_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct clcd_board *board = dev->dev.platform_data;
 	struct clcd_fb *fb;

@@ -21,7 +21,6 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
@@ -94,15 +93,13 @@ void mxc_iomux_set_pad(enum iomux_pins pin, u32 config)
 EXPORT_SYMBOL(mxc_iomux_set_pad);
 
 /*
- * setups a single pin:
+ * allocs a single pin:
  * 	- reserves the pin so that it is not claimed by another driver
  * 	- setups the iomux according to the configuration
- * 	- if the pin is configured as a GPIO, we claim it through kernel gpiolib
  */
-int mxc_iomux_setup_pin(const unsigned int pin, const char *label)
+int mxc_iomux_alloc_pin(const unsigned int pin, const char *label)
 {
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
-	unsigned gpio;
 
 	if (pad >= (PIN_MAX + 1)) {
 		printk(KERN_ERR "mxc_iomux: Attempt to request nonexistant pin %u for \"%s\"\n",
@@ -113,19 +110,13 @@ int mxc_iomux_setup_pin(const unsigned int pin, const char *label)
 	if (test_and_set_bit(pad, mxc_pin_alloc_map)) {
 		printk(KERN_ERR "mxc_iomux: pin %u already used. Allocation for \"%s\" failed\n",
 			pad, label ? label : "?");
-		return -EINVAL;
+		return -EBUSY;
 	}
 	mxc_iomux_mode(pin);
 
-	/* if we have a gpio, we can allocate it */
-	gpio = (pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT;
-	if (gpio < (GPIO_PORT_MAX + 1) * 32)
-		if (gpio_request(gpio, label))
-			return -EINVAL;
-
 	return 0;
 }
-EXPORT_SYMBOL(mxc_iomux_setup_pin);
+EXPORT_SYMBOL(mxc_iomux_alloc_pin);
 
 int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
 		const char *label)
@@ -135,7 +126,8 @@ int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
 	int ret = -EINVAL;
 
 	for (i = 0; i < count; i++) {
-		if (mxc_iomux_setup_pin(*p, label))
+		ret = mxc_iomux_alloc_pin(*p, label);
+		if (ret)
 			goto setup_error;
 		p++;
 	}
@@ -150,14 +142,9 @@ EXPORT_SYMBOL(mxc_iomux_setup_multiple_pins);
 void mxc_iomux_release_pin(const unsigned int pin)
 {
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
-	unsigned gpio;
 
 	if (pad < (PIN_MAX + 1))
 		clear_bit(pad, mxc_pin_alloc_map);
-
-	gpio = (pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT;
-	if (gpio < (GPIO_PORT_MAX + 1) * 32)
-		gpio_free(gpio);
 }
 EXPORT_SYMBOL(mxc_iomux_release_pin);
 

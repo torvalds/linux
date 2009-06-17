@@ -51,6 +51,7 @@ struct trace_iterator {
 	int			cpu_file;
 	struct mutex		mutex;
 	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
+	unsigned long		iter_flags;
 
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
@@ -58,7 +59,6 @@ struct trace_iterator {
 	int			cpu;
 	u64			ts;
 
-	unsigned long		iter_flags;
 	loff_t			pos;
 	long			idx;
 

@@ -408,7 +408,7 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
  * Context:
  *	Kernel context.
  */
-void
+int
 qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
     uint16_t *subminor, uint16_t *attributes, uint32_t *memory, uint8_t *mpi,
     uint32_t *mpi_caps, uint8_t *phy)
@@ -427,6 +427,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
 	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS)
+		goto failed;
 
 	/* Return mailbox data. */
 	*major = mcp->mb[1];
@@ -446,7 +448,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 		phy[1] = mcp->mb[9] >> 8;
 		phy[2] = mcp->mb[9] & 0xff;
 	}
-
+failed:
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
@@ -455,6 +457,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 		/*EMPTY*/
 		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
+	return rval;
 }
 
 /*
@@ -748,19 +751,19 @@ qla2x00_issue_iocb(scsi_qla_host_t *vha, void *buffer, dma_addr_t phys_addr,
  *	Kernel context.
  */
 int
-qla2x00_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
+qla2x00_abort_command(srb_t *sp)
 {
 	unsigned long   flags = 0;
-	fc_port_t	*fcport;
 	int		rval;
 	uint32_t	handle = 0;
 	mbx_cmd_t	mc;
 	mbx_cmd_t	*mcp = &mc;
+	fc_port_t	*fcport = sp->fcport;
+	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = vha->req;
 
 	DEBUG11(printk("qla2x00_abort_command(%ld): entered.\n", vha->host_no));
-
-	fcport = sp->fcport;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -800,7 +803,7 @@ qla2x00_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
 }
 
 int
-qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
+qla2x00_abort_target(struct fc_port *fcport, unsigned int l, int tag)
 {
 	int rval, rval2;
 	mbx_cmd_t  mc;
@@ -813,8 +816,8 @@ qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
 
 	l = l;
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[0];
-	rsp = vha->hw->rsp_q_map[0];
+	req = vha->hw->req_q_map[tag];
+	rsp = vha->hw->rsp_q_map[tag];
 	mcp->mb[0] = MBC_ABORT_TARGET;
 	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw)) {
@@ -850,7 +853,7 @@ qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
 }
 
 int
-qla2x00_lun_reset(struct fc_port *fcport, unsigned int l)
+qla2x00_lun_reset(struct fc_port *fcport, unsigned int l, int tag)
 {
 	int rval, rval2;
 	mbx_cmd_t  mc;
@@ -862,8 +865,8 @@ qla2x00_lun_reset(struct fc_port *fcport, unsigned int l)
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->vha->host_no));
 
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[0];
-	rsp = vha->hw->rsp_q_map[0];
+	req = vha->hw->req_q_map[tag];
+	rsp = vha->hw->rsp_q_map[tag];
 	mcp->mb[0] = MBC_LUN_RESET;
 	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw))
@@ -931,6 +934,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 	mcp->mb[9] = vha->vp_idx;
 	mcp->out_mb = MBX_9|MBX_0;
 	mcp->in_mb = MBX_9|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (IS_QLA81XX(vha->hw))
+		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -952,9 +957,19 @@ qla2x00_get_adapter_id(scsi_qla_host_t *vha, uint16_t *id, uint8_t *al_pa,
 		DEBUG2_3_11(printk("qla2x00_get_adapter_id(%ld): failed=%x.\n",
 		    vha->host_no, rval));
 	} else {
-		/*EMPTY*/
 		DEBUG11(printk("qla2x00_get_adapter_id(%ld): done.\n",
 		    vha->host_no));
+
+		if (IS_QLA81XX(vha->hw)) {
+			vha->fcoe_vlan_id = mcp->mb[9] & 0xfff;
+			vha->fcoe_fcf_idx = mcp->mb[10];
+			vha->fcoe_vn_port_mac[5] = mcp->mb[11] >> 8;
+			vha->fcoe_vn_port_mac[4] = mcp->mb[11] & 0xff;
+			vha->fcoe_vn_port_mac[3] = mcp->mb[12] >> 8;
+			vha->fcoe_vn_port_mac[2] = mcp->mb[12] & 0xff;
+			vha->fcoe_vn_port_mac[1] = mcp->mb[13] >> 8;
+			vha->fcoe_vn_port_mac[0] = mcp->mb[13] & 0xff;
+		}
 	}
 
 	return rval;
@@ -1252,7 +1267,7 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 
 	mcp->mb[0] = MBC_GET_FIRMWARE_STATE;
 	mcp->out_mb = MBX_0;
-	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -1261,6 +1276,8 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 	states[0] = mcp->mb[1];
 	states[1] = mcp->mb[2];
 	states[2] = mcp->mb[3];
+	states[3] = mcp->mb[4];
+	states[4] = mcp->mb[5];
 
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
@@ -1480,8 +1497,16 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	dma_addr_t	lg_dma;
 	uint32_t	iop[2];
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req;
+	struct rsp_que *rsp;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	if (ql2xmultique_tag)
+		req = ha->req_q_map[0];
+	else
+		req = vha->req;
+	rsp = req->rsp;
 
 	lg = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &lg_dma);
 	if (lg == NULL) {
@@ -1493,6 +1518,7 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
+	lg->handle = MAKE_HANDLE(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
 	lg->control_flags = __constant_cpu_to_le16(LCF_COMMAND_PLOGI);
 	if (opt & BIT_0)
@@ -1741,6 +1767,8 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	struct logio_entry_24xx *lg;
 	dma_addr_t	lg_dma;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req;
+	struct rsp_que *rsp;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
@@ -1752,8 +1780,14 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	}
 	memset(lg, 0, sizeof(struct logio_entry_24xx));
 
+	if (ql2xmaxqueues > 1)
+		req = ha->req_q_map[0];
+	else
+		req = vha->req;
+	rsp = req->rsp;
 	lg->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	lg->entry_count = 1;
+	lg->handle = MAKE_HANDLE(req->id, lg->handle);
 	lg->nport_handle = cpu_to_le16(loop_id);
 	lg->control_flags =
 	    __constant_cpu_to_le16(LCF_COMMAND_LOGO|LCF_IMPL_LOGO);
@@ -1863,9 +1897,6 @@ qla2x00_full_login_lip(scsi_qla_host_t *vha)
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-
-	if (IS_QLA81XX(vha->hw))
-	    return QLA_SUCCESS;
 
 	DEBUG11(printk("qla2x00_full_login_lip(%ld): entered.\n",
 	    vha->host_no));
@@ -2195,20 +2226,20 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 }
 
 int
-qla24xx_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
+qla24xx_abort_command(srb_t *sp)
 {
 	int		rval;
-	fc_port_t	*fcport;
 	unsigned long   flags = 0;
 
 	struct abort_entry_24xx *abt;
 	dma_addr_t	abt_dma;
 	uint32_t	handle;
+	fc_port_t	*fcport = sp->fcport;
+	struct scsi_qla_host *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = vha->req;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
-
-	fcport = sp->fcport;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -2231,6 +2262,7 @@ qla24xx_abort_command(scsi_qla_host_t *vha, srb_t *sp, struct req_que *req)
 
 	abt->entry_type = ABORT_IOCB_TYPE;
 	abt->entry_count = 1;
+	abt->handle = MAKE_HANDLE(req->id, abt->handle);
 	abt->nport_handle = cpu_to_le16(fcport->loop_id);
 	abt->handle_to_abort = handle;
 	abt->port_id[0] = fcport->d_id.b.al_pa;
@@ -2272,7 +2304,7 @@ struct tsk_mgmt_cmd {
 
 static int
 __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
-    unsigned int l)
+    unsigned int l, int tag)
 {
 	int		rval, rval2;
 	struct tsk_mgmt_cmd *tsk;
@@ -2286,8 +2318,11 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 
 	vha = fcport->vha;
 	ha = vha->hw;
-	req = ha->req_q_map[0];
-	rsp = ha->rsp_q_map[0];
+	req = vha->req;
+	if (ql2xmultique_tag)
+		rsp = ha->rsp_q_map[tag + 1];
+	else
+		rsp = req->rsp;
 	tsk = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
 	if (tsk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Task Management "
@@ -2298,6 +2333,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
+	tsk->p.tsk.handle = MAKE_HANDLE(req->id, tsk->p.tsk.handle);
 	tsk->p.tsk.nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->p.tsk.timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->p.tsk.control_flags = cpu_to_le32(type);
@@ -2344,15 +2380,15 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 }
 
 int
-qla24xx_abort_target(struct fc_port *fcport, unsigned int l)
+qla24xx_abort_target(struct fc_port *fcport, unsigned int l, int tag)
 {
-	return __qla24xx_issue_tmf("Target", TCF_TARGET_RESET, fcport, l);
+	return __qla24xx_issue_tmf("Target", TCF_TARGET_RESET, fcport, l, tag);
 }
 
 int
-qla24xx_lun_reset(struct fc_port *fcport, unsigned int l)
+qla24xx_lun_reset(struct fc_port *fcport, unsigned int l, int tag)
 {
-	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l);
+	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l, tag);
 }
 
 int
@@ -2446,6 +2482,8 @@ qla2x00_stop_firmware(scsi_qla_host_t *vha)
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
 		    vha->host_no, rval));
+		if (mcp->mb[0] == MBS_INVALID_COMMAND)
+			rval = QLA_INVALID_COMMAND;
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
@@ -2717,8 +2755,11 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (vp_idx == 0)
 			return;
 
-		if (MSB(stat) == 1)
+		if (MSB(stat) == 1) {
+			DEBUG2(printk("scsi(%ld): Could not acquire ID for "
+			    "VP[%d].\n", vha->host_no, vp_idx));
 			return;
+		}
 
 		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list)
 			if (vp_idx == vp->vp_idx)
@@ -3141,6 +3182,8 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 		WRT_REG_DWORD(&reg->req_q_in, 0);
 		WRT_REG_DWORD(&reg->req_q_out, 0);
 	}
+	req->req_q_in = &reg->req_q_in;
+	req->req_q_out = &reg->req_q_out;
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -3167,7 +3210,6 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mcp->mb[6] = MSW(MSD(rsp->dma));
 	mcp->mb[7] = LSW(MSD(rsp->dma));
 	mcp->mb[5] = rsp->length;
-	mcp->mb[11] = rsp->vp_idx;
 	mcp->mb[14] = rsp->msix->entry;
 	mcp->mb[13] = rsp->rid;
 
@@ -3179,7 +3221,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	mcp->mb[8] = 0;
 	/* que out ptr index */
 	mcp->mb[9] = 0;
-	mcp->out_mb = MBX_14|MBX_13|MBX_12|MBX_11|MBX_10|MBX_9|MBX_8|MBX_7
+	mcp->out_mb = MBX_14|MBX_13|MBX_9|MBX_8|MBX_7
 			|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->flags = MBX_DMA_OUT;
@@ -3384,7 +3426,7 @@ qla2x00_read_edc(scsi_qla_host_t *vha, uint16_t dev, uint16_t adr,
 		DEBUG2_3_11(printk("%s(%ld): failed=%x (%x).\n", __func__,
 		    vha->host_no, rval, mcp->mb[0]));
 	} else {
-		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
 	}
 
 	return rval;
@@ -3421,6 +3463,144 @@ qla2x00_write_edc(scsi_qla_host_t *vha, uint16_t dev, uint16_t adr,
 
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed=%x (%x).\n", __func__,
+		    vha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+	}
+
+	return rval;
+}
+
+int
+qla2x00_get_xgmac_stats(scsi_qla_host_t *vha, dma_addr_t stats_dma,
+    uint16_t size_in_bytes, uint16_t *actual_size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA81XX(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_GET_XGMAC_STATS;
+	mcp->mb[2] = MSW(stats_dma);
+	mcp->mb[3] = LSW(stats_dma);
+	mcp->mb[6] = MSW(MSD(stats_dma));
+	mcp->mb[7] = LSW(MSD(stats_dma));
+	mcp->mb[8] = size_in_bytes >> 2;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=0x%x "
+		    "mb[1]=0x%x mb[2]=0x%x.\n", __func__, vha->host_no, rval,
+		    mcp->mb[0], mcp->mb[1], mcp->mb[2]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+
+		*actual_size = mcp->mb[2] << 2;
+	}
+
+	return rval;
+}
+
+int
+qla2x00_get_dcbx_params(scsi_qla_host_t *vha, dma_addr_t tlv_dma,
+    uint16_t size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA81XX(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_GET_DCBX_PARAMS;
+	mcp->mb[1] = 0;
+	mcp->mb[2] = MSW(tlv_dma);
+	mcp->mb[3] = LSW(tlv_dma);
+	mcp->mb[6] = MSW(MSD(tlv_dma));
+	mcp->mb[7] = LSW(MSD(tlv_dma));
+	mcp->mb[8] = size;
+	mcp->out_mb = MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=0x%x "
+		    "mb[1]=0x%x mb[2]=0x%x.\n", __func__, vha->host_no, rval,
+		    mcp->mb[0], mcp->mb[1], mcp->mb[2]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+	}
+
+	return rval;
+}
+
+int
+qla2x00_read_ram_word(scsi_qla_host_t *vha, uint32_t risc_addr, uint32_t *data)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_READ_RAM_EXTENDED;
+	mcp->mb[1] = LSW(risc_addr);
+	mcp->mb[8] = MSW(risc_addr);
+	mcp->out_mb = MBX_8|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x.\n", __func__,
+		    vha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));
+		*data = mcp->mb[3] << 16 | mcp->mb[2];
+	}
+
+	return rval;
+}
+
+int
+qla2x00_write_ram_word(scsi_qla_host_t *vha, uint32_t risc_addr, uint32_t data)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+                return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
+
+	mcp->mb[0] = MBC_WRITE_RAM_WORD_EXTENDED;
+	mcp->mb[1] = LSW(risc_addr);
+	mcp->mb[2] = LSW(data);
+	mcp->mb[3] = MSW(data);
+	mcp->mb[8] = MSW(risc_addr);
+	mcp->out_mb = MBX_8|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x.\n", __func__,
 		    vha->host_no, rval, mcp->mb[0]));
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, vha->host_no));

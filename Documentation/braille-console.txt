@@ -27,7 +27,7 @@ parameter.
 
 For simplicity, only one braille console can be enabled, other uses of
 console=brl,... will be discarded.  Also note that it does not interfere with
-the console selection mecanism described in serial-console.txt
+the console selection mechanism described in serial-console.txt
 
 For now, only the VisioBraille device is supported.
 

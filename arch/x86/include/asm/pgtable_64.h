@@ -25,10 +25,6 @@ extern pgd_t init_level4_pgt[];
 
 extern void paging_init(void);
 
-#endif /* !__ASSEMBLY__ */
-
-#ifndef __ASSEMBLY__
-
 #define pte_ERROR(e)					\
 	printk("%s:%d: bad pte %p(%016lx).\n",		\
 	       __FILE__, __LINE__, &(e), pte_val(e))
@@ -134,8 +130,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 #define pte_unmap_nested(pte) /* NOP */
 
 #define update_mmu_cache(vma, address, pte) do { } while (0)
-
-extern int direct_gbpages;
 
 /* Encode and de-code a swap entry */
 #if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE

@@ -2375,14 +2375,14 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 		info->io.addr_data, info->io.regsize, info->io.regspacing,
 		info->irq);
 
-	dev->dev.driver_data = (void *) info;
+	dev_set_drvdata(&dev->dev, info);
 
 	return try_smi_init(info);
 }
 
 static int __devexit ipmi_of_remove(struct of_device *dev)
 {
-	cleanup_one_si(dev->dev.driver_data);
+	cleanup_one_si(dev_get_drvdata(&dev->dev));
 	return 0;
 }
 

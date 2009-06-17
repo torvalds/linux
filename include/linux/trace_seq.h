@@ -27,6 +27,8 @@ trace_seq_init(struct trace_seq *s)
 #ifdef CONFIG_TRACING
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
+extern int trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)
+	__attribute__ ((format (printf, 2, 0)));
 extern int
 trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary);
 extern void trace_print_seq(struct seq_file *m, struct trace_seq *s);

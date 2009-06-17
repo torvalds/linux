@@ -24,7 +24,6 @@ config REALVIEW_EB_ARM11MP
 config REALVIEW_EB_ARM11MP_REVB
 	bool "Support ARM11MPCore RevB tile"
 	depends on REALVIEW_EB_ARM11MP
-	default n
 	help
 	  Enable support for the ARM11MPCore RevB tile on the Realview
 	  platform. Since there are device address differences, a
@@ -48,6 +47,15 @@ config MACH_REALVIEW_PB1176
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
+config REALVIEW_PB1176_SECURE_FLASH
+	bool "Allow access to the secure flash memory block"
+	depends on MACH_REALVIEW_PB1176
+	default n
+	help
+	  Select this option if Linux will only run in secure mode on the
+	  RealView PB1176 platform and access to the secure flash memory
+	  block (64MB @ 0x3c000000) is required.
+
 config MACH_REALVIEW_PBA8
 	bool "Support RealView/PB-A8 platform"
 	select CPU_V7
@@ -57,6 +65,13 @@ config MACH_REALVIEW_PBA8
 	  Include support for the ARM(R) RealView Cortex-A8 Platform Baseboard.
 	  PB-A8 is a platform with an on-board Cortex-A8 and has support for
 	  PCI-E and Compact Flash.
+
+config MACH_REALVIEW_PBX
+	bool "Support RealView/PBX platform"
+	select ARM_GIC
+	select HAVE_PATA_PLATFORM
+	help
+	  Include support for the ARM(R) RealView PBX platform.
 
 config REALVIEW_HIGH_PHYS_OFFSET
 	bool "High physical base address for the RealView platform"

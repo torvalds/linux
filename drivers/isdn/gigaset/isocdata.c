@@ -175,7 +175,7 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 		return -EINVAL;
 	}
 	src = iwb->read;
-	if (unlikely(limit > BAS_OUTBUFSIZE + BAS_OUTBUFPAD ||
+	if (unlikely(limit >= BAS_OUTBUFSIZE + BAS_OUTBUFPAD ||
 		     (read < src && limit >= src))) {
 		pr_err("isoc write buffer frame reservation violated\n");
 		return -EFAULT;
@@ -246,6 +246,10 @@ static inline void dump_bytes(enum debuglevel level, const char *tag,
 	unsigned char c;
 	static char dbgline[3 * 32 + 1];
 	int i = 0;
+
+	if (!(gigaset_debuglevel & level))
+		return;
+
 	while (count-- > 0) {
 		if (i > sizeof(dbgline) - 4) {
 			dbgline[i] = '\0';

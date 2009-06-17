@@ -3,7 +3,7 @@
  *    basic function of the tape device driver
  *
  *  S390 and zSeries version
- *    Copyright IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2009
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
@@ -92,7 +92,7 @@ tape_medium_state_show(struct device *dev, struct device_attribute *attr, char *
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->medium_state);
 }
 
@@ -104,7 +104,7 @@ tape_first_minor_show(struct device *dev, struct device_attribute *attr, char *b
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->first_minor);
 }
 
@@ -116,7 +116,7 @@ tape_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%s\n", (tdev->first_minor < 0) ?
 		"OFFLINE" : tape_state_verbose[tdev->tape_state]);
 }
@@ -130,7 +130,7 @@ tape_operation_show(struct device *dev, struct device_attribute *attr, char *buf
 	struct tape_device *tdev;
 	ssize_t rc;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 	if (tdev->first_minor < 0)
 		return scnprintf(buf, PAGE_SIZE, "N/A\n");
 
@@ -156,7 +156,7 @@ tape_blocksize_show(struct device *dev, struct device_attribute *attr, char *buf
 {
 	struct tape_device *tdev;
 
-	tdev = (struct tape_device *) dev->driver_data;
+	tdev = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%i\n", tdev->char_data.block_size);
 }
@@ -380,6 +380,55 @@ tape_cleanup_device(struct tape_device *device)
 }
 
 /*
+ * Suspend device.
+ *
+ * Called by the common I/O layer if the drive should be suspended on user
+ * request. We refuse to suspend if the device is loaded or in use for the
+ * following reason:
+ * While the Linux guest is suspended, it might be logged off which causes
+ * devices to be detached. Tape devices are automatically rewound and unloaded
+ * during DETACH processing (unless the tape device was attached with the
+ * NOASSIGN or MULTIUSER option). After rewind/unload, there is no way to
+ * resume the original state of the tape device, since we would need to
+ * manually re-load the cartridge which was active at suspend time.
+ */
+int tape_generic_pm_suspend(struct ccw_device *cdev)
+{
+	struct tape_device *device;
+
+	device = cdev->dev.driver_data;
+	if (!device) {
+		return -ENODEV;
+	}
+
+	DBF_LH(3, "(%08x): tape_generic_pm_suspend(%p)\n",
+		device->cdev_id, device);
+
+	if (device->medium_state != MS_UNLOADED) {
+		pr_err("A cartridge is loaded in tape device %s, "
+		       "refusing to suspend\n", dev_name(&cdev->dev));
+		return -EBUSY;
+	}
+
+	spin_lock_irq(get_ccwdev_lock(device->cdev));
+	switch (device->tape_state) {
+		case TS_INIT:
+		case TS_NOT_OPER:
+		case TS_UNUSED:
+			spin_unlock_irq(get_ccwdev_lock(device->cdev));
+			break;
+		default:
+			pr_err("Tape device %s is busy, refusing to "
+			       "suspend\n", dev_name(&cdev->dev));
+			spin_unlock_irq(get_ccwdev_lock(device->cdev));
+			return -EBUSY;
+	}
+
+	DBF_LH(3, "(%08x): Drive suspended.\n", device->cdev_id);
+	return 0;
+}
+
+/*
  * Set device offline.
  *
  * Called by the common I/O layer if the drive should set offline on user
@@ -391,7 +440,7 @@ tape_generic_offline(struct ccw_device *cdev)
 {
 	struct tape_device *device;
 
-	device = cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (!device) {
 		return -ENODEV;
 	}
@@ -534,7 +583,7 @@ tape_generic_probe(struct ccw_device *cdev)
 		tape_put_device(device);
 		return ret;
 	}
-	cdev->dev.driver_data = device;
+	dev_set_drvdata(&cdev->dev, device);
 	cdev->handler = __tape_do_irq;
 	device->cdev = cdev;
 	ccw_device_get_id(cdev, &dev_id);
@@ -573,7 +622,7 @@ tape_generic_remove(struct ccw_device *cdev)
 {
 	struct tape_device *	device;
 
-	device = cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (!device) {
 		return;
 	}
@@ -613,9 +662,9 @@ tape_generic_remove(struct ccw_device *cdev)
 			tape_cleanup_device(device);
 	}
 
-	if (cdev->dev.driver_data != NULL) {
+	if (!dev_get_drvdata(&cdev->dev)) {
 		sysfs_remove_group(&cdev->dev.kobj, &tape_attr_group);
-		cdev->dev.driver_data = tape_put_device(cdev->dev.driver_data);
+		dev_set_drvdata(&cdev->dev, tape_put_device(dev_get_drvdata(&cdev->dev)));
 	}
 }
 
@@ -1011,7 +1060,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	struct tape_request *request;
 	int rc;
 
-	device = (struct tape_device *) cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (device == NULL) {
 		return;
 	}
@@ -1273,6 +1322,7 @@ EXPORT_SYMBOL(tape_generic_remove);
 EXPORT_SYMBOL(tape_generic_probe);
 EXPORT_SYMBOL(tape_generic_online);
 EXPORT_SYMBOL(tape_generic_offline);
+EXPORT_SYMBOL(tape_generic_pm_suspend);
 EXPORT_SYMBOL(tape_put_device);
 EXPORT_SYMBOL(tape_get_device_reference);
 EXPORT_SYMBOL(tape_state_verbose);

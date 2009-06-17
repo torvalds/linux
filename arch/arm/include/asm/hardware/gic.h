@@ -36,7 +36,7 @@
 void gic_dist_init(unsigned int gic_nr, void __iomem *base, unsigned int irq_start);
 void gic_cpu_init(unsigned int gic_nr, void __iomem *base);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
-void gic_raise_softirq(cpumask_t cpumask, unsigned int irq);
+void gic_raise_softirq(const struct cpumask *mask, unsigned int irq);
 #endif
 
 #endif

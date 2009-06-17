@@ -361,7 +361,7 @@ static int eth1394_new_node(struct eth1394_host_info *hi,
 	node_info->pdg.sz = 0;
 	node_info->fifo = CSR1212_INVALID_ADDR_SPACE;
 
-	ud->device.driver_data = node_info;
+	dev_set_drvdata(&ud->device, node_info);
 	new_node->ud = ud;
 
 	priv = netdev_priv(hi->dev);
@@ -406,7 +406,7 @@ static int eth1394_remove(struct device *dev)
 	list_del(&old_node->list);
 	kfree(old_node);
 
-	node_info = (struct eth1394_node_info*)ud->device.driver_data;
+	node_info = dev_get_drvdata(&ud->device);
 
 	spin_lock_irqsave(&node_info->pdg.lock, flags);
 	/* The partial datagram list should be empty, but we'll just
@@ -416,7 +416,7 @@ static int eth1394_remove(struct device *dev)
 	spin_unlock_irqrestore(&node_info->pdg.lock, flags);
 
 	kfree(node_info);
-	ud->device.driver_data = NULL;
+	dev_set_drvdata(&ud->device, NULL);
 	return 0;
 }
 
@@ -688,7 +688,7 @@ static void ether1394_host_reset(struct hpsb_host *host)
 	ether1394_reset_priv(dev, 0);
 
 	list_for_each_entry(node, &priv->ip_node_list, list) {
-		node_info = node->ud->device.driver_data;
+		node_info = dev_get_drvdata(&node->ud->device);
 
 		spin_lock_irqsave(&node_info->pdg.lock, flags);
 
@@ -872,8 +872,7 @@ static __be16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
 		if (!node)
 			return cpu_to_be16(0);
 
-		node_info =
-		    (struct eth1394_node_info *)node->ud->device.driver_data;
+		node_info = dev_get_drvdata(&node->ud->device);
 
 		/* Update our speed/payload/fifo_offset table */
 		node_info->maxpayload =	maxpayload;
@@ -1080,7 +1079,7 @@ static int ether1394_data_handler(struct net_device *dev, int srcid, int destid,
 		priv->ud_list[NODEID_TO_NODE(srcid)] = ud;
 	}
 
-	node_info = (struct eth1394_node_info *)ud->device.driver_data;
+	node_info = dev_get_drvdata(&ud->device);
 
 	/* First, did we receive a fragmented or unfragmented datagram? */
 	hdr->words.word1 = ntohs(hdr->words.word1);
@@ -1617,8 +1616,7 @@ static int ether1394_tx(struct sk_buff *skb, struct net_device *dev)
 		if (!node)
 			goto fail;
 
-		node_info =
-		    (struct eth1394_node_info *)node->ud->device.driver_data;
+		node_info = dev_get_drvdata(&node->ud->device);
 		if (node_info->fifo == CSR1212_INVALID_ADDR_SPACE)
 			goto fail;
 

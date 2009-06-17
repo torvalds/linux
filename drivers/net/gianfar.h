@@ -259,7 +259,7 @@ extern const char gfar_driver_version[];
 (IEVENT_RXC | IEVENT_BSY | IEVENT_EBERR | IEVENT_MSRO | \
  IEVENT_BABT | IEVENT_TXC | IEVENT_TXE | IEVENT_LC \
  | IEVENT_CRL | IEVENT_XFUN | IEVENT_DPE | IEVENT_PERR \
- | IEVENT_MAG)
+ | IEVENT_MAG | IEVENT_BABR)
 
 #define IMASK_INIT_CLEAR	0x00000000
 #define IMASK_BABR              0x80000000
@@ -779,7 +779,8 @@ struct gfar_private {
 	spinlock_t bflock;
 
 	phy_interface_t interface;
-	char	phy_bus_id[BUS_ID_SIZE];
+	struct device_node *phy_node;
+	struct device_node *tbi_node;
 	u32 device_flags;
 	unsigned char rx_csum_enable:1,
 		extended_hash:1,
@@ -793,7 +794,6 @@ struct gfar_private {
 
 	/* PHY stuff */
 	struct phy_device *phydev;
-	struct phy_device *tbiphy;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

@@ -26,6 +26,7 @@
 #include <linux/binfmts.h>
 #include <linux/tracehook.h>
 #include <linux/syscalls.h>
+#include <linux/compat.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
@@ -482,7 +483,7 @@ void do_signal(struct pt_regs *regs)
 		/* Whee!  Actually deliver the signal.  */
 		int ret;
 #ifdef CONFIG_COMPAT
-		if (test_thread_flag(TIF_31BIT)) {
+		if (is_compat_task()) {
 			ret = handle_signal32(signr, &ka, &info, oldset, regs);
 	        }
 		else

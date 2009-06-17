@@ -51,7 +51,7 @@ PIN Numbers
 -----------
 
   Each pin has an unique number associated with it in regs-gpio.h,
-  eg S3C2410_GPA0 or S3C2410_GPF1. These defines are used to tell
+  eg S3C2410_GPA(0) or S3C2410_GPF(1). These defines are used to tell
   the GPIO functions which pin is to be used.
 
 
@@ -65,11 +65,11 @@ Configuring a pin
 
   Eg:
 
-     s3c2410_gpio_cfgpin(S3C2410_GPA0, S3C2410_GPA0_ADDR0);
-     s3c2410_gpio_cfgpin(S3C2410_GPE8, S3C2410_GPE8_SDDAT1);
+     s3c2410_gpio_cfgpin(S3C2410_GPA(0), S3C2410_GPA0_ADDR0);
+     s3c2410_gpio_cfgpin(S3C2410_GPE(8), S3C2410_GPE8_SDDAT1);
 
-   which would turn GPA0 into the lowest Address line A0, and set
-   GPE8 to be connected to the SDIO/MMC controller's SDDAT1 line.
+   which would turn GPA(0) into the lowest Address line A0, and set
+   GPE(8) to be connected to the SDIO/MMC controller's SDDAT1 line.
 
 
 Reading the current configuration

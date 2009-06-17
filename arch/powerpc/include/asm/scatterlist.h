@@ -21,7 +21,7 @@ struct scatterlist {
 	unsigned int offset;
 	unsigned int length;
 
-	/* For TCE support */
+	/* For TCE or SWIOTLB support */
 	dma_addr_t dma_address;
 	u32 dma_length;
 };
@@ -34,11 +34,7 @@ struct scatterlist {
  * is 0.
  */
 #define sg_dma_address(sg)	((sg)->dma_address)
-#ifdef __powerpc64__
 #define sg_dma_len(sg)		((sg)->dma_length)
-#else
-#define sg_dma_len(sg)		((sg)->length)
-#endif
 
 #ifdef __powerpc64__
 #define ISA_DMA_THRESHOLD	(~0UL)

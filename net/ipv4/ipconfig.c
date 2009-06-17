@@ -139,6 +139,8 @@ __be32 ic_servaddr = NONE;	/* Boot server IP address */
 __be32 root_server_addr = NONE;	/* Address of NFS server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
+u32 ic_dev_xid;		/* Device under configuration */
+
 /* vendor class identifier */
 static char vendor_class_identifier[253] __initdata;
 
@@ -157,6 +159,9 @@ static char user_dev_name[IFNAMSIZ] __initdata = { 0, };
 
 /* Protocols supported by available interfaces */
 static int ic_proto_have_if __initdata = 0;
+
+/* MTU for boot device */
+static int ic_dev_mtu __initdata = 0;
 
 #ifdef IPCONFIG_DYNAMIC
 static DEFINE_SPINLOCK(ic_recv_lock);
@@ -284,13 +289,24 @@ set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
 	sin->sin_port = port;
 }
 
-static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
+static int __init ic_devinet_ioctl(unsigned int cmd, struct ifreq *arg)
 {
 	int res;
 
 	mm_segment_t oldfs = get_fs();
 	set_fs(get_ds());
 	res = devinet_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
+	set_fs(oldfs);
+	return res;
+}
+
+static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
+{
+	int res;
+
+	mm_segment_t oldfs = get_fs();
+	set_fs(get_ds());
+	res = dev_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
 	set_fs(oldfs);
 	return res;
 }
@@ -319,19 +335,30 @@ static int __init ic_setup_if(void)
 	memset(&ir, 0, sizeof(ir));
 	strcpy(ir.ifr_ifrn.ifrn_name, ic_dev->name);
 	set_sockaddr(sin, ic_myaddr, 0);
-	if ((err = ic_dev_ioctl(SIOCSIFADDR, &ir)) < 0) {
+	if ((err = ic_devinet_ioctl(SIOCSIFADDR, &ir)) < 0) {
 		printk(KERN_ERR "IP-Config: Unable to set interface address (%d).\n", err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_netmask, 0);
-	if ((err = ic_dev_ioctl(SIOCSIFNETMASK, &ir)) < 0) {
+	if ((err = ic_devinet_ioctl(SIOCSIFNETMASK, &ir)) < 0) {
 		printk(KERN_ERR "IP-Config: Unable to set interface netmask (%d).\n", err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_myaddr | ~ic_netmask, 0);
-	if ((err = ic_dev_ioctl(SIOCSIFBRDADDR, &ir)) < 0) {
+	if ((err = ic_devinet_ioctl(SIOCSIFBRDADDR, &ir)) < 0) {
 		printk(KERN_ERR "IP-Config: Unable to set interface broadcast address (%d).\n", err);
 		return -1;
+	}
+	/* Handle the case where we need non-standard MTU on the boot link (a network
+	 * using jumbo frames, for instance).  If we can't set the mtu, don't error
+	 * out, we'll try to muddle along.
+	 */
+	if (ic_dev_mtu != 0) {
+		strcpy(ir.ifr_name, ic_dev->name);
+		ir.ifr_mtu = ic_dev_mtu;
+		if ((err = ic_dev_ioctl(SIOCSIFMTU, &ir)) < 0)
+			printk(KERN_ERR "IP-Config: Unable to set interface mtu to %d (%d).\n",
+			                 ic_dev_mtu, err);
 	}
 	return 0;
 }
@@ -621,6 +648,7 @@ ic_dhcp_init_options(u8 *options)
 			12,	/* Host name */
 			15,	/* Domain name */
 			17,	/* Boot path */
+			26,	/* MTU */
 			40,	/* NIS domain name */
 		};
 
@@ -796,6 +824,7 @@ static void __init ic_do_bootp_ext(u8 *ext)
 {
        u8 servers;
        int i;
+	u16 mtu;
 
 #ifdef IPCONFIG_DEBUG
 	u8 *c;
@@ -834,6 +863,10 @@ static void __init ic_do_bootp_ext(u8 *ext)
 		case 17:	/* Root path */
 			if (!root_server_path[0])
 				ic_bootp_string(root_server_path, ext+1, *ext, sizeof(root_server_path));
+			break;
+		case 26:	/* Interface MTU */
+			memcpy(&mtu, ext+1, sizeof(mtu));
+			ic_dev_mtu = ntohs(mtu);
 			break;
 		case 40:	/* NIS Domain name (_not_ DNS) */
 			ic_bootp_string(utsname()->domainname, ext+1, *ext, __NEW_UTS_LEN);
@@ -929,6 +962,13 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 			printk(KERN_ERR "DHCP/BOOTP: Reply not for us, "
 			       "op[%x] xid[%x]\n",
 			       b->op, b->xid);
+		goto drop_unlock;
+	}
+
+	/* Is it a reply for the device we are configuring? */
+	if (b->xid != ic_dev_xid) {
+		if (net_ratelimit())
+			printk(KERN_ERR "DHCP/BOOTP: Ignoring delayed packet \n");
 		goto drop_unlock;
 	}
 
@@ -1115,6 +1155,9 @@ static int __init ic_dynamic(void)
 	get_random_bytes(&timeout, sizeof(timeout));
 	timeout = CONF_BASE_TIMEOUT + (timeout % (unsigned) CONF_TIMEOUT_RANDOM);
 	for (;;) {
+		/* Track the device we are configuring */
+		ic_dev_xid = d->xid;
+
 #ifdef IPCONFIG_BOOTP
 		if (do_bootp && (d->able & IC_BOOTP))
 			ic_bootp_send_if(d, jiffies - start_jiffies);
@@ -1391,6 +1434,8 @@ static int __init ip_auto_config(void)
 	printk(",\n     bootserver=%pI4", &ic_servaddr);
 	printk(", rootserver=%pI4", &root_server_addr);
 	printk(", rootpath=%s", root_server_path);
+	if (ic_dev_mtu)
+		printk(", mtu=%d", ic_dev_mtu);
 	printk("\n");
 #endif /* !SILENT */
 

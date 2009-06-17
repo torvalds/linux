@@ -306,8 +306,8 @@ as_choose_req(struct as_data *ad, struct request *rq1, struct request *rq2)
 	data_dir = rq_is_sync(rq1);
 
 	last = ad->last_sector[data_dir];
-	s1 = rq1->sector;
-	s2 = rq2->sector;
+	s1 = blk_rq_pos(rq1);
+	s2 = blk_rq_pos(rq2);
 
 	BUG_ON(data_dir != rq_is_sync(rq2));
 
@@ -566,13 +566,15 @@ static void as_update_iohist(struct as_data *ad, struct as_io_context *aic,
 			as_update_thinktime(ad, aic, thinktime);
 
 			/* Calculate read -> read seek distance */
-			if (aic->last_request_pos < rq->sector)
-				seek_dist = rq->sector - aic->last_request_pos;
+			if (aic->last_request_pos < blk_rq_pos(rq))
+				seek_dist = blk_rq_pos(rq) -
+					    aic->last_request_pos;
 			else
-				seek_dist = aic->last_request_pos - rq->sector;
+				seek_dist = aic->last_request_pos -
+					    blk_rq_pos(rq);
 			as_update_seekdist(ad, aic, seek_dist);
 		}
-		aic->last_request_pos = rq->sector + rq->nr_sectors;
+		aic->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 		set_bit(AS_TASK_IOSTARTED, &aic->state);
 		spin_unlock(&aic->lock);
 	}
@@ -587,7 +589,7 @@ static int as_close_req(struct as_data *ad, struct as_io_context *aic,
 {
 	unsigned long delay;	/* jiffies */
 	sector_t last = ad->last_sector[ad->batch_data_dir];
-	sector_t next = rq->sector;
+	sector_t next = blk_rq_pos(rq);
 	sector_t delta; /* acceptable close offset (in sectors) */
 	sector_t s;
 
@@ -981,7 +983,7 @@ static void as_move_to_dispatch(struct as_data *ad, struct request *rq)
 	 * This has to be set in order to be correctly updated by
 	 * as_find_next_rq
 	 */
-	ad->last_sector[data_dir] = rq->sector + rq->nr_sectors;
+	ad->last_sector[data_dir] = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (data_dir == BLK_RW_SYNC) {
 		struct io_context *ioc = RQ_IOC(rq);
@@ -1312,12 +1314,8 @@ static void as_merged_requests(struct request_queue *q, struct request *req,
 static void as_work_handler(struct work_struct *work)
 {
 	struct as_data *ad = container_of(work, struct as_data, antic_work);
-	struct request_queue *q = ad->q;
-	unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
-	blk_start_queueing(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	blk_run_queue(ad->q);
 }
 
 static int as_may_queue(struct request_queue *q, int rw)

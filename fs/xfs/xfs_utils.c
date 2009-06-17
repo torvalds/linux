@@ -166,7 +166,7 @@ xfs_dir_ialloc(
 			xfs_buf_relse(ialloc_context);
 			if (dqinfo) {
 				tp->t_dqinfo = dqinfo;
-				XFS_TRANS_FREE_DQINFO(tp->t_mountp, tp);
+				xfs_trans_free_dqinfo(tp);
 			}
 			*tpp = ntp;
 			*ipp = NULL;

@@ -1100,6 +1100,15 @@ static int __sctp_connect(struct sock* sk,
 		goto out_free;
 	}
 
+	/* In case the user of sctp_connectx() wants an association
+	 * id back, assign one now.
+	 */
+	if (assoc_id) {
+		err = sctp_assoc_set_id(asoc, GFP_KERNEL);
+		if (err < 0)
+			goto out_free;
+	}
+
 	err = sctp_primitive_ASSOCIATE(asoc, NULL);
 	if (err < 0) {
 		goto out_free;
@@ -1120,7 +1129,7 @@ static int __sctp_connect(struct sock* sk,
 	timeo = sock_sndtimeo(sk, f_flags & O_NONBLOCK);
 
 	err = sctp_wait_for_connect(asoc, &timeo);
-	if (!err && assoc_id)
+	if ((err == 0 || err == -EINPROGRESS) && assoc_id)
 		*assoc_id = asoc->assoc_id;
 
 	/* Don't free association on exit. */
@@ -1262,6 +1271,34 @@ SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
 		return err;
 	else
 		return assoc_id;
+}
+
+/*
+ * New (hopefully final) interface for the API.  The option buffer is used
+ * both for the returned association id and the addresses.
+ */
+SCTP_STATIC int sctp_getsockopt_connectx3(struct sock* sk, int len,
+					char __user *optval,
+					int __user *optlen)
+{
+	sctp_assoc_t assoc_id = 0;
+	int err = 0;
+
+	if (len < sizeof(assoc_id))
+		return -EINVAL;
+
+	err = __sctp_setsockopt_connectx(sk,
+			(struct sockaddr __user *)(optval + sizeof(assoc_id)),
+			len - sizeof(assoc_id), &assoc_id);
+
+	if (err == 0 || err == -EINPROGRESS) {
+		if (copy_to_user(optval, &assoc_id, sizeof(assoc_id)))
+			return -EFAULT;
+		if (put_user(sizeof(assoc_id), optlen))
+			return -EFAULT;
+	}
+
+	return err;
 }
 
 /* API 3.1.4 close() - UDP Style Syntax
@@ -1844,7 +1881,7 @@ static int sctp_skb_pull(struct sk_buff *skb, int len)
 	len -= skb_len;
 	__skb_pull(skb, skb_len);
 
-	for (list = skb_shinfo(skb)->frag_list; list; list = list->next) {
+	skb_walk_frags(skb, list) {
 		rlen = sctp_skb_pull(list, len);
 		skb->len -= (len-rlen);
 		skb->data_len -= (len-rlen);
@@ -5578,6 +5615,9 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_getsockopt_local_addrs(sk, len, optval,
 						     optlen);
 		break;
+	case SCTP_SOCKOPT_CONNECTX3:
+		retval = sctp_getsockopt_connectx3(sk, len, optval, optlen);
+		break;
 	case SCTP_DEFAULT_SEND_PARAM:
 		retval = sctp_getsockopt_default_send_param(sk, len,
 							    optval, optlen);
@@ -6620,7 +6660,7 @@ static void sctp_sock_rfree_frag(struct sk_buff *skb)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+	skb_walk_frags(skb, frag)
 		sctp_sock_rfree_frag(frag);
 
 done:
@@ -6635,7 +6675,7 @@ static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)
 		goto done;
 
 	/* Don't forget the fragments. */
-	for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next)
+	skb_walk_frags(skb, frag)
 		sctp_skb_set_owner_r_frag(frag, sk);
 
 done:

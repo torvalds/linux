@@ -637,19 +637,19 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(vga_mode) - 1;
 	sd->brightness = BRIGHTNESS_DEF;
 
-	if (sd->subtype == Nxultra) {
-		if (write_vector(gspca_dev, spca505b_init_data))
-			return -EIO;
-	} else {
-		if (write_vector(gspca_dev, spca505_init_data))
-			return -EIO;
-	}
 	return 0;
 }
 
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (write_vector(gspca_dev,
+			 sd->subtype == Nxultra
+				? spca505b_init_data
+				: spca505_init_data))
+		return -EIO;
 	return 0;
 }
 

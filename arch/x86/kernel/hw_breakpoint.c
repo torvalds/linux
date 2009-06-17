@@ -91,7 +91,7 @@ void arch_update_kernel_hw_breakpoint(void *unused)
 	 */
 	kdr7 = temp_kdr7;
 	set_debugreg(kdr7 | current->thread.debugreg7, 7);
-	put_cpu_no_resched();
+	put_cpu();
 }
 
 /*
@@ -374,7 +374,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 		rc = NOTIFY_DONE;
 
 	set_debugreg(dr7, 7);
-	put_cpu_no_resched();
+	put_cpu();
 	return rc;
 }
 

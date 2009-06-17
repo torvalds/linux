@@ -30,6 +30,10 @@ struct lguest_data
 	/* Wallclock time set by the Host. */
 	struct timespec time;
 
+	/* Interrupt pending set by the Host.  The Guest should do a hypercall
+	 * if it re-enables interrupts and sees this set (to X86_EFLAGS_IF). */
+	int irq_pending;
+
 	/* Async hypercall ring.  Instead of directly making hypercalls, we can
 	 * place them in here for processing the next time the Host wants.
 	 * This batching can be quite efficient. */

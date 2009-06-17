@@ -29,7 +29,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/idr.h>
-#include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
@@ -450,16 +449,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	INIT_LIST_HEAD(&adap->clients);
 
 	mutex_lock(&core_lock);
-
-	/* Add the adapter to the driver core.
-	 * If the parent pointer is not set up,
-	 * we add this adapter to the host bus.
-	 */
-	if (adap->dev.parent == NULL) {
-		adap->dev.parent = &platform_bus;
-		pr_debug("I2C adapter driver [%s] forgot to specify "
-			 "physical device\n", adap->name);
-	}
 
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
@@ -1022,7 +1011,8 @@ module_exit(i2c_exit);
  */
 int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	int ret;
+	unsigned long orig_jiffies;
+	int ret, try;
 
 	/* REVISIT the fault reporting model here is weak:
 	 *
@@ -1060,7 +1050,15 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			mutex_lock_nested(&adap->bus_lock, adap->level);
 		}
 
-		ret = adap->algo->master_xfer(adap,msgs,num);
+		/* Retry automatically on arbitration loss */
+		orig_jiffies = jiffies;
+		for (ret = 0, try = 0; try <= adap->retries; try++) {
+			ret = adap->algo->master_xfer(adap, msgs, num);
+			if (ret != -EAGAIN)
+				break;
+			if (time_after(jiffies, orig_jiffies + adap->timeout))
+				break;
+		}
 		mutex_unlock(&adap->bus_lock);
 
 		return ret;
@@ -1509,7 +1507,7 @@ struct i2c_adapter* i2c_get_adapter(int id)
 	struct i2c_adapter *adapter;
 
 	mutex_lock(&core_lock);
-	adapter = (struct i2c_adapter *)idr_find(&i2c_adapter_idr, id);
+	adapter = idr_find(&i2c_adapter_idr, id);
 	if (adapter && !try_module_get(adapter->owner))
 		adapter = NULL;
 
@@ -1995,14 +1993,27 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, unsigned short flags,
 		   char read_write, u8 command, int protocol,
 		   union i2c_smbus_data *data)
 {
+	unsigned long orig_jiffies;
+	int try;
 	s32 res;
 
 	flags &= I2C_M_TEN | I2C_CLIENT_PEC;
 
 	if (adapter->algo->smbus_xfer) {
 		mutex_lock(&adapter->bus_lock);
-		res = adapter->algo->smbus_xfer(adapter,addr,flags,read_write,
-						command, protocol, data);
+
+		/* Retry automatically on arbitration loss */
+		orig_jiffies = jiffies;
+		for (res = 0, try = 0; try <= adapter->retries; try++) {
+			res = adapter->algo->smbus_xfer(adapter, addr, flags,
+							read_write, command,
+							protocol, data);
+			if (res != -EAGAIN)
+				break;
+			if (time_after(jiffies,
+				       orig_jiffies + adapter->timeout))
+				break;
+		}
 		mutex_unlock(&adapter->bus_lock);
 	} else
 		res = i2c_smbus_xfer_emulated(adapter,addr,flags,read_write,

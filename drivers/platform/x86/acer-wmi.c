@@ -958,59 +958,47 @@ static void acer_rfkill_update(struct work_struct *ignored)
 
 	status = get_u32(&state, ACER_CAP_WIRELESS);
 	if (ACPI_SUCCESS(status))
-		rfkill_force_state(wireless_rfkill, state ?
-			RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED);
+		rfkill_set_sw_state(wireless_rfkill, !!state);
 
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
 		status = get_u32(&state, ACER_CAP_BLUETOOTH);
 		if (ACPI_SUCCESS(status))
-			rfkill_force_state(bluetooth_rfkill, state ?
-				RFKILL_STATE_UNBLOCKED :
-				RFKILL_STATE_SOFT_BLOCKED);
+			rfkill_set_sw_state(bluetooth_rfkill, !!state);
 	}
 
 	schedule_delayed_work(&acer_rfkill_work, round_jiffies_relative(HZ));
 }
 
-static int acer_rfkill_set(void *data, enum rfkill_state state)
+static int acer_rfkill_set(void *data, bool blocked)
 {
 	acpi_status status;
-	u32 *cap = data;
-	status = set_u32((u32) (state == RFKILL_STATE_UNBLOCKED), *cap);
+	u32 cap = (unsigned long)data;
+	status = set_u32(!!blocked, cap);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 	return 0;
 }
 
-static struct rfkill * acer_rfkill_register(struct device *dev,
-enum rfkill_type type, char *name, u32 cap)
+static const struct rfkill_ops acer_rfkill_ops = {
+	.set_block = acer_rfkill_set,
+};
+
+static struct rfkill *acer_rfkill_register(struct device *dev,
+					   enum rfkill_type type,
+					   char *name, u32 cap)
 {
 	int err;
-	u32 state;
-	u32 *data;
 	struct rfkill *rfkill_dev;
 
-	rfkill_dev = rfkill_allocate(dev, type);
+	rfkill_dev = rfkill_alloc(name, dev, type,
+				  &acer_rfkill_ops,
+				  (void *)(unsigned long)cap);
 	if (!rfkill_dev)
 		return ERR_PTR(-ENOMEM);
-	rfkill_dev->name = name;
-	get_u32(&state, cap);
-	rfkill_dev->state = state ? RFKILL_STATE_UNBLOCKED :
-		RFKILL_STATE_SOFT_BLOCKED;
-	data = kzalloc(sizeof(u32), GFP_KERNEL);
-	if (!data) {
-		rfkill_free(rfkill_dev);
-		return ERR_PTR(-ENOMEM);
-	}
-	*data = cap;
-	rfkill_dev->data = data;
-	rfkill_dev->toggle_radio = acer_rfkill_set;
-	rfkill_dev->user_claim_unsupported = 1;
 
 	err = rfkill_register(rfkill_dev);
 	if (err) {
-		kfree(rfkill_dev->data);
-		rfkill_free(rfkill_dev);
+		rfkill_destroy(rfkill_dev);
 		return ERR_PTR(err);
 	}
 	return rfkill_dev;
@@ -1028,8 +1016,8 @@ static int acer_rfkill_init(struct device *dev)
 			RFKILL_TYPE_BLUETOOTH, "acer-bluetooth",
 			ACER_CAP_BLUETOOTH);
 		if (IS_ERR(bluetooth_rfkill)) {
-			kfree(wireless_rfkill->data);
 			rfkill_unregister(wireless_rfkill);
+			rfkill_destroy(wireless_rfkill);
 			return PTR_ERR(bluetooth_rfkill);
 		}
 	}
@@ -1042,11 +1030,13 @@ static int acer_rfkill_init(struct device *dev)
 static void acer_rfkill_exit(void)
 {
 	cancel_delayed_work_sync(&acer_rfkill_work);
-	kfree(wireless_rfkill->data);
+
 	rfkill_unregister(wireless_rfkill);
+	rfkill_destroy(wireless_rfkill);
+
 	if (has_cap(ACER_CAP_BLUETOOTH)) {
-		kfree(bluetooth_rfkill->data);
 		rfkill_unregister(bluetooth_rfkill);
+		rfkill_destroy(bluetooth_rfkill);
 	}
 	return;
 }

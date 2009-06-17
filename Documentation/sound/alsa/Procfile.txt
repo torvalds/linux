@@ -88,21 +88,34 @@ card*/pcm*/info
 	substreams, etc.
 
 card*/pcm*/xrun_debug
-	This file appears when CONFIG_SND_DEBUG=y.
-	This shows the status of xrun (= buffer overrun/xrun) debug of
-	ALSA PCM middle layer, as an integer from 0 to 2.  The value
-	can be changed by writing to this file, such as
+	This file appears when CONFIG_SND_DEBUG=y and
+	CONFIG_PCM_XRUN_DEBUG=y.
+	This shows the status of xrun (= buffer overrun/xrun) and
+	invalid PCM position debug/check of ALSA PCM middle layer.
+	It takes an integer value, can be changed by writing to this
+	file, such as
 
-		 # cat 2 > /proc/asound/card0/pcm0p/xrun_debug
+		 # cat 5 > /proc/asound/card0/pcm0p/xrun_debug
 
-	When this value is greater than 0, the driver will show the
-	messages to kernel log when an xrun is detected.  The debug
-	message is shown also when the invalid H/W pointer is detected
-	at the update of periods (usually called from the interrupt
+	The value consists of the following bit flags:
+	  bit 0 = Enable XRUN/jiffies debug messages
+	  bit 1 = Show stack trace at XRUN / jiffies check
+	  bit 2 = Enable additional jiffies check
+
+	When the bit 0 is set, the driver will show the messages to
+	kernel log when an xrun is detected.  The debug message is
+	shown also when the invalid H/W pointer is detected at the
+	update of periods (usually called from the interrupt
 	handler).
 
-	When this value is greater than 1, the driver will show the
-	stack trace additionally.  This may help the debugging.
+	When the bit 1 is set, the driver will show the stack trace
+	additionally.  This may help the debugging.
+
+	Since 2.6.30, this option can enable the hwptr check using
+	jiffies.  This detects spontaneous invalid pointer callback
+	values, but can be lead to too much corrections for a (mostly
+	buggy) hardware that doesn't give smooth pointer updates.
+	This feature is enabled via the bit 2.
 
 card*/pcm*/sub*/info
 	The general information of this PCM sub-stream.

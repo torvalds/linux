@@ -75,4 +75,9 @@ static inline int is_paging(struct kvm_vcpu *vcpu)
 	return vcpu->arch.cr0 & X86_CR0_PG;
 }
 
+static inline int is_present_pte(unsigned long pte)
+{
+	return pte & PT_PRESENT_MASK;
+}
+
 #endif

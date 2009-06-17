@@ -1295,7 +1295,7 @@ static void __iomem *ppc4xx_pciex_get_config_base(struct ppc4xx_pciex_port *port
 static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int offset, int len, u32 *val)
 {
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct ppc4xx_pciex_port *port =
 		&ppc4xx_pciex_ports[hose->indirect_type];
 	void __iomem *addr;
@@ -1352,7 +1352,7 @@ static int ppc4xx_pciex_read_config(struct pci_bus *bus, unsigned int devfn,
 static int ppc4xx_pciex_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct ppc4xx_pciex_port *port =
 		&ppc4xx_pciex_ports[hose->indirect_type];
 	void __iomem *addr;

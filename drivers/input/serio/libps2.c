@@ -210,7 +210,7 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	timeout = wait_event_timeout(ps2dev->wait,
 				     !(ps2dev->flags & PS2_FLAG_CMD1), timeout);
 
-	if (ps2dev->cmdcnt && timeout > 0) {
+	if (ps2dev->cmdcnt && !(ps2dev->flags & PS2_FLAG_CMD1)) {
 
 		timeout = ps2_adjust_timeout(ps2dev, command, timeout);
 		wait_event_timeout(ps2dev->wait,

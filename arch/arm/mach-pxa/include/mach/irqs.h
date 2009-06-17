@@ -91,13 +91,23 @@
 #define IRQ_TO_GPIO(i)	(((i) < IRQ_GPIO(2)) ? ((i) - IRQ_GPIO0) : IRQ_TO_GPIO_2_x(i))
 
 /*
- * The next 16 interrupts are for board specific purposes.  Since
+ * The following interrupts are for board specific purposes. Since
  * the kernel can only run on one machine at a time, we can re-use
- * these.  If you need more, increase IRQ_BOARD_END, but keep it
- * within sensible limits.
+ * these.  There will be 16 IRQs by default.  If it is not enough,
+ * IRQ_BOARD_END is allowed be customized for each board, but keep
+ * the numbers within sensible limits and in descending order, so
+ * when multiple config options are selected, the maximum will be
+ * used.
  */
 #define IRQ_BOARD_START		(PXA_GPIO_IRQ_BASE + PXA_GPIO_IRQ_NUM)
+
+#if defined(CONFIG_MACH_H4700)
+#define IRQ_BOARD_END		(IRQ_BOARD_START + 70)
+#elif defined(CONFIG_MACH_ZYLONITE)
+#define IRQ_BOARD_END		(IRQ_BOARD_START + 32)
+#else
 #define IRQ_BOARD_END		(IRQ_BOARD_START + 16)
+#endif
 
 #define IRQ_SA1111_START	(IRQ_BOARD_END)
 #define IRQ_GPAIN0		(IRQ_BOARD_END + 0)
@@ -188,8 +198,6 @@
 #define NR_IRQS			(IRQ_LOCOMO_SPI_TEND + 1)
 #elif defined(CONFIG_PXA_HAVE_BOARD_IRQS)
 #define NR_IRQS			(IRQ_BOARD_END)
-#elif defined(CONFIG_MACH_ZYLONITE)
-#define NR_IRQS			(IRQ_BOARD_START + 32)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif

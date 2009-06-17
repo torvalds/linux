@@ -42,6 +42,7 @@ static void ext2_sync_super(struct super_block *sb,
 			    struct ext2_super_block *es);
 static int ext2_remount (struct super_block * sb, int * flags, char * data);
 static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf);
+static int ext2_sync_fs(struct super_block *sb, int wait);
 
 void ext2_error (struct super_block * sb, const char * function,
 		 const char * fmt, ...)
@@ -114,6 +115,11 @@ static void ext2_put_super (struct super_block * sb)
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
+	lock_kernel();
+
+	if (sb->s_dirt)
+		ext2_write_super(sb);
+
 	ext2_xattr_put_super(sb);
 	if (!(sb->s_flags & MS_RDONLY)) {
 		struct ext2_super_block *es = sbi->s_es;
@@ -135,7 +141,7 @@ static void ext2_put_super (struct super_block * sb)
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 
-	return;
+	unlock_kernel();
 }
 
 static struct kmem_cache * ext2_inode_cachep;
@@ -304,6 +310,7 @@ static const struct super_operations ext2_sops = {
 	.delete_inode	= ext2_delete_inode,
 	.put_super	= ext2_put_super,
 	.write_super	= ext2_write_super,
+	.sync_fs	= ext2_sync_fs,
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
 	.clear_inode	= ext2_clear_inode,
@@ -1093,6 +1100,7 @@ failed_mount:
 	brelse(bh);
 failed_sbi:
 	sb->s_fs_info = NULL;
+	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	return ret;
 }
@@ -1126,25 +1134,36 @@ static void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es)
  * set s_state to EXT2_VALID_FS after some corrections.
  */
 
-void ext2_write_super (struct super_block * sb)
+static int ext2_sync_fs(struct super_block *sb, int wait)
 {
-	struct ext2_super_block * es;
-	lock_kernel();
-	if (!(sb->s_flags & MS_RDONLY)) {
-		es = EXT2_SB(sb)->s_es;
+	struct ext2_super_block *es = EXT2_SB(sb)->s_es;
 
-		if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
-			ext2_debug ("setting valid to 0\n");
-			es->s_state &= cpu_to_le16(~EXT2_VALID_FS);
-			es->s_free_blocks_count = cpu_to_le32(ext2_count_free_blocks(sb));
-			es->s_free_inodes_count = cpu_to_le32(ext2_count_free_inodes(sb));
-			es->s_mtime = cpu_to_le32(get_seconds());
-			ext2_sync_super(sb, es);
-		} else
-			ext2_commit_super (sb, es);
+	lock_kernel();
+	if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {
+		ext2_debug("setting valid to 0\n");
+		es->s_state &= cpu_to_le16(~EXT2_VALID_FS);
+		es->s_free_blocks_count =
+			cpu_to_le32(ext2_count_free_blocks(sb));
+		es->s_free_inodes_count =
+			cpu_to_le32(ext2_count_free_inodes(sb));
+		es->s_mtime = cpu_to_le32(get_seconds());
+		ext2_sync_super(sb, es);
+	} else {
+		ext2_commit_super(sb, es);
 	}
 	sb->s_dirt = 0;
 	unlock_kernel();
+
+	return 0;
+}
+
+
+void ext2_write_super(struct super_block *sb)
+{
+	if (!(sb->s_flags & MS_RDONLY))
+		ext2_sync_fs(sb, 1);
+	else
+		sb->s_dirt = 0;
 }
 
 static int ext2_remount (struct super_block * sb, int * flags, char * data)
@@ -1155,6 +1174,8 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	struct ext2_mount_options old_opts;
 	unsigned long old_sb_flags;
 	int err;
+
+	lock_kernel();
 
 	/* Store the old options */
 	old_sb_flags = sb->s_flags;
@@ -1191,12 +1212,16 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
 		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
 	}
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+		unlock_kernel();
 		return 0;
+	}
 	if (*flags & MS_RDONLY) {
 		if (le16_to_cpu(es->s_state) & EXT2_VALID_FS ||
-		    !(sbi->s_mount_state & EXT2_VALID_FS))
+		    !(sbi->s_mount_state & EXT2_VALID_FS)) {
+			unlock_kernel();
 			return 0;
+		}
 		/*
 		 * OK, we are remounting a valid rw partition rdonly, so set
 		 * the rdonly flag and then mark the partition as valid again.
@@ -1223,12 +1248,14 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			sb->s_flags &= ~MS_RDONLY;
 	}
 	ext2_sync_super(sb, es);
+	unlock_kernel();
 	return 0;
 restore_opts:
 	sbi->s_mount_opt = old_opts.s_mount_opt;
 	sbi->s_resuid = old_opts.s_resuid;
 	sbi->s_resgid = old_opts.s_resgid;
 	sb->s_flags = old_sb_flags;
+	unlock_kernel();
 	return err;
 }
 

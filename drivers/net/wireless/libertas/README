@@ -72,7 +72,7 @@ rdrf
 	location that is to be read.  This parameter must be specified in
 	hexadecimal (its possible to preceed preceding the number with a "0x").
 
-	Path: /debugfs/libertas_wireless/ethX/registers/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/registers/
 
 	Usage:
 		echo "0xa123" > rdmac ; cat rdmac
@@ -95,7 +95,7 @@ wrrf
 sleepparams
 	This command is used to set the sleepclock configurations
 
-	Path: /debugfs/libertas_wireless/ethX/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/
 
 	Usage:
 		cat sleepparams: reads the current sleepclock configuration
@@ -115,7 +115,7 @@ subscribed_events
 	The subscribed_events directory contains the interface for the
 	subscribed events API.
 
-	Path: /debugfs/libertas_wireless/ethX/subscribed_events/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/subscribed_events/
 
 	Each event is represented by a filename. Each filename consists of the
 	following three fields:
@@ -165,7 +165,7 @@ subscribed_events
 extscan
 	This command is used to do a specific scan.
 
-	Path: /debugfs/libertas_wireless/ethX/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/
 
 	Usage: echo "SSID" > extscan
 
@@ -179,7 +179,7 @@ getscantable
 	Display the current contents of the driver scan table (ie. get the
 	scan results).
 
-	Path: /debugfs/libertas_wireless/ethX/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/
 
 	Usage:
 		cat getscantable
@@ -188,7 +188,7 @@ setuserscan
 	Initiate a customized scan and retrieve the results
 
 
-	Path: /debugfs/libertas_wireless/ethX/
+	Path: /sys/kernel/debug/libertas_wireless/ethX/
 
     Usage:
        echo "[ARGS]" > setuserscan

@@ -362,7 +362,7 @@ static void raid5_unplug_device(struct request_queue *q);
 
 static struct stripe_head *
 get_active_stripe(raid5_conf_t *conf, sector_t sector,
-		  int previous, int noblock)
+		  int previous, int noblock, int noquiesce)
 {
 	struct stripe_head *sh;
 
@@ -372,7 +372,7 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 
 	do {
 		wait_event_lock_irq(conf->wait_for_stripe,
-				    conf->quiesce == 0,
+				    conf->quiesce == 0 || noquiesce,
 				    conf->device_lock, /* nothing */);
 		sh = __find_stripe(conf, sector, conf->generation - previous);
 		if (!sh) {
@@ -2671,7 +2671,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
 			sector_t bn = compute_blocknr(sh, i, 1);
 			sector_t s = raid5_compute_sector(conf, bn, 0,
 							  &dd_idx, NULL);
-			sh2 = get_active_stripe(conf, s, 0, 1);
+			sh2 = get_active_stripe(conf, s, 0, 1, 1);
 			if (sh2 == NULL)
 				/* so far only the early blocks of this stripe
 				 * have been requested.  When later blocks
@@ -2944,7 +2944,7 @@ static bool handle_stripe5(struct stripe_head *sh)
 	/* Finish reconstruct operations initiated by the expansion process */
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		struct stripe_head *sh2
-			= get_active_stripe(conf, sh->sector, 1, 1);
+			= get_active_stripe(conf, sh->sector, 1, 1, 1);
 		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
 			/* sh cannot be written until sh2 has been read.
 			 * so arrange for sh to be delayed a little
@@ -3189,7 +3189,7 @@ static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state)) {
 		struct stripe_head *sh2
-			= get_active_stripe(conf, sh->sector, 1, 1);
+			= get_active_stripe(conf, sh->sector, 1, 1, 1);
 		if (sh2 && test_bit(STRIPE_EXPAND_SOURCE, &sh2->state)) {
 			/* sh cannot be written until sh2 has been read.
 			 * so arrange for sh to be delayed a little
@@ -3288,7 +3288,7 @@ static void unplug_slaves(mddev_t *mddev)
 	int i;
 
 	rcu_read_lock();
-	for (i=0; i<mddev->raid_disks; i++) {
+	for (i = 0; i < conf->raid_disks; i++) {
 		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			struct request_queue *r_queue = bdev_get_queue(rdev->bdev);
@@ -3463,10 +3463,10 @@ static int bio_fits_rdev(struct bio *bi)
 {
 	struct request_queue *q = bdev_get_queue(bi->bi_bdev);
 
-	if ((bi->bi_size>>9) > q->max_sectors)
+	if ((bi->bi_size>>9) > queue_max_sectors(q))
 		return 0;
 	blk_recount_segments(q, bi);
-	if (bi->bi_phys_segments > q->max_phys_segments)
+	if (bi->bi_phys_segments > queue_max_phys_segments(q))
 		return 0;
 
 	if (q->merge_bvec_fn)
@@ -3675,7 +3675,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 			(unsigned long long)logical_sector);
 
 		sh = get_active_stripe(conf, new_sector, previous,
-				       (bi->bi_rw&RWA_MASK));
+				       (bi->bi_rw&RWA_MASK), 0);
 		if (sh) {
 			if (unlikely(previous)) {
 				/* expansion might have moved on while waiting for a
@@ -3811,13 +3811,13 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	safepos = conf->reshape_safe;
 	sector_div(safepos, data_disks);
 	if (mddev->delta_disks < 0) {
-		writepos -= reshape_sectors;
+		writepos -= min_t(sector_t, reshape_sectors, writepos);
 		readpos += reshape_sectors;
 		safepos += reshape_sectors;
 	} else {
 		writepos += reshape_sectors;
-		readpos -= reshape_sectors;
-		safepos -= reshape_sectors;
+		readpos -= min_t(sector_t, reshape_sectors, readpos);
+		safepos -= min_t(sector_t, reshape_sectors, safepos);
 	}
 
 	/* 'writepos' is the most advanced device address we might write.
@@ -3873,7 +3873,7 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	for (i = 0; i < reshape_sectors; i += STRIPE_SECTORS) {
 		int j;
 		int skipped = 0;
-		sh = get_active_stripe(conf, stripe_addr+i, 0, 0);
+		sh = get_active_stripe(conf, stripe_addr+i, 0, 0, 1);
 		set_bit(STRIPE_EXPANDING, &sh->state);
 		atomic_inc(&conf->reshape_stripes);
 		/* If any of this stripe is beyond the end of the old
@@ -3916,13 +3916,13 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 		raid5_compute_sector(conf, stripe_addr*(new_data_disks),
 				     1, &dd_idx, NULL);
 	last_sector =
-		raid5_compute_sector(conf, ((stripe_addr+conf->chunk_size/512)
+		raid5_compute_sector(conf, ((stripe_addr+reshape_sectors)
 					    *(new_data_disks) - 1),
 				     1, &dd_idx, NULL);
 	if (last_sector >= mddev->dev_sectors)
 		last_sector = mddev->dev_sectors - 1;
 	while (first_sector <= last_sector) {
-		sh = get_active_stripe(conf, first_sector, 1, 0);
+		sh = get_active_stripe(conf, first_sector, 1, 0, 1);
 		set_bit(STRIPE_EXPAND_SOURCE, &sh->state);
 		set_bit(STRIPE_HANDLE, &sh->state);
 		release_stripe(sh);
@@ -4022,9 +4022,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
 
-	sh = get_active_stripe(conf, sector_nr, 0, 1);
+	sh = get_active_stripe(conf, sector_nr, 0, 1, 0);
 	if (sh == NULL) {
-		sh = get_active_stripe(conf, sector_nr, 0, 0);
+		sh = get_active_stripe(conf, sector_nr, 0, 0, 0);
 		/* make sure we don't swamp the stripe cache if someone else
 		 * is trying to get access
 		 */
@@ -4034,7 +4034,7 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	 * We don't need to check the 'failed' flag as when that gets set,
 	 * recovery aborts.
 	 */
-	for (i=0; i<mddev->raid_disks; i++)
+	for (i = 0; i < conf->raid_disks; i++)
 		if (conf->disks[i].rdev == NULL)
 			still_degraded = 1;
 
@@ -4086,7 +4086,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 			/* already done this stripe */
 			continue;
 
-		sh = get_active_stripe(conf, sector, 0, 1);
+		sh = get_active_stripe(conf, sector, 0, 1, 0);
 
 		if (!sh) {
 			/* failed to get a stripe - must wait */

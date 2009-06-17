@@ -134,13 +134,17 @@ static ide_startstop_t ide_floppy_issue_pc(ide_drive_t *drive,
 	drive->pc = pc;
 
 	if (pc->retries > IDEFLOPPY_MAX_PC_RETRIES) {
+		unsigned int done = blk_rq_bytes(drive->hwif->rq);
+
 		if (!(pc->flags & PC_FLAG_SUPPRESS_ERROR))
 			ide_floppy_report_error(floppy, pc);
+
 		/* Giving up */
 		pc->error = IDE_DRV_ERROR_GENERAL;
 
 		drive->failed_pc = NULL;
 		drive->pc_callback(drive, 0);
+		ide_complete_rq(drive, -EIO, done);
 		return ide_stopped;
 	}
 
@@ -190,7 +194,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	int block = sector / floppy->bs_factor;
-	int blocks = rq->nr_sectors / floppy->bs_factor;
+	int blocks = blk_rq_sectors(rq) / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
 	ide_debug_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
@@ -216,16 +220,14 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 	ide_init_pc(pc);
 	memcpy(pc->c, rq->cmd, sizeof(pc->c));
 	pc->rq = rq;
-	if (rq->data_len && rq_data_dir(rq) == WRITE)
-		pc->flags |= PC_FLAG_WRITING;
-	pc->buf = rq->data;
-	if (rq->bio)
+	if (blk_rq_bytes(rq)) {
 		pc->flags |= PC_FLAG_DMA_OK;
-	/*
-	 * possibly problematic, doesn't look like ide-floppy correctly
-	 * handled scattered requests if dma fails...
-	 */
-	pc->req_xfer = pc->buf_size = rq->data_len;
+		if (rq_data_dir(rq) == WRITE)
+			pc->flags |= PC_FLAG_WRITING;
+	}
+	/* pio will be performed by ide_pio_bytes() which handles sg fine */
+	pc->buf = NULL;
+	pc->req_xfer = pc->buf_size = blk_rq_bytes(rq);
 }
 
 static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
@@ -257,16 +259,16 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			goto out_end;
 	}
 	if (blk_fs_request(rq)) {
-		if (((long)rq->sector % floppy->bs_factor) ||
-		    (rq->nr_sectors % floppy->bs_factor)) {
+		if (((long)blk_rq_pos(rq) % floppy->bs_factor) ||
+		    (blk_rq_sectors(rq) % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
 				drive->name);
 			goto out_end;
 		}
 		pc = &floppy->queued_pc;
 		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
-	} else if (blk_special_request(rq)) {
-		pc = (struct ide_atapi_pc *) rq->buffer;
+	} else if (blk_special_request(rq) || blk_sense_request(rq)) {
+		pc = (struct ide_atapi_pc *)rq->special;
 	} else if (blk_pc_request(rq)) {
 		pc = &floppy->queued_pc;
 		idefloppy_blockpc_cmd(floppy, pc, rq);
@@ -274,6 +276,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 		blk_dump_rq_flags(rq, PFX "unsupported command in queue");
 		goto out_end;
 	}
+
+	ide_prep_sense(drive, rq);
 
 	memset(&cmd, 0, sizeof(cmd));
 

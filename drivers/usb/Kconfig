@@ -22,6 +22,7 @@ config USB_ARCH_HAS_HCD
 	default y if PCMCIA && !M32R			# sl811_cs
 	default y if ARM				# SL-811
 	default y if SUPERH				# r8a66597-hcd
+	default y if MICROBLAZE
 	default PCI
 
 # many non-PCI SOC chips embed OHCI
@@ -63,6 +64,7 @@ config USB_ARCH_HAS_EHCI
 config USB
 	tristate "Support for Host-side USB"
 	depends on USB_ARCH_HAS_HCD
+	select NLS  # for UTF-8 strings
 	---help---
 	  Universal Serial Bus (USB) is a specification for a serial bus
 	  subsystem which offers higher speeds and more features than the

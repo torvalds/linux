@@ -26,7 +26,7 @@ registers and the stack. If the first argument is a 64-bit value, it will be
 passed in D0:D1. If the first argument is not a 64-bit value, but the second
 is, the second will be passed entirely on the stack and D1 will be unused.
 
-Arguments smaller than 32-bits are not coelesced within a register or a stack
+Arguments smaller than 32-bits are not coalesced within a register or a stack
 word. For example, two byte-sized arguments will always be passed in separate
 registers or word-sized stack slots.
 

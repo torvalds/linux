@@ -165,6 +165,7 @@ enum {
 	MLX4_WQE_CTRL_IP_CSUM		= 1 << 4,
 	MLX4_WQE_CTRL_TCP_UDP_CSUM	= 1 << 5,
 	MLX4_WQE_CTRL_INS_VLAN		= 1 << 6,
+	MLX4_WQE_CTRL_STRONG_ORDER	= 1 << 7,
 };
 
 struct mlx4_wqe_ctrl_seg {

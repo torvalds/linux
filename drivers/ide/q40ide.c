@@ -51,11 +51,11 @@ static int q40ide_default_irq(unsigned long base)
 /*
  * Addresses are pretranslated for Q40 ISA access.
  */
-static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
+static void q40_ide_setup_ports(struct ide_hw *hw, unsigned long base,
 			ide_ack_intr_t *ack_intr,
 			int irq)
 {
-	memset(hw, 0, sizeof(hw_regs_t));
+	memset(hw, 0, sizeof(*hw));
 	/* BIG FAT WARNING: 
 	   assumption: only DATA port is ever used in 16 bit mode */
 	hw->io_ports.data_addr = Q40_ISA_IO_W(base);
@@ -70,8 +70,6 @@ static void q40_ide_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = irq;
 	hw->ack_intr = ack_intr;
-
-	hw->chipset = ide_generic;
 }
 
 static void q40ide_input_data(ide_drive_t *drive, struct ide_cmd *cmd,
@@ -119,6 +117,7 @@ static const struct ide_port_info q40ide_port_info = {
 	.tp_ops			= &q40ide_tp_ops,
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_generic,
 };
 
 /* 
@@ -136,7 +135,7 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 static int __init q40ide_init(void)
 {
     int i;
-    hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
+    struct ide_hw hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL };
 
     if (!MACH_IS_Q40)
       return -ENODEV;
@@ -163,7 +162,7 @@ static int __init q40ide_init(void)
 	hws[i] = &hw[i];
     }
 
-    return ide_host_add(&q40ide_port_info, hws, NULL);
+    return ide_host_add(&q40ide_port_info, hws, Q40IDE_NUM_HWIFS, NULL);
 }
 
 module_init(q40ide_init);

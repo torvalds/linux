@@ -420,9 +420,9 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		cs->control |= ZD_CS_NEED_RANDOM_BACKOFF;
 
-	/* Multicast */
-	if (is_multicast_ether_addr(header->addr1))
-		cs->control |= ZD_CS_MULTICAST;
+	/* No ACK expected (multicast, etc.) */
+	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+		cs->control |= ZD_CS_NO_ACK;
 
 	/* PS-POLL */
 	if (ieee80211_is_pspoll(header->frame_control))
@@ -755,52 +755,6 @@ static int zd_op_config(struct ieee80211_hw *hw, u32 changed)
 	return zd_chip_set_channel(&mac->chip, conf->channel->hw_value);
 }
 
-static int zd_op_config_interface(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif,
-				   struct ieee80211_if_conf *conf)
-{
-	struct zd_mac *mac = zd_hw_mac(hw);
-	int associated;
-	int r;
-
-	if (mac->type == NL80211_IFTYPE_MESH_POINT ||
-	    mac->type == NL80211_IFTYPE_ADHOC) {
-		associated = true;
-		if (conf->changed & IEEE80211_IFCC_BEACON) {
-			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
-
-			if (!beacon)
-				return -ENOMEM;
-			r = zd_mac_config_beacon(hw, beacon);
-			kfree_skb(beacon);
-
-			if (r < 0)
-				return r;
-		}
-
-		if (conf->changed & IEEE80211_IFCC_BEACON_ENABLED) {
-			u32 interval;
-
-			if (conf->enable_beacon)
-				interval = BCN_MODE_IBSS | hw->conf.beacon_int;
-			else
-				interval = 0;
-
-			r = zd_set_beacon_interval(&mac->chip, interval);
-			if (r < 0)
-				return r;
-		}
-	} else
-		associated = is_valid_ether_addr(conf->bssid);
-
-	spin_lock_irq(&mac->lock);
-	mac->associated = associated;
-	spin_unlock_irq(&mac->lock);
-
-	/* TODO: do hardware bssid filtering */
-	return 0;
-}
-
 static void zd_process_intr(struct work_struct *work)
 {
 	u16 int_status;
@@ -923,8 +877,41 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	unsigned long flags;
+	int associated;
 
 	dev_dbg_f(zd_mac_dev(mac), "changes: %x\n", changes);
+
+	if (mac->type == NL80211_IFTYPE_MESH_POINT ||
+	    mac->type == NL80211_IFTYPE_ADHOC) {
+		associated = true;
+		if (changes & BSS_CHANGED_BEACON) {
+			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+
+			if (beacon) {
+				zd_mac_config_beacon(hw, beacon);
+				kfree_skb(beacon);
+			}
+		}
+
+		if (changes & BSS_CHANGED_BEACON_ENABLED) {
+			u32 interval;
+
+			if (bss_conf->enable_beacon)
+				interval = BCN_MODE_IBSS |
+						bss_conf->beacon_int;
+			else
+				interval = 0;
+
+			zd_set_beacon_interval(&mac->chip, interval);
+		}
+	} else
+		associated = is_valid_ether_addr(bss_conf->bssid);
+
+	spin_lock_irq(&mac->lock);
+	mac->associated = associated;
+	spin_unlock_irq(&mac->lock);
+
+	/* TODO: do hardware bssid filtering */
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
 		spin_lock_irqsave(&mac->lock, flags);
@@ -952,7 +939,6 @@ static const struct ieee80211_ops zd_ops = {
 	.add_interface		= zd_op_add_interface,
 	.remove_interface	= zd_op_remove_interface,
 	.config			= zd_op_config,
-	.config_interface	= zd_op_config_interface,
 	.configure_filter	= zd_op_configure_filter,
 	.bss_info_changed	= zd_op_bss_info_changed,
 	.get_tsf		= zd_op_get_tsf,

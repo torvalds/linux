@@ -347,7 +347,7 @@ static void __exit hvcs_module_exit(void);
 
 static inline struct hvcs_struct *from_vio_dev(struct vio_dev *viod)
 {
-	return viod->dev.driver_data;
+	return dev_get_drvdata(&viod->dev);
 }
 /* The sysfs interface for the driver and devices */
 
@@ -785,7 +785,7 @@ static int __devinit hvcs_probe(
 	kref_init(&hvcsd->kref);
 
 	hvcsd->vdev = dev;
-	dev->dev.driver_data = hvcsd;
+	dev_set_drvdata(&dev->dev, hvcsd);
 
 	hvcsd->index = index;
 
@@ -831,7 +831,7 @@ static int __devinit hvcs_probe(
 
 static int __devexit hvcs_remove(struct vio_dev *dev)
 {
-	struct hvcs_struct *hvcsd = dev->dev.driver_data;
+	struct hvcs_struct *hvcsd = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 	struct tty_struct *tty;
 

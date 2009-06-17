@@ -23,39 +23,20 @@
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
 
-#ifdef CONFIG_PPC32
-# define GET_ADDR(addr) addr
-#else
-/* PowerPC64's functions are data that points to the functions */
-# define GET_ADDR(addr) (*(unsigned long *)addr)
-#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static unsigned int ftrace_nop_replace(void)
-{
-	return PPC_INST_NOP;
-}
-
 static unsigned int
 ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
 	unsigned int op;
 
-	addr = GET_ADDR(addr);
+	addr = ppc_function_entry((void *)addr);
 
 	/* if (link) set op to 'bl' else 'b' */
 	op = create_branch((unsigned int *)ip, addr, link ? 1 : 0);
 
 	return op;
 }
-
-#ifdef CONFIG_PPC64
-# define _ASM_ALIGN	" .align 3 "
-# define _ASM_PTR	" .llong "
-#else
-# define _ASM_ALIGN	" .align 2 "
-# define _ASM_PTR	" .long "
-#endif
 
 static int
 ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
@@ -157,7 +138,7 @@ __ftrace_make_nop(struct module *mod,
 	 * 0xe8, 0x4c, 0x00, 0x28,    ld      r2,40(r12)
 	 */
 
-	pr_debug("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
+	pr_devel("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -165,7 +146,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d820000) ||
@@ -181,23 +162,23 @@ __ftrace_make_nop(struct module *mod,
 	offset = ((unsigned)((unsigned short)jmp[0]) << 16) +
 		(int)((short)jmp[1]);
 
-	pr_debug(" %x ", offset);
+	pr_devel(" %x ", offset);
 
 	/* get the address this jumps too */
 	tramp = mod->arch.toc + offset + 32;
-	pr_debug("toc: %lx", tramp);
+	pr_devel("toc: %lx", tramp);
 
 	if (probe_kernel_read(jmp, (void *)tramp, 8)) {
 		printk(KERN_ERR "Failed to read %lx\n", tramp);
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x\n", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x\n", jmp[0], jmp[1]);
 
 	ptr = ((unsigned long)jmp[0] << 32) + jmp[1];
 
 	/* This should match what was called */
-	if (ptr != GET_ADDR(addr)) {
+	if (ptr != ppc_function_entry((void *)addr)) {
 		printk(KERN_ERR "addr does not match %lx\n", ptr);
 		return -EINVAL;
 	}
@@ -269,7 +250,7 @@ __ftrace_make_nop(struct module *mod,
 	 *  0x4e, 0x80, 0x04, 0x20  bctr
 	 */
 
-	pr_debug("ip:%lx jumps to %lx", ip, tramp);
+	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -277,7 +258,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x ", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x ", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d600000) ||
@@ -293,7 +274,7 @@ __ftrace_make_nop(struct module *mod,
 	if (tramp & 0x8000)
 		tramp -= 0x10000;
 
-	pr_debug(" %lx ", tramp);
+	pr_devel(" %lx ", tramp);
 
 	if (tramp != addr) {
 		printk(KERN_ERR
@@ -328,7 +309,7 @@ int ftrace_make_nop(struct module *mod,
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_call_replace(ip, addr, 1);
-		new = ftrace_nop_replace();
+		new = PPC_INST_NOP;
 		return ftrace_modify_code(ip, old, new);
 	}
 
@@ -402,7 +383,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* ld r2,40(r1) */
 	op[1] = 0xe8410028;
 
-	pr_debug("write to %lx\n", rec->ip);
+	pr_devel("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, op, MCOUNT_INSN_SIZE * 2))
 		return -EPERM;
@@ -442,7 +423,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	pr_debug("write to %lx\n", rec->ip);
+	pr_devel("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -466,7 +447,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ftrace_nop_replace();
+		old = PPC_INST_NOP;
 		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	}
@@ -570,7 +551,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return_hooker = (unsigned long)&mod_return_to_handler;
 #endif
 
-	return_hooker = GET_ADDR(return_hooker);
+	return_hooker = ppc_function_entry((void *)return_hooker);
 
 	/*
 	 * Protect against fault, even if it shouldn't
@@ -594,7 +575,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 			PPC_LONG "2b,4b\n"
 		".previous"
 
-		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [old] "=&r" (old), [faulted] "=r" (faulted)
 		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
 	);

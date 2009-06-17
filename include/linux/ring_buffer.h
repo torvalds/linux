@@ -1,6 +1,7 @@
 #ifndef _LINUX_RING_BUFFER_H
 #define _LINUX_RING_BUFFER_H
 
+#include <linux/kmemcheck.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 
@@ -11,7 +12,10 @@ struct ring_buffer_iter;
  * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
+	kmemcheck_bitfield_begin(bitfield);
 	u32		type_len:5, time_delta:27;
+	kmemcheck_bitfield_end(bitfield);
+
 	u32		array[];
 };
 
@@ -105,7 +109,19 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
  * size is in bytes for each per CPU buffer.
  */
 struct ring_buffer *
-ring_buffer_alloc(unsigned long size, unsigned flags);
+__ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *key);
+
+/*
+ * Because the ring buffer is generic, if other users of the ring buffer get
+ * traced by ftrace, it can produce lockdep warnings. We need to keep each
+ * ring buffer's lock class separate.
+ */
+#define ring_buffer_alloc(size, flags)			\
+({							\
+	static struct lock_class_key __key;		\
+	__ring_buffer_alloc((size), (flags), &__key);	\
+})
+
 void ring_buffer_free(struct ring_buffer *buffer);
 
 int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size);

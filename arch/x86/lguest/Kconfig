@@ -2,7 +2,6 @@ config LGUEST_GUEST
 	bool "Lguest guest support"
 	select PARAVIRT
 	depends on X86_32
-	depends on !X86_PAE
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE

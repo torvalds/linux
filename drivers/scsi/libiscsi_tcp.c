@@ -440,8 +440,8 @@ void iscsi_tcp_cleanup_task(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct iscsi_r2t_info *r2t;
 
-	/* nothing to do for mgmt or pending tasks */
-	if (!task->sc || task->state == ISCSI_TASK_PENDING)
+	/* nothing to do for mgmt */
+	if (!task->sc)
 		return;
 
 	/* flush task's r2t queues */
@@ -473,7 +473,13 @@ static int iscsi_tcp_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 	int datasn = be32_to_cpu(rhdr->datasn);
 	unsigned total_in_length = scsi_in(task->sc)->length;
 
-	iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
+	/*
+	 * lib iscsi will update this in the completion handling if there
+	 * is status.
+	 */
+	if (!(rhdr->flags & ISCSI_FLAG_DATA_STATUS))
+		iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
+
 	if (tcp_conn->in.datalen == 0)
 		return 0;
 
@@ -857,6 +863,12 @@ int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
 	int rc = 0;
 
 	ISCSI_DBG_TCP(conn, "in %d bytes\n", skb->len - offset);
+	/*
+	 * Update for each skb instead of pdu, because over slow networks a
+	 * data_in's data could take a while to read in. We also want to
+	 * account for r2ts.
+	 */
+	conn->last_recv = jiffies;
 
 	if (unlikely(conn->suspend_rx)) {
 		ISCSI_DBG_TCP(conn, "Rx suspended!\n");

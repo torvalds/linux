@@ -377,14 +377,14 @@ void capi_ctr_ready(struct capi_ctr * card)
 EXPORT_SYMBOL(capi_ctr_ready);
 
 /**
- * capi_ctr_reseted() - signal CAPI controller reset
+ * capi_ctr_down() - signal CAPI controller not ready
  * @card:	controller descriptor structure.
  *
  * Called by hardware driver to signal that the controller is down and
  * unavailable for use.
  */
 
-void capi_ctr_reseted(struct capi_ctr * card)
+void capi_ctr_down(struct capi_ctr * card)
 {
 	u16 appl;
 
@@ -413,7 +413,7 @@ void capi_ctr_reseted(struct capi_ctr * card)
 	notify_push(KCI_CONTRDOWN, card->cnr, 0, 0);
 }
 
-EXPORT_SYMBOL(capi_ctr_reseted);
+EXPORT_SYMBOL(capi_ctr_down);
 
 /**
  * capi_ctr_suspend_output() - suspend controller
@@ -517,7 +517,7 @@ EXPORT_SYMBOL(attach_capi_ctr);
 int detach_capi_ctr(struct capi_ctr *card)
 {
         if (card->cardstate != CARD_DETECTED)
-		capi_ctr_reseted(card);
+		capi_ctr_down(card);
 
 	ncards--;
 

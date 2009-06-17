@@ -190,7 +190,8 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
-#define   I830_FENCE_MAX_PITCH_VAL	0x10
+#define   I915_FENCE_MAX_PITCH_VAL	0x10
+#define   I830_FENCE_MAX_PITCH_VAL	6
 #define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
 #define   I915_FENCE_START_MASK		0x0ff00000
@@ -449,6 +450,13 @@
 #define   PLLB_REF_INPUT_SPREADSPECTRUMIN (3 << 13)
 #define   PLL_REF_INPUT_MASK		(3 << 13)
 #define   PLL_LOAD_PULSE_PHASE_SHIFT		9
+/* IGDNG */
+# define PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT     9
+# define PLL_REF_SDVO_HDMI_MULTIPLIER_MASK      (7 << 9)
+# define PLL_REF_SDVO_HDMI_MULTIPLIER(x)	(((x)-1) << 9)
+# define DPLL_FPA1_P1_POST_DIV_SHIFT            0
+# define DPLL_FPA1_P1_POST_DIV_MASK             0xff
+
 /*
  * Parallel to Serial Load Pulse phase selection.
  * Selects the phase for the 10X DPLL clock for the PCIe
@@ -630,8 +638,11 @@
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN		0x61110
 #define   HDMIB_HOTPLUG_INT_EN			(1 << 29)
+#define   DPB_HOTPLUG_INT_EN			(1 << 29)
 #define   HDMIC_HOTPLUG_INT_EN			(1 << 28)
+#define   DPC_HOTPLUG_INT_EN			(1 << 28)
 #define   HDMID_HOTPLUG_INT_EN			(1 << 27)
+#define   DPD_HOTPLUG_INT_EN			(1 << 27)
 #define   SDVOB_HOTPLUG_INT_EN			(1 << 26)
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
@@ -664,8 +675,11 @@
 
 #define PORT_HOTPLUG_STAT	0x61114
 #define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
+#define   DPB_HOTPLUG_INT_STATUS		(1 << 29)
 #define   HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
+#define   DPC_HOTPLUG_INT_STATUS		(1 << 28)
 #define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
+#define   DPD_HOTPLUG_INT_STATUS		(1 << 27)
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
 #define   CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
@@ -950,15 +964,15 @@
 # define DAC_A_1_3_V			(0 << 4)
 # define DAC_A_1_1_V			(1 << 4)
 # define DAC_A_0_7_V			(2 << 4)
-# define DAC_A_OFF			(3 << 4)
+# define DAC_A_MASK			(3 << 4)
 # define DAC_B_1_3_V			(0 << 2)
 # define DAC_B_1_1_V			(1 << 2)
 # define DAC_B_0_7_V			(2 << 2)
-# define DAC_B_OFF			(3 << 2)
+# define DAC_B_MASK			(3 << 2)
 # define DAC_C_1_3_V			(0 << 0)
 # define DAC_C_1_1_V			(1 << 0)
 # define DAC_C_0_7_V			(2 << 0)
-# define DAC_C_OFF			(3 << 0)
+# define DAC_C_MASK			(3 << 0)
 
 /**
  * CSC coefficients are stored in a floating point format with 9 bits of
@@ -1327,6 +1341,163 @@
 #define TV_V_CHROMA_0		0x68400
 #define TV_V_CHROMA_42		0x684a8
 
+/* Display Port */
+#define DP_B				0x64100
+#define DP_C				0x64200
+#define DP_D				0x64300
+
+#define   DP_PORT_EN			(1 << 31)
+#define   DP_PIPEB_SELECT		(1 << 30)
+
+/* Link training mode - select a suitable mode for each stage */
+#define   DP_LINK_TRAIN_PAT_1		(0 << 28)
+#define   DP_LINK_TRAIN_PAT_2		(1 << 28)
+#define   DP_LINK_TRAIN_PAT_IDLE	(2 << 28)
+#define   DP_LINK_TRAIN_OFF		(3 << 28)
+#define   DP_LINK_TRAIN_MASK		(3 << 28)
+#define   DP_LINK_TRAIN_SHIFT		28
+
+/* Signal voltages. These are mostly controlled by the other end */
+#define   DP_VOLTAGE_0_4		(0 << 25)
+#define   DP_VOLTAGE_0_6		(1 << 25)
+#define   DP_VOLTAGE_0_8		(2 << 25)
+#define   DP_VOLTAGE_1_2		(3 << 25)
+#define   DP_VOLTAGE_MASK		(7 << 25)
+#define   DP_VOLTAGE_SHIFT		25
+
+/* Signal pre-emphasis levels, like voltages, the other end tells us what
+ * they want
+ */
+#define   DP_PRE_EMPHASIS_0		(0 << 22)
+#define   DP_PRE_EMPHASIS_3_5		(1 << 22)
+#define   DP_PRE_EMPHASIS_6		(2 << 22)
+#define   DP_PRE_EMPHASIS_9_5		(3 << 22)
+#define   DP_PRE_EMPHASIS_MASK		(7 << 22)
+#define   DP_PRE_EMPHASIS_SHIFT		22
+
+/* How many wires to use. I guess 3 was too hard */
+#define   DP_PORT_WIDTH_1		(0 << 19)
+#define   DP_PORT_WIDTH_2		(1 << 19)
+#define   DP_PORT_WIDTH_4		(3 << 19)
+#define   DP_PORT_WIDTH_MASK		(7 << 19)
+
+/* Mystic DPCD version 1.1 special mode */
+#define   DP_ENHANCED_FRAMING		(1 << 18)
+
+/** locked once port is enabled */
+#define   DP_PORT_REVERSAL		(1 << 15)
+
+/** sends the clock on lane 15 of the PEG for debug */
+#define   DP_CLOCK_OUTPUT_ENABLE	(1 << 13)
+
+#define   DP_SCRAMBLING_DISABLE		(1 << 12)
+
+/** limit RGB values to avoid confusing TVs */
+#define   DP_COLOR_RANGE_16_235		(1 << 8)
+
+/** Turn on the audio link */
+#define   DP_AUDIO_OUTPUT_ENABLE	(1 << 6)
+
+/** vs and hs sync polarity */
+#define   DP_SYNC_VS_HIGH		(1 << 4)
+#define   DP_SYNC_HS_HIGH		(1 << 3)
+
+/** A fantasy */
+#define   DP_DETECTED			(1 << 2)
+
+/** The aux channel provides a way to talk to the
+ * signal sink for DDC etc. Max packet size supported
+ * is 20 bytes in each direction, hence the 5 fixed
+ * data registers
+ */
+#define DPB_AUX_CH_CTL			0x64110
+#define DPB_AUX_CH_DATA1		0x64114
+#define DPB_AUX_CH_DATA2		0x64118
+#define DPB_AUX_CH_DATA3		0x6411c
+#define DPB_AUX_CH_DATA4		0x64120
+#define DPB_AUX_CH_DATA5		0x64124
+
+#define DPC_AUX_CH_CTL			0x64210
+#define DPC_AUX_CH_DATA1		0x64214
+#define DPC_AUX_CH_DATA2		0x64218
+#define DPC_AUX_CH_DATA3		0x6421c
+#define DPC_AUX_CH_DATA4		0x64220
+#define DPC_AUX_CH_DATA5		0x64224
+
+#define DPD_AUX_CH_CTL			0x64310
+#define DPD_AUX_CH_DATA1		0x64314
+#define DPD_AUX_CH_DATA2		0x64318
+#define DPD_AUX_CH_DATA3		0x6431c
+#define DPD_AUX_CH_DATA4		0x64320
+#define DPD_AUX_CH_DATA5		0x64324
+
+#define   DP_AUX_CH_CTL_SEND_BUSY	    (1 << 31)
+#define   DP_AUX_CH_CTL_DONE		    (1 << 30)
+#define   DP_AUX_CH_CTL_INTERRUPT	    (1 << 29)
+#define   DP_AUX_CH_CTL_TIME_OUT_ERROR	    (1 << 28)
+#define   DP_AUX_CH_CTL_TIME_OUT_400us	    (0 << 26)
+#define   DP_AUX_CH_CTL_TIME_OUT_600us	    (1 << 26)
+#define   DP_AUX_CH_CTL_TIME_OUT_800us	    (2 << 26)
+#define   DP_AUX_CH_CTL_TIME_OUT_1600us	    (3 << 26)
+#define   DP_AUX_CH_CTL_TIME_OUT_MASK	    (3 << 26)
+#define   DP_AUX_CH_CTL_RECEIVE_ERROR	    (1 << 25)
+#define   DP_AUX_CH_CTL_MESSAGE_SIZE_MASK    (0x1f << 20)
+#define   DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT   20
+#define   DP_AUX_CH_CTL_PRECHARGE_2US_MASK   (0xf << 16)
+#define   DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT  16
+#define   DP_AUX_CH_CTL_AUX_AKSV_SELECT	    (1 << 15)
+#define   DP_AUX_CH_CTL_MANCHESTER_TEST	    (1 << 14)
+#define   DP_AUX_CH_CTL_SYNC_TEST	    (1 << 13)
+#define   DP_AUX_CH_CTL_DEGLITCH_TEST	    (1 << 12)
+#define   DP_AUX_CH_CTL_PRECHARGE_TEST	    (1 << 11)
+#define   DP_AUX_CH_CTL_BIT_CLOCK_2X_MASK    (0x7ff)
+#define   DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT   0
+
+/*
+ * Computing GMCH M and N values for the Display Port link
+ *
+ * GMCH M/N = dot clock * bytes per pixel / ls_clk * # of lanes
+ *
+ * ls_clk (we assume) is the DP link clock (1.62 or 2.7 GHz)
+ *
+ * The GMCH value is used internally
+ *
+ * bytes_per_pixel is the number of bytes coming out of the plane,
+ * which is after the LUTs, so we want the bytes for our color format.
+ * For our current usage, this is always 3, one byte for R, G and B.
+ */
+#define PIPEA_GMCH_DATA_M			0x70050
+#define PIPEB_GMCH_DATA_M			0x71050
+
+/* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
+#define   PIPE_GMCH_DATA_M_TU_SIZE_MASK		(0x3f << 25)
+#define   PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+
+#define   PIPE_GMCH_DATA_M_MASK			(0xffffff)
+
+#define PIPEA_GMCH_DATA_N			0x70054
+#define PIPEB_GMCH_DATA_N			0x71054
+#define   PIPE_GMCH_DATA_N_MASK			(0xffffff)
+
+/*
+ * Computing Link M and N values for the Display Port link
+ *
+ * Link M / N = pixel_clock / ls_clk
+ *
+ * (the DP spec calls pixel_clock the 'strm_clk')
+ *
+ * The Link value is transmitted in the Main Stream
+ * Attributes and VB-ID.
+ */
+
+#define PIPEA_DP_LINK_M				0x70060
+#define PIPEB_DP_LINK_M				0x71060
+#define   PIPEA_DP_LINK_M_MASK			(0xffffff)
+
+#define PIPEA_DP_LINK_N				0x70064
+#define PIPEB_DP_LINK_N				0x71064
+#define   PIPEA_DP_LINK_N_MASK			(0xffffff)
+
 /* Display & cursor control */
 
 /* Pipe A */
@@ -1410,9 +1581,25 @@
 
 /* Cursor A & B regs */
 #define CURACNTR		0x70080
+/* Old style CUR*CNTR flags (desktop 8xx) */
+#define   CURSOR_ENABLE		0x80000000
+#define   CURSOR_GAMMA_ENABLE	0x40000000
+#define   CURSOR_STRIDE_MASK	0x30000000
+#define   CURSOR_FORMAT_SHIFT	24
+#define   CURSOR_FORMAT_MASK	(0x07 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_2C	(0x00 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_3C	(0x01 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_4C	(0x02 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_ARGB	(0x04 << CURSOR_FORMAT_SHIFT)
+#define   CURSOR_FORMAT_XRGB	(0x05 << CURSOR_FORMAT_SHIFT)
+/* New style CUR*CNTR flags */
+#define   CURSOR_MODE		0x27
 #define   CURSOR_MODE_DISABLE   0x00
 #define   CURSOR_MODE_64_32B_AX 0x07
 #define   CURSOR_MODE_64_ARGB_AX ((1 << 5) | CURSOR_MODE_64_32B_AX)
+#define   MCURSOR_PIPE_SELECT	(1 << 28)
+#define   MCURSOR_PIPE_A	0x00
+#define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
 #define CURABASE		0x70084
 #define CURAPOS			0x70088
@@ -1420,6 +1607,7 @@
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
+#define CURSIZE			0x700a0
 #define CURBCNTR		0x700c0
 #define CURBBASE		0x700c4
 #define CURBPOS			0x700c8
@@ -1498,5 +1686,445 @@
 # define VGA_DISP_DISABLE			(1 << 31)
 # define VGA_2X_MODE				(1 << 30)
 # define VGA_PIPE_B_SELECT			(1 << 29)
+
+/* IGDNG */
+
+#define CPU_VGACNTRL	0x41000
+
+#define DIGITAL_PORT_HOTPLUG_CNTRL      0x44030
+#define  DIGITAL_PORTA_HOTPLUG_ENABLE           (1 << 4)
+#define  DIGITAL_PORTA_SHORT_PULSE_2MS          (0 << 2)
+#define  DIGITAL_PORTA_SHORT_PULSE_4_5MS        (1 << 2)
+#define  DIGITAL_PORTA_SHORT_PULSE_6MS          (2 << 2)
+#define  DIGITAL_PORTA_SHORT_PULSE_100MS        (3 << 2)
+#define  DIGITAL_PORTA_NO_DETECT                (0 << 0)
+#define  DIGITAL_PORTA_LONG_PULSE_DETECT_MASK   (1 << 1)
+#define  DIGITAL_PORTA_SHORT_PULSE_DETECT_MASK  (1 << 0)
+
+/* refresh rate hardware control */
+#define RR_HW_CTL       0x45300
+#define  RR_HW_LOW_POWER_FRAMES_MASK    0xff
+#define  RR_HW_HIGH_POWER_FRAMES_MASK   0xff00
+
+#define FDI_PLL_BIOS_0  0x46000
+#define FDI_PLL_BIOS_1  0x46004
+#define FDI_PLL_BIOS_2  0x46008
+#define DISPLAY_PORT_PLL_BIOS_0         0x4600c
+#define DISPLAY_PORT_PLL_BIOS_1         0x46010
+#define DISPLAY_PORT_PLL_BIOS_2         0x46014
+
+#define FDI_PLL_FREQ_CTL        0x46030
+#define  FDI_PLL_FREQ_CHANGE_REQUEST    (1<<24)
+#define  FDI_PLL_FREQ_LOCK_LIMIT_MASK   0xfff00
+#define  FDI_PLL_FREQ_DISABLE_COUNT_LIMIT_MASK  0xff
+
+
+#define PIPEA_DATA_M1           0x60030
+#define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
+#define  TU_SIZE_MASK           0x7e000000
+#define  PIPEA_DATA_M1_OFFSET   0
+#define PIPEA_DATA_N1           0x60034
+#define  PIPEA_DATA_N1_OFFSET   0
+
+#define PIPEA_DATA_M2           0x60038
+#define  PIPEA_DATA_M2_OFFSET   0
+#define PIPEA_DATA_N2           0x6003c
+#define  PIPEA_DATA_N2_OFFSET   0
+
+#define PIPEA_LINK_M1           0x60040
+#define  PIPEA_LINK_M1_OFFSET   0
+#define PIPEA_LINK_N1           0x60044
+#define  PIPEA_LINK_N1_OFFSET   0
+
+#define PIPEA_LINK_M2           0x60048
+#define  PIPEA_LINK_M2_OFFSET   0
+#define PIPEA_LINK_N2           0x6004c
+#define  PIPEA_LINK_N2_OFFSET   0
+
+/* PIPEB timing regs are same start from 0x61000 */
+
+#define PIPEB_DATA_M1           0x61030
+#define  PIPEB_DATA_M1_OFFSET   0
+#define PIPEB_DATA_N1           0x61034
+#define  PIPEB_DATA_N1_OFFSET   0
+
+#define PIPEB_DATA_M2           0x61038
+#define  PIPEB_DATA_M2_OFFSET   0
+#define PIPEB_DATA_N2           0x6103c
+#define  PIPEB_DATA_N2_OFFSET   0
+
+#define PIPEB_LINK_M1           0x61040
+#define  PIPEB_LINK_M1_OFFSET   0
+#define PIPEB_LINK_N1           0x61044
+#define  PIPEB_LINK_N1_OFFSET   0
+
+#define PIPEB_LINK_M2           0x61048
+#define  PIPEB_LINK_M2_OFFSET   0
+#define PIPEB_LINK_N2           0x6104c
+#define  PIPEB_LINK_N2_OFFSET   0
+
+/* CPU panel fitter */
+#define PFA_CTL_1               0x68080
+#define PFB_CTL_1               0x68880
+#define  PF_ENABLE              (1<<31)
+
+/* legacy palette */
+#define LGC_PALETTE_A           0x4a000
+#define LGC_PALETTE_B           0x4a800
+
+/* interrupts */
+#define DE_MASTER_IRQ_CONTROL   (1 << 31)
+#define DE_SPRITEB_FLIP_DONE    (1 << 29)
+#define DE_SPRITEA_FLIP_DONE    (1 << 28)
+#define DE_PLANEB_FLIP_DONE     (1 << 27)
+#define DE_PLANEA_FLIP_DONE     (1 << 26)
+#define DE_PCU_EVENT            (1 << 25)
+#define DE_GTT_FAULT            (1 << 24)
+#define DE_POISON               (1 << 23)
+#define DE_PERFORM_COUNTER      (1 << 22)
+#define DE_PCH_EVENT            (1 << 21)
+#define DE_AUX_CHANNEL_A        (1 << 20)
+#define DE_DP_A_HOTPLUG         (1 << 19)
+#define DE_GSE                  (1 << 18)
+#define DE_PIPEB_VBLANK         (1 << 15)
+#define DE_PIPEB_EVEN_FIELD     (1 << 14)
+#define DE_PIPEB_ODD_FIELD      (1 << 13)
+#define DE_PIPEB_LINE_COMPARE   (1 << 12)
+#define DE_PIPEB_VSYNC          (1 << 11)
+#define DE_PIPEB_FIFO_UNDERRUN  (1 << 8)
+#define DE_PIPEA_VBLANK         (1 << 7)
+#define DE_PIPEA_EVEN_FIELD     (1 << 6)
+#define DE_PIPEA_ODD_FIELD      (1 << 5)
+#define DE_PIPEA_LINE_COMPARE   (1 << 4)
+#define DE_PIPEA_VSYNC          (1 << 3)
+#define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
+
+#define DEISR   0x44000
+#define DEIMR   0x44004
+#define DEIIR   0x44008
+#define DEIER   0x4400c
+
+/* GT interrupt */
+#define GT_SYNC_STATUS          (1 << 2)
+#define GT_USER_INTERRUPT       (1 << 0)
+
+#define GTISR   0x44010
+#define GTIMR   0x44014
+#define GTIIR   0x44018
+#define GTIER   0x4401c
+
+/* PCH */
+
+/* south display engine interrupt */
+#define SDE_CRT_HOTPLUG         (1 << 11)
+#define SDE_PORTD_HOTPLUG       (1 << 10)
+#define SDE_PORTC_HOTPLUG       (1 << 9)
+#define SDE_PORTB_HOTPLUG       (1 << 8)
+#define SDE_SDVOB_HOTPLUG       (1 << 6)
+
+#define SDEISR  0xc4000
+#define SDEIMR  0xc4004
+#define SDEIIR  0xc4008
+#define SDEIER  0xc400c
+
+/* digital port hotplug */
+#define PCH_PORT_HOTPLUG        0xc4030
+#define PORTD_HOTPLUG_ENABLE            (1 << 20)
+#define PORTD_PULSE_DURATION_2ms        (0)
+#define PORTD_PULSE_DURATION_4_5ms      (1 << 18)
+#define PORTD_PULSE_DURATION_6ms        (2 << 18)
+#define PORTD_PULSE_DURATION_100ms      (3 << 18)
+#define PORTD_HOTPLUG_NO_DETECT         (0)
+#define PORTD_HOTPLUG_SHORT_DETECT      (1 << 16)
+#define PORTD_HOTPLUG_LONG_DETECT       (1 << 17)
+#define PORTC_HOTPLUG_ENABLE            (1 << 12)
+#define PORTC_PULSE_DURATION_2ms        (0)
+#define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
+#define PORTC_PULSE_DURATION_6ms        (2 << 10)
+#define PORTC_PULSE_DURATION_100ms      (3 << 10)
+#define PORTC_HOTPLUG_NO_DETECT         (0)
+#define PORTC_HOTPLUG_SHORT_DETECT      (1 << 8)
+#define PORTC_HOTPLUG_LONG_DETECT       (1 << 9)
+#define PORTB_HOTPLUG_ENABLE            (1 << 4)
+#define PORTB_PULSE_DURATION_2ms        (0)
+#define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
+#define PORTB_PULSE_DURATION_6ms        (2 << 2)
+#define PORTB_PULSE_DURATION_100ms      (3 << 2)
+#define PORTB_HOTPLUG_NO_DETECT         (0)
+#define PORTB_HOTPLUG_SHORT_DETECT      (1 << 0)
+#define PORTB_HOTPLUG_LONG_DETECT       (1 << 1)
+
+#define PCH_GPIOA               0xc5010
+#define PCH_GPIOB               0xc5014
+#define PCH_GPIOC               0xc5018
+#define PCH_GPIOD               0xc501c
+#define PCH_GPIOE               0xc5020
+#define PCH_GPIOF               0xc5024
+
+#define PCH_DPLL_A              0xc6014
+#define PCH_DPLL_B              0xc6018
+
+#define PCH_FPA0                0xc6040
+#define PCH_FPA1                0xc6044
+#define PCH_FPB0                0xc6048
+#define PCH_FPB1                0xc604c
+
+#define PCH_DPLL_TEST           0xc606c
+
+#define PCH_DREF_CONTROL        0xC6200
+#define  DREF_CONTROL_MASK      0x7fc3
+#define  DREF_CPU_SOURCE_OUTPUT_DISABLE         (0<<13)
+#define  DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD      (2<<13)
+#define  DREF_CPU_SOURCE_OUTPUT_NONSPREAD       (3<<13)
+#define  DREF_CPU_SOURCE_OUTPUT_MASK		(3<<13)
+#define  DREF_SSC_SOURCE_DISABLE                (0<<11)
+#define  DREF_SSC_SOURCE_ENABLE                 (2<<11)
+#define  DREF_SSC_SOURCE_MASK			(2<<11)
+#define  DREF_NONSPREAD_SOURCE_DISABLE          (0<<9)
+#define  DREF_NONSPREAD_CK505_ENABLE		(1<<9)
+#define  DREF_NONSPREAD_SOURCE_ENABLE           (2<<9)
+#define  DREF_NONSPREAD_SOURCE_MASK		(2<<9)
+#define  DREF_SUPERSPREAD_SOURCE_DISABLE        (0<<7)
+#define  DREF_SUPERSPREAD_SOURCE_ENABLE         (2<<7)
+#define  DREF_SSC4_DOWNSPREAD                   (0<<6)
+#define  DREF_SSC4_CENTERSPREAD                 (1<<6)
+#define  DREF_SSC1_DISABLE                      (0<<1)
+#define  DREF_SSC1_ENABLE                       (1<<1)
+#define  DREF_SSC4_DISABLE                      (0)
+#define  DREF_SSC4_ENABLE                       (1)
+
+#define PCH_RAWCLK_FREQ         0xc6204
+#define  FDL_TP1_TIMER_SHIFT    12
+#define  FDL_TP1_TIMER_MASK     (3<<12)
+#define  FDL_TP2_TIMER_SHIFT    10
+#define  FDL_TP2_TIMER_MASK     (3<<10)
+#define  RAWCLK_FREQ_MASK       0x3ff
+
+#define PCH_DPLL_TMR_CFG        0xc6208
+
+#define PCH_SSC4_PARMS          0xc6210
+#define PCH_SSC4_AUX_PARMS      0xc6214
+
+/* transcoder */
+
+#define TRANS_HTOTAL_A          0xe0000
+#define  TRANS_HTOTAL_SHIFT     16
+#define  TRANS_HACTIVE_SHIFT    0
+#define TRANS_HBLANK_A          0xe0004
+#define  TRANS_HBLANK_END_SHIFT 16
+#define  TRANS_HBLANK_START_SHIFT 0
+#define TRANS_HSYNC_A           0xe0008
+#define  TRANS_HSYNC_END_SHIFT  16
+#define  TRANS_HSYNC_START_SHIFT 0
+#define TRANS_VTOTAL_A          0xe000c
+#define  TRANS_VTOTAL_SHIFT     16
+#define  TRANS_VACTIVE_SHIFT    0
+#define TRANS_VBLANK_A          0xe0010
+#define  TRANS_VBLANK_END_SHIFT 16
+#define  TRANS_VBLANK_START_SHIFT 0
+#define TRANS_VSYNC_A           0xe0014
+#define  TRANS_VSYNC_END_SHIFT  16
+#define  TRANS_VSYNC_START_SHIFT 0
+
+#define TRANSA_DATA_M1          0xe0030
+#define TRANSA_DATA_N1          0xe0034
+#define TRANSA_DATA_M2          0xe0038
+#define TRANSA_DATA_N2          0xe003c
+#define TRANSA_DP_LINK_M1       0xe0040
+#define TRANSA_DP_LINK_N1       0xe0044
+#define TRANSA_DP_LINK_M2       0xe0048
+#define TRANSA_DP_LINK_N2       0xe004c
+
+#define TRANS_HTOTAL_B          0xe1000
+#define TRANS_HBLANK_B          0xe1004
+#define TRANS_HSYNC_B           0xe1008
+#define TRANS_VTOTAL_B          0xe100c
+#define TRANS_VBLANK_B          0xe1010
+#define TRANS_VSYNC_B           0xe1014
+
+#define TRANSB_DATA_M1          0xe1030
+#define TRANSB_DATA_N1          0xe1034
+#define TRANSB_DATA_M2          0xe1038
+#define TRANSB_DATA_N2          0xe103c
+#define TRANSB_DP_LINK_M1       0xe1040
+#define TRANSB_DP_LINK_N1       0xe1044
+#define TRANSB_DP_LINK_M2       0xe1048
+#define TRANSB_DP_LINK_N2       0xe104c
+
+#define TRANSACONF              0xf0008
+#define TRANSBCONF              0xf1008
+#define  TRANS_DISABLE          (0<<31)
+#define  TRANS_ENABLE           (1<<31)
+#define  TRANS_STATE_MASK       (1<<30)
+#define  TRANS_STATE_DISABLE    (0<<30)
+#define  TRANS_STATE_ENABLE     (1<<30)
+#define  TRANS_FSYNC_DELAY_HB1  (0<<27)
+#define  TRANS_FSYNC_DELAY_HB2  (1<<27)
+#define  TRANS_FSYNC_DELAY_HB3  (2<<27)
+#define  TRANS_FSYNC_DELAY_HB4  (3<<27)
+#define  TRANS_DP_AUDIO_ONLY    (1<<26)
+#define  TRANS_DP_VIDEO_AUDIO   (0<<26)
+#define  TRANS_PROGRESSIVE      (0<<21)
+#define  TRANS_8BPC             (0<<5)
+#define  TRANS_10BPC            (1<<5)
+#define  TRANS_6BPC             (2<<5)
+#define  TRANS_12BPC            (3<<5)
+
+#define FDI_RXA_CHICKEN         0xc200c
+#define FDI_RXB_CHICKEN         0xc2010
+#define  FDI_RX_PHASE_SYNC_POINTER_ENABLE       (1)
+
+/* CPU: FDI_TX */
+#define FDI_TXA_CTL             0x60100
+#define FDI_TXB_CTL             0x61100
+#define  FDI_TX_DISABLE         (0<<31)
+#define  FDI_TX_ENABLE          (1<<31)
+#define  FDI_LINK_TRAIN_PATTERN_1       (0<<28)
+#define  FDI_LINK_TRAIN_PATTERN_2       (1<<28)
+#define  FDI_LINK_TRAIN_PATTERN_IDLE    (2<<28)
+#define  FDI_LINK_TRAIN_NONE            (3<<28)
+#define  FDI_LINK_TRAIN_VOLTAGE_0_4V    (0<<25)
+#define  FDI_LINK_TRAIN_VOLTAGE_0_6V    (1<<25)
+#define  FDI_LINK_TRAIN_VOLTAGE_0_8V    (2<<25)
+#define  FDI_LINK_TRAIN_VOLTAGE_1_2V    (3<<25)
+#define  FDI_LINK_TRAIN_PRE_EMPHASIS_NONE (0<<22)
+#define  FDI_LINK_TRAIN_PRE_EMPHASIS_1_5X (1<<22)
+#define  FDI_LINK_TRAIN_PRE_EMPHASIS_2X   (2<<22)
+#define  FDI_LINK_TRAIN_PRE_EMPHASIS_3X   (3<<22)
+#define  FDI_DP_PORT_WIDTH_X1           (0<<19)
+#define  FDI_DP_PORT_WIDTH_X2           (1<<19)
+#define  FDI_DP_PORT_WIDTH_X3           (2<<19)
+#define  FDI_DP_PORT_WIDTH_X4           (3<<19)
+#define  FDI_TX_ENHANCE_FRAME_ENABLE    (1<<18)
+/* IGDNG: hardwired to 1 */
+#define  FDI_TX_PLL_ENABLE              (1<<14)
+/* both Tx and Rx */
+#define  FDI_SCRAMBLING_ENABLE          (0<<7)
+#define  FDI_SCRAMBLING_DISABLE         (1<<7)
+
+/* FDI_RX, FDI_X is hard-wired to Transcoder_X */
+#define FDI_RXA_CTL             0xf000c
+#define FDI_RXB_CTL             0xf100c
+#define  FDI_RX_ENABLE          (1<<31)
+#define  FDI_RX_DISABLE         (0<<31)
+/* train, dp width same as FDI_TX */
+#define  FDI_DP_PORT_WIDTH_X8           (7<<19)
+#define  FDI_8BPC                       (0<<16)
+#define  FDI_10BPC                      (1<<16)
+#define  FDI_6BPC                       (2<<16)
+#define  FDI_12BPC                      (3<<16)
+#define  FDI_LINK_REVERSE_OVERWRITE     (1<<15)
+#define  FDI_DMI_LINK_REVERSE_MASK      (1<<14)
+#define  FDI_RX_PLL_ENABLE              (1<<13)
+#define  FDI_FS_ERR_CORRECT_ENABLE      (1<<11)
+#define  FDI_FE_ERR_CORRECT_ENABLE      (1<<10)
+#define  FDI_FS_ERR_REPORT_ENABLE       (1<<9)
+#define  FDI_FE_ERR_REPORT_ENABLE       (1<<8)
+#define  FDI_RX_ENHANCE_FRAME_ENABLE    (1<<6)
+#define  FDI_SEL_RAWCLK                 (0<<4)
+#define  FDI_SEL_PCDCLK                 (1<<4)
+
+#define FDI_RXA_MISC            0xf0010
+#define FDI_RXB_MISC            0xf1010
+#define FDI_RXA_TUSIZE1         0xf0030
+#define FDI_RXA_TUSIZE2         0xf0038
+#define FDI_RXB_TUSIZE1         0xf1030
+#define FDI_RXB_TUSIZE2         0xf1038
+
+/* FDI_RX interrupt register format */
+#define FDI_RX_INTER_LANE_ALIGN         (1<<10)
+#define FDI_RX_SYMBOL_LOCK              (1<<9) /* train 2 */
+#define FDI_RX_BIT_LOCK                 (1<<8) /* train 1 */
+#define FDI_RX_TRAIN_PATTERN_2_FAIL     (1<<7)
+#define FDI_RX_FS_CODE_ERR              (1<<6)
+#define FDI_RX_FE_CODE_ERR              (1<<5)
+#define FDI_RX_SYMBOL_ERR_RATE_ABOVE    (1<<4)
+#define FDI_RX_HDCP_LINK_FAIL           (1<<3)
+#define FDI_RX_PIXEL_FIFO_OVERFLOW      (1<<2)
+#define FDI_RX_CROSS_CLOCK_OVERFLOW     (1<<1)
+#define FDI_RX_SYMBOL_QUEUE_OVERFLOW    (1<<0)
+
+#define FDI_RXA_IIR             0xf0014
+#define FDI_RXA_IMR             0xf0018
+#define FDI_RXB_IIR             0xf1014
+#define FDI_RXB_IMR             0xf1018
+
+#define FDI_PLL_CTL_1           0xfe000
+#define FDI_PLL_CTL_2           0xfe004
+
+/* CRT */
+#define PCH_ADPA                0xe1100
+#define  ADPA_TRANS_SELECT_MASK (1<<30)
+#define  ADPA_TRANS_A_SELECT    0
+#define  ADPA_TRANS_B_SELECT    (1<<30)
+#define  ADPA_CRT_HOTPLUG_MASK  0x03ff0000 /* bit 25-16 */
+#define  ADPA_CRT_HOTPLUG_MONITOR_NONE  (0<<24)
+#define  ADPA_CRT_HOTPLUG_MONITOR_MASK  (3<<24)
+#define  ADPA_CRT_HOTPLUG_MONITOR_COLOR (3<<24)
+#define  ADPA_CRT_HOTPLUG_MONITOR_MONO  (2<<24)
+#define  ADPA_CRT_HOTPLUG_ENABLE        (1<<23)
+#define  ADPA_CRT_HOTPLUG_PERIOD_64     (0<<22)
+#define  ADPA_CRT_HOTPLUG_PERIOD_128    (1<<22)
+#define  ADPA_CRT_HOTPLUG_WARMUP_5MS    (0<<21)
+#define  ADPA_CRT_HOTPLUG_WARMUP_10MS   (1<<21)
+#define  ADPA_CRT_HOTPLUG_SAMPLE_2S     (0<<20)
+#define  ADPA_CRT_HOTPLUG_SAMPLE_4S     (1<<20)
+#define  ADPA_CRT_HOTPLUG_VOLTAGE_40    (0<<18)
+#define  ADPA_CRT_HOTPLUG_VOLTAGE_50    (1<<18)
+#define  ADPA_CRT_HOTPLUG_VOLTAGE_60    (2<<18)
+#define  ADPA_CRT_HOTPLUG_VOLTAGE_70    (3<<18)
+#define  ADPA_CRT_HOTPLUG_VOLREF_325MV  (0<<17)
+#define  ADPA_CRT_HOTPLUG_VOLREF_475MV  (1<<17)
+#define  ADPA_CRT_HOTPLUG_FORCE_TRIGGER (1<<16)
+
+/* or SDVOB */
+#define HDMIB   0xe1140
+#define  PORT_ENABLE    (1 << 31)
+#define  TRANSCODER_A   (0)
+#define  TRANSCODER_B   (1 << 30)
+#define  COLOR_FORMAT_8bpc      (0)
+#define  COLOR_FORMAT_12bpc     (3 << 26)
+#define  SDVOB_HOTPLUG_ENABLE   (1 << 23)
+#define  SDVO_ENCODING          (0)
+#define  TMDS_ENCODING          (2 << 10)
+#define  NULL_PACKET_VSYNC_ENABLE       (1 << 9)
+#define  SDVOB_BORDER_ENABLE    (1 << 7)
+#define  AUDIO_ENABLE           (1 << 6)
+#define  VSYNC_ACTIVE_HIGH      (1 << 4)
+#define  HSYNC_ACTIVE_HIGH      (1 << 3)
+#define  PORT_DETECTED          (1 << 2)
+
+#define HDMIC   0xe1150
+#define HDMID   0xe1160
+
+#define PCH_LVDS	0xe1180
+#define  LVDS_DETECTED	(1 << 1)
+
+#define BLC_PWM_CPU_CTL2	0x48250
+#define  PWM_ENABLE		(1 << 31)
+#define  PWM_PIPE_A		(0 << 29)
+#define  PWM_PIPE_B		(1 << 29)
+#define BLC_PWM_CPU_CTL		0x48254
+
+#define BLC_PWM_PCH_CTL1	0xc8250
+#define  PWM_PCH_ENABLE		(1 << 31)
+#define  PWM_POLARITY_ACTIVE_LOW	(1 << 29)
+#define  PWM_POLARITY_ACTIVE_HIGH	(0 << 29)
+#define  PWM_POLARITY_ACTIVE_LOW2	(1 << 28)
+#define  PWM_POLARITY_ACTIVE_HIGH2	(0 << 28)
+
+#define BLC_PWM_PCH_CTL2	0xc8254
+
+#define PCH_PP_STATUS		0xc7200
+#define PCH_PP_CONTROL		0xc7204
+#define  EDP_FORCE_VDD		(1 << 3)
+#define  EDP_BLC_ENABLE		(1 << 2)
+#define  PANEL_POWER_RESET	(1 << 1)
+#define  PANEL_POWER_OFF	(0 << 0)
+#define  PANEL_POWER_ON		(1 << 0)
+#define PCH_PP_ON_DELAYS	0xc7208
+#define  EDP_PANEL		(1 << 30)
+#define PCH_PP_OFF_DELAYS	0xc720c
+#define PCH_PP_DIVISOR		0xc7210
 
 #endif /* _I915_REG_H_ */

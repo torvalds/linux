@@ -19,8 +19,8 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/hdreg.h>
-#include <linux/blktrace_api.h>
-#include <trace/block.h>
+
+#include <trace/events/block.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -52,8 +52,6 @@ struct dm_target_io {
 	struct dm_target *ti;
 	union map_info info;
 };
-
-DEFINE_TRACE(block_bio_complete);
 
 /*
  * For request-based dm.

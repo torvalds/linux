@@ -27,6 +27,7 @@
 #include <asm/cputable.h>
 #include <asm/udbg.h>
 #include <asm/kexec.h>
+#include <asm/ppc-opcode.h>
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) udbg_printf(fmt)
@@ -49,14 +50,21 @@ static inline void __tlbie(unsigned long va, int psize, int ssize)
 	case MMU_PAGE_4K:
 		va &= ~0xffful;
 		va |= ssize << 8;
-		asm volatile("tlbie %0,0" : : "r" (va) : "memory");
+		asm volatile(ASM_MMU_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0),
+					       %2)
+			     : : "r" (va), "r"(0), "i" (MMU_FTR_TLBIE_206)
+			     : "memory");
 		break;
 	default:
 		penc = mmu_psize_defs[psize].penc;
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
 		va |= ssize << 8;
-		asm volatile("tlbie %0,1" : : "r" (va) : "memory");
+		va |= 1; /* L */
+		asm volatile(ASM_MMU_FTR_IFCLR("tlbie %0,1", PPC_TLBIE(%1,%0),
+					       %2)
+			     : : "r" (va), "r"(0), "i" (MMU_FTR_TLBIE_206)
+			     : "memory");
 		break;
 	}
 }
@@ -80,6 +88,7 @@ static inline void __tlbiel(unsigned long va, int psize, int ssize)
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
 		va |= ssize << 8;
+		va |= 1; /* L */
 		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
 			     : : "r"(va) : "memory");
 		break;

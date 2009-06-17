@@ -20,6 +20,11 @@
 #include <asm/dma.h>
 #include <asm/uaccess.h>
 
+/*
+ * To make sure we work around 05000119 - we always check DMA_DONE bit,
+ * never the DMA_RUN bit
+ */
+
 struct dma_channel dma_ch[MAX_DMA_CHANNELS];
 EXPORT_SYMBOL(dma_ch);
 
@@ -232,6 +237,87 @@ void blackfin_dma_resume(void)
 void __init blackfin_dma_early_init(void)
 {
 	bfin_write_MDMA_S0_CONFIG(0);
+	bfin_write_MDMA_S1_CONFIG(0);
+}
+
+void __init early_dma_memcpy(void *pdst, const void *psrc, size_t size)
+{
+	unsigned long dst = (unsigned long)pdst;
+	unsigned long src = (unsigned long)psrc;
+	struct dma_register *dst_ch, *src_ch;
+
+	/* We assume that everything is 4 byte aligned, so include
+	 * a basic sanity check
+	 */
+	BUG_ON(dst % 4);
+	BUG_ON(src % 4);
+	BUG_ON(size % 4);
+
+	/* Force a sync in case a previous config reset on this channel
+	 * occurred.  This is needed so subsequent writes to DMA registers
+	 * are not spuriously lost/corrupted.
+	 */
+	__builtin_bfin_ssync();
+
+	src_ch = 0;
+	/* Find an avalible memDMA channel */
+	while (1) {
+		if (!src_ch || src_ch == (struct dma_register *)MDMA_S1_NEXT_DESC_PTR) {
+			dst_ch = (struct dma_register *)MDMA_D0_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S0_NEXT_DESC_PTR;
+		} else {
+			dst_ch = (struct dma_register *)MDMA_D1_NEXT_DESC_PTR;
+			src_ch = (struct dma_register *)MDMA_S1_NEXT_DESC_PTR;
+		}
+
+		if (!bfin_read16(&src_ch->cfg)) {
+			break;
+		} else {
+			if (bfin_read16(&src_ch->irq_status) & DMA_DONE)
+				bfin_write16(&src_ch->cfg, 0);
+		}
+
+	}
+
+	/* Destination */
+	bfin_write32(&dst_ch->start_addr, dst);
+	bfin_write16(&dst_ch->x_count, size >> 2);
+	bfin_write16(&dst_ch->x_modify, 1 << 2);
+	bfin_write16(&dst_ch->irq_status, DMA_DONE | DMA_ERR);
+
+	/* Source */
+	bfin_write32(&src_ch->start_addr, src);
+	bfin_write16(&src_ch->x_count, size >> 2);
+	bfin_write16(&src_ch->x_modify, 1 << 2);
+	bfin_write16(&src_ch->irq_status, DMA_DONE | DMA_ERR);
+
+	/* Enable */
+	bfin_write16(&src_ch->cfg, DMAEN | WDSIZE_32);
+	bfin_write16(&dst_ch->cfg, WNR | DI_EN | DMAEN | WDSIZE_32);
+
+	/* Since we are atomic now, don't use the workaround ssync */
+	__builtin_bfin_ssync();
+}
+
+void __init early_dma_memcpy_done(void)
+{
+	while ((bfin_read_MDMA_S0_CONFIG() && !(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE)) ||
+	       (bfin_read_MDMA_S1_CONFIG() && !(bfin_read_MDMA_D1_IRQ_STATUS() & DMA_DONE)))
+		continue;
+
+	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
+	bfin_write_MDMA_D1_IRQ_STATUS(DMA_DONE | DMA_ERR);
+	/*
+	 * Now that DMA is done, we would normally flush cache, but
+	 * i/d cache isn't running this early, so we don't bother,
+	 * and just clear out the DMA channel for next time
+	 */
+	bfin_write_MDMA_S0_CONFIG(0);
+	bfin_write_MDMA_S1_CONFIG(0);
+	bfin_write_MDMA_D0_CONFIG(0);
+	bfin_write_MDMA_D1_CONFIG(0);
+
+	__builtin_bfin_ssync();
 }
 
 /**
@@ -367,10 +453,10 @@ void *dma_memcpy(void *pdst, const void *psrc, size_t size)
 	unsigned long src = (unsigned long)psrc;
 	size_t bulk, rest;
 
-	if (bfin_addr_dcachable(src))
+	if (bfin_addr_dcacheable(src))
 		blackfin_dcache_flush_range(src, src + size);
 
-	if (bfin_addr_dcachable(dst))
+	if (bfin_addr_dcacheable(dst))
 		blackfin_dcache_invalidate_range(dst, dst + size);
 
 	bulk = size & ~0xffff;

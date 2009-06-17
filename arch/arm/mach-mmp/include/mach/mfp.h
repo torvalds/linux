@@ -12,15 +12,12 @@
  * possible, we make the following compromise:
  *
  * 1. SLEEP_OE_N will always be programmed to '1' (by MFP_LPM_FLOAT)
- * 2. DRIVE strength definitions redefined to include the reserved bit10
+ * 2. DRIVE strength definitions redefined to include the reserved bit
+ *    - the reserved bit differs between pxa168 and pxa910, and the
+ *      MFP_DRIVE_* macros are individually defined in mfp-pxa{168,910}.h
  * 3. Override MFP_CFG() and MFP_CFG_DRV()
  * 4. Drop the use of MFP_CFG_LPM() and MFP_CFG_X()
  */
-
-#define MFP_DRIVE_VERY_SLOW	(0x0 << 13)
-#define MFP_DRIVE_SLOW		(0x2 << 13)
-#define MFP_DRIVE_MEDIUM	(0x4 << 13)
-#define MFP_DRIVE_FAST		(0x8 << 13)
 
 #undef MFP_CFG
 #undef MFP_CFG_DRV

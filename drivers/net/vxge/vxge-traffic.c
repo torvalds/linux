@@ -115,7 +115,7 @@ enum vxge_hw_status vxge_hw_vpath_intr_enable(struct __vxge_hw_vpath_handle *vp)
 		VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO1_POISON|
 		VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO2_POISON|
 		VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO1_DMA_ERR|
-		VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO1_DMA_ERR), 0, 32),
+		VXGE_HW_KDFCCTL_ERRORS_REG_KDFCCTL_FIFO2_DMA_ERR), 0, 32),
 		&vp_reg->kdfcctl_errors_mask);
 
 	__vxge_hw_pio_mem_write32_upper(0, &vp_reg->vpath_ppif_int_mask);
@@ -1923,7 +1923,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	if (vpath == NULL) {
 		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
 			alarm_event);
-		goto out;
+		goto out2;
 	}
 
 	hldev = vpath->hldev;
@@ -2161,7 +2161,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	}
 out:
 	hldev->stats.sw_dev_err_stats.vpath_alarms++;
-
+out2:
 	if ((alarm_event == VXGE_HW_EVENT_ALARM_CLEARED) ||
 		(alarm_event == VXGE_HW_EVENT_UNKNOWN))
 		return VXGE_HW_OK;

@@ -218,5 +218,18 @@ static inline int blk_trace_init_sysfs(struct device *dev)
 
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 
+#if defined(CONFIG_EVENT_TRACING) && defined(CONFIG_BLOCK)
+
+static inline int blk_cmd_buf_len(struct request *rq)
+{
+	return blk_pc_request(rq) ? rq->cmd_len * 3 : 1;
+}
+
+extern void blk_dump_cmd(char *buf, struct request *rq);
+extern void blk_fill_rwbs(char *rwbs, u32 rw, int bytes);
+extern void blk_fill_rwbs_rq(char *rwbs, struct request *rq);
+
+#endif /* CONFIG_EVENT_TRACING && CONFIG_BLOCK */
+
 #endif /* __KERNEL__ */
 #endif

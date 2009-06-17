@@ -112,20 +112,6 @@ extern int force_x, force_y;	/* Don't query the BIOS for cols/rows */
 extern int do_restore;		/* Restore screen contents */
 extern int graphic_mode;	/* Graphics mode with linear frame buffer */
 
-/*
- * int $0x10 is notorious for touching registers it shouldn't.
- * gcc doesn't like %ebp being clobbered, so define it as a push/pop
- * sequence here.
- *
- * A number of systems, including the original PC can clobber %bp in
- * certain circumstances, like when scrolling.  There exists at least
- * one Trident video card which could clobber DS under a set of
- * circumstances that we are unlikely to encounter (scrolling when
- * using an extended graphics mode of more than 800x600 pixels), but
- * it's cheap insurance to deal with that here.
- */
-#define INT10 "pushl %%ebp; pushw %%ds; int $0x10; popw %%ds; popl %%ebp"
-
 /* Accessing VGA indexed registers */
 static inline u8 in_idx(u16 port, u8 index)
 {

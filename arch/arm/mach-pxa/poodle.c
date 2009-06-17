@@ -39,7 +39,7 @@
 #include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
@@ -214,13 +214,8 @@ static struct ads7846_platform_data poodle_ads7846_info = {
 	.gpio_pendown		= POODLE_GPIO_TP_INT,
 };
 
-static void ads7846_cs(u32 command)
-{
-	gpio_set_value(POODLE_GPIO_TP_CS, !(command == PXA2XX_CS_ASSERT));
-}
-
 static struct pxa2xx_spi_chip poodle_ads7846_chip = {
-	.cs_control		= ads7846_cs,
+	.gpio_cs		= POODLE_GPIO_TP_CS,
 };
 
 static struct spi_board_info poodle_spi_devices[] = {
@@ -236,14 +231,6 @@ static struct spi_board_info poodle_spi_devices[] = {
 
 static void __init poodle_init_spi(void)
 {
-	int err;
-
-	err = gpio_request(POODLE_GPIO_TP_CS, "ADS7846_CS");
-	if (err)
-		return;
-
-	gpio_direction_output(POODLE_GPIO_TP_CS, 1);
-
 	pxa2xx_set_spi_info(1, &poodle_spi_info);
 	spi_register_board_info(ARRAY_AND_SIZE(poodle_spi_devices));
 }
