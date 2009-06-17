@@ -1904,6 +1904,7 @@ static void md_update_sb(mddev_t * mddev, int force_change)
 	int sync_req;
 	int nospares = 0;
 
+	mddev->utime = get_seconds();
 	if (mddev->external)
 		return;
 repeat:
@@ -1933,7 +1934,6 @@ repeat:
 		nospares = 0;
 
 	sync_req = mddev->in_sync;
-	mddev->utime = get_seconds();
 
 	/* If this is just a dirty<->clean transition, and the array is clean
 	 * and 'events' is odd, we can roll back to the previous clean state */
