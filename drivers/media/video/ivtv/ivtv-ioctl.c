@@ -709,7 +709,7 @@ static int ivtv_itvc(struct ivtv *itv, unsigned int cmd, void *arg)
 	else if (itv->has_cx23415 && regs->reg >= IVTV_DECODER_OFFSET &&
 			regs->reg < IVTV_DECODER_OFFSET + IVTV_DECODER_SIZE)
 		reg_start = itv->dec_mem - IVTV_DECODER_OFFSET;
-	else if (regs->reg >= 0 && regs->reg < IVTV_ENCODER_SIZE)
+	else if (regs->reg < IVTV_ENCODER_SIZE)
 		reg_start = itv->enc_mem;
 	else
 		return -EINVAL;

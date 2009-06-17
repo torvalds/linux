@@ -230,12 +230,16 @@ struct v4l2_subdev_ops {
 
 #define V4L2_SUBDEV_NAME_SIZE 32
 
+/* Set this flag if this subdev is a i2c device. */
+#define V4L2_SUBDEV_FL_IS_I2C (1U << 0)
+
 /* Each instance of a subdev driver should create this struct, either
    stand-alone or embedded in a larger struct.
  */
 struct v4l2_subdev {
 	struct list_head list;
 	struct module *owner;
+	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
 	/* name must be unique */
@@ -264,6 +268,7 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
 	BUG_ON(!ops || !ops->core);
 	sd->ops = ops;
 	sd->v4l2_dev = NULL;
+	sd->flags = 0;
 	sd->name[0] = '\0';
 	sd->grp_id = 0;
 	sd->priv = NULL;

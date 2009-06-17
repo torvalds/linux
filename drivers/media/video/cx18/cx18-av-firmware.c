@@ -24,15 +24,63 @@
 #include "cx18-io.h"
 #include <linux/firmware.h>
 
-#define CX18_AUDIO_ENABLE 0xc72014
+#define CX18_AUDIO_ENABLE    0xc72014
+#define CX18_AI1_MUX_MASK    0x30
+#define CX18_AI1_MUX_I2S1    0x00
+#define CX18_AI1_MUX_I2S2    0x10
+#define CX18_AI1_MUX_843_I2S 0x20
+#define CX18_AI1_MUX_INVALID 0x30
+
 #define FWFILE "v4l-cx23418-dig.fw"
+
+static int cx18_av_verifyfw(struct cx18 *cx, const struct firmware *fw)
+{
+	struct v4l2_subdev *sd = &cx->av_state.sd;
+	int ret = 0;
+	const u8 *data;
+	u32 size;
+	int addr;
+	u32 expected, dl_control;
+
+	/* Ensure we put the 8051 in reset and enable firmware upload mode */
+	dl_control = cx18_av_read4(cx, CXADEC_DL_CTL);
+	do {
+		dl_control &= 0x00ffffff;
+		dl_control |= 0x0f000000;
+		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, dl_control);
+		dl_control = cx18_av_read4(cx, CXADEC_DL_CTL);
+	} while ((dl_control & 0xff000000) != 0x0f000000);
+
+	/* Read and auto increment until at address 0x0000 */
+	while (dl_control & 0x3fff)
+		dl_control = cx18_av_read4(cx, CXADEC_DL_CTL);
+
+	data = fw->data;
+	size = fw->size;
+	for (addr = 0; addr < size; addr++) {
+		dl_control &= 0xffff3fff; /* ignore top 2 bits of address */
+		expected = 0x0f000000 | ((u32)data[addr] << 16) | addr;
+		if (expected != dl_control) {
+			CX18_ERR_DEV(sd, "verification of %s firmware load "
+				     "failed: expected %#010x got %#010x\n",
+				     FWFILE, expected, dl_control);
+			ret = -EIO;
+			break;
+		}
+		dl_control = cx18_av_read4(cx, CXADEC_DL_CTL);
+	}
+	if (ret == 0)
+		CX18_INFO_DEV(sd, "verified load of %s firmware (%d bytes)\n",
+			      FWFILE, size);
+	return ret;
+}
 
 int cx18_av_loadfw(struct cx18 *cx)
 {
 	struct v4l2_subdev *sd = &cx->av_state.sd;
 	const struct firmware *fw = NULL;
 	u32 size;
-	u32 v;
+	u32 u, v;
 	const u8 *ptr;
 	int i;
 	int retries1 = 0;
@@ -95,6 +143,12 @@ int cx18_av_loadfw(struct cx18 *cx)
 	}
 
 	cx18_av_write4_expect(cx, CXADEC_DL_CTL,
+				0x03000000 | fw->size, 0x03000000, 0x13000000);
+
+	CX18_INFO_DEV(sd, "loaded %s firmware (%d bytes)\n", FWFILE, size);
+
+	if (cx18_av_verifyfw(cx, fw) == 0)
+		cx18_av_write4_expect(cx, CXADEC_DL_CTL,
 				0x13000000 | fw->size, 0x13000000, 0x13000000);
 
 	/* Output to the 416 */
@@ -135,6 +189,28 @@ int cx18_av_loadfw(struct cx18 *cx)
 		cx18_write_reg_expect(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE,
 				      0, 0x400);
 
+	/* Toggle the AI1 MUX */
+	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
+	u = v & CX18_AI1_MUX_MASK;
+	v &= ~CX18_AI1_MUX_MASK;
+	if (u == CX18_AI1_MUX_843_I2S || u == CX18_AI1_MUX_INVALID) {
+		/* Switch to I2S1 */
+		v |= CX18_AI1_MUX_I2S1;
+		cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+				      v, CX18_AI1_MUX_MASK);
+		/* Switch back to the A/V decoder core I2S output */
+		v = (v & ~CX18_AI1_MUX_MASK) | CX18_AI1_MUX_843_I2S;
+	} else {
+		/* Switch to the A/V decoder core I2S output */
+		v |= CX18_AI1_MUX_843_I2S;
+		cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+				      v, CX18_AI1_MUX_MASK);
+		/* Switch back to I2S1 or I2S2 */
+		v = (v & ~CX18_AI1_MUX_MASK) | u;
+	}
+	cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+			      v, CX18_AI1_MUX_MASK);
+
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);
 	v |= 0xFF;   /* Auto by default */
@@ -143,7 +219,5 @@ int cx18_av_loadfw(struct cx18 *cx)
 	cx18_av_write4_expect(cx, CXADEC_STD_DET_CTL, v, v, 0x3F00FFFF);
 
 	release_firmware(fw);
-
-	CX18_INFO_DEV(sd, "loaded %s firmware (%d bytes)\n", FWFILE, size);
 	return 0;
 }

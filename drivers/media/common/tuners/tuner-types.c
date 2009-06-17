@@ -578,6 +578,31 @@ static struct tuner_params tuner_fm1216me_mk3_params[] = {
 	},
 };
 
+/* ------------ TUNER_PHILIPS_FM1216MK5 - Philips PAL ------------ */
+
+static struct tuner_range tuner_fm1216mk5_pal_ranges[] = {
+	{ 16 * 158.00 /*MHz*/, 0xce, 0x01, },
+	{ 16 * 441.00 /*MHz*/, 0xce, 0x02, },
+	{ 16 * 864.00        , 0xce, 0x04, },
+};
+
+static struct tuner_params tuner_fm1216mk5_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_fm1216mk5_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_fm1216mk5_pal_ranges),
+		.cb_first_if_lower_freq = 1,
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_invert_for_secam_lc = 1,
+		.port1_fm_high_sensitivity = 1,
+		.default_top_mid = -2,
+		.default_top_secam_mid = -2,
+		.default_top_secam_high = -2,
+	},
+};
+
 /* ------------ TUNER_LG_NTSC_NEW_TAPC - LGINNOTEK NTSC ------------ */
 
 static struct tuner_params tuner_lg_ntsc_new_tapc_params[] = {
@@ -1254,6 +1279,28 @@ static struct tuner_params tuner_tcl_mf02gip_5n_params[] = {
 	},
 };
 
+/* 80-89 */
+/* --------- TUNER_PHILIPS_FQ1216LME_MK3 -- active loopthrough, no FM ------- */
+
+static struct tuner_params tuner_fq1216lme_mk3_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_fm1216me_mk3_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_pal_ranges),
+		.cb_first_if_lower_freq = 1, /* not specified, but safe to do */
+		.has_tda9887 = 1, /* TDA9886 */
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_invert_for_secam_lc = 1,
+		.default_top_low = 4,
+		.default_top_mid = 4,
+		.default_top_high = 4,
+		.default_top_secam_low = 4,
+		.default_top_secam_mid = 4,
+		.default_top_secam_high = 4,
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1693,6 +1740,18 @@ struct tunertype tuners[] = {
 		.stepsize = 166667,
 		.initdata = tua603x_agc112,
 		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
+	},
+		[TUNER_PHILIPS_FM1216MK5] = { /* Philips PAL */
+		.name   = "Philips PAL/SECAM multi (FM1216 MK5)",
+		.params = tuner_fm1216mk5_params,
+		.count  = ARRAY_SIZE(tuner_fm1216mk5_params),
+	},
+
+	/* 80-89 */
+	[TUNER_PHILIPS_FQ1216LME_MK3] = { /* PAL/SECAM, Loop-thru, no FM */
+		.name = "Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough",
+		.params = tuner_fq1216lme_mk3_params,
+		.count  = ARRAY_SIZE(tuner_fq1216lme_mk3_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

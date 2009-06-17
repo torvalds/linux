@@ -1969,6 +1969,54 @@ static const struct cx88_board cx88_boards[] = {
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_HAUPPAUGE_IRONLY] = {
+		.name           = "Hauppauge WinTV-IR Only",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+	},
+	[CX88_BOARD_WINFAST_DTV1800H] = {
+		.name           = "Leadtek WinFast DTV1800 Hybrid",
+		.tuner_type     = TUNER_XC2028,
+		.radio_type     = TUNER_XC2028,
+		.tuner_addr     = 0x61,
+		.radio_addr     = 0x61,
+		/*
+		 * GPIO setting
+		 *
+		 *  2: mute (0=off,1=on)
+		 * 12: tuner reset pin
+		 * 13: audio source (0=tuner audio,1=line in)
+		 * 14: FM (0=on,1=off ???)
+		 */
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0400,       /* pin 2 = 0 */
+			.gpio1  = 0x6040,       /* pin 13 = 0, pin 14 = 1 */
+			.gpio2  = 0x0000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0400,       /* pin 2 = 0 */
+			.gpio1  = 0x6060,       /* pin 13 = 1, pin 14 = 1 */
+			.gpio2  = 0x0000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x0400,       /* pin 2 = 0 */
+			.gpio1  = 0x6060,       /* pin 13 = 1, pin 14 = 1 */
+			.gpio2  = 0x0000,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x0400,       /* pin 2 = 0 */
+			.gpio1  = 0x6000,       /* pin 13 = 0, pin 14 = 0 */
+			.gpio2  = 0x0000,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2382,6 +2430,14 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x153b,
 		.subdevice = 0x1177,
 		.card      = CX88_BOARD_TERRATEC_CINERGY_HT_PCI_MKII,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x9290,
+		.card      = CX88_BOARD_HAUPPAUGE_IRONLY,
+	}, {
+		.subvendor = 0x107d,
+		.subdevice = 0x6654,
+		.card      = CX88_BOARD_WINFAST_DTV1800H,
 	},
 };
 
@@ -2448,6 +2504,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 90500: /* Nova-T-PCI (oem) */
 	case 90501: /* Nova-T-PCI (oem/IR) */
 	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
+	case 92900: /* WinTV-IROnly (No analog or digital Video inputs) */
 	case 94009: /* WinTV-HVR1100 (Video and IR Retail) */
 	case 94501: /* WinTV-HVR1100 (Video and IR OEM) */
 	case 96009: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX) */
@@ -2579,6 +2636,23 @@ static int cx88_xc3028_geniatech_tuner_callback(struct cx88_core *core,
 	return -EINVAL;
 }
 
+static int cx88_xc3028_winfast1800h_callback(struct cx88_core *core,
+					     int command, int arg)
+{
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* GPIO 12 (xc3028 tuner reset) */
+		cx_set(MO_GP1_IO, 0x1010);
+		mdelay(50);
+		cx_clear(MO_GP1_IO, 0x10);
+		mdelay(50);
+		cx_set(MO_GP1_IO, 0x10);
+		mdelay(50);
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /* ------------------------------------------------------------------- */
 /* some Divco specific stuff                                           */
 static int cx88_pv_8000gt_callback(struct cx88_core *core,
@@ -2651,6 +2725,8 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		return cx88_dvico_xc2028_callback(core, command, arg);
+	case CX88_BOARD_WINFAST_DTV1800H:
+		return cx88_xc3028_winfast1800h_callback(core, command, arg);
 	}
 
 	switch (command) {
@@ -2690,10 +2766,22 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 	switch (core->boardnr) {
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		if (command == 0) { /* This is the reset command from xc5000 */
-			/* Reset XC5000 tuner via SYS_RSTO_pin */
-			cx_write(MO_SRST_IO, 0);
-			msleep(10);
-			cx_write(MO_SRST_IO, 1);
+
+			/* djh - According to the engineer at PCTV Systems,
+			   the xc5000 reset pin is supposed to be on GPIO12.
+			   However, despite three nights of effort, pulling
+			   that GPIO low didn't reset the xc5000.  While
+			   pulling MO_SRST_IO low does reset the xc5000, this
+			   also resets in the s5h1409 being reset as well.
+			   This causes tuning to always fail since the internal
+			   state of the s5h1409 does not match the driver's
+			   state.  Given that the only two conditions in which
+			   the driver performs a reset is during firmware load
+			   and powering down the chip, I am taking out the
+			   reset.  We know that the chip is being reset
+			   when the cx88 comes online, and not being able to
+			   do power management for this board is worse than
+			   not having any tuning at all. */
 			return 0;
 		} else {
 			err_printk(core, "xc5000: unknown tuner "
@@ -2825,6 +2913,16 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		cx_set(MO_GP0_IO, 0x00000080); /* 702 out of reset */
 		udelay(1000);
 		break;
+
+	case CX88_BOARD_WINFAST_DTV1800H:
+		/* GPIO 12 (xc3028 tuner reset) */
+		cx_set(MO_GP1_IO, 0x1010);
+		mdelay(50);
+		cx_clear(MO_GP1_IO, 0x10);
+		mdelay(50);
+		cx_set(MO_GP1_IO, 0x10);
+		mdelay(50);
+		break;
 	}
 }
 
@@ -2845,6 +2943,7 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 			core->i2c_algo.udelay = 16;
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+	case CX88_BOARD_WINFAST_DTV1800H:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case CX88_BOARD_KWORLD_ATSC_120:
@@ -2907,6 +3006,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
+	case CX88_BOARD_HAUPPAUGE_IRONLY:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core, eeprom);
 		break;

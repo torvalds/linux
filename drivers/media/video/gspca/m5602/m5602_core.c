@@ -17,6 +17,7 @@
  */
 
 #include "m5602_ov9650.h"
+#include "m5602_ov7660.h"
 #include "m5602_mt9m111.h"
 #include "m5602_po1030.h"
 #include "m5602_s5k83a.h"
@@ -35,7 +36,7 @@ static const __devinitdata struct usb_device_id m5602_table[] = {
 MODULE_DEVICE_TABLE(usb, m5602_table);
 
 /* Reads a byte from the m5602 */
-int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
+int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 {
 	int err;
 	struct usb_device *udev = sd->gspca_dev.dev;
@@ -56,7 +57,7 @@ int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
 }
 
 /* Writes a byte to to the m5602 */
-int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
+int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 {
 	int err;
 	struct usb_device *udev = sd->gspca_dev.dev;
@@ -80,6 +81,17 @@ int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
 	return (err < 0) ? err : 0;
 }
 
+int m5602_wait_for_i2c(struct sd *sd)
+{
+	int err;
+	u8 data;
+
+	do {
+		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, &data);
+	} while ((data & I2C_BUSY) && !err);
+	return err;
+}
+
 int m5602_read_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len)
 {
@@ -88,9 +100,7 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 	if (!len || len > sd->sensor->i2c_regW)
 		return -EINVAL;
 
-	do {
-		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
-	} while ((*i2c_data & I2C_BUSY) && !err);
+	err = m5602_wait_for_i2c(sd);
 	if (err < 0)
 		return err;
 
@@ -103,21 +113,25 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 	if (err < 0)
 		return err;
 
+	/* Sensors with registers that are of only
+	   one byte width are differently read */
+
+	/* FIXME: This works with the ov9650, but has issues with the po1030 */
 	if (sd->sensor->i2c_regW == 1) {
-		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, len);
+		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 1);
 		if (err < 0)
 			return err;
 
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
-		if (err < 0)
-			return err;
 	} else {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x18 + len);
-		if (err < 0)
-			return err;
 	}
 
 	for (i = 0; (i < len) && !err; i++) {
+		err = m5602_wait_for_i2c(sd);
+		if (err < 0)
+			return err;
+
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
 		PDEBUG(D_CONF, "Reading sensor register "
@@ -203,6 +217,11 @@ static int m5602_probe_sensor(struct sd *sd)
 
 	/* Try the ov9650 */
 	sd->sensor = &ov9650;
+	if (!sd->sensor->probe(sd))
+		return 0;
+
+	/* Try the ov7660 */
+	sd->sensor = &ov7660;
 	if (!sd->sensor->probe(sd))
 		return 0;
 
@@ -409,8 +428,9 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(force_sensor, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(force_sensor,
-		"force detection of sensor, "
-		"1 = OV9650, 2 = S5K83A, 3 = S5K4AA, 4 = MT9M111, 5 = PO1030");
+		"forces detection of a sensor, "
+		"1 = OV9650, 2 = S5K83A, 3 = S5K4AA, "
+		"4 = MT9M111, 5 = PO1030, 6 = OV7660");
 
 module_param(dump_bridge, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dump_bridge, "Dumps all usb bridge registers at startup");

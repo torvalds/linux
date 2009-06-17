@@ -50,6 +50,13 @@ static int i2c_detect_tries = 10;
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
+	char bridge;
+#define BRIDGE_OV511		0
+#define BRIDGE_OV511PLUS	1
+#define BRIDGE_OV518		2
+#define BRIDGE_OV518PLUS	3
+#define BRIDGE_OV519		4
+
 	/* Determined by sensor type */
 	__u8 sif;
 
@@ -87,6 +94,9 @@ static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
+static void setbrightness(struct gspca_dev *gspca_dev);
+static void setcontrast(struct gspca_dev *gspca_dev);
+static void setcolors(struct gspca_dev *gspca_dev);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -164,7 +174,7 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static const struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format ov519_vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -176,7 +186,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
-static const struct v4l2_pix_format sif_mode[] = {
+static const struct v4l2_pix_format ov519_sif_mode[] = {
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
@@ -188,6 +198,47 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
+
+static const struct v4l2_pix_format ov518_vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
+};
+static const struct v4l2_pix_format ov518_sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 40000,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_OV518, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
+};
+
+
+/* Registers common to OV511 / OV518 */
+#define R51x_SYS_RESET          	0x50
+#define R51x_SYS_INIT         		0x53
+#define R51x_SYS_SNAP			0x52
+#define R51x_SYS_CUST_ID		0x5F
+#define R51x_COMP_LUT_BEGIN		0x80
+
+/* OV511 Camera interface register numbers */
+#define R511_SYS_LED_CTL		0x55	/* OV511+ only */
+#define	OV511_RESET_NOREGS		0x3F	/* All but OV511 & regs */
+
+/* OV518 Camera interface register numbers */
+#define R518_GPIO_OUT			0x56	/* OV518(+) only */
+#define R518_GPIO_CTL			0x57	/* OV518(+) only */
 
 /* OV519 Camera interface register numbers */
 #define OV519_R10_H_SIZE		0x10
@@ -224,6 +275,8 @@ static const struct v4l2_pix_format sif_mode[] = {
 
 /* OV7610 registers */
 #define OV7610_REG_GAIN		0x00	/* gain setting (5:0) */
+#define OV7610_REG_BLUE		0x01	/* blue channel balance */
+#define OV7610_REG_RED		0x02	/* red channel balance */
 #define OV7610_REG_SAT		0x03	/* saturation */
 #define OV8610_REG_HUE		0x04	/* 04 reserved */
 #define OV7610_REG_CNT		0x05	/* Y contrast */
@@ -846,11 +899,12 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 static int reg_w(struct sd *sd, __u16 index, __u8 value)
 {
 	int ret;
+	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 2 : 1;
 
 	sd->gspca_dev.usb_buf[0] = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
-			1,			/* REQ_IO (ov518/519) */
+			req,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			sd->gspca_dev.usb_buf, 1, 500);
@@ -864,10 +918,11 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 static int reg_r(struct sd *sd, __u16 index)
 {
 	int ret;
+	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 3 : 1;
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
-			1,			/* REQ_IO */
+			req,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, sd->gspca_dev.usb_buf, 1, 500);
 
@@ -922,6 +977,28 @@ static int reg_w_mask(struct sd *sd,
 	}
 	return reg_w(sd, index, value);
 }
+
+/*
+ * Writes multiple (n) byte value to a single register. Only valid with certain
+ * registers (0x30 and 0xc4 - 0xce).
+ */
+static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
+{
+	int ret;
+
+	*((u32 *)sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
+
+	ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
+			1 /* REG_IO */,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, index,
+			sd->gspca_dev.usb_buf, n, 500);
+	if (ret < 0)
+		PDEBUG(D_ERR, "Write reg32 [%02x] %08x failed", index, value);
+	return ret;
+}
+
 
 /*
  * The OV518 I2C I/O procedure is different, hence, this function.
@@ -1014,20 +1091,47 @@ static inline int ov51x_stop(struct sd *sd)
 {
 	PDEBUG(D_STREAM, "stopping");
 	sd->stopped = 1;
-	return reg_w(sd, OV519_SYS_RESET1, 0x0f);
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		return reg_w(sd, R51x_SYS_RESET, 0x3d);
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		return reg_w_mask(sd, R51x_SYS_RESET, 0x3a, 0x3a);
+	case BRIDGE_OV519:
+		return reg_w(sd, OV519_SYS_RESET1, 0x0f);
+	}
+
+	return 0;
 }
 
 /* Restarts OV511 after ov511_stop() is called. Has no effect if it is not
  * actually stopped (for performance). */
 static inline int ov51x_restart(struct sd *sd)
 {
+	int rc;
+
 	PDEBUG(D_STREAM, "restarting");
 	if (!sd->stopped)
 		return 0;
 	sd->stopped = 0;
 
 	/* Reinitialize the stream */
-	return reg_w(sd, OV519_SYS_RESET1, 0x00);
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		return reg_w(sd, R51x_SYS_RESET, 0x00);
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		rc = reg_w(sd, 0x2f, 0x80);
+		if (rc < 0)
+			return rc;
+		return reg_w(sd, R51x_SYS_RESET, 0x00);
+	case BRIDGE_OV519:
+		return reg_w(sd, OV519_SYS_RESET1, 0x00);
+	}
+
+	return 0;
 }
 
 /* This does an initial reset of an OmniVision sensor and ensures that I2C
@@ -1287,16 +1391,161 @@ static int ov6xx0_configure(struct sd *sd)
 /* Turns on or off the LED. Only has an effect with OV511+/OV518(+)/OV519 */
 static void ov51x_led_control(struct sd *sd, int on)
 {
-	reg_w_mask(sd, OV519_GPIO_DATA_OUT0, !on, 1);	/* 0 / 1 */
+	switch (sd->bridge) {
+	/* OV511 has no LED control */
+	case BRIDGE_OV511PLUS:
+		reg_w(sd, R511_SYS_LED_CTL, on ? 1 : 0);
+		break;
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		reg_w_mask(sd, R518_GPIO_OUT, on ? 0x02 : 0x00, 0x02);
+		break;
+	case BRIDGE_OV519:
+		reg_w_mask(sd, OV519_GPIO_DATA_OUT0, !on, 1);	/* 0 / 1 */
+		break;
+	}
 }
 
-/* this function is called at probe time */
-static int sd_config(struct gspca_dev *gspca_dev,
-			const struct usb_device_id *id)
+/* OV518 quantization tables are 8x4 (instead of 8x8) */
+static int ov518_upload_quan_tables(struct sd *sd)
+{
+	const unsigned char yQuanTable518[] = {
+		5, 4, 5, 6, 6, 7, 7, 7,
+		5, 5, 5, 5, 6, 7, 7, 7,
+		6, 6, 6, 6, 7, 7, 7, 8,
+		7, 7, 6, 7, 7, 7, 8, 8
+	};
+
+	const unsigned char uvQuanTable518[] = {
+		6, 6, 6, 7, 7, 7, 7, 7,
+		6, 6, 6, 7, 7, 7, 7, 7,
+		6, 6, 6, 7, 7, 7, 7, 8,
+		7, 7, 7, 7, 7, 7, 8, 8
+	};
+
+	const unsigned char *pYTable = yQuanTable518;
+	const unsigned char *pUVTable = uvQuanTable518;
+	unsigned char val0, val1;
+	int i, rc, reg = R51x_COMP_LUT_BEGIN;
+
+	PDEBUG(D_PROBE, "Uploading quantization tables");
+
+	for (i = 0; i < 16; i++) {
+		val0 = *pYTable++;
+		val1 = *pYTable++;
+		val0 &= 0x0f;
+		val1 &= 0x0f;
+		val0 |= val1 << 4;
+		rc = reg_w(sd, reg, val0);
+		if (rc < 0)
+			return rc;
+
+		val0 = *pUVTable++;
+		val1 = *pUVTable++;
+		val0 &= 0x0f;
+		val1 &= 0x0f;
+		val0 |= val1 << 4;
+		rc = reg_w(sd, reg + 16, val0);
+		if (rc < 0)
+			return rc;
+
+		reg++;
+	}
+
+	return 0;
+}
+
+/* This initializes the OV518/OV518+ and the sensor */
+static int ov518_configure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam;
+	int rc;
 
+	/* For 518 and 518+ */
+	static struct ov_regvals init_518[] = {
+		{ R51x_SYS_RESET,	0x40 },
+		{ R51x_SYS_INIT,	0xe1 },
+		{ R51x_SYS_RESET,	0x3e },
+		{ R51x_SYS_INIT,	0xe1 },
+		{ R51x_SYS_RESET,	0x00 },
+		{ R51x_SYS_INIT,	0xe1 },
+		{ 0x46,			0x00 },
+		{ 0x5d,			0x03 },
+	};
+
+	static struct ov_regvals norm_518[] = {
+		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
+		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
+		{ 0x31, 		0x0f },
+		{ 0x5d,			0x03 },
+		{ 0x24,			0x9f },
+		{ 0x25,			0x90 },
+		{ 0x20,			0x00 },
+		{ 0x51,			0x04 },
+		{ 0x71,			0x19 },
+		{ 0x2f,			0x80 },
+	};
+
+	static struct ov_regvals norm_518_p[] = {
+		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
+		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
+		{ 0x31, 		0x0f },
+		{ 0x5d,			0x03 },
+		{ 0x24,			0x9f },
+		{ 0x25,			0x90 },
+		{ 0x20,			0x60 },
+		{ 0x51,			0x02 },
+		{ 0x71,			0x19 },
+		{ 0x40,			0xff },
+		{ 0x41,			0x42 },
+		{ 0x46,			0x00 },
+		{ 0x33,			0x04 },
+		{ 0x21,			0x19 },
+		{ 0x3f,			0x10 },
+		{ 0x2f,			0x80 },
+	};
+
+	/* First 5 bits of custom ID reg are a revision ID on OV518 */
+	PDEBUG(D_PROBE, "Device revision %d",
+	       0x1F & reg_r(sd, R51x_SYS_CUST_ID));
+
+	rc = write_regvals(sd, init_518, ARRAY_SIZE(init_518));
+	if (rc < 0)
+		return rc;
+
+	/* Set LED GPIO pin to output mode */
+	rc = reg_w_mask(sd, R518_GPIO_CTL, 0x00, 0x02);
+	if (rc < 0)
+		return rc;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV518:
+		rc = write_regvals(sd, norm_518, ARRAY_SIZE(norm_518));
+		if (rc < 0)
+			return rc;
+		break;
+	case BRIDGE_OV518PLUS:
+		rc = write_regvals(sd, norm_518_p, ARRAY_SIZE(norm_518_p));
+		if (rc < 0)
+			return rc;
+		break;
+	}
+
+	rc = ov518_upload_quan_tables(sd);
+	if (rc < 0) {
+		PDEBUG(D_ERR, "Error uploading quantization tables");
+		return rc;
+	}
+
+	rc = reg_w(sd, 0x2f, 0x80);
+	if (rc < 0)
+		return rc;
+
+	return 0;
+}
+
+static int ov519_configure(struct sd *sd)
+{
 	static const struct ov_regvals init_519[] = {
 		{ 0x5a,  0x6d }, /* EnableSystem */
 		{ 0x53,  0x9b },
@@ -1313,8 +1562,32 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		/* windows reads 0x55 at this point*/
 	};
 
-	if (write_regvals(sd, init_519, ARRAY_SIZE(init_519)))
+	return write_regvals(sd, init_519, ARRAY_SIZE(init_519));
+}
+
+/* this function is called at probe time */
+static int sd_config(struct gspca_dev *gspca_dev,
+			const struct usb_device_id *id)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam;
+	int ret = 0;
+
+	sd->bridge = id->driver_info;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		ret = ov518_configure(gspca_dev);
+		break;
+	case BRIDGE_OV519:
+		ret = ov519_configure(sd);
+		break;
+	}
+
+	if (ret)
 		goto error;
+
 	ov51x_led_control(sd, 0);	/* turn LED off */
 
 	/* Test for 76xx */
@@ -1360,12 +1633,26 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	if (!sd->sif) {
-		cam->cam_mode = vga_mode;
-		cam->nmodes = ARRAY_SIZE(vga_mode);
-	} else {
-		cam->cam_mode = sif_mode;
-		cam->nmodes = ARRAY_SIZE(sif_mode);
+	switch (sd->bridge) {
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		if (!sd->sif) {
+			cam->cam_mode = ov518_vga_mode;
+			cam->nmodes = ARRAY_SIZE(ov518_vga_mode);
+		} else {
+			cam->cam_mode = ov518_sif_mode;
+			cam->nmodes = ARRAY_SIZE(ov518_sif_mode);
+		}
+		break;
+	case BRIDGE_OV519:
+		if (!sd->sif) {
+			cam->cam_mode = ov519_vga_mode;
+			cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
+		} else {
+			cam->cam_mode = ov519_sif_mode;
+			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
+		}
+		break;
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
@@ -1421,6 +1708,106 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 	return 0;
 }
+
+/* Sets up the OV518/OV518+ with the given image parameters
+ *
+ * OV518 needs a completely different approach, until we can figure out what
+ * the individual registers do. Also, only 15 FPS is supported now.
+ *
+ * Do not put any sensor-specific code in here (including I2C I/O functions)
+ */
+static int ov518_mode_init_regs(struct sd *sd)
+{
+	int hsegs, vsegs;
+
+	/******** Set the mode ********/
+
+	reg_w(sd, 0x2b, 0);
+	reg_w(sd, 0x2c, 0);
+	reg_w(sd, 0x2d, 0);
+	reg_w(sd, 0x2e, 0);
+	reg_w(sd, 0x3b, 0);
+	reg_w(sd, 0x3c, 0);
+	reg_w(sd, 0x3d, 0);
+	reg_w(sd, 0x3e, 0);
+
+	if (sd->bridge == BRIDGE_OV518) {
+		/* Set 8-bit (YVYU) input format */
+		reg_w_mask(sd, 0x20, 0x08, 0x08);
+
+		/* Set 12-bit (4:2:0) output format */
+		reg_w_mask(sd, 0x28, 0x80, 0xf0);
+		reg_w_mask(sd, 0x38, 0x80, 0xf0);
+	} else {
+		reg_w(sd, 0x28, 0x80);
+		reg_w(sd, 0x38, 0x80);
+	}
+
+	hsegs = sd->gspca_dev.width / 16;
+	vsegs = sd->gspca_dev.height / 4;
+
+	reg_w(sd, 0x29, hsegs);
+	reg_w(sd, 0x2a, vsegs);
+
+	reg_w(sd, 0x39, hsegs);
+	reg_w(sd, 0x3a, vsegs);
+
+	/* Windows driver does this here; who knows why */
+	reg_w(sd, 0x2f, 0x80);
+
+	/******** Set the framerate (to 30 FPS) ********/
+	if (sd->bridge == BRIDGE_OV518PLUS)
+		sd->clockdiv = 1;
+	else
+		sd->clockdiv = 0;
+
+	/* Mode independent, but framerate dependent, regs */
+	reg_w(sd, 0x51, 0x04);	/* Clock divider; lower==faster */
+	reg_w(sd, 0x22, 0x18);
+	reg_w(sd, 0x23, 0xff);
+
+	if (sd->bridge == BRIDGE_OV518PLUS)
+		reg_w(sd, 0x21, 0x19);
+	else
+		reg_w(sd, 0x71, 0x17);	/* Compression-related? */
+
+	/* FIXME: Sensor-specific */
+	/* Bit 5 is what matters here. Of course, it is "reserved" */
+	i2c_w(sd, 0x54, 0x23);
+
+	reg_w(sd, 0x2f, 0x80);
+
+	if (sd->bridge == BRIDGE_OV518PLUS) {
+		reg_w(sd, 0x24, 0x94);
+		reg_w(sd, 0x25, 0x90);
+		ov518_reg_w32(sd, 0xc4,    400, 2);	/* 190h   */
+		ov518_reg_w32(sd, 0xc6,    540, 2);	/* 21ch   */
+		ov518_reg_w32(sd, 0xc7,    540, 2);	/* 21ch   */
+		ov518_reg_w32(sd, 0xc8,    108, 2);	/* 6ch    */
+		ov518_reg_w32(sd, 0xca, 131098, 3);	/* 2001ah */
+		ov518_reg_w32(sd, 0xcb,    532, 2);	/* 214h   */
+		ov518_reg_w32(sd, 0xcc,   2400, 2);	/* 960h   */
+		ov518_reg_w32(sd, 0xcd,     32, 2);	/* 20h    */
+		ov518_reg_w32(sd, 0xce,    608, 2);	/* 260h   */
+	} else {
+		reg_w(sd, 0x24, 0x9f);
+		reg_w(sd, 0x25, 0x90);
+		ov518_reg_w32(sd, 0xc4,    400, 2);	/* 190h   */
+		ov518_reg_w32(sd, 0xc6,    381, 2);	/* 17dh   */
+		ov518_reg_w32(sd, 0xc7,    381, 2);	/* 17dh   */
+		ov518_reg_w32(sd, 0xc8,    128, 2);	/* 80h    */
+		ov518_reg_w32(sd, 0xca, 183331, 3);	/* 2cc23h */
+		ov518_reg_w32(sd, 0xcb,    746, 2);	/* 2eah   */
+		ov518_reg_w32(sd, 0xcc,   1750, 2);	/* 6d6h   */
+		ov518_reg_w32(sd, 0xcd,     45, 2);	/* 2dh    */
+		ov518_reg_w32(sd, 0xce,    851, 2);	/* 353h   */
+	}
+
+	reg_w(sd, 0x2f, 0x80);
+
+	return 0;
+}
+
 
 /* Sets up the OV519 with the given image parameters
  *
@@ -1740,6 +2127,11 @@ static int set_ov_sensor_window(struct sd *sd)
 		hwebase = 0x3a;
 		vwsbase = 0x05;
 		vwebase = 0x06;
+		if (qvga) {
+			/* HDG: this fixes U and V getting swapped */
+			hwsbase--;
+			vwsbase--;
+		}
 		break;
 	case SEN_OV7620:
 		hwsbase = 0x2f;		/* From 7620.SET (spec is wrong) */
@@ -1855,14 +2247,27 @@ static int set_ov_sensor_window(struct sd *sd)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
+	int ret = 0;
 
-	ret = ov519_mode_init_regs(sd);
+	switch (sd->bridge) {
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		ret = ov518_mode_init_regs(sd);
+		break;
+	case BRIDGE_OV519:
+		ret = ov519_mode_init_regs(sd);
+		break;
+	}
 	if (ret < 0)
 		goto out;
+
 	ret = set_ov_sensor_window(sd);
 	if (ret < 0)
 		goto out;
+
+	setcontrast(gspca_dev);
+	setbrightness(gspca_dev);
+	setcolors(gspca_dev);
 
 	ret = ov51x_restart(sd);
 	if (ret < 0)
@@ -1882,7 +2287,30 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	ov51x_led_control(sd, 0);
 }
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame,	/* target */
+			__u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	PDEBUG(D_STREAM, "ov518_pkt_scan: %d bytes", len);
+
+	if (len & 7) {
+		len--;
+		PDEBUG(D_STREAM, "packet number: %d\n", (int)data[len]);
+	}
+
+	/* A false positive here is likely, until OVT gives me
+	 * the definitive SOF/EOF format */
+	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
+		gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+	}
+
+	/* intermediate packet */
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+}
+
+static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
@@ -1924,6 +2352,27 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	/* intermediate packet */
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 			data, len);
+}
+
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame,	/* target */
+			__u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		break;
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		ov518_pkt_scan(gspca_dev, frame, data, len);
+		break;
+	case BRIDGE_OV519:
+		ov519_pkt_scan(gspca_dev, frame, data, len);
+		break;
+	}
 }
 
 /* -- management routines -- */
@@ -1970,6 +2419,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		break;
 	case SEN_OV6630:
 		i2c_w_mask(sd, OV7610_REG_CNT, val >> 4, 0x0f);
+		break;
 	case SEN_OV8610: {
 		static const __u8 ctab[] = {
 			0x03, 0x09, 0x0b, 0x0f, 0x53, 0x6f, 0x35, 0x7f
@@ -2136,19 +2586,21 @@ static const struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x4052)},
-	{USB_DEVICE(0x041e, 0x405f)},
-	{USB_DEVICE(0x041e, 0x4060)},
-	{USB_DEVICE(0x041e, 0x4061)},
-	{USB_DEVICE(0x041e, 0x4064)},
-	{USB_DEVICE(0x041e, 0x4068)},
-	{USB_DEVICE(0x045e, 0x028c)},
-	{USB_DEVICE(0x054c, 0x0154)},
-	{USB_DEVICE(0x054c, 0x0155)},
-	{USB_DEVICE(0x05a9, 0x0519)},
-	{USB_DEVICE(0x05a9, 0x0530)},
-	{USB_DEVICE(0x05a9, 0x4519)},
-	{USB_DEVICE(0x05a9, 0x8519)},
+	{USB_DEVICE(0x041e, 0x4052), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4064), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x4068), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x054c, 0x0154), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x054c, 0x0155), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
+	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x0530), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x4519), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x8519), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0xa518), .driver_info = BRIDGE_OV518PLUS },
 	{}
 };
 

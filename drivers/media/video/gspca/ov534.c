@@ -60,10 +60,23 @@ struct sd {
 static struct ctrl sd_ctrls[] = {
 };
 
-static const struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format vga_yuyv_mode[] = {
 	{640, 480, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
 	 .bytesperline = 640 * 2,
 	 .sizeimage = 640 * 480 * 2,
+	 .colorspace = V4L2_COLORSPACE_SRGB,
+	 .priv = 0},
+};
+
+static const struct v4l2_pix_format vga_jpeg_mode[] = {
+	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	 .bytesperline = 320,
+	 .sizeimage = 320 * 240 * 3 / 8 + 590,
+	 .colorspace = V4L2_COLORSPACE_JPEG,
+	 .priv = 1},
+	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+	 .bytesperline = 640,
+	 .sizeimage = 640 * 480 * 3 / 8 + 590,
 	 .colorspace = V4L2_COLORSPACE_JPEG,
 	 .priv = 0},
 };
@@ -244,7 +257,7 @@ static const u8 bridge_init_ov965x[][2] = {
 };
 
 static const u8 sensor_init_ov965x[][2] = {
-	{0x12, 0x80},	/* com7 - reset */
+	{0x12, 0x80},	/* com7 - SSCB reset */
 	{0x00, 0x00},	/* gain */
 	{0x01, 0x80},	/* blue */
 	{0x02, 0x80},	/* red */
@@ -254,10 +267,10 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x0e, 0x61},	/* com5 */
 	{0x0f, 0x42},	/* com6 */
 	{0x11, 0x00},	/* clkrc */
-	{0x12, 0x02},	/* com7 */
+	{0x12, 0x02},	/* com7 - 15fps VGA YUYV */
 	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
 	{0x14, 0x28},	/* com9 */
-	{0x16, 0x24},	/* rsvd16 */
+	{0x16, 0x24},	/* reg16 */
 	{0x17, 0x1d},	/* hstart*/
 	{0x18, 0xbd},	/* hstop */
 	{0x19, 0x01},	/* vstrt */
@@ -269,24 +282,24 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x27, 0x08},	/* bbias */
 	{0x28, 0x08},	/* gbbias */
 	{0x29, 0x15},	/* gr com */
-	{0x2a, 0x00},
-	{0x2b, 0x00},
+	{0x2a, 0x00},	/* exhch */
+	{0x2b, 0x00},	/* exhcl */
 	{0x2c, 0x08},	/* rbias */
 	{0x32, 0xff},	/* href */
 	{0x33, 0x00},	/* chlf */
-	{0x34, 0x3f},	/* arblm */
-	{0x35, 0x00},	/* rsvd35 */
-	{0x36, 0xf8},	/* rsvd36 */
-	{0x38, 0x72},	/* acom38 */
-	{0x39, 0x57},	/* ofon */
-	{0x3a, 0x80},	/* tslb */
-	{0x3b, 0xc4},
+	{0x34, 0x3f},	/* aref1 */
+	{0x35, 0x00},	/* aref2 */
+	{0x36, 0xf8},	/* aref3 */
+	{0x38, 0x72},	/* adc2 */
+	{0x39, 0x57},	/* aref4 */
+	{0x3a, 0x80},	/* tslb - yuyv */
+	{0x3b, 0xc4},	/* com11 - night mode 1/4 frame rate */
 	{0x3d, 0x99},	/* com13 */
-	{0x3f, 0xc1},
+	{0x3f, 0xc1},	/* edge */
 	{0x40, 0xc0},	/* com15 */
 	{0x41, 0x40},	/* com16 */
-	{0x42, 0xc0},
-	{0x43, 0x0a},
+	{0x42, 0xc0},	/* com17 */
+	{0x43, 0x0a},	/* rsvd */
 	{0x44, 0xf0},
 	{0x45, 0x46},
 	{0x46, 0x62},
@@ -297,22 +310,22 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x4c, 0x7f},
 	{0x4d, 0x7f},
 	{0x4e, 0x7f},
-	{0x4f, 0x98},
+	{0x4f, 0x98},	/* matrix */
 	{0x50, 0x98},
 	{0x51, 0x00},
 	{0x52, 0x28},
 	{0x53, 0x70},
 	{0x54, 0x98},
-	{0x58, 0x1a},
-	{0x59, 0x85},
+	{0x58, 0x1a},	/* matrix coef sign */
+	{0x59, 0x85},	/* AWB control */
 	{0x5a, 0xa9},
 	{0x5b, 0x64},
 	{0x5c, 0x84},
 	{0x5d, 0x53},
 	{0x5e, 0x0e},
-	{0x5f, 0xf0},
-	{0x60, 0xf0},
-	{0x61, 0xf0},
+	{0x5f, 0xf0},	/* AWB blue limit */
+	{0x60, 0xf0},	/* AWB red limit */
+	{0x61, 0xf0},	/* AWB green limit */
 	{0x62, 0x00},	/* lcc1 */
 	{0x63, 0x00},	/* lcc2 */
 	{0x64, 0x02},	/* lcc3 */
@@ -324,15 +337,15 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x6d, 0x55},
 	{0x6e, 0x00},
 	{0x6f, 0x9d},
-	{0x70, 0x21},
+	{0x70, 0x21},	/* dnsth */
 	{0x71, 0x78},
-	{0x72, 0x00},
-	{0x73, 0x01},
-	{0x74, 0x3a},
-	{0x75, 0x35},
+	{0x72, 0x00},	/* poidx */
+	{0x73, 0x01},	/* pckdv */
+	{0x74, 0x3a},	/* xindx */
+	{0x75, 0x35},	/* yindx */
 	{0x76, 0x01},
 	{0x77, 0x02},
-	{0x7a, 0x12},
+	{0x7a, 0x12},	/* gamma curve */
 	{0x7b, 0x08},
 	{0x7c, 0x16},
 	{0x7d, 0x30},
@@ -349,33 +362,33 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x88, 0xe6},
 	{0x89, 0xf2},
 	{0x8a, 0x03},
-	{0x8c, 0x89},
+	{0x8c, 0x89},	/* com19 */
 	{0x14, 0x28},	/* com9 */
 	{0x90, 0x7d},
 	{0x91, 0x7b},
-	{0x9d, 0x03},
-	{0x9e, 0x04},
+	{0x9d, 0x03},	/* lcc6 */
+	{0x9e, 0x04},	/* lcc7 */
 	{0x9f, 0x7a},
 	{0xa0, 0x79},
 	{0xa1, 0x40},	/* aechm */
-	{0xa4, 0x50},
+	{0xa4, 0x50},	/* com21 */
 	{0xa5, 0x68},	/* com26 */
-	{0xa6, 0x4a},
-	{0xa8, 0xc1},	/* acoma8 */
-	{0xa9, 0xef},	/* acoma9 */
+	{0xa6, 0x4a},	/* AWB green */
+	{0xa8, 0xc1},	/* refa8 */
+	{0xa9, 0xef},	/* refa9 */
 	{0xaa, 0x92},
 	{0xab, 0x04},
-	{0xac, 0x80},
+	{0xac, 0x80},	/* black level control */
 	{0xad, 0x80},
 	{0xae, 0x80},
 	{0xaf, 0x80},
 	{0xb2, 0xf2},
 	{0xb3, 0x20},
-	{0xb4, 0x20},
+	{0xb4, 0x20},	/* ctrlb4 */
 	{0xb5, 0x00},
 	{0xb6, 0xaf},
 	{0xbb, 0xae},
-	{0xbc, 0x7f},
+	{0xbc, 0x7f},	/* ADC channel offsets */
 	{0xdb, 0x7f},
 	{0xbe, 0x7f},
 	{0xbf, 0x7f},
@@ -384,7 +397,7 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0xc2, 0x01},
 	{0xc3, 0x4e},
 	{0xc6, 0x85},
-	{0xc7, 0x80},
+	{0xc7, 0x80},	/* com24 */
 	{0xc9, 0xe0},
 	{0xca, 0xe8},
 	{0xcb, 0xf0},
@@ -399,11 +412,11 @@ static const u8 sensor_init_ov965x[][2] = {
 	{0x58, 0x1a},
 	{0xff, 0x41},	/* read 41, write ff 00 */
 	{0x41, 0x40},	/* com16 */
-	{0xc5, 0x03},
-	{0x6a, 0x02},
+	{0xc5, 0x03},	/* 60 Hz banding filter */
+	{0x6a, 0x02},	/* 50 Hz banding filter */
 
-	{0x12, 0x62},	/* com7 - VGA + CIF */
-	{0x36, 0xfa},	/* rsvd36 */
+	{0x12, 0x62},	/* com7 - 30fps VGA YUV */
+	{0x36, 0xfa},	/* aref3 */
 	{0x69, 0x0a},	/* hv */
 	{0x8c, 0x89},	/* com22 */
 	{0x14, 0x28},	/* com9 */
@@ -442,8 +455,8 @@ static const u8 bridge_init_ov965x_2[][2] = {
 	{0x52, 0x3c},
 	{0x53, 0x00},
 	{0x54, 0x00},
-	{0x55, 0x00},
-	{0x57, 0x00},
+	{0x55, 0x00},	/* brightness */
+	{0x57, 0x00},	/* contrast 2 */
 	{0x5c, 0x00},
 	{0x5a, 0xa0},
 	{0x5b, 0x78},
@@ -489,9 +502,66 @@ static const u8 sensor_init_ov965x_2[][2] = {
 	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
 };
 
+static const u8 sensor_start_ov965x[][2] = {
+	{0x12, 0x62},	/* com7 - 30fps VGA YUV */
+	{0x36, 0xfa},	/* aref3 */
+	{0x69, 0x0a},	/* hv */
+	{0x8c, 0x89},	/* com22 */
+	{0x14, 0x28},	/* com9 */
+	{0x3e, 0x0c},	/* com14 */
+	{0x41, 0x40},	/* com16 */
+	{0x72, 0x00},
+	{0x73, 0x00},
+	{0x74, 0x3a},
+	{0x75, 0x35},
+	{0x76, 0x01},
+	{0xc7, 0x80},	/* com24 */
+	{0x03, 0x12},	/* vref */
+	{0x17, 0x16},	/* hstart */
+	{0x18, 0x02},	/* hstop */
+	{0x19, 0x01},	/* vstrt */
+	{0x1a, 0x3d},	/* vstop */
+	{0x32, 0xff},	/* href */
+	{0xc0, 0xaa},
+	{}
+};
+
 static const u8 bridge_start_ov965x[][2] = {
+	{0x94, 0xaa},
+	{0xf1, 0x60},
+	{0xe5, 0x04},
+	{0xc0, 0x50},
+	{0xc1, 0x3c},
+	{0x8c, 0x00},
+	{0x8d, 0x1c},
+	{0x34, 0x05},
+	{}
+};
+
+static const u8 bridge_start_ov965x_vga[][2] = {
+	{0xc2, 0x0c},
+	{0xc3, 0xf9},
+	{0xda, 0x01},
+	{0x50, 0x00},
+	{0x51, 0xa0},
+	{0x52, 0x3c},
+	{0x53, 0x00},
+	{0x54, 0x00},
+	{0x55, 0x00},
+	{0x57, 0x00},
+	{0x5c, 0x00},
+	{0x5a, 0xa0},
+	{0x5b, 0x78},
+	{0x35, 0x02},
+	{0xd9, 0x10},
+	{0x94, 0x11},
+	{}
+};
+
+static const u8 bridge_start_ov965x_cif[][2] = {
 	{0xc2, 0x4c},
 	{0xc3, 0xf9},
+	{0xda, 0x00},
 	{0x50, 0x00},
 	{0x51, 0xa0},
 	{0x52, 0x78},
@@ -500,30 +570,54 @@ static const u8 bridge_start_ov965x[][2] = {
 	{0x55, 0x00},
 	{0x57, 0x00},
 	{0x5c, 0x00},
-	{0x5a, 0x28},
-	{0x5b, 0x1e},
-	{0x35, 0x00},
-	{0xd9, 0x21},
+	{0x5a, 0x50},
+	{0x5b, 0x3c},
+	{0x35, 0x02},
+	{0xd9, 0x10},
 	{0x94, 0x11},
+	{}
 };
 
-static const u8 sensor_start_ov965x[][2] = {
-	{0x3b, 0xe4},
+static const u8 sensor_start_ov965x_vga[][2] = {
+	{0x3b, 0xc4},	/* com11 - night mode 1/4 frame rate */
+	{0x1e, 0x04},	/* mvfp */
+	{0x13, 0xe0},	/* com8 */
+	{0x00, 0x00},
+	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
+	{0x11, 0x03},	/* clkrc */
+	{0x6b, 0x5a},	/* dblv */
+	{0x6a, 0x05},	/* 50 Hz banding filter */
+	{0xc5, 0x07},	/* 60 Hz banding filter */
+	{0xa2, 0x4b},	/* bd50 */
+	{0xa3, 0x3e},	/* bd60 */
+
+	{0x2d, 0x00},	/* advfl */
+	{}
+};
+
+static const u8 sensor_start_ov965x_cif[][2] = {
+	{0x3b, 0xe4},	/* com11 - night mode 1/4 frame rate */
 	{0x1e, 0x04},	/* mvfp */
 	{0x13, 0xe0},	/* com8 */
 	{0x00, 0x00},
 	{0x13, 0xe7},	/* com8 - everything (AGC, AWB and AEC) */
 	{0x11, 0x01},	/* clkrc */
 	{0x6b, 0x5a},	/* dblv */
-	{0x6a, 0x02},
-	{0xc5, 0x03},
-	{0xa2, 0x96},
-	{0xa3, 0x7d},
+	{0x6a, 0x02},	/* 50 Hz banding filter */
+	{0xc5, 0x03},	/* 60 Hz banding filter */
+	{0xa2, 0x96},	/* bd50 */
+	{0xa3, 0x7d},	/* bd60 */
+
 	{0xff, 0x13},	/* read 13, write ff 00 */
 	{0x13, 0xe7},
-	{0x3a, 0x80},
+	{0x3a, 0x80},	/* tslb - yuyv */
+	{}
+};
+
+static const u8 sensor_start_ov965x_2[][2] = {
 	{0xff, 0x42},	/* read 42, write ff 00 */
-	{0x42, 0xc1},
+	{0x42, 0xc1},	/* com17 - 50 Hz filter */
+	{}
 };
 
 
@@ -705,11 +799,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 
-	cam->cam_mode = vga_mode;
-	cam->nmodes = ARRAY_SIZE(vga_mode);
+	if (sd->sensor == SENSOR_OV772X) {
+		cam->cam_mode = vga_yuyv_mode;
+		cam->nmodes = ARRAY_SIZE(vga_yuyv_mode);
 
-	cam->bulk_size = 16384;
-	cam->bulk_nurbs = 2;
+		cam->bulk = 1;
+		cam->bulk_size = 16384;
+		cam->bulk_nurbs = 2;
+	} else {		/* ov965x */
+		cam->cam_mode = vga_jpeg_mode;
+		cam->nmodes = ARRAY_SIZE(vga_jpeg_mode);
+	}
 
 	return 0;
 }
@@ -778,6 +878,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int mode;
 
 	switch (sd->sensor) {
 	case SENSOR_OV772X:
@@ -786,13 +887,28 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	default:
 /*	case SENSOR_OV965X: */
-		reg_w_array(gspca_dev, bridge_start_ov965x,
-				ARRAY_SIZE(bridge_start_ov965x));
+
 		sccb_w_array(gspca_dev, sensor_start_ov965x,
 				ARRAY_SIZE(sensor_start_ov965x));
+		reg_w_array(gspca_dev, bridge_start_ov965x,
+				ARRAY_SIZE(bridge_start_ov965x));
+		mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
+		if (mode != 0) {	/* 320x240 */
+			reg_w_array(gspca_dev, bridge_start_ov965x_cif,
+					ARRAY_SIZE(bridge_start_ov965x_cif));
+			sccb_w_array(gspca_dev, sensor_start_ov965x_cif,
+					ARRAY_SIZE(sensor_start_ov965x_cif));
+		} else {		/* 640x480 */
+			reg_w_array(gspca_dev, bridge_start_ov965x_vga,
+					ARRAY_SIZE(bridge_start_ov965x_vga));
+			sccb_w_array(gspca_dev, sensor_start_ov965x_vga,
+					ARRAY_SIZE(sensor_start_ov965x_vga));
+		}
+		sccb_w_array(gspca_dev, sensor_start_ov965x_2,
+				ARRAY_SIZE(sensor_start_ov965x_2));
+		ov534_reg_write(gspca_dev, 0xe0, 0x00);
 		ov534_reg_write(gspca_dev, 0xe0, 0x00);
 		ov534_set_led(gspca_dev, 1);
-/*fixme: other sensor start omitted*/
 	}
 	return 0;
 }
@@ -832,9 +948,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 	__u32 this_pts;
 	u16 this_fid;
 	int remaining_len = len;
+	int payload_len;
 
+	payload_len = gspca_dev->cam.bulk ? 2048 : 2040;
 	do {
-		len = min(remaining_len, 2040);		/*fixme: was 2048*/
+		len = min(remaining_len, payload_len);
 
 		/* Payloads are prefixed with a UVC-style header.  We
 		   consider a frame to start when the FID toggles, or the PTS
@@ -864,29 +982,26 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 
 		/* If PTS or FID has changed, start a new frame. */
 		if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					NULL, 0);
+			if (gspca_dev->last_packet_type == INTER_PACKET)
+				frame = gspca_frame_add(gspca_dev,
+							LAST_PACKET, frame,
+							NULL, 0);
 			sd->last_pts = this_pts;
 			sd->last_fid = this_fid;
-		}
-
-		/* Add the data from this payload */
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
 					data + 12, len - 12);
-
 		/* If this packet is marked as EOF, end the frame */
-		if (data[1] & UVC_STREAM_EOF) {
+		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-
-			if (frame->data_end - frame->data !=
-			    gspca_dev->width * gspca_dev->height * 2) {
-				PDEBUG(D_PACK, "short frame");
-				goto discard;
-			}
-
 			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						NULL, 0);
+						data + 12, len - 12);
+		} else {
+
+			/* Add the data from this payload */
+			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+						data + 12, len - 12);
 		}
+
 
 		/* Done this payload */
 		goto scan_next;
