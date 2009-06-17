@@ -830,7 +830,8 @@ enum {
 int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
-		      int do_init, struct hda_codec **codecp);
+		      struct hda_codec **codecp);
+int snd_hda_codec_configure(struct hda_codec *codec);
 
 /*
  * low level functions

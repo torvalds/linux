@@ -1286,8 +1286,7 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 	[AZX_DRIVER_TERA] = 1,
 };
 
-static int __devinit azx_codec_create(struct azx *chip, const char *model,
-				      int no_init)
+static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -1346,7 +1345,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(chip->bus, c, !no_init, &codec);
+			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
 				continue;
 			codecs++;
@@ -1356,7 +1355,16 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 		snd_printk(KERN_ERR SFX "no codecs initialized\n");
 		return -ENXIO;
 	}
+	return 0;
+}
 
+/* configure each codec instance */
+static int __devinit azx_codec_configure(struct azx *chip)
+{
+	struct hda_codec *codec;
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+		snd_hda_codec_configure(codec);
+	}
 	return 0;
 }
 
@@ -2466,9 +2474,14 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev], probe_only[dev]);
+	err = azx_codec_create(chip, model[dev]);
 	if (err < 0)
 		goto out_free;
+	if (!probe_only[dev]) {
+		err = azx_codec_configure(chip);
+		if (err < 0)
+			goto out_free;
+	}
 
 	/* create PCM streams */
 	err = snd_hda_build_pcms(chip->bus);

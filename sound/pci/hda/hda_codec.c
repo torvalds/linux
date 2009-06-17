@@ -885,7 +885,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
  * Returns 0 if successful, or a negative error code.
  */
 int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
-				    int do_init, struct hda_codec **codecp)
+				    struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
 	char component[31];
@@ -978,11 +978,6 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D0);
 
-	if (do_init) {
-		err = snd_hda_codec_configure(codec);
-		if (err < 0)
-			goto error;
-	}
 	snd_hda_codec_proc_new(codec);
 
 	snd_hda_create_hwdep(codec);
@@ -1036,6 +1031,7 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		err = init_unsol_queue(codec->bus);
 	return err;
 }
+EXPORT_SYMBOL_HDA(snd_hda_codec_configure);
 
 /**
  * snd_hda_codec_setup_stream - set up the codec for streaming
