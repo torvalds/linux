@@ -29,6 +29,7 @@
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/netfilter/x_tables.h>
 #include <net/netfilter/nf_log.h>
+#include "../../netfilter/xt_repldata.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
@@ -66,6 +67,12 @@ do {								\
 #define static
 #define inline
 #endif
+
+void *ip6t_alloc_initial_table(const struct xt_table *info)
+{
+	return xt_alloc_initial_table(ip6t, IP6T);
+}
+EXPORT_SYMBOL_GPL(ip6t_alloc_initial_table);
 
 /*
    We keep a set of rules for each CPU, so we can avoid write-locking

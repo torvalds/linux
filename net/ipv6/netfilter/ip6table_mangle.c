@@ -21,42 +21,6 @@ MODULE_DESCRIPTION("ip6tables mangle table");
 			    (1 << NF_INET_LOCAL_OUT) | \
 			    (1 << NF_INET_POST_ROUTING))
 
-static const struct
-{
-	struct ip6t_replace repl;
-	struct ip6t_standard entries[5];
-	struct ip6t_error term;
-} initial_table __net_initdata = {
-	.repl = {
-		.name = "mangle",
-		.valid_hooks = MANGLE_VALID_HOOKS,
-		.num_entries = 6,
-		.size = sizeof(struct ip6t_standard) * 5 + sizeof(struct ip6t_error),
-		.hook_entry = {
-			[NF_INET_PRE_ROUTING] 	= 0,
-			[NF_INET_LOCAL_IN]	= sizeof(struct ip6t_standard),
-			[NF_INET_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-			[NF_INET_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-			[NF_INET_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
-		},
-		.underflow = {
-			[NF_INET_PRE_ROUTING] 	= 0,
-			[NF_INET_LOCAL_IN]	= sizeof(struct ip6t_standard),
-			[NF_INET_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-			[NF_INET_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-			[NF_INET_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
-		},
-	},
-	.entries = {
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_IN */
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* FORWARD */
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* POST_ROUTING */
-	},
-	.term = IP6T_ERROR_INIT,		/* ERROR */
-};
-
 static const struct xt_table packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
@@ -126,9 +90,14 @@ ip6table_mangle_hook(unsigned int hook, struct sk_buff *skb,
 static struct nf_hook_ops *mangle_ops __read_mostly;
 static int __net_init ip6table_mangle_net_init(struct net *net)
 {
-	/* Register table */
+	struct ip6t_replace *repl;
+
+	repl = ip6t_alloc_initial_table(&packet_mangler);
+	if (repl == NULL)
+		return -ENOMEM;
 	net->ipv6.ip6table_mangle =
-		ip6t_register_table(net, &packet_mangler, &initial_table.repl);
+		ip6t_register_table(net, &packet_mangler, repl);
+	kfree(repl);
 	if (IS_ERR(net->ipv6.ip6table_mangle))
 		return PTR_ERR(net->ipv6.ip6table_mangle);
 	return 0;

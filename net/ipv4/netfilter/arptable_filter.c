@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp/arp_tables.h>
 
 MODULE_LICENSE("GPL");
@@ -14,36 +15,6 @@ MODULE_DESCRIPTION("arptables filter table");
 
 #define FILTER_VALID_HOOKS ((1 << NF_ARP_IN) | (1 << NF_ARP_OUT) | \
 			   (1 << NF_ARP_FORWARD))
-
-static const struct
-{
-	struct arpt_replace repl;
-	struct arpt_standard entries[3];
-	struct arpt_error term;
-} initial_table __net_initdata = {
-	.repl = {
-		.name = "filter",
-		.valid_hooks = FILTER_VALID_HOOKS,
-		.num_entries = 4,
-		.size = sizeof(struct arpt_standard) * 3 + sizeof(struct arpt_error),
-		.hook_entry = {
-			[NF_ARP_IN] = 0,
-			[NF_ARP_OUT] = sizeof(struct arpt_standard),
-			[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard),
-		},
-		.underflow = {
-			[NF_ARP_IN] = 0,
-			[NF_ARP_OUT] = sizeof(struct arpt_standard),
-			[NF_ARP_FORWARD] = 2 * sizeof(struct arpt_standard),
-		},
-	},
-	.entries = {
-		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_IN */
-		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_OUT */
-		ARPT_STANDARD_INIT(NF_ACCEPT),	/* ARP_FORWARD */
-	},
-	.term = ARPT_ERROR_INIT,
-};
 
 static const struct xt_table packet_filter = {
 	.name		= "filter",
@@ -68,9 +39,14 @@ static struct nf_hook_ops *arpfilter_ops __read_mostly;
 
 static int __net_init arptable_filter_net_init(struct net *net)
 {
-	/* Register table */
+	struct arpt_replace *repl;
+	
+	repl = arpt_alloc_initial_table(&packet_filter);
+	if (repl == NULL)
+		return -ENOMEM;
 	net->ipv4.arptable_filter =
-		arpt_register_table(net, &packet_filter, &initial_table.repl);
+		arpt_register_table(net, &packet_filter, repl);
+	kfree(repl);
 	if (IS_ERR(net->ipv4.arptable_filter))
 		return PTR_ERR(net->ipv4.arptable_filter);
 	return 0;

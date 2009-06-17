@@ -258,6 +258,7 @@ struct arpt_error {
 	.target.errorname = "ERROR",					       \
 }
 
+extern void *arpt_alloc_initial_table(const struct xt_table *);
 extern struct xt_table *arpt_register_table(struct net *net,
 					    const struct xt_table *table,
 					    const struct arpt_replace *repl);
