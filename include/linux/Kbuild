@@ -308,6 +308,7 @@ unifdef-y += pmu.h
 unifdef-y += poll.h
 unifdef-y += ppp_defs.h
 unifdef-y += ppp-comp.h
+unifdef-y += pps.h
 unifdef-y += ptrace.h
 unifdef-y += quota.h
 unifdef-y += random.h
