@@ -20,7 +20,11 @@
 #define GIC_TRIG_EDGE			1
 #define GIC_TRIG_LEVEL			0
 
+#if CONFIG_SMP
+#define GIC_NUM_INTRS			(24 + NR_CPUS * 2)
+#else
 #define GIC_NUM_INTRS			32
+#endif
 
 #define MSK(n) ((1 << (n)) - 1)
 #define REG32(addr)		(*(volatile unsigned int *) (addr))
