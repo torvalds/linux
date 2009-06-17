@@ -148,6 +148,7 @@ struct iso9660_options{
 	char hide;
 	char showassoc;
 	char nocompress;
+	char overriderockperm;
 	unsigned char check;
 	unsigned int blocksize;
 	mode_t fmode;
@@ -312,7 +313,7 @@ enum {
 	Opt_block, Opt_check_r, Opt_check_s, Opt_cruft, Opt_gid, Opt_ignore,
 	Opt_iocharset, Opt_map_a, Opt_map_n, Opt_map_o, Opt_mode, Opt_nojoliet,
 	Opt_norock, Opt_sb, Opt_session, Opt_uid, Opt_unhide, Opt_utf8, Opt_err,
-	Opt_nocompress, Opt_hide, Opt_showassoc, Opt_dmode,
+	Opt_nocompress, Opt_hide, Opt_showassoc, Opt_dmode, Opt_overriderockperm,
 };
 
 static const match_table_t tokens = {
@@ -340,6 +341,7 @@ static const match_table_t tokens = {
 	{Opt_gid, "gid=%u"},
 	{Opt_mode, "mode=%u"},
 	{Opt_dmode, "dmode=%u"},
+	{Opt_overriderockperm, "overriderockperm"},
 	{Opt_block, "block=%u"},
 	{Opt_ignore, "conv=binary"},
 	{Opt_ignore, "conv=b"},
@@ -367,16 +369,12 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	popt->check = 'u';		/* unset */
 	popt->nocompress = 0;
 	popt->blocksize = 1024;
-	popt->fmode = popt->dmode = S_IRUGO | S_IXUGO; /*
-					 * r-x for all.  The disc could
-					 * be shared with DOS machines so
-					 * virtually anything could be
-					 * a valid executable.
-					 */
+	popt->fmode = popt->dmode = ISOFS_INVALID_MODE;
 	popt->gid = 0;
 	popt->uid = 0;
 	popt->iocharset = NULL;
 	popt->utf8 = 0;
+	popt->overriderockperm = 0;
 	popt->session=-1;
 	popt->sbsector=-1;
 	if (!options)
@@ -465,6 +463,9 @@ static int parse_options(char *options, struct iso9660_options *popt)
 			if (match_int(&args[0], &option))
 				return 0;
 			popt->dmode = option;
+			break;
+		case Opt_overriderockperm:
+			popt->overriderockperm = 1;
 			break;
 		case Opt_block:
 			if (match_int(&args[0], &option))
@@ -811,13 +812,20 @@ root_found:
 	sbi->s_gid = opt.gid;
 	sbi->s_utf8 = opt.utf8;
 	sbi->s_nocompress = opt.nocompress;
+	sbi->s_overriderockperm = opt.overriderockperm;
 	/*
 	 * It would be incredibly stupid to allow people to mark every file
 	 * on the disk as suid, so we merely allow them to set the default
 	 * permissions.
 	 */
-	sbi->s_fmode = opt.fmode & 0777;
-	sbi->s_dmode = opt.dmode & 0777;
+	if (opt.fmode != ISOFS_INVALID_MODE)
+		sbi->s_fmode = opt.fmode & 0777;
+	else
+		sbi->s_fmode = ISOFS_INVALID_MODE;
+	if (opt.dmode != ISOFS_INVALID_MODE)
+		sbi->s_dmode = opt.dmode & 0777;
+	else
+		sbi->s_dmode = ISOFS_INVALID_MODE;
 
 	/*
 	 * Read the root inode, which _may_ result in changing
@@ -1261,7 +1269,10 @@ static int isofs_read_inode(struct inode *inode)
 	ei->i_file_format = isofs_file_normal;
 
 	if (de->flags[-high_sierra] & 2) {
-		inode->i_mode = sbi->s_dmode | S_IFDIR;
+		if (sbi->s_dmode != ISOFS_INVALID_MODE)
+			inode->i_mode = S_IFDIR | sbi->s_dmode;
+		else
+			inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
 		inode->i_nlink = 1;	/*
 					 * Set to 1.  We know there are 2, but
 					 * the find utility tries to optimize
@@ -1270,8 +1281,16 @@ static int isofs_read_inode(struct inode *inode)
 					 * do it the hard way.
 					 */
 	} else {
-		/* Everybody gets to read the file. */
-		inode->i_mode = sbi->s_fmode | S_IFREG;
+		if (sbi->s_fmode != ISOFS_INVALID_MODE) {
+			inode->i_mode = S_IFREG | sbi->s_fmode;
+		} else {
+			/*
+			 * Set default permissions: r-x for all.  The disc
+			 * could be shared with DOS machines so virtually
+			 * anything could be a valid executable.
+			 */
+			inode->i_mode = S_IFREG | S_IRUGO | S_IXUGO;
+		}
 		inode->i_nlink = 1;
 	}
 	inode->i_uid = sbi->s_uid;
@@ -1349,6 +1368,13 @@ static int isofs_read_inode(struct inode *inode)
 		test_and_set_uid(&inode->i_uid, sbi->s_uid);
 		test_and_set_gid(&inode->i_gid, sbi->s_gid);
 	}
+	/* Now set final access rights if overriding rock ridge setting */
+	if (S_ISDIR(inode->i_mode) && sbi->s_overriderockperm &&
+	    sbi->s_dmode != ISOFS_INVALID_MODE)
+		inode->i_mode = S_IFDIR | sbi->s_dmode;
+	if (S_ISREG(inode->i_mode) && sbi->s_overriderockperm &&
+	    sbi->s_fmode != ISOFS_INVALID_MODE)
+		inode->i_mode = S_IFREG | sbi->s_fmode;
 
 	/* Install the inode operations vector */
 	if (S_ISREG(inode->i_mode)) {

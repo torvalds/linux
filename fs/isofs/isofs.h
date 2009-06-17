@@ -50,6 +50,7 @@ struct isofs_sb_info {
 	unsigned char s_nocompress;
 	unsigned char s_hide;
 	unsigned char s_showassoc;
+	unsigned char s_overriderockperm;
 
 	mode_t s_fmode;
 	mode_t s_dmode;
@@ -57,6 +58,8 @@ struct isofs_sb_info {
 	uid_t s_uid;
 	struct nls_table *s_nls_iocharset; /* Native language support table */
 };
+
+#define ISOFS_INVALID_MODE ((mode_t) -1)
 
 static inline struct isofs_sb_info *ISOFS_SB(struct super_block *sb)
 {
