@@ -10,7 +10,9 @@
  */
 #include <linux/string.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for PPC970
@@ -470,7 +472,8 @@ static int ppc970_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu ppc970_pmu = {
+static struct power_pmu ppc970_pmu = {
+	.name			= "PPC970/FX/MP",
 	.n_counter		= 8,
 	.max_alternatives	= 2,
 	.add_fields		= 0x001100005555ull,
@@ -483,3 +486,14 @@ struct power_pmu ppc970_pmu = {
 	.generic_events		= ppc970_generic_events,
 	.cache_events		= &ppc970_cache_events,
 };
+
+static int init_ppc970_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")
+	    && strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970MP"))
+		return -ENODEV;
+
+	return register_power_pmu(&ppc970_pmu);
+}
+
+arch_initcall(init_ppc970_pmu);

@@ -10,7 +10,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for POWER4
@@ -587,7 +589,8 @@ static int power4_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu power4_pmu = {
+static struct power_pmu power4_pmu = {
+	.name			= "POWER4/4+",
 	.n_counter		= 8,
 	.max_alternatives	= 5,
 	.add_fields		= 0x0000001100005555ul,
@@ -600,3 +603,13 @@ struct power_pmu power4_pmu = {
 	.generic_events		= p4_generic_events,
 	.cache_events		= &power4_cache_events,
 };
+
+static int init_power4_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power4"))
+		return -ENODEV;
+
+	return register_power_pmu(&power4_pmu);
+}
+
+arch_initcall(init_power4_pmu);

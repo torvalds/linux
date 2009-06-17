@@ -10,7 +10,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/perf_counter.h>
+#include <linux/string.h>
 #include <asm/reg.h>
+#include <asm/cputable.h>
 
 /*
  * Bits in event code for POWER5 (not POWER5++)
@@ -599,7 +601,8 @@ static int power5_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 };
 
-struct power_pmu power5_pmu = {
+static struct power_pmu power5_pmu = {
+	.name			= "POWER5",
 	.n_counter		= 6,
 	.max_alternatives	= MAX_ALT,
 	.add_fields		= 0x7000090000555ul,
@@ -612,3 +615,13 @@ struct power_pmu power5_pmu = {
 	.generic_events		= power5_generic_events,
 	.cache_events		= &power5_cache_events,
 };
+
+static int init_power5_pmu(void)
+{
+	if (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5"))
+		return -ENODEV;
+
+	return register_power_pmu(&power5_pmu);
+}
+
+arch_initcall(init_power5_pmu);

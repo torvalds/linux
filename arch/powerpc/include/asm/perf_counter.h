@@ -21,6 +21,7 @@
  * describe the PMU on a particular POWER-family CPU.
  */
 struct power_pmu {
+	const char	*name;
 	int		n_counter;
 	int		max_alternatives;
 	unsigned long	add_fields;
@@ -41,8 +42,6 @@ struct power_pmu {
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 };
 
-extern struct power_pmu *ppmu;
-
 /*
  * Values for power_pmu.flags
  */
@@ -55,6 +54,8 @@ extern struct power_pmu *ppmu;
 #define PPMU_LIMITED_PMC_OK	1	/* can put this on a limited PMC */
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
+
+extern int register_power_pmu(struct power_pmu *);
 
 struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
