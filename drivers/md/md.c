@@ -869,7 +869,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->minor_version = sb->minor_version;
 		mddev->patch_version = sb->patch_version;
 		mddev->external = 0;
-		mddev->chunk_size = sb->chunk_size;
+		mddev->chunk_sectors = sb->chunk_size >> 9;
 		mddev->ctime = sb->ctime;
 		mddev->utime = sb->utime;
 		mddev->level = sb->level;
@@ -892,7 +892,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			mddev->delta_disks = 0;
 			mddev->new_level = mddev->level;
 			mddev->new_layout = mddev->layout;
-			mddev->new_chunk = mddev->chunk_size;
+			mddev->new_chunk = mddev->chunk_sectors << 9;
 		}
 
 		if (sb->state & (1<<MD_SB_CLEAN))
@@ -1021,7 +1021,7 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->recovery_cp = 0;
 
 	sb->layout = mddev->layout;
-	sb->chunk_size = mddev->chunk_size;
+	sb->chunk_size = mddev->chunk_sectors << 9;
 
 	if (mddev->bitmap && mddev->bitmap_file == NULL)
 		sb->state |= (1<<MD_SB_BITMAP_PRESENT);
@@ -1278,7 +1278,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->major_version = 1;
 		mddev->patch_version = 0;
 		mddev->external = 0;
-		mddev->chunk_size = le32_to_cpu(sb->chunksize) << 9;
+		mddev->chunk_sectors = le32_to_cpu(sb->chunksize);
 		mddev->ctime = le64_to_cpu(sb->ctime) & ((1ULL << 32)-1);
 		mddev->utime = le64_to_cpu(sb->utime) & ((1ULL << 32)-1);
 		mddev->level = le32_to_cpu(sb->level);
@@ -1310,7 +1310,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			mddev->delta_disks = 0;
 			mddev->new_level = mddev->level;
 			mddev->new_layout = mddev->layout;
-			mddev->new_chunk = mddev->chunk_size;
+			mddev->new_chunk = mddev->chunk_sectors << 9;
 		}
 
 	} else if (mddev->pers == NULL) {
@@ -1382,7 +1382,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	sb->raid_disks = cpu_to_le32(mddev->raid_disks);
 	sb->size = cpu_to_le64(mddev->dev_sectors);
-	sb->chunksize = cpu_to_le32(mddev->chunk_size >> 9);
+	sb->chunksize = cpu_to_le32(mddev->chunk_sectors);
 	sb->level = cpu_to_le32(mddev->level);
 	sb->layout = cpu_to_le32(mddev->layout);
 
@@ -2753,7 +2753,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	if (IS_ERR(priv)) {
 		mddev->new_level = mddev->level;
 		mddev->new_layout = mddev->layout;
-		mddev->new_chunk = mddev->chunk_size;
+		mddev->new_chunk = mddev->chunk_sectors << 9;
 		mddev->raid_disks -= mddev->delta_disks;
 		mddev->delta_disks = 0;
 		module_put(pers->owner);
@@ -2771,7 +2771,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 	mddev->level = mddev->new_level;
 	mddev->layout = mddev->new_layout;
-	mddev->chunk_size = mddev->new_chunk;
+	mddev->chunk_sectors = mddev->new_chunk >> 9;
 	mddev->delta_disks = 0;
 	pers->run(mddev);
 	mddev_resume(mddev);
@@ -2864,10 +2864,10 @@ static ssize_t
 chunk_size_show(mddev_t *mddev, char *page)
 {
 	if (mddev->reshape_position != MaxSector &&
-	    mddev->chunk_size != mddev->new_chunk)
+	    mddev->chunk_sectors << 9 != mddev->new_chunk)
 		return sprintf(page, "%d (%d)\n", mddev->new_chunk,
-			       mddev->chunk_size);
-	return sprintf(page, "%d\n", mddev->chunk_size);
+			       mddev->chunk_sectors << 9);
+	return sprintf(page, "%d\n", mddev->chunk_sectors << 9);
 }
 
 static ssize_t
@@ -2889,7 +2889,7 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 	} else {
 		mddev->new_chunk = n;
 		if (mddev->reshape_position == MaxSector)
-			mddev->chunk_size = n;
+			mddev->chunk_sectors = n >> 9;
 	}
 	return len;
 }
@@ -3534,9 +3534,9 @@ min_sync_store(mddev_t *mddev, const char *buf, size_t len)
 		return -EBUSY;
 
 	/* Must be a multiple of chunk_size */
-	if (mddev->chunk_size) {
+	if (mddev->chunk_sectors) {
 		sector_t temp = min;
-		if (sector_div(temp, (mddev->chunk_size>>9)))
+		if (sector_div(temp, mddev->chunk_sectors))
 			return -EINVAL;
 	}
 	mddev->resync_min = min;
@@ -3572,9 +3572,9 @@ max_sync_store(mddev_t *mddev, const char *buf, size_t len)
 			return -EBUSY;
 
 		/* Must be a multiple of chunk_size */
-		if (mddev->chunk_size) {
+		if (mddev->chunk_sectors) {
 			sector_t temp = max;
-			if (sector_div(temp, (mddev->chunk_size>>9)))
+			if (sector_div(temp, mddev->chunk_sectors))
 				return -EINVAL;
 		}
 		mddev->resync_max = max;
@@ -3665,7 +3665,7 @@ reshape_position_store(mddev_t *mddev, const char *buf, size_t len)
 	mddev->delta_disks = 0;
 	mddev->new_level = mddev->level;
 	mddev->new_layout = mddev->layout;
-	mddev->new_chunk = mddev->chunk_size;
+	mddev->new_chunk = mddev->chunk_sectors << 9;
 	return len;
 }
 
@@ -4007,7 +4007,7 @@ static int do_md_run(mddev_t * mddev)
 		analyze_sbs(mddev);
 	}
 
-	chunk_size = mddev->chunk_size;
+	chunk_size = mddev->chunk_sectors << 9;
 
 	if (chunk_size) {
 		if (chunk_size > MAX_CHUNK_SIZE) {
@@ -4406,7 +4406,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		mddev->flags = 0;
 		mddev->ro = 0;
 		mddev->metadata_type[0] = 0;
-		mddev->chunk_size = 0;
+		mddev->chunk_sectors = 0;
 		mddev->ctime = mddev->utime = 0;
 		mddev->layout = 0;
 		mddev->max_disks = 0;
@@ -4619,7 +4619,7 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	info.spare_disks   = spare;
 
 	info.layout        = mddev->layout;
-	info.chunk_size    = mddev->chunk_size;
+	info.chunk_size    = mddev->chunk_sectors << 9;
 
 	if (copy_to_user(arg, &info, sizeof(info)))
 		return -EFAULT;
@@ -4844,7 +4844,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 		} else 
 			rdev->sb_start = calc_dev_sboffset(rdev->bdev);
-		rdev->sectors = calc_num_sectors(rdev, mddev->chunk_size);
+		rdev->sectors = calc_num_sectors(rdev,
+						 mddev->chunk_sectors << 9);
 
 		err = bind_rdev_to_array(rdev, mddev);
 		if (err) {
@@ -4914,7 +4915,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	else
 		rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 
-	rdev->sectors = calc_num_sectors(rdev, mddev->chunk_size);
+	rdev->sectors = calc_num_sectors(rdev, mddev->chunk_sectors << 9);
 
 	if (test_bit(Faulty, &rdev->flags)) {
 		printk(KERN_WARNING 
@@ -5063,7 +5064,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	mddev->external	     = 0;
 
 	mddev->layout        = info->layout;
-	mddev->chunk_size    = info->chunk_size;
+	mddev->chunk_sectors = info->chunk_size >> 9;
 
 	mddev->max_disks     = MD_SB_DISKS;
 
@@ -5082,7 +5083,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	get_random_bytes(mddev->uuid, 16);
 
 	mddev->new_level = mddev->level;
-	mddev->new_chunk = mddev->chunk_size;
+	mddev->new_chunk = mddev->chunk_sectors << 9;
 	mddev->new_layout = mddev->layout;
 	mddev->delta_disks = 0;
 
@@ -5192,7 +5193,7 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 	    mddev->level         != info->level         ||
 /*	    mddev->layout        != info->layout        || */
 	    !mddev->persistent	 != info->not_persistent||
-	    mddev->chunk_size    != info->chunk_size    ||
+	    mddev->chunk_sectors != info->chunk_size >> 9 ||
 	    /* ignore bottom 8 bits of state, and allow SB_BITMAP_PRESENT to change */
 	    ((state^info->state) & 0xfffffe00)
 		)

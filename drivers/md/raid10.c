@@ -461,7 +461,7 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 	mddev_t *mddev = q->queuedata;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
 	int max;
-	unsigned int chunk_sectors = mddev->chunk_size >> 9;
+	unsigned int chunk_sectors = mddev->chunk_sectors;
 	unsigned int bio_sectors = bvm->bi_size >> 9;
 
 	max =  (chunk_sectors - ((sector & (chunk_sectors - 1)) + bio_sectors)) << 9;
@@ -985,7 +985,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 	int i;
 
 	if (conf->near_copies < conf->raid_disks)
-		seq_printf(seq, " %dK chunks", mddev->chunk_size/1024);
+		seq_printf(seq, " %dK chunks", mddev->chunk_sectors / 2);
 	if (conf->near_copies > 1)
 		seq_printf(seq, " %d near-copies", conf->near_copies);
 	if (conf->far_copies > 1) {
@@ -2050,8 +2050,8 @@ static int run(mddev_t *mddev)
 	int nc, fc, fo;
 	sector_t stride, size;
 
-	if (mddev->chunk_size < PAGE_SIZE ||
-	    !is_power_of_2(mddev->chunk_size)) {
+	if (mddev->chunk_sectors < (PAGE_SIZE >> 9) ||
+	    !is_power_of_2(mddev->chunk_sectors)) {
 		printk(KERN_ERR "md/raid10: chunk size must be "
 		       "at least PAGE_SIZE(%ld) and be a power of 2.\n", PAGE_SIZE);
 		return -EINVAL;
@@ -2096,8 +2096,8 @@ static int run(mddev_t *mddev)
 	conf->far_copies = fc;
 	conf->copies = nc*fc;
 	conf->far_offset = fo;
-	conf->chunk_mask = (sector_t)(mddev->chunk_size>>9)-1;
-	conf->chunk_shift = ffz(~mddev->chunk_size) - 9;
+	conf->chunk_mask = mddev->chunk_sectors - 1;
+	conf->chunk_shift = ffz(~mddev->chunk_sectors);
 	size = mddev->dev_sectors >> conf->chunk_shift;
 	sector_div(size, fc);
 	size = size * conf->raid_disks;
@@ -2205,7 +2205,8 @@ static int run(mddev_t *mddev)
 	 * maybe...
 	 */
 	{
-		int stripe = conf->raid_disks * (mddev->chunk_size / PAGE_SIZE);
+		int stripe = conf->raid_disks *
+			((mddev->chunk_sectors << 9) / PAGE_SIZE);
 		stripe /= conf->near_copies;
 		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;

@@ -305,7 +305,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 static void linear_status (struct seq_file *seq, mddev_t *mddev)
 {
 
-	seq_printf(seq, " %dk rounding", mddev->chunk_size/1024);
+	seq_printf(seq, " %dk rounding", mddev->chunk_sectors / 2);
 }
 
 
