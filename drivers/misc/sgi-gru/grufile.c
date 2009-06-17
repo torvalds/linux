@@ -250,6 +250,9 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
 	case GRU_USER_CALL_OS:
 		err = gru_handle_user_call_os(arg);
 		break;
+	case GRU_KTEST:
+		err = gru_ktest(arg);
+		break;
 	case GRU_GET_CONFIG_INFO:
 		err = gru_get_config_info(arg);
 		break;

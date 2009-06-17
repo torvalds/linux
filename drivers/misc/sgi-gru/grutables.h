@@ -258,7 +258,6 @@ extern struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 #define OPT_DPRINT	1
 #define OPT_STATS	2
-#define GRU_QUICKLOOK	4
 
 
 #define IRQ_GRU			110	/* Starting IRQ number for interrupts */
@@ -662,6 +661,7 @@ extern int gru_fault(struct vm_area_struct *, struct vm_fault *vmf);
 extern struct gru_mm_struct *gru_register_mmu_notifier(void);
 extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
 
+extern int gru_ktest(unsigned long arg);
 extern void gru_flush_tlb_range(struct gru_mm_struct *gms, unsigned long start,
 					unsigned long len);
 

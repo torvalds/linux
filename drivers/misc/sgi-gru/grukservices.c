@@ -846,13 +846,14 @@ EXPORT_SYMBOL_GPL(gru_copy_gpa);
 /* ------------------- KERNEL QUICKTESTS RUN AT STARTUP ----------------*/
 /* 	Temp - will delete after we gain confidence in the GRU		*/
 
-int quicktest(void)
+static int quicktest0(unsigned long arg)
 {
 	unsigned long word0;
 	unsigned long word1;
 	void *cb;
 	void *dsr;
 	unsigned long *p;
+	int ret = -EIO;
 
 	if (gru_get_cpu_resources(GRU_CACHE_LINE_BYTES, &cb, &dsr))
 		return MQE_BUG_NO_RESOURCES;
@@ -861,26 +862,148 @@ int quicktest(void)
 	word1 = 0;
 
 	gru_vload(cb, uv_gpa(&word0), gru_get_tri(dsr), XTYPE_DW, 1, 1, IMA);
-	if (gru_wait(cb) != CBS_IDLE)
-		BUG();
-
-	if (*p != MAGIC)
-		BUG();
-	gru_vstore(cb, uv_gpa(&word1), gru_get_tri(dsr), XTYPE_DW, 1, 1, IMA);
-	if (gru_wait(cb) != CBS_IDLE)
-		BUG();
-	gru_free_cpu_resources(cb, dsr);
-
-	if (word0 != word1 || word1 != MAGIC) {
-		printk
-		    ("GRU quicktest err: found 0x%lx, expected 0x%lx\n",
-		     word1, MAGIC);
-		BUG();		/* ZZZ should not be fatal */
+	if (gru_wait(cb) != CBS_IDLE) {
+		printk(KERN_DEBUG "GRU quicktest0: CBR failure 1\n");
+		goto done;
 	}
 
-	return 0;
+	if (*p != MAGIC) {
+		printk(KERN_DEBUG "GRU: quicktest0 bad magic 0x%lx\n", *p);
+		goto done;
+	}
+	gru_vstore(cb, uv_gpa(&word1), gru_get_tri(dsr), XTYPE_DW, 1, 1, IMA);
+	if (gru_wait(cb) != CBS_IDLE) {
+		printk(KERN_DEBUG "GRU quicktest0: CBR failure 2\n");
+		goto done;
+	}
+
+	if (word0 != word1 || word1 != MAGIC) {
+		printk(KERN_DEBUG
+		       "GRU quicktest0 err: found 0x%lx, expected 0x%lx\n",
+		     word1, MAGIC);
+		goto done;
+	}
+	ret = 0;
+
+done:
+	gru_free_cpu_resources(cb, dsr);
+	return ret;
 }
 
+#define ALIGNUP(p, q)	((void *)(((unsigned long)(p) + (q) - 1) & ~(q - 1)))
+
+static int quicktest1(unsigned long arg)
+{
+	struct gru_message_queue_desc mqd;
+	void *p, *mq;
+	unsigned long *dw;
+	int i, ret = -EIO;
+	char mes[GRU_CACHE_LINE_BYTES], *m;
+
+	/* Need  1K cacheline aligned that does not cross page boundary */
+	p = kmalloc(4096, 0);
+	mq = ALIGNUP(p, 1024);
+	memset(mes, 0xee, sizeof(mes));
+	dw = mq;
+
+	gru_create_message_queue(&mqd, mq, 8 * GRU_CACHE_LINE_BYTES, 0, 0, 0);
+	for (i = 0; i < 6; i++) {
+		mes[8] = i;
+		do {
+			ret = gru_send_message_gpa(&mqd, mes, sizeof(mes));
+		} while (ret == MQE_CONGESTION);
+		if (ret)
+			break;
+	}
+	if (ret != MQE_QUEUE_FULL || i != 4)
+		goto done;
+
+	for (i = 0; i < 6; i++) {
+		m = gru_get_next_message(&mqd);
+		if (!m || m[8] != i)
+			break;
+		gru_free_message(&mqd, m);
+	}
+	ret = (i == 4) ? 0 : -EIO;
+
+done:
+	kfree(p);
+	return ret;
+}
+
+static int quicktest2(unsigned long arg)
+{
+	static DECLARE_COMPLETION(cmp);
+	unsigned long han;
+	int blade_id = 0;
+	int numcb = 4;
+	int ret = 0;
+	unsigned long *buf;
+	void *cb0, *cb;
+	int i, k, istatus, bytes;
+
+	bytes = numcb * 4 * 8;
+	buf = kmalloc(bytes, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = -EBUSY;
+	han = gru_reserve_async_resources(blade_id, numcb, 0, &cmp);
+	if (!han)
+		goto done;
+
+	gru_lock_async_resource(han, &cb0, NULL);
+	memset(buf, 0xee, bytes);
+	for (i = 0; i < numcb; i++)
+		gru_vset(cb0 + i * GRU_HANDLE_STRIDE, uv_gpa(&buf[i * 4]), 0,
+				XTYPE_DW, 4, 1, IMA_INTERRUPT);
+
+	ret = 0;
+	for (k = 0; k < numcb; k++) {
+		gru_wait_async_cbr(han);
+		for (i = 0; i < numcb; i++) {
+			cb = cb0 + i * GRU_HANDLE_STRIDE;
+			istatus = gru_check_status(cb);
+			if (istatus == CBS_ACTIVE)
+				continue;
+			if (istatus == CBS_EXCEPTION)
+				ret = -EFAULT;
+			else if (buf[i] || buf[i + 1] || buf[i + 2] ||
+					buf[i + 3])
+				ret = -EIO;
+		}
+	}
+	BUG_ON(cmp.done);
+
+	gru_unlock_async_resource(han);
+	gru_release_async_resources(han);
+done:
+	kfree(buf);
+	return ret;
+}
+
+/*
+ * Debugging only. User hook for various kernel tests
+ * of driver & gru.
+ */
+int gru_ktest(unsigned long arg)
+{
+	int ret = -EINVAL;
+
+	switch (arg & 0xff) {
+	case 0:
+		ret = quicktest0(arg);
+		break;
+	case 1:
+		ret = quicktest1(arg);
+		break;
+	case 2:
+		ret = quicktest2(arg);
+		break;
+	}
+	return ret;
+
+}
 
 int gru_kservices_init(struct gru_state *gru)
 {
@@ -891,9 +1014,6 @@ int gru_kservices_init(struct gru_state *gru)
 		return 0;
 
 	init_rwsem(&bs->bs_kgts_sema);
-
-	if (gru_options & GRU_QUICKLOOK)
-		quicktest();
 	return 0;
 }
 

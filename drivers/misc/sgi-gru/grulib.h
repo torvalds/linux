@@ -56,6 +56,9 @@
 /* Get some config options (primarily for tests & emulator) */
 #define GRU_GET_CONFIG_INFO		_IOWR(GRU_IOCTL_NUM, 51, void *)
 
+/* Various kernel self-tests */
+#define GRU_KTEST			_IOWR(GRU_IOCTL_NUM, 52, void *)
+
 #define CONTEXT_WINDOW_BYTES(th)        (GRU_GSEG_PAGESIZE * (th))
 #define THREAD_POINTER(p, th)		(p + GRU_GSEG_PAGESIZE * (th))
 
