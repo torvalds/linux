@@ -6,6 +6,20 @@ be removed from this file.
 
 ---------------------------
 
+What:	IRQF_SAMPLE_RANDOM
+Check:	IRQF_SAMPLE_RANDOM
+When:	July 2009
+
+Why:	Many of IRQF_SAMPLE_RANDOM users are technically bogus as entropy
+	sources in the kernel's current entropy model. To resolve this, every
+	input point to the kernel's entropy pool needs to better document the
+	type of entropy source it actually is. This will be replaced with
+	additional add_*_randomness functions in drivers/char/random.c
+
+Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
+
+---------------------------
+
 What:	The ieee80211_regdom module parameter
 When:	March 2010 / desktop catchup
 
