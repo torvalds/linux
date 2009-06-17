@@ -2807,10 +2807,10 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers) {
 		int err;
-		if (mddev->pers->reconfig == NULL)
+		if (mddev->pers->check_reshape == NULL)
 			return -EBUSY;
 		mddev->new_layout = n;
-		err = mddev->pers->reconfig(mddev);
+		err = mddev->pers->check_reshape(mddev);
 		if (err) {
 			mddev->new_layout = mddev->layout;
 			return err;
@@ -2885,10 +2885,10 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 
 	if (mddev->pers) {
 		int err;
-		if (mddev->pers->reconfig == NULL)
+		if (mddev->pers->check_reshape == NULL)
 			return -EBUSY;
 		mddev->new_chunk_sectors = n >> 9;
-		err = mddev->pers->reconfig(mddev);
+		err = mddev->pers->check_reshape(mddev);
 		if (err) {
 			mddev->new_chunk_sectors = mddev->chunk_sectors;
 			return err;
@@ -5224,11 +5224,11 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		 * we don't need to do anything at the md level, the
 		 * personality will take care of it all.
 		 */
-		if (mddev->pers->reconfig == NULL)
+		if (mddev->pers->check_reshape == NULL)
 			return -EINVAL;
 		else {
 			mddev->new_layout = info->layout;
-			rv = mddev->pers->reconfig(mddev);
+			rv = mddev->pers->check_reshape(mddev);
 			if (rv)
 				mddev->new_layout = mddev->layout;
 			return rv;
@@ -6731,7 +6731,8 @@ void md_check_recovery(mddev_t *mddev)
 		 */
 
 		if (mddev->reshape_position != MaxSector) {
-			if (mddev->pers->check_reshape(mddev) != 0)
+			if (mddev->pers->check_reshape == NULL ||
+			    mddev->pers->check_reshape(mddev) != 0)
 				/* Cannot proceed */
 				goto unlock;
 			set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);

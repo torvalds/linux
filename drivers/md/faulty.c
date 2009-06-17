@@ -255,7 +255,7 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 }
 
 
-static int reconfig(mddev_t *mddev)
+static int reshape(mddev_t *mddev)
 {
 	int mode = mddev->new_layout & ModeMask;
 	int count = mddev->new_layout >> ModeShift;
@@ -316,7 +316,7 @@ static int run(mddev_t *mddev)
 	md_set_array_sectors(mddev, faulty_size(mddev, 0, 0));
 	mddev->private = conf;
 
-	reconfig(mddev);
+	reshape(mddev);
 
 	return 0;
 }
@@ -339,7 +339,7 @@ static struct mdk_personality faulty_personality =
 	.run		= run,
 	.stop		= stop,
 	.status		= status,
-	.reconfig	= reconfig,
+	.check_reshape	= reshape,
 	.size		= faulty_size,
 };
 

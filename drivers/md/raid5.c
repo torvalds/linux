@@ -4868,14 +4868,14 @@ static int check_stripe_cache(mddev_t *mddev)
 	return 1;
 }
 
-static int raid5_check_reshape(mddev_t *mddev)
+static int check_reshape(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
 
 	if (mddev->delta_disks == 0 &&
 	    mddev->new_layout == mddev->layout &&
 	    mddev->new_chunk_sectors == mddev->chunk_sectors)
-		return -EINVAL; /* nothing to do */
+		return 0; /* nothing to do */
 	if (mddev->bitmap)
 		/* Cannot grow a bitmap yet */
 		return -EBUSY;
@@ -5165,7 +5165,7 @@ static void *raid5_takeover_raid6(mddev_t *mddev)
 }
 
 
-static int raid5_reconfig(mddev_t *mddev)
+static int raid5_check_reshape(mddev_t *mddev)
 {
 	/* For a 2-drive array, the layout and chunk size can be changed
 	 * immediately as not restriping is needed.
@@ -5202,12 +5202,13 @@ static int raid5_reconfig(mddev_t *mddev)
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
 	}
-	return 0;
+	return check_reshape(mddev);
 }
 
-static int raid6_reconfig(mddev_t *mddev)
+static int raid6_check_reshape(mddev_t *mddev)
 {
 	int new_chunk = mddev->new_chunk_sectors;
+
 	if (mddev->new_layout >= 0 && !algorithm_valid_raid6(mddev->new_layout))
 		return -EINVAL;
 	if (new_chunk > 0) {
@@ -5221,7 +5222,7 @@ static int raid6_reconfig(mddev_t *mddev)
 	}
 
 	/* They look valid */
-	return 0;
+	return check_reshape(mddev);
 }
 
 static void *raid5_takeover(mddev_t *mddev)
@@ -5312,12 +5313,11 @@ static struct mdk_personality raid6_personality =
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
-	.check_reshape	= raid5_check_reshape,
+	.check_reshape	= raid6_check_reshape,
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid6_takeover,
-	.reconfig	= raid6_reconfig,
 };
 static struct mdk_personality raid5_personality =
 {
@@ -5340,7 +5340,6 @@ static struct mdk_personality raid5_personality =
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
 	.takeover	= raid5_takeover,
-	.reconfig	= raid5_reconfig,
 };
 
 static struct mdk_personality raid4_personality =
