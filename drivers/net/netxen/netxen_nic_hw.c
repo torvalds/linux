@@ -2041,8 +2041,8 @@ void netxen_nic_get_firmware_info(struct netxen_adapter *adapter)
 			fw_major, fw_minor, fw_build);
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		i = NXRD32(adapter, NETXEN_MIU_MN_CONTROL);
-		adapter->ahw.cut_through = (i & 0x4) ? 1 : 0;
+		i = NXRD32(adapter, NETXEN_SRE_MISC);
+		adapter->ahw.cut_through = (i & 0x8000) ? 1 : 0;
 		dev_info(&pdev->dev, "firmware running in %s mode\n",
 		adapter->ahw.cut_through ? "cut-through" : "legacy");
 	}
