@@ -1808,7 +1808,8 @@ static int sky2_down(struct net_device *dev)
 
 	synchronize_irq(hw->pdev->irq);
 
-	sky2_gmac_reset(hw, port);
+	/* Force flow control off */
+	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
 
 	/* Stop transmitter */
 	sky2_write32(hw, Q_ADDR(txqaddr[port], Q_CSR), BMU_STOP);
