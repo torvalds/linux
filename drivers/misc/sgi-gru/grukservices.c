@@ -98,6 +98,9 @@
 #define ASYNC_HAN_TO_BID(h)	((h) - 1)
 #define ASYNC_BID_TO_HAN(b)	((b) + 1)
 #define ASYNC_HAN_TO_BS(h)	gru_base[ASYNC_HAN_TO_BID(h)]
+#define KCB_TO_GID(cb)		((cb - gru_start_vaddr) /		\
+					(GRU_SIZE * GRU_CHIPLETS_PER_BLADE))
+#define KCB_TO_BS(cb)		gru_base[KCB_TO_GID(cb)]
 
 #define GRU_NUM_KERNEL_CBR	1
 #define GRU_NUM_KERNEL_DSR_BYTES 256
@@ -354,14 +357,19 @@ int gru_get_cb_exception_detail(void *cb,
 		struct control_block_extended_exc_detail *excdet)
 {
 	struct gru_control_block_extended *cbe;
+	struct gru_blade_state *bs;
+	int cbrnum;
 
-	cbe = get_cbe(GRUBASE(cb), get_cb_number(cb));
-	prefetchw(cbe);	/* Harmless on hardware, required for emulator */
+	bs = KCB_TO_BS(cb);
+	cbrnum = thread_cbr_number(bs->bs_kgts, get_cb_number(cb));
+	cbe = get_cbe(GRUBASE(cb), cbrnum);
+	gru_flush_cache(cbe);	/* CBE not coherent */
 	excdet->opc = cbe->opccpy;
 	excdet->exopc = cbe->exopccpy;
 	excdet->ecause = cbe->ecause;
 	excdet->exceptdet0 = cbe->idef1upd;
 	excdet->exceptdet1 = cbe->idef3upd;
+	gru_flush_cache(cbe);
 	return 0;
 }
 

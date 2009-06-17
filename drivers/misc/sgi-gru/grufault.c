@@ -614,7 +614,7 @@ int gru_get_exception_detail(unsigned long arg)
 	} else if (gts->ts_gru) {
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
-		prefetchw(cbe);/* Harmless on hardware, required for emulator */
+		gru_flush_cache(cbe);	/* CBE not coherent */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;
@@ -622,6 +622,7 @@ int gru_get_exception_detail(unsigned long arg)
 		excdet.exceptdet1 = cbe->idef3upd;
 		excdet.cbrstate = cbe->cbrstate;
 		excdet.cbrexecstatus = cbe->cbrexecstatus;
+		gru_flush_cache(cbe);
 		ret = 0;
 	} else {
 		ret = -EAGAIN;

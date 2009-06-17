@@ -46,6 +46,7 @@
 
 struct gru_blade_state *gru_base[GRU_MAX_BLADES] __read_mostly;
 unsigned long gru_start_paddr __read_mostly;
+void *gru_start_vaddr __read_mostly;
 unsigned long gru_end_paddr __read_mostly;
 unsigned int gru_max_gids __read_mostly;
 struct gru_stats_s gru_stats;
@@ -376,7 +377,6 @@ static int __init gru_init(void)
 {
 	int ret, irq, chip;
 	char id[10];
-	void *gru_start_vaddr;
 
 	if (!is_uv_system())
 		return 0;
