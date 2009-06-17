@@ -385,6 +385,8 @@ struct gru_thread_state {
 						   after migration */
 	char			ts_cbr_idx[GRU_CBR_AU];/* CBR numbers of each
 							  allocated CB */
+	int			ts_data_valid;	/* Indicates if ts_gdata has
+						   valid data */
 	unsigned long		ts_gdata[0];	/* save area for GRU data (CB,
 						   DS, CBE) */
 };

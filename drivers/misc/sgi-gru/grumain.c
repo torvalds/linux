@@ -307,11 +307,12 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 
 	bytes = DSR_BYTES(dsr_au_count) + CBR_BYTES(cbr_au_count);
 	bytes += sizeof(struct gru_thread_state);
-	gts = kzalloc(bytes, GFP_KERNEL);
+	gts = kmalloc(bytes, GFP_KERNEL);
 	if (!gts)
 		return NULL;
 
 	STAT(gts_alloc);
+	memset(gts, 0, sizeof(struct gru_thread_state)); /* zero out header */
 	atomic_set(&gts->ts_refcnt, 1);
 	mutex_init(&gts->ts_ctxlock);
 	gts->ts_cbr_au_count = cbr_au_count;
@@ -458,7 +459,8 @@ static void gru_prefetch_context(void *gseg, void *cb, void *cbe,
 }
 
 static void gru_load_context_data(void *save, void *grubase, int ctxnum,
-				  unsigned long cbrmap, unsigned long dsrmap)
+				  unsigned long cbrmap, unsigned long dsrmap,
+				  int data_valid)
 {
 	void *gseg, *cb, *cbe;
 	unsigned long length;
@@ -471,12 +473,22 @@ static void gru_load_context_data(void *save, void *grubase, int ctxnum,
 	gru_prefetch_context(gseg, cb, cbe, cbrmap, length);
 
 	for_each_cbr_in_allocation_map(i, &cbrmap, scr) {
-		save += gru_copy_handle(cb, save);
-		save += gru_copy_handle(cbe + i * GRU_HANDLE_STRIDE, save);
+		if (data_valid) {
+			save += gru_copy_handle(cb, save);
+			save += gru_copy_handle(cbe + i * GRU_HANDLE_STRIDE,
+						save);
+		} else {
+			memset(cb, 0, GRU_CACHE_LINE_BYTES);
+			memset(cbe + i * GRU_HANDLE_STRIDE, 0,
+						GRU_CACHE_LINE_BYTES);
+		}
 		cb += GRU_HANDLE_STRIDE;
 	}
 
-	memcpy(gseg + GRU_DS_BASE, save, length);
+	if (data_valid)
+		memcpy(gseg + GRU_DS_BASE, save, length);
+	else
+		memset(gseg + GRU_DS_BASE, 0, length);
 }
 
 static void gru_unload_context_data(void *save, void *grubase, int ctxnum,
@@ -517,10 +529,12 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 
 	if (!is_kernel_context(gts))
 		gru_unload_mm_tracker(gru, gts);
-	if (savestate)
+	if (savestate) {
 		gru_unload_context_data(gts->ts_gdata, gru->gs_gru_base_vaddr,
 					ctxnum, gts->ts_cbr_map,
 					gts->ts_dsr_map);
+		gts->ts_data_valid = 1;
+	}
 
 	if (cch_deallocate(cch))
 		BUG();
@@ -576,7 +590,7 @@ void gru_load_context(struct gru_thread_state *gts)
 	}
 
 	gru_load_context_data(gts->ts_gdata, gru->gs_gru_base_vaddr, ctxnum,
-			      gts->ts_cbr_map, gts->ts_dsr_map);
+			gts->ts_cbr_map, gts->ts_dsr_map, gts->ts_data_valid);
 
 	if (cch_start(cch))
 		BUG();
@@ -611,8 +625,8 @@ int gru_update_cch(struct gru_thread_state *gts, int force_unload)
 			gts->ts_tlb_int_select = gru_cpu_fault_map_id();
 			cch->tlb_int_select = gru_cpu_fault_map_id();
 			cch->tfm_fault_bit_enable =
-				(gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
-				|| gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
+			  (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
+			    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
 		} else {
 			for (i = 0; i < 8; i++)
 				cch->asid[i] = 0;
