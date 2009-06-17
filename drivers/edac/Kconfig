@@ -5,7 +5,7 @@
 #
 
 menuconfig EDAC
-	bool "EDAC - error detection and reporting"
+	bool "EDAC (Error Detection And Correction) reporting"
 	depends on HAS_IOMEM
 	depends on X86 || PPC
 	help
