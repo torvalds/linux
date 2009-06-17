@@ -31,6 +31,7 @@ enum ds_type {
 	ds_1338,
 	ds_1339,
 	ds_1340,
+	ds_1388,
 	m41t00,
 	rx_8025,
 	// rs5c372 too?  different address...
@@ -94,6 +95,7 @@ enum ds_type {
 
 
 struct ds1307 {
+	u8			offset; /* register's offset */
 	u8			regs[11];
 	enum ds_type		type;
 	unsigned long		flags;
@@ -138,6 +140,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1337", ds_1337 },
 	{ "ds1338", ds_1338 },
 	{ "ds1339", ds_1339 },
+	{ "ds1388", ds_1388 },
 	{ "ds1340", ds_1340 },
 	{ "m41t00", m41t00 },
 	{ "rx8025", rx_8025 },
@@ -291,7 +294,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 
 	/* read the RTC date and time registers all at once */
 	tmp = ds1307->read_block_data(ds1307->client,
-		DS1307_REG_SECS, 7, ds1307->regs);
+		ds1307->offset, 7, ds1307->regs);
 	if (tmp != 7) {
 		dev_err(dev, "%s error %d\n", "read", tmp);
 		return -EIO;
@@ -367,7 +370,8 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 		"write", buf[0], buf[1], buf[2], buf[3],
 		buf[4], buf[5], buf[6]);
 
-	result = ds1307->write_block_data(ds1307->client, 0, 7, buf);
+	result = ds1307->write_block_data(ds1307->client,
+		ds1307->offset, 7, buf);
 	if (result < 0) {
 		dev_err(dev, "%s error %d\n", "write", result);
 		return result;
@@ -632,9 +636,12 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	if (!(ds1307 = kzalloc(sizeof(struct ds1307), GFP_KERNEL)))
 		return -ENOMEM;
 
-	ds1307->client = client;
 	i2c_set_clientdata(client, ds1307);
-	ds1307->type = id->driver_data;
+
+	ds1307->client	= client;
+	ds1307->type	= id->driver_data;
+	ds1307->offset	= 0;
+
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
@@ -751,6 +758,9 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 						  hour);
 		}
 		break;
+	case ds_1388:
+		ds1307->offset = 1; /* Seconds starts at 1 */
+		break;
 	default:
 		break;
 	}
@@ -814,6 +824,7 @@ read_rtc:
 	case rx_8025:
 	case ds_1337:
 	case ds_1339:
+	case ds_1388:
 		break;
 	}
 
