@@ -32,6 +32,7 @@ enum ds_type {
 	ds_1339,
 	ds_1340,
 	ds_1388,
+	ds_3231,
 	m41t00,
 	rx_8025,
 	// rs5c372 too?  different address...
@@ -67,6 +68,7 @@ enum ds_type {
 #define DS1337_REG_CONTROL	0x0e
 #	define DS1337_BIT_nEOSC		0x80
 #	define DS1339_BIT_BBSQI		0x20
+#	define DS3231_BIT_BBSQW		0x40 /* same as BBSQI */
 #	define DS1337_BIT_RS2		0x10
 #	define DS1337_BIT_RS1		0x08
 #	define DS1337_BIT_INTCN		0x04
@@ -130,6 +132,9 @@ static const struct chip_desc chips[] = {
 },
 [ds_1340] = {
 },
+[ds_3231] = {
+	.alarm		= 1,
+},
 [m41t00] = {
 },
 [rx_8025] = {
@@ -142,6 +147,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1339", ds_1339 },
 	{ "ds1388", ds_1388 },
 	{ "ds1340", ds_1340 },
+	{ "ds3231", ds_3231 },
 	{ "m41t00", m41t00 },
 	{ "rx8025", rx_8025 },
 	{ }
@@ -356,6 +362,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	switch (ds1307->type) {
 	case ds_1337:
 	case ds_1339:
+	case ds_3231:
 		buf[DS1307_REG_MONTH] |= DS1337_BIT_CENTURY;
 		break;
 	case ds_1340:
@@ -628,6 +635,11 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	int			want_irq = false;
 	unsigned char		*buf;
+	static const int	bbsqi_bitpos[] = {
+		[ds_1337] = 0,
+		[ds_1339] = DS1339_BIT_BBSQI,
+		[ds_3231] = DS3231_BIT_BBSQW,
+	};
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)
 	    && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
@@ -654,6 +666,7 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 	switch (ds1307->type) {
 	case ds_1337:
 	case ds_1339:
+	case ds_3231:
 		/* has IRQ? */
 		if (ds1307->client->irq > 0 && chip->alarm) {
 			INIT_WORK(&ds1307->work, ds1307_work);
@@ -673,12 +686,12 @@ static int __devinit ds1307_probe(struct i2c_client *client,
 			ds1307->regs[0] &= ~DS1337_BIT_nEOSC;
 
 		/* Using IRQ?  Disable the square wave and both alarms.
-		 * For ds1339, be sure alarms can trigger when we're
-		 * running on Vbackup (BBSQI); we assume ds1337 will
-		 * ignore that bit
+		 * For some variants, be sure alarms can trigger when we're
+		 * running on Vbackup (BBSQI/BBSQW)
 		 */
 		if (want_irq) {
-			ds1307->regs[0] |= DS1337_BIT_INTCN | DS1339_BIT_BBSQI;
+			ds1307->regs[0] |= DS1337_BIT_INTCN
+					| bbsqi_bitpos[ds1307->type];
 			ds1307->regs[0] &= ~(DS1337_BIT_A2IE | DS1337_BIT_A1IE);
 		}
 
@@ -825,6 +838,7 @@ read_rtc:
 	case ds_1337:
 	case ds_1339:
 	case ds_1388:
+	case ds_3231:
 		break;
 	}
 
