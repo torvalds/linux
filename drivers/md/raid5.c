@@ -3358,8 +3358,8 @@ static int raid5_mergeable_bvec(struct request_queue *q,
 	if ((bvm->bi_rw & 1) == WRITE)
 		return biovec->bv_len; /* always allow writes to be mergeable */
 
-	if (mddev->new_chunk < mddev->chunk_sectors << 9)
-		chunk_sectors = mddev->new_chunk >> 9;
+	if (mddev->new_chunk_sectors < mddev->chunk_sectors)
+		chunk_sectors = mddev->new_chunk_sectors;
 	max =  (chunk_sectors - ((sector & (chunk_sectors - 1)) + bio_sectors)) << 9;
 	if (max < 0) max = 0;
 	if (max <= biovec->bv_len && bio_sectors == 0)
@@ -3375,8 +3375,8 @@ static int in_chunk_boundary(mddev_t *mddev, struct bio *bio)
 	unsigned int chunk_sectors = mddev->chunk_sectors;
 	unsigned int bio_sectors = bio->bi_size >> 9;
 
-	if (mddev->new_chunk < mddev->chunk_sectors << 9)
-		chunk_sectors = mddev->new_chunk >> 9;
+	if (mddev->new_chunk_sectors < mddev->chunk_sectors)
+		chunk_sectors = mddev->new_chunk_sectors;
 	return  chunk_sectors >=
 		((sector & (chunk_sectors - 1)) + bio_sectors);
 }
@@ -3791,8 +3791,8 @@ static sector_t reshape_request(mddev_t *mddev, sector_t sector_nr, int *skipped
 	 * If old and new chunk sizes differ, we need to process the
 	 * largest of these
 	 */
-	if (mddev->new_chunk > mddev->chunk_sectors << 9)
-		reshape_sectors = mddev->new_chunk / 512;
+	if (mddev->new_chunk_sectors > mddev->chunk_sectors)
+		reshape_sectors = mddev->new_chunk_sectors;
 	else
 		reshape_sectors = mddev->chunk_sectors;
 
@@ -4304,7 +4304,7 @@ raid5_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	}
 
 	sectors &= ~((sector_t)mddev->chunk_sectors - 1);
-	sectors &= ~((sector_t)mddev->new_chunk/512 - 1);
+	sectors &= ~((sector_t)mddev->new_chunk_sectors - 1);
 	return sectors * (raid_disks - conf->max_degraded);
 }
 
@@ -4336,10 +4336,11 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!mddev->new_chunk || mddev->new_chunk % PAGE_SIZE ||
-	    !is_power_of_2(mddev->new_chunk)) {
+	if (!mddev->new_chunk_sectors ||
+	    (mddev->new_chunk_sectors << 9) % PAGE_SIZE ||
+	    !is_power_of_2(mddev->new_chunk_sectors)) {
 		printk(KERN_ERR "raid5: invalid chunk size %d for %s\n",
-			mddev->new_chunk, mdname(mddev));
+		       mddev->new_chunk_sectors << 9, mdname(mddev));
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -4402,7 +4403,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 			conf->fullsync = 1;
 	}
 
-	conf->chunk_size = mddev->new_chunk;
+	conf->chunk_size = mddev->new_chunk_sectors << 9;
 	conf->level = mddev->new_level;
 	if (conf->level == 6)
 		conf->max_degraded = 2;
@@ -4476,7 +4477,7 @@ static int run(mddev_t *mddev)
 		 * geometry.
 		 */
 		here_new = mddev->reshape_position;
-		if (sector_div(here_new, (mddev->new_chunk>>9)*
+		if (sector_div(here_new, mddev->new_chunk_sectors *
 			       (mddev->raid_disks - max_degraded))) {
 			printk(KERN_ERR "raid5: reshape_position not "
 			       "on a stripe boundary\n");
@@ -4499,7 +4500,7 @@ static int run(mddev_t *mddev)
 	} else {
 		BUG_ON(mddev->level != mddev->new_level);
 		BUG_ON(mddev->layout != mddev->new_layout);
-		BUG_ON(mddev->chunk_sectors << 9 != mddev->new_chunk);
+		BUG_ON(mddev->chunk_sectors != mddev->new_chunk_sectors);
 		BUG_ON(mddev->delta_disks != 0);
 	}
 
@@ -4851,7 +4852,7 @@ static int raid5_check_reshape(mddev_t *mddev)
 
 	if (mddev->delta_disks == 0 &&
 	    mddev->new_layout == mddev->layout &&
-	    mddev->new_chunk == mddev->chunk_sectors << 9)
+	    mddev->new_chunk_sectors == mddev->chunk_sectors)
 		return -EINVAL; /* nothing to do */
 	if (mddev->bitmap)
 		/* Cannot grow a bitmap yet */
@@ -4881,9 +4882,11 @@ static int raid5_check_reshape(mddev_t *mddev)
 	 */
 	if (((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4
 		> conf->max_nr_stripes ||
-	    (mddev->new_chunk / STRIPE_SIZE) * 4 > conf->max_nr_stripes) {
+	    ((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4
+		> conf->max_nr_stripes) {
 		printk(KERN_WARNING "raid5: reshape: not enough stripes.  Needed %lu\n",
-		       (max(mddev->chunk_sectors << 9, mddev->new_chunk)
+		       (max(mddev->chunk_sectors << 9,
+			mddev->new_chunk_sectors << 9)
 			/ STRIPE_SIZE)*4);
 		return -ENOSPC;
 	}
@@ -4929,7 +4932,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 	conf->previous_raid_disks = conf->raid_disks;
 	conf->raid_disks += mddev->delta_disks;
 	conf->prev_chunk = conf->chunk_size;
-	conf->chunk_size = mddev->new_chunk;
+	conf->chunk_size = mddev->new_chunk_sectors << 9;
 	conf->prev_algo = conf->algorithm;
 	conf->algorithm = mddev->new_layout;
 	if (mddev->delta_disks < 0)
@@ -5114,7 +5117,7 @@ static void *raid5_takeover_raid1(mddev_t *mddev)
 
 	mddev->new_level = 5;
 	mddev->new_layout = ALGORITHM_LEFT_SYMMETRIC;
-	mddev->new_chunk = chunksect << 9;
+	mddev->new_chunk_sectors = chunksect;
 
 	return setup_conf(mddev);
 }
@@ -5185,7 +5188,7 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 		}
 		if (new_chunk > 0) {
 			conf->chunk_size = new_chunk;
-			mddev->new_chunk = new_chunk;
+			mddev->new_chunk_sectors = new_chunk >> 9;
 			mddev->chunk_sectors = new_chunk >> 9;
 		}
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -5194,7 +5197,7 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 		if (new_layout >= 0)
 			mddev->new_layout = new_layout;
 		if (new_chunk > 0)
-			mddev->new_chunk = new_chunk;
+			mddev->new_chunk_sectors = new_chunk >> 9;
 	}
 	return 0;
 }
@@ -5219,7 +5222,7 @@ static int raid6_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	if (new_layout >= 0)
 		mddev->new_layout = new_layout;
 	if (new_chunk > 0)
-		mddev->new_chunk = new_chunk;
+		mddev->new_chunk_sectors = new_chunk >> 9;
 
 	return 0;
 }

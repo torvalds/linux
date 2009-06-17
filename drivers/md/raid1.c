@@ -2161,10 +2161,10 @@ static int raid1_reshape(mddev_t *mddev)
 	int d, d2, err;
 
 	/* Cannot change chunk_size, layout, or level */
-	if (mddev->chunk_sectors << 9 != mddev->new_chunk ||
+	if (mddev->chunk_sectors != mddev->new_chunk_sectors ||
 	    mddev->layout != mddev->new_layout ||
 	    mddev->level != mddev->new_level) {
-		mddev->new_chunk = mddev->chunk_sectors << 9;
+		mddev->new_chunk_sectors = mddev->chunk_sectors;
 		mddev->new_layout = mddev->layout;
 		mddev->new_level = mddev->level;
 		return -EINVAL;

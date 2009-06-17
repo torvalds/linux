@@ -886,13 +886,13 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			mddev->delta_disks = sb->delta_disks;
 			mddev->new_level = sb->new_level;
 			mddev->new_layout = sb->new_layout;
-			mddev->new_chunk = sb->new_chunk;
+			mddev->new_chunk_sectors = sb->new_chunk >> 9;
 		} else {
 			mddev->reshape_position = MaxSector;
 			mddev->delta_disks = 0;
 			mddev->new_level = mddev->level;
 			mddev->new_layout = mddev->layout;
-			mddev->new_chunk = mddev->chunk_sectors << 9;
+			mddev->new_chunk_sectors = mddev->chunk_sectors;
 		}
 
 		if (sb->state & (1<<MD_SB_CLEAN))
@@ -1007,7 +1007,7 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->new_level = mddev->new_level;
 		sb->delta_disks = mddev->delta_disks;
 		sb->new_layout = mddev->new_layout;
-		sb->new_chunk = mddev->new_chunk;
+		sb->new_chunk = mddev->new_chunk_sectors << 9;
 	}
 	mddev->minor_version = sb->minor_version;
 	if (mddev->in_sync)
@@ -1304,13 +1304,13 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			mddev->delta_disks = le32_to_cpu(sb->delta_disks);
 			mddev->new_level = le32_to_cpu(sb->new_level);
 			mddev->new_layout = le32_to_cpu(sb->new_layout);
-			mddev->new_chunk = le32_to_cpu(sb->new_chunk)<<9;
+			mddev->new_chunk_sectors = le32_to_cpu(sb->new_chunk);
 		} else {
 			mddev->reshape_position = MaxSector;
 			mddev->delta_disks = 0;
 			mddev->new_level = mddev->level;
 			mddev->new_layout = mddev->layout;
-			mddev->new_chunk = mddev->chunk_sectors << 9;
+			mddev->new_chunk_sectors = mddev->chunk_sectors;
 		}
 
 	} else if (mddev->pers == NULL) {
@@ -1409,7 +1409,7 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->new_layout = cpu_to_le32(mddev->new_layout);
 		sb->delta_disks = cpu_to_le32(mddev->delta_disks);
 		sb->new_level = cpu_to_le32(mddev->new_level);
-		sb->new_chunk = cpu_to_le32(mddev->new_chunk>>9);
+		sb->new_chunk = cpu_to_le32(mddev->new_chunk_sectors);
 	}
 
 	max_dev = 0;
@@ -2753,7 +2753,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	if (IS_ERR(priv)) {
 		mddev->new_level = mddev->level;
 		mddev->new_layout = mddev->layout;
-		mddev->new_chunk = mddev->chunk_sectors << 9;
+		mddev->new_chunk_sectors = mddev->chunk_sectors;
 		mddev->raid_disks -= mddev->delta_disks;
 		mddev->delta_disks = 0;
 		module_put(pers->owner);
@@ -2771,7 +2771,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 	mddev->level = mddev->new_level;
 	mddev->layout = mddev->new_layout;
-	mddev->chunk_sectors = mddev->new_chunk >> 9;
+	mddev->chunk_sectors = mddev->new_chunk_sectors;
 	mddev->delta_disks = 0;
 	pers->run(mddev);
 	mddev_resume(mddev);
@@ -2864,8 +2864,9 @@ static ssize_t
 chunk_size_show(mddev_t *mddev, char *page)
 {
 	if (mddev->reshape_position != MaxSector &&
-	    mddev->chunk_sectors << 9 != mddev->new_chunk)
-		return sprintf(page, "%d (%d)\n", mddev->new_chunk,
+	    mddev->chunk_sectors != mddev->new_chunk_sectors)
+		return sprintf(page, "%d (%d)\n",
+			       mddev->new_chunk_sectors << 9,
 			       mddev->chunk_sectors << 9);
 	return sprintf(page, "%d\n", mddev->chunk_sectors << 9);
 }
@@ -2887,7 +2888,7 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 		if (err)
 			return err;
 	} else {
-		mddev->new_chunk = n;
+		mddev->new_chunk_sectors = n >> 9;
 		if (mddev->reshape_position == MaxSector)
 			mddev->chunk_sectors = n >> 9;
 	}
@@ -3665,7 +3666,7 @@ reshape_position_store(mddev_t *mddev, const char *buf, size_t len)
 	mddev->delta_disks = 0;
 	mddev->new_level = mddev->level;
 	mddev->new_layout = mddev->layout;
-	mddev->new_chunk = mddev->chunk_sectors << 9;
+	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	return len;
 }
 
@@ -4414,7 +4415,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 		mddev->delta_disks = 0;
 		mddev->new_level = LEVEL_NONE;
 		mddev->new_layout = 0;
-		mddev->new_chunk = 0;
+		mddev->new_chunk_sectors = 0;
 		mddev->curr_resync = 0;
 		mddev->resync_mismatches = 0;
 		mddev->suspend_lo = mddev->suspend_hi = 0;
@@ -5083,7 +5084,7 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	get_random_bytes(mddev->uuid, 16);
 
 	mddev->new_level = mddev->level;
-	mddev->new_chunk = mddev->chunk_sectors << 9;
+	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->new_layout = mddev->layout;
 	mddev->delta_disks = 0;
 

@@ -166,7 +166,8 @@ struct mddev_s
 	 * If reshape_position is MaxSector, then no reshape is happening (yet).
 	 */
 	sector_t			reshape_position;
-	int				delta_disks, new_level, new_layout, new_chunk;
+	int				delta_disks, new_level, new_layout;
+	int				new_chunk_sectors;
 
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
