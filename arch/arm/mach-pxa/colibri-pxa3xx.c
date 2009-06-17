@@ -25,6 +25,7 @@
 #include <mach/colibri.h>
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
+#include <mach/pxa3xx_nand.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -154,6 +155,46 @@ void __init colibri_pxa3xx_init_lcd(int bl_pin)
 	gpio_request(bl_pin, "lcd backlight");
 	gpio_direction_output(bl_pin, 0);
 	set_pxa_fb_info(&sharp_lq43_info);
+}
+#endif
+
+#if defined(CONFIG_MTD_NAND_PXA3xx) || defined(CONFIG_MTD_NAND_PXA3xx_MODULE)
+static struct mtd_partition colibri_nand_partitions[] = {
+	{
+		.name        = "bootloader",
+		.offset      = 0,
+		.size        = SZ_512K,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	{
+		.name        = "kernel",
+		.offset      = MTDPART_OFS_APPEND,
+		.size        = SZ_4M,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	{
+		.name        = "reserved",
+		.offset      = MTDPART_OFS_APPEND,
+		.size        = SZ_1M,
+		.mask_flags  = MTD_WRITEABLE, /* force read-only */
+	},
+	{
+		.name        = "fs",
+		.offset      = MTDPART_OFS_APPEND,
+		.size        = MTDPART_SIZ_FULL,
+	},
+};
+
+static struct pxa3xx_nand_platform_data colibri_nand_info = {
+	.enable_arbiter	= 1,
+	.keep_config	= 1,
+	.parts		= colibri_nand_partitions,
+	.nr_parts	= ARRAY_SIZE(colibri_nand_partitions),
+};
+
+void __init colibri_pxa3xx_init_nand(void)
+{
+	pxa3xx_set_nand_info(&colibri_nand_info);
 }
 #endif
 
