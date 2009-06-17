@@ -950,6 +950,7 @@ config SENSORS_HDAPS
 config SENSORS_LIS3LV02D
 	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer"
 	depends on ACPI && INPUT
+	select INPUT_POLLDEV
 	select NEW_LEDS
 	select LEDS_CLASS
 	default n
@@ -977,6 +978,7 @@ config SENSORS_LIS3LV02D
 config SENSORS_LIS3_SPI
 	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
 	depends on !ACPI && SPI_MASTER && INPUT
+	select INPUT_POLLDEV
 	default n
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer connected

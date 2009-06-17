@@ -233,8 +233,8 @@ These protections are added to score to judge whether this zone should be used
 for page allocation or should be reclaimed.
 
 In this example, if normal pages (index=2) are required to this DMA zone and
-pages_high is used for watermark, the kernel judges this zone should not be
-used because pages_free(1355) is smaller than watermark + protection[2]
+watermark[WMARK_HIGH] is used for watermark, the kernel judges this zone should
+not be used because pages_free(1355) is smaller than watermark + protection[2]
 (4 + 2004 = 2008). If this protection value is 0, this zone would be used for
 normal page requirement. If requirement is DMA zone(index=0), protection[0]
 (=0) is used.
@@ -280,9 +280,10 @@ The default value is 65536.
 min_free_kbytes:
 
 This is used to force the Linux VM to keep a minimum number
-of kilobytes free.  The VM uses this number to compute a pages_min
-value for each lowmem zone in the system.  Each lowmem zone gets
-a number of reserved free pages based proportionally on its size.
+of kilobytes free.  The VM uses this number to compute a
+watermark[WMARK_MIN] value for each lowmem zone in the system.
+Each lowmem zone gets a number of reserved free pages based
+proportionally on its size.
 
 Some minimal amount of memory is needed to satisfy PF_MEMALLOC
 allocations; if you set this to lower than 1024KB, your system will
@@ -314,10 +315,14 @@ min_unmapped_ratio:
 
 This is available only on NUMA kernels.
 
-A percentage of the total pages in each zone.  Zone reclaim will only
-occur if more than this percentage of pages are file backed and unmapped.
-This is to insure that a minimal amount of local pages is still available for
-file I/O even if the node is overallocated.
+This is a percentage of the total pages in each zone. Zone reclaim will
+only occur if more than this percentage of pages are in a state that
+zone_reclaim_mode allows to be reclaimed.
+
+If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
+against all file-backed unmapped pages including swapcache pages and tmpfs
+files. Otherwise, only unmapped pages backed by normal files but not tmpfs
+files and similar are considered.
 
 The default is 1 percent.
 

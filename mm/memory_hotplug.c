@@ -422,7 +422,8 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 
-	setup_per_zone_pages_min();
+	setup_per_zone_wmarks();
+	calculate_zone_inactive_ratio(zone);
 	if (onlined_pages) {
 		kswapd_run(zone_to_nid(zone));
 		node_set_state(zone_to_nid(zone), N_HIGH_MEMORY);
@@ -831,6 +832,9 @@ repeat:
 	zone->zone_pgdat->node_present_pages -= offlined_pages;
 	totalram_pages -= offlined_pages;
 	num_physpages -= offlined_pages;
+
+	setup_per_zone_wmarks();
+	calculate_zone_inactive_ratio(zone);
 
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();

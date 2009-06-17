@@ -1131,7 +1131,7 @@ sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp
 #ifdef CONFIG_NUMA
 	{
 		struct page *page;
-		page = alloc_pages_node(ioc->node == MAX_NUMNODES ?
+		page = alloc_pages_exact_node(ioc->node == MAX_NUMNODES ?
 		                        numa_node_id() : ioc->node, flags,
 		                        get_order(size));
 

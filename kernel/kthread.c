@@ -9,6 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/err.h>
+#include <linux/cpuset.h>
 #include <linux/unistd.h>
 #include <linux/file.h>
 #include <linux/module.h>
@@ -236,6 +237,7 @@ int kthreadd(void *unused)
 	ignore_signals(tsk);
 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
+	set_mems_allowed(node_possible_map);
 
 	current->flags |= PF_NOFREEZE | PF_FREEZER_NOSIG;
 

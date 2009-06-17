@@ -2,7 +2,7 @@
 obj- := dummy.o
 
 # List of programs to build
-hostprogs-y := slabinfo
+hostprogs-y := slabinfo slqbinfo page-types
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
