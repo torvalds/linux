@@ -138,6 +138,9 @@ static void sh_tmu_disable(struct sh_tmu_priv *p)
 	/* disable channel */
 	sh_tmu_start_stop_ch(p, 0);
 
+	/* disable interrupts in TMU block */
+	sh_tmu_write(p, TCR, 0x0000);
+
 	/* stop clock */
 	clk_disable(p->clk);
 }

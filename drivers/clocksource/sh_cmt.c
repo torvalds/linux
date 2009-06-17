@@ -184,6 +184,9 @@ static void sh_cmt_disable(struct sh_cmt_priv *p)
 	/* disable channel */
 	sh_cmt_start_stop_ch(p, 0);
 
+	/* disable interrupts in CMT block */
+	sh_cmt_write(p, CMCSR, 0);
+
 	/* stop clock */
 	clk_disable(p->clk);
 }
