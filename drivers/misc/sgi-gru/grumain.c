@@ -572,8 +572,12 @@ void gru_load_context(struct gru_thread_state *gts)
 
 	if (is_kernel_context(gts)) {
 		cch->unmap_enable = 1;
+		cch->tfm_done_bit_enable = 1;
+		cch->cb_int_enable = 1;
 	} else {
 		cch->unmap_enable = 0;
+		cch->tfm_done_bit_enable = 0;
+		cch->cb_int_enable = 0;
 		asid = gru_load_mm_tracker(gru, gts);
 		for (i = 0; i < 8; i++) {
 			cch->asid[i] = asid + i;

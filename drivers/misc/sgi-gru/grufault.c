@@ -166,7 +166,8 @@ static inline struct gru_state *irq_to_gru(int irq)
  * the GRU, atomic operations must be used to clear bits.
  */
 static void get_clear_fault_map(struct gru_state *gru,
-				struct gru_tlb_fault_map *map)
+				struct gru_tlb_fault_map *imap,
+				struct gru_tlb_fault_map *dmap)
 {
 	unsigned long i, k;
 	struct gru_tlb_fault_map *tfm;
@@ -177,7 +178,11 @@ static void get_clear_fault_map(struct gru_state *gru,
 		k = tfm->fault_bits[i];
 		if (k)
 			k = xchg(&tfm->fault_bits[i], 0UL);
-		map->fault_bits[i] = k;
+		imap->fault_bits[i] = k;
+		k = tfm->done_bits[i];
+		if (k)
+			k = xchg(&tfm->done_bits[i], 0UL);
+		dmap->fault_bits[i] = k;
 	}
 
 	/*
@@ -449,7 +454,7 @@ failactive:
 irqreturn_t gru_intr(int irq, void *dev_id)
 {
 	struct gru_state *gru;
-	struct gru_tlb_fault_map map;
+	struct gru_tlb_fault_map imap, dmap;
 	struct gru_thread_state *gts;
 	struct gru_tlb_fault_handle *tfh = NULL;
 	int cbrnum, ctxnum;
@@ -462,11 +467,19 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 			raw_smp_processor_id(), irq);
 		return IRQ_NONE;
 	}
-	get_clear_fault_map(gru, &map);
-	gru_dbg(grudev, "irq %d, gru %x, map 0x%lx\n", irq, gru->gs_gid,
-		map.fault_bits[0]);
+	get_clear_fault_map(gru, &imap, &dmap);
+	gru_dbg(grudev,
+		"irq %d, gid %d, imap %016lx %016lx, dmap %016lx %016lx\n",
+		irq, gru->gs_gid, dmap.fault_bits[0], dmap.fault_bits[1],
+		dmap.fault_bits[0], dmap.fault_bits[1]);
 
-	for_each_cbr_in_tfm(cbrnum, map.fault_bits) {
+	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
+		complete(gru->gs_blade->bs_async_wq);
+		gru_dbg(grudev, "gid %d, cbr_done %d, done %d\n",
+			gru->gs_gid, cbrnum, gru->gs_blade->bs_async_wq->done);
+	}
+
+	for_each_cbr_in_tfm(cbrnum, imap.fault_bits) {
 		tfh = get_tfh_by_index(gru, cbrnum);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
 

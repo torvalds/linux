@@ -462,6 +462,11 @@ struct gru_blade_state {
 	struct rw_semaphore	bs_kgts_sema;		/* lock for kgts */
 	struct gru_thread_state *bs_kgts;		/* GTS for kernel use */
 
+	/* ---- the following are used for managing kernel async GRU CBRs --- */
+	int			bs_async_dsr_bytes;	/* DSRs for async */
+	int			bs_async_cbrs;		/* CBRs AU for async */
+	struct completion	*bs_async_wq;
+
 	/* ---- the following are protected by the bs_lock spinlock ---- */
 	spinlock_t		bs_lock;		/* lock used for
 							   stealing contexts */
