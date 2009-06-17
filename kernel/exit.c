@@ -1082,8 +1082,8 @@ SYSCALL_DEFINE1(exit_group, int, error_code)
 
 struct wait_opts {
 	enum pid_type		wo_type;
-	struct pid		*wo_pid;
 	int			wo_flags;
+	struct pid		*wo_pid;
 
 	struct siginfo __user	*wo_info;
 	int __user		*wo_stat;
