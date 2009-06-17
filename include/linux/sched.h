@@ -1878,9 +1878,6 @@ extern struct pid_namespace init_pid_ns;
 /*
  * find a task by one of its numerical ids
  *
- * find_task_by_pid_type_ns():
- *      it is the most generic call - it finds a task by all id,
- *      type and namespace specified
  * find_task_by_pid_ns():
  *      finds a task by its pid in the specified namespace
  * find_task_by_vpid():
@@ -1888,9 +1885,6 @@ extern struct pid_namespace init_pid_ns;
  *
  * see also find_vpid() etc in include/linux/pid.h
  */
-
-extern struct task_struct *find_task_by_pid_type_ns(int type, int pid,
-		struct pid_namespace *ns);
 
 extern struct task_struct *find_task_by_vpid(pid_t nr);
 extern struct task_struct *find_task_by_pid_ns(pid_t nr,
