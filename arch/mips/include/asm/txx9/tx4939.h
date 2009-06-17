@@ -45,6 +45,8 @@
 #define TX4939_RTC_REG		(TX4939_REG_BASE + 0xfb00)
 #define TX4939_CIR_REG		(TX4939_REG_BASE + 0xfc00)
 
+#define TX4939_RNG_REG		(TX4939_CRYPTO_REG + 0xb0)
+
 struct tx4939_le_reg {
 	__u32 r;
 	__u32 unused;
@@ -544,5 +546,9 @@ void tx4939_ata_init(void);
 void tx4939_rtc_init(void);
 void tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
 		       unsigned char ch_mask, unsigned char wide_mask);
+void tx4939_dmac_init(int memcpy_chan0, int memcpy_chan1);
+void tx4939_aclc_init(void);
+void tx4939_sramc_init(void);
+void tx4939_rng_init(void);
 
 #endif /* __ASM_TXX9_TX4939_H */

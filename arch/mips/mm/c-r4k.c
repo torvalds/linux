@@ -100,6 +100,12 @@ static inline void r4k_blast_dcache_page_dc32(unsigned long addr)
 	blast_dcache32_page(addr);
 }
 
+static inline void r4k_blast_dcache_page_dc64(unsigned long addr)
+{
+	R4600_HIT_CACHEOP_WAR_IMPL;
+	blast_dcache64_page(addr);
+}
+
 static void __cpuinit r4k_blast_dcache_page_setup(void)
 {
 	unsigned long  dc_lsize = cpu_dcache_line_size();
@@ -110,6 +116,8 @@ static void __cpuinit r4k_blast_dcache_page_setup(void)
 		r4k_blast_dcache_page = blast_dcache16_page;
 	else if (dc_lsize == 32)
 		r4k_blast_dcache_page = r4k_blast_dcache_page_dc32;
+	else if (dc_lsize == 64)
+		r4k_blast_dcache_page = r4k_blast_dcache_page_dc64;
 }
 
 static void (* r4k_blast_dcache_page_indexed)(unsigned long addr);
@@ -124,6 +132,8 @@ static void __cpuinit r4k_blast_dcache_page_indexed_setup(void)
 		r4k_blast_dcache_page_indexed = blast_dcache16_page_indexed;
 	else if (dc_lsize == 32)
 		r4k_blast_dcache_page_indexed = blast_dcache32_page_indexed;
+	else if (dc_lsize == 64)
+		r4k_blast_dcache_page_indexed = blast_dcache64_page_indexed;
 }
 
 static void (* r4k_blast_dcache)(void);
@@ -138,6 +148,8 @@ static void __cpuinit r4k_blast_dcache_setup(void)
 		r4k_blast_dcache = blast_dcache16;
 	else if (dc_lsize == 32)
 		r4k_blast_dcache = blast_dcache32;
+	else if (dc_lsize == 64)
+		r4k_blast_dcache = blast_dcache64;
 }
 
 /* force code alignment (used for TX49XX_ICACHE_INDEX_INV_WAR) */

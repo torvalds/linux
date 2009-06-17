@@ -81,6 +81,14 @@ config MX3_IPU_IRQS
 	  To avoid bloating the irq_desc[] array we allocate a sufficient
 	  number of IRQ slots and map them dynamically to specific sources.
 
+config TXX9_DMAC
+	tristate "Toshiba TXx9 SoC DMA support"
+	depends on MACH_TX49XX || MACH_TX39XX
+	select DMA_ENGINE
+	help
+	  Support the TXx9 SoC internal DMA controller.  This can be
+	  integrated in chips such as the Toshiba TX4927/38/39.
+
 config DMA_ENGINE
 	bool
 
