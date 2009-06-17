@@ -135,11 +135,9 @@ static int gru_create_new_context(unsigned long arg)
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
 		return -EFAULT;
 
-	if (req.data_segment_bytes == 0 ||
-				req.data_segment_bytes > max_user_dsr_bytes)
+	if (req.data_segment_bytes > max_user_dsr_bytes)
 		return -EINVAL;
-	if (!req.control_blocks || !req.maximum_thread_count ||
-				req.control_blocks > max_user_cbrs)
+	if (req.control_blocks > max_user_cbrs || !req.maximum_thread_count)
 		return -EINVAL;
 
 	if (!(req.options & GRU_OPT_MISS_MASK))

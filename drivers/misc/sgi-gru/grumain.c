@@ -150,7 +150,7 @@ static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
 	unsigned long bits = 0;
 	int i;
 
-	do {
+	while (n--) {
 		i = find_first_bit(p, mmax);
 		if (i == mmax)
 			BUG();
@@ -158,7 +158,7 @@ static unsigned long reserve_resources(unsigned long *p, int n, int mmax,
 		__set_bit(i, &bits);
 		if (idx)
 			*idx++ = i;
-	} while (--n);
+	}
 	return bits;
 }
 
