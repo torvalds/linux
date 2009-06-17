@@ -538,7 +538,7 @@ static inline void kvm_irqfd_release(struct kvm *kvm) {}
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 static inline bool kvm_vcpu_is_bsp(struct kvm_vcpu *vcpu)
 {
-	return vcpu->kvm->bsp_vcpu == vcpu;
+	return vcpu->kvm->bsp_vcpu_id == vcpu->vcpu_id;
 }
 #endif
 #endif
