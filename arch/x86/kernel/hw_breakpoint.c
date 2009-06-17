@@ -121,7 +121,7 @@ void arch_install_thread_hw_breakpoint(struct task_struct *tsk)
 /*
  * Install the debug register values for just the kernel, no thread.
  */
-void arch_uninstall_thread_hw_breakpoint()
+void arch_uninstall_thread_hw_breakpoint(void)
 {
 	/* Clear the user-space portion of debugreg7 by setting only kdr7 */
 	set_debugreg(kdr7, 7);
@@ -166,7 +166,7 @@ int arch_check_va_in_userspace(unsigned long va, u8 hbp_len)
 /*
  * Check for virtual address in kernel space.
  */
-int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
+static int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
 {
 	unsigned int len;
 
@@ -310,7 +310,7 @@ void arch_flush_thread_hw_breakpoint(struct task_struct *tsk)
  * NOTIFY_STOP returned for all other cases
  *
  */
-int __kprobes hw_breakpoint_handler(struct die_args *args)
+static int __kprobes hw_breakpoint_handler(struct die_args *args)
 {
 	int i, cpu, rc = NOTIFY_STOP;
 	struct hw_breakpoint *bp;
