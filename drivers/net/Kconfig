@@ -2272,8 +2272,9 @@ config BNX2
 
 config CNIC
 	tristate "Broadcom CNIC support"
-	depends on BNX2
-	depends on UIO
+	depends on PCI
+	select BNX2
+	select UIO
 	help
 	  This driver supports offload features of Broadcom NetXtremeII
 	  gigabit Ethernet cards.

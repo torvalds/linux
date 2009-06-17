@@ -1146,7 +1146,8 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 	case FSF_RESPONSE_SIZE_TOO_LARGE:
 		break;
 	case FSF_ACCESS_DENIED:
-		zfcp_fsf_access_denied_port(req, port);
+		if (port)
+			zfcp_fsf_access_denied_port(req, port);
 		break;
 	case FSF_SBAL_MISMATCH:
 		/* should never occure, avoided in zfcp_fsf_send_els */

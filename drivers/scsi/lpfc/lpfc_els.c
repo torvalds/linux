@@ -168,6 +168,19 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 	if (elsiocb == NULL)
 		return NULL;
 
+	/*
+	 * If this command is for fabric controller and HBA running
+	 * in FIP mode send FLOGI, FDISC and LOGO as FIP frames.
+	 */
+	if ((did == Fabric_DID) &&
+		bf_get(lpfc_fip_flag, &phba->sli4_hba.sli4_flags) &&
+		((elscmd == ELS_CMD_FLOGI) ||
+		 (elscmd == ELS_CMD_FDISC) ||
+		 (elscmd == ELS_CMD_LOGO)))
+		elsiocb->iocb_flag |= LPFC_FIP_ELS;
+	else
+		elsiocb->iocb_flag &= ~LPFC_FIP_ELS;
+
 	icmd = &elsiocb->iocb;
 
 	/* fill in BDEs for command */
@@ -6108,9 +6121,17 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd->un.elsreq64.myID = 0;
 	icmd->un.elsreq64.fl = 1;
 
-	/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
-	icmd->ulpCt_h = 1;
-	icmd->ulpCt_l = 0;
+	if  (phba->sli_rev == LPFC_SLI_REV4) {
+		/* FDISC needs to be 1 for WQE VPI */
+		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
+		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
+		/* Set the ulpContext to the vpi */
+		elsiocb->iocb.ulpContext = vport->vpi + phba->vpi_base;
+	} else {
+		/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
+		icmd->ulpCt_h = 1;
+		icmd->ulpCt_l = 0;
+	}
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
 	*((uint32_t *) (pcmd)) = ELS_CMD_FDISC;
