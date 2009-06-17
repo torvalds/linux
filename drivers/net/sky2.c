@@ -1176,6 +1176,7 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 			re->skb = NULL;
 		}
 	}
+	skb_queue_purge(&sky2->rx_recycle);
 }
 
 /* Basic MII support */
@@ -1252,6 +1253,12 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 }
 #endif
 
+/* Amount of required worst case padding in rx buffer */
+static inline unsigned sky2_rx_pad(const struct sky2_hw *hw)
+{
+	return (hw->flags & SKY2_HW_RAM_BUFFER) ? 8 : 2;
+}
+
 /*
  * Allocate an skb for receiving. If the MTU is large enough
  * make the skb non-linear with a fragment list of pages.
@@ -1261,6 +1268,13 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2)
 	struct sk_buff *skb;
 	int i;
 
+	skb = __skb_dequeue(&sky2->rx_recycle);
+	if (!skb)
+		skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size
+				       + sky2_rx_pad(sky2->hw));
+	if (!skb)
+		goto nomem;
+
 	if (sky2->hw->flags & SKY2_HW_RAM_BUFFER) {
 		unsigned char *start;
 		/*
@@ -1269,18 +1283,10 @@ static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2)
 		 * The buffer returned from netdev_alloc_skb is
 		 * aligned except if slab debugging is enabled.
 		 */
-		skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size + 8);
-		if (!skb)
-			goto nomem;
 		start = PTR_ALIGN(skb->data, 8);
 		skb_reserve(skb, start - skb->data);
-	} else {
-		skb = netdev_alloc_skb(sky2->netdev,
-				       sky2->rx_data_size + NET_IP_ALIGN);
-		if (!skb)
-			goto nomem;
+	} else
 		skb_reserve(skb, NET_IP_ALIGN);
-	}
 
 	for (i = 0; i < sky2->rx_nfrags; i++) {
 		struct page *page = alloc_page(GFP_ATOMIC);
@@ -1356,6 +1362,8 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		size = ETH_HLEN;
 
 	sky2->rx_data_size = size;
+
+	skb_queue_head_init(&sky2->rx_recycle);
 
 	/* Fill Rx ring */
 	for (i = 0; i < sky2->rx_pending; i++) {
@@ -1764,14 +1772,22 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 		}
 
 		if (le->ctrl & EOP) {
+			struct sk_buff *skb = re->skb;
+
 			if (unlikely(netif_msg_tx_done(sky2)))
 				printk(KERN_DEBUG "%s: tx done %u\n",
 				       dev->name, idx);
 
 			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += re->skb->len;
+			dev->stats.tx_bytes += skb->len;
 
-			dev_kfree_skb_any(re->skb);
+			if (skb_queue_len(&sky2->rx_recycle) < sky2->rx_pending
+			    && skb_recycle_check(skb, sky2->rx_data_size
+						 + sky2_rx_pad(sky2->hw)))
+				__skb_queue_head(&sky2->rx_recycle, skb);
+			else
+				dev_kfree_skb_any(skb);
+
 			sky2->tx_next = RING_NEXT(idx, TX_RING_SIZE);
 		}
 	}
