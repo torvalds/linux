@@ -30,13 +30,6 @@ typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
 
 /*
- * options passed in raidrun:
- */
-
-/* Currently this must fit in an 'int' */
-#define MAX_CHUNK_SIZE (1<<30)
-
-/*
  * MD's 'extended' device
  */
 struct mdk_rdev_s

@@ -440,18 +440,6 @@ static inline sector_t calc_dev_sboffset(struct block_device *bdev)
 	return MD_NEW_SIZE_SECTORS(num_sectors);
 }
 
-static sector_t calc_num_sectors(mdk_rdev_t *rdev, unsigned chunk_size)
-{
-	sector_t num_sectors = rdev->sb_start;
-
-	if (chunk_size) {
-		unsigned chunk_sects = chunk_size>>9;
-		sector_div(num_sectors, chunk_sects);
-		num_sectors *= chunk_sects;
-	}
-	return num_sectors;
-}
-
 static int alloc_disk_sb(mdk_rdev_t * rdev)
 {
 	if (rdev->sb_page)
@@ -839,7 +827,7 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 		else 
 			ret = 0;
 	}
-	rdev->sectors = calc_num_sectors(rdev, sb->chunk_size);
+	rdev->sectors = rdev->sb_start;
 
 	if (rdev->sectors < sb->size * 2 && sb->level > 1)
 		/* "this cannot possibly happen" ... */
@@ -1251,13 +1239,6 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	if (rdev->sectors < le64_to_cpu(sb->data_size))
 		return -EINVAL;
 	rdev->sectors = le64_to_cpu(sb->data_size);
-	if (le32_to_cpu(sb->chunksize)) {
-		int chunk_sects = le32_to_cpu(sb->chunksize);
-		sector_t chunks = rdev->sectors;
-		sector_div(chunks, chunk_sects);
-		rdev->sectors = chunks * chunk_sects;
-	}
-
 	if (le64_to_cpu(sb->size) > rdev->sectors)
 		return -EINVAL;
 	return ret;
@@ -3983,11 +3964,9 @@ static int start_dirty_degraded;
 static int do_md_run(mddev_t * mddev)
 {
 	int err;
-	int chunk_size;
 	mdk_rdev_t *rdev;
 	struct gendisk *disk;
 	struct mdk_personality *pers;
-	char b[BDEVNAME_SIZE];
 
 	if (list_empty(&mddev->disks))
 		/* cannot run an array with no devices.. */
@@ -4003,30 +3982,6 @@ static int do_md_run(mddev_t * mddev)
 		if (!mddev->persistent)
 			return -EINVAL;
 		analyze_sbs(mddev);
-	}
-
-	chunk_size = mddev->chunk_sectors << 9;
-
-	if (chunk_size) {
-		if (chunk_size > MAX_CHUNK_SIZE) {
-			printk(KERN_ERR "too big chunk_size: %d > %d\n",
-				chunk_size, MAX_CHUNK_SIZE);
-			return -EINVAL;
-		}
-		/* devices must have minimum size of one chunk */
-		list_for_each_entry(rdev, &mddev->disks, same_set) {
-			if (test_bit(Faulty, &rdev->flags))
-				continue;
-			if (rdev->sectors < chunk_size / 512) {
-				printk(KERN_WARNING
-					"md: Dev %s smaller than chunk_size:"
-					" %llu < %d\n",
-					bdevname(rdev->bdev,b),
-					(unsigned long long)rdev->sectors,
-					chunk_size / 512);
-				return -EINVAL;
-			}
-		}
 	}
 
 	if (mddev->level != LEVEL_NONE)
@@ -4842,8 +4797,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 		} else 
 			rdev->sb_start = calc_dev_sboffset(rdev->bdev);
-		rdev->sectors = calc_num_sectors(rdev,
-						 mddev->chunk_sectors << 9);
+		rdev->sectors = rdev->sb_start;
 
 		err = bind_rdev_to_array(rdev, mddev);
 		if (err) {
@@ -4913,7 +4867,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	else
 		rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
 
-	rdev->sectors = calc_num_sectors(rdev, mddev->chunk_sectors << 9);
+	rdev->sectors = rdev->sb_start;
 
 	if (test_bit(Faulty, &rdev->flags)) {
 		printk(KERN_WARNING 
