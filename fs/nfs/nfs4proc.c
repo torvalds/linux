@@ -804,16 +804,30 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 		err = _nfs4_open_delegation_recall(ctx, state, stateid);
 		switch (err) {
 			case 0:
-				return err;
+			case -ENOENT:
+			case -ESTALE:
+				goto out;
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_EXPIRED:
 				/* Don't recall a delegation if it was lost */
 				nfs4_schedule_state_recovery(server->nfs_client);
-				return err;
+				goto out;
+			case -ERESTARTSYS:
+				/*
+				 * The show must go on: exit, but mark the
+				 * stateid as needing recovery.
+				 */
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_BAD_STATEID:
+				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
+			case -ENOMEM:
+				err = 0;
+				goto out;
 		}
 		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
+out:
 	return err;
 }
 
@@ -3487,8 +3501,6 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 	ret = nfs4_wait_for_completion_rpc_task(task);
 	if (ret == 0) {
 		ret = data->rpc_status;
-		if (ret == -NFS4ERR_DENIED)
-			ret = -EAGAIN;
 	} else
 		data->cancelled = 1;
 	rpc_put_task(task);
@@ -3576,9 +3588,11 @@ static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *
 	int err;
 
 	do {
+		err = _nfs4_proc_setlk(state, cmd, request);
+		if (err == -NFS4ERR_DENIED)
+			err = -EAGAIN;
 		err = nfs4_handle_exception(NFS_SERVER(state->inode),
-				_nfs4_proc_setlk(state, cmd, request),
-				&exception);
+				err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -3635,10 +3649,28 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 				printk(KERN_ERR "%s: unhandled error %d.\n",
 						__func__, err);
 			case 0:
+			case -ESTALE:
 				goto out;
 			case -NFS4ERR_EXPIRED:
 			case -NFS4ERR_STALE_CLIENTID:
+			case -NFS4ERR_STALE_STATEID:
 				nfs4_schedule_state_recovery(server->nfs_client);
+				goto out;
+			case -ERESTARTSYS:
+				/*
+				 * The show must go on: exit, but mark the
+				 * stateid as needing recovery.
+				 */
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_BAD_STATEID:
+			case -NFS4ERR_OPENMODE:
+				nfs4_state_mark_reclaim_nograce(server->nfs_client, state);
+				err = 0;
+				goto out;
+			case -ENOMEM:
+			case -NFS4ERR_DENIED:
+				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
+				err = 0;
 				goto out;
 			case -NFS4ERR_DELAY:
 				break;

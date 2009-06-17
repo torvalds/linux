@@ -854,25 +854,29 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
 		status = ops->recover_lock(state, fl);
-		if (status >= 0)
-			continue;
 		switch (status) {
+			case 0:
+				break;
+			case -ESTALE:
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_STALE_STATEID:
+			case -NFS4ERR_BAD_STATEID:
+			case -NFS4ERR_EXPIRED:
+			case -NFS4ERR_NO_GRACE:
+			case -NFS4ERR_STALE_CLIENTID:
+				goto out;
 			default:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
 						__func__, status);
-			case -NFS4ERR_EXPIRED:
-			case -NFS4ERR_NO_GRACE:
+			case -ENOMEM:
+			case -NFS4ERR_DENIED:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
-				break;
-			case -NFS4ERR_STALE_CLIENTID:
-				goto out_err;
+				status = 0;
 		}
 	}
-	up_write(&nfsi->rwsem);
-	return 0;
-out_err:
+out:
 	up_write(&nfsi->rwsem);
 	return status;
 }
@@ -918,6 +922,7 @@ restart:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
 						__func__, status);
 			case -ENOENT:
+			case -ENOMEM:
 			case -ESTALE:
 				/*
 				 * Open state on this file cannot be recovered
@@ -928,6 +933,9 @@ restart:
 				/* Mark the file as being 'closed' */
 				state->state = 0;
 				break;
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_STALE_STATEID:
+			case -NFS4ERR_BAD_STATEID:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
 				nfs4_state_mark_reclaim_nograce(sp->so_client, state);
