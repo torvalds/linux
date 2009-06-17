@@ -581,26 +581,16 @@ int ptrace_request(struct task_struct *child, long request,
 	return ret;
 }
 
-/**
- * ptrace_get_task_struct  --  grab a task struct reference for ptrace
- * @pid:       process id to grab a task_struct reference of
- *
- * This function is a helper for ptrace implementations.  It checks
- * permissions and then grabs a task struct for use of the actual
- * ptrace implementation.
- *
- * Returns the task_struct for @pid or an ERR_PTR() on failure.
- */
-struct task_struct *ptrace_get_task_struct(pid_t pid)
+static struct task_struct *ptrace_get_task_struct(pid_t pid)
 {
 	struct task_struct *child;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	child = find_task_by_vpid(pid);
 	if (child)
 		get_task_struct(child);
+	rcu_read_unlock();
 
-	read_unlock(&tasklist_lock);
 	if (!child)
 		return ERR_PTR(-ESRCH);
 	return child;
