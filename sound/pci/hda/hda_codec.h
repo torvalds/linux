@@ -939,6 +939,13 @@ static inline void snd_hda_power_down(struct hda_codec *codec) {}
 #define snd_hda_codec_needs_resume(codec) 1
 #endif
 
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+/*
+ * patch firmware
+ */
+int snd_hda_load_patch(struct hda_bus *bus, const char *patch);
+#endif
+
 /*
  * Codec modularization
  */
