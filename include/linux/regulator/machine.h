@@ -126,13 +126,18 @@ struct regulation_constraints {
 /**
  * struct regulator_consumer_supply - supply -> device mapping
  *
- * This maps a supply name to a device.
+ * This maps a supply name to a device.  Only one of dev or dev_name
+ * can be specified.  Use of dev_name allows support for buses which
+ * make struct device available late such as I2C and is the preferred
+ * form.
  *
  * @dev: Device structure for the consumer.
+ * @dev_name: Result of dev_name() for the consumer.
  * @supply: Name for the supply.
  */
 struct regulator_consumer_supply {
 	struct device *dev;	/* consumer */
+	const char *dev_name;   /* dev_name() for consumer */
 	const char *supply;	/* consumer supply - e.g. "vcc" */
 };
 

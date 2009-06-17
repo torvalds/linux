@@ -37,7 +37,7 @@ static int has_full_constraints;
  */
 struct regulator_map {
 	struct list_head list;
-	struct device *dev;
+	const char *dev_name;   /* The dev_name() for the consumer */
 	const char *supply;
 	struct regulator_dev *regulator;
 };
@@ -857,23 +857,33 @@ out:
  * set_consumer_device_supply: Bind a regulator to a symbolic supply
  * @rdev:         regulator source
  * @consumer_dev: device the supply applies to
+ * @consumer_dev_name: dev_name() string for device supply applies to
  * @supply:       symbolic name for supply
  *
  * Allows platform initialisation code to map physical regulator
  * sources to symbolic names for supplies for use by devices.  Devices
  * should use these symbolic names to request regulators, avoiding the
  * need to provide board-specific regulator names as platform data.
+ *
+ * Only one of consumer_dev and consumer_dev_name may be specified.
  */
 static int set_consumer_device_supply(struct regulator_dev *rdev,
-	struct device *consumer_dev, const char *supply)
+	struct device *consumer_dev, const char *consumer_dev_name,
+	const char *supply)
 {
 	struct regulator_map *node;
+
+	if (consumer_dev && consumer_dev_name)
+		return -EINVAL;
+
+	if (!consumer_dev_name && consumer_dev)
+		consumer_dev_name = dev_name(consumer_dev);
 
 	if (supply == NULL)
 		return -EINVAL;
 
 	list_for_each_entry(node, &regulator_map_list, list) {
-		if (consumer_dev != node->dev)
+		if (consumer_dev_name != node->dev_name)
 			continue;
 		if (strcmp(node->supply, supply) != 0)
 			continue;
@@ -891,25 +901,38 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 		return -ENOMEM;
 
 	node->regulator = rdev;
-	node->dev = consumer_dev;
+	node->dev_name = kstrdup(consumer_dev_name, GFP_KERNEL);
 	node->supply = supply;
+
+	if (node->dev_name == NULL) {
+		kfree(node);
+		return -ENOMEM;
+	}
 
 	list_add(&node->list, &regulator_map_list);
 	return 0;
 }
 
 static void unset_consumer_device_supply(struct regulator_dev *rdev,
-	struct device *consumer_dev)
+	const char *consumer_dev_name, struct device *consumer_dev)
 {
 	struct regulator_map *node, *n;
 
+	if (consumer_dev && !consumer_dev_name)
+		consumer_dev_name = dev_name(consumer_dev);
+
 	list_for_each_entry_safe(node, n, &regulator_map_list, list) {
-		if (rdev == node->regulator &&
-			consumer_dev == node->dev) {
-			list_del(&node->list);
-			kfree(node);
-			return;
-		}
+		if (rdev != node->regulator)
+			continue;
+
+		if (consumer_dev_name && node->dev_name &&
+		    strcmp(consumer_dev_name, node->dev_name))
+			continue;
+
+		list_del(&node->list);
+		kfree(node->dev_name);
+		kfree(node);
+		return;
 	}
 }
 
@@ -920,6 +943,7 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 	list_for_each_entry_safe(node, n, &regulator_map_list, list) {
 		if (rdev == node->regulator) {
 			list_del(&node->list);
+			kfree(node->dev_name);
 			kfree(node);
 			return;
 		}
@@ -1019,17 +1043,25 @@ struct regulator *regulator_get(struct device *dev, const char *id)
 	struct regulator_dev *rdev;
 	struct regulator_map *map;
 	struct regulator *regulator = ERR_PTR(-ENODEV);
+	const char *devname = NULL;
 
 	if (id == NULL) {
 		printk(KERN_ERR "regulator: get() with no identifier\n");
 		return regulator;
 	}
 
+	if (dev)
+		devname = dev_name(dev);
+
 	mutex_lock(&regulator_list_mutex);
 
 	list_for_each_entry(map, &regulator_map_list, list) {
-		if (dev == map->dev &&
-		    strcmp(map->supply, id) == 0) {
+		/* If the mapping has a device set up it must match */
+		if (map->dev_name &&
+		    (!devname || strcmp(map->dev_name, devname)))
+			continue;
+
+		if (strcmp(map->supply, id) == 0) {
 			rdev = map->regulator;
 			goto found;
 		}
@@ -2091,11 +2123,13 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	for (i = 0; i < init_data->num_consumer_supplies; i++) {
 		ret = set_consumer_device_supply(rdev,
 			init_data->consumer_supplies[i].dev,
+			init_data->consumer_supplies[i].dev_name,
 			init_data->consumer_supplies[i].supply);
 		if (ret < 0) {
 			for (--i; i >= 0; i--)
 				unset_consumer_device_supply(rdev,
-					init_data->consumer_supplies[i].dev);
+				    init_data->consumer_supplies[i].dev_name,
+				    init_data->consumer_supplies[i].dev);
 			goto scrub;
 		}
 	}
