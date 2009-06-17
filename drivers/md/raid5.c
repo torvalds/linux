@@ -5231,8 +5231,6 @@ static void *raid5_takeover(mddev_t *mddev)
 	 *  raid1 - if there are two drives.  We need to know the chunk size
 	 *  raid4 - trivial - just use a raid4 layout.
 	 *  raid6 - Providing it is a *_6 layout
-	 *
-	 * For now, just do raid1
 	 */
 
 	if (mddev->level == 1)
