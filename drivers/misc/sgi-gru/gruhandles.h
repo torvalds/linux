@@ -480,9 +480,7 @@ enum gru_cbr_state {
 /* minimum TLB purge count to ensure a full purge */
 #define GRUMAXINVAL		1024UL
 
-int cch_allocate(struct gru_context_configuration_handle *cch,
-       int asidval, int sizeavail, unsigned long cbrmap, unsigned long dsrmap);
-
+int cch_allocate(struct gru_context_configuration_handle *cch);
 int cch_start(struct gru_context_configuration_handle *cch);
 int cch_interrupt(struct gru_context_configuration_handle *cch);
 int cch_deallocate(struct gru_context_configuration_handle *cch);

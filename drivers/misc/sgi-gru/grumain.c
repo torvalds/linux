@@ -537,13 +537,12 @@ void gru_load_context(struct gru_thread_state *gts)
 {
 	struct gru_state *gru = gts->ts_gru;
 	struct gru_context_configuration_handle *cch;
-	int err, asid, ctxnum = gts->ts_ctxnum;
+	int i, err, asid, ctxnum = gts->ts_ctxnum;
 
 	gru_dbg(grudev, "gts %p\n", gts);
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
 
 	lock_cch_handle(cch);
-	asid = gru_load_mm_tracker(gru, gts);
 	cch->tfm_fault_bit_enable =
 	    (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
 	     || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
@@ -553,8 +552,16 @@ void gru_load_context(struct gru_thread_state *gts)
 		cch->tlb_int_select = gts->ts_tlb_int_select;
 	}
 	cch->tfm_done_bit_enable = 0;
-	err = cch_allocate(cch, asid, gts->ts_sizeavail, gts->ts_cbr_map,
-				gts->ts_dsr_map);
+	cch->dsr_allocation_map = gts->ts_dsr_map;
+	cch->cbr_allocation_map = gts->ts_cbr_map;
+	asid = gru_load_mm_tracker(gru, gts);
+	cch->unmap_enable = 0;
+	for (i = 0; i < 8; i++) {
+		cch->asid[i] = asid + i;
+		cch->sizeavail[i] = gts->ts_sizeavail;
+	}
+
+	err = cch_allocate(cch);
 	if (err) {
 		gru_dbg(grudev,
 			"err %d: cch %p, gts %p, cbr 0x%lx, dsr 0x%lx\n",
