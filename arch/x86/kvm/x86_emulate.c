@@ -32,6 +32,8 @@
 #include <linux/module.h>
 #include <asm/kvm_x86_emulate.h>
 
+#include "mmu.h"		/* for is_long_mode() */
+
 /*
  * Opcode effective-address decode tables.
  * Note that we only emulate instructions that have at least one memory
@@ -209,7 +211,7 @@ static u32 opcode_table[256] = {
 
 static u32 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	0, Group | GroupDual | Group7, 0, 0, 0, 0, ImplicitOps, 0,
+	0, Group | GroupDual | Group7, 0, 0, 0, ImplicitOps, ImplicitOps, 0,
 	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
@@ -217,7 +219,9 @@ static u32 twobyte_table[256] = {
 	ModRM | ImplicitOps, ModRM, ModRM | ImplicitOps, ModRM, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x30 - 0x3F */
-	ImplicitOps, 0, ImplicitOps, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, 0, ImplicitOps, 0,
+	ImplicitOps, ImplicitOps, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x40 - 0x47 */
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
@@ -1988,6 +1992,9 @@ twobyte_insn:
 			goto cannot_emulate;
 		}
 		break;
+	case 0x05: 		/* syscall */
+		goto cannot_emulate;
+		break;
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
 		c->dst.type = OP_NONE;
@@ -2053,6 +2060,12 @@ twobyte_insn:
 		}
 		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;
+		break;
+	case 0x34:		/* sysenter */
+		goto cannot_emulate;
+		break;
+	case 0x35:		/* sysexit */
+		goto cannot_emulate;
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;
