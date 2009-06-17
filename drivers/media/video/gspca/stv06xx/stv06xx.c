@@ -92,11 +92,10 @@ static int stv06xx_write_sensor_finish(struct sd *sd)
 {
 	int err = 0;
 
-	if (IS_850(sd)) {
+	if (sd->bridge == BRIDGE_STV610) {
 		struct usb_device *udev = sd->gspca_dev.dev;
 		__u8 *buf = sd->gspca_dev.usb_buf;
 
-		/* Quickam Web needs an extra packet */
 		buf[0] = 0;
 		err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				      0x04, 0x40, 0x1704, 0, buf, 1,
@@ -253,7 +252,7 @@ static int stv06xx_init(struct gspca_dev *gspca_dev)
 
 	err = sd->sensor->init(sd);
 
-	if (dump_sensor)
+	if (dump_sensor && sd->sensor->dump)
 		sd->sensor->dump(sd);
 
 	return (err < 0) ? err : 0;
@@ -318,6 +317,8 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
 	PDEBUG(D_PACK, "Packet of length %d arrived", len);
 
 	/* A packet may contain several frames
@@ -343,13 +344,28 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 		if (len < chunk_len) {
 			PDEBUG(D_ERR, "URB packet length is smaller"
 				" than the specified chunk length");
+			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
+
+		/* First byte seem to be 02=data 2nd byte is unknown??? */
+		if (sd->bridge == BRIDGE_ST6422 && (id & 0xFF00) == 0x0200)
+			goto frame_data;
 
 		switch (id) {
 		case 0x0200:
 		case 0x4200:
+frame_data:
 			PDEBUG(D_PACK, "Frame data packet detected");
+
+			if (sd->to_skip) {
+				int skip = (sd->to_skip < chunk_len) ?
+					    sd->to_skip : chunk_len;
+				data += skip;
+				len -= skip;
+				chunk_len -= skip;
+				sd->to_skip -= skip;
+			}
 
 			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 					data, chunk_len);
@@ -364,6 +380,9 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 			/* Create a new frame, chunk length should be zero */
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
 					frame, data, 0);
+
+			if (sd->bridge == BRIDGE_ST6422)
+				sd->to_skip = gspca_dev->width * 4;
 
 			if (chunk_len)
 				PDEBUG(D_ERR, "Chunk length is "
@@ -395,8 +414,12 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 			/* Unknown chunk with 2 bytes of data,
 			   occurs 2-3 times per USB interrupt */
 			break;
+		case 0x42ff:
+			PDEBUG(D_PACK, "Chunk 0x42ff detected");
+			/* Special chunk seen sometimes on the ST6422 */
+			break;
 		default:
-			PDEBUG(D_PACK, "Unknown chunk %d detected", id);
+			PDEBUG(D_PACK, "Unknown chunk 0x%04x detected", id);
 			/* Unknown chunk */
 		}
 		data    += chunk_len;
@@ -428,10 +451,15 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	sd->desc = sd_desc;
+	sd->bridge = id->driver_info;
 	gspca_dev->sd_desc = &sd->desc;
 
 	if (dump_bridge)
 		stv06xx_dump_bridge(sd);
+
+	sd->sensor = &stv06xx_sensor_st6422;
+	if (!sd->sensor->probe(sd))
+		return 0;
 
 	sd->sensor = &stv06xx_sensor_vv6410;
 	if (!sd->sensor->probe(sd))
@@ -457,9 +485,20 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x046d, 0x0840)}, /* QuickCam Express */
-	{USB_DEVICE(0x046d, 0x0850)}, /* LEGO cam / QuickCam Web */
-	{USB_DEVICE(0x046d, 0x0870)}, /* Dexxa WebCam USB */
+	/* QuickCam Express */
+	{USB_DEVICE(0x046d, 0x0840), .driver_info = BRIDGE_STV600 },
+	/* LEGO cam / QuickCam Web */
+	{USB_DEVICE(0x046d, 0x0850), .driver_info = BRIDGE_STV610 },
+	/* Dexxa WebCam USB */
+	{USB_DEVICE(0x046d, 0x0870), .driver_info = BRIDGE_STV602 },
+	/* QuickCam Messenger */
+	{USB_DEVICE(0x046D, 0x08F0), .driver_info = BRIDGE_ST6422 },
+	/* QuickCam Communicate */
+	{USB_DEVICE(0x046D, 0x08F5), .driver_info = BRIDGE_ST6422 },
+	/* QuickCam Messenger (new) */
+	{USB_DEVICE(0x046D, 0x08F6), .driver_info = BRIDGE_ST6422 },
+	/* QuickCam Messenger (new) */
+	{USB_DEVICE(0x046D, 0x08DA), .driver_info = BRIDGE_ST6422 },
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
