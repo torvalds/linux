@@ -503,6 +503,29 @@ static void send_message_queue_interrupt(struct gru_message_queue_desc *mqd)
 				mqd->interrupt_vector);
 }
 
+/*
+ * Handle a PUT failure. Note: if message was a 2-line message, one of the
+ * lines might have successfully have been written. Before sending the
+ * message, "present" must be cleared in BOTH lines to prevent the receiver
+ * from prematurely seeing the full message.
+ */
+static int send_message_put_nacked(void *cb, struct gru_message_queue_desc *mqd,
+			void *mesg, int lines)
+{
+	unsigned long m;
+
+	m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
+	if (lines == 2) {
+		gru_vset(cb, m, 0, XTYPE_CL, lines, 1, IMA);
+		if (gru_wait(cb) != CBS_IDLE)
+			return MQE_UNEXPECTED_CB_ERR;
+	}
+	gru_vstore(cb, m, gru_get_tri(mesg), XTYPE_CL, lines, 1, IMA);
+	if (gru_wait(cb) != CBS_IDLE)
+		return MQE_UNEXPECTED_CB_ERR;
+	send_message_queue_interrupt(mqd);
+	return MQE_OK;
+}
 
 /*
  * Handle a gru_mesq failure. Some of these failures are software recoverable
@@ -512,7 +535,6 @@ static int send_message_failure(void *cb, struct gru_message_queue_desc *mqd,
 				void *mesg, int lines)
 {
 	int substatus, ret = 0;
-	unsigned long m;
 
 	substatus = gru_get_cb_message_queue_substatus(cb);
 	switch (substatus) {
@@ -534,14 +556,7 @@ static int send_message_failure(void *cb, struct gru_message_queue_desc *mqd,
 		break;
 	case CBSS_PUT_NACKED:
 		STAT(mesq_send_put_nacked);
-		m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
-		gru_vstore(cb, m, gru_get_tri(mesg), XTYPE_CL, lines, 1, IMA);
-		if (gru_wait(cb) == CBS_IDLE) {
-			ret = MQE_OK;
-			send_message_queue_interrupt(mqd);
-		} else {
-			ret = MQE_UNEXPECTED_CB_ERR;
-		}
+		ret = send_message_put_nacked(cb, mqd, mesg, lines);
 		break;
 	default:
 		BUG();
