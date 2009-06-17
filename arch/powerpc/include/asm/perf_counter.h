@@ -57,9 +57,15 @@ extern struct power_pmu *ppmu;
 
 struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
-#define perf_misc_flags(regs)	perf_misc_flags(regs)
-
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
+
+/*
+ * Only override the default definitions in include/linux/perf_counter.h
+ * if we have hardware PMU support.
+ */
+#ifdef CONFIG_PPC_PERF_CTRS
+#define perf_misc_flags(regs)	perf_misc_flags(regs)
+#endif
 
 /*
  * The power_pmu.get_constraint function returns a 64-bit value and
