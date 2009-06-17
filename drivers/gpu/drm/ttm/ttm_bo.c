@@ -527,9 +527,12 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, unsigned mem_type,
 	ret = ttm_bo_wait(bo, false, interruptible, no_wait);
 	spin_unlock(&bo->lock);
 
-	if (ret && ret != -ERESTART) {
-		printk(KERN_ERR TTM_PFX "Failed to expire sync object before "
-		       "buffer eviction.\n");
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTART) {
+			printk(KERN_ERR TTM_PFX
+			       "Failed to expire sync object before "
+			       "buffer eviction.\n");
+		}
 		goto out;
 	}
 
