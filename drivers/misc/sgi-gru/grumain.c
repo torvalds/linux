@@ -744,6 +744,7 @@ void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 	spin_unlock(&blade->bs_lock);
 
 	if (ngts) {
+		gts->ustats.context_stolen++;
 		ngts->ts_steal_jiffies = jiffies;
 		gru_unload_context(ngts, is_kernel_context(ngts) ? 0 : 1);
 		gts_stolen(ngts, blade);

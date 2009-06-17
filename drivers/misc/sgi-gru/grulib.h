@@ -50,6 +50,9 @@
 /* For dumpping GRU chiplet state */
 #define GRU_DUMP_CHIPLET_STATE		_IOWR(GRU_IOCTL_NUM, 11, void *)
 
+/* For getting gseg statistics */
+#define GRU_GET_GSEG_STATISTICS		_IOWR(GRU_IOCTL_NUM, 12, void *)
+
 /* For user TLB flushing (primarily for tests) */
 #define GRU_USER_FLUSH_TLB		_IOWR(GRU_IOCTL_NUM, 50, void *)
 
@@ -61,6 +64,21 @@
 
 #define CONTEXT_WINDOW_BYTES(th)        (GRU_GSEG_PAGESIZE * (th))
 #define THREAD_POINTER(p, th)		(p + GRU_GSEG_PAGESIZE * (th))
+#define GSEG_START(cb)			((void *)((unsigned long)(cb) & ~(GRU_GSEG_PAGESIZE - 1)))
+
+/*
+ * Statictics kept on a per-GTS basis.
+ */
+struct gts_statistics {
+	unsigned long	fmm_tlbdropin;
+	unsigned long	upm_tlbdropin;
+	unsigned long	context_stolen;
+};
+
+struct gru_get_gseg_statistics_req {
+	unsigned long		gseg;
+	struct gts_statistics	stats;
+};
 
 /*
  * Structure used to pass TLB flush parameters to the driver

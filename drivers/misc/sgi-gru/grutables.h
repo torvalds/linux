@@ -148,6 +148,7 @@
 #include <linux/wait.h>
 #include <linux/mmu_notifier.h>
 #include "gru.h"
+#include "grulib.h"
 #include "gruhandles.h"
 
 extern struct gru_stats_s gru_stats;
@@ -388,6 +389,7 @@ struct gru_thread_state {
 							  allocated CB */
 	int			ts_data_valid;	/* Indicates if ts_gdata has
 						   valid data */
+	struct gts_statistics	ustats;		/* User statistics */
 	unsigned long		ts_gdata[0];	/* save area for GRU data (CB,
 						   DS, CBE) */
 };
@@ -641,6 +643,7 @@ extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(void);
 extern void gru_kservices_exit(void);
 extern int gru_dump_chiplet_request(unsigned long arg);
+extern long gru_get_gseg_statistics(unsigned long arg);
 extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);

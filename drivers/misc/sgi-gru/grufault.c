@@ -498,6 +498,7 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 		 */
 		if (!gts->ts_force_cch_reload &&
 					down_read_trylock(&gts->ts_mm->mmap_sem)) {
+			gts->ustats.fmm_tlbdropin++;
 			gru_try_dropin(gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
@@ -516,6 +517,7 @@ static int gru_user_dropin(struct gru_thread_state *gts,
 	struct gru_mm_struct *gms = gts->ts_gms;
 	int ret;
 
+	gts->ustats.upm_tlbdropin++;
 	while (1) {
 		wait_event(gms->ms_wait_queue,
 			   atomic_read(&gms->ms_range_active) == 0);
@@ -714,6 +716,31 @@ int gru_user_flush_tlb(unsigned long arg)
 
 	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.len);
 	gru_unlock_gts(gts);
+
+	return 0;
+}
+
+/*
+ * Fetch GSEG statisticss
+ */
+long gru_get_gseg_statistics(unsigned long arg)
+{
+	struct gru_thread_state *gts;
+	struct gru_get_gseg_statistics_req req;
+
+	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
+		return -EFAULT;
+
+	gts = gru_find_lock_gts(req.gseg);
+	if (gts) {
+		memcpy(&req.stats, &gts->ustats, sizeof(gts->ustats));
+		gru_unlock_gts(gts);
+	} else {
+		memset(&req.stats, 0, sizeof(gts->ustats));
+	}
+
+	if (copy_to_user((void __user *)arg, &req, sizeof(req)))
+		return -EFAULT;
 
 	return 0;
 }
