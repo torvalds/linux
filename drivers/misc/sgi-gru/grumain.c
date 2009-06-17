@@ -599,6 +599,9 @@ int gru_update_cch(struct gru_thread_state *gts, int force_unload)
 				cch->sizeavail[i] = gts->ts_sizeavail;
 			gts->ts_tlb_int_select = gru_cpu_fault_map_id();
 			cch->tlb_int_select = gru_cpu_fault_map_id();
+			cch->tfm_fault_bit_enable =
+	    		    (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
+	     		    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
 		} else {
 			for (i = 0; i < 8; i++)
 				cch->asid[i] = 0;

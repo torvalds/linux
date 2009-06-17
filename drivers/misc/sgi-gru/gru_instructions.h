@@ -81,6 +81,8 @@ struct control_block_extended_exc_detail {
 	int		exopc;
 	long		exceptdet0;
 	int		exceptdet1;
+	int		cbrstate;
+	int		cbrexecstatus;
 };
 
 /*
@@ -107,7 +109,8 @@ struct gru_instruction_bits {
     unsigned char		reserved2: 2;
     unsigned char		istatus:   2;
     unsigned char		isubstatus:4;
-    unsigned char		reserved3: 2;
+    unsigned char		reserved3: 1;
+    unsigned char		tlb_fault_color: 1;
     /* DW 1 */
     unsigned long		idef4;		/* 42 bits: TRi1, BufSize */
     /* DW 2-6 */
@@ -252,6 +255,21 @@ struct gru_instruction {
 #define CBE_CAUSE_ADDRESS_SPACE_DECODE_ERROR	(1 << 15)
 #define CBE_CAUSE_RESPONSE_DATA_ERROR		(1 << 16)
 #define CBE_CAUSE_PROTOCOL_STATE_DATA_ERROR	(1 << 17)
+
+/* CBE cbrexecstatus bits */
+#define CBR_EXS_ABORT_OCC_BIT			0
+#define CBR_EXS_INT_OCC_BIT			1
+#define CBR_EXS_PENDING_BIT			2
+#define CBR_EXS_QUEUED_BIT			3
+#define CBR_EXS_TLBHW_BIT			4
+#define CBR_EXS_EXCEPTION_BIT			5
+
+#define CBR_EXS_ABORT_OCC			(1 << CBR_EXS_ABORT_OCC_BIT)
+#define CBR_EXS_INT_OCC				(1 << CBR_EXS_INT_OCC_BIT)
+#define CBR_EXS_PENDING				(1 << CBR_EXS_PENDING_BIT)
+#define CBR_EXS_QUEUED				(1 << CBR_EXS_QUEUED_BIT)
+#define CBR_EXS_TLBHW				(1 << CBR_EXS_TLBHW_BIT)
+#define CBR_EXS_EXCEPTION			(1 << CBR_EXS_EXCEPTION_BIT)
 
 /*
  * Exceptions are retried for the following cases. If any OTHER bits are set

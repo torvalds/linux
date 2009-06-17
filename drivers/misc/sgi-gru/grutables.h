@@ -207,6 +207,8 @@ struct gru_stats_s {
 	atomic_long_t tlb_dropin_fail_range_active;
 	atomic_long_t tlb_dropin_fail_idle;
 	atomic_long_t tlb_dropin_fail_fmm;
+	atomic_long_t tlb_dropin_fail_no_exception;
+	atomic_long_t tlb_dropin_fail_no_exception_war;
 	atomic_long_t mmu_invalidate_range;
 	atomic_long_t mmu_invalidate_page;
 	atomic_long_t mmu_clear_flush_young;

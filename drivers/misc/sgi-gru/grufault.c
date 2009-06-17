@@ -334,6 +334,8 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 * Might be a hardware race OR a stupid user. Ignore FMM because FMM
 	 * is a transient state.
 	 */
+	if (tfh->status != TFHSTATUS_EXCEPTION)
+		goto failnoexception;
 	if (tfh->state == TFHSTATE_IDLE)
 		goto failidle;
 	if (tfh->state == TFHSTATE_MISS_FMM && cb)
@@ -401,8 +403,17 @@ failfmm:
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
 
+failnoexception:
+	/* TFH status did not show exception pending */
+	gru_flush_cache(tfh);
+	if (cb)
+		gru_flush_cache(cb);
+	STAT(tlb_dropin_fail_no_exception);
+	gru_dbg(grudev, "FAILED non-exception tfh: 0x%p, status %d, state %d\n", tfh, tfh->status, tfh->state);
+	return 0;
+
 failidle:
-	/* TFH was idle  - no miss pending */
+	/* TFH state was idle  - no miss pending */
 	gru_flush_cache(tfh);
 	if (cb)
 		gru_flush_cache(cb);
@@ -472,7 +483,8 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 		 * This is running in interrupt context. Trylock the mmap_sem.
 		 * If it fails, retry the fault in user context.
 		 */
-		if (down_read_trylock(&gts->ts_mm->mmap_sem)) {
+		if (!gts->ts_force_cch_reload &&
+					down_read_trylock(&gts->ts_mm->mmap_sem)) {
 			gru_try_dropin(gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
@@ -595,14 +607,19 @@ int gru_get_exception_detail(unsigned long arg)
 		excdet.ecause = cbe->ecause;
 		excdet.exceptdet0 = cbe->idef1upd;
 		excdet.exceptdet1 = cbe->idef3upd;
+		excdet.cbrstate = cbe->cbrstate;
+		excdet.cbrexecstatus = cbe->cbrexecstatus;
 		ret = 0;
 	} else {
 		ret = -EAGAIN;
 	}
 	gru_unlock_gts(gts);
 
-	gru_dbg(grudev, "address 0x%lx, ecause 0x%x\n", excdet.cb,
-		excdet.ecause);
+	gru_dbg(grudev,
+		"cb 0x%lx, op %d, exopc %d, cbrstate %d, cbrexecstatus 0x%x, ecause 0x%x, "
+		"exdet0 0x%lx, exdet1 0x%x\n",
+		excdet.cb, excdet.opc, excdet.exopc, excdet.cbrstate, excdet.cbrexecstatus,
+		excdet.ecause, excdet.exceptdet0, excdet.exceptdet1);
 	if (!ret && copy_to_user((void __user *)arg, &excdet, sizeof(excdet)))
 		ret = -EFAULT;
 	return ret;
