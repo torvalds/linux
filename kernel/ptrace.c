@@ -167,7 +167,6 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
-	unsigned long flags;
 
 	audit_ptrace(task);
 
@@ -185,34 +184,19 @@ int ptrace_attach(struct task_struct *task)
 	retval = mutex_lock_interruptible(&task->cred_guard_mutex);
 	if (retval < 0)
 		goto out;
-repeat:
-	/*
-	 * Nasty, nasty.
-	 *
-	 * We want to hold both the task-lock and the
-	 * tasklist_lock for writing at the same time.
-	 * But that's against the rules (tasklist_lock
-	 * is taken for reading by interrupts on other
-	 * cpu's that may have task_lock).
-	 */
+
 	task_lock(task);
-	if (!write_trylock_irqsave(&tasklist_lock, flags)) {
-		task_unlock(task);
-		do {
-			cpu_relax();
-		} while (!write_can_lock(&tasklist_lock));
-		goto repeat;
-	}
-
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
+	task_unlock(task);
 	if (retval)
-		goto bad;
+		goto unlock_creds;
 
+	write_lock_irq(&tasklist_lock);
 	retval = -EPERM;
 	if (unlikely(task->exit_state))
-		goto bad;
+		goto unlock_tasklist;
 	if (task->ptrace)
-		goto bad;
+		goto unlock_tasklist;
 
 	task->ptrace = PT_PTRACED;
 	if (capable(CAP_SYS_PTRACE))
@@ -222,9 +206,9 @@ repeat:
 	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
 
 	retval = 0;
-bad:
-	write_unlock_irqrestore(&tasklist_lock, flags);
-	task_unlock(task);
+unlock_tasklist:
+	write_unlock_irq(&tasklist_lock);
+unlock_creds:
 	mutex_unlock(&task->cred_guard_mutex);
 out:
 	return retval;
@@ -240,26 +224,10 @@ int ptrace_traceme(void)
 {
 	int ret = -EPERM;
 
-	/*
-	 * Are we already being traced?
-	 */
-repeat:
-	task_lock(current);
+	write_lock_irq(&tasklist_lock);
+	/* Are we already being traced? */
 	if (!current->ptrace) {
-		/*
-		 * See ptrace_attach() comments about the locking here.
-		 */
-		unsigned long flags;
-		if (!write_trylock_irqsave(&tasklist_lock, flags)) {
-			task_unlock(current);
-			do {
-				cpu_relax();
-			} while (!write_can_lock(&tasklist_lock));
-			goto repeat;
-		}
-
 		ret = security_ptrace_traceme(current->parent);
-
 		/*
 		 * Check PF_EXITING to ensure ->real_parent has not passed
 		 * exit_ptrace(). Otherwise we don't report the error but
@@ -269,10 +237,9 @@ repeat:
 			current->ptrace = PT_PTRACED;
 			__ptrace_link(current, current->real_parent);
 		}
-
-		write_unlock_irqrestore(&tasklist_lock, flags);
 	}
-	task_unlock(current);
+	write_unlock_irq(&tasklist_lock);
+
 	return ret;
 }
 
