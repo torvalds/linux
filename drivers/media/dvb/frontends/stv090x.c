@@ -2674,7 +2674,7 @@ static u8 stv090x_optimize_carloop(struct stv090x_state *state, enum stv090x_mod
 
 static u8 stv090x_optimize_carloop_short(struct stv090x_state *state)
 {
-	struct stv090x_short_frame_crloop *short_crl;
+	struct stv090x_short_frame_crloop *short_crl = NULL;
 	s32 index = 0;
 	u8 aclc = 0x0b;
 
