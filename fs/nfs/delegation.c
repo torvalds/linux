@@ -68,7 +68,7 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 {
 	struct inode *inode = state->inode;
 	struct file_lock *fl;
-	int status;
+	int status = 0;
 
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
@@ -76,21 +76,9 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 		if (nfs_file_open_context(fl->fl_file) != ctx)
 			continue;
 		status = nfs4_lock_delegation_recall(state, fl);
-		if (status >= 0)
-			continue;
-		switch (status) {
-			default:
-				printk(KERN_ERR "%s: unhandled error %d.\n",
-						__func__, status);
-			case -NFS4ERR_EXPIRED:
-				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
-			case -NFS4ERR_STALE_CLIENTID:
-				nfs4_schedule_state_recovery(NFS_SERVER(inode)->nfs_client);
-				goto out_err;
-		}
+		if (status < 0)
+			break;
 	}
-	return 0;
-out_err:
 	return status;
 }
 

@@ -3630,8 +3630,19 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 		goto out;
 	do {
 		err = _nfs4_do_setlk(state, F_SETLK, fl, 0);
-		if (err != -NFS4ERR_DELAY)
-			break;
+		switch (err) {
+			default:
+				printk(KERN_ERR "%s: unhandled error %d.\n",
+						__func__, err);
+			case 0:
+				goto out;
+			case -NFS4ERR_EXPIRED:
+			case -NFS4ERR_STALE_CLIENTID:
+				nfs4_schedule_state_recovery(server->nfs_client);
+				goto out;
+			case -NFS4ERR_DELAY:
+				break;
+		}
 		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 out:
