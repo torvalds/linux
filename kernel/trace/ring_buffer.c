@@ -2756,12 +2756,17 @@ EXPORT_SYMBOL_GPL(ring_buffer_reset);
 int ring_buffer_empty(struct ring_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long flags;
 	int cpu;
+	int ret;
 
 	/* yes this is racy, but if you don't like the race, lock the buffer */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
-		if (!rb_per_cpu_empty(cpu_buffer))
+		spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+		ret = rb_per_cpu_empty(cpu_buffer);
+		spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+		if (!ret)
 			return 0;
 	}
 
@@ -2777,14 +2782,16 @@ EXPORT_SYMBOL_GPL(ring_buffer_empty);
 int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long flags;
 	int ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return 1;
 
 	cpu_buffer = buffer->buffers[cpu];
+	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 	ret = rb_per_cpu_empty(cpu_buffer);
-
+	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	return ret;
 }
