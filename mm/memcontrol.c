@@ -177,6 +177,9 @@ struct mem_cgroup {
 
 	unsigned int	swappiness;
 
+	/* set when res.limit == memsw.limit */
+	bool		memsw_is_minimum;
+
 	/*
 	 * statistics. This must be placed at the end of memcg.
 	 */
@@ -846,6 +849,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	struct mem_cgroup *victim;
 	int ret, total = 0;
 	int loop = 0;
+
+	/* If memsw_is_minimum==1, swap-out is of-no-use. */
+	if (root_mem->memsw_is_minimum)
+		noswap = true;
 
 	while (loop < 2) {
 		victim = mem_cgroup_select_victim(root_mem);
@@ -1752,6 +1759,12 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 			break;
 		}
 		ret = res_counter_set_limit(&memcg->res, val);
+		if (!ret) {
+			if (memswlimit == val)
+				memcg->memsw_is_minimum = true;
+			else
+				memcg->memsw_is_minimum = false;
+		}
 		mutex_unlock(&set_limit_mutex);
 
 		if (!ret)
@@ -1799,6 +1812,12 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 			break;
 		}
 		ret = res_counter_set_limit(&memcg->memsw, val);
+		if (!ret) {
+			if (memlimit == val)
+				memcg->memsw_is_minimum = true;
+			else
+				memcg->memsw_is_minimum = false;
+		}
 		mutex_unlock(&set_limit_mutex);
 
 		if (!ret)
