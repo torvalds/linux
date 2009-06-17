@@ -11,7 +11,6 @@
 #include "minix.h"
 #include <linux/buffer_head.h>
 #include <linux/highmem.h>
-#include <linux/smp_lock.h>
 #include <linux/swap.h>
 
 typedef struct minix_dir_entry minix_dirent;
@@ -20,6 +19,7 @@ typedef struct minix3_dir_entry minix3_dirent;
 static int minix_readdir(struct file *, void *, filldir_t);
 
 const struct file_operations minix_dir_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= minix_readdir,
 	.fsync		= simple_fsync,
@@ -102,8 +102,6 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	char *name;
 	__u32 inumber;
 
-	lock_kernel();
-
 	pos = (pos + chunk_size-1) & ~(chunk_size-1);
 	if (pos >= inode->i_size)
 		goto done;
@@ -146,7 +144,6 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 done:
 	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
-	unlock_kernel();
 	return 0;
 }
 
