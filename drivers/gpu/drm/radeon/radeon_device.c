@@ -470,6 +470,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r) {
 		return r;
 	}
+	r = radeon_init(rdev);
+	if (r) {
+		return r;
+	}
 
 	/* Report DMA addressing limitation */
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
