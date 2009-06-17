@@ -92,21 +92,6 @@ void nilfs_dat_abort_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_palloc_abort_alloc_entry(dat, req);
 }
 
-int nilfs_dat_prepare_free(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	int ret;
-
-	ret = nilfs_palloc_prepare_free_entry(dat, req);
-	if (ret < 0)
-		return ret;
-	ret = nilfs_dat_prepare_entry(dat, req, 0);
-	if (ret < 0) {
-		nilfs_palloc_abort_free_entry(dat, req);
-		return ret;
-	}
-	return 0;
-}
-
 void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
@@ -391,36 +376,37 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	return ret;
 }
 
-ssize_t nilfs_dat_get_vinfo(struct inode *dat, struct nilfs_vinfo *vinfo,
+ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned visz,
 			    size_t nvi)
 {
 	struct buffer_head *entry_bh;
 	struct nilfs_dat_entry *entry;
+	struct nilfs_vinfo *vinfo = buf;
 	__u64 first, last;
 	void *kaddr;
 	unsigned long entries_per_block = NILFS_MDT(dat)->mi_entries_per_block;
 	int i, j, n, ret;
 
 	for (i = 0; i < nvi; i += n) {
-		ret = nilfs_palloc_get_entry_block(dat, vinfo[i].vi_vblocknr,
+		ret = nilfs_palloc_get_entry_block(dat, vinfo->vi_vblocknr,
 						   0, &entry_bh);
 		if (ret < 0)
 			return ret;
 		kaddr = kmap_atomic(entry_bh->b_page, KM_USER0);
 		/* last virtual block number in this block */
-		first = vinfo[i].vi_vblocknr;
+		first = vinfo->vi_vblocknr;
 		do_div(first, entries_per_block);
 		first *= entries_per_block;
 		last = first + entries_per_block - 1;
 		for (j = i, n = 0;
-		     j < nvi && vinfo[j].vi_vblocknr >= first &&
-			     vinfo[j].vi_vblocknr <= last;
-		     j++, n++) {
+		     j < nvi && vinfo->vi_vblocknr >= first &&
+			     vinfo->vi_vblocknr <= last;
+		     j++, n++, vinfo = (void *)vinfo + visz) {
 			entry = nilfs_palloc_block_get_entry(
-				dat, vinfo[j].vi_vblocknr, entry_bh, kaddr);
-			vinfo[j].vi_start = le64_to_cpu(entry->de_start);
-			vinfo[j].vi_end = le64_to_cpu(entry->de_end);
-			vinfo[j].vi_blocknr = le64_to_cpu(entry->de_blocknr);
+				dat, vinfo->vi_vblocknr, entry_bh, kaddr);
+			vinfo->vi_start = le64_to_cpu(entry->de_start);
+			vinfo->vi_end = le64_to_cpu(entry->de_end);
+			vinfo->vi_blocknr = le64_to_cpu(entry->de_blocknr);
 		}
 		kunmap_atomic(kaddr, KM_USER0);
 		brelse(entry_bh);

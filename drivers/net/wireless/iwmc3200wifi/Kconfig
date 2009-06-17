@@ -1,0 +1,23 @@
+config IWM
+	tristate "Intel Wireless Multicomm 3200 WiFi driver"
+	depends on MMC && WLAN_80211 && EXPERIMENTAL
+	depends on CFG80211
+	select WIRELESS_EXT
+	select FW_LOADER
+
+config IWM_DEBUG
+	bool "Enable full debugging output in iwmc3200wifi"
+	depends on IWM && DEBUG_FS
+	---help---
+	  This option will enable debug tracing and setting for iwm
+
+	  You can set the debug level and module through debugfs. By
+	  default all modules are set to the IWL_DL_ERR level.
+	  To see the list of debug modules and levels, see iwm/debug.h
+
+	  For example, if you want the full MLME debug output:
+	  echo 0xff > /debug/iwm/phyN/debug/mlme
+
+	  Or, if you want the full debug, for all modules:
+	  echo 0xff > /debug/iwm/phyN/debug/level
+	  echo 0xff > /debug/iwm/phyN/debug/modules

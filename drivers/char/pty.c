@@ -95,23 +95,34 @@ static void pty_unthrottle(struct tty_struct *tty)
  * a count.
  *
  * FIXME: Our pty_write method is called with our ldisc lock held but
- * not our partners. We can't just take the other one blindly without
- * risking deadlocks.
+ * not our partners. We can't just wait on the other one blindly without
+ * risking deadlocks. At some point when everything has settled down we need
+ * to look into making pty_write at least able to sleep over an ldisc change.
+ *
+ * The return on no ldisc is a bit counter intuitive but the logic works
+ * like this. During an ldisc change the other end will flush its buffers. We
+ * thus return the full length which is identical to the case where we had
+ * proper locking and happened to queue the bytes just before the flush during
+ * the ldisc change.
  */
 static int pty_write(struct tty_struct *tty, const unsigned char *buf,
 								int count)
 {
 	struct tty_struct *to = tty->link;
-	int	c;
+	struct tty_ldisc *ld;
+	int c = count;
 
 	if (!to || tty->stopped)
 		return 0;
+	ld = tty_ldisc_ref(to);
 
-	c = to->receive_room;
-	if (c > count)
-		c = count;
-	to->ldisc->ops->receive_buf(to, buf, NULL, c);
-
+	if (ld) {
+		c = to->receive_room;
+		if (c > count)
+			c = count;
+		ld->ops->receive_buf(to, buf, NULL, c);
+		tty_ldisc_deref(ld);
+	}
 	return c;
 }
 
@@ -145,14 +156,23 @@ static int pty_write_room(struct tty_struct *tty)
 static int pty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
-	int count;
+	struct tty_ldisc *ld;
+	int count = 0;
 
 	/* We should get the line discipline lock for "tty->link" */
-	if (!to || !to->ldisc->ops->chars_in_buffer)
+	if (!to)
+		return 0;
+	/* We cannot take a sleeping reference here without deadlocking with
+	   an ldisc change - but it doesn't really matter */
+	ld = tty_ldisc_ref(to);
+	if (ld == NULL)
 		return 0;
 
 	/* The ldisc must report 0 if no characters available to be read */
-	count = to->ldisc->ops->chars_in_buffer(to);
+	if (ld->ops->chars_in_buffer)
+		count = ld->ops->chars_in_buffer(to);
+
+	tty_ldisc_deref(ld);
 
 	if (tty->driver->subtype == PTY_TYPE_SLAVE)
 		return count;
@@ -182,12 +202,19 @@ static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
 	unsigned long flags;
+	struct tty_ldisc *ld;
 
 	if (!to)
 		return;
+	ld = tty_ldisc_ref(to);
 
-	if (to->ldisc->ops->flush_buffer)
+	/* The other end is changing discipline */
+	if (!ld)
+		return;
+
+	if (ld->ops->flush_buffer)
 		to->ldisc->ops->flush_buffer(to);
+	tty_ldisc_deref(ld);
 
 	if (to->packet) {
 		spin_lock_irqsave(&tty->ctrl_lock, flags);

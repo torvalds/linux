@@ -359,4 +359,12 @@ config USB_HSO
 	  To compile this driver as a module, choose M here: the
 	  module will be called hso.
 
+config USB_NET_INT51X1
+	tristate "Intellon PLC based usb adapter"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a 14Mb USB-based PLC
+	  (Powerline Communications) solution with an Intellon
+	  INT51x1/INT5200 chip, like the "devolo dLan duo".
+
 endmenu

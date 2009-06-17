@@ -33,3 +33,40 @@ disable
 
 		A reboot is required to enable IPv6.
 
+autoconf
+
+	Specifies whether to enable IPv6 address autoconfiguration
+	on all interfaces.  This might be used when one does not wish
+	for addresses to be automatically generated from prefixes
+	received in Router Advertisements.
+
+	The possible values and their effects are:
+
+	0
+		IPv6 address autoconfiguration is disabled on all interfaces.
+
+		Only the IPv6 loopback address (::1) and link-local addresses
+		will be added to interfaces.
+
+	1
+		IPv6 address autoconfiguration is enabled on all interfaces.
+
+		This is the default value.
+
+disable_ipv6
+
+	Specifies whether to disable IPv6 on all interfaces.
+	This might be used when no IPv6 addresses are desired.
+
+	The possible values and their effects are:
+
+	0
+		IPv6 is enabled on all interfaces.
+
+		This is the default value.
+
+	1
+		IPv6 is disabled on all interfaces.
+
+		No IPv6 addresses will be added to interfaces.
+

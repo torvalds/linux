@@ -236,6 +236,7 @@ static const struct file_operations microcode_fops = {
 static struct miscdevice microcode_dev = {
 	.minor			= MICROCODE_MINOR,
 	.name			= "microcode",
+	.devnode		= "cpu/microcode",
 	.fops			= &microcode_fops,
 };
 

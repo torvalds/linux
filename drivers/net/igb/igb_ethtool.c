@@ -64,6 +64,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "rx_crc_errors", IGB_STAT(stats.crcerrs) },
 	{ "rx_frame_errors", IGB_STAT(net_stats.rx_frame_errors) },
 	{ "rx_no_buffer_count", IGB_STAT(stats.rnbc) },
+	{ "rx_queue_drop_packet_count", IGB_STAT(net_stats.rx_fifo_errors) },
 	{ "rx_missed_errors", IGB_STAT(stats.mpc) },
 	{ "tx_aborted_errors", IGB_STAT(stats.ecol) },
 	{ "tx_carrier_errors", IGB_STAT(stats.tncrs) },
@@ -96,9 +97,10 @@ static const struct igb_stats igb_gstrings_stats[] = {
 };
 
 #define IGB_QUEUE_STATS_LEN \
-	((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues + \
-	 ((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues) * \
-	(sizeof(struct igb_queue_stats) / sizeof(u64)))
+	(((((struct igb_adapter *)netdev_priv(netdev))->num_rx_queues)* \
+	  (sizeof(struct igb_rx_queue_stats) / sizeof(u64))) + \
+	 ((((struct igb_adapter *)netdev_priv(netdev))->num_tx_queues) * \
+	  (sizeof(struct igb_tx_queue_stats) / sizeof(u64))))
 #define IGB_GLOBAL_STATS_LEN	\
 	sizeof(igb_gstrings_stats) / sizeof(struct igb_stats)
 #define IGB_STATS_LEN (IGB_GLOBAL_STATS_LEN + IGB_QUEUE_STATS_LEN)
@@ -275,13 +277,17 @@ static int igb_set_pauseparam(struct net_device *netdev,
 static u32 igb_get_rx_csum(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	return adapter->rx_csum;
+	return !(adapter->flags & IGB_FLAG_RX_CSUM_DISABLED);
 }
 
 static int igb_set_rx_csum(struct net_device *netdev, u32 data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	adapter->rx_csum = data;
+
+	if (data)
+		adapter->flags &= ~IGB_FLAG_RX_CSUM_DISABLED;
+	else
+		adapter->flags |= IGB_FLAG_RX_CSUM_DISABLED;
 
 	return 0;
 }
@@ -293,10 +299,16 @@ static u32 igb_get_tx_csum(struct net_device *netdev)
 
 static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 {
-	if (data)
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	if (data) {
 		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	else
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+		if (adapter->hw.mac.type == e1000_82576)
+			netdev->features |= NETIF_F_SCTP_CSUM;
+	} else {
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		                      NETIF_F_SCTP_CSUM);
+	}
 
 	return 0;
 }
@@ -1950,7 +1962,8 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	u64 *queue_stat;
-	int stat_count = sizeof(struct igb_queue_stats) / sizeof(u64);
+	int stat_count_tx = sizeof(struct igb_tx_queue_stats) / sizeof(u64);
+	int stat_count_rx = sizeof(struct igb_rx_queue_stats) / sizeof(u64);
 	int j;
 	int i;
 
@@ -1963,14 +1976,14 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 	for (j = 0; j < adapter->num_tx_queues; j++) {
 		int k;
 		queue_stat = (u64 *)&adapter->tx_ring[j].tx_stats;
-		for (k = 0; k < stat_count; k++)
+		for (k = 0; k < stat_count_tx; k++)
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
 		int k;
 		queue_stat = (u64 *)&adapter->rx_ring[j].rx_stats;
-		for (k = 0; k < stat_count; k++)
+		for (k = 0; k < stat_count_rx; k++)
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
@@ -2003,6 +2016,8 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			sprintf(p, "rx_queue_%u_packets", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_drops", i);
 			p += ETH_GSTRING_LEN;
 		}
 /*		BUG_ON(p - data != IGB_STATS_LEN * ETH_GSTRING_LEN); */

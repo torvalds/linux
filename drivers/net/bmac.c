@@ -1247,6 +1247,16 @@ static const struct ethtool_ops bmac_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 };
 
+static const struct net_device_ops bmac_netdev_ops = {
+	.ndo_open		= bmac_open,
+	.ndo_stop		= bmac_close,
+	.ndo_start_xmit		= bmac_output,
+	.ndo_set_multicast_list	= bmac_set_multicast,
+	.ndo_set_mac_address	= bmac_set_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	int j, rev, ret;
@@ -1308,12 +1318,8 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 	bmac_enable_and_reset_chip(dev);
 	bmwrite(dev, INTDISABLE, DisableAll);
 
-	dev->open = bmac_open;
-	dev->stop = bmac_close;
+	dev->netdev_ops = &bmac_netdev_ops;
 	dev->ethtool_ops = &bmac_ethtool_ops;
-	dev->hard_start_xmit = bmac_output;
-	dev->set_multicast_list = bmac_set_multicast;
-	dev->set_mac_address = bmac_set_address;
 
 	bmac_get_station_address(dev, addr);
 	if (bmac_verify_checksum(dev) != 0)

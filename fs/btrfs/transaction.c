@@ -543,13 +543,13 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
 
-			if (root->commit_root == root->node)
-				continue;
+			if (root->commit_root != root->node) {
+				free_extent_buffer(root->commit_root);
+				root->commit_root = btrfs_root_node(root);
+				btrfs_set_root_node(&root->root_item,
+						    root->node);
+			}
 
-			free_extent_buffer(root->commit_root);
-			root->commit_root = btrfs_root_node(root);
-
-			btrfs_set_root_node(&root->root_item, root->node);
 			err = btrfs_update_root(trans, fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);

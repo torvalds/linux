@@ -131,6 +131,8 @@ static struct kset *system_kset;
 
 int sysdev_class_register(struct sysdev_class *cls)
 {
+	int retval;
+
 	pr_debug("Registering sysdev class '%s'\n", cls->name);
 
 	INIT_LIST_HEAD(&cls->drivers);
@@ -138,7 +140,11 @@ int sysdev_class_register(struct sysdev_class *cls)
 	cls->kset.kobj.parent = &system_kset->kobj;
 	cls->kset.kobj.ktype = &ktype_sysdev_class;
 	cls->kset.kobj.kset = system_kset;
-	kobject_set_name(&cls->kset.kobj, cls->name);
+
+	retval = kobject_set_name(&cls->kset.kobj, "%s", cls->name);
+	if (retval)
+		return retval;
+
 	return kset_register(&cls->kset);
 }
 

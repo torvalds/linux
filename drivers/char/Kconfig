@@ -692,7 +692,7 @@ config HVCS
 	  this driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called hvcs.ko.  Additionally, this module
+	  module will be called hvcs.  Additionally, this module
 	  will depend on arch specific APIs exported from hvcserver.ko
 	  which will also be compiled when this driver is built as a
 	  module.

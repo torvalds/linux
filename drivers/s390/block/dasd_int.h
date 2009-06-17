@@ -4,8 +4,7 @@
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
- *
+ * Copyright IBM Corp. 1999, 2009
  */
 
 #ifndef DASD_INT_H
@@ -295,6 +294,10 @@ struct dasd_discipline {
 	int (*fill_geometry) (struct dasd_block *, struct hd_geometry *);
 	int (*fill_info) (struct dasd_device *, struct dasd_information2_t *);
 	int (*ioctl) (struct dasd_block *, unsigned int, void __user *);
+
+	/* suspend/resume functions */
+	int (*freeze) (struct dasd_device *);
+	int (*restore) (struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -367,6 +370,7 @@ struct dasd_device {
 	atomic_t tasklet_scheduled;
         struct tasklet_struct tasklet;
 	struct work_struct kick_work;
+	struct work_struct restore_device;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
@@ -410,6 +414,8 @@ struct dasd_block {
 #define DASD_STOPPED_PENDING 4         /* long busy */
 #define DASD_STOPPED_DC_WAIT 8         /* disconnected, wait */
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
+#define DASD_STOPPED_PM      32        /* pm state transition */
+#define DASD_UNRESUMED_PM    64        /* pm resume failed state */
 
 /* per device flags */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
@@ -556,6 +562,7 @@ void dasd_free_block(struct dasd_block *);
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
+void dasd_restore_device(struct dasd_device *);
 
 void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);
@@ -578,6 +585,8 @@ int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_handle_state_change(struct dasd_device *);
+int dasd_generic_pm_freeze(struct ccw_device *);
+int dasd_generic_restore_device(struct ccw_device *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, char *, void *, int);
 char *dasd_get_sense(struct irb *);

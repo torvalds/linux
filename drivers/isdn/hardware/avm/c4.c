@@ -681,7 +681,7 @@ static irqreturn_t c4_handle_interrupt(avmcard *card)
 			spin_lock_irqsave(&card->lock, flags);
 			capilib_release(&cinfo->ncci_head);
 			spin_unlock_irqrestore(&card->lock, flags);
-			capi_ctr_reseted(&cinfo->capi_ctrl);
+			capi_ctr_down(&cinfo->capi_ctrl);
 		}
 		card->nlogcontr = 0;
 		return IRQ_HANDLED;
@@ -909,7 +909,7 @@ static void c4_reset_ctr(struct capi_ctr *ctrl)
         for (i=0; i < card->nr_controllers; i++) {
 		cinfo = &card->ctrlinfo[i];
 		memset(cinfo->version, 0, sizeof(cinfo->version));
-		capi_ctr_reseted(&cinfo->capi_ctrl);
+		capi_ctr_down(&cinfo->capi_ctrl);
 	}
 	card->nlogcontr = 0;
 }

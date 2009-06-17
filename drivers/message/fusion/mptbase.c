@@ -1023,8 +1023,7 @@ mpt_add_sge_64bit(void *pAddr, u32 flagslength, dma_addr_t dma_addr)
 }
 
 /**
- *	mpt_add_sge_64bit_1078 - Place a simple 64 bit SGE at address pAddr
- *	(1078 workaround).
+ *	mpt_add_sge_64bit_1078 - Place a simple 64 bit SGE at address pAddr (1078 workaround).
  *	@pAddr: virtual address for SGE
  *	@flagslength: SGE flags and data transfer length
  *	@dma_addr: Physical address

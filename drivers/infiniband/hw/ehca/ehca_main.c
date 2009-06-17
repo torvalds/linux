@@ -52,7 +52,7 @@
 #include "ehca_tools.h"
 #include "hcp_if.h"
 
-#define HCAD_VERSION "0026"
+#define HCAD_VERSION "0027"
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
@@ -636,7 +636,7 @@ static ssize_t  ehca_show_##name(struct device *dev,                       \
 	struct hipz_query_hca *rblock;				           \
 	int data;                                                          \
 									   \
-	shca = dev->driver_data;					   \
+	shca = dev_get_drvdata(dev);					   \
 									   \
 	rblock = ehca_alloc_fw_ctrlblock(GFP_KERNEL);			   \
 	if (!rblock) {						           \
@@ -680,7 +680,7 @@ static ssize_t ehca_show_adapter_handle(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct ehca_shca *shca = dev->driver_data;
+	struct ehca_shca *shca = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%llx\n", shca->ipz_hca_handle.handle);
 
@@ -749,7 +749,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 
 	shca->ofdev = dev;
 	shca->ipz_hca_handle.handle = *handle;
-	dev->dev.driver_data = shca;
+	dev_set_drvdata(&dev->dev, shca);
 
 	ret = ehca_sense_attributes(shca);
 	if (ret < 0) {
@@ -878,7 +878,7 @@ probe1:
 
 static int __devexit ehca_remove(struct of_device *dev)
 {
-	struct ehca_shca *shca = dev->dev.driver_data;
+	struct ehca_shca *shca = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 	int ret;
 

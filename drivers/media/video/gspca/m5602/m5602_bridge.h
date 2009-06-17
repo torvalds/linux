@@ -45,6 +45,15 @@
 #define M5602_XB_SEN_CLK_DIV		0x15
 #define M5602_XB_AUD_CLK_CTRL		0x16
 #define M5602_XB_AUD_CLK_DIV		0x17
+#define M5602_OB_AC_LINK_STATE		0x22
+#define M5602_OB_PCM_SLOT_INDEX		0x24
+#define M5602_OB_GPIO_SLOT_INDEX	0x25
+#define M5602_OB_ACRX_STATUS_ADDRESS_H	0x28
+#define M5602_OB_ACRX_STATUS_DATA_L	0x29
+#define M5602_OB_ACRX_STATUS_DATA_H	0x2a
+#define M5602_OB_ACTX_COMMAND_ADDRESS	0x31
+#define M5602_OB_ACRX_COMMAND_DATA_L	0x32
+#define M5602_OB_ACTX_COMMAND_DATA_H	0X33
 #define M5602_XB_DEVCTR1		0x41
 #define M5602_XB_EPSETR0		0x42
 #define M5602_XB_EPAFCTR		0x47
@@ -77,7 +86,18 @@
 #define M5602_XB_GPIO_EN_L		0x75
 #define M5602_XB_GPIO_DAT		0x76
 #define M5602_XB_GPIO_DIR		0x77
-#define M5602_XB_MISC_CTL		0x70
+#define M5602_XB_SEN_CLK_CONTROL	0x80
+#define M5602_XB_SEN_CLK_DIVISION	0x81
+#define M5602_XB_CPR_CLK_CONTROL	0x82
+#define M5602_XB_CPR_CLK_DIVISION	0x83
+#define M5602_XB_MCU_CLK_CONTROL	0x84
+#define M5602_XB_MCU_CLK_DIVISION	0x85
+#define M5602_XB_DCT_CLK_CONTROL	0x86
+#define M5602_XB_DCT_CLK_DIVISION	0x87
+#define M5602_XB_EC_CLK_CONTROL		0x88
+#define M5602_XB_EC_CLK_DIVISION	0x89
+#define M5602_XB_LBUF_CLK_CONTROL	0x8a
+#define M5602_XB_LBUF_CLK_DIVISION	0x8b
 
 #define I2C_BUSY 0x80
 
@@ -128,10 +148,10 @@ struct sd {
 };
 
 int m5602_read_bridge(
-	struct sd *sd, u8 address, u8 *i2c_data);
+	struct sd *sd, const u8 address, u8 *i2c_data);
 
 int m5602_write_bridge(
-	struct sd *sd, u8 address, u8 i2c_data);
+	struct sd *sd, const u8 address, const u8 i2c_data);
 
 int m5602_write_sensor(struct sd *sd, const u8 address,
 		       u8 *i2c_data, const u8 len);

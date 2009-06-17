@@ -94,6 +94,16 @@ static void __mace_set_address(struct net_device *dev, void *addr);
  */
 static unsigned char *dummy_buf;
 
+static const struct net_device_ops mace_netdev_ops = {
+	.ndo_open		= mace_open,
+	.ndo_stop		= mace_close,
+	.ndo_start_xmit		= mace_xmit_start,
+	.ndo_set_multicast_list	= mace_set_multicast,
+	.ndo_set_mac_address	= mace_set_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct device_node *mace = macio_get_of_node(mdev);
@@ -207,11 +217,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		}
 	}
 
-	dev->open = mace_open;
-	dev->stop = mace_close;
-	dev->hard_start_xmit = mace_xmit_start;
-	dev->set_multicast_list = mace_set_multicast;
-	dev->set_mac_address = mace_set_address;
+	dev->netdev_ops = &mace_netdev_ops;
 
 	/*
 	 * Most of what is below could be moved to mace_open()
@@ -541,7 +547,7 @@ static int mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	mp->tx_fullup = 1;
 	spin_unlock_irqrestore(&mp->lock, flags);
-	return 1;		/* can't take it at the moment */
+	return NETDEV_TX_BUSY;		/* can't take it at the moment */
     }
     spin_unlock_irqrestore(&mp->lock, flags);
 

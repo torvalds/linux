@@ -294,7 +294,7 @@ max_batch_time=usec	Maximum amount of time ext4 should wait for
 			amount of time (on average) that it takes to
 			finish committing a transaction.  Call this time
 			the "commit time".  If the time that the
-			transactoin has been running is less than the
+			transaction has been running is less than the
 			commit time, ext4 will try sleeping for the
 			commit time to see if other operations will join
 			the transaction.   The commit time is capped by
@@ -328,7 +328,7 @@ noauto_da_alloc		replacing existing files via patterns such as
 			journal commit, in the default data=ordered
 			mode, the data blocks of the new file are forced
 			to disk before the rename() operation is
-			commited.  This provides roughly the same level
+			committed.  This provides roughly the same level
 			of guarantees as ext3, and avoids the
 			"zero-length" problem that can happen when a
 			system crashes before the delayed allocation
@@ -358,7 +358,7 @@ written to the journal first, and then to its final location.
 In the event of a crash, the journal can be replayed, bringing both data and
 metadata into a consistent state.  This mode is the slowest except when data
 needs to be read from and written to disk at the same time where it
-outperforms all others modes.  Curently ext4 does not have delayed
+outperforms all others modes.  Currently ext4 does not have delayed
 allocation support if this data journalling mode is selected.
 
 References

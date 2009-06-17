@@ -1356,7 +1356,7 @@ platforms are moved over to use the flattened-device-tree model.
     - phy-map           : 1 cell, optional, bitmap of addresses to probe the PHY
 			  for, used if phy-address is absent. bit 0x00000001 is
 			  MDIO address 0.
-			  For Axon it can be absent, thouugh my current driver
+			  For Axon it can be absent, though my current driver
 			  doesn't handle phy-address yet so for now, keep
 			  0x00ffffff in it.
     - rx-fifo-size-gige : 1 cell, Rx fifo size in bytes for 1000 Mb/sec
@@ -1438,7 +1438,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    The Xilinx EDK toolchain ships with a set of IP cores (devices) for use
    in Xilinx Spartan and Virtex FPGAs.  The devices cover the whole range
-   of standard device types (network, serial, etc.) and miscellanious
+   of standard device types (network, serial, etc.) and miscellaneous
    devices (gpio, LCD, spi, etc).  Also, since these devices are
    implemented within the fpga fabric every instance of the device can be
    synthesised with different options that change the behaviour.

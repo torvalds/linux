@@ -302,7 +302,7 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 		pnode = uv_node_to_pnode(nid);
 		if (bid < 0 || gru_base[bid])
 			continue;
-		page = alloc_pages_node(nid, GFP_KERNEL, order);
+		page = alloc_pages_exact_node(nid, GFP_KERNEL, order);
 		if (!page)
 			goto fail;
 		gru_base[bid] = page_address(page);

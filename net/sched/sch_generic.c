@@ -196,6 +196,21 @@ void __qdisc_run(struct Qdisc *q)
 	clear_bit(__QDISC_STATE_RUNNING, &q->state);
 }
 
+unsigned long dev_trans_start(struct net_device *dev)
+{
+	unsigned long val, res = dev->trans_start;
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		val = netdev_get_tx_queue(dev, i)->trans_start;
+		if (val && time_after(val, res))
+			res = val;
+	}
+	dev->trans_start = res;
+	return res;
+}
+EXPORT_SYMBOL(dev_trans_start);
+
 static void dev_watchdog(unsigned long arg)
 {
 	struct net_device *dev = (struct net_device *)arg;
@@ -205,25 +220,30 @@ static void dev_watchdog(unsigned long arg)
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
 		    netif_carrier_ok(dev)) {
-			int some_queue_stopped = 0;
+			int some_queue_timedout = 0;
 			unsigned int i;
+			unsigned long trans_start;
 
 			for (i = 0; i < dev->num_tx_queues; i++) {
 				struct netdev_queue *txq;
 
 				txq = netdev_get_tx_queue(dev, i);
-				if (netif_tx_queue_stopped(txq)) {
-					some_queue_stopped = 1;
+				/*
+				 * old device drivers set dev->trans_start
+				 */
+				trans_start = txq->trans_start ? : dev->trans_start;
+				if (netif_tx_queue_stopped(txq) &&
+				    time_after(jiffies, (trans_start +
+							 dev->watchdog_timeo))) {
+					some_queue_timedout = 1;
 					break;
 				}
 			}
 
-			if (some_queue_stopped &&
-			    time_after(jiffies, (dev->trans_start +
-						 dev->watchdog_timeo))) {
+			if (some_queue_timedout) {
 				char drivername[64];
-				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit timed out\n",
-				       dev->name, netdev_drivername(dev, drivername, 64));
+				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
+				       dev->name, netdev_drivername(dev, drivername, 64), i);
 				dev->netdev_ops->ndo_tx_timeout(dev);
 			}
 			if (!mod_timer(&dev->watchdog_timer,
@@ -602,8 +622,10 @@ static void transition_one_qdisc(struct net_device *dev,
 		clear_bit(__QDISC_STATE_DEACTIVATED, &new_qdisc->state);
 
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
-	if (need_watchdog_p && new_qdisc != &noqueue_qdisc)
+	if (need_watchdog_p && new_qdisc != &noqueue_qdisc) {
+		dev_queue->trans_start = 0;
 		*need_watchdog_p = 1;
+	}
 }
 
 void dev_activate(struct net_device *dev)

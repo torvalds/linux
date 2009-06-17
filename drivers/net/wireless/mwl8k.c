@@ -2369,7 +2369,7 @@ static int mwl8k_cmd_set_aid(struct ieee80211_hw *hw,
 	if (info->use_cts_prot) {
 		prot_mode = MWL8K_FRAME_PROT_11G;
 	} else {
-		switch (info->ht.operation_mode &
+		switch (info->ht_operation_mode &
 			IEEE80211_HT_OP_MODE_PROTECTION) {
 		case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
 			prot_mode = MWL8K_FRAME_PROT_11N_HT_40MHZ_ONLY;
@@ -3089,19 +3089,6 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	return rc ? -EINVAL : 0;
 }
 
-static int mwl8k_config_interface(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_if_conf *conf)
-{
-	struct mwl8k_vif *mv_vif = MWL8K_VIF(vif);
-	u32 changed = conf->changed;
-
-	if (changed & IEEE80211_IFCC_BSSID)
-		memcpy(mv_vif->bssid, conf->bssid, IEEE80211_ADDR_LEN);
-
-	return 0;
-}
-
 struct mwl8k_bss_info_changed_worker {
 	struct mwl8k_work_struct header;
 	struct ieee80211_vif *vif;
@@ -3183,7 +3170,11 @@ static void mwl8k_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct mwl8k_bss_info_changed_worker *worker;
 	struct mwl8k_priv *priv = hw->priv;
+	struct mwl8k_vif *mv_vif = MWL8K_VIF(vif);
 	int rc;
+
+	if (changed & BSS_CHANGED_BSSID)
+		memcpy(mv_vif->bssid, info->bssid, IEEE80211_ADDR_LEN);
 
 	if ((changed & BSS_CHANGED_ASSOC) == 0)
 		return;
@@ -3442,7 +3433,6 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.add_interface		= mwl8k_add_interface,
 	.remove_interface	= mwl8k_remove_interface,
 	.config			= mwl8k_config,
-	.config_interface	= mwl8k_config_interface,
 	.bss_info_changed	= mwl8k_bss_info_changed,
 	.configure_filter	= mwl8k_configure_filter,
 	.set_rts_threshold	= mwl8k_set_rts_threshold,

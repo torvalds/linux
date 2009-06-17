@@ -1065,6 +1065,11 @@ EXPORT_SYMBOL_GPL(bsg_register_queue);
 
 static struct cdev bsg_cdev;
 
+static char *bsg_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
+}
+
 static int __init bsg_init(void)
 {
 	int ret, i;
@@ -1085,6 +1090,7 @@ static int __init bsg_init(void)
 		ret = PTR_ERR(bsg_class);
 		goto destroy_kmemcache;
 	}
+	bsg_class->nodename = bsg_nodename;
 
 	ret = alloc_chrdev_region(&devid, 0, BSG_MAX_DEVS, "bsg");
 	if (ret)

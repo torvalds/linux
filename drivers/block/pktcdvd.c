@@ -430,7 +430,7 @@ static void pkt_sysfs_cleanup(void)
 /********************************************************************
   entries in debugfs
 
-  /debugfs/pktcdvd[0-7]/
+  /sys/kernel/debug/pktcdvd[0-7]/
 			info
 
  *******************************************************************/
@@ -2855,6 +2855,11 @@ static struct block_device_operations pktcdvd_ops = {
 	.media_changed =	pkt_media_changed,
 };
 
+static char *pktcdvd_nodename(struct gendisk *gd)
+{
+	return kasprintf(GFP_KERNEL, "pktcdvd/%s", gd->disk_name);
+}
+
 /*
  * Set up mapping from pktcdvd device to CD-ROM device.
  */
@@ -2907,6 +2912,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
 	strcpy(disk->disk_name, pd->name);
+	disk->nodename = pktcdvd_nodename;
 	disk->private_data = pd;
 	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)
@@ -3062,6 +3068,7 @@ static const struct file_operations pkt_ctl_fops = {
 static struct miscdevice pkt_misc = {
 	.minor 		= MISC_DYNAMIC_MINOR,
 	.name  		= DRIVER_NAME,
+	.name  		= "pktcdvd/control",
 	.fops  		= &pkt_ctl_fops
 };
 

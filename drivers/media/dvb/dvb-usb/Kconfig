@@ -216,7 +216,7 @@ config DVB_USB_TTUSB2
 	help
 	  Say Y here to support the Pinnacle 400e DVB-S USB2.0 receiver. The
 	  firmware protocol used by this module is similar to the one used by the
-	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.ko.
+	  old ttusb-driver - that's why the module is called dvb-usb-ttusb2.
 
 config DVB_USB_DTT200U
 	tristate "WideView WT-200U and WT-220U (pen) DVB-T USB2.0 support (Yakumo/Hama/Typhoon/Yuan)"
@@ -261,6 +261,7 @@ config DVB_USB_DW2102
 	select DVB_STB6000 if !DVB_FE_CUSTOMISE
 	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	select DVB_SI21XX if !DVB_FE_CUSTOMISE
+	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
 	  and the TeVii S650.

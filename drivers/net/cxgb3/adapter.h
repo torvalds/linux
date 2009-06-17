@@ -195,7 +195,7 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
-	struct napi_gro_fraginfo lro_frag_tbl;
+	int nomem;
 	int lro_enabled;
 	void *lro_va;
 	struct net_device *netdev;
@@ -253,6 +253,8 @@ struct adapter {
 	struct mutex mdio_lock;
 	spinlock_t stats_lock;
 	spinlock_t work_lock;
+
+	struct sk_buff *nofail_skb;
 };
 
 static inline u32 t3_read_reg(struct adapter *adapter, u32 reg_addr)

@@ -303,13 +303,17 @@ static int agnx_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int agnx_config_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_if_conf *conf)
+static void agnx_bss_info_changed(struct ieee80211_hw *dev,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_bss_conf *conf,
+				  u32 changed)
 {
 	struct agnx_priv *priv = dev->priv;
 	void __iomem *ctl = priv->ctl;
 	AGNX_TRACE;
+
+	if (!(changed & BSS_CHANGED_BSSID))
+		return;
 
 	spin_lock(&priv->lock);
 
@@ -323,8 +327,7 @@ static int agnx_config_interface(struct ieee80211_hw *dev,
 		agnx_write32(ctl, AGNX_BM_MTSM, 0xff & ~0x1);
 	}
 	spin_unlock(&priv->lock);
-	return 0;
-} /* agnx_config_interface */
+} /* agnx_bss_info_changed */
 
 
 static void agnx_configure_filter(struct ieee80211_hw *dev,
@@ -422,7 +425,7 @@ static struct ieee80211_ops agnx_ops = {
 	.add_interface		= agnx_add_interface,
 	.remove_interface	= agnx_remove_interface,
 	.config			= agnx_config,
-	.config_interface	= agnx_config_interface,
+	.bss_info_changed	= agnx_bss_info_changed,
 	.configure_filter	= agnx_configure_filter,
 	.get_stats		= agnx_get_stats,
 	.get_tx_stats		= agnx_get_tx_stats,

@@ -206,7 +206,7 @@ characteristics. This feature may also reduce average command latency.
 In order to really gain advantage of this feature, devices must have 
 a reasonable cache size (No miracle is to be expected for a low-end 
 hard disk with 128 KB or less).
-Some kown old SCSI devices do not properly support tagged command queuing.
+Some known old SCSI devices do not properly support tagged command queuing.
 Generally, firmware revisions that fix this kind of problems are available 
 at respective vendor web/ftp sites.
 All I can say is that I never have had problem with tagged queuing using 

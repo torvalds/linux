@@ -132,7 +132,7 @@ static char *open_min_error[] = {"No error", "Function Failure", "Signal Lost", 
 				   "Reserved", "Reserved", "No Monitor Detected for RPL", 
 				   "Monitor Contention failer for RPL", "FDX Protocol Error"};
 
-/* Module paramters */
+/* Module parameters */
 
 MODULE_AUTHOR("Mike Phillips <mikep@linuxtr.net>") ; 
 MODULE_DESCRIPTION("Olympic PCI/Cardbus Chipset Driver") ; 
@@ -1055,7 +1055,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	} else {
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	} 
 
 }

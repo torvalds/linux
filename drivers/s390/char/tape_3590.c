@@ -2,7 +2,7 @@
  *  drivers/s390/char/tape_3590.c
  *    tape device discipline for 3590 tapes.
  *
- *    Copyright IBM Corp. 2001,2006
+ *    Copyright IBM Corp. 2001, 2009
  *    Author(s): Stefan Bader <shbader@de.ibm.com>
  *		 Michael Holzheu <holzheu@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -1703,7 +1703,7 @@ static struct ccw_device_id tape_3590_ids[] = {
 static int
 tape_3590_online(struct ccw_device *cdev)
 {
-	return tape_generic_online(cdev->dev.driver_data,
+	return tape_generic_online(dev_get_drvdata(&cdev->dev),
 				   &tape_discipline_3590);
 }
 
@@ -1715,6 +1715,7 @@ static struct ccw_driver tape_3590_driver = {
 	.remove = tape_generic_remove,
 	.set_offline = tape_generic_offline,
 	.set_online = tape_3590_online,
+	.freeze = tape_generic_pm_suspend,
 };
 
 /*

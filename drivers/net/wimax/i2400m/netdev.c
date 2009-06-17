@@ -404,10 +404,12 @@ static
 void i2400m_rx_fake_eth_header(struct net_device *net_dev,
 			       void *_eth_hdr, __be16 protocol)
 {
+	struct i2400m *i2400m = net_dev_to_i2400m(net_dev);
 	struct ethhdr *eth_hdr = _eth_hdr;
 
 	memcpy(eth_hdr->h_dest, net_dev->dev_addr, sizeof(eth_hdr->h_dest));
-	memset(eth_hdr->h_source, 0, sizeof(eth_hdr->h_dest));
+	memcpy(eth_hdr->h_source, i2400m->src_mac_addr,
+	       sizeof(eth_hdr->h_source));
 	eth_hdr->h_proto = protocol;
 }
 

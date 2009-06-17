@@ -89,6 +89,11 @@ from dev (driver name followed by the bus_id, to be precise). If you set it
 up before calling v4l2_device_register then it will be untouched. If dev is
 NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
+You can use v4l2_device_set_name() to set the name based on a driver name and
+a driver-global atomic_t instance. This will generate names like ivtv0, ivtv1,
+etc. If the name ends with a digit, then it will insert a dash: cx18-0,
+cx18-1, etc. This function returns the instance number.
+
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
 usb_interface or platform_device. It is rare for dev to be NULL, but it happens
 with ISA devices or when one device creates multiple PCI devices, thus making

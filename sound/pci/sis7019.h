@@ -203,7 +203,7 @@
 #define SIS_WEISR_B	0xac
 
 
-/* Playback DMA parameters (paramter RAM) */
+/* Playback DMA parameters (parameter RAM) */
 #define SIS_PLAY_DMA_OFFSET	0x0000
 #define SIS_PLAY_DMA_SIZE	0x10
 #define SIS_PLAY_DMA_ADDR(addr, num) \
@@ -228,7 +228,7 @@
 #define		SIS_PLAY_DMA_SSO_MASK		0xffff0000
 #define		SIS_PLAY_DMA_ESO_MASK		0x0000ffff
 
-/* Capture DMA parameters (paramter RAM) */
+/* Capture DMA parameters (parameter RAM) */
 #define SIS_CAPTURE_DMA_OFFSET	0x0800
 #define SIS_CAPTURE_DMA_SIZE	0x10
 #define SIS_CAPTURE_DMA_ADDR(addr, num) \

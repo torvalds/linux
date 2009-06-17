@@ -48,7 +48,7 @@ srm_end_irq(unsigned int irq)
 }
 
 /* Handle interrupts from the SRM, assuming no additional weirdness.  */
-static struct hw_interrupt_type srm_irq_type = {
+static struct irq_chip srm_irq_type = {
 	.typename	= "SRM",
 	.startup	= srm_startup_irq,
 	.shutdown	= srm_disable_irq,

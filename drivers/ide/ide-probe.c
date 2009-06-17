@@ -535,7 +535,7 @@ static int ide_register_port(ide_hwif_t *hwif)
 
 	/* register with global device tree */
 	dev_set_name(&hwif->gendev, hwif->name);
-	hwif->gendev.driver_data = hwif;
+	dev_set_drvdata(&hwif->gendev, hwif);
 	if (hwif->gendev.parent == NULL)
 		hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
@@ -987,9 +987,9 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		int ret;
 
 		dev_set_name(dev, "%u.%u", hwif->index, i);
+		dev_set_drvdata(dev, drive);
 		dev->parent = &hwif->gendev;
 		dev->bus = &ide_bus_type;
-		dev->driver_data = drive;
 		dev->release = drive_release_dev;
 
 		ret = device_register(dev);

@@ -32,7 +32,6 @@
 #include "cpfile.h"
 #include "sufile.h"
 #include "dat.h"
-#include "seglist.h"
 #include "segbuf.h"
 
 

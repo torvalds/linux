@@ -532,8 +532,8 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!skb2)
 		return 0;
 
-	dst_release(skb2->dst);
-	skb2->dst = NULL;
+	skb_dst_drop(skb2);
+
 	skb_pull(skb2, offset);
 	skb_reset_network_header(skb2);
 	eiph = ip_hdr(skb2);
@@ -560,21 +560,21 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ip_rt_put(rt);
 			goto out;
 		}
-		skb2->dst = (struct dst_entry *)rt;
+		skb_dst_set(skb2, (struct dst_entry *)rt);
 	} else {
 		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,
 				   skb2->dev) ||
-		    skb2->dst->dev->type != ARPHRD_TUNNEL)
+		    skb_dst(skb2)->dev->type != ARPHRD_TUNNEL)
 			goto out;
 	}
 
 	/* change mtu on this route */
 	if (rel_type == ICMP_DEST_UNREACH && rel_code == ICMP_FRAG_NEEDED) {
-		if (rel_info > dst_mtu(skb2->dst))
+		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb2->dst->ops->update_pmtu(skb2->dst, rel_info);
+		skb_dst(skb2)->ops->update_pmtu(skb_dst(skb2), rel_info);
 	}
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));
@@ -606,8 +606,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!skb2)
 			return 0;
 
-		dst_release(skb2->dst);
-		skb2->dst = NULL;
+		skb_dst_drop(skb2);
 		skb_pull(skb2, offset);
 		skb_reset_network_header(skb2);
 
@@ -720,8 +719,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 		skb->dev = t->dev;
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		nf_reset(skb);
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
@@ -885,8 +883,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	}
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
-	if (skb->dst)
-		skb->dst->ops->update_pmtu(skb->dst, mtu);
+	if (skb_dst(skb))
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 	if (skb->len > mtu) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
@@ -910,8 +908,8 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 		kfree_skb(skb);
 		skb = new_skb;
 	}
-	dst_release(skb->dst);
-	skb->dst = dst_clone(dst);
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst_clone(dst));
 
 	skb->transport_header = skb->network_header;
 
@@ -1100,8 +1098,8 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 	struct ip6_tnl_parm *p = &t->parms;
 	struct flowi *fl = &t->fl;
 
-	memcpy(&dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
-	memcpy(&dev->broadcast, &p->raddr, sizeof(struct in6_addr));
+	memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
+	memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
 
 	/* Set up flowi template */
 	ipv6_addr_copy(&fl->fl6_src, &p->laddr);

@@ -10,6 +10,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/mdio.h>
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "workarounds.h"
@@ -345,8 +346,8 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	unsigned int n = 0, i;
 	enum efx_loopback_mode mode;
 
-	efx_fill_test(n++, strings, data, &tests->mii,
-		      "core", 0, "mii", NULL);
+	efx_fill_test(n++, strings, data, &tests->mdio,
+		      "core", 0, "mdio", NULL);
 	efx_fill_test(n++, strings, data, &tests->nvram,
 		      "core", 0, "nvram", NULL);
 	efx_fill_test(n++, strings, data, &tests->interrupt,
@@ -529,14 +530,7 @@ static int efx_ethtool_nway_reset(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	if (efx->phy_op->mmds & DEV_PRESENT_BIT(MDIO_MMD_AN)) {
-		mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_AN,
-				       MDIO_MMDREG_CTRL1,
-				       __ffs(BMCR_ANRESTART), true);
-		return 0;
-	}
-
-	return -EOPNOTSUPP;
+	return mdio45_nway_restart(&efx->mdio);
 }
 
 static u32 efx_ethtool_get_link(struct net_device *net_dev)
@@ -689,7 +683,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 		return -EINVAL;
 	}
 
-	if (!(efx->phy_op->mmds & DEV_PRESENT_BIT(MDIO_MMD_AN)) &&
+	if (!(efx->phy_op->mmds & MDIO_DEVS_AN) &&
 	    (wanted_fc & EFX_FC_AUTO)) {
 		EFX_LOG(efx, "PHY does not support flow control "
 			"autonegotiation\n");
@@ -717,7 +711,8 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	mutex_lock(&efx->mac_lock);
 
 	efx->wanted_fc = wanted_fc;
-	mdio_clause45_set_pause(efx);
+	if (efx->phy_op->mmds & MDIO_DEVS_AN)
+		mdio45_ethtool_spauseparam_an(&efx->mdio, pause);
 	__efx_reconfigure_port(efx);
 
 	mutex_unlock(&efx->mac_lock);

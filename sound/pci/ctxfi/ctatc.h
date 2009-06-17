@@ -19,7 +19,7 @@
 #define CTATC_H
 
 #include <linux/types.h>
-#include <linux/spinlock_types.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
 #include <sound/core.h>
@@ -90,7 +90,7 @@ struct ct_atc {
 	void (*unmap_audio_buffer)(struct ct_atc *atc, struct ct_atc_pcm *apcm);
 	unsigned long (*get_ptp_phys)(struct ct_atc *atc, int index);
 
-	spinlock_t atc_lock;
+	struct mutex atc_mutex;
 
 	int (*pcm_playback_prepare)(struct ct_atc *atc,
 				    struct ct_atc_pcm *apcm);

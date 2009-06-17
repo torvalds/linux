@@ -994,7 +994,7 @@ static inline int __xfrm_policy_check2(struct sock *sk, int dir,
 		return __xfrm_policy_check(sk, ndir, skb, family);
 
 	return	(!net->xfrm.policy_count[dir] && !skb->sp) ||
-		(skb->dst->flags & DST_NOPOLICY) ||
+		(skb_dst(skb)->flags & DST_NOPOLICY) ||
 		__xfrm_policy_check(sk, ndir, skb, family);
 }
 
@@ -1048,7 +1048,7 @@ static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 	struct net *net = dev_net(skb->dev);
 
 	return	!net->xfrm.policy_count[XFRM_POLICY_OUT] ||
-		(skb->dst->flags & DST_NOXFRM) ||
+		(skb_dst(skb)->flags & DST_NOXFRM) ||
 		__xfrm_route_forward(skb, family);
 }
 

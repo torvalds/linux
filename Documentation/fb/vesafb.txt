@@ -95,7 +95,7 @@ There is no way to change the vesafb video mode and/or timings after
 booting linux.  If you are not happy with the 60 Hz refresh rate, you
 have these options:
 
- * configure and load the DOS-Tools for your the graphics board (if
+ * configure and load the DOS-Tools for the graphics board (if
    available) and boot linux with loadlin.
  * use a native driver (matroxfb/atyfb) instead if vesafb.  If none
    is available, write a new one!

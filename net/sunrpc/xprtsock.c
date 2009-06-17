@@ -918,7 +918,7 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 	UDPX_INC_STATS_BH(sk, UDP_MIB_INDATAGRAMS);
 
 	/* Something worked... */
-	dst_confirm(skb->dst);
+	dst_confirm(skb_dst(skb));
 
 	xprt_adjust_cwnd(task, copied);
 	xprt_update_rtt(task);

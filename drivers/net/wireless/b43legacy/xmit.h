@@ -67,7 +67,9 @@ struct b43legacy_txhdr_fw3 {
 #define B43legacy_TX4_EFT_RTSFBOFDM	0x0010 /* RTS/CTS fallback rate type */
 
 /* PHY TX control word */
-#define B43legacy_TX4_PHY_OFDM		0x0001 /* Data frame rate type */
+#define B43legacy_TX4_PHY_ENC		0x0003 /* Data frame encoding */
+#define B43legacy_TX4_PHY_ENC_CCK	0x0000 /* CCK */
+#define B43legacy_TX4_PHY_ENC_OFDM	0x0001 /* Data frame rate type */
 #define B43legacy_TX4_PHY_SHORTPRMBL	0x0010 /* Use short preamble */
 #define B43legacy_TX4_PHY_ANT		0x03C0 /* Antenna selection */
 #define  B43legacy_TX4_PHY_ANT0		0x0000 /* Use antenna 0 */

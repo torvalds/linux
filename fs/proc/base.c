@@ -1006,7 +1006,12 @@ static ssize_t oom_adjust_read(struct file *file, char __user *buf,
 
 	if (!task)
 		return -ESRCH;
-	oom_adjust = task->oomkilladj;
+	task_lock(task);
+	if (task->mm)
+		oom_adjust = task->mm->oom_adj;
+	else
+		oom_adjust = OOM_DISABLE;
+	task_unlock(task);
 	put_task_struct(task);
 
 	len = snprintf(buffer, sizeof(buffer), "%i\n", oom_adjust);
@@ -1035,11 +1040,19 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	task = get_proc_task(file->f_path.dentry->d_inode);
 	if (!task)
 		return -ESRCH;
-	if (oom_adjust < task->oomkilladj && !capable(CAP_SYS_RESOURCE)) {
+	task_lock(task);
+	if (!task->mm) {
+		task_unlock(task);
+		put_task_struct(task);
+		return -EINVAL;
+	}
+	if (oom_adjust < task->mm->oom_adj && !capable(CAP_SYS_RESOURCE)) {
+		task_unlock(task);
 		put_task_struct(task);
 		return -EACCES;
 	}
-	task->oomkilladj = oom_adjust;
+	task->mm->oom_adj = oom_adjust;
+	task_unlock(task);
 	put_task_struct(task);
 	if (end - buffer == 0)
 		return -EIO;

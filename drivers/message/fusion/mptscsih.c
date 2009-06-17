@@ -2675,8 +2675,8 @@ mptscsih_timer_expired(unsigned long data)
 /**
  *	mptscsih_get_completion_code -
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@reply:
- *	@cmd:
+ *	@req: Pointer to original MPT request frame
+ *	@reply: Pointer to MPT reply frame (NULL if TurboReply)
  *
  **/
 static int

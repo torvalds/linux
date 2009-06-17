@@ -142,6 +142,12 @@ static inline int ebt_basic_match(struct ebt_entry *e, struct ethhdr *h,
 	return 0;
 }
 
+static inline __pure
+struct ebt_entry *ebt_next_entry(const struct ebt_entry *entry)
+{
+	return (void *)entry + entry->next_offset;
+}
+
 /* Do some firewalling */
 unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
@@ -164,7 +170,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	mtpar.in      = tgpar.in  = in;
 	mtpar.out     = tgpar.out = out;
 	mtpar.hotdrop = &hotdrop;
-	tgpar.hooknum = hook;
+	mtpar.hooknum = tgpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
 	private = table->private;
@@ -249,8 +255,7 @@ letsreturn:
 		/* jump to a udc */
 		cs[sp].n = i + 1;
 		cs[sp].chaininfo = chaininfo;
-		cs[sp].e = (struct ebt_entry *)
-		   (((char *)point) + point->next_offset);
+		cs[sp].e = ebt_next_entry(point);
 		i = 0;
 		chaininfo = (struct ebt_entries *) (base + verdict);
 #ifdef CONFIG_NETFILTER_DEBUG
@@ -266,8 +271,7 @@ letsreturn:
 		sp++;
 		continue;
 letscontinue:
-		point = (struct ebt_entry *)
-		   (((char *)point) + point->next_offset);
+		point = ebt_next_entry(point);
 		i++;
 	}
 
@@ -787,7 +791,7 @@ static int check_chainloops(struct ebt_entries *chain, struct ebt_cl_stack *cl_s
 			/* this can't be 0, so the loop test is correct */
 			cl_s[i].cs.n = pos + 1;
 			pos = 0;
-			cl_s[i].cs.e = ((void *)e + e->next_offset);
+			cl_s[i].cs.e = ebt_next_entry(e);
 			e = (struct ebt_entry *)(hlp2->data);
 			nentries = hlp2->nentries;
 			cl_s[i].from = chain_nr;
@@ -797,7 +801,7 @@ static int check_chainloops(struct ebt_entries *chain, struct ebt_cl_stack *cl_s
 			continue;
 		}
 letscontinue:
-		e = (void *)e + e->next_offset;
+		e = ebt_next_entry(e);
 		pos++;
 	}
 	return 0;

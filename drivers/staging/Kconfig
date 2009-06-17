@@ -115,5 +115,7 @@ source "drivers/staging/line6/Kconfig"
 
 source "drivers/staging/serqt_usb/Kconfig"
 
+source "drivers/gpu/drm/radeon/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

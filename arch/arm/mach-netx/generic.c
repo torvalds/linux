@@ -168,7 +168,7 @@ void __init netx_init_irq(void)
 {
 	int irq;
 
-	vic_init(__io(io_p2v(NETX_PA_VIC)), 0, ~0);
+	vic_init(__io(io_p2v(NETX_PA_VIC)), 0, ~0, 0);
 
 	for (irq = NETX_IRQ_HIF_CHAINED(0); irq <= NETX_IRQ_HIF_LAST; irq++) {
 		set_irq_chip(irq, &netx_hif_chip);

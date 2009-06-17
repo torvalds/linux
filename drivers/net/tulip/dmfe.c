@@ -686,7 +686,7 @@ static int dmfe_start_xmit(struct sk_buff *skb, struct DEVICE *dev)
 		spin_unlock_irqrestore(&db->lock, flags);
 		printk(KERN_ERR DRV_NAME ": No Tx resource %ld\n",
 		       db->tx_queue_cnt);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	/* Disable NIC interrupt */

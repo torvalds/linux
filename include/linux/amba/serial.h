@@ -114,6 +114,9 @@
 #define UART011_IFLS_TX4_8	(2 << 0)
 #define UART011_IFLS_TX6_8	(3 << 0)
 #define UART011_IFLS_TX7_8	(4 << 0)
+/* special values for ST vendor with deeper fifo */
+#define UART011_IFLS_RX_HALF	(5 << 3)
+#define UART011_IFLS_TX_HALF	(5 << 0)
 
 #define UART011_OEIM		(1 << 10)	/* overrun error interrupt mask */
 #define UART011_BEIM		(1 << 9)	/* break error interrupt mask */

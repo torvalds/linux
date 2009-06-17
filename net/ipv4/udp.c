@@ -328,7 +328,7 @@ static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
 	if (unlikely(sk = skb_steal_sock(skb)))
 		return sk;
 	else
-		return __udp4_lib_lookup(dev_net(skb->dst->dev), iph->saddr, sport,
+		return __udp4_lib_lookup(dev_net(skb_dst(skb)->dev), iph->saddr, sport,
 					 iph->daddr, dport, inet_iif(skb),
 					 udptable);
 }
@@ -1237,7 +1237,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	struct sock *sk;
 	struct udphdr *uh;
 	unsigned short ulen;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb_rtable(skb);
 	__be32 saddr, daddr;
 	struct net *net = dev_net(skb->dev);
 

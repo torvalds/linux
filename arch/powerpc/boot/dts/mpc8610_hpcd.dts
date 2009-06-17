@@ -112,8 +112,20 @@
 		device_type = "soc";
 		compatible = "fsl,mpc8610-immr", "simple-bus";
 		ranges = <0x0 0xe0000000 0x00100000>;
-		reg = <0xe0000000 0x1000>;
 		bus-frequency = <0>;
+
+		mcm-law@0 {
+			compatible = "fsl,mcm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		mcm@1000 {
+			compatible = "fsl,mpc8610-mcm", "fsl,mcm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		i2c@3000 {
 			#address-cells = <1>;
@@ -316,7 +328,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		compatible = "fsl,mpc8610-pci";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -346,7 +357,6 @@
 	};
 
 	pci1: pcie@e000a000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

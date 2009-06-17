@@ -17,7 +17,7 @@
 
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <asm/timex.h>
+#include <linux/timex.h>
 #include "sound_config.h"
 
 #include "pas2.h"

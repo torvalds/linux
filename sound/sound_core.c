@@ -27,6 +27,11 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
+static char *sound_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "snd/%s", dev_name(dev));
+}
+
 static int __init init_soundcore(void)
 {
 	int rc;
@@ -40,6 +45,8 @@ static int __init init_soundcore(void)
 		cleanup_oss_soundcore();
 		return PTR_ERR(sound_class);
 	}
+
+	sound_class->nodename = sound_nodename;
 
 	return 0;
 }
