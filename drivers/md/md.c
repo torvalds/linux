@@ -736,6 +736,24 @@ struct super_type  {
 };
 
 /*
+ * Check that the given mddev has no bitmap.
+ *
+ * This function is called from the run method of all personalities that do not
+ * support bitmaps. It prints an error message and returns non-zero if mddev
+ * has a bitmap. Otherwise, it returns 0.
+ *
+ */
+int md_check_no_bitmap(mddev_t *mddev)
+{
+	if (!mddev->bitmap_file && !mddev->bitmap_offset)
+		return 0;
+	printk(KERN_ERR "%s: bitmaps are not supported for %s\n",
+		mdname(mddev), mddev->pers->name);
+	return 1;
+}
+EXPORT_SYMBOL(md_check_no_bitmap);
+
+/*
  * load_super for 0.90.0 
  */
 static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
@@ -787,17 +805,6 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	rdev->preferred_minor = sb->md_minor;
 	rdev->data_offset = 0;
 	rdev->sb_size = MD_SB_BYTES;
-
-	if (sb->state & (1<<MD_SB_BITMAP_PRESENT)) {
-		if (sb->level != 1 && sb->level != 4
-		    && sb->level != 5 && sb->level != 6
-		    && sb->level != 10) {
-			/* FIXME use a better test */
-			printk(KERN_WARNING
-			       "md: bitmaps not supported for this level.\n");
-			goto abort;
-		}
-	}
 
 	if (sb->level == LEVEL_MULTIPATH)
 		rdev->desc_nr = -1;
@@ -1175,17 +1182,6 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 		printk("md: data_size too small on %s\n",
 		       bdevname(rdev->bdev,b));
 		return -EINVAL;
-	}
-	if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET)) {
-		if (sb->level != cpu_to_le32(1) &&
-		    sb->level != cpu_to_le32(4) &&
-		    sb->level != cpu_to_le32(5) &&
-		    sb->level != cpu_to_le32(6) &&
-		    sb->level != cpu_to_le32(10)) {
-			printk(KERN_WARNING
-			       "md: bitmaps not supported for this level.\n");
-			return -EINVAL;
-		}
 	}
 
 	rdev->preferred_minor = 0xffff;

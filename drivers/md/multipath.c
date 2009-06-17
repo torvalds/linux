@@ -421,6 +421,9 @@ static int multipath_run (mddev_t *mddev)
 	struct multipath_info *disk;
 	mdk_rdev_t *rdev;
 
+	if (md_check_no_bitmap(mddev))
+		return -EINVAL;
+
 	if (mddev->level != LEVEL_MULTIPATH) {
 		printk("multipath: %s: raid level not set to multipath IO (%d)\n",
 		       mdname(mddev), mddev->level);

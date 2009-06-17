@@ -314,6 +314,8 @@ static int raid0_run(mddev_t *mddev)
 		printk(KERN_ERR "md/raid0: chunk size must be set.\n");
 		return -EINVAL;
 	}
+	if (md_check_no_bitmap(mddev))
+		return -EINVAL;
 	blk_queue_max_sectors(mddev->queue, mddev->chunk_sectors);
 	mddev->queue->queue_lock = &mddev->queue->__queue_lock;
 

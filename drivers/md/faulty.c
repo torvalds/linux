@@ -299,8 +299,12 @@ static int run(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
 	int i;
+	conf_t *conf;
 
-	conf_t *conf = kmalloc(sizeof(*conf), GFP_KERNEL);
+	if (md_check_no_bitmap(mddev))
+		return -EINVAL;
+
+	conf = kmalloc(sizeof(*conf), GFP_KERNEL);
 	if (!conf)
 		return -ENOMEM;
 
