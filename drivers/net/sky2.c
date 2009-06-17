@@ -2373,6 +2373,26 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	}
 }
 
+static inline void sky2_skb_rx(const struct sky2_port *sky2,
+			       u32 status, struct sk_buff *skb)
+{
+#ifdef SKY2_VLAN_TAG_USED
+	u16 vlan_tag = be16_to_cpu(sky2->rx_tag);
+	if (sky2->vlgrp && (status & GMR_FS_VLAN)) {
+		if (skb->ip_summed == CHECKSUM_NONE)
+			vlan_hwaccel_receive_skb(skb, sky2->vlgrp, vlan_tag);
+		else
+			vlan_gro_receive(&sky2->hw->napi, sky2->vlgrp,
+					 vlan_tag, skb);
+		return;
+	}
+#endif
+	if (skb->ip_summed == CHECKSUM_NONE)
+		netif_receive_skb(skb);
+	else
+		napi_gro_receive(&sky2->hw->napi, skb);
+}
+
 static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
 				unsigned packets, unsigned bytes)
 {
@@ -2438,14 +2458,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 
 			skb->protocol = eth_type_trans(skb, dev);
 
-#ifdef SKY2_VLAN_TAG_USED
-			if (sky2->vlgrp && (status & GMR_FS_VLAN)) {
-				vlan_hwaccel_receive_skb(skb,
-							 sky2->vlgrp,
-							 be16_to_cpu(sky2->rx_tag));
-			} else
-#endif
-				netif_receive_skb(skb);
+			sky2_skb_rx(sky2, status, skb);
 
 			/* Stop after net poll weight */
 			if (++work_done >= to_do)
