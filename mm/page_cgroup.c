@@ -99,6 +99,8 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
 	unsigned long pfn = page_to_pfn(page);
 	struct mem_section *section = __pfn_to_section(pfn);
 
+	if (!section->page_cgroup)
+		return NULL;
 	return section->page_cgroup + pfn;
 }
 

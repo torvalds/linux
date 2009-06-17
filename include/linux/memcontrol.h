@@ -117,7 +117,7 @@ static inline bool mem_cgroup_disabled(void)
 }
 
 extern bool mem_cgroup_oom_called(struct task_struct *task);
-
+void mem_cgroup_update_mapped_file_stat(struct page *page, int val);
 #else /* CONFIG_CGROUP_MEM_RES_CTLR */
 struct mem_cgroup;
 
@@ -268,6 +268,11 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 
 static inline void
 mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+{
+}
+
+static inline void mem_cgroup_update_mapped_file_stat(struct page *page,
+							int val)
 {
 }
 
