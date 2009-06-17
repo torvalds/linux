@@ -320,8 +320,11 @@ static u32 group2_table[] = {
 };
 
 /* EFLAGS bit definitions. */
+#define EFLG_VM (1<<17)
+#define EFLG_RF (1<<16)
 #define EFLG_OF (1<<11)
 #define EFLG_DF (1<<10)
+#define EFLG_IF (1<<9)
 #define EFLG_SF (1<<7)
 #define EFLG_ZF (1<<6)
 #define EFLG_AF (1<<4)
