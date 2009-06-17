@@ -283,6 +283,7 @@ Table 1-4: Kernel info in /proc
  rtc         Real time clock                                   
  scsi        SCSI info (see text)                              
  slabinfo    Slab pool info                                    
+ softirqs    softirq usage
  stat        Overall statistics                                
  swaps       Swap space utilization                            
  sys         See chapter 2                                     
@@ -597,6 +598,25 @@ on the kind of area :
 0xffffffffa0017000-0xffffffffa0022000   45056 sys_init_module+0xc27/0x1d00 ...
    pages=10 vmalloc N0=10
 
+..............................................................................
+
+softirqs:
+
+Provides counts of softirq handlers serviced since boot time, for each cpu.
+
+> cat /proc/softirqs
+                CPU0       CPU1       CPU2       CPU3
+      HI:          0          0          0          0
+   TIMER:      27166      27120      27097      27034
+  NET_TX:          0          0          0         17
+  NET_RX:         42          0          0         39
+   BLOCK:          0          0        107       1121
+ TASKLET:          0          0          0        290
+   SCHED:      27035      26983      26971      26746
+ HRTIMER:          0          0          0          0
+     RCU:       1678       1769       2178       2250
+
+
 1.3 IDE devices in /proc/ide
 ----------------------------
 
@@ -883,6 +903,7 @@ since the system first booted.  For a quick look, simply cat the file:
   processes 2915
   procs_running 1
   procs_blocked 0
+  softirq 183433 0 21755 12 39 1137 231 21459 2263
 
 The very first  "cpu" line aggregates the  numbers in all  of the other "cpuN"
 lines.  These numbers identify the amount of time the CPU has spent performing
@@ -917,6 +938,11 @@ CPUs.
 
 The   "procs_blocked" line gives  the  number of  processes currently blocked,
 waiting for I/O to complete.
+
+The "softirq" line gives counts of softirqs serviced since boot time, for each
+of the possible system softirqs. The first column is the total of all
+softirqs serviced; each subsequent column is the total for that particular
+softirq.
 
 
 1.9 Ext4 file system parameters
