@@ -64,6 +64,8 @@ static void gpio_unmask_irq(u32 irq)
 	_set_gpio_irqenable(&mxc_gpio_ports[gpio / 32], gpio & 0x1f, 1);
 }
 
+static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset);
+
 static int gpio_set_irq_type(u32 irq, u32 type)
 {
 	u32 gpio = irq_to_gpio(irq);
@@ -72,6 +74,7 @@ static int gpio_set_irq_type(u32 irq, u32 type)
 	int edge;
 	void __iomem *reg = port->base;
 
+	port->both_edges &= ~(1 << (gpio & 31));
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 		edge = GPIO_INT_RISE_EDGE;
@@ -79,13 +82,24 @@ static int gpio_set_irq_type(u32 irq, u32 type)
 	case IRQ_TYPE_EDGE_FALLING:
 		edge = GPIO_INT_FALL_EDGE;
 		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		val = mxc_gpio_get(&port->chip, gpio & 31);
+		if (val) {
+			edge = GPIO_INT_LOW_LEV;
+			pr_debug("mxc: set GPIO %d to low trigger\n", gpio);
+		} else {
+			edge = GPIO_INT_HIGH_LEV;
+			pr_debug("mxc: set GPIO %d to high trigger\n", gpio);
+		}
+		port->both_edges |= 1 << (gpio & 31);
+		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		edge = GPIO_INT_LOW_LEV;
 		break;
 	case IRQ_TYPE_LEVEL_HIGH:
 		edge = GPIO_INT_HIGH_LEV;
 		break;
-	default:	/* this includes IRQ_TYPE_EDGE_BOTH */
+	default:
 		return -EINVAL;
 	}
 
@@ -98,6 +112,34 @@ static int gpio_set_irq_type(u32 irq, u32 type)
 	return 0;
 }
 
+static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
+{
+	void __iomem *reg = port->base;
+	u32 bit, val;
+	int edge;
+
+	reg += GPIO_ICR1 + ((gpio & 0x10) >> 2); /* lower or upper register */
+	bit = gpio & 0xf;
+	val = __raw_readl(reg);
+	edge = (val >> (bit << 1)) & 3;
+	val &= ~(0x3 << (bit << 1));
+	switch (edge) {
+	case GPIO_INT_HIGH_LEV:
+		edge = GPIO_INT_LOW_LEV;
+		pr_debug("mxc: switch GPIO %d to low trigger\n", gpio);
+		break;
+	case GPIO_INT_LOW_LEV:
+		edge = GPIO_INT_HIGH_LEV;
+		pr_debug("mxc: switch GPIO %d to high trigger\n", gpio);
+		break;
+	default:
+		pr_err("mxc: invalid configuration for GPIO %d: %x\n",
+		       gpio, edge);
+		return;
+	}
+	__raw_writel(val | (edge << (bit << 1)), reg);
+}
+
 /* handle n interrupts in one status register */
 static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 {
@@ -105,11 +147,16 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 
 	gpio_irq_no = port->virtual_irq_start;
 	for (; irq_stat != 0; irq_stat >>= 1, gpio_irq_no++) {
+		u32 gpio = irq_to_gpio(gpio_irq_no);
 
 		if ((irq_stat & 1) == 0)
 			continue;
 
 		BUG_ON(!(irq_desc[gpio_irq_no].handle_irq));
+
+		if (port->both_edges & (1 << (gpio & 31)))
+			mxc_flip_edge(port, gpio);
+
 		irq_desc[gpio_irq_no].handle_irq(gpio_irq_no,
 				&irq_desc[gpio_irq_no]);
 	}

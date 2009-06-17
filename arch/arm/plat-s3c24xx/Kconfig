@@ -71,6 +71,7 @@ config PM_SIMTEC
 config S3C2410_DMA
 	bool "S3C2410 DMA support"
 	depends on ARCH_S3C2410
+	select S3C_DMA
 	help
 	  S3C2410 DMA support. This is needed for drivers like sound which
 	  use the S3C2410's DMA system to move data to and from the

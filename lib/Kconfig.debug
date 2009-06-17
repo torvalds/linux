@@ -300,7 +300,7 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"
-	depends on DEBUG_KERNEL && SLAB
+	depends on DEBUG_KERNEL && SLAB && !KMEMCHECK
 	help
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
@@ -312,7 +312,7 @@ config DEBUG_SLAB_LEAK
 
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
-	depends on SLUB && SLUB_DEBUG
+	depends on SLUB && SLUB_DEBUG && !KMEMCHECK
 	default n
 	help
 	  Boot with debugging on by default. SLUB boots by default with
@@ -996,3 +996,5 @@ config DMA_API_DEBUG
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
+
+source "lib/Kconfig.kmemcheck"

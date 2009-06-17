@@ -265,7 +265,7 @@ static int wm8400_init(struct wm8400 *wm8400,
 
 	mutex_init(&wm8400->io_lock);
 
-	wm8400->dev->driver_data = wm8400;
+	dev_set_drvdata(wm8400->dev, wm8400);
 
 	/* Check that this is actually a WM8400 */
 	ret = wm8400->read_dev(wm8400->io_data, WM8400_RESET_ID, 1, &reg);

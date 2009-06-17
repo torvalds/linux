@@ -211,7 +211,7 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA VT82C596/82C686/82xx and CX700/VX800/VX820"
+	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -225,8 +225,8 @@ config I2C_VIAPRO
 	    VT8237R/A/S
 	    VT8251
 	    CX700
-	    VX800
-	    VX820
+	    VX800/VX820
+	    VX855/VX875
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
@@ -512,6 +512,19 @@ config I2C_SIMTEC
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-simtec.
+
+config I2C_STU300
+	tristate "ST Microelectronics DDC I2C interface"
+	depends on MACH_U300
+	default y if MACH_U300
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface from ST Microelectronics simply called "DDC I2C"
+	  supporting both I2C and DDC, used in e.g. the U300 series
+	  mobile platforms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-stu300.
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"

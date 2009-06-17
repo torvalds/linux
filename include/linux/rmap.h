@@ -83,7 +83,8 @@ static inline void page_dup_rmap(struct page *page, struct vm_area_struct *vma, 
 /*
  * Called from mm/vmscan.c to handle paging out
  */
-int page_referenced(struct page *, int is_locked, struct mem_cgroup *cnt);
+int page_referenced(struct page *, int is_locked,
+			struct mem_cgroup *cnt, unsigned long *vm_flags);
 int try_to_unmap(struct page *, int ignore_refs);
 
 /*
@@ -105,18 +106,11 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  */
 int page_mkclean(struct page *);
 
-#ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * called in munlock()/munmap() path to check for other vmas holding
  * the page mlocked.
  */
 int try_to_munlock(struct page *);
-#else
-static inline int try_to_munlock(struct page *page)
-{
-	return 0;	/* a.k.a. SWAP_SUCCESS */
-}
-#endif
 
 #else	/* !CONFIG_MMU */
 
@@ -124,7 +118,7 @@ static inline int try_to_munlock(struct page *page)
 #define anon_vma_prepare(vma)	(0)
 #define anon_vma_link(vma)	do {} while (0)
 
-#define page_referenced(page,l,cnt) TestClearPageReferenced(page)
+#define page_referenced(page, locked, cnt, flags) TestClearPageReferenced(page)
 #define try_to_unmap(page, refs) SWAP_FAIL
 
 static inline int page_mkclean(struct page *page)

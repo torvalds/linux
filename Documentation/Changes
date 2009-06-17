@@ -29,7 +29,7 @@ hardware, for example, you probably needn't concern yourself with
 isdn4k-utils.
 
 o  Gnu C                  3.2                     # gcc --version
-o  Gnu make               3.79.1                  # make --version
+o  Gnu make               3.80                    # make --version
 o  binutils               2.12                    # ld -v
 o  util-linux             2.10o                   # fdformat --version
 o  module-init-tools      0.9.10                  # depmod -V
@@ -62,7 +62,7 @@ computer.
 Make
 ----
 
-You will need Gnu make 3.79.1 or later to build the kernel.
+You will need Gnu make 3.80 or later to build the kernel.
 
 Binutils
 --------

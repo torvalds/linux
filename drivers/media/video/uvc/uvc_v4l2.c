@@ -46,6 +46,8 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 	struct uvc_menu_info *menu_info;
 	struct uvc_control_mapping *mapping;
 	struct uvc_control *ctrl;
+	u32 index = query_menu->index;
+	u32 id = query_menu->id;
 
 	ctrl = uvc_find_control(video, query_menu->id, &mapping);
 	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU)
@@ -53,6 +55,10 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 
 	if (query_menu->index >= mapping->menu_count)
 		return -EINVAL;
+
+	memset(query_menu, 0, sizeof(*query_menu));
+	query_menu->id = id;
+	query_menu->index = index;
 
 	menu_info = &mapping->menu_info[query_menu->index];
 	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
@@ -245,7 +251,7 @@ static int uvc_v4l2_set_format(struct uvc_video_device *video,
 	if (fmt->type != video->streaming->type)
 		return -EINVAL;
 
-	if (uvc_queue_streaming(&video->queue))
+	if (uvc_queue_allocated(&video->queue))
 		return -EBUSY;
 
 	ret = uvc_v4l2_try_format(video, fmt, &probe, &format, &frame);
@@ -433,6 +439,15 @@ static int uvc_v4l2_open(struct file *file)
 		goto done;
 	}
 
+	if (atomic_inc_return(&video->dev->users) == 1) {
+		if ((ret = uvc_status_start(video->dev)) < 0) {
+			usb_autopm_put_interface(video->dev->intf);
+			atomic_dec(&video->dev->users);
+			kfree(handle);
+			goto done;
+		}
+	}
+
 	handle->device = video;
 	handle->state = UVC_HANDLE_PASSIVE;
 	file->private_data = handle;
@@ -466,6 +481,9 @@ static int uvc_v4l2_release(struct file *file)
 	uvc_dismiss_privileges(handle);
 	kfree(handle);
 	file->private_data = NULL;
+
+	if (atomic_dec_return(&video->dev->users) == 0)
+		uvc_status_stop(video->dev);
 
 	usb_autopm_put_interface(video->dev->intf);
 	kref_put(&video->dev->kref, uvc_delete);
@@ -512,7 +530,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&xctrl, 0, sizeof xctrl);
 		xctrl.id = ctrl->id;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		ret = uvc_ctrl_get(video, &xctrl);
 		uvc_ctrl_rollback(video);
 		if (ret >= 0)
@@ -529,7 +550,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		xctrl.id = ctrl->id;
 		xctrl.value = ctrl->value;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		ret = uvc_ctrl_set(video, &xctrl);
 		if (ret < 0) {
 			uvc_ctrl_rollback(video);
@@ -548,7 +572,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_ext_control *ctrl = ctrls->controls;
 		unsigned int i;
 
-		uvc_ctrl_begin(video);
+	       ret = uvc_ctrl_begin(video);
+	       if (ret < 0)
+			return ret;
+
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_get(video, ctrl);
 			if (ret < 0) {
@@ -648,7 +675,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_S_INPUT:
 	{
-		u8 input = *(u32 *)arg + 1;
+		u32 input = *(u32 *)arg + 1;
 
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
@@ -660,7 +687,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			break;
 		}
 
-		if (input > video->selector->selector.bNrInPins)
+		if (input == 0 || input > video->selector->selector.bNrInPins)
 			return -EINVAL;
 
 		return uvc_query_ctrl(video->dev, SET_CUR, video->selector->id,

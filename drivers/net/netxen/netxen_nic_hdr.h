@@ -31,16 +31,8 @@
 #ifndef __NETXEN_NIC_HDR_H_
 #define __NETXEN_NIC_HDR_H_
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/spinlock.h>
-#include <asm/irq.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/pci.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
-#include <asm/string.h>		/* for memset */
 
 /*
  * The basic unit of access when reading/writing control registers.

@@ -231,24 +231,8 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 		node = node->rb_right;
 		while ((left = node->rb_left) != NULL)
 			node = left;
-		child = node->rb_right;
-		parent = rb_parent(node);
-		color = rb_color(node);
 
-		if (child)
-			rb_set_parent(child, parent);
-		if (parent == old) {
-			parent->rb_right = child;
-			parent = node;
-		} else
-			parent->rb_left = child;
-
-		node->rb_parent_color = old->rb_parent_color;
-		node->rb_right = old->rb_right;
-		node->rb_left = old->rb_left;
-
-		if (rb_parent(old))
-		{
+		if (rb_parent(old)) {
 			if (rb_parent(old)->rb_left == old)
 				rb_parent(old)->rb_left = node;
 			else
@@ -256,9 +240,25 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 		} else
 			root->rb_node = node;
 
-		rb_set_parent(old->rb_left, node);
-		if (old->rb_right)
+		child = node->rb_right;
+		parent = rb_parent(node);
+		color = rb_color(node);
+
+		if (parent == old) {
+			parent = node;
+		} else {
+			if (child)
+				rb_set_parent(child, parent);
+			parent->rb_left = child;
+
+			node->rb_right = old->rb_right;
 			rb_set_parent(old->rb_right, node);
+		}
+
+		node->rb_parent_color = old->rb_parent_color;
+		node->rb_left = old->rb_left;
+		rb_set_parent(old->rb_left, node);
+
 		goto color;
 	}
 

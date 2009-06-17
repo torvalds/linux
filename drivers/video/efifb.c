@@ -280,6 +280,9 @@ static int __init efifb_probe(struct platform_device *dev)
 	info->pseudo_palette = info->par;
 	info->par = NULL;
 
+	info->aperture_base = efifb_fix.smem_start;
+	info->aperture_size = size_total;
+
 	info->screen_base = ioremap(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "efifb: abort, cannot ioremap video memory "
@@ -337,7 +340,7 @@ static int __init efifb_probe(struct platform_device *dev)
 	info->fbops = &efifb_ops;
 	info->var = efifb_defined;
 	info->fix = efifb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT;
+	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE;
 
 	if ((err = fb_alloc_cmap(&info->cmap, 256, 0)) < 0) {
 		printk(KERN_ERR "efifb: cannot allocate colormap\n");

@@ -22,6 +22,19 @@
 #include <asm/uaccess.h>
 #include "fat.h"
 
+/*
+ * Maximum buffer size of short name.
+ * [(MSDOS_NAME + '.') * max one char + nul]
+ * For msdos style, ['.' (hidden) + MSDOS_NAME + '.' + nul]
+ */
+#define FAT_MAX_SHORT_SIZE	((MSDOS_NAME + 1) * NLS_MAX_CHARSET_SIZE + 1)
+/*
+ * Maximum buffer size of unicode chars from slots.
+ * [(max longname slots * 13 (size in a slot) + nul) * sizeof(wchar_t)]
+ */
+#define FAT_MAX_UNI_CHARS	((MSDOS_SLOTS - 1) * 13 + 1)
+#define FAT_MAX_UNI_SIZE	(FAT_MAX_UNI_CHARS * sizeof(wchar_t))
+
 static inline loff_t fat_make_i_pos(struct super_block *sb,
 				    struct buffer_head *bh,
 				    struct msdos_dir_entry *de)
@@ -171,7 +184,8 @@ static inline int fat_uni_to_x8(struct msdos_sb_info *sbi, const wchar_t *uni,
 				unsigned char *buf, int size)
 {
 	if (sbi->options.utf8)
-		return utf8_wcstombs(buf, uni, size);
+		return utf16s_to_utf8s(uni, FAT_MAX_UNI_CHARS,
+				UTF16_HOST_ENDIAN, buf, size);
 	else
 		return uni16_to_x8(buf, uni, size, sbi->options.unicode_xlate,
 				   sbi->nls_io);
@@ -323,19 +337,6 @@ parse_long:
 
 	return 0;
 }
-
-/*
- * Maximum buffer size of short name.
- * [(MSDOS_NAME + '.') * max one char + nul]
- * For msdos style, ['.' (hidden) + MSDOS_NAME + '.' + nul]
- */
-#define FAT_MAX_SHORT_SIZE	((MSDOS_NAME + 1) * NLS_MAX_CHARSET_SIZE + 1)
-/*
- * Maximum buffer size of unicode chars from slots.
- * [(max longname slots * 13 (size in a slot) + nul) * sizeof(wchar_t)]
- */
-#define FAT_MAX_UNI_CHARS	((MSDOS_SLOTS - 1) * 13 + 1)
-#define FAT_MAX_UNI_SIZE	(FAT_MAX_UNI_CHARS * sizeof(wchar_t))
 
 /*
  * Return values: negative -> error, 0 -> not found, positive -> found,
@@ -1334,7 +1335,7 @@ found:
 			goto error_remove;
 		}
 		if (dir->i_size & (sbi->cluster_size - 1)) {
-			fat_fs_panic(sb, "Odd directory size");
+			fat_fs_error(sb, "Odd directory size");
 			dir->i_size = (dir->i_size + sbi->cluster_size - 1)
 				& ~((loff_t)sbi->cluster_size - 1);
 		}

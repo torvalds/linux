@@ -311,6 +311,7 @@ unifdef-y += ppp-comp.h
 unifdef-y += ptrace.h
 unifdef-y += quota.h
 unifdef-y += random.h
+unifdef-y += rfkill.h
 unifdef-y += irqnr.h
 unifdef-y += reboot.h
 unifdef-y += reiserfs_fs.h

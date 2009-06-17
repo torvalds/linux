@@ -5595,7 +5595,7 @@ pfm_interrupt_handler(int irq, void *arg)
 		(*pfm_alt_intr_handler->handler)(irq, arg, regs);
 	}
 
-	put_cpu_no_resched();
+	put_cpu();
 	return IRQ_HANDLED;
 }
 

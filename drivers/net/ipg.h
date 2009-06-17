@@ -514,7 +514,7 @@ enum ipg_regs {
 #define		IPG_DMALIST_ALIGN_PAD	0x07
 #define		IPG_MULTICAST_HASHTABLE_SIZE	0x40
 
-/* Number of miliseconds to wait after issuing a software reset.
+/* Number of milliseconds to wait after issuing a software reset.
  * 0x05 <= IPG_AC_RESETWAIT to account for proper 10Mbps operation.
  */
 #define         IPG_AC_RESETWAIT             0x05

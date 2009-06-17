@@ -198,6 +198,8 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 	sol->fip.fip_subcode = FIP_SC_SOL;
 	sol->fip.fip_dl_len = htons(sizeof(sol->desc) / FIP_BPW);
 	sol->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		sol->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	sol->desc.mac.fd_desc.fip_dtype = FIP_DT_MAC;
 	sol->desc.mac.fd_desc.fip_dlen = sizeof(sol->desc.mac) / FIP_BPW;
@@ -350,6 +352,8 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	kal->fip.fip_dl_len = htons((sizeof(kal->mac) +
 				    ports * sizeof(*vn)) / FIP_BPW);
 	kal->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		kal->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	kal->mac.fd_desc.fip_dtype = FIP_DT_MAC;
 	kal->mac.fd_desc.fip_dlen = sizeof(kal->mac) / FIP_BPW;
@@ -413,6 +417,8 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	cap->fip.fip_subcode = FIP_SC_REQ;
 	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
 	cap->fip.fip_flags = htons(FIP_FL_FPMA);
+	if (fip->spma)
+		cap->fip.fip_flags |= htons(FIP_FL_SPMA);
 
 	cap->encaps.fd_desc.fip_dtype = dtype;
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
@@ -421,8 +427,10 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	memset(mac, 0, sizeof(mac));
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
-	if (dtype != ELS_FLOGI)
+	if (dtype != FIP_DT_FLOGI)
 		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
+	else if (fip->spma)
+		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
 
 	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);

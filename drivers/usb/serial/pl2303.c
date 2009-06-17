@@ -878,7 +878,7 @@ static void pl2303_break_ctl(struct tty_struct *tty, int break_state)
 		dbg("%s - error sending break = %d", __func__, result);
 }
 
-static void pl2303_shutdown(struct usb_serial *serial)
+static void pl2303_release(struct usb_serial *serial)
 {
 	int i;
 	struct pl2303_private *priv;
@@ -890,7 +890,6 @@ static void pl2303_shutdown(struct usb_serial *serial)
 		if (priv) {
 			pl2303_buf_free(priv->buf);
 			kfree(priv);
-			usb_set_serial_port_data(serial->port[i], NULL);
 		}
 	}
 }
@@ -927,6 +926,8 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
+	if (priv->line_status & UART_BREAK_ERROR)
+		usb_serial_handle_break(port);
 	wake_up_interruptible(&priv->delta_msr_wait);
 }
 
@@ -1037,7 +1038,8 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 		if (line_status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		for (i = 0; i < urb->actual_length; ++i)
-			tty_insert_flip_char(tty, data[i], tty_flag);
+			if (!usb_serial_handle_sysrq_char(port, data[i]))
+				tty_insert_flip_char(tty, data[i], tty_flag);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);
@@ -1120,7 +1122,7 @@ static struct usb_serial_driver pl2303_device = {
 	.write_room =		pl2303_write_room,
 	.chars_in_buffer =	pl2303_chars_in_buffer,
 	.attach =		pl2303_startup,
-	.shutdown =		pl2303_shutdown,
+	.release =		pl2303_release,
 };
 
 static int __init pl2303_init(void)

@@ -91,11 +91,20 @@ static void omap_mcbsp_dump_reg(u8 id)
 static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp *mcbsp_tx = dev_id;
+	u16 irqst_spcr2;
 
-	dev_dbg(mcbsp_tx->dev, "TX IRQ callback : 0x%x\n",
-		OMAP_MCBSP_READ(mcbsp_tx->io_base, SPCR2));
+	irqst_spcr2 = OMAP_MCBSP_READ(mcbsp_tx->io_base, SPCR2);
+	dev_dbg(mcbsp_tx->dev, "TX IRQ callback : 0x%x\n", irqst_spcr2);
 
-	complete(&mcbsp_tx->tx_irq_completion);
+	if (irqst_spcr2 & XSYNC_ERR) {
+		dev_err(mcbsp_tx->dev, "TX Frame Sync Error! : 0x%x\n",
+			irqst_spcr2);
+		/* Writing zero to XSYNC_ERR clears the IRQ */
+		OMAP_MCBSP_WRITE(mcbsp_tx->io_base, SPCR2,
+			irqst_spcr2 & ~(XSYNC_ERR));
+	} else {
+		complete(&mcbsp_tx->tx_irq_completion);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -103,11 +112,20 @@ static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 {
 	struct omap_mcbsp *mcbsp_rx = dev_id;
+	u16 irqst_spcr1;
 
-	dev_dbg(mcbsp_rx->dev, "RX IRQ callback : 0x%x\n",
-		OMAP_MCBSP_READ(mcbsp_rx->io_base, SPCR2));
+	irqst_spcr1 = OMAP_MCBSP_READ(mcbsp_rx->io_base, SPCR1);
+	dev_dbg(mcbsp_rx->dev, "RX IRQ callback : 0x%x\n", irqst_spcr1);
 
-	complete(&mcbsp_rx->rx_irq_completion);
+	if (irqst_spcr1 & RSYNC_ERR) {
+		dev_err(mcbsp_rx->dev, "RX Frame Sync Error! : 0x%x\n",
+			irqst_spcr1);
+		/* Writing zero to RSYNC_ERR clears the IRQ */
+		OMAP_MCBSP_WRITE(mcbsp_rx->io_base, SPCR1,
+			irqst_spcr1 & ~(RSYNC_ERR));
+	} else {
+		complete(&mcbsp_rx->tx_irq_completion);
+	}
 
 	return IRQ_HANDLED;
 }

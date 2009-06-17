@@ -15,18 +15,11 @@ do_command()
 	fi
 }
 
-# Do not try this architecture
-drop="generic um ppc sparc64 cris"
-
 archs=$(ls ${srctree}/arch)
 
 for arch in ${archs}; do
 	case ${arch} in
 	um)        # no userspace export
-		;;
-	ppc)       # headers exported by powerpc
-		;;
-	sparc64)   # headers exported by sparc
 		;;
 	cris)      # headers export are known broken
 		;;

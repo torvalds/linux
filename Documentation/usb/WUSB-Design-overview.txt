@@ -84,7 +84,7 @@ The different logical parts of this driver are:
 
       *UWB*: the Ultra-Wide-Band stack -- manages the radio and
       associated spectrum to allow for devices sharing it. Allows to
-      control bandwidth assingment, beaconing, scanning, etc
+      control bandwidth assignment, beaconing, scanning, etc
 
     *
 
@@ -184,7 +184,7 @@ and sends the replies and notifications back to the API
 [/uwb_rc_neh_grok()/]. Notifications are handled to the UWB daemon, that
 is chartered, among other things, to keep the tab of how the UWB radio
 neighborhood looks, creating and destroying devices as they show up or
-dissapear.
+disappear.
 
 Command execution is very simple: a command block is sent and a event
 block or reply is expected back. For sending/receiving command/events, a
@@ -333,7 +333,7 @@ read descriptors and move our data.
 
 *Device life cycle and keep alives*
 
-Everytime there is a succesful transfer to/from a device, we update a
+Every time there is a successful transfer to/from a device, we update a
 per-device activity timestamp. If not, every now and then we check and
 if the activity timestamp gets old, we ping the device by sending it a
 Keep Alive IE; it responds with a /DN_Alive/ pong during the DNTS (this
@@ -411,7 +411,7 @@ context (wa_xfer) and submit it. When the xfer is done, our callback is
 called and we assign the status bits and release the xfer resources.
 
 In dequeue() we are basically cancelling/aborting the transfer. We issue
-a xfer abort request to the HC, cancell all the URBs we had submitted
+a xfer abort request to the HC, cancel all the URBs we had submitted
 and not yet done and when all that is done, the xfer callback will be
 called--this will call the URB callback.
 

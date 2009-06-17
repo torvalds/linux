@@ -14,7 +14,11 @@
 struct platform_device;
 struct clk;
 
-extern void mxc_map_io(void);
+extern void mx1_map_io(void);
+extern void mx21_map_io(void);
+extern void mx27_map_io(void);
+extern void mx31_map_io(void);
+extern void mx35_map_io(void);
 extern void mxc_init_irq(void);
 extern void mxc_timer_init(struct clk *timer_clk);
 extern int mx1_clocks_init(unsigned long fref);

@@ -1174,8 +1174,8 @@ lpfc_cmd_blksize(struct scsi_cmnd *sc)
  * @reftag:         out: ref tag (reference tag)
  *
  * Description:
- *   Extract DIF paramters from the command if possible.  Otherwise,
- *   use default paratmers.
+ *   Extract DIF parameters from the command if possible.  Otherwise,
+ *   use default parameters.
  *
  **/
 static inline void

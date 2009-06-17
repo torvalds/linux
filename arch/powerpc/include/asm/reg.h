@@ -745,11 +745,11 @@
 			asm volatile("mfmsr %0" : "=r" (rval)); rval;})
 #ifdef CONFIG_PPC64
 #define __mtmsrd(v, l)	asm volatile("mtmsrd %0," __stringify(l) \
-				     : : "r" (v))
+				     : : "r" (v) : "memory")
 #define mtmsrd(v)	__mtmsrd((v), 0)
 #define mtmsr(v)	mtmsrd(v)
 #else
-#define mtmsr(v)	asm volatile("mtmsr %0" : : "r" (v))
+#define mtmsr(v)	asm volatile("mtmsr %0" : : "r" (v) : "memory")
 #endif
 
 #define mfspr(rn)	({unsigned long rval; \

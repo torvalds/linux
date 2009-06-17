@@ -1399,7 +1399,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     DEBUG(2 + (okay ? 2 : 0), "%s: avail. tx space=%u%s\n",
 	  dev->name, freespace, okay ? " (okay)":" (not enough)");
     if (!okay) { /* not enough space */
-	return 1;  /* upper layer may decide to requeue this packet */
+	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
     }
     /* send the packet */
     PutWord(XIRCREG_EDP, (u_short)pktlen);

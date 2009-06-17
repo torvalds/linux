@@ -869,6 +869,7 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct cx8800_fh *fh = file->private_data;
 	struct cx88_buffer *buf;
+	unsigned int rc = POLLERR;
 
 	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type) {
 		if (!res_get(fh->dev,fh,RESOURCE_VBI))
@@ -876,22 +877,27 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 		return videobuf_poll_stream(file, &fh->vbiq, wait);
 	}
 
+	mutex_lock(&fh->vidq.vb_lock);
 	if (res_check(fh,RESOURCE_VIDEO)) {
 		/* streaming capture */
 		if (list_empty(&fh->vidq.stream))
-			return POLLERR;
+			goto done;
 		buf = list_entry(fh->vidq.stream.next,struct cx88_buffer,vb.stream);
 	} else {
 		/* read() capture */
 		buf = (struct cx88_buffer*)fh->vidq.read_buf;
 		if (NULL == buf)
-			return POLLERR;
+			goto done;
 	}
 	poll_wait(file, &buf->vb.done, wait);
 	if (buf->vb.state == VIDEOBUF_DONE ||
 	    buf->vb.state == VIDEOBUF_ERROR)
-		return POLLIN|POLLRDNORM;
-	return 0;
+		rc = POLLIN|POLLRDNORM;
+	else
+		rc = 0;
+done:
+	mutex_unlock(&fh->vidq.vb_lock);
+	return rc;
 }
 
 static int video_release(struct file *file)
@@ -926,8 +932,10 @@ static int video_release(struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
+	mutex_lock(&dev->core->lock);
 	if(atomic_dec_and_test(&dev->core->users))
 		call_all(dev->core, tuner, s_standby);
+	mutex_unlock(&dev->core->lock);
 
 	return 0;
 }

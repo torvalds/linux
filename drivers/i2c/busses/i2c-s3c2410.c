@@ -828,7 +828,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->ioarea = request_mem_region(res->start, (res->end-res->start)+1,
+	i2c->ioarea = request_mem_region(res->start, resource_size(res),
 					 pdev->name);
 
 	if (i2c->ioarea == NULL) {
@@ -837,7 +837,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->regs = ioremap(res->start, (res->end-res->start)+1);
+	i2c->regs = ioremap(res->start, resource_size(res));
 
 	if (i2c->regs == NULL) {
 		dev_err(&pdev->dev, "cannot map IO\n");

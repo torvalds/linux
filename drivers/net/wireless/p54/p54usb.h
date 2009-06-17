@@ -123,18 +123,26 @@ struct p54u_rx_info {
 	struct ieee80211_hw *dev;
 };
 
+enum p54u_hw_type {
+	P54U_INVALID_HW,
+	P54U_NET2280,
+	P54U_3887,
+
+	/* keep last */
+	__NUM_P54U_HWTYPES,
+};
+
 struct p54u_priv {
 	struct p54_common common;
 	struct usb_device *udev;
 	struct usb_interface *intf;
-	enum {
-		P54U_NET2280 = 0,
-		P54U_3887
-	} hw_type;
+	int (*upload_fw)(struct ieee80211_hw *dev);
 
+	enum p54u_hw_type hw_type;
 	spinlock_t lock;
 	struct sk_buff_head rx_queue;
 	struct usb_anchor submitted;
+	const struct firmware *fw;
 };
 
 #endif /* P54USB_H */

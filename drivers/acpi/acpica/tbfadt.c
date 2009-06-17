@@ -284,9 +284,9 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 	if (length > sizeof(struct acpi_table_fadt)) {
 		ACPI_WARNING((AE_INFO,
 			      "FADT (revision %u) is longer than ACPI 2.0 version, "
-			      "truncating length 0x%X to 0x%zX",
-			      table->revision, (unsigned)length,
-			      sizeof(struct acpi_table_fadt)));
+			      "truncating length 0x%X to 0x%X",
+			      table->revision, length,
+			      (u32)sizeof(struct acpi_table_fadt)));
 	}
 
 	/* Clear the entire local FADT */
@@ -441,7 +441,7 @@ static void acpi_tb_convert_fadt(void)
 								   &acpi_gbl_FADT,
 								   fadt_info_table
 								   [i].length),
-						     address32);
+						     (u64) address32);
 		}
 	}
 }
@@ -469,7 +469,6 @@ static void acpi_tb_convert_fadt(void)
 static void acpi_tb_validate_fadt(void)
 {
 	char *name;
-	u32 *address32;
 	struct acpi_generic_address *address64;
 	u8 length;
 	u32 i;
@@ -505,15 +504,12 @@ static void acpi_tb_validate_fadt(void)
 
 	for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++) {
 		/*
-		 * Generate pointers to the 32-bit and 64-bit addresses, get the
-		 * register length (width), and the register name
+		 * Generate pointer to the 64-bit address, get the register
+		 * length (width) and the register name
 		 */
 		address64 = ACPI_ADD_PTR(struct acpi_generic_address,
 					 &acpi_gbl_FADT,
 					 fadt_info_table[i].address64);
-		address32 =
-		    ACPI_ADD_PTR(u32, &acpi_gbl_FADT,
-				 fadt_info_table[i].address32);
 		length =
 		    *ACPI_ADD_PTR(u8, &acpi_gbl_FADT,
 				  fadt_info_table[i].length);

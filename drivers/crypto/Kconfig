@@ -34,7 +34,7 @@ config CRYPTO_DEV_PADLOCK_AES
 	  Available in VIA C3 and newer CPUs.
 
 	  If unsure say M. The compiled module will be
-	  called padlock-aes.ko
+	  called padlock-aes.
 
 config CRYPTO_DEV_PADLOCK_SHA
 	tristate "PadLock driver for SHA1 and SHA256 algorithms"
@@ -47,7 +47,7 @@ config CRYPTO_DEV_PADLOCK_SHA
 	  Available in VIA C7 and newer processors.
 
 	  If unsure say M. The compiled module will be
-	  called padlock-sha.ko
+	  called padlock-sha.
 
 config CRYPTO_DEV_GEODE
 	tristate "Support for the Geode LX AES engine"
@@ -79,7 +79,7 @@ config ZCRYPT_MONOLITHIC
 	bool "Monolithic zcrypt module"
 	depends on ZCRYPT="m"
 	help
-	  Select this option if you want to have a single module z90crypt.ko
+	  Select this option if you want to have a single module z90crypt,
 	  that contains all parts of the crypto device driver (ap bus,
 	  request router and all the card drivers).
 

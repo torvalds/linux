@@ -124,6 +124,14 @@ typedef int __bitwise pci_power_t;
 #define PCI_UNKNOWN	((pci_power_t __force) 5)
 #define PCI_POWER_ERROR	((pci_power_t __force) -1)
 
+/* Remember to update this when the list above changes! */
+extern const char *pci_power_names[];
+
+static inline const char *pci_power_name(pci_power_t state)
+{
+	return pci_power_names[1 + (int) state];
+}
+
 #define PCI_PM_D2_DELAY	200
 #define PCI_PM_D3_WAIT	10
 #define PCI_PM_BUS_WAIT	50

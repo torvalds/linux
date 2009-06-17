@@ -79,7 +79,6 @@ static int  ipaq_open(struct tty_struct *tty,
 static void ipaq_close(struct usb_serial_port *port);
 static int  ipaq_calc_num_ports(struct usb_serial *serial);
 static int  ipaq_startup(struct usb_serial *serial);
-static void ipaq_shutdown(struct usb_serial *serial);
 static int ipaq_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count);
 static int ipaq_write_bulk(struct usb_serial_port *port,
@@ -576,7 +575,6 @@ static struct usb_serial_driver ipaq_device = {
 	.close =		ipaq_close,
 	.attach =		ipaq_startup,
 	.calc_num_ports =	ipaq_calc_num_ports,
-	.shutdown =		ipaq_shutdown,
 	.write =		ipaq_write,
 	.write_room =		ipaq_write_room,
 	.chars_in_buffer =	ipaq_chars_in_buffer,
@@ -988,11 +986,6 @@ static int ipaq_startup(struct usb_serial *serial)
 		__FUNCTION__, serial->num_ports);
 
 	return usb_reset_configuration(serial->dev);
-}
-
-static void ipaq_shutdown(struct usb_serial *serial)
-{
-	dbg("%s", __func__);
 }
 
 static int __init ipaq_init(void)

@@ -391,9 +391,6 @@ static int ks959_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int wraplen;
 	int ret = 0;
 
-	if (skb == NULL || netdev == NULL)
-		return -EINVAL;
-
 	netif_stop_queue(netdev);
 
 	/* the IRDA wrapping routines don't deal with non linear skb */
@@ -428,7 +425,7 @@ static int ks959_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	dev_kfree_skb(skb);
 	spin_unlock(&kingsun->lock);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 /* Receive callback function */

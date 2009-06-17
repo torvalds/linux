@@ -815,7 +815,7 @@ static int ibmlana_close(struct net_device *dev)
 static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	ibmlana_priv *priv = netdev_priv(dev);
-	int retval = 0, tmplen, addr;
+	int tmplen, addr;
 	unsigned long flags;
 	tda_t tda;
 	int baddr;
@@ -824,7 +824,6 @@ static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 	   the upper layer is in deep desperation and we simply ignore the frame. */
 
 	if (priv->txusedcnt >= TXBUFCNT) {
-		retval = -EIO;
 		dev->stats.tx_dropped++;
 		goto tx_done;
 	}
@@ -874,7 +873,7 @@ static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&priv->lock, flags);
 tx_done:
 	dev_kfree_skb(skb);
-	return retval;
+	return NETDEV_TX_OK;
 }
 
 /* switch receiver mode. */

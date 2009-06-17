@@ -982,17 +982,12 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 {
 	struct sk_buff *tx_skb;
 	struct sk_buff *skb;
-	int count;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == LAP_MAGIC, return;);
 
-	/* Initialize variables */
-	count = skb_queue_len(&self->wx_list);
-
 	/*  Resend unacknowledged frame(s) */
-	skb = skb_peek(&self->wx_list);
-	while (skb != NULL) {
+	skb_queue_walk(&self->wx_list, skb) {
 		irlap_wait_min_turn_around(self, &self->qos_tx);
 
 		/* We copy the skb to be retransmitted since we will have to
@@ -1011,21 +1006,12 @@ void irlap_resend_rejected_frames(struct irlap_cb *self, int command)
 		/*
 		 *  Set poll bit on the last frame retransmitted
 		 */
-		if (count-- == 1)
+		if (skb_queue_is_last(&self->wx_list, skb))
 			tx_skb->data[1] |= PF_BIT; /* Set p/f bit */
 		else
 			tx_skb->data[1] &= ~PF_BIT; /* Clear p/f bit */
 
 		irlap_send_i_frame(self, tx_skb, command);
-
-		/*
-		 *  If our skb is the last buffer in the list, then
-		 *  we are finished, if not, move to the next sk-buffer
-		 */
-		if (skb == skb_peek_tail(&self->wx_list))
-			skb = NULL;
-		else
-			skb = skb->next;
 	}
 #if 0 /* Not yet */
 	/*

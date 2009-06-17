@@ -367,7 +367,7 @@ static int vx2_load_xilinx_binary(struct vx_core *chip, const struct firmware *x
 	unsigned int port;
 	const unsigned char *image;
 
-	/* XILINX reset (wait at least 1 milisecond between reset on and off). */
+	/* XILINX reset (wait at least 1 millisecond between reset on and off). */
 	vx_outl(chip, CNTRL, VX_CNTRL_REGISTER_VALUE | VX_XILINX_RESET_MASK);
 	vx_inl(chip, CNTRL);
 	msleep(10);

@@ -1884,17 +1884,13 @@ void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool)
 				mempool->memblock_size, dma_object);
 	}
 
-	if (mempool->items_arr)
-		vfree(mempool->items_arr);
+	vfree(mempool->items_arr);
 
-	if (mempool->memblocks_dma_arr)
-		vfree(mempool->memblocks_dma_arr);
+	vfree(mempool->memblocks_dma_arr);
 
-	if (mempool->memblocks_priv_arr)
-		vfree(mempool->memblocks_priv_arr);
+	vfree(mempool->memblocks_priv_arr);
 
-	if (mempool->memblocks_arr)
-		vfree(mempool->memblocks_arr);
+	vfree(mempool->memblocks_arr);
 
 	vfree(mempool);
 }

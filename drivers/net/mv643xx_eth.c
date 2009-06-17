@@ -55,6 +55,7 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <asm/system.h>
+#include <linux/list.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -88,7 +89,24 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define MAC_ADDR_LOW			0x0014
 #define MAC_ADDR_HIGH			0x0018
 #define SDMA_CONFIG			0x001c
+#define  TX_BURST_SIZE_16_64BIT		0x01000000
+#define  TX_BURST_SIZE_4_64BIT		0x00800000
+#define  BLM_TX_NO_SWAP			0x00000020
+#define  BLM_RX_NO_SWAP			0x00000010
+#define  RX_BURST_SIZE_16_64BIT		0x00000008
+#define  RX_BURST_SIZE_4_64BIT		0x00000004
 #define PORT_SERIAL_CONTROL		0x003c
+#define  SET_MII_SPEED_TO_100		0x01000000
+#define  SET_GMII_SPEED_TO_1000		0x00800000
+#define  SET_FULL_DUPLEX_MODE		0x00200000
+#define  MAX_RX_PACKET_9700BYTE		0x000a0000
+#define  DISABLE_AUTO_NEG_SPEED_GMII	0x00002000
+#define  DO_NOT_FORCE_LINK_FAIL		0x00000400
+#define  SERIAL_PORT_CONTROL_RESERVED	0x00000200
+#define  DISABLE_AUTO_NEG_FOR_FLOW_CTRL	0x00000008
+#define  DISABLE_AUTO_NEG_FOR_DUPLEX	0x00000004
+#define  FORCE_LINK_PASS		0x00000002
+#define  SERIAL_PORT_ENABLE		0x00000001
 #define PORT_STATUS			0x0044
 #define  TX_FIFO_EMPTY			0x00000400
 #define  TX_IN_PROGRESS			0x00000080
@@ -106,7 +124,9 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define TX_BW_BURST			0x005c
 #define INT_CAUSE			0x0060
 #define  INT_TX_END			0x07f80000
+#define  INT_TX_END_0			0x00080000
 #define  INT_RX				0x000003fc
+#define  INT_RX_0			0x00000004
 #define  INT_EXT			0x00000002
 #define INT_CAUSE_EXT			0x0064
 #define  INT_EXT_LINK_PHY		0x00110000
@@ -135,15 +155,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 
 
 /*
- * SDMA configuration register.
+ * SDMA configuration register default value.
  */
-#define RX_BURST_SIZE_4_64BIT		(2 << 1)
-#define RX_BURST_SIZE_16_64BIT		(4 << 1)
-#define BLM_RX_NO_SWAP			(1 << 4)
-#define BLM_TX_NO_SWAP			(1 << 5)
-#define TX_BURST_SIZE_4_64BIT		(2 << 22)
-#define TX_BURST_SIZE_16_64BIT		(4 << 22)
-
 #if defined(__BIG_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
 		(RX_BURST_SIZE_4_64BIT	|	\
@@ -160,22 +173,11 @@ static char mv643xx_eth_driver_version[] = "1.4";
 
 
 /*
- * Port serial control register.
+ * Misc definitions.
  */
-#define SET_MII_SPEED_TO_100			(1 << 24)
-#define SET_GMII_SPEED_TO_1000			(1 << 23)
-#define SET_FULL_DUPLEX_MODE			(1 << 21)
-#define MAX_RX_PACKET_9700BYTE			(5 << 17)
-#define DISABLE_AUTO_NEG_SPEED_GMII		(1 << 13)
-#define DO_NOT_FORCE_LINK_FAIL			(1 << 10)
-#define SERIAL_PORT_CONTROL_RESERVED		(1 << 9)
-#define DISABLE_AUTO_NEG_FOR_FLOW_CTRL		(1 << 3)
-#define DISABLE_AUTO_NEG_FOR_DUPLEX		(1 << 2)
-#define FORCE_LINK_PASS				(1 << 1)
-#define SERIAL_PORT_ENABLE			(1 << 0)
-
-#define DEFAULT_RX_QUEUE_SIZE		128
-#define DEFAULT_TX_QUEUE_SIZE		256
+#define DEFAULT_RX_QUEUE_SIZE	128
+#define DEFAULT_TX_QUEUE_SIZE	256
+#define SKB_DMA_REALIGN		((PAGE_SIZE - NET_SKB_PAD) % SMP_CACHE_BYTES)
 
 
 /*
@@ -393,6 +395,7 @@ struct mv643xx_eth_private {
 	struct work_struct tx_timeout_task;
 
 	struct napi_struct napi;
+	u32 int_mask;
 	u8 oom;
 	u8 work_link;
 	u8 work_tx;
@@ -651,23 +654,20 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 	refilled = 0;
 	while (refilled < budget && rxq->rx_desc_count < rxq->rx_ring_size) {
 		struct sk_buff *skb;
-		int unaligned;
 		int rx;
 		struct rx_desc *rx_desc;
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
-			skb = dev_alloc_skb(mp->skb_size +
-					    dma_get_cache_alignment() - 1);
+			skb = dev_alloc_skb(mp->skb_size);
 
 		if (skb == NULL) {
 			mp->oom = 1;
 			goto oom;
 		}
 
-		unaligned = (u32)skb->data & (dma_get_cache_alignment() - 1);
-		if (unaligned)
-			skb_reserve(skb, dma_get_cache_alignment() - unaligned);
+		if (SKB_DMA_REALIGN)
+			skb_reserve(skb, SKB_DMA_REALIGN);
 
 		refilled++;
 		rxq->rx_desc_count++;
@@ -969,8 +969,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		if (skb != NULL) {
 			if (skb_queue_len(&mp->rx_recycle) <
 					mp->rx_ring_size &&
-			    skb_recycle_check(skb, mp->skb_size +
-					dma_get_cache_alignment() - 1))
+			    skb_recycle_check(skb, mp->skb_size))
 				__skb_queue_head(&mp->rx_recycle, skb);
 			else
 				dev_kfree_skb(skb);
@@ -1723,20 +1722,20 @@ static void uc_addr_set(struct mv643xx_eth_private *mp, unsigned char *addr)
 
 static u32 uc_addr_filter_mask(struct net_device *dev)
 {
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 nibbles;
 
 	if (dev->flags & IFF_PROMISC)
 		return 0;
 
 	nibbles = 1 << (dev->dev_addr[5] & 0x0f);
-	for (uc_ptr = dev->uc_list; uc_ptr != NULL; uc_ptr = uc_ptr->next) {
-		if (memcmp(dev->dev_addr, uc_ptr->da_addr, 5))
+	list_for_each_entry(ha, &dev->uc_list, list) {
+		if (memcmp(dev->dev_addr, ha->addr, 5))
 			return 0;
-		if ((dev->dev_addr[5] ^ uc_ptr->da_addr[5]) & 0xf0)
+		if ((dev->dev_addr[5] ^ ha->addr[5]) & 0xf0)
 			return 0;
 
-		nibbles |= 1 << (uc_ptr->da_addr[5] & 0x0f);
+		nibbles |= 1 << (ha->addr[5] & 0x0f);
 	}
 
 	return nibbles;
@@ -1810,7 +1809,6 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
 		int port_num;
 		u32 accept;
-		int i;
 
 oom:
 		port_num = mp->port_num;
@@ -2067,15 +2065,16 @@ static int mv643xx_eth_collect_events(struct mv643xx_eth_private *mp)
 	u32 int_cause;
 	u32 int_cause_ext;
 
-	int_cause = rdlp(mp, INT_CAUSE) & (INT_TX_END | INT_RX | INT_EXT);
+	int_cause = rdlp(mp, INT_CAUSE) & mp->int_mask;
 	if (int_cause == 0)
 		return 0;
 
 	int_cause_ext = 0;
-	if (int_cause & INT_EXT)
+	if (int_cause & INT_EXT) {
+		int_cause &= ~INT_EXT;
 		int_cause_ext = rdlp(mp, INT_CAUSE_EXT);
+	}
 
-	int_cause &= INT_TX_END | INT_RX;
 	if (int_cause) {
 		wrlp(mp, INT_CAUSE, ~int_cause);
 		mp->work_tx_end |= ((int_cause & INT_TX_END) >> 19) &
@@ -2182,6 +2181,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		if (mp->work_link) {
 			mp->work_link = 0;
 			handle_link_event(mp);
+			work_done++;
 			continue;
 		}
 
@@ -2220,7 +2220,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		if (mp->oom)
 			mod_timer(&mp->rx_oom, jiffies + (HZ / 10));
 		napi_complete(napi);
-		wrlp(mp, INT_MASK, INT_TX_END | INT_RX | INT_EXT);
+		wrlp(mp, INT_MASK, mp->int_mask);
 	}
 
 	return work_done;
@@ -2341,6 +2341,14 @@ static void mv643xx_eth_recalc_skb_size(struct mv643xx_eth_private *mp)
 	 * size field are ignored by the hardware.
 	 */
 	mp->skb_size = (skb_size + 7) & ~7;
+
+	/*
+	 * If NET_SKB_PAD is smaller than a cache line,
+	 * netdev_alloc_skb() will cause skb->data to be misaligned
+	 * to a cache line boundary.  If this is the case, include
+	 * some extra space to allow re-aligning the data area.
+	 */
+	mp->skb_size += SKB_DMA_REALIGN;
 }
 
 static int mv643xx_eth_open(struct net_device *dev)
@@ -2366,6 +2374,8 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	skb_queue_head_init(&mp->rx_recycle);
 
+	mp->int_mask = INT_EXT;
+
 	for (i = 0; i < mp->rxq_count; i++) {
 		err = rxq_init(mp, i);
 		if (err) {
@@ -2375,6 +2385,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 		}
 
 		rxq_refill(mp->rxq + i, INT_MAX);
+		mp->int_mask |= INT_RX_0 << i;
 	}
 
 	if (mp->oom) {
@@ -2389,12 +2400,13 @@ static int mv643xx_eth_open(struct net_device *dev)
 				txq_deinit(mp->txq + i);
 			goto out_free;
 		}
+		mp->int_mask |= INT_TX_END_0 << i;
 	}
 
 	port_start(mp);
 
 	wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
-	wrlp(mp, INT_MASK, INT_TX_END | INT_RX | INT_EXT);
+	wrlp(mp, INT_MASK, mp->int_mask);
 
 	return 0;
 
@@ -2538,7 +2550,7 @@ static void mv643xx_eth_netpoll(struct net_device *dev)
 
 	mv643xx_eth_irq(dev->irq, dev);
 
-	wrlp(mp, INT_MASK, INT_TX_END | INT_RX | INT_EXT);
+	wrlp(mp, INT_MASK, mp->int_mask);
 }
 #endif
 

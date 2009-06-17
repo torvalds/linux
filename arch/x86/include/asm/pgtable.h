@@ -317,6 +317,11 @@ static inline int pte_present(pte_t a)
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
+static inline int pte_hidden(pte_t pte)
+{
+	return pte_flags(pte) & _PAGE_HIDDEN;
+}
+
 static inline int pmd_present(pmd_t pmd)
 {
 	return pmd_flags(pmd) & _PAGE_PRESENT;

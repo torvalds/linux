@@ -676,8 +676,8 @@ this directory the following files can currently be found:
 	dma-api/all_errors	This file contains a numeric value. If this
 				value is not equal to zero the debugging code
 				will print a warning for every error it finds
-				into the kernel log. Be carefull with this
-				option. It can easily flood your logs.
+				into the kernel log. Be careful with this
+				option, as it can easily flood your logs.
 
 	dma-api/disabled	This read-only file contains the character 'Y'
 				if the debugging code is disabled. This can

@@ -636,8 +636,10 @@ static void wireless_seq_printf_stats(struct seq_file *seq,
 /*
  * Print info for /proc/net/wireless (print all entries)
  */
-static int wireless_seq_show(struct seq_file *seq, void *v)
+static int wireless_dev_seq_show(struct seq_file *seq, void *v)
 {
+	might_sleep();
+
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "Inter-| sta-|   Quality        |   Discarded "
 				"packets               | Missed | WE\n"
@@ -649,14 +651,46 @@ static int wireless_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static void *wireless_dev_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	struct net *net = seq_file_net(seq);
+	loff_t off;
+	struct net_device *dev;
+
+	rtnl_lock();
+	if (!*pos)
+		return SEQ_START_TOKEN;
+
+	off = 1;
+	for_each_netdev(net, dev)
+		if (off++ == *pos)
+			return dev;
+	return NULL;
+}
+
+static void *wireless_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct net *net = seq_file_net(seq);
+
+	++*pos;
+
+	return v == SEQ_START_TOKEN ?
+		first_net_device(net) : next_net_device(v);
+}
+
+static void wireless_dev_seq_stop(struct seq_file *seq, void *v)
+{
+	rtnl_unlock();
+}
+
 static const struct seq_operations wireless_seq_ops = {
-	.start = dev_seq_start,
-	.next  = dev_seq_next,
-	.stop  = dev_seq_stop,
-	.show  = wireless_seq_show,
+	.start = wireless_dev_seq_start,
+	.next  = wireless_dev_seq_next,
+	.stop  = wireless_dev_seq_stop,
+	.show  = wireless_dev_seq_show,
 };
 
-static int wireless_seq_open(struct inode *inode, struct file *file)
+static int seq_open_wireless(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &wireless_seq_ops,
 			    sizeof(struct seq_net_private));
@@ -664,7 +698,7 @@ static int wireless_seq_open(struct inode *inode, struct file *file)
 
 static const struct file_operations wireless_seq_fops = {
 	.owner	 = THIS_MODULE,
-	.open    = wireless_seq_open,
+	.open    = seq_open_wireless,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release_net,

@@ -424,34 +424,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-/*
- * attach_inform()
- * gets called when a device attaches to the i2c bus
- * does some basic configuration
- */
-static int attach_inform(struct i2c_client *client)
-{
-	struct cx231xx_i2c *bus = i2c_get_adapdata(client->adapter);
-	struct cx231xx *dev = bus->dev;
-
-	switch (client->addr << 1) {
-	case 0x8e:
-		{
-			struct IR_i2c *ir = i2c_get_clientdata(client);
-			dprintk1(1, "attach_inform: IR detected (%s).\n",
-				 ir->phys);
-			cx231xx_set_ir(dev, ir);
-			break;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static struct i2c_algorithm cx231xx_algo = {
 	.master_xfer = cx231xx_i2c_xfer,
 	.functionality = functionality,
@@ -462,7 +434,6 @@ static struct i2c_adapter cx231xx_adap_template = {
 	.name = "cx231xx",
 	.id = I2C_HW_B_CX231XX,
 	.algo = &cx231xx_algo,
-	.client_register = attach_inform,
 };
 
 static struct i2c_client cx231xx_client_template = {
@@ -537,6 +508,9 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	if (0 == bus->i2c_rc) {
 		if (i2c_scan)
 			cx231xx_do_i2c_scan(dev, &bus->i2c_client);
+
+		/* Instantiate the IR receiver device, if present */
+		cx231xx_register_i2c_ir(dev);
 	} else
 		cx231xx_warn("%s: i2c bus %d register FAILED\n",
 			     dev->name, bus->nr);

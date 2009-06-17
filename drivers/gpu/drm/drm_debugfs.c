@@ -105,7 +105,7 @@ int drm_debugfs_create_files(struct drm_info_list *files, int count,
 		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
 					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
-			DRM_ERROR("Cannot create /debugfs/dri/%s/%s\n",
+			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/%s\n",
 				  name, files[i].name);
 			drm_free(tmp, sizeof(struct drm_info_node),
 				 _DRM_DRIVER);
@@ -133,9 +133,9 @@ EXPORT_SYMBOL(drm_debugfs_create_files);
  * \param minor device minor number
  * \param root DRI debugfs dir entry.
  *
- * Create the DRI debugfs root entry "/debugfs/dri", the device debugfs root entry
- * "/debugfs/dri/%minor%/", and each entry in debugfs_list as
- * "/debugfs/dri/%minor%/%name%".
+ * Create the DRI debugfs root entry "/sys/kernel/debug/dri", the device debugfs root entry
+ * "/sys/kernel/debug/dri/%minor%/", and each entry in debugfs_list as
+ * "/sys/kernel/debug/dri/%minor%/%name%".
  */
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root)
@@ -148,7 +148,7 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 	sprintf(name, "%d", minor_id);
 	minor->debugfs_root = debugfs_create_dir(name, root);
 	if (!minor->debugfs_root) {
-		DRM_ERROR("Cannot create /debugfs/dri/%s\n", name);
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s\n", name);
 		return -1;
 	}
 
@@ -165,7 +165,7 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		ret = dev->driver->debugfs_init(minor);
 		if (ret) {
 			DRM_ERROR("DRM: Driver failed to initialize "
-				  "/debugfs/dri.\n");
+				  "/sys/kernel/debug/dri.\n");
 			return ret;
 		}
 	}

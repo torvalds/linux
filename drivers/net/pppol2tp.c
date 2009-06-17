@@ -433,8 +433,7 @@ static void pppol2tp_recv_dequeue_skb(struct pppol2tp_session *session, struct s
 		 *   to the inner packet either
 		 */
 		secpath_reset(skb);
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		nf_reset(skb);
 
 		po = pppox_sk(session_sock);
@@ -976,7 +975,7 @@ static int pppol2tp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msgh
 	/* Calculate UDP checksum if configured to do so */
 	if (sk_tun->sk_no_check == UDP_CSUM_NOXMIT)
 		skb->ip_summed = CHECKSUM_NONE;
-	else if (!(skb->dst->dev->features & NETIF_F_V4_CSUM)) {
+	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
 		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
@@ -1172,14 +1171,14 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	nf_reset(skb);
 
 	/* Get routing info from the tunnel socket */
-	dst_release(skb->dst);
-	skb->dst = dst_clone(__sk_dst_get(sk_tun));
+	skb_dst_drop(skb);
+	skb_dst_set(skb, dst_clone(__sk_dst_get(sk_tun)));
 	pppol2tp_skb_set_owner_w(skb, sk_tun);
 
 	/* Calculate UDP checksum if configured to do so */
 	if (sk_tun->sk_no_check == UDP_CSUM_NOXMIT)
 		skb->ip_summed = CHECKSUM_NONE;
-	else if (!(skb->dst->dev->features & NETIF_F_V4_CSUM)) {
+	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
 		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,
@@ -1238,8 +1237,7 @@ static void pppol2tp_tunnel_closeall(struct pppol2tp_tunnel *tunnel)
 	struct pppol2tp_session *session;
 	struct sock *sk;
 
-	if (tunnel == NULL)
-		BUG();
+	BUG_ON(tunnel == NULL);
 
 	PRINTK(tunnel->debug, PPPOL2TP_MSG_CONTROL, KERN_INFO,
 	       "%s: closing all sessions...\n", tunnel->name);

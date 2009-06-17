@@ -349,15 +349,6 @@ static int ov7725_power(struct device *dev, int mode)
 	return 0;
 }
 
-static struct ov772x_camera_info ov7725_info = {
-	.buswidth  = SOCAM_DATAWIDTH_8,
-	.flags = OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
-	.edgectrl = OV772X_AUTO_EDGECTRL(0xf, 0),
-	.link = {
-		.power  = ov7725_power,
-	},
-};
-
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
 };
@@ -402,6 +393,38 @@ static struct platform_device sdcard_cn3_device = {
 	},
 };
 
+static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
+};
+
+static struct i2c_board_info ap325rxa_i2c_camera[] = {
+	{
+		I2C_BOARD_INFO("ov772x", 0x21),
+	},
+};
+
+static struct ov772x_camera_info ov7725_info = {
+	.buswidth	= SOCAM_DATAWIDTH_8,
+	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
+	.link = {
+		.power		= ov7725_power,
+		.board_info	= &ap325rxa_i2c_camera[0],
+		.i2c_adapter_id	= 0,
+		.module_name	= "ov772x",
+	},
+};
+
+static struct platform_device ap325rxa_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &ov7725_info.link,
+	},
+};
+
 static struct platform_device *ap325rxa_devices[] __initdata = {
 	&smsc9118_device,
 	&ap325rxa_nor_flash_device,
@@ -409,16 +432,7 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ceu_device,
 	&nand_flash_device,
 	&sdcard_cn3_device,
-};
-
-static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
-	{
-		I2C_BOARD_INFO("pcf8563", 0x51),
-	},
-	{
-		I2C_BOARD_INFO("ov772x", 0x21),
-		.platform_data = &ov7725_info,
-	},
+	&ap325rxa_camera,
 };
 
 static struct spi_board_info ap325rxa_spi_devices[] = {

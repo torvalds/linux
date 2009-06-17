@@ -1408,7 +1408,7 @@ EXPORT_SYMBOL(touch_atime);
  *	for writeback.  Note that this function is meant exclusively for
  *	usage in the file write path of filesystems, and filesystems may
  *	choose to explicitly ignore update via this function with the
- *	S_NOCTIME inode flag, e.g. for network filesystem where these
+ *	S_NOCMTIME inode flag, e.g. for network filesystem where these
  *	timestamps are handled by the server.
  */
 

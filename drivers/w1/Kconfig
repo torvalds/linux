@@ -8,7 +8,7 @@ menuconfig W1
 	  If you want W1 support, you should say Y here.
 
 	  This W1 support can also be built as a module.  If so, the module
-	  will be called wire.ko.
+	  will be called wire.
 
 if W1
 

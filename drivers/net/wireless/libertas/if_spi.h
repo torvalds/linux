@@ -22,6 +22,9 @@
 #define IF_SPI_CMD_BUF_SIZE 2400
 
 /***************** Firmware *****************/
+
+#define IF_SPI_FW_NAME_MAX 30
+
 struct chip_ident {
 	u16 chip_id;
 	u16 name;

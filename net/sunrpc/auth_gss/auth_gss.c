@@ -1548,6 +1548,7 @@ static void __exit exit_rpcsec_gss(void)
 {
 	gss_svc_shutdown();
 	rpcauth_unregister(&authgss_ops);
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
 MODULE_LICENSE("GPL");

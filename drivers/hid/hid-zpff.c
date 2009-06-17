@@ -27,6 +27,7 @@
 
 #include "hid-ids.h"
 
+#ifdef CONFIG_ZEROPLUS_FF
 #include "usbhid/usbhid.h"
 
 struct zpff_device {
@@ -108,6 +109,12 @@ static int zpff_init(struct hid_device *hid)
 
 	return 0;
 }
+#else
+static inline int zpff_init(struct hid_device *hid)
+{
+	return 0;
+}
+#endif
 
 static int zp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {

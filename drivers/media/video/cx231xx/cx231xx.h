@@ -738,7 +738,7 @@ extern void cx231xx_card_setup(struct cx231xx *dev);
 extern struct cx231xx_board cx231xx_boards[];
 extern struct usb_device_id cx231xx_id_table[];
 extern const unsigned int cx231xx_bcount;
-void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir);
+void cx231xx_register_i2c_ir(struct cx231xx *dev);
 int cx231xx_tuner_callback(void *ptr, int component, int command, int arg);
 
 /* Provided by cx231xx-input.c */

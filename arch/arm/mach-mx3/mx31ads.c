@@ -187,7 +187,7 @@ static void __init mx31ads_init_expio(void)
 	/*
 	 * Configure INT line as GPIO input
 	 */
-	mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
+	mxc_iomux_alloc_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
 
 	/* disable the interrupt and clear the status */
 	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
@@ -511,7 +511,7 @@ static struct map_desc mx31ads_io_desc[] __initdata = {
  */
 static void __init mx31ads_map_io(void)
 {
-	mxc_map_io();
+	mx31_map_io();
 	iotable_init(mx31ads_io_desc, ARRAY_SIZE(mx31ads_io_desc));
 }
 

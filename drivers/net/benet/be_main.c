@@ -168,6 +168,7 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	struct be_port_rxf_stats *port_stats =
 			&rxf_stats->port[adapter->port_num];
 	struct net_device_stats *dev_stats = &adapter->stats.net_stats;
+	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
 	dev_stats->rx_packets = port_stats->rx_total_frames;
 	dev_stats->tx_packets = port_stats->tx_unicastframes +
@@ -181,29 +182,33 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->rx_errors = port_stats->rx_crc_errors +
 		port_stats->rx_alignment_symbol_errors +
 		port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors + port_stats->rx_frame_too_long;
+		port_stats->rx_out_range_errors +
+		port_stats->rx_frame_too_long +
+		port_stats->rx_dropped_too_small +
+		port_stats->rx_dropped_too_short +
+		port_stats->rx_dropped_header_too_small +
+		port_stats->rx_dropped_tcp_length +
+		port_stats->rx_dropped_runt +
+		port_stats->rx_tcp_checksum_errs +
+		port_stats->rx_ip_checksum_errs +
+		port_stats->rx_udp_checksum_errs;
 
-	/*  packet transmit problems */
-	dev_stats->tx_errors = 0;
-
-	/*  no space in linux buffers */
-	dev_stats->rx_dropped = 0;
-
-	/* no space available in linux */
-	dev_stats->tx_dropped = 0;
-
-	dev_stats->multicast = port_stats->tx_multicastframes;
-	dev_stats->collisions = 0;
+	/*  no space in linux buffers: best possible approximation */
+	dev_stats->rx_dropped = erx_stats->rx_drops_no_fragments[0];
 
 	/* detailed rx errors */
 	dev_stats->rx_length_errors = port_stats->rx_in_range_errors +
-		port_stats->rx_out_range_errors + port_stats->rx_frame_too_long;
+		port_stats->rx_out_range_errors +
+		port_stats->rx_frame_too_long;
+
 	/* receive ring buffer overflow */
 	dev_stats->rx_over_errors = 0;
+
 	dev_stats->rx_crc_errors = port_stats->rx_crc_errors;
 
 	/* frame alignment errors */
 	dev_stats->rx_frame_errors = port_stats->rx_alignment_symbol_errors;
+
 	/* receiver fifo overrun */
 	/* drops_no_pbuf is no per i/f, it's per BE card */
 	dev_stats->rx_fifo_errors = port_stats->rx_fifo_overflow +
@@ -211,6 +216,16 @@ static void netdev_stats_update(struct be_adapter *adapter)
 					rxf_stats->rx_drops_no_pbuf;
 	/* receiver missed packetd */
 	dev_stats->rx_missed_errors = 0;
+
+	/*  packet transmit problems */
+	dev_stats->tx_errors = 0;
+
+	/* no space available in linux */
+	dev_stats->tx_dropped = 0;
+
+	dev_stats->multicast = port_stats->tx_multicastframes;
+	dev_stats->collisions = 0;
+
 	/* detailed tx_errors */
 	dev_stats->tx_aborted_errors = 0;
 	dev_stats->tx_carrier_errors = 0;
@@ -337,13 +352,10 @@ static void be_tx_stats_update(struct be_adapter *adapter,
 /* Determine number of WRB entries needed to xmit data in an skb */
 static u32 wrb_cnt_for_skb(struct sk_buff *skb, bool *dummy)
 {
-	int cnt = 0;
-	while (skb) {
-		if (skb->len > skb->data_len)
-			cnt++;
-		cnt += skb_shinfo(skb)->nr_frags;
-		skb = skb_shinfo(skb)->frag_list;
-	}
+	int cnt = (skb->len > skb->data_len);
+
+	cnt += skb_shinfo(skb)->nr_frags;
+
 	/* to account for hdr wrb */
 	cnt++;
 	if (cnt & 1) {
@@ -409,31 +421,28 @@ static int make_tx_wrbs(struct be_adapter *adapter,
 	hdr = queue_head_node(txq);
 	queue_head_inc(txq);
 
-	while (skb) {
-		if (skb->len > skb->data_len) {
-			int len = skb->len - skb->data_len;
-			busaddr = pci_map_single(pdev, skb->data, len,
-					PCI_DMA_TODEVICE);
-			wrb = queue_head_node(txq);
-			wrb_fill(wrb, busaddr, len);
-			be_dws_cpu_to_le(wrb, sizeof(*wrb));
-			queue_head_inc(txq);
-			copied += len;
-		}
+	if (skb->len > skb->data_len) {
+		int len = skb->len - skb->data_len;
+		busaddr = pci_map_single(pdev, skb->data, len,
+					 PCI_DMA_TODEVICE);
+		wrb = queue_head_node(txq);
+		wrb_fill(wrb, busaddr, len);
+		be_dws_cpu_to_le(wrb, sizeof(*wrb));
+		queue_head_inc(txq);
+		copied += len;
+	}
 
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			struct skb_frag_struct *frag =
-				&skb_shinfo(skb)->frags[i];
-			busaddr = pci_map_page(pdev, frag->page,
-					frag->page_offset,
-					frag->size, PCI_DMA_TODEVICE);
-			wrb = queue_head_node(txq);
-			wrb_fill(wrb, busaddr, frag->size);
-			be_dws_cpu_to_le(wrb, sizeof(*wrb));
-			queue_head_inc(txq);
-			copied += frag->size;
-		}
-		skb = skb_shinfo(skb)->frag_list;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		struct skb_frag_struct *frag =
+			&skb_shinfo(skb)->frags[i];
+		busaddr = pci_map_page(pdev, frag->page,
+				       frag->page_offset,
+				       frag->size, PCI_DMA_TODEVICE);
+		wrb = queue_head_node(txq);
+		wrb_fill(wrb, busaddr, frag->size);
+		be_dws_cpu_to_le(wrb, sizeof(*wrb));
+		queue_head_inc(txq);
+		copied += frag->size;
 	}
 
 	if (dummy_wrb) {
@@ -477,8 +486,6 @@ static int be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	be_txq_notify(&adapter->ctrl, txq->id, wrb_cnt);
-
-	netdev->trans_start = jiffies;
 
 	be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
 	return NETDEV_TX_OK;
@@ -637,6 +644,22 @@ static void be_rx_stats_update(struct be_adapter *adapter,
 	stats->be_rx_bytes += pktsize;
 }
 
+static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)
+{
+	u8 l4_cksm, ip_version, ipcksm, tcpf = 0, udpf = 0, ipv6_chk;
+
+	l4_cksm = AMAP_GET_BITS(struct amap_eth_rx_compl, l4_cksm, rxcp);
+	ipcksm = AMAP_GET_BITS(struct amap_eth_rx_compl, ipcksm, rxcp);
+	ip_version = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
+	if (ip_version) {
+		tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
+		udpf = AMAP_GET_BITS(struct amap_eth_rx_compl, udpf, rxcp);
+	}
+	ipv6_chk = (ip_version && (tcpf || udpf));
+
+	return ((l4_cksm && ipv6_chk && ipcksm) && cso) ? false : true;
+}
+
 static struct be_rx_page_info *
 get_rx_page_info(struct be_adapter *adapter, u16 frag_idx)
 {
@@ -720,7 +743,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 
 	if (pktsize <= rx_frag_size) {
 		BUG_ON(num_rcvd != 1);
-		return;
+		goto done;
 	}
 
 	/* More frags present for this completion */
@@ -742,6 +765,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		memset(page_info, 0, sizeof(*page_info));
 	}
 
+done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
 	return;
 }
@@ -752,9 +776,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 {
 	struct sk_buff *skb;
 	u32 vtp, vid;
-	int l4_cksm;
 
-	l4_cksm = AMAP_GET_BITS(struct amap_eth_rx_compl, l4_cksm, rxcp);
 	vtp = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 
 	skb = netdev_alloc_skb(adapter->netdev, BE_HDR_LEN + NET_IP_ALIGN);
@@ -769,10 +791,10 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb_fill_rx_data(adapter, skb, rxcp);
 
-	if (l4_cksm && adapter->rx_csum)
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	else
+	if (do_pkt_csum(rxcp, adapter->rx_csum))
 		skb->ip_summed = CHECKSUM_NONE;
+	else
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
@@ -854,10 +876,17 @@ static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
 
 	be_dws_le_to_cpu(rxcp, sizeof(*rxcp));
 
-	rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] = 0;
-
 	queue_tail_inc(&adapter->rx_obj.cq);
 	return rxcp;
+}
+
+/* To reset the valid bit, we need to reset the whole word as
+ * when walking the queue the valid entries are little-endian
+ * and invalid entries are host endian
+ */
+static inline void be_rx_compl_reset(struct be_eth_rx_compl *rxcp)
+{
+	rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] = 0;
 }
 
 static inline struct page *be_alloc_pages(u32 size)
@@ -991,6 +1020,7 @@ static void be_rx_q_clean(struct be_adapter *adapter)
 	/* First cleanup pending rx completions */
 	while ((rxcp = be_rx_compl_get(adapter)) != NULL) {
 		be_rx_compl_discard(adapter, rxcp);
+		be_rx_compl_reset(rxcp);
 		be_cq_notify(&adapter->ctrl, rx_cq->id, true, 1);
 	}
 
@@ -1026,18 +1056,19 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	struct be_queue_info *q;
 
 	q = &adapter->tx_obj.q;
-	if (q->created)
+	if (q->created) {
 		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_TXQ);
+
+		/* No more tx completions can be rcvd now; clean up if there
+		 * are any pending completions or pending tx requests */
+		be_tx_q_clean(adapter);
+	}
 	be_queue_free(adapter, q);
 
 	q = &adapter->tx_obj.cq;
 	if (q->created)
 		be_cmd_q_destroy(&adapter->ctrl, q, QTYPE_CQ);
 	be_queue_free(adapter, q);
-
-	/* No more tx completions can be rcvd now; clean up if there are
-	 * any pending completions or pending tx requests */
-	be_tx_q_clean(adapter);
 
 	q = &adapter->tx_eq.q;
 	if (q->created)
@@ -1272,6 +1303,8 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 			be_rx_compl_process_lro(adapter, rxcp);
 		else
 			be_rx_compl_process(adapter, rxcp);
+
+		be_rx_compl_reset(rxcp);
 	}
 
 	lro_flush_all(&adapter->rx_obj.lro_mgr);
@@ -1527,7 +1560,7 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	int vec;
 
-	cancel_delayed_work(&adapter->work);
+	cancel_delayed_work_sync(&adapter->work);
 
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
@@ -1626,9 +1659,11 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
+		NETIF_F_IPV6_CSUM;
 
 	netdev->flags |= IFF_MULTICAST;
+
+	adapter->rx_csum = true;
 
 	BE_SET_NETDEV_OPS(netdev, &be_netdev_ops);
 

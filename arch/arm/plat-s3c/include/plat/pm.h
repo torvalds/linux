@@ -44,6 +44,8 @@ extern void (*pm_cpu_sleep)(void);
 
 extern unsigned long s3c_pm_flags;
 
+extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
+
 /* from sleep.S */
 
 extern int  s3c_cpu_save(unsigned long *saveblk);
@@ -88,6 +90,7 @@ struct pm_uart_save {
 	u32	ufcon;
 	u32	umcon;
 	u32	ubrdiv;
+	u32	udivslot;
 };
 
 /* helper functions to save/restore lists of registers. */
@@ -123,6 +126,18 @@ extern void s3c_pm_dbg(const char *msg, ...);
 #else
 #define S3C_PMDBG(fmt...) printk(KERN_DEBUG fmt)
 #endif
+
+#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
+/**
+ * s3c_pm_debug_smdkled() - Debug PM suspend/resume via SMDK Board LEDs
+ * @set: set bits for the state of the LEDs
+ * @clear: clear bits for the state of the LEDs.
+ */
+extern void s3c_pm_debug_smdkled(u32 set, u32 clear);
+
+#else
+static inline void s3c_pm_debug_smdkled(u32 set, u32 clear) { }
+#endif /* CONFIG_S3C_PM_DEBUG_LED_SMDK */
 
 /* suspend memory checking */
 

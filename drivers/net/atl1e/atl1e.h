@@ -429,7 +429,6 @@ struct atl1e_adapter {
 	struct mii_if_info  mii;    /* MII interface info */
 	struct atl1e_hw        hw;
 	struct atl1e_hw_stats  hw_stats;
-	struct net_device_stats net_stats;
 
 	bool have_msi;
 	u32 wol;

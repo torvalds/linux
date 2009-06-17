@@ -42,6 +42,18 @@ static int ir_mode[PVR_NUM] = { [0 ... PVR_NUM-1] = 1 };
 module_param_array(ir_mode, int, NULL, 0444);
 MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=normal IR");
 
+static int pvr2_disable_ir_video;
+module_param_named(disable_autoload_ir_video, pvr2_disable_ir_video,
+		   int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(disable_autoload_ir_video,
+		 "1=do not try to autoload ir_video IR receiver");
+
+/* Mapping of IR schemes to known I2C addresses - if any */
+static const unsigned char ir_video_addresses[] = {
+	[PVR2_IR_SCHEME_29XXX] = 0x18,
+	[PVR2_IR_SCHEME_24XXX] = 0x18,
+};
+
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
 			  u8 *data,         /* Data to write */
@@ -559,6 +571,31 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 	printk(KERN_INFO "%s: i2c scan done.\n", hdw->name);
 }
 
+static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
+{
+	struct i2c_board_info info;
+	unsigned char addr = 0;
+	if (pvr2_disable_ir_video) {
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Automatic binding of ir_video has been disabled.");
+		return;
+	}
+	if (hdw->ir_scheme_active < ARRAY_SIZE(ir_video_addresses)) {
+		addr = ir_video_addresses[hdw->ir_scheme_active];
+	}
+	if (!addr) {
+		/* The device either doesn't support I2C-based IR or we
+		   don't know (yet) how to operate IR on the device. */
+		return;
+	}
+	pvr2_trace(PVR2_TRACE_INFO,
+		   "Binding ir_video to i2c address 0x%02x.", addr);
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	info.addr = addr;
+	i2c_new_device(&hdw->i2c_adap, &info);
+}
+
 void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 {
 	unsigned int idx;
@@ -574,7 +611,9 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_24XXX) {
+		if (hdw->ir_scheme_active == PVR2_IR_SCHEME_24XXX) {
+			/* Set up translation so that our IR looks like a
+			   29xxx device */
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}
@@ -597,15 +636,23 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	i2c_add_adapter(&hdw->i2c_adap);
 	if (hdw->i2c_func[0x18] == i2c_24xxx_ir) {
 		/* Probe for a different type of IR receiver on this
-		   device.  If present, disable the emulated IR receiver. */
+		   device.  This is really the only way to differentiate
+		   older 24xxx devices from 24xxx variants that include an
+		   IR blaster.  If the IR blaster is present, the IR
+		   receiver is part of that chip and thus we must disable
+		   the emulated IR receiver. */
 		if (do_i2c_probe(hdw, 0x71)) {
 			pvr2_trace(PVR2_TRACE_INFO,
 				   "Device has newer IR hardware;"
 				   " disabling unneeded virtual IR device");
 			hdw->i2c_func[0x18] = NULL;
+			/* Remember that this is a different device... */
+			hdw->ir_scheme_active = PVR2_IR_SCHEME_24XXX_MCE;
 		}
 	}
 	if (i2c_scan) do_i2c_scan(hdw);
+
+	pvr2_i2c_register_ir(hdw);
 }
 
 void pvr2_i2c_core_done(struct pvr2_hdw *hdw)

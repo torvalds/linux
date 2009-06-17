@@ -351,8 +351,9 @@ static void dma_4u_free_coherent(struct device *dev, size_t size,
 		free_pages((unsigned long)cpu, order);
 }
 
-static dma_addr_t dma_4u_map_single(struct device *dev, void *ptr, size_t sz,
-				    enum dma_data_direction direction)
+static dma_addr_t dma_4u_map_page(struct device *dev, struct page *page,
+				  unsigned long offset, size_t sz,
+				  enum dma_data_direction direction)
 {
 	struct iommu *iommu;
 	struct strbuf *strbuf;
@@ -368,7 +369,7 @@ static dma_addr_t dma_4u_map_single(struct device *dev, void *ptr, size_t sz,
 	if (unlikely(direction == DMA_NONE))
 		goto bad_no_ctx;
 
-	oaddr = (unsigned long)ptr;
+	oaddr = (unsigned long)(page_address(page) + offset);
 	npages = IO_PAGE_ALIGN(oaddr + sz) - (oaddr & IO_PAGE_MASK);
 	npages >>= IO_PAGE_SHIFT;
 
@@ -472,8 +473,8 @@ do_flush_sync:
 		       vaddr, ctx, npages);
 }
 
-static void dma_4u_unmap_single(struct device *dev, dma_addr_t bus_addr,
-				size_t sz, enum dma_data_direction direction)
+static void dma_4u_unmap_page(struct device *dev, dma_addr_t bus_addr,
+			      size_t sz, enum dma_data_direction direction)
 {
 	struct iommu *iommu;
 	struct strbuf *strbuf;
@@ -824,8 +825,8 @@ static void dma_4u_sync_sg_for_cpu(struct device *dev,
 static const struct dma_ops sun4u_dma_ops = {
 	.alloc_coherent		= dma_4u_alloc_coherent,
 	.free_coherent		= dma_4u_free_coherent,
-	.map_single		= dma_4u_map_single,
-	.unmap_single		= dma_4u_unmap_single,
+	.map_page		= dma_4u_map_page,
+	.unmap_page		= dma_4u_unmap_page,
 	.map_sg			= dma_4u_map_sg,
 	.unmap_sg		= dma_4u_unmap_sg,
 	.sync_single_for_cpu	= dma_4u_sync_single_for_cpu,

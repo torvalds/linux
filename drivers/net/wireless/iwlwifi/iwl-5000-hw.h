@@ -87,6 +87,18 @@
 #define IWL50_NUM_AMPDU_QUEUES		  10
 #define IWL50_FIRST_AMPDU_QUEUE		  10
 
+/* 5150 only */
+#define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
+
+static inline s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
+{
+	u16 *temp_calib = (u16 *)iwl_eeprom_query_addr(priv,
+						       EEPROM_5000_TEMPERATURE);
+	/* offset =  temperature -  voltage / coef */
+	s32 offset = (s32)(temp_calib[0] - temp_calib[1] / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF);
+	return offset;
+}
+
 /* Fixed (non-configurable) rx data from phy */
 
 /**

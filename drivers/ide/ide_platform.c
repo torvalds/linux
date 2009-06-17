@@ -112,7 +112,7 @@ out:
 
 static int __devexit plat_ide_remove(struct platform_device *pdev)
 {
-	struct ide_host *host = pdev->dev.driver_data;
+	struct ide_host *host = dev_get_drvdata(&pdev->dev);
 
 	ide_host_remove(host);
 

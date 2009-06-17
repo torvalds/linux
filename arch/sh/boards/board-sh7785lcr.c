@@ -15,16 +15,18 @@
 #include <linux/fb.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
+#include <linux/usb/r8a66597.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <mach/sh7785lcr.h>
+#include <cpu/sh7785.h>
 #include <asm/heartbeat.h>
 #include <asm/clock.h>
-#include <cpu/sh7785.h>
 
 /*
  * NOTE: This board has 2 physical memory maps.
@@ -98,18 +100,21 @@ static struct platform_device nor_flash_device = {
 	.resource	= nor_flash_resources,
 };
 
+static struct r8a66597_platdata r8a66597_data = {
+	.xtal = R8A66597_PLATDATA_XTAL_12MHZ,
+	.vif = 1,
+};
+
 static struct resource r8a66597_usb_host_resources[] = {
 	[0] = {
-		.name	= "r8a66597_hcd",
 		.start	= R8A66597_ADDR,
 		.end	= R8A66597_ADDR + R8A66597_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.name	= "r8a66597_hcd",
 		.start	= 2,
 		.end	= 2,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
 
@@ -119,6 +124,7 @@ static struct platform_device r8a66597_usb_host_device = {
 	.dev = {
 		.dma_mask		= NULL,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &r8a66597_data,
 	},
 	.num_resources	= ARRAY_SIZE(r8a66597_usb_host_resources),
 	.resource	= r8a66597_usb_host_resources,

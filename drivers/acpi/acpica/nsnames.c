@@ -149,7 +149,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	name_buffer = ACPI_ALLOCATE_ZEROED(size);
 	if (!name_buffer) {
-		ACPI_ERROR((AE_INFO, "Allocation failure"));
+		ACPI_ERROR((AE_INFO, "Could not allocate %u bytes", (u32)size));
 		return_PTR(NULL);
 	}
 

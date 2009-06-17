@@ -47,7 +47,7 @@
 #define PHY_ID_ANY		0x1f
 #define MII_REG_ANY		0x1f
 
-#define DRV_VERSION		"1.2"
+#define DRV_VERSION		"1.3"
 #define DRV_NAME		"sis190"
 #define SIS190_DRIVER_NAME	DRV_NAME " Gigabit Ethernet driver " DRV_VERSION
 #define PFX DRV_NAME ": "
@@ -317,6 +317,7 @@ static struct mii_chip_info {
         unsigned int type;
 	u32 feature;
 } mii_chip_table[] = {
+	{ "Atheros PHY",          { 0x004d, 0xd010 }, LAN, 0 },
 	{ "Atheros PHY AR8012",   { 0x004d, 0xd020 }, LAN, 0 },
 	{ "Broadcom PHY BCM5461", { 0x0020, 0x60c0 }, LAN, F_PHY_BCM5461 },
 	{ "Broadcom PHY AC131",   { 0x0143, 0xbc70 }, LAN, 0 },
@@ -347,7 +348,7 @@ static struct {
 	u32 msg_enable;
 } debug = { -1 };
 
-MODULE_DESCRIPTION("SiS sis190 Gigabit Ethernet driver");
+MODULE_DESCRIPTION("SiS sis190/191 Gigabit Ethernet driver");
 module_param(rx_copybreak, int, 0);
 MODULE_PARM_DESC(rx_copybreak, "Copy breakpoint for copy-only-tiny-frames");
 module_param_named(debug, debug.msg_enable, int, 0);
@@ -539,8 +540,8 @@ static bool sis190_try_rx_copy(struct sis190_private *tp,
 	if (!skb)
 		goto out;
 
-	pci_dma_sync_single_for_device(tp->pci_dev, addr, pkt_size,
-				       PCI_DMA_FROMDEVICE);
+	pci_dma_sync_single_for_cpu(tp->pci_dev, addr, tp->rx_buf_sz,
+				PCI_DMA_FROMDEVICE);
 	skb_reserve(skb, 2);
 	skb_copy_to_linear_data(skb, sk_buff[0]->data, pkt_size);
 	*sk_buff = skb;
@@ -942,9 +943,9 @@ static void sis190_phy_task(struct work_struct *work)
 			u32 ctl;
 			const char *msg;
 		} reg31[] = {
-			{ LPA_1000XFULL | LPA_SLCT, 0x07000c00 | 0x00001000,
+			{ LPA_1000FULL, 0x07000c00 | 0x00001000,
 				"1000 Mbps Full Duplex" },
-			{ LPA_1000XHALF | LPA_SLCT, 0x07000c00,
+			{ LPA_1000HALF, 0x07000c00,
 				"1000 Mbps Half Duplex" },
 			{ LPA_100FULL, 0x04000800 | 0x00001000,
 				"100 Mbps Full Duplex" },
@@ -955,22 +956,35 @@ static void sis190_phy_task(struct work_struct *work)
 			{ LPA_10HALF, 0x04000400,
 				"10 Mbps Half Duplex" },
 			{ 0, 0x04000400, "unknown" }
- 		}, *p;
-		u16 adv;
+		}, *p = NULL;
+		u16 adv, autoexp, gigadv, gigrec;
 
 		val = mdio_read(ioaddr, phy_id, 0x1f);
 		net_link(tp, KERN_INFO "%s: mii ext = %04x.\n", dev->name, val);
 
 		val = mdio_read(ioaddr, phy_id, MII_LPA);
 		adv = mdio_read(ioaddr, phy_id, MII_ADVERTISE);
-		net_link(tp, KERN_INFO "%s: mii lpa = %04x adv = %04x.\n",
-			 dev->name, val, adv);
+		autoexp = mdio_read(ioaddr, phy_id, MII_EXPANSION);
+		net_link(tp, KERN_INFO "%s: mii lpa=%04x adv=%04x exp=%04x.\n",
+			 dev->name, val, adv, autoexp);
 
-		val &= adv;
+		if (val & LPA_NPAGE && autoexp & EXPANSION_NWAY) {
+			/* check for gigabit speed */
+			gigadv = mdio_read(ioaddr, phy_id, MII_CTRL1000);
+			gigrec = mdio_read(ioaddr, phy_id, MII_STAT1000);
+			val = (gigadv & (gigrec >> 2));
+			if (val & ADVERTISE_1000FULL)
+				p = reg31;
+			else if (val & ADVERTISE_1000HALF)
+				p = reg31 + 1;
+		}
+		if (!p) {
+			val &= adv;
 
-		for (p = reg31; p->val; p++) {
-			if ((val & p->val) == p->val)
-				break;
+			for (p = reg31; p->val; p++) {
+				if ((val & p->val) == p->val)
+					break;
+			}
 		}
 
 		p->ctl |= SIS_R32(StationControl) & ~0x0f001c00;
@@ -1204,8 +1218,6 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	SIS_W32(TxControl, 0x1a00 | CmdReset | CmdTxEnb);
 
-	dev->trans_start = jiffies;
-
 	dirty_tx = tp->dirty_tx;
 	if ((tp->cur_tx - NUM_TX_DESC) == dirty_tx) {
 		netif_stop_queue(dev);
@@ -1315,12 +1327,15 @@ static void sis190_init_phy(struct net_device *dev, struct sis190_private *tp,
 			((mii_status & (BMSR_100FULL | BMSR_100HALF)) ?
 				LAN : HOME) : p->type;
 		tp->features |= p->feature;
-	} else
+		net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
+			pci_name(tp->pci_dev), p->name, phy_id);
+	} else {
 		phy->type = UNKNOWN;
-
-	net_probe(tp, KERN_INFO "%s: %s transceiver at address %d.\n",
-		  pci_name(tp->pci_dev),
-		  (phy->type == UNKNOWN) ? "Unknown PHY" : p->name, phy_id);
+		net_probe(tp, KERN_INFO
+			"%s: unknown PHY 0x%x:0x%x transceiver at address %d\n",
+			pci_name(tp->pci_dev),
+			phy->id[0], (phy->id[1] & 0xfff0), phy_id);
+	}
 }
 
 static void sis190_mii_probe_88e1111_fixup(struct sis190_private *tp)

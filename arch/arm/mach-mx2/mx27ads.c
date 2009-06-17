@@ -23,6 +23,8 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/i2c.h>
+#include <linux/irq.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -33,8 +35,116 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux.h>
 #include <mach/board-mx27ads.h>
+#include <mach/mxc_nand.h>
+#include <mach/i2c.h>
+#include <mach/imxfb.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
+
+static unsigned int mx27ads_pins[] = {
+	/* UART0 */
+	PE12_PF_UART1_TXD,
+	PE13_PF_UART1_RXD,
+	PE14_PF_UART1_CTS,
+	PE15_PF_UART1_RTS,
+	/* UART1 */
+	PE3_PF_UART2_CTS,
+	PE4_PF_UART2_RTS,
+	PE6_PF_UART2_TXD,
+	PE7_PF_UART2_RXD,
+	/* UART2 */
+	PE8_PF_UART3_TXD,
+	PE9_PF_UART3_RXD,
+	PE10_PF_UART3_CTS,
+	PE11_PF_UART3_RTS,
+	/* UART3 */
+	PB26_AF_UART4_RTS,
+	PB28_AF_UART4_TXD,
+	PB29_AF_UART4_CTS,
+	PB31_AF_UART4_RXD,
+	/* UART4 */
+	PB18_AF_UART5_TXD,
+	PB19_AF_UART5_RXD,
+	PB20_AF_UART5_CTS,
+	PB21_AF_UART5_RTS,
+	/* UART5 */
+	PB10_AF_UART6_TXD,
+	PB12_AF_UART6_CTS,
+	PB11_AF_UART6_RXD,
+	PB13_AF_UART6_RTS,
+	/* FEC */
+	PD0_AIN_FEC_TXD0,
+	PD1_AIN_FEC_TXD1,
+	PD2_AIN_FEC_TXD2,
+	PD3_AIN_FEC_TXD3,
+	PD4_AOUT_FEC_RX_ER,
+	PD5_AOUT_FEC_RXD1,
+	PD6_AOUT_FEC_RXD2,
+	PD7_AOUT_FEC_RXD3,
+	PD8_AF_FEC_MDIO,
+	PD9_AIN_FEC_MDC,
+	PD10_AOUT_FEC_CRS,
+	PD11_AOUT_FEC_TX_CLK,
+	PD12_AOUT_FEC_RXD0,
+	PD13_AOUT_FEC_RX_DV,
+	PD14_AOUT_FEC_RX_CLK,
+	PD15_AOUT_FEC_COL,
+	PD16_AIN_FEC_TX_ER,
+	PF23_AIN_FEC_TX_EN,
+	/* I2C2 */
+	PC5_PF_I2C2_SDA,
+	PC6_PF_I2C2_SCL,
+	/* FB */
+	PA5_PF_LSCLK,
+	PA6_PF_LD0,
+	PA7_PF_LD1,
+	PA8_PF_LD2,
+	PA9_PF_LD3,
+	PA10_PF_LD4,
+	PA11_PF_LD5,
+	PA12_PF_LD6,
+	PA13_PF_LD7,
+	PA14_PF_LD8,
+	PA15_PF_LD9,
+	PA16_PF_LD10,
+	PA17_PF_LD11,
+	PA18_PF_LD12,
+	PA19_PF_LD13,
+	PA20_PF_LD14,
+	PA21_PF_LD15,
+	PA22_PF_LD16,
+	PA23_PF_LD17,
+	PA24_PF_REV,
+	PA25_PF_CLS,
+	PA26_PF_PS,
+	PA27_PF_SPL_SPR,
+	PA28_PF_HSYNC,
+	PA29_PF_VSYNC,
+	PA30_PF_CONTRAST,
+	PA31_PF_OE_ACD,
+	/* OWIRE */
+	PE16_AF_OWIRE,
+	/* SDHC1*/
+	PE18_PF_SD1_D0,
+	PE19_PF_SD1_D1,
+	PE20_PF_SD1_D2,
+	PE21_PF_SD1_D3,
+	PE22_PF_SD1_CMD,
+	PE23_PF_SD1_CLK,
+	/* SDHC2*/
+	PB4_PF_SD2_D0,
+	PB5_PF_SD2_D1,
+	PB6_PF_SD2_D2,
+	PB7_PF_SD2_D3,
+	PB8_PF_SD2_CMD,
+	PB9_PF_SD2_CLK,
+};
+
+static struct mxc_nand_platform_data mx27ads_nand_board_info = {
+	.width = 1,
+	.hw_ecc = 1,
+};
 
 /* ADS's NOR flash */
 static struct physmap_flash_data mx27ads_flash_data = {
@@ -58,189 +168,113 @@ static struct platform_device mx27ads_nor_mtd_device = {
 	.resource = &mx27ads_flash_resource,
 };
 
-static int mxc_uart0_pins[] = {
-	PE12_PF_UART1_TXD,
-	PE13_PF_UART1_RXD,
-	PE14_PF_UART1_CTS,
-	PE15_PF_UART1_RTS
+static struct imxi2c_platform_data mx27ads_i2c_data = {
+	.bitrate = 100000,
 };
 
-static int uart_mxc_port0_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins), "UART0");
-}
-
-static int uart_mxc_port0_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins));
-	return 0;
-}
-
-static int mxc_uart1_pins[] = {
-	PE3_PF_UART2_CTS,
-	PE4_PF_UART2_RTS,
-	PE6_PF_UART2_TXD,
-	PE7_PF_UART2_RXD
+static struct i2c_board_info mx27ads_i2c_devices[] = {
 };
 
-static int uart_mxc_port1_init(struct platform_device *pdev)
+void lcd_power(int on)
 {
-	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins), "UART1");
+	if (on)
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_SET_REG);
+	else
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
 }
 
-static int uart_mxc_port1_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins));
-	return 0;
-}
+static struct imx_fb_platform_data mx27ads_fb_data = {
+	.pixclock	= 188679,
+	.xres		= 240,
+	.yres		= 320,
 
-static int mxc_uart2_pins[] = {
-	PE8_PF_UART3_TXD,
-	PE9_PF_UART3_RXD,
-	PE10_PF_UART3_CTS,
-	PE11_PF_UART3_RTS
+	.bpp		= 16,
+	.hsync_len	= 1,
+	.left_margin	= 9,
+	.right_margin	= 16,
+
+	.vsync_len	= 1,
+	.upper_margin	= 7,
+	.lower_margin	= 9,
+	.fixed_screen_cpu = 0,
+
+	/*
+	 * - HSYNC active high
+	 * - VSYNC active high
+	 * - clk notenabled while idle
+	 * - clock inverted
+	 * - data not inverted
+	 * - data enable low active
+	 * - enable sharp mode
+	 */
+	.pcr		= 0xFB008BC0,
+	.pwmr		= 0x00A903FF,
+	.lscr1		= 0x00120300,
+	.dmacr		= 0x00020010,
+
+	.lcd_power	= lcd_power,
 };
 
-static int uart_mxc_port2_init(struct platform_device *pdev)
+static int mx27ads_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
 {
-	return mxc_gpio_setup_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins), "UART2");
+	return request_irq(IRQ_GPIOE(21), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc1-card-detect", data);
 }
 
-static int uart_mxc_port2_exit(struct platform_device *pdev)
+static int mx27ads_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
 {
-	mxc_gpio_release_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins));
-	return 0;
+	return request_irq(IRQ_GPIOB(7), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc2-card-detect", data);
 }
 
-static int mxc_uart3_pins[] = {
-	PB26_AF_UART4_RTS,
-	PB28_AF_UART4_TXD,
-	PB29_AF_UART4_CTS,
-	PB31_AF_UART4_RXD
+static void mx27ads_sdhc1_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOE(21), data);
+}
+
+static void mx27ads_sdhc2_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOB(7), data);
+}
+
+static struct imxmmc_platform_data sdhc1_pdata = {
+	.init = mx27ads_sdhc1_init,
+	.exit = mx27ads_sdhc1_exit,
 };
 
-static int uart_mxc_port3_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart3_pins,
-			ARRAY_SIZE(mxc_uart3_pins), "UART3");
-}
-
-static int uart_mxc_port3_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart3_pins,
-			ARRAY_SIZE(mxc_uart3_pins));
-	return 0;
-}
-
-static int mxc_uart4_pins[] = {
-	PB18_AF_UART5_TXD,
-	PB19_AF_UART5_RXD,
-	PB20_AF_UART5_CTS,
-	PB21_AF_UART5_RTS
+static struct imxmmc_platform_data sdhc2_pdata = {
+	.init = mx27ads_sdhc2_init,
+	.exit = mx27ads_sdhc2_exit,
 };
-
-static int uart_mxc_port4_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart4_pins,
-			ARRAY_SIZE(mxc_uart4_pins), "UART4");
-}
-
-static int uart_mxc_port4_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart4_pins,
-			ARRAY_SIZE(mxc_uart4_pins));
-	return 0;
-}
-
-static int mxc_uart5_pins[] = {
-	PB10_AF_UART6_TXD,
-	PB12_AF_UART6_CTS,
-	PB11_AF_UART6_RXD,
-	PB13_AF_UART6_RTS
-};
-
-static int uart_mxc_port5_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart5_pins,
-			ARRAY_SIZE(mxc_uart5_pins), "UART5");
-}
-
-static int uart_mxc_port5_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart5_pins,
-			ARRAY_SIZE(mxc_uart5_pins));
-	return 0;
-}
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
 	&mxc_fec_device,
+	&mxc_w1_master_device,
 };
-
-static int mxc_fec_pins[] = {
-	PD0_AIN_FEC_TXD0,
-	PD1_AIN_FEC_TXD1,
-	PD2_AIN_FEC_TXD2,
-	PD3_AIN_FEC_TXD3,
-	PD4_AOUT_FEC_RX_ER,
-	PD5_AOUT_FEC_RXD1,
-	PD6_AOUT_FEC_RXD2,
-	PD7_AOUT_FEC_RXD3,
-	PD8_AF_FEC_MDIO,
-	PD9_AIN_FEC_MDC,
-	PD10_AOUT_FEC_CRS,
-	PD11_AOUT_FEC_TX_CLK,
-	PD12_AOUT_FEC_RXD0,
-	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_RX_CLK,
-	PD15_AOUT_FEC_COL,
-	PD16_AIN_FEC_TX_ER,
-	PF23_AIN_FEC_TX_EN
-};
-
-static void gpio_fec_active(void)
-{
-	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins), "FEC");
-}
 
 static struct imxuart_platform_data uart_pdata[] = {
 	{
-		.init = uart_mxc_port0_init,
-		.exit = uart_mxc_port0_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port1_init,
-		.exit = uart_mxc_port1_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port2_init,
-		.exit = uart_mxc_port2_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port3_init,
-		.exit = uart_mxc_port3_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port4_init,
-		.exit = uart_mxc_port4_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port5_init,
-		.exit = uart_mxc_port5_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	},
 };
 
 static void __init mx27ads_board_init(void)
 {
-	gpio_fec_active();
+	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
+			"mx27ads");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
@@ -248,6 +282,15 @@ static void __init mx27ads_board_init(void)
 	mxc_register_device(&mxc_uart_device3, &uart_pdata[3]);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
 	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
+	mxc_register_device(&mxc_nand_device, &mx27ads_nand_board_info);
+
+	/* only the i2c master 1 is used on this CPU card */
+	i2c_register_board_info(1, mx27ads_i2c_devices,
+				ARRAY_SIZE(mx27ads_i2c_devices));
+	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
+	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
+	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
@@ -277,7 +320,7 @@ static struct map_desc mx27ads_io_desc[] __initdata = {
 
 static void __init mx27ads_map_io(void)
 {
-	mxc_map_io();
+	mx27_map_io();
 	iotable_init(mx27ads_io_desc, ARRAY_SIZE(mx27ads_io_desc));
 }
 

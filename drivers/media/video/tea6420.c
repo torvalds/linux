@@ -112,7 +112,6 @@ static const struct v4l2_subdev_ops tea6420_ops = {
 	.audio = &tea6420_audio_ops,
 };
 
-/* this function is called by i2c_probe */
 static int tea6420_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {

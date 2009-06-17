@@ -116,7 +116,7 @@ static void zfcp_wka_port_put(struct zfcp_wka_port *wka_port)
 {
 	if (atomic_dec_return(&wka_port->refcount) != 0)
 		return;
-	/* wait 10 miliseconds, other reqs might pop in */
+	/* wait 10 milliseconds, other reqs might pop in */
 	schedule_delayed_work(&wka_port->work, HZ / 100);
 }
 

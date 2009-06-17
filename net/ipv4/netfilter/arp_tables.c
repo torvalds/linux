@@ -231,6 +231,12 @@ static inline struct arpt_entry *get_entry(void *base, unsigned int offset)
 	return (struct arpt_entry *)(base + offset);
 }
 
+static inline __pure
+struct arpt_entry *arpt_next_entry(const struct arpt_entry *entry)
+{
+	return (void *)entry + entry->next_offset;
+}
+
 unsigned int arpt_do_table(struct sk_buff *skb,
 			   unsigned int hook,
 			   const struct net_device *in,
@@ -267,67 +273,64 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 
 	arp = arp_hdr(skb);
 	do {
-		if (arp_packet_match(arp, skb->dev, indev, outdev, &e->arp)) {
-			struct arpt_entry_target *t;
-			int hdr_len;
+		struct arpt_entry_target *t;
+		int hdr_len;
 
-			hdr_len = sizeof(*arp) + (2 * sizeof(struct in_addr)) +
-				(2 * skb->dev->addr_len);
-
-			ADD_COUNTER(e->counters, hdr_len, 1);
-
-			t = arpt_get_target(e);
-
-			/* Standard target? */
-			if (!t->u.kernel.target->target) {
-				int v;
-
-				v = ((struct arpt_standard_target *)t)->verdict;
-				if (v < 0) {
-					/* Pop from stack? */
-					if (v != ARPT_RETURN) {
-						verdict = (unsigned)(-v) - 1;
-						break;
-					}
-					e = back;
-					back = get_entry(table_base,
-							 back->comefrom);
-					continue;
-				}
-				if (table_base + v
-				    != (void *)e + e->next_offset) {
-					/* Save old back ptr in next entry */
-					struct arpt_entry *next
-						= (void *)e + e->next_offset;
-					next->comefrom =
-						(void *)back - table_base;
-
-					/* set back pointer to next entry */
-					back = next;
-				}
-
-				e = get_entry(table_base, v);
-			} else {
-				/* Targets which reenter must return
-				 * abs. verdicts
-				 */
-				tgpar.target   = t->u.kernel.target;
-				tgpar.targinfo = t->data;
-				verdict = t->u.kernel.target->target(skb,
-								     &tgpar);
-
-				/* Target might have changed stuff. */
-				arp = arp_hdr(skb);
-
-				if (verdict == ARPT_CONTINUE)
-					e = (void *)e + e->next_offset;
-				else
-					/* Verdict */
-					break;
-			}
-		} else {
-			e = (void *)e + e->next_offset;
+		if (!arp_packet_match(arp, skb->dev, indev, outdev, &e->arp)) {
+			e = arpt_next_entry(e);
+			continue;
 		}
+
+		hdr_len = sizeof(*arp) + (2 * sizeof(struct in_addr)) +
+			(2 * skb->dev->addr_len);
+		ADD_COUNTER(e->counters, hdr_len, 1);
+
+		t = arpt_get_target(e);
+
+		/* Standard target? */
+		if (!t->u.kernel.target->target) {
+			int v;
+
+			v = ((struct arpt_standard_target *)t)->verdict;
+			if (v < 0) {
+				/* Pop from stack? */
+				if (v != ARPT_RETURN) {
+					verdict = (unsigned)(-v) - 1;
+					break;
+				}
+				e = back;
+				back = get_entry(table_base, back->comefrom);
+				continue;
+			}
+			if (table_base + v
+			    != arpt_next_entry(e)) {
+				/* Save old back ptr in next entry */
+				struct arpt_entry *next = arpt_next_entry(e);
+				next->comefrom = (void *)back - table_base;
+
+				/* set back pointer to next entry */
+				back = next;
+			}
+
+			e = get_entry(table_base, v);
+			continue;
+		}
+
+		/* Targets which reenter must return
+		 * abs. verdicts
+		 */
+		tgpar.target   = t->u.kernel.target;
+		tgpar.targinfo = t->data;
+		verdict = t->u.kernel.target->target(skb, &tgpar);
+
+		/* Target might have changed stuff. */
+		arp = arp_hdr(skb);
+
+		if (verdict == ARPT_CONTINUE)
+			e = arpt_next_entry(e);
+		else
+			/* Verdict */
+			break;
 	} while (!hotdrop);
 	xt_info_rdunlock_bh();
 

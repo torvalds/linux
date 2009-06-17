@@ -52,6 +52,7 @@
 #include <linux/jiffies.h>
 #include <linux/posix-timers.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -109,7 +110,7 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device decrementer_clockevent = {
        .name           = "decrementer",
        .rating         = 200,
-       .shift          = 16,
+       .shift          = 0,	/* To be filled in */
        .mult           = 0,	/* To be filled in */
        .irq            = 0,
        .set_next_event = decrementer_set_next_event,
@@ -843,6 +844,22 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 		decrementer_set_next_event(DECREMENTER_MAX, dev);
 }
 
+static void __init setup_clockevent_multiplier(unsigned long hz)
+{
+	u64 mult, shift = 32;
+
+	while (1) {
+		mult = div_sc(hz, NSEC_PER_SEC, shift);
+		if (mult && (mult >> 32UL) == 0UL)
+			break;
+
+		shift--;
+	}
+
+	decrementer_clockevent.shift = shift;
+	decrementer_clockevent.mult = mult;
+}
+
 static void register_decrementer_clockevent(int cpu)
 {
 	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
@@ -860,8 +877,7 @@ static void __init init_decrementer_clockevent(void)
 {
 	int cpu = smp_processor_id();
 
-	decrementer_clockevent.mult = div_sc(ppc_tb_freq, NSEC_PER_SEC,
-					     decrementer_clockevent.shift);
+	setup_clockevent_multiplier(ppc_tb_freq);
 	decrementer_clockevent.max_delta_ns =
 		clockevent_delta2ns(DECREMENTER_MAX, &decrementer_clockevent);
 	decrementer_clockevent.min_delta_ns =
@@ -1126,6 +1142,15 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 	dr->result_high = ((u64)w << 32) + x;
 	dr->result_low  = ((u64)y << 32) + z;
 
+}
+
+/* We don't need to calibrate delay, we use the CPU timebase for that */
+void calibrate_delay(void)
+{
+	/* Some generic code (such as spinlock debug) use loops_per_jiffy
+	 * as the number of __delay(1) in a jiffy, so make it so
+	 */
+	loops_per_jiffy = tb_ticks_per_jiffy;
 }
 
 static int __init rtc_init(void)

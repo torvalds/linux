@@ -188,36 +188,34 @@ static struct drm_mm_node *drm_mm_split_at_start(struct drm_mm_node *parent,
 
 
 
-struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
-				unsigned long size, unsigned alignment)
+struct drm_mm_node *drm_mm_get_block(struct drm_mm_node *node,
+				     unsigned long size, unsigned alignment)
 {
 
 	struct drm_mm_node *align_splitoff = NULL;
-	struct drm_mm_node *child;
 	unsigned tmp = 0;
 
 	if (alignment)
-		tmp = parent->start % alignment;
+		tmp = node->start % alignment;
 
 	if (tmp) {
 		align_splitoff =
-		    drm_mm_split_at_start(parent, alignment - tmp, 0);
+		    drm_mm_split_at_start(node, alignment - tmp, 0);
 		if (unlikely(align_splitoff == NULL))
 			return NULL;
 	}
 
-	if (parent->size == size) {
-		list_del_init(&parent->fl_entry);
-		parent->free = 0;
-		return parent;
+	if (node->size == size) {
+		list_del_init(&node->fl_entry);
+		node->free = 0;
 	} else {
-		child = drm_mm_split_at_start(parent, size, 0);
+		node = drm_mm_split_at_start(node, size, 0);
 	}
 
 	if (align_splitoff)
 		drm_mm_put_block(align_splitoff);
 
-	return child;
+	return node;
 }
 
 EXPORT_SYMBOL(drm_mm_get_block);

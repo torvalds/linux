@@ -246,7 +246,8 @@ void print_ioacct(struct taskstats *t)
 
 int main(int argc, char *argv[])
 {
-	int c, rc, rep_len, aggr_len, len2, cmd_type;
+	int c, rc, rep_len, aggr_len, len2;
+	int cmd_type = TASKSTATS_CMD_ATTR_UNSPEC;
 	__u16 id;
 	__u32 mypid;
 

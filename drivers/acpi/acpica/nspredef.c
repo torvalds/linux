@@ -144,7 +144,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 
 	pathname = acpi_ns_get_external_pathname(node);
 	if (!pathname) {
-		pathname = ACPI_CAST_PTR(char, predefined->info.name);
+		return AE_OK;	/* Could not get pathname, ignore */
 	}
 
 	/*
@@ -230,10 +230,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	}
 
       exit:
-	if (pathname != predefined->info.name) {
-		ACPI_FREE(pathname);
-	}
-
+	ACPI_FREE(pathname);
 	return (status);
 }
 

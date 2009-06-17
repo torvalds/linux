@@ -119,10 +119,12 @@ static void ocfs2_release_system_inodes(struct ocfs2_super *osb);
 static int ocfs2_check_volume(struct ocfs2_super *osb);
 static int ocfs2_verify_volume(struct ocfs2_dinode *di,
 			       struct buffer_head *bh,
-			       u32 sectsize);
+			       u32 sectsize,
+			       struct ocfs2_blockcheck_stats *stats);
 static int ocfs2_initialize_super(struct super_block *sb,
 				  struct buffer_head *bh,
-				  int sector_size);
+				  int sector_size,
+				  struct ocfs2_blockcheck_stats *stats);
 static int ocfs2_get_sector(struct super_block *sb,
 			    struct buffer_head **bh,
 			    int block,
@@ -207,6 +209,7 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 	int i;
 	struct ocfs2_cluster_connection *cconn = osb->cconn;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
+	struct ocfs2_orphan_scan *os;
 
 	out += snprintf(buf + out, len - out,
 			"%10s => Id: %-s  Uuid: %-s  Gen: 0x%X  Label: %-s\n",
@@ -307,6 +310,13 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 				(i == osb->slot_num ? '*' : ' '),
 				i, osb->slot_recovery_generations[i]);
 	}
+
+	os = &osb->osb_orphan_scan;
+	out += snprintf(buf + out, len - out, "Orphan Scan=> ");
+	out += snprintf(buf + out, len - out, "Local: %u  Global: %u ",
+			os->os_count, os->os_seqno);
+	out += snprintf(buf + out, len - out, " Last Scan: %lu seconds ago\n",
+			(get_seconds() - os->os_scantime.tv_sec));
 
 	return out;
 }
@@ -693,7 +703,8 @@ out:
 
 static int ocfs2_sb_probe(struct super_block *sb,
 			  struct buffer_head **bh,
-			  int *sector_size)
+			  int *sector_size,
+			  struct ocfs2_blockcheck_stats *stats)
 {
 	int status, tmpstat;
 	struct ocfs1_vol_disk_hdr *hdr;
@@ -759,7 +770,8 @@ static int ocfs2_sb_probe(struct super_block *sb,
 			goto bail;
 		}
 		di = (struct ocfs2_dinode *) (*bh)->b_data;
-		status = ocfs2_verify_volume(di, *bh, blksize);
+		memset(stats, 0, sizeof(struct ocfs2_blockcheck_stats));
+		status = ocfs2_verify_volume(di, *bh, blksize, stats);
 		if (status >= 0)
 			goto bail;
 		brelse(*bh);
@@ -965,6 +977,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	struct ocfs2_super *osb = NULL;
 	struct buffer_head *bh = NULL;
 	char nodestr[8];
+	struct ocfs2_blockcheck_stats stats;
 
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
@@ -974,13 +987,13 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* probe for superblock */
-	status = ocfs2_sb_probe(sb, &bh, &sector_size);
+	status = ocfs2_sb_probe(sb, &bh, &sector_size, &stats);
 	if (status < 0) {
 		mlog(ML_ERROR, "superblock probe failed!\n");
 		goto read_super_error;
 	}
 
-	status = ocfs2_initialize_super(sb, bh, sector_size);
+	status = ocfs2_initialize_super(sb, bh, sector_size, &stats);
 	osb = OCFS2_SB(sb);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1088,6 +1101,18 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 		status = -EINVAL;
 		mlog_errno(status);
 		goto read_super_error;
+	}
+
+	if (ocfs2_meta_ecc(osb)) {
+		status = ocfs2_blockcheck_stats_debugfs_install(
+						&osb->osb_ecc_stats,
+						osb->osb_debug_root);
+		if (status) {
+			mlog(ML_ERROR,
+			     "Unable to create blockcheck statistics "
+			     "files\n");
+			goto read_super_error;
+		}
 	}
 
 	status = ocfs2_mount_volume(sb);
@@ -1760,13 +1785,8 @@ static int ocfs2_mount_volume(struct super_block *sb)
 	}
 
 	status = ocfs2_truncate_log_init(osb);
-	if (status < 0) {
+	if (status < 0)
 		mlog_errno(status);
-		goto leave;
-	}
-
-	if (ocfs2_mount_local(osb))
-		goto leave;
 
 leave:
 	if (unlock_super)
@@ -1795,6 +1815,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	ocfs2_shutdown_local_alloc(osb);
 
 	ocfs2_truncate_log_shutdown(osb);
+
+	ocfs2_orphan_scan_stop(osb);
 
 	/* This will disable recovery and flush any recovery work. */
 	ocfs2_recovery_exit(osb);
@@ -1833,6 +1855,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	if (osb->cconn)
 		ocfs2_dlm_shutdown(osb, hangup_needed);
 
+	ocfs2_blockcheck_stats_debugfs_remove(&osb->osb_ecc_stats);
 	debugfs_remove(osb->osb_debug_root);
 
 	if (hangup_needed)
@@ -1880,7 +1903,8 @@ static int ocfs2_setup_osb_uuid(struct ocfs2_super *osb, const unsigned char *uu
 
 static int ocfs2_initialize_super(struct super_block *sb,
 				  struct buffer_head *bh,
-				  int sector_size)
+				  int sector_size,
+				  struct ocfs2_blockcheck_stats *stats)
 {
 	int status;
 	int i, cbits, bbits;
@@ -1939,6 +1963,9 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	atomic_set(&osb->alloc_stats.bg_allocs, 0);
 	atomic_set(&osb->alloc_stats.bg_extends, 0);
 
+	/* Copy the blockcheck stats from the superblock probe */
+	osb->osb_ecc_stats = *stats;
+
 	ocfs2_init_node_maps(osb);
 
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
@@ -1947,6 +1974,13 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	status = ocfs2_recovery_init(osb);
 	if (status) {
 		mlog(ML_ERROR, "Unable to initialize recovery state\n");
+		mlog_errno(status);
+		goto bail;
+	}
+
+	status = ocfs2_orphan_scan_init(osb);
+	if (status) {
+		mlog(ML_ERROR, "Unable to initialize delayed orphan scan\n");
 		mlog_errno(status);
 		goto bail;
 	}
@@ -2169,7 +2203,8 @@ bail:
  */
 static int ocfs2_verify_volume(struct ocfs2_dinode *di,
 			       struct buffer_head *bh,
-			       u32 blksz)
+			       u32 blksz,
+			       struct ocfs2_blockcheck_stats *stats)
 {
 	int status = -EAGAIN;
 
@@ -2182,7 +2217,8 @@ static int ocfs2_verify_volume(struct ocfs2_dinode *di,
 		    OCFS2_FEATURE_INCOMPAT_META_ECC) {
 			status = ocfs2_block_check_validate(bh->b_data,
 							    bh->b_size,
-							    &di->i_check);
+							    &di->i_check,
+							    stats);
 			if (status)
 				goto out;
 		}

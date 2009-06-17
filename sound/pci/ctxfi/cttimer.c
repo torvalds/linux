@@ -180,7 +180,7 @@ static inline unsigned int ct_xfitimer_get_wc(struct ct_timer *atimer)
  *
  * call this inside the lock and irq disabled
  */
-static int ct_xfitimer_reprogram(struct ct_timer *atimer)
+static int ct_xfitimer_reprogram(struct ct_timer *atimer, int can_update)
 {
 	struct ct_timer_instance *ti;
 	unsigned int min_intr = (unsigned int)-1;
@@ -216,6 +216,8 @@ static int ct_xfitimer_reprogram(struct ct_timer *atimer)
 			ti->frag_count = div_u64((u64)pos * CT_TIMER_FREQ +
 						 rate - 1, rate);
 		}
+		if (ti->need_update && !can_update)
+			min_intr = 0; /* pending to the next irq */
 		if (ti->frag_count < min_intr)
 			min_intr = ti->frag_count;
 	}
@@ -235,7 +237,7 @@ static void ct_xfitimer_check_period(struct ct_timer *atimer)
 
 	spin_lock_irqsave(&atimer->list_lock, flags);
 	list_for_each_entry(ti, &atimer->instance_head, instance_list) {
-		if (ti->need_update) {
+		if (ti->running && ti->need_update) {
 			ti->need_update = 0;
 			ti->apcm->interrupt(ti->apcm);
 		}
@@ -252,7 +254,7 @@ static void ct_xfitimer_callback(struct ct_timer *atimer)
 	spin_lock_irqsave(&atimer->lock, flags);
 	atimer->irq_handling = 1;
 	do {
-		update = ct_xfitimer_reprogram(atimer);
+		update = ct_xfitimer_reprogram(atimer, 1);
 		spin_unlock(&atimer->lock);
 		if (update)
 			ct_xfitimer_check_period(atimer);
@@ -265,6 +267,7 @@ static void ct_xfitimer_callback(struct ct_timer *atimer)
 static void ct_xfitimer_prepare(struct ct_timer_instance *ti)
 {
 	ti->frag_count = ti->substream->runtime->period_size;
+	ti->running = 0;
 	ti->need_update = 0;
 }
 
@@ -273,7 +276,6 @@ static void ct_xfitimer_prepare(struct ct_timer_instance *ti)
 static void ct_xfitimer_update(struct ct_timer *atimer)
 {
 	unsigned long flags;
-	int update;
 
 	spin_lock_irqsave(&atimer->lock, flags);
 	if (atimer->irq_handling) {
@@ -284,10 +286,8 @@ static void ct_xfitimer_update(struct ct_timer *atimer)
 	}
 
 	ct_xfitimer_irq_stop(atimer);
-	update = ct_xfitimer_reprogram(atimer);
+	ct_xfitimer_reprogram(atimer, 0);
 	spin_unlock_irqrestore(&atimer->lock, flags);
-	if (update)
-		ct_xfitimer_check_period(atimer);
 }
 
 static void ct_xfitimer_start(struct ct_timer_instance *ti)
@@ -298,6 +298,8 @@ static void ct_xfitimer_start(struct ct_timer_instance *ti)
 	spin_lock_irqsave(&atimer->lock, flags);
 	if (list_empty(&ti->running_list))
 		atimer->wc = ct_xfitimer_get_wc(atimer);
+	ti->running = 1;
+	ti->need_update = 0;
 	list_add(&ti->running_list, &atimer->running_head);
 	spin_unlock_irqrestore(&atimer->lock, flags);
 	ct_xfitimer_update(atimer);
@@ -310,7 +312,7 @@ static void ct_xfitimer_stop(struct ct_timer_instance *ti)
 
 	spin_lock_irqsave(&atimer->lock, flags);
 	list_del_init(&ti->running_list);
-	ti->need_update = 0;
+	ti->running = 0;
 	spin_unlock_irqrestore(&atimer->lock, flags);
 	ct_xfitimer_update(atimer);
 }

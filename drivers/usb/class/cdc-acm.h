@@ -125,6 +125,7 @@ struct acm {
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */
+	int combined_interfaces:1;			/* control and data collapsed */
 	struct acm_wb *delayed_wb;			/* write queued for a device about to be woken */
 };
 
@@ -133,3 +134,4 @@ struct acm {
 /* constants describing various quirks and errors */
 #define NO_UNION_NORMAL			1
 #define SINGLE_RX_URB			2
+#define NO_CAP_LINE			4

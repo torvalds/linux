@@ -51,16 +51,15 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 			struct ieee80211_key_conf *keyconf,
 			const u8 *addr, u32 iv32, u16 *phase1key);
 
-int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
-int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap);
+int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
+int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
 void iwl_clear_stations_table(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
-u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr,
-			int is_ap, u8 flags,
+u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap, u8 flags,
 			struct ieee80211_sta_ht_cap *ht_info);
 void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_sta_rx_agg_start(struct iwl_priv *priv,

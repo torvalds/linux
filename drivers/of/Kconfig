@@ -19,3 +19,9 @@ config OF_SPI
 	depends on OF && (PPC_OF || MICROBLAZE) && SPI
 	help
 	  OpenFirmware SPI accessors
+
+config OF_MDIO
+	def_tristate PHYLIB
+	depends on OF && PHYLIB
+	help
+	  OpenFirmware MDIO bus (Ethernet PHY) accessors

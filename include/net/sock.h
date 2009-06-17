@@ -218,9 +218,11 @@ struct sock {
 #define sk_hash			__sk_common.skc_hash
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
+	kmemcheck_bitfield_begin(flags);
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
 				sk_userlocks : 4;
+	kmemcheck_bitfield_end(flags);
 	unsigned char		sk_protocol;
 	unsigned short		sk_type;
 	int			sk_rcvbuf;
@@ -1217,9 +1219,13 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 
 static inline void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 {
-	sock_hold(sk);
 	skb->sk = sk;
 	skb->destructor = sock_wfree;
+	/*
+	 * We used to take a refcount on sk, but following operation
+	 * is enough to guarantee sk_free() wont free this sock until
+	 * all in-flight packets are completed
+	 */
 	atomic_add(skb->truesize, &sk->sk_wmem_alloc);
 }
 

@@ -12,12 +12,12 @@
 #include "ieee80211_i.h"
 
 /*
- * indicate a failed Michael MIC to userspace; the passed packet
- * (in the variable hdr) must be long enough to extract the TKIP
- * fields like TSC
+ * Indicate a failed Michael MIC to userspace. If the caller knows the TSC of
+ * the frame that generated the MIC failure (i.e., if it was provided by the
+ * driver or is still in the frame), it should provide that information.
  */
 void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int keyidx,
-				     struct ieee80211_hdr *hdr)
+				     struct ieee80211_hdr *hdr, const u8 *tsc)
 {
 	union iwreq_data wrqu;
 	char *buf = kmalloc(128, GFP_ATOMIC);
@@ -34,8 +34,9 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 		kfree(buf);
 	}
 
-	/*
-	 * TODO: re-add support for sending MIC failure indication
-	 * with all info via nl80211
-	 */
+	cfg80211_michael_mic_failure(sdata->dev, hdr->addr2,
+				     (hdr->addr1[0] & 0x01) ?
+				     NL80211_KEYTYPE_GROUP :
+				     NL80211_KEYTYPE_PAIRWISE,
+				     keyidx, tsc);
 }

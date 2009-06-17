@@ -1690,7 +1690,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 mapping_unwind:

@@ -530,7 +530,7 @@ static void ioc3_tcpudp_checksum(struct sk_buff *skb, uint32_t hwsum, int len)
 	 *   case where the checksum is right the higher layers will still
 	 *   drop the packet as appropriate.
 	 */
-	if (eh->h_proto != ntohs(ETH_P_IP))
+	if (eh->h_proto != htons(ETH_P_IP))
 		return;
 
 	ih = (struct iphdr *) ((char *)eh + ETH_HLEN);

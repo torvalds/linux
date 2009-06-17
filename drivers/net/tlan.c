@@ -1111,7 +1111,7 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 			  dev->name, priv->txHead, priv->txTail );
 		netif_stop_queue(dev);
 		priv->txBusyCount++;
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	tail_list->forward = 0;

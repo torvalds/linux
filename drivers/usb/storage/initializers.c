@@ -52,7 +52,7 @@ int usb_stor_euscsi_init(struct us_data *us)
 	us->iobuf[0] = 0x1;
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
 			0x0C, USB_RECIP_INTERFACE | USB_TYPE_VENDOR,
-			0x01, 0x0, us->iobuf, 0x1, 5*HZ);
+			0x01, 0x0, us->iobuf, 0x1, 5000);
 	US_DEBUGP("-- result is %d\n", result);
 
 	return 0;
@@ -80,14 +80,16 @@ int usb_stor_ucr61s2b_init(struct us_data *us)
 
 	res = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe, bcb,
 			US_BULK_CB_WRAP_LEN, &partial);
-	if(res)
-		return res;
+	if (res)
+		return -EIO;
 
 	US_DEBUGP("Getting status packet...\n");
 	res = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe, bcs,
 			US_BULK_CS_WRAP_LEN, &partial);
+	if (res)
+		return -EIO;
 
-	return (res ? -1 : 0);
+	return 0;
 }
 
 /* This places the HUAWEI E220 devices in multi-port mode */
@@ -99,6 +101,6 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 				      USB_REQ_SET_FEATURE,
 				      USB_TYPE_STANDARD | USB_RECIP_DEVICE,
 				      0x01, 0x0, NULL, 0x0, 1000);
-	US_DEBUGP("usb_control_msg performing result is %d\n", result);
-	return (result ? 0 : -1);
+	US_DEBUGP("Huawei mode set result is %d\n", result);
+	return (result ? 0 : -ENODEV);
 }

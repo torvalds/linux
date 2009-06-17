@@ -1220,7 +1220,7 @@ static int __init ltpc_setup(char *str)
 		if (ints[0] > 2) {
 			dma = ints[3];
 		}
-		/* ignore any other paramters */
+		/* ignore any other parameters */
 	}
 	return 1;
 }

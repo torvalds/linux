@@ -836,8 +836,14 @@ void mesh_path_timer(unsigned long data)
 	mpath = rcu_dereference(mpath);
 	if (!mpath)
 		goto endmpathtimer;
-	spin_lock_bh(&mpath->state_lock);
 	sdata = mpath->sdata;
+
+	if (sdata->local->quiescing) {
+		rcu_read_unlock();
+		return;
+	}
+
+	spin_lock_bh(&mpath->state_lock);
 	if (mpath->flags & MESH_PATH_RESOLVED ||
 			(!(mpath->flags & MESH_PATH_RESOLVING)))
 		mpath->flags &= ~(MESH_PATH_RESOLVING | MESH_PATH_RESOLVED);

@@ -677,7 +677,7 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 	return VXGE_HW_OK;
 }
 
-/* select a vpath to trasmit the packet */
+/* select a vpath to transmit the packet */
 static u32 vxge_get_vpath_no(struct vxgedev *vdev, struct sk_buff *skb,
 	int *do_lock)
 {
@@ -992,7 +992,9 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 					VXGE_HW_FIFO_TXD_TX_CKO_UDP_EN);
 
 	vxge_hw_fifo_txdl_post(fifo_hw, dtr);
-	dev->trans_start = jiffies;
+#ifdef NETIF_F_LLTX
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+#endif
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 
 	VXGE_COMPLETE_VPATH_TX(fifo);

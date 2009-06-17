@@ -37,37 +37,6 @@ uni16_to_x8(unsigned char *ascii, __be16 *uni, int len, struct nls_table *nls)
 	return (op - ascii);
 }
 
-/* Convert big endian wide character string to utf8 */
-static int
-wcsntombs_be(__u8 *s, const __u8 *pwcs, int inlen, int maxlen)
-{
-	const __u8 *ip;
-	__u8 *op;
-	int size;
-	__u16 c;
-
-	op = s;
-	ip = pwcs;
-	while ((*ip || ip[1]) && (maxlen > 0) && (inlen > 0)) {
-		c = (*ip << 8) | ip[1];
-		if (c > 0x7f) {
-			size = utf8_wctomb(op, c, maxlen);
-			if (size == -1) {
-				/* Ignore character and move on */
-				maxlen--;
-			} else {
-				op += size;
-				maxlen -= size;
-			}
-		} else {
-			*op++ = (__u8) c;
-		}
-		ip += 2;
-		inlen--;
-	}
-	return (op - s);
-}
-
 int
 get_joliet_filename(struct iso_directory_record * de, unsigned char *outname, struct inode * inode)
 {
@@ -79,8 +48,9 @@ get_joliet_filename(struct iso_directory_record * de, unsigned char *outname, st
 	nls = ISOFS_SB(inode->i_sb)->s_nls_iocharset;
 
 	if (utf8) {
-		len = wcsntombs_be(outname, de->name,
-				de->name_len[0] >> 1, PAGE_SIZE);
+		len = utf16s_to_utf8s((const wchar_t *) de->name,
+				de->name_len[0] >> 1, UTF16_BIG_ENDIAN,
+				outname, PAGE_SIZE);
 	} else {
 		len = uni16_to_x8(outname, (__be16 *) de->name,
 				de->name_len[0] >> 1, nls);

@@ -640,7 +640,7 @@ static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!TX_BUFFS_AVAIL(head, tail)) {
 		DTX(("no buffs available, returning 1\n"));
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	spin_lock_irqsave(&mp->irq_lock, flags);

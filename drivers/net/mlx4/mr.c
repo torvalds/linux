@@ -209,7 +209,7 @@ int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 	} else
 		mtt->page_shift = page_shift;
 
-	for (mtt->order = 0, i = MLX4_MTT_ENTRY_PER_SEG; i < npages; i <<= 1)
+	for (mtt->order = 0, i = dev->caps.mtts_per_seg; i < npages; i <<= 1)
 		++mtt->order;
 
 	mtt->first_seg = mlx4_alloc_mtt_range(dev, mtt->order);
@@ -350,7 +350,7 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG |
 						   MLX4_MPT_PD_FLAG_RAE);
 		mpt_entry->mtt_sz    = cpu_to_be32((1 << mr->mtt.order) *
-						   MLX4_MTT_ENTRY_PER_SEG);
+						   dev->caps.mtts_per_seg);
 	} else {
 		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS);
 	}
@@ -391,7 +391,7 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	    (start_index + npages - 1) / (PAGE_SIZE / sizeof (u64)))
 		return -EINVAL;
 
-	if (start_index & (MLX4_MTT_ENTRY_PER_SEG - 1))
+	if (start_index & (dev->caps.mtts_per_seg - 1))
 		return -EINVAL;
 
 	mtts = mlx4_table_find(&priv->mr_table.mtt_table, mtt->first_seg +
@@ -402,7 +402,8 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	for (i = 0; i < npages; ++i)
 		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
-	dma_sync_single(&dev->pdev->dev, dma_handle, npages * sizeof (u64), DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(&dev->pdev->dev, dma_handle,
+				npages * sizeof (u64), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -549,8 +550,8 @@ int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list
 	for (i = 0; i < npages; ++i)
 		fmr->mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
 
-	dma_sync_single(&dev->pdev->dev, fmr->dma_handle,
-			npages * sizeof(u64), DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(&dev->pdev->dev, fmr->dma_handle,
+				npages * sizeof(u64), DMA_TO_DEVICE);
 
 	fmr->mpt->key    = cpu_to_be32(key);
 	fmr->mpt->lkey   = cpu_to_be32(key);

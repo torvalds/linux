@@ -22,16 +22,11 @@ README.gigaset
 	- info on the drivers for Siemens Gigaset ISDN adapters.
 README.icn
 	- info on the ICN-ISDN-card and its driver.
+>>>>>>> 93af7aca44f0e82e67bda10a0fb73d383edcc8bd:Documentation/isdn/00-INDEX
 README.HiSax
 	- info on the HiSax driver which replaces the old teles.
-README.hfc-pci
-	- info on hfc-pci based cards.
-README.pcbit
-	- info on the PCBIT-D ISDN adapter and driver.
-README.syncppp
-	- info on running Sync PPP over ISDN.
-syncPPP.FAQ
-	- frequently asked questions about running PPP over ISDN.
+README.audio
+	- info for running audio over ISDN.
 README.avmb1
 	- info on driver for AVM-B1 ISDN card.
 README.act2000
@@ -42,10 +37,28 @@ README.concap
 	- info on "CONCAP" encapsulation protocol interface used for X.25.
 README.diversion
 	- info on module for isdn diversion services.
+README.fax
+	- info for using Fax over ISDN.
+README.gigaset
+	- info on the drivers for Siemens Gigaset ISDN adapters
+README.hfc-pci
+	- info on hfc-pci based cards.
+README.hysdn
+        - info on driver for Hypercope active HYSDN cards
+README.icn
+	- info on the ICN-ISDN-card and its driver.
+README.mISDN
+	- info on the Modular ISDN subsystem (mISDN)
+README.pcbit
+	- info on the PCBIT-D ISDN adapter and driver.
 README.sc
 	- info on driver for Spellcaster cards.
+README.syncppp
+	- info on running Sync PPP over ISDN.
 README.x25
 	- info for running X.25 over ISDN.
+syncPPP.FAQ
+	- frequently asked questions about running PPP over ISDN.
 README.hysdn
 	- info on driver for Hypercope active HYSDN cards
 README.mISDN

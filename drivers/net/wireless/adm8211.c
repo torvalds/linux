@@ -1311,18 +1311,20 @@ static int adm8211_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int adm8211_config_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_if_conf *conf)
+static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *conf,
+				     u32 changes)
 {
 	struct adm8211_priv *priv = dev->priv;
+
+	if (!(changes & BSS_CHANGED_BSSID))
+		return;
 
 	if (memcmp(conf->bssid, priv->bssid, ETH_ALEN)) {
 		adm8211_set_bssid(dev, conf->bssid);
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	}
-
-	return 0;
 }
 
 static void adm8211_configure_filter(struct ieee80211_hw *dev,
@@ -1753,7 +1755,7 @@ static const struct ieee80211_ops adm8211_ops = {
 	.add_interface		= adm8211_add_interface,
 	.remove_interface	= adm8211_remove_interface,
 	.config			= adm8211_config,
-	.config_interface	= adm8211_config_interface,
+	.bss_info_changed	= adm8211_bss_info_changed,
 	.configure_filter	= adm8211_configure_filter,
 	.get_stats		= adm8211_get_stats,
 	.get_tx_stats		= adm8211_get_tx_stats,

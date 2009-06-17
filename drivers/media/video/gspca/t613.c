@@ -697,7 +697,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		return -EINVAL;
 	}
 
-	if (sd->sensor != SENSOR_OTHER) {
+	if (sd->sensor == SENSOR_OM6802) {
 		reg_w_buf(gspca_dev, n1, sizeof n1);
 		i = 5;
 		while (--i >= 0) {

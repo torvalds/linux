@@ -20,6 +20,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <linux/usb/r8a66597.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <mach/highlander.h>
@@ -28,18 +30,21 @@
 #include <asm/io.h>
 #include <asm/io_trapped.h>
 
+static struct r8a66597_platdata r8a66597_data = {
+	.xtal = R8A66597_PLATDATA_XTAL_12MHZ,
+	.vif = 1,
+};
+
 static struct resource r8a66597_usb_host_resources[] = {
 	[0] = {
-		.name	= "r8a66597_hcd",
 		.start	= 0xA4200000,
 		.end	= 0xA42000FF,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.name	= "r8a66597_hcd",
 		.start	= IRQ_EXT1,		/* irq number */
 		.end	= IRQ_EXT1,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
 
@@ -49,6 +54,7 @@ static struct platform_device r8a66597_usb_host_device = {
 	.dev = {
 		.dma_mask		= NULL,		/* don't use dma */
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &r8a66597_data,
 	},
 	.num_resources	= ARRAY_SIZE(r8a66597_usb_host_resources),
 	.resource	= r8a66597_usb_host_resources,

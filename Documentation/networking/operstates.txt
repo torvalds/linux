@@ -38,9 +38,6 @@ ifinfomsg::if_flags & IFF_LOWER_UP:
 ifinfomsg::if_flags & IFF_DORMANT:
  Driver has signaled netif_dormant_on()
 
-These interface flags can also be queried without netlink using the
-SIOCGIFFLAGS ioctl.
-
 TLV IFLA_OPERSTATE
 
 contains RFC2863 state of the interface in numeric representation:

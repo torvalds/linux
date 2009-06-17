@@ -70,7 +70,7 @@ static void shutdown_mappi2_irq(unsigned int irq)
 	outl(M32R_ICUCR_ILEVEL7, port);
 }
 
-static struct hw_interrupt_type mappi2_irq_type =
+static struct irq_chip mappi2_irq_type =
 {
 	.typename = "MAPPI2-IRQ",
 	.startup = startup_mappi2_irq,

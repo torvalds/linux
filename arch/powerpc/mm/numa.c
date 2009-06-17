@@ -981,6 +981,8 @@ void __init do_init_bootmem(void)
 		mark_reserved_regions_for_nid(nid);
 		sparse_memory_present_with_active_regions(nid);
 	}
+
+	init_bootmem_done = 1;
 }
 
 void __init paging_init(void)
