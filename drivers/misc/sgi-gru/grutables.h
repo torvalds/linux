@@ -174,9 +174,12 @@ struct gru_stats_s {
 	atomic_long_t assign_context;
 	atomic_long_t assign_context_failed;
 	atomic_long_t free_context;
-	atomic_long_t load_context;
-	atomic_long_t unload_context;
-	atomic_long_t steal_context;
+	atomic_long_t load_user_context;
+	atomic_long_t load_kernel_context;
+	atomic_long_t lock_kernel_context;
+	atomic_long_t unlock_kernel_context;
+	atomic_long_t steal_user_context;
+	atomic_long_t steal_kernel_context;
 	atomic_long_t steal_context_failed;
 	atomic_long_t nopfn;
 	atomic_long_t break_cow;
@@ -454,6 +457,9 @@ struct gru_blade_state {
 							   reserved cb */
 	void			*kernel_dsr;		/* First kernel
 							   reserved DSR */
+	struct rw_semaphore	bs_kgts_sema;		/* lock for kgts */
+	struct gru_thread_state *bs_kgts;		/* GTS for kernel use */
+
 	/* ---- the following are protected by the bs_lock spinlock ---- */
 	spinlock_t		bs_lock;		/* lock used for
 							   stealing contexts */
@@ -595,6 +601,11 @@ static inline void lock_tgh_handle(struct gru_tlb_global_handle *tgh)
 static inline void unlock_tgh_handle(struct gru_tlb_global_handle *tgh)
 {
 	__unlock_handle(tgh);
+}
+
+static inline int is_kernel_context(struct gru_thread_state *gts)
+{
+	return !gts->ts_mm;
 }
 
 /*-----------------------------------------------------------------------------

@@ -131,7 +131,7 @@ static int gru_dump_context(struct gru_state *gru, int ctxnum,
 
 	if (cch_locked || !lock_cch) {
 		gts = gru->gs_gts[ctxnum];
-		if (gts) {
+		if (gts && gts->ts_vma) {
 			hdr.pid = gts->ts_tgid_owner;
 			hdr.vaddr = gts->ts_vma->vm_start;
 		}

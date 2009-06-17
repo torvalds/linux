@@ -96,7 +96,7 @@ static int gru_reset_asid_limit(struct gru_state *gru, int asid)
 	gid = gru->gs_gid;
 again:
 	for (i = 0; i < GRU_NUM_CCH; i++) {
-		if (!gru->gs_gts[i])
+		if (!gru->gs_gts[i] || is_kernel_context(gru->gs_gts[i]))
 			continue;
 		inuse_asid = gru->gs_gts[i]->ts_gms->ms_asids[gid].mt_asid;
 		gru_dbg(grudev, "gid %d, gts %p, gms %p, inuse 0x%x, cxt %d\n",
@@ -506,7 +506,8 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 	struct gru_context_configuration_handle *cch;
 	int ctxnum = gts->ts_ctxnum;
 
-	zap_vma_ptes(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE);
+	if (!is_kernel_context(gts))
+		zap_vma_ptes(gts->ts_vma, UGRUADDR(gts), GRU_GSEG_PAGESIZE);
 	cch = get_cch(gru->gs_gru_base_vaddr, ctxnum);
 
 	gru_dbg(grudev, "gts %p\n", gts);
@@ -514,7 +515,8 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 	if (cch_interrupt_sync(cch))
 		BUG();
 
-	gru_unload_mm_tracker(gru, gts);
+	if (!is_kernel_context(gts))
+		gru_unload_mm_tracker(gru, gts);
 	if (savestate)
 		gru_unload_context_data(gts->ts_gdata, gru->gs_gru_base_vaddr,
 					ctxnum, gts->ts_cbr_map,
@@ -526,7 +528,6 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
 	unlock_cch_handle(cch);
 
 	gru_free_gru_context(gts);
-	STAT(unload_context);
 }
 
 /*
@@ -554,11 +555,16 @@ void gru_load_context(struct gru_thread_state *gts)
 	cch->tfm_done_bit_enable = 0;
 	cch->dsr_allocation_map = gts->ts_dsr_map;
 	cch->cbr_allocation_map = gts->ts_cbr_map;
-	asid = gru_load_mm_tracker(gru, gts);
-	cch->unmap_enable = 0;
-	for (i = 0; i < 8; i++) {
-		cch->asid[i] = asid + i;
-		cch->sizeavail[i] = gts->ts_sizeavail;
+
+	if (is_kernel_context(gts)) {
+		cch->unmap_enable = 1;
+	} else {
+		cch->unmap_enable = 0;
+		asid = gru_load_mm_tracker(gru, gts);
+		for (i = 0; i < 8; i++) {
+			cch->asid[i] = asid + i;
+			cch->sizeavail[i] = gts->ts_sizeavail;
+		}
 	}
 
 	err = cch_allocate(cch);
@@ -575,8 +581,6 @@ void gru_load_context(struct gru_thread_state *gts)
 	if (cch_start(cch))
 		BUG();
 	unlock_cch_handle(cch);
-
-	STAT(load_context);
 }
 
 /*
@@ -652,6 +656,27 @@ static int gru_retarget_intr(struct gru_thread_state *gts)
 #define next_gru(b, g)	(((g) < &(b)->bs_grus[GRU_CHIPLETS_PER_BLADE - 1]) ?  \
 				 ((g)+1) : &(b)->bs_grus[0])
 
+static int is_gts_stealable(struct gru_thread_state *gts,
+		struct gru_blade_state *bs)
+{
+	if (is_kernel_context(gts))
+		return down_write_trylock(&bs->bs_kgts_sema);
+	else
+		return mutex_trylock(&gts->ts_ctxlock);
+}
+
+static void gts_stolen(struct gru_thread_state *gts,
+		struct gru_blade_state *bs)
+{
+	if (is_kernel_context(gts)) {
+		up_write(&bs->bs_kgts_sema);
+		STAT(steal_kernel_context);
+	} else {
+		mutex_unlock(&gts->ts_ctxlock);
+		STAT(steal_user_context);
+	}
+}
+
 void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 {
 	struct gru_blade_state *blade;
@@ -685,7 +710,7 @@ void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 			 * success are high. If trylock fails, try to steal a
 			 * different GSEG.
 			 */
-			if (ngts && mutex_trylock(&ngts->ts_ctxlock))
+			if (ngts && is_gts_stealable(ngts, blade))
 				break;
 			ngts = NULL;
 			flag = 1;
@@ -701,10 +726,9 @@ void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 	spin_unlock(&blade->bs_lock);
 
 	if (ngts) {
-		STAT(steal_context);
 		ngts->ts_steal_jiffies = jiffies;
-		gru_unload_context(ngts, 1);
-		mutex_unlock(&ngts->ts_ctxlock);
+		gru_unload_context(ngts, is_kernel_context(ngts) ? 0 : 1);
+		gts_stolen(ngts, blade);
 	} else {
 		STAT(steal_context_failed);
 	}
@@ -810,6 +834,7 @@ again:
 	}
 
 	if (!gts->ts_gru) {
+		STAT(load_user_context);
 		if (!gru_assign_gru_context(gts, blade_id)) {
 			preempt_enable();
 			mutex_unlock(&gts->ts_ctxlock);

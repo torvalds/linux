@@ -51,9 +51,12 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, assign_context);
 	printstat(s, assign_context_failed);
 	printstat(s, free_context);
-	printstat(s, load_context);
-	printstat(s, unload_context);
-	printstat(s, steal_context);
+	printstat(s, load_user_context);
+	printstat(s, load_kernel_context);
+	printstat(s, lock_kernel_context);
+	printstat(s, unlock_kernel_context);
+	printstat(s, steal_user_context);
+	printstat(s, steal_kernel_context);
 	printstat(s, steal_context_failed);
 	printstat(s, nopfn);
 	printstat(s, break_cow);

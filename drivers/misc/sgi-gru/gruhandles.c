@@ -57,7 +57,7 @@ static void start_instruction(void *h)
 static int wait_instruction_complete(void *h, enum mcs_op opc)
 {
 	int status;
-	cycles_t start_time = get_cycles();
+	unsigned long start_time = get_cycles();
 
 	while (1) {
 		cpu_relax();
@@ -65,7 +65,8 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 		if (status != CCHSTATUS_ACTIVE)
 			break;
 		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time))
-			panic("GRU %p is malfunctioning\n", h);
+			panic("GRU %p is malfunctioning: start %ld, end %ld\n",
+			      h, start_time, (unsigned long)get_cycles());
 	}
 	if (gru_options & OPT_STATS)
 		update_mcs_stats(opc, get_cycles() - start_time);
