@@ -51,6 +51,8 @@ struct isofs_sb_info {
 	unsigned char s_hide;
 	unsigned char s_showassoc;
 	unsigned char s_overriderockperm;
+	unsigned char s_uid_set;
+	unsigned char s_gid_set;
 
 	mode_t s_fmode;
 	mode_t s_dmode;
