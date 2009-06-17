@@ -24,6 +24,8 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -187,14 +189,21 @@ struct pll_state {
 	unsigned int out;
 };
 
+#define WM8580_NUM_SUPPLIES 3
+static const char *wm8580_supply_names[WM8580_NUM_SUPPLIES] = {
+	"AVDD",
+	"DVDD",
+	"PVDD",
+};
+
 /* codec private data */
 struct wm8580_priv {
 	struct snd_soc_codec codec;
+	struct regulator_bulk_data supplies[WM8580_NUM_SUPPLIES];
 	u16 reg_cache[WM8580_MAX_REGISTER + 1];
 	struct pll_state a;
 	struct pll_state b;
 };
-
 
 /*
  * read wm8580 register cache
@@ -922,11 +931,28 @@ static int wm8580_register(struct wm8580_priv *wm8580)
 
 	memcpy(codec->reg_cache, wm8580_reg, sizeof(wm8580_reg));
 
+	for (i = 0; i < ARRAY_SIZE(wm8580->supplies); i++)
+		wm8580->supplies[i].supply = wm8580_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8580->supplies),
+				 wm8580->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8580->supplies),
+				    wm8580->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_regulator_get;
+	}
+
 	/* Get the codec into a known state */
 	ret = wm8580_write(codec, WM8580_RESET, 0);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to reset codec: %d\n", ret);
-		goto err;
+		goto err_regulator_enable;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8580_dai); i++)
@@ -939,7 +965,7 @@ static int wm8580_register(struct wm8580_priv *wm8580)
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto err;
+		goto err_regulator_enable;
 	}
 
 	ret = snd_soc_register_dais(wm8580_dai, ARRAY_SIZE(wm8580_dai));
@@ -952,6 +978,10 @@ static int wm8580_register(struct wm8580_priv *wm8580)
 
 err_codec:
 	snd_soc_unregister_codec(codec);
+err_regulator_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
+err_regulator_get:
+	regulator_bulk_free(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 err:
 	kfree(wm8580);
 	return ret;
@@ -962,6 +992,8 @@ static void wm8580_unregister(struct wm8580_priv *wm8580)
 	wm8580_set_bias_level(&wm8580->codec, SND_SOC_BIAS_OFF);
 	snd_soc_unregister_dais(wm8580_dai, ARRAY_SIZE(wm8580_dai));
 	snd_soc_unregister_codec(&wm8580->codec);
+	regulator_bulk_disable(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
+	regulator_bulk_free(ARRAY_SIZE(wm8580->supplies), wm8580->supplies);
 	kfree(wm8580);
 	wm8580_codec = NULL;
 }
