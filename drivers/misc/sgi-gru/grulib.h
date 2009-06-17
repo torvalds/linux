@@ -120,7 +120,7 @@ struct gru_flush_tlb_req {
 enum {dcs_pid, dcs_gid};
 struct gru_dump_chiplet_state_req {
 	unsigned int	op;
-	int		gid;
+	unsigned int	gid;
 	int		ctxnum;
 	char		data_opt;
 	char		lock_cch;
@@ -134,7 +134,7 @@ struct gru_dump_chiplet_state_req {
 #define GRU_DUMP_MAGIC	0x3474ab6c
 struct gru_dump_context_header {
 	unsigned int	magic;
-	unsigned char	gid;
+	unsigned int	gid;
 	unsigned char	ctxnum;
 	unsigned char	cbrcnt;
 	unsigned char	dsrcnt;

@@ -26,7 +26,7 @@
 
 static int gru_user_copy_handle(void __user **dp, void *s)
 {
-	if (copy_to_user(dp, s, GRU_HANDLE_BYTES))
+	if (copy_to_user(*dp, s, GRU_HANDLE_BYTES))
 		return -1;
 	*dp += GRU_HANDLE_BYTES;
 	return 0;
@@ -109,7 +109,7 @@ static int gru_dump_context(struct gru_state *gru, int ctxnum,
 {
 	struct gru_dump_context_header hdr;
 	struct gru_dump_context_header __user *uhdr = ubuf;
-	struct gru_context_configuration_handle *cch;
+	struct gru_context_configuration_handle *cch, *ubufcch;
 	struct gru_thread_state *gts;
 	int try, cch_locked, cbrcnt = 0, dsrcnt = 0, bytes = 0, ret = 0;
 	void *grubase;
@@ -125,8 +125,11 @@ static int gru_dump_context(struct gru_state *gru, int ctxnum,
 	}
 
 	ubuf += sizeof(hdr);
+	ubufcch = ubuf;
 	if (gru_user_copy_handle(&ubuf, cch))
 		goto fail;
+	if (cch_locked)
+		ubufcch->delresp = 0;
 	bytes = sizeof(hdr) + GRU_CACHE_LINE_BYTES;
 
 	if (cch_locked || !lock_cch) {
@@ -155,6 +158,7 @@ static int gru_dump_context(struct gru_state *gru, int ctxnum,
 		return ret;
 
 	hdr.magic = GRU_DUMP_MAGIC;
+	hdr.gid = gru->gs_gid;
 	hdr.ctxnum = ctxnum;
 	hdr.cbrcnt = cbrcnt;
 	hdr.dsrcnt = dsrcnt;
