@@ -2240,6 +2240,11 @@ static void nfs4_fill_super(struct super_block *sb)
 	nfs_initialise_sb(sb);
 }
 
+static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *args)
+{
+	args->flags &= ~(NFS_MOUNT_NONLM|NFS_MOUNT_NOACL|NFS_MOUNT_VER3);
+}
+
 /*
  * Validate NFSv4 mount options
  */
@@ -2335,6 +2340,8 @@ static int nfs4_validate_mount_data(void *options,
 				args->nfs_server.port);
 
 		nfs_validate_transport_protocol(args);
+
+		nfs4_validate_mount_flags(args);
 
 		if (args->auth_flavor_len > 1)
 			goto out_inval_auth;
