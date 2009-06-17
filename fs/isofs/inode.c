@@ -141,24 +141,24 @@ static const struct dentry_operations isofs_dentry_ops[] = {
 };
 
 struct iso9660_options{
-	char map;
-	char rock;
+	unsigned int rock:1;
+	unsigned int cruft:1;
+	unsigned int hide:1;
+	unsigned int showassoc:1;
+	unsigned int nocompress:1;
+	unsigned int overriderockperm:1;
+	unsigned int uid_set:1;
+	unsigned int gid_set:1;
+	unsigned int utf8:1;
+	unsigned char map;
 	char joliet;
-	char cruft;
-	char hide;
-	char showassoc;
-	char nocompress;
-	char overriderockperm;
 	unsigned char check;
 	unsigned int blocksize;
 	mode_t fmode;
 	mode_t dmode;
-	char uid_set;
-	char gid_set;
 	gid_t gid;
 	uid_t uid;
 	char *iocharset;
-	unsigned char utf8;
 	/* LVE */
 	s32 session;
 	s32 sbsector;
@@ -363,11 +363,11 @@ static int parse_options(char *options, struct iso9660_options *popt)
 	int option;
 
 	popt->map = 'n';
-	popt->rock = 'y';
-	popt->joliet = 'y';
-	popt->cruft = 'n';
-	popt->hide = 'n';
-	popt->showassoc = 'n';
+	popt->rock = 1;
+	popt->joliet = 1;
+	popt->cruft = 0;
+	popt->hide = 0;
+	popt->showassoc = 0;
 	popt->check = 'u';		/* unset */
 	popt->nocompress = 0;
 	popt->blocksize = 1024;
@@ -395,20 +395,20 @@ static int parse_options(char *options, struct iso9660_options *popt)
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_norock:
-			popt->rock = 'n';
+			popt->rock = 0;
 			break;
 		case Opt_nojoliet:
-			popt->joliet = 'n';
+			popt->joliet = 0;
 			break;
 		case Opt_hide:
-			popt->hide = 'y';
+			popt->hide = 1;
 			break;
 		case Opt_unhide:
 		case Opt_showassoc:
-			popt->showassoc = 'y';
+			popt->showassoc = 1;
 			break;
 		case Opt_cruft:
-			popt->cruft = 'y';
+			popt->cruft = 1;
 			break;
 		case Opt_utf8:
 			popt->utf8 = 1;
@@ -657,7 +657,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 					goto out_freebh;
 
 				sbi->s_high_sierra = 1;
-				opt.rock = 'n';
+				opt.rock = 0;
 				h_pri = (struct hs_primary_descriptor *)vdp;
 				goto root_found;
 			}
@@ -680,7 +680,7 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 
 root_found:
 
-	if (joliet_level && (pri == NULL || opt.rock == 'n')) {
+	if (joliet_level && (pri == NULL || !opt.rock)) {
 		/* This is the case of Joliet with the norock mount flag.
 		 * A disc with both Joliet and Rock Ridge is handled later
 		 */
@@ -809,7 +809,7 @@ root_found:
 	s->s_op = &isofs_sops;
 	s->s_export_op = &isofs_export_ops;
 	sbi->s_mapping = opt.map;
-	sbi->s_rock = (opt.rock == 'y' ? 2 : 0);
+	sbi->s_rock = (opt.rock ? 2 : 0);
 	sbi->s_rock_offset = -1; /* initial offset, will guess until SP is found*/
 	sbi->s_cruft = opt.cruft;
 	sbi->s_hide = opt.hide;
@@ -1315,7 +1315,7 @@ static int isofs_read_inode(struct inode *inode)
 	 * this CDROM was mounted with the cruft option.
 	 */
 
-	if (sbi->s_cruft == 'y')
+	if (sbi->s_cruft)
 		inode->i_size &= 0x00ffffff;
 
 	if (de->interleave[0]) {

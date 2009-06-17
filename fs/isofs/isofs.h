@@ -35,24 +35,20 @@ struct isofs_sb_info {
 	unsigned long s_log_zone_size;
 	unsigned long s_max_size;
 	
-	unsigned char s_high_sierra; /* A simple flag */
-	unsigned char s_mapping;
 	int           s_rock_offset; /* offset of SUSP fields within SU area */
-	unsigned char s_rock;
 	unsigned char s_joliet_level;
-	unsigned char s_utf8;
-	unsigned char s_cruft; /* Broken disks with high
-				  byte of length containing
-				  junk */
-	unsigned char s_unhide;
-	unsigned char s_nosuid;
-	unsigned char s_nodev;
-	unsigned char s_nocompress;
-	unsigned char s_hide;
-	unsigned char s_showassoc;
-	unsigned char s_overriderockperm;
-	unsigned char s_uid_set;
-	unsigned char s_gid_set;
+	unsigned char s_mapping;
+	unsigned int  s_high_sierra:1;
+	unsigned int  s_rock:2;
+	unsigned int  s_utf8:1;
+	unsigned int  s_cruft:1; /* Broken disks with high byte of length
+				  * containing junk */
+	unsigned int  s_nocompress:1;
+	unsigned int  s_hide:1;
+	unsigned int  s_showassoc:1;
+	unsigned int  s_overriderockperm:1;
+	unsigned int  s_uid_set:1;
+	unsigned int  s_gid_set:1;
 
 	mode_t s_fmode;
 	mode_t s_dmode;
