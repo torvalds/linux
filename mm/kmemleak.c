@@ -251,7 +251,7 @@ static void kmemleak_disable(void);
  * recovered from. Kkmemleak will be disabled and further allocation/freeing
  * tracing no longer available.
  */
-#define kmemleak_panic(x...)	do {	\
+#define kmemleak_stop(x...)	do {	\
 	kmemleak_warn(x);		\
 	kmemleak_disable();		\
 } while (0)
@@ -467,8 +467,8 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 
 	object = kmem_cache_alloc(object_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!object) {
-		kmemleak_panic("kmemleak: Cannot allocate a kmemleak_object "
-			       "structure\n");
+		kmemleak_stop("kmemleak: Cannot allocate a kmemleak_object "
+			      "structure\n");
 		return;
 	}
 
@@ -527,8 +527,8 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	if (node != &object->tree_node) {
 		unsigned long flags;
 
-		kmemleak_panic("kmemleak: Cannot insert 0x%lx into the object "
-			       "search tree (already existing)\n", ptr);
+		kmemleak_stop("kmemleak: Cannot insert 0x%lx into the object "
+			      "search tree (already existing)\n", ptr);
 		object = lookup_object(ptr, 1);
 		spin_lock_irqsave(&object->lock, flags);
 		dump_object_info(object);
@@ -699,7 +699,7 @@ static void log_early(int op_type, const void *ptr, size_t size,
 	struct early_log *log;
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-		kmemleak_panic("kmemleak: Early log buffer exceeded\n");
+		kmemleak_stop("kmemleak: Early log buffer exceeded\n");
 		return;
 	}
 
