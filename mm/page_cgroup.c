@@ -311,8 +311,6 @@ static int swap_cgroup_prepare(int type)
 	struct swap_cgroup_ctrl *ctrl;
 	unsigned long idx, max;
 
-	if (!do_swap_account)
-		return 0;
 	ctrl = &swap_cgroup_ctrl[type];
 
 	for (idx = 0; idx < ctrl->length; idx++) {
@@ -349,9 +347,6 @@ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
 	struct swap_cgroup *sc;
 	unsigned short old;
 
-	if (!do_swap_account)
-		return 0;
-
 	ctrl = &swap_cgroup_ctrl[type];
 
 	mappage = ctrl->map[idx];
@@ -379,9 +374,6 @@ unsigned short lookup_swap_cgroup(swp_entry_t ent)
 	struct page *mappage;
 	struct swap_cgroup *sc;
 	unsigned short ret;
-
-	if (!do_swap_account)
-		return 0;
 
 	ctrl = &swap_cgroup_ctrl[type];
 	mappage = ctrl->map[idx];

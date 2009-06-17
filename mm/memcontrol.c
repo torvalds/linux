@@ -45,7 +45,7 @@ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
 #define MEM_CGROUP_RECLAIM_RETRIES	5
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-/* Turned on only when memory cgroup is enabled && really_do_swap_account = 0 */
+/* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
 int do_swap_account __read_mostly;
 static int really_do_swap_account __initdata = 1; /* for remember boot option*/
 #else
@@ -1763,16 +1763,14 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 	return ret;
 }
 
-int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
-				unsigned long long val)
+static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+					unsigned long long val)
 {
 	int retry_count;
 	u64 memlimit, oldusage, curusage;
 	int children = mem_cgroup_count_children(memcg);
 	int ret = -EBUSY;
 
-	if (!do_swap_account)
-		return -EINVAL;
 	/* see mem_cgroup_resize_res_limit */
  	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
 	oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
@@ -2007,8 +2005,7 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 		val = res_counter_read_u64(&mem->res, name);
 		break;
 	case _MEMSWAP:
-		if (do_swap_account)
-			val = res_counter_read_u64(&mem->memsw, name);
+		val = res_counter_read_u64(&mem->memsw, name);
 		break;
 	default:
 		BUG();
