@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2009 Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2006-2007 Freescale Semicondutor, Inc. All rights reserved.
  *
  * Author: Shlomi Gridish <gridish@freescale.com>
  *	   Li Yang <leoli@freescale.com>
@@ -64,8 +64,6 @@
 
 
 static DEFINE_SPINLOCK(ugeth_lock);
-
-static void uec_configure_serdes(struct net_device *dev);
 
 static struct {
 	u32 msg_enable;
@@ -1412,9 +1410,6 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
 		upsmr |= UCC_GETH_UPSMR_TBIM;
 	}
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII))
-		upsmr |= UCC_GETH_UPSMR_SGMM;
-
 	out_be32(&uf_regs->upsmr, upsmr);
 
 	/* Disable autonegotiation in tbi mode, because by default it
@@ -1559,9 +1554,6 @@ static int init_phy(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	if (priv->phy_interface == PHY_INTERFACE_MODE_SGMII)
-		uec_configure_serdes(dev);
-
 	phydev->supported &= (ADVERTISED_10baseT_Half |
 				 ADVERTISED_10baseT_Full |
 				 ADVERTISED_100baseT_Half |
@@ -1577,41 +1569,7 @@ static int init_phy(struct net_device *dev)
 	return 0;
 }
 
-/* Initialize TBI PHY interface for communicating with the
- * SERDES lynx PHY on the chip.  We communicate with this PHY
- * through the MDIO bus on each controller, treating it as a
- * "normal" PHY at the address found in the UTBIPA register.  We assume
- * that the UTBIPA register is valid.  Either the MDIO bus code will set
- * it to a value that doesn't conflict with other PHYs on the bus, or the
- * value doesn't matter, as there are no other PHYs on the bus.
- */
-static void uec_configure_serdes(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
 
-	if (!ugeth->tbiphy) {
-		printk(KERN_WARNING "SGMII mode requires that the device "
-			"tree specify a tbi-handle\n");
-	return;
-	}
-
-	/*
-	 * If the link is already up, we must already be ok, and don't need to
-	 * configure and reset the TBI<->SerDes link.  Maybe U-Boot configured
-	 * everything for us?  Resetting it takes the link down and requires
-	 * several seconds for it to come back.
-	 */
-	if (phy_read(ugeth->tbiphy, ENET_TBI_MII_SR) & TBISR_LSTATUS)
-		return;
-
-	/* Single clk mode, mii mode off(for serdes communication) */
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_ANA, TBIANA_SETTINGS);
-
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_TBICON, TBICON_CLK_SELECT);
-
-	phy_write(ugeth->tbiphy, ENET_TBI_MII_CR, TBICR_SETTINGS);
-
-}
 
 static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
 {
@@ -3565,8 +3523,6 @@ static phy_interface_t to_phy_interface(const char *phy_connection_type)
 		return PHY_INTERFACE_MODE_RGMII_RXID;
 	if (strcasecmp(phy_connection_type, "rtbi") == 0)
 		return PHY_INTERFACE_MODE_RTBI;
-	if (strcasecmp(phy_connection_type, "sgmii") == 0)
-		return PHY_INTERFACE_MODE_SGMII;
 
 	return PHY_INTERFACE_MODE_MII;
 }
@@ -3611,7 +3567,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		PHY_INTERFACE_MODE_RMII, PHY_INTERFACE_MODE_RGMII,
 		PHY_INTERFACE_MODE_GMII, PHY_INTERFACE_MODE_RGMII,
 		PHY_INTERFACE_MODE_TBI, PHY_INTERFACE_MODE_RTBI,
-		PHY_INTERFACE_MODE_SGMII,
 	};
 
 	ugeth_vdbg("%s: IN", __func__);
@@ -3727,7 +3682,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		case PHY_INTERFACE_MODE_RGMII_TXID:
 		case PHY_INTERFACE_MODE_TBI:
 		case PHY_INTERFACE_MODE_RTBI:
-		case PHY_INTERFACE_MODE_SGMII:
 			max_speed = SPEED_1000;
 			break;
 		default:
@@ -3801,37 +3755,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ugeth->dev = device;
 	ugeth->ndev = dev;
 	ugeth->node = np;
-
-	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
-	ph = of_get_property(np, "tbi-handle", NULL);
-	if (ph) {
-		struct device_node *tbi = of_find_node_by_phandle(*ph);
-		struct of_device *ofdev;
-		struct mii_bus *bus;
-		const unsigned int *id;
-
-		if (!tbi)
-			return 0;
-
-		mdio = of_get_parent(tbi);
-		if (!mdio)
-			return 0;
-
-		ofdev = of_find_device_by_node(mdio);
-
-		of_node_put(mdio);
-
-		id = of_get_property(tbi, "reg", NULL);
-		if (!id)
-			return 0;
-		of_node_put(tbi);
-
-		bus = dev_get_drvdata(&ofdev->dev);
-		if (!bus)
-			return 0;
-
-		ugeth->tbiphy = bus->phy_map[*id];
-	}
 
 	return 0;
 }
