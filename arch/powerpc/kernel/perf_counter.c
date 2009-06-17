@@ -29,7 +29,7 @@ struct cpu_hw_counters {
 	struct perf_counter *counter[MAX_HWCOUNTERS];
 	u64 events[MAX_HWCOUNTERS];
 	unsigned int flags[MAX_HWCOUNTERS];
-	u64 mmcr[3];
+	unsigned long mmcr[3];
 	struct perf_counter *limited_counter[MAX_LIMITED_HWCOUNTERS];
 	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 };
@@ -135,15 +135,15 @@ static void write_pmc(int idx, unsigned long val)
 static int power_check_constraints(u64 event[], unsigned int cflags[],
 				   int n_ev)
 {
-	u64 mask, value, nv;
+	unsigned long mask, value, nv;
 	u64 alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
-	u64 smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
+	unsigned long amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	unsigned long smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
 	int n_alt[MAX_HWCOUNTERS], choice[MAX_HWCOUNTERS];
 	int i, j;
-	u64 addf = ppmu->add_fields;
-	u64 tadd = ppmu->test_adder;
+	unsigned long addf = ppmu->add_fields;
+	unsigned long tadd = ppmu->test_adder;
 
 	if (n_ev > ppmu->n_counter)
 		return -1;
@@ -403,14 +403,12 @@ static void write_mmcr0(struct cpu_hw_counters *cpuhw, unsigned long mmcr0)
 void hw_perf_disable(void)
 {
 	struct cpu_hw_counters *cpuhw;
-	unsigned long ret;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 
-	ret = cpuhw->disabled;
-	if (!ret) {
+	if (!cpuhw->disabled) {
 		cpuhw->disabled = 1;
 		cpuhw->n_added = 0;
 
@@ -1013,9 +1011,9 @@ static void record_and_restart(struct perf_counter *counter, long val,
 			       struct pt_regs *regs, int nmi)
 {
 	u64 period = counter->hw.sample_period;
+	unsigned long mmcra, sdsync;
 	s64 prev, delta, left;
 	int record = 0;
-	u64 mmcra, sdsync;
 
 	/* we don't have to worry about interrupts here */
 	prev = atomic64_read(&counter->hw.prev_count);

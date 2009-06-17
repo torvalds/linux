@@ -21,21 +21,22 @@
  * describe the PMU on a particular POWER-family CPU.
  */
 struct power_pmu {
-	int	n_counter;
-	int	max_alternatives;
-	u64	add_fields;
-	u64	test_adder;
-	int	(*compute_mmcr)(u64 events[], int n_ev,
-				unsigned int hwc[], u64 mmcr[]);
-	int	(*get_constraint)(u64 event, u64 *mskp, u64 *valp);
-	int	(*get_alternatives)(u64 event, unsigned int flags,
-				    u64 alt[]);
-	void	(*disable_pmc)(unsigned int pmc, u64 mmcr[]);
-	int	(*limited_pmc_event)(u64 event);
-	u32	flags;
-	int	n_generic;
-	int	*generic_events;
-	int	(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
+	int		n_counter;
+	int		max_alternatives;
+	unsigned long	add_fields;
+	unsigned long	test_adder;
+	int		(*compute_mmcr)(u64 events[], int n_ev,
+				unsigned int hwc[], unsigned long mmcr[]);
+	int		(*get_constraint)(u64 event, unsigned long *mskp,
+				unsigned long *valp);
+	int		(*get_alternatives)(u64 event, unsigned int flags,
+				u64 alt[]);
+	void		(*disable_pmc)(unsigned int pmc, unsigned long mmcr[]);
+	int		(*limited_pmc_event)(u64 event);
+	u32		flags;
+	int		n_generic;
+	int		*generic_events;
+	int		(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
 			       [PERF_COUNT_HW_CACHE_OP_MAX]
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 };
@@ -68,8 +69,8 @@ extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 #endif
 
 /*
- * The power_pmu.get_constraint function returns a 64-bit value and
- * a 64-bit mask that express the constraints between this event and
+ * The power_pmu.get_constraint function returns a 32/64-bit value and
+ * a 32/64-bit mask that express the constraints between this event and
  * other events.
  *
  * The value and mask are divided up into (non-overlapping) bitfields
