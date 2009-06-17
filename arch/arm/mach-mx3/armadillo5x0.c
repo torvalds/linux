@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -47,8 +48,10 @@
 #include <mach/mmc.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
+#include <mach/mxc_nand.h>
 
 #include "devices.h"
+#include "crm_regs.h"
 
 static int armadillo5x0_pins[] = {
 	/* UART1 */
@@ -94,7 +97,14 @@ static int armadillo5x0_pins[] = {
 	MX31_PIN_FPSHIFT__FPSHIFT,
 	MX31_PIN_DRDY0__DRDY0,
 	IOMUX_MODE(MX31_PIN_LCS1, IOMUX_CONFIG_GPIO), /*ADV7125_PSAVE*/
+};
 
+/*
+ * NAND Flash
+ */
+static struct mxc_nand_platform_data armadillo5x0_nand_flash_pdata = {
+	.width		= 1,
+	.hw_ecc		= 1,
 };
 
 /*
@@ -319,6 +329,12 @@ static void __init armadillo5x0_init(void)
 	/* Register NOR Flash */
 	mxc_register_device(&armadillo5x0_nor_flash,
 			    &armadillo5x0_nor_flash_pdata);
+
+	/* Register NAND Flash */
+	mxc_register_device(&mxc_nand_device, &armadillo5x0_nand_flash_pdata);
+
+	/* set NAND page size to 2k if not configured via boot mode pins */
+	__raw_writel(__raw_readl(MXC_CCM_RCSR) | (1 << 30), MXC_CCM_RCSR);
 }
 
 static void __init armadillo5x0_timer_init(void)
