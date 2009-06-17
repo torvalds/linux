@@ -255,7 +255,8 @@ struct gru_tlb_fault_handle {
 	unsigned int state:3;
 	unsigned int fill3:1;
 
-	unsigned int cause:7;
+	unsigned int cause:6;
+	unsigned int cb_int:1;
 	unsigned int fill4:1;
 
 	unsigned int indexway:12;	/* DW 0 - high 32 */

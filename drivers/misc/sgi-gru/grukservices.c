@@ -406,7 +406,8 @@ static int gru_retry_exception(void *cb)
 			return CBS_IDLE;
 
 		gru_get_cb_exception_detail(cb, &excdet);
-		if (excdet.ecause & ~EXCEPTION_RETRY_BITS)
+		if ((excdet.ecause & ~EXCEPTION_RETRY_BITS) ||
+				(excdet.cbrexecstatus & CBR_EXS_ABORT_OCC))
 			break;
 		if (retry-- == 0)
 			break;

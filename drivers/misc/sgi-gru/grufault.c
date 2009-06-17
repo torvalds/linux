@@ -339,8 +339,12 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 * Might be a hardware race OR a stupid user. Ignore FMM because FMM
 	 * is a transient state.
 	 */
-	if (tfh->status != TFHSTATUS_EXCEPTION)
-		goto failnoexception;
+	if (tfh->status != TFHSTATUS_EXCEPTION) {
+		gru_flush_cache(tfh);
+		if (tfh->status != TFHSTATUS_EXCEPTION)
+			goto failnoexception;
+		STAT(tfh_stale_on_fault);
+	}
 	if (tfh->state == TFHSTATE_IDLE)
 		goto failidle;
 	if (tfh->state == TFHSTATE_MISS_FMM && cb)

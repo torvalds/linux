@@ -253,32 +253,37 @@ struct gru_instruction {
 #define CBE_CAUSE_HA_RESPONSE_FATAL		(1 << 13)
 #define CBE_CAUSE_HA_RESPONSE_NON_FATAL		(1 << 14)
 #define CBE_CAUSE_ADDRESS_SPACE_DECODE_ERROR	(1 << 15)
-#define CBE_CAUSE_RESPONSE_DATA_ERROR		(1 << 16)
-#define CBE_CAUSE_PROTOCOL_STATE_DATA_ERROR	(1 << 17)
+#define CBE_CAUSE_PROTOCOL_STATE_DATA_ERROR	(1 << 16)
+#define CBE_CAUSE_RA_RESPONSE_DATA_ERROR	(1 << 17)
+#define CBE_CAUSE_HA_RESPONSE_DATA_ERROR	(1 << 18)
 
 /* CBE cbrexecstatus bits */
 #define CBR_EXS_ABORT_OCC_BIT			0
 #define CBR_EXS_INT_OCC_BIT			1
 #define CBR_EXS_PENDING_BIT			2
 #define CBR_EXS_QUEUED_BIT			3
-#define CBR_EXS_TLBHW_BIT			4
+#define CBR_EXS_TLB_INVAL_BIT			4
 #define CBR_EXS_EXCEPTION_BIT			5
 
 #define CBR_EXS_ABORT_OCC			(1 << CBR_EXS_ABORT_OCC_BIT)
 #define CBR_EXS_INT_OCC				(1 << CBR_EXS_INT_OCC_BIT)
 #define CBR_EXS_PENDING				(1 << CBR_EXS_PENDING_BIT)
 #define CBR_EXS_QUEUED				(1 << CBR_EXS_QUEUED_BIT)
-#define CBR_EXS_TLBHW				(1 << CBR_EXS_TLBHW_BIT)
+#define CBR_TLB_INVAL				(1 << CBR_EXS_TLB_INVAL_BIT)
 #define CBR_EXS_EXCEPTION			(1 << CBR_EXS_EXCEPTION_BIT)
 
 /*
  * Exceptions are retried for the following cases. If any OTHER bits are set
  * in ecause, the exception is not retryable.
  */
-#define EXCEPTION_RETRY_BITS (CBE_CAUSE_RESPONSE_DATA_ERROR |		\
-			      CBE_CAUSE_RA_REQUEST_TIMEOUT |		\
+#define EXCEPTION_RETRY_BITS (CBE_CAUSE_EXECUTION_HW_ERROR |		\
 			      CBE_CAUSE_TLBHW_ERROR |			\
-			      CBE_CAUSE_HA_REQUEST_TIMEOUT)
+			      CBE_CAUSE_RA_REQUEST_TIMEOUT |		\
+			      CBE_CAUSE_RA_RESPONSE_NON_FATAL |		\
+			      CBE_CAUSE_HA_RESPONSE_NON_FATAL |		\
+			      CBE_CAUSE_RA_RESPONSE_DATA_ERROR |	\
+			      CBE_CAUSE_HA_RESPONSE_DATA_ERROR		\
+			      )
 
 /* Message queue head structure */
 union gru_mesqhead {

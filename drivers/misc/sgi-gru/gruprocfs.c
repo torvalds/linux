@@ -89,6 +89,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, tlb_dropin_fail_fmm);
 	printstat(s, tlb_dropin_fail_no_exception);
 	printstat(s, tlb_dropin_fail_no_exception_war);
+	printstat(s, tfh_stale_on_fault);
 	printstat(s, mmu_invalidate_range);
 	printstat(s, mmu_invalidate_page);
 	printstat(s, mmu_clear_flush_young);
