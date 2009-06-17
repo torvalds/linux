@@ -20,6 +20,8 @@
 
 static int ov7660_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int ov7660_get_blue_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov7660_set_blue_gain(struct gspca_dev *gspca_dev, __s32 val);
 
 const static struct ctrl ov7660_ctrls[] = {
 #define GAIN_IDX 1
@@ -37,6 +39,22 @@ const static struct ctrl ov7660_ctrls[] = {
 		.set = ov7660_set_gain,
 		.get = ov7660_get_gain
 	},
+#define BLUE_BALANCE_IDX 2
+	{
+		{
+			.id		= V4L2_CID_BLUE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "blue balance",
+			.minimum	= 0x00,
+			.maximum	= 0x7f,
+			.step		= 0x1,
+			.default_value	= OV7660_DEFAULT_BLUE_GAIN,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov7660_set_blue_gain,
+		.get = ov7660_get_blue_gain
+	},
+
 };
 
 static struct v4l2_pix_format ov7660_modes[] = {
@@ -191,6 +209,31 @@ static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	sensor_settings[GAIN_IDX] = val;
 
 	err = m5602_write_sensor(sd, OV7660_GAIN, &i2c_data, 1);
+	return err;
+}
+
+static int ov7660_get_blue_gain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[BLUE_BALANCE_IDX];
+	PDEBUG(D_V4L2, "Read blue balance %d", *val);
+	return 0;
+}
+
+static int ov7660_set_blue_gain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Setting blue balance to %d", val);
+
+	sensor_settings[BLUE_BALANCE_IDX] = val;
+
+	err = m5602_write_sensor(sd, OV7660_BLUE_GAIN, &i2c_data, 1);
 	return err;
 }
 

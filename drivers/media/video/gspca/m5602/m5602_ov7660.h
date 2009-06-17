@@ -66,23 +66,23 @@
 #define OV7660_RBIAS		0x2c
 #define OV7660_HREF		0x32
 #define OV7660_ADC		0x37
-#define OV7660_OFON 		0x39
-#define OV7660_TSLB 		0x3a
-#define OV7660_COM12 		0x3c
-#define OV7660_COM13 		0x3d
+#define OV7660_OFON		0x39
+#define OV7660_TSLB		0x3a
+#define OV7660_COM12		0x3c
+#define OV7660_COM13		0x3d
 #define OV7660_LCC1		0x62
 #define OV7660_LCC2		0x63
 #define OV7660_LCC3		0x64
 #define OV7660_LCC4		0x65
 #define OV7660_LCC5		0x66
-#define OV7660_HV 		0x69
-#define OV7660_RSVDA1 		0xa1
+#define OV7660_HV		0x69
+#define OV7660_RSVDA1		0xa1
 
 #define OV7660_DEFAULT_GAIN		0x0e
-#define OV7660_DEFAULT_RED_GAIN	0x80
+#define OV7660_DEFAULT_RED_GAIN		0x80
 #define OV7660_DEFAULT_BLUE_GAIN 	0x80
 #define OV7660_DEFAULT_SATURATION	0x00
-#define OV7660_DEFAULT_EXPOSURE	0x20
+#define OV7660_DEFAULT_EXPOSURE		0x20
 
 /* Kernel module parameters */
 extern int force_sensor;
@@ -199,8 +199,6 @@ static const unsigned char init_ov7660[][4] =
 
 	{SENSOR, OV7660_COM7, 0x80},
 	{SENSOR, OV7660_CLKRC, 0x80},
-	{SENSOR, OV7660_BLUE_GAIN, 0x80},
-	{SENSOR, OV7660_RED_GAIN, 0x80},
 	{SENSOR, OV7660_COM9, 0x4c},
 	{SENSOR, OV7660_OFON, 0x43},
 	{SENSOR, OV7660_COM12, 0x28},
@@ -264,8 +262,6 @@ static const unsigned char init_ov7660[][4] =
 	{SENSOR, OV7660_OFON, 0x0c},
 	{SENSOR, OV7660_COM2, 0x11},
 	{SENSOR, OV7660_COM7, 0x05},
-	{SENSOR, OV7660_BLUE_GAIN, 0x80},
-	{SENSOR, OV7660_RED_GAIN, 0x80},
 
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x01},
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x04},
