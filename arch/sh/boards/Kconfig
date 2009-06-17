@@ -175,6 +175,7 @@ config SH_URQUELL
 	bool "Urquell"
 	depends on CPU_SUBTYPE_SH7786
 	select ARCH_REQUIRE_GPIOLIB
+	select SYS_SUPPORTS_PCI
 
 config SH_MIGOR
 	bool "Migo-R"
