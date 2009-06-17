@@ -2466,6 +2466,21 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_iter_peek);
 
+static inline int rb_ok_to_lock(void)
+{
+	/*
+	 * If an NMI die dumps out the content of the ring buffer
+	 * do not grab locks. We also permanently disable the ring
+	 * buffer too. A one time deal is all you get from reading
+	 * the ring buffer from an NMI.
+	 */
+	if (likely(!in_nmi() && !oops_in_progress))
+		return 1;
+
+	tracing_off_permanent();
+	return 0;
+}
+
 /**
  * ring_buffer_peek - peek at the next event to be read
  * @buffer: The ring buffer to read
@@ -2481,14 +2496,20 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
 	struct ring_buffer_event *event;
 	unsigned long flags;
+	int dolock;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return NULL;
 
+	dolock = rb_ok_to_lock();
  again:
-	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+	local_irq_save(flags);
+	if (dolock)
+		spin_lock(&cpu_buffer->reader_lock);
 	event = rb_buffer_peek(buffer, cpu, ts);
-	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+	if (dolock)
+		spin_unlock(&cpu_buffer->reader_lock);
+	local_irq_restore(flags);
 
 	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
 		cpu_relax();
@@ -2540,6 +2561,9 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event = NULL;
 	unsigned long flags;
+	int dolock;
+
+	dolock = rb_ok_to_lock();
 
  again:
 	/* might be called in atomic */
@@ -2549,7 +2573,9 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 		goto out;
 
 	cpu_buffer = buffer->buffers[cpu];
-	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+	local_irq_save(flags);
+	if (dolock)
+		spin_lock(&cpu_buffer->reader_lock);
 
 	event = rb_buffer_peek(buffer, cpu, ts);
 	if (!event)
@@ -2558,7 +2584,9 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
 	rb_advance_reader(cpu_buffer);
 
  out_unlock:
-	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+	if (dolock)
+		spin_unlock(&cpu_buffer->reader_lock);
+	local_irq_restore(flags);
 
  out:
 	preempt_enable();
@@ -2757,15 +2785,23 @@ int ring_buffer_empty(struct ring_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
+	int dolock;
 	int cpu;
 	int ret;
+
+	dolock = rb_ok_to_lock();
 
 	/* yes this is racy, but if you don't like the race, lock the buffer */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
-		spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+		local_irq_save(flags);
+		if (dolock)
+			spin_lock(&cpu_buffer->reader_lock);
 		ret = rb_per_cpu_empty(cpu_buffer);
-		spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+		if (dolock)
+			spin_unlock(&cpu_buffer->reader_lock);
+		local_irq_restore(flags);
+
 		if (!ret)
 			return 0;
 	}
@@ -2783,15 +2819,22 @@ int ring_buffer_empty_cpu(struct ring_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	unsigned long flags;
+	int dolock;
 	int ret;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return 1;
 
+	dolock = rb_ok_to_lock();
+
 	cpu_buffer = buffer->buffers[cpu];
-	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
+	local_irq_save(flags);
+	if (dolock)
+		spin_lock(&cpu_buffer->reader_lock);
 	ret = rb_per_cpu_empty(cpu_buffer);
-	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+	if (dolock)
+		spin_unlock(&cpu_buffer->reader_lock);
+	local_irq_restore(flags);
 
 	return ret;
 }
