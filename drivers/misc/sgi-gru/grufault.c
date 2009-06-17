@@ -558,8 +558,8 @@ int gru_handle_user_call_os(unsigned long cb)
 	 * CCH may contain stale data if ts_force_cch_reload is set.
 	 */
 	if (gts->ts_gru && gts->ts_force_cch_reload) {
-		gru_update_cch(gts, 0);
 		gts->ts_force_cch_reload = 0;
+		gru_update_cch(gts, 0);
 	}
 
 	ret = -EAGAIN;
@@ -644,7 +644,7 @@ static int gru_unload_all_contexts(void)
 			if (gts && mutex_trylock(&gts->ts_ctxlock)) {
 				spin_unlock(&gru->gs_lock);
 				gru_unload_context(gts, 1);
-				gru_unlock_gts(gts);
+				mutex_unlock(&gts->ts_ctxlock);
 				spin_lock(&gru->gs_lock);
 			}
 		}

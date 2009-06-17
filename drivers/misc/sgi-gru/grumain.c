@@ -533,7 +533,7 @@ void gru_unload_context(struct gru_thread_state *gts, int savestate)
  * Load a GRU context by copying it from the thread data structure in memory
  * to the GRU.
  */
-static void gru_load_context(struct gru_thread_state *gts)
+void gru_load_context(struct gru_thread_state *gts)
 {
 	struct gru_state *gru = gts->ts_gru;
 	struct gru_context_configuration_handle *cch;
@@ -600,8 +600,8 @@ int gru_update_cch(struct gru_thread_state *gts, int force_unload)
 			gts->ts_tlb_int_select = gru_cpu_fault_map_id();
 			cch->tlb_int_select = gru_cpu_fault_map_id();
 			cch->tfm_fault_bit_enable =
-	    		    (gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
-	     		    || gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
+				(gts->ts_user_options == GRU_OPT_MISS_FMM_POLL
+				|| gts->ts_user_options == GRU_OPT_MISS_FMM_INTR);
 		} else {
 			for (i = 0; i < 8; i++)
 				cch->asid[i] = 0;
@@ -645,7 +645,7 @@ static int gru_retarget_intr(struct gru_thread_state *gts)
 #define next_gru(b, g)	(((g) < &(b)->bs_grus[GRU_CHIPLETS_PER_BLADE - 1]) ?  \
 				 ((g)+1) : &(b)->bs_grus[0])
 
-static void gru_steal_context(struct gru_thread_state *gts, int blade_id)
+void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 {
 	struct gru_blade_state *blade;
 	struct gru_state *gru, *gru0;
@@ -711,7 +711,7 @@ static void gru_steal_context(struct gru_thread_state *gts, int blade_id)
 /*
  * Scan the GRUs on the local blade & assign a GRU context.
  */
-static struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
+struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
 						int blade)
 {
 	struct gru_state *gru, *grux;

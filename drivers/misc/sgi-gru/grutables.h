@@ -611,6 +611,10 @@ extern struct gru_thread_state *gru_find_thread_state(struct vm_area_struct
 				*vma, int tsid);
 extern struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct
 				*vma, int tsid);
+extern struct gru_state *gru_assign_gru_context(struct gru_thread_state *gts,
+		int blade);
+extern void gru_load_context(struct gru_thread_state *gts);
+extern void gru_steal_context(struct gru_thread_state *gts, int blade_id);
 extern void gru_unload_context(struct gru_thread_state *gts, int savestate);
 extern int gru_update_cch(struct gru_thread_state *gts, int force_unload);
 extern void gts_drop(struct gru_thread_state *gts);
