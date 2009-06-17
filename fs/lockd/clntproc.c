@@ -165,6 +165,7 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
 
+	lock_kernel();
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd)) {
 		if (fl->fl_type != F_UNLCK) {
 			call->a_args.block = IS_SETLKW(cmd) ? 1 : 0;
@@ -178,6 +179,7 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 
 	fl->fl_ops->fl_release_private(fl);
 	fl->fl_ops = NULL;
+	unlock_kernel();
 
 	dprintk("lockd: clnt proc returns %d\n", status);
 	return status;

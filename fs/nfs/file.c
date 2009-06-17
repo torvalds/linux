@@ -592,7 +592,6 @@ static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
 
-	lock_kernel();
 	/* Try local locking first */
 	posix_test_lock(filp, fl);
 	if (fl->fl_type != F_UNLCK) {
@@ -608,7 +607,6 @@ static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 
 	status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 out:
-	unlock_kernel();
 	return status;
 out_noconflict:
 	fl->fl_type = F_UNLCK;
@@ -650,13 +648,11 @@ static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 	 * 	If we're signalled while cleaning up locks on process exit, we
 	 * 	still need to complete the unlock.
 	 */
-	lock_kernel();
 	/* Use local locking if mounted with "-onolock" */
 	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
 		status = do_vfs_lock(filp, fl);
-	unlock_kernel();
 	return status;
 }
 
@@ -673,13 +669,11 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 	if (status != 0)
 		goto out;
 
-	lock_kernel();
 	/* Use local locking if mounted with "-onolock" */
 	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
 	else
 		status = do_vfs_lock(filp, fl);
-	unlock_kernel();
 	if (status < 0)
 		goto out;
 	/*
