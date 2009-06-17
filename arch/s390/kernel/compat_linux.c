@@ -461,9 +461,6 @@ asmlinkage long sys32_execve(void)
 		result = rc;
 		goto out_putname;
 	}
-	task_lock(current);
-	current->ptrace &= ~PT_DTRACE;
-	task_unlock(current);
 	current->thread.fp_regs.fpc=0;
 	asm volatile("sfpc %0,0" : : "d" (0));
 	result = regs->gprs[2];
