@@ -176,17 +176,22 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 				iov, offset, nr_segs, blkdev_get_blocks, NULL);
 }
 
+int __sync_blockdev(struct block_device *bdev, int wait)
+{
+	if (!bdev)
+		return 0;
+	if (!wait)
+		return filemap_flush(bdev->bd_inode->i_mapping);
+	return filemap_write_and_wait(bdev->bd_inode->i_mapping);
+}
+
 /*
  * Write out and wait upon all the dirty data associated with a block
  * device via its mapping.  Does not take the superblock lock.
  */
 int sync_blockdev(struct block_device *bdev)
 {
-	int ret = 0;
-
-	if (bdev)
-		ret = filemap_write_and_wait(bdev->bd_inode->i_mapping);
-	return ret;
+	return __sync_blockdev(bdev, 1);
 }
 EXPORT_SYMBOL(sync_blockdev);
 
@@ -199,7 +204,7 @@ int fsync_bdev(struct block_device *bdev)
 {
 	struct super_block *sb = get_super(bdev);
 	if (sb) {
-		int res = fsync_super(sb);
+		int res = sync_filesystem(sb);
 		drop_super(sb);
 		return res;
 	}
@@ -241,7 +246,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		sb->s_frozen = SB_FREEZE_WRITE;
 		smp_wmb();
 
-		__fsync_super(sb);
+		sync_filesystem(sb);
 
 		sb->s_frozen = SB_FREEZE_TRANS;
 		smp_wmb();

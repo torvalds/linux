@@ -2864,7 +2864,7 @@ static int __init hp100_eisa_probe (struct device *gendev)
 	printk("hp100: %s: EISA adapter found at 0x%x\n", dev->name,
 	       dev->base_addr);
 #endif
-	gendev->driver_data = dev;
+	dev_set_drvdata(gendev, dev);
 	return 0;
  out1:
 	free_netdev(dev);
@@ -2873,7 +2873,7 @@ static int __init hp100_eisa_probe (struct device *gendev)
 
 static int __devexit hp100_eisa_remove (struct device *gendev)
 {
-	struct net_device *dev = gendev->driver_data;
+	struct net_device *dev = dev_get_drvdata(gendev);
 	cleanup_dev(dev);
 	return 0;
 }

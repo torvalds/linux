@@ -20,82 +20,55 @@
  *	registers in the same peripheral device on different models
  *	of the ColdFire!
  */
-typedef struct fec {
-	unsigned long	fec_reserved0;
-	unsigned long	fec_ievent;		/* Interrupt event reg */
-	unsigned long	fec_imask;		/* Interrupt mask reg */
-	unsigned long	fec_reserved1;
-	unsigned long	fec_r_des_active;	/* Receive descriptor reg */
-	unsigned long	fec_x_des_active;	/* Transmit descriptor reg */
-	unsigned long	fec_reserved2[3];
-	unsigned long	fec_ecntrl;		/* Ethernet control reg */
-	unsigned long	fec_reserved3[6];
-	unsigned long	fec_mii_data;		/* MII manage frame reg */
-	unsigned long	fec_mii_speed;		/* MII speed control reg */
-	unsigned long	fec_reserved4[7];
-	unsigned long	fec_mib_ctrlstat;	/* MIB control/status reg */
-	unsigned long	fec_reserved5[7];
-	unsigned long	fec_r_cntrl;		/* Receive control reg */
-	unsigned long	fec_reserved6[15];
-	unsigned long	fec_x_cntrl;		/* Transmit Control reg */
-	unsigned long	fec_reserved7[7];
-	unsigned long	fec_addr_low;		/* Low 32bits MAC address */
-	unsigned long	fec_addr_high;		/* High 16bits MAC address */
-	unsigned long	fec_opd;		/* Opcode + Pause duration */
-	unsigned long	fec_reserved8[10];
-	unsigned long	fec_hash_table_high;	/* High 32bits hash table */
-	unsigned long	fec_hash_table_low;	/* Low 32bits hash table */
-	unsigned long	fec_grp_hash_table_high;/* High 32bits hash table */
-	unsigned long	fec_grp_hash_table_low;	/* Low 32bits hash table */
-	unsigned long	fec_reserved9[7];
-	unsigned long	fec_x_wmrk;		/* FIFO transmit water mark */
-	unsigned long	fec_reserved10;
-	unsigned long	fec_r_bound;		/* FIFO receive bound reg */
-	unsigned long	fec_r_fstart;		/* FIFO receive start reg */
-	unsigned long	fec_reserved11[11];
-	unsigned long	fec_r_des_start;	/* Receive descriptor ring */
-	unsigned long	fec_x_des_start;	/* Transmit descriptor ring */
-	unsigned long	fec_r_buff_size;	/* Maximum receive buff size */
-} fec_t;
+#define FEC_IEVENT		0x004 /* Interrupt event reg */
+#define FEC_IMASK		0x008 /* Interrupt mask reg */
+#define FEC_R_DES_ACTIVE	0x010 /* Receive descriptor reg */
+#define FEC_X_DES_ACTIVE	0x014 /* Transmit descriptor reg */
+#define FEC_ECNTRL		0x024 /* Ethernet control reg */
+#define FEC_MII_DATA		0x040 /* MII manage frame reg */
+#define FEC_MII_SPEED		0x044 /* MII speed control reg */
+#define FEC_MIB_CTRLSTAT	0x064 /* MIB control/status reg */
+#define FEC_R_CNTRL		0x084 /* Receive control reg */
+#define FEC_X_CNTRL		0x0c4 /* Transmit Control reg */
+#define FEC_ADDR_LOW		0x0e4 /* Low 32bits MAC address */
+#define FEC_ADDR_HIGH		0x0e8 /* High 16bits MAC address */
+#define FEC_OPD			0x0ec /* Opcode + Pause duration */
+#define FEC_HASH_TABLE_HIGH	0x118 /* High 32bits hash table */
+#define FEC_HASH_TABLE_LOW	0x11c /* Low 32bits hash table */
+#define FEC_GRP_HASH_TABLE_HIGH	0x120 /* High 32bits hash table */
+#define FEC_GRP_HASH_TABLE_LOW	0x124 /* Low 32bits hash table */
+#define FEC_X_WMRK		0x144 /* FIFO transmit water mark */
+#define FEC_R_BOUND		0x14c /* FIFO receive bound reg */
+#define FEC_R_FSTART		0x150 /* FIFO receive start reg */
+#define FEC_R_DES_START		0x180 /* Receive descriptor ring */
+#define FEC_X_DES_START		0x184 /* Transmit descriptor ring */
+#define FEC_R_BUFF_SIZE		0x188 /* Maximum receive buff size */
 
 #else
 
-/*
- *	Define device register set address map.
- */
-typedef struct fec {
-	unsigned long	fec_ecntrl;		/* Ethernet control reg */
-	unsigned long	fec_ievent;		/* Interrupt even reg */
-	unsigned long	fec_imask;		/* Interrupt mask reg */
-	unsigned long	fec_ivec;		/* Interrupt vec status reg */
-	unsigned long	fec_r_des_active;	/* Receive descriptor reg */
-	unsigned long	fec_x_des_active;	/* Transmit descriptor reg */
-	unsigned long	fec_reserved1[10];
-	unsigned long	fec_mii_data;		/* MII manage frame reg */
-	unsigned long	fec_mii_speed;		/* MII speed control reg */
-	unsigned long	fec_reserved2[17];
-	unsigned long	fec_r_bound;		/* FIFO receive bound reg */
-	unsigned long	fec_r_fstart;		/* FIFO receive start reg */
-	unsigned long	fec_reserved3[4];
-	unsigned long	fec_x_wmrk;		/* FIFO transmit water mark */
-	unsigned long	fec_reserved4;
-	unsigned long	fec_x_fstart;		/* FIFO transmit start reg */
-	unsigned long	fec_reserved5[21];
-	unsigned long	fec_r_cntrl;		/* Receive control reg */
-	unsigned long	fec_max_frm_len;	/* Maximum frame length reg */
-	unsigned long	fec_reserved6[14];
-	unsigned long	fec_x_cntrl;		/* Transmit Control reg */
-	unsigned long	fec_reserved7[158];
-	unsigned long	fec_addr_low;		/* Low 32bits MAC address */
-	unsigned long	fec_addr_high;		/* High 16bits MAC address */
-	unsigned long	fec_grp_hash_table_high;/* High 32bits hash table */
-	unsigned long	fec_grp_hash_table_low;	/* Low 32bits hash table */
-	unsigned long	fec_r_des_start;	/* Receive descriptor ring */
-	unsigned long	fec_x_des_start;	/* Transmit descriptor ring */
-	unsigned long	fec_r_buff_size;	/* Maximum receive buff size */
-	unsigned long	reserved8[9];
-	unsigned long	fec_fifo_ram[112];	/* FIFO RAM buffer */
-} fec_t;
+#define FEC_ECNTRL;		0x000 /* Ethernet control reg */
+#define FEC_IEVENT;		0x004 /* Interrupt even reg */
+#define FEC_IMASK;		0x008 /* Interrupt mask reg */
+#define FEC_IVEC;		0x00c /* Interrupt vec status reg */
+#define FEC_R_DES_ACTIVE;	0x010 /* Receive descriptor reg */
+#define FEC_X_DES_ACTIVE;	0x01c /* Transmit descriptor reg */
+#define FEC_MII_DATA		0x040 /* MII manage frame reg */
+#define FEC_MII_SPEED		0x044 /* MII speed control reg */
+#define FEC_R_BOUND		0x08c /* FIFO receive bound reg */
+#define FEC_R_FSTART		0x090 /* FIFO receive start reg */
+#define FEC_X_WMRK		0x0a4 /* FIFO transmit water mark */
+#define FEC_X_FSTART		0x0ac /* FIFO transmit start reg */
+#define FEC_R_CNTRL		0x104 /* Receive control reg */
+#define FEC_MAX_FRM_LEN		0x108 /* Maximum frame length reg */
+#define FEC_X_CNTRL		0x144 /* Transmit Control reg */
+#define FEC_ADDR_LOW		0x3c0 /* Low 32bits MAC address */
+#define FEC_ADDR_HIGH		0x3c4 /* High 16bits MAC address */
+#define FEC_GRP_HASH_TABLE_HIGH	0x3c8 /* High 32bits hash table */
+#define FEC_GRP_HASH_TABLE_LOW	0x3cc /* Low 32bits hash table */
+#define FEC_R_DES_START		0x3d0 /* Receive descriptor ring */
+#define FEC_X_DES_START		0x3d4 /* Transmit descriptor ring */
+#define FEC_R_BUFF_SIZE		0x3d8 /* Maximum receive buff size */
+#define FEC_FIFO_RAM		0x400 /* FIFO RAM buffer */
 
 #endif /* CONFIG_M5272 */
 
@@ -104,17 +77,17 @@ typedef struct fec {
  *	Define the buffer descriptor structure.
  */
 #ifdef CONFIG_ARCH_MXC
-typedef struct bufdesc {
+struct bufdesc {
 	unsigned short cbd_datlen;	/* Data length */
 	unsigned short cbd_sc;	/* Control and status info */
 	unsigned long cbd_bufaddr;	/* Buffer address */
-} cbd_t;
+};
 #else
-typedef struct bufdesc {
+struct bufdesc {
 	unsigned short	cbd_sc;			/* Control and status info */
 	unsigned short	cbd_datlen;		/* Data length */
 	unsigned long	cbd_bufaddr;		/* Buffer address */
-} cbd_t;
+};
 #endif
 
 /*

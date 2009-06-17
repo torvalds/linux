@@ -202,6 +202,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 		rc = -EIO;
 		break;
 	}
+	cqr->intrc = rc;
 	return rc;
 }
 

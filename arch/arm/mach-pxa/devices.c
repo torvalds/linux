@@ -8,7 +8,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
@@ -290,7 +290,7 @@ static struct resource pxa3xx_resources_i2c_power[] = {
 };
 
 struct platform_device pxa3xx_device_i2c_power = {
-	.name		= "pxa2xx-i2c",
+	.name		= "pxa3xx-pwri2c",
 	.id		= 1,
 	.resource	= pxa3xx_resources_i2c_power,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resources_i2c_power),

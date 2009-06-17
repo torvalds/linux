@@ -109,7 +109,7 @@ unfreeze user space processes frozen by SNAPSHOT_UNFREEZE if they are
 still frozen when the device is being closed).
 
 Currently it is assumed that the userland utilities reading/writing the
-snapshot image from/to the kernel will use a swap parition, called the resume
+snapshot image from/to the kernel will use a swap partition, called the resume
 partition, or a swap file as storage space (if a swap file is used, the resume
 partition is the partition that holds this file).  However, this is not really
 required, as they can use, for example, a special (blank) suspend partition or

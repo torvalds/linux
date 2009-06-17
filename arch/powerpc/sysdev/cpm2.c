@@ -61,7 +61,7 @@ EXPORT_SYMBOL(cpm2_immr);
 void __init cpm2_reset(void)
 {
 #ifdef CONFIG_PPC_85xx
-	cpm2_immr = ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+	cpm2_immr = ioremap(get_immrbase() + 0x80000, CPM_MAP_SIZE);
 #else
 	cpm2_immr = ioremap(get_immrbase(), CPM_MAP_SIZE);
 #endif

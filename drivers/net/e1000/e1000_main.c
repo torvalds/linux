@@ -498,6 +498,8 @@ int e1000_up(struct e1000_adapter *adapter)
 
 	e1000_irq_enable(adapter);
 
+	netif_wake_queue(adapter->netdev);
+
 	/* fire a link change interrupt to start the watchdog */
 	ew32(ICS, E1000_ICS_LSC);
 	return 0;
@@ -1234,14 +1236,13 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	    !e1000_check_mng_mode(hw))
 		e1000_get_hw_control(adapter);
 
-	/* tell the stack to leave us alone until e1000_open() is called */
-	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+	/* carrier off reporting is important to ethtool even BEFORE open */
+	netif_carrier_off(netdev);
 
 	DPRINTK(PROBE, INFO, "Intel(R) PRO/1000 Network Connection\n");
 
@@ -1440,6 +1441,8 @@ static int e1000_open(struct net_device *netdev)
 	/* disallow open during test */
 	if (test_bit(__E1000_TESTING, &adapter->flags))
 		return -EBUSY;
+
+	netif_carrier_off(netdev);
 
 	/* allocate transmit descriptors */
 	err = e1000_setup_all_tx_resources(adapter);
@@ -2327,7 +2330,8 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
+	bool use_uc = false;
 	struct dev_addr_list *mc_ptr;
 	u32 rctl;
 	u32 hash_value;
@@ -2366,12 +2370,11 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			rctl |= E1000_RCTL_VFE;
 	}
 
-	uc_ptr = NULL;
 	if (netdev->uc_count > rar_entries - 1) {
 		rctl |= E1000_RCTL_UPE;
 	} else if (!(netdev->flags & IFF_PROMISC)) {
 		rctl &= ~E1000_RCTL_UPE;
-		uc_ptr = netdev->uc_list;
+		use_uc = true;
 	}
 
 	ew32(RCTL, rctl);
@@ -2389,13 +2392,20 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	 * if there are not 14 addresses, go ahead and clear the filters
 	 * -- with 82571 controllers only 0-13 entries are filled here
 	 */
+	i = 1;
+	if (use_uc)
+		list_for_each_entry(ha, &netdev->uc_list, list) {
+			if (i == rar_entries)
+				break;
+			e1000_rar_set(hw, ha->addr, i++);
+		}
+
+	WARN_ON(i == rar_entries);
+
 	mc_ptr = netdev->mc_list;
 
-	for (i = 1; i < rar_entries; i++) {
-		if (uc_ptr) {
-			e1000_rar_set(hw, uc_ptr->da_addr, i);
-			uc_ptr = uc_ptr->next;
-		} else if (mc_ptr) {
+	for (; i < rar_entries; i++) {
+		if (mc_ptr) {
 			e1000_rar_set(hw, mc_ptr->da_addr, i);
 			mc_ptr = mc_ptr->next;
 		} else {
@@ -2405,7 +2415,6 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			E1000_WRITE_FLUSH();
 		}
 	}
-	WARN_ON(uc_ptr != NULL);
 
 	/* load any remaining addresses into the hash table */
 
@@ -2590,7 +2599,6 @@ static void e1000_watchdog(unsigned long data)
 			ew32(TCTL, tctl);
 
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, round_jiffies(jiffies + 2 * HZ));
 			adapter->smartspeed = 0;
 		} else {
@@ -2607,7 +2615,6 @@ static void e1000_watchdog(unsigned long data)
 			printk(KERN_INFO "e1000: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, round_jiffies(jiffies + 2 * HZ));
 
 			/* 80003ES2LAN workaround--
@@ -2645,6 +2652,8 @@ static void e1000_watchdog(unsigned long data)
 			 * (Do the reset outside of interrupt context). */
 			adapter->tx_timeout_count++;
 			schedule_work(&adapter->reset_task);
+			/* return immediately since reset is imminent */
+			return;
 		}
 	}
 
@@ -2989,7 +2998,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			size -= 4;
 
 		buffer_info->length = size;
-		buffer_info->dma = map[0] + offset;
+		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
 
@@ -3030,7 +3039,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 				size -= 4;
 
 			buffer_info->length = size;
-			buffer_info->dma = map[f + 1] + offset;
+			buffer_info->dma = map[f] + offset;
 			buffer_info->time_stamp = jiffies;
 			buffer_info->next_to_watch = i;
 
@@ -3362,7 +3371,6 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (count) {
 		e1000_tx_queue(adapter, tx_ring, tx_flags, count);
-		netdev->trans_start = jiffies;
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 2);
 

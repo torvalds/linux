@@ -1850,9 +1850,10 @@ static u16 aggregator_identifier;
  * Can be called only after the mac address of the bond is set.
  */
 void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fast)
-{                         
+{
 	// check that the bond is not initialized yet
-	if (MAC_ADDRESS_COMPARE(&(BOND_AD_INFO(bond).system.sys_mac_addr), &(bond->dev->dev_addr))) {
+	if (MAC_ADDRESS_COMPARE(&(BOND_AD_INFO(bond).system.sys_mac_addr),
+				bond->dev->dev_addr)) {
 
 		aggregator_identifier = 0;
 

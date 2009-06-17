@@ -469,22 +469,6 @@ static void platform_drv_shutdown(struct device *_dev)
 	drv->shutdown(dev);
 }
 
-static int platform_drv_suspend(struct device *_dev, pm_message_t state)
-{
-	struct platform_driver *drv = to_platform_driver(_dev->driver);
-	struct platform_device *dev = to_platform_device(_dev);
-
-	return drv->suspend(dev, state);
-}
-
-static int platform_drv_resume(struct device *_dev)
-{
-	struct platform_driver *drv = to_platform_driver(_dev->driver);
-	struct platform_device *dev = to_platform_device(_dev);
-
-	return drv->resume(dev);
-}
-
 /**
  * platform_driver_register
  * @drv: platform driver structure
@@ -498,10 +482,10 @@ int platform_driver_register(struct platform_driver *drv)
 		drv->driver.remove = platform_drv_remove;
 	if (drv->shutdown)
 		drv->driver.shutdown = platform_drv_shutdown;
-	if (drv->suspend)
-		drv->driver.suspend = platform_drv_suspend;
-	if (drv->resume)
-		drv->driver.resume = platform_drv_resume;
+	if (drv->suspend || drv->resume)
+		pr_warning("Platform driver '%s' needs updating - please use "
+			"dev_pm_ops\n", drv->driver.name);
+
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(platform_driver_register);
@@ -633,10 +617,12 @@ static int platform_match(struct device *dev, struct device_driver *drv)
 
 static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 {
+	struct platform_driver *pdrv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret = 0;
 
-	if (dev->driver && dev->driver->suspend)
-		ret = dev->driver->suspend(dev, mesg);
+	if (dev->driver && pdrv->suspend)
+		ret = pdrv->suspend(pdev, mesg);
 
 	return ret;
 }
@@ -667,10 +653,12 @@ static int platform_legacy_resume_early(struct device *dev)
 
 static int platform_legacy_resume(struct device *dev)
 {
+	struct platform_driver *pdrv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret = 0;
 
-	if (dev->driver && dev->driver->resume)
-		ret = dev->driver->resume(dev);
+	if (dev->driver && pdrv->resume)
+		ret = pdrv->resume(pdev);
 
 	return ret;
 }

@@ -6,7 +6,7 @@
  * Licensed under the GPL-2 or later.
  */
 
-/* This file shoule be up to date with:
+/* This file should be up to date with:
  *  - Revision Q, 11/07/2008; ADSP-BF561 Blackfin Processor Anomaly List
  */
 
@@ -18,11 +18,11 @@
 # error will not work on BF561 silicon version 0.0, 0.1, 0.2, or 0.4
 #endif
 
-/* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot 2 Not Supported */
+/* Multi-issue instruction with dsp32shiftimm in slot1 and P-reg store in slot 2 not supported */
 #define ANOMALY_05000074 (1)
 /* UART Line Status Register (UART_LSR) Bits Are Not Updated at the Same Time */
 #define ANOMALY_05000099 (__SILICON_REVISION__ < 5)
-/* Trace Buffers may contain errors in emulation mode and/or exception, NMI, reset handlers */
+/* Trace Buffers may record discontinuities into emulation mode and/or exception, NMI, reset handlers */
 #define ANOMALY_05000116 (__SILICON_REVISION__ < 3)
 /* Testset instructions restricted to 32-bit aligned memory locations */
 #define ANOMALY_05000120 (1)
@@ -40,7 +40,7 @@
 #define ANOMALY_05000136 (__SILICON_REVISION__ < 3)
 /* Allowing the SPORT RX FIFO to fill will cause an overflow */
 #define ANOMALY_05000140 (__SILICON_REVISION__ < 3)
-/* Infinite Stall may occur with a particular sequence of consecutive dual dag events */
+/* An Infinite Stall occurs with a particular sequence of consecutive dual dag events */
 #define ANOMALY_05000141 (__SILICON_REVISION__ < 3)
 /* Interrupts may be lost when a programmable input flag is configured to be edge sensitive */
 #define ANOMALY_05000142 (__SILICON_REVISION__ < 3)
@@ -80,7 +80,7 @@
 #define ANOMALY_05000163 (__SILICON_REVISION__ < 3)
 /* PPI Data Lengths Between 8 and 16 Do Not Zero Out Upper Bits */
 #define ANOMALY_05000166 (1)
-/* Turning Serial Ports on with External Frame Syncs */
+/* Turning SPORTs on while External Frame Sync Is Active May Corrupt Data */
 #define ANOMALY_05000167 (1)
 /* SDRAM auto-refresh and subsequent Power Ups */
 #define ANOMALY_05000168 (__SILICON_REVISION__ < 5)
@@ -164,7 +164,7 @@
 #define ANOMALY_05000242 (__SILICON_REVISION__ < 5)
 /* If I-Cache Is On, CSYNC/SSYNC/IDLE Around Change of Control Causes Failures */
 #define ANOMALY_05000244 (__SILICON_REVISION__ < 5)
-/* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
+/* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (__SILICON_REVISION__ < 5)
 /* TESTSET operation forces stall on the other core */
 #define ANOMALY_05000248 (__SILICON_REVISION__ < 5)
@@ -208,7 +208,7 @@
 #define ANOMALY_05000275 (__SILICON_REVISION__ > 2)
 /* Timing Requirements Change for External Frame Sync PPI Modes with Non-Zero PPI_DELAY */
 #define ANOMALY_05000276 (__SILICON_REVISION__ < 5)
-/* Writes to an I/O data register one SCLK cycle after an edge is detected may clear interrupt */
+/* Writes to an I/O Data Register One SCLK Cycle after an Edge Is Detected May Clear Interrupt */
 #define ANOMALY_05000277 (__SILICON_REVISION__ < 3)
 /* Disabling Peripherals with DMA Running May Cause DMA System Instability */
 #define ANOMALY_05000278 (__SILICON_REVISION__ < 5)
@@ -232,7 +232,7 @@
 #define ANOMALY_05000310 (1)
 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (1)
-/* PPI Is Level-Sensitive on First Transfer */
+/* PPI Is Level-Sensitive on First Transfer In Single Frame Sync Modes */
 #define ANOMALY_05000313 (1)
 /* Killed System MMR Write Completes Erroneously On Next System MMR Access */
 #define ANOMALY_05000315 (1)
@@ -276,18 +276,27 @@
 #define ANOMALY_05000428 (__SILICON_REVISION__ > 3)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
 #define ANOMALY_05000443 (1)
+/* False Hardware Error when RETI points to invalid memory */
+#define ANOMALY_05000461 (1)
 
 /* Anomalies that don't exist on this proc */
+#define ANOMALY_05000119 (0)
 #define ANOMALY_05000158 (0)
 #define ANOMALY_05000183 (0)
+#define ANOMALY_05000233 (0)
 #define ANOMALY_05000273 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000353 (1)
 #define ANOMALY_05000380 (0)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000389 (0)
+#define ANOMALY_05000400 (0)
+#define ANOMALY_05000430 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
 #define ANOMALY_05000447 (0)
 #define ANOMALY_05000448 (0)
+#define ANOMALY_05000456 (0)
+#define ANOMALY_05000450 (0)
 
 #endif

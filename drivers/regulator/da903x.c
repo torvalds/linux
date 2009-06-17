@@ -504,7 +504,7 @@ static int __init da903x_regulator_init(void)
 {
 	return platform_driver_register(&da903x_regulator_driver);
 }
-module_init(da903x_regulator_init);
+subsys_initcall(da903x_regulator_init);
 
 static void __exit da903x_regulator_exit(void)
 {

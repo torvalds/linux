@@ -71,6 +71,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
+static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
@@ -212,6 +213,9 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_mac_operations *func = &mac->ops;
+	u32 swsm = 0;
+	u32 swsm2 = 0;
+	bool force_clear_smbi = false;
 
 	/* Set media type */
 	switch (adapter->pdev->device) {
@@ -275,6 +279,50 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		func->led_on = e1000e_led_on_generic;
 		break;
 	}
+
+	/*
+	 * Ensure that the inter-port SWSM.SMBI lock bit is clear before
+	 * first NVM or PHY acess. This should be done for single-port
+	 * devices, and for one port only on dual-port devices so that
+	 * for those devices we can still use the SMBI lock to synchronize
+	 * inter-port accesses to the PHY & NVM.
+	 */
+	switch (hw->mac.type) {
+	case e1000_82571:
+	case e1000_82572:
+		swsm2 = er32(SWSM2);
+
+		if (!(swsm2 & E1000_SWSM2_LOCK)) {
+			/* Only do this for the first interface on this card */
+			ew32(SWSM2,
+			    swsm2 | E1000_SWSM2_LOCK);
+			force_clear_smbi = true;
+		} else
+			force_clear_smbi = false;
+		break;
+	default:
+		force_clear_smbi = true;
+		break;
+	}
+
+	if (force_clear_smbi) {
+		/* Make sure SWSM.SMBI is clear */
+		swsm = er32(SWSM);
+		if (swsm & E1000_SWSM_SMBI) {
+			/* This bit should not be set on a first interface, and
+			 * indicates that the bootagent or EFI code has
+			 * improperly left this bit enabled
+			 */
+			hw_dbg(hw, "Please update your 82571 Bootagent\n");
+		}
+		ew32(SWSM, swsm & ~E1000_SWSM_SMBI);
+	}
+
+	/*
+	 * Initialze device specific counter of SMBI acquisition
+	 * timeouts.
+	 */
+	 hw->dev_spec.e82571.smb_counter = 0;
 
 	return 0;
 }
@@ -341,8 +389,10 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 			if (e1000_read_nvm(&adapter->hw, NVM_INIT_3GIO_3, 1,
 				       &eeprom_data) < 0)
 				break;
-			if (eeprom_data & NVM_WORD1A_ASPM_MASK)
-				adapter->flags &= ~FLAG_HAS_JUMBO_FRAMES;
+			if (!(eeprom_data & NVM_WORD1A_ASPM_MASK)) {
+				adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
+				adapter->max_hw_frame_size = DEFAULT_JUMBO;
+			}
 		}
 		break;
 	default:
@@ -411,11 +461,37 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 timeout = hw->nvm.word_size + 1;
+	s32 sw_timeout = hw->nvm.word_size + 1;
+	s32 fw_timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
 
+	/*
+	 * If we have timedout 3 times on trying to acquire
+	 * the inter-port SMBI semaphore, there is old code
+	 * operating on the other port, and it is not
+	 * releasing SMBI. Modify the number of times that
+	 * we try for the semaphore to interwork with this
+	 * older code.
+	 */
+	if (hw->dev_spec.e82571.smb_counter > 2)
+		sw_timeout = 1;
+
+	/* Get the SW semaphore */
+	while (i < sw_timeout) {
+		swsm = er32(SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+
+		udelay(50);
+		i++;
+	}
+
+	if (i == sw_timeout) {
+		hw_dbg(hw, "Driver can't access device - SMBI bit is set.\n");
+		hw->dev_spec.e82571.smb_counter++;
+	}
 	/* Get the FW semaphore. */
-	for (i = 0; i < timeout; i++) {
+	for (i = 0; i < fw_timeout; i++) {
 		swsm = er32(SWSM);
 		ew32(SWSM, swsm | E1000_SWSM_SWESMBI);
 
@@ -426,9 +502,9 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 		udelay(50);
 	}
 
-	if (i == timeout) {
+	if (i == fw_timeout) {
 		/* Release semaphores */
-		e1000e_put_hw_semaphore(hw);
+		e1000_put_hw_semaphore_82571(hw);
 		hw_dbg(hw, "Driver can't access the NVM\n");
 		return -E1000_ERR_NVM;
 	}
@@ -447,9 +523,7 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 	u32 swsm;
 
 	swsm = er32(SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
+	swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
 	ew32(SWSM, swsm);
 }
 
@@ -1585,6 +1659,7 @@ static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 static struct e1000_mac_operations e82571_mac_ops = {
 	/* .check_mng_mode: mac type dependent */
 	/* .check_for_link: media type dependent */
+	.id_led_init		= e1000e_id_led_init,
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
@@ -1596,6 +1671,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
+	.setup_led		= e1000e_setup_led_generic,
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {
@@ -1672,6 +1748,7 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
 	.pba			= 38,
+	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
@@ -1688,6 +1765,7 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
 	.pba			= 38,
+	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
@@ -1706,6 +1784,7 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,
+	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
@@ -1724,6 +1803,7 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
 	.pba			= 20,
+	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_bm,
@@ -1740,6 +1820,7 @@ struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
 	.pba			= 20,
+	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_bm,

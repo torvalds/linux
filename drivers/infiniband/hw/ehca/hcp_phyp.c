@@ -54,12 +54,15 @@ int hcall_unmap_page(u64 mapaddr)
 	return 0;
 }
 
-int hcp_galpas_ctor(struct h_galpas *galpas,
+int hcp_galpas_ctor(struct h_galpas *galpas, int is_user,
 		    u64 paddr_kernel, u64 paddr_user)
 {
-	int ret = hcall_map_page(paddr_kernel, &galpas->kernel.fw_handle);
-	if (ret)
-		return ret;
+	if (!is_user) {
+		int ret = hcall_map_page(paddr_kernel, &galpas->kernel.fw_handle);
+		if (ret)
+			return ret;
+	} else
+		galpas->kernel.fw_handle = 0;
 
 	galpas->user.fw_handle = paddr_user;
 

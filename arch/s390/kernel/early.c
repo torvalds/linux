@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/early.c
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/pfn.h>
@@ -209,7 +210,7 @@ static noinline __init void detect_machine_type(void)
 		machine_flags |= MACHINE_FLAG_VM;
 }
 
-static __init void early_pgm_check_handler(void)
+static void early_pgm_check_handler(void)
 {
 	unsigned long addr;
 	const struct exception_table_entry *fixup;
@@ -221,7 +222,7 @@ static __init void early_pgm_check_handler(void)
 	S390_lowcore.program_old_psw.addr = fixup->fixup | PSW_ADDR_AMODE;
 }
 
-static noinline __init void setup_lowcore_early(void)
+void setup_lowcore_early(void)
 {
 	psw_t psw;
 
@@ -410,5 +411,8 @@ void __init startup_init(void)
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);
 	S390_lowcore.machine_flags = machine_flags;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
+#endif
 	lockdep_on();
 }

@@ -124,6 +124,27 @@ void _raw_read_lock_wait(raw_rwlock_t *rw)
 }
 EXPORT_SYMBOL(_raw_read_lock_wait);
 
+void _raw_read_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
+{
+	unsigned int old;
+	int count = spin_retry;
+
+	local_irq_restore(flags);
+	while (1) {
+		if (count-- <= 0) {
+			_raw_yield();
+			count = spin_retry;
+		}
+		if (!__raw_read_can_lock(rw))
+			continue;
+		old = rw->lock & 0x7fffffffU;
+		local_irq_disable();
+		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
+			return;
+	}
+}
+EXPORT_SYMBOL(_raw_read_lock_wait_flags);
+
 int _raw_read_trylock_retry(raw_rwlock_t *rw)
 {
 	unsigned int old;
@@ -156,6 +177,25 @@ void _raw_write_lock_wait(raw_rwlock_t *rw)
 	}
 }
 EXPORT_SYMBOL(_raw_write_lock_wait);
+
+void _raw_write_lock_wait_flags(raw_rwlock_t *rw, unsigned long flags)
+{
+	int count = spin_retry;
+
+	local_irq_restore(flags);
+	while (1) {
+		if (count-- <= 0) {
+			_raw_yield();
+			count = spin_retry;
+		}
+		if (!__raw_write_can_lock(rw))
+			continue;
+		local_irq_disable();
+		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
+			return;
+	}
+}
+EXPORT_SYMBOL(_raw_write_lock_wait_flags);
 
 int _raw_write_trylock_retry(raw_rwlock_t *rw)
 {

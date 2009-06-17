@@ -51,7 +51,7 @@
 ACPI_MODULE_NAME("evxfevnt")
 
 /* Local prototypes */
-acpi_status
+static acpi_status
 acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		       struct acpi_gpe_block_info *gpe_block, void *context);
 
@@ -785,7 +785,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_gpe_device)
  *              block device. NULL if the GPE is one of the FADT-defined GPEs.
  *
  ******************************************************************************/
-acpi_status
+static acpi_status
 acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		       struct acpi_gpe_block_info *gpe_block, void *context)
 {

@@ -2,8 +2,6 @@
 #define _LINUX_INIT_H
 
 #include <linux/compiler.h>
-#include <linux/section-names.h>
-#include <linux/stringify.h>
 
 /* These macros are used to mark some functions or 
  * initialized data (doesn't apply to uninitialized data)
@@ -101,7 +99,7 @@
 #define __memexitconst   __section(.memexit.rodata)
 
 /* For assembly routines */
-#define __HEAD		.section	__stringify(HEAD_TEXT_SECTION),"ax"
+#define __HEAD		.section	".head.text","ax"
 #define __INIT		.section	".init.text","ax"
 #define __FINIT		.previous
 
@@ -225,7 +223,8 @@ struct obs_kernel_param {
  * obs_kernel_param "array" too far apart in .init.setup.
  */
 #define __setup_param(str, unique_id, fn, early)			\
-	static char __setup_str_##unique_id[] __initdata __aligned(1) = str; \
+	static const char __setup_str_##unique_id[] __initconst	\
+		__aligned(1) = str; \
 	static struct obs_kernel_param __setup_##unique_id	\
 		__used __section(.init.setup)			\
 		__attribute__((aligned((sizeof(long)))))	\

@@ -41,7 +41,6 @@ static void spitz_charger_init(void)
 {
 	pxa_gpio_mode(SPITZ_GPIO_KEY_INT | GPIO_IN);
 	pxa_gpio_mode(SPITZ_GPIO_SYNC | GPIO_IN);
-	sharpsl_pm_pxa_init();
 }
 
 static void spitz_measure_temp(int on)
@@ -182,7 +181,7 @@ unsigned long spitzpm_read_devdata(int type)
 
 struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.init             = spitz_charger_init,
-	.exit             = sharpsl_pm_pxa_remove,
+	.exit             = NULL,
 	.gpio_batlock     = SPITZ_GPIO_BAT_COVER,
 	.gpio_acin        = SPITZ_GPIO_AC_IN,
 	.gpio_batfull     = SPITZ_GPIO_CHRG_FULL,

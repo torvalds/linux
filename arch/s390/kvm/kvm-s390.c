@@ -512,7 +512,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		BUG();
 	}
 
-	might_sleep();
+	might_fault();
 
 	do {
 		__vcpu_run(vcpu);

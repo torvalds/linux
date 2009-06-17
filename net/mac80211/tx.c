@@ -25,6 +25,7 @@
 #include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "led.h"
 #include "mesh.h"
 #include "wep.h"
@@ -399,6 +400,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			sta_info_set_tim_bit(sta);
 
 		info->control.jiffies = jiffies;
+		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
 		return TX_QUEUED;
 	}
@@ -409,8 +411,24 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		       sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	clear_sta_flags(sta, WLAN_STA_PSPOLL);
+	if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
+		/*
+		 * The sleeping station with pending data is now snoozing.
+		 * It queried us for its buffered frames and will go back
+		 * to deep sleep once it got everything.
+		 *
+		 * inform the driver, in case the hardware does powersave
+		 * frame filtering and keeps a station  blacklist on its own
+		 * (e.g: p54), so that frames can be delivered unimpeded.
+		 *
+		 * Note: It should be safe to disable the filter now.
+		 * As, it is really unlikely that we still have any pending
+		 * frame for this station in the hw's buffers/fifos left,
+		 * that is not rejected with a unsuccessful tx_status yet.
+		 */
 
+		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+	}
 	return TX_CONTINUE;
 }
 
@@ -429,7 +447,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_key *key;
+	struct ieee80211_key *key = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
@@ -500,7 +518,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 	len = min_t(int, tx->skb->len + FCS_LEN,
-			 tx->local->fragmentation_threshold);
+			 tx->local->hw.wiphy->frag_threshold);
 
 	/* set up the tx rate control struct we give the RC algo */
 	txrc.hw = local_to_hw(tx->local);
@@ -511,8 +529,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.max_rate_idx = tx->sdata->max_ratectrl_rateidx;
 
 	/* set up RTS protection if desired */
-	if (tx->local->rts_threshold < IEEE80211_MAX_RTS_THRESHOLD &&
-	    len > tx->local->rts_threshold) {
+	if (len > tx->local->hw.wiphy->rts_threshold) {
 		txrc.rts = rts = true;
 	}
 
@@ -540,6 +557,10 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		tx->sta->last_tx_rate = txrc.reported_rate;
 
 	if (unlikely(!info->control.rates[0].count))
+		info->control.rates[0].count = 1;
+
+	if (WARN_ON_ONCE((info->control.rates[0].count > 1) &&
+			 (info->flags & IEEE80211_TX_CTL_NO_ACK)))
 		info->control.rates[0].count = 1;
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
@@ -754,7 +775,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb = tx->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
-	int frag_threshold = tx->local->fragmentation_threshold;
+	int frag_threshold = tx->local->hw.wiphy->frag_threshold;
 	int hdrlen;
 	int fragnum;
 
@@ -852,6 +873,8 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 
 	do {
 		hdr = (void *) skb->data;
+		if (unlikely(ieee80211_is_pspoll(hdr->frame_control)))
+			break; /* must not overwrite AID */
 		next_len = skb->next ? skb->next->len : 0;
 		group_addr = is_multicast_ether_addr(hdr->addr1);
 
@@ -885,9 +908,8 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
  * deal with packet injection down monitor interface
  * with Radiotap Header -- only called for monitor mode interface
  */
-static ieee80211_tx_result
-__ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
-			      struct sk_buff *skb)
+static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
+					  struct sk_buff *skb)
 {
 	/*
 	 * this is the moment to interpret and discard the radiotap header that
@@ -938,7 +960,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 				 * on transmission
 				 */
 				if (skb->len < (iterator.max_length + FCS_LEN))
-					return TX_DROP;
+					return false;
 
 				skb_trim(skb, skb->len - FCS_LEN);
 			}
@@ -960,7 +982,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	}
 
 	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
-		return TX_DROP;
+		return false;
 
 	/*
 	 * remove the radiotap header
@@ -969,7 +991,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	 */
 	skb_pull(skb, iterator.max_length);
 
-	return TX_CONTINUE;
+	return true;
 }
 
 /*
@@ -1003,7 +1025,7 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED)) {
-		if (__ieee80211_parse_tx_radiotap(tx, skb) == TX_DROP)
+		if (!__ieee80211_parse_tx_radiotap(tx, skb))
 			return TX_DROP;
 
 		/*
@@ -1067,12 +1089,15 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	} else {
 		tx->flags |= IEEE80211_TX_UNICAST;
-		info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+		if (unlikely(local->wifi_wme_noack_test))
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		else
+			info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
 	}
 
 	if (tx->flags & IEEE80211_TX_FRAGMENTED) {
 		if ((tx->flags & IEEE80211_TX_UNICAST) &&
-		    skb->len + FCS_LEN > local->fragmentation_threshold &&
+		    skb->len + FCS_LEN > local->hw.wiphy->frag_threshold &&
 		    !(info->flags & IEEE80211_TX_CTL_AMPDU))
 			tx->flags |= IEEE80211_TX_FRAGMENTED;
 		else
@@ -1147,7 +1172,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 
 		next = skb->next;
 		len = skb->len;
-		ret = local->ops->tx(local_to_hw(local), skb);
+		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
 			ret = NETDEV_TX_OK;
@@ -1213,7 +1238,6 @@ static void ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 			 bool txpending)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct sta_info *sta;
 	struct ieee80211_tx_data tx;
 	ieee80211_tx_result res_prepare;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1245,7 +1269,6 @@ static void ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return;
 	}
 
-	sta = tx.sta;
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
 
@@ -1392,7 +1415,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    local->hw.conf.dynamic_ps_timeout > 0) {
+	    local->hw.conf.dynamic_ps_timeout > 0 &&
+	    !local->sw_scanning && !local->hw_scanning && local->ps_sdata) {
 		if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 			ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_QUEUE_STOP_REASON_PS);
@@ -1591,7 +1615,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	int ret = 1, head_need;
+	int ret = NETDEV_TX_BUSY, head_need;
 	u16 ethertype, hdrlen,  meshhdrlen = 0;
 	__le16 fc;
 	struct ieee80211_hdr hdr;
@@ -2086,18 +2110,18 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
+		struct sk_buff *presp = rcu_dereference(ifibss->presp);
 
-		if (!ifibss->probe_resp)
+		if (!presp)
 			goto out;
 
-		skb = skb_copy(ifibss->probe_resp, GFP_ATOMIC);
+		skb = skb_copy(presp, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_BEACON);
-
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
@@ -2117,7 +2141,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 		/* BSSID is left zeroed, wildcard value */
 		mgmt->u.beacon.beacon_int =
-			cpu_to_le16(local->hw.conf.beacon_int);
+			cpu_to_le16(sdata->vif.bss_conf.beacon_int);
 		mgmt->u.beacon.capab_info = 0x0; /* 0x0 for MPs */
 
 		pos = skb_put(skb, 2);

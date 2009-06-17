@@ -53,11 +53,12 @@ static inline unsigned long long rdclock(void)
 	_min1 < _min2 ? _min1 : _min2; })
 
 static inline int
-sys_perf_counter_open(struct perf_counter_attr *attr_uptr,
+sys_perf_counter_open(struct perf_counter_attr *attr,
 		      pid_t pid, int cpu, int group_fd,
 		      unsigned long flags)
 {
-	return syscall(__NR_perf_counter_open, attr_uptr, pid, cpu,
+	attr->size = sizeof(*attr);
+	return syscall(__NR_perf_counter_open, attr, pid, cpu,
 		       group_fd, flags);
 }
 

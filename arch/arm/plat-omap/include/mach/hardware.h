@@ -285,5 +285,6 @@
 #include "omap16xx.h"
 #include "omap24xx.h"
 #include "omap34xx.h"
+#include "omap44xx.h"
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */

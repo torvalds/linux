@@ -80,7 +80,7 @@ static inline void local_irq_disable(void)
 	__asm__ __volatile__("wrteei 0": : :"memory");
 #else
 	unsigned long msr;
-	__asm__ __volatile__("": : :"memory");
+
 	msr = mfmsr();
 	SET_MSR_EE(msr & ~MSR_EE);
 #endif
@@ -92,7 +92,7 @@ static inline void local_irq_enable(void)
 	__asm__ __volatile__("wrteei 1": : :"memory");
 #else
 	unsigned long msr;
-	__asm__ __volatile__("": : :"memory");
+
 	msr = mfmsr();
 	SET_MSR_EE(msr | MSR_EE);
 #endif
@@ -108,7 +108,6 @@ static inline void local_irq_save_ptr(unsigned long *flags)
 #else
 	SET_MSR_EE(msr & ~MSR_EE);
 #endif
-	__asm__ __volatile__("": : :"memory");
 }
 
 #define local_save_flags(flags)	((flags) = mfmsr())
@@ -156,8 +155,6 @@ static inline void clear_perf_counter_pending(void)
 		"i" (offsetof(struct paca_struct, perf_counter_pending)));
 }
 
-extern void perf_counter_do_pending(void);
-
 #else
 
 static inline unsigned long test_perf_counter_pending(void)
@@ -167,7 +164,6 @@ static inline unsigned long test_perf_counter_pending(void)
 
 static inline void set_perf_counter_pending(void) {}
 static inline void clear_perf_counter_pending(void) {}
-static inline void perf_counter_do_pending(void) {}
 #endif /* CONFIG_PERF_COUNTERS */
 
 #endif	/* __KERNEL__ */

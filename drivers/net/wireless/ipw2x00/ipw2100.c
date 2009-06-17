@@ -3488,7 +3488,7 @@ static DEVICE_ATTR(pci, S_IRUGO, show_pci, NULL);
 static ssize_t show_cfg(struct device *d, struct device_attribute *attr,
 			char *buf)
 {
-	struct ipw2100_priv *p = d->driver_data;
+	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->config);
 }
 
@@ -3497,7 +3497,7 @@ static DEVICE_ATTR(cfg, S_IRUGO, show_cfg, NULL);
 static ssize_t show_status(struct device *d, struct device_attribute *attr,
 			   char *buf)
 {
-	struct ipw2100_priv *p = d->driver_data;
+	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->status);
 }
 
@@ -3506,7 +3506,7 @@ static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
 static ssize_t show_capability(struct device *d, struct device_attribute *attr,
 			       char *buf)
 {
-	struct ipw2100_priv *p = d->driver_data;
+	struct ipw2100_priv *p = dev_get_drvdata(d);
 	return sprintf(buf, "0x%08x\n", (int)p->capability);
 }
 
@@ -4224,7 +4224,7 @@ static ssize_t show_rf_kill(struct device *d, struct device_attribute *attr,
 	   1 - SW based RF kill active (sysfs)
 	   2 - HW based RF kill active
 	   3 - Both HW and SW baed RF kill active */
-	struct ipw2100_priv *priv = (struct ipw2100_priv *)d->driver_data;
+	struct ipw2100_priv *priv = dev_get_drvdata(d);
 	int val = ((priv->status & STATUS_RF_KILL_SW) ? 0x1 : 0x0) |
 	    (rf_kill_active(priv) ? 0x2 : 0x0);
 	return sprintf(buf, "%i\n", val);

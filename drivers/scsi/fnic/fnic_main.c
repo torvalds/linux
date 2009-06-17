@@ -680,6 +680,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	}
 
 	lp->max_retry_count = fnic->config.flogi_retries;
+	lp->max_rport_retry_count = fnic->config.plogi_retries;
 	lp->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |
 			      FCP_SPPF_CONF_COMPL);
 	if (fnic->config.flags & VFCF_FCP_SEQ_LVL_ERR)

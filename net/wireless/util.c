@@ -1,10 +1,12 @@
 /*
  * Wireless utility functions
  *
- * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  */
-#include <net/wireless.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
+#include <linux/etherdevice.h>
+#include <net/cfg80211.h>
+#include <net/ip.h>
 #include "core.h"
 
 struct ieee80211_rate *
@@ -138,3 +140,365 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 		if (wiphy->bands[band])
 			set_mandatory_flags_band(wiphy->bands[band], band);
 }
+
+int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
+				   const u8 *mac_addr)
+{
+	if (key_idx > 5)
+		return -EINVAL;
+
+	/*
+	 * Disallow pairwise keys with non-zero index unless it's WEP
+	 * (because current deployments use pairwise WEP keys with
+	 * non-zero indizes but 802.11i clearly specifies to use zero)
+	 */
+	if (mac_addr && key_idx &&
+	    params->cipher != WLAN_CIPHER_SUITE_WEP40 &&
+	    params->cipher != WLAN_CIPHER_SUITE_WEP104)
+		return -EINVAL;
+
+	switch (params->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		if (params->key_len != WLAN_KEY_LEN_WEP40)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (params->key_len != WLAN_KEY_LEN_TKIP)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		if (params->key_len != WLAN_KEY_LEN_CCMP)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_WEP104:
+		if (params->key_len != WLAN_KEY_LEN_WEP104)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		if (params->key_len != WLAN_KEY_LEN_AES_CMAC)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (params->seq) {
+		switch (params->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			/* These ciphers do not use key sequence */
+			return -EINVAL;
+		case WLAN_CIPHER_SUITE_TKIP:
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+			if (params->seq_len != 6)
+				return -EINVAL;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
+/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
+const unsigned char rfc1042_header[] __aligned(2) =
+	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
+EXPORT_SYMBOL(rfc1042_header);
+
+/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
+const unsigned char bridge_tunnel_header[] __aligned(2) =
+	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
+EXPORT_SYMBOL(bridge_tunnel_header);
+
+unsigned int ieee80211_hdrlen(__le16 fc)
+{
+	unsigned int hdrlen = 24;
+
+	if (ieee80211_is_data(fc)) {
+		if (ieee80211_has_a4(fc))
+			hdrlen = 30;
+		if (ieee80211_is_data_qos(fc))
+			hdrlen += IEEE80211_QOS_CTL_LEN;
+		goto out;
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		/*
+		 * ACK and CTS are 10 bytes, all others 16. To see how
+		 * to get this condition consider
+		 *   subtype mask:   0b0000000011110000 (0x00F0)
+		 *   ACK subtype:    0b0000000011010000 (0x00D0)
+		 *   CTS subtype:    0b0000000011000000 (0x00C0)
+		 *   bits that matter:         ^^^      (0x00E0)
+		 *   value of those: 0b0000000011000000 (0x00C0)
+		 */
+		if ((fc & cpu_to_le16(0x00E0)) == cpu_to_le16(0x00C0))
+			hdrlen = 10;
+		else
+			hdrlen = 16;
+	}
+out:
+	return hdrlen;
+}
+EXPORT_SYMBOL(ieee80211_hdrlen);
+
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
+{
+	const struct ieee80211_hdr *hdr =
+			(const struct ieee80211_hdr *)skb->data;
+	unsigned int hdrlen;
+
+	if (unlikely(skb->len < 10))
+		return 0;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (unlikely(hdrlen > skb->len))
+		return 0;
+	return hdrlen;
+}
+EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
+
+static int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
+{
+	int ae = meshhdr->flags & MESH_FLAGS_AE;
+	/* 7.1.3.5a.2 */
+	switch (ae) {
+	case 0:
+		return 6;
+	case 1:
+		return 12;
+	case 2:
+		return 18;
+	case 3:
+		return 24;
+	default:
+		return 6;
+	}
+}
+
+int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
+			   enum nl80211_iftype iftype)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	u16 hdrlen, ethertype;
+	u8 *payload;
+	u8 dst[ETH_ALEN];
+	u8 src[ETH_ALEN] __aligned(2);
+
+	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
+		return -1;
+
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	/* convert IEEE 802.11 header + possible LLC headers into Ethernet
+	 * header
+	 * IEEE 802.11 address fields:
+	 * ToDS FromDS Addr1 Addr2 Addr3 Addr4
+	 *   0     0   DA    SA    BSSID n/a
+	 *   0     1   DA    BSSID SA    n/a
+	 *   1     0   BSSID SA    DA    n/a
+	 *   1     1   RA    TA    DA    SA
+	 */
+	memcpy(dst, ieee80211_get_DA(hdr), ETH_ALEN);
+	memcpy(src, ieee80211_get_SA(hdr), ETH_ALEN);
+
+	switch (hdr->frame_control &
+		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
+	case cpu_to_le16(IEEE80211_FCTL_TODS):
+		if (unlikely(iftype != NL80211_IFTYPE_AP &&
+			     iftype != NL80211_IFTYPE_AP_VLAN))
+			return -1;
+		break;
+	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
+		if (unlikely(iftype != NL80211_IFTYPE_WDS &&
+			     iftype != NL80211_IFTYPE_MESH_POINT))
+			return -1;
+		if (iftype == NL80211_IFTYPE_MESH_POINT) {
+			struct ieee80211s_hdr *meshdr =
+				(struct ieee80211s_hdr *) (skb->data + hdrlen);
+			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
+			if (meshdr->flags & MESH_FLAGS_AE_A5_A6) {
+				memcpy(dst, meshdr->eaddr1, ETH_ALEN);
+				memcpy(src, meshdr->eaddr2, ETH_ALEN);
+			}
+		}
+		break;
+	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
+		if (iftype != NL80211_IFTYPE_STATION ||
+		    (is_multicast_ether_addr(dst) &&
+		     !compare_ether_addr(src, addr)))
+			return -1;
+		break;
+	case cpu_to_le16(0):
+		if (iftype != NL80211_IFTYPE_ADHOC)
+			return -1;
+		break;
+	}
+
+	if (unlikely(skb->len - hdrlen < 8))
+		return -1;
+
+	payload = skb->data + hdrlen;
+	ethertype = (payload[6] << 8) | payload[7];
+
+	if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
+		    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
+		   compare_ether_addr(payload, bridge_tunnel_header) == 0)) {
+		/* remove RFC1042 or Bridge-Tunnel encapsulation and
+		 * replace EtherType */
+		skb_pull(skb, hdrlen + 6);
+		memcpy(skb_push(skb, ETH_ALEN), src, ETH_ALEN);
+		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
+	} else {
+		struct ethhdr *ehdr;
+		__be16 len;
+
+		skb_pull(skb, hdrlen);
+		len = htons(skb->len);
+		ehdr = (struct ethhdr *) skb_push(skb, sizeof(struct ethhdr));
+		memcpy(ehdr->h_dest, dst, ETH_ALEN);
+		memcpy(ehdr->h_source, src, ETH_ALEN);
+		ehdr->h_proto = len;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ieee80211_data_to_8023);
+
+int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
+			     enum nl80211_iftype iftype, u8 *bssid, bool qos)
+{
+	struct ieee80211_hdr hdr;
+	u16 hdrlen, ethertype;
+	__le16 fc;
+	const u8 *encaps_data;
+	int encaps_len, skip_header_bytes;
+	int nh_pos, h_pos;
+	int head_need;
+
+	if (unlikely(skb->len < ETH_HLEN))
+		return -EINVAL;
+
+	nh_pos = skb_network_header(skb) - skb->data;
+	h_pos = skb_transport_header(skb) - skb->data;
+
+	/* convert Ethernet header to proper 802.11 header (based on
+	 * operation mode) */
+	ethertype = (skb->data[12] << 8) | skb->data[13];
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		/* DA BSSID SA */
+		memcpy(hdr.addr1, skb->data, ETH_ALEN);
+		memcpy(hdr.addr2, addr, ETH_ALEN);
+		memcpy(hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
+		hdrlen = 24;
+		break;
+	case NL80211_IFTYPE_STATION:
+		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
+		/* BSSID SA DA */
+		memcpy(hdr.addr1, bssid, ETH_ALEN);
+		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+		memcpy(hdr.addr3, skb->data, ETH_ALEN);
+		hdrlen = 24;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* DA SA BSSID */
+		memcpy(hdr.addr1, skb->data, ETH_ALEN);
+		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+		memcpy(hdr.addr3, bssid, ETH_ALEN);
+		hdrlen = 24;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (qos) {
+		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+		hdrlen += 2;
+	}
+
+	hdr.frame_control = fc;
+	hdr.duration_id = 0;
+	hdr.seq_ctrl = 0;
+
+	skip_header_bytes = ETH_HLEN;
+	if (ethertype == ETH_P_AARP || ethertype == ETH_P_IPX) {
+		encaps_data = bridge_tunnel_header;
+		encaps_len = sizeof(bridge_tunnel_header);
+		skip_header_bytes -= 2;
+	} else if (ethertype > 0x600) {
+		encaps_data = rfc1042_header;
+		encaps_len = sizeof(rfc1042_header);
+		skip_header_bytes -= 2;
+	} else {
+		encaps_data = NULL;
+		encaps_len = 0;
+	}
+
+	skb_pull(skb, skip_header_bytes);
+	nh_pos -= skip_header_bytes;
+	h_pos -= skip_header_bytes;
+
+	head_need = hdrlen + encaps_len - skb_headroom(skb);
+
+	if (head_need > 0 || skb_cloned(skb)) {
+		head_need = max(head_need, 0);
+		if (head_need)
+			skb_orphan(skb);
+
+		if (pskb_expand_head(skb, head_need, 0, GFP_ATOMIC)) {
+			printk(KERN_ERR "failed to reallocate Tx buffer\n");
+			return -ENOMEM;
+		}
+		skb->truesize += head_need;
+	}
+
+	if (encaps_data) {
+		memcpy(skb_push(skb, encaps_len), encaps_data, encaps_len);
+		nh_pos += encaps_len;
+		h_pos += encaps_len;
+	}
+
+	memcpy(skb_push(skb, hdrlen), &hdr, hdrlen);
+
+	nh_pos += hdrlen;
+	h_pos += hdrlen;
+
+	/* Update skb pointers to various headers since this modified frame
+	 * is going to go through Linux networking code that may potentially
+	 * need things like pointer to IP header. */
+	skb_set_mac_header(skb, 0);
+	skb_set_network_header(skb, nh_pos);
+	skb_set_transport_header(skb, h_pos);
+
+	return 0;
+}
+EXPORT_SYMBOL(ieee80211_data_from_8023);
+
+/* Given a data frame determine the 802.1p/1d tag to use. */
+unsigned int cfg80211_classify8021d(struct sk_buff *skb)
+{
+	unsigned int dscp;
+
+	/* skb->priority values from 256->263 are magic values to
+	 * directly indicate a specific 802.1d priority.  This is used
+	 * to allow 802.1d priority to be passed directly in from VLAN
+	 * tags, etc.
+	 */
+	if (skb->priority >= 256 && skb->priority <= 263)
+		return skb->priority - 256;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		dscp = ip_hdr(skb)->tos & 0xfc;
+		break;
+	default:
+		return 0;
+	}
+
+	return dscp >> 5;
+}
+EXPORT_SYMBOL(cfg80211_classify8021d);

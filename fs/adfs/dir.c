@@ -83,7 +83,7 @@ out:
 }
 
 int
-adfs_dir_update(struct super_block *sb, struct object_info *obj)
+adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 {
 	int ret = -EINVAL;
 #ifdef CONFIG_ADFS_FS_RW
@@ -105,6 +105,12 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj)
 	write_lock(&adfs_dir_lock);
 	ret = ops->update(&dir, obj);
 	write_unlock(&adfs_dir_lock);
+
+	if (wait) {
+		int err = ops->sync(&dir);
+		if (!ret)
+			ret = err;
+	}
 
 	ops->free(&dir);
 out:
@@ -199,7 +205,7 @@ const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
 	.readdir	= adfs_readdir,
-	.fsync		= file_fsync,
+	.fsync		= simple_fsync,
 };
 
 static int

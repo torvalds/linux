@@ -5,8 +5,7 @@
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
- *
+ * Copyright IBM Corp. 1999, 2009
  */
 
 #define KMSG_COMPONENT "dasd"
@@ -61,6 +60,7 @@ static int dasd_flush_block_queue(struct dasd_block *);
 static void dasd_device_tasklet(struct dasd_device *);
 static void dasd_block_tasklet(struct dasd_block *);
 static void do_kick_device(struct work_struct *);
+static void do_restore_device(struct work_struct *);
 static void dasd_return_cqr_cb(struct dasd_ccw_req *, void *);
 static void dasd_device_timeout(unsigned long);
 static void dasd_block_timeout(unsigned long);
@@ -109,6 +109,7 @@ struct dasd_device *dasd_alloc_device(void)
 	device->timer.function = dasd_device_timeout;
 	device->timer.data = (unsigned long) device;
 	INIT_WORK(&device->kick_work, do_kick_device);
+	INIT_WORK(&device->restore_device, do_restore_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
 
@@ -512,6 +513,25 @@ void dasd_kick_device(struct dasd_device *device)
 }
 
 /*
+ * dasd_restore_device will schedule a call do do_restore_device to the kernel
+ * event daemon.
+ */
+static void do_restore_device(struct work_struct *work)
+{
+	struct dasd_device *device = container_of(work, struct dasd_device,
+						  restore_device);
+	device->cdev->drv->restore(device->cdev);
+	dasd_put_device(device);
+}
+
+void dasd_restore_device(struct dasd_device *device)
+{
+	dasd_get_device(device);
+	/* queue call to dasd_restore_device to the kernel event daemon. */
+	schedule_work(&device->restore_device);
+}
+
+/*
  * Set the target state for a device and starts the state change.
  */
 void dasd_set_target_state(struct dasd_device *device, int target)
@@ -851,8 +871,10 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
-	if (rc)
+	if (rc) {
+		cqr->intrc = rc;
 		return rc;
+	}
 	device = (struct dasd_device *) cqr->startdev;
 	if (cqr->retries < 0) {
 		/* internal error 14 - start_IO run out of retries */
@@ -906,6 +928,12 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
 			      "start_IO: -EIO device gone, retry");
 		break;
+	case -EINVAL:
+		/* most likely caused in power management context */
+		DBF_DEV_EVENT(DBF_DEBUG, device, "%s",
+			      "start_IO: -EINVAL device currently "
+			      "not accessible");
+		break;
 	default:
 		/* internal error 11 - unknown rc */
 		snprintf(errorstring, ERRORLENGTH, "11 %d", rc);
@@ -915,6 +943,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		BUG();
 		break;
 	}
+	cqr->intrc = rc;
 	return rc;
 }
 
@@ -1454,8 +1483,12 @@ int dasd_sleep_on(struct dasd_ccw_req *cqr)
 	dasd_add_request_tail(cqr);
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1477,8 +1510,15 @@ int dasd_sleep_on_interruptible(struct dasd_ccw_req *cqr)
 		dasd_cancel_req(cqr);
 		/* wait (non-interruptible) for final status */
 		wait_event(generic_waitq, _wait_for_wakeup(cqr));
+		cqr->intrc = rc;
 	}
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -1523,8 +1563,12 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 
 	wait_event(generic_waitq, _wait_for_wakeup(cqr));
 
-	/* Request status is either done or failed. */
-	rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+	if (cqr->status == DASD_CQR_DONE)
+		rc = 0;
+	else if (cqr->intrc)
+		rc = cqr->intrc;
+	else
+		rc = -EIO;
 	return rc;
 }
 
@@ -2382,6 +2426,12 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 	case CIO_OPER:
 		/* FIXME: add a sanity check. */
 		device->stopped &= ~DASD_STOPPED_DC_WAIT;
+		if (device->stopped & DASD_UNRESUMED_PM) {
+			device->stopped &= ~DASD_UNRESUMED_PM;
+			dasd_restore_device(device);
+			ret = 1;
+			break;
+		}
 		dasd_schedule_device_bh(device);
 		if (device->block)
 			dasd_schedule_block_bh(device->block);
@@ -2391,6 +2441,79 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 	dasd_put_device(device);
 	return ret;
 }
+
+int dasd_generic_pm_freeze(struct ccw_device *cdev)
+{
+	struct dasd_ccw_req *cqr, *n;
+	int rc;
+	struct list_head freeze_queue;
+	struct dasd_device *device = dasd_device_from_cdev(cdev);
+
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+	/* disallow new I/O  */
+	device->stopped |= DASD_STOPPED_PM;
+	/* clear active requests */
+	INIT_LIST_HEAD(&freeze_queue);
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	rc = 0;
+	list_for_each_entry_safe(cqr, n, &device->ccw_queue, devlist) {
+		/* Check status and move request to flush_queue */
+		if (cqr->status == DASD_CQR_IN_IO) {
+			rc = device->discipline->term_IO(cqr);
+			if (rc) {
+				/* unable to terminate requeust */
+				dev_err(&device->cdev->dev,
+					"Unable to terminate request %p "
+					"on suspend\n", cqr);
+				spin_unlock_irq(get_ccwdev_lock(cdev));
+				dasd_put_device(device);
+				return rc;
+			}
+		}
+		list_move_tail(&cqr->devlist, &freeze_queue);
+	}
+
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+
+	list_for_each_entry_safe(cqr, n, &freeze_queue, devlist) {
+		wait_event(dasd_flush_wq,
+			   (cqr->status != DASD_CQR_CLEAR_PENDING));
+		if (cqr->status == DASD_CQR_CLEARED)
+			cqr->status = DASD_CQR_QUEUED;
+	}
+	/* move freeze_queue to start of the ccw_queue */
+	spin_lock_irq(get_ccwdev_lock(cdev));
+	list_splice_tail(&freeze_queue, &device->ccw_queue);
+	spin_unlock_irq(get_ccwdev_lock(cdev));
+
+	if (device->discipline->freeze)
+		rc = device->discipline->freeze(device);
+
+	dasd_put_device(device);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_pm_freeze);
+
+int dasd_generic_restore_device(struct ccw_device *cdev)
+{
+	struct dasd_device *device = dasd_device_from_cdev(cdev);
+	int rc = 0;
+
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+
+	dasd_schedule_device_bh(device);
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
+
+	if (device->discipline->restore)
+		rc = device->discipline->restore(device);
+
+	dasd_put_device(device);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(dasd_generic_restore_device);
 
 static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 						   void *rdc_buffer,
@@ -2427,12 +2550,12 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 
 
 int dasd_generic_read_dev_chars(struct dasd_device *device, char *magic,
-				void **rdc_buffer, int rdc_buffer_size)
+				void *rdc_buffer, int rdc_buffer_size)
 {
 	int ret;
 	struct dasd_ccw_req *cqr;
 
-	cqr = dasd_generic_build_rdc(device, *rdc_buffer, rdc_buffer_size,
+	cqr = dasd_generic_build_rdc(device, rdc_buffer, rdc_buffer_size,
 				     magic);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);

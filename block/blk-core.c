@@ -26,7 +26,6 @@
 #include <linux/swap.h>
 #include <linux/writeback.h>
 #include <linux/task_io_accounting_ops.h>
-#include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
 
 #define CREATE_TRACE_POINTS
@@ -498,6 +497,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	q->backing_dev_info.unplug_io_fn = blk_backing_dev_unplug;
 	q->backing_dev_info.unplug_io_data = q;
+	q->backing_dev_info.ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
+	q->backing_dev_info.state = 0;
+	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
+
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
 		kmem_cache_free(blk_requestq_cachep, q);
@@ -884,9 +888,10 @@ EXPORT_SYMBOL(blk_get_request);
 
 /**
  * blk_make_request - given a bio, allocate a corresponding struct request.
- *
+ * @q: target request queue
  * @bio:  The bio describing the memory mappings that will be submitted for IO.
  *        It may be a chained-bio properly constructed by block/bio layer.
+ * @gfp_mask: gfp flags to be used for memory allocation
  *
  * blk_make_request is the parallel of generic_make_request for BLOCK_PC
  * type commands. Where the struct request needs to be farther initialized by
@@ -1872,14 +1877,14 @@ EXPORT_SYMBOL(blk_fetch_request);
 
 /**
  * blk_update_request - Special helper function for request stacking drivers
- * @rq:	      the request being processed
+ * @req:      the request being processed
  * @error:    %0 for success, < %0 for error
- * @nr_bytes: number of bytes to complete @rq
+ * @nr_bytes: number of bytes to complete @req
  *
  * Description:
- *     Ends I/O on a number of bytes attached to @rq, but doesn't complete
- *     the request structure even if @rq doesn't have leftover.
- *     If @rq has leftover, sets it up for the next range of segments.
+ *     Ends I/O on a number of bytes attached to @req, but doesn't complete
+ *     the request structure even if @req doesn't have leftover.
+ *     If @req has leftover, sets it up for the next range of segments.
  *
  *     This special helper function is only for request stacking drivers
  *     (e.g. request-based dm) so that they can handle partial completion.
@@ -2145,7 +2150,7 @@ EXPORT_SYMBOL_GPL(blk_end_request);
 /**
  * blk_end_request_all - Helper function for drives to finish the request.
  * @rq: the request to finish
- * @err: %0 for success, < %0 for error
+ * @error: %0 for success, < %0 for error
  *
  * Description:
  *     Completely finish @rq.
@@ -2166,7 +2171,7 @@ EXPORT_SYMBOL_GPL(blk_end_request_all);
 /**
  * blk_end_request_cur - Helper function to finish the current request chunk.
  * @rq: the request to finish the current chunk for
- * @err: %0 for success, < %0 for error
+ * @error: %0 for success, < %0 for error
  *
  * Description:
  *     Complete the current consecutively mapped chunk from @rq.
@@ -2203,7 +2208,7 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
 /**
  * __blk_end_request_all - Helper function for drives to finish the request.
  * @rq: the request to finish
- * @err: %0 for success, < %0 for error
+ * @error: %0 for success, < %0 for error
  *
  * Description:
  *     Completely finish @rq.  Must be called with queue lock held.
@@ -2224,7 +2229,7 @@ EXPORT_SYMBOL_GPL(__blk_end_request_all);
 /**
  * __blk_end_request_cur - Helper function to finish the current request chunk.
  * @rq: the request to finish the current chunk for
- * @err: %0 for success, < %0 for error
+ * @error: %0 for success, < %0 for error
  *
  * Description:
  *     Complete the current consecutively mapped chunk from @rq.  Must

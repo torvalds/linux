@@ -5,10 +5,9 @@
  *		    Carsten Otte <Cotte@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
+ * Copyright IBM Corp. 1999, 2009
  * EMC Symmetrix ioctl Copyright EMC Corporation, 2008
  * Author.........: Nigel Hislop <hislop_nigel@emc.com>
- *
  */
 
 #define KMSG_COMPONENT "dasd"
@@ -103,17 +102,6 @@ dasd_eckd_set_online(struct ccw_device *cdev)
 {
 	return dasd_generic_set_online(cdev, &dasd_eckd_discipline);
 }
-
-static struct ccw_driver dasd_eckd_driver = {
-	.name        = "dasd-eckd",
-	.owner       = THIS_MODULE,
-	.ids         = dasd_eckd_ids,
-	.probe       = dasd_eckd_probe,
-	.remove      = dasd_generic_remove,
-	.set_offline = dasd_generic_set_offline,
-	.set_online  = dasd_eckd_set_online,
-	.notify      = dasd_generic_notify,
-};
 
 static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
@@ -1097,20 +1085,20 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
-	void *rdc_data;
 	int is_known, rc;
 
 	private = (struct dasd_eckd_private *) device->private;
-	if (private == NULL) {
-		private = kzalloc(sizeof(struct dasd_eckd_private),
-				  GFP_KERNEL | GFP_DMA);
-		if (private == NULL) {
+	if (!private) {
+		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD data "
 				 "failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
+	} else {
+		memset(private, 0, sizeof(*private));
 	}
 	/* Invalidate status of initial analysis. */
 	private->init_cqr_status = -1;
@@ -1161,9 +1149,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		goto out_err3;
 
 	/* Read Device Characteristics */
-	rdc_data = (void *) &(private->rdc_data);
-	memset(rdc_data, 0, sizeof(rdc_data));
-	rc = dasd_generic_read_dev_chars(device, "ECKD", &rdc_data, 64);
+	rc = dasd_generic_read_dev_chars(device, "ECKD", &private->rdc_data,
+					 64);
 	if (rc) {
 		DBF_EVENT(DBF_WARNING,
 			  "Read device characteristics failed, rc=%d for "
@@ -1183,7 +1170,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		 private->rdc_data.dev_model,
 		 private->rdc_data.cu_type,
 		 private->rdc_data.cu_model.model,
-		    private->real_cyl,
+		 private->real_cyl,
 		 private->rdc_data.trk_per_cyl,
 		 private->rdc_data.sec_per_trk);
 	return 0;
@@ -2336,9 +2323,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 {
 	int tpm, cmdrtd, cmdwtd;
 	int use_prefix;
-
-	struct dasd_eckd_private *private;
+#if defined(CONFIG_64BIT)
 	int fcx_in_css, fcx_in_gneq, fcx_in_features;
+#endif
+	struct dasd_eckd_private *private;
 	struct dasd_device *basedev;
 	sector_t first_rec, last_rec;
 	sector_t first_trk, last_trk;
@@ -2361,11 +2349,15 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	last_offs = sector_div(last_trk, blk_per_trk);
 	cdlspecial = (private->uses_cdl && first_rec < 2*blk_per_trk);
 
-	/* is transport mode supported ? */
+	/* is transport mode supported? */
+#if defined(CONFIG_64BIT)
 	fcx_in_css = css_general_characteristics.fcx;
 	fcx_in_gneq = private->gneq->reserved2[7] & 0x04;
 	fcx_in_features = private->features.feature[40] & 0x80;
 	tpm = fcx_in_css && fcx_in_gneq && fcx_in_features;
+#else
+	tpm = 0;
+#endif
 
 	/* is read track data and write track data in command mode supported? */
 	cmdrtd = private->features.feature[9] & 0x20;
@@ -3013,8 +3005,9 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X\n", req,
-		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw));
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
+		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3115,9 +3108,10 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X "
+		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d "
 		       "fcxs: 0x%02X schxs: 0x%02X\n", req,
 		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
+		       scsw_cc(&irb->scsw), req->intrc,
 		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing TCW: %p\n",
@@ -3230,6 +3224,98 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		dasd_eckd_dump_sense_ccw(device, req, irb);
 }
 
+int dasd_eckd_pm_freeze(struct dasd_device *device)
+{
+	/*
+	 * the device should be disconnected from our LCU structure
+	 * on restore we will reconnect it and reread LCU specific
+	 * information like PAV support that might have changed
+	 */
+	dasd_alias_remove_device(device);
+	dasd_alias_disconnect_device_from_lcu(device);
+
+	return 0;
+}
+
+int dasd_eckd_restore_device(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int is_known, rc;
+	struct dasd_uid temp_uid;
+
+	/* allow new IO again */
+	device->stopped &= ~DASD_STOPPED_PM;
+
+	private = (struct dasd_eckd_private *) device->private;
+
+	/* Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err;
+
+	/* Generate device unique id and register in devmap */
+	rc = dasd_eckd_generate_uid(device, &private->uid);
+	dasd_get_uid(device->cdev, &temp_uid);
+	if (memcmp(&private->uid, &temp_uid, sizeof(struct dasd_uid)) != 0)
+		dev_err(&device->cdev->dev, "The UID of the DASD has changed\n");
+	if (rc)
+		goto out_err;
+	dasd_set_uid(device->cdev, &private->uid);
+
+	/* register lcu with alias handling, enable PAV if this is a new lcu */
+	is_known = dasd_alias_make_device_known_to_lcu(device);
+	if (is_known < 0)
+		return is_known;
+	if (!is_known) {
+		/* new lcu found */
+		rc = dasd_eckd_validate_server(device); /* will switch pav on */
+		if (rc)
+			goto out_err;
+	}
+
+	/* Read Feature Codes */
+	rc = dasd_eckd_read_features(device);
+	if (rc)
+		goto out_err;
+
+	/* Read Device Characteristics */
+	memset(&private->rdc_data, 0, sizeof(private->rdc_data));
+	rc = dasd_generic_read_dev_chars(device, "ECKD",
+					 &private->rdc_data, 64);
+	if (rc) {
+		DBF_EVENT(DBF_WARNING,
+			  "Read device characteristics failed, rc=%d for "
+			  "device: %s", rc, dev_name(&device->cdev->dev));
+		goto out_err;
+	}
+
+	/* add device to alias management */
+	dasd_alias_add_device(device);
+
+	return 0;
+
+out_err:
+	/*
+	 * if the resume failed for the DASD we put it in
+	 * an UNRESUMED stop state
+	 */
+	device->stopped |= DASD_UNRESUMED_PM;
+	return 0;
+}
+
+static struct ccw_driver dasd_eckd_driver = {
+	.name	     = "dasd-eckd",
+	.owner	     = THIS_MODULE,
+	.ids	     = dasd_eckd_ids,
+	.probe	     = dasd_eckd_probe,
+	.remove      = dasd_generic_remove,
+	.set_offline = dasd_generic_set_offline,
+	.set_online  = dasd_eckd_set_online,
+	.notify      = dasd_generic_notify,
+	.freeze      = dasd_generic_pm_freeze,
+	.thaw	     = dasd_generic_restore_device,
+	.restore     = dasd_generic_restore_device,
+};
 
 /*
  * max_blocks is dependent on the amount of storage that is available
@@ -3268,13 +3354,21 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.dump_sense_dbf = dasd_eckd_dump_sense_dbf,
 	.fill_info = dasd_eckd_fill_info,
 	.ioctl = dasd_eckd_ioctl,
+	.freeze = dasd_eckd_pm_freeze,
+	.restore = dasd_eckd_restore_device,
 };
 
 static int __init
 dasd_eckd_init(void)
 {
+	int ret;
+
 	ASCEBC(dasd_eckd_discipline.ebcname, 4);
-	return ccw_driver_register(&dasd_eckd_driver);
+	ret = ccw_driver_register(&dasd_eckd_driver);
+	if (!ret)
+		wait_for_device_probe();
+
+	return ret;
 }
 
 static void __exit

@@ -62,7 +62,7 @@ Timerstats sample period: 3.888770 s
 
 The first column is the number of events, the second column the pid, the third
 column is the name of the process. The forth column shows the function which
-initialized the timer and in parantheses the callback function which was
+initialized the timer and in parenthesis the callback function which was
 executed on expiry.
 
     Thomas, Ingo

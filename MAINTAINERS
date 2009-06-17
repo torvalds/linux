@@ -157,9 +157,10 @@ S:	Maintained
 F:	drivers/net/r8169.c
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
+P:	Alan Cox
+M:	alan@lxorguk.ukuu.org.uk
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
-M:	alan@lxorguk.ukuu.org.uk
 S:	Odd Fixes
 F:	drivers/serial/8250*
 F:	include/linux/serial_8250.h
@@ -681,6 +682,13 @@ M:	sakoman@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
+P:	Philipp Zabel
+M:	philipp.zabel@gmail.com
+S:	Maintained
+F:	arch/arm/mach-pxa/hx4700.c
+F:	arch/arm/mach-pxa/include/mach/hx4700.h
+
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 P:	Kristoffer Ericson
 M:	kristoffer.ericson@gmail.com
@@ -940,6 +948,12 @@ P:	Luis R. Rodriguez
 M:	lrodriguez@atheros.com
 P:	Jouni Malinen
 M:	jmalinen@atheros.com
+P:	Sujith Manoharan
+M:	Sujith.Manoharan@atheros.com
+P:	Vasanthakumar Thiagarajan
+M:	vasanth@atheros.com
+P:	Senthil Balasubramanian
+M:	senthilkumar@atheros.com
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
@@ -1331,6 +1345,13 @@ S:	Maintained
 F:	drivers/net/can/
 F:	include/linux/can/
 F:	include/linux/can.h
+
+CAN NETWORK DRIVERS
+P:	Wolfgang Grandegger
+M:	wg@grandegger.com
+L:	socketcan-core@lists.berlios.de (subscribers-only)
+W:	http://developer.berlios.de/projects/socketcan/
+S:	Maintained
 
 CELL BROADBAND ENGINE ARCHITECTURE
 P:	Arnd Bergmann
@@ -1802,10 +1823,10 @@ F:	drivers/char/epca*
 F:	drivers/char/digi*
 
 DIRECTORY NOTIFICATION (DNOTIFY)
-P:	Stephen Rothwell
-M:	sfr@canb.auug.org.au
+P:	Eric Paris
+M:	eparis@parisplace.org
 L:	linux-kernel@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	Documentation/filesystems/dnotify.txt
 F:	fs/notify/dnotify/
 F:	include/linux/dnotify.h
@@ -2105,6 +2126,15 @@ W:	http://sourceforge.net/projects/lpfcxxxx
 S:	Supported
 F:	drivers/scsi/lpfc/
 
+ENE CB710 FLASH CARD READER DRIVER
+P:	Michał Mirosław
+M:	mirq-linux@rere.qmqm.pl
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/misc/cb710/
+F:	drivers/mmc/host/cb710-mmc.*
+F:	include/linux/cb710.h
+
 EPSON 1355 FRAMEBUFFER DRIVER
 P:	Christopher Hoover
 M:	ch@murgatroid.com
@@ -2351,7 +2381,7 @@ F:	fs/freevxfs/
 
 FREEZER
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -2827,6 +2857,18 @@ L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 F:	drivers/ieee1394/raw1394*
 
+IEEE 802.15.4 SUBSYSTEM
+P:	Dmitry Eremin-Solenikov
+M:	dbaryshkov@gmail.com
+P:	Sergey Lapin
+M:	slapin@ossfans.org
+L:	linux-zigbee-devel@lists.sourceforge.net
+W:	http://apps.sourceforge.net/trac/linux-zigbee
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lumag/lowpan.git
+S:	Maintained
+F:	net/ieee802154/
+F:	drivers/ieee801254/
+
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 P:	Mimi Zohar
 M:	zohar@us.ibm.com
@@ -2858,6 +2900,8 @@ P:	John McCutchan
 M:	john@johnmccutchan.com
 P:	Robert Love
 M:	rlove@rlove.org
+P:	Eric Paris
+M:	eparis@parisplace.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/inotify.txt
@@ -3118,6 +3162,7 @@ M:	samuel@sortiz.org
 L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/irda-2.6.git
 F:	Documentation/networking/irda.txt
 F:	drivers/net/irda/
 F:	include/net/irda/
@@ -3361,6 +3406,16 @@ F:	drivers/serial/kgdboc.c
 F:	include/linux/kgdb.h
 F:	kernel/kgdb.c
 
+KMEMLEAK
+P:	Catalin Marinas
+M:	catalin.marinas@arm.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/kmemleak.txt
+F:	include/linux/kmemleak.h
+F:	mm/kmemleak.c
+F:	mm/kmemleak-test.c
+
 KMEMTRACE
 P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
@@ -3369,12 +3424,6 @@ S:	Maintained
 F:	Documentation/trace/kmemtrace.txt
 F:	include/trace/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
-
-KMEMLEAK
-P:	Catalin Marinas
-M:	catalin.marinas@arm.com
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
 
 KPROBES
 P:	Ananth N Mavinakayanahalli
@@ -4153,6 +4202,69 @@ S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
 
+OMAP SUPPORT
+P:	Tony Lindgren <tony@atomide.com>
+M:	tony@atomide.com
+L:	linux-omap@vger.kernel.org
+W:	http://www.muru.com/linux/omap/
+W:	http://linux.omap.com/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap-2.6.git
+S:	Maintained
+F:	arch/arm/*omap*
+
+OMAP CLOCK FRAMEWORK SUPPORT
+P:	Paul Walmsley
+M:	paul@pwsan.com
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/*omap*/*clock*
+
+OMAP POWER MANAGEMENT SUPPORT
+P:	Kevin Hilman
+M:	khilman@deeprootsystems.com
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/*omap*/*pm*
+
+OMAP AUDIO SUPPORT
+P:	Jarkko Nikula
+M:	jhnikula@gmail.com
+L:	alsa-devel@alsa-project.org (subscribers-only)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	sound/soc/omap/
+
+OMAP FRAMEBUFFER SUPPORT
+P:	Imre Deak
+M:	imre.deak@nokia.com
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/video/omap/
+
+OMAP MMC SUPPORT
+P:	Jarkko Lavinen
+M:	jarkko.lavinen@nokia.com
+L:	linux-kernel@vger.kernel.org
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/*omap*
+
+OMAP RANDOM NUMBER GENERATOR SUPPORT
+P:	Deepak Saxena
+M:	dsaxena@plexity.net
+S:	Maintained
+F:	drivers/char/hw_random/omap-rng.c
+
+OMAP USB SUPPORT
+P:	Felipe Balbi
+M:	felipe.balbi@nokia.com
+P:	David Brownell
+M:	dbrownell@users.sourceforge.net
+L:	linux-usb@vger.kernel.org
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+
 OMFS FILESYSTEM
 P:	Bob Copeland
 M:	me@bobcopeland.com
@@ -4536,8 +4648,8 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 PS3 NETWORK SUPPORT
-P:	Masakazu Mokuno
-M:	mokuno@sm.sony.co.jp
+P:	Geoff Levand
+M:	geoffrey.levand@am.sony.com
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported
@@ -4591,7 +4703,7 @@ F:	drivers/media/video/pvrusb2/
 
 PXA2xx/PXA3xx SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 P:	Russell King
 M:	linux@arm.linux.org.uk
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
@@ -4601,23 +4713,24 @@ F:	drivers/pcmcia/pxa2xx*
 F:	drivers/spi/pxa2xx*
 F:	drivers/usb/gadget/pxa2*
 F:	include/sound/pxa2xx-lib.h
-F:	sound/soc/pxa/pxa2xx*
+F:	sound/arm/pxa*
+F:	sound/soc/pxa
 
 PXA168 SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 P:	Jason Chagas
 M:	jason.chagas@marvell.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Supported
+S:	Maintained
 
 PXA910 SUPPORT
 P:	Eric Miao
-M:	eric.miao@marvell.com
+M:	eric.y.miao@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Supported
+S:	Maintained
 
 PXA MMCI DRIVER
 S:	Orphan
@@ -4737,7 +4850,7 @@ F:	drivers/net/r6040.c
 RDS - RELIABLE DATAGRAM SOCKETS
 P:	Andy Grover
 M:	andy.grover@oracle.com
-L:	rds-devel@oss.oracle.com
+L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 F:	net/rds/
 
@@ -4777,9 +4890,9 @@ S:	Supported
 F:	fs/reiserfs/
 
 RFKILL
-P:	Ivo van Doorn
-M:	IvDoorn@gmail.com
-L:	netdev@vger.kernel.org
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F	Documentation/rfkill.txt
 F:	net/rfkill/
@@ -5138,7 +5251,6 @@ P:	Vincent Sanders
 M:	support@simtec.co.uk
 W:	http://www.simtec.co.uk/products/EB110ATX/
 S:	Supported
-F:	arch/arm/mach-ebsa110/
 
 SIMTEC EB2410ITX (BAST)
 P:	Ben Dooks
@@ -5329,11 +5441,12 @@ P:	Liam Girdwood
 M:	lrg@slimlogic.co.uk
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
-T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
 L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 F:	sound/soc/
+F:	include/sound/soc*
 
 SPARC + UltraSPARC (sparc/sparc64)
 P:	David S. Miller
@@ -5550,20 +5663,6 @@ S:	Maintained
 F:	drivers/misc/tifm*
 F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
-
-TI OMAP MMC INTERFACE DRIVER
-P:	Carlos Aguiar, Anderson Briglia and Syed Khasim
-M:	linux-omap@vger.kernel.org
-W:	http://linux.omap.com
-W:	http://www.muru.com/linux/omap/
-S:	Maintained
-F:	drivers/mmc/host/omap.c
-
-TI OMAP RANDOM NUMBER GENERATOR SUPPORT
-P:	Deepak Saxena
-M:	dsaxena@plexity.net
-S:	Maintained
-F:	drivers/char/hw_random/omap-rng.c
 
 TIPC NETWORK LAYER
 P:	Per Liden

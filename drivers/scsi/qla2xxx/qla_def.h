@@ -93,6 +93,7 @@
 #define LSD(x)	((uint32_t)((uint64_t)(x)))
 #define MSD(x)	((uint32_t)((((uint64_t)(x)) >> 16) >> 16))
 
+#define MAKE_HANDLE(x, y) ((uint32_t)((((uint32_t)(x)) << 16) | (uint32_t)(y)))
 
 /*
  * I/O register
@@ -179,6 +180,7 @@
 #define REQUEST_ENTRY_CNT_24XX		2048	/* Number of request entries. */
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
+#define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 
 struct req_que;
 
@@ -186,7 +188,6 @@ struct req_que;
  * SCSI Request Block
  */
 typedef struct srb {
-	struct req_que *que;
 	struct fc_port *fcport;
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
@@ -2008,7 +2009,7 @@ typedef struct vport_params {
 #define VP_RET_CODE_NOT_FOUND		6
 
 struct qla_hw_data;
-
+struct rsp_que;
 /*
  * ISP operations
  */
@@ -2030,10 +2031,9 @@ struct isp_operations {
 	void (*enable_intrs) (struct qla_hw_data *);
 	void (*disable_intrs) (struct qla_hw_data *);
 
-	int (*abort_command) (struct scsi_qla_host *, srb_t *,
-		struct req_que *);
-	int (*target_reset) (struct fc_port *, unsigned int);
-	int (*lun_reset) (struct fc_port *, unsigned int);
+	int (*abort_command) (srb_t *);
+	int (*target_reset) (struct fc_port *, unsigned int, int);
+	int (*lun_reset) (struct fc_port *, unsigned int, int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
 	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,
@@ -2079,7 +2079,6 @@ struct isp_operations {
 #define QLA_PCI_MSIX_CONTROL	0xa2
 
 struct scsi_qla_host;
-struct rsp_que;
 
 struct qla_msix_entry {
 	int have_irq;
@@ -2140,7 +2139,6 @@ struct qla_statistics {
 #define MBC_INITIALIZE_MULTIQ 0x1f
 #define QLA_QUE_PAGE 0X1000
 #define QLA_MQ_SIZE 32
-#define QLA_MAX_HOST_QUES 16
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
 	((ha->mqenable) ? \
@@ -2170,6 +2168,8 @@ struct rsp_que {
 	struct qla_hw_data *hw;
 	struct qla_msix_entry *msix;
 	struct req_que *req;
+	srb_t *status_srb; /* status continuation entry */
+	struct work_struct q_work;
 };
 
 /* Request queue data structure */
@@ -2222,6 +2222,8 @@ struct qla_hw_data {
 		uint32_t	fce_enabled		:1;
 		uint32_t	fac_supported		:1;
 		uint32_t	chip_reset_done		:1;
+		uint32_t	port0			:1;
+		uint32_t	running_gold_fw		:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
@@ -2246,7 +2248,8 @@ struct qla_hw_data {
 	struct rsp_que **rsp_q_map;
 	unsigned long req_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
 	unsigned long rsp_qid_map[(QLA_MAX_QUEUES / 8) / sizeof(unsigned long)];
-	uint16_t 	max_queues;
+	uint8_t 	max_req_queues;
+	uint8_t 	max_rsp_queues;
 	struct qla_npiv_entry *npiv_info;
 	uint16_t	nvram_npiv_size;
 
@@ -2255,6 +2258,9 @@ struct qla_hw_data {
 #define FLOGI_MID_SUPPORT       BIT_10
 #define FLOGI_VSAN_SUPPORT      BIT_12
 #define FLOGI_SP_SUPPORT        BIT_13
+
+	uint8_t		port_no;		/* Physical port of adapter */
+
 	/* Timeout timers. */
 	uint8_t 	loop_down_abort_time;    /* port down timer */
 	atomic_t	loop_down_timer;         /* loop down timer */
@@ -2392,6 +2398,14 @@ struct qla_hw_data {
 	dma_addr_t	edc_data_dma;
 	uint16_t	edc_data_len;
 
+#define XGMAC_DATA_SIZE	PAGE_SIZE
+	void		*xgmac_data;
+	dma_addr_t	xgmac_data_dma;
+
+#define DCBX_TLV_DATA_SIZE PAGE_SIZE
+	void		*dcbx_tlv;
+	dma_addr_t	dcbx_tlv_dma;
+
 	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */
 
@@ -2510,6 +2524,7 @@ struct qla_hw_data {
 	uint32_t        flt_region_vpd;
 	uint32_t        flt_region_nvram;
 	uint32_t        flt_region_npiv_conf;
+	uint32_t	flt_region_gold_fw;
 
 	/* Needed for BEACON */
 	uint16_t        beacon_blink_led;
@@ -2536,6 +2551,7 @@ struct qla_hw_data {
 	struct qla_chip_state_84xx *cs84xx;
 	struct qla_statistics qla_stats;
 	struct isp_operations *isp_ops;
+	struct workqueue_struct *wq;
 };
 
 /*
@@ -2545,6 +2561,8 @@ typedef struct scsi_qla_host {
 	struct list_head list;
 	struct list_head vp_fcports;	/* list of fcports */
 	struct list_head work_list;
+	spinlock_t work_lock;
+
 	/* Commonly used flags and state information. */
 	struct Scsi_Host *host;
 	unsigned long	host_no;
@@ -2591,8 +2609,6 @@ typedef struct scsi_qla_host {
 #define SWITCH_FOUND		BIT_0
 #define DFLG_NO_CABLE		BIT_1
 
-	srb_t		*status_srb;	/* Status continuation entry. */
-
 	/* ISP configuration data. */
 	uint16_t	loop_id;		/* Host adapter loop id */
 
@@ -2618,6 +2634,11 @@ typedef struct scsi_qla_host {
 	uint8_t		node_name[WWN_SIZE];
 	uint8_t		port_name[WWN_SIZE];
 	uint8_t		fabric_node_name[WWN_SIZE];
+
+	uint16_t	fcoe_vlan_id;
+	uint16_t	fcoe_fcf_idx;
+	uint8_t		fcoe_vn_port_mac[6];
+
 	uint32_t   	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */
@@ -2643,7 +2664,7 @@ typedef struct scsi_qla_host {
 #define VP_ERR_FAB_LOGOUT	4
 #define VP_ERR_ADAP_NORESOURCES	5
 	struct qla_hw_data *hw;
-	int	req_ques[QLA_MAX_HOST_QUES];
+	struct req_que *req;
 } scsi_qla_host_t;
 
 /*

@@ -28,7 +28,7 @@
 #include <media/soc_camera.h>
 
 #include <asm/gpio.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <asm/mach/map.h>
 #include <mach/pxa27x.h>

@@ -1813,6 +1813,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	if (data == NULL)
 		return -ENOMEM;
 
+	lock_kernel();
 	/* fill out struct with values from existing mount */
 	data->flags = nfss->flags;
 	data->rsize = nfss->rsize;
@@ -1837,6 +1838,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	error = nfs_compare_remount_data(nfss, data);
 out:
 	kfree(data);
+	unlock_kernel();
 	return error;
 }
 

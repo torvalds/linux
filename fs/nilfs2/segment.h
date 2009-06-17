@@ -90,8 +90,9 @@ struct nilfs_segsum_pointer {
  * @sc_nblk_inc: Block count of current generation
  * @sc_dirty_files: List of files to be written
  * @sc_gc_inodes: List of GC inodes having blocks to be written
- * @sc_cleaning_segments: List of segments to be freed through construction
  * @sc_copied_buffers: List of copied buffers (buffer heads) to freeze data
+ * @sc_freesegs: array of segment numbers to be freed
+ * @sc_nfreesegs: number of segments on @sc_freesegs
  * @sc_dsync_inode: inode whose data pages are written for a sync operation
  * @sc_dsync_start: start byte offset of data pages
  * @sc_dsync_end: end byte offset of data pages (inclusive)
@@ -131,8 +132,10 @@ struct nilfs_sc_info {
 
 	struct list_head	sc_dirty_files;
 	struct list_head	sc_gc_inodes;
-	struct list_head	sc_cleaning_segments;
 	struct list_head	sc_copied_buffers;
+
+	__u64		       *sc_freesegs;
+	size_t			sc_nfreesegs;
 
 	struct nilfs_inode_info *sc_dsync_inode;
 	loff_t			sc_dsync_start;
@@ -225,10 +228,6 @@ extern void nilfs_flush_segment(struct super_block *, ino_t);
 extern int nilfs_clean_segments(struct super_block *, struct nilfs_argv *,
 				void **);
 
-extern int nilfs_segctor_add_segments_to_be_freed(struct nilfs_sc_info *,
-						  __u64 *, size_t);
-extern void nilfs_segctor_clear_segments_to_be_freed(struct nilfs_sc_info *);
-
 extern int nilfs_attach_segment_constructor(struct nilfs_sb_info *);
 extern void nilfs_detach_segment_constructor(struct nilfs_sb_info *);
 
@@ -240,5 +239,6 @@ extern int nilfs_search_super_root(struct the_nilfs *, struct nilfs_sb_info *,
 extern int nilfs_recover_logical_segments(struct the_nilfs *,
 					  struct nilfs_sb_info *,
 					  struct nilfs_recovery_info *);
+extern void nilfs_dispose_segment_list(struct list_head *);
 
 #endif /* _NILFS_SEGMENT_H */

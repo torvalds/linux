@@ -119,6 +119,19 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
 		    cmd.hwifversion, cmd.version);
 
+	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
+	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
+	/* 5.110.22 have mesh command with 0xa3 command id */
+	/* 10.0.0.p0 FW brings in mesh config command with different id */
+	/* Check FW version MSB and initialize mesh_fw_ver */
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5)
+		priv->mesh_fw_ver = MESH_FW_OLD;
+	else if ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK))
+		priv->mesh_fw_ver = MESH_FW_NEW;
+	else
+		priv->mesh_fw_ver = MESH_NONE;
+
 	/* Clamp region code to 8-bit since FW spec indicates that it should
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
 	 * returns non-zero high 8 bits here.
@@ -1036,17 +1049,26 @@ static int __lbs_mesh_config_send(struct lbs_private *priv,
 				  uint16_t action, uint16_t type)
 {
 	int ret;
+	u16 command = CMD_MESH_CONFIG_OLD;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->hdr.command = cpu_to_le16(CMD_MESH_CONFIG);
+	/*
+	 * Command id is 0xac for v10 FW along with mesh interface
+	 * id in bits 14-13-12.
+	 */
+	if (priv->mesh_fw_ver == MESH_FW_NEW)
+		command = CMD_MESH_CONFIG |
+			  (MESH_IFACE_ID << MESH_IFACE_BIT_OFFSET);
+
+	cmd->hdr.command = cpu_to_le16(command);
 	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_config));
 	cmd->hdr.result = 0;
 
 	cmd->type = cpu_to_le16(type);
 	cmd->action = cpu_to_le16(action);
 
-	ret = lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+	ret = lbs_cmd_with_response(priv, command, cmd);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
@@ -1198,8 +1220,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 	command = le16_to_cpu(cmd->command);
 
 	/* These commands take longer */
-	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE ||
-	    command == CMD_802_11_AUTHENTICATE)
+	if (command == CMD_802_11_SCAN || command == CMD_802_11_ASSOCIATE)
 		timeo = 5 * HZ;
 
 	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
@@ -1393,15 +1414,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_ASSOCIATE:
-	case CMD_802_11_REASSOCIATE:
-		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_AUTHENTICATE:
-		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_MAC_REG_ACCESS:
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
@@ -1448,8 +1460,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 	case CMD_802_11_LED_GPIO_CTRL:
 		{
-			struct mrvlietypes_ledgpio *gpio =
-			    (struct mrvlietypes_ledgpio*)
+			struct mrvl_ie_ledgpio *gpio =
+			    (struct mrvl_ie_ledgpio*)
 			    cmdptr->params.ledgpio.data;
 
 			memmove(&cmdptr->params.ledgpio,

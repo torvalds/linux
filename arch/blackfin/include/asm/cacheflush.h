@@ -30,12 +30,14 @@
 #ifndef _BLACKFIN_CACHEFLUSH_H
 #define _BLACKFIN_CACHEFLUSH_H
 
-extern void blackfin_icache_dcache_flush_range(unsigned long start_address, unsigned long end_address);
+#include <asm/blackfin.h>	/* for SSYNC() */
+
 extern void blackfin_icache_flush_range(unsigned long start_address, unsigned long end_address);
 extern void blackfin_dcache_flush_range(unsigned long start_address, unsigned long end_address);
 extern void blackfin_dcache_invalidate_range(unsigned long start_address, unsigned long end_address);
 extern void blackfin_dflush_page(void *page);
 extern void blackfin_invalidate_entire_dcache(void);
+extern void blackfin_invalidate_entire_icache(void);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
@@ -54,32 +56,28 @@ extern void blackfin_invalidate_entire_dcache(void);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
-#if defined(CONFIG_BFIN_DCACHE) && defined(CONFIG_BFIN_ICACHE)
+#if defined(CONFIG_BFIN_WB)
+	blackfin_dcache_flush_range(start, end);
+#endif
 
-# if defined(CONFIG_BFIN_WT)
-	blackfin_icache_flush_range((start), (end));
+	/* Make sure all write buffers in the data side of the core
+	 * are flushed before trying to invalidate the icache.  This
+	 * needs to be after the data flush and before the icache
+	 * flush so that the SSYNC does the right thing in preventing
+	 * the instruction prefetcher from hitting things in cached
+	 * memory at the wrong time -- it runs much further ahead than
+	 * the pipeline.
+	 */
+	SSYNC();
+#if defined(CONFIG_BFIN_ICACHE)
+	blackfin_icache_flush_range(start, end);
 	flush_icache_range_others(start, end);
-# else
-	blackfin_icache_dcache_flush_range((start), (end));
-# endif
-
-#else
-
-# if defined(CONFIG_BFIN_ICACHE)
-	blackfin_icache_flush_range((start), (end));
-	flush_icache_range_others(start, end);
-# endif
-# if defined(CONFIG_BFIN_DCACHE)
-	blackfin_dcache_flush_range((start), (end));
-# endif
-
 #endif
 }
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do { memcpy(dst, src, len);						\
      flush_icache_range((unsigned) (dst), (unsigned) (dst) + (len));	\
-     flush_icache_range_others((unsigned long) (dst), (unsigned long) (dst) + (len));\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
@@ -100,7 +98,7 @@ do { memcpy(dst, src, len);						\
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;
 
-static inline int bfin_addr_dcachable(unsigned long addr)
+static inline int bfin_addr_dcacheable(unsigned long addr)
 {
 #ifdef CONFIG_BFIN_DCACHE
 	if (addr < (_ramend - DMA_UNCACHED_REGION))
@@ -110,6 +108,11 @@ static inline int bfin_addr_dcachable(unsigned long addr)
 	if (reserved_mem_dcache_on &&
 		addr >= _ramend && addr < physical_mem_end)
 		return 1;
+
+#ifndef CONFIG_BFIN_L2_NOT_CACHED
+	if (addr >= L2_START && addr < L2_START + L2_LENGTH)
+		return 1;
+#endif
 
 	return 0;
 }

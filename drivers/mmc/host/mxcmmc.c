@@ -746,8 +746,6 @@ static int mxcmci_probe(struct platform_device *pdev)
 	}
 
 	mmc->f_min = clk_get_rate(host->clk) >> 16;
-	if (mmc->f_min < 400000)
-		mmc->f_min = 400000;
 	mmc->f_max = clk_get_rate(host->clk) >> 1;
 
 	/* recommended in data sheet */

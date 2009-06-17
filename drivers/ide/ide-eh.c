@@ -52,7 +52,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq,
 	}
 
 	if ((rq->errors & ERROR_RECAL) == ERROR_RECAL)
-		drive->special.b.recalibrate = 1;
+		drive->special_flags |= IDE_SFLAG_RECALIBRATE;
 
 	++rq->errors;
 
@@ -268,9 +268,8 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 {
 	int legacy = (drive->id[ATA_ID_CFS_ENABLE_2] & 0x0400) ? 0 : 1;
 
-	drive->special.all = 0;
-	drive->special.b.set_geometry = legacy;
-	drive->special.b.recalibrate  = legacy;
+	drive->special_flags =
+		legacy ? (IDE_SFLAG_SET_GEOMETRY | IDE_SFLAG_RECALIBRATE) : 0;
 
 	drive->mult_count = 0;
 	drive->dev_flags &= ~IDE_DFLAG_PARKED;
@@ -280,7 +279,7 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 		drive->mult_req = 0;
 
 	if (drive->mult_req != drive->mult_count)
-		drive->special.b.set_multmode = 1;
+		drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
 }
 
 static void pre_reset(ide_drive_t *drive)
@@ -408,8 +407,9 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	/* more than enough time */
 	udelay(10);
 	/* clear SRST, leave nIEN (unless device is on the quirk list) */
-	tp_ops->write_devctl(hwif, (drive->quirk_list == 2 ? 0 : ATA_NIEN) |
-			     ATA_DEVCTL_OBS);
+	tp_ops->write_devctl(hwif,
+		((drive->dev_flags & IDE_DFLAG_NIEN_QUIRK) ? 0 : ATA_NIEN) |
+		 ATA_DEVCTL_OBS);
 	/* more than enough time */
 	udelay(10);
 	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;

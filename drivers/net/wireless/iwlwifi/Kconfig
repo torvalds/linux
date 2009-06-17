@@ -5,14 +5,9 @@ config IWLWIFI
 	select FW_LOADER
 	select MAC80211_LEDS if IWLWIFI_LEDS
 	select LEDS_CLASS if IWLWIFI_LEDS
-	select RFKILL if IWLWIFI_RFKILL
 
 config IWLWIFI_LEDS
 	bool "Enable LED support in iwlagn and iwl3945 drivers"
-	depends on IWLWIFI
-
-config IWLWIFI_RFKILL
-	bool "Enable RF kill support in iwlagn and iwl3945 drivers"
 	depends on IWLWIFI
 
 config IWLWIFI_SPECTRUM_MEASUREMENT
@@ -75,7 +70,7 @@ config IWLAGN
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwlagn.ko.
+	  module will be called iwlagn.
 
 
 config IWL4965
@@ -113,7 +108,7 @@ config IWL3945
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwl3945.ko.
+	  module will be called iwl3945.
 
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 driver"

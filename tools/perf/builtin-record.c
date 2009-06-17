@@ -568,8 +568,11 @@ int cmd_record(int argc, const char **argv, const char *prefix)
 	if (!argc && target_pid == -1 && !system_wide)
 		usage_with_options(record_usage, options);
 
-	if (!nr_counters)
-		nr_counters = 1;
+	if (!nr_counters) {
+		nr_counters	= 1;
+		attrs[0].type	= PERF_TYPE_HARDWARE;
+		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	}
 
 	for (counter = 0; counter < nr_counters; counter++) {
 		if (attrs[counter].sample_period)

@@ -48,6 +48,9 @@ void __init kirkwood_mpp_conf(unsigned int *mpp_list)
 	if (!variant_mask)
 		return;
 
+	/* Initialize gpiolib. */
+	orion_gpio_init();
+
 	printk(KERN_DEBUG "initial MPP regs:");
 	for (i = 0; i < MPP_NR_REGS; i++) {
 		mpp_ctrl[i] = readl(MPP_CTRL(i));

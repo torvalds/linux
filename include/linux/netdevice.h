@@ -39,9 +39,11 @@
 
 #include <linux/device.h>
 #include <linux/percpu.h>
+#include <linux/rculist.h>
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 
+#include <linux/ethtool.h>
 #include <net/net_namespace.h>
 #include <net/dsa.h>
 #ifdef CONFIG_DCB
@@ -49,7 +51,6 @@
 #endif
 
 struct vlan_group;
-struct ethtool_ops;
 struct netpoll_info;
 /* 802.11 specific */
 struct wireless_dev;
@@ -209,6 +210,19 @@ struct dev_addr_list
 #define dmi_addrlen	da_addrlen
 #define dmi_users	da_users
 #define dmi_gusers	da_gusers
+
+struct netdev_hw_addr {
+	struct list_head	list;
+	unsigned char		addr[MAX_ADDR_LEN];
+	unsigned char		type;
+#define NETDEV_HW_ADDR_T_LAN		1
+#define NETDEV_HW_ADDR_T_SAN		2
+#define NETDEV_HW_ADDR_T_SLAVE		3
+#define NETDEV_HW_ADDR_T_UNICAST	4
+	int			refcount;
+	bool			synced;
+	struct rcu_head		rcu_head;
+};
 
 struct hh_cache
 {
@@ -447,12 +461,25 @@ enum netdev_queue_state_t
 };
 
 struct netdev_queue {
+/*
+ * read mostly part
+ */
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
 	unsigned long		state;
-	spinlock_t		_xmit_lock;
-	int			xmit_lock_owner;
 	struct Qdisc		*qdisc_sleeping;
+/*
+ * write mostly part
+ */
+	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
+	int			xmit_lock_owner;
+	/*
+	 * please use this field instead of dev->trans_start
+	 */
+	unsigned long		trans_start;
+	unsigned long		tx_bytes;
+	unsigned long		tx_packets;
+	unsigned long		tx_dropped;
 } ____cacheline_aligned_in_smp;
 
 
@@ -670,7 +697,9 @@ struct net_device
 #define NETIF_F_GRO		16384	/* Generic receive offload */
 #define NETIF_F_LRO		32768	/* large receive offload */
 
+/* the GSO_MASK reserves bits 16 through 23 */
 #define NETIF_F_FCOE_CRC	(1 << 24) /* FCoE CRC32 */
+#define NETIF_F_SCTP_CSUM	(1 << 25) /* SCTP checksum offload */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -747,10 +776,11 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
-	spinlock_t		addr_list_lock;
-	struct dev_addr_list	*uc_list;	/* Secondary unicast mac addresses */
+	struct list_head	uc_list;	/* Secondary unicast mac
+						   addresses */
 	int			uc_count;	/* Number of installed ucasts	*/
 	int			uc_promisc;
+	spinlock_t		addr_list_lock;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
 	unsigned int		promiscuity;
@@ -776,8 +806,11 @@ struct net_device
  */
 	unsigned long		last_rx;	/* Time of last Rx	*/
 	/* Interface address info used in eth_type_trans() */
-	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address, (before bcast
-							   because most packets are unicast) */
+	unsigned char		*dev_addr;	/* hw address, (before bcast
+						   because most packets are
+						   unicast) */
+
+	struct list_head	dev_addr_list; /* list of device hw addresses */
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
@@ -797,6 +830,11 @@ struct net_device
  * One part is mostly used on xmit path (device)
  */
 	/* These may be needed for future network-power-down code. */
+
+	/*
+	 * trans_start here is expensive for high speed devices on SMP,
+	 * please use netdev_queue->trans_start instead.
+	 */
 	unsigned long		trans_start;	/* Time (in jiffies) of last Tx	*/
 
 	int			watchdog_timeo; /* used by dev_watchdog() */
@@ -867,49 +905,10 @@ struct net_device
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
-
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	struct {
-		int			(*init)(struct net_device *dev);
-		void			(*uninit)(struct net_device *dev);
-		int			(*open)(struct net_device *dev);
-		int			(*stop)(struct net_device *dev);
-		int			(*hard_start_xmit) (struct sk_buff *skb,
-							    struct net_device *dev);
-		u16			(*select_queue)(struct net_device *dev,
-							struct sk_buff *skb);
-		void			(*change_rx_flags)(struct net_device *dev,
-							   int flags);
-		void			(*set_rx_mode)(struct net_device *dev);
-		void			(*set_multicast_list)(struct net_device *dev);
-		int			(*set_mac_address)(struct net_device *dev,
-							   void *addr);
-		int			(*validate_addr)(struct net_device *dev);
-		int			(*do_ioctl)(struct net_device *dev,
-						    struct ifreq *ifr, int cmd);
-		int			(*set_config)(struct net_device *dev,
-						      struct ifmap *map);
-		int			(*change_mtu)(struct net_device *dev, int new_mtu);
-		int			(*neigh_setup)(struct net_device *dev,
-						       struct neigh_parms *);
-		void			(*tx_timeout) (struct net_device *dev);
-		struct net_device_stats* (*get_stats)(struct net_device *dev);
-		void			(*vlan_rx_register)(struct net_device *dev,
-							    struct vlan_group *grp);
-		void			(*vlan_rx_add_vid)(struct net_device *dev,
-							   unsigned short vid);
-		void			(*vlan_rx_kill_vid)(struct net_device *dev,
-							    unsigned short vid);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		void                    (*poll_controller)(struct net_device *dev);
-#endif
-	};
-#endif
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
-#define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
 
 static inline
 struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev,
@@ -980,9 +979,7 @@ static inline bool netdev_uses_trailer_tags(struct net_device *dev)
  */
 static inline void *netdev_priv(const struct net_device *dev)
 {
-	return (char *)dev + ((sizeof(struct net_device)
-			       + NETDEV_ALIGN_CONST)
-			      & ~NETDEV_ALIGN_CONST);
+	return (char *)dev + ALIGN(sizeof(struct net_device), NETDEV_ALIGN);
 }
 
 /* Set the sysfs physical device reference for the network logical device
@@ -1012,6 +1009,12 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 void netif_napi_del(struct napi_struct *napi);
 
 struct napi_gro_cb {
+	/* Virtual address of skb_shinfo(skb)->frags[0].page + offset. */
+	void *frag0;
+
+	/* Length of frag0. */
+	unsigned int frag0_len;
+
 	/* This indicates where we are processing relative to skb->data. */
 	int data_offset;
 
@@ -1045,14 +1048,6 @@ struct packet_type {
 	int			(*gro_complete)(struct sk_buff *skb);
 	void			*af_packet_priv;
 	struct list_head	list;
-};
-
-struct napi_gro_fraginfo {
-	skb_frag_t frags[MAX_SKB_FRAGS];
-	unsigned int nr_frags;
-	unsigned int ip_summed;
-	unsigned int len;
-	__wsum csum;
 };
 
 #include <linux/interrupt.h>
@@ -1119,9 +1114,9 @@ extern int		dev_restart(struct net_device *dev);
 #ifdef CONFIG_NETPOLL_TRAP
 extern int		netpoll_trap(void);
 #endif
-extern void	      *skb_gro_header(struct sk_buff *skb, unsigned int hlen);
 extern int	       skb_gro_receive(struct sk_buff **head,
 				       struct sk_buff *skb);
+extern void	       skb_gro_reset_offset(struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
@@ -1138,16 +1133,34 @@ static inline void skb_gro_pull(struct sk_buff *skb, unsigned int len)
 	NAPI_GRO_CB(skb)->data_offset += len;
 }
 
-static inline void skb_gro_reset_offset(struct sk_buff *skb)
+static inline void *skb_gro_header_fast(struct sk_buff *skb,
+					unsigned int offset)
 {
-	NAPI_GRO_CB(skb)->data_offset = 0;
+	return NAPI_GRO_CB(skb)->frag0 + offset;
+}
+
+static inline int skb_gro_header_hard(struct sk_buff *skb, unsigned int hlen)
+{
+	return NAPI_GRO_CB(skb)->frag0_len < hlen;
+}
+
+static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
+					unsigned int offset)
+{
+	NAPI_GRO_CB(skb)->frag0 = NULL;
+	NAPI_GRO_CB(skb)->frag0_len = 0;
+	return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
 }
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
 {
-	return skb_mac_header(skb) < skb->data ? skb_mac_header(skb) :
-	       page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset;
+	return NAPI_GRO_CB(skb)->frag0 ?: skb_mac_header(skb);
+}
+
+static inline void *skb_gro_network_header(struct sk_buff *skb)
+{
+	return (NAPI_GRO_CB(skb)->frag0 ?: skb->data) +
+	       skb_network_offset(skb);
 }
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
@@ -1442,12 +1455,18 @@ extern int		napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
 extern void		napi_reuse_skb(struct napi_struct *napi,
 				       struct sk_buff *skb);
-extern struct sk_buff *	napi_fraginfo_skb(struct napi_struct *napi,
-					  struct napi_gro_fraginfo *info);
+extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
 extern int		napi_frags_finish(struct napi_struct *napi,
 					  struct sk_buff *skb, int ret);
-extern int		napi_gro_frags(struct napi_struct *napi,
-				       struct napi_gro_fraginfo *info);
+extern struct sk_buff *	napi_frags_skb(struct napi_struct *napi);
+extern int		napi_gro_frags(struct napi_struct *napi);
+
+static inline void napi_free_frags(struct napi_struct *napi)
+{
+	kfree_skb(napi->skb);
+	napi->skb = NULL;
+}
+
 extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
@@ -1513,6 +1532,8 @@ static inline int netif_carrier_ok(const struct net_device *dev)
 {
 	return !test_bit(__LINK_STATE_NOCARRIER, &dev->state);
 }
+
+extern unsigned long dev_trans_start(struct net_device *dev);
 
 extern void __netdev_watchdog_up(struct net_device *dev);
 
@@ -1671,6 +1692,12 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 	spin_unlock_bh(&txq->_xmit_lock);
 }
 
+static inline void txq_trans_update(struct netdev_queue *txq)
+{
+	if (txq->xmit_lock_owner != -1)
+		txq->trans_start = jiffies;
+}
+
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device
@@ -1778,6 +1805,13 @@ static inline void netif_addr_unlock_bh(struct net_device *dev)
 	spin_unlock_bh(&dev->addr_list_lock);
 }
 
+/*
+ * dev_addr_list walker. Should be used only for read access. Call with
+ * rcu_read_lock held.
+ */
+#define for_each_dev_addr(dev, ha) \
+		list_for_each_entry_rcu(ha, &dev->dev_addr_list, list)
+
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
 
 extern void		ether_setup(struct net_device *dev);
@@ -1790,11 +1824,24 @@ extern struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	alloc_netdev_mq(sizeof_priv, name, setup, 1)
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
+
+/* Functions used for device addresses handling */
+extern int dev_addr_add(struct net_device *dev, unsigned char *addr,
+			unsigned char addr_type);
+extern int dev_addr_del(struct net_device *dev, unsigned char *addr,
+			unsigned char addr_type);
+extern int dev_addr_add_multiple(struct net_device *to_dev,
+				 struct net_device *from_dev,
+				 unsigned char addr_type);
+extern int dev_addr_del_multiple(struct net_device *to_dev,
+				 struct net_device *from_dev,
+				 unsigned char addr_type);
+
 /* Functions used for secondary unicast and multicast support */
 extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
-extern int		dev_unicast_delete(struct net_device *dev, void *addr, int alen);
-extern int		dev_unicast_add(struct net_device *dev, void *addr, int alen);
+extern int		dev_unicast_delete(struct net_device *dev, void *addr);
+extern int		dev_unicast_add(struct net_device *dev, void *addr);
 extern int		dev_unicast_sync(struct net_device *to, struct net_device *from);
 extern void		dev_unicast_unsync(struct net_device *to, struct net_device *from);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);
@@ -1856,15 +1903,14 @@ static inline int net_gso_ok(int features, int gso_type)
 
 static inline int skb_gso_ok(struct sk_buff *skb, int features)
 {
-	return net_gso_ok(features, skb_shinfo(skb)->gso_type);
+	return net_gso_ok(features, skb_shinfo(skb)->gso_type) &&
+	       (!skb_has_frags(skb) || (features & NETIF_F_FRAGLIST));
 }
 
 static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 {
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
-	        (skb_shinfo(skb)->frag_list &&
-	         !(dev->features & NETIF_F_FRAGLIST)) ||
 		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
 }
 
@@ -1872,6 +1918,16 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 					  unsigned int size)
 {
 	dev->gso_max_size = size;
+}
+
+static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
+					      struct net_device *master)
+{
+	if (skb->pkt_type == PACKET_HOST) {
+		u16 *dest = (u16 *) eth_hdr(skb)->h_dest;
+
+		memcpy(dest, master->dev_addr, ETH_ALEN);
+	}
 }
 
 /* On bonding slaves other than the currently active slave, suppress
@@ -1886,6 +1942,14 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 	if (master) {
 		if (master->priv_flags & IFF_MASTER_ARPMON)
 			dev->last_rx = jiffies;
+
+		if ((master->priv_flags & IFF_MASTER_ALB) && master->br_port) {
+			/* Do address unmangle. The local destination address
+			 * will be always the one master has. Provides the right
+			 * functionality in a bridge.
+			 */
+			skb_bond_set_mac_by_master(skb, master);
+		}
 
 		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
 			if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
@@ -1908,6 +1972,28 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 }
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
+
+static inline int dev_ethtool_get_settings(struct net_device *dev,
+					   struct ethtool_cmd *cmd)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
+		return -EOPNOTSUPP;
+	return dev->ethtool_ops->get_settings(dev, cmd);
+}
+
+static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_rx_csum)
+		return 0;
+	return dev->ethtool_ops->get_rx_csum(dev);
+}
+
+static inline u32 dev_ethtool_get_flags(struct net_device *dev)
+{
+	if (!dev->ethtool_ops || !dev->ethtool_ops->get_flags)
+		return 0;
+	return dev->ethtool_ops->get_flags(dev);
+}
 #endif /* __KERNEL__ */
 
-#endif	/* _LINUX_DEV_H */
+#endif	/* _LINUX_NETDEVICE_H */

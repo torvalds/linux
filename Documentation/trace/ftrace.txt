@@ -1834,4 +1834,4 @@ an error.
 -----------
 
 More details can be found in the source code, in the
-kernel/tracing/*.c files.
+kernel/trace/*.c files.

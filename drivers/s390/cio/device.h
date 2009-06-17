@@ -87,6 +87,8 @@ int ccw_device_is_orphan(struct ccw_device *);
 int ccw_device_recognition(struct ccw_device *);
 int ccw_device_online(struct ccw_device *);
 int ccw_device_offline(struct ccw_device *);
+void ccw_device_update_sense_data(struct ccw_device *);
+int ccw_device_test_sense_data(struct ccw_device *);
 void ccw_device_schedule_sch_unregister(struct ccw_device *);
 int ccw_purge_blacklisted(void);
 
@@ -133,5 +135,6 @@ extern struct bus_type ccw_bus_type;
 void retry_set_schib(struct ccw_device *cdev);
 void cmf_retry_copy_block(struct ccw_device *);
 int cmf_reenable(struct ccw_device *);
+int ccw_set_cmf(struct ccw_device *cdev, int enable);
 extern struct device_attribute dev_attr_cmb_enable;
 #endif

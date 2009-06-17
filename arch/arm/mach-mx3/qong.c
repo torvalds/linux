@@ -279,7 +279,7 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.phys_io        = AIPS1_BASE_ADDR,
 	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = mxc_map_io,
+	.map_io         = mx31_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &qong_timer,

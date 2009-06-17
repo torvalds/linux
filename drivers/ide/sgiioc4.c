@@ -91,7 +91,7 @@ typedef struct {
 
 
 static void
-sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
+sgiioc4_init_hwif_ports(struct ide_hw *hw, unsigned long data_port,
 			unsigned long ctrl_port, unsigned long irq_port)
 {
 	unsigned long reg = data_port;
@@ -546,7 +546,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	unsigned long cmd_base, irqport;
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	struct ide_hw hw, *hws[] = { &hw };
 	int rc;
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
@@ -575,13 +575,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	memset(&hw, 0, sizeof(hw));
 	sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
 	hw.irq = dev->irq;
-	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
 
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	rc = ide_host_add(&sgiioc4_port_info, hws, NULL);
+	rc = ide_host_add(&sgiioc4_port_info, hws, 1, NULL);
 	if (!rc)
 		return 0;
 

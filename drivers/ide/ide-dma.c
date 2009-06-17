@@ -347,7 +347,6 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 
 	return mode;
 }
-EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
 static int ide_tune_dma(ide_drive_t *drive)
 {

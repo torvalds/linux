@@ -55,7 +55,7 @@ struct termio {
 */
 #define INIT_C_CC "\003\034\177\025\004\0\1\0\021\023\032\0\022\017\027\026\0"
 
-#include <asm-generic/termios.h>
+#include <asm-generic/termios-base.h>
 
 #endif	/* __KERNEL__ */
 

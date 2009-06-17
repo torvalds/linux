@@ -1,7 +1,7 @@
 /*
  *  arch/s390/kernel/smp.c
  *
- *    Copyright IBM Corp. 1999,2007
+ *    Copyright IBM Corp. 1999, 2009
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  *		 Heiko Carstens (heiko.carstens@de.ibm.com)
@@ -47,7 +47,7 @@
 #include <asm/timer.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include <asm/cpu.h>
+#include <asm/cputime.h>
 #include <asm/vdso.h>
 #include "entry.h"
 
@@ -572,6 +572,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->cpu_nr = cpu;
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
 	cpu_lowcore->machine_flags = S390_lowcore.machine_flags;
+	cpu_lowcore->ftrace_func = S390_lowcore.ftrace_func;
 	eieio();
 
 	while (signal_processor(cpu, sigp_restart) == sigp_busy)
@@ -1029,6 +1030,42 @@ out:
 }
 static SYSDEV_CLASS_ATTR(dispatching, 0644, dispatching_show,
 			 dispatching_store);
+
+/*
+ * If the resume kernel runs on another cpu than the suspended kernel,
+ * we have to switch the cpu IDs in the logical map.
+ */
+void smp_switch_boot_cpu_in_resume(u32 resume_phys_cpu_id,
+				   struct _lowcore *suspend_lowcore)
+{
+	int cpu, suspend_cpu_id, resume_cpu_id;
+	u32 suspend_phys_cpu_id;
+
+	suspend_phys_cpu_id = __cpu_logical_map[suspend_lowcore->cpu_nr];
+	suspend_cpu_id = suspend_lowcore->cpu_nr;
+
+	for_each_present_cpu(cpu) {
+		if (__cpu_logical_map[cpu] == resume_phys_cpu_id) {
+			resume_cpu_id = cpu;
+			goto found;
+		}
+	}
+	panic("Could not find resume cpu in logical map.\n");
+
+found:
+	printk("Resume  cpu ID: %i/%i\n", resume_phys_cpu_id, resume_cpu_id);
+	printk("Suspend cpu ID: %i/%i\n", suspend_phys_cpu_id, suspend_cpu_id);
+
+	__cpu_logical_map[resume_cpu_id] = suspend_phys_cpu_id;
+	__cpu_logical_map[suspend_cpu_id] = resume_phys_cpu_id;
+
+	lowcore_ptr[suspend_cpu_id]->cpu_addr = resume_phys_cpu_id;
+}
+
+u32 smp_get_phys_cpu_id(void)
+{
+	return __cpu_logical_map[smp_processor_id()];
+}
 
 static int __init topology_init(void)
 {

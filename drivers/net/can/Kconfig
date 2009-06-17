@@ -12,6 +12,68 @@ config CAN_VCAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
 
+config CAN_DEV
+	tristate "Platform CAN drivers with Netlink support"
+	depends on CAN
+	default Y
+	---help---
+	  Enables the common framework for platform CAN drivers with Netlink
+	  support. This is the standard library for CAN drivers.
+	  If unsure, say Y.
+
+config CAN_CALC_BITTIMING
+	bool "CAN bit-timing calculation"
+	depends on CAN_DEV
+	default Y
+	---help---
+	  If enabled, CAN bit-timing parameters will be calculated for the
+	  bit-rate specified via Netlink argument "bitrate" when the device
+	  get started. This works fine for the most common CAN controllers
+	  with standard bit-rates but may fail for exotic bit-rates or CAN
+	  source clock frequencies. Disabling saves some space, but then the
+	  bit-timing parameters must be specified directly using the Netlink
+	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+	  If unsure, say Y.
+
+config CAN_SJA1000
+	depends on CAN_DEV
+	tristate "Philips SJA1000"
+	---help---
+	  Driver for the SJA1000 CAN controllers from Philips or NXP
+
+config CAN_SJA1000_PLATFORM
+	depends on CAN_SJA1000
+	tristate "Generic Platform Bus based SJA1000 driver"
+	---help---
+	  This driver adds support for the SJA1000 chips connected to
+	  the "platform bus" (Linux abstraction for directly to the
+	  processor attached devices).  Which can be found on various
+	  boards from Phytec (http://www.phytec.de) like the PCM027,
+	  PCM038.
+
+config CAN_SJA1000_OF_PLATFORM
+	depends on CAN_SJA1000 && PPC_OF
+	tristate "Generic OF Platform Bus based SJA1000 driver"
+	---help---
+	  This driver adds support for the SJA1000 chips connected to
+	  the OpenFirmware "platform bus" found on embedded systems with
+	  OpenFirmware bindings, e.g. if you have a PowerPC based system
+	  you may want to enable this option.
+
+config CAN_EMS_PCI
+	tristate "EMS CPC-PCI and CPC-PCIe Card"
+	depends on PCI && CAN_SJA1000
+	---help---
+	  This driver is for the one or two channel CPC-PCI and CPC-PCIe
+	  cards from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
+config CAN_KVASER_PCI
+	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
+	depends on PCI && CAN_SJA1000
+	---help---
+	  This driver is for the the PCIcanx and PCIcan cards (1, 2 or
+	  4 channel) from Kvaser (http://www.kvaser.com).
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN

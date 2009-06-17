@@ -347,3 +347,4 @@ module_exit(regulator_virtual_consumer_exit);
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("Virtual regulator consumer");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:reg-virt-consumer");

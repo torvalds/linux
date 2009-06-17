@@ -1478,20 +1478,8 @@ static struct genl_ops netlbl_unlabel_genl_ops[] = {
  */
 int __init netlbl_unlabel_genl_init(void)
 {
-	int ret_val, i;
-
-	ret_val = genl_register_family(&netlbl_unlabel_gnl_family);
-	if (ret_val != 0)
-		return ret_val;
-
-	for (i = 0; i < ARRAY_SIZE(netlbl_unlabel_genl_ops); i++) {
-		ret_val = genl_register_ops(&netlbl_unlabel_gnl_family,
-				&netlbl_unlabel_genl_ops[i]);
-		if (ret_val != 0)
-			return ret_val;
-	}
-
-	return 0;
+	return genl_register_family_with_ops(&netlbl_unlabel_gnl_family,
+		netlbl_unlabel_genl_ops, ARRAY_SIZE(netlbl_unlabel_genl_ops));
 }
 
 /*

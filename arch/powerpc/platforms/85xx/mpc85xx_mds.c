@@ -206,23 +206,24 @@ static void __init mpc85xx_mds_setup_arch(void)
 	}
 
 	if (bcsr_regs) {
+		if (machine_is(mpc8568_mds)) {
 #define BCSR_UCC1_GETH_EN	(0x1 << 7)
 #define BCSR_UCC2_GETH_EN	(0x1 << 7)
 #define BCSR_UCC1_MODE_MSK	(0x3 << 4)
 #define BCSR_UCC2_MODE_MSK	(0x3 << 0)
 
-		/* Turn off UCC1 & UCC2 */
-		clrbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
-		clrbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
+			/* Turn off UCC1 & UCC2 */
+			clrbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
+			clrbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
 
-		/* Mode is RGMII, all bits clear */
-		clrbits8(&bcsr_regs[11], BCSR_UCC1_MODE_MSK |
-					 BCSR_UCC2_MODE_MSK);
+			/* Mode is RGMII, all bits clear */
+			clrbits8(&bcsr_regs[11], BCSR_UCC1_MODE_MSK |
+						 BCSR_UCC2_MODE_MSK);
 
-		/* Turn UCC1 & UCC2 on */
-		setbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
-		setbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
-
+			/* Turn UCC1 & UCC2 on */
+			setbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
+			setbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
+		}
 		iounmap(bcsr_regs);
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
@@ -257,7 +258,8 @@ static int __init board_fixups(void)
 
 	return 0;
 }
-machine_arch_initcall(mpc85xx_mds, board_fixups);
+machine_arch_initcall(mpc8568_mds, board_fixups);
+machine_arch_initcall(mpc8569_mds, board_fixups);
 
 static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },
@@ -276,7 +278,8 @@ static int __init mpc85xx_publish_devices(void)
 
 	return 0;
 }
-machine_device_initcall(mpc85xx_mds, mpc85xx_publish_devices);
+machine_device_initcall(mpc8568_mds, mpc85xx_publish_devices);
+machine_device_initcall(mpc8569_mds, mpc85xx_publish_devices);
 
 static void __init mpc85xx_mds_pic_init(void)
 {
@@ -321,9 +324,30 @@ static int __init mpc85xx_mds_probe(void)
         return of_flat_dt_is_compatible(root, "MPC85xxMDS");
 }
 
-define_machine(mpc85xx_mds) {
-	.name		= "MPC85xx MDS",
+define_machine(mpc8568_mds) {
+	.name		= "MPC8568 MDS",
 	.probe		= mpc85xx_mds_probe,
+	.setup_arch	= mpc85xx_mds_setup_arch,
+	.init_IRQ	= mpc85xx_mds_pic_init,
+	.get_irq	= mpic_get_irq,
+	.restart	= fsl_rstcr_restart,
+	.calibrate_decr	= generic_calibrate_decr,
+	.progress	= udbg_progress,
+#ifdef CONFIG_PCI
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
+};
+
+static int __init mpc8569_mds_probe(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	return of_flat_dt_is_compatible(root, "fsl,MPC8569EMDS");
+}
+
+define_machine(mpc8569_mds) {
+	.name		= "MPC8569 MDS",
+	.probe		= mpc8569_mds_probe,
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,

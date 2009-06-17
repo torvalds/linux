@@ -42,11 +42,16 @@ static int isofs_dentry_cmp_ms(struct dentry *dentry, struct qstr *a, struct qst
 static void isofs_put_super(struct super_block *sb)
 {
 	struct isofs_sb_info *sbi = ISOFS_SB(sb);
+
 #ifdef CONFIG_JOLIET
+	lock_kernel();
+
 	if (sbi->s_nls_iocharset) {
 		unload_nls(sbi->s_nls_iocharset);
 		sbi->s_nls_iocharset = NULL;
 	}
+
+	unlock_kernel();
 #endif
 
 	kfree(sbi);

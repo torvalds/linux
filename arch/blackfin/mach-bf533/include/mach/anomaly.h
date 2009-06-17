@@ -6,7 +6,7 @@
  * Licensed under the GPL-2 or later.
  */
 
-/* This file shoule be up to date with:
+/* This file should be up to date with:
  *  - Revision E, 09/18/2008; ADSP-BF531/BF532/BF533 Blackfin Processor Anomaly List
  */
 
@@ -34,12 +34,12 @@
 # define ANOMALY_BF533 0
 #endif
 
-/* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot 2 Not Supported */
+/* Multi-issue instruction with dsp32shiftimm in slot1 and P-reg store in slot 2 not supported */
 #define ANOMALY_05000074 (1)
 /* UART Line Status Register (UART_LSR) Bits Are Not Updated at the Same Time */
 #define ANOMALY_05000099 (__SILICON_REVISION__ < 5)
 /* Watchpoint Status Register (WPSTAT) Bits Are Set on Every Corresponding Match */
-#define ANOMALY_05000105 (1)
+#define ANOMALY_05000105 (__SILICON_REVISION__ > 2)
 /* DMA_RUN Bit Is Not Valid after a Peripheral Receive Channel DMA Stops */
 #define ANOMALY_05000119 (1)
 /* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
@@ -48,7 +48,7 @@
 #define ANOMALY_05000158 (__SILICON_REVISION__ < 5)
 /* PPI Data Lengths Between 8 and 16 Do Not Zero Out Upper Bits */
 #define ANOMALY_05000166 (1)
-/* Turning Serial Ports on with External Frame Syncs */
+/* Turning SPORTs on while External Frame Sync Is Active May Corrupt Data */
 #define ANOMALY_05000167 (1)
 /* PPI_COUNT Cannot Be Programmed to 0 in General Purpose TX or RX Modes */
 #define ANOMALY_05000179 (__SILICON_REVISION__ < 5)
@@ -67,9 +67,9 @@
 /* Current DMA Address Shows Wrong Value During Carry Fix */
 #define ANOMALY_05000199 (__SILICON_REVISION__ < 4)
 /* SPORT TFS and DT Are Incorrectly Driven During Inactive Channels in Certain Conditions */
-#define ANOMALY_05000200 (__SILICON_REVISION__ < 5)
+#define ANOMALY_05000200 (__SILICON_REVISION__ == 3 || __SILICON_REVISION__ == 4)
 /* Receive Frame Sync Not Ignored During Active Frames in SPORT Multi-Channel Mode */
-#define ANOMALY_05000201 (__SILICON_REVISION__ < 4)
+#define ANOMALY_05000201 (__SILICON_REVISION__ == 3)
 /* Possible Infinite Stall with Specific Dual-DAG Situation */
 #define ANOMALY_05000202 (__SILICON_REVISION__ < 5)
 /* Specific Sequence That Can Cause DMA Error or DMA Stopping */
@@ -104,7 +104,7 @@
 #define ANOMALY_05000242 (__SILICON_REVISION__ < 5)
 /* If I-Cache Is On, CSYNC/SSYNC/IDLE Around Change of Control Causes Failures */
 #define ANOMALY_05000244 (__SILICON_REVISION__ < 5)
-/* Spurious Hardware Error from an Access in the Shadow of a Conditional Branch */
+/* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
 /* Data CPLBs Should Prevent Spurious Hardware Errors */
 #define ANOMALY_05000246 (__SILICON_REVISION__ < 5)
@@ -137,7 +137,7 @@
 /* High I/O Activity Causes Output Voltage of Internal Voltage Regulator (Vddint) to Decrease */
 #define ANOMALY_05000270 (__SILICON_REVISION__ < 5)
 /* Spontaneous Reset of Internal Voltage Regulator */
-#define ANOMALY_05000271 (__SILICON_REVISION__ < 4)
+#define ANOMALY_05000271 (__SILICON_REVISION__ == 3)
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
 /* Writes to Synchronous SDRAM Memory May Be Lost */
@@ -165,14 +165,14 @@
 /* New Feature: Additional PPI Frame Sync Sampling Options (Not Available On Older Silicon) */
 #define ANOMALY_05000306 (__SILICON_REVISION__ < 5)
 /* SCKELOW Bit Does Not Maintain State Through Hibernate */
-#define ANOMALY_05000307 (1)
+#define ANOMALY_05000307 (1)	/* note: brokenness is noted in documentation, not anomaly sheet */
 /* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
 /* Erroneous Flag (GPIO) Pin Operations under Specific Sequences */
 #define ANOMALY_05000311 (__SILICON_REVISION__ < 6)
 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (__SILICON_REVISION__ < 6)
-/* PPI Is Level-Sensitive on First Transfer */
+/* PPI Is Level-Sensitive on First Transfer In Single Frame Sync Modes */
 #define ANOMALY_05000313 (__SILICON_REVISION__ < 6)
 /* Killed System MMR Write Completes Erroneously On Next System MMR Access */
 #define ANOMALY_05000315 (__SILICON_REVISION__ < 6)
@@ -200,17 +200,63 @@
 #define ANOMALY_05000426 (1)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
 #define ANOMALY_05000443 (1)
+/* False Hardware Error when RETI points to invalid memory */
+#define ANOMALY_05000461 (1)
 
 /* These anomalies have been "phased" out of analog.com anomaly sheets and are
  * here to show running on older silicon just isn't feasible.
  */
 
+/* Internal voltage regulator can't be modified via register writes */
+#define ANOMALY_05000066 (__SILICON_REVISION__ < 2)
 /* Watchpoints (Hardware Breakpoints) are not supported */
 #define ANOMALY_05000067 (__SILICON_REVISION__ < 3)
+/* SDRAM PSSE bit cannot be set again after SDRAM Powerup */
+#define ANOMALY_05000070 (__SILICON_REVISION__ < 2)
+/* Writing FIO_DIR can corrupt a programmable flag's data */
+#define ANOMALY_05000079 (__SILICON_REVISION__ < 2)
+/* Timer Auto-Baud Mode requires the UART clock to be enabled */
+#define ANOMALY_05000086 (__SILICON_REVISION__ < 2)
+/* Internal Clocking Modes on SPORT0 not supported */
+#define ANOMALY_05000088 (__SILICON_REVISION__ < 2)
+/* Internal voltage regulator does not wake up from an RTC wakeup */
+#define ANOMALY_05000092 (__SILICON_REVISION__ < 2)
+/* The IFLUSH instruction must be preceded by a CSYNC instruction */
+#define ANOMALY_05000093 (__SILICON_REVISION__ < 2)
+/* Vectoring to an instruction that is presently being filled into the instruction cache may cause erroneous behavior */
+#define ANOMALY_05000095 (__SILICON_REVISION__ < 2)
+/* PREFETCH, FLUSH, and FLUSHINV must be followed by a CSYNC */
+#define ANOMALY_05000096 (__SILICON_REVISION__ < 2)
+/* Performance Monitor 0 and 1 are swapped when monitoring memory events */
+#define ANOMALY_05000097 (__SILICON_REVISION__ < 2)
+/* 32-bit SPORT DMA will be word reversed */
+#define ANOMALY_05000098 (__SILICON_REVISION__ < 2)
+/* Incorrect status in the UART_IIR register */
+#define ANOMALY_05000100 (__SILICON_REVISION__ < 2)
+/* Reading X_MODIFY or Y_MODIFY while DMA channel is active */
+#define ANOMALY_05000101 (__SILICON_REVISION__ < 2)
+/* Descriptor-based MemDMA may lock up with 32-bit transfers or if transfers span 64KB buffers */
+#define ANOMALY_05000102 (__SILICON_REVISION__ < 2)
+/* Incorrect value written to the cycle counters */
+#define ANOMALY_05000103 (__SILICON_REVISION__ < 2)
+/* Stores to L1 Data memory incorrect when a specific sequence is followed */
+#define ANOMALY_05000104 (__SILICON_REVISION__ < 2)
+/* Programmable Flag (PF3) functionality not supported in all PPI modes */
+#define ANOMALY_05000106 (__SILICON_REVISION__ < 2)
+/* Data store can be lost when targeting a cache line fill */
+#define ANOMALY_05000107 (__SILICON_REVISION__ < 2)
 /* Reserved bits in SYSCFG register not set at power on */
 #define ANOMALY_05000109 (__SILICON_REVISION__ < 3)
+/* Infinite Core Stall */
+#define ANOMALY_05000114 (__SILICON_REVISION__ < 2)
+/* PPI_FSx may glitch when generated by the on chip Timers */
+#define ANOMALY_05000115 (__SILICON_REVISION__ < 2)
 /* Trace Buffers may record discontinuities into emulation mode and/or exception, NMI, reset handlers */
 #define ANOMALY_05000116 (__SILICON_REVISION__ < 3)
+/* DTEST registers allow access to Data Cache when DTEST_COMMAND< 14 >= 0 */
+#define ANOMALY_05000117 (__SILICON_REVISION__ < 2)
+/* Booting from an 8-bit or 24-bit Addressable SPI device is not supported */
+#define ANOMALY_05000118 (__SILICON_REVISION__ < 2)
 /* DTEST_COMMAND initiated memory access may be incorrect if data cache or DMA is active */
 #define ANOMALY_05000123 (__SILICON_REVISION__ < 3)
 /* DMA Lock-up at CCLK to SCLK ratios of 4:1, 2:1, or 1:1 */
@@ -222,7 +268,9 @@
 /* DMEM_CONTROL is not set on Reset */
 #define ANOMALY_05000137 (__SILICON_REVISION__ < 3)
 /* SPI boot will not complete if there is a zero fill block in the loader file */
-#define ANOMALY_05000138 (__SILICON_REVISION__ < 3)
+#define ANOMALY_05000138 (__SILICON_REVISION__ == 2)
+/* Timerx_Config must be set for using the PPI in GP output mode with internal Frame Syncs */
+#define ANOMALY_05000139 (__SILICON_REVISION__ < 2)
 /* Allowing the SPORT RX FIFO to fill will cause an overflow */
 #define ANOMALY_05000140 (__SILICON_REVISION__ < 3)
 /* An Infinite Stall occurs with a particular sequence of consecutive dual dag events */
@@ -237,17 +285,17 @@
 #define ANOMALY_05000145 (__SILICON_REVISION__ < 3)
 /* MDMA may lose the first few words of a descriptor chain */
 #define ANOMALY_05000146 (__SILICON_REVISION__ < 3)
-/* The source MDMA descriptor may stop with a DMA Error */
+/* Source MDMA descriptor may stop with a DMA Error near beginning of descriptor fetch */
 #define ANOMALY_05000147 (__SILICON_REVISION__ < 3)
 /* When booting from a 16-bit asynchronous memory device, the upper 8-bits of each word must be 0x00 */
 #define ANOMALY_05000148 (__SILICON_REVISION__ < 3)
 /* Frame Delay in SPORT Multichannel Mode */
 #define ANOMALY_05000153 (__SILICON_REVISION__ < 3)
-/* SPORT TFS signal is active in Multi-channel mode outside of valid channels */
+/* SPORT TFS signal stays active in multichannel mode outside of valid channels */
 #define ANOMALY_05000154 (__SILICON_REVISION__ < 3)
 /* Timer1 can not be used for PWMOUT mode when a certain PPI mode is in use */
 #define ANOMALY_05000155 (__SILICON_REVISION__ < 3)
-/* A killed 32-bit System MMR write will lead to the next system MMR access thinking it should be 32-bit. */
+/* Killed 32-bit MMR write leads to next system MMR access thinking it should be 32-bit */
 #define ANOMALY_05000157 (__SILICON_REVISION__ < 3)
 /* SPORT transmit data is not gated by external frame sync in certain conditions */
 #define ANOMALY_05000163 (__SILICON_REVISION__ < 3)
@@ -275,15 +323,27 @@
 #define ANOMALY_05000206 (__SILICON_REVISION__ < 3)
 
 /* Anomalies that don't exist on this proc */
+#define ANOMALY_05000120 (0)
+#define ANOMALY_05000149 (0)
+#define ANOMALY_05000171 (0)
+#define ANOMALY_05000220 (0)
+#define ANOMALY_05000248 (0)
 #define ANOMALY_05000266 (0)
+#define ANOMALY_05000274 (0)
+#define ANOMALY_05000287 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000353 (1)
+#define ANOMALY_05000362 (1)
 #define ANOMALY_05000380 (0)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000389 (0)
 #define ANOMALY_05000412 (0)
+#define ANOMALY_05000430 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
 #define ANOMALY_05000447 (0)
 #define ANOMALY_05000448 (0)
+#define ANOMALY_05000456 (0)
+#define ANOMALY_05000450 (0)
 
 #endif

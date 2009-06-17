@@ -2,12 +2,16 @@ Kernel driver f71882fg
 ======================
 
 Supported chips:
-  * Fintek F71882FG and F71883FG
-    Prefix: 'f71882fg'
+  * Fintek F71858FG
+    Prefix: 'f71858fg'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
   * Fintek F71862FG and F71863FG
     Prefix: 'f71862fg'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Available from the Fintek website
+  * Fintek F71882FG and F71883FG
+    Prefix: 'f71882fg'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
   * Fintek F8000
@@ -66,13 +70,13 @@ printed when loading the driver.
 
 Three different fan control modes are supported; the mode number is written
 to the pwm#_enable file. Note that not all modes are supported on all
-chips, and some modes may only be available in RPM / PWM mode on the F8000.
+chips, and some modes may only be available in RPM / PWM mode.
 Writing an unsupported mode will result in an invalid parameter error.
 
 * 1: Manual mode
   You ask for a specific PWM duty cycle / DC voltage or a specific % of
   fan#_full_speed by writing to the pwm# file. This mode is only
-  available on the F8000 if the fan channel is in RPM mode.
+  available on the F71858FG / F8000 if the fan channel is in RPM mode.
 
 * 2: Normal auto mode
   You can define a number of temperature/fan speed trip points, which % the

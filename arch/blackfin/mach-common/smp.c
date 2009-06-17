@@ -43,8 +43,13 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
+#include <asm/time.h>
 #include <linux/err.h>
 
+/*
+ * Anomaly notes:
+ * 05000120 - we always define corelock as 32-bit integer in L2
+ */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
@@ -139,7 +144,7 @@ static void ipi_call_function(unsigned int cpu, struct ipi_message *msg)
 
 static irqreturn_t ipi_handler(int irq, void *dev_instance)
 {
-	struct ipi_message *msg, *mg;
+	struct ipi_message *msg;
 	struct ipi_message_queue *msg_queue;
 	unsigned int cpu = smp_processor_id();
 
@@ -149,7 +154,8 @@ static irqreturn_t ipi_handler(int irq, void *dev_instance)
 	msg_queue->count++;
 
 	spin_lock(&msg_queue->lock);
-	list_for_each_entry_safe(msg, mg, &msg_queue->head, list) {
+	while (!list_empty(&msg_queue->head)) {
+		msg = list_entry(msg_queue->head.next, typeof(*msg), list);
 		list_del(&msg->list);
 		switch (msg->type) {
 		case BFIN_IPI_RESCHEDULE:
@@ -216,7 +222,7 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 	for_each_cpu_mask(cpu, callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
-		list_add(&msg->list, &msg_queue->head);
+		list_add_tail(&msg->list, &msg_queue->head);
 		spin_unlock_irqrestore(&msg_queue->lock, flags);
 		platform_send_ipi_cpu(cpu);
 	}
@@ -256,7 +262,7 @@ int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
 
 	msg_queue = &per_cpu(ipi_msg_queue, cpu);
 	spin_lock_irqsave(&msg_queue->lock, flags);
-	list_add(&msg->list, &msg_queue->head);
+	list_add_tail(&msg->list, &msg_queue->head);
 	spin_unlock_irqrestore(&msg_queue->lock, flags);
 	platform_send_ipi_cpu(cpu);
 
@@ -287,7 +293,7 @@ void smp_send_reschedule(int cpu)
 
 	msg_queue = &per_cpu(ipi_msg_queue, cpu);
 	spin_lock_irqsave(&msg_queue->lock, flags);
-	list_add(&msg->list, &msg_queue->head);
+	list_add_tail(&msg->list, &msg_queue->head);
 	spin_unlock_irqrestore(&msg_queue->lock, flags);
 	platform_send_ipi_cpu(cpu);
 
@@ -315,7 +321,7 @@ void smp_send_stop(void)
 	for_each_cpu_mask(cpu, callmap) {
 		msg_queue = &per_cpu(ipi_msg_queue, cpu);
 		spin_lock_irqsave(&msg_queue->lock, flags);
-		list_add(&msg->list, &msg_queue->head);
+		list_add_tail(&msg->list, &msg_queue->head);
 		spin_unlock_irqrestore(&msg_queue->lock, flags);
 		platform_send_ipi_cpu(cpu);
 	}
@@ -352,7 +358,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#if !(defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE))
+#if !defined(CONFIG_TICKSOURCE_GPTMR0)
 	struct irq_desc *timer_desc;
 #endif
 	unsigned long ilat;
@@ -364,16 +370,13 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	bfin_write_ILAT(ilat);
 	CSYNC();
 
-	/* Reserve the PDA space for the secondary CPU. */
-	reserve_pda();
-
 	/* Enable interrupt levels IVG7-15. IARs have been already
 	 * programmed by the boot CPU.  */
 	bfin_irq_flags |= IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);
 
@@ -465,6 +468,17 @@ void smp_icache_flush_range_others(unsigned long start, unsigned long end)
 		printk(KERN_WARNING "SMP: failed to run I-cache flush request on other CPUs\n");
 }
 EXPORT_SYMBOL_GPL(smp_icache_flush_range_others);
+
+#ifdef __ARCH_SYNC_CORE_ICACHE
+void resync_core_icache(void)
+{
+	unsigned int cpu = get_cpu();
+	blackfin_invalidate_entire_icache();
+	++per_cpu(cpu_data, cpu).icache_invld_count;
+	put_cpu();
+}
+EXPORT_SYMBOL(resync_core_icache);
+#endif
 
 #ifdef __ARCH_SYNC_CORE_DCACHE
 unsigned long barrier_mask __attribute__ ((__section__(".l2.bss")));

@@ -20,8 +20,9 @@
 
 #include <asm/blackfin.h>
 #include <asm/time.h>
+#include <asm/gptimers.h>
 
-#ifdef CONFIG_CYCLES_CLOCKSOURCE
+#if defined(CONFIG_CYCLES_CLOCKSOURCE)
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
@@ -58,15 +59,15 @@ static inline unsigned long long cycles_2_ns(cycle_t cyc)
 	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
 }
 
-static cycle_t read_cycles(struct clocksource *cs)
+static cycle_t bfin_read_cycles(struct clocksource *cs)
 {
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
 }
 
-static struct clocksource clocksource_bfin = {
-	.name		= "bfin_cycles",
+static struct clocksource bfin_cs_cycles = {
+	.name		= "bfin_cs_cycles",
 	.rating		= 350,
-	.read		= read_cycles,
+	.read		= bfin_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(64),
 	.shift		= 22,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
@@ -74,53 +75,198 @@ static struct clocksource clocksource_bfin = {
 
 unsigned long long sched_clock(void)
 {
-	return cycles_2_ns(read_cycles(&clocksource_bfin));
+	return cycles_2_ns(bfin_read_cycles(&bfin_cs_cycles));
 }
 
-static int __init bfin_clocksource_init(void)
+static int __init bfin_cs_cycles_init(void)
 {
 	set_cyc2ns_scale(get_cclk() / 1000);
 
-	clocksource_bfin.mult = clocksource_hz2mult(get_cclk(), clocksource_bfin.shift);
+	bfin_cs_cycles.mult = \
+		clocksource_hz2mult(get_cclk(), bfin_cs_cycles.shift);
 
-	if (clocksource_register(&clocksource_bfin))
+	if (clocksource_register(&bfin_cs_cycles))
 		panic("failed to register clocksource");
 
 	return 0;
 }
-
 #else
-# define bfin_clocksource_init()
+# define bfin_cs_cycles_init()
 #endif
 
+#ifdef CONFIG_GPTMR0_CLOCKSOURCE
+
+void __init setup_gptimer0(void)
+{
+	disable_gptimers(TIMER0bit);
+
+	set_gptimer_config(TIMER0_id, \
+		TIMER_OUT_DIS | TIMER_PERIOD_CNT | TIMER_MODE_PWM);
+	set_gptimer_period(TIMER0_id, -1);
+	set_gptimer_pwidth(TIMER0_id, -2);
+	SSYNC();
+	enable_gptimers(TIMER0bit);
+}
+
+static cycle_t bfin_read_gptimer0(void)
+{
+	return bfin_read_TIMER0_COUNTER();
+}
+
+static struct clocksource bfin_cs_gptimer0 = {
+	.name		= "bfin_cs_gptimer0",
+	.rating		= 400,
+	.read		= bfin_read_gptimer0,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.shift		= 22,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static int __init bfin_cs_gptimer0_init(void)
+{
+	setup_gptimer0();
+
+	bfin_cs_gptimer0.mult = \
+		clocksource_hz2mult(get_sclk(), bfin_cs_gptimer0.shift);
+
+	if (clocksource_register(&bfin_cs_gptimer0))
+		panic("failed to register clocksource");
+
+	return 0;
+}
+#else
+# define bfin_cs_gptimer0_init()
+#endif
+
+#ifdef CONFIG_CORE_TIMER_IRQ_L1
+__attribute__((l1_text))
+#endif
+irqreturn_t timer_interrupt(int irq, void *dev_id);
+
+static int bfin_timer_set_next_event(unsigned long, \
+		struct clock_event_device *);
+
+static void bfin_timer_set_mode(enum clock_event_mode, \
+		struct clock_event_device *);
+
+static struct clock_event_device clockevent_bfin = {
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
+	.name		= "bfin_gptimer0",
+	.rating		= 300,
+	.irq		= IRQ_TIMER0,
+#else
+	.name		= "bfin_core_timer",
+	.rating		= 350,
+	.irq		= IRQ_CORETMR,
+#endif
+	.shift		= 32,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event = bfin_timer_set_next_event,
+	.set_mode	= bfin_timer_set_mode,
+};
+
+static struct irqaction bfin_timer_irq = {
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
+	.name		= "Blackfin GPTimer0",
+#else
+	.name		= "Blackfin CoreTimer",
+#endif
+	.flags		= IRQF_DISABLED | IRQF_TIMER | \
+			  IRQF_IRQPOLL | IRQF_PERCPU,
+	.handler	= timer_interrupt,
+	.dev_id		= &clockevent_bfin,
+};
+
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
 static int bfin_timer_set_next_event(unsigned long cycles,
                                      struct clock_event_device *evt)
 {
-	bfin_write_TCOUNT(cycles);
-	CSYNC();
+	disable_gptimers(TIMER0bit);
+
+	/* it starts counting three SCLK cycles after the TIMENx bit is set */
+	set_gptimer_pwidth(TIMER0_id, cycles - 3);
+	enable_gptimers(TIMER0bit);
 	return 0;
 }
 
 static void bfin_timer_set_mode(enum clock_event_mode mode,
-                                struct clock_event_device *evt)
+				struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC: {
+		set_gptimer_config(TIMER0_id, \
+			TIMER_OUT_DIS | TIMER_IRQ_ENA | \
+			TIMER_PERIOD_CNT | TIMER_MODE_PWM);
+		set_gptimer_period(TIMER0_id, get_sclk() / HZ);
+		set_gptimer_pwidth(TIMER0_id, get_sclk() / HZ - 1);
+		enable_gptimers(TIMER0bit);
+		break;
+	}
+	case CLOCK_EVT_MODE_ONESHOT:
+		disable_gptimers(TIMER0bit);
+		set_gptimer_config(TIMER0_id, \
+			TIMER_OUT_DIS | TIMER_IRQ_ENA | TIMER_MODE_PWM);
+		set_gptimer_period(TIMER0_id, 0);
+		break;
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		disable_gptimers(TIMER0bit);
+		break;
+	case CLOCK_EVT_MODE_RESUME:
+		break;
+	}
+}
+
+static void bfin_timer_ack(void)
+{
+	set_gptimer_status(TIMER_GROUP1, TIMER_STATUS_TIMIL0);
+}
+
+static void __init bfin_timer_init(void)
+{
+	disable_gptimers(TIMER0bit);
+}
+
+static unsigned long  __init bfin_clockevent_check(void)
+{
+	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
+	return get_sclk();
+}
+
+#else /* CONFIG_TICKSOURCE_CORETMR */
+
+static int bfin_timer_set_next_event(unsigned long cycles,
+				struct clock_event_device *evt)
+{
+	bfin_write_TCNTL(TMPWR);
+	CSYNC();
+	bfin_write_TCOUNT(cycles);
+	CSYNC();
+	bfin_write_TCNTL(TMPWR | TMREN);
+	return 0;
+}
+
+static void bfin_timer_set_mode(enum clock_event_mode mode,
+				struct clock_event_device *evt)
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC: {
 		unsigned long tcount = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
 		bfin_write_TCNTL(TMPWR);
-		bfin_write_TSCALE(TIME_SCALE - 1);
 		CSYNC();
+		bfin_write_TSCALE(TIME_SCALE - 1);
 		bfin_write_TPERIOD(tcount);
 		bfin_write_TCOUNT(tcount);
-		bfin_write_TCNTL(TMPWR | TMREN | TAUTORLD);
 		CSYNC();
+		bfin_write_TCNTL(TMPWR | TMREN | TAUTORLD);
 		break;
 	}
 	case CLOCK_EVT_MODE_ONESHOT:
-		bfin_write_TSCALE(TIME_SCALE - 1);
-		bfin_write_TCOUNT(0);
-		bfin_write_TCNTL(TMPWR | TMREN);
+		bfin_write_TCNTL(TMPWR);
 		CSYNC();
+		bfin_write_TSCALE(TIME_SCALE - 1);
+		bfin_write_TPERIOD(0);
+		bfin_write_TCOUNT(0);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
@@ -130,6 +276,10 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_RESUME:
 		break;
 	}
+}
+
+static void bfin_timer_ack(void)
+{
 }
 
 static void __init bfin_timer_init(void)
@@ -145,38 +295,32 @@ static void __init bfin_timer_init(void)
 	bfin_write_TPERIOD(0);
 	bfin_write_TCOUNT(0);
 
-	/* now enable the timer */
 	CSYNC();
 }
+
+static unsigned long  __init bfin_clockevent_check(void)
+{
+	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
+	return get_cclk() / TIME_SCALE;
+}
+
+void __init setup_core_timer(void)
+{
+	bfin_timer_init();
+	bfin_timer_set_mode(CLOCK_EVT_MODE_PERIODIC, NULL);
+}
+#endif /* CONFIG_TICKSOURCE_GPTMR0 */
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-#ifdef CONFIG_CORE_TIMER_IRQ_L1
-__attribute__((l1_text))
-#endif
-irqreturn_t timer_interrupt(int irq, void *dev_id);
-
-static struct clock_event_device clockevent_bfin = {
-	.name		= "bfin_core_timer",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
-	.set_next_event = bfin_timer_set_next_event,
-	.set_mode	= bfin_timer_set_mode,
-};
-
-static struct irqaction bfin_timer_irq = {
-	.name		= "Blackfin Core Timer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= timer_interrupt,
-	.dev_id		= &clockevent_bfin,
-};
-
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
+	smp_mb();
 	evt->event_handler(evt);
+	bfin_timer_ack();
 	return IRQ_HANDLED;
 }
 
@@ -184,9 +328,8 @@ static int __init bfin_clockevent_init(void)
 {
 	unsigned long timer_clk;
 
-	timer_clk = get_cclk() / TIME_SCALE;
+	timer_clk = bfin_clockevent_check();
 
-	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 	bfin_timer_init();
 
 	clockevent_bfin.mult = div_sc(timer_clk, NSEC_PER_SEC, clockevent_bfin.shift);
@@ -218,6 +361,7 @@ void __init time_init(void)
 	xtime.tv_nsec = 0;
 	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
-	bfin_clocksource_init();
+	bfin_cs_cycles_init();
+	bfin_cs_gptimer0_init();
 	bfin_clockevent_init();
 }

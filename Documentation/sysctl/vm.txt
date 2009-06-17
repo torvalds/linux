@@ -358,7 +358,7 @@ nr_pdflush_threads
 The current number of pdflush threads.  This value is read-only.
 The value changes according to the number of dirty pages in the system.
 
-When neccessary, additional pdflush threads are created, one per second, up to
+When necessary, additional pdflush threads are created, one per second, up to
 nr_pdflush_threads_max.
 
 ==============================================================
@@ -565,7 +565,7 @@ swappiness
 
 This control is used to define how aggressive the kernel will swap
 memory pages.  Higher values will increase agressiveness, lower values
-descrease the amount of swap.
+decrease the amount of swap.
 
 The default value is 60.
 

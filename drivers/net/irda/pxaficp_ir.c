@@ -14,6 +14,7 @@
  */
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
@@ -797,6 +798,16 @@ static int pxa_irda_init_iobuf(iobuff_t *io, int size)
 	return io->head ? 0 : -ENOMEM;
 }
 
+static const struct net_device_ops pxa_irda_netdev_ops = {
+	.ndo_open		= pxa_irda_start,
+	.ndo_stop		= pxa_irda_stop,
+	.ndo_start_xmit		= pxa_irda_hard_xmit,
+	.ndo_do_ioctl		= pxa_irda_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int pxa_irda_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
@@ -845,10 +856,7 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_startup;
 
-	dev->hard_start_xmit	= pxa_irda_hard_xmit;
-	dev->open		= pxa_irda_start;
-	dev->stop		= pxa_irda_stop;
-	dev->do_ioctl		= pxa_irda_ioctl;
+	dev->netdev_ops = &pxa_irda_netdev_ops;
 
 	irda_init_max_qos_capabilies(&si->qos);
 

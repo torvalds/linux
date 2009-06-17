@@ -162,8 +162,7 @@ static int celleb_fake_pci_read_config(struct pci_bus *bus,
 		unsigned int devfn, int where, int size, u32 *val)
 {
 	char *config;
-	struct device_node *node;
-	struct pci_controller *hose;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned int devno = devfn >> 3;
 	unsigned int fn = devfn & 0x7;
 
@@ -171,8 +170,6 @@ static int celleb_fake_pci_read_config(struct pci_bus *bus,
 	BUG_ON(where % size);
 
 	pr_debug("    fake read: bus=0x%x, ", bus->number);
-	node = (struct device_node *)bus->sysdata;
-	hose = pci_find_hose_for_OF_device(node);
 	config = get_fake_config_start(hose, devno, fn);
 
 	pr_debug("devno=0x%x, where=0x%x, size=0x%x, ", devno, where, size);
@@ -192,8 +189,7 @@ static int celleb_fake_pci_write_config(struct pci_bus *bus,
 		unsigned int devfn, int where, int size, u32 val)
 {
 	char *config;
-	struct device_node *node;
-	struct pci_controller *hose;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct celleb_pci_resource *res;
 	unsigned int devno = devfn >> 3;
 	unsigned int fn = devfn & 0x7;
@@ -201,8 +197,6 @@ static int celleb_fake_pci_write_config(struct pci_bus *bus,
 	/* allignment check */
 	BUG_ON(where % size);
 
-	node = (struct device_node *)bus->sysdata;
-	hose = pci_find_hose_for_OF_device(node);
 	config = get_fake_config_start(hose, devno, fn);
 
 	if (!config)

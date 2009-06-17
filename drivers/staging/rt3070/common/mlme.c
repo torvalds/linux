@@ -5575,7 +5575,7 @@ VOID 	AsicUpdateProtect(
 	RTMP_IO_READ32(pAd, TX_RTS_CFG, &MacReg);
 	MacReg &= 0xFF0000FF;
 
-	// If the user want disable RtsThreshold and enbale Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
+	// If the user want disable RtsThreshold and enable Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
     if ((
 #ifdef DOT11_N_SUPPORT
 		(pAd->CommonCfg.BACapability.field.AmsduEnable) ||

@@ -798,15 +798,15 @@ unsigned long patch_espfix_desc(unsigned long uesp, unsigned long kesp)
 
 	return new_kesp;
 }
-#else
+#endif
+
 asmlinkage void __attribute__((weak)) smp_thermal_interrupt(void)
 {
 }
 
-asmlinkage void __attribute__((weak)) mce_threshold_interrupt(void)
+asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
 {
 }
-#endif
 
 /*
  * 'math_state_restore()' saves the current math information in the

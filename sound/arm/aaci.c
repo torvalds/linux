@@ -1089,7 +1089,7 @@ static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
 		goto out;
 	}
 
-	aaci->base = ioremap(dev->res.start, SZ_4K);
+	aaci->base = ioremap(dev->res.start, resource_size(&dev->res));
 	if (!aaci->base) {
 		ret = -ENOMEM;
 		goto out;

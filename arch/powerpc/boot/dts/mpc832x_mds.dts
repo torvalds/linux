@@ -249,6 +249,8 @@
 		reg = <0xe0100000 0x480>;
 		brg-frequency = <0>;
 		bus-frequency = <198000000>;
+		fsl,qe-num-riscs = <1>;
+		fsl,qe-num-snums = <28>;
 
 		muram@10000 {
 			#address-cells = <1>;
@@ -369,7 +371,6 @@
 	};
 
 	pci0: pci@e0008500 {
-		cell-index = <1>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 				/* IDSEL 0x11 AD17 */

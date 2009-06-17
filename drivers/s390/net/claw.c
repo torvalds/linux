@@ -3,12 +3,12 @@
  *    ESCON CLAW network driver
  *
  *  Linux for zSeries version
- *    Copyright (C) 2002,2005 IBM Corporation
+ *    Copyright IBM Corp. 2002, 2009
  *  Author(s) Original code written by:
- *              Kazuo Iimura (iimura@jp.ibm.com)
+ *		Kazuo Iimura <iimura@jp.ibm.com>
  *   	      Rewritten by
- *              Andy Richter (richtera@us.ibm.com)
- *              Marc Price (mwprice@us.ibm.com)
+ *		Andy Richter <richtera@us.ibm.com>
+ *		Marc Price <mwprice@us.ibm.com>
  *
  *    sysfs parms:
  *   group x.x.rrrr,x.x.wwww
@@ -253,6 +253,11 @@ static void claw_free_wrt_buf(struct net_device *dev);
 /* Functions for unpack reads   */
 static void unpack_read(struct net_device *dev);
 
+static int claw_pm_prepare(struct ccwgroup_device *gdev)
+{
+	return -EPERM;
+}
+
 /* ccwgroup table  */
 
 static struct ccwgroup_driver claw_group_driver = {
@@ -264,6 +269,7 @@ static struct ccwgroup_driver claw_group_driver = {
         .remove      = claw_remove_device,
         .set_online  = claw_new_device,
         .set_offline = claw_shutdown_device,
+	.prepare     = claw_pm_prepare,
 };
 
 /*
@@ -338,12 +344,6 @@ claw_tx(struct sk_buff *skb, struct net_device *dev)
 
 	CLAW_DBF_TEXT(4, trace, "claw_tx");
         p_ch=&privptr->channel[WRITE];
-        if (skb == NULL) {
-                privptr->stats.tx_dropped++;
-		privptr->stats.tx_errors++;
-		CLAW_DBF_TEXT_(2, trace, "clawtx%d", -EIO);
-                return -EIO;
-        }
         spin_lock_irqsave(get_ccwdev_lock(p_ch->cdev), saveflags);
         rc=claw_hw_tx( skb, dev, 1 );
         spin_unlock_irqrestore(get_ccwdev_lock(p_ch->cdev), saveflags);

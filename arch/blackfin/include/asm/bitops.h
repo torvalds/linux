@@ -109,7 +109,8 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
 
 static inline void change_bit(int nr, volatile unsigned long *addr)
 {
-	int mask, flags;
+	int mask;
+	unsigned long flags;
 	unsigned long *ADDR = (unsigned long *)addr;
 
 	ADDR += nr >> 5;

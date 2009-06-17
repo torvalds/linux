@@ -25,6 +25,7 @@
 #include "trans.h"
 #include "dir.h"
 #include "util.h"
+#include "trace_gfs2.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to
@@ -589,6 +590,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_mapped(bh_map);
 	clear_buffer_new(bh_map);
 	clear_buffer_boundary(bh_map);
+	trace_gfs2_bmap(ip, bh_map, lblock, create, 1);
 	if (gfs2_is_dir(ip)) {
 		bsize = sdp->sd_jbsize;
 		arr = sdp->sd_jheightsize;
@@ -623,6 +625,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	ret = 0;
 out:
 	release_metapath(&mp);
+	trace_gfs2_bmap(ip, bh_map, lblock, create, ret);
 	bmap_unlock(ip, create);
 	return ret;
 

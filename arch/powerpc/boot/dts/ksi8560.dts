@@ -56,6 +56,19 @@
 		ranges = <0x00000000 0xfdf00000 0x00100000>;
 		bus-frequency = <0>;				/* Fixed by bootwrapper */
 
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <8>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8560-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
+
 		memory-controller@2000 {
 			compatible = "fsl,mpc8540-memory-controller";
 			reg = <0x2000 0x1000>;

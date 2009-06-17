@@ -154,7 +154,11 @@ static inline void padlock_reset_key(struct cword *cword)
 	int cpu = raw_smp_processor_id();
 
 	if (cword != per_cpu(last_cword, cpu))
+#ifndef CONFIG_X86_64
 		asm volatile ("pushfl; popfl");
+#else
+		asm volatile ("pushfq; popfq");
+#endif
 }
 
 static inline void padlock_store_cword(struct cword *cword)
@@ -208,10 +212,19 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 
 	asm volatile ("test $1, %%cl;"
 		      "je 1f;"
+#ifndef CONFIG_X86_64
 		      "lea -1(%%ecx), %%eax;"
 		      "mov $1, %%ecx;"
+#else
+		      "lea -1(%%rcx), %%rax;"
+		      "mov $1, %%rcx;"
+#endif
 		      ".byte 0xf3,0x0f,0xa7,0xc8;"	/* rep xcryptecb */
+#ifndef CONFIG_X86_64
 		      "mov %%eax, %%ecx;"
+#else
+		      "mov %%rax, %%rcx;"
+#endif
 		      "1:"
 		      ".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
 		      : "+S"(input), "+D"(output)

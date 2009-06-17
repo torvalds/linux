@@ -5664,7 +5664,7 @@ VOID 	AsicUpdateProtect(
 #if 0
 	MacReg |= (pAd->CommonCfg.RtsThreshold << 8);
 #else
-	// If the user want disable RtsThreshold and enbale Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
+	// If the user want disable RtsThreshold and enable Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
         if ((
 #ifdef DOT11_N_SUPPORT
 			(pAd->CommonCfg.BACapability.field.AmsduEnable) ||

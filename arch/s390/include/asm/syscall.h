@@ -12,6 +12,7 @@
 #ifndef _ASM_SYSCALL_H
 #define _ASM_SYSCALL_H	1
 
+#include <linux/sched.h>
 #include <asm/ptrace.h>
 
 static inline long syscall_get_nr(struct task_struct *task,

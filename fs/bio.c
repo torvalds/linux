@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
-#include <linux/blktrace_api.h>
 #include <scsi/sg.h>		/* for struct sg_iovec */
 
 #include <trace/events/block.h>
@@ -358,9 +357,9 @@ static void bio_kmalloc_destructor(struct bio *bio)
  *
  *   If %__GFP_WAIT is set, then bio_alloc will always be able to allocate
  *   a bio. This is due to the mempool guarantees. To make this work, callers
- *   must never allocate more than 1 bio at the time from this pool. Callers
+ *   must never allocate more than 1 bio at a time from this pool. Callers
  *   that need to allocate more than 1 bio must always submit the previously
- *   allocate bio for IO before attempting to allocate a new one. Failure to
+ *   allocated bio for IO before attempting to allocate a new one. Failure to
  *   do so can cause livelocks under memory pressure.
  *
  **/

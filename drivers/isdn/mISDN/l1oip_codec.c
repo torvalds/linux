@@ -48,6 +48,7 @@ NOTE: The bytes are handled as they are law-encoded.
 
 #include <linux/vmalloc.h>
 #include <linux/mISDNif.h>
+#include <linux/in.h>
 #include "core.h"
 #include "l1oip.h"
 

@@ -6,7 +6,7 @@
  * Licensed under the GPL-2 or later.
  */
 
-/* This file shoule be up to date with:
+/* This file should be up to date with:
  *  - Revision D, 09/18/2008; ADSP-BF534/ADSP-BF536/ADSP-BF537 Blackfin Processor Anomaly List
  */
 
@@ -36,77 +36,75 @@
 
 /* Multi-issue instruction with dsp32shiftimm in slot1 and P-reg store in slot 2 not supported */
 #define ANOMALY_05000074 (1)
-/* DMA_RUN bit is not valid after a Peripheral Receive Channel DMA stops */
+/* DMA_RUN Bit Is Not Valid after a Peripheral Receive Channel DMA Stops */
 #define ANOMALY_05000119 (1)
-/* Rx.H cannot be used to access 16-bit System MMR registers */
+/* Rx.H Cannot Be Used to Access 16-bit System MMR Registers */
 #define ANOMALY_05000122 (1)
 /* Killed 32-bit MMR write leads to next system MMR access thinking it should be 32-bit */
 #define ANOMALY_05000157 (__SILICON_REVISION__ < 2)
-/* Turning SPORTs on while External Frame Sync Is Active May Corrupt Data */
-#define ANOMALY_05000167 (1)
-/* PPI_DELAY not functional in PPI modes with 0 frame syncs */
+/* PPI_DELAY Not Functional in PPI Modes with 0 Frame Syncs */
 #define ANOMALY_05000180 (1)
 /* Instruction Cache Is Not Functional */
 #define ANOMALY_05000237 (__SILICON_REVISION__ < 2)
-/* If i-cache is on, CSYNC/SSYNC/IDLE around Change of Control causes failures */
+/* If I-Cache Is On, CSYNC/SSYNC/IDLE Around Change of Control Causes Failures */
 #define ANOMALY_05000244 (__SILICON_REVISION__ < 3)
-/* Spurious Hardware Error from an access in the shadow of a conditional branch */
+/* False Hardware Error from an Access in the Shadow of a Conditional Branch */
 #define ANOMALY_05000245 (1)
 /* CLKIN Buffer Output Enable Reset Behavior Is Changed */
 #define ANOMALY_05000247 (1)
-/* Incorrect Bit-Shift of Data Word in Multichannel (TDM) mode in certain conditions */
+/* Incorrect Bit Shift of Data Word in Multichannel (TDM) Mode in Certain Conditions */
 #define ANOMALY_05000250 (__SILICON_REVISION__ < 3)
 /* EMAC Tx DMA error after an early frame abort */
 #define ANOMALY_05000252 (__SILICON_REVISION__ < 3)
-/* Maximum external clock speed for Timers */
+/* Maximum External Clock Speed for Timers */
 #define ANOMALY_05000253 (__SILICON_REVISION__ < 3)
-/* Incorrect Timer Pulse Width in Single-Shot PWM_OUT mode with external clock */
+/* Incorrect Timer Pulse Width in Single-Shot PWM_OUT Mode with External Clock */
 #define ANOMALY_05000254 (__SILICON_REVISION__ > 2)
-/* Entering Hibernate Mode with RTC Seconds event interrupt not functional */
+/* Entering Hibernate State with RTC Seconds Interrupt Not Functional */
 #define ANOMALY_05000255 (__SILICON_REVISION__ < 3)
 /* EMAC MDIO input latched on wrong MDC edge */
 #define ANOMALY_05000256 (__SILICON_REVISION__ < 3)
-/* Interrupt/Exception during short hardware loop may cause bad instruction fetches */
+/* Interrupt/Exception During Short Hardware Loop May Cause Bad Instruction Fetches */
 #define ANOMALY_05000257 (__SILICON_REVISION__ < 3)
-/* Instruction Cache is corrupted when bits 9 and 12 of the ICPLB Data registers differ */
+/* Instruction Cache Is Corrupted When Bits 9 and 12 of the ICPLB Data Registers Differ */
 #define ANOMALY_05000258 (((ANOMALY_BF536 || ANOMALY_BF537) && __SILICON_REVISION__ == 1) || __SILICON_REVISION__ == 2)
-/* ICPLB_STATUS MMR register may be corrupted */
+/* ICPLB_STATUS MMR Register May Be Corrupted */
 #define ANOMALY_05000260 (__SILICON_REVISION__ == 2)
-/* DCPLB_FAULT_ADDR MMR register may be corrupted */
+/* DCPLB_FAULT_ADDR MMR Register May Be Corrupted */
 #define ANOMALY_05000261 (__SILICON_REVISION__ < 3)
-/* Stores to data cache may be lost */
+/* Stores To Data Cache May Be Lost */
 #define ANOMALY_05000262 (__SILICON_REVISION__ < 3)
-/* Hardware loop corrupted when taking an ICPLB exception */
+/* Hardware Loop Corrupted When Taking an ICPLB Exception */
 #define ANOMALY_05000263 (__SILICON_REVISION__ == 2)
-/* CSYNC/SSYNC/IDLE causes infinite stall in second to last instruction in hardware loop */
+/* CSYNC/SSYNC/IDLE Causes Infinite Stall in Penultimate Instruction in Hardware Loop */
 #define ANOMALY_05000264 (__SILICON_REVISION__ < 3)
-/* Sensitivity to noise with slow input edge rates on external SPORT TX and RX clocks */
+/* Sensitivity To Noise with Slow Input Edge Rates on External SPORT TX and RX Clocks */
 #define ANOMALY_05000265 (1)
 /* Memory DMA error when peripheral DMA is running with non-zero DEB_TRAFFIC_PERIOD */
 #define ANOMALY_05000268 (__SILICON_REVISION__ < 3)
-/* High I/O activity causes output voltage of internal voltage regulator (VDDint) to decrease */
+/* High I/O Activity Causes Output Voltage of Internal Voltage Regulator (Vddint) to Decrease */
 #define ANOMALY_05000270 (__SILICON_REVISION__ < 3)
-/* Certain data cache write through modes fail for VDDint <=0.9V */
+/* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
-/* Writes to Synchronous SDRAM memory may be lost */
+/* Writes to Synchronous SDRAM Memory May Be Lost */
 #define ANOMALY_05000273 (__SILICON_REVISION__ < 3)
-/* Writes to an I/O data register one SCLK cycle after an edge is detected may clear interrupt */
+/* Writes to an I/O Data Register One SCLK Cycle after an Edge Is Detected May Clear Interrupt */
 #define ANOMALY_05000277 (__SILICON_REVISION__ < 3)
-/* Disabling Peripherals with DMA running may cause DMA system instability */
+/* Disabling Peripherals with DMA Running May Cause DMA System Instability */
 #define ANOMALY_05000278 (((ANOMALY_BF536 || ANOMALY_BF537) && __SILICON_REVISION__ < 3) || (ANOMALY_BF534 && __SILICON_REVISION__ < 2))
 /* SPI Master boot mode does not work well with Atmel Data flash devices */
 #define ANOMALY_05000280 (1)
-/* False Hardware Error Exception when ISR context is not restored */
+/* False Hardware Error Exception When ISR Context Is Not Restored */
 #define ANOMALY_05000281 (__SILICON_REVISION__ < 3)
-/* Memory DMA corruption with 32-bit data and traffic control */
+/* Memory DMA Corruption with 32-Bit Data and Traffic Control */
 #define ANOMALY_05000282 (__SILICON_REVISION__ < 3)
 /* System MMR Write Is Stalled Indefinitely When Killed in a Particular Stage */
 #define ANOMALY_05000283 (__SILICON_REVISION__ < 3)
 /* New Feature: EMAC TX DMA Word Alignment (Not Available On Older Silicon) */
 #define ANOMALY_05000285 (__SILICON_REVISION__ < 3)
-/* SPORTs may receive bad data if FIFOs fill up */
+/* SPORTs May Receive Bad Data If FIFOs Fill Up */
 #define ANOMALY_05000288 (__SILICON_REVISION__ < 3)
-/* Memory to memory DMA source/destination descriptors must be in same memory space */
+/* Memory-To-Memory DMA Source/Destination Descriptors Must Be in Same Memory Space */
 #define ANOMALY_05000301 (1)
 /* SSYNCs After Writes To CAN/DMA MMR Registers Are Not Always Handled Correctly */
 #define ANOMALY_05000304 (__SILICON_REVISION__ < 3)
@@ -116,11 +114,11 @@
 #define ANOMALY_05000307 (__SILICON_REVISION__ < 3)
 /* Writing UART_THR while UART clock is disabled sends erroneous start bit */
 #define ANOMALY_05000309 (__SILICON_REVISION__ < 3)
-/* False hardware errors caused by fetches at the boundary of reserved memory */
+/* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
-/* Errors when SSYNC, CSYNC, or loads to LT, LB and LC registers are interrupted */
+/* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
 #define ANOMALY_05000312 (1)
-/* PPI is level sensitive on first transfer */
+/* PPI Is Level-Sensitive on First Transfer In Single Frame Sync Modes */
 #define ANOMALY_05000313 (1)
 /* Killed System MMR Write Completes Erroneously On Next System MMR Access */
 #define ANOMALY_05000315 (__SILICON_REVISION__ < 3)
@@ -156,24 +154,46 @@
 #define ANOMALY_05000426 (1)
 /* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
 #define ANOMALY_05000443 (1)
+/* False Hardware Error when RETI points to invalid memory */
+#define ANOMALY_05000461 (1)
 
 /* Anomalies that don't exist on this proc */
+#define ANOMALY_05000099 (0)
+#define ANOMALY_05000120 (0)
 #define ANOMALY_05000125 (0)
+#define ANOMALY_05000149 (0)
 #define ANOMALY_05000158 (0)
+#define ANOMALY_05000171 (0)
+#define ANOMALY_05000179 (0)
 #define ANOMALY_05000183 (0)
 #define ANOMALY_05000198 (0)
+#define ANOMALY_05000215 (0)
+#define ANOMALY_05000220 (0)
+#define ANOMALY_05000227 (0)
 #define ANOMALY_05000230 (0)
+#define ANOMALY_05000231 (0)
+#define ANOMALY_05000233 (0)
+#define ANOMALY_05000242 (0)
+#define ANOMALY_05000248 (0)
 #define ANOMALY_05000266 (0)
+#define ANOMALY_05000274 (0)
+#define ANOMALY_05000287 (0)
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000353 (1)
+#define ANOMALY_05000362 (1)
 #define ANOMALY_05000363 (0)
 #define ANOMALY_05000380 (0)
 #define ANOMALY_05000386 (1)
+#define ANOMALY_05000389 (0)
+#define ANOMALY_05000400 (0)
 #define ANOMALY_05000412 (0)
+#define ANOMALY_05000430 (0)
 #define ANOMALY_05000432 (0)
 #define ANOMALY_05000435 (0)
 #define ANOMALY_05000447 (0)
 #define ANOMALY_05000448 (0)
+#define ANOMALY_05000456 (0)
+#define ANOMALY_05000450 (0)
 
 #endif

@@ -18,6 +18,9 @@
 #   $5 and more - kernel boot files; zImage*, uImage, cuImage.*, etc.
 #
 
+# Bail with error code if anything goes wrong
+set -e
+
 # User may have a custom install script
 
 if [ -x ~/bin/${CROSS_COMPILE}installkernel ]; then exec ~/bin/${CROSS_COMPILE}installkernel "$@"; fi

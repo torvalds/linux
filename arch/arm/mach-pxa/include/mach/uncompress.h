@@ -36,7 +36,8 @@ static inline void flush(void)
 static inline void arch_decomp_setup(void)
 {
 	if (machine_is_littleton() || machine_is_intelmote2()
-			|| machine_is_csb726())
+	    || machine_is_csb726() || machine_is_stargate2()
+	    || machine_is_cm_x300())
 		UART = STUART;
 }
 

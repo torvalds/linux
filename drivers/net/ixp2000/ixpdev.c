@@ -270,6 +270,18 @@ static int ixpdev_close(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops ixpdev_netdev_ops = {
+	.ndo_open		= ixpdev_open,
+	.ndo_stop		= ixpdev_close,
+	.ndo_start_xmit		= ixpdev_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ixpdev_poll_controller,
+#endif
+};
+
 struct net_device *ixpdev_alloc(int channel, int sizeof_priv)
 {
 	struct net_device *dev;
@@ -279,12 +291,7 @@ struct net_device *ixpdev_alloc(int channel, int sizeof_priv)
 	if (dev == NULL)
 		return NULL;
 
-	dev->hard_start_xmit = ixpdev_xmit;
-	dev->open = ixpdev_open;
-	dev->stop = ixpdev_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ixpdev_poll_controller;
-#endif
+	dev->netdev_ops = &ixpdev_netdev_ops;
 
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
