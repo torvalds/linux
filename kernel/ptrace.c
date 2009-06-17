@@ -177,12 +177,13 @@ int ptrace_attach(struct task_struct *task)
 	if (same_thread_group(task, current))
 		goto out;
 
-	/* Protect the target's credential calculations against our
+	/*
+	 * Protect exec's credential calculations against our interference;
 	 * interference; SUID, SGID and LSM creds get determined differently
 	 * under ptrace.
 	 */
 	retval = mutex_lock_interruptible(&task->cred_guard_mutex);
-	if (retval  < 0)
+	if (retval < 0)
 		goto out;
 repeat:
 	/*
@@ -210,10 +211,10 @@ repeat:
 	retval = -EPERM;
 	if (unlikely(task->exit_state))
 		goto bad;
-	if (task->ptrace & PT_PTRACED)
+	if (task->ptrace)
 		goto bad;
 
-	task->ptrace |= PT_PTRACED;
+	task->ptrace = PT_PTRACED;
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 
@@ -227,6 +228,52 @@ bad:
 	mutex_unlock(&task->cred_guard_mutex);
 out:
 	return retval;
+}
+
+/**
+ * ptrace_traceme  --  helper for PTRACE_TRACEME
+ *
+ * Performs checks and sets PT_PTRACED.
+ * Should be used by all ptrace implementations for PTRACE_TRACEME.
+ */
+int ptrace_traceme(void)
+{
+	int ret = -EPERM;
+
+	/*
+	 * Are we already being traced?
+	 */
+repeat:
+	task_lock(current);
+	if (!current->ptrace) {
+		/*
+		 * See ptrace_attach() comments about the locking here.
+		 */
+		unsigned long flags;
+		if (!write_trylock_irqsave(&tasklist_lock, flags)) {
+			task_unlock(current);
+			do {
+				cpu_relax();
+			} while (!write_can_lock(&tasklist_lock));
+			goto repeat;
+		}
+
+		ret = security_ptrace_traceme(current->parent);
+
+		/*
+		 * Check PF_EXITING to ensure ->real_parent has not passed
+		 * exit_ptrace(). Otherwise we don't report the error but
+		 * pretend ->real_parent untraces us right after return.
+		 */
+		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
+			current->ptrace = PT_PTRACED;
+			__ptrace_link(current, current->real_parent);
+		}
+
+		write_unlock_irqrestore(&tasklist_lock, flags);
+	}
+	task_unlock(current);
+	return ret;
 }
 
 /*
@@ -564,52 +611,6 @@ int ptrace_request(struct task_struct *child, long request,
 		break;
 	}
 
-	return ret;
-}
-
-/**
- * ptrace_traceme  --  helper for PTRACE_TRACEME
- *
- * Performs checks and sets PT_PTRACED.
- * Should be used by all ptrace implementations for PTRACE_TRACEME.
- */
-int ptrace_traceme(void)
-{
-	int ret = -EPERM;
-
-	/*
-	 * Are we already being traced?
-	 */
-repeat:
-	task_lock(current);
-	if (!(current->ptrace & PT_PTRACED)) {
-		/*
-		 * See ptrace_attach() comments about the locking here.
-		 */
-		unsigned long flags;
-		if (!write_trylock_irqsave(&tasklist_lock, flags)) {
-			task_unlock(current);
-			do {
-				cpu_relax();
-			} while (!write_can_lock(&tasklist_lock));
-			goto repeat;
-		}
-
-		ret = security_ptrace_traceme(current->parent);
-
-		/*
-		 * Check PF_EXITING to ensure ->real_parent has not passed
-		 * exit_ptrace(). Otherwise we don't report the error but
-		 * pretend ->real_parent untraces us right after return.
-		 */
-		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
-			current->ptrace |= PT_PTRACED;
-			__ptrace_link(current, current->real_parent);
-		}
-
-		write_unlock_irqrestore(&tasklist_lock, flags);
-	}
-	task_unlock(current);
 	return ret;
 }
 
