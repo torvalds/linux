@@ -1576,27 +1576,22 @@ repeat:
 	 * might later match our criteria, even if we are not able to reap
 	 * it yet.
 	 */
-	retval = wo->notask_error = -ECHILD;
+	wo->notask_error = -ECHILD;
 	if ((wo->wo_type < PIDTYPE_MAX) &&
 	   (!wo->wo_pid || hlist_empty(&wo->wo_pid->tasks[wo->wo_type])))
-		goto end;
+		goto notask;
 
 	current->state = TASK_INTERRUPTIBLE;
 	read_lock(&tasklist_lock);
 	tsk = current;
 	do {
-		int tsk_result = do_wait_thread(wo, tsk);
-
-		if (!tsk_result)
-			tsk_result = ptrace_do_wait(wo, tsk);
-
-		if (tsk_result) {
-			/*
-			 * tasklist_lock is unlocked and we have a final result.
-			 */
-			retval = tsk_result;
+		retval = do_wait_thread(wo, tsk);
+		if (retval)
 			goto end;
-		}
+
+		retval = ptrace_do_wait(wo, tsk);
+		if (retval)
+			goto end;
 
 		if (wo->wo_flags & __WNOTHREAD)
 			break;
@@ -1605,6 +1600,7 @@ repeat:
 	} while (tsk != current);
 	read_unlock(&tasklist_lock);
 
+notask:
 	retval = wo->notask_error;
 	if (!retval && !(wo->wo_flags & WNOHANG)) {
 		retval = -ERESTARTSYS;
