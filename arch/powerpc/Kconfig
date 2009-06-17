@@ -62,7 +62,6 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config TRACE_IRQFLAGS_SUPPORT
 	bool
-	depends on PPC64
 	default y
 
 config LOCKDEP_SUPPORT
