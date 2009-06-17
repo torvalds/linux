@@ -847,12 +847,19 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 	struct file_lock *fl;
 	int status = 0;
 
+	if (inode->i_flock == NULL)
+		return 0;
+
+	/* Guard against delegation returns and new lock/unlock calls */
 	down_write(&nfsi->rwsem);
+	/* Protect inode->i_flock using the BKL */
+	lock_kernel();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
+		unlock_kernel();
 		status = ops->recover_lock(state, fl);
 		switch (status) {
 			case 0:
@@ -875,7 +882,9 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				status = 0;
 		}
+		lock_kernel();
 	}
+	unlock_kernel();
 out:
 	up_write(&nfsi->rwsem);
 	return status;

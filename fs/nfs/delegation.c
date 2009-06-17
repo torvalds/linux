@@ -70,15 +70,24 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	struct file_lock *fl;
 	int status = 0;
 
+	if (inode->i_flock == NULL)
+		goto out;
+
+	/* Protect inode->i_flock using the BKL */
+	lock_kernel();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file) != ctx)
 			continue;
+		unlock_kernel();
 		status = nfs4_lock_delegation_recall(state, fl);
 		if (status < 0)
-			break;
+			goto out;
+		lock_kernel();
 	}
+	unlock_kernel();
+out:
 	return status;
 }
 
@@ -256,7 +265,10 @@ static int __nfs_inode_return_delegation(struct inode *inode, struct nfs_delegat
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	nfs_msync_inode(inode);
-	/* Guard against new delegated open calls */
+	/*
+	 * Guard against new delegated open/lock/unlock calls and against
+	 * state recovery
+	 */
 	down_write(&nfsi->rwsem);
 	nfs_delegation_claim_opens(inode, &delegation->stateid);
 	up_write(&nfsi->rwsem);
