@@ -932,7 +932,8 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 		return;
 
 	iwl_update_rx_stats(priv, le16_to_cpu(hdr->frame_control), len);
-	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
+	memcpy(IEEE80211_SKB_RXCB(rxb->skb), stats, sizeof(*stats));
+	ieee80211_rx_irqsafe(priv->hw, rxb->skb);
 	priv->alloc_rxb_skb--;
 	rxb->skb = NULL;
 }

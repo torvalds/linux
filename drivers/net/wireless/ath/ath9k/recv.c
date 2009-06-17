@@ -619,13 +619,18 @@ static void ath_rx_send_to_mac80211(struct ath_softc *sc, struct sk_buff *skb,
 			if (aphy == NULL)
 				continue;
 			nskb = skb_copy(skb, GFP_ATOMIC);
-			if (nskb)
-				__ieee80211_rx(aphy->hw, nskb, rx_status);
+			if (nskb) {
+				memcpy(IEEE80211_SKB_RXCB(nskb), rx_status,
+					sizeof(*rx_status));
+				ieee80211_rx(aphy->hw, nskb);
+			}
 		}
-		__ieee80211_rx(sc->hw, skb, rx_status);
+		memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
+		ieee80211_rx(sc->hw, skb);
 	} else {
 		/* Deliver unicast frames based on receiver address */
-		__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb, rx_status);
+		memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
+		ieee80211_rx(ath_get_virt_hw(sc, hdr), skb);
 	}
 }
 

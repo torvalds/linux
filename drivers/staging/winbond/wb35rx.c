@@ -40,7 +40,8 @@ static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int Pac
 	rx_status.phymode = MODE_IEEE80211B;
 */
 
-	ieee80211_rx_irqsafe(hw, skb, &rx_status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+	ieee80211_rx_irqsafe(hw, skb);
 }
 
 static void Wb35Rx_adjust(PDESCRIPTOR pRxDes)

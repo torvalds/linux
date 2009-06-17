@@ -449,7 +449,8 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * mac80211 will clean up the skb structure.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
-	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb, rx_status);
+	memcpy(IEEE80211_SKB_RXCB(entry->skb), rx_status, sizeof(*rx_status));
+	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
 
 	/*
 	 * Replace the skb with the freshly allocated one.

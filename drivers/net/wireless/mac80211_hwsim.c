@@ -430,7 +430,8 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (memcmp(hdr->addr1, data2->hw->wiphy->perm_addr,
 			   ETH_ALEN) == 0)
 			ack = true;
-		ieee80211_rx_irqsafe(data2->hw, nskb, &rx_status);
+		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
+		ieee80211_rx_irqsafe(data2->hw, nskb);
 	}
 	spin_unlock(&hwsim_radio_lock);
 

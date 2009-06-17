@@ -330,19 +330,16 @@ static void ieee80211_tasklet_handler(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status;
 	struct ieee80211_ra_tid *ra_tid;
 
 	while ((skb = skb_dequeue(&local->skb_queue)) ||
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
 		switch (skb->pkt_type) {
 		case IEEE80211_RX_MSG:
-			/* status is in skb->cb */
-			memcpy(&rx_status, skb->cb, sizeof(rx_status));
 			/* Clear skb->pkt_type in order to not confuse kernel
 			 * netstack. */
 			skb->pkt_type = 0;
-			__ieee80211_rx(local_to_hw(local), skb, &rx_status);
+			ieee80211_rx(local_to_hw(local), skb);
 			break;
 		case IEEE80211_TX_STATUS_MSG:
 			skb->pkt_type = 0;

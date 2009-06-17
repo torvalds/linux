@@ -943,8 +943,7 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
-					  struct sk_buff *skb,
-					  struct ieee80211_rx_status *rx_status);
+					  struct sk_buff *skb);
 int ieee80211_sta_commit(struct ieee80211_sub_if_data *sdata);
 int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
 int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len);
@@ -967,8 +966,7 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
 void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result
-ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		       struct ieee80211_rx_status *rx_status);
+ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 					u8 *bssid, u8 *addr, u32 supp_rates);
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
@@ -988,9 +986,7 @@ int ieee80211_scan_results(struct ieee80211_local *local,
 			   char *buf, size_t len);
 void ieee80211_scan_cancel(struct ieee80211_local *local);
 ieee80211_rx_result
-ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata,
-		  struct sk_buff *skb,
-		  struct ieee80211_rx_status *rx_status);
+ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 			       const char *ie, size_t len);
 

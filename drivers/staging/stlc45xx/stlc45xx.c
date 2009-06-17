@@ -1429,7 +1429,8 @@ static int stlc45xx_rx_data(struct stlc45xx *stlc, struct sk_buff *skb)
 	stlc45xx_debug(DEBUG_RX, "rx data 0x%p %d B", skb->data, skb->len);
 	stlc45xx_dump(DEBUG_RX_CONTENT, skb->data, skb->len);
 
-	ieee80211_rx(stlc->hw, skb, &status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx(stlc->hw, skb);
 
 	return 0;
 }

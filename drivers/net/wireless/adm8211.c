@@ -452,7 +452,8 @@ static void adm8211_interrupt_rci(struct ieee80211_hw *dev)
 			rx_status.freq = adm8211_channels[priv->channel - 1].center_freq;
 			rx_status.band = IEEE80211_BAND_2GHZ;
 
-			ieee80211_rx_irqsafe(dev, skb, &rx_status);
+			memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+			ieee80211_rx_irqsafe(dev, skb);
 		}
 
 		entry = (++priv->cur_rx) % priv->rx_ring_size;

@@ -794,7 +794,8 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	skb_pull(skb, header_len);
 	skb_trim(skb, le16_to_cpu(hdr->len));
 
-	ieee80211_rx_irqsafe(dev, skb, &rx_status);
+	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
+	ieee80211_rx_irqsafe(dev, skb);
 
 	queue_delayed_work(dev->workqueue, &priv->work,
 			   msecs_to_jiffies(P54_STATISTICS_UPDATE));

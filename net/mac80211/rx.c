@@ -30,7 +30,6 @@
 static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					   struct tid_ampdu_rx *tid_agg_rx,
 					   struct sk_buff *skb,
-					   struct ieee80211_rx_status *status,
 					   u16 mpdu_seq_num,
 					   int bar_req);
 /*
@@ -59,11 +58,11 @@ static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 	return skb;
 }
 
-static inline int should_drop_frame(struct ieee80211_rx_status *status,
-				    struct sk_buff *skb,
+static inline int should_drop_frame(struct sk_buff *skb,
 				    int present_fcs_len,
 				    int radiotap_len)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
@@ -111,10 +110,10 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 static void
 ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 				 struct sk_buff *skb,
-				 struct ieee80211_rx_status *status,
 				 struct ieee80211_rate *rate,
 				 int rtap_len)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_header *rthdr;
 	unsigned char *pos;
 
@@ -220,9 +219,9 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
  */
 static struct sk_buff *
 ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
-		     struct ieee80211_rx_status *status,
 		     struct ieee80211_rate *rate)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(origskb);
 	struct ieee80211_sub_if_data *sdata;
 	int needed_headroom = 0;
 	struct sk_buff *skb, *skb2;
@@ -248,8 +247,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		present_fcs_len = FCS_LEN;
 
 	if (!local->monitors) {
-		if (should_drop_frame(status, origskb, present_fcs_len,
-				      rtap_len)) {
+		if (should_drop_frame(origskb, present_fcs_len, rtap_len)) {
 			dev_kfree_skb(origskb);
 			return NULL;
 		}
@@ -257,7 +255,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		return remove_monitor_info(local, origskb, rtap_len);
 	}
 
-	if (should_drop_frame(status, origskb, present_fcs_len, rtap_len)) {
+	if (should_drop_frame(origskb, present_fcs_len, rtap_len)) {
 		/* only need to expand headroom if necessary */
 		skb = origskb;
 		origskb = NULL;
@@ -289,7 +287,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 	/* if necessary, prepend radiotap information */
 	if (!(status->flag & RX_FLAG_RADIOTAP))
-		ieee80211_add_rx_radiotap_header(local, skb, status, rate,
+		ieee80211_add_rx_radiotap_header(local, skb, rate,
 						 needed_headroom);
 
 	skb_reset_mac_header(skb);
@@ -421,12 +419,11 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 
 	if (unlikely(local->hw_scanning))
-		return ieee80211_scan_rx(rx->sdata, skb, rx->status);
+		return ieee80211_scan_rx(rx->sdata, skb);
 
 	if (unlikely(local->sw_scanning)) {
 		/* drop all the other packets during a software scan anyway */
-		if (ieee80211_scan_rx(rx->sdata, skb, rx->status)
-		    != RX_QUEUED)
+		if (ieee80211_scan_rx(rx->sdata, skb) != RX_QUEUED)
 			dev_kfree_skb(skb);
 		return RX_QUEUED;
 	}
@@ -1620,7 +1617,7 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 		/* manage reordering buffer according to requested */
 		/* sequence number */
 		rcu_read_lock();
-		ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, NULL, NULL,
+		ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, NULL,
 						 start_seq_num, 1);
 		rcu_read_unlock();
 		return RX_DROP_UNUSABLE;
@@ -1817,13 +1814,13 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
-		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
+		return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
+		return ieee80211_ibss_rx_mgmt(sdata, rx->skb);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
+		return ieee80211_sta_rx_mgmt(sdata, rx->skb);
 
 	return RX_DROP_MONITOR;
 }
@@ -2114,9 +2111,9 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
  */
 static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct sk_buff *skb,
-					 struct ieee80211_rx_status *status,
 					 struct ieee80211_rate *rate)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr;
@@ -2227,20 +2224,21 @@ static void ieee80211_release_reorder_frame(struct ieee80211_hw *hw,
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
-	struct ieee80211_rx_status status;
+	struct sk_buff *skb = tid_agg_rx->reorder_buf[index];
+	struct ieee80211_rx_status *status;
 
-	if (!tid_agg_rx->reorder_buf[index])
+	if (!skb)
 		goto no_frame;
 
+	status = IEEE80211_SKB_RXCB(skb);
+
 	/* release the reordered frames to stack */
-	memcpy(&status, tid_agg_rx->reorder_buf[index]->cb, sizeof(status));
-	sband = hw->wiphy->bands[status.band];
-	if (status.flag & RX_FLAG_HT)
+	sband = hw->wiphy->bands[status->band];
+	if (status->flag & RX_FLAG_HT)
 		rate = sband->bitrates; /* TODO: HT rates */
 	else
-		rate = &sband->bitrates[status.rate_idx];
-	__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
-				     &status, rate);
+		rate = &sband->bitrates[status->rate_idx];
+	__ieee80211_rx_handle_packet(hw, skb, rate);
 	tid_agg_rx->stored_mpdu_num--;
 	tid_agg_rx->reorder_buf[index] = NULL;
 
@@ -2265,7 +2263,6 @@ no_frame:
 static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					   struct tid_ampdu_rx *tid_agg_rx,
 					   struct sk_buff *skb,
-					   struct ieee80211_rx_status *rxstatus,
 					   u16 mpdu_seq_num,
 					   int bar_req)
 {
@@ -2324,8 +2321,6 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	/* put the frame in the reordering buffer */
 	tid_agg_rx->reorder_buf[index] = skb;
 	tid_agg_rx->reorder_time[index] = jiffies;
-	memcpy(tid_agg_rx->reorder_buf[index]->cb, rxstatus,
-	       sizeof(*rxstatus));
 	tid_agg_rx->stored_mpdu_num++;
 	/* release the buffer until next missing frame */
 	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn)
@@ -2374,8 +2369,7 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 }
 
 static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
-				     struct sk_buff *skb,
-				     struct ieee80211_rx_status *status)
+				     struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -2424,7 +2418,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 
 	/* according to mpdu sequence number deal with reordering buffer */
 	mpdu_seq_num = (sc & IEEE80211_SCTL_SEQ) >> 4;
-	ret = ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, skb, status,
+	ret = ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, skb,
 						mpdu_seq_num, 0);
  end_reorder:
 	return ret;
@@ -2434,12 +2428,12 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
  * This is the receive path handler. It is called by a low level driver when an
  * 802.11 MPDU is received from the hardware.
  */
-void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
-		    struct ieee80211_rx_status *status)
+void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate = NULL;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 
 	if (status->band < 0 ||
 	    status->band >= IEEE80211_NUM_BANDS) {
@@ -2482,7 +2476,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * if it was previously present.
 	 * Also, frames with less than 16 bytes are dropped.
 	 */
-	skb = ieee80211_rx_monitor(local, skb, status, rate);
+	skb = ieee80211_rx_monitor(local, skb, rate);
 	if (!skb) {
 		rcu_read_unlock();
 		return;
@@ -2500,8 +2494,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * frames from other than operational channel), but that should not
 	 * happen in normal networks.
 	 */
-	if (!ieee80211_rx_reorder_ampdu(local, skb, status))
-		__ieee80211_rx_handle_packet(hw, skb, status, rate);
+	if (!ieee80211_rx_reorder_ampdu(local, skb))
+		__ieee80211_rx_handle_packet(hw, skb, rate);
 
 	rcu_read_unlock();
 }
@@ -2509,16 +2503,13 @@ EXPORT_SYMBOL(__ieee80211_rx);
 
 /* This is a version of the rx handler that can be called from hard irq
  * context. Post the skb on the queue and schedule the tasklet */
-void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb,
-			  struct ieee80211_rx_status *status)
+void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	BUILD_BUG_ON(sizeof(struct ieee80211_rx_status) > sizeof(skb->cb));
 
 	skb->dev = local->mdev;
-	/* copy status into skb->cb for use by tasklet */
-	memcpy(skb->cb, status, sizeof(*status));
 	skb->pkt_type = IEEE80211_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);
 	tasklet_schedule(&local->tasklet);

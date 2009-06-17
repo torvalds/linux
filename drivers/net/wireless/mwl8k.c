@@ -1047,7 +1047,8 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		status.flag = 0;
 		status.band = IEEE80211_BAND_2GHZ;
 		status.freq = ieee80211_channel_to_frequency(rx_desc->channel);
-		ieee80211_rx_irqsafe(hw, skb, &status);
+		memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+		ieee80211_rx_irqsafe(hw, skb);
 
 		processed++;
 	}
