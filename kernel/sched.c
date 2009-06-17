@@ -2627,6 +2627,11 @@ void sched_fork(struct task_struct *p, int clone_flags)
 		if (p->normal_prio < DEFAULT_PRIO)
 			p->prio = DEFAULT_PRIO;
 
+		if (PRIO_TO_NICE(p->static_prio) < 0) {
+			p->static_prio = NICE_TO_PRIO(0);
+			set_load_weight(p);
+		}
+
 		/*
 		 * We don't need the reset flag anymore after the fork. It has
 		 * fulfilled its duty:
