@@ -352,6 +352,7 @@ struct ext4_new_group_data {
  /* note ioctl 10 reserved for an early version of the FIEMAP ioctl */
  /* note ioctl 11 reserved for filesystem-independent FIEMAP ioctl */
 #define EXT4_IOC_ALLOC_DA_BLKS		_IO('f', 12)
+#define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
 
 /*
  * ioctl commands in 32 bit emulation
@@ -447,6 +448,15 @@ struct ext4_inode {
 	__le32  i_version_hi;	/* high 32 bits for 64-bit version */
 };
 
+struct move_extent {
+	__u32 reserved;		/* should be zero */
+	__u32 donor_fd;		/* donor file descriptor */
+	__u64 orig_start;	/* logical start offset in block for orig */
+	__u64 donor_start;	/* logical start offset in block for donor */
+	__u64 len;		/* block length to be moved */
+	__u64 moved_len;	/* moved block length */
+};
+#define MAX_DEFRAG_SIZE         ((1UL<<31) - 1)
 
 #define EXT4_EPOCH_BITS 2
 #define EXT4_EPOCH_MASK ((1 << EXT4_EPOCH_BITS) - 1)
@@ -1647,6 +1657,11 @@ extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   struct buffer_head *bh, int flags);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+/* move_extent.c */
+extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
+			     __u64 start_orig, __u64 start_donor,
+			     __u64 len, __u64 *moved_len);
+
 
 /*
  * Add new method to test wether block and inode bitmaps are properly
