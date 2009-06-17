@@ -424,37 +424,33 @@ static int ptrace_setoptions(struct task_struct *child, long data)
 
 static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
 {
+	unsigned long flags;
 	int error = -ESRCH;
 
-	read_lock(&tasklist_lock);
-	if (likely(child->sighand != NULL)) {
+	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
-		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
 			*info = *child->last_siginfo;
 			error = 0;
 		}
-		spin_unlock_irq(&child->sighand->siglock);
+		unlock_task_sighand(child, &flags);
 	}
-	read_unlock(&tasklist_lock);
 	return error;
 }
 
 static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
 {
+	unsigned long flags;
 	int error = -ESRCH;
 
-	read_lock(&tasklist_lock);
-	if (likely(child->sighand != NULL)) {
+	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
-		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
 			*child->last_siginfo = *info;
 			error = 0;
 		}
-		spin_unlock_irq(&child->sighand->siglock);
+		unlock_task_sighand(child, &flags);
 	}
-	read_unlock(&tasklist_lock);
 	return error;
 }
 
