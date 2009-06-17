@@ -135,6 +135,7 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		int j = rdev->raid_disk;
 		dev_info_t *disk = conf->disks + j;
+		sector_t sectors;
 
 		if (j < 0 || j >= raid_disks || disk->rdev) {
 			printk("linear: disk numbering problem. Aborting!\n");
@@ -142,6 +143,11 @@ static linear_conf_t *linear_conf(mddev_t *mddev, int raid_disks)
 		}
 
 		disk->rdev = rdev;
+		if (mddev->chunk_sectors) {
+			sectors = rdev->sectors;
+			sector_div(sectors, mddev->chunk_sectors);
+			rdev->sectors = sectors * mddev->chunk_sectors;
+		}
 
 		blk_queue_stack_limits(mddev->queue,
 				       rdev->bdev->bd_disk->queue);

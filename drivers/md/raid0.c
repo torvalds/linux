@@ -100,6 +100,12 @@ static int create_strip_zones(mddev_t *mddev)
 		printk(KERN_INFO "raid0: looking at %s\n",
 			bdevname(rdev1->bdev,b));
 		c = 0;
+
+		/* round size to chunk_size */
+		sectors = rdev1->sectors;
+		sector_div(sectors, mddev->chunk_sectors);
+		rdev1->sectors = sectors * mddev->chunk_sectors;
+
 		list_for_each_entry(rdev2, &mddev->disks, same_set) {
 			printk(KERN_INFO "raid0:   comparing %s(%llu)",
 			       bdevname(rdev1->bdev,b),
