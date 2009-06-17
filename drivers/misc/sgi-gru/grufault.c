@@ -468,10 +468,6 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 	get_clear_fault_map(gru, &imap, &dmap);
-	gru_dbg(grudev,
-		"irq %d, gid %d, imap %016lx %016lx, dmap %016lx %016lx\n",
-		irq, gru->gs_gid, dmap.fault_bits[0], dmap.fault_bits[1],
-		dmap.fault_bits[0], dmap.fault_bits[1]);
 
 	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
 		complete(gru->gs_blade->bs_async_wq);
