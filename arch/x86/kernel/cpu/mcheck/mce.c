@@ -1777,7 +1777,7 @@ static struct sysdev_ext_attribute attr_ignore_ce = {
 };
 
 static struct sysdev_ext_attribute attr_cmci_disabled = {
-	_SYSDEV_ATTR(ignore_ce, 0644, sysdev_show_int, set_cmci_disabled),
+	_SYSDEV_ATTR(cmci_disabled, 0644, sysdev_show_int, set_cmci_disabled),
 	&mce_cmci_disabled
 };
 
