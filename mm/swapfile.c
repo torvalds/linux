@@ -583,8 +583,9 @@ static int swap_entry_free(struct swap_info_struct *p,
 			swap_list.next = p - swap_info;
 		nr_swap_pages++;
 		p->inuse_pages--;
-		mem_cgroup_uncharge_swap(ent);
 	}
+	if (!swap_count(count))
+		mem_cgroup_uncharge_swap(ent);
 	return count;
 }
 
@@ -609,12 +610,19 @@ void swap_free(swp_entry_t entry)
 void swapcache_free(swp_entry_t entry, struct page *page)
 {
 	struct swap_info_struct *p;
+	int ret;
 
-	if (page)
-		mem_cgroup_uncharge_swapcache(page, entry);
 	p = swap_info_get(entry);
 	if (p) {
-		swap_entry_free(p, entry, SWAP_CACHE);
+		ret = swap_entry_free(p, entry, SWAP_CACHE);
+		if (page) {
+			bool swapout;
+			if (ret)
+				swapout = true; /* the end of swap out */
+			else
+				swapout = false; /* no more swap users! */
+			mem_cgroup_uncharge_swapcache(page, entry, swapout);
+		}
 		spin_unlock(&swap_lock);
 	}
 	return;
