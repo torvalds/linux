@@ -746,6 +746,7 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		cpumask_clear(cpus);
 
 	me = get_cpu();
+	spin_lock(&kvm->requests_lock);
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		vcpu = kvm->vcpus[i];
 		if (!vcpu)
@@ -762,6 +763,7 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		smp_call_function_many(cpus, ack_flush, NULL, 1);
 	else
 		called = false;
+	spin_unlock(&kvm->requests_lock);
 	put_cpu();
 	free_cpumask_var(cpus);
 	return called;
@@ -982,6 +984,7 @@ static struct kvm *kvm_create_vm(void)
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
 	spin_lock_init(&kvm->mmu_lock);
+	spin_lock_init(&kvm->requests_lock);
 	kvm_io_bus_init(&kvm->pio_bus);
 	mutex_init(&kvm->lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
