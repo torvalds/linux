@@ -69,6 +69,7 @@ static const struct xt_table packet_mangler = {
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV4,
+	.priority	= NF_IP_PRI_MANGLE,
 };
 
 static unsigned int
@@ -129,43 +130,7 @@ iptable_mangle_hook(unsigned int hook,
 			    dev_net(in)->ipv4.iptable_mangle);
 }
 
-static struct nf_hook_ops ipt_ops[] __read_mostly = {
-	{
-		.hook		= iptable_mangle_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_PRE_ROUTING,
-		.priority	= NF_IP_PRI_MANGLE,
-	},
-	{
-		.hook		= iptable_mangle_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_MANGLE,
-	},
-	{
-		.hook		= iptable_mangle_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_FORWARD,
-		.priority	= NF_IP_PRI_MANGLE,
-	},
-	{
-		.hook		= iptable_mangle_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP_PRI_MANGLE,
-	},
-	{
-		.hook		= iptable_mangle_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP_PRI_MANGLE,
-	},
-};
+static struct nf_hook_ops *mangle_ops __read_mostly;
 
 static int __net_init iptable_mangle_net_init(struct net *net)
 {
@@ -196,9 +161,11 @@ static int __init iptable_mangle_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	if (ret < 0)
+	mangle_ops = xt_hook_link(&packet_mangler, iptable_mangle_hook);
+	if (IS_ERR(mangle_ops)) {
+		ret = PTR_ERR(mangle_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -209,7 +176,7 @@ static int __init iptable_mangle_init(void)
 
 static void __exit iptable_mangle_fini(void)
 {
-	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
+	xt_hook_unlink(&packet_mangler, mangle_ops);
 	unregister_pernet_subsys(&iptable_mangle_net_ops);
 }
 

@@ -40,6 +40,7 @@ static const struct xt_table packet_raw = {
 	.valid_hooks = RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV6,
+	.priority = NF_IP6_PRI_FIRST,
 };
 
 /* The work comes in here from netfilter.c. */
@@ -53,22 +54,7 @@ ip6table_raw_hook(unsigned int hook, struct sk_buff *skb,
 	return ip6t_do_table(skb, hook, in, out, net->ipv6.ip6table_raw);
 }
 
-static struct nf_hook_ops ip6t_ops[] __read_mostly = {
-	{
-	  .hook = ip6table_raw_hook,
-	  .pf = NFPROTO_IPV6,
-	  .hooknum = NF_INET_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST,
-	  .owner = THIS_MODULE,
-	},
-	{
-	  .hook = ip6table_raw_hook,
-	  .pf = NFPROTO_IPV6,
-	  .hooknum = NF_INET_LOCAL_OUT,
-	  .priority = NF_IP6_PRI_FIRST,
-	  .owner = THIS_MODULE,
-	},
-};
+static struct nf_hook_ops *rawtable_ops __read_mostly;
 
 static int __net_init ip6table_raw_net_init(struct net *net)
 {
@@ -99,9 +85,11 @@ static int __init ip6table_raw_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	if (ret < 0)
+	rawtable_ops = xt_hook_link(&packet_raw, ip6table_raw_hook);
+	if (IS_ERR(rawtable_ops)) {
+		ret = PTR_ERR(rawtable_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -112,7 +100,7 @@ static int __init ip6table_raw_init(void)
 
 static void __exit ip6table_raw_fini(void)
 {
-	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
+	xt_hook_unlink(&packet_raw, rawtable_ops);
 	unregister_pernet_subsys(&ip6table_raw_net_ops);
 }
 

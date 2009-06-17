@@ -62,6 +62,7 @@ static const struct xt_table security_table = {
 	.valid_hooks	= SECURITY_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV4,
+	.priority	= NF_IP_PRI_SECURITY,
 };
 
 static unsigned int
@@ -82,29 +83,7 @@ iptable_security_hook(unsigned int hook, struct sk_buff *skb,
 	return ipt_do_table(skb, hook, in, out, net->ipv4.iptable_security);
 }
 
-static struct nf_hook_ops ipt_ops[] __read_mostly = {
-	{
-		.hook		= iptable_security_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_SECURITY,
-	},
-	{
-		.hook		= iptable_security_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_FORWARD,
-		.priority	= NF_IP_PRI_SECURITY,
-	},
-	{
-		.hook		= iptable_security_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV4,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP_PRI_SECURITY,
-	},
-};
+static struct nf_hook_ops *sectbl_ops __read_mostly;
 
 static int __net_init iptable_security_net_init(struct net *net)
 {
@@ -135,9 +114,11 @@ static int __init iptable_security_init(void)
         if (ret < 0)
 		return ret;
 
-	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	if (ret < 0)
+	sectbl_ops = xt_hook_link(&security_table, iptable_security_hook);
+	if (IS_ERR(sectbl_ops)) {
+		ret = PTR_ERR(sectbl_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -148,7 +129,7 @@ cleanup_table:
 
 static void __exit iptable_security_fini(void)
 {
-	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
+	xt_hook_unlink(&security_table, sectbl_ops);
 	unregister_pernet_subsys(&iptable_security_net_ops);
 }
 

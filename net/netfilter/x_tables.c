@@ -1091,6 +1091,60 @@ static const struct file_operations xt_target_ops = {
 
 #endif /* CONFIG_PROC_FS */
 
+/**
+ * xt_hook_link - set up hooks for a new table
+ * @table:	table with metadata needed to set up hooks
+ * @fn:		Hook function
+ *
+ * This function will take care of creating and registering the necessary
+ * Netfilter hooks for XT tables.
+ */
+struct nf_hook_ops *xt_hook_link(const struct xt_table *table, nf_hookfn *fn)
+{
+	unsigned int hook_mask = table->valid_hooks;
+	uint8_t i, num_hooks = hweight32(hook_mask);
+	uint8_t hooknum;
+	struct nf_hook_ops *ops;
+	int ret;
+
+	ops = kmalloc(sizeof(*ops) * num_hooks, GFP_KERNEL);
+	if (ops == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0, hooknum = 0; i < num_hooks && hook_mask != 0;
+	     hook_mask >>= 1, ++hooknum) {
+		if (!(hook_mask & 1))
+			continue;
+		ops[i].hook     = fn;
+		ops[i].owner    = table->me;
+		ops[i].pf       = table->af;
+		ops[i].hooknum  = hooknum;
+		ops[i].priority = table->priority;
+		++i;
+	}
+
+	ret = nf_register_hooks(ops, num_hooks);
+	if (ret < 0) {
+		kfree(ops);
+		return ERR_PTR(ret);
+	}
+
+	return ops;
+}
+EXPORT_SYMBOL_GPL(xt_hook_link);
+
+/**
+ * xt_hook_unlink - remove hooks for a table
+ * @ops:	nf_hook_ops array as returned by nf_hook_link
+ * @hook_mask:	the very same mask that was passed to nf_hook_link
+ */
+void xt_hook_unlink(const struct xt_table *table, struct nf_hook_ops *ops)
+{
+	nf_unregister_hooks(ops, hweight32(table->valid_hooks));
+	kfree(ops);
+}
+EXPORT_SYMBOL_GPL(xt_hook_unlink);
+
 int xt_proto_init(struct net *net, u_int8_t af)
 {
 #ifdef CONFIG_PROC_FS

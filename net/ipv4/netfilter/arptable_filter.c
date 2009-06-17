@@ -50,6 +50,7 @@ static const struct xt_table packet_filter = {
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_ARP,
+	.priority	= NF_IP_PRI_FILTER,
 };
 
 /* The work comes in here from netfilter.c */
@@ -63,29 +64,7 @@ arptable_filter_hook(unsigned int hook, struct sk_buff *skb,
 	return arpt_do_table(skb, hook, in, out, net->ipv4.arptable_filter);
 }
 
-static struct nf_hook_ops arpt_ops[] __read_mostly = {
-	{
-		.hook		= arptable_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_ARP,
-		.hooknum	= NF_ARP_IN,
-		.priority	= NF_IP_PRI_FILTER,
-	},
-	{
-		.hook		= arptable_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_ARP,
-		.hooknum	= NF_ARP_OUT,
-		.priority	= NF_IP_PRI_FILTER,
-	},
-	{
-		.hook		= arptable_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_ARP,
-		.hooknum	= NF_ARP_FORWARD,
-		.priority	= NF_IP_PRI_FILTER,
-	},
-};
+static struct nf_hook_ops *arpfilter_ops __read_mostly;
 
 static int __net_init arptable_filter_net_init(struct net *net)
 {
@@ -115,9 +94,11 @@ static int __init arptable_filter_init(void)
 	if (ret < 0)
 		return ret;
 
-	ret = nf_register_hooks(arpt_ops, ARRAY_SIZE(arpt_ops));
-	if (ret < 0)
+	arpfilter_ops = xt_hook_link(&packet_filter, arptable_filter_hook);
+	if (IS_ERR(arpfilter_ops)) {
+		ret = PTR_ERR(arpfilter_ops);
 		goto cleanup_table;
+	}
 	return ret;
 
 cleanup_table:
@@ -127,7 +108,7 @@ cleanup_table:
 
 static void __exit arptable_filter_fini(void)
 {
-	nf_unregister_hooks(arpt_ops, ARRAY_SIZE(arpt_ops));
+	xt_hook_unlink(&packet_filter, arpfilter_ops);
 	unregister_pernet_subsys(&arptable_filter_net_ops);
 }
 

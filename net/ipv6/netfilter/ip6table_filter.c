@@ -56,6 +56,7 @@ static const struct xt_table packet_filter = {
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_IPV6,
+	.priority	= NF_IP6_PRI_FILTER,
 };
 
 /* The work comes in here from netfilter.c. */
@@ -69,29 +70,7 @@ ip6table_filter_hook(unsigned int hook, struct sk_buff *skb,
 	return ip6t_do_table(skb, hook, in, out, net->ipv6.ip6table_filter);
 }
 
-static struct nf_hook_ops ip6t_ops[] __read_mostly = {
-	{
-		.hook		= ip6table_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP6_PRI_FILTER,
-	},
-	{
-		.hook		= ip6table_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_FORWARD,
-		.priority	= NF_IP6_PRI_FILTER,
-	},
-	{
-		.hook		= ip6table_filter_hook,
-		.owner		= THIS_MODULE,
-		.pf		= NFPROTO_IPV6,
-		.hooknum	= NF_INET_LOCAL_OUT,
-		.priority	= NF_IP6_PRI_FILTER,
-	},
-};
+static struct nf_hook_ops *filter_ops __read_mostly;
 
 /* Default to forward because I got too much mail already. */
 static int forward = NF_ACCEPT;
@@ -134,9 +113,11 @@ static int __init ip6table_filter_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	if (ret < 0)
+	filter_ops = xt_hook_link(&packet_filter, ip6table_filter_hook);
+	if (IS_ERR(filter_ops)) {
+		ret = PTR_ERR(filter_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -147,7 +128,7 @@ static int __init ip6table_filter_init(void)
 
 static void __exit ip6table_filter_fini(void)
 {
-	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
+	xt_hook_unlink(&packet_filter, filter_ops);
 	unregister_pernet_subsys(&ip6table_filter_net_ops);
 }
 

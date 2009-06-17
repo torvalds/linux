@@ -41,6 +41,7 @@ static const struct xt_table packet_raw = {
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV4,
+	.priority = NF_IP_PRI_RAW,
 };
 
 /* The work comes in here from netfilter.c. */
@@ -61,23 +62,7 @@ iptable_raw_hook(unsigned int hook, struct sk_buff *skb,
 	return ipt_do_table(skb, hook, in, out, net->ipv4.iptable_raw);
 }
 
-/* 'raw' is the very first table. */
-static struct nf_hook_ops ipt_ops[] __read_mostly = {
-	{
-		.hook = iptable_raw_hook,
-		.pf = NFPROTO_IPV4,
-		.hooknum = NF_INET_PRE_ROUTING,
-		.priority = NF_IP_PRI_RAW,
-		.owner = THIS_MODULE,
-	},
-	{
-		.hook = iptable_raw_hook,
-		.pf = NFPROTO_IPV4,
-		.hooknum = NF_INET_LOCAL_OUT,
-		.priority = NF_IP_PRI_RAW,
-		.owner = THIS_MODULE,
-	},
-};
+static struct nf_hook_ops *rawtable_ops __read_mostly;
 
 static int __net_init iptable_raw_net_init(struct net *net)
 {
@@ -108,9 +93,11 @@ static int __init iptable_raw_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	if (ret < 0)
+	rawtable_ops = xt_hook_link(&packet_raw, iptable_raw_hook);
+	if (IS_ERR(rawtable_ops)) {
+		ret = PTR_ERR(rawtable_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -121,7 +108,7 @@ static int __init iptable_raw_init(void)
 
 static void __exit iptable_raw_fini(void)
 {
-	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
+	xt_hook_unlink(&packet_raw, rawtable_ops);
 	unregister_pernet_subsys(&iptable_raw_net_ops);
 }
 
