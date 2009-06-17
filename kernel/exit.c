@@ -1330,7 +1330,10 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 	uid_t uid = 0; /* unneeded, required by compiler */
 	pid_t pid;
 
-	if (!(options & WUNTRACED))
+	/*
+	 * Traditionally we see ptrace'd stopped tasks regardless of options.
+	 */
+	if (!ptrace && !(options & WUNTRACED))
 		return 0;
 
 	exit_code = 0;
@@ -1547,11 +1550,6 @@ static int ptrace_do_wait(struct task_struct *tsk, int *notask_error,
 			  struct rusage __user *ru)
 {
 	struct task_struct *p;
-
-	/*
-	 * Traditionally we see ptrace'd stopped tasks regardless of options.
-	 */
-	options |= WUNTRACED;
 
 	list_for_each_entry(p, &tsk->ptraced, ptrace_entry) {
 		int ret = wait_consider_task(tsk, 1, p, notask_error,
