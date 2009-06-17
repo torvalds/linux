@@ -223,6 +223,12 @@ static int linear_run (mddev_t *mddev)
 	return 0;
 }
 
+static void free_conf(struct rcu_head *head)
+{
+	linear_conf_t *conf = container_of(head, linear_conf_t, rcu);
+	kfree(conf);
+}
+
 static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	/* Adding a drive to a linear array allows the array to grow.
@@ -233,7 +239,7 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	 * The current one is never freed until the array is stopped.
 	 * This avoids races.
 	 */
-	linear_conf_t *newconf;
+	linear_conf_t *newconf, *oldconf;
 
 	if (rdev->saved_raid_disk != mddev->raid_disks)
 		return -EINVAL;
@@ -245,11 +251,12 @@ static int linear_add(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (!newconf)
 		return -ENOMEM;
 
-	newconf->prev = mddev->private;
+	oldconf = rcu_dereference(mddev->private);
 	mddev->raid_disks++;
 	rcu_assign_pointer(mddev->private, newconf);
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 	set_capacity(mddev->gendisk, mddev->array_sectors);
+	call_rcu(&oldconf->rcu, free_conf);
 	return 0;
 }
 
@@ -261,14 +268,12 @@ static int linear_stop (mddev_t *mddev)
 	 * We do not require rcu protection here since
 	 * we hold reconfig_mutex for both linear_add and
 	 * linear_stop, so they cannot race.
+	 * We should make sure any old 'conf's are properly
+	 * freed though.
 	 */
-
+	rcu_barrier();
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
-	do {
-		linear_conf_t *t = conf->prev;
-		kfree(conf);
-		conf = t;
-	} while (conf);
+	kfree(conf);
 
 	return 0;
 }
