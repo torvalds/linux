@@ -247,6 +247,10 @@ static void __init gic_basic_init(void)
 		if (cpu == X)
 			continue;
 
+		if (cpu == 0 && i != 0 && _intrmap[i].intrnum == 0 &&
+					_intrmap[i].ipiflag == 0)
+			continue;
+
 		setup_intr(_intrmap[i].intrnum,
 				_intrmap[i].cpunum,
 				_intrmap[i].pin,
