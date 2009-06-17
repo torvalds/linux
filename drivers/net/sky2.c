@@ -1815,8 +1815,6 @@ static int sky2_down(struct net_device *dev)
 	sky2_write32(hw, B0_IMSK, imask);
 	sky2_read32(hw, B0_IMSK);
 
-	synchronize_irq(hw->pdev->irq);
-
 	/* Force flow control off */
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
 
@@ -1830,9 +1828,6 @@ static int sky2_down(struct net_device *dev)
 	ctrl = gma_read16(hw, port, GM_GP_CTRL);
 	ctrl &= ~(GM_GPCR_TX_ENA | GM_GPCR_RX_ENA);
 	gma_write16(hw, port, GM_GP_CTRL, ctrl);
-
-	/* Make sure no packets are pending */
-	napi_synchronize(&hw->napi);
 
 	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
 
@@ -1863,6 +1858,15 @@ static int sky2_down(struct net_device *dev)
 
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
+
+	/* Force any delayed status interrrupt and NAPI */
+	sky2_write32(hw, STAT_LEV_TIMER_CNT, 0);
+	sky2_write32(hw, STAT_TX_TIMER_CNT, 0);
+	sky2_write32(hw, STAT_ISR_TIMER_CNT, 0);
+	sky2_read8(hw, STAT_ISR_TIMER_CTRL);
+
+	synchronize_irq(hw->pdev->irq);
+	napi_synchronize(&hw->napi);
 
 	sky2_phy_power_down(hw, port);
 
