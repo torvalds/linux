@@ -833,7 +833,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		return;
 	}
 
-	if (!scsi_device_wide(sdev)) {
+	if (!spi_support_wide(starget)) {
 		spi_max_width(starget) = 0;
 		max_width = 0;
 	}
@@ -860,7 +860,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		return;
 
 	/* device can't handle synchronous */
-	if (!scsi_device_sync(sdev) && !scsi_device_dt(sdev))
+	if (!spi_support_sync(starget) && !spi_support_dt(starget))
 		return;
 
 	/* len == -1 is the signal that we need to ascertain the
@@ -876,13 +876,14 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
-	if (scsi_device_qas(sdev) && spi_max_qas(starget)) {
+	if (spi_support_qas(starget) && spi_max_qas(starget)) {
 		DV_SET(qas, 1);
 	} else {
 		DV_SET(qas, 0);
 	}
 
-	if (scsi_device_ius(sdev) && spi_max_iu(starget) && min_period < 9) {
+	if (spi_support_ius(starget) && spi_max_iu(starget) &&
+	    min_period < 9) {
 		/* This u320 (or u640). Set IU transfers */
 		DV_SET(iu, 1);
 		/* Then set the optional parameters */
@@ -902,7 +903,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		i->f->get_signalling(shost);
 	if (spi_signalling(shost) == SPI_SIGNAL_SE ||
 	    spi_signalling(shost) == SPI_SIGNAL_HVD ||
-	    !scsi_device_dt(sdev)) {
+	    !spi_support_dt(starget)) {
 		DV_SET(dt, 0);
 	} else {
 		DV_SET(dt, 1);
