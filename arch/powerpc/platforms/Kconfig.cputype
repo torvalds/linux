@@ -75,6 +75,7 @@ config POWER4_ONLY
 config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
+	select PPC_HAVE_PMU_SUPPORT
 
 config POWER3
 	bool
