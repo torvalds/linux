@@ -232,4 +232,13 @@ config EDAC_AMD8111
 	  Note, add more Kconfig dependency if it's adopted
 	  on some machine other than Maple.
 
+config EDAC_CPC925
+	tristate "IBM CPC925 Memory Controller (PPC970FX)"
+	depends on EDAC_MM_EDAC && PPC64
+	help
+	  Support for error detection and correction on the
+	  IBM CPC925 Bridge and Memory Controller, which is
+	  a companion chip to the PowerPC 970 family of
+	  processors.
+
 endif # EDAC
