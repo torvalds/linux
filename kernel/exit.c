@@ -590,7 +590,7 @@ retry:
 	/*
 	 * Search in the siblings
 	 */
-	list_for_each_entry(c, &p->parent->children, sibling) {
+	list_for_each_entry(c, &p->real_parent->children, sibling) {
 		if (c->mm == mm)
 			goto assign_new_owner;
 	}
