@@ -19,6 +19,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
@@ -42,6 +43,15 @@
  *
  * When the insertion fails (sta_info_insert()) returns non-zero), the
  * structure will have been freed by sta_info_insert()!
+ *
+ * sta entries are added by mac80211 when you establish a link with a
+ * peer. This means different things for the different type of interfaces
+ * we support. For a regular station this mean we add the AP sta when we
+ * receive an assocation response from the AP. For IBSS this occurs when
+ * we receive a probe response or a beacon from target IBSS network. For
+ * WDS we add the sta for the peer imediately upon device open. When using
+ * AP mode we add stations for each respective station upon request from
+ * userspace through nl80211.
  *
  * Because there are debugfs entries for each station, and adding those
  * must be able to sleep, it is also possible to "pin" a station entry,
@@ -292,6 +302,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
 
+	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+		sta->last_seq_ctrl[i] = cpu_to_le16(USHORT_MAX);
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Allocated STA %pM\n",
 	       wiphy_name(local->hw.wiphy), sta->sta.addr);
@@ -346,8 +359,7 @@ int sta_info_insert(struct sta_info *sta)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_ADD, &sta->sta);
+		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD, &sta->sta);
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -405,8 +417,7 @@ static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local),
-					 &sta->sta, true);
+		drv_set_tim(sta->local, &sta->sta, true);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -431,8 +442,7 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local),
-					 &sta->sta, false);
+		drv_set_tim(sta->local, &sta->sta, false);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -482,8 +492,8 @@ static void __sta_info_unlink(struct sta_info **sta)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_REMOVE, &(*sta)->sta);
+		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
+			       &(*sta)->sta);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -543,9 +553,8 @@ void sta_info_unlink(struct sta_info **sta)
 	spin_unlock_irqrestore(&local->sta_lock, flags);
 }
 
-static inline int sta_info_buffer_expired(struct ieee80211_local *local,
-					  struct sta_info *sta,
-					  struct sk_buff *skb)
+static int sta_info_buffer_expired(struct sta_info *sta,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info;
 	int timeout;
@@ -556,8 +565,9 @@ static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 	info = IEEE80211_SKB_CB(skb);
 
 	/* Timeout: (2 * listen_interval * beacon_int * 1024 / 1000000) sec */
-	timeout = (sta->listen_interval * local->hw.conf.beacon_int * 32 /
-		   15625) * HZ;
+	timeout = (sta->listen_interval *
+		   sta->sdata->vif.bss_conf.beacon_int *
+		   32 / 15625) * HZ;
 	if (timeout < STA_TX_BUFFER_EXPIRE)
 		timeout = STA_TX_BUFFER_EXPIRE;
 	return time_after(jiffies, info->control.jiffies + timeout);
@@ -577,7 +587,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
-		if (sta_info_buffer_expired(local, sta, skb))
+		if (sta_info_buffer_expired(sta, skb))
 			skb = __skb_dequeue(&sta->ps_tx_buf);
 		else
 			skb = NULL;
@@ -609,6 +619,9 @@ static void sta_info_cleanup(unsigned long data)
 	list_for_each_entry_rcu(sta, &local->sta_list, list)
 		sta_info_cleanup_expire_buffered(local, sta);
 	rcu_read_unlock();
+
+	if (local->quiescing)
+		return;
 
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
@@ -686,41 +699,10 @@ static void sta_info_debugfs_add_work(struct work_struct *work)
 }
 #endif
 
-static void __ieee80211_run_pending_flush(struct ieee80211_local *local)
-{
-	struct sta_info *sta;
-	unsigned long flags;
-
-	ASSERT_RTNL();
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	while (!list_empty(&local->sta_flush_list)) {
-		sta = list_first_entry(&local->sta_flush_list,
-				       struct sta_info, list);
-		list_del(&sta->list);
-		spin_unlock_irqrestore(&local->sta_lock, flags);
-		sta_info_destroy(sta);
-		spin_lock_irqsave(&local->sta_lock, flags);
-	}
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-}
-
-static void ieee80211_sta_flush_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local, sta_flush_work);
-
-	rtnl_lock();
-	__ieee80211_run_pending_flush(local);
-	rtnl_unlock();
-}
-
 void sta_info_init(struct ieee80211_local *local)
 {
 	spin_lock_init(&local->sta_lock);
 	INIT_LIST_HEAD(&local->sta_list);
-	INIT_LIST_HEAD(&local->sta_flush_list);
-	INIT_WORK(&local->sta_flush_work, ieee80211_sta_flush_work);
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
 		    (unsigned long)local);
@@ -741,7 +723,6 @@ int sta_info_start(struct ieee80211_local *local)
 void sta_info_stop(struct ieee80211_local *local)
 {
 	del_timer(&local->sta_cleanup);
-	cancel_work_sync(&local->sta_flush_work);
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/*
 	 * Make sure the debugfs adding work isn't pending after this
@@ -752,10 +733,7 @@ void sta_info_stop(struct ieee80211_local *local)
 	cancel_work_sync(&local->sta_debugfs_add);
 #endif
 
-	rtnl_lock();
 	sta_info_flush(local, NULL);
-	__ieee80211_run_pending_flush(local);
-	rtnl_unlock();
 }
 
 /**
@@ -767,7 +745,7 @@ void sta_info_stop(struct ieee80211_local *local)
  * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
  */
 int sta_info_flush(struct ieee80211_local *local,
-		    struct ieee80211_sub_if_data *sdata)
+		   struct ieee80211_sub_if_data *sdata)
 {
 	struct sta_info *sta, *tmp;
 	LIST_HEAD(tmp_list);
@@ -775,7 +753,6 @@ int sta_info_flush(struct ieee80211_local *local,
 	unsigned long flags;
 
 	might_sleep();
-	ASSERT_RTNL();
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
@@ -793,39 +770,6 @@ int sta_info_flush(struct ieee80211_local *local,
 		sta_info_destroy(sta);
 
 	return ret;
-}
-
-/**
- * sta_info_flush_delayed - flush matching STA entries from the STA table
- *
- * This function unlinks all stations for a given interface and queues
- * them for freeing. Note that the workqueue function scheduled here has
- * to run before any new keys can be added to the system to avoid set_key()
- * callback ordering issues.
- *
- * @sdata: the interface
- */
-void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta, *tmp;
-	unsigned long flags;
-	bool work = false;
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		if (sdata == sta->sdata) {
-			__sta_info_unlink(&sta);
-			if (sta) {
-				list_add_tail(&sta->list,
-					      &local->sta_flush_list);
-				work = true;
-			}
-		}
-	}
-	if (work)
-		schedule_work(&local->sta_flush_work);
-	spin_unlock_irqrestore(&local->sta_lock, flags);
 }
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,

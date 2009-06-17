@@ -246,11 +246,11 @@ META_COLLECTOR(int_tcindex)
 
 META_COLLECTOR(int_rtclassid)
 {
-	if (unlikely(skb->dst == NULL))
+	if (unlikely(skb_dst(skb) == NULL))
 		*err = -1;
 	else
 #ifdef CONFIG_NET_CLS_ROUTE
-		dst->value = skb->dst->tclassid;
+		dst->value = skb_dst(skb)->tclassid;
 #else
 		dst->value = 0;
 #endif
@@ -258,10 +258,10 @@ META_COLLECTOR(int_rtclassid)
 
 META_COLLECTOR(int_rtiif)
 {
-	if (unlikely(skb->rtable == NULL))
+	if (unlikely(skb_rtable(skb) == NULL))
 		*err = -1;
 	else
-		dst->value = skb->rtable->fl.iif;
+		dst->value = skb_rtable(skb)->fl.iif;
 }
 
 /**************************************************************************

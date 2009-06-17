@@ -32,8 +32,8 @@
  * Interval defines
  * Both the link tuner as the rfkill will be called once per second.
  */
-#define LINK_TUNE_INTERVAL	( round_jiffies_relative(HZ) )
-#define RFKILL_POLL_INTERVAL	( 1000 )
+#define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
+#define RFKILL_POLL_INTERVAL	1000
 
 /*
  * rt2x00_rate: Per rate device information
@@ -48,6 +48,7 @@ struct rt2x00_rate {
 	unsigned short ratemask;
 
 	unsigned short plcp;
+	unsigned short mcs;
 };
 
 extern const struct rt2x00_rate rt2x00_supported_rates[12];
@@ -55,6 +56,14 @@ extern const struct rt2x00_rate rt2x00_supported_rates[12];
 static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 {
 	return &rt2x00_supported_rates[hw_value & 0xff];
+}
+
+#define RATE_MCS(__mode, __mcs) \
+	( (((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff) )
+
+static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
+{
+	return (mcs_value & 0x00ff);
 }
 
 /*
@@ -111,6 +120,23 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
  * @skb: The skb to free.
  */
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+
+/**
+ * rt2x00queue_payload_align - Align 802.11 payload to 4-byte boundary
+ * @skb: The skb to align
+ * @l2pad: Should L2 padding be used
+ * @header_length: Length of 802.11 header
+ *
+ * This function prepares the @skb to be send to the device or mac80211.
+ * If @l2pad is set to true padding will occur between the 802.11 header
+ * and payload. Otherwise the padding will be done in front of the 802.11
+ * header.
+ * When @l2pad is set the function will check for the &SKBDESC_L2_PADDED
+ * flag in &skb_frame_desc. If that flag is set, the padding is removed
+ * and the flag cleared. Otherwise the padding is added and the flag is set.
+ */
+void rt2x00queue_payload_align(struct sk_buff *skb,
+			       bool l2pad, unsigned int header_length);
 
 /**
  * rt2x00queue_write_tx_frame - Write TX frame to hardware
@@ -295,10 +321,12 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 				       struct txentry_desc *txdesc);
 unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 				      struct sk_buff *skb);
-void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len);
-void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
-void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
-void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
+			     struct txentry_desc *txdesc);
+void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
+			       struct txentry_desc *txdesc);
+void rt2x00crypto_tx_insert_iv(struct sk_buff *skb, unsigned int header_length);
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 			       unsigned int header_length,
 			       struct rxdone_entry_desc *rxdesc);
 #else
@@ -319,26 +347,41 @@ static inline unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev
 }
 
 static inline void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
-					   unsigned int iv_len)
+					   struct txentry_desc *txdesc)
 {
 }
 
 static inline void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
-					     unsigned int iv_len)
+					     struct txentry_desc *txdesc)
 {
 }
 
-static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb)
+static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb,
+					     unsigned int header_length)
 {
 }
 
-static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
-					     unsigned int align,
+static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 					     unsigned int header_length,
 					     struct rxdone_entry_desc *rxdesc)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+
+/*
+ * HT handlers.
+ */
+#ifdef CONFIG_RT2X00_LIB_HT
+void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
+				   struct txentry_desc *txdesc,
+				   const struct rt2x00_rate *hwrate);
+#else
+static inline void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
+						 struct txentry_desc *txdesc,
+						 const struct rt2x00_rate *hwrate)
+{
+}
+#endif /* CONFIG_RT2X00_LIB_HT */
 
 /*
  * RFkill handlers.

@@ -89,6 +89,9 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	*cq->mcq.arm_db    = 0;
 	memset(cq->buf, 0, cq->buf_size);
 
+	if (!cq->is_tx)
+		cq->size = priv->rx_ring[cq->ring].actual_size;
+
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt, &mdev->priv_uar,
 			    cq->wqres.db.dma, &cq->mcq, cq->vector, cq->is_tx);
 	if (err)

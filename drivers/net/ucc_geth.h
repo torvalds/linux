@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Freescale Semicondutor, Inc. 2006. All rights reserved.
+ * Copyright (C) Freescale Semicondutor, Inc. 2006-2009. All rights reserved.
  *
  * Author: Shlomi Gridish <gridish@freescale.com>
  *
@@ -192,6 +192,31 @@ struct ucc_geth {
 #define	ENET_TBI_MII_EXST	0x0F	/* Extended status */
 #define	ENET_TBI_MII_JD		0x10	/* Jitter diagnostics */
 #define	ENET_TBI_MII_TBICON	0x11	/* TBI control */
+
+/* TBI MDIO register bit fields*/
+#define TBISR_LSTATUS          0x0004
+#define TBICON_CLK_SELECT       0x0020
+#define TBIANA_ASYMMETRIC_PAUSE 0x0100
+#define TBIANA_SYMMETRIC_PAUSE  0x0080
+#define TBIANA_HALF_DUPLEX      0x0040
+#define TBIANA_FULL_DUPLEX      0x0020
+#define TBICR_PHY_RESET         0x8000
+#define TBICR_ANEG_ENABLE       0x1000
+#define TBICR_RESTART_ANEG      0x0200
+#define TBICR_FULL_DUPLEX       0x0100
+#define TBICR_SPEED1_SET        0x0040
+
+#define TBIANA_SETTINGS ( \
+		TBIANA_ASYMMETRIC_PAUSE \
+		| TBIANA_SYMMETRIC_PAUSE \
+		| TBIANA_FULL_DUPLEX \
+		)
+#define TBICR_SETTINGS ( \
+		TBICR_PHY_RESET \
+		| TBICR_ANEG_ENABLE \
+		| TBICR_FULL_DUPLEX \
+		| TBICR_SPEED1_SET \
+		)
 
 /* UCC GETH MACCFG1 (MAC Configuration 1 Register) */
 #define MACCFG1_FLOW_RX                         0x00000020	/* Flow Control
@@ -852,7 +877,6 @@ struct ucc_geth_hardware_statistics {
 /* Driver definitions */
 #define TX_BD_RING_LEN                          0x10
 #define RX_BD_RING_LEN                          0x10
-#define UCC_GETH_DEV_WEIGHT                     TX_BD_RING_LEN
 
 #define TX_RING_MOD_MASK(size)                  (size-1)
 #define RX_RING_MOD_MASK(size)                  (size-1)
@@ -1100,7 +1124,7 @@ struct ucc_geth_info {
 	u32 eventRegMask;
 	u16 pausePeriod;
 	u16 extensionField;
-	char phy_bus_id[BUS_ID_SIZE];
+	struct device_node *phy_node;
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
 	u8 l2qt[UCC_GETH_VLAN_PRIORITY_MAX];
@@ -1189,6 +1213,7 @@ struct ucc_geth_private {
 
 	struct ugeth_mii_info *mii_info;
 	struct phy_device *phydev;
+	struct phy_device *tbiphy;
 	phy_interface_t phy_interface;
 	int max_speed;
 	uint32_t msg_enable;

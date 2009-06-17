@@ -289,8 +289,9 @@
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
 
 /* Receive Checksum Control */
+#define E1000_RXCSUM_IPOFL     0x00000100   /* IPv4 checksum offload */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
-#define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
+#define E1000_RXCSUM_CRCOFL    0x00000800   /* CRC32 offload enable */
 #define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */

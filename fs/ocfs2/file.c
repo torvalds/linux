@@ -187,6 +187,9 @@ static int ocfs2_sync_file(struct file *file,
 	if (err)
 		goto bail;
 
+	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+		goto bail;
+
 	journal = osb->journal->j_journal;
 	err = jbd2_journal_force_commit(journal);
 
@@ -894,9 +897,9 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
 	handle_t *handle = NULL;
-	int locked[MAXQUOTAS] = {0, 0};
-	int credits, qtype;
-	struct ocfs2_mem_dqinfo *oinfo;
+	int qtype;
+	struct dquot *transfer_from[MAXQUOTAS] = { };
+	struct dquot *transfer_to[MAXQUOTAS] = { };
 
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 	           dentry->d_name.len, dentry->d_name.name);
@@ -969,30 +972,37 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 	    (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
-		credits = OCFS2_INODE_UPDATE_CREDITS;
+		/*
+		 * Gather pointers to quota structures so that allocation /
+		 * freeing of quota structures happens here and not inside
+		 * vfs_dq_transfer() where we have problems with lock ordering
+		 */
 		if (attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
-			oinfo = sb_dqinfo(sb, USRQUOTA)->dqi_priv;
-			status = ocfs2_lock_global_qf(oinfo, 1);
-			if (status < 0)
+			transfer_to[USRQUOTA] = dqget(sb, attr->ia_uid,
+						      USRQUOTA);
+			transfer_from[USRQUOTA] = dqget(sb, inode->i_uid,
+							USRQUOTA);
+			if (!transfer_to[USRQUOTA] || !transfer_from[USRQUOTA]) {
+				status = -ESRCH;
 				goto bail_unlock;
-			credits += ocfs2_calc_qinit_credits(sb, USRQUOTA) +
-				ocfs2_calc_qdel_credits(sb, USRQUOTA);
-			locked[USRQUOTA] = 1;
+			}
 		}
 		if (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
 		    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
-			oinfo = sb_dqinfo(sb, GRPQUOTA)->dqi_priv;
-			status = ocfs2_lock_global_qf(oinfo, 1);
-			if (status < 0)
+			transfer_to[GRPQUOTA] = dqget(sb, attr->ia_gid,
+						      GRPQUOTA);
+			transfer_from[GRPQUOTA] = dqget(sb, inode->i_gid,
+							GRPQUOTA);
+			if (!transfer_to[GRPQUOTA] || !transfer_from[GRPQUOTA]) {
+				status = -ESRCH;
 				goto bail_unlock;
-			credits += ocfs2_calc_qinit_credits(sb, GRPQUOTA) +
-				   ocfs2_calc_qdel_credits(sb, GRPQUOTA);
-			locked[GRPQUOTA] = 1;
+			}
 		}
-		handle = ocfs2_start_trans(osb, credits);
+		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS +
+					   2 * ocfs2_quota_trans_credits(sb));
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
 			mlog_errno(status);
@@ -1030,18 +1040,18 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 bail_commit:
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	for (qtype = 0; qtype < MAXQUOTAS; qtype++) {
-		if (!locked[qtype])
-			continue;
-		oinfo = sb_dqinfo(sb, qtype)->dqi_priv;
-		ocfs2_unlock_global_qf(oinfo, 1);
-	}
 	ocfs2_inode_unlock(inode, 1);
 bail_unlock_rw:
 	if (size_change)
 		ocfs2_rw_unlock(inode, 1);
 bail:
 	brelse(bh);
+
+	/* Release quota pointers in case we acquired them */
+	for (qtype = 0; qtype < MAXQUOTAS; qtype++) {
+		dqput(transfer_to[qtype]);
+		dqput(transfer_from[qtype]);
+	}
 
 	if (!status && attr->ia_valid & ATTR_MODE) {
 		status = ocfs2_acl_chmod(inode);

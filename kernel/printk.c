@@ -687,20 +687,35 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 				  sizeof(printk_buf) - printed_len, fmt, args);
 
 
+	p = printk_buf;
+
+	/* Do we have a loglevel in the string? */
+	if (p[0] == '<') {
+		unsigned char c = p[1];
+		if (c && p[2] == '>') {
+			switch (c) {
+			case '0' ... '7': /* loglevel */
+				current_log_level = c - '0';
+			/* Fallthrough - make sure we're on a new line */
+			case 'd': /* KERN_DEFAULT */
+				if (!new_text_line) {
+					emit_log_char('\n');
+					new_text_line = 1;
+				}
+			/* Fallthrough - skip the loglevel */
+			case 'c': /* KERN_CONT */
+				p += 3;
+				break;
+			}
+		}
+	}
+
 	/*
 	 * Copy the output into log_buf.  If the caller didn't provide
 	 * appropriate log level tags, we insert them here
 	 */
-	for (p = printk_buf; *p; p++) {
+	for ( ; *p; p++) {
 		if (new_text_line) {
-			/* If a token, set current_log_level and skip over */
-			if (p[0] == '<' && p[1] >= '0' && p[1] <= '7' &&
-			    p[2] == '>') {
-				current_log_level = p[1] - '0';
-				p += 3;
-				printed_len -= 3;
-			}
-
 			/* Always output the token */
 			emit_log_char('<');
 			emit_log_char(current_log_level + '0');

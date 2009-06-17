@@ -22,13 +22,12 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/mg_disk.h>
 
 #define MG_RES_SEC (CONFIG_MG_DISK_RES << 1)
 
 /* name for block device */
 #define MG_DISK_NAME "mgd"
-/* name for platform device */
-#define MG_DEV_NAME "mg_disk"
 
 #define MG_DISK_MAJ 0
 #define MG_DISK_MAX_PART 16
@@ -103,32 +102,7 @@
 #define MG_TMAX_SWRST_TO_RDY	500
 #define MG_TMAX_RSTOUT		3000
 
-/* device attribution */
-/* use mflash as boot device */
-#define MG_BOOT_DEV		(1 << 0)
-/* use mflash as storage device */
-#define MG_STORAGE_DEV		(1 << 1)
-/* same as MG_STORAGE_DEV, but bootloader already done reset sequence */
-#define MG_STORAGE_DEV_SKIP_RST	(1 << 2)
-
 #define MG_DEV_MASK (MG_BOOT_DEV | MG_STORAGE_DEV | MG_STORAGE_DEV_SKIP_RST)
-
-/* names of GPIO resource */
-#define MG_RST_PIN	"mg_rst"
-/* except MG_BOOT_DEV, reset-out pin should be assigned */
-#define MG_RSTOUT_PIN	"mg_rstout"
-
-/* private driver data */
-struct mg_drv_data {
-	/* disk resource */
-	u32 use_polling;
-
-	/* device attribution */
-	u32 dev_attr;
-
-	/* internally used */
-	struct mg_host *host;
-};
 
 /* main structure for mflash driver */
 struct mg_host {

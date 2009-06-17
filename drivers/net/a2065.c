@@ -564,7 +564,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 	if (!TX_BUFFS_AVAIL){
 		local_irq_restore(flags);
-		return -1;
+		return NETDEV_TX_LOCKED;
 	}
 
 #ifdef DEBUG_DRIVER

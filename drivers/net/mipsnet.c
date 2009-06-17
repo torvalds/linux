@@ -237,6 +237,16 @@ static void mipsnet_set_mclist(struct net_device *dev)
 {
 }
 
+static const struct net_device_ops mipsnet_netdev_ops = {
+	.ndo_open		= mipsnet_open,
+	.ndo_stop		= mipsnet_close,
+	.ndo_start_xmit		= mipsnet_xmit,
+	.ndo_set_multicast_list	= mipsnet_set_mclist,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
 static int __init mipsnet_probe(struct platform_device *dev)
 {
 	struct net_device *netdev;
@@ -250,10 +260,7 @@ static int __init mipsnet_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, netdev);
 
-	netdev->open			= mipsnet_open;
-	netdev->stop			= mipsnet_close;
-	netdev->hard_start_xmit		= mipsnet_xmit;
-	netdev->set_multicast_list	= mipsnet_set_mclist;
+	netdev->netdev_ops = &mipsnet_netdev_ops;
 
 	/*
 	 * TODO: probe for these or load them from PARAM

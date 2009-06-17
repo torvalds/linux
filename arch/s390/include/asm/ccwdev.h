@@ -1,11 +1,9 @@
 /*
- *  include/asm-s390/ccwdev.h
- *  include/asm-s390x/ccwdev.h
+ * Copyright  IBM Corp. 2002, 2009
  *
- *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
- *    Author(s): Arnd Bergmann <arndb@de.ibm.com>
+ * Author(s): Arnd Bergmann <arndb@de.ibm.com>
  *
- *  Interface for CCW device drivers
+ * Interface for CCW device drivers
  */
 #ifndef _S390_CCWDEV_H_
 #define _S390_CCWDEV_H_
@@ -104,6 +102,11 @@ struct ccw_device {
  * @set_offline: called when setting device offline
  * @notify: notify driver of device state changes
  * @shutdown: called at device shutdown
+ * @prepare: prepare for pm state transition
+ * @complete: undo work done in @prepare
+ * @freeze: callback for freezing during hibernation snapshotting
+ * @thaw: undo work done in @freeze
+ * @restore: callback for restoring after hibernation
  * @driver: embedded device driver structure
  * @name: device driver name
  */
@@ -116,6 +119,11 @@ struct ccw_driver {
 	int (*set_offline) (struct ccw_device *);
 	int (*notify) (struct ccw_device *, int);
 	void (*shutdown) (struct ccw_device *);
+	int (*prepare) (struct ccw_device *);
+	void (*complete) (struct ccw_device *);
+	int (*freeze)(struct ccw_device *);
+	int (*thaw) (struct ccw_device *);
+	int (*restore)(struct ccw_device *);
 	struct device_driver driver;
 	char *name;
 };
@@ -184,6 +192,7 @@ extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 #define to_ccwdrv(n) container_of(n, struct ccw_driver, driver)
 
 extern struct ccw_device *ccw_device_probe_console(void);
+extern int ccw_device_force_console(void);
 
 // FIXME: these have to go
 extern int _ccw_device_get_subchannel_number(struct ccw_device *);

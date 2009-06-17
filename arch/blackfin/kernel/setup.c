@@ -1098,7 +1098,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			CPUID, bfin_cpuid());
 
 	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
-		"stepping\t: %d\n",
+		"stepping\t: %d ",
 		cpu, cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
@@ -1107,7 +1107,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 		revid);
 
-	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+	if (bfin_revid() != bfin_compiled_revid()) {
+		if (bfin_compiled_revid() == -1)
+			seq_printf(m, "(Compiled for Rev none)");
+		else if (bfin_compiled_revid() == 0xffff)
+			seq_printf(m, "(Compiled for Rev any)");
+		else
+			seq_printf(m, "(Compiled for Rev %d)", bfin_compiled_revid());
+	}
+
+	seq_printf(m, "\ncpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
 		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
@@ -1171,6 +1180,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
 	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
+#endif
+#ifdef __ARCH_SYNC_CORE_ICACHE
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
 #endif
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 	switch ((cpudata->imemctl >> 3) & WAYALL_L) {

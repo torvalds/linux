@@ -3107,11 +3107,6 @@ wavelan_packet_xmit(struct sk_buff *	skb,
        * so the Tx buffer is now free */
     }
 
-#ifdef DEBUG_TX_ERROR
-	if (skb->next)
-		printk(KERN_INFO "skb has next\n");
-#endif
-
 	/* Check if we need some padding */
 	/* Note : on wireless the propagation time is in the order of 1us,
 	 * and we don't have the Ethernet specific requirement of beeing

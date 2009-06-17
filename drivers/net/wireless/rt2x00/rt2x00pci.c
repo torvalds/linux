@@ -170,7 +170,6 @@ static void rt2x00pci_free_queue_dma(struct rt2x00_dev *rt2x00dev,
 
 int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 {
-	struct pci_dev *pci_dev = to_pci_dev(rt2x00dev->dev);
 	struct data_queue *queue;
 	int status;
 
@@ -186,11 +185,11 @@ int rt2x00pci_initialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Register interrupt handler.
 	 */
-	status = request_irq(pci_dev->irq, rt2x00dev->ops->lib->irq_handler,
-			     IRQF_SHARED, pci_name(pci_dev), rt2x00dev);
+	status = request_irq(rt2x00dev->irq, rt2x00dev->ops->lib->irq_handler,
+			     IRQF_SHARED, rt2x00dev->name, rt2x00dev);
 	if (status) {
 		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
-		      pci_dev->irq, status);
+		      rt2x00dev->irq, status);
 		goto exit;
 	}
 
@@ -270,6 +269,7 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
+	u16 chip;
 
 	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
 	if (retval) {
@@ -307,6 +307,14 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	rt2x00dev->dev = &pci_dev->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
+	rt2x00dev->irq = pci_dev->irq;
+	rt2x00dev->name = pci_name(pci_dev);
+
+	/*
+	 * Determine RT chipset by reading PCI header.
+	 */
+	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &chip);
+	rt2x00_set_chip_rt(rt2x00dev, chip);
 
 	retval = rt2x00pci_alloc_reg(rt2x00dev);
 	if (retval)

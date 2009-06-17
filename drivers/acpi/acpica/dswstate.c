@@ -102,7 +102,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 	/* Return object of the top element and clean that top element result stack */
 
 	walk_state->result_count--;
-	index = walk_state->result_count % ACPI_RESULTS_FRAME_OBJ_NUM;
+	index = (u32)walk_state->result_count % ACPI_RESULTS_FRAME_OBJ_NUM;
 
 	*object = state->results.obj_desc[index];
 	if (!*object) {
@@ -186,7 +186,7 @@ acpi_ds_result_push(union acpi_operand_object * object,
 
 	/* Assign the address of object to the top free element of result stack */
 
-	index = walk_state->result_count % ACPI_RESULTS_FRAME_OBJ_NUM;
+	index = (u32)walk_state->result_count % ACPI_RESULTS_FRAME_OBJ_NUM;
 	state->results.obj_desc[index] = object;
 	walk_state->result_count++;
 

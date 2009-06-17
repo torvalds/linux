@@ -6556,6 +6556,8 @@ struct sw_pg {
 
 struct sw_tx_bd {
 	struct sk_buff		*skb;
+	unsigned short		is_gso;
+	unsigned short		nr_frags;
 };
 
 #define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)

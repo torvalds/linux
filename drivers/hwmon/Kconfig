@@ -306,11 +306,11 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71862FG, F71882FG and F8000"
+	tristate "Fintek F71858FG, F71862FG, F71882FG and F8000"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71882FG/F71883FG, F71862FG/71863FG
+	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG
 	  and F8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
@@ -418,7 +418,7 @@ config SENSORS_IBMAEM
 	  power sensors and capping hardware in various IBM System X
 	  servers that support Active Energy Manager.  This includes
 	  the x3350, x3550, x3650, x3655, x3755, x3850 M2, x3950 M2,
-	  and certain HS2x/LS2x/QS2x blades.
+	  and certain HC10/HS2x/LS2x/QS2x blades.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmaem.
@@ -786,6 +786,16 @@ config SENSORS_THMC50
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called thmc50.
+
+config SENSORS_TMP401
+	tristate "Texas Instruments TMP401 and compatibles"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Texas Instruments TMP401 and
+	  TMP411 temperature sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp401.
 
 config SENSORS_VIA686A
 	tristate "VIA686A"

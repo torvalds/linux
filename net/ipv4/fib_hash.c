@@ -263,7 +263,6 @@ fn_hash_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result 
 
 			err = fib_semantic_match(&f->fn_alias,
 						 flp, res,
-						 f->fn_key, fz->fz_mask,
 						 fz->fz_order);
 			if (err <= 0)
 				goto out;

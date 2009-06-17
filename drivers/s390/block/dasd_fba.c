@@ -2,8 +2,7 @@
  * File...........: linux/drivers/s390/block/dasd_fba.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
- *
+ * Copyright IBM Corp. 1999, 2009
  */
 
 #define KMSG_COMPONENT "dasd"
@@ -75,6 +74,9 @@ static struct ccw_driver dasd_fba_driver = {
 	.set_offline = dasd_generic_set_offline,
 	.set_online  = dasd_fba_set_online,
 	.notify      = dasd_generic_notify,
+	.freeze      = dasd_generic_pm_freeze,
+	.thaw	     = dasd_generic_restore_device,
+	.restore     = dasd_generic_restore_device,
 };
 
 static void

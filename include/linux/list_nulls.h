@@ -56,6 +56,18 @@ static inline int hlist_nulls_empty(const struct hlist_nulls_head *h)
 	return is_a_nulls(h->first);
 }
 
+static inline void hlist_nulls_add_head(struct hlist_nulls_node *n,
+					struct hlist_nulls_head *h)
+{
+	struct hlist_nulls_node *first = h->first;
+
+	n->next = first;
+	n->pprev = &h->first;
+	h->first = n;
+	if (!is_a_nulls(first))
+		first->pprev = &n->next;
+}
+
 static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 {
 	struct hlist_nulls_node *next = n->next;
@@ -63,6 +75,12 @@ static inline void __hlist_nulls_del(struct hlist_nulls_node *n)
 	*pprev = next;
 	if (!is_a_nulls(next))
 		next->pprev = pprev;
+}
+
+static inline void hlist_nulls_del(struct hlist_nulls_node *n)
+{
+	__hlist_nulls_del(n);
+	n->pprev = LIST_POISON2;
 }
 
 /**

@@ -1243,7 +1243,7 @@ static int xl_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	} else {
 		spin_unlock_irqrestore(&xl_priv->xl_lock,flags) ; 
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 }

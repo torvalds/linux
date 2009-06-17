@@ -274,7 +274,7 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 		if ((newskb = skb_realloc_headroom(skb, AX25_BPQ_HEADER_LEN)) == NULL) {
 			printk(KERN_WARNING "bpqether: out of memory\n");
 			kfree_skb(skb);
-			return -ENOMEM;
+			return NETDEV_TX_OK;
 		}
 
 		if (skb->sk != NULL)
@@ -294,7 +294,7 @@ static int bpq_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((dev = bpq_get_ether_dev(dev)) == NULL) {
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
-		return -ENODEV;
+		return NETDEV_TX_OK;
 	}
 
 	skb->protocol = ax25_type_trans(skb, dev);

@@ -49,19 +49,22 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	inet_twsk_put(tw);
 }
 
+static noinline void inet_twsk_free(struct inet_timewait_sock *tw)
+{
+	struct module *owner = tw->tw_prot->owner;
+	twsk_destructor((struct sock *)tw);
+#ifdef SOCK_REFCNT_DEBUG
+	pr_debug("%s timewait_sock %p released\n", tw->tw_prot->name, tw);
+#endif
+	release_net(twsk_net(tw));
+	kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
+	module_put(owner);
+}
+
 void inet_twsk_put(struct inet_timewait_sock *tw)
 {
-	if (atomic_dec_and_test(&tw->tw_refcnt)) {
-		struct module *owner = tw->tw_prot->owner;
-		twsk_destructor((struct sock *)tw);
-#ifdef SOCK_REFCNT_DEBUG
-		printk(KERN_DEBUG "%s timewait_sock %p released\n",
-		       tw->tw_prot->name, tw);
-#endif
-		release_net(twsk_net(tw));
-		kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
-		module_put(owner);
-	}
+	if (atomic_dec_and_test(&tw->tw_refcnt))
+		inet_twsk_free(tw);
 }
 EXPORT_SYMBOL_GPL(inet_twsk_put);
 

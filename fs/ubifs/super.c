@@ -1937,6 +1937,9 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	err  = bdi_init(&c->bdi);
 	if (err)
 		goto out_close;
+	err = bdi_register(&c->bdi, NULL, "ubifs");
+	if (err)
+		goto out_bdi;
 
 	err = ubifs_parse_options(c, data, 0);
 	if (err)

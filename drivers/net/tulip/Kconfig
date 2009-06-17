@@ -27,6 +27,18 @@ config DE2104X
 	  To compile this driver as a module, choose M here. The module will
 	  be called de2104x.
 
+config DE2104X_DSL
+	int "Descriptor Skip Length in 32 bit longwords"
+	depends on DE2104X
+	range 0 31
+	default 0
+	help
+	  Setting this value allows to align ring buffer descriptors into their
+	  own cache lines. Value of 4 corresponds to the typical 32 byte line
+	  (the descriptor is 16 bytes). This is necessary on systems that lack
+	  cache coherence, an example is PowerMac 5500. Otherwise 0 is safe.
+	  Default is 0, and range is 0 to 31.
+
 config TULIP
 	tristate "DECchip Tulip (dc2114x) PCI support"
 	depends on PCI

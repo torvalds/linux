@@ -45,6 +45,7 @@
 #include <asm/cacheflush.h>
 
 #include "entry.h"
+#include "cpumap.h"
 
 #define NUM_IVECS	(IMAP_INR + 1)
 
@@ -256,35 +257,13 @@ static int irq_choose_cpu(unsigned int virt_irq)
 	int cpuid;
 
 	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
-	if (cpus_equal(mask, CPU_MASK_ALL)) {
-		static int irq_rover;
-		static DEFINE_SPINLOCK(irq_rover_lock);
-		unsigned long flags;
-
-		/* Round-robin distribution... */
-	do_round_robin:
-		spin_lock_irqsave(&irq_rover_lock, flags);
-
-		while (!cpu_online(irq_rover)) {
-			if (++irq_rover >= nr_cpu_ids)
-				irq_rover = 0;
-		}
-		cpuid = irq_rover;
-		do {
-			if (++irq_rover >= nr_cpu_ids)
-				irq_rover = 0;
-		} while (!cpu_online(irq_rover));
-
-		spin_unlock_irqrestore(&irq_rover_lock, flags);
+	if (cpus_equal(mask, cpu_online_map)) {
+		cpuid = map_to_cpu(virt_irq);
 	} else {
 		cpumask_t tmp;
 
 		cpus_and(tmp, cpu_online_map, mask);
-
-		if (cpus_empty(tmp))
-			goto do_round_robin;
-
-		cpuid = first_cpu(tmp);
+		cpuid = cpus_empty(tmp) ? map_to_cpu(virt_irq) : first_cpu(tmp);
 	}
 
 	return cpuid;

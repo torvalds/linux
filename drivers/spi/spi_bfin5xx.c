@@ -803,7 +803,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 				drv_data->rx, drv_data->len_in_bytes);
 
 			/* invalidate caches, if needed */
-			if (bfin_addr_dcachable((unsigned long) drv_data->rx))
+			if (bfin_addr_dcacheable((unsigned long) drv_data->rx))
 				invalidate_dcache_range((unsigned long) drv_data->rx,
 							(unsigned long) (drv_data->rx +
 							drv_data->len_in_bytes));
@@ -816,7 +816,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			dev_dbg(&drv_data->pdev->dev, "doing DMA out.\n");
 
 			/* flush caches, if needed */
-			if (bfin_addr_dcachable((unsigned long) drv_data->tx))
+			if (bfin_addr_dcacheable((unsigned long) drv_data->tx))
 				flush_dcache_range((unsigned long) drv_data->tx,
 						(unsigned long) (drv_data->tx +
 						drv_data->len_in_bytes));

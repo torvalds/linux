@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/net/qeth_l2_main.c
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,
@@ -19,6 +19,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ip.h>
+#include <linux/list.h>
 
 #include "qeth_core.h"
 
@@ -130,7 +131,7 @@ static int qeth_l2_send_setgroupmac_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	mac = &cmd->data.setdelmac.mac[0];
 	/* MAC already registered, needed in couple/uncouple case */
-	if (cmd->hdr.return_code == 0x2005) {
+	if (cmd->hdr.return_code ==  IPA_RC_L2_DUP_MAC) {
 		QETH_DBF_MESSAGE(2, "Group MAC %pM already existing on %s \n",
 			  mac, QETH_CARD_IFNAME(card));
 		cmd->hdr.return_code = 0;
@@ -502,6 +503,30 @@ static int qeth_l2_send_setmac_cb(struct qeth_card *card,
 	if (cmd->hdr.return_code) {
 		QETH_DBF_TEXT_(TRACE, 2, "L2er%x", cmd->hdr.return_code);
 		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
+		switch (cmd->hdr.return_code) {
+		case IPA_RC_L2_DUP_MAC:
+		case IPA_RC_L2_DUP_LAYER3_MAC:
+			dev_warn(&card->gdev->dev,
+				"MAC address "
+				"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x "
+				"already exists\n",
+				card->dev->dev_addr[0], card->dev->dev_addr[1],
+				card->dev->dev_addr[2], card->dev->dev_addr[3],
+				card->dev->dev_addr[4], card->dev->dev_addr[5]);
+			break;
+		case IPA_RC_L2_MAC_NOT_AUTH_BY_HYP:
+		case IPA_RC_L2_MAC_NOT_AUTH_BY_ADP:
+			dev_warn(&card->gdev->dev,
+				"MAC address "
+				"%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x "
+				"is not authorized\n",
+				card->dev->dev_addr[0], card->dev->dev_addr[1],
+				card->dev->dev_addr[2], card->dev->dev_addr[3],
+				card->dev->dev_addr[4], card->dev->dev_addr[5]);
+			break;
+		default:
+			break;
+		}
 		cmd->hdr.return_code = -EIO;
 	} else {
 		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
@@ -616,6 +641,7 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct dev_addr_list *dm;
+	struct netdev_hw_addr *ha;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return ;
@@ -629,8 +655,8 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 	for (dm = dev->mc_list; dm; dm = dm->next)
 		qeth_l2_add_mc(card, dm->da_addr, 0);
 
-	for (dm = dev->uc_list; dm; dm = dm->next)
-		qeth_l2_add_mc(card, dm->da_addr, 1);
+	list_for_each_entry(ha, &dev->uc_list, list)
+		qeth_l2_add_mc(card, ha->addr, 1);
 
 	spin_unlock_bh(&card->mclock);
 	if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
@@ -839,6 +865,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&cgdev->dev);
 
+	qeth_set_allowed_threads(card, 0, 1);
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (cgdev->state == CCWGROUP_ONLINE) {
@@ -974,8 +1001,9 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			dev_warn(&card->gdev->dev,
 				"The LAN is offline\n");
 			card->lan_online = 0;
+			return 0;
 		}
-		return rc;
+		goto out_remove;
 	} else
 		card->lan_online = 1;
 
@@ -1113,12 +1141,62 @@ static void qeth_l2_shutdown(struct ccwgroup_device *gdev)
 	qeth_clear_qdio_buffers(card);
 }
 
+static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+
+	if (card->dev)
+		netif_device_detach(card->dev);
+	qeth_set_allowed_threads(card, 0, 1);
+	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
+	if (gdev->state == CCWGROUP_OFFLINE)
+		return 0;
+	if (card->state == CARD_STATE_UP) {
+		card->use_hard_stop = 1;
+		__qeth_l2_set_offline(card->gdev, 1);
+	} else
+		__qeth_l2_set_offline(card->gdev, 0);
+	return 0;
+}
+
+static int qeth_l2_pm_resume(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	int rc = 0;
+
+	if (gdev->state == CCWGROUP_OFFLINE)
+		goto out;
+
+	if (card->state == CARD_STATE_RECOVER) {
+		rc = __qeth_l2_set_online(card->gdev, 1);
+		if (rc) {
+			if (card->dev) {
+				rtnl_lock();
+				dev_close(card->dev);
+				rtnl_unlock();
+			}
+		}
+	} else
+		rc = __qeth_l2_set_online(card->gdev, 0);
+out:
+	qeth_set_allowed_threads(card, 0xffffffff, 0);
+	if (card->dev)
+		netif_device_attach(card->dev);
+	if (rc)
+		dev_warn(&card->gdev->dev, "The qeth device driver "
+			"failed to recover an error on the device\n");
+	return rc;
+}
+
 struct ccwgroup_driver qeth_l2_ccwgroup_driver = {
 	.probe = qeth_l2_probe_device,
 	.remove = qeth_l2_remove_device,
 	.set_online = qeth_l2_set_online,
 	.set_offline = qeth_l2_set_offline,
 	.shutdown = qeth_l2_shutdown,
+	.freeze = qeth_l2_pm_suspend,
+	.thaw = qeth_l2_pm_resume,
+	.restore = qeth_l2_pm_resume,
 };
 EXPORT_SYMBOL_GPL(qeth_l2_ccwgroup_driver);
 

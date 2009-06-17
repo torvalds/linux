@@ -877,7 +877,7 @@ static int fjn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (length > ETH_FRAME_LEN) {
 	    printk(KERN_NOTICE "%s: Attempting to send a large packet"
 		   " (%d bytes).\n", dev->name, length);
-	    return 1;
+	    return NETDEV_TX_BUSY;
 	}
 
 	DEBUG(4, "%s: Transmitting a packet of length %lu.\n",

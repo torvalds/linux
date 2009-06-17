@@ -438,6 +438,13 @@ Why:	Superseded by tdfxfb. I2C/DDC support used to live in a separate
 Who:	Jean Delvare <khali@linux-fr.org>
 	Krzysztof Helt <krzysztof.h1@wp.pl>
 
+---------------------------
+
+What:	CONFIG_RFKILL_INPUT
+When:	2.6.33
+Why:	Should be implemented in userspace, policy daemon.
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
 ----------------------------
 
 What:	CONFIG_X86_OLD_MCE

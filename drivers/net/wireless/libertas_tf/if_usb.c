@@ -461,8 +461,7 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 		return;
 	}
 
-	if (!in_interrupt())
-		BUG();
+	BUG_ON(!in_interrupt());
 
 	spin_lock(&priv->driver_lock);
 	memcpy(priv->cmd_resp_buff, recvbuff + MESSAGE_HEADER_LEN,

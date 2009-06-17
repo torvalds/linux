@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/hdreg.h>
-#include <linux/blktrace_api.h>
 
 #include <trace/events/block.h>
 

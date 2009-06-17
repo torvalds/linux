@@ -596,7 +596,7 @@ static int __init ip_queue_init(void)
 #ifdef CONFIG_SYSCTL
 	ipq_sysctl_header = register_sysctl_paths(net_ipv4_ctl_path, ipq_table);
 #endif
-	status = nf_register_queue_handler(PF_INET, &nfqh);
+	status = nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
 	if (status < 0) {
 		printk(KERN_ERR "ip_queue: failed to register queue handler\n");
 		goto cleanup_sysctl;

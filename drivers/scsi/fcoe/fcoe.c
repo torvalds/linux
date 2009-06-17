@@ -135,6 +135,58 @@ static struct scsi_host_template fcoe_shost_template = {
 };
 
 /**
+ * fcoe_fip_recv - handle a received FIP frame.
+ * @skb: the receive skb
+ * @dev: associated &net_device
+ * @ptype: the &packet_type structure which was used to register this handler.
+ * @orig_dev: original receive &net_device, in case @dev is a bond.
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *dev,
+			 struct packet_type *ptype,
+			 struct net_device *orig_dev)
+{
+	struct fcoe_softc *fc;
+
+	fc = container_of(ptype, struct fcoe_softc, fip_packet_type);
+	fcoe_ctlr_recv(&fc->ctlr, skb);
+	return 0;
+}
+
+/**
+ * fcoe_fip_send() - send an Ethernet-encapsulated FIP frame.
+ * @fip: FCoE controller.
+ * @skb: FIP Packet.
+ */
+static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
+{
+	skb->dev = fcoe_from_ctlr(fip)->real_dev;
+	dev_queue_xmit(skb);
+}
+
+/**
+ * fcoe_update_src_mac() - Update Ethernet MAC filters.
+ * @fip: FCoE controller.
+ * @old: Unicast MAC address to delete if the MAC is non-zero.
+ * @new: Unicast MAC address to add.
+ *
+ * Remove any previously-set unicast MAC filter.
+ * Add secondary FCoE MAC address filter for our OUI.
+ */
+static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new)
+{
+	struct fcoe_softc *fc;
+
+	fc = fcoe_from_ctlr(fip);
+	rtnl_lock();
+	if (!is_zero_ether_addr(old))
+		dev_unicast_delete(fc->real_dev, old);
+	dev_unicast_add(fc->real_dev, new);
+	rtnl_unlock();
+}
+
+/**
  * fcoe_lport_config() - sets up the fc_lport
  * @lp: ptr to the fc_lport
  *
@@ -167,6 +219,30 @@ static int fcoe_lport_config(struct fc_lport *lp)
 }
 
 /**
+ * fcoe_netdev_cleanup() - clean up netdev configurations
+ * @fc: ptr to the fcoe_softc
+ */
+void fcoe_netdev_cleanup(struct fcoe_softc *fc)
+{
+	u8 flogi_maddr[ETH_ALEN];
+
+	/* Don't listen for Ethernet packets anymore */
+	dev_remove_pack(&fc->fcoe_packet_type);
+	dev_remove_pack(&fc->fip_packet_type);
+
+	/* Delete secondary MAC addresses */
+	rtnl_lock();
+	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
+	dev_unicast_delete(fc->real_dev, flogi_maddr);
+	if (!is_zero_ether_addr(fc->ctlr.data_src_addr))
+		dev_unicast_delete(fc->real_dev, fc->ctlr.data_src_addr);
+	if (fc->ctlr.spma)
+		dev_unicast_delete(fc->real_dev, fc->ctlr.ctl_src_addr);
+	dev_mc_delete(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
+	rtnl_unlock();
+}
+
+/**
  * fcoe_queue_timer() - fcoe queue timer
  * @lp: the fc_lport pointer
  *
@@ -193,6 +269,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	u64 wwnn, wwpn;
 	struct fcoe_softc *fc;
 	u8 flogi_maddr[ETH_ALEN];
+	struct netdev_hw_addr *ha;
 
 	/* Setup lport private data to point to fcoe softc */
 	fc = lport_priv(lp);
@@ -250,9 +327,23 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	fc->fcoe_pending_queue_active = 0;
 	setup_timer(&fc->timer, fcoe_queue_timer, (unsigned long)lp);
 
+	/* look for SAN MAC address, if multiple SAN MACs exist, only
+	 * use the first one for SPMA */
+	rcu_read_lock();
+	for_each_dev_addr(netdev, ha) {
+		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
+		    (is_valid_ether_addr(fc->ctlr.ctl_src_addr))) {
+			memcpy(fc->ctlr.ctl_src_addr, ha->addr, ETH_ALEN);
+			fc->ctlr.spma = 1;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
 	/* setup Source Mac Address */
-	memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
-	       fc->real_dev->addr_len);
+	if (!fc->ctlr.spma)
+		memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
+		       fc->real_dev->addr_len);
 
 	wwnn = fcoe_wwn_from_mac(fc->real_dev->dev_addr, 1, 0);
 	fc_set_wwnn(lp, wwnn);
@@ -267,7 +358,9 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	 */
 	rtnl_lock();
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_add(fc->real_dev, flogi_maddr, ETH_ALEN);
+	dev_unicast_add(fc->real_dev, flogi_maddr);
+	if (fc->ctlr.spma)
+		dev_unicast_add(fc->real_dev, fc->ctlr.ctl_src_addr);
 	dev_mc_add(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 	rtnl_unlock();
 
@@ -279,6 +372,11 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	fc->fcoe_packet_type.type = __constant_htons(ETH_P_FCOE);
 	fc->fcoe_packet_type.dev = fc->real_dev;
 	dev_add_pack(&fc->fcoe_packet_type);
+
+	fc->fip_packet_type.func = fcoe_fip_recv;
+	fc->fip_packet_type.type = htons(ETH_P_FIP);
+	fc->fip_packet_type.dev = fc->real_dev;
+	dev_add_pack(&fc->fip_packet_type);
 
 	return 0;
 }
@@ -347,7 +445,6 @@ static int fcoe_if_destroy(struct net_device *netdev)
 {
 	struct fc_lport *lp = NULL;
 	struct fcoe_softc *fc;
-	u8 flogi_maddr[ETH_ALEN];
 
 	BUG_ON(!netdev);
 
@@ -366,9 +463,10 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	/* Remove the instance from fcoe's list */
 	fcoe_hostlist_remove(lp);
 
-	/* Don't listen for Ethernet packets anymore */
-	dev_remove_pack(&fc->fcoe_packet_type);
-	dev_remove_pack(&fc->fip_packet_type);
+	/* clean up netdev configurations */
+	fcoe_netdev_cleanup(fc);
+
+	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(&fc->ctlr);
 
 	/* Cleanup the fc_lport */
@@ -382,16 +480,6 @@ static int fcoe_if_destroy(struct net_device *netdev)
 	/* There are no more rports or I/O, free the EM */
 	if (lp->emp)
 		fc_exch_mgr_free(lp->emp);
-
-	/* Delete secondary MAC addresses */
-	rtnl_lock();
-	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_delete(fc->real_dev, flogi_maddr, ETH_ALEN);
-	if (!is_zero_ether_addr(fc->ctlr.data_src_addr))
-		dev_unicast_delete(fc->real_dev,
-				   fc->ctlr.data_src_addr, ETH_ALEN);
-	dev_mc_delete(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
-	rtnl_unlock();
 
 	/* Free the per-CPU receive threads */
 	fcoe_percpu_clean(lp);
@@ -455,58 +543,6 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 };
 
 /**
- * fcoe_fip_recv - handle a received FIP frame.
- * @skb: the receive skb
- * @dev: associated &net_device
- * @ptype: the &packet_type structure which was used to register this handler.
- * @orig_dev: original receive &net_device, in case @dev is a bond.
- *
- * Returns: 0 for success
- */
-static int fcoe_fip_recv(struct sk_buff *skb, struct net_device *dev,
-			 struct packet_type *ptype,
-			 struct net_device *orig_dev)
-{
-	struct fcoe_softc *fc;
-
-	fc = container_of(ptype, struct fcoe_softc, fip_packet_type);
-	fcoe_ctlr_recv(&fc->ctlr, skb);
-	return 0;
-}
-
-/**
- * fcoe_fip_send() - send an Ethernet-encapsulated FIP frame.
- * @fip: FCoE controller.
- * @skb: FIP Packet.
- */
-static void fcoe_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
-{
-	skb->dev = fcoe_from_ctlr(fip)->real_dev;
-	dev_queue_xmit(skb);
-}
-
-/**
- * fcoe_update_src_mac() - Update Ethernet MAC filters.
- * @fip: FCoE controller.
- * @old: Unicast MAC address to delete if the MAC is non-zero.
- * @new: Unicast MAC address to add.
- *
- * Remove any previously-set unicast MAC filter.
- * Add secondary FCoE MAC address filter for our OUI.
- */
-static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new)
-{
-	struct fcoe_softc *fc;
-
-	fc = fcoe_from_ctlr(fip);
-	rtnl_lock();
-	if (!is_zero_ether_addr(old))
-		dev_unicast_delete(fc->real_dev, old, ETH_ALEN);
-	dev_unicast_add(fc->real_dev, new, ETH_ALEN);
-	rtnl_unlock();
-}
-
-/**
  * fcoe_if_create() - this function creates the fcoe interface
  * @netdev: pointer the associated netdevice
  *
@@ -547,13 +583,6 @@ static int fcoe_if_create(struct net_device *netdev)
 		goto out_host_put;
 	}
 
-	/* configure lport network properties */
-	rc = fcoe_netdev_config(lp, netdev);
-	if (rc) {
-		FC_DBG("Could not configure netdev for lport\n");
-		goto out_host_put;
-	}
-
 	/*
 	 * Initialize FIP.
 	 */
@@ -561,23 +590,25 @@ static int fcoe_if_create(struct net_device *netdev)
 	fc->ctlr.send = fcoe_fip_send;
 	fc->ctlr.update_mac = fcoe_update_src_mac;
 
-	fc->fip_packet_type.func = fcoe_fip_recv;
-	fc->fip_packet_type.type = htons(ETH_P_FIP);
-	fc->fip_packet_type.dev = fc->real_dev;
-	dev_add_pack(&fc->fip_packet_type);
+	/* configure lport network properties */
+	rc = fcoe_netdev_config(lp, netdev);
+	if (rc) {
+		FC_DBG("Could not configure netdev for the interface\n");
+		goto out_netdev_cleanup;
+	}
 
 	/* configure lport scsi host properties */
 	rc = fcoe_shost_config(lp, shost, &netdev->dev);
 	if (rc) {
 		FC_DBG("Could not configure shost for lport\n");
-		goto out_host_put;
+		goto out_netdev_cleanup;
 	}
 
 	/* lport exch manager allocation */
 	rc = fcoe_em_config(lp);
 	if (rc) {
 		FC_DBG("Could not configure em for lport\n");
-		goto out_host_put;
+		goto out_netdev_cleanup;
 	}
 
 	/* Initialize the library */
@@ -603,6 +634,8 @@ static int fcoe_if_create(struct net_device *netdev)
 
 out_lp_destroy:
 	fc_exch_mgr_free(lp->emp); /* Free the EM */
+out_netdev_cleanup:
+	fcoe_netdev_cleanup(fc);
 out_host_put:
 	scsi_host_put(lp->host);
 	return rc;
