@@ -24,7 +24,7 @@
 #include <linux/io.h>
 
 #include <linux/of_platform.h>
-#include <asm/mpc512x.h>
+#include <asm/mpc5xxx.h>
 #include <asm/clk_interface.h>
 
 #undef CLK_DEBUG

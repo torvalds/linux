@@ -1006,7 +1006,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	priv->phy_addr = FEC5200_PHYADDR_NONE;
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->phy_speed = ((mpc52xx_find_ipb_freq(op->node) >> 20) / 5) << 1;
+	priv->phy_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
 
 	/* the 7-wire property means don't use MII mode */
 	if (of_find_property(op->node, "fsl,7-wire-mode", NULL))

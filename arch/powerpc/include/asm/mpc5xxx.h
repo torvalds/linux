@@ -4,7 +4,7 @@
  * Author: John Rigby, <jrigby@freescale.com>, Friday Apr 13 2007
  *
  * Description:
- * MPC5121 Prototypes and definitions
+ * MPC5xxx Prototypes and definitions
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -13,10 +13,10 @@
  *
  */
 
-#ifndef __ASM_POWERPC_MPC512x_H__
-#define __ASM_POWERPC_MPC512x_H__
+#ifndef __ASM_POWERPC_MPC5xxx_H__
+#define __ASM_POWERPC_MPC5xxx_H__
 
-extern unsigned long mpc512x_find_ips_freq(struct device_node *node);
+extern unsigned long mpc5xxx_get_bus_frequency(struct device_node *node);
 
-#endif /* __ASM_POWERPC_MPC512x_H__ */
+#endif /* __ASM_POWERPC_MPC5xxx_H__ */
 
