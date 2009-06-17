@@ -158,7 +158,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 }
 #endif /* CONFIG_SMP */
 
-struct irq_chip dmar_msi_type = {
+static struct irq_chip dmar_msi_type = {
 	.name = "DMAR_MSI",
 	.unmask = dmar_msi_unmask,
 	.mask = dmar_msi_mask,
