@@ -410,7 +410,7 @@ firmware file for modifying the HD-audio setup before initializing the
 codec.  This can work basically like the reconfiguration via sysfs in
 the above, but it does it before the first codec configuration.
 
-The patch file looks like below:
+A patch file is a plain text file which looks like below:
 
 ------------------------------------------------------------------------
   [codec]
@@ -447,6 +447,20 @@ The values can be shown in user_pin_configs sysfs file, too.
 Similarly, the lines after `[verb]` are parsed as `init_verbs`
 sysfs entries, and the lines after `[hint]` are parsed as `hints`
 sysfs entries, respectively.
+
+The hd-audio driver reads the file via request_firmware().  Thus,
+a patch file has to be located on the appropriate firmware path,
+typically, /lib/firmware.  For example, when you pass the option
+`patch=hda-init.fw`, the file /lib/firmware/hda-init-fw must be
+present.
+
+The patch module option is specific to each card instance, and you
+need to give one file name for each instance, separated by commas.
+For example, if you have two cards, one for an on-board analog and one 
+for an HDMI video board, you may pass patch option like below:
+------------------------------------------------------------------------
+    options snd-hda-intel patch=on-board-patch,hdmi-patch
+------------------------------------------------------------------------
 
 
 Power-Saving
