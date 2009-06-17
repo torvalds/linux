@@ -31,6 +31,26 @@ static DEFINE_PER_CPU(unsigned long, saved_lvtpc);
 /* 0 == registered but off, 1 == registered and on */
 static int nmi_enabled = 0;
 
+/* common functions */
+
+u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
+		    struct op_counter_config *counter_config)
+{
+	u64 val = 0;
+	u16 event = (u16)counter_config->event;
+
+	val |= ARCH_PERFMON_EVENTSEL_INT;
+	val |= counter_config->user ? ARCH_PERFMON_EVENTSEL_USR : 0;
+	val |= counter_config->kernel ? ARCH_PERFMON_EVENTSEL_OS : 0;
+	val |= (counter_config->unit_mask & 0xFF) << 8;
+	event &= model->event_mask ? model->event_mask : 0xFF;
+	val |= event & 0xFF;
+	val |= (event & 0x0F00) << 24;
+
+	return val;
+}
+
+
 static int profile_exceptions_notify(struct notifier_block *self,
 				     unsigned long val, void *data)
 {
@@ -52,26 +72,18 @@ static int profile_exceptions_notify(struct notifier_block *self,
 
 static void nmi_cpu_save_registers(struct op_msrs *msrs)
 {
-	unsigned int const nr_ctrs = model->num_counters;
-	unsigned int const nr_ctrls = model->num_controls;
 	struct op_msr *counters = msrs->counters;
 	struct op_msr *controls = msrs->controls;
 	unsigned int i;
 
-	for (i = 0; i < nr_ctrs; ++i) {
-		if (counters[i].addr) {
-			rdmsr(counters[i].addr,
-				counters[i].saved.low,
-				counters[i].saved.high);
-		}
+	for (i = 0; i < model->num_counters; ++i) {
+		if (counters[i].addr)
+			rdmsrl(counters[i].addr, counters[i].saved);
 	}
 
-	for (i = 0; i < nr_ctrls; ++i) {
-		if (controls[i].addr) {
-			rdmsr(controls[i].addr,
-				controls[i].saved.low,
-				controls[i].saved.high);
-		}
+	for (i = 0; i < model->num_controls; ++i) {
+		if (controls[i].addr)
+			rdmsrl(controls[i].addr, controls[i].saved);
 	}
 }
 
@@ -126,7 +138,7 @@ static void nmi_cpu_setup(void *dummy)
 	int cpu = smp_processor_id();
 	struct op_msrs *msrs = &per_cpu(cpu_msrs, cpu);
 	spin_lock(&oprofilefs_lock);
-	model->setup_ctrs(msrs);
+	model->setup_ctrs(model, msrs);
 	spin_unlock(&oprofilefs_lock);
 	per_cpu(saved_lvtpc, cpu) = apic_read(APIC_LVTPC);
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
@@ -178,26 +190,18 @@ static int nmi_setup(void)
 
 static void nmi_restore_registers(struct op_msrs *msrs)
 {
-	unsigned int const nr_ctrs = model->num_counters;
-	unsigned int const nr_ctrls = model->num_controls;
 	struct op_msr *counters = msrs->counters;
 	struct op_msr *controls = msrs->controls;
 	unsigned int i;
 
-	for (i = 0; i < nr_ctrls; ++i) {
-		if (controls[i].addr) {
-			wrmsr(controls[i].addr,
-				controls[i].saved.low,
-				controls[i].saved.high);
-		}
+	for (i = 0; i < model->num_controls; ++i) {
+		if (controls[i].addr)
+			wrmsrl(controls[i].addr, controls[i].saved);
 	}
 
-	for (i = 0; i < nr_ctrs; ++i) {
-		if (counters[i].addr) {
-			wrmsr(counters[i].addr,
-				counters[i].saved.low,
-				counters[i].saved.high);
-		}
+	for (i = 0; i < model->num_counters; ++i) {
+		if (counters[i].addr)
+			wrmsrl(counters[i].addr, counters[i].saved);
 	}
 }
 
@@ -402,6 +406,7 @@ module_param_call(cpu_type, force_cpu_type, NULL, NULL, 0);
 static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
+	struct op_x86_model_spec const *spec = &op_ppro_spec;	/* default */
 
 	if (force_arch_perfmon && cpu_has_arch_perfmon)
 		return 0;
@@ -428,7 +433,7 @@ static int __init ppro_init(char **cpu_type)
 		*cpu_type = "i386/core_2";
 		break;
 	case 26:
-		arch_perfmon_setup_counters();
+		spec = &op_arch_perfmon_spec;
 		*cpu_type = "i386/core_i7";
 		break;
 	case 28:
@@ -439,17 +444,7 @@ static int __init ppro_init(char **cpu_type)
 		return 0;
 	}
 
-	model = &op_ppro_spec;
-	return 1;
-}
-
-static int __init arch_perfmon_init(char **cpu_type)
-{
-	if (!cpu_has_arch_perfmon)
-		return 0;
-	*cpu_type = "i386/arch_perfmon";
-	model = &op_arch_perfmon_spec;
-	arch_perfmon_setup_counters();
+	model = spec;
 	return 1;
 }
 
@@ -471,27 +466,26 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		/* Needs to be at least an Athlon (or hammer in 32bit mode) */
 
 		switch (family) {
-		default:
-			return -ENODEV;
 		case 6:
-			model = &op_amd_spec;
 			cpu_type = "i386/athlon";
 			break;
 		case 0xf:
-			model = &op_amd_spec;
-			/* Actually it could be i386/hammer too, but give
-			 user space an consistent name. */
+			/*
+			 * Actually it could be i386/hammer too, but
+			 * give user space an consistent name.
+			 */
 			cpu_type = "x86-64/hammer";
 			break;
 		case 0x10:
-			model = &op_amd_spec;
 			cpu_type = "x86-64/family10";
 			break;
 		case 0x11:
-			model = &op_amd_spec;
 			cpu_type = "x86-64/family11h";
 			break;
+		default:
+			return -ENODEV;
 		}
+		model = &op_amd_spec;
 		break;
 
 	case X86_VENDOR_INTEL:
@@ -510,8 +504,15 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 			break;
 		}
 
-		if (!cpu_type && !arch_perfmon_init(&cpu_type))
+		if (cpu_type)
+			break;
+
+		if (!cpu_has_arch_perfmon)
 			return -ENODEV;
+
+		/* use arch perfmon as fallback */
+		cpu_type = "i386/arch_perfmon";
+		model = &op_arch_perfmon_spec;
 		break;
 
 	default:
