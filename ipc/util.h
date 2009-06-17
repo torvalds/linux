@@ -171,5 +171,6 @@ static inline void ipc_unlock(struct kern_ipc_perm *perm)
 struct kern_ipc_perm *ipc_lock_check(struct ipc_ids *ids, int id);
 int ipcget(struct ipc_namespace *ns, struct ipc_ids *ids,
 			struct ipc_ops *ops, struct ipc_params *params);
-
+void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
+		void (*free)(struct ipc_namespace *, struct kern_ipc_perm *));
 #endif
