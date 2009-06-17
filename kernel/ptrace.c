@@ -172,6 +172,8 @@ int ptrace_attach(struct task_struct *task)
 	audit_ptrace(task);
 
 	retval = -EPERM;
+	if (unlikely(task->flags & PF_KTHREAD))
+		goto out;
 	if (same_thread_group(task, current))
 		goto out;
 
@@ -182,8 +184,6 @@ int ptrace_attach(struct task_struct *task)
 	retval = mutex_lock_interruptible(&task->cred_guard_mutex);
 	if (retval  < 0)
 		goto out;
-
-	retval = -EPERM;
 repeat:
 	/*
 	 * Nasty, nasty.
@@ -203,23 +203,24 @@ repeat:
 		goto repeat;
 	}
 
-	if (!task->mm)
-		goto bad;
-	/* the same process cannot be attached many times */
-	if (task->ptrace & PT_PTRACED)
-		goto bad;
 	retval = __ptrace_may_access(task, PTRACE_MODE_ATTACH);
 	if (retval)
 		goto bad;
 
-	/* Go */
+	retval = -EPERM;
+	if (unlikely(task->exit_state))
+		goto bad;
+	if (task->ptrace & PT_PTRACED)
+		goto bad;
+
 	task->ptrace |= PT_PTRACED;
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 
 	__ptrace_link(task, current);
-
 	send_sig_info(SIGSTOP, SEND_SIG_FORCED, task);
+
+	retval = 0;
 bad:
 	write_unlock_irqrestore(&tasklist_lock, flags);
 	task_unlock(task);
