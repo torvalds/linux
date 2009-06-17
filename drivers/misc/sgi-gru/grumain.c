@@ -321,6 +321,7 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 	gts->ts_tsid = tsid;
 	gts->ts_ctxnum = NULLCTX;
 	gts->ts_tlb_int_select = -1;
+	gts->ts_cch_req_slice = -1;
 	gts->ts_sizeavail = GRU_SIZEAVAIL(PAGE_SHIFT);
 	if (vma) {
 		gts->ts_mm = current->mm;
@@ -565,6 +566,12 @@ void gru_load_context(struct gru_thread_state *gts)
 	if (cch->tlb_int_enable) {
 		gts->ts_tlb_int_select = gru_cpu_fault_map_id();
 		cch->tlb_int_select = gts->ts_tlb_int_select;
+	}
+	if (gts->ts_cch_req_slice >= 0) {
+		cch->req_slice_set_enable = 1;
+		cch->req_slice = gts->ts_cch_req_slice;
+	} else {
+		cch->req_slice_set_enable =0;
 	}
 	cch->tfm_done_bit_enable = 0;
 	cch->dsr_allocation_map = gts->ts_dsr_map;

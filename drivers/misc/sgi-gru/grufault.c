@@ -769,6 +769,10 @@ int gru_set_context_option(unsigned long arg)
  		/* Register the current task as the GSEG owner */
 		gts->ts_tgid_owner = current->tgid;
 		break;
+	case sco_cch_req_slice:
+ 		/* Set the CCH slice option */
+		gts->ts_cch_req_slice = req.val1 & 3;
+		break;
 	default:
 		ret = -EINVAL;
 	}
