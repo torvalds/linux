@@ -6230,6 +6230,14 @@ S:	Maintained
 F:	Documentation/i2c/busses/i2c-viapro
 F:	drivers/i2c/busses/i2c-viapro.c
 
+VIA SD/MMC CARD CONTROLLER DRIVER
+P:	Joseph Chan
+M:	JosephChan@via.com.tw
+P:	Harald Welte
+M:	HaraldWelte@viatech.com
+S:	Maintained
+F:	drivers/mmc/host/via-sdmmc.c
+
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
 P:	Joseph Chan
 M:	JosephChan@via.com.tw

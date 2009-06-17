@@ -290,3 +290,14 @@ config MMC_CB710
 	  This driver can also be built as a module. If so, the module
 	  will be called cb710-mmc.
 
+config MMC_VIA_SDMMC
+	tristate "VIA SD/MMC Card Reader Driver"
+	depends on PCI
+	help
+	  This selects the VIA SD/MMC Card Reader driver, say Y or M here.
+	  VIA provides one multi-functional card reader which integrated into
+	  some motherboards manufactured by VIA. This card reader supports
+	  SD/MMC/SDHC.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
