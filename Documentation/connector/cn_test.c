@@ -41,6 +41,12 @@ void cn_test_callback(void *data)
 	       msg->seq, msg->ack, msg->len, (char *)msg->data);
 }
 
+/*
+ * Do not remove this function even if no one is using it as
+ * this is an example of how to get notifications about new
+ * connector user registration
+ */
+#if 0
 static int cn_test_want_notify(void)
 {
 	struct cn_ctl_msg *ctl;
@@ -117,6 +123,7 @@ nlmsg_failure:
 	kfree_skb(skb);
 	return -EINVAL;
 }
+#endif
 
 static u32 cn_test_timer_counter;
 static void cn_test_timer_func(unsigned long __data)
