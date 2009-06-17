@@ -336,6 +336,16 @@ static int gic_resched_int_base;
 static int gic_call_int_base;
 #define GIC_RESCHED_INT(cpu) (gic_resched_int_base+(cpu))
 #define GIC_CALL_INT(cpu) (gic_call_int_base+(cpu))
+
+unsigned int plat_ipi_call_int_xlate(unsigned int cpu)
+{
+	return GIC_CALL_INT(cpu);
+}
+
+unsigned int plat_ipi_resched_int_xlate(unsigned int cpu)
+{
+	return GIC_RESCHED_INT(cpu);
+}
 #endif /* CONFIG_MIPS_MT_SMP */
 
 static struct irqaction i8259irq = {
