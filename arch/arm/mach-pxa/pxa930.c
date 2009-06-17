@@ -176,12 +176,29 @@ static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 	MFP_ADDR_END,
 };
 
+static struct mfp_addr_map pxa935_mfp_addr_map[] __initdata = {
+	MFP_ADDR(GPIO159, 0x0524),
+	MFP_ADDR(GPIO163, 0x0534),
+	MFP_ADDR(GPIO167, 0x0544),
+	MFP_ADDR(GPIO168, 0x0548),
+	MFP_ADDR(GPIO169, 0x054c),
+	MFP_ADDR(GPIO170, 0x0550),
+	MFP_ADDR(GPIO171, 0x0554),
+	MFP_ADDR(GPIO172, 0x0558),
+	MFP_ADDR(GPIO173, 0x055c),
+
+	MFP_ADDR_END,
+};
+
 static int __init pxa930_init(void)
 {
-	if (cpu_is_pxa930()) {
+	if (cpu_is_pxa930() || cpu_is_pxa935()) {
 		mfp_init_base(io_p2v(MFPR_BASE));
 		mfp_init_addr(pxa930_mfp_addr_map);
 	}
+
+	if (cpu_is_pxa935())
+		mfp_init_addr(pxa935_mfp_addr_map);
 
 	return 0;
 }
