@@ -2321,7 +2321,7 @@ static void ixgbe_set_rx_mode(struct net_device *netdev)
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
 	/* reprogram secondary unicast list */
-	hw->mac.ops.update_uc_addr_list(hw, &netdev->uc_list);
+	hw->mac.ops.update_uc_addr_list(hw, &netdev->uc.list);
 
 	/* reprogram multicast list */
 	addr_count = netdev->mc_count;
@@ -5261,7 +5261,7 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 
 /**
  * ixgbe_add_sanmac_netdev - Add the SAN MAC address to the corresponding
- * netdev->dev_addr_list
+ * netdev->dev_addrs
  * @netdev: network interface device structure
  *
  * Returns non-zero on failure
@@ -5282,7 +5282,7 @@ static int ixgbe_add_sanmac_netdev(struct net_device *dev)
 
 /**
  * ixgbe_del_sanmac_netdev - Removes the SAN MAC address to the corresponding
- * netdev->dev_addr_list
+ * netdev->dev_addrs
  * @netdev: network interface device structure
  *
  * Returns non-zero on failure
