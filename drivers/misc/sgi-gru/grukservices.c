@@ -188,6 +188,34 @@ static void gru_load_kernel_context(struct gru_blade_state *bs, int blade_id)
 }
 
 /*
+ * Free all kernel contexts that are not currently in use.
+ *   Returns 0 if all freed, else number of inuse context.
+ */
+static int gru_free_kernel_contexts(void)
+{
+	struct gru_blade_state *bs;
+	struct gru_thread_state *kgts;
+	int bid, ret = 0;
+
+	for (bid = 0; bid < GRU_MAX_BLADES; bid++) {
+		bs = gru_base[bid];
+		if (!bs)
+			continue;
+		if (down_write_trylock(&bs->bs_kgts_sema)) {
+			kgts = bs->bs_kgts;
+			if (kgts && kgts->ts_gru)
+				gru_unload_context(kgts, 0);
+			kfree(kgts);
+			bs->bs_kgts = NULL;
+			up_write(&bs->bs_kgts_sema);
+		} else {
+			ret++;
+		}
+	}
+	return ret;
+}
+
+/*
  * Lock & load the kernel context for the specified blade.
  */
 static struct gru_blade_state *gru_lock_kernel_context(int blade_id)
@@ -1009,35 +1037,22 @@ int gru_ktest(unsigned long arg)
 	case 2:
 		ret = quicktest2(arg);
 		break;
+	case 99:
+		ret = gru_free_kernel_contexts();
+		break;
 	}
 	return ret;
 
 }
 
-int gru_kservices_init(struct gru_state *gru)
+int gru_kservices_init(void)
 {
-	struct gru_blade_state *bs;
-
-	bs = gru->gs_blade;
-	if (gru != &bs->bs_grus[0])
-		return 0;
-
-	init_rwsem(&bs->bs_kgts_sema);
 	return 0;
 }
 
-void gru_kservices_exit(struct gru_state *gru)
+void gru_kservices_exit(void)
 {
-	struct gru_blade_state *bs;
-	struct gru_thread_state *kgts;
-
-	bs = gru->gs_blade;
-	if (gru != &bs->bs_grus[0])
-		return;
-
-	kgts = bs->bs_kgts;
-	if (kgts && kgts->ts_gru)
-		gru_unload_context(kgts, 0);
-	kfree(kgts);
+	if (gru_free_kernel_contexts())
+		BUG();
 }
 

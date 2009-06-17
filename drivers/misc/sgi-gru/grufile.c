@@ -287,7 +287,6 @@ static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
 	gru_dbg(grudev, "bid %d, nid %d, gid %d, vaddr %p (0x%lx)\n",
 		bid, nid, gru->gs_gid, gru->gs_gru_base_vaddr,
 		gru->gs_gru_base_paddr);
-	gru_kservices_init(gru);
 }
 
 static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
@@ -314,6 +313,7 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 		memset(gru_base[bid], 0, sizeof(struct gru_blade_state));
 		gru_base[bid]->bs_lru_gru = &gru_base[bid]->bs_grus[0];
 		spin_lock_init(&gru_base[bid]->bs_lock);
+		init_rwsem(&gru_base[bid]->bs_kgts_sema);
 
 		dsrbytes = 0;
 		cbrs = 0;
@@ -426,6 +426,7 @@ static int __init gru_init(void)
 		printk(KERN_ERR "%s: init tables failed\n", GRU_DRIVER_ID_STR);
 		goto exit3;
 	}
+	gru_kservices_init();
 
 	printk(KERN_INFO "%s: v%s\n", GRU_DRIVER_ID_STR,
 	       GRU_DRIVER_VERSION_STR);
@@ -444,7 +445,7 @@ exit1:
 
 static void __exit gru_exit(void)
 {
-	int i, bid, gid;
+	int i, bid;
 	int order = get_order(sizeof(struct gru_state) *
 			      GRU_CHIPLETS_PER_BLADE);
 
@@ -453,10 +454,7 @@ static void __exit gru_exit(void)
 
 	for (i = 0; i < GRU_CHIPLETS_PER_BLADE; i++)
 		free_irq(IRQ_GRU + i, NULL);
-
-	foreach_gid(gid)
-		gru_kservices_exit(GID_TO_GRU(gid));
-
+	gru_kservices_exit();
 	for (bid = 0; bid < GRU_MAX_BLADES; bid++)
 		free_pages((unsigned long)gru_base[bid], order);
 
