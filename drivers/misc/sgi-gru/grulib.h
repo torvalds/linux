@@ -32,8 +32,8 @@
 /* Set Number of Request Blocks */
 #define GRU_CREATE_CONTEXT		_IOWR(GRU_IOCTL_NUM, 1, void *)
 
-/* Register task as using the slice */
-#define GRU_SET_TASK_SLICE		_IOWR(GRU_IOCTL_NUM, 5, void *)
+/*  Set Context Options */
+#define GRU_SET_CONTEXT_OPTION		_IOWR(GRU_IOCTL_NUM, 4, void *)
 
 /* Fetch exception detail */
 #define GRU_USER_GET_EXCEPTION_DETAIL	_IOWR(GRU_IOCTL_NUM, 6, void *)
@@ -93,6 +93,16 @@ struct gru_create_context_req {
  */
 struct gru_unload_context_req {
 	unsigned long	gseg;
+};
+
+/*
+ * Structure used to set context options
+ */
+enum {sco_gseg_owner};
+struct gru_set_context_option_req {
+	unsigned long	gseg;
+	int		op;
+	unsigned long	val1;
 };
 
 /*

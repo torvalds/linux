@@ -749,18 +749,30 @@ long gru_get_gseg_statistics(unsigned long arg)
  * Register the current task as the user of the GSEG slice.
  * Needed for TLB fault interrupt targeting.
  */
-int gru_set_task_slice(long address)
+int gru_set_context_option(unsigned long arg)
 {
 	struct gru_thread_state *gts;
+	struct gru_set_context_option_req req;
+	int ret = 0;
 
-	STAT(set_task_slice);
-	gru_dbg(grudev, "address 0x%lx\n", address);
-	gts = gru_alloc_locked_gts(address);
+	STAT(set_context_option);
+	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
+		return -EFAULT;
+	gru_dbg(grudev, "op %d, gseg 0x%lx, value1 0x%lx\n", req.op, req.gseg, req.val1);
+
+	gts = gru_alloc_locked_gts(req.gseg);
 	if (!gts)
 		return -EINVAL;
 
-	gts->ts_tgid_owner = current->tgid;
+	switch (req.op) {
+	case sco_gseg_owner:
+ 		/* Register the current task as the GSEG owner */
+		gts->ts_tgid_owner = current->tgid;
+		break;
+	default:
+		ret = -EINVAL;
+	}
 	gru_unlock_gts(gts);
 
-	return 0;
+	return ret;
 }

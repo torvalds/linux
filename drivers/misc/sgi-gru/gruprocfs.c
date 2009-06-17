@@ -73,7 +73,7 @@ static int statistics_show(struct seq_file *s, void *p)
 	printstat(s, user_flush_tlb);
 	printstat(s, user_unload_context);
 	printstat(s, user_exception);
-	printstat(s, set_task_slice);
+	printstat(s, set_context_option);
 	printstat(s, migrate_check);
 	printstat(s, migrated_retarget);
 	printstat(s, migrated_unload);

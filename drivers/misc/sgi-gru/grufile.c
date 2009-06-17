@@ -198,8 +198,8 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
 	case GRU_CREATE_CONTEXT:
 		err = gru_create_new_context(arg);
 		break;
-	case GRU_SET_TASK_SLICE:
-		err = gru_set_task_slice(arg);
+	case GRU_SET_CONTEXT_OPTION:
+		err = gru_set_context_option(arg);
 		break;
 	case GRU_USER_GET_EXCEPTION_DETAIL:
 		err = gru_get_exception_detail(arg);
