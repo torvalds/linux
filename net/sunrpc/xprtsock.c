@@ -1792,6 +1792,7 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 		 */
 		set_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
 		xprt_force_disconnect(xprt);
+		break;
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ENETUNREACH:
