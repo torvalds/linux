@@ -257,7 +257,7 @@ typedef struct {
 
 /**
  * atomic64_read - read atomic64 variable
- * @v: pointer of type atomic64_t
+ * @ptr: pointer of type atomic64_t
  *
  * Atomically reads the value of @v.
  * Doesn't imply a read memory barrier.
@@ -294,7 +294,6 @@ atomic64_cmpxchg(atomic64_t *ptr, unsigned long long old_val,
  * atomic64_xchg - xchg atomic64 variable
  * @ptr:      pointer to type atomic64_t
  * @new_val:  value to assign
- * @old_val:  old value that was there
  *
  * Atomically xchgs the value of @ptr to @new_val and returns
  * the old value.

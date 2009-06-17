@@ -462,7 +462,8 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 static void
 __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
-	union entry_union eu;
+	union entry_union eu = {{0, 0}};
+
 	eu.entry = e;
 	io_apic_write(apic, 0x11 + 2*pin, eu.w2);
 	io_apic_write(apic, 0x10 + 2*pin, eu.w1);
@@ -3567,7 +3568,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 #endif /* CONFIG_SMP */
 
-struct irq_chip dmar_msi_type = {
+static struct irq_chip dmar_msi_type = {
 	.name = "DMAR_MSI",
 	.unmask = dmar_msi_unmask,
 	.mask = dmar_msi_mask,

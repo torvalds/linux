@@ -434,6 +434,16 @@ static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
 	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 1);
 }
 
+/* Flush the whole IO/TLB for a given protection domain - including PDE */
+static void iommu_flush_tlb_pde(struct amd_iommu *iommu, u16 domid)
+{
+       u64 address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
+
+       INC_STATS_COUNTER(domain_flush_single);
+
+       iommu_queue_inv_iommu_pages(iommu, address, domid, 1, 1);
+}
+
 /*
  * This function is used to flush the IO/TLB for a given protection domain
  * on every IOMMU in the system
@@ -1078,7 +1088,13 @@ static void attach_device(struct amd_iommu *iommu,
 	amd_iommu_pd_table[devid] = domain;
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
+       /*
+        * We might boot into a crash-kernel here. The crashed kernel
+        * left the caches in the IOMMU dirty. So we have to flush
+        * here to evict all dirty stuff.
+        */
 	iommu_queue_inv_dev_entry(iommu, devid);
+	iommu_flush_tlb_pde(iommu, domain->id);
 }
 
 /*
