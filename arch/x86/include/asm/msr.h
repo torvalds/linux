@@ -3,13 +3,10 @@
 
 #include <asm/msr-index.h>
 
-#ifndef __ASSEMBLY__
-# include <linux/types.h>
-#endif
-
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
+#include <linux/types.h>
 #include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/cpumask.h>
@@ -264,6 +261,4 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #endif  /* CONFIG_SMP */
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
-
-
 #endif /* _ASM_X86_MSR_H */
