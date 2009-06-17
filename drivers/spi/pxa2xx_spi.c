@@ -1236,9 +1236,6 @@ static int setup(struct spi_device *spi)
 	uint tx_thres = TX_THRESH_DFLT;
 	uint rx_thres = RX_THRESH_DFLT;
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (drv_data->ssp_type != PXA25x_SSP
 		&& (spi->bits_per_word < 4 || spi->bits_per_word > 32)) {
 		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
@@ -1328,18 +1325,14 @@ static int setup(struct spi_device *spi)
 
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (drv_data->ssp_type != PXA25x_SSP)
-		dev_dbg(&spi->dev, "%d bits/word, %ld Hz, mode %d, %s\n",
-				spi->bits_per_word,
+		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
 				clk_get_rate(ssp->clk)
 					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				spi->mode & 0x3,
 				chip->enable_dma ? "DMA" : "PIO");
 	else
-		dev_dbg(&spi->dev, "%d bits/word, %ld Hz, mode %d, %s\n",
-				spi->bits_per_word,
+		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
 				clk_get_rate(ssp->clk) / 2
 					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				spi->mode & 0x3,
 				chip->enable_dma ? "DMA" : "PIO");
 
 	if (spi->bits_per_word <= 8) {

@@ -1286,10 +1286,7 @@ static int setup(struct spi_device *spi)
 
 	/* SPI word width */
 	tmp = spi->bits_per_word;
-	if (tmp == 0) {
-		tmp = 8;
-		spi->bits_per_word = 8;
-	} else if (tmp > 16) {
+	if (tmp > 16) {
 		status = -EINVAL;
 		dev_err(&spi->dev,
 			"setup - "

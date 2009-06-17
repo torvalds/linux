@@ -126,7 +126,7 @@ static int txx9spi_setup(struct spi_device *spi)
 			|| spi->max_speed_hz < c->min_speed_hz)
 		return -EINVAL;
 
-	bits_per_word = spi->bits_per_word ? : 8;
+	bits_per_word = spi->bits_per_word;
 	if (bits_per_word != 8 && bits_per_word != 16)
 		return -EINVAL;
 

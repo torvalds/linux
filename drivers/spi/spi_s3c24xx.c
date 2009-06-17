@@ -153,9 +153,6 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 {
 	int ret;
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (spi->mode & ~MODEBITS) {
 		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
 			spi->mode & ~MODEBITS);
@@ -167,10 +164,6 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 		dev_err(&spi->dev, "setupxfer returned %d\n", ret);
 		return ret;
 	}
-
-	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n",
-		__func__, spi->mode, spi->bits_per_word,
-		spi->max_speed_hz);
 
 	return 0;
 }

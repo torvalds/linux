@@ -339,8 +339,6 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	bits = spi->bits_per_word;
 	if (t != NULL && t->bits_per_word)
 		bits = t->bits_per_word;
-	if (!bits)
-		bits = 8;
 
 	if (bits > 16) {
 		pr_debug("%s: wordsize %d?\n", dev_name(&spi->dev), bits);

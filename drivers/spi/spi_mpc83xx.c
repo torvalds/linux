@@ -447,9 +447,6 @@ static int mpc83xx_spi_setup(struct spi_device *spi)
 	}
 	mpc83xx_spi = spi_master_get_devdata(spi->master);
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	hw_mode = cs->hw_mode; /* Save orginal settings */
 	cs->hw_mode = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
 	/* mask out bits we are going to set */
@@ -471,9 +468,6 @@ static int mpc83xx_spi_setup(struct spi_device *spi)
 		return retval;
 	}
 
-	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u Hz\n",
-		__func__, spi->mode & (SPI_CPOL | SPI_CPHA),
-		spi->bits_per_word, spi->max_speed_hz);
 #if 0 /* Don't think this is needed */
 	/* NOTE we _need_ to call chipselect() early, ideally with adapter
 	 * setup, unless the hardware defaults cooperate to avoid confusion

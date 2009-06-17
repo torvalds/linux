@@ -555,8 +555,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (bits == 0)
-		bits = 8;
 	if (bits < 8 || bits > 16) {
 		dev_dbg(&spi->dev,
 				"setup: invalid bits_per_word %u (8 to 16)\n",

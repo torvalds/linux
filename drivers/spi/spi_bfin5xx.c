@@ -1016,10 +1016,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	/* Zero (the default) here means 8 bits */
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (spi->bits_per_word != 8 && spi->bits_per_word != 16)
 		return -EINVAL;
 

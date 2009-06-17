@@ -170,9 +170,6 @@ static int xilinx_spi_setup(struct spi_device *spi)
 	xspi = spi_master_get_devdata(spi->master);
 	bitbang = &xspi->bitbang;
 
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
-
 	if (spi->mode & ~MODEBITS) {
 		dev_err(&spi->dev, "%s, unsupported mode bits %x\n",
 			__func__, spi->mode & ~MODEBITS);
@@ -182,9 +179,6 @@ static int xilinx_spi_setup(struct spi_device *spi)
 	retval = xilinx_spi_setup_transfer(spi, NULL);
 	if (retval < 0)
 		return retval;
-
-	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec/bit\n",
-		__func__, spi->mode & MODEBITS, spi->bits_per_word, 0);
 
 	return 0;
 }

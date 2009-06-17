@@ -619,9 +619,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (spi->bits_per_word == 0)
-		spi->bits_per_word = 8;
-	else if (spi->bits_per_word < 4 || spi->bits_per_word > 32) {
+	if (spi->bits_per_word < 4 || spi->bits_per_word > 32) {
 		dev_dbg(&spi->dev, "setup: unsupported %d bit words\n",
 			spi->bits_per_word);
 		return -EINVAL;
