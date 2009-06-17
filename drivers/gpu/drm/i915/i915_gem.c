@@ -46,7 +46,6 @@ static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *o
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
-static int i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
@@ -1158,7 +1157,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/* Need a new fence register? */
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj, write);
+		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
@@ -2169,7 +2168,6 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 /**
  * i915_gem_object_get_fence_reg - set up a fence reg for an object
  * @obj: object to map through a fence reg
- * @write: object is about to be written
  *
  * When mapping objects through the GTT, userspace wants to be able to write
  * to them without having to worry about swizzling if the object is tiled.
@@ -2180,8 +2178,8 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
  * It then sets up the reg based on the object's properties: address, pitch
  * and tiling format.
  */
-static int
-i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
+int
+i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3550,7 +3548,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (!IS_I965G(dev) &&
 	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj, true);
+		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
 			if (ret != -EBUSY && ret != -ERESTARTSYS)
 				DRM_ERROR("Failure to install fence: %d\n",

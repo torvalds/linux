@@ -828,17 +828,29 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_object_pin(intel_fb->obj, alignment);
+	ret = i915_gem_object_pin(obj, alignment);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
+	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
 	if (ret != 0) {
-		i915_gem_object_unpin(intel_fb->obj);
+		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
+	}
+
+	/* Pre-i965 needs to install a fence for tiled scan-out */
+	if (!IS_I965G(dev) &&
+	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj);
+		if (ret != 0) {
+			i915_gem_object_unpin(obj);
+			mutex_unlock(&dev->struct_mutex);
+			return ret;
+		}
 	}
 
 	dspcntr = I915_READ(dspcntr_reg);
@@ -860,7 +872,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	default:
 		DRM_ERROR("Unknown color depth\n");
-		i915_gem_object_unpin(intel_fb->obj);
+		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
