@@ -57,8 +57,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	sdvox = SDVO_ENCODING_HDMI |
 		SDVO_BORDER_ENABLE |
 		SDVO_VSYNC_ACTIVE_HIGH |
-		SDVO_HSYNC_ACTIVE_HIGH |
-		SDVO_NULL_PACKETS_DURING_VSYNC;
+		SDVO_HSYNC_ACTIVE_HIGH;
 
 	if (hdmi_priv->has_hdmi_sink)
 		sdvox |= SDVO_AUDIO_ENABLE;
