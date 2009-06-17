@@ -7045,7 +7045,7 @@ static int migration_thread(void *data)
 
 		if (cpu_is_offline(cpu)) {
 			spin_unlock_irq(&rq->lock);
-			goto wait_to_die;
+			break;
 		}
 
 		if (rq->active_balance) {
@@ -7071,16 +7071,7 @@ static int migration_thread(void *data)
 		complete(&req->done);
 	}
 	__set_current_state(TASK_RUNNING);
-	return 0;
 
-wait_to_die:
-	/* Wait for kthread_stop */
-	set_current_state(TASK_INTERRUPTIBLE);
-	while (!kthread_should_stop()) {
-		schedule();
-		set_current_state(TASK_INTERRUPTIBLE);
-	}
-	__set_current_state(TASK_RUNNING);
 	return 0;
 }
 
@@ -7494,6 +7485,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		rq = task_rq_lock(p, &flags);
 		__setscheduler(rq, p, SCHED_FIFO, MAX_RT_PRIO-1);
 		task_rq_unlock(rq, &flags);
+		get_task_struct(p);
 		cpu_rq(cpu)->migration_thread = p;
 		break;
 
@@ -7524,6 +7516,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     cpumask_any(cpu_online_mask));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
+		put_task_struct(cpu_rq(cpu)->migration_thread);
 		cpu_rq(cpu)->migration_thread = NULL;
 		break;
 
@@ -7533,6 +7526,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		migrate_live_tasks(cpu);
 		rq = cpu_rq(cpu);
 		kthread_stop(rq->migration_thread);
+		put_task_struct(rq->migration_thread);
 		rq->migration_thread = NULL;
 		/* Idle task back to normal (off runqueue, low prio) */
 		spin_lock_irq(&rq->lock);
