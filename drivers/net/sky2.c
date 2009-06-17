@@ -65,9 +65,9 @@
 #define RX_DEF_PENDING		RX_MAX_PENDING
 
 #define TX_RING_SIZE		512
-#define TX_DEF_PENDING		(TX_RING_SIZE - 1)
-#define TX_MIN_PENDING		64
+#define TX_DEF_PENDING		128
 #define MAX_SKB_TX_LE		(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
+#define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 
 #define STATUS_RING_SIZE	2048	/* 2 ports * (TX + 2*RX) */
 #define STATUS_LE_BYTES		(STATUS_RING_SIZE*sizeof(struct sky2_status_le))
