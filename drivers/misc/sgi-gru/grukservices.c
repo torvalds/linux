@@ -436,11 +436,10 @@ static int gru_retry_exception(void *cb)
 	int retry = EXCEPTION_RETRY_LIMIT;
 
 	while (1)  {
-		if (gru_get_cb_message_queue_substatus(cb))
-			break;
 		if (gru_wait_idle_or_exception(gen) == CBS_IDLE)
 			return CBS_IDLE;
-
+		if (gru_get_cb_message_queue_substatus(cb))
+			return CBS_EXCEPTION;
 		gru_get_cb_exception_detail(cb, &excdet);
 		if ((excdet.ecause & ~EXCEPTION_RETRY_BITS) ||
 				(excdet.cbrexecstatus & CBR_EXS_ABORT_OCC))
