@@ -2604,15 +2604,6 @@ static void analyze_sbs(mddev_t * mddev)
 			clear_bit(In_sync, &rdev->flags);
 		}
 	}
-
-
-
-	if (mddev->recovery_cp != MaxSector &&
-	    mddev->level >= 1)
-		printk(KERN_ERR "md: %s: raid array is not clean"
-		       " -- starting background reconstruction\n",
-		       mdname(mddev));
-
 }
 
 static void md_safemode_timeout(unsigned long data);

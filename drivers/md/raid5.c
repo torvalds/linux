@@ -4454,6 +4454,10 @@ static int run(mddev_t *mddev)
 	int working_disks = 0;
 	mdk_rdev_t *rdev;
 
+	if (mddev->recovery_cp != MaxSector)
+		printk(KERN_NOTICE "raid5: %s is not clean"
+		       " -- starting background reconstruction\n",
+		       mdname(mddev));
 	if (mddev->reshape_position != MaxSector) {
 		/* Check that we can continue the reshape.
 		 * Currently only disks can change, it must

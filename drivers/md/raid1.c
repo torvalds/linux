@@ -2052,6 +2052,10 @@ static int run(mddev_t *mddev)
 		goto out_free_conf;
 	}
 
+	if (mddev->recovery_cp != MaxSector)
+		printk(KERN_NOTICE "raid1: %s is not clean"
+		       " -- starting background reconstruction\n",
+		       mdname(mddev));
 	printk(KERN_INFO 
 		"raid1: raid set %s active with %d out of %d mirrors\n",
 		mdname(mddev), mddev->raid_disks - mddev->degraded, 
