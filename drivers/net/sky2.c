@@ -2357,11 +2357,25 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	}
 }
 
+static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
+				unsigned packets, unsigned bytes)
+{
+	if (packets) {
+		struct net_device *dev = hw->dev[port];
+
+		dev->stats.rx_packets += packets;
+		dev->stats.rx_bytes += bytes;
+		dev->last_rx = jiffies;
+		sky2_rx_update(netdev_priv(dev), rxqaddr[port]);
+	}
+}
+
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 {
 	int work_done = 0;
-	unsigned rx[2] = { 0, 0 };
+	unsigned int total_bytes[2] = { 0 };
+	unsigned int total_packets[2] = { 0 };
 
 	rmb();
 	do {
@@ -2388,7 +2402,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 		le->opcode = 0;
 		switch (opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
-			++rx[port];
+			total_packets[port]++;
+			total_bytes[port] += length;
 			skb = sky2_receive(dev, length, status);
 			if (unlikely(!skb)) {
 				dev->stats.rx_dropped++;
@@ -2406,9 +2421,6 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 			}
 
 			skb->protocol = eth_type_trans(skb, dev);
-			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += skb->len;
-			dev->last_rx = jiffies;
 
 #ifdef SKY2_VLAN_TAG_USED
 			if (sky2->vlgrp && (status & GMR_FS_VLAN)) {
@@ -2487,11 +2499,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 
 exit_loop:
-	if (rx[0])
-		sky2_rx_update(netdev_priv(hw->dev[0]), Q_R1);
-
-	if (rx[1])
-		sky2_rx_update(netdev_priv(hw->dev[1]), Q_R2);
+	sky2_rx_done(hw, 0, total_packets[0], total_bytes[0]);
+	sky2_rx_done(hw, 1, total_packets[1], total_bytes[1]);
 
 	return work_done;
 }
