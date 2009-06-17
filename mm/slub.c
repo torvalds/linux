@@ -2704,6 +2704,7 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	struct kmem_cache *s;
 	char *text;
 	size_t realsize;
+	unsigned long slabflags;
 
 	s = kmalloc_caches_dma[index];
 	if (s)
@@ -2725,10 +2726,18 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 			 (unsigned int)realsize);
 	s = kmalloc(kmem_size, flags & ~SLUB_DMA);
 
+	/*
+	 * Must defer sysfs creation to a workqueue because we don't know
+	 * what context we are called from. Before sysfs comes up, we don't
+	 * need to do anything because our sysfs initcall will start by
+	 * adding all existing slabs to sysfs.
+	 */
+	slabflags = SLAB_CACHE_DMA|SLAB_NOTRACK;
+	if (slab_state >= SYSFS)
+		slabflags |= __SYSFS_ADD_DEFERRED;
+
 	if (!s || !text || !kmem_cache_open(s, flags, text,
-			realsize, ARCH_KMALLOC_MINALIGN,
-			SLAB_CACHE_DMA|SLAB_NOTRACK|__SYSFS_ADD_DEFERRED,
-			NULL)) {
+			realsize, ARCH_KMALLOC_MINALIGN, slabflags, NULL)) {
 		kfree(s);
 		kfree(text);
 		goto unlock_out;
@@ -2737,7 +2746,8 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	list_add(&s->list, &slab_caches);
 	kmalloc_caches_dma[index] = s;
 
-	schedule_work(&sysfs_add_work);
+	if (slab_state >= SYSFS)
+		schedule_work(&sysfs_add_work);
 
 unlock_out:
 	up_write(&slub_lock);
