@@ -4845,6 +4845,29 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	return 0;
 }
 
+static int check_stripe_cache(mddev_t *mddev)
+{
+	/* Can only proceed if there are plenty of stripe_heads.
+	 * We need a minimum of one full stripe,, and for sensible progress
+	 * it is best to have about 4 times that.
+	 * If we require 4 times, then the default 256 4K stripe_heads will
+	 * allow for chunk sizes up to 256K, which is probably OK.
+	 * If the chunk size is greater, user-space should request more
+	 * stripe_heads first.
+	 */
+	raid5_conf_t *conf = mddev->private;
+	if (((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4
+	    > conf->max_nr_stripes ||
+	    ((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4
+	    > conf->max_nr_stripes) {
+		printk(KERN_WARNING "raid5: reshape: not enough stripes.  Needed %lu\n",
+		       ((max(mddev->chunk_sectors, mddev->new_chunk_sectors) << 9)
+			/ STRIPE_SIZE)*4);
+		return 0;
+	}
+	return 1;
+}
+
 static int raid5_check_reshape(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev->private;
@@ -4871,24 +4894,8 @@ static int raid5_check_reshape(mddev_t *mddev)
 			return -EINVAL;
 	}
 
-	/* Can only proceed if there are plenty of stripe_heads.
-	 * We need a minimum of one full stripe,, and for sensible progress
-	 * it is best to have about 4 times that.
-	 * If we require 4 times, then the default 256 4K stripe_heads will
-	 * allow for chunk sizes up to 256K, which is probably OK.
-	 * If the chunk size is greater, user-space should request more
-	 * stripe_heads first.
-	 */
-	if (((mddev->chunk_sectors << 9) / STRIPE_SIZE) * 4
-		> conf->max_nr_stripes ||
-	    ((mddev->new_chunk_sectors << 9) / STRIPE_SIZE) * 4
-		> conf->max_nr_stripes) {
-		printk(KERN_WARNING "raid5: reshape: not enough stripes.  Needed %lu\n",
-		       (max(mddev->chunk_sectors << 9,
-			mddev->new_chunk_sectors << 9)
-			/ STRIPE_SIZE)*4);
+	if (!check_stripe_cache(mddev))
 		return -ENOSPC;
-	}
 
 	return resize_stripes(conf, conf->raid_disks + mddev->delta_disks);
 }
@@ -4903,6 +4910,9 @@ static int raid5_start_reshape(mddev_t *mddev)
 
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		return -EBUSY;
+
+	if (!check_stripe_cache(mddev))
+		return -ENOSPC;
 
 	list_for_each_entry(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk < 0 &&
