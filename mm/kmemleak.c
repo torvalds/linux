@@ -109,6 +109,9 @@
 
 #define BYTES_PER_POINTER	sizeof(void *)
 
+/* GFP bitmask for kmemleak internal allocations */
+#define GFP_KMEMLEAK_MASK	(GFP_KERNEL | GFP_ATOMIC)
+
 /* scanning area inside a memory block */
 struct kmemleak_scan_area {
 	struct hlist_node node;
@@ -462,7 +465,7 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	struct prio_tree_node *node;
 	struct stack_trace trace;
 
-	object = kmem_cache_alloc(object_cache, gfp & ~GFP_SLAB_BUG_MASK);
+	object = kmem_cache_alloc(object_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!object) {
 		kmemleak_panic("kmemleak: Cannot allocate a kmemleak_object "
 			       "structure\n");
@@ -636,7 +639,7 @@ static void add_scan_area(unsigned long ptr, unsigned long offset,
 		return;
 	}
 
-	area = kmem_cache_alloc(scan_area_cache, gfp & ~GFP_SLAB_BUG_MASK);
+	area = kmem_cache_alloc(scan_area_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!area) {
 		kmemleak_warn("kmemleak: Cannot allocate a scan area\n");
 		goto out;
