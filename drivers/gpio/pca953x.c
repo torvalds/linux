@@ -50,6 +50,7 @@ struct pca953x_chip {
 
 	struct i2c_client *client;
 	struct gpio_chip gpio_chip;
+	char **names;
 };
 
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
@@ -192,6 +193,7 @@ static void pca953x_setup_gpio(struct pca953x_chip *chip, int gpios)
 	gc->label = chip->client->name;
 	gc->dev = &chip->client->dev;
 	gc->owner = THIS_MODULE;
+	gc->names = chip->names;
 }
 
 static int __devinit pca953x_probe(struct i2c_client *client,
@@ -214,6 +216,8 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	chip->client = client;
 
 	chip->gpio_start = pdata->gpio_base;
+
+	chip->names = pdata->names;
 
 	/* initialize cached registers from their original values.
 	 * we can't share this chip with another i2c master.
