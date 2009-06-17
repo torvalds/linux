@@ -4312,6 +4312,8 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	}
 	drm_clflush_pages(obj_priv->pages, page_count);
 	drm_agp_chipset_flush(dev);
+
+	i915_gem_object_put_pages(obj);
 out:
 	obj_priv->phys_obj->cur_obj = NULL;
 	obj_priv->phys_obj = NULL;
@@ -4368,6 +4370,8 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		memcpy(dst, src, PAGE_SIZE);
 		kunmap_atomic(src, KM_USER0);
 	}
+
+	i915_gem_object_put_pages(obj);
 
 	return 0;
 out:
