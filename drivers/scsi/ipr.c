@@ -131,13 +131,13 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 };
 
 static const struct ipr_chip_t ipr_chip[] = {
-	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, &ipr_chip_cfg[1] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, &ipr_chip_cfg[1] }
+	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, IPR_USE_MSI, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, &ipr_chip_cfg[1] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, &ipr_chip_cfg[1] }
 };
 
 static int ipr_max_bus_speeds [] = {
@@ -7399,21 +7399,21 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
- * ipr_get_chip_cfg - Find adapter chip configuration
+ * ipr_get_chip_info - Find adapter chip information
  * @dev_id:		PCI device id struct
  *
  * Return value:
- * 	ptr to chip config on success / NULL on failure
+ * 	ptr to chip information on success / NULL on failure
  **/
-static const struct ipr_chip_cfg_t * __devinit
-ipr_get_chip_cfg(const struct pci_device_id *dev_id)
+static const struct ipr_chip_t * __devinit
+ipr_get_chip_info(const struct pci_device_id *dev_id)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ipr_chip); i++)
 		if (ipr_chip[i].vendor == dev_id->vendor &&
 		    ipr_chip[i].device == dev_id->device)
-			return ipr_chip[i].cfg;
+			return &ipr_chip[i];
 	return NULL;
 }
 
@@ -7540,13 +7540,15 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	ata_host_init(&ioa_cfg->ata_host, &pdev->dev,
 		      sata_port_info.flags, &ipr_sata_ops);
 
-	ioa_cfg->chip_cfg = ipr_get_chip_cfg(dev_id);
+	ioa_cfg->ipr_chip = ipr_get_chip_info(dev_id);
 
-	if (!ioa_cfg->chip_cfg) {
+	if (!ioa_cfg->ipr_chip) {
 		dev_err(&pdev->dev, "Unknown adapter chipset 0x%04X 0x%04X\n",
 			dev_id->vendor, dev_id->device);
 		goto out_scsi_host_put;
 	}
+
+	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
 
 	if (ipr_transop_timeout)
 		ioa_cfg->transop_timeout = ipr_transop_timeout;
@@ -7599,7 +7601,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	}
 
 	/* Enable MSI style interrupts if they are supported. */
-	if (!(rc = pci_enable_msi(pdev))) {
+	if (ioa_cfg->ipr_chip->intr_type == IPR_USE_MSI && !pci_enable_msi(pdev)) {
 		rc = ipr_test_msi(ioa_cfg, pdev);
 		if (rc == -EOPNOTSUPP)
 			pci_disable_msi(pdev);

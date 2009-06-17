@@ -1025,6 +1025,9 @@ struct ipr_chip_cfg_t {
 struct ipr_chip_t {
 	u16 vendor;
 	u16 device;
+	u16 intr_type;
+#define IPR_USE_LSI			0x00
+#define IPR_USE_MSI			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
@@ -1160,6 +1163,7 @@ struct ipr_ioa_cfg {
 
 	unsigned int transop_timeout;
 	const struct ipr_chip_cfg_t *chip_cfg;
+	const struct ipr_chip_t *ipr_chip;
 
 	void __iomem *hdw_dma_regs;	/* iomapped PCI memory space */
 	unsigned long hdw_dma_regs_pci;	/* raw PCI memory space */
