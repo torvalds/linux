@@ -554,6 +554,12 @@ struct gru_blade_state {
 
 /* Lock hierarchy checking enabled only in emulator */
 
+/* 0 = lock failed, 1 = locked */
+static inline int __trylock_handle(void *h)
+{
+	return !test_and_set_bit(1, h);
+}
+
 static inline void __lock_handle(void *h)
 {
 	while (test_and_set_bit(1, h))
@@ -563,6 +569,11 @@ static inline void __lock_handle(void *h)
 static inline void __unlock_handle(void *h)
 {
 	clear_bit(1, h);
+}
+
+static inline int trylock_cch_handle(struct gru_context_configuration_handle *cch)
+{
+	return __trylock_handle(cch);
 }
 
 static inline void lock_cch_handle(struct gru_context_configuration_handle *cch)
@@ -606,6 +617,7 @@ extern void gts_drop(struct gru_thread_state *gts);
 extern void gru_tgh_flush_init(struct gru_state *gru);
 extern int gru_kservices_init(struct gru_state *gru);
 extern void gru_kservices_exit(struct gru_state *gru);
+extern int gru_dump_chiplet_request(unsigned long arg);
 extern irqreturn_t gru_intr(int irq, void *dev_id);
 extern int gru_handle_user_call_os(unsigned long address);
 extern int gru_user_flush_tlb(unsigned long arg);

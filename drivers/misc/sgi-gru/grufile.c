@@ -255,6 +255,9 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
 	case GRU_GET_CONFIG_INFO:
 		err = gru_get_config_info(arg);
 		break;
+	case GRU_DUMP_CHIPLET_STATE:
+		err = gru_dump_chiplet_request(arg);
+		break;
 	}
 	return err;
 }

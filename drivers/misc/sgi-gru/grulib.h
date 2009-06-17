@@ -47,6 +47,9 @@
 /* For fetching GRU chiplet status */
 #define GRU_GET_CHIPLET_STATUS		_IOWR(GRU_IOCTL_NUM, 10, void *)
 
+/* For dumpping GRU chiplet state */
+#define GRU_DUMP_CHIPLET_STATE		_IOWR(GRU_IOCTL_NUM, 11, void *)
+
 /* For user TLB flushing (primarily for tests) */
 #define GRU_USER_FLUSH_TLB		_IOWR(GRU_IOCTL_NUM, 50, void *)
 
@@ -81,6 +84,36 @@ struct gru_flush_tlb_req {
 	unsigned long	gseg;
 	unsigned long	vaddr;
 	size_t		len;
+};
+
+/*
+ * Structure used to pass TLB flush parameters to the driver
+ */
+enum {dcs_pid, dcs_gid};
+struct gru_dump_chiplet_state_req {
+	unsigned int	op;
+	int		gid;
+	int		ctxnum;
+	char		data_opt;
+	char		lock_cch;
+	pid_t		pid;
+	void		*buf;
+	size_t		buflen;
+	/* ---- output --- */
+	unsigned int	num_contexts;
+};
+
+#define GRU_DUMP_MAGIC	0x3474ab6c
+struct gru_dump_context_header {
+	unsigned int	magic;
+	unsigned char	gid;
+	unsigned char	ctxnum;
+	unsigned char	cbrcnt;
+	unsigned char	dsrcnt;
+	pid_t		pid;
+	unsigned long	vaddr;
+	int		cch_locked;
+	unsigned long	data[0];
 };
 
 /*
