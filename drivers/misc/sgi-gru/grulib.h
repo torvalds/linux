@@ -44,9 +44,6 @@
 /* For user unload context */
 #define GRU_USER_UNLOAD_CONTEXT		_IOWR(GRU_IOCTL_NUM, 9, void *)
 
-/* For fetching GRU chiplet status */
-#define GRU_GET_CHIPLET_STATUS		_IOWR(GRU_IOCTL_NUM, 10, void *)
-
 /* For dumpping GRU chiplet state */
 #define GRU_DUMP_CHIPLET_STATE		_IOWR(GRU_IOCTL_NUM, 11, void *)
 

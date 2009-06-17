@@ -183,41 +183,6 @@ static long gru_get_config_info(unsigned long arg)
 }
 
 /*
- * Get GRU chiplet status
- */
-static long gru_get_chiplet_status(unsigned long arg)
-{
-	struct gru_state *gru;
-	struct gru_chiplet_info info;
-
-	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
-		return -EFAULT;
-
-	if (info.node == -1)
-		info.node = numa_node_id();
-	if (info.node >= num_possible_nodes() ||
-			info.chiplet >= GRU_CHIPLETS_PER_HUB ||
-			info.node < 0 || info.chiplet < 0)
-		return -EINVAL;
-
-	info.blade = uv_node_to_blade_id(info.node);
-	gru = get_gru(info.blade, info.chiplet);
-
-	info.total_dsr_bytes = GRU_NUM_DSR_BYTES;
-	info.total_cbr = GRU_NUM_CB;
-	info.total_user_dsr_bytes = GRU_NUM_DSR_BYTES -
-		gru->gs_reserved_dsr_bytes;
-	info.total_user_cbr = GRU_NUM_CB - gru->gs_reserved_cbrs;
-	info.free_user_dsr_bytes = hweight64(gru->gs_dsr_map) *
-			GRU_DSR_AU_BYTES;
-	info.free_user_cbr = hweight64(gru->gs_cbr_map) * GRU_CBR_AU_SIZE;
-
-	if (copy_to_user((void __user *)arg, &info, sizeof(info)))
-		return -EFAULT;
-	return 0;
-}
-
-/*
  * gru_file_unlocked_ioctl
  *
  * Called to update file attributes via IOCTL calls.
@@ -241,9 +206,6 @@ static long gru_file_unlocked_ioctl(struct file *file, unsigned int req,
 		break;
 	case GRU_USER_UNLOAD_CONTEXT:
 		err = gru_user_unload_context(arg);
-		break;
-	case GRU_GET_CHIPLET_STATUS:
-		err = gru_get_chiplet_status(arg);
 		break;
 	case GRU_USER_FLUSH_TLB:
 		err = gru_user_flush_tlb(arg);
