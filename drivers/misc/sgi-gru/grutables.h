@@ -630,6 +630,8 @@ extern void gru_flush_all_tlb(struct gru_state *gru);
 extern int gru_proc_init(void);
 extern void gru_proc_exit(void);
 
+extern struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
+		int cbr_au_count, int dsr_au_count, int options, int tsid);
 extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
