@@ -31,6 +31,7 @@
 #include <linux/smsc911x.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -94,6 +95,48 @@ static int armadillo5x0_pins[] = {
 	MX31_PIN_DRDY0__DRDY0,
 	IOMUX_MODE(MX31_PIN_LCS1, IOMUX_CONFIG_GPIO), /*ADV7125_PSAVE*/
 
+};
+
+/*
+ * MTD NOR Flash
+ */
+static struct mtd_partition armadillo5x0_nor_flash_partitions[] = {
+	{
+		.name		= "nor.bootloader",
+		.offset		= 0x00000000,
+		.size		= 4*32*1024,
+	}, {
+		.name		= "nor.kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 16*128*1024,
+	}, {
+		.name		= "nor.userland",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 110*128*1024,
+	}, {
+		.name		= "nor.config",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 1*128*1024,
+	},
+};
+
+static struct physmap_flash_data armadillo5x0_nor_flash_pdata = {
+	.width		= 2,
+	.parts		= armadillo5x0_nor_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(armadillo5x0_nor_flash_partitions),
+};
+
+static struct resource armadillo5x0_nor_flash_resource = {
+	.flags		= IORESOURCE_MEM,
+	.start		= CS0_BASE_ADDR,
+	.end		= CS0_BASE_ADDR + SZ_64M - 1,
+};
+
+static struct platform_device armadillo5x0_nor_flash = {
+	.name			= "physmap-flash",
+	.id			= -1,
+	.num_resources		= 1,
+	.resource		= &armadillo5x0_nor_flash_resource,
 };
 
 /*
@@ -272,6 +315,10 @@ static void __init armadillo5x0_init(void)
 	/* Register FB */
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+
+	/* Register NOR Flash */
+	mxc_register_device(&armadillo5x0_nor_flash,
+			    &armadillo5x0_nor_flash_pdata);
 }
 
 static void __init armadillo5x0_timer_init(void)
