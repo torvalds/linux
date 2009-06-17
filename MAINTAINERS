@@ -2274,11 +2274,9 @@ F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
-P:	Antonino Daplas
-M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://linux-fbdev.sourceforge.net/
-S:	Maintained
+S:	Orphan
 F:	Documentation/fb/
 F:	drivers/video/fb*
 F:	include/linux/fb.h
