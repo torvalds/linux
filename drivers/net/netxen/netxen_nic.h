@@ -169,6 +169,7 @@
 #define	MAX_NUM_CARDS		4
 
 #define MAX_BUFFERS_PER_CMD	32
+#define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + 4)
 
 /*
  * Following are the states of the Phantom. Phantom will set them and
@@ -1436,7 +1437,7 @@ int netxen_nic_set_mac(struct net_device *netdev, void *p);
 struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
 
 void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
-		struct nx_host_tx_ring *tx_ring, uint32_t crb_producer);
+		struct nx_host_tx_ring *tx_ring);
 
 /*
  * NetXen Board information
@@ -1537,6 +1538,14 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 	return 0;
 }
 
+
+static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
+{
+	smp_mb();
+	return find_diff_among(tx_ring->producer,
+			tx_ring->sw_consumer, tx_ring->num_desc);
+
+}
 
 int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);

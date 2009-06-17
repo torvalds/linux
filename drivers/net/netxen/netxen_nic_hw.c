@@ -488,7 +488,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	tx_ring->producer = producer;
 
-	netxen_nic_update_cmd_producer(adapter, tx_ring, producer);
+	netxen_nic_update_cmd_producer(adapter, tx_ring);
 
 	netif_tx_unlock_bh(adapter->netdev);
 
