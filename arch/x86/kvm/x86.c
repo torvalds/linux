@@ -2667,14 +2667,33 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 
-		/* Reject the instructions other than VMCALL/VMMCALL when
-		 * try to emulate invalid opcode */
+		/* Only allow emulation of specific instructions on #UD
+		 * (namely VMMCALL, sysenter, sysexit, syscall)*/
 		c = &vcpu->arch.emulate_ctxt.decode;
-		if ((emulation_type & EMULTYPE_TRAP_UD) &&
-		    (!(c->twobyte && c->b == 0x01 &&
-		      (c->modrm_reg == 0 || c->modrm_reg == 3) &&
-		       c->modrm_mod == 3 && c->modrm_rm == 1)))
-			return EMULATE_FAIL;
+		if (emulation_type & EMULTYPE_TRAP_UD) {
+			if (!c->twobyte)
+				return EMULATE_FAIL;
+			switch (c->b) {
+			case 0x01: /* VMMCALL */
+				if (c->modrm_mod != 3 || c->modrm_rm != 1)
+					return EMULATE_FAIL;
+				break;
+			case 0x34: /* sysenter */
+			case 0x35: /* sysexit */
+				if (c->modrm_mod != 0 || c->modrm_rm != 0)
+					return EMULATE_FAIL;
+				break;
+			case 0x05: /* syscall */
+				if (c->modrm_mod != 0 || c->modrm_rm != 0)
+					return EMULATE_FAIL;
+				break;
+			default:
+				return EMULATE_FAIL;
+			}
+
+			if (!(c->modrm_reg == 0 || c->modrm_reg == 3))
+				return EMULATE_FAIL;
+		}
 
 		++vcpu->stat.insn_emulation;
 		if (r)  {
