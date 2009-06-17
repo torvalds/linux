@@ -5167,8 +5167,7 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	if (new_layout >= 0 && !algorithm_valid_raid5(new_layout))
 		return -EINVAL;
 	if (new_chunk > 0) {
-		if (new_chunk & (new_chunk-1))
-			/* not a power of 2 */
+		if (!is_power_of_2(new_chunk))
 			return -EINVAL;
 		if (new_chunk < PAGE_SIZE)
 			return -EINVAL;
@@ -5206,8 +5205,7 @@ static int raid6_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	if (new_layout >= 0 && !algorithm_valid_raid6(new_layout))
 		return -EINVAL;
 	if (new_chunk > 0) {
-		if (new_chunk & (new_chunk-1))
-			/* not a power of 2 */
+		if (!is_power_of_2(new_chunk))
 			return -EINVAL;
 		if (new_chunk < PAGE_SIZE)
 			return -EINVAL;
