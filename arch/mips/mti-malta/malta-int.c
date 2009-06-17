@@ -409,7 +409,7 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 /*
  * GCMP needs to be detected before any SMP initialisation
  */
-static int __init gcmp_probe(unsigned long addr, unsigned long size)
+int __init gcmp_probe(unsigned long addr, unsigned long size)
 {
 	if (gcmp_present >= 0)
 		return gcmp_present;
@@ -449,14 +449,11 @@ static void __init fill_ipi_map(void)
 
 void __init arch_init_irq(void)
 {
-	int gic_present, gcmp_present;
-
 	init_i8259_irqs();
 
 	if (!cpu_has_veic)
 		mips_cpu_irq_init();
 
-	gcmp_present = gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
 	if (gcmp_present)  {
 		GCMPGCB(GICBA) = GIC_BASE_ADDR | GCMP_GCB_GICBA_EN_MSK;
 		gic_present = 1;
