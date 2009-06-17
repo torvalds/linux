@@ -2004,7 +2004,9 @@ void disable_IO_APIC(void)
 	/*
 	 * Use virtual wire A mode when interrupt remapping is enabled.
 	 */
-	disconnect_bsp_APIC(!intr_remapping_enabled && ioapic_i8259.pin != -1);
+	if (cpu_has_apic)
+		disconnect_bsp_APIC(!intr_remapping_enabled &&
+				ioapic_i8259.pin != -1);
 }
 
 #ifdef CONFIG_X86_32
