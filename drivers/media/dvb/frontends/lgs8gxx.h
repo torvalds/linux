@@ -1,9 +1,9 @@
 /*
- *    Support for Legend Silicon DMB-TH demodulator
- *    LGS8913, LGS8GL5
+ *    Support for Legend Silicon GB20600 (a.k.a DMB-TH) demodulator
+ *    LGS8913, LGS8GL5, LGS8G75
  *    experimental support LGS8G42, LGS8G52
  *
- *    Copyright (C) 2007,2008 David T.L. Wong <davidtlwong@gmail.com>
+ *    Copyright (C) 2007-2009 David T.L. Wong <davidtlwong@gmail.com>
  *    Copyright (C) 2008 Sirius International (Hong Kong) Limited
  *    Timothy Lee <timothy.lee@siriushk.com> (for initial work on LGS8GL5)
  *
@@ -34,6 +34,7 @@
 #define LGS8GXX_PROD_LGS8G42 3
 #define LGS8GXX_PROD_LGS8G52 4
 #define LGS8GXX_PROD_LGS8G54 5
+#define LGS8GXX_PROD_LGS8G75 6
 
 struct lgs8gxx_config {
 
@@ -69,6 +70,10 @@ struct lgs8gxx_config {
 
 	/*IF use Negative center frequency*/
 	u8 if_neg_center;
+
+	/*8G75 internal ADC input range selection*/
+	/*0: 0.8Vpp, 1: 1.0Vpp, 2: 1.6Vpp, 3: 2.0Vpp*/
+	u8 adc_vpp;
 
 	/* slave address and configuration of the tuner */
 	u8 tuner_address;
