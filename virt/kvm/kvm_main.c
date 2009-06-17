@@ -59,6 +59,9 @@
 #include "irq.h"
 #endif
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/kvm.h>
+
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
@@ -2718,6 +2721,7 @@ EXPORT_SYMBOL_GPL(kvm_init);
 void kvm_exit(void)
 {
 	kvm_trace_cleanup();
+	tracepoint_synchronize_unregister();
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
 	sysdev_unregister(&kvm_sysdev);

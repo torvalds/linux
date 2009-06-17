@@ -34,6 +34,7 @@
 #include <asm/atomic.h>
 #include "kvm_cache_regs.h"
 #include "irq.h"
+#include "trace.h"
 
 #ifndef CONFIG_X86_64
 #define mod_64(x, y) ((x) - (y) * div64_u64(x, y))
@@ -515,8 +516,6 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 {
 	u32 val = 0;
 
-	KVMTRACE_1D(APIC_ACCESS, apic->vcpu, (u32)offset, handler);
-
 	if (offset >= LAPIC_MMIO_LENGTH)
 		return 0;
 
@@ -561,6 +560,8 @@ static void apic_mmio_read(struct kvm_io_device *this,
 		return;
 	}
 	result = __apic_read(apic, offset & ~0xf);
+
+	trace_kvm_apic_read(offset, result);
 
 	switch (len) {
 	case 1:
@@ -657,7 +658,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 
 	offset &= 0xff0;
 
-	KVMTRACE_1D(APIC_ACCESS, apic->vcpu, (u32)offset, handler);
+	trace_kvm_apic_write(offset, val);
 
 	switch (offset) {
 	case APIC_ID:		/* Local APIC ID */

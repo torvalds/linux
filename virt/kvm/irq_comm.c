@@ -20,6 +20,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <trace/events/kvm.h>
 
 #include <asm/msidef.h>
 #ifdef CONFIG_IA64
@@ -125,6 +126,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	unsigned long *irq_state, sig_level;
 	int ret = -1;
 
+	trace_kvm_set_irq(irq);
+
 	WARN_ON(!mutex_is_locked(&kvm->irq_lock));
 
 	if (irq < KVM_IOAPIC_NUM_PINS) {
@@ -160,6 +163,8 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 	struct kvm_irq_ack_notifier *kian;
 	struct hlist_node *n;
 	unsigned gsi = pin;
+
+	trace_kvm_ack_irq(irqchip, pin);
 
 	list_for_each_entry(e, &kvm->irq_routing, link)
 		if (e->type == KVM_IRQ_ROUTING_IRQCHIP &&

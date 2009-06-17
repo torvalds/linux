@@ -37,6 +37,8 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 #include <linux/cpufreq.h>
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
 #include <asm/uaccess.h>
 #include <asm/msr.h>
@@ -347,9 +349,6 @@ EXPORT_SYMBOL_GPL(kvm_set_cr0);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
 	kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f));
-	KVMTRACE_1D(LMSW, vcpu,
-		    (u32)((vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f)),
-		    handler);
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
@@ -2568,7 +2567,6 @@ int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
 
 int emulate_clts(struct kvm_vcpu *vcpu)
 {
-	KVMTRACE_0D(CLTS, vcpu, handler);
 	kvm_x86_ops->set_cr0(vcpu, vcpu->arch.cr0 & ~X86_CR0_TS);
 	return X86EMUL_CONTINUE;
 }
@@ -2851,12 +2849,8 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.down = 0;
 	vcpu->arch.pio.rep = 0;
 
-	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
-		KVMTRACE_2D(IO_READ, vcpu, vcpu->run->io.port, (u32)size,
-			    handler);
-	else
-		KVMTRACE_2D(IO_WRITE, vcpu, vcpu->run->io.port, (u32)size,
-			    handler);
+	trace_kvm_pio(vcpu->run->io.direction == KVM_EXIT_IO_OUT, port,
+		      size, 1);
 
 	val = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	memcpy(vcpu->arch.pio_data, &val, 4);
@@ -2892,12 +2886,8 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.down = down;
 	vcpu->arch.pio.rep = rep;
 
-	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
-		KVMTRACE_2D(IO_READ, vcpu, vcpu->run->io.port, (u32)size,
-			    handler);
-	else
-		KVMTRACE_2D(IO_WRITE, vcpu, vcpu->run->io.port, (u32)size,
-			    handler);
+	trace_kvm_pio(vcpu->run->io.direction == KVM_EXIT_IO_OUT, port,
+		      size, count);
 
 	if (!count) {
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
@@ -3075,7 +3065,6 @@ void kvm_arch_exit(void)
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.halt_exits;
-	KVMTRACE_0D(HLT, vcpu, handler);
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
 		return 1;
@@ -3106,7 +3095,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	a2 = kvm_register_read(vcpu, VCPU_REGS_RDX);
 	a3 = kvm_register_read(vcpu, VCPU_REGS_RSI);
 
-	KVMTRACE_1D(VMMCALL, vcpu, (u32)nr, handler);
+	trace_kvm_hypercall(nr, a0, a1, a2, a3);
 
 	if (!is_long_mode(vcpu)) {
 		nr &= 0xFFFFFFFF;
@@ -3206,8 +3195,6 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
 		return 0;
 	}
-	KVMTRACE_3D(CR_READ, vcpu, (u32)cr, (u32)value,
-		    (u32)((u64)value >> 32), handler);
 
 	return value;
 }
@@ -3215,9 +3202,6 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		     unsigned long *rflags)
 {
-	KVMTRACE_3D(CR_WRITE, vcpu, (u32)cr, (u32)val,
-		    (u32)((u64)val >> 32), handler);
-
 	switch (cr) {
 	case 0:
 		kvm_set_cr0(vcpu, mk_cr_64(vcpu->arch.cr0, val));
@@ -3327,11 +3311,11 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		kvm_register_write(vcpu, VCPU_REGS_RDX, best->edx);
 	}
 	kvm_x86_ops->skip_emulated_instruction(vcpu);
-	KVMTRACE_5D(CPUID, vcpu, function,
-		    (u32)kvm_register_read(vcpu, VCPU_REGS_RAX),
-		    (u32)kvm_register_read(vcpu, VCPU_REGS_RBX),
-		    (u32)kvm_register_read(vcpu, VCPU_REGS_RCX),
-		    (u32)kvm_register_read(vcpu, VCPU_REGS_RDX), handler);
+	trace_kvm_cpuid(function,
+			kvm_register_read(vcpu, VCPU_REGS_RAX),
+			kvm_register_read(vcpu, VCPU_REGS_RBX),
+			kvm_register_read(vcpu, VCPU_REGS_RCX),
+			kvm_register_read(vcpu, VCPU_REGS_RDX));
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
 
@@ -3527,7 +3511,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		set_debugreg(vcpu->arch.eff_db[3], 3);
 	}
 
-	KVMTRACE_0D(VMENTRY, vcpu, entryexit);
+	trace_kvm_entry(vcpu->vcpu_id);
 	kvm_x86_ops->run(vcpu, kvm_run);
 
 	if (unlikely(vcpu->arch.switch_db_regs)) {
@@ -4842,3 +4826,9 @@ int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
 {
 	return kvm_x86_ops->interrupt_allowed(vcpu);
 }
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_page_fault);
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_msr);
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_cr);

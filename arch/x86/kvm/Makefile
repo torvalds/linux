@@ -1,6 +1,10 @@
 
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/x86/kvm
 
+CFLAGS_x86.o := -I.
+CFLAGS_svm.o := -I.
+CFLAGS_vmx.o := -I.
+
 kvm-y			+= $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
 				coalesced_mmio.o irq_comm.o eventfd.o)
 kvm-$(CONFIG_KVM_TRACE)	+= $(addprefix ../../../virt/kvm/, kvm_trace.o)

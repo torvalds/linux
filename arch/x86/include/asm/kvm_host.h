@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/mmu_notifier.h>
+#include <linux/tracepoint.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -527,6 +528,7 @@ struct kvm_x86_ops {
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+	const struct trace_print_flags *exit_reasons_str;
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;

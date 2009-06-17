@@ -25,10 +25,12 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/sched.h>
+#include <linux/ftrace_event.h>
 
 #include <asm/desc.h>
 
 #include <asm/virtext.h>
+#include "trace.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 
@@ -1096,7 +1098,6 @@ static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
 		val = 0;
 	}
 
-	KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
 	return val;
 }
 
@@ -1104,8 +1105,6 @@ static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 		       int *exception)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	KVMTRACE_2D(DR_WRITE, vcpu, (u32)dr, (u32)value, handler);
 
 	*exception = 0;
 
@@ -1154,14 +1153,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
 
-	if (!npt_enabled)
-		KVMTRACE_3D(PAGE_FAULT, &svm->vcpu, error_code,
-			    (u32)fault_address, (u32)(fault_address >> 32),
-			    handler);
-	else
-		KVMTRACE_3D(TDP_FAULT, &svm->vcpu, error_code,
-			    (u32)fault_address, (u32)(fault_address >> 32),
-			    handler);
+	trace_kvm_page_fault(fault_address, error_code);
 	/*
 	 * FIXME: Tis shouldn't be necessary here, but there is a flush
 	 * missing in the MMU code. Until we find this bug, flush the
@@ -1288,14 +1280,12 @@ static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 
 static int nmi_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
-	KVMTRACE_0D(NMI, &svm->vcpu, handler);
 	return 1;
 }
 
 static int intr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	++svm->vcpu.stat.irq_exits;
-	KVMTRACE_0D(INTR, &svm->vcpu, handler);
 	return 1;
 }
 
@@ -2077,8 +2067,7 @@ static int rdmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (svm_get_msr(&svm->vcpu, ecx, &data))
 		kvm_inject_gp(&svm->vcpu, 0);
 	else {
-		KVMTRACE_3D(MSR_READ, &svm->vcpu, ecx, (u32)data,
-			    (u32)(data >> 32), handler);
+		trace_kvm_msr_read(ecx, data);
 
 		svm->vcpu.arch.regs[VCPU_REGS_RAX] = data & 0xffffffff;
 		svm->vcpu.arch.regs[VCPU_REGS_RDX] = data >> 32;
@@ -2163,8 +2152,7 @@ static int wrmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	u64 data = (svm->vcpu.arch.regs[VCPU_REGS_RAX] & -1u)
 		| ((u64)(svm->vcpu.arch.regs[VCPU_REGS_RDX] & -1u) << 32);
 
-	KVMTRACE_3D(MSR_WRITE, &svm->vcpu, ecx, (u32)data, (u32)(data >> 32),
-		    handler);
+	trace_kvm_msr_write(ecx, data);
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 2;
 	if (svm_set_msr(&svm->vcpu, ecx, data))
@@ -2185,8 +2173,6 @@ static int msr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int interrupt_window_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
-	KVMTRACE_0D(PEND_INTR, &svm->vcpu, handler);
-
 	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	/*
@@ -2265,8 +2251,7 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 exit_code = svm->vmcb->control.exit_code;
 
-	KVMTRACE_3D(VMEXIT, vcpu, exit_code, (u32)svm->vmcb->save.rip,
-		    (u32)((u64)svm->vmcb->save.rip >> 32), entryexit);
+	trace_kvm_exit(exit_code, svm->vmcb->save.rip);
 
 	if (is_nested(svm)) {
 		nsvm_printk("nested handle_exit: 0x%x | 0x%lx | 0x%lx | 0x%lx\n",
@@ -2354,7 +2339,7 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
 	struct vmcb_control_area *control;
 
-	KVMTRACE_1D(INJ_VIRQ, &svm->vcpu, (u32)irq, handler);
+	trace_kvm_inj_virq(irq);
 
 	++svm->vcpu.stat.irq_injections;
 	control = &svm->vmcb->control;
@@ -2717,6 +2702,59 @@ static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	return 0;
 }
 
+static const struct trace_print_flags svm_exit_reasons_str[] = {
+	{ SVM_EXIT_READ_CR0,           		"read_cr0" },
+	{ SVM_EXIT_READ_CR3,	      		"read_cr3" },
+	{ SVM_EXIT_READ_CR4,	      		"read_cr4" },
+	{ SVM_EXIT_READ_CR8,  	      		"read_cr8" },
+	{ SVM_EXIT_WRITE_CR0,          		"write_cr0" },
+	{ SVM_EXIT_WRITE_CR3,	      		"write_cr3" },
+	{ SVM_EXIT_WRITE_CR4,          		"write_cr4" },
+	{ SVM_EXIT_WRITE_CR8, 	      		"write_cr8" },
+	{ SVM_EXIT_READ_DR0, 	      		"read_dr0" },
+	{ SVM_EXIT_READ_DR1,	      		"read_dr1" },
+	{ SVM_EXIT_READ_DR2,	      		"read_dr2" },
+	{ SVM_EXIT_READ_DR3,	      		"read_dr3" },
+	{ SVM_EXIT_WRITE_DR0,	      		"write_dr0" },
+	{ SVM_EXIT_WRITE_DR1,	      		"write_dr1" },
+	{ SVM_EXIT_WRITE_DR2,	      		"write_dr2" },
+	{ SVM_EXIT_WRITE_DR3,	      		"write_dr3" },
+	{ SVM_EXIT_WRITE_DR5,	      		"write_dr5" },
+	{ SVM_EXIT_WRITE_DR7,	      		"write_dr7" },
+	{ SVM_EXIT_EXCP_BASE + DB_VECTOR,	"DB excp" },
+	{ SVM_EXIT_EXCP_BASE + BP_VECTOR,	"BP excp" },
+	{ SVM_EXIT_EXCP_BASE + UD_VECTOR,	"UD excp" },
+	{ SVM_EXIT_EXCP_BASE + PF_VECTOR,	"PF excp" },
+	{ SVM_EXIT_EXCP_BASE + NM_VECTOR,	"NM excp" },
+	{ SVM_EXIT_EXCP_BASE + MC_VECTOR,	"MC excp" },
+	{ SVM_EXIT_INTR,			"interrupt" },
+	{ SVM_EXIT_NMI,				"nmi" },
+	{ SVM_EXIT_SMI,				"smi" },
+	{ SVM_EXIT_INIT,			"init" },
+	{ SVM_EXIT_VINTR,			"vintr" },
+	{ SVM_EXIT_CPUID,			"cpuid" },
+	{ SVM_EXIT_INVD,			"invd" },
+	{ SVM_EXIT_HLT,				"hlt" },
+	{ SVM_EXIT_INVLPG,			"invlpg" },
+	{ SVM_EXIT_INVLPGA,			"invlpga" },
+	{ SVM_EXIT_IOIO,			"io" },
+	{ SVM_EXIT_MSR,				"msr" },
+	{ SVM_EXIT_TASK_SWITCH,			"task_switch" },
+	{ SVM_EXIT_SHUTDOWN,			"shutdown" },
+	{ SVM_EXIT_VMRUN,			"vmrun" },
+	{ SVM_EXIT_VMMCALL,			"hypercall" },
+	{ SVM_EXIT_VMLOAD,			"vmload" },
+	{ SVM_EXIT_VMSAVE,			"vmsave" },
+	{ SVM_EXIT_STGI,			"stgi" },
+	{ SVM_EXIT_CLGI,			"clgi" },
+	{ SVM_EXIT_SKINIT,			"skinit" },
+	{ SVM_EXIT_WBINVD,			"wbinvd" },
+	{ SVM_EXIT_MONITOR,			"monitor" },
+	{ SVM_EXIT_MWAIT,			"mwait" },
+	{ SVM_EXIT_NPF,				"npf" },
+	{ -1, NULL }
+};
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -2778,6 +2816,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
 	.get_mt_mask = svm_get_mt_mask,
+
+	.exit_reasons_str = svm_exit_reasons_str,
 };
 
 static int __init svm_init(void)
