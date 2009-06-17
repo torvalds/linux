@@ -2613,27 +2613,29 @@ void sched_fork(struct task_struct *p, int clone_flags)
 	set_task_cpu(p, cpu);
 
 	/*
-	 * Revert to default priority/policy on fork if requested. Make sure we
-	 * do not leak PI boosting priority to the child.
+	 * Make sure we do not leak PI boosting priority to the child.
 	 */
-	if (current->sched_reset_on_fork &&
-			(p->policy == SCHED_FIFO || p->policy == SCHED_RR))
-		p->policy = SCHED_NORMAL;
+	p->prio = current->normal_prio;
 
-	if (current->sched_reset_on_fork &&
-			(current->normal_prio < DEFAULT_PRIO))
-		p->prio = DEFAULT_PRIO;
-	else
-		p->prio = current->normal_prio;
+	/*
+	 * Revert to default priority/policy on fork if requested.
+	 */
+	if (unlikely(p->sched_reset_on_fork)) {
+		if (p->policy == SCHED_FIFO || p->policy == SCHED_RR)
+			p->policy = SCHED_NORMAL;
+
+		if (p->normal_prio < DEFAULT_PRIO)
+			p->prio = DEFAULT_PRIO;
+
+		/*
+		 * We don't need the reset flag anymore after the fork. It has
+		 * fulfilled its duty:
+		 */
+		p->sched_reset_on_fork = 0;
+	}
 
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
-
-	/*
-	 * We don't need the reset flag anymore after the fork. It has
-	 * fulfilled its duty:
-	 */
-	p->sched_reset_on_fork = 0;
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	if (likely(sched_info_on()))
