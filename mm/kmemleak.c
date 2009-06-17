@@ -109,6 +109,9 @@
 
 #define BYTES_PER_POINTER	sizeof(void *)
 
+/* GFP bitmask for kmemleak internal allocations */
+#define GFP_KMEMLEAK_MASK	(GFP_KERNEL | GFP_ATOMIC)
+
 /* scanning area inside a memory block */
 struct kmemleak_scan_area {
 	struct hlist_node node;
@@ -199,9 +202,9 @@ static DEFINE_MUTEX(kmemleak_mutex);
 static int reported_leaks;
 
 /*
- * Early object allocation/freeing logging. Kkmemleak is initialized after the
+ * Early object allocation/freeing logging. Kmemleak is initialized after the
  * kernel allocator. However, both the kernel allocator and kmemleak may
- * allocate memory blocks which need to be tracked. Kkmemleak defines an
+ * allocate memory blocks which need to be tracked. Kmemleak defines an
  * arbitrary buffer to hold the allocation/freeing information before it is
  * fully initialized.
  */
@@ -245,10 +248,10 @@ static void kmemleak_disable(void);
 
 /*
  * Macro invoked when a serious kmemleak condition occured and cannot be
- * recovered from. Kkmemleak will be disabled and further allocation/freeing
+ * recovered from. Kmemleak will be disabled and further allocation/freeing
  * tracing no longer available.
  */
-#define kmemleak_panic(x...)	do {	\
+#define kmemleak_stop(x...)	do {	\
 	kmemleak_warn(x);		\
 	kmemleak_disable();		\
 } while (0)
@@ -462,10 +465,10 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	struct prio_tree_node *node;
 	struct stack_trace trace;
 
-	object = kmem_cache_alloc(object_cache, gfp & ~GFP_SLAB_BUG_MASK);
+	object = kmem_cache_alloc(object_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!object) {
-		kmemleak_panic("kmemleak: Cannot allocate a kmemleak_object "
-			       "structure\n");
+		kmemleak_stop("kmemleak: Cannot allocate a kmemleak_object "
+			      "structure\n");
 		return;
 	}
 
@@ -524,8 +527,8 @@ static void create_object(unsigned long ptr, size_t size, int min_count,
 	if (node != &object->tree_node) {
 		unsigned long flags;
 
-		kmemleak_panic("kmemleak: Cannot insert 0x%lx into the object "
-			       "search tree (already existing)\n", ptr);
+		kmemleak_stop("kmemleak: Cannot insert 0x%lx into the object "
+			      "search tree (already existing)\n", ptr);
 		object = lookup_object(ptr, 1);
 		spin_lock_irqsave(&object->lock, flags);
 		dump_object_info(object);
@@ -636,7 +639,7 @@ static void add_scan_area(unsigned long ptr, unsigned long offset,
 		return;
 	}
 
-	area = kmem_cache_alloc(scan_area_cache, gfp & ~GFP_SLAB_BUG_MASK);
+	area = kmem_cache_alloc(scan_area_cache, gfp & GFP_KMEMLEAK_MASK);
 	if (!area) {
 		kmemleak_warn("kmemleak: Cannot allocate a scan area\n");
 		goto out;
@@ -696,7 +699,7 @@ static void log_early(int op_type, const void *ptr, size_t size,
 	struct early_log *log;
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-		kmemleak_panic("kmemleak: Early log buffer exceeded\n");
+		kmemleak_stop("kmemleak: Early log buffer exceeded\n");
 		return;
 	}
 
@@ -1404,7 +1407,7 @@ static int kmemleak_boot_config(char *str)
 early_param("kmemleak", kmemleak_boot_config);
 
 /*
- * Kkmemleak initialization.
+ * Kmemleak initialization.
  */
 void __init kmemleak_init(void)
 {
