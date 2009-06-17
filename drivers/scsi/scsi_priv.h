@@ -43,6 +43,7 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 /* list of keys for the lists */
 enum {
 	SCSI_DEVINFO_GLOBAL = 0,
+	SCSI_DEVINFO_SPI,
 };
 
 extern int scsi_get_device_flags(struct scsi_device *sdev,

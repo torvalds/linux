@@ -46,6 +46,22 @@
 #define DV_RETRIES	3	/* should only need at most 
 				 * two cc/ua clears */
 
+/* Our blacklist flags */
+enum {
+	SPI_BLIST_NOIUS = 0x1,
+};
+
+/* blacklist table, modelled on scsi_devinfo.c */
+static struct {
+	char *vendor;
+	char *model;
+	unsigned flags;
+} spi_static_device_list[] __initdata = {
+	{"HP", "Ultrium 3-SCSI", SPI_BLIST_NOIUS },
+	{"IBM", "ULTRIUM-TD3", SPI_BLIST_NOIUS },
+	{NULL, NULL, 0}
+};
+
 /* Private data accessors (keep these out of the header file) */
 #define spi_dv_in_progress(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_in_progress)
 #define spi_dv_mutex(x) (((struct spi_transport_attrs *)&(x)->starget_data)->dv_mutex)
@@ -207,6 +223,9 @@ static int spi_device_configure(struct transport_container *tc,
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
+	unsigned bflags = scsi_get_device_flags_keyed(sdev, &sdev->inquiry[8],
+						      &sdev->inquiry[16],
+						      SCSI_DEVINFO_SPI);
 
 	/* Populate the target capability fields with the values
 	 * gleaned from the device inquiry */
@@ -216,6 +235,10 @@ static int spi_device_configure(struct transport_container *tc,
 	spi_support_dt(starget) = scsi_device_dt(sdev);
 	spi_support_dt_only(starget) = scsi_device_dt_only(sdev);
 	spi_support_ius(starget) = scsi_device_ius(sdev);
+	if (bflags & SPI_BLIST_NOIUS) {
+		dev_info(dev, "Information Units disabled by blacklist\n");
+		spi_support_ius(starget) = 0;
+	}
 	spi_support_qas(starget) = scsi_device_qas(sdev);
 
 	return 0;
@@ -1524,7 +1547,21 @@ EXPORT_SYMBOL(spi_release_transport);
 
 static __init int spi_transport_init(void)
 {
-	int error = transport_class_register(&spi_transport_class);
+	int error = scsi_dev_info_add_list(SCSI_DEVINFO_SPI,
+					   "SCSI Parallel Transport Class");
+	if (!error) {
+		int i;
+
+		for (i = 0; spi_static_device_list[i].vendor; i++)
+			scsi_dev_info_list_add_keyed(1,	/* compatible */
+						     spi_static_device_list[i].vendor,
+						     spi_static_device_list[i].model,
+						     NULL,
+						     spi_static_device_list[i].flags,
+						     SCSI_DEVINFO_SPI);
+	}
+
+	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
 	error = anon_transport_class_register(&spi_device_class);
@@ -1536,6 +1573,7 @@ static void __exit spi_transport_exit(void)
 	transport_class_unregister(&spi_transport_class);
 	anon_transport_class_unregister(&spi_device_class);
 	transport_class_unregister(&spi_host_class);
+	scsi_dev_info_remove_list(SCSI_DEVINFO_SPI);
 }
 
 MODULE_AUTHOR("Martin Hicks");
