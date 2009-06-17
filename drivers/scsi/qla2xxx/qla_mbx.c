@@ -1267,17 +1267,22 @@ qla2x00_get_firmware_state(scsi_qla_host_t *vha, uint16_t *states)
 
 	mcp->mb[0] = MBC_GET_FIRMWARE_STATE;
 	mcp->out_mb = MBX_0;
-	mcp->in_mb = MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (IS_FWI2_CAPABLE(vha->hw))
+		mcp->in_mb = MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	else
+		mcp->in_mb = MBX_1|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
 
 	/* Return firmware states. */
 	states[0] = mcp->mb[1];
-	states[1] = mcp->mb[2];
-	states[2] = mcp->mb[3];
-	states[3] = mcp->mb[4];
-	states[4] = mcp->mb[5];
+	if (IS_FWI2_CAPABLE(vha->hw)) {
+		states[1] = mcp->mb[2];
+		states[2] = mcp->mb[3];
+		states[3] = mcp->mb[4];
+		states[4] = mcp->mb[5];
+	}
 
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
