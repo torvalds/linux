@@ -202,9 +202,9 @@ static DEFINE_MUTEX(kmemleak_mutex);
 static int reported_leaks;
 
 /*
- * Early object allocation/freeing logging. Kkmemleak is initialized after the
+ * Early object allocation/freeing logging. Kmemleak is initialized after the
  * kernel allocator. However, both the kernel allocator and kmemleak may
- * allocate memory blocks which need to be tracked. Kkmemleak defines an
+ * allocate memory blocks which need to be tracked. Kmemleak defines an
  * arbitrary buffer to hold the allocation/freeing information before it is
  * fully initialized.
  */
@@ -248,7 +248,7 @@ static void kmemleak_disable(void);
 
 /*
  * Macro invoked when a serious kmemleak condition occured and cannot be
- * recovered from. Kkmemleak will be disabled and further allocation/freeing
+ * recovered from. Kmemleak will be disabled and further allocation/freeing
  * tracing no longer available.
  */
 #define kmemleak_stop(x...)	do {	\
@@ -1407,7 +1407,7 @@ static int kmemleak_boot_config(char *str)
 early_param("kmemleak", kmemleak_boot_config);
 
 /*
- * Kkmemleak initialization.
+ * Kmemleak initialization.
  */
 void __init kmemleak_init(void)
 {
