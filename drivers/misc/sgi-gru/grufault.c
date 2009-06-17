@@ -702,6 +702,7 @@ int gru_user_flush_tlb(unsigned long arg)
 {
 	struct gru_thread_state *gts;
 	struct gru_flush_tlb_req req;
+	struct gru_mm_struct *gms;
 
 	STAT(user_flush_tlb);
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
@@ -714,8 +715,9 @@ int gru_user_flush_tlb(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.len);
+	gms = gts->ts_gms;
 	gru_unlock_gts(gts);
+	gru_flush_tlb_range(gms, req.vaddr, req.len);
 
 	return 0;
 }
