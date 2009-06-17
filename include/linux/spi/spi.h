@@ -245,6 +245,9 @@ struct spi_master {
 	 */
 	u16			dma_alignment;
 
+	/* spi_device.mode flags understood by this controller driver */
+	u16			mode_bits;
+
 	/* Setup mode and clock, etc (spi driver may call many times).
 	 *
 	 * IMPORTANT:  this may be called when transfers to another

@@ -1185,9 +1185,6 @@ static int transfer(struct spi_device *spi, struct spi_message *msg)
 	return 0;
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA)
-
 static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		    struct pxa2xx_spi_chip *chip_info)
 {
@@ -1249,12 +1246,6 @@ static int setup(struct spi_device *spi)
 		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
 				"b/w not 4-16 for type PXA25x_SSP\n",
 				drv_data->ssp_type, spi->bits_per_word);
-		return -EINVAL;
-	}
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
 		return -EINVAL;
 	}
 
@@ -1492,6 +1483,9 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->master_info = platform_info;
 	drv_data->pdev = pdev;
 	drv_data->ssp = ssp;
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA;
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;

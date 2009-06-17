@@ -419,22 +419,12 @@ static void mpc83xx_spi_work(struct work_struct *work)
 	spin_unlock_irq(&mpc83xx_spi->lock);
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
-			| SPI_LSB_FIRST | SPI_LOOP)
-
 static int mpc83xx_spi_setup(struct spi_device *spi)
 {
 	struct mpc83xx_spi *mpc83xx_spi;
 	int retval;
 	u32 hw_mode;
 	struct spi_mpc83xx_cs	*cs = spi->controller_state;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -561,6 +551,10 @@ mpc83xx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 	}
 
 	dev_set_drvdata(dev, master);
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH
+			| SPI_LSB_FIRST | SPI_LOOP;
 
 	master->setup = mpc83xx_spi_setup;
 	master->transfer = mpc83xx_spi_transfer;

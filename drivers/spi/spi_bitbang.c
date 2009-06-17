@@ -188,12 +188,6 @@ int spi_bitbang_setup(struct spi_device *spi)
 
 	bitbang = spi_master_get_devdata(spi->master);
 
-	/* Bitbangers can support SPI_CS_HIGH, SPI_3WIRE, and so on;
-	 * add those to master->flags, and provide the other support.
-	 */
-	if ((spi->mode & ~(SPI_CPOL|SPI_CPHA|bitbang->flags)) != 0)
-		return -EINVAL;
-
 	if (!cs) {
 		cs = kzalloc(sizeof *cs, GFP_KERNEL);
 		if (!cs)
@@ -451,6 +445,9 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	INIT_WORK(&bitbang->work, bitbang_work);
 	spin_lock_init(&bitbang->lock);
 	INIT_LIST_HEAD(&bitbang->queue);
+
+	if (!bitbang->master->mode_bits)
+		bitbang->master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
 
 	if (!bitbang->master->transfer)
 		bitbang->master->transfer = spi_bitbang_transfer;

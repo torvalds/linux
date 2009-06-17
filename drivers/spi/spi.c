@@ -607,7 +607,18 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
  */
 int spi_setup(struct spi_device *spi)
 {
+	unsigned	bad_bits;
 	int		status;
+
+	/* help drivers fail *cleanly* when they need options
+	 * that aren't supported with their current master
+	 */
+	bad_bits = spi->mode & ~spi->master->mode_bits;
+	if (bad_bits) {
+		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+			bad_bits);
+		return -EINVAL;
+	}
 
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;

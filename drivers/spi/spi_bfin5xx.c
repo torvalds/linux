@@ -1010,12 +1010,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
 	int ret;
 
-	/* Abort device setup if requested features are not supported */
-	if (spi->mode & ~(SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST)) {
-		dev_err(&spi->dev, "requested mode not fully supported\n");
-		return -EINVAL;
-	}
-
 	if (spi->bits_per_word != 8 && spi->bits_per_word != 16)
 		return -EINVAL;
 
@@ -1282,6 +1276,9 @@ static int __init bfin_spi_probe(struct platform_device *pdev)
 	drv_data->master_info = platform_info;
 	drv_data->pdev = pdev;
 	drv_data->pin_req = platform_info->pin_req;
+
+	/* the spi->mode bits supported by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;

@@ -261,9 +261,6 @@ static void mpc52xx_psc_spi_work(struct work_struct *work)
 	spin_unlock_irq(&mps->lock);
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST)
-
 static int mpc52xx_psc_spi_setup(struct spi_device *spi)
 {
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(spi->master);
@@ -272,12 +269,6 @@ static int mpc52xx_psc_spi_setup(struct spi_device *spi)
 
 	if (spi->bits_per_word%8)
 		return -EINVAL;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	if (!cs) {
 		cs = kzalloc(sizeof *cs, GFP_KERNEL);
@@ -384,6 +375,9 @@ static int __init mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 
 	dev_set_drvdata(dev, master);
 	mps = spi_master_get_devdata(master);
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	mps->irq = irq;
 	if (pdata == NULL) {
