@@ -23,10 +23,13 @@
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <asm/byteorder.h>
+
 #include "ext4.h"
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
+
+#include <trace/events/ext4.h>
 
 /*
  * ialloc.c contains the inodes allocation and deallocation routines
@@ -208,11 +211,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 
 	ino = inode->i_ino;
 	ext4_debug("freeing inode %lu\n", ino);
-	trace_mark(ext4_free_inode,
-		   "dev %s ino %lu mode %d uid %lu gid %lu bocks %llu",
-		   sb->s_id, inode->i_ino, inode->i_mode,
-		   (unsigned long) inode->i_uid, (unsigned long) inode->i_gid,
-		   (unsigned long long) inode->i_blocks);
+	trace_ext4_free_inode(inode);
 
 	/*
 	 * Note: we must free any quota before locking the superblock,
@@ -815,8 +814,7 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 
 	sb = dir->i_sb;
 	ngroups = ext4_get_groups_count(sb);
-	trace_mark(ext4_request_inode, "dev %s dir %lu mode %d", sb->s_id,
-		   dir->i_ino, mode);
+	trace_ext4_request_inode(dir, mode);
 	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
@@ -1047,8 +1045,7 @@ got:
 	}
 
 	ext4_debug("allocating inode %lu\n", inode->i_ino);
-	trace_mark(ext4_allocate_inode, "dev %s ino %lu dir %lu mode %d",
-		   sb->s_id, inode->i_ino, dir->i_ino, mode);
+	trace_ext4_allocate_inode(inode, dir, mode);
 	goto really_out;
 fail:
 	ext4_std_error(sb, err);
