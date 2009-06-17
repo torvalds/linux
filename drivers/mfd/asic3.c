@@ -17,6 +17,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -24,6 +25,51 @@
 #include <linux/platform_device.h>
 
 #include <linux/mfd/asic3.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/ds1wm.h>
+#include <linux/mfd/tmio.h>
+
+enum {
+	ASIC3_CLOCK_SPI,
+	ASIC3_CLOCK_OWM,
+	ASIC3_CLOCK_PWM0,
+	ASIC3_CLOCK_PWM1,
+	ASIC3_CLOCK_LED0,
+	ASIC3_CLOCK_LED1,
+	ASIC3_CLOCK_LED2,
+	ASIC3_CLOCK_SD_HOST,
+	ASIC3_CLOCK_SD_BUS,
+	ASIC3_CLOCK_SMBUS,
+	ASIC3_CLOCK_EX0,
+	ASIC3_CLOCK_EX1,
+};
+
+struct asic3_clk {
+	int enabled;
+	unsigned int cdex;
+	unsigned long rate;
+};
+
+#define INIT_CDEX(_name, _rate)	\
+	[ASIC3_CLOCK_##_name] = {		\
+		.cdex = CLOCK_CDEX_##_name,	\
+		.rate = _rate,			\
+	}
+
+struct asic3_clk asic3_clk_init[] __initdata = {
+	INIT_CDEX(SPI, 0),
+	INIT_CDEX(OWM, 5000000),
+	INIT_CDEX(PWM0, 0),
+	INIT_CDEX(PWM1, 0),
+	INIT_CDEX(LED0, 0),
+	INIT_CDEX(LED1, 0),
+	INIT_CDEX(LED2, 0),
+	INIT_CDEX(SD_HOST, 24576000),
+	INIT_CDEX(SD_BUS, 12288000),
+	INIT_CDEX(SMBUS, 0),
+	INIT_CDEX(EX0, 32768),
+	INIT_CDEX(EX1, 24576000),
+};
 
 struct asic3 {
 	void __iomem *mapping;
@@ -34,6 +80,8 @@ struct asic3 {
 	u16 irq_bothedge[4];
 	struct gpio_chip gpio;
 	struct device *dev;
+
+	struct asic3_clk clocks[ARRAY_SIZE(asic3_clk_init)];
 };
 
 static int asic3_gpio_get(struct gpio_chip *chip, unsigned offset);
@@ -50,6 +98,21 @@ static inline u32 asic3_read_register(struct asic3 *asic,
 {
 	return ioread16(asic->mapping +
 			(reg >> asic->bus_shift));
+}
+
+void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&asic->lock, flags);
+	val = asic3_read_register(asic, reg);
+	if (set)
+		val |= bits;
+	else
+		val &= ~bits;
+	asic3_write_register(asic, reg, val);
+	spin_unlock_irqrestore(&asic->lock, flags);
 }
 
 /* IRQs */
@@ -525,6 +588,240 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 	return gpiochip_remove(&asic->gpio);
 }
 
+static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
+{
+	unsigned long flags;
+	u32 cdex;
+
+	spin_lock_irqsave(&asic->lock, flags);
+	if (clk->enabled++ == 0) {
+		cdex = asic3_read_register(asic, ASIC3_OFFSET(CLOCK, CDEX));
+		cdex |= clk->cdex;
+		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
+	}
+	spin_unlock_irqrestore(&asic->lock, flags);
+
+	return 0;
+}
+
+static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
+{
+	unsigned long flags;
+	u32 cdex;
+
+	WARN_ON(clk->enabled == 0);
+
+	spin_lock_irqsave(&asic->lock, flags);
+	if (--clk->enabled == 0) {
+		cdex = asic3_read_register(asic, ASIC3_OFFSET(CLOCK, CDEX));
+		cdex &= ~clk->cdex;
+		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
+	}
+	spin_unlock_irqrestore(&asic->lock, flags);
+}
+
+/* MFD cells (SPI, PWM, LED, DS1WM, MMC) */
+static struct ds1wm_driver_data ds1wm_pdata = {
+	.active_high = 1,
+};
+
+static struct resource ds1wm_resources[] = {
+	{
+		.start = ASIC3_OWM_BASE,
+		.end   = ASIC3_OWM_BASE + 0x13,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = ASIC3_IRQ_OWM,
+		.start = ASIC3_IRQ_OWM,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static int ds1wm_enable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Turn on external clocks and the OWM clock */
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_OWM]);
+	msleep(1);
+
+	/* Reset and enable DS1WM */
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, RESET),
+			   ASIC3_EXTCF_OWM_RESET, 1);
+	msleep(1);
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, RESET),
+			   ASIC3_EXTCF_OWM_RESET, 0);
+	msleep(1);
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_EN, 1);
+	msleep(1);
+
+	return 0;
+}
+
+static int ds1wm_disable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_EN, 0);
+
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_OWM]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+
+	return 0;
+}
+
+static struct mfd_cell asic3_cell_ds1wm = {
+	.name          = "ds1wm",
+	.enable        = ds1wm_enable,
+	.disable       = ds1wm_disable,
+	.driver_data   = &ds1wm_pdata,
+	.num_resources = ARRAY_SIZE(ds1wm_resources),
+	.resources     = ds1wm_resources,
+};
+
+static struct tmio_mmc_data asic3_mmc_data = {
+	.hclk = 24576000,
+};
+
+static struct resource asic3_mmc_resources[] = {
+	{
+		.start = ASIC3_SD_CTRL_BASE,
+		.end   = ASIC3_SD_CTRL_BASE + 0x3ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = ASIC3_SD_CONFIG_BASE,
+		.end   = ASIC3_SD_CONFIG_BASE + 0x1ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = 0,
+		.end   = 0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static int asic3_mmc_enable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Not sure if it must be done bit by bit, but leaving as-is */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_LEVCD, 1);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_LEVWP, 1);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SUSPEND, 0);
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_PCLR, 0);
+
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	/* CLK32 used for card detection and for interruption detection
+	 * when HCLK is stopped.
+	 */
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	msleep(1);
+
+	/* HCLK 24.576 MHz, BCLK 12.288 MHz: */
+	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL),
+		CLOCK_SEL_CX | CLOCK_SEL_SD_HCLK_SEL);
+
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_SD_HOST]);
+	asic3_clk_enable(asic, &asic->clocks[ASIC3_CLOCK_SD_BUS]);
+	msleep(1);
+
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_SD_MEM_ENABLE, 1);
+
+	/* Enable SD card slot 3.3V power supply */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SDPWR, 1);
+
+	return 0;
+}
+
+static int asic3_mmc_disable(struct platform_device *pdev)
+{
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	/* Put in suspend mode */
+	asic3_set_register(asic, ASIC3_OFFSET(SDHWCTRL, SDCONF),
+			   ASIC3_SDHWCTRL_SUSPEND, 1);
+
+	/* Disable clocks */
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_SD_HOST]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_SD_BUS]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX0]);
+	asic3_clk_disable(asic, &asic->clocks[ASIC3_CLOCK_EX1]);
+	return 0;
+}
+
+static struct mfd_cell asic3_cell_mmc = {
+	.name          = "tmio-mmc",
+	.enable        = asic3_mmc_enable,
+	.disable       = asic3_mmc_disable,
+	.driver_data   = &asic3_mmc_data,
+	.num_resources = ARRAY_SIZE(asic3_mmc_resources),
+	.resources     = asic3_mmc_resources,
+};
+
+static int __init asic3_mfd_probe(struct platform_device *pdev,
+				  struct resource *mem)
+{
+	struct asic3 *asic = platform_get_drvdata(pdev);
+	struct resource *mem_sdio;
+	int irq, ret;
+
+	mem_sdio = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!mem_sdio)
+		dev_dbg(asic->dev, "no SDIO MEM resource\n");
+
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		dev_dbg(asic->dev, "no SDIO IRQ resource\n");
+
+	/* DS1WM */
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+			   ASIC3_EXTCF_OWM_SMB, 0);
+
+	ds1wm_resources[0].start >>= asic->bus_shift;
+	ds1wm_resources[0].end   >>= asic->bus_shift;
+
+	asic3_cell_ds1wm.platform_data = &asic3_cell_ds1wm;
+	asic3_cell_ds1wm.data_size = sizeof(asic3_cell_ds1wm);
+
+	/* MMC */
+	asic3_mmc_resources[0].start >>= asic->bus_shift;
+	asic3_mmc_resources[0].end   >>= asic->bus_shift;
+	asic3_mmc_resources[1].start >>= asic->bus_shift;
+	asic3_mmc_resources[1].end   >>= asic->bus_shift;
+
+	asic3_cell_mmc.platform_data = &asic3_cell_mmc;
+	asic3_cell_mmc.data_size = sizeof(asic3_cell_mmc);
+
+	ret = mfd_add_devices(&pdev->dev, pdev->id,
+			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
+	if (ret < 0)
+		goto out;
+
+	if (mem_sdio && (irq >= 0))
+		ret = mfd_add_devices(&pdev->dev, pdev->id,
+			&asic3_cell_mmc, 1, mem_sdio, irq);
+
+ out:
+	return ret;
+}
+
+static void asic3_mfd_remove(struct platform_device *pdev)
+{
+	mfd_remove_devices(&pdev->dev);
+}
 
 /* Core */
 static int __init asic3_probe(struct platform_device *pdev)
@@ -533,7 +830,6 @@ static int __init asic3_probe(struct platform_device *pdev)
 	struct asic3 *asic;
 	struct resource *mem;
 	unsigned long clksel;
-	int map_size;
 	int ret = 0;
 
 	asic = kzalloc(sizeof(struct asic3), GFP_KERNEL);
@@ -553,8 +849,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	map_size = mem->end - mem->start + 1;
-	asic->mapping = ioremap(mem->start, map_size);
+	asic->mapping = ioremap(mem->start, resource_size(mem));
 	if (!asic->mapping) {
 		ret = -ENOMEM;
 		dev_err(asic->dev, "Couldn't ioremap\n");
@@ -564,7 +859,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 	asic->irq_base = pdata->irq_base;
 
 	/* calculate bus shift from mem resource */
-	asic->bus_shift = 2 - (map_size >> 12);
+	asic->bus_shift = 2 - (resource_size(mem) >> 12);
 
 	clksel = 0;
 	asic3_write_register(asic, ASIC3_OFFSET(CLOCK, SEL), clksel);
@@ -590,6 +885,13 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_irq;
 	}
 
+	/* Making a per-device copy is only needed for the
+	 * theoretical case of multiple ASIC3s on one board:
+	 */
+	memcpy(asic->clocks, asic3_clk_init, sizeof(asic3_clk_init));
+
+	asic3_mfd_probe(pdev, mem);
+
 	dev_info(asic->dev, "ASIC3 Core driver\n");
 
 	return 0;
@@ -610,6 +912,8 @@ static int asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);
+
+	asic3_mfd_remove(pdev);
 
 	ret = asic3_gpio_remove(pdev);
 	if (ret < 0)

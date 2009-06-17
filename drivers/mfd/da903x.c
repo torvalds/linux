@@ -561,7 +561,7 @@ static int __init da903x_init(void)
 {
 	return i2c_add_driver(&da903x_driver);
 }
-module_init(da903x_init);
+subsys_initcall(da903x_init);
 
 static void __exit da903x_exit(void)
 {
