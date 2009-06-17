@@ -48,6 +48,7 @@ parameter is applicable:
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
 	FB	The frame buffer device is enabled.
+	GCOV	GCOV profiling is enabled.
 	HW	Appropriate hardware is enabled.
 	IA-64	IA-64 architecture is enabled.
 	IMA     Integrity measurement architecture is enabled.
@@ -795,6 +796,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	gart_fix_e820=  [X86_64] disable the fix e820 for K8 GART
 			Format: off | on
 			default: on
+
+	gcov_persist=	[GCOV] When non-zero (default), profiling data for
+			kernel modules is saved and remains accessible via
+			debugfs, even when the module is unloaded/reloaded.
+			When zero, profiling data is discarded and associated
+			debugfs files are removed at module unload time.
 
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
