@@ -326,7 +326,7 @@ struct mdk_personality
 	int (*check_reshape) (mddev_t *mddev);
 	int (*start_reshape) (mddev_t *mddev);
 	void (*finish_reshape) (mddev_t *mddev);
-	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
+	int (*reconfig) (mddev_t *mddev);
 	/* quiesce moves between quiescence states
 	 * 0 - fully active
 	 * 1 - no new requests allowed

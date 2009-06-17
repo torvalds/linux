@@ -2809,9 +2809,12 @@ layout_store(mddev_t *mddev, const char *buf, size_t len)
 		int err;
 		if (mddev->pers->reconfig == NULL)
 			return -EBUSY;
-		err = mddev->pers->reconfig(mddev, n, -1);
-		if (err)
+		mddev->new_layout = n;
+		err = mddev->pers->reconfig(mddev);
+		if (err) {
+			mddev->new_layout = mddev->layout;
 			return err;
+		}
 	} else {
 		mddev->new_layout = n;
 		if (mddev->reshape_position == MaxSector)
@@ -2884,9 +2887,12 @@ chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
 		int err;
 		if (mddev->pers->reconfig == NULL)
 			return -EBUSY;
-		err = mddev->pers->reconfig(mddev, -1, n);
-		if (err)
+		mddev->new_chunk_sectors = n >> 9;
+		err = mddev->pers->reconfig(mddev);
+		if (err) {
+			mddev->new_chunk_sectors = mddev->chunk_sectors;
 			return err;
+		}
 	} else {
 		mddev->new_chunk_sectors = n >> 9;
 		if (mddev->reshape_position == MaxSector)
@@ -5220,8 +5226,13 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		 */
 		if (mddev->pers->reconfig == NULL)
 			return -EINVAL;
-		else
-			return mddev->pers->reconfig(mddev, info->layout, -1);
+		else {
+			mddev->new_layout = info->layout;
+			rv = mddev->pers->reconfig(mddev);
+			if (rv)
+				mddev->new_layout = mddev->layout;
+			return rv;
+		}
 	}
 	if (info->size >= 0 && mddev->dev_sectors / 2 != info->size)
 		rv = update_size(mddev, (sector_t)info->size * 2);

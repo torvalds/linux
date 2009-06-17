@@ -5165,7 +5165,7 @@ static void *raid5_takeover_raid6(mddev_t *mddev)
 }
 
 
-static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
+static int raid5_reconfig(mddev_t *mddev)
 {
 	/* For a 2-drive array, the layout and chunk size can be changed
 	 * immediately as not restriping is needed.
@@ -5173,15 +5173,16 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	 * to be used by a reshape pass.
 	 */
 	raid5_conf_t *conf = mddev->private;
+	int new_chunk = mddev->new_chunk_sectors;
 
-	if (new_layout >= 0 && !algorithm_valid_raid5(new_layout))
+	if (mddev->new_layout >= 0 && !algorithm_valid_raid5(mddev->new_layout))
 		return -EINVAL;
 	if (new_chunk > 0) {
 		if (!is_power_of_2(new_chunk))
 			return -EINVAL;
-		if (new_chunk < PAGE_SIZE)
+		if (new_chunk < (PAGE_SIZE>>9))
 			return -EINVAL;
-		if (mddev->array_sectors & ((new_chunk>>9)-1))
+		if (mddev->array_sectors & (new_chunk-1))
 			/* not factor of array size */
 			return -EINVAL;
 	}
@@ -5189,48 +5190,37 @@ static int raid5_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
 	/* They look valid */
 
 	if (mddev->raid_disks == 2) {
-
-		if (new_layout >= 0) {
-			conf->algorithm = new_layout;
-			mddev->layout = mddev->new_layout = new_layout;
+		/* can make the change immediately */
+		if (mddev->new_layout >= 0) {
+			conf->algorithm = mddev->new_layout;
+			mddev->layout = mddev->new_layout;
 		}
 		if (new_chunk > 0) {
-			conf->chunk_sectors = new_chunk >> 9;
-			mddev->new_chunk_sectors = new_chunk >> 9;
-			mddev->chunk_sectors = new_chunk >> 9;
+			conf->chunk_sectors = new_chunk ;
+			mddev->chunk_sectors = new_chunk;
 		}
 		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		md_wakeup_thread(mddev->thread);
-	} else {
-		if (new_layout >= 0)
-			mddev->new_layout = new_layout;
-		if (new_chunk > 0)
-			mddev->new_chunk_sectors = new_chunk >> 9;
 	}
 	return 0;
 }
 
-static int raid6_reconfig(mddev_t *mddev, int new_layout, int new_chunk)
+static int raid6_reconfig(mddev_t *mddev)
 {
-	if (new_layout >= 0 && !algorithm_valid_raid6(new_layout))
+	int new_chunk = mddev->new_chunk_sectors;
+	if (mddev->new_layout >= 0 && !algorithm_valid_raid6(mddev->new_layout))
 		return -EINVAL;
 	if (new_chunk > 0) {
 		if (!is_power_of_2(new_chunk))
 			return -EINVAL;
-		if (new_chunk < PAGE_SIZE)
+		if (new_chunk < (PAGE_SIZE >> 9))
 			return -EINVAL;
-		if (mddev->array_sectors & ((new_chunk>>9)-1))
+		if (mddev->array_sectors & (new_chunk-1))
 			/* not factor of array size */
 			return -EINVAL;
 	}
 
 	/* They look valid */
-
-	if (new_layout >= 0)
-		mddev->new_layout = new_layout;
-	if (new_chunk > 0)
-		mddev->new_chunk_sectors = new_chunk >> 9;
-
 	return 0;
 }
 
