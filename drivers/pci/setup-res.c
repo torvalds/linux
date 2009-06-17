@@ -99,11 +99,11 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 int pci_claim_resource(struct pci_dev *dev, int resource)
 {
 	struct resource *res = &dev->resource[resource];
-	struct resource *root = NULL;
+	struct resource *root;
 	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 	int err;
 
-	root = pcibios_select_root(dev, res);
+	root = pci_find_parent_resource(dev, res);
 
 	err = -EINVAL;
 	if (root != NULL)
