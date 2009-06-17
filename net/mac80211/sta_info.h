@@ -308,6 +308,23 @@ struct sta_info {
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
 		struct dentry *agg_status;
+		struct dentry *aid;
+		struct dentry *dev;
+		struct dentry *rx_packets;
+		struct dentry *tx_packets;
+		struct dentry *rx_bytes;
+		struct dentry *tx_bytes;
+		struct dentry *rx_duplicates;
+		struct dentry *rx_fragments;
+		struct dentry *rx_dropped;
+		struct dentry *tx_fragments;
+		struct dentry *tx_filtered;
+		struct dentry *tx_retry_failed;
+		struct dentry *tx_retry_count;
+		struct dentry *last_signal;
+		struct dentry *last_qual;
+		struct dentry *last_noise;
+		struct dentry *wep_weak_iv_count;
 		bool add_has_run;
 	} debugfs;
 #endif
