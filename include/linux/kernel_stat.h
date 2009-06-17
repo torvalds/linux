@@ -5,6 +5,7 @@
 #include <linux/threads.h>
 #include <linux/percpu.h>
 #include <linux/cpumask.h>
+#include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/cputime.h>
 
@@ -31,6 +32,7 @@ struct kernel_stat {
 #ifndef CONFIG_GENERIC_HARDIRQS
        unsigned int irqs[NR_IRQS];
 #endif
+	unsigned int softirqs[NR_SOFTIRQS];
 };
 
 DECLARE_PER_CPU(struct kernel_stat, kstat);
@@ -66,6 +68,16 @@ extern unsigned int kstat_irqs_cpu(unsigned int irq, int cpu);
 	((DESC)->kstat_irqs[smp_processor_id()]++)
 
 #endif
+
+static inline void kstat_incr_softirqs_this_cpu(unsigned int irq)
+{
+	kstat_this_cpu.softirqs[irq]++;
+}
+
+static inline unsigned int kstat_softirqs_cpu(unsigned int irq, int cpu)
+{
+       return kstat_cpu(cpu).softirqs[irq];
+}
 
 /*
  * Number of interrupts per specific IRQ source, since bootup

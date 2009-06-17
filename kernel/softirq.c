@@ -213,6 +213,7 @@ restart:
 	do {
 		if (pending & 1) {
 			int prev_count = preempt_count();
+			kstat_incr_softirqs_this_cpu(h - softirq_vec);
 
 			trace_softirq_entry(h, softirq_vec);
 			h->action(h);
