@@ -273,7 +273,7 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 	unsigned int chunk_sectors = mddev->chunk_sectors;
 	unsigned int bio_sectors = bvm->bi_size >> 9;
 
-	if (is_power_of_2(mddev->chunk_sectors))
+	if (is_power_of_2(chunk_sectors))
 		max =  (chunk_sectors - ((sector & (chunk_sectors-1))
 						+ bio_sectors)) << 9;
 	else
@@ -384,7 +384,7 @@ static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
 	raid0_conf_t *conf = mddev->private;
 	unsigned int chunk_sects = mddev->chunk_sectors;
 
-	if (is_power_of_2(mddev->chunk_sectors)) {
+	if (is_power_of_2(chunk_sects)) {
 		int chunksect_bits = ffz(~chunk_sects);
 		/* find the sector offset inside the chunk */
 		sect_in_chunk  = sector & (chunk_sects - 1);
@@ -414,7 +414,7 @@ static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
 static inline int is_io_in_chunk_boundary(mddev_t *mddev,
 			unsigned int chunk_sects, struct bio *bio)
 {
-	if (likely(is_power_of_2(mddev->chunk_sectors))) {
+	if (likely(is_power_of_2(chunk_sects))) {
 		return chunk_sects >= ((bio->bi_sector & (chunk_sects-1))
 					+ (bio->bi_size >> 9));
 	} else{
@@ -456,7 +456,7 @@ static int raid0_make_request(struct request_queue *q, struct bio *bio)
 		/* This is a one page bio that upper layers
 		 * refuse to split for us, so we need to split it.
 		 */
-		if (likely(is_power_of_2(mddev->chunk_sectors)))
+		if (likely(is_power_of_2(chunk_sects)))
 			bp = bio_split(bio, chunk_sects - (sector &
 							   (chunk_sects-1)));
 		else
