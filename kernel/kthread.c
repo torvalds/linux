@@ -27,7 +27,6 @@ struct kthread_create_info
 	/* Information passed to kthread() from kthreadd. */
 	int (*threadfn)(void *data);
 	void *data;
-	struct completion started;
 
 	/* Result passed back to kthread_create() from kthreadd. */
 	struct task_struct *result;
@@ -75,7 +74,7 @@ static int kthread(void *_create)
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	create->result = current;
-	complete(&create->started);
+	complete(&create->done);
 	schedule();
 
 	if (!kthread_should_stop())
@@ -95,11 +94,10 @@ static void create_kthread(struct kthread_create_info *create)
 
 	/* We want our own signal handler (we take no signals by default). */
 	pid = kernel_thread(kthread, create, CLONE_FS | CLONE_FILES | SIGCHLD);
-	if (pid < 0)
+	if (pid < 0) {
 		create->result = ERR_PTR(pid);
-	else
-		wait_for_completion(&create->started);
-	complete(&create->done);
+		complete(&create->done);
+	}
 }
 
 /**
@@ -130,7 +128,6 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 
 	create.threadfn = threadfn;
 	create.data = data;
-	init_completion(&create.started);
 	init_completion(&create.done);
 
 	spin_lock(&kthread_create_lock);
