@@ -518,8 +518,9 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	if (hp_zx1_setup(sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa))
 		return AE_OK;
 
-	printk(KERN_INFO PFX "Detected HP ZX1 %s AGP chipset (ioc=%lx, lba=%lx)\n",
-		(char *) context, sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa);
+	printk(KERN_INFO PFX "Detected HP ZX1 %s AGP chipset "
+		"(ioc=%llx, lba=%llx)\n", (char *)context,
+		sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa);
 
 	hp_zx1_gart_found = 1;
 	return AE_CTRL_TERMINATE; /* we only support one bridge; quit looking */
