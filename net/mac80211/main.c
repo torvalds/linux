@@ -83,73 +83,12 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	new_flags |= (1<<31);
 
 	drv_configure_filter(local, changed_flags, &new_flags,
-			     local->mdev->mc_count,
-			     local->mdev->mc_list);
+			     local->mc_count,
+			     local->mc_list);
 
 	WARN_ON(new_flags & (1<<31));
 
 	local->filter_flags = new_flags & ~(1<<31);
-}
-
-/* master interface */
-
-static int header_parse_80211(const struct sk_buff *skb, unsigned char *haddr)
-{
-	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
-	return ETH_ALEN;
-}
-
-static const struct header_ops ieee80211_header_ops = {
-	.create		= eth_header,
-	.parse		= header_parse_80211,
-	.rebuild	= eth_rebuild_header,
-	.cache		= eth_header_cache,
-	.cache_update	= eth_header_cache_update,
-};
-
-static int ieee80211_master_open(struct net_device *dev)
-{
-	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
-	struct ieee80211_local *local = mpriv->local;
-	struct ieee80211_sub_if_data *sdata;
-	int res = -EOPNOTSUPP;
-
-	/* we hold the RTNL here so can safely walk the list */
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (netif_running(sdata->dev)) {
-			res = 0;
-			break;
-		}
-	}
-
-	if (res)
-		return res;
-
-	netif_tx_start_all_queues(local->mdev);
-
-	return 0;
-}
-
-static int ieee80211_master_stop(struct net_device *dev)
-{
-	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
-	struct ieee80211_local *local = mpriv->local;
-	struct ieee80211_sub_if_data *sdata;
-
-	/* we hold the RTNL here so can safely walk the list */
-	list_for_each_entry(sdata, &local->interfaces, list)
-		if (netif_running(sdata->dev))
-			dev_close(sdata->dev);
-
-	return 0;
-}
-
-static void ieee80211_master_set_multicast_list(struct net_device *dev)
-{
-	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
-	struct ieee80211_local *local = mpriv->local;
-
-	ieee80211_configure_filter(local);
 }
 
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
@@ -310,7 +249,6 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int tmp;
 
-	skb->dev = local->mdev;
 	skb->pkt_type = IEEE80211_TX_STATUS_MSG;
 	skb_queue_tail(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS ?
 		       &local->skb_queue : &local->skb_queue_unreliable, skb);
@@ -716,7 +654,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mutex_init(&local->scan_mtx);
 
 	spin_lock_init(&local->key_lock);
-
+	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
@@ -752,30 +690,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
 
-static const struct net_device_ops ieee80211_master_ops = {
-	.ndo_start_xmit = ieee80211_master_start_xmit,
-	.ndo_open = ieee80211_master_open,
-	.ndo_stop = ieee80211_master_stop,
-	.ndo_set_multicast_list = ieee80211_master_set_multicast_list,
-	.ndo_select_queue = ieee80211_select_queue,
-};
-
-static void ieee80211_master_setup(struct net_device *mdev)
-{
-	mdev->type = ARPHRD_IEEE80211;
-	mdev->netdev_ops = &ieee80211_master_ops;
-	mdev->header_ops = &ieee80211_header_ops;
-	mdev->tx_queue_len = 1000;
-	mdev->addr_len = ETH_ALEN;
-}
-
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	int result;
 	enum ieee80211_band band;
-	struct net_device *mdev;
-	struct ieee80211_master_priv *mpriv;
 	int channels, i, j, max_bitrates;
 	bool supp_ht;
 	static const u32 cipher_suites[] = {
@@ -874,16 +793,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (hw->queues > IEEE80211_MAX_QUEUES)
 		hw->queues = IEEE80211_MAX_QUEUES;
 
-	mdev = alloc_netdev_mq(sizeof(struct ieee80211_master_priv),
-			       "wmaster%d", ieee80211_master_setup,
-			       hw->queues);
-	if (!mdev)
-		goto fail_mdev_alloc;
-
-	mpriv = netdev_priv(mdev);
-	mpriv->local = local;
-	local->mdev = mdev;
-
 	local->hw.workqueue =
 		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
 	if (!local->hw.workqueue) {
@@ -918,17 +827,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	}
 
 	rtnl_lock();
-	result = dev_alloc_name(local->mdev, local->mdev->name);
-	if (result < 0)
-		goto fail_dev;
-
-	memcpy(local->mdev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
-	SET_NETDEV_DEV(local->mdev, wiphy_dev(local->hw.wiphy));
-	local->mdev->features |= NETIF_F_NETNS_LOCAL;
-
-	result = register_netdevice(local->mdev);
-	if (result < 0)
-		goto fail_dev;
 
 	result = ieee80211_init_rate_ctrl_alg(local,
 					      hw->rate_control_algorithm);
@@ -981,9 +879,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_led_exit(local);
 	ieee80211_remove_interfaces(local);
  fail_rate:
-	unregister_netdevice(local->mdev);
-	local->mdev = NULL;
- fail_dev:
 	rtnl_unlock();
 	ieee80211_wep_free(local);
  fail_wep:
@@ -992,9 +887,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	debugfs_hw_del(local);
 	destroy_workqueue(local->hw.workqueue);
  fail_workqueue:
-	if (local->mdev)
-		free_netdev(local->mdev);
- fail_mdev_alloc:
 	wiphy_unregister(local->hw.wiphy);
  fail_wiphy_register:
 	kfree(local->int_scan_req.channels);
@@ -1019,12 +911,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	 * because the driver cannot be handing us frames any
 	 * more and the tasklet is killed.
 	 */
-
-	/* First, we remove all virtual interfaces. */
 	ieee80211_remove_interfaces(local);
-
-	/* then, finally, remove the master interface */
-	unregister_netdevice(local->mdev);
 
 	rtnl_unlock();
 
@@ -1044,7 +931,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	wiphy_unregister(local->hw.wiphy);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
-	free_netdev(local->mdev);
 	kfree(local->int_scan_req.channels);
 }
 EXPORT_SYMBOL(ieee80211_unregister_hw);

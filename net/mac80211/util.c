@@ -275,16 +275,12 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	__clear_bit(reason, &local->queue_stop_reasons[queue]);
 
-	if (!skb_queue_empty(&local->pending[queue]) &&
-	    local->queue_stop_reasons[queue] ==
-				BIT(IEEE80211_QUEUE_STOP_REASON_PENDING))
-		tasklet_schedule(&local->tx_pending_tasklet);
-
 	if (local->queue_stop_reasons[queue] != 0)
 		/* someone still has this queue stopped */
 		return;
 
-	netif_wake_subqueue(local->mdev, queue);
+	if (!skb_queue_empty(&local->pending[queue]))
+		tasklet_schedule(&local->tx_pending_tasklet);
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -312,14 +308,6 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
-
-	/*
-	 * Only stop if it was previously running, this is necessary
-	 * for correct pending packets handling because there we may
-	 * start (but not wake) the queue and rely on that.
-	 */
-	if (!local->queue_stop_reasons[queue])
-		netif_stop_subqueue(local->mdev, queue);
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
 }
@@ -351,8 +339,7 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 	__ieee80211_stop_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
-	__ieee80211_stop_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_PENDING);
-	skb_queue_tail(&local->pending[queue], skb);
+	__skb_queue_tail(&local->pending[queue], skb);
 	__ieee80211_wake_queue(hw, queue, IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 }
@@ -373,16 +360,12 @@ int ieee80211_add_pending_skbs(struct ieee80211_local *local,
 	while ((skb = skb_dequeue(skbs))) {
 		ret++;
 		queue = skb_get_queue_mapping(skb);
-		skb_queue_tail(&local->pending[queue], skb);
+		__skb_queue_tail(&local->pending[queue], skb);
 	}
 
-	for (i = 0; i < hw->queues; i++) {
-		if (ret)
-			__ieee80211_stop_queue(hw, i,
-				IEEE80211_QUEUE_STOP_REASON_PENDING);
+	for (i = 0; i < hw->queues; i++)
 		__ieee80211_wake_queue(hw, i,
 			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
-	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 	return ret;
@@ -413,11 +396,16 @@ EXPORT_SYMBOL(ieee80211_stop_queues);
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
+	int ret;
 
 	if (WARN_ON(queue >= hw->queues))
 		return true;
 
-	return __netif_subqueue_stopped(local->mdev, queue);
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	ret = !!local->queue_stop_reasons[queue];
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+	return ret;
 }
 EXPORT_SYMBOL(ieee80211_queue_stopped);
 
@@ -761,20 +749,6 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 	ieee80211_set_wmm_default(sdata);
 }
 
-void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      int encrypt)
-{
-	skb->dev = sdata->local->mdev;
-	skb_set_mac_header(skb, 0);
-	skb_set_network_header(skb, 0);
-	skb_set_transport_header(skb, 0);
-
-	skb->iif = sdata->dev->ifindex;
-	skb->do_not_encrypt = !encrypt;
-
-	dev_queue_xmit(skb);
-}
-
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band)
 {
@@ -1049,9 +1023,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
 
-	netif_addr_lock_bh(local->mdev);
+	spin_lock_bh(&local->filter_lock);
 	ieee80211_configure_filter(local);
-	netif_addr_unlock_bh(local->mdev);
+	spin_unlock_bh(&local->filter_lock);
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {

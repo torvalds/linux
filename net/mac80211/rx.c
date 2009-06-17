@@ -1478,6 +1478,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	struct ieee80211s_hdr *mesh_hdr;
 	unsigned int hdrlen;
 	struct sk_buff *skb = rx->skb, *fwd_skb;
+	struct ieee80211_local *local = rx->local;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -1520,6 +1521,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 						     dropped_frames_ttl);
 		else {
 			struct ieee80211_hdr *fwd_hdr;
+			struct ieee80211_tx_info *info;
+
 			fwd_skb = skb_copy(skb, GFP_ATOMIC);
 
 			if (!fwd_skb && net_ratelimit())
@@ -1533,9 +1536,12 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			 */
 			memcpy(fwd_hdr->addr1, fwd_hdr->addr2, ETH_ALEN);
 			memcpy(fwd_hdr->addr2, rx->dev->dev_addr, ETH_ALEN);
-			fwd_skb->dev = rx->local->mdev;
+			info = IEEE80211_SKB_CB(fwd_skb);
+			memset(info, 0, sizeof(*info));
+			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			fwd_skb->iif = rx->dev->ifindex;
-			dev_queue_xmit(fwd_skb);
+			ieee80211_select_queue(local, fwd_skb);
+			ieee80211_add_pending_skb(local, fwd_skb);
 		}
 	}
 
@@ -1803,8 +1809,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	return RX_DROP_MONITOR;
 }
 
-static void ieee80211_rx_michael_mic_report(struct net_device *dev,
-					    struct ieee80211_hdr *hdr,
+static void ieee80211_rx_michael_mic_report(struct ieee80211_hdr *hdr,
 					    struct ieee80211_rx_data *rx)
 {
 	int keyidx;
@@ -2114,7 +2119,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	}
 
 	if ((status->flag & RX_FLAG_MMIC_ERROR)) {
-		ieee80211_rx_michael_mic_report(local->mdev, hdr, &rx);
+		ieee80211_rx_michael_mic_report(hdr, &rx);
 		return;
 	}
 
@@ -2483,7 +2488,6 @@ void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	BUILD_BUG_ON(sizeof(struct ieee80211_rx_status) > sizeof(skb->cb));
 
-	skb->dev = local->mdev;
 	skb->pkt_type = IEEE80211_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);
 	tasklet_schedule(&local->tasklet);

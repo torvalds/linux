@@ -567,12 +567,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_CSA,
 	IEEE80211_QUEUE_STOP_REASON_AGGREGATION,
 	IEEE80211_QUEUE_STOP_REASON_SUSPEND,
-	IEEE80211_QUEUE_STOP_REASON_PENDING,
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
-};
-
-struct ieee80211_master_priv {
-	struct ieee80211_local *local;
 };
 
 struct ieee80211_local {
@@ -587,13 +582,20 @@ struct ieee80211_local {
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 
-	struct net_device *mdev; /* wmaster# - "master" 802.11 device */
 	int open_count;
 	int monitors, cooked_mntrs;
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss;
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
+
+	/* protects the aggregated multicast list and filter calls */
+	spinlock_t filter_lock;
+
+	/* aggregated multicast list */
+	struct dev_addr_list *mc_list;
+	int mc_count;
+
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 
 	/*
@@ -813,10 +815,6 @@ struct ieee80211_local {
 static inline struct ieee80211_sub_if_data *
 IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	BUG_ON(!local || local->mdev == dev);
-
 	return netdev_priv(dev);
 }
 
@@ -996,7 +994,6 @@ void ieee80211_recalc_idle(struct ieee80211_local *local);
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
 void ieee80211_tx_pending(unsigned long data);
-int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
