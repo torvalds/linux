@@ -15,7 +15,7 @@ ENTRY(sys_call_table)
 	.long sys_creat
 	.long sys_link
 	.long sys_unlink		/* 10 */
-	.long sys_execve_wrapper
+	.long sys_execve
 	.long sys_chdir
 	.long sys_time
 	.long sys_mknod
@@ -124,7 +124,7 @@ ENTRY(sys_call_table)
 	.long sys_ipc
 	.long sys_fsync
 	.long sys_ni_syscall		/* sys_sigreturn_wrapper */
-	.long sys_clone_wrapper		/* 120 */
+	.long sys_clone		/* 120 */
 	.long sys_setdomainname
 	.long sys_newuname
 	.long sys_ni_syscall		/* modify_ldt */
@@ -194,7 +194,7 @@ ENTRY(sys_call_table)
 	.long sys_sendfile
 	.long sys_ni_syscall		/* reserved for streams1 */
 	.long sys_ni_syscall		/* reserved for streams2 */
-	.long sys_vfork_wrapper		/* 190 */
+	.long sys_vfork		/* 190 */
 	.long sys_getrlimit
 	.long sys_mmap2			/* mmap2 */
 	.long sys_truncate64
