@@ -352,6 +352,7 @@ struct ext4_new_group_data {
  /* note ioctl 10 reserved for an early version of the FIEMAP ioctl */
  /* note ioctl 11 reserved for filesystem-independent FIEMAP ioctl */
 #define EXT4_IOC_ALLOC_DA_BLKS		_IO('f', 12)
+#define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
 
 /*
  * ioctl commands in 32 bit emulation
@@ -447,6 +448,15 @@ struct ext4_inode {
 	__le32  i_version_hi;	/* high 32 bits for 64-bit version */
 };
 
+struct move_extent {
+	__u32 reserved;		/* should be zero */
+	__u32 donor_fd;		/* donor file descriptor */
+	__u64 orig_start;	/* logical start offset in block for orig */
+	__u64 donor_start;	/* logical start offset in block for donor */
+	__u64 len;		/* block length to be moved */
+	__u64 moved_len;	/* moved block length */
+};
+#define MAX_DEFRAG_SIZE         ((1UL<<31) - 1)
 
 #define EXT4_EPOCH_BITS 2
 #define EXT4_EPOCH_MASK ((1 << EXT4_EPOCH_BITS) - 1)
@@ -674,7 +684,6 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_ERRORS_PANIC		0x00040	/* Panic on errors */
 #define EXT4_MOUNT_MINIX_DF		0x00080	/* Mimics the Minix statfs */
 #define EXT4_MOUNT_NOLOAD		0x00100	/* Don't use existing journal*/
-#define EXT4_MOUNT_ABORT		0x00200	/* Fatal error detected */
 #define EXT4_MOUNT_DATA_FLAGS		0x00C00	/* Mode for data writes: */
 #define EXT4_MOUNT_JOURNAL_DATA		0x00400	/* Write data to journal */
 #define EXT4_MOUNT_ORDERED_DATA		0x00800	/* Flush data before commit */
@@ -696,17 +705,10 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
 #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
 
-/* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
-#ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt
 #define set_opt(o, opt)			o |= EXT4_MOUNT_##opt
 #define test_opt(sb, opt)		(EXT4_SB(sb)->s_mount_opt & \
 					 EXT4_MOUNT_##opt)
-#else
-#define EXT2_MOUNT_NOLOAD		EXT4_MOUNT_NOLOAD
-#define EXT2_MOUNT_ABORT		EXT4_MOUNT_ABORT
-#define EXT2_MOUNT_DATA_FLAGS		EXT4_MOUNT_DATA_FLAGS
-#endif
 
 #define ext4_set_bit			ext2_set_bit
 #define ext4_set_bit_atomic		ext2_set_bit_atomic
@@ -824,6 +826,13 @@ struct ext4_super_block {
 };
 
 #ifdef __KERNEL__
+
+/*
+ * run-time mount flags
+ */
+#define EXT4_MF_MNTDIR_SAMPLED	0x0001
+#define EXT4_MF_FS_ABORTED	0x0002	/* Fatal error detected */
+
 /*
  * fourth extended-fs super-block data in memory
  */
@@ -842,7 +851,8 @@ struct ext4_sb_info {
 	struct buffer_head * s_sbh;	/* Buffer containing the super block */
 	struct ext4_super_block *s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head **s_group_desc;
-	unsigned long  s_mount_opt;
+	unsigned int s_mount_opt;
+	unsigned int s_mount_flags;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
 	gid_t s_resgid;
@@ -853,6 +863,7 @@ struct ext4_sb_info {
 	int s_inode_size;
 	int s_first_ino;
 	unsigned int s_inode_readahead_blks;
+	unsigned int s_inode_goal;
 	spinlock_t s_next_gen_lock;
 	u32 s_next_generation;
 	u32 s_hash_seed[4];
@@ -1305,7 +1316,8 @@ extern int ext4fs_dirhash(const char *name, int len, struct
 			  dx_hash_info *hinfo);
 
 /* ialloc.c */
-extern struct inode * ext4_new_inode(handle_t *, struct inode *, int);
+extern struct inode *ext4_new_inode(handle_t *, struct inode *, int,
+				    const struct qstr *qstr, __u32 goal);
 extern void ext4_free_inode(handle_t *, struct inode *);
 extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);
 extern unsigned long ext4_count_free_inodes(struct super_block *);
@@ -1329,7 +1341,7 @@ extern void ext4_discard_preallocations(struct inode *);
 extern int __init init_ext4_mballoc(void);
 extern void exit_ext4_mballoc(void);
 extern void ext4_mb_free_blocks(handle_t *, struct inode *,
-		unsigned long, unsigned long, int, unsigned long *);
+		ext4_fsblk_t, unsigned long, int, unsigned long *);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
 extern void ext4_mb_update_group_info(struct ext4_group_info *grp,
@@ -1647,6 +1659,11 @@ extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   struct buffer_head *bh, int flags);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+/* move_extent.c */
+extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
+			     __u64 start_orig, __u64 start_donor,
+			     __u64 len, __u64 *moved_len);
+
 
 /*
  * Add new method to test wether block and inode bitmaps are properly

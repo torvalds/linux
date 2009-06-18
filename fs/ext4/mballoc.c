@@ -22,6 +22,8 @@
  */
 
 #include "mballoc.h"
+#include <trace/events/ext4.h>
+
 /*
  * MUSTDO:
  *   - test ext4_ext_search_left() and ext4_ext_search_right()
@@ -339,8 +341,6 @@ static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
 						ext4_group_t group);
 static void release_blocks_on_commit(journal_t *journal, transaction_t *txn);
-
-
 
 static inline void *mb_correct_addr_and_bit(int *bit, void *addr)
 {
@@ -2859,9 +2859,8 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 		discard_block = (ext4_fsblk_t) entry->group * EXT4_BLOCKS_PER_GROUP(sb)
 			+ entry->start_blk
 			+ le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
-		trace_mark(ext4_discard_blocks, "dev %s blk %llu count %u",
-			   sb->s_id, (unsigned long long) discard_block,
-			   entry->count);
+		trace_ext4_discard_blocks(sb, (unsigned long long)discard_block,
+					  entry->count);
 		sb_issue_discard(sb, discard_block, entry->count);
 
 		kmem_cache_free(ext4_free_ext_cachep, entry);
@@ -3629,10 +3628,7 @@ ext4_mb_new_inode_pa(struct ext4_allocation_context *ac)
 
 	mb_debug("new inode pa %p: %llu/%u for %u\n", pa,
 			pa->pa_pstart, pa->pa_len, pa->pa_lstart);
-	trace_mark(ext4_mb_new_inode_pa,
-		   "dev %s ino %lu pstart %llu len %u lstart %u",
-		   sb->s_id, ac->ac_inode->i_ino,
-		   pa->pa_pstart, pa->pa_len, pa->pa_lstart);
+	trace_ext4_mb_new_inode_pa(ac, pa);
 
 	ext4_mb_use_inode_pa(ac, pa);
 	atomic_add(pa->pa_free, &EXT4_SB(sb)->s_mb_preallocated);
@@ -3691,9 +3687,8 @@ ext4_mb_new_group_pa(struct ext4_allocation_context *ac)
 	pa->pa_type = MB_GROUP_PA;
 
 	mb_debug("new group pa %p: %llu/%u for %u\n", pa,
-		 pa->pa_pstart, pa->pa_len, pa->pa_lstart);
-	trace_mark(ext4_mb_new_group_pa, "dev %s pstart %llu len %u lstart %u",
-		   sb->s_id, pa->pa_pstart, pa->pa_len, pa->pa_lstart);
+			pa->pa_pstart, pa->pa_len, pa->pa_lstart);
+	trace_ext4_mb_new_group_pa(ac, pa);
 
 	ext4_mb_use_group_pa(ac, pa);
 	atomic_add(pa->pa_free, &EXT4_SB(sb)->s_mb_preallocated);
@@ -3783,10 +3778,8 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 			ext4_mb_store_history(ac);
 		}
 
-		trace_mark(ext4_mb_release_inode_pa,
-			   "dev %s ino %lu block %llu count %u",
-			   sb->s_id, pa->pa_inode->i_ino, grp_blk_start + bit,
-			   next - bit);
+		trace_ext4_mb_release_inode_pa(ac, pa, grp_blk_start + bit,
+					       next - bit);
 		mb_free_blocks(pa->pa_inode, e4b, bit, next - bit);
 		bit = next + 1;
 	}
@@ -3820,8 +3813,7 @@ ext4_mb_release_group_pa(struct ext4_buddy *e4b,
 	if (ac)
 		ac->ac_op = EXT4_MB_HISTORY_DISCARD;
 
-	trace_mark(ext4_mb_release_group_pa, "dev %s pstart %llu len %d",
-		   sb->s_id, pa->pa_pstart, pa->pa_len);
+	trace_ext4_mb_release_group_pa(ac, pa);
 	BUG_ON(pa->pa_deleted == 0);
 	ext4_get_group_no_and_offset(sb, pa->pa_pstart, &group, &bit);
 	BUG_ON(group != e4b->bd_group && pa->pa_len != 0);
@@ -3889,6 +3881,8 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 
 	INIT_LIST_HEAD(&list);
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
+	if (ac)
+		ac->ac_sb = sb;
 repeat:
 	ext4_lock_group(sb, group);
 	list_for_each_entry_safe(pa, tmp,
@@ -3987,12 +3981,15 @@ void ext4_discard_preallocations(struct inode *inode)
 	}
 
 	mb_debug("discard preallocation for inode %lu\n", inode->i_ino);
-	trace_mark(ext4_discard_preallocations, "dev %s ino %lu", sb->s_id,
-		   inode->i_ino);
+	trace_ext4_discard_preallocations(inode);
 
 	INIT_LIST_HEAD(&list);
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
+	if (ac) {
+		ac->ac_sb = sb;
+		ac->ac_inode = inode;
+	}
 repeat:
 	/* first, collect all pa's in the inode */
 	spin_lock(&ei->i_prealloc_lock);
@@ -4276,6 +4273,8 @@ ext4_mb_discard_lg_preallocations(struct super_block *sb,
 
 	INIT_LIST_HEAD(&discard_list);
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
+	if (ac)
+		ac->ac_sb = sb;
 
 	spin_lock(&lg->lg_prealloc_lock);
 	list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[order],
@@ -4445,8 +4444,7 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 	int ret;
 	int freed = 0;
 
-	trace_mark(ext4_mb_discard_preallocations, "dev %s needed %d",
-		   sb->s_id, needed);
+	trace_ext4_mb_discard_preallocations(sb, needed);
 	for (i = 0; i < ngroups && needed > 0; i++) {
 		ret = ext4_mb_discard_group_preallocations(sb, i, needed);
 		freed += ret;
@@ -4475,17 +4473,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
 
-	trace_mark(ext4_request_blocks, "dev %s flags %u len %u ino %lu "
-		   "lblk %llu goal %llu lleft %llu lright %llu "
-		   "pleft %llu pright %llu ",
-		   sb->s_id, ar->flags, ar->len,
-		   ar->inode ? ar->inode->i_ino : 0,
-		   (unsigned long long) ar->logical,
-		   (unsigned long long) ar->goal,
-		   (unsigned long long) ar->lleft,
-		   (unsigned long long) ar->lright,
-		   (unsigned long long) ar->pleft,
-		   (unsigned long long) ar->pright);
+	trace_ext4_request_blocks(ar);
 
 	/*
 	 * For delayed allocation, we could skip the ENOSPC and
@@ -4521,7 +4509,10 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	}
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
-	if (!ac) {
+	if (ac) {
+		ac->ac_sb = sb;
+		ac->ac_inode = ar->inode;
+	} else {
 		ar->len = 0;
 		*errp = -ENOMEM;
 		goto out1;
@@ -4594,18 +4585,7 @@ out3:
 						reserv_blks);
 	}
 
-	trace_mark(ext4_allocate_blocks,
-		   "dev %s block %llu flags %u len %u ino %lu "
-		   "logical %llu goal %llu lleft %llu lright %llu "
-		   "pleft %llu pright %llu ",
-		   sb->s_id, (unsigned long long) block,
-		   ar->flags, ar->len, ar->inode ? ar->inode->i_ino : 0,
-		   (unsigned long long) ar->logical,
-		   (unsigned long long) ar->goal,
-		   (unsigned long long) ar->lleft,
-		   (unsigned long long) ar->lright,
-		   (unsigned long long) ar->pleft,
-		   (unsigned long long) ar->pright);
+	trace_ext4_allocate_blocks(ar, (unsigned long long)block);
 
 	return block;
 }
@@ -4709,7 +4689,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
  * Main entry point into mballoc to free blocks
  */
 void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
-			unsigned long block, unsigned long count,
+			ext4_fsblk_t block, unsigned long count,
 			int metadata, unsigned long *freed)
 {
 	struct buffer_head *bitmap_bh = NULL;
@@ -4735,15 +4715,12 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 	    block + count > ext4_blocks_count(es)) {
 		ext4_error(sb, __func__,
 			    "Freeing blocks not in datazone - "
-			    "block = %lu, count = %lu", block, count);
+			    "block = %llu, count = %lu", block, count);
 		goto error_return;
 	}
 
-	ext4_debug("freeing block %lu\n", block);
-	trace_mark(ext4_free_blocks,
-		   "dev %s block %llu count %lu metadata %d ino %lu",
-		   sb->s_id, (unsigned long long) block, count, metadata,
-		   inode ? inode->i_ino : 0);
+	ext4_debug("freeing block %llu\n", block);
+	trace_ext4_free_blocks(inode, block, count, metadata);
 
 	ac = kmem_cache_alloc(ext4_ac_cachep, GFP_NOFS);
 	if (ac) {
@@ -4784,7 +4761,7 @@ do_more:
 
 		ext4_error(sb, __func__,
 			   "Freeing blocks in system zone - "
-			   "Block = %lu, count = %lu", block, count);
+			   "Block = %llu, count = %lu", block, count);
 		/* err = 0. ext4_std_error should be a no op */
 		goto error_return;
 	}
