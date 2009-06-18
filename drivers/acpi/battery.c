@@ -832,14 +832,12 @@ static int acpi_battery_add(struct acpi_device *device)
 	acpi_battery_update(battery);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_battery_add_fs(device);
-	if (result)
-		goto end;
 #endif
-	printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
-	       ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
-	       device->status.battery_present ? "present" : "absent");
-      end:
-	if (result) {
+	if (!result) {
+		printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
+			ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
+			device->status.battery_present ? "present" : "absent");
+	} else {
 #ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_battery_remove_fs(device);
 #endif
