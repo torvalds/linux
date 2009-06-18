@@ -2390,7 +2390,7 @@ FTRACE
 P:	Steven Rostedt
 M:	rostedt@goodmis.org
 S:	Maintained
-F:	Documentation/ftrace.txt
+F:	Documentation/trace/ftrace.txt
 F:	arch/*/*/*/ftrace.h
 F:	arch/*/kernel/ftrace.c
 F:	include/*/ftrace.h
