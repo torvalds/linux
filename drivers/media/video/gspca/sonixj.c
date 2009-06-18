@@ -274,7 +274,8 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 8 + 590,
+		/* Note 3 / 8 is not large enough, not even 5 / 8 is ?! */
+		.sizeimage = 640 * 480 * 3 / 4 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
