@@ -62,18 +62,6 @@ config KVM_AMD
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-amd.
 
-config KVM_TRACE
-	bool "KVM trace support"
-	depends on KVM && SYSFS
-	select MARKERS
-	select RELAY
-	select DEBUG_FS
-	default n
-	---help---
-	  This option allows reading a trace of kvm-related events through
-	  relayfs.  Note the ABI is not considered stable and will be
-	  modified in future updates.
-
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/lguest/Kconfig

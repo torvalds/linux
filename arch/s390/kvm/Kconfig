@@ -34,9 +34,6 @@ config KVM
 
 	  If unsure, say N.
 
-config KVM_TRACE
-       bool
-
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/virtio/Kconfig

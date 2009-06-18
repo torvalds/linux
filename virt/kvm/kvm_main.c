@@ -2398,7 +2398,7 @@ static long kvm_dev_ioctl(struct file *filp,
 	case KVM_TRACE_ENABLE:
 	case KVM_TRACE_PAUSE:
 	case KVM_TRACE_DISABLE:
-		r = kvm_trace_ioctl(ioctl, arg);
+		r = -EOPNOTSUPP;
 		break;
 	default:
 		return kvm_arch_dev_ioctl(filp, ioctl, arg);
@@ -2748,7 +2748,6 @@ EXPORT_SYMBOL_GPL(kvm_init);
 
 void kvm_exit(void)
 {
-	kvm_trace_cleanup();
 	tracepoint_synchronize_unregister();
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);

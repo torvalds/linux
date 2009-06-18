@@ -14,7 +14,7 @@
 
 #define KVM_API_VERSION 12
 
-/* for KVM_TRACE_ENABLE */
+/* for KVM_TRACE_ENABLE, deprecated */
 struct kvm_user_trace_setup {
 	__u32 buf_size; /* sub_buffer size of each per-cpu */
 	__u32 buf_nr; /* the number of sub_buffers of each per-cpu */
@@ -324,35 +324,6 @@ struct kvm_guest_debug {
 #define KVM_TRC_HEAD_SIZE       12
 #define KVM_TRC_CYCLE_SIZE      8
 #define KVM_TRC_EXTRA_MAX       7
-
-/* This structure represents a single trace buffer record. */
-struct kvm_trace_rec {
-	/* variable rec_val
-	 * is split into:
-	 * bits 0 - 27  -> event id
-	 * bits 28 -30  -> number of extra data args of size u32
-	 * bits 31      -> binary indicator for if tsc is in record
-	 */
-	__u32 rec_val;
-	__u32 pid;
-	__u32 vcpu_id;
-	union {
-		struct {
-			__u64 timestamp;
-			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} __attribute__((packed)) timestamp;
-		struct {
-			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
-		} notimestamp;
-	} u;
-};
-
-#define TRACE_REC_EVENT_ID(val) \
-		(0x0fffffff & (val))
-#define TRACE_REC_NUM_DATA_ARGS(val) \
-		(0x70000000 & ((val) << 28))
-#define TRACE_REC_TCS(val) \
-		(0x80000000 & ((val) << 31))
 
 #define KVMIO 0xAE
 

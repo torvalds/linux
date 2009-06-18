@@ -8,8 +8,6 @@ EXTRA_CFLAGS += -Ivirt/kvm -Iarch/powerpc/kvm
 
 common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
-common-objs-$(CONFIG_KVM_TRACE)  += $(addprefix ../../../virt/kvm/, kvm_trace.o)
-
 CFLAGS_44x_tlb.o  := -I.
 CFLAGS_e500_tlb.o := -I.
 CFLAGS_emulate.o  := -I.
