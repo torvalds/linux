@@ -139,22 +139,22 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_fscache_uniq, "fsc=%s" },
 	{ Opt_nofscache, "nofsc" },
 
-	{ Opt_port, "port=%u" },
-	{ Opt_rsize, "rsize=%u" },
-	{ Opt_wsize, "wsize=%u" },
-	{ Opt_bsize, "bsize=%u" },
-	{ Opt_timeo, "timeo=%u" },
-	{ Opt_retrans, "retrans=%u" },
-	{ Opt_acregmin, "acregmin=%u" },
-	{ Opt_acregmax, "acregmax=%u" },
-	{ Opt_acdirmin, "acdirmin=%u" },
-	{ Opt_acdirmax, "acdirmax=%u" },
-	{ Opt_actimeo, "actimeo=%u" },
-	{ Opt_namelen, "namlen=%u" },
-	{ Opt_mountport, "mountport=%u" },
-	{ Opt_mountvers, "mountvers=%u" },
-	{ Opt_nfsvers, "nfsvers=%u" },
-	{ Opt_nfsvers, "vers=%u" },
+	{ Opt_port, "port=%s" },
+	{ Opt_rsize, "rsize=%s" },
+	{ Opt_wsize, "wsize=%s" },
+	{ Opt_bsize, "bsize=%s" },
+	{ Opt_timeo, "timeo=%s" },
+	{ Opt_retrans, "retrans=%s" },
+	{ Opt_acregmin, "acregmin=%s" },
+	{ Opt_acregmax, "acregmax=%s" },
+	{ Opt_acdirmin, "acdirmin=%s" },
+	{ Opt_acdirmax, "acdirmax=%s" },
+	{ Opt_actimeo, "actimeo=%s" },
+	{ Opt_namelen, "namlen=%s" },
+	{ Opt_mountport, "mountport=%s" },
+	{ Opt_mountvers, "mountvers=%s" },
+	{ Opt_nfsvers, "nfsvers=%s" },
+	{ Opt_nfsvers, "vers=%s" },
 
 	{ Opt_sec, "sec=%s" },
 	{ Opt_proto, "proto=%s" },
@@ -976,7 +976,8 @@ static int nfs_parse_mount_options(char *raw,
 
 	while ((p = strsep(&raw, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
-		int option, token;
+		unsigned long option;
+		int token;
 
 		if (!*p)
 			continue;
@@ -1085,82 +1086,155 @@ static int nfs_parse_mount_options(char *raw,
 		 * options that take numeric values
 		 */
 		case Opt_port:
-			if (match_int(args, &option) ||
-			    option < 0 || option > USHORT_MAX)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0 || option > USHORT_MAX)
 				goto out_invalid_value;
 			mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->rsize = option;
 			break;
 		case Opt_wsize:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->wsize = option;
 			break;
 		case Opt_bsize:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->bsize = option;
 			break;
 		case Opt_timeo:
-			if (match_int(args, &option) || option <= 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0 || option == 0)
 				goto out_invalid_value;
 			mnt->timeo = option;
 			break;
 		case Opt_retrans:
-			if (match_int(args, &option) || option <= 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0 || option == 0)
 				goto out_invalid_value;
 			mnt->retrans = option;
 			break;
 		case Opt_acregmin:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->acregmin = option;
 			break;
 		case Opt_acregmax:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->acregmax = option;
 			break;
 		case Opt_acdirmin:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->acdirmin = option;
 			break;
 		case Opt_acdirmax:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->acdirmax = option;
 			break;
 		case Opt_actimeo:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->acregmin = mnt->acregmax =
 			mnt->acdirmin = mnt->acdirmax = option;
 			break;
 		case Opt_namelen:
-			if (match_int(args, &option) || option < 0)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			mnt->namlen = option;
 			break;
 		case Opt_mountport:
-			if (match_int(args, &option) ||
-			    option < 0 || option > USHORT_MAX)
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0 || option > USHORT_MAX)
 				goto out_invalid_value;
 			mnt->mount_server.port = option;
 			break;
 		case Opt_mountvers:
-			if (match_int(args, &option) ||
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0 ||
 			    option < NFS_MNT_VERSION ||
 			    option > NFS_MNT3_VERSION)
 				goto out_invalid_value;
 			mnt->mount_server.version = option;
 			break;
 		case Opt_nfsvers:
-			if (match_int(args, &option))
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = strict_strtoul(string, 10, &option);
+			kfree(string);
+			if (rc != 0)
 				goto out_invalid_value;
 			switch (option) {
 			case NFS2_VERSION:
