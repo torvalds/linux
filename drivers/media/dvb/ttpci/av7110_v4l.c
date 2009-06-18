@@ -458,7 +458,7 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 	dprintk(2, "VIDIOC_ENUMINPUT: %d\n", i->index);
 
 	if (av7110->analog_tuner_flags) {
-		if (i->index < 0 || i->index >= 4)
+		if (i->index >= 4)
 			return -EINVAL;
 	} else {
 		if (i->index != 0)

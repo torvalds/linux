@@ -1732,7 +1732,9 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 	uint32_t *ptr, str[4];
 	uint8_t *fwname;
 
-	if (vp->rev.rBit) {
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		sprintf(fwrevision, "%s", vp->rev.opFwName);
+	else if (vp->rev.rBit) {
 		if (psli->sli_flag & LPFC_SLI_ACTIVE)
 			rev = vp->rev.sli2FwRev;
 		else

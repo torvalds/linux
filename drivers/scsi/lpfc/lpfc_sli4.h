@@ -229,7 +229,7 @@ struct lpfc_bmbx {
 
 #define LPFC_EQE_DEF_COUNT	1024
 #define LPFC_CQE_DEF_COUNT      256
-#define LPFC_WQE_DEF_COUNT      64
+#define LPFC_WQE_DEF_COUNT      256
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
 

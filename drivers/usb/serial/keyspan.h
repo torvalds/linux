@@ -41,7 +41,8 @@ static int  keyspan_open		(struct tty_struct *tty,
 static void keyspan_close		(struct usb_serial_port *port);
 static void keyspan_dtr_rts		(struct usb_serial_port *port, int on);
 static int  keyspan_startup		(struct usb_serial *serial);
-static void keyspan_shutdown		(struct usb_serial *serial);
+static void keyspan_disconnect		(struct usb_serial *serial);
+static void keyspan_release		(struct usb_serial *serial);
 static int  keyspan_write_room		(struct tty_struct *tty);
 
 static int  keyspan_write		(struct tty_struct *tty,
@@ -569,7 +570,8 @@ static struct usb_serial_driver keyspan_1port_device = {
 	.tiocmget		= keyspan_tiocmget,
 	.tiocmset		= keyspan_tiocmset,
 	.attach			= keyspan_startup,
-	.shutdown		= keyspan_shutdown,
+	.disconnect		= keyspan_disconnect,
+	.release		= keyspan_release,
 };
 
 static struct usb_serial_driver keyspan_2port_device = {
@@ -590,7 +592,8 @@ static struct usb_serial_driver keyspan_2port_device = {
 	.tiocmget		= keyspan_tiocmget,
 	.tiocmset		= keyspan_tiocmset,
 	.attach			= keyspan_startup,
-	.shutdown		= keyspan_shutdown,
+	.disconnect		= keyspan_disconnect,
+	.release		= keyspan_release,
 };
 
 static struct usb_serial_driver keyspan_4port_device = {
@@ -611,7 +614,8 @@ static struct usb_serial_driver keyspan_4port_device = {
 	.tiocmget		= keyspan_tiocmget,
 	.tiocmset		= keyspan_tiocmset,
 	.attach			= keyspan_startup,
-	.shutdown		= keyspan_shutdown,
+	.disconnect		= keyspan_disconnect,
+	.release		= keyspan_release,
 };
 
 #endif

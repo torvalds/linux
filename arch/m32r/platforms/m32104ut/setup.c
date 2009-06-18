@@ -63,7 +63,7 @@ static void shutdown_m32104ut_irq(unsigned int irq)
 	outl(M32R_ICUCR_ILEVEL7, port);
 }
 
-static struct hw_interrupt_type m32104ut_irq_type =
+static struct irq_chip m32104ut_irq_type =
 {
 	.typename = "M32104UT-IRQ",
 	.startup = startup_m32104ut_irq,

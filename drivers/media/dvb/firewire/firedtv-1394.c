@@ -225,7 +225,7 @@ fail_free:
 
 static int node_remove(struct device *dev)
 {
-	struct firedtv *fdtv = dev->driver_data;
+	struct firedtv *fdtv = dev_get_drvdata(dev);
 
 	fdtv_dvb_unregister(fdtv);
 
@@ -242,7 +242,7 @@ static int node_remove(struct device *dev)
 
 static int node_update(struct unit_directory *ud)
 {
-	struct firedtv *fdtv = ud->device.driver_data;
+	struct firedtv *fdtv = dev_get_drvdata(&ud->device);
 
 	if (fdtv->isochannel >= 0)
 		cmp_establish_pp_connection(fdtv, fdtv->subunit,

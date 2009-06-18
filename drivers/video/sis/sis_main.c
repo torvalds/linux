@@ -5928,7 +5928,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if(pci_enable_device(pdev)) {
 			if(ivideo->nbridge) pci_dev_put(ivideo->nbridge);
 			pci_set_drvdata(pdev, NULL);
-			kfree(sis_fb_info);
+			framebuffer_release(sis_fb_info);
 			return -EIO;
 		}
 	}
@@ -6134,7 +6134,7 @@ error_3:	vfree(ivideo->bios_abase);
 		pci_set_drvdata(pdev, NULL);
 		if(!ivideo->sisvga_enabled)
 			pci_disable_device(pdev);
-		kfree(sis_fb_info);
+		framebuffer_release(sis_fb_info);
 		return ret;
 	}
 

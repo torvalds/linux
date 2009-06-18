@@ -545,24 +545,18 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	if ((flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY)) {
 		if (force)
 			mark_files_ro(sb);
-		else if (!fs_may_remount_ro(sb)) {
-			unlock_kernel();
+		else if (!fs_may_remount_ro(sb))
 			return -EBUSY;
-		}
 		retval = vfs_dq_off(sb, 1);
-		if (retval < 0 && retval != -ENOSYS) {
-			unlock_kernel();
+		if (retval < 0 && retval != -ENOSYS)
 			return -EBUSY;
-		}
 	}
 	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	if (sb->s_op->remount_fs) {
 		retval = sb->s_op->remount_fs(sb, &flags, data);
-		if (retval) {
-			unlock_kernel();
+		if (retval)
 			return retval;
-		}
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
 	if (remount_rw)

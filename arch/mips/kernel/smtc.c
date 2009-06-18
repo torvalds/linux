@@ -924,6 +924,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 	int irq = MIPS_CPU_IRQ_BASE + 1;
 
 	smtc_ipi_nq(&freeIPIq, pipi);
+
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();

@@ -220,6 +220,22 @@
 #error Bad page size configuration!
 #endif
 
+/*
+ * Default huge tlb size for a given kernel configuration
+ */
+#ifdef CONFIG_PAGE_SIZE_4KB
+#define PM_HUGE_MASK	PM_1M
+#elif defined(CONFIG_PAGE_SIZE_8KB)
+#define PM_HUGE_MASK	PM_4M
+#elif defined(CONFIG_PAGE_SIZE_16KB)
+#define PM_HUGE_MASK	PM_16M
+#elif defined(CONFIG_PAGE_SIZE_32KB)
+#define PM_HUGE_MASK	PM_64M
+#elif defined(CONFIG_PAGE_SIZE_64KB)
+#define PM_HUGE_MASK	PM_256M
+#elif defined(CONFIG_HUGETLB_PAGE)
+#error Bad page size configuration for hugetlbfs!
+#endif
 
 /*
  * Values used for computation of new tlb entries

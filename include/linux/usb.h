@@ -36,6 +36,7 @@ struct wusb_dev;
  *  - configs have one (often) or more interfaces;
  *  - interfaces have one (usually) or more settings;
  *  - each interface setting has zero or (usually) more endpoints.
+ *  - a SuperSpeed endpoint has a companion descriptor
  *
  * And there might be other descriptors mixed in with those.
  *
@@ -44,6 +45,19 @@ struct wusb_dev;
 
 struct ep_device;
 
+/* For SS devices */
+/**
+ * struct usb_host_ss_ep_comp - Valid for SuperSpeed devices only
+ * @desc: endpoint companion descriptor, wMaxPacketSize in native byteorder
+ * @extra: descriptors following this endpoint companion descriptor
+ * @extralen: how many bytes of "extra" are valid
+ */
+struct usb_host_ss_ep_comp {
+	struct usb_ss_ep_comp_descriptor	desc;
+	unsigned char				*extra;   /* Extra descriptors */
+	int					extralen;
+};
+
 /**
  * struct usb_host_endpoint - host-side endpoint descriptor and queue
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
@@ -51,6 +65,7 @@ struct ep_device;
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
  * @ep_dev: ep_device for sysfs info
+ * @ss_ep_comp: companion descriptor information for this endpoint
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  * @enabled: URBs may be submitted to this endpoint
@@ -63,6 +78,7 @@ struct usb_host_endpoint {
 	struct list_head		urb_list;
 	void				*hcpriv;
 	struct ep_device 		*ep_dev;	/* For sysfs info */
+	struct usb_host_ss_ep_comp	*ss_ep_comp;	/* For SS devices */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
@@ -336,7 +352,6 @@ struct usb_bus {
 #ifdef CONFIG_USB_DEVICEFS
 	struct dentry *usbfs_dentry;	/* usbfs dentry entry for the bus */
 #endif
-	struct device *dev;		/* device for this bus */
 
 #if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
 	struct mon_bus *mon_bus;	/* non-null when associated */
@@ -363,6 +378,7 @@ struct usb_tt;
  * struct usb_device - kernel's representation of a USB device
  * @devnum: device number; address on a USB bus
  * @devpath: device ID string for use in messages (e.g., /port/...)
+ * @route: tree topology hex string for use with xHCI
  * @state: device state: configured, not attached, etc.
  * @speed: device speed: high/full/low (or error)
  * @tt: Transaction Translator info; used with low/full speed dev, highspeed hub
@@ -420,6 +436,7 @@ struct usb_tt;
  * @skip_sys_resume: skip the next system resume
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
+ * @slot_id: Slot ID assigned by xHCI
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -428,6 +445,7 @@ struct usb_tt;
 struct usb_device {
 	int		devnum;
 	char		devpath [16];
+	u32		route;
 	enum usb_device_state	state;
 	enum usb_device_speed	speed;
 
@@ -503,6 +521,7 @@ struct usb_device {
 	unsigned skip_sys_resume:1;
 #endif
 	struct wusb_dev *wusb_dev;
+	int slot_id;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
@@ -869,6 +888,8 @@ struct usb_driver {
  * struct usb_device_driver - identifies USB device driver to usbcore
  * @name: The driver name should be unique among USB drivers,
  *	and should normally be the same as the module name.
+ * @nodename: Callback to provide a naming hint for a possible
+ *	device node to create.
  * @probe: Called to see if the driver is willing to manage a particular
  *	device.  If it is, probe returns zero and uses dev_set_drvdata()
  *	to associate driver-specific data with the device.  If unwilling
@@ -912,6 +933,7 @@ extern struct bus_type usb_bus_type;
  */
 struct usb_class_driver {
 	char *name;
+	char *(*nodename)(struct device *dev);
 	const struct file_operations *fops;
 	int minor_base;
 };
@@ -1041,7 +1063,9 @@ typedef void (*usb_complete_t)(struct urb *);
  * @setup_dma: For control transfers with URB_NO_SETUP_DMA_MAP set, the
  *	device driver has provided this DMA address for the setup packet.
  *	The host controller driver should use this in preference to
- *	setup_packet.
+ *	setup_packet, but the HCD may chose to ignore the address if it must
+ *	copy the setup packet into internal structures.  Therefore, setup_packet
+ *	must always point to a valid buffer.
  * @start_frame: Returns the initial frame for isochronous transfers.
  * @number_of_packets: Lists the number of ISO transfer buffers.
  * @interval: Specifies the polling interval for interrupt or isochronous
@@ -1177,6 +1201,8 @@ struct urb {
 	unsigned int transfer_flags;	/* (in) URB_SHORT_NOT_OK | ...*/
 	void *transfer_buffer;		/* (in) associated data buffer */
 	dma_addr_t transfer_dma;	/* (in) dma addr for transfer_buffer */
+	struct usb_sg_request *sg;	/* (in) scatter gather buffer list */
+	int num_sgs;			/* (in) number of entries in the sg list */
 	u32 transfer_buffer_length;	/* (in) data buffer length */
 	u32 actual_length;		/* (return) actual transfer length */
 	unsigned char *setup_packet;	/* (in) setup packet (control only) */
@@ -1422,8 +1448,8 @@ struct usb_sg_request {
 	int			status;
 	size_t			bytes;
 
-	/*
-	 * members below are private: to usbcore,
+	/* private:
+	 * members below are private to usbcore,
 	 * and are not provided for driver access!
 	 */
 	spinlock_t		lock;
@@ -1557,6 +1583,9 @@ extern void usb_unregister_notify(struct notifier_block *nb);
 
 #define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
 	format "\n" , ## arg)
+
+/* debugfs stuff */
+extern struct dentry *usb_debug_root;
 
 #endif  /* __KERNEL__ */
 

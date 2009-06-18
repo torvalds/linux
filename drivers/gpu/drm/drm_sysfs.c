@@ -70,6 +70,11 @@ static ssize_t version_show(struct class *dev, char *buf)
 		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 }
 
+static char *drm_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
+}
+
 static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
 
 /**
@@ -100,6 +105,8 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	err = class_create_file(class, &class_attr_version);
 	if (err)
 		goto err_out_class;
+
+	class->nodename = drm_nodename;
 
 	return class;
 

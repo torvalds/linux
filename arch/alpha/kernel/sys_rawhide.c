@@ -135,7 +135,7 @@ rawhide_end_irq(unsigned int irq)
 		rawhide_enable_irq(irq);
 }
 
-static struct hw_interrupt_type rawhide_irq_type = {
+static struct irq_chip rawhide_irq_type = {
 	.typename	= "RAWHIDE",
 	.startup	= rawhide_startup_irq,
 	.shutdown	= rawhide_disable_irq,

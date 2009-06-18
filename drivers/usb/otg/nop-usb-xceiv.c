@@ -22,8 +22,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Current status:
- * 	this is to add "nop" transceiver for all those phy which is
- * 	autonomous such as isp1504 etc.
+ *	This provides a "nop" transceiver for PHYs which are
+ *	autonomous such as isp1504, isp1707, etc.
  */
 
 #include <linux/module.h>
@@ -36,30 +36,25 @@ struct nop_usb_xceiv {
 	struct device		*dev;
 };
 
-static u64 nop_xceiv_dmamask = DMA_BIT_MASK(32);
-
-static struct platform_device nop_xceiv_device = {
-	.name           = "nop_usb_xceiv",
-	.id             = -1,
-	.dev = {
-		.dma_mask               = &nop_xceiv_dmamask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-		.platform_data          = NULL,
-	},
-};
+static struct platform_device *pd;
 
 void usb_nop_xceiv_register(void)
 {
-	if (platform_device_register(&nop_xceiv_device) < 0) {
+	if (pd)
+		return;
+	pd = platform_device_register_simple("nop_usb_xceiv", -1, NULL, 0);
+	if (!pd) {
 		printk(KERN_ERR "Unable to register usb nop transceiver\n");
 		return;
 	}
 }
+EXPORT_SYMBOL(usb_nop_xceiv_register);
 
 void usb_nop_xceiv_unregister(void)
 {
-	platform_device_unregister(&nop_xceiv_device);
+	platform_device_unregister(pd);
 }
+EXPORT_SYMBOL(usb_nop_xceiv_unregister);
 
 static inline struct nop_usb_xceiv *xceiv_to_nop(struct otg_transceiver *x)
 {

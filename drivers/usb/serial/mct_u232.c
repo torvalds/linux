@@ -92,7 +92,7 @@ static int debug;
  * Function prototypes
  */
 static int  mct_u232_startup(struct usb_serial *serial);
-static void mct_u232_shutdown(struct usb_serial *serial);
+static void mct_u232_release(struct usb_serial *serial);
 static int  mct_u232_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp);
 static void mct_u232_close(struct usb_serial_port *port);
@@ -149,7 +149,7 @@ static struct usb_serial_driver mct_u232_device = {
 	.tiocmget =	     mct_u232_tiocmget,
 	.tiocmset =	     mct_u232_tiocmset,
 	.attach =	     mct_u232_startup,
-	.shutdown =	     mct_u232_shutdown,
+	.release =	     mct_u232_release,
 };
 
 
@@ -407,7 +407,7 @@ static int mct_u232_startup(struct usb_serial *serial)
 } /* mct_u232_startup */
 
 
-static void mct_u232_shutdown(struct usb_serial *serial)
+static void mct_u232_release(struct usb_serial *serial)
 {
 	struct mct_u232_private *priv;
 	int i;
@@ -417,12 +417,9 @@ static void mct_u232_shutdown(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
 		priv = usb_get_serial_port_data(serial->port[i]);
-		if (priv) {
-			usb_set_serial_port_data(serial->port[i], NULL);
-			kfree(priv);
-		}
+		kfree(priv);
 	}
-} /* mct_u232_shutdown */
+} /* mct_u232_release */
 
 static int  mct_u232_open(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)

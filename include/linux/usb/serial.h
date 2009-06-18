@@ -15,6 +15,7 @@
 
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/sysrq.h>
 
 #define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
 #define SERIAL_TTY_MINORS	254	/* loads of devices :) */
@@ -25,6 +26,13 @@
 
 /* parity check flag */
 #define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
+
+enum port_dev_state {
+	PORT_UNREGISTERED,
+	PORT_REGISTERING,
+	PORT_REGISTERED,
+	PORT_UNREGISTERING,
+};
 
 /**
  * usb_serial_port: structure for the specific ports of a device.
@@ -91,12 +99,17 @@ struct usb_serial_port {
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 
+	int			tx_bytes_flight;
+	int			urbs_in_flight;
+
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	char			throttled;
 	char			throttle_req;
 	char			console;
+	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
+	enum port_dev_state	dev_state;
 };
 #define to_usb_serial_port(d) container_of(d, struct usb_serial_port, dev)
 
@@ -181,8 +194,10 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  *	This will be called when the struct usb_serial structure is fully set
  *	set up.  Do any local initialization of the device, or any private
  *	memory structure allocation at this point in time.
- * @shutdown: pointer to the driver's shutdown function.  This will be
- *	called when the device is removed from the system.
+ * @disconnect: pointer to the driver's disconnect function.  This will be
+ *	called when the device is unplugged or unbound from the driver.
+ * @release: pointer to the driver's release function.  This will be called
+ *	when the usb_serial data structure is about to be destroyed.
  * @usb_driver: pointer to the struct usb_driver that controls this
  *	device.  This is necessary to allow dynamic ids to be added to
  *	the driver from sysfs.
@@ -207,12 +222,14 @@ struct usb_serial_driver {
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
+	int			max_in_flight_urbs;
 
 	int (*probe)(struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach)(struct usb_serial *serial);
 	int (*calc_num_ports) (struct usb_serial *serial);
 
-	void (*shutdown)(struct usb_serial *serial);
+	void (*disconnect)(struct usb_serial *serial);
+	void (*release)(struct usb_serial *serial);
 
 	int (*port_probe)(struct usb_serial_port *port);
 	int (*port_remove)(struct usb_serial_port *port);
@@ -294,9 +311,16 @@ extern void usb_serial_generic_read_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_write_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_throttle(struct tty_struct *tty);
 extern void usb_serial_generic_unthrottle(struct tty_struct *tty);
-extern void usb_serial_generic_shutdown(struct usb_serial *serial);
+extern void usb_serial_generic_disconnect(struct usb_serial *serial);
+extern void usb_serial_generic_release(struct usb_serial *serial);
 extern int usb_serial_generic_register(int debug);
 extern void usb_serial_generic_deregister(void);
+extern void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
+						 gfp_t mem_flags);
+extern int usb_serial_handle_sysrq_char(struct usb_serial_port *port,
+					unsigned int ch);
+extern int usb_serial_handle_break(struct usb_serial_port *port);
+
 
 extern int usb_serial_bus_register(struct usb_serial_driver *device);
 extern void usb_serial_bus_deregister(struct usb_serial_driver *device);

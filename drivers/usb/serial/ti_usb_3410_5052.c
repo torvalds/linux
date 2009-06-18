@@ -97,7 +97,7 @@ struct ti_device {
 /* Function Declarations */
 
 static int ti_startup(struct usb_serial *serial);
-static void ti_shutdown(struct usb_serial *serial);
+static void ti_release(struct usb_serial *serial);
 static int ti_open(struct tty_struct *tty, struct usb_serial_port *port,
 		struct file *file);
 static void ti_close(struct usb_serial_port *port);
@@ -230,7 +230,7 @@ static struct usb_serial_driver ti_1port_device = {
 	.id_table		= ti_id_table_3410,
 	.num_ports		= 1,
 	.attach			= ti_startup,
-	.shutdown		= ti_shutdown,
+	.release		= ti_release,
 	.open			= ti_open,
 	.close			= ti_close,
 	.write			= ti_write,
@@ -258,7 +258,7 @@ static struct usb_serial_driver ti_2port_device = {
 	.id_table		= ti_id_table_5052,
 	.num_ports		= 2,
 	.attach			= ti_startup,
-	.shutdown		= ti_shutdown,
+	.release		= ti_release,
 	.open			= ti_open,
 	.close			= ti_close,
 	.write			= ti_write,
@@ -473,7 +473,7 @@ free_tdev:
 }
 
 
-static void ti_shutdown(struct usb_serial *serial)
+static void ti_release(struct usb_serial *serial)
 {
 	int i;
 	struct ti_device *tdev = usb_get_serial_data(serial);
@@ -486,12 +486,10 @@ static void ti_shutdown(struct usb_serial *serial)
 		if (tport) {
 			ti_buf_free(tport->tp_write_buf);
 			kfree(tport);
-			usb_set_serial_port_data(serial->port[i], NULL);
 		}
 	}
 
 	kfree(tdev);
-	usb_set_serial_data(serial, NULL);
 }
 
 

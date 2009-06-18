@@ -364,7 +364,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 	int cstat, dstat;
 	int count;
 
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	req = (struct raw3215_req *) intparm;
 	cstat = irb->scsw.cmd.cstat;
 	dstat = irb->scsw.cmd.dstat;
@@ -652,7 +652,7 @@ static int raw3215_probe (struct ccw_device *cdev)
 	int line;
 
 	/* Console is special. */
-	if (raw3215[0] && (cdev->dev.driver_data == raw3215[0]))
+	if (raw3215[0] && (raw3215[0] == dev_get_drvdata(&cdev->dev)))
 		return 0;
 	raw = kmalloc(sizeof(struct raw3215_info) +
 		      RAW3215_INBUF_SIZE, GFP_KERNEL|GFP_DMA);
@@ -686,7 +686,7 @@ static int raw3215_probe (struct ccw_device *cdev)
 	}
 	init_waitqueue_head(&raw->empty_wait);
 
-	cdev->dev.driver_data = raw;
+	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
 
 	return 0;
@@ -697,9 +697,9 @@ static void raw3215_remove (struct ccw_device *cdev)
 	struct raw3215_info *raw;
 
 	ccw_device_set_offline(cdev);
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	if (raw) {
-		cdev->dev.driver_data = NULL;
+		dev_set_drvdata(&cdev->dev, NULL);
 		kfree(raw->buffer);
 		kfree(raw);
 	}
@@ -709,7 +709,7 @@ static int raw3215_set_online (struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	if (!raw)
 		return -ENODEV;
 
@@ -720,7 +720,7 @@ static int raw3215_set_offline (struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	if (!raw)
 		return -ENODEV;
 
@@ -898,7 +898,7 @@ static int __init con3215_init(void)
 	raw->buffer = (char *) alloc_bootmem_low(RAW3215_BUFFER_SIZE);
 	raw->inbuf = (char *) alloc_bootmem_low(RAW3215_INBUF_SIZE);
 	raw->cdev = cdev;
-	cdev->dev.driver_data = raw;
+	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
 
 	raw->flags |= RAW3215_FIXED;

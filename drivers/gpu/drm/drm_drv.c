@@ -339,7 +339,7 @@ static int __init drm_core_init(void)
 
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
 	if (!drm_debugfs_root) {
-		DRM_ERROR("Cannot create /debugfs/dri\n");
+		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
 		ret = -1;
 		goto err_p3;
 	}

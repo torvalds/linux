@@ -122,7 +122,7 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 
 	info->type = port_type;
 	info->line = ret;
-	ofdev->dev.driver_data = info;
+	dev_set_drvdata(&ofdev->dev, info);
 	return 0;
 out:
 	kfree(info);
@@ -135,7 +135,7 @@ out:
  */
 static int of_platform_serial_remove(struct of_device *ofdev)
 {
-	struct of_serial_info *info = ofdev->dev.driver_data;
+	struct of_serial_info *info = dev_get_drvdata(&ofdev->dev);
 	switch (info->type) {
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:

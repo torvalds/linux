@@ -344,7 +344,7 @@ static raw_spinlock_t ftrace_max_lock =
 /*
  * Copy the new maximum trace into the separate maximum-trace
  * structure. (this way the maximum trace is permanently saved,
- * for later retrieval via /debugfs/tracing/latency_trace)
+ * for later retrieval via /sys/kernel/debug/tracing/latency_trace)
  */
 static void
 __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
@@ -2414,21 +2414,20 @@ static const struct file_operations tracing_iter_fops = {
 
 static const char readme_msg[] =
 	"tracing mini-HOWTO:\n\n"
-	"# mkdir /debug\n"
-	"# mount -t debugfs nodev /debug\n\n"
-	"# cat /debug/tracing/available_tracers\n"
+	"# mount -t debugfs nodev /sys/kernel/debug\n\n"
+	"# cat /sys/kernel/debug/tracing/available_tracers\n"
 	"wakeup preemptirqsoff preemptoff irqsoff function sched_switch nop\n\n"
-	"# cat /debug/tracing/current_tracer\n"
+	"# cat /sys/kernel/debug/tracing/current_tracer\n"
 	"nop\n"
-	"# echo sched_switch > /debug/tracing/current_tracer\n"
-	"# cat /debug/tracing/current_tracer\n"
+	"# echo sched_switch > /sys/kernel/debug/tracing/current_tracer\n"
+	"# cat /sys/kernel/debug/tracing/current_tracer\n"
 	"sched_switch\n"
-	"# cat /debug/tracing/trace_options\n"
+	"# cat /sys/kernel/debug/tracing/trace_options\n"
 	"noprint-parent nosym-offset nosym-addr noverbose\n"
-	"# echo print-parent > /debug/tracing/trace_options\n"
-	"# echo 1 > /debug/tracing/tracing_enabled\n"
-	"# cat /debug/tracing/trace > /tmp/trace.txt\n"
-	"# echo 0 > /debug/tracing/tracing_enabled\n"
+	"# echo print-parent > /sys/kernel/debug/tracing/trace_options\n"
+	"# echo 1 > /sys/kernel/debug/tracing/tracing_enabled\n"
+	"# cat /sys/kernel/debug/tracing/trace > /tmp/trace.txt\n"
+	"# echo 0 > /sys/kernel/debug/tracing/tracing_enabled\n"
 ;
 
 static ssize_t

@@ -50,7 +50,7 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
 		unsigned int, unsigned int);
 static void cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_startup(struct usb_serial *);
-static void cp210x_shutdown(struct usb_serial *);
+static void cp210x_disconnect(struct usb_serial *);
 
 static int debug;
 
@@ -137,7 +137,7 @@ static struct usb_serial_driver cp210x_device = {
 	.tiocmget 		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
-	.shutdown		= cp210x_shutdown,
+	.disconnect		= cp210x_disconnect,
 };
 
 /* Config request types */
@@ -792,7 +792,7 @@ static int cp210x_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static void cp210x_shutdown(struct usb_serial *serial)
+static void cp210x_disconnect(struct usb_serial *serial)
 {
 	int i;
 

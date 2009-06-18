@@ -508,12 +508,6 @@ static int __devinit bt878_probe(struct pci_dev *dev,
 	pci_set_master(dev);
 	pci_set_drvdata(dev, bt);
 
-/*        if(init_bt878(btv) < 0) {
-		bt878_remove(dev);
-		return -EIO;
-	}
-*/
-
 	if ((result = bt878_mem_alloc(bt))) {
 		printk(KERN_ERR "bt878: failed to allocate memory!\n");
 		goto fail2;
@@ -579,7 +573,7 @@ static struct pci_driver bt878_pci_driver = {
       .name	= "bt878",
       .id_table = bt878_pci_tbl,
       .probe	= bt878_probe,
-      .remove	= bt878_remove,
+      .remove	= __devexit_p(bt878_remove),
 };
 
 static int bt878_pci_driver_registered;

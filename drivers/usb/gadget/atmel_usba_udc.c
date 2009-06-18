@@ -326,13 +326,7 @@ static int vbus_is_present(struct usba_udc *udc)
 	return 1;
 }
 
-#if defined(CONFIG_AVR32)
-
-static void toggle_bias(int is_on)
-{
-}
-
-#elif defined(CONFIG_ARCH_AT91)
+#if defined(CONFIG_ARCH_AT91SAM9RL)
 
 #include <mach/at91_pmc.h>
 
@@ -346,7 +340,13 @@ static void toggle_bias(int is_on)
 		at91_sys_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
 }
 
-#endif /* CONFIG_ARCH_AT91 */
+#else
+
+static void toggle_bias(int is_on)
+{
+}
+
+#endif /* CONFIG_ARCH_AT91SAM9RL */
 
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
@@ -550,12 +550,12 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	DBG(DBG_HW, "%s: EPT_SIZE = %lu (maxpacket = %lu)\n",
 			ep->ep.name, ept_cfg, maxpacket);
 
-	if ((desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN) {
+	if (usb_endpoint_dir_in(desc)) {
 		ep->is_in = 1;
 		ept_cfg |= USBA_EPT_DIR_IN;
 	}
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		ept_cfg |= USBA_BF(EPT_TYPE, USBA_EPT_TYPE_CONTROL);
 		ept_cfg |= USBA_BF(BK_NUMBER, USBA_BK_NUMBER_ONE);

@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
@@ -651,7 +652,7 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 		goto out_error_get_res;
 	}
 
-	iface->regs_base = ioremap(res->start, res->end - res->start + 1);
+	iface->regs_base = ioremap(res->start, resource_size(res));
 	if (iface->regs_base == NULL) {
 		dev_err(&pdev->dev, "Cannot map IO\n");
 		rc = -ENXIO;

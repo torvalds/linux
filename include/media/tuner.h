@@ -124,6 +124,8 @@
 #define TUNER_XC5000			76	/* Xceive Silicon Tuner */
 #define TUNER_TCL_MF02GIP_5N		77	/* TCL MF02GIP_5N */
 #define TUNER_PHILIPS_FMD1216MEX_MK3	78
+#define TUNER_PHILIPS_FM1216MK5		79
+#define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, no FM */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

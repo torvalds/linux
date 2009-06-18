@@ -147,6 +147,10 @@
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
 			 cpu_has_mips64r1 | cpu_has_mips64r2)
 
+#ifndef cpu_has_mips_r2_exec_hazard
+#define cpu_has_mips_r2_exec_hazard cpu_has_mips_r2
+#endif
+
 /*
  * MIPS32, MIPS64, VR5500, IDT32332, IDT32334 and maybe a few other
  * pre-MIPS32/MIPS53 processors have CLO, CLZ.  For 64-bit kernels
@@ -228,6 +232,10 @@
 #endif
 #ifndef cpu_scache_line_size
 #define cpu_scache_line_size()	cpu_data[0].scache.linesz
+#endif
+
+#ifndef cpu_hwrena_impl_bits
+#define cpu_hwrena_impl_bits		0
 #endif
 
 #endif /* __ASM_CPU_FEATURES_H */

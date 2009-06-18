@@ -380,6 +380,8 @@ ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs)
 	return res;
 }
 
+EXPORT_SYMBOL_GPL(ktime_add_safe);
+
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
 
 static struct debug_obj_descr hrtimer_debug_descr;

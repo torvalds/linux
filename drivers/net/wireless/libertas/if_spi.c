@@ -43,8 +43,8 @@ struct if_spi_card {
 	struct lbs_private		*priv;
 	struct libertas_spi_platform_data *pdata;
 
-	char				helper_fw_name[FIRMWARE_NAME_MAX];
-	char				main_fw_name[FIRMWARE_NAME_MAX];
+	char				helper_fw_name[IF_SPI_FW_NAME_MAX];
+	char				main_fw_name[IF_SPI_FW_NAME_MAX];
 
 	/* The card ID and card revision, as reported by the hardware. */
 	u16				card_id;
@@ -1019,9 +1019,9 @@ static int if_spi_calculate_fw_names(u16 card_id,
 		lbs_pr_err("Unsupported chip_id: 0x%02x\n", card_id);
 		return -EAFNOSUPPORT;
 	}
-	snprintf(helper_fw, FIRMWARE_NAME_MAX, "libertas/gspi%d_hlp.bin",
+	snprintf(helper_fw, IF_SPI_FW_NAME_MAX, "libertas/gspi%d_hlp.bin",
 		 chip_id_to_device_name[i].name);
-	snprintf(main_fw, FIRMWARE_NAME_MAX, "libertas/gspi%d.bin",
+	snprintf(main_fw, IF_SPI_FW_NAME_MAX, "libertas/gspi%d.bin",
 		 chip_id_to_device_name[i].name);
 	return 0;
 }

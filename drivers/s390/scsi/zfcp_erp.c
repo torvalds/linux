@@ -719,7 +719,7 @@ static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 	zfcp_qdio_close(adapter);
 	zfcp_fsf_req_dismiss_all(adapter);
 	adapter->fsf_req_seq_no = 0;
-	zfcp_fc_wka_port_force_offline(&adapter->nsp);
+	zfcp_fc_wka_port_force_offline(&adapter->gs->ds);
 	/* all ports and units are closed */
 	zfcp_erp_modify_adapter_status(adapter, "erascl1", NULL,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);

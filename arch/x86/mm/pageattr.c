@@ -470,7 +470,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 
 	if (!debug_pagealloc)
 		spin_unlock(&cpa_lock);
-	base = alloc_pages(GFP_KERNEL, 0);
+	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
 	if (!debug_pagealloc)
 		spin_lock(&cpa_lock);
 	if (!base)

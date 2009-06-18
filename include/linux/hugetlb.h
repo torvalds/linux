@@ -11,6 +11,8 @@
 
 struct ctl_table;
 
+int PageHuge(struct page *page);
+
 static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {
 	return vma->vm_flags & VM_HUGETLB;
@@ -60,6 +62,11 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 		unsigned long address, unsigned long end, pgprot_t newprot);
 
 #else /* !CONFIG_HUGETLB_PAGE */
+
+static inline int PageHuge(struct page *page)
+{
+	return 0;
+}
 
 static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {

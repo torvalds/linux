@@ -72,6 +72,7 @@ static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 	lis3_dev.write = lis3_spi_write;
 	lis3_dev.irq = spi->irq;
 	lis3_dev.ac = lis3lv02d_axis_normal;
+	lis3_dev.pdata = spi->dev.platform_data;
 	spi_set_drvdata(spi, &lis3_dev);
 
 	ret = lis3lv02d_init_device(&lis3_dev);

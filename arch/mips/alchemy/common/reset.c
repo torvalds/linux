@@ -27,8 +27,9 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <asm/cacheflush.h>
+#include <linux/gpio.h>
 
+#include <asm/cacheflush.h>
 #include <asm/mach-au1x00/au1000.h>
 
 void au1000_restart(char *command)
@@ -161,7 +162,7 @@ void au1000_halt(void)
 #else
 	printk(KERN_NOTICE "\n** You can safely turn off the power\n");
 #ifdef CONFIG_MIPS_MIRAGE
-	au_writel((1 << 26) | (1 << 10), GPIO2_OUTPUT);
+	gpio_direction_output(210, 1);
 #endif
 #ifdef CONFIG_MIPS_DB1200
 	au_writew(au_readw(0xB980001C) | (1 << 14), 0xB980001C);

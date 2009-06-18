@@ -746,6 +746,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
 {
 	v4l2_subdev_init(sd, ops);
+	sd->flags |= V4L2_SUBDEV_FL_IS_I2C;
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->driver->driver.owner;
 	/* i2c_client and v4l2_subdev point to one another */
@@ -897,8 +898,7 @@ const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 	};
 	static const unsigned short tv_addrs[] = {
 		0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
-		0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-		0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+		0x60, 0x61, 0x62, 0x63, 0x64,
 		I2C_CLIENT_END
 	};
 

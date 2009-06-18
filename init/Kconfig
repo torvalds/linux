@@ -616,13 +616,13 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "Create deprecated sysfs layout for older userspace tools"
+	bool "remove sysfs features which may confuse old userspace tools"
 	depends on SYSFS
-	default y
+	default n
 	select SYSFS_DEPRECATED
 	help
 	  This option switches the layout of sysfs to the deprecated
-	  version.
+	  version. Do not use it on recent distributions.
 
 	  The current sysfs layout features a unified device tree at
 	  /sys/devices/, which is able to express a hierarchy between

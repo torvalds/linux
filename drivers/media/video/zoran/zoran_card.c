@@ -1022,7 +1022,7 @@ zr36057_init (struct zoran *zr)
 	zr->vbuf_bytesperline = 0;
 
 	/* Avoid nonsense settings from user for default input/norm */
-	if (default_norm < 0 && default_norm > 2)
+	if (default_norm < 0 || default_norm > 2)
 		default_norm = 0;
 	if (default_norm == 0) {
 		zr->norm = V4L2_STD_PAL;
@@ -1477,7 +1477,7 @@ static struct pci_driver zoran_driver = {
 	.name = "zr36067",
 	.id_table = zr36067_pci_tbl,
 	.probe = zoran_probe,
-	.remove = zoran_remove,
+	.remove = __devexit_p(zoran_remove),
 };
 
 static int __init zoran_init(void)

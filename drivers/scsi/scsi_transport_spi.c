@@ -234,8 +234,10 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_width(starget) = 0;	/* narrow */
 	spi_max_width(starget) = 1;
 	spi_iu(starget) = 0;	/* no IU */
+	spi_max_iu(starget) = 1;
 	spi_dt(starget) = 0;	/* ST */
 	spi_qas(starget) = 0;
+	spi_max_qas(starget) = 1;
 	spi_wr_flow(starget) = 0;
 	spi_rd_strm(starget) = 0;
 	spi_rti(starget) = 0;
@@ -360,9 +362,9 @@ static DEVICE_ATTR(field, S_IRUGO,				\
 /* The Parallel SCSI Tranport Attributes: */
 spi_transport_max_attr(offset, "%d\n");
 spi_transport_max_attr(width, "%d\n");
-spi_transport_rd_attr(iu, "%d\n");
+spi_transport_max_attr(iu, "%d\n");
 spi_transport_rd_attr(dt, "%d\n");
-spi_transport_rd_attr(qas, "%d\n");
+spi_transport_max_attr(qas, "%d\n");
 spi_transport_rd_attr(wr_flow, "%d\n");
 spi_transport_rd_attr(rd_strm, "%d\n");
 spi_transport_rd_attr(rti, "%d\n");
@@ -874,13 +876,13 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
 	/* try QAS requests; this should be harmless to set if the
 	 * target supports it */
-	if (scsi_device_qas(sdev)) {
+	if (scsi_device_qas(sdev) && spi_max_qas(starget)) {
 		DV_SET(qas, 1);
 	} else {
 		DV_SET(qas, 0);
 	}
 
-	if (scsi_device_ius(sdev) && min_period < 9) {
+	if (scsi_device_ius(sdev) && spi_max_iu(starget) && min_period < 9) {
 		/* This u320 (or u640). Set IU transfers */
 		DV_SET(iu, 1);
 		/* Then set the optional parameters */
@@ -1412,10 +1414,16 @@ static mode_t target_attribute_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_iu.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(iu);
+	else if (attr == &dev_attr_max_iu.attr &&
+		 spi_support_ius(starget))
+		return TARGET_ATTRIBUTE_HELPER(iu);
 	else if (attr == &dev_attr_dt.attr &&
 		 spi_support_dt(starget))
 		return TARGET_ATTRIBUTE_HELPER(dt);
 	else if (attr == &dev_attr_qas.attr &&
+		 spi_support_qas(starget))
+		return TARGET_ATTRIBUTE_HELPER(qas);
+	else if (attr == &dev_attr_max_qas.attr &&
 		 spi_support_qas(starget))
 		return TARGET_ATTRIBUTE_HELPER(qas);
 	else if (attr == &dev_attr_wr_flow.attr &&
@@ -1447,8 +1455,10 @@ static struct attribute *target_attributes[] = {
 	&dev_attr_width.attr,
 	&dev_attr_max_width.attr,
 	&dev_attr_iu.attr,
+	&dev_attr_max_iu.attr,
 	&dev_attr_dt.attr,
 	&dev_attr_qas.attr,
+	&dev_attr_max_qas.attr,
 	&dev_attr_wr_flow.attr,
 	&dev_attr_rd_strm.attr,
 	&dev_attr_rti.attr,

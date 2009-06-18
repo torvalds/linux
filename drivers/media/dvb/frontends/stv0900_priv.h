@@ -60,8 +60,6 @@
 		} \
 	} while (0)
 
-#define dmd_choose(a, b)	(demod = STV0900_DEMOD_2 ? b : a))
-
 static int stvdebug;
 
 #define dprintk(args...) \

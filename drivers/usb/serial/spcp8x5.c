@@ -356,7 +356,7 @@ cleanup:
 }
 
 /* call when the device plug out. free all the memory alloced by probe */
-static void spcp8x5_shutdown(struct usb_serial *serial)
+static void spcp8x5_release(struct usb_serial *serial)
 {
 	int i;
 	struct spcp8x5_private *priv;
@@ -366,7 +366,6 @@ static void spcp8x5_shutdown(struct usb_serial *serial)
 		if (priv) {
 			free_ringbuf(priv->buf);
 			kfree(priv);
-			usb_set_serial_port_data(serial->port[i] , NULL);
 		}
 	}
 }
@@ -1020,7 +1019,7 @@ static struct usb_serial_driver spcp8x5_device = {
 	.write_bulk_callback	= spcp8x5_write_bulk_callback,
 	.chars_in_buffer 	= spcp8x5_chars_in_buffer,
 	.attach 		= spcp8x5_startup,
-	.shutdown 		= spcp8x5_shutdown,
+	.release 		= spcp8x5_release,
 };
 
 static int __init spcp8x5_init(void)

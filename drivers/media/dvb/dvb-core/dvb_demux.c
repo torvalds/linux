@@ -38,6 +38,16 @@
 */
 // #define DVB_DEMUX_SECTION_LOSS_LOG
 
+static int dvb_demux_tscheck;
+module_param(dvb_demux_tscheck, int, 0644);
+MODULE_PARM_DESC(dvb_demux_tscheck,
+		"enable transport stream continuity and TEI check");
+
+#define dprintk_tscheck(x...) do {                              \
+		if (dvb_demux_tscheck && printk_ratelimit())    \
+			printk(x);                              \
+	} while (0)
+
 /******************************************************************************
  * static inlined helper functions
  ******************************************************************************/
@@ -375,6 +385,36 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 	struct dvb_demux_feed *feed;
 	u16 pid = ts_pid(buf);
 	int dvr_done = 0;
+
+	if (dvb_demux_tscheck) {
+		if (!demux->cnt_storage)
+			demux->cnt_storage = vmalloc(MAX_PID + 1);
+
+		if (!demux->cnt_storage) {
+			printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
+			dvb_demux_tscheck = 0;
+			goto no_dvb_demux_tscheck;
+		}
+
+		/* check pkt counter */
+		if (pid < MAX_PID) {
+			if (buf[1] & 0x80)
+				dprintk_tscheck("TEI detected. "
+						"PID=0x%x data1=0x%x\n",
+						pid, buf[1]);
+
+			if ((buf[3] & 0xf) != demux->cnt_storage[pid])
+				dprintk_tscheck("TS packet counter mismatch. "
+						"PID=0x%x expected 0x%x "
+						"got 0x%x\n",
+						pid, demux->cnt_storage[pid],
+						buf[3] & 0xf);
+
+			demux->cnt_storage[pid] = ((buf[3] & 0xf) + 1)&0xf;
+		};
+		/* end check */
+	};
+no_dvb_demux_tscheck:
 
 	list_for_each_entry(feed, &demux->feed_list, list_head) {
 		if ((feed->pid != pid) && (feed->pid != 0x2000))
@@ -1160,6 +1200,7 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	int i;
 	struct dmx_demux *dmx = &dvbdemux->dmx;
 
+	dvbdemux->cnt_storage = NULL;
 	dvbdemux->users = 0;
 	dvbdemux->filter = vmalloc(dvbdemux->filternum * sizeof(struct dvb_demux_filter));
 
@@ -1226,6 +1267,7 @@ EXPORT_SYMBOL(dvb_dmx_init);
 
 void dvb_dmx_release(struct dvb_demux *dvbdemux)
 {
+	vfree(dvbdemux->cnt_storage);
 	vfree(dvbdemux->filter);
 	vfree(dvbdemux->feed);
 }

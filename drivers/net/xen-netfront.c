@@ -1212,7 +1212,7 @@ static int __devinit netfront_probe(struct xenbus_device *dev,
 	}
 
 	info = netdev_priv(netdev);
-	dev->dev.driver_data = info;
+	dev_set_drvdata(&dev->dev, info);
 
 	err = register_netdev(info->netdev);
 	if (err) {
@@ -1233,7 +1233,7 @@ static int __devinit netfront_probe(struct xenbus_device *dev,
 
  fail:
 	free_netdev(netdev);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 	return err;
 }
 
@@ -1275,7 +1275,7 @@ static void xennet_disconnect_backend(struct netfront_info *info)
  */
 static int netfront_resume(struct xenbus_device *dev)
 {
-	struct netfront_info *info = dev->dev.driver_data;
+	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
 	dev_dbg(&dev->dev, "%s\n", dev->nodename);
 
@@ -1600,7 +1600,7 @@ static int xennet_connect(struct net_device *dev)
 static void backend_changed(struct xenbus_device *dev,
 			    enum xenbus_state backend_state)
 {
-	struct netfront_info *np = dev->dev.driver_data;
+	struct netfront_info *np = dev_get_drvdata(&dev->dev);
 	struct net_device *netdev = np->netdev;
 
 	dev_dbg(&dev->dev, "%s\n", xenbus_strstate(backend_state));
@@ -1774,7 +1774,7 @@ static struct xenbus_device_id netfront_ids[] = {
 
 static int __devexit xennet_remove(struct xenbus_device *dev)
 {
-	struct netfront_info *info = dev->dev.driver_data;
+	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
 	dev_dbg(&dev->dev, "%s\n", dev->nodename);
 

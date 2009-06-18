@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/kmemcheck.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
@@ -119,6 +120,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 				 GFP_ATOMIC);
 	if (tw != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
+
+		kmemcheck_annotate_bitfield(tw, flags);
 
 		/* Give us an identity. */
 		tw->tw_daddr	    = inet->daddr;

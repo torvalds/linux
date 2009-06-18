@@ -623,6 +623,20 @@ void zfcp_scsi_scan(struct work_struct *work)
 	zfcp_unit_put(unit);
 }
 
+static int zfcp_execute_fc_job(struct fc_bsg_job *job)
+{
+	switch (job->request->msgcode) {
+	case FC_BSG_RPT_ELS:
+	case FC_BSG_HST_ELS_NOLOGIN:
+		return zfcp_fc_execute_els_fc_job(job);
+	case FC_BSG_RPT_CT:
+	case FC_BSG_HST_CT:
+		return zfcp_fc_execute_ct_fc_job(job);
+	default:
+		return -EINVAL;
+	}
+}
+
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
@@ -644,6 +658,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.dev_loss_tmo_callbk = zfcp_scsi_dev_loss_tmo_callbk,
 	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
+	.bsg_request = zfcp_execute_fc_job,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,

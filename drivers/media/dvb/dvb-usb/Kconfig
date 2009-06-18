@@ -261,6 +261,7 @@ config DVB_USB_DW2102
 	select DVB_STB6000 if !DVB_FE_CUSTOMISE
 	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	select DVB_SI21XX if !DVB_FE_CUSTOMISE
+	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
 	  and the TeVii S650.

@@ -868,9 +868,9 @@ static void vino_sync_buffer(struct vino_framebuffer *fb)
 	dprintk("vino_sync_buffer():\n");
 
 	for (i = 0; i < fb->desc_table.page_count; i++)
-		dma_sync_single(NULL,
-				fb->desc_table.dma_cpu[VINO_PAGE_RATIO * i],
-				PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(NULL,
+					fb->desc_table.dma_cpu[VINO_PAGE_RATIO * i],
+					PAGE_SIZE, DMA_FROM_DEVICE);
 }
 
 /* Framebuffer fifo functions (need to be locked externally) */
