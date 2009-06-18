@@ -216,6 +216,9 @@ static void __init pcm038_init(void)
 
 	mxc_register_device(&mxc_i2c_device1, &pcm038_i2c_1_data);
 
+	/* PE18 for user-LED D40 */
+	mxc_gpio_mode(GPIO_PORTE | 18 | GPIO_GPIO | GPIO_OUT);
+
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD
