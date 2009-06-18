@@ -46,6 +46,7 @@ struct sd {
 	u8 gamma;
 	u8 vflip;			/* ov7630/ov7648 only */
 	u8 infrared;			/* mt9v111 only */
+	u8 freq;			/* ov76xx only */
 	u8 quality;			/* image quality */
 #define QUALITY_MIN 60
 #define QUALITY_MAX 95
@@ -96,6 +97,8 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 #define BRIGHTNESS_IDX 0
@@ -237,19 +240,35 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setinfrared,
 	    .get = sd_getinfrared,
 	},
+/* ov7630/ov7648/ov7660 only */
+#define FREQ_IDX 9
+	{
+	    {
+		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
+		.type    = V4L2_CTRL_TYPE_MENU,
+		.name    = "Light frequency filter",
+		.minimum = 0,
+		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+		.step    = 1,
+#define FREQ_DEF 2
+		.default_value = FREQ_DEF,
+	    },
+	    .set = sd_setfreq,
+	    .get = sd_getfreq,
+	},
 };
 
 /* table of the disabled controls */
 static __u32 ctrl_dis[] = {
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_HV7131R 0 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_MI0360 1 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_MO4000 2 */
-	(1 << VFLIP_IDX),
+	(1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_MT9V111 3 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_OM6802 4 */
 	(1 << INFRARED_IDX),
 						/* SENSOR_OV7630 5 */
@@ -257,8 +276,8 @@ static __u32 ctrl_dis[] = {
 						/* SENSOR_OV7648 6 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_OV7660 7 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
-						/* SENSOR_SP80708 8 */
+	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX) |
+			      (1 << FREQ_IDX),	/* SENSOR_SP80708 8 */
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -647,8 +666,8 @@ static const u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x21, 0x01, 0x80, 0x80, 0x00, 0x00, 0x10},
 /* */
-	{0xa1, 0x21, 0x2a, 0x88, 0x00, 0x00, 0x00, 0x10},
-	{0xa1, 0x21, 0x2b, 0x34, 0x00, 0x00, 0x00, 0x10},
+/*	{0xa1, 0x21, 0x2a, 0x88, 0x00, 0x00, 0x00, 0x10}, * set by setfreq */
+/*	{0xa1, 0x21, 0x2b, 0x34, 0x00, 0x00, 0x00, 0x10}, * set by setfreq */
 /* */
 	{0xa1, 0x21, 0x10, 0x83, 0x00, 0x00, 0x00, 0x10},
 /*	{0xb1, 0x21, 0x01, 0x88, 0x70, 0x00, 0x00, 0x10}, */
@@ -681,7 +700,7 @@ static const u8 ov7648_sensor_init[][8] = {
 	{0xd1, 0x21, 0x21, 0x86, 0x00, 0xde, 0xa0, 0x10},
 /*	{0xd1, 0x21, 0x25, 0x80, 0x32, 0xfe, 0xa0, 0x10}, jfm done */
 /*	{0xd1, 0x21, 0x29, 0x00, 0x91, 0x00, 0x88, 0x10}, jfm done */
-	{0xb1, 0x21, 0x2d, 0x85, 0x00, 0x00, 0x00, 0x10},
+/*	{0xb1, 0x21, 0x2d, 0x85, 0x00, 0x00, 0x00, 0x10}, set by setfreq */
 /*...*/
 /*	{0xa1, 0x21, 0x12, 0x08, 0x00, 0x00, 0x00, 0x10}, jfm done */
 /*	{0xa1, 0x21, 0x75, 0x06, 0x00, 0x00, 0x00, 0x10},   * COMN
@@ -1307,6 +1326,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	else
 		sd->vflip = 1;
 	sd->infrared = INFRARED_DEF;
+	sd->freq = FREQ_DEF;
 	sd->quality = QUALITY_DEF;
 	sd->jpegqual = 80;
 
@@ -1610,6 +1630,58 @@ static void setinfrared(struct sd *sd)
 		sd->infrared ? 0x66 : 0x64);
 }
 
+static void setfreq(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_OV7660) {
+		switch (sd->freq) {
+		case 0: /* Banding filter disabled */
+			i2c_w1(gspca_dev, 0x13, 0xdf);
+			break;
+		case 1: /* 50 hz */
+			i2c_w1(gspca_dev, 0x13, 0xff);
+			i2c_w1(gspca_dev, 0x3b, 0x0a);
+			break;
+		case 2: /* 60 hz */
+			i2c_w1(gspca_dev, 0x13, 0xff);
+			i2c_w1(gspca_dev, 0x3b, 0x02);
+			break;
+		}
+	} else {
+		u8 reg2a = 0, reg2b = 0, reg2d = 0;
+
+		/* Get reg2a / reg2d base values */
+		switch (sd->sensor) {
+		case SENSOR_OV7630:
+			reg2a = 0x08;
+			reg2d = 0x01;
+			break;
+		case SENSOR_OV7648:
+			reg2a = 0x11;
+			reg2d = 0x81;
+			break;
+		}
+
+		switch (sd->freq) {
+		case 0: /* Banding filter disabled */
+			break;
+		case 1: /* 50 hz (filter on and framerate adj) */
+			reg2a |= 0x80;
+			reg2b = 0xac;
+			reg2d |= 0x04;
+			break;
+		case 2: /* 60 hz (filter on, no framerate adj) */
+			reg2a |= 0x80;
+			reg2d |= 0x04;
+			break;
+		}
+		i2c_w1(gspca_dev, 0x2a, reg2a);
+		i2c_w1(gspca_dev, 0x2b, reg2b);
+		i2c_w1(gspca_dev, 0x2d, reg2d);
+	}
+}
+
 static void setjpegqual(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1836,6 +1908,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setautogain(gspca_dev);
+	setfreq(gspca_dev);
 	return 0;
 }
 
@@ -2139,6 +2212,24 @@ static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->freq = val;
+	if (gspca_dev->streaming)
+		setfreq(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->freq;
+	return 0;
+}
+
 static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 			struct v4l2_jpegcompression *jcomp)
 {
@@ -2167,6 +2258,27 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+			struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy((char *) menu->name, "NoFliker");
+			return 0;
+		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy((char *) menu->name, "50 Hz");
+			return 0;
+		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
+			strcpy((char *) menu->name, "60 Hz");
+			return 0;
+		}
+		break;
+	}
+	return -EINVAL;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -2181,6 +2293,7 @@ static const struct sd_desc sd_desc = {
 	.dq_callback = do_autogain,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
+	.querymenu = sd_querymenu,
 };
 
 /* -- module initialisation -- */
