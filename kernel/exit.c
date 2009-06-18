@@ -1197,8 +1197,11 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	}
 
 	traced = ptrace_reparented(p);
-
-	if (likely(!traced)) {
+	/*
+	 * It can be ptraced but not reparented, check
+	 * !task_detached() to filter out sub-threads.
+	 */
+	if (likely(!traced) && likely(!task_detached(p))) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
 
