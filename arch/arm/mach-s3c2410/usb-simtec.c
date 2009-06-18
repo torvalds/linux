@@ -22,7 +22,6 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
