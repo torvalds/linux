@@ -3,7 +3,7 @@
 
 #define dma_addr_t	dma_addr_t
 
-#include <asm/generic-types.h>
+#include <asm-generic/types.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

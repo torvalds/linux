@@ -7,6 +7,6 @@
 				 * sigcontext struct (uc_mcontext).
 				 */
 
-#include <asm/generic-ucontext.h>
+#include <asm-generic/ucontext.h>
 
 #endif /* _ASM_X86_UCONTEXT_H */
