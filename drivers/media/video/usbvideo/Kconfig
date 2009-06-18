@@ -38,10 +38,13 @@ config USB_KONICAWC
 	  module will be called konicawc.
 
 config USB_QUICKCAM_MESSENGER
-	tristate "USB Logitech Quickcam Messenger"
+	tristate "USB Logitech Quickcam Messenger (DEPRECATED)"
 	depends on VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
+	  This driver is DEPRECATED please use the gspca stv06xx module
+	  instead.
+
 	  Say Y or M here to enable support for the USB Logitech Quickcam
 	  Messenger webcam.
 
