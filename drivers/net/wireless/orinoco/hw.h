@@ -35,8 +35,8 @@ int orinoco_hw_get_act_bitrate(struct orinoco_private *priv, int *bitrate);
 int __orinoco_hw_set_wap(struct orinoco_private *priv);
 int __orinoco_hw_setup_wepkeys(struct orinoco_private *priv);
 int __orinoco_hw_setup_enc(struct orinoco_private *priv);
-int __orinoco_hw_set_tkip_key(hermes_t *hw, int key_idx, int set_tx,
-			      u8 *key, u8 *rsc, u8 *tsc);
+int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
+			      int set_tx, u8 *key, u8 *rsc, u8 *tsc);
 int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx);
 int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
 				    struct dev_addr_list *mc_list,

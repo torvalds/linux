@@ -677,8 +677,8 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
  * rsc must be 8 bytes
  * tsc must be 8 bytes or NULL
  */
-int __orinoco_hw_set_tkip_key(hermes_t *hw, int key_idx, int set_tx,
-			      u8 *key, u8 *rsc, u8 *tsc)
+int __orinoco_hw_set_tkip_key(struct orinoco_private *priv, int key_idx,
+			      int set_tx, u8 *key, u8 *rsc, u8 *tsc)
 {
 	struct {
 		__le16 idx;
@@ -688,6 +688,7 @@ int __orinoco_hw_set_tkip_key(hermes_t *hw, int key_idx, int set_tx,
 		u8 rx_mic[MIC_KEYLEN];
 		u8 tsc[IW_ENCODE_SEQ_MAX_SIZE];
 	} __attribute__ ((packed)) buf;
+	hermes_t *hw = &priv->hw;
 	int ret;
 	int err;
 	int k;

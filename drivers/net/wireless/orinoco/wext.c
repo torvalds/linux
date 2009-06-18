@@ -1079,7 +1079,6 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 
 		case IW_ENCODE_ALG_TKIP:
 		{
-			hermes_t *hw = &priv->hw;
 			u8 *tkip_iv = NULL;
 
 			if (!priv->has_wpa ||
@@ -1094,7 +1093,7 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 			if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID)
 				tkip_iv = &ext->rx_seq[0];
 
-			err = __orinoco_hw_set_tkip_key(hw, idx,
+			err = __orinoco_hw_set_tkip_key(priv, idx,
 				 ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
 				 (u8 *) &priv->tkip_key[idx],
 				 tkip_iv, NULL);
