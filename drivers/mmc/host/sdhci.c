@@ -1057,6 +1057,13 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	pwr |= SDHCI_POWER_ON;
 
 	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+
+	/*
+	 * Some controllers need an extra 10ms delay of 10ms before they
+	 * can apply clock after applying power
+	 */
+	if ((host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER))
+		mdelay(10);
 }
 
 /*****************************************************************************\
