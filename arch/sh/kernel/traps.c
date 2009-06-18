@@ -69,6 +69,7 @@ BUILD_TRAP_HANDLER(bug)
 		insn_size_t insn = *(insn_size_t *)instruction_pointer(regs);
 		if (insn == TRAPA_BUG_OPCODE)
 			handle_BUG(regs);
+		return;
 	}
 #endif
 

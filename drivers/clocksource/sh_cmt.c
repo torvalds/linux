@@ -184,6 +184,9 @@ static void sh_cmt_disable(struct sh_cmt_priv *p)
 	/* disable channel */
 	sh_cmt_start_stop_ch(p, 0);
 
+	/* disable interrupts in CMT block */
+	sh_cmt_write(p, CMCSR, 0);
+
 	/* stop clock */
 	clk_disable(p->clk);
 }
@@ -599,7 +602,6 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 	p->irqaction.handler = sh_cmt_interrupt;
 	p->irqaction.dev_id = p;
 	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL;
-	p->irqaction.mask = CPU_MASK_NONE;
 	ret = setup_irq(irq, &p->irqaction);
 	if (ret) {
 		pr_err("sh_cmt: failed to request irq %d\n", irq);

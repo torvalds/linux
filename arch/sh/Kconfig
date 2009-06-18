@@ -15,7 +15,9 @@ config SUPERH
 	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
+	select HAVE_PERF_COUNTER
 	select RTC_LIB
+	select GENERIC_ATOMIC64
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -49,6 +51,10 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_BUG
 	def_bool y
 	depends on BUG && SUPERH32
+
+config GENERIC_CSUM
+	def_bool y
+	depends on SUPERH64
 
 config GENERIC_FIND_NEXT_BIT
 	def_bool y

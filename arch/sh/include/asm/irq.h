@@ -39,7 +39,6 @@ static inline int generic_irq_demux(int irq)
 	return irq;
 }
 
-#define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		sh_mv.mv_irq_demux(irq)
 
 void init_IRQ(void);
@@ -54,6 +53,7 @@ extern void irq_ctx_exit(int cpu);
 # define irq_ctx_exit(cpu) do { } while (0)
 #endif
 
+#include <asm-generic/irq.h>
 #ifdef CONFIG_CPU_SH5
 #include <cpu/irq.h>
 #endif

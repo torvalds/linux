@@ -384,10 +384,11 @@
 #define __NR_preadv		361
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
+#define __NR_perf_counter_open	364
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 364
+#define NR_syscalls 365
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

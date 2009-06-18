@@ -2,6 +2,7 @@
  * Renesas Technology Corp. SH7786 Urquell Support.
  *
  * Copyright (C) 2008  Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) 2009  Paul Mundt
  *
  * Based on board-sh7785lcr.c
  * Copyright (C) 2008  Yoshihiro Shimoda
@@ -178,6 +179,11 @@ static void __init urquell_init_irq(void)
 	plat_irq_setup_pins(IRQ_MODE_IRL3210_MASK);
 }
 
+static int urquell_mode_pins(void)
+{
+	return __raw_readw(UBOARDREG(MDSWMR));
+}
+
 /* Initialize the board */
 static void __init urquell_setup(char **cmdline_p)
 {
@@ -193,4 +199,5 @@ static struct sh_machine_vector mv_urquell __initmv = {
 	.mv_name	= "Urquell",
 	.mv_setup	= urquell_setup,
 	.mv_init_irq	= urquell_init_irq,
+	.mv_mode_pins	= urquell_mode_pins,
 };

@@ -1,6 +1,6 @@
 #include <linux/clk.h>
 #include <linux/compiler.h>
-#include <linux/bootmem.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <asm/clock.h>
 
@@ -127,10 +127,11 @@ int __init sh_clk_div6_register(struct clk *clks, int nr)
 	int k;
 
 	freq_table_size *= (nr_divs + 1);
-
-	freq_table = alloc_bootmem(freq_table_size * nr);
-	if (!freq_table)
+	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
+	if (!freq_table) {
+		pr_err("sh_clk_div6_register: unable to alloc memory\n");
 		return -ENOMEM;
+	}
 
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;
@@ -175,10 +176,11 @@ int __init sh_clk_div4_register(struct clk *clks, int nr,
 	int k;
 
 	freq_table_size *= (nr_divs + 1);
-
-	freq_table = alloc_bootmem(freq_table_size * nr);
-	if (!freq_table)
+	freq_table = kzalloc(freq_table_size * nr, GFP_KERNEL);
+	if (!freq_table) {
+		pr_err("sh_clk_div4_register: unable to alloc memory\n");
 		return -ENOMEM;
+	}
 
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;

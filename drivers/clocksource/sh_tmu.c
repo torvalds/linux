@@ -138,6 +138,9 @@ static void sh_tmu_disable(struct sh_tmu_priv *p)
 	/* disable channel */
 	sh_tmu_start_stop_ch(p, 0);
 
+	/* disable interrupts in TMU block */
+	sh_tmu_write(p, TCR, 0x0000);
+
 	/* stop clock */
 	clk_disable(p->clk);
 }
@@ -385,7 +388,6 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 	p->irqaction.dev_id = p;
 	p->irqaction.irq = irq;
 	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL;
-	p->irqaction.mask = CPU_MASK_NONE;
 
 	/* get hold of clock */
 	p->clk = clk_get(&p->pdev->dev, cfg->clk);

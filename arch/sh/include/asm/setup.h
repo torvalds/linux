@@ -1,7 +1,7 @@
 #ifndef _SH_SETUP_H
 #define _SH_SETUP_H
 
-#define COMMAND_LINE_SIZE 256
+#include <asm-generic/setup.h>
 
 #ifdef __KERNEL__
 /*

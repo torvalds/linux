@@ -119,8 +119,6 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 		      &regs, 0, NULL, NULL);
 
-	trace_mark(kernel_arch_kthread_create, "pid %d fn %p", pid, fn);
-
 	return pid;
 }
 

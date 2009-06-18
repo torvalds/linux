@@ -91,21 +91,6 @@ module_init(rtc_generic_init);
 
 void (*board_time_init)(void);
 
-unsigned long long sched_clock(void)
-{
-	return (jiffies_64 - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
-}
-
-static void __init sh_late_time_init(void)
-{
-	/*
-	 * Make sure all compiled-in early timers register themselves.
-	 * Run probe() for one "earlytimer" device.
-	 */
-	early_platform_driver_register_all("earlytimer");
-	early_platform_driver_probe("earlytimer", 1, 0);
-}
-
 void __init time_init(void)
 {
 	if (board_time_init)
@@ -121,5 +106,15 @@ void __init time_init(void)
 	local_timer_setup(smp_processor_id());
 #endif
 
-	late_time_init = sh_late_time_init;
+	/*
+	 * Make sure all compiled-in early timers register themselves.
+	 *
+	 * Run probe() for two "earlytimer" devices, these will be the
+	 * clockevents and clocksource devices respectively. In the event
+	 * that only a clockevents device is available, we -ENODEV on the
+	 * clocksource and the jiffies clocksource is used transparently
+	 * instead. No error handling is necessary here.
+	 */
+	early_platform_driver_register_all("earlytimer");
+	early_platform_driver_probe("earlytimer", 2, 0);
 }

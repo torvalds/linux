@@ -35,8 +35,7 @@ void __init plat_smp_setup(void)
 	unsigned int cpu = 0;
 	int i, num;
 
-	cpus_clear(cpu_possible_map);
-	cpu_set(cpu, cpu_possible_map);
+	init_cpu_possible(cpumask_of(cpu));
 
 	__cpu_number_map[0] = 0;
 	__cpu_logical_map[0] = 0;
@@ -46,7 +45,7 @@ void __init plat_smp_setup(void)
 	 * for the total number of cores.
 	 */
 	for (i = 1, num = 0; i < NR_CPUS; i++) {
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 		__cpu_number_map[i] = ++num;
 		__cpu_logical_map[num] = i;
 	}
