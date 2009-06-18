@@ -358,12 +358,17 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP || BFIN526_EZBRD)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
 	default y
 
 config MEM_MT48LC32M8A2_75
 	bool
 	depends on (BFIN518F_EZBRD)
+	default y
+
+config MEM_MT48H32M16LFCJ_75
+	bool
+	depends on (BFIN526_EZBRD)
 	default y
 
 source "arch/blackfin/mach-bf518/Kconfig"
