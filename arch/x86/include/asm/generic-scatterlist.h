@@ -1,7 +1,7 @@
-#ifndef _ASM_X86_SCATTERLIST_H
-#define _ASM_X86_SCATTERLIST_H
+#ifndef __ASM_GENERIC_SCATTERLIST_H
+#define __ASM_GENERIC_SCATTERLIST_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 
 struct scatterlist {
 #ifdef CONFIG_DEBUG_SG
@@ -14,20 +14,30 @@ struct scatterlist {
 	unsigned int	dma_length;
 };
 
-#define ARCH_HAS_SG_CHAIN
-#define ISA_DMA_THRESHOLD (0x00ffffff)
-
 /*
- * These macros should be used after a pci_map_sg call has been done
+ * These macros should be used after a dma_map_sg call has been done
  * to get bus addresses of each of the SG entries and their lengths.
  * You should only work with the number of sg entries pci_map_sg
- * returns.
+ * returns, or alternatively stop on the first sg_dma_len(sg) which
+ * is 0.
  */
 #define sg_dma_address(sg)	((sg)->dma_address)
-#ifdef CONFIG_X86_32
-# define sg_dma_len(sg)		((sg)->length)
+#ifndef sg_dma_len
+/*
+ * Normally, you have an iommu on 64 bit machines, but not on 32 bit
+ * machines. Architectures that are differnt should override this.
+ */
+#if __BITS_PER_LONG == 64
+#define sg_dma_len(sg)		((sg)->dma_length)
 #else
-# define sg_dma_len(sg)		((sg)->dma_length)
+#define sg_dma_len(sg)		((sg)->length)
+#endif /* 64 bit */
+#endif /* sg_dma_len */
+
+#ifndef ISA_DMA_THRESHOLD
+#define ISA_DMA_THRESHOLD	(~0UL)
 #endif
 
-#endif /* _ASM_X86_SCATTERLIST_H */
+#define ARCH_HAS_SG_CHAIN
+
+#endif /* __ASM_GENERIC_SCATTERLIST_H */
