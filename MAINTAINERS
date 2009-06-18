@@ -4083,7 +4083,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 F:	net/wireless/
 F:	include/net/ieee80211*
-F:	include/net/wireless.h
+F:	include/linux/wireless.h
 
 NETWORKING DRIVERS
 L:	netdev@vger.kernel.org
