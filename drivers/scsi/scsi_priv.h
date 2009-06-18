@@ -87,7 +87,6 @@ extern int scsi_init_queue(void);
 extern void scsi_exit_queue(void);
 struct request_queue;
 struct request;
-extern int scsi_prep_fn(struct request_queue *, struct request *);
 extern struct kmem_cache *scsi_sdb_cache;
 
 /* scsi_proc.c */

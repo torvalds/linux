@@ -2123,6 +2123,7 @@ static int sd_remove(struct device *dev)
 
 	async_synchronize_full();
 	sdkp = dev_get_drvdata(dev);
+	blk_queue_prep_rq(sdkp->device->request_queue, scsi_prep_fn);
 	device_del(&sdkp->dev);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
