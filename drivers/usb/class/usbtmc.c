@@ -485,7 +485,8 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		}
 
 		done += n_characters;
-		if (n_characters < USBTMC_SIZE_IOBUFFER)
+		/* Terminate if end-of-message bit recieved from device */
+		if ((buffer[8] &  0x01) && (actual >= n_characters + 12))
 			remaining = 0;
 		else
 			remaining -= n_characters;
