@@ -1798,7 +1798,7 @@ static cpumask_var_t mce_dev_initialized;
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
 	int err;
-	int i;
+	int i, j;
 
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
@@ -1816,9 +1816,9 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		if (err)
 			goto error;
 	}
-	for (i = 0; i < banks; i++) {
+	for (j = 0; j < banks; j++) {
 		err = sysdev_create_file(&per_cpu(mce_dev, cpu),
-					&bank_attrs[i]);
+					&bank_attrs[j]);
 		if (err)
 			goto error2;
 	}
@@ -1826,8 +1826,8 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 
 	return 0;
 error2:
-	while (--i >= 0)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[i]);
+	while (--j >= 0)
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[j]);
 error:
 	while (--i >= 0)
 		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
