@@ -563,17 +563,9 @@ sys_execve_wrapper:
 	brid	sys_execve
 	addk	r8, r1, r0
 
-sys_sigreturn_wrapper:
-	brid	sys_sigreturn
-	addk	r5, r1, r0
-
 sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
-
-sys_sigsuspend_wrapper:
-	brid	sys_rt_sigsuspend
-	addk	r6, r1, r0
 
 sys_rt_sigsuspend_wrapper:
 	brid	sys_rt_sigsuspend

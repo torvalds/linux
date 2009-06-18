@@ -71,12 +71,12 @@ ENTRY(sys_call_table)
 	.long sys_getppid
 	.long sys_getpgrp		/* 65 */
 	.long sys_setsid
-	.long sys_sigaction
+	.long sys_ni_syscall		/* sys_sigaction */
 	.long sys_sgetmask
 	.long sys_ssetmask
 	.long sys_setreuid		/* 70 */
 	.long sys_setregid
-	.long sys_sigsuspend_wrapper
+	.long sys_ni_syscall		/* sys_sigsuspend_wrapper */
 	.long sys_sigpending
 	.long sys_sethostname
 	.long sys_setrlimit		/* 75 */
@@ -123,7 +123,7 @@ ENTRY(sys_call_table)
 	.long sys_sysinfo
 	.long sys_ipc
 	.long sys_fsync
-	.long sys_sigreturn_wrapper
+	.long sys_ni_syscall		/* sys_sigreturn_wrapper */
 	.long sys_clone_wrapper		/* 120 */
 	.long sys_setdomainname
 	.long sys_newuname

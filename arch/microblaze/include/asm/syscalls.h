@@ -26,13 +26,8 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
 			unsigned long fd, off_t offset);
 
 /* from signal.c */
-asmlinkage int sys_sigsuspend(old_sigset_t mask, struct pt_regs *regs);
-
-asmlinkage int sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
+asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
 		struct pt_regs *regs);
-
-asmlinkage int sys_sigaction(int sig, const struct old_sigaction *act,
-		struct old_sigaction *oact);
 
 asmlinkage long sys_rt_sigaction(int sig, const struct sigaction __user *act,
 		struct sigaction __user *oact, size_t sigsetsize);
@@ -40,9 +35,7 @@ asmlinkage long sys_rt_sigaction(int sig, const struct sigaction __user *act,
 asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs);
 
-asmlinkage int sys_sigreturn(struct pt_regs *regs);
-
-asmlinkage int sys_rt_sigreturn(struct pt_regs *regs);
+asmlinkage long sys_rt_sigreturn(struct pt_regs *regs);
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_MICROBLAZE_SYSCALLS_H */

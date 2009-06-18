@@ -449,34 +449,11 @@ C_ENTRY(sys_execve_wrapper):
 	brid	sys_execve;	/* Do real work (tail-call).*/
 	nop;
 
-C_ENTRY(sys_sigsuspend_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	la	r6, r1, PTO;		/* add user context as 2nd arg */
-	bralid	r15, sys_sigsuspend; /* Do real work.*/
-	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
-	nop;
-
 C_ENTRY(sys_rt_sigsuspend_wrapper):
 	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	swi	r4, r1, PTO+PT_R4;
 	la	r7, r1, PTO;		/* add user context as 3rd arg */
 	brlid	r15, sys_rt_sigsuspend;	/* Do real work.*/
-	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
-	nop;
-
-
-C_ENTRY(sys_sigreturn_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	la	r5, r1, PTO;		/* add user context as 1st arg */
-	brlid	r15, sys_sigreturn;	/* Do real work.*/
 	nop;
 	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	lwi	r4, r1, PTO+PT_R4;
