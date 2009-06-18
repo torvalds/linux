@@ -365,12 +365,12 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 {
 	int result = 0;
 	struct acpi_pci_root *root = NULL;
-	struct acpi_pci_root *tmp;
 	acpi_status status = AE_OK;
 	unsigned long long value = 0;
 	acpi_handle handle = NULL;
 	struct acpi_device *child;
 	u32 flags, base_flags;
+	int bus;
 
 
 	if (!device)
@@ -420,46 +420,24 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	/* 
 	 * Bus
 	 * ---
-	 * Obtained via _BBN, if exists, otherwise assumed to be zero (0).
+	 * Check _CRS first, then _BBN.  If no _BBN, default to zero.
 	 */
-	status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN, NULL,
-				       &value);
-	switch (status) {
-	case AE_OK:
-		root->id.bus = (u16) value;
-		break;
-	case AE_NOT_FOUND:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Assuming bus 0 (no _BBN)\n"));
-		root->id.bus = 0;
-		break;
-	default:
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BBN"));
-		result = -ENODEV;
-		goto end;
-	}
-
-	/* Some systems have wrong _BBN */
-	list_for_each_entry(tmp, &acpi_pci_roots, node) {
-		if ((tmp->id.segment == root->id.segment)
-		    && (tmp->id.bus == root->id.bus)) {
-			int bus = 0;
-			acpi_status status;
-
-			printk(KERN_ERR PREFIX
-				    "Wrong _BBN value, reboot"
-				    " and use option 'pci=noacpi'\n");
-
-			status = try_get_root_bridge_busnr(device->handle, &bus);
-			if (ACPI_FAILURE(status))
-				break;
-			if (bus != root->id.bus) {
-				printk(KERN_INFO PREFIX
-				       "PCI _CRS %d overrides _BBN 0\n", bus);
-				root->id.bus = bus;
-			}
-			break;
+	status = try_get_root_bridge_busnr(device->handle, &bus);
+	if (ACPI_SUCCESS(status))
+		root->id.bus = bus;
+	else {
+		status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN,					       NULL, &value);
+		if (ACPI_SUCCESS(status))
+			root->id.bus = (u16) value;
+		else if (status == AE_NOT_FOUND)
+			root->id.bus = 0;
+		else {
+			ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BBN"));
+			result = -ENODEV;
+			goto end;
 		}
 	}
+
 	/*
 	 * Device & Function
 	 * -----------------
