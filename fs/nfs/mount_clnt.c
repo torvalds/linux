@@ -33,6 +33,7 @@
 #define MNT_fhs_status_sz	(1)
 #define MNT_fhandle_sz		XDR_QUADLEN(NFS2_FHSIZE)
 #define MNT_fhandle3_sz		(1 + XDR_QUADLEN(NFS3_FHSIZE))
+#define MNT_authflav3_sz	(1 + NFS_MAX_SECFLAVORS)
 
 /*
  * XDR argument and result sizes
@@ -122,6 +123,8 @@ static struct {
 struct mountres {
 	int errno;
 	struct nfs_fh *fh;
+	unsigned int *auth_count;
+	rpc_authflavor_t *auth_flavors;
 };
 
 struct mnt_fhstatus {
@@ -331,6 +334,40 @@ static int decode_fhandle3(struct xdr_stream *xdr, struct mountres *res)
 
 	fh->size = size;
 	memcpy(fh->data, p, size);
+	return 0;
+}
+
+static int decode_auth_flavors(struct xdr_stream *xdr, struct mountres *res)
+{
+	rpc_authflavor_t *flavors = res->auth_flavors;
+	unsigned int *count = res->auth_count;
+	u32 entries, i;
+	__be32 *p;
+
+	if (*count == 0)
+		return 0;
+
+	p = xdr_inline_decode(xdr, sizeof(entries));
+	if (unlikely(p == NULL))
+		return -EIO;
+	entries = ntohl(*p);
+	dprintk("NFS: received %u auth flavors\n", entries);
+	if (entries > NFS_MAX_SECFLAVORS)
+		entries = NFS_MAX_SECFLAVORS;
+
+	p = xdr_inline_decode(xdr, sizeof(u32) * entries);
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	if (entries > *count)
+		entries = *count;
+
+	for (i = 0; i < entries; i++) {
+		flavors[i] = ntohl(*p++);
+		dprintk("NFS:\tflavor %u: %d\n", i, flavors[i]);
+	}
+	*count = i;
+
 	return 0;
 }
 

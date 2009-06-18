@@ -30,6 +30,12 @@ struct nfs_clone_mount {
 };
 
 /*
+ * Note: RFC 1813 doesn't limit the number of auth flavors that
+ * a server can return, so make something up.
+ */
+#define NFS_MAX_SECFLAVORS	(12)
+
+/*
  * In-kernel mount arguments
  */
 struct nfs_parsed_mount_data {
