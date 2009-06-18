@@ -22,6 +22,7 @@
 
 #include "../mm/mmu_decl.h"
 #include "e500_tlb.h"
+#include "trace.h"
 
 #define to_htlb1_esel(esel) (tlb1_entry_num - (esel) - 1)
 
@@ -224,9 +225,8 @@ static void kvmppc_e500_stlbe_invalidate(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	kvmppc_e500_shadow_release(vcpu_e500, tlbsel, esel);
 	stlbe->mas1 = 0;
-	KVMTRACE_5D(STLB_INVAL, &vcpu_e500->vcpu, index_of(tlbsel, esel),
-			stlbe->mas1, stlbe->mas2, stlbe->mas3, stlbe->mas7,
-			handler);
+	trace_kvm_stlb_inval(index_of(tlbsel, esel), stlbe->mas1, stlbe->mas2,
+			     stlbe->mas3, stlbe->mas7);
 }
 
 static void kvmppc_e500_tlb1_invalidate(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -319,9 +319,8 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 				vcpu_e500->vcpu.arch.msr & MSR_PR);
 	stlbe->mas7 = (hpaddr >> 32) & MAS7_RPN;
 
-	KVMTRACE_5D(STLB_WRITE, &vcpu_e500->vcpu, index_of(tlbsel, esel),
-			stlbe->mas1, stlbe->mas2, stlbe->mas3, stlbe->mas7,
-			handler);
+	trace_kvm_stlb_write(index_of(tlbsel, esel), stlbe->mas1, stlbe->mas2,
+			     stlbe->mas3, stlbe->mas7);
 }
 
 /* XXX only map the one-one case, for now use TLB0 */
@@ -535,9 +534,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	gtlbe->mas3 = vcpu_e500->mas3;
 	gtlbe->mas7 = vcpu_e500->mas7;
 
-	KVMTRACE_5D(GTLB_WRITE, vcpu, vcpu_e500->mas0,
-			gtlbe->mas1, gtlbe->mas2, gtlbe->mas3, gtlbe->mas7,
-			handler);
+	trace_kvm_gtlb_write(vcpu_e500->mas0, gtlbe->mas1, gtlbe->mas2,
+			     gtlbe->mas3, gtlbe->mas7);
 
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe_is_host_safe(vcpu, gtlbe)) {

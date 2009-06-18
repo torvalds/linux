@@ -31,6 +31,9 @@
 #include "timing.h"
 #include "../mm/mmu_decl.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	return gfn;

@@ -10,6 +10,10 @@ common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
 common-objs-$(CONFIG_KVM_TRACE)  += $(addprefix ../../../virt/kvm/, kvm_trace.o)
 
+CFLAGS_44x_tlb.o  := -I.
+CFLAGS_e500_tlb.o := -I.
+CFLAGS_emulate.o  := -I.
+
 kvm-objs := $(common-objs-y) powerpc.o emulate.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
 obj-$(CONFIG_KVM) += kvm.o

@@ -29,6 +29,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/disassemble.h>
 #include "timing.h"
+#include "trace.h"
 
 #define OP_TRAP 3
 
@@ -419,7 +420,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		}
 	}
 
-	KVMTRACE_3D(PPC_INSTR, vcpu, inst, (int)vcpu->arch.pc, emulated, entryexit);
+	trace_kvm_ppc_instr(inst, vcpu->arch.pc, emulated);
 
 	if (advance)
 		vcpu->arch.pc += 4; /* Advance past emulated instruction. */
