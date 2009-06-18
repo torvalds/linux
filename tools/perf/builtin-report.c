@@ -44,8 +44,8 @@ static int		full_paths;
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
 
-static char		*call = "^sys_";
-static regex_t		call_regex;
+static char		*parent_pattern = "^sys_|^do_page_fault";
+static regex_t		parent_regex;
 
 struct ip_chain_event {
 	__u16 nr;
@@ -465,7 +465,7 @@ struct hist_entry {
 	struct map	 *map;
 	struct dso	 *dso;
 	struct symbol	 *sym;
-	struct symbol	 *call;
+	struct symbol	 *parent;
 	__u64		 ip;
 	char		 level;
 
@@ -618,13 +618,13 @@ static struct sort_entry sort_sym = {
 	.print	= sort__sym_print,
 };
 
-/* --sort call */
+/* --sort parent */
 
 static int64_t
-sort__call_cmp(struct hist_entry *left, struct hist_entry *right)
+sort__parent_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct symbol *sym_l = left->call;
-	struct symbol *sym_r = right->call;
+	struct symbol *sym_l = left->parent;
+	struct symbol *sym_r = right->parent;
 
 	if (!sym_l || !sym_r)
 		return cmp_null(sym_l, sym_r);
@@ -633,23 +633,23 @@ sort__call_cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-sort__call_print(FILE *fp, struct hist_entry *self)
+sort__parent_print(FILE *fp, struct hist_entry *self)
 {
 	size_t ret = 0;
 
-	ret += fprintf(fp, "%-20s", self->call ? self->call->name : "[unmatched]");
+	ret += fprintf(fp, "%-20s", self->parent ? self->parent->name : "[other]");
 
 	return ret;
 }
 
-static struct sort_entry sort_call = {
-	.header = "Callchain symbol    ",
-	.cmp	= sort__call_cmp,
-	.print	= sort__call_print,
+static struct sort_entry sort_parent = {
+	.header = "Parent symbol       ",
+	.cmp	= sort__parent_cmp,
+	.print	= sort__parent_print,
 };
 
 static int sort__need_collapse = 0;
-static int sort__has_call = 0;
+static int sort__has_parent = 0;
 
 struct sort_dimension {
 	char			*name;
@@ -662,7 +662,7 @@ static struct sort_dimension sort_dimensions[] = {
 	{ .name = "comm",	.entry = &sort_comm,	},
 	{ .name = "dso",	.entry = &sort_dso,	},
 	{ .name = "symbol",	.entry = &sort_sym,	},
-	{ .name = "call",	.entry = &sort_call,	},
+	{ .name = "parent",	.entry = &sort_parent,	},
 };
 
 static LIST_HEAD(hist_entry__sort_list);
@@ -683,16 +683,17 @@ static int sort_dimension__add(char *tok)
 		if (sd->entry->collapse)
 			sort__need_collapse = 1;
 
-		if (sd->entry == &sort_call) {
-			int ret = regcomp(&call_regex, call, REG_EXTENDED);
+		if (sd->entry == &sort_parent) {
+			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
 			if (ret) {
 				char err[BUFSIZ];
 
-				regerror(ret, &call_regex, err, sizeof(err));
-				fprintf(stderr, "Invalid regex: %s\n%s", call, err);
+				regerror(ret, &parent_regex, err, sizeof(err));
+				fprintf(stderr, "Invalid regex: %s\n%s",
+					parent_pattern, err);
 				exit(-1);
 			}
-			sort__has_call = 1;
+			sort__has_parent = 1;
 		}
 
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
@@ -831,7 +832,7 @@ static struct symbol *call__match(struct symbol *sym)
 	if (!sym)
 		return NULL;
 
-	if (sym->name && !regexec(&call_regex, sym->name, 0, NULL, 0))
+	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
 		return sym;
 
 	return NULL;
@@ -844,7 +845,7 @@ static struct symbol *call__match(struct symbol *sym)
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		struct symbol *sym, __u64 ip, struct ip_chain_event *chain,
-	       	char level, __u64 count)
+		char level, __u64 count)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -860,7 +861,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	};
 	int cmp;
 
-	if (sort__has_call && chain) {
+	if (sort__has_parent && chain) {
 		int i, nr = chain->hv;
 		struct symbol *sym;
 		struct dso *dso;
@@ -870,22 +871,22 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 			ip = chain->ips[nr + i];
 			dso = kernel_dso;
 			sym = resolve_symbol(thread, NULL, &dso, &ip);
-			entry.call = call__match(sym);
-			if (entry.call)
-				goto got_call;
+			entry.parent = call__match(sym);
+			if (entry.parent)
+				goto got_parent;
 		}
 		nr += i;
 
 		for (i = 0; i < chain->user; i++) {
 			ip = chain->ips[nr + i];
 			sym = resolve_symbol(thread, NULL, NULL, &ip);
-			entry.call = call__match(sym);
-			if (entry.call)
-				goto got_call;
+			entry.parent = call__match(sym);
+			if (entry.parent)
+				goto got_parent;
 		}
 		nr += i;
 	}
-got_call:
+got_parent:
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1457,11 +1458,11 @@ static const struct option options[] = {
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "vmlinux", &vmlinux, "file", "vmlinux pathname"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
-		   "sort by key(s): pid, comm, dso, symbol. Default: pid,symbol"),
+		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN('P', "full-paths", &full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
-	OPT_STRING('c', "call", &call, "regex",
-		   "regex to use for --sort call"),
+	OPT_STRING('p', "parent", &parent_pattern, "regex",
+		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_END()
 };
 
