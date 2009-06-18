@@ -251,7 +251,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	/* program DMA context */
 	hw = &adapter->hw;
 	spin_lock_bh(&fcoe->lock);
-	IXGBE_WRITE_REG(hw, IXGBE_FCPTRL, ddp->udp & DMA_32BIT_MASK);
+	IXGBE_WRITE_REG(hw, IXGBE_FCPTRL, ddp->udp & DMA_BIT_MASK(32));
 	IXGBE_WRITE_REG(hw, IXGBE_FCPTRH, (u64)ddp->udp >> 32);
 	IXGBE_WRITE_REG(hw, IXGBE_FCBUFF, fcbuff);
 	IXGBE_WRITE_REG(hw, IXGBE_FCDMARW, fcdmarw);
