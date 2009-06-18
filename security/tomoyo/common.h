@@ -26,16 +26,43 @@
 struct dentry;
 struct vfsmount;
 
-/* Temporary buffer for holding pathnames. */
+/*
+ * tomoyo_page_buffer is a structure which is used for holding a pathname
+ * obtained from "struct dentry" and "struct vfsmount" pair.
+ * As of now, it is 4096 bytes. If users complain that 4096 bytes is too small
+ * (because TOMOYO escapes non ASCII printable characters using \ooo format),
+ * we will make the buffer larger.
+ */
 struct tomoyo_page_buffer {
 	char buffer[4096];
 };
 
-/* Structure for holding a token. */
+/*
+ * tomoyo_path_info is a structure which is used for holding a string data
+ * used by TOMOYO.
+ * This structure has several fields for supporting pattern matching.
+ *
+ * (1) "name" is the '\0' terminated string data.
+ * (2) "hash" is full_name_hash(name, strlen(name)).
+ *     This allows tomoyo_pathcmp() to compare by hash before actually compare
+ *     using strcmp().
+ * (3) "const_len" is the length of the initial segment of "name" which
+ *     consists entirely of non wildcard characters. In other words, the length
+ *     which we can compare two strings using strncmp().
+ * (4) "is_dir" is a bool which is true if "name" ends with "/",
+ *     false otherwise.
+ *     TOMOYO distinguishes directory and non-directory. A directory ends with
+ *     "/" and non-directory does not end with "/".
+ * (5) "is_patterned" is a bool which is true if "name" contains wildcard
+ *     characters, false otherwise. This allows TOMOYO to use "hash" and
+ *     strcmp() for string comparison if "is_patterned" is false.
+ * (6) "depth" is calculated using the number of "/" characters in "name".
+ *     This allows TOMOYO to avoid comparing two pathnames which never match
+ *     (e.g. whether "/var/www/html/index.html" matches "/tmp/sh-thd-\$").
+ */
 struct tomoyo_path_info {
 	const char *name;
 	u32 hash;          /* = full_name_hash(name, strlen(name)) */
-	u16 total_len;     /* = strlen(name)                       */
 	u16 const_len;     /* = tomoyo_const_part_length(name)     */
 	bool is_dir;       /* = tomoyo_strendswith(name, "/")      */
 	bool is_patterned; /* = tomoyo_path_contains_pattern(name) */
@@ -51,7 +78,20 @@ struct tomoyo_path_info {
  */
 #define TOMOYO_MAX_PATHNAME_LEN 4000
 
-/* Structure for holding requested pathname. */
+/*
+ * tomoyo_path_info_with_data is a structure which is used for holding a
+ * pathname obtained from "struct dentry" and "struct vfsmount" pair.
+ *
+ * "struct tomoyo_path_info_with_data" consists of "struct tomoyo_path_info"
+ * and buffer for the pathname, while "struct tomoyo_page_buffer" consists of
+ * buffer for the pathname only.
+ *
+ * "struct tomoyo_path_info_with_data" is intended to allow TOMOYO to release
+ * both "struct tomoyo_path_info" and buffer for the pathname by single kfree()
+ * so that we don't need to return two pointers to the caller. If the caller
+ * puts "struct tomoyo_path_info" on stack memory, we will be able to remove
+ * "struct tomoyo_path_info_with_data".
+ */
 struct tomoyo_path_info_with_data {
 	/* Keep "head" first, for this pointer is passed to tomoyo_free(). */
 	struct tomoyo_path_info head;
@@ -61,7 +101,15 @@ struct tomoyo_path_info_with_data {
 };
 
 /*
- * Common header for holding ACL entries.
+ * tomoyo_acl_info is a structure which is used for holding
+ *
+ *  (1) "list" which is linked to the ->acl_info_list of
+ *      "struct tomoyo_domain_info"
+ *  (2) "type" which tells
+ *      (a) type & 0x7F : type of the entry (either
+ *          "struct tomoyo_single_path_acl_record" or
+ *          "struct tomoyo_double_path_acl_record")
+ *      (b) type & 0x80 : whether the entry is marked as "deleted".
  *
  * Packing "struct tomoyo_acl_info" allows
  * "struct tomoyo_single_path_acl_record" to embed "u16" and
@@ -81,7 +129,28 @@ struct tomoyo_acl_info {
 /* This ACL entry is deleted.           */
 #define TOMOYO_ACL_DELETED        0x80
 
-/* Structure for domain information. */
+/*
+ * tomoyo_domain_info is a structure which is used for holding permissions
+ * (e.g. "allow_read /lib/libc-2.5.so") given to each domain.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_domain_list .
+ *  (2) "acl_info_list" which is linked to "struct tomoyo_acl_info".
+ *  (3) "domainname" which holds the name of the domain.
+ *  (4) "profile" which remembers profile number assigned to this domain.
+ *  (5) "is_deleted" is a bool which is true if this domain is marked as
+ *      "deleted", false otherwise.
+ *  (6) "quota_warned" is a bool which is used for suppressing warning message
+ *      when learning mode learned too much entries.
+ *  (7) "flags" which remembers this domain's attributes.
+ *
+ * A domain's lifecycle is an analogy of files on / directory.
+ * Multiple domains with the same domainname cannot be created (as with
+ * creating files with the same filename fails with -EEXIST).
+ * If a process reached a domain, that process can reside in that domain after
+ * that domain is marked as "deleted" (as with a process can access an already
+ * open()ed file after that file was unlink()ed).
+ */
 struct tomoyo_domain_info {
 	struct list_head list;
 	struct list_head acl_info_list;
@@ -108,10 +177,18 @@ struct tomoyo_domain_info {
 #define TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED        2
 
 /*
- * Structure for "allow_read/write", "allow_execute", "allow_read",
- * "allow_write", "allow_create", "allow_unlink", "allow_mkdir", "allow_rmdir",
- * "allow_mkfifo", "allow_mksock", "allow_mkblock", "allow_mkchar",
- * "allow_truncate", "allow_symlink" and "allow_rewrite" directive.
+ * tomoyo_single_path_acl_record is a structure which is used for holding an
+ * entry with one pathname operation (e.g. open(), mkdir()).
+ * It has following fields.
+ *
+ *  (1) "head" which is a "struct tomoyo_acl_info".
+ *  (2) "perm" which is a bitmask of permitted operations.
+ *  (3) "filename" is the pathname.
+ *
+ * Directives held by this structure are "allow_read/write", "allow_execute",
+ * "allow_read", "allow_write", "allow_create", "allow_unlink", "allow_mkdir",
+ * "allow_rmdir", "allow_mkfifo", "allow_mksock", "allow_mkblock",
+ * "allow_mkchar", "allow_truncate", "allow_symlink" and "allow_rewrite".
  */
 struct tomoyo_single_path_acl_record {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_SINGLE_PATH_ACL */
@@ -120,7 +197,18 @@ struct tomoyo_single_path_acl_record {
 	const struct tomoyo_path_info *filename;
 };
 
-/* Structure for "allow_rename" and "allow_link" directive. */
+/*
+ * tomoyo_double_path_acl_record is a structure which is used for holding an
+ * entry with two pathnames operation (i.e. link() and rename()).
+ * It has following fields.
+ *
+ *  (1) "head" which is a "struct tomoyo_acl_info".
+ *  (2) "perm" which is a bitmask of permitted operations.
+ *  (3) "filename1" is the source/old pathname.
+ *  (4) "filename2" is the destination/new pathname.
+ *
+ * Directives held by this structure are "allow_rename" and "allow_link".
+ */
 struct tomoyo_double_path_acl_record {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_DOUBLE_PATH_ACL */
 	u8 perm;
@@ -153,7 +241,29 @@ struct tomoyo_double_path_acl_record {
 #define TOMOYO_VERBOSE                       2
 #define TOMOYO_MAX_CONTROL_INDEX             3
 
-/* Structure for reading/writing policy via securityfs interfaces. */
+/*
+ * tomoyo_io_buffer is a structure which is used for reading and modifying
+ * configuration via /sys/kernel/security/tomoyo/ interface.
+ * It has many fields. ->read_var1 , ->read_var2 , ->write_var1 are used as
+ * cursors.
+ *
+ * Since the content of /sys/kernel/security/tomoyo/domain_policy is a list of
+ * "struct tomoyo_domain_info" entries and each "struct tomoyo_domain_info"
+ * entry has a list of "struct tomoyo_acl_info", we need two cursors when
+ * reading (one is for traversing tomoyo_domain_list and the other is for
+ * traversing "struct tomoyo_acl_info"->acl_info_list ).
+ *
+ * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
+ * "select ", TOMOYO seeks the cursor ->read_var1 and ->write_var1 to the
+ * domain with the domainname specified by the rest of that line (NULL is set
+ * if seek failed).
+ * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
+ * "delete ", TOMOYO deletes an entry or a domain specified by the rest of that
+ * line (->write_var1 is set to NULL if a domain was deleted).
+ * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
+ * neither "select " nor "delete ", an entry or a domain specified by that line
+ * is appended.
+ */
 struct tomoyo_io_buffer {
 	int (*read) (struct tomoyo_io_buffer *);
 	int (*write) (struct tomoyo_io_buffer *);

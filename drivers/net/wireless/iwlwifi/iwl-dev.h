@@ -41,7 +41,6 @@
 #include "iwl-prph.h"
 #include "iwl-fh.h"
 #include "iwl-debug.h"
-#include "iwl-rfkill.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
 #include "iwl-3945-led.h"
@@ -289,11 +288,11 @@ struct iwl_frame {
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 
 enum {
-	/* CMD_SIZE_NORMAL = 0, */
+	CMD_SYNC = 0,
+	CMD_SIZE_NORMAL = 0,
+	CMD_NO_SKB = 0,
 	CMD_SIZE_HUGE = (1 << 0),
-	/* CMD_SYNC = 0, */
 	CMD_ASYNC = (1 << 1),
-	/* CMD_NO_SKB = 0, */
 	CMD_WANT_SKB = (1 << 2),
 };
 
@@ -381,6 +380,7 @@ struct iwl_rx_queue {
 	u32 read;
 	u32 write;
 	u32 free_count;
+	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
 	int need_update;
@@ -498,22 +498,13 @@ struct iwl_qos_info {
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
 
-struct iwl3945_tid_data {
-	u16 seq_number;
-};
-
-struct iwl3945_hw_key {
-	enum ieee80211_key_alg alg;
-	int keylen;
-	u8 key[32];
-};
 
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
-	struct iwl3945_tid_data tid[MAX_TID_COUNT];
+	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
-	struct iwl3945_hw_key keyinfo;
+	struct iwl_hw_key keyinfo;
 };
 
 struct iwl_station_entry {
@@ -822,6 +813,26 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
+enum iwl_nvm_type {
+	NVM_DEVICE_TYPE_EEPROM = 0,
+	NVM_DEVICE_TYPE_OTP,
+};
+
+/* interrupt statistics */
+struct isr_statistics {
+	u32 hw;
+	u32 sw;
+	u32 sw_err;
+	u32 sch;
+	u32 alive;
+	u32 rfkill;
+	u32 ctkill;
+	u32 wakeup;
+	u32 rx;
+	u32 rx_handlers[REPLY_MAX];
+	u32 tx;
+	u32 unhandled;
+};
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -877,15 +888,14 @@ struct iwl_priv {
 	unsigned long scan_start_tsf;
 	void *scan;
 	int scan_bands;
-	int one_direct_scan;
-	u8 direct_ssid_len;
-	u8 direct_ssid[IW_ESSID_MAX_SIZE];
+	struct cfg80211_scan_request *scan_request;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
 	spinlock_t hcmd_lock;	/* protect hcmd */
+	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
 	/* basic pci-network driver stuff */
@@ -919,16 +929,12 @@ struct iwl_priv {
 	const struct iwl_rxon_cmd active_rxon;
 	struct iwl_rxon_cmd staging_rxon;
 
-	int error_recovering;
 	struct iwl_rxon_cmd recovery_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
-#if defined(CONFIG_IWLWIFI_RFKILL)
-	struct rfkill *rfkill;
-#endif
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	unsigned long last_blink_time;
@@ -978,6 +984,9 @@ struct iwl_priv {
 		u64 bytes;
 	} tx_stats[3], rx_stats[3];
 
+	/* counts interrupts */
+	struct isr_statistics isr_stats;
+
 	struct iwl_power_mgr power_data;
 
 	struct iwl_notif_statistics statistics;
@@ -1017,6 +1026,7 @@ struct iwl_priv {
 
 	/* eeprom */
 	u8 *eeprom;
+	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;
@@ -1034,7 +1044,16 @@ struct iwl_priv {
 	/*End*/
 	struct iwl_hw_params hw_params;
 
+	/* INT ICT Table */
+	u32 *ict_tbl;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	void *ict_tbl_vir;
+	u32 inta;
+	bool use_ict;
 
+	u32 inta_mask;
 	/* Current association information needed to configure the
 	 * hardware */
 	u16 assoc_id;
@@ -1049,7 +1068,6 @@ struct iwl_priv {
 	struct work_struct calibrated_work;
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
-	struct work_struct rf_kill;
 	struct work_struct abort_scan;
 	struct work_struct update_link_led;
 	struct work_struct auth_work;
@@ -1059,7 +1077,6 @@ struct iwl_priv {
 
 	struct tasklet_struct irq_tasklet;
 
-	struct delayed_work set_power_save;
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
@@ -1090,13 +1107,11 @@ struct iwl_priv {
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
-
+	bool hw_ready;
 	/*For 3945*/
 #define IWL_DEFAULT_TX_POWER 0x0F
 
 	struct iwl3945_notif_statistics statistics_39;
-
-	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
 
 	u32 sta_supp_rates;
 }; /*iwl_priv */

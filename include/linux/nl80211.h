@@ -7,7 +7,7 @@
  * Copyright 2008 Michael Wu <flamingice@sourmilk.net>
  * Copyright 2008 Luis Carlos Cobo <luisca@cozybit.com>
  * Copyright 2008 Michael Buesch <mb@bu3sch.de>
- * Copyright 2008 Luis R. Rodriguez <lrodriguez@atheros.com>
+ * Copyright 2008, 2009 Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  *
@@ -24,6 +24,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
+
+#include <linux/types.h>
 
 /**
  * DOC: Station handling
@@ -46,8 +48,10 @@
  *	to get a list of all present wiphys.
  * @NL80211_CMD_SET_WIPHY: set wiphy parameters, needs %NL80211_ATTR_WIPHY or
  *	%NL80211_ATTR_IFINDEX; can be used to set %NL80211_ATTR_WIPHY_NAME,
- *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ, and/or
- *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE.
+ *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ,
+ *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE, %NL80211_ATTR_WIPHY_RETRY_SHORT,
+ *	%NL80211_ATTR_WIPHY_RETRY_LONG, %NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+ *	and/or %NL80211_ATTR_WIPHY_RTS_THRESHOLD.
  * @NL80211_CMD_NEW_WIPHY: Newly created wiphy, response to get request
  *	or rename notification. Has attributes %NL80211_ATTR_WIPHY and
  *	%NL80211_ATTR_WIPHY_NAME.
@@ -75,8 +79,8 @@
  * @NL80211_CMD_SET_KEY: Set key attributes %NL80211_ATTR_KEY_DEFAULT,
  *	%NL80211_ATTR_KEY_DEFAULT_MGMT, or %NL80211_ATTR_KEY_THRESHOLD.
  * @NL80211_CMD_NEW_KEY: add a key with given %NL80211_ATTR_KEY_DATA,
- *	%NL80211_ATTR_KEY_IDX, %NL80211_ATTR_MAC and %NL80211_ATTR_KEY_CIPHER
- *	attributes.
+ *	%NL80211_ATTR_KEY_IDX, %NL80211_ATTR_MAC, %NL80211_ATTR_KEY_CIPHER,
+ *	and %NL80211_ATTR_KEY_SEQ attributes.
  * @NL80211_CMD_DEL_KEY: delete a key identified by %NL80211_ATTR_KEY_IDX
  *	or %NL80211_ATTR_MAC.
  *
@@ -166,6 +170,22 @@
  * 	set (%NL80211_ATTR_REG_TYPE), if the type of regulatory domain is
  * 	%NL80211_REG_TYPE_COUNTRY the alpha2 to which we have moved on
  * 	to (%NL80211_ATTR_REG_ALPHA2).
+ * @NL80211_CMD_REG_BEACON_HINT: indicates to userspace that an AP beacon
+ * 	has been found while world roaming thus enabling active scan or
+ * 	any mode of operation that initiates TX (beacons) on a channel
+ * 	where we would not have been able to do either before. As an example
+ * 	if you are world roaming (regulatory domain set to world or if your
+ * 	driver is using a custom world roaming regulatory domain) and while
+ * 	doing a passive scan on the 5 GHz band you find an AP there (if not
+ * 	on a DFS channel) you will now be able to actively scan for that AP
+ * 	or use AP mode on your card on that same channel. Note that this will
+ * 	never be used for channels 1-11 on the 2 GHz band as they are always
+ * 	enabled world wide. This beacon hint is only sent if your device had
+ * 	either disabled active scanning or beaconing on a channel. We send to
+ * 	userspace the wiphy on which we removed a restriction from
+ * 	(%NL80211_ATTR_WIPHY) and the channel on which this occurred
+ * 	before (%NL80211_ATTR_FREQ_BEFORE) and after (%NL80211_ATTR_FREQ_AFTER)
+ * 	the beacon hint was processed.
  *
  * @NL80211_CMD_AUTHENTICATE: authentication request and notification.
  *	This command is used both as a command (request to authenticate) and
@@ -185,8 +205,12 @@
  *	frame, i.e., it was for the local STA and was received in correct
  *	state. This is similar to MLME-AUTHENTICATE.confirm primitive in the
  *	MLME SAP interface (kernel providing MLME, userspace SME). The
- *	included NL80211_ATTR_FRAME attribute contains the management frame
- *	(including both the header and frame body, but not FCS).
+ *	included %NL80211_ATTR_FRAME attribute contains the management frame
+ *	(including both the header and frame body, but not FCS). This event is
+ *	also used to indicate if the authentication attempt timed out. In that
+ *	case the %NL80211_ATTR_FRAME attribute is replaced with a
+ *	%NL80211_ATTR_TIMED_OUT flag (and %NL80211_ATTR_MAC to indicate which
+ *	pending authentication timed out).
  * @NL80211_CMD_ASSOCIATE: association request and notification; like
  *	NL80211_CMD_AUTHENTICATE but for Association and Reassociation
  *	(similar to MLME-ASSOCIATE.request, MLME-REASSOCIATE.request,
@@ -198,6 +222,25 @@
  * @NL80211_CMD_DISASSOCIATE: disassociation request and notification; like
  *	NL80211_CMD_AUTHENTICATE but for Disassociation frames (similar to
  *	MLME-DISASSOCIATE.request and MLME-DISASSOCIATE.indication primitives).
+ *
+ * @NL80211_CMD_MICHAEL_MIC_FAILURE: notification of a locally detected Michael
+ *	MIC (part of TKIP) failure; sent on the "mlme" multicast group; the
+ *	event includes %NL80211_ATTR_MAC to describe the source MAC address of
+ *	the frame with invalid MIC, %NL80211_ATTR_KEY_TYPE to show the key
+ *	type, %NL80211_ATTR_KEY_IDX to indicate the key identifier, and
+ *	%NL80211_ATTR_KEY_SEQ to indicate the TSC value of the frame; this
+ *	event matches with MLME-MICHAELMICFAILURE.indication() primitive
+ *
+ * @NL80211_CMD_JOIN_IBSS: Join a new IBSS -- given at least an SSID and a
+ *	FREQ attribute (for the initial frequency if no peer can be found)
+ *	and optionally a MAC (as BSSID) and FREQ_FIXED attribute if those
+ *	should be fixed rather than automatically determined. Can only be
+ *	executed on a network interface that is UP, and fixed BSSID/FREQ
+ *	may be rejected. Another optional parameter is the beacon interval,
+ *	given in the %NL80211_ATTR_BEACON_INTERVAL attribute, which if not
+ *	given defaults to 100 TU (102.4ms).
+ * @NL80211_CMD_LEAVE_IBSS: Leave the IBSS -- no special arguments, the IBSS is
+ *	determined by the network interface.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -260,6 +303,13 @@ enum nl80211_commands {
 	NL80211_CMD_DEAUTHENTICATE,
 	NL80211_CMD_DISASSOCIATE,
 
+	NL80211_CMD_MICHAEL_MIC_FAILURE,
+
+	NL80211_CMD_REG_BEACON_HINT,
+
+	NL80211_CMD_JOIN_IBSS,
+	NL80211_CMD_LEAVE_IBSS,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -278,6 +328,7 @@ enum nl80211_commands {
 #define NL80211_CMD_ASSOCIATE NL80211_CMD_ASSOCIATE
 #define NL80211_CMD_DEAUTHENTICATE NL80211_CMD_DEAUTHENTICATE
 #define NL80211_CMD_DISASSOCIATE NL80211_CMD_DISASSOCIATE
+#define NL80211_CMD_REG_BEACON_HINT NL80211_CMD_REG_BEACON_HINT
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -296,6 +347,18 @@ enum nl80211_commands {
  *	NL80211_CHAN_HT20 = HT20 only
  *	NL80211_CHAN_HT40MINUS = secondary channel is below the primary channel
  *	NL80211_CHAN_HT40PLUS = secondary channel is above the primary channel
+ * @NL80211_ATTR_WIPHY_RETRY_SHORT: TX retry limit for frames whose length is
+ *	less than or equal to the RTS threshold; allowed range: 1..255;
+ *	dot11ShortRetryLimit; u8
+ * @NL80211_ATTR_WIPHY_RETRY_LONG: TX retry limit for frames whose length is
+ *	greater than the RTS threshold; allowed range: 1..255;
+ *	dot11ShortLongLimit; u8
+ * @NL80211_ATTR_WIPHY_FRAG_THRESHOLD: fragmentation threshold, i.e., maximum
+ *	length in octets for frames; allowed range: 256..8000, disable
+ *	fragmentation with (u32)-1; dot11FragmentationThreshold; u32
+ * @NL80211_ATTR_WIPHY_RTS_THRESHOLD: RTS threshold (TX frames with length
+ *	larger than or equal to this use RTS/CTS handshake); allowed range:
+ *	0..65536, disable with (u32)-1; dot11RTSThreshold; u32
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -319,7 +382,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_STA_AID: Association ID for the station (u16)
  * @NL80211_ATTR_STA_FLAGS: flags, nested element with NLA_FLAG attributes of
- *	&enum nl80211_sta_flags.
+ *	&enum nl80211_sta_flags (deprecated, use %NL80211_ATTR_STA_FLAGS2)
  * @NL80211_ATTR_STA_LISTEN_INTERVAL: listen interval as defined by
  *	IEEE 802.11 7.3.1.6 (u16).
  * @NL80211_ATTR_STA_SUPPORTED_RATES: supported rates, array of supported
@@ -380,6 +443,8 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_MAX_NUM_SCAN_SSIDS: number of SSIDs you can scan with
  *	a single scan request, a wiphy attribute.
+ * @NL80211_ATTR_MAX_SCAN_IE_LEN: maximum length of information elements
+ *	that can be added to a scan request
  *
  * @NL80211_ATTR_SCAN_FREQUENCIES: nested attribute with frequencies (in MHz)
  * @NL80211_ATTR_SCAN_SSIDS: nested attribute with SSIDs, leave out for passive
@@ -407,6 +472,44 @@ enum nl80211_commands {
  *	represented as a u32
  * @NL80211_ATTR_REASON_CODE: ReasonCode for %NL80211_CMD_DEAUTHENTICATE and
  *	%NL80211_CMD_DISASSOCIATE, u16
+ *
+ * @NL80211_ATTR_KEY_TYPE: Key Type, see &enum nl80211_key_type, represented as
+ *	a u32
+ *
+ * @NL80211_ATTR_FREQ_BEFORE: A channel which has suffered a regulatory change
+ * 	due to considerations from a beacon hint. This attribute reflects
+ * 	the state of the channel _before_ the beacon hint processing. This
+ * 	attributes consists of a nested attribute containing
+ * 	NL80211_FREQUENCY_ATTR_*
+ * @NL80211_ATTR_FREQ_AFTER: A channel which has suffered a regulatory change
+ * 	due to considerations from a beacon hint. This attribute reflects
+ * 	the state of the channel _after_ the beacon hint processing. This
+ * 	attributes consists of a nested attribute containing
+ * 	NL80211_FREQUENCY_ATTR_*
+ *
+ * @NL80211_ATTR_CIPHER_SUITES: a set of u32 values indicating the supported
+ *	cipher suites
+ *
+ * @NL80211_ATTR_FREQ_FIXED: a flag indicating the IBSS should not try to look
+ *	for other networks on different channels
+ *
+ * @NL80211_ATTR_TIMED_OUT: a flag indicating than an operation timed out; this
+ *	is used, e.g., with %NL80211_CMD_AUTHENTICATE event
+ *
+ * @NL80211_ATTR_USE_MFP: Whether management frame protection (IEEE 802.11w) is
+ *	used for the association (&enum nl80211_mfp, represented as a u32);
+ *	this attribute can be used
+ *	with %NL80211_CMD_ASSOCIATE request
+ *
+ * @NL80211_ATTR_STA_FLAGS2: Attribute containing a
+ *	&struct nl80211_sta_flag_update.
+ *
+ * @NL80211_ATTR_CONTROL_PORT: A flag indicating whether user space controls
+ *	IEEE 802.1X port, i.e., sets/clears %NL80211_STA_FLAG_AUTHORIZED, in
+ *	station mode. If the flag is included in %NL80211_CMD_ASSOCIATE
+ *	request, the driver will assume that the port is unauthorized until
+ *	authorized by user space. Otherwise, port is marked authorized by
+ *	default in station mode.
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -491,6 +594,30 @@ enum nl80211_attrs {
 	NL80211_ATTR_SSID,
 	NL80211_ATTR_AUTH_TYPE,
 	NL80211_ATTR_REASON_CODE,
+
+	NL80211_ATTR_KEY_TYPE,
+
+	NL80211_ATTR_MAX_SCAN_IE_LEN,
+	NL80211_ATTR_CIPHER_SUITES,
+
+	NL80211_ATTR_FREQ_BEFORE,
+	NL80211_ATTR_FREQ_AFTER,
+
+	NL80211_ATTR_FREQ_FIXED,
+
+
+	NL80211_ATTR_WIPHY_RETRY_SHORT,
+	NL80211_ATTR_WIPHY_RETRY_LONG,
+	NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+	NL80211_ATTR_WIPHY_RTS_THRESHOLD,
+
+	NL80211_ATTR_TIMED_OUT,
+
+	NL80211_ATTR_USE_MFP,
+
+	NL80211_ATTR_STA_FLAGS2,
+
+	NL80211_ATTR_CONTROL_PORT,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -579,6 +706,18 @@ enum nl80211_sta_flags {
 	__NL80211_STA_FLAG_AFTER_LAST,
 	NL80211_STA_FLAG_MAX = __NL80211_STA_FLAG_AFTER_LAST - 1
 };
+
+/**
+ * struct nl80211_sta_flag_update - station flags mask/set
+ * @mask: mask of station flags to set
+ * @set: which values to set them to
+ *
+ * Both mask and set contain bits as per &enum nl80211_sta_flags.
+ */
+struct nl80211_sta_flag_update {
+	__u32 mask;
+	__u32 set;
+} __attribute__((packed));
 
 /**
  * enum nl80211_rate_info - bitrate information
@@ -1062,4 +1201,27 @@ enum nl80211_auth_type {
 	NL80211_AUTHTYPE_FT,
 	NL80211_AUTHTYPE_NETWORK_EAP,
 };
+
+/**
+ * enum nl80211_key_type - Key Type
+ * @NL80211_KEYTYPE_GROUP: Group (broadcast/multicast) key
+ * @NL80211_KEYTYPE_PAIRWISE: Pairwise (unicast/individual) key
+ * @NL80211_KEYTYPE_PEERKEY: PeerKey (DLS)
+ */
+enum nl80211_key_type {
+	NL80211_KEYTYPE_GROUP,
+	NL80211_KEYTYPE_PAIRWISE,
+	NL80211_KEYTYPE_PEERKEY,
+};
+
+/**
+ * enum nl80211_mfp - Management frame protection state
+ * @NL80211_MFP_NO: Management frame protection not used
+ * @NL80211_MFP_REQUIRED: Management frame protection required
+ */
+enum nl80211_mfp {
+	NL80211_MFP_NO,
+	NL80211_MFP_REQUIRED,
+};
+
 #endif /* __LINUX_NL80211_H */

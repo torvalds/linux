@@ -11,7 +11,15 @@
 #define __INODE_DOT_H__
 
 #include <linux/fs.h>
+#include <linux/buffer_head.h>
+#include <linux/mm.h>
 #include "util.h"
+
+extern int gfs2_releasepage(struct page *page, gfp_t gfp_mask);
+extern int gfs2_internal_read(struct gfs2_inode *ip,
+			      struct file_ra_state *ra_state,
+			      char *buf, loff_t *pos, unsigned size);
+extern void gfs2_set_aops(struct inode *inode);
 
 static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
 {
@@ -73,30 +81,26 @@ static inline void gfs2_inum_out(const struct gfs2_inode *ip,
 }
 
 
-void gfs2_set_iop(struct inode *inode);
-struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
-				u64 no_addr, u64 no_formal_ino,
-				int skip_freeing);
-struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
+extern void gfs2_set_iop(struct inode *inode);
+extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
+				       u64 no_addr, u64 no_formal_ino,
+				       int skip_freeing);
+extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
 
-int gfs2_inode_refresh(struct gfs2_inode *ip);
+extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
-int gfs2_dinode_dealloc(struct gfs2_inode *inode);
-int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
-struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
-			   int is_root);
-struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
-			   unsigned int mode, dev_t dev);
-int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
-		struct gfs2_inode *ip);
-int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
-		   const struct gfs2_inode *ip);
-int gfs2_permission(struct inode *inode, int mask);
-int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len);
-int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
-struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
-void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
-void gfs2_dinode_print(const struct gfs2_inode *ip);
+extern int gfs2_dinode_dealloc(struct gfs2_inode *inode);
+extern int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
+extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
+				  int is_root);
+extern struct inode *gfs2_createi(struct gfs2_holder *ghs,
+				  const struct qstr *name,
+				  unsigned int mode, dev_t dev);
+extern int gfs2_permission(struct inode *inode, int mask);
+extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
+extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
+extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
+extern void gfs2_dinode_print(const struct gfs2_inode *ip);
 
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;

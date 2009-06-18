@@ -151,7 +151,7 @@ static noinline int dcplb_miss(unsigned int cpu)
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
-	if (bfin_addr_dcachable(addr)) {
+	if (bfin_addr_dcacheable(addr)) {
 		d_data |= CPLB_L1_CHBL | ANOMALY_05000158_WORKAROUND;
 #ifdef CONFIG_BFIN_WT
 		d_data |= CPLB_L1_AOW | CPLB_WT;

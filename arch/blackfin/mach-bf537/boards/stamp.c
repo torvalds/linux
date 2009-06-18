@@ -508,8 +508,8 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_ADC_BF533) \
-	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
+#if defined(CONFIG_BFIN_SPI_ADC) \
+	|| defined(CONFIG_BFIN_SPI_ADC_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
 	.enable_dma = 1,         /* use dma transfer with this chip*/
@@ -607,6 +607,43 @@ static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 };
 #endif
 
+#if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
+#include <linux/input.h>
+#include <linux/spi/adxl34x.h>
+static const struct adxl34x_platform_data adxl34x_info = {
+	.x_axis_offset = 0,
+	.y_axis_offset = 0,
+	.z_axis_offset = 0,
+	.tap_threshold = 0x31,
+	.tap_duration = 0x10,
+	.tap_latency = 0x60,
+	.tap_window = 0xF0,
+	.tap_axis_control = ADXL_TAP_X_EN | ADXL_TAP_Y_EN | ADXL_TAP_Z_EN,
+	.act_axis_control = 0xFF,
+	.activity_threshold = 5,
+	.inactivity_threshold = 3,
+	.inactivity_time = 4,
+	.free_fall_threshold = 0x7,
+	.free_fall_time = 0x20,
+	.data_rate = 0x8,
+	.data_range = ADXL_FULL_RES,
+
+	.ev_type = EV_ABS,
+	.ev_code_x = ABS_X,		/* EV_REL */
+	.ev_code_y = ABS_Y,		/* EV_REL */
+	.ev_code_z = ABS_Z,		/* EV_REL */
+
+	.ev_code_tap_x = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap_y = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap_z = BTN_TOUCH,		/* EV_KEY */
+
+/*	.ev_code_ff = KEY_F,*/		/* EV_KEY */
+/*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
+	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
+	.fifo_mode = ADXL_FIFO_STREAM,
+};
+#endif
+
 #if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
 static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
 	.enable_dma = 0,
@@ -695,8 +732,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-#if defined(CONFIG_SPI_ADC_BF533) \
-	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
+#if defined(CONFIG_BFIN_SPI_ADC) \
+	|| defined(CONFIG_BFIN_SPI_ADC_MODULE)
 	{
 		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
 		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
@@ -1280,7 +1317,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 		.irq = IRQ_PF5,
 	},
 #endif
-#if defined(CONFIG_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
 	},
@@ -1308,8 +1345,15 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_PMIC_ADP5520) || defined(CONFIG_PMIC_ADP5520_MODULE)
 	{
 		I2C_BOARD_INFO("pmic-adp5520", 0x32),
-		.irq = IRQ_PF7,
+		.irq = IRQ_PG0,
 		.platform_data = (void *)&adp5520_pdev_data,
+	},
+#endif
+#if defined(CONFIG_INPUT_ADXL34X_I2C) || defined(CONFIG_INPUT_ADXL34X_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("adxl34x", 0x53),
+		.irq = IRQ_PG3,
+		.platform_data = (void *)&adxl34x_info,
 	},
 #endif
 };
@@ -1358,16 +1402,18 @@ static struct resource bfin_pata_resources[] = {
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 0,
 };
-
+/* CompactFlash Storage Card Memory Mapped Adressing
+ * /REG = A11 = 1
+ */
 static struct resource bfin_pata_resources[] = {
 	{
-		.start = 0x20211820,
-		.end = 0x2021183F,
+		.start = 0x20211800,
+		.end = 0x20211807,
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = 0x2021181C,
-		.end = 0x2021181F,
+		.start = 0x2021180E,	/* Device Ctl */
+		.end = 0x2021180E,
 		.flags = IORESOURCE_MEM,
 	},
 };
@@ -1527,7 +1573,8 @@ static int __init stamp_init(void)
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
+#if (defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)) \
+	 && defined(PATA_INT)
 	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
 #endif
 

@@ -485,7 +485,7 @@ static int at91_ep_enable(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
-	tmp = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	tmp = usb_endpoint_type(desc);
 	switch (tmp) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		DBG("only one control endpoint\n");
@@ -517,7 +517,7 @@ ok:
 	local_irq_save(flags);
 
 	/* initialize endpoint to match this descriptor */
-	ep->is_in = (desc->bEndpointAddress & USB_DIR_IN) != 0;
+	ep->is_in = usb_endpoint_dir_in(desc);
 	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC);
 	ep->stopped = 0;
 	if (ep->is_in)
@@ -1574,7 +1574,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	udc->driver = driver;
 	udc->gadget.dev.driver = &driver->driver;
-	udc->gadget.dev.driver_data = &driver->driver;
+	dev_set_drvdata(&udc->gadget.dev, &driver->driver);
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
@@ -1583,7 +1583,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 		DBG("driver->bind() returned %d\n", retval);
 		udc->driver = NULL;
 		udc->gadget.dev.driver = NULL;
-		udc->gadget.dev.driver_data = NULL;
+		dev_set_drvdata(&udc->gadget.dev, NULL);
 		udc->enabled = 0;
 		udc->selfpowered = 0;
 		return retval;
@@ -1613,7 +1613,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
-	udc->gadget.dev.driver_data = NULL;
+	dev_set_drvdata(&udc->gadget.dev, NULL);
 	udc->driver = NULL;
 
 	DBG("unbound from %s\n", driver->driver.name);

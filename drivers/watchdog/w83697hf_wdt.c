@@ -413,7 +413,8 @@ static int __init wdt_init(void)
 	w83697hf_init();
 	if (early_disable) {
 		if (wdt_running())
-			printk(KERN_WARNING PFX "Stopping previously enabled watchdog until userland kicks in\n");
+			printk(KERN_WARNING PFX "Stopping previously enabled "
+					"watchdog until userland kicks in\n");
 		wdt_disable();
 	}
 

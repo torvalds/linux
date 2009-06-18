@@ -227,7 +227,6 @@
 	};
 
 	pci0: pci@e0008600 {
-		cell-index = <2>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 				/* IDSEL 0x0F - PCI Slot */

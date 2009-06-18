@@ -440,6 +440,24 @@ config VIDEO_ADV7175
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7175.
 
+config VIDEO_THS7303
+	tristate "THS7303 Video Amplifier"
+	depends on I2C
+	help
+	  Support for TI THS7303 video amplifier
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths7303.
+
+config VIDEO_ADV7343
+	tristate "ADV7343 video encoder"
+	depends on I2C
+	help
+	  Support for Analog Devices I2C bus based ADV7343 encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7343.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
@@ -694,7 +712,7 @@ config VIDEO_CAFE_CCIC
 
 config SOC_CAMERA
 	tristate "SoC camera support"
-	depends on VIDEO_V4L2 && HAS_DMA
+	depends on VIDEO_V4L2 && HAS_DMA && I2C
 	select VIDEOBUF_GEN
 	help
 	  SoC Camera is a common API to several cameras, not connecting
@@ -758,10 +776,14 @@ config VIDEO_MX1
 	---help---
 	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
 
+config MX3_VIDEO
+	bool
+
 config VIDEO_MX3
 	tristate "i.MX3x Camera Sensor Interface driver"
 	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
 	select VIDEOBUF_DMA_CONTIG
+	select MX3_VIDEO
 	---help---
 	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
 

@@ -24,6 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
+#include <linux/sysdev.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -33,6 +34,7 @@
 #include <asm/txx9/pci.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9/ndfmc.h>
+#include <asm/txx9/dmac.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -821,3 +823,176 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 {
 }
 #endif /* CONFIG_LEDS_GPIO */
+
+void __init txx9_dmac_init(int id, unsigned long baseaddr, int irq,
+			   const struct txx9dmac_platform_data *pdata)
+{
+#if defined(CONFIG_TXX9_DMAC) || defined(CONFIG_TXX9_DMAC_MODULE)
+	struct resource res[] = {
+		{
+			.start = baseaddr,
+			.end = baseaddr + 0x800 - 1,
+			.flags = IORESOURCE_MEM,
+#ifndef CONFIG_MACH_TX49XX
+		}, {
+			.start = irq,
+			.flags = IORESOURCE_IRQ,
+#endif
+		}
+	};
+#ifdef CONFIG_MACH_TX49XX
+	struct resource chan_res[] = {
+		{
+			.flags = IORESOURCE_IRQ,
+		}
+	};
+#endif
+	struct platform_device *pdev = platform_device_alloc("txx9dmac", id);
+	struct txx9dmac_chan_platform_data cpdata;
+	int i;
+
+	if (!pdev ||
+	    platform_device_add_resources(pdev, res, ARRAY_SIZE(res)) ||
+	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||
+	    platform_device_add(pdev)) {
+		platform_device_put(pdev);
+		return;
+	}
+	memset(&cpdata, 0, sizeof(cpdata));
+	cpdata.dmac_dev = pdev;
+	for (i = 0; i < TXX9_DMA_MAX_NR_CHANNELS; i++) {
+#ifdef CONFIG_MACH_TX49XX
+		chan_res[0].start = irq + i;
+#endif
+		pdev = platform_device_alloc("txx9dmac-chan",
+					     id * TXX9_DMA_MAX_NR_CHANNELS + i);
+		if (!pdev ||
+#ifdef CONFIG_MACH_TX49XX
+		    platform_device_add_resources(pdev, chan_res,
+						  ARRAY_SIZE(chan_res)) ||
+#endif
+		    platform_device_add_data(pdev, &cpdata, sizeof(cpdata)) ||
+		    platform_device_add(pdev))
+			platform_device_put(pdev);
+	}
+#endif
+}
+
+void __init txx9_aclc_init(unsigned long baseaddr, int irq,
+			   unsigned int dmac_id,
+			   unsigned int dma_chan_out,
+			   unsigned int dma_chan_in)
+{
+#if defined(CONFIG_SND_SOC_TXX9ACLC) || \
+	defined(CONFIG_SND_SOC_TXX9ACLC_MODULE)
+	unsigned int dma_base = dmac_id * TXX9_DMA_MAX_NR_CHANNELS;
+	struct resource res[] = {
+		{
+			.start = baseaddr,
+			.end = baseaddr + 0x100 - 1,
+			.flags = IORESOURCE_MEM,
+		}, {
+			.start = irq,
+			.flags = IORESOURCE_IRQ,
+		}, {
+			.name = "txx9dmac-chan",
+			.start = dma_base + dma_chan_out,
+			.flags = IORESOURCE_DMA,
+		}, {
+			.name = "txx9dmac-chan",
+			.start = dma_base + dma_chan_in,
+			.flags = IORESOURCE_DMA,
+		}
+	};
+	struct platform_device *pdev =
+		platform_device_alloc("txx9aclc-ac97", -1);
+
+	if (!pdev ||
+	    platform_device_add_resources(pdev, res, ARRAY_SIZE(res)) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
+#endif
+}
+
+static struct sysdev_class txx9_sramc_sysdev_class;
+
+struct txx9_sramc_sysdev {
+	struct sys_device dev;
+	struct bin_attribute bindata_attr;
+	void __iomem *base;
+};
+
+static ssize_t txx9_sram_read(struct kobject *kobj,
+			      struct bin_attribute *bin_attr,
+			      char *buf, loff_t pos, size_t size)
+{
+	struct txx9_sramc_sysdev *dev = bin_attr->private;
+	size_t ramsize = bin_attr->size;
+
+	if (pos >= ramsize)
+		return 0;
+	if (pos + size > ramsize)
+		size = ramsize - pos;
+	memcpy_fromio(buf, dev->base + pos, size);
+	return size;
+}
+
+static ssize_t txx9_sram_write(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t pos, size_t size)
+{
+	struct txx9_sramc_sysdev *dev = bin_attr->private;
+	size_t ramsize = bin_attr->size;
+
+	if (pos >= ramsize)
+		return 0;
+	if (pos + size > ramsize)
+		size = ramsize - pos;
+	memcpy_toio(dev->base + pos, buf, size);
+	return size;
+}
+
+void __init txx9_sramc_init(struct resource *r)
+{
+	struct txx9_sramc_sysdev *dev;
+	size_t size;
+	int err;
+
+	if (!txx9_sramc_sysdev_class.name) {
+		txx9_sramc_sysdev_class.name = "txx9_sram";
+		err = sysdev_class_register(&txx9_sramc_sysdev_class);
+		if (err) {
+			txx9_sramc_sysdev_class.name = NULL;
+			return;
+		}
+	}
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return;
+	size = resource_size(r);
+	dev->base = ioremap(r->start, size);
+	if (!dev->base)
+		goto exit;
+	dev->dev.cls = &txx9_sramc_sysdev_class;
+	dev->bindata_attr.attr.name = "bindata";
+	dev->bindata_attr.attr.mode = S_IRUSR | S_IWUSR;
+	dev->bindata_attr.read = txx9_sram_read;
+	dev->bindata_attr.write = txx9_sram_write;
+	dev->bindata_attr.size = size;
+	dev->bindata_attr.private = dev;
+	err = sysdev_register(&dev->dev);
+	if (err)
+		goto exit;
+	err = sysfs_create_bin_file(&dev->dev.kobj, &dev->bindata_attr);
+	if (err) {
+		sysdev_unregister(&dev->dev);
+		goto exit;
+	}
+	return;
+exit:
+	if (dev) {
+		if (dev->base)
+			iounmap(dev->base);
+		kfree(dev);
+	}
+}

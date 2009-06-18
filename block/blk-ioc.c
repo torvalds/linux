@@ -35,9 +35,9 @@ int put_io_context(struct io_context *ioc)
 	if (ioc == NULL)
 		return 1;
 
-	BUG_ON(atomic_read(&ioc->refcount) == 0);
+	BUG_ON(atomic_long_read(&ioc->refcount) == 0);
 
-	if (atomic_dec_and_test(&ioc->refcount)) {
+	if (atomic_long_dec_and_test(&ioc->refcount)) {
 		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
@@ -90,7 +90,7 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 
 	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
 	if (ret) {
-		atomic_set(&ret->refcount, 1);
+		atomic_long_set(&ret->refcount, 1);
 		atomic_set(&ret->nr_tasks, 1);
 		spin_lock_init(&ret->lock);
 		ret->ioprio_changed = 0;
@@ -151,7 +151,7 @@ struct io_context *get_io_context(gfp_t gfp_flags, int node)
 		ret = current_io_context(gfp_flags, node);
 		if (unlikely(!ret))
 			break;
-	} while (!atomic_inc_not_zero(&ret->refcount));
+	} while (!atomic_long_inc_not_zero(&ret->refcount));
 
 	return ret;
 }
@@ -163,8 +163,8 @@ void copy_io_context(struct io_context **pdst, struct io_context **psrc)
 	struct io_context *dst = *pdst;
 
 	if (src) {
-		BUG_ON(atomic_read(&src->refcount) == 0);
-		atomic_inc(&src->refcount);
+		BUG_ON(atomic_long_read(&src->refcount) == 0);
+		atomic_long_inc(&src->refcount);
 		put_io_context(dst);
 		*pdst = src;
 	}

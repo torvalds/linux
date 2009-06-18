@@ -7003,6 +7003,7 @@ static void ipr_pci_perm_failure(struct pci_dev *pdev)
 		ioa_cfg->sdt_state = ABORT_DUMP;
 	ioa_cfg->reset_retries = IPR_NUM_RESET_RELOAD_RETRIES;
 	ioa_cfg->in_ioa_bringdown = 1;
+	ioa_cfg->allow_cmds = 0;
 	ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);
 }
@@ -7688,7 +7689,7 @@ static void __ipr_remove(struct pci_dev *pdev)
  * Return value:
  * 	none
  **/
-static void ipr_remove(struct pci_dev *pdev)
+static void __devexit ipr_remove(struct pci_dev *pdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 
@@ -7864,7 +7865,7 @@ static struct pci_driver ipr_driver = {
 	.name = IPR_NAME,
 	.id_table = ipr_pci_table,
 	.probe = ipr_probe,
-	.remove = ipr_remove,
+	.remove = __devexit_p(ipr_remove),
 	.shutdown = ipr_shutdown,
 	.err_handler = &ipr_err_handler,
 };

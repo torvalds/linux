@@ -177,7 +177,6 @@ static inline void init_call_single_data(void)
 
 #define get_cpu()		({ preempt_disable(); smp_processor_id(); })
 #define put_cpu()		preempt_enable()
-#define put_cpu_no_resched()	preempt_enable_no_resched()
 
 /*
  * Callback to arch code if there's nosmp or maxcpus=0 on the

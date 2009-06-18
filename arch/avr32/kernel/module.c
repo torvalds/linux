@@ -32,8 +32,6 @@ void module_free(struct module *mod, void *module_region)
 	mod->arch.syminfo = NULL;
 
 	vfree(module_region);
-	/* FIXME: if module_region == mod->init_region, trim exception
-	 * table entries. */
 }
 
 static inline int check_rela(Elf32_Rela *rela, struct module *module,

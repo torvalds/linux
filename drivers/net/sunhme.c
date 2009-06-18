@@ -2275,7 +2275,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irq(&hp->happy_lock);
 		printk(KERN_ERR "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	entry = hp->tx_new;

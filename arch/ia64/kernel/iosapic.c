@@ -451,7 +451,7 @@ iosapic_startup_edge_irq (unsigned int irq)
 static void
 iosapic_ack_edge_irq (unsigned int irq)
 {
-	irq_desc_t *idesc = irq_desc + irq;
+	struct irq_desc *idesc = irq_desc + irq;
 
 	irq_complete_move(irq);
 	move_native_irq(irq);
@@ -600,8 +600,8 @@ static int
 register_intr (unsigned int gsi, int irq, unsigned char delivery,
 	       unsigned long polarity, unsigned long trigger)
 {
-	irq_desc_t *idesc;
-	struct hw_interrupt_type *irq_type;
+	struct irq_desc *idesc;
+	struct irq_chip *irq_type;
 	int index;
 	struct iosapic_rte_info *rte;
 
@@ -650,7 +650,7 @@ register_intr (unsigned int gsi, int irq, unsigned char delivery,
 
 	idesc = irq_desc + irq;
 	if (irq_type != NULL && idesc->chip != irq_type) {
-		if (idesc->chip != &no_irq_type)
+		if (idesc->chip != &no_irq_chip)
 			printk(KERN_WARNING
 			       "%s: changing vector %d from %s to %s\n",
 			       __func__, irq_to_vector(irq),
@@ -828,7 +828,7 @@ iosapic_unregister_intr (unsigned int gsi)
 {
 	unsigned long flags;
 	int irq, index;
-	irq_desc_t *idesc;
+	struct irq_desc *idesc;
 	u32 low32;
 	unsigned long trigger, polarity;
 	unsigned int dest;

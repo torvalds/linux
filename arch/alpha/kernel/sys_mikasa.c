@@ -68,7 +68,7 @@ mikasa_end_irq(unsigned int irq)
 		mikasa_enable_irq(irq);
 }
 
-static struct hw_interrupt_type mikasa_irq_type = {
+static struct irq_chip mikasa_irq_type = {
 	.typename	= "MIKASA",
 	.startup	= mikasa_startup_irq,
 	.shutdown	= mikasa_disable_irq,

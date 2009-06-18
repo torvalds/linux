@@ -202,6 +202,6 @@ typedef struct page *pgtable_t;
 	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
 	 VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif

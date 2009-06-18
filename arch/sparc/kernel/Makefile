@@ -37,6 +37,7 @@ obj-y                   += una_asm_$(BITS).o
 obj-$(CONFIG_SPARC32)   += muldiv.o
 obj-y                   += prom_common.o
 obj-y                   += prom_$(BITS).o
+obj-y                   += of_device_common.o
 obj-y                   += of_device_$(BITS).o
 obj-$(CONFIG_SPARC64)   += prom_irqtrans.o
 
@@ -54,6 +55,7 @@ obj-$(CONFIG_SPARC64)   += sstate.o
 obj-$(CONFIG_SPARC64)   += mdesc.o
 obj-$(CONFIG_SPARC64)	+= pcr.o
 obj-$(CONFIG_SPARC64)	+= nmi.o
+obj-$(CONFIG_SPARC64_SMP) += cpumap.o
 
 # sparc32 do not use GENERIC_HARDIRQS but uses the generic devres implementation
 obj-$(CONFIG_SPARC32)     += devres.o

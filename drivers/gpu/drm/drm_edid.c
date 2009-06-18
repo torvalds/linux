@@ -589,85 +589,13 @@ int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
 }
 EXPORT_SYMBOL(drm_do_probe_ddc_edid);
 
-/**
- * Get EDID information.
- *
- * \param adapter : i2c device adaptor.
- * \param buf     : EDID data buffer to be filled
- * \param len     : EDID data buffer length
- * \return 0 on success or -1 on failure.
- *
- * Initialize DDC, then fetch EDID information
- * by calling drm_do_probe_ddc_edid function.
- */
-static int drm_ddc_read(struct i2c_adapter *adapter,
-			unsigned char *buf, int len)
-{
-	struct i2c_algo_bit_data *algo_data = adapter->algo_data;
-	int i, j;
-	int ret = -1;
-
-	algo_data->setscl(algo_data->data, 1);
-
-	for (i = 0; i < 1; i++) {
-		/* For some old monitors we need the
-		 * following process to initialize/stop DDC
-		 */
-		algo_data->setsda(algo_data->data, 1);
-		msleep(13);
-
-		algo_data->setscl(algo_data->data, 1);
-		for (j = 0; j < 5; j++) {
-			msleep(10);
-			if (algo_data->getscl(algo_data->data))
-				break;
-		}
-		if (j == 5)
-			continue;
-
-		algo_data->setsda(algo_data->data, 0);
-		msleep(15);
-		algo_data->setscl(algo_data->data, 0);
-		msleep(15);
-		algo_data->setsda(algo_data->data, 1);
-		msleep(15);
-
-		/* Do the real work */
-		ret = drm_do_probe_ddc_edid(adapter, buf, len);
-		algo_data->setsda(algo_data->data, 0);
-		algo_data->setscl(algo_data->data, 0);
-		msleep(15);
-
-		algo_data->setscl(algo_data->data, 1);
-		for (j = 0; j < 10; j++) {
-			msleep(10);
-			if (algo_data->getscl(algo_data->data))
-				break;
-		}
-
-		algo_data->setsda(algo_data->data, 1);
-		msleep(15);
-		algo_data->setscl(algo_data->data, 0);
-		algo_data->setsda(algo_data->data, 0);
-		if (ret == 0)
-			break;
-	}
-	/* Release the DDC lines when done or the Apple Cinema HD display
-	 * will switch off
-	 */
-	algo_data->setsda(algo_data->data, 1);
-	algo_data->setscl(algo_data->data, 1);
-
-	return ret;
-}
-
 static int drm_ddc_read_edid(struct drm_connector *connector,
 			     struct i2c_adapter *adapter,
 			     char *buf, int len)
 {
 	int ret;
 
-	ret = drm_ddc_read(adapter, buf, len);
+	ret = drm_do_probe_ddc_edid(adapter, buf, len);
 	if (ret != 0) {
 		dev_info(&connector->dev->pdev->dev, "%s: no EDID data\n",
 			 drm_get_connector_name(connector));

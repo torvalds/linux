@@ -287,7 +287,7 @@ exit_destroy:
 	return ret;
 }
 
-static int max7301_remove(struct spi_device *spi)
+static int __devexit max7301_remove(struct spi_device *spi)
 {
 	struct max7301 *ts;
 	int ret;

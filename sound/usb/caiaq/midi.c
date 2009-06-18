@@ -40,7 +40,7 @@ static void snd_usb_caiaq_midi_input_trigger(struct snd_rawmidi_substream *subst
 
 	if (!dev)
 		return;
-	
+
 	dev->midi_receive_substream = up ? substream : NULL;
 }
 
@@ -64,18 +64,18 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *dev,
 				    struct snd_rawmidi_substream *substream)
 {
 	int len, ret;
-	
+
 	dev->midi_out_buf[0] = EP1_CMD_MIDI_WRITE;
 	dev->midi_out_buf[1] = 0; /* port */
 	len = snd_rawmidi_transmit(substream, dev->midi_out_buf + 3,
 				   EP1_BUFSIZE - 3);
-	
+
 	if (len <= 0)
 		return;
-	
+
 	dev->midi_out_buf[2] = len;
 	dev->midi_out_urb.transfer_buffer_length = len+3;
-	
+
 	ret = usb_submit_urb(&dev->midi_out_urb, GFP_ATOMIC);
 	if (ret < 0)
 		log("snd_usb_caiaq_midi_send(%p): usb_submit_urb() failed,"
@@ -88,7 +88,7 @@ static void snd_usb_caiaq_midi_send(struct snd_usb_caiaqdev *dev,
 static void snd_usb_caiaq_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct snd_usb_caiaqdev *dev = substream->rmidi->private_data;
-	
+
 	if (up) {
 		dev->midi_out_substream = substream;
 		if (!dev->midi_out_active)
@@ -113,12 +113,12 @@ static struct snd_rawmidi_ops snd_usb_caiaq_midi_input =
 	.trigger =      snd_usb_caiaq_midi_input_trigger,
 };
 
-void snd_usb_caiaq_midi_handle_input(struct snd_usb_caiaqdev *dev, 
+void snd_usb_caiaq_midi_handle_input(struct snd_usb_caiaqdev *dev,
 				     int port, const char *buf, int len)
 {
 	if (!dev->midi_receive_substream)
 		return;
-	
+
 	snd_rawmidi_receive(dev->midi_receive_substream, buf, len);
 }
 
@@ -142,16 +142,16 @@ int snd_usb_caiaq_midi_init(struct snd_usb_caiaqdev *device)
 
 	if (device->spec.num_midi_out > 0) {
 		rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT;
-		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT, 
+		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				    &snd_usb_caiaq_midi_output);
 	}
 
 	if (device->spec.num_midi_in > 0) {
 		rmidi->info_flags |= SNDRV_RAWMIDI_INFO_INPUT;
-		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT, 
+		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_INPUT,
 				    &snd_usb_caiaq_midi_input);
 	}
-	
+
 	device->rmidi = rmidi;
 
 	return 0;
@@ -160,7 +160,7 @@ int snd_usb_caiaq_midi_init(struct snd_usb_caiaqdev *device)
 void snd_usb_caiaq_midi_output_done(struct urb* urb)
 {
 	struct snd_usb_caiaqdev *dev = urb->context;
-	
+
 	dev->midi_out_active = 0;
 	if (urb->status != 0)
 		return;

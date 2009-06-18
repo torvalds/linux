@@ -58,7 +58,6 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x0 0xffe00000 0x100000>;
-		reg = <0xffe00000 0x1000>;	// CCSRBAR & soc regs, remove once parse code for immrbase fixed
 		bus-frequency = <0>;		// Filled out by uboot.
 
 		L2: l2-cache-controller@20000 {
@@ -196,7 +195,6 @@
 	};
 
 	pci2: pcie@ffe0a000 {
-		cell-index = <2>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;

@@ -121,7 +121,7 @@ static int xsurf_ack_intr(ide_hwif_t *hwif)
     return 1;
 }
 
-static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
+static void __init buddha_setup_ports(struct ide_hw *hw, unsigned long base,
 				      unsigned long ctl, unsigned long irq_port,
 				      ide_ack_intr_t *ack_intr)
 {
@@ -139,13 +139,12 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 
 	hw->irq = IRQ_AMIGA_PORTS;
 	hw->ack_intr = ack_intr;
-
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info buddha_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_generic,
 };
 
     /*
@@ -161,7 +160,7 @@ static int __init buddha_init(void)
 
 	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
 		unsigned long board;
-		hw_regs_t hw[MAX_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
+		struct ide_hw hw[MAX_NUM_HWIFS], *hws[MAX_NUM_HWIFS];
 
 		if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA) {
 			buddha_num_hwifs = BUDDHA_NUM_HWIFS;
@@ -225,7 +224,7 @@ fail_base2:
 			hws[i] = &hw[i];
 		}
 
-		ide_host_add(&buddha_port_info, hws, NULL);
+		ide_host_add(&buddha_port_info, hws, i, NULL);
 	}
 
 	return 0;

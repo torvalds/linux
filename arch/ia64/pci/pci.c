@@ -163,7 +163,7 @@ add_io_space (struct pci_root_info *info, struct acpi_resource_address64 *addr)
 {
 	struct resource *resource;
 	char *name;
-	u64 base, min, max, base_port;
+	unsigned long base, min, max, base_port;
 	unsigned int sparse = 0, space_nr, len;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
@@ -292,7 +292,7 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->offset = offset;
 
 	if (insert_resource(root, &window->resource)) {
-		printk(KERN_ERR "alloc 0x%lx-0x%lx from %s for %s failed\n",
+		printk(KERN_ERR "alloc 0x%llx-0x%llx from %s for %s failed\n",
 			window->resource.start, window->resource.end,
 			root->name, info->name);
 	}
@@ -314,8 +314,8 @@ pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 		    (res->end - res->start < 16))
 			continue;
 		if (j >= PCI_BUS_NUM_RESOURCES) {
-			printk("Ignoring range [%lx-%lx] (%lx)\n", res->start,
-					res->end, res->flags);
+			printk("Ignoring range [%#llx-%#llx] (%lx)\n",
+					res->start, res->end, res->flags);
 			continue;
 		}
 		bus->resource[j++] = res;
@@ -371,8 +371,6 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	 * such quirk. So we just ignore the case now.
 	 */
 	pbus = pci_scan_bus_parented(NULL, bus, &pci_root_ops, controller);
-	if (pbus)
-		pcibios_setup_root_windows(pbus, controller);
 
 	return pbus;
 
@@ -490,6 +488,8 @@ pcibios_fixup_bus (struct pci_bus *b)
 	if (b->self) {
 		pci_read_bridge_bases(b);
 		pcibios_fixup_bridge_resources(b->self);
+	} else {
+		pcibios_setup_root_windows(b, b->sysdata);
 	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
@@ -728,8 +728,8 @@ extern u8 pci_cache_line_size;
  */
 static void __init set_pci_cacheline_size(void)
 {
-	u64 levels, unique_caches;
-	s64 status;
+	unsigned long levels, unique_caches;
+	long status;
 	pal_cache_config_info_t cci;
 
 	status = ia64_pal_cache_summary(&levels, &unique_caches);

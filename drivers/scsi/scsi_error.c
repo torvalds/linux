@@ -641,9 +641,9 @@ EXPORT_SYMBOL(scsi_eh_prep_cmnd);
 /**
  * scsi_eh_restore_cmnd  - Restore a scsi command info as part of error recory
  * @scmd:       SCSI command structure to restore
- * @ses:        saved information from a coresponding call to scsi_prep_eh_cmnd
+ * @ses:        saved information from a coresponding call to scsi_eh_prep_cmnd
  *
- * Undo any damage done by above scsi_prep_eh_cmnd().
+ * Undo any damage done by above scsi_eh_prep_cmnd().
  */
 void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 {
@@ -1451,28 +1451,21 @@ static void eh_lock_door_done(struct request *req, int uptodate)
  * @sdev:	SCSI device to prevent medium removal
  *
  * Locking:
- * 	We must be called from process context; scsi_allocate_request()
- * 	may sleep.
+ * 	We must be called from process context.
  *
  * Notes:
  * 	We queue up an asynchronous "ALLOW MEDIUM REMOVAL" request on the
  * 	head of the devices request queue, and continue.
- *
- * Bugs:
- * 	scsi_allocate_request() may sleep waiting for existing requests to
- * 	be processed.  However, since we haven't kicked off any request
- * 	processing for this host, this may deadlock.
- *
- *	If scsi_allocate_request() fails for what ever reason, we
- *	completely forget to lock the door.
  */
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
 	struct request *req;
 
+	/*
+	 * blk_get_request with GFP_KERNEL (__GFP_WAIT) sleeps until a
+	 * request becomes available
+	 */
 	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
-	if (!req)
-		return;
 
 	req->cmd[0] = ALLOW_MEDIUM_REMOVAL;
 	req->cmd[1] = 0;

@@ -166,7 +166,8 @@ xfs_rename(
 	/*
 	 * Attach the dquots to the inodes
 	 */
-	if ((error = XFS_QM_DQVOPRENAME(mp, inodes))) {
+	error = xfs_qm_vop_rename_dqattach(inodes);
+	if (error) {
 		xfs_trans_cancel(tp, cancel_flags);
 		goto std_return;
 	}

@@ -509,7 +509,7 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 			q->pmask |= (1<<TC_CBQ_MAXPRIO);
 
 			expires = ktime_set(0, 0);
-			expires = ktime_add_ns(expires, PSCHED_US2NS(sched));
+			expires = ktime_add_ns(expires, PSCHED_TICKS2NS(sched));
 			if (hrtimer_try_to_cancel(&q->delay_timer) &&
 			    ktime_to_ns(ktime_sub(
 					hrtimer_get_expires(&q->delay_timer),
@@ -620,7 +620,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 		ktime_t time;
 
 		time = ktime_set(0, 0);
-		time = ktime_add_ns(time, PSCHED_US2NS(now + delay));
+		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
 		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS);
 	}
 

@@ -328,7 +328,7 @@ static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
 	if (unlikely(sk = skb_steal_sock(skb)))
 		return sk;
 	else
-		return __udp4_lib_lookup(dev_net(skb->dst->dev), iph->saddr, sport,
+		return __udp4_lib_lookup(dev_net(skb_dst(skb)->dev), iph->saddr, sport,
 					 iph->daddr, dport, inet_iif(skb),
 					 udptable);
 }
@@ -840,7 +840,8 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	switch (cmd) {
 	case SIOCOUTQ:
 	{
-		int amount = atomic_read(&sk->sk_wmem_alloc);
+		int amount = sk_wmem_alloc_get(sk);
+
 		return put_user(amount, (int __user *)arg);
 	}
 
@@ -1237,7 +1238,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	struct sock *sk;
 	struct udphdr *uh;
 	unsigned short ulen;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb_rtable(skb);
 	__be32 saddr, daddr;
 	struct net *net = dev_net(skb->dev);
 
@@ -1721,8 +1722,8 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d%n",
 		bucket, src, srcp, dest, destp, sp->sk_state,
-		atomic_read(&sp->sk_wmem_alloc),
-		atomic_read(&sp->sk_rmem_alloc),
+		sk_wmem_alloc_get(sp),
+		sk_rmem_alloc_get(sp),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
 		atomic_read(&sp->sk_refcnt), sp,
 		atomic_read(&sp->sk_drops), len);

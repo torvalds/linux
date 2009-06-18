@@ -27,8 +27,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#define res_len(r)		((r)->end - (r)->start + 1)
-
 struct i2c_pca_pf_data {
 	void __iomem			*reg_base;
 	int				irq;	/* if 0, use polling */
@@ -148,7 +146,7 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 		goto e_print;
 	}
 
-	if (!request_mem_region(res->start, res_len(res), res->name)) {
+	if (!request_mem_region(res->start, resource_size(res), res->name)) {
 		ret = -ENOMEM;
 		goto e_print;
 	}
@@ -161,13 +159,13 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&i2c->wait);
 
-	i2c->reg_base = ioremap(res->start, res_len(res));
+	i2c->reg_base = ioremap(res->start, resource_size(res));
 	if (!i2c->reg_base) {
 		ret = -ENOMEM;
 		goto e_remap;
 	}
 	i2c->io_base = res->start;
-	i2c->io_size = res_len(res);
+	i2c->io_size = resource_size(res);
 	i2c->irq = irq;
 
 	i2c->adap.nr = pdev->id >= 0 ? pdev->id : 0;
@@ -250,7 +248,7 @@ e_reqirq:
 e_remap:
 	kfree(i2c);
 e_alloc:
-	release_mem_region(res->start, res_len(res));
+	release_mem_region(res->start, resource_size(res));
 e_print:
 	printk(KERN_ERR "Registering PCA9564/PCA9665 FAILED! (%d)\n", ret);
 	return ret;

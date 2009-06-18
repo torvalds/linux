@@ -17,6 +17,7 @@
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
@@ -789,7 +790,7 @@ static void s3cmci_dma_setup(struct s3cmci_host *host,
 
 	last_source = source;
 
-	s3c2410_dma_devconfig(host->dma, source, 3,
+	s3c2410_dma_devconfig(host->dma, source,
 			      host->mem->start + host->sdidata);
 
 	if (!setup_ok) {
@@ -1121,7 +1122,7 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 	default:
 		s3c2410_gpio_setpin(S3C2410_GPE5, 0);
-		s3c2410_gpio_cfgpin(S3C2410_GPE5, S3C2410_GPE5_OUTP);
+		s3c2410_gpio_cfgpin(S3C2410_GPE5, S3C2410_GPIO_OUTPUT);
 
 		if (host->is2440)
 			mci_con |= S3C2440_SDICON_SDRESET;

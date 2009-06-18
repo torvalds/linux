@@ -7,17 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/adfs_fs.h>
-#include <linux/time.h>
-#include <linux/stat.h>
-#include <linux/string.h>
-#include <linux/mm.h>
 #include <linux/smp_lock.h>
-#include <linux/module.h>
 #include <linux/buffer_head.h>
-
 #include "adfs.h"
 
 /*
@@ -376,7 +367,7 @@ out:
  * The adfs-specific inode data has already been updated by
  * adfs_notify_change()
  */
-int adfs_write_inode(struct inode *inode, int unused)
+int adfs_write_inode(struct inode *inode, int wait)
 {
 	struct super_block *sb = inode->i_sb;
 	struct object_info obj;
@@ -391,8 +382,7 @@ int adfs_write_inode(struct inode *inode, int unused)
 	obj.attr	= ADFS_I(inode)->attr;
 	obj.size	= inode->i_size;
 
-	ret = adfs_dir_update(sb, &obj);
+	ret = adfs_dir_update(sb, &obj, wait);
 	unlock_kernel();
 	return ret;
 }
-MODULE_LICENSE("GPL");

@@ -1914,8 +1914,8 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 			   s->sk_protocol,
 			   nlk->pid,
 			   nlk->groups ? (u32)nlk->groups[0] : 0,
-			   atomic_read(&s->sk_rmem_alloc),
-			   atomic_read(&s->sk_wmem_alloc),
+			   sk_rmem_alloc_get(s),
+			   sk_wmem_alloc_get(s),
 			   nlk->cb,
 			   atomic_read(&s->sk_refcnt),
 			   atomic_read(&s->sk_drops)

@@ -2,7 +2,7 @@ This is a driver for the WIS GO7007SB multi-format video encoder.
 
 Pete Eberlein <pete@sensoray.com>
 
-The driver was orignally released under the GPL and is currently hosted at:
+The driver was originally released under the GPL and is currently hosted at:
 http://nikosapi.org/wiki/index.php/WIS_Go7007_Linux_driver
 The go7007 firmware can be acquired from the package on the site above.
 
@@ -24,7 +24,7 @@ These should be used instead of the non-standard GO7007 ioctls described
 below.
 
 
-The README files from the orignal package appear below:
+The README files from the original package appears below:
 
 ---------------------------------------------------------------------------
                      WIS GO7007SB Public Linux Driver

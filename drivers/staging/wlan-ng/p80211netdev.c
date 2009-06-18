@@ -432,21 +432,21 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		/* success and more buf */
 		/* avail, re: hw_txdata */
 		netif_wake_queue(wlandev->netdev);
-		result = 0;
+		result = NETDEV_TX_OK;
 	} else if (txresult == 1) {
 		/* success, no more avail */
 		pr_debug("txframe success, no more bufs\n");
 		/* netdev->tbusy = 1;  don't set here, irqhdlr */
 		/*   may have already cleared it */
-		result = 0;
+		result = NETDEV_TX_OK;
 	} else if (txresult == 2) {
 		/* alloc failure, drop frame */
 		pr_debug("txframe returned alloc_fail\n");
-		result = 1;
+		result = NETDEV_TX_BUSY;
 	} else {
 		/* buffer full or queue busy, drop frame. */
 		pr_debug("txframe returned full or busy\n");
-		result = 1;
+		result = NETDEV_TX_BUSY;
 	}
 
 failed:

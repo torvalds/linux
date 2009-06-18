@@ -17,6 +17,51 @@ config IRTTY_SIR
 
 	  If unsure, say Y.
 
+config BFIN_SIR
+	tristate "Blackfin SIR on UART"
+	depends on BLACKFIN && IRDA
+	default n
+	help
+	  Say Y here if your want to enable SIR function on Blackfin UART
+	  devices.
+
+	  To activate this driver you can start irattach like:
+	  "irattach irda0 -s"
+
+	  Saying M, it will be built as a module named bfin_sir.
+
+	  Note that you need to turn off one of the serial drivers for SIR
+	  to use that UART.
+
+config BFIN_SIR0
+	bool "Blackfin SIR on UART0"
+	depends on BFIN_SIR && !SERIAL_BFIN_UART0
+
+config BFIN_SIR1
+	bool "Blackfin SIR on UART1"
+	depends on BFIN_SIR && !SERIAL_BFIN_UART1 && (!BF531 && !BF532 && !BF533 && !BF561)
+
+config BFIN_SIR2
+	bool "Blackfin SIR on UART2"
+	depends on BFIN_SIR && !SERIAL_BFIN_UART2 && (BF54x || BF538 || BF539)
+
+config BFIN_SIR3
+	bool "Blackfin SIR on UART3"
+	depends on BFIN_SIR && !SERIAL_BFIN_UART3 && (BF54x)
+
+choice
+	prompt "SIR Mode"
+	depends on BFIN_SIR
+	default SIR_BFIN_DMA
+
+config SIR_BFIN_DMA
+	bool "DMA mode"
+	depends on !DMA_UNCACHED_NONE
+
+config SIR_BFIN_PIO
+	bool "PIO mode"
+endchoice
+
 comment "Dongle support"
 
 config DONGLE

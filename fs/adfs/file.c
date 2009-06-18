@@ -19,10 +19,6 @@
  *
  *  adfs regular file handling primitives           
  */
-#include <linux/fs.h>
-#include <linux/buffer_head.h>			/* for file_fsync() */
-#include <linux/adfs_fs.h>
-
 #include "adfs.h"
 
 const struct file_operations adfs_file_operations = {
@@ -30,7 +26,7 @@ const struct file_operations adfs_file_operations = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.mmap		= generic_file_mmap,
-	.fsync		= file_fsync,
+	.fsync		= simple_fsync,
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.splice_read	= generic_file_splice_read,

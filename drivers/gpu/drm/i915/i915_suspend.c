@@ -295,6 +295,16 @@ int i915_save_state(struct drm_device *dev)
 	i915_save_palette(dev, PIPE_B);
 	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
 
+	/* Cursor state */
+	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
+	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
+	dev_priv->saveCURABASE = I915_READ(CURABASE);
+	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
+	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
+	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
+	if (!IS_I9XX(dev))
+		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
+
 	/* CRT state */
 	dev_priv->saveADPA = I915_READ(ADPA);
 
@@ -479,6 +489,16 @@ int i915_restore_state(struct drm_device *dev)
 	/* Enable the plane */
 	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
 	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
+
+	/* Cursor state */
+	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
+	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
+	I915_WRITE(CURABASE, dev_priv->saveCURABASE);
+	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
+	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
+	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
+	if (!IS_I9XX(dev))
+		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
 
 	/* CRT state */
 	I915_WRITE(ADPA, dev_priv->saveADPA);

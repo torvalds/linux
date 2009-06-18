@@ -305,30 +305,25 @@ static void do_xd_request (struct request_queue * q)
 	if (xdc_busy)
 		return;
 
-	while ((req = elv_next_request(q)) != NULL) {
-		unsigned block = req->sector;
-		unsigned count = req->nr_sectors;
-		int rw = rq_data_dir(req);
+	req = blk_fetch_request(q);
+	while (req) {
+		unsigned block = blk_rq_pos(req);
+		unsigned count = blk_rq_cur_sectors(req);
 		XD_INFO *disk = req->rq_disk->private_data;
-		int res = 0;
+		int res = -EIO;
 		int retry;
 
-		if (!blk_fs_request(req)) {
-			end_request(req, 0);
-			continue;
-		}
-		if (block + count > get_capacity(req->rq_disk)) {
-			end_request(req, 0);
-			continue;
-		}
-		if (rw != READ && rw != WRITE) {
-			printk("do_xd_request: unknown request\n");
-			end_request(req, 0);
-			continue;
-		}
+		if (!blk_fs_request(req))
+			goto done;
+		if (block + count > get_capacity(req->rq_disk))
+			goto done;
 		for (retry = 0; (retry < XD_RETRIES) && !res; retry++)
-			res = xd_readwrite(rw, disk, req->buffer, block, count);
-		end_request(req, res);	/* wrap up, 0 = fail, 1 = success */
+			res = xd_readwrite(rq_data_dir(req), disk, req->buffer,
+					   block, count);
+	done:
+		/* wrap up, 0 = success, -errno = fail */
+		if (!__blk_end_request_cur(req, res))
+			req = blk_fetch_request(q);
 	}
 }
 
@@ -418,7 +413,7 @@ static int xd_readwrite (u_char operation,XD_INFO *p,char *buffer,u_int block,u_
 				printk("xd%c: %s timeout, recalibrating drive\n",'a'+drive,(operation == READ ? "read" : "write"));
 				xd_recalibrate(drive);
 				spin_lock_irq(&xd_lock);
-				return (0);
+				return -EIO;
 			case 2:
 				if (sense[0] & 0x30) {
 					printk("xd%c: %s - ",'a'+drive,(operation == READ ? "reading" : "writing"));
@@ -439,7 +434,7 @@ static int xd_readwrite (u_char operation,XD_INFO *p,char *buffer,u_int block,u_
 				else
 					printk(" - no valid disk address\n");
 				spin_lock_irq(&xd_lock);
-				return (0);
+				return -EIO;
 		}
 		if (xd_dma_buffer)
 			for (i=0; i < (temp * 0x200); i++)
@@ -448,7 +443,7 @@ static int xd_readwrite (u_char operation,XD_INFO *p,char *buffer,u_int block,u_
 		count -= temp, buffer += temp * 0x200, block += temp;
 	}
 	spin_lock_irq(&xd_lock);
-	return (1);
+	return 0;
 }
 
 /* xd_recalibrate: recalibrate a given drive and reset controller if necessary */

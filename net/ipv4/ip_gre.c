@@ -602,7 +602,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 #ifdef CONFIG_NET_IPGRE_BROADCAST
 		if (ipv4_is_multicast(iph->daddr)) {
 			/* Looped back packet, drop it! */
-			if (skb->rtable->fl.iif == 0)
+			if (skb_rtable(skb)->fl.iif == 0)
 				goto drop;
 			stats->multicast++;
 			skb->pkt_type = PACKET_BROADCAST;
@@ -643,8 +643,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 		stats->rx_packets++;
 		stats->rx_bytes += len;
 		skb->dev = tunnel->dev;
-		dst_release(skb->dst);
-		skb->dst = NULL;
+		skb_dst_drop(skb);
 		nf_reset(skb);
 
 		skb_reset_network_header(skb);
@@ -698,13 +697,13 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((dst = tiph->daddr) == 0) {
 		/* NBMA tunnel */
 
-		if (skb->dst == NULL) {
+		if (skb_dst(skb) == NULL) {
 			stats->tx_fifo_errors++;
 			goto tx_error;
 		}
 
 		if (skb->protocol == htons(ETH_P_IP)) {
-			rt = skb->rtable;
+			rt = skb_rtable(skb);
 			if ((dst = rt->rt_gateway) == 0)
 				goto tx_error_icmp;
 		}
@@ -712,7 +711,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		else if (skb->protocol == htons(ETH_P_IPV6)) {
 			struct in6_addr *addr6;
 			int addr_type;
-			struct neighbour *neigh = skb->dst->neighbour;
+			struct neighbour *neigh = skb_dst(skb)->neighbour;
 
 			if (neigh == NULL)
 				goto tx_error;
@@ -766,10 +765,10 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (df)
 		mtu = dst_mtu(&rt->u.dst) - dev->hard_header_len - tunnel->hlen;
 	else
-		mtu = skb->dst ? dst_mtu(skb->dst) : dev->mtu;
+		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
-	if (skb->dst)
-		skb->dst->ops->update_pmtu(skb->dst, mtu);
+	if (skb_dst(skb))
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		df |= (old_iph->frag_off&htons(IP_DF));
@@ -783,14 +782,14 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #ifdef CONFIG_IPV6
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		struct rt6_info *rt6 = (struct rt6_info *)skb->dst;
+		struct rt6_info *rt6 = (struct rt6_info *)skb_dst(skb);
 
-		if (rt6 && mtu < dst_mtu(skb->dst) && mtu >= IPV6_MIN_MTU) {
+		if (rt6 && mtu < dst_mtu(skb_dst(skb)) && mtu >= IPV6_MIN_MTU) {
 			if ((tunnel->parms.iph.daddr &&
 			     !ipv4_is_multicast(tunnel->parms.iph.daddr)) ||
 			    rt6->rt6i_dst.plen == 128) {
 				rt6->rt6i_flags |= RTF_MODIFIED;
-				skb->dst->metrics[RTAX_MTU-1] = mtu;
+				skb_dst(skb)->metrics[RTAX_MTU-1] = mtu;
 			}
 		}
 
@@ -837,8 +836,8 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
-	dst_release(skb->dst);
-	skb->dst = &rt->u.dst;
+	skb_dst_drop(skb);
+	skb_dst_set(skb, &rt->u.dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -1238,6 +1237,7 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
 	dev->features		|= NETIF_F_NETNS_LOCAL;
+	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
 }
 
 static int ipgre_tunnel_init(struct net_device *dev)

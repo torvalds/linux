@@ -22,6 +22,8 @@
 #include <linux/syscalls.h>
 #include <linux/scatterlist.h>
 #include <linux/ioctl.h>
+#include <scsi/fc/fc_fs.h>
+#include <scsi/fc/fc_gs.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_cmnd.h>
@@ -29,6 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/scsi_bsg_fc.h>
 #include <asm/ccwdev.h>
 #include <asm/qdio.h>
 #include <asm/debug.h>
@@ -46,13 +49,6 @@
 #define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
-
-/* Adapter Identification Parameters */
-#define ZFCP_CONTROL_UNIT_TYPE  0x1731
-#define ZFCP_CONTROL_UNIT_MODEL 0x03
-#define ZFCP_DEVICE_TYPE        0x1732
-#define ZFCP_DEVICE_MODEL       0x03
-#define ZFCP_DEVICE_MODEL_PRIV	0x04
 
 /* DMQ bug workaround: don't use last SBALE */
 #define ZFCP_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
@@ -235,11 +231,6 @@ struct zfcp_ls_adisc {
 
 /* FC-PH/FC-GS well-known address identifiers for generic services */
 #define ZFCP_DID_WKA				0xFFFFF0
-#define ZFCP_DID_MANAGEMENT_SERVICE		0xFFFFFA
-#define ZFCP_DID_TIME_SERVICE			0xFFFFFB
-#define ZFCP_DID_DIRECTORY_SERVICE		0xFFFFFC
-#define ZFCP_DID_ALIAS_SERVICE			0xFFFFF8
-#define ZFCP_DID_KEY_DISTRIBUTION_SERVICE	0xFFFFF7
 
 /* remote port status */
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
@@ -383,6 +374,14 @@ struct zfcp_wka_port {
 	struct delayed_work	work;
 };
 
+struct zfcp_wka_ports {
+	struct zfcp_wka_port ms; 	/* management service */
+	struct zfcp_wka_port ts; 	/* time service */
+	struct zfcp_wka_port ds; 	/* directory service */
+	struct zfcp_wka_port as; 	/* alias service */
+	struct zfcp_wka_port ks; 	/* key distribution service */
+};
+
 struct zfcp_qdio_queue {
 	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
 	u8		   first;	/* index of next free bfr in queue */
@@ -468,7 +467,7 @@ struct zfcp_adapter {
 						      actions */
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
-	struct zfcp_wka_port	nsp;		   /* adapter's nameserver */
+	struct zfcp_wka_ports	*gs;		   /* generic services */
 	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */

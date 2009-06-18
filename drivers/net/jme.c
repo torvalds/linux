@@ -1939,7 +1939,6 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 				TXCS_SELECT_QUEUE0 |
 				TXCS_QUEUE0S |
 				TXCS_ENABLE);
-	netdev->trans_start = jiffies;
 
 	tx_dbg(jme, "xmit: %d+%d@%lu\n", idx,
 			skb_shinfo(skb)->nr_frags + 2,

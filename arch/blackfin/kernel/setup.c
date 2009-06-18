@@ -18,9 +18,12 @@
 #include <linux/tty.h>
 #include <linux/pfn.h>
 
+#ifdef CONFIG_MTD_UCLINUX
+#include <linux/mtd/map.h>
 #include <linux/ext2_fs.h>
 #include <linux/cramfs_fs.h>
 #include <linux/romfs_fs.h>
+#endif
 
 #include <asm/cplb.h>
 #include <asm/cacheflush.h>
@@ -45,6 +48,7 @@ EXPORT_SYMBOL(_ramend);
 EXPORT_SYMBOL(reserved_mem_dcache_on);
 
 #ifdef CONFIG_MTD_UCLINUX
+extern struct map_info uclinux_ram_map;
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
 unsigned long _ebss;
 EXPORT_SYMBOL(memory_mtd_end);
@@ -150,40 +154,45 @@ void __init bfin_relocate_l1_mem(void)
 	unsigned long l1_data_b_length;
 	unsigned long l2_length;
 
-	blackfin_dma_early_init();
-
-	l1_code_length = _etext_l1 - _stext_l1;
-	if (l1_code_length > L1_CODE_LENGTH)
-		panic("L1 Instruction SRAM Overflow\n");
-	/* cannot complain as printk is not available as yet.
-	 * But we can continue booting and complain later!
+	/*
+	 * due to the ALIGN(4) in the arch/blackfin/kernel/vmlinux.lds.S
+	 * we know that everything about l1 text/data is nice and aligned,
+	 * so copy by 4 byte chunks, and don't worry about overlapping
+	 * src/dest.
+	 *
+	 * We can't use the dma_memcpy functions, since they can call
+	 * scheduler functions which might be in L1 :( and core writes
+	 * into L1 instruction cause bad access errors, so we are stuck,
+	 * we are required to use DMA, but can't use the common dma
+	 * functions. We can't use memcpy either - since that might be
+	 * going to be in the relocated L1
 	 */
 
-	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+	blackfin_dma_early_init();
 
+	/* if necessary, copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
+	l1_code_length = _etext_l1 - _stext_l1;
+	if (l1_code_length)
+		early_dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+
+	/* if necessary, copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
 	l1_data_a_length = _sbss_l1 - _sdata_l1;
-	if (l1_data_a_length > L1_DATA_A_LENGTH)
-		panic("L1 Data SRAM Bank A Overflow\n");
+	if (l1_data_a_length)
+		early_dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
 
-	/* Copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
-	dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
-
+	/* if necessary, copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
 	l1_data_b_length = _sbss_b_l1 - _sdata_b_l1;
-	if (l1_data_b_length > L1_DATA_B_LENGTH)
-		panic("L1 Data SRAM Bank B Overflow\n");
-
-	/* Copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
-	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
+	if (l1_data_b_length)
+		early_dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
 
+	early_dma_memcpy_done();
+
+	/* if necessary, copy _stext_l2 to _edata_l2 to L2 SRAM */
 	if (L2_LENGTH != 0) {
 		l2_length = _sbss_l2 - _stext_l2;
-		if (l2_length > L2_LENGTH)
-			panic("L2 SRAM Overflow\n");
-
-		/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
-		dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
+		if (l2_length)
+			memcpy(_stext_l2, _l2_lma_start, l2_length);
 	}
 }
 
@@ -472,7 +481,7 @@ static __init void memory_setup(void)
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
 		console_init();
-		panic("DMA region exceeds memory limit: %lu.\n",
+		panic("DMA region exceeds memory limit: %lu.",
 			_ramend - _ramstart);
 	}
 	memory_end = _ramend - DMA_UNCACHED_REGION;
@@ -526,14 +535,13 @@ static __init void memory_setup(void)
 
 	if (mtd_size == 0) {
 		console_init();
-		panic("Don't boot kernel without rootfs attached.\n");
+		panic("Don't boot kernel without rootfs attached.");
 	}
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	dma_memcpy((char *)memory_end, _end, mtd_size);
-
-	memory_mtd_start = memory_end;
-	_ebss = memory_mtd_start;	/* define _ebss for compatible */
+	uclinux_ram_map.phys = memory_mtd_start = memory_end;
+	uclinux_ram_map.size = mtd_size;
+	dma_memcpy((void *)uclinux_ram_map.phys, _end, uclinux_ram_map.size);
 #endif				/* CONFIG_MTD_UCLINUX */
 
 #if (defined(CONFIG_BFIN_ICACHE) && ANOMALY_05000263)
@@ -796,10 +804,8 @@ void __init setup_arch(char **cmdline_p)
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-#if !defined(CONFIG_BFIN_KERNEL_CLOCK)
-	if (ANOMALY_05000273 && cclk == sclk)
-		panic("ANOMALY 05000273, SCLK can not be same as CCLK");
-#endif
+	if ((ANOMALY_05000273 || ANOMALY_05000274) && (cclk >> 1) < sclk)
+		panic("ANOMALY 05000273 or 05000274: CCLK must be >= 2*SCLK");
 
 #ifdef BF561_FAMILY
 	if (ANOMALY_05000266) {
@@ -881,7 +887,7 @@ void __init setup_arch(char **cmdline_p)
 				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
 				       bfin_compiled_revid(), bfin_revid());
 				if (bfin_compiled_revid() > bfin_revid())
-					panic("Error: you are missing anomaly workarounds for this rev\n");
+					panic("Error: you are missing anomaly workarounds for this rev");
 			}
 		}
 		if (bfin_revid() < CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
@@ -891,15 +897,12 @@ void __init setup_arch(char **cmdline_p)
 
 	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
 	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
-		panic("You can't run on this processor due to 05000448\n");
+		panic("You can't run on this processor due to 05000448");
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
 	       cclk / 1000000, sclk / 1000000);
-
-	if (ANOMALY_05000273 && (cclk >> 1) <= sclk)
-		printk("\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
 
 	setup_bootmem_allocator();
 
@@ -1095,7 +1098,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			CPUID, bfin_cpuid());
 
 	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
-		"stepping\t: %d\n",
+		"stepping\t: %d ",
 		cpu, cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
@@ -1104,7 +1107,16 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #endif
 		revid);
 
-	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+	if (bfin_revid() != bfin_compiled_revid()) {
+		if (bfin_compiled_revid() == -1)
+			seq_printf(m, "(Compiled for Rev none)");
+		else if (bfin_compiled_revid() == 0xffff)
+			seq_printf(m, "(Compiled for Rev any)");
+		else
+			seq_printf(m, "(Compiled for Rev %d)", bfin_compiled_revid());
+	}
+
+	seq_printf(m, "\ncpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
 		cclk/1000000, cclk%1000000,
 		sclk/1000000, sclk%1000000);
 	seq_printf(m, "bogomips\t: %lu.%02lu\n"
@@ -1168,6 +1180,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
 	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
+#endif
+#ifdef __ARCH_SYNC_CORE_ICACHE
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
 #endif
 #ifdef CONFIG_BFIN_ICACHE_LOCK
 	switch ((cpudata->imemctl >> 3) & WAYALL_L) {

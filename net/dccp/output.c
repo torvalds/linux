@@ -350,7 +350,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	/* Reserve space for headers. */
 	skb_reserve(skb, sk->sk_prot->max_header);
 
-	skb->dst = dst_clone(dst);
+	skb_dst_set(skb, dst_clone(dst));
 
 	dreq = dccp_rsk(req);
 	if (inet_rsk(req)->acked)	/* increase ISS upon retransmission */

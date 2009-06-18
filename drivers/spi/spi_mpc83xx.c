@@ -419,22 +419,12 @@ static void mpc83xx_spi_work(struct work_struct *work)
 	spin_unlock_irq(&mpc83xx_spi->lock);
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
-			| SPI_LSB_FIRST | SPI_LOOP)
-
 static int mpc83xx_spi_setup(struct spi_device *spi)
 {
 	struct mpc83xx_spi *mpc83xx_spi;
 	int retval;
 	u32 hw_mode;
 	struct spi_mpc83xx_cs	*cs = spi->controller_state;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -446,9 +436,6 @@ static int mpc83xx_spi_setup(struct spi_device *spi)
 		spi->controller_state = cs;
 	}
 	mpc83xx_spi = spi_master_get_devdata(spi->master);
-
-	if (!spi->bits_per_word)
-		spi->bits_per_word = 8;
 
 	hw_mode = cs->hw_mode; /* Save orginal settings */
 	cs->hw_mode = mpc83xx_spi_read_reg(&mpc83xx_spi->base->mode);
@@ -471,9 +458,6 @@ static int mpc83xx_spi_setup(struct spi_device *spi)
 		return retval;
 	}
 
-	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u Hz\n",
-		__func__, spi->mode & (SPI_CPOL | SPI_CPHA),
-		spi->bits_per_word, spi->max_speed_hz);
 #if 0 /* Don't think this is needed */
 	/* NOTE we _need_ to call chipselect() early, ideally with adapter
 	 * setup, unless the hardware defaults cooperate to avoid confusion
@@ -567,6 +551,10 @@ mpc83xx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 	}
 
 	dev_set_drvdata(dev, master);
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH
+			| SPI_LSB_FIRST | SPI_LOOP;
 
 	master->setup = mpc83xx_spi_setup;
 	master->transfer = mpc83xx_spi_transfer;
@@ -711,12 +699,12 @@ static int of_mpc83xx_spi_get_chipselects(struct device *dev)
 		return 0;
 	}
 
-	pinfo->gpios = kmalloc(ngpios * sizeof(pinfo->gpios), GFP_KERNEL);
+	pinfo->gpios = kmalloc(ngpios * sizeof(*pinfo->gpios), GFP_KERNEL);
 	if (!pinfo->gpios)
 		return -ENOMEM;
-	memset(pinfo->gpios, -1, ngpios * sizeof(pinfo->gpios));
+	memset(pinfo->gpios, -1, ngpios * sizeof(*pinfo->gpios));
 
-	pinfo->alow_flags = kzalloc(ngpios * sizeof(pinfo->alow_flags),
+	pinfo->alow_flags = kzalloc(ngpios * sizeof(*pinfo->alow_flags),
 				    GFP_KERNEL);
 	if (!pinfo->alow_flags) {
 		ret = -ENOMEM;

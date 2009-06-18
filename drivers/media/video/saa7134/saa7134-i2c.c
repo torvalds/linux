@@ -259,7 +259,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 				/* workaround for a saa7134 i2c bug
 				 * needed to talk to the mt352 demux
 				 * thanks to pinnacle for the hint */
-				int quirk = 0xfd;
+				int quirk = 0xfe;
 				d1printk(" [%02x quirk]",quirk);
 				i2c_send_byte(dev,START,quirk);
 				i2c_recv_byte(dev);
@@ -321,33 +321,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	struct saa7134_dev *dev = client->adapter->algo_data;
-
-	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	/* Am I an i2c remote control? */
-
-	switch (client->addr) {
-		case 0x7a:
-		case 0x47:
-		case 0x71:
-		case 0x2d:
-		case 0x30:
-		{
-			struct IR_i2c *ir = i2c_get_clientdata(client);
-			d1printk("%s i2c IR detected (%s).\n",
-				 client->driver->driver.name, ir->phys);
-			saa7134_set_i2c_ir(dev,ir);
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static struct i2c_algorithm saa7134_algo = {
 	.master_xfer   = saa7134_i2c_xfer,
 	.functionality = functionality,
@@ -358,7 +331,6 @@ static struct i2c_adapter saa7134_adap_template = {
 	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
-	.client_register = attach_inform,
 };
 
 static struct i2c_client saa7134_client_template = {
@@ -433,6 +405,9 @@ int saa7134_i2c_register(struct saa7134_dev *dev)
 	saa7134_i2c_eeprom(dev,dev->eedata,sizeof(dev->eedata));
 	if (i2c_scan)
 		do_i2c_scan(dev->name,&dev->i2c_client);
+
+	/* Instantiate the IR receiver device, if present */
+	saa7134_probe_i2c_ir(dev);
 	return 0;
 }
 

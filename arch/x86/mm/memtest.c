@@ -40,21 +40,20 @@ static void __init reserve_bad_mem(u64 pattern, u64 start_bad, u64 end_bad)
 
 static void __init memtest(u64 pattern, u64 start_phys, u64 size)
 {
-	u64 *p;
-	void *start, *end;
+	u64 *p, *start, *end;
 	u64 start_bad, last_bad;
 	u64 start_phys_aligned;
-	size_t incr;
+	const size_t incr = sizeof(pattern);
 
-	incr = sizeof(pattern);
 	start_phys_aligned = ALIGN(start_phys, incr);
 	start = __va(start_phys_aligned);
-	end = start + size - (start_phys_aligned - start_phys);
+	end = start + (size - (start_phys_aligned - start_phys)) / incr;
 	start_bad = 0;
 	last_bad = 0;
 
 	for (p = start; p < end; p++)
 		*p = pattern;
+
 	for (p = start; p < end; p++, start_phys_aligned += incr) {
 		if (*p == pattern)
 			continue;

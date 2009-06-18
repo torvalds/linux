@@ -55,8 +55,20 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x0 0xe0000000 0x100000>;
-		reg = <0xe0000000 0x1000>;	// CCSRBAR 1M
 		bus-frequency = <0>;
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <8>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8555-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
 
 		memory-controller@2000 {
 			compatible = "fsl,8555-memory-controller";
@@ -272,7 +284,6 @@
 	};
 
 	pci0: pci@e0008000 {
-		cell-index = <0>;
 		interrupt-map-mask = <0x1f800 0x0 0x0 0x7>;
 		interrupt-map = <
 
@@ -344,7 +355,6 @@
 	};
 
 	pci1: pci@e0009000 {
-		cell-index = <1>;
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 

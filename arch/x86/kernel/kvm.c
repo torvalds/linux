@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/hardirq.h>
+#include <asm/timer.h>
 
 #define MMU_QUEUE_SIZE 1024
 
@@ -230,6 +231,9 @@ static void paravirt_ops_setup(void)
 		pv_mmu_ops.lazy_mode.enter = kvm_enter_lazy_mmu;
 		pv_mmu_ops.lazy_mode.leave = kvm_leave_lazy_mmu;
 	}
+#ifdef CONFIG_X86_IO_APIC
+	no_timer_check = 1;
+#endif
 }
 
 void __init kvm_guest_init(void)

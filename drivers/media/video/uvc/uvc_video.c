@@ -65,7 +65,8 @@ static void uvc_fixup_video_ctrl(struct uvc_video_device *video,
 	struct uvc_streaming_control *ctrl)
 {
 	struct uvc_format *format;
-	struct uvc_frame *frame;
+	struct uvc_frame *frame = NULL;
+	unsigned int i;
 
 	if (ctrl->bFormatIndex <= 0 ||
 	    ctrl->bFormatIndex > video->streaming->nformats)
@@ -73,11 +74,15 @@ static void uvc_fixup_video_ctrl(struct uvc_video_device *video,
 
 	format = &video->streaming->format[ctrl->bFormatIndex - 1];
 
-	if (ctrl->bFrameIndex <= 0 ||
-	    ctrl->bFrameIndex > format->nframes)
-		return;
+	for (i = 0; i < format->nframes; ++i) {
+		if (format->frame[i].bFrameIndex == ctrl->bFrameIndex) {
+			frame = &format->frame[i];
+			break;
+		}
+	}
 
-	frame = &format->frame[ctrl->bFrameIndex - 1];
+	if (frame == NULL)
+		return;
 
 	if (!(format->flags & UVC_FMT_FLAG_COMPRESSED) ||
 	     (ctrl->dwMaxVideoFrameSize == 0 &&
@@ -1089,7 +1094,7 @@ int uvc_video_init(struct uvc_video_device *video)
 	/* Zero bFrameIndex might be correct. Stream-based formats (including
 	 * MPEG-2 TS and DV) do not support frames but have a dummy frame
 	 * descriptor with bFrameIndex set to zero. If the default frame
-	 * descriptor is not found, use the first avalable frame.
+	 * descriptor is not found, use the first available frame.
 	 */
 	for (i = format->nframes; i > 0; --i) {
 		frame = &format->frame[i-1];

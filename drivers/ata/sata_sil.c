@@ -183,7 +183,7 @@ static struct scsi_host_template sil_sht = {
 };
 
 static struct ata_port_operations sil_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &ata_bmdma32_port_ops,
 	.dev_config		= sil_dev_config,
 	.set_mode		= sil_set_mode,
 	.bmdma_setup            = sil_bmdma_setup,

@@ -18,6 +18,13 @@ endchoice
 
 comment "MX2 platforms:"
 
+config MACH_MX21ADS
+	bool "MX21ADS platform"
+	depends on MACH_MX21
+	help
+	  Include support for MX21ADS platform. This includes specific
+	  configurations for the board and its peripherals.
+
 config MACH_MX27ADS
 	bool "MX27ADS platform"
 	depends on MACH_MX27
@@ -45,5 +52,19 @@ config MACH_PCM970_BASEBOARD
 	  PCM970 evaluation board.
 
 endchoice
+
+config MACH_MX27_3DS
+	bool "MX27PDK platform"
+	depends on MACH_MX27
+	help
+	  Include support for MX27PDK platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX27LITE
+	bool "LogicPD MX27 LITEKIT platform"
+	depends on MACH_MX27
+	help
+	  Include support for MX27 LITEKIT platform. This includes specific
+	  configurations for the board and its peripherals.
 
 endif

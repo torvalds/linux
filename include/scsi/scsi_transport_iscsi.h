@@ -126,12 +126,14 @@ struct iscsi_transport {
 			       int *index, int *age);
 
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
-	struct iscsi_endpoint *(*ep_connect) (struct sockaddr *dst_addr,
+	struct iscsi_endpoint *(*ep_connect) (struct Scsi_Host *shost,
+					      struct sockaddr *dst_addr,
 					      int non_blocking);
 	int (*ep_poll) (struct iscsi_endpoint *ep, int timeout_ms);
 	void (*ep_disconnect) (struct iscsi_endpoint *ep);
 	int (*tgt_dscvr) (struct Scsi_Host *shost, enum iscsi_tgt_dscvr type,
 			  uint32_t enable, struct sockaddr *dst_addr);
+	int (*set_path) (struct Scsi_Host *shost, struct iscsi_path *params);
 };
 
 /*
@@ -147,6 +149,10 @@ extern void iscsi_conn_error_event(struct iscsi_cls_conn *conn,
 				   enum iscsi_err error);
 extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
+
+extern int iscsi_offload_mesg(struct Scsi_Host *shost,
+			      struct iscsi_transport *transport, uint32_t type,
+			      char *data, uint16_t data_size);
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */

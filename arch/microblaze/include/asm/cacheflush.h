@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2007 PetaLogix
+ * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
+ * Copyright (C) 2007-2009 PetaLogix
  * Copyright (C) 2007 John Williams <john.williams@petalogix.com>
  * based on v850 version which was
  * Copyright (C) 2001,02,03 NEC Electronics Corporation
@@ -42,6 +43,23 @@
 
 #define flush_icache_range(start, len)	__invalidate_icache_range(start, len)
 #define flush_icache_page(vma, pg)		do { } while (0)
+
+#ifndef CONFIG_MMU
+# define flush_icache_user_range(start, len)	do { } while (0)
+#else
+# define flush_icache_user_range(vma, pg, adr, len) __invalidate_icache_all()
+
+# define flush_page_to_ram(page)		do { } while (0)
+
+# define flush_icache()			__invalidate_icache_all()
+# define flush_cache_sigtramp(vaddr) \
+			__invalidate_icache_range(vaddr, vaddr + 8)
+
+# define flush_dcache_mmap_lock(mapping)	do { } while (0)
+# define flush_dcache_mmap_unlock(mapping)	do { } while (0)
+
+# define flush_cache_dup_mm(mm)			do { } while (0)
+#endif
 
 #define flush_cache_vmap(start, end)		do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)

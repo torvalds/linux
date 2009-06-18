@@ -15,16 +15,16 @@
 
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
-#include <linux/smp_lock.h>
 #include <linux/swap.h>
 #include "sysv.h"
 
 static int sysv_readdir(struct file *, void *, filldir_t);
 
 const struct file_operations sysv_dir_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= sysv_readdir,
-	.fsync		= sysv_sync_file,
+	.fsync		= simple_fsync,
 };
 
 static inline void dir_put_page(struct page *page)
@@ -74,8 +74,6 @@ static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;
 	unsigned long npages = dir_pages(inode);
 
-	lock_kernel();
-
 	pos = (pos + SYSV_DIRSIZE-1) & ~(SYSV_DIRSIZE-1);
 	if (pos >= inode->i_size)
 		goto done;
@@ -113,7 +111,6 @@ static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 done:
 	filp->f_pos = ((loff_t)n << PAGE_CACHE_SHIFT) | offset;
-	unlock_kernel();
 	return 0;
 }
 

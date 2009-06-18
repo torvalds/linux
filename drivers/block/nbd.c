@@ -110,7 +110,7 @@ static void nbd_end_request(struct request *req)
 			req, error ? "failed" : "done");
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	__blk_end_request(req, error, req->nr_sectors << 9);
+	__blk_end_request_all(req, error);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -231,19 +231,19 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 {
 	int result, flags;
 	struct nbd_request request;
-	unsigned long size = req->nr_sectors << 9;
+	unsigned long size = blk_rq_bytes(req);
 
 	request.magic = htonl(NBD_REQUEST_MAGIC);
 	request.type = htonl(nbd_cmd(req));
-	request.from = cpu_to_be64((u64) req->sector << 9);
+	request.from = cpu_to_be64((u64)blk_rq_pos(req) << 9);
 	request.len = htonl(size);
 	memcpy(request.handle, &req, sizeof(req));
 
-	dprintk(DBG_TX, "%s: request %p: sending control (%s@%llu,%luB)\n",
+	dprintk(DBG_TX, "%s: request %p: sending control (%s@%llu,%uB)\n",
 			lo->disk->disk_name, req,
 			nbdcmd_to_ascii(nbd_cmd(req)),
-			(unsigned long long)req->sector << 9,
-			req->nr_sectors << 9);
+			(unsigned long long)blk_rq_pos(req) << 9,
+			blk_rq_bytes(req));
 	result = sock_xmit(lo, 1, &request, sizeof(request),
 			(nbd_cmd(req) == NBD_CMD_WRITE) ? MSG_MORE : 0);
 	if (result <= 0) {
@@ -533,10 +533,8 @@ static void do_nbd_request(struct request_queue *q)
 {
 	struct request *req;
 	
-	while ((req = elv_next_request(q)) != NULL) {
+	while ((req = blk_fetch_request(q)) != NULL) {
 		struct nbd_device *lo;
-
-		blkdev_dequeue_request(req);
 
 		spin_unlock_irq(q->queue_lock);
 
@@ -580,13 +578,6 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 		blk_rq_init(NULL, &sreq);
 		sreq.cmd_type = REQ_TYPE_SPECIAL;
 		nbd_cmd(&sreq) = NBD_CMD_DISC;
-		/*
-		 * Set these to sane values in case server implementation
-		 * fails to check the request type first and also to keep
-		 * debugging output cleaner.
-		 */
-		sreq.sector = 0;
-		sreq.nr_sectors = 0;
 		if (!lo->sock)
 			return -EINVAL;
 		nbd_send_req(lo, &sreq);

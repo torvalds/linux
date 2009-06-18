@@ -763,10 +763,10 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case BLKBSZGET_32: /* get the logical block size (cf. BLKSSZGET) */
 		return compat_put_int(arg, block_size(bdev));
 	case BLKSSZGET: /* get block device hardware sector size */
-		return compat_put_int(arg, bdev_hardsect_size(bdev));
+		return compat_put_int(arg, bdev_logical_block_size(bdev));
 	case BLKSECTGET:
 		return compat_put_ushort(arg,
-					 bdev_get_queue(bdev)->max_sectors);
+					 queue_max_sectors(bdev_get_queue(bdev)));
 	case BLKRASET: /* compatible, but no compat_ptr (!) */
 	case BLKFRASET:
 		if (!capable(CAP_SYS_ADMIN))

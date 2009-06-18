@@ -312,9 +312,18 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 
 	hw = &substream->runtime->hw;
 	if (!params->info)
-		params->info = hw->info;
-	if (!params->fifo_size)
-		params->fifo_size = hw->fifo_size;
+		params->info = hw->info & ~SNDRV_PCM_INFO_FIFO_IN_FRAMES;
+	if (!params->fifo_size) {
+		if (snd_mask_min(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT]) ==
+		    snd_mask_max(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT]) &&
+                    snd_mask_min(&params->masks[SNDRV_PCM_HW_PARAM_CHANNELS]) ==
+                    snd_mask_max(&params->masks[SNDRV_PCM_HW_PARAM_CHANNELS])) {
+			changed = substream->ops->ioctl(substream,
+					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
+			if (params < 0)
+				return changed;
+		}
+	}
 	params->rmask = 0;
 	return 0;
 }
@@ -587,14 +596,15 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		status->avail = snd_pcm_playback_avail(runtime);
 		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING ||
-		    runtime->status->state == SNDRV_PCM_STATE_DRAINING)
+		    runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
 			status->delay = runtime->buffer_size - status->avail;
-		else
+			status->delay += runtime->delay;
+		} else
 			status->delay = 0;
 	} else {
 		status->avail = snd_pcm_capture_avail(runtime);
 		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			status->delay = status->avail;
+			status->delay = status->avail + runtime->delay;
 		else
 			status->delay = 0;
 	}
@@ -2410,6 +2420,7 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 			n = snd_pcm_playback_hw_avail(runtime);
 		else
 			n = snd_pcm_capture_avail(runtime);
+		n += runtime->delay;
 		break;
 	case SNDRV_PCM_STATE_XRUN:
 		err = -EPIPE;

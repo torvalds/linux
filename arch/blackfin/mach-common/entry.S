@@ -36,13 +36,13 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/unistd.h>
-#include <linux/threads.h>
 #include <asm/blackfin.h>
 #include <asm/errno.h>
 #include <asm/fixed_code.h>
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
+#include <asm/traps.h>
 
 #include <asm/context.S>
 
@@ -85,13 +85,15 @@ ENTRY(_ex_workaround_261)
 	if !cc jump _bfin_return_from_exception;
 	/* fall through */
 	R7 = P4;
-	R6 = 0x26;	/* Data CPLB Miss */
+	R6 = VEC_CPLB_M;	/* Data CPLB Miss */
 	cc = R6 == R7;
 	if cc jump _ex_dcplb_miss (BP);
-	R6 = 0x23;	/* Data CPLB Miss */
+#ifdef CONFIG_MPU
+	R6 = VEC_CPLB_VL;	/* Data CPLB Violation */
 	cc = R6 == R7;
 	if cc jump _ex_dcplb_viol (BP);
-	/* Handle 0x23 Data CPLB Protection Violation
+#endif
+	/* Handle Data CPLB Protection Violation
 	 * and Data CPLB Multiple Hits - Linux Trap Zero
 	 */
 	jump _ex_trap_c;
@@ -201,7 +203,18 @@ ENTRY(_ex_single_step)
 	cc = r7 == 0;
 	if !cc jump 1f;
 #endif
-
+#ifdef CONFIG_EXACT_HWERR
+	/* Read the ILAT, and to check to see if the process we are
+	 * single stepping caused a previous hardware error
+	 * If so, do not single step, (which lowers to IRQ5, and makes
+	 * us miss the error).
+	 */
+	p5.l = lo(ILAT);
+	p5.h = hi(ILAT);
+	r7 = [p5];
+	cc = bittst(r7, EVT_IVHW_P);
+	if cc jump 1f;
+#endif
 	/* Single stepping only a single instruction, so clear the trace
 	 * bit here.  */
 	r7 = syscfg;
@@ -260,16 +273,7 @@ ENTRY(_bfin_return_from_exception)
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
-	r6 = 0x25;
-	CC = R7 == R6;
-	if CC JUMP _double_fault;
-
-	/* Did we cause a HW error? */
-	p5.l = lo(ILAT);
-	p5.h = hi(ILAT);
-	r6 = [p5];
-	r7 = 0x20;		/* Did I just cause anther HW error? */
-	r6 = r7 & r6;
+	r6 = VEC_UNCOV;
 	CC = R7 == R6;
 	if CC JUMP _double_fault;
 #endif
@@ -472,6 +476,16 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
+
+#ifdef CONFIG_EXACT_HWERR
+	/* Make sure all pending read/writes complete. This will ensure any
+	 * accesses which could cause hardware errors completes, and signal
+	 * the the hardware before we do something silly, like crash the
+	 * kernel. We don't need to work around anomaly 05000312, since
+	 * we are already atomic
+	 */
+	ssync;
+#endif
 
 #if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
@@ -855,7 +869,7 @@ ENTRY(_ret_from_exception)
 	p1.h = _schedule_and_signal;
 	[p0] = p1;
 	csync;
-	raise 15;		/* raise evt14 to do signal or reschedule */
+	raise 15;		/* raise evt15 to do signal or reschedule */
 4:
 	r0 = syscfg;
 	bitclr(r0, 0);
@@ -916,7 +930,7 @@ ENTRY(_return_from_int)
 	p1.h = _schedule_and_signal_from_int;
 	[p0] = p1;
 	csync;
-#if ANOMALY_05000281
+#if ANOMALY_05000281 || ANOMALY_05000461
 	r0.l = lo(SAFE_USER_INSTRUCTION);
 	r0.h = hi(SAFE_USER_INSTRUCTION);
 	reti = r0;
@@ -930,18 +944,27 @@ ENTRY(_return_from_int)
 ENDPROC(_return_from_int)
 
 ENTRY(_lower_to_irq14)
-#if ANOMALY_05000281
+#if ANOMALY_05000281 || ANOMALY_05000461
 	r0.l = lo(SAFE_USER_INSTRUCTION);
 	r0.h = hi(SAFE_USER_INSTRUCTION);
 	reti = r0;
 #endif
-	r0 = 0x401f;
+
+#ifdef CONFIG_DEBUG_HWERR
+	/* enable irq14 & hwerr interrupt, until we transition to _evt14_softirq */
+	r0 = (EVT_IVG14 | EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#else
+	/* Only enable irq14 interrupt, until we transition to _evt14_softirq */
+	r0 = (EVT_IVG14 | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#endif
 	sti r0;
 	raise 14;
 	rti;
+ENDPROC(_lower_to_irq14)
+
 ENTRY(_evt14_softirq)
 #ifdef CONFIG_DEBUG_HWERR
-	r0 = 0x3f;
+	r0 = (EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
 	sti r0;
 #else
 	cli r0;
@@ -949,8 +972,9 @@ ENTRY(_evt14_softirq)
 	[--sp] = RETI;
 	SP += 4;
 	rts;
+ENDPROC(_evt14_softirq)
 
-_schedule_and_signal_from_int:
+ENTRY(_schedule_and_signal_from_int)
 	/* To end up here, vector 15 was changed - so we have to change it
 	 * back.
 	 */
@@ -983,8 +1007,9 @@ _schedule_and_signal_from_int:
 	call _finish_atomic_sections;
 	sp += 12;
 	jump.s .Lresume_userspace;
+ENDPROC(_schedule_and_signal_from_int)
 
-_schedule_and_signal:
+ENTRY(_schedule_and_signal)
 	SAVE_CONTEXT_SYSCALL
 	/* To end up here, vector 15 was changed - so we have to change it
 	 * back.
@@ -1002,7 +1027,7 @@ _schedule_and_signal:
 1:
 	RESTORE_CONTEXT
 	rti;
-ENDPROC(_lower_to_irq14)
+ENDPROC(_schedule_and_signal)
 
 /* We handle this 100% in exception space - to reduce overhead
  * Only potiential problem is if the software buffer gets swapped out of the
@@ -1583,24 +1608,9 @@ ENTRY(_sys_call_table)
 	.long _sys_inotify_init1	/* 365 */
 	.long _sys_preadv
 	.long _sys_pwritev
+	.long _sys_rt_tgsigqueueinfo
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr
 END(_sys_call_table)
-
-#ifdef CONFIG_EXCEPTION_L1_SCRATCH
-/* .section .l1.bss.scratch */
-.set _exception_stack_top, L1_SCRATCH_START + L1_SCRATCH_LENGTH
-#else
-#ifdef CONFIG_SYSCALL_TAB_L1
-.section .l1.bss
-#else
-.bss
-#endif
-ENTRY(_exception_stack)
-	.rept 1024 * NR_CPUS
-	.long 0
-	.endr
-_exception_stack_top:
-#endif

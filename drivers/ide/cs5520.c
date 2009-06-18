@@ -110,7 +110,7 @@ static const struct ide_port_info cyrix_chipset __devinitdata = {
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	const struct ide_port_info *d = &cyrix_chipset;
-	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
+	struct ide_hw hw[2], *hws[] = { NULL, NULL };
 
 	ide_setup_pci_noise(dev, d);
 
@@ -136,7 +136,7 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	ide_pci_setup_ports(dev, d, &hw[0], &hws[0]);
 	hw[0].irq = 14;
 
-	return ide_host_add(d, hws, NULL);
+	return ide_host_add(d, hws, 2, NULL);
 }
 
 static const struct pci_device_id cs5520_pci_tbl[] = {

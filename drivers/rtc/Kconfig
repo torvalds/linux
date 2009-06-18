@@ -296,6 +296,15 @@ config RTC_DRV_RX8581
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-rx8581.
 
+config RTC_DRV_RX8025
+	tristate "Epson RX-8025SA/NB"
+	help
+	  If you say yes here you get support for the Epson
+	  RX-8025SA/NB RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rx8025.
+
 endif # I2C
 
 comment "SPI RTC drivers"
@@ -692,7 +701,7 @@ config RTC_DRV_GENERIC
 	tristate "Generic RTC support"
 	# Please consider writing a new RTC driver instead of using the generic
 	# RTC abstraction
-	depends on PARISC || M68K || PPC
+	depends on PARISC || M68K || PPC || SUPERH32
 	help
 	  Say Y or M here to enable RTC support on systems using the generic
 	  RTC abstraction. If you do not know what you are doing, you should

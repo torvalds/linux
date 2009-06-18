@@ -871,7 +871,7 @@ static struct pci_driver cx88_audio_pci_driver = {
 	.name     = "cx88_audio",
 	.id_table = cx88_audio_pci_tbl,
 	.probe    = cx88_audio_initdev,
-	.remove   = cx88_audio_finidev,
+	.remove   = __devexit_p(cx88_audio_finidev),
 };
 
 /****************************************************************************
@@ -881,7 +881,7 @@ static struct pci_driver cx88_audio_pci_driver = {
 /*
  * module init
  */
-static int cx88_audio_init(void)
+static int __init cx88_audio_init(void)
 {
 	printk(KERN_INFO "cx2388x alsa driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
@@ -897,9 +897,8 @@ static int cx88_audio_init(void)
 /*
  * module remove
  */
-static void cx88_audio_fini(void)
+static void __exit cx88_audio_fini(void)
 {
-
 	pci_unregister_driver(&cx88_audio_pci_driver);
 }
 

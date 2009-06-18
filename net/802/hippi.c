@@ -193,11 +193,6 @@ static const struct header_ops hippi_header_ops = {
 
 static void hippi_setup(struct net_device *dev)
 {
-#ifdef CONFIG_COMPAT_NET_DEV_OPS
-	dev->change_mtu			= hippi_change_mtu;
-	dev->set_mac_address 		= hippi_mac_addr;
-	dev->neigh_setup 		= hippi_neigh_setup_dev;
-#endif
 	dev->header_ops			= &hippi_header_ops;
 
 	/*

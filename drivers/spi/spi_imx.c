@@ -1171,9 +1171,6 @@ msg_rejected:
 	return -EINVAL;
 }
 
-/* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
-
 /* On first setup bad values must free chip_data memory since will cause
    spi_new_device to fail. Bad value setup from protocol driver are simply not
    applied and notified to the calling driver. */
@@ -1185,12 +1182,6 @@ static int setup(struct spi_device *spi)
 	int first_setup = 0;
 	u32 tmp;
 	int status = 0;
-
-	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
 
 	/* Get controller data */
 	chip_info = spi->controller_data;
@@ -1286,10 +1277,7 @@ static int setup(struct spi_device *spi)
 
 	/* SPI word width */
 	tmp = spi->bits_per_word;
-	if (tmp == 0) {
-		tmp = 8;
-		spi->bits_per_word = 8;
-	} else if (tmp > 16) {
+	if (tmp > 16) {
 		status = -EINVAL;
 		dev_err(&spi->dev,
 			"setup - "
@@ -1480,6 +1468,9 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 	drv_data->master = master;
 	drv_data->master_info = platform_info;
 	drv_data->pdev = pdev;
+
+	/* the spi->mode bits understood by this driver: */
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;

@@ -231,14 +231,14 @@ config DAVINCI_WATCHDOG
 	  NOTE: once enabled, this timer cannot be disabled.
 	  Say N if you are unsure.
 
-config ORION5X_WATCHDOG
-	tristate "Orion5x watchdog"
-	depends on ARCH_ORION5X
+config ORION_WATCHDOG
+	tristate "Orion watchdog"
+	depends on ARCH_ORION5X || ARCH_KIRKWOOD
 	help
 	  Say Y here if to include support for the watchdog timer
-	  in the Orion5x ARM SoCs.
+	  in the Marvell Orion5x and Kirkwood ARM SoCs.
 	  To compile this driver as a module, choose M here: the
-	  module will be called orion5x_wdt.
+	  module will be called orion_wdt.
 
 # AVR32 Architecture
 
@@ -531,7 +531,7 @@ config SBC8360_WDT
 	  Board Computer produced by Axiomtek Co., Ltd. (www.axiomtek.com).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sbc8360.ko.
+	  module will be called sbc8360.
 
 	  Most people will say N.
 

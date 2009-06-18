@@ -31,7 +31,6 @@ Contents:
 
 3. How to change the CPU cpufreq policy and/or speed
 3.1 Preferred interface: sysfs
-3.2 Deprecated interfaces
 
 
 

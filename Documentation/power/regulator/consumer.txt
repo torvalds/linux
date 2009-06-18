@@ -178,5 +178,5 @@ Consumers can uregister interest by calling :-
 int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb);
 
-Regulators use the kernel notifier framework to send event to thier interested
+Regulators use the kernel notifier framework to send event to their interested
 consumers.

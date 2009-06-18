@@ -3,9 +3,9 @@
 
 /*
  * SH-4A has support for unaligned 32-bit loads, and 32-bit loads only.
- * Support for 16 and 64-bit accesses are done through shifting and
- * masking relative to the endianness. Unaligned stores are not supported
- * by the instruction encoding, so these continue to use the packed
+ * Support for 64-bit accesses are done through shifting and masking
+ * relative to the endianness. Unaligned stores are not supported by the
+ * instruction encoding, so these continue to use the packed
  * struct.
  *
  * The same note as with the movli.l/movco.l pair applies here, as long
@@ -41,9 +41,9 @@ struct __una_u64 { u64 x __attribute__((packed)); };
 static inline u16 __get_unaligned_cpu16(const u8 *p)
 {
 #ifdef __LITTLE_ENDIAN
-	return __get_unaligned_cpu32(p) & 0xffff;
+	return p[0] | p[1] << 8;
 #else
-	return __get_unaligned_cpu32(p) >> 16;
+	return p[0] << 8 | p[1];
 #endif
 }
 

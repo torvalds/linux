@@ -90,6 +90,7 @@ struct event_pool {
 /* all driver data associated with a host adapter */
 struct ibmvscsi_host_data {
 	atomic_t request_limit;
+	int client_migrated;
 	struct device *dev;
 	struct event_pool pool;
 	struct crq_queue queue;
@@ -97,6 +98,9 @@ struct ibmvscsi_host_data {
 	struct list_head sent;
 	struct Scsi_Host *host;
 	struct mad_adapter_info_data madapter_info;
+	struct capabilities caps;
+	dma_addr_t caps_addr;
+	dma_addr_t adapter_info_addr;
 };
 
 /* routines for managing a command/response queue */

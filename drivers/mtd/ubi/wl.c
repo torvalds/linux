@@ -55,8 +55,8 @@
  *
  * As it was said, for the UBI sub-system all physical eraseblocks are either
  * "free" or "used". Free eraseblock are kept in the @wl->free RB-tree, while
- * used eraseblocks are kept in @wl->used or @wl->scrub RB-trees, or
- * (temporarily) in the @wl->pq queue.
+ * used eraseblocks are kept in @wl->used, @wl->erroneous, or @wl->scrub
+ * RB-trees, as well as (temporarily) in the @wl->pq queue.
  *
  * When the WL sub-system returns a physical eraseblock, the physical
  * eraseblock is protected from being moved for some "time". For this reason,
@@ -83,6 +83,8 @@
  * used. The former state corresponds to the @wl->free tree. The latter state
  * is split up on several sub-states:
  * o the WL movement is allowed (@wl->used tree);
+ * o the WL movement is disallowed (@wl->erroneous) because the PEB is
+ *   erroneous - e.g., there was a read error;
  * o the WL movement is temporarily prohibited (@wl->pq queue);
  * o scrubbing is needed (@wl->scrub tree).
  *
@@ -653,7 +655,8 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
-	int err, scrubbing = 0, torture = 0;
+	int err, scrubbing = 0, torture = 0, protect = 0, erroneous = 0;
+	int vol_id = -1, uninitialized_var(lnum);
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
 
@@ -738,68 +741,78 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			/*
 			 * We are trying to move PEB without a VID header. UBI
 			 * always write VID headers shortly after the PEB was
-			 * given, so we have a situation when it did not have
-			 * chance to write it down because it was preempted.
-			 * Just re-schedule the work, so that next time it will
-			 * likely have the VID header in place.
+			 * given, so we have a situation when it has not yet
+			 * had a chance to write it, because it was preempted.
+			 * So add this PEB to the protection queue so far,
+			 * because presumably more data will be written there
+			 * (including the missing VID header), and then we'll
+			 * move it.
 			 */
 			dbg_wl("PEB %d has no VID header", e1->pnum);
+			protect = 1;
 			goto out_not_moved;
 		}
 
 		ubi_err("error %d while reading VID header from PEB %d",
 			err, e1->pnum);
-		if (err > 0)
-			err = -EIO;
 		goto out_error;
 	}
 
+	vol_id = be32_to_cpu(vid_hdr->vol_id);
+	lnum = be32_to_cpu(vid_hdr->lnum);
+
 	err = ubi_eba_copy_leb(ubi, e1->pnum, e2->pnum, vid_hdr);
 	if (err) {
-		if (err == -EAGAIN)
+		if (err == MOVE_CANCEL_RACE) {
+			/*
+			 * The LEB has not been moved because the volume is
+			 * being deleted or the PEB has been put meanwhile. We
+			 * should prevent this PEB from being selected for
+			 * wear-leveling movement again, so put it to the
+			 * protection queue.
+			 */
+			protect = 1;
 			goto out_not_moved;
-		if (err < 0)
-			goto out_error;
-		if (err == 2) {
-			/* Target PEB write error, torture it */
+		}
+
+		if (err == MOVE_CANCEL_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
+		    err == MOVE_TARGET_RD_ERR) {
+			/*
+			 * Target PEB had bit-flips or write error - torture it.
+			 */
 			torture = 1;
 			goto out_not_moved;
 		}
 
-		/*
-		 * The LEB has not been moved because the volume is being
-		 * deleted or the PEB has been put meanwhile. We should prevent
-		 * this PEB from being selected for wear-leveling movement
-		 * again, so put it to the protection queue.
-		 */
+		if (err == MOVE_SOURCE_RD_ERR) {
+			/*
+			 * An error happened while reading the source PEB. Do
+			 * not switch to R/O mode in this case, and give the
+			 * upper layers a possibility to recover from this,
+			 * e.g. by unmapping corresponding LEB. Instead, just
+			 * put this PEB to the @ubi->erroneous list to prevent
+			 * UBI from trying to move it over and over again.
+			 */
+			if (ubi->erroneous_peb_count > ubi->max_erroneous) {
+				ubi_err("too many erroneous eraseblocks (%d)",
+					ubi->erroneous_peb_count);
+				goto out_error;
+			}
+			erroneous = 1;
+			goto out_not_moved;
+		}
 
-		dbg_wl("canceled moving PEB %d", e1->pnum);
-		ubi_assert(err == 1);
-
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		vid_hdr = NULL;
-
-		spin_lock(&ubi->wl_lock);
-		prot_queue_add(ubi, e1);
-		ubi_assert(!ubi->move_to_put);
-		ubi->move_from = ubi->move_to = NULL;
-		ubi->wl_scheduled = 0;
-		spin_unlock(&ubi->wl_lock);
-
-		e1 = NULL;
-		err = schedule_erase(ubi, e2, 0);
-		if (err)
+		if (err < 0)
 			goto out_error;
-		mutex_unlock(&ubi->move_mutex);
-		return 0;
+
+		ubi_assert(0);
 	}
 
 	/* The PEB has been successfully moved */
-	ubi_free_vid_hdr(ubi, vid_hdr);
-	vid_hdr = NULL;
 	if (scrubbing)
-		ubi_msg("scrubbed PEB %d, data moved to PEB %d",
-			e1->pnum, e2->pnum);
+		ubi_msg("scrubbed PEB %d (LEB %d:%d), data moved to PEB %d",
+			e1->pnum, vol_id, lnum, e2->pnum);
+	ubi_free_vid_hdr(ubi, vid_hdr);
 
 	spin_lock(&ubi->wl_lock);
 	if (!ubi->move_to_put) {
@@ -812,8 +825,10 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	err = schedule_erase(ubi, e1, 0);
 	if (err) {
-		e1 = NULL;
-		goto out_error;
+		kmem_cache_free(ubi_wl_entry_slab, e1);
+		if (e2)
+			kmem_cache_free(ubi_wl_entry_slab, e2);
+		goto out_ro;
 	}
 
 	if (e2) {
@@ -821,10 +836,13 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 * Well, the target PEB was put meanwhile, schedule it for
 		 * erasure.
 		 */
-		dbg_wl("PEB %d was put meanwhile, erase", e2->pnum);
+		dbg_wl("PEB %d (LEB %d:%d) was put meanwhile, erase",
+		       e2->pnum, vol_id, lnum);
 		err = schedule_erase(ubi, e2, 0);
-		if (err)
-			goto out_error;
+		if (err) {
+			kmem_cache_free(ubi_wl_entry_slab, e2);
+			goto out_ro;
+		}
 	}
 
 	dbg_wl("done");
@@ -837,11 +855,19 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	 * have been changed, schedule it for erasure.
 	 */
 out_not_moved:
-	dbg_wl("canceled moving PEB %d", e1->pnum);
-	ubi_free_vid_hdr(ubi, vid_hdr);
-	vid_hdr = NULL;
+	if (vol_id != -1)
+		dbg_wl("cancel moving PEB %d (LEB %d:%d) to PEB %d (%d)",
+		       e1->pnum, vol_id, lnum, e2->pnum, err);
+	else
+		dbg_wl("cancel moving PEB %d to PEB %d (%d)",
+		       e1->pnum, e2->pnum, err);
 	spin_lock(&ubi->wl_lock);
-	if (scrubbing)
+	if (protect)
+		prot_queue_add(ubi, e1);
+	else if (erroneous) {
+		wl_tree_add(e1, &ubi->erroneous);
+		ubi->erroneous_peb_count += 1;
+	} else if (scrubbing)
 		wl_tree_add(e1, &ubi->scrub);
 	else
 		wl_tree_add(e1, &ubi->used);
@@ -850,32 +876,36 @@ out_not_moved:
 	ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
-	e1 = NULL;
+	ubi_free_vid_hdr(ubi, vid_hdr);
 	err = schedule_erase(ubi, e2, torture);
-	if (err)
-		goto out_error;
-
+	if (err) {
+		kmem_cache_free(ubi_wl_entry_slab, e2);
+		goto out_ro;
+	}
 	mutex_unlock(&ubi->move_mutex);
 	return 0;
 
 out_error:
-	ubi_err("error %d while moving PEB %d to PEB %d",
-		err, e1->pnum, e2->pnum);
-
-	ubi_free_vid_hdr(ubi, vid_hdr);
+	if (vol_id != -1)
+		ubi_err("error %d while moving PEB %d to PEB %d",
+			err, e1->pnum, e2->pnum);
+	else
+		ubi_err("error %d while moving PEB %d (LEB %d:%d) to PEB %d",
+			err, e1->pnum, vol_id, lnum, e2->pnum);
 	spin_lock(&ubi->wl_lock);
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->move_to_put = ubi->wl_scheduled = 0;
 	spin_unlock(&ubi->wl_lock);
 
-	if (e1)
-		kmem_cache_free(ubi_wl_entry_slab, e1);
-	if (e2)
-		kmem_cache_free(ubi_wl_entry_slab, e2);
-	ubi_ro_mode(ubi);
+	ubi_free_vid_hdr(ubi, vid_hdr);
+	kmem_cache_free(ubi_wl_entry_slab, e1);
+	kmem_cache_free(ubi_wl_entry_slab, e2);
 
+out_ro:
+	ubi_ro_mode(ubi);
 	mutex_unlock(&ubi->move_mutex);
-	return err;
+	ubi_assert(err != 0);
+	return err < 0 ? err : -EIO;
 
 out_cancel:
 	ubi->wl_scheduled = 0;
@@ -1015,7 +1045,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		/*
 		 * If this is not %-EIO, we have no idea what to do. Scheduling
 		 * this physical eraseblock for erasure again would cause
-		 * errors again and again. Well, lets switch to RO mode.
+		 * errors again and again. Well, lets switch to R/O mode.
 		 */
 		goto out_ro;
 	}
@@ -1043,10 +1073,9 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 		ubi_err("no reserved physical eraseblocks");
 		goto out_ro;
 	}
-
 	spin_unlock(&ubi->volumes_lock);
-	ubi_msg("mark PEB %d as bad", pnum);
 
+	ubi_msg("mark PEB %d as bad", pnum);
 	err = ubi_io_mark_bad(ubi, pnum);
 	if (err)
 		goto out_ro;
@@ -1056,7 +1085,9 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	ubi->bad_peb_count += 1;
 	ubi->good_peb_count -= 1;
 	ubi_calculate_reserved(ubi);
-	if (ubi->beb_rsvd_pebs == 0)
+	if (ubi->beb_rsvd_pebs)
+		ubi_msg("%d PEBs left in the reserve", ubi->beb_rsvd_pebs);
+	else
 		ubi_warn("last PEB from the reserved pool was used");
 	spin_unlock(&ubi->volumes_lock);
 
@@ -1125,6 +1156,13 @@ retry:
 		} else if (in_wl_tree(e, &ubi->scrub)) {
 			paranoid_check_in_wl_tree(e, &ubi->scrub);
 			rb_erase(&e->u.rb, &ubi->scrub);
+		} else if (in_wl_tree(e, &ubi->erroneous)) {
+			paranoid_check_in_wl_tree(e, &ubi->erroneous);
+			rb_erase(&e->u.rb, &ubi->erroneous);
+			ubi->erroneous_peb_count -= 1;
+			ubi_assert(ubi->erroneous_peb_count >= 0);
+			/* Erroneous PEBs should be tortured */
+			torture = 1;
 		} else {
 			err = prot_queue_del(ubi, e->pnum);
 			if (err) {
@@ -1373,7 +1411,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	struct ubi_scan_leb *seb, *tmp;
 	struct ubi_wl_entry *e;
 
-	ubi->used = ubi->free = ubi->scrub = RB_ROOT;
+	ubi->used = ubi->erroneous = ubi->free = ubi->scrub = RB_ROOT;
 	spin_lock_init(&ubi->wl_lock);
 	mutex_init(&ubi->move_mutex);
 	init_rwsem(&ubi->work_sem);
@@ -1511,6 +1549,7 @@ void ubi_wl_close(struct ubi_device *ubi)
 	cancel_pending(ubi);
 	protection_queue_destroy(ubi);
 	tree_destroy(&ubi->used);
+	tree_destroy(&ubi->erroneous);
 	tree_destroy(&ubi->free);
 	tree_destroy(&ubi->scrub);
 	kfree(ubi->lookuptbl);

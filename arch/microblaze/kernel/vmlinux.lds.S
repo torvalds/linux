@@ -17,8 +17,7 @@ ENTRY(_start)
 jiffies = jiffies_64 + 4;
 
 SECTIONS {
-	. = CONFIG_KERNEL_BASE_ADDR;
-
+	. = CONFIG_KERNEL_START;
 	.text : {
 		_text = . ;
 		_stext = . ;
@@ -131,6 +130,8 @@ SECTIONS {
 		*(.con_initcall.init)
 		__con_initcall_end = .;
 	}
+
+	SECURITY_INIT
 
 	__init_end_before_initramfs = .;
 

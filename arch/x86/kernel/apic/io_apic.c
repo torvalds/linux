@@ -177,16 +177,18 @@ int __init arch_early_irq_init(void)
 	struct irq_cfg *cfg;
 	struct irq_desc *desc;
 	int count;
+	int node;
 	int i;
 
 	cfg = irq_cfgx;
 	count = ARRAY_SIZE(irq_cfgx);
+	node= cpu_to_node(boot_cpu_id);
 
 	for (i = 0; i < count; i++) {
 		desc = irq_to_desc(i);
 		desc->chip_data = &cfg[i];
-		alloc_bootmem_cpumask_var(&cfg[i].domain);
-		alloc_bootmem_cpumask_var(&cfg[i].old_domain);
+		zalloc_cpumask_var_node(&cfg[i].domain, GFP_NOWAIT, node);
+		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_NOWAIT, node);
 		if (i < NR_IRQS_LEGACY)
 			cpumask_setall(cfg[i].domain);
 	}

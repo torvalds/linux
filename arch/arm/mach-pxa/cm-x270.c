@@ -335,6 +335,10 @@ void __init cmx270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(cmx270_pin_config));
 
+#ifdef CONFIG_PM
+	pxa27x_set_pwrmode(PWRMODE_DEEPSLEEP);
+#endif
+
 	cmx270_init_rtc();
 	cmx270_init_mmc();
 	cmx270_init_ohci();

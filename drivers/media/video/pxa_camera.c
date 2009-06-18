@@ -202,7 +202,7 @@ struct pxa_buffer {
 };
 
 struct pxa_camera_dev {
-	struct device		*dev;
+	struct soc_camera_host	soc_host;
 	/* PXA27x is only supposed to handle one camera on its Quick Capture
 	 * interface. If anyone ever builds hardware to enable more than
 	 * one camera, they will have to modify this driver too */
@@ -261,7 +261,6 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 {
 	struct soc_camera_device *icd = vq->priv_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct pxa_camera_dev *pcdev = ici->priv;
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 	int i;
 
@@ -278,7 +277,7 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 
 	for (i = 0; i < ARRAY_SIZE(buf->dmas); i++) {
 		if (buf->dmas[i].sg_cpu)
-			dma_free_coherent(pcdev->dev, buf->dmas[i].sg_size,
+			dma_free_coherent(ici->dev, buf->dmas[i].sg_size,
 					  buf->dmas[i].sg_cpu,
 					  buf->dmas[i].sg_dma);
 		buf->dmas[i].sg_cpu = NULL;
@@ -338,14 +337,14 @@ static int pxa_init_dma_channel(struct pxa_camera_dev *pcdev,
 	int dma_len = 0, xfer_len = 0;
 
 	if (pxa_dma->sg_cpu)
-		dma_free_coherent(pcdev->dev, pxa_dma->sg_size,
+		dma_free_coherent(pcdev->soc_host.dev, pxa_dma->sg_size,
 				  pxa_dma->sg_cpu, pxa_dma->sg_dma);
 
 	sglen = calculate_dma_sglen(*sg_first, dma->sglen,
 				    *sg_first_ofs, size);
 
 	pxa_dma->sg_size = (sglen + 1) * sizeof(struct pxa_dma_desc);
-	pxa_dma->sg_cpu = dma_alloc_coherent(pcdev->dev, pxa_dma->sg_size,
+	pxa_dma->sg_cpu = dma_alloc_coherent(pcdev->soc_host.dev, pxa_dma->sg_size,
 					     &pxa_dma->sg_dma, GFP_KERNEL);
 	if (!pxa_dma->sg_cpu)
 		return -ENOMEM;
@@ -353,7 +352,7 @@ static int pxa_init_dma_channel(struct pxa_camera_dev *pcdev,
 	pxa_dma->sglen = sglen;
 	offset = *sg_first_ofs;
 
-	dev_dbg(pcdev->dev, "DMA: sg_first=%p, sglen=%d, ofs=%d, dma.desc=%x\n",
+	dev_dbg(pcdev->soc_host.dev, "DMA: sg_first=%p, sglen=%d, ofs=%d, dma.desc=%x\n",
 		*sg_first, sglen, *sg_first_ofs, pxa_dma->sg_dma);
 
 
@@ -376,7 +375,7 @@ static int pxa_init_dma_channel(struct pxa_camera_dev *pcdev,
 		pxa_dma->sg_cpu[i].ddadr =
 			pxa_dma->sg_dma + (i + 1) * sizeof(struct pxa_dma_desc);
 
-		dev_vdbg(pcdev->dev, "DMA: desc.%08x->@phys=0x%08x, len=%d\n",
+		dev_vdbg(pcdev->soc_host.dev, "DMA: desc.%08x->@phys=0x%08x, len=%d\n",
 			 pxa_dma->sg_dma + i * sizeof(struct pxa_dma_desc),
 			 sg_dma_address(sg) + offset, xfer_len);
 		offset = 0;
@@ -488,7 +487,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 		ret = pxa_init_dma_channel(pcdev, buf, dma, 0, CIBR0, size_y,
 					   &sg, &next_ofs);
 		if (ret) {
-			dev_err(pcdev->dev,
+			dev_err(pcdev->soc_host.dev,
 				"DMA initialization for Y/RGB failed\n");
 			goto fail;
 		}
@@ -498,7 +497,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 			ret = pxa_init_dma_channel(pcdev, buf, dma, 1, CIBR1,
 						   size_u, &sg, &next_ofs);
 		if (ret) {
-			dev_err(pcdev->dev,
+			dev_err(pcdev->soc_host.dev,
 				"DMA initialization for U failed\n");
 			goto fail_u;
 		}
@@ -508,7 +507,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 			ret = pxa_init_dma_channel(pcdev, buf, dma, 2, CIBR2,
 						   size_v, &sg, &next_ofs);
 		if (ret) {
-			dev_err(pcdev->dev,
+			dev_err(pcdev->soc_host.dev,
 				"DMA initialization for V failed\n");
 			goto fail_v;
 		}
@@ -522,10 +521,10 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 	return 0;
 
 fail_v:
-	dma_free_coherent(pcdev->dev, buf->dmas[1].sg_size,
+	dma_free_coherent(pcdev->soc_host.dev, buf->dmas[1].sg_size,
 			  buf->dmas[1].sg_cpu, buf->dmas[1].sg_dma);
 fail_u:
-	dma_free_coherent(pcdev->dev, buf->dmas[0].sg_size,
+	dma_free_coherent(pcdev->soc_host.dev, buf->dmas[0].sg_size,
 			  buf->dmas[0].sg_cpu, buf->dmas[0].sg_dma);
 fail:
 	free_buffer(vq, buf);
@@ -549,7 +548,7 @@ static void pxa_dma_start_channels(struct pxa_camera_dev *pcdev)
 	active = pcdev->active;
 
 	for (i = 0; i < pcdev->channels; i++) {
-		dev_dbg(pcdev->dev, "%s (channel=%d) ddadr=%08x\n", __func__,
+		dev_dbg(pcdev->soc_host.dev, "%s (channel=%d) ddadr=%08x\n", __func__,
 			i, active->dmas[i].sg_dma);
 		DDADR(pcdev->dma_chans[i]) = active->dmas[i].sg_dma;
 		DCSR(pcdev->dma_chans[i]) = DCSR_RUN;
@@ -561,7 +560,7 @@ static void pxa_dma_stop_channels(struct pxa_camera_dev *pcdev)
 	int i;
 
 	for (i = 0; i < pcdev->channels; i++) {
-		dev_dbg(pcdev->dev, "%s (channel=%d)\n", __func__, i);
+		dev_dbg(pcdev->soc_host.dev, "%s (channel=%d)\n", __func__, i);
 		DCSR(pcdev->dma_chans[i]) = 0;
 	}
 }
@@ -597,7 +596,7 @@ static void pxa_camera_start_capture(struct pxa_camera_dev *pcdev)
 {
 	unsigned long cicr0, cifr;
 
-	dev_dbg(pcdev->dev, "%s\n", __func__);
+	dev_dbg(pcdev->soc_host.dev, "%s\n", __func__);
 	/* Reset the FIFOs */
 	cifr = __raw_readl(pcdev->base + CIFR) | CIFR_RESET_F;
 	__raw_writel(cifr, pcdev->base + CIFR);
@@ -617,7 +616,7 @@ static void pxa_camera_stop_capture(struct pxa_camera_dev *pcdev)
 	__raw_writel(cicr0, pcdev->base + CICR0);
 
 	pcdev->active = NULL;
-	dev_dbg(pcdev->dev, "%s\n", __func__);
+	dev_dbg(pcdev->soc_host.dev, "%s\n", __func__);
 }
 
 static void pxa_videobuf_queue(struct videobuf_queue *vq,
@@ -686,7 +685,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 	do_gettimeofday(&vb->ts);
 	vb->field_count++;
 	wake_up(&vb->done);
-	dev_dbg(pcdev->dev, "%s dequeud buffer (vb=0x%p)\n", __func__, vb);
+	dev_dbg(pcdev->soc_host.dev, "%s dequeud buffer (vb=0x%p)\n", __func__, vb);
 
 	if (list_empty(&pcdev->capture)) {
 		pxa_camera_stop_capture(pcdev);
@@ -722,7 +721,7 @@ static void pxa_camera_check_link_miss(struct pxa_camera_dev *pcdev)
 	for (i = 0; i < pcdev->channels; i++)
 		if (DDADR(pcdev->dma_chans[i]) != DDADR_STOP)
 			is_dma_stopped = 0;
-	dev_dbg(pcdev->dev, "%s : top queued buffer=%p, dma_stopped=%d\n",
+	dev_dbg(pcdev->soc_host.dev, "%s : top queued buffer=%p, dma_stopped=%d\n",
 		__func__, pcdev->active, is_dma_stopped);
 	if (pcdev->active && is_dma_stopped)
 		pxa_camera_start_capture(pcdev);
@@ -747,12 +746,12 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 		overrun |= CISR_IFO_1 | CISR_IFO_2;
 
 	if (status & DCSR_BUSERR) {
-		dev_err(pcdev->dev, "DMA Bus Error IRQ!\n");
+		dev_err(pcdev->soc_host.dev, "DMA Bus Error IRQ!\n");
 		goto out;
 	}
 
 	if (!(status & (DCSR_ENDINTR | DCSR_STARTINTR))) {
-		dev_err(pcdev->dev, "Unknown DMA IRQ source, "
+		dev_err(pcdev->soc_host.dev, "Unknown DMA IRQ source, "
 			"status: 0x%08x\n", status);
 		goto out;
 	}
@@ -776,7 +775,7 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 	buf = container_of(vb, struct pxa_buffer, vb);
 	WARN_ON(buf->inwork || list_empty(&vb->queue));
 
-	dev_dbg(pcdev->dev, "%s channel=%d %s%s(vb=0x%p) dma.desc=%x\n",
+	dev_dbg(pcdev->soc_host.dev, "%s channel=%d %s%s(vb=0x%p) dma.desc=%x\n",
 		__func__, channel, status & DCSR_STARTINTR ? "SOF " : "",
 		status & DCSR_ENDINTR ? "EOF " : "", vb, DDADR(channel));
 
@@ -787,7 +786,7 @@ static void pxa_camera_dma_irq(int channel, struct pxa_camera_dev *pcdev,
 		 */
 		if (camera_status & overrun &&
 		    !list_is_last(pcdev->capture.next, &pcdev->capture)) {
-			dev_dbg(pcdev->dev, "FIFO overrun! CISR: %x\n",
+			dev_dbg(pcdev->soc_host.dev, "FIFO overrun! CISR: %x\n",
 				camera_status);
 			pxa_camera_stop_capture(pcdev);
 			pxa_camera_start_capture(pcdev);
@@ -854,7 +853,7 @@ static u32 mclk_get_divisor(struct pxa_camera_dev *pcdev)
 	/* mclk <= ciclk / 4 (27.4.2) */
 	if (mclk > lcdclk / 4) {
 		mclk = lcdclk / 4;
-		dev_warn(pcdev->dev, "Limiting master clock to %lu\n", mclk);
+		dev_warn(pcdev->soc_host.dev, "Limiting master clock to %lu\n", mclk);
 	}
 
 	/* We verify mclk != 0, so if anyone breaks it, here comes their Oops */
@@ -864,7 +863,7 @@ static u32 mclk_get_divisor(struct pxa_camera_dev *pcdev)
 	if (pcdev->platform_flags & PXA_CAMERA_MCLK_EN)
 		pcdev->mclk = lcdclk / (2 * (div + 1));
 
-	dev_dbg(pcdev->dev, "LCD clock %luHz, target freq %luHz, "
+	dev_dbg(pcdev->soc_host.dev, "LCD clock %luHz, target freq %luHz, "
 		"divisor %u\n", lcdclk, mclk, div);
 
 	return div;
@@ -884,12 +883,12 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 	struct pxacamera_platform_data *pdata = pcdev->pdata;
 	u32 cicr4 = 0;
 
-	dev_dbg(pcdev->dev, "Registered platform device at %p data %p\n",
+	dev_dbg(pcdev->soc_host.dev, "Registered platform device at %p data %p\n",
 		pcdev, pdata);
 
 	if (pdata && pdata->init) {
-		dev_dbg(pcdev->dev, "%s: Init gpios\n", __func__);
-		pdata->init(pcdev->dev);
+		dev_dbg(pcdev->soc_host.dev, "%s: Init gpios\n", __func__);
+		pdata->init(pcdev->soc_host.dev);
 	}
 
 	/* disable all interrupts */
@@ -931,7 +930,7 @@ static irqreturn_t pxa_camera_irq(int irq, void *data)
 	struct videobuf_buffer *vb;
 
 	status = __raw_readl(pcdev->base + CISR);
-	dev_dbg(pcdev->dev, "Camera interrupt status 0x%lx\n", status);
+	dev_dbg(pcdev->soc_host.dev, "Camera interrupt status 0x%lx\n", status);
 
 	if (!status)
 		return IRQ_NONE;
@@ -1259,7 +1258,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(&ici->dev, "Providing format %s using %s\n",
+			dev_dbg(ici->dev, "Providing format %s using %s\n",
 				pxa_camera_formats[0].name,
 				icd->formats[idx].name);
 		}
@@ -1274,7 +1273,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(&ici->dev, "Providing format %s packed\n",
+			dev_dbg(ici->dev, "Providing format %s packed\n",
 				icd->formats[idx].name);
 		}
 		break;
@@ -1286,7 +1285,7 @@ static int pxa_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = icd->formats[idx].depth;
 			xlate++;
-			dev_dbg(&ici->dev,
+			dev_dbg(ici->dev,
 				"Providing format %s in pass-through mode\n",
 				icd->formats[idx].name);
 		}
@@ -1315,11 +1314,11 @@ static int pxa_camera_set_crop(struct soc_camera_device *icd,
 	icd->sense = NULL;
 
 	if (ret < 0) {
-		dev_warn(&ici->dev, "Failed to crop to %ux%u@%u:%u\n",
+		dev_warn(ici->dev, "Failed to crop to %ux%u@%u:%u\n",
 			 rect->width, rect->height, rect->left, rect->top);
 	} else if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {
 		if (sense.pixel_clock > sense.pixel_clock_max) {
-			dev_err(&ici->dev,
+			dev_err(ici->dev,
 				"pixel clock %lu set by the camera too high!",
 				sense.pixel_clock);
 			return -EIO;
@@ -1347,7 +1346,7 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pix->pixelformat);
+		dev_warn(ici->dev, "Format %x not found\n", pix->pixelformat);
 		return -EINVAL;
 	}
 
@@ -1363,11 +1362,11 @@ static int pxa_camera_set_fmt(struct soc_camera_device *icd,
 	icd->sense = NULL;
 
 	if (ret < 0) {
-		dev_warn(&ici->dev, "Failed to configure for format %x\n",
+		dev_warn(ici->dev, "Failed to configure for format %x\n",
 			 pix->pixelformat);
 	} else if (sense.flags & SOCAM_SENSE_PCLK_CHANGED) {
 		if (sense.pixel_clock > sense.pixel_clock_max) {
-			dev_err(&ici->dev,
+			dev_err(ici->dev,
 				"pixel clock %lu set by the camera too high!",
 				sense.pixel_clock);
 			return -EIO;
@@ -1395,7 +1394,7 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -1552,13 +1551,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.set_bus_param	= pxa_camera_set_bus_param,
 };
 
-/* Should be allocated dynamically too, but we have only one. */
-static struct soc_camera_host pxa_soc_camera_host = {
-	.drv_name		= PXA_CAM_DRV_NAME,
-	.ops			= &pxa_soc_camera_host_ops,
-};
-
-static int pxa_camera_probe(struct platform_device *pdev)
+static int __devinit pxa_camera_probe(struct platform_device *pdev)
 {
 	struct pxa_camera_dev *pcdev;
 	struct resource *res;
@@ -1586,7 +1579,6 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
-	dev_set_drvdata(&pdev->dev, pcdev);
 	pcdev->res = res;
 
 	pcdev->pdata = pdev->dev.platform_data;
@@ -1607,7 +1599,6 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		pcdev->mclk = 20000000;
 	}
 
-	pcdev->dev = &pdev->dev;
 	pcdev->mclk_divisor = mclk_get_divisor(pcdev);
 
 	INIT_LIST_HEAD(&pcdev->capture);
@@ -1616,13 +1607,13 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	/*
 	 * Request the regions.
 	 */
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				PXA_CAM_DRV_NAME)) {
 		err = -EBUSY;
 		goto exit_clk;
 	}
 
-	base = ioremap(res->start, res->end - res->start + 1);
+	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		err = -ENOMEM;
 		goto exit_release;
@@ -1634,29 +1625,29 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	err = pxa_request_dma("CI_Y", DMA_PRIO_HIGH,
 			      pxa_camera_dma_irq_y, pcdev);
 	if (err < 0) {
-		dev_err(pcdev->dev, "Can't request DMA for Y\n");
+		dev_err(&pdev->dev, "Can't request DMA for Y\n");
 		goto exit_iounmap;
 	}
 	pcdev->dma_chans[0] = err;
-	dev_dbg(pcdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
+	dev_dbg(&pdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
 
 	err = pxa_request_dma("CI_U", DMA_PRIO_HIGH,
 			      pxa_camera_dma_irq_u, pcdev);
 	if (err < 0) {
-		dev_err(pcdev->dev, "Can't request DMA for U\n");
+		dev_err(&pdev->dev, "Can't request DMA for U\n");
 		goto exit_free_dma_y;
 	}
 	pcdev->dma_chans[1] = err;
-	dev_dbg(pcdev->dev, "got DMA channel (U) %d\n", pcdev->dma_chans[1]);
+	dev_dbg(&pdev->dev, "got DMA channel (U) %d\n", pcdev->dma_chans[1]);
 
 	err = pxa_request_dma("CI_V", DMA_PRIO_HIGH,
 			      pxa_camera_dma_irq_v, pcdev);
 	if (err < 0) {
-		dev_err(pcdev->dev, "Can't request DMA for V\n");
+		dev_err(&pdev->dev, "Can't request DMA for V\n");
 		goto exit_free_dma_u;
 	}
 	pcdev->dma_chans[2] = err;
-	dev_dbg(pcdev->dev, "got DMA channel (V) %d\n", pcdev->dma_chans[2]);
+	dev_dbg(&pdev->dev, "got DMA channel (V) %d\n", pcdev->dma_chans[2]);
 
 	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
 	DRCMR(69) = pcdev->dma_chans[1] | DRCMR_MAPVLD;
@@ -1666,14 +1657,17 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	err = request_irq(pcdev->irq, pxa_camera_irq, 0, PXA_CAM_DRV_NAME,
 			  pcdev);
 	if (err) {
-		dev_err(pcdev->dev, "Camera interrupt register failed \n");
+		dev_err(&pdev->dev, "Camera interrupt register failed \n");
 		goto exit_free_dma;
 	}
 
-	pxa_soc_camera_host.priv	= pcdev;
-	pxa_soc_camera_host.dev.parent	= &pdev->dev;
-	pxa_soc_camera_host.nr		= pdev->id;
-	err = soc_camera_host_register(&pxa_soc_camera_host);
+	pcdev->soc_host.drv_name	= PXA_CAM_DRV_NAME;
+	pcdev->soc_host.ops		= &pxa_soc_camera_host_ops;
+	pcdev->soc_host.priv		= pcdev;
+	pcdev->soc_host.dev		= &pdev->dev;
+	pcdev->soc_host.nr		= pdev->id;
+
+	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
 		goto exit_free_irq;
 
@@ -1690,7 +1684,7 @@ exit_free_dma_y:
 exit_iounmap:
 	iounmap(base);
 exit_release:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 exit_clk:
 	clk_put(pcdev->clk);
 exit_kfree:
@@ -1701,7 +1695,9 @@ exit:
 
 static int __devexit pxa_camera_remove(struct platform_device *pdev)
 {
-	struct pxa_camera_dev *pcdev = platform_get_drvdata(pdev);
+	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
+	struct pxa_camera_dev *pcdev = container_of(soc_host,
+					struct pxa_camera_dev, soc_host);
 	struct resource *res;
 
 	clk_put(pcdev->clk);
@@ -1711,12 +1707,12 @@ static int __devexit pxa_camera_remove(struct platform_device *pdev)
 	pxa_free_dma(pcdev->dma_chans[2]);
 	free_irq(pcdev->irq, pcdev);
 
-	soc_camera_host_unregister(&pxa_soc_camera_host);
+	soc_camera_host_unregister(soc_host);
 
 	iounmap(pcdev->base);
 
 	res = pcdev->res;
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	kfree(pcdev);
 
@@ -1730,11 +1726,11 @@ static struct platform_driver pxa_camera_driver = {
 		.name	= PXA_CAM_DRV_NAME,
 	},
 	.probe		= pxa_camera_probe,
-	.remove		= __exit_p(pxa_camera_remove),
+	.remove		= __devexit_p(pxa_camera_remove),
 };
 
 
-static int __devinit pxa_camera_init(void)
+static int __init pxa_camera_init(void)
 {
 	return platform_driver_register(&pxa_camera_driver);
 }

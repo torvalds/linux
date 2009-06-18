@@ -1736,10 +1736,8 @@ static int __init cyber2000fb_init(void)
 
 #ifdef CONFIG_ARCH_SHARK
 	err = cyberpro_vl_probe();
-	if (!err) {
+	if (!err)
 		ret = 0;
-		__module_get(THIS_MODULE);
-	}
 #endif
 #ifdef CONFIG_PCI
 	err = pci_register_driver(&cyberpro_driver);
@@ -1749,14 +1747,15 @@ static int __init cyber2000fb_init(void)
 
 	return ret ? err : 0;
 }
+module_init(cyber2000fb_init);
 
+#ifndef CONFIG_ARCH_SHARK
 static void __exit cyberpro_exit(void)
 {
 	pci_unregister_driver(&cyberpro_driver);
 }
-
-module_init(cyber2000fb_init);
 module_exit(cyberpro_exit);
+#endif
 
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("CyberPro 2000, 2010 and 5000 framebuffer driver");

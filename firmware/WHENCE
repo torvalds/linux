@@ -412,7 +412,7 @@ Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
 File: cxgb3/t3c_psram-1.1.0.bin.ihex
-file: cxgb3/t3fw-7.1.0.bin.ihex
+file: cxgb3/t3fw-7.4.0.bin.ihex
 
 License: GPLv2 or OpenIB.org BSD license, no source visible
 
@@ -586,6 +586,26 @@ Originally developed by the pcmcia-cs project
 
 --------------------------------------------------------------------------
 
+Driver: PCMCIA_3C589 - 3Com PCMCIA adapter
+
+File: cis/3CXEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: PCMCIA_3C574 - 3Com PCMCIA adapter
+
+File: cis/3CCFEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
 Driver: PCMCIA_SMC91C92 - SMC 91Cxx PCMCIA
 
 File: ositech/Xilinx7OD.bin
@@ -613,6 +633,26 @@ Driver: MYRI_SBUS - MyriCOM Gigabit Ethernet
 File: myricom/lanai.bin
 
 Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: bnx2x: Broadcom Everest
+
+File: bnx2x-e1-4.8.53.0.fw.ihex
+File: bnx2x-e1h-4.8.53.0.fw.ihex
+
+License:
+  Copyright (c) 2007-2009 Broadcom Corporation
+
+  This file contains firmware data derived from proprietary unpublished
+  source code, Copyright (c) 2007-2009 Broadcom Corporation.
+
+  Permission is hereby granted for the distribution of this firmware data
+  in hexadecimal or equivalent format, provided this copyright notice is
+  accompanying it.
+
 
 Found in hex form in kernel source.
 

@@ -9,6 +9,7 @@
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/err.h>
+#include <linux/cpuset.h>
 #include <linux/unistd.h>
 #include <linux/file.h>
 #include <linux/module.h>
@@ -26,7 +27,6 @@ struct kthread_create_info
 	/* Information passed to kthread() from kthreadd. */
 	int (*threadfn)(void *data);
 	void *data;
-	struct completion started;
 
 	/* Result passed back to kthread_create() from kthreadd. */
 	struct task_struct *result;
@@ -35,17 +35,13 @@ struct kthread_create_info
 	struct list_head list;
 };
 
-struct kthread_stop_info
-{
-	struct task_struct *k;
-	int err;
-	struct completion done;
+struct kthread {
+	int should_stop;
+	struct completion exited;
 };
 
-/* Thread stopping is done by setthing this var: lock serializes
- * multiple kthread_stop calls. */
-static DEFINE_MUTEX(kthread_stop_lock);
-static struct kthread_stop_info kthread_stop_info;
+#define to_kthread(tsk)	\
+	container_of((tsk)->vfork_done, struct kthread, exited)
 
 /**
  * kthread_should_stop - should this kthread return now?
@@ -56,36 +52,35 @@ static struct kthread_stop_info kthread_stop_info;
  */
 int kthread_should_stop(void)
 {
-	return (kthread_stop_info.k == current);
+	return to_kthread(current)->should_stop;
 }
 EXPORT_SYMBOL(kthread_should_stop);
 
 static int kthread(void *_create)
 {
-	struct kthread_create_info *create = _create;
-	int (*threadfn)(void *data);
-	void *data;
-	int ret = -EINTR;
-
 	/* Copy data: it's on kthread's stack */
-	threadfn = create->threadfn;
-	data = create->data;
+	struct kthread_create_info *create = _create;
+	int (*threadfn)(void *data) = create->threadfn;
+	void *data = create->data;
+	struct kthread self;
+	int ret;
+
+	self.should_stop = 0;
+	init_completion(&self.exited);
+	current->vfork_done = &self.exited;
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	create->result = current;
-	complete(&create->started);
+	complete(&create->done);
 	schedule();
 
-	if (!kthread_should_stop())
+	ret = -EINTR;
+	if (!self.should_stop)
 		ret = threadfn(data);
 
-	/* It might have exited on its own, w/o kthread_stop.  Check. */
-	if (kthread_should_stop()) {
-		kthread_stop_info.err = ret;
-		complete(&kthread_stop_info.done);
-	}
-	return 0;
+	/* we can't just return, we must preserve "self" on stack */
+	do_exit(ret);
 }
 
 static void create_kthread(struct kthread_create_info *create)
@@ -94,11 +89,10 @@ static void create_kthread(struct kthread_create_info *create)
 
 	/* We want our own signal handler (we take no signals by default). */
 	pid = kernel_thread(kthread, create, CLONE_FS | CLONE_FILES | SIGCHLD);
-	if (pid < 0)
+	if (pid < 0) {
 		create->result = ERR_PTR(pid);
-	else
-		wait_for_completion(&create->started);
-	complete(&create->done);
+		complete(&create->done);
+	}
 }
 
 /**
@@ -129,7 +123,6 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 
 	create.threadfn = threadfn;
 	create.data = data;
-	init_completion(&create.started);
 	init_completion(&create.done);
 
 	spin_lock(&kthread_create_lock);
@@ -197,30 +190,22 @@ EXPORT_SYMBOL(kthread_bind);
  */
 int kthread_stop(struct task_struct *k)
 {
+	struct kthread *kthread;
 	int ret;
 
-	mutex_lock(&kthread_stop_lock);
-
-	/* It could exit after stop_info.k set, but before wake_up_process. */
+	trace_sched_kthread_stop(k);
 	get_task_struct(k);
 
-	trace_sched_kthread_stop(k);
+	kthread = to_kthread(k);
+	barrier(); /* it might have exited */
+	if (k->vfork_done != NULL) {
+		kthread->should_stop = 1;
+		wake_up_process(k);
+		wait_for_completion(&kthread->exited);
+	}
+	ret = k->exit_code;
 
-	/* Must init completion *before* thread sees kthread_stop_info.k */
-	init_completion(&kthread_stop_info.done);
-	smp_wmb();
-
-	/* Now set kthread_should_stop() to true, and wake it up. */
-	kthread_stop_info.k = k;
-	wake_up_process(k);
 	put_task_struct(k);
-
-	/* Once it dies, reset stop ptr, gather result and we're done. */
-	wait_for_completion(&kthread_stop_info.done);
-	kthread_stop_info.k = NULL;
-	ret = kthread_stop_info.err;
-	mutex_unlock(&kthread_stop_lock);
-
 	trace_sched_kthread_stop_ret(ret);
 
 	return ret;
@@ -236,6 +221,7 @@ int kthreadd(void *unused)
 	ignore_signals(tsk);
 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
+	set_mems_allowed(node_possible_map);
 
 	current->flags |= PF_NOFREEZE | PF_FREEZER_NOSIG;
 

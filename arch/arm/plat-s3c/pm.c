@@ -21,11 +21,10 @@
 
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
+#include <mach/map.h>
 
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-mem.h>
 #include <mach/regs-irq.h>
 #include <asm/irq.h>
 
@@ -70,6 +69,8 @@ static inline void s3c_pm_debug_init(void)
 
 /* Save the UART configurations if we are configured for debug. */
 
+unsigned char pm_uart_udivslot;
+
 #ifdef CONFIG_S3C2410_PM_DEBUG
 
 struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
@@ -83,6 +84,12 @@ static void s3c_pm_save_uart(unsigned int uart, struct pm_uart_save *save)
 	save->ufcon = __raw_readl(regs + S3C2410_UFCON);
 	save->umcon = __raw_readl(regs + S3C2410_UMCON);
 	save->ubrdiv = __raw_readl(regs + S3C2410_UBRDIV);
+
+	if (pm_uart_udivslot)
+		save->udivslot = __raw_readl(regs + S3C2443_DIVSLOT);
+
+	S3C_PMDBG("UART[%d]: ULCON=%04x, UCON=%04x, UFCON=%04x, UBRDIV=%04x\n",
+		  uart, save->ulcon, save->ucon, save->ufcon, save->ubrdiv);
 }
 
 static void s3c_pm_save_uarts(void)
@@ -98,11 +105,16 @@ static void s3c_pm_restore_uart(unsigned int uart, struct pm_uart_save *save)
 {
 	void __iomem *regs = S3C_VA_UARTx(uart);
 
+	s3c_pm_arch_update_uart(regs, save);
+
 	__raw_writel(save->ulcon, regs + S3C2410_ULCON);
 	__raw_writel(save->ucon,  regs + S3C2410_UCON);
 	__raw_writel(save->ufcon, regs + S3C2410_UFCON);
 	__raw_writel(save->umcon, regs + S3C2410_UMCON);
 	__raw_writel(save->ubrdiv, regs + S3C2410_UBRDIV);
+
+	if (pm_uart_udivslot)
+		__raw_writel(save->udivslot, regs + S3C2443_DIVSLOT);
 }
 
 static void s3c_pm_restore_uarts(void)
@@ -312,6 +324,9 @@ static int s3c_pm_enter(suspend_state_t state)
 	s3c_pm_arch_show_resume_irqs();
 
 	S3C_PMDBG("%s: post sleep, preparing to return\n", __func__);
+
+	/* LEDs should now be 1110 */
+	s3c_pm_debug_smdkled(1 << 1, 0);
 
 	s3c_pm_check_restore();
 

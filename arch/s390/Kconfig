@@ -82,6 +82,11 @@ config S390
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FTRACE_SYSCALLS
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_DEFAULT_NO_SPIN_MUTEXES
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
@@ -343,6 +348,9 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
 
+config ARCH_HIBERNATION_POSSIBLE
+       def_bool y if 64BIT
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
@@ -567,6 +575,30 @@ bool "s390 guest support for KVM (EXPERIMENTAL)"
 	  the KVM hypervisor. This will add detection for KVM as well  as a
 	  virtio transport. If KVM is detected, the virtio console will be
 	  the default console.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y.
+
+endmenu
+
+menu "Power Management"
+
+source "kernel/power/Kconfig"
+
 endmenu
 
 source "net/Kconfig"

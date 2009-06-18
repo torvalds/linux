@@ -20,10 +20,10 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/sh_intc.h>
 #include <linux/sysdev.h>
 #include <linux/list.h>
+#include <linux/topology.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -674,7 +674,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 	unsigned int i, k, smp;
 	struct intc_desc_int *d;
 
-	d = alloc_bootmem(sizeof(*d));
+	d = kzalloc(sizeof(*d), GFP_NOWAIT);
 
 	INIT_LIST_HEAD(&d->list);
 	list_add(&d->list, &intc_list);
@@ -686,9 +686,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 #if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	d->nr_reg += desc->ack_regs ? desc->nr_ack_regs : 0;
 #endif
-	d->reg = alloc_bootmem(d->nr_reg * sizeof(*d->reg));
+	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
 #ifdef CONFIG_SMP
-	d->smp = alloc_bootmem(d->nr_reg * sizeof(*d->smp));
+	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
 #endif
 	k = 0;
 
@@ -701,7 +701,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (desc->prio_regs) {
-		d->prio = alloc_bootmem(desc->nr_vectors * sizeof(*d->prio));
+		d->prio = kzalloc(desc->nr_vectors * sizeof(*d->prio), GFP_NOWAIT);
 
 		for (i = 0; i < desc->nr_prio_regs; i++) {
 			smp = IS_SMP(desc->prio_regs[i]);
@@ -711,7 +711,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (desc->sense_regs) {
-		d->sense = alloc_bootmem(desc->nr_vectors * sizeof(*d->sense));
+		d->sense = kzalloc(desc->nr_vectors * sizeof(*d->sense), GFP_NOWAIT);
 
 		for (i = 0; i < desc->nr_sense_regs; i++) {
 			k += save_reg(d, k, desc->sense_regs[i].reg, 0);
@@ -756,7 +756,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 			vect2->enum_id = 0;
 
 			if (!intc_evt2irq_table)
-				intc_evt2irq_table = alloc_bootmem(NR_IRQS);
+				intc_evt2irq_table = kzalloc(NR_IRQS, GFP_NOWAIT);
 
 			if (!intc_evt2irq_table) {
 				pr_warning("intc: cannot allocate evt2irq!\n");
@@ -770,11 +770,19 @@ void __init register_intc_controller(struct intc_desc *desc)
 	/* register the vectors one by one */
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
+		unsigned int irq = evt2irq(vect->vect);
+		struct irq_desc *irq_desc;
 
 		if (!vect->enum_id)
 			continue;
 
-		intc_register_irq(desc, d, vect->enum_id, evt2irq(vect->vect));
+		irq_desc = irq_to_desc_alloc_node(irq, numa_node_id());
+		if (unlikely(!irq_desc)) {
+			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
+			continue;
+		}
+
+		intc_register_irq(desc, d, vect->enum_id, irq);
 	}
 }
 

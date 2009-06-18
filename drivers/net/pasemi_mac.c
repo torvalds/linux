@@ -24,6 +24,7 @@
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/of_mdio.h>
 #include <linux/etherdevice.h>
 #include <asm/dma-mapping.h>
 #include <linux/in.h>
@@ -1086,34 +1087,17 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	struct device_node *dn, *phy_dn;
 	struct phy_device *phydev;
-	unsigned int phy_id;
-	const phandle *ph;
-	const unsigned int *prop;
-	struct resource r;
-	int ret;
 
 	dn = pci_device_to_OF_node(mac->pdev);
-	ph = of_get_property(dn, "phy-handle", NULL);
-	if (!ph)
-		return -ENODEV;
-	phy_dn = of_find_node_by_phandle(*ph);
-
-	prop = of_get_property(phy_dn, "reg", NULL);
-	ret = of_address_to_resource(phy_dn->parent, 0, &r);
-	if (ret)
-		goto err;
-
-	phy_id = *prop;
-	snprintf(mac->phy_id, sizeof(mac->phy_id), "%x:%02x",
-		 (int)r.start, phy_id);
-
+	phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 	of_node_put(phy_dn);
 
 	mac->link = 0;
 	mac->speed = 0;
 	mac->duplex = -1;
 
-	phydev = phy_connect(dev, mac->phy_id, &pasemi_adjust_link, 0, PHY_INTERFACE_MODE_SGMII);
+	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
+				PHY_INTERFACE_MODE_SGMII);
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
@@ -1123,10 +1107,6 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	mac->phydev = phydev;
 
 	return 0;
-
-err:
-	of_node_put(phy_dn);
-	return -ENODEV;
 }
 
 
@@ -1735,12 +1715,25 @@ out:
 	return ret;
 }
 
+static const struct net_device_ops pasemi_netdev_ops = {
+	.ndo_open		= pasemi_mac_open,
+	.ndo_stop		= pasemi_mac_close,
+	.ndo_start_xmit		= pasemi_mac_start_tx,
+	.ndo_set_multicast_list	= pasemi_mac_set_rx_mode,
+	.ndo_set_mac_address	= pasemi_mac_set_mac_addr,
+	.ndo_change_mtu		= pasemi_mac_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= pasemi_mac_netpoll,
+#endif
+};
+
 static int __devinit
 pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct pasemi_mac *mac;
-	int err;
+	int err, ret;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1798,12 +1791,13 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	memcpy(dev->dev_addr, mac->mac_addr, sizeof(mac->mac_addr));
 
-	mac->dma_if = mac_to_intf(mac);
-	if (mac->dma_if < 0) {
+	ret = mac_to_intf(mac);
+	if (ret < 0) {
 		dev_err(&mac->pdev->dev, "Can't map DMA interface\n");
 		err = -ENODEV;
 		goto out;
 	}
+	mac->dma_if = ret;
 
 	switch (pdev->device) {
 	case 0xa005:
@@ -1817,19 +1811,11 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out;
 	}
 
-	dev->open = pasemi_mac_open;
-	dev->stop = pasemi_mac_close;
-	dev->hard_start_xmit = pasemi_mac_start_tx;
-	dev->set_multicast_list = pasemi_mac_set_rx_mode;
-	dev->set_mac_address = pasemi_mac_set_mac_addr;
+	dev->netdev_ops = &pasemi_netdev_ops;
 	dev->mtu = PE_DEF_MTU;
 	/* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 	mac->bufsz = dev->mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = pasemi_mac_netpoll;
-#endif
 
-	dev->change_mtu = pasemi_mac_change_mtu;
 	dev->ethtool_ops = &pasemi_mac_ethtool_ops;
 
 	if (err)

@@ -129,7 +129,7 @@ PHY Link state polling
 ----------------------
 
 The driver keeps track of the link state and informs the network core
-about link (carrier) availablilty. This is managed by several methods
+about link (carrier) availability. This is managed by several methods
 depending on the version of the chip and on which PHY is being used.
 
 For the internal PHY, the original (and currently default) method is

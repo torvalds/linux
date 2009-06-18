@@ -58,7 +58,7 @@
 #define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 #define EM2880_BOARD_PINNACLE_PCTV_HD_PRO	17
 #define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900_R2	18
-#define EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA  19
+#define EM2860_BOARD_SAA711X_REFERENCE_DESIGN	19
 #define EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600   20
 #define EM2800_BOARD_GRABBEEX_USB2800           21
 #define EM2750_BOARD_UNKNOWN			  22
@@ -102,6 +102,10 @@
 #define EM2860_BOARD_KAIOMY_TVNPC_U2              63
 #define EM2860_BOARD_EASYCAP                      64
 #define EM2820_BOARD_IODATA_GVMVP_SZ		  65
+#define EM2880_BOARD_EMPIRE_DUAL_TV		  66
+#define EM2860_BOARD_TERRATEC_GRABBY		  67
+#define EM2860_BOARD_TERRATEC_AV350		  68
+#define EM2882_BOARD_KWORLD_ATSC_315U		  69
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -615,6 +619,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_isoc(struct em28xx *dev);
+int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
@@ -639,7 +644,7 @@ extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
-void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
+void em28xx_register_i2c_ir(struct em28xx *dev);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 

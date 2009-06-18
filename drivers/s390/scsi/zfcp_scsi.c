@@ -12,6 +12,10 @@
 #include "zfcp_ext.h"
 #include <asm/atomic.h>
 
+static unsigned int default_depth = 32;
+module_param_named(queue_depth, default_depth, uint, 0600);
+MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
+
 /* Find start of Sense Information in FCP response unit*/
 char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
 {
@@ -24,6 +28,12 @@ char *zfcp_get_fcp_sns_info_ptr(struct fcp_rsp_iu *fcp_rsp_iu)
 	return fcp_sns_info_ptr;
 }
 
+static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth)
+{
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+	return sdev->queue_depth;
+}
+
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
@@ -34,7 +44,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
 {
 	if (sdp->tagged_supported)
-		scsi_adjust_queue_depth(sdp, MSG_SIMPLE_TAG, 32);
+		scsi_adjust_queue_depth(sdp, MSG_SIMPLE_TAG, default_depth);
 	else
 		scsi_adjust_queue_depth(sdp, 0, 1);
 	return 0;
@@ -613,6 +623,20 @@ void zfcp_scsi_scan(struct work_struct *work)
 	zfcp_unit_put(unit);
 }
 
+static int zfcp_execute_fc_job(struct fc_bsg_job *job)
+{
+	switch (job->request->msgcode) {
+	case FC_BSG_RPT_ELS:
+	case FC_BSG_HST_ELS_NOLOGIN:
+		return zfcp_fc_execute_els_fc_job(job);
+	case FC_BSG_RPT_CT:
+	case FC_BSG_HST_CT:
+		return zfcp_fc_execute_ct_fc_job(job);
+	default:
+		return -EINVAL;
+	}
+}
+
 struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_id = 1,
 	.show_starget_port_name = 1,
@@ -634,6 +658,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.dev_loss_tmo_callbk = zfcp_scsi_dev_loss_tmo_callbk,
 	.terminate_rport_io = zfcp_scsi_terminate_rport_io,
 	.show_host_port_state = 1,
+	.bsg_request = zfcp_execute_fc_job,
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
@@ -647,6 +672,7 @@ struct zfcp_data zfcp_data = {
 		.name			 = "zfcp",
 		.module			 = THIS_MODULE,
 		.proc_name		 = "zfcp",
+		.change_queue_depth	 = zfcp_scsi_change_queue_depth,
 		.slave_alloc		 = zfcp_scsi_slave_alloc,
 		.slave_configure	 = zfcp_scsi_slave_configure,
 		.slave_destroy		 = zfcp_scsi_slave_destroy,

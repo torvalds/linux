@@ -129,12 +129,15 @@ fail:
 static inline struct posix_acl *
 ext4_iget_acl(struct inode *inode, struct posix_acl **i_acl)
 {
-	struct posix_acl *acl = EXT4_ACL_NOT_CACHED;
+	struct posix_acl *acl = ACCESS_ONCE(*i_acl);
 
-	spin_lock(&inode->i_lock);
-	if (*i_acl != EXT4_ACL_NOT_CACHED)
-		acl = posix_acl_dup(*i_acl);
-	spin_unlock(&inode->i_lock);
+	if (acl) {
+		spin_lock(&inode->i_lock);
+		acl = *i_acl;
+		if (acl != EXT4_ACL_NOT_CACHED)
+			acl = posix_acl_dup(acl);
+		spin_unlock(&inode->i_lock);
+	}
 
 	return acl;
 }

@@ -86,6 +86,8 @@ extern int of_node_to_nid(struct device_node *dp);
 #endif
 
 extern void prom_build_devicetree(void);
+extern void of_populate_present_mask(void);
+extern void of_fill_in_cpu_data(void);
 
 /* Dummy ref counting routines - to be implemented later */
 static inline struct device_node *of_node_get(struct device_node *node)

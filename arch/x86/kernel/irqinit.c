@@ -173,6 +173,9 @@ static void __init smp_intr_init(void)
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
 	set_bit(IRQ_MOVE_CLEANUP_VECTOR, used_vectors);
+
+	/* IPI used for rebooting/stopping */
+	alloc_intr_gate(REBOOT_VECTOR, reboot_interrupt);
 #endif
 #endif /* CONFIG_SMP */
 }
@@ -181,9 +184,14 @@ static void __init apic_intr_init(void)
 {
 	smp_intr_init();
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_THERMAL_VECTOR
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
+#endif
+#ifdef CONFIG_X86_THRESHOLD
 	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
+#endif
+#if defined(CONFIG_X86_NEW_MCE) && defined(CONFIG_X86_LOCAL_APIC)
+	alloc_intr_gate(MCE_SELF_VECTOR, mce_self_interrupt);
 #endif
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
@@ -199,17 +207,9 @@ static void __init apic_intr_init(void)
 
 	/* Performance monitoring interrupts: */
 # ifdef CONFIG_PERF_COUNTERS
-	alloc_intr_gate(LOCAL_PERF_VECTOR, perf_counter_interrupt);
 	alloc_intr_gate(LOCAL_PENDING_VECTOR, perf_pending_interrupt);
 # endif
 
-#endif
-
-#ifdef CONFIG_X86_32
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_MCE_P4THERMAL)
-	/* thermal monitor LVT interrupt */
-	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
-#endif
 #endif
 }
 

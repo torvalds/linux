@@ -140,6 +140,8 @@ struct lpfc_scsi_buf {
 	struct fcp_rsp *fcp_rsp;
 	struct ulp_bde64 *fcp_bpl;
 
+	dma_addr_t dma_phys_bpl;
+
 	/* cur_iocbq has phys of the dma-able buffer.
 	 * Iotag is in here
 	 */

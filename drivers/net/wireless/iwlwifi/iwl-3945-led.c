@@ -44,6 +44,15 @@
 #include "iwl-core.h"
 #include "iwl-dev.h"
 
+#ifdef CONFIG_IWLWIFI_DEBUG
+static const char *led_type_str[] = {
+	__stringify(IWL_LED_TRG_TX),
+	__stringify(IWL_LED_TRG_RX),
+	__stringify(IWL_LED_TRG_ASSOC),
+	__stringify(IWL_LED_TRG_RADIO),
+	NULL
+};
+#endif /* CONFIG_IWLWIFI_DEBUG */
 
 static const struct {
 	u16 brightness;
@@ -61,7 +70,7 @@ static const struct {
 	{10, 110, 110},
 	{5, 130, 130},
 	{0, 167, 167},
-	/*SOLID_ON*/
+	/* SOLID_ON */
 	{-1, IWL_LED_SOLID, 0}
 };
 
@@ -143,6 +152,26 @@ static int iwl3945_led_off(struct iwl_priv *priv, int led_id)
 }
 
 /*
+ *  Set led on in case of association
+ *  */
+static int iwl3945_led_associate(struct iwl_priv *priv, int led_id)
+{
+	IWL_DEBUG_LED(priv, "Associated\n");
+
+	priv->allow_blinking = 1;
+	return iwl3945_led_on(priv, led_id);
+}
+/* Set Led off in case of disassociation */
+static int iwl3945_led_disassociate(struct iwl_priv *priv, int led_id)
+{
+	IWL_DEBUG_LED(priv, "Disassociated\n");
+
+	priv->allow_blinking = 0;
+
+	return 0;
+}
+
+/*
  * brightness call back function for Tx/Rx LED
  */
 static int iwl3945_led_associated(struct iwl_priv *priv, int led_id)
@@ -165,26 +194,21 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 				enum led_brightness brightness)
 {
 	struct iwl_led *led = container_of(led_cdev,
-					       struct iwl_led, led_dev);
+					   struct iwl_led, led_dev);
 	struct iwl_priv *priv = led->priv;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
+	IWL_DEBUG_LED(priv, "Led type = %s brightness = %d\n",
+			led_type_str[led->type], brightness);
+
 	switch (brightness) {
 	case LED_FULL:
-		if (led->type == IWL_LED_TRG_ASSOC) {
-			priv->allow_blinking = 1;
-			IWL_DEBUG_LED(priv, "MAC is  associated\n");
-		}
 		if (led->led_on)
 			led->led_on(priv, IWL_LED_LINK);
 		break;
 	case LED_OFF:
-		if (led->type == IWL_LED_TRG_ASSOC) {
-			priv->allow_blinking = 0;
-			IWL_DEBUG_LED(priv, "MAC is disassociated\n");
-		}
 		if (led->led_off)
 			led->led_off(priv, IWL_LED_LINK);
 		break;
@@ -196,8 +220,6 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 		break;
 	}
 }
-
-
 
 /*
  * Register led class with the system
@@ -237,12 +259,12 @@ static int iwl3945_led_register_led(struct iwl_priv *priv,
 static inline u8 get_blink_rate(struct iwl_priv *priv)
 {
 	int index;
-	u64 current_tpt = priv->rxtxpackets;
-	s64 tpt = current_tpt - priv->led_tpt;
+	s64 tpt = priv->rxtxpackets;
 
 	if (tpt < 0)
 		tpt = -tpt;
-	priv->led_tpt = current_tpt;
+
+	IWL_DEBUG_LED(priv, "tpt %lld \n", (long long)tpt);
 
 	if (!priv->allow_blinking)
 		index = IWL_MAX_BLINK_TBL;
@@ -250,13 +272,9 @@ static inline u8 get_blink_rate(struct iwl_priv *priv)
 		for (index = 0; index < IWL_MAX_BLINK_TBL; index++)
 			if (tpt > (blink_tbl[index].brightness * IWL_1MB_RATE))
 				break;
-	return index;
-}
 
-static inline int is_rf_kill(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-		test_bit(STATUS_RF_KILL_SW, &priv->status);
+	IWL_DEBUG_LED(priv, "LED BLINK IDX=%d\n", index);
+	return index;
 }
 
 /*
@@ -272,7 +290,7 @@ void iwl3945_led_background(struct iwl_priv *priv)
 		priv->last_blink_time = 0;
 		return;
 	}
-	if (is_rf_kill(priv)) {
+	if (iwl_is_rfkill(priv)) {
 		priv->last_blink_time = 0;
 		return;
 	}
@@ -341,8 +359,8 @@ int iwl3945_led_register(struct iwl_priv *priv)
 				   IWL_LED_TRG_ASSOC, 0, trigger);
 
 	/* for assoc always turn led on */
-	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_on;
-	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_on;
+	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_associate;
+	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_disassociate;
 	priv->led[IWL_LED_TRG_ASSOC].led_pattern = NULL;
 
 	if (ret)

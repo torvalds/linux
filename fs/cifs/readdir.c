@@ -115,17 +115,6 @@ construct_dentry(struct qstr *qstring, struct file *file,
 	return rc;
 }
 
-static void AdjustForTZ(struct cifsTconInfo *tcon, struct inode *inode)
-{
-	if ((tcon) && (tcon->ses) && (tcon->ses->server)) {
-		inode->i_ctime.tv_sec += tcon->ses->server->timeAdj;
-		inode->i_mtime.tv_sec += tcon->ses->server->timeAdj;
-		inode->i_atime.tv_sec += tcon->ses->server->timeAdj;
-	}
-	return;
-}
-
-
 static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 			  char *buf, unsigned int *pobject_type, int isNewInode)
 {
@@ -150,26 +139,25 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		allocation_size = le64_to_cpu(pfindData->AllocationSize);
 		end_of_file = le64_to_cpu(pfindData->EndOfFile);
 		tmp_inode->i_atime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+			cifs_NTtimeToUnix(pfindData->LastAccessTime);
 		tmp_inode->i_mtime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
+			cifs_NTtimeToUnix(pfindData->LastWriteTime);
 		tmp_inode->i_ctime =
-		      cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
+			cifs_NTtimeToUnix(pfindData->ChangeTime);
 	} else { /* legacy, OS2 and DOS style */
-/*		struct timespec ts;*/
+		int offset = cifs_sb->tcon->ses->server->timeAdj;
 		FIND_FILE_STANDARD_INFO *pfindData =
 			(FIND_FILE_STANDARD_INFO *)buf;
 
-		tmp_inode->i_mtime = cnvrtDosUnixTm(
-				le16_to_cpu(pfindData->LastWriteDate),
-				le16_to_cpu(pfindData->LastWriteTime));
-		tmp_inode->i_atime = cnvrtDosUnixTm(
-				le16_to_cpu(pfindData->LastAccessDate),
-				le16_to_cpu(pfindData->LastAccessTime));
-		tmp_inode->i_ctime = cnvrtDosUnixTm(
-				le16_to_cpu(pfindData->LastWriteDate),
-				le16_to_cpu(pfindData->LastWriteTime));
-		AdjustForTZ(cifs_sb->tcon, tmp_inode);
+		tmp_inode->i_mtime = cnvrtDosUnixTm(pfindData->LastWriteDate,
+						    pfindData->LastWriteTime,
+						    offset);
+		tmp_inode->i_atime = cnvrtDosUnixTm(pfindData->LastAccessDate,
+						    pfindData->LastAccessTime,
+						    offset);
+		tmp_inode->i_ctime = cnvrtDosUnixTm(pfindData->LastWriteDate,
+						    pfindData->LastWriteTime,
+						    offset);
 		attr = le16_to_cpu(pfindData->Attributes);
 		allocation_size = le32_to_cpu(pfindData->AllocationSize);
 		end_of_file = le32_to_cpu(pfindData->DataSize);
@@ -331,11 +319,11 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	local_size  = tmp_inode->i_size;
 
 	tmp_inode->i_atime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastAccessTime));
+	    cifs_NTtimeToUnix(pfindData->LastAccessTime);
 	tmp_inode->i_mtime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastModificationTime));
+	    cifs_NTtimeToUnix(pfindData->LastModificationTime);
 	tmp_inode->i_ctime =
-	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastStatusChange));
+	    cifs_NTtimeToUnix(pfindData->LastStatusChange);
 
 	tmp_inode->i_mode = le64_to_cpu(pfindData->Permissions);
 	/* since we set the inode type below we need to mask off type

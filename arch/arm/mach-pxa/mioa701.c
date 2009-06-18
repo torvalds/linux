@@ -48,7 +48,7 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <media/soc_camera.h>
@@ -798,7 +798,7 @@ static void mioa701_restart(char c, const char *cmd)
 	arm_machine_restart('s', cmd);
 }
 
-struct gpio_ress global_gpios[] = {
+static struct gpio_ress global_gpios[] = {
 	MIO_GPIO_OUT(GPIO9_CHARGE_EN, 1, "Charger enable"),
 	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
 	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")

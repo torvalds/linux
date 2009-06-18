@@ -185,6 +185,19 @@ if ($arch eq "x86_64") {
     $objcopy .= " -O elf32-i386";
     $cc .= " -m32";
 
+} elsif ($arch eq "s390" && $bits == 32) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_32\\s+_mcount\$";
+    $alignment = 4;
+    $ld .= " -m elf_s390";
+    $cc .= " -m31";
+
+} elsif ($arch eq "s390" && $bits == 64) {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_390_(PC|PLT)32DBL\\s+_mcount\\+0x2\$";
+    $alignment = 8;
+    $type = ".quad";
+    $ld .= " -m elf64_s390";
+    $cc .= " -m64";
+
 } elsif ($arch eq "sh") {
     $alignment = 2;
 
@@ -213,6 +226,26 @@ if ($arch eq "x86_64") {
     if ($is_module eq "0") {
         $cc .= " -mconstant-gp";
     }
+} elsif ($arch eq "sparc64") {
+    # In the objdump output there are giblets like:
+    # 0000000000000000 <igmp_net_exit-0x18>:
+    # As there's some data blobs that get emitted into the
+    # text section before the first instructions and the first
+    # real symbols.  We don't want to match that, so to combat
+    # this we use '\w' so we'll match just plain symbol names,
+    # and not those that also include hex offsets inside of the
+    # '<>' brackets.  Actually the generic function_regex setting
+    # could safely use this too.
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(\\w*?)>:";
+
+    # Sparc64 calls '_mcount' instead of plain 'mcount'.
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
+
+    $alignment = 8;
+    $type = ".xword";
+    $ld .= " -m elf64_sparc";
+    $cc .= " -m64";
+    $objcopy .= " -O elf64-sparc";
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }

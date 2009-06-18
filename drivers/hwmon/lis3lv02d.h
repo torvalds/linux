@@ -18,6 +18,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/platform_device.h>
+#include <linux/input-polldev.h>
 
 /*
  * The actual chip is STMicroelectronics LIS3LV02DL or LIS3LV02DQ that seems to
@@ -27,12 +29,14 @@
  * They can also be connected via I²C.
  */
 
+#include <linux/lis3lv02d.h>
+
 /* 2-byte registers */
 #define LIS_DOUBLE_ID	0x3A /* LIS3LV02D[LQ] */
 /* 1-byte registers */
 #define LIS_SINGLE_ID	0x3B /* LIS[32]02DL and others */
 
-enum lis3lv02d_reg {
+enum lis3_reg {
 	WHO_AM_I	= 0x0F,
 	OFFSET_X	= 0x16,
 	OFFSET_Y	= 0x17,
@@ -60,6 +64,19 @@ enum lis3lv02d_reg {
 	FF_WU_THS_L	= 0x34,
 	FF_WU_THS_H	= 0x35,
 	FF_WU_DURATION	= 0x36,
+};
+
+enum lis302d_reg {
+	CLICK_CFG	= 0x38,
+	CLICK_SRC	= 0x39,
+	CLICK_THSY_X	= 0x3B,
+	CLICK_THSZ	= 0x3C,
+	CLICK_TIMELIMIT	= 0x3D,
+	CLICK_LATENCY	= 0x3E,
+	CLICK_WINDOW	= 0x3F,
+};
+
+enum lis3lv02d_reg {
 	DD_CFG		= 0x38,
 	DD_SRC		= 0x39,
 	DD_ACK		= 0x3A,
@@ -169,22 +186,20 @@ struct lis3lv02d {
 	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
 	int			mdps_max_val;
 
-	struct input_dev	*idev;     /* input device */
-	struct task_struct	*kthread;  /* kthread for input */
-	struct mutex            lock;
+	struct input_polled_dev	*idev;     /* input device */
 	struct platform_device	*pdev;     /* platform device */
 	atomic_t		count;     /* interrupt count after last read */
 	int			xcalib;    /* calibrated null value for x */
 	int			ycalib;    /* calibrated null value for y */
 	int			zcalib;    /* calibrated null value for z */
-	unsigned char		is_on;     /* whether the device is on or off */
-	unsigned char		usage;     /* usage counter */
 	struct axis_conversion	ac;        /* hw -> logical axis */
 
 	u32			irq;       /* IRQ number */
 	struct fasync_struct	*async_queue; /* queue for the misc device */
 	wait_queue_head_t	misc_wait; /* Wait queue for the misc device */
 	unsigned long		misc_opened; /* bit0: whether the device is open */
+
+	struct lis3lv02d_platform_data *pdata;	/* for passing board config */
 };
 
 int lis3lv02d_init_device(struct lis3lv02d *lis3);
@@ -192,6 +207,6 @@ int lis3lv02d_joystick_enable(void);
 void lis3lv02d_joystick_disable(void);
 void lis3lv02d_poweroff(struct lis3lv02d *lis3);
 void lis3lv02d_poweron(struct lis3lv02d *lis3);
-int lis3lv02d_remove_fs(void);
+int lis3lv02d_remove_fs(struct lis3lv02d *lis3);
 
 extern struct lis3lv02d lis3_dev;

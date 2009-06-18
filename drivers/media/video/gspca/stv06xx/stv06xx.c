@@ -293,8 +293,6 @@ static void stv06xx_stopN(struct gspca_dev *gspca_dev)
 		goto out;
 
 	err = sd->sensor->stop(sd);
-	if (err < 0)
-		goto out;
 
 out:
 	if (err < 0)

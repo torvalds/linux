@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/net/qeth_core_main.c
  *
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
  *		 Frank Pavlic <fpavlic@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,
@@ -952,6 +952,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		buf->buffer->element[i].addr = NULL;
 		buf->buffer->element[i].flags = 0;
 	}
+	buf->buffer->element[15].flags = 0;
 	buf->next_element_to_fill = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
 }
@@ -1140,6 +1141,8 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->ipato.enabled = 0;
 	card->ipato.invert4 = 0;
 	card->ipato.invert6 = 0;
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		card->options.checksum_type = NO_CHECKSUMMING;
 	/* init QDIO stuff */
 	qeth_init_qdio_info(card);
 	return 0;
@@ -2934,8 +2937,8 @@ int qeth_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return cast_type;
 
-	if (skb->dst && skb->dst->neighbour) {
-		cast_type = skb->dst->neighbour->type;
+	if (skb_dst(skb) && skb_dst(skb)->neighbour) {
+		cast_type = skb_dst(skb)->neighbour->type;
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))
@@ -4192,6 +4195,50 @@ static void qeth_core_shutdown(struct ccwgroup_device *gdev)
 		card->discipline.ccwgdriver->shutdown(gdev);
 }
 
+static int qeth_core_prepare(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (card->discipline.ccwgdriver &&
+	    card->discipline.ccwgdriver->prepare)
+		return card->discipline.ccwgdriver->prepare(gdev);
+	return 0;
+}
+
+static void qeth_core_complete(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (card->discipline.ccwgdriver &&
+	    card->discipline.ccwgdriver->complete)
+		card->discipline.ccwgdriver->complete(gdev);
+}
+
+static int qeth_core_freeze(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (card->discipline.ccwgdriver &&
+	    card->discipline.ccwgdriver->freeze)
+		return card->discipline.ccwgdriver->freeze(gdev);
+	return 0;
+}
+
+static int qeth_core_thaw(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (card->discipline.ccwgdriver &&
+	    card->discipline.ccwgdriver->thaw)
+		return card->discipline.ccwgdriver->thaw(gdev);
+	return 0;
+}
+
+static int qeth_core_restore(struct ccwgroup_device *gdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	if (card->discipline.ccwgdriver &&
+	    card->discipline.ccwgdriver->restore)
+		return card->discipline.ccwgdriver->restore(gdev);
+	return 0;
+}
+
 static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.owner = THIS_MODULE,
 	.name = "qeth",
@@ -4201,6 +4248,11 @@ static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
 	.set_online = qeth_core_set_online,
 	.set_offline = qeth_core_set_offline,
 	.shutdown = qeth_core_shutdown,
+	.prepare = qeth_core_prepare,
+	.complete = qeth_core_complete,
+	.freeze = qeth_core_freeze,
+	.thaw = qeth_core_thaw,
+	.restore = qeth_core_restore,
 };
 
 static ssize_t

@@ -98,6 +98,31 @@ int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len)
 }
 
 /*
+ *	Copy kernel to iovec. Returns -EFAULT on error.
+ */
+
+int memcpy_toiovecend(const struct iovec *iov, unsigned char *kdata,
+		      int offset, int len)
+{
+	int copy;
+	for (; len > 0; ++iov) {
+		/* Skip over the finished iovecs */
+		if (unlikely(offset >= iov->iov_len)) {
+			offset -= iov->iov_len;
+			continue;
+		}
+		copy = min_t(unsigned int, iov->iov_len - offset, len);
+		if (copy_to_user(iov->iov_base + offset, kdata, copy))
+			return -EFAULT;
+		offset = 0;
+		kdata += copy;
+		len -= copy;
+	}
+
+	return 0;
+}
+
+/*
  *	Copy iovec to kernel. Returns -EFAULT on error.
  *
  *	Note: this modifies the original iovec.
@@ -122,10 +147,11 @@ int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len)
 }
 
 /*
- *	For use with ip_build_xmit
+ *	Copy iovec from kernel. Returns -EFAULT on error.
  */
-int memcpy_fromiovecend(unsigned char *kdata, struct iovec *iov, int offset,
-			int len)
+
+int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
+			int offset, int len)
 {
 	/* Skip over the finished iovecs */
 	while (offset >= iov->iov_len) {
@@ -236,3 +262,4 @@ EXPORT_SYMBOL(csum_partial_copy_fromiovecend);
 EXPORT_SYMBOL(memcpy_fromiovec);
 EXPORT_SYMBOL(memcpy_fromiovecend);
 EXPORT_SYMBOL(memcpy_toiovec);
+EXPORT_SYMBOL(memcpy_toiovecend);

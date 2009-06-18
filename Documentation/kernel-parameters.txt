@@ -48,6 +48,7 @@ parameter is applicable:
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
 	FB	The frame buffer device is enabled.
+	GCOV	GCOV profiling is enabled.
 	HW	Appropriate hardware is enabled.
 	IA-64	IA-64 architecture is enabled.
 	IMA     Integrity measurement architecture is enabled.
@@ -491,6 +492,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			Also note the kernel might malfunction if you disable
 			some critical bits.
 
+	cmo_free_hint=	[PPC] Format: { yes | no }
+			Specify whether pages are marked as being inactive
+			when they are freed.  This is used in CMO environments
+			to determine OS memory pressure for page stealing by
+			a hypervisor.
+			Default: yes
+
 	code_bytes	[X86] How many bytes of object code to print
 			in an oops report.
 			Range: 0 - 8192
@@ -538,6 +546,10 @@ and is between 256 and 4096 characters. It is defined in the file
                 device, prepend "brl," before the device type, for instance
 			console=brl,ttyS0
 		For now, only VisioBraille is supported.
+
+	consoleblank=	[KNL] The console blank (screen saver) timeout in
+			seconds. Defaults to 10*60 = 10mins. A value of 0
+			disables the blank timer.
 
 	coredump_filter=
 			[KNL] Change the default value for
@@ -785,6 +797,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: off | on
 			default: on
 
+	gcov_persist=	[GCOV] When non-zero (default), profiling data for
+			kernel modules is saved and remains accessible via
+			debugfs, even when the module is unloaded/reloaded.
+			When zero, profiling data is discarded and associated
+			debugfs files are removed at module unload time.
+
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 
@@ -887,11 +905,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ide-core.nodma=	[HW] (E)IDE subsystem
 			Format: =0.0 to prevent dma on hda, =0.1 hdb =1.0 hdc
-			.vlb_clock .pci_clock .noflush .noprobe .nowerr .cdrom
-			.chs .ignore_cable are additional options
-			See Documentation/ide/ide.txt.
-
-	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
+			.vlb_clock .pci_clock .noflush .nohpa .noprobe .nowerr
+			.cdrom .chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
 
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
@@ -927,6 +942,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	ima_hash=	[IMA]
 			Formt: { "sha1" | "md5" }
 			default: "sha1"
+
+	ima_tcb		[IMA]
+			Load a policy which meets the needs of the Trusted
+			Computing Base.  This means IMA will measure all
+			programs exec'd, files mmap'd for exec, and all files
+			opened for read by uid=0.
 
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
@@ -1070,12 +1091,16 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	kgdboc=		[HW] kgdb over consoles.
 			Requires a tty driver that supports console polling.
-			(only serial suported for now)
+			(only serial supported for now)
 			Format: <serial_device>[,baud]
 
 	kmac=		[MIPS] korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
 			Ethernet adapter MAC address.
+
+	kmemleak=	[KNL] Boot-time kmemleak enable/disable
+			Valid arguments: on, off
+			Default: on
 
 	kstack=N	[X86] Print N words from the kernel stack
 			in oops dumps.
@@ -1395,7 +1420,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			('y', default) or cooked coordinates ('n')
 
 	mtrr_chunk_size=nn[KMG] [X86]
-			used for mtrr cleanup. It is largest continous chunk
+			used for mtrr cleanup. It is largest continuous chunk
 			that could hold holes aka. UC entries.
 
 	mtrr_gran_size=nn[KMG] [X86]

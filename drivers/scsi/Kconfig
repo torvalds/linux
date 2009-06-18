@@ -191,20 +191,19 @@ config SCSI_ENCLOSURE
 	  it has an enclosure device.  Selecting this option will just allow
 	  certain enclosure conditions to be reported and is not required.
 
-comment "Some SCSI devices (e.g. CD jukebox) support multiple LUNs"
-	depends on SCSI
-
 config SCSI_MULTI_LUN
 	bool "Probe all LUNs on each SCSI device"
 	depends on SCSI
 	help
-	  If you have a SCSI device that supports more than one LUN (Logical
-	  Unit Number), e.g. a CD jukebox, and only one LUN is detected, you
-	  can say Y here to force the SCSI driver to probe for multiple LUNs.
-	  A SCSI device with multiple LUNs acts logically like multiple SCSI
-	  devices. The vast majority of SCSI devices have only one LUN, and
-	  so most people can say N here. The max_luns boot/module parameter 
-	  allows to override this setting.
+	  Some devices support more than one LUN (Logical Unit Number) in order
+	  to allow access to several media, e.g. CD jukebox, USB card reader,
+	  mobile phone in mass storage mode. This option forces the kernel to
+	  probe for all LUNs by default. This setting can be overriden by
+	  max_luns boot/module parameter. Note that this option does not affect
+	  devices conforming to SCSI-3 or higher as they can explicitely report
+	  their number of LUNs. It is safe to say Y here unless you have one of
+	  those rare devices which reacts in an unexpected way when probed for
+	  multiple LUNs.
 
 config SCSI_CONSTANTS
 	bool "Verbose SCSI error reporting (kernel size +=12K)"
@@ -355,6 +354,7 @@ config ISCSI_TCP
 	 http://open-iscsi.org
 
 source "drivers/scsi/cxgb3i/Kconfig"
+source "drivers/scsi/bnx2i/Kconfig"
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
@@ -508,6 +508,7 @@ config SCSI_AIC7XXX_OLD
 
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
+source "drivers/scsi/mvsas/Kconfig"
 
 config SCSI_DPT_I2O
 	tristate "Adaptec I2O RAID support "
@@ -1049,16 +1050,6 @@ config SCSI_IZIP_SLOW_CTR
 	  (found in 386 vintage machines) will not work properly.
 
 	  Generally, saying N is fine.
-
-config SCSI_MVSAS
-	tristate "Marvell 88SE6440 SAS/SATA support"
-	depends on PCI && SCSI
-	select SCSI_SAS_LIBSAS
-	help
-	  This driver supports Marvell SAS/SATA PCI devices.
-
-	  To compiler this driver as a module, choose M here: the module
-	  will be called mvsas.
 
 config SCSI_NCR53C406A
 	tristate "NCR53c406a SCSI support"

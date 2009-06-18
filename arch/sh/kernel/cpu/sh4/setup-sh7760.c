@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/sh_timer.h>
 #include <linux/serial_sci.h>
 #include <linux/io.h>
 
@@ -18,10 +19,7 @@ enum {
 
 	/* interrupt sources */
 	IRL0, IRL1, IRL2, IRL3,
-	HUDI, GPIOI,
-	DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2, DMAC_DMTE3,
-	DMAC_DMTE4, DMAC_DMTE5, DMAC_DMTE6, DMAC_DMTE7,
-	DMAC_DMAE,
+	HUDI, GPIOI, DMAC,
 	IRQ4, IRQ5, IRQ6, IRQ7,
 	HCAN20, HCAN21,
 	SSI0, SSI1,
@@ -36,21 +34,20 @@ enum {
 	HSPI,
 	MMCIF0, MMCIF1, MMCIF2, MMCIF3,
 	MFI, ADC, CMT,
-	TMU0, TMU1, TMU2_TUNI, TMU2_TICPI,
-	WDT,
-	REF_RCMI, REF_ROVI,
+	TMU0, TMU1, TMU2,
+	WDT, REF,
 
 	/* interrupt groups */
-	DMAC, DMABRG, SCIF0, SCIF1, SCIF2, SIM, MMCIF, TMU2, REF,
+	DMABRG, SCIF0, SCIF1, SCIF2, SIM, MMCIF,
 };
 
 static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(HUDI, 0x600), INTC_VECT(GPIOI, 0x620),
-	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
-	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
-	INTC_VECT(DMAC_DMTE4, 0x780), INTC_VECT(DMAC_DMTE5, 0x7a0),
-	INTC_VECT(DMAC_DMTE6, 0x7c0), INTC_VECT(DMAC_DMTE7, 0x7e0),
-	INTC_VECT(DMAC_DMAE, 0x6c0),
+	INTC_VECT(DMAC, 0x640), INTC_VECT(DMAC, 0x660),
+	INTC_VECT(DMAC, 0x680), INTC_VECT(DMAC, 0x6a0),
+	INTC_VECT(DMAC, 0x780), INTC_VECT(DMAC, 0x7a0),
+	INTC_VECT(DMAC, 0x7c0), INTC_VECT(DMAC, 0x7e0),
+	INTC_VECT(DMAC, 0x6c0),
 	INTC_VECT(IRQ4, 0x800), INTC_VECT(IRQ5, 0x820),
 	INTC_VECT(IRQ6, 0x840), INTC_VECT(IRQ6, 0x860),
 	INTC_VECT(HCAN20, 0x900), INTC_VECT(HCAN21, 0x920),
@@ -74,23 +71,18 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(MFI, 0xe80), /* 0xf80 according to data sheet */
 	INTC_VECT(ADC, 0xf80), INTC_VECT(CMT, 0xfa0),
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
-	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
+	INTC_VECT(TMU2, 0x440), INTC_VECT(TMU2, 0x460),
 	INTC_VECT(WDT, 0x560),
-	INTC_VECT(REF_RCMI, 0x580), INTC_VECT(REF_ROVI, 0x5a0),
+	INTC_VECT(REF, 0x580), INTC_VECT(REF, 0x5a0),
 };
 
 static struct intc_group groups[] __initdata = {
-	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
-		   DMAC_DMTE3, DMAC_DMTE4, DMAC_DMTE5,
-		   DMAC_DMTE6, DMAC_DMTE7, DMAC_DMAE),
 	INTC_GROUP(DMABRG, DMABRG0, DMABRG1, DMABRG2),
 	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
 	INTC_GROUP(SCIF1, SCIF1_ERI, SCIF1_RXI, SCIF1_BRI, SCIF1_TXI),
 	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 	INTC_GROUP(SIM, SIM_ERI, SIM_RXI, SIM_TXI, SIM_TEI),
 	INTC_GROUP(MMCIF, MMCIF0, MMCIF1, MMCIF2, MMCIF3),
-	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
-	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
 };
 
 static struct intc_mask_reg mask_registers[] __initdata = {
@@ -168,8 +160,104 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct sh_timer_config tmu0_platform_data = {
+	.name = "TMU0",
+	.channel_offset = 0x04,
+	.timer_bit = 0,
+	.clk = "peripheral_clk",
+	.clockevent_rating = 200,
+};
+
+static struct resource tmu0_resources[] = {
+	[0] = {
+		.name	= "TMU0",
+		.start	= 0xffd80008,
+		.end	= 0xffd80013,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 16,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu0_device = {
+	.name		= "sh_tmu",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &tmu0_platform_data,
+	},
+	.resource	= tmu0_resources,
+	.num_resources	= ARRAY_SIZE(tmu0_resources),
+};
+
+static struct sh_timer_config tmu1_platform_data = {
+	.name = "TMU1",
+	.channel_offset = 0x10,
+	.timer_bit = 1,
+	.clk = "peripheral_clk",
+	.clocksource_rating = 200,
+};
+
+static struct resource tmu1_resources[] = {
+	[0] = {
+		.name	= "TMU1",
+		.start	= 0xffd80014,
+		.end	= 0xffd8001f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 17,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu1_device = {
+	.name		= "sh_tmu",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &tmu1_platform_data,
+	},
+	.resource	= tmu1_resources,
+	.num_resources	= ARRAY_SIZE(tmu1_resources),
+};
+
+static struct sh_timer_config tmu2_platform_data = {
+	.name = "TMU2",
+	.channel_offset = 0x1c,
+	.timer_bit = 2,
+	.clk = "peripheral_clk",
+};
+
+static struct resource tmu2_resources[] = {
+	[0] = {
+		.name	= "TMU2",
+		.start	= 0xffd80020,
+		.end	= 0xffd8002f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 18,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device tmu2_device = {
+	.name		= "sh_tmu",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &tmu2_platform_data,
+	},
+	.resource	= tmu2_resources,
+	.num_resources	= ARRAY_SIZE(tmu2_resources),
+};
+
+
 static struct platform_device *sh7760_devices[] __initdata = {
 	&sci_device,
+	&tmu0_device,
+	&tmu1_device,
+	&tmu2_device,
 };
 
 static int __init sh7760_devices_setup(void)
@@ -178,6 +266,18 @@ static int __init sh7760_devices_setup(void)
 				    ARRAY_SIZE(sh7760_devices));
 }
 __initcall(sh7760_devices_setup);
+
+static struct platform_device *sh7760_early_devices[] __initdata = {
+	&tmu0_device,
+	&tmu1_device,
+	&tmu2_device,
+};
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7760_early_devices,
+				   ARRAY_SIZE(sh7760_early_devices));
+}
 
 #define INTC_ICR	0xffd00000UL
 #define INTC_ICR_IRLM	(1 << 7)

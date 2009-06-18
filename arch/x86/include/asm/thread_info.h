@@ -154,9 +154,9 @@ struct thread_info {
 
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
+#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
 #else
-#define THREAD_FLAGS GFP_KERNEL
+#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK)
 #endif
 
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR

@@ -2,7 +2,7 @@
  * Linux driver for System z and s390 unit record devices
  * (z/VM virtual punch, reader, printer)
  *
- * Copyright IBM Corp. 2001, 2007
+ * Copyright IBM Corp. 2001, 2009
  * Authors: Malcolm Beattie <beattiem@uk.ibm.com>
  *	    Michael Holzheu <holzheu@de.ibm.com>
  *	    Frank Munzert <munzert@de.ibm.com>
@@ -60,6 +60,7 @@ static int ur_probe(struct ccw_device *cdev);
 static void ur_remove(struct ccw_device *cdev);
 static int ur_set_online(struct ccw_device *cdev);
 static int ur_set_offline(struct ccw_device *cdev);
+static int ur_pm_suspend(struct ccw_device *cdev);
 
 static struct ccw_driver ur_driver = {
 	.name		= "vmur",
@@ -69,6 +70,7 @@ static struct ccw_driver ur_driver = {
 	.remove		= ur_remove,
 	.set_online	= ur_set_online,
 	.set_offline	= ur_set_offline,
+	.freeze		= ur_pm_suspend,
 };
 
 static DEFINE_MUTEX(vmur_mutex);
@@ -78,11 +80,11 @@ static DEFINE_MUTEX(vmur_mutex);
  *
  * Each ur device (urd) contains a reference to its corresponding ccw device
  * (cdev) using the urd->cdev pointer. Each ccw device has a reference to the
- * ur device using the cdev->dev.driver_data pointer.
+ * ur device using dev_get_drvdata(&cdev->dev) pointer.
  *
  * urd references:
  * - ur_probe gets a urd reference, ur_remove drops the reference
- *   (cdev->dev.driver_data)
+ *   dev_get_drvdata(&cdev->dev)
  * - ur_open gets a urd reference, ur_relase drops the reference
  *   (urf->urd)
  *
@@ -90,7 +92,7 @@ static DEFINE_MUTEX(vmur_mutex);
  * - urdev_alloc get a cdev reference (urd->cdev)
  * - urdev_free drops the cdev reference (urd->cdev)
  *
- * Setting and clearing of cdev->dev.driver_data is protected by the ccwdev lock
+ * Setting and clearing of dev_get_drvdata(&cdev->dev) is protected by the ccwdev lock
  */
 static struct urdev *urdev_alloc(struct ccw_device *cdev)
 {
@@ -129,7 +131,7 @@ static struct urdev *urdev_get_from_cdev(struct ccw_device *cdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-	urd = cdev->dev.driver_data;
+	urd = dev_get_drvdata(&cdev->dev);
 	if (urd)
 		urdev_get(urd);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
@@ -155,6 +157,28 @@ static void urdev_put(struct urdev *urd)
 {
 	if (atomic_dec_and_test(&urd->ref_count))
 		urdev_free(urd);
+}
+
+/*
+ * State and contents of ur devices can be changed by class D users issuing
+ * CP commands such as PURGE or TRANSFER, while the Linux guest is suspended.
+ * Also the Linux guest might be logged off, which causes all active spool
+ * files to be closed.
+ * So we cannot guarantee that spool files are still the same when the Linux
+ * guest is resumed. In order to avoid unpredictable results at resume time
+ * we simply refuse to suspend if a ur device node is open.
+ */
+static int ur_pm_suspend(struct ccw_device *cdev)
+{
+	struct urdev *urd = cdev->dev.driver_data;
+
+	TRACE("ur_pm_suspend: cdev=%p\n", cdev);
+	if (urd->open_flag) {
+		pr_err("Unit record device %s is busy, %s refusing to "
+		       "suspend.\n", dev_name(&cdev->dev), ur_banner);
+		return -EBUSY;
+	}
+	return 0;
 }
 
 /*
@@ -286,7 +310,7 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		TRACE("ur_int_handler: unsolicited interrupt\n");
 		return;
 	}
-	urd = cdev->dev.driver_data;
+	urd = dev_get_drvdata(&cdev->dev);
 	BUG_ON(!urd);
 	/* On special conditions irb is an error pointer */
 	if (IS_ERR(irb))
@@ -832,7 +856,7 @@ static int ur_probe(struct ccw_device *cdev)
 		goto fail_remove_attr;
 	}
 	spin_lock_irq(get_ccwdev_lock(cdev));
-	cdev->dev.driver_data = urd;
+	dev_set_drvdata(&cdev->dev, urd);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	mutex_unlock(&vmur_mutex);
@@ -972,8 +996,8 @@ static void ur_remove(struct ccw_device *cdev)
 	ur_remove_attributes(&cdev->dev);
 
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
-	urdev_put(cdev->dev.driver_data);
-	cdev->dev.driver_data = NULL;
+	urdev_put(dev_get_drvdata(&cdev->dev));
+	dev_set_drvdata(&cdev->dev, NULL);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	mutex_unlock(&vmur_mutex);

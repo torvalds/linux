@@ -13,6 +13,7 @@
 #include <linux/io.h>
 
 #include <asm/stackprotector.h>
+#include <asm/perf_counter.h>
 #include <asm/mmu_context.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -486,7 +487,6 @@ out:
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
-	static int printed;
 	int i;
 
 	for (i = 0; i < X86_VENDOR_NUM; i++) {
@@ -503,13 +503,9 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		}
 	}
 
-	if (!printed) {
-		printed++;
-		printk(KERN_ERR
-		    "CPU: vendor_id '%s' unknown, using generic init.\n", v);
-
-		printk(KERN_ERR "CPU: Your system may be unstable.\n");
-	}
+	printk_once(KERN_ERR
+			"CPU: vendor_id '%s' unknown, using generic init.\n" \
+			"CPU: Your system may be unstable.\n", v);
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;
@@ -874,6 +870,7 @@ void __init identify_boot_cpu(void)
 #else
 	vgetcpu_set_mode();
 #endif
+	init_hw_perf_counters();
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)

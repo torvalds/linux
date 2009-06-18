@@ -245,6 +245,9 @@ struct spi_master {
 	 */
 	u16			dma_alignment;
 
+	/* spi_device.mode flags understood by this controller driver */
+	u16			mode_bits;
+
 	/* Setup mode and clock, etc (spi driver may call many times).
 	 *
 	 * IMPORTANT:  this may be called when transfers to another
@@ -523,30 +526,7 @@ static inline void spi_message_free(struct spi_message *m)
 	kfree(m);
 }
 
-/**
- * spi_setup - setup SPI mode and clock rate
- * @spi: the device whose settings are being modified
- * Context: can sleep, and no requests are queued to the device
- *
- * SPI protocol drivers may need to update the transfer mode if the
- * device doesn't work with its default.  They may likewise need
- * to update clock rates or word sizes from initial values.  This function
- * changes those settings, and must be called from a context that can sleep.
- * Except for SPI_CS_HIGH, which takes effect immediately, the changes take
- * effect the next time the device is selected and data is transferred to
- * or from it.  When this function returns, the spi device is deselected.
- *
- * Note that this call will fail if the protocol driver specifies an option
- * that the underlying controller or its driver does not support.  For
- * example, not all hardware supports wire transfers using nine bit words,
- * LSB-first wire encoding, or active-high chipselects.
- */
-static inline int
-spi_setup(struct spi_device *spi)
-{
-	return spi->master->setup(spi);
-}
-
+extern int spi_setup(struct spi_device *spi);
 
 /**
  * spi_async - asynchronous SPI transfer

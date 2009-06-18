@@ -677,6 +677,9 @@ struct fb_ops {
 	/* get capability given var */
 	void (*fb_get_caps)(struct fb_info *info, struct fb_blit_caps *caps,
 			    struct fb_var_screeninfo *var);
+
+	/* teardown any resources to do with this framebuffer */
+	void (*fb_destroy)(struct fb_info *info);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
@@ -786,6 +789,8 @@ struct fb_tile_ops {
 #define FBINFO_MISC_USEREVENT          0x10000 /* event request
 						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
+#define FBINFO_MISC_FIRMWARE           0x40000 /* a replaceable firmware
+						  inited framebuffer */
 
 /* A driver may set this flag to indicate that it does want a set_par to be
  * called every time when fbcon_switch is executed. The advantage is that with
@@ -854,7 +859,12 @@ struct fb_info {
 	u32 state;			/* Hardware state i.e suspend */
 	void *fbcon_par;                /* fbcon use-only private area */
 	/* From here on everything is device dependent */
-	void *par;	
+	void *par;
+	/* we need the PCI or similiar aperture base/size not
+	   smem_start/size as smem_start may just be an object
+	   allocated inside the aperture so may not actually overlap */
+	resource_size_t aperture_base;
+	resource_size_t aperture_size;
 };
 
 #ifdef MODULE
@@ -893,7 +903,7 @@ struct fb_info {
 #define fb_writeq sbus_writeq
 #define fb_memset sbus_memset_io
 
-#elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || defined(__sh__) || defined(__powerpc__) || defined(__avr32__)
+#elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || defined(__sh__) || defined(__powerpc__) || defined(__avr32__) || defined(__bfin__)
 
 #define fb_readb __raw_readb
 #define fb_readw __raw_readw

@@ -51,7 +51,22 @@ struct idr drm_minors_idr;
 struct class *drm_class;
 struct proc_dir_entry *drm_proc_root;
 struct dentry *drm_debugfs_root;
+void drm_ut_debug_printk(unsigned int request_level,
+			 const char *prefix,
+			 const char *function_name,
+			 const char *format, ...)
+{
+	va_list args;
 
+	if (drm_debug & request_level) {
+		if (function_name)
+			printk(KERN_DEBUG "[%s:%s], ", prefix, function_name);
+		va_start(args, format);
+		vprintk(format, args);
+		va_end(args);
+	}
+}
+EXPORT_SYMBOL(drm_ut_debug_printk);
 static int drm_minor_get_id(struct drm_device *dev, int type)
 {
 	int new_id;
@@ -328,7 +343,7 @@ static int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int t
 #if defined(CONFIG_DEBUG_FS)
 	ret = drm_debugfs_init(new_minor, minor_id, drm_debugfs_root);
 	if (ret) {
-		DRM_ERROR("DRM: Failed to initialize /debugfs/dri.\n");
+		DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
 		goto err_g2;
 	}
 #endif

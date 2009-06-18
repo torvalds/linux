@@ -1,7 +1,7 @@
 #ifndef _ASM_X86_MMAN_H
 #define _ASM_X86_MMAN_H
 
-#include <asm-generic/mman.h>
+#include <asm-generic/mman-common.h>
 
 #define MAP_32BIT	0x40		/* only give out 32bit addresses */
 

@@ -138,7 +138,7 @@ psa_read(struct net_device *	dev,
 
 /*------------------------------------------------------------------*/
 /*
- * Write the Paramter Storage Area to the WaveLAN card's memory
+ * Write the Parameter Storage Area to the WaveLAN card's memory
  */
 static void
 psa_write(struct net_device *	dev,
@@ -3106,11 +3106,6 @@ wavelan_packet_xmit(struct sk_buff *	skb,
       /* Note : the configure procedure was totally synchronous,
        * so the Tx buffer is now free */
     }
-
-#ifdef DEBUG_TX_ERROR
-	if (skb->next)
-		printk(KERN_INFO "skb has next\n");
-#endif
 
 	/* Check if we need some padding */
 	/* Note : on wireless the propagation time is in the order of 1us,

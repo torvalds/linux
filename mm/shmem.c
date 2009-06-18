@@ -1097,7 +1097,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	shmem_swp_unmap(entry);
 unlock:
 	spin_unlock(&info->lock);
-	swap_free(swap);
+	swapcache_free(swap, NULL);
 redirty:
 	set_page_dirty(page);
 	if (wbc->for_reclaim)
@@ -2612,7 +2612,7 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
  * @size: size to be set for the file
  * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
  */
-struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
+struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
 {
 	int error;
 	struct file *file;
@@ -2659,6 +2659,7 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 	if (error)
 		goto close_file;
 #endif
+	ima_counts_get(file);
 	return file;
 
 close_file:
@@ -2684,7 +2685,6 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	ima_shm_check(file);
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	vma->vm_file = file;

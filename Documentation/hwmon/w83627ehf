@@ -12,6 +12,10 @@ Supported chips:
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet:
         http://www.nuvoton.com.tw/NR/rdonlyres/7885623D-A487-4CF9-A47F-30C5F73D6FE6/0/W83627DHG.pdf
+  * Winbond W83627DHG-P
+    Prefix: 'w83627dhg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: not available
   * Winbond W83667HG
     Prefix: 'w83667hg'
     Addresses scanned: ISA address retrieved from Super I/O registers
@@ -28,8 +32,8 @@ Description
 -----------
 
 This driver implements support for the Winbond W83627EHF, W83627EHG,
-W83627DHG and W83667HG super I/O chips. We will refer to them collectively
-as Winbond chips.
+W83627DHG, W83627DHG-P and W83667HG super I/O chips. We will refer to them
+collectively as Winbond chips.
 
 The chips implement three temperature sensors, five fan rotation
 speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
@@ -135,3 +139,6 @@ done in the driver for all register addresses.
 The DHG also supports PECI, where the DHG queries Intel CPU temperatures, and
 the ICH8 southbridge gets that data via PECI from the DHG, so that the
 southbridge drives the fans. And the DHG supports SST, a one-wire serial bus.
+
+The DHG-P has an additional automatic fan speed control mode named Smart Fan
+(TM) III+. This mode is not yet supported by the driver.
