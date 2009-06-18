@@ -173,9 +173,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	range->min_frag = 256;
 	range->max_frag = 2346;
 
-	range->encoding_size[0] = 5;
-	range->encoding_size[1] = 13;
-	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = 4;
 
 	range->max_qual.updated = IW_QUAL_NOISE_INVALID;
@@ -214,6 +211,16 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 
 		case WLAN_CIPHER_SUITE_CCMP:
 			range->enc_capa |= IW_ENC_CAPA_CIPHER_CCMP;
+			break;
+
+		case WLAN_CIPHER_SUITE_WEP40:
+			range->encoding_size[range->num_encoding_sizes++] =
+				WLAN_KEY_LEN_WEP40;
+			break;
+
+		case WLAN_CIPHER_SUITE_WEP104:
+			range->encoding_size[range->num_encoding_sizes++] =
+				WLAN_KEY_LEN_WEP104;
 			break;
 		}
 	}
