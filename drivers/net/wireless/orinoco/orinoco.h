@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
+#include <net/cfg80211.h>
 
 #include "hermes.h"
 
@@ -66,6 +67,10 @@ struct orinoco_private {
 	struct device *dev;
 	int (*hard_reset)(struct orinoco_private *);
 	int (*stop_fw)(struct orinoco_private *, int);
+
+	struct ieee80211_supported_band band;
+	struct ieee80211_channel channels[14];
+	u32 cipher_suites[3];
 
 	/* Synchronisation stuff */
 	spinlock_t lock;
@@ -216,4 +221,10 @@ static inline void orinoco_unlock(struct orinoco_private *priv,
 	spin_unlock_irqrestore(&priv->lock, *flags);
 }
 
+/*** Navigate from net_device to orinoco_private ***/
+static inline struct orinoco_private *ndev_priv(struct net_device *dev)
+{
+	struct wireless_dev *wdev = netdev_priv(dev);
+	return wdev_priv(wdev);
+}
 #endif /* _ORINOCO_H */

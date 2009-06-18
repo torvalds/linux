@@ -89,6 +89,7 @@
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <net/iw_handler.h>
+#include <net/cfg80211.h>
 
 #include "hermes_rid.h"
 #include "hermes_dld.h"
@@ -97,6 +98,7 @@
 #include "mic.h"
 #include "fw.h"
 #include "wext.h"
+#include "cfg.h"
 #include "main.h"
 
 #include "orinoco.h"
@@ -246,7 +248,7 @@ void set_port_type(struct orinoco_private *priv)
 
 static int orinoco_open(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	unsigned long flags;
 	int err;
 
@@ -265,7 +267,7 @@ static int orinoco_open(struct net_device *dev)
 
 static int orinoco_stop(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	int err = 0;
 
 	/* We mustn't use orinoco_lock() here, because we need to be
@@ -284,14 +286,14 @@ static int orinoco_stop(struct net_device *dev)
 
 static struct net_device_stats *orinoco_get_stats(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 
 	return &priv->stats;
 }
 
 static void orinoco_set_multicast_list(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	unsigned long flags;
 
 	if (orinoco_lock(priv, &flags) != 0) {
@@ -306,7 +308,7 @@ static void orinoco_set_multicast_list(struct net_device *dev)
 
 static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 
 	if ((new_mtu < ORINOCO_MIN_MTU) || (new_mtu > ORINOCO_MAX_MTU))
 		return -EINVAL;
@@ -327,7 +329,7 @@ static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 
 static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	hermes_t *hw = &priv->hw;
 	int err = 0;
@@ -517,7 +519,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void __orinoco_ev_alloc(struct net_device *dev, hermes_t *hw)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	u16 fid = hermes_read_regn(hw, ALLOCFID);
 
 	if (fid != priv->txfid) {
@@ -532,7 +534,7 @@ static void __orinoco_ev_alloc(struct net_device *dev, hermes_t *hw)
 
 static void __orinoco_ev_tx(struct net_device *dev, hermes_t *hw)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 
 	stats->tx_packets++;
@@ -544,7 +546,7 @@ static void __orinoco_ev_tx(struct net_device *dev, hermes_t *hw)
 
 static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
 	u16 status;
@@ -600,7 +602,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 
 static void orinoco_tx_timeout(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	struct hermes *hw = &priv->hw;
 
@@ -649,7 +651,7 @@ static void orinoco_stat_gather(struct net_device *dev,
 				struct sk_buff *skb,
 				struct hermes_rx_descriptor *desc)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 
 	/* Using spy support with lots of Rx packets, like in an
 	 * infrastructure (AP), will really slow down everything, because
@@ -686,7 +688,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	int err;
 	int len;
 	struct sk_buff *skb;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	hermes_t *hw = &priv->hw;
 
@@ -777,7 +779,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 
 static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	struct iw_statistics *wstats = &priv->wstats;
 	struct sk_buff *skb = NULL;
@@ -901,7 +903,7 @@ static void orinoco_rx(struct net_device *dev,
 		       struct hermes_rx_descriptor *desc,
 		       struct sk_buff *skb)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &priv->stats;
 	u16 status, fc;
 	int length;
@@ -1016,7 +1018,7 @@ static void orinoco_rx(struct net_device *dev,
 static void orinoco_rx_isr_tasklet(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	struct orinoco_rx_data *rx_data, *temp;
 	struct hermes_rx_descriptor *desc;
 	struct sk_buff *skb;
@@ -1261,7 +1263,7 @@ static void orinoco_send_wevents(struct work_struct *work)
 
 static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	u16 infofid;
 	struct {
 		__le16 len;
@@ -1594,7 +1596,7 @@ EXPORT_SYMBOL(orinoco_reinit_firmware);
 
 int __orinoco_program_rids(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	hermes_t *hw = &priv->hw;
 	int err;
 	struct hermes_idstring idbuf;
@@ -1825,7 +1827,7 @@ int __orinoco_program_rids(struct net_device *dev)
 static void
 __orinoco_set_multicast_list(struct net_device *dev)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 	int err = 0;
 	int promisc, mc_count;
 
@@ -2077,6 +2079,7 @@ static void orinoco_unregister_pm_notifier(struct orinoco_private *priv)
 int orinoco_init(struct orinoco_private *priv)
 {
 	struct device *dev = priv->dev;
+	struct wiphy *wiphy = priv_to_wiphy(priv);
 	hermes_t *hw = &priv->hw;
 	int err = 0;
 
@@ -2137,10 +2140,10 @@ int orinoco_init(struct orinoco_private *priv)
 		goto out;
 	orinoco_bss_data_init(priv);
 
-	/* Netdev has not initialised, but we have allocated the buffer. */
-	err = orinoco_hw_read_card_settings(priv, priv->ndev->dev_addr);
+	err = orinoco_hw_read_card_settings(priv, wiphy->perm_addr);
 	if (err)
 		goto out;
+	memcpy(priv->ndev->dev_addr, wiphy->perm_addr, ETH_ALEN);
 
 	err = orinoco_hw_allocate_fid(priv);
 	if (err) {
@@ -2163,6 +2166,11 @@ int orinoco_init(struct orinoco_private *priv)
 	priv->key_mgmt = 0;
 	priv->wpa_ie_len = 0;
 	priv->wpa_ie = NULL;
+
+	if (orinoco_wiphy_register(wiphy)) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	/* Make the hardware available, as long as it hasn't been
 	 * removed elsewhere (e.g. by PCMCIA hot unplug) */
@@ -2187,6 +2195,31 @@ static const struct net_device_ops orinoco_netdev_ops = {
 	.ndo_get_stats		= orinoco_get_stats,
 };
 
+/* Allocate private data.
+ *
+ * This driver has a number of structures associated with it
+ *  netdev - Net device structure for each network interface
+ *  wiphy - structure associated with wireless phy
+ *  wireless_dev (wdev) - structure for each wireless interface
+ *  hw - structure for hermes chip info
+ *  card - card specific structure for use by the card driver
+ *         (airport, orinoco_cs)
+ *  priv - orinoco private data
+ *  device - generic linux device structure
+ *
+ *  +---------+    +---------+
+ *  |  wiphy  |    | netdev  |
+ *  | +-------+    | +-------+
+ *  | | priv  |    | | wdev  |
+ *  | | +-----+    +-+-------+
+ *  | | | hw  |
+ *  | +-+-----+
+ *  | | card  |
+ *  +-+-------+
+ *
+ * priv has a link to netdev and device
+ * wdev has a link to wiphy
+ */
 struct orinoco_private
 *alloc_orinocodev(int sizeof_card,
 		  struct device *device,
@@ -2195,12 +2228,27 @@ struct orinoco_private
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
+	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
 
-	dev = alloc_etherdev(sizeof(struct orinoco_private) + sizeof_card);
-	if (!dev)
+	/* allocate wiphy
+	 * NOTE: We only support a single virtual interface
+	 *       but this may change when monitor mode is added
+	 */
+	wiphy = wiphy_new(&orinoco_cfg_ops,
+			  sizeof(struct orinoco_private) + sizeof_card);
+	if (!wiphy)
 		return NULL;
-	priv = netdev_priv(dev);
+
+	dev = alloc_etherdev(sizeof(struct wireless_dev));
+	if (!dev) {
+		wiphy_free(wiphy);
+		return NULL;
+	}
+
+	priv = wiphy_priv(wiphy);
 	priv->ndev = dev;
+
 	if (sizeof_card)
 		priv->card = (void *)((unsigned long)priv
 				      + sizeof(struct orinoco_private));
@@ -2208,7 +2256,15 @@ struct orinoco_private
 		priv->card = NULL;
 	priv->dev = device;
 
+	orinoco_wiphy_init(wiphy);
+
+	/* Initialise wireless_dev */
+	wdev = netdev_priv(dev);
+	wdev->wiphy = wiphy;
+	wdev->iftype = NL80211_IFTYPE_STATION;
+
 	/* Setup / override net_device fields */
+	dev->ieee80211_ptr = wdev;
 	dev->netdev_ops = &orinoco_netdev_ops;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->ethtool_ops = &orinoco_ethtool_ops;
@@ -2257,7 +2313,10 @@ EXPORT_SYMBOL(alloc_orinocodev);
 void free_orinocodev(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
+	struct wiphy *wiphy = priv_to_wiphy(priv);
 	struct orinoco_rx_data *rx_data, *temp;
+
+	wiphy_unregister(wiphy);
 
 	/* If the tasklet is scheduled when we call tasklet_kill it
 	 * will run one final time. However the tasklet will only
@@ -2281,13 +2340,14 @@ void free_orinocodev(struct orinoco_private *priv)
 	orinoco_mic_free(priv);
 	orinoco_bss_data_free(priv);
 	free_netdev(dev);
+	wiphy_free(wiphy);
 }
 EXPORT_SYMBOL(free_orinocodev);
 
 static void orinoco_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = ndev_priv(dev);
 
 	strncpy(info->driver, DRIVER_NAME, sizeof(info->driver) - 1);
 	strncpy(info->version, DRIVER_VERSION, sizeof(info->version) - 1);
