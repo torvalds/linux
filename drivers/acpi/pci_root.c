@@ -63,9 +63,10 @@ static struct acpi_driver acpi_pci_root_driver = {
 
 struct acpi_pci_root {
 	struct list_head node;
-	struct acpi_device * device;
-	struct acpi_pci_id id;
+	struct acpi_device *device;
 	struct pci_bus *bus;
+	u16 segment;
+	u8 bus_nr;
 
 	u32 osc_support_set;	/* _OSC state of support bits */
 	u32 osc_control_set;	/* _OSC state of control bits */
@@ -129,7 +130,7 @@ acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 	struct acpi_pci_root *root;
 	
 	list_for_each_entry(root, &acpi_pci_roots, node)
-		if ((root->id.segment == (u16) seg) && (root->id.bus == (u16) bus))
+		if ((root->segment == (u16) seg) && (root->bus_nr == (u16) bus))
 			return root->device->handle;
 	return NULL;		
 }
@@ -395,6 +396,8 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 	INIT_LIST_HEAD(&root->node);
 	root->device = device;
+	root->segment = segment & 0xFFFF;
+	root->bus_nr = bus & 0xFF;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
@@ -409,16 +412,6 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	acpi_pci_osc_support(root, flags);
 
 	/*
-	 * Device & Function
-	 * -----------------
-	 * Obtained from _ADR (which has already been evaluated for us).
-	 */
-	root->id.segment = segment & 0xFFFF;
-	root->id.bus = bus & 0xFF;
-	root->id.device = device->pnp.bus_address >> 16;
-	root->id.function = device->pnp.bus_address & 0xFFFF;
-
-	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
 	 */
 
@@ -427,7 +420,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 
 	printk(KERN_INFO PREFIX "%s [%s] (%04x:%02x)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
-	       root->id.segment, root->id.bus);
+	       root->segment, root->bus_nr);
 
 	/*
 	 * Scan the Root Bridge
@@ -436,11 +429,11 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 * PCI namespace does not get created until this call is made (and 
 	 * thus the root bridge's pci_dev does not exist).
 	 */
-	root->bus = pci_acpi_scan_root(device, root->id.segment, root->id.bus);
+	root->bus = pci_acpi_scan_root(device, segment, bus);
 	if (!root->bus) {
 		printk(KERN_ERR PREFIX
 			    "Bus %04x:%02x not present in PCI namespace\n",
-			    root->id.segment, root->id.bus);
+			    root->segment, root->bus_nr);
 		result = -ENODEV;
 		goto end;
 	}
