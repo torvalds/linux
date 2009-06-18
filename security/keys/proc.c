@@ -120,6 +120,7 @@ static int proc_keys_open(struct inode *inode, struct file *file)
 }
 
 static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
+	__acquires(key_serial_lock)
 {
 	struct rb_node *_p;
 	loff_t pos = *_pos;
@@ -144,6 +145,7 @@ static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 }
 
 static void proc_keys_stop(struct seq_file *p, void *v)
+	__releases(key_serial_lock)
 {
 	spin_unlock(&key_serial_lock);
 }
@@ -257,6 +259,7 @@ static int proc_key_users_open(struct inode *inode, struct file *file)
 }
 
 static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
+	__acquires(key_user_lock)
 {
 	struct rb_node *_p;
 	loff_t pos = *_pos;
@@ -281,6 +284,7 @@ static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)
+	__releases(key_user_lock)
 {
 	spin_unlock(&key_user_lock);
 }
