@@ -1863,7 +1863,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 	int rc;
 
 	/* For 518 and 518+ */
-	static struct ov_regvals init_518[] = {
+	const struct ov_regvals init_518[] = {
 		{ R51x_SYS_RESET,	0x40 },
 		{ R51x_SYS_INIT,	0xe1 },
 		{ R51x_SYS_RESET,	0x3e },
@@ -1874,7 +1874,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x5d,			0x03 },
 	};
 
-	static struct ov_regvals norm_518[] = {
+	const struct ov_regvals norm_518[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31, 		0x0f },
@@ -1887,7 +1887,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x2f,			0x80 },
 	};
 
-	static struct ov_regvals norm_518_p[] = {
+	const struct ov_regvals norm_518_p[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31, 		0x0f },
