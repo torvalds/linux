@@ -127,7 +127,9 @@ int nfs_callback_up(void)
 		nfs_callback_tcpport6 = ret;
 		dprintk("NFS: Callback listener port = %u (af %u)\n",
 				nfs_callback_tcpport6, PF_INET6);
-	} else if (ret != -EAFNOSUPPORT)
+	} else if (ret == -EAFNOSUPPORT)
+		ret = 0;
+	else
 		goto out_err;
 #endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
