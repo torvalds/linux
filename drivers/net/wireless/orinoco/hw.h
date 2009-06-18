@@ -23,6 +23,7 @@
 struct orinoco_private;
 struct dev_addr_list;
 
+int determine_fw_capabilities(struct orinoco_private *priv);
 int orinoco_get_bitratemode(int bitrate, int automatic);
 void orinoco_get_ratemode_cfg(int ratemode, int *bitrate, int *automatic);
 
