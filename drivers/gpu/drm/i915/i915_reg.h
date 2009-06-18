@@ -206,6 +206,7 @@
 /*
  * Instruction and interrupt control regs
  */
+#define PGTBL_ER	0x02024
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
 #define PRB0_START	0x02038
@@ -226,11 +227,18 @@
 #define PRB1_HEAD	0x02044 /* 915+ only */
 #define PRB1_START	0x02048 /* 915+ only */
 #define PRB1_CTL	0x0204c /* 915+ only */
+#define IPEIR_I965	0x02064
+#define IPEHR_I965	0x02068
+#define INSTDONE_I965	0x0206c
+#define INSTPS		0x02070 /* 965+ only */
+#define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define IPEIR		0x02088
+#define IPEHR		0x0208c
+#define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 #define SCPD0		0x0209c /* 915+ only */
@@ -258,6 +266,12 @@
 #define EIR		0x020b0
 #define EMR		0x020b4
 #define ESR		0x020b8
+#define   GM45_ERROR_PAGE_TABLE				(1<<5)
+#define   GM45_ERROR_MEM_PRIV				(1<<4)
+#define   I915_ERROR_PAGE_TABLE				(1<<4)
+#define   GM45_ERROR_CP_PRIV				(1<<3)
+#define   I915_ERROR_MEMORY_REFRESH			(1<<1)
+#define   I915_ERROR_INSTRUCTION			(1<<0)
 #define INSTPM	        0x020c0
 #define ACTHD	        0x020c8
 #define FW_BLC		0x020d8

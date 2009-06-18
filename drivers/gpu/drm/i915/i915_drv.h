@@ -133,6 +133,22 @@ struct sdvo_device_mapping {
 	u8 initialized;
 };
 
+struct drm_i915_error_state {
+	u32 eir;
+	u32 pgtbl_er;
+	u32 pipeastat;
+	u32 pipebstat;
+	u32 ipeir;
+	u32 ipehr;
+	u32 instdone;
+	u32 acthd;
+	u32 instpm;
+	u32 instps;
+	u32 instdone1;
+	u32 seqno;
+	struct timeval time;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -208,6 +224,9 @@ typedef struct drm_i915_private {
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
+
+	spinlock_t error_lock;
+	struct drm_i915_error_state *first_error;
 
 	/* Register state */
 	u8 saveLBB;
