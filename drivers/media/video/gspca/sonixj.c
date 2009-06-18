@@ -138,11 +138,11 @@ static struct ctrl sd_ctrls[] = {
 	    {
 		.id      = V4L2_CID_SATURATION,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Color",
+		.name    = "Saturation",
 		.minimum = 0,
 		.maximum = 40,
 		.step    = 1,
-#define COLOR_DEF 32
+#define COLOR_DEF 25
 		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
