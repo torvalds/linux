@@ -1987,7 +1987,8 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	switch (cmd) {
 		case SIOCOUTQ:
 		{
-			int amount = atomic_read(&sk->sk_wmem_alloc);
+			int amount = sk_wmem_alloc_get(sk);
+
 			return put_user(amount, (int __user *)arg);
 		}
 		case SIOCINQ:

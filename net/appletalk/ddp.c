@@ -1748,8 +1748,7 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 		/* Protocol layer */
 		case TIOCOUTQ: {
-			long amount = sk->sk_sndbuf -
-				      atomic_read(&sk->sk_wmem_alloc);
+			long amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 
 			if (amount < 0)
 				amount = 0;

@@ -126,7 +126,8 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	switch (cmd) {
 	case SIOCOUTQ:
 	{
-		int amount = atomic_read(&sk->sk_wmem_alloc);
+		int amount = sk_wmem_alloc_get(sk);
+
 		return put_user(amount, (int __user *)arg);
 	}
 
