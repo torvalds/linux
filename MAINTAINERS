@@ -2849,7 +2849,7 @@ W:	http://apps.sourceforge.net/trac/linux-zigbee
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lumag/lowpan.git
 S:	Maintained
 F:	net/ieee802154/
-F:	drivers/ieee801254/
+F:	drivers/ieee802154/
 
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 P:	Mimi Zohar
