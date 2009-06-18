@@ -201,16 +201,16 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	range->avg_qual.noise = range->max_qual.noise / 2;
 	range->avg_qual.updated = range->max_qual.updated;
 
-	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2;
-
 	for (c = 0; c < wdev->wiphy->n_cipher_suites; c++) {
 		switch (wdev->wiphy->cipher_suites[c]) {
 		case WLAN_CIPHER_SUITE_TKIP:
-			range->enc_capa |= IW_ENC_CAPA_CIPHER_TKIP;
+			range->enc_capa |= (IW_ENC_CAPA_CIPHER_TKIP |
+					    IW_ENC_CAPA_WPA);
 			break;
 
 		case WLAN_CIPHER_SUITE_CCMP:
-			range->enc_capa |= IW_ENC_CAPA_CIPHER_CCMP;
+			range->enc_capa |= (IW_ENC_CAPA_CIPHER_CCMP |
+					    IW_ENC_CAPA_WPA2);
 			break;
 
 		case WLAN_CIPHER_SUITE_WEP40:
