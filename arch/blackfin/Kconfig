@@ -648,6 +648,7 @@ config CYCLES_CLOCKSOURCE
 
 config GPTMR0_CLOCKSOURCE
 	bool "Use GPTimer0 as a clocksource (higher rating)"
+	select BFIN_GPTIMERS
 	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
 
