@@ -50,6 +50,9 @@ obj-$(CONFIG_PPC_DCR)		+= dcr.o
 obj-$(CONFIG_8xx)		+= mpc8xx_pic.o cpm1.o
 obj-$(CONFIG_UCODE_PATCH)	+= micropatch.o
 
+obj-$(CONFIG_PPC_MPC512x)	+= mpc5xxx_clocks.o
+obj-$(CONFIG_PPC_MPC52xx)	+= mpc5xxx_clocks.o
+
 ifeq ($(CONFIG_SUSPEND),y)
 obj-$(CONFIG_6xx)		+= 6xx-suspend.o
 endif
