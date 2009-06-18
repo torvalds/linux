@@ -116,6 +116,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 {
 	struct nfs_client *clp;
 	struct rpc_cred *cred;
+	int err = -ENOMEM;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
@@ -129,6 +130,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_addrlen = cl_init->addrlen;
 
 	if (cl_init->hostname) {
+		err = -ENOMEM;
 		clp->cl_hostname = kstrdup(cl_init->hostname, GFP_KERNEL);
 		if (!clp->cl_hostname)
 			goto error_cleanup;
@@ -159,7 +161,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 error_cleanup:
 	kfree(clp);
 error_0:
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void nfs4_shutdown_client(struct nfs_client *clp)
@@ -480,9 +482,10 @@ static struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_in
 		spin_unlock(&nfs_client_lock);
 
 		new = nfs_alloc_client(cl_init);
-	} while (new);
+	} while (!IS_ERR(new));
 
-	return ERR_PTR(-ENOMEM);
+	dprintk("--> nfs_get_client() = %ld [failed]\n", PTR_ERR(new));
+	return new;
 
 	/* install a new client and return with it unready */
 install_client:

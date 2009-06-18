@@ -853,32 +853,45 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 	struct file_lock *fl;
 	int status = 0;
 
+	if (inode->i_flock == NULL)
+		return 0;
+
+	/* Guard against delegation returns and new lock/unlock calls */
 	down_write(&nfsi->rwsem);
+	/* Protect inode->i_flock using the BKL */
+	lock_kernel();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file)->state != state)
 			continue;
+		unlock_kernel();
 		status = ops->recover_lock(state, fl);
-		if (status >= 0)
-			continue;
 		switch (status) {
+			case 0:
+				break;
+			case -ESTALE:
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_STALE_STATEID:
+			case -NFS4ERR_BAD_STATEID:
+			case -NFS4ERR_EXPIRED:
+			case -NFS4ERR_NO_GRACE:
+			case -NFS4ERR_STALE_CLIENTID:
+				goto out;
 			default:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
 						__func__, status);
-			case -NFS4ERR_EXPIRED:
-			case -NFS4ERR_NO_GRACE:
+			case -ENOMEM:
+			case -NFS4ERR_DENIED:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
 				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
-				break;
-			case -NFS4ERR_STALE_CLIENTID:
-				goto out_err;
+				status = 0;
 		}
+		lock_kernel();
 	}
-	up_write(&nfsi->rwsem);
-	return 0;
-out_err:
+	unlock_kernel();
+out:
 	up_write(&nfsi->rwsem);
 	return status;
 }
@@ -924,6 +937,7 @@ restart:
 				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
 						__func__, status);
 			case -ENOENT:
+			case -ENOMEM:
 			case -ESTALE:
 				/*
 				 * Open state on this file cannot be recovered
@@ -934,6 +948,9 @@ restart:
 				/* Mark the file as being 'closed' */
 				state->state = 0;
 				break;
+			case -NFS4ERR_ADMIN_REVOKED:
+			case -NFS4ERR_STALE_STATEID:
+			case -NFS4ERR_BAD_STATEID:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
 				nfs4_state_mark_reclaim_nograce(sp->so_client, state);
