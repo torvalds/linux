@@ -22,28 +22,8 @@ struct orinoco_pci_card {
 static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct orinoco_private *priv = pci_get_drvdata(pdev);
-	struct net_device *dev = priv->ndev;
-	unsigned long flags;
-	int err;
 
-	err = orinoco_lock(priv, &flags);
-	if (err) {
-		printk(KERN_ERR "%s: cannot lock hardware for suspend\n",
-		       dev->name);
-		return err;
-	}
-
-	err = __orinoco_down(priv);
-	if (err)
-		printk(KERN_WARNING "%s: error %d bringing interface down "
-		       "for suspend\n", dev->name, err);
-
-	netif_device_detach(dev);
-
-	priv->hw_unavailable++;
-
-	orinoco_unlock(priv, &flags);
-
+	orinoco_down(priv);
 	free_irq(pdev->irq, priv);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -56,7 +36,6 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 {
 	struct orinoco_private *priv = pci_get_drvdata(pdev);
 	struct net_device *dev = priv->ndev;
-	unsigned long flags;
 	int err;
 
 	pci_set_power_state(pdev, 0);
@@ -77,29 +56,9 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 		return -EBUSY;
 	}
 
-	err = orinoco_reinit_firmware(priv);
-	if (err) {
-		printk(KERN_ERR "%s: error %d re-initializing firmware "
-		       "on resume\n", dev->name, err);
-		return err;
-	}
+	err = orinoco_up(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
-
-	netif_device_attach(dev);
-
-	priv->hw_unavailable--;
-
-	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(priv);
-		if (err)
-			printk(KERN_ERR "%s: Error %d restarting card on resume\n",
-			       dev->name, err);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
+	return err;
 }
 #else
 #define orinoco_pci_suspend NULL

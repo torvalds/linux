@@ -349,26 +349,12 @@ static int orinoco_cs_suspend(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
-	struct net_device *dev = priv->ndev;
-	int err = 0;
-	unsigned long flags;
 
 	/* This is probably racy, but I can't think of
 	   a better way, short of rewriting the PCMCIA
 	   layer to not suck :-( */
-	if (!test_bit(0, &card->hard_reset_in_progress)) {
-		spin_lock_irqsave(&priv->lock, flags);
-
-		err = __orinoco_down(priv);
-		if (err)
-			printk(KERN_WARNING "%s: Error %d downing interface\n",
-			       dev->name, err);
-
-		netif_device_detach(dev);
-		priv->hw_unavailable++;
-
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	if (!test_bit(0, &card->hard_reset_in_progress))
+		orinoco_down(priv);
 
 	return 0;
 }
@@ -377,32 +363,10 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
-	struct net_device *dev = priv->ndev;
 	int err = 0;
-	unsigned long flags;
 
-	if (!test_bit(0, &card->hard_reset_in_progress)) {
-		err = orinoco_reinit_firmware(priv);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
-			       dev->name, err);
-			return -EIO;
-		}
-
-		spin_lock_irqsave(&priv->lock, flags);
-
-		netif_device_attach(dev);
-		priv->hw_unavailable--;
-
-		if (priv->open && !priv->hw_unavailable) {
-			err = __orinoco_up(priv);
-			if (err)
-				printk(KERN_ERR "%s: Error %d restarting card\n",
-				       dev->name, err);
-		}
-
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
+	if (!test_bit(0, &card->hard_reset_in_progress))
+		err = orinoco_up(priv);
 
 	return err;
 }

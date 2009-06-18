@@ -211,6 +211,8 @@ struct orinoco_rx_data {
 /********************************************************************/
 
 static void __orinoco_set_multicast_list(struct net_device *dev);
+static int __orinoco_up(struct orinoco_private *priv);
+static int __orinoco_down(struct orinoco_private *priv);
 
 /********************************************************************/
 /* Internal helper functions                                        */
@@ -1514,7 +1516,7 @@ static void __orinoco_ev_infdrop(struct net_device *dev, hermes_t *hw)
 /* Internal hardware control routines                               */
 /********************************************************************/
 
-int __orinoco_up(struct orinoco_private *priv)
+static int __orinoco_up(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1542,9 +1544,8 @@ int __orinoco_up(struct orinoco_private *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(__orinoco_up);
 
-int __orinoco_down(struct orinoco_private *priv)
+static int __orinoco_down(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
@@ -1574,9 +1575,8 @@ int __orinoco_down(struct orinoco_private *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL(__orinoco_down);
 
-int orinoco_reinit_firmware(struct orinoco_private *priv)
+static int orinoco_reinit_firmware(struct orinoco_private *priv)
 {
 	struct hermes *hw = &priv->hw;
 	int err;
@@ -1592,7 +1592,6 @@ int orinoco_reinit_firmware(struct orinoco_private *priv)
 
 	return err;
 }
-EXPORT_SYMBOL(orinoco_reinit_firmware);
 
 int __orinoco_program_rids(struct net_device *dev)
 {
@@ -2388,6 +2387,56 @@ void free_orinocodev(struct orinoco_private *priv)
 	wiphy_free(wiphy);
 }
 EXPORT_SYMBOL(free_orinocodev);
+
+int orinoco_up(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	err = orinoco_reinit_firmware(priv);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
+		       dev->name, err);
+		goto exit;
+	}
+
+	netif_device_attach(dev);
+	priv->hw_unavailable--;
+
+	if (priv->open && !priv->hw_unavailable) {
+		err = __orinoco_up(priv);
+		if (err)
+			printk(KERN_ERR "%s: Error %d restarting card\n",
+			       dev->name, err);
+	}
+
+exit:
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(orinoco_up);
+
+void orinoco_down(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	err = __orinoco_down(priv);
+	if (err)
+		printk(KERN_WARNING "%s: Error %d downing interface\n",
+		       dev->name, err);
+
+	netif_device_detach(dev);
+	priv->hw_unavailable++;
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+EXPORT_SYMBOL(orinoco_down);
 
 static void orinoco_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)

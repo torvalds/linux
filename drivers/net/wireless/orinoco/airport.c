@@ -50,15 +50,7 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 		return 0;
 	}
 
-	err = __orinoco_down(priv);
-	if (err)
-		printk(KERN_WARNING "%s: PBOOK_SLEEP_NOW: Error %d downing interface\n",
-		       dev->name, err);
-
-	netif_device_detach(dev);
-
-	priv->hw_unavailable++;
-
+	orinoco_down(priv);
 	orinoco_unlock(priv, &flags);
 
 	disable_irq(card->irq);
@@ -85,30 +77,11 @@ airport_resume(struct macio_dev *mdev)
 
 	enable_irq(card->irq);
 
-	err = orinoco_reinit_firmware(priv);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d re-initializing firmware on PBOOK_WAKE\n",
-		       dev->name, err);
-		return 0;
-	}
-
 	spin_lock_irqsave(&priv->lock, flags);
-
-	netif_device_attach(dev);
-
-	priv->hw_unavailable--;
-
-	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(priv);
-		if (err)
-			printk(KERN_ERR "%s: Error %d restarting card on PBOOK_WAKE\n",
-			       dev->name, err);
-	}
-
-
+	err = orinoco_up(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return 0;
+	return err;
 }
 
 static int
