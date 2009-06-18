@@ -112,6 +112,7 @@ static struct rpc_clnt *nsm_create(void)
 		.program		= &nsm_program,
 		.version		= NSM_VERSION,
 		.authflavor		= RPC_AUTH_NULL,
+		.flags			= RPC_CLNT_CREATE_NOPING,
 	};
 
 	return rpc_create(&args);
