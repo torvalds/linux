@@ -139,7 +139,7 @@ config SPI_MPC52xx_PSC
 	  This enables using the Freescale MPC52xx Programmable Serial
 	  Controller in master SPI mode.
 
-config SPI_MPC83xx
+config SPI_MPC8xxx
 	tristate "Freescale MPC8xxx SPI controller"
 	depends on FSL_SOC
 	help
