@@ -238,18 +238,6 @@ static int mnt_enc_dirpath(struct rpc_rqst *req, __be32 *p,
 	return encode_mntdirpath(&xdr, dirpath);
 }
 
-static int xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p,
-			       struct mnt_fhstatus *res)
-{
-	struct nfs_fh *fh = res->fh;
-
-	if ((res->status = ntohl(*p++)) == 0) {
-		fh->size = NFS2_FHSIZE;
-		memcpy(fh->data, p, NFS2_FHSIZE);
-	}
-	return 0;
-}
-
 /*
  * RFC 1094: "A non-zero status indicates some sort of error.  In this
  * case, the status is a UNIX error number."  This can be problematic
@@ -407,23 +395,6 @@ static int mnt_dec_mountres3(struct rpc_rqst *req, __be32 *p,
 		return 0;
 	}
 	return decode_auth_flavors(&xdr, res);
-}
-
-static int xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p,
-				struct mnt_fhstatus *res)
-{
-	struct nfs_fh *fh = res->fh;
-	unsigned size;
-
-	if ((res->status = ntohl(*p++)) == 0) {
-		size = ntohl(*p++);
-		if (size <= NFS3_FHSIZE && size != 0) {
-			fh->size = size;
-			memcpy(fh->data, p, size);
-		} else
-			res->status = -EBADHANDLE;
-	}
-	return 0;
 }
 
 static struct rpc_procinfo mnt_procedures[] = {
