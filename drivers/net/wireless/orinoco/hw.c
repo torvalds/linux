@@ -406,6 +406,233 @@ void orinoco_get_ratemode_cfg(int ratemode, int *bitrate, int *automatic)
 	*automatic = bitrate_table[ratemode].automatic;
 }
 
+int orinoco_hw_program_rids(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	hermes_t *hw = &priv->hw;
+	int err;
+	struct hermes_idstring idbuf;
+
+	/* Set the MAC address */
+	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
+			       HERMES_BYTES_TO_RECLEN(ETH_ALEN), dev->dev_addr);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting MAC address\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set up the link mode */
+	err = hermes_write_wordrec(hw, USER_BAP, HERMES_RID_CNFPORTTYPE,
+				   priv->port_type);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting port type\n",
+		       dev->name, err);
+		return err;
+	}
+	/* Set the channel/frequency */
+	if (priv->channel != 0 && priv->iw_mode != IW_MODE_INFRA) {
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFOWNCHANNEL,
+					   priv->channel);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting channel %d\n",
+			       dev->name, err, priv->channel);
+			return err;
+		}
+	}
+
+	if (priv->has_ibss) {
+		u16 createibss;
+
+		if ((strlen(priv->desired_essid) == 0) && (priv->createibss)) {
+			printk(KERN_WARNING "%s: This firmware requires an "
+			       "ESSID in IBSS-Ad-Hoc mode.\n", dev->name);
+			/* With wvlan_cs, in this case, we would crash.
+			 * hopefully, this driver will behave better...
+			 * Jean II */
+			createibss = 0;
+		} else {
+			createibss = priv->createibss;
+		}
+
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFCREATEIBSS,
+					   createibss);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting CREATEIBSS\n",
+			       dev->name, err);
+			return err;
+		}
+	}
+
+	/* Set the desired BSSID */
+	err = __orinoco_hw_set_wap(priv);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting AP address\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set the desired ESSID */
+	idbuf.len = cpu_to_le16(strlen(priv->desired_essid));
+	memcpy(&idbuf.val, priv->desired_essid, sizeof(idbuf.val));
+	/* WinXP wants partner to configure OWNSSID even in IBSS mode. (jimc) */
+	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNSSID,
+			HERMES_BYTES_TO_RECLEN(strlen(priv->desired_essid)+2),
+			&idbuf);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting OWNSSID\n",
+		       dev->name, err);
+		return err;
+	}
+	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFDESIREDSSID,
+			HERMES_BYTES_TO_RECLEN(strlen(priv->desired_essid)+2),
+			&idbuf);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting DESIREDSSID\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set the station name */
+	idbuf.len = cpu_to_le16(strlen(priv->nick));
+	memcpy(&idbuf.val, priv->nick, sizeof(idbuf.val));
+	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,
+			       HERMES_BYTES_TO_RECLEN(strlen(priv->nick)+2),
+			       &idbuf);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting nickname\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set AP density */
+	if (priv->has_sensitivity) {
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFSYSTEMSCALE,
+					   priv->ap_density);
+		if (err) {
+			printk(KERN_WARNING "%s: Error %d setting SYSTEMSCALE. "
+			       "Disabling sensitivity control\n",
+			       dev->name, err);
+
+			priv->has_sensitivity = 0;
+		}
+	}
+
+	/* Set RTS threshold */
+	err = hermes_write_wordrec(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
+				   priv->rts_thresh);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting RTS threshold\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set fragmentation threshold or MWO robustness */
+	if (priv->has_mwo)
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFMWOROBUST_AGERE,
+					   priv->mwo_robust);
+	else
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFFRAGMENTATIONTHRESHOLD,
+					   priv->frag_thresh);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting fragmentation\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set bitrate */
+	err = __orinoco_hw_set_bitrate(priv);
+	if (err) {
+		printk(KERN_ERR "%s: Error %d setting bitrate\n",
+		       dev->name, err);
+		return err;
+	}
+
+	/* Set power management */
+	if (priv->has_pm) {
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFPMENABLED,
+					   priv->pm_on);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting up PM\n",
+			       dev->name, err);
+			return err;
+		}
+
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFMULTICASTRECEIVE,
+					   priv->pm_mcast);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting up PM\n",
+			       dev->name, err);
+			return err;
+		}
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFMAXSLEEPDURATION,
+					   priv->pm_period);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting up PM\n",
+			       dev->name, err);
+			return err;
+		}
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFPMHOLDOVERDURATION,
+					   priv->pm_timeout);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting up PM\n",
+			       dev->name, err);
+			return err;
+		}
+	}
+
+	/* Set preamble - only for Symbol so far... */
+	if (priv->has_preamble) {
+		err = hermes_write_wordrec(hw, USER_BAP,
+					   HERMES_RID_CNFPREAMBLE_SYMBOL,
+					   priv->preamble);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d setting preamble\n",
+			       dev->name, err);
+			return err;
+		}
+	}
+
+	/* Set up encryption */
+	if (priv->has_wep || priv->has_wpa) {
+		err = __orinoco_hw_setup_enc(priv);
+		if (err) {
+			printk(KERN_ERR "%s: Error %d activating encryption\n",
+			       dev->name, err);
+			return err;
+		}
+	}
+
+	if (priv->iw_mode == IW_MODE_MONITOR) {
+		/* Enable monitor mode */
+		dev->type = ARPHRD_IEEE80211;
+		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+					    HERMES_TEST_MONITOR, 0, NULL);
+	} else {
+		/* Disable monitor mode */
+		dev->type = ARPHRD_ETHER;
+		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+					    HERMES_TEST_STOP, 0, NULL);
+	}
+	if (err)
+		return err;
+
+	/* Reset promiscuity / multicast*/
+	priv->promiscuous = 0;
+	priv->mc_count = 0;
+
+	return 0;
+}
+
 /* Get tsc from the firmware */
 int orinoco_hw_get_tkip_iv(struct orinoco_private *priv, int key, u8 *tsc)
 {

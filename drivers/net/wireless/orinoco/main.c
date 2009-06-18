@@ -210,9 +210,10 @@ struct orinoco_rx_data {
 /* Function prototypes                                              */
 /********************************************************************/
 
-static void __orinoco_set_multicast_list(struct net_device *dev);
+static int __orinoco_set_multicast_list(struct net_device *dev);
 static int __orinoco_up(struct orinoco_private *priv);
 static int __orinoco_down(struct orinoco_private *priv);
+static int __orinoco_commit(struct orinoco_private *priv);
 
 /********************************************************************/
 /* Internal helper functions                                        */
@@ -1524,7 +1525,7 @@ static int __orinoco_up(struct orinoco_private *priv)
 
 	netif_carrier_off(dev); /* just to make sure */
 
-	err = __orinoco_program_rids(dev);
+	err = __orinoco_commit(priv);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d configuring card\n",
 		       dev->name, err);
@@ -1593,237 +1594,7 @@ static int orinoco_reinit_firmware(struct orinoco_private *priv)
 	return err;
 }
 
-int __orinoco_program_rids(struct net_device *dev)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
-	int err;
-	struct hermes_idstring idbuf;
-
-	/* Set the MAC address */
-	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
-			       HERMES_BYTES_TO_RECLEN(ETH_ALEN), dev->dev_addr);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting MAC address\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set up the link mode */
-	err = hermes_write_wordrec(hw, USER_BAP, HERMES_RID_CNFPORTTYPE,
-				   priv->port_type);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting port type\n",
-		       dev->name, err);
-		return err;
-	}
-	/* Set the channel/frequency */
-	if (priv->channel != 0 && priv->iw_mode != IW_MODE_INFRA) {
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFOWNCHANNEL,
-					   priv->channel);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting channel %d\n",
-			       dev->name, err, priv->channel);
-			return err;
-		}
-	}
-
-	if (priv->has_ibss) {
-		u16 createibss;
-
-		if ((strlen(priv->desired_essid) == 0) && (priv->createibss)) {
-			printk(KERN_WARNING "%s: This firmware requires an "
-			       "ESSID in IBSS-Ad-Hoc mode.\n", dev->name);
-			/* With wvlan_cs, in this case, we would crash.
-			 * hopefully, this driver will behave better...
-			 * Jean II */
-			createibss = 0;
-		} else {
-			createibss = priv->createibss;
-		}
-
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFCREATEIBSS,
-					   createibss);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting CREATEIBSS\n",
-			       dev->name, err);
-			return err;
-		}
-	}
-
-	/* Set the desired BSSID */
-	err = __orinoco_hw_set_wap(priv);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting AP address\n",
-		       dev->name, err);
-		return err;
-	}
-	/* Set the desired ESSID */
-	idbuf.len = cpu_to_le16(strlen(priv->desired_essid));
-	memcpy(&idbuf.val, priv->desired_essid, sizeof(idbuf.val));
-	/* WinXP wants partner to configure OWNSSID even in IBSS mode. (jimc) */
-	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNSSID,
-			HERMES_BYTES_TO_RECLEN(strlen(priv->desired_essid)+2),
-			&idbuf);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting OWNSSID\n",
-		       dev->name, err);
-		return err;
-	}
-	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFDESIREDSSID,
-			HERMES_BYTES_TO_RECLEN(strlen(priv->desired_essid)+2),
-			&idbuf);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting DESIREDSSID\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set the station name */
-	idbuf.len = cpu_to_le16(strlen(priv->nick));
-	memcpy(&idbuf.val, priv->nick, sizeof(idbuf.val));
-	err = hermes_write_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,
-			       HERMES_BYTES_TO_RECLEN(strlen(priv->nick)+2),
-			       &idbuf);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting nickname\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set AP density */
-	if (priv->has_sensitivity) {
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFSYSTEMSCALE,
-					   priv->ap_density);
-		if (err) {
-			printk(KERN_WARNING "%s: Error %d setting SYSTEMSCALE. "
-			       "Disabling sensitivity control\n",
-			       dev->name, err);
-
-			priv->has_sensitivity = 0;
-		}
-	}
-
-	/* Set RTS threshold */
-	err = hermes_write_wordrec(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
-				   priv->rts_thresh);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting RTS threshold\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set fragmentation threshold or MWO robustness */
-	if (priv->has_mwo)
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFMWOROBUST_AGERE,
-					   priv->mwo_robust);
-	else
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFFRAGMENTATIONTHRESHOLD,
-					   priv->frag_thresh);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting fragmentation\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set bitrate */
-	err = __orinoco_hw_set_bitrate(priv);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d setting bitrate\n",
-		       dev->name, err);
-		return err;
-	}
-
-	/* Set power management */
-	if (priv->has_pm) {
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFPMENABLED,
-					   priv->pm_on);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting up PM\n",
-			       dev->name, err);
-			return err;
-		}
-
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFMULTICASTRECEIVE,
-					   priv->pm_mcast);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting up PM\n",
-			       dev->name, err);
-			return err;
-		}
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFMAXSLEEPDURATION,
-					   priv->pm_period);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting up PM\n",
-			       dev->name, err);
-			return err;
-		}
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFPMHOLDOVERDURATION,
-					   priv->pm_timeout);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting up PM\n",
-			       dev->name, err);
-			return err;
-		}
-	}
-
-	/* Set preamble - only for Symbol so far... */
-	if (priv->has_preamble) {
-		err = hermes_write_wordrec(hw, USER_BAP,
-					   HERMES_RID_CNFPREAMBLE_SYMBOL,
-					   priv->preamble);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d setting preamble\n",
-			       dev->name, err);
-			return err;
-		}
-	}
-
-	/* Set up encryption */
-	if (priv->has_wep || priv->has_wpa) {
-		err = __orinoco_hw_setup_enc(priv);
-		if (err) {
-			printk(KERN_ERR "%s: Error %d activating encryption\n",
-			       dev->name, err);
-			return err;
-		}
-	}
-
-	if (priv->iw_mode == IW_MODE_MONITOR) {
-		/* Enable monitor mode */
-		dev->type = ARPHRD_IEEE80211;
-		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
-					    HERMES_TEST_MONITOR, 0, NULL);
-	} else {
-		/* Disable monitor mode */
-		dev->type = ARPHRD_ETHER;
-		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
-					    HERMES_TEST_STOP, 0, NULL);
-	}
-	if (err)
-		return err;
-
-	/* Set promiscuity / multicast*/
-	priv->promiscuous = 0;
-	priv->mc_count = 0;
-
-	/* FIXME: what about netif_tx_lock */
-	__orinoco_set_multicast_list(dev);
-
-	return 0;
-}
-
-/* FIXME: return int? */
-static void
+static int
 __orinoco_set_multicast_list(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -1843,6 +1614,8 @@ __orinoco_set_multicast_list(struct net_device *dev)
 
 	err = __orinoco_hw_set_multicast_list(priv, dev->mc_list, mc_count,
 					      promisc);
+
+	return err;
 }
 
 /* This must be called from user context, without locks held - use
@@ -1918,6 +1691,64 @@ void orinoco_reset(struct work_struct *work)
 	hermes_set_irqmask(hw, 0);
 	netif_device_detach(dev);
 	printk(KERN_ERR "%s: Device has been disabled!\n", dev->name);
+}
+
+static int __orinoco_commit(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	int err = 0;
+
+	err = orinoco_hw_program_rids(priv);
+
+	/* FIXME: what about netif_tx_lock */
+	(void) __orinoco_set_multicast_list(dev);
+
+	return err;
+}
+
+/* Ensures configuration changes are applied. May result in a reset.
+ * The caller should hold priv->lock
+ */
+int orinoco_commit(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	hermes_t *hw = &priv->hw;
+	int err;
+
+	if (priv->broken_disableport) {
+		schedule_work(&priv->reset_work);
+		return 0;
+	}
+
+	err = hermes_disable_port(hw, 0);
+	if (err) {
+		printk(KERN_WARNING "%s: Unable to disable port "
+		       "while reconfiguring card\n", dev->name);
+		priv->broken_disableport = 1;
+		goto out;
+	}
+
+	err = __orinoco_commit(priv);
+	if (err) {
+		printk(KERN_WARNING "%s: Unable to reconfigure card\n",
+		       dev->name);
+		goto out;
+	}
+
+	err = hermes_enable_port(hw, 0);
+	if (err) {
+		printk(KERN_WARNING "%s: Unable to enable port while reconfiguring card\n",
+		       dev->name);
+		goto out;
+	}
+
+ out:
+	if (err) {
+		printk(KERN_WARNING "%s: Resetting instead...\n", dev->name);
+		schedule_work(&priv->reset_work);
+		err = 0;
+	}
+	return err;
 }
 
 /********************************************************************/

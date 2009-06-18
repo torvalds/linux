@@ -29,6 +29,7 @@ int orinoco_hw_allocate_fid(struct orinoco_private *priv);
 int orinoco_get_bitratemode(int bitrate, int automatic);
 void orinoco_get_ratemode_cfg(int ratemode, int *bitrate, int *automatic);
 
+int orinoco_hw_program_rids(struct orinoco_private *priv);
 int orinoco_hw_get_tkip_iv(struct orinoco_private *priv, int key, u8 *tsc);
 int __orinoco_hw_set_bitrate(struct orinoco_private *priv);
 int orinoco_hw_get_act_bitrate(struct orinoco_private *priv, int *bitrate);

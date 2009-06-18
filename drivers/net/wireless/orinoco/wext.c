@@ -2163,49 +2163,16 @@ static int orinoco_ioctl_commit(struct net_device *dev,
 				char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	struct hermes *hw = &priv->hw;
 	unsigned long flags;
 	int err = 0;
 
 	if (!priv->open)
 		return 0;
 
-	if (priv->broken_disableport) {
-		orinoco_reset(&priv->reset_work);
-		return 0;
-	}
-
 	if (orinoco_lock(priv, &flags) != 0)
 		return err;
 
-	err = hermes_disable_port(hw, 0);
-	if (err) {
-		printk(KERN_WARNING "%s: Unable to disable port "
-		       "while reconfiguring card\n", dev->name);
-		priv->broken_disableport = 1;
-		goto out;
-	}
-
-	err = __orinoco_program_rids(dev);
-	if (err) {
-		printk(KERN_WARNING "%s: Unable to reconfigure card\n",
-		       dev->name);
-		goto out;
-	}
-
-	err = hermes_enable_port(hw, 0);
-	if (err) {
-		printk(KERN_WARNING "%s: Unable to enable port while reconfiguring card\n",
-		       dev->name);
-		goto out;
-	}
-
- out:
-	if (err) {
-		printk(KERN_WARNING "%s: Resetting instead...\n", dev->name);
-		schedule_work(&priv->reset_work);
-		err = 0;
-	}
+	err = orinoco_commit(priv);
 
 	orinoco_unlock(priv, &flags);
 	return err;
