@@ -368,6 +368,12 @@ spectrum_cs_config(struct pcmcia_device *link)
 	if (spectrum_cs_hard_reset(priv) != 0)
 		goto failed;
 
+	/* Initialise the main driver */
+	if (orinoco_init(priv) != 0) {
+		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		goto failed;
+	}
+
 	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 	/* Tell the stack we exist */
 	if (register_netdev(dev) != 0) {

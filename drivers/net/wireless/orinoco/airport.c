@@ -234,6 +234,12 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	}
 	card->irq_requested = 1;
 
+	/* Initialise the main driver */
+	if (orinoco_init(priv) != 0) {
+		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		goto failed;
+	}
+
 	/* Tell the stack we exist */
 	if (register_netdev(dev) != 0) {
 		printk(KERN_ERR PFX "register_netdev() failed\n");

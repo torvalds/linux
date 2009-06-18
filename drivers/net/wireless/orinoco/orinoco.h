@@ -187,6 +187,7 @@ extern struct orinoco_private *alloc_orinocodev(
 	int (*hard_reset)(struct orinoco_private *),
 	int (*stop_fw)(struct orinoco_private *, int));
 extern void free_orinocodev(struct orinoco_private *priv);
+extern int orinoco_init(struct orinoco_private *priv);
 extern int __orinoco_up(struct orinoco_private *priv);
 extern int __orinoco_down(struct orinoco_private *priv);
 extern int orinoco_reinit_firmware(struct orinoco_private *priv);

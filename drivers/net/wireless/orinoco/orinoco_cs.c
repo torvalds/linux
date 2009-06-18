@@ -297,6 +297,12 @@ orinoco_cs_config(struct pcmcia_device *link)
 	dev->irq = link->irq.AssignedIRQ;
 	card->node.major = card->node.minor = 0;
 
+	/* Initialise the main driver */
+	if (orinoco_init(priv) != 0) {
+		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		goto failed;
+	}
+
 	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 	/* Tell the stack we exist */
 	if (register_netdev(dev) != 0) {

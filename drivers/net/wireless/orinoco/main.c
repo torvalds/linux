@@ -80,6 +80,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -2073,9 +2074,9 @@ static void orinoco_unregister_pm_notifier(struct orinoco_private *priv)
 /* Initialization                                                   */
 /********************************************************************/
 
-static int orinoco_init(struct net_device *dev)
+int orinoco_init(struct orinoco_private *priv)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct device *dev = priv->dev;
 	hermes_t *hw = &priv->hw;
 	int err = 0;
 
@@ -2086,15 +2087,14 @@ static int orinoco_init(struct net_device *dev)
 	/* Initialize the firmware */
 	err = hermes_init(hw);
 	if (err != 0) {
-		printk(KERN_ERR "%s: failed to initialize firmware (err = %d)\n",
-		       dev->name, err);
+		dev_err(dev, "Failed to initialize firmware (err = %d)\n",
+			err);
 		goto out;
 	}
 
 	err = determine_fw_capabilities(priv);
 	if (err != 0) {
-		printk(KERN_ERR "%s: Incompatible firmware, aborting\n",
-		       dev->name);
+		dev_err(dev, "Incompatible firmware, aborting\n");
 		goto out;
 	}
 
@@ -2110,27 +2110,23 @@ static int orinoco_init(struct net_device *dev)
 		/* Check firmware version again */
 		err = determine_fw_capabilities(priv);
 		if (err != 0) {
-			printk(KERN_ERR "%s: Incompatible firmware, aborting\n",
-			       dev->name);
+			dev_err(dev, "Incompatible firmware, aborting\n");
 			goto out;
 		}
 	}
 
 	if (priv->has_port3)
-		printk(KERN_DEBUG "%s: Ad-hoc demo mode supported\n",
-		       dev->name);
+		dev_info(dev, "Ad-hoc demo mode supported\n");
 	if (priv->has_ibss)
-		printk(KERN_DEBUG "%s: IEEE standard IBSS ad-hoc mode supported\n",
-		       dev->name);
-	if (priv->has_wep) {
-		printk(KERN_DEBUG "%s: WEP supported, %s-bit key\n", dev->name,
-		       priv->has_big_wep ? "104" : "40");
-	}
+		dev_info(dev, "IEEE standard IBSS ad-hoc mode supported\n");
+	if (priv->has_wep)
+		dev_info(dev, "WEP supported, %s-bit key\n",
+			 priv->has_big_wep ? "104" : "40");
 	if (priv->has_wpa) {
-		printk(KERN_DEBUG "%s: WPA-PSK supported\n", dev->name);
+		dev_info(dev, "WPA-PSK supported\n");
 		if (orinoco_mic_init(priv)) {
-			printk(KERN_ERR "%s: Failed to setup MIC crypto "
-			       "algorithm. Disabling WPA support\n", dev->name);
+			dev_err(dev, "Failed to setup MIC crypto algorithm. "
+				"Disabling WPA support\n");
 			priv->has_wpa = 0;
 		}
 	}
@@ -2141,14 +2137,14 @@ static int orinoco_init(struct net_device *dev)
 		goto out;
 	orinoco_bss_data_init(priv);
 
-	err = orinoco_hw_read_card_settings(priv, dev->dev_addr);
+	/* Netdev has not initialised, but we have allocated the buffer. */
+	err = orinoco_hw_read_card_settings(priv, priv->ndev->dev_addr);
 	if (err)
 		goto out;
 
 	err = orinoco_hw_allocate_fid(priv);
 	if (err) {
-		printk(KERN_ERR "%s: failed to allocate NIC buffer!\n",
-		       dev->name);
+		dev_err(dev, "Failed to allocate NIC buffer!\n");
 		goto out;
 	}
 
@@ -2174,14 +2170,14 @@ static int orinoco_init(struct net_device *dev)
 	priv->hw_unavailable--;
 	spin_unlock_irq(&priv->lock);
 
-	printk(KERN_DEBUG "%s: ready\n", dev->name);
+	dev_dbg(dev, "Ready\n");
 
  out:
 	return err;
 }
+EXPORT_SYMBOL(orinoco_init);
 
 static const struct net_device_ops orinoco_netdev_ops = {
-	.ndo_init		= orinoco_init,
 	.ndo_open		= orinoco_open,
 	.ndo_stop		= orinoco_stop,
 	.ndo_start_xmit		= orinoco_xmit,

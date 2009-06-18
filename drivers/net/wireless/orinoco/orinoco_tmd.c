@@ -153,6 +153,12 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 		goto fail;
 	}
 
+	err = orinoco_init(priv);
+	if (err) {
+		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		goto fail;
+	}
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "Cannot register network device\n");
