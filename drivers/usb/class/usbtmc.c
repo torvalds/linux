@@ -407,10 +407,10 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		buffer[1] = data->bTag;
 		buffer[2] = ~(data->bTag);
 		buffer[3] = 0; /* Reserved */
-		buffer[4] = (this_part - 12 - 3) & 255;
-		buffer[5] = ((this_part - 12 - 3) >> 8) & 255;
-		buffer[6] = ((this_part - 12 - 3) >> 16) & 255;
-		buffer[7] = ((this_part - 12 - 3) >> 24) & 255;
+		buffer[4] = (this_part) & 255;
+		buffer[5] = ((this_part) >> 8) & 255;
+		buffer[6] = ((this_part) >> 16) & 255;
+		buffer[7] = ((this_part) >> 24) & 255;
 		buffer[8] = data->TermCharEnabled * 2;
 		/* Use term character? */
 		buffer[9] = data->TermChar;
