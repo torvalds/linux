@@ -147,7 +147,6 @@ static const u8 encaps_hdr[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 					    * how many events the
 					    * device could
 					    * legitimately generate */
-#define TX_NICBUF_SIZE_BUG	1585		/* Bug in Symbol firmware */
 
 #define DUMMY_FID		0xFFFF
 
@@ -1574,26 +1573,6 @@ int __orinoco_down(struct net_device *dev)
 }
 EXPORT_SYMBOL(__orinoco_down);
 
-static int orinoco_allocate_fid(struct net_device *dev)
-{
-	struct orinoco_private *priv = netdev_priv(dev);
-	struct hermes *hw = &priv->hw;
-	int err;
-
-	err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
-	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_BUG) {
-		/* Try workaround for old Symbol firmware bug */
-		priv->nicbuf_size = TX_NICBUF_SIZE_BUG;
-		err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
-
-		printk(KERN_WARNING "%s: firmware ALLOC bug detected "
-		       "(old Symbol firmware?). Work around %s\n",
-		       dev->name, err ? "failed!" : "ok.");
-	}
-
-	return err;
-}
-
 int orinoco_reinit_firmware(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
@@ -1607,7 +1586,7 @@ int orinoco_reinit_firmware(struct net_device *dev)
 			priv->do_fw_download = 0;
 	}
 	if (!err)
-		err = orinoco_allocate_fid(dev);
+		err = orinoco_hw_allocate_fid(priv);
 
 	return err;
 }
@@ -2167,7 +2146,7 @@ static int orinoco_init(struct net_device *dev)
 	if (err)
 		goto out;
 
-	err = orinoco_allocate_fid(dev);
+	err = orinoco_hw_allocate_fid(priv);
 	if (err) {
 		printk(KERN_ERR "%s: failed to allocate NIC buffer!\n",
 		       dev->name);

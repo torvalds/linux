@@ -15,6 +15,9 @@
 
 #define SYMBOL_MAX_VER_LEN	(14)
 
+/* Symbol firmware has a bug allocating buffers larger than this */
+#define TX_NICBUF_SIZE_BUG	1585
+
 /********************************************************************/
 /* Data tables                                                      */
 /********************************************************************/
@@ -361,6 +364,26 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	}
 
 out:
+	return err;
+}
+
+int orinoco_hw_allocate_fid(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	struct hermes *hw = &priv->hw;
+	int err;
+
+	err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
+	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_BUG) {
+		/* Try workaround for old Symbol firmware bug */
+		priv->nicbuf_size = TX_NICBUF_SIZE_BUG;
+		err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
+
+		printk(KERN_WARNING "%s: firmware ALLOC bug detected "
+		       "(old Symbol firmware?). Work around %s\n",
+		       dev->name, err ? "failed!" : "ok.");
+	}
+
 	return err;
 }
 
