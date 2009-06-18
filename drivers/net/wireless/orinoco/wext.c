@@ -372,47 +372,6 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	return 0;
 }
 
-static int orinoco_ioctl_setnick(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_point *nrq,
-				 char *nickbuf)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	unsigned long flags;
-
-	if (nrq->length > IW_ESSID_MAX_SIZE)
-		return -E2BIG;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	memset(priv->nick, 0, sizeof(priv->nick));
-	memcpy(priv->nick, nickbuf, nrq->length);
-
-	orinoco_unlock(priv, &flags);
-
-	return -EINPROGRESS;		/* Call commit handler */
-}
-
-static int orinoco_ioctl_getnick(struct net_device *dev,
-				 struct iw_request_info *info,
-				 struct iw_point *nrq,
-				 char *nickbuf)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	unsigned long flags;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	memcpy(nickbuf, priv->nick, IW_ESSID_MAX_SIZE);
-	orinoco_unlock(priv, &flags);
-
-	nrq->length = strlen(priv->nick);
-
-	return 0;
-}
-
 static int orinoco_ioctl_setfreq(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_freq *frq,
@@ -1539,8 +1498,6 @@ static const iw_handler	orinoco_handler[] = {
 	STD_IW_HANDLER(SIOCGIWSCAN,	cfg80211_wext_giwscan),
 	STD_IW_HANDLER(SIOCSIWESSID,	orinoco_ioctl_setessid),
 	STD_IW_HANDLER(SIOCGIWESSID,	orinoco_ioctl_getessid),
-	STD_IW_HANDLER(SIOCSIWNICKN,	orinoco_ioctl_setnick),
-	STD_IW_HANDLER(SIOCGIWNICKN,	orinoco_ioctl_getnick),
 	STD_IW_HANDLER(SIOCSIWRATE,	orinoco_ioctl_setrate),
 	STD_IW_HANDLER(SIOCGIWRATE,	orinoco_ioctl_getrate),
 	STD_IW_HANDLER(SIOCSIWRTS,	orinoco_ioctl_setrts),
