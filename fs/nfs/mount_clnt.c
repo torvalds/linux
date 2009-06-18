@@ -29,6 +29,8 @@
  * XDR data type sizes
  */
 #define encode_dirpath_sz	(1 + XDR_QUADLEN(MNTPATHLEN))
+#define MNT_status_sz		(1)
+#define MNT_fhs_status_sz	(1)
 
 /*
  * XDR argument and result sizes
@@ -60,6 +62,65 @@ enum {
 };
 
 static struct rpc_program	mnt_program;
+
+/*
+ * Defined by OpenGroup XNFS Version 3W, chapter 8
+ */
+enum mountstat {
+	MNT_OK			= 0,
+	MNT_EPERM		= 1,
+	MNT_ENOENT		= 2,
+	MNT_EACCES		= 13,
+	MNT_EINVAL		= 22,
+};
+
+static struct {
+	u32 status;
+	int errno;
+} mnt_errtbl[] = {
+	{ .status = MNT_OK,			.errno = 0,		},
+	{ .status = MNT_EPERM,			.errno = -EPERM,	},
+	{ .status = MNT_ENOENT,			.errno = -ENOENT,	},
+	{ .status = MNT_EACCES,			.errno = -EACCES,	},
+	{ .status = MNT_EINVAL,			.errno = -EINVAL,	},
+};
+
+/*
+ * Defined by RFC 1813, section 5.1.5
+ */
+enum mountstat3 {
+	MNT3_OK			= 0,		/* no error */
+	MNT3ERR_PERM		= 1,		/* Not owner */
+	MNT3ERR_NOENT		= 2,		/* No such file or directory */
+	MNT3ERR_IO		= 5,		/* I/O error */
+	MNT3ERR_ACCES		= 13,		/* Permission denied */
+	MNT3ERR_NOTDIR		= 20,		/* Not a directory */
+	MNT3ERR_INVAL		= 22,		/* Invalid argument */
+	MNT3ERR_NAMETOOLONG	= 63,		/* Filename too long */
+	MNT3ERR_NOTSUPP		= 10004,	/* Operation not supported */
+	MNT3ERR_SERVERFAULT	= 10006,	/* A failure on the server */
+};
+
+static struct {
+	u32 status;
+	int errno;
+} mnt3_errtbl[] = {
+	{ .status = MNT3_OK,			.errno = 0,		},
+	{ .status = MNT3ERR_PERM,		.errno = -EPERM,	},
+	{ .status = MNT3ERR_NOENT,		.errno = -ENOENT,	},
+	{ .status = MNT3ERR_IO,			.errno = -EIO,		},
+	{ .status = MNT3ERR_ACCES,		.errno = -EACCES,	},
+	{ .status = MNT3ERR_NOTDIR,		.errno = -ENOTDIR,	},
+	{ .status = MNT3ERR_INVAL,		.errno = -EINVAL,	},
+	{ .status = MNT3ERR_NAMETOOLONG,	.errno = -ENAMETOOLONG,	},
+	{ .status = MNT3ERR_NOTSUPP,		.errno = -ENOTSUPP,	},
+	{ .status = MNT3ERR_SERVERFAULT,	.errno = -ESERVERFAULT,	},
+};
+
+struct mountres {
+	int errno;
+	struct nfs_fh *fh;
+};
 
 struct mnt_fhstatus {
 	u32 status;
@@ -176,6 +237,61 @@ static int xdr_decode_fhstatus(struct rpc_rqst *req, __be32 *p,
 		fh->size = NFS2_FHSIZE;
 		memcpy(fh->data, p, NFS2_FHSIZE);
 	}
+	return 0;
+}
+
+/*
+ * RFC 1094: "A non-zero status indicates some sort of error.  In this
+ * case, the status is a UNIX error number."  This can be problematic
+ * if the server and client use different errno values for the same
+ * error.
+ *
+ * However, the OpenGroup XNFS spec provides a simple mapping that is
+ * independent of local errno values on the server and the client.
+ */
+static int decode_status(struct xdr_stream *xdr, struct mountres *res)
+{
+	unsigned int i;
+	u32 status;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, sizeof(status));
+	if (unlikely(p == NULL))
+		return -EIO;
+	status = ntohl(*p);
+
+	for (i = 0; i <= ARRAY_SIZE(mnt_errtbl); i++) {
+		if (mnt_errtbl[i].status == status) {
+			res->errno = mnt_errtbl[i].errno;
+			return 0;
+		}
+	}
+
+	dprintk("NFS: unrecognized MNT status code: %u\n", status);
+	res->errno = -EACCES;
+	return 0;
+}
+
+static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
+{
+	unsigned int i;
+	u32 status;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, sizeof(status));
+	if (unlikely(p == NULL))
+		return -EIO;
+	status = ntohl(*p);
+
+	for (i = 0; i <= ARRAY_SIZE(mnt3_errtbl); i++) {
+		if (mnt3_errtbl[i].status == status) {
+			res->errno = mnt3_errtbl[i].errno;
+			return 0;
+		}
+	}
+
+	dprintk("NFS: unrecognized MNT3 status code: %u\n", status);
+	res->errno = -EACCES;
 	return 0;
 }
 
