@@ -477,9 +477,11 @@ static __init void parse_cmdline_early(char *cmdline_p)
 			} else if (!memcmp(to, "clkin_hz=", 9)) {
 				to += 9;
 				early_init_clkin_hz(to);
+#ifdef CONFIG_EARLY_PRINTK
 			} else if (!memcmp(to, "earlyprintk=", 12)) {
 				to += 12;
 				setup_early_printk(to);
+#endif
 			} else if (!memcmp(to, "memmap=", 7)) {
 				to += 7;
 				parse_memmap(to);
@@ -798,6 +800,11 @@ void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
 
+	/* Check to make sure we are running on the right processor */
+	if (unlikely(CPUID != bfin_cpuid()))
+		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
+			CPU, bfin_cpuid(), bfin_revid());
+
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
@@ -812,13 +819,16 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE - 1] = '\0';
 
-	/* setup memory defaults from the user config */
-	physical_mem_end = 0;
-	_ramend = get_mem_size() * 1024 * 1024;
-
 	memset(&bfin_memmap, 0, sizeof(bfin_memmap));
 
+	/* If the user does not specify things on the command line, use
+	 * what the bootloader set things up as
+	 */
+	physical_mem_end = 0;
 	parse_cmdline_early(&command_line[0]);
+
+	if (_ramend == 0)
+		_ramend = get_mem_size() * 1024 * 1024;
 
 	if (physical_mem_end == 0)
 		physical_mem_end = _ramend;
@@ -910,10 +920,7 @@ void __init setup_arch(char **cmdline_p)
 	else
 		printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
 
-	if (unlikely(CPUID != bfin_cpuid()))
-		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
-			CPU, bfin_cpuid(), bfin_revid());
-	else {
+	if (likely(CPUID == bfin_cpuid())) {
 		if (bfin_revid() != bfin_compiled_revid()) {
 			if (bfin_compiled_revid() == -1)
 				printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
