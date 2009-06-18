@@ -27,6 +27,7 @@
 #include <linux/cdev.h>
 #include <linux/list.h>
 #include <linux/mm.h>
+#include <asm/pgtable.h>
 #include <asm/io.h>
 
 /*
@@ -118,15 +119,22 @@ static int bsr_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long size   = vma->vm_end - vma->vm_start;
 	struct bsr_dev *dev = filp->private_data;
+	int ret;
 
-	if (size > dev->bsr_len || (size & (PAGE_SIZE-1)))
-		return -EINVAL;
-
-	vma->vm_flags |= (VM_IO | VM_DONTEXPAND);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if (io_remap_pfn_range(vma, vma->vm_start, dev->bsr_addr >> PAGE_SHIFT,
-			       size, vma->vm_page_prot))
+	/* check for the case of a small BSR device and map one 4k page for it*/
+	if (dev->bsr_len < PAGE_SIZE && size == PAGE_SIZE)
+		ret = remap_4k_pfn(vma, vma->vm_start, dev->bsr_addr >> 12,
+				   vma->vm_page_prot);
+	else if (size <= dev->bsr_len)
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 dev->bsr_addr >> PAGE_SHIFT,
+					 size, vma->vm_page_prot);
+	else
+		return -EINVAL;
+
+	if (ret)
 		return -EAGAIN;
 
 	return 0;
@@ -205,6 +213,11 @@ static int bsr_add_node(struct device_node *bn)
 		cur->bsr_bytes  = bsr_bytes[i];
 		cur->bsr_stride = bsr_stride[i];
 		cur->bsr_dev    = MKDEV(bsr_major, i + total_bsr_devs);
+
+		/* if we have a bsr_len of > 4k and less then PAGE_SIZE (64k pages) */
+		/* we can only map 4k of it, so only advertise the 4k in sysfs */
+		if (cur->bsr_len > 4096 && cur->bsr_len < PAGE_SIZE)
+			cur->bsr_len = 4096;
 
 		switch(cur->bsr_bytes) {
 		case 8:
