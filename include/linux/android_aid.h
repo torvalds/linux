@@ -21,5 +21,6 @@
 #define AID_OBSOLETE_001 KGIDT_INIT(3002)  /* was NET_BT */
 #define AID_INET         KGIDT_INIT(3003)
 #define AID_NET_RAW      KGIDT_INIT(3004)
+#define AID_NET_ADMIN    KGIDT_INIT(3005)
 
 #endif
