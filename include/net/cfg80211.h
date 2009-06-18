@@ -1059,6 +1059,17 @@ static inline void *wiphy_priv(struct wiphy *wiphy)
 }
 
 /**
+ * priv_to_wiphy - return the wiphy containing the priv
+ *
+ * @priv: a pointer previously returned by wiphy_priv
+ */
+static inline struct wiphy *priv_to_wiphy(void *priv)
+{
+	BUG_ON(!priv);
+	return container_of(priv, struct wiphy, priv);
+}
+
+/**
  * set_wiphy_dev - set device pointer for wiphy
  *
  * @wiphy: The wiphy whose device to bind
