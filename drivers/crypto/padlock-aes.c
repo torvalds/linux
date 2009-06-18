@@ -22,11 +22,16 @@
 #include <asm/i387.h>
 #include "padlock.h"
 
-/* number of data blocks actually fetched for each xcrypt insn */
+/*
+ * Number of data blocks actually fetched for each xcrypt insn.
+ * Processors with prefetch errata will fetch extra blocks.
+ */
 static unsigned int ecb_fetch_blocks = 2;
-static unsigned int cbc_fetch_blocks = 1;
-
+#define MAX_ECB_FETCH_BLOCKS (8)
 #define ecb_fetch_bytes (ecb_fetch_blocks * AES_BLOCK_SIZE)
+
+static unsigned int cbc_fetch_blocks = 1;
+#define MAX_CBC_FETCH_BLOCKS (4)
 #define cbc_fetch_bytes (cbc_fetch_blocks * AES_BLOCK_SIZE)
 
 /* Control word. */
@@ -180,7 +185,7 @@ static inline void padlock_store_cword(struct cword *cword)
  * should be used only inside the irq_ts_save/restore() context
  */
 
-static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
+static inline void rep_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 				  struct cword *control_word, int count)
 {
 	asm volatile (".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
@@ -188,32 +193,65 @@ static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
 		      : "d"(control_word), "b"(key), "c"(count));
 }
 
-static void aes_crypt_copy(const u8 *in, u8 *out, u32 *key,
+static inline u8 *rep_xcrypt_cbc(const u8 *input, u8 *output, void *key,
+				 u8 *iv, struct cword *control_word, int count)
+{
+	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"	/* rep xcryptcbc */
+		      : "+S" (input), "+D" (output), "+a" (iv)
+		      : "d" (control_word), "b" (key), "c" (count));
+	return iv;
+}
+
+static void ecb_crypt_copy(const u8 *in, u8 *out, u32 *key,
 			   struct cword *cword, int count)
 {
 	/*
 	 * Padlock prefetches extra data so we must provide mapped input buffers.
 	 * Assume there are at least 16 bytes of stack already in use.
 	 */
-	u8 buf[AES_BLOCK_SIZE * 7 + PADLOCK_ALIGNMENT - 1];
+	u8 buf[AES_BLOCK_SIZE * (MAX_ECB_FETCH_BLOCKS - 1) + PADLOCK_ALIGNMENT - 1];
 	u8 *tmp = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 
 	memcpy(tmp, in, count * AES_BLOCK_SIZE);
-	padlock_xcrypt(tmp, out, key, cword, count);
+	rep_xcrypt_ecb(tmp, out, key, cword, count);
 }
 
-static inline void aes_crypt(const u8 *in, u8 *out, u32 *key,
+static u8 *cbc_crypt_copy(const u8 *in, u8 *out, u32 *key,
+			   u8 *iv, struct cword *cword, int count)
+{
+	/*
+	 * Padlock prefetches extra data so we must provide mapped input buffers.
+	 * Assume there are at least 16 bytes of stack already in use.
+	 */
+	u8 buf[AES_BLOCK_SIZE * (MAX_CBC_FETCH_BLOCKS - 1) + PADLOCK_ALIGNMENT - 1];
+	u8 *tmp = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
+
+	memcpy(tmp, in, count * AES_BLOCK_SIZE);
+	return rep_xcrypt_cbc(tmp, out, key, iv, cword, count);
+}
+
+static inline void ecb_crypt(const u8 *in, u8 *out, u32 *key,
 			     struct cword *cword, int count)
 {
 	/* Padlock in ECB mode fetches at least ecb_fetch_bytes of data.
 	 * We could avoid some copying here but it's probably not worth it.
 	 */
 	if (unlikely(((unsigned long)in & PAGE_SIZE) + ecb_fetch_bytes > PAGE_SIZE)) {
-		aes_crypt_copy(in, out, key, cword, count);
+		ecb_crypt_copy(in, out, key, cword, count);
 		return;
 	}
 
-	padlock_xcrypt(in, out, key, cword, count);
+	rep_xcrypt_ecb(in, out, key, cword, count);
+}
+
+static inline u8 *cbc_crypt(const u8 *in, u8 *out, u32 *key,
+			    u8 *iv, struct cword *cword, int count)
+{
+	/* Padlock in CBC mode fetches at least cbc_fetch_bytes of data. */
+	if (unlikely(((unsigned long)in & PAGE_SIZE) + cbc_fetch_bytes > PAGE_SIZE))
+		return cbc_crypt_copy(in, out, key, iv, cword, count);
+
+	return rep_xcrypt_cbc(in, out, key, iv, cword, count);
 }
 
 static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
@@ -222,7 +260,7 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 	u32 initial = count & (ecb_fetch_blocks - 1);
 
 	if (count < ecb_fetch_blocks) {
-		aes_crypt(input, output, key, control_word, count);
+		ecb_crypt(input, output, key, control_word, count);
 		return;
 	}
 
@@ -239,10 +277,19 @@ static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 				     u8 *iv, void *control_word, u32 count)
 {
-	/* rep xcryptcbc */
-	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"
+	u32 initial = count & (cbc_fetch_blocks - 1);
+
+	if (count < cbc_fetch_blocks)
+		return cbc_crypt(input, output, key, iv, control_word, count);
+
+	if (initial)
+		asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"	/* rep xcryptcbc */
+			      : "+S" (input), "+D" (output), "+a" (iv)
+			      : "d" (control_word), "b" (key), "c" (count));
+
+	asm volatile (".byte 0xf3,0x0f,0xa7,0xd0"	/* rep xcryptcbc */
 		      : "+S" (input), "+D" (output), "+a" (iv)
-		      : "d" (control_word), "b" (key), "c" (count));
+		      : "d" (control_word), "b" (key), "c" (count-initial));
 	return iv;
 }
 
@@ -253,7 +300,7 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 	padlock_reset_key(&ctx->cword.encrypt);
 	ts_state = irq_ts_save();
-	aes_crypt(in, out, ctx->E, &ctx->cword.encrypt, 1);
+	ecb_crypt(in, out, ctx->E, &ctx->cword.encrypt, 1);
 	irq_ts_restore(ts_state);
 	padlock_store_cword(&ctx->cword.encrypt);
 }
@@ -265,7 +312,7 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 	padlock_reset_key(&ctx->cword.encrypt);
 	ts_state = irq_ts_save();
-	aes_crypt(in, out, ctx->D, &ctx->cword.decrypt, 1);
+	ecb_crypt(in, out, ctx->D, &ctx->cword.decrypt, 1);
 	irq_ts_restore(ts_state);
 	padlock_store_cword(&ctx->cword.encrypt);
 }
@@ -482,8 +529,8 @@ static int __init padlock_init(void)
 	printk(KERN_NOTICE PFX "Using VIA PadLock ACE for AES algorithm.\n");
 
 	if (c->x86 == 6 && c->x86_model == 15 && c->x86_mask == 2) {
-		ecb_fetch_blocks = 8;
-		cbc_fetch_blocks = 4; /* NOTE: notused */
+		ecb_fetch_blocks = MAX_ECB_FETCH_BLOCKS;
+		cbc_fetch_blocks = MAX_CBC_FETCH_BLOCKS;
 		printk(KERN_NOTICE PFX "VIA Nano stepping 2 detected: enabling workaround.\n");
 	}
 
