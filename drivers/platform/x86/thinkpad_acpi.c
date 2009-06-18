@@ -5696,6 +5696,10 @@ static struct ibm_struct ecdump_driver_data = {
  *   Bit 3-0: backlight brightness level
  *
  * brightness_get_raw returns status data in the HBRV layout
+ *
+ * WARNING: The X61 has been verified to use HBRV for something else, so
+ * this should be used _only_ on IBM ThinkPads, and maybe with some careful
+ * testing on the very early *60 Lenovo models...
  */
 
 enum {
@@ -5995,6 +5999,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			   "selected brightness_mode=%d\n",
 			   brightness_mode);
 	}
+
+	/* Safety */
+	if (thinkpad_id.vendor != PCI_VENDOR_ID_IBM &&
+	    (brightness_mode == TPACPI_BRGHT_MODE_ECNVRAM ||
+	     brightness_mode == TPACPI_BRGHT_MODE_EC))
+		return -EINVAL;
 
 	if (tpacpi_brightness_get_raw(&b) < 0)
 		return 1;
