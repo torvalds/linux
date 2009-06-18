@@ -41,7 +41,6 @@
 #include <linux/kref.h>
 #include <linux/sunrpc/clnt.h>
 
-#define NFS4_OPAQUE_LIMIT 1024
 typedef struct {
 	u32             cl_boot;
 	u32             cl_id;
