@@ -252,6 +252,118 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 	return 0;
 }
 
+/* Read settings from EEPROM into our private structure.
+ * MAC address gets dropped into callers buffer */
+int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
+{
+	struct net_device *dev = priv->ndev;
+	struct hermes_idstring nickbuf;
+	hermes_t *hw = &priv->hw;
+	int len;
+	int err;
+	u16 reclen;
+
+	/* Get the MAC address */
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
+			      ETH_ALEN, NULL, dev_addr);
+	if (err) {
+		printk(KERN_WARNING "%s: failed to read MAC address!\n",
+		       dev->name);
+		goto out;
+	}
+
+	printk(KERN_DEBUG "%s: MAC address %pM\n",
+	       dev->name, dev_addr);
+
+	/* Get the station name */
+	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,
+			      sizeof(nickbuf), &reclen, &nickbuf);
+	if (err) {
+		printk(KERN_ERR "%s: failed to read station name\n",
+		       dev->name);
+		goto out;
+	}
+	if (nickbuf.len)
+		len = min(IW_ESSID_MAX_SIZE, (int)le16_to_cpu(nickbuf.len));
+	else
+		len = min(IW_ESSID_MAX_SIZE, 2 * reclen);
+	memcpy(priv->nick, &nickbuf.val, len);
+	priv->nick[len] = '\0';
+
+	printk(KERN_DEBUG "%s: Station name \"%s\"\n", dev->name, priv->nick);
+
+	/* Get allowed channels */
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CHANNELLIST,
+				  &priv->channel_mask);
+	if (err) {
+		printk(KERN_ERR "%s: failed to read channel list!\n",
+		       dev->name);
+		goto out;
+	}
+
+	/* Get initial AP density */
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFSYSTEMSCALE,
+				  &priv->ap_density);
+	if (err || priv->ap_density < 1 || priv->ap_density > 3)
+		priv->has_sensitivity = 0;
+
+	/* Get initial RTS threshold */
+	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
+				  &priv->rts_thresh);
+	if (err) {
+		printk(KERN_ERR "%s: failed to read RTS threshold!\n",
+		       dev->name);
+		goto out;
+	}
+
+	/* Get initial fragmentation settings */
+	if (priv->has_mwo)
+		err = hermes_read_wordrec(hw, USER_BAP,
+					  HERMES_RID_CNFMWOROBUST_AGERE,
+					  &priv->mwo_robust);
+	else
+		err = hermes_read_wordrec(hw, USER_BAP,
+					  HERMES_RID_CNFFRAGMENTATIONTHRESHOLD,
+					  &priv->frag_thresh);
+	if (err) {
+		printk(KERN_ERR "%s: failed to read fragmentation settings!\n",
+		       dev->name);
+		goto out;
+	}
+
+	/* Power management setup */
+	if (priv->has_pm) {
+		priv->pm_on = 0;
+		priv->pm_mcast = 1;
+		err = hermes_read_wordrec(hw, USER_BAP,
+					  HERMES_RID_CNFMAXSLEEPDURATION,
+					  &priv->pm_period);
+		if (err) {
+			printk(KERN_ERR "%s: failed to read power management "
+			       "period!\n", dev->name);
+			goto out;
+		}
+		err = hermes_read_wordrec(hw, USER_BAP,
+					  HERMES_RID_CNFPMHOLDOVERDURATION,
+					  &priv->pm_timeout);
+		if (err) {
+			printk(KERN_ERR "%s: failed to read power management "
+			       "timeout!\n", dev->name);
+			goto out;
+		}
+	}
+
+	/* Preamble setup */
+	if (priv->has_preamble) {
+		err = hermes_read_wordrec(hw, USER_BAP,
+					  HERMES_RID_CNFPREAMBLE_SYMBOL,
+					  &priv->preamble);
+	}
+
+out:
+	return err;
+}
+
 int orinoco_get_bitratemode(int bitrate, int automatic)
 {
 	int ratemode = -1;
