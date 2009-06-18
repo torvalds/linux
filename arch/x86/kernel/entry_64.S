@@ -135,6 +135,7 @@ ENTRY(ftrace_graph_caller)
 
 	leaq 8(%rbp), %rdi
 	movq 0x38(%rsp), %rsi
+	movq (%rbp), %rdx
 	subq $MCOUNT_INSN_SIZE, %rsi
 
 	call	prepare_ftrace_return
@@ -150,6 +151,7 @@ GLOBAL(return_to_handler)
 	/* Save the return values */
 	movq %rax, (%rsp)
 	movq %rdx, 8(%rsp)
+	movq %rbp, %rdi
 
 	call ftrace_return_to_handler
 

@@ -190,7 +190,7 @@ unsigned long prepare_ftrace_return(unsigned long ip, unsigned long parent)
 		goto out;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
-	if (ftrace_push_return_trace(parent, ip, &trace.depth) == -EBUSY)
+	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0) == -EBUSY)
 		goto out;
 	trace.func = ftrace_mcount_call_adjust(ip) & PSW_ADDR_INSN;
 	/* Only trace if the calling function expects to. */
