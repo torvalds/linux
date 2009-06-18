@@ -343,23 +343,22 @@ enum perf_event_type {
 	 *	{ u64			nr;
 	 *	  { u64 id, val; }	cnt[nr];  } && PERF_SAMPLE_GROUP
 	 *
-	 *	{ u16			nr,
-	 *				hv,
-	 *				kernel,
-	 *				user;
+	 *	{ u64			nr,
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 * };
 	 */
 };
 
-#define MAX_STACK_DEPTH			255
+enum perf_callchain_context {
+	PERF_CONTEXT_HV			= (__u64)-32,
+	PERF_CONTEXT_KERNEL		= (__u64)-128,
+	PERF_CONTEXT_USER		= (__u64)-512,
 
-struct perf_callchain_entry {
-	__u16				nr;
-	__u16				hv;
-	__u16				kernel;
-	__u16				user;
-	__u64				ip[MAX_STACK_DEPTH];
+	PERF_CONTEXT_GUEST		= (__u64)-2048,
+	PERF_CONTEXT_GUEST_KERNEL	= (__u64)-2176,
+	PERF_CONTEXT_GUEST_USER		= (__u64)-2560,
+
+	PERF_CONTEXT_MAX		= (__u64)-4095,
 };
 
 #ifdef __KERNEL__
@@ -380,6 +379,13 @@ struct perf_callchain_entry {
 #include <linux/fs.h>
 #include <linux/pid_namespace.h>
 #include <asm/atomic.h>
+
+#define PERF_MAX_STACK_DEPTH		255
+
+struct perf_callchain_entry {
+	__u64				nr;
+	__u64				ip[PERF_MAX_STACK_DEPTH];
+};
 
 struct task_struct;
 

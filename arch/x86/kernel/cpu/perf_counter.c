@@ -1555,9 +1555,9 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
  */
 
 static inline
-void callchain_store(struct perf_callchain_entry *entry, unsigned long ip)
+void callchain_store(struct perf_callchain_entry *entry, u64 ip)
 {
-	if (entry->nr < MAX_STACK_DEPTH)
+	if (entry->nr < PERF_MAX_STACK_DEPTH)
 		entry->ip[entry->nr++] = ip;
 }
 
@@ -1602,22 +1602,10 @@ static const struct stacktrace_ops backtrace_ops = {
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
-	unsigned long bp;
-	char *stack;
-	int nr = entry->nr;
-
+	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->ip);
 
-	stack = ((char *)regs + sizeof(struct pt_regs));
-#ifdef CONFIG_FRAME_POINTER
-	get_bp(bp);
-#else
-	bp = 0;
-#endif
-
-	dump_trace(NULL, regs, (void *)&stack, bp, &backtrace_ops, entry);
-
-	entry->kernel = entry->nr - nr;
+	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
 }
 
 /*
@@ -1669,16 +1657,16 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	struct stack_frame frame;
 	const void __user *fp;
-	int nr = entry->nr;
 
 	if (!user_mode(regs))
 		regs = task_pt_regs(current);
 
 	fp = (void __user *)regs->bp;
 
+	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->ip);
 
-	while (entry->nr < MAX_STACK_DEPTH) {
+	while (entry->nr < PERF_MAX_STACK_DEPTH) {
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
@@ -1691,8 +1679,6 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		callchain_store(entry, frame.return_address);
 		fp = frame.next_frame;
 	}
-
-	entry->user = entry->nr - nr;
 }
 
 static void
@@ -1728,9 +1714,6 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 		entry = &__get_cpu_var(irq_entry);
 
 	entry->nr = 0;
-	entry->hv = 0;
-	entry->kernel = 0;
-	entry->user = 0;
 
 	perf_do_callchain(regs, entry);
 
