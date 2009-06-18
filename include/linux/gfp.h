@@ -99,7 +99,7 @@ struct vm_area_struct;
 			__GFP_NORETRY|__GFP_NOMEMALLOC)
 
 /* Control slab gfp mask during early boot */
-#define SLAB_GFP_BOOT_MASK __GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS)
+#define GFP_BOOT_MASK __GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS)
 
 /* Control allocation constraints */
 #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
@@ -346,6 +346,13 @@ static inline void oom_killer_disable(void)
 static inline void oom_killer_enable(void)
 {
 	oom_killer_disabled = false;
+}
+
+extern gfp_t gfp_allowed_mask;
+
+static inline void set_gfp_allowed_mask(gfp_t mask)
+{
+	gfp_allowed_mask = mask;
 }
 
 #endif /* __LINUX_GFP_H */

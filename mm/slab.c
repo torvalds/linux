@@ -305,12 +305,6 @@ struct kmem_list3 {
 };
 
 /*
- * The slab allocator is initialized with interrupts disabled. Therefore, make
- * sure early boot allocations don't accidentally enable interrupts.
- */
-static gfp_t slab_gfp_mask __read_mostly = SLAB_GFP_BOOT_MASK;
-
-/*
  * Need this for bootstrapping a per node allocator.
  */
 #define NUM_INIT_LISTS (3 * MAX_NUMNODES)
@@ -1558,11 +1552,6 @@ void __init kmem_cache_init(void)
 void __init kmem_cache_init_late(void)
 {
 	struct kmem_cache *cachep;
-
-	/*
-	 * Interrupts are enabled now so all GFP allocations are safe.
-	 */
-	slab_gfp_mask = __GFP_BITS_MASK;
 
 	/* 6) resize the head arrays to their final sizes */
 	mutex_lock(&cache_chain_mutex);
@@ -3307,7 +3296,7 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 	unsigned long save_flags;
 	void *ptr;
 
-	flags &= slab_gfp_mask;
+	flags &= gfp_allowed_mask;
 
 	lockdep_trace_alloc(flags);
 
@@ -3392,7 +3381,7 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
 	unsigned long save_flags;
 	void *objp;
 
-	flags &= slab_gfp_mask;
+	flags &= gfp_allowed_mask;
 
 	lockdep_trace_alloc(flags);
 
