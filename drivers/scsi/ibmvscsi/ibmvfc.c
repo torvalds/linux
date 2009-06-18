@@ -2783,27 +2783,27 @@ static void ibmvfc_tasklet(void *data)
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	while (!done) {
-		/* Pull all the valid messages off the CRQ */
-		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
-			ibmvfc_handle_crq(crq, vhost);
-			crq->valid = 0;
-		}
-
 		/* Pull all the valid messages off the async CRQ */
 		while ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
 			ibmvfc_handle_async(async, vhost);
 			async->valid = 0;
 		}
 
-		vio_enable_interrupts(vdev);
-		if ((crq = ibmvfc_next_crq(vhost)) != NULL) {
-			vio_disable_interrupts(vdev);
+		/* Pull all the valid messages off the CRQ */
+		while ((crq = ibmvfc_next_crq(vhost)) != NULL) {
 			ibmvfc_handle_crq(crq, vhost);
 			crq->valid = 0;
-		} else if ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
+		}
+
+		vio_enable_interrupts(vdev);
+		if ((async = ibmvfc_next_async_crq(vhost)) != NULL) {
 			vio_disable_interrupts(vdev);
 			ibmvfc_handle_async(async, vhost);
 			async->valid = 0;
+		} else if ((crq = ibmvfc_next_crq(vhost)) != NULL) {
+			vio_disable_interrupts(vdev);
+			ibmvfc_handle_crq(crq, vhost);
+			crq->valid = 0;
 		} else
 			done = 1;
 	}
