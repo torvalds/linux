@@ -132,7 +132,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	struct op_entry entry;
 
 	if (!has_ibs)
-		return 1;
+		return 0;
 
 	if (ibs_config.fetch_enabled) {
 		rdmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
@@ -214,7 +214,10 @@ static void op_amd_stop_ibs(void)
 #else
 
 static inline int op_amd_handle_ibs(struct pt_regs * const regs,
-				    struct op_msrs const * const msrs) { }
+				    struct op_msrs const * const msrs)
+{
+	return 0;
+}
 static inline void op_amd_start_ibs(void) { }
 static inline void op_amd_stop_ibs(void) { }
 
