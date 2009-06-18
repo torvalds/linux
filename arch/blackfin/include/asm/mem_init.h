@@ -59,7 +59,7 @@
 #define SDRAM_tRP       TRP_1
 #define SDRAM_tRP_num   1
 #define SDRAM_tRAS      TRAS_4
-#define SDRAM_tRAS_num  3
+#define SDRAM_tRAS_num  4
 #define SDRAM_tRCD      TRCD_1
 #define SDRAM_tWR       TWR_2
 #endif
