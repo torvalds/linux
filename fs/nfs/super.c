@@ -942,11 +942,6 @@ static int nfs_parse_security_flavors(char *value,
 	return 1;
 }
 
-static void nfs_parse_invalid_value(const char *option)
-{
-	dfprintk(MOUNT, "NFS:   bad value specified for %s option\n", option);
-}
-
 /*
  * Error-check and convert a string of mount options from user space into
  * a data structure.  The whole mount string is processed; bad options are
@@ -957,7 +952,7 @@ static int nfs_parse_mount_options(char *raw,
 				   struct nfs_parsed_mount_data *mnt)
 {
 	char *p, *string, *secdata;
-	int rc, sloppy = 0, errors = 0;
+	int rc, sloppy = 0, invalid_option = 0;
 
 	if (!raw) {
 		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
@@ -1091,113 +1086,82 @@ static int nfs_parse_mount_options(char *raw,
 		 */
 		case Opt_port:
 			if (match_int(args, &option) ||
-			    option < 0 || option > USHORT_MAX) {
-				errors++;
-				nfs_parse_invalid_value("port");
-			} else
-				mnt->nfs_server.port = option;
+			    option < 0 || option > USHORT_MAX)
+				goto out_invalid_value;
+			mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("rsize");
-			} else
-				mnt->rsize = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->rsize = option;
 			break;
 		case Opt_wsize:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("wsize");
-			} else
-				mnt->wsize = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->wsize = option;
 			break;
 		case Opt_bsize:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("bsize");
-			} else
-				mnt->bsize = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->bsize = option;
 			break;
 		case Opt_timeo:
-			if (match_int(args, &option) || option <= 0) {
-				errors++;
-				nfs_parse_invalid_value("timeo");
-			} else
-				mnt->timeo = option;
+			if (match_int(args, &option) || option <= 0)
+				goto out_invalid_value;
+			mnt->timeo = option;
 			break;
 		case Opt_retrans:
-			if (match_int(args, &option) || option <= 0) {
-				errors++;
-				nfs_parse_invalid_value("retrans");
-			} else
-				mnt->retrans = option;
+			if (match_int(args, &option) || option <= 0)
+				goto out_invalid_value;
+			mnt->retrans = option;
 			break;
 		case Opt_acregmin:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("acregmin");
-			} else
-				mnt->acregmin = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->acregmin = option;
 			break;
 		case Opt_acregmax:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("acregmax");
-			} else
-				mnt->acregmax = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->acregmax = option;
 			break;
 		case Opt_acdirmin:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("acdirmin");
-			} else
-				mnt->acdirmin = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->acdirmin = option;
 			break;
 		case Opt_acdirmax:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("acdirmax");
-			} else
-				mnt->acdirmax = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->acdirmax = option;
 			break;
 		case Opt_actimeo:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("actimeo");
-			} else
-				mnt->acregmin = mnt->acregmax =
-				mnt->acdirmin = mnt->acdirmax = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->acregmin = mnt->acregmax =
+			mnt->acdirmin = mnt->acdirmax = option;
 			break;
 		case Opt_namelen:
-			if (match_int(args, &option) || option < 0) {
-				errors++;
-				nfs_parse_invalid_value("namlen");
-			} else
-				mnt->namlen = option;
+			if (match_int(args, &option) || option < 0)
+				goto out_invalid_value;
+			mnt->namlen = option;
 			break;
 		case Opt_mountport:
 			if (match_int(args, &option) ||
-			    option < 0 || option > USHORT_MAX) {
-				errors++;
-				nfs_parse_invalid_value("mountport");
-			} else
-				mnt->mount_server.port = option;
+			    option < 0 || option > USHORT_MAX)
+				goto out_invalid_value;
+			mnt->mount_server.port = option;
 			break;
 		case Opt_mountvers:
 			if (match_int(args, &option) ||
 			    option < NFS_MNT_VERSION ||
-			    option > NFS_MNT3_VERSION) {
-				errors++;
-				nfs_parse_invalid_value("mountvers");
-			} else
-				mnt->mount_server.version = option;
+			    option > NFS_MNT3_VERSION)
+				goto out_invalid_value;
+			mnt->mount_server.version = option;
 			break;
 		case Opt_nfsvers:
-			if (match_int(args, &option)) {
-				errors++;
-				nfs_parse_invalid_value("nfsvers");
-				break;
-			}
+			if (match_int(args, &option))
+				goto out_invalid_value;
 			switch (option) {
 			case NFS2_VERSION:
 				mnt->flags &= ~NFS_MOUNT_VER3;
@@ -1206,8 +1170,7 @@ static int nfs_parse_mount_options(char *raw,
 				mnt->flags |= NFS_MOUNT_VER3;
 				break;
 			default:
-				errors++;
-				nfs_parse_invalid_value("nfsvers");
+				goto out_invalid_value;
 			}
 			break;
 
@@ -1221,9 +1184,9 @@ static int nfs_parse_mount_options(char *raw,
 			rc = nfs_parse_security_flavors(string, mnt);
 			kfree(string);
 			if (!rc) {
-				errors++;
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"security flavor\n");
+				return 0;
 			}
 			break;
 		case Opt_proto:
@@ -1237,23 +1200,25 @@ static int nfs_parse_mount_options(char *raw,
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
+				kfree(string);
 				break;
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+				kfree(string);
 				break;
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
 				xprt_load_transport(string);
+				kfree(string);
 				break;
 			default:
-				errors++;
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"transport protocol\n");
+				return 0;
 			}
-			kfree(string);
 			break;
 		case Opt_mountproto:
 			string = match_strdup(args);
@@ -1272,9 +1237,9 @@ static int nfs_parse_mount_options(char *raw,
 				break;
 			case Opt_xprt_rdma: /* not used for side protocols */
 			default:
-				errors++;
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"transport protocol\n");
+				return 0;
 			}
 			break;
 		case Opt_addr:
@@ -1330,9 +1295,9 @@ static int nfs_parse_mount_options(char *raw,
 					mnt->flags |= NFS_MOUNT_LOOKUP_CACHE_NONEG|NFS_MOUNT_LOOKUP_CACHE_NONE;
 					break;
 				default:
-					errors++;
 					dfprintk(MOUNT, "NFS:   invalid "
 							"lookupcache argument\n");
+					return 0;
 			};
 			break;
 
@@ -1350,20 +1315,20 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 
 		default:
-			errors++;
+			invalid_option = 1;
 			dfprintk(MOUNT, "NFS:   unrecognized mount option "
 					"'%s'\n", p);
 		}
 	}
 
-	if (errors > 0) {
-		dfprintk(MOUNT, "NFS: parsing encountered %d error%s\n",
-				errors, (errors == 1 ? "" : "s"));
-		if (!sloppy)
-			return 0;
-	}
+	if (!sloppy && invalid_option)
+		return 0;
+
 	return 1;
 
+out_invalid_value:
+	printk(KERN_INFO "NFS: bad mount option value specified: %s \n", p);
+	return 0;
 out_nomem:
 	printk(KERN_INFO "NFS: not enough memory to parse option\n");
 	return 0;
