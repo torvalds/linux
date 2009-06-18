@@ -130,7 +130,7 @@ static inline int sctp_wspace(struct sctp_association *asoc)
 	if (asoc->ep->sndbuf_policy)
 		amt = asoc->sndbuf_used;
 	else
-		amt = atomic_read(&asoc->base.sk->sk_wmem_alloc);
+		amt = sk_wmem_alloc_get(asoc->base.sk);
 
 	if (amt >= asoc->base.sk->sk_sndbuf) {
 		if (asoc->base.sk->sk_userlocks & SOCK_SNDBUF_LOCK)
@@ -6523,7 +6523,7 @@ static int sctp_writeable(struct sock *sk)
 {
 	int amt = 0;
 
-	amt = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
+	amt = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 	if (amt < 0)
 		amt = 0;
 	return amt;

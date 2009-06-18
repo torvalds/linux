@@ -391,13 +391,8 @@ static inline void tnode_free(struct tnode *tn)
 static void tnode_free_safe(struct tnode *tn)
 {
 	BUG_ON(IS_LEAF(tn));
-
-	if (node_parent((struct node *) tn)) {
-		tn->tnode_free = tnode_free_head;
-		tnode_free_head = tn;
-	} else {
-		tnode_free(tn);
-	}
+	tn->tnode_free = tnode_free_head;
+	tnode_free_head = tn;
 }
 
 static void tnode_free_flush(void)
@@ -1009,7 +1004,7 @@ fib_find_node(struct trie *t, u32 key)
 	return NULL;
 }
 
-static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
+static void trie_rebalance(struct trie *t, struct tnode *tn)
 {
 	int wasfull;
 	t_key cindex, key;
@@ -1033,12 +1028,13 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 	}
 
 	/* Handle last (top) tnode */
-	if (IS_TNODE(tn)) {
+	if (IS_TNODE(tn))
 		tn = (struct tnode *)resize(t, (struct tnode *)tn);
-		tnode_free_flush();
-	}
 
-	return (struct node *)tn;
+	rcu_assign_pointer(t->trie, (struct node *)tn);
+	tnode_free_flush();
+
+	return;
 }
 
 /* only used from updater-side */
@@ -1186,7 +1182,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 
 	/* Rebalance the trie */
 
-	rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
+	trie_rebalance(t, tp);
 done:
 	return fa_head;
 }
@@ -1605,7 +1601,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 	if (tp) {
 		t_key cindex = tkey_extract_bits(l->key, tp->pos, tp->bits);
 		put_child(t, (struct tnode *)tp, cindex, NULL);
-		rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
+		trie_rebalance(t, tp);
 	} else
 		rcu_assign_pointer(t->trie, NULL);
 

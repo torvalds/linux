@@ -454,7 +454,7 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
 	return VXGE_HW_OK;
 }
 
-static enum vxge_hw_status
+enum vxge_hw_status
 __vxge_hw_device_is_privilaged(struct __vxge_hw_device *hldev)
 {
 	if ((hldev->host_type == VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION ||
@@ -676,10 +676,12 @@ enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	/* Validate the pci-e link width and speed */
-	status = __vxge_hw_verify_pci_e_info(hldev);
-	if (status != VXGE_HW_OK)
-		goto exit;
+	if (VXGE_HW_OK == __vxge_hw_device_is_privilaged(hldev)) {
+		/* Validate the pci-e link width and speed */
+		status = __vxge_hw_verify_pci_e_info(hldev);
+		if (status != VXGE_HW_OK)
+			goto exit;
+	}
 
 	vxge_hw_wrr_rebalance(hldev);
 exit:

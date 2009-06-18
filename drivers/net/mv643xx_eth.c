@@ -1729,7 +1729,7 @@ static u32 uc_addr_filter_mask(struct net_device *dev)
 		return 0;
 
 	nibbles = 1 << (dev->dev_addr[5] & 0x0f);
-	list_for_each_entry(ha, &dev->uc_list, list) {
+	list_for_each_entry(ha, &dev->uc.list, list) {
 		if (memcmp(dev->dev_addr, ha->addr, 5))
 			return 0;
 		if ((dev->dev_addr[5] ^ ha->addr[5]) & 0xf0)

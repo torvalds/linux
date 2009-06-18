@@ -1281,7 +1281,7 @@ static u16 sis190_default_phy(struct net_device *dev)
 		else if (phy_lan)
 			phy_default = phy_lan;
 		else
-			phy_default = list_entry(&tp->first_phy,
+			phy_default = list_first_entry(&tp->first_phy,
 						 struct sis190_phy, list);
 	}
 

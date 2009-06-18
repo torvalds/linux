@@ -1300,7 +1300,7 @@ isdn_net_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				netif_stop_queue(ndev);
 		}
 	}
-	return 1;
+	return NETDEV_TX_BUSY;
 }
 
 /*

@@ -783,6 +783,7 @@ struct ieee80211_local {
 		struct dentry *total_ps_buffered;
 		struct dentry *wep_iv;
 		struct dentry *tsf;
+		struct dentry *queues;
 		struct dentry *reset;
 		struct dentry *noack;
 		struct dentry *statistics;
@@ -1100,7 +1101,6 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc);
-int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band);
 

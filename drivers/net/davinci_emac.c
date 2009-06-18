@@ -2767,7 +2767,6 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 
 	dev_notice(&ndev->dev, "DaVinci EMAC: davinci_emac_remove()\n");
 
-	clk_disable(emac_clk);
 	platform_set_drvdata(pdev, NULL);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	mdiobus_unregister(priv->mii_bus);

@@ -629,13 +629,9 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
-
-	if (iwl_ht_conf->ht_protection & IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
-		return 1;
-	else
-		return iwl_is_channel_extension(priv, priv->band,
-				le16_to_cpu(priv->staging_rxon.channel),
-				iwl_ht_conf->extension_chan_offset);
+	return iwl_is_channel_extension(priv, priv->band,
+			le16_to_cpu(priv->staging_rxon.channel),
+			iwl_ht_conf->extension_chan_offset);
 }
 EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
 
@@ -826,9 +822,18 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
 	if (iwl_is_fat_tx_allowed(priv, NULL)) {
 		/* pure 40 fat */
-		if (rxon->flags & RXON_FLG_FAT_PROT_MSK)
+		if (ht_info->ht_protection == IEEE80211_HT_OP_MODE_PROTECTION_20MHZ) {
 			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
-		else {
+			/* Note: control channel is opposite of extension channel */
+			switch (ht_info->extension_chan_offset) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				rxon->flags &= ~RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				break;
+			}
+		} else {
 			/* Note: control channel is opposite of extension channel */
 			switch (ht_info->extension_chan_offset) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
@@ -2390,39 +2395,46 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
 	}
 
-	if ((changes & BSS_CHANGED_BSSID) && !iwl_is_rfkill(priv)) {
-		/* If there is currently a HW scan going on in the background
-		 * then we need to cancel it else the RXON below will fail. */
+	if (changes & BSS_CHANGED_BEACON_INT) {
+		priv->beacon_int = bss_conf->beacon_int;
+		/* TODO: in AP mode, do something to make this take effect */
+	}
+
+	if (changes & BSS_CHANGED_BSSID) {
+		IWL_DEBUG_MAC80211(priv, "BSSID %pM\n", bss_conf->bssid);
+
+		/*
+		 * If there is currently a HW scan going on in the
+		 * background then we need to cancel it else the RXON
+		 * below/in post_associate will fail.
+		 */
 		if (iwl_scan_cancel_timeout(priv, 100)) {
-			IWL_WARN(priv, "Aborted scan still in progress "
-				    "after 100ms\n");
+			IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
 			IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
 			mutex_unlock(&priv->mutex);
 			return;
 		}
-		memcpy(priv->staging_rxon.bssid_addr,
-		       bss_conf->bssid, ETH_ALEN);
 
-		/* TODO: Audit driver for usage of these members and see
-		 * if mac80211 deprecates them (priv->bssid looks like it
-		 * shouldn't be there, but I haven't scanned the IBSS code
-		 * to verify) - jpk */
-		memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
+		/* mac80211 only sets assoc when in STATION mode */
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC ||
+		    bss_conf->assoc) {
+			memcpy(priv->staging_rxon.bssid_addr,
+			       bss_conf->bssid, ETH_ALEN);
 
-		if (priv->iw_mode == NL80211_IFTYPE_AP)
-			iwlcore_config_ap(priv);
-		else {
-			int rc = iwlcore_commit_rxon(priv);
-			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
-				iwl_rxon_add_station(
-					priv, priv->active_rxon.bssid_addr, 1);
+			/* currently needed in a few places */
+			memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
+		} else {
+			priv->staging_rxon.filter_flags &=
+				~RXON_FILTER_ASSOC_MSK;
 		}
-	} else if (!iwl_is_rfkill(priv)) {
-		iwl_scan_cancel_timeout(priv, 100);
-		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		iwlcore_commit_rxon(priv);
+
 	}
 
+	/*
+	 * This needs to be after setting the BSSID in case
+	 * mac80211 decides to do both changes at once because
+	 * it will invoke post_associate.
+	 */
 	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
 	    changes & BSS_CHANGED_BEACON) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
@@ -2430,8 +2442,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		if (beacon)
 			iwl_mac_beacon_update(hw, beacon);
 	}
-
-	mutex_unlock(&priv->mutex);
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
 		IWL_DEBUG_MAC80211(priv, "ERP_PREAMBLE %d\n",
@@ -2450,6 +2460,23 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
 	}
 
+	if (changes & BSS_CHANGED_BASIC_RATES) {
+		/* XXX use this information
+		 *
+		 * To do that, remove code from iwl_set_rate() and put something
+		 * like this here:
+		 *
+		if (A-band)
+			priv->staging_rxon.ofdm_basic_rates =
+				bss_conf->basic_rates;
+		else
+			priv->staging_rxon.ofdm_basic_rates =
+				bss_conf->basic_rates >> 4;
+			priv->staging_rxon.cck_basic_rates =
+				bss_conf->basic_rates & 0xF;
+		 */
+	}
+
 	if (changes & BSS_CHANGED_HT) {
 		iwl_ht_conf(priv, bss_conf);
 
@@ -2459,10 +2486,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		IWL_DEBUG_MAC80211(priv, "ASSOC %d\n", bss_conf->assoc);
-		/* This should never happen as this function should
-		 * never be called from interrupt context. */
-		if (WARN_ON_ONCE(in_interrupt()))
-			return;
 		if (bss_conf->assoc) {
 			priv->assoc_id = bss_conf->aid;
 			priv->beacon_int = bss_conf->beacon_int;
@@ -2470,27 +2493,35 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
 
-			/* we have just associated, don't start scan too early
-			 * leave time for EAPOL exchange to complete
+			/*
+			 * We have just associated, don't start scan too early
+			 * leave time for EAPOL exchange to complete.
+			 *
+			 * XXX: do this in mac80211
 			 */
 			priv->next_scan_jiffies = jiffies +
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
-			mutex_lock(&priv->mutex);
-			priv->cfg->ops->lib->post_associate(priv);
-			mutex_unlock(&priv->mutex);
-		} else {
+			if (!iwl_is_rfkill(priv))
+				priv->cfg->ops->lib->post_associate(priv);
+		} else
 			priv->assoc_id = 0;
-			IWL_DEBUG_MAC80211(priv, "DISASSOC %d\n", bss_conf->assoc);
-		}
-	} else if (changes && iwl_is_associated(priv) && priv->assoc_id) {
-			IWL_DEBUG_MAC80211(priv, "Associated Changes %d\n", changes);
-			ret = iwl_send_rxon_assoc(priv);
-			if (!ret)
-				/* Sync active_rxon with latest change. */
-				memcpy((void *)&priv->active_rxon,
-					&priv->staging_rxon,
-					sizeof(struct iwl_rxon_cmd));
+
 	}
+
+	if (changes && iwl_is_associated(priv) && priv->assoc_id) {
+		IWL_DEBUG_MAC80211(priv, "Changes (%#x) while associated\n",
+				   changes);
+		ret = iwl_send_rxon_assoc(priv);
+		if (!ret) {
+			/* Sync active_rxon with latest change. */
+			memcpy((void *)&priv->active_rxon,
+				&priv->staging_rxon,
+				sizeof(struct iwl_rxon_cmd));
+		}
+	}
+
+	mutex_unlock(&priv->mutex);
+
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 EXPORT_SYMBOL(iwl_bss_info_changed);

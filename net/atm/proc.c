@@ -204,8 +204,8 @@ static void vcc_info(struct seq_file *seq, struct atm_vcc *vcc)
 			seq_printf(seq, "%3d", sk->sk_family);
 	}
 	seq_printf(seq, " %04lx  %5d %7d/%7d %7d/%7d [%d]\n", vcc->flags, sk->sk_err,
-		  atomic_read(&sk->sk_wmem_alloc), sk->sk_sndbuf,
-		  atomic_read(&sk->sk_rmem_alloc), sk->sk_rcvbuf,
+		  sk_wmem_alloc_get(sk), sk->sk_sndbuf,
+		  sk_rmem_alloc_get(sk), sk->sk_rcvbuf,
 		  atomic_read(&sk->sk_refcnt));
 }
 

@@ -1495,13 +1495,8 @@ static int hp100_start_xmit_bm(struct sk_buff *skb, struct net_device *dev)
 	hp100_outw(0x4210, TRACE);
 	printk("hp100: %s: start_xmit_bm\n", dev->name);
 #endif
-
-	if (skb == NULL) {
-		return 0;
-	}
-
 	if (skb->len <= 0)
-		return 0;
+		goto drop;
 
 	if (lp->chip == HP100_CHIPID_SHASTA && skb_padto(skb, ETH_ZLEN))
 		return 0;
@@ -1514,10 +1509,10 @@ static int hp100_start_xmit_bm(struct sk_buff *skb, struct net_device *dev)
 #endif
 		/* not waited long enough since last tx? */
 		if (time_before(jiffies, dev->trans_start + HZ))
-			return -EAGAIN;
+			goto drop;
 
 		if (hp100_check_lan(dev))
-			return -EIO;
+			goto drop;
 
 		if (lp->lan_type == HP100_LAN_100 && lp->hub_status < 0) {
 			/* we have a 100Mb/s adapter but it isn't connected to hub */
@@ -1551,7 +1546,7 @@ static int hp100_start_xmit_bm(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		dev->trans_start = jiffies;
-		return -EAGAIN;
+		goto drop;
 	}
 
 	/*
@@ -1591,6 +1586,10 @@ static int hp100_start_xmit_bm(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	return 0;
+
+drop:
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 
 
@@ -1648,16 +1647,11 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	hp100_outw(0x4212, TRACE);
 	printk("hp100: %s: start_xmit\n", dev->name);
 #endif
-
-	if (skb == NULL) {
-		return 0;
-	}
-
 	if (skb->len <= 0)
-		return 0;
+		goto drop;
 
 	if (hp100_check_lan(dev))
-		return -EIO;
+		goto drop;
 
 	/* If there is not enough free memory on the card... */
 	i = hp100_inl(TX_MEM_FREE) & 0x7fffffff;
@@ -1671,7 +1665,7 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			printk("hp100: %s: trans_start timing problem\n",
 			       dev->name);
 #endif
-			return -EAGAIN;
+			goto drop;
 		}
 		if (lp->lan_type == HP100_LAN_100 && lp->hub_status < 0) {
 			/* we have a 100Mb/s adapter but it isn't connected to hub */
@@ -1705,7 +1699,7 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			}
 		}
 		dev->trans_start = jiffies;
-		return -EAGAIN;
+		goto drop;
 	}
 
 	for (i = 0; i < 6000 && (hp100_inb(OPTION_MSW) & HP100_TX_CMD); i++) {
@@ -1759,6 +1753,11 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	return 0;
+
+drop:
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
+
 }
 
 

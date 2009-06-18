@@ -989,8 +989,10 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	if (ret < 0)
 		goto err_iounmap;
 
-	if (velocity_get_link(dev))
+	if (!velocity_get_link(dev)) {
 		netif_carrier_off(dev);
+		vptr->mii_status |= VELOCITY_LINK_FAIL;
+	}
 
 	velocity_print_info(vptr);
 	pci_set_drvdata(pdev, dev);

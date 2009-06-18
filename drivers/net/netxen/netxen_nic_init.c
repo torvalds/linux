@@ -1292,7 +1292,6 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 		return 1;
 
 	sw_consumer = tx_ring->sw_consumer;
-	barrier(); /* hw_consumer can change underneath */
 	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
 
 	while (sw_consumer != hw_consumer) {
@@ -1319,14 +1318,15 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 			break;
 	}
 
-	tx_ring->sw_consumer = sw_consumer;
-
 	if (count && netif_running(netdev)) {
+		tx_ring->sw_consumer = sw_consumer;
+
 		smp_mb();
+
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
 			netif_tx_lock(netdev);
-			netif_wake_queue(netdev);
-			smp_mb();
+			if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+				netif_wake_queue(netdev);
 			netif_tx_unlock(netdev);
 		}
 	}
@@ -1343,7 +1343,6 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	 * There is still a possible race condition and the host could miss an
 	 * interrupt. The card has to take care of this.
 	 */
-	barrier(); /* hw_consumer can change underneath */
 	hw_consumer = le32_to_cpu(*(tx_ring->hw_consumer));
 	done = (sw_consumer == hw_consumer);
 	spin_unlock(&adapter->tx_clean_lock);

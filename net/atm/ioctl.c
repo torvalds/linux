@@ -63,8 +63,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 				error =  -EINVAL;
 				goto done;
 			}
-			error = put_user(sk->sk_sndbuf -
-					 atomic_read(&sk->sk_wmem_alloc),
+			error = put_user(sk->sk_sndbuf - sk_wmem_alloc_get(sk),
 					 (int __user *) argp) ? -EFAULT : 0;
 			goto done;
 		case SIOCINQ:
