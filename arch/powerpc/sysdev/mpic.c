@@ -1053,11 +1053,10 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	int		intvec_top;
 	u64		paddr = phys_addr;
 
-	mpic = alloc_bootmem(sizeof(struct mpic));
+	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
 		return NULL;
-	
-	memset(mpic, 0, sizeof(struct mpic));
+
 	mpic->name = name;
 
 	mpic->hc_irq = mpic_irq_chip;
