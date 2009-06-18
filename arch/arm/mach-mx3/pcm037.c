@@ -170,6 +170,8 @@ static unsigned int pcm037_pins[] = {
 	MX31_PIN_CSI_MCLK__CSI_MCLK,
 	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK,
 	MX31_PIN_CSI_VSYNC__CSI_VSYNC,
+	/* GPIO */
+	IOMUX_MODE(MX31_PIN_ATA_DMACK, IOMUX_CONFIG_GPIO),
 };
 
 static struct physmap_flash_data pcm037_flash_data = {
