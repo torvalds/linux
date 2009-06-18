@@ -1267,12 +1267,6 @@ void r100_vram_info(struct radeon_device *rdev)
 
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
-	if (rdev->mc.aper_size > rdev->mc.vram_size) {
-		/* Why does some hw doesn't have CONFIG_MEMSIZE properly
-		 * setup ? */
-		rdev->mc.vram_size = rdev->mc.aper_size;
-		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.vram_size);
-	}
 }
 
 
