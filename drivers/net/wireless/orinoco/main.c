@@ -1017,8 +1017,8 @@ static void orinoco_rx(struct net_device *dev,
 
 static void orinoco_rx_isr_tasklet(unsigned long data)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct orinoco_private *priv = (struct orinoco_private *) data;
+	struct net_device *dev = priv->ndev;
 	struct orinoco_rx_data *rx_data, *temp;
 	struct hermes_rx_descriptor *desc;
 	struct sk_buff *skb;
@@ -2143,7 +2143,6 @@ int orinoco_init(struct orinoco_private *priv)
 	err = orinoco_hw_read_card_settings(priv, wiphy->perm_addr);
 	if (err)
 		goto out;
-	memcpy(priv->ndev->dev_addr, wiphy->perm_addr, ETH_ALEN);
 
 	err = orinoco_hw_allocate_fid(priv);
 	if (err) {
@@ -2226,9 +2225,7 @@ struct orinoco_private
 		  int (*hard_reset)(struct orinoco_private *),
 		  int (*stop_fw)(struct orinoco_private *, int))
 {
-	struct net_device *dev;
 	struct orinoco_private *priv;
-	struct wireless_dev *wdev;
 	struct wiphy *wiphy;
 
 	/* allocate wiphy
@@ -2240,43 +2237,20 @@ struct orinoco_private
 	if (!wiphy)
 		return NULL;
 
-	dev = alloc_etherdev(sizeof(struct wireless_dev));
-	if (!dev) {
-		wiphy_free(wiphy);
-		return NULL;
-	}
-
 	priv = wiphy_priv(wiphy);
-	priv->ndev = dev;
+	priv->dev = device;
 
 	if (sizeof_card)
 		priv->card = (void *)((unsigned long)priv
 				      + sizeof(struct orinoco_private));
 	else
 		priv->card = NULL;
-	priv->dev = device;
 
 	orinoco_wiphy_init(wiphy);
 
-	/* Initialise wireless_dev */
-	wdev = netdev_priv(dev);
-	wdev->wiphy = wiphy;
-	wdev->iftype = NL80211_IFTYPE_STATION;
-
-	/* Setup / override net_device fields */
-	dev->ieee80211_ptr = wdev;
-	dev->netdev_ops = &orinoco_netdev_ops;
-	dev->watchdog_timeo = HZ; /* 1 second timeout */
-	dev->ethtool_ops = &orinoco_ethtool_ops;
-	dev->wireless_handlers = &orinoco_handler_def;
 #ifdef WIRELESS_SPY
 	priv->wireless_data.spy_data = &priv->spy_data;
-	dev->wireless_data = &priv->wireless_data;
 #endif
-	/* we use the default eth_mac_addr for setting the MAC addr */
-
-	/* Reserve space in skb for the SNAP header */
-	dev->hard_header_len += ENCAPS_OVERHEAD;
 
 	/* Set up default callbacks */
 	priv->hard_reset = hard_reset;
@@ -2293,9 +2267,8 @@ struct orinoco_private
 
 	INIT_LIST_HEAD(&priv->rx_list);
 	tasklet_init(&priv->rx_tasklet, orinoco_rx_isr_tasklet,
-		     (unsigned long) dev);
+		     (unsigned long) priv);
 
-	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
 
 #if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
@@ -2310,9 +2283,82 @@ struct orinoco_private
 }
 EXPORT_SYMBOL(alloc_orinocodev);
 
-void free_orinocodev(struct orinoco_private *priv)
+/* We can only support a single interface. We provide a separate
+ * function to set it up to distinguish between hardware
+ * initialisation and interface setup.
+ *
+ * The base_addr and irq parameters are passed on to netdev for use
+ * with SIOCGIFMAP.
+ */
+int orinoco_if_add(struct orinoco_private *priv,
+		   unsigned long base_addr,
+		   unsigned int irq)
+{
+	struct wiphy *wiphy = priv_to_wiphy(priv);
+	struct wireless_dev *wdev;
+	struct net_device *dev;
+	int ret;
+
+	dev = alloc_etherdev(sizeof(struct wireless_dev));
+
+	if (!dev)
+		return -ENOMEM;
+
+	/* Initialise wireless_dev */
+	wdev = netdev_priv(dev);
+	wdev->wiphy = wiphy;
+	wdev->iftype = NL80211_IFTYPE_STATION;
+
+	/* Setup / override net_device fields */
+	dev->ieee80211_ptr = wdev;
+	dev->netdev_ops = &orinoco_netdev_ops;
+	dev->watchdog_timeo = HZ; /* 1 second timeout */
+	dev->ethtool_ops = &orinoco_ethtool_ops;
+	dev->wireless_handlers = &orinoco_handler_def;
+#ifdef WIRELESS_SPY
+	dev->wireless_data = &priv->wireless_data;
+#endif
+	/* we use the default eth_mac_addr for setting the MAC addr */
+
+	/* Reserve space in skb for the SNAP header */
+	dev->hard_header_len += ENCAPS_OVERHEAD;
+
+	netif_carrier_off(dev);
+
+	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
+
+	dev->base_addr = base_addr;
+	dev->irq = irq;
+
+	SET_NETDEV_DEV(dev, priv->dev);
+	ret = register_netdev(dev);
+	if (ret)
+		goto fail;
+
+	priv->ndev = dev;
+
+	/* Report what we've done */
+	dev_dbg(priv->dev, "Registerred interface %s.\n", dev->name);
+
+	return 0;
+
+ fail:
+	free_netdev(dev);
+	return ret;
+}
+EXPORT_SYMBOL(orinoco_if_add);
+
+void orinoco_if_del(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
+
+	unregister_netdev(dev);
+	free_netdev(dev);
+}
+EXPORT_SYMBOL(orinoco_if_del);
+
+void free_orinocodev(struct orinoco_private *priv)
+{
 	struct wiphy *wiphy = priv_to_wiphy(priv);
 	struct orinoco_rx_data *rx_data, *temp;
 
@@ -2339,7 +2385,6 @@ void free_orinocodev(struct orinoco_private *priv)
 	kfree(priv->wpa_ie);
 	orinoco_mic_free(priv);
 	orinoco_bss_data_free(priv);
-	free_netdev(dev);
 	wiphy_free(wiphy);
 }
 EXPORT_SYMBOL(free_orinocodev);

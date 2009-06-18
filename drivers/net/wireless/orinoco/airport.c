@@ -116,7 +116,7 @@ airport_detach(struct macio_dev *mdev)
 	struct airport *card = priv->card;
 
 	if (card->ndev_registered)
-		unregister_netdev(dev);
+		orinoco_if_del(priv);
 	card->ndev_registered = 0;
 
 	if (card->irq_requested)
@@ -174,9 +174,9 @@ static int
 airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct orinoco_private *priv;
-	struct net_device *dev;
 	struct airport *card;
 	unsigned long phys_addr;
+	unsigned int irq;
 	hermes_t *hw;
 
 	if (macio_resource_count(mdev) < 1 || macio_irq_count(mdev) < 1) {
@@ -191,27 +191,23 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		return -ENODEV;
 	}
-	dev = priv->ndev;
 	card = priv->card;
 
 	hw = &priv->hw;
 	card->mdev = mdev;
 
-	if (macio_request_resource(mdev, 0, "airport")) {
+	if (macio_request_resource(mdev, 0, DRIVER_NAME)) {
 		printk(KERN_ERR PFX "can't request IO resource !\n");
 		free_orinocodev(priv);
 		return -EBUSY;
 	}
 
-	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
-
 	macio_set_drvdata(mdev, priv);
 
 	/* Setup interrupts & base address */
-	dev->irq = macio_irq(mdev, 0);
+	irq = macio_irq(mdev, 0);
 	phys_addr = macio_resource_start(mdev, 0);  /* Physical address */
 	printk(KERN_DEBUG PFX "Physical address %lx\n", phys_addr);
-	dev->base_addr = phys_addr;
 	card->vaddr = ioremap(phys_addr, AIRPORT_IO_LEN);
 	if (!card->vaddr) {
 		printk(KERN_ERR PFX "ioremap() failed\n");
@@ -228,8 +224,8 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Reset it before we get the interrupt */
 	hermes_init(hw);
 
-	if (request_irq(dev->irq, orinoco_interrupt, 0, dev->name, priv)) {
-		printk(KERN_ERR PFX "Couldn't get IRQ %d\n", dev->irq);
+	if (request_irq(irq, orinoco_interrupt, 0, DRIVER_NAME, priv)) {
+		printk(KERN_ERR PFX "Couldn't get IRQ %d\n", irq);
 		goto failed;
 	}
 	card->irq_requested = 1;
@@ -240,12 +236,11 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 		goto failed;
 	}
 
-	/* Tell the stack we exist */
-	if (register_netdev(dev) != 0) {
-		printk(KERN_ERR PFX "register_netdev() failed\n");
+	/* Register an interface with the stack */
+	if (orinoco_if_add(priv, phys_addr, irq) != 0) {
+		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}
-	printk(KERN_DEBUG PFX "Card registered for interface %s\n", dev->name);
 	card->ndev_registered = 1;
 	return 0;
  failed:

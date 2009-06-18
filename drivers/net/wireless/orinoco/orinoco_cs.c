@@ -147,7 +147,7 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 	struct orinoco_private *priv = link->priv;
 
 	if (link->dev_node)
-		unregister_netdev(priv->ndev);
+		orinoco_if_del(priv);
 
 	orinoco_cs_release(link);
 
@@ -239,7 +239,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
-	struct net_device *dev = priv->ndev;
 	hermes_t *hw = &priv->hw;
 	int last_fn, last_ret;
 	void __iomem *mem;
@@ -293,8 +292,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 		 pcmcia_request_configuration(link, &link->conf));
 
 	/* Ok, we have the configuration, prepare to register the netdev */
-	dev->base_addr = link->io.BasePort1;
-	dev->irq = link->irq.AssignedIRQ;
 	card->node.major = card->node.minor = 0;
 
 	/* Initialise the main driver */
@@ -303,25 +300,19 @@ orinoco_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	SET_NETDEV_DEV(dev, &handle_to_dev(link));
-	/* Tell the stack we exist */
-	if (register_netdev(dev) != 0) {
-		printk(KERN_ERR PFX "register_netdev() failed\n");
+	/* Register an interface with the stack */
+	if (orinoco_if_add(priv, link->io.BasePort1,
+			   link->irq.AssignedIRQ) != 0) {
+		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}
 
 	/* At this point, the dev_node_t structure(s) needs to be
 	 * initialized and arranged in a linked list at link->dev_node. */
-	strcpy(card->node.dev_name, dev->name);
+	strcpy(card->node.dev_name, priv->ndev->name);
 	link->dev_node = &card->node; /* link->dev_node being non-NULL is also
 				       * used to indicate that the
 				       * net_device has been registered */
-
-	/* Finally, report what we've done */
-	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s, irq %d, io "
-	       "0x%04x-0x%04x\n", dev->name, dev_name(dev->dev.parent),
-	       link->irq.AssignedIRQ, link->io.BasePort1,
-	       link->io.BasePort1 + link->io.NumPorts1 - 1);
 	return 0;
 
  cs_failed:
