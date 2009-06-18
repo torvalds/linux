@@ -3406,7 +3406,7 @@ P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
 S:	Maintained
 F:	Documentation/trace/kmemtrace.txt
-F:	include/trace/kmemtrace.h
+F:	include/linux/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
 
 KPROBES
