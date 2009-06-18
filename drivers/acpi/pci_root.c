@@ -82,7 +82,7 @@ static DEFINE_MUTEX(osc_lock);
 int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 {
 	int n = 0;
-	struct list_head *entry;
+	struct acpi_pci_root *root;
 
 	struct acpi_pci_driver **pptr = &sub_driver;
 	while (*pptr)
@@ -92,9 +92,7 @@ int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 	if (!driver->add)
 		return 0;
 
-	list_for_each(entry, &acpi_pci_roots) {
-		struct acpi_pci_root *root;
-		root = list_entry(entry, struct acpi_pci_root, node);
+	list_for_each_entry(root, &acpi_pci_roots, node) {
 		driver->add(root->device->handle);
 		n++;
 	}
@@ -106,7 +104,7 @@ EXPORT_SYMBOL(acpi_pci_register_driver);
 
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 {
-	struct list_head *entry;
+	struct acpi_pci_root *root;
 
 	struct acpi_pci_driver **pptr = &sub_driver;
 	while (*pptr) {
@@ -120,23 +118,19 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 	if (!driver->remove)
 		return;
 
-	list_for_each(entry, &acpi_pci_roots) {
-		struct acpi_pci_root *root;
-		root = list_entry(entry, struct acpi_pci_root, node);
+	list_for_each_entry(root, &acpi_pci_roots, node)
 		driver->remove(root->device->handle);
-	}
 }
 
 EXPORT_SYMBOL(acpi_pci_unregister_driver);
 
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 {
-	struct acpi_pci_root *tmp;
+	struct acpi_pci_root *root;
 	
-	list_for_each_entry(tmp, &acpi_pci_roots, node) {
-		if ((tmp->id.segment == (u16) seg) && (tmp->id.bus == (u16) bus))
-			return tmp->device->handle;
-	}
+	list_for_each_entry(root, &acpi_pci_roots, node)
+		if ((root->id.segment == (u16) seg) && (root->id.bus == (u16) bus))
+			return root->device->handle;
 	return NULL;		
 }
 
@@ -301,6 +295,7 @@ static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 static struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 {
 	struct acpi_pci_root *root;
+
 	list_for_each_entry(root, &acpi_pci_roots, node) {
 		if (root->device->handle == handle)
 			return root;
