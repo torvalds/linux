@@ -31,6 +31,8 @@
 #define encode_dirpath_sz	(1 + XDR_QUADLEN(MNTPATHLEN))
 #define MNT_status_sz		(1)
 #define MNT_fhs_status_sz	(1)
+#define MNT_fhandle_sz		XDR_QUADLEN(NFS2_FHSIZE)
+#define MNT_fhandle3_sz		(1 + XDR_QUADLEN(NFS3_FHSIZE))
 
 /*
  * XDR argument and result sizes
@@ -272,6 +274,20 @@ static int decode_status(struct xdr_stream *xdr, struct mountres *res)
 	return 0;
 }
 
+static int decode_fhandle(struct xdr_stream *xdr, struct mountres *res)
+{
+	struct nfs_fh *fh = res->fh;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, NFS2_FHSIZE);
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	fh->size = NFS2_FHSIZE;
+	memcpy(fh->data, p, NFS2_FHSIZE);
+	return 0;
+}
+
 static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
 {
 	unsigned int i;
@@ -292,6 +308,29 @@ static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
 
 	dprintk("NFS: unrecognized MNT3 status code: %u\n", status);
 	res->errno = -EACCES;
+	return 0;
+}
+
+static int decode_fhandle3(struct xdr_stream *xdr, struct mountres *res)
+{
+	struct nfs_fh *fh = res->fh;
+	u32 size;
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, sizeof(size));
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	size = ntohl(*p++);
+	if (size > NFS3_FHSIZE || size == 0)
+		return -EIO;
+
+	p = xdr_inline_decode(xdr, size);
+	if (unlikely(p == NULL))
+		return -EIO;
+
+	fh->size = size;
+	memcpy(fh->data, p, size);
 	return 0;
 }
 
