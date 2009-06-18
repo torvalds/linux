@@ -1368,11 +1368,17 @@ static int assoc_helper_wpa_keys(struct lbs_private *priv,
 	if (ret)
 		goto out;
 
+	memcpy(&priv->wpa_unicast_key, &assoc_req->wpa_unicast_key,
+			sizeof(struct enc_key));
+
 	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
 		clear_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 
 		ret = lbs_cmd_802_11_key_material(priv, CMD_ACT_SET, assoc_req);
 		assoc_req->flags = flags;
+
+		memcpy(&priv->wpa_mcast_key, &assoc_req->wpa_mcast_key,
+				sizeof(struct enc_key));
 	}
 
 out:
