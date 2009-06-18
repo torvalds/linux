@@ -1079,7 +1079,7 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 	return insn_len;
 }
 
-/*G:030 Once we get to lguest_init(), we know we're a Guest.  The various
+/*G:029 Once we get to lguest_init(), we know we're a Guest.  The various
  * pv_ops structures in the kernel provide points for (almost) every routine we
  * have to override to avoid privileged instructions. */
 __init void lguest_init(void)
