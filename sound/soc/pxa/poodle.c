@@ -280,38 +280,6 @@ static struct snd_soc_card snd_soc_poodle = {
 	.num_links = 1,
 };
 
-/*
- * FIXME: This is a temporary bodge to avoid cross-tree merge issues.
- * New drivers should register the wm8731 I2C device in the machine
- * setup code (under arch/arm for ARM systems).
- */
-static int wm8731_i2c_register(void)
-{
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = 0x1b;
-	strlcpy(info.type, "wm8731", I2C_NAME_SIZE);
-
-	adapter = i2c_get_adapter(0);
-	if (!adapter) {
-		printk(KERN_ERR "can't get i2c adapter 0\n");
-		return -ENODEV;
-	}
-
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		printk(KERN_ERR "can't add i2c device at 0x%x\n",
-			(unsigned int)info.addr);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 /* poodle audio subsystem */
 static struct snd_soc_device poodle_snd_devdata = {
 	.card = &snd_soc_poodle,
@@ -326,10 +294,6 @@ static int __init poodle_init(void)
 
 	if (!machine_is_poodle())
 		return -ENODEV;
-
-	ret = wm8731_i2c_register();
-	if (ret != 0)
-		return ret;
 
 	locomo_gpio_set_dir(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_AMP_ON, 0);
