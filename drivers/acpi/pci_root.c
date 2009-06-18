@@ -497,30 +497,17 @@ end:
 
 static int acpi_pci_root_start(struct acpi_device *device)
 {
-	struct acpi_pci_root *root;
+	struct acpi_pci_root *root = acpi_driver_data(device);
 
-
-	list_for_each_entry(root, &acpi_pci_roots, node) {
-		if (root->device == device) {
-			pci_bus_add_devices(root->bus);
-			return 0;
-		}
-	}
-	return -ENODEV;
+	pci_bus_add_devices(root->bus);
+	return 0;
 }
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
-	struct acpi_pci_root *root = NULL;
-
-
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
-
-	root = acpi_driver_data(device);
+	struct acpi_pci_root *root = acpi_driver_data(device);
 
 	kfree(root);
-
 	return 0;
 }
 
