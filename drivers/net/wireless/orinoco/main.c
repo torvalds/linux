@@ -206,6 +206,13 @@ struct orinoco_rx_data {
 	struct list_head list;
 };
 
+struct orinoco_scan_data {
+	void *buf;
+	size_t len;
+	int type;
+	struct list_head list;
+};
+
 /********************************************************************/
 /* Function prototypes                                              */
 /********************************************************************/
@@ -1265,6 +1272,78 @@ static void orinoco_send_wevents(struct work_struct *work)
 	orinoco_unlock(priv, &flags);
 }
 
+static void qbuf_scan(struct orinoco_private *priv, void *buf,
+		      int len, int type)
+{
+	struct orinoco_scan_data *sd;
+	unsigned long flags;
+
+	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
+	sd->buf = buf;
+	sd->len = len;
+	sd->type = type;
+
+	spin_lock_irqsave(&priv->scan_lock, flags);
+	list_add_tail(&sd->list, &priv->scan_list);
+	spin_unlock_irqrestore(&priv->scan_lock, flags);
+
+	schedule_work(&priv->process_scan);
+}
+
+static void qabort_scan(struct orinoco_private *priv)
+{
+	struct orinoco_scan_data *sd;
+	unsigned long flags;
+
+	sd = kmalloc(sizeof(*sd), GFP_ATOMIC);
+	sd->len = -1; /* Abort */
+
+	spin_lock_irqsave(&priv->scan_lock, flags);
+	list_add_tail(&sd->list, &priv->scan_list);
+	spin_unlock_irqrestore(&priv->scan_lock, flags);
+
+	schedule_work(&priv->process_scan);
+}
+
+static void orinoco_process_scan_results(struct work_struct *work)
+{
+	struct orinoco_private *priv =
+		container_of(work, struct orinoco_private, process_scan);
+	struct orinoco_scan_data *sd, *temp;
+	unsigned long flags;
+	void *buf;
+	int len;
+	int type;
+
+	spin_lock_irqsave(&priv->scan_lock, flags);
+	list_for_each_entry_safe(sd, temp, &priv->scan_list, list) {
+		spin_unlock_irqrestore(&priv->scan_lock, flags);
+
+		buf = sd->buf;
+		len = sd->len;
+		type = sd->type;
+
+		list_del(&sd->list);
+		kfree(sd);
+
+		if (len > 0) {
+			if (type == HERMES_INQ_CHANNELINFO)
+				orinoco_add_extscan_result(priv, buf, len);
+			else
+				orinoco_add_hostscan_results(priv, buf, len);
+
+			kfree(buf);
+		} else if (priv->scan_request) {
+			/* Either abort or complete the scan */
+			cfg80211_scan_done(priv->scan_request, (len < 0));
+			priv->scan_request = NULL;
+		}
+
+		spin_lock_irqsave(&priv->scan_lock, flags);
+	}
+	spin_unlock_irqrestore(&priv->scan_lock, flags);
+}
+
 static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
@@ -1351,7 +1430,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		 * the hostscan frame can be requested.  */
 		if (newstatus == HERMES_LINKSTATUS_AP_OUT_OF_RANGE &&
 		    priv->firmware_type == FIRMWARE_TYPE_SYMBOL &&
-		    priv->has_hostscan && priv->scan_inprogress) {
+		    priv->has_hostscan && priv->scan_request) {
 			hermes_inquire(hw, HERMES_INQ_HOSTSCAN_SYMBOL);
 			break;
 		}
@@ -1377,7 +1456,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	}
 	break;
 	case HERMES_INQ_SCAN:
-		if (!priv->scan_inprogress && priv->bssid_fixed &&
+		if (!priv->scan_request && priv->bssid_fixed &&
 		    priv->firmware_type == FIRMWARE_TYPE_INTERSIL) {
 			schedule_work(&priv->join_work);
 			break;
@@ -1387,30 +1466,30 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	case HERMES_INQ_HOSTSCAN_SYMBOL: {
 		/* Result of a scanning. Contains information about
 		 * cells in the vicinity - Jean II */
-		union iwreq_data	wrqu;
 		unsigned char *buf;
-
-		/* Scan is no longer in progress */
-		priv->scan_inprogress = 0;
 
 		/* Sanity check */
 		if (len > 4096) {
 			printk(KERN_WARNING "%s: Scan results too large (%d bytes)\n",
 			       dev->name, len);
+			qabort_scan(priv);
 			break;
 		}
 
 		/* Allocate buffer for results */
 		buf = kmalloc(len, GFP_ATOMIC);
-		if (buf == NULL)
+		if (buf == NULL) {
 			/* No memory, so can't printk()... */
+			qabort_scan(priv);
 			break;
+		}
 
 		/* Read scan data */
 		err = hermes_bap_pread(hw, IRQ_BAP, (void *) buf, len,
 				       infofid, sizeof(info));
 		if (err) {
 			kfree(buf);
+			qabort_scan(priv);
 			break;
 		}
 
@@ -1424,24 +1503,14 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		}
 #endif	/* ORINOCO_DEBUG */
 
-		if (orinoco_process_scan_results(priv, buf, len) == 0) {
-			/* Send an empty event to user space.
-			 * We don't send the received data on the event because
-			 * it would require us to do complex transcoding, and
-			 * we want to minimise the work done in the irq handler
-			 * Use a request to extract the data - Jean II */
-			wrqu.data.length = 0;
-			wrqu.data.flags = 0;
-			wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
-		}
-		kfree(buf);
+		qbuf_scan(priv, buf, len, type);
 	}
 	break;
 	case HERMES_INQ_CHANNELINFO:
 	{
 		struct agere_ext_scan_info *bss;
 
-		if (!priv->scan_inprogress) {
+		if (!priv->scan_request) {
 			printk(KERN_DEBUG "%s: Got chaninfo without scan, "
 			       "len=%d\n", dev->name, len);
 			break;
@@ -1449,25 +1518,12 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 
 		/* An empty result indicates that the scan is complete */
 		if (len == 0) {
-			union iwreq_data	wrqu;
-
-			/* Scan is no longer in progress */
-			priv->scan_inprogress = 0;
-
-			wrqu.data.length = 0;
-			wrqu.data.flags = 0;
-			wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
+			qbuf_scan(priv, NULL, len, type);
 			break;
 		}
 
 		/* Sanity check */
-		else if (len > sizeof(*bss)) {
-			printk(KERN_WARNING
-			       "%s: Ext scan results too large (%d bytes). "
-			       "Truncating results to %zd bytes.\n",
-			       dev->name, len, sizeof(*bss));
-			len = sizeof(*bss);
-		} else if (len < (offsetof(struct agere_ext_scan_info,
+		else if (len < (offsetof(struct agere_ext_scan_info,
 					   data) + 2)) {
 			/* Drop this result now so we don't have to
 			 * keep checking later */
@@ -1477,21 +1533,18 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 			break;
 		}
 
-		bss = kmalloc(sizeof(*bss), GFP_ATOMIC);
+		bss = kmalloc(len, GFP_ATOMIC);
 		if (bss == NULL)
 			break;
 
 		/* Read scan data */
 		err = hermes_bap_pread(hw, IRQ_BAP, (void *) bss, len,
 				       infofid, sizeof(info));
-		if (err) {
+		if (err)
 			kfree(bss);
-			break;
-		}
+		else
+			qbuf_scan(priv, bss, len, type);
 
-		orinoco_add_ext_scan_result(priv, bss);
-
-		kfree(bss);
 		break;
 	}
 	case HERMES_INQ_SEC_STAT_AGERE:
@@ -1506,6 +1559,8 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		/* We don't actually do anything about it */
 		break;
 	}
+
+	return;
 }
 
 static void __orinoco_ev_infdrop(struct net_device *dev, hermes_t *hw)
@@ -1649,9 +1704,11 @@ void orinoco_reset(struct work_struct *work)
 
 	orinoco_unlock(priv, &flags);
 
-	/* Scanning support: Cleanup of driver struct */
-	orinoco_clear_scan_results(priv, 0);
-	priv->scan_inprogress = 0;
+	/* Scanning support: Notify scan cancellation */
+	if (priv->scan_request) {
+		cfg80211_scan_done(priv->scan_request, 1);
+		priv->scan_request = NULL;
+	}
 
 	if (priv->hard_reset) {
 		err = (*priv->hard_reset)(priv);
@@ -1965,12 +2022,6 @@ int orinoco_init(struct orinoco_private *priv)
 		}
 	}
 
-	/* Now we have the firmware capabilities, allocate appropiate
-	 * sized scan buffers */
-	if (orinoco_bss_data_allocate(priv))
-		goto out;
-	orinoco_bss_data_init(priv);
-
 	err = orinoco_hw_read_card_settings(priv, wiphy->perm_addr);
 	if (err)
 		goto out;
@@ -2100,6 +2151,10 @@ struct orinoco_private
 	tasklet_init(&priv->rx_tasklet, orinoco_rx_isr_tasklet,
 		     (unsigned long) priv);
 
+	spin_lock_init(&priv->scan_lock);
+	INIT_LIST_HEAD(&priv->scan_list);
+	INIT_WORK(&priv->process_scan, orinoco_process_scan_results);
+
 	priv->last_linkstatus = 0xffff;
 
 #if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
@@ -2192,6 +2247,7 @@ void free_orinocodev(struct orinoco_private *priv)
 {
 	struct wiphy *wiphy = priv_to_wiphy(priv);
 	struct orinoco_rx_data *rx_data, *temp;
+	struct orinoco_scan_data *sd, *sdtemp;
 
 	wiphy_unregister(wiphy);
 
@@ -2209,13 +2265,22 @@ void free_orinocodev(struct orinoco_private *priv)
 		kfree(rx_data);
 	}
 
+	cancel_work_sync(&priv->process_scan);
+	/* Explicitly drain priv->scan_list */
+	list_for_each_entry_safe(sd, sdtemp, &priv->scan_list, list) {
+		list_del(&sd->list);
+
+		if ((sd->len > 0) && sd->buf)
+			kfree(sd->buf);
+		kfree(sd);
+	}
+
 	orinoco_unregister_pm_notifier(priv);
 	orinoco_uncache_fw(priv);
 
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
 	orinoco_mic_free(priv);
-	orinoco_bss_data_free(priv);
 	wiphy_free(wiphy);
 }
 EXPORT_SYMBOL(free_orinocodev);

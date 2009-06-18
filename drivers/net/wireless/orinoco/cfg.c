@@ -137,6 +137,26 @@ static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
 	return err;
 }
 
+static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_scan_request *request)
+{
+	struct orinoco_private *priv = wiphy_priv(wiphy);
+	int err;
+
+	if (!request)
+		return -EINVAL;
+
+	if (priv->scan_request && priv->scan_request != request)
+		return -EBUSY;
+
+	priv->scan_request = request;
+
+	err = orinoco_hw_trigger_scan(priv, request->ssids);
+
+	return err;
+}
+
 const struct cfg80211_ops orinoco_cfg_ops = {
 	.change_virtual_intf = orinoco_change_vif,
+	.scan = orinoco_scan,
 };

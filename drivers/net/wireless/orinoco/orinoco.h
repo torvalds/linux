@@ -48,18 +48,6 @@ typedef enum {
 	FIRMWARE_TYPE_SYMBOL
 } fwtype_t;
 
-struct bss_element {
-	union hermes_scan_info bss;
-	unsigned long last_scanned;
-	struct list_head list;
-};
-
-struct xbss_element {
-	struct agere_ext_scan_info bss;
-	unsigned long last_scanned;
-	struct list_head list;
-};
-
 struct firmware;
 
 struct orinoco_private {
@@ -145,12 +133,10 @@ struct orinoco_private {
 	int promiscuous, mc_count;
 
 	/* Scanning support */
-	struct list_head bss_list;
-	struct list_head bss_free_list;
-	void *bss_xbss_data;
-
-	int	scan_inprogress;	/* Scan pending... */
-	u32	scan_mode;		/* Type of scan done */
+	struct cfg80211_scan_request *scan_request;
+	struct work_struct process_scan;
+	struct list_head scan_list;
+	spinlock_t scan_lock; /* protects the scan list */
 
 	/* WPA support */
 	u8 *wpa_ie;

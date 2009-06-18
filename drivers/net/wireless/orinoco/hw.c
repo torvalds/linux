@@ -1157,3 +1157,88 @@ int orinoco_hw_get_bitratelist(struct orinoco_private *priv,
 
 	return 0;
 }
+
+int orinoco_hw_trigger_scan(struct orinoco_private *priv,
+			    const struct cfg80211_ssid *ssid)
+{
+	struct net_device *dev = priv->ndev;
+	hermes_t *hw = &priv->hw;
+	unsigned long flags;
+	int err = 0;
+
+	if (orinoco_lock(priv, &flags) != 0)
+		return -EBUSY;
+
+	/* Scanning with port 0 disabled would fail */
+	if (!netif_running(dev)) {
+		err = -ENETDOWN;
+		goto out;
+	}
+
+	/* In monitor mode, the scan results are always empty.
+	 * Probe responses are passed to the driver as received
+	 * frames and could be processed in software. */
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (priv->has_hostscan) {
+		switch (priv->firmware_type) {
+		case FIRMWARE_TYPE_SYMBOL:
+			err = hermes_write_wordrec(hw, USER_BAP,
+						HERMES_RID_CNFHOSTSCAN_SYMBOL,
+						HERMES_HOSTSCAN_SYMBOL_ONCE |
+						HERMES_HOSTSCAN_SYMBOL_BCAST);
+			break;
+		case FIRMWARE_TYPE_INTERSIL: {
+			__le16 req[3];
+
+			req[0] = cpu_to_le16(0x3fff);	/* All channels */
+			req[1] = cpu_to_le16(0x0001);	/* rate 1 Mbps */
+			req[2] = 0;			/* Any ESSID */
+			err = HERMES_WRITE_RECORD(hw, USER_BAP,
+						  HERMES_RID_CNFHOSTSCAN, &req);
+			break;
+		}
+		case FIRMWARE_TYPE_AGERE:
+			if (ssid->ssid_len > 0) {
+				struct hermes_idstring idbuf;
+				size_t len = ssid->ssid_len;
+
+				idbuf.len = cpu_to_le16(len);
+				memcpy(idbuf.val, ssid->ssid, len);
+
+				err = hermes_write_ltv(hw, USER_BAP,
+					       HERMES_RID_CNFSCANSSID_AGERE,
+					       HERMES_BYTES_TO_RECLEN(len + 2),
+					       &idbuf);
+			} else
+				err = hermes_write_wordrec(hw, USER_BAP,
+						   HERMES_RID_CNFSCANSSID_AGERE,
+						   0);	/* Any ESSID */
+			if (err)
+				break;
+
+			if (priv->has_ext_scan) {
+				err = hermes_write_wordrec(hw, USER_BAP,
+						HERMES_RID_CNFSCANCHANNELS2GHZ,
+						0x7FFF);
+				if (err)
+					goto out;
+
+				err = hermes_inquire(hw,
+						     HERMES_INQ_CHANNELINFO);
+			} else
+				err = hermes_inquire(hw, HERMES_INQ_SCAN);
+
+			break;
+		}
+	} else
+		err = hermes_inquire(hw, HERMES_INQ_SCAN);
+
+ out:
+	orinoco_unlock(priv, &flags);
+
+	return err;
+}

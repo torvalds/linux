@@ -7,6 +7,7 @@
 
 #include <linux/types.h>
 #include <linux/wireless.h>
+#include <net/cfg80211.h>
 
 /* Hardware BAPs */
 #define USER_BAP 0
@@ -47,5 +48,7 @@ int orinoco_hw_get_essid(struct orinoco_private *priv, int *active,
 int orinoco_hw_get_freq(struct orinoco_private *priv);
 int orinoco_hw_get_bitratelist(struct orinoco_private *priv,
 			       int *numrates, s32 *rates, int max);
+int orinoco_hw_trigger_scan(struct orinoco_private *priv,
+			    const struct cfg80211_ssid *ssid);
 
 #endif /* _ORINOCO_HW_H_ */
