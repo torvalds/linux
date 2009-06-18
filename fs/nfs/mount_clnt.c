@@ -39,6 +39,9 @@
  * XDR argument and result sizes
  */
 #define MNT_enc_dirpath_sz	encode_dirpath_sz
+#define MNT_dec_mountres_sz	(MNT_status_sz + MNT_fhandle_sz)
+#define MNT_dec_mountres3_sz	(MNT_status_sz + MNT_fhandle_sz + \
+				 MNT_authflav3_sz)
 
 /*
  * Defined by RFC 1094, section A.5
@@ -140,8 +143,10 @@ struct mnt_fhstatus {
  */
 int nfs_mount(struct nfs_mount_request *info)
 {
-	struct mnt_fhstatus	result = {
-		.fh		= info->fh
+	struct mountres	result = {
+		.fh		= info->fh,
+		.auth_count	= info->auth_flav_len,
+		.auth_flavors	= info->auth_flavs,
 	};
 	struct rpc_message msg	= {
 		.rpc_argp	= info->dirpath,
@@ -180,7 +185,7 @@ int nfs_mount(struct nfs_mount_request *info)
 
 	if (status < 0)
 		goto out_call_err;
-	if (result.status != 0)
+	if (result.errno != 0)
 		goto out_mnt_err;
 
 	dprintk("NFS: MNT request succeeded\n");
@@ -191,16 +196,16 @@ out:
 
 out_clnt_err:
 	status = PTR_ERR(mnt_clnt);
-	dprintk("NFS: failed to create RPC client, status=%d\n", status);
+	dprintk("NFS: failed to create MNT RPC client, status=%d\n", status);
 	goto out;
 
 out_call_err:
-	dprintk("NFS: failed to start MNT request, status=%d\n", status);
+	dprintk("NFS: MNT request failed, status=%d\n", status);
 	goto out;
 
 out_mnt_err:
-	dprintk("NFS: MNT server returned result %d\n", result.status);
-	status = nfs_stat_to_errno(result.status);
+	dprintk("NFS: MNT server returned result %d\n", result.errno);
+	status = result.errno;
 	goto out;
 }
 
@@ -291,6 +296,20 @@ static int decode_fhandle(struct xdr_stream *xdr, struct mountres *res)
 	return 0;
 }
 
+static int mnt_dec_mountres(struct rpc_rqst *req, __be32 *p,
+			    struct mountres *res)
+{
+	struct xdr_stream xdr;
+	int status;
+
+	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
+
+	status = decode_status(&xdr, res);
+	if (unlikely(status != 0 || res->errno != 0))
+		return status;
+	return decode_fhandle(&xdr, res);
+}
+
 static int decode_fhs_status(struct xdr_stream *xdr, struct mountres *res)
 {
 	unsigned int i;
@@ -371,6 +390,25 @@ static int decode_auth_flavors(struct xdr_stream *xdr, struct mountres *res)
 	return 0;
 }
 
+static int mnt_dec_mountres3(struct rpc_rqst *req, __be32 *p,
+			     struct mountres *res)
+{
+	struct xdr_stream xdr;
+	int status;
+
+	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
+
+	status = decode_fhs_status(&xdr, res);
+	if (unlikely(status != 0 || res->errno != 0))
+		return status;
+	status = decode_fhandle3(&xdr, res);
+	if (unlikely(status != 0)) {
+		res->errno = -EBADHANDLE;
+		return 0;
+	}
+	return decode_auth_flavors(&xdr, res);
+}
+
 static int xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p,
 				struct mnt_fhstatus *res)
 {
@@ -388,16 +426,13 @@ static int xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p,
 	return 0;
 }
 
-#define MNT_fhstatus_sz		(1 + 8)
-#define MNT_fhstatus3_sz	(1 + 16)
-
 static struct rpc_procinfo mnt_procedures[] = {
 	[MOUNTPROC_MNT] = {
 		.p_proc		= MOUNTPROC_MNT,
 		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
-		.p_decode	= (kxdrproc_t) xdr_decode_fhstatus,
+		.p_decode	= (kxdrproc_t)mnt_dec_mountres,
 		.p_arglen	= MNT_enc_dirpath_sz,
-		.p_replen	= MNT_fhstatus_sz,
+		.p_replen	= MNT_dec_mountres_sz,
 		.p_statidx	= MOUNTPROC_MNT,
 		.p_name		= "MOUNT",
 	},
@@ -407,9 +442,9 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	[MOUNTPROC3_MNT] = {
 		.p_proc		= MOUNTPROC3_MNT,
 		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
-		.p_decode	= (kxdrproc_t) xdr_decode_fhstatus3,
+		.p_decode	= (kxdrproc_t)mnt_dec_mountres3,
 		.p_arglen	= MNT_enc_dirpath_sz,
-		.p_replen	= MNT_fhstatus3_sz,
+		.p_replen	= MNT_dec_mountres3_sz,
 		.p_statidx	= MOUNTPROC3_MNT,
 		.p_name		= "MOUNT",
 	},

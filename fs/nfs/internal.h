@@ -83,6 +83,8 @@ struct nfs_mount_request {
 	unsigned short		protocol;
 	struct nfs_fh		*fh;
 	int			noresvport;
+	unsigned int		*auth_flav_len;
+	rpc_authflavor_t	*auth_flavs;
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);

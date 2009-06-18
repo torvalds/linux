@@ -1380,6 +1380,7 @@ out_security_failure:
 static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 			 struct nfs_fh *root_fh)
 {
+	unsigned int auth_flavor_len = 0;
 	struct nfs_mount_request request = {
 		.sap		= (struct sockaddr *)
 						&args->mount_server.address,
@@ -1387,6 +1388,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		.protocol	= args->mount_server.protocol,
 		.fh		= root_fh,
 		.noresvport	= args->flags & NFS_MOUNT_NORESVPORT,
+		.auth_flav_len	= &auth_flavor_len,
 	};
 	int status;
 
