@@ -15,6 +15,8 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <net/dst.h>
+#include <net/xfrm.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
@@ -408,6 +410,14 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
+	/* release the skb's source info */
+	skb_orphan(skb);
+	dst_release(skb->dst);
+	skb->dst = NULL;
+	skb->mark = 0;
+	secpath_reset(skb);
+	nf_reset(skb);
 
 	/* Copy skb to all enabled radios that are on the current frequency */
 	spin_lock(&hwsim_radio_lock);
