@@ -274,6 +274,7 @@ struct be_adapter {
 
 	struct be_link_info link;
 	u32 port_num;
+	bool promiscuous;
 };
 
 extern struct ethtool_ops be_ethtool_ops;

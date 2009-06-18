@@ -927,8 +927,8 @@ int be_cmd_promiscuous_config(struct be_ctrl_info *ctrl, u8 port_num, bool en)
  * Use MCC for this command as it may be called in BH context
  * (mc == NULL) => multicast promiscous
  */
-int be_cmd_mcast_mac_set(struct be_ctrl_info *ctrl, u32 if_id, u8 *mac_table,
-			u32 num, bool promiscuous)
+int be_cmd_multicast_set(struct be_ctrl_info *ctrl, u32 if_id,
+		struct dev_mc_list *mc_list, u32 mc_count)
 {
 #define BE_MAX_MC		32 /* set mcast promisc if > 32 */
 	struct be_mcc_wrb *wrb;
@@ -947,11 +947,16 @@ int be_cmd_mcast_mac_set(struct be_ctrl_info *ctrl, u32 if_id, u8 *mac_table,
 		OPCODE_COMMON_NTWK_MULTICAST_SET, sizeof(*req));
 
 	req->interface_id = if_id;
-	req->promiscuous = promiscuous;
-	if (!promiscuous) {
-		req->num_mac = cpu_to_le16(num);
-		if (num)
-			memcpy(req->mac, mac_table, ETH_ALEN * num);
+	if (mc_list && mc_count <= BE_MAX_MC) {
+		int i;
+		struct dev_mc_list *mc;
+
+		req->num_mac = cpu_to_le16(mc_count);
+
+		for (mc = mc_list, i = 0; mc; mc = mc->next, i++)
+			memcpy(req->mac[i].byte, mc->dmi_addr, ETH_ALEN);
+	} else {
+		req->promiscuous = 1;
 	}
 
 	be_mcc_notify_wait(ctrl);

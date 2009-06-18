@@ -549,47 +549,32 @@ static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 	be_vid_config(netdev);
 }
 
-static void be_set_multicast_filter(struct net_device *netdev)
-{
-	struct be_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
-	u8 mac_addr[32][ETH_ALEN];
-	int i = 0;
-
-	if (netdev->flags & IFF_ALLMULTI) {
-		/* set BE in Multicast promiscuous */
-		be_cmd_mcast_mac_set(&adapter->ctrl,
-					adapter->if_handle, NULL, 0, true);
-		return;
-	}
-
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
-		memcpy(&mac_addr[i][0], mc_ptr->dmi_addr, ETH_ALEN);
-		if (++i >= 32) {
-			be_cmd_mcast_mac_set(&adapter->ctrl,
-				adapter->if_handle, &mac_addr[0][0], i, false);
-			i = 0;
-		}
-
-	}
-
-	if (i) {
-		/* reset the promiscuous mode also. */
-		be_cmd_mcast_mac_set(&adapter->ctrl,
-			adapter->if_handle, &mac_addr[0][0], i, false);
-	}
-}
-
 static void be_set_multicast_list(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_ctrl_info *ctrl = &adapter->ctrl;
 
 	if (netdev->flags & IFF_PROMISC) {
-		be_cmd_promiscuous_config(&adapter->ctrl, adapter->port_num, 1);
-	} else {
-		be_cmd_promiscuous_config(&adapter->ctrl, adapter->port_num, 0);
-		be_set_multicast_filter(netdev);
+		be_cmd_promiscuous_config(ctrl, adapter->port_num, 1);
+		adapter->promiscuous = true;
+		goto done;
 	}
+
+	/* BE was previously in promiscous mode; disable it */
+	if (adapter->promiscuous) {
+		adapter->promiscuous = false;
+		be_cmd_promiscuous_config(ctrl, adapter->port_num, 0);
+	}
+
+	if (netdev->flags & IFF_ALLMULTI) {
+		be_cmd_multicast_set(ctrl, adapter->if_handle, NULL, 0);
+		goto done;
+	}
+
+	be_cmd_multicast_set(ctrl, adapter->if_handle, netdev->mc_list,
+		netdev->mc_count);
+done:
+	return;
 }
 
 static void be_rx_rate_update(struct be_adapter *adapter)

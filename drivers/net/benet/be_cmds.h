@@ -716,8 +716,8 @@ extern int be_cmd_vlan_config(struct be_ctrl_info *ctrl, u32 if_id,
 			bool promiscuous);
 extern int be_cmd_promiscuous_config(struct be_ctrl_info *ctrl,
 			u8 port_num, bool en);
-extern int be_cmd_mcast_mac_set(struct be_ctrl_info *ctrl, u32 if_id,
-			u8 *mac_table, u32 num, bool promiscuous);
+extern int be_cmd_multicast_set(struct be_ctrl_info *ctrl, u32 if_id,
+			struct dev_mc_list *mc_list, u32 mc_count);
 extern int be_cmd_set_flow_control(struct be_ctrl_info *ctrl,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_ctrl_info *ctrl,
