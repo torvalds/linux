@@ -76,6 +76,34 @@ struct be_mcc_cq_entry {
 	u32 flags;		/* dword 3 */
 };
 
+/* When the async bit of mcc_compl is set, the last 4 bytes of
+ * mcc_compl is interpreted as follows:
+ */
+#define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
+#define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
+#define ASYNC_EVENT_CODE_LINK_STATE	0x1
+struct be_async_event_trailer {
+	u32 code;
+};
+
+enum {
+	ASYNC_EVENT_LINK_DOWN 	= 0x0,
+	ASYNC_EVENT_LINK_UP 	= 0x1
+};
+
+/* When the event code of an async trailer is link-state, the mcc_compl
+ * must be interpreted as follows
+ */
+struct be_async_event_link_state {
+	u8 physical_port;
+	u8 port_link_status;
+	u8 port_duplex;
+	u8 port_speed;
+	u8 port_fault;
+	u8 rsvd0[7];
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_cq_entry cqe;
@@ -580,12 +608,6 @@ struct be_cmd_req_link_status {
 	u32 rsvd;
 };
 
-struct be_link_info {
-	u8 duplex;
-	u8 speed;
-	u8 fault;
-};
-
 enum {
 	PHY_LINK_DUPLEX_NONE = 0x0,
 	PHY_LINK_DUPLEX_HALF = 0x1,
@@ -704,7 +726,7 @@ extern int be_cmd_rxq_create(struct be_ctrl_info *ctrl,
 extern int be_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 			int type);
 extern int be_cmd_link_status_query(struct be_ctrl_info *ctrl,
-			struct be_link_info *link);
+			bool *link_up);
 extern int be_cmd_reset(struct be_ctrl_info *ctrl);
 extern int be_cmd_get_stats(struct be_ctrl_info *ctrl,
 			struct be_dma_mem *nonemb_cmd);

@@ -69,6 +69,20 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 	return 0;
 }
 
+/* Link state evt is a string of bytes; no need for endian swapping */
+static void be_async_link_state_process(struct be_ctrl_info *ctrl,
+		struct be_async_event_link_state *evt)
+{
+	ctrl->async_cb(ctrl->adapter_ctxt,
+		evt->port_link_status == ASYNC_EVENT_LINK_UP ? true : false);
+}
+
+static inline bool is_link_state_evt(u32 trailer)
+{
+	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		ASYNC_TRAILER_EVENT_CODE_MASK) ==
+				ASYNC_EVENT_CODE_LINK_STATE);
+}
 
 static struct be_mcc_cq_entry *be_mcc_compl_get(struct be_ctrl_info *ctrl)
 {
@@ -89,7 +103,14 @@ void be_process_mcc(struct be_ctrl_info *ctrl)
 
 	spin_lock_bh(&ctrl->mcc_cq_lock);
 	while ((compl = be_mcc_compl_get(ctrl))) {
-		if (!(compl->flags & CQE_FLAGS_ASYNC_MASK)) {
+		if (compl->flags & CQE_FLAGS_ASYNC_MASK) {
+			/* Interpret flags as an async trailer */
+			BUG_ON(!is_link_state_evt(compl->flags));
+
+			/* Interpret compl as a async link evt */
+			be_async_link_state_process(ctrl,
+				(struct be_async_event_link_state *) compl);
+		} else {
 			be_mcc_compl_process(ctrl, compl);
 			atomic_dec(&ctrl->mcc_obj.q.used);
 		}
@@ -786,13 +807,15 @@ int be_cmd_get_stats(struct be_ctrl_info *ctrl, struct be_dma_mem *nonemb_cmd)
 }
 
 int be_cmd_link_status_query(struct be_ctrl_info *ctrl,
-			struct be_link_info *link)
+			bool *link_up)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_cmd_req_link_status *req = embedded_payload(wrb);
 	int status;
 
 	spin_lock(&ctrl->mbox_lock);
+
+	*link_up = false;
 	memset(wrb, 0, sizeof(*wrb));
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
@@ -803,11 +826,8 @@ int be_cmd_link_status_query(struct be_ctrl_info *ctrl,
 	status = be_mbox_db_ring(ctrl);
 	if (!status) {
 		struct be_cmd_resp_link_status *resp = embedded_payload(wrb);
-		link->speed = resp->mac_speed;
-		link->duplex = resp->mac_duplex;
-		link->fault = resp->mac_fault;
-	} else {
-		link->speed = PHY_LINK_SPEED_ZERO;
+		if (resp->mac_speed != PHY_LINK_SPEED_ZERO)
+			*link_up = true;
 	}
 
 	spin_unlock(&ctrl->mbox_lock);

@@ -163,6 +163,10 @@ struct be_ctrl_info {
 	struct be_mcc_obj mcc_obj;
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
+
+	/* MCC Async callback */
+	void (*async_cb)(void *adapter, bool link_up);
+	void *adapter_ctxt;
 };
 
 #include "be_cmds.h"
@@ -272,7 +276,7 @@ struct be_adapter {
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
 
-	struct be_link_info link;
+	bool link_up;
 	u32 port_num;
 	bool promiscuous;
 };

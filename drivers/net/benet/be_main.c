@@ -214,28 +214,24 @@ static void netdev_stats_update(struct be_adapter *adapter)
 	dev_stats->tx_window_errors = 0;
 }
 
-static void be_link_status_update(struct be_adapter *adapter)
+void be_link_status_update(void *ctxt, bool link_up)
 {
-	struct be_link_info *prev = &adapter->link;
-	struct be_link_info now = { 0 };
+	struct be_adapter *adapter = ctxt;
 	struct net_device *netdev = adapter->netdev;
 
-	be_cmd_link_status_query(&adapter->ctrl, &now);
-
 	/* If link came up or went down */
-	if (now.speed != prev->speed && (now.speed == PHY_LINK_SPEED_ZERO ||
-			prev->speed == PHY_LINK_SPEED_ZERO)) {
-		if (now.speed == PHY_LINK_SPEED_ZERO) {
-			netif_stop_queue(netdev);
-			netif_carrier_off(netdev);
-			printk(KERN_INFO "%s: Link down\n", netdev->name);
-		} else {
+	if (adapter->link_up != link_up) {
+		if (link_up) {
 			netif_start_queue(netdev);
 			netif_carrier_on(netdev);
 			printk(KERN_INFO "%s: Link up\n", netdev->name);
+		} else {
+			netif_stop_queue(netdev);
+			netif_carrier_off(netdev);
+			printk(KERN_INFO "%s: Link down\n", netdev->name);
 		}
+		adapter->link_up = link_up;
 	}
-	*prev = now;
 }
 
 /* Update the EQ delay n BE based on the RX frags consumed / sec */
@@ -1395,9 +1391,6 @@ static void be_worker(struct work_struct *work)
 		container_of(work, struct be_adapter, work.work);
 	int status;
 
-	/* Check link */
-	be_link_status_update(adapter);
-
 	/* Get Stats */
 	status = be_cmd_get_stats(&adapter->ctrl, &adapter->stats.cmd);
 	if (!status)
@@ -1522,6 +1515,8 @@ static int be_open(struct net_device *netdev)
 	struct be_ctrl_info *ctrl = &adapter->ctrl;
 	struct be_eq_obj *rx_eq = &adapter->rx_eq;
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
+	bool link_up;
+	int status;
 
 	/* First time posting */
 	be_post_rx_frags(adapter);
@@ -1540,7 +1535,10 @@ static int be_open(struct net_device *netdev)
 	/* Rx compl queue may be in unarmed state; rearm it */
 	be_cq_notify(ctrl, adapter->rx_obj.cq.id, true, 0);
 
-	be_link_status_update(adapter);
+	status = be_cmd_link_status_query(ctrl, &link_up);
+	if (status)
+		return status;
+	be_link_status_update(adapter, link_up);
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
@@ -1617,7 +1615,7 @@ static int be_close(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
-	adapter->link.speed = PHY_LINK_SPEED_ZERO;
+	adapter->link_up = false;
 
 	be_intr_set(ctrl, false);
 
@@ -1807,6 +1805,9 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&ctrl->mbox_lock);
 	spin_lock_init(&ctrl->mcc_lock);
 	spin_lock_init(&ctrl->mcc_cq_lock);
+
+	ctrl->async_cb = be_link_status_update;
+	ctrl->adapter_ctxt = adapter;
 
 	val = ioread32(ctrl->pcicfg + PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET);
 	ctrl->pci_func = (val >> MEMBAR_CTRL_INT_CTRL_PFUNC_SHIFT) &
