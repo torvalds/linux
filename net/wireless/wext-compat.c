@@ -247,7 +247,8 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 
-	range->scan_capa |= IW_SCAN_CAPA_ESSID;
+	if (wdev->wiphy->max_scan_ssids > 0)
+		range->scan_capa |= IW_SCAN_CAPA_ESSID;
 
 	return 0;
 }
