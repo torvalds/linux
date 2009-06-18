@@ -98,6 +98,7 @@ static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
+#define BRIGHTNESS_IDX 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -113,6 +114,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
+#define CONTRAST_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -128,6 +130,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
+#define COLOR_IDX 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -142,6 +145,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
+#define BLUE_BALANCE_IDX 3
 	{
 	    {
 		.id      = V4L2_CID_BLUE_BALANCE,
@@ -156,6 +160,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setblue_balance,
 	    .get = sd_getblue_balance,
 	},
+#define RED_BALANCE_IDX 4
 	{
 	    {
 		.id      = V4L2_CID_RED_BALANCE,
@@ -170,6 +175,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setred_balance,
 	    .get = sd_getred_balance,
 	},
+#define GAMMA_IDX 5
 	{
 	    {
 		.id      = V4L2_CID_GAMMA,
@@ -184,7 +190,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setgamma,
 	    .get = sd_getgamma,
 	},
-#define AUTOGAIN_IDX 5
+#define AUTOGAIN_IDX 6
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -200,7 +206,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getautogain,
 	},
 /* ov7630/ov7648 only */
-#define VFLIP_IDX 6
+#define VFLIP_IDX 7
 	{
 	    {
 		.id      = V4L2_CID_VFLIP,
@@ -216,7 +222,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getvflip,
 	},
 /* mt9v111 only */
-#define INFRARED_IDX 7
+#define INFRARED_IDX 8
 	{
 	    {
 		.id      = V4L2_CID_INFRARED,
