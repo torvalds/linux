@@ -178,27 +178,25 @@ spectrum_cs_stop_firmware(struct orinoco_private *priv, int idle)
 static int
 spectrum_cs_probe(struct pcmcia_device *link)
 {
-	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 
-	dev = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
-			       spectrum_cs_hard_reset,
-			       spectrum_cs_stop_firmware);
-	if (!dev)
+	priv = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
+				spectrum_cs_hard_reset,
+				spectrum_cs_stop_firmware);
+	if (!priv)
 		return -ENOMEM;
-	priv = netdev_priv(dev);
 	card = priv->card;
 
 	/* Link both structures together */
 	card->p_dev = link;
-	link->priv = dev;
+	link->priv = priv;
 
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = orinoco_interrupt;
-	link->irq.Instance = dev;
+	link->irq.Instance = priv;
 
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
@@ -219,14 +217,14 @@ spectrum_cs_probe(struct pcmcia_device *link)
  */
 static void spectrum_cs_detach(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
+	struct orinoco_private *priv = link->priv;
 
 	if (link->dev_node)
-		unregister_netdev(dev);
+		unregister_netdev(priv->ndev);
 
 	spectrum_cs_release(link);
 
-	free_orinocodev(dev);
+	free_orinocodev(priv);
 }				/* spectrum_cs_detach */
 
 /*
@@ -306,9 +304,9 @@ next_entry:
 static int
 spectrum_cs_config(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
+	struct net_device *dev = priv->ndev;
 	hermes_t *hw = &priv->hw;
 	int last_fn, last_ret;
 	void __iomem *mem;
@@ -408,8 +406,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 static void
 spectrum_cs_release(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = link->priv;
 	unsigned long flags;
 
 	/* We're committed to taking the device away now, so mark the
@@ -427,15 +424,15 @@ spectrum_cs_release(struct pcmcia_device *link)
 static int
 spectrum_cs_suspend(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = link->priv;
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err = 0;
 
 	/* Mark the device as stopped, to block IO until later */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	err = __orinoco_down(dev);
+	err = __orinoco_down(priv);
 	if (err)
 		printk(KERN_WARNING "%s: Error %d downing interface\n",
 		       dev->name, err);
@@ -451,12 +448,12 @@ spectrum_cs_suspend(struct pcmcia_device *link)
 static int
 spectrum_cs_resume(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = link->priv;
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
-	err = orinoco_reinit_firmware(dev);
+	err = orinoco_reinit_firmware(priv);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
 		       dev->name, err);
@@ -469,7 +466,7 @@ spectrum_cs_resume(struct pcmcia_device *link)
 	priv->hw_unavailable--;
 
 	if (priv->open && !priv->hw_unavailable) {
-		err = __orinoco_up(dev);
+		err = __orinoco_up(priv);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card\n",
 			       dev->name, err);

@@ -252,7 +252,7 @@ static int orinoco_open(struct net_device *dev)
 	if (orinoco_lock(priv, &flags) != 0)
 		return -EBUSY;
 
-	err = __orinoco_up(dev);
+	err = __orinoco_up(priv);
 
 	if (!err)
 		priv->open = 1;
@@ -274,7 +274,7 @@ static int orinoco_stop(struct net_device *dev)
 
 	priv->open = 0;
 
-	err = __orinoco_down(dev);
+	err = __orinoco_down(priv);
 
 	spin_unlock_irq(&priv->lock);
 
@@ -1511,9 +1511,9 @@ static void __orinoco_ev_infdrop(struct net_device *dev, hermes_t *hw)
 /* Internal hardware control routines                               */
 /********************************************************************/
 
-int __orinoco_up(struct net_device *dev)
+int __orinoco_up(struct orinoco_private *priv)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
 
@@ -1541,9 +1541,9 @@ int __orinoco_up(struct net_device *dev)
 }
 EXPORT_SYMBOL(__orinoco_up);
 
-int __orinoco_down(struct net_device *dev)
+int __orinoco_down(struct orinoco_private *priv)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct net_device *dev = priv->ndev;
 	struct hermes *hw = &priv->hw;
 	int err;
 
@@ -1573,9 +1573,8 @@ int __orinoco_down(struct net_device *dev)
 }
 EXPORT_SYMBOL(__orinoco_down);
 
-int orinoco_reinit_firmware(struct net_device *dev)
+int orinoco_reinit_firmware(struct orinoco_private *priv)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
 	struct hermes *hw = &priv->hw;
 	int err;
 
@@ -1887,7 +1886,7 @@ void orinoco_reset(struct work_struct *work)
 		}
 	}
 
-	err = orinoco_reinit_firmware(dev);
+	err = orinoco_reinit_firmware(priv);
 	if (err) {
 		printk(KERN_ERR "%s: orinoco_reset: Error %d re-initializing firmware\n",
 		       dev->name, err);
@@ -1902,7 +1901,7 @@ void orinoco_reset(struct work_struct *work)
 	/* priv->open or priv->hw_unavailable might have changed while
 	 * we dropped the lock */
 	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(dev);
+		err = __orinoco_up(priv);
 		if (err) {
 			printk(KERN_ERR "%s: orinoco_reset: Error %d reenabling card\n",
 			       dev->name, err);
@@ -1938,8 +1937,8 @@ static void __orinoco_ev_wterr(struct net_device *dev, hermes_t *hw)
 
 irqreturn_t orinoco_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = dev_id;
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = dev_id;
+	struct net_device *dev = priv->ndev;
 	hermes_t *hw = &priv->hw;
 	int count = MAX_IRQLOOPS_PER_IRQ;
 	u16 evstat, events;
@@ -2192,7 +2191,7 @@ static const struct net_device_ops orinoco_netdev_ops = {
 	.ndo_get_stats		= orinoco_get_stats,
 };
 
-struct net_device
+struct orinoco_private
 *alloc_orinocodev(int sizeof_card,
 		  struct device *device,
 		  int (*hard_reset)(struct orinoco_private *),
@@ -2255,13 +2254,13 @@ struct net_device
 	/* Register PM notifiers */
 	orinoco_register_pm_notifier(priv);
 
-	return dev;
+	return priv;
 }
 EXPORT_SYMBOL(alloc_orinocodev);
 
-void free_orinocodev(struct net_device *dev)
+void free_orinocodev(struct orinoco_private *priv)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct net_device *dev = priv->ndev;
 	struct orinoco_rx_data *rx_data, *temp;
 
 	/* If the tasklet is scheduled when we call tasklet_kill it

@@ -182,14 +182,14 @@ extern int orinoco_debug;
 /* Exported prototypes                                              */
 /********************************************************************/
 
-extern struct net_device *alloc_orinocodev(
+extern struct orinoco_private *alloc_orinocodev(
 	int sizeof_card, struct device *device,
 	int (*hard_reset)(struct orinoco_private *),
 	int (*stop_fw)(struct orinoco_private *, int));
-extern void free_orinocodev(struct net_device *dev);
-extern int __orinoco_up(struct net_device *dev);
-extern int __orinoco_down(struct net_device *dev);
-extern int orinoco_reinit_firmware(struct net_device *dev);
+extern void free_orinocodev(struct orinoco_private *priv);
+extern int __orinoco_up(struct orinoco_private *priv);
+extern int __orinoco_down(struct orinoco_private *priv);
+extern int orinoco_reinit_firmware(struct orinoco_private *priv);
 extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
 
 /********************************************************************/

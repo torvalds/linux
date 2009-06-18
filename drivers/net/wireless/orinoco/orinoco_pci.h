@@ -21,8 +21,8 @@ struct orinoco_pci_card {
 #ifdef CONFIG_PM
 static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = pci_get_drvdata(pdev);
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
@@ -33,7 +33,7 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		return err;
 	}
 
-	err = __orinoco_down(dev);
+	err = __orinoco_down(priv);
 	if (err)
 		printk(KERN_WARNING "%s: error %d bringing interface down "
 		       "for suspend\n", dev->name, err);
@@ -44,7 +44,7 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	orinoco_unlock(priv, &flags);
 
-	free_irq(pdev->irq, dev);
+	free_irq(pdev->irq, priv);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
@@ -54,8 +54,8 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int orinoco_pci_resume(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = pci_get_drvdata(pdev);
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
@@ -69,7 +69,7 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 
 	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
-			  dev->name, dev);
+			  dev->name, priv);
 	if (err) {
 		printk(KERN_ERR "%s: cannot re-allocate IRQ on resume\n",
 		       dev->name);
@@ -77,7 +77,7 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 		return -EBUSY;
 	}
 
-	err = orinoco_reinit_firmware(dev);
+	err = orinoco_reinit_firmware(priv);
 	if (err) {
 		printk(KERN_ERR "%s: error %d re-initializing firmware "
 		       "on resume\n", dev->name, err);
@@ -91,7 +91,7 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 	priv->hw_unavailable--;
 
 	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(dev);
+		err = __orinoco_up(priv);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card on resume\n",
 			       dev->name, err);

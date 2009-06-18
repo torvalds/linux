@@ -34,8 +34,8 @@ struct airport {
 static int
 airport_suspend(struct macio_dev *mdev, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
@@ -48,7 +48,7 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 		return 0;
 	}
 
-	err = __orinoco_down(dev);
+	err = __orinoco_down(priv);
 	if (err)
 		printk(KERN_WARNING "%s: PBOOK_SLEEP_NOW: Error %d downing interface\n",
 		       dev->name, err);
@@ -69,8 +69,8 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 static int
 airport_resume(struct macio_dev *mdev)
 {
-	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct net_device *dev = priv->ndev;
 	unsigned long flags;
 	int err;
 
@@ -82,7 +82,7 @@ airport_resume(struct macio_dev *mdev)
 
 	enable_irq(dev->irq);
 
-	err = orinoco_reinit_firmware(dev);
+	err = orinoco_reinit_firmware(priv);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d re-initializing firmware on PBOOK_WAKE\n",
 		       dev->name, err);
@@ -96,7 +96,7 @@ airport_resume(struct macio_dev *mdev)
 	priv->hw_unavailable--;
 
 	if (priv->open && (!priv->hw_unavailable)) {
-		err = __orinoco_up(dev);
+		err = __orinoco_up(priv);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card on PBOOK_WAKE\n",
 			       dev->name, err);
@@ -111,8 +111,8 @@ airport_resume(struct macio_dev *mdev)
 static int
 airport_detach(struct macio_dev *mdev)
 {
-	struct net_device *dev = dev_get_drvdata(&mdev->ofdev.dev);
-	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct net_device *dev = priv->ndev;
 	struct airport *card = priv->card;
 
 	if (card->ndev_registered)
@@ -120,7 +120,7 @@ airport_detach(struct macio_dev *mdev)
 	card->ndev_registered = 0;
 
 	if (card->irq_requested)
-		free_irq(dev->irq, dev);
+		free_irq(dev->irq, priv);
 	card->irq_requested = 0;
 
 	if (card->vaddr)
@@ -134,7 +134,7 @@ airport_detach(struct macio_dev *mdev)
 	ssleep(1);
 
 	macio_set_drvdata(mdev, NULL);
-	free_orinocodev(dev);
+	free_orinocodev(priv);
 
 	return 0;
 }
@@ -185,13 +185,13 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	}
 
 	/* Allocate space for private device-specific data */
-	dev = alloc_orinocodev(sizeof(*card), &mdev->ofdev.dev,
-			       airport_hard_reset, NULL);
-	if (!dev) {
+	priv = alloc_orinocodev(sizeof(*card), &mdev->ofdev.dev,
+				airport_hard_reset, NULL);
+	if (!priv) {
 		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		return -ENODEV;
 	}
-	priv = netdev_priv(dev);
+	dev = priv->ndev;
 	card = priv->card;
 
 	hw = &priv->hw;
@@ -199,13 +199,13 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 
 	if (macio_request_resource(mdev, 0, "airport")) {
 		printk(KERN_ERR PFX "can't request IO resource !\n");
-		free_orinocodev(dev);
+		free_orinocodev(priv);
 		return -EBUSY;
 	}
 
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
-	macio_set_drvdata(mdev, dev);
+	macio_set_drvdata(mdev, priv);
 
 	/* Setup interrupts & base address */
 	dev->irq = macio_irq(mdev, 0);
@@ -228,7 +228,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Reset it before we get the interrupt */
 	hermes_init(hw);
 
-	if (request_irq(dev->irq, orinoco_interrupt, 0, dev->name, dev)) {
+	if (request_irq(dev->irq, orinoco_interrupt, 0, dev->name, priv)) {
 		printk(KERN_ERR PFX "Couldn't get IRQ %d\n", dev->irq);
 		goto failed;
 	}
