@@ -1269,7 +1269,7 @@ Fan control and monitoring: fan speed, fan enable/disable
 
 procfs: /proc/acpi/ibm/fan
 sysfs device attributes: (hwmon "thinkpad") fan1_input, pwm1,
-			  pwm1_enable
+			  pwm1_enable, fan2_input
 sysfs hwmon driver attributes: fan_watchdog
 
 NOTE NOTE NOTE: fan control operations are disabled by default for
@@ -1281,6 +1281,9 @@ other fan data that might be available.  The speed is read directly
 from the hardware registers of the embedded controller.  This is known
 to work on later R, T, X and Z series ThinkPads but may show a bogus
 value on other models.
+
+Some Lenovo ThinkPads support a secondary fan.  This fan cannot be
+controlled separately, it shares the main fan control.
 
 Fan levels:
 
@@ -1411,6 +1414,11 @@ hwmon device attribute fan1_input:
 	ThinkPads while the EC transitions the PWM to offline mode,
 	which can take up to two minutes.  May return rubbish on older
 	ThinkPads.
+
+hwmon device attribute fan2_input:
+	Fan tachometer reading, in RPM, for the secondary fan.
+	Available only on some ThinkPads.  If the secondary fan is
+	not installed, will always read 0.
 
 hwmon driver attribute fan_watchdog:
 	Fan safety watchdog timer interval, in seconds.  Minimum is

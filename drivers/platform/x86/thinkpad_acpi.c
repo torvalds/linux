@@ -264,6 +264,7 @@ static struct {
 	u32 wan:1;
 	u32 uwb:1;
 	u32 fan_ctrl_status_undef:1;
+	u32 second_fan:1;
 	u32 beep_needs_two_args:1;
 	u32 input_device_registered:1;
 	u32 platform_drv_registered:1;
@@ -6298,6 +6299,21 @@ static struct ibm_struct volume_driver_data = {
  *	For firmware bugs, refer to:
  *	http://thinkwiki.org/wiki/Embedded_Controller_Firmware#Firmware_Issues
  *
+ *	----
+ *
+ *	ThinkPad EC register 0x31 bit 0 (only on select models)
+ *
+ *	When bit 0 of EC register 0x31 is zero, the tachometer registers
+ *	show the speed of the main fan.  When bit 0 of EC register 0x31
+ *	is one, the tachometer registers show the speed of the auxiliary
+ *	fan.
+ *
+ *	Fan control seems to affect both fans, regardless of the state
+ *	of this bit.
+ *
+ *	So far, only the firmware for the X60/X61 non-tablet versions
+ *	seem to support this (firmware TP-7M).
+ *
  * TPACPI_FAN_WR_ACPI_FANS:
  *	ThinkPad X31, X40, X41.  Not available in the X60.
  *
@@ -6324,6 +6340,8 @@ enum {					/* Fan control constants */
 	fan_status_offset = 0x2f,	/* EC register 0x2f */
 	fan_rpm_offset = 0x84,		/* EC register 0x84: LSB, 0x85 MSB (RPM)
 					 * 0x84 must be read before 0x85 */
+	fan_select_offset = 0x31,	/* EC register 0x31 (Firmware 7M)
+					   bit 0 selects which fan is active */
 
 	TP_EC_FAN_FULLSPEED = 0x40,	/* EC fan mode: full speed */
 	TP_EC_FAN_AUTO	    = 0x80,	/* EC fan mode: auto fan control */
@@ -6417,6 +6435,38 @@ static void fan_quirk1_handle(u8 *fan_status)
 	}
 }
 
+/* Select main fan on X60/X61, NOOP on others */
+static bool fan_select_fan1(void)
+{
+	if (tp_features.second_fan) {
+		u8 val;
+
+		if (ec_read(fan_select_offset, &val) < 0)
+			return false;
+		val &= 0xFEU;
+		if (ec_write(fan_select_offset, val) < 0)
+			return false;
+	}
+	return true;
+}
+
+/* Select secondary fan on X60/X61 */
+static bool fan_select_fan2(void)
+{
+	u8 val;
+
+	if (!tp_features.second_fan)
+		return false;
+
+	if (ec_read(fan_select_offset, &val) < 0)
+		return false;
+	val |= 0x01U;
+	if (ec_write(fan_select_offset, val) < 0)
+		return false;
+
+	return true;
+}
+
 /*
  * Call with fan_mutex held
  */
@@ -6494,8 +6544,38 @@ static int fan_get_speed(unsigned int *speed)
 	switch (fan_status_access_mode) {
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!fan_select_fan1()))
+			return -EIO;
 		if (unlikely(!acpi_ec_read(fan_rpm_offset, &lo) ||
 			     !acpi_ec_read(fan_rpm_offset + 1, &hi)))
+			return -EIO;
+
+		if (likely(speed))
+			*speed = (hi << 8) | lo;
+
+		break;
+
+	default:
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int fan2_get_speed(unsigned int *speed)
+{
+	u8 hi, lo;
+	bool rc;
+
+	switch (fan_status_access_mode) {
+	case TPACPI_FAN_RD_TPEC:
+		/* all except 570, 600e/x, 770e, 770x */
+		if (unlikely(!fan_select_fan2()))
+			return -EIO;
+		rc = !acpi_ec_read(fan_rpm_offset, &lo) ||
+			     !acpi_ec_read(fan_rpm_offset + 1, &hi);
+		fan_select_fan1(); /* play it safe */
+		if (rc)
 			return -EIO;
 
 		if (likely(speed))
@@ -6915,6 +6995,25 @@ static struct device_attribute dev_attr_fan_fan1_input =
 	__ATTR(fan1_input, S_IRUGO,
 		fan_fan1_input_show, NULL);
 
+/* sysfs fan fan2_input ------------------------------------------------ */
+static ssize_t fan_fan2_input_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int res;
+	unsigned int speed;
+
+	res = fan2_get_speed(&speed);
+	if (res < 0)
+		return res;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", speed);
+}
+
+static struct device_attribute dev_attr_fan_fan2_input =
+	__ATTR(fan2_input, S_IRUGO,
+		fan_fan2_input_show, NULL);
+
 /* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
 static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
 				     char *buf)
@@ -6948,6 +7047,7 @@ static DRIVER_ATTR(fan_watchdog, S_IWUSR | S_IRUGO,
 static struct attribute *fan_attributes[] = {
 	&dev_attr_fan_pwm1_enable.attr, &dev_attr_fan_pwm1.attr,
 	&dev_attr_fan_fan1_input.attr,
+	NULL, /* for fan2_input */
 	NULL
 };
 
@@ -6955,10 +7055,17 @@ static const struct attribute_group fan_attr_group = {
 	.attrs = fan_attributes,
 };
 
-#define	TPACPI_FAN_Q1	0x0001
+#define	TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
+#define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
 
 #define TPACPI_FAN_QI(__id1, __id2, __quirks)	\
 	{ .vendor = PCI_VENDOR_ID_IBM,		\
+	  .bios = TPACPI_MATCH_ANY,		\
+	  .ec = TPID(__id1, __id2),		\
+	  .quirks = __quirks }
+
+#define TPACPI_FAN_QL(__id1, __id2, __quirks)	\
+	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
 	  .bios = TPACPI_MATCH_ANY,		\
 	  .ec = TPID(__id1, __id2),		\
 	  .quirks = __quirks }
@@ -6968,8 +7075,10 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_FAN_QI('7', '8', TPACPI_FAN_Q1),
 	TPACPI_FAN_QI('7', '6', TPACPI_FAN_Q1),
 	TPACPI_FAN_QI('7', '0', TPACPI_FAN_Q1),
+	TPACPI_FAN_QL('7', 'M', TPACPI_FAN_2FAN),
 };
 
+#undef TPACPI_FAN_QL
 #undef TPACPI_FAN_QI
 
 static int __init fan_init(struct ibm_init_struct *iibm)
@@ -6986,6 +7095,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	fan_control_commands = 0;
 	fan_watchdog_maxinterval = 0;
 	tp_features.fan_ctrl_status_undef = 0;
+	tp_features.second_fan = 0;
 	fan_control_desired_level = 7;
 
 	TPACPI_ACPIHANDLE_INIT(fans);
@@ -7006,6 +7116,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			fan_status_access_mode = TPACPI_FAN_RD_TPEC;
 			if (quirks & TPACPI_FAN_Q1)
 				fan_quirk1_setup();
+			if (quirks & TPACPI_FAN_2FAN) {
+				tp_features.second_fan = 1;
+				dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
+					"secondary fan support enabled\n");
+			}
 		} else {
 			printk(TPACPI_ERR
 			       "ThinkPad ACPI EC access misbehaving, "
@@ -7061,6 +7176,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	if (fan_status_access_mode != TPACPI_FAN_NONE ||
 	    fan_control_access_mode != TPACPI_FAN_WR_NONE) {
+		if (tp_features.second_fan) {
+			/* attach second fan tachometer */
+			fan_attributes[ARRAY_SIZE(fan_attributes)-2] =
+					&dev_attr_fan_fan2_input.attr;
+		}
 		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 					 &fan_attr_group);
 		if (rc < 0)
