@@ -218,7 +218,7 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define VFLIP_DEF 0			/* vflip def = 1 for ov7630 */
+#define VFLIP_DEF 0
 		.default_value = VFLIP_DEF,
 	    },
 	    .set = sd_setvflip,
@@ -1321,10 +1321,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->gamma = GAMMA_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
-	if (sd->sensor != SENSOR_OV7630)
-		sd->vflip = 0;
-	else
-		sd->vflip = 1;
+	sd->vflip = VFLIP_DEF;
 	sd->infrared = INFRARED_DEF;
 	sd->freq = FREQ_DEF;
 	sd->quality = QUALITY_DEF;
@@ -1613,12 +1610,15 @@ static void setvflip(struct sd *sd)
 {
 	u8 comn;
 
-	if (sd->sensor == SENSOR_OV7630)
+	if (sd->sensor == SENSOR_OV7630) {
 		comn = 0x02;
-	else
+		if (!sd->vflip)
+			comn |= 0x80;
+	} else {
 		comn = 0x06;
-	if (sd->vflip)
-		comn |= 0x80;
+		if (sd->vflip)
+			comn |= 0x80;
+	}
 	i2c_w1(&sd->gspca_dev, 0x75, comn);
 }
 
