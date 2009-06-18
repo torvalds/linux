@@ -1468,6 +1468,8 @@ sub dump_enum($$) {
 	    }
 
 	}
+	# strip kmemcheck_bitfield_{begin,end}.*;
+	$members =~ s/kmemcheck_bitfield_.*?;//gos;
 
 	output_declaration($declaration_name,
 			   'enum',
