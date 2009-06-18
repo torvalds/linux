@@ -2241,5 +2241,12 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	if (!encrypt)
 		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 
+	/*
+	 * The other path calling ieee80211_xmit is from the tasklet,
+	 * and while we can handle concurrent transmissions locking
+	 * requirements are that we do not come into tx with bhs on.
+	 */
+	local_bh_disable();
 	ieee80211_xmit(sdata, skb);
+	local_bh_enable();
 }
