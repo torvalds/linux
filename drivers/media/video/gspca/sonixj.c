@@ -251,7 +251,7 @@ static __u32 ctrl_dis[] = {
 						/* SENSOR_MT9V111 3 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_OM6802 4 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX),
+	(1 << INFRARED_IDX),
 						/* SENSOR_OV7630 5 */
 	(1 << INFRARED_IDX),
 						/* SENSOR_OV7648 6 */
@@ -1577,7 +1577,7 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		else
 			comb = 0xa0;
 		if (sd->autogain)
-			comb |= 0x02;
+			comb |= 0x03;
 		i2c_w1(&sd->gspca_dev, 0x13, comb);
 		return;
 	    }
