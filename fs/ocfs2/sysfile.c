@@ -50,7 +50,9 @@ static inline int is_in_system_inode_array(struct ocfs2_super *osb,
 					   int type,
 					   u32 slot);
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key ocfs2_sysfile_cluster_lock_key[NUM_SYSTEM_INODES];
+#endif
 
 static inline int is_global_system_inode(int type)
 {
