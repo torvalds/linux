@@ -109,9 +109,20 @@ static inline int is_buffer_dma_capable(u64 mask, dma_addr_t addr, size_t size)
 #include <asm-generic/dma-mapping-broken.h>
 #endif
 
-/* Backwards compat, remove in 2.7.x */
-#define dma_sync_single		dma_sync_single_for_cpu
-#define dma_sync_sg		dma_sync_sg_for_cpu
+/* for backwards compatibility, removed soon */
+static inline void __deprecated dma_sync_single(struct device *dev,
+						dma_addr_t addr, size_t size,
+						enum dma_data_direction dir)
+{
+	dma_sync_single_for_cpu(dev, addr, size, dir);
+}
+
+static inline void __deprecated dma_sync_sg(struct device *dev,
+					    struct scatterlist *sg, int nelems,
+					    enum dma_data_direction dir)
+{
+	dma_sync_sg_for_cpu(dev, sg, nelems, dir);
+}
 
 static inline u64 dma_get_mask(struct device *dev)
 {
