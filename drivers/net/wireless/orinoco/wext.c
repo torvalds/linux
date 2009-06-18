@@ -52,7 +52,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 	 * here so we're not safe to sleep here. */
 	hermes_inquire(hw, HERMES_INQ_TALLIES);
 
-	if (priv->iw_mode == IW_MODE_ADHOC) {
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		memset(&wstats->qual, 0, sizeof(wstats->qual));
 		/* If a spy address is defined, we report stats of the
 		 * first spy address - Jean II */
@@ -124,7 +124,7 @@ static int orinoco_ioctl_setwap(struct net_device *dev,
 		goto out;
 	}
 
-	if (priv->iw_mode != IW_MODE_INFRA) {
+	if (priv->iw_mode != NL80211_IFTYPE_STATION) {
 		printk(KERN_WARNING "%s: Manual roaming supported only in "
 		       "managed mode\n", dev->name);
 		err = -EOPNOTSUPP;
@@ -170,65 +170,6 @@ static int orinoco_ioctl_getwap(struct net_device *dev,
 	orinoco_unlock(priv, &flags);
 
 	return err;
-}
-
-static int orinoco_ioctl_setmode(struct net_device *dev,
-				 struct iw_request_info *info,
-				 u32 *mode,
-				 char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-	int err = -EINPROGRESS;		/* Call commit handler */
-	unsigned long flags;
-
-	if (priv->iw_mode == *mode)
-		return 0;
-
-	if (orinoco_lock(priv, &flags) != 0)
-		return -EBUSY;
-
-	switch (*mode) {
-	case IW_MODE_ADHOC:
-		if (!priv->has_ibss && !priv->has_port3)
-			err = -EOPNOTSUPP;
-		break;
-
-	case IW_MODE_INFRA:
-		break;
-
-	case IW_MODE_MONITOR:
-		if (priv->broken_monitor && !force_monitor) {
-			printk(KERN_WARNING "%s: Monitor mode support is "
-			       "buggy in this firmware, not enabling\n",
-			       dev->name);
-			err = -EOPNOTSUPP;
-		}
-		break;
-
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-	if (err == -EINPROGRESS) {
-		priv->iw_mode = *mode;
-		set_port_type(priv);
-	}
-
-	orinoco_unlock(priv, &flags);
-
-	return err;
-}
-
-static int orinoco_ioctl_getmode(struct net_device *dev,
-				 struct iw_request_info *info,
-				 u32 *mode,
-				 char *extra)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-
-	*mode = priv->iw_mode;
-	return 0;
 }
 
 static int orinoco_ioctl_getiwrange(struct net_device *dev,
@@ -280,7 +221,7 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	if (priv->has_wpa)
 		range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_CIPHER_TKIP;
 
-	if ((priv->iw_mode == IW_MODE_ADHOC) && (!SPY_NUMBER(priv))) {
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) && (!SPY_NUMBER(priv))) {
 		/* Quality stats meaningless in ad-hoc mode */
 	} else {
 		range->max_qual.qual = 0x8b - 0x2f;
@@ -596,7 +537,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 	int err = -EINPROGRESS;		/* Call commit handler */
 
 	/* In infrastructure mode the AP sets the channel */
-	if (priv->iw_mode == IW_MODE_INFRA)
+	if (priv->iw_mode == NL80211_IFTYPE_STATION)
 		return -EBUSY;
 
 	if ((frq->e == 0) && (frq->m <= 1000)) {
@@ -622,7 +563,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 		return -EBUSY;
 
 	priv->channel = chan;
-	if (priv->iw_mode == IW_MODE_MONITOR) {
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Fast channel change - no commit if successful */
 		hermes_t *hw = &priv->hw;
 		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
@@ -1673,7 +1614,7 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
 	/* In monitor mode, the scan results are always empty.
 	 * Probe responses are passed to the driver as received
 	 * frames and could be processed in software. */
-	if (priv->iw_mode == IW_MODE_MONITOR) {
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -2209,8 +2150,8 @@ static const iw_handler	orinoco_handler[] = {
 	STD_IW_HANDLER(SIOCGIWNAME,	cfg80211_wext_giwname),
 	STD_IW_HANDLER(SIOCSIWFREQ,	orinoco_ioctl_setfreq),
 	STD_IW_HANDLER(SIOCGIWFREQ,	orinoco_ioctl_getfreq),
-	STD_IW_HANDLER(SIOCSIWMODE,	orinoco_ioctl_setmode),
-	STD_IW_HANDLER(SIOCGIWMODE,	orinoco_ioctl_getmode),
+	STD_IW_HANDLER(SIOCSIWMODE,	cfg80211_wext_siwmode),
+	STD_IW_HANDLER(SIOCGIWMODE,	cfg80211_wext_giwmode),
 	STD_IW_HANDLER(SIOCSIWSENS,	orinoco_ioctl_setsens),
 	STD_IW_HANDLER(SIOCGIWSENS,	orinoco_ioctl_getsens),
 	STD_IW_HANDLER(SIOCGIWRANGE,	orinoco_ioctl_getiwrange),

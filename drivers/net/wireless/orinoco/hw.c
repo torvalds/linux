@@ -7,7 +7,7 @@
 #include <linux/if_arp.h>
 #include <linux/ieee80211.h>
 #include <linux/wireless.h>
-
+#include <net/cfg80211.h>
 #include "hermes.h"
 #include "hermes_rid.h"
 #include "orinoco.h"
@@ -409,6 +409,7 @@ void orinoco_get_ratemode_cfg(int ratemode, int *bitrate, int *automatic)
 int orinoco_hw_program_rids(struct orinoco_private *priv)
 {
 	struct net_device *dev = priv->ndev;
+	struct wireless_dev *wdev = netdev_priv(dev);
 	hermes_t *hw = &priv->hw;
 	int err;
 	struct hermes_idstring idbuf;
@@ -431,7 +432,7 @@ int orinoco_hw_program_rids(struct orinoco_private *priv)
 		return err;
 	}
 	/* Set the channel/frequency */
-	if (priv->channel != 0 && priv->iw_mode != IW_MODE_INFRA) {
+	if (priv->channel != 0 && priv->iw_mode != NL80211_IFTYPE_STATION) {
 		err = hermes_write_wordrec(hw, USER_BAP,
 					   HERMES_RID_CNFOWNCHANNEL,
 					   priv->channel);
@@ -612,7 +613,7 @@ int orinoco_hw_program_rids(struct orinoco_private *priv)
 		}
 	}
 
-	if (priv->iw_mode == IW_MODE_MONITOR) {
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Enable monitor mode */
 		dev->type = ARPHRD_IEEE80211;
 		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
@@ -629,6 +630,9 @@ int orinoco_hw_program_rids(struct orinoco_private *priv)
 	/* Reset promiscuity / multicast*/
 	priv->promiscuous = 0;
 	priv->mc_count = 0;
+
+	/* Record mode change */
+	wdev->iftype = priv->iw_mode;
 
 	return 0;
 }
@@ -884,7 +888,7 @@ int __orinoco_hw_setup_enc(struct orinoco_private *priv)
 		} else
 			master_wep_flag = 0;
 
-		if (priv->iw_mode == IW_MODE_MONITOR)
+		if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
 			master_wep_flag |= HERMES_WEP_HOST_DECRYPT;
 
 		/* Master WEP setting : on/off */

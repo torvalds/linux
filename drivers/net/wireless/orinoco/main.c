@@ -222,11 +222,11 @@ static int __orinoco_commit(struct orinoco_private *priv);
 void set_port_type(struct orinoco_private *priv)
 {
 	switch (priv->iw_mode) {
-	case IW_MODE_INFRA:
+	case NL80211_IFTYPE_STATION:
 		priv->port_type = 1;
 		priv->createibss = 0;
 		break;
-	case IW_MODE_ADHOC:
+	case NL80211_IFTYPE_ADHOC:
 		if (priv->prefer_port3) {
 			priv->port_type = 3;
 			priv->createibss = 0;
@@ -235,7 +235,7 @@ void set_port_type(struct orinoco_private *priv)
 			priv->createibss = 1;
 		}
 		break;
-	case IW_MODE_MONITOR:
+	case NL80211_IFTYPE_MONITOR:
 		priv->port_type = 3;
 		priv->createibss = 0;
 		break;
@@ -359,7 +359,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (!netif_carrier_ok(dev) || (priv->iw_mode == IW_MODE_MONITOR)) {
+	if (!netif_carrier_ok(dev) ||
+	    (priv->iw_mode == NL80211_IFTYPE_MONITOR)) {
 		/* Oops, the firmware hasn't established a connection,
 		   silently drop the packet (this seems to be the
 		   safest approach). */
@@ -820,7 +821,7 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 	}
 
 	/* Handle frames in monitor mode */
-	if (priv->iw_mode == IW_MODE_MONITOR) {
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		orinoco_rx_monitor(dev, rxfid, desc);
 		goto out;
 	}
@@ -1331,7 +1332,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		u16 newstatus;
 		int connected;
 
-		if (priv->iw_mode == IW_MODE_MONITOR)
+		if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
 			break;
 
 		if (len != sizeof(linkstatus)) {
@@ -1981,7 +1982,7 @@ int orinoco_init(struct orinoco_private *priv)
 	}
 
 	/* Set up the default configuration */
-	priv->iw_mode = IW_MODE_INFRA;
+	priv->iw_mode = NL80211_IFTYPE_STATION;
 	/* By default use IEEE/IBSS ad-hoc mode if we have it */
 	priv->prefer_port3 = priv->has_port3 && (!priv->has_ibss);
 	set_port_type(priv);

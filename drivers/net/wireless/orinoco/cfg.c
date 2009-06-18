@@ -93,6 +93,50 @@ int orinoco_wiphy_register(struct wiphy *wiphy)
 	return wiphy_register(wiphy);
 }
 
-const struct cfg80211_ops orinoco_cfg_ops = {
+static int orinoco_change_vif(struct wiphy *wiphy, struct net_device *dev,
+			      enum nl80211_iftype type, u32 *flags,
+			      struct vif_params *params)
+{
+	struct orinoco_private *priv = wiphy_priv(wiphy);
+	int err = 0;
+	unsigned long lock;
 
+	if (orinoco_lock(priv, &lock) != 0)
+		return -EBUSY;
+
+	switch (type) {
+	case NL80211_IFTYPE_ADHOC:
+		if (!priv->has_ibss && !priv->has_port3)
+			err = -EINVAL;
+		break;
+
+	case NL80211_IFTYPE_STATION:
+		break;
+
+	case NL80211_IFTYPE_MONITOR:
+		if (priv->broken_monitor && !force_monitor) {
+			printk(KERN_WARNING "%s: Monitor mode support is "
+			       "buggy in this firmware, not enabling\n",
+			       wiphy_name(wiphy));
+			err = -EINVAL;
+		}
+		break;
+
+	default:
+		err = -EINVAL;
+	}
+
+	if (!err) {
+		priv->iw_mode = type;
+		set_port_type(priv);
+		err = orinoco_commit(priv);
+	}
+
+	orinoco_unlock(priv, &lock);
+
+	return err;
+}
+
+const struct cfg80211_ops orinoco_cfg_ops = {
+	.change_virtual_intf = orinoco_change_vif,
 };
