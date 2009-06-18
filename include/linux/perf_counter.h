@@ -337,6 +337,16 @@ enum perf_event_type {
 	 */
 };
 
+#define MAX_STACK_DEPTH			255
+
+struct perf_callchain_entry {
+	__u16				nr;
+	__u16				hv;
+	__u16				kernel;
+	__u16				user;
+	__u64				ip[MAX_STACK_DEPTH];
+};
+
 #ifdef __KERNEL__
 /*
  * Kernel-internal data types and definitions:
@@ -651,16 +661,6 @@ extern void perf_counter_comm(struct task_struct *tsk);
 extern void perf_counter_fork(struct task_struct *tsk);
 
 extern void perf_counter_task_migration(struct task_struct *task, int cpu);
-
-#define MAX_STACK_DEPTH			255
-
-struct perf_callchain_entry {
-	u16				nr;
-	u16				hv;
-	u16				kernel;
-	u16				user;
-	u64				ip[MAX_STACK_DEPTH];
-};
 
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
