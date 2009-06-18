@@ -78,15 +78,26 @@ struct mmap_data {
 
 static struct mmap_data		mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
-static unsigned int mmap_read_head(struct mmap_data *md)
+static unsigned long mmap_read_head(struct mmap_data *md)
 {
 	struct perf_counter_mmap_page *pc = md->base;
-	int head;
+	long head;
 
 	head = pc->data_head;
 	rmb();
 
 	return head;
+}
+
+static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
+{
+	struct perf_counter_mmap_page *pc = md->base;
+
+	/*
+	 * ensure all reads are done before we write the tail out.
+	 */
+	/* mb(); */
+	pc->data_tail = tail;
 }
 
 static void mmap_read(struct mmap_data *md)
@@ -109,7 +120,7 @@ static void mmap_read(struct mmap_data *md)
 	 * In either case, truncate and restart at head.
 	 */
 	diff = head - old;
-	if (diff > md->mask / 2 || diff < 0) {
+	if (diff < 0) {
 		struct timeval iv;
 		unsigned long msecs;
 
@@ -167,6 +178,7 @@ static void mmap_read(struct mmap_data *md)
 	}
 
 	md->prev = old;
+	mmap_write_tail(md, old);
 }
 
 static volatile int done = 0;
@@ -424,7 +436,7 @@ try_again:
 	mmap_array[nr_cpu][counter].prev = 0;
 	mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
 	mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-			PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
+			PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
 	if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
 		error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 		exit(-1);

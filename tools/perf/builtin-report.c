@@ -83,6 +83,12 @@ struct period_event {
 	__u64 sample_period;
 };
 
+struct lost_event {
+	struct perf_event_header header;
+	__u64 id;
+	__u64 lost;
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
@@ -90,6 +96,7 @@ typedef union event_union {
 	struct comm_event		comm;
 	struct fork_event		fork;
 	struct period_event		period;
+	struct lost_event		lost;
 } event_t;
 
 static LIST_HEAD(dsos);
@@ -1068,7 +1075,8 @@ static unsigned long total = 0,
 		     total_mmap = 0,
 		     total_comm = 0,
 		     total_fork = 0,
-		     total_unknown = 0;
+		     total_unknown = 0,
+		     total_lost = 0;
 
 static int validate_chain(struct perf_callchain_entry *chain, event_t *event)
 {
@@ -1260,6 +1268,20 @@ process_period_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
+static int
+process_lost_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	dprintf("%p [%p]: PERF_EVENT_LOST: id:%Ld: lost:%Ld\n",
+		(void *)(offset + head),
+		(void *)(long)(event->header.size),
+		event->lost.id,
+		event->lost.lost);
+
+	total_lost += event->lost.lost;
+
+	return 0;
+}
+
 static void trace_event(event_t *event)
 {
 	unsigned char *raw_event = (void *)event;
@@ -1316,6 +1338,10 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	case PERF_EVENT_PERIOD:
 		return process_period_event(event, offset, head);
+
+	case PERF_EVENT_LOST:
+		return process_lost_event(event, offset, head);
+
 	/*
 	 * We dont process them right now but they are fine:
 	 */
@@ -1444,6 +1470,7 @@ more:
 	dprintf("    mmap events: %10ld\n", total_mmap);
 	dprintf("    comm events: %10ld\n", total_comm);
 	dprintf("    fork events: %10ld\n", total_fork);
+	dprintf("    lost events: %10ld\n", total_lost);
 	dprintf(" unknown events: %10ld\n", total_unknown);
 
 	if (dump_trace)
