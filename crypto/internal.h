@@ -25,12 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_CRYPTO_FIPS
-extern int fips_enabled;
-#else
-#define fips_enabled 0
-#endif
+#include <linux/fips.h>
 
 /* Crypto notification events. */
 enum {
