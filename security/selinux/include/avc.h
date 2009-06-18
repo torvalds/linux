@@ -127,9 +127,6 @@ int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
 		     u32 events, u32 ssid, u32 tsid,
 		     u16 tclass, u32 perms);
 
-/* Shows permission in human readable form */
-void avc_dump_av(struct audit_buffer *ab, u16 tclass, u32 av);
-
 /* Exported to selinuxfs */
 int avc_get_hash_stats(char *page);
 extern unsigned int avc_cache_threshold;
