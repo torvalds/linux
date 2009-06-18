@@ -64,11 +64,4 @@ struct nfs2_fh {
 #define NFSPROC_READDIR		16
 #define NFSPROC_STATFS		17
 
-#define NFS_MNT_PROGRAM		100005
-#define NFS_MNT_VERSION		1
-#define MNTPROC_NULL		0
-#define MNTPROC_MNT		1
-#define MNTPROC_UMNT		3
-#define MNTPROC_UMNTALL		4
-
 #endif /* _LINUX_NFS2_H */

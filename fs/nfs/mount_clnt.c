@@ -20,6 +20,30 @@
 # define NFSDBG_FACILITY	NFSDBG_MOUNT
 #endif
 
+/*
+ * Defined by RFC 1094, section A.5
+ */
+enum {
+	MOUNTPROC_NULL		= 0,
+	MOUNTPROC_MNT		= 1,
+	MOUNTPROC_DUMP		= 2,
+	MOUNTPROC_UMNT		= 3,
+	MOUNTPROC_UMNTALL	= 4,
+	MOUNTPROC_EXPORT	= 5,
+};
+
+/*
+ * Defined by RFC 1813, section 5.2
+ */
+enum {
+	MOUNTPROC3_NULL		= 0,
+	MOUNTPROC3_MNT		= 1,
+	MOUNTPROC3_DUMP		= 2,
+	MOUNTPROC3_UMNT		= 3,
+	MOUNTPROC3_UMNTALL	= 4,
+	MOUNTPROC3_EXPORT	= 5,
+};
+
 static struct rpc_program	mnt_program;
 
 struct mnt_fhstatus {
@@ -68,7 +92,7 @@ int nfs_mount(struct nfs_mount_request *info)
 	if (info->version == NFS_MNT3_VERSION)
 		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC3_MNT];
 	else
-		msg.rpc_proc = &mnt_clnt->cl_procinfo[MNTPROC_MNT];
+		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC_MNT];
 
 	status = rpc_call_sync(mnt_clnt, &msg, 0);
 	rpc_shutdown_client(mnt_clnt);
@@ -145,13 +169,13 @@ static int xdr_decode_fhstatus3(struct rpc_rqst *req, __be32 *p,
 #define MNT_fhstatus3_sz	(1 + 16)
 
 static struct rpc_procinfo mnt_procedures[] = {
-	[MNTPROC_MNT] = {
-		.p_proc		= MNTPROC_MNT,
+	[MOUNTPROC_MNT] = {
+		.p_proc		= MOUNTPROC_MNT,
 		.p_encode	= (kxdrproc_t) xdr_encode_dirpath,
 		.p_decode	= (kxdrproc_t) xdr_decode_fhstatus,
 		.p_arglen	= MNT_dirpath_sz,
 		.p_replen	= MNT_fhstatus_sz,
-		.p_statidx	= MNTPROC_MNT,
+		.p_statidx	= MOUNTPROC_MNT,
 		.p_name		= "MOUNT",
 	},
 };

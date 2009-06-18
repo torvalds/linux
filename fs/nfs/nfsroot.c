@@ -92,6 +92,9 @@
 #undef NFSROOT_DEBUG
 #define NFSDBG_FACILITY NFSDBG_ROOT
 
+/* Default port to use if server is not running a portmapper */
+#define NFS_MNT_PORT	627
+
 /* Default path we try to mount. "%s" gets replaced by our IP address */
 #define NFS_ROOT		"/tftpboot/%s"
 
