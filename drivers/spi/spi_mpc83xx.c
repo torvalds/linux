@@ -383,8 +383,10 @@ static void mpc83xx_spi_work(struct work_struct *work)
 					break;
 			}
 
-			if (cs_change)
+			if (cs_change) {
 				mpc83xx_spi_chipselect(spi, BITBANG_CS_ACTIVE);
+				ndelay(nsecs);
+			}
 			cs_change = t->cs_change;
 			if (t->len)
 				status = mpc83xx_spi_bufs(spi, t);
