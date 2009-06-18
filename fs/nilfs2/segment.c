@@ -1829,8 +1829,8 @@ static int nilfs_segctor_write(struct nilfs_sc_info *sci,
 		err = nilfs_segbuf_write(segbuf, &wi);
 
 		res = nilfs_segbuf_wait(segbuf, &wi);
-		err = unlikely(err) ? : res;
-		if (unlikely(err))
+		err = err ? : res;
+		if (err)
 			return err;
 	}
 	return 0;
