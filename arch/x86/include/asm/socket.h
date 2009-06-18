@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SOCKET_H
-#define _ASM_X86_SOCKET_H
+#ifndef __ASM_GENERIC_SOCKET_H
+#define __ASM_GENERIC_SOCKET_H
 
 #include <asm/sockios.h>
 
@@ -38,8 +38,8 @@
 #define SO_BINDTODEVICE	25
 
 /* Socket filtering */
-#define SO_ATTACH_FILTER        26
-#define SO_DETACH_FILTER        27
+#define SO_ATTACH_FILTER	26
+#define SO_DETACH_FILTER	27
 
 #define SO_PEERNAME		28
 #define SO_TIMESTAMP		29
@@ -57,4 +57,4 @@
 #define SO_TIMESTAMPING		37
 #define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
-#endif /* _ASM_X86_SOCKET_H */
+#endif /* __ASM_GENERIC_SOCKET_H */

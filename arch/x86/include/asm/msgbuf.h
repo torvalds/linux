@@ -1,30 +1,38 @@
-#ifndef _ASM_X86_MSGBUF_H
-#define _ASM_X86_MSGBUF_H
+#ifndef __ASM_GENERIC_MSGBUF_H
+#define __ASM_GENERIC_MSGBUF_H
 
+#include <asm/bitsperlong.h>
 /*
- * The msqid64_ds structure for i386 architecture.
+ * generic msqid64_ds structure.
+ *
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
- * Pad space on i386 is left for:
+ * msqid64_ds was originally meant to be architecture specific, but
+ * everyone just ended up making identical copies without specific
+ * optimizations, so we may just as well all use the same one.
+ *
+ * 64 bit architectures typically define a 64 bit __kernel_time_t,
+ * so they do not need the first three padding words.
+ * On big-endian systems, the padding is in the wrong place.
+ *
+ * Pad space is left for:
  * - 64-bit time_t to solve y2038 problem
  * - 2 miscellaneous 32-bit values
- *
- * Pad space on x8664 is left for:
- * - 2 miscellaneous 64-bit values
  */
+
 struct msqid64_ds {
 	struct ipc64_perm msg_perm;
 	__kernel_time_t msg_stime;	/* last msgsnd time */
-#ifdef __i386__
+#if __BITS_PER_LONG != 64
 	unsigned long	__unused1;
 #endif
 	__kernel_time_t msg_rtime;	/* last msgrcv time */
-#ifdef __i386__
+#if __BITS_PER_LONG != 64
 	unsigned long	__unused2;
 #endif
 	__kernel_time_t msg_ctime;	/* last change time */
-#ifdef __i386__
+#if __BITS_PER_LONG != 64
 	unsigned long	__unused3;
 #endif
 	unsigned long  msg_cbytes;	/* current number of bytes on queue */
@@ -36,4 +44,4 @@ struct msqid64_ds {
 	unsigned long  __unused5;
 };
 
-#endif /* _ASM_X86_MSGBUF_H */
+#endif /* __ASM_GENERIC_MSGBUF_H */

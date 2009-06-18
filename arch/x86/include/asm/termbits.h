@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TERMBITS_H
-#define _ASM_X86_TERMBITS_H
+#ifndef __ASM_GENERIC_TERMBITS_H
+#define __ASM_GENERIC_TERMBITS_H
 
 #include <linux/posix_types.h>
 
@@ -140,7 +140,7 @@ struct ktermios {
 #define HUPCL	0002000
 #define CLOCAL	0004000
 #define CBAUDEX 0010000
-#define	   BOTHER 0010000		/* non standard rate */
+#define    BOTHER 0010000
 #define    B57600 0010001
 #define   B115200 0010002
 #define   B230400 0010003
@@ -195,4 +195,4 @@ struct ktermios {
 #define	TCSADRAIN	1
 #define	TCSAFLUSH	2
 
-#endif /* _ASM_X86_TERMBITS_H */
+#endif /* __ASM_GENERIC_TERMBITS_H */

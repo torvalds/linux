@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PARAM_H
-#define _ASM_X86_PARAM_H
+#ifndef __ASM_GENERIC_PARAM_H
+#define __ASM_GENERIC_PARAM_H
 
 #ifdef __KERNEL__
 # define HZ		CONFIG_HZ	/* Internal kernel timer frequency */
@@ -11,7 +11,9 @@
 #define HZ 100
 #endif
 
+#ifndef EXEC_PAGESIZE
 #define EXEC_PAGESIZE	4096
+#endif
 
 #ifndef NOGROUP
 #define NOGROUP		(-1)
@@ -19,4 +21,4 @@
 
 #define MAXHOSTNAMELEN	64	/* max length of hostname */
 
-#endif /* _ASM_X86_PARAM_H */
+#endif /* __ASM_GENERIC_PARAM_H */

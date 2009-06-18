@@ -1,13 +1,18 @@
-#ifndef _ASM_X86_IPCBUF_H
-#define _ASM_X86_IPCBUF_H
+#ifndef __ASM_GENERIC_IPCBUF_H
+#define __ASM_GENERIC_IPCBUF_H
 
 /*
- * The ipc64_perm structure for x86 architecture.
+ * The generic ipc64_perm structure:
  * Note extra padding because this structure is passed back and forth
  * between kernel and user space.
  *
+ * ipc64_perm was originally meant to be architecture specific, but
+ * everyone just ended up making identical copies without specific
+ * optimizations, so we may just as well all use the same one.
+ *
  * Pad space is left for:
- * - 32-bit mode_t and seq
+ * - 32-bit mode_t on architectures that only had 16 bit
+ * - 32-bit seq
  * - 2 miscellaneous 32-bit values
  */
 
@@ -25,4 +30,4 @@ struct ipc64_perm {
 	unsigned long		__unused2;
 };
 
-#endif /* _ASM_X86_IPCBUF_H */
+#endif /* __ASM_GENERIC_IPCBUF_H */
