@@ -473,6 +473,10 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 			n_characters = this_part;
 		}
 
+		/* Bound amount of data received by amount of data requested */
+		if (n_characters > this_part)
+			n_characters = this_part;
+
 		/* Copy buffer to user space */
 		if (copy_to_user(buf + done, &buffer[12], n_characters)) {
 			/* There must have been an addressing problem */
