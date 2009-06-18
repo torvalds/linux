@@ -51,6 +51,9 @@ static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
 static int			nr_poll;
 static int			nr_cpu;
 
+static int			file_new = 1;
+static struct perf_file_header	file_header;
+
 struct mmap_event {
 	struct perf_event_header	header;
 	__u32				pid;
@@ -98,6 +101,21 @@ static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
 	 */
 	/* mb(); */
 	pc->data_tail = tail;
+}
+
+static void write_output(void *buf, size_t size)
+{
+	while (size) {
+		int ret = write(output, buf, size);
+
+		if (ret < 0)
+			die("failed to write");
+
+		size -= ret;
+		buf += ret;
+
+		bytes_written += ret;
+	}
 }
 
 static void mmap_read(struct mmap_data *md)
@@ -148,34 +166,14 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		while (size) {
-			int ret = write(output, buf, size);
-
-			if (ret < 0)
-				die("failed to write");
-
-			size -= ret;
-			buf += ret;
-
-			bytes_written += ret;
-		}
+		write_output(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	while (size) {
-		int ret = write(output, buf, size);
-
-		if (ret < 0)
-			die("failed to write");
-
-		size -= ret;
-		buf += ret;
-
-		bytes_written += ret;
-	}
+	write_output(buf, size);
 
 	md->prev = old;
 	mmap_write_tail(md, old);
@@ -204,7 +202,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 	struct comm_event comm_ev;
 	char filename[PATH_MAX];
 	char bf[BUFSIZ];
-	int fd, ret;
+	int fd;
 	size_t size;
 	char *field, *sep;
 	DIR *tasks;
@@ -246,11 +244,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 	if (!full) {
 		comm_ev.tid = pid;
 
-		ret = write(output, &comm_ev, comm_ev.header.size);
-		if (ret < 0) {
-			perror("failed to write");
-			exit(-1);
-		}
+		write_output(&comm_ev, comm_ev.header.size);
 		return;
 	}
 
@@ -265,11 +259,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 		comm_ev.tid = pid;
 
-		ret = write(output, &comm_ev, comm_ev.header.size);
-		if (ret < 0) {
-			perror("failed to write");
-			exit(-1);
-		}
+		write_output(&comm_ev, comm_ev.header.size);
 	}
 	closedir(tasks);
 	return;
@@ -332,10 +322,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 			mmap_ev.pid = pid;
 			mmap_ev.tid = pid;
 
-			if (write(output, &mmap_ev, mmap_ev.header.size) < 0) {
-				perror("failed to write");
-				exit(-1);
-			}
+			write_output(&mmap_ev, mmap_ev.header.size);
 		}
 	}
 
@@ -381,6 +368,15 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
+	if (file_new) {
+		file_header.sample_type = attr->sample_type;
+	} else {
+		if (file_header.sample_type != attr->sample_type) {
+			fprintf(stderr, "incompatible append\n");
+			exit(-1);
+		}
+	}
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -461,6 +457,13 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
+static void atexit_header(void)
+{
+	file_header.data_size += bytes_written;
+
+	pwrite(output, &file_header, sizeof(file_header), 0);
+}
+
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
@@ -474,6 +477,10 @@ static int __cmd_record(int argc, const char **argv)
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
 
+	atexit(sig_atexit);
+	signal(SIGCHLD, sig_handler);
+	signal(SIGINT, sig_handler);
+
 	if (!stat(output_name, &st) && !force && !append_file) {
 		fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
 				output_name);
@@ -482,7 +489,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	flags = O_CREAT|O_RDWR;
 	if (append_file)
-		flags |= O_APPEND;
+		file_new = 0;
 	else
 		flags |= O_TRUNC;
 
@@ -492,14 +499,17 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
+	if (!file_new) {
+		read(output, &file_header, sizeof(file_header));
+		lseek(output, file_header.data_size, SEEK_CUR);
+	}
+
+	atexit(atexit_header);
+
 	if (!system_wide) {
 		open_counters(-1, target_pid != -1 ? target_pid : getpid());
 	} else for (i = 0; i < nr_cpus; i++)
 		open_counters(i, target_pid);
-
-	atexit(sig_atexit);
-	signal(SIGCHLD, sig_handler);
-	signal(SIGINT, sig_handler);
 
 	if (target_pid == -1 && argc) {
 		pid = fork();

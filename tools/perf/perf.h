@@ -65,4 +65,10 @@ sys_perf_counter_open(struct perf_counter_attr *attr,
 #define MAX_COUNTERS			256
 #define MAX_NR_CPUS			256
 
+struct perf_file_header {
+	__u64	version;
+	__u64	sample_type;
+	__u64	data_size;
+};
+
 #endif

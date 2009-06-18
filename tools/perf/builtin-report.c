@@ -1366,11 +1366,13 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
+static struct perf_file_header		file_header;
+
 static int __cmd_report(void)
 {
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
-	unsigned long head = 0;
+	unsigned long head = sizeof(file_header);
 	struct stat stat;
 	event_t *event;
 	uint32_t size;
@@ -1396,6 +1398,14 @@ static int __cmd_report(void)
 	if (!stat.st_size) {
 		fprintf(stderr, "zero-sized file, nothing to do!\n");
 		exit(0);
+	}
+
+	read(input, &file_header, sizeof(file_header));
+
+	if (sort__has_parent &&
+	    !(file_header.sample_type & PERF_SAMPLE_CALLCHAIN)) {
+		fprintf(stderr, "selected --sort parent, but no callchain data\n");
+		exit(-1);
 	}
 
 	if (load_kernel() < 0) {
@@ -1469,9 +1479,13 @@ more:
 
 	head += size;
 
+	if (offset + head >= sizeof(file_header) + file_header.data_size)
+		goto done;
+
 	if (offset + head < stat.st_size)
 		goto more;
 
+done:
 	rc = EXIT_SUCCESS;
 	close(input);
 
