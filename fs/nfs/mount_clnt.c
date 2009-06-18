@@ -141,14 +141,6 @@ out_mnt_err:
 /*
  * XDR encode/decode functions for MOUNT
  */
-static int xdr_encode_dirpath(struct rpc_rqst *req, __be32 *p,
-			      const char *path)
-{
-	p = xdr_encode_string(p, path);
-
-	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
-	return 0;
-}
 
 static int encode_mntdirpath(struct xdr_stream *xdr, const char *pathname)
 {
