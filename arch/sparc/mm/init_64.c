@@ -1796,10 +1796,16 @@ void __init paging_init(void)
 
 	prom_build_devicetree();
 	of_populate_present_mask();
+#ifndef CONFIG_SMP
+	of_fill_in_cpu_data();
+#endif
 
 	if (tlb_type == hypervisor) {
 		sun4v_mdesc_init();
 		mdesc_populate_present_mask(cpu_all_mask);
+#ifndef CONFIG_SMP
+		mdesc_fill_in_cpu_data(cpu_all_mask);
+#endif
 	}
 
 	/* Once the OF device tree and MDESC have been setup, we know
