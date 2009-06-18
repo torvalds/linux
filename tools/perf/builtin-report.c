@@ -59,6 +59,11 @@ struct ip_event {
 	unsigned char __more_data[];
 };
 
+struct ip_callchain {
+	__u64 nr;
+	__u64 ips[0];
+};
+
 struct mmap_event {
 	struct perf_event_header header;
 	__u32 pid, tid;
@@ -833,15 +838,12 @@ got_dso:
 	return dso->find_symbol(dso, ip);
 }
 
-static struct symbol *call__match(struct symbol *sym)
+static int call__match(struct symbol *sym)
 {
-	if (!sym)
-		return NULL;
-
 	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
-		return sym;
+		return 1;
 
-	return NULL;
+	return 0;
 }
 
 /*
@@ -850,7 +852,7 @@ static struct symbol *call__match(struct symbol *sym)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, __u64 ip, struct perf_callchain_entry *chain,
+		struct symbol *sym, __u64 ip, struct ip_callchain *chain,
 		char level, __u64 count)
 {
 	struct rb_node **p = &hist.rb_node;
@@ -869,31 +871,35 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	int cmp;
 
 	if (sort__has_parent && chain) {
-		int i, nr = chain->hv;
-		struct symbol *sym;
-		struct dso *dso;
-		__u64 ip;
+		__u64 context = PERF_CONTEXT_MAX;
+		int i;
 
-		for (i = 0; i < chain->kernel; i++) {
-			ip = chain->ip[nr + i];
-			dso = kernel_dso;
+		for (i = 0; i < chain->nr; i++) {
+			__u64 ip = chain->ips[i];
+			struct dso *dso = NULL;
+			struct symbol *sym;
+
+			if (ip >= PERF_CONTEXT_MAX) {
+				context = ip;
+				continue;
+			}
+
+			switch (context) {
+			case PERF_CONTEXT_KERNEL:
+				dso = kernel_dso;
+				break;
+			default:
+				break;
+			}
+
 			sym = resolve_symbol(thread, NULL, &dso, &ip);
-			entry.parent = call__match(sym);
-			if (entry.parent)
-				goto got_parent;
-		}
-		nr += i;
 
-		for (i = 0; i < chain->user; i++) {
-			ip = chain->ip[nr + i];
-			sym = resolve_symbol(thread, NULL, NULL, &ip);
-			entry.parent = call__match(sym);
-			if (entry.parent)
-				goto got_parent;
+			if (sym && call__match(sym)) {
+				entry.parent = sym;
+				break;
+			}
 		}
-		nr += i;
 	}
-got_parent:
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1095,20 +1101,9 @@ static unsigned long total = 0,
 		     total_unknown = 0,
 		     total_lost = 0;
 
-static int validate_chain(struct perf_callchain_entry *chain, event_t *event)
+static int validate_chain(struct ip_callchain *chain, event_t *event)
 {
 	unsigned int chain_size;
-
-	if (chain->nr > MAX_STACK_DEPTH)
-		return -1;
-	if (chain->hv > MAX_STACK_DEPTH)
-		return -1;
-	if (chain->kernel > MAX_STACK_DEPTH)
-		return -1;
-	if (chain->user > MAX_STACK_DEPTH)
-		return -1;
-	if (chain->hv + chain->kernel + chain->user != chain->nr)
-		return -1;
 
 	chain_size = event->header.size;
 	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
@@ -1130,7 +1125,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	__u64 period = 1;
 	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
-	struct perf_callchain_entry *chain = NULL;
+	struct ip_callchain *chain = NULL;
 
 	if (event->header.type & PERF_SAMPLE_PERIOD) {
 		period = *(__u64 *)more_data;
@@ -1150,10 +1145,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 
 		chain = (void *)more_data;
 
-		dprintf("... chain: u:%d, k:%d, nr:%d\n",
-			chain->user,
-			chain->kernel,
-			chain->nr);
+		dprintf("... chain: nr:%Lu\n", chain->nr);
 
 		if (validate_chain(chain, event) < 0) {
 			eprintf("call-chain problem with event, skipping it.\n");
@@ -1162,7 +1154,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 
 		if (dump_trace) {
 			for (i = 0; i < chain->nr; i++)
-				dprintf("..... %2d: %016Lx\n", i, chain->ip[i]);
+				dprintf("..... %2d: %016Lx\n", i, chain->ips[i]);
 		}
 	}
 
