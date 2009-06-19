@@ -1952,6 +1952,7 @@ int ocfs2_orphan_scan_init(struct ocfs2_super *osb)
 	atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
 	os->os_osb = osb;
 	os->os_count = 0;
+	os->os_seqno = 0;
 	os->os_scantime = CURRENT_TIME;
 	mutex_init(&os->os_lock);
 
