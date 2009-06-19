@@ -211,6 +211,9 @@ EXPORT_SYMBOL(xprt_destroy_backchannel);
  * has been preallocated as well.  Use xprt_alloc_bc_request to allocate
  * to this request.  Use xprt_free_bc_request to return it.
  *
+ * We know that we're called in soft interrupt context, grab the spin_lock
+ * since there is no need to grab the bottom half spin_lock.
+ *
  * Return an available rpc_rqst, otherwise NULL if non are available.
  */
 struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt)
@@ -218,7 +221,7 @@ struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt)
 	struct rpc_rqst *req;
 
 	dprintk("RPC:       allocate a backchannel request\n");
-	spin_lock_bh(&xprt->bc_pa_lock);
+	spin_lock(&xprt->bc_pa_lock);
 	if (!list_empty(&xprt->bc_pa_list)) {
 		req = list_first_entry(&xprt->bc_pa_list, struct rpc_rqst,
 				rq_bc_pa_list);
@@ -226,7 +229,7 @@ struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt)
 	} else {
 		req = NULL;
 	}
-	spin_unlock_bh(&xprt->bc_pa_lock);
+	spin_unlock(&xprt->bc_pa_lock);
 
 	if (req != NULL) {
 		set_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
