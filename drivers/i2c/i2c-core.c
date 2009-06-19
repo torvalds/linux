@@ -41,8 +41,6 @@
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
-#define is_newstyle_driver(d) ((d)->probe || (d)->remove || (d)->detect)
-
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
@@ -63,12 +61,6 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver = to_i2c_driver(drv);
-
-	/* make legacy i2c drivers bypass driver model probing entirely;
-	 * such drivers scan each i2c adapter/bus themselves.
-	 */
-	if (!is_newstyle_driver(driver))
-		return 0;
 
 	/* match on an id table if there is one */
 	if (driver->id_table)
@@ -170,12 +162,6 @@ static int i2c_device_resume(struct device *dev)
 	if (!driver->resume)
 		return 0;
 	return driver->resume(to_i2c_client(dev));
-}
-
-static void i2c_client_release(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	complete(&client->released);
 }
 
 static void i2c_client_dev_release(struct device *dev)
@@ -282,12 +268,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
-
-	if (client->driver && !is_newstyle_driver(client->driver)) {
-		client->dev.release = i2c_client_release;
-		dev_set_uevent_suppress(&client->dev, 1);
-	} else
-		client->dev.release = i2c_client_dev_release;
+	client->dev.release = i2c_client_dev_release;
 
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
 		     client->addr);
@@ -321,14 +302,6 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
 void i2c_unregister_device(struct i2c_client *client)
 {
 	struct i2c_adapter	*adapter = client->adapter;
-	struct i2c_driver	*driver = client->driver;
-
-	if (driver && !is_newstyle_driver(driver)) {
-		dev_err(&client->dev, "can't unregister devices "
-			"with legacy drivers\n");
-		WARN_ON(1);
-		return;
-	}
 
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
@@ -735,9 +708,6 @@ static int __detach_adapter(struct device *dev, void *data)
 		list_del(&client->detected);
 		i2c_unregister_device(client);
 	}
-
-	if (is_newstyle_driver(driver))
-		return 0;
 
 	if (driver->detach_adapter) {
 		if (driver->detach_adapter(adapter))
