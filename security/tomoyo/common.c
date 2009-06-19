@@ -1285,6 +1285,36 @@ static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
 }
 
 /**
+ * tomoyo_delete_domain - Delete a domain.
+ *
+ * @domainname: The name of domain.
+ *
+ * Returns 0.
+ */
+static int tomoyo_delete_domain(char *domainname)
+{
+	struct tomoyo_domain_info *domain;
+	struct tomoyo_path_info name;
+
+	name.name = domainname;
+	tomoyo_fill_path_info(&name);
+	down_write(&tomoyo_domain_list_lock);
+	/* Is there an active domain? */
+	list_for_each_entry(domain, &tomoyo_domain_list, list) {
+		/* Never delete tomoyo_kernel_domain */
+		if (domain == &tomoyo_kernel_domain)
+			continue;
+		if (domain->is_deleted ||
+		    tomoyo_pathcmp(domain->domainname, &name))
+			continue;
+		domain->is_deleted = true;
+		break;
+	}
+	up_write(&tomoyo_domain_list_lock);
+	return 0;
+}
+
+/**
  * tomoyo_write_domain_policy - Write domain policy.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".

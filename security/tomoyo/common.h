@@ -339,8 +339,6 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
 const char *tomoyo_get_msg(const bool is_enforce);
 /* Convert single path operation to operation name. */
 const char *tomoyo_sp2keyword(const u8 operation);
-/* Delete a domain. */
-int tomoyo_delete_domain(char *data);
 /* Create "alias" entry in exception policy. */
 int tomoyo_write_alias_policy(char *data, const bool is_delete);
 /*
