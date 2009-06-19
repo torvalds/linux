@@ -1812,6 +1812,11 @@ static int iwl_prepare_card_hw(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter \n");
 
+	ret = iwl_set_hw_ready(priv);
+	if (priv->hw_ready)
+		return ret;
+
+	/* If HW is not ready, prepare the conditions to check again */
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			CSR_HW_IF_CONFIG_REG_PREPARE);
 
@@ -1819,6 +1824,7 @@ static int iwl_prepare_card_hw(struct iwl_priv *priv)
 			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
 			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
 
+	/* HW should be ready by now, check again. */
 	if (ret != -ETIMEDOUT)
 		iwl_set_hw_ready(priv);
 
