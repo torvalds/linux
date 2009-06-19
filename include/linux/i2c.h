@@ -100,9 +100,8 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * @class: What kind of i2c device we instantiate (for detect)
  * @attach_adapter: Callback for bus addition (for legacy drivers)
  * @detach_adapter: Callback for bus removal (for legacy drivers)
- * @detach_client: Callback for device removal (for legacy drivers)
- * @probe: Callback for device binding (new-style drivers)
- * @remove: Callback for device unbinding (new-style drivers)
+ * @probe: Callback for device binding
+ * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
  * @suspend: Callback for device suspend
  * @resume: Callback for device resume
@@ -137,26 +136,14 @@ struct i2c_driver {
 	int id;
 	unsigned int class;
 
-	/* Notifies the driver that a new bus has appeared. This routine
-	 * can be used by the driver to test if the bus meets its conditions
-	 * & seek for the presence of the chip(s) it supports. If found, it
-	 * registers the client(s) that are on the bus to the i2c admin. via
-	 * i2c_attach_client.  (LEGACY I2C DRIVERS ONLY)
+	/* Notifies the driver that a new bus has appeared or is about to be
+	 * removed. You should avoid using this if you can, it will probably
+	 * be removed in a near future.
 	 */
 	int (*attach_adapter)(struct i2c_adapter *);
 	int (*detach_adapter)(struct i2c_adapter *);
 
-	/* tells the driver that a client is about to be deleted & gives it
-	 * the chance to remove its private data. Also, if the client struct
-	 * has been dynamically allocated by the driver in the function above,
-	 * it must be freed here.  (LEGACY I2C DRIVERS ONLY)
-	 */
-	int (*detach_client)(struct i2c_client *) __deprecated;
-
-	/* Standard driver model interfaces, for "new style" i2c drivers.
-	 * With the driver model, device enumeration is NEVER done by drivers;
-	 * it's done by infrastructure.  (NEW STYLE DRIVERS ONLY)
-	 */
+	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
 	int (*remove)(struct i2c_client *);
 
@@ -248,11 +235,10 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
  * that, such as chip type, configuration, associated IRQ, and so on.
  *
  * i2c_board_info is used to build tables of information listing I2C devices
- * that are present.  This information is used to grow the driver model tree
- * for "new style" I2C drivers.  For mainboards this is done statically using
- * i2c_register_board_info(); bus numbers identify adapters that aren't
- * yet available.  For add-on boards, i2c_new_device() does this dynamically
- * with the adapter already known.
+ * that are present.  This information is used to grow the driver model tree.
+ * For mainboards this is done statically using i2c_register_board_info();
+ * bus numbers identify adapters that aren't yet available.  For add-on boards,
+ * i2c_new_device() does this dynamically with the adapter already known.
  */
 struct i2c_board_info {
 	char		type[I2C_NAME_SIZE];
@@ -424,11 +410,6 @@ static inline int i2c_add_driver(struct i2c_driver *driver)
 {
 	return i2c_register_driver(THIS_MODULE, driver);
 }
-
-/* These are deprecated, your driver should use the standard .probe()
- * and .remove() methods instead. */
-extern int __deprecated i2c_attach_client(struct i2c_client *);
-extern int __deprecated i2c_detach_client(struct i2c_client *);
 
 extern struct i2c_client *i2c_use_client(struct i2c_client *client);
 extern void i2c_release_client(struct i2c_client *client);

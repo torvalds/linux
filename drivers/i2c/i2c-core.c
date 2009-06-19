@@ -43,6 +43,7 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 #define is_newstyle_driver(d) ((d)->probe || (d)->remove || (d)->detect)
 
+static int i2c_attach_client(struct i2c_client *client);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
@@ -82,10 +83,6 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
-
-	/* by definition, legacy drivers can't hotplug */
-	if (dev->driver)
-		return 0;
 
 	if (add_uevent_var(env, "MODALIAS=%s%s",
 			   I2C_MODULE_PREFIX, client->name))
@@ -455,7 +452,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
-	/* create pre-declared device nodes for new-style drivers */
+	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
 
@@ -617,26 +614,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	if (res)
 		goto out_unlock;
 
-	/* detach any active clients. This must be done first, because
-	 * it can fail; in which case we give up. */
+	/* Detach any active clients */
 	list_for_each_entry_safe_reverse(client, _n, &adap->clients, list) {
-		struct i2c_driver	*driver;
-
-		driver = client->driver;
-
-		/* new style, follow standard driver model */
-		if (!driver || is_newstyle_driver(driver)) {
-			i2c_unregister_device(client);
-			continue;
-		}
-
-		/* legacy drivers create and remove clients themselves */
-		if ((res = driver->detach_client(client))) {
-			dev_err(&adap->dev, "detach_client failed for client "
-				"[%s] at address 0x%02x\n", client->name,
-				client->addr);
-			goto out_unlock;
-		}
+		i2c_unregister_device(client);
 	}
 
 	/* clean up the sysfs representation */
@@ -680,11 +660,7 @@ static int __attach_adapter(struct device *dev, void *data)
 
 /*
  * An i2c_driver is used with one or more i2c_client (device) nodes to access
- * i2c slave chips, on a bus instance associated with some i2c_adapter.  There
- * are two models for binding the driver to its device:  "new style" drivers
- * follow the standard Linux driver model and just respond to probe() calls
- * issued if the driver core sees they match(); "legacy" drivers create device
- * nodes themselves.
+ * i2c slave chips, on a bus instance associated with some i2c_adapter.
  */
 
 int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
@@ -695,21 +671,11 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (unlikely(WARN_ON(!i2c_bus_type.p)))
 		return -EAGAIN;
 
-	/* new style driver methods can't mix with legacy ones */
-	if (is_newstyle_driver(driver)) {
-		if (driver->detach_adapter || driver->detach_client) {
-			printk(KERN_WARNING
-					"i2c-core: driver [%s] is confused\n",
-					driver->driver.name);
-			return -EINVAL;
-		}
-	}
-
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
 
-	/* for new style drivers, when registration returns the driver core
+	/* When registration returns, the driver core
 	 * will have called probe() for all matching-but-unbound devices.
 	 */
 	res = driver_register(&driver->driver);
@@ -748,29 +714,11 @@ static int __detach_adapter(struct device *dev, void *data)
 	if (is_newstyle_driver(driver))
 		return 0;
 
-	/* Have a look at each adapter, if clients of this driver are still
-	 * attached. If so, detach them to be able to kill the driver
-	 * afterwards.
-	 */
 	if (driver->detach_adapter) {
 		if (driver->detach_adapter(adapter))
 			dev_err(&adapter->dev,
 				"detach_adapter failed for driver [%s]\n",
 				driver->driver.name);
-	} else {
-		struct i2c_client *client, *_n;
-
-		list_for_each_entry_safe(client, _n, &adapter->clients, list) {
-			if (client->driver != driver)
-				continue;
-			dev_dbg(&adapter->dev,
-				"detaching client [%s] at 0x%02x\n",
-				client->name, client->addr);
-			if (driver->detach_client(client))
-				dev_err(&adapter->dev, "detach_client "
-					"failed for client [%s] at 0x%02x\n",
-					client->name, client->addr);
-		}
 	}
 
 	return 0;
@@ -812,7 +760,7 @@ static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
 }
 
-int i2c_attach_client(struct i2c_client *client)
+static int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int res;
@@ -854,23 +802,6 @@ out_err:
 		"(%d)\n", client->name, client->addr, res);
 	return res;
 }
-EXPORT_SYMBOL(i2c_attach_client);
-
-int i2c_detach_client(struct i2c_client *client)
-{
-	struct i2c_adapter *adapter = client->adapter;
-
-	mutex_lock(&adapter->clist_lock);
-	list_del(&client->list);
-	mutex_unlock(&adapter->clist_lock);
-
-	init_completion(&client->released);
-	device_unregister(&client->dev);
-	wait_for_completion(&client->released);
-
-	return 0;
-}
-EXPORT_SYMBOL(i2c_detach_client);
 
 /**
  * i2c_use_client - increments the reference count of the i2c client structure
