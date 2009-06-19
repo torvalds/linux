@@ -61,14 +61,8 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	 * Execute permission is checked against pathname passed to do_execve()
 	 * using current domain.
 	 */
-	if (!domain) {
-		struct tomoyo_domain_info *next_domain = NULL;
-		int retval = tomoyo_find_next_domain(bprm, &next_domain);
-
-		if (!retval)
-			bprm->cred->security = next_domain;
-		return retval;
-	}
+	if (!domain)
+		return tomoyo_find_next_domain(bprm);
 	/*
 	 * Read permission is checked against interpreters using next domain.
 	 * '1' is the result of open_to_namei_flags(O_RDONLY).

@@ -786,13 +786,11 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 /**
  * tomoyo_find_next_domain - Find a domain.
  *
- * @bprm:           Pointer to "struct linux_binprm".
- * @next_domain:    Pointer to pointer to "struct tomoyo_domain_info".
+ * @bprm: Pointer to "struct linux_binprm".
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_find_next_domain(struct linux_binprm *bprm,
-			    struct tomoyo_domain_info **next_domain)
+int tomoyo_find_next_domain(struct linux_binprm *bprm)
 {
 	/*
 	 * This function assumes that the size of buffer returned by
@@ -914,9 +912,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm,
 		tomoyo_set_domain_flag(old_domain, false,
 				       TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED);
  out:
+	if (!domain)
+		domain = old_domain;
+	bprm->cred->security = domain;
 	tomoyo_free(real_program_name);
 	tomoyo_free(symlink_program_name);
-	*next_domain = domain ? domain : old_domain;
 	tomoyo_free(tmp);
 	return retval;
 }
