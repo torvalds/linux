@@ -276,10 +276,6 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	if (status)
 		goto out_err;
 
-	mutex_lock(&adap->clist_lock);
-	list_add_tail(&client->list, &adap->clients);
-	mutex_unlock(&adap->clist_lock);
-
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
@@ -301,12 +297,6 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
-	struct i2c_adapter	*adapter = client->adapter;
-
-	mutex_lock(&adapter->clist_lock);
-	list_del(&client->list);
-	mutex_unlock(&adapter->clist_lock);
-
 	device_unregister(&client->dev);
 }
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
@@ -432,8 +422,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		return -EAGAIN;
 
 	mutex_init(&adap->bus_lock);
-	mutex_init(&adap->clist_lock);
-	INIT_LIST_HEAD(&adap->clients);
 
 	mutex_lock(&core_lock);
 
@@ -583,6 +571,14 @@ static int i2c_do_del_adapter(struct device_driver *d, void *data)
 	return res;
 }
 
+static int __unregister_client(struct device *dev, void *dummy)
+{
+	struct i2c_client *client = i2c_verify_client(dev);
+	if (client)
+		i2c_unregister_device(client);
+	return 0;
+}
+
 /**
  * i2c_del_adapter - unregister I2C adapter
  * @adap: the adapter being unregistered
@@ -593,7 +589,6 @@ static int i2c_do_del_adapter(struct device_driver *d, void *data)
  */
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
-	struct i2c_client *client, *_n;
 	int res = 0;
 
 	mutex_lock(&core_lock);
@@ -612,10 +607,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	if (res)
 		goto out_unlock;
 
-	/* Detach any active clients */
-	list_for_each_entry_safe_reverse(client, _n, &adap->clients, list) {
-		i2c_unregister_device(client);
-	}
+	/* Detach any active clients. This can't fail, thus we do not
+	   checking the returned value. */
+	res = device_for_each_child(&adap->dev, NULL, __unregister_client);
 
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
