@@ -231,7 +231,7 @@ MODULE_PARM_DESC(enc_pcm_bufs,
 		 "Number of encoder PCM buffers\n"
 		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
-MODULE_PARM_DESC(cx18_first_minor, "Set kernel number assigned to first card");
+MODULE_PARM_DESC(cx18_first_minor, "Set device node number assigned to first card");
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("CX23418 driver");

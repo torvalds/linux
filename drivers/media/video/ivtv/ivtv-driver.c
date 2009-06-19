@@ -246,7 +246,7 @@ MODULE_PARM_DESC(newi2c,
 		 "\t\t\t-1 is autodetect, 0 is off, 1 is on\n"
 		 "\t\t\tDefault is autodetect");
 
-MODULE_PARM_DESC(ivtv_first_minor, "Set kernel number assigned to first card");
+MODULE_PARM_DESC(ivtv_first_minor, "Set device node number assigned to first card");
 
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_DESCRIPTION("CX23415/CX23416 driver");
