@@ -39,6 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/timer.h>
 
 #include "comedi.h"
 
