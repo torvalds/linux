@@ -308,14 +308,6 @@ void i2c_unregister_device(struct i2c_client *client)
 		return;
 	}
 
-	if (adapter->client_unregister) {
-		if (adapter->client_unregister(client)) {
-			dev_warn(&client->dev,
-				 "client_unregister [%s] failed\n",
-				 client->name);
-		}
-	}
-
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
 	mutex_unlock(&adapter->clist_lock);
@@ -855,14 +847,6 @@ int i2c_attach_client(struct i2c_client *client)
 	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
-	if (adapter->client_register)  {
-		if (adapter->client_register(client)) {
-			dev_dbg(&adapter->dev, "client_register "
-				"failed for client [%s] at 0x%02x\n",
-				client->name, client->addr);
-		}
-	}
-
 	return 0;
 
 out_err:
@@ -875,17 +859,6 @@ EXPORT_SYMBOL(i2c_attach_client);
 int i2c_detach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int res = 0;
-
-	if (adapter->client_unregister)  {
-		res = adapter->client_unregister(client);
-		if (res) {
-			dev_err(&client->dev,
-				"client_unregister [%s] failed, "
-				"client not detached\n", client->name);
-			goto out;
-		}
-	}
 
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
@@ -895,8 +868,7 @@ int i2c_detach_client(struct i2c_client *client)
 	device_unregister(&client->dev);
 	wait_for_completion(&client->released);
 
- out:
-	return res;
+	return 0;
 }
 EXPORT_SYMBOL(i2c_detach_client);
 
