@@ -1198,7 +1198,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
 					    struct page *page, int type)
 {
-	unsigned long addr = phys_to_gart(page_to_phys(page));
+	dma_addr_t addr = phys_to_gart(page_to_phys(page));
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 
