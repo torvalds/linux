@@ -236,10 +236,31 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
-	/* at 45 you will be able to use MCS 15 reliably. A more elaborate
-	 * scheme can be used here but it requires tables of SNR/throughput for
-	 * each possible mode used. */
-	rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 45;
+	/*
+	 * Theory for reporting quality:
+	 *
+	 * At a hardware RSSI of 45 you will be able to use MCS 7  reliably.
+	 * At a hardware RSSI of 45 you will be able to use MCS 15 reliably.
+	 * At a hardware RSSI of 35 you should be able use 54 Mbps reliably.
+	 *
+	 * MCS 7  is the highets MCS index usable by a 1-stream device.
+	 * MCS 15 is the highest MCS index usable by a 2-stream device.
+	 *
+	 * All ath9k devices are either 1-stream or 2-stream.
+	 *
+	 * How many bars you see is derived from the qual reporting.
+	 *
+	 * A more elaborate scheme can be used here but it requires tables
+	 * of SNR/throughput for each possible mode used. For the MCS table
+	 * you can refer to the wireless wiki:
+	 *
+	 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
+	 *
+	 */
+	if (conf_is_ht(&hw->conf))
+		rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 45;
+	else
+		rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 35;
 
 	/* rssi can be more than 45 though, anything above that
 	 * should be considered at 100% */
