@@ -1146,13 +1146,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			 "performance may suffer.\n");
 	}
 
-#ifdef CONFIG_HIGHMEM64G
-	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
-	dev_priv->has_gem = 0;
-#else
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
-#endif
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
