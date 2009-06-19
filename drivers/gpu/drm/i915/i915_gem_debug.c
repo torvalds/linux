@@ -143,7 +143,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 	uint32_t *backing_map = NULL;
 	int bad_count = 0;
 
-	DRM_INFO("%s: checking coherency of object %p@0x%08x (%d, %dkb):\n",
+	DRM_INFO("%s: checking coherency of object %p@0x%08x (%d, %zdkb):\n",
 		 __func__, obj, obj_priv->gtt_offset, handle,
 		 obj->size / 1024);
 
