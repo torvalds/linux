@@ -33,6 +33,7 @@
 #include <linux/completion.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
+#include <linux/rwsem.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -509,7 +510,7 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 {
 	struct i2c_devinfo	*devinfo;
 
-	mutex_lock(&__i2c_board_lock);
+	down_read(&__i2c_board_lock);
 	list_for_each_entry(devinfo, &__i2c_board_list, list) {
 		if (devinfo->busnum == adapter->nr
 				&& !i2c_new_device(adapter,
@@ -518,7 +519,7 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 				"Can't create device at 0x%02x\n",
 				devinfo->board_info.addr);
 	}
-	mutex_unlock(&__i2c_board_lock);
+	up_read(&__i2c_board_lock);
 }
 
 static int i2c_do_add_adapter(struct device_driver *d, void *data)
