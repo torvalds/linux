@@ -419,14 +419,6 @@ extern void i2c_release_client(struct i2c_client *client);
 extern void i2c_clients_command(struct i2c_adapter *adap,
 				unsigned int cmd, void *arg);
 
-/* Detect function. It iterates over all possible addresses itself.
- * It will only call found_proc if some client is connected at the
- * specific address (unless a 'force' matched);
- */
-extern int i2c_probe(struct i2c_adapter *adapter,
-		const struct i2c_client_address_data *address_data,
-		int (*found_proc) (struct i2c_adapter *, int, int));
-
 extern struct i2c_adapter *i2c_get_adapter(int id);
 extern void i2c_put_adapter(struct i2c_adapter *adap);
 
