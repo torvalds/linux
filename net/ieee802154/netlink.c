@@ -276,6 +276,9 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 	else
 		return NULL;
 
+	if (!dev)
+		return NULL;
+
 	if (dev->type != ARPHRD_IEEE802154) {
 		dev_put(dev);
 		return NULL;
