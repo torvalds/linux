@@ -527,8 +527,10 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 			goto goodreturn;
 
 		case HIDIOCGCOLLECTIONINDEX:
+			i = field->usage[uref->usage_index].collection_index;
+			unlock_kernel();
 			kfree(uref_multi);
-			return field->usage[uref->usage_index].collection_index;
+			return i;
 		case HIDIOCGUSAGES:
 			for (i = 0; i < uref_multi->num_values; i++)
 				uref_multi->values[i] =
