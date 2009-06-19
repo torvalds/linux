@@ -400,6 +400,8 @@ ENTRY(handle_sys)
 	sw	r4, [r0, PT_ORIG_R4]	#for restart syscall
 	sw	r7, [r0, PT_ORIG_R7]	#for restart syscall
 	sw	r27, [r0, PT_IS_SYSCALL] # it from syscall
+	sw	r8, [r0, 16]		# argument 5 from user r8
+	sw	r9, [r0, 20]		# argument 6 from user r9
 
 	lw	r9, [r0, PT_EPC]	# skip syscall on return
 	addi	r9, 4
@@ -408,19 +410,14 @@ ENTRY(handle_sys)
 	cmpi.c	r27, __NR_syscalls 	# check syscall number
 	bgtu	illegal_syscall
 
-	slli	r8, r27, 3		# get syscall routine
+	slli	r8, r27, 2		# get syscall routine
 	la	r11, sys_call_table
 	add	r11, r11, r8
 	lw	r10, [r11]		# get syscall entry
-	lw	r11, [r11, 4]		# get number of args
 
 	cmpz.c	r10
 	beq	illegal_syscall
 
-	cmpi.c	r11, 4			# more than 4 arguments?
-	bgtu	stackargs
-
-stack_done:
 	lw	r8, [r28, TI_FLAGS]
 	li	r9, _TIF_SYSCALL_TRACE
 	and.c	r8, r8, r9
@@ -474,44 +471,6 @@ syscall_trace_entry:
 					# restarting
 1:	sw	r4, [r0, PT_R2]		# result
 	j	syscall_exit
-
-stackargs:
-	lw	r8, [r0, PT_R0]
-	andri.c	r9, r8, 3		# test whether user sp is align a word
-	bne	bad_stack
-	subi	r11, 5
-	slli	r9, r11, 2
-	add.c	r9, r9, r8
-
-	bmi	bad_stack
-	la	r9, 3f			# calculate branch address
-	slli	r11, r11, 3
-	sub	r9, r9, r11
-	br	r9
-
-2:	lw	r9, [r8, 20]		# argument 6 from usp
-	sw	r9, [r0, 20]
-
-3:	lw	r9, [r8, 16]		# argument 5 from usp
-	sw	r9, [r0, 16]
-	j	stack_done
-
-	.section __ex_table,"a"
-	.word	2b, bad_stack
-	.word	3b, bad_stack
-	.previous
-
-	/*
-	 * The stackpointer for a call with more than 4 arguments is bad.
-	 * We probably should handle this case a bit more drastic.
-	 */
-bad_stack:
-	neg	r27, r27		# error
-	sw	r27, [r0, PT_ORIG_R4]
-	sw	r27, [r0, PT_R4]
-	ldi	r8, 1			# set error flag
-	sw	r8, [r0, PT_R7]
-	j	syscall_return
 
 illegal_syscall:
 	ldi	r4, -ENOSYS		# error

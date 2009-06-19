@@ -75,14 +75,7 @@ int score_clone(struct pt_regs *regs)
 	if (!newsp)
 		newsp = regs->regs[0];
 	parent_tidptr = (int __user *)regs->regs[6];
-
-	child_tidptr = NULL;
-	if (clone_flags & (CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)) {
-		int __user *__user *usp = (int __user *__user *)regs->regs[0];
-
-		if (get_user(child_tidptr, &usp[4]))
-			return -EFAULT;
-	}
+	child_tidptr = (int __user *)regs->regs[8];
 
 	return do_fork(clone_flags, newsp, regs, 0,
 			parent_tidptr, child_tidptr);
