@@ -167,7 +167,7 @@ void __init init_IRQ(void)
 
 #ifdef CONFIG_SMP
 	cpumask_setall(bad_irq_desc.affinity);
-	bad_irq_desc.cpu = smp_processor_id();
+	bad_irq_desc.node = smp_processor_id();
 #endif
 	init_arch_irq();
 }
@@ -176,7 +176,7 @@ void __init init_IRQ(void)
 
 static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 {
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->cpu, cpu);
+	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->node, cpu);
 
 	spin_lock_irq(&desc->lock);
 	desc->chip->set_affinity(irq, cpumask_of(cpu));
@@ -195,7 +195,7 @@ void migrate_irqs(void)
 	for (i = 0; i < NR_IRQS; i++) {
 		struct irq_desc *desc = irq_desc + i;
 
-		if (desc->cpu == cpu) {
+		if (desc->node == cpu) {
 			unsigned int newcpu = cpumask_any_and(desc->affinity,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
