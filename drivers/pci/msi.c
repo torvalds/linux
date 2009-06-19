@@ -653,10 +653,7 @@ static int msi_free_irqs(struct pci_dev* dev)
 
 	list_for_each_entry_safe(entry, tmp, &dev->msi_list, list) {
 		if (entry->msi_attrib.is_msix) {
-			writel(1, entry->mask_base + entry->msi_attrib.entry_nr
-				  * PCI_MSIX_ENTRY_SIZE
-				  + PCI_MSIX_ENTRY_VECTOR_CTRL_OFFSET);
-
+			msix_mask_irq(entry, 1);
 			if (list_is_last(&entry->list, &dev->msi_list))
 				iounmap(entry->mask_base);
 		}
