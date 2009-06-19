@@ -70,7 +70,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	}
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
-	flush_tlb_one(get_asid(), addr);
+	local_flush_tlb_one(get_asid(), addr);
 }
 
 /*
