@@ -1,8 +1,8 @@
 #ifndef _PERF_STRING_H_
 #define _PERF_STRING_H_
 
-#include <linux/types.h>
+#include "../types.h"
 
-int hex2u64(const char *ptr, __u64 *val);
+int hex2u64(const char *ptr, u64 *val);
 
 #endif

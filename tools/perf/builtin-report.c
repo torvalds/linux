@@ -54,47 +54,47 @@ static int		exclude_other = 1;
 
 struct ip_event {
 	struct perf_event_header header;
-	__u64 ip;
-	__u32 pid, tid;
+	u64 ip;
+	u32 pid, tid;
 	unsigned char __more_data[];
 };
 
 struct ip_callchain {
-	__u64 nr;
-	__u64 ips[0];
+	u64 nr;
+	u64 ips[0];
 };
 
 struct mmap_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
-	__u64 start;
-	__u64 len;
-	__u64 pgoff;
+	u32 pid, tid;
+	u64 start;
+	u64 len;
+	u64 pgoff;
 	char filename[PATH_MAX];
 };
 
 struct comm_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
+	u32 pid, tid;
 	char comm[16];
 };
 
 struct fork_event {
 	struct perf_event_header header;
-	__u32 pid, ppid;
+	u32 pid, ppid;
 };
 
 struct period_event {
 	struct perf_event_header header;
-	__u64 time;
-	__u64 id;
-	__u64 sample_period;
+	u64 time;
+	u64 id;
+	u64 sample_period;
 };
 
 struct lost_event {
 	struct perf_event_header header;
-	__u64 id;
-	__u64 lost;
+	u64 id;
+	u64 lost;
 };
 
 typedef union event_union {
@@ -163,7 +163,7 @@ static void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-static struct symbol *vdso__find_symbol(struct dso *dso, __u64 ip)
+static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
 	return dso__find_symbol(kernel_dso, ip);
 }
@@ -210,19 +210,19 @@ static int strcommon(const char *pathname)
 
 struct map {
 	struct list_head node;
-	__u64	 start;
-	__u64	 end;
-	__u64	 pgoff;
-	__u64	 (*map_ip)(struct map *, __u64);
+	u64	 start;
+	u64	 end;
+	u64	 pgoff;
+	u64	 (*map_ip)(struct map *, u64);
 	struct dso	 *dso;
 };
 
-static __u64 map__map_ip(struct map *map, __u64 ip)
+static u64 map__map_ip(struct map *map, u64 ip)
 {
 	return ip - map->start + map->pgoff;
 }
 
-static __u64 vdso__map_ip(struct map *map, __u64 ip)
+static u64 vdso__map_ip(struct map *map, u64 ip)
 {
 	return ip;
 }
@@ -429,7 +429,7 @@ static int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-static struct map *thread__find_map(struct thread *self, __u64 ip)
+static struct map *thread__find_map(struct thread *self, u64 ip)
 {
 	struct map *pos;
 
@@ -471,10 +471,10 @@ struct hist_entry {
 	struct dso	 *dso;
 	struct symbol	 *sym;
 	struct symbol	 *parent;
-	__u64		 ip;
+	u64		 ip;
 	char		 level;
 
-	__u64		 count;
+	u64		 count;
 };
 
 /*
@@ -574,7 +574,7 @@ sort__dso_print(FILE *fp, struct hist_entry *self)
 	if (self->dso)
 		return fprintf(fp, "%-25s", self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (__u64)self->ip);
+	return fprintf(fp, "%016llx         ", (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
@@ -588,7 +588,7 @@ static struct sort_entry sort_dso = {
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	__u64 ip_l, ip_r;
+	u64 ip_l, ip_r;
 
 	if (left->sym == right->sym)
 		return 0;
@@ -605,13 +605,13 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (__u64)self->ip);
+		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
 
 	if (self->sym) {
 		ret += fprintf(fp, "[%c] %s",
 			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
+		ret += fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -745,7 +745,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
-hist_entry__fprintf(FILE *fp, struct hist_entry *self, __u64 total_samples)
+hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 {
 	struct sort_entry *se;
 	size_t ret;
@@ -793,7 +793,7 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, __u64 total_samples)
 
 static struct symbol *
 resolve_symbol(struct thread *thread, struct map **mapp,
-	       struct dso **dsop, __u64 *ipp)
+	       struct dso **dsop, u64 *ipp)
 {
 	struct dso *dso = dsop ? *dsop : NULL;
 	struct map *map = mapp ? *mapp : NULL;
@@ -852,8 +852,8 @@ static int call__match(struct symbol *sym)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, __u64 ip, struct ip_callchain *chain,
-		char level, __u64 count)
+		struct symbol *sym, u64 ip, struct ip_callchain *chain,
+		char level, u64 count)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -871,11 +871,11 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	int cmp;
 
 	if (sort__has_parent && chain) {
-		__u64 context = PERF_CONTEXT_MAX;
+		u64 context = PERF_CONTEXT_MAX;
 		int i;
 
 		for (i = 0; i < chain->nr; i++) {
-			__u64 ip = chain->ips[i];
+			u64 ip = chain->ips[i];
 			struct dso *dso = NULL;
 			struct symbol *sym;
 
@@ -1032,7 +1032,7 @@ static void output__resort(void)
 	}
 }
 
-static size_t output__fprintf(FILE *fp, __u64 total_samples)
+static size_t output__fprintf(FILE *fp, u64 total_samples)
 {
 	struct hist_entry *pos;
 	struct sort_entry *se;
@@ -1041,7 +1041,7 @@ static size_t output__fprintf(FILE *fp, __u64 total_samples)
 
 	fprintf(fp, "\n");
 	fprintf(fp, "#\n");
-	fprintf(fp, "# (%Ld samples)\n", (__u64)total_samples);
+	fprintf(fp, "# (%Ld samples)\n", (u64)total_samples);
 	fprintf(fp, "#\n");
 
 	fprintf(fp, "# Overhead");
@@ -1108,7 +1108,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 	chain_size = event->header.size;
 	chain_size -= (unsigned long)&event->ip.__more_data - (unsigned long)event;
 
-	if (chain->nr*sizeof(__u64) > chain_size)
+	if (chain->nr*sizeof(u64) > chain_size)
 		return -1;
 
 	return 0;
@@ -1121,15 +1121,15 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	int show = 0;
 	struct dso *dso = NULL;
 	struct thread *thread = threads__findnew(event->ip.pid);
-	__u64 ip = event->ip.ip;
-	__u64 period = 1;
+	u64 ip = event->ip.ip;
+	u64 period = 1;
 	struct map *map = NULL;
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
 
 	if (event->header.type & PERF_SAMPLE_PERIOD) {
-		period = *(__u64 *)more_data;
-		more_data += sizeof(__u64);
+		period = *(u64 *)more_data;
+		more_data += sizeof(u64);
 	}
 
 	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p period: %Ld\n",

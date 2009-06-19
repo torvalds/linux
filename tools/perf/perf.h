@@ -19,6 +19,7 @@
 #include <sys/syscall.h>
 
 #include "../../include/linux/perf_counter.h"
+#include "types.h"
 
 /*
  * prctl(PR_TASK_PERF_COUNTERS_DISABLE) will (cheaply) disable all
@@ -66,9 +67,9 @@ sys_perf_counter_open(struct perf_counter_attr *attr,
 #define MAX_NR_CPUS			256
 
 struct perf_file_header {
-	__u64	version;
-	__u64	sample_type;
-	__u64	data_size;
+	u64	version;
+	u64	sample_type;
+	u64	data_size;
 };
 
 #endif

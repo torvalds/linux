@@ -85,29 +85,29 @@ static const unsigned int default_count[] = {
 static int			run_count		=  1;
 static int			run_idx			=  0;
 
-static __u64			event_res[MAX_RUN][MAX_COUNTERS][3];
-static __u64			event_scaled[MAX_RUN][MAX_COUNTERS];
+static u64			event_res[MAX_RUN][MAX_COUNTERS][3];
+static u64			event_scaled[MAX_RUN][MAX_COUNTERS];
 
-//static __u64			event_hist[MAX_RUN][MAX_COUNTERS][3];
+//static u64			event_hist[MAX_RUN][MAX_COUNTERS][3];
 
 
-static __u64			runtime_nsecs[MAX_RUN];
-static __u64			walltime_nsecs[MAX_RUN];
-static __u64			runtime_cycles[MAX_RUN];
+static u64			runtime_nsecs[MAX_RUN];
+static u64			walltime_nsecs[MAX_RUN];
+static u64			runtime_cycles[MAX_RUN];
 
-static __u64			event_res_avg[MAX_COUNTERS][3];
-static __u64			event_res_noise[MAX_COUNTERS][3];
+static u64			event_res_avg[MAX_COUNTERS][3];
+static u64			event_res_noise[MAX_COUNTERS][3];
 
-static __u64			event_scaled_avg[MAX_COUNTERS];
+static u64			event_scaled_avg[MAX_COUNTERS];
 
-static __u64			runtime_nsecs_avg;
-static __u64			runtime_nsecs_noise;
+static u64			runtime_nsecs_avg;
+static u64			runtime_nsecs_noise;
 
-static __u64			walltime_nsecs_avg;
-static __u64			walltime_nsecs_noise;
+static u64			walltime_nsecs_avg;
+static u64			walltime_nsecs_noise;
 
-static __u64			runtime_cycles_avg;
-static __u64			runtime_cycles_noise;
+static u64			runtime_cycles_avg;
+static u64			runtime_cycles_noise;
 
 static void create_perf_stat_counter(int counter)
 {
@@ -158,7 +158,7 @@ static inline int nsec_counter(int counter)
  */
 static void read_counter(int counter)
 {
-	__u64 *count, single_count[3];
+	u64 *count, single_count[3];
 	ssize_t res;
 	int cpu, nv;
 	int scaled;
@@ -172,8 +172,8 @@ static void read_counter(int counter)
 		if (fd[cpu][counter] < 0)
 			continue;
 
-		res = read(fd[cpu][counter], single_count, nv * sizeof(__u64));
-		assert(res == nv * sizeof(__u64));
+		res = read(fd[cpu][counter], single_count, nv * sizeof(u64));
+		assert(res == nv * sizeof(u64));
 		close(fd[cpu][counter]);
 		fd[cpu][counter] = -1;
 
@@ -251,14 +251,14 @@ static int run_perf_stat(int argc, const char **argv)
 	return WEXITSTATUS(status);
 }
 
-static void print_noise(__u64 *count, __u64 *noise)
+static void print_noise(u64 *count, u64 *noise)
 {
 	if (run_count > 1)
 		fprintf(stderr, "   ( +- %7.3f%% )",
 			(double)noise[0]/(count[0]+1)*100.0);
 }
 
-static void nsec_printout(int counter, __u64 *count, __u64 *noise)
+static void nsec_printout(int counter, u64 *count, u64 *noise)
 {
 	double msecs = (double)count[0] / 1000000;
 
@@ -274,7 +274,7 @@ static void nsec_printout(int counter, __u64 *count, __u64 *noise)
 	print_noise(count, noise);
 }
 
-static void abs_printout(int counter, __u64 *count, __u64 *noise)
+static void abs_printout(int counter, u64 *count, u64 *noise)
 {
 	fprintf(stderr, " %14Ld  %-20s", count[0], event_name(counter));
 
@@ -298,7 +298,7 @@ static void abs_printout(int counter, __u64 *count, __u64 *noise)
  */
 static void print_counter(int counter)
 {
-	__u64 *count, *noise;
+	u64 *count, *noise;
 	int scaled;
 
 	count = event_res_avg[counter];
@@ -326,16 +326,16 @@ static void print_counter(int counter)
 /*
  * normalize_noise noise values down to stddev:
  */
-static void normalize_noise(__u64 *val)
+static void normalize_noise(u64 *val)
 {
 	double res;
 
 	res = (double)*val / (run_count * sqrt((double)run_count));
 
-	*val = (__u64)res;
+	*val = (u64)res;
 }
 
-static void update_avg(const char *name, int idx, __u64 *avg, __u64 *val)
+static void update_avg(const char *name, int idx, u64 *avg, u64 *val)
 {
 	*avg += *val;
 
@@ -380,19 +380,19 @@ static void calc_avg(void)
 
 	for (i = 0; i < run_count; i++) {
 		runtime_nsecs_noise +=
-			abs((__s64)(runtime_nsecs[i] - runtime_nsecs_avg));
+			abs((s64)(runtime_nsecs[i] - runtime_nsecs_avg));
 		walltime_nsecs_noise +=
-			abs((__s64)(walltime_nsecs[i] - walltime_nsecs_avg));
+			abs((s64)(walltime_nsecs[i] - walltime_nsecs_avg));
 		runtime_cycles_noise +=
-			abs((__s64)(runtime_cycles[i] - runtime_cycles_avg));
+			abs((s64)(runtime_cycles[i] - runtime_cycles_avg));
 
 		for (j = 0; j < nr_counters; j++) {
 			event_res_noise[j][0] +=
-				abs((__s64)(event_res[i][j][0] - event_res_avg[j][0]));
+				abs((s64)(event_res[i][j][0] - event_res_avg[j][0]));
 			event_res_noise[j][1] +=
-				abs((__s64)(event_res[i][j][1] - event_res_avg[j][1]));
+				abs((s64)(event_res[i][j][1] - event_res_avg[j][1]));
 			event_res_noise[j][2] +=
-				abs((__s64)(event_res[i][j][2] - event_res_avg[j][2]));
+				abs((s64)(event_res[i][j][2] - event_res_avg[j][2]));
 		}
 	}
 

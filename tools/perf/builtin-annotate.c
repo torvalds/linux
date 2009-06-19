@@ -50,35 +50,35 @@ static unsigned long	mmap_window = 32;
 
 struct ip_event {
 	struct perf_event_header header;
-	__u64 ip;
-	__u32 pid, tid;
+	u64 ip;
+	u32 pid, tid;
 };
 
 struct mmap_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
-	__u64 start;
-	__u64 len;
-	__u64 pgoff;
+	u32 pid, tid;
+	u64 start;
+	u64 len;
+	u64 pgoff;
 	char filename[PATH_MAX];
 };
 
 struct comm_event {
 	struct perf_event_header header;
-	__u32 pid, tid;
+	u32 pid, tid;
 	char comm[16];
 };
 
 struct fork_event {
 	struct perf_event_header header;
-	__u32 pid, ppid;
+	u32 pid, ppid;
 };
 
 struct period_event {
 	struct perf_event_header header;
-	__u64 time;
-	__u64 id;
-	__u64 sample_period;
+	u64 time;
+	u64 id;
+	u64 sample_period;
 };
 
 typedef union event_union {
@@ -158,7 +158,7 @@ static void dsos__fprintf(FILE *fp)
 		dso__fprintf(pos, fp);
 }
 
-static struct symbol *vdso__find_symbol(struct dso *dso, __u64 ip)
+static struct symbol *vdso__find_symbol(struct dso *dso, u64 ip)
 {
 	return dso__find_symbol(kernel_dso, ip);
 }
@@ -191,19 +191,19 @@ static int load_kernel(void)
 
 struct map {
 	struct list_head node;
-	__u64	 start;
-	__u64	 end;
-	__u64	 pgoff;
-	__u64	 (*map_ip)(struct map *, __u64);
+	u64	 start;
+	u64	 end;
+	u64	 pgoff;
+	u64	 (*map_ip)(struct map *, u64);
 	struct dso	 *dso;
 };
 
-static __u64 map__map_ip(struct map *map, __u64 ip)
+static u64 map__map_ip(struct map *map, u64 ip)
 {
 	return ip - map->start + map->pgoff;
 }
 
-static __u64 vdso__map_ip(struct map *map, __u64 ip)
+static u64 vdso__map_ip(struct map *map, u64 ip)
 {
 	return ip;
 }
@@ -386,7 +386,7 @@ static int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-static struct map *thread__find_map(struct thread *self, __u64 ip)
+static struct map *thread__find_map(struct thread *self, u64 ip)
 {
 	struct map *pos;
 
@@ -427,7 +427,7 @@ struct hist_entry {
 	struct map	 *map;
 	struct dso	 *dso;
 	struct symbol	 *sym;
-	__u64	 ip;
+	u64	 ip;
 	char		 level;
 
 	uint32_t	 count;
@@ -532,7 +532,7 @@ sort__dso_print(FILE *fp, struct hist_entry *self)
 	if (self->dso)
 		return fprintf(fp, "%-25s", self->dso->name);
 
-	return fprintf(fp, "%016llx         ", (__u64)self->ip);
+	return fprintf(fp, "%016llx         ", (u64)self->ip);
 }
 
 static struct sort_entry sort_dso = {
@@ -546,7 +546,7 @@ static struct sort_entry sort_dso = {
 static int64_t
 sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	__u64 ip_l, ip_r;
+	u64 ip_l, ip_r;
 
 	if (left->sym == right->sym)
 		return 0;
@@ -563,13 +563,13 @@ sort__sym_print(FILE *fp, struct hist_entry *self)
 	size_t ret = 0;
 
 	if (verbose)
-		ret += fprintf(fp, "%#018llx  ", (__u64)self->ip);
+		ret += fprintf(fp, "%#018llx  ", (u64)self->ip);
 
 	if (self->sym) {
 		ret += fprintf(fp, "[%c] %s",
 			self->dso == kernel_dso ? 'k' : '.', self->sym->name);
 	} else {
-		ret += fprintf(fp, "%#016llx", (__u64)self->ip);
+		ret += fprintf(fp, "%#016llx", (u64)self->ip);
 	}
 
 	return ret;
@@ -660,7 +660,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 /*
  * collect histogram counts
  */
-static void hist_hit(struct hist_entry *he, __u64 ip)
+static void hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
@@ -689,7 +689,7 @@ static void hist_hit(struct hist_entry *he, __u64 ip)
 
 static int
 hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
-		struct symbol *sym, __u64 ip, char level)
+		struct symbol *sym, u64 ip, char level)
 {
 	struct rb_node **p = &hist.rb_node;
 	struct rb_node *parent = NULL;
@@ -861,7 +861,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	int show = 0;
 	struct dso *dso = NULL;
 	struct thread *thread = threads__findnew(event->ip.pid);
-	__u64 ip = event->ip.ip;
+	u64 ip = event->ip.ip;
 	struct map *map = NULL;
 
 	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p\n",
@@ -1062,14 +1062,14 @@ static char *get_color(double percent)
 }
 
 static int
-parse_line(FILE *file, struct symbol *sym, __u64 start, __u64 len)
+parse_line(FILE *file, struct symbol *sym, u64 start, u64 len)
 {
 	char *line = NULL, *tmp, *tmp2;
 	static const char *prev_line;
 	static const char *prev_color;
 	unsigned int offset;
 	size_t line_len;
-	__u64 line_ip;
+	u64 line_ip;
 	int ret;
 	char *c;
 
@@ -1191,7 +1191,7 @@ static void free_source_line(struct symbol *sym, int len)
 
 /* Get the filename:line for the colored entries */
 static void
-get_source_line(struct symbol *sym, __u64 start, int len, char *filename)
+get_source_line(struct symbol *sym, u64 start, int len, char *filename)
 {
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -1209,7 +1209,7 @@ get_source_line(struct symbol *sym, __u64 start, int len, char *filename)
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
 		size_t line_len;
-		__u64 offset;
+		u64 offset;
 		FILE *fp;
 
 		sym_ext[i].percent = 100.0 * sym->hist[i] / sym->hist_sum;
@@ -1269,7 +1269,7 @@ static void print_summary(char *filename)
 static void annotate_sym(struct dso *dso, struct symbol *sym)
 {
 	char *filename = dso->name;
-	__u64 start, end, len;
+	u64 start, end, len;
 	char command[PATH_MAX*2];
 	FILE *file;
 
@@ -1297,7 +1297,7 @@ static void annotate_sym(struct dso *dso, struct symbol *sym)
 	if (verbose >= 2)
 		printf("annotating [%p] %30s : [%p] %30s\n", dso, dso->name, sym, sym->name);
 
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (__u64)start, (__u64)end, filename);
+	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", (u64)start, (u64)end, filename);
 
 	if (verbose >= 3)
 		printf("doing: %s\n", command);

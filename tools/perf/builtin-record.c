@@ -44,7 +44,7 @@ static long			samples;
 static struct timeval		last_read;
 static struct timeval		this_read;
 
-static __u64			bytes_written;
+static u64			bytes_written;
 
 static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
 
@@ -56,18 +56,18 @@ static struct perf_file_header	file_header;
 
 struct mmap_event {
 	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
-	__u64				start;
-	__u64				len;
-	__u64				pgoff;
+	u32				pid;
+	u32				tid;
+	u64				start;
+	u64				len;
+	u64				pgoff;
 	char				filename[PATH_MAX];
 };
 
 struct comm_event {
 	struct perf_event_header	header;
-	__u32				pid;
-	__u32				tid;
+	u32				pid;
+	u32				tid;
 	char				comm[16];
 };
 
@@ -238,7 +238,7 @@ static void pid_synthesize_comm_event(pid_t pid, int full)
 
 	comm_ev.pid = pid;
 	comm_ev.header.type = PERF_EVENT_COMM;
-	size = ALIGN(size, sizeof(__u64));
+	size = ALIGN(size, sizeof(u64));
 	comm_ev.header.size = sizeof(comm_ev) - (sizeof(comm_ev.comm) - size);
 
 	if (!full) {
@@ -315,7 +315,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
 			memcpy(mmap_ev.filename, execname, size);
-			size = ALIGN(size, sizeof(__u64));
+			size = ALIGN(size, sizeof(u64));
 			mmap_ev.len -= mmap_ev.start;
 			mmap_ev.header.size = (sizeof(mmap_ev) -
 					       (sizeof(mmap_ev.filename) - size));
