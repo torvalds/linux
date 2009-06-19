@@ -7,7 +7,7 @@
  */
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/hardirq.h>
+#include <linux/smp.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-pexp-defs.h>

@@ -13,6 +13,7 @@
 
 #include <linux/bitops.h>
 #include <linux/linkage.h>
+#include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 

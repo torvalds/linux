@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
+#include <linux/smp.h>
 #include <linux/stddef.h>
 
 #include <asm/bugs.h>
