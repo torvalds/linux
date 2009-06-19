@@ -1844,7 +1844,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 				     u8 is_active, u8 n_probes,
 				     struct iwl3945_scan_channel *scan_ch)
 {
-	const struct ieee80211_channel *channels = NULL;
+	struct ieee80211_channel *chan;
 	const struct ieee80211_supported_band *sband;
 	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
@@ -1855,19 +1855,19 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 	if (!sband)
 		return 0;
 
-	channels = sband->channels;
-
 	active_dwell = iwl_get_active_dwell_time(priv, band, n_probes);
 	passive_dwell = iwl_get_passive_dwell_time(priv, band);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
 
-	for (i = 0, added = 0; i < sband->n_channels; i++) {
-		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+	for (i = 0, added = 0; i < priv->scan_request->n_channels; i++) {
+		chan = priv->scan_request->channels[i];
+
+		if (chan->band != band)
 			continue;
 
-		scan_ch->channel = channels[i].hw_value;
+		scan_ch->channel = chan->hw_value;
 
 		ch_info = iwl_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
@@ -1882,7 +1882,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		 *  and use long active_dwell time.
 		 */
 		if (!is_active || is_channel_passive(ch_info) ||
-		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
+		    (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)) {
 			scan_ch->type = 0;	/* passive */
 			if (IWL_UCODE_API(priv->ucode_ver) == 1)
 				scan_ch->active_dwell = cpu_to_le16(passive_dwell - 1);
