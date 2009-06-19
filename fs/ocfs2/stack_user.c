@@ -738,6 +738,13 @@ static int user_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
 	return lksb->lksb_fsdlm.sb_status;
 }
 
+static int user_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+{
+	int invalid = lksb->lksb_fsdlm.sb_flags & DLM_SBF_VALNOTVALID;
+
+	return !invalid;
+}
+
 static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 {
 	if (!lksb->lksb_fsdlm.sb_lvbptr)
@@ -873,6 +880,7 @@ static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.dlm_lock	= user_dlm_lock,
 	.dlm_unlock	= user_dlm_unlock,
 	.lock_status	= user_dlm_lock_status,
+	.lvb_valid	= user_dlm_lvb_valid,
 	.lock_lvb	= user_dlm_lvb,
 	.plock		= user_plock,
 	.dump_lksb	= user_dlm_dump_lksb,
