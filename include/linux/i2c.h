@@ -393,6 +393,10 @@ struct i2c_client_address_data {
 /* The numbers to use to set I2C bus address */
 #define ANY_I2C_BUS		0xffff
 
+/* Construct an I2C_CLIENT_END-terminated array of i2c addresses */
+#define I2C_ADDRS(addr, addrs...) \
+	((const unsigned short []){ addr, ## addrs, I2C_CLIENT_END })
+
 
 /* ----- functions exported by i2c.o */
 
