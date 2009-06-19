@@ -175,6 +175,11 @@ perf_lock_task_context(struct task_struct *task, unsigned long *flags)
 			spin_unlock_irqrestore(&ctx->lock, *flags);
 			goto retry;
 		}
+
+		if (!atomic_inc_not_zero(&ctx->refcount)) {
+			spin_unlock_irqrestore(&ctx->lock, *flags);
+			ctx = NULL;
+		}
 	}
 	rcu_read_unlock();
 	return ctx;
@@ -193,7 +198,6 @@ static struct perf_counter_context *perf_pin_task_context(struct task_struct *ta
 	ctx = perf_lock_task_context(task, &flags);
 	if (ctx) {
 		++ctx->pin_count;
-		get_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 	return ctx;
@@ -1459,11 +1463,6 @@ static struct perf_counter_context *find_get_context(pid_t pid, int cpu)
 			put_ctx(parent_ctx);
 			ctx->parent_ctx = NULL;		/* no longer a clone */
 		}
-		/*
-		 * Get an extra reference before dropping the lock so that
-		 * this context won't get freed if the task exits.
-		 */
-		get_ctx(ctx);
 		spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
