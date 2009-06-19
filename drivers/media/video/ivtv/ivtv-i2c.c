@@ -509,7 +509,6 @@ static struct i2c_algorithm ivtv_algo = {
 /* template for our-bit banger */
 static struct i2c_adapter ivtv_i2c_adap_hw_template = {
 	.name = "ivtv i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = &ivtv_algo,
 	.algo_data = NULL,			/* filled from template */
 	.owner = THIS_MODULE,
@@ -560,7 +559,6 @@ static int ivtv_getsda_old(void *data)
 /* template for i2c-bit-algo */
 static struct i2c_adapter ivtv_i2c_adap_template = {
 	.name = "ivtv i2c driver",
-	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
 	.owner = THIS_MODULE,
