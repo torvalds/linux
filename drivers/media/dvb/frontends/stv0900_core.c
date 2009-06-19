@@ -1393,7 +1393,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	struct stv0900_state *state = fe->demodulator_priv;
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 	enum fe_stv0900_error demodError = STV0900_NO_ERROR;
-	int selosci;
+	int selosci, i;
 
 	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
 						state->config->demod_address);
@@ -1440,7 +1440,23 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 				stv0900_write_bits(state->internal, F0900_P1_ROLLOFF_CONTROL, p_init->rolloff);
 				stv0900_write_bits(state->internal, F0900_P2_ROLLOFF_CONTROL, p_init->rolloff);
 
-				stv0900_set_ts_parallel_serial(state->internal, p_init->path1_ts_clock, p_init->path2_ts_clock);
+				state->internal->ts_config = p_init->ts_config;
+				if (state->internal->ts_config == NULL)
+					stv0900_set_ts_parallel_serial(state->internal,
+							p_init->path1_ts_clock,
+							p_init->path2_ts_clock);
+				else {
+					for (i = 0; state->internal->ts_config[i].addr != 0xffff; i++)
+						stv0900_write_reg(state->internal,
+								state->internal->ts_config[i].addr,
+								state->internal->ts_config[i].val);
+
+					stv0900_write_bits(state->internal, F0900_P2_RST_HWARE, 1);
+					stv0900_write_bits(state->internal, F0900_P2_RST_HWARE, 0);
+					stv0900_write_bits(state->internal, F0900_P1_RST_HWARE, 1);
+					stv0900_write_bits(state->internal, F0900_P1_RST_HWARE, 0);
+				}
+
 				stv0900_write_bits(state->internal, F0900_P1_TUN_MADDRESS, p_init->tun1_maddress);
 				switch (p_init->tuner1_adc) {
 				case 1:
@@ -1954,6 +1970,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		init_params.tun1_iq_inversion	= STV0900_IQ_NORMAL;
 		init_params.tuner1_adc		= config->tun1_adc;
 		init_params.path2_ts_clock	= config->path2_mode;
+		init_params.ts_config		= config->ts_config_regs;
 		init_params.tun2_maddress	= config->tun2_maddress;
 		init_params.tuner2_adc		= config->tun2_adc;
 		init_params.tun2_iq_inversion	= STV0900_IQ_SWAPPED;
