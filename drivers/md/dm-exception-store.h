@@ -111,7 +111,7 @@ struct dm_exception_store {
 /*
  * Funtions to manipulate consecutive chunks
  */
-#  if defined(CONFIG_LBD) || (BITS_PER_LONG == 64)
+#  if defined(CONFIG_LBDAF) || (BITS_PER_LONG == 64)
 #    define DM_CHUNK_CONSECUTIVE_BITS 8
 #    define DM_CHUNK_NUMBER_BITS 56
 

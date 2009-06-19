@@ -1812,7 +1812,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		printk(KERN_ERR "EXT3-fs: filesystem on %s:"
 			" too large to mount safely\n", sb->s_id);
 		if (sizeof(sector_t) < 8)
-			printk(KERN_WARNING "EXT3-fs: CONFIG_LBD not "
+			printk(KERN_WARNING "EXT3-fs: CONFIG_LBDAF not "
 					"enabled\n");
 		goto failed_mount;
 	}
