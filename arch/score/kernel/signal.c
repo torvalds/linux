@@ -132,7 +132,7 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	return (void *)((sp - frame_size) & ~7);
 }
 
-asmlinkage int score_sigaltstack(struct pt_regs *regs)
+int score_sigaltstack(struct pt_regs *regs)
 {
 	const stack_t *uss = (const stack_t *) regs->regs[4];
 	stack_t *uoss = (stack_t *) regs->regs[5];
@@ -141,7 +141,7 @@ asmlinkage int score_sigaltstack(struct pt_regs *regs)
 	return do_sigaltstack(uss, uoss, usp);
 }
 
-asmlinkage void score_rt_sigreturn(struct pt_regs *regs)
+void score_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;
@@ -276,7 +276,7 @@ int handle_signal(unsigned long sig, siginfo_t *info,
 	return ret;
 }
 
-asmlinkage void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	sigset_t *oldset;

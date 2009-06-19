@@ -80,7 +80,35 @@ write_tsk_long(struct task_struct *child,
 	return copied != sizeof(val) ? -EIO : 0;
 }
 
-void set_single_step(struct task_struct *child)
+/*
+ * Get all user integer registers.
+ */
+static int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
+{
+	struct pt_regs *regs = task_pt_regs(tsk);
+
+	return copy_to_user(uregs, regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
+}
+
+/*
+ * Set all user integer registers.
+ */
+static int ptrace_setregs(struct task_struct *tsk, void __user *uregs)
+{
+	struct pt_regs newregs;
+	int ret;
+
+	ret = -EFAULT;
+	if (copy_from_user(&newregs, uregs, sizeof(struct pt_regs)) == 0) {
+		struct pt_regs *regs = task_pt_regs(tsk);
+		*regs = newregs;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+void user_enable_single_step(struct task_struct *child)
 {
 	/* far_epc is the target of branch */
 	unsigned int epc, far_epc = 0;
@@ -201,7 +229,7 @@ void set_single_step(struct task_struct *child)
 	}
 }
 
-void clear_single_step(struct task_struct *child)
+void user_disable_single_step(struct task_struct *child)
 {
 	if (child->thread.insn1_type == 0)
 		write_tsk_short(child, child->thread.addr1,
@@ -230,54 +258,17 @@ void clear_single_step(struct task_struct *child)
 	child->thread.ss_nextcnt = 0;
 }
 
-
-void ptrace_disable(struct task_struct *child) {}
+void ptrace_disable(struct task_struct *child)
+{
+	user_disable_single_step(child);
+}
 
 long
 arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			return -EPERM;
-
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		return 0;
-	}
-
-	ret = -ESRCH;
-	if (!child)
-		return ret;
-
-	ret = -EPERM;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		return ret;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		return ret;
-
 	switch (request) {
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA: {
-		unsigned long tmp;
-		int copied;
-
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		ret = -EIO;
-		if (copied != sizeof(tmp))
-			break;
-
-		ret = put_user(tmp, (unsigned long *) data);
-		return ret;
-	}
-
 	/* Read the word at location addr in the USER area.  */
 	case PTRACE_PEEKUSR: {
 		struct pt_regs *regs;
@@ -329,15 +320,6 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return ret;
 	}
 
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = 0;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1)
-			== sizeof(data))
-			break;
-		ret = -EIO;
-		return ret;
-
 	case PTRACE_POKEUSR: {
 		struct pt_regs *regs;
 		ret = 0;
@@ -372,64 +354,16 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-	case PTRACE_SYSCALL: /* continue and stop at next
-				(return from) syscall. */
-	case PTRACE_CONT: { /* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		ret = 0;
-		if (child->state == EXIT_ZOMBIE)	/* already dead. */
-			break;
-		child->exit_code = SIGKILL;
-		clear_single_step(child);
-		wake_up_process(child);
+	case PTRACE_GETREGS:
+		ret = ptrace_getregs(child, (void __user *)data);
 		break;
 
-	case PTRACE_SINGLESTEP: {		/* set the trap flag. */
-		ret = -EIO;
-		if ((unsigned long) data > _NSIG)
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		set_single_step(child);
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-	case PTRACE_DETACH: /* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		break;
-
-	case PTRACE_SETOPTIONS:
-		if (data & PTRACE_O_TRACESYSGOOD)
-			child->ptrace |= PT_TRACESYSGOOD;
-		else
-			child->ptrace &= ~PT_TRACESYSGOOD;
-		ret = 0;
+	case PTRACE_SETREGS:
+		ret = ptrace_setregs(child, (void __user *)data);
 		break;
 
 	default:
-		ret = -EIO;
+		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
 

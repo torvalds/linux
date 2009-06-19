@@ -252,7 +252,7 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	if (current->thread.single_step == 1) {
 		if ((epc == current->thread.addr1) ||
 		    (epc == current->thread.addr2)) {
-			clear_single_step(current);
+			user_disable_single_step(current);
 			force_sig(SIGTRAP, current);
 			return;
 		} else

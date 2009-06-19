@@ -64,8 +64,7 @@ sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
  * Clone a task - this clones the calling program thread.
  * This is called indirectly via a small wrapper
  */
-asmlinkage int
-score_clone(struct pt_regs *regs)
+int score_clone(struct pt_regs *regs)
 {
 	unsigned long clone_flags;
 	unsigned long newsp;
@@ -93,7 +92,7 @@ score_clone(struct pt_regs *regs)
  * sys_execve() executes a new program.
  * This is called indirectly via a small wrapper
  */
-asmlinkage int score_execve(struct pt_regs *regs)
+int score_execve(struct pt_regs *regs)
 {
 	int error;
 	char *filename;
@@ -114,7 +113,7 @@ asmlinkage int score_execve(struct pt_regs *regs)
  * If we ever come here the user sp is bad.  Zap the process right away.
  * Due to the bad stack signaling wouldn't work.
  */
-asmlinkage void bad_stack(void)
+void bad_stack(void)
 {
 	do_exit(SIGSEGV);
 }

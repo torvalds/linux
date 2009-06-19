@@ -1,6 +1,9 @@
 #ifndef _ASM_SCORE_PTRACE_H
 #define _ASM_SCORE_PTRACE_H
 
+#define PTRACE_GETREGS		12
+#define PTRACE_SETREGS		13
+
 #define PC		32
 #define CONDITION	33
 #define ECR		34
@@ -76,12 +79,17 @@ struct pt_regs {
  */
 #define user_mode(regs) 	((regs->cp0_psr & 8) == 8)
 
-#define instruction_pointer(regs) (0)
-#define profile_pc(regs) instruction_pointer(regs)
+#define instruction_pointer(regs)	((unsigned long)(regs)->cp0_epc)
+#define profile_pc(regs)		instruction_pointer(regs)
 
-extern asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit);
+extern void do_syscall_trace(struct pt_regs *regs, int entryexit);
 extern int read_tsk_long(struct task_struct *, unsigned long, unsigned long *);
-extern void clear_single_step(struct task_struct *);
-#endif
+extern int read_tsk_short(struct task_struct *, unsigned long,
+			 unsigned short *);
+
+#define arch_has_single_step()	(1)
+extern void user_enable_single_step(struct task_struct *);
+extern void user_disable_single_step(struct task_struct *);
+#endif /* __KERNEL__ */
 
 #endif /* _ASM_SCORE_PTRACE_H */

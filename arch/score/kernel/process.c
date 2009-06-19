@@ -56,7 +56,7 @@ void __noreturn cpu_idle(void)
 	}
 }
 
-asmlinkage void ret_from_fork(void);
+void ret_from_fork(void);
 
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 {

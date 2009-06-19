@@ -4,18 +4,16 @@
 /* Keep includes the same across arches. */
 #include <linux/mm.h>
 
-extern void (*flush_cache_all)(void);
-extern void (*flush_cache_mm)(struct mm_struct *mm);
-extern void (*flush_cache_range)(struct vm_area_struct *vma,
+extern void flush_cache_all(void);
+extern void flush_cache_mm(struct mm_struct *mm);
+extern void flush_cache_range(struct vm_area_struct *vma,
 				unsigned long start, unsigned long end);
-extern void (*flush_cache_page)(struct vm_area_struct *vma,
+extern void flush_cache_page(struct vm_area_struct *vma,
 				unsigned long page, unsigned long pfn);
-extern void (*flush_cache_sigtramp)(unsigned long addr);
-extern void (*flush_icache_all)(void);
-extern void (*flush_icache_range)(unsigned long start, unsigned long end);
-extern void (*flush_data_cache_page)(unsigned long addr);
-
-extern void s7_flush_cache_all(void);
+extern void flush_cache_sigtramp(unsigned long addr);
+extern void flush_icache_all(void);
+extern void flush_icache_range(unsigned long start, unsigned long end);
+extern void flush_dcache_range(unsigned long start, unsigned long end);
 
 #define flush_cache_dup_mm(mm)			do {} while (0)
 #define flush_dcache_page(page)			do {} while (0)

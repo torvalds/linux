@@ -32,34 +32,26 @@
 
 #include <asm/mmu_context.h>
 
-/* Cache operations. */
-void (*flush_cache_all)(void);
-void (*__flush_cache_all)(void);
-void (*flush_cache_mm)(struct mm_struct *mm);
-void (*flush_cache_range)(struct vm_area_struct *vma,
-			unsigned long start, unsigned long end);
-void (*flush_cache_page)(struct vm_area_struct *vma,
-			unsigned long page, unsigned long pfn);
-void (*flush_icache_range)(unsigned long start, unsigned long end);
-void (*__flush_cache_vmap)(void);
-void (*__flush_cache_vunmap)(void);
-void (*flush_cache_sigtramp)(unsigned long addr);
-void (*flush_data_cache_page)(unsigned long addr);
-EXPORT_SYMBOL(flush_data_cache_page);
-void (*flush_icache_all)(void);
+/*
+Just flush entire Dcache!!
+You must ensure the page doesn't include instructions, because
+the function will not flush the Icache.
+The addr must be cache aligned.
+*/
+static void flush_data_cache_page(unsigned long addr)
+{
+	unsigned int i;
+	for (i = 0; i < (PAGE_SIZE / L1_CACHE_BYTES); i += L1_CACHE_BYTES) {
+		__asm__ __volatile__(
+		"cache 0x0e, [%0, 0]\n"
+		"cache 0x1a, [%0, 0]\n"
+		"nop\n"
+		: : "r" (addr));
+		addr += L1_CACHE_BYTES;
+	}
+}
 
-/*Score 7 cache operations*/
-static inline void s7___flush_cache_all(void);
-static void s7_flush_cache_mm(struct mm_struct *mm);
-static void s7_flush_cache_range(struct vm_area_struct *vma,
-				unsigned long start, unsigned long end);
-static void s7_flush_cache_page(struct vm_area_struct *vma,
-				unsigned long page, unsigned long pfn);
-static void s7_flush_icache_range(unsigned long start, unsigned long end);
-static void s7_flush_cache_sigtramp(unsigned long addr);
-static void s7_flush_data_cache_page(unsigned long addr);
-static void s7_flush_dcache_range(unsigned long start, unsigned long end);
-
+/* called by update_mmu_cache. */
 void __update_cache(struct vm_area_struct *vma, unsigned long address,
 		pte_t pte)
 {
@@ -74,7 +66,7 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	if (page_mapping(page) && test_bit(PG_arch_1, &page->flags)) {
 		addr = (unsigned long) page_address(page);
 		if (exec)
-			s7_flush_data_cache_page(addr);
+			flush_data_cache_page(addr);
 		clear_bit(PG_arch_1, &page->flags);
 	}
 }
@@ -101,31 +93,22 @@ static inline void setup_protection_map(void)
 
 void __devinit cpu_cache_init(void)
 {
-	flush_cache_all = s7_flush_cache_all;
-	__flush_cache_all = s7___flush_cache_all;
-	flush_cache_mm = s7_flush_cache_mm;
-	flush_cache_range = s7_flush_cache_range;
-	flush_cache_page = s7_flush_cache_page;
-	flush_icache_range = s7_flush_icache_range;
-	flush_cache_sigtramp = s7_flush_cache_sigtramp;
-	flush_data_cache_page = s7_flush_data_cache_page;
-
 	setup_protection_map();
 }
 
-void s7_flush_icache_all(void)
+void flush_icache_all(void)
 {
 	__asm__ __volatile__(
-	"la r8, s7_flush_icache_all\n"
+	"la r8, flush_icache_all\n"
 	"cache 0x10, [r8, 0]\n"
 	"nop\nnop\nnop\nnop\nnop\nnop\n"
 	: : : "r8");
 }
 
-void s7_flush_dcache_all(void)
+void flush_dcache_all(void)
 {
 	__asm__ __volatile__(
-	"la r8, s7_flush_dcache_all\n"
+	"la r8, flush_dcache_all\n"
 	"cache 0x1f, [r8, 0]\n"
 	"nop\nnop\nnop\nnop\nnop\nnop\n"
 	"cache 0x1a, [r8, 0]\n"
@@ -133,23 +116,10 @@ void s7_flush_dcache_all(void)
 	: : : "r8");
 }
 
-void s7_flush_cache_all(void)
+void flush_cache_all(void)
 {
 	__asm__ __volatile__(
-	"la r8, s7_flush_cache_all\n"
-	"cache 0x10, [r8, 0]\n"
-	"nop\nnop\nnop\nnop\nnop\nnop\n"
-	"cache 0x1f, [r8, 0]\n"
-	"nop\nnop\nnop\nnop\nnop\nnop\n"
-	"cache 0x1a, [r8, 0]\n"
-	"nop\nnop\nnop\nnop\nnop\nnop\n"
-	: : : "r8");
-}
-
-void s7___flush_cache_all(void)
-{
-	__asm__ __volatile__(
-	"la r8, s7_flush_cache_all\n"
+	"la r8, flush_cache_all\n"
 	"cache 0x10, [r8, 0]\n"
 	"nop\nnop\nnop\nnop\nnop\nnop\n"
 	"cache 0x1f, [r8, 0]\n"
@@ -159,11 +129,11 @@ void s7___flush_cache_all(void)
 	: : : "r8");
 }
 
-static void s7_flush_cache_mm(struct mm_struct *mm)
+void flush_cache_mm(struct mm_struct *mm)
 {
 	if (!(mm->context))
 		return;
-	s7_flush_cache_all();
+	flush_cache_all();
 }
 
 /*if we flush a range precisely , the processing may be very long.
@@ -176,8 +146,7 @@ The interface is provided in hopes that the port can find
 a suitably efficient method for removing multiple page
 sized regions from the cache.
 */
-static void
-s7_flush_cache_range(struct vm_area_struct *vma,
+void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -209,27 +178,26 @@ s7_flush_cache_range(struct vm_area_struct *vma,
 		tmpend = (start | (PAGE_SIZE-1)) > end ?
 				 end : (start | (PAGE_SIZE-1));
 
-		s7_flush_dcache_range(start, tmpend);
+		flush_dcache_range(start, tmpend);
 		if (exec)
-			s7_flush_icache_range(start, tmpend);
+			flush_icache_range(start, tmpend);
 		start = (start + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 	}
 }
 
-static void
-s7_flush_cache_page(struct vm_area_struct *vma,
+void flush_cache_page(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long pfn)
 {
 	int exec = vma->vm_flags & VM_EXEC;
 	unsigned long kaddr = 0xa0000000 | (pfn << PAGE_SHIFT);
 
-	s7_flush_dcache_range(kaddr, kaddr + PAGE_SIZE);
+	flush_dcache_range(kaddr, kaddr + PAGE_SIZE);
 
 	if (exec)
-		s7_flush_icache_range(kaddr, kaddr + PAGE_SIZE);
+		flush_icache_range(kaddr, kaddr + PAGE_SIZE);
 }
 
-static void s7_flush_cache_sigtramp(unsigned long addr)
+void flush_cache_sigtramp(unsigned long addr)
 {
 	__asm__ __volatile__(
 	"cache 0x02, [%0, 0]\n"
@@ -248,30 +216,11 @@ static void s7_flush_cache_sigtramp(unsigned long addr)
 }
 
 /*
-Just flush entire Dcache!!
-You must ensure the page doesn't include instructions, because
-the function will not flush the Icache.
-The addr must be cache aligned.
-*/
-static void s7_flush_data_cache_page(unsigned long addr)
-{
-	unsigned int i;
-	for (i = 0; i < (PAGE_SIZE / L1_CACHE_BYTES); i += L1_CACHE_BYTES) {
-		__asm__ __volatile__(
-		"cache 0x0e, [%0, 0]\n"
-		"cache 0x1a, [%0, 0]\n"
-		"nop\n"
-		: : "r" (addr));
-		addr += L1_CACHE_BYTES;
-	}
-}
-
-/*
 1. WB and invalid a cache line of Dcache
 2. Drain Write Buffer
 the range must be smaller than PAGE_SIZE
 */
-static void s7_flush_dcache_range(unsigned long start, unsigned long end)
+void flush_dcache_range(unsigned long start, unsigned long end)
 {
 	int size, i;
 
@@ -290,7 +239,7 @@ static void s7_flush_dcache_range(unsigned long start, unsigned long end)
 	}
 }
 
-static void s7_flush_icache_range(unsigned long start, unsigned long end)
+void flush_icache_range(unsigned long start, unsigned long end)
 {
 	int size, i;
 	start = start & ~(L1_CACHE_BYTES - 1);

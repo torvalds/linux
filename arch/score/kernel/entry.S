@@ -23,7 +23,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 
@@ -434,7 +434,7 @@ stack_done:
 	sw	r8, [r0, PT_R7]
 	b 2f
 1:
-	cmpi.c	r4, -EMAXERRNO-1	# -EMAXERRNO - 1=-1134
+	cmpi.c	r4, -MAX_ERRNO - 1
 	ble	2f
 	ldi	r8, 0x1;
 	sw	r8, [r0, PT_R7]
@@ -466,7 +466,7 @@ syscall_trace_entry:
 	lw	r7, [r0, PT_R7]
 	brl	r8
 
-	li	r8, -EMAXERRNO - 1	# error?
+	li	r8, -MAX_ERRNO - 1
 	sw	r8, [r0, PT_R7]		# set error flag
 
 	neg	r4, r4			# error

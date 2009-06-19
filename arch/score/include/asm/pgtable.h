@@ -106,24 +106,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 	((swp_entry_t) { pte_val(pte)})
 #define __swp_entry_to_pte(x)	((pte_t) {(x).val})
 
-#define __P000 __pgprot(0)
-#define __P001 __pgprot(0)
-#define __P010 __pgprot(0)
-#define __P011 __pgprot(0)
-#define __P100 __pgprot(0)
-#define __P101 __pgprot(0)
-#define __P110 __pgprot(0)
-#define __P111 __pgprot(0)
-
-#define __S000 __pgprot(0)
-#define __S001 __pgprot(0)
-#define __S010 __pgprot(0)
-#define __S011 __pgprot(0)
-#define __S100 __pgprot(0)
-#define __S101 __pgprot(0)
-#define __S110 __pgprot(0)
-#define __S111 __pgprot(0)
-
 #define pmd_page(pmd) virt_to_page(__va(pmd_val(pmd)))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
@@ -136,10 +118,15 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
-#define pgd_present(pgd)	(1) /* pages are always present on non MMU */
+/*
+ * The "pgd_xxx()" functions here are trivial for a folded two-level
+ * setup: the pgd is never bad, and a pmd always exists (as it's folded
+ * into the pgd entry)
+ */
+#define pgd_present(pgd)	(1)
 #define pgd_none(pgd)		(0)
 #define pgd_bad(pgd)		(0)
-#define pgd_clear(pgdp)
+#define pgd_clear(pgdp)		do { } while (0)
 
 #define kern_addr_valid(addr)	(1)
 #define	pmd_offset(a, b)	((void *) 0)
@@ -150,11 +137,33 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 
 #define pud_offset(pgd, address) ((pud_t *) pgd)
 
-#define PAGE_NONE		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_SHARED		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_COPY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_READONLY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
+#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_CACHE)
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
+				_PAGE_CACHE)
+#define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_CACHE)
+#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_CACHE)
+#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
+				_PAGE_GLOBAL | _PAGE_CACHE)
+#define PAGE_KERNEL_UNCACHED __pgprot(_PAGE_PRESENT | __READABLE | \
+				__WRITEABLE | _PAGE_GLOBAL & ~_PAGE_CACHE)
+
+#define __P000	PAGE_NONE
+#define __P001	PAGE_READONLY
+#define __P010	PAGE_COPY
+#define __P011	PAGE_COPY
+#define __P100	PAGE_READONLY
+#define __P101	PAGE_READONLY
+#define __P110	PAGE_COPY
+#define __P111	PAGE_COPY
+
+#define __S000	PAGE_NONE
+#define __S001	PAGE_READONLY
+#define __S010	PAGE_SHARED
+#define __S011	PAGE_SHARED
+#define __S100	PAGE_READONLY
+#define __S101	PAGE_READONLY
+#define __S110	PAGE_SHARED
+#define __S111	PAGE_SHARED
 
 #define pgprot_noncached(x)	(x)
 
