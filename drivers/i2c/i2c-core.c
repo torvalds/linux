@@ -38,11 +38,12 @@
 #include "i2c-core.h"
 
 
-/* core_lock protects i2c_adapter_idr, and guarantees
+/* core_lock protects i2c_adapter_idr, userspace_devices, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
    and detach_adapter calls are serialized */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
+static LIST_HEAD(userspace_devices);
 
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
@@ -373,8 +374,128 @@ show_adapter_name(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%s\n", adap->name);
 }
 
+/*
+ * Let users instantiate I2C devices through sysfs. This can be used when
+ * platform initialization code doesn't contain the proper data for
+ * whatever reason. Also useful for drivers that do device detection and
+ * detection fails, either because the device uses an unexpected address,
+ * or this is a compatible device with different ID register values.
+ *
+ * Parameter checking may look overzealous, but we really don't want
+ * the user to provide incorrect parameters.
+ */
+static ssize_t
+i2c_sysfs_new_device(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct i2c_adapter *adap = to_i2c_adapter(dev);
+	struct i2c_board_info info;
+	struct i2c_client *client;
+	char *blank, end;
+	int res;
+
+	dev_warn(dev, "The new_device interface is still experimental "
+		 "and may change in a near future\n");
+	memset(&info, 0, sizeof(struct i2c_board_info));
+
+	blank = strchr(buf, ' ');
+	if (!blank) {
+		dev_err(dev, "%s: Missing parameters\n", "new_device");
+		return -EINVAL;
+	}
+	if (blank - buf > I2C_NAME_SIZE - 1) {
+		dev_err(dev, "%s: Invalid device name\n", "new_device");
+		return -EINVAL;
+	}
+	memcpy(info.type, buf, blank - buf);
+
+	/* Parse remaining parameters, reject extra parameters */
+	res = sscanf(++blank, "%hi%c", &info.addr, &end);
+	if (res < 1) {
+		dev_err(dev, "%s: Can't parse I2C address\n", "new_device");
+		return -EINVAL;
+	}
+	if (res > 1  && end != '\n') {
+		dev_err(dev, "%s: Extra parameters\n", "new_device");
+		return -EINVAL;
+	}
+
+	if (info.addr < 0x03 || info.addr > 0x77) {
+		dev_err(dev, "%s: Invalid I2C address 0x%hx\n", "new_device",
+			info.addr);
+		return -EINVAL;
+	}
+
+	client = i2c_new_device(adap, &info);
+	if (!client)
+		return -EEXIST;
+
+	/* Keep track of the added device */
+	mutex_lock(&core_lock);
+	list_add_tail(&client->detected, &userspace_devices);
+	mutex_unlock(&core_lock);
+	dev_info(dev, "%s: Instantiated device %s at 0x%02hx\n", "new_device",
+		 info.type, info.addr);
+
+	return count;
+}
+
+/*
+ * And of course let the users delete the devices they instantiated, if
+ * they got it wrong. This interface can only be used to delete devices
+ * instantiated by i2c_sysfs_new_device above. This guarantees that we
+ * don't delete devices to which some kernel code still has references.
+ *
+ * Parameter checking may look overzealous, but we really don't want
+ * the user to delete the wrong device.
+ */
+static ssize_t
+i2c_sysfs_delete_device(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct i2c_adapter *adap = to_i2c_adapter(dev);
+	struct i2c_client *client, *next;
+	unsigned short addr;
+	char end;
+	int res;
+
+	/* Parse parameters, reject extra parameters */
+	res = sscanf(buf, "%hi%c", &addr, &end);
+	if (res < 1) {
+		dev_err(dev, "%s: Can't parse I2C address\n", "delete_device");
+		return -EINVAL;
+	}
+	if (res > 1  && end != '\n') {
+		dev_err(dev, "%s: Extra parameters\n", "delete_device");
+		return -EINVAL;
+	}
+
+	/* Make sure the device was added through sysfs */
+	res = -ENOENT;
+	mutex_lock(&core_lock);
+	list_for_each_entry_safe(client, next, &userspace_devices, detected) {
+		if (client->addr == addr && client->adapter == adap) {
+			dev_info(dev, "%s: Deleting device %s at 0x%02hx\n",
+				 "delete_device", client->name, client->addr);
+
+			list_del(&client->detected);
+			i2c_unregister_device(client);
+			res = count;
+			break;
+		}
+	}
+	mutex_unlock(&core_lock);
+
+	if (res < 0)
+		dev_err(dev, "%s: Can't find device in list\n",
+			"delete_device");
+	return res;
+}
+
 static struct device_attribute i2c_adapter_attrs[] = {
 	__ATTR(name, S_IRUGO, show_adapter_name, NULL),
+	__ATTR(new_device, S_IWUSR, NULL, i2c_sysfs_new_device),
+	__ATTR(delete_device, S_IWUSR, NULL, i2c_sysfs_delete_device),
 	{ },
 };
 
