@@ -680,6 +680,7 @@ static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 	p->o_res.server = p->o_arg.server;
 	nfs_fattr_init(&p->f_attr);
 	nfs_fattr_init(&p->dir_attr);
+	p->o_res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 }
 
 static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
@@ -711,7 +712,6 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
-	p->o_res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 	if (flags & O_EXCL) {
 		u32 *s = (u32 *) p->o_arg.u.verifier.data;
 		s[0] = jiffies;
