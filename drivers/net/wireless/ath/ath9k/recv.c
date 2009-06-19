@@ -528,14 +528,6 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		ath_beacon_config(sc, NULL);
 	}
 
-	if (!(sc->hw->conf.flags & IEEE80211_CONF_PS)) {
-		/* We are not in PS mode anymore; remain awake */
-		DPRINTF(sc, ATH_DBG_PS, "Not in PS mode anymore, remain "
-			"awake\n");
-		sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON | SC_OP_WAIT_FOR_CAB);
-		return;
-	}
-
 	if (ath_beacon_dtim_pending_cab(skb)) {
 		/*
 		 * Remain awake waiting for buffered broadcast/multicast
