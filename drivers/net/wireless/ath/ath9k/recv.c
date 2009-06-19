@@ -505,11 +505,6 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 	return false;
 }
 
-static void ath_rx_ps_back_to_sleep(struct ath_softc *sc)
-{
-	sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON | SC_OP_WAIT_FOR_CAB);
-}
-
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
@@ -520,6 +515,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 	mgmt = (struct ieee80211_mgmt *)skb->data;
 	if (memcmp(sc->curbssid, mgmt->bssid, ETH_ALEN) != 0)
 		return; /* not from our current AP */
+
+	sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
 
 	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
 		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
@@ -548,11 +545,9 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * fails to send a frame indicating that all CAB frames have
 		 * been delivered.
 		 */
+		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
 		DPRINTF(sc, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
 	}
-
-	/* No more broadcast/multicast frames to be received at this point. */
-	ath_rx_ps_back_to_sleep(sc);
 }
 
 static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
@@ -570,13 +565,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		  ieee80211_is_action(hdr->frame_control)) &&
 		 is_multicast_ether_addr(hdr->addr1) &&
 		 !ieee80211_has_moredata(hdr->frame_control)) {
-		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
-			"sleep\n");
 		/*
 		 * No more broadcast/multicast frames to be received at this
 		 * point.
 		 */
-		ath_rx_ps_back_to_sleep(sc);
+		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
+		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
+			"sleep\n");
 	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
