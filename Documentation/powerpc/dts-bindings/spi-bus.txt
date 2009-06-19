@@ -1,0 +1,57 @@
+SPI (Serial Peripheral Interface) busses
+
+SPI busses can be described with a node for the SPI master device
+and a set of child nodes for each SPI slave on the bus.  For this
+discussion, it is assumed that the system's SPI controller is in
+SPI master mode.  This binding does not describe SPI controllers
+in slave mode.
+
+The SPI master node requires the following properties:
+- #address-cells  - number of cells required to define a chip select
+    		address on the SPI bus.
+- #size-cells     - should be zero.
+- compatible      - name of SPI bus controller following generic names
+    		recommended practice.
+No other properties are required in the SPI bus node.  It is assumed
+that a driver for an SPI bus device will understand that it is an SPI bus.
+However, the binding does not attempt to define the specific method for
+assigning chip select numbers.  Since SPI chip select configuration is
+flexible and non-standardized, it is left out of this binding with the
+assumption that board specific platform code will be used to manage
+chip selects.  Individual drivers can define additional properties to
+support describing the chip select layout.
+
+SPI slave nodes must be children of the SPI master node and can
+contain the following properties.
+- reg             - (required) chip select address of device.
+- compatible      - (required) name of SPI device following generic names
+    		recommended practice
+- spi-max-frequency - (required) Maximum SPI clocking speed of device in Hz
+- spi-cpol        - (optional) Empty property indicating device requires
+    		inverse clock polarity (CPOL) mode
+- spi-cpha        - (optional) Empty property indicating device requires
+    		shifted clock phase (CPHA) mode
+- spi-cs-high     - (optional) Empty property indicating device requires
+    		chip select active high
+
+SPI example for an MPC5200 SPI bus:
+	spi@f00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
+		reg = <0xf00 0x20>;
+		interrupts = <2 13 0 2 14 0>;
+		interrupt-parent = <&mpc5200_pic>;
+
+		ethernet-switch@0 {
+			compatible = "micrel,ks8995m";
+			spi-max-frequency = <1000000>;
+			reg = <0>;
+		};
+
+		codec@1 {
+			compatible = "ti,tlv320aic26";
+			spi-max-frequency = <100000>;
+			reg = <1>;
+		};
+	};
