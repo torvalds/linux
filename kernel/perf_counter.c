@@ -3317,8 +3317,8 @@ out:
 	put_cpu_var(perf_cpu_context);
 }
 
-void
-perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+void __perf_swcounter_event(u32 event, u64 nr, int nmi,
+			    struct pt_regs *regs, u64 addr)
 {
 	struct perf_sample_data data = {
 		.regs = regs,
@@ -3509,9 +3509,19 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 }
 #endif
 
+atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
+
+static void sw_perf_counter_destroy(struct perf_counter *counter)
+{
+	u64 event = counter->attr.config;
+
+	atomic_dec(&perf_swcounter_enabled[event]);
+}
+
 static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 {
 	const struct pmu *pmu = NULL;
+	u64 event = counter->attr.config;
 
 	/*
 	 * Software counters (currently) can't in general distinguish
@@ -3520,7 +3530,7 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	 * to be kernel events, and page faults are never hypervisor
 	 * events.
 	 */
-	switch (counter->attr.config) {
+	switch (event) {
 	case PERF_COUNT_SW_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
@@ -3541,6 +3551,8 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_SW_CONTEXT_SWITCHES:
 	case PERF_COUNT_SW_CPU_MIGRATIONS:
+		atomic_inc(&perf_swcounter_enabled[event]);
+		counter->destroy = sw_perf_counter_destroy;
 		pmu = &perf_ops_generic;
 		break;
 	}

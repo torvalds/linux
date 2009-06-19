@@ -669,7 +669,16 @@ static inline int is_software_counter(struct perf_counter *counter)
 		(counter->attr.type != PERF_TYPE_HW_CACHE);
 }
 
-extern void perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
+extern atomic_t perf_swcounter_enabled[PERF_COUNT_SW_MAX];
+
+extern void __perf_swcounter_event(u32, u64, int, struct pt_regs *, u64);
+
+static inline void
+perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
+{
+	if (atomic_read(&perf_swcounter_enabled[event]))
+		__perf_swcounter_event(event, nr, nmi, regs, addr);
+}
 
 extern void __perf_counter_mmap(struct vm_area_struct *vma);
 
