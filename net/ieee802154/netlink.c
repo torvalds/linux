@@ -524,3 +524,6 @@ static void __exit ieee802154_nl_exit(void)
 }
 module_exit(ieee802154_nl_exit);
 
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("ieee 802.15.4 configuration interface");
+
