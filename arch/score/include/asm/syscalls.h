@@ -1,8 +1,10 @@
 #ifndef _ASM_SCORE_SYSCALLS_H
 #define _ASM_SCORE_SYSCALLS_H
 
-asmlinkage long sys_clone(int flags, unsigned long stack, struct pt_regs *regs);
-#define sys_clone sys_clone
+asmlinkage long score_clone(struct pt_regs *regs);
+asmlinkage long score_execve(struct pt_regs *regs);
+asmlinkage long score_sigaltstack(struct pt_regs *regs);
+asmlinkage long score_rt_sigreturn(struct pt_regs *regs);
 
 #include <asm-generic/syscalls.h>
 
