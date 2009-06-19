@@ -1814,13 +1814,14 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	debugfs_remove(osb->osb_ctxt);
 
+	/* Orphan scan should be stopped as early as possible */
+	ocfs2_orphan_scan_stop(osb);
+
 	ocfs2_disable_quotas(osb);
 
 	ocfs2_shutdown_local_alloc(osb);
 
 	ocfs2_truncate_log_shutdown(osb);
-
-	ocfs2_orphan_scan_stop(osb);
 
 	/* This will disable recovery and flush any recovery work. */
 	ocfs2_recovery_exit(osb);

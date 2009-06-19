@@ -154,6 +154,11 @@ struct ocfs2_lock_res {
 #endif
 };
 
+enum ocfs2_orphan_scan_state {
+	ORPHAN_SCAN_ACTIVE,
+	ORPHAN_SCAN_INACTIVE
+};
+
 struct ocfs2_orphan_scan {
 	struct mutex 		os_lock;
 	struct ocfs2_super 	*os_osb;
@@ -162,6 +167,7 @@ struct ocfs2_orphan_scan {
 	struct timespec		os_scantime;  /* time this node ran the scan */
 	u32			os_count;      /* tracks node specific scans */
 	u32  			os_seqno;       /* tracks cluster wide scans */
+	atomic_t		os_state;              /* ACTIVE or INACTIVE */
 };
 
 struct ocfs2_dlm_debug {
