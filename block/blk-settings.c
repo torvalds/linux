@@ -97,7 +97,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 
 /**
  * blk_set_default_limits - reset limits to default values
- * @limits:  the queue_limits structure to reset
+ * @lim:  the queue_limits structure to reset
  *
  * Description:
  *   Returns a queue_limit struct to its default state.  Can be used by
