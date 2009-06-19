@@ -177,10 +177,8 @@ void __init paging_init(void)
 
 	free_area_init_nodes(max_zone_pfns);
 
-#ifdef CONFIG_SUPERH32
 	/* Set up the uncached fixmap */
 	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
-#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
