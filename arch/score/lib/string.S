@@ -182,15 +182,3 @@ ENTRY(__clear_user)
 99:
 	.word	0b, 99b
 	.previous
-
-	.align	2
-ENTRY(__put_user_unknown)
-	.set volatile
-	ldi	r4, -EFAULT
-	br	r3
-
-	.align	2
-ENTRY(__get_user_unknown)
-	ldi	r5, 0
-	ldi	r4, -EFAULT
-	br	r3
