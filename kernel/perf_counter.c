@@ -124,7 +124,7 @@ void perf_enable(void)
 
 static void get_ctx(struct perf_counter_context *ctx)
 {
-	atomic_inc(&ctx->refcount);
+	WARN_ON(!atomic_inc_not_zero(&ctx->refcount));
 }
 
 static void free_ctx(struct rcu_head *head)
@@ -3466,27 +3466,6 @@ static const struct pmu perf_ops_task_clock = {
 	.disable	= task_clock_perf_counter_disable,
 	.read		= task_clock_perf_counter_read,
 };
-
-/*
- * Software counter: cpu migrations
- */
-void perf_counter_task_migration(struct task_struct *task, int cpu)
-{
-	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
-	struct perf_counter_context *ctx;
-
-	perf_swcounter_ctx_event(&cpuctx->ctx, PERF_TYPE_SOFTWARE,
-				 PERF_COUNT_SW_CPU_MIGRATIONS,
-				 1, 1, NULL, 0);
-
-	ctx = perf_pin_task_context(task);
-	if (ctx) {
-		perf_swcounter_ctx_event(ctx, PERF_TYPE_SOFTWARE,
-					 PERF_COUNT_SW_CPU_MIGRATIONS,
-					 1, 1, NULL, 0);
-		perf_unpin_context(ctx);
-	}
-}
 
 #ifdef CONFIG_EVENT_PROFILE
 void perf_tpcounter_event(int event_id)

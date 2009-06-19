@@ -682,8 +682,6 @@ static inline void perf_counter_mmap(struct vm_area_struct *vma)
 extern void perf_counter_comm(struct task_struct *tsk);
 extern void perf_counter_fork(struct task_struct *tsk);
 
-extern void perf_counter_task_migration(struct task_struct *task, int cpu);
-
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 extern int sysctl_perf_counter_paranoid;
@@ -724,8 +722,6 @@ static inline void perf_counter_mmap(struct vm_area_struct *vma)	{ }
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
 static inline void perf_counter_fork(struct task_struct *tsk)		{ }
 static inline void perf_counter_init(void)				{ }
-static inline void perf_counter_task_migration(struct task_struct *task,
-					       int cpu)			{ }
 #endif
 
 #endif /* __KERNEL__ */
