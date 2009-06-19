@@ -3171,20 +3171,15 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 }
 
 static void perf_swcounter_overflow(struct perf_counter *counter,
-				    int nmi, struct pt_regs *regs, u64 addr)
+				    int nmi, struct perf_sample_data *data)
 {
-	struct perf_sample_data data = {
-		.regs	= regs,
-		.addr	= addr,
-		.period	= counter->hw.last_period,
-	};
+	data->period = counter->hw.last_period;
 
 	perf_swcounter_update(counter);
 	perf_swcounter_set_period(counter);
-	if (perf_counter_overflow(counter, nmi, &data))
+	if (perf_counter_overflow(counter, nmi, data))
 		/* soft-disable the counter */
 		;
-
 }
 
 static int perf_swcounter_is_counting(struct perf_counter *counter)
@@ -3249,18 +3244,18 @@ static int perf_swcounter_match(struct perf_counter *counter,
 }
 
 static void perf_swcounter_add(struct perf_counter *counter, u64 nr,
-			       int nmi, struct pt_regs *regs, u64 addr)
+			       int nmi, struct perf_sample_data *data)
 {
 	int neg = atomic64_add_negative(nr, &counter->hw.count);
 
-	if (counter->hw.sample_period && !neg && regs)
-		perf_swcounter_overflow(counter, nmi, regs, addr);
+	if (counter->hw.sample_period && !neg && data->regs)
+		perf_swcounter_overflow(counter, nmi, data);
 }
 
 static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
-				     enum perf_type_id type, u32 event,
-				     u64 nr, int nmi, struct pt_regs *regs,
-				     u64 addr)
+				     enum perf_type_id type,
+				     u32 event, u64 nr, int nmi,
+				     struct perf_sample_data *data)
 {
 	struct perf_counter *counter;
 
@@ -3269,8 +3264,8 @@ static void perf_swcounter_ctx_event(struct perf_counter_context *ctx,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(counter, &ctx->event_list, event_entry) {
-		if (perf_swcounter_match(counter, type, event, regs))
-			perf_swcounter_add(counter, nr, nmi, regs, addr);
+		if (perf_swcounter_match(counter, type, event, data->regs))
+			perf_swcounter_add(counter, nr, nmi, data);
 	}
 	rcu_read_unlock();
 }
@@ -3289,9 +3284,9 @@ static int *perf_swcounter_recursion_context(struct perf_cpu_context *cpuctx)
 	return &cpuctx->recursion[0];
 }
 
-static void __perf_swcounter_event(enum perf_type_id type, u32 event,
-				   u64 nr, int nmi, struct pt_regs *regs,
-				   u64 addr)
+static void do_perf_swcounter_event(enum perf_type_id type, u32 event,
+				    u64 nr, int nmi,
+				    struct perf_sample_data *data)
 {
 	struct perf_cpu_context *cpuctx = &get_cpu_var(perf_cpu_context);
 	int *recursion = perf_swcounter_recursion_context(cpuctx);
@@ -3304,7 +3299,7 @@ static void __perf_swcounter_event(enum perf_type_id type, u32 event,
 	barrier();
 
 	perf_swcounter_ctx_event(&cpuctx->ctx, type, event,
-				 nr, nmi, regs, addr);
+				 nr, nmi, data);
 	rcu_read_lock();
 	/*
 	 * doesn't really matter which of the child contexts the
@@ -3312,7 +3307,7 @@ static void __perf_swcounter_event(enum perf_type_id type, u32 event,
 	 */
 	ctx = rcu_dereference(current->perf_counter_ctxp);
 	if (ctx)
-		perf_swcounter_ctx_event(ctx, type, event, nr, nmi, regs, addr);
+		perf_swcounter_ctx_event(ctx, type, event, nr, nmi, data);
 	rcu_read_unlock();
 
 	barrier();
@@ -3325,7 +3320,12 @@ out:
 void
 perf_swcounter_event(u32 event, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 {
-	__perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, regs, addr);
+	struct perf_sample_data data = {
+		.regs = regs,
+		.addr = addr,
+	};
+
+	do_perf_swcounter_event(PERF_TYPE_SOFTWARE, event, nr, nmi, &data);
 }
 
 static void perf_swcounter_read(struct perf_counter *counter)
@@ -3469,12 +3469,15 @@ static const struct pmu perf_ops_task_clock = {
 #ifdef CONFIG_EVENT_PROFILE
 void perf_tpcounter_event(int event_id)
 {
-	struct pt_regs *regs = get_irq_regs();
+	struct perf_sample_data data = {
+		.regs = get_irq_regs();
+		.addr = 0,
+	};
 
-	if (!regs)
-		regs = task_pt_regs(current);
+	if (!data.regs)
+		data.regs = task_pt_regs(current);
 
-	__perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, regs, 0);
+	do_perf_swcounter_event(PERF_TYPE_TRACEPOINT, event_id, 1, 1, &data);
 }
 EXPORT_SYMBOL_GPL(perf_tpcounter_event);
 
