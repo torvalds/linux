@@ -151,6 +151,9 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
+config ARCH_HAS_CPU_IDLE_WAIT
+	def_bool y
+
 config IO_TRAPPED
 	bool
 
