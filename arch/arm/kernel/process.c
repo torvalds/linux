@@ -352,6 +352,23 @@ asm(	".section .text\n"
 "	.size	kernel_thread_helper, . - kernel_thread_helper\n"
 "	.previous");
 
+#ifdef CONFIG_ARM_UNWIND
+extern void kernel_thread_exit(long code);
+asm(	".section .text\n"
+"	.align\n"
+"	.type	kernel_thread_exit, #function\n"
+"kernel_thread_exit:\n"
+"	.fnstart\n"
+"	.cantunwind\n"
+"	bl	do_exit\n"
+"	nop\n"
+"	.fnend\n"
+"	.size	kernel_thread_exit, . - kernel_thread_exit\n"
+"	.previous");
+#else
+#define kernel_thread_exit	do_exit
+#endif
+
 /*
  * Create a kernel thread.
  */
@@ -363,7 +380,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 
 	regs.ARM_r1 = (unsigned long)arg;
 	regs.ARM_r2 = (unsigned long)fn;
-	regs.ARM_r3 = (unsigned long)do_exit;
+	regs.ARM_r3 = (unsigned long)kernel_thread_exit;
 	regs.ARM_pc = (unsigned long)kernel_thread_helper;
 	regs.ARM_cpsr = SVC_MODE | PSR_ENDSTATE;
 
