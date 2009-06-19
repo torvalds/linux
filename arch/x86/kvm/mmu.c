@@ -394,9 +394,9 @@ static int *slot_largepage_idx(gfn_t gfn, struct kvm_memory_slot *slot)
 {
 	unsigned long idx;
 
-	idx = (gfn / KVM_PAGES_PER_HPAGE) -
-	      (slot->base_gfn / KVM_PAGES_PER_HPAGE);
-	return &slot->lpage_info[idx].write_count;
+	idx = (gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL)) -
+	      (slot->base_gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL));
+	return &slot->lpage_info[0][idx].write_count;
 }
 
 static void account_shadowed(struct kvm *kvm, gfn_t gfn)
@@ -485,10 +485,10 @@ static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int lpage)
 	if (!lpage)
 		return &slot->rmap[gfn - slot->base_gfn];
 
-	idx = (gfn / KVM_PAGES_PER_HPAGE) -
-	      (slot->base_gfn / KVM_PAGES_PER_HPAGE);
+	idx = (gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL)) -
+	      (slot->base_gfn / KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL));
 
-	return &slot->lpage_info[idx].rmap_pde;
+	return &slot->lpage_info[0][idx].rmap_pde;
 }
 
 /*
@@ -731,11 +731,11 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 		end = start + (memslot->npages << PAGE_SHIFT);
 		if (hva >= start && hva < end) {
 			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
+			int idx = gfn_offset /
+			          KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL);
 			retval |= handler(kvm, &memslot->rmap[gfn_offset]);
 			retval |= handler(kvm,
-					  &memslot->lpage_info[
-						  gfn_offset /
-						  KVM_PAGES_PER_HPAGE].rmap_pde);
+					&memslot->lpage_info[0][idx].rmap_pde);
 		}
 	}
 
@@ -1876,8 +1876,9 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	pfn_t pfn;
 	unsigned long mmu_seq;
 
-	if (is_largepage_backed(vcpu, gfn & ~(KVM_PAGES_PER_HPAGE-1))) {
-		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
+	if (is_largepage_backed(vcpu, gfn &
+			~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1))) {
+		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		largepage = 1;
 	}
 
@@ -2082,8 +2083,9 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	if (r)
 		return r;
 
-	if (is_largepage_backed(vcpu, gfn & ~(KVM_PAGES_PER_HPAGE-1))) {
-		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
+	if (is_largepage_backed(vcpu, gfn &
+			~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1))) {
+		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		largepage = 1;
 	}
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
@@ -2485,7 +2487,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
 	if (is_large_pte(gpte) && is_largepage_backed(vcpu, gfn)) {
-		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
+		gfn &= ~(KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL) - 1);
 		vcpu->arch.update_pte.largepage = 1;
 	}
 	vcpu->arch.update_pte.mmu_seq = vcpu->kvm->mmu_notifier_seq;

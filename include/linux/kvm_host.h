@@ -103,7 +103,7 @@ struct kvm_memory_slot {
 	struct {
 		unsigned long rmap_pde;
 		int write_count;
-	} *lpage_info;
+	} *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned long userspace_addr;
 	int user_alloc;
 };

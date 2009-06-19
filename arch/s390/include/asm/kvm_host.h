@@ -40,7 +40,11 @@ struct sca_block {
 	struct sca_entry cpu[64];
 } __attribute__((packed));
 
-#define KVM_PAGES_PER_HPAGE 256
+#define KVM_NR_PAGE_SIZES 2
+#define KVM_HPAGE_SHIFT(x) (PAGE_SHIFT + ((x) - 1) * 8)
+#define KVM_HPAGE_SIZE(x) (1UL << KVM_HPAGE_SHIFT(x))
+#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
+#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
 #define CPUSTAT_HOST       0x80000000
 #define CPUSTAT_WAIT       0x10000000

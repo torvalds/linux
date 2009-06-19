@@ -54,12 +54,12 @@
 #define INVALID_PAGE (~(hpa_t)0)
 #define UNMAPPED_GVA (~(gpa_t)0)
 
-/* shadow tables are PAE even on non-PAE hosts */
-#define KVM_HPAGE_SHIFT 21
-#define KVM_HPAGE_SIZE (1UL << KVM_HPAGE_SHIFT)
-#define KVM_HPAGE_MASK (~(KVM_HPAGE_SIZE - 1))
-
-#define KVM_PAGES_PER_HPAGE (KVM_HPAGE_SIZE / PAGE_SIZE)
+/* KVM Hugepage definitions for x86 */
+#define KVM_NR_PAGE_SIZES	2
+#define KVM_HPAGE_SHIFT(x)	(PAGE_SHIFT + (((x) - 1) * 9))
+#define KVM_HPAGE_SIZE(x)	(1UL << KVM_HPAGE_SHIFT(x))
+#define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
+#define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
 #define DE_VECTOR 0
 #define DB_VECTOR 1

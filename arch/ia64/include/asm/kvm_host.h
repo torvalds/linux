@@ -235,7 +235,8 @@ struct kvm_vm_data {
 #define KVM_REQ_PTC_G		32
 #define KVM_REQ_RESUME		33
 
-#define KVM_PAGES_PER_HPAGE	1
+#define KVM_NR_PAGE_SIZES	1
+#define KVM_PAGES_PER_HPAGE(x)	1
 
 struct kvm;
 struct kvm_vcpu;

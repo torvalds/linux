@@ -1001,19 +1001,25 @@ out:
 static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
+	int i;
+
 	if (!dont || free->rmap != dont->rmap)
 		vfree(free->rmap);
 
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		vfree(free->dirty_bitmap);
 
-	if (!dont || free->lpage_info != dont->lpage_info)
-		vfree(free->lpage_info);
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		if (!dont || free->lpage_info[i] != dont->lpage_info[i]) {
+			vfree(free->lpage_info[i]);
+			free->lpage_info[i] = NULL;
+		}
+	}
 
 	free->npages = 0;
 	free->dirty_bitmap = NULL;
 	free->rmap = NULL;
-	free->lpage_info = NULL;
 }
 
 void kvm_free_physmem(struct kvm *kvm)
@@ -1087,7 +1093,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	int r;
 	gfn_t base_gfn;
 	unsigned long npages, ugfn;
-	unsigned long largepages, i;
+	int lpages;
+	unsigned long i, j;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
 
@@ -1161,32 +1168,47 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		else
 			new.userspace_addr = 0;
 	}
-	if (npages && !new.lpage_info) {
-		largepages = 1 + (base_gfn + npages - 1) / KVM_PAGES_PER_HPAGE;
-		largepages -= base_gfn / KVM_PAGES_PER_HPAGE;
+	if (!npages)
+		goto skip_lpage;
 
-		new.lpage_info = vmalloc(largepages * sizeof(*new.lpage_info));
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		int level = i + 2;
 
-		if (!new.lpage_info)
+		/* Avoid unused variable warning if no large pages */
+		(void)level;
+
+		if (new.lpage_info[i])
+			continue;
+
+		lpages = 1 + (base_gfn + npages - 1) /
+			     KVM_PAGES_PER_HPAGE(level);
+		lpages -= base_gfn / KVM_PAGES_PER_HPAGE(level);
+
+		new.lpage_info[i] = vmalloc(lpages * sizeof(*new.lpage_info[i]));
+
+		if (!new.lpage_info[i])
 			goto out_free;
 
-		memset(new.lpage_info, 0, largepages * sizeof(*new.lpage_info));
+		memset(new.lpage_info[i], 0,
+		       lpages * sizeof(*new.lpage_info[i]));
 
-		if (base_gfn % KVM_PAGES_PER_HPAGE)
-			new.lpage_info[0].write_count = 1;
-		if ((base_gfn+npages) % KVM_PAGES_PER_HPAGE)
-			new.lpage_info[largepages-1].write_count = 1;
+		if (base_gfn % KVM_PAGES_PER_HPAGE(level))
+			new.lpage_info[i][0].write_count = 1;
+		if ((base_gfn+npages) % KVM_PAGES_PER_HPAGE(level))
+			new.lpage_info[i][lpages - 1].write_count = 1;
 		ugfn = new.userspace_addr >> PAGE_SHIFT;
 		/*
 		 * If the gfn and userspace address are not aligned wrt each
 		 * other, or if explicitly asked to, disable large page
 		 * support for this slot
 		 */
-		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE - 1) ||
+		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
 		    !largepages_enabled)
-			for (i = 0; i < largepages; ++i)
-				new.lpage_info[i].write_count = 1;
+			for (j = 0; j < lpages; ++j)
+				new.lpage_info[i][j].write_count = 1;
 	}
+
+skip_lpage:
 
 	/* Allocate page dirty bitmap if needed */
 	if ((new.flags & KVM_MEM_LOG_DIRTY_PAGES) && !new.dirty_bitmap) {
