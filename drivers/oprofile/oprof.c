@@ -29,13 +29,6 @@ unsigned long oprofile_backtrace_depth;
 static unsigned long is_setup;
 static DEFINE_MUTEX(start_mutex);
 
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void switch_worker(struct work_struct *work);
-static DECLARE_DELAYED_WORK(switch_work, switch_worker);
-
-#endif
-
 /* timer
    0 - use performance monitoring hardware if available
    1 - use the timer int mechanism regardless
@@ -98,9 +91,18 @@ out:
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
+static void switch_worker(struct work_struct *work);
+static DECLARE_DELAYED_WORK(switch_work, switch_worker);
+
 static void start_switch_worker(void)
 {
-	schedule_delayed_work(&switch_work, oprofile_time_slice);
+	if (oprofile_ops.switch_events)
+		schedule_delayed_work(&switch_work, oprofile_time_slice);
+}
+
+static void stop_switch_worker(void)
+{
+	cancel_delayed_work_sync(&switch_work);
 }
 
 static void switch_worker(struct work_struct *work)
@@ -108,87 +110,6 @@ static void switch_worker(struct work_struct *work)
 	if (!oprofile_ops.switch_events())
 		start_switch_worker();
 }
-
-#endif
-
-/* Actually start profiling (echo 1>/dev/oprofile/enable) */
-int oprofile_start(void)
-{
-	int err = -EINVAL;
-
-	mutex_lock(&start_mutex);
-
-	if (!is_setup)
-		goto out;
-
-	err = 0;
-
-	if (oprofile_started)
-		goto out;
-
-	oprofile_reset_stats();
-
-	if ((err = oprofile_ops.start()))
-		goto out;
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	if (oprofile_ops.switch_events)
-		start_switch_worker();
-#endif
-
-	oprofile_started = 1;
-out:
-	mutex_unlock(&start_mutex);
-	return err;
-}
-
-
-/* echo 0>/dev/oprofile/enable */
-void oprofile_stop(void)
-{
-	mutex_lock(&start_mutex);
-	if (!oprofile_started)
-		goto out;
-	oprofile_ops.stop();
-	oprofile_started = 0;
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-	cancel_delayed_work_sync(&switch_work);
-#endif
-
-	/* wake up the daemon to read what remains */
-	wake_up_buffer_waiter();
-out:
-	mutex_unlock(&start_mutex);
-}
-
-
-void oprofile_shutdown(void)
-{
-	mutex_lock(&start_mutex);
-	if (oprofile_ops.sync_stop) {
-		int sync_ret = oprofile_ops.sync_stop();
-		switch (sync_ret) {
-		case 0:
-			goto post_sync;
-		case 1:
-			goto do_generic;
-		default:
-			goto post_sync;
-		}
-	}
-do_generic:
-	sync_stop();
-post_sync:
-	if (oprofile_ops.shutdown)
-		oprofile_ops.shutdown();
-	is_setup = 0;
-	free_event_buffer();
-	free_cpu_buffers();
-	mutex_unlock(&start_mutex);
-}
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
 /* User inputs in ms, converts to jiffies */
 int oprofile_set_timeout(unsigned long val_msec)
@@ -222,7 +143,84 @@ out:
 
 }
 
+#else
+
+static inline void start_switch_worker(void) { }
+static inline void stop_switch_worker(void) { }
+
 #endif
+
+/* Actually start profiling (echo 1>/dev/oprofile/enable) */
+int oprofile_start(void)
+{
+	int err = -EINVAL;
+
+	mutex_lock(&start_mutex);
+
+	if (!is_setup)
+		goto out;
+
+	err = 0;
+
+	if (oprofile_started)
+		goto out;
+
+	oprofile_reset_stats();
+
+	if ((err = oprofile_ops.start()))
+		goto out;
+
+	start_switch_worker();
+
+	oprofile_started = 1;
+out:
+	mutex_unlock(&start_mutex);
+	return err;
+}
+
+
+/* echo 0>/dev/oprofile/enable */
+void oprofile_stop(void)
+{
+	mutex_lock(&start_mutex);
+	if (!oprofile_started)
+		goto out;
+	oprofile_ops.stop();
+	oprofile_started = 0;
+
+	stop_switch_worker();
+
+	/* wake up the daemon to read what remains */
+	wake_up_buffer_waiter();
+out:
+	mutex_unlock(&start_mutex);
+}
+
+
+void oprofile_shutdown(void)
+{
+	mutex_lock(&start_mutex);
+	if (oprofile_ops.sync_stop) {
+		int sync_ret = oprofile_ops.sync_stop();
+		switch (sync_ret) {
+		case 0:
+			goto post_sync;
+		case 1:
+			goto do_generic;
+		default:
+			goto post_sync;
+		}
+	}
+do_generic:
+	sync_stop();
+post_sync:
+	if (oprofile_ops.shutdown)
+		oprofile_ops.shutdown();
+	is_setup = 0;
+	free_event_buffer();
+	free_cpu_buffers();
+	mutex_unlock(&start_mutex);
+}
 
 int oprofile_set_backtrace(unsigned long val)
 {
