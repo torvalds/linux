@@ -608,6 +608,7 @@ struct iwl_hw_params {
 	u8  max_stations;
 	u8  bcast_sta_id;
 	u8 fat_channel;
+	u8  max_beacon_itrvl;	/* in 1024 ms */
 	u32 max_inst_size;
 	u32 max_data_size;
 	u32 max_bsm_size;
