@@ -47,6 +47,7 @@ struct i2c_driver;
 union i2c_smbus_data;
 struct i2c_board_info;
 
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
  * The master routines are the ones normally used to transmit data to devices
  * on a bus (or read from them). Apart from two basic transfer functions to
@@ -93,6 +94,7 @@ extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client *client,
 extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
 					  u8 command, u8 length,
 					  const u8 *values);
+#endif /* I2C */
 
 /**
  * struct i2c_driver - represent an I2C device driver
@@ -260,6 +262,7 @@ struct i2c_board_info {
 	.type = dev_type, .addr = (dev_addr)
 
 
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /* Add-on boards should register/unregister their devices; e.g. a board
  * with integrated I2C, a config eeprom, sensors, and a codec that's
  * used in conjunction with the primary hardware.
@@ -283,6 +286,7 @@ extern struct i2c_client *
 i2c_new_dummy(struct i2c_adapter *adap, u16 address);
 
 extern void i2c_unregister_device(struct i2c_client *);
+#endif /* I2C */
 
 /* Mainboard arch_initcall() code should register all its I2C devices.
  * This is done at arch_initcall time, before declaring any i2c adapters.
@@ -299,7 +303,7 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 {
 	return 0;
 }
-#endif
+#endif /* I2C_BOARDINFO */
 
 /*
  * The following structs are for those who like to implement new bus drivers:
@@ -394,6 +398,7 @@ struct i2c_client_address_data {
 
 /* administration...
  */
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 extern int i2c_add_adapter(struct i2c_adapter *);
 extern int i2c_del_adapter(struct i2c_adapter *);
 extern int i2c_add_numbered_adapter(struct i2c_adapter *);
@@ -435,6 +440,7 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 {
 	return adap->nr;
 }
+#endif /* I2C */
 #endif /* __KERNEL__ */
 
 /**
