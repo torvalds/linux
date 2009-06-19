@@ -889,7 +889,7 @@ static int do_test(int m)
 
 static int do_alg_test(const char *alg, u32 type)
 {
-	return crypto_has_alg(alg, type, CRYPTO_ALG_TYPE_MASK);
+	return crypto_has_alg(alg, type, CRYPTO_ALG_TYPE_MASK) ? 0 : -ENOENT;
 }
 
 static int __init tcrypt_mod_init(void)
