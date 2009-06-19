@@ -500,17 +500,11 @@ first free number.
 Whenever a device node is created some attributes are also created for you.
 If you look in /sys/class/video4linux you see the devices. Go into e.g.
 video0 and you will see 'name' and 'index' attributes. The 'name' attribute
-is the 'name' field of the video_device struct. The 'index' attribute is
-a device node index that can be assigned by the driver, or that is calculated
-for you.
+is the 'name' field of the video_device struct.
 
-If you call video_register_device(), then the index is just increased by
-1 for each device node you register. The first video device node you register
-always starts off with 0.
-
-Alternatively you can call video_register_device_index() which is identical
-to video_register_device(), but with an extra index argument. Here you can
-pass a specific index value (between 0 and 31) that should be used.
+The 'index' attribute is the index of the device node: for each call to
+video_register_device() the index is just increased by 1. The first video
+device node you register always starts with index 0.
 
 Users can setup udev rules that utilize the index attribute to make fancy
 device names (e.g. 'mpegX' for MPEG video capture device nodes).
@@ -520,8 +514,7 @@ After the device was successfully registered, then you can use these fields:
 - vfl_type: the device type passed to video_register_device.
 - minor: the assigned device minor number.
 - num: the device kernel number (i.e. the X in videoX).
-- index: the device index number (calculated or set explicitly using
-  video_register_device_index).
+- index: the device index number.
 
 If the registration failed, then you need to call video_device_release()
 to free the allocated video_device struct, or free your own struct if the
