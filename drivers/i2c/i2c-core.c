@@ -38,6 +38,9 @@
 #include "i2c-core.h"
 
 
+/* core_lock protects i2c_adapter_idr, and guarantees
+   that device detection, deletion of detected devices, and attach_adapter
+   and detach_adapter calls are serialized */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
@@ -418,12 +421,12 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	int res = 0, dummy;
 
 	/* Can't register until after driver model init */
-	if (unlikely(WARN_ON(!i2c_bus_type.p)))
-		return -EAGAIN;
+	if (unlikely(WARN_ON(!i2c_bus_type.p))) {
+		res = -EAGAIN;
+		goto out_list;
+	}
 
 	mutex_init(&adap->bus_lock);
-
-	mutex_lock(&core_lock);
 
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
@@ -443,16 +446,18 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		i2c_scan_static_board_info(adap);
 
 	/* Notify drivers */
+	mutex_lock(&core_lock);
 	dummy = bus_for_each_drv(&i2c_bus_type, NULL, adap,
 				 i2c_do_add_adapter);
-
-out_unlock:
 	mutex_unlock(&core_lock);
-	return res;
+
+	return 0;
 
 out_list:
+	mutex_lock(&core_lock);
 	idr_remove(&i2c_adapter_idr, adap->nr);
-	goto out_unlock;
+	mutex_unlock(&core_lock);
+	return res;
 }
 
 /**
@@ -590,22 +595,25 @@ static int __unregister_client(struct device *dev, void *dummy)
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	int res = 0;
-
-	mutex_lock(&core_lock);
+	struct i2c_adapter *found;
 
 	/* First make sure that this adapter was ever added */
-	if (idr_find(&i2c_adapter_idr, adap->nr) != adap) {
+	mutex_lock(&core_lock);
+	found = idr_find(&i2c_adapter_idr, adap->nr);
+	mutex_unlock(&core_lock);
+	if (found != adap) {
 		pr_debug("i2c-core: attempting to delete unregistered "
 			 "adapter [%s]\n", adap->name);
-		res = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	/* Tell drivers about this removal */
+	mutex_lock(&core_lock);
 	res = bus_for_each_drv(&i2c_bus_type, NULL, adap,
 			       i2c_do_del_adapter);
+	mutex_unlock(&core_lock);
 	if (res)
-		goto out_unlock;
+		return res;
 
 	/* Detach any active clients. This can't fail, thus we do not
 	   checking the returned value. */
@@ -619,7 +627,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	wait_for_completion(&adap->dev_released);
 
 	/* free bus id */
+	mutex_lock(&core_lock);
 	idr_remove(&i2c_adapter_idr, adap->nr);
+	mutex_unlock(&core_lock);
 
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
@@ -627,9 +637,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	   added again */
 	memset(&adap->dev, 0, sizeof(adap->dev));
 
- out_unlock:
-	mutex_unlock(&core_lock);
-	return res;
+	return 0;
 }
 EXPORT_SYMBOL(i2c_del_adapter);
 
@@ -674,16 +682,15 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	mutex_lock(&core_lock);
-
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
+	mutex_lock(&core_lock);
 	class_for_each_device(&i2c_adapter_class, NULL, driver,
 			      __attach_adapter);
-
 	mutex_unlock(&core_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(i2c_register_driver);
@@ -721,14 +728,12 @@ static int __detach_adapter(struct device *dev, void *data)
 void i2c_del_driver(struct i2c_driver *driver)
 {
 	mutex_lock(&core_lock);
-
 	class_for_each_device(&i2c_adapter_class, NULL, driver,
 			      __detach_adapter);
+	mutex_unlock(&core_lock);
 
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
-
-	mutex_unlock(&core_lock);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
