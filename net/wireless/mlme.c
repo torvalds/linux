@@ -77,6 +77,22 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 {
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+#ifdef CONFIG_WIRELESS_EXT
+	union iwreq_data wrqu;
+	char *buf = kmalloc(128, GFP_ATOMIC);
+
+	if (buf) {
+		sprintf(buf, "MLME-MICHAELMICFAILURE.indication("
+			"keyid=%d %scast addr=%pM)", key_id,
+			key_type == NL80211_KEYTYPE_GROUP ? "broad" : "uni",
+			addr);
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.data.length = strlen(buf);
+		wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
+		kfree(buf);
+	}
+#endif
+
 	nl80211_michael_mic_failure(rdev, dev, addr, key_type, key_id, tsc);
 }
 EXPORT_SYMBOL(cfg80211_michael_mic_failure);
