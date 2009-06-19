@@ -96,7 +96,7 @@ static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_fmt(codec_dai,
 				SND_SOC_DAIFMT_DSP_A |
 				SND_SOC_DAIFMT_IB_NF |
-				SND_SOC_DAIFMT_CBS_CFM);
+				SND_SOC_DAIFMT_CBM_CFM);
 	if (ret) {
 		printk(KERN_ERR "can't set codec DAI configuration\n");
 		return ret;
