@@ -924,7 +924,7 @@ static const struct soc_enum twl4030_op_modes_enum =
 			ARRAY_SIZE(twl4030_op_modes_texts),
 			twl4030_op_modes_texts);
 
-int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
