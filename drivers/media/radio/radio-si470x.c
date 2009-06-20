@@ -1141,9 +1141,6 @@ static int si470x_fops_open(struct file *file)
 		goto done;
 	}
 
-	printk(KERN_INFO DRIVER_NAME
-		 ": Opened radio (users now: %i)\n", radio->users);
-
 	if (radio->users == 1) {
 		/* start radio */
 		retval = si470x_start(radio);
@@ -1151,7 +1148,8 @@ static int si470x_fops_open(struct file *file)
 			usb_autopm_put_interface(radio->intf);
 			goto done;
 		}
-		/* Initialize interrupt URB. */
+
+		/* initialize interrupt urb */
 		usb_fill_int_urb(radio->int_in_urb, radio->usbdev,
 			usb_rcvintpipe(radio->usbdev,
 			radio->int_in_endpoint->bEndpointAddress),
@@ -1171,7 +1169,6 @@ static int si470x_fops_open(struct file *file)
 			radio->int_in_running = 0;
 			usb_autopm_put_interface(radio->intf);
 		}
-
 	}
 
 done:
@@ -1196,11 +1193,8 @@ static int si470x_fops_release(struct file *file)
 
 	mutex_lock(&radio->disconnect_lock);
 	radio->users--;
-	printk(KERN_INFO DRIVER_NAME
-		 ": Closed radio (remaining users:%i)\n", radio->users);
 	if (radio->users == 0) {
-
-		/* Shutdown Interrupt handler */
+		/* shutdown interrupt handler */
 		if (radio->int_in_running) {
 			radio->int_in_running = 0;
 		if (radio->int_in_urb)
