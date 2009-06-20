@@ -27,4 +27,5 @@ obj-$(CONFIG_M5307)	+= timers.o
 obj-$(CONFIG_M532x)	+= timers.o
 obj-$(CONFIG_M5407)	+= timers.o
 
+obj-y			+= pinmux.o gpio.o
 extra-y := head.o
