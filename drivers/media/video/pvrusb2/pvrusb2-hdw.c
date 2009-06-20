@@ -1987,6 +1987,34 @@ static unsigned int pvr2_copy_i2c_addr_list(
 }
 
 
+static void pvr2_hdw_cx25840_vbi_hack(struct pvr2_hdw *hdw)
+{
+	/*
+	  Mike Isely <isely@pobox.com> 19-Nov-2006 - This bit of nuttiness
+	  for cx25840 causes that module to correctly set up its video
+	  scaling.  This is really a problem in the cx25840 module itself,
+	  but we work around it here.  The problem has not been seen in
+	  ivtv because there VBI is supported and set up.  We don't do VBI
+	  here (at least not yet) and thus we never attempted to even set
+	  it up.
+	*/
+	struct v4l2_format fmt;
+	if (hdw->decoder_client_id != PVR2_CLIENT_ID_CX25840) {
+		/* We're not using a cx25840 so don't enable the hack */
+		return;
+	}
+
+	pvr2_trace(PVR2_TRACE_INIT,
+		   "Module ID %u:"
+		   " Executing cx25840 VBI hack",
+		   hdw->decoder_client_id);
+	memset(&fmt, 0, sizeof(fmt));
+	fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
+			     video, s_fmt, &fmt);
+}
+
+
 static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 				const struct pvr2_device_client_desc *cd)
 {
@@ -2078,30 +2106,6 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	/* client-specific setup... */
 	switch (mid) {
 	case PVR2_CLIENT_ID_CX25840:
-		hdw->decoder_client_id = mid;
-		{
-			/*
-			  Mike Isely <isely@pobox.com> 19-Nov-2006 - This
-			  bit of nuttiness for cx25840 causes that module
-			  to correctly set up its video scaling.  This is
-			  really a problem in the cx25840 module itself,
-			  but we work around it here.  The problem has not
-			  been seen in ivtv because there VBI is supported
-			  and set up.  We don't do VBI here (at least not
-			  yet) and thus we never attempted to even set it
-			  up.
-			*/
-			struct v4l2_format fmt;
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "Module ID %u:"
-				   " Executing cx25840 VBI hack",
-				   mid);
-			memset(&fmt, 0, sizeof(fmt));
-			fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
-			v4l2_device_call_all(&hdw->v4l2_dev, mid,
-					     video, s_fmt, &fmt);
-		}
-		break;
 	case PVR2_CLIENT_ID_SAA7115:
 		hdw->decoder_client_id = mid;
 		break;
@@ -2201,6 +2205,8 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		if (!cptr->info->set_value) continue;
 		cptr->info->set_value(cptr,~0,cptr->info->default_value);
 	}
+
+	pvr2_hdw_cx25840_vbi_hack(hdw);
 
 	/* Set up special default values for the television and radio
 	   frequencies here.  It's not really important what these defaults
@@ -4076,6 +4082,7 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 	if (hdw->decoder_client_id) {
 		v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
 				     core, reset, 0);
+		pvr2_hdw_cx25840_vbi_hack(hdw);
 		return 0;
 	}
 	pvr2_trace(PVR2_TRACE_INIT,
