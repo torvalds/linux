@@ -63,16 +63,22 @@
 #define	MCFSIM_DCMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
 #define	MCFSIM_DCCR1		0x63		/* DRAM 1 Control reg (r/w) */
 
-#define	MCFSIM_PACNT		0x80		/* Port A Control (r/w) */
-#define	MCFSIM_PADDR		0x84		/* Port A Direction (r/w) */
-#define	MCFSIM_PADAT		0x86		/* Port A Data (r/w) */
-#define	MCFSIM_PBCNT		0x88		/* Port B Control (r/w) */
-#define	MCFSIM_PBDDR		0x8c		/* Port B Direction (r/w) */
-#define	MCFSIM_PBDAT		0x8e		/* Port B Data (r/w) */
-#define	MCFSIM_PCDDR		0x94		/* Port C Direction (r/w) */
-#define	MCFSIM_PCDAT		0x96		/* Port C Data (r/w) */
-#define	MCFSIM_PDCNT		0x98		/* Port D Control (r/w) */
+#define	MCFSIM_PACNT		(MCF_MBAR + 0x80) /* Port A Control (r/w) */
+#define	MCFSIM_PADDR		(MCF_MBAR + 0x84) /* Port A Direction (r/w) */
+#define	MCFSIM_PADAT		(MCF_MBAR + 0x86) /* Port A Data (r/w) */
+#define	MCFSIM_PBCNT		(MCF_MBAR + 0x88) /* Port B Control (r/w) */
+#define	MCFSIM_PBDDR		(MCF_MBAR + 0x8c) /* Port B Direction (r/w) */
+#define	MCFSIM_PBDAT		(MCF_MBAR + 0x8e) /* Port B Data (r/w) */
+#define	MCFSIM_PCDDR		(MCF_MBAR + 0x94) /* Port C Direction (r/w) */
+#define	MCFSIM_PCDAT		(MCF_MBAR + 0x96) /* Port C Data (r/w) */
+#define	MCFSIM_PDCNT		(MCF_MBAR + 0x98) /* Port D Control (r/w) */
 
 
+/*
+ * Generic GPIO support
+ */
+#define MCFGPIO_PIN_MAX			48
+#define MCFGPIO_IRQ_MAX			-1
+#define MCFGPIO_IRQ_VECBASE		-1
 /****************************************************************************/
 #endif	/* m5272sim_h */
