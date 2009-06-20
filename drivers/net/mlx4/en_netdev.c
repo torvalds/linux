@@ -668,7 +668,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	queue_work(mdev->workqueue, &priv->mcast_task);
 
 	priv->port_up = true;
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 	return 0;
 
 mac_err:
@@ -700,7 +700,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 		en_dbg(DRV, priv, "stop port called while port already down\n");
 		return;
 	}
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
