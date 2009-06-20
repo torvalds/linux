@@ -95,6 +95,7 @@
 
 #define MAX_RATE_POWER              63
 #define AH_WAIT_TIMEOUT             100000 /* (us) */
+#define AH_TSF_WRITE_TIMEOUT        100    /* (us) */
 #define AH_TIME_QUANTUM             10
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               200000
