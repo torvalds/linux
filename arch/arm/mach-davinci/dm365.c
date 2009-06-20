@@ -660,6 +660,91 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_DM365_EMUINT]		= 7,
 };
 
+/* Four Transfer Controllers on DM365 */
+static const s8
+dm365_queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{2, 2},
+	{3, 3},
+	{-1, -1},
+};
+
+static const s8
+dm365_queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 7},
+	{1, 7},
+	{2, 7},
+	{3, 0},
+	{-1, -1},
+};
+
+static struct edma_soc_info dm365_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 4,
+		.n_slot			= 256,
+		.n_tc			= 4,
+		.n_cc			= 1,
+		.queue_tc_mapping	= dm365_queue_tc_mapping,
+		.queue_priority_mapping	= dm365_queue_priority_mapping,
+	},
+};
+
+static struct resource edma_resources[] = {
+	{
+		.name	= "edma_cc0",
+		.start	= 0x01c00000,
+		.end	= 0x01c00000 + SZ_64K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc0",
+		.start	= 0x01c10000,
+		.end	= 0x01c10000 + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc1",
+		.start	= 0x01c10400,
+		.end	= 0x01c10400 + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc2",
+		.start	= 0x01c10800,
+		.end	= 0x01c10800 + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma_tc3",
+		.start	= 0x01c10c00,
+		.end	= 0x01c10c00 + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "edma0",
+		.start	= IRQ_CCINT0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "edma0_err",
+		.start	= IRQ_CCERRINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	/* not using TC*_ERR */
+};
+
+static struct platform_device dm365_edma_device = {
+	.name			= "edma",
+	.id			= 0,
+	.dev.platform_data	= dm365_edma_info,
+	.num_resources		= ARRAY_SIZE(edma_resources),
+	.resource		= edma_resources,
+};
+
 static struct map_desc dm365_io_desc[] = {
 	{
 		.virtual	= IO_VIRT,
@@ -763,6 +848,8 @@ static int __init dm365_init_devices(void)
 	if (!cpu_is_davinci_dm365())
 		return 0;
 
+	davinci_cfg_reg(DM365_INT_EDMA_CC);
+	platform_device_register(&dm365_edma_device);
 	platform_device_register(&dm365_emac_device);
 
 	return 0;
