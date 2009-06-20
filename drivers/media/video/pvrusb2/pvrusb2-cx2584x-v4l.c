@@ -114,13 +114,11 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		const struct routing_scheme *sp;
 		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
-		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes[sid]) != NULL) &&
-		    (hdw->input_val >= 0) &&
-		    (hdw->input_val < sp->cnt)) {
-			vid_input = sp->def[hdw->input_val].vid;
-			aud_input = sp->def[hdw->input_val].aud;
-		} else {
+		sp = (sid < ARRAY_SIZE(routing_schemes)) ?
+			routing_schemes[sid] : NULL;
+		if ((sp == NULL) ||
+		    (hdw->input_val < 0) ||
+		    (hdw->input_val >= sp->cnt)) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "*** WARNING *** subdev cx2584x set_input:"
 				   " Invalid routing scheme (%u)"
@@ -128,7 +126,8 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 				   sid, hdw->input_val);
 			return;
 		}
-
+		vid_input = sp->def[hdw->input_val].vid;
+		aud_input = sp->def[hdw->input_val].aud;
 		pvr2_trace(PVR2_TRACE_CHIPS,
 			   "subdev cx2584x set_input vid=0x%x aud=0x%x",
 			   vid_input, aud_input);

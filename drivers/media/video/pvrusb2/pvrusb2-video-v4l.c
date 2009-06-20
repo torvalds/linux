@@ -85,12 +85,12 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 
 		pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 set_input(%d)",
 			   hdw->input_val);
-		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes[sid]) != NULL) &&
-		    (hdw->input_val >= 0) &&
-		    (hdw->input_val < sp->cnt)) {
-			input = sp->def[hdw->input_val];
-		} else {
+
+		sp = (sid < ARRAY_SIZE(routing_schemes)) ?
+			routing_schemes[sid] : NULL;
+		if ((sp == NULL) ||
+		    (hdw->input_val < 0) ||
+		    (hdw->input_val >= sp->cnt)) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 				   "*** WARNING *** subdev v4l2 set_input:"
 				   " Invalid routing scheme (%u)"
@@ -98,6 +98,7 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 				   sid, hdw->input_val);
 			return;
 		}
+		input = sp->def[hdw->input_val];
 		sd->ops->video->s_routing(sd, input, 0, 0);
 	}
 }
