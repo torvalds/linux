@@ -614,10 +614,6 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int lso_header_size;
 	void *fragptr;
 
-	if (unlikely(!skb->len)) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
 		goto tx_drop;
