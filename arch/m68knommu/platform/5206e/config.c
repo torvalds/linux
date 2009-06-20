@@ -15,6 +15,7 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/mcfuart.h>
 #include <asm/mcfdma.h>
 #include <asm/mcfuart.h>
 
