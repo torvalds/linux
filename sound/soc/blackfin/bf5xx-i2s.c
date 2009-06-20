@@ -249,8 +249,7 @@ static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int bf5xx_i2s_resume(struct platform_device *pdev,
-			    struct snd_soc_dai *dai)
+static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 {
 	int ret;
 	struct sport_device *sport =
