@@ -530,6 +530,19 @@ MUX_CFG(DM365,  EMAC_RX_ER,	3,   3,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_CRS,	3,   2,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDIO,	3,   1,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDCLK,	3,   0,     1,    1,     false)
+
+MUX_CFG(DM365,	KEYPAD,		2,   0,     0x3f, 0x3f,  false)
+
+INT_CFG(DM365,  INT_EDMA_CC,         2,     1,    1,     false)
+INT_CFG(DM365,  INT_EDMA_TC0_ERR,    3,     1,    1,     false)
+INT_CFG(DM365,  INT_EDMA_TC1_ERR,    4,     1,    1,     false)
+INT_CFG(DM365,  INT_EDMA_TC2_ERR,    22,    1,    1,     false)
+INT_CFG(DM365,  INT_EDMA_TC3_ERR,    23,    1,    1,     false)
+INT_CFG(DM365,  INT_PRTCSS,          10,    1,    1,     false)
+INT_CFG(DM365,  INT_EMAC_RXTHRESH,   14,    1,    1,     false)
+INT_CFG(DM365,  INT_EMAC_RXPULSE,    15,    1,    1,     false)
+INT_CFG(DM365,  INT_EMAC_TXPULSE,    16,    1,    1,     false)
+INT_CFG(DM365,  INT_EMAC_MISCPULSE,  17,    1,    1,     false)
 #endif
 };
 
