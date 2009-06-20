@@ -1154,6 +1154,7 @@ ENTRY(ftrace_graph_caller)
 	pushl %edx
 	movl 0xc(%esp), %edx
 	lea 0x4(%ebp), %eax
+	movl (%ebp), %ecx
 	subl $MCOUNT_INSN_SIZE, %edx
 	call prepare_ftrace_return
 	popl %edx
@@ -1168,6 +1169,7 @@ return_to_handler:
 	pushl %eax
 	pushl %ecx
 	pushl %edx
+	movl %ebp, %eax
 	call ftrace_return_to_handler
 	movl %eax, 0xc(%esp)
 	popl %edx
