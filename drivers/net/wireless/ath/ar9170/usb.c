@@ -779,7 +779,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	aru->req_one_stage_fw = ar9170_requires_one_stage(id);
 
 	usb_set_intfdata(intf, aru);
-	SET_IEEE80211_DEV(ar->hw, &udev->dev);
+	SET_IEEE80211_DEV(ar->hw, &intf->dev);
 
 	init_usb_anchor(&aru->rx_submitted);
 	init_usb_anchor(&aru->tx_pending);
