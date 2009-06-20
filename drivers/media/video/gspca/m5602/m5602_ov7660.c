@@ -24,6 +24,11 @@ static int ov7660_get_blue_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_blue_gain(struct gspca_dev *gspca_dev, __s32 val);
 static int ov7660_get_red_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_red_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int ov7660_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val);
+static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val);
+
 
 const static struct ctrl ov7660_ctrls[] = {
 #define GAIN_IDX 1
@@ -71,6 +76,21 @@ const static struct ctrl ov7660_ctrls[] = {
 		.set = ov7660_set_red_gain,
 		.get = ov7660_get_red_gain
 	},
+#define AUTO_WHITE_BALANCE_IDX 4
+	{
+		{
+			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "auto white balance",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 1
+		},
+		.set = ov7660_set_auto_white_balance,
+		.get = ov7660_get_auto_white_balance
+	},
+
 };
 
 static struct v4l2_pix_format ov7660_modes[] = {
@@ -182,6 +202,9 @@ int ov7660_init(struct sd *sd)
 	if (err < 0)
 		return err;
 
+	err = ov7660_set_auto_white_balance(&sd->gspca_dev,
+		sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+
 	return err;
 }
 
@@ -275,6 +298,37 @@ static int ov7660_set_red_gain(struct gspca_dev *gspca_dev, __s32 val)
 	sensor_settings[RED_BALANCE_IDX] = val;
 
 	err = m5602_write_sensor(sd, OV7660_RED_GAIN, &i2c_data, 1);
+	return err;
+}
+
+static int ov7660_get_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[AUTO_WHITE_BALANCE_IDX];
+	return 0;
+}
+
+static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
+					 __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Set auto white balance to %d", val);
+
+	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val;
+	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	i2c_data = ((i2c_data & 0xfd) | ((val & 0x01) << 1));
+	err = m5602_write_sensor(sd, OV7660_COM8, &i2c_data, 1);
+
 	return err;
 }
 
