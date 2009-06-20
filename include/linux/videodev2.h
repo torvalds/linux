@@ -1186,6 +1186,7 @@ struct v4l2_modulator {
 #define V4L2_TUNER_CAP_LANG2		0x0020
 #define V4L2_TUNER_CAP_SAP		0x0020
 #define V4L2_TUNER_CAP_LANG1		0x0040
+#define V4L2_TUNER_CAP_RDS		0x0080
 
 /*  Flags for the 'rxsubchans' field */
 #define V4L2_TUNER_SUB_MONO		0x0001
@@ -1193,6 +1194,7 @@ struct v4l2_modulator {
 #define V4L2_TUNER_SUB_LANG2		0x0004
 #define V4L2_TUNER_SUB_SAP		0x0004
 #define V4L2_TUNER_SUB_LANG1		0x0008
+#define V4L2_TUNER_SUB_RDS		0x0010
 
 /*  Values for the 'audmode' field */
 #define V4L2_TUNER_MODE_MONO		0x0000
@@ -1216,6 +1218,27 @@ struct v4l2_hw_freq_seek {
 	__u32		      wrap_around;
 	__u32		      reserved[8];
 };
+
+/*
+ *	R D S
+ */
+
+struct v4l2_rds_data {
+	__u8 	lsb;
+	__u8 	msb;
+	__u8 	block;
+} __attribute__ ((packed));
+
+#define V4L2_RDS_BLOCK_MSK 	 0x7
+#define V4L2_RDS_BLOCK_A 	 0
+#define V4L2_RDS_BLOCK_B 	 1
+#define V4L2_RDS_BLOCK_C 	 2
+#define V4L2_RDS_BLOCK_D 	 3
+#define V4L2_RDS_BLOCK_C_ALT 	 4
+#define V4L2_RDS_BLOCK_INVALID 	 7
+
+#define V4L2_RDS_BLOCK_CORRECTED 0x40
+#define V4L2_RDS_BLOCK_ERROR 	 0x80
 
 /*
  *	A U D I O
