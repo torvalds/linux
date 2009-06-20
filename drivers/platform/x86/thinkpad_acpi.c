@@ -1163,8 +1163,8 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 {
 	struct tpacpi_rfk *atp_rfk;
 	int res;
-	bool initial_sw_state = false;
-	int initial_sw_status;
+	bool sw_state = false;
+	int sw_status;
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
@@ -1185,17 +1185,17 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	atp_rfk->id = id;
 	atp_rfk->ops = tp_rfkops;
 
-	initial_sw_status = (tp_rfkops->get_status)();
-	if (initial_sw_status < 0) {
+	sw_status = (tp_rfkops->get_status)();
+	if (sw_status < 0) {
 		printk(TPACPI_ERR
 			"failed to read initial state for %s, error %d\n",
-			name, initial_sw_status);
+			name, sw_status);
 	} else {
-		initial_sw_state = (initial_sw_status == TPACPI_RFK_RADIO_OFF);
+		sw_state = (sw_status == TPACPI_RFK_RADIO_OFF);
 		if (set_default) {
 			/* try to keep the initial state, since we ask the
 			 * firmware to preserve it across S5 in NVRAM */
-			rfkill_set_sw_state(atp_rfk->rfkill, initial_sw_state);
+			rfkill_init_sw_state(atp_rfk->rfkill, sw_state);
 		}
 	}
 	rfkill_set_hw_state(atp_rfk->rfkill, tpacpi_rfk_check_hwblock_state());

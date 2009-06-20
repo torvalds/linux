@@ -111,6 +111,8 @@ following attributes:
 
 	name: Name assigned by driver to this key (interface or driver name).
 	type: Driver type string ("wlan", "bluetooth", etc).
+	persistent: Whether the soft blocked state is initialised from
+	            non-volatile storage at startup.
 	state: Current state of the transmitter
 		0: RFKILL_STATE_SOFT_BLOCKED
 			transmitter is turned off by software
