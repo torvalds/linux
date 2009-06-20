@@ -68,6 +68,11 @@ static const struct routing_scheme_item routing_scheme0[] = {
 	},
 };
 
+static const struct routing_scheme routing_def0 = {
+	.def = routing_scheme0,
+	.cnt = ARRAY_SIZE(routing_scheme0),
+};
+
 /* Specific to gotview device */
 static const struct routing_scheme_item routing_schemegv[] = {
 	[PVR2_CVAL_INPUT_TV] = {
@@ -90,15 +95,14 @@ static const struct routing_scheme_item routing_schemegv[] = {
 	},
 };
 
-static const struct routing_scheme routing_schemes[] = {
-	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
-		.def = routing_scheme0,
-		.cnt = ARRAY_SIZE(routing_scheme0),
-	},
-	[PVR2_ROUTING_SCHEME_GOTVIEW] = {
-		.def = routing_schemegv,
-		.cnt = ARRAY_SIZE(routing_schemegv),
-	},
+static const struct routing_scheme routing_defgv = {
+	.def = routing_schemegv,
+	.cnt = ARRAY_SIZE(routing_schemegv),
+};
+
+static const struct routing_scheme *routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = &routing_def0,
+	[PVR2_ROUTING_SCHEME_GOTVIEW] = &routing_defgv,
 };
 
 void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
@@ -111,7 +115,7 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
 		if ((sid < ARRAY_SIZE(routing_schemes)) &&
-		    ((sp = routing_schemes + sid) != NULL) &&
+		    ((sp = routing_schemes[sid]) != NULL) &&
 		    (hdw->input_val >= 0) &&
 		    (hdw->input_val < sp->cnt)) {
 			vid_input = sp->def[hdw->input_val].vid;
