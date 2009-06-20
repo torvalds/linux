@@ -472,7 +472,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
@@ -782,7 +782,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (type == IRQ_TYPE_PROBE) {
 		/* only probe unenabled GPIO interrupt lines */
-		if (__test_bit(gpionr, gpio_enabled))
+		if (test_bit(gpionr, gpio_enabled))
 			return 0;
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}

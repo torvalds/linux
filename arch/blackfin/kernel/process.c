@@ -160,6 +160,29 @@ pid_t kernel_thread(int (*fn) (void *), void *arg, unsigned long flags)
 }
 EXPORT_SYMBOL(kernel_thread);
 
+/*
+ * Do necessary setup to start up a newly executed thread.
+ *
+ * pass the data segment into user programs if it exists,
+ * it can't hurt anything as far as I can tell
+ */
+void start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	set_fs(USER_DS);
+	regs->pc = new_ip;
+	if (current->mm)
+		regs->p5 = current->mm->start_data;
+#ifdef CONFIG_SMP
+	task_thread_info(current)->l1_task_info.stack_start =
+		(void *)current->mm->context.stack_start;
+	task_thread_info(current)->l1_task_info.lowest_sp = (void *)new_sp;
+	memcpy(L1_SCRATCH_TASK_INFO, &task_thread_info(current)->l1_task_info,
+	       sizeof(*L1_SCRATCH_TASK_INFO));
+#endif
+	wrusp(new_sp);
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 void flush_thread(void)
 {
 }
