@@ -3842,6 +3842,7 @@ void ath9k_hw_reset_tsf(struct ath_hw *ah)
 {
 	int count;
 
+	ath9k_ps_wakeup(ah->ah_sc);
 	count = 0;
 	while (REG_READ(ah, AR_SLP32_MODE) & AR_SLP32_TSF_WRITE_STATUS) {
 		count++;
@@ -3853,6 +3854,7 @@ void ath9k_hw_reset_tsf(struct ath_hw *ah)
 		udelay(10);
 	}
 	REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);
+	ath9k_ps_restore(ah->ah_sc);
 }
 
 bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)
