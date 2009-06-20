@@ -295,8 +295,6 @@ struct mlx4_en_rx_ring {
 	u32 prod;
 	u32 cons;
 	u32 buf_size;
-	int need_refill;
-	int full;
 	void *buf;
 	void *rx_info;
 	unsigned long bytes;
@@ -494,7 +492,6 @@ struct mlx4_en_priv {
 	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
 	struct work_struct mcast_task;
 	struct work_struct mac_task;
-	struct delayed_work refill_task;
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
@@ -564,7 +561,6 @@ void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv);
 void mlx4_en_release_rss_steer(struct mlx4_en_priv *priv);
 int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring);
-void mlx4_en_rx_refill(struct work_struct *work);
 void mlx4_en_rx_irq(struct mlx4_cq *mcq);
 
 int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mode);
