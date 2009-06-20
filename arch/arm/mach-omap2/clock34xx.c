@@ -718,9 +718,6 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	if (clk != &dpll3_m2_ck)
 		return -EINVAL;
 
-	if (rate == clk->rate)
-		return 0;
-
 	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
 	if (validrate != rate)
 		return -EINVAL;
