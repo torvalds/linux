@@ -204,6 +204,16 @@ int ov7660_init(struct sd *sd)
 
 	err = ov7660_set_auto_white_balance(&sd->gspca_dev,
 		sensor_settings[AUTO_WHITE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov7660_set_blue_gain(&sd->gspca_dev,
+		sensor_settings[BLUE_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov7660_set_red_gain(&sd->gspca_dev,
+		sensor_settings[RED_BALANCE_IDX]);
 
 	return err;
 }
