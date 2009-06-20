@@ -157,12 +157,6 @@ enum {
 #define REQ_UNPARK_HEADS	0x23
 
 /*
- * Check for an interrupt and acknowledge the interrupt status
- */
-struct hwif_s;
-typedef int (ide_ack_intr_t)(struct hwif_s *);
-
-/*
  * hwif_chipset_t is used to keep track of the specific hardware
  * chipset used by each IDE interface, if known.
  */
@@ -185,7 +179,6 @@ struct ide_hw {
 	};
 
 	int		irq;			/* our irq number */
-	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	struct device	*dev, *parent;
 	unsigned long	config;
 };
@@ -331,11 +324,6 @@ enum {
 	PC_FLAG_WRITING			= (1 << 6),
 };
 
-/*
- * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
- * This is used for several packet commands (not for READ/WRITE commands).
- */
-#define IDE_PC_BUFFER_SIZE	64
 #define ATAPI_WAIT_PC		(60 * HZ)
 
 struct ide_atapi_pc {
@@ -347,12 +335,6 @@ struct ide_atapi_pc {
 
 	/* bytes to transfer */
 	int req_xfer;
-	/* bytes actually transferred */
-	int xferred;
-
-	/* data buffer */
-	u8 *buf;
-	int buf_size;
 
 	/* the corresponding request */
 	struct request *rq;
@@ -363,8 +345,6 @@ struct ide_atapi_pc {
 	 * those are more or less driver-specific and some of them are subject
 	 * to change/removal later.
 	 */
-	u8 pc_buf[IDE_PC_BUFFER_SIZE];
-
 	unsigned long timeout;
 };
 
@@ -552,7 +532,7 @@ struct ide_drive_s {
 
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
-	unsigned int	drive_data;	/* used by set_pio_mode/dev_select() */
+	void		*drive_data;	/* used by set_pio_mode/dev_select() */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
 	u64		probed_capacity;/* initial/native media capacity */
@@ -649,6 +629,7 @@ struct ide_port_ops {
 	void	(*maskproc)(ide_drive_t *, int);
 	void	(*quirkproc)(ide_drive_t *);
 	void	(*clear_irq)(ide_drive_t *);
+	int	(*test_irq)(struct hwif_s *);
 
 	u8	(*mdma_filter)(ide_drive_t *);
 	u8	(*udma_filter)(ide_drive_t *);
@@ -674,6 +655,10 @@ struct ide_dma_ops {
 	u8	(*dma_sff_read_status)(struct hwif_s *);
 };
 
+enum {
+	IDE_PFLAG_PROBING		= (1 << 0),
+};
+
 struct ide_host;
 
 typedef struct hwif_s {
@@ -689,6 +674,8 @@ typedef struct hwif_s {
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
 	ide_drive_t	*devices[MAX_DRIVES + 1];
+
+	unsigned long	port_flags;
 
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
@@ -707,8 +694,6 @@ typedef struct hwif_s {
 	hwif_chipset_t chipset;	/* sub-module for tuning.. */
 
 	struct device *dev;
-
-	ide_ack_intr_t *ack_intr;
 
 	void (*rw_disk)(ide_drive_t *, struct request *);
 
@@ -1130,6 +1115,8 @@ void SELECT_MASK(ide_drive_t *, int);
 u8 ide_read_error(ide_drive_t *);
 void ide_read_bcount_and_ireason(ide_drive_t *, u16 *, u8 *);
 
+int ide_check_ireason(ide_drive_t *, struct request *, int, int, int);
+
 int ide_check_atapi_device(ide_drive_t *, const char *);
 
 void ide_init_pc(struct ide_atapi_pc *);
@@ -1154,7 +1141,8 @@ enum {
 	REQ_IDETAPE_WRITE	= (1 << 3),
 };
 
-int ide_queue_pc_tail(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *);
+int ide_queue_pc_tail(ide_drive_t *, struct gendisk *, struct ide_atapi_pc *,
+		      void *, unsigned int);
 
 int ide_do_test_unit_ready(ide_drive_t *, struct gendisk *);
 int ide_do_start_stop(ide_drive_t *, struct gendisk *, int);
@@ -1524,6 +1512,7 @@ int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
 int ide_scan_pio_blacklist(char *);
 const char *ide_xfer_verbose(u8);
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
+int ide_pio_need_iordy(ide_drive_t *, const u8);
 int ide_set_pio_mode(ide_drive_t *, u8);
 int ide_set_dma_mode(ide_drive_t *, u8);
 void ide_set_pio(ide_drive_t *, u8);
@@ -1559,6 +1548,16 @@ static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 	ide_drive_t *peer = drive->hwif->devices[(drive->dn ^ 1) & 1];
 
 	return (peer->dev_flags & IDE_DFLAG_PRESENT) ? peer : NULL;
+}
+
+static inline void *ide_get_drivedata(ide_drive_t *drive)
+{
+	return drive->drive_data;
+}
+
+static inline void ide_set_drivedata(ide_drive_t *drive, void *data)
+{
+	drive->drive_data = data;
 }
 
 #define ide_port_for_each_dev(i, dev, port) \

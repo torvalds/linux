@@ -1170,7 +1170,6 @@ static void ide_init_port_hw(ide_hwif_t *hwif, struct ide_hw *hw)
 	hwif->irq = hw->irq;
 	hwif->dev = hw->dev;
 	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
-	hwif->ack_intr = hw->ack_intr;
 	hwif->config_data = hw->config;
 }
 
@@ -1378,6 +1377,9 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		ide_init_port(hwif, i & 1, d);
 		ide_port_cable_detect(hwif);
+
+		hwif->port_flags |= IDE_PFLAG_PROBING;
+
 		ide_port_init_devices(hwif);
 	}
 
@@ -1387,6 +1389,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 
 		if (ide_probe_port(hwif) == 0)
 			hwif->present = 1;
+
+		hwif->port_flags &= ~IDE_PFLAG_PROBING;
 
 		if ((hwif->host_flags & IDE_HFLAG_4DRIVES) == 0 ||
 		    hwif->mate == NULL || hwif->mate->present == 0) {
@@ -1569,11 +1573,20 @@ EXPORT_SYMBOL_GPL(ide_host_remove);
 
 void ide_port_scan(ide_hwif_t *hwif)
 {
+	int rc;
+
 	ide_port_apply_params(hwif);
 	ide_port_cable_detect(hwif);
+
+	hwif->port_flags |= IDE_PFLAG_PROBING;
+
 	ide_port_init_devices(hwif);
 
-	if (ide_probe_port(hwif) < 0)
+	rc = ide_probe_port(hwif);
+
+	hwif->port_flags &= ~IDE_PFLAG_PROBING;
+
+	if (rc < 0)
 		return;
 
 	hwif->present = 1;

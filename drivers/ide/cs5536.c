@@ -146,14 +146,16 @@ static void cs5536_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	struct pci_dev *pdev = to_pci_dev(drive->hwif->dev);
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	int cshift = (drive->dn & 1) ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
+	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u32 cast;
 	u8 cmd_pio = pio;
 
 	if (pair)
 		cmd_pio = min(pio, ide_get_best_pio_mode(pair, 255, 4));
 
-	drive->drive_data &= (IDE_DRV_MASK << 8);
-	drive->drive_data |= drv_timings[pio];
+	timings &= (IDE_DRV_MASK << 8);
+	timings |= drv_timings[pio];
+	ide_set_drivedata(drive, (void *)timings);
 
 	cs5536_program_dtc(drive, drv_timings[pio]);
 
@@ -186,6 +188,7 @@ static void cs5536_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 	struct pci_dev *pdev = to_pci_dev(drive->hwif->dev);
 	int dshift = (drive->dn & 1) ? IDE_D1_SHIFT : IDE_D0_SHIFT;
+	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u32 etc;
 
 	cs5536_read(pdev, ETC, &etc);
@@ -195,8 +198,9 @@ static void cs5536_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		etc |= udma_timings[mode - XFER_UDMA_0] << dshift;
 	} else { /* MWDMA */
 		etc &= ~(IDE_ETC_UDMA_MASK << dshift);
-		drive->drive_data &= IDE_DRV_MASK;
-		drive->drive_data |= mwdma_timings[mode - XFER_MW_DMA_0] << 8;
+		timings &= IDE_DRV_MASK;
+		timings |= mwdma_timings[mode - XFER_MW_DMA_0] << 8;
+		ide_set_drivedata(drive, (void *)timings);
 	}
 
 	cs5536_write(pdev, ETC, etc);
@@ -204,9 +208,11 @@ static void cs5536_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 static void cs5536_dma_start(ide_drive_t *drive)
 {
+	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
+
 	if (drive->current_speed < XFER_UDMA_0 &&
-	    (drive->drive_data >> 8) != (drive->drive_data & IDE_DRV_MASK))
-		cs5536_program_dtc(drive, drive->drive_data >> 8);
+	    (timings >> 8) != (timings & IDE_DRV_MASK))
+		cs5536_program_dtc(drive, timings >> 8);
 
 	ide_dma_start(drive);
 }
@@ -214,10 +220,11 @@ static void cs5536_dma_start(ide_drive_t *drive)
 static int cs5536_dma_end(ide_drive_t *drive)
 {
 	int ret = ide_dma_end(drive);
+	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 
 	if (drive->current_speed < XFER_UDMA_0 &&
-	    (drive->drive_data >> 8) != (drive->drive_data & IDE_DRV_MASK))
-		cs5536_program_dtc(drive, drive->drive_data & IDE_DRV_MASK);
+	    (timings >> 8) != (timings & IDE_DRV_MASK))
+		cs5536_program_dtc(drive, timings & IDE_DRV_MASK);
 
 	return ret;
 }

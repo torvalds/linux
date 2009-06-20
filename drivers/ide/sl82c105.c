@@ -61,8 +61,7 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 	if (cmd_off == 0)
 		cmd_off = 1;
 
-	if ((pio > 2 || ata_id_has_iordy(drive->id)) &&
-	    !(pio > 4 && ata_id_is_cfa(drive->id)))
+	if (ide_pio_need_iordy(drive, pio))
 		iordy = 0x40;
 
 	return (cmd_on - 1) << 8 | (cmd_off - 1) | iordy;
@@ -74,6 +73,7 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	struct pci_dev *dev	= to_pci_dev(drive->hwif->dev);
+	unsigned long timings	= (unsigned long)ide_get_drivedata(drive);
 	int reg			= 0x44 + drive->dn * 4;
 	u16 drv_ctrl;
 
@@ -83,8 +83,9 @@ static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	 * Store the PIO timings so that we can restore them
 	 * in case DMA will be turned off...
 	 */
-	drive->drive_data &= 0xffff0000;
-	drive->drive_data |= drv_ctrl;
+	timings &= 0xffff0000;
+	timings |= drv_ctrl;
+	ide_set_drivedata(drive, (void *)timings);
 
 	pci_write_config_word(dev, reg,  drv_ctrl);
 	pci_read_config_word (dev, reg, &drv_ctrl);
@@ -100,6 +101,7 @@ static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	static u16 mwdma_timings[] = {0x0707, 0x0201, 0x0200};
+	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u16 drv_ctrl;
 
  	DBG(("sl82c105_tune_chipset(drive:%s, speed:%s)\n",
@@ -111,8 +113,19 @@ static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	 * Store the DMA timings so that we can actually program
 	 * them when DMA will be turned on...
 	 */
-	drive->drive_data &= 0x0000ffff;
-	drive->drive_data |= (unsigned long)drv_ctrl << 16;
+	timings &= 0x0000ffff;
+	timings |= (unsigned long)drv_ctrl << 16;
+	ide_set_drivedata(drive, (void *)timings);
+}
+
+static int sl82c105_test_irq(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	u32 val, mask		= hwif->channel ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
+
+	pci_read_config_dword(dev, 0x40, &val);
+
+	return (val & mask) ? 1 : 0;
 }
 
 /*
@@ -185,7 +198,8 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 
 	DBG(("%s(drive:%s)\n", __func__, drive->name));
 
-	pci_write_config_word(dev, reg, drive->drive_data >> 16);
+	pci_write_config_word(dev, reg,
+			      (unsigned long)ide_get_drivedata(drive) >> 16);
 
 	sl82c105_reset_host(dev);
 	ide_dma_start(drive);
@@ -210,7 +224,8 @@ static int sl82c105_dma_end(ide_drive_t *drive)
 
 	ret = ide_dma_end(drive);
 
-	pci_write_config_word(dev, reg, drive->drive_data);
+	pci_write_config_word(dev, reg,
+			      (unsigned long)ide_get_drivedata(drive));
 
 	return ret;
 }
@@ -289,6 +304,7 @@ static const struct ide_port_ops sl82c105_port_ops = {
 	.set_pio_mode		= sl82c105_set_pio_mode,
 	.set_dma_mode		= sl82c105_set_dma_mode,
 	.resetproc		= sl82c105_resetproc,
+	.test_irq		= sl82c105_test_irq,
 };
 
 static const struct ide_dma_ops sl82c105_dma_ops = {
