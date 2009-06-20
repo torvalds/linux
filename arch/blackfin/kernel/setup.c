@@ -868,13 +868,6 @@ void __init setup_arch(char **cmdline_p)
 	else
 		printk(KERN_CONT "and Disabled\n");
 
-#if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
-	/* we need to initialize the Flashrom device here since we might
-	 * do things with flash early on in the boot
-	 */
-	flash_probe();
-#endif
-
 	printk(KERN_INFO "Boot Mode: %i\n", bfin_read_SYSCR() & 0xF);
 
 	/* Newer parts mirror SWRST bits in SYSCR */
