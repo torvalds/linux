@@ -102,15 +102,39 @@ struct mce_log {
 
 #ifdef __KERNEL__
 
-extern int mce_disabled;
-
-#include <asm/atomic.h>
 #include <linux/percpu.h>
+#include <linux/init.h>
+#include <asm/atomic.h>
+
+extern int mce_disabled;
+extern int mce_p5_enabled;
+
+#ifdef CONFIG_X86_MCE
+void mcheck_init(struct cpuinfo_x86 *c);
+#else
+static inline void mcheck_init(struct cpuinfo_x86 *c) {}
+#endif
+
+#ifdef CONFIG_X86_OLD_MCE
+extern int nr_mce_banks;
+void amd_mcheck_init(struct cpuinfo_x86 *c);
+void intel_p4_mcheck_init(struct cpuinfo_x86 *c);
+void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
+#endif
+
+#ifdef CONFIG_X86_ANCIENT_MCE
+void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
+void winchip_mcheck_init(struct cpuinfo_x86 *c);
+static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
+#else
+static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
+static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
+static inline void enable_p5_mce(void) {}
+#endif
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, mce_dev);
-extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /*
  * To support more than 128 would need to escape the predefined
@@ -145,11 +169,7 @@ int mce_available(struct cpuinfo_x86 *c);
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
 
-void mce_log_therm_throt_event(__u64 status);
-
 extern atomic_t mce_entry;
-
-void do_machine_check(struct pt_regs *, long);
 
 typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
 DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
@@ -167,13 +187,32 @@ void mce_notify_process(void);
 DECLARE_PER_CPU(struct mce, injectm);
 extern struct file_operations mce_chrdev_ops;
 
-#ifdef CONFIG_X86_MCE
-void mcheck_init(struct cpuinfo_x86 *c);
-#else
-#define mcheck_init(c) do { } while (0)
-#endif
+/*
+ * Exception handler
+ */
+
+/* Call the installed machine check handler for this CPU setup. */
+extern void (*machine_check_vector)(struct pt_regs *, long error_code);
+void do_machine_check(struct pt_regs *, long);
+
+/*
+ * Threshold handler
+ */
 
 extern void (*mce_threshold_vector)(void);
+extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
+
+/*
+ * Thermal handler
+ */
+
+void intel_init_thermal(struct cpuinfo_x86 *c);
+
+#ifdef CONFIG_X86_NEW_MCE
+void mce_log_therm_throt_event(__u64 status);
+#else
+static inline void mce_log_therm_throt_event(__u64 status) {}
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */

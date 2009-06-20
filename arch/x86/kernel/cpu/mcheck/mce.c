@@ -44,7 +44,6 @@
 #include <asm/msr.h>
 
 #include "mce-internal.h"
-#include "mce.h"
 
 /* Handle unconfigured int18 (should never happen) */
 static void unexpected_machine_check(struct pt_regs *regs, long error_code)
@@ -57,7 +56,7 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
 
-int				mce_disabled;
+int mce_disabled __read_mostly;
 
 #ifdef CONFIG_X86_NEW_MCE
 
@@ -76,21 +75,22 @@ DEFINE_PER_CPU(unsigned, mce_exception_count);
  *   2: SIGBUS or log uncorrected errors (if possible), log corrected errors
  *   3: never panic or SIGBUS, log all errors (for testing only)
  */
-static int			tolerant = 1;
-static int			banks;
-static u64			*bank;
-static unsigned long		notify_user;
-static int			rip_msr;
-static int			mce_bootlog = -1;
-static int			monarch_timeout = -1;
-static int			mce_panic_timeout;
-static int			mce_dont_log_ce;
-int				mce_cmci_disabled;
-int				mce_ignore_ce;
-int				mce_ser;
+static int			tolerant		__read_mostly = 1;
+static int			banks			__read_mostly;
+static u64			*bank			__read_mostly;
+static int			rip_msr			__read_mostly;
+static int			mce_bootlog		__read_mostly = -1;
+static int			monarch_timeout		__read_mostly = -1;
+static int			mce_panic_timeout	__read_mostly;
+static int			mce_dont_log_ce		__read_mostly;
+int				mce_cmci_disabled	__read_mostly;
+int				mce_ignore_ce		__read_mostly;
+int				mce_ser			__read_mostly;
 
-static char			trigger[128];
-static char			*trigger_argv[2] = { trigger, NULL };
+/* User mode helper program triggered by machine check event */
+static unsigned long		mce_need_notify;
+static char			mce_helper[128];
+static char			*mce_helper_argv[2] = { mce_helper, NULL };
 
 static unsigned long		dont_init_banks;
 
@@ -180,7 +180,7 @@ void mce_log(struct mce *mce)
 	wmb();
 
 	mce->finished = 1;
-	set_bit(0, &notify_user);
+	set_bit(0, &mce_need_notify);
 }
 
 static void print_mce(struct mce *m)
@@ -691,18 +691,21 @@ static atomic_t global_nwo;
  * in the entry order.
  * TBD double check parallel CPU hotunplug
  */
-static int mce_start(int no_way_out, int *order)
+static int mce_start(int *no_way_out)
 {
-	int nwo;
+	int order;
 	int cpus = num_online_cpus();
 	u64 timeout = (u64)monarch_timeout * NSEC_PER_USEC;
 
-	if (!timeout) {
-		*order = -1;
-		return no_way_out;
-	}
+	if (!timeout)
+		return -1;
 
-	atomic_add(no_way_out, &global_nwo);
+	atomic_add(*no_way_out, &global_nwo);
+	/*
+	 * global_nwo should be updated before mce_callin
+	 */
+	smp_wmb();
+	order = atomic_add_return(1, &mce_callin);
 
 	/*
 	 * Wait for everyone.
@@ -710,40 +713,43 @@ static int mce_start(int no_way_out, int *order)
 	while (atomic_read(&mce_callin) != cpus) {
 		if (mce_timed_out(&timeout)) {
 			atomic_set(&global_nwo, 0);
-			*order = -1;
-			return no_way_out;
+			return -1;
 		}
 		ndelay(SPINUNIT);
+	}
+
+	/*
+	 * mce_callin should be read before global_nwo
+	 */
+	smp_rmb();
+
+	if (order == 1) {
+		/*
+		 * Monarch: Starts executing now, the others wait.
+		 */
+		atomic_set(&mce_executing, 1);
+	} else {
+		/*
+		 * Subject: Now start the scanning loop one by one in
+		 * the original callin order.
+		 * This way when there are any shared banks it will be
+		 * only seen by one CPU before cleared, avoiding duplicates.
+		 */
+		while (atomic_read(&mce_executing) < order) {
+			if (mce_timed_out(&timeout)) {
+				atomic_set(&global_nwo, 0);
+				return -1;
+			}
+			ndelay(SPINUNIT);
+		}
 	}
 
 	/*
 	 * Cache the global no_way_out state.
 	 */
-	nwo = atomic_read(&global_nwo);
+	*no_way_out = atomic_read(&global_nwo);
 
-	/*
-	 * Monarch starts executing now, the others wait.
-	 */
-	if (*order == 1) {
-		atomic_set(&mce_executing, 1);
-		return nwo;
-	}
-
-	/*
-	 * Now start the scanning loop one by one
-	 * in the original callin order.
-	 * This way when there are any shared banks it will
-	 * be only seen by one CPU before cleared, avoiding duplicates.
-	 */
-	while (atomic_read(&mce_executing) < *order) {
-		if (mce_timed_out(&timeout)) {
-			atomic_set(&global_nwo, 0);
-			*order = -1;
-			return no_way_out;
-		}
-		ndelay(SPINUNIT);
-	}
-	return nwo;
+	return order;
 }
 
 /*
@@ -863,7 +869,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * check handler.
 	 */
 	int order;
-
 	/*
 	 * If no_way_out gets set, there is no safe way to recover from this
 	 * MCE.  If tolerant is cranked up, we'll try anyway.
@@ -887,7 +892,6 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	if (!banks)
 		goto out;
 
-	order = atomic_add_return(1, &mce_callin);
 	mce_setup(&m);
 
 	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
@@ -909,7 +913,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	 * This way we don't report duplicated events on shared banks
 	 * because the first one to see it will clear it.
 	 */
-	no_way_out = mce_start(no_way_out, &order);
+	order = mce_start(&no_way_out);
 	for (i = 0; i < banks; i++) {
 		__clear_bit(i, toclear);
 		if (!bank[i])
@@ -1118,7 +1122,7 @@ static void mcheck_timer(unsigned long data)
 
 static void mce_do_trigger(struct work_struct *work)
 {
-	call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
+	call_usermodehelper(mce_helper, mce_helper_argv, NULL, UMH_NO_WAIT);
 }
 
 static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
@@ -1135,7 +1139,7 @@ int mce_notify_irq(void)
 
 	clear_thread_flag(TIF_MCE_NOTIFY);
 
-	if (test_and_clear_bit(0, &notify_user)) {
+	if (test_and_clear_bit(0, &mce_need_notify)) {
 		wake_up_interruptible(&mce_wait);
 
 		/*
@@ -1143,7 +1147,7 @@ int mce_notify_irq(void)
 		 * work_pending is always cleared before the function is
 		 * executed.
 		 */
-		if (trigger[0] && !work_pending(&mce_trigger_work))
+		if (mce_helper[0] && !work_pending(&mce_trigger_work))
 			schedule_work(&mce_trigger_work);
 
 		if (__ratelimit(&ratelimit))
@@ -1245,7 +1249,7 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		 * Various K7s with broken bank 0 around. Always disable
 		 * by default.
 		 */
-		 if (c->x86 == 6)
+		 if (c->x86 == 6 && banks > 0)
 			bank[0] = 0;
 	}
 
@@ -1282,8 +1286,7 @@ static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
 		return;
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
-		if (mce_p5_enabled())
-			intel_p5_mcheck_init(c);
+		intel_p5_mcheck_init(c);
 		break;
 	case X86_VENDOR_CENTAUR:
 		winchip_mcheck_init(c);
@@ -1609,8 +1612,9 @@ static int mce_resume(struct sys_device *dev)
 static void mce_cpu_restart(void *data)
 {
 	del_timer_sync(&__get_cpu_var(mce_timer));
-	if (mce_available(&current_cpu_data))
-		mce_init();
+	if (!mce_available(&current_cpu_data))
+		return;
+	mce_init();
 	mce_init_timer();
 }
 
@@ -1618,6 +1622,26 @@ static void mce_cpu_restart(void *data)
 static void mce_restart(void)
 {
 	on_each_cpu(mce_cpu_restart, NULL, 1);
+}
+
+/* Toggle features for corrected errors */
+static void mce_disable_ce(void *all)
+{
+	if (!mce_available(&current_cpu_data))
+		return;
+	if (all)
+		del_timer_sync(&__get_cpu_var(mce_timer));
+	cmci_clear();
+}
+
+static void mce_enable_ce(void *all)
+{
+	if (!mce_available(&current_cpu_data))
+		return;
+	cmci_reenable();
+	cmci_recheck();
+	if (all)
+		mce_init_timer();
 }
 
 static struct sysdev_class mce_sysclass = {
@@ -1659,9 +1683,9 @@ static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
 static ssize_t
 show_trigger(struct sys_device *s, struct sysdev_attribute *attr, char *buf)
 {
-	strcpy(buf, trigger);
+	strcpy(buf, mce_helper);
 	strcat(buf, "\n");
-	return strlen(trigger) + 1;
+	return strlen(mce_helper) + 1;
 }
 
 static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
@@ -1670,15 +1694,61 @@ static ssize_t set_trigger(struct sys_device *s, struct sysdev_attribute *attr,
 	char *p;
 	int len;
 
-	strncpy(trigger, buf, sizeof(trigger));
-	trigger[sizeof(trigger)-1] = 0;
-	len = strlen(trigger);
-	p = strchr(trigger, '\n');
+	strncpy(mce_helper, buf, sizeof(mce_helper));
+	mce_helper[sizeof(mce_helper)-1] = 0;
+	len = strlen(mce_helper);
+	p = strchr(mce_helper, '\n');
 
 	if (*p)
 		*p = 0;
 
 	return len;
+}
+
+static ssize_t set_ignore_ce(struct sys_device *s,
+			     struct sysdev_attribute *attr,
+			     const char *buf, size_t size)
+{
+	u64 new;
+
+	if (strict_strtoull(buf, 0, &new) < 0)
+		return -EINVAL;
+
+	if (mce_ignore_ce ^ !!new) {
+		if (new) {
+			/* disable ce features */
+			on_each_cpu(mce_disable_ce, (void *)1, 1);
+			mce_ignore_ce = 1;
+		} else {
+			/* enable ce features */
+			mce_ignore_ce = 0;
+			on_each_cpu(mce_enable_ce, (void *)1, 1);
+		}
+	}
+	return size;
+}
+
+static ssize_t set_cmci_disabled(struct sys_device *s,
+				 struct sysdev_attribute *attr,
+				 const char *buf, size_t size)
+{
+	u64 new;
+
+	if (strict_strtoull(buf, 0, &new) < 0)
+		return -EINVAL;
+
+	if (mce_cmci_disabled ^ !!new) {
+		if (new) {
+			/* disable cmci */
+			on_each_cpu(mce_disable_ce, NULL, 1);
+			mce_cmci_disabled = 1;
+		} else {
+			/* enable cmci */
+			mce_cmci_disabled = 0;
+			on_each_cpu(mce_enable_ce, NULL, 1);
+		}
+	}
+	return size;
 }
 
 static ssize_t store_int_with_restart(struct sys_device *s,
@@ -1693,6 +1763,7 @@ static ssize_t store_int_with_restart(struct sys_device *s,
 static SYSDEV_ATTR(trigger, 0644, show_trigger, set_trigger);
 static SYSDEV_INT_ATTR(tolerant, 0644, tolerant);
 static SYSDEV_INT_ATTR(monarch_timeout, 0644, monarch_timeout);
+static SYSDEV_INT_ATTR(dont_log_ce, 0644, mce_dont_log_ce);
 
 static struct sysdev_ext_attribute attr_check_interval = {
 	_SYSDEV_ATTR(check_interval, 0644, sysdev_show_int,
@@ -1700,9 +1771,24 @@ static struct sysdev_ext_attribute attr_check_interval = {
 	&check_interval
 };
 
+static struct sysdev_ext_attribute attr_ignore_ce = {
+	_SYSDEV_ATTR(ignore_ce, 0644, sysdev_show_int, set_ignore_ce),
+	&mce_ignore_ce
+};
+
+static struct sysdev_ext_attribute attr_cmci_disabled = {
+	_SYSDEV_ATTR(cmci_disabled, 0644, sysdev_show_int, set_cmci_disabled),
+	&mce_cmci_disabled
+};
+
 static struct sysdev_attribute *mce_attrs[] = {
-	&attr_tolerant.attr, &attr_check_interval.attr, &attr_trigger,
+	&attr_tolerant.attr,
+	&attr_check_interval.attr,
+	&attr_trigger,
 	&attr_monarch_timeout.attr,
+	&attr_dont_log_ce.attr,
+	&attr_ignore_ce.attr,
+	&attr_cmci_disabled.attr,
 	NULL
 };
 
@@ -1712,7 +1798,7 @@ static cpumask_var_t mce_dev_initialized;
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
 	int err;
-	int i;
+	int i, j;
 
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
@@ -1730,9 +1816,9 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		if (err)
 			goto error;
 	}
-	for (i = 0; i < banks; i++) {
+	for (j = 0; j < banks; j++) {
 		err = sysdev_create_file(&per_cpu(mce_dev, cpu),
-					&bank_attrs[i]);
+					&bank_attrs[j]);
 		if (err)
 			goto error2;
 	}
@@ -1740,8 +1826,8 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 
 	return 0;
 error2:
-	while (--i >= 0)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[i]);
+	while (--j >= 0)
+		sysdev_remove_file(&per_cpu(mce_dev, cpu), &bank_attrs[j]);
 error:
 	while (--i >= 0)
 		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
@@ -1883,7 +1969,7 @@ static __init int mce_init_device(void)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	alloc_cpumask_var(&mce_dev_initialized, GFP_KERNEL);
+	zalloc_cpumask_var(&mce_dev_initialized, GFP_KERNEL);
 
 	err = mce_init_banks();
 	if (err)
@@ -1915,7 +2001,7 @@ EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
 /* This has to be run for each processor */
 void mcheck_init(struct cpuinfo_x86 *c)
 {
-	if (mce_disabled == 1)
+	if (mce_disabled)
 		return;
 
 	switch (c->x86_vendor) {
@@ -1945,10 +2031,9 @@ void mcheck_init(struct cpuinfo_x86 *c)
 
 static int __init mcheck_enable(char *str)
 {
-	mce_disabled = -1;
+	mce_p5_enabled = 1;
 	return 1;
 }
-
 __setup("mce", mcheck_enable);
 
 #endif /* CONFIG_X86_OLD_MCE */

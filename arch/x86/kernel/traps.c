@@ -54,6 +54,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+#include <asm/mce.h>
 
 #include <asm/mach_traps.h>
 
@@ -64,8 +65,6 @@
 #include <asm/processor-flags.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
-
-#include "cpu/mcheck/mce.h"
 
 asmlinkage int system_call(void);
 

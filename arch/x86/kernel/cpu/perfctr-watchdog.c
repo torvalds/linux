@@ -716,11 +716,15 @@ static void probe_nmi_watchdog(void)
 		wd_ops = &k7_wd_ops;
 		break;
 	case X86_VENDOR_INTEL:
-		/*
-		 * Work around Core Duo (Yonah) errata AE49 where perfctr1
-		 * doesn't have a working enable bit.
+		/* Work around where perfctr1 doesn't have a working enable
+		 * bit as described in the following errata:
+		 * AE49 Core Duo and Intel Core Solo 65 nm
+		 * AN49 Intel Pentium Dual-Core
+		 * AF49 Dual-Core Intel Xeon Processor LV
 		 */
-		if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 14) {
+		if ((boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 14) ||
+		    ((boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 15 &&
+		     boot_cpu_data.x86_mask == 4))) {
 			intel_arch_wd_ops.perfctr = MSR_ARCH_PERFMON_PERFCTR0;
 			intel_arch_wd_ops.evntsel = MSR_ARCH_PERFMON_EVENTSEL0;
 		}

@@ -10,12 +10,11 @@
 
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
 
-#include "mce.h"
-
 /* By default disabled */
-int		mce_p5_enable;
+int mce_p5_enabled __read_mostly;
 
 /* Machine check handler for Pentium class Intel CPUs: */
 static void pentium_machine_check(struct pt_regs *regs, long error_code)
@@ -43,15 +42,13 @@ void intel_p5_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 
+	/* Default P5 to off as its often misconnected: */
+	if (!mce_p5_enabled)
+		return;
+
 	/* Check for MCE support: */
 	if (!cpu_has(c, X86_FEATURE_MCE))
 		return;
-
-#ifdef CONFIG_X86_OLD_MCE
-	/* Default P5 to off as its often misconnected: */
-	if (mce_disabled != -1)
-		return;
-#endif
 
 	machine_check_vector = pentium_machine_check;
 	/* Make sure the vector pointer is visible before we enable MCEs: */
