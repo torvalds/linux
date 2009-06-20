@@ -1,6 +1,6 @@
 /* DVB USB framework compliant Linux driver for the
 *	DVBWorld DVB-S 2101, 2102, DVB-S2 2104, DVB-C 3101,
-*	TeVii S600, S650 Cards
+*	TeVii S600, S630, S650 Cards
 * Copyright (C) 2008,2009 Igor M. Liplianin (liplianin@me.by)
 *
 *	This program is free software; you can redistribute it and/or modify it
@@ -18,6 +18,8 @@
 #include "eds1547.h"
 #include "cx24116.h"
 #include "tda1002x.h"
+#include "mt312.h"
+#include "zl10039.h"
 
 #ifndef USB_PID_DW2102
 #define USB_PID_DW2102 0x2102
@@ -37,6 +39,10 @@
 
 #ifndef USB_PID_TEVII_S650
 #define USB_PID_TEVII_S650 0xd650
+#endif
+
+#ifndef USB_PID_TEVII_S630
+#define USB_PID_TEVII_S630 0xd630
 #endif
 
 #define DW210X_READ_MSG 0
@@ -436,6 +442,69 @@ static int dw3101_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	return num;
 }
 
+static int s630_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[],
+								int num)
+{
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	int ret = 0;
+
+	if (!d)
+		return -ENODEV;
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
+
+	switch (num) {
+	case 2: { /* read */
+		u8 ibuf[msg[1].len], obuf[3];
+		obuf[0] = msg[1].len;
+		obuf[1] = (msg[0].addr << 1);
+		obuf[2] = msg[0].buf[0];
+
+		ret = dw210x_op_rw(d->udev, 0x90, 0, 0,
+					obuf, 3, DW210X_WRITE_MSG);
+		msleep(5);
+		ret = dw210x_op_rw(d->udev, 0x91, 0, 0,
+					ibuf, msg[1].len, DW210X_READ_MSG);
+		memcpy(msg[1].buf, ibuf, msg[1].len);
+		break;
+	}
+	case 1:
+		switch (msg[0].addr) {
+		case 0x60:
+		case 0x0e: {
+			/* write to zl10313, zl10039 register, */
+			u8 obuf[msg[0].len + 2];
+			obuf[0] = msg[0].len + 1;
+			obuf[1] = (msg[0].addr << 1);
+			memcpy(obuf + 2, msg[0].buf, msg[0].len);
+			ret = dw210x_op_rw(d->udev, 0x80, 0, 0,
+					obuf, msg[0].len + 2, DW210X_WRITE_MSG);
+			break;
+		}
+		case (DW2102_RC_QUERY): {
+			u8 ibuf[4];
+			ret  = dw210x_op_rw(d->udev, 0xb8, 0, 0,
+					ibuf, 4, DW210X_READ_MSG);
+			msg[0].buf[0] = ibuf[3];
+			break;
+		}
+		case (DW2102_VOLTAGE_CTRL): {
+			u8 obuf[2];
+			obuf[0] = 0x03;
+			obuf[1] = msg[0].buf[0];
+			ret = dw210x_op_rw(d->udev, 0x8a, 0, 0,
+					obuf, 2, DW210X_WRITE_MSG);
+			break;
+		}
+		}
+
+		break;
+	}
+
+	mutex_unlock(&d->i2c_mutex);
+	return num;
+}
+
 static u32 dw210x_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C;
@@ -466,6 +535,11 @@ static struct i2c_algorithm dw3101_i2c_algo = {
 	.functionality = dw210x_i2c_func,
 };
 
+static struct i2c_algorithm s630_i2c_algo = {
+	.master_xfer = s630_i2c_transfer,
+	.functionality = dw210x_i2c_func,
+};
+
 static int dw210x_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
 	int i;
@@ -487,6 +561,37 @@ static int dw210x_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	}
 
 	memcpy(mac, eeprom + 8, 6);
+	return 0;
+};
+
+static int s630_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
+{
+	int i, ret;
+	u8 buf[3], eeprom[256], eepromline[16];
+
+	for (i = 0; i < 256; i++) {
+		buf[0] = 1;
+		buf[1] = 0xa0;
+		buf[2] = i;
+		ret = dw210x_op_rw(d->udev, 0x90, 0, 0,
+					buf, 3, DW210X_WRITE_MSG);
+		ret = dw210x_op_rw(d->udev, 0x91, 0, 0,
+					buf, 1, DW210X_READ_MSG);
+		if (ret < 0) {
+			err("read eeprom failed.");
+			return -1;
+		} else {
+			eepromline[i % 16] = buf[0];
+			eeprom[i] = buf[0];
+		}
+
+		if ((i % 16) == 15) {
+			deb_xfer("%02x: ", i - 15);
+			debug_dump(eepromline, 16, deb_xfer);
+		}
+	}
+
+	memcpy(mac, eeprom + 16, 6);
 	return 0;
 };
 
@@ -533,6 +638,10 @@ static struct si21xx_config serit_sp1511lhb_config = {
 static struct tda10023_config dw3101_tda10023_config = {
 	.demod_address = 0x0c,
 	.invert = 1,
+};
+
+static struct mt312_config zl313_config = {
+	.demod_address = 0x0e,
 };
 
 static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
@@ -596,6 +705,18 @@ static int dw3101_frontend_attach(struct dvb_usb_adapter *d)
 	return -EIO;
 }
 
+static int s630_frontend_attach(struct dvb_usb_adapter *d)
+{
+	d->fe = dvb_attach(mt312_attach, &zl313_config,
+				&d->dev->i2c_adap);
+	if (d->fe != NULL) {
+		d->fe->ops.set_voltage = dw210x_set_voltage;
+		info("Attached zl10313!\n");
+		return 0;
+	}
+	return -EIO;
+}
+
 static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
@@ -615,6 +736,14 @@ static int dw3101_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
 		&adap->dev->i2c_adap, DVB_PLL_TUA6034);
+
+	return 0;
+}
+
+static int s630_zl10039_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	dvb_attach(zl10039_attach, adap->fe, 0x60,
+		&adap->dev->i2c_adap);
 
 	return 0;
 }
@@ -763,7 +892,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	}
 
 	*state = REMOTE_NO_KEY_PRESSED;
-	if (dw2102_i2c_transfer(&d->i2c_adap, &msg, 1) == 1) {
+	if (d->props.i2c_algo->master_xfer(&d->i2c_adap, &msg, 1) == 1) {
 		for (i = 0; i < keymap_size ; i++) {
 			if (keymap[i].data == msg.buf[0]) {
 				*state = REMOTE_KEY_PRESSED;
@@ -792,6 +921,7 @@ static struct usb_device_id dw2102_table[] = {
 	{USB_DEVICE(0x9022, USB_PID_TEVII_S650)},
 	{USB_DEVICE(USB_VID_TERRATEC, USB_PID_CINERGY_S)},
 	{USB_DEVICE(USB_VID_CYPRESS, USB_PID_DW3101)},
+	{USB_DEVICE(0x9022, USB_PID_TEVII_S630)},
 	{ }
 };
 
@@ -806,6 +936,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 	u8 reset16[] = {0, 0, 0, 0, 0, 0, 0};
 	const struct firmware *fw;
 	const char *filename = "dvb-usb-dw2101.fw";
+
 	switch (dev->descriptor.idProduct) {
 	case 0x2101:
 		ret = request_firmware(&fw, filename, &dev->dev);
@@ -1053,6 +1184,48 @@ static struct dvb_usb_device_properties dw3101_properties = {
 	}
 };
 
+static struct dvb_usb_device_properties s630_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+	.usb_ctrl = DEVICE_SPECIFIC,
+	.firmware = "dvb-usb-s630.fw",
+	.no_reconnect = 1,
+
+	.i2c_algo = &s630_i2c_algo,
+	.rc_key_map = tevii_rc_keys,
+	.rc_key_map_size = ARRAY_SIZE(tevii_rc_keys),
+	.rc_interval = 150,
+	.rc_query = dw2102_rc_query,
+
+	.generic_bulk_ctrl_endpoint = 0x81,
+	.num_adapters = 1,
+	.download_firmware = dw2102_load_firmware,
+	.read_mac_address = s630_read_mac_address,
+	.adapter = {
+		{
+			.frontend_attach = s630_frontend_attach,
+			.streaming_ctrl = NULL,
+			.tuner_attach = s630_zl10039_tuner_attach,
+			.stream = {
+				.type = USB_BULK,
+				.count = 8,
+				.endpoint = 0x82,
+				.u = {
+					.bulk = {
+						.buffersize = 4096,
+					}
+				}
+			},
+		}
+	},
+	.num_device_descs = 1,
+	.devices = {
+		{"TeVii S630 USB",
+			{&dw2102_table[6], NULL},
+			{NULL},
+		},
+	}
+};
+
 static int dw2102_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
@@ -1061,6 +1234,8 @@ static int dw2102_probe(struct usb_interface *intf,
 	    0 == dvb_usb_device_init(intf, &dw2104_properties,
 			THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &dw3101_properties,
+			THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &s630_properties,
 			THIS_MODULE, NULL, adapter_nr)) {
 		return 0;
 	}
@@ -1094,6 +1269,6 @@ module_exit(dw2102_module_exit);
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"
 				" DVB-C 3101 USB2.0,"
-				" TeVii S600, S650 USB2.0 devices");
+				" TeVii S600, S630, S650 USB2.0 devices");
 MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
