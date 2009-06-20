@@ -2,6 +2,7 @@
 #include "prism2mgmt.c"
 #include "prism2mib.c"
 #include "prism2sta.c"
+#include "prism2fw.c"
 
 #define PRISM_USB_DEVICE(vid, pid, name) \
            USB_DEVICE(vid, pid),  \
@@ -23,9 +24,8 @@ static struct usb_device_id usb_prism_tbl[] = {
 	 (0x066b, 0x2213, "Linksys WUSB12v1.1 11Mbps WLAN USB Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x067c, 0x1022, "Siemens SpeedStream 1022 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE
-	 (0x049f, 0x0033,
-	  "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
+	{PRISM_USB_DEVICE(0x049f, 0x0033,
+			  "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x0411, 0x0016, "Melco WLI-USB-S11 11Mbps WLAN Adapter")},
 	{PRISM_USB_DEVICE
@@ -153,14 +153,15 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 
 	wlandev->msdstate = WLAN_MSD_HWPRESENT;
 
+	/* Try and load firmware, then enable card before we register */
+	prism2_fwtry(dev, wlandev);
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_enable);
+
 	if (register_wlandev(wlandev) != 0) {
 		printk(KERN_ERR "%s: register_wlandev() failed.\n", dev_info);
 		result = -EIO;
 		goto failed;
 	}
-
-/* enable the card */
-	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_enable);
 
 	goto done;
 
@@ -170,7 +171,6 @@ failed:
 	wlandev = NULL;
 
 done:
-	p80211_allow_ioctls(wlandev);
 	usb_set_intfdata(interface, wlandev);
 	return result;
 }

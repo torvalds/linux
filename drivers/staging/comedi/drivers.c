@@ -198,7 +198,7 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 		struct comedi_device_file_info *dev_file_info = comedi_get_device_file_info(i);
 		struct comedi_device *dev;
 
-		if(dev_file_info == NULL) continue;
+		if (dev_file_info == NULL) continue;
 		dev = dev_file_info->device;
 
 		mutex_lock(&dev->mutex);
@@ -554,7 +554,7 @@ unsigned int comedi_buf_munge(struct comedi_async *async, unsigned int num_bytes
 
 		block_size = num_bytes - count;
 		if (block_size < 0) {
-			rt_printk("%s: %s: bug! block_size is negative\n",
+			printk("%s: %s: bug! block_size is negative\n",
 				__FILE__, __func__);
 			break;
 		}
@@ -633,8 +633,7 @@ unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 {
 	if ((int)(async->buf_write_count + nbytes -
 			async->buf_write_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to write-free more bytes than have been write-allocated.\n");
+		printk("comedi: attempted to write-free more bytes than have been write-allocated.\n");
 		nbytes = async->buf_write_alloc_count - async->buf_write_count;
 	}
 	async->buf_write_count += nbytes;
@@ -667,8 +666,7 @@ unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 	smp_mb();
 	if ((int)(async->buf_read_count + nbytes -
 			async->buf_read_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		printk("comedi: attempted to read-free more bytes than have been read-allocated.\n");
 		nbytes = async->buf_read_alloc_count - async->buf_read_count;
 	}
 	async->buf_read_count += nbytes;
@@ -801,7 +799,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	}
 
 	minor = comedi_alloc_board_minor(hardware_device);
-	if(minor < 0) return minor;
+	if (minor < 0) return minor;
 
 	private_data = kmalloc(sizeof(unsigned), GFP_KERNEL);
 	if (private_data == NULL) {
@@ -824,7 +822,7 @@ int comedi_auto_config(struct device *hardware_device, const char *board_name, c
 	mutex_unlock(&dev_file_info->device->mutex);
 
 cleanup:
-	if(retval < 0)
+	if (retval < 0)
 	{
 		kfree(private_data);
 		comedi_free_board_minor(minor);
@@ -835,7 +833,7 @@ cleanup:
 void comedi_auto_unconfig(struct device *hardware_device)
 {
 	unsigned *minor = (unsigned *)dev_get_drvdata(hardware_device);
-	if(minor == NULL) return;
+	if (minor == NULL) return;
 
 	BUG_ON(*minor >= COMEDI_NUM_BOARD_MINORS);
 
@@ -853,7 +851,8 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 	/*  pci slot */
 	options[1] = PCI_SLOT(pcidev->devfn);
 
-	return comedi_auto_config(&pcidev->dev, board_name, options, sizeof(options) / sizeof(options[0]));
+	return comedi_auto_config(&pcidev->dev, board_name,
+				  options, ARRAY_SIZE(options));
 }
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)

@@ -110,6 +110,12 @@ NTSTATUS RTUSBFirmwareWrite(
 	Status = RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);
 	Status = RTUSBFirmwareRun(pAd);
 
+#ifdef RT30xx
+	RTMPusecDelay(10000);
+	RTUSBWriteMACRegister(pAd,H2M_MAILBOX_CSR,0);
+	AsicSendCommandToMcu(pAd, 0x72, 0x00, 0x00, 0x00);//reset rf by MCU supported by new firmware
+#endif
+
 	return Status;
 }
 
@@ -665,6 +671,7 @@ NTSTATUS	RTUSBWriteRFRegister(
 	return STATUS_SUCCESS;
 }
 
+#ifndef RT30xx
 /*
 	========================================================================
 
@@ -772,6 +779,7 @@ NTSTATUS	RT30xxReadRFRegister(
 
 	return STATUS_SUCCESS;
 }
+#endif /* RT30xx */
 
 /*
 	========================================================================
@@ -796,6 +804,14 @@ NTSTATUS	RTUSBReadEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
+#ifdef RT30xx
+	if(pAd->bUseEfuse)
+	{
+		Status =eFuseRead(pAd, Offset, pData, length);
+	}
+	else
+#endif // RT30xx //
+	{
 	Status = RTUSB_VendorRequest(
 		pAd,
 		(USBD_TRANSFER_DIRECTION_IN | USBD_SHORT_TRANSFER_OK),
@@ -805,6 +821,7 @@ NTSTATUS	RTUSBReadEEPROM(
 		Offset,
 		pData,
 		length);
+	}
 
 	return Status;
 }
@@ -832,6 +849,14 @@ NTSTATUS	RTUSBWriteEEPROM(
 {
 	NTSTATUS	Status = STATUS_SUCCESS;
 
+#ifdef RT30xx
+	if(pAd->bUseEfuse)
+	{
+		Status = eFuseWrite(pAd, Offset, pData, length);
+	}
+	else
+#endif // RT30xx //
+	{
 	Status = RTUSB_VendorRequest(
 		pAd,
 		USBD_TRANSFER_DIRECTION_OUT,
@@ -841,6 +866,7 @@ NTSTATUS	RTUSBWriteEEPROM(
 		Offset,
 		pData,
 		length);
+	}
 
 	return Status;
 }
@@ -957,9 +983,13 @@ NDIS_STATUS	RTUSBEnqueueCmdFromNdis(
 	PCmdQElmt	cmdqelmt = NULL;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
 
-
+#ifndef RT30xx
 	BUG_ON(pObj->RTUSBCmdThr_task == NULL);
 	CHECK_PID_LEGALITY(task_pid(pObj->RTUSBCmdThr_task))
+#endif
+#ifdef RT30xx
+	if (pObj->RTUSBCmdThr_pid < 0)
+#endif
 		return (NDIS_STATUS_RESOURCES);
 
 	status = RTMPAllocateMemory((PVOID *)&cmdqelmt, sizeof(CmdQElmt));
@@ -1194,21 +1224,6 @@ NTSTATUS    RTUSB_VendorRequest(
 		void	*tmpBuf = TransferBuffer;
 
 		// Acquire Control token
-#ifdef INF_AMAZON_SE
-		//Semaphore fix INF_AMAZON_SE hang
-		//pAd->UsbVendorReqBuf is the swap for DEVICE_VENDOR_REQUEST_IN to fix dma bug.
-		ret = down_interruptible(&(pAd->UsbVendorReq_semaphore));
-		if (pAd->UsbVendorReqBuf)
-		{
-			ASSERT(TransferBufferLength <MAX_PARAM_BUFFER_SIZE);
-
-		   	tmpBuf = (void *)pAd->UsbVendorReqBuf;
-		   	NdisZeroMemory(pAd->UsbVendorReqBuf, TransferBufferLength);
-
-		   	if (RequestType == DEVICE_VENDOR_REQUEST_OUT)
-		   	 NdisMoveMemory(tmpBuf, TransferBuffer, TransferBufferLength);
-		}
-#endif // INF_AMAZON_SE //
 		do {
 		if( RequestType == DEVICE_VENDOR_REQUEST_OUT)
 			ret=usb_control_msg(pObj->pUsb_Dev, usb_sndctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, tmpBuf, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
@@ -1227,12 +1242,6 @@ NTSTATUS    RTUSB_VendorRequest(
 			}
 		} while((ret < 0) && (retryCount < MAX_RETRY_COUNT));
 
-#ifdef INF_AMAZON_SE
-	  	if ((pAd->UsbVendorReqBuf) && (RequestType == DEVICE_VENDOR_REQUEST_IN))
-			NdisMoveMemory(TransferBuffer, tmpBuf, TransferBufferLength);
-	  	up(&(pAd->UsbVendorReq_semaphore));
-#endif // INF_AMAZON_SE //
-
         if (ret < 0) {
 //			DBGPRINT(RT_DEBUG_ERROR, ("USBVendorRequest failed ret=%d \n",ret));
 			DBGPRINT(RT_DEBUG_ERROR, ("RTUSB_VendorRequest failed(%d),TxFlags=0x%x, ReqType=%s, Req=0x%x, Index=0x%x\n",
@@ -1243,28 +1252,6 @@ NTSTATUS    RTUSB_VendorRequest(
 			if ((TransferBuffer!= NULL) && (TransferBufferLength > 0))
 				hex_dump("Failed TransferBuffer value", TransferBuffer, TransferBufferLength);
         }
-
-#if 0
-        // retry
-		if (ret < 0) {
-			int temp_i=0;
-			DBGPRINT(RT_DEBUG_ERROR, ("USBVendorRequest failed ret=%d, \n",ret));
-			ret = 0;
-			do
-			{
-				if( RequestType == DEVICE_VENDOR_REQUEST_OUT)
-					ret=usb_control_msg(pObj->pUsb_Dev, usb_sndctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, TransferBuffer, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
-				else if(RequestType == DEVICE_VENDOR_REQUEST_IN)
-					ret=usb_control_msg(pObj->pUsb_Dev, usb_rcvctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, TransferBuffer, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
-				temp_i++;
-			} while( (ret < 0) && (temp_i <= 1) );
-
-			if( ret >= 0)
-				return ret;
-
-		}
-#endif
-
 	}
 	return ret;
 }
@@ -1324,21 +1311,8 @@ VOID CMDHandler(
 			{
 				case CMDTHREAD_CHECK_GPIO:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						UINT32 data;
-#endif // CONFIG_STA_SUPPORT //
-#ifdef RALINK_ATE
-       					if(ATE_ON(pAd))
-						{
-							DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-							break;
-						}
-#endif // RALINK_ATE //
 
-#ifdef CONFIG_STA_SUPPORT
-
-
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							// Read GPIO pin2 as Hardware controlled radio state
 
@@ -1374,17 +1348,14 @@ VOID CMDHandler(
 								}
 							}
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 
-#ifdef CONFIG_STA_SUPPORT
 				case CMDTHREAD_QKERIODIC_EXECUT:
 					{
 						StaQuickResponeForRateUpExec(NULL, pAd, NULL, NULL);
 					}
 					break;
-#endif // CONFIG_STA_SUPPORT //
 
 				case CMDTHREAD_RESET_BULK_OUT:
 					{
@@ -1394,9 +1365,7 @@ VOID CMDHandler(
 						PHT_TX_CONTEXT	pHTTXContext;
 //						RTMP_TX_RING *pTxRing;
 						unsigned long IrqFlags;
-#ifdef RALINK_ATE
-						PTX_CONTEXT		pNullContext = &(pAd->NullContext);
-#endif // RALINK_ATE //
+
 						DBGPRINT_RAW(RT_DEBUG_TRACE, ("CmdThread : CMDTHREAD_RESET_BULK_OUT(ResetPipeid=0x%0x)===>\n", pAd->bulkResetPipeid));
 						// All transfers must be aborted or cancelled before attempting to reset the pipe.
 						//RTUSBCancelPendingBulkOutIRP(pAd);
@@ -1459,32 +1428,6 @@ VOID CMDHandler(
 								//NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
 								RTMP_INT_UNLOCK(&pAd->BulkOutLock[pAd->bulkResetPipeid], IrqFlags);
 /*-----------------------------------------------------------------------------------------------*/
-#ifdef RALINK_ATE
-								if(ATE_ON(pAd))
-							    {
-									pNullContext->IRPPending = TRUE;
-									//
-									// If driver is still in ATE TXFRAME mode,
-									// keep on transmitting ATE frames.
-									//
-									DBGPRINT_RAW(RT_DEBUG_TRACE, ("pAd->ate.Mode == %d\npAd->ContinBulkOut == %d\npAd->BulkOutRemained == %d\n", pAd->ate.Mode, pAd->ContinBulkOut, atomic_read(&pAd->BulkOutRemained)));
-									if((pAd->ate.Mode == ATE_TXFRAME) && ((pAd->ContinBulkOut == TRUE) || (atomic_read(&pAd->BulkOutRemained) > 0)))
-								    {
-										DBGPRINT_RAW(RT_DEBUG_TRACE, ("After CMDTHREAD_RESET_BULK_OUT, continue to bulk out frames !\n"));
-
-										// Init Tx context descriptor
-										RTUSBInitTxDesc(pAd, pNullContext, 0/* pAd->bulkResetPipeid */, (usb_complete_t)ATE_RTUSBBulkOutDataPacketComplete);
-
-										if((ret = RTUSB_SUBMIT_URB(pNullContext->pUrb))!=0)
-										{
-											DBGPRINT(RT_DEBUG_ERROR, ("ATE_RTUSBBulkOutDataPacket: Submit Tx URB failed %d\n", ret));
-										}
-
-										pAd->BulkOutReq++;
-									}
-								}
-								else
-#endif // RALINK_ATE //
 /*-----------------------------------------------------------------------------------------------*/
 								{
 								RTUSBInitHTTxDesc(pAd, pHTTXContext, pAd->bulkResetPipeid, pHTTXContext->BulkOutSize, (usb_complete_t)RTUSBBulkOutDataPacketComplete);
@@ -1597,19 +1540,6 @@ VOID CMDHandler(
 					{
 						UINT32		MACValue;
 /*-----------------------------------------------------------------------------------------------*/
-#ifdef RALINK_ATE
-						if (ATE_ON(pAd))
-						{
-							if((pAd->PendingRx > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
-							{
-								DBGPRINT_RAW(RT_DEBUG_ERROR, ("ATE : BulkIn IRP Pending!!!\n"));
-								ATE_RTUSBCancelPendingBulkInIRP(pAd);
-								RTMPusecDelay(100000);
-								pAd->PendingRx = 0;
-							}
-						}
-						else
-#endif // RALINK_ATE //
 /*-----------------------------------------------------------------------------------------------*/
 						{
 						//while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
@@ -1699,15 +1629,6 @@ VOID CMDHandler(
 								}
 								else
 								{	// success
-#if 0
-									RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);
-									pRxContext->IRPPending = TRUE;
-									//NdisInterlockedIncrement(&pAd->PendingRx);
-									pAd->PendingRx++;
-									RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
-									pAd->BulkInReq++;
-#endif
-									//printk("BIDone, Pend=%d,BIIdx=%d,BIRIdx=%d!\n", pAd->PendingRx, pAd->NextRxBulkInIndex, pAd->NextRxBulkInReadIndex);
 									DBGPRINT_RAW(RT_DEBUG_TRACE, ("CMDTHREAD_RESET_BULK_IN: Submit Rx URB Done, status=%d!\n", pUrb->status));
 									ASSERT((pRxContext->InUse == pRxContext->IRPPending));
 								}
@@ -1765,7 +1686,6 @@ VOID CMDHandler(
 
 				case CMDTHREAD_SET_ASIC_WCID_CIPHER:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						RT_SET_ASIC_WCID_ATTRI	SetAsicWcidAttri;
 						USHORT		offset;
 						UINT32		MACRValue = 0;
@@ -1817,46 +1737,46 @@ VOID CMDHandler(
 
 							RTUSBWriteMACRegister(pAd, SHARED_KEY_MODE_BASE+4*(0/2), csr1.word);
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-				// avoid in interrupt when write key
+#ifdef RT30xx
+//Benson modified for USB interface, avoid in interrupt when write key, 20080724 -->
 				case RT_CMD_SET_KEY_TABLE: //General call for AsicAddPairwiseKeyEntry()
-					{
-						RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
-						KeyInfo  = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
-						AsicAddPairwiseKeyEntry(pAd,
-												KeyInfo.MacAddr,
-												(UCHAR)KeyInfo.MacTabMatchWCID,
-												&KeyInfo.CipherKey);
-					}
+				{
+					RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
+					KeyInfo = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
+					AsicAddPairwiseKeyEntry(pAd,
+											KeyInfo.MacAddr,
+											(UCHAR)KeyInfo.MacTabMatchWCID,
+											&KeyInfo.CipherKey);
+				}
 					break;
-
 				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
-					{
-						PMAC_TABLE_ENTRY pEntry ;
-						pEntry = (PMAC_TABLE_ENTRY)(pData);
-						RTMPAddWcidAttributeEntry(pAd,
-													BSS0,
-													0,
-													pEntry->PairwiseKey.CipherAlg,
-													pEntry);
+				{
+					PMAC_TABLE_ENTRY pEntry;
+					UCHAR KeyIdx;
+					UCHAR CipherAlg;
+					UCHAR ApIdx;
+
+					pEntry = (PMAC_TABLE_ENTRY)(pData);
+
+						RTMPAddWcidAttributeEntry(
+										  pAd,
+										  ApIdx,
+										  KeyIdx,
+										  CipherAlg,
+										  pEntry);
 					}
-					break;
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
+						break;
+//Benson modified for USB interface, avoid in interrupt when write key, 20080724 <--
+#endif
 
 				case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 					{
 						MAC_TABLE_ENTRY *pEntry;
 						pEntry = (MAC_TABLE_ENTRY *)pData;
 
-
-#ifdef CONFIG_STA_SUPPORT
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)pEntry->Aid);
 							if ((pEntry->AuthMode <= Ndis802_11AuthModeAutoSwitch) && (pEntry->WepStatus == Ndis802_11Encryption1Enabled))
@@ -1891,7 +1811,6 @@ VOID CMDHandler(
 								RTUSBWriteMACRegister(pAd, offset, 0);
 							}
 						}
-#endif // CONFIG_STA_SUPPORT //
 
 						AsicUpdateRxWCIDTable(pAd, pEntry->Aid, pEntry->Addr);
 						printk("UpdateRxWCIDTable(): Aid=%d, Addr=%02x:%02x:%02x:%02x:%02x:%02x!\n", pEntry->Aid,
@@ -1899,9 +1818,18 @@ VOID CMDHandler(
 					}
 					break;
 
+#ifdef RT30xx
+// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+				case CMDTHREAD_UPDATE_PROTECT:
+					{
+						AsicUpdateProtect(pAd, 0, (ALLN_SETPROTECT), TRUE, 0);
+					}
+					break;
+// end johnli
+#endif
+
 				case OID_802_11_ADD_WEP:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						UINT	i;
 						UINT32	KeyIdx;
 						PNDIS_802_11_WEP	pWepKey;
@@ -1975,7 +1903,6 @@ VOID CMDHandler(
 							AsicAddSharedKeyEntry(pAd, BSS0, (UCHAR)KeyIdx, CipherAlg, pWepKey->KeyMaterial, NULL, NULL);
 							DBGPRINT(RT_DEBUG_TRACE, ("CmdThread::OID_802_11_ADD_WEP (KeyIdx=%d, Len=%d-byte)\n", KeyIdx, pWepKey->KeyLength));
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 

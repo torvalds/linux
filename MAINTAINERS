@@ -5479,6 +5479,7 @@ STAGING SUBSYSTEM
 P:	Greg Kroah-Hartman
 M:	gregkh@suse.de
 T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
 

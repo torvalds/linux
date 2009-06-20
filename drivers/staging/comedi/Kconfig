@@ -13,13 +13,6 @@ config COMEDI_DEBUG
 	  This is an option for use by developers; most people should
 	  say N here. This enables comedi core and driver debugging.
 
-config COMEDI_RT
-	tristate "Comedi Real-time support"
-	depends on COMEDI && RT
-	default N
-	---help---
-	  Enable Real time support for the Comedi core.
-
 config COMEDI_PCI_DRIVERS
 	tristate "Comedi PCI drivers"
 	depends on COMEDI && PCI
@@ -29,10 +22,10 @@ config COMEDI_PCI_DRIVERS
 
 config COMEDI_PCMCIA_DRIVERS
 	tristate "Comedi PCMCIA drivers"
-	depends on COMEDI && PCMCIAI
+	depends on COMEDI && PCMCIA && PCCARD
 	default N
 	---help---
-	  Enable lots of comedi PCMCIA drivers to be built
+	  Enable lots of comedi PCMCIA and PCCARD drivers to be built
 
 config COMEDI_USB_DRIVERS
 	tristate "Comedi USB drivers"

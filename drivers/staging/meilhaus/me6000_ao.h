@@ -27,7 +27,6 @@
 #ifndef _ME6000_AO_H_
 #define _ME6000_AO_H_
 
-#include <linux/version.h>
 #include "mesubdevice.h"
 #include "mecirc_buf.h"
 #include "meioctl.h"

@@ -401,7 +401,6 @@ struct hw_data {
 
 	// For surprise remove
 	u32	SurpriseRemove; // 0: Normal 1: Surprise remove
-	u8	InitialResource;
 	u8	IsKeyPreSet;
 	u8	CalOneTime; // 20060630.1
 

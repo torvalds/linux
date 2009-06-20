@@ -54,15 +54,6 @@
 #define NIC_TAG             ((ULONG)'0682')
 #define NIC_DBG_STRING      ("**RT28xx**")
 
-#ifdef SNMP_SUPPORT
-// for snmp
-// to get manufacturer OUI, kathy, 2008_0220
-#define ManufacturerOUI_LEN			3
-#define ManufacturerNAME			("Ralink Technology Company.")
-#define	ResourceTypeIdName			("Ralink_ID")
-#endif
-
-
 #define RALINK_2883_VERSION		((UINT32)0x28830300)
 #define RALINK_2880E_VERSION	((UINT32)0x28720200)
 #define RALINK_3070_VERSION		((UINT32)0x30700200)
@@ -111,6 +102,7 @@
 // Entry number for each DMA descriptor ring
 //
 
+#ifdef RT2860
 #define TX_RING_SIZE            64 //64
 #define MGMT_RING_SIZE          128
 #define RX_RING_SIZE            128 //64
@@ -118,12 +110,15 @@
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
 #define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
 #define LOCAL_TXBUF_SIZE        2
-
-
-#ifdef MULTIPLE_CARD_SUPPORT
-// MC: Multple Cards
-#define MAX_NUM_OF_MULTIPLE_CARD		32
-#endif // MULTIPLE_CARD_SUPPORT //
+#endif
+#ifdef RT2870
+#define TX_RING_SIZE            8 // 1
+#define PRIO_RING_SIZE          8
+#define MGMT_RING_SIZE       32 // PRIO_RING_SIZE
+#define RX_RING_SIZE            8
+#define MAX_TX_PROCESS          4
+#define LOCAL_TXBUF_SIZE        2048
+#endif // RT2870 //
 
 #define MAX_RX_PROCESS          128 //64 //32
 #define NUM_OF_LOCAL_TXBUF      2
@@ -153,7 +148,11 @@
 #define MAX_PACKETS_IN_PS_QUEUE				128	//32
 #define WMM_NUM_OF_AC                       4  /* AC0, AC1, AC2, and AC3 */
 
-
+#ifdef RT30xx
+//2008/09/11:KH add to support efuse<--
+#define MAX_EEPROM_BIN_FILE_SIZE					1024
+//2008/09/11:KH add to support efuse-->
+#endif
 
 // RxFilter
 #define STANORMAL	 0x17f97
@@ -210,6 +209,7 @@
 #define fOP_STATUS_WAKEUP_NOW               0x00008000
 #define fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE       0x00020000
 
+#ifdef RT2860
 //
 //  RTMP_ADAPTER PSFlags : related to advanced power save.
 //
@@ -222,10 +222,7 @@
 // Indicate driver should IMMEDIATELY fo to sleep after receiving AP's beacon in which  doesn't indicate unicate nor multicast packets for me
 //. This flag is used ONLY in RTMPHandleRxDoneInterrupt routine.
 #define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
-
-#ifdef DOT11N_DRAFT3
-#define fOP_STATUS_SCAN_2040               	    0x00040000
-#endif // DOT11N_DRAFT3 //
+#endif
 
 #define CCKSETPROTECT		0x1
 #define OFDMSETPROTECT		0x2
@@ -250,10 +247,6 @@
 #define fCLIENT_STATUS_RDG_CAPABLE			0x00000200
 #define fCLIENT_STATUS_MCSFEEDBACK_CAPABLE  0x00000400
 #define fCLIENT_STATUS_APSD_CAPABLE         0x00000800  /* UAPSD STATION */
-
-#ifdef DOT11N_DRAFT3
-#define fCLIENT_STATUS_BSSCOEXIST_CAPABLE	0x00001000
-#endif // DOT11N_DRAFT3 //
 
 #define fCLIENT_STATUS_RALINK_CHIPSET		0x00100000
 //
@@ -330,16 +323,14 @@
 #define MAX_MESH_NUM				0
 
 #define MAX_APCLI_NUM				0
-#ifdef APCLI_SUPPORT
-#undef	MAX_APCLI_NUM
-#define MAX_APCLI_NUM				1
-#endif // APCLI_SUPPORT //
 
 #define MAX_MBSSID_NUM				1
+#if defined(RT2860) || defined(RT30xx)
 #ifdef MBSS_SUPPORT
 #undef	MAX_MBSSID_NUM
 #define MAX_MBSSID_NUM				(8 - MAX_MESH_NUM - MAX_APCLI_NUM)
 #endif // MBSS_SUPPORT //
+#endif
 
 /* sanity check for apidx */
 #define MBSS_MR_APIDX_SANITY_CHECK(apidx) \
@@ -582,6 +573,9 @@
 // For 802.11n D3.03
 //#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet
 #define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03	Secondary Channel Offset element
+#ifdef RT2870
+#define IE_WAPI							68		// WAPI information element
+#endif
 #define IE_2040_BSS_COEXIST               72    // 802.11n D3.0.3
 #define IE_2040_BSS_INTOLERANT_REPORT     73    // 802.11n D3.03
 #define IE_OVERLAPBSS_SCAN_PARM           74    // 802.11n D3.03
@@ -630,9 +624,10 @@
 #define AP_CNTL_STATE_MACHINE           15
 #define AP_WPA_STATE_MACHINE            16
 
-#ifdef QOS_DLS_SUPPORT
-#define DLS_STATE_MACHINE               26
-#endif // QOS_DLS_SUPPORT //
+#ifdef RT30xx
+#define WSC_STATE_MACHINE            17
+#define WSC_UPNP_STATE_MACHINE		    18
+#endif
 
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
@@ -647,6 +642,9 @@
 #define CNTL_WAIT_AUTH2                 7
 #define CNTL_WAIT_OID_LIST_SCAN         8
 #define CNTL_WAIT_OID_DISASSOC          9
+#ifdef RT2870
+#define CNTL_WAIT_SCAN_FOR_CONNECT      10
+#endif // RT2870 //
 
 #define MT2_ASSOC_CONF                  34
 #define MT2_AUTH_CONF                   35
@@ -948,79 +946,6 @@
 
 #define AP_WPA_FUNC_SIZE                (AP_MAX_WPA_PTK_STATE * AP_MAX_WPA_MSG)
 
-#ifdef APCLI_SUPPORT
-//ApCli authentication state machine
-#define APCLI_AUTH_REQ_IDLE                0
-#define APCLI_AUTH_WAIT_SEQ2               1
-#define APCLI_AUTH_WAIT_SEQ4               2
-#define APCLI_MAX_AUTH_STATE               3
-
-#define APCLI_AUTH_MACHINE_BASE            0
-#define APCLI_MT2_MLME_AUTH_REQ            0
-#define APCLI_MT2_MLME_DEAUTH_REQ          1
-#define APCLI_MT2_PEER_AUTH_EVEN           2
-#define APCLI_MT2_PEER_DEAUTH              3
-#define APCLI_MT2_AUTH_TIMEOUT             4
-#define APCLI_MAX_AUTH_MSG                 5
-
-#define APCLI_AUTH_FUNC_SIZE               (APCLI_MAX_AUTH_STATE * APCLI_MAX_AUTH_MSG)
-
-//ApCli association state machine
-#define APCLI_ASSOC_IDLE                   0
-#define APCLI_ASSOC_WAIT_RSP               1
-#define APCLI_MAX_ASSOC_STATE              2
-
-#define APCLI_ASSOC_MACHINE_BASE           0
-#define APCLI_MT2_MLME_ASSOC_REQ           0
-#define APCLI_MT2_MLME_DISASSOC_REQ        1
-#define APCLI_MT2_PEER_DISASSOC_REQ        2
-#define APCLI_MT2_PEER_ASSOC_RSP           3
-#define APCLI_MT2_ASSOC_TIMEOUT            4
-#define APCLI_MAX_ASSOC_MSG                5
-
-#define APCLI_ASSOC_FUNC_SIZE              (APCLI_MAX_ASSOC_STATE * APCLI_MAX_ASSOC_MSG)
-
-//ApCli sync state machine
-#define APCLI_SYNC_IDLE                   0  // merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
-#define APCLI_JOIN_WAIT_PROBE_RSP         1
-#define APCLI_MAX_SYNC_STATE              2
-
-#define APCLI_SYNC_MACHINE_BASE           0
-#define APCLI_MT2_MLME_PROBE_REQ          0
-#define APCLI_MT2_PEER_PROBE_RSP          1
-#define APCLI_MT2_PROBE_TIMEOUT           2
-#define APCLI_MAX_SYNC_MSG                3
-
-#define APCLI_SYNC_FUNC_SIZE              (APCLI_MAX_SYNC_STATE * APCLI_MAX_SYNC_MSG)
-
-//ApCli ctrl state machine
-#define APCLI_CTRL_DISCONNECTED           0  // merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
-#define APCLI_CTRL_PROBE                  1
-#define APCLI_CTRL_AUTH                   2
-#define APCLI_CTRL_AUTH_2                 3
-#define APCLI_CTRL_ASSOC                  4
-#define APCLI_CTRL_DEASSOC                5
-#define APCLI_CTRL_CONNECTED              6
-#define APCLI_MAX_CTRL_STATE              7
-
-#define APCLI_CTRL_MACHINE_BASE           0
-#define APCLI_CTRL_JOIN_REQ               0
-#define APCLI_CTRL_PROBE_RSP              1
-#define APCLI_CTRL_AUTH_RSP               2
-#define APCLI_CTRL_DISCONNECT_REQ         3
-#define APCLI_CTRL_PEER_DISCONNECT_REQ    4
-#define APCLI_CTRL_ASSOC_RSP              5
-#define APCLI_CTRL_DEASSOC_RSP            6
-#define APCLI_CTRL_JOIN_REQ_TIMEOUT       7
-#define APCLI_CTRL_AUTH_REQ_TIMEOUT       8
-#define APCLI_CTRL_ASSOC_REQ_TIMEOUT      9
-#define APCLI_MAX_CTRL_MSG                10
-
-#define APCLI_CTRL_FUNC_SIZE              (APCLI_MAX_CTRL_STATE * APCLI_MAX_CTRL_MSG)
-
-#endif	// APCLI_SUPPORT //
-
-
 // =============================================================================
 
 // value domain of 802.11 header FC.Tyte, which is b3..b2 of the 1st-byte of MAC header
@@ -1107,10 +1032,9 @@
 // Preamble MODE in TxD
 #define MODE_CCK	0
 #define MODE_OFDM   1
-#ifdef DOT11_N_SUPPORT
 #define MODE_HTMIX	2
 #define MODE_HTGREENFIELD	3
-#endif // DOT11_N_SUPPORT //
+
 // MCS for CCK.  BW.SGI.STBC are reserved
 #define MCS_LONGP_RATE_1                      0	 // long preamble CCK 1Mbps
 #define MCS_LONGP_RATE_2                      1	// long preamble CCK 1Mbps
@@ -1157,12 +1081,10 @@
 #define MCS_32		32
 #define MCS_AUTO		33
 
-#ifdef DOT11_N_SUPPORT
 // OID_HTPHYMODE
 // MODE
 #define HTMODE_MM	0
 #define HTMODE_GF	1
-#endif // DOT11_N_SUPPORT //
 
 // Fixed Tx MODE - HT, CCK or OFDM
 #define FIXED_TXMODE_HT		0
@@ -1174,15 +1096,12 @@
 #define BW_BOTH		BAND_WIDTH_BOTH
 #define BW_10		BAND_WIDTH_10	// 802.11j has 10MHz. This definition is for internal usage. doesn't fill in the IE or other field.
 
-#ifdef DOT11_N_SUPPORT
 // SHORTGI
 #define GI_400		GAP_INTERVAL_400	// only support in HT mode
 #define GI_BOTH		GAP_INTERVAL_BOTH
-#endif // DOT11_N_SUPPORT //
 #define GI_800		GAP_INTERVAL_800
 // STBC
 #define STBC_NONE	0
-#ifdef DOT11_N_SUPPORT
 #define STBC_USE	1	// limited use in rt2860b phy
 #define RXSTBC_ONE	1	// rx support of one spatial stream
 #define RXSTBC_TWO	2	// rx support of 1 and 2 spatial stream
@@ -1203,8 +1122,6 @@
 // A-MSDU size
 #define	AMSDU_0	0
 #define	AMSDU_1		1
-
-#endif // DOT11_N_SUPPORT //
 
 // MCS use 7 bits
 #define TXRATEMIMO		0x80
@@ -1298,6 +1215,10 @@
 #define RFIC_2750                   4       // 2.4G/5G 1T2R
 #define RFIC_3020                   5       // 2.4G 1T1R
 #define RFIC_2020                   6       // 2.4G B/G
+#ifdef RT30xx
+#define RFIC_3021                   7       // 2.4G 1T2R
+#define RFIC_3022                   8       // 2.4G 2T2R
+#endif
 
 // LED Status.
 #define LED_LINK_DOWN               0
@@ -1353,17 +1274,6 @@
 #define OPMODE_AP                   1
 //#define OPMODE_L3_BRG               2       // as AP and STA at the same time
 
-#ifdef RT_BIG_ENDIAN
-#define DIR_READ                    0
-#define DIR_WRITE                   1
-#define TYPE_TXD                    0
-#define TYPE_RXD                    1
-#define TYPE_TXINFO					0
-#define TYPE_RXINFO					1
-#define TYPE_TXWI					0
-#define TYPE_RXWI					1
-#endif
-
 // ========================= AP rtmp_def.h ===========================
 // value domain for pAd->EventTab.Log[].Event
 #define EVENT_RESET_ACCESS_POINT    0 // Log = "hh:mm:ss   Restart Access Point"
@@ -1410,24 +1320,6 @@
 #define INT_MESH                   	0x0500
 
 // Use bitmap to allow coexist of ATE_TXFRAME and ATE_RXFRAME(i.e.,to support LoopBack mode)
-#ifdef RALINK_ATE
-#define	ATE_START                   0x00   // Start ATE
-#define	ATE_STOP                    0x80   // Stop ATE
-#define	ATE_TXCONT                  0x05   // Continuous Transmit
-#define	ATE_TXCARR                  0x09   // Transmit Carrier
-#define	ATE_TXCARRSUPP              0x11   // Transmit Carrier Suppression
-#define	ATE_TXFRAME                 0x01   // Transmit Frames
-#define	ATE_RXFRAME                 0x02   // Receive Frames
-#ifdef RALINK_28xx_QA
-#define ATE_TXSTOP                  0xe2   // Stop Transmition(i.e., TXCONT, TXCARR, TXCARRSUPP, and TXFRAME)
-#define ATE_RXSTOP					0xfd   // Stop receiving Frames
-#define	BBP22_TXFRAME     			0x00   // Transmit Frames
-#define	BBP22_TXCONT_OR_CARRSUPP    0x80   // Continuous Transmit or Carrier Suppression
-#define	BBP22_TXCARR                0xc1   // Transmit Carrier
-#define	BBP24_TXCONT                0x00   // Continuous Transmit
-#define	BBP24_CARRSUPP              0x01   // Carrier Suppression
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
 
 // WEP Key TYPE
 #define WEP_HEXADECIMAL_TYPE    0
@@ -1498,7 +1390,6 @@
 
 // End - WIRELESS EVENTS definition
 
-#ifdef CONFIG_STA_SUPPORT
 // definition for DLS, kathy
 #define	MAX_NUM_OF_INIT_DLS_ENTRY   1
 #define	MAX_NUM_OF_DLS_ENTRY        MAX_NUMBER_OF_DLS_ENTRY
@@ -1508,15 +1399,12 @@
 #define MAX_RX_REORDERBUF		64
 #define DEFAULT_TX_TIMEOUT		30
 #define DEFAULT_RX_TIMEOUT		30
-#ifndef CONFIG_AP_SUPPORT
 #define MAX_BARECI_SESSION		8
-#endif
 
 #ifndef IW_ESSID_MAX_SIZE
 /* Maximum size of the ESSID and pAd->nickname strings */
 #define IW_ESSID_MAX_SIZE   		32
 #endif
-#endif // CONFIG_STA_SUPPORT //
 
 #ifdef MCAST_RATE_SPECIFIC
 #define MCAST_DISABLE	0
@@ -1525,6 +1413,7 @@
 #define MCAST_HTMIX		3
 #endif // MCAST_RATE_SPECIFIC //
 
+#ifdef RT2860
 // For AsicRadioOff/AsicRadioOn/AsicForceWakeup function
 // This is to indicate from where to call this function.
 #define DOT11POWERSAVE		0	// TO do .11 power save sleep
@@ -1532,8 +1421,14 @@
 #define RTMP_HALT			2	// Called from Halt handler.
 #define GUI_IDLE_POWER_SAVE	3	// Call to sleep before link up with AP
 #define FROM_TX				4	// Force wake up from Tx packet.
-
-
+#endif
+#ifdef RT2870
+// For AsicRadioOff/AsicRadioOn function
+#define DOT11POWERSAVE		0
+#define GUIRADIO_OFF		1
+#define RTMP_HALT		    2
+#define GUI_IDLE_POWER_SAVE		3
+#endif
 
 // definition for WpaSupport flag
 #define WPA_SUPPLICANT_DISABLE				0
@@ -1564,23 +1459,6 @@
     (UINT64)(((UINT64)(x) & (UINT64) 0x00ff000000000000ULL) >> 40) | \
     (UINT64)(((UINT64)(x) & (UINT64) 0xff00000000000000ULL) >> 56) ))
 
-#ifdef RT_BIG_ENDIAN
-
-#define cpu2le64(x) SWAP64((x))
-#define le2cpu64(x) SWAP64((x))
-#define cpu2le32(x) SWAP32((x))
-#define le2cpu32(x) SWAP32((x))
-#define cpu2le16(x) SWAP16((x))
-#define le2cpu16(x) SWAP16((x))
-#define cpu2be64(x) ((UINT64)(x))
-#define be2cpu64(x) ((UINT64)(x))
-#define cpu2be32(x) ((UINT32)(x))
-#define be2cpu32(x) ((UINT32)(x))
-#define cpu2be16(x) ((UINT16)(x))
-#define be2cpu16(x) ((UINT16)(x))
-
-#else   // Little_Endian
-
 #define cpu2le64(x) ((UINT64)(x))
 #define le2cpu64(x) ((UINT64)(x))
 #define cpu2le32(x) ((UINT32)(x))
@@ -1593,8 +1471,6 @@
 #define be2cpu32(x) SWAP32((x))
 #define cpu2be16(x) SWAP16((x))
 #define be2cpu16(x) SWAP16((x))
-
-#endif  // RT_BIG_ENDIAN
 
 #endif  // __RTMP_DEF_H__
 

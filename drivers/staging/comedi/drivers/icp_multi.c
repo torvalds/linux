@@ -50,6 +50,7 @@ Options:
  [1] - PCI slot number
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
@@ -282,7 +283,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev, struct comedi_subde
 			readw(devpriv->io_addr + ICP_MULTI_ADC_CSR));
 #endif
 
-		comedi_udelay(1);
+		udelay(1);
 
 #ifdef ICP_MULTI_EXTDEBUG
 		printk("icp multi C n=%d ST=%4x\n", n,
@@ -304,7 +305,7 @@ static int icp_multi_insn_read_ai(struct comedi_device *dev, struct comedi_subde
 						ICP_MULTI_ADC_CSR));
 #endif
 
-			comedi_udelay(1);
+			udelay(1);
 		}
 
 		/*  If we reach here, a timeout has occurred */
@@ -411,7 +412,7 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev, struct comedi_subd
 						ICP_MULTI_DAC_CSR));
 #endif
 
-			comedi_udelay(1);
+			udelay(1);
 		}
 
 		/*  If we reach here, a timeout has occurred */
@@ -618,7 +619,7 @@ static int icp_multi_insn_write_ctr(struct comedi_device *dev, struct comedi_sub
 
 ==============================================================================
 */
-static irqreturn_t interrupt_service_icp_multi(int irq, void *d PT_REGS_ARG)
+static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	int int_no;
@@ -842,7 +843,7 @@ static int icp_multi_reset(struct comedi_device *dev)
 				devpriv->io_addr + ICP_MULTI_DAC_CSR);
 
 			/*  Delay to allow DAC time to recover */
-			comedi_udelay(1);
+			udelay(1);
 		}
 	/*  Digital outputs to 0 */
 	writew(0, devpriv->io_addr + ICP_MULTI_DO);
@@ -954,7 +955,7 @@ static int icp_multi_attach(struct comedi_device *dev, struct comedi_devconfig *
 
 	if (this_board->have_irq) {
 		if (irq) {
-			if (comedi_request_irq(irq, interrupt_service_icp_multi,
+			if (request_irq(irq, interrupt_service_icp_multi,
 					IRQF_SHARED, "Inova Icp Multi", dev)) {
 				printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 				irq = 0;	/* Can't use IRQ */
@@ -1072,7 +1073,7 @@ static int icp_multi_detach(struct comedi_device *dev)
 			icp_multi_reset(dev);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->private && devpriv->io_addr)
 		iounmap(devpriv->io_addr);

@@ -119,6 +119,7 @@ Configuration options:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "comedi_pci.h"
 #include "8255.h"
@@ -129,7 +130,7 @@ Configuration options:
 #define DAQBOARD2000_DAQ_SIZE 		0x1002
 #define DAQBOARD2000_PLX_SIZE 		0x100
 
-// Initialization bits for the Serial EEPROM Control Register
+/* Initialization bits for the Serial EEPROM Control Register */
 #define DAQBOARD2000_SECRProgPinHi      0x8001767e
 #define DAQBOARD2000_SECRProgPinLo      0x8000767e
 #define DAQBOARD2000_SECRLocalBusHi     0xc000767e
@@ -137,14 +138,14 @@ Configuration options:
 #define DAQBOARD2000_SECRReloadHi       0xa000767e
 #define DAQBOARD2000_SECRReloadLo       0x8000767e
 
-// SECR status bits
+/* SECR status bits */
 #define DAQBOARD2000_EEPROM_PRESENT     0x10000000
 
-// CPLD status bits
+/* CPLD status bits */
 #define DAQBOARD2000_CPLD_INIT 		0x0002
 #define DAQBOARD2000_CPLD_DONE 		0x0004
 
-// Available ranges
+/* Available ranges */
 static const struct comedi_lrange range_daqboard2000_ai = { 13, {
 			RANGE(-10, 10),
 			RANGE(-5, 5),
@@ -168,65 +169,65 @@ static const struct comedi_lrange range_daqboard2000_ao = { 1, {
 };
 
 struct daqboard2000_hw {
-	volatile u16 acqControl;	// 0x00
-	volatile u16 acqScanListFIFO;	// 0x02
-	volatile u32 acqPacerClockDivLow;	// 0x04
+	volatile u16 acqControl;	/*  0x00 */
+	volatile u16 acqScanListFIFO;	/*  0x02 */
+	volatile u32 acqPacerClockDivLow;	/*  0x04 */
 
-	volatile u16 acqScanCounter;	// 0x08
-	volatile u16 acqPacerClockDivHigh;	// 0x0a
-	volatile u16 acqTriggerCount;	// 0x0c
-	volatile u16 fill2;	// 0x0e
-	volatile u16 acqResultsFIFO;	// 0x10
-	volatile u16 fill3;	// 0x12
-	volatile u16 acqResultsShadow;	// 0x14
-	volatile u16 fill4;	// 0x16
-	volatile u16 acqAdcResult;	// 0x18
-	volatile u16 fill5;	// 0x1a
-	volatile u16 dacScanCounter;	// 0x1c
-	volatile u16 fill6;	// 0x1e
+	volatile u16 acqScanCounter;	/*  0x08 */
+	volatile u16 acqPacerClockDivHigh;	/*  0x0a */
+	volatile u16 acqTriggerCount;	/*  0x0c */
+	volatile u16 fill2;	/*  0x0e */
+	volatile u16 acqResultsFIFO;	/*  0x10 */
+	volatile u16 fill3;	/*  0x12 */
+	volatile u16 acqResultsShadow;	/*  0x14 */
+	volatile u16 fill4;	/*  0x16 */
+	volatile u16 acqAdcResult;	/*  0x18 */
+	volatile u16 fill5;	/*  0x1a */
+	volatile u16 dacScanCounter;	/*  0x1c */
+	volatile u16 fill6;	/*  0x1e */
 
-	volatile u16 dacControl;	// 0x20
-	volatile u16 fill7;	// 0x22
-	volatile s16 dacFIFO;	// 0x24
-	volatile u16 fill8[2];	// 0x26
-	volatile u16 dacPacerClockDiv;	// 0x2a
-	volatile u16 refDacs;	// 0x2c
-	volatile u16 fill9;	// 0x2e
+	volatile u16 dacControl;	/*  0x20 */
+	volatile u16 fill7;	/*  0x22 */
+	volatile s16 dacFIFO;	/*  0x24 */
+	volatile u16 fill8[2];	/*  0x26 */
+	volatile u16 dacPacerClockDiv;	/*  0x2a */
+	volatile u16 refDacs;	/*  0x2c */
+	volatile u16 fill9;	/*  0x2e */
 
-	volatile u16 dioControl;	// 0x30
-	volatile s16 dioP3hsioData;	// 0x32
-	volatile u16 dioP3Control;	// 0x34
-	volatile u16 calEepromControl;	// 0x36
-	volatile s16 dacSetting[4];	// 0x38
-	volatile s16 dioP2ExpansionIO8Bit[32];	// 0x40
+	volatile u16 dioControl;	/*  0x30 */
+	volatile s16 dioP3hsioData;	/*  0x32 */
+	volatile u16 dioP3Control;	/*  0x34 */
+	volatile u16 calEepromControl;	/*  0x36 */
+	volatile s16 dacSetting[4];	/*  0x38 */
+	volatile s16 dioP2ExpansionIO8Bit[32];	/*  0x40 */
 
-	volatile u16 ctrTmrControl;	// 0x80
-	volatile u16 fill10[3];	// 0x82
-	volatile s16 ctrInput[4];	// 0x88
-	volatile u16 fill11[8];	// 0x90
-	volatile u16 timerDivisor[2];	// 0xa0
-	volatile u16 fill12[6];	// 0xa4
+	volatile u16 ctrTmrControl;	/*  0x80 */
+	volatile u16 fill10[3];	/*  0x82 */
+	volatile s16 ctrInput[4];	/*  0x88 */
+	volatile u16 fill11[8];	/*  0x90 */
+	volatile u16 timerDivisor[2];	/*  0xa0 */
+	volatile u16 fill12[6];	/*  0xa4 */
 
-	volatile u16 dmaControl;	// 0xb0
-	volatile u16 trigControl;	// 0xb2
-	volatile u16 fill13[2];	// 0xb4
-	volatile u16 calEeprom;	// 0xb8
-	volatile u16 acqDigitalMark;	// 0xba
-	volatile u16 trigDacs;	// 0xbc
-	volatile u16 fill14;	// 0xbe
-	volatile s16 dioP2ExpansionIO16Bit[32];	// 0xc0
+	volatile u16 dmaControl;	/*  0xb0 */
+	volatile u16 trigControl;	/*  0xb2 */
+	volatile u16 fill13[2];	/*  0xb4 */
+	volatile u16 calEeprom;	/*  0xb8 */
+	volatile u16 acqDigitalMark;	/*  0xba */
+	volatile u16 trigDacs;	/*  0xbc */
+	volatile u16 fill14;	/*  0xbe */
+	volatile s16 dioP2ExpansionIO16Bit[32];	/*  0xc0 */
 };
 
 /* Scan Sequencer programming */
 #define DAQBOARD2000_SeqStartScanList            0x0011
 #define DAQBOARD2000_SeqStopScanList             0x0010
 
-// Prepare for acquisition
+/* Prepare for acquisition */
 #define DAQBOARD2000_AcqResetScanListFifo        0x0004
 #define DAQBOARD2000_AcqResetResultsFifo         0x0002
 #define DAQBOARD2000_AcqResetConfigPipe          0x0001
 
-// Acqusition status bits
+/* Acqusition status bits */
 #define DAQBOARD2000_AcqResultsFIFOMore1Sample   0x0001
 #define DAQBOARD2000_AcqResultsFIFOHasValidData  0x0002
 #define DAQBOARD2000_AcqResultsFIFOOverrun       0x0004
@@ -239,7 +240,7 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_DacPacerOverrun             0x0200
 #define DAQBOARD2000_AcqHardwareError            0x01c0
 
-// Scan Sequencer programming
+/* Scan Sequencer programming */
 #define DAQBOARD2000_SeqStartScanList            0x0011
 #define DAQBOARD2000_SeqStopScanList             0x0010
 
@@ -254,7 +255,7 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_AdcPacerInternalOutEnable   0x0008
 #define DAQBOARD2000_AdcPacerExternalRising      0x0100
 
-// DAC status
+/* DAC status */
 #define DAQBOARD2000_DacFull                     0x0001
 #define DAQBOARD2000_RefBusy                     0x0002
 #define DAQBOARD2000_TrgBusy                     0x0004
@@ -264,7 +265,7 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_Dac2Busy                    0x0040
 #define DAQBOARD2000_Dac3Busy                    0x0080
 
-// DAC control
+/* DAC control */
 #define DAQBOARD2000_Dac0Enable                  0x0021
 #define DAQBOARD2000_Dac1Enable                  0x0031
 #define DAQBOARD2000_Dac2Enable                  0x0041
@@ -292,18 +293,18 @@ struct daqboard2000_hw {
 #define DAQBOARD2000_TrigEnable                  0x0001
 #define DAQBOARD2000_TrigDisable                 0x0000
 
-// Reference Dac Selection
+/* Reference Dac Selection */
 #define DAQBOARD2000_PosRefDacSelect             0x0100
 #define DAQBOARD2000_NegRefDacSelect             0x0000
 
-static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int daqboard2000_detach(struct comedi_device * dev);
+static int daqboard2000_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int daqboard2000_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_daqboard2000 = {
-      driver_name:"daqboard2000",
-      module:THIS_MODULE,
-      attach:daqboard2000_attach,
-      detach:daqboard2000_detach,
+	.driver_name = "daqboard2000",
+	.module = THIS_MODULE,
+	.attach = daqboard2000_attach,
+	.detach = daqboard2000_detach,
 };
 
 struct daq200_boardtype {
@@ -338,17 +339,17 @@ struct daqboard2000_private {
 
 #define devpriv ((struct daqboard2000_private *)dev->private)
 
-static void writeAcqScanListEntry(struct comedi_device * dev, u16 entry)
+static void writeAcqScanListEntry(struct comedi_device *dev, u16 entry)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 
-//  comedi_udelay(4);
+/* udelay(4); */
 	fpga->acqScanListFIFO = entry & 0x00ff;
-//  comedi_udelay(4);
+/* udelay(4); */
 	fpga->acqScanListFIFO = (entry >> 8) & 0x00ff;
 }
 
-static void setup_sampling(struct comedi_device * dev, int chan, int gain)
+static void setup_sampling(struct comedi_device *dev, int chan, int gain)
 {
 	u16 word0, word1, word2, word3;
 
@@ -393,8 +394,8 @@ static void setup_sampling(struct comedi_device * dev, int chan, int gain)
 	writeAcqScanListEntry(dev, word3);
 }
 
-static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	struct daqboard2000_hw *fpga = devpriv->daq;
@@ -425,14 +426,14 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 			if (fpga->acqControl & DAQBOARD2000_AcqConfigPipeFull) {
 				break;
 			}
-			//comedi_udelay(2);
+			/* udelay(2); */
 		}
 		fpga->acqControl = DAQBOARD2000_AdcPacerEnable;
 		for (timeout = 0; timeout < 20; timeout++) {
 			if (fpga->acqControl & DAQBOARD2000_AcqLogicScanning) {
 				break;
 			}
-			//comedi_udelay(2);
+			/* udelay(2); */
 		}
 		for (timeout = 0; timeout < 20; timeout++) {
 			if (fpga->
@@ -440,7 +441,7 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 				DAQBOARD2000_AcqResultsFIFOHasValidData) {
 				break;
 			}
-			//comedi_udelay(2);
+			/* udelay(2); */
 		}
 		data[i] = fpga->acqResultsFIFO;
 		fpga->acqControl = DAQBOARD2000_AdcPacerDisable;
@@ -450,8 +451,8 @@ static int daqboard2000_ai_insn_read(struct comedi_device * dev, struct comedi_s
 	return i;
 }
 
-static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -463,8 +464,8 @@ static int daqboard2000_ao_insn_read(struct comedi_device * dev, struct comedi_s
 	return i;
 }
 
-static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data)
+static int daqboard2000_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
@@ -476,54 +477,54 @@ static int daqboard2000_ao_insn_write(struct comedi_device * dev, struct comedi_
 		 * OK, since it works OK without enabling the DAC's, let's keep
 		 * it as simple as possible...
 		 */
-		//fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; comedi_udelay(1000);
+		/* fpga->dacControl = (chan + 2) * 0x0010 | 0x0001; udelay(1000); */
 		fpga->dacSetting[chan] = data[i];
 		for (timeout = 0; timeout < 20; timeout++) {
 			if ((fpga->dacControl & ((chan + 1) * 0x0010)) == 0) {
 				break;
 			}
-			//comedi_udelay(2);
+			/* udelay(2); */
 		}
 		devpriv->ao_readback[chan] = data[i];
 		/*
 		 * Since we never enabled the DAC's, we don't need to disable it...
-		 * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; comedi_udelay(1000);
+		 * fpga->dacControl = (chan + 2) * 0x0010 | 0x0000; udelay(1000);
 		 */
 	}
 
 	return i;
 }
 
-static void daqboard2000_resetLocalBus(struct comedi_device * dev)
+static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 {
 	printk("daqboard2000_resetLocalBus\n");
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 }
 
-static void daqboard2000_reloadPLX(struct comedi_device * dev)
+static void daqboard2000_reloadPLX(struct comedi_device *dev)
 {
 	printk("daqboard2000_reloadPLX\n");
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 }
 
-static void daqboard2000_pulseProgPin(struct comedi_device * dev)
+static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 {
 	printk("daqboard2000_pulseProgPin 1\n");
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
-	comedi_udelay(10000);
+	udelay(10000);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
-	comedi_udelay(10000);	/* Not in the original code, but I like symmetry... */
+	udelay(10000);	/* Not in the original code, but I like symmetry... */
 }
 
-static int daqboard2000_pollCPLD(struct comedi_device * dev, int mask)
+static int daqboard2000_pollCPLD(struct comedi_device *dev, int mask)
 {
 	int result = 0;
 	int i;
@@ -536,17 +537,17 @@ static int daqboard2000_pollCPLD(struct comedi_device * dev, int mask)
 			result = 1;
 			break;
 		}
-		comedi_udelay(100);
+		udelay(100);
 	}
-	comedi_udelay(5);
+	udelay(5);
 	return result;
 }
 
-static int daqboard2000_writeCPLD(struct comedi_device * dev, int data)
+static int daqboard2000_writeCPLD(struct comedi_device *dev, int data)
 {
 	int result = 0;
 
-	comedi_udelay(10);
+	udelay(10);
 	writew(data, devpriv->daq + 0x1000);
 	if ((readw(devpriv->daq + 0x1000) & DAQBOARD2000_CPLD_INIT) ==
 		DAQBOARD2000_CPLD_INIT) {
@@ -555,7 +556,7 @@ static int daqboard2000_writeCPLD(struct comedi_device * dev, int data)
 	return result;
 }
 
-static int initialize_daqboard2000(struct comedi_device * dev,
+static int initialize_daqboard2000(struct comedi_device *dev,
 	unsigned char *cpld_array, int len)
 {
 	int result = -EIO;
@@ -613,75 +614,75 @@ static int initialize_daqboard2000(struct comedi_device * dev,
 	return result;
 }
 
-static void daqboard2000_adcStopDmaTransfer(struct comedi_device * dev)
+static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_adcStopDmaTransfer\n");*/
 }
 
-static void daqboard2000_adcDisarm(struct comedi_device * dev)
+static void daqboard2000_adcDisarm(struct comedi_device *dev)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 
 	/* Disable hardware triggers */
-	comedi_udelay(2);
+	udelay(2);
 	fpga->trigControl = DAQBOARD2000_TrigAnalog | DAQBOARD2000_TrigDisable;
-	comedi_udelay(2);
+	udelay(2);
 	fpga->trigControl = DAQBOARD2000_TrigTTL | DAQBOARD2000_TrigDisable;
 
 	/* Stop the scan list FIFO from loading the configuration pipe */
-	comedi_udelay(2);
+	udelay(2);
 	fpga->acqControl = DAQBOARD2000_SeqStopScanList;
 
 	/* Stop the pacer clock */
-	comedi_udelay(2);
+	udelay(2);
 	fpga->acqControl = DAQBOARD2000_AdcPacerDisable;
 
 	/* Stop the input dma (abort channel 1) */
 	daqboard2000_adcStopDmaTransfer(dev);
 }
 
-static void daqboard2000_activateReferenceDacs(struct comedi_device * dev)
+static void daqboard2000_activateReferenceDacs(struct comedi_device *dev)
 {
 	struct daqboard2000_hw *fpga = devpriv->daq;
 	int timeout;
 
-	// Set the + reference dac value in the FPGA
+	/*  Set the + reference dac value in the FPGA */
 	fpga->refDacs = 0x80 | DAQBOARD2000_PosRefDacSelect;
 	for (timeout = 0; timeout < 20; timeout++) {
 		if ((fpga->dacControl & DAQBOARD2000_RefBusy) == 0) {
 			break;
 		}
-		comedi_udelay(2);
+		udelay(2);
 	}
 /*  printk("DAQBOARD2000_PosRefDacSelect %d\n", timeout);*/
 
-	// Set the - reference dac value in the FPGA
+	/*  Set the - reference dac value in the FPGA */
 	fpga->refDacs = 0x80 | DAQBOARD2000_NegRefDacSelect;
 	for (timeout = 0; timeout < 20; timeout++) {
 		if ((fpga->dacControl & DAQBOARD2000_RefBusy) == 0) {
 			break;
 		}
-		comedi_udelay(2);
+		udelay(2);
 	}
 /*  printk("DAQBOARD2000_NegRefDacSelect %d\n", timeout);*/
 }
 
-static void daqboard2000_initializeCtrs(struct comedi_device * dev)
+static void daqboard2000_initializeCtrs(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_initializeCtrs\n");*/
 }
 
-static void daqboard2000_initializeTmrs(struct comedi_device * dev)
+static void daqboard2000_initializeTmrs(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_initializeTmrs\n");*/
 }
 
-static void daqboard2000_dacDisarm(struct comedi_device * dev)
+static void daqboard2000_dacDisarm(struct comedi_device *dev)
 {
 /*  printk("Implement: daqboard2000_dacDisarm\n");*/
 }
 
-static void daqboard2000_initializeAdc(struct comedi_device * dev)
+static void daqboard2000_initializeAdc(struct comedi_device *dev)
 {
 	daqboard2000_adcDisarm(dev);
 	daqboard2000_activateReferenceDacs(dev);
@@ -689,7 +690,7 @@ static void daqboard2000_initializeAdc(struct comedi_device * dev)
 	daqboard2000_initializeTmrs(dev);
 }
 
-static void daqboard2000_initializeDac(struct comedi_device * dev)
+static void daqboard2000_initializeDac(struct comedi_device *dev)
 {
 	daqboard2000_dacDisarm(dev);
 }
@@ -717,7 +718,7 @@ static int daqboard2000_8255_cb(int dir, int port, int data,
 	return result;
 }
 
-static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconfig * it)
+static int daqboard2000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int result = 0;
 	struct comedi_subdevice *s;
@@ -772,7 +773,8 @@ static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconf
 		}
 	}
 
-	if ((result = comedi_pci_enable(card, "daqboard2000")) < 0) {
+	result = comedi_pci_enable(card, "daqboard2000");
+	if (result < 0) {
 		printk(" failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
@@ -849,7 +851,7 @@ static int daqboard2000_attach(struct comedi_device * dev, struct comedi_devconf
 	return result;
 }
 
-static int daqboard2000_detach(struct comedi_device * dev)
+static int daqboard2000_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: daqboard2000: remove\n", dev->minor);
 

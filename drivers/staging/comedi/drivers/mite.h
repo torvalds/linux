@@ -405,7 +405,7 @@ static inline int CR_RL(unsigned int retry_limit)
 		value++;
 	}
 	if (value > 0x7)
-		rt_printk("comedi: bug! retry_limit too large\n");
+		printk("comedi: bug! retry_limit too large\n");
 	return (value & 0x7) << 21;
 }
 

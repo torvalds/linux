@@ -39,7 +39,6 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 
 #include "medefines.h"
 #include "meerror.h"
@@ -633,11 +632,7 @@ me8100_di_subdevice_t *me8100_di_constructor(uint32_t me8100_reg_base,
 	/* Register interrupt service routine. */
 	subdevice->irq = irq;
 	err = request_irq(subdevice->irq, me8100_isr,
-#ifdef IRQF_DISABLED
 			  IRQF_DISABLED | IRQF_SHARED,
-#else
-			  SA_INTERRUPT | SA_SHIRQ,
-#endif
 			  ME8100_NAME, (void *)subdevice);
 
 	if (err) {
