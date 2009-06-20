@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/mmc.h>
 
 #define DM365_EVM_PHY_MASK		(0x2)
 #define DM365_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -55,6 +56,13 @@ static struct i2c_board_info i2c_info[] = {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
+};
+
+static struct davinci_mmc_config dm365evm_mmc_config = {
+	.wires		= 4,
+	.max_freq	= 50000000,
+	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
+	.version	= MMC_CTLR_VERSION_2,
 };
 
 static void dm365evm_emac_configure(void)
@@ -93,6 +101,21 @@ static void dm365evm_emac_configure(void)
 	davinci_cfg_reg(DM365_INT_EMAC_MISCPULSE);
 }
 
+static void dm365evm_mmc_configure(void)
+{
+	/*
+	 * MMC/SD pins are multiplexed with GPIO and EMIF
+	 * Further details are available at the DM365 ARM
+	 * Subsystem Users Guide(sprufg5.pdf) pages 118, 128 - 131
+	 */
+	davinci_cfg_reg(DM365_SD1_CLK);
+	davinci_cfg_reg(DM365_SD1_CMD);
+	davinci_cfg_reg(DM365_SD1_DATA3);
+	davinci_cfg_reg(DM365_SD1_DATA2);
+	davinci_cfg_reg(DM365_SD1_DATA1);
+	davinci_cfg_reg(DM365_SD1_DATA0);
+}
+
 static void __init evm_init_i2c(void)
 {
 	davinci_init_i2c(&i2c_pdata);
@@ -116,6 +139,10 @@ static __init void dm365_evm_init(void)
 	davinci_serial_init(&uart_config);
 
 	dm365evm_emac_configure();
+	dm365evm_mmc_configure();
+
+	davinci_setup_mmc(0, &dm365evm_mmc_config);
+	davinci_setup_mmc(1, &dm365evm_mmc_config);
 
 	soc_info->emac_pdata->phy_mask = DM365_EVM_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = DM365_EVM_MDIO_FREQUENCY;
