@@ -85,8 +85,8 @@ MODULE_PARM_DESC(video_std,"specify initial video standard");
 module_param_array(tolerance,    int, NULL, 0444);
 MODULE_PARM_DESC(tolerance,"specify stream error tolerance");
 
-/* US Broadcast channel 7 (175.25 MHz) */
-static int default_tv_freq    = 175250000L;
+/* US Broadcast channel 3 (61.25 MHz), to help with testing */
+static int default_tv_freq    = 61250000L;
 /* 104.3 MHz, a usable FM station for my area */
 static int default_radio_freq = 104300000L;
 
