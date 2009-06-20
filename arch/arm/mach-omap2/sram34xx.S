@@ -102,9 +102,6 @@ configure_core_dpll:
 	orr	r12, r12, r3, lsl #0x1B	@ r3 contains the M2 val
 	str	r12, [r11]
 	ldr	r12, [r11]		@ posted-write barrier for CM
-	mov 	r12, #0x800		@ wait for the clock to stabilise
-	cmp	r3, #2
-	bne	wait_clk_stable
 	bx	lr
 wait_clk_stable:
 	subs 	r12, r12, #1
