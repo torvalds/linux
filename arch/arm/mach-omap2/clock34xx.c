@@ -286,6 +286,20 @@ static struct omap_clk omap34xx_clks[] = {
 
 #define MIN_SDRC_DLL_LOCK_FREQ		83000000
 
+#define CYCLES_PER_MHZ			1000000
+
+/* Scale factor for fixed-point arith in omap3_core_dpll_m2_set_rate() */
+#define SDRC_MPURATE_SCALE		8
+
+/* 2^SDRC_MPURATE_BASE_SHIFT: MPU MHz that SDRC_MPURATE_LOOPS is defined for */
+#define SDRC_MPURATE_BASE_SHIFT		9
+
+/*
+ * SDRC_MPURATE_LOOPS: Number of MPU loops to execute at
+ * 2^MPURATE_BASE_SHIFT MHz for SDRC to stabilize
+ */
+#define SDRC_MPURATE_LOOPS		96
+
 /**
  * omap3_dpll_recalc - recalculate DPLL rate
  * @clk: DPLL struct clk
@@ -709,7 +723,8 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 new_div = 0;
 	u32 unlock_dll = 0;
-	unsigned long validrate, sdrcrate;
+	u32 c;
+	unsigned long validrate, sdrcrate, mpurate;
 	struct omap_sdrc_params *sp;
 
 	if (!clk || !rate)
@@ -737,6 +752,17 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 		unlock_dll = 1;
 	}
 
+	/*
+	 * XXX This only needs to be done when the CPU frequency changes
+	 */
+	mpurate = arm_fck.rate / CYCLES_PER_MHZ;
+	c = (mpurate << SDRC_MPURATE_SCALE) >> SDRC_MPURATE_BASE_SHIFT;
+	c += 1;  /* for safety */
+	c *= SDRC_MPURATE_LOOPS;
+	c >>= SDRC_MPURATE_SCALE;
+	if (c == 0)
+		c = 1;
+
 	pr_debug("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
 		 validrate);
 	pr_debug("clock: SDRC timing params used: %08x %08x %08x\n",
@@ -747,7 +773,7 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 
 	/* REVISIT: Add SDRC_MR changing to this code also */
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
-				  sp->actim_ctrlb, new_div, unlock_dll);
+				  sp->actim_ctrlb, new_div, unlock_dll, c);
 
 	return 0;
 }

@@ -42,10 +42,14 @@
  * r0 = sdrc_rfr_ctrl r1 = sdrc_actim_ctrla r2 = sdrc_actim_ctrlb r3 = M2
  * r4 = Unlock SDRC DLL? (1 = yes, 0 = no) -- only unlock DLL for
  *      SDRC rates < 83MHz
+ * r5 = number of MPU cycles to wait for SDRC to stabilize after
+ *      reprogramming the SDRC when switching to a slower MPU speed
+ *
  */
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
 	ldr	r4, [sp, #52]		@ pull extra args off the stack
+	ldr	r5, [sp, #56]		@ load extra args from the stack
 	dsb				@ flush buffered writes to interconnect
 	cmp	r3, #0x2
 	blne	configure_sdrc
@@ -59,7 +63,11 @@ ENTRY(omap3_sram_configure_core_dpll)
 	bleq	wait_dll_unlock
 	blne	wait_dll_lock
 	cmp	r3, #0x1
-	blne	configure_sdrc
+	beq	return_to_sdram
+	bl	configure_sdrc
+	mov	r12, r5			@ if slowing, wait for SDRC to stabilize
+	bl	wait_clk_stable
+return_to_sdram:
 	isb				@ prevent speculative exec past here
 	mov 	r0, #0 			@ return value
 	ldmfd	sp!, {r1-r12, pc}	@ restore regs and return
@@ -106,16 +114,6 @@ configure_core_dpll:
 wait_clk_stable:
 	subs 	r12, r12, #1
 	bne	wait_clk_stable
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
 	bx	lr
 enable_sdrc:
 	ldr 	r11, omap3_cm_iclken1_core
