@@ -213,7 +213,7 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 	 * Only allow the generic SCSI ioctls if the host can support it.
 	 */
 	if (!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_SCSI))
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
 }
