@@ -23,8 +23,8 @@ menuconfig BLOCK
 
 if BLOCK
 
-config LBD
-	bool "Support for large block devices and files"
+config LBDAF
+	bool "Support for large (2TB+) block devices and files"
 	depends on !64BIT
 	default y
 	help

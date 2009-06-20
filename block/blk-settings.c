@@ -97,7 +97,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 
 /**
  * blk_set_default_limits - reset limits to default values
- * @limits:  the queue_limits structure to reset
+ * @lim:  the queue_limits structure to reset
  *
  * Description:
  *   Returns a queue_limit struct to its default state.  Can be used by
@@ -112,7 +112,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_segment_size = MAX_SEGMENT_SIZE;
 	lim->max_sectors = lim->max_hw_sectors = SAFE_MAX_SECTORS;
 	lim->logical_block_size = lim->physical_block_size = lim->io_min = 512;
-	lim->bounce_pfn = BLK_BOUNCE_ANY;
+	lim->bounce_pfn = (unsigned long)(BLK_BOUNCE_ANY >> PAGE_SHIFT);
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;

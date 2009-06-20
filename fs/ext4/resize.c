@@ -1002,7 +1002,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 			" too large to resize to %llu blocks safely\n",
 			sb->s_id, n_blocks_count);
 		if (sizeof(sector_t) < 8)
-			ext4_warning(sb, __func__, "CONFIG_LBD not enabled");
+			ext4_warning(sb, __func__, "CONFIG_LBDAF not enabled");
 		return -EINVAL;
 	}
 
