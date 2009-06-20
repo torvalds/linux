@@ -31,6 +31,8 @@
 #define DAVINCI_MMCSD0_BASE	     0x01E10000
 #define DM355_MMCSD0_BASE	     0x01E11000
 #define DM355_MMCSD1_BASE	     0x01E00000
+#define DM365_MMCSD0_BASE	     0x01D11000
+#define DM365_MMCSD1_BASE	     0x01D00000
 
 static struct resource i2c_resources[] = {
 	{
@@ -154,18 +156,30 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 	 */
 	switch (module) {
 	case 1:
-		if (!cpu_is_davinci_dm355())
-			break;
+		if (cpu_is_davinci_dm355()) {
+			/* REVISIT we may not need all these pins if e.g. this
+			 * is a hard-wired SDIO device...
+			 */
+			davinci_cfg_reg(DM355_SD1_CMD);
+			davinci_cfg_reg(DM355_SD1_CLK);
+			davinci_cfg_reg(DM355_SD1_DATA0);
+			davinci_cfg_reg(DM355_SD1_DATA1);
+			davinci_cfg_reg(DM355_SD1_DATA2);
+			davinci_cfg_reg(DM355_SD1_DATA3);
+		} else if (cpu_is_davinci_dm365()) {
+			void __iomem *pupdctl1 =
+				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE + 0x7c);
 
-		/* REVISIT we may not need all these pins if e.g. this
-		 * is a hard-wired SDIO device...
-		 */
-		davinci_cfg_reg(DM355_SD1_CMD);
-		davinci_cfg_reg(DM355_SD1_CLK);
-		davinci_cfg_reg(DM355_SD1_DATA0);
-		davinci_cfg_reg(DM355_SD1_DATA1);
-		davinci_cfg_reg(DM355_SD1_DATA2);
-		davinci_cfg_reg(DM355_SD1_DATA3);
+			/* Configure pull down control */
+			__raw_writel((__raw_readl(pupdctl1) & ~0x400),
+					pupdctl1);
+
+			mmcsd1_resources[0].start = DM365_MMCSD1_BASE;
+			mmcsd1_resources[0].end = DM365_MMCSD1_BASE +
+							SZ_4K - 1;
+			mmcsd0_resources[2].start = IRQ_DM365_SDIOINT1;
+		} else
+			break;
 
 		pdev = &davinci_mmcsd1_device;
 		break;
@@ -180,9 +194,12 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 
 			/* enable RX EDMA */
 			davinci_cfg_reg(DM355_EVT26_MMC0_RX);
-		}
-
-		else if (cpu_is_davinci_dm644x()) {
+		} else if (cpu_is_davinci_dm365()) {
+			mmcsd0_resources[0].start = DM365_MMCSD0_BASE;
+			mmcsd0_resources[0].end = DM365_MMCSD0_BASE +
+							SZ_4K - 1;
+			mmcsd0_resources[2].start = IRQ_DM365_SDIOINT0;
+		} else if (cpu_is_davinci_dm644x()) {
 			/* REVISIT: should this be in board-init code? */
 			void __iomem *base =
 				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
