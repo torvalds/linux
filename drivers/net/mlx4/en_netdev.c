@@ -700,14 +700,14 @@ void mlx4_en_stop_port(struct net_device *dev)
 		en_dbg(DRV, priv, "stop port called while port already down\n");
 		return;
 	}
-	netif_tx_stop_all_queues(dev);
 
 	/* Synchronize with tx routine */
 	netif_tx_lock_bh(dev);
-	priv->port_up = false;
+	netif_tx_stop_all_queues(dev);
 	netif_tx_unlock_bh(dev);
 
 	/* close port*/
+	priv->port_up = false;
 	mlx4_CLOSE_PORT(mdev->dev, priv->port);
 
 	/* Unregister Mac address for the port */

@@ -646,13 +646,6 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	/* Now that we know what Tx ring to use */
-	if (unlikely(!priv->port_up)) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "xmit: port down!\n");
-		goto tx_drop;
-	}
-
 	/* Track current inflight packets for performance analysis */
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
 			 (u32) (ring->prod - ring->cons - 1));
