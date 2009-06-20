@@ -303,4 +303,22 @@ config MOUSE_MAPLE
 	  To compile this driver as a module choose M here: the module will be
 	  called maplemouse.
 
+config MOUSE_SYNAPTICS_I2C
+	tristate "Synaptics I2C Touchpad support"
+	depends on I2C
+	help
+	  This driver supports Synaptics I2C touchpad controller on eXeda
+	  mobile device.
+	  The device will not work the synaptics X11 driver because
+	  (i) it  reports only relative coordinates and has no capabilities
+	  to report absolute coordinates
+	  (ii) the eXeda device itself uses Xfbdev as X Server and it does
+	  not allow using xf86-input-* drivers.
+
+	  Say y here if you have eXeda device and want to use a Synaptics
+	  I2C Touchpad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_i2c.
+
 endif
