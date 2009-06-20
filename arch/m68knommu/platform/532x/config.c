@@ -438,8 +438,8 @@ void gpio_init(void)
 	/* Initialize TIN3 as a GPIO output to enable the write
 	   half of the latch */
 	MCF_GPIO_PAR_TIMER = 0x00;
-	MCF_GPIO_PDDR_TIMER = 0x08;
-	MCF_GPIO_PCLRR_TIMER = 0x0;
+	__raw_writeb(0x08, MCFGPIO_PDDR_TIMER);
+	__raw_writeb(0x00, MCFGPIO_PCLRR_TIMER);
 
 }
 
