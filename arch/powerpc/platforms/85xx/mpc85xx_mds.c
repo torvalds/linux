@@ -33,6 +33,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/phy.h>
+#include <linux/lmb.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -49,6 +50,7 @@
 #include <asm/qe.h>
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
+#include <asm/swiotlb.h>
 
 #undef DEBUG
 #ifdef DEBUG
@@ -155,6 +157,10 @@ static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
 	static u8 __iomem *bcsr_regs = NULL;
+#ifdef CONFIG_PCI
+	struct pci_controller *hose;
+#endif
+	dma_addr_t max = 0xffffffff;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_mds_setup_arch()", 0);
@@ -179,6 +185,10 @@ static void __init mpc85xx_mds_setup_arch(void)
 				fsl_add_bridge(np, 1);
 			else
 				fsl_add_bridge(np, 0);
+
+			hose = pci_find_hose_for_OF_device(np);
+			max = min(max, hose->dma_window_base_cur +
+					hose->dma_window_size);
 		}
 	}
 #endif
@@ -227,6 +237,13 @@ static void __init mpc85xx_mds_setup_arch(void)
 		iounmap(bcsr_regs);
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
+
+#ifdef CONFIG_SWIOTLB
+	if (lmb_end_of_DRAM() > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_pci_dma_ops);
+	}
+#endif
 }
 
 
@@ -280,6 +297,9 @@ static int __init mpc85xx_publish_devices(void)
 }
 machine_device_initcall(mpc8568_mds, mpc85xx_publish_devices);
 machine_device_initcall(mpc8569_mds, mpc85xx_publish_devices);
+
+machine_arch_initcall(mpc8568_mds, swiotlb_setup_bus_notifier);
+machine_arch_initcall(mpc8569_mds, swiotlb_setup_bus_notifier);
 
 static void __init mpc85xx_mds_pic_init(void)
 {

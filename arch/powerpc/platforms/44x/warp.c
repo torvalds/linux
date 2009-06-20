@@ -43,7 +43,13 @@ static int __init warp_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	return of_flat_dt_is_compatible(root, "pika,warp");
+	if (!of_flat_dt_is_compatible(root, "pika,warp"))
+		return 0;
+
+	/* For __dma_alloc_coherent */
+	ISA_DMA_THRESHOLD = ~0L;
+
+	return 1;
 }
 
 define_machine(warp) {

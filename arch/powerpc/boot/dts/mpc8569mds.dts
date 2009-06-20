@@ -24,6 +24,8 @@
 		ethernet1 = &enet1;
 		ethernet2 = &enet2;
 		ethernet3 = &enet3;
+		ethernet5 = &enet5;
+		ethernet7 = &enet7;
 		pci1 = &pci1;
 		rapidio0 = &rio0;
 	};
@@ -70,8 +72,30 @@
 			#size-cells = <1>;
 			compatible = "cfi-flash";
 			reg = <0x0 0x0 0x02000000>;
-			bank-width = <2>;
+			bank-width = <1>;
 			device-width = <1>;
+			partition@0 {
+				label = "ramdisk";
+				reg = <0x00000000 0x01c00000>;
+			};
+			partition@1c00000 {
+				label = "kernel";
+				reg = <0x01c00000 0x002e0000>;
+			};
+			partiton@1ee0000 {
+				label = "dtb";
+				reg = <0x01ee0000 0x00020000>;
+			};
+			partition@1f00000 {
+				label = "firmware";
+				reg = <0x01f00000 0x00080000>;
+				read-only;
+			};
+			partition@1f80000 {
+				label = "u-boot";
+				reg = <0x01f80000 0x00080000>;
+				read-only;
+			};
 		};
 
 		bcsr@1,0 {
@@ -466,6 +490,37 @@
 				reg = <0x3>;
 				device_type = "ethernet-phy";
 			};
+			qe_phy5: ethernet-phy@04 {
+				interrupt-parent = <&mpic>;
+				reg = <0x04>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy7: ethernet-phy@06 {
+				interrupt-parent = <&mpic>;
+				reg = <0x6>;
+				device_type = "ethernet-phy";
+			};
+		};
+		mdio@3520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3520 0x18>;
+			compatible = "fsl,ucc-mdio";
+
+			tbi0: tbi-phy@15 {
+			reg = <0x15>;
+			device_type = "tbi-phy";
+			};
+		};
+		mdio@3720 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3720 0x38>;
+			compatible = "fsl,ucc-mdio";
+			tbi1: tbi-phy@17 {
+				reg = <0x17>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet2: ucc@2200 {
@@ -511,6 +566,36 @@
 			pio-handle = <&pio4>;
 			phy-handle = <&qe_phy3>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		enet5: ucc@3400 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			cell-index = <6>;
+			reg = <0x3400 0x200>;
+			interrupts = <41>;
+			interrupt-parent = <&qeic>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "none";
+			tbi-handle = <&tbi0>;
+			phy-handle = <&qe_phy5>;
+			phy-connection-type = "sgmii";
+		};
+
+		enet7: ucc@3600 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			cell-index = <8>;
+			reg = <0x3600 0x200>;
+			interrupts = <43>;
+			interrupt-parent = <&qeic>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "none";
+			tbi-handle = <&tbi1>;
+			phy-handle = <&qe_phy7>;
+			phy-connection-type = "sgmii";
 		};
 
 		muram@10000 {

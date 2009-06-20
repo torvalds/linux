@@ -2,6 +2,8 @@
 # Makefile for Kernel-based Virtual Machine module
 #
 
+subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/powerpc/kvm
 
 common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)

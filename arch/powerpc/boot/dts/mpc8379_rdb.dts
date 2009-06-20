@@ -167,7 +167,7 @@
 			};
 
 			sdhci@2e000 {
-				compatible = "fsl,mpc8379-esdhc";
+				compatible = "fsl,mpc8379-esdhc", "fsl,esdhc";
 				reg = <0x2e000 0x1000>;
 				interrupts = <42 0x8>;
 				interrupt-parent = <&ipic>;
