@@ -546,6 +546,52 @@ INT_CFG(DM365,  INT_EMAC_MISCPULSE,  17,    1,    1,     false)
 #endif
 };
 
+static struct emac_platform_data dm365_emac_pdata = {
+	.ctrl_reg_offset	= DM365_EMAC_CNTRL_OFFSET,
+	.ctrl_mod_reg_offset	= DM365_EMAC_CNTRL_MOD_OFFSET,
+	.ctrl_ram_offset	= DM365_EMAC_CNTRL_RAM_OFFSET,
+	.mdio_reg_offset	= DM365_EMAC_MDIO_OFFSET,
+	.ctrl_ram_size		= DM365_EMAC_CNTRL_RAM_SIZE,
+	.version		= EMAC_VERSION_2,
+};
+
+static struct resource dm365_emac_resources[] = {
+	{
+		.start	= DM365_EMAC_BASE,
+		.end	= DM365_EMAC_BASE + 0x47ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DM365_EMAC_RXTHRESH,
+		.end	= IRQ_DM365_EMAC_RXTHRESH,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM365_EMAC_RXPULSE,
+		.end	= IRQ_DM365_EMAC_RXPULSE,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM365_EMAC_TXPULSE,
+		.end	= IRQ_DM365_EMAC_TXPULSE,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM365_EMAC_MISCPULSE,
+		.end	= IRQ_DM365_EMAC_MISCPULSE,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm365_emac_device = {
+	.name		= "davinci_emac",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &dm365_emac_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(dm365_emac_resources),
+	.resource	= dm365_emac_resources,
+};
 
 static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_VDINT0]			= 2,
@@ -702,6 +748,7 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.gpio_num		= 104,
 	.gpio_irq		= 44,
 	.serial_dev		= &dm365_serial_device,
+	.emac_pdata		= &dm365_emac_pdata,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };
@@ -710,3 +757,14 @@ void __init dm365_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm365);
 }
+
+static int __init dm365_init_devices(void)
+{
+	if (!cpu_is_davinci_dm365())
+		return 0;
+
+	platform_device_register(&dm365_emac_device);
+
+	return 0;
+}
+postcore_initcall(dm365_init_devices);
