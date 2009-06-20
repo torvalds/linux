@@ -1609,8 +1609,6 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 
 	 /* If the substream has 4 channel, do the necessary setup */
 	if (params_channels(params) == 4) {
-		u8 format, mode;
-
 		format = twl4030_read_reg_cache(codec, TWL4030_REG_AUDIO_IF);
 		mode = twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE);
 
