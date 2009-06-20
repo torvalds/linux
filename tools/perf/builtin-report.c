@@ -1400,7 +1400,10 @@ static int __cmd_report(void)
 		exit(0);
 	}
 
-	read(input, &file_header, sizeof(file_header));
+	if (read(input, &file_header, sizeof(file_header)) == -1) {
+		perror("failed to read file headers");
+		exit(-1);
+	}
 
 	if (sort__has_parent &&
 	    !(file_header.sample_type & PERF_SAMPLE_CALLCHAIN)) {

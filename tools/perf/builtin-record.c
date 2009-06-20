@@ -461,7 +461,8 @@ static void atexit_header(void)
 {
 	file_header.data_size += bytes_written;
 
-	pwrite(output, &file_header, sizeof(file_header), 0);
+	if (pwrite(output, &file_header, sizeof(file_header), 0) == -1)
+		perror("failed to write on file headers");
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -500,7 +501,11 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!file_new) {
-		read(output, &file_header, sizeof(file_header));
+		if (read(output, &file_header, sizeof(file_header)) == -1) {
+			perror("failed to read file headers");
+			exit(-1);
+		}
+
 		lseek(output, file_header.data_size, SEEK_CUR);
 	}
 
