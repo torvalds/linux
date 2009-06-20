@@ -127,6 +127,7 @@ struct fw_card {
 	struct delayed_work work;
 	int bm_retries;
 	int bm_generation;
+	__be32 bm_transaction_data[2];
 
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
