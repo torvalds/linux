@@ -114,11 +114,6 @@ static int rionet_rx_clean(struct net_device *ndev)
 
 		if (error == NET_RX_DROP) {
 			ndev->stats.rx_dropped++;
-		} else if (error == NET_RX_BAD) {
-			if (netif_msg_rx_err(rnet))
-				printk(KERN_WARNING "%s: bad rx packet\n",
-				       DRV_NAME);
-			ndev->stats.rx_errors++;
 		} else {
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += RIO_MAX_MSG_SIZE;

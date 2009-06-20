@@ -792,25 +792,6 @@ fst_process_rx_status(int rx_status, char *name)
 			 */
 			break;
 		}
-
-	case NET_RX_CN_LOW:
-		{
-			dbg(DBG_ASS, "%s: Receive Low Congestion\n", name);
-			break;
-		}
-
-	case NET_RX_CN_MOD:
-		{
-			dbg(DBG_ASS, "%s: Receive Moderate Congestion\n", name);
-			break;
-		}
-
-	case NET_RX_CN_HIGH:
-		{
-			dbg(DBG_ASS, "%s: Receive High Congestion\n", name);
-			break;
-		}
-
 	case NET_RX_DROP:
 		{
 			dbg(DBG_ASS, "%s: Received packet dropped\n", name);
