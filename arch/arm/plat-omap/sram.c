@@ -372,16 +372,16 @@ static u32 (*_omap3_sram_configure_core_dpll)(u32 sdrc_rfr_ctrl,
 					      u32 sdrc_actim_ctrla,
 					      u32 sdrc_actim_ctrlb,
 					      u32 m2, u32 unlock_dll,
-					      u32 f, u32 sdrc_mr);
+					      u32 f, u32 sdrc_mr, u32 inc);
 u32 omap3_configure_core_dpll(u32 sdrc_rfr_ctrl, u32 sdrc_actim_ctrla,
 			      u32 sdrc_actim_ctrlb, u32 m2, u32 unlock_dll,
-			      u32 f, u32 sdrc_mr)
+			      u32 f, u32 sdrc_mr, u32 inc)
 {
 	BUG_ON(!_omap3_sram_configure_core_dpll);
 	return _omap3_sram_configure_core_dpll(sdrc_rfr_ctrl,
 					       sdrc_actim_ctrla,
 					       sdrc_actim_ctrlb, m2,
-					       unlock_dll, f, sdrc_mr);
+					       unlock_dll, f, sdrc_mr, inc);
 }
 
 /* REVISIT: Should this be same as omap34xx_sram_init() after off-idle? */

@@ -739,9 +739,9 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 
 	sdrcrate = sdrc_ick.rate;
 	if (rate > clk->rate)
-		sdrcrate <<= ((rate / clk->rate) - 1);
+		sdrcrate <<= ((rate / clk->rate) >> 1);
 	else
-		sdrcrate >>= ((clk->rate / rate) - 1);
+		sdrcrate >>= ((clk->rate / rate) >> 1);
 
 	sp = omap2_sdrc_get_params(sdrcrate);
 	if (!sp)
@@ -768,12 +768,9 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	pr_debug("clock: SDRC timing params used: %08x %08x %08x\n",
 		 sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
 
-	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
-	WARN_ON(new_div != 1 && new_div != 2);
-
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
 				  sp->actim_ctrlb, new_div, unlock_dll, c,
-				  sp->mr);
+				  sp->mr, rate > clk->rate);
 
 	return 0;
 }

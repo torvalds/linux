@@ -70,6 +70,7 @@
  * r5 = number of MPU cycles to wait for SDRC to stabilize after
  *      reprogramming the SDRC when switching to a slower MPU speed
  * r6 = new SDRC_MR_0 register value
+ * r7 = increasing SDRC rate? (1 = yes, 0 = no)
  *
  */
 ENTRY(omap3_sram_configure_core_dpll)
@@ -77,9 +78,10 @@ ENTRY(omap3_sram_configure_core_dpll)
 	ldr	r4, [sp, #52]		@ pull extra args off the stack
 	ldr	r5, [sp, #56]		@ load extra args from the stack
 	ldr	r6, [sp, #60]		@ load extra args from the stack
+	ldr	r7, [sp, #64]		@ load extra args from the stack
 	dsb				@ flush buffered writes to interconnect
-	cmp	r3, #0x2		@ if increasing SDRC clk rate,
-	blne	configure_sdrc		@ program the SDRC regs early (for RFR)
+	cmp	r7, #1			@ if increasing SDRC clk rate,
+	bleq	configure_sdrc		@ program the SDRC regs early (for RFR)
 	cmp	r4, #SDRC_UNLOCK_DLL	@ set the intended DLL state
 	bleq	unlock_dll
 	blne	lock_dll
@@ -89,7 +91,7 @@ ENTRY(omap3_sram_configure_core_dpll)
 	cmp	r4, #SDRC_UNLOCK_DLL	@ wait for DLL status to change
 	bleq	wait_dll_unlock
 	blne	wait_dll_lock
-	cmp	r3, #0x1		@ if increasing SDRC clk rate,
+	cmp	r7, #1			@ if increasing SDRC clk rate,
 	beq	return_to_sdram		@ return to SDRAM code, otherwise,
 	bl	configure_sdrc		@ reprogram SDRC regs now
 	mov	r12, r5
