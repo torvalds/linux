@@ -2055,7 +2055,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 
 int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type)
 {
-	int rc;
+	int rc = -1;
 	u32 ep_mask = -1;
 	struct pcb_config *pcb_config;
 
