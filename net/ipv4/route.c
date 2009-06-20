@@ -1085,8 +1085,16 @@ restart:
 	now = jiffies;
 
 	if (!rt_caching(dev_net(rt->u.dst.dev))) {
-		rt_drop(rt);
-		return 0;
+		/*
+		 * If we're not caching, just tell the caller we
+		 * were successful and don't touch the route.  The
+		 * caller hold the sole reference to the cache entry, and
+		 * it will be released when the caller is done with it.
+		 * If we drop it here, the callers have no way to resolve routes
+		 * when we're not caching.  Instead, just point *rp at rt, so
+		 * the caller gets a single use out of the route
+		 */
+		goto report_and_exit;
 	}
 
 	rthp = &rt_hash_table[hash].chain;
@@ -1217,6 +1225,8 @@ restart:
 	rcu_assign_pointer(rt_hash_table[hash].chain, rt);
 
 	spin_unlock_bh(rt_hash_lock_addr(hash));
+
+report_and_exit:
 	if (rp)
 		*rp = rt;
 	else
