@@ -41,7 +41,17 @@
 #define SDRC_UNLOCK_DLL			0x1
 
 /* SDRC_DLLA_CTRL bit settings */
+#define FIXEDDELAY_SHIFT		24
+#define FIXEDDELAY_MASK			(0xff << FIXEDDELAY_SHIFT)
 #define DLLIDLE_MASK			0x4
+
+/*
+ * SDRC_DLLA_CTRL default values: TI hardware team indicates that
+ * FIXEDDELAY should be initialized to 0xf.  This apparently was
+ * empirically determined during process testing, so no derivation
+ * was provided.
+ */
+#define FIXEDDELAY_DEFAULT		(0x0f << FIXEDDELAY_SHIFT)
 
 /* SDRC_DLLA_STATUS bit settings */
 #define LOCKSTATUS_MASK			0x4
@@ -103,6 +113,8 @@ return_to_sdram:
 unlock_dll:
 	ldr	r11, omap3_sdrc_dlla_ctrl
 	ldr	r12, [r11]
+	and	r12, r12, #FIXEDDELAY_MASK
+	orr	r12, r12, #FIXEDDELAY_DEFAULT
 	orr	r12, r12, #DLLIDLE_MASK
 	str	r12, [r11]		@ (no OCP barrier needed)
 	bx	lr
