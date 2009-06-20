@@ -3837,7 +3837,9 @@ static void ql_reset_work(struct work_struct *work)
 						      16) | ISP_CONTROL_RI));
 			}
 
+			spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 			ssleep(1);
+			spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 		} while (--max_wait_time);
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 
