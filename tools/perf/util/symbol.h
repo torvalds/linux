@@ -2,16 +2,18 @@
 #define _PERF_SYMBOL_ 1
 
 #include <linux/types.h>
+#include "../types.h"
 #include "list.h"
 #include "rbtree.h"
 
 struct symbol {
 	struct rb_node	rb_node;
-	__u64		start;
-	__u64		end;
-	__u64		obj_start;
-	__u64		hist_sum;
-	__u64		*hist;
+	u64		start;
+	u64		end;
+	u64		obj_start;
+	u64		hist_sum;
+	u64		*hist;
+	void		*priv;
 	char		name[0];
 };
 
@@ -19,7 +21,7 @@ struct dso {
 	struct list_head node;
 	struct rb_root	 syms;
 	unsigned int	 sym_priv_size;
-	struct symbol    *(*find_symbol)(struct dso *, __u64 ip);
+	struct symbol    *(*find_symbol)(struct dso *, u64 ip);
 	char		 name[0];
 };
 
@@ -35,7 +37,7 @@ static inline void *dso__sym_priv(struct dso *self, struct symbol *sym)
 	return ((void *)sym) - self->sym_priv_size;
 }
 
-struct symbol *dso__find_symbol(struct dso *self, __u64 ip);
+struct symbol *dso__find_symbol(struct dso *self, u64 ip);
 
 int dso__load_kernel(struct dso *self, const char *vmlinux,
 		     symbol_filter_t filter, int verbose);

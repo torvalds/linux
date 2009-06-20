@@ -1,7 +1,7 @@
 config PPC64
 	bool "64-bit kernel"
 	default n
-	select HAVE_PERF_COUNTERS
+	select PPC_HAVE_PMU_SUPPORT
 	help
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
@@ -78,6 +78,7 @@ config POWER4_ONLY
 config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
+	select PPC_HAVE_PMU_SUPPORT
 
 config POWER3
 	bool
@@ -245,6 +246,15 @@ config VIRT_CPU_ACCOUNTING
 	  IBM POWER5-based machines.
 
 	  If in doubt, say Y here.
+
+config PPC_HAVE_PMU_SUPPORT
+       bool
+
+config PPC_PERF_CTRS
+       def_bool y
+       depends on PERF_COUNTERS && PPC_HAVE_PMU_SUPPORT
+       help
+         This enables the powerpc-specific perf_counter back-end.
 
 config SMP
 	depends on PPC_STD_MMU || FSL_BOOKE

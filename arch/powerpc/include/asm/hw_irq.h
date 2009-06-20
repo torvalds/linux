@@ -131,6 +131,8 @@ static inline int irqs_disabled_flags(unsigned long flags)
 struct irq_chip;
 
 #ifdef CONFIG_PERF_COUNTERS
+
+#ifdef CONFIG_PPC64
 static inline unsigned long test_perf_counter_pending(void)
 {
 	unsigned long x;
@@ -154,15 +156,15 @@ static inline void clear_perf_counter_pending(void)
 		"r" (0),
 		"i" (offsetof(struct paca_struct, perf_counter_pending)));
 }
+#endif /* CONFIG_PPC64 */
 
-#else
+#else  /* CONFIG_PERF_COUNTERS */
 
 static inline unsigned long test_perf_counter_pending(void)
 {
 	return 0;
 }
 
-static inline void set_perf_counter_pending(void) {}
 static inline void clear_perf_counter_pending(void) {}
 #endif /* CONFIG_PERF_COUNTERS */
 
