@@ -20,6 +20,9 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/i2c/at24.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -34,9 +37,83 @@
 #include <mach/serial.h>
 #include <mach/common.h>
 #include <mach/mmc.h>
+#include <mach/nand.h>
+
+#define DM365_ASYNC_EMIF_CONTROL_BASE	0x01d10000
+#define DM365_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
 
 #define DM365_EVM_PHY_MASK		(0x2)
 #define DM365_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
+
+/* NOTE:  this is geared for the standard config, with a socketed
+ * 2 GByte Micron NAND (MT29F16G08FAA) using 128KB sectors.  If you
+ * swap chips with a different block size, partitioning will
+ * need to be changed. This NAND chip MT29F16G08FAA is the default
+ * NAND shipped with the Spectrum Digital DM365 EVM
+ */
+#define NAND_BLOCK_SIZE		SZ_128K
+
+static struct mtd_partition davinci_nand_partitions[] = {
+	{
+		/* UBL (a few copies) plus U-Boot */
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= 28 * NAND_BLOCK_SIZE,
+		.mask_flags	= MTD_WRITEABLE, /* force read-only */
+	}, {
+		/* U-Boot environment */
+		.name		= "params",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * NAND_BLOCK_SIZE,
+		.mask_flags	= 0,
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem1",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_512M,
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem2",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0,
+	}
+	/* two blocks with bad block table (and mirror) at the end */
+};
+
+static struct davinci_nand_pdata davinci_nand_data = {
+	.mask_chipsel		= BIT(14),
+	.parts			= davinci_nand_partitions,
+	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
+	.ecc_mode		= NAND_ECC_HW,
+	.options		= NAND_USE_FLASH_BBT,
+};
+
+static struct resource davinci_nand_resources[] = {
+	{
+		.start		= DM365_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM365_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= DM365_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM365_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device davinci_nand_device = {
+	.name			= "davinci_nand",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(davinci_nand_resources),
+	.resource		= davinci_nand_resources,
+	.dev			= {
+		.platform_data	= &davinci_nand_data,
+	},
+};
 
 static struct at24_platform_data eeprom_info = {
 	.byte_len       = (256*1024) / 8,
@@ -122,6 +199,10 @@ static void __init evm_init_i2c(void)
 	i2c_register_board_info(1, i2c_info, ARRAY_SIZE(i2c_info));
 }
 
+static struct platform_device *dm365_evm_devices[] __initdata = {
+	&davinci_nand_device,
+};
+
 static struct davinci_uart_config uart_config __initdata = {
 	.enabled_uarts = (1 << 0),
 };
@@ -134,6 +215,9 @@ static void __init dm365_evm_map_io(void)
 static __init void dm365_evm_init(void)
 {
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	platform_add_devices(dm365_evm_devices,
+				ARRAY_SIZE(dm365_evm_devices));
 
 	evm_init_i2c();
 	davinci_serial_init(&uart_config);
