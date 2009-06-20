@@ -167,11 +167,11 @@ static int symbol_valid_tr(struct sym_entry *s)
 	for (i = 0; i < ARRAY_SIZE(text_ranges); ++i) {
 		tr = &text_ranges[i];
 
-		if (s->addr >= tr->start && s->addr < tr->end)
-			return 0;
+		if (s->addr >= tr->start && s->addr <= tr->end)
+			return 1;
 	}
 
-	return 1;
+	return 0;
 }
 
 static int symbol_valid(struct sym_entry *s)
