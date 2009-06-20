@@ -100,15 +100,13 @@ int drm_debugfs_create_files(struct drm_info_list *files, int count,
 		    (dev->driver->driver_features & features) != features)
 			continue;
 
-		tmp = drm_alloc(sizeof(struct drm_info_node),
-				_DRM_DRIVER);
+		tmp = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
 		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
 					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
 			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/%s\n",
 				  name, files[i].name);
-			drm_free(tmp, sizeof(struct drm_info_node),
-				 _DRM_DRIVER);
+			kfree(tmp);
 			ret = -1;
 			goto fail;
 		}
@@ -196,8 +194,7 @@ int drm_debugfs_remove_files(struct drm_info_list *files, int count,
 			if (tmp->info_ent == &files[i]) {
 				debugfs_remove(tmp->dent);
 				list_del(pos);
-				drm_free(tmp, sizeof(struct drm_info_node),
-					 _DRM_DRIVER);
+				kfree(tmp);
 			}
 		}
 	}

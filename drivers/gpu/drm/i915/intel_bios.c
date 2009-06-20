@@ -124,8 +124,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	entry = &lvds_lfp_data->data[lvds_options->panel_type];
 	dvo_timing = &entry->dvo_timing;
 
-	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
-				      DRM_MEM_DRIVER);
+	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
@@ -156,8 +155,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	if (!dvo_timing)
 		return;
 
-	panel_fixed_mode = drm_calloc(1, sizeof(*panel_fixed_mode),
-				      DRM_MEM_DRIVER);
+	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 
 	if (!panel_fixed_mode)
 		return;

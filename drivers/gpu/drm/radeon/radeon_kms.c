@@ -169,7 +169,7 @@ int radeon_master_create_kms(struct drm_device *dev, struct drm_master *master)
 	unsigned long sareapage;
 	int ret;
 
-	master_priv = drm_calloc(1, sizeof(*master_priv), DRM_MEM_DRIVER);
+	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
 	if (master_priv == NULL) {
 		return -ENOMEM;
 	}
@@ -199,7 +199,7 @@ void radeon_master_destroy_kms(struct drm_device *dev,
 	if (master_priv->sarea) {
 		drm_rmmap_locked(dev, master_priv->sarea);
 	}
-	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
+	kfree(master_priv);
 	master->driver_priv = NULL;
 }
 

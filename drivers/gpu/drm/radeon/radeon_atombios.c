@@ -835,7 +835,6 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 	struct _COMPASSIONATE_DATA *dac_info;
 	uint8_t frev, crev;
 	uint8_t bg, dac;
-	int i;
 	struct radeon_encoder_primary_dac *p_dac = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
@@ -867,7 +866,6 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 	struct _COMPASSIONATE_DATA *dac_info;
 	uint8_t frev, crev;
 	uint8_t bg, dac;
-	int i;
 	struct radeon_encoder_tv_dac *tv_dac = NULL;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);

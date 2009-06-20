@@ -63,8 +63,7 @@ static int ttm_agp_populate(struct ttm_backend *backend,
 		if (!page)
 			page = dummy_read_page;
 
-		mem->memory[mem->page_count++] =
-		    phys_to_gart(page_to_phys(page));
+		mem->pages[mem->page_count++] = page;
 	}
 	agp_be->mem = mem;
 	return 0;

@@ -79,7 +79,7 @@ static int drm_add_magic(struct drm_master *master, struct drm_file *priv,
 	struct drm_device *dev = master->minor->dev;
 	DRM_DEBUG("%d\n", magic);
 
-	entry = drm_alloc(sizeof(*entry), DRM_MEM_MAGIC);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 	memset(entry, 0, sizeof(*entry));
@@ -120,7 +120,7 @@ static int drm_remove_magic(struct drm_master *master, drm_magic_t magic)
 	list_del(&pt->head);
 	mutex_unlock(&dev->struct_mutex);
 
-	drm_free(pt, sizeof(*pt), DRM_MEM_MAGIC);
+	kfree(pt);
 
 	return 0;
 }

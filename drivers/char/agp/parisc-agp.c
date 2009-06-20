@@ -31,6 +31,10 @@
 #define AGP8X_MODE_BIT		3
 #define AGP8X_MODE		(1 << AGP8X_MODE_BIT)
 
+static unsigned long
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+		       int type);
+
 static struct _parisc_agp_info {
 	void __iomem *ioc_regs;
 	void __iomem *lba_regs;
@@ -149,12 +153,12 @@ parisc_agp_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 	for (i = 0, j = io_pg_start; i < mem->page_count; i++) {
 		unsigned long paddr;
 
-		paddr = mem->memory[i];
+		paddr = page_to_phys(mem->pages[i]);
 		for (k = 0;
 		     k < info->io_pages_per_kpage;
 		     k++, j++, paddr += info->io_page_size) {
 			info->gatt[j] =
-				agp_bridge->driver->mask_memory(agp_bridge,
+				parisc_agp_mask_memory(agp_bridge,
 					paddr, type);
 		}
 	}
@@ -185,9 +189,17 @@ parisc_agp_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 }
 
 static unsigned long
-parisc_agp_mask_memory(struct agp_bridge_data *bridge,
-		    unsigned long addr, int type)
+parisc_agp_mask_memory(struct agp_bridge_data *bridge, unsigned long addr,
+		       int type)
 {
+	return SBA_PDIR_VALID_BIT | addr;
+}
+
+static unsigned long
+parisc_agp_page_mask_memory(struct agp_bridge_data *bridge, struct page *page,
+			    int type)
+{
+	unsigned long addr = phys_to_gart(page_to_phys(page));
 	return SBA_PDIR_VALID_BIT | addr;
 }
 

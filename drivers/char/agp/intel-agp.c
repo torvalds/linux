@@ -257,7 +257,7 @@ static void intel_i810_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 }
 
 /* Exists to support ARGB cursors */
-static void *i8xx_alloc_pages(void)
+static struct page *i8xx_alloc_pages(void)
 {
 	struct page *page;
 
@@ -272,17 +272,14 @@ static void *i8xx_alloc_pages(void)
 	}
 	get_page(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
-	return page_address(page);
+	return page;
 }
 
-static void i8xx_destroy_pages(void *addr)
+static void i8xx_destroy_pages(struct page *page)
 {
-	struct page *page;
-
-	if (addr == NULL)
+	if (page == NULL)
 		return;
 
-	page = virt_to_page(addr);
 	set_pages_wb(page, 4);
 	put_page(page);
 	__free_pages(page, 2);
@@ -346,7 +343,7 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 			global_cache_flush();
 		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 			writel(agp_bridge->driver->mask_memory(agp_bridge,
-							       mem->memory[i],
+							       mem->pages[i],
 							       mask_type),
 			       intel_private.registers+I810_PTE_BASE+(j*4));
 		}
@@ -389,37 +386,37 @@ static int intel_i810_remove_entries(struct agp_memory *mem, off_t pg_start,
 static struct agp_memory *alloc_agpphysmem_i8xx(size_t pg_count, int type)
 {
 	struct agp_memory *new;
-	void *addr;
+	struct page *page;
 
 	switch (pg_count) {
-	case 1: addr = agp_bridge->driver->agp_alloc_page(agp_bridge);
+	case 1: page = agp_bridge->driver->agp_alloc_page(agp_bridge);
 		break;
 	case 4:
 		/* kludge to get 4 physical pages for ARGB cursor */
-		addr = i8xx_alloc_pages();
+		page = i8xx_alloc_pages();
 		break;
 	default:
 		return NULL;
 	}
 
-	if (addr == NULL)
+	if (page == NULL)
 		return NULL;
 
 	new = agp_create_memory(pg_count);
 	if (new == NULL)
 		return NULL;
 
-	new->memory[0] = virt_to_gart(addr);
+	new->pages[0] = page;
 	if (pg_count == 4) {
 		/* kludge to get 4 physical pages for ARGB cursor */
-		new->memory[1] = new->memory[0] + PAGE_SIZE;
-		new->memory[2] = new->memory[1] + PAGE_SIZE;
-		new->memory[3] = new->memory[2] + PAGE_SIZE;
+		new->pages[1] = new->pages[0] + 1;
+		new->pages[2] = new->pages[1] + 1;
+		new->pages[3] = new->pages[2] + 1;
 	}
 	new->page_count = pg_count;
 	new->num_scratch_pages = pg_count;
 	new->type = AGP_PHYS_MEMORY;
-	new->physical = new->memory[0];
+	new->physical = page_to_phys(new->pages[0]);
 	return new;
 }
 
@@ -451,13 +448,11 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 	agp_free_key(curr->key);
 	if (curr->type == AGP_PHYS_MEMORY) {
 		if (curr->page_count == 4)
-			i8xx_destroy_pages(gart_to_virt(curr->memory[0]));
+			i8xx_destroy_pages(curr->pages[0]);
 		else {
-			void *va = gart_to_virt(curr->memory[0]);
-
-			agp_bridge->driver->agp_destroy_page(va,
+			agp_bridge->driver->agp_destroy_page(curr->pages[0],
 							     AGP_PAGE_DESTROY_UNMAP);
-			agp_bridge->driver->agp_destroy_page(va,
+			agp_bridge->driver->agp_destroy_page(curr->pages[0],
 							     AGP_PAGE_DESTROY_FREE);
 		}
 		agp_free_page_array(curr);
@@ -466,8 +461,9 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 }
 
 static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
-	unsigned long addr, int type)
+					    struct page *page, int type)
 {
+	unsigned long addr = phys_to_gart(page_to_phys(page));
 	/* Type checking must be done elsewhere */
 	return addr | bridge->driver->masks[type].mask;
 }
@@ -855,7 +851,7 @@ static int intel_i830_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-						       mem->memory[i], mask_type),
+						       mem->pages[i], mask_type),
 		       intel_private.registers+I810_PTE_BASE+(j*4));
 	}
 	readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
@@ -1085,7 +1081,7 @@ static int intel_i915_insert_entries(struct agp_memory *mem, off_t pg_start,
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-			mem->memory[i], mask_type), intel_private.gtt+j);
+						       mem->pages[i], mask_type), intel_private.gtt+j);
 	}
 
 	readl(intel_private.gtt+j-1);
@@ -1200,8 +1196,9 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
  * this conditional.
  */
 static unsigned long intel_i965_mask_memory(struct agp_bridge_data *bridge,
-	unsigned long addr, int type)
+					    struct page *page, int type)
 {
+	dma_addr_t addr = phys_to_gart(page_to_phys(page));
 	/* Shift high bits down */
 	addr |= (addr >> 28) & 0xf0;
 
