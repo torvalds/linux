@@ -2960,6 +2960,7 @@ static void pvr2_subdev_update(struct pvr2_hdw *hdw)
 			vs = hdw->std_mask_cur;
 			v4l2_device_call_all(&hdw->v4l2_dev, 0,
 					     core, s_std, vs);
+			pvr2_hdw_cx25840_vbi_hack(hdw);
 		}
 		hdw->tuner_signal_stale = !0;
 		hdw->cropcap_stale = !0;
