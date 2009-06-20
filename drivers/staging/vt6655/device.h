@@ -70,15 +70,11 @@
 #endif
 /* Include Wireless Extension definition and check version - Jean II */
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>	// New driver API
-#endif	/* WIRELESS_EXT > 12 */
 
 //2008-0409-07, <Add> by Einsn Liu
-#if WIRELESS_EXT > 17
 #ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#endif
 #endif
 //2008-4-14<add> by chester for led issue
 //#define FOR_LED_ON_NOTEBOOK
