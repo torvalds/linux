@@ -515,14 +515,12 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 			else {
 				if (netif_msg_tx_err(priv))
 					en_warn(priv, "Non-linear headers\n");
-				dev_kfree_skb_any(skb);
 				return 0;
 			}
 		}
 		if (unlikely(*lso_header_size > MAX_LSO_HDR_SIZE)) {
 			if (netif_msg_tx_err(priv))
 				en_warn(priv, "LSO header size too big\n");
-			dev_kfree_skb_any(skb);
 			return 0;
 		}
 	} else {
@@ -622,7 +620,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
-		return NETDEV_TX_OK;
+		goto tx_drop;
 
 	/* Allign descriptor to TXBB size */
 	desc_size = ALIGN(real_size, TXBB_SIZE);
@@ -630,8 +628,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (netif_msg_tx_err(priv))
 			en_warn(priv, "Oversized header or SG list\n");
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto tx_drop;
 	}
 
 	tx_ind = skb->queue_mapping;
@@ -657,8 +654,7 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!priv->port_up)) {
 		if (netif_msg_tx_err(priv))
 			en_warn(priv, "xmit: port down!\n");
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+		goto tx_drop;
 	}
 
 	/* Track current inflight packets for performance analysis */
@@ -785,5 +781,10 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	mlx4_en_xmit_poll(priv, tx_ind);
 
 	return 0;
+
+tx_drop:
+	dev_kfree_skb_any(skb);
+	priv->stats.tx_dropped++;
+	return NETDEV_TX_OK;
 }
 
