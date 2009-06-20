@@ -1242,31 +1242,6 @@ static const struct v4l2_file_operations si470x_fops = {
  **************************************************************************/
 
 /*
- * si470x_v4l2_queryctrl - query control
- */
-static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
-	{
-		.id		= V4L2_CID_AUDIO_VOLUME,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Volume",
-		.minimum	= 0,
-		.maximum	= 15,
-		.step		= 1,
-		.default_value	= 15,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_MUTE,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Mute",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 1,
-	},
-};
-
-
-/*
  * si470x_vidioc_querycap - query device capabilities
  */
 static int si470x_vidioc_querycap(struct file *file, void *priv,
@@ -1291,7 +1266,6 @@ static int si470x_vidioc_querycap(struct file *file, void *priv,
 static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 		struct v4l2_queryctrl *qc)
 {
-	unsigned char i = 0;
 	int retval = -EINVAL;
 
 	/* abort if qc->id is below V4L2_CID_BASE */
@@ -1299,12 +1273,11 @@ static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 		goto done;
 
 	/* search video control */
-	for (i = 0; i < ARRAY_SIZE(si470x_v4l2_queryctrl); i++) {
-		if (qc->id == si470x_v4l2_queryctrl[i].id) {
-			memcpy(qc, &(si470x_v4l2_queryctrl[i]), sizeof(*qc));
-			retval = 0; /* found */
-			break;
-		}
+	switch (qc->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 15, 1, 15);
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
 	}
 
 	/* disable unsupported base controls */
