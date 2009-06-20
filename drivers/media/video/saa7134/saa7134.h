@@ -539,6 +539,7 @@ struct saa7134_dev {
 	struct i2c_adapter         i2c_adap;
 	struct i2c_client          i2c_client;
 	unsigned char              eedata[256];
+	int 			   has_rds;
 
 	/* video overlay */
 	struct v4l2_framebuffer    ovbuf;
