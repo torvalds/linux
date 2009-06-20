@@ -44,12 +44,14 @@
  *      SDRC rates < 83MHz
  * r5 = number of MPU cycles to wait for SDRC to stabilize after
  *      reprogramming the SDRC when switching to a slower MPU speed
+ * r6 = SDRC_MR_0 register value
  *
  */
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
 	ldr	r4, [sp, #52]		@ pull extra args off the stack
 	ldr	r5, [sp, #56]		@ load extra args from the stack
+	ldr	r6, [sp, #60]		@ load extra args from the stack
 	dsb				@ flush buffered writes to interconnect
 	cmp	r3, #0x2
 	blne	configure_sdrc
@@ -151,7 +153,9 @@ configure_sdrc:
 	str	r1, [r11]
 	ldr	r11, omap3_sdrc_actim_ctrlb
 	str	r2, [r11]
-	ldr	r2, [r11]		@ posted-write barrier for SDRC
+	ldr	r11, omap3_sdrc_mr_0
+	str	r6, [r11]
+	ldr	r6, [r11]		@ posted-write barrier for SDRC
 	bx	lr
 
 omap3_sdrc_power:
@@ -168,6 +172,8 @@ omap3_sdrc_actim_ctrla:
 	.word OMAP34XX_SDRC_REGADDR(SDRC_ACTIM_CTRL_A_0)
 omap3_sdrc_actim_ctrlb:
 	.word OMAP34XX_SDRC_REGADDR(SDRC_ACTIM_CTRL_B_0)
+omap3_sdrc_mr_0:
+	.word OMAP34XX_SDRC_REGADDR(SDRC_MR_0)
 omap3_sdrc_dlla_status:
 	.word OMAP34XX_SDRC_REGADDR(SDRC_DLLA_STATUS)
 omap3_sdrc_dlla_ctrl:

@@ -771,9 +771,9 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
 	WARN_ON(new_div != 1 && new_div != 2);
 
-	/* REVISIT: Add SDRC_MR changing to this code also */
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
-				  sp->actim_ctrlb, new_div, unlock_dll, c);
+				  sp->actim_ctrlb, new_div, unlock_dll, c,
+				  sp->mr);
 
 	return 0;
 }
