@@ -102,8 +102,10 @@ static enum event_status read_page(int cpu)
 			event = (void *)&rpage->data[i];
 			switch (event->type_len) {
 			case RINGBUF_TYPE_PADDING:
-				/* We don't expect any padding */
-				KILL_TEST();
+				/* failed writes may be discarded events */
+				if (!event->time_delta)
+					KILL_TEST();
+				inc = event->array[0] + 4;
 				break;
 			case RINGBUF_TYPE_TIME_EXTEND:
 				inc = 8;
@@ -119,7 +121,7 @@ static enum event_status read_page(int cpu)
 					KILL_TEST();
 					break;
 				}
-				inc = event->array[0];
+				inc = event->array[0] + 4;
 				break;
 			default:
 				entry = ring_buffer_event_data(event);
@@ -201,7 +203,7 @@ static void ring_buffer_producer(void)
 	 * Hammer the buffer for 10 secs (this may
 	 * make the system stall)
 	 */
-	pr_info("Starting ring buffer hammer\n");
+	trace_printk("Starting ring buffer hammer\n");
 	do_gettimeofday(&start_tv);
 	do {
 		struct ring_buffer_event *event;
@@ -237,7 +239,7 @@ static void ring_buffer_producer(void)
 #endif
 
 	} while (end_tv.tv_sec < (start_tv.tv_sec + RUN_TIME) && !kill_test);
-	pr_info("End ring buffer hammer\n");
+	trace_printk("End ring buffer hammer\n");
 
 	if (consumer) {
 		/* Init both completions here to avoid races */
@@ -260,49 +262,50 @@ static void ring_buffer_producer(void)
 	overruns = ring_buffer_overruns(buffer);
 
 	if (kill_test)
-		pr_info("ERROR!\n");
-	pr_info("Time:     %lld (usecs)\n", time);
-	pr_info("Overruns: %lld\n", overruns);
+		trace_printk("ERROR!\n");
+	trace_printk("Time:     %lld (usecs)\n", time);
+	trace_printk("Overruns: %lld\n", overruns);
 	if (disable_reader)
-		pr_info("Read:     (reader disabled)\n");
+		trace_printk("Read:     (reader disabled)\n");
 	else
-		pr_info("Read:     %ld  (by %s)\n", read,
+		trace_printk("Read:     %ld  (by %s)\n", read,
 			read_events ? "events" : "pages");
-	pr_info("Entries:  %lld\n", entries);
-	pr_info("Total:    %lld\n", entries + overruns + read);
-	pr_info("Missed:   %ld\n", missed);
-	pr_info("Hit:      %ld\n", hit);
+	trace_printk("Entries:  %lld\n", entries);
+	trace_printk("Total:    %lld\n", entries + overruns + read);
+	trace_printk("Missed:   %ld\n", missed);
+	trace_printk("Hit:      %ld\n", hit);
 
 	/* Convert time from usecs to millisecs */
 	do_div(time, USEC_PER_MSEC);
 	if (time)
 		hit /= (long)time;
 	else
-		pr_info("TIME IS ZERO??\n");
+		trace_printk("TIME IS ZERO??\n");
 
-	pr_info("Entries per millisec: %ld\n", hit);
+	trace_printk("Entries per millisec: %ld\n", hit);
 
 	if (hit) {
 		/* Calculate the average time in nanosecs */
 		avg = NSEC_PER_MSEC / hit;
-		pr_info("%ld ns per entry\n", avg);
+		trace_printk("%ld ns per entry\n", avg);
 	}
 
 	if (missed) {
 		if (time)
 			missed /= (long)time;
 
-		pr_info("Total iterations per millisec: %ld\n", hit + missed);
+		trace_printk("Total iterations per millisec: %ld\n",
+			     hit + missed);
 
 		/* it is possible that hit + missed will overflow and be zero */
 		if (!(hit + missed)) {
-			pr_info("hit + missed overflowed and totalled zero!\n");
+			trace_printk("hit + missed overflowed and totalled zero!\n");
 			hit--; /* make it non zero */
 		}
 
 		/* Caculate the average time in nanosecs */
 		avg = NSEC_PER_MSEC / (hit + missed);
-		pr_info("%ld ns per entry\n", avg);
+		trace_printk("%ld ns per entry\n", avg);
 	}
 }
 
@@ -353,7 +356,7 @@ static int ring_buffer_producer_thread(void *arg)
 
 		ring_buffer_producer();
 
-		pr_info("Sleeping for 10 secs\n");
+		trace_printk("Sleeping for 10 secs\n");
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ * SLEEP_TIME);
 		__set_current_state(TASK_RUNNING);

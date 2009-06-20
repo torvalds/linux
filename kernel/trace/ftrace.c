@@ -1224,6 +1224,13 @@ static void ftrace_shutdown(int command)
 		return;
 
 	ftrace_start_up--;
+	/*
+	 * Just warn in case of unbalance, no need to kill ftrace, it's not
+	 * critical but the ftrace_call callers may be never nopped again after
+	 * further ftrace uses.
+	 */
+	WARN_ON_ONCE(ftrace_start_up < 0);
+
 	if (!ftrace_start_up)
 		command |= FTRACE_DISABLE_CALLS;
 

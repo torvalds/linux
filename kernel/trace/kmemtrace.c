@@ -186,7 +186,7 @@ static int kmem_trace_init(struct trace_array *tr)
 	int cpu;
 	kmemtrace_array = tr;
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		tracing_reset(tr, cpu);
 
 	kmemtrace_start_probes();
