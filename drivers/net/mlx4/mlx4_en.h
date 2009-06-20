@@ -99,7 +99,6 @@
 #define RSS_FACTOR		2
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
-#define MAX_LSO_HDR_SIZE	92
 #define STAMP_STRIDE		64
 #define STAMP_DWORDS		(STAMP_STRIDE / 4)
 #define STAMP_SHIFT		31

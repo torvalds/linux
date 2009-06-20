@@ -518,11 +518,6 @@ static int get_real_size(struct sk_buff *skb, struct net_device *dev,
 				return 0;
 			}
 		}
-		if (unlikely(*lso_header_size > MAX_LSO_HDR_SIZE)) {
-			if (netif_msg_tx_err(priv))
-				en_warn(priv, "LSO header size too big\n");
-			return 0;
-		}
 	} else {
 		*lso_header_size = 0;
 		if (!is_inline(skb, NULL))
