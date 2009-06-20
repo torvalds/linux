@@ -14,25 +14,14 @@ README
 	- general info on what you need and what to do for Linux ISDN.
 README.FAQ
 	- general info for FAQ.
-README.audio
-	- info for running audio over ISDN.
-README.fax
-	- info for using Fax over ISDN.
-README.gigaset
-	- info on the drivers for Siemens Gigaset ISDN adapters.
-README.icn
-	- info on the ICN-ISDN-card and its driver.
->>>>>>> 93af7aca44f0e82e67bda10a0fb73d383edcc8bd:Documentation/isdn/00-INDEX
 README.HiSax
 	- info on the HiSax driver which replaces the old teles.
+README.act2000
+	- info on driver for IBM ACT-2000 card.
 README.audio
 	- info for running audio over ISDN.
 README.avmb1
 	- info on driver for AVM-B1 ISDN card.
-README.act2000
-	- info on driver for IBM ACT-2000 card.
-README.eicon
-	- info on driver for Eicon active cards.
 README.concap
 	- info on "CONCAP" encapsulation protocol interface used for X.25.
 README.diversion
@@ -59,7 +48,3 @@ README.x25
 	- info for running X.25 over ISDN.
 syncPPP.FAQ
 	- frequently asked questions about running PPP over ISDN.
-README.hysdn
-	- info on driver for Hypercope active HYSDN cards
-README.mISDN
-	- info on the Modular ISDN subsystem (mISDN).
