@@ -1146,14 +1146,9 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
     dev->irq                = pcid->irq;
     dev->netdev_ops         = &device_netdev_ops;
 
-#ifdef WIRELESS_EXT
-//Einsn Modify for ubuntu-7.04
-//	dev->wireless_handlers->get_wireless_stats = iwctl_get_wireless_stats;
-#if WIRELESS_EXT > 12
+#ifdef CONFIG_WIRELESS_EXT
 	dev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
-//	netdev->wireless_handlers = NULL;
-#endif /* WIRELESS_EXT > 12 */
-#endif /* WIRELESS_EXT */
+#endif
 
     rc = register_netdev(dev);
     if (rc)
