@@ -15,7 +15,8 @@ struct inotify_inode_mark_entry {
 	int wd;
 };
 
-extern void inotify_destroy_mark_entry(struct fsnotify_mark_entry *entry, struct fsnotify_group *group);
+extern void inotify_ignored_and_remove_idr(struct fsnotify_mark_entry *entry,
+					   struct fsnotify_group *group);
 extern void inotify_free_event_priv(struct fsnotify_event_private_data *event_priv);
 
 extern const struct fsnotify_ops inotify_fsnotify_ops;
