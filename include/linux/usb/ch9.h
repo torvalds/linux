@@ -258,6 +258,8 @@ struct usb_device_descriptor {
 #define USB_CLASS_APP_SPEC		0xfe
 #define USB_CLASS_VENDOR_SPEC		0xff
 
+#define USB_SUBCLASS_VENDOR_SPEC	0xff
+
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_CONFIG: Configuration descriptor information.

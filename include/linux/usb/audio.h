@@ -24,7 +24,6 @@
 #define USB_SUBCLASS_AUDIOCONTROL	0x01
 #define USB_SUBCLASS_AUDIOSTREAMING	0x02
 #define USB_SUBCLASS_MIDISTREAMING	0x03
-#define USB_SUBCLASS_VENDOR_SPEC	0xff
 
 /* A.5 Audio Class-Specific AC interface Descriptor Subtypes*/
 #define HEADER				0x01
