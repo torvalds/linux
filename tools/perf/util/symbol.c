@@ -629,7 +629,7 @@ int dso__load_kernel(struct dso *self, const char *vmlinux,
 	if (vmlinux)
 		err = dso__load_vmlinux(self, vmlinux, filter, verbose);
 
-	if (err)
+	if (err < 0)
 		err = dso__load_kallsyms(self, filter, verbose);
 
 	return err;
