@@ -199,8 +199,9 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 		dev->period_out_count[index] = BYTES_PER_SAMPLE + 1;
 		dev->audio_out_buf_pos[index] = BYTES_PER_SAMPLE + 1;
 	} else {
-		dev->period_in_count[index] = BYTES_PER_SAMPLE;
-		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE;
+		int in_pos = (dev->spec.data_alignment == 2) ? 0 : 2;
+		dev->period_in_count[index] = BYTES_PER_SAMPLE + in_pos;
+		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE + in_pos;
 	}
 
 	if (dev->streaming)
