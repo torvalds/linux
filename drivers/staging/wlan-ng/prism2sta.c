@@ -71,9 +71,6 @@
 #include <linux/if_ether.h>
 #include <linux/bitops.h>
 
-/*================================================================*/
-/* Project Includes */
-
 #include "p80211types.h"
 #include "p80211hdr.h"
 #include "p80211mgmt.h"

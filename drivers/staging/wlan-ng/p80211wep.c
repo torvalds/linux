@@ -56,22 +56,13 @@
 
 /* #define WEP_DEBUG	*/
 
-/*================================================================*/
-/* Project Includes */
-
 #include "p80211hdr.h"
 #include "p80211types.h"
 #include "p80211msg.h"
 #include "p80211conv.h"
 #include "p80211netdev.h"
 
-/*================================================================*/
-/* Local Constants */
-
 #define WEP_KEY(x)       (((x) & 0xC0) >> 6)
-
-/*================================================================*/
-/* Local Static Definitions */
 
 static const u32 wep_crc32_table[256] = {
 	0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
@@ -127,12 +118,6 @@ static const u32 wep_crc32_table[256] = {
 	0x5d681b02L, 0x2a6f2b94L, 0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL,
 	0x2d02ef8dL
 };
-
-/*================================================================*/
-/* Local Function Declarations */
-
-/*================================================================*/
-/* Function Definitions */
 
 /* keylen in bytes! */
 

@@ -128,9 +128,6 @@
 
 #define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
 
-/*================================================================*/
-/* Project Includes */
-
 #include "p80211types.h"
 #include "p80211hdr.h"
 #include "p80211mgmt.h"
