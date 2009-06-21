@@ -584,7 +584,7 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_data *data)
 	 * longer to time out, but that's much better than having a too-short
 	 * timeout value.
 	 */
-	if ((host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL))
+	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return 0xE;
 
 	/* timeout in us */
@@ -1051,7 +1051,7 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	 * At least the Marvell CaFe chip gets confused if we set the voltage
 	 * and set turn on power at the same time, so set the voltage first.
 	 */
-	if ((host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER))
+	if (host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER)
 		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
 
 	pwr |= SDHCI_POWER_ON;
@@ -1062,7 +1062,7 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	 * Some controllers need an extra 10ms delay of 10ms before they
 	 * can apply clock after applying power
 	 */
-	if ((host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER))
+	if (host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER)
 		mdelay(10);
 }
 
