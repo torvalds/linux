@@ -242,7 +242,7 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 	/*
 	 * Make sure only one CPU runs in machine check panic
 	 */
-	if (atomic_add_return(1, &mce_paniced) > 1)
+	if (atomic_inc_return(&mce_paniced) > 1)
 		wait_for_panic();
 	barrier();
 
@@ -705,7 +705,7 @@ static int mce_start(int *no_way_out)
 	 * global_nwo should be updated before mce_callin
 	 */
 	smp_wmb();
-	order = atomic_add_return(1, &mce_callin);
+	order = atomic_inc_return(&mce_callin);
 
 	/*
 	 * Wait for everyone.
