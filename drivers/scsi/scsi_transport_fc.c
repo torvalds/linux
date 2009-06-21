@@ -3861,7 +3861,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct request_queue *q;
 	int err;
-	char bsg_name[BUS_ID_SIZE]; /*20*/
+	char bsg_name[20];
 
 	fc_host->rqst_q = NULL;
 
