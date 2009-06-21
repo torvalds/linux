@@ -58,7 +58,7 @@ $(obj)/image: $(obj)/btfix.o FORCE
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,strip)
 
-$(obj)/tftpboot.img: $(obj)/piggyback $(obj)/System.map $(obj)/image FORCE
+$(obj)/tftpboot.img: $(obj)/piggyback_32 $(obj)/System.map $(obj)/image FORCE
 	$(call if_changed,elftoaout)
 	$(call if_changed,piggy)
 

@@ -70,7 +70,7 @@ void die(char *str)
 int main(int argc,char **argv)
 {
 	static char aout_magic[] = { 0x01, 0x03, 0x01, 0x07 };
-	unsigned char buffer[1024], *q, *r;
+	char buffer[1024], *q, *r;
 	unsigned int i, j, k, start, end, offset;
 	FILE *map;
 	struct stat s;
