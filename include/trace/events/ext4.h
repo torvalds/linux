@@ -34,7 +34,8 @@ TRACE_EVENT(ext4_free_inode,
 
 	TP_printk("dev %s ino %lu mode %d uid %u gid %u blocks %llu",
 		  jbd2_dev_to_name(__entry->dev), __entry->ino, __entry->mode,
-		  __entry->uid, __entry->gid, __entry->blocks)
+		  __entry->uid, __entry->gid,
+		  (unsigned long long) __entry->blocks)
 );
 
 TRACE_EVENT(ext4_request_inode,
