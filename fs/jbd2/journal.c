@@ -2410,6 +2410,7 @@ const char *jbd2_dev_to_name(dev_t device)
 	int	i = hash_32(device, CACHE_SIZE_BITS);
 	char	*ret;
 	struct block_device *bd;
+	static struct devname_cache *new_dev;
 
 	rcu_read_lock();
 	if (devcache[i] && devcache[i]->device == device) {
@@ -2419,20 +2420,20 @@ const char *jbd2_dev_to_name(dev_t device)
 	}
 	rcu_read_unlock();
 
+	new_dev = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
+	if (!new_dev)
+		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
 	spin_lock(&devname_cache_lock);
 	if (devcache[i]) {
 		if (devcache[i]->device == device) {
+			kfree(new_dev);
 			ret = devcache[i]->devname;
 			spin_unlock(&devname_cache_lock);
 			return ret;
 		}
 		call_rcu(&devcache[i]->rcu, free_devcache);
 	}
-	devcache[i] = kmalloc(sizeof(struct devname_cache), GFP_KERNEL);
-	if (!devcache[i]) {
-		spin_unlock(&devname_cache_lock);
-		return "NODEV-ALLOCFAILURE"; /* Something non-NULL */
-	}
+	devcache[i] = new_dev;
 	devcache[i]->device = device;
 	bd = bdget(device);
 	if (bd) {
