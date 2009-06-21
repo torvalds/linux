@@ -285,18 +285,6 @@ struct usb_audio_control {
 	int (*get)(struct usb_audio_control *con, u8 cmd);
 };
 
-static inline int generic_set_cmd(struct usb_audio_control *con, u8 cmd, int value)
-{
-	con->data[cmd] = value;
-
-	return 0;
-}
-
-static inline int generic_get_cmd(struct usb_audio_control *con, u8 cmd)
-{
-	return con->data[cmd];
-}
-
 struct usb_audio_control_selector {
 	struct list_head list;
 	struct list_head control;

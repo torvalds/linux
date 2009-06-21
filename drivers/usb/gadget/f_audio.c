@@ -28,6 +28,9 @@ static int audio_buf_size = 48000;
 module_param(audio_buf_size, int, S_IRUGO);
 MODULE_PARM_DESC(audio_buf_size, "Audio buffer size");
 
+static int generic_set_cmd(struct usb_audio_control *con, u8 cmd, int value);
+static int generic_get_cmd(struct usb_audio_control *con, u8 cmd);
+
 /*
  * DESCRIPTORS ... most are static, but strings and full
  * configuration descriptors are built on demand.
@@ -631,6 +634,18 @@ f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 }
 
 /*-------------------------------------------------------------------------*/
+
+static int generic_set_cmd(struct usb_audio_control *con, u8 cmd, int value)
+{
+	con->data[cmd] = value;
+
+	return 0;
+}
+
+static int generic_get_cmd(struct usb_audio_control *con, u8 cmd)
+{
+	return con->data[cmd];
+}
 
 /* Todo: add more control selecotor dynamically */
 int __init control_selector_init(struct f_audio *audio)
