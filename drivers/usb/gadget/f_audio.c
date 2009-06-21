@@ -174,7 +174,7 @@ static struct usb_endpoint_descriptor as_out_ep_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_AUDIO_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 	.bEndpointAddress =	USB_DIR_OUT,
-	.bmAttributes =		USB_AS_ENDPOINT_ADAPTIVE
+	.bmAttributes =		USB_ENDPOINT_SYNC_ADAPTIVE
 				| USB_ENDPOINT_XFER_ISOC,
 	.wMaxPacketSize =	__constant_cpu_to_le16(OUT_EP_MAX_PACKET_SIZE),
 	.bInterval =		4,

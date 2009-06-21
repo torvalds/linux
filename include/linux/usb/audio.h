@@ -46,12 +46,6 @@
 #define MIDI_IN_JACK			0x02
 #define MIDI_OUT_JACK			0x03
 
-/* endpoint attributes */
-#define EP_ATTR_MASK			0x0c
-#define EP_ATTR_ASYNC			0x04
-#define EP_ATTR_ADAPTIVE		0x08
-#define EP_ATTR_SYNC			0x0c
-
 /* cs endpoint attributes */
 #define EP_CS_ATTR_SAMPLE_RATE		0x01
 #define EP_CS_ATTR_PITCH_CONTROL	0x02
@@ -243,10 +237,6 @@ struct usb_as_formate_type_i_discrete_descriptor_##n {		\
 #define USB_AS_FORMAT_TYPE_I		0x1
 #define USB_AS_FORMAT_TYPE_II		0x2
 #define USB_AS_FORMAT_TYPE_III		0x3
-
-#define USB_AS_ENDPOINT_ASYNC		(1 << 2)
-#define USB_AS_ENDPOINT_ADAPTIVE	(2 << 2)
-#define USB_AS_ENDPOINT_SYNC		(3 << 2)
 
 struct usb_as_iso_endpoint_descriptor {
 	__u8  bLength;			/* in bytes: 7 */
