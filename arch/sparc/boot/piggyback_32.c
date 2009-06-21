@@ -84,7 +84,7 @@ int main(int argc,char **argv)
 	while (fgets (buffer, 1024, map)) {
 		if (!strcmp (buffer + 8, " T start\n") || !strcmp (buffer + 16, " T start\n"))
 			start = strtoul (buffer, NULL, 16);
-		else if (!strcmp (buffer + 8, " A end\n") || !strcmp (buffer + 16, " A end\n"))
+		else if (!strcmp (buffer + 8, " A _end\n") || !strcmp (buffer + 16, " A _end\n"))
 			end = strtoul (buffer, NULL, 16);
 	}
 	fclose (map);
