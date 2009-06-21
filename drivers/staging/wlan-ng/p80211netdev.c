@@ -764,9 +764,6 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->ml_priv = wlandev;
 		dev->netdev_ops = &p80211_netdev_ops;
 
-#if (WIRELESS_EXT < 21)
-		dev->get_wireless_stats = p80211wext_get_wireless_stats;
-#endif
 		dev->wireless_handlers = &p80211wext_handler_def;
 
 		netif_stop_queue(dev);

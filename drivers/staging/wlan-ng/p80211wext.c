@@ -689,9 +689,6 @@ static int p80211wext_giwessid(netdevice_t *dev,
 		data->flags = 1;
 		memcpy(essid, wlandev->ssid.data, data->length);
 		essid[data->length] = 0;
-#if (WIRELESS_EXT < 21)
-		data->length++;
-#endif
 	} else {
 		memset(essid, 0, sizeof(wlandev->ssid.data));
 		data->length = 0;
@@ -723,11 +720,6 @@ static int p80211wext_siwessid(netdevice_t *dev,
 		msg.authtype.data = P80211ENUM_authalg_opensystem;
 
 	msg.msgcode = DIDmsg_lnxreq_autojoin;
-
-#if (WIRELESS_EXT < 21)
-	if (length)
-		length--;
-#endif
 
 	/* Trim the last '\0' to fit the SSID format */
 	if (length && essid[length - 1] == '\0')
