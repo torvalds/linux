@@ -625,7 +625,7 @@
 	*(.init.ramfs)							\
 	VMLINUX_SYMBOL(__initramfs_end) = .;
 #else
-#define INITRAMFS
+#define INIT_RAM_FS
 #endif
 
 /**
