@@ -963,9 +963,6 @@ int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
 	if (!pr)
 		return -ENODEV;
 
-	if ((pr->id >= 0) && (pr->id < nr_cpu_ids)) {
-		kobject_uevent(&(*device)->dev.kobj, KOBJ_ONLINE);
-	}
 	return 0;
 }
 
@@ -1002,18 +999,10 @@ static void __ref acpi_processor_hotplug_notify(acpi_handle handle,
 			break;
 		}
 
-		if (pr->id >= 0 && (pr->id < nr_cpu_ids)) {
-			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-			break;
-		}
-
 		result = acpi_processor_start(device);
-		if ((!result) && ((pr->id >= 0) && (pr->id < nr_cpu_ids))) {
-			kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
-		} else {
+		if (result)
 			printk(KERN_ERR PREFIX "Device [%s] failed to start\n",
 				    acpi_device_bid(device));
-		}
 		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -1030,9 +1019,6 @@ static void __ref acpi_processor_hotplug_notify(acpi_handle handle,
 				    "Driver data is NULL, dropping EJECT\n");
 			return;
 		}
-
-		if ((pr->id < nr_cpu_ids) && (cpu_present(pr->id)))
-			kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
