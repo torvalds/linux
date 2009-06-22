@@ -191,30 +191,6 @@ void __ipipe_disable_irqdesc(struct ipipe_domain *ipd, unsigned irq)
 }
 EXPORT_SYMBOL(__ipipe_disable_irqdesc);
 
-void __ipipe_stall_root_raw(void)
-{
-	/*
-	 * This code is called by the ins{bwl} routines (see
-	 * arch/blackfin/lib/ins.S), which are heavily used by the
-	 * network stack. It masks all interrupts but those handled by
-	 * non-root domains, so that we keep decent network transfer
-	 * rates for Linux without inducing pathological jitter for
-	 * the real-time domain.
-	 */
-	__asm__ __volatile__ ("sti %0;" : : "d"(__ipipe_irq_lvmask));
-
-	__set_bit(IPIPE_STALL_FLAG,
-		  &ipipe_root_cpudom_var(status));
-}
-
-void __ipipe_unstall_root_raw(void)
-{
-	__clear_bit(IPIPE_STALL_FLAG,
-		    &ipipe_root_cpudom_var(status));
-
-	__asm__ __volatile__ ("sti %0;" : : "d"(bfin_irq_flags));
-}
-
 int __ipipe_syscall_root(struct pt_regs *regs)
 {
 	struct ipipe_percpu_domain_data *p;
@@ -343,4 +319,24 @@ void ___ipipe_sync_pipeline(unsigned long syncmask)
 		return;
 
 	__ipipe_sync_stage(syncmask);
+}
+
+void __ipipe_disable_root_irqs_hw(void)
+{
+	/*
+	 * This code is called by the ins{bwl} routines (see
+	 * arch/blackfin/lib/ins.S), which are heavily used by the
+	 * network stack. It masks all interrupts but those handled by
+	 * non-root domains, so that we keep decent network transfer
+	 * rates for Linux without inducing pathological jitter for
+	 * the real-time domain.
+	 */
+	bfin_sti(__ipipe_irq_lvmask);
+	__set_bit(IPIPE_STALL_FLAG, &ipipe_root_cpudom_var(status));
+}
+
+void __ipipe_enable_root_irqs_hw(void)
+{
+	__clear_bit(IPIPE_STALL_FLAG, &ipipe_root_cpudom_var(status));
+	bfin_sti(bfin_irq_flags);
 }
