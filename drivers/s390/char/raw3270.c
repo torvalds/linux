@@ -1322,7 +1322,7 @@ static int raw3270_pm_stop(struct ccw_device *cdev)
 	struct raw3270_view *view;
 	unsigned long flags;
 
-	rp = cdev->dev.driver_data;
+	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return 0;
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);
@@ -1348,7 +1348,7 @@ static int raw3270_pm_start(struct ccw_device *cdev)
 	struct raw3270 *rp;
 	unsigned long flags;
 
-	rp = cdev->dev.driver_data;
+	rp = dev_get_drvdata(&cdev->dev);
 	if (!rp)
 		return 0;
 	spin_lock_irqsave(get_ccwdev_lock(rp->cdev), flags);

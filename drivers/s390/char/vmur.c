@@ -170,7 +170,7 @@ static void urdev_put(struct urdev *urd)
  */
 static int ur_pm_suspend(struct ccw_device *cdev)
 {
-	struct urdev *urd = cdev->dev.driver_data;
+	struct urdev *urd = dev_get_drvdata(&cdev->dev);
 
 	TRACE("ur_pm_suspend: cdev=%p\n", cdev);
 	if (urd->open_flag) {

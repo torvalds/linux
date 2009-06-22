@@ -732,7 +732,7 @@ static int raw3215_pm_stop(struct ccw_device *cdev)
 	unsigned long flags;
 
 	/* Empty the output buffer, then prevent new I/O. */
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
 	raw->flags |= RAW3215_FROZEN;
@@ -746,7 +746,7 @@ static int raw3215_pm_start(struct ccw_device *cdev)
 	unsigned long flags;
 
 	/* Allow I/O again and flush output buffer. */
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw->flags &= ~RAW3215_FROZEN;
 	raw->flags |= RAW3215_FLUSHING;
