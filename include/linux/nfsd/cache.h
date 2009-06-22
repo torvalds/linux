@@ -14,8 +14,7 @@
 #include <linux/uio.h>
 
 /*
- * Representation of a reply cache entry. The first two members *must*
- * be hash_next and hash_prev.
+ * Representation of a reply cache entry.
  */
 struct svc_cacherep {
 	struct hlist_node	c_hash;

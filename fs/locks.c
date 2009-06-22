@@ -151,7 +151,7 @@ static struct file_lock *locks_alloc_lock(void)
 	return kmem_cache_alloc(filelock_cache, GFP_KERNEL);
 }
 
-static void locks_release_private(struct file_lock *fl)
+void locks_release_private(struct file_lock *fl)
 {
 	if (fl->fl_ops) {
 		if (fl->fl_ops->fl_release_private)
@@ -165,6 +165,7 @@ static void locks_release_private(struct file_lock *fl)
 	}
 
 }
+EXPORT_SYMBOL_GPL(locks_release_private);
 
 /* Free a lock which is not in use. */
 static void locks_free_lock(struct file_lock *fl)
