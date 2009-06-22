@@ -1189,11 +1189,6 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 	}
 
-	if (port % MAX_PORTS_PER_BOARD >= brd->numPorts) {
-		retval = -ENODEV;
-		goto out_unlock;
-	}
-
 	ch = &brd->ports[port % MAX_PORTS_PER_BOARD];
 	ch->port.count++;
 	tty->driver_data = ch;
@@ -1218,8 +1213,8 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 				moxa_close_port(tty);
 	} else
 		ch->port.flags |= ASYNC_NORMAL_ACTIVE;
-out_unlock:
 	mutex_unlock(&moxa_openlock);
+
 	return retval;
 }
 
