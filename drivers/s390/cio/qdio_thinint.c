@@ -43,9 +43,6 @@ struct indicator_t {
 };
 static struct indicator_t *q_indicators;
 
-static void tiqdio_tasklet_fn(unsigned long data);
-static DECLARE_TASKLET(tiqdio_tasklet, tiqdio_tasklet_fn, 0);
-
 static int css_qdio_omit_svs;
 
 static inline unsigned long do_clear_global_summary(void)
@@ -103,11 +100,6 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	xchg(irq_ptr->dsci, 1);
 }
 
-/*
- * we cannot stop the tiqdio tasklet here since it is for all
- * thinint qdio devices and it must run as long as there is a
- * thinint device left
- */
 void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 {
 	struct qdio_q *q;
@@ -131,17 +123,34 @@ static inline int shared_ind(struct qdio_irq *irq_ptr)
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
-/* check for work on all inbound thinint queues */
-static void tiqdio_tasklet_fn(unsigned long data)
+/**
+ * tiqdio_thinint_handler - thin interrupt handler for qdio
+ * @ind: pointer to adapter local summary indicator
+ * @drv_data: NULL
+ */
+static void tiqdio_thinint_handler(void *ind, void *drv_data)
 {
 	struct qdio_q *q;
 
-	qdio_perf_stat_inc(&perf_stats.tasklet_thinint);
-again:
+	qdio_perf_stat_inc(&perf_stats.thin_int);
+
+	/*
+	 * SVS only when needed: issue SVS to benefit from iqdio interrupt
+	 * avoidance (SVS clears adapter interrupt suppression overwrite)
+	 */
+	if (!css_qdio_omit_svs)
+		do_clear_global_summary();
+
+	/*
+	 * reset local summary indicator (tiqdio_alsi) to stop adapter
+	 * interrupts for now
+	 */
+	xchg((u8 *)ind, 0);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
 	rcu_read_lock();
 
+	/* check for work on all inbound thinint queues */
 	list_for_each_entry_rcu(q, &tiq_list, entry)
 		/* only process queues from changed sets */
 		if (*q->irq_ptr->dsci) {
@@ -169,37 +178,6 @@ again:
 		if (*tiqdio_alsi)
 			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1);
 	}
-
-	/* check for more work */
-	if (*tiqdio_alsi) {
-		xchg(tiqdio_alsi, 0);
-		qdio_perf_stat_inc(&perf_stats.tasklet_thinint_loop);
-		goto again;
-	}
-}
-
-/**
- * tiqdio_thinint_handler - thin interrupt handler for qdio
- * @ind: pointer to adapter local summary indicator
- * @drv_data: NULL
- */
-static void tiqdio_thinint_handler(void *ind, void *drv_data)
-{
-	qdio_perf_stat_inc(&perf_stats.thin_int);
-
-	/*
-	 * SVS only when needed: issue SVS to benefit from iqdio interrupt
-	 * avoidance (SVS clears adapter interrupt suppression overwrite)
-	 */
-	if (!css_qdio_omit_svs)
-		do_clear_global_summary();
-
-	/*
-	 * reset local summary indicator (tiqdio_alsi) to stop adapter
-	 * interrupts for now, the tasklet will clean all dsci's
-	 */
-	xchg((u8 *)ind, 0);
-	tasklet_hi_schedule(&tiqdio_tasklet);
 }
 
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
@@ -319,5 +297,4 @@ void __exit tiqdio_unregister_thinints(void)
 		s390_unregister_adapter_interrupt(tiqdio_alsi, QDIO_AIRQ_ISC);
 		isc_unregister(QDIO_AIRQ_ISC);
 	}
-	tasklet_kill(&tiqdio_tasklet);
 }
