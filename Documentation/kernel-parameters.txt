@@ -1369,6 +1369,27 @@ and is between 256 and 4096 characters. It is defined in the file
 	min_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory below this
 			physical address is ignored.
 
+	mini2440=	[ARM,HW,KNL]
+			Format:[0..2][b][c][t]
+			Default: "0tb"
+			MINI2440 configuration specification:
+			0 - The attached screen is the 3.5" TFT
+			1 - The attached screen is the 7" TFT
+			2 - The VGA Shield is attached (1024x768)
+			Leaving out the screen size parameter will not load
+			the TFT driver, and the framebuffer will be left
+			unconfigured.
+			b - Enable backlight. The TFT backlight pin will be
+			linked to the kernel VESA blanking code and a GPIO
+			LED. This parameter is not necessary when using the
+			VGA shield.
+			c - Enable the s3c camera interface.
+			t - Reserved for enabling touchscreen support. The
+			touchscreen support is not enabled in the mainstream
+			kernel as of 2.6.30, a preliminary port can be found
+			in the "bleeding edge" mini2440 support kernel at
+			http://repo.or.cz/w/linux-2.6/mini2440.git
+
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
 			parameter allows control of the logging verbosity for

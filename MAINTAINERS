@@ -653,6 +653,8 @@ M:	laforge@openezx.org
 L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
 S:	Maintained
+T:	topgit git://git.openezx.org/openezx.git
+F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
 P:	Paulius Zaleckas
@@ -774,10 +776,24 @@ P:	Philipp Zabel
 M:	philipp.zabel@gmail.com
 S:	Maintained
 
+ARM/MIOA701 MACHINE SUPPORT
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+F:	arch/arm/mach-pxa/mioa701.c
+S:	Maintained
+
 ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 P:	Michael Petchkovsky
 M:	mkpetch@internode.on.net
 S:	Maintained
+
+ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
+P:	Nelson Castillo
+M:	arhuaco@freaks-unidos.net
+L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
+W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
+S:	Supported
 
 ARM/TOSA MACHINE SUPPORT
 P:	Dmitry Eremin-Solenikov
@@ -789,6 +805,12 @@ S:	Maintained
 ARM/PALMTX,PALMT5,PALMLD,PALMTE2 SUPPORT
 P:	Marek Vasut
 M:	marek.vasut@gmail.com
+W:	http://hackndev.com
+S:	Maintained
+
+ARM/PALM TREO 680 SUPPORT
+P:	Tomas Cech
+M:	sleep_walker@suse.cz
 W:	http://hackndev.com
 S:	Maintained
 

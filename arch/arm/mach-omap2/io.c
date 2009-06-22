@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 
 #include <asm/tlb.h>
 
@@ -241,6 +242,40 @@ void __init omap2_map_common_io(void)
 	omapfb_reserve_sdram();
 }
 
+/*
+ * omap2_init_reprogram_sdrc - reprogram SDRC timing parameters
+ *
+ * Sets the CORE DPLL3 M2 divider to the same value that it's at
+ * currently.  This has the effect of setting the SDRC SDRAM AC timing
+ * registers to the values currently defined by the kernel.  Currently
+ * only defined for OMAP3; will return 0 if called on OMAP2.  Returns
+ * -EINVAL if the dpll3_m2_ck cannot be found, 0 if called on OMAP2,
+ * or passes along the return value of clk_set_rate().
+ */
+static int __init _omap2_init_reprogram_sdrc(void)
+{
+	struct clk *dpll3_m2_ck;
+	int v = -EINVAL;
+	long rate;
+
+	if (!cpu_is_omap34xx())
+		return 0;
+
+	dpll3_m2_ck = clk_get(NULL, "dpll3_m2_ck");
+	if (!dpll3_m2_ck)
+		return -EINVAL;
+
+	rate = clk_get_rate(dpll3_m2_ck);
+	pr_info("Reprogramming SDRC clock to %ld Hz\n", rate);
+	v = clk_set_rate(dpll3_m2_ck, rate);
+	if (v)
+		pr_err("dpll3_m2_clk rate change failed: %d\n", v);
+
+	clk_put(dpll3_m2_ck);
+
+	return v;
+}
+
 void __init omap2_init_common_hw(struct omap_sdrc_params *sp)
 {
 	omap2_mux_init();
@@ -249,6 +284,7 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sp)
 	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
 	omap2_clk_init();
 	omap2_sdrc_init(sp);
+	_omap2_init_reprogram_sdrc();
 #endif
 	gpmc_init();
 }
