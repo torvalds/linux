@@ -284,21 +284,12 @@ static void ProcessModemStatus(struct quatech_port *qt_port,
 	return;
 }
 
-static void ProcessRxChar(struct usb_serial_port *port, unsigned char Data)
+static void ProcessRxChar(struct tty_struct *tty, struct usb_serial_port *port,
+						unsigned char data)
 {
-	struct tty_struct *tty;
 	struct urb *urb = port->read_urb;
-	tty = tty_port_tty_get(&port->port);
-
-	/* if we insert more than TTY_FLIPBUF_SIZE characters, we drop them. */
-
-	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, 1);
-		tty_insert_flip_string(tty, &Data, 1);
-		/* tty_flip_buffer_push(tty); */
-	}
-
-	return;
+	if (urb->actual_length)
+		tty_insert_flip_char(tty, data, TTY_NORMAL);
 }
 
 static void qt_write_bulk_callback(struct urb *urb)
@@ -435,8 +426,10 @@ static void qt_read_bulk_callback(struct urb *urb)
 				case 0xff:
 					dbg("No status sequence. \n");
 
-					ProcessRxChar(port, data[i]);
-					ProcessRxChar(port, data[i + 1]);
+					if (tty) {
+						ProcessRxChar(tty, port, data[i]);
+						ProcessRxChar(tty, port, data[i + 1]);
+					}
 					i += 2;
 					break;
 				}
@@ -444,10 +437,8 @@ static void qt_read_bulk_callback(struct urb *urb)
 					continue;
 			}
 
-			if (tty && urb->actual_length) {
-				tty_buffer_request_room(tty, 1);
-				tty_insert_flip_string(tty, (data + i), 1);
-			}
+			if (tty && urb->actual_length)
+				tty_insert_flip_char(tty, data[i], TTY_NORMAL);
 
 		}
 		tty_flip_buffer_push(tty);
