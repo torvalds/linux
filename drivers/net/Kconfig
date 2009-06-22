@@ -2443,6 +2443,17 @@ config JME
 	  To compile this driver as a module, choose M here. The module
 	  will be called jme.
 
+config S6GMAC
+	tristate "S6105 GMAC ethernet support"
+	depends on XTENSA_VARIANT_S6000
+	select PHYLIB
+	help
+	  This driver supports the on chip ethernet device on the
+	  S6105 xtensa processor.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called s6gmac.
+
 endif # NETDEV_1000
 
 #
