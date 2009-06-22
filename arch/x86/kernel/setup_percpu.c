@@ -228,7 +228,7 @@ static ssize_t __init setup_pcpu_remap(size_t static_size)
 enomem:
 	for_each_possible_cpu(cpu)
 		if (pcpur_ptrs[cpu])
-			free_bootmem(__pa(pcpur_ptrs[cpu]), PMD_SIZE);
+			free_bootmem(__pa(pcpur_ptrs[cpu]), pcpur_size);
 	ret = -ENOMEM;
 out_free_ar:
 	free_bootmem(__pa(pcpur_ptrs), ptrs_size);
