@@ -555,7 +555,8 @@ static void dec_pending(struct dm_io *io, int error)
 			 * a per-device variable for error reporting.
 			 * Note that you can't touch the bio after end_io_acct
 			 */
-			md->barrier_error = io_error;
+			if (!md->barrier_error)
+				md->barrier_error = io_error;
 			end_io_acct(io);
 		} else {
 			end_io_acct(io);
@@ -867,7 +868,8 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 		if (!bio_barrier(bio))
 			bio_io_error(bio);
 		else
-			md->barrier_error = -EIO;
+			if (!md->barrier_error)
+				md->barrier_error = -EIO;
 		return;
 	}
 
@@ -1448,15 +1450,14 @@ static void dm_flush(struct mapped_device *md)
 
 static void process_barrier(struct mapped_device *md, struct bio *bio)
 {
+	md->barrier_error = 0;
+
 	dm_flush(md);
 
-	if (bio_empty_barrier(bio)) {
-		bio_endio(bio, 0);
-		return;
+	if (!bio_empty_barrier(bio)) {
+		__split_and_process_bio(md, bio);
+		dm_flush(md);
 	}
-
-	__split_and_process_bio(md, bio);
-	dm_flush(md);
 
 	if (md->barrier_error != DM_ENDIO_REQUEUE)
 		bio_endio(bio, md->barrier_error);
