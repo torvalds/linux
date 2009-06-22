@@ -54,6 +54,7 @@ static bool quota_mt_check(const struct xt_mtchk_param *par)
 	if (q->master == NULL)
 		return -ENOMEM;
 
+	q->master->quota = q->quota;
 	return true;
 }
 
