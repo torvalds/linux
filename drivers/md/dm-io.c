@@ -22,6 +22,7 @@ struct dm_io_client {
 /* FIXME: can we shrink this ? */
 struct io {
 	unsigned long error_bits;
+	unsigned long eopnotsupp_bits;
 	atomic_t count;
 	struct task_struct *sleeper;
 	struct dm_io_client *client;
@@ -107,8 +108,11 @@ static inline unsigned bio_get_region(struct bio *bio)
  *---------------------------------------------------------------*/
 static void dec_count(struct io *io, unsigned int region, int error)
 {
-	if (error)
+	if (error) {
 		set_bit(region, &io->error_bits);
+		if (error == -EOPNOTSUPP)
+			set_bit(region, &io->eopnotsupp_bits);
+	}
 
 	if (atomic_dec_and_test(&io->count)) {
 		if (io->sleeper)
@@ -361,6 +365,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 	}
 
 	io.error_bits = 0;
+	io.eopnotsupp_bits = 0;
 	atomic_set(&io.count, 1); /* see dispatch_io() */
 	io.sleeper = current;
 	io.client = client;
@@ -397,6 +402,7 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 
 	io = mempool_alloc(client->pool, GFP_NOIO);
 	io->error_bits = 0;
+	io->eopnotsupp_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->sleeper = NULL;
 	io->client = client;
