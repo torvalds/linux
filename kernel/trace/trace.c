@@ -2256,8 +2256,8 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 		len += 3; /* "no" and newline */
 	}
 
-	/* +2 for \n and \0 */
-	buf = kmalloc(len + 2, GFP_KERNEL);
+	/* +1 for \0 */
+	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&trace_types_lock);
 		return -ENOMEM;
@@ -2280,7 +2280,7 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	}
 	mutex_unlock(&trace_types_lock);
 
-	WARN_ON(r >= len + 2);
+	WARN_ON(r >= len + 1);
 
 	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 
