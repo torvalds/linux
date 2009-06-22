@@ -297,7 +297,7 @@ static int update_eth_regs_async(pegasus_t * pegasus)
 
 	pegasus->dr.bRequestType = PEGASUS_REQT_WRITE;
 	pegasus->dr.bRequest = PEGASUS_REQ_SET_REGS;
-	pegasus->dr.wValue = 0;
+	pegasus->dr.wValue = cpu_to_le16(0);
 	pegasus->dr.wIndex = cpu_to_le16(EthCtrl0);
 	pegasus->dr.wLength = cpu_to_le16(3);
 	pegasus->ctrl_urb->transfer_buffer_length = 3;
@@ -446,11 +446,12 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 	int i;
 	__u8 tmp, d[4] = { 0x3f, 0, 0, EPROM_WRITE };
 	int ret;
+	__le16 le_data = cpu_to_le16(data);
 
 	set_registers(pegasus, EpromOffset, 4, d);
 	enable_eprom_write(pegasus);
 	set_register(pegasus, EpromOffset, index);
-	set_registers(pegasus, EpromData, 2, &data);
+	set_registers(pegasus, EpromData, 2, &le_data);
 	set_register(pegasus, EpromCtrl, EPROM_WRITE);
 
 	for (i = 0; i < REG_TIMEOUT; i++) {
@@ -923,29 +924,32 @@ static struct net_device_stats *pegasus_netdev_stats(struct net_device *dev)
 
 static inline void disable_net_traffic(pegasus_t * pegasus)
 {
-	int tmp = 0;
+	__le16 tmp = cpu_to_le16(0);
 
-	set_registers(pegasus, EthCtrl0, 2, &tmp);
+	set_registers(pegasus, EthCtrl0, sizeof(tmp), &tmp);
 }
 
 static inline void get_interrupt_interval(pegasus_t * pegasus)
 {
-	__u8 data[2];
+	u16 data;
+	u8 interval;
 
-	read_eprom_word(pegasus, 4, (__u16 *) data);
+	read_eprom_word(pegasus, 4, &data);
+	interval = data >> 8;
 	if (pegasus->usb->speed != USB_SPEED_HIGH) {
-		if (data[1] < 0x80) {
+		if (interval < 0x80) {
 			if (netif_msg_timer(pegasus))
 				dev_info(&pegasus->intf->dev, "intr interval "
 					"changed from %ums to %ums\n",
-					data[1], 0x80);
-			data[1] = 0x80;
+					interval, 0x80);
+			interval = 0x80;
+			data = (data & 0x00FF) | ((u16)interval << 8);
 #ifdef PEGASUS_WRITE_EEPROM
-			write_eprom_word(pegasus, 4, *(__u16 *) data);
+			write_eprom_word(pegasus, 4, data);
 #endif
 		}
 	}
-	pegasus->intr_interval = data[1];
+	pegasus->intr_interval = interval;
 }
 
 static void set_carrier(struct net_device *net)
@@ -1299,7 +1303,8 @@ static int pegasus_blacklisted(struct usb_device *udev)
 	/* Special quirk to keep the driver from handling the Belkin Bluetooth
 	 * dongle which happens to have the same ID.
 	 */
-	if ((udd->idVendor == VENDOR_BELKIN && udd->idProduct == 0x0121) &&
+	if ((udd->idVendor == cpu_to_le16(VENDOR_BELKIN)) &&
+	    (udd->idProduct == cpu_to_le16(0x0121)) &&
 	    (udd->bDeviceClass == USB_CLASS_WIRELESS_CONTROLLER) &&
 	    (udd->bDeviceProtocol == 1))
 		return 1;
