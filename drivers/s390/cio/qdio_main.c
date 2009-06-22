@@ -455,13 +455,6 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	count--;
 	if (!count)
 		return;
-
-	/*
-	 * Need to change all PRIMED buffers to NOT_INIT, otherwise
-	 * we're loosing initiative in the thinint code.
-	 */
-	set_buf_states(q, q->first_to_check, SLSB_P_INPUT_NOT_INIT,
-		       count);
 }
 
 static int get_inbound_buffer_frontier(struct qdio_q *q)
