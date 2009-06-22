@@ -739,4 +739,7 @@ extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool reduced, bool interlaced);
+extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
+				int hdisplay, int vdisplay, int vrefresh,
+				bool interlaced, int margins);
 #endif /* __DRM_CRTC_H__ */
