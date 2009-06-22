@@ -499,7 +499,7 @@ check_next:
 		/*
 		 * No siga-sync needed for non-qebsm here, as the inbound queue
 		 * will be synced on the next siga-r, resp.
-		 * tiqdio_is_inbound_q_done will do the siga-sync.
+		 * qdio_inbound_q_done will do the siga-sync.
 		 */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
@@ -530,53 +530,14 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 	if ((bufnr != q->last_move) || q->qdio_error) {
 		q->last_move = bufnr;
-		if (!need_siga_sync(q) && !pci_out_supported(q))
+		if (!is_thinint_irq(q->irq_ptr) && !MACHINE_IS_VM)
 			q->u.in.timestamp = get_usecs();
-
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in moved");
 		return 1;
 	} else
 		return 0;
 }
 
-static int qdio_inbound_q_done(struct qdio_q *q)
-{
-	unsigned char state = 0;
-
-	if (!atomic_read(&q->nr_buf_used))
-		return 1;
-
-	/*
-	 * We need that one for synchronization with the adapter, as it
-	 * does a kind of PCI avoidance.
-	 */
-	qdio_siga_sync_q(q);
-
-	get_buf_state(q, q->first_to_check, &state, 0);
-	if (state == SLSB_P_INPUT_PRIMED)
-		/* we got something to do */
-		return 0;
-
-	/* on VM, we don't poll, so the q is always done here */
-	if (need_siga_sync(q) || pci_out_supported(q))
-		return 1;
-
-	/*
-	 * At this point we know, that inbound first_to_check
-	 * has (probably) not moved (see qdio_inbound_processing).
-	 */
-	if (get_usecs() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%3d",
-			      q->first_to_check);
-		return 1;
-	} else {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in notd:%3d",
-			      q->first_to_check);
-		return 0;
-	}
-}
-
-static inline int tiqdio_inbound_q_done(struct qdio_q *q)
+static inline int qdio_inbound_q_done(struct qdio_q *q)
 {
 	unsigned char state = 0;
 
@@ -589,7 +550,24 @@ static inline int tiqdio_inbound_q_done(struct qdio_q *q)
 	if (state == SLSB_P_INPUT_PRIMED)
 		/* more work coming */
 		return 0;
-	return 1;
+
+	if (is_thinint_irq(q->irq_ptr))
+		return 1;
+
+	/* don't poll under z/VM */
+	if (MACHINE_IS_VM)
+		return 1;
+
+	/*
+	 * At this point we know, that inbound first_to_check
+	 * has (probably) not moved (see qdio_inbound_processing).
+	 */
+	if (get_usecs() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%3d",
+			      q->first_to_check);
+		return 1;
+	} else
+		return 0;
 }
 
 static void qdio_kick_handler(struct qdio_q *q)
@@ -847,7 +825,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 
 	qdio_kick_handler(q);
 
-	if (!tiqdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
 		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
 			tasklet_schedule(&q->tasklet);
@@ -858,7 +836,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!tiqdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q)) {
 		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop2);
 		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
 			tasklet_schedule(&q->tasklet);
