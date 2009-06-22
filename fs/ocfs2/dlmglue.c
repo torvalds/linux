@@ -2366,15 +2366,20 @@ void ocfs2_inode_unlock(struct inode *inode,
 	mlog_exit_void();
 }
 
-int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno, int ex)
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno)
 {
 	struct ocfs2_lock_res *lockres;
 	struct ocfs2_orphan_scan_lvb *lvb;
-	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
 	int status = 0;
 
+	if (ocfs2_is_hard_readonly(osb))
+		return -EROFS;
+
+	if (ocfs2_mount_local(osb))
+		return 0;
+
 	lockres = &osb->osb_orphan_scan.os_lockres;
-	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
+	status = ocfs2_cluster_lock(osb, lockres, DLM_LOCK_EX, 0, 0);
 	if (status < 0)
 		return status;
 
@@ -2388,17 +2393,18 @@ int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno, int ex)
 	return status;
 }
 
-void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno, int ex)
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno)
 {
 	struct ocfs2_lock_res *lockres;
 	struct ocfs2_orphan_scan_lvb *lvb;
-	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
 
-	lockres = &osb->osb_orphan_scan.os_lockres;
-	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
-	lvb->lvb_version = OCFS2_ORPHAN_LVB_VERSION;
-	lvb->lvb_os_seqno = cpu_to_be32(seqno);
-	ocfs2_cluster_unlock(osb, lockres, level);
+	if (!ocfs2_is_hard_readonly(osb) && !ocfs2_mount_local(osb)) {
+		lockres = &osb->osb_orphan_scan.os_lockres;
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		lvb->lvb_version = OCFS2_ORPHAN_LVB_VERSION;
+		lvb->lvb_os_seqno = cpu_to_be32(seqno);
+		ocfs2_cluster_unlock(osb, lockres, DLM_LOCK_EX);
+	}
 }
 
 int ocfs2_super_lock(struct ocfs2_super *osb,

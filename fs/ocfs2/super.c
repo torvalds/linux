@@ -205,11 +205,10 @@ static const match_table_t tokens = {
 #ifdef CONFIG_DEBUG_FS
 static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 {
-	int out = 0;
-	int i;
 	struct ocfs2_cluster_connection *cconn = osb->cconn;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
-	struct ocfs2_orphan_scan *os;
+	struct ocfs2_orphan_scan *os = &osb->osb_orphan_scan;
+	int i, out = 0;
 
 	out += snprintf(buf + out, len - out,
 			"%10s => Id: %-s  Uuid: %-s  Gen: 0x%X  Label: %-s\n",
@@ -305,6 +304,16 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 			atomic_read(&osb->s_num_inodes_stolen));
 	spin_unlock(&osb->osb_lock);
 
+	out += snprintf(buf + out, len - out, "OrphanScan => ");
+	out += snprintf(buf + out, len - out, "Local: %u  Global: %u ",
+			os->os_count, os->os_seqno);
+	out += snprintf(buf + out, len - out, " Last Scan: ");
+	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
+		out += snprintf(buf + out, len - out, "Disabled\n");
+	else
+		out += snprintf(buf + out, len - out, "%lu seconds ago\n",
+				(get_seconds() - os->os_scantime.tv_sec));
+
 	out += snprintf(buf + out, len - out, "%10s => %3s  %10s\n",
 			"Slots", "Num", "RecoGen");
 	for (i = 0; i < osb->max_slots; ++i) {
@@ -314,13 +323,6 @@ static int ocfs2_osb_dump(struct ocfs2_super *osb, char *buf, int len)
 				(i == osb->slot_num ? '*' : ' '),
 				i, osb->slot_recovery_generations[i]);
 	}
-
-	os = &osb->osb_orphan_scan;
-	out += snprintf(buf + out, len - out, "Orphan Scan=> ");
-	out += snprintf(buf + out, len - out, "Local: %u  Global: %u ",
-			os->os_count, os->os_seqno);
-	out += snprintf(buf + out, len - out, " Last Scan: %lu seconds ago\n",
-			(get_seconds() - os->os_scantime.tv_sec));
 
 	return out;
 }
@@ -1179,6 +1181,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	atomic_set(&osb->vol_state, VOLUME_MOUNTED_QUOTAS);
 	wake_up(&osb->osb_mount_event);
 
+	/* Start this when the mount is almost sure of being successful */
+	ocfs2_orphan_scan_init(osb);
+
 	mlog_exit(status);
 	return status;
 
@@ -1979,13 +1984,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	status = ocfs2_recovery_init(osb);
 	if (status) {
 		mlog(ML_ERROR, "Unable to initialize recovery state\n");
-		mlog_errno(status);
-		goto bail;
-	}
-
-	status = ocfs2_orphan_scan_init(osb);
-	if (status) {
-		mlog(ML_ERROR, "Unable to initialize delayed orphan scan\n");
 		mlog_errno(status);
 		goto bail;
 	}

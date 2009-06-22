@@ -121,8 +121,8 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex);
 void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
-int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno, int ex);
-void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno, int ex);
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno);
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno);
 
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
