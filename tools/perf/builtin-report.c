@@ -797,7 +797,7 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 {
 	struct dso *dso = dsop ? *dsop : NULL;
 	struct map *map = mapp ? *mapp : NULL;
-	uint64_t ip = *ipp;
+	u64 ip = *ipp;
 
 	if (!thread)
 		return NULL;
@@ -814,7 +814,6 @@ resolve_symbol(struct thread *thread, struct map **mapp,
 			*mapp = map;
 got_map:
 		ip = map->map_ip(map, ip);
-		*ipp  = ip;
 
 		dso = map->dso;
 	} else {
@@ -828,6 +827,8 @@ got_map:
 		dso = kernel_dso;
 	}
 	dprintf(" ...... dso: %s\n", dso ? dso->name : "<not found>");
+	dprintf(" ...... map: %Lx -> %Lx\n", *ipp, ip);
+	*ipp  = ip;
 
 	if (dsop)
 		*dsop = dso;

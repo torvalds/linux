@@ -535,6 +535,10 @@ static int dso__load_sym(struct dso *self, int fd, const char *name,
 		gelf_getshdr(sec, &shdr);
 		obj_start = sym.st_value;
 
+		if (verbose >= 2)
+			printf("adjusting symbol: st_value: %Lx sh_addr: %Lx sh_offset: %Lx\n",
+				(u64)sym.st_value, (u64)shdr.sh_addr, (u64)shdr.sh_offset);
+
 		sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 
 		f = symbol__new(sym.st_value, sym.st_size,
