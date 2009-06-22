@@ -157,7 +157,7 @@ struct mapped_device {
 	 * freeze/thaw support require holding onto a super block
 	 */
 	struct super_block *frozen_sb;
-	struct block_device *suspended_bdev;
+	struct block_device *bdev;
 
 	/* forced geometry settings */
 	struct hd_geometry geometry;
@@ -1214,9 +1214,9 @@ static void free_dev(struct mapped_device *md)
 {
 	int minor = MINOR(disk_devt(md->disk));
 
-	if (md->suspended_bdev) {
+	if (md->bdev) {
 		unlock_fs(md);
-		bdput(md->suspended_bdev);
+		bdput(md->bdev);
 	}
 	destroy_workqueue(md->wq);
 	mempool_destroy(md->tio_pool);
@@ -1259,9 +1259,9 @@ static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	mutex_lock(&md->suspended_bdev->bd_inode->i_mutex);
-	i_size_write(md->suspended_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	mutex_unlock(&md->suspended_bdev->bd_inode->i_mutex);
+	mutex_lock(&md->bdev->bd_inode->i_mutex);
+	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
+	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
@@ -1277,7 +1277,7 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 	if (size != get_capacity(md->disk))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
-	if (md->suspended_bdev)
+	if (md->bdev)
 		__set_size(md, size);
 
 	if (!size) {
@@ -1521,7 +1521,7 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		goto out;
 
 	/* without bdev, the device size cannot be changed */
-	if (!md->suspended_bdev)
+	if (!md->bdev)
 		if (get_capacity(md->disk) != dm_table_get_size(table))
 			goto out;
 
@@ -1543,7 +1543,7 @@ static int lock_fs(struct mapped_device *md)
 
 	WARN_ON(md->frozen_sb);
 
-	md->frozen_sb = freeze_bdev(md->suspended_bdev);
+	md->frozen_sb = freeze_bdev(md->bdev);
 	if (IS_ERR(md->frozen_sb)) {
 		r = PTR_ERR(md->frozen_sb);
 		md->frozen_sb = NULL;
@@ -1563,7 +1563,7 @@ static void unlock_fs(struct mapped_device *md)
 	if (!test_bit(DMF_FROZEN, &md->flags))
 		return;
 
-	thaw_bdev(md->suspended_bdev, md->frozen_sb);
+	thaw_bdev(md->bdev, md->frozen_sb);
 	md->frozen_sb = NULL;
 	clear_bit(DMF_FROZEN, &md->flags);
 }
@@ -1603,8 +1603,8 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 
 	/* bdget() can stall if the pending I/Os are not flushed */
 	if (!noflush) {
-		md->suspended_bdev = bdget_disk(md->disk, 0);
-		if (!md->suspended_bdev) {
+		md->bdev = bdget_disk(md->disk, 0);
+		if (!md->bdev) {
 			DMWARN("bdget failed in dm_suspend");
 			r = -ENOMEM;
 			goto out;
@@ -1675,9 +1675,9 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	set_bit(DMF_SUSPENDED, &md->flags);
 
 out:
-	if (r && md->suspended_bdev) {
-		bdput(md->suspended_bdev);
-		md->suspended_bdev = NULL;
+	if (r && md->bdev) {
+		bdput(md->bdev);
+		md->bdev = NULL;
 	}
 
 	dm_table_put(map);
@@ -1708,9 +1708,9 @@ int dm_resume(struct mapped_device *md)
 
 	unlock_fs(md);
 
-	if (md->suspended_bdev) {
-		bdput(md->suspended_bdev);
-		md->suspended_bdev = NULL;
+	if (md->bdev) {
+		bdput(md->bdev);
+		md->bdev = NULL;
 	}
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
