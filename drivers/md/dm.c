@@ -1180,6 +1180,10 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->wq)
 		goto bad_thread;
 
+	md->bdev = bdget_disk(md->disk, 0);
+	if (!md->bdev)
+		goto bad_bdev;
+
 	/* Populate the mapping, nobody knows we exist yet */
 	spin_lock(&_minor_lock);
 	old_md = idr_replace(&_minor_idr, md, minor);
@@ -1189,6 +1193,8 @@ static struct mapped_device *alloc_dev(int minor)
 
 	return md;
 
+bad_bdev:
+	destroy_workqueue(md->wq);
 bad_thread:
 	put_disk(md->disk);
 bad_disk:
@@ -1214,10 +1220,8 @@ static void free_dev(struct mapped_device *md)
 {
 	int minor = MINOR(disk_devt(md->disk));
 
-	if (md->bdev) {
-		unlock_fs(md);
-		bdput(md->bdev);
-	}
+	unlock_fs(md);
+	bdput(md->bdev);
 	destroy_workqueue(md->wq);
 	mempool_destroy(md->tio_pool);
 	mempool_destroy(md->io_pool);
@@ -1277,8 +1281,7 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 	if (size != get_capacity(md->disk))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
-	if (md->bdev)
-		__set_size(md, size);
+	__set_size(md, size);
 
 	if (!size) {
 		dm_table_destroy(t);
@@ -1520,11 +1523,6 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	if (!dm_suspended(md))
 		goto out;
 
-	/* without bdev, the device size cannot be changed */
-	if (!md->bdev)
-		if (get_capacity(md->disk) != dm_table_get_size(table))
-			goto out;
-
 	__unbind(md);
 	r = __bind(md, table);
 
@@ -1552,9 +1550,6 @@ static int lock_fs(struct mapped_device *md)
 
 	set_bit(DMF_FROZEN, &md->flags);
 
-	/* don't bdput right now, we don't want the bdev
-	 * to go away while it is locked.
-	 */
 	return 0;
 }
 
@@ -1601,24 +1596,14 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	/* This does not get reverted if there's an error later. */
 	dm_table_presuspend_targets(map);
 
-	/* bdget() can stall if the pending I/Os are not flushed */
-	if (!noflush) {
-		md->bdev = bdget_disk(md->disk, 0);
-		if (!md->bdev) {
-			DMWARN("bdget failed in dm_suspend");
-			r = -ENOMEM;
+	/*
+	 * Flush I/O to the device. noflush supersedes do_lockfs,
+	 * because lock_fs() needs to flush I/Os.
+	 */
+	if (!noflush && do_lockfs) {
+		r = lock_fs(md);
+		if (r)
 			goto out;
-		}
-
-		/*
-		 * Flush I/O to the device. noflush supersedes do_lockfs,
-		 * because lock_fs() needs to flush I/Os.
-		 */
-		if (do_lockfs) {
-			r = lock_fs(md);
-			if (r)
-				goto out;
-		}
 	}
 
 	/*
@@ -1675,11 +1660,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	set_bit(DMF_SUSPENDED, &md->flags);
 
 out:
-	if (r && md->bdev) {
-		bdput(md->bdev);
-		md->bdev = NULL;
-	}
-
 	dm_table_put(map);
 
 out_unlock:
@@ -1707,11 +1687,6 @@ int dm_resume(struct mapped_device *md)
 	dm_queue_flush(md);
 
 	unlock_fs(md);
-
-	if (md->bdev) {
-		bdput(md->bdev);
-		md->bdev = NULL;
-	}
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
 
