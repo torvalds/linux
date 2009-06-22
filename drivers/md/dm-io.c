@@ -364,6 +364,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EIO;
 	}
 
+retry:
 	io.error_bits = 0;
 	io.eopnotsupp_bits = 0;
 	atomic_set(&io.count, 1); /* see dispatch_io() */
@@ -381,6 +382,11 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		io_schedule();
 	}
 	set_current_state(TASK_RUNNING);
+
+	if (io.eopnotsupp_bits && (rw & (1 << BIO_RW_BARRIER))) {
+		rw &= ~(1 << BIO_RW_BARRIER);
+		goto retry;
+	}
 
 	if (error_bits)
 		*error_bits = io.error_bits;
