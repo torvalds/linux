@@ -267,6 +267,8 @@ static void free_devices(struct list_head *devices)
 	list_for_each_safe(tmp, next, devices) {
 		struct dm_dev_internal *dd =
 		    list_entry(tmp, struct dm_dev_internal, list);
+		DMWARN("dm_table_destroy: dm_put_device call missing for %s",
+		       dd->dm_dev.name);
 		kfree(dd);
 	}
 }
@@ -296,12 +298,8 @@ void dm_table_destroy(struct dm_table *t)
 	vfree(t->highs);
 
 	/* free the device list */
-	if (t->devices.next != &t->devices) {
-		DMWARN("devices still present during destroy: "
-		       "dm_table_remove_device calls missing");
-
+	if (t->devices.next != &t->devices)
 		free_devices(&t->devices);
-	}
 
 	kfree(t);
 }
