@@ -103,7 +103,8 @@ void dm_error(const char *message);
 /*
  * Combine device limits.
  */
-void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev);
+int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
+			 sector_t start, void *data);
 
 struct dm_dev {
 	struct block_device *bdev;
@@ -163,7 +164,6 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* FIXME: turn this into a mask, and merge with queue_limits */
 	/* Always a power of 2 */
 	sector_t split_io;
 
@@ -176,12 +176,6 @@ struct dm_target {
 	 * to the real underlying devices.
 	 */
 	unsigned num_flush_requests;
-
-	/*
-	 * These are automatically filled in by
-	 * dm_table_get_device.
-	 */
-	struct queue_limits limits;
 
 	/* target specific data */
 	void *private;

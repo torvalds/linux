@@ -41,7 +41,10 @@ void dm_table_event_callback(struct dm_table *t,
 			     void (*fn)(void *), void *context);
 struct dm_target *dm_table_get_target(struct dm_table *t, unsigned int index);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
-void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q);
+int dm_calculate_queue_limits(struct dm_table *table,
+			      struct queue_limits *limits);
+void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
+			       struct queue_limits *limits);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);

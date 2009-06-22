@@ -1313,7 +1313,8 @@ static void __set_size(struct mapped_device *md, sector_t size)
 	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
-static int __bind(struct mapped_device *md, struct dm_table *t)
+static int __bind(struct mapped_device *md, struct dm_table *t,
+		  struct queue_limits *limits)
 {
 	struct request_queue *q = md->queue;
 	sector_t size;
@@ -1337,7 +1338,7 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 
 	write_lock(&md->map_lock);
 	md->map = t;
-	dm_table_set_restrictions(t, q);
+	dm_table_set_restrictions(t, q, limits);
 	write_unlock(&md->map_lock);
 
 	return 0;
@@ -1562,6 +1563,7 @@ static void dm_queue_flush(struct mapped_device *md)
  */
 int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 {
+	struct queue_limits limits;
 	int r = -EINVAL;
 
 	mutex_lock(&md->suspend_lock);
@@ -1570,8 +1572,12 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	if (!dm_suspended(md))
 		goto out;
 
+	r = dm_calculate_queue_limits(table, &limits);
+	if (r)
+		goto out;
+
 	__unbind(md);
-	r = __bind(md, table);
+	r = __bind(md, table, &limits);
 
 out:
 	mutex_unlock(&md->suspend_lock);
