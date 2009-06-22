@@ -1726,24 +1726,29 @@ static long __video_do_ioctl(struct file *file,
 
 		ret = ops->vidioc_enum_framesizes(file, fh, p);
 		dbgarg(cmd,
-			"index=%d, pixelformat=%d, type=%d ",
-			p->index, p->pixel_format, p->type);
+			"index=%d, pixelformat=%c%c%c%c, type=%d ",
+			p->index,
+			(p->pixel_format & 0xff),
+			(p->pixel_format >>  8) & 0xff,
+			(p->pixel_format >> 16) & 0xff,
+			(p->pixel_format >> 24) & 0xff,
+			p->type);
 		switch (p->type) {
 		case V4L2_FRMSIZE_TYPE_DISCRETE:
-			dbgarg2("width = %d, height=%d\n",
+			printk("width = %d, height=%d\n",
 				p->discrete.width, p->discrete.height);
 			break;
 		case V4L2_FRMSIZE_TYPE_STEPWISE:
-			dbgarg2("min %dx%d, max %dx%d, step %dx%d\n",
+			printk("min %dx%d, max %dx%d, step %dx%d\n",
 				p->stepwise.min_width,  p->stepwise.min_height,
 				p->stepwise.step_width, p->stepwise.step_height,
 				p->stepwise.max_width,  p->stepwise.max_height);
 			break;
 		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
-			dbgarg2("continuous\n");
+			printk("continuous\n");
 			break;
 		default:
-			dbgarg2("- Unknown type!\n");
+			printk("- Unknown type!\n");
 		}
 
 		break;
