@@ -967,7 +967,7 @@ void __cpuinit init_exception_vectors(void)
 	bfin_write_EVT11(evt_evt11);
 	bfin_write_EVT12(evt_evt12);
 	bfin_write_EVT13(evt_evt13);
-	bfin_write_EVT14(evt14_softirq);
+	bfin_write_EVT14(evt_evt14);
 	bfin_write_EVT15(evt_system_call);
 	CSYNC();
 }

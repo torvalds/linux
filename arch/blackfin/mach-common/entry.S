@@ -975,10 +975,10 @@ ENTRY(_lower_to_irq14)
 #endif
 
 #ifdef CONFIG_DEBUG_HWERR
-	/* enable irq14 & hwerr interrupt, until we transition to _evt14_softirq */
+	/* enable irq14 & hwerr interrupt, until we transition to _evt_evt14 */
 	r0 = (EVT_IVG14 | EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
 #else
-	/* Only enable irq14 interrupt, until we transition to _evt14_softirq */
+	/* Only enable irq14 interrupt, until we transition to _evt_evt14 */
 	r0 = (EVT_IVG14 | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
 #endif
 	sti r0;
@@ -986,7 +986,7 @@ ENTRY(_lower_to_irq14)
 	rti;
 ENDPROC(_lower_to_irq14)
 
-ENTRY(_evt14_softirq)
+ENTRY(_evt_evt14)
 #ifdef CONFIG_DEBUG_HWERR
 	r0 = (EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
 	sti r0;
@@ -996,7 +996,7 @@ ENTRY(_evt14_softirq)
 	[--sp] = RETI;
 	SP += 4;
 	rts;
-ENDPROC(_evt14_softirq)
+ENDPROC(_evt_evt14)
 
 ENTRY(_schedule_and_signal_from_int)
 	/* To end up here, vector 15 was changed - so we have to change it
