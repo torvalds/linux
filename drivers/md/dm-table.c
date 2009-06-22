@@ -830,6 +830,11 @@ unsigned dm_table_get_type(struct dm_table *t)
 	return t->type;
 }
 
+bool dm_table_bio_based(struct dm_table *t)
+{
+	return dm_table_get_type(t) == DM_TYPE_BIO_BASED;
+}
+
 bool dm_table_request_based(struct dm_table *t)
 {
 	return dm_table_get_type(t) == DM_TYPE_REQUEST_BASED;

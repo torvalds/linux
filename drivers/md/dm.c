@@ -1768,7 +1768,6 @@ static struct mapped_device *alloc_dev(int minor)
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
 	blk_queue_make_request(md->queue, dm_request);
-	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
@@ -2200,6 +2199,16 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 		DMWARN("can't change the device type after a table is bound");
 		goto out;
 	}
+
+	/*
+	 * It is enought that blk_queue_ordered() is called only once when
+	 * the first bio-based table is bound.
+	 *
+	 * This setting should be moved to alloc_dev() when request-based dm
+	 * supports barrier.
+	 */
+	if (!md->map && dm_table_bio_based(table))
+		blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN, NULL);
 
 	__unbind(md);
 	r = __bind(md, table, &limits);
