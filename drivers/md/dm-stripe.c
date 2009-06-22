@@ -167,6 +167,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	sc->stripes = stripes;
 	sc->stripe_width = width;
 	ti->split_io = chunk_size;
+	ti->num_flush_requests = stripes;
 
 	sc->chunk_mask = ((sector_t) chunk_size) - 1;
 	for (sc->chunk_shift = 0; chunk_size; sc->chunk_shift++)
@@ -211,10 +212,18 @@ static int stripe_map(struct dm_target *ti, struct bio *bio,
 		      union map_info *map_context)
 {
 	struct stripe_c *sc = (struct stripe_c *) ti->private;
+	sector_t offset, chunk;
+	uint32_t stripe;
 
-	sector_t offset = bio->bi_sector - ti->begin;
-	sector_t chunk = offset >> sc->chunk_shift;
-	uint32_t stripe = sector_div(chunk, sc->stripes);
+	if (unlikely(bio_empty_barrier(bio))) {
+		BUG_ON(map_context->flush_request >= sc->stripes);
+		bio->bi_bdev = sc->stripe[map_context->flush_request].dev->bdev;
+		return DM_MAPIO_REMAPPED;
+	}
+
+	offset = bio->bi_sector - ti->begin;
+	chunk = offset >> sc->chunk_shift;
+	stripe = sector_div(chunk, sc->stripes);
 
 	bio->bi_bdev = sc->stripe[stripe].dev->bdev;
 	bio->bi_sector = sc->stripe[stripe].physical_start +
