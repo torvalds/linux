@@ -89,6 +89,20 @@ config MACH_EDMINI_V2
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie Ethernet Disk mini V2.
 
+config MACH_D2NET
+	bool "LaCie d2 Network"
+	select I2C_BOARDINFO
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie d2 Network NAS.
+
+config MACH_BIGDISK
+	bool "LaCie Big Disk Network"
+	select I2C_BOARDINFO
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Big Disk Network NAS.
+
 config MACH_MSS2
 	bool "Maxtor Shared Storage II"
 	help
