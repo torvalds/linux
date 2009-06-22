@@ -142,8 +142,8 @@ struct pcpul_ent {
 	void		*ptr;
 };
 
-static size_t pcpul_size __initdata;
-static struct pcpul_ent *pcpul_map __initdata;
+static size_t pcpul_size;
+static struct pcpul_ent *pcpul_map;
 static struct vm_struct pcpul_vm;
 
 static struct page * __init pcpul_get_page(unsigned int cpu, int pageno)
@@ -160,15 +160,14 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size)
 {
 	size_t map_size, dyn_size;
 	unsigned int cpu;
+	int i, j;
 	ssize_t ret;
 
 	/*
 	 * If large page isn't supported, there's no benefit in doing
 	 * this.  Also, on non-NUMA, embedding is better.
-	 *
-	 * NOTE: disabled for now.
 	 */
-	if (true || !cpu_has_pse || !pcpu_need_numa())
+	if (!cpu_has_pse || !pcpu_need_numa())
 		return -EINVAL;
 
 	/*
@@ -231,16 +230,71 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size)
 	ret = pcpu_setup_first_chunk(pcpul_get_page, static_size,
 				     PERCPU_FIRST_CHUNK_RESERVE, dyn_size,
 				     PMD_SIZE, pcpul_vm.addr, NULL);
-	goto out_free_map;
+
+	/* sort pcpul_map array for pcpu_lpage_remapped() */
+	for (i = 0; i < num_possible_cpus() - 1; i++)
+		for (j = i + 1; j < num_possible_cpus(); j++)
+			if (pcpul_map[i].ptr > pcpul_map[j].ptr) {
+				struct pcpul_ent tmp = pcpul_map[i];
+				pcpul_map[i] = pcpul_map[j];
+				pcpul_map[j] = tmp;
+			}
+
+	return ret;
 
 enomem:
 	for_each_possible_cpu(cpu)
 		if (pcpul_map[cpu].ptr)
 			free_bootmem(__pa(pcpul_map[cpu].ptr), pcpul_size);
-	ret = -ENOMEM;
-out_free_map:
 	free_bootmem(__pa(pcpul_map), map_size);
-	return ret;
+	return -ENOMEM;
+}
+
+/**
+ * pcpu_lpage_remapped - determine whether a kaddr is in pcpul recycled area
+ * @kaddr: the kernel address in question
+ *
+ * Determine whether @kaddr falls in the pcpul recycled area.  This is
+ * used by pageattr to detect VM aliases and break up the pcpu PMD
+ * mapping such that the same physical page is not mapped under
+ * different attributes.
+ *
+ * The recycled area is always at the tail of a partially used PMD
+ * page.
+ *
+ * RETURNS:
+ * Address of corresponding remapped pcpu address if match is found;
+ * otherwise, NULL.
+ */
+void *pcpu_lpage_remapped(void *kaddr)
+{
+	void *pmd_addr = (void *)((unsigned long)kaddr & PMD_MASK);
+	unsigned long offset = (unsigned long)kaddr & ~PMD_MASK;
+	int left = 0, right = num_possible_cpus() - 1;
+	int pos;
+
+	/* pcpul in use at all? */
+	if (!pcpul_map)
+		return NULL;
+
+	/* okay, perform binary search */
+	while (left <= right) {
+		pos = (left + right) / 2;
+
+		if (pcpul_map[pos].ptr < pmd_addr)
+			left = pos + 1;
+		else if (pcpul_map[pos].ptr > pmd_addr)
+			right = pos - 1;
+		else {
+			/* it shouldn't be in the area for the first chunk */
+			WARN_ON(offset < pcpul_size);
+
+			return pcpul_vm.addr +
+				pcpul_map[pos].cpu * PMD_SIZE + offset;
+		}
+	}
+
+	return NULL;
 }
 #else
 static ssize_t __init setup_pcpu_lpage(size_t static_size)
