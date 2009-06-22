@@ -90,7 +90,7 @@ static int s3c2410_serial_probe(struct platform_device *dev)
 
 static struct platform_driver s3c2410_serial_drv = {
 	.probe		= s3c2410_serial_probe,
-	.remove		= s3c24xx_serial_remove,
+	.remove		= __devexit_p(s3c24xx_serial_remove),
 	.driver		= {
 		.name	= "s3c2410-uart",
 		.owner	= THIS_MODULE,
