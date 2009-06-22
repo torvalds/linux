@@ -838,9 +838,8 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 static int acpi_ec_add(struct acpi_device *device)
 {
 	struct acpi_ec *ec = NULL;
+	int ret;
 
-	if (!device)
-		return -EINVAL;
 	strcpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_EC_CLASS);
 
@@ -875,21 +874,6 @@ static int acpi_ec_add(struct acpi_device *device)
 			  ec->gpe, ec->command_addr, ec->data_addr);
 	pr_info(PREFIX "driver started in %s mode\n",
 		(test_bit(EC_FLAGS_GPE_MODE, &ec->flags))?"interrupt":"poll");
-	return 0;
-}
-
-static int acpi_ec_start(struct acpi_device *device)
-{
-	struct acpi_ec *ec;
-	int ret = 0;
-
-	if (!device)
-		return -EINVAL;
-
-	ec = acpi_driver_data(device);
-
-	if (!ec)
-		return -EINVAL;
 
 	ret = ec_install_handlers(ec);
 
@@ -1077,7 +1061,6 @@ static struct acpi_driver acpi_ec_driver = {
 	.ops = {
 		.add = acpi_ec_add,
 		.remove = acpi_ec_remove,
-		.start = acpi_ec_start,
 		.stop = acpi_ec_stop,
 		.suspend = acpi_ec_suspend,
 		.resume = acpi_ec_resume,
