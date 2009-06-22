@@ -229,7 +229,7 @@ static void msm_break_ctl(struct uart_port *port, int break_ctl)
 		msm_write(port, UART_CR_CMD_STOP_BREAK, UART_CR);
 }
 
-static void msm_set_baud_rate(struct uart_port *port, unsigned int baud)
+static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
 	unsigned int baud_code, rxstale, watermark;
 
@@ -281,6 +281,7 @@ static void msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 	case 115200:
 	default:
 		baud_code = UART_CSR_115200;
+		baud = 115200;
 		rxstale = 31;
 		break;
 	}
@@ -299,6 +300,8 @@ static void msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	/* set TX watermark */
 	msm_write(port, 10, UART_TFWR);
+
+	return baud;
 }
 
 static void msm_reset(struct uart_port *port)
@@ -395,8 +398,10 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* calculate and set baud rate */
 	baud = uart_get_baud_rate(port, termios, old, 300, 115200);
-	msm_set_baud_rate(port, baud);
-
+	baud = msm_set_baud_rate(port, baud);
+	if (tty_termios_baud_rate(termios))
+		tty_termios_encode_baud_rate(termios, baud, baud);
+	
 	/* calculate parity */
 	mr = msm_read(port, UART_MR2);
 	mr &= ~UART_MR2_PARITY_MODE;
