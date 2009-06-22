@@ -124,6 +124,7 @@ static void set_data(void *data, int state_high)
  * @output: driver specific output device
  * @reg: GPIO reg to use
  * @name: name for this bus
+ * @slave_addr: slave address (if fixed)
  *
  * Creates and registers a new i2c bus with the Linux i2c layer, for use
  * in output probing and control (e.g. DDC or SDVO control functions).
@@ -139,8 +140,8 @@ static void set_data(void *data, int state_high)
  *   %GPIOH
  * see PRM for details on how these different busses are used.
  */
-struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
-					const char *name)
+struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
+				     const char *name)
 {
 	struct intel_i2c_chan *chan;
 
@@ -174,7 +175,7 @@ struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
 	intel_i2c_quirk_set(dev, false);
 	udelay(20);
 
-	return chan;
+	return &chan->adapter;
 
 out_free:
 	kfree(chan);
@@ -187,11 +188,16 @@ out_free:
  *
  * Unregister the adapter from the i2c layer, then free the structure.
  */
-void intel_i2c_destroy(struct intel_i2c_chan *chan)
+void intel_i2c_destroy(struct i2c_adapter *adapter)
 {
-	if (!chan)
+	struct intel_i2c_chan *chan;
+
+	if (!adapter)
 		return;
 
+	chan = container_of(adapter,
+			    struct intel_i2c_chan,
+			    adapter);
 	i2c_del_adapter(&chan->adapter);
 	kfree(chan);
 }

@@ -306,6 +306,17 @@ typedef struct drm_i915_private {
 	u32 saveCURBPOS;
 	u32 saveCURBBASE;
 	u32 saveCURSIZE;
+	u32 saveDP_B;
+	u32 saveDP_C;
+	u32 saveDP_D;
+	u32 savePIPEA_GMCH_DATA_M;
+	u32 savePIPEB_GMCH_DATA_M;
+	u32 savePIPEA_GMCH_DATA_N;
+	u32 savePIPEB_GMCH_DATA_N;
+	u32 savePIPEA_DP_LINK_M;
+	u32 savePIPEB_DP_LINK_M;
+	u32 savePIPEA_DP_LINK_N;
+	u32 savePIPEB_DP_LINK_N;
 
 	struct {
 		struct drm_mm gtt_space;
@@ -857,6 +868,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
 						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
+#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
