@@ -8,8 +8,8 @@ perf-stat - Run a command and gather performance counter statistics
 SYNOPSIS
 --------
 [verse]
-'perf stat' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
-'perf stat' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] <command>
+'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] -- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -40,7 +40,7 @@ OPTIONS
 -a::
         system-wide collection
 
--l::
+-S::
         scale counter values
 
 EXAMPLES
