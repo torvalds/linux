@@ -976,6 +976,11 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->backlight->props.max_brightness = device->brightness->count-3;
 		kfree(name);
 
+		result = sysfs_create_link(&device->backlight->dev.kobj,
+					   &device->dev->dev.kobj, "device");
+		if (result)
+			printk(KERN_ERR PREFIX "Create sysfs link\n");
+
 		device->cdev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
 		if (IS_ERR(device->cdev))
@@ -1990,6 +1995,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 	status = acpi_remove_notify_handler(device->dev->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
+	sysfs_remove_link(&device->backlight->dev.kobj, "device");
 	backlight_device_unregister(device->backlight);
 	if (device->cdev) {
 		sysfs_remove_link(&device->dev->dev.kobj,
