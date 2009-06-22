@@ -34,7 +34,7 @@
 #if defined(DEBUG)
 #define DBG udbg_printf
 #else
-#define DBG pr_debug
+#define DBG pr_devel
 #endif
 
 enum {
