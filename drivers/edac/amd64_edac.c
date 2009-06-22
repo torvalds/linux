@@ -2966,7 +2966,12 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 				"    Use of the override can cause "
 				"unknown side effects.\n");
 			ret = -ENODEV;
-		}
+		} else
+			/*
+			 * enable further driver loading if ECC enable is
+			 * overridden.
+			 */
+			ret = 0;
 	} else {
 		amd64_printk(KERN_INFO,
 			"ECC is enabled by BIOS, Proceeding "
