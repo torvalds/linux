@@ -705,7 +705,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		first_driver = (adapter->ahw.pci_func == 0);
 
 	if (!first_driver)
-		return 0;
+		goto wait_init;
 
 	first_boot = NXRD32(adapter, NETXEN_CAM_RAM(0x1fc));
 
@@ -752,6 +752,7 @@ netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 		| (_NETXEN_NIC_LINUX_SUBVERSION);
 	NXWR32(adapter, CRB_DRIVER_VERSION, val);
 
+wait_init:
 	/* Handshake with the card before we register the devices. */
 	err = netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	if (err) {
