@@ -29,7 +29,7 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 	if (pdev->is_pcie)
 		return NULL;
 	while (1) {
-		if (!pdev->bus->parent)
+		if (pci_is_root_bus(pdev->bus))
 			break;
 		pdev = pdev->bus->self;
 		/* a p2p bridge */
@@ -114,36 +114,6 @@ pci_find_next_bus(const struct pci_bus *from)
 }
 
 #ifdef CONFIG_PCI_LEGACY
-/**
- * pci_find_slot - locate PCI device from a given PCI slot
- * @bus: number of PCI bus on which desired PCI device resides
- * @devfn: encodes number of PCI slot in which the desired PCI
- * device resides and the logical device number within that slot
- * in case of multi-function devices.
- *
- * Given a PCI bus and slot/function number, the desired PCI device
- * is located in system global list of PCI devices.  If the device
- * is found, a pointer to its data structure is returned.  If no
- * device is found, %NULL is returned.
- *
- * NOTE: Do not use this function any more; use pci_get_slot() instead, as
- * the PCI device returned by this function can disappear at any moment in
- * time.
- */
-struct pci_dev *pci_find_slot(unsigned int bus, unsigned int devfn)
-{
-	struct pci_dev *dev = NULL;
-
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (dev->bus->number == bus && dev->devfn == devfn) {
-			pci_dev_put(dev);
-			return dev;
-		}
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(pci_find_slot);
-
 /**
  * pci_find_device - begin or continue searching for a PCI device by vendor/device id
  * @vendor: PCI vendor id to match, or %PCI_ANY_ID to match all vendor ids

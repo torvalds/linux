@@ -110,7 +110,7 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	}
 
 	if (reset)
-		pci_execute_reset_function(virtfn);
+		__pci_reset_function(virtfn);
 
 	pci_device_add(virtfn, virtfn->bus);
 	mutex_unlock(&iov->dev->sriov->lock);
@@ -164,7 +164,7 @@ static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 
 	if (reset) {
 		device_release_driver(&virtfn->dev);
-		pci_execute_reset_function(virtfn);
+		__pci_reset_function(virtfn);
 	}
 
 	sprintf(buf, "virtfn%u", id);
@@ -487,6 +487,8 @@ found:
 	iov->self = dev;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
+	if (dev->pcie_type == PCI_EXP_TYPE_RC_END)
+		iov->link = PCI_DEVFN(PCI_SLOT(dev->devfn), iov->link);
 
 	if (pdev)
 		iov->dev = pci_dev_get(pdev);

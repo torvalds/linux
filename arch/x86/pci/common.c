@@ -515,8 +515,8 @@ char * __devinit  pcibios_setup(char *str)
 	} else if (!strcmp(str, "assign-busses")) {
 		pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 		return NULL;
-	} else if (!strcmp(str, "use_crs")) {
-		pci_probe |= PCI_USE__CRS;
+	} else if (!strcmp(str, "nocrs")) {
+		pci_probe |= PCI_NO_ROOT_CRS;
 		return NULL;
 	} else if (!strcmp(str, "earlydump")) {
 		pci_early_dump_regs = 1;

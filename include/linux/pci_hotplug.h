@@ -66,17 +66,10 @@ enum pcie_link_speed {
 	PCIE_LNK_SPEED_UNKNOWN	= 0xFF,
 };
 
-struct hotplug_slot;
-struct hotplug_slot_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct hotplug_slot *, char *);
-	ssize_t (*store)(struct hotplug_slot *, const char *, size_t);
-};
-#define to_hotplug_attr(n) container_of(n, struct hotplug_slot_attribute, attr);
-
 /**
  * struct hotplug_slot_ops -the callbacks that the hotplug pci core can use
  * @owner: The module owner of this structure
+ * @mod_name: The module name (KBUILD_MODNAME) of this structure
  * @enable_slot: Called when the user wants to enable a specific pci slot
  * @disable_slot: Called when the user wants to disable a specific pci slot
  * @set_attention_status: Called to set the specific slot's attention LED to
@@ -109,6 +102,7 @@ struct hotplug_slot_attribute {
  */
 struct hotplug_slot_ops {
 	struct module *owner;
+	const char *mod_name;
 	int (*enable_slot)		(struct hotplug_slot *slot);
 	int (*disable_slot)		(struct hotplug_slot *slot);
 	int (*set_attention_status)	(struct hotplug_slot *slot, u8 value);
@@ -167,11 +161,20 @@ static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
 	return pci_slot_name(slot->pci_slot);
 }
 
-extern int pci_hp_register(struct hotplug_slot *, struct pci_bus *, int nr,
-			   const char *name);
+extern int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *pbus,
+			     int nr, const char *name,
+			     struct module *owner, const char *mod_name);
 extern int pci_hp_deregister(struct hotplug_slot *slot);
 extern int __must_check pci_hp_change_slot_info	(struct hotplug_slot *slot,
 						 struct hotplug_slot_info *info);
+
+static inline int pci_hp_register(struct hotplug_slot *slot,
+				  struct pci_bus *pbus,
+				  int devnr, const char *name)
+{
+	return __pci_hp_register(slot, pbus, devnr, name,
+				 THIS_MODULE, KBUILD_MODNAME);
+}
 
 /* PCI Setting Record (Type 0) */
 struct hpp_type0 {

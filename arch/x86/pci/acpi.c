@@ -38,13 +38,24 @@ count_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 
-	if (info->res_num >= PCI_BUS_NUM_RESOURCES)
-		return AE_OK;
-
 	status = resource_to_addr(acpi_res, &addr);
 	if (ACPI_SUCCESS(status))
 		info->res_num++;
 	return AE_OK;
+}
+
+static int
+bus_has_transparent_bridge(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		u16 class = dev->class >> 8;
+
+		if (class == PCI_CLASS_BRIDGE_PCI && dev->transparent)
+			return true;
+	}
+	return false;
 }
 
 static acpi_status
@@ -56,9 +67,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	acpi_status status;
 	unsigned long flags;
 	struct resource *root;
-
-	if (info->res_num >= PCI_BUS_NUM_RESOURCES)
-		return AE_OK;
+	int max_root_bus_resources = PCI_BUS_NUM_RESOURCES;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -81,6 +90,18 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = addr.minimum + addr.translation_offset;
 	res->end = res->start + addr.address_length - 1;
 	res->child = NULL;
+
+	if (bus_has_transparent_bridge(info->bus))
+		max_root_bus_resources -= 3;
+	if (info->res_num >= max_root_bus_resources) {
+		printk(KERN_WARNING "PCI: Failed to allocate 0x%lx-0x%lx "
+			"from %s for %s due to _CRS returning more than "
+			"%d resource descriptors\n", (unsigned long) res->start,
+			(unsigned long) res->end, root->name, info->name,
+			max_root_bus_resources);
+		info->res_num++;
+		return AE_OK;
+	}
 
 	if (insert_resource(root, res)) {
 		printk(KERN_ERR "PCI: Failed to allocate 0x%lx-0x%lx "
@@ -217,7 +238,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 #endif
 	}
 
-	if (bus && (pci_probe & PCI_USE__CRS))
+	if (bus && !(pci_probe & PCI_NO_ROOT_CRS))
 		get_current_resources(device, busnum, domain, bus);
 	return bus;
 }

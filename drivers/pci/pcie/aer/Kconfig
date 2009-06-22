@@ -10,3 +10,18 @@ config PCIEAER
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) driver support. Error reporting messages sent to Root
 	  Port will be handled by PCI Express AER driver.
+
+
+#
+# PCI Express ECRC
+#
+config PCIE_ECRC
+	bool "PCI Express ECRC settings control"
+	depends on PCIEAER
+	help
+	  Used to override firmware/bios settings for PCI Express ECRC
+	  (transaction layer end-to-end CRC checking).
+
+	  When in doubt, say N.
+
+source "drivers/pci/pcie/aer/Kconfig.debug"

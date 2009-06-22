@@ -94,12 +94,13 @@ static u8 evbuffer[1024];
 
 static void __iomem *compaq_int15_entry_point;
 
-static spinlock_t int15_lock;		/* lock for ordering int15_bios_call() */
+/* lock for ordering int15_bios_call() */
+static spinlock_t int15_lock;
 
 
 /* This is a series of function that deals with
-   setting & getting the hotplug resource table in some environment variable.
-*/
+ * setting & getting the hotplug resource table in some environment variable.
+ */
 
 /*
  * We really shouldn't be doing this unless there is a _very_ good reason to!!!
@@ -113,7 +114,7 @@ static u32 add_byte( u32 **p_buffer, u8 value, u32 *used, u32 *avail)
 
 	if ((*used + 1) > *avail)
 		return(1);
-	
+
 	*((u8*)*p_buffer) = value;
 	tByte = (u8**)p_buffer;
 	(*tByte)++;
@@ -170,10 +171,10 @@ static u32 access_EV (u16 operation, u8 *ev_name, u8 *buffer, u32 *buf_size)
 	unsigned long flags;
 	int op = operation;
 	int ret_val;
-	
+
 	if (!compaq_int15_entry_point)
 		return -ENODEV;
-	
+
 	spin_lock_irqsave(&int15_lock, flags);
 	__asm__ (
 		"xorl   %%ebx,%%ebx\n" \
@@ -187,7 +188,7 @@ static u32 access_EV (u16 operation, u8 *ev_name, u8 *buffer, u32 *buf_size)
 		"D" (buffer), "m" (compaq_int15_entry_point)
 		: "%ebx", "%edx");
 	spin_unlock_irqrestore(&int15_lock, flags);
-	
+
 	return((ret_val & 0xFF00) >> 8);
 }
 
@@ -210,14 +211,16 @@ static int load_HRT (void __iomem *rom_start)
 
 	available = 1024;
 
-	// Now load the EV
+	/* Now load the EV */
 	temp_dword = available;
 
 	rc = access_EV(READ_EV, "CQTHPS", evbuffer, &temp_dword);
 
 	evbuffer_length = temp_dword;
 
-	// We're maintaining the resource lists so write FF to invalidate old info
+	/* We're maintaining the resource lists so write FF to invalidate old
+	 * info
+	 */
 	temp_dword = 1;
 
 	rc = access_EV(WRITE_EV, "CQTHPS", &temp_byte, &temp_dword);
@@ -263,13 +266,13 @@ static u32 store_HRT (void __iomem *rom_start)
 	p_EV_header = (struct ev_hrt_header *) pFill;
 
 	ctrl = cpqhp_ctrl_list;
-	
-	// The revision of this structure
+
+	/* The revision of this structure */
 	rc = add_byte( &pFill, 1 + ctrl->push_flag, &usedbytes, &available);
 	if (rc)
 		return(rc);
 
-	// The number of controllers
+	/* The number of controllers */
 	rc = add_byte( &pFill, 1, &usedbytes, &available);
 	if (rc)
 		return(rc);
@@ -279,27 +282,27 @@ static u32 store_HRT (void __iomem *rom_start)
 
 		numCtrl++;
 
-		// The bus number
+		/* The bus number */
 		rc = add_byte( &pFill, ctrl->bus, &usedbytes, &available);
 		if (rc)
 			return(rc);
 
-		// The device Number
+		/* The device Number */
 		rc = add_byte( &pFill, PCI_SLOT(ctrl->pci_dev->devfn), &usedbytes, &available);
 		if (rc)
 			return(rc);
 
-		// The function Number
+		/* The function Number */
 		rc = add_byte( &pFill, PCI_FUNC(ctrl->pci_dev->devfn), &usedbytes, &available);
 		if (rc)
 			return(rc);
 
-		// Skip the number of available entries
+		/* Skip the number of available entries */
 		rc = add_dword( &pFill, 0, &usedbytes, &available);
 		if (rc)
 			return(rc);
 
-		// Figure out memory Available
+		/* Figure out memory Available */
 
 		resNode = ctrl->mem_head;
 
@@ -308,12 +311,12 @@ static u32 store_HRT (void __iomem *rom_start)
 		while (resNode) {
 			loop ++;
 
-			// base
+			/* base */
 			rc = add_dword( &pFill, resNode->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			// length
+			/* length */
 			rc = add_dword( &pFill, resNode->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
@@ -321,10 +324,10 @@ static u32 store_HRT (void __iomem *rom_start)
 			resNode = resNode->next;
 		}
 
-		// Fill in the number of entries
+		/* Fill in the number of entries */
 		p_ev_ctrl->mem_avail = loop;
 
-		// Figure out prefetchable memory Available
+		/* Figure out prefetchable memory Available */
 
 		resNode = ctrl->p_mem_head;
 
@@ -333,12 +336,12 @@ static u32 store_HRT (void __iomem *rom_start)
 		while (resNode) {
 			loop ++;
 
-			// base
+			/* base */
 			rc = add_dword( &pFill, resNode->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			// length
+			/* length */
 			rc = add_dword( &pFill, resNode->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
@@ -346,10 +349,10 @@ static u32 store_HRT (void __iomem *rom_start)
 			resNode = resNode->next;
 		}
 
-		// Fill in the number of entries
+		/* Fill in the number of entries */
 		p_ev_ctrl->p_mem_avail = loop;
 
-		// Figure out IO Available
+		/* Figure out IO Available */
 
 		resNode = ctrl->io_head;
 
@@ -358,12 +361,12 @@ static u32 store_HRT (void __iomem *rom_start)
 		while (resNode) {
 			loop ++;
 
-			// base
+			/* base */
 			rc = add_dword( &pFill, resNode->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			// length
+			/* length */
 			rc = add_dword( &pFill, resNode->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
@@ -371,10 +374,10 @@ static u32 store_HRT (void __iomem *rom_start)
 			resNode = resNode->next;
 		}
 
-		// Fill in the number of entries
+		/* Fill in the number of entries */
 		p_ev_ctrl->io_avail = loop;
 
-		// Figure out bus Available
+		/* Figure out bus Available */
 
 		resNode = ctrl->bus_head;
 
@@ -383,12 +386,12 @@ static u32 store_HRT (void __iomem *rom_start)
 		while (resNode) {
 			loop ++;
 
-			// base
+			/* base */
 			rc = add_dword( &pFill, resNode->base, &usedbytes, &available);
 			if (rc)
 				return(rc);
 
-			// length
+			/* length */
 			rc = add_dword( &pFill, resNode->length, &usedbytes, &available);
 			if (rc)
 				return(rc);
@@ -396,15 +399,15 @@ static u32 store_HRT (void __iomem *rom_start)
 			resNode = resNode->next;
 		}
 
-		// Fill in the number of entries
+		/* Fill in the number of entries */
 		p_ev_ctrl->bus_avail = loop;
 
 		ctrl = ctrl->next;
 	}
-	
+
 	p_EV_header->num_of_ctrl = numCtrl;
 
-	// Now store the EV
+	/* Now store the EV */
 
 	temp_dword = usedbytes;
 
@@ -449,20 +452,21 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 	struct ev_hrt_header *p_EV_header;
 
 	if (!evbuffer_init) {
-		// Read the resource list information in from NVRAM
+		/* Read the resource list information in from NVRAM */
 		if (load_HRT(rom_start))
 			memset (evbuffer, 0, 1024);
 
 		evbuffer_init = 1;
 	}
 
-	// If we saved information in NVRAM, use it now
+	/* If we saved information in NVRAM, use it now */
 	p_EV_header = (struct ev_hrt_header *) evbuffer;
 
-	// The following code is for systems where version 1.0 of this
-	// driver has been loaded, but doesn't support the hardware.
-	// In that case, the driver would incorrectly store something
-	// in NVRAM.
+	/* The following code is for systems where version 1.0 of this
+	 * driver has been loaded, but doesn't support the hardware.
+	 * In that case, the driver would incorrectly store something
+	 * in NVRAM.
+	 */
 	if ((p_EV_header->Version == 2) ||
 	    ((p_EV_header->Version == 1) && !ctrl->push_flag)) {
 		p_byte = &(p_EV_header->next);
@@ -479,7 +483,7 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 		function = p_ev_ctrl->function;
 
 		while ((bus != ctrl->bus) ||
-		       (device != PCI_SLOT(ctrl->pci_dev->devfn)) || 
+		       (device != PCI_SLOT(ctrl->pci_dev->devfn)) ||
 		       (function != PCI_FUNC(ctrl->pci_dev->devfn))) {
 			nummem = p_ev_ctrl->mem_avail;
 			numpmem = p_ev_ctrl->p_mem_avail;
@@ -491,7 +495,7 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 			if (p_byte > ((u8*)p_EV_header + evbuffer_length))
 				return 2;
 
-			// Skip forward to the next entry
+			/* Skip forward to the next entry */
 			p_byte += (nummem + numpmem + numio + numbus) * 8;
 
 			if (p_byte > ((u8*)p_EV_header + evbuffer_length))
@@ -629,8 +633,9 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 			ctrl->bus_head = bus_node;
 		}
 
-		// If all of the following fail, we don't have any resources for
-		// hot plug add
+		/* If all of the following fail, we don't have any resources for
+		 * hot plug add
+		 */
 		rc = 1;
 		rc &= cpqhp_resource_sort_and_combine(&(ctrl->mem_head));
 		rc &= cpqhp_resource_sort_and_combine(&(ctrl->p_mem_head));
@@ -640,14 +645,14 @@ int compaq_nvram_load (void __iomem *rom_start, struct controller *ctrl)
 		if (rc)
 			return(rc);
 	} else {
-		if ((evbuffer[0] != 0) && (!ctrl->push_flag)) 
+		if ((evbuffer[0] != 0) && (!ctrl->push_flag))
 			return 1;
 	}
 
 	return 0;
 }
 
-	
+
 int compaq_nvram_store (void __iomem *rom_start)
 {
 	int rc = 1;

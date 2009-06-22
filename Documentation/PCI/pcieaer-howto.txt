@@ -61,6 +61,10 @@ be initiated although firmwares have no _OSC support. To enable the
 walkaround, pls. add aerdriver.forceload=y to kernel boot parameter line
 when booting kernel. Note that forceload=n by default.
 
+nosourceid, another parameter of type bool, can be used when broken
+hardware (mostly chipsets) has root ports that cannot obtain the reporting
+source ID. nosourceid=n by default.
+
 2.3 AER error output
 When a PCI-E AER error is captured, an error message will be outputed to
 console. If it's a correctable error, it is outputed as a warning.
@@ -246,3 +250,24 @@ with the PCI Express AER Root driver?
 A: It could call the helper functions to enable AER in devices and
 cleanup uncorrectable status register. Pls. refer to section 3.3.
 
+
+4. Software error injection
+
+Debugging PCIE AER error recovery code is quite difficult because it
+is hard to trigger real hardware errors. Software based error
+injection can be used to fake various kinds of PCIE errors.
+
+First you should enable PCIE AER software error injection in kernel
+configuration, that is, following item should be in your .config.
+
+CONFIG_PCIEAER_INJECT=y or CONFIG_PCIEAER_INJECT=m
+
+After reboot with new kernel or insert the module, a device file named
+/dev/aer_inject should be created.
+
+Then, you need a user space tool named aer-inject, which can be gotten
+from:
+    http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+
+More information about aer-inject can be found in the document comes
+with its source code.
