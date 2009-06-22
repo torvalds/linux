@@ -1860,16 +1860,18 @@ static int hw_card_start(struct hw *hw)
 		goto error1;
 	}
 
-	err = pci_request_regions(pci, "XFi");
-	if (err < 0)
-		goto error1;
+	if (!hw->io_base) {
+		err = pci_request_regions(pci, "XFi");
+		if (err < 0)
+			goto error1;
 
-	hw->io_base = pci_resource_start(hw->pci, 2);
-	hw->mem_base = (unsigned long)ioremap(hw->io_base,
+		hw->io_base = pci_resource_start(hw->pci, 2);
+		hw->mem_base = (unsigned long)ioremap(hw->io_base,
 					pci_resource_len(hw->pci, 2));
-	if (NULL == (void *)hw->mem_base) {
-		err = -ENOENT;
-		goto error2;
+		if (NULL == (void *)hw->mem_base) {
+			err = -ENOENT;
+			goto error2;
+		}
 	}
 
 	/* Switch to 20k2 mode from UAA mode. */
@@ -1901,6 +1903,15 @@ error1:
 
 static int hw_card_stop(struct hw *hw)
 {
+	unsigned int data;
+
+	/* disable transport bus master and queueing of request */
+	hw_write_20kx(hw, TRANSPORT_CTL, 0x00);
+
+	/* disable pll */
+	data = hw_read_20kx(hw, PLL_ENB);
+	hw_write_20kx(hw, PLL_ENB, (data & (~0x07)));
+
 	/* TODO: Disable interrupt and so on... */
 	return 0;
 }
@@ -1939,11 +1950,9 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 
 	/* Get PCI io port/memory base address and
 	 * do 20kx core switch if needed. */
-	if (!hw->io_base) {
-		err = hw_card_start(hw);
-		if (err)
-			return err;
-	}
+	err = hw_card_start(hw);
+	if (err)
+		return err;
 
 	/* PLL init */
 	err = hw_pll_init(hw, info->rsr);
@@ -2006,6 +2015,32 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int hw_suspend(struct hw *hw, pm_message_t state)
+{
+	struct pci_dev *pci = hw->pci;
+
+	hw_card_stop(hw);
+
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	pci_set_power_state(pci, pci_choose_state(pci, state));
+
+	return 0;
+}
+
+static int hw_resume(struct hw *hw, struct card_conf *info)
+{
+	struct pci_dev *pci = hw->pci;
+
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+
+	/* Re-initialize card hardware. */
+	return hw_card_init(hw, info);
+}
+#endif
+
 static u32 hw_read_20kx(struct hw *hw, u32 reg)
 {
 	return readl((void *)(hw->mem_base + reg));
@@ -2025,6 +2060,10 @@ static struct hw ct20k2_preset __devinitdata = {
 	.is_adc_source_selected = hw_is_adc_input_selected,
 	.select_adc_source = hw_adc_input_select,
 	.have_digit_io_switch = hw_have_digit_io_switch,
+#ifdef CONFIG_PM
+	.suspend = hw_suspend,
+	.resume = hw_resume,
+#endif
 
 	.src_rsc_get_ctrl_blk = src_get_rsc_ctrl_blk,
 	.src_rsc_put_ctrl_blk = src_put_rsc_ctrl_blk,
