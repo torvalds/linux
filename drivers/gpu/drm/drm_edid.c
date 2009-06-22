@@ -61,6 +61,10 @@
 /* use +hsync +vsync for detailed mode */
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
 
+#define LEVEL_DMT	0
+#define LEVEL_GTF	1
+#define LEVEL_CVT	2
+
 static struct edid_quirk {
 	char *vendor;
 	int product_id;
@@ -240,25 +244,31 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 /**
  * drm_mode_std - convert standard mode info (width, height, refresh) into mode
  * @t: standard timing params
+ * @timing_level: standard timing level
  *
  * Take the standard timing params (in this case width, aspect, and refresh)
- * and convert them into a real mode using CVT.
+ * and convert them into a real mode using CVT/GTF/DMT.
  *
  * Punts for now, but should eventually use the FB layer's CVT based mode
  * generation code.
  */
 struct drm_display_mode *drm_mode_std(struct drm_device *dev,
-				      struct std_timing *t)
+				      struct std_timing *t,
+				      int timing_level)
 {
 	struct drm_display_mode *mode;
-	int hsize = t->hsize * 8 + 248, vsize;
+	int hsize, vsize;
+	int vrefresh_rate;
 	unsigned aspect_ratio = (t->vfreq_aspect & EDID_TIMING_ASPECT_MASK)
 		>> EDID_TIMING_ASPECT_SHIFT;
+	unsigned vfreq = (t->vfreq_aspect & EDID_TIMING_VFREQ_MASK)
+		>> EDID_TIMING_VFREQ_SHIFT;
 
-	mode = drm_mode_create(dev);
-	if (!mode)
-		return NULL;
-
+	/* According to the EDID spec, the hdisplay = hsize * 8 + 248 */
+	hsize = t->hsize * 8 + 248;
+	/* vrefresh_rate = vfreq + 60 */
+	vrefresh_rate = vfreq + 60;
+	/* the vdisplay is calculated based on the aspect ratio */
 	if (aspect_ratio == 0)
 		vsize = (hsize * 10) / 16;
 	else if (aspect_ratio == 1)
@@ -268,8 +278,23 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 	else
 		vsize = (hsize * 9) / 16;
 
-	drm_mode_set_name(mode);
-
+	mode = NULL;
+	switch (timing_level) {
+	case LEVEL_DMT:
+		mode = drm_mode_create(dev);
+		if (mode) {
+			mode->hdisplay = hsize;
+			mode->vdisplay = vsize;
+			drm_mode_set_name(mode);
+		}
+		break;
+	case LEVEL_GTF:
+		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		break;
+	case LEVEL_CVT:
+		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		break;
+	}
 	return mode;
 }
 
@@ -451,6 +476,19 @@ static int add_established_modes(struct drm_connector *connector, struct edid *e
 
 	return modes;
 }
+/**
+ * stanard_timing_level - get std. timing level(CVT/GTF/DMT)
+ * @edid: EDID block to scan
+ */
+static int standard_timing_level(struct edid *edid)
+{
+	if (edid->revision >= 2) {
+		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
+			return LEVEL_CVT;
+		return LEVEL_GTF;
+	}
+	return LEVEL_DMT;
+}
 
 /**
  * add_standard_modes - get std. modes from EDID and add them
@@ -463,6 +501,9 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 {
 	struct drm_device *dev = connector->dev;
 	int i, modes = 0;
+	int timing_level;
+
+	timing_level = standard_timing_level(edid);
 
 	for (i = 0; i < EDID_STD_TIMINGS; i++) {
 		struct std_timing *t = &edid->standard_timings[i];
@@ -472,7 +513,8 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 		if (t->hsize == 1 && t->vfreq_aspect == 1)
 			continue;
 
-		newmode = drm_mode_std(dev, &edid->standard_timings[i]);
+		newmode = drm_mode_std(dev, &edid->standard_timings[i],
+					timing_level);
 		if (newmode) {
 			drm_mode_probed_add(connector, newmode);
 			modes++;
@@ -496,6 +538,9 @@ static int add_detailed_info(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	int i, j, modes = 0;
+	int timing_level;
+
+	timing_level = standard_timing_level(edid);
 
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++) {
 		struct detailed_timing *timing = &edid->detailed_timings[i];
@@ -541,7 +586,8 @@ static int add_detailed_info(struct drm_connector *connector,
 				struct drm_display_mode *newmode;
 
 				std = &data->data.timings[j];
-				newmode = drm_mode_std(dev, std);
+				newmode = drm_mode_std(dev, std,
+							timing_level);
 				if (newmode) {
 					drm_mode_probed_add(connector, newmode);
 					modes++;
