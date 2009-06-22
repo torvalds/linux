@@ -20,10 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/reboot.h>
-
 #include <linux/slab.h>
-#include <linux/bootmem.h>
-
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/io.h>
@@ -735,7 +732,7 @@ static int raw3215_pm_stop(struct ccw_device *cdev)
 	unsigned long flags;
 
 	/* Empty the output buffer, then prevent new I/O. */
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
 	raw->flags |= RAW3215_FROZEN;
@@ -749,7 +746,7 @@ static int raw3215_pm_start(struct ccw_device *cdev)
 	unsigned long flags;
 
 	/* Allow I/O again and flush output buffer. */
-	raw = cdev->dev.driver_data;
+	raw = dev_get_drvdata(&cdev->dev);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw->flags &= ~RAW3215_FROZEN;
 	raw->flags |= RAW3215_FLUSHING;
@@ -883,7 +880,7 @@ static int __init con3215_init(void)
 	raw3215_freelist = NULL;
 	spin_lock_init(&raw3215_freelist_lock);
 	for (i = 0; i < NR_3215_REQ; i++) {
-		req = (struct raw3215_req *) alloc_bootmem_low(sizeof(struct raw3215_req));
+		req = kzalloc(sizeof(struct raw3215_req), GFP_KERNEL | GFP_DMA);
 		req->next = raw3215_freelist;
 		raw3215_freelist = req;
 	}
@@ -893,10 +890,9 @@ static int __init con3215_init(void)
 		return -ENODEV;
 
 	raw3215[0] = raw = (struct raw3215_info *)
-		alloc_bootmem_low(sizeof(struct raw3215_info));
-	memset(raw, 0, sizeof(struct raw3215_info));
-	raw->buffer = (char *) alloc_bootmem_low(RAW3215_BUFFER_SIZE);
-	raw->inbuf = (char *) alloc_bootmem_low(RAW3215_INBUF_SIZE);
+		kzalloc(sizeof(struct raw3215_info), GFP_KERNEL | GFP_DMA);
+	raw->buffer = kzalloc(RAW3215_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
+	raw->inbuf = kzalloc(RAW3215_INBUF_SIZE, GFP_KERNEL | GFP_DMA);
 	raw->cdev = cdev;
 	dev_set_drvdata(&cdev->dev, raw);
 	cdev->handler = raw3215_irq;
@@ -906,9 +902,9 @@ static int __init con3215_init(void)
 
 	/* Request the console irq */
 	if (raw3215_startup(raw) != 0) {
-		free_bootmem((unsigned long) raw->inbuf, RAW3215_INBUF_SIZE);
-		free_bootmem((unsigned long) raw->buffer, RAW3215_BUFFER_SIZE);
-		free_bootmem((unsigned long) raw, sizeof(struct raw3215_info));
+		kfree(raw->inbuf);
+		kfree(raw->buffer);
+		kfree(raw);
 		raw3215[0] = NULL;
 		return -ENODEV;
 	}

@@ -396,7 +396,7 @@ int tape_generic_pm_suspend(struct ccw_device *cdev)
 {
 	struct tape_device *device;
 
-	device = cdev->dev.driver_data;
+	device = dev_get_drvdata(&cdev->dev);
 	if (!device) {
 		return -ENODEV;
 	}
