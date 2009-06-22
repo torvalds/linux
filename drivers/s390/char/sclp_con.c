@@ -109,7 +109,7 @@ static void sclp_console_sync_queue(void)
 
 	spin_lock_irqsave(&sclp_con_lock, flags);
 	if (timer_pending(&sclp_con_timer))
-		del_timer_sync(&sclp_con_timer);
+		del_timer(&sclp_con_timer);
 	while (sclp_con_queue_running) {
 		spin_unlock_irqrestore(&sclp_con_lock, flags);
 		sclp_sync_wait();
