@@ -1439,34 +1439,25 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	return r;
 }
 
-static int dm_flush(struct mapped_device *md)
+static void dm_flush(struct mapped_device *md)
 {
 	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
-	return 0;
 }
 
 static void process_barrier(struct mapped_device *md, struct bio *bio)
 {
-	int error = dm_flush(md);
+	dm_flush(md);
 
-	if (unlikely(error)) {
-		bio_endio(bio, error);
-		return;
-	}
 	if (bio_empty_barrier(bio)) {
 		bio_endio(bio, 0);
 		return;
 	}
 
 	__split_and_process_bio(md, bio);
-
-	error = dm_flush(md);
-
-	if (!error && md->barrier_error)
-		error = md->barrier_error;
+	dm_flush(md);
 
 	if (md->barrier_error != DM_ENDIO_REQUEUE)
-		bio_endio(bio, error);
+		bio_endio(bio, md->barrier_error);
 }
 
 /*
