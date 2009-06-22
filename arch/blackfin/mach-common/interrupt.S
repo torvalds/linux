@@ -276,7 +276,15 @@ ENTRY(___ipipe_call_irqtail)
 	( r7:4, p5:3 ) = [sp++];
 	rets = [sp++];
 
-	r0 = 0x401f (z);
+#ifdef CONFIG_DEBUG_HWERR
+	/* enable irq14 & hwerr interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | EVT_IVHW | \
+		EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#else
+	/* Only enable irq14 interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | \
+		EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#endif
 	sti r0;
 	raise 14;		/* Branches to _evt_evt14 */
 2:
