@@ -1132,6 +1132,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_crypt_queue;
 	}
 
+	ti->num_flush_requests = 1;
 	ti->private = cc;
 	return 0;
 
@@ -1189,6 +1190,13 @@ static int crypt_map(struct dm_target *ti, struct bio *bio,
 		     union map_info *map_context)
 {
 	struct dm_crypt_io *io;
+	struct crypt_config *cc;
+
+	if (unlikely(bio_empty_barrier(bio))) {
+		cc = ti->private;
+		bio->bi_bdev = cc->dev->bdev;
+		return DM_MAPIO_REMAPPED;
+	}
 
 	io = crypt_io_alloc(ti, bio, bio->bi_sector - ti->begin);
 
