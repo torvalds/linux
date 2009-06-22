@@ -164,6 +164,9 @@ struct mapped_device {
 
 	/* sysfs handle */
 	struct kobject kobj;
+
+	/* zero-length barrier that will be cloned and submitted to targets */
+	struct bio barrier_bio;
 };
 
 #define MIN_IOS 256
@@ -1476,6 +1479,13 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 
 static void dm_flush(struct mapped_device *md)
 {
+	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
+
+	bio_init(&md->barrier_bio);
+	md->barrier_bio.bi_bdev = md->bdev;
+	md->barrier_bio.bi_rw = WRITE_BARRIER;
+	__split_and_process_bio(md, &md->barrier_bio);
+
 	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
 }
 
