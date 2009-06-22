@@ -283,7 +283,7 @@ static struct dm_region *__rh_alloc(struct dm_region_hash *rh, region_t region)
 
 	nreg = mempool_alloc(rh->region_pool, GFP_ATOMIC);
 	if (unlikely(!nreg))
-		nreg = kmalloc(sizeof(*nreg), GFP_NOIO);
+		nreg = kmalloc(sizeof(*nreg), GFP_NOIO | __GFP_NOFAIL);
 
 	nreg->state = rh->log->type->in_sync(rh->log, region, 1) ?
 		      DM_RH_CLEAN : DM_RH_NOSYNC;
