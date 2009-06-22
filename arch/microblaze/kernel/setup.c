@@ -139,7 +139,8 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 #endif
 
 	early_printk("Ramdisk addr 0x%08x, FDT 0x%08x\n", ram, fdt);
-	printk(KERN_NOTICE "Found FDT at 0x%08x\n", fdt);
+	if(fdt)
+		printk(KERN_NOTICE "Found FDT at 0x%08x\n", fdt);
 
 #ifdef CONFIG_MTD_UCLINUX
 	early_printk("Found romfs @ 0x%08x (0x%08x)\n",

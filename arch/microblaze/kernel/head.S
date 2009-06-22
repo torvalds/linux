@@ -31,6 +31,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/prom.h>		/* for OF_DT_HEADER */
 
 #ifdef CONFIG_MMU
 #include <asm/setup.h> /* COMMAND_LINE_SIZE */
@@ -54,11 +55,16 @@ ENTRY(_start)
 	andi	r1, r1, ~2
 	mts	rmsr, r1
 
-/* save fdt to kernel location */
-/* r7 stores pointer to fdt blob */
-	beqi	r7, no_fdt_arg
+/* r7 may point to an FDT, or there may be one linked in.
+   if it's in r7, we've got to save it away ASAP.
+   We ensure r7 points to a valid FDT, just in case the bootloader
+   is broken or non-existent */
+	beqi	r7, no_fdt_arg			/* NULL pointer?  don't copy */
+	lw	r11, r0, r7			/* Does r7 point to a */
+	rsubi	r11, r11, OF_DT_HEADER		/* valid FDT? */
+	bnei	r11, no_fdt_arg			/* No - get out of here */
 	or	r11, r0, r0 /* incremment */
-	ori	r4, r0, TOPHYS(_fdt_start) /* save bram context */
+	ori	r4, r0, TOPHYS(_fdt_start)
 	ori	r3, r0, (0x4000 - 4)
 _copy_fdt:
 	lw	r12, r7, r11 /* r12 = r7 + r11 */
@@ -67,6 +73,7 @@ _copy_fdt:
 	bgtid	r3, _copy_fdt /* loop for all entries */
 	addik	r3, r3, -4 /* descrement loop */
 no_fdt_arg:
+	add	r7, r0, r0			/* Clear r7, just to be sure */
 
 #ifdef CONFIG_MMU
 
