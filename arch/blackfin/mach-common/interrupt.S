@@ -276,33 +276,11 @@ ENTRY(___ipipe_call_irqtail)
 	( r7:4, p5:3 ) = [sp++];
 	rets = [sp++];
 
-	[--sp] = reti;
-	reti = [sp++];          /* IRQs are off. */
-	r0.h = 3f;
-	r0.l = 3f;
-	p0.l = lo(EVT14);
-	p0.h = hi(EVT14);
-	[p0] = r0;
-	csync;
 	r0 = 0x401f (z);
 	sti r0;
-	raise 14;
-	[--sp] = reti;          /* IRQs on. */
+	raise 14;		/* Branches to _evt_evt14 */
 2:
 	jump 2b;                /* Likely paranoid. */
-3:
-	sp += 4;                /* Discard saved RETI */
-	r0.h = _evt14_softirq;
-	r0.l = _evt14_softirq;
-	p0.l = lo(EVT14);
-	p0.h = hi(EVT14);
-	[p0] = r0;
-	csync;
-	p0.l = _bfin_irq_flags;
-	p0.h = _bfin_irq_flags;
-	r0 = [p0];
-	sti r0;
-	rts;
 ENDPROC(___ipipe_call_irqtail)
 
 #endif /* CONFIG_IPIPE */
