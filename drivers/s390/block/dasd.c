@@ -470,7 +470,7 @@ static int dasd_decrease_state(struct dasd_device *device)
  */
 static void dasd_change_state(struct dasd_device *device)
 {
-        int rc;
+	int rc;
 
 	if (device->state == device->target)
 		/* Already where we want to go today... */
@@ -479,8 +479,10 @@ static void dasd_change_state(struct dasd_device *device)
 		rc = dasd_increase_state(device);
 	else
 		rc = dasd_decrease_state(device);
-        if (rc && rc != -EAGAIN)
-                device->target = device->state;
+	if (rc == -EAGAIN)
+		return;
+	if (rc)
+		device->target = device->state;
 
 	if (device->state == device->target) {
 		wake_up(&dasd_init_waitq);
