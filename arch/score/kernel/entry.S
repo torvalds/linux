@@ -395,13 +395,13 @@ ENTRY(resume)
 
 ENTRY(handle_sys)
 	SAVE_ALL
+	sw	r8, [r0, 16]		# argument 5 from user r8
+	sw	r9, [r0, 20]		# argument 6 from user r9
 	enable_irq
 
 	sw	r4, [r0, PT_ORIG_R4]	#for restart syscall
 	sw	r7, [r0, PT_ORIG_R7]	#for restart syscall
 	sw	r27, [r0, PT_IS_SYSCALL] # it from syscall
-	sw	r8, [r0, 16]		# argument 5 from user r8
-	sw	r9, [r0, 20]		# argument 6 from user r9
 
 	lw	r9, [r0, PT_EPC]	# skip syscall on return
 	addi	r9, 4
