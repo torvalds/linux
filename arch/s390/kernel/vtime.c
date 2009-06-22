@@ -25,8 +25,6 @@
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 
-static ext_int_info_t ext_int_info_timer;
-
 static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 
 DEFINE_PER_CPU(struct s390_idle_data, s390_idle) = {
@@ -557,8 +555,7 @@ void init_cpu_vtimer(void)
 void __init vtime_init(void)
 {
 	/* request the cpu timer external interrupt */
-	if (register_early_external_interrupt(0x1005, do_cpu_timer_interrupt,
-					      &ext_int_info_timer) != 0)
+	if (register_external_interrupt(0x1005, do_cpu_timer_interrupt))
 		panic("Couldn't request external interrupt 0x1005");
 
 	/* Enable cpu timer interrupts on the boot cpu. */
