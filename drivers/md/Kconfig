@@ -249,6 +249,15 @@ config DM_MULTIPATH
 	---help---
 	  Allow volume managers to support multipath hardware.
 
+config DM_MULTIPATH_QL
+	tristate "I/O Path Selector based on the number of in-flight I/Os"
+	depends on DM_MULTIPATH
+	---help---
+	  This path selector is a dynamic load balancer which selects
+	  the path with the least number of in-flight I/Os.
+
+	  If unsure, say N.
+
 config DM_DELAY
 	tristate "I/O delaying target (EXPERIMENTAL)"
 	depends on BLK_DEV_DM && EXPERIMENTAL
