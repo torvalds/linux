@@ -144,18 +144,6 @@ struct target_type {
 	struct list_head list;
 };
 
-struct io_restrictions {
-	unsigned long bounce_pfn;
-	unsigned long seg_boundary_mask;
-	unsigned max_hw_sectors;
-	unsigned max_sectors;
-	unsigned max_segment_size;
-	unsigned short logical_block_size;
-	unsigned short max_hw_segments;
-	unsigned short max_phys_segments;
-	unsigned char no_cluster; /* inverted so that 0 is default */
-};
-
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;
@@ -164,7 +152,7 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* FIXME: turn this into a mask, and merge with io_restrictions */
+	/* FIXME: turn this into a mask, and merge with queue_limits */
 	/* Always a power of 2 */
 	sector_t split_io;
 
@@ -182,7 +170,7 @@ struct dm_target {
 	 * These are automatically filled in by
 	 * dm_table_get_device.
 	 */
-	struct io_restrictions limits;
+	struct queue_limits limits;
 
 	/* target specific data */
 	void *private;

@@ -66,7 +66,7 @@ struct dm_table {
 	 * These are optimistic limits taken from all the
 	 * targets, some targets will need smaller limits.
 	 */
-	struct io_restrictions limits;
+	struct queue_limits limits;
 
 	/* events get handed up using this callback */
 	void (*event_fn)(void *);
@@ -86,43 +86,6 @@ static unsigned int int_log(unsigned int n, unsigned int base)
 	}
 
 	return result;
-}
-
-/*
- * Returns the minimum that is _not_ zero, unless both are zero.
- */
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
-/*
- * Combine two io_restrictions, always taking the lower value.
- */
-static void combine_restrictions_low(struct io_restrictions *lhs,
-				     struct io_restrictions *rhs)
-{
-	lhs->max_sectors =
-		min_not_zero(lhs->max_sectors, rhs->max_sectors);
-
-	lhs->max_phys_segments =
-		min_not_zero(lhs->max_phys_segments, rhs->max_phys_segments);
-
-	lhs->max_hw_segments =
-		min_not_zero(lhs->max_hw_segments, rhs->max_hw_segments);
-
-	lhs->logical_block_size = max(lhs->logical_block_size,
-				      rhs->logical_block_size);
-
-	lhs->max_segment_size =
-		min_not_zero(lhs->max_segment_size, rhs->max_segment_size);
-
-	lhs->max_hw_sectors =
-		min_not_zero(lhs->max_hw_sectors, rhs->max_hw_sectors);
-
-	lhs->seg_boundary_mask =
-		min_not_zero(lhs->seg_boundary_mask, rhs->seg_boundary_mask);
-
-	lhs->bounce_pfn = min_not_zero(lhs->bounce_pfn, rhs->bounce_pfn);
-
-	lhs->no_cluster |= rhs->no_cluster;
 }
 
 /*
@@ -511,10 +474,14 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 	return 0;
 }
 
+/*
+ * Returns the minimum that is _not_ zero, unless both are zero.
+ */
+#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
+
 void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
-	struct io_restrictions *rs = &ti->limits;
 	char b[BDEVNAME_SIZE];
 
 	if (unlikely(!q)) {
@@ -523,15 +490,9 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 		return;
 	}
 
-	/*
-	 * Combine the device limits low.
-	 *
-	 * FIXME: if we move an io_restriction struct
-	 *        into q this would just be a call to
-	 *        combine_restrictions_low()
-	 */
-	rs->max_sectors =
-		min_not_zero(rs->max_sectors, queue_max_sectors(q));
+	if (blk_stack_limits(&ti->limits, &q->limits, 0) < 0)
+		DMWARN("%s: target device %s is misaligned",
+		       dm_device_name(ti->table->md), bdevname(bdev, b));
 
 	/*
 	 * Check if merge fn is supported.
@@ -540,33 +501,9 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 	 */
 
 	if (q->merge_bvec_fn && !ti->type->merge)
-		rs->max_sectors =
-			min_not_zero(rs->max_sectors,
+		ti->limits.max_sectors =
+			min_not_zero(ti->limits.max_sectors,
 				     (unsigned int) (PAGE_SIZE >> 9));
-
-	rs->max_phys_segments =
-		min_not_zero(rs->max_phys_segments,
-			     queue_max_phys_segments(q));
-
-	rs->max_hw_segments =
-		min_not_zero(rs->max_hw_segments, queue_max_hw_segments(q));
-
-	rs->logical_block_size = max(rs->logical_block_size,
-				     queue_logical_block_size(q));
-
-	rs->max_segment_size =
-		min_not_zero(rs->max_segment_size, queue_max_segment_size(q));
-
-	rs->max_hw_sectors =
-		min_not_zero(rs->max_hw_sectors, queue_max_hw_sectors(q));
-
-	rs->seg_boundary_mask =
-		min_not_zero(rs->seg_boundary_mask,
-			     queue_segment_boundary(q));
-
-	rs->bounce_pfn = min_not_zero(rs->bounce_pfn, queue_bounce_pfn(q));
-
-	rs->no_cluster |= !test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 }
 EXPORT_SYMBOL_GPL(dm_set_device_limits);
 
@@ -704,24 +641,32 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 	return 0;
 }
 
-static void check_for_valid_limits(struct io_restrictions *rs)
+static void init_valid_queue_limits(struct queue_limits *limits)
 {
-	if (!rs->max_sectors)
-		rs->max_sectors = SAFE_MAX_SECTORS;
-	if (!rs->max_hw_sectors)
-		rs->max_hw_sectors = SAFE_MAX_SECTORS;
-	if (!rs->max_phys_segments)
-		rs->max_phys_segments = MAX_PHYS_SEGMENTS;
-	if (!rs->max_hw_segments)
-		rs->max_hw_segments = MAX_HW_SEGMENTS;
-	if (!rs->logical_block_size)
-		rs->logical_block_size = 1 << SECTOR_SHIFT;
-	if (!rs->max_segment_size)
-		rs->max_segment_size = MAX_SEGMENT_SIZE;
-	if (!rs->seg_boundary_mask)
-		rs->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
-	if (!rs->bounce_pfn)
-		rs->bounce_pfn = -1;
+	if (!limits->max_sectors)
+		limits->max_sectors = SAFE_MAX_SECTORS;
+	if (!limits->max_hw_sectors)
+		limits->max_hw_sectors = SAFE_MAX_SECTORS;
+	if (!limits->max_phys_segments)
+		limits->max_phys_segments = MAX_PHYS_SEGMENTS;
+	if (!limits->max_hw_segments)
+		limits->max_hw_segments = MAX_HW_SEGMENTS;
+	if (!limits->logical_block_size)
+		limits->logical_block_size = 1 << SECTOR_SHIFT;
+	if (!limits->physical_block_size)
+		limits->physical_block_size = 1 << SECTOR_SHIFT;
+	if (!limits->io_min)
+		limits->io_min = 1 << SECTOR_SHIFT;
+	if (!limits->max_segment_size)
+		limits->max_segment_size = MAX_SEGMENT_SIZE;
+	if (!limits->seg_boundary_mask)
+		limits->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
+	if (!limits->bounce_pfn)
+		limits->bounce_pfn = -1;
+	/*
+	 * The other fields (alignment_offset, io_opt, misaligned)
+	 * hold 0 from the kzalloc().
+	 */
 }
 
 /*
@@ -841,9 +786,12 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	t->highs[t->num_targets++] = tgt->begin + tgt->len - 1;
 
-	/* FIXME: the plan is to combine high here and then have
-	 * the merge fn apply the target level restrictions. */
-	combine_restrictions_low(&t->limits, &tgt->limits);
+	if (blk_stack_limits(&t->limits, &tgt->limits, 0) < 0)
+		DMWARN("%s: target device (start sect %llu len %llu) "
+		       "is misaligned",
+		       dm_device_name(t->md),
+		       (unsigned long long) tgt->begin,
+		       (unsigned long long) tgt->len);
 	return 0;
 
  bad:
@@ -886,7 +834,7 @@ int dm_table_complete(struct dm_table *t)
 	int r = 0;
 	unsigned int leaf_nodes;
 
-	check_for_valid_limits(&t->limits);
+	init_valid_queue_limits(&t->limits);
 
 	r = validate_hardware_logical_block_alignment(t);
 	if (r)
