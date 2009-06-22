@@ -639,7 +639,7 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
-	unsigned int error;
+	int error;
 	unsigned int pincfg;
 	pincfg = snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
@@ -2703,7 +2703,7 @@ static int stac92xx_dc_bias_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int new_vref = 0;
-	unsigned int error;
+	int error;
 	hda_nid_t nid = kcontrol->private_value;
 
 	if (ucontrol->value.enumerated.item[0] == 0)
