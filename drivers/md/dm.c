@@ -24,6 +24,13 @@
 
 #define DM_MSG_PREFIX "core"
 
+/*
+ * Cookies are numeric values sent with CHANGE and REMOVE
+ * uevents while resuming, removing or renaming the device.
+ */
+#define DM_COOKIE_ENV_VAR_NAME "DM_COOKIE"
+#define DM_COOKIE_LENGTH 24
+
 static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
@@ -1731,11 +1738,7 @@ int dm_resume(struct mapped_device *md)
 	clear_bit(DMF_SUSPENDED, &md->flags);
 
 	dm_table_unplug_all(map);
-
-	dm_kobject_uevent(md);
-
 	r = 0;
-
 out:
 	dm_table_put(map);
 	mutex_unlock(&md->suspend_lock);
@@ -1746,9 +1749,19 @@ out:
 /*-----------------------------------------------------------------
  * Event notification.
  *---------------------------------------------------------------*/
-void dm_kobject_uevent(struct mapped_device *md)
+void dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
+		       unsigned cookie)
 {
-	kobject_uevent(&disk_to_dev(md->disk)->kobj, KOBJ_CHANGE);
+	char udev_cookie[DM_COOKIE_LENGTH];
+	char *envp[] = { udev_cookie, NULL };
+
+	if (!cookie)
+		kobject_uevent(&disk_to_dev(md->disk)->kobj, action);
+	else {
+		snprintf(udev_cookie, DM_COOKIE_LENGTH, "%s=%u",
+			 DM_COOKIE_ENV_VAR_NAME, cookie);
+		kobject_uevent_env(&disk_to_dev(md->disk)->kobj, action, envp);
+	}
 }
 
 uint32_t dm_next_uevent_seq(struct mapped_device *md)

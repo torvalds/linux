@@ -92,7 +92,8 @@ void dm_stripe_exit(void);
 int dm_open_count(struct mapped_device *md);
 int dm_lock_for_deletion(struct mapped_device *md);
 
-void dm_kobject_uevent(struct mapped_device *md);
+void dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
+		       unsigned cookie);
 
 int dm_kcopyd_init(void);
 void dm_kcopyd_exit(void);
