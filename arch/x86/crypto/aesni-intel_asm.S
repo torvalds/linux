@@ -845,7 +845,7 @@ ENTRY(aesni_cbc_enc)
  */
 ENTRY(aesni_cbc_dec)
 	cmp $16, LEN
-	jb .Lcbc_dec_ret
+	jb .Lcbc_dec_just_ret
 	mov 480(KEYP), KLEN
 	add $240, KEYP
 	movups (IVP), IV
@@ -891,6 +891,7 @@ ENTRY(aesni_cbc_dec)
 	add $16, OUTP
 	cmp $16, LEN
 	jge .Lcbc_dec_loop1
-	movups IV, (IVP)
 .Lcbc_dec_ret:
+	movups IV, (IVP)
+.Lcbc_dec_just_ret:
 	ret

@@ -262,11 +262,12 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 		 */
 		matches += 1;
 		match_lvl = 0;
-		entry->size      == ref->size      ? ++match_lvl : match_lvl;
-		entry->type      == ref->type      ? ++match_lvl : match_lvl;
-		entry->direction == ref->direction ? ++match_lvl : match_lvl;
+		entry->size         == ref->size         ? ++match_lvl : 0;
+		entry->type         == ref->type         ? ++match_lvl : 0;
+		entry->direction    == ref->direction    ? ++match_lvl : 0;
+		entry->sg_call_ents == ref->sg_call_ents ? ++match_lvl : 0;
 
-		if (match_lvl == 3) {
+		if (match_lvl == 4) {
 			/* perfect-fit - return the result */
 			return entry;
 		} else if (match_lvl > last_lvl) {
@@ -873,72 +874,68 @@ static void check_for_illegal_area(struct device *dev, void *addr, u64 size)
 				"[addr=%p] [size=%llu]\n", addr, size);
 }
 
-static void check_sync(struct device *dev, dma_addr_t addr,
-		       u64 size, u64 offset, int direction, bool to_cpu)
+static void check_sync(struct device *dev,
+		       struct dma_debug_entry *ref,
+		       bool to_cpu)
 {
-	struct dma_debug_entry ref = {
-		.dev            = dev,
-		.dev_addr       = addr,
-		.size           = size,
-		.direction      = direction,
-	};
 	struct dma_debug_entry *entry;
 	struct hash_bucket *bucket;
 	unsigned long flags;
 
-	bucket = get_hash_bucket(&ref, &flags);
+	bucket = get_hash_bucket(ref, &flags);
 
-	entry = hash_bucket_find(bucket, &ref);
+	entry = hash_bucket_find(bucket, ref);
 
 	if (!entry) {
 		err_printk(dev, NULL, "DMA-API: device driver tries "
 				"to sync DMA memory it has not allocated "
 				"[device address=0x%016llx] [size=%llu bytes]\n",
-				(unsigned long long)addr, size);
+				(unsigned long long)ref->dev_addr, ref->size);
 		goto out;
 	}
 
-	if ((offset + size) > entry->size) {
+	if (ref->size > entry->size) {
 		err_printk(dev, entry, "DMA-API: device driver syncs"
 				" DMA memory outside allocated range "
 				"[device address=0x%016llx] "
-				"[allocation size=%llu bytes] [sync offset=%llu] "
-				"[sync size=%llu]\n", entry->dev_addr, entry->size,
-				offset, size);
+				"[allocation size=%llu bytes] "
+				"[sync offset+size=%llu]\n",
+				entry->dev_addr, entry->size,
+				ref->size);
 	}
 
-	if (direction != entry->direction) {
+	if (ref->direction != entry->direction) {
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"DMA memory with different direction "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				(unsigned long long)addr, entry->size,
+				(unsigned long long)ref->dev_addr, entry->size,
 				dir2name[entry->direction],
-				dir2name[direction]);
+				dir2name[ref->direction]);
 	}
 
 	if (entry->direction == DMA_BIDIRECTIONAL)
 		goto out;
 
 	if (to_cpu && !(entry->direction == DMA_FROM_DEVICE) &&
-		      !(direction == DMA_TO_DEVICE))
+		      !(ref->direction == DMA_TO_DEVICE))
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"device read-only DMA memory for cpu "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				(unsigned long long)addr, entry->size,
+				(unsigned long long)ref->dev_addr, entry->size,
 				dir2name[entry->direction],
-				dir2name[direction]);
+				dir2name[ref->direction]);
 
 	if (!to_cpu && !(entry->direction == DMA_TO_DEVICE) &&
-		       !(direction == DMA_FROM_DEVICE))
+		       !(ref->direction == DMA_FROM_DEVICE))
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"device write-only DMA memory to device "
 				"[device address=0x%016llx] [size=%llu bytes] "
 				"[mapped with %s] [synced with %s]\n",
-				(unsigned long long)addr, entry->size,
+				(unsigned long long)ref->dev_addr, entry->size,
 				dir2name[entry->direction],
-				dir2name[direction]);
+				dir2name[ref->direction]);
 
 out:
 	put_hash_bucket(bucket, &flags);
@@ -1036,19 +1033,16 @@ void debug_dma_map_sg(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(debug_dma_map_sg);
 
-static int get_nr_mapped_entries(struct device *dev, struct scatterlist *s)
+static int get_nr_mapped_entries(struct device *dev,
+				 struct dma_debug_entry *ref)
 {
-	struct dma_debug_entry *entry, ref;
+	struct dma_debug_entry *entry;
 	struct hash_bucket *bucket;
 	unsigned long flags;
 	int mapped_ents;
 
-	ref.dev      = dev;
-	ref.dev_addr = sg_dma_address(s);
-	ref.size     = sg_dma_len(s),
-
-	bucket       = get_hash_bucket(&ref, &flags);
-	entry        = hash_bucket_find(bucket, &ref);
+	bucket       = get_hash_bucket(ref, &flags);
+	entry        = hash_bucket_find(bucket, ref);
 	mapped_ents  = 0;
 
 	if (entry)
@@ -1076,16 +1070,14 @@ void debug_dma_unmap_sg(struct device *dev, struct scatterlist *sglist,
 			.dev_addr       = sg_dma_address(s),
 			.size           = sg_dma_len(s),
 			.direction      = dir,
-			.sg_call_ents   = 0,
+			.sg_call_ents   = nelems,
 		};
 
 		if (mapped_ents && i >= mapped_ents)
 			break;
 
-		if (!i) {
-			ref.sg_call_ents = nelems;
-			mapped_ents = get_nr_mapped_entries(dev, s);
-		}
+		if (!i)
+			mapped_ents = get_nr_mapped_entries(dev, &ref);
 
 		check_unmap(&ref);
 	}
@@ -1140,10 +1132,19 @@ EXPORT_SYMBOL(debug_dma_free_coherent);
 void debug_dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 				   size_t size, int direction)
 {
+	struct dma_debug_entry ref;
+
 	if (unlikely(global_disable))
 		return;
 
-	check_sync(dev, dma_handle, size, 0, direction, true);
+	ref.type         = dma_debug_single;
+	ref.dev          = dev;
+	ref.dev_addr     = dma_handle;
+	ref.size         = size;
+	ref.direction    = direction;
+	ref.sg_call_ents = 0;
+
+	check_sync(dev, &ref, true);
 }
 EXPORT_SYMBOL(debug_dma_sync_single_for_cpu);
 
@@ -1151,10 +1152,19 @@ void debug_dma_sync_single_for_device(struct device *dev,
 				      dma_addr_t dma_handle, size_t size,
 				      int direction)
 {
+	struct dma_debug_entry ref;
+
 	if (unlikely(global_disable))
 		return;
 
-	check_sync(dev, dma_handle, size, 0, direction, false);
+	ref.type         = dma_debug_single;
+	ref.dev          = dev;
+	ref.dev_addr     = dma_handle;
+	ref.size         = size;
+	ref.direction    = direction;
+	ref.sg_call_ents = 0;
+
+	check_sync(dev, &ref, false);
 }
 EXPORT_SYMBOL(debug_dma_sync_single_for_device);
 
@@ -1163,10 +1173,19 @@ void debug_dma_sync_single_range_for_cpu(struct device *dev,
 					 unsigned long offset, size_t size,
 					 int direction)
 {
+	struct dma_debug_entry ref;
+
 	if (unlikely(global_disable))
 		return;
 
-	check_sync(dev, dma_handle, size, offset, direction, true);
+	ref.type         = dma_debug_single;
+	ref.dev          = dev;
+	ref.dev_addr     = dma_handle;
+	ref.size         = offset + size;
+	ref.direction    = direction;
+	ref.sg_call_ents = 0;
+
+	check_sync(dev, &ref, true);
 }
 EXPORT_SYMBOL(debug_dma_sync_single_range_for_cpu);
 
@@ -1175,10 +1194,19 @@ void debug_dma_sync_single_range_for_device(struct device *dev,
 					    unsigned long offset,
 					    size_t size, int direction)
 {
+	struct dma_debug_entry ref;
+
 	if (unlikely(global_disable))
 		return;
 
-	check_sync(dev, dma_handle, size, offset, direction, false);
+	ref.type         = dma_debug_single;
+	ref.dev          = dev;
+	ref.dev_addr     = dma_handle;
+	ref.size         = offset + size;
+	ref.direction    = direction;
+	ref.sg_call_ents = 0;
+
+	check_sync(dev, &ref, false);
 }
 EXPORT_SYMBOL(debug_dma_sync_single_range_for_device);
 
@@ -1192,14 +1220,24 @@ void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
+
+		struct dma_debug_entry ref = {
+			.type           = dma_debug_sg,
+			.dev            = dev,
+			.paddr          = sg_phys(s),
+			.dev_addr       = sg_dma_address(s),
+			.size           = sg_dma_len(s),
+			.direction      = direction,
+			.sg_call_ents   = nelems,
+		};
+
 		if (!i)
-			mapped_ents = get_nr_mapped_entries(dev, s);
+			mapped_ents = get_nr_mapped_entries(dev, &ref);
 
 		if (i >= mapped_ents)
 			break;
 
-		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
-			   direction, true);
+		check_sync(dev, &ref, true);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_cpu);
@@ -1214,14 +1252,23 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		return;
 
 	for_each_sg(sg, s, nelems, i) {
+
+		struct dma_debug_entry ref = {
+			.type           = dma_debug_sg,
+			.dev            = dev,
+			.paddr          = sg_phys(s),
+			.dev_addr       = sg_dma_address(s),
+			.size           = sg_dma_len(s),
+			.direction      = direction,
+			.sg_call_ents   = nelems,
+		};
 		if (!i)
-			mapped_ents = get_nr_mapped_entries(dev, s);
+			mapped_ents = get_nr_mapped_entries(dev, &ref);
 
 		if (i >= mapped_ents)
 			break;
 
-		check_sync(dev, sg_dma_address(s), sg_dma_len(s), 0,
-			   direction, false);
+		check_sync(dev, &ref, false);
 	}
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_device);

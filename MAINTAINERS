@@ -1010,6 +1010,13 @@ W:	http://www.at91.com/
 S:	Maintained
 F:	drivers/mmc/host/at91_mci.c
 
+ATMEL AT91 / AT32 MCI DRIVER
+P:	Nicolas Ferre
+M:	nicolas.ferre@atmel.com
+S:	Maintained
+F:	drivers/mmc/host/atmel-mci.c
+F:	drivers/mmc/host/atmel-mci-regs.h
+
 ATMEL AT91 / AT32 SERIAL DRIVER
 P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
@@ -5094,6 +5101,13 @@ L:	sdhci-devel@lists.ossman.eu
 S:	Maintained
 F:	drivers/mmc/host/sdhci.*
 
+SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) SAMSUNG DRIVER
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	sdhci-devel@lists.ossman.eu
+S:	Maintained
+F:	drivers/mmc/host/sdhci-s3c.c
+
 SECURITY SUBSYSTEM
 P:	James Morris
 M:	jmorris@namei.org
@@ -6215,6 +6229,14 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	Documentation/i2c/busses/i2c-viapro
 F:	drivers/i2c/busses/i2c-viapro.c
+
+VIA SD/MMC CARD CONTROLLER DRIVER
+P:	Joseph Chan
+M:	JosephChan@via.com.tw
+P:	Harald Welte
+M:	HaraldWelte@viatech.com
+S:	Maintained
+F:	drivers/mmc/host/via-sdmmc.c
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
 P:	Joseph Chan
