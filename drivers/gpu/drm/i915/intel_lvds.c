@@ -246,6 +246,9 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	bool border = 0;
 	int panel_ratio, desired_ratio, vert_scale, horiz_scale;
 	int horiz_ratio, vert_ratio;
+	u32 hsync_width, vsync_width;
+	u32 hblank_width, vblank_width;
+	u32 hsync_pos, vsync_pos;
 
 	/* Should never happen!! */
 	if (!IS_I965G(dev) && intel_crtc->pipe == 0) {
@@ -306,6 +309,14 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
 					PFIT_FILTER_FUZZY;
 
+	hsync_width = adjusted_mode->crtc_hsync_end -
+					adjusted_mode->crtc_hsync_start;
+	vsync_width = adjusted_mode->crtc_vsync_end -
+					adjusted_mode->crtc_vsync_start;
+	hblank_width = adjusted_mode->crtc_hblank_end -
+					adjusted_mode->crtc_hblank_start;
+	vblank_width = adjusted_mode->crtc_vblank_end -
+					adjusted_mode->crtc_vblank_start;
 	/*
 	 * Deal with panel fitting options. Figure out how to stretch the
 	 * image based on its aspect ratio & the current panel fitting mode.
@@ -339,23 +350,39 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			bottom_border++;
 		/* Set active & border values */
 		adjusted_mode->crtc_hdisplay = mode->hdisplay;
+		/* Keep the boder be even */
+		if (right_border & 1)
+			right_border++;
+		/* use the border directly instead of border minuse one */
 		adjusted_mode->crtc_hblank_start = mode->hdisplay +
-						right_border - 1;
-		adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal -
-						left_border - 1;
+						right_border;
+		/* keep the blank width constant */
+		adjusted_mode->crtc_hblank_end =
+			adjusted_mode->crtc_hblank_start + hblank_width;
+		/* get the hsync pos relative to hblank start */
+		hsync_pos = (hblank_width - hsync_width) / 2;
+		/* keep the hsync pos be even */
+		if (hsync_pos & 1)
+			hsync_pos++;
 		adjusted_mode->crtc_hsync_start =
-				adjusted_mode->crtc_hblank_start;
+				adjusted_mode->crtc_hblank_start + hsync_pos;
+		/* keep the hsync width constant */
 		adjusted_mode->crtc_hsync_end =
-				adjusted_mode->crtc_hblank_end;
+				adjusted_mode->crtc_hsync_start + hsync_width;
 		adjusted_mode->crtc_vdisplay = mode->vdisplay;
+		/* use the border instead of border minus one */
 		adjusted_mode->crtc_vblank_start = mode->vdisplay +
-						bottom_border - 1;
-		adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal -
-						top_border - 1;
+						bottom_border;
+		/* keep the vblank width constant */
+		adjusted_mode->crtc_vblank_end =
+				adjusted_mode->crtc_vblank_start + vblank_width;
+		/* get the vsync start postion relative to vblank start */
+		vsync_pos = (vblank_width - vsync_width) / 2;
 		adjusted_mode->crtc_vsync_start =
-				adjusted_mode->crtc_vblank_start;
+				adjusted_mode->crtc_vblank_start + vsync_pos;
+		/* keep the vsync width constant */
 		adjusted_mode->crtc_vsync_end =
-				adjusted_mode->crtc_vblank_end;
+				adjusted_mode->crtc_vblank_start + vsync_width;
 		border = 1;
 		break;
 	case DRM_MODE_SCALE_ASPECT:
@@ -400,15 +427,32 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				right_border = left_border;
 				if (mode->hdisplay & 1) /* odd resolutions */
 					right_border++;
+				/* keep the border be even */
+				if (right_border & 1)
+					right_border++;
 				adjusted_mode->crtc_hdisplay = scaled_width;
+				/* use border instead of border minus one */
 				adjusted_mode->crtc_hblank_start =
-					scaled_width + right_border - 1;
+					scaled_width + right_border;
+				/* keep the hblank width constant */
 				adjusted_mode->crtc_hblank_end =
-				 adjusted_mode->crtc_htotal - left_border - 1;
+					adjusted_mode->crtc_hblank_start +
+							hblank_width;
+				/*
+				 * get the hsync start pos relative to
+				 * hblank start
+				 */
+				hsync_pos = (hblank_width - hsync_width) / 2;
+				/* keep the hsync_pos be even */
+				if (hsync_pos & 1)
+					hsync_pos++;
 				adjusted_mode->crtc_hsync_start =
-					adjusted_mode->crtc_hblank_start;
+					adjusted_mode->crtc_hblank_start +
+							hsync_pos;
+				/* keept hsync width constant */
 				adjusted_mode->crtc_hsync_end =
-					adjusted_mode->crtc_hblank_end;
+					adjusted_mode->crtc_hsync_start +
+							hsync_width;
 				border = 1;
 			} else if (panel_ratio < desired_ratio) { /* letter */
 				u32 scaled_height = mode->vdisplay *
@@ -424,14 +468,25 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				if (mode->vdisplay & 1)
 					bottom_border++;
 				adjusted_mode->crtc_vdisplay = scaled_height;
+				/* use border instead of border minus one */
 				adjusted_mode->crtc_vblank_start =
-					scaled_height + bottom_border - 1;
+					scaled_height + bottom_border;
+				/* keep the vblank width constant */
 				adjusted_mode->crtc_vblank_end =
-				 adjusted_mode->crtc_vtotal - top_border - 1;
+					adjusted_mode->crtc_vblank_start +
+							vblank_width;
+				/*
+				 * get the vsync start pos relative to
+				 * vblank start
+				 */
+				vsync_pos = (vblank_width - vsync_width) / 2;
 				adjusted_mode->crtc_vsync_start =
-					adjusted_mode->crtc_vblank_start;
+					adjusted_mode->crtc_vblank_start +
+							vsync_pos;
+				/* keep the vsync width constant */
 				adjusted_mode->crtc_vsync_end =
-					adjusted_mode->crtc_vblank_end;
+					adjusted_mode->crtc_vsync_start +
+							vsync_width;
 				border = 1;
 			} else {
 			/* Aspects match, Let hw scale both directions */
