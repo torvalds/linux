@@ -2032,6 +2032,35 @@ void snd_soc_dapm_free(struct snd_soc_device *socdev)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
+/*
+ * snd_soc_dapm_shutdown - callback for system shutdown
+ */
+void snd_soc_dapm_shutdown(struct snd_soc_device *socdev)
+{
+	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_dapm_widget *w;
+	LIST_HEAD(down_list);
+	int powerdown = 0;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (w->power) {
+			dapm_seq_insert(w, &down_list, dapm_down_seq);
+			powerdown = 1;
+		}
+	}
+
+	/* If there were no widgets to power down we're already in
+	 * standby.
+	 */
+	if (powerdown) {
+		snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_PREPARE);
+		dapm_seq_run(codec, &down_list, 0, dapm_down_seq);
+		snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_STANDBY);
+	}
+
+	snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_OFF);
+}
+
 /* Module information */
 MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("Dynamic Audio Power Management core for ALSA SoC");

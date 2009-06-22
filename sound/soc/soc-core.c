@@ -1020,6 +1020,21 @@ static int soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void soc_shutdown(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = socdev->card;
+
+	if (!card->instantiated)
+		return;
+
+	/* Flush out pmdown_time work - we actually do want to run it
+	 * now, we're shutting down so no imminent restart. */
+	run_delayed_work(&card->delayed_work);
+
+	snd_soc_dapm_shutdown(socdev);
+}
+
 /* ASoC platform driver */
 static struct platform_driver soc_driver = {
 	.driver		= {
@@ -1030,6 +1045,7 @@ static struct platform_driver soc_driver = {
 	.remove		= soc_remove,
 	.suspend	= soc_suspend,
 	.resume		= soc_resume,
+	.shutdown	= soc_shutdown,
 };
 
 /* create a new pcm */
