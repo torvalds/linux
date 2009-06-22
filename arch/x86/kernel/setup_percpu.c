@@ -163,9 +163,21 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 	int i, j;
 	ssize_t ret;
 
-	/* on non-NUMA, embedding is better */
-	if (!chosen && !pcpu_need_numa())
-		return -EINVAL;
+	if (!chosen) {
+		size_t vm_size = VMALLOC_END - VMALLOC_START;
+		size_t tot_size = num_possible_cpus() * PMD_SIZE;
+
+		/* on non-NUMA, embedding is better */
+		if (!pcpu_need_numa())
+			return -EINVAL;
+
+		/* don't consume more than 20% of vmalloc area */
+		if (tot_size > vm_size / 5) {
+			pr_info("PERCPU: too large chunk size %zuMB for "
+				"large page remap\n", tot_size >> 20);
+			return -EINVAL;
+		}
+	}
 
 	/* need PSE */
 	if (!cpu_has_pse) {
