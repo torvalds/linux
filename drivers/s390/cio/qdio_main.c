@@ -476,19 +476,13 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
 	stop = add_buf(q->first_to_check, count);
 
-	/*
-	 * No siga sync here, as a PCI or we after a thin interrupt
-	 * will sync the queues.
-	 */
-
-	/* need to set count to 1 for non-qebsm */
-	if (!is_qebsm(q))
-		count = 1;
-
-check_next:
 	if (q->first_to_check == stop)
 		goto out;
 
+	/*
+	 * No siga sync here, as a PCI or we after a thin interrupt
+	 * already sync'ed the queues.
+	 */
 	count = get_buf_states(q, q->first_to_check, &state, count, 1);
 	if (!count)
 		goto out;
@@ -496,14 +490,9 @@ check_next:
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, count);
-		/*
-		 * No siga-sync needed for non-qebsm here, as the inbound queue
-		 * will be synced on the next siga-r, resp.
-		 * qdio_inbound_q_done will do the siga-sync.
-		 */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
-		goto check_next;
+		break;
 	case SLSB_P_INPUT_ERROR:
 		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
@@ -641,11 +630,6 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
 	stop = add_buf(q->first_to_check, count);
 
-	/* need to set count to 1 for non-qebsm */
-	if (!is_qebsm(q))
-		count = 1;
-
-check_next:
 	if (q->first_to_check == stop)
 		return q->first_to_check;
 
@@ -660,13 +644,7 @@ check_next:
 
 		atomic_sub(count, &q->nr_buf_used);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		/*
-		 * We fetch all buffer states at once. get_buf_states may
-		 * return count < stop. For QEBSM we do not loop.
-		 */
-		if (is_qebsm(q))
-			break;
-		goto check_next;
+		break;
 	case SLSB_P_OUTPUT_ERROR:
 		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
