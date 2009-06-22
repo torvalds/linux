@@ -1267,13 +1267,19 @@ err_cache:
 	return ret;
 }
 
+/*
+ * We need to use special "null" values, not used in hash table
+ */
+#define UNCONFIRMED_NULLS_VAL	((1<<30)+0)
+#define DYING_NULLS_VAL		((1<<30)+1)
+
 static int nf_conntrack_init_net(struct net *net)
 {
 	int ret;
 
 	atomic_set(&net->ct.count, 0);
-	INIT_HLIST_NULLS_HEAD(&net->ct.unconfirmed, 0);
-	INIT_HLIST_NULLS_HEAD(&net->ct.dying, 0);
+	INIT_HLIST_NULLS_HEAD(&net->ct.unconfirmed, UNCONFIRMED_NULLS_VAL);
+	INIT_HLIST_NULLS_HEAD(&net->ct.dying, DYING_NULLS_VAL);
 	net->ct.stat = alloc_percpu(struct ip_conntrack_stat);
 	if (!net->ct.stat) {
 		ret = -ENOMEM;
