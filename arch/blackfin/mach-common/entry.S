@@ -708,8 +708,14 @@ ENTRY(_system_call)
 #ifdef CONFIG_IPIPE
 	cc = BITTST(r7, TIF_IRQ_SYNC);
 	if !cc jump .Lsyscall_no_irqsync;
+	/*
+	 * Clear IPEND[4] manually to undo what resume_userspace_1 just did;
+	 * we need this so that high priority domain interrupts may still
+	 * preempt the current domain while the pipeline log is being played
+	 * back.
+	 */
 	[--sp] = reti;
-	r0 = [sp++];
+	SP += 4; /* don't merge with next insn to keep the pattern obvious */
 	SP += -12;
 	call ___ipipe_sync_root;
 	SP += 12;
@@ -721,7 +727,7 @@ ENTRY(_system_call)
 
 	/* Reenable interrupts.  */
 	[--sp] = reti;
-	r0 = [sp++];
+	sp += 4;
 
 	SP += -12;
 	call _schedule;
@@ -737,7 +743,7 @@ ENTRY(_system_call)
 .Lsyscall_do_signals:
 	/* Reenable interrupts.  */
 	[--sp] = reti;
-	r0 = [sp++];
+	sp += 4;
 
 	r0 = sp;
 	SP += -12;
@@ -747,10 +753,6 @@ ENTRY(_system_call)
 .Lsyscall_really_exit:
 	r5 = [sp + PT_RESERVED];
 	rets = r5;
-#ifdef CONFIG_IPIPE
-	[--sp] = reti;
-	r5 = [sp++];
-#endif /* CONFIG_IPIPE */
 	rts;
 ENDPROC(_system_call)
 
@@ -904,14 +906,9 @@ ENDPROC(_ret_from_exception)
 
 #ifdef CONFIG_IPIPE
 
-_sync_root_irqs:
-	[--sp] = reti;		/* Reenable interrupts */
-	r0 = [sp++];
-	jump.l ___ipipe_sync_root
-
 _resume_kernel_from_int:
-	r0.l = _sync_root_irqs
-	r0.h = _sync_root_irqs
+	r0.l = ___ipipe_sync_root;
+	r0.h = ___ipipe_sync_root;
 	[--sp] = rets;
 	[--sp] = ( r7:4, p5:3 );
 	SP += -12;
