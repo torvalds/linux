@@ -2290,6 +2290,9 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 		if (IS_ERR(pdev))
 			return NULL;
 		dev = &pdev->dev;
+
+		dev->coherent_dma_mask = DMA_BIT_MASK(24);
+		dev->dma_mask = &dev->coherent_dma_mask;
 	}
 
 	ops = kmalloc(sizeof(struct parport_operations), GFP_KERNEL);
