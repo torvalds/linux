@@ -23,6 +23,13 @@
 #define DM_SUSPEND_NOFLUSH_FLAG		(1 << 1)
 
 /*
+ * Type of table and mapped_device's mempool
+ */
+#define DM_TYPE_NONE		0
+#define DM_TYPE_BIO_BASED	1
+#define DM_TYPE_REQUEST_BASED	2
+
+/*
  * List of devices that a metadevice uses and should open/close.
  */
 struct dm_dev_internal {
@@ -32,6 +39,7 @@ struct dm_dev_internal {
 };
 
 struct dm_table;
+struct dm_md_mempools;
 
 /*-----------------------------------------------------------------
  * Internal table functions.
@@ -51,11 +59,22 @@ void dm_table_postsuspend_targets(struct dm_table *t);
 int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
 int dm_table_any_busy_target(struct dm_table *t);
+int dm_table_set_type(struct dm_table *t);
+unsigned dm_table_get_type(struct dm_table *t);
+bool dm_table_request_based(struct dm_table *t);
+int dm_table_alloc_md_mempools(struct dm_table *t);
+void dm_table_free_md_mempools(struct dm_table *t);
+struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t);
 
 /*
  * To check the return value from dm_table_find_target().
  */
 #define dm_target_is_valid(t) ((t)->table)
+
+/*
+ * To check whether the target type is request-based or not (bio-based).
+ */
+#define dm_target_request_based(t) ((t)->type->map_rq != NULL)
 
 /*-----------------------------------------------------------------
  * A registry of target types.
@@ -101,5 +120,11 @@ void dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 
 int dm_kcopyd_init(void);
 void dm_kcopyd_exit(void);
+
+/*
+ * Mempool operations
+ */
+struct dm_md_mempools *dm_alloc_md_mempools(unsigned type);
+void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 #endif

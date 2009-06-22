@@ -190,6 +190,15 @@ struct mapped_device {
 	struct bio barrier_bio;
 };
 
+/*
+ * For mempools pre-allocation at the table loading time.
+ */
+struct dm_md_mempools {
+	mempool_t *io_pool;
+	mempool_t *tio_pool;
+	struct bio_set *bs;
+};
+
 #define MIN_IOS 256
 static struct kmem_cache *_io_cache;
 static struct kmem_cache *_tio_cache;
@@ -1739,10 +1748,22 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_LIST_HEAD(&md->uevent_list);
 	spin_lock_init(&md->uevent_lock);
 
-	md->queue = blk_alloc_queue(GFP_KERNEL);
+	md->queue = blk_init_queue(dm_request_fn, NULL);
 	if (!md->queue)
 		goto bad_queue;
 
+	/*
+	 * Request-based dm devices cannot be stacked on top of bio-based dm
+	 * devices.  The type of this dm device has not been decided yet,
+	 * although we initialized the queue using blk_init_queue().
+	 * The type is decided at the first table loading time.
+	 * To prevent problematic device stacking, clear the queue flag
+	 * for request stacking support until then.
+	 *
+	 * This queue is new, so no concurrency on the queue_flags.
+	 */
+	queue_flag_clear_unlocked(QUEUE_FLAG_STACKABLE, md->queue);
+	md->saved_make_request_fn = md->queue->make_request_fn;
 	md->queue->queuedata = md;
 	md->queue->backing_dev_info.congested_fn = dm_any_congested;
 	md->queue->backing_dev_info.congested_data = md;
@@ -1751,18 +1772,9 @@ static struct mapped_device *alloc_dev(int minor)
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	md->queue->unplug_fn = dm_unplug_all;
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
-
-	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
-	if (!md->io_pool)
-		goto bad_io_pool;
-
-	md->tio_pool = mempool_create_slab_pool(MIN_IOS, _tio_cache);
-	if (!md->tio_pool)
-		goto bad_tio_pool;
-
-	md->bs = bioset_create(16, 0);
-	if (!md->bs)
-		goto bad_no_bioset;
+	blk_queue_softirq_done(md->queue, dm_softirq_done);
+	blk_queue_prep_rq(md->queue, dm_prep_fn);
+	blk_queue_lld_busy(md->queue, dm_lld_busy);
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
@@ -1804,12 +1816,6 @@ bad_bdev:
 bad_thread:
 	put_disk(md->disk);
 bad_disk:
-	bioset_free(md->bs);
-bad_no_bioset:
-	mempool_destroy(md->tio_pool);
-bad_tio_pool:
-	mempool_destroy(md->io_pool);
-bad_io_pool:
 	blk_cleanup_queue(md->queue);
 bad_queue:
 	free_minor(minor);
@@ -1829,9 +1835,12 @@ static void free_dev(struct mapped_device *md)
 	unlock_fs(md);
 	bdput(md->bdev);
 	destroy_workqueue(md->wq);
-	mempool_destroy(md->tio_pool);
-	mempool_destroy(md->io_pool);
-	bioset_free(md->bs);
+	if (md->tio_pool)
+		mempool_destroy(md->tio_pool);
+	if (md->io_pool)
+		mempool_destroy(md->io_pool);
+	if (md->bs)
+		bioset_free(md->bs);
 	blk_integrity_unregister(md->disk);
 	del_gendisk(md->disk);
 	free_minor(minor);
@@ -1844,6 +1853,29 @@ static void free_dev(struct mapped_device *md)
 	blk_cleanup_queue(md->queue);
 	module_put(THIS_MODULE);
 	kfree(md);
+}
+
+static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
+{
+	struct dm_md_mempools *p;
+
+	if (md->io_pool && md->tio_pool && md->bs)
+		/* the md already has necessary mempools */
+		goto out;
+
+	p = dm_table_get_md_mempools(t);
+	BUG_ON(!p || md->io_pool || md->tio_pool || md->bs);
+
+	md->io_pool = p->io_pool;
+	p->io_pool = NULL;
+	md->tio_pool = p->tio_pool;
+	p->tio_pool = NULL;
+	md->bs = p->bs;
+	p->bs = NULL;
+
+out:
+	/* mempool bind completed, now no need any mempools in the table */
+	dm_table_free_md_mempools(t);
 }
 
 /*
@@ -1896,6 +1928,18 @@ static int __bind(struct mapped_device *md, struct dm_table *t,
 	}
 
 	dm_table_event_callback(t, event_callback, md);
+
+	/*
+	 * The queue hasn't been stopped yet, if the old table type wasn't
+	 * for request-based during suspension.  So stop it to prevent
+	 * I/O mapping before resume.
+	 * This must be done before setting the queue restrictions,
+	 * because request-based dm may be run just after the setting.
+	 */
+	if (dm_table_request_based(t) && !blk_queue_stopped(q))
+		stop_queue(q);
+
+	__bind_mempools(md, t);
 
 	write_lock(&md->map_lock);
 	md->map = t;
@@ -2110,10 +2154,14 @@ static void dm_wq_work(struct work_struct *work)
 
 		up_write(&md->io_lock);
 
-		if (bio_barrier(c))
-			process_barrier(md, c);
-		else
-			__split_and_process_bio(md, c);
+		if (dm_request_based(md))
+			generic_make_request(c);
+		else {
+			if (bio_barrier(c))
+				process_barrier(md, c);
+			else
+				__split_and_process_bio(md, c);
+		}
 
 		down_write(&md->io_lock);
 	}
@@ -2145,6 +2193,13 @@ int dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	r = dm_calculate_queue_limits(table, &limits);
 	if (r)
 		goto out;
+
+	/* cannot change the device type, once a table is bound */
+	if (md->map &&
+	    (dm_table_get_type(md->map) != dm_table_get_type(table))) {
+		DMWARN("can't change the device type after a table is bound");
+		goto out;
+	}
 
 	__unbind(md);
 	r = __bind(md, table, &limits);
@@ -2541,6 +2596,61 @@ int dm_noflush_suspending(struct dm_target *ti)
 	return r;
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
+
+struct dm_md_mempools *dm_alloc_md_mempools(unsigned type)
+{
+	struct dm_md_mempools *pools = kmalloc(sizeof(*pools), GFP_KERNEL);
+
+	if (!pools)
+		return NULL;
+
+	pools->io_pool = (type == DM_TYPE_BIO_BASED) ?
+			 mempool_create_slab_pool(MIN_IOS, _io_cache) :
+			 mempool_create_slab_pool(MIN_IOS, _rq_bio_info_cache);
+	if (!pools->io_pool)
+		goto free_pools_and_out;
+
+	pools->tio_pool = (type == DM_TYPE_BIO_BASED) ?
+			  mempool_create_slab_pool(MIN_IOS, _tio_cache) :
+			  mempool_create_slab_pool(MIN_IOS, _rq_tio_cache);
+	if (!pools->tio_pool)
+		goto free_io_pool_and_out;
+
+	pools->bs = (type == DM_TYPE_BIO_BASED) ?
+		    bioset_create(16, 0) : bioset_create(MIN_IOS, 0);
+	if (!pools->bs)
+		goto free_tio_pool_and_out;
+
+	return pools;
+
+free_tio_pool_and_out:
+	mempool_destroy(pools->tio_pool);
+
+free_io_pool_and_out:
+	mempool_destroy(pools->io_pool);
+
+free_pools_and_out:
+	kfree(pools);
+
+	return NULL;
+}
+
+void dm_free_md_mempools(struct dm_md_mempools *pools)
+{
+	if (!pools)
+		return;
+
+	if (pools->io_pool)
+		mempool_destroy(pools->io_pool);
+
+	if (pools->tio_pool)
+		mempool_destroy(pools->tio_pool);
+
+	if (pools->bs)
+		bioset_free(pools->bs);
+
+	kfree(pools);
+}
 
 static struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,

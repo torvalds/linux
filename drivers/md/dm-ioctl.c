@@ -1050,6 +1050,12 @@ static int populate_table(struct dm_table *table,
 		next = spec->next;
 	}
 
+	r = dm_table_set_type(table);
+	if (r) {
+		DMWARN("unable to set table type");
+		return r;
+	}
+
 	return dm_table_complete(table);
 }
 
@@ -1091,6 +1097,13 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (r) {
 		DMERR("%s: could not register integrity profile.",
 		      dm_device_name(md));
+		dm_table_destroy(t);
+		goto out;
+	}
+
+	r = dm_table_alloc_md_mempools(t);
+	if (r) {
+		DMWARN("unable to allocate mempools for this table");
 		dm_table_destroy(t);
 		goto out;
 	}

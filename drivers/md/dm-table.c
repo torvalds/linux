@@ -41,6 +41,7 @@
 struct dm_table {
 	struct mapped_device *md;
 	atomic_t holders;
+	unsigned type;
 
 	/* btree table */
 	unsigned int depth;
@@ -65,6 +66,8 @@ struct dm_table {
 	/* events get handed up using this callback */
 	void (*event_fn)(void *);
 	void *event_context;
+
+	struct dm_md_mempools *mempools;
 };
 
 /*
@@ -257,6 +260,8 @@ void dm_table_destroy(struct dm_table *t)
 	/* free the device list */
 	if (t->devices.next != &t->devices)
 		free_devices(&t->devices);
+
+	dm_free_md_mempools(t->mempools);
 
 	kfree(t);
 }
@@ -764,6 +769,99 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	return r;
 }
 
+int dm_table_set_type(struct dm_table *t)
+{
+	unsigned i;
+	unsigned bio_based = 0, request_based = 0;
+	struct dm_target *tgt;
+	struct dm_dev_internal *dd;
+	struct list_head *devices;
+
+	for (i = 0; i < t->num_targets; i++) {
+		tgt = t->targets + i;
+		if (dm_target_request_based(tgt))
+			request_based = 1;
+		else
+			bio_based = 1;
+
+		if (bio_based && request_based) {
+			DMWARN("Inconsistent table: different target types"
+			       " can't be mixed up");
+			return -EINVAL;
+		}
+	}
+
+	if (bio_based) {
+		/* We must use this table as bio-based */
+		t->type = DM_TYPE_BIO_BASED;
+		return 0;
+	}
+
+	BUG_ON(!request_based); /* No targets in this table */
+
+	/* Non-request-stackable devices can't be used for request-based dm */
+	devices = dm_table_get_devices(t);
+	list_for_each_entry(dd, devices, list) {
+		if (!blk_queue_stackable(bdev_get_queue(dd->dm_dev.bdev))) {
+			DMWARN("table load rejected: including"
+			       " non-request-stackable devices");
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Request-based dm supports only tables that have a single target now.
+	 * To support multiple targets, request splitting support is needed,
+	 * and that needs lots of changes in the block-layer.
+	 * (e.g. request completion process for partial completion.)
+	 */
+	if (t->num_targets > 1) {
+		DMWARN("Request-based dm doesn't support multiple targets yet");
+		return -EINVAL;
+	}
+
+	t->type = DM_TYPE_REQUEST_BASED;
+
+	return 0;
+}
+
+unsigned dm_table_get_type(struct dm_table *t)
+{
+	return t->type;
+}
+
+bool dm_table_request_based(struct dm_table *t)
+{
+	return dm_table_get_type(t) == DM_TYPE_REQUEST_BASED;
+}
+
+int dm_table_alloc_md_mempools(struct dm_table *t)
+{
+	unsigned type = dm_table_get_type(t);
+
+	if (unlikely(type == DM_TYPE_NONE)) {
+		DMWARN("no table type is set, can't allocate mempools");
+		return -EINVAL;
+	}
+
+	t->mempools = dm_alloc_md_mempools(type);
+	if (!t->mempools)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void dm_table_free_md_mempools(struct dm_table *t)
+{
+	dm_free_md_mempools(t->mempools);
+	t->mempools = NULL;
+}
+
+struct dm_md_mempools *dm_table_get_md_mempools(struct dm_table *t)
+{
+	return t->mempools;
+}
+
 static int setup_indexes(struct dm_table *t)
 {
 	int i;
@@ -985,6 +1083,19 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 	dm_table_set_integrity(t);
+
+	/*
+	 * QUEUE_FLAG_STACKABLE must be set after all queue settings are
+	 * visible to other CPUs because, once the flag is set, incoming bios
+	 * are processed by request-based dm, which refers to the queue
+	 * settings.
+	 * Until the flag set, bios are passed to bio-based dm and queued to
+	 * md->deferred where queue settings are not needed yet.
+	 * Those bios are passed to request-based dm at the resume time.
+	 */
+	smp_mb();
+	if (dm_table_request_based(t))
+		queue_flag_set_unlocked(QUEUE_FLAG_STACKABLE, q);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
