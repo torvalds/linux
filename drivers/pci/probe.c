@@ -1061,8 +1061,7 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 	if (dev && !dev->is_added)	/* new device? */
 		nr++;
 
-	if ((dev && dev->multifunction) ||
-	    (!dev && pcibios_scan_all_fns(bus, devfn))) {
+	if (dev && dev->multifunction) {
 		for (fn = 1; fn < 8; fn++) {
 			dev = pci_scan_single_device(bus, devfn + fn);
 			if (dev) {
