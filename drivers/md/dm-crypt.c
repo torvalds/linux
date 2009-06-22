@@ -1313,9 +1313,17 @@ static int crypt_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
 
+static int crypt_iterate_devices(struct dm_target *ti,
+				 iterate_devices_callout_fn fn, void *data)
+{
+	struct crypt_config *cc = ti->private;
+
+	return fn(ti, cc->dev, cc->start, data);
+}
+
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version= {1, 6, 0},
+	.version = {1, 7, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
@@ -1326,6 +1334,7 @@ static struct target_type crypt_target = {
 	.resume = crypt_resume,
 	.message = crypt_message,
 	.merge  = crypt_merge,
+	.iterate_devices = crypt_iterate_devices,
 };
 
 static int __init dm_crypt_init(void)

@@ -318,9 +318,26 @@ static int delay_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
+static int delay_iterate_devices(struct dm_target *ti,
+				 iterate_devices_callout_fn fn, void *data)
+{
+	struct delay_c *dc = ti->private;
+	int ret = 0;
+
+	ret = fn(ti, dc->dev_read, dc->start_read, data);
+	if (ret)
+		goto out;
+
+	if (dc->dev_write)
+		ret = fn(ti, dc->dev_write, dc->start_write, data);
+
+out:
+	return ret;
+}
+
 static struct target_type delay_target = {
 	.name	     = "delay",
-	.version     = {1, 0, 2},
+	.version     = {1, 1, 0},
 	.module      = THIS_MODULE,
 	.ctr	     = delay_ctr,
 	.dtr	     = delay_dtr,
@@ -328,6 +345,7 @@ static struct target_type delay_target = {
 	.presuspend  = delay_presuspend,
 	.resume	     = delay_resume,
 	.status	     = delay_status,
+	.iterate_devices = delay_iterate_devices,
 };
 
 static int __init dm_delay_init(void)

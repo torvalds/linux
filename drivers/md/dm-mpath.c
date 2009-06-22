@@ -1450,12 +1450,32 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 
+static int multipath_iterate_devices(struct dm_target *ti,
+				     iterate_devices_callout_fn fn, void *data)
+{
+	struct multipath *m = ti->private;
+	struct priority_group *pg;
+	struct pgpath *p;
+	int ret = 0;
+
+	list_for_each_entry(pg, &m->priority_groups, list) {
+		list_for_each_entry(p, &pg->pgpaths, list) {
+			ret = fn(ti, p->path.dev, ti->begin, data);
+			if (ret)
+				goto out;
+		}
+	}
+
+out:
+	return ret;
+}
+
 /*-----------------------------------------------------------------
  * Module setup
  *---------------------------------------------------------------*/
 static struct target_type multipath_target = {
 	.name = "multipath",
-	.version = {1, 0, 5},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = multipath_ctr,
 	.dtr = multipath_dtr,
@@ -1466,6 +1486,7 @@ static struct target_type multipath_target = {
 	.status = multipath_status,
 	.message = multipath_message,
 	.ioctl  = multipath_ioctl,
+	.iterate_devices = multipath_iterate_devices,
 };
 
 static int __init dm_multipath_init(void)

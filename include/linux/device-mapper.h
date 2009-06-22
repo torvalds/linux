@@ -11,6 +11,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 
+struct dm_dev;
 struct dm_target;
 struct dm_table;
 struct mapped_device;
@@ -81,6 +82,15 @@ typedef int (*dm_ioctl_fn) (struct dm_target *ti, unsigned int cmd,
 typedef int (*dm_merge_fn) (struct dm_target *ti, struct bvec_merge_data *bvm,
 			    struct bio_vec *biovec, int max_size);
 
+typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
+					   struct dm_dev *dev,
+					   sector_t physical_start,
+					   void *data);
+
+typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
+				      iterate_devices_callout_fn fn,
+				      void *data);
+
 /*
  * Returns:
  *    0: The target can handle the next I/O immediately.
@@ -139,6 +149,7 @@ struct target_type {
 	dm_ioctl_fn ioctl;
 	dm_merge_fn merge;
 	dm_busy_fn busy;
+	dm_iterate_devices_fn iterate_devices;
 
 	/* For internal device-mapper use. */
 	struct list_head list;

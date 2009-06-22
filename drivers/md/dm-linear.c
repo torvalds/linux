@@ -134,9 +134,17 @@ static int linear_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
 }
 
+static int linear_iterate_devices(struct dm_target *ti,
+				  iterate_devices_callout_fn fn, void *data)
+{
+	struct linear_c *lc = ti->private;
+
+	return fn(ti, lc->dev, lc->start, data);
+}
+
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version= {1, 0, 3},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,
 	.dtr    = linear_dtr,
@@ -144,6 +152,7 @@ static struct target_type linear_target = {
 	.status = linear_status,
 	.ioctl  = linear_ioctl,
 	.merge  = linear_merge,
+	.iterate_devices = linear_iterate_devices,
 };
 
 int __init dm_linear_init(void)
