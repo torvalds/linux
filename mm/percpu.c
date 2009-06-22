@@ -549,14 +549,14 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
  * @chunk: chunk of interest
  * @page_start: page index of the first page to unmap
  * @page_end: page index of the last page to unmap + 1
- * @flush: whether to flush cache and tlb or not
+ * @flush_tlb: whether to flush tlb or not
  *
  * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.
  * If @flush is true, vcache is flushed before unmapping and tlb
  * after.
  */
 static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
-		       bool flush)
+		       bool flush_tlb)
 {
 	unsigned int last = num_possible_cpus() - 1;
 	unsigned int cpu;
@@ -569,9 +569,8 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 	 * the whole region at once rather than doing it for each cpu.
 	 * This could be an overkill but is more scalable.
 	 */
-	if (flush)
-		flush_cache_vunmap(pcpu_chunk_addr(chunk, 0, page_start),
-				   pcpu_chunk_addr(chunk, last, page_end));
+	flush_cache_vunmap(pcpu_chunk_addr(chunk, 0, page_start),
+			   pcpu_chunk_addr(chunk, last, page_end));
 
 	for_each_possible_cpu(cpu)
 		unmap_kernel_range_noflush(
@@ -579,7 +578,7 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 				(page_end - page_start) << PAGE_SHIFT);
 
 	/* ditto as flush_cache_vunmap() */
-	if (flush)
+	if (flush_tlb)
 		flush_tlb_kernel_range(pcpu_chunk_addr(chunk, 0, page_start),
 				       pcpu_chunk_addr(chunk, last, page_end));
 }
