@@ -750,12 +750,49 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 	return clone;
 }
 
+static void __flush_target(struct clone_info *ci, struct dm_target *ti,
+			  unsigned flush_nr)
+{
+	struct dm_target_io *tio = alloc_tio(ci->md);
+	struct bio *clone;
+
+	tio->io = ci->io;
+	tio->ti = ti;
+
+	memset(&tio->info, 0, sizeof(tio->info));
+	tio->info.flush_request = flush_nr;
+
+	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
+	__bio_clone(clone, ci->bio);
+	clone->bi_destructor = dm_bio_destructor;
+
+	__map_bio(ti, clone, tio);
+}
+
+static int __clone_and_map_empty_barrier(struct clone_info *ci)
+{
+	unsigned target_nr = 0, flush_nr;
+	struct dm_target *ti;
+
+	while ((ti = dm_table_get_target(ci->map, target_nr++)))
+		for (flush_nr = 0; flush_nr < ti->num_flush_requests;
+		     flush_nr++)
+			__flush_target(ci, ti, flush_nr);
+
+	ci->sector_count = 0;
+
+	return 0;
+}
+
 static int __clone_and_map(struct clone_info *ci)
 {
 	struct bio *clone, *bio = ci->bio;
 	struct dm_target *ti;
 	sector_t len = 0, max;
 	struct dm_target_io *tio;
+
+	if (unlikely(bio_empty_barrier(bio)))
+		return __clone_and_map_empty_barrier(ci);
 
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (!dm_target_is_valid(ti))
@@ -877,6 +914,8 @@ static void __split_and_process_bio(struct mapped_device *md, struct bio *bio)
 	ci.io->md = md;
 	ci.sector = bio->bi_sector;
 	ci.sector_count = bio_sectors(bio);
+	if (unlikely(bio_empty_barrier(bio)))
+		ci.sector_count = 1;
 	ci.idx = bio->bi_idx;
 
 	start_io_acct(ci.io);
