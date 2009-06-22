@@ -196,6 +196,7 @@ static int ircomm_lmp_data_request(struct ircomm_cb *self,
 	/* Don't forget to refcount it - see ircomm_tty_do_softint() */
 	skb_get(skb);
 
+	skb_orphan(skb);
 	skb->destructor = ircomm_lmp_flow_control;
 
 	if ((self->pkt_count++ > 7) && (self->flow_status == FLOW_START)) {
