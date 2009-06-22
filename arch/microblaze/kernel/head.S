@@ -62,7 +62,10 @@ ENTRY(_start)
 	beqi	r7, no_fdt_arg			/* NULL pointer?  don't copy */
 	lw	r11, r0, r7			/* Does r7 point to a */
 	rsubi	r11, r11, OF_DT_HEADER		/* valid FDT? */
+	beqi	r11, _prepare_copy_fdt
+	or	r7, r0, r0		/* clear R7 when not valid DTB */
 	bnei	r11, no_fdt_arg			/* No - get out of here */
+_prepare_copy_fdt:
 	or	r11, r0, r0 /* incremment */
 	ori	r4, r0, TOPHYS(_fdt_start)
 	ori	r3, r0, (0x4000 - 4)
