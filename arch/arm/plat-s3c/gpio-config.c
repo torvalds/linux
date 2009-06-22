@@ -119,7 +119,7 @@ int s3c_gpio_setcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
 	unsigned int shift = (off & 7) * 4;
 	u32 con;
 
-	if (off < 8 && chip->chip.ngpio >= 8)
+	if (off < 8 && chip->chip.ngpio > 8)
 		reg -= 4;
 
 	if (s3c_gpio_is_cfg_special(cfg)) {
