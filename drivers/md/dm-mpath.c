@@ -848,6 +848,7 @@ static void multipath_dtr(struct dm_target *ti)
 
 	flush_workqueue(kmpath_handlerd);
 	flush_workqueue(kmultipathd);
+	flush_scheduled_work();
 	free_multipath(m);
 }
 
