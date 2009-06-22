@@ -731,11 +731,13 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 
 	result = acpi_processor_add_fs(device);
 	if (result)
-		goto end;
+		return result;
 
 	sysdev = get_cpu_sysdev(pr->id);
-	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev"))
-		return -EFAULT;
+	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
+		result = -EFAULT;
+		goto err_remove_fs;
+	}
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
 	arch_acpi_processor_init_pdc(pr);
@@ -755,7 +757,7 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 						&processor_cooling_ops);
 	if (IS_ERR(pr->cdev)) {
 		result = PTR_ERR(pr->cdev);
-		goto end;
+		goto err_power_exit;
 	}
 
 	dev_info(&device->dev, "registered as cooling_device%d\n",
@@ -764,13 +766,17 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	result = sysfs_create_link(&device->dev.kobj,
 				   &pr->cdev->device.kobj,
 				   "thermal_cooling");
-	if (result)
+	if (result) {
 		printk(KERN_ERR PREFIX "Create sysfs link\n");
+		goto err_thermal_unregister;
+	}
 	result = sysfs_create_link(&pr->cdev->device.kobj,
 				   &device->dev.kobj,
 				   "device");
-	if (result)
+	if (result) {
 		printk(KERN_ERR PREFIX "Create sysfs link\n");
+		goto err_remove_sysfs;
+	}
 
 	if (pr->flags.throttling) {
 		printk(KERN_INFO PREFIX "%s [%s] (supports",
@@ -779,7 +785,16 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 		printk(")\n");
 	}
 
-      end:
+	return 0;
+
+err_remove_sysfs:
+	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+err_thermal_unregister:
+	thermal_cooling_device_unregister(pr->cdev);
+err_power_exit:
+	acpi_processor_power_exit(pr, device);
+err_remove_fs:
+	acpi_processor_remove_fs(device);
 
 	return result;
 }
