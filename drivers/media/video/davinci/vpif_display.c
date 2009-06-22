@@ -636,7 +636,9 @@ static int vpif_release(struct file *filep)
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	/* if this instance is doing IO */
 	if (fh->io_allowed[VPIF_VIDEO_INDEX]) {
 		/* Reset io_usrs member of channel object */
@@ -720,7 +722,9 @@ static int vpif_g_fmt_vid_out(struct file *file, void *priv,
 		return -EINVAL;
 
 	/* Fill in the information about format */
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	if (vpif_get_std_info(ch)) {
 		vpif_err("Error getting the standard info\n");
 		return -EINVAL;
@@ -768,7 +772,9 @@ static int vpif_s_fmt_vid_out(struct file *file, void *priv,
 	/* store the pix format in the channel object */
 	common->fmt.fmt.pix = *pixfmt;
 	/* store the format in the channel object */
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	common->fmt = *fmt;
 	mutex_unlock(&common->lock);
 
@@ -819,7 +825,9 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	index = VPIF_VIDEO_INDEX;
 
 	common = &ch->common[index];
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	if (common->fmt.type != reqbuf->type) {
 		ret = -EINVAL;
 		goto reqbuf_exit;
@@ -979,7 +987,8 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	}
 
 	/* Call encoder subdevice function to set the standard */
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
 
 	ch->video.stdid = *std_id;
 	/* Get the information about the standard */
@@ -1085,7 +1094,9 @@ static int vpif_streamon(struct file *file, void *priv,
 		return ret;
 	}
 
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	/* If buffer queue is empty, return error */
 	if (list_empty(&common->dma_queue)) {
 		vpif_err("buffer queue is empty\n");
@@ -1185,7 +1196,9 @@ static int vpif_streamoff(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	if (buftype == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		/* disable channel */
 		if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
@@ -1248,7 +1261,9 @@ static int vpif_s_output(struct file *file, void *priv, unsigned int i)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
-	mutex_lock_interruptible(&common->lock);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
 	if (common->started) {
 		vpif_err("Streaming in progress\n");
 		ret = -EBUSY;
