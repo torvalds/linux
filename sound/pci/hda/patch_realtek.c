@@ -250,13 +250,6 @@ enum {
 	ALC883_MODEL_LAST,
 };
 
-/* styles of capture selection */
-enum {
-	CAPT_MUX = 0,	/* only mux based */
-	CAPT_MIX,	/* only mixer based */
-	CAPT_1MUX_MIX,	/* first mux and other mixers */
-};
-
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
@@ -306,7 +299,6 @@ struct alc_spec {
 	hda_nid_t *adc_nids;
 	hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
-	int capture_style;		/* capture style (CAPT_*) */
 
 	/* capture source */
 	unsigned int num_mux_defs;
@@ -420,12 +412,13 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	unsigned int mux_idx;
 	hda_nid_t nid = spec->capsrc_nids ?
 		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
+	unsigned int type;
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	imux = &spec->input_mux[mux_idx];
 
-	if (spec->capture_style &&
-	    !(spec->capture_style == CAPT_1MUX_MIX && !adc_idx)) {
+	type = (get_wcaps(codec, nid) & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
 		unsigned int *cur_val = &spec->cur_mux[adc_idx];
 		unsigned int i, idx;
@@ -7557,7 +7550,6 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
-	spec->capture_style = CAPT_MIX; /* matrix-style capture */
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
@@ -9781,7 +9773,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc883_capsrc_nids;
-		spec->capture_style = CAPT_MIX; /* matrix-style capture */
 		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 		break;
 	case 0x10ec0889:
@@ -9791,8 +9782,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc889_capsrc_nids;
-		spec->capture_style = CAPT_1MUX_MIX; /* 1mux/Nmix-style
-							capture */
 		break;
 	default:
 		if (!spec->num_adc_nids) {
@@ -9801,7 +9790,6 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc883_capsrc_nids;
-		spec->capture_style = CAPT_MIX; /* matrix-style capture */
 		break;
 	}
 
@@ -11642,7 +11630,6 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc262_pcm_digital_playback;
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
-	spec->capture_style = CAPT_MIX;
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
@@ -15556,7 +15543,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->adc_nids = alc861vd_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
 	spec->capsrc_nids = alc861vd_capsrc_nids;
-	spec->capture_style = CAPT_MIX;
 
 	set_capture_mixer(spec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -17476,7 +17462,6 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->adc_nids = alc662_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
 	spec->capsrc_nids = alc662_capsrc_nids;
-	spec->capture_style = CAPT_MIX;
 
 	if (!spec->cap_mixer)
 		set_capture_mixer(spec);
