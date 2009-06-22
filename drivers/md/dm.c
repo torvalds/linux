@@ -637,11 +637,6 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	sector_t sector;
 	struct mapped_device *md;
 
-	/*
-	 * Sanity checks.
-	 */
-	BUG_ON(!clone->bi_size);
-
 	clone->bi_end_io = clone_endio;
 	clone->bi_private = tio;
 
