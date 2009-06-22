@@ -16,32 +16,29 @@ struct event_symbol {
 	u8	type;
 	u64	config;
 	char	*symbol;
+	char	*alias;
 };
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
 static struct event_symbol event_symbols[] = {
-  { CHW(CPU_CYCLES),		"cpu-cycles",		},
-  { CHW(CPU_CYCLES),		"cycles",		},
-  { CHW(INSTRUCTIONS),		"instructions",		},
-  { CHW(CACHE_REFERENCES),	"cache-references",	},
-  { CHW(CACHE_MISSES),		"cache-misses",		},
-  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	},
-  { CHW(BRANCH_INSTRUCTIONS),	"branches",		},
-  { CHW(BRANCH_MISSES),		"branch-misses",	},
-  { CHW(BUS_CYCLES),		"bus-cycles",		},
+  { CHW(CPU_CYCLES),		"cpu-cycles",		"cycles"	},
+  { CHW(INSTRUCTIONS),		"instructions",		""		},
+  { CHW(CACHE_REFERENCES),	"cache-references",	""		},
+  { CHW(CACHE_MISSES),		"cache-misses",		""		},
+  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	"branches"	},
+  { CHW(BRANCH_MISSES),		"branch-misses",	""		},
+  { CHW(BUS_CYCLES),		"bus-cycles",		""		},
 
-  { CSW(CPU_CLOCK),		"cpu-clock",		},
-  { CSW(TASK_CLOCK),		"task-clock",		},
-  { CSW(PAGE_FAULTS),		"page-faults",		},
-  { CSW(PAGE_FAULTS),		"faults",		},
-  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		},
-  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		},
-  { CSW(CONTEXT_SWITCHES),	"context-switches",	},
-  { CSW(CONTEXT_SWITCHES),	"cs",			},
-  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	},
-  { CSW(CPU_MIGRATIONS),	"migrations",		},
+  { CSW(CPU_CLOCK),		"cpu-clock",		""		},
+  { CSW(TASK_CLOCK),		"task-clock",		""		},
+  { CSW(PAGE_FAULTS),		"page-faults",		""		},
+  { CSW(PAGE_FAULTS),		"faults",		""		},
+  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		""		},
+  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
+  { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
+  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	"migrations"	},
 };
 
 #define __PERF_COUNTER_FIELD(config, name) \
@@ -196,6 +193,19 @@ static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *a
 	return 0;
 }
 
+static int check_events(const char *str, unsigned int i)
+{
+	if (!strncmp(str, event_symbols[i].symbol,
+		     strlen(event_symbols[i].symbol)))
+		return 1;
+
+	if (strlen(event_symbols[i].alias))
+		if (!strncmp(str, event_symbols[i].alias,
+		      strlen(event_symbols[i].alias)))
+			return 1;
+	return 0;
+}
+
 /*
  * Each event can have multiple symbolic names.
  * Symbolic names are (almost) exactly matched.
@@ -235,9 +245,7 @@ static int parse_event_symbols(const char *str, struct perf_counter_attr *attr)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
-		if (!strncmp(str, event_symbols[i].symbol,
-			     strlen(event_symbols[i].symbol))) {
-
+		if (check_events(str, i)) {
 			attr->type = event_symbols[i].type;
 			attr->config = event_symbols[i].config;
 
@@ -289,6 +297,7 @@ void print_events(void)
 {
 	struct event_symbol *syms = event_symbols;
 	unsigned int i, type, prev_type = -1;
+	char name[40];
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "List of pre-defined events (to be used in -e):\n");
@@ -301,14 +310,18 @@ void print_events(void)
 		if (type != prev_type)
 			fprintf(stderr, "\n");
 
-		fprintf(stderr, "  %-30s [%s]\n", syms->symbol,
+		if (strlen(syms->alias))
+			sprintf(name, "%s OR %s", syms->symbol, syms->alias);
+		else
+			strcpy(name, syms->symbol);
+		fprintf(stderr, "  %-40s [%s]\n", name,
 			event_type_descriptors[type]);
 
 		prev_type = type;
 	}
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, "  %-30s [raw hardware event descriptor]\n",
+	fprintf(stderr, "  %-40s [raw hardware event descriptor]\n",
 		"rNNN");
 	fprintf(stderr, "\n");
 
