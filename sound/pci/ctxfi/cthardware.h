@@ -30,13 +30,16 @@ enum CHIPTYP {
 enum CTCARDS {
 	/* 20k1 models */
 	CTSB055X,
+	CT20K1_MODEL_FIRST = CTSB055X,
 	CTSB073X,
 	CTUAA,
 	CT20K1_UNKNOWN,
 	/* 20k2 models */
 	CTSB0760,
+	CT20K2_MODEL_FIRST = CTSB0760,
 	CTHENDRIX,
 	CTSB0880,
+	CT20K2_UNKNOWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
 

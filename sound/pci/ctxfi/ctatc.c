@@ -46,8 +46,6 @@ static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, 0x0031, "SB073x", CTSB073X),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_CREATIVE, 0xf000, 0x6000,
 			   "UAA", CTUAA),
-	SND_PCI_QUIRK_VENDOR(PCI_VENDOR_ID_CREATIVE,
-			     "Unknown", CT20K1_UNKNOWN),
 	{ } /* terminator */
 };
 
@@ -67,13 +65,16 @@ static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
 };
 
 static const char *ct_subsys_name[NUM_CTCARDS] = {
+	/* 20k1 models */
 	[CTSB055X]	= "SB055x",
 	[CTSB073X]	= "SB073x",
-	[CTSB0760]	= "SB076x",
 	[CTUAA]		= "UAA",
 	[CT20K1_UNKNOWN] = "Unknown",
+	/* 20k2 models */
+	[CTSB0760]	= "SB076x",
 	[CTHENDRIX]	= "Hendrix",
 	[CTSB0880]	= "SB0880",
+	[CT20K2_UNKNOWN] = "Unknown",
 };
 
 static struct {
@@ -1240,9 +1241,21 @@ static int __devinit atc_identify_card(struct ct_atc *atc)
 		return -ENOENT;
 	}
 	p = snd_pci_quirk_lookup(atc->pci, list);
-	if (!p)
-		return -ENOENT;
-	atc->model = p->value;
+	if (p) {
+		if (p->value < 0) {
+			printk(KERN_ERR "ctxfi: "
+			       "Device %04x:%04x is black-listed\n",
+			       atc->pci->subsystem_vendor,
+			       atc->pci->subsystem_device);
+			return -ENOENT;
+		}
+		atc->model = p->value;
+	} else {
+		if (atc->chip_type == ATC20K1)
+			atc->model = CT20K1_UNKNOWN;
+		else
+			atc->model = CT20K2_UNKNOWN;
+	}
 	atc->model_name = ct_subsys_name[atc->model];
 	snd_printd("ctxfi: chip %s model %s (%04x:%04x) is found\n",
 		   atc->chip_name, atc->model_name,
