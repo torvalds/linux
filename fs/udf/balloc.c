@@ -238,7 +238,7 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	part_len = sbi->s_partmaps[partition].s_partition_len;
-	if (first_block < 0 || first_block >= part_len)
+	if (first_block >= part_len)
 		goto out;
 
 	if (first_block + block_count > part_len)
@@ -297,7 +297,7 @@ static int udf_bitmap_new_block(struct super_block *sb,
 	mutex_lock(&sbi->s_alloc_mutex);
 
 repeat:
-	if (goal < 0 || goal >= sbi->s_partmaps[partition].s_partition_len)
+	if (goal >= sbi->s_partmaps[partition].s_partition_len)
 		goal = 0;
 
 	nr_groups = bitmap->s_nr_groups;
@@ -666,8 +666,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	int8_t etype = -1;
 	struct udf_inode_info *iinfo;
 
-	if (first_block < 0 ||
-		first_block >= sbi->s_partmaps[partition].s_partition_len)
+	if (first_block >= sbi->s_partmaps[partition].s_partition_len)
 		return 0;
 
 	iinfo = UDF_I(table);
@@ -743,7 +742,7 @@ static int udf_table_new_block(struct super_block *sb,
 		return newblock;
 
 	mutex_lock(&sbi->s_alloc_mutex);
-	if (goal < 0 || goal >= sbi->s_partmaps[partition].s_partition_len)
+	if (goal >= sbi->s_partmaps[partition].s_partition_len)
 		goal = 0;
 
 	/* We search for the closest matching block to goal. If we find
