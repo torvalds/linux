@@ -1497,17 +1497,12 @@ out:
  * @count: how many buffers to process
  */
 int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
-	    int q_nr, int bufnr, int count)
+	    int q_nr, unsigned int bufnr, unsigned int count)
 {
 	struct qdio_irq *irq_ptr;
 
-	if ((bufnr > QDIO_MAX_BUFFERS_PER_Q) ||
-	    (count > QDIO_MAX_BUFFERS_PER_Q) ||
-	    (q_nr >= QDIO_MAX_QUEUES_PER_IRQ))
+	if (bufnr >= QDIO_MAX_BUFFERS_PER_Q || count > QDIO_MAX_BUFFERS_PER_Q)
 		return -EINVAL;
-
-	if (!count)
-		return 0;
 
 	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
