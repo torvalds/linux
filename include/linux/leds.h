@@ -47,7 +47,8 @@ struct led_classdev {
 
 	/* Activate hardware accelerated blink, delays are in
 	 * miliseconds and if none is provided then a sensible default
-	 * should be chosen. */
+	 * should be chosen. The call can adjust the timings if it can't
+	 * match the values specified exactly. */
 	int		(*blink_set)(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off);
