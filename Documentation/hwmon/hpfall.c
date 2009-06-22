@@ -57,45 +57,43 @@ void ignore_me(void)
 {
 	protect(0);
 	set_led(0);
-
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-       int fd, ret;
+	int fd, ret;
 
-       fd = open("/dev/freefall", O_RDONLY);
-       if (fd < 0) {
-               perror("open");
-               return EXIT_FAILURE;
-       }
+	fd = open("/dev/freefall", O_RDONLY);
+	if (fd < 0) {
+		perror("open");
+		return EXIT_FAILURE;
+	}
 
 	signal(SIGALRM, ignore_me);
 
-       for (;;) {
-	       unsigned char count;
+	for (;;) {
+		unsigned char count;
 
-               ret = read(fd, &count, sizeof(count));
-	       alarm(0);
-	       if ((ret == -1) && (errno == EINTR)) {
-		       /* Alarm expired, time to unpark the heads */
-		       continue;
-	       }
+		ret = read(fd, &count, sizeof(count));
+		alarm(0);
+		if ((ret == -1) && (errno == EINTR)) {
+			/* Alarm expired, time to unpark the heads */
+			continue;
+		}
 
-               if (ret != sizeof(count)) {
-                       perror("read");
-                       break;
-               }
+		if (ret != sizeof(count)) {
+			perror("read");
+			break;
+		}
 
-	       protect(21);
-	       set_led(1);
-	       if (1 || on_ac() || lid_open()) {
-		       alarm(2);
-	       } else {
-		       alarm(20);
-	       }
-       }
+		protect(21);
+		set_led(1);
+		if (1 || on_ac() || lid_open())
+			alarm(2);
+		else
+			alarm(20);
+	}
 
-       close(fd);
-       return EXIT_SUCCESS;
+	close(fd);
+	return EXIT_SUCCESS;
 }
