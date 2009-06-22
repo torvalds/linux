@@ -11539,6 +11539,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.capsrc_nids = alc262_dmic_capsrc_nids,
 		.dac_nids = alc262_dac_nids,
 		.adc_nids = alc262_dmic_adc_nids, /* ADC0 */
+		.num_adc_nids = 1, /* single ADC */
 		.dig_out_nid = ALC262_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
