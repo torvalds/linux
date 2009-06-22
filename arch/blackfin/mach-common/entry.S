@@ -840,13 +840,13 @@ ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
 #ifdef CONFIG_IPIPE
-	[--sp] = rets;
-	SP += -12;
-	call ___ipipe_check_root
-	SP += 12
-	rets = [sp++];
-	cc = r0 == 0;
-	if cc jump 4f;                /* not on behalf of Linux, get out */
+	p2.l = _per_cpu__ipipe_percpu_domain;
+	p2.h = _per_cpu__ipipe_percpu_domain;
+	r0.l = _ipipe_root;
+	r0.h = _ipipe_root;
+	r2 = [p2];
+	cc = r0 == r2;
+	if !cc jump 4f;  /* not on behalf of the root domain, get out */
 #endif /* CONFIG_IPIPE */
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);

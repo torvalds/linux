@@ -164,11 +164,6 @@ out:
 		__clear_bit(IPIPE_STALL_FLAG, &p->status);
 }
 
-int __ipipe_check_root(void)
-{
-	return ipipe_root_domain_p;
-}
-
 void __ipipe_enable_irqdesc(struct ipipe_domain *ipd, unsigned irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
