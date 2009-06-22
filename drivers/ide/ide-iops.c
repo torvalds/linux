@@ -329,9 +329,6 @@ int ide_driveid_update(ide_drive_t *drive)
 
 	kfree(id);
 
-	if ((drive->dev_flags & IDE_DFLAG_USING_DMA) && ide_id_dma_bug(drive))
-		ide_dma_off(drive);
-
 	return 1;
 out_err:
 	if (rc == 2)
