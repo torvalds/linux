@@ -20,6 +20,7 @@ jiffies = jiffies_64 + 4;
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;
+	_start = CONFIG_KERNEL_BASE_ADDR;
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = . ;
 		_stext = . ;
