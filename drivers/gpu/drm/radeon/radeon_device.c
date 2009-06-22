@@ -496,7 +496,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	radeon_errata(rdev);
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
-
 	/* TODO: disable VGA need to use VGA request */
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {
@@ -603,9 +602,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	r = radeon_modeset_init(rdev);
 	if (r) {
 		return r;
-	}
-	if (rdev->fbdev_rfb && rdev->fbdev_rfb->obj) {
-		rdev->fbdev_robj = rdev->fbdev_rfb->obj->driver_private;
 	}
 	if (!ret) {
 		DRM_INFO("radeon: kernel modesetting successfully initialized.\n");
