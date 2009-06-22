@@ -10901,9 +10901,27 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-/* identical with ALC880 */
-#define alc262_auto_create_analog_input_ctls \
-	alc880_auto_create_analog_input_ctls
+static int alc262_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	int err;
+
+	err = alc880_auto_create_analog_input_ctls(spec, cfg);
+	if (err < 0)
+		return err;
+	/* digital-mic input pin is excluded in alc880_auto_create..()
+	 * because it's under 0x18
+	 */
+	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
+		struct hda_input_mux *imux = &spec->private_imux[0];
+		imux->items[imux->num_items].label = "Int Mic";
+		imux->items[imux->num_items].index = 0x09;
+		imux->num_items++;
+	}
+	return 0;
+}
+
 
 /*
  * generic initialization of ADC, input mixers and output mixers
@@ -11631,19 +11649,35 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
-		/* check whether NID 0x07 is valid */
-		unsigned int wcap = get_wcaps(codec, 0x07);
-
-		/* get type */
-		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
-		if (wcap != AC_WID_AUD_IN) {
-			spec->adc_nids = alc262_adc_nids_alt;
-			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids_alt);
-			spec->capsrc_nids = alc262_capsrc_nids_alt;
+		int i;
+		/* check whether the digital-mic has to be supported */
+		for (i = 0; i < spec->input_mux->num_items; i++) {
+			if (spec->input_mux->items[i].index >= 9)
+				break;
+		}
+		if (i < spec->input_mux->num_items) {
+			/* use only ADC0 */
+			spec->adc_nids = alc262_dmic_adc_nids;
+			spec->num_adc_nids = 1;
+			spec->capsrc_nids = alc262_dmic_capsrc_nids;
 		} else {
-			spec->adc_nids = alc262_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids);
-			spec->capsrc_nids = alc262_capsrc_nids;
+			/* all analog inputs */
+			/* check whether NID 0x07 is valid */
+			unsigned int wcap = get_wcaps(codec, 0x07);
+
+			/* get type */
+			wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+			if (wcap != AC_WID_AUD_IN) {
+				spec->adc_nids = alc262_adc_nids_alt;
+				spec->num_adc_nids =
+					ARRAY_SIZE(alc262_adc_nids_alt);
+				spec->capsrc_nids = alc262_capsrc_nids_alt;
+			} else {
+				spec->adc_nids = alc262_adc_nids;
+				spec->num_adc_nids =
+					ARRAY_SIZE(alc262_adc_nids);
+				spec->capsrc_nids = alc262_capsrc_nids;
+			}
 		}
 	}
 	if (!spec->cap_mixer && !spec->no_analog)
@@ -13233,26 +13267,8 @@ static int alc269_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
-						const struct auto_pin_cfg *cfg)
-{
-	int err;
-
-	err = alc880_auto_create_analog_input_ctls(spec, cfg);
-	if (err < 0)
-		return err;
-	/* digital-mic input pin is excluded in alc880_auto_create..()
-	 * because it's under 0x18
-	 */
-	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
-	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
-		struct hda_input_mux *imux = &spec->private_imux[0];
-		imux->items[imux->num_items].label = "Int Mic";
-		imux->items[imux->num_items].index = 0x05;
-		imux->num_items++;
-	}
-	return 0;
-}
+#define alc269_auto_create_analog_input_ctls \
+	alc262_auto_create_analog_input_ctls
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
