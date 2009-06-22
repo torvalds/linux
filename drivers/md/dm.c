@@ -555,7 +555,7 @@ static void dec_pending(struct dm_io *io, int error)
 			 * a per-device variable for error reporting.
 			 * Note that you can't touch the bio after end_io_acct
 			 */
-			if (!md->barrier_error)
+			if (!md->barrier_error && io_error != -EOPNOTSUPP)
 				md->barrier_error = io_error;
 			end_io_acct(io);
 		} else {
