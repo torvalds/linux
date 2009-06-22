@@ -1777,6 +1777,10 @@ struct mapped_device *dm_get_from_kobject(struct kobject *kobj)
 	if (&md->kobj != kobj)
 		return NULL;
 
+	if (test_bit(DMF_FREEING, &md->flags) ||
+	    test_bit(DMF_DELETING, &md->flags))
+		return NULL;
+
 	dm_get(md);
 	return md;
 }
