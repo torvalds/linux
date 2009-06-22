@@ -788,6 +788,42 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	return AE_CTRL_TERMINATE;
 }
 
+static int ec_install_handlers(struct acpi_ec *ec)
+{
+	acpi_status status;
+	if (test_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags))
+		return 0;
+	status = acpi_install_gpe_handler(NULL, ec->gpe,
+				  ACPI_GPE_EDGE_TRIGGERED,
+				  &acpi_ec_gpe_handler, ec);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
+	acpi_enable_gpe(NULL, ec->gpe);
+	status = acpi_install_address_space_handler(ec->handle,
+						    ACPI_ADR_SPACE_EC,
+						    &acpi_ec_space_handler,
+						    NULL, ec);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND) {
+			/*
+			 * Maybe OS fails in evaluating the _REG object.
+			 * The AE_NOT_FOUND error will be ignored and OS
+			 * continue to initialize EC.
+			 */
+			printk(KERN_ERR "Fail in evaluating the _REG object"
+				" of EC device. Broken bios is suspected.\n");
+		} else {
+			acpi_remove_gpe_handler(NULL, ec->gpe,
+				&acpi_ec_gpe_handler);
+			return -ENODEV;
+		}
+	}
+
+	set_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags);
+	return 0;
+}
+
 static void ec_remove_handlers(struct acpi_ec *ec)
 {
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
@@ -842,6 +878,26 @@ static int acpi_ec_add(struct acpi_device *device)
 	return 0;
 }
 
+static int acpi_ec_start(struct acpi_device *device)
+{
+	struct acpi_ec *ec;
+	int ret = 0;
+
+	if (!device)
+		return -EINVAL;
+
+	ec = acpi_driver_data(device);
+
+	if (!ec)
+		return -EINVAL;
+
+	ret = ec_install_handlers(ec);
+
+	/* EC is fully operational, allow queries */
+	clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
+	return ret;
+}
+
 static int acpi_ec_remove(struct acpi_device *device, int type)
 {
 	struct acpi_ec *ec;
@@ -886,62 +942,6 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 		return AE_CTRL_TERMINATE;
 
 	return AE_OK;
-}
-
-static int ec_install_handlers(struct acpi_ec *ec)
-{
-	acpi_status status;
-	if (test_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags))
-		return 0;
-	status = acpi_install_gpe_handler(NULL, ec->gpe,
-				  ACPI_GPE_EDGE_TRIGGERED,
-				  &acpi_ec_gpe_handler, ec);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe);
-	status = acpi_install_address_space_handler(ec->handle,
-						    ACPI_ADR_SPACE_EC,
-						    &acpi_ec_space_handler,
-						    NULL, ec);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
-			/*
-			 * Maybe OS fails in evaluating the _REG object.
-			 * The AE_NOT_FOUND error will be ignored and OS
-			 * continue to initialize EC.
-			 */
-			printk(KERN_ERR "Fail in evaluating the _REG object"
-				" of EC device. Broken bios is suspected.\n");
-		} else {
-			acpi_remove_gpe_handler(NULL, ec->gpe,
-				&acpi_ec_gpe_handler);
-			return -ENODEV;
-		}
-	}
-
-	set_bit(EC_FLAGS_HANDLERS_INSTALLED, &ec->flags);
-	return 0;
-}
-
-static int acpi_ec_start(struct acpi_device *device)
-{
-	struct acpi_ec *ec;
-	int ret = 0;
-
-	if (!device)
-		return -EINVAL;
-
-	ec = acpi_driver_data(device);
-
-	if (!ec)
-		return -EINVAL;
-
-	ret = ec_install_handlers(ec);
-
-	/* EC is fully operational, allow queries */
-	clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
-	return ret;
 }
 
 static int acpi_ec_stop(struct acpi_device *device, int type)
