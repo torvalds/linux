@@ -231,8 +231,8 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 	return i;
 }
 
-inline int get_buf_state(struct qdio_q *q, unsigned int bufnr,
-		  unsigned char *state, int auto_ack)
+static inline int get_buf_state(struct qdio_q *q, unsigned int bufnr,
+				unsigned char *state, int auto_ack)
 {
 	return get_buf_states(q, bufnr, state, 1, auto_ack);
 }
@@ -276,7 +276,7 @@ void qdio_init_buf_states(struct qdio_irq *irq_ptr)
 			       QDIO_MAX_BUFFERS_PER_Q);
 }
 
-static int qdio_siga_sync(struct qdio_q *q, unsigned int output,
+static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 			  unsigned int input)
 {
 	int cc;
@@ -293,7 +293,7 @@ static int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	return cc;
 }
 
-inline int qdio_siga_sync_q(struct qdio_q *q)
+static inline int qdio_siga_sync_q(struct qdio_q *q)
 {
 	if (q->is_input_q)
 		return qdio_siga_sync(q, 0, q->mask);
@@ -358,8 +358,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	return cc;
 }
 
-/* called from thinint inbound handler */
-void qdio_sync_after_thinint(struct qdio_q *q)
+static inline void qdio_sync_after_thinint(struct qdio_q *q)
 {
 	if (pci_out_supported(q)) {
 		if (need_siga_sync_thinint(q))
@@ -370,7 +369,14 @@ void qdio_sync_after_thinint(struct qdio_q *q)
 		qdio_siga_sync_q(q);
 }
 
-inline void qdio_stop_polling(struct qdio_q *q)
+int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
+			unsigned char *state)
+{
+	qdio_siga_sync_q(q);
+	return get_buf_states(q, bufnr, state, 1, 0);
+}
+
+static inline void qdio_stop_polling(struct qdio_q *q)
 {
 	if (!q->u.in.polling)
 		return;
@@ -516,7 +522,7 @@ out:
 	return q->first_to_check;
 }
 
-int qdio_inbound_q_moved(struct qdio_q *q)
+static int qdio_inbound_q_moved(struct qdio_q *q)
 {
 	int bufnr;
 
@@ -570,7 +576,23 @@ static int qdio_inbound_q_done(struct qdio_q *q)
 	}
 }
 
-void qdio_kick_handler(struct qdio_q *q)
+static inline int tiqdio_inbound_q_done(struct qdio_q *q)
+{
+	unsigned char state = 0;
+
+	if (!atomic_read(&q->nr_buf_used))
+		return 1;
+
+	qdio_siga_sync_q(q);
+	get_buf_state(q, q->first_to_check, &state, 0);
+
+	if (state == SLSB_P_INPUT_PRIMED)
+		/* more work coming */
+		return 0;
+	return 1;
+}
+
+static void qdio_kick_handler(struct qdio_q *q)
 {
 	int start = q->first_to_kick;
 	int end = q->first_to_check;
@@ -619,7 +641,6 @@ again:
 		goto again;
 }
 
-/* inbound tasklet */
 void qdio_inbound_processing(unsigned long data)
 {
 	struct qdio_q *q = (struct qdio_q *)data;
@@ -797,8 +818,7 @@ void qdio_outbound_timer(unsigned long data)
 	tasklet_schedule(&q->tasklet);
 }
 
-/* called from thinint inbound tasklet */
-void qdio_check_outbound_after_thinint(struct qdio_q *q)
+static inline void qdio_check_outbound_after_thinint(struct qdio_q *q)
 {
 	struct qdio_q *out;
 	int i;
@@ -809,6 +829,46 @@ void qdio_check_outbound_after_thinint(struct qdio_q *q)
 	for_each_output_queue(q->irq_ptr, out, i)
 		if (!qdio_outbound_q_done(out))
 			tasklet_schedule(&out->tasklet);
+}
+
+static void __tiqdio_inbound_processing(struct qdio_q *q)
+{
+	qdio_perf_stat_inc(&perf_stats.thinint_inbound);
+	qdio_sync_after_thinint(q);
+
+	/*
+	 * The interrupt could be caused by a PCI request. Check the
+	 * PCI capable outbound queues.
+	 */
+	qdio_check_outbound_after_thinint(q);
+
+	if (!qdio_inbound_q_moved(q))
+		return;
+
+	qdio_kick_handler(q);
+
+	if (!tiqdio_inbound_q_done(q)) {
+		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
+	}
+
+	qdio_stop_polling(q);
+	/*
+	 * We need to check again to not lose initiative after
+	 * resetting the ACK state.
+	 */
+	if (!tiqdio_inbound_q_done(q)) {
+		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop2);
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
+	}
+}
+
+void tiqdio_inbound_processing(unsigned long data)
+{
+	struct qdio_q *q = (struct qdio_q *)data;
+	__tiqdio_inbound_processing(q);
 }
 
 static inline void qdio_set_state(struct qdio_irq *irq_ptr,

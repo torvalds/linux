@@ -126,66 +126,9 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 	}
 }
 
-static inline int tiqdio_inbound_q_done(struct qdio_q *q)
-{
-	unsigned char state = 0;
-
-	if (!atomic_read(&q->nr_buf_used))
-		return 1;
-
-	qdio_siga_sync_q(q);
-	get_buf_state(q, q->first_to_check, &state, 0);
-
-	if (state == SLSB_P_INPUT_PRIMED)
-		/* more work coming */
-		return 0;
-	return 1;
-}
-
 static inline int shared_ind(struct qdio_irq *irq_ptr)
 {
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
-}
-
-static void __tiqdio_inbound_processing(struct qdio_q *q)
-{
-	qdio_perf_stat_inc(&perf_stats.thinint_inbound);
-	qdio_sync_after_thinint(q);
-
-	/*
-	 * Maybe we have work on our outbound queues... at least
-	 * we have to check the PCI capable queues.
-	 */
-	qdio_check_outbound_after_thinint(q);
-
-	if (!qdio_inbound_q_moved(q))
-		return;
-
-	qdio_kick_handler(q);
-
-	if (!tiqdio_inbound_q_done(q)) {
-		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
-		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
-			tasklet_schedule(&q->tasklet);
-	}
-
-	qdio_stop_polling(q);
-	/*
-	 * We need to check again to not lose initiative after
-	 * resetting the ACK state.
-	 */
-	if (!tiqdio_inbound_q_done(q)) {
-		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop2);
-		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
-			tasklet_schedule(&q->tasklet);
-	}
-}
-
-void tiqdio_inbound_processing(unsigned long data)
-{
-	struct qdio_q *q = (struct qdio_q *)data;
-
-	__tiqdio_inbound_processing(q);
 }
 
 /* check for work on all inbound thinint queues */
