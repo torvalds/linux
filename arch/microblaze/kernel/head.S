@@ -73,7 +73,6 @@ _copy_fdt:
 	bgtid	r3, _copy_fdt /* loop for all entries */
 	addik	r3, r3, -4 /* descrement loop */
 no_fdt_arg:
-	add	r7, r0, r0			/* Clear r7, just to be sure */
 
 #ifdef CONFIG_MMU
 
