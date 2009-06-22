@@ -232,12 +232,14 @@ struct perf_counter_mmap_page {
 	__u32	lock;			/* seqlock for synchronization */
 	__u32	index;			/* hardware counter identifier */
 	__s64	offset;			/* add to hardware counter value */
+	__u64	time_enabled;		/* time counter active */
+	__u64	time_running;		/* time counter on cpu */
 
 		/*
 		 * Hole for extension of the self monitor capabilities
 		 */
 
-	__u64	__reserved[125];	/* align to 1k */
+	__u64	__reserved[123];	/* align to 1k */
 
 	/*
 	 * Control data for the mmap() data buffer.

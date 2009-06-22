@@ -1782,6 +1782,12 @@ void perf_counter_update_userpage(struct perf_counter *counter)
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
 
+	userpg->time_enabled = counter->total_time_enabled +
+			atomic64_read(&counter->child_total_time_enabled);
+
+	userpg->time_running = counter->total_time_running +
+			atomic64_read(&counter->child_total_time_running);
+
 	barrier();
 	++userpg->lock;
 	preempt_enable();
