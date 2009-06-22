@@ -7,7 +7,6 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -142,33 +141,6 @@ raw3270_request_alloc(size_t size)
 
 	return rq;
 }
-
-#ifdef CONFIG_TN3270_CONSOLE
-/*
- * Allocate a new 3270 ccw request from bootmem. Only works very
- * early in the boot process. Only con3270.c should be using this.
- */
-struct raw3270_request __init *raw3270_request_alloc_bootmem(size_t size)
-{
-	struct raw3270_request *rq;
-
-	rq = alloc_bootmem_low(sizeof(struct raw3270));
-
-	/* alloc output buffer. */
-	if (size > 0)
-		rq->buffer = alloc_bootmem_low(size);
-	rq->size = size;
-	INIT_LIST_HEAD(&rq->list);
-
-	/*
-	 * Setup ccw.
-	 */
-	rq->ccw.cda = __pa(rq->buffer);
-	rq->ccw.flags = CCW_FLAG_SLI;
-
-	return rq;
-}
-#endif
 
 /*
  * Free 3270 ccw request
@@ -846,8 +818,8 @@ struct raw3270 __init *raw3270_setup_console(struct ccw_device *cdev)
 	char *ascebc;
 	int rc;
 
-	rp = (struct raw3270 *) alloc_bootmem_low(sizeof(struct raw3270));
-	ascebc = (char *) alloc_bootmem(256);
+	rp = kzalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
+	ascebc = kzalloc(256, GFP_KERNEL);
 	rc = raw3270_setup_device(cdev, rp, ascebc);
 	if (rc)
 		return ERR_PTR(rc);
