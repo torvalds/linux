@@ -553,6 +553,12 @@ static int parse_path_selector(struct arg_set *as, struct priority_group *pg,
 		return -EINVAL;
 	}
 
+	if (ps_argc > as->argc) {
+		dm_put_path_selector(pst);
+		ti->error = "not enough arguments for path selector";
+		return -EINVAL;
+	}
+
 	r = pst->create(&pg->ps, ps_argc, as->argv);
 	if (r) {
 		dm_put_path_selector(pst);
