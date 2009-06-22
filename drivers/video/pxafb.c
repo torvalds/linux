@@ -2091,14 +2091,14 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 		goto failed_fbi;
 	}
 
-	r = request_mem_region(r->start, r->end - r->start + 1, dev->name);
+	r = request_mem_region(r->start, resource_size(r), dev->name);
 	if (r == NULL) {
 		dev_err(&dev->dev, "failed to request I/O memory\n");
 		ret = -EBUSY;
 		goto failed_fbi;
 	}
 
-	fbi->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	fbi->mmio_base = ioremap(r->start, resource_size(r));
 	if (fbi->mmio_base == NULL) {
 		dev_err(&dev->dev, "failed to map I/O memory\n");
 		ret = -EBUSY;
@@ -2197,7 +2197,7 @@ failed_free_dma:
 failed_free_io:
 	iounmap(fbi->mmio_base);
 failed_free_res:
-	release_mem_region(r->start, r->end - r->start + 1);
+	release_mem_region(r->start, resource_size(r));
 failed_fbi:
 	clk_put(fbi->clk);
 	platform_set_drvdata(dev, NULL);
@@ -2237,7 +2237,7 @@ static int __devexit pxafb_remove(struct platform_device *dev)
 	iounmap(fbi->mmio_base);
 
 	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, r->end - r->start + 1);
+	release_mem_region(r->start, resource_size(r));
 
 	clk_put(fbi->clk);
 	kfree(fbi);
