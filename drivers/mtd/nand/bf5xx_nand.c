@@ -458,7 +458,7 @@ static irqreturn_t bf5xx_nand_dma_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int bf5xx_nand_dma_rw(struct mtd_info *mtd,
+static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 				uint8_t *buf, int is_read)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
@@ -496,11 +496,20 @@ static int bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	/* setup DMA register with Blackfin DMA API */
 	set_dma_config(CH_NFC, 0x0);
 	set_dma_start_addr(CH_NFC, (unsigned long) buf);
+
+/* The DMAs have different size on BF52x and BF54x */
+#ifdef CONFIG_BF52x
+	set_dma_x_count(CH_NFC, (page_size >> 1));
+	set_dma_x_modify(CH_NFC, 2);
+	val = DI_EN | WDSIZE_16;
+#endif
+
+#ifdef CONFIG_BF54x
 	set_dma_x_count(CH_NFC, (page_size >> 2));
 	set_dma_x_modify(CH_NFC, 4);
-
-	/* setup write or read operation */
 	val = DI_EN | WDSIZE_32;
+#endif
+	/* setup write or read operation */
 	if (is_read)
 		val |= WNR;
 	set_dma_config(CH_NFC, val);
@@ -512,8 +521,6 @@ static int bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	else
 		bfin_write_NFC_PGCTL(0x2);
 	wait_for_completion(&info->dma_completion);
-
-	return 0;
 }
 
 static void bf5xx_nand_dma_read_buf(struct mtd_info *mtd,

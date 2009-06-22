@@ -74,6 +74,12 @@ config MTD_NAND_AMS_DELTA
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 
+config MTD_NAND_OMAP2
+	tristate "NAND Flash device on OMAP2 and OMAP3"
+	depends on ARM && MTD_NAND && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+          Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
+
 config MTD_NAND_TS7250
 	tristate "NAND Flash device on TS-7250 board"
 	depends on MACH_TS72XX
@@ -139,27 +145,27 @@ config MTD_NAND_PPCHAMELEONEVB
 	  This enables the NAND flash driver on the PPChameleon EVB Board.
 
 config MTD_NAND_S3C2410
-	tristate "NAND Flash support for S3C2410/S3C2440 SoC"
-	depends on ARCH_S3C2410
+	tristate "NAND Flash support for Samsung S3C SoCs"
+	depends on ARCH_S3C2410 || ARCH_S3C64XX
 	help
-	  This enables the NAND flash controller on the S3C2410 and S3C2440
+	  This enables the NAND flash controller on the S3C24xx and S3C64xx
 	  SoCs
 
 	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_S3C2410_DEBUG
-	bool "S3C2410 NAND driver debug"
+	bool "Samsung S3C NAND driver debug"
 	depends on MTD_NAND_S3C2410
 	help
-	  Enable debugging of the S3C2410 NAND driver
+	  Enable debugging of the S3C NAND driver
 
 config MTD_NAND_S3C2410_HWECC
-	bool "S3C2410 NAND Hardware ECC"
+	bool "Samsung S3C NAND Hardware ECC"
 	depends on MTD_NAND_S3C2410
 	help
-	  Enable the use of the S3C2410's internal ECC generator when
-	  using NAND. Early versions of the chip have had problems with
+	  Enable the use of the controller's internal ECC generator when
+	  using NAND. Early versions of the chips have had problems with
 	  incorrect ECC generation, and if using these, the default of
 	  software ECC is preferable.
 
@@ -171,7 +177,7 @@ config MTD_NAND_NDFC
 	 NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
 
 config MTD_NAND_S3C2410_CLKSTOP
-	bool "S3C2410 NAND IDLE clock stop"
+	bool "Samsung S3C NAND IDLE clock stop"
 	depends on MTD_NAND_S3C2410
 	default n
 	help

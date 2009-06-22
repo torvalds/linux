@@ -47,6 +47,28 @@ static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl
 	writeb(cmd, nc->IO_ADDR_W + offs);
 }
 
+static void orion_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+{
+	struct nand_chip *chip = mtd->priv;
+	void __iomem *io_base = chip->IO_ADDR_R;
+	uint64_t *buf64;
+	int i = 0;
+
+	while (len && (unsigned long)buf & 7) {
+		*buf++ = readb(io_base);
+		len--;
+	}
+	buf64 = (uint64_t *)buf;
+	while (i < len/8) {
+		uint64_t x;
+		asm ("ldrd\t%0, [%1]" : "=r" (x) : "r" (io_base));
+		buf64[i++] = x;
+	}
+	i *= 8;
+	while (i < len)
+		buf[i++] = readb(io_base);
+}
+
 static int __init orion_nand_probe(struct platform_device *pdev)
 {
 	struct mtd_info *mtd;
@@ -83,6 +105,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->priv = board;
 	nc->IO_ADDR_R = nc->IO_ADDR_W = io_base;
 	nc->cmd_ctrl = orion_nand_cmd_ctrl;
+	nc->read_buf = orion_nand_read_buf;
 	nc->ecc.mode = NAND_ECC_SOFT;
 
 	if (board->chip_delay)
