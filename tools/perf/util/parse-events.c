@@ -33,8 +33,7 @@ static struct event_symbol event_symbols[] = {
 
   { CSW(CPU_CLOCK),		"cpu-clock",		""		},
   { CSW(TASK_CLOCK),		"task-clock",		""		},
-  { CSW(PAGE_FAULTS),		"page-faults",		""		},
-  { CSW(PAGE_FAULTS),		"faults",		""		},
+  { CSW(PAGE_FAULTS),		"page-faults",		"faults"	},
   { CSW(PAGE_FAULTS_MIN),	"minor-faults",		""		},
   { CSW(PAGE_FAULTS_MAJ),	"major-faults",		""		},
   { CSW(CONTEXT_SWITCHES),	"context-switches",	"cs"		},
@@ -71,24 +70,24 @@ static char *sw_event_names[] = {
 
 #define MAX_ALIASES 8
 
-static char *hw_cache [][MAX_ALIASES] = {
-	{ "L1-data"		, "l1-d", "l1d"					},
-	{ "L1-instruction"	, "l1-i", "l1i"					},
-	{ "L2"			, "l2"						},
-	{ "Data-TLB"		, "dtlb", "d-tlb"				},
-	{ "Instruction-TLB"	, "itlb", "i-tlb"				},
-	{ "Branch"		, "bpu" , "btb", "bpc"				},
+static char *hw_cache[][MAX_ALIASES] = {
+	{ "L1-data",		"l1-d",		"l1d"			},
+	{ "L1-instruction",	"l1-i",		"l1i"			},
+	{ "L2",			"l2"					},
+	{ "Data-TLB",		"dtlb",		"d-tlb"			},
+	{ "Instruction-TLB",	"itlb",		"i-tlb"			},
+	{ "Branch",		"bpu" ,		"btb",		"bpc"	},
 };
 
-static char *hw_cache_op [][MAX_ALIASES] = {
-	{ "Load"		, "read"					},
-	{ "Store"		, "write"					},
-	{ "Prefetch"		, "speculative-read", "speculative-load"	},
+static char *hw_cache_op[][MAX_ALIASES] = {
+	{ "Load",		"read"					},
+	{ "Store",		"write"					},
+	{ "Prefetch",		"speculative-read", "speculative-load"	},
 };
 
-static char *hw_cache_result [][MAX_ALIASES] = {
-	{ "Reference"		, "ops", "access"				},
-	{ "Miss"								},
+static char *hw_cache_result[][MAX_ALIASES] = {
+	{ "Reference",		"ops",		"access"		},
+	{ "Miss"							},
 };
 
 char *event_name(int counter)
@@ -160,7 +159,8 @@ static int parse_aliases(const char *str, char *names[][MAX_ALIASES], int size)
 	return -1;
 }
 
-static int parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
+static int
+parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
 {
 	int cache_type = -1, cache_op = 0, cache_result = 0;
 
@@ -201,7 +201,7 @@ static int check_events(const char *str, unsigned int i)
 
 	if (strlen(event_symbols[i].alias))
 		if (!strncmp(str, event_symbols[i].alias,
-		      strlen(event_symbols[i].alias)))
+			     strlen(event_symbols[i].alias)))
 			return 1;
 	return 0;
 }
