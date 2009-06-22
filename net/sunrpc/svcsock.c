@@ -1327,3 +1327,42 @@ static void svc_sock_free(struct svc_xprt *xprt)
 		sock_release(svsk->sk_sock);
 	kfree(svsk);
 }
+
+/*
+ * Create a svc_xprt.
+ *
+ * For internal use only (e.g. nfsv4.1 backchannel).
+ * Callers should typically use the xpo_create() method.
+ */
+struct svc_xprt *svc_sock_create(struct svc_serv *serv, int prot)
+{
+	struct svc_sock *svsk;
+	struct svc_xprt *xprt = NULL;
+
+	dprintk("svc: %s\n", __func__);
+	svsk = kzalloc(sizeof(*svsk), GFP_KERNEL);
+	if (!svsk)
+		goto out;
+
+	xprt = &svsk->sk_xprt;
+	if (prot == IPPROTO_TCP)
+		svc_xprt_init(&svc_tcp_class, xprt, serv);
+	else if (prot == IPPROTO_UDP)
+		svc_xprt_init(&svc_udp_class, xprt, serv);
+	else
+		BUG();
+out:
+	dprintk("svc: %s return %p\n", __func__, xprt);
+	return xprt;
+}
+EXPORT_SYMBOL_GPL(svc_sock_create);
+
+/*
+ * Destroy a svc_sock.
+ */
+void svc_sock_destroy(struct svc_xprt *xprt)
+{
+	if (xprt)
+		kfree(container_of(xprt, struct svc_sock, sk_xprt));
+}
+EXPORT_SYMBOL_GPL(svc_sock_destroy);
