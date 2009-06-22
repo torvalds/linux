@@ -912,6 +912,8 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	err = checking_wrmsrl(hwc->counter_base + idx,
 			     (u64)(-left) & x86_pmu.counter_mask);
 
+	perf_counter_update_userpage(counter);
+
 	return ret;
 }
 
@@ -1034,6 +1036,8 @@ try_generic:
 	x86_perf_counter_set_period(counter, hwc, idx);
 	x86_pmu.enable(hwc, idx);
 
+	perf_counter_update_userpage(counter);
+
 	return 0;
 }
 
@@ -1126,6 +1130,8 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	x86_perf_counter_update(counter, hwc, idx);
 	cpuc->counters[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
+
+	perf_counter_update_userpage(counter);
 }
 
 /*

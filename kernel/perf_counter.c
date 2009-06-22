@@ -1753,6 +1753,14 @@ int perf_counter_task_disable(void)
 	return 0;
 }
 
+static int perf_counter_index(struct perf_counter *counter)
+{
+	if (counter->state != PERF_COUNTER_STATE_ACTIVE)
+		return 0;
+
+	return counter->hw.idx + 1 - PERF_COUNTER_INDEX_OFFSET;
+}
+
 /*
  * Callers need to ensure there can be no nesting of this function, otherwise
  * the seqlock logic goes bad. We can not serialize this because the arch
@@ -1777,7 +1785,7 @@ void perf_counter_update_userpage(struct perf_counter *counter)
 	preempt_disable();
 	++userpg->lock;
 	barrier();
-	userpg->index = counter->hw.idx;
+	userpg->index = perf_counter_index(counter);
 	userpg->offset = atomic64_read(&counter->count);
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&counter->hw.prev_count);
