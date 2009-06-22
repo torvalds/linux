@@ -925,6 +925,16 @@ static int dm_merge_bvec(struct request_queue *q,
 	 */
 	if (max_size && ti->type->merge)
 		max_size = ti->type->merge(ti, bvm, biovec, max_size);
+	/*
+	 * If the target doesn't support merge method and some of the devices
+	 * provided their merge_bvec method (we know this by looking at
+	 * queue_max_hw_sectors), then we can't allow bios with multiple vector
+	 * entries.  So always set max_size to 0, and the code below allows
+	 * just one page.
+	 */
+	else if (queue_max_hw_sectors(q) <= PAGE_SIZE >> 9)
+
+		max_size = 0;
 
 out_table:
 	dm_table_put(map);
