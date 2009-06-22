@@ -383,16 +383,45 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 /*
  * If possible, this checks an area of a destination device is valid.
  */
-static int check_device_area(struct dm_dev_internal *dd, sector_t start,
-			     sector_t len)
+static int device_area_is_valid(struct dm_target *ti, struct block_device *bdev,
+			     sector_t start, sector_t len)
 {
-	sector_t dev_size = i_size_read(dd->dm_dev.bdev->bd_inode) >>
-			    SECTOR_SHIFT;
+	sector_t dev_size = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	unsigned short logical_block_size_sectors =
+		ti->limits.logical_block_size >> SECTOR_SHIFT;
+	char b[BDEVNAME_SIZE];
 
 	if (!dev_size)
 		return 1;
 
-	return ((start < dev_size) && (len <= (dev_size - start)));
+	if ((start >= dev_size) || (start + len > dev_size)) {
+		DMWARN("%s: %s too small for target",
+		       dm_device_name(ti->table->md), bdevname(bdev, b));
+		return 0;
+	}
+
+	if (logical_block_size_sectors <= 1)
+		return 1;
+
+	if (start & (logical_block_size_sectors - 1)) {
+		DMWARN("%s: start=%llu not aligned to h/w "
+		       "logical block size %hu of %s",
+		       dm_device_name(ti->table->md),
+		       (unsigned long long)start,
+		       ti->limits.logical_block_size, bdevname(bdev, b));
+		return 0;
+	}
+
+	if (len & (logical_block_size_sectors - 1)) {
+		DMWARN("%s: len=%llu not aligned to h/w "
+		       "logical block size %hu of %s",
+		       dm_device_name(ti->table->md),
+		       (unsigned long long)len,
+		       ti->limits.logical_block_size, bdevname(bdev, b));
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -478,14 +507,7 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 	}
 	atomic_inc(&dd->count);
 
-	if (!check_device_area(dd, start, len)) {
-		DMWARN("device %s too small for target", path);
-		dm_put_device(ti, &dd->dm_dev);
-		return -EINVAL;
-	}
-
 	*result = &dd->dm_dev;
-
 	return 0;
 }
 
@@ -554,8 +576,16 @@ int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
 	int r = __table_get_device(ti->table, ti, path,
 				   start, len, mode, result);
 
-	if (!r)
-		dm_set_device_limits(ti, (*result)->bdev);
+	if (r)
+		return r;
+
+	dm_set_device_limits(ti, (*result)->bdev);
+
+	if (!device_area_is_valid(ti, (*result)->bdev, start, len)) {
+		dm_put_device(ti, *result);
+		*result = NULL;
+		return -EINVAL;
+	}
 
 	return r;
 }
