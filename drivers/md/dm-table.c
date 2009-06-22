@@ -956,17 +956,9 @@ no_integrity:
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 {
 	/*
-	 * Make sure we obey the optimistic sub devices
-	 * restrictions.
+	 * Copy table's limits to the DM device's request_queue
 	 */
-	blk_queue_max_sectors(q, t->limits.max_sectors);
-	blk_queue_max_phys_segments(q, t->limits.max_phys_segments);
-	blk_queue_max_hw_segments(q, t->limits.max_hw_segments);
-	blk_queue_logical_block_size(q, t->limits.logical_block_size);
-	blk_queue_max_segment_size(q, t->limits.max_segment_size);
-	blk_queue_max_hw_sectors(q, t->limits.max_hw_sectors);
-	blk_queue_segment_boundary(q, t->limits.seg_boundary_mask);
-	blk_queue_bounce_limit(q, t->limits.bounce_pfn);
+	q->limits = t->limits;
 
 	if (t->limits.no_cluster)
 		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
