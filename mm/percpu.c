@@ -1233,6 +1233,7 @@ static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
 ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 				      ssize_t dyn_size, ssize_t unit_size)
 {
+	size_t chunk_size;
 	unsigned int cpu;
 
 	/* determine parameters and allocate */
@@ -1247,11 +1248,15 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	} else
 		pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
 
-	pcpue_ptr = __alloc_bootmem_nopanic(
-					num_possible_cpus() * pcpue_unit_size,
-					PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-	if (!pcpue_ptr)
+	chunk_size = pcpue_unit_size * num_possible_cpus();
+
+	pcpue_ptr = __alloc_bootmem_nopanic(chunk_size, PAGE_SIZE,
+					    __pa(MAX_DMA_ADDRESS));
+	if (!pcpue_ptr) {
+		pr_warning("PERCPU: failed to allocate %zu bytes for "
+			   "embedding\n", chunk_size);
 		return -ENOMEM;
+	}
 
 	/* return the leftover and copy */
 	for_each_possible_cpu(cpu) {

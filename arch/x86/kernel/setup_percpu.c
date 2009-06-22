@@ -156,19 +156,22 @@ static struct page * __init pcpul_get_page(unsigned int cpu, int pageno)
 	return virt_to_page(pcpul_map[cpu].ptr + off);
 }
 
-static ssize_t __init setup_pcpu_lpage(size_t static_size)
+static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 {
 	size_t map_size, dyn_size;
 	unsigned int cpu;
 	int i, j;
 	ssize_t ret;
 
-	/*
-	 * If large page isn't supported, there's no benefit in doing
-	 * this.  Also, on non-NUMA, embedding is better.
-	 */
-	if (!cpu_has_pse || !pcpu_need_numa())
+	/* on non-NUMA, embedding is better */
+	if (!chosen && !pcpu_need_numa())
 		return -EINVAL;
+
+	/* need PSE */
+	if (!cpu_has_pse) {
+		pr_warning("PERCPU: lpage allocator requires PSE\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Currently supports only single page.  Supporting multiple
@@ -191,8 +194,11 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size)
 		pcpul_map[cpu].cpu = cpu;
 		pcpul_map[cpu].ptr = pcpu_alloc_bootmem(cpu, PMD_SIZE,
 							PMD_SIZE);
-		if (!pcpul_map[cpu].ptr)
+		if (!pcpul_map[cpu].ptr) {
+			pr_warning("PERCPU: failed to allocate large page "
+				   "for cpu%u\n", cpu);
 			goto enomem;
+		}
 
 		/*
 		 * Only use pcpul_size bytes and give back the rest.
@@ -297,7 +303,7 @@ void *pcpu_lpage_remapped(void *kaddr)
 	return NULL;
 }
 #else
-static ssize_t __init setup_pcpu_lpage(size_t static_size)
+static ssize_t __init setup_pcpu_lpage(size_t static_size, bool chosen)
 {
 	return -EINVAL;
 }
@@ -311,7 +317,7 @@ static ssize_t __init setup_pcpu_lpage(size_t static_size)
  * mapping so that it can use PMD mapping without additional TLB
  * pressure.
  */
-static ssize_t __init setup_pcpu_embed(size_t static_size)
+static ssize_t __init setup_pcpu_embed(size_t static_size, bool chosen)
 {
 	size_t reserve = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 
@@ -320,7 +326,7 @@ static ssize_t __init setup_pcpu_embed(size_t static_size)
 	 * this.  Also, embedding allocation doesn't play well with
 	 * NUMA.
 	 */
-	if (!cpu_has_pse || pcpu_need_numa())
+	if (!chosen && (!cpu_has_pse || pcpu_need_numa()))
 		return -EINVAL;
 
 	return pcpu_embed_first_chunk(static_size, PERCPU_FIRST_CHUNK_RESERVE,
@@ -370,8 +376,11 @@ static ssize_t __init setup_pcpu_4k(size_t static_size)
 			void *ptr;
 
 			ptr = pcpu_alloc_bootmem(cpu, PAGE_SIZE, PAGE_SIZE);
-			if (!ptr)
+			if (!ptr) {
+				pr_warning("PERCPU: failed to allocate "
+					   "4k page for cpu%u\n", cpu);
 				goto enomem;
+			}
 
 			memcpy(ptr, __per_cpu_load + i * PAGE_SIZE, PAGE_SIZE);
 			pcpu4k_pages[j++] = virt_to_page(ptr);
@@ -395,6 +404,16 @@ out_free_ar:
 	return ret;
 }
 
+/* for explicit first chunk allocator selection */
+static char pcpu_chosen_alloc[16] __initdata;
+
+static int __init percpu_alloc_setup(char *str)
+{
+	strncpy(pcpu_chosen_alloc, str, sizeof(pcpu_chosen_alloc) - 1);
+	return 0;
+}
+early_param("percpu_alloc", percpu_alloc_setup);
+
 static inline void setup_percpu_segment(int cpu)
 {
 #ifdef CONFIG_X86_32
@@ -408,11 +427,6 @@ static inline void setup_percpu_segment(int cpu)
 #endif
 }
 
-/*
- * Great future plan:
- * Declare PDA itself and support (irqstack,tss,pgd) as per cpu data.
- * Always point %gs to its beginning
- */
 void __init setup_per_cpu_areas(void)
 {
 	size_t static_size = __per_cpu_end - __per_cpu_start;
@@ -429,9 +443,26 @@ void __init setup_per_cpu_areas(void)
 	 * of large page mappings.  Please read comments on top of
 	 * each allocator for details.
 	 */
-	ret = setup_pcpu_lpage(static_size);
-	if (ret < 0)
-		ret = setup_pcpu_embed(static_size);
+	ret = -EINVAL;
+	if (strlen(pcpu_chosen_alloc)) {
+		if (strcmp(pcpu_chosen_alloc, "4k")) {
+			if (!strcmp(pcpu_chosen_alloc, "lpage"))
+				ret = setup_pcpu_lpage(static_size, true);
+			else if (!strcmp(pcpu_chosen_alloc, "embed"))
+				ret = setup_pcpu_embed(static_size, true);
+			else
+				pr_warning("PERCPU: unknown allocator %s "
+					   "specified\n", pcpu_chosen_alloc);
+			if (ret < 0)
+				pr_warning("PERCPU: %s allocator failed (%zd), "
+					   "falling back to 4k\n",
+					   pcpu_chosen_alloc, ret);
+		}
+	} else {
+		ret = setup_pcpu_lpage(static_size, false);
+		if (ret < 0)
+			ret = setup_pcpu_embed(static_size, false);
+	}
 	if (ret < 0)
 		ret = setup_pcpu_4k(static_size);
 	if (ret < 0)
