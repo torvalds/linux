@@ -35,6 +35,7 @@ struct pgpath {
 
 	struct dm_path path;
 	struct work_struct deactivate_path;
+	struct work_struct activate_path;
 };
 
 #define path_to_pgpath(__pgp) container_of((__pgp), struct pgpath, path)
@@ -64,8 +65,6 @@ struct multipath {
 	spinlock_t lock;
 
 	const char *hw_handler_name;
-	struct work_struct activate_path;
-	struct pgpath *pgpath_to_activate;
 	unsigned nr_priority_groups;
 	struct list_head priority_groups;
 	unsigned pg_init_required;	/* pg_init needs calling? */
@@ -128,6 +127,7 @@ static struct pgpath *alloc_pgpath(void)
 	if (pgpath) {
 		pgpath->is_active = 1;
 		INIT_WORK(&pgpath->deactivate_path, deactivate_path);
+		INIT_WORK(&pgpath->activate_path, activate_path);
 	}
 
 	return pgpath;
@@ -160,7 +160,6 @@ static struct priority_group *alloc_priority_group(void)
 
 static void free_pgpaths(struct list_head *pgpaths, struct dm_target *ti)
 {
-	unsigned long flags;
 	struct pgpath *pgpath, *tmp;
 	struct multipath *m = ti->private;
 
@@ -169,10 +168,6 @@ static void free_pgpaths(struct list_head *pgpaths, struct dm_target *ti)
 		if (m->hw_handler_name)
 			scsi_dh_detach(bdev_get_queue(pgpath->path.dev->bdev));
 		dm_put_device(ti, pgpath->path.dev);
-		spin_lock_irqsave(&m->lock, flags);
-		if (m->pgpath_to_activate == pgpath)
-			m->pgpath_to_activate = NULL;
-		spin_unlock_irqrestore(&m->lock, flags);
 		free_pgpath(pgpath);
 	}
 }
@@ -202,7 +197,6 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		m->queue_io = 1;
 		INIT_WORK(&m->process_queued_ios, process_queued_ios);
 		INIT_WORK(&m->trigger_event, trigger_event);
-		INIT_WORK(&m->activate_path, activate_path);
 		m->mpio_pool = mempool_create_slab_pool(MIN_IOS, _mpio_cache);
 		if (!m->mpio_pool) {
 			kfree(m);
@@ -427,8 +421,8 @@ static void process_queued_ios(struct work_struct *work)
 {
 	struct multipath *m =
 		container_of(work, struct multipath, process_queued_ios);
-	struct pgpath *pgpath = NULL;
-	unsigned init_required = 0, must_queue = 1;
+	struct pgpath *pgpath = NULL, *tmp;
+	unsigned must_queue = 1;
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
@@ -446,19 +440,15 @@ static void process_queued_ios(struct work_struct *work)
 		must_queue = 0;
 
 	if (m->pg_init_required && !m->pg_init_in_progress && pgpath) {
-		m->pgpath_to_activate = pgpath;
 		m->pg_init_count++;
 		m->pg_init_required = 0;
-		m->pg_init_in_progress = 1;
-		init_required = 1;
+		list_for_each_entry(tmp, &pgpath->pg->pgpaths, list) {
+			if (queue_work(kmpath_handlerd, &tmp->activate_path))
+				m->pg_init_in_progress++;
+		}
 	}
-
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
-
-	if (init_required)
-		queue_work(kmpath_handlerd, &m->activate_path);
-
 	if (!must_queue)
 		dispatch_queued_ios(m);
 }
@@ -946,9 +936,13 @@ static int reinstate_path(struct pgpath *pgpath)
 
 	pgpath->is_active = 1;
 
-	m->current_pgpath = NULL;
-	if (!m->nr_valid_paths++ && m->queue_size)
+	if (!m->nr_valid_paths++ && m->queue_size) {
+		m->current_pgpath = NULL;
 		queue_work(kmultipathd, &m->process_queued_ios);
+	} else if (m->hw_handler_name && (m->current_pg == pgpath->pg)) {
+		if (queue_work(kmpath_handlerd, &pgpath->activate_path))
+			m->pg_init_in_progress++;
+	}
 
 	dm_path_uevent(DM_UEVENT_PATH_REINSTATED, m->ti,
 		      pgpath->path.dev->name, m->nr_valid_paths);
@@ -1124,35 +1118,30 @@ static void pg_init_done(struct dm_path *path, int errors)
 
 	spin_lock_irqsave(&m->lock, flags);
 	if (errors) {
-		DMERR("Could not failover device. Error %d.", errors);
-		m->current_pgpath = NULL;
-		m->current_pg = NULL;
+		if (pgpath == m->current_pgpath) {
+			DMERR("Could not failover device. Error %d.", errors);
+			m->current_pgpath = NULL;
+			m->current_pg = NULL;
+		}
 	} else if (!m->pg_init_required) {
 		m->queue_io = 0;
 		pg->bypassed = 0;
 	}
 
-	m->pg_init_in_progress = 0;
-	queue_work(kmultipathd, &m->process_queued_ios);
+	m->pg_init_in_progress--;
+	if (!m->pg_init_in_progress)
+		queue_work(kmultipathd, &m->process_queued_ios);
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
 static void activate_path(struct work_struct *work)
 {
 	int ret;
-	struct multipath *m =
-		container_of(work, struct multipath, activate_path);
-	struct dm_path *path;
-	unsigned long flags;
+	struct pgpath *pgpath =
+		container_of(work, struct pgpath, activate_path);
 
-	spin_lock_irqsave(&m->lock, flags);
-	path = &m->pgpath_to_activate->path;
-	m->pgpath_to_activate = NULL;
-	spin_unlock_irqrestore(&m->lock, flags);
-	if (!path)
-		return;
-	ret = scsi_dh_activate(bdev_get_queue(path->dev->bdev));
-	pg_init_done(path, ret);
+	ret = scsi_dh_activate(bdev_get_queue(pgpath->path.dev->bdev));
+	pg_init_done(&pgpath->path, ret);
 }
 
 /*
