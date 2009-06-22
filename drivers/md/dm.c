@@ -536,9 +536,11 @@ static void dec_pending(struct dm_io *io, int error)
 			 * Target requested pushing back the I/O.
 			 */
 			spin_lock_irqsave(&md->deferred_lock, flags);
-			if (__noflush_suspending(md))
-				bio_list_add_head(&md->deferred, io->bio);
-			else
+			if (__noflush_suspending(md)) {
+				if (!bio_barrier(io->bio))
+					bio_list_add_head(&md->deferred,
+							  io->bio);
+			} else
 				/* noflush suspend was interrupted. */
 				io->error = -EIO;
 			spin_unlock_irqrestore(&md->deferred_lock, flags);
@@ -1458,6 +1460,11 @@ static void process_barrier(struct mapped_device *md, struct bio *bio)
 
 	if (md->barrier_error != DM_ENDIO_REQUEUE)
 		bio_endio(bio, md->barrier_error);
+	else {
+		spin_lock_irq(&md->deferred_lock);
+		bio_list_add_head(&md->deferred, bio);
+		spin_unlock_irq(&md->deferred_lock);
+	}
 }
 
 /*
