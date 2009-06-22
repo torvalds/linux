@@ -2938,11 +2938,6 @@ static int selinux_revalidate_file_permission(struct file *file, int mask)
 	const struct cred *cred = current_cred();
 	struct inode *inode = file->f_path.dentry->d_inode;
 
-	if (!mask) {
-		/* No permission to check.  Existence test. */
-		return 0;
-	}
-
 	/* file_mask_to_av won't add FILE__WRITE if MAY_APPEND is set */
 	if ((file->f_flags & O_APPEND) && (mask & MAY_WRITE))
 		mask |= MAY_APPEND;
@@ -2953,8 +2948,18 @@ static int selinux_revalidate_file_permission(struct file *file, int mask)
 
 static int selinux_file_permission(struct file *file, int mask)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct file_security_struct *fsec = file->f_security;
+	struct inode_security_struct *isec = inode->i_security;
+	u32 sid = current_sid();
+
 	if (!mask)
 		/* No permission to check.  Existence test. */
+		return 0;
+
+	if (sid == fsec->sid && fsec->isid == isec->sid &&
+	    fsec->pseqno == avc_policy_seqno())
+		/* No change since dentry_open check. */
 		return 0;
 
 	return selinux_revalidate_file_permission(file, mask);
