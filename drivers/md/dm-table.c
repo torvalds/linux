@@ -388,7 +388,8 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 static int check_device_area(struct dm_dev_internal *dd, sector_t start,
 			     sector_t len)
 {
-	sector_t dev_size = dd->dm_dev.bdev->bd_inode->i_size >> SECTOR_SHIFT;
+	sector_t dev_size = i_size_read(dd->dm_dev.bdev->bd_inode) >>
+			    SECTOR_SHIFT;
 
 	if (!dev_size)
 		return 1;
