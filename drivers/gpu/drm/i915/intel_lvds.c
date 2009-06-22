@@ -39,6 +39,21 @@
 
 #define I915_LVDS "i915_lvds"
 
+/*
+ * the following four scaling options are defined.
+ * #define DRM_MODE_SCALE_NON_GPU	0
+ * #define DRM_MODE_SCALE_FULLSCREEN	1
+ * #define DRM_MODE_SCALE_NO_SCALE	2
+ * #define DRM_MODE_SCALE_ASPECT	3
+ */
+
+/* Private structure for the integrated LVDS support */
+struct intel_lvds_priv {
+	int fitting_mode;
+	u32 pfit_control;
+	u32 pfit_pgm_ratios;
+};
+
 /**
  * Sets the backlight level.
  *
@@ -213,10 +228,24 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
+	/*
+	 * float point operation is not supported . So the PANEL_RATIO_FACTOR
+	 * is defined, which can avoid the float point computation when
+	 * calculating the panel ratio.
+	 */
+#define PANEL_RATIO_FACTOR 8192
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct drm_encoder *tmp_encoder;
+	struct intel_output *intel_output = enc_to_intel_output(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+	u32 pfit_control = 0, pfit_pgm_ratios = 0;
+	int left_border = 0, right_border = 0, top_border = 0;
+	int bottom_border = 0;
+	bool border = 0;
+	int panel_ratio, desired_ratio, vert_scale, horiz_scale;
+	int horiz_ratio, vert_ratio;
 
 	/* Should never happen!! */
 	if (!IS_I965G(dev) && intel_crtc->pipe == 0) {
@@ -232,7 +261,9 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			return false;
 		}
 	}
-
+	/* If we don't have a panel mode, there is nothing we can do */
+	if (dev_priv->panel_fixed_mode == NULL)
+		return true;
 	/*
 	 * If we have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -256,6 +287,191 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
 	}
 
+	/* Make sure pre-965s set dither correctly */
+	if (!IS_I965G(dev)) {
+		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
+			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+	}
+
+	/* Native modes don't need fitting */
+	if (adjusted_mode->hdisplay == mode->hdisplay &&
+			adjusted_mode->vdisplay == mode->vdisplay) {
+		pfit_pgm_ratios = 0;
+		border = 0;
+		goto out;
+	}
+
+	/* 965+ wants fuzzy fitting */
+	if (IS_I965G(dev))
+		pfit_control |= (intel_crtc->pipe << PFIT_PIPE_SHIFT) |
+					PFIT_FILTER_FUZZY;
+
+	/*
+	 * Deal with panel fitting options. Figure out how to stretch the
+	 * image based on its aspect ratio & the current panel fitting mode.
+	 */
+	panel_ratio = adjusted_mode->hdisplay * PANEL_RATIO_FACTOR /
+				adjusted_mode->vdisplay;
+	desired_ratio = mode->hdisplay * PANEL_RATIO_FACTOR /
+				mode->vdisplay;
+	/*
+	 * Enable automatic panel scaling for non-native modes so that they fill
+	 * the screen.  Should be enabled before the pipe is enabled, according
+	 * to register description and PRM.
+	 * Change the value here to see the borders for debugging
+	 */
+	I915_WRITE(BCLRPAT_A, 0);
+	I915_WRITE(BCLRPAT_B, 0);
+
+	switch (lvds_priv->fitting_mode) {
+	case DRM_MODE_SCALE_NO_SCALE:
+		/*
+		 * For centered modes, we have to calculate border widths &
+		 * heights and modify the values programmed into the CRTC.
+		 */
+		left_border = (adjusted_mode->hdisplay - mode->hdisplay) / 2;
+		right_border = left_border;
+		if (mode->hdisplay & 1)
+			right_border++;
+		top_border = (adjusted_mode->vdisplay - mode->vdisplay) / 2;
+		bottom_border = top_border;
+		if (mode->vdisplay & 1)
+			bottom_border++;
+		/* Set active & border values */
+		adjusted_mode->crtc_hdisplay = mode->hdisplay;
+		adjusted_mode->crtc_hblank_start = mode->hdisplay +
+						right_border - 1;
+		adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal -
+						left_border - 1;
+		adjusted_mode->crtc_hsync_start =
+				adjusted_mode->crtc_hblank_start;
+		adjusted_mode->crtc_hsync_end =
+				adjusted_mode->crtc_hblank_end;
+		adjusted_mode->crtc_vdisplay = mode->vdisplay;
+		adjusted_mode->crtc_vblank_start = mode->vdisplay +
+						bottom_border - 1;
+		adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal -
+						top_border - 1;
+		adjusted_mode->crtc_vsync_start =
+				adjusted_mode->crtc_vblank_start;
+		adjusted_mode->crtc_vsync_end =
+				adjusted_mode->crtc_vblank_end;
+		border = 1;
+		break;
+	case DRM_MODE_SCALE_ASPECT:
+		/* Scale but preserve the spect ratio */
+		pfit_control |= PFIT_ENABLE;
+		if (IS_I965G(dev)) {
+			/* 965+ is easy, it does everything in hw */
+			if (panel_ratio > desired_ratio)
+				pfit_control |= PFIT_SCALING_PILLAR;
+			else if (panel_ratio < desired_ratio)
+				pfit_control |= PFIT_SCALING_LETTER;
+			else
+				pfit_control |= PFIT_SCALING_AUTO;
+		} else {
+			/*
+			 * For earlier chips we have to calculate the scaling
+			 * ratio by hand and program it into the
+			 * PFIT_PGM_RATIO register
+			 */
+			u32 horiz_bits, vert_bits, bits = 12;
+			horiz_ratio = mode->hdisplay * PANEL_RATIO_FACTOR/
+						adjusted_mode->hdisplay;
+			vert_ratio = mode->vdisplay * PANEL_RATIO_FACTOR/
+						adjusted_mode->vdisplay;
+			horiz_scale = adjusted_mode->hdisplay *
+					PANEL_RATIO_FACTOR / mode->hdisplay;
+			vert_scale = adjusted_mode->vdisplay *
+					PANEL_RATIO_FACTOR / mode->vdisplay;
+
+			/* retain aspect ratio */
+			if (panel_ratio > desired_ratio) { /* Pillar */
+				u32 scaled_width;
+				scaled_width = mode->hdisplay * vert_scale /
+						PANEL_RATIO_FACTOR;
+				horiz_ratio = vert_ratio;
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_INTERP_BILINEAR);
+				/* Pillar will have left/right borders */
+				left_border = (adjusted_mode->hdisplay -
+						scaled_width) / 2;
+				right_border = left_border;
+				if (mode->hdisplay & 1) /* odd resolutions */
+					right_border++;
+				adjusted_mode->crtc_hdisplay = scaled_width;
+				adjusted_mode->crtc_hblank_start =
+					scaled_width + right_border - 1;
+				adjusted_mode->crtc_hblank_end =
+				 adjusted_mode->crtc_htotal - left_border - 1;
+				adjusted_mode->crtc_hsync_start =
+					adjusted_mode->crtc_hblank_start;
+				adjusted_mode->crtc_hsync_end =
+					adjusted_mode->crtc_hblank_end;
+				border = 1;
+			} else if (panel_ratio < desired_ratio) { /* letter */
+				u32 scaled_height = mode->vdisplay *
+					horiz_scale / PANEL_RATIO_FACTOR;
+				vert_ratio = horiz_ratio;
+				pfit_control |= (HORIZ_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_INTERP_BILINEAR);
+				/* Letterbox will have top/bottom border */
+				top_border = (adjusted_mode->vdisplay -
+					scaled_height) / 2;
+				bottom_border = top_border;
+				if (mode->vdisplay & 1)
+					bottom_border++;
+				adjusted_mode->crtc_vdisplay = scaled_height;
+				adjusted_mode->crtc_vblank_start =
+					scaled_height + bottom_border - 1;
+				adjusted_mode->crtc_vblank_end =
+				 adjusted_mode->crtc_vtotal - top_border - 1;
+				adjusted_mode->crtc_vsync_start =
+					adjusted_mode->crtc_vblank_start;
+				adjusted_mode->crtc_vsync_end =
+					adjusted_mode->crtc_vblank_end;
+				border = 1;
+			} else {
+			/* Aspects match, Let hw scale both directions */
+				pfit_control |= (VERT_AUTO_SCALE |
+						 HORIZ_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_INTERP_BILINEAR);
+			}
+			horiz_bits = (1 << bits) * horiz_ratio /
+					PANEL_RATIO_FACTOR;
+			vert_bits = (1 << bits) * vert_ratio /
+					PANEL_RATIO_FACTOR;
+			pfit_pgm_ratios =
+				((vert_bits << PFIT_VERT_SCALE_SHIFT) &
+						PFIT_VERT_SCALE_MASK) |
+				((horiz_bits << PFIT_HORIZ_SCALE_SHIFT) &
+						PFIT_HORIZ_SCALE_MASK);
+		}
+		break;
+
+	case DRM_MODE_SCALE_FULLSCREEN:
+		/*
+		 * Full scaling, even if it changes the aspect ratio.
+		 * Fortunately this is all done for us in hw.
+		 */
+		pfit_control |= PFIT_ENABLE;
+		if (IS_I965G(dev))
+			pfit_control |= PFIT_SCALING_AUTO;
+		else
+			pfit_control |= (VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+					 VERT_INTERP_BILINEAR |
+					 HORIZ_INTERP_BILINEAR);
+		break;
+	default:
+		break;
+	}
+
+out:
+	lvds_priv->pfit_control = pfit_control;
+	lvds_priv->pfit_pgm_ratios = pfit_pgm_ratios;
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the
 	 * panels to reduce power consumption, and perhaps match the
@@ -301,8 +517,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
-	u32 pfit_control;
+	struct intel_output *intel_output = enc_to_intel_output(encoder);
+	struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
 
 	/*
 	 * The LVDS pin pair will already have been turned on in the
@@ -319,22 +535,8 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
-	if (mode->hdisplay != adjusted_mode->hdisplay ||
-	    mode->vdisplay != adjusted_mode->vdisplay)
-		pfit_control = (PFIT_ENABLE | VERT_AUTO_SCALE |
-				HORIZ_AUTO_SCALE | VERT_INTERP_BILINEAR |
-				HORIZ_INTERP_BILINEAR);
-	else
-		pfit_control = 0;
-
-	if (!IS_I965G(dev)) {
-		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
-			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-	}
-	else
-		pfit_control |= intel_crtc->pipe << PFIT_PIPE_SHIFT;
-
-	I915_WRITE(PFIT_CONTROL, pfit_control);
+	I915_WRITE(PFIT_PGM_RATIOS, lvds_priv->pfit_pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, lvds_priv->pfit_control);
 }
 
 /**
@@ -406,6 +608,34 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 				   struct drm_property *property,
 				   uint64_t value)
 {
+	struct drm_device *dev = connector->dev;
+	struct intel_output *intel_output =
+			to_intel_output(connector);
+
+	if (property == dev->mode_config.scaling_mode_property &&
+				connector->encoder) {
+		struct drm_crtc *crtc = connector->encoder->crtc;
+		struct intel_lvds_priv *lvds_priv = intel_output->dev_priv;
+		if (value == DRM_MODE_SCALE_NON_GPU) {
+			DRM_DEBUG_KMS(I915_LVDS,
+					"non_GPU property is unsupported\n");
+			return 0;
+		}
+		if (lvds_priv->fitting_mode == value) {
+			/* the LVDS scaling property is not changed */
+			return 0;
+		}
+		lvds_priv->fitting_mode = value;
+		if (crtc && crtc->enabled) {
+			/*
+			 * If the CRTC is enabled, the display will be changed
+			 * according to the new panel fitting mode.
+			 */
+			drm_crtc_helper_set_mode(crtc, &crtc->mode,
+				crtc->x, crtc->y, crtc->fb);
+		}
+	}
+
 	return 0;
 }
 
@@ -518,6 +748,7 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_display_mode *scan; /* *modes, *bios_mode; */
 	struct drm_crtc *crtc;
+	struct intel_lvds_priv *lvds_priv;
 	u32 lvds;
 	int pipe, gpio = GPIOC;
 
@@ -531,7 +762,8 @@ void intel_lvds_init(struct drm_device *dev)
 		gpio = PCH_GPIOC;
 	}
 
-	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
+	intel_output = kzalloc(sizeof(struct intel_output) +
+				sizeof(struct intel_lvds_priv), GFP_KERNEL);
 	if (!intel_output) {
 		return;
 	}
@@ -553,7 +785,18 @@ void intel_lvds_init(struct drm_device *dev)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
+	lvds_priv = (struct intel_lvds_priv *)(intel_output + 1);
+	intel_output->dev_priv = lvds_priv;
+	/* create the scaling mode property */
+	drm_mode_create_scaling_mode_property(dev);
+	/*
+	 * the initial panel fitting mode will be FULL_SCREEN.
+	 */
 
+	drm_connector_attach_property(&intel_output->base,
+				      dev->mode_config.scaling_mode_property,
+				      DRM_MODE_SCALE_FULLSCREEN);
+	lvds_priv->fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC
@@ -649,5 +892,5 @@ failed:
 	if (intel_output->ddc_bus)
 		intel_i2c_destroy(intel_output->ddc_bus);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(intel_output);
 }
