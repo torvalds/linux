@@ -391,11 +391,6 @@ static void free_io(struct mapped_device *md, struct dm_io *io)
 	mempool_free(io, md->io_pool);
 }
 
-static struct dm_target_io *alloc_tio(struct mapped_device *md)
-{
-	return mempool_alloc(md->tio_pool, GFP_NOIO);
-}
-
 static void free_tio(struct mapped_device *md, struct dm_target_io *tio)
 {
 	mempool_free(tio, md->tio_pool);
@@ -750,16 +745,24 @@ static struct bio *clone_bio(struct bio *bio, sector_t sector,
 	return clone;
 }
 
-static void __flush_target(struct clone_info *ci, struct dm_target *ti,
-			  unsigned flush_nr)
+static struct dm_target_io *alloc_tio(struct clone_info *ci,
+				      struct dm_target *ti)
 {
-	struct dm_target_io *tio = alloc_tio(ci->md);
-	struct bio *clone;
+	struct dm_target_io *tio = mempool_alloc(ci->md->tio_pool, GFP_NOIO);
 
 	tio->io = ci->io;
 	tio->ti = ti;
-
 	memset(&tio->info, 0, sizeof(tio->info));
+
+	return tio;
+}
+
+static void __flush_target(struct clone_info *ci, struct dm_target *ti,
+			  unsigned flush_nr)
+{
+	struct dm_target_io *tio = alloc_tio(ci, ti);
+	struct bio *clone;
+
 	tio->info.flush_request = flush_nr;
 
 	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
@@ -803,10 +806,7 @@ static int __clone_and_map(struct clone_info *ci)
 	/*
 	 * Allocate a target io object.
 	 */
-	tio = alloc_tio(ci->md);
-	tio->io = ci->io;
-	tio->ti = ti;
-	memset(&tio->info, 0, sizeof(tio->info));
+	tio = alloc_tio(ci, ti);
 
 	if (ci->sector_count <= max) {
 		/*
@@ -862,10 +862,7 @@ static int __clone_and_map(struct clone_info *ci)
 
 				max = max_io_len(ci->md, ci->sector, ti);
 
-				tio = alloc_tio(ci->md);
-				tio->io = ci->io;
-				tio->ti = ti;
-				memset(&tio->info, 0, sizeof(tio->info));
+				tio = alloc_tio(ci, ti);
 			}
 
 			len = min(remaining, max);
