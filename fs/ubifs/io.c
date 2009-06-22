@@ -857,7 +857,9 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 	 * and hard limits.
 	 */
 	hardlimit = ktime_set(DEFAULT_WBUF_TIMEOUT_SECS, 0);
-	wbuf->delta = (DEFAULT_WBUF_TIMEOUT_SECS * NSEC_PER_SEC) * 2 / 10;
+	wbuf->delta = DEFAULT_WBUF_TIMEOUT_SECS * 1000000000ULL * 2 / 10;
+	if (wbuf->delta > ULONG_MAX)
+		wbuf->delta = ULONG_MAX;
 	wbuf->softlimit = ktime_sub_ns(hardlimit, wbuf->delta);
 	hrtimer_set_expires_range_ns(&wbuf->timer,  wbuf->softlimit,
 				     wbuf->delta);
