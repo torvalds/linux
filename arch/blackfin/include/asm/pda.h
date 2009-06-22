@@ -50,6 +50,7 @@ struct blackfin_pda {			/* Per-processor Data Area */
 	unsigned long ex_optr;
 	unsigned long ex_buf[4];
 	unsigned long ex_imask;		/* Saved imask from exception */
+	unsigned long ex_ipend;		/* Saved IPEND from exception */
 	unsigned long *ex_stack;	/* Exception stack space */
 
 #ifdef ANOMALY_05000261

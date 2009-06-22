@@ -145,6 +145,7 @@ int main(void)
 	DEFINE(PDA_EXBUF, offsetof(struct blackfin_pda, ex_buf));
 	DEFINE(PDA_EXIMASK, offsetof(struct blackfin_pda, ex_imask));
 	DEFINE(PDA_EXSTACK, offsetof(struct blackfin_pda, ex_stack));
+	DEFINE(PDA_EXIPEND, offsetof(struct blackfin_pda, ex_ipend));
 #ifdef ANOMALY_05000261
 	DEFINE(PDA_LFRETX, offsetof(struct blackfin_pda, last_cplb_fault_retx));
 #endif
