@@ -18,30 +18,30 @@ struct event_symbol {
 	char	*symbol;
 };
 
-#define C(x, y) .type = PERF_TYPE_##x, .config = PERF_COUNT_##y
-#define CR(x, y) .type = PERF_TYPE_##x, .config = y
+#define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
+#define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
 static struct event_symbol event_symbols[] = {
-  { C(HARDWARE, HW_CPU_CYCLES),		"cpu-cycles",		},
-  { C(HARDWARE, HW_CPU_CYCLES),		"cycles",		},
-  { C(HARDWARE, HW_INSTRUCTIONS),	"instructions",		},
-  { C(HARDWARE, HW_CACHE_REFERENCES),	"cache-references",	},
-  { C(HARDWARE, HW_CACHE_MISSES),	"cache-misses",		},
-  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branch-instructions",	},
-  { C(HARDWARE, HW_BRANCH_INSTRUCTIONS),"branches",		},
-  { C(HARDWARE, HW_BRANCH_MISSES),	"branch-misses",	},
-  { C(HARDWARE, HW_BUS_CYCLES),		"bus-cycles",		},
+  { CHW(CPU_CYCLES),		"cpu-cycles",		},
+  { CHW(CPU_CYCLES),		"cycles",		},
+  { CHW(INSTRUCTIONS),		"instructions",		},
+  { CHW(CACHE_REFERENCES),	"cache-references",	},
+  { CHW(CACHE_MISSES),		"cache-misses",		},
+  { CHW(BRANCH_INSTRUCTIONS),	"branch-instructions",	},
+  { CHW(BRANCH_INSTRUCTIONS),	"branches",		},
+  { CHW(BRANCH_MISSES),		"branch-misses",	},
+  { CHW(BUS_CYCLES),		"bus-cycles",		},
 
-  { C(SOFTWARE, SW_CPU_CLOCK),		"cpu-clock",		},
-  { C(SOFTWARE, SW_TASK_CLOCK),		"task-clock",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS),	"page-faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS),	"faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS_MIN),	"minor-faults",		},
-  { C(SOFTWARE, SW_PAGE_FAULTS_MAJ),	"major-faults",		},
-  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"context-switches",	},
-  { C(SOFTWARE, SW_CONTEXT_SWITCHES),	"cs",			},
-  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"cpu-migrations",	},
-  { C(SOFTWARE, SW_CPU_MIGRATIONS),	"migrations",		},
+  { CSW(CPU_CLOCK),		"cpu-clock",		},
+  { CSW(TASK_CLOCK),		"task-clock",		},
+  { CSW(PAGE_FAULTS),		"page-faults",		},
+  { CSW(PAGE_FAULTS),		"faults",		},
+  { CSW(PAGE_FAULTS_MIN),	"minor-faults",		},
+  { CSW(PAGE_FAULTS_MAJ),	"major-faults",		},
+  { CSW(CONTEXT_SWITCHES),	"context-switches",	},
+  { CSW(CONTEXT_SWITCHES),	"cs",			},
+  { CSW(CPU_MIGRATIONS),	"cpu-migrations",	},
+  { CSW(CPU_MIGRATIONS),	"migrations",		},
 };
 
 #define __PERF_COUNTER_FIELD(config, name) \
