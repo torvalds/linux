@@ -412,9 +412,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		 * CPUs can take much longer to come up in the
 		 * hotplug case.  Wait five seconds.
 		 */
-		for (c = 25; c && !cpu_callin_map[cpu]; c--) {
-			msleep(200);
-		}
+		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
+			msleep(1);
 #endif
 
 	if (!cpu_callin_map[cpu]) {
