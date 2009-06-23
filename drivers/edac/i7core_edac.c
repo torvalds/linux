@@ -328,8 +328,10 @@ static int i7core_get_active_channels(int *channels)
 		}
 	}
 
-	if (!pdev)
+	if (!pdev) {
+		i7core_printk(KERN_ERR, "Couldn't find fn 3.0!!!\n");
 		return -ENODEV;
+	}
 
 	/* Device 3 function 0 reads */
 	pci_read_config_dword(pdev, MC_STATUS, &status);
@@ -1109,16 +1111,19 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	int num_channels = 0;
 	int num_csrows;
 	int dev_idx = id->driver_data;
+	int rc;
 
 	if (unlikely(dev_idx >= ARRAY_SIZE(i7core_devs)))
 		return -EINVAL;
 
 	/* get the pci devices we want to reserve for our use */
-	if (unlikely(i7core_get_devices() < 0))
-		return -ENODEV;
+	rc = i7core_get_devices();
+	if (unlikely(rc < 0))
+		return rc;
 
 	/* Check the number of active and not disabled channels */
-	if (unlikely (i7core_get_active_channels(&num_channels)) < 0)
+	rc = i7core_get_active_channels(&num_channels);
+	if (unlikely (rc < 0))
 		goto fail0;
 
 	/* FIXME: we currently don't know the number of csrows */
@@ -1126,8 +1131,10 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	/* allocate a new MC control structure */
 	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
-	if (unlikely (!mci))
-		return -ENOMEM;
+	if (unlikely (!mci)) {
+		rc = -ENOMEM;
+		goto fail0;
+	}
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
 
@@ -1150,19 +1157,22 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci->edac_check = i7core_check_error;
 
 	/* Store pci devices at mci for faster access */
-	if (unlikely (mci_bind_devs(mci)) < 0)
+	rc = mci_bind_devs(mci);
+	if (unlikely (rc < 0))
 		goto fail1;
 
 	/* Get dimm basic config */
 	get_dimm_config(mci);
 
 	/* add this new MC control structure to EDAC's list of MCs */
-	if (unlikely(edac_mc_add_mc(mci)) < 0) {
+	if (unlikely(edac_mc_add_mc(mci))) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mc_add_mc()\n", __func__);
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
+
+		rc = -EINVAL;
 		goto fail1;
 	}
 
@@ -1190,11 +1200,11 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	return 0;
 
 fail1:
-	i7core_put_devices();
+	edac_mc_free(mci);
 
 fail0:
-	edac_mc_free(mci);
-	return -ENODEV;
+	i7core_put_devices();
+	return rc;
 }
 
 /*
