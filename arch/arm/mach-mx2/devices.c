@@ -40,30 +40,6 @@
 #include "devices.h"
 
 /*
- * Resource definition for the MXC IrDA
- */
-static struct resource mxc_irda_resources[] = {
-	[0] = {
-		.start   = UART3_BASE_ADDR,
-		.end     = UART3_BASE_ADDR + SZ_4K - 1,
-		.flags   = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start   = MXC_INT_UART3,
-		.end     = MXC_INT_UART3,
-		.flags   = IORESOURCE_IRQ,
-	},
-};
-
-/* Platform Data for MXC IrDA */
-struct platform_device mxc_irda_device = {
-	.name = "mxc_irda",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_irda_resources),
-	.resource = mxc_irda_resources,
-};
-
-/*
  * General Purpose Timer
  * - i.MX1: 2 timer (slighly different register handling)
  * - i.MX21: 3 timer
