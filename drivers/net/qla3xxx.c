@@ -3150,7 +3150,8 @@ static int ql_adapter_initialize(struct ql3_adapter *qdev)
 	ql_write_common_reg(qdev, &port_regs->CommonRegs.serialPortInterfaceReg,
 			    (ISP_SERIAL_PORT_IF_WE |
 			     (ISP_SERIAL_PORT_IF_WE << 16)));
-
+	/* Give the PHY time to come out of reset. */
+	mdelay(100);
 	qdev->port_link_state = LS_DOWN;
 	netif_carrier_off(qdev->ndev);
 
