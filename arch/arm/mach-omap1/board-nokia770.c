@@ -36,7 +36,6 @@
 #include <mach/hwa742.h>
 #include <mach/lcd_mipid.h>
 #include <mach/mmc.h>
-#include <mach/usb.h>
 #include <mach/clock.h>
 
 #define ADS7846_PENDOWN_GPIO	15
