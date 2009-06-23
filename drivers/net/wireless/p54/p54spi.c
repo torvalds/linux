@@ -34,7 +34,7 @@
 #include "p54spi_eeprom.h"
 #include "p54.h"
 
-#include "p54common.h"
+#include "lmac.h"
 
 MODULE_FIRMWARE("3826.arm");
 MODULE_ALIAS("stlc45xx");
@@ -713,7 +713,7 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 {
 	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
 
-	ieee80211_unregister_hw(priv->hw);
+	p54_unregister_common(priv->hw);
 
 	free_irq(gpio_to_irq(p54spi_gpio_irq), spi);
 
@@ -724,7 +724,6 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 	mutex_destroy(&priv->mutex);
 
 	p54_free_common(priv->hw);
-	ieee80211_free_hw(priv->hw);
 
 	return 0;
 }

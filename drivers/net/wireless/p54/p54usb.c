@@ -22,6 +22,7 @@
 #include <net/mac80211.h>
 
 #include "p54.h"
+#include "lmac.h"
 #include "p54usb.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
@@ -961,7 +962,7 @@ err_free_fw:
 	release_firmware(priv->fw);
 
 err_free_dev:
-	ieee80211_free_hw(dev);
+	p54_free_common(dev);
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(udev);
 	return err;
@@ -975,13 +976,12 @@ static void __devexit p54u_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-	ieee80211_unregister_hw(dev);
+	p54_unregister_common(dev);
 
 	priv = dev->priv;
 	usb_put_dev(interface_to_usbdev(intf));
 	release_firmware(priv->fw);
 	p54_free_common(dev);
-	ieee80211_free_hw(dev);
 }
 
 static int p54u_pre_reset(struct usb_interface *intf)
