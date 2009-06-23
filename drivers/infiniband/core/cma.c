@@ -2960,7 +2960,7 @@ static void cma_remove_one(struct ib_device *device)
 	kfree(cma_dev);
 }
 
-static int cma_init(void)
+static int __init cma_init(void)
 {
 	int ret, low, high, remaining;
 
@@ -2990,7 +2990,7 @@ err:
 	return ret;
 }
 
-static void cma_cleanup(void)
+static void __exit cma_cleanup(void)
 {
 	ib_unregister_client(&cma_client);
 	unregister_netdevice_notifier(&cma_nb);
