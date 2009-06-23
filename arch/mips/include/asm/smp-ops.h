@@ -26,6 +26,10 @@ struct plat_smp_ops {
 	void (*boot_secondary)(int cpu, struct task_struct *idle);
 	void (*smp_setup)(void);
 	void (*prepare_cpus)(unsigned int max_cpus);
+#ifdef CONFIG_HOTPLUG_CPU
+	int (*cpu_disable)(void);
+	void (*cpu_die)(unsigned int cpu);
+#endif
 };
 
 extern void register_smp_ops(struct plat_smp_ops *ops);
