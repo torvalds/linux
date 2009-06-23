@@ -29,6 +29,7 @@ int pcap_to_irq(struct pcap_chip *, int);
 int irq_to_pcap(struct pcap_chip *, int);
 int pcap_adc_async(struct pcap_chip *, u8, u32, u8[], void *, void *);
 int pcap_adc_sync(struct pcap_chip *, u8, u32, u8[], u16[]);
+void pcap_set_ts_bits(struct pcap_chip *, u32);
 
 #define PCAP_SECOND_PORT	1
 #define PCAP_CS_AH		2
