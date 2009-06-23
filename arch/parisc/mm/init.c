@@ -378,7 +378,7 @@ void free_initmem(void)
 	/* Attempt to catch anyone trying to execute code here
 	 * by filling the page with BRK insns.
 	 */
-	memset(init_begin, 0x00, init_end - init_begin);
+	memset((void *)init_begin, 0x00, init_end - init_begin);
 	flush_icache_range(init_begin, init_end);
 #endif
 	
