@@ -704,7 +704,7 @@
  * matches the requirment of PAGE_ALIGNED_DATA.
  *
  * use 0 as page_align if page_aligned data is not used */
-#define RW_DATA_SECTION(cacheline, nosave, pagealigned, inittask)	\
+#define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
 		INIT_TASK(inittask)					\
@@ -712,7 +712,7 @@
 		READ_MOSTLY_DATA(cacheline)				\
 		DATA_DATA						\
 		CONSTRUCTORS						\
-		NOSAVE_DATA(nosave)					\
+		NOSAVE_DATA						\
 		PAGE_ALIGNED_DATA(pagealigned)				\
 	}
 
