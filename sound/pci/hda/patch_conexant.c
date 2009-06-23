@@ -349,7 +349,7 @@ static int conexant_mux_enum_put(struct snd_kcontrol *kcontrol,
 				     &spec->cur_mux[adc_idx]);
 }
 
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 static void conexant_free_jack_priv(struct snd_jack *jack)
 {
 	struct conexant_jack *jacks = jack->private_data;
@@ -463,7 +463,7 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_JACK
+#ifdef CONFIG_SND_HDA_INPUT_JACK
 	struct conexant_spec *spec = codec->spec;
 	if (spec->jacks.list) {
 		struct conexant_jack *jacks = spec->jacks.list;
