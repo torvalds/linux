@@ -2824,10 +2824,10 @@ S:	Supported
 F:	drivers/scsi/ips.*
 
 IDE SUBSYSTEM
-P:	Bartlomiej Zolnierkiewicz
-M:	bzolnier@gmail.com
+P:	David S. Miller
+M:	davem@davemloft.net
 L:	linux-ide@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bart/ide-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
 F:	drivers/ide/
