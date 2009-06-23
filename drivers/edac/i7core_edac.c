@@ -359,21 +359,18 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
-	int i, csrow = 0;
+	struct pci_dev *pdev = pvt->pci_mcr[0];
+	int i, j, csrow = 0;
 	enum edac_type mode;
 
-	if (!pvt->pci_mcr[0])
+	if (!pdev)
 		return -ENODEV;
 
 	/* Device 3 function 0 reads */
-	pci_read_config_dword(pvt->pci_mcr[0], MC_CONTROL,
-					       &pvt->info.mc_control);
-	pci_read_config_dword(pvt->pci_mcr[0], MC_STATUS,
-					       &pvt->info.mc_status);
-	pci_read_config_dword(pvt->pci_mcr[0], MC_MAX_DOD,
-					       &pvt->info.max_dod);
-	pci_read_config_dword(pvt->pci_mcr[0], MC_CHANNEL_MAPPER,
-					       &pvt->info.ch_map);
+	pci_read_config_dword(pdev, MC_CONTROL, &pvt->info.mc_control);
+	pci_read_config_dword(pdev, MC_STATUS, &pvt->info.mc_status);
+	pci_read_config_dword(pdev, MC_MAX_DOD, &pvt->info.max_dod);
+	pci_read_config_dword(pdev, MC_CHANNEL_MAPPER, &pvt->info.ch_map);
 
 	debugf0("MC control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
 		pvt->info.mc_control, pvt->info.mc_status,
@@ -399,7 +396,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	debugf0("Memory channel configuration:\n");
 
 	for (i = 0; i < NUM_CHANS; i++) {
-		u32 data;
+		u32 data, value[8];
 
 		if (!CH_ACTIVE(pvt, i)) {
 			debugf0("Channel %i is not active\n", i);
@@ -424,13 +421,33 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			pvt->channel[i].dimms = 2;
 
 		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
-			"%d ranks, %d %cDIMMs, offset = %d\n",
+			"%d ranks, %d %cDIMMs, offset = %d\n\t"
+			"present: %i, numbank: %#x, numrank: %#x, "
+			"numrow: %#x, numcol: %#x\n",
 			i,
 			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
 			data,
 			pvt->channel[i].ranks, pvt->channel[i].dimms,
 			(data & REGISTERED_DIMM)? 'R' : 'U',
-			RANKOFFSET(data));
+			RANKOFFSET(data),
+			DIMM_PRESENT(data),
+			NUMBANK(data), NUMRANK(data),
+			NUMROW(data), NUMCOL(data));
+
+			pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);
+			pci_read_config_dword(pdev, MC_SAG_CH_1, &value[1]);
+			pci_read_config_dword(pdev, MC_SAG_CH_2, &value[2]);
+			pci_read_config_dword(pdev, MC_SAG_CH_3, &value[3]);
+			pci_read_config_dword(pdev, MC_SAG_CH_4, &value[4]);
+			pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
+			pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
+			pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
+			printk("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
+			for (j = 0; j < 8; j++)
+				printk("\t\t%#x\t%#x\t%#x\n",
+					(value[j] >> 27) & 0x1,
+					(value[j] >> 24) & 0x7,
+					(value[j] && ((1 << 24) - 1)));
 
 		csr = &mci->csrows[csrow];
 		csr->first_page = 0;
