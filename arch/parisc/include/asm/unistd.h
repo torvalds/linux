@@ -809,8 +809,9 @@
 #define __NR_inotify_init1	(__NR_Linux + 314)
 #define __NR_preadv		(__NR_Linux + 315)
 #define __NR_pwritev		(__NR_Linux + 316)
+#define __NR_rt_tgsigqueueinfo	(__NR_Linux + 317)
 
-#define __NR_Linux_syscalls	(__NR_pwritev + 1)
+#define __NR_Linux_syscalls	(__NR_rt_tgsigqueueinfo + 1)
 
 
 #define __IGNORE_select		/* newselect */

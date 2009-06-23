@@ -413,8 +413,9 @@
 	ENTRY_SAME(dup3)
 	ENTRY_SAME(pipe2)
 	ENTRY_SAME(inotify_init1)
-	ENTRY_COMP(preadv)
+	ENTRY_COMP(preadv)		/* 315 */
 	ENTRY_COMP(pwritev)
+	ENTRY_COMP(rt_tgsigqueueinfo)
 
 	/* Nothing yet */
 
