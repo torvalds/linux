@@ -2274,10 +2274,12 @@ static long kvm_vm_ioctl(struct file *filp,
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
 	case KVM_SET_BOOT_CPU_ID:
 		r = 0;
+		mutex_lock(&kvm->lock);
 		if (atomic_read(&kvm->online_vcpus) != 0)
 			r = -EBUSY;
 		else
 			kvm->bsp_vcpu_id = arg;
+		mutex_unlock(&kvm->lock);
 		break;
 #endif
 	default:

@@ -345,9 +345,7 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 
 void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val)
 {
-	mutex_lock(&kvm->arch.vpit->pit_state.lock);
 	pit_load_count(kvm, channel, val);
-	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 }
 
 static inline struct kvm_pit *dev_to_pit(struct kvm_io_device *dev)

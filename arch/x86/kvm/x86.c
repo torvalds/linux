@@ -1987,19 +1987,25 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
+		spin_lock(&pic_irqchip(kvm)->lock);
 		memcpy(&pic_irqchip(kvm)->pics[0],
 			&chip->chip.pic,
 			sizeof(struct kvm_pic_state));
+		spin_unlock(&pic_irqchip(kvm)->lock);
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
+		spin_lock(&pic_irqchip(kvm)->lock);
 		memcpy(&pic_irqchip(kvm)->pics[1],
 			&chip->chip.pic,
 			sizeof(struct kvm_pic_state));
+		spin_unlock(&pic_irqchip(kvm)->lock);
 		break;
 	case KVM_IRQCHIP_IOAPIC:
+		mutex_lock(&kvm->irq_lock);
 		memcpy(ioapic_irqchip(kvm),
 			&chip->chip.ioapic,
 			sizeof(struct kvm_ioapic_state));
+		mutex_unlock(&kvm->irq_lock);
 		break;
 	default:
 		r = -EINVAL;
@@ -2013,7 +2019,9 @@ static int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 {
 	int r = 0;
 
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
 	memcpy(ps, &kvm->arch.vpit->pit_state, sizeof(struct kvm_pit_state));
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 	return r;
 }
 
@@ -2021,8 +2029,10 @@ static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 {
 	int r = 0;
 
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
 	memcpy(&kvm->arch.vpit->pit_state, ps, sizeof(struct kvm_pit_state));
 	kvm_pit_load_count(kvm, 0, ps->channels[0].count);
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 	return r;
 }
 
@@ -2031,7 +2041,9 @@ static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 {
 	if (!kvm->arch.vpit)
 		return -ENXIO;
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
 	kvm->arch.vpit->pit_state.pit_timer.reinject = control->pit_reinject;
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 	return 0;
 }
 
