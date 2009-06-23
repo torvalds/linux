@@ -135,11 +135,13 @@ struct __xchg_dummy {
 };
 #define __xg(x) ((volatile struct __xchg_dummy *)(x))
 
+#include <mach/blackfin.h>
+
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,
 				   int size)
 {
 	unsigned long tmp = 0;
-	unsigned long flags = 0;
+	unsigned long flags;
 
 	local_irq_save_hw(flags);
 

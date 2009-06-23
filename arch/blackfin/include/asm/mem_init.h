@@ -59,7 +59,7 @@
 #define SDRAM_tRP       TRP_1
 #define SDRAM_tRP_num   1
 #define SDRAM_tRAS      TRAS_4
-#define SDRAM_tRAS_num  3
+#define SDRAM_tRAS_num  4
 #define SDRAM_tRCD      TRCD_1
 #define SDRAM_tWR       TWR_2
 #endif
@@ -89,6 +89,85 @@
 #endif
 #endif
 
+/*
+ * The BF526-EZ-Board changed SDRAM chips between revisions,
+ * so we use below timings to accommodate both.
+ */
+#if defined(CONFIG_MEM_MT48H32M16LFCJ_75)
+#if (CONFIG_SCLK_HZ > 119402985)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_8
+#define SDRAM_tRAS_num  8
+#define SDRAM_tRCD      TRCD_2
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 104477612) && (CONFIG_SCLK_HZ <= 119402985)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_7
+#define SDRAM_tRAS_num  7
+#define SDRAM_tRCD      TRCD_2
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 89552239) && (CONFIG_SCLK_HZ <= 104477612)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_6
+#define SDRAM_tRAS_num  6
+#define SDRAM_tRCD      TRCD_2
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 74626866) && (CONFIG_SCLK_HZ <= 89552239)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_5
+#define SDRAM_tRAS_num  5
+#define SDRAM_tRCD      TRCD_2
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 66666667) && (CONFIG_SCLK_HZ <= 74626866)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_4
+#define SDRAM_tRAS_num  4
+#define SDRAM_tRCD      TRCD_2
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 59701493) && (CONFIG_SCLK_HZ <= 66666667)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_4
+#define SDRAM_tRAS_num  4
+#define SDRAM_tRCD      TRCD_1
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 44776119) && (CONFIG_SCLK_HZ <= 59701493)
+#define SDRAM_tRP       TRP_2
+#define SDRAM_tRP_num   2
+#define SDRAM_tRAS      TRAS_3
+#define SDRAM_tRAS_num  3
+#define SDRAM_tRCD      TRCD_1
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ > 29850746) && (CONFIG_SCLK_HZ <= 44776119)
+#define SDRAM_tRP       TRP_1
+#define SDRAM_tRP_num   1
+#define SDRAM_tRAS      TRAS_3
+#define SDRAM_tRAS_num  3
+#define SDRAM_tRCD      TRCD_1
+#define SDRAM_tWR       TWR_2
+#endif
+#if (CONFIG_SCLK_HZ <= 29850746)
+#define SDRAM_tRP       TRP_1
+#define SDRAM_tRP_num   1
+#define SDRAM_tRAS      TRAS_2
+#define SDRAM_tRAS_num  2
+#define SDRAM_tRCD      TRCD_1
+#define SDRAM_tWR       TWR_2
+#endif
+#endif
+
 #if defined(CONFIG_MEM_MT48LC16M8A2TG_75) || \
     defined(CONFIG_MEM_MT48LC8M32B2B5_7)
   /*SDRAM INFORMATION: */
@@ -107,6 +186,13 @@
 #define SDRAM_Tref  64		/* Refresh period in milliseconds   */
 #define SDRAM_NRA   8192	/* Number of row addresses in SDRAM */
 #define SDRAM_CL    CL_3
+#endif
+
+#if defined(CONFIG_MEM_MT48H32M16LFCJ_75)
+  /*SDRAM INFORMATION: */
+#define SDRAM_Tref  64		/* Refresh period in milliseconds   */
+#define SDRAM_NRA   8192	/* Number of row addresses in SDRAM */
+#define SDRAM_CL    CL_2
 #endif
 
 

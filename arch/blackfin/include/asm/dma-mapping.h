@@ -95,4 +95,17 @@ static inline void dma_sync_single_for_device(struct device *dev,
 					enum dma_data_direction dir)
 {
 }
+
+static inline void dma_sync_sg_for_cpu(struct device *dev,
+					struct scatterlist *sg,
+					int nents, enum dma_data_direction dir)
+{
+}
+
+static inline void dma_sync_sg_for_device(struct device *dev,
+					struct scatterlist *sg,
+					int nents, enum dma_data_direction dir)
+{
+}
+
 #endif				/* _BLACKFIN_DMA_MAPPING_H */

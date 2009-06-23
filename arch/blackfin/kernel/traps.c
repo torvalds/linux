@@ -37,6 +37,7 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/cplb.h>
+#include <asm/dma.h>
 #include <asm/blackfin.h>
 #include <asm/irq_handler.h>
 #include <linux/irq.h>
@@ -636,57 +637,30 @@ asmlinkage void trap_c(struct pt_regs *fp)
  */
 static bool get_instruction(unsigned short *val, unsigned short *address)
 {
-
-	unsigned long addr;
-
-	addr = (unsigned long)address;
+	unsigned long addr = (unsigned long)address;
 
 	/* Check for odd addresses */
 	if (addr & 0x1)
 		return false;
 
-	/* Check that things do not wrap around */
-	if (addr > (addr + 2))
+	/* MMR region will never have instructions */
+	if (addr >= SYSMMR_BASE)
 		return false;
 
-	/*
-	 * Since we are in exception context, we need to do a little address checking
-	 * We need to make sure we are only accessing valid memory, and
-	 * we don't read something in the async space that can hang forever
-	 */
-	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
-#if L2_LENGTH != 0
-	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
-#endif
-	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
-#if L1_DATA_A_LENGTH != 0
-	    (addr >= L1_DATA_A_START && (addr + 2) <= (L1_DATA_A_START + L1_DATA_A_LENGTH)) ||
-#endif
-#if L1_DATA_B_LENGTH != 0
-	    (addr >= L1_DATA_B_START && (addr + 2) <= (L1_DATA_B_START + L1_DATA_B_LENGTH)) ||
-#endif
-	    (addr >= L1_SCRATCH_START && (addr + 2) <= (L1_SCRATCH_START + L1_SCRATCH_LENGTH)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B0RDYEN) &&
-	       addr >= ASYNC_BANK0_BASE && (addr + 2) <= (ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL0() & B1RDYEN) &&
-	       addr >= ASYNC_BANK1_BASE && (addr + 2) <= (ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B2RDYEN) &&
-	       addr >= ASYNC_BANK2_BASE && (addr + 2) <= (ASYNC_BANK2_BASE + ASYNC_BANK1_SIZE)) ||
-	    (!(bfin_read_EBIU_AMBCTL1() & B3RDYEN) &&
-	      addr >= ASYNC_BANK3_BASE && (addr + 2) <= (ASYNC_BANK3_BASE + ASYNC_BANK1_SIZE))) {
-		*val = *address;
-		return true;
+	switch (bfin_mem_access_type(addr, 2)) {
+		case BFIN_MEM_ACCESS_CORE:
+		case BFIN_MEM_ACCESS_CORE_ONLY:
+			*val = *address;
+			return true;
+		case BFIN_MEM_ACCESS_DMA:
+			dma_memcpy(val, address, 2);
+			return true;
+		case BFIN_MEM_ACCESS_ITEST:
+			isram_memcpy(val, address, 2);
+			return true;
+		default: /* invalid access */
+			return false;
 	}
-
-#if L1_CODE_LENGTH != 0
-	if (addr >= L1_CODE_START && (addr + 2) <= (L1_CODE_START + L1_CODE_LENGTH)) {
-		isram_memcpy(val, address, 2);
-		return true;
-	}
-#endif
-
-
-	return false;
 }
 
 /*

@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/plat-ram.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
@@ -83,6 +84,101 @@ static struct platform_device smc91x_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
+};
+#endif
+
+#if defined(CONFIG_MTD_PSD4256G) || defined(CONFIG_MTD_PSD4256G_MODULE)
+static const char *map_probes[] = {
+	"stm_flash",
+	NULL,
+};
+
+static struct platdata_mtd_ram stm_pri_data_a = {
+	.mapname    = "Flash A Primary",
+	.map_probes = map_probes,
+	.bankwidth  = 2,
+};
+
+static struct resource stm_pri_resource_a = {
+	.start = 0x20000000,
+	.end   = 0x200fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device stm_pri_device_a = {
+	.name          = "mtd-ram",
+	.id            = 0,
+	.dev = {
+		.platform_data = &stm_pri_data_a,
+	},
+	.num_resources = 1,
+	.resource      = &stm_pri_resource_a,
+};
+
+static struct platdata_mtd_ram stm_pri_data_b = {
+	.mapname    = "Flash B Primary",
+	.map_probes = map_probes,
+	.bankwidth  = 2,
+};
+
+static struct resource stm_pri_resource_b = {
+	.start = 0x20100000,
+	.end   = 0x201fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device stm_pri_device_b = {
+	.name          = "mtd-ram",
+	.id            = 4,
+	.dev = {
+		.platform_data = &stm_pri_data_b,
+	},
+	.num_resources = 1,
+	.resource      = &stm_pri_resource_b,
+};
+#endif
+
+#if defined(CONFIG_MTD_PLATRAM) || defined(CONFIG_MTD_PLATRAM_MODULE)
+static struct platdata_mtd_ram sram_data_a = {
+	.mapname   = "Flash A SRAM",
+	.bankwidth = 2,
+};
+
+static struct resource sram_resource_a = {
+	.start = 0x20240000,
+	.end   = 0x2024ffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device sram_device_a = {
+	.name          = "mtd-ram",
+	.id            = 8,
+	.dev = {
+		.platform_data = &sram_data_a,
+	},
+	.num_resources = 1,
+	.resource      = &sram_resource_a,
+};
+
+static struct platdata_mtd_ram sram_data_b = {
+	.mapname   = "Flash B SRAM",
+	.bankwidth = 2,
+};
+
+static struct resource sram_resource_b = {
+	.start = 0x202c0000,
+	.end   = 0x202cffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device sram_device_b = {
+	.name          = "mtd-ram",
+	.id            = 9,
+	.dev = {
+		.platform_data = &sram_data_b,
+	},
+	.num_resources = 1,
+	.resource      = &sram_resource_b,
 };
 #endif
 
@@ -356,6 +452,16 @@ static struct platform_device bfin_dpmc = {
 static struct platform_device *ezkit_devices[] __initdata = {
 
 	&bfin_dpmc,
+
+#if defined(CONFIG_MTD_PSD4256G) || defined(CONFIG_MTD_PSD4256G_MODULE)
+	&stm_pri_device_a,
+	&stm_pri_device_b,
+#endif
+
+#if defined(CONFIG_MTD_PLATRAM) || defined(CONFIG_MTD_PLATRAM_MODULE)
+	&sram_device_a,
+	&sram_device_b,
+#endif
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,

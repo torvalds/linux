@@ -1,38 +1,16 @@
 /*
- * file:         include/asm-blackfin/mach-bf537/mem_map.h
- * based on:
- * author:
+ * BF537 memory map
  *
- * created:
- * description:
- *	Memory MAP Common header file for blackfin BF537/6/4 of processors.
- * rev:
- *
- * modified:
- *
- * bugs:         enter bugs at http://blackfin.uclinux.org/
- *
- * this program is free software; you can redistribute it and/or modify
- * it under the terms of the gnu general public license as published by
- * the free software foundation; either version 2, or (at your option)
- * any later version.
- *
- * this program is distributed in the hope that it will be useful,
- * but without any warranty; without even the implied warranty of
- * merchantability or fitness for a particular purpose.  see the
- * gnu general public license for more details.
- *
- * you should have received a copy of the gnu general public license
- * along with this program; see the file copying.
- * if not, write to the free software foundation,
- * 59 temple place - suite 330, boston, ma 02111-1307, usa.
+ * Copyright 2004-2009 Analog Devices Inc.
+ * Licensed under the GPL-2 or later.
  */
 
-#ifndef _MEM_MAP_537_H_
-#define _MEM_MAP_537_H_
+#ifndef __BFIN_MACH_MEM_MAP_H__
+#define __BFIN_MACH_MEM_MAP_H__
 
-#define COREMMR_BASE           0xFFE00000	 /* Core MMRs */
-#define SYSMMR_BASE            0xFFC00000	 /* System MMRs */
+#ifndef __BFIN_MEM_MAP_H__
+# error "do not include mach/mem_map.h directly -- use asm/mem_map.h"
+#endif
 
 /* Async Memory Banks */
 #define ASYNC_BANK3_BASE	0x20300000	 /* Async Bank 3 */
@@ -166,20 +144,4 @@
 
 #endif
 
-/* Level 2 Memory - none */
-
-#define L2_START	0
-#define L2_LENGTH	0
-
-/* Scratch Pad Memory */
-
-#define L1_SCRATCH_START	0xFFB00000
-#define L1_SCRATCH_LENGTH	0x1000
-
-#define GET_PDA_SAFE(preg)		\
-	preg.l = _cpu_pda;		\
-	preg.h = _cpu_pda;
-
-#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
-
-#endif				/* _MEM_MAP_537_H_ */
+#endif
