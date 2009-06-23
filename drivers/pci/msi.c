@@ -383,6 +383,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	/* Configure MSI capability structure */
 	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSI);
 	if (ret) {
+		msi_mask_irq(entry, mask, ~mask);
 		msi_free_irqs(dev);
 		return ret;
 	}
