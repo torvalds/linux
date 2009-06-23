@@ -225,8 +225,8 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 	ide_hwif_t *hwif = drive->hwif;
 	struct scatterlist *sg = hwif->sg_table;
 	struct scatterlist *cursg = cmd->cursg;
+	unsigned long uninitialized_var(flags);
 	struct page *page;
-	unsigned long flags;
 	unsigned int offset;
 	u8 *buf;
 
