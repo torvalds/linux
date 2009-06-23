@@ -570,11 +570,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (kernel_mode_regs(fp) || (current && !current->mm)) {
 		console_verbose();
 		oops_in_progress = 1;
-		if (strerror)
-			verbose_printk(strerror);
 	}
 
 	if (sig != SIGTRAP) {
+		if (strerror)
+			verbose_printk(strerror);
+
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
