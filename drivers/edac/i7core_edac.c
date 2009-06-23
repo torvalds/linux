@@ -68,6 +68,10 @@
   #define QUAD_RANK_PRESENT		(1 << 22)
   #define REGISTERED_DIMM		(1 << 15)
 
+#define MC_CHANNEL_MAPPER	0x60
+  #define RDLCH(r, ch)		((((r) >> (3 + (ch * 6))) & 0x07) - 1)
+  #define WRLCH(r, ch)		((((r) >> (ch * 6)) & 0x07) - 1)
+
 #define MC_CHANNEL_RANK_PRESENT 0x7c
   #define RANK_PRESENT_MASK		0xffff
 
@@ -99,6 +103,8 @@
   #define NUMROW(x)		(((x) & NUMROW_MASK) >> 3)
   #define NUMCOL_MASK		3
   #define NUMCOL(x)		((x) & NUMCOL_MASK)
+
+#define MC_RANK_PRESENT		0x7c
 
 #define MC_SAG_CH_0	0x80
 #define MC_SAG_CH_1	0x84
@@ -135,6 +141,7 @@ struct i7core_info {
 	u32	mc_control;
 	u32	mc_status;
 	u32	max_dod;
+	u32	ch_map;
 };
 
 
@@ -289,9 +296,19 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	if (!pvt->pci_mcr[0])
 		return -ENODEV;
 
-	pci_read_config_dword(pvt->pci_mcr[0], MC_CONTROL, &pvt->info.mc_control);
-	pci_read_config_dword(pvt->pci_mcr[0], MC_STATUS, &pvt->info.mc_status);
-	pci_read_config_dword(pvt->pci_mcr[0], MC_MAX_DOD, &pvt->info.max_dod);
+	/* Device 3 function 0 reads */
+	pci_read_config_dword(pvt->pci_mcr[0], MC_CONTROL,
+					       &pvt->info.mc_control);
+	pci_read_config_dword(pvt->pci_mcr[0], MC_STATUS,
+					       &pvt->info.mc_status);
+	pci_read_config_dword(pvt->pci_mcr[0], MC_MAX_DOD,
+				               &pvt->info.max_dod);
+	pci_read_config_dword(pvt->pci_mcr[0], MC_CHANNEL_MAPPER,
+					       &pvt->info.ch_map);
+
+	debugf0("MC control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
+		pvt->info.mc_control, pvt->info.mc_status,
+		pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt))
 		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt)?8:4);
@@ -318,6 +335,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			continue;
 		}
 
+		/* Devices 4-6 function 0 */
 		pci_read_config_dword(pvt->pci_ch[i][0],
 				MC_CHANNEL_DIMM_INIT_PARAMS, &data);
 
@@ -330,10 +348,13 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		else
 			pvt->channel[i].dimms = 2;
 
-		debugf0("Channel %d (0x%08x): %d ranks, %d dimms "
-			"(%sregistered)\n", i, data,
+		debugf0("Ch%d (0x%08x): rd ch %d, wr ch %d, "
+			"%d ranks, %d %cDIMMs\n",
+			i, data,
+			RDLCH(pvt->info.ch_map, i),
+			WRLCH(pvt->info.ch_map, i),
 			pvt->channel[i].ranks, pvt->channel[i].dimms,
-			(data & REGISTERED_DIMM)? "" : "un" );
+			(data & REGISTERED_DIMM)? 'R' : 'U' );
 	}
 
 	return 0;
