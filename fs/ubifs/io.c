@@ -312,7 +312,7 @@ static void new_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 {
 	ubifs_assert(!hrtimer_active(&wbuf->timer));
 
-	if (!ktime_to_ns(wbuf->softlimit))
+	if (wbuf->no_timer)
 		return;
 	dbg_io("set timer for jhead %d, %llu-%llu millisecs", wbuf->jhead,
 	       ktime_to_ns(wbuf->softlimit)/USEC_PER_SEC,
@@ -327,11 +327,8 @@ static void new_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
  */
 static void cancel_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 {
-	/*
-	 * If the syncer is waiting for the lock (from the background thread's
-	 * context) and another task is changing write-buffer then the syncing
-	 * should be canceled.
-	 */
+	if (wbuf->no_timer)
+		return;
 	wbuf->need_sync = 0;
 	hrtimer_cancel(&wbuf->timer);
 }

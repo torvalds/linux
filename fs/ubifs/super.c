@@ -797,7 +797,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 	 * does not need to be synchronized by timer.
 	 */
 	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
-	c->jheads[GCHD].wbuf.softlimit = ktime_set(0, 0);
+	c->jheads[GCHD].wbuf.no_timer = 1;
 
 	return 0;
 }
@@ -1754,10 +1754,8 @@ static void ubifs_put_super(struct super_block *sb)
 
 		/* Synchronize write-buffers */
 		if (c->jheads)
-			for (i = 0; i < c->jhead_cnt; i++) {
+			for (i = 0; i < c->jhead_cnt; i++)
 				ubifs_wbuf_sync(&c->jheads[i].wbuf);
-				hrtimer_cancel(&c->jheads[i].wbuf.timer);
-			}
 
 		/*
 		 * On fatal errors c->ro_media is set to 1, in which case we do
