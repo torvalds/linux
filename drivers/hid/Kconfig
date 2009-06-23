@@ -176,6 +176,7 @@ config LOGITECH_FF
 	  - Logitech WingMan Cordless RumblePad 2
 	  - Logitech WingMan Force 3D
 	  - Logitech Formula Force EX
+	  - Logitech WingMan Formula Force GP
 	  - Logitech MOMO Force wheel
 
 	  and if you want to enable force feedback for them.
