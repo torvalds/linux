@@ -2624,6 +2624,66 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 }
 
 /*
+ * read event
+ */
+
+struct perf_read_event {
+	struct perf_event_header	header;
+
+	u32				pid;
+	u32				tid;
+	u64				value;
+	u64				format[3];
+};
+
+static void
+perf_counter_read_event(struct perf_counter *counter,
+			struct task_struct *task)
+{
+	struct perf_output_handle handle;
+	struct perf_read_event event = {
+		.header = {
+			.type = PERF_EVENT_READ,
+			.misc = 0,
+			.size = sizeof(event) - sizeof(event.format),
+		},
+		.pid = perf_counter_pid(counter, task),
+		.tid = perf_counter_tid(counter, task),
+		.value = atomic64_read(&counter->count),
+	};
+	int ret, i = 0;
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		event.header.size += sizeof(u64);
+		event.format[i++] = counter->total_time_enabled;
+	}
+
+	if (counter->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		event.header.size += sizeof(u64);
+		event.format[i++] = counter->total_time_running;
+	}
+
+	if (counter->attr.read_format & PERF_FORMAT_ID) {
+		u64 id;
+
+		event.header.size += sizeof(u64);
+		if (counter->parent)
+			id = counter->parent->id;
+		else
+			id = counter->id;
+
+		event.format[i++] = id;
+	}
+
+	ret = perf_output_begin(&handle, counter, event.header.size, 0, 0);
+	if (ret)
+		return;
+
+	perf_output_copy(&handle, &event, event.header.size);
+	perf_output_end(&handle);
+}
+
+/*
  * fork tracking
  */
 
@@ -3985,9 +4045,12 @@ static int inherit_group(struct perf_counter *parent_counter,
 }
 
 static void sync_child_counter(struct perf_counter *child_counter,
-			       struct perf_counter *parent_counter)
+			       struct task_struct *child)
 {
+	struct perf_counter *parent_counter = child_counter->parent;
 	u64 child_val;
+
+	perf_counter_read_event(child_counter, child);
 
 	child_val = atomic64_read(&child_counter->count);
 
@@ -4017,7 +4080,8 @@ static void sync_child_counter(struct perf_counter *child_counter,
 
 static void
 __perf_counter_exit_task(struct perf_counter *child_counter,
-			 struct perf_counter_context *child_ctx)
+			 struct perf_counter_context *child_ctx,
+			 struct task_struct *child)
 {
 	struct perf_counter *parent_counter;
 
@@ -4031,7 +4095,7 @@ __perf_counter_exit_task(struct perf_counter *child_counter,
 	 * counters need to be zapped - but otherwise linger.
 	 */
 	if (parent_counter) {
-		sync_child_counter(child_counter, parent_counter);
+		sync_child_counter(child_counter, child);
 		free_counter(child_counter);
 	}
 }
@@ -4093,7 +4157,7 @@ void perf_counter_exit_task(struct task_struct *child)
 again:
 	list_for_each_entry_safe(child_counter, tmp, &child_ctx->counter_list,
 				 list_entry)
-		__perf_counter_exit_task(child_counter, child_ctx);
+		__perf_counter_exit_task(child_counter, child_ctx, child);
 
 	/*
 	 * If the last counter was a group counter, it will have appended all
