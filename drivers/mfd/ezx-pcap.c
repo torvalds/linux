@@ -107,10 +107,11 @@ int ezx_pcap_read(struct pcap_chip *pcap, u8 reg_num, u32 *value)
 EXPORT_SYMBOL_GPL(ezx_pcap_read);
 
 /* IRQ */
-static inline unsigned int irq2pcap(struct pcap_chip *pcap, int irq)
+int irq_to_pcap(struct pcap_chip *pcap, int irq)
 {
-	return 1 << (irq - pcap->irq_base);
+	return irq - pcap->irq_base;
 }
+EXPORT_SYMBOL_GPL(irq_to_pcap);
 
 int pcap_to_irq(struct pcap_chip *pcap, int irq)
 {
@@ -122,7 +123,7 @@ static void pcap_mask_irq(unsigned int irq)
 {
 	struct pcap_chip *pcap = get_irq_chip_data(irq);
 
-	pcap->msr |= irq2pcap(pcap, irq);
+	pcap->msr |= 1 << irq_to_pcap(pcap, irq);
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
@@ -130,7 +131,7 @@ static void pcap_unmask_irq(unsigned int irq)
 {
 	struct pcap_chip *pcap = get_irq_chip_data(irq);
 
-	pcap->msr &= ~irq2pcap(pcap, irq);
+	pcap->msr &= ~(1 << irq_to_pcap(pcap, irq));
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
