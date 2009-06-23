@@ -33,7 +33,7 @@ void hugetlb_report_meminfo(struct seq_file *);
 int hugetlb_report_node_meminfo(int, char *);
 unsigned long hugetlb_total_pages(void);
 int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address, int write_access);
+			unsigned long address, unsigned int flags);
 int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						struct vm_area_struct *vma,
 						int acctflags);
@@ -98,7 +98,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 #define pud_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
-#define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+#define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
 
 #define hugetlb_change_protection(vma, address, end, newprot)
 
