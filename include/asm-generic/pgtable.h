@@ -129,6 +129,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #define move_pte(pte, prot, old_addr, new_addr)	(pte)
 #endif
 
+#ifndef pgprot_noncached
+#define pgprot_noncached(prot)	(prot)
+#endif
+
 #ifndef pgprot_writecombine
 #define pgprot_writecombine pgprot_noncached
 #endif
