@@ -860,12 +860,22 @@ M:	alex@shark-linux.de
 W:	http://www.shark-linux.de/shark.html
 S:	Maintained
 
+ARM/SAMSUNG ARM ARCHITECTURES
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/plat-s3c/
+F:	arch/arm/plat-s3c24xx/
+
 ARM/S3C2410 ARM ARCHITECTURE
 P:	Ben Dooks
 M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2410/
 
 ARM/S3C2440 ARM ARCHITECTURE
 P:	Ben Dooks
@@ -873,6 +883,39 @@ M:	ben-linux@fluff.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
+F:	arch/arm/mach-s3c2440/
+
+ARM/S3C2442 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2442/
+
+ARM/S3C2443 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c2443/
+
+ARM/S3C6400 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6400/
+
+ARM/S3C6410 ARM ARCHITECTURE
+P:	Ben Dooks
+M:	ben-linux@fluff.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.fluff.org/ben/linux/
+S:	Maintained
+F:	arch/arm/mach-s3c6410/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 P:	Lennert Buytenhek
