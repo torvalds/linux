@@ -588,6 +588,14 @@ config ARCH_S3C64XX
 	help
 	  Samsung S3C64XX series based systems
 
+config ARCH_S5PC1XX
+	bool "Samsung S5PC1XX"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CPU_V7
+	help
+	  Samsung S5PC1XX series based systems
+
 config ARCH_SHARK
 	bool "Shark"
 	select CPU_SA110
@@ -698,6 +706,7 @@ source "arch/arm/mach-kirkwood/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
+source "arch/arm/plat-s5pc1xx/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -714,6 +723,10 @@ source "arch/arm/mach-s3c6410/Kconfig"
 endif
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
+
+if ARCH_S5PC1XX
+source "arch/arm/mach-s5pc100/Kconfig"
+endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
