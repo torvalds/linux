@@ -30,6 +30,8 @@
 
 #include "edac_core.h"
 
+/* To use the new pci_[read/write]_config_qword instead of two dword */
+#define USE_QWORD 1
 
 /*
  * Alter this version for the module when modifications are made
@@ -639,44 +641,71 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 
 	/* Sets pvt->inject.dimm mask */
 	if (pvt->inject.dimm < 0)
-		mask |= 1l << 41;
+		mask |= 1L << 41;
 	else {
 		if (pvt->channel[pvt->inject.channel].dimms > 2)
-			mask |= (pvt->inject.dimm & 0x3l) << 35;
+			mask |= (pvt->inject.dimm & 0x3L) << 35;
 		else
-			mask |= (pvt->inject.dimm & 0x1l) << 36;
+			mask |= (pvt->inject.dimm & 0x1L) << 36;
 	}
 
 	/* Sets pvt->inject.rank mask */
 	if (pvt->inject.rank < 0)
-		mask |= 1l << 40;
+		mask |= 1L << 40;
 	else {
 		if (pvt->channel[pvt->inject.channel].dimms > 2)
-			mask |= (pvt->inject.rank & 0x1l) << 34;
+			mask |= (pvt->inject.rank & 0x1L) << 34;
 		else
-			mask |= (pvt->inject.rank & 0x3l) << 34;
+			mask |= (pvt->inject.rank & 0x3L) << 34;
 	}
 
 	/* Sets pvt->inject.bank mask */
 	if (pvt->inject.bank < 0)
-		mask |= 1l << 39;
+		mask |= 1L << 39;
 	else
-		mask |= (pvt->inject.bank & 0x15l) << 30;
+		mask |= (pvt->inject.bank & 0x15L) << 30;
 
 	/* Sets pvt->inject.page mask */
 	if (pvt->inject.page < 0)
-		mask |= 1l << 38;
+		mask |= 1L << 38;
 	else
-		mask |= (pvt->inject.page & 0xffffl) << 14;
+		mask |= (pvt->inject.page & 0xffffL) << 14;
 
 	/* Sets pvt->inject.column mask */
 	if (pvt->inject.col < 0)
-		mask |= 1l << 37;
+		mask |= 1L << 37;
 	else
-		mask |= (pvt->inject.col & 0x3fffl);
+		mask |= (pvt->inject.col & 0x3fffL);
 
+#if USE_QWORD
 	pci_write_config_qword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ADDR_MATCH, mask);
+#else
+	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH, mask);
+	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH + 4, mask >> 32L);
+#endif
+
+#if 1
+#if USE_QWORD
+	u64 rdmask;
+	pci_read_config_qword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH, &rdmask);
+	debugf0("Inject addr match write 0x%016llx, read: 0x%016llx\n",
+		mask, rdmask);
+#else
+	u32 rdmask1, rdmask2;
+
+	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH, &rdmask1);
+	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH + 4, &rdmask2);
+
+	debugf0("Inject addr match write 0x%016llx, read: 0x%08x%08x\n",
+		mask, rdmask1, rdmask2);
+#endif
+#endif
 
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_MASK, pvt->inject.eccmask);
@@ -688,16 +717,17 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	 * bit    4: INJECT_ADDR_PARITY
 	 */
 
-	injectmask = (pvt->inject.type & 1) &&
-		     (pvt->inject.section & 0x3) << 1 &&
+	injectmask = (pvt->inject.type & 1) |
+		     (pvt->inject.section & 0x3) << 1 |
 		     (pvt->inject.type & 0x6) << (3 - 1);
 
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_MASK, injectmask);
 
-
 	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x, inject 0x%08x\n",
 		mask, pvt->inject.eccmask, injectmask);
+
+
 
 	return count;
 }
@@ -706,6 +736,16 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 					char *data)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
+	u32 injectmask;
+
+	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ERROR_MASK, &injectmask);
+
+	debugf0("Inject error read: 0x%018x\n", injectmask);
+
+	if (injectmask & 0x0c)
+		pvt->inject.enable = 1;
+
 	return sprintf(data, "%d\n", pvt->inject.enable);
 }
 
