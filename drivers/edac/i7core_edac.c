@@ -309,25 +309,33 @@ static inline int numcol(u32 col)
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
-static int i7core_get_active_channels(int *channels)
+static struct pci_dev *get_pdev_slot_func(int slot, int func)
 {
-	struct pci_dev *pdev = NULL;
 	int i;
-	u32 status, control;
-
-	*channels = 0;
 
 	for (i = 0; i < N_DEVS; i++) {
 		if (!pci_devs[i].pdev)
 			continue;
 
-		if (PCI_SLOT(pci_devs[i].pdev->devfn) == 3 &&
-		    PCI_FUNC(pci_devs[i].pdev->devfn) == 0) {
-			pdev = pci_devs[i].pdev;
-			break;
+		if (PCI_SLOT(pci_devs[i].pdev->devfn) == slot &&
+		    PCI_FUNC(pci_devs[i].pdev->devfn) == func) {
+			return pci_devs[i].pdev;
 		}
 	}
 
+	return NULL;
+}
+
+static int i7core_get_active_channels(int *channels, int *csrows)
+{
+	struct pci_dev *pdev = NULL;
+	int i, j;
+	u32 status, control;
+
+	*channels = 0;
+	*csrows = 0;
+
+	pdev = get_pdev_slot_func(3, 0);
 	if (!pdev) {
 		i7core_printk(KERN_ERR, "Couldn't find fn 3.0!!!\n");
 		return -ENODEV;
@@ -338,6 +346,7 @@ static int i7core_get_active_channels(int *channels)
 	pci_read_config_dword(pdev, MC_CONTROL, &control);
 
 	for (i = 0; i < NUM_CHANS; i++) {
+		u32 dimm_dod[3];
 		/* Check if the channel is active */
 		if (!(control & (1 << (8 + i))))
 			continue;
@@ -347,7 +356,27 @@ static int i7core_get_active_channels(int *channels)
 			continue;
 		}
 
+		pdev = get_pdev_slot_func(i + 4, 1);
+		if (!pdev) {
+			i7core_printk(KERN_ERR, "Couldn't find fn %d.%d!!!\n",
+				      i + 4, 1);
+			return -ENODEV;
+		}
+		/* Devices 4-6 function 1 */
+		pci_read_config_dword(pdev,
+				MC_DOD_CH_DIMM0, &dimm_dod[0]);
+		pci_read_config_dword(pdev,
+				MC_DOD_CH_DIMM1, &dimm_dod[1]);
+		pci_read_config_dword(pdev,
+				MC_DOD_CH_DIMM2, &dimm_dod[2]);
+
 		(*channels)++;
+
+		for (j = 0; j < 3; j++) {
+			if (!DIMM_PRESENT(dimm_dod[j]))
+				continue;
+			(*csrows)++;
+		}
 	}
 
 	debugf0("Number of active channels: %d\n", *channels);
@@ -473,7 +502,11 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				RANKOFFSET(dimm_dod[j]),
 				banks, ranks, rows, cols);
 
-			npages = cols * rows; /* FIXME */
+#if PAGE_SHIFT > 20
+			npages = size >> (PAGE_SHIFT - 20);
+#else
+			npages = size << (20 - PAGE_SHIFT);
+#endif
 
 			csr = &mci->csrows[csrow];
 			csr->first_page = last_page + 1;
@@ -482,8 +515,12 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			csr->nr_pages = npages;
 
 			csr->page_mask = 0;
-			csr->grain = 0;
+			csr->grain = 8;
 			csr->csrow_idx = csrow;
+			csr->nr_channels = 1;
+
+			csr->channels[0].chan_idx = i;
+			csr->channels[0].ce_count = 0;
 
 			switch (banks) {
 			case 4:
@@ -1179,7 +1216,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
-	int num_channels = 0;
+	int num_channels;
 	int num_csrows;
 	int dev_idx = id->driver_data;
 	int rc;
@@ -1193,12 +1230,9 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 		return rc;
 
 	/* Check the number of active and not disabled channels */
-	rc = i7core_get_active_channels(&num_channels);
+	rc = i7core_get_active_channels(&num_channels, &num_csrows);
 	if (unlikely (rc < 0))
 		goto fail0;
-
-	/* FIXME: we currently don't know the number of csrows */
-	num_csrows = num_channels;
 
 	/* allocate a new MC control structure */
 	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
