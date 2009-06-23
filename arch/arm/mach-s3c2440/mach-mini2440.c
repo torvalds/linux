@@ -273,6 +273,7 @@ static struct s3c2410_nand_set mini2440_nand_sets[] __initdata = {
 		.nr_chips	= 1,
 		.nr_partitions	= ARRAY_SIZE(mini2440_default_nand_part),
 		.partitions	= mini2440_default_nand_part,
+		.flash_bbt 	= 1, /* we use u-boot to create a BBT */
 	},
 };
 
