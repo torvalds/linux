@@ -41,6 +41,7 @@ obj-$(CONFIG_PLAN9AUTH)		+= p9auth/
 obj-$(CONFIG_HECI)		+= heci/
 obj-$(CONFIG_LINE6_USB)		+= line6/
 obj-$(CONFIG_USB_SERIAL_QUATECH2)	+= serqt_usb2/
+obj-$(CONFIG_USB_SERIAL_QUATECH_USB2)	+= quatech_usb2/
 obj-$(CONFIG_OCTEON_ETHERNET)	+= octeon/
 obj-$(CONFIG_VT6655)		+= vt6655/
 obj-$(CONFIG_VT6656)		+= vt6656/
