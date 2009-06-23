@@ -195,7 +195,6 @@ ide_devset_get(xfer_rate, current_speed);
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
 	struct ide_cmd cmd;
-	int err;
 
 	if (arg < XFER_PIO_0 || arg > XFER_UDMA_6)
 		return -EINVAL;
@@ -206,14 +205,9 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 	cmd.tf.nsect   = (u8)arg;
 	cmd.valid.out.tf = IDE_VALID_FEATURE | IDE_VALID_NSECT;
 	cmd.valid.in.tf  = IDE_VALID_NSECT;
+	cmd.tf_flags   = IDE_TFLAG_SET_XFER;
 
-	err = ide_no_data_taskfile(drive, &cmd);
-
-	if (!err) {
-		ide_set_xfer_rate(drive, (u8) arg);
-		ide_driveid_update(drive);
-	}
-	return err;
+	return ide_no_data_taskfile(drive, &cmd);
 }
 
 ide_devset_rw(current_speed, xfer_rate);

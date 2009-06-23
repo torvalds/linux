@@ -324,10 +324,17 @@ static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 {
 	struct request *rq = drive->hwif->rq;
-	u8 err = ide_read_error(drive);
+	u8 err = ide_read_error(drive), nsect = cmd->tf.nsect;
+	u8 set_xfer = !!(cmd->tf_flags & IDE_TFLAG_SET_XFER);
 
 	ide_complete_cmd(drive, cmd, stat, err);
 	rq->errors = err;
+
+	if (err == 0 && set_xfer) {
+		ide_set_xfer_rate(drive, nsect);
+		ide_driveid_update(drive);
+	}
+
 	ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
 }
 

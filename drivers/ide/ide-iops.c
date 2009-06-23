@@ -363,14 +363,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	 * this point (lost interrupt).
 	 */
 
-	/*
-	 *	FIXME: we race against the running IRQ here if
-	 *	this is called from non IRQ context. If we use
-	 *	disable_irq() we hang on the error path. Work
-	 *	is needed.
-	 */
-	disable_irq_nosync(hwif->irq);
-
 	udelay(1);
 	tp_ops->dev_select(drive);
 	SELECT_MASK(drive, 1);
@@ -393,8 +385,6 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 				WAIT_CMD, &stat);
 
 	SELECT_MASK(drive, 0);
-
-	enable_irq(hwif->irq);
 
 	if (error) {
 		(void) ide_dump_status(drive, "set_drive_speed_status", stat);

@@ -258,6 +258,7 @@ enum {
 	IDE_TFLAG_DYN			= (1 << 5),
 	IDE_TFLAG_FS			= (1 << 6),
 	IDE_TFLAG_MULTI_PIO		= (1 << 7),
+	IDE_TFLAG_SET_XFER		= (1 << 8),
 };
 
 enum {
@@ -294,7 +295,7 @@ struct ide_cmd {
 		} out, in;
 	} valid;
 
-	u8			tf_flags;
+	u16			tf_flags;
 	u8			ftf_flags;	/* for TASKFILE ioctl */
 	int			protocol;
 
