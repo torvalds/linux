@@ -101,9 +101,10 @@ static int radeonfb_setcolreg(unsigned regno,
 				break;
 			case 24:
 			case 32:
-				fb->pseudo_palette[regno] = ((red & 0xff00) << 8) |
-					(green & 0xff00) |
-					((blue  & 0xff00) >> 8);
+				fb->pseudo_palette[regno] =
+					(((red >> 8) & 0xff) << info->var.red.offset) |
+					(((green >> 8) & 0xff) << info->var.green.offset) |
+					(((blue >> 8) & 0xff) << info->var.blue.offset);
 				break;
 			}
 		}
@@ -154,6 +155,7 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 0;
 		var->transp.offset = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		var->red.offset = 10;
 		var->green.offset = 5;
@@ -194,6 +196,28 @@ static int radeonfb_check_var(struct fb_var_screeninfo *var,
 		var->transp.length = 8;
 		var->transp.offset = 24;
 		break;
+#else
+	case 24:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		break;
+	case 32:
+		var->red.offset = 8;
+		var->green.offset = 16;
+		var->blue.offset = 24;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		var->transp.length = 8;
+		var->transp.offset = 0;
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -600,6 +624,7 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 0;
 		info->var.transp.length = 0;
 		break;
+#ifdef __LITTLE_ENDIAN
 	case 15:
 		info->var.red.offset = 10;
 		info->var.green.offset = 5;
@@ -639,7 +664,29 @@ int radeonfb_create(struct radeon_device *rdev,
 		info->var.transp.offset = 24;
 		info->var.transp.length = 8;
 		break;
+#else
+	case 24:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 32:
+		info->var.red.offset = 8;
+		info->var.green.offset = 16;
+		info->var.blue.offset = 24;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 8;
+		break;
 	default:
+#endif
 		break;
 	}
 
