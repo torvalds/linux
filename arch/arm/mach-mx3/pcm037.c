@@ -244,12 +244,11 @@ static struct imxuart_platform_data uart_pdata = {
 };
 
 static struct resource smsc911x_resources[] = {
-	[0] = {
+	{
 		.start		= CS1_BASE_ADDR + 0x300,
 		.end		= CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
+	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
 		.end		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
 		.flags		= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,

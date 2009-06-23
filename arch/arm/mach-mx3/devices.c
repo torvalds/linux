@@ -129,19 +129,17 @@ struct platform_device mxc_uart_device4 = {
 
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
-	[0] = {
+	{
 		.chip.label = "gpio-0",
 		.base = IO_ADDRESS(GPIO1_BASE_ADDR),
 		.irq = MXC_INT_GPIO1,
 		.virtual_irq_start = MXC_GPIO_IRQ_START,
-	},
-	[1] = {
+	}, {
 		.chip.label = "gpio-1",
 		.base = IO_ADDRESS(GPIO2_BASE_ADDR),
 		.irq = MXC_INT_GPIO2,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
-	},
-	[2] = {
+	}, {
 		.chip.label = "gpio-2",
 		.base = IO_ADDRESS(GPIO3_BASE_ADDR),
 		.irq = MXC_INT_GPIO3,
@@ -173,11 +171,11 @@ static struct resource mxc_nand_resources[] = {
 	{
 		.start	= 0, /* runtime dependent */
 		.end	= 0,
-		.flags	= IORESOURCE_MEM
+		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= MXC_INT_NANDFC,
 		.end	= MXC_INT_NANDFC,
-		.flags	= IORESOURCE_IRQ
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -193,8 +191,7 @@ static struct resource mxc_i2c0_resources[] = {
 		.start = I2C_BASE_ADDR,
 		.end = I2C_BASE_ADDR + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start = MXC_INT_I2C,
 		.end = MXC_INT_I2C,
 		.flags = IORESOURCE_IRQ,
@@ -213,8 +210,7 @@ static struct resource mxc_i2c1_resources[] = {
 		.start = I2C2_BASE_ADDR,
 		.end = I2C2_BASE_ADDR + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start = MXC_INT_I2C2,
 		.end = MXC_INT_I2C2,
 		.flags = IORESOURCE_IRQ,
@@ -233,8 +229,7 @@ static struct resource mxc_i2c2_resources[] = {
 		.start = I2C3_BASE_ADDR,
 		.end = I2C3_BASE_ADDR + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start = MXC_INT_I2C3,
 		.end = MXC_INT_I2C3,
 		.flags = IORESOURCE_IRQ,
@@ -400,11 +395,11 @@ static struct resource mxc_fec_resources[] = {
 	{
 		.start	= MXC_FEC_BASE_ADDR,
 		.end	= MXC_FEC_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM
+		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= MXC_INT_FEC,
 		.end	= MXC_INT_FEC,
-		.flags	= IORESOURCE_IRQ
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 

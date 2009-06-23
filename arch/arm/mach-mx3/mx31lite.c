@@ -71,12 +71,11 @@ static struct smsc911x_platform_config smsc911x_config = {
 };
 
 static struct resource smsc911x_resources[] = {
-	[0] = {
+	{
 		.start		= CS4_BASE_ADDR,
 		.end		= CS4_BASE_ADDR + 0x100,
 		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
+	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
 		.end		= IOMUX_TO_IRQ(MX31_PIN_SFS6),
 		.flags		= IORESOURCE_IRQ,

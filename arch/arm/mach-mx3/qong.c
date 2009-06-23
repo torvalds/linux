@@ -81,13 +81,12 @@ static inline void mxc_init_imx_uart(void)
 }
 
 static struct resource dnet_resources[] = {
-	[0] = {
+	{
 		.name	= "dnet-memory",
 		.start	= QONG_DNET_BASEADDR,
 		.end	= QONG_DNET_BASEADDR + QONG_DNET_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
+	}, {
 		.start	= QONG_FPGA_IRQ,
 		.end	= QONG_FPGA_IRQ,
 		.flags	= IORESOURCE_IRQ,
