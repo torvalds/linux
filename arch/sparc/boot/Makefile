@@ -58,7 +58,7 @@ $(obj)/image: $(obj)/btfix.o FORCE
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,strip)
 
-$(obj)/tftpboot.img: $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
 	$(call if_changed,elftoaout)
 	$(call if_changed,piggy)
 
@@ -79,7 +79,7 @@ $(obj)/image: vmlinux FORCE
 	$(call if_changed,strip)
 	@echo '  kernel: $@ is ready'
 
-$(obj)/tftpboot.img: vmlinux $(obj)/piggyback_64 System.map $(ROOT_IMG) FORCE
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_64 System.map $(ROOT_IMG) FORCE
 	$(call if_changed,elftoaout)
 	$(call if_changed,piggy)
 	@echo '  kernel: $@ is ready'
