@@ -35,6 +35,23 @@
 #include "atom.h"
 
 /*
+ * Clear GPU surface registers.
+ */
+static void radeon_surface_init(struct radeon_device *rdev)
+{
+	/* FIXME: check this out */
+	if (rdev->family < CHIP_R600) {
+		int i;
+
+		for (i = 0; i < 8; i++) {
+			WREG32(RADEON_SURFACE0_INFO +
+			       i * (RADEON_SURFACE1_INFO - RADEON_SURFACE0_INFO),
+			       0);
+		}
+	}
+}
+
+/*
  * GPU scratch registers helpers function.
  */
 static void radeon_scratch_init(struct radeon_device *rdev)
@@ -496,6 +513,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	radeon_errata(rdev);
 	/* Initialize scratch registers */
 	radeon_scratch_init(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
+
 	/* TODO: disable VGA need to use VGA request */
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {
