@@ -166,6 +166,13 @@ config EDAC_I5400
 	  Support for error detection and correction the Intel
 	  i5400 MCH chipset (Seaburg).
 
+config EDAC_I7CORE
+	tristate "Intel i7 Core (Nehalem) processors"
+	depends on EDAC_MM_EDAC && PCI && X86
+	help
+	  Support for error detection and correction the Intel
+	  i7 Core (Nehalem) Integrated Memory Controller
+
 config EDAC_I82860
 	tristate "Intel 82860"
 	depends on EDAC_MM_EDAC && PCI && X86_32
