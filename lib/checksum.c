@@ -37,6 +37,7 @@
 
 #include <asm/byteorder.h>
 
+#ifndef do_csum
 static inline unsigned short from32to16(unsigned int x)
 {
 	/* add up 16-bit and 16-bit for 16+c bit */
@@ -102,6 +103,7 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 out:
 	return result;
 }
+#endif
 
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
