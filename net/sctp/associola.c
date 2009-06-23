@@ -810,11 +810,16 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		break;
 
 	case SCTP_TRANSPORT_DOWN:
-		/* if the transort was never confirmed, do not transition it
-		 * to inactive state.
+		/* If the transport was never confirmed, do not transition it
+		 * to inactive state.  Also, release the cached route since
+		 * there may be a better route next time.
 		 */
 		if (transport->state != SCTP_UNCONFIRMED)
 			transport->state = SCTP_INACTIVE;
+		else {
+			dst_release(transport->dst);
+			transport->dst = NULL;
+		}
 
 		spc_state = SCTP_ADDR_UNREACHABLE;
 		break;
