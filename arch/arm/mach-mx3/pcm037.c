@@ -52,6 +52,41 @@
 #include <mach/mxc_nand.h>
 
 #include "devices.h"
+#include "pcm037.h"
+
+static enum pcm037_board_variant pcm037_instance = PCM037_PCM970;
+
+static int __init pcm037_variant_setup(char *str)
+{
+	if (!strcmp("eet", str))
+		pcm037_instance = PCM037_EET;
+	else if (strcmp("pcm970", str))
+		pr_warning("Unknown pcm037 baseboard variant %s\n", str);
+
+	return 1;
+}
+
+/* Supported values: "pcm970" (default) and "eet" */
+__setup("pcm037_variant=", pcm037_variant_setup);
+
+enum pcm037_board_variant pcm037_variant(void)
+{
+	return pcm037_instance;
+}
+
+/* UART1 with RTS/CTS handshake signals */
+static unsigned int pcm037_uart1_handshake_pins[] = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1,
+};
+
+/* UART1 without RTS/CTS handshake signals */
+static unsigned int pcm037_uart1_pins[] = {
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1,
+};
 
 static unsigned int pcm037_pins[] = {
 	/* I2C */
@@ -76,11 +111,6 @@ static unsigned int pcm037_pins[] = {
 	MX31_PIN_CSPI1_SS0__SS0,
 	MX31_PIN_CSPI1_SS1__SS1,
 	MX31_PIN_CSPI1_SS2__SS2,
-	/* UART1 */
-	MX31_PIN_CTS1__CTS1,
-	MX31_PIN_RTS1__RTS1,
-	MX31_PIN_TXD1__TXD1,
-	MX31_PIN_RXD1__RXD1,
 	/* UART2 */
 	MX31_PIN_TXD2__TXD2,
 	MX31_PIN_RXD2__RXD2,
@@ -459,6 +489,22 @@ static const struct fb_videomode fb_modedb[] = {
 		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_OE_ACT_HIGH,
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
+	}, {
+		/* 240x320 @ 60 Hz */
+		.name		= "CMEL-OLED",
+		.refresh	= 60,
+		.xres		= 240,
+		.yres		= 320,
+		.pixclock	= 185925,
+		.left_margin	= 9,
+		.right_margin	= 16,
+		.upper_margin	= 7,
+		.lower_margin	= 9,
+		.hsync_len	= 1,
+		.vsync_len	= 1,
+		.sync		= FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
 	},
 };
 
@@ -478,6 +524,14 @@ static void __init mxc_board_init(void)
 
 	mxc_iomux_setup_multiple_pins(pcm037_pins, ARRAY_SIZE(pcm037_pins),
 			"pcm037");
+
+	if (pcm037_variant() == PCM037_EET)
+		mxc_iomux_setup_multiple_pins(pcm037_uart1_pins,
+			ARRAY_SIZE(pcm037_uart1_pins), "pcm037_uart1");
+	else
+		mxc_iomux_setup_multiple_pins(pcm037_uart1_handshake_pins,
+			ARRAY_SIZE(pcm037_uart1_handshake_pins),
+			"pcm037_uart1");
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
@@ -542,4 +596,3 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.init_machine   = mxc_board_init,
 	.timer          = &pcm037_timer,
 MACHINE_END
-
