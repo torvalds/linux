@@ -62,6 +62,18 @@
 #define MC_STATUS	0x4c
 #define MC_MAX_DOD	0x64
 
+/*
+ * OFFSETS for Device 3 Function 4, as inicated on Xeon 5500 datasheet:
+ * http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
+ */
+
+#define MC_TEST_ERR_RCV1	0x60
+  #define DIMM2_COR_ERR(r)			((r) & 0x7fff)
+
+#define MC_TEST_ERR_RCV0	0x64
+  #define DIMM1_COR_ERR(r)			(((r) >> 16) & 0x7fff)
+  #define DIMM0_COR_ERR(r)			((r) & 0x7fff)
+
 	/* OFFSETS for Devices 4,5 and 6 Function 0 */
 
 #define MC_CHANNEL_DIMM_INIT_PARAMS 0x58
@@ -136,8 +148,9 @@
  */
 
 #define NUM_CHANS 3
-#define NUM_MCR_FUNCS  4
-#define NUM_CHAN_FUNCS 3
+#define MAX_DIMMS 3		/* Max DIMMS per channel */
+#define MAX_MCR_FUNC  4
+#define MAX_CHAN_FUNC 3
 
 struct i7core_info {
 	u32	mc_control;
@@ -159,8 +172,8 @@ struct i7core_inject {
 };
 
 struct i7core_channel {
-	u32 ranks;
-	u32 dimms;
+	u32		ranks;
+	u32		dimms;
 };
 
 struct pci_id_descr {
@@ -171,11 +184,16 @@ struct pci_id_descr {
 };
 
 struct i7core_pvt {
-	struct pci_dev		*pci_mcr[NUM_MCR_FUNCS];
-	struct pci_dev		*pci_ch[NUM_CHANS][NUM_CHAN_FUNCS];
+	struct pci_dev		*pci_mcr[MAX_MCR_FUNC + 1];
+	struct pci_dev		*pci_ch[NUM_CHANS][MAX_CHAN_FUNC + 1];
 	struct i7core_info	info;
 	struct i7core_inject	inject;
 	struct i7core_channel	channel[NUM_CHANS];
+
+	int		ce_count_available;
+	unsigned long	ce_count[MAX_DIMMS];	/* ECC corrected errors counts per dimm */
+	int		last_ce_count[MAX_DIMMS];
+
 };
 
 /* Device name and register DID (Device ID) */
@@ -749,6 +767,19 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 	return sprintf(data, "%d\n", pvt->inject.enable);
 }
 
+static ssize_t i7core_ce_regs_show(struct mem_ctl_info *mci, char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+
+	if (!pvt->ce_count_available)
+		return sprintf(data, "unavailable\n");
+
+	return sprintf(data, "dimm0: %lu\ndimm1: %lu\ndimm2: %lu\n",
+			pvt->ce_count[0],
+			pvt->ce_count[1],
+			pvt->ce_count[2]);
+}
+
 /*
  * Sysfs struct
  */
@@ -789,6 +820,13 @@ static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
 		},
 		.show  = i7core_inject_enable_show,
 		.store = i7core_inject_enable_store,
+	}, {
+		.attr = {
+			.name = "corrected_error_counts",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_ce_regs_show,
+		.store = NULL,
 	},
 };
 
@@ -879,13 +917,76 @@ static int i7core_get_devices(struct mem_ctl_info *mci, struct pci_dev *mcidev)
 	return 0;
 }
 
+/****************************************************************************
+			Error check routines
+ ****************************************************************************/
+
+/* This function is based on the device 3 function 4 registers as described on:
+ * Intel Xeon Processor 5500 Series Datasheet Volume 2
+ *	http://www.intel.com/Assets/PDF/datasheet/321322.pdf
+ * also available at:
+ * 	http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
+ */
+static void check_mc_test_err(struct mem_ctl_info *mci)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	u32 rcv1, rcv0;
+	int new0, new1, new2;
+
+	if (!pvt->pci_mcr[4]) {
+		debugf0("%s MCR registers not found\n",__func__);
+		return;
+	}
+
+	/* Corrected error reads */
+	pci_read_config_dword(pvt->pci_mcr[4], MC_TEST_ERR_RCV1, &rcv1);
+	pci_read_config_dword(pvt->pci_mcr[4], MC_TEST_ERR_RCV0, &rcv0);
+
+	/* Store the new values */
+	new2 = DIMM2_COR_ERR(rcv1);
+	new1 = DIMM1_COR_ERR(rcv0);
+	new0 = DIMM0_COR_ERR(rcv0);
+
+	debugf2("%s CE rcv1=0x%08x rcv0=0x%08x, %d %d %d\n",
+		(pvt->ce_count_available ? "UPDATE" : "READ"),
+		rcv1, rcv0, new0, new1, new2);
+
+	/* Updates CE counters if it is not the first time here */
+	if (pvt->ce_count_available) {
+		/* Updates CE counters */
+		int add0, add1, add2;
+
+		add2 = new2 - pvt->last_ce_count[2];
+		add1 = new1 - pvt->last_ce_count[1];
+		add0 = new0 - pvt->last_ce_count[0];
+
+		if (add2 < 0)
+			add2 += 0x7fff;
+		pvt->ce_count[2] += add2;
+
+		if (add1 < 0)
+			add1 += 0x7fff;
+		pvt->ce_count[1] += add1;
+
+		if (add0 < 0)
+			add0 += 0x7fff;
+		pvt->ce_count[0] += add0;
+	} else
+		pvt->ce_count_available = 1;
+
+	/* Store the new values */
+	pvt->last_ce_count[2] = new2;
+	pvt->last_ce_count[1] = new1;
+	pvt->last_ce_count[0] = new0;
+}
+
 /*
  *	i7core_check_error	Retrieve and process errors reported by the
  *				hardware. Called by the Core module.
  */
 static void i7core_check_error(struct mem_ctl_info *mci)
 {
-	/* FIXME: need a real code here */
+	check_mc_test_err(mci);
 }
 
 /*
