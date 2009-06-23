@@ -267,22 +267,29 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	read_lock(&bnx2i_dev_lock);
-	if (!test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-		rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
-		if (rc)		/* duplicate registration */
-			printk(KERN_ERR "bnx2i- dev reg failed\n");
-
+	rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
+	if (!rc) {
 		hba->age++;
-
 		set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-	}
+	} else if (rc == -EBUSY) 	/* duplicate registration */
+		printk(KERN_ALERT "bnx2i, duplicate registration"
+				  "hba=%p, cnic=%p\n", hba, cnic);
+	else if (rc == -EAGAIN)
+		printk(KERN_ERR "bnx2i, driver not registered\n");
+	else if (rc == -EINVAL)
+		printk(KERN_ERR "bnx2i, invalid type %d\n", CNIC_ULP_ISCSI);
+	else
+		printk(KERN_ERR "bnx2i dev reg, unknown error, %d\n", rc);
 	read_unlock(&bnx2i_dev_lock);
 
-	write_lock(&bnx2i_dev_lock);
-	list_add_tail(&hba->link, &adapter_list);
-	adapter_count++;
-	write_unlock(&bnx2i_dev_lock);
-	return 0;
+	if (!rc) {
+		write_lock(&bnx2i_dev_lock);
+		list_add_tail(&hba->link, &adapter_list);
+		adapter_count++;
+		write_unlock(&bnx2i_dev_lock);
+	}
+
+	return rc;
 }
 
 
