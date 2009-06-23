@@ -1081,6 +1081,7 @@ extern void ide_fixstring(u8 *, const int, const int);
 
 int ide_busy_sleep(ide_drive_t *, unsigned long, int);
 
+int __ide_wait_stat(ide_drive_t *, u8, u8, unsigned long, u8 *);
 int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);
 
 ide_startstop_t ide_do_park_unpark(ide_drive_t *, struct request *);
@@ -1169,7 +1170,7 @@ int ide_no_data_taskfile(ide_drive_t *, struct ide_cmd *);
 
 int ide_taskfile_ioctl(ide_drive_t *, unsigned long);
 
-int ide_dev_read_id(ide_drive_t *, u8, u16 *);
+int ide_dev_read_id(ide_drive_t *, u8, u16 *, int);
 
 extern int ide_driveid_update(ide_drive_t *);
 extern int ide_config_drive_speed(ide_drive_t *, u8);
