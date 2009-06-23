@@ -312,7 +312,7 @@ csum_copy_err:
 }
 
 void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-		    int type, int code, int offset, __be32 info,
+		    u8 type, u8 code, int offset, __be32 info,
 		    struct udp_table *udptable)
 {
 	struct ipv6_pinfo *np;
@@ -346,8 +346,8 @@ out:
 }
 
 static __inline__ void udpv6_err(struct sk_buff *skb,
-				 struct inet6_skb_parm *opt, int type,
-				 int code, int offset, __be32 info     )
+				 struct inet6_skb_parm *opt, u8 type,
+				 u8 code, int offset, __be32 info     )
 {
 	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
