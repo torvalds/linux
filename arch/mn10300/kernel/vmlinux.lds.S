@@ -61,7 +61,7 @@ SECTIONS
 	_edata = .;		/* End of data section */
   }
 
-  .data.init_task : { INIT_TASK(THREAD_SIZE); }
+  .data.init_task : { INIT_TASK_DATA(THREAD_SIZE); }
 
   /* might get freed after init */
   . = ALIGN(PAGE_SIZE);

@@ -191,7 +191,7 @@
 	. = ALIGN(align);						\
 	*(.data.cacheline_aligned)
 
-#define INIT_TASK(align)						\
+#define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
 	*(.data.init_task)
 
@@ -434,10 +434,10 @@
 /*
  * Init task
  */
-#define INIT_TASK_DATA(align)						\
+#define INIT_TASK_DATA_SECTION(align)					\
 	. = ALIGN(align);						\
 	.data.init_task : {						\
-		INIT_TASK						\
+		INIT_TASK_DATA(align)					\
 	}
 
 #ifdef CONFIG_CONSTRUCTORS
@@ -707,7 +707,7 @@
 #define RW_DATA_SECTION(cacheline, pagealigned, inittask)		\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\
-		INIT_TASK(inittask)					\
+		INIT_TASK_DATA(inittask)				\
 		CACHELINE_ALIGNED_DATA(cacheline)			\
 		READ_MOSTLY_DATA(cacheline)				\
 		DATA_DATA						\
