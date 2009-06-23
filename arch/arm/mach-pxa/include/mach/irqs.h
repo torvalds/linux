@@ -129,6 +129,8 @@
 #define IRQ_BOARD_END		(IRQ_BOARD_START + 70)
 #elif defined(CONFIG_MACH_ZYLONITE)
 #define IRQ_BOARD_END		(IRQ_BOARD_START + 32)
+#elif defined(CONFIG_PXA_EZX)
+#define IRQ_BOARD_END		(IRQ_BOARD_START + 23)
 #else
 #define IRQ_BOARD_END		(IRQ_BOARD_START + 16)
 #endif

@@ -463,6 +463,7 @@ config PXA_EZX
 	select PXA27x
 	select IWMMXT
 	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_EZX_A780
 	bool "Motorola EZX A780"
