@@ -196,6 +196,7 @@ struct pci_cap_saved_state {
 struct pcie_link_state;
 struct pci_vpd;
 struct pci_sriov;
+struct pci_ats;
 
 /*
  * The pci_dev structure is used to describe PCI devices.
@@ -293,6 +294,7 @@ struct pci_dev {
 		struct pci_sriov *sriov;	/* SR-IOV capability related */
 		struct pci_dev *physfn;	/* the PF this VF is associated with */
 	};
+	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
 };
 

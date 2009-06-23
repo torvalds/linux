@@ -409,7 +409,7 @@ int free_irte(int irq)
 static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 {
 	u64 addr;
-	u32 cmd, sts;
+	u32 sts;
 	unsigned long flags;
 
 	addr = virt_to_phys((void *)iommu->ir_table->base);
@@ -420,9 +420,8 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 		    (addr) | IR_X2APIC_MODE(mode) | INTR_REMAP_TABLE_REG_SIZE);
 
 	/* Set interrupt-remapping table pointer */
-	cmd = iommu->gcmd | DMA_GCMD_SIRTP;
 	iommu->gcmd |= DMA_GCMD_SIRTP;
-	writel(cmd, iommu->reg + DMAR_GCMD_REG);
+	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRTPS), sts);
@@ -437,9 +436,8 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 	spin_lock_irqsave(&iommu->register_lock, flags);
 
 	/* Enable interrupt-remapping */
-	cmd = iommu->gcmd | DMA_GCMD_IRE;
 	iommu->gcmd |= DMA_GCMD_IRE;
-	writel(cmd, iommu->reg + DMAR_GCMD_REG);
+	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRES), sts);
