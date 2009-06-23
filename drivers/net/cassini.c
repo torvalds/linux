@@ -2928,7 +2928,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	static int ring;
 
 	if (skb_padto(skb, cp->min_frame_size))
-		return 0;
+		return NETDEV_TX_OK;
 
 	/* XXX: we need some higher-level QoS hooks to steer packets to
 	 *      individual queues.
@@ -2936,7 +2936,7 @@ static int cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
 		return NETDEV_TX_BUSY;
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void cas_init_tx_dma(struct cas *cp)

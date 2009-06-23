@@ -1016,7 +1016,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 out:
 	spin_unlock_irqrestore(&lp->devlock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The LANCE interrupt handler. */

@@ -591,7 +591,7 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* Kick off the transfer */
 	temac_dma_out32(lp, TX_TAILDESC_PTR, tail_p); /* DMA start */
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

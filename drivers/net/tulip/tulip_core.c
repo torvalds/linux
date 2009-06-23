@@ -690,7 +690,7 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void tulip_clean_tx_ring(struct tulip_private *tp)

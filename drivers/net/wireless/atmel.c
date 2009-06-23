@@ -793,13 +793,13 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	    !(*priv->present_callback)(priv->card)) {
 		dev->stats.tx_errors++;
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (priv->station_state != STATION_STATE_READY) {
 		dev->stats.tx_errors++;
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* first ensure the timer func cannot run */
@@ -856,7 +856,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_bh(&priv->timerlock);
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void atmel_transmit_management_frame(struct atmel_private *priv,

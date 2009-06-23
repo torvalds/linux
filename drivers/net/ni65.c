@@ -1216,7 +1216,7 @@ static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 		spin_unlock_irqrestore(&p->ring_lock, flags);
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void set_multicast_list(struct net_device *dev)

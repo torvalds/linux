@@ -663,7 +663,7 @@ static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 free_packet:
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* Get Ethernet-style interface statistics.

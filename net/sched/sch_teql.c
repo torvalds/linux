@@ -314,7 +314,7 @@ restart:
 					netif_wake_queue(dev);
 					txq->tx_packets++;
 					txq->tx_bytes += length;
-					return 0;
+					return NETDEV_TX_OK;
 				}
 				__netif_tx_unlock(slave_txq);
 			}
@@ -323,7 +323,7 @@ restart:
 			break;
 		case 1:
 			master->slaves = NEXT_SLAVE(q);
-			return 0;
+			return NETDEV_TX_OK;
 		default:
 			nores = 1;
 			break;
@@ -345,7 +345,7 @@ restart:
 drop:
 	txq->tx_dropped++;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int teql_master_open(struct net_device *dev)

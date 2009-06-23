@@ -1021,7 +1021,7 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
             {
 	      spin_unlock_irqrestore(&self->spinlock, flags);
               dev_kfree_skb (skb);
-              return 0;
+              return NETDEV_TX_OK;
             }
           /* True packet, go on, but */
           /* do not accept anything before change speed execution */
@@ -1036,7 +1036,7 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
           toshoboe_setbaud (self);
 	  spin_unlock_irqrestore(&self->spinlock, flags);
           dev_kfree_skb (skb);
-          return 0;
+          return NETDEV_TX_OK;
         }
 
     }
@@ -1143,7 +1143,7 @@ dumpbufs(skb->data,skb->len,'>');
   spin_unlock_irqrestore(&self->spinlock, flags);
   dev_kfree_skb (skb);
 
-  return 0;
+  return NETDEV_TX_OK;
 }
 
 /*interrupt handler */

@@ -920,7 +920,7 @@ static int cops_send_packet(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-        return 0;
+        return NETDEV_TX_OK;
 }
 
 /*

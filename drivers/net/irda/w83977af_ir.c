@@ -516,7 +516,7 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 			w83977af_change_speed(self, speed); 
 			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			self->new_speed = speed;
 	}
@@ -576,7 +576,7 @@ static int w83977af_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Restore set register */
 	outb(set, iobase+SSR);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

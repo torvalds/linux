@@ -39,7 +39,7 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		br_flood_deliver(br, skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int br_dev_open(struct net_device *dev)

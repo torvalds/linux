@@ -594,7 +594,7 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb->len;
 	if (len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		len = ETH_ZLEN;
 	}
 
@@ -642,7 +642,7 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	spin_unlock_irqrestore(&sp->tx_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void timeout(struct net_device *dev)

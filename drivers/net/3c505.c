@@ -1101,7 +1101,7 @@ static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	prime_rx(dev);
 	spin_unlock_irqrestore(&adapter->lock, flags);
 	netif_start_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /******************************************************

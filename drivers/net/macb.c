@@ -678,7 +678,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void macb_free_consistent(struct macb *bp)

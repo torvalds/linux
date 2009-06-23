@@ -212,7 +212,7 @@ static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 			  IGMPMSG_WHOLEPKT);
 	read_unlock(&mrt_lock);
 	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static const struct net_device_ops reg_vif_netdev_ops = {

@@ -1720,7 +1720,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	netdev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int e100_tx_clean(struct nic *nic)

@@ -1086,7 +1086,7 @@ sb1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	printk(KERN_WARNING "%s: trying to transmit!!!\n", dev->name);
 	/* sb1000 can't xmit datagrams */
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* SB1000 interrupt handler. */

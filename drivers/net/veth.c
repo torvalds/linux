@@ -189,17 +189,17 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	rcv_stats->rx_packets++;
 
 	netif_rx(skb);
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_drop:
 	kfree_skb(skb);
 	stats->tx_dropped++;
-	return 0;
+	return NETDEV_TX_OK;
 
 rx_drop:
 	kfree_skb(skb);
 	rcv_stats->rx_dropped++;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

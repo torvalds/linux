@@ -845,7 +845,7 @@ static int slic_xmit_start(struct sk_buff *skb, struct net_device *dev)
 				 hcmd->paddrh, DONT_FLUSH);
 	}
 xmit_done:
-	return 0;
+	return NETDEV_TX_OK;
 xmit_fail:
 	slic_xmit_fail(adapter, skb, offloadcmd, skbtype, status);
 	goto xmit_done;

@@ -988,7 +988,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

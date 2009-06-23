@@ -1035,7 +1035,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb_padto(skb, ETH_ZLEN)) {
 		netif_wake_queue(dev);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	atomic_dec(&lp->tx_count);
@@ -1066,7 +1066,7 @@ static int mc32_send_packet(struct sk_buff *skb, struct net_device *dev)
 	p->control     &= ~CONTROL_EOL;
 
 	netif_wake_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

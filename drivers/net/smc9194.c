@@ -512,7 +512,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN)) {
 			netif_wake_queue(dev);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		length = ETH_ZLEN;
 	}
@@ -534,7 +534,7 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 		lp->saved_skb = NULL;
 		/* this IS an error, but, i don't want the skb saved */
 		netif_wake_queue(dev);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	/* either way, a packet is waiting now */
 	lp->packets_waiting++;
@@ -571,12 +571,12 @@ static int smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * de
 		SMC_ENABLE_INT( IM_ALLOC_INT );
       		PRINTK2((CARDNAME": memory allocation deferred. \n"));
 		/* it's deferred, but I'll handle it later */
-      		return 0;
+      		return NETDEV_TX_OK;
    	}
 	/* or YES! I can send the packet now.. */
 	smc_hardware_send_packet(dev);
 	netif_wake_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

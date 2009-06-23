@@ -788,7 +788,7 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* free this SKB */
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

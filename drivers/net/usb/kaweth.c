@@ -829,7 +829,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 			kaweth->stats.tx_errors++;
 			netif_start_queue(net);
 			spin_unlock_irq(&kaweth->device_lock);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -864,7 +864,7 @@ skip:
 
 	spin_unlock_irq(&kaweth->device_lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /****************************************************************

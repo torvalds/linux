@@ -664,7 +664,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 
 	if (buf->len < ETH_ZLEN) {
 		if (skb_padto(buf, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -691,7 +691,7 @@ static int eexp_xmit(struct sk_buff *buf, struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 #endif
 	enable_irq(dev->irq);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

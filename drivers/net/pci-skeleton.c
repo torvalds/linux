@@ -1356,7 +1356,7 @@ static int netdrv_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	DPRINTK ("%s: Queued Tx packet at %p size %u to slot %d.\n",
 		 dev->name, skb->data, skb->len, entry);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

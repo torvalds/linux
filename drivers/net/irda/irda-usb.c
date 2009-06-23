@@ -534,7 +534,7 @@ static int irda_usb_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 	spin_unlock_irqrestore(&self->lock, flags);
 	
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	/* Drop silently the skb and exit */

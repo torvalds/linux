@@ -1091,7 +1091,7 @@ static int skfp_send_pkt(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 
 }				// skfp_send_pkt
 

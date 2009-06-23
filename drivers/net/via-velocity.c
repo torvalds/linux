@@ -2098,7 +2098,7 @@ static int velocity_xmit(struct sk_buff *skb, struct net_device *dev)
 #ifdef VELOCITY_ZERO_COPY_SUPPORT
 	if (skb_shinfo(skb)->nr_frags > 6 && __skb_linearize(skb)) {
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 #endif
 

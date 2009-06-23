@@ -656,7 +656,7 @@ out:
 	dev->trans_start = jiffies;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (skb->len);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void bfin_mac_rx(struct net_device *dev)

@@ -844,7 +844,7 @@ static int via_ircc_hard_xmit_sir(struct sk_buff *skb,
 			via_ircc_change_speed(self, speed);
 			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			self->new_speed = speed;
 	}
@@ -892,7 +892,7 @@ static int via_ircc_hard_xmit_sir(struct sk_buff *skb,
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&self->lock, flags);
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int via_ircc_hard_xmit_fir(struct sk_buff *skb,
@@ -907,7 +907,7 @@ static int via_ircc_hard_xmit_fir(struct sk_buff *skb,
 	iobase = self->io.fir_base;
 
 	if (self->st_fifo.len)
-		return 0;
+		return NETDEV_TX_OK;
 	if (self->chip_id == 0x3076)
 		iodelay(1500);
 	else
@@ -919,7 +919,7 @@ static int via_ircc_hard_xmit_fir(struct sk_buff *skb,
 			via_ircc_change_speed(self, speed);
 			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			self->new_speed = speed;
 	}
@@ -940,7 +940,7 @@ static int via_ircc_hard_xmit_fir(struct sk_buff *skb,
 	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 	spin_unlock_irqrestore(&self->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 
 }
 

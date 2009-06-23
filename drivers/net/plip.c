@@ -987,7 +987,7 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 	schedule_work(&nl->immediate);
 	spin_unlock_irq(&nl->lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void

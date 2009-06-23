@@ -289,7 +289,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb2 = skb_realloc_headroom(skb, LEC_HEADER_LEN);
 		kfree_skb(skb);
 		if (skb2 == NULL)
-			return 0;
+			return NETDEV_TX_OK;
 		skb = skb2;
 	}
 	skb_push(skb, 2);
@@ -307,7 +307,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb2 = skb_realloc_headroom(skb, LEC_HEADER_LEN);
 		kfree_skb(skb);
 		if (skb2 == NULL)
-			return 0;
+			return NETDEV_TX_OK;
 		skb = skb2;
 	}
 #endif
@@ -345,7 +345,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb(skb);
 			if (skb2 == NULL) {
 				dev->stats.tx_dropped++;
-				return 0;
+				return NETDEV_TX_OK;
 			}
 			skb = skb2;
 		}
@@ -416,7 +416,7 @@ out:
 	if (entry)
 		lec_arp_put(entry);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The inverse routine to net_open(). */

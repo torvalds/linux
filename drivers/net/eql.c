@@ -348,7 +348,7 @@ static int eql_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock(&eql->queue.lock);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

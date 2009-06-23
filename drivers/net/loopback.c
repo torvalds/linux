@@ -89,7 +89,7 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else
 		lb_stats->drops++;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static struct net_device_stats *loopback_get_stats(struct net_device *dev)

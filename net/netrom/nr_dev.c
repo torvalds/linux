@@ -177,13 +177,13 @@ static int nr_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!nr_route_frame(skb, NULL)) {
 		kfree_skb(skb);
 		stats->tx_errors++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	stats->tx_packets++;
 	stats->tx_bytes += len;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static const struct header_ops nr_header_ops = {

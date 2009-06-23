@@ -635,7 +635,7 @@ static int el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
     spin_unlock_irqrestore(&priv->lock, flags);    
     dev_kfree_skb(skb);
     
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 /* The EL3 interrupt handler. */

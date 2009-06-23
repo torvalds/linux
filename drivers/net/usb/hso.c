@@ -780,7 +780,7 @@ static int hso_net_start_xmit(struct sk_buff *skb, struct net_device *net)
 	netif_stop_queue(net);
 	if (hso_get_activity(odev->parent) == -EAGAIN) {
 		odev->skb_tx_buf = skb;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* log if asked */

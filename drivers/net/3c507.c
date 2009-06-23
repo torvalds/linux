@@ -537,7 +537,7 @@ static int el16_send_packet (struct sk_buff *skb, struct net_device *dev)
 
 	/* You might need to clean up and record Tx statistics here. */
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*	The typical workload of the driver:

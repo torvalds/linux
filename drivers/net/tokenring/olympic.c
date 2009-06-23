@@ -1052,7 +1052,7 @@ static int olympic_xmit(struct sk_buff *skb, struct net_device *dev)
 		writew((((readw(olympic_mmio+TXENQ_1)) & 0x8000) ^ 0x8000) | 1,olympic_mmio+TXENQ_1);
 		netif_wake_queue(dev);
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
-		return 0;
+		return NETDEV_TX_OK;
 	} else {
 		spin_unlock_irqrestore(&olympic_priv->olympic_lock,flags);
 		return NETDEV_TX_BUSY;

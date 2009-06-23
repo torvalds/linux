@@ -436,7 +436,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->data[0] == 0x33) {
 		dev_kfree_skb(skb);
-		return 0;	/* nothing needed to be done */
+		return NETDEV_TX_OK;	/* nothing needed to be done */
 	}
 
 	/*
@@ -503,7 +503,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

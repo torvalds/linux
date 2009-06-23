@@ -1095,11 +1095,11 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 		TLAN_DBG( TLAN_DEBUG_TX, "TRANSMIT:  %s PHY is not ready\n",
 			  dev->name );
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	if (skb_padto(skb, TLAN_MIN_FRAME_SIZE))
-		return 0;
+		return NETDEV_TX_OK;
 	txlen = max(skb->len, (unsigned int)TLAN_MIN_FRAME_SIZE);
 
 	tail_list = priv->txList + priv->txTail;
@@ -1150,7 +1150,7 @@ static int TLan_StartTx( struct sk_buff *skb, struct net_device *dev )
 	CIRC_INC( priv->txTail, TLAN_NUM_TX_LISTS );
 
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 
 } /* TLan_StartTx */
 

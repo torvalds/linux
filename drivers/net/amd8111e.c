@@ -1346,7 +1346,7 @@ static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
 		netif_stop_queue(dev);
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 /*
 This function returns all the memory mapped registers of the device.

@@ -132,7 +132,7 @@ static int ieee802154_fake_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* FIXME: do hardware work here ... */
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

@@ -753,7 +753,7 @@ static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netdev->trans_start = jiffies;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

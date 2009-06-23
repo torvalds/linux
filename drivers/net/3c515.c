@@ -1054,7 +1054,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 			netif_wake_queue(dev);
 		}
 		dev->trans_start = jiffies;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	/* Put out the doubleword header... */
 	outl(skb->len, ioaddr + TX_FIFO);
@@ -1117,7 +1117,7 @@ static int corkscrew_start_xmit(struct sk_buff *skb,
 			outb(0x00, ioaddr + TxStatus);	/* Pop the status stack. */
 		}
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

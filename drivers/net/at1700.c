@@ -643,7 +643,7 @@ static int net_send_packet (struct sk_buff *skb, struct net_device *dev)
 		netif_start_queue (dev);
 	dev_kfree_skb (skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The typical workload of the driver:

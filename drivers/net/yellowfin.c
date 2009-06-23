@@ -827,7 +827,7 @@ static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (skb_padto(skb, len)) {
 				yp->tx_skbuff[entry] = NULL;
 				netif_wake_queue(dev);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 		}
 	}
@@ -881,7 +881,7 @@ static int yellowfin_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: Yellowfin transmit frame #%d queued in slot %d.\n",
 			   dev->name, yp->cur_tx, entry);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

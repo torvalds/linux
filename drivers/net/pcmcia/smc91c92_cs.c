@@ -1399,7 +1399,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb (skb);
 	smc->saved_skb = NULL;
 	dev->stats.tx_dropped++;
-	return 0;		/* Do not re-queue this packet. */
+	return NETDEV_TX_OK;		/* Do not re-queue this packet. */
     }
     /* A packet is now waiting. */
     smc->packets_waiting++;
@@ -1422,7 +1422,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    outw((ir&0xff00) | IM_ALLOC_INT, ioaddr + INTERRUPT);
 	    smc_hardware_send_packet(dev);	/* Send the packet now.. */
 	    spin_unlock_irqrestore(&smc->lock, flags);
-	    return 0;
+	    return NETDEV_TX_OK;
 	}
     }
 
@@ -1431,7 +1431,7 @@ static int smc_start_xmit(struct sk_buff *skb, struct net_device *dev)
     outw((IM_ALLOC_INT << 8) | (ir & 0xff00), ioaddr + INTERRUPT);
     spin_unlock_irqrestore(&smc->lock, flags);
 
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 /*======================================================================

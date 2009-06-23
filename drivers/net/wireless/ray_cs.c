@@ -937,7 +937,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 	switch (ray_hw_xmit(skb->data, length, dev, DATA_TYPE)) {
@@ -951,9 +951,9 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	default:
 		dev->trans_start = jiffies;
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
-	return 0;
+	return NETDEV_TX_OK;
 } /* ray_dev_start_xmit */
 
 /*===========================================================================*/

@@ -1041,7 +1041,7 @@ static int tok_send_packet(struct sk_buff *skb, struct net_device *dev)
 	writeb(CMD_IN_SRB, ti->mmio + ACA_OFFSET + ACA_SET + ISRA_ODD);
 	spin_unlock_irqrestore(&(ti->lock), flags);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*****************************************************************************/

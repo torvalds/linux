@@ -283,7 +283,7 @@ static int sja1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	priv->write_reg(priv, REG_CMR, CMD_TR);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void sja1000_rx(struct net_device *dev)

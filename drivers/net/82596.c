@@ -1068,7 +1068,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->len < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 	netif_stop_queue(dev);
@@ -1110,7 +1110,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_start_queue(dev);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void print_eth(unsigned char *add, char *str)

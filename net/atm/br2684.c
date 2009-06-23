@@ -238,7 +238,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* netif_stop_queue(dev); */
 		dev_kfree_skb(skb);
 		read_unlock(&devs_lock);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	if (!br2684_xmit_vcc(skb, dev, brvcc)) {
 		/*
@@ -252,7 +252,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_fifo_errors++;
 	}
 	read_unlock(&devs_lock);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

@@ -401,7 +401,7 @@ static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 	buf = skb->data;
@@ -415,7 +415,7 @@ static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb (skb);
 	/* You might need to clean up and record Tx statistics here. */
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

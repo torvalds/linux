@@ -434,7 +434,7 @@ static int xircom_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			card->transmit_used = nextdescriptor;
 			leave("xircom-start_xmit - sent");
 			spin_unlock_irqrestore(&card->lock,flags);
-			return 0;
+			return NETDEV_TX_OK;
 	}
 
 

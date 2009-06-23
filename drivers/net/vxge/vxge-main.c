@@ -1000,7 +1000,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 	VXGE_COMPLETE_VPATH_TX(fifo);
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d  Exiting...",
 		dev->name, __func__, __LINE__);
-	return 0;
+	return NETDEV_TX_OK;
 
 _exit0:
 	vxge_debug_tx(VXGE_TRACE, "%s: pci_map_page failed", dev->name);
@@ -1024,7 +1024,7 @@ _exit2:
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
 	VXGE_COMPLETE_VPATH_TX(fifo);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

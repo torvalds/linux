@@ -487,7 +487,7 @@ static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	if (!in) {
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* apply outgoing CDC or RNDIS filters */
@@ -506,7 +506,7 @@ static int eth_start_xmit(struct sk_buff *skb, struct net_device *net)
 				type = USB_CDC_PACKET_TYPE_ALL_MULTICAST;
 			if (!(cdc_filter & type)) {
 				dev_kfree_skb_any(skb);
-				return 0;
+				return NETDEV_TX_OK;
 			}
 		}
 		/* ignores USB_CDC_PACKET_TYPE_DIRECTED */
@@ -586,7 +586,7 @@ drop:
 		list_add(&req->list, &dev->tx_reqs);
 		spin_unlock_irqrestore(&dev->req_lock, flags);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*-------------------------------------------------------------------------*/

@@ -600,7 +600,7 @@ static int yam_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	skb_queue_tail(&yp->send_queue, skb);
 	dev->trans_start = jiffies;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void yam_start_tx(struct net_device *dev, struct yam_port *yp)

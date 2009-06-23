@@ -915,7 +915,7 @@ static int vlsi_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			 */
 		spin_unlock_irqrestore(&idev->lock, flags);
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* sanity checks - simply drop the packet */
@@ -1044,7 +1044,7 @@ static int vlsi_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	spin_unlock_irqrestore(&idev->lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 
 drop_unlock:
 	spin_unlock_irqrestore(&idev->lock, flags);
@@ -1058,7 +1058,7 @@ drop:
 	 * packet for later retry of transmission - which isn't exactly
 	 * what we want after we've just called dev_kfree_skb_any ;-)
 	 */
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void vlsi_tx_interrupt(struct net_device *ndev)

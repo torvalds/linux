@@ -465,7 +465,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 			prepare_to_send( skb, p );
 			spin_unlock( &nl->lock );
 			netif_start_queue( dev );
-			return  0;
+			return NETDEV_TX_OK;
 		}
 	}
 
@@ -485,7 +485,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 	prepare_to_send( skb, dev );
 
 	spin_unlock( &nl->lock );
-	return  0;
+	return NETDEV_TX_OK;
 }
 
 #endif	/* CONFIG_SBNI_MULTILINE */

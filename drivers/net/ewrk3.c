@@ -868,7 +868,7 @@ static int ewrk3_queue_pkt (struct sk_buff *skb, struct net_device *dev)
 	if (inb (EWRK3_FMQC) == 0)
 		netif_stop_queue (dev);
 
-	return 0;
+	return NETDEV_TX_OK;
 
 err_out:
 	ENABLE_IRQs;

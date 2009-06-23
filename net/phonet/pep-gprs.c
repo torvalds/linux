@@ -195,7 +195,7 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	default:
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	skb_orphan(skb);
@@ -215,7 +215,7 @@ static int gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	if (pep_writeable(sk))
 		netif_wake_queue(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int gprs_set_mtu(struct net_device *dev, int new_mtu)

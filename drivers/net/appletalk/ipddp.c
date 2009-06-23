@@ -132,7 +132,7 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
         }
         if(rt == NULL) {
 		spin_unlock(&ipddp_route_lock);
-                return 0;
+                return NETDEV_TX_OK;
 	}
 
         our_addr = atalk_find_dev_addr(rt->dev);
@@ -181,7 +181,7 @@ static int ipddp_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock(&ipddp_route_lock);
 
-        return 0;
+        return NETDEV_TX_OK;
 }
 
 /*

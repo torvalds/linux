@@ -1225,7 +1225,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 	entry = rp->cur_tx % TX_RING_SIZE;
 
 	if (skb_padto(skb, ETH_ZLEN))
-		return 0;
+		return NETDEV_TX_OK;
 
 	rp->tx_skbuff[entry] = skb;
 
@@ -1237,7 +1237,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 			dev_kfree_skb(skb);
 			rp->tx_skbuff[entry] = NULL;
 			dev->stats.tx_dropped++;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 
 		/* Padding is not copied and so must be redone. */
@@ -1285,7 +1285,7 @@ static int rhine_start_tx(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d.\n",
 		       dev->name, rp->cur_tx-1, entry);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up

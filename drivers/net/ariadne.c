@@ -610,7 +610,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
     if (skb->len < ETH_ZLEN)
     {
     	if (skb_padto(skb, ETH_ZLEN))
-    	    return 0;
+    	    return NETDEV_TX_OK;
     	len = ETH_ZLEN;
     }
 
@@ -685,7 +685,7 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
     }
     local_irq_restore(flags);
 
-    return 0;
+    return NETDEV_TX_OK;
 }
 
 

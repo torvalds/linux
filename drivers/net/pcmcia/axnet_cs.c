@@ -1179,7 +1179,7 @@ static int axnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb (skb);
 	dev->stats.tx_bytes += send_length;
     
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**

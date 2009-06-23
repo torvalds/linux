@@ -256,7 +256,7 @@ out:
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int pn_net_mtu(struct net_device *dev, int new_mtu)

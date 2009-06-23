@@ -1193,7 +1193,7 @@ static int arlan_tx(struct sk_buff *skb, struct net_device *dev)
 
 	arlan_process_interrupt(dev);
 	ARLAN_DEBUG_EXIT("arlan_tx");
-	return 0;
+	return NETDEV_TX_OK;
 
 bad_end:
 	arlan_process_interrupt(dev);

@@ -621,7 +621,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 			 */
 
 			dev_kfree_skb_any(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		} else
 			dev->new_speed = speed;
 	}
@@ -668,7 +668,7 @@ static int sirdev_hard_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* called from network layer with rtnl hold */

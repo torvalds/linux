@@ -421,7 +421,7 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 							     GFP_ATOMIC)) {
 						dev->stats.tx_dropped++;
 						dev_kfree_skb(skb);
-						return 0;
+						return NETDEV_TX_OK;
 					}
 				skb_put(skb, pad);
 				memset(skb->data + len, 0, pad);
@@ -435,13 +435,13 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 				dev->stats.tx_compressed++;
 			skb->dev = pvc->frad;
 			dev_queue_xmit(skb);
-			return 0;
+			return NETDEV_TX_OK;
 		}
 	}
 
 	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static inline void fr_log_dlci_active(pvc_device *pvc)

@@ -1927,7 +1927,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 
 	if (!skb) {
 		airo_print_err(dev->name, "%s: skb == NULL!",__func__);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	npacks = skb_queue_len (&ai->txq);
 
@@ -1938,7 +1938,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 			return NETDEV_TX_BUSY;
 		}
 		skb_queue_tail (&ai->txq, skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	spin_lock_irqsave(&ai->aux_lock, flags);
@@ -1951,7 +1951,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 		set_bit(FLAG_PENDING_XMIT, &ai->flags);
 		mpi_send_packet (dev);
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*
@@ -2127,7 +2127,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 
 	if ( skb == NULL ) {
 		airo_print_err(dev->name, "%s: skb == NULL!", __func__);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* Find a vacant FID */
@@ -2155,7 +2155,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 		wake_up_interruptible(&priv->thr_wait);
 	} else
 		airo_end_xmit(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void airo_end_xmit11(struct net_device *dev) {
@@ -2199,7 +2199,7 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 
 	if ( skb == NULL ) {
 		airo_print_err(dev->name, "%s: skb == NULL!", __func__);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* Find a vacant FID */
@@ -2227,7 +2227,7 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 		wake_up_interruptible(&priv->thr_wait);
 	} else
 		airo_end_xmit11(dev);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void airo_read_stats(struct net_device *dev)

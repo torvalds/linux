@@ -2091,7 +2091,7 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /**********************************************************************

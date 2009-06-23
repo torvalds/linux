@@ -134,7 +134,7 @@ netx_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_unlock_irq(&priv->lock);
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void netx_eth_receive(struct net_device *ndev)

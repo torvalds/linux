@@ -1643,7 +1643,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len > scc->stat.bufsize || skb->len < 2) {
 		scc->dev_stat.tx_dropped++;	/* bogus frame */
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	
 	scc->dev_stat.tx_packets++;
@@ -1656,7 +1656,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 	if (kisscmd) {
 		scc_set_param(scc, kisscmd, *skb->data);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	spin_lock_irqsave(&scc->lock, flags);
@@ -1684,7 +1684,7 @@ static int scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 			__scc_start_tx_timer(scc, t_dwait, 0);
 	}
 	spin_unlock_irqrestore(&scc->lock, flags);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* ----> ioctl functions <---- */

@@ -366,7 +366,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void

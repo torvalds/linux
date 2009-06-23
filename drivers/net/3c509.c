@@ -892,7 +892,7 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			outb(0x00, ioaddr + TX_STATUS); /* Pop the status stack. */
 		}
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* The EL3 interrupt handler. */

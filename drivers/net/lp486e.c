@@ -871,7 +871,7 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 
@@ -906,7 +906,7 @@ static int i596_start_xmit (struct sk_buff *skb, struct net_device *dev) {
 		dev->stats.tx_packets++;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void

@@ -753,7 +753,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_dropped++;
 			dev_kfree_skb(skb);
 			tunnel->recursion--;
-			return 0;
+			return NETDEV_TX_OK;
 		}
 		if (skb->sk)
 			skb_set_owner_w(new_skb, skb->sk);
@@ -794,7 +794,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	IPTUNNEL_XMIT();
 	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_error_icmp:
 	dst_link_failure(skb);
@@ -802,7 +802,7 @@ tx_error:
 	stats->tx_errors++;
 	dev_kfree_skb(skb);
 	tunnel->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void ipip6_tunnel_bind_dev(struct net_device *dev)

@@ -1198,7 +1198,7 @@ static int elmc_send_packet(struct sk_buff *skb, struct net_device *dev)
 		netif_wake_queue(dev);
 	dev_kfree_skb(skb);
 #endif
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*******************************************

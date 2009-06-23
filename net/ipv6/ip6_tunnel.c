@@ -1063,14 +1063,14 @@ ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto tx_err;
 
 	t->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 
 tx_err:
 	stats->tx_errors++;
 	stats->tx_dropped++;
 	kfree_skb(skb);
 	t->recursion--;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void ip6_tnl_set_cap(struct ip6_tnl *t)

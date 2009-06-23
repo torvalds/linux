@@ -1706,7 +1706,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	} else {
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	spin_lock_irqsave(&tp->lock, flags);
@@ -1731,7 +1731,7 @@ static int rtl8139_start_xmit (struct sk_buff *skb, struct net_device *dev)
 		pr_debug("%s: Queued Tx packet size %u to slot %d.\n",
 			dev->name, len, entry);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 

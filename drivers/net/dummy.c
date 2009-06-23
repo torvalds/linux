@@ -85,7 +85,7 @@ static int dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int dummy_validate(struct nlattr *tb[], struct nlattr *data[])

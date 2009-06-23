@@ -177,7 +177,7 @@ static int irlan_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Did the realloc succeed? */
 		if (new_skb == NULL)
-			return 0;
+			return NETDEV_TX_OK;
 
 		/* Use the new skb instead */
 		skb = new_skb;
@@ -209,7 +209,7 @@ static int irlan_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		self->stats.tx_bytes += skb->len;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /*

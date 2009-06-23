@@ -1064,7 +1064,7 @@ static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (length < ETH_ZLEN) {
 		if (skb_padto(skb, ETH_ZLEN))
-			return 0;
+			return NETDEV_TX_OK;
 		length = ETH_ZLEN;
 	}
 	buf = skb->data;
@@ -1126,7 +1126,7 @@ static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 	/* outb(TX_INTR_DONE | TX_INTR_16_COL, ioaddr + TX_INTR_REG); */
 	status = 0;
 	dev_kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void eth16i_rx(struct net_device *dev)

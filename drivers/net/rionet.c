@@ -203,7 +203,7 @@ static int rionet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	spin_unlock_irqrestore(&rnet->tx_lock, flags);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void rionet_dbell_event(struct rio_mport *mport, void *dev_id, u16 sid, u16 tid,

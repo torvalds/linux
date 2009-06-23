@@ -398,12 +398,12 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
 	wake_up_interruptible(&tun->socket.wait);
-	return 0;
+	return NETDEV_TX_OK;
 
 drop:
 	dev->stats.tx_dropped++;
 	kfree_skb(skb);
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void tun_net_mclist(struct net_device *dev)

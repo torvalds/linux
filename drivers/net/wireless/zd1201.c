@@ -789,7 +789,7 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!zd->mac_enabled || zd->monitor) {
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 	netif_stop_queue(dev);
 
@@ -826,7 +826,7 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void zd1201_tx_timeout(struct net_device *dev)

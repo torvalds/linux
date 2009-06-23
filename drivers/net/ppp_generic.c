@@ -988,12 +988,12 @@ ppp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	skb_queue_tail(&ppp->file.xq, skb);
 	ppp_xmit_process(ppp);
-	return 0;
+	return NETDEV_TX_OK;
 
  outf:
 	kfree_skb(skb);
 	++dev->stats.tx_dropped;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
