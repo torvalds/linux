@@ -12,8 +12,7 @@
 */
 
 #include <linux/kernel.h>
-
-#include <mach/hardware.h>
+#include <linux/gpio.h>
 
 #include <mach/spi.h>
 #include <mach/regs-gpio.h>
