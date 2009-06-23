@@ -390,6 +390,30 @@ later date. It differs between i2c drivers and as such can be confusing.
 To see which chip variants are supported you can look in the i2c driver code
 for the i2c_device_id table. This lists all the possibilities.
 
+There are two more helper functions:
+
+v4l2_i2c_new_subdev_cfg: this function adds new irq and platform_data
+arguments and has both 'addr' and 'probed_addrs' arguments: if addr is not
+0 then that will be used (non-probing variant), otherwise the probed_addrs
+are probed.
+
+For example: this will probe for address 0x10:
+
+struct v4l2_subdev *sd = v4l2_i2c_new_subdev_cfg(v4l2_dev, adapter,
+	       "module_foo", "chipid", 0, NULL, 0, I2C_ADDRS(0x10));
+
+v4l2_i2c_new_subdev_board uses an i2c_board_info struct which is passed
+to the i2c driver and replaces the irq, platform_data and addr arguments.
+
+If the subdev supports the s_config core ops, then that op is called with
+the irq and platform_data arguments after the subdev was setup. The older
+v4l2_i2c_new_(probed_)subdev functions will call s_config as well, but with
+irq set to 0 and platform_data set to NULL.
+
+Note that in the next kernel release the functions v4l2_i2c_new_subdev,
+v4l2_i2c_new_probed_subdev and v4l2_i2c_new_probed_subdev_addr will all be
+replaced by a single v4l2_i2c_new_subdev that is identical to
+v4l2_i2c_new_subdev_cfg but without the irq and platform_data arguments.
 
 struct video_device
 -------------------

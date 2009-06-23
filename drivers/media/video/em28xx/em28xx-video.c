@@ -687,8 +687,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh    = priv;
 	struct em28xx         *dev   = fh->dev;
-	int                   width  = f->fmt.pix.width;
-	int                   height = f->fmt.pix.height;
+	unsigned int          width  = f->fmt.pix.width;
+	unsigned int          height = f->fmt.pix.height;
 	unsigned int          maxw   = norm_maxw(dev);
 	unsigned int          maxh   = norm_maxh(dev);
 	unsigned int          hscale, vscale;
@@ -701,34 +701,20 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	/* width must even because of the YUYV format
-	   height must be even because of interlacing */
-	height &= 0xfffe;
-	width  &= 0xfffe;
-
-	if (unlikely(height < 32))
-		height = 32;
-	if (unlikely(height > maxh))
-		height = maxh;
-	if (unlikely(width < 48))
-		width = 48;
-	if (unlikely(width > maxw))
-		width = maxw;
-
 	if (dev->board.is_em2800) {
 		/* the em2800 can only scale down to 50% */
-		if (height % (maxh / 2))
-			height = maxh;
-		if (width % (maxw / 2))
-			width = maxw;
-		/* according to empiatech support */
-		/* the MaxPacketSize is to small to support */
-		/* framesizes larger than 640x480 @ 30 fps */
-		/* or 640x576 @ 25 fps. As this would cut */
-		/* of a part of the image we prefer */
-		/* 360x576 or 360x480 for now */
+		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
+		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
+		/* According to empiatech support the MaxPacketSize is too small
+		 * to support framesizes larger than 640x480 @ 30 fps or 640x576
+		 * @ 25 fps.  As this would cut of a part of the image we prefer
+		 * 360x576 or 360x480 for now */
 		if (width == maxw && height == maxh)
 			width /= 2;
+	} else {
+		/* width must even because of the YUYV format
+		   height must be even because of interlacing */
+		v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh, 1, 0);
 	}
 
 	get_scale(dev, width, height, &hscale, &vscale);

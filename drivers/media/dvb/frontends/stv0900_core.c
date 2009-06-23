@@ -149,31 +149,31 @@ void stv0900_write_reg(struct stv0900_internal *i_params, u16 reg_addr,
 		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
 }
 
-u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg_addr)
+u8 stv0900_read_reg(struct stv0900_internal *i_params, u16 reg)
 {
-	u8 data[2];
 	int ret;
-	struct i2c_msg i2cmsg = {
-		.addr  = i_params->i2c_addr,
-		.flags = 0,
-		.len   = 2,
-		.buf   = data,
+	u8 b0[] = { MSB(reg), LSB(reg) };
+	u8 buf = 0;
+	struct i2c_msg msg[] = {
+		{
+			.addr	= i_params->i2c_addr,
+			.flags	= 0,
+			.buf = b0,
+			.len = 2,
+		}, {
+			.addr	= i_params->i2c_addr,
+			.flags	= I2C_M_RD,
+			.buf = &buf,
+			.len = 1,
+		},
 	};
 
-	data[0] = MSB(reg_addr);
-	data[1] = LSB(reg_addr);
+	ret = i2c_transfer(i_params->i2c_adap, msg, 2);
+	if (ret != 2)
+		dprintk(KERN_ERR "%s: i2c error %d, reg[0x%02x]\n",
+				__func__, ret, reg);
 
-	ret = i2c_transfer(i_params->i2c_adap, &i2cmsg, 1);
-	if (ret != 1)
-		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
-
-	i2cmsg.flags = I2C_M_RD;
-	i2cmsg.len = 1;
-	ret = i2c_transfer(i_params->i2c_adap, &i2cmsg, 1);
-	if (ret != 1)
-		dprintk(KERN_ERR "%s: i2c error %d\n", __func__, ret);
-
-	return data[0];
+	return buf;
 }
 
 void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
@@ -710,6 +710,44 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 	}
 
 	return c_n;
+}
+
+static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
+{
+	struct stv0900_state *state = fe->demodulator_priv;
+	struct stv0900_internal *i_params = state->internal;
+	enum fe_stv0900_demod_num demod = state->demod;
+	u8 err_val1, err_val0;
+	s32 err_field1, err_field0;
+	u32 header_err_val = 0;
+
+	*ucblocks = 0x0;
+	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
+		/* DVB-S2 delineator errors count */
+
+		/* retreiving number for errnous headers */
+		dmd_reg(err_field0, R0900_P1_BBFCRCKO0,
+					R0900_P2_BBFCRCKO0);
+		dmd_reg(err_field1, R0900_P1_BBFCRCKO1,
+					R0900_P2_BBFCRCKO1);
+
+		err_val1 = stv0900_read_reg(i_params, err_field1);
+		err_val0 = stv0900_read_reg(i_params, err_field0);
+		header_err_val = (err_val1<<8) | err_val0;
+
+		/* retreiving number for errnous packets */
+		dmd_reg(err_field0, R0900_P1_UPCRCKO0,
+					R0900_P2_UPCRCKO0);
+		dmd_reg(err_field1, R0900_P1_UPCRCKO1,
+					R0900_P2_UPCRCKO1);
+
+		err_val1 = stv0900_read_reg(i_params, err_field1);
+		err_val0 = stv0900_read_reg(i_params, err_field0);
+		*ucblocks = (err_val1<<8) | err_val0;
+		*ucblocks += header_err_val;
+	}
+
+	return 0;
 }
 
 static int stv0900_read_snr(struct dvb_frontend *fe, u16 *snr)
@@ -1355,7 +1393,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	struct stv0900_state *state = fe->demodulator_priv;
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 	enum fe_stv0900_error demodError = STV0900_NO_ERROR;
-	int selosci;
+	int selosci, i;
 
 	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
 						state->config->demod_address);
@@ -1402,7 +1440,23 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 				stv0900_write_bits(state->internal, F0900_P1_ROLLOFF_CONTROL, p_init->rolloff);
 				stv0900_write_bits(state->internal, F0900_P2_ROLLOFF_CONTROL, p_init->rolloff);
 
-				stv0900_set_ts_parallel_serial(state->internal, p_init->path1_ts_clock, p_init->path2_ts_clock);
+				state->internal->ts_config = p_init->ts_config;
+				if (state->internal->ts_config == NULL)
+					stv0900_set_ts_parallel_serial(state->internal,
+							p_init->path1_ts_clock,
+							p_init->path2_ts_clock);
+				else {
+					for (i = 0; state->internal->ts_config[i].addr != 0xffff; i++)
+						stv0900_write_reg(state->internal,
+								state->internal->ts_config[i].addr,
+								state->internal->ts_config[i].val);
+
+					stv0900_write_bits(state->internal, F0900_P2_RST_HWARE, 1);
+					stv0900_write_bits(state->internal, F0900_P2_RST_HWARE, 0);
+					stv0900_write_bits(state->internal, F0900_P1_RST_HWARE, 1);
+					stv0900_write_bits(state->internal, F0900_P1_RST_HWARE, 0);
+				}
+
 				stv0900_write_bits(state->internal, F0900_P1_TUN_MADDRESS, p_init->tun1_maddress);
 				switch (p_init->tuner1_adc) {
 				case 1:
@@ -1882,6 +1936,7 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.read_ber			= stv0900_read_ber,
 	.read_signal_strength		= stv0900_read_signal_strength,
 	.read_snr			= stv0900_read_snr,
+	.read_ucblocks                  = stv0900_read_ucblocks,
 };
 
 struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
@@ -1915,6 +1970,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 		init_params.tun1_iq_inversion	= STV0900_IQ_NORMAL;
 		init_params.tuner1_adc		= config->tun1_adc;
 		init_params.path2_ts_clock	= config->path2_mode;
+		init_params.ts_config		= config->ts_config_regs;
 		init_params.tun2_maddress	= config->tun2_maddress;
 		init_params.tuner2_adc		= config->tun2_adc;
 		init_params.tun2_iq_inversion	= STV0900_IQ_SWAPPED;

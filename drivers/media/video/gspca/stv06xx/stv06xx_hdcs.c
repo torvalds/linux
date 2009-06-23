@@ -434,7 +434,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	hdcs->exp.er = 100;
 
 	/*
-	 * Frame rate on HDCS-1000 0x46D:0x840 depends on PSMP:
+	 * Frame rate on HDCS-1000 with STV600 depends on PSMP:
 	 *  4 = doesn't work at all
 	 *  5 = 7.8 fps,
 	 *  6 = 6.9 fps,
@@ -443,7 +443,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	 * 15 = 4.4 fps,
 	 * 31 = 2.8 fps
 	 *
-	 * Frame rate on HDCS-1000 0x46D:0x870 depends on PSMP:
+	 * Frame rate on HDCS-1000 with STV602 depends on PSMP:
 	 * 15 = doesn't work at all
 	 * 18 = doesn't work at all
 	 * 19 = 7.3 fps
@@ -453,7 +453,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	 * 24 = 6.3 fps
 	 * 30 = 5.4 fps
 	 */
-	hdcs->psmp = IS_870(sd) ? 20 : 5;
+	hdcs->psmp = (sd->bridge == BRIDGE_STV602) ? 20 : 5;
 
 	sd->sensor_priv = hdcs;
 
@@ -530,7 +530,7 @@ static int hdcs_init(struct sd *sd)
 	int i, err = 0;
 
 	/* Set the STV0602AA in STV0600 emulation mode */
-	if (IS_870(sd))
+	if (sd->bridge == BRIDGE_STV602)
 		stv06xx_write_bridge(sd, STV_STV0600_EMULATION, 1);
 
 	/* Execute the bridge init */
@@ -558,7 +558,7 @@ static int hdcs_init(struct sd *sd)
 		return err;
 
 	/* Set PGA sample duration
-	(was 0x7E for IS_870, but caused slow framerate with HDCS-1020) */
+	(was 0x7E for the STV602, but caused slow framerate with HDCS-1020) */
 	if (IS_1020(sd))
 		err = stv06xx_write_sensor(sd, HDCS_TCTRL,
 				(HDCS_ADC_START_SIG_DUR << 6) | hdcs->psmp);
