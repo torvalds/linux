@@ -1311,8 +1311,10 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			while (!(page = follow_page(vma, start, foll_flags))) {
 				int ret;
 
-				/* FOLL_WRITE matches FAULT_FLAG_WRITE! */
-				ret = handle_mm_fault(mm, vma, start, foll_flags & FOLL_WRITE);
+				ret = handle_mm_fault(mm, vma, start,
+					(foll_flags & FOLL_WRITE) ?
+					FAULT_FLAG_WRITE : 0);
+
 				if (ret & VM_FAULT_ERROR) {
 					if (ret & VM_FAULT_OOM)
 						return i ? i : -ENOMEM;
