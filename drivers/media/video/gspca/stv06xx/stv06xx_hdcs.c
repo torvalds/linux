@@ -174,7 +174,9 @@ static int hdcs_set_state(struct sd *sd, enum hdcs_power_state state)
 	}
 
 	ret = stv06xx_write_sensor(sd, HDCS_REG_CONTROL(sd), val);
-	if (ret < 0)
+
+	/* Update the state if the write succeeded */
+	if (!ret)
 		hdcs->state = state;
 
 	return ret;
