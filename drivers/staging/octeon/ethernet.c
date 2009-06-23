@@ -37,13 +37,14 @@
 #include <asm/octeon/octeon.h>
 
 #include "ethernet-defines.h"
+#include "octeon-ethernet.h"
 #include "ethernet-mem.h"
 #include "ethernet-rx.h"
 #include "ethernet-tx.h"
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
 #include "ethernet-proc.h"
-#include "octeon-ethernet.h"
+
 
 #include "cvmx-pip.h"
 #include "cvmx-pko.h"
@@ -130,53 +131,55 @@ extern struct semaphore mdio_sem;
  */
 static void cvm_do_timer(unsigned long arg)
 {
+	int32_t skb_to_free, undo;
+	int queues_per_port;
+	int qos;
+	struct octeon_ethernet *priv;
 	static int port;
-	if (port < CVMX_PIP_NUM_INPUT_PORTS) {
-		if (cvm_oct_device[port]) {
-			int queues_per_port;
-			int qos;
-			struct octeon_ethernet *priv =
-				netdev_priv(cvm_oct_device[port]);
-			if (priv->poll) {
-				/* skip polling if we don't get the lock */
-				if (!down_trylock(&mdio_sem)) {
-					priv->poll(cvm_oct_device[port]);
-					up(&mdio_sem);
-				}
-			}
 
-			queues_per_port = cvmx_pko_get_num_queues(port);
-			/* Drain any pending packets in the free list */
-			for (qos = 0; qos < queues_per_port; qos++) {
-				if (skb_queue_len(&priv->tx_free_list[qos])) {
-					spin_lock(&priv->tx_free_list[qos].
-						  lock);
-					while (skb_queue_len
-					       (&priv->tx_free_list[qos]) >
-					       cvmx_fau_fetch_and_add32(priv->
-									fau +
-									qos * 4,
-									0))
-						dev_kfree_skb(__skb_dequeue
-							      (&priv->
-							       tx_free_list
-							       [qos]));
-					spin_unlock(&priv->tx_free_list[qos].
-						    lock);
-				}
-			}
-			cvm_oct_device[port]->netdev_ops->ndo_get_stats(cvm_oct_device[port]);
-		}
-		port++;
-		/* Poll the next port in a 50th of a second.
-		   This spreads the polling of ports out a little bit */
-		mod_timer(&cvm_oct_poll_timer, jiffies + HZ / 50);
-	} else {
+	if (port >= CVMX_PIP_NUM_INPUT_PORTS) {
+		/*
+		 * All ports have been polled. Start the next
+		 * iteration through the ports in one second.
+		 */
 		port = 0;
-		/* All ports have been polled. Start the next iteration through
-		   the ports in one second */
 		mod_timer(&cvm_oct_poll_timer, jiffies + HZ);
+		return;
 	}
+	if (!cvm_oct_device[port])
+		goto out;
+
+	priv = netdev_priv(cvm_oct_device[port]);
+	if (priv->poll) {
+		/* skip polling if we don't get the lock */
+		if (!down_trylock(&mdio_sem)) {
+			priv->poll(cvm_oct_device[port]);
+			up(&mdio_sem);
+		}
+	}
+
+	queues_per_port = cvmx_pko_get_num_queues(port);
+	/* Drain any pending packets in the free list */
+	for (qos = 0; qos < queues_per_port; qos++) {
+		if (skb_queue_len(&priv->tx_free_list[qos]) == 0)
+			continue;
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
+						       MAX_SKB_TO_FREE);
+		undo = skb_to_free > 0 ?
+			MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
+		if (undo > 0)
+			cvmx_fau_atomic_add32(priv->fau+qos*4, -undo);
+		skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ?
+			MAX_SKB_TO_FREE : -skb_to_free;
+		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 1);
+	}
+	cvm_oct_device[port]->netdev_ops->ndo_get_stats(cvm_oct_device[port]);
+
+out:
+	port++;
+	/* Poll the next port in a 50th of a second.
+	   This spreads the polling of ports out a little bit */
+	mod_timer(&cvm_oct_poll_timer, jiffies + HZ / 50);
 }
 
 /**
