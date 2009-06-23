@@ -986,7 +986,6 @@ static int usbhid_start(struct hid_device *hid)
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
 
 	spin_lock_init(&usbhid->lock);
-	spin_lock_init(&usbhid->lock);
 
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
