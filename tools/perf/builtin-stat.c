@@ -109,6 +109,10 @@ static u64			walltime_nsecs_noise;
 static u64			runtime_cycles_avg;
 static u64			runtime_cycles_noise;
 
+
+#define ERR_PERF_OPEN \
+"Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n"
+
 static void create_perf_stat_counter(int counter)
 {
 	struct perf_counter_attr *attr = attrs + counter;
@@ -119,20 +123,20 @@ static void create_perf_stat_counter(int counter)
 
 	if (system_wide) {
 		int cpu;
-		for (cpu = 0; cpu < nr_cpus; cpu ++) {
+		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter] = sys_perf_counter_open(attr, -1, cpu, -1, 0);
-			if (fd[cpu][counter] < 0 && verbose) {
-				printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[cpu][counter], strerror(errno));
-			}
+			if (fd[cpu][counter] < 0 && verbose)
+				fprintf(stderr, ERR_PERF_OPEN, counter,
+					fd[cpu][counter], strerror(errno));
 		}
 	} else {
 		attr->inherit	= inherit;
 		attr->disabled	= 1;
 
 		fd[0][counter] = sys_perf_counter_open(attr, 0, -1, -1, 0);
-		if (fd[0][counter] < 0 && verbose) {
-			printf("Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n", counter, fd[0][counter], strerror(errno));
-		}
+		if (fd[0][counter] < 0 && verbose)
+			fprintf(stderr, ERR_PERF_OPEN, counter,
+				fd[0][counter], strerror(errno));
 	}
 }
 
@@ -168,7 +172,7 @@ static void read_counter(int counter)
 	count[0] = count[1] = count[2] = 0;
 
 	nv = scale ? 3 : 1;
-	for (cpu = 0; cpu < nr_cpus; cpu ++) {
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		if (fd[cpu][counter] < 0)
 			continue;
 
