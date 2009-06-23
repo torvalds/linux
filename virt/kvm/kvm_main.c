@@ -1199,6 +1199,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		if (old.npages)
 			kvm_arch_flush_shadow(kvm);
 	}
+#else  /* not defined CONFIG_S390 */
+	new.user_alloc = user_alloc;
+	if (user_alloc)
+		new.userspace_addr = mem->userspace_addr;
 #endif /* not defined CONFIG_S390 */
 
 	if (!npages)
