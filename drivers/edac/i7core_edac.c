@@ -189,6 +189,7 @@ struct i7core_pvt {
 	struct i7core_info	info;
 	struct i7core_inject	inject;
 	struct i7core_channel	channel[NUM_CHANS];
+	int			channels; /* Number of active channels */
 
 	int		ce_count_available;
 	unsigned long	ce_count[MAX_DIMMS];	/* ECC corrected errors counts per dimm */
@@ -259,12 +260,12 @@ static struct edac_pci_ctl_info *i7core_pci;
  ****************************************************************************/
 
 	/* MC_CONTROL bits */
-#define CH_ACTIVE(pvt, ch)	((pvt)->info.mc_control & 1 << (8 + ch))
-#define ECCx8(pvt)		((pvt)->info.mc_control & 1 << 1)
+#define CH_ACTIVE(pvt, ch)	((pvt)->info.mc_control & (1 << (8 + ch)))
+#define ECCx8(pvt)		((pvt)->info.mc_control & (1 << 1))
 
 	/* MC_STATUS bits */
-#define ECC_ENABLED(pvt)	((pvt)->info.mc_status & 1 << 3)
-#define CH_DISABLED(pvt, ch)	((pvt)->info.mc_status & 1 << ch)
+#define ECC_ENABLED(pvt)	((pvt)->info.mc_status & (1 << 3))
+#define CH_DISABLED(pvt, ch)	((pvt)->info.mc_status & (1 << ch))
 
 	/* MC_MAX_DOD read functions */
 static inline int maxnumdimms(struct i7core_pvt *pvt)
@@ -308,6 +309,48 @@ static inline int maxnumcol(struct i7core_pvt *pvt)
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
+static int i7core_get_active_channels(int *channels)
+{
+	struct pci_dev *pdev = NULL;
+	int i;
+	u32 status, control;
+
+	*channels = 0;
+
+	for (i = 0; i < N_DEVS; i++) {
+		if (!pci_devs[i].pdev)
+			continue;
+
+		if (PCI_SLOT(pci_devs[i].pdev->devfn) == 3 &&
+		    PCI_FUNC(pci_devs[i].pdev->devfn) == 0) {
+			pdev = pci_devs[i].pdev;
+			break;
+		}
+	}
+
+	if (!pdev)
+		return -ENODEV;
+
+	/* Device 3 function 0 reads */
+	pci_read_config_dword(pdev, MC_STATUS, &status);
+	pci_read_config_dword(pdev, MC_CONTROL, &control);
+
+	for (i = 0; i < NUM_CHANS; i++) {
+		/* Check if the channel is active */
+		if (!(control & (1 << (8 + i))))
+			continue;
+
+		/* Check if the channel is disabled */
+		if (status & (1 << i)) {
+			continue;
+		}
+
+		(*channels)++;
+	}
+
+	return 0;
+}
+
 static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
@@ -852,69 +895,103 @@ static void i7core_put_devices(void)
  *
  *			Need to 'get' device 16 func 1 and func 2
  */
-static int i7core_get_devices(struct mem_ctl_info *mci, struct pci_dev *mcidev)
+static int i7core_get_devices(void)
 {
-	struct i7core_pvt *pvt = mci->pvt_info;
-	int rc, i,func;
+	int rc, i;
 	struct pci_dev *pdev = NULL;
-
-	pvt = mci->pvt_info;
-	memset(pvt, 0, sizeof(*pvt));
 
 	for (i = 0; i < N_DEVS; i++) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					pci_devs[i].dev_id, NULL);
-		if (!pdev) {
-			/* End of list, leave */
+		if (likely(pdev))
+			pci_devs[i].pdev = pdev;
+		else {
 			i7core_printk(KERN_ERR,
 				"Device not found: PCI ID %04x:%04x "
 				"(dev %d, func %d)\n",
 				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
 				pci_devs[i].dev,pci_devs[i].func);
-			if ((pci_devs[i].dev == 3) && (pci_devs[i].func == 2))
-				continue; /* Only on chips with RDIMMs */
-			else
-				i7core_put_devices();
-		}
-		pci_devs[i].pdev = pdev;
 
-		rc = pci_enable_device(pdev);
-		if (rc < 0) {
-			i7core_printk(KERN_ERR,
-				"Couldn't enable PCI ID %04x:%04x "
-				"(dev %d, func %d)\n",
-				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
-				pci_devs[i].dev, pci_devs[i].func);
-			i7core_put_devices();
-			return rc;
+			/* Dev 3 function 2 only exists on chips with RDIMMs */
+			if ((pci_devs[i].dev == 3) && (pci_devs[i].func == 2))
+				continue;
+
+			/* End of list, leave */
+			rc = -ENODEV;
+			goto error;
 		}
+
 		/* Sanity check */
-		if (PCI_FUNC(pdev->devfn) != pci_devs[i].func) {
+		if (unlikely(PCI_SLOT(pdev->devfn) != pci_devs[i].dev ||
+			     PCI_FUNC(pdev->devfn) != pci_devs[i].func)) {
 			i7core_printk(KERN_ERR,
 				"Device PCI ID %04x:%04x "
-				"has function %d instead of %d\n",
+				"has fn %d.%d instead of fn %d.%d\n",
 				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
-				PCI_FUNC(pdev->devfn), pci_devs[i].func);
-			i7core_put_devices();
-			return -EINVAL;
+				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+				pci_devs[i].dev, pci_devs[i].func);
+			rc = -EINVAL;
+			goto error;
+		}
+
+		/* Be sure that the device is enabled */
+		rc = pci_enable_device(pdev);
+		if (unlikely(rc < 0)) {
+			i7core_printk(KERN_ERR,
+				"Couldn't enable PCI ID %04x:%04x "
+				"fn %d.%d\n",
+				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
+				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+			goto error;
 		}
 
 		i7core_printk(KERN_INFO,
-				"Registered device %0x:%0x fn=%0x %0x\n",
+				"Registered device %0x:%0x fn %d.%d\n",
 				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
 				PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-
-		func = PCI_FUNC(pdev->devfn);
-		if (pci_devs[i].dev < 4) {
-			pvt->pci_mcr[func] = pdev;
-		} else {
-			pvt->pci_ch[pci_devs[i].dev - 4][func] = pdev;
-		}
 	}
 
-	i7core_printk(KERN_INFO, "Driver loaded.\n");
-
 	return 0;
+
+error:
+	i7core_put_devices();
+	return -EINVAL;
+}
+
+static int mci_bind_devs(struct mem_ctl_info *mci)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	struct pci_dev *pdev;
+	int i, func, slot;
+
+	for (i = 0; i < N_DEVS; i++) {
+		pdev = pci_devs[i].pdev;
+		if (!pdev)
+			continue;
+
+		func = PCI_FUNC(pdev->devfn);
+		slot = PCI_SLOT(pdev->devfn);
+		if (slot == 3) {
+			if (unlikely(func > MAX_MCR_FUNC))
+				goto error;
+			pvt->pci_mcr[func] = pdev;
+		} else if (likely(slot >= 4 && slot < 4 + NUM_CHANS)) {
+			if (unlikely(func > MAX_CHAN_FUNC))
+				goto error;
+			pvt->pci_ch[slot - 4][func] = pdev;
+		} else
+			goto error;
+
+		debugf0("Associated fn %d.%d, dev = %p\n",
+			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), pdev);
+	}
+	return 0;
+
+error:
+	i7core_printk(KERN_ERR, "Device %d, function %d "
+		      "is out of the expected range\n",
+		      slot, func);
+	return -EINVAL;
 }
 
 /****************************************************************************
@@ -1001,41 +1078,38 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 {
 	struct mem_ctl_info *mci;
 	struct i7core_pvt *pvt;
-	int num_channels;
+	int num_channels = 0;
 	int num_csrows;
-	int num_dimms_per_channel;
 	int dev_idx = id->driver_data;
 
-	if (dev_idx >= ARRAY_SIZE(i7core_devs))
+	if (unlikely(dev_idx >= ARRAY_SIZE(i7core_devs)))
 		return -EINVAL;
 
-	num_channels = NUM_CHANS;
+	/* get the pci devices we want to reserve for our use */
+	if (unlikely(i7core_get_devices() < 0))
+		return -ENODEV;
 
-	/* FIXME: FAKE data, since we currently don't now how to get this */
-	num_dimms_per_channel = 4;
-	num_csrows = num_dimms_per_channel;
+	/* Check the number of active and not disabled channels */
+	if (unlikely (i7core_get_active_channels(&num_channels)) < 0)
+		goto fail0;
+
+	/* FIXME: we currently don't know the number of csrows */
+	num_csrows = num_channels;
 
 	/* allocate a new MC control structure */
 	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
-	if (mci == NULL)
+	if (unlikely (!mci))
 		return -ENOMEM;
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
 
-	/* 'get' the pci devices we want to reserve for our use */
-	if (i7core_get_devices(mci, pdev))
-		goto fail0;
-
 	mci->dev = &pdev->dev;	/* record ptr to the generic device */
 
 	pvt = mci->pvt_info;
-
-//	pvt->system_address = pdev;	/* Record this device in our private */
-//	pvt->maxch = num_channels;
-//	pvt->maxdimmperch = num_dimms_per_channel;
+	memset(pvt, 0, sizeof(*pvt));
 
 	mci->mc_idx = 0;
-	mci->mtype_cap = MEM_FLAG_FB_DDR2;	/* FIXME: it uses DDR3 */
+	mci->mtype_cap = MEM_FLAG_DDR3;		/* FIXME: how to handle RDDR3? */
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
@@ -1044,12 +1118,18 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
 	mci->mc_driver_sysfs_attributes = i7core_inj_attrs;
-
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7core_check_error;
 
+	/* Store pci devices at mci for faster access */
+	if (unlikely (mci_bind_devs(mci)) < 0)
+		goto fail1;
+
+	/* Get dimm basic config */
+	get_dimm_config(mci);
+
 	/* add this new MC control structure to EDAC's list of MCs */
-	if (edac_mc_add_mc(mci)) {
+	if (unlikely(edac_mc_add_mc(mci)) < 0) {
 		debugf0("MC: " __FILE__
 			": %s(): failed edac_mc_add_mc()\n", __func__);
 		/* FIXME: perhaps some code should go here that disables error
@@ -1060,7 +1140,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	/* allocating generic PCI control info */
 	i7core_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
-	if (!i7core_pci) {
+	if (unlikely (!i7core_pci)) {
 		printk(KERN_WARNING
 			"%s(): Unable to create PCI control\n",
 			__func__);
@@ -1070,15 +1150,14 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	}
 
 	/* Default error mask is any memory */
-	pvt->inject.channel = -1;
+	pvt->inject.channel = 0;
 	pvt->inject.dimm = -1;
 	pvt->inject.rank = -1;
 	pvt->inject.bank = -1;
 	pvt->inject.page = -1;
 	pvt->inject.col = -1;
 
-	/* Get dimm basic config */
-	get_dimm_config(mci);
+	i7core_printk(KERN_INFO, "Driver loaded.\n");
 
 	return 0;
 
