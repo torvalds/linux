@@ -4227,6 +4227,7 @@ i915_gem_lastclose(struct drm_device *dev)
 void
 i915_gem_load(struct drm_device *dev)
 {
+	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	spin_lock_init(&dev_priv->mm.active_list_lock);
@@ -4245,6 +4246,18 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
+
+	/* Initialize fence registers to zero */
+	if (IS_I965G(dev)) {
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), 0);
+	} else {
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), 0);
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), 0);
+	}
 
 	i915_gem_detect_bit_6_swizzle(dev);
 }
