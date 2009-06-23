@@ -187,7 +187,7 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 
 #ifdef CONFIG_OPROFILE_IBS
 
-static inline int
+static inline void
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
 {
@@ -195,7 +195,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	struct op_entry entry;
 
 	if (!has_ibs)
-		return 1;
+		return;
 
 	if (ibs_config.fetch_enabled) {
 		rdmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
@@ -241,8 +241,6 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			wrmsrl(MSR_AMD64_IBSOPCTL, ctl);
 		}
 	}
-
-	return 1;
 }
 
 static inline void op_amd_start_ibs(void)
@@ -276,7 +274,7 @@ static void op_amd_stop_ibs(void)
 
 #else
 
-static inline int op_amd_handle_ibs(struct pt_regs * const regs,
+static inline void op_amd_handle_ibs(struct pt_regs * const regs,
 				    struct op_msrs const * const msrs) { }
 static inline void op_amd_start_ibs(void) { }
 static inline void op_amd_stop_ibs(void) { }
