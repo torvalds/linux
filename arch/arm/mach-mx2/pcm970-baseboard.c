@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/can/platform/sja1000.h>
 
 #include <asm/mach/arch.h>
 
@@ -188,6 +189,33 @@ static struct imx_fb_platform_data pcm038_fb_data = {
 	.dmacr		= 0x00020010,
 };
 
+static struct resource pcm970_sja1000_resources[] = {
+	{
+		.start   = CS4_BASE_ADDR,
+		.end     = CS4_BASE_ADDR + 0x100 - 1,
+		.flags   = IORESOURCE_MEM,
+	}, {
+		.start   = IRQ_GPIOE(19),
+		.end     = IRQ_GPIOE(19),
+		.flags   = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+struct sja1000_platform_data pcm970_sja1000_platform_data = {
+	.clock		= 16000000 / 2,
+	.ocr		= 0x40 | 0x18,
+	.cdr		= 0x40,
+};
+
+static struct platform_device pcm970_sja1000 = {
+	.name = "sja1000_platform",
+	.dev = {
+		.platform_data = &pcm970_sja1000_platform_data,
+	},
+	.resource = pcm970_sja1000_resources,
+	.num_resources = ARRAY_SIZE(pcm970_sja1000_resources),
+};
+
 /*
  * system init for baseboard usage. Will be called by pcm038 init.
  *
@@ -201,4 +229,5 @@ void __init pcm970_baseboard_init(void)
 
 	mxc_register_device(&mxc_fb_device, &pcm038_fb_data);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
+	platform_device_register(&pcm970_sja1000);
 }
