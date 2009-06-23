@@ -15,7 +15,6 @@
 
 static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
-static int bnx2i_reg_device;
 
 #define DRV_MODULE_NAME		"bnx2i"
 #define DRV_MODULE_VERSION	"2.0.1d"
@@ -193,10 +192,6 @@ void bnx2i_register_device(struct bnx2i_hba *hba)
 
 	hba->cnic->register_device(hba->cnic, CNIC_ULP_ISCSI, hba);
 
-	spin_lock(&hba->lock);
-	bnx2i_reg_device++;
-	spin_unlock(&hba->lock);
-
 	set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
 }
 
@@ -233,10 +228,6 @@ static void bnx2i_unreg_one_device(struct bnx2i_hba *hba)
 		return;
 
 	hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
-
-	spin_lock(&hba->lock);
-	bnx2i_reg_device--;
-	spin_unlock(&hba->lock);
 
 	/* ep_disconnect could come before NETDEV_DOWN, driver won't
 	 * see NETDEV_DOWN as it already unregistered itself.
@@ -276,16 +267,12 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	read_lock(&bnx2i_dev_lock);
-	if (bnx2i_reg_device &&
-	    !test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+	if (!test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
 		rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
 		if (rc)		/* duplicate registration */
 			printk(KERN_ERR "bnx2i- dev reg failed\n");
 
-		spin_lock(&hba->lock);
-		bnx2i_reg_device++;
 		hba->age++;
-		spin_unlock(&hba->lock);
 
 		set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
 	}
@@ -350,10 +337,6 @@ void bnx2i_ulp_exit(struct cnic_dev *dev)
 	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
 		hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
 		clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-
-		spin_lock(&hba->lock);
-		bnx2i_reg_device--;
-		spin_unlock(&hba->lock);
 	}
 	write_unlock(&bnx2i_dev_lock);
 
@@ -421,7 +404,6 @@ static void __exit bnx2i_mod_exit(void)
 		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
 			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
 			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-			bnx2i_reg_device--;
 		}
 
 		write_unlock(&bnx2i_dev_lock);
