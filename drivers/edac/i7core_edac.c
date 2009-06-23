@@ -113,7 +113,7 @@
   #define MC_DOD_NUMBANK(x)		(((x) & MC_DOD_NUMBANK_MASK) >> 7)
   #define MC_DOD_NUMRANK_MASK		((1 << 6) | (1 << 5))
   #define MC_DOD_NUMRANK(x)		(((x) & MC_DOD_NUMRANK_MASK) >> 5)
-  #define MC_DOD_NUMROW_MASK		((1 << 4) | (1 << 3)| (1 << 2))
+  #define MC_DOD_NUMROW_MASK		((1 << 4) | (1 << 3) | (1 << 2))
   #define MC_DOD_NUMROW(x)		(((x) & MC_DOD_NUMROW_MASK) >> 2)
   #define MC_DOD_NUMCOL_MASK		3
   #define MC_DOD_NUMCOL(x)		((x) & MC_DOD_NUMCOL_MASK)
@@ -352,9 +352,8 @@ static int i7core_get_active_channels(int *channels, int *csrows)
 			continue;
 
 		/* Check if the channel is disabled */
-		if (status & (1 << i)) {
+		if (status & (1 << i))
 			continue;
-		}
 
 		pdev = get_pdev_slot_func(i + 4, 1);
 		if (!pdev) {
@@ -410,7 +409,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt)) {
-		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt) ?8:4);
+		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt) ? 8 : 4);
 		if (ECCx8(pvt))
 			mode = EDAC_S8ECD8ED;
 		else
@@ -447,7 +446,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_ch[i][0],
 				MC_CHANNEL_DIMM_INIT_PARAMS, &data);
 
-		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT)? 4 : 2;
+		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT) ? 4 : 2;
 
 		if (data & REGISTERED_DIMM)
 			mtype = MEM_RDDR3;
@@ -476,7 +475,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
 			data,
 			pvt->channel[i].ranks,
-			(data & REGISTERED_DIMM)? 'R' : 'U');
+			(data & REGISTERED_DIMM) ? 'R' : 'U');
 
 		for (j = 0; j < 3; j++) {
 			u32 banks, ranks, rows, cols;
@@ -550,9 +549,9 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
 		pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
 		pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
-		printk("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
+		debugf0("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
 		for (j = 0; j < 8; j++)
-			printk("\t\t%#x\t%#x\t%#x\n",
+			debugf0("\t\t%#x\t%#x\t%#x\n",
 				(value[j] >> 27) & 0x1,
 				(value[j] >> 24) & 0x7,
 				(value[j] && ((1 << 24) - 1)));
@@ -602,7 +601,7 @@ static ssize_t i7core_inject_section_store(struct mem_ctl_info *mci,
 	int rc;
 
 	if (pvt->inject.enable)
-		 disable_inject(mci);
+		disable_inject(mci);
 
 	rc = strict_strtoul(data, 10, &value);
 	if ((rc < 0) || (value > 3))
@@ -635,7 +634,7 @@ static ssize_t i7core_inject_type_store(struct mem_ctl_info *mci,
 	int rc;
 
 	if (pvt->inject.enable)
-		 disable_inject(mci);
+		disable_inject(mci);
 
 	rc = strict_strtoul(data, 10, &value);
 	if ((rc < 0) || (value > 7))
@@ -670,7 +669,7 @@ static ssize_t i7core_inject_eccmask_store(struct mem_ctl_info *mci,
 	int rc;
 
 	if (pvt->inject.enable)
-		 disable_inject(mci);
+		disable_inject(mci);
 
 	rc = strict_strtoul(data, 10, &value);
 	if (rc < 0)
@@ -706,7 +705,7 @@ static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
 	int rc;
 
 	if (pvt->inject.enable)
-		 disable_inject(mci);
+		disable_inject(mci);
 
 	do {
 		cmd = strsep((char **) &data, ":");
@@ -716,7 +715,7 @@ static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
 		if (!val)
 			return cmd - data;
 
-		if (!strcasecmp(val,"any"))
+		if (!strcasecmp(val, "any"))
 			value = -1;
 		else {
 			rc = strict_strtol(val, 10, &value);
@@ -724,33 +723,33 @@ static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
 				return cmd - data;
 		}
 
-		if (!strcasecmp(cmd,"channel")) {
+		if (!strcasecmp(cmd, "channel")) {
 			if (value < 3)
 				pvt->inject.channel = value;
 			else
 				return cmd - data;
-		} else if (!strcasecmp(cmd,"dimm")) {
+		} else if (!strcasecmp(cmd, "dimm")) {
 			if (value < 4)
 				pvt->inject.dimm = value;
 			else
 				return cmd - data;
-		} else if (!strcasecmp(cmd,"rank")) {
+		} else if (!strcasecmp(cmd, "rank")) {
 			if (value < 4)
 				pvt->inject.rank = value;
 			else
 				return cmd - data;
-		} else if (!strcasecmp(cmd,"bank")) {
+		} else if (!strcasecmp(cmd, "bank")) {
 			if (value < 4)
 				pvt->inject.bank = value;
 			else
 				return cmd - data;
-		} else if (!strcasecmp(cmd,"page")) {
+		} else if (!strcasecmp(cmd, "page")) {
 			if (value <= 0xffff)
 				pvt->inject.page = value;
 			else
 				return cmd - data;
-		} else if (!strcasecmp(cmd,"col") ||
-			   !strcasecmp(cmd,"column")) {
+		} else if (!strcasecmp(cmd, "col") ||
+			   !strcasecmp(cmd, "column")) {
 			if (value <= 0x3fff)
 				pvt->inject.col = value;
 			else
@@ -923,7 +922,8 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_MASK, injectmask);
 
-	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x, inject 0x%08x\n",
+	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x,"
+		" inject 0x%08x\n",
 		mask, pvt->inject.eccmask, injectmask);
 
 
@@ -1048,7 +1048,7 @@ static int i7core_get_devices(void)
 				"Device not found: PCI ID %04x:%04x "
 				"(dev %d, func %d)\n",
 				PCI_VENDOR_ID_INTEL, pci_devs[i].dev_id,
-				pci_devs[i].dev,pci_devs[i].func);
+				pci_devs[i].dev, pci_devs[i].func);
 
 			/* Dev 3 function 2 only exists on chips with RDIMMs */
 			if ((pci_devs[i].dev == 3) && (pci_devs[i].func == 2))
@@ -1231,12 +1231,12 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	/* Check the number of active and not disabled channels */
 	rc = i7core_get_active_channels(&num_channels, &num_csrows);
-	if (unlikely (rc < 0))
+	if (unlikely(rc < 0))
 		goto fail0;
 
 	/* allocate a new MC control structure */
 	mci = edac_mc_alloc(sizeof(*pvt), num_csrows, num_channels, 0);
-	if (unlikely (!mci)) {
+	if (unlikely(!mci)) {
 		rc = -ENOMEM;
 		goto fail0;
 	}
@@ -1249,7 +1249,12 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	memset(pvt, 0, sizeof(*pvt));
 
 	mci->mc_idx = 0;
-	mci->mtype_cap = MEM_FLAG_DDR3;		/* FIXME: how to handle RDDR3? */
+	/*
+	 * FIXME: how to handle RDDR3 at MCI level? It is possible to have
+	 * Mixed RDDR3/UDDR3 with Nehalem, provided that they are on different
+	 * memory channels
+	 */
+	mci->mtype_cap = MEM_FLAG_DDR3;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
@@ -1263,7 +1268,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	/* Store pci devices at mci for faster access */
 	rc = mci_bind_devs(mci);
-	if (unlikely (rc < 0))
+	if (unlikely(rc < 0))
 		goto fail1;
 
 	/* Get dimm basic config */
@@ -1283,7 +1288,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	/* allocating generic PCI control info */
 	i7core_pci = edac_pci_create_generic_ctl(&pdev->dev, EDAC_MOD_STR);
-	if (unlikely (!i7core_pci)) {
+	if (unlikely(!i7core_pci)) {
 		printk(KERN_WARNING
 			"%s(): Unable to create PCI control\n",
 			__func__);
