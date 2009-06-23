@@ -876,9 +876,12 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 		return stat;
 
 	/*
-	 * Sanity check the given block size
+	 * Sanity check the given block size, in so far as making
+	 * sure the sectors_per_frame we give to the caller won't
+	 * end up being bogus.
 	 */
 	blocklen = be32_to_cpu(capbuf.blocklen);
+	blocklen = (blocklen >> SECTOR_BITS) << SECTOR_BITS;
 	switch (blocklen) {
 	case 512:
 	case 1024:
