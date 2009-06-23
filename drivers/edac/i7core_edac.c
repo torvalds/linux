@@ -880,6 +880,15 @@ static int i7core_get_devices(struct mem_ctl_info *mci, struct pci_dev *mcidev)
 }
 
 /*
+ *	i7core_check_error	Retrieve and process errors reported by the
+ *				hardware. Called by the Core module.
+ */
+static void i7core_check_error(struct mem_ctl_info *mci)
+{
+	/* FIXME: need a real code here */
+}
+
+/*
  *	i7core_probe	Probe for ONE instance of device to see if it is
  *			present.
  *	return:
@@ -912,8 +921,11 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
 
+	/* 'get' the pci devices we want to reserve for our use */
+	if (i7core_get_devices(mci, pdev))
+		goto fail0;
+
 	mci->dev = &pdev->dev;	/* record ptr to the generic device */
-	dev_set_drvdata(mci->dev, mci);
 
 	pvt = mci->pvt_info;
 
@@ -932,9 +944,8 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci->ctl_page_to_phys = NULL;
 	mci->mc_driver_sysfs_attributes = i7core_inj_attrs;
 
-	/* 'get' the pci devices we want to reserve for our use */
-	if (i7core_get_devices(mci, pdev))
-		goto fail0;
+	/* Set the function pointer to an actual operation function */
+	mci->edac_check = i7core_check_error;
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (edac_mc_add_mc(mci)) {
@@ -992,6 +1003,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 		edac_pci_release_generic_ctl(i7core_pci);
 
 	mci = edac_mc_del_mc(&pdev->dev);
+
 	if (!mci)
 		return;
 
