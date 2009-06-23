@@ -62,6 +62,15 @@
 
 	/* OFFSETS for Devices 4,5 and 6 Function 0 */
 
+#define MC_CHANNEL_DIMM_INIT_PARAMS 0x58
+  #define THREE_DIMMS_PRESENT		(1 << 24)
+  #define SINGLE_QUAD_RANK_PRESENT	(1 << 23)
+  #define QUAD_RANK_PRESENT		(1 << 22)
+  #define REGISTERED_DIMM		(1 << 15)
+
+#define MC_CHANNEL_RANK_PRESENT 0x7c
+  #define RANK_PRESENT_MASK		0xffff
+
 #define MC_CHANNEL_ADDR_MATCH	0xf0
 #define MC_CHANNEL_ERROR_MASK	0xf8
 #define MC_CHANNEL_ERROR_INJECT	0xfc
@@ -73,6 +82,46 @@
   #define MASK_LSB32_CACHELINE	0x02
   #define NO_MASK_CACHELINE	0x00
   #define REPEAT_EN		0x01
+
+	/* OFFSETS for Devices 4,5 and 6 Function 1 */
+#define MC_DOD_CH_DIMM0		0x48
+#define MC_DOD_CH_DIMM1		0x4c
+#define MC_DOD_CH_DIMM2		0x50
+  #define RANKOFFSET_MASK	((1 << 12) | (1 << 11) | (1 << 10))
+  #define RANKOFFSET(x)		((x & RANKOFFSET_MASK) >> 10)
+  #define DIMM_PRESENT_MASK	(1 << 9)
+  #define DIMM_PRESENT(x)	(((x) & DIMM_PRESENT_MASK) >> 9)
+  #define NUMBANK_MASK		((1 << 8) | (1 << 7))
+  #define NUMBANK(x)		(((x) & NUMBANK_MASK) >> 7)
+  #define NUMRANK_MASK		((1 << 6) | (1 << 5))
+  #define NUMRANK(x)		(((x) & NUMRANK_MASK) >> 5)
+  #define NUMROW_MASK		((1 << 4) | (1 << 3))
+  #define NUMROW(x)		(((x) & NUMROW_MASK) >> 3)
+  #define NUMCOL_MASK		3
+  #define NUMCOL(x)		((x) & NUMCOL_MASK)
+
+#define MC_SAG_CH_0	0x80
+#define MC_SAG_CH_1	0x84
+#define MC_SAG_CH_2	0x88
+#define MC_SAG_CH_3	0x8c
+#define MC_SAG_CH_4	0x90
+#define MC_SAG_CH_5	0x94
+#define MC_SAG_CH_6	0x98
+#define MC_SAG_CH_7	0x9c
+
+#define MC_RIR_LIMIT_CH_0	0x40
+#define MC_RIR_LIMIT_CH_1	0x44
+#define MC_RIR_LIMIT_CH_2	0x48
+#define MC_RIR_LIMIT_CH_3	0x4C
+#define MC_RIR_LIMIT_CH_4	0x50
+#define MC_RIR_LIMIT_CH_5	0x54
+#define MC_RIR_LIMIT_CH_6	0x58
+#define MC_RIR_LIMIT_CH_7	0x5C
+#define MC_RIR_LIMIT_MASK	((1 << 10) - 1)
+
+#define MC_RIR_WAY_CH		0x80
+  #define MC_RIR_WAY_OFFSET_MASK	(((1 << 14) - 1) & ~0x7)
+  #define MC_RIR_WAY_RANK_MASK		0x7
 
 /*
  * i7core structs
@@ -99,11 +148,17 @@ struct i7core_inject {
 	int channel, dimm, rank, bank, page, col;
 };
 
+struct i7core_channel {
+	u32 ranks;
+	u32 dimms;
+};
+
 struct i7core_pvt {
 	struct pci_dev		*pci_mcr;	/* Dev 3:0 */
 	struct pci_dev		*pci_ch[NUM_CHANS][NUM_FUNCS];
 	struct i7core_info	info;
 	struct i7core_inject	inject;
+	struct i7core_channel	channel[NUM_CHANS];
 };
 
 /* Device name and register DID (Device ID) */
@@ -133,16 +188,12 @@ static struct edac_pci_ctl_info *i7core_pci;
  ****************************************************************************/
 
 	/* MC_CONTROL bits */
-#define CH2_ACTIVE(pvt)		((pvt)->info.mc_control & 1 << 10)
-#define CH1_ACTIVE(pvt)		((pvt)->info.mc_control & 1 << 9)
-#define CH0_ACTIVE(pvt)		((pvt)->info.mc_control & 1 << 8)
+#define CH_ACTIVE(pvt, ch)	((pvt)->info.mc_control & 1 << (8 + ch))
 #define ECCx8(pvt)		((pvt)->info.mc_control & 1 << 1)
 
 	/* MC_STATUS bits */
 #define ECC_ENABLED(pvt)	((pvt)->info.mc_status & 1 << 3)
-#define CH2_DISABLED(pvt)	((pvt)->info.mc_status & 1 << 2)
-#define CH1_DISABLED(pvt)	((pvt)->info.mc_status & 1 << 1)
-#define CH0_DISABLED(pvt)	((pvt)->info.mc_status & 1 << 0)
+#define CH_DISABLED(pvt, ch)	((pvt)->info.mc_status & 1 << ch)
 
 	/* MC_MAX_DOD read functions */
 static inline int maxnumdimms(struct i7core_pvt *pvt)
@@ -189,18 +240,11 @@ static inline int maxnumcol(struct i7core_pvt *pvt)
 static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
+	int i;
 
 	pci_read_config_dword(pvt->pci_mcr, MC_CONTROL, &pvt->info.mc_control);
 	pci_read_config_dword(pvt->pci_mcr, MC_STATUS, &pvt->info.mc_status);
 	pci_read_config_dword(pvt->pci_mcr, MC_MAX_DOD, &pvt->info.max_dod);
-
-	debugf0("Channels  active [%c][%c][%c] - enabled [%c][%c][%c]\n",
-		CH0_ACTIVE(pvt)?'0':'-',
-		CH1_ACTIVE(pvt)?'1':'-',
-		CH2_ACTIVE(pvt)?'2':'-',
-		CH0_DISABLED(pvt)?'-':'0',
-		CH1_DISABLED(pvt)?'-':'1',
-		CH2_DISABLED(pvt)?'-':'2');
 
 	if (ECC_ENABLED(pvt))
 		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt)?8:4);
@@ -212,6 +256,38 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		maxnumdimms(pvt), maxnumrank(pvt), maxnumbank(pvt));
 	debugf0("DOD Maximum rows x colums = 0x%x x 0x%x\n",
 		maxnumrow(pvt), maxnumcol(pvt));
+
+	debugf0("Memory channel configuration:\n");
+
+	for (i = 0; i < NUM_CHANS; i++) {
+		u32 data;
+
+		if (!CH_ACTIVE(pvt, i)) {
+			debugf0("Channel %i is not active\n", i);
+			continue;
+		}
+		if (CH_DISABLED(pvt, i)) {
+			debugf0("Channel %i is disabled\n", i);
+			continue;
+		}
+
+		pci_read_config_dword(pvt->pci_ch[i][0],
+				MC_CHANNEL_DIMM_INIT_PARAMS, &data);
+
+		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT)? 4 : 2;
+
+		if (data & THREE_DIMMS_PRESENT)
+			pvt->channel[i].dimms = 3;
+		else if (data & SINGLE_QUAD_RANK_PRESENT)
+			pvt->channel[i].dimms = 1;
+		else
+			pvt->channel[i].dimms = 2;
+
+		debugf0("Channel %d (0x%08x): %d ranks, %d dimms "
+			"(%sregistered)\n", i, data,
+			pvt->channel[i].ranks, pvt->channel[i].dimms,
+			(data & REGISTERED_DIMM)? "" : "un" );
+	}
 
 	return 0;
 }
@@ -489,7 +565,7 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	if (pvt->inject.dimm < 0)
 		mask |= 1l << 41;
 	else {
-		if (maxnumdimms(pvt) > 2)
+		if (pvt->channel[pvt->inject.channel].dimms > 2)
 			mask |= (pvt->inject.dimm & 0x3l) << 35;
 		else
 			mask |= (pvt->inject.dimm & 0x1l) << 36;
@@ -499,7 +575,7 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	if (pvt->inject.rank < 0)
 		mask |= 1l << 40;
 	else {
-		if (maxnumdimms(pvt) > 2)
+		if (pvt->channel[pvt->inject.channel].dimms > 2)
 			mask |= (pvt->inject.rank & 0x1l) << 34;
 		else
 			mask |= (pvt->inject.rank & 0x3l) << 34;
@@ -646,9 +722,6 @@ static int i7core_get_devices(struct mem_ctl_info *mci, int dev_idx)
 	}
 	pvt->pci_mcr=pdev;
 
-	/* Get dimm basic config */
-	get_dimm_config(mci);
-
 	/* Retrieve all needed functions at MTR channel controllers */
 	for (i = 0; i < NUM_CHANS; i++) {
 		pdev = NULL;
@@ -671,6 +744,9 @@ static int i7core_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		}
 	}
 	i7core_printk(KERN_INFO, "Driver loaded.\n");
+
+	/* Get dimm basic config */
+	get_dimm_config(mci);
 
 	return 0;
 }
