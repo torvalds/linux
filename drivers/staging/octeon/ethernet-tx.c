@@ -253,10 +253,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * The skbuff will be reused without ever being freed. We must
-	 * cleanup a bunch of Linux stuff.
+	 * cleanup a bunch of core things.
 	 */
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	dst_release(skb_dst(skb));
+	skb_dst_set(skb, NULL);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
 	skb->sp = NULL;
