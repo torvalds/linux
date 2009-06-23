@@ -986,7 +986,7 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		switch (token) {
 		/*
 		 * %Opt_fast_unmount and %Opt_norm_unmount options are ignored.
-		 * We accepte them in order to be backware-compatible. But this
+		 * We accept them in order to be backward-compatible. But this
 		 * should be removed at some point.
 		 */
 		case Opt_fast_unmount:

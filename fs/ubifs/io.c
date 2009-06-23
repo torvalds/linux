@@ -391,7 +391,7 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
  * @offs: logical eraseblock offset to seek to
  * @dtype: data type
  *
- * This function targets the write buffer to logical eraseblock @lnum:@offs.
+ * This function targets the write-buffer to logical eraseblock @lnum:@offs.
  * The write-buffer is synchronized if it is not empty. Returns zero in case of
  * success and a negative error code in case of failure.
  */
@@ -822,7 +822,7 @@ out:
  * @c: UBIFS file-system description object
  * @wbuf: write-buffer to initialize
  *
- * This function initializes write buffer. Returns zero in case of success
+ * This function initializes write-buffer. Returns zero in case of success
  * %-ENOMEM in case of failure.
  */
 int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
@@ -862,7 +862,7 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 
 /**
  * ubifs_wbuf_add_ino_nolock - add an inode number into the wbuf inode array.
- * @wbuf: the write-buffer whereto add
+ * @wbuf: the write-buffer where to add
  * @inum: the inode number
  *
  * This function adds an inode number to the inode array of the write-buffer.
