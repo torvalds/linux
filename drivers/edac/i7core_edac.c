@@ -348,13 +348,17 @@ static int i7core_get_active_channels(int *channels)
 		(*channels)++;
 	}
 
+	debugf0("Number of active channels: %d\n", *channels);
+
 	return 0;
 }
 
 static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	int i;
+	struct csrow_info *csr;
+	int i, csrow = 0;
+	enum edac_type mode;
 
 	if (!pvt->pci_mcr[0])
 		return -ENODEV;
@@ -365,7 +369,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	pci_read_config_dword(pvt->pci_mcr[0], MC_STATUS,
 					       &pvt->info.mc_status);
 	pci_read_config_dword(pvt->pci_mcr[0], MC_MAX_DOD,
-				               &pvt->info.max_dod);
+					       &pvt->info.max_dod);
 	pci_read_config_dword(pvt->pci_mcr[0], MC_CHANNEL_MAPPER,
 					       &pvt->info.ch_map);
 
@@ -373,10 +377,16 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pvt->info.mc_control, pvt->info.mc_status,
 		pvt->info.max_dod, pvt->info.ch_map);
 
-	if (ECC_ENABLED(pvt))
+	if (ECC_ENABLED(pvt)) {
 		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt)?8:4);
-	else
+		if (ECCx8(pvt))
+			mode = EDAC_S8ECD8ED;
+		else
+			mode = EDAC_S4ECD4ED;
+	} else {
 		debugf0("ECC disabled\n");
+		mode = EDAC_NONE;
+	}
 
 	/* FIXME: need to handle the error codes */
 	debugf0("DOD Maximum limits: DIMMS: %d, %d-ranked, %d-banked\n",
@@ -411,13 +421,31 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		else
 			pvt->channel[i].dimms = 2;
 
-		debugf0("Ch%d (0x%08x): rd ch %d, wr ch %d, "
-			"%d ranks, %d %cDIMMs\n",
-			i, data,
-			RDLCH(pvt->info.ch_map, i),
-			WRLCH(pvt->info.ch_map, i),
+		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
+			"%d ranks, %d %cDIMMs, offset = %d\n",
+			i,
+			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
+			data,
 			pvt->channel[i].ranks, pvt->channel[i].dimms,
-			(data & REGISTERED_DIMM)? 'R' : 'U' );
+			(data & REGISTERED_DIMM)? 'R' : 'U',
+			RANKOFFSET(data));
+
+		csr = &mci->csrows[csrow];
+		csr->first_page = 0;
+		csr->last_page = 0;
+		csr->page_mask = 0;
+		csr->nr_pages = 0;
+		csr->grain = 0;
+		csr->csrow_idx = csrow;
+		csr->dtype = DEV_X8;	/* FIXME: check this */
+
+		if (data & REGISTERED_DIMM)
+			csr->mtype = MEM_RDDR3;
+		else
+			csr->mtype = MEM_DDR3;
+		csr->edac_mode = mode;
+
+		csrow++;
 	}
 
 	return 0;
