@@ -233,6 +233,12 @@ struct perf_counter_mmap_page {
 	__u32	index;			/* hardware counter identifier */
 	__s64	offset;			/* add to hardware counter value */
 
+		/*
+		 * Hole for extension of the self monitor capabilities
+		 */
+
+	__u64	__reserved[125];	/* align to 1k */
+
 	/*
 	 * Control data for the mmap() data buffer.
 	 *
