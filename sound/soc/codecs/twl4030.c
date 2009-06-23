@@ -712,7 +712,19 @@ static int bypass_event(struct snd_soc_dapm_widget *w,
 
 	reg = twl4030_read_reg_cache(w->codec, m->reg);
 
-	if (m->reg <= TWL4030_REG_ARXR2_APGA_CTL) {
+	/*
+	 * bypass_state[0:3] - analog HiFi bypass
+	 * bypass_state[4]   - analog voice bypass
+	 * bypass_state[5]   - digital voice bypass
+	 * bypass_state[6:7] - digital HiFi bypass
+	 */
+	if (m->reg == TWL4030_REG_VSTPGA) {
+		/* Voice digital bypass */
+		if (reg)
+			twl4030->bypass_state |= (1 << 5);
+		else
+			twl4030->bypass_state &= ~(1 << 5);
+	} else if (m->reg <= TWL4030_REG_ARXR2_APGA_CTL) {
 		/* Analog bypass */
 		if (reg & (1 << m->shift))
 			twl4030->bypass_state |=
@@ -726,12 +738,6 @@ static int bypass_event(struct snd_soc_dapm_widget *w,
 			twl4030->bypass_state |= (1 << 4);
 		else
 			twl4030->bypass_state &= ~(1 << 4);
-	} else if (m->reg == TWL4030_REG_VSTPGA) {
-		/* Voice digital bypass */
-		if (reg)
-			twl4030->bypass_state |= (1 << 5);
-		else
-			twl4030->bypass_state &= ~(1 << 5);
 	} else {
 		/* Digital bypass */
 		if (reg & (0x7 << m->shift))
