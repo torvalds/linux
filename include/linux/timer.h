@@ -190,6 +190,8 @@ extern unsigned long get_next_timer_interrupt(unsigned long now);
  */
 #ifdef CONFIG_TIMER_STATS
 
+extern int timer_stats_active;
+
 #define TIMER_STATS_FLAG_DEFERRABLE	0x1
 
 extern void init_timer_stats(void);
@@ -203,6 +205,8 @@ extern void __timer_stats_timer_set_start_info(struct timer_list *timer,
 
 static inline void timer_stats_timer_set_start_info(struct timer_list *timer)
 {
+	if (likely(!timer_stats_active))
+		return;
 	__timer_stats_timer_set_start_info(timer, __builtin_return_address(0));
 }
 

@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/percpu.h>
+#include <linux/timer.h>
 
 
 struct hrtimer_clock_base;
@@ -447,6 +448,8 @@ extern void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
 
 static inline void timer_stats_account_hrtimer(struct hrtimer *timer)
 {
+	if (likely(!timer->start_pid))
+		return;
 	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
 				 timer->function, timer->start_comm, 0);
 }
@@ -456,6 +459,8 @@ extern void __timer_stats_hrtimer_set_start_info(struct hrtimer *timer,
 
 static inline void timer_stats_hrtimer_set_start_info(struct hrtimer *timer)
 {
+	if (likely(!timer_stats_active))
+		return;
 	__timer_stats_hrtimer_set_start_info(timer, __builtin_return_address(0));
 }
 
