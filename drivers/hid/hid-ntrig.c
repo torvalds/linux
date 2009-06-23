@@ -27,6 +27,9 @@
 struct ntrig_data {
 	__s32 x, y, id, w, h;
 	char reading_a_point, found_contact_id;
+	char pen_active;
+	char finger_active;
+	char inverted;
 };
 
 /*
@@ -63,10 +66,7 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case HID_UP_DIGITIZER:
 		switch (usage->hid) {
 		/* we do not want to map these for now */
-		case HID_DG_INVERT: /* value is always 0 */
-		case HID_DG_ERASER: /* value is always 0 */
 		case HID_DG_CONTACTID: /* value is useless */
-		case HID_DG_BARRELSWITCH:  /* doubtful */
 		case HID_DG_INPUTMODE:
 		case HID_DG_DEVICEINDEX:
 		case HID_DG_CONTACTCOUNT:
@@ -125,6 +125,18 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
         if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
+
+		case HID_DG_INRANGE:
+			if (field->application & 0x3)
+				nd->pen_active = (value != 0);
+			else
+				nd->finger_active = (value != 0);
+			return 0;
+
+		case HID_DG_INVERT:
+			nd->inverted = value;
+			return 0;
+
 		case HID_GD_X:
 			nd->x = value;
 			nd->reading_a_point = 1;
@@ -147,7 +159,11 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * report received in a finger event. We want
 			 * to emit a normal (X, Y) position
 			 */
-			if (! nd->found_contact_id) {
+			if (!nd->found_contact_id) {
+				if (nd->pen_active && nd->finger_active) {
+					input_report_key(input, BTN_TOOL_DOUBLETAP, 0);
+					input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
+				}
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 			}
@@ -159,6 +175,14 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * to emit a normal (X, Y) position
 			 */
 			if (! nd->found_contact_id) {
+				if (nd->pen_active && nd->finger_active) {
+					input_report_key(input,
+							nd->inverted ? BTN_TOOL_RUBBER : BTN_TOOL_PEN
+							, 0);
+					input_report_key(input,
+							nd->inverted ? BTN_TOOL_RUBBER : BTN_TOOL_PEN
+							, 1);
+				}
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 				input_event(input, EV_ABS, ABS_PRESSURE, value);
@@ -233,6 +257,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (ret)
 		kfree (nd);
+
 	return ret;
 }
 
