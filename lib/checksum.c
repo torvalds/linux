@@ -57,9 +57,9 @@ static unsigned int do_csum(const unsigned char *buff, int len)
 	odd = 1 & (unsigned long) buff;
 	if (odd) {
 #ifdef __LITTLE_ENDIAN
-		result = *buff;
-#else
 		result += (*buff << 8);
+#else
+		result = *buff;
 #endif
 		len--;
 		buff++;
