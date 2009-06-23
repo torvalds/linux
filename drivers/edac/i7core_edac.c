@@ -113,8 +113,8 @@
   #define MC_DOD_NUMBANK(x)		(((x) & MC_DOD_NUMBANK_MASK) >> 7)
   #define MC_DOD_NUMRANK_MASK		((1 << 6) | (1 << 5))
   #define MC_DOD_NUMRANK(x)		(((x) & MC_DOD_NUMRANK_MASK) >> 5)
-  #define MC_DOD_NUMROW_MASK		((1 << 4) | (1 << 3))
-  #define MC_DOD_NUMROW(x)		(((x) & MC_DOD_NUMROW_MASK) >> 3)
+  #define MC_DOD_NUMROW_MASK		((1 << 4) | (1 << 3)| (1 << 2))
+  #define MC_DOD_NUMROW(x)		(((x) & MC_DOD_NUMROW_MASK) >> 2)
   #define MC_DOD_NUMCOL_MASK		3
   #define MC_DOD_NUMCOL(x)		((x) & MC_DOD_NUMCOL_MASK)
 
@@ -361,6 +361,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	struct csrow_info *csr;
 	struct pci_dev *pdev;
 	int i, j, csrow = 0;
+	unsigned long last_page = 0;
 	enum edac_type mode;
 	enum mem_type mtype;
 
@@ -380,7 +381,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt)) {
-		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt)?8:4);
+		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt) ?8:4);
 		if (ECCx8(pvt))
 			mode = EDAC_S8ECD8ED;
 		else
@@ -450,6 +451,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 		for (j = 0; j < 3; j++) {
 			u32 banks, ranks, rows, cols;
+			u32 size, npages;
 
 			if (!DIMM_PRESENT(dimm_dod[j]))
 				continue;
@@ -459,19 +461,27 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			rows = numrow(MC_DOD_NUMROW(dimm_dod[j]));
 			cols = numcol(MC_DOD_NUMCOL(dimm_dod[j]));
 
+			/* DDR3 has 8 I/O banks */
+			size = (rows * cols * banks * ranks) >> (20 - 3);
+
 			pvt->channel[i].dimms++;
 
-			debugf0("\tdimm %d offset: %x, numbank: %#x, "
-				"numrank: %#x, numrow: %#x, numcol: %#x\n",
-				j,
+			debugf0("\tdimm %d (0x%08x) %d Mb offset: %x, "
+				"numbank: %d,\n\t\t"
+				"numrank: %d, numrow: %#x, numcol: %#x\n",
+				j, dimm_dod[j], size,
 				RANKOFFSET(dimm_dod[j]),
 				banks, ranks, rows, cols);
 
+			npages = cols * rows; /* FIXME */
+
 			csr = &mci->csrows[csrow];
-			csr->first_page = 0;
-			csr->last_page = 0;
+			csr->first_page = last_page + 1;
+			last_page += npages;
+			csr->last_page = last_page;
+			csr->nr_pages = npages;
+
 			csr->page_mask = 0;
-			csr->nr_pages = 0;
 			csr->grain = 0;
 			csr->csrow_idx = csrow;
 
