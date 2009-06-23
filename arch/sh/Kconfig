@@ -15,7 +15,7 @@ config SUPERH
 	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
-	select HAVE_PERF_COUNTER
+	select HAVE_PERF_COUNTERS
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	help
@@ -69,6 +69,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 config GENERIC_IRQ_PROBE
+	def_bool y
+
+config IRQ_PER_CPU
 	def_bool y
 
 config GENERIC_GPIO
@@ -149,6 +152,9 @@ config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
 config ARCH_HAS_DEFAULT_IDLE
+	def_bool y
+
+config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
 
 config IO_TRAPPED
@@ -411,6 +417,8 @@ config CPU_SUBTYPE_SH7786
 	select CPU_HAS_PTEAEX
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
@@ -648,7 +656,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "4" if CPU_SHX3
+	default "4" if CPU_SUBTYPE_SHX3
 	default "2"
 	help
 	  This allows you to specify the maximum number of CPUs which this
