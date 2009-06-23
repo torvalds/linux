@@ -471,10 +471,10 @@ static struct notifier_block paniced = {
 	.notifier_call = radeonfb_panic,
 };
 
-static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp)
+static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
 	int aligned = width;
-	int align_large = (ASIC_IS_AVIVO(rdev));
+	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;
 	int pitch_mask = 0;
 
 	switch (bpp / 8) {
@@ -512,12 +512,13 @@ int radeonfb_create(struct radeon_device *rdev,
 	u64 fb_gpuaddr;
 	void *fbptr = NULL;
 	unsigned long tmp;
+	bool fb_tiled = false; /* useful for testing */
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
 	mode_cmd.bpp = 32;
 	/* need to align pitch with crtc limits */
-	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp) * ((mode_cmd.bpp + 1) / 8);
+	mode_cmd.pitch = radeon_align_pitch(rdev, mode_cmd.width, mode_cmd.bpp, fb_tiled) * ((mode_cmd.bpp + 1) / 8);
 	mode_cmd.depth = 24;
 
 	size = mode_cmd.pitch * mode_cmd.height;
@@ -535,6 +536,8 @@ int radeonfb_create(struct radeon_device *rdev,
 	}
 	robj = gobj->driver_private;
 
+	if (fb_tiled)
+		radeon_object_set_tiling_flags(robj, RADEON_TILING_MACRO|RADEON_TILING_SURFACE, mode_cmd.pitch);
 	mutex_lock(&rdev->ddev->struct_mutex);
 	fb = radeon_framebuffer_create(rdev->ddev, &mode_cmd, gobj);
 	if (fb == NULL) {
@@ -562,6 +565,9 @@ int radeonfb_create(struct radeon_device *rdev,
 		goto out_unref;
 	}
 	rfbdev = info->par;
+
+	if (fb_tiled)
+		radeon_object_check_tiling(robj, 0, 0);
 
 	ret = radeon_object_kmap(robj, &fbptr);
 	if (ret) {

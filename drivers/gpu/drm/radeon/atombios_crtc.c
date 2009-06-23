@@ -327,7 +327,7 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_gem_object *obj;
 	struct drm_radeon_gem_object *obj_priv;
 	uint64_t fb_location;
-	uint32_t fb_format, fb_pitch_pixels;
+	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 
 	if (!crtc->fb)
 		return -EINVAL;
@@ -364,7 +364,14 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
-	/* TODO tiling */
+	radeon_object_get_tiling_flags(obj->driver_private,
+				       &tiling_flags, NULL);
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+
+	if (tiling_flags & RADEON_TILING_MICRO)
+		fb_format |= AVIVO_D1GRPH_TILED;
+
 	if (radeon_crtc->crtc_id == 0)
 		WREG32(AVIVO_D1VGA_CONTROL, 0);
 	else

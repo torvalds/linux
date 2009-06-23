@@ -909,6 +909,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 	unsigned idx;
 	bool onereg;
 	int r;
+	u32 tile_flags = 0;
 
 	ib = p->ib->ptr;
 	ib_chunk = &p->chunks[p->chunk_ib_idx];
@@ -942,7 +943,20 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			}
 			tmp = ib_chunk->kdata[idx] & 0x003fffff;
 			tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
-			ib[idx] = (ib_chunk->kdata[idx] & 0xffc00000) | tmp;
+
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_DST_TILE_MACRO;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+				if (reg == RADEON_SRC_PITCH_OFFSET) {
+					DRM_ERROR("Cannot src blit from microtiled surface\n");
+					r100_cs_dump_packet(p, pkt);
+					return -EINVAL;
+				}
+				tile_flags |= RADEON_DST_TILE_MICRO;
+			}
+
+			tmp |= tile_flags;
+			ib[idx] = (ib_chunk->kdata[idx] & 0x3fc00000) | tmp;
 			break;
 		case RADEON_RB3D_DEPTHOFFSET:
 		case RADEON_RB3D_COLOROFFSET:
@@ -986,6 +1000,25 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 				return r;
 			}
 			ib[idx] = ib_chunk->kdata[idx] + ((u32)reloc->lobj.gpu_offset);
+			break;
+		case R300_RB3D_COLORPITCH0:
+		case RADEON_RB3D_COLORPITCH:
+			r = r100_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					  idx, reg);
+				r100_cs_dump_packet(p, pkt);
+				return r;
+			}
+
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_COLOR_TILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
+
+			tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
 			break;
 		default:
 			/* FIXME: we don't want to allow anyothers packet */
@@ -1706,4 +1739,48 @@ int r100_debugfs_mc_info_init(struct radeon_device *rdev)
 #else
 	return 0;
 #endif
+}
+
+int r100_set_surface_reg(struct radeon_device *rdev, int reg,
+			 uint32_t tiling_flags, uint32_t pitch,
+			 uint32_t offset, uint32_t obj_size)
+{
+	int surf_index = reg * 16;
+	int flags = 0;
+
+	/* r100/r200 divide by 16 */
+	if (rdev->family < CHIP_R300)
+		flags = pitch / 16;
+	else
+		flags = pitch / 8;
+
+	if (rdev->family <= CHIP_RS200) {
+		if ((tiling_flags & (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
+				 == (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
+			flags |= RADEON_SURF_TILE_COLOR_BOTH;
+		if (tiling_flags & RADEON_TILING_MACRO)
+			flags |= RADEON_SURF_TILE_COLOR_MACRO;
+	} else if (rdev->family <= CHIP_RV280) {
+		if (tiling_flags & (RADEON_TILING_MACRO))
+			flags |= R200_SURF_TILE_COLOR_MACRO;
+		if (tiling_flags & RADEON_TILING_MICRO)
+			flags |= R200_SURF_TILE_COLOR_MICRO;
+	} else {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			flags |= R300_SURF_TILE_MACRO;
+		if (tiling_flags & RADEON_TILING_MICRO)
+			flags |= R300_SURF_TILE_MICRO;
+	}
+
+	DRM_DEBUG("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
+	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
+	WREG32(RADEON_SURFACE0_LOWER_BOUND + surf_index, offset);
+	WREG32(RADEON_SURFACE0_UPPER_BOUND + surf_index, offset + obj_size - 1);
+	return 0;
+}
+
+void r100_clear_surface_reg(struct radeon_device *rdev, int reg)
+{
+	int surf_index = reg * 16;
+	WREG32(RADEON_SURFACE0_INFO + surf_index, 0);
 }

@@ -30,6 +30,7 @@
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_drm.h"
 
 /* r300,r350,rv350,rv370,rv380 depends on : */
 void r100_hdp_reset(struct radeon_device *rdev);
@@ -1023,7 +1024,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	struct radeon_cs_reloc *reloc;
 	struct r300_cs_track *track;
 	volatile uint32_t *ib;
-	uint32_t tmp;
+	uint32_t tmp, tile_flags = 0;
 	unsigned i;
 	int r;
 
@@ -1052,7 +1053,19 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		}
 		tmp = ib_chunk->kdata[idx] & 0x003fffff;
 		tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
-		ib[idx] = (ib_chunk->kdata[idx] & 0xffc00000) | tmp;
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
+		}
+		tmp |= tile_flags;
+		ib[idx] = (ib_chunk->kdata[idx] & 0x3fc00000) | tmp;
 		break;
 	case R300_RB3D_COLOROFFSET0:
 	case R300_RB3D_COLOROFFSET1:
@@ -1141,6 +1154,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH1 */
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_COLOR_TILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = ib_chunk->kdata[idx] & 0x3FFE;
 		switch (((ib_chunk->kdata[idx] >> 21) & 0xF)) {
@@ -1196,6 +1226,23 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
+		r = r100_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+				  idx, reg);
+			r100_cs_dump_packet(p, pkt);
+			return r;
+		}
+
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= R300_DEPTHMACROTILE_ENABLE;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			tile_flags |= R300_DEPTHMICROTILE_TILED;;
+
+		tmp = ib_chunk->kdata[idx] & ~(0x7 << 16);
+		tmp |= tile_flags;
+		ib[idx] = tmp;
+
 		track->zb.pitch = ib_chunk->kdata[idx] & 0x3FFC;
 		break;
 	case 0x4104:

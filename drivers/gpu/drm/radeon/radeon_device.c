@@ -48,6 +48,8 @@ static void radeon_surface_init(struct radeon_device *rdev)
 			       i * (RADEON_SURFACE1_INFO - RADEON_SURFACE0_INFO),
 			       0);
 		}
+		/* enable surfaces */
+		WREG32(RADEON_SURFACE_CNTL, 0);
 	}
 }
 

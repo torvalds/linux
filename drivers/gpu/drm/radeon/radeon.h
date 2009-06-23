@@ -201,6 +201,14 @@ int radeon_fence_wait_last(struct radeon_device *rdev);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 
+/*
+ * Tiling registers
+ */
+struct radeon_surface_reg {
+	struct radeon_object *robj;
+};
+
+#define RADEON_GEM_MAX_SURFACES 8
 
 /*
  * Radeon buffer.
@@ -213,6 +221,7 @@ struct radeon_object_list {
 	uint64_t		gpu_offset;
 	unsigned		rdomain;
 	unsigned		wdomain;
+	uint32_t                tiling_flags;
 };
 
 int radeon_object_init(struct radeon_device *rdev);
@@ -242,8 +251,15 @@ void radeon_object_list_clean(struct list_head *head);
 int radeon_object_fbdev_mmap(struct radeon_object *robj,
 			     struct vm_area_struct *vma);
 unsigned long radeon_object_size(struct radeon_object *robj);
-
-
+void radeon_object_clear_surface_reg(struct radeon_object *robj);
+int radeon_object_check_tiling(struct radeon_object *robj, bool has_moved,
+			       bool force_drop);
+void radeon_object_set_tiling_flags(struct radeon_object *robj,
+				    uint32_t tiling_flags, uint32_t pitch);
+void radeon_object_get_tiling_flags(struct radeon_object *robj, uint32_t *tiling_flags, uint32_t *pitch);
+void radeon_bo_move_notify(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem);
+void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 /*
  * GEM objects.
  */
@@ -535,6 +551,11 @@ struct radeon_asic {
 	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
 	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
+
+	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
+			       uint32_t tiling_flags, uint32_t pitch,
+			       uint32_t offset, uint32_t obj_size);
+	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 };
 
 union radeon_asic_config {
@@ -568,6 +589,10 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp);
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
+int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp);
 
 
 /*
@@ -627,6 +652,7 @@ struct radeon_device {
 	bool				shutdown;
 	bool				suspend;
 	bool				need_dma32;
+	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -801,5 +827,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_memory_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
+#define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
+#define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 
 #endif

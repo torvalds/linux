@@ -429,6 +429,8 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.sync_obj_flush = &radeon_sync_obj_flush,
 	.sync_obj_unref = &radeon_sync_obj_unref,
 	.sync_obj_ref = &radeon_sync_obj_ref,
+	.move_notify = &radeon_bo_move_notify,
+	.fault_reserve_notify = &radeon_bo_fault_reserve_notify,
 };
 
 int radeon_ttm_init(struct radeon_device *rdev)

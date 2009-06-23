@@ -43,7 +43,6 @@
 #define TTM_BO_HASH_ORDER 13
 
 static int ttm_bo_setup_vm(struct ttm_buffer_object *bo);
-static void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 
 static inline uint32_t ttm_bo_type_flags(unsigned type)
@@ -306,6 +305,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		}
 
 	}
+
+	if (bdev->driver->move_notify)
+		bdev->driver->move_notify(bo, mem);
 
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
@@ -1451,6 +1453,7 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 
 	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
 }
+EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 static void ttm_bo_vm_insert_rb(struct ttm_buffer_object *bo)
 {

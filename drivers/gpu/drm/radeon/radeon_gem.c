@@ -285,3 +285,44 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 	return r;
 }
+
+int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp)
+{
+	struct drm_radeon_gem_set_tiling *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_object *robj;
+	int r = 0;
+
+	DRM_DEBUG("%d \n", args->handle);
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL)
+		return -EINVAL;
+	robj = gobj->driver_private;
+	radeon_object_set_tiling_flags(robj, args->tiling_flags, args->pitch);
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(gobj);
+	mutex_unlock(&dev->struct_mutex);
+	return r;
+}
+
+int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *filp)
+{
+	struct drm_radeon_gem_get_tiling *args = data;
+	struct drm_gem_object *gobj;
+	struct radeon_object *robj;
+	int r = 0;
+
+	DRM_DEBUG("\n");
+	gobj = drm_gem_object_lookup(dev, filp, args->handle);
+	if (gobj == NULL)
+		return -EINVAL;
+	robj = gobj->driver_private;
+	radeon_object_get_tiling_flags(robj, &args->tiling_flags,
+				       &args->pitch);
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(gobj);
+	mutex_unlock(&dev->struct_mutex);
+	return r;
+}

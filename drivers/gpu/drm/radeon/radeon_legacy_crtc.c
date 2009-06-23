@@ -235,6 +235,7 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	uint64_t base;
 	uint32_t crtc_offset, crtc_offset_cntl, crtc_tile_x0_y0 = 0;
 	uint32_t crtc_pitch, pitch_pixels;
+	uint32_t tiling_flags;
 
 	DRM_DEBUG("\n");
 
@@ -258,8 +259,12 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		       (crtc->fb->bits_per_pixel * 8));
 	crtc_pitch |= crtc_pitch << 16;
 
-	/* TODO tiling */
-	if (0) {
+	radeon_object_get_tiling_flags(obj->driver_private,
+				       &tiling_flags, NULL);
+	if (tiling_flags & RADEON_TILING_MICRO)
+		DRM_ERROR("trying to scanout microtiled buffer\n");
+
+	if (tiling_flags & RADEON_TILING_MACRO) {
 		if (ASIC_IS_R300(rdev))
 			crtc_offset_cntl |= (R300_CRTC_X_Y_MODE_EN |
 					     R300_CRTC_MICRO_TILE_BUFFER_DIS |
@@ -275,15 +280,13 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			crtc_offset_cntl &= ~RADEON_CRTC_TILE_EN;
 	}
 
-
-	/* TODO more tiling */
-	if (0) {
+	if (tiling_flags & RADEON_TILING_MACRO) {
 		if (ASIC_IS_R300(rdev)) {
 			crtc_tile_x0_y0 = x | (y << 16);
 			base &= ~0x7ff;
 		} else {
 			int byteshift = crtc->fb->bits_per_pixel >> 4;
-			int tile_addr = (((y >> 3) * crtc->fb->width + x) >> (8 - byteshift)) << 11;
+			int tile_addr = (((y >> 3) * pitch_pixels +  x) >> (8 - byteshift)) << 11;
 			base += tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
 			crtc_offset_cntl |= (y % 16);
 		}

@@ -71,6 +71,10 @@ int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t dst_offset,
 		   unsigned num_pages,
 		   struct radeon_fence *fence);
+int r100_set_surface_reg(struct radeon_device *rdev, int reg,
+			 uint32_t tiling_flags, uint32_t pitch,
+			 uint32_t offset, uint32_t obj_size);
+int r100_clear_surface_reg(struct radeon_device *rdev, int reg);
 
 static struct radeon_asic r100_asic = {
 	.init = &r100_init,
@@ -100,6 +104,8 @@ static struct radeon_asic r100_asic = {
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 
@@ -128,6 +134,7 @@ int r300_copy_dma(struct radeon_device *rdev,
 		  uint64_t dst_offset,
 		  unsigned num_pages,
 		  struct radeon_fence *fence);
+
 static struct radeon_asic r300_asic = {
 	.init = &r300_init,
 	.errata = &r300_errata,
@@ -156,6 +163,8 @@ static struct radeon_asic r300_asic = {
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 /*
@@ -193,6 +202,8 @@ static struct radeon_asic r420_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 
@@ -237,6 +248,8 @@ static struct radeon_asic rs400_asic = {
 	.set_memory_clock = NULL,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 
@@ -322,6 +335,8 @@ static struct radeon_asic rs690_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = NULL,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 
@@ -367,6 +382,8 @@ static struct radeon_asic rv515_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 
@@ -405,6 +422,8 @@ static struct radeon_asic r520_asic = {
 	.set_memory_clock = &radeon_atom_set_memory_clock,
 	.set_pcie_lanes = &rv370_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
 };
 
 /*
