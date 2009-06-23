@@ -109,14 +109,14 @@
   #define RANKOFFSET(x)		((x & RANKOFFSET_MASK) >> 10)
   #define DIMM_PRESENT_MASK	(1 << 9)
   #define DIMM_PRESENT(x)	(((x) & DIMM_PRESENT_MASK) >> 9)
-  #define NUMBANK_MASK		((1 << 8) | (1 << 7))
-  #define NUMBANK(x)		(((x) & NUMBANK_MASK) >> 7)
-  #define NUMRANK_MASK		((1 << 6) | (1 << 5))
-  #define NUMRANK(x)		(((x) & NUMRANK_MASK) >> 5)
-  #define NUMROW_MASK		((1 << 4) | (1 << 3))
-  #define NUMROW(x)		(((x) & NUMROW_MASK) >> 3)
-  #define NUMCOL_MASK		3
-  #define NUMCOL(x)		((x) & NUMCOL_MASK)
+  #define MC_DOD_NUMBANK_MASK		((1 << 8) | (1 << 7))
+  #define MC_DOD_NUMBANK(x)		(((x) & MC_DOD_NUMBANK_MASK) >> 7)
+  #define MC_DOD_NUMRANK_MASK		((1 << 6) | (1 << 5))
+  #define MC_DOD_NUMRANK(x)		(((x) & MC_DOD_NUMRANK_MASK) >> 5)
+  #define MC_DOD_NUMROW_MASK		((1 << 4) | (1 << 3))
+  #define MC_DOD_NUMROW(x)		(((x) & MC_DOD_NUMROW_MASK) >> 3)
+  #define MC_DOD_NUMCOL_MASK		3
+  #define MC_DOD_NUMCOL(x)		((x) & MC_DOD_NUMCOL_MASK)
 
 #define MC_RANK_PRESENT		0x7c
 
@@ -268,41 +268,41 @@ static struct edac_pci_ctl_info *i7core_pci;
 #define CH_DISABLED(pvt, ch)	((pvt)->info.mc_status & (1 << ch))
 
 	/* MC_MAX_DOD read functions */
-static inline int maxnumdimms(struct i7core_pvt *pvt)
+static inline int numdimms(u32 dimms)
 {
-	return (pvt->info.max_dod & 0x3) + 1;
+	return (dimms & 0x3) + 1;
 }
 
-static inline int maxnumrank(struct i7core_pvt *pvt)
+static inline int numrank(u32 rank)
 {
 	static int ranks[4] = { 1, 2, 4, -EINVAL };
 
-	return ranks[(pvt->info.max_dod >> 2) & 0x3];
+	return ranks[rank & 0x3];
 }
 
-static inline int maxnumbank(struct i7core_pvt *pvt)
+static inline int numbank(u32 bank)
 {
 	static int banks[4] = { 4, 8, 16, -EINVAL };
 
-	return banks[(pvt->info.max_dod >> 4) & 0x3];
+	return banks[bank & 0x3];
 }
 
-static inline int maxnumrow(struct i7core_pvt *pvt)
+static inline int numrow(u32 row)
 {
 	static int rows[8] = {
 		1 << 12, 1 << 13, 1 << 14, 1 << 15,
 		1 << 16, -EINVAL, -EINVAL, -EINVAL,
 	};
 
-	return rows[((pvt->info.max_dod >> 6) & 0x7)];
+	return rows[row & 0x7];
 }
 
-static inline int maxnumcol(struct i7core_pvt *pvt)
+static inline int numcol(u32 col)
 {
 	static int cols[8] = {
 		1 << 10, 1 << 11, 1 << 12, -EINVAL,
 	};
-	return cols[((pvt->info.max_dod >> 9) & 0x3) << 12];
+	return cols[col & 0x3];
 }
 
 
@@ -359,10 +359,13 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csr;
-	struct pci_dev *pdev = pvt->pci_mcr[0];
+	struct pci_dev *pdev;
 	int i, j, csrow = 0;
 	enum edac_type mode;
+	enum mem_type mtype;
 
+	/* Get data from the MC register, function 0 */
+	pdev = pvt->pci_mcr[0];
 	if (!pdev)
 		return -ENODEV;
 
@@ -388,15 +391,18 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	}
 
 	/* FIXME: need to handle the error codes */
-	debugf0("DOD Maximum limits: DIMMS: %d, %d-ranked, %d-banked\n",
-		maxnumdimms(pvt), maxnumrank(pvt), maxnumbank(pvt));
-	debugf0("DOD Maximum rows x colums = 0x%x x 0x%x\n",
-		maxnumrow(pvt), maxnumcol(pvt));
+	debugf0("DOD Max limits: DIMMS: %d, %d-ranked, %d-banked\n",
+		numdimms(pvt->info.max_dod),
+		numrank(pvt->info.max_dod >> 2),
+		numbank(pvt->info.max_dod >> 4));
+	debugf0("DOD Max rows x colums = 0x%x x 0x%x\n",
+		numrow(pvt->info.max_dod >> 6),
+		numcol(pvt->info.max_dod >> 9));
 
 	debugf0("Memory channel configuration:\n");
 
 	for (i = 0; i < NUM_CHANS; i++) {
-		u32 data, value[8];
+		u32 data, dimm_dod[3], value[8];
 
 		if (!CH_ACTIVE(pvt, i)) {
 			debugf0("Channel %i is not active\n", i);
@@ -413,58 +419,96 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT)? 4 : 2;
 
+		if (data & REGISTERED_DIMM)
+			mtype = MEM_RDDR3;
+		else
+			mtype = MEM_DDR3;
+#if 0
 		if (data & THREE_DIMMS_PRESENT)
 			pvt->channel[i].dimms = 3;
 		else if (data & SINGLE_QUAD_RANK_PRESENT)
 			pvt->channel[i].dimms = 1;
 		else
 			pvt->channel[i].dimms = 2;
+#endif
+
+		/* Devices 4-6 function 1 */
+		pci_read_config_dword(pvt->pci_ch[i][1],
+				MC_DOD_CH_DIMM0, &dimm_dod[0]);
+		pci_read_config_dword(pvt->pci_ch[i][1],
+				MC_DOD_CH_DIMM1, &dimm_dod[1]);
+		pci_read_config_dword(pvt->pci_ch[i][1],
+				MC_DOD_CH_DIMM2, &dimm_dod[2]);
 
 		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
-			"%d ranks, %d %cDIMMs, offset = %d\n\t"
-			"present: %i, numbank: %#x, numrank: %#x, "
-			"numrow: %#x, numcol: %#x\n",
+			"%d ranks, %cDIMMs\n",
 			i,
 			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
 			data,
-			pvt->channel[i].ranks, pvt->channel[i].dimms,
-			(data & REGISTERED_DIMM)? 'R' : 'U',
-			RANKOFFSET(data),
-			DIMM_PRESENT(data),
-			NUMBANK(data), NUMRANK(data),
-			NUMROW(data), NUMCOL(data));
+			pvt->channel[i].ranks,
+			(data & REGISTERED_DIMM)? 'R' : 'U');
 
-			pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);
-			pci_read_config_dword(pdev, MC_SAG_CH_1, &value[1]);
-			pci_read_config_dword(pdev, MC_SAG_CH_2, &value[2]);
-			pci_read_config_dword(pdev, MC_SAG_CH_3, &value[3]);
-			pci_read_config_dword(pdev, MC_SAG_CH_4, &value[4]);
-			pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
-			pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
-			pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
-			printk("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
-			for (j = 0; j < 8; j++)
-				printk("\t\t%#x\t%#x\t%#x\n",
-					(value[j] >> 27) & 0x1,
-					(value[j] >> 24) & 0x7,
-					(value[j] && ((1 << 24) - 1)));
+		for (j = 0; j < 3; j++) {
+			u32 banks, ranks, rows, cols;
 
-		csr = &mci->csrows[csrow];
-		csr->first_page = 0;
-		csr->last_page = 0;
-		csr->page_mask = 0;
-		csr->nr_pages = 0;
-		csr->grain = 0;
-		csr->csrow_idx = csrow;
-		csr->dtype = DEV_X8;	/* FIXME: check this */
+			if (!DIMM_PRESENT(dimm_dod[j]))
+				continue;
 
-		if (data & REGISTERED_DIMM)
-			csr->mtype = MEM_RDDR3;
-		else
-			csr->mtype = MEM_DDR3;
-		csr->edac_mode = mode;
+			banks = numbank(MC_DOD_NUMBANK(dimm_dod[j]));
+			ranks = numrank(MC_DOD_NUMRANK(dimm_dod[j]));
+			rows = numrow(MC_DOD_NUMROW(dimm_dod[j]));
+			cols = numcol(MC_DOD_NUMCOL(dimm_dod[j]));
 
-		csrow++;
+			pvt->channel[i].dimms++;
+
+			debugf0("\tdimm %d offset: %x, numbank: %#x, "
+				"numrank: %#x, numrow: %#x, numcol: %#x\n",
+				j,
+				RANKOFFSET(dimm_dod[j]),
+				banks, ranks, rows, cols);
+
+			csr = &mci->csrows[csrow];
+			csr->first_page = 0;
+			csr->last_page = 0;
+			csr->page_mask = 0;
+			csr->nr_pages = 0;
+			csr->grain = 0;
+			csr->csrow_idx = csrow;
+
+			switch (banks) {
+			case 4:
+				csr->dtype = DEV_X4;
+				break;
+			case 8:
+				csr->dtype = DEV_X8;
+				break;
+			case 16:
+				csr->dtype = DEV_X16;
+				break;
+			default:
+				csr->dtype = DEV_UNKNOWN;
+			}
+
+			csr->edac_mode = mode;
+			csr->mtype = mtype;
+
+			csrow++;
+		}
+
+		pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);
+		pci_read_config_dword(pdev, MC_SAG_CH_1, &value[1]);
+		pci_read_config_dword(pdev, MC_SAG_CH_2, &value[2]);
+		pci_read_config_dword(pdev, MC_SAG_CH_3, &value[3]);
+		pci_read_config_dword(pdev, MC_SAG_CH_4, &value[4]);
+		pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
+		pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
+		pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
+		printk("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
+		for (j = 0; j < 8; j++)
+			printk("\t\t%#x\t%#x\t%#x\n",
+				(value[j] >> 27) & 0x1,
+				(value[j] >> 24) & 0x7,
+				(value[j] && ((1 << 24) - 1)));
 	}
 
 	return 0;
