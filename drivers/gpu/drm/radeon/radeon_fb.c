@@ -551,7 +551,7 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */
 	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_I830;
+	info->fix.accel = FB_ACCEL_NONE;
 	info->fix.type_aux = 0;
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
@@ -572,8 +572,8 @@ int radeonfb_create(struct radeon_device *rdev,
 	info->var.width = -1;
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
-	info->fix.mmio_start = pci_resource_start(rdev->pdev, 2);
-	info->fix.mmio_len = pci_resource_len(rdev->pdev, 2);
+	info->fix.mmio_start = 0;
+	info->fix.mmio_len = 0;
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
 	info->pixmap.access_align = 32;
