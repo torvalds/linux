@@ -889,10 +889,9 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	case 4096:
 		break;
 	default:
-		printk(KERN_ERR PFX "%s: weird block size %u\n",
+		printk_once(KERN_ERR PFX "%s: weird block size %u; "
+				"setting default block size to 2048\n",
 				drive->name, blocklen);
-		printk(KERN_ERR PFX "%s: default to 2kb block size\n",
-				drive->name);
 		blocklen = 2048;
 		break;
 	}
