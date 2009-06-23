@@ -654,7 +654,7 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 		default:
 			props->max_qp_rd_atom = 0;
 	}
-	props->max_qp_init_rd_atom = props->max_qp_wr;
+	props->max_qp_init_rd_atom = props->max_qp_rd_atom;
 	props->atomic_cap = IB_ATOMIC_NONE;
 	props->max_map_per_fmr = 1;
 
