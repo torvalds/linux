@@ -13,7 +13,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 This command displays the performance counter profile information recorded
-via perf report.
+via perf record.
 
 OPTIONS
 -------
