@@ -95,8 +95,9 @@
  */
 #define BGT_NAME_PATTERN "ubifs_bgt%d_%d"
 
-/* Default write-buffer synchronization timeout in seconds */
-#define DEFAULT_WBUF_TIMEOUT_SECS 5
+/* Write-buffer synchronization timeout interval in seconds */
+#define WBUF_TIMEOUT_SOFTLIMIT 3
+#define WBUF_TIMEOUT_HARDLIMIT 5
 
 /* Maximum possible inode number (only 32-bit inodes are supported now) */
 #define MAX_INUM 0xFFFFFFFF

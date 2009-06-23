@@ -828,7 +828,6 @@ out:
 int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 {
 	size_t size;
-	ktime_t hardlimit;
 
 	wbuf->buf = kmalloc(c->min_io_size, GFP_KERNEL);
 	if (!wbuf->buf)
@@ -854,18 +853,10 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 
 	hrtimer_init(&wbuf->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	wbuf->timer.function = wbuf_timer_callback_nolock;
-	/*
-	 * Make write-buffer soft limit to be 20% of the hard limit. The
-	 * write-buffer timer is allowed to expire any time between the soft
-	 * and hard limits.
-	 */
-	hardlimit = ktime_set(DEFAULT_WBUF_TIMEOUT_SECS, 0);
-	wbuf->delta = DEFAULT_WBUF_TIMEOUT_SECS * 1000000000ULL * 2 / 10;
-	if (wbuf->delta > ULONG_MAX)
-		wbuf->delta = ULONG_MAX;
-	wbuf->softlimit = ktime_sub_ns(hardlimit, wbuf->delta);
-	hrtimer_set_expires_range_ns(&wbuf->timer,  wbuf->softlimit,
-				     wbuf->delta);
+	wbuf->softlimit = ktime_set(WBUF_TIMEOUT_SOFTLIMIT, 0);
+	wbuf->delta = WBUF_TIMEOUT_HARDLIMIT - WBUF_TIMEOUT_SOFTLIMIT;
+	wbuf->delta *= 1000000000ULL;
+	ubifs_assert(wbuf->delta <= ULONG_MAX);
 	return 0;
 }
 
