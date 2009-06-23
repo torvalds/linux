@@ -20,7 +20,6 @@
  * 	http://www.arrownac.com/manufacturers/intel/s/nehalem/5500-datasheet-v2.pdf
  */
 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -64,12 +63,16 @@
 	/* OFFSETS for Devices 4,5 and 6 Function 0 */
 
 #define MC_CHANNEL_ADDR_MATCH	0xf0
-
-#define MC_MASK_DIMM	(1 << 41)
-#define MC_MASK_RANK	(1 << 40)
-#define MC_MASK_BANK	(1 << 39)
-#define MC_MASK_PAGE	(1 << 38)
-#define MC_MASK_COL	(1 << 37)
+#define MC_CHANNEL_ERROR_MASK	0xf8
+#define MC_CHANNEL_ERROR_INJECT	0xfc
+  #define INJECT_ADDR_PARITY	0x10
+  #define INJECT_ECC		0x08
+  #define MASK_CACHELINE	0x06
+  #define MASK_FULL_CACHELINE	0x06
+  #define MASK_MSB32_CACHELINE	0x04
+  #define MASK_LSB32_CACHELINE	0x02
+  #define NO_MASK_CACHELINE	0x00
+  #define REPEAT_EN		0x01
 
 /*
  * i7core structs
@@ -84,10 +87,23 @@ struct i7core_info {
 	u32	max_dod;
 };
 
+
+struct i7core_inject {
+	int	enable;
+
+	u32	section;
+	u32	type;
+	u32	eccmask;
+
+	/* Error address mask */
+	int channel, dimm, rank, bank, page, col;
+};
+
 struct i7core_pvt {
 	struct pci_dev		*pci_mcr;	/* Dev 3:0 */
 	struct pci_dev		*pci_ch[NUM_CHANS][NUM_FUNCS];
 	struct i7core_info	info;
+	struct i7core_inject	inject;
 };
 
 /* Device name and register DID (Device ID) */
@@ -166,6 +182,7 @@ static inline int maxnumcol(struct i7core_pvt *pvt)
 	return cols[((pvt->info.max_dod >> 9) & 0x3) << 12];
 }
 
+
 /****************************************************************************
 			Memory check routines
  ****************************************************************************/
@@ -198,6 +215,390 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 
 	return 0;
 }
+
+/****************************************************************************
+			Error insertion routines
+ ****************************************************************************/
+
+/* The i7core has independent error injection features per channel.
+   However, to have a simpler code, we don't allow enabling error injection
+   on more than one channel.
+   Also, since a change at an inject parameter will be applied only at enable,
+   we're disabling error injection on all write calls to the sysfs nodes that
+   controls the error code injection.
+ */
+static void disable_inject(struct mem_ctl_info *mci)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+
+	pvt->inject.enable = 0;
+
+	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+				MC_CHANNEL_ERROR_MASK, 0);
+}
+
+/*
+ * i7core inject inject.section
+ *
+ *	accept and store error injection inject.section value
+ *	bit 0 - refers to the lower 32-byte half cacheline
+ *	bit 1 - refers to the upper 32-byte half cacheline
+ */
+static ssize_t i7core_inject_section_store(struct mem_ctl_info *mci,
+					   const char *data, size_t count)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int rc;
+
+	if (pvt->inject.enable)
+		 disable_inject(mci);
+
+	rc = strict_strtoul(data, 10, &value);
+	if ((rc < 0) || (value > 3))
+		return 0;
+
+	pvt->inject.section = (u32) value;
+	return count;
+}
+
+static ssize_t i7core_inject_section_show(struct mem_ctl_info *mci,
+					      char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	return sprintf(data, "0x%08x\n", pvt->inject.section);
+}
+
+/*
+ * i7core inject.type
+ *
+ *	accept and store error injection inject.section value
+ *	bit 0 - repeat enable - Enable error repetition
+ *	bit 1 - inject ECC error
+ *	bit 2 - inject parity error
+ */
+static ssize_t i7core_inject_type_store(struct mem_ctl_info *mci,
+					const char *data, size_t count)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int rc;
+
+	if (pvt->inject.enable)
+		 disable_inject(mci);
+
+	rc = strict_strtoul(data, 10, &value);
+	if ((rc < 0) || (value > 7))
+		return 0;
+
+	pvt->inject.type = (u32) value;
+	return count;
+}
+
+static ssize_t i7core_inject_type_show(struct mem_ctl_info *mci,
+					      char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	return sprintf(data, "0x%08x\n", pvt->inject.type);
+}
+
+/*
+ * i7core_inject_inject.eccmask_store
+ *
+ * The type of error (UE/CE) will depend on the inject.eccmask value:
+ *   Any bits set to a 1 will flip the corresponding ECC bit
+ *   Correctable errors can be injected by flipping 1 bit or the bits within
+ *   a symbol pair (2 consecutive aligned 8-bit pairs - i.e. 7:0 and 15:8 or
+ *   23:16 and 31:24). Flipping bits in two symbol pairs will cause an
+ *   uncorrectable error to be injected.
+ */
+static ssize_t i7core_inject_eccmask_store(struct mem_ctl_info *mci,
+					const char *data, size_t count)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int rc;
+
+	if (pvt->inject.enable)
+		 disable_inject(mci);
+
+	rc = strict_strtoul(data, 10, &value);
+	if (rc < 0)
+		return 0;
+
+	pvt->inject.eccmask = (u32) value;
+	return count;
+}
+
+static ssize_t i7core_inject_eccmask_show(struct mem_ctl_info *mci,
+					      char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	return sprintf(data, "0x%08x\n", pvt->inject.eccmask);
+}
+
+/*
+ * i7core_addrmatch
+ *
+ * The type of error (UE/CE) will depend on the inject.eccmask value:
+ *   Any bits set to a 1 will flip the corresponding ECC bit
+ *   Correctable errors can be injected by flipping 1 bit or the bits within
+ *   a symbol pair (2 consecutive aligned 8-bit pairs - i.e. 7:0 and 15:8 or
+ *   23:16 and 31:24). Flipping bits in two symbol pairs will cause an
+ *   uncorrectable error to be injected.
+ */
+static ssize_t i7core_inject_addrmatch_store(struct mem_ctl_info *mci,
+					const char *data, size_t count)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	char *cmd, *val;
+	long value;
+	int rc;
+
+	if (pvt->inject.enable)
+		 disable_inject(mci);
+
+	do {
+		cmd = strsep((char **) &data, ":");
+		if (!cmd)
+			break;
+		val = strsep((char **) &data, " \n\t");
+		if (!val)
+			return cmd - data;
+
+		if (!strcasecmp(val,"any"))
+			value = -1;
+		else {
+			rc = strict_strtol(val, 10, &value);
+			if ((rc < 0) || (value < 0))
+				return cmd - data;
+		}
+
+		if (!strcasecmp(cmd,"channel")) {
+			if (value < 3)
+				pvt->inject.channel = value;
+			else
+				return cmd - data;
+		} else if (!strcasecmp(cmd,"dimm")) {
+			if (value < 4)
+				pvt->inject.dimm = value;
+			else
+				return cmd - data;
+		} else if (!strcasecmp(cmd,"rank")) {
+			if (value < 4)
+				pvt->inject.rank = value;
+			else
+				return cmd - data;
+		} else if (!strcasecmp(cmd,"bank")) {
+			if (value < 4)
+				pvt->inject.bank = value;
+			else
+				return cmd - data;
+		} else if (!strcasecmp(cmd,"page")) {
+			if (value <= 0xffff)
+				pvt->inject.page = value;
+			else
+				return cmd - data;
+		} else if (!strcasecmp(cmd,"col") ||
+			   !strcasecmp(cmd,"column")) {
+			if (value <= 0x3fff)
+				pvt->inject.col = value;
+			else
+				return cmd - data;
+		}
+	} while (1);
+
+	return count;
+}
+
+static ssize_t i7core_inject_addrmatch_show(struct mem_ctl_info *mci,
+					      char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	char channel[4], dimm[4], bank[4], rank[4], page[7], col[7];
+
+	if (pvt->inject.channel < 0)
+		sprintf(channel, "any");
+	else
+		sprintf(channel, "%d", pvt->inject.channel);
+	if (pvt->inject.dimm < 0)
+		sprintf(dimm, "any");
+	else
+		sprintf(dimm, "%d", pvt->inject.dimm);
+	if (pvt->inject.bank < 0)
+		sprintf(bank, "any");
+	else
+		sprintf(bank, "%d", pvt->inject.bank);
+	if (pvt->inject.rank < 0)
+		sprintf(rank, "any");
+	else
+		sprintf(rank, "%d", pvt->inject.rank);
+	if (pvt->inject.page < 0)
+		sprintf(page, "any");
+	else
+		sprintf(page, "0x%04x", pvt->inject.page);
+	if (pvt->inject.col < 0)
+		sprintf(col, "any");
+	else
+		sprintf(col, "0x%04x", pvt->inject.col);
+
+	return sprintf(data, "channel: %s\ndimm: %s\nbank: %s\n"
+			     "rank: %s\npage: %s\ncolumn: %s\n",
+		       channel, dimm, bank, rank, page, col);
+}
+
+/*
+ * This routine prepares the Memory Controller for error injection.
+ * The error will be injected when some process tries to write to the
+ * memory that matches the given criteria.
+ * The criteria can be set in terms of a mask where dimm, rank, bank, page
+ * and col can be specified.
+ * A -1 value for any of the mask items will make the MCU to ignore
+ * that matching criteria for error injection.
+ *
+ * It should be noticed that the error will only happen after a write operation
+ * on a memory that matches the condition. if REPEAT_EN is not enabled at
+ * inject mask, then it will produce just one error. Otherwise, it will repeat
+ * until the injectmask would be cleaned.
+ *
+ * FIXME: This routine assumes that MAXNUMDIMMS value of MC_MAX_DOD
+ *    is reliable enough to check if the MC is using the
+ *    three channels. However, this is not clear at the datasheet.
+ */
+static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
+				       const char *data, size_t count)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	u32 injectmask;
+	u64 mask = 0;
+	int  rc;
+	long enable;
+
+	rc = strict_strtoul(data, 10, &enable);
+	if ((rc < 0))
+		return 0;
+
+	if (enable) {
+		pvt->inject.enable = 1;
+	} else {
+		disable_inject(mci);
+		return count;
+	}
+
+	/* Sets pvt->inject.dimm mask */
+	if (pvt->inject.dimm < 0)
+		mask |= 1l << 41;
+	else {
+		if (maxnumdimms(pvt) > 2)
+			mask |= (pvt->inject.dimm & 0x3l) << 35;
+		else
+			mask |= (pvt->inject.dimm & 0x1l) << 36;
+	}
+
+	/* Sets pvt->inject.rank mask */
+	if (pvt->inject.rank < 0)
+		mask |= 1l << 40;
+	else {
+		if (maxnumdimms(pvt) > 2)
+			mask |= (pvt->inject.rank & 0x1l) << 34;
+		else
+			mask |= (pvt->inject.rank & 0x3l) << 34;
+	}
+
+	/* Sets pvt->inject.bank mask */
+	if (pvt->inject.bank < 0)
+		mask |= 1l << 39;
+	else
+		mask |= (pvt->inject.bank & 0x15l) << 30;
+
+	/* Sets pvt->inject.page mask */
+	if (pvt->inject.page < 0)
+		mask |= 1l << 38;
+	else
+		mask |= (pvt->inject.page & 0xffffl) << 14;
+
+	/* Sets pvt->inject.column mask */
+	if (pvt->inject.col < 0)
+		mask |= 1l << 37;
+	else
+		mask |= (pvt->inject.col & 0x3fffl);
+
+	pci_write_config_qword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ADDR_MATCH, mask);
+
+	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ERROR_MASK, pvt->inject.eccmask);
+
+	/*
+	 * bit    0: REPEAT_EN
+	 * bits 1-2: MASK_HALF_CACHELINE
+	 * bit    3: INJECT_ECC
+	 * bit    4: INJECT_ADDR_PARITY
+	 */
+
+	injectmask = (pvt->inject.type & 1) &&
+		     (pvt->inject.section & 0x3) << 1 &&
+		     (pvt->inject.type & 0x6) << (3 - 1);
+
+	pci_write_config_dword(pvt->pci_ch[pvt->inject.channel][0],
+			       MC_CHANNEL_ERROR_MASK, injectmask);
+
+
+	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x, inject 0x%08x\n",
+		mask, pvt->inject.eccmask, injectmask);
+
+	return count;
+}
+
+static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
+					char *data)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	return sprintf(data, "%d\n", pvt->inject.enable);
+}
+
+/*
+ * Sysfs struct
+ */
+static struct mcidev_sysfs_attribute i7core_inj_attrs[] = {
+
+	{
+		.attr = {
+			.name = "inject_section",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_section_show,
+		.store = i7core_inject_section_store,
+	}, {
+		.attr = {
+			.name = "inject_type",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_type_show,
+		.store = i7core_inject_type_store,
+	}, {
+		.attr = {
+			.name = "inject_eccmask",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_eccmask_show,
+		.store = i7core_inject_eccmask_store,
+	}, {
+		.attr = {
+			.name = "inject_addrmatch",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_addrmatch_show,
+		.store = i7core_inject_addrmatch_store,
+	}, {
+		.attr = {
+			.name = "inject_enable",
+			.mode = (S_IRUGO | S_IWUSR)
+		},
+		.show  = i7core_inject_enable_show,
+		.store = i7core_inject_enable_store,
+	},
+};
 
 /****************************************************************************
 	Device initialization routines: put/get, init/exit
@@ -322,10 +723,11 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
 
-	mci->dev = &pdev->dev;	/* record ptr  to the generic device */
+	mci->dev = &pdev->dev;	/* record ptr to the generic device */
 	dev_set_drvdata(mci->dev, mci);
 
 	pvt = mci->pvt_info;
+
 //	pvt->system_address = pdev;	/* Record this device in our private */
 //	pvt->maxch = num_channels;
 //	pvt->maxdimmperch = num_dimms_per_channel;
@@ -343,6 +745,7 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 	mci->ctl_name = i7core_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;
+	mci->mc_driver_sysfs_attributes = i7core_inj_attrs;
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (edac_mc_add_mc(mci)) {
@@ -364,6 +767,14 @@ static int __devinit i7core_probe(struct pci_dev *pdev,
 			"%s(): PCI error report via EDAC not setup\n",
 			__func__);
 	}
+
+	/* Default error mask is any memory */
+	pvt->inject.channel = -1;
+	pvt->inject.dimm = -1;
+	pvt->inject.rank = -1;
+	pvt->inject.bank = -1;
+	pvt->inject.page = -1;
+	pvt->inject.col = -1;
 
 	return 0;
 
