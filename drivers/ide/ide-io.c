@@ -152,7 +152,7 @@ void ide_kill_rq(ide_drive_t *drive, struct request *rq)
 
 	if ((media == ide_floppy || media == ide_tape) && drv_req) {
 		rq->errors = 0;
-		ide_complete_rq(drive, 0, blk_rq_bytes(rq));
+		ide_complete_rq(drive, -EIO, blk_rq_bytes(rq));
 	} else {
 		if (media == ide_tape)
 			rq->errors = IDE_DRV_ERROR_GENERAL;
