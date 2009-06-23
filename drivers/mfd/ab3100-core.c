@@ -465,14 +465,14 @@ static int ab3100_get_set_reg_open_file(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ab3100_get_set_reg(struct file *file,
-			      const char __user *user_buf,
-			      size_t count, loff_t *ppos)
+static ssize_t ab3100_get_set_reg(struct file *file,
+				  const char __user *user_buf,
+				  size_t count, loff_t *ppos)
 {
 	struct ab3100_get_set_reg_priv *priv = file->private_data;
 	struct ab3100 *ab3100 = priv->ab3100;
 	char buf[32];
-	int buf_size;
+	ssize_t buf_size;
 	int regp;
 	unsigned long user_reg;
 	int err;
