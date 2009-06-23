@@ -100,7 +100,11 @@ static void decode_address(char *buf, unsigned long address)
 	char *modname;
 	char *delim = ":";
 	char namebuf[128];
+#endif
 
+	buf += sprintf(buf, "<0x%08lx> ", address);
+
+#ifdef CONFIG_KALLSYMS
 	/* look up the address and see if we are in kernel space */
 	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
 
@@ -108,23 +112,33 @@ static void decode_address(char *buf, unsigned long address)
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
-		sprintf(buf, "<0x%p> { %s%s%s%s + 0x%lx }",
-		              (void *)address, delim, modname, delim, symname,
-		              (unsigned long)offset);
+		sprintf(buf, "{ %s%s%s%s + 0x%lx }",
+		        delim, modname, delim, symname,
+		        (unsigned long)offset);
 		return;
-
 	}
 #endif
 
-	/* Problem in fixed code section? */
 	if (address >= FIXED_CODE_START && address < FIXED_CODE_END) {
-		sprintf(buf, "<0x%p> /* Maybe fixed code section */", (void *)address);
+		/* Problem in fixed code section? */
+		strcat(buf, "/* Maybe fixed code section */");
 		return;
-	}
 
-	/* Problem somewhere before the kernel start address */
-	if (address < CONFIG_BOOT_LOAD) {
-		sprintf(buf, "<0x%p> /* Maybe null pointer? */", (void *)address);
+	} else if (address < CONFIG_BOOT_LOAD) {
+		/* Problem somewhere before the kernel start address */
+		strcat(buf, "/* Maybe null pointer? */");
+		return;
+
+	} else if (address >= COREMMR_BASE) {
+		strcat(buf, "/* core mmrs */");
+		return;
+
+	} else if (address >= SYSMMR_BASE) {
+		strcat(buf, "/* system mmrs */");
+		return;
+
+	} else if (address >= L1_ROM_START && address < L1_ROM_START + L1_ROM_LENGTH) {
+		strcat(buf, "/* on-chip L1 ROM */");
 		return;
 	}
 
@@ -172,18 +186,16 @@ static void decode_address(char *buf, unsigned long address)
 						offset = (address - vma->vm_start) +
 							 (vma->vm_pgoff << PAGE_SHIFT);
 
-					sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
-						(void *)address, name, offset);
+					sprintf(buf, "[ %s + 0x%lx ]", name, offset);
 				} else
-					sprintf(buf, "<0x%p> [ %s vma:0x%lx-0x%lx]",
-						(void *)address, name,
-						vma->vm_start, vma->vm_end);
+					sprintf(buf, "[ %s vma:0x%lx-0x%lx]",
+						name, vma->vm_start, vma->vm_end);
 
 				if (!in_atomic)
 					mmput(mm);
 
-				if (!strlen(buf))
-					sprintf(buf, "<0x%p> [ %s ] dynamic memory", (void *)address, name);
+				if (buf[0] == '\0')
+					sprintf(buf, "[ %s ] dynamic memory", name);
 
 				goto done;
 			}
@@ -193,7 +205,7 @@ static void decode_address(char *buf, unsigned long address)
 	}
 
 	/* we were unable to find this address anywhere */
-	sprintf(buf, "<0x%p> /* kernel dynamic memory */", (void *)address);
+	sprintf(buf, "/* kernel dynamic memory */");
 
 done:
 	write_unlock_irqrestore(&tasklist_lock, flags);
