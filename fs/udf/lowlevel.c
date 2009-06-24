@@ -56,7 +56,12 @@ unsigned long udf_get_last_block(struct super_block *sb)
 	struct block_device *bdev = sb->s_bdev;
 	unsigned long lblock = 0;
 
-	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock))
+	/*
+	 * ioctl failed or returned obviously bogus value?
+	 * Try using the device size...
+	 */
+	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock) ||
+	    lblock == 0)
 		lblock = bdev->bd_inode->i_size >> sb->s_blocksize_bits;
 
 	if (lblock)
