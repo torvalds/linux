@@ -80,6 +80,9 @@ struct net {
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+#ifdef CONFIG_WIRELESS_EXT
+	struct sk_buff_head	wext_nlevents;
+#endif
 	struct net_generic	*gen;
 };
 
