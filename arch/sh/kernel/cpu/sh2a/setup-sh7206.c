@@ -138,24 +138,28 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xfffe8000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs		= { 240, 240, 240, 240 },
 	}, {
 		.mapbase	= 0xfffe8800,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs		= { 244, 244, 244, 244 },
 	}, {
 		.mapbase	= 0xfffe9000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs		= { 248, 248, 248, 248 },
 	}, {
 		.mapbase	= 0xfffe9800,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs		= { 252, 252, 252, 252 },
 	}, {

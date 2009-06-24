@@ -41,6 +41,7 @@ static struct plat_sci_port sci_platform_data = {
 	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_SCI,
 	.scscr		= SCSCR_TE | SCSCR_RE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.irqs		= { 23, 23, 23, 0 },
 };
 
@@ -55,6 +56,7 @@ static struct plat_sci_port scif_platform_data = {
 	.mapbase	= 0xffe80000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE,
+	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
 	.irqs		= { 40, 40, 40, 40 },
 };

@@ -102,6 +102,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
 				  SCSCR_CKE1 | SCSCR_CKE0,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs		= { 52, 52, 52, 52 },
 	}, {
@@ -109,6 +110,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
 				  SCSCR_CKE1 | SCSCR_CKE0,
+		.scbrr_algo_id	= SCBRR_ALGO_2,
 		.type		= PORT_SCIF,
 		.irqs           = { 56, 56, 56, 56 },
 	}, {
