@@ -50,6 +50,8 @@
 #include <linux/writeback.h>
 #include <linux/kobject.h>
 #include <linux/exportfs.h>
+#include <linux/seq_file.h>
+#include <linux/mount.h>
 #include "nilfs.h"
 #include "mdt.h"
 #include "alloc.h"
@@ -529,6 +531,26 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct super_block *sb = vfs->mnt_sb;
+	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+
+	if (!nilfs_test_opt(sbi, BARRIER))
+		seq_printf(seq, ",barrier=off");
+	if (nilfs_test_opt(sbi, SNAPSHOT))
+		seq_printf(seq, ",cp=%llu",
+			   (unsigned long long int)sbi->s_snapshot_cno);
+	if (nilfs_test_opt(sbi, ERRORS_RO))
+		seq_printf(seq, ",errors=remount-ro");
+	if (nilfs_test_opt(sbi, ERRORS_PANIC))
+		seq_printf(seq, ",errors=panic");
+	if (nilfs_test_opt(sbi, STRICT_ORDER))
+		seq_printf(seq, ",order=strict");
+
+	return 0;
+}
+
 static struct super_operations nilfs_sops = {
 	.alloc_inode    = nilfs_alloc_inode,
 	.destroy_inode  = nilfs_destroy_inode,
@@ -546,7 +568,7 @@ static struct super_operations nilfs_sops = {
 	.remount_fs     = nilfs_remount,
 	.clear_inode    = nilfs_clear_inode,
 	/* .umount_begin */
-	/* .show_options */
+	.show_options = nilfs_show_options
 };
 
 static struct inode *
