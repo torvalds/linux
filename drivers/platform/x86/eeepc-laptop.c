@@ -181,6 +181,7 @@ static struct key_entry eeepc_keymap[] = {
 static int eeepc_hotk_add(struct acpi_device *device);
 static int eeepc_hotk_remove(struct acpi_device *device, int type);
 static int eeepc_hotk_resume(struct acpi_device *device);
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id eeepc_device_ids[] = {
 	{EEEPC_HOTK_HID, 0},
@@ -192,10 +193,12 @@ static struct acpi_driver eeepc_hotk_driver = {
 	.name = EEEPC_HOTK_NAME,
 	.class = EEEPC_HOTK_CLASS,
 	.ids = eeepc_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = eeepc_hotk_add,
 		.remove = eeepc_hotk_remove,
 		.resume = eeepc_hotk_resume,
+		.notify = eeepc_hotk_notify,
 	},
 };
 
@@ -558,13 +561,15 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	eeepc_rfkill_hotplug();
 }
 
-static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
 {
 	static struct key_entry *key;
 	u16 count;
 	int brn = -ENODEV;
 
 	if (!ehotk)
+		return;
+	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
 		brn = notify_brn();
@@ -646,7 +651,6 @@ static void eeepc_unregister_rfkill_notifier(char *node)
 
 static int eeepc_hotk_add(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
 	int result;
 
 	if (!device)
@@ -664,10 +668,6 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	result = eeepc_hotk_check();
 	if (result)
 		goto ehotk_fail;
-	status = acpi_install_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					     eeepc_hotk_notify, ehotk);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error installing notify handler\n");
 
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
@@ -725,14 +725,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
 
 static int eeepc_hotk_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-
 	if (!device || !acpi_driver_data(device))
 		 return -EINVAL;
-	status = acpi_remove_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					    eeepc_hotk_notify);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error removing notify handler\n");
 
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
