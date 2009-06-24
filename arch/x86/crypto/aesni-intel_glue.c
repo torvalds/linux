@@ -636,7 +636,7 @@ static int __init aesni_init(void)
 	int err;
 
 	if (!cpu_has_aes) {
-		printk(KERN_ERR "Intel AES-NI instructions are not detected.\n");
+		printk(KERN_INFO "Intel AES-NI instructions are not detected.\n");
 		return -ENODEV;
 	}
 	if ((err = crypto_register_alg(&aesni_alg)))
