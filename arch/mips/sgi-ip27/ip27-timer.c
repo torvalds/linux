@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/param.h>
+#include <linux/smp.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/mm.h>

@@ -33,7 +33,6 @@
 
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
-#include "ethernet-common.h"
 #include "ethernet-util.h"
 
 #include "cvmx-spi.h"

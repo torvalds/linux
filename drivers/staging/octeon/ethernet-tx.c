@@ -47,6 +47,7 @@
 
 #include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-tx.h"
 #include "ethernet-util.h"
 
 #include "cvmx-wqe.h"
@@ -82,8 +83,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint64_t old_scratch2;
 	int dropped;
 	int qos;
+	int queue_it_up;
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	int32_t in_use;
+	int32_t skb_to_free;
+	int32_t undo;
 	int32_t buffers_to_free;
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	unsigned char *fpa_head;
@@ -120,15 +123,15 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		old_scratch2 = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
 
 		/*
-		 * Assume we're going to be able t osend this
-		 * packet. Fetch and increment the number of pending
-		 * packets for output.
+		 * Fetch and increment the number of packets to be
+		 * freed.
 		 */
 		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH + 8,
 					       FAU_NUM_PACKET_BUFFERS_TO_FREE,
 					       0);
 		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH,
-					       priv->fau + qos * 4, 1);
+					       priv->fau + qos * 4,
+					       MAX_SKB_TO_FREE);
 	}
 
 	/*
@@ -253,10 +256,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * The skbuff will be reused without ever being freed. We must
-	 * cleanup a bunch of Linux stuff.
+	 * cleanup a bunch of core things.
 	 */
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	dst_release(skb_dst(skb));
+	skb_dst_set(skb, NULL);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
 	skb->sp = NULL;
@@ -286,14 +289,28 @@ dont_put_skbuff_in_hw:
 	if (USE_ASYNC_IOBDMA) {
 		/* Get the number of skbuffs in use by the hardware */
 		CVMX_SYNCIOBDMA;
-		in_use = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
+		skb_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
 		buffers_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH + 8);
 	} else {
 		/* Get the number of skbuffs in use by the hardware */
-		in_use = cvmx_fau_fetch_and_add32(priv->fau + qos * 4, 1);
+		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau + qos * 4,
+						       MAX_SKB_TO_FREE);
 		buffers_to_free =
 		    cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 	}
+
+	/*
+	 * We try to claim MAX_SKB_TO_FREE buffers.  If there were not
+	 * that many available, we have to un-claim (undo) any that
+	 * were in excess.  If skb_to_free is positive we will free
+	 * that many buffers.
+	 */
+	undo = skb_to_free > 0 ?
+		MAX_SKB_TO_FREE : skb_to_free + MAX_SKB_TO_FREE;
+	if (undo > 0)
+		cvmx_fau_atomic_add32(priv->fau+qos*4, -undo);
+	skb_to_free = -skb_to_free > MAX_SKB_TO_FREE ?
+		MAX_SKB_TO_FREE : -skb_to_free;
 
 	/*
 	 * If we're sending faster than the receive can free them then
@@ -330,38 +347,31 @@ dont_put_skbuff_in_hw:
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
 	}
 
+	queue_it_up = 0;
 	if (unlikely(dropped)) {
 		dev_kfree_skb_any(skb);
-		cvmx_fau_atomic_add32(priv->fau + qos * 4, -1);
 		priv->stats.tx_dropped++;
 	} else {
 		if (USE_SKBUFFS_IN_HW) {
 			/* Put this packet on the queue to be freed later */
 			if (pko_command.s.dontfree)
-				skb_queue_tail(&priv->tx_free_list[qos], skb);
-			else {
+				queue_it_up = 1;
+			else
 				cvmx_fau_atomic_add32
 				    (FAU_NUM_PACKET_BUFFERS_TO_FREE, -1);
-				cvmx_fau_atomic_add32(priv->fau + qos * 4, -1);
-			}
 		} else {
 			/* Put this packet on the queue to be freed later */
-			skb_queue_tail(&priv->tx_free_list[qos], skb);
+			queue_it_up = 1;
 		}
 	}
 
-	/* Free skbuffs not in use by the hardware, possibly two at a time */
-	if (skb_queue_len(&priv->tx_free_list[qos]) > in_use) {
+	if (queue_it_up) {
 		spin_lock(&priv->tx_free_list[qos].lock);
-		/*
-		 * Check again now that we have the lock. It might
-		 * have changed.
-		 */
-		if (skb_queue_len(&priv->tx_free_list[qos]) > in_use)
-			dev_kfree_skb(__skb_dequeue(&priv->tx_free_list[qos]));
-		if (skb_queue_len(&priv->tx_free_list[qos]) > in_use)
-			dev_kfree_skb(__skb_dequeue(&priv->tx_free_list[qos]));
+		__skb_queue_tail(&priv->tx_free_list[qos], skb);
+		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 0);
 		spin_unlock(&priv->tx_free_list[qos].lock);
+	} else {
+		cvm_oct_free_tx_skbs(priv, skb_to_free, qos, 1);
 	}
 
 	return 0;

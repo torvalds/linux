@@ -117,6 +117,8 @@
 
 /* Maximum number of packets to process per interrupt. */
 #define MAX_RX_PACKETS 120
+/* Maximum number of SKBs to try to free per xmit packet. */
+#define MAX_SKB_TO_FREE 10
 #define MAX_OUT_QUEUE_DEPTH 1000
 
 #ifndef CONFIG_SMP
