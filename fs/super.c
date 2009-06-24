@@ -620,7 +620,8 @@ int set_anon_super(struct super_block *s, void *data)
 		return -ENOMEM;
 	spin_lock(&unnamed_dev_lock);
 	error = ida_get_new_above(&unnamed_dev_ida, unnamed_dev_start, &dev);
-	unnamed_dev_start = dev + 1;
+	if (!error)
+		unnamed_dev_start = dev + 1;
 	spin_unlock(&unnamed_dev_lock);
 	if (error == -EAGAIN)
 		/* We raced and lost with another CPU. */
@@ -631,7 +632,8 @@ int set_anon_super(struct super_block *s, void *data)
 	if ((dev & MAX_ID_MASK) == (1 << MINORBITS)) {
 		spin_lock(&unnamed_dev_lock);
 		ida_remove(&unnamed_dev_ida, dev);
-		unnamed_dev_start = dev;
+		if (unnamed_dev_start > dev)
+			unnamed_dev_start = dev;
 		spin_unlock(&unnamed_dev_lock);
 		return -EMFILE;
 	}
