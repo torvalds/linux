@@ -315,8 +315,9 @@ static void new_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
 	if (wbuf->no_timer)
 		return;
 	dbg_io("set timer for jhead %d, %llu-%llu millisecs", wbuf->jhead,
-	       ktime_to_ns(wbuf->softlimit)/USEC_PER_SEC,
-	       (ktime_to_ns(wbuf->softlimit) + wbuf->delta)/USEC_PER_SEC);
+	       div_u64(ktime_to_ns(wbuf->softlimit), USEC_PER_SEC),
+	       div_u64(ktime_to_ns(wbuf->softlimit) + wbuf->delta,
+		       USEC_PER_SEC));
 	hrtimer_start_range_ns(&wbuf->timer, wbuf->softlimit, wbuf->delta,
 			       HRTIMER_MODE_REL);
 }
