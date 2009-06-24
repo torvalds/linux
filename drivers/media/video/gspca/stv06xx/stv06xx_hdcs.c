@@ -74,7 +74,35 @@ static struct v4l2_pix_format hdcs1x00_mode[] = {
 	}
 };
 
-static const struct ctrl hdcs1020_ctrl[] = {};
+static const struct ctrl hdcs1020_ctrl[] = {
+	{
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "exposure",
+			.minimum	= 0x00,
+			.maximum	= 0xffff,
+			.step		= 0x1,
+			.default_value 	= HDCS_DEFAULT_EXPOSURE,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = hdcs_set_exposure,
+		.get = hdcs_get_exposure
+	}, {
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "gain",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value 	= HDCS_DEFAULT_GAIN,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = hdcs_set_gain,
+		.get = hdcs_get_gain
+	}
+};
 
 static struct v4l2_pix_format hdcs1020_mode[] = {
 	{
