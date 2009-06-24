@@ -229,14 +229,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			to assume that this machine's pmtimer latches its value
 			and always returns good values.
 
- 	acpi.power_nocheck=	[HW,ACPI]
- 			Format: 1/0 enable/disable the check of power state.
- 			On some bogus BIOS the _PSC object/_STA object of
- 			power resource can't return the correct device power
- 			state. In such case it is unneccessary to check its
- 			power state again in power transition.
- 			1 : disable the power state check
-
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
 
