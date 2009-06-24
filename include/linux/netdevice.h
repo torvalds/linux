@@ -895,7 +895,7 @@ struct net_device
 	/* class/net/name entry */
 	struct device		dev;
 	/* space for optional statistics and wireless sysfs groups */
-	struct attribute_group  *sysfs_groups[3];
+	const struct attribute_group *sysfs_groups[3];
 
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;

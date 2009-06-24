@@ -341,7 +341,7 @@ static void device_remove_attributes(struct device *dev,
 }
 
 static int device_add_groups(struct device *dev,
-			     struct attribute_group **groups)
+			     const struct attribute_group **groups)
 {
 	int error = 0;
 	int i;
@@ -361,7 +361,7 @@ static int device_add_groups(struct device *dev,
 }
 
 static void device_remove_groups(struct device *dev,
-				 struct attribute_group **groups)
+				 const struct attribute_group **groups)
 {
 	int i;
 
