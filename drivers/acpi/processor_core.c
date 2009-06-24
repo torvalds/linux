@@ -649,7 +649,16 @@ static int acpi_processor_get_info(struct acpi_device *device)
 			return -ENODEV;
 		}
 	}
-
+	/*
+	 * On some boxes several processors use the same processor bus id.
+	 * But they are located in different scope. For example:
+	 * \_SB.SCK0.CPU0
+	 * \_SB.SCK1.CPU0
+	 * Rename the processor device bus id. And the new bus id will be
+	 * generated as the following format:
+	 * CPU+CPU ID.
+	 */
+	sprintf(acpi_device_bid(device), "CPU%X", pr->id);
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Processor [%d:%d]\n", pr->id,
 			  pr->acpi_id));
 
