@@ -72,6 +72,7 @@ struct ad198x_spec {
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	unsigned int jack_present :1;
+	unsigned int inv_jack_detect:1;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -756,8 +757,9 @@ static void ad1986a_hp_automute(struct hda_codec *codec)
 	unsigned int present;
 
 	present = snd_hda_codec_read(codec, 0x1a, 0, AC_VERB_GET_PIN_SENSE, 0);
-	/* Lenovo N100 seems to report the reversed bit for HP jack-sensing */
-	spec->jack_present = !(present & 0x80000000);
+	spec->jack_present = !!(present & 0x80000000);
+	if (spec->inv_jack_detect)
+		spec->jack_present = !spec->jack_present;
 	ad1986a_update_hp(codec);
 }
 
@@ -1113,6 +1115,10 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		codec->patch_ops.unsol_event = ad1986a_hp_unsol_event;
 		codec->patch_ops.init = ad1986a_hp_init;
+		/* Lenovo N100 seems to report the reversed bit
+		 * for HP jack-sensing
+		 */
+		spec->inv_jack_detect = 1;
 		break;
 	case AD1986A_ULTRA:
 		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
