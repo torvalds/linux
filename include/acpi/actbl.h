@@ -161,17 +161,24 @@ struct acpi_table_facs {
 	u32 flags;
 	u64 xfirmware_waking_vector;	/* 64-bit version of the Firmware Waking Vector (ACPI 2.0+) */
 	u8 version;		/* Version of this table (ACPI 2.0+) */
-	u8 reserved[31];	/* Reserved, must be zero */
+	u8 reserved[3];		/* Reserved, must be zero */
+	u32 ospm_flags;		/* Flags to be set by OSPM (ACPI 4.0) */
+	u8 reserved1[24];	/* Reserved, must be zero */
 };
 
-/* Flag macros */
+/* global_lock flags */
 
-#define ACPI_FACS_S4_BIOS_PRESENT (1)	/* 00: S4BIOS support is present */
+#define ACPI_GLOCK_PENDING          (1)	/* 00: Pending global lock ownership */
+#define ACPI_GLOCK_OWNED            (1<<1)	/* 01: Global lock is owned */
 
-/* Global lock flags */
+/* Flags  */
 
-#define ACPI_GLOCK_PENDING      0x01	/* 00: Pending global lock ownership */
-#define ACPI_GLOCK_OWNED        0x02	/* 01: Global lock is owned */
+#define ACPI_FACS_S4_BIOS_PRESENT   (1)	/* 00: S4BIOS support is present */
+#define ACPI_FACS_64BIT_WAKE        (1<<1)	/* 01: 64-bit wake vector supported (ACPI 4.0) */
+
+/* ospm_flags */
+
+#define ACPI_FACS_64BIT_ENVIRONMENT (1)	/* 00: 64-bit wake environment is required (ACPI 4.0) */
 
 /*******************************************************************************
  *
