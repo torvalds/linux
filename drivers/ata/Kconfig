@@ -597,6 +597,16 @@ config PATA_RB532
 
 	  If unsure, say N.
 
+config PATA_RDC
+	tristate "RDC PATA support"
+	depends on PCI
+	help
+	  This option enables basic support for the later RDC PATA controllers
+	  controllers via the new ATA layer. For the RDC 1010, you need to
+	  enable the IT821X driver instead.
+
+	  If unsure, say N.
+
 config PATA_RZ1000
 	tristate "PC Tech RZ1000 PATA support"
 	depends on PCI
