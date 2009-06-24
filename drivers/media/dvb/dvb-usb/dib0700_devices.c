@@ -2839,6 +2839,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2) },
 /* 75 */{ USB_DEVICE(USB_VID_MEDION,    USB_PID_CREATIX_CTX1921) },
 	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E) },
+	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E_SE) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -3823,10 +3824,14 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 1,
+		.num_device_descs = 2,
 		.devices = {
 			{   "Pinnacle PCTV 340e HD Pro USB Stick",
 				{ &dib0700_usb_id_table[76], NULL },
+				{ NULL },
+			},
+			{   "Pinnacle PCTV Hybrid Stick Solo",
+				{ &dib0700_usb_id_table[77], NULL },
 				{ NULL },
 			},
 		},
