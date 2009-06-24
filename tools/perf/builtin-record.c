@@ -306,12 +306,11 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 			continue;
 		pbf += n + 3;
 		if (*pbf == 'x') { /* vm_exec */
-			char *execname = strrchr(bf, ' ');
+			char *execname = strchr(bf, '/');
 
-			if (execname == NULL || execname[1] != '/')
+			if (execname == NULL)
 				continue;
 
-			execname += 1;
 			size = strlen(execname);
 			execname[size - 1] = '\0'; /* Remove \n */
 			memcpy(mmap_ev.filename, execname, size);
