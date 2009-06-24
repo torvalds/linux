@@ -232,7 +232,17 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    hotplug_work);
 	struct drm_device *dev = dev_priv->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
 
+	if (mode_config->num_connector) {
+		list_for_each_entry(connector, &mode_config->connector_list, head) {
+			struct intel_output *intel_output = to_intel_output(connector);
+	
+			if (intel_output->hot_plug)
+				(*intel_output->hot_plug) (intel_output);
+		}
+	}
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_sysfs_hotplug_event(dev);
 }
