@@ -85,7 +85,7 @@ static inline __u32 dccp_v6_init_sequence(struct sk_buff *skb)
 }
 
 static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			int type, int code, int offset, __be32 info)
+			u8 type, u8 code, int offset, __be32 info)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr *)skb->data;
 	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data + offset);

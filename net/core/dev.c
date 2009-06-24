@@ -2310,8 +2310,6 @@ ncls:
 	if (!skb)
 		goto out;
 
-	skb_orphan(skb);
-
 	type = skb->protocol;
 	list_for_each_entry_rcu(ptype,
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
