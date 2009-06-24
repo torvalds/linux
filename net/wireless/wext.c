@@ -1300,22 +1300,15 @@ static void wireless_nlevent_process(struct work_struct *work)
 
 static DECLARE_WORK(wireless_nlevent_work, wireless_nlevent_process);
 
-/* ---------------------------------------------------------------- */
-/*
- * Fill a rtnetlink message with our event data.
- * Note that we propage only the specified event and don't dump the
- * current wireless config. Dumping the wireless config is far too
- * expensive (for each parameter, the driver need to query the hardware).
- */
-static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
-				 int type, char *event, int event_len)
+static struct nlmsghdr *rtnetlink_ifinfo_prep(struct net_device *dev,
+					      struct sk_buff *skb)
 {
 	struct ifinfomsg *r;
 	struct nlmsghdr  *nlh;
 
-	nlh = nlmsg_put(skb, 0, 0, type, sizeof(*r), 0);
-	if (nlh == NULL)
-		return -EMSGSIZE;
+	nlh = nlmsg_put(skb, 0, 0, RTM_NEWLINK, sizeof(*r), 0);
+	if (!nlh)
+		return NULL;
 
 	r = nlmsg_data(nlh);
 	r->ifi_family = AF_UNSPEC;
@@ -1326,45 +1319,14 @@ static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
 	r->ifi_change = 0;	/* Wireless changes don't affect those flags */
 
 	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
-	/* Add the wireless events in the netlink packet */
-	NLA_PUT(skb, IFLA_WIRELESS, event_len, event);
 
-	return nlmsg_end(skb, nlh);
-
-nla_put_failure:
+	return nlh;
+ nla_put_failure:
 	nlmsg_cancel(skb, nlh);
-	return -EMSGSIZE;
+	return NULL;
 }
 
-/* ---------------------------------------------------------------- */
-/*
- * Create and broadcast and send it on the standard rtnetlink socket
- * This is a pure clone rtmsg_ifinfo() in net/core/rtnetlink.c
- * Andrzej Krzysztofowicz mandated that I used a IFLA_XXX field
- * within a RTM_NEWLINK event.
- */
-static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
-{
-	struct sk_buff *skb;
-	int err;
 
-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
-	if (!skb)
-		return;
-
-	err = rtnetlink_fill_iwinfo(skb, dev, RTM_NEWLINK, event, event_len);
-	if (err < 0) {
-		WARN_ON(err == -EMSGSIZE);
-		kfree_skb(skb);
-		return;
-	}
-
-	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
-	skb_queue_tail(&dev_net(dev)->wext_nlevents, skb);
-	schedule_work(&wireless_nlevent_work);
-}
-
-/* ---------------------------------------------------------------- */
 /*
  * Main event dispatcher. Called from other parts and drivers.
  * Send the event on the appropriate channels.
@@ -1383,6 +1345,9 @@ void wireless_send_event(struct net_device *	dev,
 	int wrqu_off = 0;			/* Offset in wrqu */
 	/* Don't "optimise" the following variable, it will crash */
 	unsigned	cmd_index;		/* *MUST* be unsigned */
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+	struct nlattr *nla;
 
 	/* Get the description of the Event */
 	if (cmd <= SIOCIWLAST) {
@@ -1430,25 +1395,60 @@ void wireless_send_event(struct net_device *	dev,
 	hdr_len = event_type_size[descr->header_type];
 	event_len = hdr_len + extra_len;
 
-	/* Create temporary buffer to hold the event */
-	event = kmalloc(event_len, GFP_ATOMIC);
-	if (event == NULL)
+	/*
+	 * The problem for 64/32 bit.
+	 *
+	 * On 64-bit, a regular event is laid out as follows:
+	 *      |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
+	 *      | event.len | event.cmd |     p a d d i n g     |
+	 *      | wrqu data ... (with the correct size)         |
+	 *
+	 * This padding exists because we manipulate event->u,
+	 * and 'event' is not packed.
+	 *
+	 * An iw_point event is laid out like this instead:
+	 *      |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
+	 *      | event.len | event.cmd |     p a d d i n g     |
+	 *      | iwpnt.len | iwpnt.flg |     p a d d i n g     |
+	 *      | extra data  ...
+	 *
+	 * The second padding exists because struct iw_point is extended,
+	 * but this depends on the platform...
+	 *
+	 * On 32-bit, all the padding shouldn't be there.
+	 */
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
 		return;
 
-	/* Fill event */
+	/* Send via the RtNetlink event channel */
+	nlh = rtnetlink_ifinfo_prep(dev, skb);
+	if (WARN_ON(!nlh)) {
+		kfree_skb(skb);
+		return;
+	}
+
+	/* Add the wireless events in the netlink packet */
+	nla = nla_reserve(skb, IFLA_WIRELESS, event_len);
+	if (!nla) {
+		kfree_skb(skb);
+		return;
+	}
+	event = nla_data(nla);
+
+	/* Fill event - first clear to avoid data leaking */
+	memset(event, 0, hdr_len);
 	event->len = event_len;
 	event->cmd = cmd;
 	memcpy(&event->u, ((char *) wrqu) + wrqu_off, hdr_len - IW_EV_LCP_LEN);
-	if (extra)
+	if (extra_len)
 		memcpy(((char *) event) + hdr_len, extra, extra_len);
 
-	/* Send via the RtNetlink event channel */
-	rtmsg_iwinfo(dev, (char *) event, event_len);
+	nlmsg_end(skb, nlh);
 
-	/* Cleanup */
-	kfree(event);
-
-	return;		/* Always success, I guess ;-) */
+	skb_queue_tail(&dev_net(dev)->wext_nlevents, skb);
+	schedule_work(&wireless_nlevent_work);
 }
 EXPORT_SYMBOL(wireless_send_event);
 
