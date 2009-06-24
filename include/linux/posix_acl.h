@@ -83,6 +83,7 @@ extern int posix_acl_chmod_masq(struct posix_acl *, mode_t);
 extern struct posix_acl *get_posix_acl(struct inode *, int);
 extern int set_posix_acl(struct inode *, int, struct posix_acl *);
 
+#ifdef CONFIG_FS_POSIX_ACL
 static inline struct posix_acl *get_cached_acl(struct inode *inode, int type)
 {
 	struct posix_acl **p, *acl;
@@ -146,5 +147,5 @@ static inline void forget_cached_acl(struct inode *inode, int type)
 	if (old != ACL_NOT_CACHED)
 		posix_acl_release(old);
 }
-
+#endif
 #endif  /* __LINUX_POSIX_ACL_H */
