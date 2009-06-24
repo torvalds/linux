@@ -131,9 +131,11 @@ static int hdcs_reg_write_seq(struct sd *sd, u8 reg, u8 *vals, u8 len)
 		     (reg + len > 0xff)))
 		return -EINVAL;
 
-	for (i = 0; i < len; i++, reg++) {
-		regs[2*i] = reg;
-		regs[2*i+1] = vals[i];
+	for (i = 0; i < len; i++) {
+		regs[2 * i] = reg;
+		regs[2 * i + 1] = vals[i];
+		/* All addresses are shifted left one bit as bit 0 toggles r/w */
+		reg += 2;
 	}
 
 	return stv06xx_write_sensor_bytes(sd, regs, len);
