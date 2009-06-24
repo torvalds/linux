@@ -29,6 +29,7 @@ SECTIONS
 	EXIT_TEXT
 	EXIT_DATA
 	*(.exitcall.exit)
+	*(.discard)
 	*(.IA_64.unwind.exit.text)
 	*(.IA_64.unwind_info.exit.text)
 	}

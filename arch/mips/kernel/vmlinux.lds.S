@@ -179,6 +179,7 @@ SECTIONS
 	/* Sections to be discarded */
 	/DISCARD/ : {
 		*(.exitcall.exit)
+		*(.discard)
 
 		/* ABI crap starts here */
 		*(.MIPS.options)

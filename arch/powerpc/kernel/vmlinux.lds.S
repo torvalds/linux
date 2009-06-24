@@ -40,6 +40,7 @@ SECTIONS
 	/* Sections to be discarded. */
 	/DISCARD/ : {
 	*(.exitcall.exit)
+	*(.discard)
 	EXIT_DATA
 	}
 

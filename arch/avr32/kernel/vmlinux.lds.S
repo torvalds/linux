@@ -131,6 +131,7 @@ SECTIONS
 	/DISCARD/       	: {
 		EXIT_DATA
 		*(.exitcall.exit)
+		*(.discard)
 	}
 
 	DWARF_DEBUG

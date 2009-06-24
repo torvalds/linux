@@ -145,6 +145,7 @@ SECTIONS
 		EXIT_TEXT
 		EXIT_DATA
 		*(.exitcall.exit)
+		*(.discard)
         }
 
 	dram_end = dram_start + (CONFIG_ETRAX_DRAM_SIZE - __CONFIG_ETRAX_VMEM_SIZE)*1024*1024;

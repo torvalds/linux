@@ -287,6 +287,7 @@ SECTIONS
 	EXIT_TEXT
 	EXIT_DATA
         *(.exitcall.exit)
+	*(.discard)
   }
 
   .xt.lit : { *(.xt.lit) }

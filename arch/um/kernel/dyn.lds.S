@@ -156,4 +156,6 @@ SECTIONS
   STABS_DEBUG
 
   DWARF_DEBUG
+
+  /DISCARD/	: { *(.discard) }
 }

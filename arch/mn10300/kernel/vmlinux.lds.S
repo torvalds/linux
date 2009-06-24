@@ -146,6 +146,7 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ : {
 	*(.exitcall.exit)
+	*(.discard)
 	}
 
   STABS_DEBUG

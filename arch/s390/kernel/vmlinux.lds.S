@@ -161,6 +161,7 @@ SECTIONS
 	/DISCARD/ : {
 		EXIT_DATA
 		*(.exitcall.exit)
+		*(.discard)
 	}
 
 	/* Debugging sections.	*/

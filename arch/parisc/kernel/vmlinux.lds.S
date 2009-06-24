@@ -240,6 +240,7 @@ SECTIONS
 	/* Sections to be discarded */
 	/DISCARD/ : {
 		*(.exitcall.exit)
+		*(.discard)
 #ifdef CONFIG_64BIT
 		/* temporary hack until binutils is fixed to not emit these
 	 	 * for static binaries

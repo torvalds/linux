@@ -280,5 +280,6 @@ SECTIONS
 	/DISCARD/ :
 	{
 		*(.exitcall.exit)
+		*(.discard)
 	}
 }

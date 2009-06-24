@@ -177,6 +177,8 @@ SECTIONS
   .debug_ranges		0 : { *(.debug_ranges) }
 
   .comment 0 : { *(.comment) }
+
+  /DISCARD/ : { *(.discard) }
 }
 
 __kernel_image_size_no_bss = __bss_start - __kernel_image_start;

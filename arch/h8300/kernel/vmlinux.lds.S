@@ -154,6 +154,7 @@ SECTIONS
 	}
 	/DISCARD/ : {
 		*(.exitcall.exit)
+		*(.discard)
 	}
         .romfs :	
 	{

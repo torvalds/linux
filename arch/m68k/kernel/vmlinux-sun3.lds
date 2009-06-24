@@ -82,6 +82,7 @@ __init_begin = .;
 	EXIT_TEXT
 	EXIT_DATA
 	*(.exitcall.exit)
+	*(.discard)
 	}
 
   .crap : {

@@ -188,6 +188,7 @@ SECTIONS {
 		EXIT_TEXT
 		EXIT_DATA
 		*(.exitcall.exit)
+		*(.discard)
 	}
 
 	.bss : {
