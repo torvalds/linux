@@ -679,6 +679,7 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI_PROCFS
 static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_processor *pr = seq->private;
@@ -758,7 +759,7 @@ static const struct file_operations acpi_processor_power_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-
+#endif
 
 /**
  * acpi_idle_bm_check - checks if bus master activity was detected
@@ -1216,7 +1217,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 				       pr->power.states[i].type);
 		printk(")\n");
 	}
-
+#ifdef CONFIG_ACPI_PROCFS
 	/* 'power' [R] */
 	entry = proc_create_data(ACPI_PROCESSOR_FILE_POWER,
 				 S_IRUGO, acpi_device_dir(device),
@@ -1224,6 +1225,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
+#endif
 	return 0;
 }
 
@@ -1236,9 +1238,11 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 	cpuidle_unregister_device(&pr->power.dev);
 	pr->flags.power_setup_done = 0;
 
+#ifdef CONFIG_ACPI_PROCFS
 	if (acpi_device_dir(device))
 		remove_proc_entry(ACPI_PROCESSOR_FILE_POWER,
 				  acpi_device_dir(device));
+#endif
 
 	return 0;
 }

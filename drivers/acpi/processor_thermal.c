@@ -438,7 +438,7 @@ struct thermal_cooling_device_ops processor_cooling_ops = {
 };
 
 /* /proc interface */
-
+#ifdef CONFIG_ACPI_PROCFS
 static int acpi_processor_limit_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_processor *pr = (struct acpi_processor *)seq->private;
@@ -517,3 +517,4 @@ const struct file_operations acpi_processor_limit_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+#endif
