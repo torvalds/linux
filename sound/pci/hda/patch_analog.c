@@ -940,6 +940,27 @@ static struct hda_verb ad1986a_hp_init_verbs[] = {
 	{}
 };
 
+static void ad1986a_samsung_p50_unsol_event(struct hda_codec *codec,
+					    unsigned int res)
+{
+	switch (res >> 26) {
+	case AD1986A_HP_EVENT:
+		ad1986a_hp_automute(codec);
+		break;
+	case AD1986A_MIC_EVENT:
+		ad1986a_automic(codec);
+		break;
+	}
+}
+
+static int ad1986a_samsung_p50_init(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	ad1986a_hp_automute(codec);
+	ad1986a_automic(codec);
+	return 0;
+}
+
 
 /* models */
 enum {
@@ -950,6 +971,7 @@ enum {
 	AD1986A_LAPTOP_AUTOMUTE,
 	AD1986A_ULTRA,
 	AD1986A_SAMSUNG,
+	AD1986A_SAMSUNG_P50,
 	AD1986A_MODELS
 };
 
@@ -961,6 +983,7 @@ static const char *ad1986a_models[AD1986A_MODELS] = {
 	[AD1986A_LAPTOP_AUTOMUTE] = "laptop-automute",
 	[AD1986A_ULTRA]		= "ultra",
 	[AD1986A_SAMSUNG]	= "samsung",
+	[AD1986A_SAMSUNG_P50]	= "samsung-p50",
 };
 
 static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
@@ -983,6 +1006,7 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff40, "Toshiba", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xb03c, "Samsung R55", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_LAPTOP),
+	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung P50", AD1986A_SAMSUNG_P50),
 	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_ULTRA),
 	SND_PCI_QUIRK_MASK(0x144d, 0xff00, 0xc000, "Samsung", AD1986A_SAMSUNG),
 	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
@@ -1098,6 +1122,23 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->input_mux = &ad1986a_automic_capture_source;
 		codec->patch_ops.unsol_event = ad1986a_automic_unsol_event;
 		codec->patch_ops.init = ad1986a_automic_init;
+		break;
+	case AD1986A_SAMSUNG_P50:
+		spec->num_mixers = 2;
+		spec->mixers[0] = ad1986a_automute_master_mixers;
+		spec->mixers[1] = ad1986a_laptop_eapd_mixers;
+		spec->num_init_verbs = 4;
+		spec->init_verbs[1] = ad1986a_eapd_init_verbs;
+		spec->init_verbs[2] = ad1986a_automic_verbs;
+		spec->init_verbs[3] = ad1986a_hp_init_verbs;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1986a_automic_capture_source;
+		codec->patch_ops.unsol_event = ad1986a_samsung_p50_unsol_event;
+		codec->patch_ops.init = ad1986a_samsung_p50_init;
 		break;
 	case AD1986A_LAPTOP_AUTOMUTE:
 		spec->num_mixers = 3;
