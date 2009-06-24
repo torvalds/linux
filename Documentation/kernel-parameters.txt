@@ -1855,7 +1855,7 @@ and is between 256 and 4096 characters. It is defined in the file
 				IRQ routing is enabled.
 		noacpi		[X86] Do not use ACPI for IRQ routing
 				or for PCI scanning.
-		nocrs		[X86] Don't use _CRS for PCI resource
+		use_crs		[X86] Use _CRS for PCI resource
 				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
