@@ -1558,6 +1558,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, int mode,
 		spin_lock_init(&info->lock);
 		info->flags = flags & VM_NORESERVE;
 		INIT_LIST_HEAD(&info->swaplist);
+		cache_no_acl(inode);
 
 		switch (mode & S_IFMT) {
 		default:
@@ -2379,10 +2380,6 @@ static struct inode *shmem_alloc_inode(struct super_block *sb)
 	p = (struct shmem_inode_info *)kmem_cache_alloc(shmem_inode_cachep, GFP_KERNEL);
 	if (!p)
 		return NULL;
-#ifdef CONFIG_TMPFS_POSIX_ACL
-	p->vfs_inode.i_acl = NULL;
-	p->vfs_inode.i_default_acl = NULL;
-#endif
 	return &p->vfs_inode;
 }
 

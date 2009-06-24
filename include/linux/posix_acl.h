@@ -148,4 +148,13 @@ static inline void forget_cached_acl(struct inode *inode, int type)
 		posix_acl_release(old);
 }
 #endif
+
+static inline void cache_no_acl(struct inode *inode)
+{
+#ifdef CONFIG_FS_POSIX_ACL
+	inode->i_acl = NULL;
+	inode->i_default_acl = NULL;
+#endif
+}
+
 #endif  /* __LINUX_POSIX_ACL_H */
