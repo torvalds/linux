@@ -199,6 +199,7 @@ struct audit_context {
 
 	struct audit_tree_refs *trees, *first_trees;
 	int tree_count;
+	struct list_head killed_trees;
 
 	int type;
 	union {
@@ -853,6 +854,7 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 	if (!(context = kmalloc(sizeof(*context), GFP_KERNEL)))
 		return NULL;
 	audit_zero_context(context, state);
+	INIT_LIST_HEAD(&context->killed_trees);
 	return context;
 }
 
@@ -1545,6 +1547,8 @@ void audit_free(struct task_struct *tsk)
 	/* that can happen only if we are called from do_exit() */
 	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
 		audit_log_exit(context, tsk);
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(&context->killed_trees);
 
 	audit_free_context(context);
 }
@@ -1687,6 +1691,9 @@ void audit_syscall_exit(int valid, long return_code)
 
 	context->in_syscall = 0;
 	context->prio = context->state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
+
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(&context->killed_trees);
 
 	if (context->previous) {
 		struct audit_context *new_context = context->previous;
@@ -2520,4 +2527,12 @@ void audit_core_dumps(long signr)
 	audit_log_untrustedstring(ab, current->comm);
 	audit_log_format(ab, " sig=%ld", signr);
 	audit_log_end(ab);
+}
+
+struct list_head *audit_killed_trees(void)
+{
+	struct audit_context *ctx = current->audit_context;
+	if (likely(!ctx || !ctx->in_syscall))
+		return NULL;
+	return &ctx->killed_trees;
 }
