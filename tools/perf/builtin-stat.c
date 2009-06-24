@@ -59,41 +59,26 @@ static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
 
 };
 
+#define MAX_RUN			100
+
 static int			system_wide			=  0;
-static int			inherit				=  1;
 static int			verbose				=  0;
+static int			nr_cpus				=  0;
+static int			run_idx				=  0;
+
+static int			run_count			=  1;
+static int			inherit				=  1;
+static int			scale				=  1;
+static int			target_pid			= -1;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
-
-static int			target_pid			= -1;
-static int			nr_cpus				=  0;
-static unsigned int		page_size;
-
-static int			scale				=  1;
-
-static const unsigned int default_count[] = {
-	1000000,
-	1000000,
-	  10000,
-	  10000,
-	1000000,
-	  10000,
-};
-
-#define MAX_RUN 100
-
-static int			run_count		=  1;
-static int			run_idx			=  0;
-
-static u64			event_res[MAX_RUN][MAX_COUNTERS][3];
-static u64			event_scaled[MAX_RUN][MAX_COUNTERS];
-
-//static u64			event_hist[MAX_RUN][MAX_COUNTERS][3];
-
 
 static u64			runtime_nsecs[MAX_RUN];
 static u64			walltime_nsecs[MAX_RUN];
 static u64			runtime_cycles[MAX_RUN];
+
+static u64			event_res[MAX_RUN][MAX_COUNTERS][3];
+static u64			event_scaled[MAX_RUN][MAX_COUNTERS];
 
 static u64			event_res_avg[MAX_COUNTERS][3];
 static u64			event_res_noise[MAX_COUNTERS][3];
@@ -108,7 +93,6 @@ static u64			walltime_nsecs_noise;
 
 static u64			runtime_cycles_avg;
 static u64			runtime_cycles_noise;
-
 
 #define ERR_PERF_OPEN \
 "Error: counter %d, sys_perf_counter_open() syscall returned with %d (%s)\n"
@@ -470,9 +454,9 @@ static const struct option options[] = {
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "stat events on existing pid"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
-			    "system-wide collection from all CPUs"),
+		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('S', "scale", &scale,
-			    "scale/normalize counters"),
+		    "scale/normalize counters"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
@@ -483,8 +467,6 @@ static const struct option options[] = {
 int cmd_stat(int argc, const char **argv, const char *prefix)
 {
 	int status;
-
-	page_size = sysconf(_SC_PAGE_SIZE);
 
 	memcpy(attrs, default_attrs, sizeof(attrs));
 
@@ -515,7 +497,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 	status = 0;
 	for (run_idx = 0; run_idx < run_count; run_idx++) {
 		if (run_count != 1 && verbose)
-			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx+1);
+			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx + 1);
 		status = run_perf_stat(argc, argv);
 	}
 
