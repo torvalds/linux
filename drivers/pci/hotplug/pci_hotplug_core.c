@@ -555,6 +555,8 @@ static struct hotplug_slot *get_slot_from_name (const char *name)
  * @slot: pointer to the &struct hotplug_slot to register
  * @devnr: device number
  * @name: name registered with kobject core
+ * @owner: caller module owner
+ * @mod_name: caller module name
  *
  * Registers a hotplug slot with the pci hotplug subsystem, which will allow
  * userspace interaction to the slot.
