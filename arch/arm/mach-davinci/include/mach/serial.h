@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_SERIAL_H
 #define __ASM_ARCH_SERIAL_H
 
-#include <mach/io.h>
+#include <mach/hardware.h>
 
 #define DAVINCI_MAX_NR_UARTS	3
 #define DAVINCI_UART0_BASE	(IO_PHYS + 0x20000)
