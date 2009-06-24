@@ -678,18 +678,9 @@ static void remove_bridge(acpi_handle handle)
 
 static struct pci_dev * get_apic_pci_info(acpi_handle handle)
 {
-	struct acpi_pci_id id;
-	struct pci_bus *bus;
 	struct pci_dev *dev;
 
-	if (ACPI_FAILURE(acpi_get_pci_id(handle, &id)))
-		return NULL;
-
-	bus = pci_find_bus(id.segment, id.bus);
-	if (!bus)
-		return NULL;
-
-	dev = pci_get_slot(bus, PCI_DEVFN(id.device, id.function));
+	dev = acpi_get_pci_dev(handle);
 	if (!dev)
 		return NULL;
 
@@ -1396,19 +1387,16 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 /* Program resources in newly inserted bridge */
 static int acpiphp_configure_bridge (acpi_handle handle)
 {
-	struct acpi_pci_id pci_id;
+	struct pci_dev *dev;
 	struct pci_bus *bus;
 
-	if (ACPI_FAILURE(acpi_get_pci_id(handle, &pci_id))) {
+	dev = acpi_get_pci_dev(handle);
+	if (!dev) {
 		err("cannot get PCI domain and bus number for bridge\n");
 		return -EINVAL;
 	}
-	bus = pci_find_bus(pci_id.segment, pci_id.bus);
-	if (!bus) {
-		err("cannot find bus %d:%d\n",
-				pci_id.segment, pci_id.bus);
-		return -EINVAL;
-	}
+
+	bus = dev->bus;
 
 	pci_bus_size_bridges(bus);
 	pci_bus_assign_resources(bus);
@@ -1416,6 +1404,7 @@ static int acpiphp_configure_bridge (acpi_handle handle)
 	acpiphp_set_hpp_values(handle, bus);
 	pci_enable_bridges(bus);
 	acpiphp_configure_ioapics(handle);
+	pci_dev_put(dev);
 	return 0;
 }
 
@@ -1631,7 +1620,7 @@ find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int *count = (int *)context;
 
-	if (acpi_root_bridge(handle)) {
+	if (acpi_is_root_bridge(handle)) {
 		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 				handle_hotplug_event_bridge, NULL);
 			(*count)++;

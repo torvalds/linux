@@ -62,7 +62,10 @@ enum {
 	DISABLE_ASL_GPS = 0x0020,
 	DISABLE_ASL_DISPLAYSWITCH = 0x0040,
 	DISABLE_ASL_MODEM = 0x0080,
-	DISABLE_ASL_CARDREADER = 0x0100
+	DISABLE_ASL_CARDREADER = 0x0100,
+	DISABLE_ASL_3G = 0x0200,
+	DISABLE_ASL_WIMAX = 0x0400,
+	DISABLE_ASL_HWCF = 0x0800
 };
 
 enum {
@@ -87,7 +90,13 @@ enum {
 	CM_ASL_USBPORT3,
 	CM_ASL_MODEM,
 	CM_ASL_CARDREADER,
-	CM_ASL_LID
+	CM_ASL_3G,
+	CM_ASL_WIMAX,
+	CM_ASL_HWCF,
+	CM_ASL_LID,
+	CM_ASL_TYPE,
+	CM_ASL_PANELPOWER,	/*P901*/
+	CM_ASL_TPD
 };
 
 static const char *cm_getv[] = {
@@ -96,7 +105,8 @@ static const char *cm_getv[] = {
 	NULL, "PBLG", NULL, NULL,
 	"CFVG", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODG",
-	"CRDG", "LIDG"
+	"CRDG", "M3GG", "WIMG", "HWCF",
+	"LIDG",	"TYPE", "PBPG",	"TPDG"
 };
 
 static const char *cm_setv[] = {
@@ -105,7 +115,8 @@ static const char *cm_setv[] = {
 	"SDSP", "PBLS", "HDPS", NULL,
 	"CFVS", NULL, NULL, NULL,
 	"USBG", NULL, NULL, "MODS",
-	"CRDS", NULL
+	"CRDS", "M3GS", "WIMS", NULL,
+	NULL, NULL, "PBPS", "TPDS"
 };
 
 #define EEEPC_EC	"\\_SB.PCI0.SBRG.EC0."
@@ -181,6 +192,7 @@ static struct key_entry eeepc_keymap[] = {
 static int eeepc_hotk_add(struct acpi_device *device);
 static int eeepc_hotk_remove(struct acpi_device *device, int type);
 static int eeepc_hotk_resume(struct acpi_device *device);
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id eeepc_device_ids[] = {
 	{EEEPC_HOTK_HID, 0},
@@ -192,10 +204,12 @@ static struct acpi_driver eeepc_hotk_driver = {
 	.name = EEEPC_HOTK_NAME,
 	.class = EEEPC_HOTK_CLASS,
 	.ids = eeepc_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = eeepc_hotk_add,
 		.remove = eeepc_hotk_remove,
 		.resume = eeepc_hotk_resume,
+		.notify = eeepc_hotk_notify,
 	},
 };
 
@@ -318,6 +332,15 @@ static const struct rfkill_ops eeepc_rfkill_ops = {
 	.set_block = eeepc_rfkill_set,
 };
 
+static void __init eeepc_enable_camera(void)
+{
+	/*
+	 * If the following call to set_acpi() fails, it's because there's no
+	 * camera so we can ignore the error.
+	 */
+	set_acpi(CM_ASL_CAMERA, 1);
+}
+
 /*
  * Sys helpers
  */
@@ -369,13 +392,88 @@ static ssize_t show_sys_acpi(int cm, char *buf)
 EEEPC_CREATE_DEVICE_ATTR(camera, CM_ASL_CAMERA);
 EEEPC_CREATE_DEVICE_ATTR(cardr, CM_ASL_CARDREADER);
 EEEPC_CREATE_DEVICE_ATTR(disp, CM_ASL_DISPLAYSWITCH);
-EEEPC_CREATE_DEVICE_ATTR(cpufv, CM_ASL_CPUFV);
+
+struct eeepc_cpufv {
+	int num;
+	int cur;
+};
+
+static int get_cpufv(struct eeepc_cpufv *c)
+{
+	c->cur = get_acpi(CM_ASL_CPUFV);
+	c->num = (c->cur >> 8) & 0xff;
+	c->cur &= 0xff;
+	if (c->cur < 0 || c->num <= 0 || c->num > 12)
+		return -ENODEV;
+	return 0;
+}
+
+static ssize_t show_available_cpufv(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct eeepc_cpufv c;
+	int i;
+	ssize_t len = 0;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	for (i = 0; i < c.num; i++)
+		len += sprintf(buf + len, "%d ", i);
+	len += sprintf(buf + len, "\n");
+	return len;
+}
+
+static ssize_t show_cpufv(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct eeepc_cpufv c;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	return sprintf(buf, "%#x\n", (c.num << 8) | c.cur);
+}
+
+static ssize_t store_cpufv(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct eeepc_cpufv c;
+	int rv, value;
+
+	if (get_cpufv(&c))
+		return -ENODEV;
+	rv = parse_arg(buf, count, &value);
+	if (rv < 0)
+		return rv;
+	if (!rv || value < 0 || value >= c.num)
+		return -EINVAL;
+	set_acpi(CM_ASL_CPUFV, value);
+	return rv;
+}
+
+static struct device_attribute dev_attr_cpufv = {
+	.attr = {
+		.name = "cpufv",
+		.mode = 0644 },
+	.show   = show_cpufv,
+	.store  = store_cpufv
+};
+
+static struct device_attribute dev_attr_available_cpufv = {
+	.attr = {
+		.name = "available_cpufv",
+		.mode = 0444 },
+	.show   = show_available_cpufv
+};
 
 static struct attribute *platform_attributes[] = {
 	&dev_attr_camera.attr,
 	&dev_attr_cardr.attr,
 	&dev_attr_disp.attr,
 	&dev_attr_cpufv.attr,
+	&dev_attr_available_cpufv.attr,
 	NULL
 };
 
@@ -558,13 +656,15 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 	eeepc_rfkill_hotplug();
 }
 
-static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
+static void eeepc_hotk_notify(struct acpi_device *device, u32 event)
 {
 	static struct key_entry *key;
 	u16 count;
 	int brn = -ENODEV;
 
 	if (!ehotk)
+		return;
+	if (event > ACPI_MAX_SYS_NOTIFY)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
 		brn = notify_brn();
@@ -646,7 +746,6 @@ static void eeepc_unregister_rfkill_notifier(char *node)
 
 static int eeepc_hotk_add(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
 	int result;
 
 	if (!device)
@@ -664,10 +763,6 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	result = eeepc_hotk_check();
 	if (result)
 		goto ehotk_fail;
-	status = acpi_install_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					     eeepc_hotk_notify, ehotk);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error installing notify handler\n");
 
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
@@ -725,14 +820,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
 
 static int eeepc_hotk_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-
 	if (!device || !acpi_driver_data(device))
 		 return -EINVAL;
-	status = acpi_remove_notify_handler(ehotk->handle, ACPI_SYSTEM_NOTIFY,
-					    eeepc_hotk_notify);
-	if (ACPI_FAILURE(status))
-		printk(EEEPC_ERR "Error removing notify handler\n");
 
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
 	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
@@ -989,6 +1078,9 @@ static int __init eeepc_laptop_init(void)
 	result = eeepc_hwmon_init(dev);
 	if (result)
 		goto fail_hwmon;
+
+	eeepc_enable_camera();
+
 	/* Register platform stuff */
 	result = platform_driver_register(&platform_driver);
 	if (result)

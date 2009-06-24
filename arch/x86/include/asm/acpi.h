@@ -144,6 +144,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 
 #else /* !CONFIG_ACPI */
 
+#define acpi_disabled 1
 #define acpi_lapic 0
 #define acpi_ioapic 0
 static inline void acpi_noirq_set(void) { }
