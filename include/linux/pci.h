@@ -1145,7 +1145,7 @@ static inline void pci_set_drvdata(struct pci_dev *pdev, void *data)
 /* If you want to know what to call your pci_dev, ask this function.
  * Again, it's a wrapper around the generic device.
  */
-static inline const char *pci_name(struct pci_dev *pdev)
+static inline const char *pci_name(const struct pci_dev *pdev)
 {
 	return dev_name(&pdev->dev);
 }
