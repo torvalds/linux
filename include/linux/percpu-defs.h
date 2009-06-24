@@ -10,21 +10,68 @@
 /*
  * Base implementations of per-CPU variable declarations and definitions, where
  * the section in which the variable is to be placed is provided by the
- * 'section' argument.  This may be used to affect the parameters governing the
+ * 'sec' argument.  This may be used to affect the parameters governing the
  * variable's storage.
  *
  * NOTE!  The sections for the DECLARE and for the DEFINE must match, lest
  * linkage errors occur due the compiler generating the wrong code to access
  * that section.
  */
-#define DECLARE_PER_CPU_SECTION(type, name, section)			\
-	extern								\
-	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+#define __PCPU_ATTRS(sec)						\
+	__attribute__((section(PER_CPU_BASE_SECTION sec)))		\
+	PER_CPU_ATTRIBUTES
 
-#define DEFINE_PER_CPU_SECTION(type, name, section)			\
-	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+#define __PCPU_DUMMY_ATTRS						\
+	__attribute__((section(".discard"), unused))
+
+/*
+ * s390 and alpha modules require percpu variables to be defined as
+ * weak to force the compiler to generate GOT based external
+ * references for them.  This is necessary because percpu sections
+ * will be located outside of the usually addressable area.
+ *
+ * This definition puts the following two extra restrictions when
+ * defining percpu variables.
+ *
+ * 1. The symbol must be globally unique, even the static ones.
+ * 2. Static percpu variables cannot be defined inside a function.
+ *
+ * Archs which need weak percpu definitions should define
+ * ARCH_NEEDS_WEAK_PER_CPU in asm/percpu.h when necessary.
+ *
+ * To ensure that the generic code observes the above two
+ * restrictions, if CONFIG_DEBUG_FORCE_WEAK_PER_CPU is set weak
+ * definition is used for all cases.
+ */
+#if defined(ARCH_NEEDS_WEAK_PER_CPU) || defined(CONFIG_DEBUG_FORCE_WEAK_PER_CPU)
+/*
+ * __pcpu_scope_* dummy variable is used to enforce scope.  It
+ * receives the static modifier when it's used in front of
+ * DEFINE_PER_CPU() and will trigger build failure if
+ * DECLARE_PER_CPU() is used for the same variable.
+ *
+ * __pcpu_unique_* dummy variable is used to enforce symbol uniqueness
+ * such that hidden weak symbol collision, which will cause unrelated
+ * variables to share the same address, can be detected during build.
+ */
+#define DECLARE_PER_CPU_SECTION(type, name, sec)			\
+	extern __PCPU_DUMMY_ATTRS char __pcpu_scope_##name;		\
+	extern __PCPU_ATTRS(sec) __weak __typeof__(type) per_cpu__##name
+
+#define DEFINE_PER_CPU_SECTION(type, name, sec)				\
+	__PCPU_DUMMY_ATTRS char __pcpu_scope_##name;			\
+	__PCPU_DUMMY_ATTRS char __pcpu_unique_##name;			\
+	__PCPU_ATTRS(sec) __weak __typeof__(type) per_cpu__##name
+#else
+/*
+ * Normal declaration and definition macros.
+ */
+#define DECLARE_PER_CPU_SECTION(type, name, sec)			\
+	extern __PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
+
+#define DEFINE_PER_CPU_SECTION(type, name, sec)				\
+	__PCPU_ATTRS(sec) __typeof__(type) per_cpu__##name
+#endif
 
 /*
  * Variant on the per-CPU variable declaration/definition theme used for
