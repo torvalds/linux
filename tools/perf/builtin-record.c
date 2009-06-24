@@ -41,6 +41,8 @@ static int			force				= 0;
 static int			append_file			= 0;
 static int			call_graph			= 0;
 static int			verbose				= 0;
+static int			inherit_stat			= 0;
+static int			no_samples			= 0;
 
 static long			samples;
 static struct timeval		last_read;
@@ -393,6 +395,12 @@ static void create_counter(int counter, int cpu, pid_t pid)
 		attr->sample_freq	= freq;
 	}
 
+	if (no_samples)
+		attr->sample_freq = 0;
+
+	if (inherit_stat)
+		attr->inherit_stat = 1;
+
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
@@ -571,7 +579,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	while (!done) {
+	for (;;) {
 		int hits = samples;
 
 		for (i = 0; i < nr_cpu; i++) {
@@ -579,8 +587,11 @@ static int __cmd_record(int argc, const char **argv)
 				mmap_read(&mmap_array[i][counter]);
 		}
 
-		if (hits == samples)
+		if (hits == samples) {
+			if (done)
+				break;
 			ret = poll(event_array, nr_poll, 100);
+		}
 	}
 
 	/*
@@ -629,6 +640,10 @@ static const struct option options[] = {
 		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('s', "stat", &inherit_stat,
+		    "per thread counts"),
+	OPT_BOOLEAN('n', "no-samples", &no_samples,
+		    "don't sample"),
 	OPT_END()
 };
 
