@@ -30,7 +30,6 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 
 #ifndef MODULE
 #define SHIFT_PERCPU_PTR(var, offset) RELOC_HIDE(&per_cpu_var(var), (offset))
-#define PER_CPU_ATTRIBUTES
 #else
 /*
  * To calculate addresses of locally defined variables, GCC uses 32-bit
@@ -48,8 +47,6 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 		ldq %0, per_cpu__" #var"(%1)\t!literal"		\
 		: "=&r"(__ptr), "=&r"(tmp_gp));		\
 	(typeof(&per_cpu_var(var)))(__ptr + (offset)); })
-
-#define PER_CPU_ATTRIBUTES	__used
 
 #endif /* MODULE */
 
@@ -70,8 +67,6 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 #define per_cpu(var, cpu)		(*((void)(cpu), &per_cpu_var(var)))
 #define __get_cpu_var(var)		per_cpu_var(var)
 #define __raw_get_cpu_var(var)		per_cpu_var(var)
-
-#define PER_CPU_ATTRIBUTES
 
 #endif /* SMP */
 
