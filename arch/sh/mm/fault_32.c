@@ -15,11 +15,27 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
-#include <linux/marker.h>
+#include <linux/perf_counter.h>
 #include <asm/io_trapped.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
+
+static inline int notify_page_fault(struct pt_regs *regs, int trap)
+{
+	int ret = 0;
+
+#ifdef CONFIG_KPROBES
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, trap))
+			ret = 1;
+		preempt_enable();
+	}
+#endif
+
+	return ret;
+}
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -87,13 +103,16 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		return;
 	}
 
-	/* Only enable interrupts if they were on before the fault */
-	if ((regs->sr & SR_IMASK) != SR_IMASK) {
-		trace_hardirqs_on();
-		local_irq_enable();
-	}
-
 	mm = tsk->mm;
+
+	if (unlikely(notify_page_fault(regs, lookup_exception_vector())))
+		return;
+
+	/* Only enable interrupts if they were on before the fault */
+	if ((regs->sr & SR_IMASK) != SR_IMASK)
+		local_irq_enable();
+
+	perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -141,10 +160,15 @@ survive:
 			goto do_sigbus;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
+	if (fault & VM_FAULT_MAJOR) {
 		tsk->maj_flt++;
-	else
+		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+				     regs, address);
+	} else {
 		tsk->min_flt++;
+		perf_swcounter_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+				     regs, address);
+	}
 
 	up_read(&mm->mmap_sem);
 	return;
@@ -245,22 +269,6 @@ do_sigbus:
 		goto no_context;
 }
 
-static inline int notify_page_fault(struct pt_regs *regs, int trap)
-{
-	int ret = 0;
-
-#ifdef CONFIG_KPROBES
-	if (!user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, trap))
-			ret = 1;
-		preempt_enable();
-	}
-#endif
-
-	return ret;
-}
-
 /*
  * Called with interrupts disabled.
  */
@@ -273,12 +281,7 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
-	int ret = 0;
-
-	if (notify_page_fault(regs, lookup_exception_vector()))
-		goto out;
-
-	ret = 1;
+	int ret = 1;
 
 	/*
 	 * We don't take page faults for P1, P2, and parts of P4, these
