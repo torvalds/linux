@@ -1046,22 +1046,25 @@ acpi_ns_repair_object(u32 expected_btypes,
 		ACPI_MEMCPY(new_object->string.pointer,
 			    return_object->buffer.pointer, length);
 
-		/* Install the new return object */
+		/*
+		 * If the original object is a package element, we need to:
+		 * 1. Set the reference count of the new object to match the
+		 *    reference count of the old object.
+		 * 2. Decrement the reference count of the original object.
+		 */
+		if (package_index != ACPI_NOT_PACKAGE) {
+			new_object->common.reference_count =
+			    return_object->common.reference_count;
+
+			if (return_object->common.reference_count > 1) {
+				return_object->common.reference_count--;
+			}
+		}
+
+		/* Delete old object, install the new return object */
 
 		acpi_ut_remove_reference(return_object);
 		*return_object_ptr = new_object;
-
-		/*
-		 * If the object is a package element, we need to:
-		 * 1. Decrement the reference count of the orignal object, it was
-		 *    incremented when building the package
-		 * 2. Increment the reference count of the new object, it will be
-		 *    decremented when releasing the package
-		 */
-		if (package_index != ACPI_NOT_PACKAGE) {
-			acpi_ut_remove_reference(return_object);
-			acpi_ut_add_reference(new_object);
-		}
 		return (AE_OK);
 
 	default:
