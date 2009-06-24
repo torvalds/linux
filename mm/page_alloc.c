@@ -1153,10 +1153,10 @@ again:
 			 * properly detect and handle allocation failures.
 			 *
 			 * We most definitely don't want callers attempting to
-			 * allocate greater than single-page units with
+			 * allocate greater than order-1 page units with
 			 * __GFP_NOFAIL.
 			 */
-			WARN_ON_ONCE(order > 0);
+			WARN_ON_ONCE(order > 1);
 		}
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order, migratetype);
