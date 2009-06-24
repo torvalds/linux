@@ -178,8 +178,9 @@ struct perf_counter_attr {
 				mmap           :  1, /* include mmap data     */
 				comm	       :  1, /* include comm data     */
 				freq           :  1, /* use freq, not period  */
+				inherit_stat   :  1, /* per task counts       */
 
-				__reserved_1   : 53;
+				__reserved_1   : 52;
 
 	__u32			wakeup_events;	/* wakeup every n events */
 	__u32			__reserved_2;
@@ -602,6 +603,7 @@ struct perf_counter_context {
 	int				nr_counters;
 	int				nr_active;
 	int				is_active;
+	int				nr_stat;
 	atomic_t			refcount;
 	struct task_struct		*task;
 

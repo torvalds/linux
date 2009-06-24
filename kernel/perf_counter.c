@@ -236,6 +236,8 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
 	ctx->nr_counters++;
+	if (counter->attr.inherit_stat)
+		ctx->nr_stat++;
 }
 
 /*
@@ -250,6 +252,8 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	if (list_empty(&counter->list_entry))
 		return;
 	ctx->nr_counters--;
+	if (counter->attr.inherit_stat)
+		ctx->nr_stat--;
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
@@ -1006,6 +1010,76 @@ static int context_equiv(struct perf_counter_context *ctx1,
 		&& !ctx1->pin_count && !ctx2->pin_count;
 }
 
+static void __perf_counter_read(void *counter);
+
+static void __perf_counter_sync_stat(struct perf_counter *counter,
+				     struct perf_counter *next_counter)
+{
+	u64 value;
+
+	if (!counter->attr.inherit_stat)
+		return;
+
+	/*
+	 * Update the counter value, we cannot use perf_counter_read()
+	 * because we're in the middle of a context switch and have IRQs
+	 * disabled, which upsets smp_call_function_single(), however
+	 * we know the counter must be on the current CPU, therefore we
+	 * don't need to use it.
+	 */
+	switch (counter->state) {
+	case PERF_COUNTER_STATE_ACTIVE:
+		__perf_counter_read(counter);
+		break;
+
+	case PERF_COUNTER_STATE_INACTIVE:
+		update_counter_times(counter);
+		break;
+
+	default:
+		break;
+	}
+
+	/*
+	 * In order to keep per-task stats reliable we need to flip the counter
+	 * values when we flip the contexts.
+	 */
+	value = atomic64_read(&next_counter->count);
+	value = atomic64_xchg(&counter->count, value);
+	atomic64_set(&next_counter->count, value);
+
+	/*
+	 * XXX also sync time_enabled and time_running ?
+	 */
+}
+
+#define list_next_entry(pos, member) \
+	list_entry(pos->member.next, typeof(*pos), member)
+
+static void perf_counter_sync_stat(struct perf_counter_context *ctx,
+				   struct perf_counter_context *next_ctx)
+{
+	struct perf_counter *counter, *next_counter;
+
+	if (!ctx->nr_stat)
+		return;
+
+	counter = list_first_entry(&ctx->event_list,
+				   struct perf_counter, event_entry);
+
+	next_counter = list_first_entry(&next_ctx->event_list,
+					struct perf_counter, event_entry);
+
+	while (&counter->event_entry != &ctx->event_list &&
+	       &next_counter->event_entry != &next_ctx->event_list) {
+
+		__perf_counter_sync_stat(counter, next_counter);
+
+		counter = list_next_entry(counter, event_entry);
+		next_counter = list_next_entry(counter, event_entry);
+	}
+}
+
 /*
  * Called from scheduler to remove the counters of the current task,
  * with interrupts disabled.
@@ -1061,6 +1135,8 @@ void perf_counter_task_sched_out(struct task_struct *task,
 			ctx->task = next;
 			next_ctx->task = task;
 			do_switch = 0;
+
+			perf_counter_sync_stat(ctx, next_ctx);
 		}
 		spin_unlock(&next_ctx->lock);
 		spin_unlock(&ctx->lock);
@@ -1350,7 +1426,7 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 /*
  * Cross CPU call to read the hardware counter
  */
-static void __read(void *info)
+static void __perf_counter_read(void *info)
 {
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
@@ -1372,7 +1448,7 @@ static u64 perf_counter_read(struct perf_counter *counter)
 	 */
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE) {
 		smp_call_function_single(counter->oncpu,
-					 __read, counter, 1);
+					 __perf_counter_read, counter, 1);
 	} else if (counter->state == PERF_COUNTER_STATE_INACTIVE) {
 		update_counter_times(counter);
 	}
@@ -4050,7 +4126,8 @@ static void sync_child_counter(struct perf_counter *child_counter,
 	struct perf_counter *parent_counter = child_counter->parent;
 	u64 child_val;
 
-	perf_counter_read_event(child_counter, child);
+	if (child_counter->attr.inherit_stat)
+		perf_counter_read_event(child_counter, child);
 
 	child_val = atomic64_read(&child_counter->count);
 
