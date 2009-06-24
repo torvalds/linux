@@ -18,8 +18,6 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
 # define SCIF0		0xA4400000
 # define SCIF2		0xA4410000
-# define SCSMR_Ir	0xA44A0000
-# define IRDA_SCIF	SCIF0
 # define SCPCR 0xA4000116
 # define SCPDR 0xA4000136
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
@@ -80,7 +78,6 @@
 # define SCIF_ORER 0x0001   /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
 # define SCIF_PTR2_OFFS    0x0000020
-# define SCIF_LSR2_OFFS    0x0000024
 # define SCSPTR2           ((port->mapbase)+SCIF_PTR2_OFFS) /* 16 bit SCIF */
 #elif defined(CONFIG_H83007) || defined(CONFIG_H83068)
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
@@ -210,22 +207,10 @@
 /* SCFCR */
 #define SCFCR_RFRST 0x0002
 #define SCFCR_TFRST 0x0004
-#define SCFCR_TCRST 0x4000
 #define SCFCR_MCE   0x0008
 
 #define SCI_MAJOR		204
 #define SCI_MINOR_START		8
-
-/* Generic serial flags */
-#define SCI_RX_THROTTLE		0x0000001
-
-#define SCI_MAGIC 0xbabeface
-
-/*
- * Events are used to schedule things to happen at timer-interrupt
- * time, instead of at rs interrupt time.
- */
-#define SCI_EVENT_WRITE_WAKEUP	0
 
 #define SCI_IN(size, offset)					\
   if ((size) == 8) {						\
