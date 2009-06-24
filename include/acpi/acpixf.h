@@ -360,9 +360,9 @@ acpi_status acpi_set_firmware_waking_vector(u32 physical_address);
 acpi_status acpi_set_firmware_waking_vector64(u64 physical_address);
 #endif
 
-acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg);
+acpi_status acpi_read(u64 *value, struct acpi_generic_address *reg);
 
-acpi_status acpi_write(u32 value, struct acpi_generic_address *reg);
+acpi_status acpi_write(u64 value, struct acpi_generic_address *reg);
 
 acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * slp_typ_a, u8 * slp_typ_b);
