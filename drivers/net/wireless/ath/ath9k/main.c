@@ -949,6 +949,8 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 	} else {
 		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		sc->curaid = 0;
+		/* Stop ANI */
+		del_timer_sync(&sc->ani.timer);
 	}
 }
 
@@ -2193,7 +2195,9 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 
-	if (conf->type == NL80211_IFTYPE_AP)
+	if (conf->type == NL80211_IFTYPE_AP    ||
+	    conf->type == NL80211_IFTYPE_ADHOC ||
+	    conf->type == NL80211_IFTYPE_MONITOR)
 		ath_start_ani(sc);
 
 out:
