@@ -207,6 +207,9 @@
 #define ONENAND_ECC_2BIT		(1 << 1)
 #define ONENAND_ECC_2BIT_ALL		(0xAAAA)
 #define FLEXONENAND_UNCORRECTABLE_ERROR	(0x1010)
+#define ONENAND_ECC_3BIT		(1 << 2)
+#define ONENAND_ECC_4BIT		(1 << 3)
+#define ONENAND_ECC_4BIT_UNCORRECTABLE	(0x1010)
 
 /*
  * One-Time Programmable (OTP)
