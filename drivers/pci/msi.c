@@ -439,8 +439,14 @@ static int msix_capability_init(struct pci_dev *dev,
 
 	for (i = 0; i < nvec; i++) {
 		entry = alloc_msi_entry(dev);
-		if (!entry)
-			break;
+		if (!entry) {
+			if (!i)
+				iounmap(base);
+			else
+				msi_free_irqs(dev);
+			/* No enough memory. Don't try again */
+			return -ENOMEM;
+		}
 
  		j = entries[i].entry;
 		entry->msi_attrib.is_msix = 1;
