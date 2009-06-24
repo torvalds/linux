@@ -2122,10 +2122,8 @@ static void btrfs_read_locked_inode(struct inode *inode)
 	 * any xattrs or acls
 	 */
 	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
-	if (!maybe_acls) {
-		inode->i_acl = NULL;
-		inode->i_default_acl = NULL;
-	}
+	if (!maybe_acls)
+		cache_no_acl(inode);
 
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);

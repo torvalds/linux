@@ -118,15 +118,16 @@ out:
 
 static int jfs_check_acl(struct inode *inode, int mask)
 {
-	if (inode->i_acl == ACL_NOT_CACHED) {
-		struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
-		if (IS_ERR(acl))
-			return PTR_ERR(acl);
+	struct posix_acl *acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
+
+	if (IS_ERR(acl))
+		return PTR_ERR(acl);
+	if (acl) {
+		int error = posix_acl_permission(inode, acl, mask);
 		posix_acl_release(acl);
+		return error;
 	}
 
-	if (inode->i_acl)
-		return posix_acl_permission(inode, inode->i_acl, mask);
 	return -EAGAIN;
 }
 
