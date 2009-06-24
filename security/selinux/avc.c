@@ -970,3 +970,9 @@ u32 avc_policy_seqno(void)
 {
 	return avc_cache.latest_notif;
 }
+
+void avc_disable(void)
+{
+	if (avc_node_cachep)
+		kmem_cache_destroy(avc_node_cachep);
+}

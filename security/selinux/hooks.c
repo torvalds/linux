@@ -5683,6 +5683,9 @@ int selinux_disable(void)
 	selinux_disabled = 1;
 	selinux_enabled = 0;
 
+	/* Try to destroy the avc node cache */
+	avc_disable();
+
 	/* Reset security_ops to the secondary module, dummy or capability. */
 	security_ops = secondary_ops;
 

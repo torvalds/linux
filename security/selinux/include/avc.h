@@ -131,6 +131,9 @@ int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
 int avc_get_hash_stats(char *page);
 extern unsigned int avc_cache_threshold;
 
+/* Attempt to free avc node cache */
+void avc_disable(void);
+
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
 DECLARE_PER_CPU(struct avc_cache_stats, avc_cache_stats);
 #endif
