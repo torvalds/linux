@@ -1112,13 +1112,13 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	}
 
 	/* IO Size check */
-	if (pci_resource_len(pdev, 0) < io_size) {
+	if (pci_resource_len(pdev, bar) < io_size) {
 		printk(KERN_ERR DRV_NAME ": Insufficient PCI resources, aborting\n");
 		err = -EIO;
 		goto err_out;
 	}
 
-	pioaddr = pci_resource_start(pdev, 0);	/* IO map base address */
+	pioaddr = pci_resource_start(pdev, bar);	/* IO map base address */
 	pci_set_master(pdev);
 
 	dev = alloc_etherdev(sizeof(struct r6040_private));
