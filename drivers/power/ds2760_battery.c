@@ -62,6 +62,10 @@ static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
 
+static unsigned int pmod_enabled;
+module_param(pmod_enabled, bool, 0644);
+MODULE_PARM_DESC(pmod_enabled, "PMOD enable bit");
+
 /* Some batteries have their rated capacity stored a N * 10 mAh, while
  * others use an index into this table. */
 static int rated_capacities[] = {
@@ -259,6 +263,17 @@ static void ds2760_battery_update_status(struct ds2760_device_info *di)
 		power_supply_changed(&di->bat);
 }
 
+static void ds2760_battery_write_status(struct ds2760_device_info *di,
+					char status)
+{
+	if (status == di->raw[DS2760_STATUS_REG])
+		return;
+
+	w1_ds2760_write(di->w1_dev, &status, DS2760_STATUS_WRITE_REG, 1);
+	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
+}
+
 static void ds2760_battery_work(struct work_struct *work)
 {
 	struct ds2760_device_info *di = container_of(work,
@@ -342,9 +357,9 @@ static enum power_supply_property ds2760_battery_props[] = {
 
 static int ds2760_battery_probe(struct platform_device *pdev)
 {
+	char status;
 	int retval = 0;
 	struct ds2760_device_info *di;
-	struct ds2760_platform_data *pdata;
 
 	di = kzalloc(sizeof(*di), GFP_KERNEL);
 	if (!di) {
@@ -354,14 +369,13 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, di);
 
-	pdata = pdev->dev.platform_data;
-	di->dev		= &pdev->dev;
-	di->w1_dev	     = pdev->dev.parent;
-	di->bat.name	   = dev_name(&pdev->dev);
-	di->bat.type	   = POWER_SUPPLY_TYPE_BATTERY;
-	di->bat.properties     = ds2760_battery_props;
-	di->bat.num_properties = ARRAY_SIZE(ds2760_battery_props);
-	di->bat.get_property   = ds2760_battery_get_property;
+	di->dev			= &pdev->dev;
+	di->w1_dev		= pdev->dev.parent;
+	di->bat.name		= dev_name(&pdev->dev);
+	di->bat.type		= POWER_SUPPLY_TYPE_BATTERY;
+	di->bat.properties	= ds2760_battery_props;
+	di->bat.num_properties	= ARRAY_SIZE(ds2760_battery_props);
+	di->bat.get_property	= ds2760_battery_get_property;
 	di->bat.external_power_changed =
 				  ds2760_battery_external_power_changed;
 
@@ -372,6 +386,16 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 		dev_err(di->dev, "failed to register battery\n");
 		goto batt_failed;
 	}
+
+	/* enable sleep mode feature */
+	ds2760_battery_read_status(di);
+	status = di->raw[DS2760_STATUS_REG];
+	if (pmod_enabled)
+		status |= DS2760_STATUS_PMOD;
+	else
+		status &= ~DS2760_STATUS_PMOD;
+
+	ds2760_battery_write_status(di, status);
 
 	INIT_DELAYED_WORK(&di->monitor_work, ds2760_battery_work);
 	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
