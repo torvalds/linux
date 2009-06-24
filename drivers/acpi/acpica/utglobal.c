@@ -359,6 +359,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"SMBus",
 	"SystemCMOS",
 	"PCIBARTarget",
+	"IPMI",
 	"DataTable"
 };
 
