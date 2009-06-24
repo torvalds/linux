@@ -957,7 +957,7 @@ out:
 	return err;
 
 out_dump:
-	ubifs_err("log error detected while replying the log at LEB %d:%d",
+	ubifs_err("log error detected while replaying the log at LEB %d:%d",
 		  lnum, offs + snod->offs);
 	dbg_dump_node(c, snod->node);
 	ubifs_scan_destroy(sleb);
