@@ -22,6 +22,26 @@ choice
 config MACH_ALCHEMY
 	bool "Alchemy processor based machines"
 
+config AR7
+	bool "Texas Instruments AR7"
+	select BOOT_ELF32
+	select DMA_NONCOHERENT
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select NO_EXCEPT_FILL
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select GENERIC_GPIO
+	select GCD
+	select VLYNQ
+	help
+	  Support for the Texas Instruments AR7 System-on-a-Chip
+	  family: TNETD7100, 7200 and 7300.
+
 config BASLER_EXCITE
 	bool "Basler eXcite smart camera"
 	select CEVT_R4K
