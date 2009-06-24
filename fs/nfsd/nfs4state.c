@@ -430,11 +430,11 @@ static int set_forechannel_maxreqs(struct nfsd4_channel_attrs *fchan)
 	else if (fchan->maxreqs > NFSD_MAX_SLOTS_PER_SESSION)
 		fchan->maxreqs = NFSD_MAX_SLOTS_PER_SESSION;
 
-	spin_lock(&nfsd_serv->sv_lock);
-	if (np + nfsd_serv->sv_drc_pages_used > nfsd_serv->sv_drc_max_pages)
-		np = nfsd_serv->sv_drc_max_pages - nfsd_serv->sv_drc_pages_used;
-	nfsd_serv->sv_drc_pages_used += np;
-	spin_unlock(&nfsd_serv->sv_lock);
+	spin_lock(&nfsd_drc_lock);
+	if (np + nfsd_drc_pages_used > nfsd_drc_max_pages)
+		np = nfsd_drc_max_pages - nfsd_drc_pages_used;
+	nfsd_drc_pages_used += np;
+	spin_unlock(&nfsd_drc_lock);
 
 	if (np <= 0) {
 		status = nfserr_resource;
