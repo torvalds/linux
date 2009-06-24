@@ -70,9 +70,6 @@ config AUTO_IRQ_AFFINITY
 	depends on SMP
 	default y
 
-config HAVE_LEGACY_PER_CPU_AREA
-	def_bool y
-
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
