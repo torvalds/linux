@@ -969,13 +969,6 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 	if (!x86_pmu.num_counters_fixed)
 		return -1;
 
-	/*
-	 * Quirk, IA32_FIXED_CTRs do not work on current Atom processors:
-	 */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
-					boot_cpu_data.x86_model == 28)
-		return -1;
-
 	event = hwc->config & ARCH_PERFMON_EVENT_MASK;
 
 	if (unlikely(event == x86_pmu.event_map(PERF_COUNT_HW_INSTRUCTIONS)))
@@ -1428,8 +1421,6 @@ static int intel_pmu_init(void)
 	 */
 	x86_pmu.num_counters_fixed	= max((int)edx.split.num_counters_fixed, 3);
 
-	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
-
 	/*
 	 * Install the hw-cache-events table:
 	 */
@@ -1514,6 +1505,7 @@ void __init init_hw_perf_counters(void)
 
 	perf_counter_mask |=
 		((1LL << x86_pmu.num_counters_fixed)-1) << X86_PMC_IDX_FIXED;
+	x86_pmu.intel_ctrl = perf_counter_mask;
 
 	perf_counters_lapic_init();
 	register_die_notifier(&perf_counter_nmi_notifier);
