@@ -190,10 +190,6 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 
 		hash_buff = xbuf[0];
 
-		ret = -EINVAL;
-		if (WARN_ON(template[i].psize > PAGE_SIZE))
-			goto out;
-
 		memcpy(hash_buff, template[i].plaintext, template[i].psize);
 		sg_init_one(&sg[0], hash_buff, template[i].psize);
 
