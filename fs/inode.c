@@ -25,6 +25,7 @@
 #include <linux/fsnotify.h>
 #include <linux/mount.h>
 #include <linux/async.h>
+#include <linux/posix_acl.h>
 
 /*
  * This is needed for the following functions:
@@ -189,6 +190,9 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
+#ifdef CONFIG_FS_POSIX_ACL
+	inode->i_acl = inode->i_default_acl = ACL_NOT_CACHED;
+#endif
 
 #ifdef CONFIG_FSNOTIFY
 	inode->i_fsnotify_mask = 0;
@@ -227,6 +231,12 @@ void destroy_inode(struct inode *inode)
 	ima_inode_free(inode);
 	security_inode_free(inode);
 	fsnotify_inode_delete(inode);
+#ifdef CONFIG_FS_POSIX_ACL
+	if (inode->i_acl && inode->i_acl != ACL_NOT_CACHED)
+		posix_acl_release(inode->i_acl);
+	if (inode->i_default_acl && inode->i_default_acl != ACL_NOT_CACHED)
+		posix_acl_release(inode->i_default_acl);
+#endif
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
 	else

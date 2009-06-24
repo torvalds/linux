@@ -1224,10 +1224,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 		return inode;
 
 	ei = EXT2_I(inode);
-#ifdef CONFIG_EXT2_FS_POSIX_ACL
-	ei->i_acl = EXT2_ACL_NOT_CACHED;
-	ei->i_default_acl = EXT2_ACL_NOT_CACHED;
-#endif
 	ei->i_block_alloc_info = NULL;
 
 	raw_inode = ext2_get_inode(inode->i_sb, ino, &bh);

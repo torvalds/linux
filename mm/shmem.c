@@ -2379,6 +2379,10 @@ static struct inode *shmem_alloc_inode(struct super_block *sb)
 	p = (struct shmem_inode_info *)kmem_cache_alloc(shmem_inode_cachep, GFP_KERNEL);
 	if (!p)
 		return NULL;
+#ifdef CONFIG_TMPFS_POSIX_ACL
+	p->vfs_inode.i_acl = NULL;
+	p->vfs_inode.i_default_acl = NULL;
+#endif
 	return &p->vfs_inode;
 }
 
@@ -2388,7 +2392,6 @@ static void shmem_destroy_inode(struct inode *inode)
 		/* only struct inode is valid if it's an inline symlink */
 		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
 	}
-	shmem_acl_destroy_inode(inode);
 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
 }
 
@@ -2397,10 +2400,6 @@ static void init_once(void *foo)
 	struct shmem_inode_info *p = (struct shmem_inode_info *) foo;
 
 	inode_init_once(&p->vfs_inode);
-#ifdef CONFIG_TMPFS_POSIX_ACL
-	p->i_acl = NULL;
-	p->i_default_acl = NULL;
-#endif
 }
 
 static int init_inodecache(void)
