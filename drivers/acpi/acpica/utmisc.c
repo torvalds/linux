@@ -54,7 +54,7 @@ ACPI_MODULE_NAME("utmisc")
  * Common suffix for messages
  */
 #define ACPI_COMMON_MSG_SUFFIX \
-	acpi_os_printf(" %8.8X %s-%u\n", ACPI_CA_VERSION, module_name, line_number)
+	acpi_os_printf(" (%8.8X/%s-%u)\n", ACPI_CA_VERSION, module_name, line_number)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_validate_exception
