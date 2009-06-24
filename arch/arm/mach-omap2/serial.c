@@ -496,10 +496,6 @@ void __init omap_serial_init(void)
 
 	if (info == NULL)
 		return;
-	if (cpu_is_omap44xx()) {
-		for (i = 0; i < OMAP_MAX_NR_PORTS; i++)
-			serial_platform_data[i].irq += 32;
-	}
 
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		struct plat_serial8250_port *p = serial_platform_data + i;
@@ -532,6 +528,9 @@ void __init omap_serial_init(void)
 		p->private_data = uart;
 		uart->p = p;
 		list_add(&uart->node, &uart_list);
+
+		if (cpu_is_omap44xx())
+			p->irq += 32;
 
 		omap_uart_enable_clocks(uart);
 		omap_uart_reset(uart);
