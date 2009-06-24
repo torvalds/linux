@@ -376,9 +376,9 @@ static void sci_transmit_chars(struct uart_port *port)
 	if (!(status & SCxSR_TDxE(port))) {
 		ctrl = sci_in(port, SCSCR);
 		if (uart_circ_empty(xmit))
-			ctrl &= ~SCI_CTRL_FLAGS_TIE;
+			ctrl &= ~SCSCR_TIE;
 		else
-			ctrl |= SCI_CTRL_FLAGS_TIE;
+			ctrl |= SCSCR_TIE;
 		sci_out(port, SCSCR, ctrl);
 		return;
 	}
@@ -420,7 +420,7 @@ static void sci_transmit_chars(struct uart_port *port)
 			sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
 		}
 
-		ctrl |= SCI_CTRL_FLAGS_TIE;
+		ctrl |= SCSCR_TIE;
 		sci_out(port, SCSCR, ctrl);
 	}
 }
@@ -721,16 +721,16 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 	scr_status = sci_in(port, SCSCR);
 
 	/* Tx Interrupt */
-	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+	if ((ssr_status & 0x0020) && (scr_status & SCSCR_TIE))
 		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+	if ((ssr_status & 0x0002) && (scr_status & SCSCR_RIE))
 		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & 0x0080) && (scr_status & SCSCR_REIE))
 		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+	if ((ssr_status & 0x0010) && (scr_status & SCSCR_REIE))
 		ret = sci_br_interrupt(irq, ptr);
 
 	return ret;
@@ -861,7 +861,7 @@ static void sci_start_tx(struct uart_port *port)
 
 	/* Set TIE (Transmit Interrupt Enable) bit in SCSCR */
 	ctrl = sci_in(port, SCSCR);
-	ctrl |= SCI_CTRL_FLAGS_TIE;
+	ctrl |= SCSCR_TIE;
 	sci_out(port, SCSCR, ctrl);
 }
 
@@ -871,7 +871,7 @@ static void sci_stop_tx(struct uart_port *port)
 
 	/* Clear TIE (Transmit Interrupt Enable) bit in SCSCR */
 	ctrl = sci_in(port, SCSCR);
-	ctrl &= ~SCI_CTRL_FLAGS_TIE;
+	ctrl &= ~SCSCR_TIE;
 	sci_out(port, SCSCR, ctrl);
 }
 
@@ -881,7 +881,7 @@ static void sci_start_rx(struct uart_port *port, unsigned int tty_start)
 
 	/* Set RIE (Receive Interrupt Enable) bit in SCSCR */
 	ctrl = sci_in(port, SCSCR);
-	ctrl |= SCI_CTRL_FLAGS_RIE | SCI_CTRL_FLAGS_REIE;
+	ctrl |= SCSCR_RIE | SCSCR_REIE;
 	sci_out(port, SCSCR, ctrl);
 }
 
@@ -891,7 +891,7 @@ static void sci_stop_rx(struct uart_port *port)
 
 	/* Clear RIE (Receive Interrupt Enable) bit in SCSCR */
 	ctrl = sci_in(port, SCSCR);
-	ctrl &= ~(SCI_CTRL_FLAGS_RIE | SCI_CTRL_FLAGS_REIE);
+	ctrl &= ~(SCSCR_RIE | SCSCR_REIE);
 	sci_out(port, SCSCR, ctrl);
 }
 

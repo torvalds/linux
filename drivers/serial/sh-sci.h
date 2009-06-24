@@ -138,32 +138,6 @@
 # error CPU subtype not defined
 #endif
 
-/* SCSCR */
-#define SCI_CTRL_FLAGS_TIE  0x80 /* all */
-#define SCI_CTRL_FLAGS_RIE  0x40 /* all */
-#define SCI_CTRL_FLAGS_TE   0x20 /* all */
-#define SCI_CTRL_FLAGS_RE   0x10 /* all */
-#if defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7722)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7763)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7780)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)  || \
-    defined(CONFIG_CPU_SUBTYPE_SH7786)  || \
-    defined(CONFIG_CPU_SUBTYPE_SHX3)
-#define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
-#else
-#define SCI_CTRL_FLAGS_REIE 0
-#endif
-/*      SCI_CTRL_FLAGS_MPIE 0x08  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_CTRL_FLAGS_TEIE 0x04  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_CTRL_FLAGS_CKE1 0x02  * all */
-/*      SCI_CTRL_FLAGS_CKE0 0x01  * 7707 SCI/SCIF, 7708 SCI, 7709 SCI/SCIF, 7750 SCI */
-
 /* SCxSR SCI */
 #define SCI_TDRE  0x80 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
 #define SCI_RDRF  0x40 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
