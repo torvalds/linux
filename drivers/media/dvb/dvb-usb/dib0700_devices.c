@@ -2675,6 +2675,68 @@ static int dib0700_xc4000_tuner_callback(void *priv, int component,
 	return 0;
 }
 
+/* FIXME: none of these inputs are validated yet */
+static struct dib7000p_config pctv_340e_config = {
+	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_config_count = 1,
+	.agc = &stk7700p_7000p_mt2060_agc_config,
+	.bw  = &stk7700p_pll_config,
+
+	/* FIXME: need to take xc4000 out of reset */
+	.gpio_dir = DIB7000M_GPIO_DEFAULT_DIRECTIONS,
+	.gpio_val = DIB7000M_GPIO_DEFAULT_VALUES,
+	.gpio_pwm_pos = DIB7000M_GPIO_DEFAULT_PWM_POS,
+};
+
+/* PCTV 340e GPIOs map:
+   dib0700:
+   GPIO2  - CX25843 sleep
+   GPIO3  - CS5340 reset
+   GPIO5  - IRD
+   GPIO6  - Power Supply
+   GPIO8  - LNA (1=off 0=on)
+   GPIO10 - CX25843 reset
+   dib7000:
+   GPIO8  - xc4000 reset
+ */
+static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+
+	/* Power Supply on */
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 0);
+	msleep(50);
+	dib0700_set_gpio(adap->dev, GPIO6,  GPIO_OUT, 1);
+	msleep(100); /* Allow power supply to settle before probing */
+
+	/* cx25843 reset */
+	dib0700_set_gpio(adap->dev, GPIO10,  GPIO_OUT, 0);
+	msleep(1); /* cx25843 datasheet say 350us required */
+	dib0700_set_gpio(adap->dev, GPIO10,  GPIO_OUT, 1);
+
+	/* LNA off for now */
+	dib0700_set_gpio(adap->dev, GPIO8,  GPIO_OUT, 1);
+
+	/* Put the CX25843 to sleep for now since we're in digital mode */
+	dib0700_set_gpio(adap->dev, GPIO2, GPIO_OUT, 1);
+
+	/* FIXME: not verified yet */
+	dib0700_ctrl_clock(adap->dev, 72, 1);
+
+	if (dib7000pc_detection(&adap->dev->i2c_adap) == 0) {
+		/* Demodulator not found for some reason? */
+		return -ENODEV;
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x12,
+			      &pctv_340e_config);
+	st->is_dib7000pc = 1;
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+
 static struct xc4000_config s5h1411_xc4000_tunerconfig = {
 	.i2c_address      = 0x64,
 	.if_khz           = 5380,
@@ -3814,7 +3876,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
-				.frontend_attach  = stk7700ph_frontend_attach,
+				.frontend_attach  = pctv340e_frontend_attach,
 				.tuner_attach     = xc4000_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
