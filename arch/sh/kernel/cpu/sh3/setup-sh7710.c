@@ -100,11 +100,15 @@ static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xa4400000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
+				  SCSCR_CKE1 | SCSCR_CKE0,
 		.type		= PORT_SCIF,
 		.irqs		= { 52, 52, 52, 52 },
 	}, {
 		.mapbase	= 0xa4410000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE |
+				  SCSCR_CKE1 | SCSCR_CKE0,
 		.type		= PORT_SCIF,
 		.irqs           = { 56, 56, 56, 56 },
 	}, {

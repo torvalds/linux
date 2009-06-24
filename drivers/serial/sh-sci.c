@@ -79,6 +79,9 @@ struct sci_port {
 	struct timer_list	break_timer;
 	int			break_flag;
 
+	/* SCSCR initialization */
+	unsigned int		scscr;
+
 #ifdef CONFIG_HAVE_CLK
 	/* Interface clock */
 	struct clk		*iclk;
@@ -928,6 +931,7 @@ static void sci_shutdown(struct uart_port *port)
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
+	struct sci_port *s = to_sci_port(port);
 	unsigned int status, baud, smr_val;
 	int t = -1;
 
@@ -972,7 +976,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	sci_init_pins(port, termios->c_cflag);
 	sci_out(port, SCFCR, (termios->c_cflag & CRTSCTS) ? SCFCR_MCE : 0);
 
-	sci_out(port, SCSCR, SCSCR_INIT(port));
+	sci_out(port, SCSCR, s->scscr);
 
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port, 0);
@@ -1097,6 +1101,7 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.mapbase	= p->mapbase;
 	sci_port->port.membase	= p->membase;
 
+	sci_port->scscr		= p->scscr;
 	sci_port->port.irq	= p->irqs[SCIx_TXI_IRQ];
 	sci_port->port.flags	= p->flags;
 	sci_port->port.dev	= &dev->dev;

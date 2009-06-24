@@ -181,41 +181,49 @@ static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xfffe8000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 180, 180, 180, 180 }
 	}, {
 		.mapbase	= 0xfffe8800,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 184, 184, 184, 184 }
 	}, {
 		.mapbase	= 0xfffe9000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 188, 188, 188, 188 }
 	}, {
 		.mapbase	= 0xfffe9800,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 192, 192, 192, 192 }
 	}, {
 		.mapbase	= 0xfffea000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 196, 196, 196, 196 }
 	}, {
 		.mapbase	= 0xfffea800,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 200, 200, 200, 200 }
 	}, {
 		.mapbase	= 0xfffeb000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 204, 204, 204, 204 }
 	}, {
 		.mapbase	= 0xfffeb800,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 208, 208, 208, 208 }
 	}, {

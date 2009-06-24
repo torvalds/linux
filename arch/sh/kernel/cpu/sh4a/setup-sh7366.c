@@ -280,6 +280,7 @@ static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
 		.flags		= UPF_BOOT_AUTOCONF,
+		.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 		.type		= PORT_SCIF,
 		.irqs		= { 80, 80, 80, 80 },
 		.clk		= "scif0",
