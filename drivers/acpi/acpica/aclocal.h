@@ -369,6 +369,19 @@ union acpi_predefined_info {
 	struct acpi_package_info3 ret_info3;
 };
 
+/* Data block used during object validation */
+
+struct acpi_predefined_data {
+	char *pathname;
+	const union acpi_predefined_info *predefined;
+	u32 flags;
+	u8 node_flags;
+};
+
+/* Defines for Flags field above */
+
+#define ACPI_OBJECT_REPAIRED    1
+
 /*
  * Bitmapped return value types
  * Note: the actual data types must be contiguous, a loop in nspredef.c
