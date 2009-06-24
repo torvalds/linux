@@ -732,7 +732,8 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_ADR_SPACE_SMBUS            (acpi_adr_space_type) 4
 #define ACPI_ADR_SPACE_CMOS             (acpi_adr_space_type) 5
 #define ACPI_ADR_SPACE_PCI_BAR_TARGET   (acpi_adr_space_type) 6
-#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 7
+#define ACPI_ADR_SPACE_IPMI             (acpi_adr_space_type) 7
+#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 8
 #define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 127
 
 /*
