@@ -862,7 +862,7 @@ amd_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 	x86_pmu_disable_counter(hwc, idx);
 }
 
-static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
+static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], prev_left);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.

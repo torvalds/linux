@@ -30,8 +30,8 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 
-static DEFINE_PER_CPU(struct cpu_cpuX_base, cpu_arr[CPU_REG_ALL_BIT]);
-static DEFINE_PER_CPU(struct cpu_private *, priv_arr[MAX_CPU_FILES]);
+static DEFINE_PER_CPU(struct cpu_cpuX_base [CPU_REG_ALL_BIT], cpu_arr);
+static DEFINE_PER_CPU(struct cpu_private * [MAX_CPU_FILES], priv_arr);
 static DEFINE_PER_CPU(int, cpu_priv_count);
 
 static DEFINE_MUTEX(cpu_debug_lock);
