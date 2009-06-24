@@ -233,6 +233,19 @@ static void __init mpc85xx_mds_setup_arch(void)
 			/* Turn UCC1 & UCC2 on */
 			setbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
 			setbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
+		} else if (machine_is(mpc8569_mds)) {
+#define BCSR7_UCC12_GETHnRST	(0x1 << 2)
+#define BCSR8_UEM_MARVELL_RST	(0x1 << 1)
+			/*
+			 * U-Boot mangles interrupt polarity for Marvell PHYs,
+			 * so reset built-in and UEM Marvell PHYs, this puts
+			 * the PHYs into their normal state.
+			 */
+			clrbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
+			setbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
+
+			setbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
+			clrbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
 		}
 		iounmap(bcsr_regs);
 	}
