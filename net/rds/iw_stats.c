@@ -37,7 +37,7 @@
 #include "rds.h"
 #include "iw.h"
 
-DEFINE_PER_CPU(struct rds_iw_statistics, rds_iw_stats) ____cacheline_aligned;
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rds_iw_statistics, rds_iw_stats);
 
 static char *rds_iw_stat_names[] = {
 	"iw_connect_raced",
