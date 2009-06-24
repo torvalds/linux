@@ -17,6 +17,7 @@
 #include "mt2266.h"
 #include "tuner-xc2028.h"
 #include "xc5000.h"
+#include "xc4000.h"
 #include "s5h1411.h"
 #include "dib0070.h"
 #include "dib0090.h"
@@ -2655,6 +2656,41 @@ static int xc5000_tuner_attach(struct dvb_usb_adapter *adap)
 		== NULL ? -ENODEV : 0;
 }
 
+static int dib0700_xc4000_tuner_callback(void *priv, int component,
+					 int command, int arg)
+{
+	struct dvb_usb_adapter *adap = priv;
+
+	if (command == XC4000_TUNER_RESET) {
+		/* Reset the tuner */
+		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 0);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 1);
+		msleep(10);
+	} else {
+		err("xc4000: unknown tuner callback command: %d\n", command);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static struct xc4000_config s5h1411_xc4000_tunerconfig = {
+	.i2c_address      = 0x64,
+	.if_khz           = 5380,
+};
+
+static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	err("xc4000:  xc4000_tuner_attach");
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = dib0700_xc4000_tuner_callback;
+
+	return dvb_attach(xc4000_attach, adap->fe, &adap->dev->i2c_adap,
+			  &s5h1411_xc4000_tunerconfig)
+		== NULL ? -ENODEV : 0;
+}
+
 static struct lgdt3305_config hcw_lgdt3305_config = {
 	.i2c_addr           = 0x0e,
 	.mpeg_mode          = LGDT3305_MPEG_PARALLEL,
@@ -2802,6 +2838,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_TFE7090PVR) },
 	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_AIRSTAR_TELESTICK_2) },
 /* 75 */{ USB_DEVICE(USB_VID_MEDION,    USB_PID_CREATIX_CTX1921) },
+	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV340E) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -3762,6 +3799,37 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol  = dib0700_change_protocol,
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = stk7700ph_frontend_attach,
+				.tuner_attach     = xc4000_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 1,
+		.devices = {
+			{   "Pinnacle PCTV 340e HD Pro USB Stick",
+				{ &dib0700_usb_id_table[76], NULL },
+				{ NULL },
+			},
+		},
 		.rc.core = {
 			.rc_interval      = DEFAULT_RC_INTERVAL,
 			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
