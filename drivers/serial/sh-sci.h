@@ -82,7 +82,6 @@
 # define SCIF_PTR2_OFFS    0x0000020
 # define SCIF_LSR2_OFFS    0x0000024
 # define SCSPTR2           ((port->mapbase)+SCIF_PTR2_OFFS) /* 16 bit SCIF */
-# define SCLSR2            ((port->mapbase)+SCIF_LSR2_OFFS) /* 16 bit SCIF */
 #elif defined(CONFIG_H83007) || defined(CONFIG_H83068)
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
 #elif defined(CONFIG_H8S2678)
@@ -367,8 +366,6 @@
 SCIF_FNS(SCSMR,  0x00, 16)
 SCIF_FNS(SCBRR,  0x04,  8)
 SCIF_FNS(SCSCR,  0x08, 16)
-SCIF_FNS(SCTDSR, 0x0c,  8)
-SCIF_FNS(SCFER,  0x10, 16)
 SCIF_FNS(SCxSR,  0x14, 16)
 SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
@@ -384,8 +381,6 @@ SCIx_FNS(SCxTDR, 0x20,  8, 0x0c,  8)
 SCIx_FNS(SCxSR,  0x14, 16, 0x10, 16)
 SCIx_FNS(SCxRDR, 0x24,  8, 0x14,  8)
 SCIx_FNS(SCSPTR, 0,     0,    0,  0)
-SCIF_FNS(SCTDSR, 0x0c,  8)
-SCIF_FNS(SCFER,  0x10, 16)
 SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
 SCIF_FNS(SCLSR,  0x24, 16)
@@ -411,7 +406,6 @@ SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 SCIF_FNS(SCFDR,				0,  0, 0x1C, 16)
 SCIF_FNS(SCSPTR2,			0,  0, 0x20, 16)
-SCIF_FNS(SCLSR2,			0,  0, 0x24, 16)
 SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
 SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
