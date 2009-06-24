@@ -1038,6 +1038,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_P6_EVNTSEL0:
 	case MSR_P6_EVNTSEL1:
 	case MSR_K7_EVNTSEL0:
+	case MSR_K8_INT_PENDING_MSG:
 		data = 0;
 		break;
 	case MSR_MTRRcap:
