@@ -602,6 +602,8 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static DEFINE_PER_CPU(unsigned, xed_nesting_count);
+
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
  * the event number to an irq, and feed it into do_IRQ() for
@@ -617,7 +619,6 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
-	static DEFINE_PER_CPU(unsigned, nesting_count);
  	unsigned count;
 
 	exit_idle();
@@ -628,7 +629,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
-		if (__get_cpu_var(nesting_count)++)
+		if (__get_cpu_var(xed_nesting_count)++)
 			goto out;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
@@ -653,8 +654,8 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 
 		BUG_ON(!irqs_disabled());
 
-		count = __get_cpu_var(nesting_count);
-		__get_cpu_var(nesting_count) = 0;
+		count = __get_cpu_var(xed_nesting_count);
+		__get_cpu_var(xed_nesting_count) = 0;
 	} while(count != 1);
 
 out:

@@ -607,6 +607,8 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 	}
 }
 
+static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
+
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied
@@ -624,7 +626,6 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 					unsigned long nr_pages_dirtied)
 {
-	static DEFINE_PER_CPU(unsigned long, ratelimits) = 0;
 	unsigned long ratelimit;
 	unsigned long *p;
 
@@ -637,7 +638,7 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 	 * tasks in balance_dirty_pages(). Period.
 	 */
 	preempt_disable();
-	p =  &__get_cpu_var(ratelimits);
+	p =  &__get_cpu_var(bdp_ratelimits);
 	*p += nr_pages_dirtied;
 	if (unlikely(*p >= ratelimit)) {
 		*p = 0;

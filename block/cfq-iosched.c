@@ -48,7 +48,7 @@ static int cfq_slice_idle = HZ / 125;
 static struct kmem_cache *cfq_pool;
 static struct kmem_cache *cfq_ioc_pool;
 
-static DEFINE_PER_CPU(unsigned long, ioc_count);
+static DEFINE_PER_CPU(unsigned long, cfq_ioc_count);
 static struct completion *ioc_gone;
 static DEFINE_SPINLOCK(ioc_gone_lock);
 
@@ -1422,7 +1422,7 @@ static void cfq_cic_free_rcu(struct rcu_head *head)
 	cic = container_of(head, struct cfq_io_context, rcu_head);
 
 	kmem_cache_free(cfq_ioc_pool, cic);
-	elv_ioc_count_dec(ioc_count);
+	elv_ioc_count_dec(cfq_ioc_count);
 
 	if (ioc_gone) {
 		/*
@@ -1431,7 +1431,7 @@ static void cfq_cic_free_rcu(struct rcu_head *head)
 		 * complete ioc_gone and set it back to NULL
 		 */
 		spin_lock(&ioc_gone_lock);
-		if (ioc_gone && !elv_ioc_count_read(ioc_count)) {
+		if (ioc_gone && !elv_ioc_count_read(cfq_ioc_count)) {
 			complete(ioc_gone);
 			ioc_gone = NULL;
 		}
@@ -1557,7 +1557,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		INIT_HLIST_NODE(&cic->cic_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
-		elv_ioc_count_inc(ioc_count);
+		elv_ioc_count_inc(cfq_ioc_count);
 	}
 
 	return cic;
@@ -2658,7 +2658,7 @@ static void __exit cfq_exit(void)
 	 * this also protects us from entering cfq_slab_kill() with
 	 * pending RCU callbacks
 	 */
-	if (elv_ioc_count_read(ioc_count))
+	if (elv_ioc_count_read(cfq_ioc_count))
 		wait_for_completion(&all_gone);
 	cfq_slab_kill();
 }

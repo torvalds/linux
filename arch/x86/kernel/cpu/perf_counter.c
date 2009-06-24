@@ -862,7 +862,7 @@ amd_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 	x86_pmu_disable_counter(hwc, idx);
 }
 
-static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], prev_left);
+static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
 
 /*
  * Set the next IRQ period, based on the hwc->period_left value.
@@ -901,7 +901,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 	if (left > x86_pmu.max_period)
 		left = x86_pmu.max_period;
 
-	per_cpu(prev_left[idx], smp_processor_id()) = left;
+	per_cpu(pmc_prev_left[idx], smp_processor_id()) = left;
 
 	/*
 	 * The hw counter starts counting from this counter offset,
@@ -1089,7 +1089,7 @@ void perf_counter_print_debug(void)
 		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);
 		rdmsrl(x86_pmu.perfctr  + idx, pmc_count);
 
-		prev_left = per_cpu(prev_left[idx], cpu);
+		prev_left = per_cpu(pmc_prev_left[idx], cpu);
 
 		pr_info("CPU#%d:   gen-PMC%d ctrl:  %016llx\n",
 			cpu, idx, pmc_ctrl);
@@ -1561,8 +1561,8 @@ void callchain_store(struct perf_callchain_entry *entry, u64 ip)
 		entry->ip[entry->nr++] = ip;
 }
 
-static DEFINE_PER_CPU(struct perf_callchain_entry, irq_entry);
-static DEFINE_PER_CPU(struct perf_callchain_entry, nmi_entry);
+static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_irq_entry);
+static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_nmi_entry);
 
 
 static void
@@ -1709,9 +1709,9 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	struct perf_callchain_entry *entry;
 
 	if (in_nmi())
-		entry = &__get_cpu_var(nmi_entry);
+		entry = &__get_cpu_var(pmc_nmi_entry);
 	else
-		entry = &__get_cpu_var(irq_entry);
+		entry = &__get_cpu_var(pmc_irq_entry);
 
 	entry->nr = 0;
 
