@@ -100,6 +100,13 @@ struct lost_event {
 	u64 lost;
 };
 
+struct read_event {
+	struct perf_event_header header;
+	u32 pid,tid;
+	u64 value;
+	u64 format[3];
+};
+
 typedef union event_union {
 	struct perf_event_header	header;
 	struct ip_event			ip;
@@ -108,6 +115,7 @@ typedef union event_union {
 	struct fork_event		fork;
 	struct period_event		period;
 	struct lost_event		lost;
+	struct read_event		read;
 } event_t;
 
 static LIST_HEAD(dsos);
@@ -1350,6 +1358,19 @@ static void trace_event(event_t *event)
 }
 
 static int
+process_read_event(event_t *event, unsigned long offset, unsigned long head)
+{
+	dprintf("%p [%p]: PERF_EVENT_READ: %d %d %Lu\n",
+			(void *)(offset + head),
+			(void *)(long)(event->header.size),
+			event->read.pid,
+			event->read.tid,
+			event->read.value);
+
+	return 0;
+}
+
+static int
 process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	trace_event(event);
@@ -1372,6 +1393,9 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 	case PERF_EVENT_LOST:
 		return process_lost_event(event, offset, head);
+
+	case PERF_EVENT_READ:
+		return process_read_event(event, offset, head);
 
 	/*
 	 * We dont process them right now but they are fine:
