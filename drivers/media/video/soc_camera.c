@@ -237,11 +237,11 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 		return -ENOMEM;
 
 	icd->num_user_formats = fmts;
-	fmts = 0;
 
 	dev_dbg(&icd->dev, "Found %d supported formats.\n", fmts);
 
 	/* Second pass - actually fill data formats */
+	fmts = 0;
 	for (i = 0; i < icd->num_formats; i++)
 		if (!ici->ops->get_formats) {
 			icd->user_formats[i].host_fmt = icd->formats + i;
