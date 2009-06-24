@@ -193,7 +193,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 {
 	int do_clocal = 0, retval;
 	unsigned long flags;
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 	int cd;
 
 	/* block if port is in the process of being closed */
