@@ -1373,7 +1373,7 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 		ndev->stats.rx_packets++;
 		ndev->stats.rx_bytes += skb->len;
 
-		if (netif_rx(skb) == NET_RX_DROP) {
+		if (netif_rx_ni(skb) == NET_RX_DROP) {
 			IWM_ERR(iwm, "Packet dropped\n");
 			ndev->stats.rx_dropped++;
 		}
