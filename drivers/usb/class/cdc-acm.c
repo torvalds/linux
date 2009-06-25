@@ -550,7 +550,7 @@ static void acm_waker(struct work_struct *waker)
 static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm;
-	int rv = -EINVAL;
+	int rv = -ENODEV;
 	int i;
 	dbg("Entering acm_tty_open.");
 
