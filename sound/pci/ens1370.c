@@ -450,7 +450,7 @@ static struct pci_device_id snd_audiopci_ids[] = {
 #ifdef CHIP1371
 	{ PCI_VDEVICE(ENSONIQ, 0x1371), 0, },	/* ES1371 */
 	{ PCI_VDEVICE(ENSONIQ, 0x5880), 0, },	/* ES1373 - CT5880 */
-	{ 0x1102, 0x8938, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },	/* Ectiva EV1938 */
+	{ PCI_VDEVICE(ECTIVA, 0x8938), 0, },	/* Ectiva EV1938 */
 #endif
 	{ 0, }
 };
