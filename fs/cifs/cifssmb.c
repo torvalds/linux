@@ -594,7 +594,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	else if (secFlags & CIFSSEC_MAY_KRB5)
 		server->secType = Kerberos;
 	else if (secFlags & CIFSSEC_MAY_NTLMSSP)
-		server->secType = NTLMSSP;
+		server->secType = RawNTLMSSP;
 	else if (secFlags & CIFSSEC_MAY_LANMAN)
 		server->secType = LANMAN;
 /* #ifdef CONFIG_CIFS_EXPERIMENTAL

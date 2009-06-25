@@ -49,6 +49,7 @@
 #define ASN1_OJI	6	/* Object Identifier  */
 #define ASN1_OJD	7	/* Object Description */
 #define ASN1_EXT	8	/* External */
+#define ASN1_ENUM	10	/* Enumerated */
 #define ASN1_SEQ	16	/* Sequence */
 #define ASN1_SET	17	/* Set */
 #define ASN1_NUMSTR	18	/* Numerical String */
@@ -78,10 +79,12 @@
 #define SPNEGO_OID_LEN 7
 #define NTLMSSP_OID_LEN  10
 #define KRB5_OID_LEN  7
+#define KRB5U2U_OID_LEN  8
 #define MSKRB5_OID_LEN  7
 static unsigned long SPNEGO_OID[7] = { 1, 3, 6, 1, 5, 5, 2 };
 static unsigned long NTLMSSP_OID[10] = { 1, 3, 6, 1, 4, 1, 311, 2, 2, 10 };
 static unsigned long KRB5_OID[7] = { 1, 2, 840, 113554, 1, 2, 2 };
+static unsigned long KRB5U2U_OID[8] = { 1, 2, 840, 113554, 1, 2, 2, 3 };
 static unsigned long MSKRB5_OID[7] = { 1, 2, 840, 48018, 1, 2, 2 };
 
 /*
@@ -121,6 +124,28 @@ asn1_octet_decode(struct asn1_ctx *ctx, unsigned char *ch)
 	*ch = *(ctx->pointer)++;
 	return 1;
 }
+
+#if 0 /* will be needed later by spnego decoding/encoding of ntlmssp */
+static unsigned char
+asn1_enum_decode(struct asn1_ctx *ctx, __le32 *val)
+{
+	unsigned char ch;
+
+	if (ctx->pointer >= ctx->end) {
+		ctx->error = ASN1_ERR_DEC_EMPTY;
+		return 0;
+	}
+
+	ch = *(ctx->pointer)++; /* ch has 0xa, ptr points to lenght octet */
+	if ((ch) == ASN1_ENUM)  /* if ch value is ENUM, 0xa */
+		*val = *(++(ctx->pointer)); /* value has enum value */
+	else
+		return 0;
+
+	ctx->pointer++;
+	return 1;
+}
+#endif
 
 static unsigned char
 asn1_tag_decode(struct asn1_ctx *ctx, unsigned int *tag)
@@ -476,9 +501,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 	unsigned int cls, con, tag, oidlen, rc;
 	bool use_ntlmssp = false;
 	bool use_kerberos = false;
+	bool use_kerberosu2u = false;
 	bool use_mskerberos = false;
-
-	*secType = NTLM; /* BB eventually make Kerberos or NLTMSSP the default*/
 
 	/* cifs_dump_mem(" Received SecBlob ", security_blob, length); */
 
@@ -515,6 +539,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		return 0;
 	}
 
+	/* SPNEGO */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding negTokenInit"));
 		return 0;
@@ -526,6 +551,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		return 0;
 	}
 
+	/* negTokenInit */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding negTokenInit"));
 		return 0;
@@ -537,6 +563,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		return 0;
 	}
 
+	/* sequence */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding 2nd part of negTokenInit"));
 		return 0;
@@ -548,6 +575,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		return 0;
 	}
 
+	/* sequence of */
 	if (asn1_header_decode
 	    (&ctx, &sequence_end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding 2nd part of negTokenInit"));
@@ -560,6 +588,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		return 0;
 	}
 
+	/* list of security mechanisms */
 	while (!asn1_eoc_decode(&ctx, sequence_end)) {
 		rc = asn1_header_decode(&ctx, &end, &cls, &con, &tag);
 		if (!rc) {
@@ -576,11 +605,15 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 
 				if (compare_oid(oid, oidlen, MSKRB5_OID,
 						MSKRB5_OID_LEN) &&
-						!use_kerberos)
+						!use_mskerberos)
 					use_mskerberos = true;
+				else if (compare_oid(oid, oidlen, KRB5U2U_OID,
+						     KRB5U2U_OID_LEN) &&
+						     !use_kerberosu2u)
+					use_kerberosu2u = true;
 				else if (compare_oid(oid, oidlen, KRB5_OID,
 						     KRB5_OID_LEN) &&
-						     !use_mskerberos)
+						     !use_kerberos)
 					use_kerberos = true;
 				else if (compare_oid(oid, oidlen, NTLMSSP_OID,
 						     NTLMSSP_OID_LEN))
@@ -593,7 +626,12 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 		}
 	}
 
+	/* mechlistMIC */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
+		/* Check if we have reached the end of the blob, but with
+		   no mechListMic (e.g. NTLMSSP instead of KRB5) */
+		if (ctx.error == ASN1_ERR_DEC_EMPTY)
+			goto decode_negtoken_exit;
 		cFYI(1, ("Error decoding last part negTokenInit exit3"));
 		return 0;
 	} else if ((cls != ASN1_CTX) || (con != ASN1_CON)) {
@@ -602,6 +640,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 			 cls, con, tag, end, *end));
 		return 0;
 	}
+
+	/* sequence */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding last part negTokenInit exit5"));
 		return 0;
@@ -611,6 +651,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 			cls, con, tag, end, *end));
 	}
 
+	/* sequence of */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding last part negTokenInit exit 7"));
 		return 0;
@@ -619,6 +660,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 			 cls, con, tag, end, *end));
 		return 0;
 	}
+
+	/* general string */
 	if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {
 		cFYI(1, ("Error decoding last part negTokenInit exit9"));
 		return 0;
@@ -630,13 +673,13 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 	}
 	cFYI(1, ("Need to call asn1_octets_decode() function for %s",
 		 ctx.pointer));	/* is this UTF-8 or ASCII? */
-
+decode_negtoken_exit:
 	if (use_kerberos)
 		*secType = Kerberos;
 	else if (use_mskerberos)
 		*secType = MSKerberos;
 	else if (use_ntlmssp)
-		*secType = NTLMSSP;
+		*secType = RawNTLMSSP;
 
 	return 1;
 }
