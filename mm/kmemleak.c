@@ -235,7 +235,7 @@ struct early_log {
 };
 
 /* early logging buffer and current position */
-static struct early_log early_log[200];
+static struct early_log early_log[CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE];
 static int crt_early_log;
 
 static void kmemleak_disable(void);
@@ -696,7 +696,8 @@ static void log_early(int op_type, const void *ptr, size_t size,
 	struct early_log *log;
 
 	if (crt_early_log >= ARRAY_SIZE(early_log)) {
-		kmemleak_stop("Early log buffer exceeded\n");
+		pr_warning("Early log buffer exceeded\n");
+		kmemleak_disable();
 		return;
 	}
 

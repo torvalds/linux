@@ -41,6 +41,10 @@ Memory scanning parameters can be modified at run-time by writing to the
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
 the kernel command line.
 
+Memory may be allocated or freed before kmemleak is initialised and
+these actions are stored in an early log buffer. The size of this buffer
+is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
+
 Basic Algorithm
 ---------------
 
