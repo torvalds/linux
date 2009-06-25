@@ -390,6 +390,71 @@ struct platform_device mxc_otg_udc_device = {
 	.num_resources	= ARRAY_SIZE(otg_resources),
 };
 
+/* OTG host */
+struct platform_device mxc_otg_host = {
+	.name = "mxc-ehci",
+	.id = 0,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &otg_dmamask,
+	},
+	.resource = otg_resources,
+	.num_resources = ARRAY_SIZE(otg_resources),
+};
+
+/* USB host 1 */
+
+static u64 usbh1_dmamask = ~(u32)0;
+
+static struct resource mxc_usbh1_resources[] = {
+	{
+		.start = OTG_BASE_ADDR + 0x200,
+		.end = OTG_BASE_ADDR + 0x3ff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_USB1,
+		.end = MXC_INT_USB1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh1 = {
+	.name = "mxc-ehci",
+	.id = 1,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &usbh1_dmamask,
+	},
+	.resource = mxc_usbh1_resources,
+	.num_resources = ARRAY_SIZE(mxc_usbh1_resources),
+};
+
+/* USB host 2 */
+static u64 usbh2_dmamask = ~(u32)0;
+
+static struct resource mxc_usbh2_resources[] = {
+	{
+		.start = OTG_BASE_ADDR + 0x400,
+		.end = OTG_BASE_ADDR + 0x5ff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_USB2,
+		.end = MXC_INT_USB2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh2 = {
+	.name = "mxc-ehci",
+	.id = 2,
+	.dev = {
+		.coherent_dma_mask = 0xffffffff,
+		.dma_mask = &usbh2_dmamask,
+	},
+	.resource = mxc_usbh2_resources,
+	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
+};
+
 #ifdef CONFIG_ARCH_MX35
 static struct resource mxc_fec_resources[] = {
 	{
