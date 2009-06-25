@@ -395,7 +395,7 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
 		fn  = adr & 0xffff;
 
 		pdev = pci_get_slot(pbus, PCI_DEVFN(dev, fn));
-		if (hnd == handle)
+		if (!pdev || hnd == handle)
 			break;
 
 		pbus = pdev->subordinate;
