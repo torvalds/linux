@@ -141,6 +141,7 @@ struct eeepc_hotk {
 	u16 *keycode_map;
 	struct rfkill *wlan_rfkill;
 	struct rfkill *bluetooth_rfkill;
+	struct rfkill *wwan3g_rfkill;
 	struct hotplug_slot *hotplug_slot;
 };
 
@@ -1023,6 +1024,8 @@ static void eeepc_rfkill_exit(void)
 		rfkill_unregister(ehotk->wlan_rfkill);
 	if (ehotk->bluetooth_rfkill)
 		rfkill_unregister(ehotk->bluetooth_rfkill);
+	if (ehotk->wwan3g_rfkill)
+		rfkill_unregister(ehotk->wwan3g_rfkill);
 	if (ehotk->hotplug_slot)
 		pci_hp_deregister(ehotk->hotplug_slot);
 }
@@ -1103,6 +1106,13 @@ static int eeepc_rfkill_init(struct device *dev)
 	result = eeepc_new_rfkill(&ehotk->bluetooth_rfkill,
 				  "eeepc-bluetooth", dev,
 				  RFKILL_TYPE_BLUETOOTH, CM_ASL_BLUETOOTH);
+
+	if (result && result != -ENODEV)
+		goto exit;
+
+	result = eeepc_new_rfkill(&ehotk->wwan3g_rfkill,
+				  "eeepc-wwan3g", dev,
+				  RFKILL_TYPE_WWAN, CM_ASL_3G);
 
 	if (result && result != -ENODEV)
 		goto exit;
