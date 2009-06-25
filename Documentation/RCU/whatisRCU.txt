@@ -785,6 +785,7 @@ RCU pointer/list traversal:
 	rcu_dereference
 	list_for_each_entry_rcu
 	hlist_for_each_entry_rcu
+	hlist_nulls_for_each_entry_rcu
 
 	list_for_each_continue_rcu	(to be deprecated in favor of new
 					 list_for_each_entry_continue_rcu)
@@ -807,19 +808,23 @@ RCU:	Critical sections	Grace period		Barrier
 
 	rcu_read_lock		synchronize_net		rcu_barrier
 	rcu_read_unlock		synchronize_rcu
+				synchronize_rcu_expedited
 				call_rcu
 
 
 bh:	Critical sections	Grace period		Barrier
 
 	rcu_read_lock_bh	call_rcu_bh		rcu_barrier_bh
-	rcu_read_unlock_bh
+	rcu_read_unlock_bh	synchronize_rcu_bh
+				synchronize_rcu_bh_expedited
 
 
 sched:	Critical sections	Grace period		Barrier
 
-	[preempt_disable]	synchronize_sched	rcu_barrier_sched
-	[and friends]		call_rcu_sched
+	rcu_read_lock_sched	synchronize_sched	rcu_barrier_sched
+	rcu_read_unlock_sched	call_rcu_sched
+	[preempt_disable]	synchronize_sched_expedited
+	[and friends]
 
 
 SRCU:	Critical sections	Grace period		Barrier
@@ -827,6 +832,9 @@ SRCU:	Critical sections	Grace period		Barrier
 	srcu_read_lock		synchronize_srcu	N/A
 	srcu_read_unlock
 
+SRCU:	Initialization/cleanup
+	init_srcu_struct
+	cleanup_srcu_struct
 
 See the comment headers in the source code (or the docbook generated
 from them) for more information.
