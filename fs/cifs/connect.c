@@ -70,7 +70,6 @@ struct smb_vol {
 	mode_t file_mode;
 	mode_t dir_mode;
 	unsigned secFlg;
-	bool rw:1;
 	bool retry:1;
 	bool intr:1;
 	bool setuids:1;
@@ -832,7 +831,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->dir_mode = vol->file_mode = S_IRUGO | S_IXUGO | S_IWUSR;
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
-	vol->rw = true;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
 	/* default to using server inode numbers where available */
@@ -1198,8 +1196,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			/* ignore */
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
-		} else if (strnicmp(data, "rw", 2) == 0) {
-			vol->rw = true;
 		} else if (strnicmp(data, "noblocksend", 11) == 0) {
 			vol->noblocksnd = 1;
 		} else if (strnicmp(data, "noautotune", 10) == 0) {
@@ -1218,8 +1214,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 			    parse these options again and set anything and it
 			    is ok to just ignore them */
 			continue;
-		} else if (strnicmp(data, "ro", 2) == 0) {
-			vol->rw = false;
 		} else if (strnicmp(data, "hard", 4) == 0) {
 			vol->retry = 1;
 		} else if (strnicmp(data, "soft", 4) == 0) {
