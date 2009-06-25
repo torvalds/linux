@@ -31,6 +31,8 @@ static struct platform_device gpmc_onenand_device = {
 static int omap2_onenand_set_async_mode(int cs, void __iomem *onenand_base)
 {
 	struct gpmc_timings t;
+	u32 reg;
+	int err;
 
 	const int t_cer = 15;
 	const int t_avdp = 12;
@@ -42,6 +44,11 @@ static int omap2_onenand_set_async_mode(int cs, void __iomem *onenand_base)
 	const int t_ds = 30;
 	const int t_wpl = 40;
 	const int t_wph = 30;
+
+	/* Ensure sync read and sync write are disabled */
+	reg = readw(onenand_base + ONENAND_REG_SYS_CFG1);
+	reg &= ~ONENAND_SYS_CFG1_SYNC_READ & ~ONENAND_SYS_CFG1_SYNC_WRITE;
+	writew(reg, onenand_base + ONENAND_REG_SYS_CFG1);
 
 	memset(&t, 0, sizeof(t));
 	t.sync_clk = 0;
@@ -74,7 +81,16 @@ static int omap2_onenand_set_async_mode(int cs, void __iomem *onenand_base)
 			  GPMC_CONFIG1_DEVICESIZE_16 |
 			  GPMC_CONFIG1_MUXADDDATA);
 
-	return gpmc_cs_set_timings(cs, &t);
+	err = gpmc_cs_set_timings(cs, &t);
+	if (err)
+		return err;
+
+	/* Ensure sync read and sync write are disabled */
+	reg = readw(onenand_base + ONENAND_REG_SYS_CFG1);
+	reg &= ~ONENAND_SYS_CFG1_SYNC_READ & ~ONENAND_SYS_CFG1_SYNC_WRITE;
+	writew(reg, onenand_base + ONENAND_REG_SYS_CFG1);
+
+	return 0;
 }
 
 static void set_onenand_cfg(void __iomem *onenand_base, int latency,
@@ -124,7 +140,8 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 	} else if (cfg->flags & ONENAND_SYNC_READWRITE) {
 		sync_read = 1;
 		sync_write = 1;
-	}
+	} else
+		return omap2_onenand_set_async_mode(cs, onenand_base);
 
 	if (!freq) {
 		/* Very first call freq is not known */
