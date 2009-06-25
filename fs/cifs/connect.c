@@ -1496,14 +1496,14 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, ("attempting ipv6 connect"));
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
+		sin_server6->sin6_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
-		sin_server6->sin6_port = htons(volume_info->port);
 		rc = ipv6_connect(tcp_ses);
 	} else {
+		sin_server->sin_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
-		sin_server->sin_port = htons(volume_info->port);
 		rc = ipv4_connect(tcp_ses);
 	}
 	if (rc < 0) {
