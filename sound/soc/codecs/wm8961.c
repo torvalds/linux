@@ -1267,6 +1267,21 @@ static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8961_i2c_suspend(struct i2c_client *client)
+{
+	return snd_soc_suspend_device(&client->dev);
+}
+
+static int wm8961_i2c_resume(struct i2c_client *client)
+{
+	return snd_soc_resume_device(&client->dev);
+}
+#else
+#define wm8961_i2c_suspend NULL
+#define wm8961_i2c_resume NULL
+#endif
+
 static const struct i2c_device_id wm8961_i2c_id[] = {
 	{ "wm8961", 0 },
 	{ }
@@ -1280,6 +1295,8 @@ static struct i2c_driver wm8961_i2c_driver = {
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   __devexit_p(wm8961_i2c_remove),
+	.suspend =  wm8961_i2c_suspend,
+	.resume =   wm8961_i2c_resume,
 	.id_table = wm8961_i2c_id,
 };
 
