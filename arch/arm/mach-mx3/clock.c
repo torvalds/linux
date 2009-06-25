@@ -403,6 +403,11 @@ static unsigned long clk_ckih_get_rate(struct clk *clk)
 	return ckih_rate;
 }
 
+static unsigned long clk_ckil_get_rate(struct clk *clk)
+{
+	return CKIL_CLK_FREQ;
+}
+
 static struct clk ckih_clk = {
 	.get_rate = clk_ckih_get_rate,
 };
@@ -509,6 +514,7 @@ DEFINE_CLOCK(usb_clk1,    0, NULL,          0, usb_get_rate, NULL, &usb_pll_clk)
 DEFINE_CLOCK(nfc_clk,     0, NULL,          0, nfc_get_rate, NULL, &ahb_clk);
 DEFINE_CLOCK(scc_clk,     0, NULL,          0, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
+DEFINE_CLOCK(ckil_clk,    0, NULL,          0, clk_ckil_get_rate, NULL, NULL);
 
 #define _REGISTER_CLOCK(d, n, c) \
 	{ \
@@ -566,6 +572,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 	_REGISTER_CLOCK(NULL, "mpeg4", mpeg4_clk)
 	_REGISTER_CLOCK(NULL, "mbx", mbx_clk)
+	_REGISTER_CLOCK("mxc_rtc", NULL, ckil_clk)
 };
 
 int __init mx31_clocks_init(unsigned long fref)
