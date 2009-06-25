@@ -396,6 +396,10 @@ enum {
 	CALIBRATION_CMD_NUM,
 };
 
+#define IWM_CALIB_MAP_INIT_MSK		0xFFFF
+#define IWM_CALIB_MAP_PER_LMAC(m)	((m & 0xFF0000) >> 16)
+#define IWM_CALIB_MAP_PER_UMAC(m)	((m & 0xFF000000) >> 24)
+
 struct iwm_lmac_calib_hdr {
 	u8 opcode;
 	u8 first_grp;

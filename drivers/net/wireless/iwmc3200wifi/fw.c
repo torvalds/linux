@@ -275,6 +275,7 @@ static int iwm_load_lmac(struct iwm_priv *iwm, const char *img_name)
  */
 int iwm_load_fw(struct iwm_priv *iwm)
 {
+	unsigned long init_calib_map, periodic_calib_map;
 	int ret;
 
 	/* We first start downloading the UMAC */
@@ -315,23 +316,25 @@ int iwm_load_fw(struct iwm_priv *iwm)
 		return ret;
 	}
 
+	init_calib_map = iwm->conf.calib_map & IWM_CALIB_MAP_INIT_MSK;
+	periodic_calib_map = IWM_CALIB_MAP_PER_LMAC(iwm->conf.calib_map);
+
 #ifdef CONFIG_IWM_B0_HW_SUPPORT
 	if (iwm->conf.hw_b0) {
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->conf.init_calib_map);
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD,
-			  &iwm->conf.periodic_calib_map);
+		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &init_calib_map);
+		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &periodic_calib_map);
 	}
 #endif
 	/* Read RX IQ calibration result from EEPROM */
-	if (test_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->conf.init_calib_map)) {
+	if (test_bit(PHY_CALIBRATE_RX_IQ_CMD, &init_calib_map)) {
 		iwm_store_rxiq_calib_result(iwm);
 		set_bit(PHY_CALIBRATE_RX_IQ_CMD, &iwm->calib_done_map);
 	}
 
 	iwm_send_prio_table(iwm);
-	iwm_send_init_calib_cfg(iwm, iwm->conf.init_calib_map);
+	iwm_send_init_calib_cfg(iwm, init_calib_map);
 
-	while (iwm->calib_done_map != iwm->conf.init_calib_map) {
+	while (iwm->calib_done_map != init_calib_map) {
 		ret = iwm_notif_handle(iwm, CALIBRATION_RES_NOTIFICATION,
 				       IWM_SRC_LMAC, WAIT_NOTIF_TIMEOUT);
 		if (ret) {
@@ -340,7 +343,7 @@ int iwm_load_fw(struct iwm_priv *iwm)
 		}
 		IWM_DBG_FW(iwm, DBG, "Got calibration result. calib_done_map: "
 			   "0x%lx, requested calibrations: 0x%lx\n",
-			   iwm->calib_done_map, iwm->conf.init_calib_map);
+			   iwm->calib_done_map, init_calib_map);
 	}
 
 	/* Handle LMAC CALIBRATION_COMPLETE notification */
@@ -378,7 +381,7 @@ int iwm_load_fw(struct iwm_priv *iwm)
 
 	iwm_send_prio_table(iwm);
 	iwm_send_calib_results(iwm);
-	iwm_send_periodic_calib_cfg(iwm, iwm->conf.periodic_calib_map);
+	iwm_send_periodic_calib_cfg(iwm, periodic_calib_map);
 
 	return 0;
 

@@ -53,11 +53,7 @@
 static struct iwm_conf def_iwm_conf = {
 
 	.sdio_ior_timeout	= 5000,
-	.init_calib_map		= BIT(PHY_CALIBRATE_DC_CMD)	|
-				  BIT(PHY_CALIBRATE_LO_CMD)	|
-				  BIT(PHY_CALIBRATE_TX_IQ_CMD)	|
-				  BIT(PHY_CALIBRATE_RX_IQ_CMD),
-	.periodic_calib_map	= BIT(PHY_CALIBRATE_DC_CMD)	|
+	.calib_map		= BIT(PHY_CALIBRATE_DC_CMD)	|
 				  BIT(PHY_CALIBRATE_LO_CMD)	|
 				  BIT(PHY_CALIBRATE_TX_IQ_CMD)	|
 				  BIT(PHY_CALIBRATE_RX_IQ_CMD)	|
