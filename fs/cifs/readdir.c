@@ -63,6 +63,55 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
 }
 #endif /* DEBUG2 */
 
+/*
+ * Find the dentry that matches "name". If there isn't one, create one. If it's
+ * a negative dentry or the uniqueid changed, then drop it and recreate it.
+ */
+static struct dentry *
+cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
+		    struct cifs_fattr *fattr)
+{
+	struct dentry *dentry, *alias;
+	struct inode *inode;
+	struct super_block *sb = parent->d_inode->i_sb;
+
+	cFYI(1, ("For %s", name->name));
+
+	dentry = d_lookup(parent, name);
+	if (dentry) {
+		/* FIXME: check for inode number changes? */
+		if (dentry->d_inode != NULL)
+			return dentry;
+		d_drop(dentry);
+		dput(dentry);
+	}
+
+	dentry = d_alloc(parent, name);
+	if (dentry == NULL)
+		return NULL;
+
+	inode = cifs_iget(sb, fattr);
+	if (!inode) {
+		dput(dentry);
+		return NULL;
+	}
+
+	if (CIFS_SB(sb)->tcon->nocase)
+		dentry->d_op = &cifs_ci_dentry_ops;
+	else
+		dentry->d_op = &cifs_dentry_ops;
+
+	alias = d_materialise_unique(dentry, inode);
+	if (alias != NULL) {
+		dput(dentry);
+		if (IS_ERR(alias))
+			return NULL;
+		dentry = alias;
+	}
+
+	return dentry;
+}
+
 /* Returns 1 if new inode created, 2 if both dentry and inode were */
 /* Might check in the future if inode number changed so we can rehash inode */
 static int
@@ -76,7 +125,6 @@ construct_dentry(struct qstr *qstring, struct file *file,
 
 	cFYI(1, ("For %s", qstring->name));
 
-	qstring->hash = full_name_hash(qstring->name, qstring->len);
 	tmp_dentry = d_lookup(file->f_path.dentry, qstring);
 	if (tmp_dentry) {
 		/* BB: overwrite old name? i.e. tmp_dentry->d_name and
@@ -294,140 +342,6 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 		tmp_inode->i_op = &cifs_symlink_inode_ops;
 	} else {
 		cFYI(1, ("Init special inode"));
-		init_special_inode(tmp_inode, tmp_inode->i_mode,
-				   tmp_inode->i_rdev);
-	}
-}
-
-static void unix_fill_in_inode(struct inode *tmp_inode,
-	FILE_UNIX_INFO *pfindData, unsigned int *pobject_type, int isNewInode)
-{
-	loff_t local_size;
-	struct timespec local_mtime;
-
-	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(tmp_inode->i_sb);
-
-	__u32 type = le32_to_cpu(pfindData->Type);
-	__u64 num_of_bytes = le64_to_cpu(pfindData->NumOfBytes);
-	__u64 end_of_file = le64_to_cpu(pfindData->EndOfFile);
-	cifsInfo->time = jiffies;
-	atomic_inc(&cifsInfo->inUse);
-
-	/* save mtime and size */
-	local_mtime = tmp_inode->i_mtime;
-	local_size  = tmp_inode->i_size;
-
-	tmp_inode->i_atime =
-	    cifs_NTtimeToUnix(pfindData->LastAccessTime);
-	tmp_inode->i_mtime =
-	    cifs_NTtimeToUnix(pfindData->LastModificationTime);
-	tmp_inode->i_ctime =
-	    cifs_NTtimeToUnix(pfindData->LastStatusChange);
-
-	tmp_inode->i_mode = le64_to_cpu(pfindData->Permissions);
-	/* since we set the inode type below we need to mask off type
-	   to avoid strange results if bits above were corrupt */
-	tmp_inode->i_mode &= ~S_IFMT;
-	if (type == UNIX_FILE) {
-		*pobject_type = DT_REG;
-		tmp_inode->i_mode |= S_IFREG;
-	} else if (type == UNIX_SYMLINK) {
-		*pobject_type = DT_LNK;
-		tmp_inode->i_mode |= S_IFLNK;
-	} else if (type == UNIX_DIR) {
-		*pobject_type = DT_DIR;
-		tmp_inode->i_mode |= S_IFDIR;
-	} else if (type == UNIX_CHARDEV) {
-		*pobject_type = DT_CHR;
-		tmp_inode->i_mode |= S_IFCHR;
-		tmp_inode->i_rdev = MKDEV(le64_to_cpu(pfindData->DevMajor),
-				le64_to_cpu(pfindData->DevMinor) & MINORMASK);
-	} else if (type == UNIX_BLOCKDEV) {
-		*pobject_type = DT_BLK;
-		tmp_inode->i_mode |= S_IFBLK;
-		tmp_inode->i_rdev = MKDEV(le64_to_cpu(pfindData->DevMajor),
-				le64_to_cpu(pfindData->DevMinor) & MINORMASK);
-	} else if (type == UNIX_FIFO) {
-		*pobject_type = DT_FIFO;
-		tmp_inode->i_mode |= S_IFIFO;
-	} else if (type == UNIX_SOCKET) {
-		*pobject_type = DT_SOCK;
-		tmp_inode->i_mode |= S_IFSOCK;
-	} else {
-		/* safest to just call it a file */
-		*pobject_type = DT_REG;
-		tmp_inode->i_mode |= S_IFREG;
-		cFYI(1, ("unknown inode type %d", type));
-	}
-
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
-		tmp_inode->i_uid = cifs_sb->mnt_uid;
-	else
-		tmp_inode->i_uid = le64_to_cpu(pfindData->Uid);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
-		tmp_inode->i_gid = cifs_sb->mnt_gid;
-	else
-		tmp_inode->i_gid = le64_to_cpu(pfindData->Gid);
-	tmp_inode->i_nlink = le64_to_cpu(pfindData->Nlinks);
-
-	cifsInfo->server_eof = end_of_file;
-	spin_lock(&tmp_inode->i_lock);
-	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
-		/* can not safely change the file size here if the
-		client is writing to it due to potential races */
-		i_size_write(tmp_inode, end_of_file);
-
-	/* 512 bytes (2**9) is the fake blocksize that must be used */
-	/* for this calculation, not the real blocksize */
-		tmp_inode->i_blocks = (512 - 1 + num_of_bytes) >> 9;
-	}
-	spin_unlock(&tmp_inode->i_lock);
-
-	if (S_ISREG(tmp_inode->i_mode)) {
-		cFYI(1, ("File inode"));
-		tmp_inode->i_op = &cifs_file_inode_ops;
-
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
-			else
-				tmp_inode->i_fop = &cifs_file_direct_ops;
-		} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
-			tmp_inode->i_fop = &cifs_file_nobrl_ops;
-		else
-			tmp_inode->i_fop = &cifs_file_ops;
-
-		if ((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
-		   (cifs_sb->tcon->ses->server->maxBuf <
-			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
-			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
-		else
-			tmp_inode->i_data.a_ops = &cifs_addr_ops;
-
-		if (isNewInode)
-			return; /* No sense invalidating pages for new inode
-				   since we have not started caching readahead
-				   file data for it yet */
-
-		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
-			(local_size == tmp_inode->i_size)) {
-			cFYI(1, ("inode exists but unchanged"));
-		} else {
-			/* file may have changed on server */
-			cFYI(1, ("invalidate inode, readdir detected change"));
-			invalidate_remote_inode(tmp_inode);
-		}
-	} else if (S_ISDIR(tmp_inode->i_mode)) {
-		cFYI(1, ("Directory inode"));
-		tmp_inode->i_op = &cifs_dir_inode_ops;
-		tmp_inode->i_fop = &cifs_dir_ops;
-	} else if (S_ISLNK(tmp_inode->i_mode)) {
-		cFYI(1, ("Symbolic Link inode"));
-		tmp_inode->i_op = &cifs_symlink_inode_ops;
-/* tmp_inode->i_fop = *//* do not need to set to anything */
-	} else {
-		cFYI(1, ("Special inode"));
 		init_special_inode(tmp_inode, tmp_inode->i_mode,
 				   tmp_inode->i_rdev);
 	}
@@ -872,7 +786,7 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 			len = strnlen(filename, PATH_MAX);
 		}
 
-		*pinum = le64_to_cpu(pFindData->UniqueId);
+		*pinum = le64_to_cpu(pFindData->basic.UniqueId);
 	} else if (level == SMB_FIND_FILE_DIRECTORY_INFO) {
 		FILE_DIRECTORY_INFO *pFindData =
 			(FILE_DIRECTORY_INFO *)current_entry;
@@ -934,9 +848,11 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	struct cifsFileInfo *pCifsF;
 	unsigned int obj_type;
 	__u64  inum;
+	ino_t  ino;
 	struct cifs_sb_info *cifs_sb;
 	struct inode *tmp_inode;
 	struct dentry *tmp_dentry;
+	struct cifs_fattr fattr;
 
 	/* get filename and len into qstring */
 	/* get dentry */
@@ -967,39 +883,49 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		return rc;
 
 	/* only these two infolevels return valid inode numbers */
-	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX ||
-	    pCifsF->srch_inf.info_level == SMB_FIND_FILE_ID_FULL_DIR_INFO)
-		rc = construct_dentry(&qstring, file, &tmp_inode, &tmp_dentry,
-					&inum);
-	else
-		rc = construct_dentry(&qstring, file, &tmp_inode, &tmp_dentry,
-					NULL);
+	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX) {
+		cifs_unix_basic_to_fattr(&fattr,
+				 &((FILE_UNIX_INFO *) pfindEntry)->basic,
+				 cifs_sb);
+		tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring,
+						 &fattr);
+		obj_type = fattr.cf_dtype;
+		ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
+	} else {
+		if (pCifsF->srch_inf.info_level ==
+		    SMB_FIND_FILE_ID_FULL_DIR_INFO)
+			rc = construct_dentry(&qstring, file, &tmp_inode,
+						&tmp_dentry, &inum);
+		else
+			rc = construct_dentry(&qstring, file, &tmp_inode,
+						&tmp_dentry, NULL);
 
-	if ((tmp_inode == NULL) || (tmp_dentry == NULL))
-		return -ENOMEM;
+		if ((tmp_inode == NULL) || (tmp_dentry == NULL)) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
-	/* we pass in rc below, indicating whether it is a new inode,
-	   so we can figure out whether to invalidate the inode cached
-	   data if the file has changed */
-	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_UNIX)
-		unix_fill_in_inode(tmp_inode,
-				   (FILE_UNIX_INFO *)pfindEntry,
-				   &obj_type, rc);
-	else if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD)
-		fill_in_inode(tmp_inode, 0 /* old level 1 buffer type */,
-				pfindEntry, &obj_type, rc);
-	else
-		fill_in_inode(tmp_inode, 1 /* NT */, pfindEntry, &obj_type, rc);
+		/* we pass in rc below, indicating whether it is a new inode,
+		 * so we can figure out whether to invalidate the inode cached
+		 * data if the file has changed
+		 */
+		if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_INFO_STANDARD)
+			fill_in_inode(tmp_inode, 0, pfindEntry, &obj_type, rc);
+		else
+			fill_in_inode(tmp_inode, 1, pfindEntry, &obj_type, rc);
 
-	if (rc) /* new inode - needs to be tied to dentry */ {
-		d_instantiate(tmp_dentry, tmp_inode);
-		if (rc == 2)
-			d_rehash(tmp_dentry);
+		/* new inode - needs to be tied to dentry */
+		if (rc) {
+			d_instantiate(tmp_dentry, tmp_inode);
+			if (rc == 2)
+				d_rehash(tmp_dentry);
+		}
+
+		ino = cifs_uniqueid_to_ino_t(tmp_inode->i_ino);
 	}
 
-
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
-		     tmp_inode->i_ino, obj_type);
+		     ino, obj_type);
 	if (rc) {
 		cFYI(1, ("filldir rc = %d", rc));
 		/* we can not return filldir errors to the caller
@@ -1008,6 +934,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		rc = -EOVERFLOW;
 	}
 
+out:
 	dput(tmp_dentry);
 	return rc;
 }

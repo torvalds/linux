@@ -188,6 +188,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	FILE_UNIX_BASIC_INFO *presp_data;
 	__u32 posix_flags = 0;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifs_fattr fattr;
 
 	cFYI(1, ("posix open %s", full_path));
 
@@ -236,22 +237,21 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (presp_data->Type == cpu_to_le32(-1))
 		goto posix_open_ret; /* open ok, caller does qpathinfo */
 
-	/* get new inode and set it up */
 	if (!pinode)
 		goto posix_open_ret; /* caller does not need info */
 
+	cifs_unix_basic_to_fattr(&fattr, presp_data, cifs_sb);
+
+	/* get new inode and set it up */
 	if (*pinode == NULL) {
-		__u64 unique_id = le64_to_cpu(presp_data->UniqueId);
-		*pinode = cifs_new_inode(sb, &unique_id);
+		*pinode = cifs_iget(sb, &fattr);
+		if (!*pinode) {
+			rc = -ENOMEM;
+			goto posix_open_ret;
+		}
+	} else {
+		cifs_fattr_to_inode(*pinode, &fattr);
 	}
-	/* else an inode was passed in. Update its info, don't create one */
-
-	/* We do not need to close the file if new_inode fails since
-	   the caller will retry qpathinfo as long as inode is null */
-	if (*pinode == NULL)
-		goto posix_open_ret;
-
-	posix_fill_in_inode(*pinode, presp_data, 1);
 
 	cifs_fill_fileinfo(*pinode, *pnetfid, cifs_sb->tcon, write_only);
 

@@ -371,6 +371,7 @@ struct cifsInodeInfo {
 	bool oplockPending:1;
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
 	u64  server_eof;		/* current file size on server */
+	u64  uniqueid;			/* server inode number */
 	struct inode vfs_inode;
 };
 
@@ -470,6 +471,30 @@ struct dfs_info3_param {
 	int ref_flag;
 	char *path_name;
 	char *node_name;
+};
+
+/*
+ * common struct for holding inode info when searching for or updating an
+ * inode with new info
+ */
+
+#define CIFS_FATTR_DFS_REFERRAL		0x1
+
+struct cifs_fattr {
+	u32		cf_flags;
+	u32		cf_cifsattrs;
+	u64		cf_uniqueid;
+	u64		cf_eof;
+	u64		cf_bytes;
+	uid_t		cf_uid;
+	gid_t		cf_gid;
+	umode_t		cf_mode;
+	dev_t		cf_rdev;
+	unsigned int	cf_nlink;
+	unsigned int	cf_dtype;
+	struct timespec	cf_atime;
+	struct timespec	cf_mtime;
+	struct timespec	cf_ctime;
 };
 
 static inline void free_dfs_info_param(struct dfs_info3_param *param)

@@ -98,9 +98,14 @@ extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 			   struct super_block *sb, int mode, int oflags,
 			   int *poplock, __u16 *pnetfid, int xid);
-extern void posix_fill_in_inode(struct inode *tmp_inode,
-				FILE_UNIX_BASIC_INFO *pData, int isNewInode);
+extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
+				     FILE_UNIX_BASIC_INFO *info,
+				     struct cifs_sb_info *cifs_sb);
+extern void cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr);
 extern struct inode *cifs_new_inode(struct super_block *sb, __u64 *inum);
+extern struct inode *cifs_iget(struct super_block *sb,
+			       struct cifs_fattr *fattr);
+
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
