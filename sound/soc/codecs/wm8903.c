@@ -715,8 +715,6 @@ SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
 SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
 SOC_ENUM("DAC De-emphasis", dac_deemphasis),
-SOC_SINGLE("DAC Sloping Stopband Filter Switch",
-	   WM8903_DAC_DIGITAL_1, 11, 1, 0),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
 
@@ -1373,11 +1371,18 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	u16 aif3 = wm8903_read(codec, WM8903_AUDIO_INTERFACE_3);
 	u16 clock0 = wm8903_read(codec, WM8903_CLOCK_RATES_0);
 	u16 clock1 = wm8903_read(codec, WM8903_CLOCK_RATES_1);
+	u16 dac_digital1 = wm8903_read(codec, WM8903_DAC_DIGITAL_1);
 
 	if (substream == wm8903->slave_substream) {
 		dev_dbg(&i2c->dev, "Ignoring hw_params for slave substream\n");
 		return 0;
 	}
+
+	/* Enable sloping stopband filter for low sample rates */
+	if (fs <= 24000)
+		dac_digital1 |= WM8903_DAC_SB_FILT;
+	else
+		dac_digital1 &= ~WM8903_DAC_SB_FILT;
 
 	/* Configure sample rate logic for DSP - choose nearest rate */
 	dsp_config = 0;
@@ -1503,6 +1508,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	wm8903_write(codec, WM8903_AUDIO_INTERFACE_1, aif1);
 	wm8903_write(codec, WM8903_AUDIO_INTERFACE_2, aif2);
 	wm8903_write(codec, WM8903_AUDIO_INTERFACE_3, aif3);
+	wm8903_write(codec, WM8903_DAC_DIGITAL_1, dac_digital1);
 
 	return 0;
 }
@@ -1721,6 +1727,21 @@ static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8903_i2c_suspend(struct i2c_client *client, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&client->dev);
+}
+
+static int wm8903_i2c_resume(struct i2c_client *client)
+{
+	return snd_soc_resume_device(&client->dev);
+}
+#else
+#define wm8903_i2c_suspend NULL
+#define wm8903_i2c_resume NULL
+#endif
+
 /* i2c codec control layer */
 static const struct i2c_device_id wm8903_i2c_id[] = {
        { "wm8903", 0 },
@@ -1735,6 +1756,8 @@ static struct i2c_driver wm8903_i2c_driver = {
 	},
 	.probe    = wm8903_i2c_probe,
 	.remove   = __devexit_p(wm8903_i2c_remove),
+	.suspend  = wm8903_i2c_suspend,
+	.resume   = wm8903_i2c_resume,
 	.id_table = wm8903_i2c_id,
 };
 

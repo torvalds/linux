@@ -457,31 +457,27 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		return -EINVAL;
 	}
 
-	ssp_write_reg(ssp, SSCR0, sscr0);
-	ssp_write_reg(ssp, SSCR1, sscr1);
-	ssp_write_reg(ssp, SSPSP, sspsp);
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_NF:
+		sspsp |= SSPSP_SFRMP;
+		break;
+	case SND_SOC_DAIFMT_NB_IF:
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		sspsp |= SSPSP_SCMODE(2);
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		sspsp |= SSPSP_SCMODE(2) | SSPSP_SFRMP;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		sscr0 |= SSCR0_PSP;
 		sscr1 |= SSCR1_RWOT | SSCR1_TRAIL;
-
 		/* See hw_params() */
-		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-		case SND_SOC_DAIFMT_NB_NF:
-			sspsp |= SSPSP_SFRMP;
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
-			break;
-		case SND_SOC_DAIFMT_IB_IF:
-			sspsp |= SSPSP_SCMODE(2);
-			break;
-		case SND_SOC_DAIFMT_IB_NF:
-			sspsp |= SSPSP_SCMODE(2) | SSPSP_SFRMP;
-			break;
-		default:
-			return -EINVAL;
-		}
 		break;
 
 	case SND_SOC_DAIFMT_DSP_A:
@@ -489,22 +485,6 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_DSP_B:
 		sscr0 |= SSCR0_MOD | SSCR0_PSP;
 		sscr1 |= SSCR1_TRAIL | SSCR1_RWOT;
-
-		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
-		case SND_SOC_DAIFMT_NB_NF:
-			sspsp |= SSPSP_SFRMP;
-			break;
-		case SND_SOC_DAIFMT_NB_IF:
-			break;
-		case SND_SOC_DAIFMT_IB_IF:
-			sspsp |= SSPSP_SCMODE(2);
-			break;
-		case SND_SOC_DAIFMT_IB_NF:
-			sspsp |= SSPSP_SCMODE(2) | SSPSP_SFRMP;
-			break;
-		default:
-			return -EINVAL;
-		}
 		break;
 
 	default:

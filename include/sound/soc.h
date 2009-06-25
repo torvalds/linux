@@ -192,6 +192,11 @@ void snd_soc_unregister_platform(struct snd_soc_platform *platform);
 int snd_soc_register_codec(struct snd_soc_codec *codec);
 void snd_soc_unregister_codec(struct snd_soc_codec *codec);
 
+#ifdef CONFIG_PM
+int snd_soc_suspend_device(struct device *dev);
+int snd_soc_resume_device(struct device *dev);
+#endif
+
 /* pcm <-> DAI connect */
 void snd_soc_free_pcms(struct snd_soc_device *socdev);
 int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid);
@@ -216,9 +221,9 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 
 /* codec register bit access */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value);
+				unsigned int mask, unsigned int value);
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value);
+				unsigned int mask, unsigned int value);
 
 int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);
@@ -369,8 +374,6 @@ struct snd_soc_codec {
 	enum snd_soc_bias_level bias_level;
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
-	struct list_head up_list;
-	struct list_head down_list;
 
 	/* codec DAI's */
 	struct snd_soc_dai *dai;

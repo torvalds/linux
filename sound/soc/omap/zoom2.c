@@ -1,10 +1,7 @@
 /*
- * sdp3430.c  --  SoC audio for TI OMAP3430 SDP
+ * zoom2.c  --  SoC audio for Zoom2
  *
  * Author: Misael Lopez Cruz <x0052729@ti.com>
- *
- * Based on:
- * Author: Steve Sakoman <steve@sakoman.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +25,6 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/jack.h>
 
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
@@ -39,10 +35,10 @@
 #include "omap-pcm.h"
 #include "../codecs/twl4030.h"
 
-static struct snd_soc_card snd_soc_sdp3430;
+#define ZOOM2_HEADSET_MUX_GPIO	(OMAP_MAX_GPIO_LINES + 15)
 
-static int sdp3430_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int zoom2_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
@@ -71,7 +67,7 @@ static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 26000000,
-					    SND_SOC_CLOCK_IN);
+					SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		printk(KERN_ERR "can't set codec system clock\n");
 		return ret;
@@ -80,12 +76,12 @@ static int sdp3430_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops sdp3430_ops = {
-	.hw_params = sdp3430_hw_params,
+static struct snd_soc_ops zoom2_ops = {
+	.hw_params = zoom2_hw_params,
 };
 
-static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+static int zoom2_hw_voice_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
@@ -114,7 +110,7 @@ static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
 
 	/* Set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 26000000,
-					    SND_SOC_CLOCK_IN);
+					SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		printk(KERN_ERR "can't set codec system clock\n");
 		return ret;
@@ -123,41 +119,17 @@ static int sdp3430_hw_voice_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops sdp3430_voice_ops = {
-	.hw_params = sdp3430_hw_voice_params,
+static struct snd_soc_ops zoom2_voice_ops = {
+	.hw_params = zoom2_hw_voice_params,
 };
 
-/* Headset jack */
-static struct snd_soc_jack hs_jack;
-
-/* Headset jack detection DAPM pins */
-static struct snd_soc_jack_pin hs_jack_pins[] = {
-	{
-		.pin = "Headset Mic",
-		.mask = SND_JACK_MICROPHONE,
-	},
-	{
-		.pin = "Headset Stereophone",
-		.mask = SND_JACK_HEADPHONE,
-	},
-};
-
-/* Headset jack detection gpios */
-static struct snd_soc_jack_gpio hs_jack_gpios[] = {
-	{
-		.gpio = (OMAP_MAX_GPIO_LINES + 2),
-		.name = "hsdet-gpio",
-		.report = SND_JACK_HEADSET,
-		.debounce_time = 200,
-	},
-};
-
-/* SDP3430 machine DAPM */
-static const struct snd_soc_dapm_widget sdp3430_twl4030_dapm_widgets[] = {
+/* Zoom2 machine DAPM */
+static const struct snd_soc_dapm_widget zoom2_twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Ext Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
+	SND_SOC_DAPM_LINE("Aux In", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -171,37 +143,40 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "HFL"},
 	{"Ext Spk", NULL, "HFR"},
 
+	/* Headset Stereophone:  HSOL, HSOR */
+	{"Headset Stereophone", NULL, "HSOL"},
+	{"Headset Stereophone", NULL, "HSOR"},
+
 	/* Headset Mic: HSMIC with bias */
 	{"HSMIC", NULL, "Headset Mic Bias"},
 	{"Headset Mic Bias", NULL, "Headset Mic"},
 
-	/* Headset Stereophone (Headphone): HSOL, HSOR */
-	{"Headset Stereophone", NULL, "HSOL"},
-	{"Headset Stereophone", NULL, "HSOR"},
+	/* Aux In: AUXL, AUXR */
+	{"Aux In", NULL, "AUXL"},
+	{"Aux In", NULL, "AUXR"},
 };
 
-static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
+static int zoom2_twl4030_init(struct snd_soc_codec *codec)
 {
 	int ret;
 
-	/* Add SDP3430 specific widgets */
-	ret = snd_soc_dapm_new_controls(codec, sdp3430_twl4030_dapm_widgets,
-				ARRAY_SIZE(sdp3430_twl4030_dapm_widgets));
+	/* Add Zoom2 specific widgets */
+	ret = snd_soc_dapm_new_controls(codec, zoom2_twl4030_dapm_widgets,
+				ARRAY_SIZE(zoom2_twl4030_dapm_widgets));
 	if (ret)
 		return ret;
 
-	/* Set up SDP3430 specific audio path audio_map */
+	/* Set up Zoom2 specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	/* SDP3430 connected pins */
+	/* Zoom2 connected pins */
 	snd_soc_dapm_enable_pin(codec, "Ext Mic");
 	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_disable_pin(codec, "Headset Mic");
-	snd_soc_dapm_disable_pin(codec, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(codec, "Headset Mic");
+	snd_soc_dapm_enable_pin(codec, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(codec, "Aux In");
 
 	/* TWL4030 not connected pins */
-	snd_soc_dapm_nc_pin(codec, "AUXL");
-	snd_soc_dapm_nc_pin(codec, "AUXR");
 	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
 	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
 	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
@@ -215,27 +190,11 @@ static int sdp3430_twl4030_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_nc_pin(codec, "CARKITR");
 
 	ret = snd_soc_dapm_sync(codec);
-	if (ret)
-		return ret;
-
-	/* Headset jack detection */
-	ret = snd_soc_jack_new(&snd_soc_sdp3430, "Headset Jack",
-				SND_JACK_HEADSET, &hs_jack);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
-				hs_jack_gpios);
 
 	return ret;
 }
 
-static int sdp3430_twl4030_voice_init(struct snd_soc_codec *codec)
+static int zoom2_twl4030_voice_init(struct snd_soc_codec *codec)
 {
 	unsigned short reg;
 
@@ -247,95 +206,96 @@ static int sdp3430_twl4030_voice_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-
 /* Digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link sdp3430_dai[] = {
+static struct snd_soc_dai_link zoom2_dai[] = {
 	{
 		.name = "TWL4030 I2S",
 		.stream_name = "TWL4030 Audio",
 		.cpu_dai = &omap_mcbsp_dai[0],
 		.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
-		.init = sdp3430_twl4030_init,
-		.ops = &sdp3430_ops,
+		.init = zoom2_twl4030_init,
+		.ops = &zoom2_ops,
 	},
 	{
 		.name = "TWL4030 PCM",
 		.stream_name = "TWL4030 Voice",
 		.cpu_dai = &omap_mcbsp_dai[1],
 		.codec_dai = &twl4030_dai[TWL4030_DAI_VOICE],
-		.init = sdp3430_twl4030_voice_init,
-		.ops = &sdp3430_voice_ops,
+		.init = zoom2_twl4030_voice_init,
+		.ops = &zoom2_voice_ops,
 	},
 };
 
 /* Audio machine driver */
-static struct snd_soc_card snd_soc_sdp3430 = {
-	.name = "SDP3430",
+static struct snd_soc_card snd_soc_zoom2 = {
+	.name = "Zoom2",
 	.platform = &omap_soc_platform,
-	.dai_link = sdp3430_dai,
-	.num_links = ARRAY_SIZE(sdp3430_dai),
+	.dai_link = zoom2_dai,
+	.num_links = ARRAY_SIZE(zoom2_dai),
 };
 
 /* twl4030 setup */
 static struct twl4030_setup_data twl4030_setup = {
-	.ramp_delay_value = 3,
+	.ramp_delay_value = 2,	/* 81 ms */
 	.sysclk = 26000,
 };
 
 /* Audio subsystem */
-static struct snd_soc_device sdp3430_snd_devdata = {
-	.card = &snd_soc_sdp3430,
+static struct snd_soc_device zoom2_snd_devdata = {
+	.card = &snd_soc_zoom2,
 	.codec_dev = &soc_codec_dev_twl4030,
 	.codec_data = &twl4030_setup,
 };
 
-static struct platform_device *sdp3430_snd_device;
+static struct platform_device *zoom2_snd_device;
 
-static int __init sdp3430_soc_init(void)
+static int __init zoom2_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap_3430sdp()) {
-		pr_debug("Not SDP3430!\n");
+	if (!machine_is_omap_zoom2()) {
+		pr_debug("Not Zoom2!\n");
 		return -ENODEV;
 	}
-	printk(KERN_INFO "SDP3430 SoC init\n");
+	printk(KERN_INFO "Zoom2 SoC init\n");
 
-	sdp3430_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!sdp3430_snd_device) {
+	zoom2_snd_device = platform_device_alloc("soc-audio", -1);
+	if (!zoom2_snd_device) {
 		printk(KERN_ERR "Platform device allocation failed\n");
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(sdp3430_snd_device, &sdp3430_snd_devdata);
-	sdp3430_snd_devdata.dev = &sdp3430_snd_device->dev;
-	*(unsigned int *)sdp3430_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
-	*(unsigned int *)sdp3430_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
+	platform_set_drvdata(zoom2_snd_device, &zoom2_snd_devdata);
+	zoom2_snd_devdata.dev = &zoom2_snd_device->dev;
+	*(unsigned int *)zoom2_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
+	*(unsigned int *)zoom2_dai[1].cpu_dai->private_data = 2; /* McBSP3 */
 
-	ret = platform_device_add(sdp3430_snd_device);
+	ret = platform_device_add(zoom2_snd_device);
 	if (ret)
 		goto err1;
+
+	BUG_ON(gpio_request(ZOOM2_HEADSET_MUX_GPIO, "hs_mux") < 0);
+	gpio_direction_output(ZOOM2_HEADSET_MUX_GPIO, 0);
 
 	return 0;
 
 err1:
 	printk(KERN_ERR "Unable to add platform device\n");
-	platform_device_put(sdp3430_snd_device);
+	platform_device_put(zoom2_snd_device);
 
 	return ret;
 }
-module_init(sdp3430_soc_init);
+module_init(zoom2_soc_init);
 
-static void __exit sdp3430_soc_exit(void)
+static void __exit zoom2_soc_exit(void)
 {
-	snd_soc_jack_free_gpios(&hs_jack, ARRAY_SIZE(hs_jack_gpios),
-				hs_jack_gpios);
+	gpio_free(ZOOM2_HEADSET_MUX_GPIO);
 
-	platform_device_unregister(sdp3430_snd_device);
+	platform_device_unregister(zoom2_snd_device);
 }
-module_exit(sdp3430_soc_exit);
+module_exit(zoom2_soc_exit);
 
 MODULE_AUTHOR("Misael Lopez Cruz <x0052729@ti.com>");
-MODULE_DESCRIPTION("ALSA SoC SDP3430");
+MODULE_DESCRIPTION("ALSA SoC Zoom2");
 MODULE_LICENSE("GPL");
 

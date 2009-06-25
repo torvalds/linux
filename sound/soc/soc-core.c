@@ -788,6 +788,45 @@ static int soc_resume(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * snd_soc_suspend_device: Notify core of device suspend
+ *
+ * @dev: Device being suspended.
+ *
+ * In order to ensure that the entire audio subsystem is suspended in a
+ * coordinated fashion ASoC devices should suspend themselves when
+ * called by ASoC.  When the standard kernel suspend process asks the
+ * device to suspend it should call this function to initiate a suspend
+ * of the entire ASoC card.
+ *
+ * \note Currently this function is stubbed out.
+ */
+int snd_soc_suspend_device(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_suspend_device);
+
+/**
+ * snd_soc_resume_device: Notify core of device resume
+ *
+ * @dev: Device being resumed.
+ *
+ * In order to ensure that the entire audio subsystem is resumed in a
+ * coordinated fashion ASoC devices should resume themselves when called
+ * by ASoC.  When the standard kernel resume process asks the device
+ * to resume it should call this function.  Once all the components of
+ * the card have notified that they are ready to be resumed the card
+ * will be resumed.
+ *
+ * \note Currently this function is stubbed out.
+ */
+int snd_soc_resume_device(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_resume_device);
+
 #else
 #define soc_suspend	NULL
 #define soc_resume	NULL
@@ -981,6 +1020,21 @@ static int soc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void soc_shutdown(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_card *card = socdev->card;
+
+	if (!card->instantiated)
+		return;
+
+	/* Flush out pmdown_time work - we actually do want to run it
+	 * now, we're shutting down so no imminent restart. */
+	run_delayed_work(&card->delayed_work);
+
+	snd_soc_dapm_shutdown(socdev);
+}
+
 /* ASoC platform driver */
 static struct platform_driver soc_driver = {
 	.driver		= {
@@ -991,6 +1045,7 @@ static struct platform_driver soc_driver = {
 	.remove		= soc_remove,
 	.suspend	= soc_suspend,
 	.resume		= soc_resume,
+	.shutdown	= soc_shutdown,
 };
 
 /* create a new pcm */
@@ -1264,10 +1319,10 @@ EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
  * Returns 1 for change else 0.
  */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value)
+				unsigned int mask, unsigned int value)
 {
 	int change;
-	unsigned short old, new;
+	unsigned int old, new;
 
 	mutex_lock(&io_mutex);
 	old = snd_soc_read(codec, reg);
@@ -1294,10 +1349,10 @@ EXPORT_SYMBOL_GPL(snd_soc_update_bits);
  * Returns 1 for change else 0.
  */
 int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned short reg,
-				unsigned short mask, unsigned short value)
+				unsigned int mask, unsigned int value)
 {
 	int change;
-	unsigned short old, new;
+	unsigned int old, new;
 
 	mutex_lock(&io_mutex);
 	old = snd_soc_read(codec, reg);
@@ -1586,7 +1641,7 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val, bitmask;
+	unsigned int val, bitmask;
 
 	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
@@ -1615,8 +1670,8 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val;
-	unsigned short mask, bitmask;
+	unsigned int val;
+	unsigned int mask, bitmask;
 
 	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
@@ -1652,7 +1707,7 @@ int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short reg_val, val, mux;
+	unsigned int reg_val, val, mux;
 
 	reg_val = snd_soc_read(codec, e->reg);
 	val = (reg_val >> e->shift_l) & e->mask;
@@ -1691,8 +1746,8 @@ int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned short val;
-	unsigned short mask;
+	unsigned int val;
+	unsigned int mask;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
@@ -1852,7 +1907,7 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned short val, val2, val_mask;
+	unsigned int val, val2, val_mask;
 
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert)
@@ -1918,7 +1973,7 @@ int snd_soc_get_volsw_2r(struct snd_kcontrol *kcontrol,
 	unsigned int reg2 = mc->rreg;
 	unsigned int shift = mc->shift;
 	int max = mc->max;
-	unsigned int mask = (1<<fls(max))-1;
+	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] =
@@ -1958,7 +2013,7 @@ int snd_soc_put_volsw_2r(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	int err;
-	unsigned short val, val2, val_mask;
+	unsigned int val, val2, val_mask;
 
 	val_mask = mask << shift;
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -2050,7 +2105,7 @@ int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int reg = mc->reg;
 	int min = mc->min;
-	unsigned short val;
+	unsigned int val;
 
 	val = (ucontrol->value.integer.value[0]+min) & 0xff;
 	val |= ((ucontrol->value.integer.value[1]+min) & 0xff) << 8;

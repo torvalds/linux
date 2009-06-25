@@ -116,6 +116,7 @@
 #define WM8900_REG_CLOCKING2_DAC_CLKDIV 0x1c
 
 #define WM8900_REG_DACCTRL_MUTE          0x004
+#define WM8900_REG_DACCTRL_DAC_SB_FILT   0x100
 #define WM8900_REG_DACCTRL_AIF_LRCLKRATE 0x400
 
 #define WM8900_REG_AUDIO3_ADCLRC_DIR    0x0800
@@ -439,7 +440,6 @@ SOC_SINGLE("DAC Soft Mute Switch", WM8900_REG_DACCTRL, 6, 1, 1),
 SOC_ENUM("DAC Mute Rate", dac_mute_rate),
 SOC_SINGLE("DAC Mono Switch", WM8900_REG_DACCTRL, 9, 1, 0),
 SOC_ENUM("DAC Deemphasis", dac_deemphasis),
-SOC_SINGLE("DAC Sloping Stopband Filter Switch", WM8900_REG_DACCTRL, 8, 1, 0),
 SOC_SINGLE("DAC Sigma-Delta Modulator Clock Switch", WM8900_REG_DACCTRL,
 	   12, 1, 0),
 
@@ -742,6 +742,17 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	wm8900_write(codec, WM8900_REG_AUDIO1, reg);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		reg = wm8900_read(codec, WM8900_REG_DACCTRL);
+
+		if (params_rate(params) <= 24000)
+			reg |= WM8900_REG_DACCTRL_DAC_SB_FILT;
+		else
+			reg &= ~WM8900_REG_DACCTRL_DAC_SB_FILT;
+
+		wm8900_write(codec, WM8900_REG_DACCTRL, reg);
+	}
 
 	return 0;
 }
@@ -1388,6 +1399,21 @@ static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8900_i2c_suspend(struct i2c_client *client, pm_message_t msg)
+{
+	return snd_soc_suspend_device(&client->dev);
+}
+
+static int wm8900_i2c_resume(struct i2c_client *client)
+{
+	return snd_soc_resume_device(&client->dev);
+}
+#else
+#define wm8900_i2c_suspend NULL
+#define wm8900_i2c_resume NULL
+#endif
+
 static const struct i2c_device_id wm8900_i2c_id[] = {
 	{ "wm8900", 0 },
 	{ }
@@ -1401,6 +1427,8 @@ static struct i2c_driver wm8900_i2c_driver = {
 	},
 	.probe = wm8900_i2c_probe,
 	.remove = __devexit_p(wm8900_i2c_remove),
+	.suspend = wm8900_i2c_suspend,
+	.resume = wm8900_i2c_resume,
 	.id_table = wm8900_i2c_id,
 };
 

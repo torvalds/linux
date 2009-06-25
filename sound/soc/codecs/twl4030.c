@@ -712,7 +712,19 @@ static int bypass_event(struct snd_soc_dapm_widget *w,
 
 	reg = twl4030_read_reg_cache(w->codec, m->reg);
 
-	if (m->reg <= TWL4030_REG_ARXR2_APGA_CTL) {
+	/*
+	 * bypass_state[0:3] - analog HiFi bypass
+	 * bypass_state[4]   - analog voice bypass
+	 * bypass_state[5]   - digital voice bypass
+	 * bypass_state[6:7] - digital HiFi bypass
+	 */
+	if (m->reg == TWL4030_REG_VSTPGA) {
+		/* Voice digital bypass */
+		if (reg)
+			twl4030->bypass_state |= (1 << 5);
+		else
+			twl4030->bypass_state &= ~(1 << 5);
+	} else if (m->reg <= TWL4030_REG_ARXR2_APGA_CTL) {
 		/* Analog bypass */
 		if (reg & (1 << m->shift))
 			twl4030->bypass_state |=
@@ -726,12 +738,6 @@ static int bypass_event(struct snd_soc_dapm_widget *w,
 			twl4030->bypass_state |= (1 << 4);
 		else
 			twl4030->bypass_state &= ~(1 << 4);
-	} else if (m->reg == TWL4030_REG_VSTPGA) {
-		/* Voice digital bypass */
-		if (reg)
-			twl4030->bypass_state |= (1 << 5);
-		else
-			twl4030->bypass_state &= ~(1 << 5);
 	} else {
 		/* Digital bypass */
 		if (reg & (0x7 << m->shift))
@@ -924,7 +930,7 @@ static const struct soc_enum twl4030_op_modes_enum =
 			ARRAY_SIZE(twl4030_op_modes_texts),
 			twl4030_op_modes_texts);
 
-int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
+static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
@@ -1004,6 +1010,16 @@ static DECLARE_TLV_DB_SCALE(digital_capture_tlv, 0, 100, 0);
  * 0 dB to 30 dB in 6 dB steps
  */
 static DECLARE_TLV_DB_SCALE(input_gain_tlv, 0, 600, 0);
+
+/* AVADC clock priority */
+static const char *twl4030_avadc_clk_priority_texts[] = {
+	"Voice high priority", "HiFi high priority"
+};
+
+static const struct soc_enum twl4030_avadc_clk_priority_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_AVADC_CTL, 2,
+			ARRAY_SIZE(twl4030_avadc_clk_priority_texts),
+			twl4030_avadc_clk_priority_texts);
 
 static const char *twl4030_rampdelay_texts[] = {
 	"27/20/14 ms", "55/40/27 ms", "109/81/55 ms", "218/161/109 ms",
@@ -1105,6 +1121,8 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 
 	SOC_DOUBLE_TLV("Analog Capture Volume", TWL4030_REG_ANAMIC_GAIN,
 		0, 3, 5, 0, input_gain_tlv),
+
+	SOC_ENUM("AVADC Clock Priority", twl4030_avadc_clk_priority_enum),
 
 	SOC_ENUM("HS ramp delay", twl4030_rampdelay_enum),
 
@@ -1609,8 +1627,6 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 
 	 /* If the substream has 4 channel, do the necessary setup */
 	if (params_channels(params) == 4) {
-		u8 format, mode;
-
 		format = twl4030_read_reg_cache(codec, TWL4030_REG_AUDIO_IF);
 		mode = twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE);
 
@@ -1948,7 +1964,7 @@ static int twl4030_voice_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBM_CFM:
 		format &= ~(TWL4030_VIF_SLAVE_EN);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
