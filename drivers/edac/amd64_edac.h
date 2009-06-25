@@ -72,6 +72,7 @@
 #include <linux/edac.h>
 #include <asm/msr.h>
 #include "edac_core.h"
+#include "edac_mce_amd.h"
 
 #define amd64_printk(level, fmt, arg...) \
 	edac_printk(level, "amd64", fmt, ##arg)
@@ -303,9 +304,6 @@ enum {
 #define K8_NBSL				0x48
 
 
-#define EXTRACT_HIGH_SYNDROME(x)	(((x) >> 24) & 0xff)
-#define EXTRACT_EXT_ERROR_CODE(x)	(((x) >> 16) & 0x1f)
-
 /* Family F10h: Normalized Extended Error Codes */
 #define F10_NBSL_EXT_ERR_RES		0x0
 #define F10_NBSL_EXT_ERR_CRC		0x1
@@ -348,17 +346,6 @@ enum {
 #define K8_NBSL_EXT_ERR_CHIPKILL_ECC	0x8
 #define K8_NBSL_EXT_ERR_DRAM_PARITY	0xD
 
-#define EXTRACT_ERROR_CODE(x)		((x) & 0xffff)
-#define	TEST_TLB_ERROR(x)		(((x) & 0xFFF0) == 0x0010)
-#define	TEST_MEM_ERROR(x)		(((x) & 0xFF00) == 0x0100)
-#define	TEST_BUS_ERROR(x)		(((x) & 0xF800) == 0x0800)
-#define	EXTRACT_TT_CODE(x)		(((x) >> 2) & 0x3)
-#define	EXTRACT_II_CODE(x)		(((x) >> 2) & 0x3)
-#define	EXTRACT_LL_CODE(x)		(((x) >> 0) & 0x3)
-#define	EXTRACT_RRRR_CODE(x)		(((x) >> 4) & 0xf)
-#define	EXTRACT_TO_CODE(x)		(((x) >> 8) & 0x1)
-#define	EXTRACT_PP_CODE(x)		(((x) >> 9) & 0x3)
-
 /*
  * The following are for BUS type errors AFTER values have been normalized by
  * shifting right
@@ -386,9 +373,7 @@ enum {
 #define K8_NBSH_CORE1			BIT(1)
 #define K8_NBSH_CORE0			BIT(0)
 
-#define EXTRACT_LDT_LINK(x)		(((x) >> 4) & 0x7)
 #define EXTRACT_ERR_CPU_MAP(x)		((x) & 0xF)
-#define EXTRACT_LOW_SYNDROME(x)		(((x) >> 15) & 0xff)
 
 
 #define K8_NBEAL			0x50

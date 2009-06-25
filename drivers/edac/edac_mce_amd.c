@@ -1,61 +1,5 @@
-#include "amd64_edac.h"
-
-/*
- * See F2x80 for K8 and F2x[1,0]80 for Fam10 and later. The table below is only
- * for DDR2 DRAM mapping.
- */
-u32 revf_quad_ddr2_shift[] = {
-	0,	/* 0000b NULL DIMM (128mb) */
-	28,	/* 0001b 256mb */
-	29,	/* 0010b 512mb */
-	29,	/* 0011b 512mb */
-	29,	/* 0100b 512mb */
-	30,	/* 0101b 1gb */
-	30,	/* 0110b 1gb */
-	31,	/* 0111b 2gb */
-	31,	/* 1000b 2gb */
-	32,	/* 1001b 4gb */
-	32,	/* 1010b 4gb */
-	33,	/* 1011b 8gb */
-	0,	/* 1100b future */
-	0,	/* 1101b future */
-	0,	/* 1110b future */
-	0	/* 1111b future */
-};
-
-/*
- * Valid scrub rates for the K8 hardware memory scrubber. We map the scrubbing
- * bandwidth to a valid bit pattern. The 'set' operation finds the 'matching-
- * or higher value'.
- *
- *FIXME: Produce a better mapping/linearisation.
- */
-
-struct scrubrate scrubrates[] = {
-	{ 0x01, 1600000000UL},
-	{ 0x02, 800000000UL},
-	{ 0x03, 400000000UL},
-	{ 0x04, 200000000UL},
-	{ 0x05, 100000000UL},
-	{ 0x06, 50000000UL},
-	{ 0x07, 25000000UL},
-	{ 0x08, 12284069UL},
-	{ 0x09, 6274509UL},
-	{ 0x0A, 3121951UL},
-	{ 0x0B, 1560975UL},
-	{ 0x0C, 781440UL},
-	{ 0x0D, 390720UL},
-	{ 0x0E, 195300UL},
-	{ 0x0F, 97650UL},
-	{ 0x10, 48854UL},
-	{ 0x11, 24427UL},
-	{ 0x12, 12213UL},
-	{ 0x13, 6101UL},
-	{ 0x14, 3051UL},
-	{ 0x15, 1523UL},
-	{ 0x16, 761UL},
-	{ 0x00, 0UL},        /* scrubbing off */
-};
+#include <linux/module.h>
+#include "edac_mce_amd.h"
 
 /*
  * string representation for the different MCA reported error types, see F3x48
@@ -67,6 +11,7 @@ const char *tt_msgs[] = {        /* transaction type */
 	"generic",
 	"reserved"
 };
+EXPORT_SYMBOL_GPL(tt_msgs);
 
 const char *ll_msgs[] = {	/* cache level */
 	"L0",
@@ -74,6 +19,7 @@ const char *ll_msgs[] = {	/* cache level */
 	"L2",
 	"L3/generic"
 };
+EXPORT_SYMBOL_GPL(ll_msgs);
 
 const char *rrrr_msgs[] = {
 	"generic",
@@ -93,6 +39,7 @@ const char *rrrr_msgs[] = {
 	"reserved RRRR= 14",
 	"reserved RRRR= 15"
 };
+EXPORT_SYMBOL_GPL(rrrr_msgs);
 
 const char *pp_msgs[] = {	/* participating processor */
 	"local node originated (SRC)",
@@ -100,11 +47,13 @@ const char *pp_msgs[] = {	/* participating processor */
 	"local node observed as 3rd party (OBS)",
 	"generic"
 };
+EXPORT_SYMBOL_GPL(pp_msgs);
 
 const char *to_msgs[] = {
 	"no timeout",
 	"timed out"
 };
+EXPORT_SYMBOL_GPL(to_msgs);
 
 const char *ii_msgs[] = {	/* memory or i/o */
 	"mem access",
@@ -112,6 +61,7 @@ const char *ii_msgs[] = {	/* memory or i/o */
 	"i/o access",
 	"generic"
 };
+EXPORT_SYMBOL_GPL(ii_msgs);
 
 /* Map the 5 bits of Extended Error code to the string table. */
 const char *ext_msgs[] = {	/* extended error */
@@ -148,14 +98,4 @@ const char *ext_msgs[] = {	/* extended error */
 	"L3 Cache LRU error",		/* 1_1110b */
 	"Res 0x1FF error"		/* 1_1111b */
 };
-
-const char *htlink_msgs[] = {
-	"none",
-	"1",
-	"2",
-	"1 2",
-	"3",
-	"1 3",
-	"2 3",
-	"1 2 3"
-};
+EXPORT_SYMBOL_GPL(ext_msgs);
