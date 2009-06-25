@@ -2,7 +2,7 @@
 #define _PERF_SYMBOL_ 1
 
 #include <linux/types.h>
-#include "../types.h"
+#include "types.h"
 #include "list.h"
 #include "rbtree.h"
 

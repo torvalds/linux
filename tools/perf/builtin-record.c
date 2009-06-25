@@ -14,6 +14,8 @@
 #include "util/parse-events.h"
 #include "util/string.h"
 
+#include "util/header.h"
+
 #include <unistd.h>
 #include <sched.h>
 
@@ -52,7 +54,8 @@ static int			nr_poll;
 static int			nr_cpu;
 
 static int			file_new = 1;
-static struct perf_file_header	file_header;
+
+struct perf_header		*header;
 
 struct mmap_event {
 	struct perf_event_header	header;
@@ -328,7 +331,7 @@ static void pid_synthesize_mmap_samples(pid_t pid)
 	fclose(fp);
 }
 
-static void synthesize_samples(void)
+static void synthesize_all(void)
 {
 	DIR *proc;
 	struct dirent dirent, *next;
@@ -352,10 +355,35 @@ static void synthesize_samples(void)
 
 static int group_fd;
 
+static struct perf_header_attr *get_header_attr(struct perf_counter_attr *a, int nr)
+{
+	struct perf_header_attr *h_attr;
+
+	if (nr < header->attrs) {
+		h_attr = header->attr[nr];
+	} else {
+		h_attr = perf_header_attr__new(a);
+		perf_header__add_attr(header, h_attr);
+	}
+
+	return h_attr;
+}
+
 static void create_counter(int counter, int cpu, pid_t pid)
 {
 	struct perf_counter_attr *attr = attrs + counter;
-	int track = 1;
+	struct perf_header_attr *h_attr;
+	int track = !counter; /* only the first counter needs these */
+	struct {
+		u64 count;
+		u64 time_enabled;
+		u64 time_running;
+		u64 id;
+	} read_data;
+
+	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
+				  PERF_FORMAT_TOTAL_TIME_RUNNING |
+				  PERF_FORMAT_ID;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -368,21 +396,10 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (file_new) {
-		file_header.sample_type = attr->sample_type;
-	} else {
-		if (file_header.sample_type != attr->sample_type) {
-			fprintf(stderr, "incompatible append\n");
-			exit(-1);
-		}
-	}
-
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= (cpu < 0) && inherit;
 	attr->disabled		= 1;
-
-	track = 0; /* only the first counter needs these */
 
 try_again:
 	fd[nr_cpu][counter] = sys_perf_counter_open(attr, pid, cpu, group_fd, 0);
@@ -414,6 +431,19 @@ try_again:
 		exit(-1);
 	}
 
+	h_attr = get_header_attr(attr, counter);
+
+	if (!file_new) {
+		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
+			fprintf(stderr, "incompatible append\n");
+			exit(-1);
+		}
+	}
+
+	read(fd[nr_cpu][counter], &read_data, sizeof(read_data));
+
+	perf_header_attr__add_id(h_attr, read_data.id);
+
 	assert(fd[nr_cpu][counter] >= 0);
 	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
 
@@ -444,11 +474,6 @@ static void open_counters(int cpu, pid_t pid)
 {
 	int counter;
 
-	if (pid > 0) {
-		pid_synthesize_comm_event(pid, 0);
-		pid_synthesize_mmap_samples(pid);
-	}
-
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
 		create_counter(counter, cpu, pid);
@@ -458,17 +483,16 @@ static void open_counters(int cpu, pid_t pid)
 
 static void atexit_header(void)
 {
-	file_header.data_size += bytes_written;
+	header->data_size += bytes_written;
 
-	if (pwrite(output, &file_header, sizeof(file_header), 0) == -1)
-		perror("failed to write on file headers");
+	perf_header__write(header, output);
 }
 
 static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
 	struct stat st;
-	pid_t pid;
+	pid_t pid = 0;
 	int flags;
 	int ret;
 
@@ -499,21 +523,30 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	if (!file_new) {
-		if (read(output, &file_header, sizeof(file_header)) == -1) {
-			perror("failed to read file headers");
-			exit(-1);
-		}
-
-		lseek(output, file_header.data_size, SEEK_CUR);
-	}
+	if (!file_new)
+		header = perf_header__read(output);
+	else
+		header = perf_header__new();
 
 	atexit(atexit_header);
 
 	if (!system_wide) {
-		open_counters(-1, target_pid != -1 ? target_pid : getpid());
+		pid = target_pid;
+		if (pid == -1)
+			pid = getpid();
+
+		open_counters(-1, pid);
 	} else for (i = 0; i < nr_cpus; i++)
 		open_counters(i, target_pid);
+
+	if (file_new)
+		perf_header__write(header, output);
+
+	if (!system_wide) {
+		pid_synthesize_comm_event(pid, 0);
+		pid_synthesize_mmap_samples(pid);
+	} else
+		synthesize_all();
 
 	if (target_pid == -1 && argc) {
 		pid = fork();
@@ -537,9 +570,6 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 	}
-
-	if (system_wide)
-		synthesize_samples();
 
 	while (!done) {
 		int hits = samples;

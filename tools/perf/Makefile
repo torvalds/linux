@@ -290,7 +290,7 @@ LIB_FILE=libperf.a
 
 LIB_H += ../../include/linux/perf_counter.h
 LIB_H += perf.h
-LIB_H += types.h
+LIB_H += util/types.h
 LIB_H += util/list.h
 LIB_H += util/rbtree.h
 LIB_H += util/levenshtein.h
@@ -328,6 +328,7 @@ LIB_OBJS += util/sigchain.o
 LIB_OBJS += util/symbol.o
 LIB_OBJS += util/color.o
 LIB_OBJS += util/pager.o
+LIB_OBJS += util/header.o
 
 BUILTIN_OBJS += builtin-annotate.o
 BUILTIN_OBJS += builtin-help.o

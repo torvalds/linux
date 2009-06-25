@@ -17,6 +17,7 @@
 #include "util/string.h"
 
 #include "perf.h"
+#include "util/header.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -1385,13 +1386,27 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 	return 0;
 }
 
-static struct perf_file_header		file_header;
+static struct perf_header	*header;
+
+static int perf_header__has_sample(u64 sample_mask)
+{
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (!(attr->attr.sample_type & sample_mask))
+			return 0;
+	}
+
+	return 1;
+}
 
 static int __cmd_report(void)
 {
 	int ret, rc = EXIT_FAILURE;
 	unsigned long offset = 0;
-	unsigned long head = sizeof(file_header);
+	unsigned long head, shift;
 	struct stat stat;
 	event_t *event;
 	uint32_t size;
@@ -1419,13 +1434,11 @@ static int __cmd_report(void)
 		exit(0);
 	}
 
-	if (read(input, &file_header, sizeof(file_header)) == -1) {
-		perror("failed to read file headers");
-		exit(-1);
-	}
+	header = perf_header__read(input);
+	head = header->data_offset;
 
 	if (sort__has_parent &&
-	    !(file_header.sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	    !perf_header__has_sample(PERF_SAMPLE_CALLCHAIN)) {
 		fprintf(stderr, "selected --sort parent, but no callchain data\n");
 		exit(-1);
 	}
@@ -1445,6 +1458,11 @@ static int __cmd_report(void)
 		cwd = NULL;
 		cwdlen = 0;
 	}
+
+	shift = page_size * (head / page_size);
+	offset += shift;
+	head -= shift;
+
 remap:
 	buf = (char *)mmap(NULL, page_size * mmap_window, PROT_READ,
 			   MAP_SHARED, input, offset);
@@ -1461,8 +1479,9 @@ more:
 		size = 8;
 
 	if (head + event->header.size >= page_size * mmap_window) {
-		unsigned long shift = page_size * (head / page_size);
 		int ret;
+
+		shift = page_size * (head / page_size);
 
 		ret = munmap(buf, page_size * mmap_window);
 		assert(ret == 0);
@@ -1501,7 +1520,7 @@ more:
 
 	head += size;
 
-	if (offset + head >= sizeof(file_header) + file_header.data_size)
+	if (offset + head >= header->data_offset + header->data_size)
 		goto done;
 
 	if (offset + head < stat.st_size)
