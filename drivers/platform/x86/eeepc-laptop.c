@@ -1143,18 +1143,6 @@ static int __init eeepc_laptop_init(void)
 		acpi_bus_unregister_driver(&eeepc_hotk_driver);
 		return -ENODEV;
 	}
-	dev = acpi_get_physical_device(ehotk->device->handle);
-
-	if (!acpi_video_backlight_support()) {
-		result = eeepc_backlight_init(dev);
-		if (result)
-			goto fail_backlight;
-	} else
-		pr_info("Backlight controlled by ACPI video driver\n");
-
-	result = eeepc_hwmon_init(dev);
-	if (result)
-		goto fail_hwmon;
 
 	eeepc_enable_camera();
 
@@ -1175,12 +1163,30 @@ static int __init eeepc_laptop_init(void)
 	if (result)
 		goto fail_sysfs;
 
+	dev = &platform_device->dev;
+
+	if (!acpi_video_backlight_support()) {
+		result = eeepc_backlight_init(dev);
+		if (result)
+			goto fail_backlight;
+	} else
+		pr_info("Backlight controlled by ACPI video "
+			"driver\n");
+
+	result = eeepc_hwmon_init(dev);
+	if (result)
+		goto fail_hwmon;
+
 	result = eeepc_rfkill_init(dev);
 	if (result)
 		goto fail_rfkill;
 
 	return 0;
 fail_rfkill:
+	eeepc_hwmon_exit();
+fail_hwmon:
+	eeepc_backlight_exit();
+fail_backlight:
 	sysfs_remove_group(&platform_device->dev.kobj,
 			   &platform_attribute_group);
 fail_sysfs:
@@ -1190,10 +1196,6 @@ fail_platform_device2:
 fail_platform_device1:
 	platform_driver_unregister(&platform_driver);
 fail_platform_driver:
-	eeepc_hwmon_exit();
-fail_hwmon:
-	eeepc_backlight_exit();
-fail_backlight:
 	eeepc_input_exit();
 	return result;
 }
