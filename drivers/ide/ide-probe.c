@@ -818,6 +818,24 @@ static int ide_port_setup_devices(ide_hwif_t *hwif)
 	return j;
 }
 
+static void ide_host_enable_irqs(struct ide_host *host)
+{
+	ide_hwif_t *hwif;
+	int i;
+
+	ide_host_for_each_port(i, hwif, host) {
+		if (hwif == NULL)
+			continue;
+
+		/* clear any pending IRQs */
+		hwif->tp_ops->read_status(hwif);
+
+		/* unmask IRQs */
+		if (hwif->io_ports.ctl_addr)
+			hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+	}
+}
+
 /*
  * This routine sets up the IRQ for an IDE interface.
  */
@@ -830,9 +848,6 @@ static int init_irq (ide_hwif_t *hwif)
 
 	if (irq_handler == NULL)
 		irq_handler = ide_intr;
-
-	if (io_ports->ctl_addr)
-		hwif->tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 
 	if (request_irq(hwif->irq, irq_handler, sa, hwif->name, hwif))
 		goto out_up;
@@ -1403,6 +1418,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif->present)
 			ide_port_tune_devices(hwif);
 	}
+
+	ide_host_enable_irqs(host);
 
 	ide_host_for_each_port(i, hwif, host) {
 		if (hwif == NULL)
