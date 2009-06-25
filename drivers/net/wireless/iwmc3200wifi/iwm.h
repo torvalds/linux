@@ -52,8 +52,6 @@
 #define IWM_COPYRIGHT "Copyright(c) 2009 Intel Corporation"
 #define IWM_AUTHOR "<ilw@linux.intel.com>"
 
-#define CONFIG_IWM_B0_HW_SUPPORT	1
-
 #define IWM_SRC_LMAC	UMAC_HDI_IN_SOURCE_FHRX
 #define IWM_SRC_UDMA	UMAC_HDI_IN_SOURCE_UDMA
 #define IWM_SRC_UMAC	UMAC_HDI_IN_SOURCE_FW
@@ -86,9 +84,6 @@ struct iwm_conf {
 	u8 ibss_channel;
 
 	u8 mac_addr[ETH_ALEN];
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	bool hw_b0;
-#endif
 };
 
 enum {

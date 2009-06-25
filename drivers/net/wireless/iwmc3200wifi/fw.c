@@ -319,12 +319,6 @@ int iwm_load_fw(struct iwm_priv *iwm)
 	init_calib_map = iwm->conf.calib_map & IWM_CALIB_MAP_INIT_MSK;
 	periodic_calib_map = IWM_CALIB_MAP_PER_LMAC(iwm->conf.calib_map);
 
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	if (iwm->conf.hw_b0) {
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &init_calib_map);
-		clear_bit(PHY_CALIBRATE_RX_IQ_CMD, &periodic_calib_map);
-	}
-#endif
 	/* Read RX IQ calibration result from EEPROM */
 	if (test_bit(PHY_CALIBRATE_RX_IQ_CMD, &init_calib_map)) {
 		iwm_store_rxiq_calib_result(iwm);

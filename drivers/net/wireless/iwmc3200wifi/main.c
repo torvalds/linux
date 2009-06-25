@@ -515,13 +515,6 @@ static int iwm_channels_init(struct iwm_priv *iwm)
 {
 	int ret;
 
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	if (iwm->conf.hw_b0) {
-		IWM_INFO(iwm, "Workaround EEPROM channels for B0 hardware\n");
-		return 0;
-	}
-#endif
-
 	ret = iwm_send_umac_channel_list(iwm);
 	if (ret) {
 		IWM_ERR(iwm, "Send channel list failed\n");

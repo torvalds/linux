@@ -924,13 +924,6 @@ static int iwm_ntf_eeprom_proxy(struct iwm_priv *iwm, u8 *buf,
 	if ((hdr_offset + hdr_len) > IWM_EEPROM_LEN)
 		return -EINVAL;
 
-#ifdef CONFIG_IWM_B0_HW_SUPPORT
-	if (hdr_offset == IWM_EEPROM_SKU_CAP_OFF) {
-		if (eeprom_proxy->buf[0] == 0xff)
-			iwm->conf.hw_b0 = 1;
-	}
-#endif
-
 	switch (hdr_type) {
 	case IWM_UMAC_CMD_EEPROM_TYPE_READ:
 		memcpy(iwm->eeprom + hdr_offset, eeprom_proxy->buf, hdr_len);
