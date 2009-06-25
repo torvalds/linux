@@ -816,24 +816,21 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 {
     intel_clock_t clock;
     if (target < 200000) {
-	clock.dot = 161670;
-	clock.p = 20;
 	clock.p1 = 2;
 	clock.p2 = 10;
-	clock.n = 0x01;
-	clock.m = 97;
-	clock.m1 = 0x10;
-	clock.m2 = 0x05;
+	clock.n = 2;
+	clock.m1 = 23;
+	clock.m2 = 8;
     } else {
-	clock.dot = 270000;
-	clock.p = 10;
 	clock.p1 = 1;
 	clock.p2 = 10;
-	clock.n = 0x02;
-	clock.m = 108;
-	clock.m1 = 0x12;
-	clock.m2 = 0x06;
+	clock.n = 1;
+	clock.m1 = 14;
+	clock.m2 = 2;
     }
+    clock.m = 5 * (clock.m1 + 2) + (clock.m2 + 2);
+    clock.p = (clock.p1 * clock.p2);
+    clock.dot = 96000 * clock.m / (clock.n + 2) / clock.p;
     memcpy(best_clock, &clock, sizeof(intel_clock_t));
     return true;
 }
