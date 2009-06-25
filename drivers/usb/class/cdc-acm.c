@@ -677,7 +677,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	/* Perform the closing process and see if we need to do the hardware
 	   shutdown */
-	if (tty_port_close_start(&acm->port, tty, filp) == 0)
+	if (!acm || tty_port_close_start(&acm->port, tty, filp) == 0)
 		return;
 	acm_port_down(acm, 0);
 	tty_port_close_end(&acm->port, tty);
