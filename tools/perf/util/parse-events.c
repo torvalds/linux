@@ -90,6 +90,34 @@ static char *hw_cache_result[][MAX_ALIASES] = {
 	{ "Miss"							},
 };
 
+#define C(x)		PERF_COUNT_HW_CACHE_##x
+#define CACHE_READ	(1 << C(OP_READ))
+#define CACHE_WRITE	(1 << C(OP_WRITE))
+#define CACHE_PREFETCH	(1 << C(OP_PREFETCH))
+#define COP(x)		(1 << x)
+
+/*
+ * cache operartion stat
+ * L1I : Read and prefetch only
+ * ITLB and BPU : Read-only
+ */
+static unsigned long hw_cache_stat[C(MAX)] = {
+ [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
+ [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(ITLB)]	= (CACHE_READ),
+ [C(BPU)]	= (CACHE_READ),
+};
+
+static int is_cache_op_valid(u8 cache_type, u8 cache_op)
+{
+	if (hw_cache_stat[cache_type] & COP(cache_op))
+		return 1;	/* valid */
+	else
+		return 0;	/* invalid */
+}
+
 char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
@@ -123,6 +151,8 @@ char *event_name(int counter)
 		if (cache_result > PERF_COUNT_HW_CACHE_RESULT_MAX)
 			return "unknown-ext-hardware-cache-result";
 
+		if (!is_cache_op_valid(cache_type, cache_op))
+			return "invalid-cache";
 		sprintf(name, "%s-Cache-%s-%ses",
 			hw_cache[cache_type][0],
 			hw_cache_op[cache_op][0],
@@ -178,6 +208,9 @@ parse_generic_hw_symbols(const char *str, struct perf_counter_attr *attr)
 	 */
 	if (cache_op == -1)
 		cache_op = PERF_COUNT_HW_CACHE_OP_READ;
+
+	if (!is_cache_op_valid(cache_type, cache_op))
+		return -EINVAL;
 
 	cache_result = parse_aliases(str, hw_cache_result,
 					PERF_COUNT_HW_CACHE_RESULT_MAX);
