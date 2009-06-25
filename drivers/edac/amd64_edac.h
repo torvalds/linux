@@ -306,16 +306,7 @@ enum {
 
 /* Family F10h: Normalized Extended Error Codes */
 #define F10_NBSL_EXT_ERR_RES		0x0
-#define F10_NBSL_EXT_ERR_CRC		0x1
-#define F10_NBSL_EXT_ERR_SYNC		0x2
-#define F10_NBSL_EXT_ERR_MST		0x3
-#define F10_NBSL_EXT_ERR_TGT		0x4
-#define F10_NBSL_EXT_ERR_GART		0x5
-#define F10_NBSL_EXT_ERR_RMW		0x6
-#define F10_NBSL_EXT_ERR_WDT		0x7
 #define F10_NBSL_EXT_ERR_ECC		0x8
-#define F10_NBSL_EXT_ERR_DEV		0x9
-#define F10_NBSL_EXT_ERR_LINK_DATA	0xA
 
 /* Next two are overloaded values */
 #define F10_NBSL_EXT_ERR_LINK_PROTO	0xB
@@ -360,18 +351,15 @@ enum {
 
 #define K8_NBSH_VALID_BIT		BIT(31)
 #define K8_NBSH_OVERFLOW		BIT(30)
-#define K8_NBSH_UNCORRECTED_ERR		BIT(29)
-#define K8_NBSH_ERR_ENABLE		BIT(28)
-#define K8_NBSH_MISC_ERR_VALID		BIT(27)
+#define K8_NBSH_UC_ERR			BIT(29)
+#define K8_NBSH_ERR_EN			BIT(28)
+#define K8_NBSH_MISCV			BIT(27)
 #define K8_NBSH_VALID_ERROR_ADDR	BIT(26)
 #define K8_NBSH_PCC			BIT(25)
+#define K8_NBSH_ERR_CPU_VAL		BIT(24)
 #define K8_NBSH_CECC			BIT(14)
 #define K8_NBSH_UECC			BIT(13)
 #define K8_NBSH_ERR_SCRUBER		BIT(8)
-#define K8_NBSH_CORE3			BIT(3)
-#define K8_NBSH_CORE2			BIT(2)
-#define K8_NBSH_CORE1			BIT(1)
-#define K8_NBSH_CORE0			BIT(0)
 
 #define EXTRACT_ERR_CPU_MAP(x)		((x) & 0xF)
 
@@ -622,8 +610,8 @@ static inline struct low_ops *family_ops(int index)
 #define F10_MIN_SCRUB_RATE_BITS	0x5
 #define F11_MIN_SCRUB_RATE_BITS	0x6
 
-int amd64_process_error_info(struct mem_ctl_info *mci,
-			     struct err_regs *info,
-			     int handle_errors);
+void amd64_decode_nb_mce(struct mem_ctl_info *mci, struct err_regs *info,
+			int handle_errors);
+
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);

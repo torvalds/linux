@@ -1,5 +1,7 @@
 #define ERROR_CODE(x)			((x) & 0xffff)
 #define EXT_ERROR_CODE(x)		(((x) >> 16) & 0x1f)
+#define EXT_ERR_MSG(x)			ext_msgs[EXT_ERROR_CODE(x)]
+
 #define LOW_SYNDROME(x)			(((x) >> 15) & 0xff)
 #define HIGH_SYNDROME(x)		(((x) >> 24) & 0xff)
 
