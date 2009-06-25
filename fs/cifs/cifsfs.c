@@ -374,8 +374,6 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	if (tcon->ses->domainName)
 		seq_printf(s, ",domain=%s", tcon->ses->domainName);
 
-	cifs_show_address(s, tcon->ses->server);
-
 	seq_printf(s, ",uid=%d", cifs_sb->mnt_uid);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
 		seq_printf(s, ",forceuid");
