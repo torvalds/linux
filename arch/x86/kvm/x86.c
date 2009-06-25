@@ -83,6 +83,9 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 struct kvm_x86_ops *kvm_x86_ops;
 EXPORT_SYMBOL_GPL(kvm_x86_ops);
 
+int ignore_msrs = 0;
+module_param_named(ignore_msrs, ignore_msrs, bool, S_IRUGO | S_IWUSR);
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pf_fixed", VCPU_STAT(pf_fixed) },
 	{ "pf_guest", VCPU_STAT(pf_guest) },
@@ -930,8 +933,15 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			"0x%x data 0x%llx\n", msr, data);
 		break;
 	default:
-		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n", msr, data);
-		return 1;
+		if (!ignore_msrs) {
+			pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
+				msr, data);
+			return 1;
+		} else {
+			pr_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n",
+				msr, data);
+			break;
+		}
 	}
 	return 0;
 }
@@ -1078,8 +1088,14 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
 		return get_msr_mce(vcpu, msr, pdata);
 	default:
-		pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
-		return 1;
+		if (!ignore_msrs) {
+			pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
+			return 1;
+		} else {
+			pr_unimpl(vcpu, "ignored rdmsr: 0x%x\n", msr);
+			data = 0;
+		}
+		break;
 	}
 	*pdata = data;
 	return 0;
