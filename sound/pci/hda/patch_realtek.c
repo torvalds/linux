@@ -9084,7 +9084,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0157, "Acer X3200", ALC883_AUTO),
 	SND_PCI_QUIRK(0x1025, 0x0158, "Acer AX1700-U3700A", ALC883_AUTO),
 	SND_PCI_QUIRK(0x1025, 0x015e, "Acer Aspire 6930G",
-		ALC888_ACER_ASPIRE_4930G),
+		ALC888_ACER_ASPIRE_6530G),
 	SND_PCI_QUIRK(0x1025, 0x0166, "Acer Aspire 6530G",
 		ALC888_ACER_ASPIRE_6530G),
 	/* default Acer -- disabled as it causes more problems.
