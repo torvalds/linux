@@ -289,7 +289,7 @@ static int set_acpi(int cm, int value)
 
 static int get_acpi(int cm)
 {
-	int value = -1;
+	int value = -ENODEV;
 	if ((ehotk->cm_supported & (0x1 << cm))) {
 		const char *method = cm_getv[cm];
 		if (method == NULL)
@@ -367,13 +367,19 @@ static ssize_t store_sys_acpi(int cm, const char *buf, size_t count)
 
 	rv = parse_arg(buf, count, &value);
 	if (rv > 0)
-		set_acpi(cm, value);
+		value = set_acpi(cm, value);
+	if (value < 0)
+		return value;
 	return rv;
 }
 
 static ssize_t show_sys_acpi(int cm, char *buf)
 {
-	return sprintf(buf, "%d\n", get_acpi(cm));
+	int value = get_acpi(cm);
+
+	if (value < 0)
+		return value;
+	return sprintf(buf, "%d\n", value);
 }
 
 #define EEEPC_CREATE_DEVICE_ATTR(_name, _cm)				\
@@ -1036,8 +1042,9 @@ static int eeepc_new_rfkill(struct rfkill **rfkill,
 {
 	int result;
 
-	if (get_acpi(cm) == -1)
-		return -ENODEV;
+	result = get_acpi(cm);
+	if (result < 0)
+		return result;
 
 	*rfkill = rfkill_alloc(name, dev, type,
 			       &eeepc_rfkill_ops, (void *)(unsigned long)cm);
