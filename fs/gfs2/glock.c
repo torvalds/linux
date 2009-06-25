@@ -1300,7 +1300,6 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 	struct gfs2_glock *gl;
 	int may_demote;
 	int nr_skipped = 0;
-	int got_ref = 0;
 	LIST_HEAD(skipped);
 
 	if (nr == 0)
@@ -1318,7 +1317,6 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 		/* Test for being demotable */
 		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
 			gfs2_glock_hold(gl);
-			got_ref = 1;
 			spin_unlock(&lru_lock);
 			spin_lock(&gl->gl_spin);
 			may_demote = demote_ok(gl);
@@ -1327,25 +1325,14 @@ static int gfs2_shrink_glock_memory(int nr, gfp_t gfp_mask)
 			if (may_demote) {
 				handle_callback(gl, LM_ST_UNLOCKED, 0);
 				nr--;
-				if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
-					gfs2_glock_put(gl);
-				got_ref = 0;
 			}
+			if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
+				gfs2_glock_put(gl);
 			spin_lock(&lru_lock);
-			if (may_demote)
-				continue;
+			continue;
 		}
-		if (list_empty(&gl->gl_lru) &&
-		    (atomic_read(&gl->gl_ref) <= (2 + got_ref))) {
-			nr_skipped++;
-			list_add(&gl->gl_lru, &skipped);
-		}
-		if (got_ref) {
-			spin_unlock(&lru_lock);
-			gfs2_glock_put(gl);
-			spin_lock(&lru_lock);
-			got_ref = 0;
-		}
+		nr_skipped++;
+		list_add(&gl->gl_lru, &skipped);
 	}
 	list_splice(&skipped, &lru_list);
 	atomic_add(nr_skipped, &lru_count);
