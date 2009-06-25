@@ -243,40 +243,6 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 #endif
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 
-		case R_BFIN_PCREL24:
-		case R_BFIN_PCREL24_JUMP_L:
-			/* Add the value, subtract its postition */
-			location16 =
-			    (uint16_t *) (sechdrs[sechdrs[relsec].sh_info].
-					  sh_addr + rel[i].r_offset - 2);
-			location32 = (uint32_t *) location16;
-			value -= (uint32_t) location32;
-			value >>= 1;
-			if ((value & 0xFF000000) != 0 &&
-			    (value & 0xFF000000) != 0xFF000000) {
-				printk(KERN_ERR "module %s: relocation overflow\n",
-				       mod->name);
-				return -ENOEXEC;
-			}
-			pr_debug("value is %x, before %x-%x after %x-%x\n", value,
-			       *location16, *(location16 + 1),
-			       (*location16 & 0xff00) | (value >> 16 & 0x00ff),
-			       value & 0xffff);
-			*location16 =
-			    (*location16 & 0xff00) | (value >> 16 & 0x00ff);
-			*(location16 + 1) = value & 0xffff;
-			break;
-		case R_BFIN_PCREL12_JUMP:
-		case R_BFIN_PCREL12_JUMP_S:
-			value -= (uint32_t) location32;
-			value >>= 1;
-			*location16 = (value & 0xfff);
-			break;
-		case R_BFIN_PCREL10:
-			value -= (uint32_t) location32;
-			value >>= 1;
-			*location16 = (value & 0x3ff);
-			break;
 		case R_BFIN_LUIMM16:
 			pr_debug("before %x after %x\n", *location16,
 				       (value & 0xffff));
@@ -302,6 +268,14 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			pr_debug("before %x after %x\n", *location32, value);
 			*location32 = value;
 			break;
+		case R_BFIN_PCREL24:
+		case R_BFIN_PCREL24_JUMP_L:
+		case R_BFIN_PCREL12_JUMP:
+		case R_BFIN_PCREL12_JUMP_S:
+		case R_BFIN_PCREL10:
+			printk(KERN_ERR "module %s: Unsupported relocation: %u (no -mlong-calls?)\n"
+				mod->name, ELF32_R_TYPE(rel[i].r_info));
+			return -ENOEXEC;
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
 			       mod->name, ELF32_R_TYPE(rel[i].r_info));
