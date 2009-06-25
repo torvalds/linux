@@ -68,6 +68,10 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	unsigned long flags;
 	struct resource *root;
 	int max_root_bus_resources = PCI_BUS_NUM_RESOURCES;
+	u64 start, end;
+
+	if (bus_has_transparent_bridge(info->bus))
+		max_root_bus_resources -= 3;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -84,24 +88,23 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	} else
 		return AE_OK;
 
-	res = &info->res[info->res_num];
-	res->name = info->name;
-	res->flags = flags;
-	res->start = addr.minimum + addr.translation_offset;
-	res->end = res->start + addr.address_length - 1;
-	res->child = NULL;
-
-	if (bus_has_transparent_bridge(info->bus))
-		max_root_bus_resources -= 3;
+	start = addr.minimum + addr.translation_offset;
+	end = start + addr.address_length - 1;
 	if (info->res_num >= max_root_bus_resources) {
 		printk(KERN_WARNING "PCI: Failed to allocate 0x%lx-0x%lx "
 			"from %s for %s due to _CRS returning more than "
-			"%d resource descriptors\n", (unsigned long) res->start,
-			(unsigned long) res->end, root->name, info->name,
+			"%d resource descriptors\n", (unsigned long) start,
+			(unsigned long) end, root->name, info->name,
 			max_root_bus_resources);
-		info->res_num++;
 		return AE_OK;
 	}
+
+	res = &info->res[info->res_num];
+	res->name = info->name;
+	res->flags = flags;
+	res->start = start;
+	res->end = end;
+	res->child = NULL;
 
 	if (insert_resource(root, res)) {
 		printk(KERN_ERR "PCI: Failed to allocate 0x%lx-0x%lx "
