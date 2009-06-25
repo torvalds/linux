@@ -392,11 +392,11 @@ static void record_ip(u64 ip, int counter)
 	samples--;
 }
 
-static void process_event(u64 ip, int counter)
+static void process_event(u64 ip, int counter, int user)
 {
 	samples++;
 
-	if (ip < min_ip || ip > max_ip) {
+	if (user) {
 		userspace_samples++;
 		return;
 	}
@@ -509,9 +509,10 @@ static void mmap_read_counter(struct mmap_data *md)
 
 		old += size;
 
-		if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
-			if (event->header.type & PERF_SAMPLE_IP)
-				process_event(event->ip.ip, md->counter);
+		if (event->header.type == PERF_EVENT_SAMPLE) {
+			int user =
+	(event->header.misc & PERF_EVENT_MISC_CPUMODE_MASK) == PERF_EVENT_MISC_USER;
+			process_event(event->ip.ip, md->counter, user);
 		}
 	}
 

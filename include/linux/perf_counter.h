@@ -262,7 +262,6 @@ struct perf_counter_mmap_page {
 #define PERF_EVENT_MISC_KERNEL			(1 << 0)
 #define PERF_EVENT_MISC_USER			(2 << 0)
 #define PERF_EVENT_MISC_HYPERVISOR		(3 << 0)
-#define PERF_EVENT_MISC_OVERFLOW		(1 << 2)
 
 struct perf_event_header {
 	__u32	type;
@@ -348,9 +347,6 @@ enum perf_event_type {
 	PERF_EVENT_READ			= 8,
 
 	/*
-	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
-	 * will be PERF_SAMPLE_*
-	 *
 	 * struct {
 	 *	struct perf_event_header	header;
 	 *
@@ -358,8 +354,9 @@ enum perf_event_type {
 	 *	{ u32			pid, tid; } && PERF_SAMPLE_TID
 	 *	{ u64			time;     } && PERF_SAMPLE_TIME
 	 *	{ u64			addr;     } && PERF_SAMPLE_ADDR
-	 *	{ u64			config;   } && PERF_SAMPLE_CONFIG
+	 *	{ u64			id;	  } && PERF_SAMPLE_ID
 	 *	{ u32			cpu, res; } && PERF_SAMPLE_CPU
+	 * 	{ u64			period;   } && PERF_SAMPLE_PERIOD
 	 *
 	 *	{ u64			nr;
 	 *	  { u64 id, val; }	cnt[nr];  } && PERF_SAMPLE_GROUP
@@ -368,6 +365,9 @@ enum perf_event_type {
 	 *	  u64			ips[nr];  } && PERF_SAMPLE_CALLCHAIN
 	 * };
 	 */
+	PERF_EVENT_SAMPLE		= 9,
+
+	PERF_EVENT_MAX,			/* non-ABI */
 };
 
 enum perf_callchain_context {

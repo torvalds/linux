@@ -2575,15 +2575,14 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		u32 cpu, reserved;
 	} cpu_entry;
 
-	header.type = 0;
+	header.type = PERF_EVENT_SAMPLE;
 	header.size = sizeof(header);
 
-	header.misc = PERF_EVENT_MISC_OVERFLOW;
+	header.misc = 0;
 	header.misc |= perf_misc_flags(data->regs);
 
 	if (sample_type & PERF_SAMPLE_IP) {
 		ip = perf_instruction_pointer(data->regs);
-		header.type |= PERF_SAMPLE_IP;
 		header.size += sizeof(ip);
 	}
 
@@ -2592,7 +2591,6 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		tid_entry.pid = perf_counter_pid(counter, current);
 		tid_entry.tid = perf_counter_tid(counter, current);
 
-		header.type |= PERF_SAMPLE_TID;
 		header.size += sizeof(tid_entry);
 	}
 
@@ -2602,34 +2600,25 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		 */
 		time = sched_clock();
 
-		header.type |= PERF_SAMPLE_TIME;
 		header.size += sizeof(u64);
 	}
 
-	if (sample_type & PERF_SAMPLE_ADDR) {
-		header.type |= PERF_SAMPLE_ADDR;
+	if (sample_type & PERF_SAMPLE_ADDR)
 		header.size += sizeof(u64);
-	}
 
-	if (sample_type & PERF_SAMPLE_ID) {
-		header.type |= PERF_SAMPLE_ID;
+	if (sample_type & PERF_SAMPLE_ID)
 		header.size += sizeof(u64);
-	}
 
 	if (sample_type & PERF_SAMPLE_CPU) {
-		header.type |= PERF_SAMPLE_CPU;
 		header.size += sizeof(cpu_entry);
 
 		cpu_entry.cpu = raw_smp_processor_id();
 	}
 
-	if (sample_type & PERF_SAMPLE_PERIOD) {
-		header.type |= PERF_SAMPLE_PERIOD;
+	if (sample_type & PERF_SAMPLE_PERIOD)
 		header.size += sizeof(u64);
-	}
 
 	if (sample_type & PERF_SAMPLE_GROUP) {
-		header.type |= PERF_SAMPLE_GROUP;
 		header.size += sizeof(u64) +
 			counter->nr_siblings * sizeof(group_entry);
 	}
@@ -2639,10 +2628,9 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 
 		if (callchain) {
 			callchain_size = (1 + callchain->nr) * sizeof(u64);
-
-			header.type |= PERF_SAMPLE_CALLCHAIN;
 			header.size += callchain_size;
-		}
+		} else
+			header.size += sizeof(u64);
 	}
 
 	ret = perf_output_begin(&handle, counter, header.size, nmi, 1);
@@ -2693,8 +2681,14 @@ static void perf_counter_output(struct perf_counter *counter, int nmi,
 		}
 	}
 
-	if (callchain)
-		perf_output_copy(&handle, callchain, callchain_size);
+	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
+		if (callchain)
+			perf_output_copy(&handle, callchain, callchain_size);
+		else {
+			u64 nr = 0;
+			perf_output_put(&handle, nr);
+		}
+	}
 
 	perf_output_end(&handle);
 }

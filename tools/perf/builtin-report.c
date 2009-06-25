@@ -53,6 +53,8 @@ static regex_t		parent_regex;
 
 static int		exclude_other = 1;
 
+static u64		sample_type;
+
 struct ip_event {
 	struct perf_event_header header;
 	u64 ip;
@@ -1135,7 +1137,7 @@ static int validate_chain(struct ip_callchain *chain, event_t *event)
 }
 
 static int
-process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
+process_sample_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	char level;
 	int show = 0;
@@ -1147,12 +1149,12 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 	void *more_data = event->ip.__more_data;
 	struct ip_callchain *chain = NULL;
 
-	if (event->header.type & PERF_SAMPLE_PERIOD) {
+	if (sample_type & PERF_SAMPLE_PERIOD) {
 		period = *(u64 *)more_data;
 		more_data += sizeof(u64);
 	}
 
-	dprintf("%p [%p]: PERF_EVENT (IP, %d): %d: %p period: %Ld\n",
+	dprintf("%p [%p]: PERF_EVENT_SAMPLE (IP, %d): %d: %p period: %Ld\n",
 		(void *)(offset + head),
 		(void *)(long)(event->header.size),
 		event->header.misc,
@@ -1160,7 +1162,7 @@ process_overflow_event(event_t *event, unsigned long offset, unsigned long head)
 		(void *)(long)ip,
 		(long long)period);
 
-	if (event->header.type & PERF_SAMPLE_CALLCHAIN) {
+	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		int i;
 
 		chain = (void *)more_data;
@@ -1352,10 +1354,10 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 {
 	trace_event(event);
 
-	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW)
-		return process_overflow_event(event, offset, head);
-
 	switch (event->header.type) {
+	case PERF_EVENT_SAMPLE:
+		return process_sample_event(event, offset, head);
+
 	case PERF_EVENT_MMAP:
 		return process_mmap_event(event, offset, head);
 
@@ -1388,18 +1390,21 @@ process_event(event_t *event, unsigned long offset, unsigned long head)
 
 static struct perf_header	*header;
 
-static int perf_header__has_sample(u64 sample_mask)
+static u64 perf_header__sample_type(void)
 {
+	u64 sample_type = 0;
 	int i;
 
 	for (i = 0; i < header->attrs; i++) {
 		struct perf_header_attr *attr = header->attr[i];
 
-		if (!(attr->attr.sample_type & sample_mask))
-			return 0;
+		if (!sample_type)
+			sample_type = attr->attr.sample_type;
+		else if (sample_type != attr->attr.sample_type)
+			die("non matching sample_type");
 	}
 
-	return 1;
+	return sample_type;
 }
 
 static int __cmd_report(void)
@@ -1437,8 +1442,9 @@ static int __cmd_report(void)
 	header = perf_header__read(input);
 	head = header->data_offset;
 
-	if (sort__has_parent &&
-	    !perf_header__has_sample(PERF_SAMPLE_CALLCHAIN)) {
+	sample_type = perf_header__sample_type();
+
+	if (sort__has_parent && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		fprintf(stderr, "selected --sort parent, but no callchain data\n");
 		exit(-1);
 	}
