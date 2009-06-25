@@ -1476,6 +1476,10 @@ static struct hda_verb alc888_acer_aspire_4930g_verbs[] = {
 static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
 /* Bias voltage on for external mic port */
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN | PIN_VREF80},
+/* Front Mic: set to PIN_IN (empty by default) */
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+/* Unselect Front Mic by default in input mixer 3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0xb)},
 /* Enable unsolicited event for HP jack */
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 /* Enable speaker output */
@@ -1641,6 +1645,17 @@ static void alc888_acer_aspire_4930g_init_hook(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x15;
 	spec->autocfg.speaker_pins[0] = 0x14;
+	alc_automute_amp(codec);
+}
+
+static void alc888_acer_aspire_6530g_init_hook(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
 	alc_automute_amp(codec);
 }
 
@@ -9322,7 +9337,7 @@ static struct alc_config_preset alc883_presets[] = {
 			ARRAY_SIZE(alc888_2_capture_sources),
 		.input_mux = alc888_acer_aspire_6530_sources,
 		.unsol_event = alc_automute_amp_unsol_event,
-		.init_hook = alc888_acer_aspire_4930g_init_hook,
+		.init_hook = alc888_acer_aspire_6530g_init_hook,
 	},
 	[ALC888_ACER_ASPIRE_8930G] = {
 		.mixers = { alc888_base_mixer,
