@@ -945,12 +945,13 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 static void alc_automute_pin(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int present;
+	unsigned int present, pincap;
 	unsigned int nid = spec->autocfg.hp_pins[0];
 	int i;
 
-	/* need to execute and sync at first */
-	snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+	pincap = snd_hda_query_pin_caps(codec, nid);
+	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
 	present = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_PIN_SENSE, 0);
 	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
@@ -1392,7 +1393,7 @@ static struct hda_verb alc888_fujitsu_xa3530_verbs[] = {
 static void alc_automute_amp(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int val, mute;
+	unsigned int val, mute, pincap;
 	hda_nid_t nid;
 	int i;
 
@@ -1401,6 +1402,10 @@ static void alc_automute_amp(struct hda_codec *codec)
 		nid = spec->autocfg.hp_pins[i];
 		if (!nid)
 			break;
+		pincap = snd_hda_query_pin_caps(codec, nid);
+		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+			snd_hda_codec_read(codec, nid, 0,
+					   AC_VERB_SET_PIN_SENSE, 0);
 		val = snd_hda_codec_read(codec, nid, 0,
 					 AC_VERB_GET_PIN_SENSE, 0);
 		if (val & AC_PINSENSE_PRESENCE) {
