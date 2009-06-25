@@ -448,7 +448,10 @@ try_again:
 		}
 	}
 
-	read(fd[nr_cpu][counter], &read_data, sizeof(read_data));
+	if (read(fd[nr_cpu][counter], &read_data, sizeof(read_data)) == -1) {
+		perror("Unable to read perf file descriptor\n");
+		exit(-1);
+	}
 
 	perf_header_attr__add_id(h_attr, read_data.id);
 
