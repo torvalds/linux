@@ -770,6 +770,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	}
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, ONENAND_IO_SIZE);
+	gpmc_cs_free(c->gpmc_cs);
 	kfree(c);
 
 	return 0;
