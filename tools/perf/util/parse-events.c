@@ -71,23 +71,23 @@ static char *sw_event_names[] = {
 #define MAX_ALIASES 8
 
 static char *hw_cache[][MAX_ALIASES] = {
-	{ "L1-data",		"l1-d",		"l1d"			},
-	{ "L1-instruction",	"l1-i",		"l1i"			},
-	{ "L2",			"l2"					},
-	{ "Data-TLB",		"dtlb",		"d-tlb"			},
-	{ "Instruction-TLB",	"itlb",		"i-tlb"			},
-	{ "Branch",		"bpu" ,		"btb",		"bpc"	},
+ { "L1-d$",	"l1-d",		"L1-data",				},
+ { "L1-i$",	"l1-i",		"L1-instruction",			},
+ { "LLC",	"L2"							},
+ { "dTLB",	"d-tlb",	"Data-TLB",				},
+ { "iTLB",	"i-tlb",	"Instruction-TLB",			},
+ { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
 };
 
 static char *hw_cache_op[][MAX_ALIASES] = {
-	{ "Load",		"read"					},
-	{ "Store",		"write"					},
-	{ "Prefetch",		"speculative-read", "speculative-load"	},
+ { "load",	"loads",	"read",					},
+ { "store",	"stores",	"write",				},
+ { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
 };
 
 static char *hw_cache_result[][MAX_ALIASES] = {
-	{ "Reference",		"ops",		"access"		},
-	{ "Miss"							},
+ { "refs",	"Reference",	"ops",		"access",		},
+ { "misses",	"miss",							},
 };
 
 #define C(x)		PERF_COUNT_HW_CACHE_##x
@@ -118,6 +118,22 @@ static int is_cache_op_valid(u8 cache_type, u8 cache_op)
 		return 0;	/* invalid */
 }
 
+static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
+{
+	static char name[50];
+
+	if (cache_result) {
+		sprintf(name, "%s-%s-%s", hw_cache[cache_type][0],
+			hw_cache_op[cache_op][0],
+			hw_cache_result[cache_result][0]);
+	} else {
+		sprintf(name, "%s-%s", hw_cache[cache_type][0],
+			hw_cache_op[cache_op][1]);
+	}
+
+	return name;
+}
+
 char *event_name(int counter)
 {
 	u64 config = attrs[counter].config;
@@ -137,7 +153,6 @@ char *event_name(int counter)
 
 	case PERF_TYPE_HW_CACHE: {
 		u8 cache_type, cache_op, cache_result;
-		static char name[100];
 
 		cache_type   = (config >>  0) & 0xff;
 		if (cache_type > PERF_COUNT_HW_CACHE_MAX)
@@ -153,12 +168,8 @@ char *event_name(int counter)
 
 		if (!is_cache_op_valid(cache_type, cache_op))
 			return "invalid-cache";
-		sprintf(name, "%s-Cache-%s-%ses",
-			hw_cache[cache_type][0],
-			hw_cache_op[cache_op][0],
-			hw_cache_result[cache_result][0]);
 
-		return name;
+		return event_cache_name(cache_type, cache_op, cache_result);
 	}
 
 	case PERF_TYPE_SOFTWARE:
