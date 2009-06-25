@@ -201,8 +201,9 @@ static int crypto_givcipher_default(struct crypto_alg *alg, u32 type, u32 mask)
 	int err;
 
 	larval = crypto_larval_lookup(alg->cra_driver_name,
+				      (type & ~CRYPTO_ALG_TYPE_MASK) |
 				      CRYPTO_ALG_TYPE_GIVCIPHER,
-				      CRYPTO_ALG_TYPE_MASK);
+				      mask | CRYPTO_ALG_TYPE_MASK);
 	err = PTR_ERR(larval);
 	if (IS_ERR(larval))
 		goto out;
