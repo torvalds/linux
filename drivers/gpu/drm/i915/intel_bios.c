@@ -195,10 +195,12 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_use_ssc = general->enable_ssc;
 
 		if (dev_priv->lvds_use_ssc) {
-		  if (IS_I855(dev_priv->dev))
-		    dev_priv->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
-		  else
-		    dev_priv->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
+			if (IS_I85X(dev_priv->dev))
+				dev_priv->lvds_ssc_freq =
+					general->ssc_freq ? 66 : 48;
+			else
+				dev_priv->lvds_ssc_freq =
+					general->ssc_freq ? 100 : 96;
 		}
 	}
 }
