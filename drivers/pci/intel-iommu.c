@@ -39,7 +39,6 @@
 #include <linux/sysdev.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
-#include <asm/e820.h>
 #include "pci.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
@@ -1908,7 +1907,6 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 		rmrr->end_address + 1);
 }
 
-#ifdef CONFIG_DMAR_GFX_WA
 struct iommu_prepare_data {
 	struct pci_dev *pdev;
 	int ret;
@@ -1943,6 +1941,7 @@ static int __init iommu_prepare_with_active_regions(struct pci_dev *pdev)
 	return data.ret;
 }
 
+#ifdef CONFIG_DMAR_GFX_WA
 static void __init iommu_prepare_gfx_mapping(void)
 {
 	struct pci_dev *pdev = NULL;
@@ -2081,7 +2080,6 @@ static int domain_add_dev_info(struct dmar_domain *domain,
 
 static int iommu_prepare_static_identity_mapping(void)
 {
-	int i;
 	struct pci_dev *pdev = NULL;
 	int ret;
 
@@ -2091,17 +2089,10 @@ static int iommu_prepare_static_identity_mapping(void)
 
 	printk(KERN_INFO "IOMMU: Setting identity map:\n");
 	for_each_pci_dev(pdev) {
-		for (i = 0; i < e820.nr_map; i++) {
-			struct e820entry *ei = &e820.map[i];
-
-			if (ei->type == E820_RAM) {
-				ret = iommu_prepare_identity_map(pdev,
-					ei->addr, ei->addr + ei->size);
-				if (ret)  {
-					printk(KERN_INFO "1:1 mapping to one domain failed.\n");
-					return -EFAULT;
-				}
-			}
+		ret = iommu_prepare_with_active_regions(pdev);
+		if (ret) {
+			printk(KERN_INFO "1:1 mapping to one domain failed.\n");
+			return -EFAULT;
 		}
 		ret = domain_add_dev_info(si_domain, pdev);
 		if (ret)
