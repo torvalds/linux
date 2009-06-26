@@ -22,6 +22,8 @@
  *
  */
 
+#define HID_DEBUG_BUFSIZE 512
+
 #ifdef CONFIG_DEBUG_FS
 
 void hid_dump_input(struct hid_device *, struct hid_usage *, __s32);
@@ -34,7 +36,6 @@ void hid_debug_init(void);
 void hid_debug_exit(void);
 void hid_debug_event(struct hid_device *, char *);
 
-#define HID_DEBUG_BUFSIZE 512
 
 struct hid_debug_list {
 	char *hid_debug_buf;
@@ -48,11 +49,10 @@ struct hid_debug_list {
 
 #else
 
-#define hid_dump_input(a,b)		do { } while (0)
-#define hid_dump_device(c)		do { } while (0)
-#define hid_dump_field(a,b)		do { } while (0)
-#define hid_resolv_usage(a)		do { } while (0)
-#define hid_resolv_event(a,b)		do { } while (0)
+#define hid_dump_input(a,b,c)		do { } while (0)
+#define hid_dump_device(a,b)		do { } while (0)
+#define hid_dump_field(a,b,c)		do { } while (0)
+#define hid_resolv_usage(a,b)		do { } while (0)
 #define hid_debug_register(a, b)	do { } while (0)
 #define hid_debug_unregister(a)		do { } while (0)
 #define hid_debug_init()		do { } while (0)
