@@ -244,17 +244,17 @@ int ov7660_init(struct sd *sd)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	/* Init the sensor */
-	for (i = 0; i < ARRAY_SIZE(init2_ov7660); i++) {
+	for (i = 0; i < ARRAY_SIZE(init_ov7660); i++) {
 		u8 data[2];
 
-		if (init2_ov7660[i][0] == BRIDGE) {
+		if (init_ov7660[i][0] == BRIDGE) {
 			err = m5602_write_bridge(sd,
-				init2_ov7660[i][1],
-				init2_ov7660[i][2]);
+				init_ov7660[i][1],
+				init_ov7660[i][2]);
 		} else {
-			data[0] = init2_ov7660[i][2];
+			data[0] = init_ov7660[i][2];
 			err = m5602_write_sensor(sd,
-				init2_ov7660[i][1], data, 1);
+				init_ov7660[i][1], data, 1);
 		}
 	}
 
