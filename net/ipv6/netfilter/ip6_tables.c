@@ -208,7 +208,7 @@ ip6t_error(struct sk_buff *skb, const struct xt_target_param *par)
 
 /* Performance critical - called for every packet */
 static inline bool
-do_match(struct ip6t_entry_match *m, const struct sk_buff *skb,
+do_match(const struct ip6t_entry_match *m, const struct sk_buff *skb,
 	 struct xt_match_param *par)
 {
 	par->match     = m->u.kernel.match;
@@ -222,7 +222,7 @@ do_match(struct ip6t_entry_match *m, const struct sk_buff *skb,
 }
 
 static inline struct ip6t_entry *
-get_entry(void *base, unsigned int offset)
+get_entry(const void *base, unsigned int offset)
 {
 	return (struct ip6t_entry *)(base + offset);
 }
@@ -234,6 +234,12 @@ static inline bool unconditional(const struct ip6t_ip6 *ipv6)
 	static const struct ip6t_ip6 uncond;
 
 	return memcmp(ipv6, &uncond, sizeof(uncond)) == 0;
+}
+
+static inline const struct ip6t_entry_target *
+ip6t_get_target_c(const struct ip6t_entry *e)
+{
+	return ip6t_get_target((struct ip6t_entry *)e);
 }
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
@@ -271,11 +277,11 @@ static struct nf_loginfo trace_loginfo = {
 
 /* Mildly perf critical (only if packet tracing is on) */
 static inline int
-get_chainname_rulenum(struct ip6t_entry *s, struct ip6t_entry *e,
+get_chainname_rulenum(const struct ip6t_entry *s, const struct ip6t_entry *e,
 		      const char *hookname, const char **chainname,
 		      const char **comment, unsigned int *rulenum)
 {
-	struct ip6t_standard_target *t = (void *)ip6t_get_target(s);
+	const struct ip6t_standard_target *t = (void *)ip6t_get_target_c(s);
 
 	if (strcmp(t->target.u.kernel.target->name, IP6T_ERROR_TARGET) == 0) {
 		/* Head of user chain: ERROR target with chainname */
@@ -301,15 +307,15 @@ get_chainname_rulenum(struct ip6t_entry *s, struct ip6t_entry *e,
 	return 0;
 }
 
-static void trace_packet(struct sk_buff *skb,
+static void trace_packet(const struct sk_buff *skb,
 			 unsigned int hook,
 			 const struct net_device *in,
 			 const struct net_device *out,
 			 const char *tablename,
-			 struct xt_table_info *private,
-			 struct ip6t_entry *e)
+			 const struct xt_table_info *private,
+			 const struct ip6t_entry *e)
 {
-	void *table_base;
+	const void *table_base;
 	const struct ip6t_entry *root;
 	const char *hookname, *chainname, *comment;
 	unsigned int rulenum = 0;
@@ -352,9 +358,9 @@ ip6t_do_table(struct sk_buff *skb,
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
 	const char *indev, *outdev;
-	void *table_base;
+	const void *table_base;
 	struct ip6t_entry *e, *back;
-	struct xt_table_info *private;
+	const struct xt_table_info *private;
 	struct xt_match_param mtpar;
 	struct xt_target_param tgpar;
 
@@ -385,7 +391,7 @@ ip6t_do_table(struct sk_buff *skb,
 	back = get_entry(table_base, private->underflow[hook]);
 
 	do {
-		struct ip6t_entry_target *t;
+		const struct ip6t_entry_target *t;
 
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
@@ -400,7 +406,7 @@ ip6t_do_table(struct sk_buff *skb,
 			    ntohs(ipv6_hdr(skb)->payload_len) +
 			    sizeof(struct ipv6hdr), 1);
 
-		t = ip6t_get_target(e);
+		t = ip6t_get_target_c(e);
 		IP_NF_ASSERT(t->u.kernel.target);
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
@@ -482,7 +488,7 @@ ip6t_do_table(struct sk_buff *skb,
 /* Figures out from what hook each rule can be called: returns 0 if
    there are loops.  Puts hook bitmask in comefrom. */
 static int
-mark_source_chains(struct xt_table_info *newinfo,
+mark_source_chains(const struct xt_table_info *newinfo,
 		   unsigned int valid_hooks, void *entry0)
 {
 	unsigned int hook;
@@ -500,8 +506,8 @@ mark_source_chains(struct xt_table_info *newinfo,
 		e->counters.pcnt = pos;
 
 		for (;;) {
-			struct ip6t_standard_target *t
-				= (void *)ip6t_get_target(e);
+			const struct ip6t_standard_target *t
+				= (void *)ip6t_get_target_c(e);
 			int visited = e->comefrom & (1 << hook);
 
 			if (e->comefrom & (1 << NF_INET_NUMHOOKS)) {
@@ -610,9 +616,9 @@ cleanup_match(struct ip6t_entry_match *m, struct net *net, unsigned int *i)
 }
 
 static int
-check_entry(struct ip6t_entry *e, const char *name)
+check_entry(const struct ip6t_entry *e, const char *name)
 {
-	struct ip6t_entry_target *t;
+	const struct ip6t_entry_target *t;
 
 	if (!ip6_checkentry(&e->ipv6)) {
 		duprintf("ip_tables: ip check failed %p %s.\n", e, name);
@@ -623,7 +629,7 @@ check_entry(struct ip6t_entry *e, const char *name)
 	    e->next_offset)
 		return -EINVAL;
 
-	t = ip6t_get_target(e);
+	t = ip6t_get_target_c(e);
 	if (e->target_offset + t->u.target_size > e->next_offset)
 		return -EINVAL;
 
@@ -750,14 +756,14 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 	return ret;
 }
 
-static bool check_underflow(struct ip6t_entry *e)
+static bool check_underflow(const struct ip6t_entry *e)
 {
 	const struct ip6t_entry_target *t;
 	unsigned int verdict;
 
 	if (!unconditional(&e->ipv6))
 		return false;
-	t = ip6t_get_target(e);
+	t = ip6t_get_target_c(e);
 	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) != 0)
 		return false;
 	verdict = ((struct ip6t_standard_target *)t)->verdict;
@@ -768,8 +774,8 @@ static bool check_underflow(struct ip6t_entry *e)
 static int
 check_entry_size_and_hooks(struct ip6t_entry *e,
 			   struct xt_table_info *newinfo,
-			   unsigned char *base,
-			   unsigned char *limit,
+			   const unsigned char *base,
+			   const unsigned char *limit,
 			   const unsigned int *hook_entries,
 			   const unsigned int *underflows,
 			   unsigned int valid_hooks,
@@ -984,11 +990,11 @@ get_counters(const struct xt_table_info *t,
 	local_bh_enable();
 }
 
-static struct xt_counters *alloc_counters(struct xt_table *table)
+static struct xt_counters *alloc_counters(const struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
@@ -1006,11 +1012,11 @@ static struct xt_counters *alloc_counters(struct xt_table *table)
 
 static int
 copy_entries_to_user(unsigned int total_size,
-		     struct xt_table *table,
+		     const struct xt_table *table,
 		     void __user *userptr)
 {
 	unsigned int off, num;
-	struct ip6t_entry *e;
+	const struct ip6t_entry *e;
 	struct xt_counters *counters;
 	const struct xt_table_info *private = table->private;
 	int ret = 0;
@@ -1062,7 +1068,7 @@ copy_entries_to_user(unsigned int total_size,
 			}
 		}
 
-		t = ip6t_get_target(e);
+		t = ip6t_get_target_c(e);
 		if (copy_to_user(userptr + off + e->target_offset
 				 + offsetof(struct ip6t_entry_target,
 					    u.user.name),
@@ -1098,24 +1104,24 @@ static int compat_standard_to_user(void __user *dst, const void *src)
 }
 
 static inline int
-compat_calc_match(struct ip6t_entry_match *m, int *size)
+compat_calc_match(const struct ip6t_entry_match *m, int *size)
 {
 	*size += xt_compat_match_offset(m->u.kernel.match);
 	return 0;
 }
 
-static int compat_calc_entry(struct ip6t_entry *e,
+static int compat_calc_entry(const struct ip6t_entry *e,
 			     const struct xt_table_info *info,
-			     void *base, struct xt_table_info *newinfo)
+			     const void *base, struct xt_table_info *newinfo)
 {
-	struct ip6t_entry_target *t;
+	const struct ip6t_entry_target *t;
 	unsigned int entry_offset;
 	int off, i, ret;
 
 	off = sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 	entry_offset = (void *)e - base;
 	IP6T_MATCH_ITERATE(e, compat_calc_match, &off);
-	t = ip6t_get_target(e);
+	t = ip6t_get_target_c(e);
 	off += xt_compat_target_offset(t->u.kernel.target);
 	newinfo->size -= off;
 	ret = xt_compat_add_offset(AF_INET6, entry_offset, off);
@@ -1151,7 +1157,8 @@ static int compat_table_info(const struct xt_table_info *info,
 }
 #endif
 
-static int get_info(struct net *net, void __user *user, int *len, int compat)
+static int get_info(struct net *net, void __user *user,
+                    const int *len, int compat)
 {
 	char name[IP6T_TABLE_MAXNAMELEN];
 	struct xt_table *t;
@@ -1211,7 +1218,8 @@ static int get_info(struct net *net, void __user *user, int *len, int compat)
 }
 
 static int
-get_entries(struct net *net, struct ip6t_get_entries __user *uptr, int *len)
+get_entries(struct net *net, struct ip6t_get_entries __user *uptr,
+            const int *len)
 {
 	int ret;
 	struct ip6t_get_entries get;
@@ -1322,7 +1330,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 }
 
 static int
-do_replace(struct net *net, void __user *user, unsigned int len)
+do_replace(struct net *net, const void __user *user, unsigned int len)
 {
 	int ret;
 	struct ip6t_replace tmp;
@@ -1383,7 +1391,7 @@ add_counter_to_entry(struct ip6t_entry *e,
 }
 
 static int
-do_add_counters(struct net *net, void __user *user, unsigned int len,
+do_add_counters(struct net *net, const void __user *user, unsigned int len,
 		int compat)
 {
 	unsigned int i, curcpu;
@@ -1582,10 +1590,10 @@ static int
 check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 				  struct xt_table_info *newinfo,
 				  unsigned int *size,
-				  unsigned char *base,
-				  unsigned char *limit,
-				  unsigned int *hook_entries,
-				  unsigned int *underflows,
+				  const unsigned char *base,
+				  const unsigned char *limit,
+				  const unsigned int *hook_entries,
+				  const unsigned int *underflows,
 				  unsigned int *i,
 				  const char *name)
 {
