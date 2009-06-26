@@ -1889,11 +1889,7 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 	       "IOMMU: Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
 	       pci_name(pdev), start, end);
 
-	if (iommu_identity_mapping)
-		domain = si_domain;
-	else
-		/* page table init */
-		domain = get_domain_for_dev(pdev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	domain = get_domain_for_dev(pdev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
 	if (!domain)
 		return -ENOMEM;
 
@@ -1922,64 +1918,6 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 		rmrr->end_address + 1);
 }
 
-struct iommu_prepare_data {
-	struct pci_dev *pdev;
-	int ret;
-};
-
-static int __init iommu_prepare_work_fn(unsigned long start_pfn,
-					 unsigned long end_pfn, void *datax)
-{
-	struct iommu_prepare_data *data;
-
-	data = (struct iommu_prepare_data *)datax;
-
-	data->ret = iommu_prepare_identity_map(data->pdev,
-				start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
-	return data->ret;
-
-}
-
-static int __init iommu_prepare_with_active_regions(struct pci_dev *pdev)
-{
-	int nid;
-	struct iommu_prepare_data data;
-
-	data.pdev = pdev;
-	data.ret = 0;
-
-	for_each_online_node(nid) {
-		work_with_active_regions(nid, iommu_prepare_work_fn, &data);
-		if (data.ret)
-			return data.ret;
-	}
-	return data.ret;
-}
-
-#ifdef CONFIG_DMAR_GFX_WA
-static void __init iommu_prepare_gfx_mapping(void)
-{
-	struct pci_dev *pdev = NULL;
-	int ret;
-
-	for_each_pci_dev(pdev) {
-		if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO ||
-				!IS_GFX_DEVICE(pdev))
-			continue;
-		printk(KERN_INFO "IOMMU: gfx device %s 1-1 mapping\n",
-			pci_name(pdev));
-		ret = iommu_prepare_with_active_regions(pdev);
-		if (ret)
-			printk(KERN_ERR "IOMMU: mapping reserved region failed\n");
-	}
-}
-#else /* !CONFIG_DMAR_GFX_WA */
-static inline void iommu_prepare_gfx_mapping(void)
-{
-	return;
-}
-#endif
-
 #ifdef CONFIG_DMAR_FLOPPY_WA
 static inline void iommu_prepare_isa(void)
 {
@@ -1990,12 +1928,12 @@ static inline void iommu_prepare_isa(void)
 	if (!pdev)
 		return;
 
-	printk(KERN_INFO "IOMMU: Prepare 0-16M unity mapping for LPC\n");
+	printk(KERN_INFO "IOMMU: Prepare 0-16MiB unity mapping for LPC\n");
 	ret = iommu_prepare_identity_map(pdev, 0, 16*1024*1024);
 
 	if (ret)
-		printk(KERN_ERR "IOMMU: Failed to create 0-64M identity map, "
-			"floppy might not work\n");
+		printk(KERN_ERR "IOMMU: Failed to create 0-16MiB identity map; "
+		       "floppy might not work\n");
 
 }
 #else
@@ -2023,16 +1961,30 @@ static int __init init_context_pass_through(void)
 }
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width);
+
+static int __init si_domain_work_fn(unsigned long start_pfn,
+				    unsigned long end_pfn, void *datax)
+{
+	int *ret = datax;
+
+	*ret = iommu_domain_identity_map(si_domain,
+					 (uint64_t)start_pfn << PAGE_SHIFT,
+					 (uint64_t)end_pfn << PAGE_SHIFT);
+	return *ret;
+
+}
+
 static int si_domain_init(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	int ret = 0;
+	int nid, ret = 0;
 
 	si_domain = alloc_domain();
 	if (!si_domain)
 		return -EFAULT;
 
+	pr_debug("Identity mapping domain is domain %d\n", si_domain->id);
 
 	for_each_active_iommu(iommu, drhd) {
 		ret = iommu_attach_domain(si_domain, iommu);
@@ -2048,6 +2000,12 @@ static int si_domain_init(void)
 	}
 
 	si_domain->flags = DOMAIN_FLAG_STATIC_IDENTITY;
+
+	for_each_online_node(nid) {
+		work_with_active_regions(nid, si_domain_work_fn, &ret);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -2102,13 +2060,14 @@ static int iommu_prepare_static_identity_mapping(void)
 	if (ret)
 		return -EFAULT;
 
-	printk(KERN_INFO "IOMMU: Setting identity map:\n");
 	for_each_pci_dev(pdev) {
-		ret = iommu_prepare_with_active_regions(pdev);
-		if (ret) {
-			printk(KERN_INFO "1:1 mapping to one domain failed.\n");
-			return -EFAULT;
-		}
+		printk(KERN_INFO "IOMMU: identity mapping for device %s\n",
+		       pci_name(pdev));
+
+		ret = domain_context_mapping(si_domain, pdev,
+					     CONTEXT_TT_MULTI_LEVEL);
+		if (ret)
+			return ret;
 		ret = domain_add_dev_info(si_domain, pdev);
 		if (ret)
 			return ret;
@@ -2298,8 +2257,6 @@ int __init init_dmars(void)
 				 "IOMMU: mapping reserved region failed\n");
 			}
 		}
-
-		iommu_prepare_gfx_mapping();
 
 		iommu_prepare_isa();
 	}
