@@ -31,12 +31,12 @@ Memory scanning parameters can be modified at run-time by writing to the
 /sys/kernel/debug/kmemleak file. The following parameters are supported:
 
   off		- disable kmemleak (irreversible)
-  stack=on	- enable the task stacks scanning
+  stack=on	- enable the task stacks scanning (default)
   stack=off	- disable the tasks stacks scanning
-  scan=on	- start the automatic memory scanning thread
+  scan=on	- start the automatic memory scanning thread (default)
   scan=off	- stop the automatic memory scanning thread
-  scan=<secs>	- set the automatic memory scanning period in seconds (0
-		  to disable it)
+  scan=<secs>	- set the automatic memory scanning period in seconds
+		  (default 600, 0 to stop the automatic scanning)
 
 Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
 the kernel command line.

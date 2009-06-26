@@ -194,7 +194,7 @@ static unsigned long jiffies_min_age;
 /* delay between automatic memory scannings */
 static signed long jiffies_scan_wait;
 /* enables or disables the task stacks scanning */
-static int kmemleak_stack_scan;
+static int kmemleak_stack_scan = 1;
 /* mutex protecting the memory scanning */
 static DEFINE_MUTEX(scan_mutex);
 /* mutex protecting the access to the /sys/kernel/debug/kmemleak file */
