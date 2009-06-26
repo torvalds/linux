@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include <linux/acpi.h>
 
 #define I915_LVDS "i915_lvds"
 
@@ -788,6 +789,65 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	{ }	/* terminating entry */
 };
 
+#ifdef CONFIG_ACPI
+/*
+ * check_lid_device -- check whether @handle is an ACPI LID device.
+ * @handle: ACPI device handle
+ * @level : depth in the ACPI namespace tree
+ * @context: the number of LID device when we find the device
+ * @rv: a return value to fill if desired (Not use)
+ */
+static acpi_status
+check_lid_device(acpi_handle handle, u32 level, void *context,
+			void **return_value)
+{
+	struct acpi_device *acpi_dev;
+	int *lid_present = context;
+
+	acpi_dev = NULL;
+	/* Get the acpi device for device handle */
+	if (acpi_bus_get_device(handle, &acpi_dev) || !acpi_dev) {
+		/* If there is no ACPI device for handle, return */
+		return AE_OK;
+	}
+
+	if (!strncmp(acpi_device_hid(acpi_dev), "PNP0C0D", 7))
+		*lid_present = 1;
+
+	return AE_OK;
+}
+
+/**
+ * check whether there exists the ACPI LID device by enumerating the ACPI
+ * device tree.
+ */
+static int intel_lid_present(void)
+{
+	int lid_present = 0;
+
+	if (acpi_disabled) {
+		/* If ACPI is disabled, there is no ACPI device tree to
+		 * check, so assume the LID device would have been present.
+		 */
+		return 1;
+	}
+
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+				ACPI_UINT32_MAX,
+				check_lid_device, &lid_present, NULL);
+
+	return lid_present;
+}
+#else
+static int intel_lid_present(void)
+{
+	/* In the absence of ACPI built in, assume that the LID device would
+	 * have been present.
+	 */
+	return 1;
+}
+#endif
+
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -809,6 +869,16 @@ void intel_lvds_init(struct drm_device *dev)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
+		return;
+
+	/* Assume that any device without an ACPI LID device also doesn't
+	 * have an integrated LVDS.  We would be better off parsing the BIOS
+	 * to get a reliable indicator, but that code isn't written yet.
+	 *
+	 * In the case of all-in-one desktops using LVDS that we've seen,
+	 * they're using SDVO LVDS.
+	 */
+	if (!intel_lid_present())
 		return;
 
 	if (IS_IGDNG(dev)) {
