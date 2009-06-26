@@ -62,11 +62,6 @@ struct ip_event {
 	unsigned char __more_data[];
 };
 
-struct ip_callchain {
-	u64 nr;
-	u64 ips[0];
-};
-
 struct mmap_event {
 	struct perf_event_header header;
 	u32 pid, tid;

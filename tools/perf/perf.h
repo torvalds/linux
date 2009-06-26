@@ -66,4 +66,9 @@ sys_perf_counter_open(struct perf_counter_attr *attr,
 #define MAX_COUNTERS			256
 #define MAX_NR_CPUS			256
 
+struct ip_callchain {
+	u64 nr;
+	u64 ips[0];
+};
+
 #endif
