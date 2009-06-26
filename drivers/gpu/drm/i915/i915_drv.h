@@ -225,6 +225,8 @@ typedef struct drm_i915_private {
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
+	unsigned int fsb_freq, mem_freq;
+
 	spinlock_t error_lock;
 	struct drm_i915_error_state *first_error;
 
@@ -889,6 +891,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_IGDNG(dev))
 #define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_I965G(dev))
+/* dsparb controlled by hw only */
+#define DSPARB_HWCONTROL(dev) (IS_G4X(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

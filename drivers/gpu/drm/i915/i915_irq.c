@@ -376,11 +376,15 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		 * Clear the PIPE(A|B)STAT regs before the IIR
 		 */
 		if (pipea_stats & 0x8000ffff) {
+			if (pipea_stats &  PIPE_FIFO_UNDERRUN_STATUS)
+				DRM_DEBUG("pipe a underrun\n");
 			I915_WRITE(PIPEASTAT, pipea_stats);
 			irq_received = 1;
 		}
 
 		if (pipeb_stats & 0x8000ffff) {
+			if (pipeb_stats &  PIPE_FIFO_UNDERRUN_STATUS)
+				DRM_DEBUG("pipe b underrun\n");
 			I915_WRITE(PIPEBSTAT, pipeb_stats);
 			irq_received = 1;
 		}
