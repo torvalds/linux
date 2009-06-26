@@ -16,9 +16,9 @@ Usage
 -----
 
 CONFIG_DEBUG_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
-thread scans the memory every 10 minutes (by default) and prints any new
-unreferenced objects found. To trigger an intermediate scan and display
-all the possible memory leaks:
+thread scans the memory every 10 minutes (by default) and prints the
+number of new unreferenced objects found. To trigger an intermediate
+scan and display the details of all the possible memory leaks:
 
   # mount -t debugfs nodev /sys/kernel/debug/
   # cat /sys/kernel/debug/kmemleak

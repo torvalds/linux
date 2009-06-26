@@ -279,15 +279,6 @@ static int color_gray(const struct kmemleak_object *object)
 }
 
 /*
- * Objects are considered referenced if their color is gray and they have not
- * been deleted.
- */
-static int referenced_object(struct kmemleak_object *object)
-{
-	return (object->flags & OBJECT_ALLOCATED) && color_gray(object);
-}
-
-/*
  * Objects are considered unreferenced only if their color is white, they have
  * not be deleted and have a minimum age to avoid false positives caused by
  * pointers temporarily stored in CPU registers.
@@ -299,38 +290,23 @@ static int unreferenced_object(struct kmemleak_object *object)
 }
 
 /*
- * Printing of the (un)referenced objects information, either to the seq file
- * or to the kernel log. The print_referenced/print_unreferenced functions
- * must be called with the object->lock held.
+ * Printing of the unreferenced objects information to the seq file. The
+ * print_unreferenced function must be called with the object->lock held.
  */
-#define print_helper(seq, x...)	do {	\
-	struct seq_file *s = (seq);	\
-	if (s)				\
-		seq_printf(s, x);	\
-	else				\
-		pr_info(x);		\
-} while (0)
-
-static void print_referenced(struct kmemleak_object *object)
-{
-	pr_info("referenced object 0x%08lx (size %zu)\n",
-		object->pointer, object->size);
-}
-
 static void print_unreferenced(struct seq_file *seq,
 			       struct kmemleak_object *object)
 {
 	int i;
 
-	print_helper(seq, "unreferenced object 0x%08lx (size %zu):\n",
-		     object->pointer, object->size);
-	print_helper(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
-		     object->comm, object->pid, object->jiffies);
-	print_helper(seq, "  backtrace:\n");
+	seq_printf(seq, "unreferenced object 0x%08lx (size %zu):\n",
+		   object->pointer, object->size);
+	seq_printf(seq, "  comm \"%s\", pid %d, jiffies %lu\n",
+		   object->comm, object->pid, object->jiffies);
+	seq_printf(seq, "  backtrace:\n");
 
 	for (i = 0; i < object->trace_len; i++) {
 		void *ptr = (void *)object->trace[i];
-		print_helper(seq, "    [<%p>] %pS\n", ptr, ptr);
+		seq_printf(seq, "    [<%p>] %pS\n", ptr, ptr);
 	}
 }
 
@@ -571,8 +547,6 @@ static void delete_object(unsigned long ptr)
 	 * cannot be freed when it is being scanned.
 	 */
 	spin_lock_irqsave(&object->lock, flags);
-	if (object->flags & OBJECT_REPORTED)
-		print_referenced(object);
 	object->flags &= ~OBJECT_ALLOCATED;
 	spin_unlock_irqrestore(&object->lock, flags);
 	put_object(object);
@@ -1073,32 +1047,29 @@ static int kmemleak_scan_thread(void *arg)
 	while (!kthread_should_stop()) {
 		struct kmemleak_object *object;
 		signed long timeout = jiffies_scan_wait;
+		int new_leaks = 0;
 
 		mutex_lock(&scan_mutex);
 
 		kmemleak_scan();
-		reported_leaks = 0;
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(object, &object_list, object_list) {
 			unsigned long flags;
 
-			if (reported_leaks >= REPORTS_NR)
-				break;
 			spin_lock_irqsave(&object->lock, flags);
-			if (!(object->flags & OBJECT_REPORTED) &&
-			    unreferenced_object(object)) {
-				print_unreferenced(NULL, object);
+			if (unreferenced_object(object) &&
+			    !(object->flags & OBJECT_REPORTED)) {
 				object->flags |= OBJECT_REPORTED;
-				reported_leaks++;
-			} else if ((object->flags & OBJECT_REPORTED) &&
-				   referenced_object(object)) {
-				print_referenced(object);
-				object->flags &= ~OBJECT_REPORTED;
+				new_leaks++;
 			}
 			spin_unlock_irqrestore(&object->lock, flags);
 		}
 		rcu_read_unlock();
+
+		if (new_leaks)
+			pr_info("%d new suspected memory leaks (see "
+				"/sys/kernel/debug/kmemleak)\n", new_leaks);
 
 		mutex_unlock(&scan_mutex);
 		/* wait before the next scan */
