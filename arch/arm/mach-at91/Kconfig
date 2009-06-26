@@ -41,6 +41,12 @@ config ARCH_AT91SAM9G20
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
+config ARCH_AT91SAM9G45
+	bool "AT91SAM9G45"
+	select CPU_ARM926T
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
 config ARCH_AT91CAP9
 	bool "AT91CAP9"
 	select CPU_ARM926T
@@ -280,6 +286,22 @@ endif
 
 # ----------------------------------------------------------
 
+if ARCH_AT91SAM9G45
+
+comment "AT91SAM9G45 Board Type"
+
+config MACH_AT91SAM9G45EKES
+	bool "Atmel AT91SAM9G45-EKES Evaluation Kit"
+	depends on ARCH_AT91SAM9G45
+	help
+	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
+	  "ES" at the end of the name means that this board is an
+	  Engineering Sample.
+
+endif
+
+# ----------------------------------------------------------
+
 if ARCH_AT91CAP9
 
 comment "AT91CAP9 Board Type"
@@ -321,7 +343,7 @@ config MTD_AT91_DATAFLASH_CARD
 
 config MTD_NAND_ATMEL_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91CAP9ADK)
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
 	help
 	  On AT91SAM926x boards both types of NAND flash can be present
 	  (8 and 16 bit data bus width).
@@ -383,7 +405,7 @@ config AT91_EARLY_USART2
 
 config AT91_EARLY_USART3
 	bool "USART3"
-	depends on (ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
+	depends on (ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9260 || ARCH_AT91SAM9G20 || ARCH_AT91SAM9G45)
 
 config AT91_EARLY_USART4
 	bool "USART4"

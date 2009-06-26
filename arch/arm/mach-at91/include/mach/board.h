@@ -80,7 +80,8 @@ struct at91_eth_data {
 };
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
-#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9)
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9) \
+	|| defined(CONFIG_ARCH_AT91SAM9G45)
 #define eth_platform_data	at91_eth_data
 #endif
 
@@ -90,6 +91,7 @@ struct at91_usbh_data {
 	u8		vbus_pin[2];	/* port power-control pin */
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
+extern void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data);
 
  /* NAND / SmartMedia */
 struct atmel_nand_data {
@@ -105,7 +107,11 @@ struct atmel_nand_data {
 extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 
  /* I2C*/
+#if defined(CONFIG_ARCH_AT91SAM9G45)
+extern void __init at91_add_device_i2c(short i2c_id, struct i2c_board_info *devices, int nr_devices);
+#else
 extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices);
+#endif
 
  /* SPI */
 extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
