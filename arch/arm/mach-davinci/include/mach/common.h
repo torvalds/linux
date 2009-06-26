@@ -63,6 +63,7 @@ struct davinci_soc_info {
 	void __iomem			*gpio_base;
 	unsigned			gpio_num;
 	unsigned			gpio_irq;
+	unsigned			gpio_unbanked;
 	struct platform_device		*serial_dev;
 	struct emac_platform_data	*emac_pdata;
 	dma_addr_t			sram_dma;
