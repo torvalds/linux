@@ -1641,6 +1641,26 @@ static void cfq_ioc_set_ioprio(struct io_context *ioc)
 	ioc->ioprio_changed = 0;
 }
 
+static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
+			  pid_t pid, int is_sync)
+{
+	RB_CLEAR_NODE(&cfqq->rb_node);
+	RB_CLEAR_NODE(&cfqq->p_node);
+	INIT_LIST_HEAD(&cfqq->fifo);
+
+	atomic_set(&cfqq->ref, 0);
+	cfqq->cfqd = cfqd;
+
+	cfq_mark_cfqq_prio_changed(cfqq);
+
+	if (is_sync) {
+		if (!cfq_class_idle(cfqq))
+			cfq_mark_cfqq_idle_window(cfqq);
+		cfq_mark_cfqq_sync(cfqq);
+	}
+	cfqq->pid = pid;
+}
+
 static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, int is_sync,
 		     struct io_context *ioc, gfp_t gfp_mask)
@@ -1678,23 +1698,8 @@ retry:
 				goto out;
 		}
 
-		RB_CLEAR_NODE(&cfqq->rb_node);
-		RB_CLEAR_NODE(&cfqq->p_node);
-		INIT_LIST_HEAD(&cfqq->fifo);
-
-		atomic_set(&cfqq->ref, 0);
-		cfqq->cfqd = cfqd;
-
-		cfq_mark_cfqq_prio_changed(cfqq);
-
+		cfq_init_cfqq(cfqd, cfqq, current->pid, is_sync);
 		cfq_init_prio_data(cfqq, ioc);
-
-		if (is_sync) {
-			if (!cfq_class_idle(cfqq))
-				cfq_mark_cfqq_idle_window(cfqq);
-			cfq_mark_cfqq_sync(cfqq);
-		}
-		cfqq->pid = current->pid;
 		cfq_log_cfqq(cfqd, cfqq, "alloced");
 	}
 
