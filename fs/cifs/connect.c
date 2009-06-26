@@ -1196,6 +1196,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			/* ignore */
 		} else if (strnicmp(data, "guest", 5) == 0) {
 			/* ignore */
+		} else if (strnicmp(data, "rw", 2) == 0) {
+			/* ignore */
+		} else if (strnicmp(data, "ro", 2) == 0) {
+			/* ignore */
 		} else if (strnicmp(data, "noblocksend", 11) == 0) {
 			vol->noblocksnd = 1;
 		} else if (strnicmp(data, "noautotune", 10) == 0) {
