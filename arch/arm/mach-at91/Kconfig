@@ -23,6 +23,12 @@ config ARCH_AT91SAM9261
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
+config ARCH_AT91SAM9G10
+	bool "AT91SAM9G10"
+	select CPU_ARM926T
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
 	select CPU_ARM926T
@@ -230,6 +236,21 @@ endif
 
 # ----------------------------------------------------------
 
+if ARCH_AT91SAM9G10
+
+comment "AT91SAM9G10 Board Type"
+
+config MACH_AT91SAM9G10EK
+	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
+	depends on ARCH_AT91SAM9G10
+	help
+	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
+
+endif
+
+# ----------------------------------------------------------
+
 if ARCH_AT91SAM9263
 
 comment "AT91SAM9263 Board Type"
@@ -337,13 +358,13 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_ECBAT91 || MACH_SAM9_L9260 || MACH_AT91CAP9ADK || MACH_NEOCORE926)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_ECBAT91 || MACH_SAM9_L9260 || MACH_AT91CAP9ADK || MACH_NEOCORE926)
 	help
 	  Enable support for the DataFlash card.
 
 config MTD_NAND_ATMEL_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91SAM9G45EKES || MACH_AT91CAP9ADK)
 	help
 	  On AT91SAM926x boards both types of NAND flash can be present
 	  (8 and 16 bit data bus width).
