@@ -52,19 +52,18 @@ smp_85xx_kick_cpu(int nr)
 
 	pr_debug("smp_85xx_kick_cpu: kick CPU #%d\n", nr);
 
-	local_irq_save(flags);
-
 	np = of_get_cpu_node(nr, NULL);
 	cpu_rel_addr = of_get_property(np, "cpu-release-addr", NULL);
 
 	if (cpu_rel_addr == NULL) {
 		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
-		local_irq_restore(flags);
 		return;
 	}
 
 	/* Map the spin table */
 	bptr_vaddr = ioremap(*cpu_rel_addr, SIZE_BOOT_ENTRY);
+
+	local_irq_save(flags);
 
 	out_be32(bptr_vaddr + BOOT_ENTRY_PIR, nr);
 	out_be32(bptr_vaddr + BOOT_ENTRY_ADDR_LOWER, __pa(__early_start));
@@ -73,9 +72,9 @@ smp_85xx_kick_cpu(int nr)
 	while ((__secondary_hold_acknowledge != nr) && (++n < 1000))
 		mdelay(1);
 
-	iounmap(bptr_vaddr);
-
 	local_irq_restore(flags);
+
+	iounmap(bptr_vaddr);
 
 	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
 }
