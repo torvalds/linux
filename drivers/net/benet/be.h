@@ -73,7 +73,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
 #define BE_MAX_LRO_DESCRIPTORS  16
-#define BE_MAX_FRAGS_PER_FRAME  16
+#define BE_MAX_FRAGS_PER_FRAME  (min((u32) 16, (u32) MAX_SKB_FRAGS))
 
 struct be_dma_mem {
 	void *va;
