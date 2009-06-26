@@ -36,6 +36,12 @@ struct iwl_priv;
 #define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
 #define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
 
+#define iwl_print_hex_error(priv, p, len) 				\
+do {									\
+	print_hex_dump(KERN_ERR, "iwl data: ",				\
+		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
+} while (0)
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG(__priv, level, fmt, args...)				\
 do {									\
