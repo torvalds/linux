@@ -129,10 +129,10 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 		return -ENOMEM;
 
 	ret = __uvc_query_ctrl(video->dev, query, 0, video->streaming->intfnum,
-		probe ? VS_PROBE_CONTROL : VS_COMMIT_CONTROL, data, size,
-		UVC_CTRL_STREAMING_TIMEOUT);
+		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
+		size, UVC_CTRL_STREAMING_TIMEOUT);
 
-	if ((query == GET_MIN || query == GET_MAX) && ret == 2) {
+	if ((query == UVC_GET_MIN || query == UVC_GET_MAX) && ret == 2) {
 		/* Some cameras, mostly based on Bison Electronics chipsets,
 		 * answer a GET_MIN or GET_MAX request with the wCompQuality
 		 * field only.
@@ -144,7 +144,7 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
 		ret = 0;
 		goto out;
-	} else if (query == GET_DEF && probe == 1 && ret != size) {
+	} else if (query == UVC_GET_DEF && probe == 1 && ret != size) {
 		/* Many cameras don't support the GET_DEF request on their
 		 * video probe control. Warn once and return, the caller will
 		 * fall back to GET_CUR.
@@ -232,10 +232,10 @@ static int uvc_set_video_ctrl(struct uvc_video_device *video,
 		data[33] = ctrl->bMaxVersion;
 	}
 
-	ret = __uvc_query_ctrl(video->dev, SET_CUR, 0,
+	ret = __uvc_query_ctrl(video->dev, UVC_SET_CUR, 0,
 		video->streaming->intfnum,
-		probe ? VS_PROBE_CONTROL : VS_COMMIT_CONTROL, data, size,
-		UVC_CTRL_STREAMING_TIMEOUT);
+		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
+		size, UVC_CTRL_STREAMING_TIMEOUT);
 	if (ret != size) {
 		uvc_printk(KERN_ERR, "Failed to set UVC %s control : "
 			"%d (exp. %u).\n", probe ? "probe" : "commit",
@@ -269,10 +269,10 @@ int uvc_probe_video(struct uvc_video_device *video,
 
 	/* Get the minimum and maximum values for compression settings. */
 	if (!(video->dev->quirks & UVC_QUIRK_PROBE_MINMAX)) {
-		ret = uvc_get_video_ctrl(video, &probe_min, 1, GET_MIN);
+		ret = uvc_get_video_ctrl(video, &probe_min, 1, UVC_GET_MIN);
 		if (ret < 0)
 			goto done;
-		ret = uvc_get_video_ctrl(video, &probe_max, 1, GET_MAX);
+		ret = uvc_get_video_ctrl(video, &probe_max, 1, UVC_GET_MAX);
 		if (ret < 0)
 			goto done;
 
@@ -280,8 +280,11 @@ int uvc_probe_video(struct uvc_video_device *video,
 	}
 
 	for (i = 0; i < 2; ++i) {
-		if ((ret = uvc_set_video_ctrl(video, probe, 1)) < 0 ||
-		    (ret = uvc_get_video_ctrl(video, probe, 1, GET_CUR)) < 0)
+		ret = uvc_set_video_ctrl(video, probe, 1);
+		if (ret < 0)
+			goto done;
+		ret = uvc_get_video_ctrl(video, probe, 1, UVC_GET_CUR);
+		if (ret < 0)
 			goto done;
 
 		if (video->streaming->intf->num_altsetting == 1)
@@ -1065,7 +1068,7 @@ int uvc_video_init(struct uvc_video_device *video)
 	 * requests on the probe control will just keep their current streaming
 	 * parameters.
 	 */
-	if (uvc_get_video_ctrl(video, probe, 1, GET_DEF) == 0)
+	if (uvc_get_video_ctrl(video, probe, 1, UVC_GET_DEF) == 0)
 		uvc_set_video_ctrl(video, probe, 1);
 
 	/* Initialize the streaming parameters with the probe control current
@@ -1073,7 +1076,8 @@ int uvc_video_init(struct uvc_video_device *video)
 	 * control will always use values retrieved from a successful GET_CUR
 	 * request on the probe control, as required by the UVC specification.
 	 */
-	if ((ret = uvc_get_video_ctrl(video, probe, 1, GET_CUR)) < 0)
+	ret = uvc_get_video_ctrl(video, probe, 1, UVC_GET_CUR);
+	if (ret < 0)
 		return ret;
 
 	/* Check if the default format descriptor exists. Use the first

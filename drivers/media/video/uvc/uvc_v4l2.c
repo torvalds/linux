@@ -648,7 +648,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(input, 0, sizeof *input);
 		input->index = index;
 		strlcpy(input->name, iterm->name, sizeof input->name);
-		if (UVC_ENTITY_TYPE(iterm) == ITT_CAMERA)
+		if (UVC_ENTITY_TYPE(iterm) == UVC_ITT_CAMERA)
 			input->type = V4L2_INPUT_TYPE_CAMERA;
 		break;
 	}
@@ -663,9 +663,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			break;
 		}
 
-		ret = uvc_query_ctrl(video->dev, GET_CUR, video->selector->id,
-			video->dev->intfnum, SU_INPUT_SELECT_CONTROL,
-			&input, 1);
+		ret = uvc_query_ctrl(video->dev, UVC_GET_CUR,
+			video->selector->id, video->dev->intfnum,
+			UVC_SU_INPUT_SELECT_CONTROL, &input, 1);
 		if (ret < 0)
 			return ret;
 
@@ -690,9 +690,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (input == 0 || input > video->selector->selector.bNrInPins)
 			return -EINVAL;
 
-		return uvc_query_ctrl(video->dev, SET_CUR, video->selector->id,
-			video->dev->intfnum, SU_INPUT_SELECT_CONTROL,
-			&input, 1);
+		return uvc_query_ctrl(video->dev, UVC_SET_CUR,
+			video->selector->id, video->dev->intfnum,
+			UVC_SU_INPUT_SELECT_CONTROL, &input, 1);
 	}
 
 	/* Try, Get, Set & Enum format */
