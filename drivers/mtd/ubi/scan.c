@@ -910,6 +910,8 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	if (si->is_empty)
 		ubi_msg("empty MTD device detected");
 
+	ubi->image_seq_set = 1;
+
 	/*
 	 * In case of unknown erase counter we use the mean erase counter
 	 * value.
