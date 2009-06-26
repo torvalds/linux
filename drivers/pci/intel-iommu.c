@@ -1849,25 +1849,12 @@ error:
 
 static int iommu_identity_mapping;
 
-static int iommu_prepare_identity_map(struct pci_dev *pdev,
-				      unsigned long long start,
-				      unsigned long long end)
+static int iommu_domain_identity_map(struct dmar_domain *domain,
+				     unsigned long long start,
+				     unsigned long long end)
 {
-	struct dmar_domain *domain;
 	unsigned long size;
 	unsigned long long base;
-	int ret;
-
-	printk(KERN_INFO
-		"IOMMU: Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
-		pci_name(pdev), start, end);
-	if (iommu_identity_mapping)
-		domain = si_domain;
-	else
-		/* page table init */
-		domain = get_domain_for_dev(pdev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain)
-		return -ENOMEM;
 
 	/* The address might not be aligned */
 	base = start & PAGE_MASK;
@@ -1876,31 +1863,54 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 	if (!reserve_iova(&domain->iovad, IOVA_PFN(base),
 			IOVA_PFN(base + size) - 1)) {
 		printk(KERN_ERR "IOMMU: reserve iova failed\n");
-		ret = -ENOMEM;
-		goto error;
+		return -ENOMEM;
 	}
 
-	pr_debug("Mapping reserved region %lx@%llx for %s\n",
-		size, base, pci_name(pdev));
+	pr_debug("Mapping reserved region %lx@%llx for domain %d\n",
+		 size, base, domain->id);
 	/*
 	 * RMRR range might have overlap with physical memory range,
 	 * clear it first
 	 */
 	dma_pte_clear_range(domain, base, base + size);
 
-	ret = domain_page_mapping(domain, base, base, size,
-		DMA_PTE_READ|DMA_PTE_WRITE);
+	return domain_page_mapping(domain, base, base, size,
+				   DMA_PTE_READ|DMA_PTE_WRITE);
+}
+
+static int iommu_prepare_identity_map(struct pci_dev *pdev,
+				      unsigned long long start,
+				      unsigned long long end)
+{
+	struct dmar_domain *domain;
+	int ret;
+
+	printk(KERN_INFO
+	       "IOMMU: Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
+	       pci_name(pdev), start, end);
+
+	if (iommu_identity_mapping)
+		domain = si_domain;
+	else
+		/* page table init */
+		domain = get_domain_for_dev(pdev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	if (!domain)
+		return -ENOMEM;
+
+	ret = iommu_domain_identity_map(domain, start, end);
 	if (ret)
 		goto error;
 
 	/* context entry init */
 	ret = domain_context_mapping(domain, pdev, CONTEXT_TT_MULTI_LEVEL);
-	if (!ret)
-		return 0;
-error:
+	if (ret)
+		goto error;
+
+	return 0;
+
+ error:
 	domain_exit(domain);
 	return ret;
-
 }
 
 static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
