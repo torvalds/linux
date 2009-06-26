@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_ALIAS("platform:m66592_udc");
 
-#define DRIVER_VERSION	"18 Oct 2007"
+#define DRIVER_VERSION	"26 Jun 2009"
 
 /* module parameters */
 #if defined(CONFIG_SUPERH_BUILT_IN_M66592)
@@ -276,24 +276,27 @@ static int pipe_buffer_setting(struct m66592 *m66592,
 		buf_bsize = 0;
 		break;
 	case M66592_BULK:
-		bufnum = m66592->bi_bufnum +
-			 (info->pipe - M66592_BASE_PIPENUM_BULK) * 16;
-		m66592->bi_bufnum += 16;
+		/* isochronous pipes may be used as bulk pipes */
+		if (info->pipe > M66592_BASE_PIPENUM_BULK)
+			bufnum = info->pipe - M66592_BASE_PIPENUM_BULK;
+		else
+			bufnum = info->pipe - M66592_BASE_PIPENUM_ISOC;
+
+		bufnum = M66592_BASE_BUFNUM + (bufnum * 16);
 		buf_bsize = 7;
 		pipecfg |= M66592_DBLB;
 		if (!info->dir_in)
 			pipecfg |= M66592_SHTNAK;
 		break;
 	case M66592_ISO:
-		bufnum = m66592->bi_bufnum +
+		bufnum = M66592_BASE_BUFNUM +
 			 (info->pipe - M66592_BASE_PIPENUM_ISOC) * 16;
-		m66592->bi_bufnum += 16;
 		buf_bsize = 7;
 		break;
 	}
-	if (m66592->bi_bufnum > M66592_MAX_BUFNUM) {
-		pr_err("m66592 pipe memory is insufficient(%d)\n",
-				m66592->bi_bufnum);
+
+	if (buf_bsize && ((bufnum + 16) >= M66592_MAX_BUFNUM)) {
+		pr_err("m66592 pipe memory is insufficient\n");
 		return -ENOMEM;
 	}
 
@@ -312,17 +315,6 @@ static void pipe_buffer_release(struct m66592 *m66592,
 {
 	if (info->pipe == 0)
 		return;
-
-	switch (info->type) {
-	case M66592_BULK:
-		if (is_bulk_pipe(info->pipe))
-			m66592->bi_bufnum -= 16;
-		break;
-	case M66592_ISO:
-		if (is_isoc_pipe(info->pipe))
-			m66592->bi_bufnum -= 16;
-		break;
-	}
 
 	if (is_bulk_pipe(info->pipe)) {
 		m66592->bulk--;
@@ -1602,8 +1594,6 @@ static int __init m66592_probe(struct platform_device *pdev)
 	m66592->timer.function = m66592_timer;
 	m66592->timer.data = (unsigned long)m66592;
 	m66592->reg = reg;
-
-	m66592->bi_bufnum = M66592_BASE_BUFNUM;
 
 	ret = request_irq(irq, m66592_irq, IRQF_DISABLED | IRQF_SHARED,
 			udc_name, m66592);
