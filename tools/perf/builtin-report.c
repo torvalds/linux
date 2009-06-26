@@ -15,6 +15,7 @@
 #include "util/rbtree.h"
 #include "util/symbol.h"
 #include "util/string.h"
+#include "util/callchain.h"
 
 #include "perf.h"
 #include "util/header.h"
@@ -52,6 +53,7 @@ static char		*parent_pattern = default_parent_pattern;
 static regex_t		parent_regex;
 
 static int		exclude_other = 1;
+static int		callchain;
 
 static u64		sample_type;
 
@@ -488,17 +490,19 @@ static size_t threads__fprintf(FILE *fp)
 static struct rb_root hist;
 
 struct hist_entry {
-	struct rb_node	 rb_node;
+	struct rb_node		rb_node;
 
-	struct thread	 *thread;
-	struct map	 *map;
-	struct dso	 *dso;
-	struct symbol	 *sym;
-	struct symbol	 *parent;
-	u64		 ip;
-	char		 level;
+	struct thread		*thread;
+	struct map		*map;
+	struct dso		*dso;
+	struct symbol		*sym;
+	struct symbol		*parent;
+	u64			ip;
+	char			level;
+	struct callchain_node	callchain;
+	struct rb_root		sorted_chain;
 
-	u64		 count;
+	u64			count;
 };
 
 /*
@@ -769,6 +773,48 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 }
 
 static size_t
+callchain__fprintf(FILE *fp, struct callchain_node *self, u64 total_samples)
+{
+	struct callchain_list *chain;
+	size_t ret = 0;
+
+	if (!self)
+		return 0;
+
+	ret += callchain__fprintf(fp, self->parent, total_samples);
+
+
+	list_for_each_entry(chain, &self->val, list)
+		ret += fprintf(fp, "                %p\n", (void *)chain->ip);
+
+	return ret;
+}
+
+static size_t
+hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
+			      u64 total_samples)
+{
+	struct rb_node *rb_node;
+	struct callchain_node *chain;
+	size_t ret = 0;
+
+	rb_node = rb_first(&self->sorted_chain);
+	while (rb_node) {
+		double percent;
+
+		chain = rb_entry(rb_node, struct callchain_node, rb_node);
+		percent = chain->hit * 100.0 / total_samples;
+		ret += fprintf(fp, "           %6.2f%%\n", percent);
+		ret += callchain__fprintf(fp, chain, total_samples);
+		ret += fprintf(fp, "\n");
+		rb_node = rb_next(rb_node);
+	}
+
+	return ret;
+}
+
+
+static size_t
 hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 {
 	struct sort_entry *se;
@@ -807,6 +853,9 @@ hist_entry__fprintf(FILE *fp, struct hist_entry *self, u64 total_samples)
 	}
 
 	ret += fprintf(fp, "\n");
+
+	if (callchain)
+		hist_entry_callchain__fprintf(fp, self, total_samples);
 
 	return ret;
 }
@@ -892,6 +941,7 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 		.level	= level,
 		.count	= count,
 		.parent = NULL,
+		.sorted_chain = RB_ROOT
 	};
 	int cmp;
 
@@ -934,6 +984,8 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 
 		if (!cmp) {
 			he->count += count;
+			if (callchain)
+				append_chain(&he->callchain, chain);
 			return 0;
 		}
 
@@ -947,6 +999,10 @@ hist_entry__add(struct thread *thread, struct map *map, struct dso *dso,
 	if (!he)
 		return -ENOMEM;
 	*he = entry;
+	if (callchain) {
+		callchain_init(&he->callchain);
+		append_chain(&he->callchain, chain);
+	}
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, &hist);
 
@@ -1022,6 +1078,9 @@ static void output__insert_entry(struct hist_entry *he)
 	struct rb_node **p = &output_hists.rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
+
+	if (callchain)
+		sort_chain_to_rbtree(&he->sorted_chain, &he->callchain);
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1599,6 +1658,7 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &exclude_other,
 		    "Only display entries with parent-match"),
+	OPT_BOOLEAN('c', "callchain", &callchain, "Display callchains"),
 	OPT_END()
 };
 
