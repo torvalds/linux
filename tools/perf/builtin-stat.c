@@ -32,6 +32,7 @@
  *   Wu Fengguang <fengguang.wu@intel.com>
  *   Mike Galbraith <efault@gmx.de>
  *   Paul Mackerras <paulus@samba.org>
+ *   Jaswinder Singh Rajput <jaswinder@kernel.org>
  *
  * Released under the GPL v2. (and only v2, not any later version)
  */
@@ -251,7 +252,7 @@ static void nsec_printout(int counter, u64 *count, u64 *noise)
 {
 	double msecs = (double)count[0] / 1000000;
 
-	fprintf(stderr, " %14.6f  %-20s", msecs, event_name(counter));
+	fprintf(stderr, " %14.6f  %-24s", msecs, event_name(counter));
 
 	if (attrs[counter].type == PERF_TYPE_SOFTWARE &&
 		attrs[counter].config == PERF_COUNT_SW_TASK_CLOCK) {
@@ -265,7 +266,7 @@ static void nsec_printout(int counter, u64 *count, u64 *noise)
 
 static void abs_printout(int counter, u64 *count, u64 *noise)
 {
-	fprintf(stderr, " %14Ld  %-20s", count[0], event_name(counter));
+	fprintf(stderr, " %14Ld  %-24s", count[0], event_name(counter));
 
 	if (runtime_cycles_avg &&
 		attrs[counter].type == PERF_TYPE_HARDWARE &&
@@ -295,7 +296,7 @@ static void print_counter(int counter)
 	scaled = event_scaled_avg[counter];
 
 	if (scaled == -1) {
-		fprintf(stderr, " %14s  %-20s\n",
+		fprintf(stderr, " %14s  %-24s\n",
 			"<not counted>", event_name(counter));
 		return;
 	}
@@ -306,8 +307,7 @@ static void print_counter(int counter)
 		abs_printout(counter, count, noise);
 
 	if (scaled)
-		fprintf(stderr, "  (scaled from %.2f%%)",
-			(double) count[2] / count[1] * 100);
+		fprintf(stderr, "  (%7.2fx scaled)", (double)count[1]/count[2]);
 
 	fprintf(stderr, "\n");
 }
@@ -420,7 +420,6 @@ static void print_stat(int argc, const char **argv)
 
 	for (counter = 0; counter < nr_counters; counter++)
 		print_counter(counter);
-
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, " %14.9f  seconds time elapsed",
