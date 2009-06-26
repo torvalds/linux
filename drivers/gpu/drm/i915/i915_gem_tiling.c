@@ -114,11 +114,13 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
 
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
+#ifdef CONFIG_PNP
 	if (mchbar_addr &&
 	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE)) {
 		ret = 0;
 		goto out_put;
 	}
+#endif
 
 	/* Get some space for it */
 	ret = pci_bus_alloc_resource(bridge_dev->bus, &dev_priv->mch_res,
