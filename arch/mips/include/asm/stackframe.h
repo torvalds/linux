@@ -51,9 +51,6 @@
 		LONG_S	v1, PT_ACX(sp)
 #else
 		mfhi	v1
-		LONG_S	v1, PT_HI(sp)
-		mflo	v1
-		LONG_S	v1, PT_LO(sp)
 #endif
 #ifdef CONFIG_32BIT
 		LONG_S	$8, PT_R8(sp)
@@ -62,10 +59,17 @@
 		LONG_S	$10, PT_R10(sp)
 		LONG_S	$11, PT_R11(sp)
 		LONG_S	$12, PT_R12(sp)
+#ifndef CONFIG_CPU_HAS_SMARTMIPS
+		LONG_S	v1, PT_HI(sp)
+		mflo	v1
+#endif
 		LONG_S	$13, PT_R13(sp)
 		LONG_S	$14, PT_R14(sp)
 		LONG_S	$15, PT_R15(sp)
 		LONG_S	$24, PT_R24(sp)
+#ifndef CONFIG_CPU_HAS_SMARTMIPS
+		LONG_S	v1, PT_LO(sp)
+#endif
 		.endm
 
 		.macro	SAVE_STATIC
@@ -166,7 +170,6 @@
 		LONG_S	$0, PT_R0(sp)
 		mfc0	v1, CP0_STATUS
 		LONG_S	$2, PT_R2(sp)
-		LONG_S	v1, PT_STATUS(sp)
 #ifdef CONFIG_MIPS_MT_SMTC
 		/*
 		 * Ideally, these instructions would be shuffled in
@@ -178,20 +181,21 @@
 		LONG_S	v1, PT_TCSTATUS(sp)
 #endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_S	$4, PT_R4(sp)
-		mfc0	v1, CP0_CAUSE
 		LONG_S	$5, PT_R5(sp)
-		LONG_S	v1, PT_CAUSE(sp)
+		LONG_S	v1, PT_STATUS(sp)
+		mfc0	v1, CP0_CAUSE
 		LONG_S	$6, PT_R6(sp)
-		MFC0	v1, CP0_EPC
 		LONG_S	$7, PT_R7(sp)
+		LONG_S	v1, PT_CAUSE(sp)
+		MFC0	v1, CP0_EPC
 #ifdef CONFIG_64BIT
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
 #endif
-		LONG_S	v1, PT_EPC(sp)
 		LONG_S	$25, PT_R25(sp)
 		LONG_S	$28, PT_R28(sp)
 		LONG_S	$31, PT_R31(sp)
+		LONG_S	v1, PT_EPC(sp)
 		ori	$28, sp, _THREAD_MASK
 		xori	$28, _THREAD_MASK
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
