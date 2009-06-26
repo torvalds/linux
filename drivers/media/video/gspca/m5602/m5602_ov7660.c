@@ -32,6 +32,10 @@ static int ov7660_get_auto_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val);
 static int ov7660_get_auto_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev, __s32 val);
+static int ov7660_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov7660_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+static int ov7660_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov7660_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
 const static struct ctrl ov7660_ctrls[] = {
 #define GAIN_IDX 1
@@ -120,7 +124,36 @@ const static struct ctrl ov7660_ctrls[] = {
 		},
 		.set = ov7660_set_auto_exposure,
 		.get = ov7660_get_auto_exposure
-	}
+	},
+#define HFLIP_IDX 7
+	{
+		{
+			.id 		= V4L2_CID_HFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "horizontal flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov7660_set_hflip,
+		.get = ov7660_get_hflip
+	},
+#define VFLIP_IDX 8
+	{
+		{
+			.id 		= V4L2_CID_VFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "vertical flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0
+		},
+		.set = ov7660_set_vflip,
+		.get = ov7660_get_vflip
+	},
+
 };
 
 static struct v4l2_pix_format ov7660_modes[] = {
@@ -221,7 +254,7 @@ int ov7660_init(struct sd *sd)
 		} else {
 			data[0] = init2_ov7660[i][2];
 			err = m5602_write_sensor(sd,
-					init2_ov7660[i][1], data, 1);
+				init2_ov7660[i][1], data, 1);
 		}
 	}
 
@@ -254,6 +287,16 @@ int ov7660_init(struct sd *sd)
 
 	err = ov7660_set_red_gain(&sd->gspca_dev,
 		sensor_settings[RED_BALANCE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov7660_set_hflip(&sd->gspca_dev,
+		sensor_settings[HFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = ov7660_set_vflip(&sd->gspca_dev,
+		sensor_settings[VFLIP_IDX]);
 
 	return err;
 }
@@ -439,6 +482,68 @@ static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev,
 	i2c_data = ((i2c_data & 0xfe) | ((val & 0x01) << 0));
 
 	return m5602_write_sensor(sd, OV7660_COM8, &i2c_data, 1);
+}
+
+static int ov7660_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[HFLIP_IDX];
+	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
+	return 0;
+}
+
+static int ov7660_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
+
+	sensor_settings[HFLIP_IDX] = val;
+
+	i2c_data = ((val & 0x01) << 5) |
+		(sensor_settings[VFLIP_IDX] << 4);
+
+	err = m5602_write_sensor(sd, OV7660_MVFP, &i2c_data, 1);
+
+	return err;
+}
+
+static int ov7660_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[VFLIP_IDX];
+	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
+
+	return 0;
+}
+
+static int ov7660_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
+	sensor_settings[VFLIP_IDX] = val;
+
+	i2c_data = ((val & 0x01) << 4) | (sensor_settings[VFLIP_IDX] << 5);
+	err = m5602_write_sensor(sd, OV7660_MVFP, &i2c_data, 1);
+	if (err < 0)
+		return err;
+
+	/* When vflip is toggled we need to readjust the bridge hsync/vsync */
+	if (gspca_dev->streaming)
+		err = ov7660_start(sd);
+
+	return err;
 }
 
 static void ov7660_dump_registers(struct sd *sd)
