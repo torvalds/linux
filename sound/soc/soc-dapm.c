@@ -2045,6 +2045,7 @@ void snd_soc_dapm_shutdown(struct snd_soc_device *socdev)
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
 		if (w->power) {
 			dapm_seq_insert(w, &down_list, dapm_down_seq);
+			w->power = 0;
 			powerdown = 1;
 		}
 	}
