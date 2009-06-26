@@ -444,7 +444,7 @@ enum {
 #define K8_MSR_MC4ADDR			0x0412
 
 /* AMD sets the first MC device at device ID 0x18. */
-static inline int get_mc_node_id_from_pdev(struct pci_dev *pdev)
+static inline int get_node_id(struct pci_dev *pdev)
 {
 	return PCI_SLOT(pdev->devfn) - 0x18;
 }
