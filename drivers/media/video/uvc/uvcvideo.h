@@ -79,13 +79,6 @@ struct uvc_xu_control {
 
 #define PC_PROTOCOL_UNDEFINED		0x00
 
-#define CS_UNDEFINED			0x20
-#define CS_DEVICE			0x21
-#define CS_CONFIGURATION		0x22
-#define CS_STRING			0x23
-#define CS_INTERFACE			0x24
-#define CS_ENDPOINT			0x25
-
 /* VideoControl class specific interface descriptor */
 #define VC_DESCRIPTOR_UNDEFINED		0x00
 #define VC_HEADER			0x01
