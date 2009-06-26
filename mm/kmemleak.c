@@ -190,7 +190,9 @@ static unsigned long max_addr;
 static unsigned long next_scan_yield;
 static struct task_struct *scan_thread;
 static unsigned long jiffies_scan_yield;
+/* used to avoid reporting of recently allocated objects */
 static unsigned long jiffies_min_age;
+static unsigned long jiffies_last_scan;
 /* delay between automatic memory scannings */
 static signed long jiffies_scan_wait;
 /* enables or disables the task stacks scanning */
@@ -284,7 +286,8 @@ static int color_gray(const struct kmemleak_object *object)
 static int unreferenced_object(struct kmemleak_object *object)
 {
 	return (object->flags & OBJECT_ALLOCATED) && color_white(object) &&
-		time_is_before_eq_jiffies(object->jiffies + jiffies_min_age);
+		time_before_eq(object->jiffies + jiffies_min_age,
+			       jiffies_last_scan);
 }
 
 /*
@@ -926,6 +929,8 @@ static void kmemleak_scan(void)
 	struct task_struct *task;
 	int i;
 	int new_leaks = 0;
+
+	jiffies_last_scan = jiffies;
 
 	/* prepare the kmemleak_object's */
 	rcu_read_lock();
