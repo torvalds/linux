@@ -537,9 +537,14 @@ static void cifs_umount_begin(struct super_block *sb)
 	if (tcon == NULL)
 		return;
 
-	lock_kernel();
 	read_lock(&cifs_tcp_ses_lock);
-	if (tcon->tc_count == 1)
+	if ((tcon->tc_count > 1) || (tcon->tidStatus == CifsExiting)) {
+		/* we have other mounts to same share or we have
+		   already tried to force umount this and woken up
+		   all waiting network requests, nothing to do */
+		read_unlock(&cifs_tcp_ses_lock);
+		return;
+	} else if (tcon->tc_count == 1)
 		tcon->tidStatus = CifsExiting;
 	read_unlock(&cifs_tcp_ses_lock);
 
@@ -554,9 +559,7 @@ static void cifs_umount_begin(struct super_block *sb)
 		wake_up_all(&tcon->ses->server->response_q);
 		msleep(1);
 	}
-/* BB FIXME - finish add checks for tidStatus BB */
 
-	unlock_kernel();
 	return;
 }
 
