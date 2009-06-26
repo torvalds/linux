@@ -1100,8 +1100,10 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 	hid_debug_event(hid, buf);
 
 	report = hid_get_report(report_enum, data);
-	if (!report)
+	if (!report) {
+		kfree(buf);
 		return -1;
+	}
 
 	/* dump the report */
 	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
