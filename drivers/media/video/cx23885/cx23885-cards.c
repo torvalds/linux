@@ -593,11 +593,12 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(100);
 
 		/* Force the TDA8295A into reset and back */
-		cx_set(GP0_IO, 0x00040004);
+		cx23885_gpio_enable(dev, GPIO_2, 1);
+		cx23885_gpio_set(dev, GPIO_2);
 		mdelay(20);
-		cx_clear(GP0_IO, 0x00000004);
+		cx23885_gpio_clear(dev, GPIO_2);
 		mdelay(20);
-		cx_set(GP0_IO, 0x00040004);
+		cx23885_gpio_set(dev, GPIO_2);
 		mdelay(20);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
