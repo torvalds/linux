@@ -511,6 +511,7 @@ static __init void memory_setup(void)
 #ifdef CONFIG_MTD_UCLINUX
 	unsigned long mtd_phys = 0;
 #endif
+	unsigned long max_mem;
 
 	_rambase = (unsigned long)_stext;
 	_ramstart = (unsigned long)_end;
@@ -520,7 +521,22 @@ static __init void memory_setup(void)
 		panic("DMA region exceeds memory limit: %lu.",
 			_ramend - _ramstart);
 	}
-	memory_end = _ramend - DMA_UNCACHED_REGION;
+	max_mem = memory_end = _ramend - DMA_UNCACHED_REGION;
+
+#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
+	/* Due to a Hardware Anomaly we need to limit the size of usable
+	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
+	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	 */
+# if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
+	if (max_mem >= 56 * 1024 * 1024)
+		max_mem = 56 * 1024 * 1024;
+# else
+	if (max_mem >= 60 * 1024 * 1024)
+		max_mem = 60 * 1024 * 1024;
+# endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
+#endif				/* ANOMALY_05000263 */
+
 
 #ifdef CONFIG_MPU
 	/* Round up to multiple of 4MB */
@@ -549,22 +565,16 @@ static __init void memory_setup(void)
 
 # if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
-	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
+	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1) {
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#  if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-	/* Due to a Hardware Anomaly we need to limit the size of usable
-	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
-	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
-	 */
-#   if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
-	if (memory_end >= 56 * 1024 * 1024)
-		memory_end = 56 * 1024 * 1024;
-#   else
-	if (memory_end >= 60 * 1024 * 1024)
-		memory_end = 60 * 1024 * 1024;
-#   endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
-#  endif				/* ANOMALY_05000263 */
+
+		/* ROM_FS is XIP, so if we found it, we need to limit memory */
+		if (memory_end > max_mem) {
+			pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+			memory_end = max_mem;
+		}
+	}
 # endif				/* CONFIG_ROMFS_FS */
 
 	/* Since the default MTD_UCLINUX has no magic number, we just blindly
@@ -586,20 +596,14 @@ static __init void memory_setup(void)
 	}
 #endif				/* CONFIG_MTD_UCLINUX */
 
-#if (defined(CONFIG_BFIN_EXTMEM_ICACHEABLE) && ANOMALY_05000263)
-	/* Due to a Hardware Anomaly we need to limit the size of usable
-	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
-	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	/* We need lo limit memory, since everything could have a text section
+	 * of userspace in it, and expose anomaly 05000263. If the anomaly
+	 * doesn't exist, or we don't need to - then dont.
 	 */
-#if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
-	if (memory_end >= 56 * 1024 * 1024)
-		memory_end = 56 * 1024 * 1024;
-#else
-	if (memory_end >= 60 * 1024 * 1024)
-		memory_end = 60 * 1024 * 1024;
-#endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
-	printk(KERN_NOTICE "Warning: limiting memory to %liMB due to hardware anomaly 05000263\n", memory_end >> 20);
-#endif				/* ANOMALY_05000263 */
+	if (memory_end > max_mem) {
+		pr_info("Limiting kernel memory to %liMB due to anomaly 05000263\n", max_mem >> 20);
+		memory_end = max_mem;
+	}
 
 #ifdef CONFIG_MPU
 	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
