@@ -2171,7 +2171,7 @@ static int pci_parent_bus_reset(struct pci_dev *dev, int probe)
 	u16 ctrl;
 	struct pci_dev *pdev;
 
-	if (dev->subordinate)
+	if (pci_is_root_bus(dev->bus) || dev->subordinate || !dev->bus->self)
 		return -ENOTTY;
 
 	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
