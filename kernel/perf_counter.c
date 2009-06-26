@@ -1048,9 +1048,14 @@ static void __perf_counter_sync_stat(struct perf_counter *counter,
 	value = atomic64_xchg(&counter->count, value);
 	atomic64_set(&next_counter->count, value);
 
+	swap(counter->total_time_enabled, next_counter->total_time_enabled);
+	swap(counter->total_time_running, next_counter->total_time_running);
+
 	/*
-	 * XXX also sync time_enabled and time_running ?
+	 * Since we swizzled the values, update the user visible data too.
 	 */
+	perf_counter_update_userpage(counter);
+	perf_counter_update_userpage(next_counter);
 }
 
 #define list_next_entry(pos, member) \
