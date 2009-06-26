@@ -582,6 +582,15 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		/* CX23417 GPIO's */
 		/* EIO15 Zilog Reset */
 		/* EIO14 S5H1409/CX24227 Reset */
+		mc417_gpio_enable(dev, GPIO_15 | GPIO_14, 1);
+
+		/* Put the demod into reset and protect the eeprom */
+		mc417_gpio_clear(dev, GPIO_15 | GPIO_14);
+		mdelay(100);
+
+		/* Bring the demod and blaster out of reset */
+		mc417_gpio_set(dev, GPIO_15 | GPIO_14);
+		mdelay(100);
 
 		/* Force the TDA8295A into reset and back */
 		cx_set(GP0_IO, 0x00040004);
