@@ -775,7 +775,7 @@ struct compat_xt_hashlimit_info {
 	compat_uptr_t master;
 };
 
-static void hashlimit_mt_compat_from_user(void *dst, void *src)
+static void hashlimit_mt_compat_from_user(void *dst, const void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
@@ -783,7 +783,7 @@ static void hashlimit_mt_compat_from_user(void *dst, void *src)
 	memset(dst + off, 0, sizeof(struct compat_xt_hashlimit_info) - off);
 }
 
-static int hashlimit_mt_compat_to_user(void __user *dst, void *src)
+static int hashlimit_mt_compat_to_user(void __user *dst, const void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
