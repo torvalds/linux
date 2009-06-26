@@ -17,15 +17,15 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
-#include <mach/ep93xx-regs.h>
-#include <asm/gpio.h>
+#include <mach/hardware.h>
 
 struct ep93xx_gpio_chip {
 	struct gpio_chip	chip;
 
-	unsigned int		data_reg;
-	unsigned int		data_dir_reg;
+	void __iomem		*data_reg;
+	void __iomem		*data_dir_reg;
 };
 
 #define to_ep93xx_gpio_chip(c) container_of(c, struct ep93xx_gpio_chip, chip)
