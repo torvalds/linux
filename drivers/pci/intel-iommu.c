@@ -3491,7 +3491,7 @@ static int intel_iommu_map_range(struct iommu_domain *domain,
 	if ((iommu_prot & IOMMU_CACHE) && dmar_domain->iommu_snooping)
 		prot |= DMA_PTE_SNP;
 
-	max_addr = (iova & VTD_PAGE_MASK) + VTD_PAGE_ALIGN(size);
+	max_addr = iova + size;
 	if (dmar_domain->max_addr < max_addr) {
 		int min_agaw;
 		u64 end;
@@ -3518,16 +3518,12 @@ static void intel_iommu_unmap_range(struct iommu_domain *domain,
 				    unsigned long iova, size_t size)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
-	dma_addr_t base;
 
-	/* The address might not be aligned */
-	base = iova & VTD_PAGE_MASK;
-	size = VTD_PAGE_ALIGN(size);
-	dma_pte_clear_range(dmar_domain, base >> VTD_PAGE_SHIFT,
-			    (base + size - 1) >> VTD_PAGE_SHIFT);
+	dma_pte_clear_range(dmar_domain, iova >> VTD_PAGE_SHIFT,
+			    (iova + size - 1) >> VTD_PAGE_SHIFT);
 
-	if (dmar_domain->max_addr == base + size)
-		dmar_domain->max_addr = base;
+	if (dmar_domain->max_addr == iova + size)
+		dmar_domain->max_addr = iova;
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
