@@ -11,6 +11,8 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
+#include <linux/sched.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -541,7 +543,7 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 							mtd);
 	unsigned long timeo = jiffies;
-	int status, state = this->state;
+	int status = NAND_STATUS_FAIL, state = this->state;
 
 	if (state == FL_ERASING)
 		timeo += (HZ * 400) / 1000;
@@ -556,8 +558,9 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 
 	while (time_before(jiffies, timeo)) {
 		status = __raw_readb(this->IO_ADDR_R);
-		if (!(status & 0x40))
+		if (status & NAND_STATUS_READY)
 			break;
+		cond_resched();
 	}
 	return status;
 }
