@@ -216,12 +216,15 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 	dma_addr_t ptr;
 	snd_pcm_uframes_t offset;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		ptr = omap_get_dma_src_pos(prtd->dma_ch);
-	else
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		ptr = omap_get_dma_dst_pos(prtd->dma_ch);
+		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
+	} else if (!(cpu_is_omap1510())) {
+		ptr = omap_get_dma_src_pos(prtd->dma_ch);
+		offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
+	} else
+		offset = prtd->period_index * runtime->period_size;
 
-	offset = bytes_to_frames(runtime, ptr - runtime->dma_addr);
 	if (offset >= runtime->buffer_size)
 		offset = 0;
 
