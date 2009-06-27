@@ -779,21 +779,17 @@ static void dma_pte_clear_one(struct dmar_domain *domain, unsigned long pfn)
 /* clear last level pte, a tlb flush should be followed */
 static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 {
-	int addr_width = agaw_to_width(domain->agaw);
-	int npages;
+	unsigned long start_pfn = IOVA_PFN(start);
+	unsigned long end_pfn = IOVA_PFN(end-1);
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 
-	BUG_ON(start >> addr_width);
-	BUG_ON((end-1) >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && end_pfn >> addr_width);
 
-	/* in case it's partial page */
-	start &= PAGE_MASK;
-	end = PAGE_ALIGN(end);
-	npages = (end - start) / VTD_PAGE_SIZE;
-
-	/* we don't need lock here, nobody else touches the iova range */
-	while (npages--) {
-		dma_pte_clear_one(domain, start >> VTD_PAGE_SHIFT);
-		start += VTD_PAGE_SIZE;
+	/* we don't need lock here; nobody else touches the iova range */
+	while (start_pfn <= end_pfn) {
+		dma_pte_clear_one(domain, start_pfn);
+		start_pfn++;
 	}
 }
 
