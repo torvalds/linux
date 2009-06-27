@@ -107,6 +107,29 @@ int ezx_pcap_read(struct pcap_chip *pcap, u8 reg_num, u32 *value)
 }
 EXPORT_SYMBOL_GPL(ezx_pcap_read);
 
+int ezx_pcap_set_bits(struct pcap_chip *pcap, u8 reg_num, u32 mask, u32 val)
+{
+	int ret;
+	u32 tmp = PCAP_REGISTER_READ_OP_BIT |
+		(reg_num << PCAP_REGISTER_ADDRESS_SHIFT);
+
+	mutex_lock(&pcap->io_mutex);
+	ret = ezx_pcap_putget(pcap, &tmp);
+	if (ret)
+		goto out_unlock;
+
+	tmp &= (PCAP_REGISTER_VALUE_MASK & ~mask);
+	tmp |= (val & mask) | PCAP_REGISTER_WRITE_OP_BIT |
+		(reg_num << PCAP_REGISTER_ADDRESS_SHIFT);
+
+	ret = ezx_pcap_putget(pcap, &tmp);
+out_unlock:
+	mutex_unlock(&pcap->io_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ezx_pcap_set_bits);
+
 /* IRQ */
 int irq_to_pcap(struct pcap_chip *pcap, int irq)
 {
