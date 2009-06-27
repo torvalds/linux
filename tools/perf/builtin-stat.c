@@ -46,7 +46,7 @@
 #include <sys/prctl.h>
 #include <math.h>
 
-static struct perf_counter_attr default_attrs[MAX_COUNTERS] = {
+static struct perf_counter_attr default_attrs[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK	},
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES},
@@ -477,16 +477,17 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 {
 	int status;
 
-	memcpy(attrs, default_attrs, sizeof(attrs));
-
 	argc = parse_options(argc, argv, options, stat_usage, 0);
 	if (!argc)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0 || run_count > MAX_RUN)
 		usage_with_options(stat_usage, options);
 
-	if (!null_run && !nr_counters)
-		nr_counters = 8;
+	/* Set attrs and nr_counters if no event is selected and !null_run */
+	if (!null_run && !nr_counters) {
+		memcpy(attrs, default_attrs, sizeof(default_attrs));
+		nr_counters = ARRAY_SIZE(default_attrs);
+	}
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
