@@ -267,6 +267,7 @@ long
 arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
+	unsigned long __user *datap = (void __user *)data;
 
 	switch (request) {
 	/* Read the word at location addr in the USER area.  */
@@ -316,7 +317,7 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			return -EIO;
 		}
 
-		ret = put_user(tmp, (unsigned long *) data);
+		ret = put_user(tmp, (unsigned int __user *) datap);
 		return ret;
 	}
 
@@ -355,11 +356,11 @@ arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (void __user *)data);
+		ret = ptrace_getregs(child, (void __user *)datap);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (void __user *)data);
+		ret = ptrace_setregs(child, (void __user *)datap);
 		break;
 
 	default:

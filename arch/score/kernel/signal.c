@@ -131,13 +131,13 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (!on_sig_stack(sp)))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
-	return (void *)((sp - frame_size) & ~7);
+	return (void __user*)((sp - frame_size) & ~7);
 }
 
 int score_sigaltstack(struct pt_regs *regs)
 {
-	const stack_t *uss = (const stack_t *) regs->regs[4];
-	stack_t *uoss = (stack_t *) regs->regs[5];
+	const stack_t __user *uss = (const stack_t __user *) regs->regs[4];
+	stack_t __user *uoss = (stack_t __user *) regs->regs[5];
 	unsigned long usp = regs->regs[0];
 
 	return do_sigaltstack(uss, uoss, usp);
@@ -188,7 +188,7 @@ badframe:
 int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 		int signr, sigset_t *set, siginfo_t *info)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	int err = 0;
 
 	frame = get_sigframe(ka, regs, sizeof(*frame));
@@ -209,7 +209,7 @@ int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= copy_siginfo_to_user(&frame->rs_info, info);
 	err |= __put_user(0, &frame->rs_uc.uc_flags);
 	err |= __put_user(0, &frame->rs_uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
+	err |= __put_user((void __user *)current->sas_ss_sp,
 				&frame->rs_uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[0]),
 				&frame->rs_uc.uc_stack.ss_flags);

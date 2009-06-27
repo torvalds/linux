@@ -87,18 +87,19 @@ int score_clone(struct pt_regs *regs)
  * sys_execve() executes a new program.
  * This is called indirectly via a small wrapper
  */
-int score_execve(struct pt_regs *regs)
+asmlinkage long
+score_execve(struct pt_regs *regs)
 {
 	int error;
 	char *filename;
 
-	filename = getname((char *) (long) regs->regs[4]);
+	filename = getname((char __user*)regs->regs[4]);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		return error;
 
-	error = do_execve(filename, (char **) (long) regs->regs[5],
-			  (char **) (long) regs->regs[6], regs);
+	error = do_execve(filename, (char __user *__user*)regs->regs[5],
+			  (char __user *__user *) regs->regs[6], regs);
 
 	putname(filename);
 	return error;
