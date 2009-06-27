@@ -42,7 +42,7 @@ struct rt_sigframe {
 	struct ucontext rs_uc;
 };
 
-int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
+static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
 	unsigned long reg;
@@ -76,7 +76,7 @@ int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	return err;
 }
 
-int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
+static int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 {
 	int err = 0;
 	u32 reg;
@@ -118,8 +118,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 /*
  * Determine which stack to use..
  */
-void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-			size_t frame_size)
+static void __user *get_sigframe(struct k_sigaction *ka,
+			struct pt_regs *regs, size_t frame_size)
 {
 	unsigned long sp;
 
@@ -134,7 +134,8 @@ void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	return (void __user*)((sp - frame_size) & ~7);
 }
 
-int score_sigaltstack(struct pt_regs *regs)
+asmlinkage long
+score_sigaltstack(struct pt_regs *regs)
 {
 	const stack_t __user *uss = (const stack_t __user *) regs->regs[4];
 	stack_t __user *uoss = (stack_t __user *) regs->regs[5];
@@ -143,7 +144,8 @@ int score_sigaltstack(struct pt_regs *regs)
 	return do_sigaltstack(uss, uoss, usp);
 }
 
-void score_rt_sigreturn(struct pt_regs *regs)
+asmlinkage long
+score_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;
@@ -183,9 +185,11 @@ void score_rt_sigreturn(struct pt_regs *regs)
 
 badframe:
 	force_sig(SIGSEGV, current);
+
+	return 0;
 }
 
-int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
+static int setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 		int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe __user *frame;
@@ -238,7 +242,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-int handle_signal(unsigned long sig, siginfo_t *info,
+static int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
@@ -278,7 +282,7 @@ int handle_signal(unsigned long sig, siginfo_t *info,
 	return ret;
 }
 
-void do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	sigset_t *oldset;

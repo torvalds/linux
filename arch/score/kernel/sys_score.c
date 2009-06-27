@@ -34,7 +34,7 @@
 unsigned long shm_align_mask = PAGE_SIZE - 1;
 EXPORT_SYMBOL(shm_align_mask);
 
-asmlinkage unsigned long
+asmlinkage unsigned
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	  unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
@@ -66,7 +66,8 @@ sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
  * Clone a task - this clones the calling program thread.
  * This is called indirectly via a small wrapper
  */
-int score_clone(struct pt_regs *regs)
+asmlinkage long
+score_clone(struct pt_regs *regs)
 {
 	unsigned long clone_flags;
 	unsigned long newsp;
