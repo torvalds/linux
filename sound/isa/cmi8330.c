@@ -35,7 +35,7 @@
  *
  *  This card has two mixers and two PCM devices.  I've cheesed it such
  *  that recording and playback can be done through the same device.
- *  The driver "magically" routes the capturing to the CMI8330 codec,
+ *  The driver "magically" routes the capturing to the AD1848 codec,
  *  and playback to the SB16 codec.  This allows for full-duplex mode
  *  to some extent.
  *  The utilities in alsa-utils are aware of both devices, so passing
@@ -345,7 +345,7 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
-		snd_printk(KERN_ERR "CMI8330/C3D PnP configure failure\n");
+		snd_printk(KERN_ERR "CMI8330/C3D (AD1848) PnP configure failure\n");
 		return -EBUSY;
 	}
 	wssport[dev] = pnp_port_start(pdev, 0);
@@ -527,11 +527,11 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 			     wssdma[dev], -1,
 			     WSS_HW_DETECT, 0, &acard->wss);
 	if (err < 0) {
-		snd_printk(KERN_ERR PFX "(CMI8330) device busy??\n");
+		snd_printk(KERN_ERR PFX "(AD1848) device busy??\n");
 		return err;
 	}
 	if (acard->wss->hardware != WSS_HW_CMI8330) {
-		snd_printk(KERN_ERR PFX "(CMI8330) not found during probe\n");
+		snd_printk(KERN_ERR PFX "(AD1848) not found during probe\n");
 		return -ENODEV;
 	}
 
