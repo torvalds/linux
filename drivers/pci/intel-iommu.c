@@ -700,8 +700,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 	unsigned long flags;
 
 	BUG_ON(!domain->pgd);
-
-	addr &= (((u64)1) << addr_width) - 1;
+	BUG_ON(addr >> addr_width);
 	parent = domain->pgd;
 
 	spin_lock_irqsave(&domain->mapping_lock, flags);
@@ -783,8 +782,9 @@ static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 	int addr_width = agaw_to_width(domain->agaw);
 	int npages;
 
-	start &= (((u64)1) << addr_width) - 1;
-	end &= (((u64)1) << addr_width) - 1;
+	BUG_ON(start >> addr_width);
+	BUG_ON((end-1) >> addr_width);
+
 	/* in case it's partial page */
 	start &= PAGE_MASK;
 	end = PAGE_ALIGN(end);
@@ -807,8 +807,8 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 	int level;
 	u64 tmp;
 
-	start &= (((u64)1) << addr_width) - 1;
-	end &= (((u64)1) << addr_width) - 1;
+	BUG_ON(start >> addr_width);
+	BUG_ON(end >> addr_width);
 
 	/* we don't need lock here, nobody else touches the iova range */
 	level = 2;
@@ -1654,7 +1654,7 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 	int index;
 	int addr_width = agaw_to_width(domain->agaw);
 
-	hpa &= (((u64)1) << addr_width) - 1;
+	BUG_ON(hpa >> addr_width);
 
 	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
 		return -EINVAL;
