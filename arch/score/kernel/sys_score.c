@@ -31,10 +31,7 @@
 #include <linux/syscalls.h>
 #include <asm/syscalls.h>
 
-unsigned long shm_align_mask = PAGE_SIZE - 1;
-EXPORT_SYMBOL(shm_align_mask);
-
-asmlinkage unsigned
+asmlinkage long 
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	  unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
@@ -104,15 +101,6 @@ score_execve(struct pt_regs *regs)
 
 	putname(filename);
 	return error;
-}
-
-/*
- * If we ever come here the user sp is bad.  Zap the process right away.
- * Due to the bad stack signaling wouldn't work.
- */
-void bad_stack(void)
-{
-	do_exit(SIGSEGV);
 }
 
 /*

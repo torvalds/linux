@@ -57,17 +57,17 @@ int apply_relocate(Elf_Shdr *sechdrs, const char *strtab,
 	for (i = 0; i < relsec->sh_size / sizeof(Elf32_Rel); i++, rel++) {
 		unsigned long loc;
 		Elf32_Sym *sym;
-		s32 offset;
+		s32 r_offset;
 
-		offset = ELF32_R_SYM(rel->r_info);
-		if ((offset < 0) ||
-		    (offset > (symsec->sh_size / sizeof(Elf32_Sym)))) {
+		r_offset = ELF32_R_SYM(rel->r_info);
+		if ((r_offset < 0) ||
+		    (r_offset > (symsec->sh_size / sizeof(Elf32_Sym)))) {
 			printk(KERN_ERR "%s: bad relocation, section %d reloc %d\n",
 				me->name, relindex, i);
 				return -ENOEXEC;
 		}
 
-		sym = ((Elf32_Sym *)symsec->sh_addr) + offset;
+		sym = ((Elf32_Sym *)symsec->sh_addr) + r_offset;
 
 		if ((rel->r_offset < 0) ||
 		    (rel->r_offset > dstsec->sh_size - sizeof(u32))) {
@@ -152,7 +152,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 /* Given an address, look for it in the module exception tables. */
 const struct exception_table_entry *search_module_dbetables(unsigned long addr)
 {
-	return 0;
+	return NULL;
 }
 
 /* Put in dbe list if necessary. */
