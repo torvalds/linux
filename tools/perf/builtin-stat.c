@@ -70,6 +70,7 @@ static int			run_count			=  1;
 static int			inherit				=  1;
 static int			scale				=  1;
 static int			target_pid			= -1;
+static int			null_run			=  0;
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
@@ -461,6 +462,8 @@ static const struct option options[] = {
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &run_count,
 		    "repeat command and print average + stddev (max: 100)"),
+	OPT_BOOLEAN('n', "null", &null_run,
+		    "null run - dont start any counters"),
 	OPT_END()
 };
 
@@ -476,7 +479,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix)
 	if (run_count <= 0 || run_count > MAX_RUN)
 		usage_with_options(stat_usage, options);
 
-	if (!nr_counters)
+	if (!null_run && !nr_counters)
 		nr_counters = 8;
 
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
