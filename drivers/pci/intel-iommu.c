@@ -65,6 +65,26 @@
 #define PHYSICAL_PAGE_MASK PAGE_MASK
 #endif
 
+/* VT-d pages must always be _smaller_ than MM pages. Otherwise things
+   are never going to work. */
+static inline unsigned long dma_to_mm_pfn(unsigned long dma_pfn)
+{
+	return dma_pfn >> (PAGE_SHIFT - VTD_PAGE_SHIFT);
+}
+
+static inline unsigned long mm_to_dma_pfn(unsigned long mm_pfn)
+{
+	return mm_pfn << (PAGE_SHIFT - VTD_PAGE_SHIFT);
+}
+static inline unsigned long page_to_dma_pfn(struct page *pg)
+{
+	return mm_to_dma_pfn(page_to_pfn(pg));
+}
+static inline unsigned long virt_to_dma_pfn(void *p)
+{
+	return page_to_dma_pfn(virt_to_page(p));
+}
+
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
@@ -207,9 +227,9 @@ static inline u64 dma_pte_addr(struct dma_pte *pte)
 	return (pte->val & VTD_PAGE_MASK);
 }
 
-static inline void dma_set_pte_addr(struct dma_pte *pte, u64 addr)
+static inline void dma_set_pte_pfn(struct dma_pte *pte, unsigned long pfn)
 {
-	pte->val |= (addr & VTD_PAGE_MASK);
+	pte->val |= (uint64_t)pfn << VTD_PAGE_SHIFT;
 }
 
 static inline bool dma_pte_present(struct dma_pte *pte)
@@ -702,7 +722,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 				return NULL;
 			}
 			domain_flush_cache(domain, tmp_page, PAGE_SIZE);
-			dma_set_pte_addr(pte, virt_to_phys(tmp_page));
+			dma_set_pte_pfn(pte, virt_to_dma_pfn(tmp_page));
 			/*
 			 * high level table always sets r/w, last level page
 			 * table control read/write
@@ -1648,7 +1668,7 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 		 * touches the iova range
 		 */
 		BUG_ON(dma_pte_addr(pte));
-		dma_set_pte_addr(pte, start_pfn << VTD_PAGE_SHIFT);
+		dma_set_pte_pfn(pte, start_pfn);
 		dma_set_pte_prot(pte, prot);
 		if (prot & DMA_PTE_SNP)
 			dma_set_pte_snp(pte);
