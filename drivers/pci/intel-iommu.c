@@ -740,8 +740,9 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 }
 
 /* return address's pte at specific level */
-static struct dma_pte *dma_addr_level_pte(struct dmar_domain *domain, u64 addr,
-		int level)
+static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
+					 unsigned long pfn,
+					 int level)
 {
 	struct dma_pte *parent, *pte = NULL;
 	int total = agaw_to_level(domain->agaw);
@@ -749,7 +750,7 @@ static struct dma_pte *dma_addr_level_pte(struct dmar_domain *domain, u64 addr,
 
 	parent = domain->pgd;
 	while (level <= total) {
-		offset = pfn_level_offset(addr >> VTD_PAGE_SHIFT, total);
+		offset = pfn_level_offset(pfn, total);
 		pte = &parent[offset];
 		if (level == total)
 			return pte;
@@ -768,7 +769,7 @@ static void dma_pte_clear_one(struct dmar_domain *domain, u64 addr)
 	struct dma_pte *pte = NULL;
 
 	/* get last level pte */
-	pte = dma_addr_level_pte(domain, addr, 1);
+	pte = dma_pfn_level_pte(domain, addr >> VTD_PAGE_SHIFT, 1);
 
 	if (pte) {
 		dma_clear_pte(pte);
@@ -817,7 +818,8 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 			return;
 
 		while (tmp < end) {
-			pte = dma_addr_level_pte(domain, tmp, level);
+			pte = dma_pfn_level_pte(domain, tmp >> VTD_PAGE_SHIFT,
+						level);
 			if (pte) {
 				free_pgtable_page(
 					phys_to_virt(dma_pte_addr(pte)));
