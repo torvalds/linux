@@ -134,6 +134,11 @@ static inline unsigned long pte_pfn(pte_t pte)
 	return (pte_val(pte) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
+
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 static inline int pmd_large(pmd_t pte)
@@ -420,11 +425,6 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {
 	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(address);
-}
-
-static inline unsigned long pmd_pfn(pmd_t pmd)
-{
-	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline int pud_large(pud_t pud)
