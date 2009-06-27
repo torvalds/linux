@@ -56,6 +56,7 @@
 #define MAX_AGAW_WIDTH 64
 
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
+#define DOMAIN_MAX_PFN(gaw)  ((((u64)1) << (gaw-VTD_PAGE_SHIFT)) - 1)
 
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
@@ -777,17 +778,17 @@ static void dma_pte_clear_one(struct dmar_domain *domain, unsigned long pfn)
 }
 
 /* clear last level pte, a tlb flush should be followed */
-static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
+static void dma_pte_clear_range(struct dmar_domain *domain,
+				unsigned long start_pfn,
+				unsigned long last_pfn)
 {
-	unsigned long start_pfn = IOVA_PFN(start);
-	unsigned long end_pfn = IOVA_PFN(end-1);
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
-	BUG_ON(addr_width < BITS_PER_LONG && end_pfn >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
 
 	/* we don't need lock here; nobody else touches the iova range */
-	while (start_pfn <= end_pfn) {
+	while (start_pfn <= last_pfn) {
 		dma_pte_clear_one(domain, start_pfn);
 		start_pfn++;
 	}
@@ -1424,7 +1425,7 @@ static void domain_exit(struct dmar_domain *domain)
 	end = end & (~PAGE_MASK);
 
 	/* clear ptes */
-	dma_pte_clear_range(domain, 0, end);
+	dma_pte_clear_range(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* free page tables */
 	dma_pte_free_pagetable(domain, 0, end);
@@ -1890,7 +1891,8 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 	 * RMRR range might have overlap with physical memory range,
 	 * clear it first
 	 */
-	dma_pte_clear_range(domain, base, base + size);
+	dma_pte_clear_range(domain, base >> VTD_PAGE_SHIFT,
+			    (base + size - 1) >> VTD_PAGE_SHIFT);
 
 	return domain_page_mapping(domain, base, base, size,
 				   DMA_PTE_READ|DMA_PTE_WRITE);
@@ -2618,7 +2620,8 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 		pci_name(pdev), size, (unsigned long long)start_addr);
 
 	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_addr, start_addr + size);
+	dma_pte_clear_range(domain, start_addr >> VTD_PAGE_SHIFT,
+			    (start_addr + size - 1) >> VTD_PAGE_SHIFT);
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 	if (intel_iommu_strict) {
@@ -2710,7 +2713,8 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	start_addr = iova->pfn_lo << PAGE_SHIFT;
 
 	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_addr, start_addr + size);
+	dma_pte_clear_range(domain, start_addr >> VTD_PAGE_SHIFT,
+			    (start_addr + size - 1) >> VTD_PAGE_SHIFT);
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 
@@ -2792,8 +2796,9 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 					  size, prot);
 		if (ret) {
 			/*  clear the page */
-			dma_pte_clear_range(domain, start_addr,
-				  start_addr + offset);
+			dma_pte_clear_range(domain,
+					    start_addr >> VTD_PAGE_SHIFT,
+					    (start_addr + offset - 1) >> VTD_PAGE_SHIFT);
 			/* free page tables */
 			dma_pte_free_pagetable(domain, start_addr,
 				  start_addr + offset);
@@ -3382,7 +3387,7 @@ static void vm_domain_exit(struct dmar_domain *domain)
 	end = end & (~VTD_PAGE_MASK);
 
 	/* clear ptes */
-	dma_pte_clear_range(domain, 0, end);
+	dma_pte_clear_range(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* free page tables */
 	dma_pte_free_pagetable(domain, 0, end);
@@ -3526,7 +3531,8 @@ static void intel_iommu_unmap_range(struct iommu_domain *domain,
 	/* The address might not be aligned */
 	base = iova & VTD_PAGE_MASK;
 	size = VTD_PAGE_ALIGN(size);
-	dma_pte_clear_range(dmar_domain, base, base + size);
+	dma_pte_clear_range(dmar_domain, base >> VTD_PAGE_SHIFT,
+			    (base + size - 1) >> VTD_PAGE_SHIFT);
 
 	if (dmar_domain->max_addr == base + size)
 		dmar_domain->max_addr = base;
