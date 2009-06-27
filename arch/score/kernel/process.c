@@ -24,6 +24,9 @@
  */
 
 #include <linux/module.h>
+#include <linux/reboot.h>
+#include <linux/elfcore.h>
+#include <linux/pm.h>
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);

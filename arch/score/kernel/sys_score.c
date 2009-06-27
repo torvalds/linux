@@ -28,6 +28,8 @@
 #include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/unistd.h>
+#include <linux/syscalls.h>
+#include <asm/syscalls.h>
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;
 EXPORT_SYMBOL(shm_align_mask);
