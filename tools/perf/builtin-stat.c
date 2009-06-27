@@ -353,8 +353,11 @@ static void calc_avg(void)
 				event_res_avg[j]+1, event_res[i][j]+1);
 			update_avg("counter/2", j,
 				event_res_avg[j]+2, event_res[i][j]+2);
-			update_avg("scaled", j,
-				event_scaled_avg + j, event_scaled[i]+j);
+			if (event_scaled[i][j] != -1)
+				update_avg("scaled", j,
+					event_scaled_avg + j, event_scaled[i]+j);
+			else
+				event_scaled_avg[j] = -1;
 		}
 	}
 	runtime_nsecs_avg /= run_count;
@@ -420,9 +423,13 @@ static void print_stat(int argc, const char **argv)
 
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " %14.9f  seconds time elapsed.\n",
+	fprintf(stderr, " %14.9f  seconds time elapsed",
 			(double)walltime_nsecs_avg/1e9);
-	fprintf(stderr, "\n");
+	if (run_count > 1) {
+		fprintf(stderr, "   ( +- %7.3f%% )",
+			100.0*(double)walltime_nsecs_noise/(double)walltime_nsecs_avg);
+	}
+	fprintf(stderr, "\n\n");
 }
 
 static volatile int signr = -1;
