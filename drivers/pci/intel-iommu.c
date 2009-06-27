@@ -764,12 +764,12 @@ static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 }
 
 /* clear one page's page table */
-static void dma_pte_clear_one(struct dmar_domain *domain, u64 addr)
+static void dma_pte_clear_one(struct dmar_domain *domain, unsigned long pfn)
 {
 	struct dma_pte *pte = NULL;
 
 	/* get last level pte */
-	pte = dma_pfn_level_pte(domain, addr >> VTD_PAGE_SHIFT, 1);
+	pte = dma_pfn_level_pte(domain, pfn, 1);
 
 	if (pte) {
 		dma_clear_pte(pte);
@@ -792,7 +792,7 @@ static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 
 	/* we don't need lock here, nobody else touches the iova range */
 	while (npages--) {
-		dma_pte_clear_one(domain, start);
+		dma_pte_clear_one(domain, start >> VTD_PAGE_SHIFT);
 		start += VTD_PAGE_SIZE;
 	}
 }
