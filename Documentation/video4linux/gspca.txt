@@ -248,6 +248,7 @@ zc3xx		0ac8:305b	Z-star Vimicro zc0305b
 zc3xx		0ac8:307b	Ldlc VC302+Ov7620
 vc032x		0ac8:c001	Sony embedded vimicro
 vc032x		0ac8:c002	Sony embedded vimicro
+vc032x		0ac8:c301	Samsung Q1 Ultra Premium
 spca508		0af9:0010	Hama USB Sightcam 100
 spca508		0af9:0011	Hama USB Sightcam 100
 sonixb		0c45:6001	Genius VideoCAM NB

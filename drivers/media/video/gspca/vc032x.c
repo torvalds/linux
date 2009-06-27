@@ -52,6 +52,7 @@ struct sd {
 #define SENSOR_OV7670 6
 #define SENSOR_PO1200 7
 #define SENSOR_PO3130NC 8
+	u8 ninput;		/* != 0 when 2 sensors - SamsungQ1 */
 };
 
 /* V4L2 controls supported by the driver */
@@ -2342,10 +2343,17 @@ static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 
 static int vc032x_probe_sensor(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
 	int i;
 	u16 value;
 	const struct sensor_info *ptsensor_info;
+
+/*fixme: should also check the other sensor (back mi1320_soc, front mc501cb)*/
+	if (sd->ninput != 0) {
+		reg_w(dev, 0xa0, 0x01, 0xb301);
+		reg_w(dev, 0x89, 0xf0ff, 0xffff); /* select the back sensor */
+	}
 
 	reg_r(gspca_dev, 0xa1, 0xbfcf, 1);
 	PDEBUG(D_PROBE, "check sensor header %02x", gspca_dev->usb_buf[0]);
@@ -2466,7 +2474,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	};
 
 	cam = &gspca_dev->cam;
-	sd->bridge = id->driver_info;
+	sd->bridge = id->driver_info >> 8;
+	sd->ninput = id->driver_info & 0xff;
 	sensor = vc032x_probe_sensor(gspca_dev);
 	switch (sensor) {
 	case -1:
@@ -2634,6 +2643,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		mi1320_soc_InitVGA,
 		mi1320_soc_InitQVGA,
 	};
+
+/*fixme: back sensor only*/
+	if (sd->ninput != 0) {
+		reg_w(gspca_dev->dev, 0x89, 0xf0ff, 0xffff);
+		reg_w(gspca_dev->dev, 0xa9, 0x8348, 0x000e);
+		reg_w(gspca_dev->dev, 0xa9, 0x0000, 0x001a);
+	}
 
 	/* Assume start use the good resolution from gspca_dev->mode */
 	if (sd->bridge == BRIDGE_VC0321) {
@@ -2906,19 +2922,23 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
+#define BF(bridge, flags) \
+	.driver_info = (BRIDGE_ ## bridge << 8) \
+		| (flags)
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x405b), .driver_info = BRIDGE_VC0323},
-	{USB_DEVICE(0x046d, 0x0892), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x046d, 0x0896), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x046d, 0x0897), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0x0321), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0x0323), .driver_info = BRIDGE_VC0323},
-	{USB_DEVICE(0x0ac8, 0x0328), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0xc001), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x0ac8, 0xc002), .driver_info = BRIDGE_VC0321},
-	{USB_DEVICE(0x15b8, 0x6001), .driver_info = BRIDGE_VC0323},
-	{USB_DEVICE(0x15b8, 0x6002), .driver_info = BRIDGE_VC0323},
-	{USB_DEVICE(0x17ef, 0x4802), .driver_info = BRIDGE_VC0323},
+	{USB_DEVICE(0x041e, 0x405b), BF(VC0323, 0)},
+	{USB_DEVICE(0x046d, 0x0892), BF(VC0321, 0)},
+	{USB_DEVICE(0x046d, 0x0896), BF(VC0321, 0)},
+	{USB_DEVICE(0x046d, 0x0897), BF(VC0321, 0)},
+	{USB_DEVICE(0x0ac8, 0x0321), BF(VC0321, 0)},
+	{USB_DEVICE(0x0ac8, 0x0323), BF(VC0323, 0)},
+	{USB_DEVICE(0x0ac8, 0x0328), BF(VC0321, 0)},
+	{USB_DEVICE(0x0ac8, 0xc001), BF(VC0321, 0)},
+	{USB_DEVICE(0x0ac8, 0xc002), BF(VC0321, 0)},
+	{USB_DEVICE(0x0ac8, 0xc301), BF(VC0323, 1)},
+	{USB_DEVICE(0x15b8, 0x6001), BF(VC0323, 0)},
+	{USB_DEVICE(0x15b8, 0x6002), BF(VC0323, 0)},
+	{USB_DEVICE(0x17ef, 0x4802), BF(VC0323, 0)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
