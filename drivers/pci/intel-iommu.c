@@ -671,9 +671,9 @@ static inline unsigned int level_to_offset_bits(int level)
 	return (12 + (level - 1) * LEVEL_STRIDE);
 }
 
-static inline int address_level_offset(u64 addr, int level)
+static inline int pfn_level_offset(unsigned long pfn, int level)
 {
-	return ((addr >> level_to_offset_bits(level)) & LEVEL_MASK);
+	return (pfn >> (level_to_offset_bits(level) - 12)) & LEVEL_MASK;
 }
 
 static inline u64 level_mask(int level)
@@ -708,7 +708,7 @@ static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
 	while (level > 0) {
 		void *tmp_page;
 
-		offset = address_level_offset(addr, level);
+		offset = pfn_level_offset(addr >> VTD_PAGE_SHIFT, level);
 		pte = &parent[offset];
 		if (level == 1)
 			break;
@@ -749,7 +749,7 @@ static struct dma_pte *dma_addr_level_pte(struct dmar_domain *domain, u64 addr,
 
 	parent = domain->pgd;
 	while (level <= total) {
-		offset = address_level_offset(addr, total);
+		offset = pfn_level_offset(addr >> VTD_PAGE_SHIFT, total);
 		pte = &parent[offset];
 		if (level == total)
 			return pte;
