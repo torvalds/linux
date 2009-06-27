@@ -669,27 +669,27 @@ static inline int width_to_agaw(int width)
 
 static inline unsigned int level_to_offset_bits(int level)
 {
-	return (12 + (level - 1) * LEVEL_STRIDE);
+	return (level - 1) * LEVEL_STRIDE;
 }
 
 static inline int pfn_level_offset(unsigned long pfn, int level)
 {
-	return (pfn >> (level_to_offset_bits(level) - 12)) & LEVEL_MASK;
+	return (pfn >> level_to_offset_bits(level)) & LEVEL_MASK;
 }
 
-static inline u64 level_mask(int level)
+static inline unsigned long level_mask(int level)
 {
-	return ((u64)-1 << level_to_offset_bits(level));
+	return -1UL << level_to_offset_bits(level);
 }
 
-static inline u64 level_size(int level)
+static inline unsigned long level_size(int level)
 {
-	return ((u64)1 << level_to_offset_bits(level));
+	return 1UL << level_to_offset_bits(level);
 }
 
-static inline u64 align_to_level(u64 addr, int level)
+static inline unsigned long align_to_level(unsigned long pfn, int level)
 {
-	return ((addr + level_size(level) - 1) & level_mask(level));
+	return (pfn + level_size(level) - 1) & level_mask(level);
 }
 
 static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
@@ -798,25 +798,29 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 static void dma_pte_free_pagetable(struct dmar_domain *domain,
 	u64 start, u64 end)
 {
-	int addr_width = agaw_to_width(domain->agaw);
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
+	unsigned long start_pfn = start >> VTD_PAGE_SHIFT;
+	unsigned long last_pfn = (end-1) >> VTD_PAGE_SHIFT;
 	struct dma_pte *pte;
 	int total = agaw_to_level(domain->agaw);
 	int level;
-	u64 tmp;
+	unsigned long tmp;
 
-	BUG_ON(start >> addr_width);
-	BUG_ON(end >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
 
 	/* we don't need lock here, nobody else touches the iova range */
 	level = 2;
 	while (level <= total) {
-		tmp = align_to_level(start, level);
-		if (tmp >= end || (tmp + level_size(level) > end))
+		tmp = align_to_level(start_pfn, level);
+
+		/* Only clear this pte/pmd if we're asked to clear its
+		   _whole_ range */
+		if (tmp + level_size(level) - 1 > last_pfn)
 			return;
 
-		while (tmp < end) {
-			pte = dma_pfn_level_pte(domain, tmp >> VTD_PAGE_SHIFT,
-						level);
+		while (tmp <= last_pfn) {
+			pte = dma_pfn_level_pte(domain, tmp, level);
 			if (pte) {
 				free_pgtable_page(
 					phys_to_virt(dma_pte_addr(pte)));
@@ -828,7 +832,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 		level++;
 	}
 	/* free pgd */
-	if (start == 0 && end >= ((((u64)1) << addr_width) - 1)) {
+	if (start == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
 		free_pgtable_page(domain->pgd);
 		domain->pgd = NULL;
 	}
