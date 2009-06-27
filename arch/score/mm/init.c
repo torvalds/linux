@@ -32,44 +32,30 @@
 #include <linux/pagemap.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
-#include <asm-generic/sections.h>
+#include <linux/initrd.h>
 
+#include <asm/sections.h>
 #include <asm/tlb.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-/*
- * We have up to 8 empty zeroed pages so we can map one of the right colour
- * when needed.
- */
-unsigned long zero_page_mask;
 unsigned long empty_zero_page;
 EXPORT_SYMBOL_GPL(empty_zero_page);
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
 
-unsigned long setup_zero_pages(void)
+static unsigned long setup_zero_page(void)
 {
-	unsigned int order = 0;
-	unsigned long size;
 	struct page *page;
 
-	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
+	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, 0);
 	if (!empty_zero_page)
 		panic("Oh boy, that early out of memory?");
 
 	page = virt_to_page((void *) empty_zero_page);
-	split_page(page, order);
-	while (page < virt_to_page((void *) (empty_zero_page +
-					     (PAGE_SIZE << order)))) {
-		SetPageReserved(page);
-		page++;
-	}
+	SetPageReserved(page);
 
-	size = PAGE_SIZE << order;
-	zero_page_mask = (size - 1) & PAGE_MASK;
-
-	return 1UL << order;
+	return 1UL;
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -100,7 +86,7 @@ void __init mem_init(void)
 	max_mapnr = max_low_pfn;
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 	totalram_pages += free_all_bootmem();
-	totalram_pages -= setup_zero_pages();	/* Setup zeroed pages. */
+	totalram_pages -= setup_zero_page();	/* Setup zeroed pages. */
 	reservedpages = 0;
 
 	for (tmp = 0; tmp < max_low_pfn; tmp++)
@@ -129,7 +115,7 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-void free_init_pages(const char *what, unsigned long begin, unsigned long end)
+static void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long pfn;
 
@@ -150,8 +136,8 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	free_init_pages("initrd memory",
-	virt_to_phys((void *) start),
-	virt_to_phys((void *) end));
+		virt_to_phys((void *) start),
+		virt_to_phys((void *) end));
 }
 #endif
 
