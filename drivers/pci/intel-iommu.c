@@ -796,11 +796,10 @@ static void dma_pte_clear_range(struct dmar_domain *domain,
 
 /* free page table pages. last level pte should already be cleared */
 static void dma_pte_free_pagetable(struct dmar_domain *domain,
-	u64 start, u64 end)
+				   unsigned long start_pfn,
+				   unsigned long last_pfn)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
-	unsigned long start_pfn = start >> VTD_PAGE_SHIFT;
-	unsigned long last_pfn = (end-1) >> VTD_PAGE_SHIFT;
 	struct dma_pte *pte;
 	int total = agaw_to_level(domain->agaw);
 	int level;
@@ -832,7 +831,7 @@ static void dma_pte_free_pagetable(struct dmar_domain *domain,
 		level++;
 	}
 	/* free pgd */
-	if (start == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
+	if (start_pfn == 0 && last_pfn == DOMAIN_MAX_PFN(domain->gaw)) {
 		free_pgtable_page(domain->pgd);
 		domain->pgd = NULL;
 	}
@@ -1416,7 +1415,6 @@ static void domain_exit(struct dmar_domain *domain)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	u64 end;
 
 	/* Domain 0 is reserved, so dont process it */
 	if (!domain)
@@ -1425,14 +1423,12 @@ static void domain_exit(struct dmar_domain *domain)
 	domain_remove_dev_info(domain);
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
-	end = DOMAIN_MAX_ADDR(domain->gaw);
-	end = end & (~PAGE_MASK);
 
 	/* clear ptes */
 	dma_pte_clear_range(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* free page tables */
-	dma_pte_free_pagetable(domain, 0, end);
+	dma_pte_free_pagetable(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	for_each_active_iommu(iommu, drhd)
 		if (test_bit(iommu->seq_id, &domain->iommu_bmp))
@@ -2601,7 +2597,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dmar_domain *domain;
-	unsigned long start_addr;
+	unsigned long start_pfn, last_pfn;
 	struct iova *iova;
 	struct intel_iommu *iommu;
 
@@ -2617,20 +2613,22 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	if (!iova)
 		return;
 
-	start_addr = iova->pfn_lo << PAGE_SHIFT;
-	size = aligned_size((u64)dev_addr, size);
+	start_pfn = mm_to_dma_pfn(iova->pfn_lo);
+	last_pfn = mm_to_dma_pfn(iova->pfn_hi + 1) - 1;
 
-	pr_debug("Device %s unmapping: %zx@%llx\n",
-		pci_name(pdev), size, (unsigned long long)start_addr);
+	pr_debug("Device %s unmapping: pfn %lx-%lx\n",
+		 pci_name(pdev), start_pfn, last_pfn);
 
 	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_addr >> VTD_PAGE_SHIFT,
-			    (start_addr + size - 1) >> VTD_PAGE_SHIFT);
+	dma_pte_clear_range(domain, start_pfn, last_pfn);
+
 	/* free page tables */
-	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
+	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
+
 	if (intel_iommu_strict) {
-		iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
-				      size >> VTD_PAGE_SHIFT);
+		iommu_flush_iotlb_psi(iommu, domain->id,
+				      start_pfn << VTD_PAGE_SHIFT,
+				      last_pfn - start_pfn + 1);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
 	} else {
@@ -2688,14 +2686,10 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 			   int nelems, enum dma_data_direction dir,
 			   struct dma_attrs *attrs)
 {
-	int i;
 	struct pci_dev *pdev = to_pci_dev(hwdev);
 	struct dmar_domain *domain;
-	unsigned long start_addr;
+	unsigned long start_pfn, last_pfn;
 	struct iova *iova;
-	size_t size = 0;
-	phys_addr_t addr;
-	struct scatterlist *sg;
 	struct intel_iommu *iommu;
 
 	if (iommu_no_mapping(pdev))
@@ -2709,21 +2703,19 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	iova = find_iova(&domain->iovad, IOVA_PFN(sglist[0].dma_address));
 	if (!iova)
 		return;
-	for_each_sg(sglist, sg, nelems, i) {
-		addr = page_to_phys(sg_page(sg)) + sg->offset;
-		size += aligned_size((u64)addr, sg->length);
-	}
 
-	start_addr = iova->pfn_lo << PAGE_SHIFT;
+	start_pfn = mm_to_dma_pfn(iova->pfn_lo);
+	last_pfn = mm_to_dma_pfn(iova->pfn_hi + 1) - 1;
 
 	/*  clear the whole page */
-	dma_pte_clear_range(domain, start_addr >> VTD_PAGE_SHIFT,
-			    (start_addr + size - 1) >> VTD_PAGE_SHIFT);
-	/* free page tables */
-	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
+	dma_pte_clear_range(domain, start_pfn, last_pfn);
 
-	iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
-			      size >> VTD_PAGE_SHIFT);
+	/* free page tables */
+	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
+
+	iommu_flush_iotlb_psi(iommu, domain->id,
+			      start_pfn << VTD_PAGE_SHIFT,
+			      (last_pfn - start_pfn + 1));
 
 	/* free iova */
 	__free_iova(&domain->iovad, iova);
@@ -2804,8 +2796,8 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 					    start_addr >> VTD_PAGE_SHIFT,
 					    (start_addr + offset - 1) >> VTD_PAGE_SHIFT);
 			/* free page tables */
-			dma_pte_free_pagetable(domain, start_addr,
-				  start_addr + offset);
+			dma_pte_free_pagetable(domain, start_addr >> VTD_PAGE_SHIFT,
+					       (start_addr + offset - 1) >> VTD_PAGE_SHIFT);
 			/* free iova */
 			__free_iova(&domain->iovad, iova);
 			return 0;
@@ -3378,8 +3370,6 @@ static void iommu_free_vm_domain(struct dmar_domain *domain)
 
 static void vm_domain_exit(struct dmar_domain *domain)
 {
-	u64 end;
-
 	/* Domain 0 is reserved, so dont process it */
 	if (!domain)
 		return;
@@ -3387,14 +3377,12 @@ static void vm_domain_exit(struct dmar_domain *domain)
 	vm_domain_remove_all_dev_info(domain);
 	/* destroy iovas */
 	put_iova_domain(&domain->iovad);
-	end = DOMAIN_MAX_ADDR(domain->gaw);
-	end = end & (~VTD_PAGE_MASK);
 
 	/* clear ptes */
 	dma_pte_clear_range(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	/* free page tables */
-	dma_pte_free_pagetable(domain, 0, end);
+	dma_pte_free_pagetable(domain, 0, DOMAIN_MAX_PFN(domain->gaw));
 
 	iommu_free_vm_domain(domain);
 	free_domain_mem(domain);
