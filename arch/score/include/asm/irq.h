@@ -18,16 +18,6 @@
 
 #define irq_canonicalize(irq)	(irq)
 
-#define P_INT_PNDL		0x95F50000
-#define P_INT_PNDH		0x95F50004
-#define P_INT_PRIORITY_M	0x95F50008
-#define P_INT_PRIORITY_SG0	0x95F50010
-#define P_INT_PRIORITY_SG1	0x95F50014
-#define P_INT_PRIORITY_SG2	0x95F50018
-#define P_INT_PRIORITY_SG3	0x95F5001C
-#define P_INT_MASKL		0x95F50020
-#define P_INT_MASKH		0x95F50024
-
 #define IRQ_TIMER (7)		/* Timer IRQ number of SPCT6600 */
 
 #endif /* _ASM_SCORE_IRQ_H */

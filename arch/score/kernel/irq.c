@@ -29,6 +29,19 @@
 
 #include <asm/io.h>
 
+/* the interrupt controller is hardcoded at this address */
+#define SCORE_PIC		((u32 __iomem __force *)0x95F50000)
+
+#define INT_PNDL		0
+#define INT_PNDH		1
+#define INT_PRIORITY_M		2
+#define INT_PRIORITY_SG0	4
+#define INT_PRIORITY_SG1	5
+#define INT_PRIORITY_SG2	6
+#define INT_PRIORITY_SG3	7
+#define INT_MASKL		8
+#define INT_MASKH		9
+
 /*
  * handles all normal device IRQs
  */
@@ -44,11 +57,11 @@ static void score_mask(unsigned int irq_nr)
 	unsigned int irq_source = 63 - irq_nr;
 
 	if (irq_source < 32)
-		__raw_writel((__raw_readl((void *)P_INT_MASKL) | \
-			(1 << irq_source)), (void *)P_INT_MASKL);
+		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKL) | \
+			(1 << irq_source)), SCORE_PIC + INT_MASKL);
 	else
-		__raw_writel((__raw_readl((void *)P_INT_MASKH) | \
-			(1 << (irq_source - 32))), (void *)P_INT_MASKH);
+		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKH) | \
+			(1 << (irq_source - 32))), SCORE_PIC + INT_MASKH);
 }
 
 static void score_unmask(unsigned int irq_nr)
@@ -56,11 +69,11 @@ static void score_unmask(unsigned int irq_nr)
 	unsigned int irq_source = 63 - irq_nr;
 
 	if (irq_source < 32)
-		__raw_writel((__raw_readl((void *)P_INT_MASKL) & \
-			~(1 << irq_source)), (void *)P_INT_MASKL);
+		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKL) & \
+			~(1 << irq_source)), SCORE_PIC + INT_MASKL);
 	else
-		__raw_writel((__raw_readl((void *)P_INT_MASKH) & \
-			~(1 << (irq_source - 32))), (void *)P_INT_MASKH);
+		__raw_writel((__raw_readl(SCORE_PIC + INT_MASKH) & \
+			~(1 << (irq_source - 32))), SCORE_PIC + INT_MASKH);
 }
 
 struct irq_chip score_irq_chip = {
@@ -88,8 +101,8 @@ void __init init_IRQ(void)
 		memcpy((void *)target_addr, \
 			interrupt_exception_vector, IRQ_VECTOR_SIZE);
 
-	__raw_writel(0xffffffff, (void *)P_INT_MASKL);
-	__raw_writel(0xffffffff, (void *)P_INT_MASKH);
+	__raw_writel(0xffffffff, SCORE_PIC + INT_MASKL);
+	__raw_writel(0xffffffff, SCORE_PIC + INT_MASKH);
 
 	__asm__ __volatile__(
 		"mtcr	%0, cr3\n\t"
