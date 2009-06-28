@@ -1639,7 +1639,7 @@ static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 			      unsigned long phys_pfn, unsigned long nr_pages,
 			      int prot)
 {
-	struct dma_pte *pte;
+	struct dma_pte *first_pte = NULL, *pte = NULL;
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 
 	BUG_ON(addr_width < BITS_PER_LONG && (iov_pfn + nr_pages - 1) >> addr_width);
@@ -1647,19 +1647,27 @@ static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
 		return -EINVAL;
 
+	prot &= DMA_PTE_READ | DMA_PTE_WRITE | DMA_PTE_SNP;
+
 	while (nr_pages--) {
-		pte = pfn_to_dma_pte(domain, iov_pfn);
-		if (!pte)
-			return -ENOMEM;
+		if (!pte) {
+			first_pte = pte = pfn_to_dma_pte(domain, iov_pfn);
+			if (!pte)
+				return -ENOMEM;
+		}
 		/* We don't need lock here, nobody else
 		 * touches the iova range
 		 */
 		BUG_ON(dma_pte_addr(pte));
-		dma_set_pte_pfn(pte, phys_pfn);
-		dma_set_pte_prot(pte, prot);
-		if (prot & DMA_PTE_SNP)
-			dma_set_pte_snp(pte);
-		domain_flush_cache(domain, pte, sizeof(*pte));
+		pte->val = (phys_pfn << VTD_PAGE_SHIFT) | prot;
+		pte++;
+		if (!nr_pages ||
+		    (unsigned long)pte >> VTD_PAGE_SHIFT !=
+		    (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+			domain_flush_cache(domain, first_pte,
+					   (void *)pte - (void *)first_pte);
+			pte = NULL;
+		}
 		iov_pfn++;
 		phys_pfn++;
 	}
