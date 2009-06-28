@@ -98,8 +98,6 @@ static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum);
 static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 				  const struct ubi_vid_hdr *vid_hdr);
-static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
-				 int len);
 static int paranoid_check_empty(struct ubi_device *ubi, int pnum);
 #else
 #define paranoid_check_not_bad(ubi, pnum) 0
@@ -107,7 +105,6 @@ static int paranoid_check_empty(struct ubi_device *ubi, int pnum);
 #define paranoid_check_ec_hdr(ubi, pnum, ec_hdr)  0
 #define paranoid_check_peb_vid_hdr(ubi, pnum) 0
 #define paranoid_check_vid_hdr(ubi, pnum, vid_hdr) 0
-#define paranoid_check_all_ff(ubi, pnum, offset, len) 0
 #define paranoid_check_empty(ubi, pnum) 0
 #endif
 
@@ -244,7 +241,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		return err > 0 ? -EINVAL : err;
 
 	/* The area we are writing to has to contain all 0xFF bytes */
-	err = paranoid_check_all_ff(ubi, pnum, offset, len);
+	err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
 	if (err)
 		return err > 0 ? -EINVAL : err;
 
@@ -350,7 +347,7 @@ retry:
 		return -EIO;
 	}
 
-	err = paranoid_check_all_ff(ubi, pnum, 0, ubi->peb_size);
+	err = ubi_dbg_check_all_ff(ubi, pnum, 0, ubi->peb_size);
 	if (err)
 		return err > 0 ? -EINVAL : err;
 
@@ -672,8 +669,7 @@ int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		if (read_err != -EBADMSG &&
 		    check_pattern(ec_hdr, 0xFF, UBI_EC_HDR_SIZE)) {
 			/* The physical eraseblock is supposedly empty */
-			err = paranoid_check_all_ff(ubi, pnum, 0,
-						    ubi->peb_size);
+			err = ubi_dbg_check_all_ff(ubi, pnum, 0, ubi->peb_size);
 			if (err)
 				return err > 0 ? UBI_IO_BAD_EC_HDR : err;
 
@@ -1229,7 +1225,7 @@ exit:
 }
 
 /**
- * paranoid_check_all_ff - check that a region of flash is empty.
+ * ubi_dbg_check_all_ff - check that a region of flash is empty.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  * @offset: the starting offset within the physical eraseblock to check
@@ -1239,12 +1235,13 @@ exit:
  * @offset of the physical eraseblock @pnum, %1 if not, and a negative error
  * code if an error occurred.
  */
-static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
-				 int len)
+int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 {
 	size_t read;
 	int err;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
+
+	ubi_assert(!mutex_is_locked(&ubi->dbg_buf_mutex));
 
 	mutex_lock(&ubi->dbg_buf_mutex);
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
