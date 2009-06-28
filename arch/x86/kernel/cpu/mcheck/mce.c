@@ -1117,7 +1117,7 @@ static void mcheck_timer(unsigned long data)
 		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
 
 	t->expires = jiffies + *n;
-	add_timer(t);
+	add_timer_on(t, smp_processor_id());
 }
 
 static void mce_do_trigger(struct work_struct *work)
@@ -1321,7 +1321,7 @@ static void mce_init_timer(void)
 		return;
 	setup_timer(t, mcheck_timer, smp_processor_id());
 	t->expires = round_jiffies(jiffies + *n);
-	add_timer(t);
+	add_timer_on(t, smp_processor_id());
 }
 
 /*

@@ -549,14 +549,14 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme)
  * @chunk: chunk of interest
  * @page_start: page index of the first page to unmap
  * @page_end: page index of the last page to unmap + 1
- * @flush: whether to flush cache and tlb or not
+ * @flush_tlb: whether to flush tlb or not
  *
  * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.
  * If @flush is true, vcache is flushed before unmapping and tlb
  * after.
  */
 static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
-		       bool flush)
+		       bool flush_tlb)
 {
 	unsigned int last = num_possible_cpus() - 1;
 	unsigned int cpu;
@@ -569,9 +569,8 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 	 * the whole region at once rather than doing it for each cpu.
 	 * This could be an overkill but is more scalable.
 	 */
-	if (flush)
-		flush_cache_vunmap(pcpu_chunk_addr(chunk, 0, page_start),
-				   pcpu_chunk_addr(chunk, last, page_end));
+	flush_cache_vunmap(pcpu_chunk_addr(chunk, 0, page_start),
+			   pcpu_chunk_addr(chunk, last, page_end));
 
 	for_each_possible_cpu(cpu)
 		unmap_kernel_range_noflush(
@@ -579,7 +578,7 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
 				(page_end - page_start) << PAGE_SHIFT);
 
 	/* ditto as flush_cache_vunmap() */
-	if (flush)
+	if (flush_tlb)
 		flush_tlb_kernel_range(pcpu_chunk_addr(chunk, 0, page_start),
 				       pcpu_chunk_addr(chunk, last, page_end));
 }
@@ -1234,6 +1233,7 @@ static struct page * __init pcpue_get_page(unsigned int cpu, int pageno)
 ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 				      ssize_t dyn_size, ssize_t unit_size)
 {
+	size_t chunk_size;
 	unsigned int cpu;
 
 	/* determine parameters and allocate */
@@ -1248,11 +1248,15 @@ ssize_t __init pcpu_embed_first_chunk(size_t static_size, size_t reserved_size,
 	} else
 		pcpue_unit_size = max_t(size_t, pcpue_size, PCPU_MIN_UNIT_SIZE);
 
-	pcpue_ptr = __alloc_bootmem_nopanic(
-					num_possible_cpus() * pcpue_unit_size,
-					PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-	if (!pcpue_ptr)
+	chunk_size = pcpue_unit_size * num_possible_cpus();
+
+	pcpue_ptr = __alloc_bootmem_nopanic(chunk_size, PAGE_SIZE,
+					    __pa(MAX_DMA_ADDRESS));
+	if (!pcpue_ptr) {
+		pr_warning("PERCPU: failed to allocate %zu bytes for "
+			   "embedding\n", chunk_size);
 		return -ENOMEM;
+	}
 
 	/* return the leftover and copy */
 	for_each_possible_cpu(cpu) {
