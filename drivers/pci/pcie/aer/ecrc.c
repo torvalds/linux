@@ -106,7 +106,7 @@ void pcie_set_ecrc_checking(struct pci_dev *dev)
 		disable_ecrc_checking(dev);
 		break;
 	case ECRC_POLICY_ON:
-		enable_ecrc_checking(dev);;
+		enable_ecrc_checking(dev);
 		break;
 	default:
 		return;
