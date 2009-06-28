@@ -2516,10 +2516,8 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 			targetPowerCck.tPow2x[1];
 		ratesArray[rate5_5s] = ratesArray[rate5_5l] =
 			targetPowerCck.tPow2x[2];
-		;
 		ratesArray[rate11s] = ratesArray[rate11l] =
 			targetPowerCck.tPow2x[3];
-		;
 	}
 	if (IS_CHAN_HT40(chan)) {
 		for (i = 0; i < ARRAY_SIZE(targetPowerHt40.tPow2x); i++) {
