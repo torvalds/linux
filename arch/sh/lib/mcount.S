@@ -2,7 +2,7 @@
  * arch/sh/lib/mcount.S
  *
  *  Copyright (C) 2008  Paul Mundt
- *  Copyright (C) 2008  Matt Fleming
+ *  Copyright (C) 2008, 2009  Matt Fleming
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -35,6 +35,12 @@
 	.type	mcount,@function
 _mcount:
 mcount:
+#ifndef CONFIG_DYNAMIC_FTRACE
+	mov.l	.Lfunction_trace_stop, r0
+	mov.l	@r0, r0
+	tst	r0, r0
+	bf	ftrace_stub
+#endif
 	MCOUNT_ENTER()
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -62,6 +68,11 @@ skip_trace:
 #ifdef CONFIG_DYNAMIC_FTRACE
 	.globl ftrace_caller
 ftrace_caller:
+	mov.l	.Lfunction_trace_stop, r0
+	mov.l	@r0, r0
+	tst	r0, r0
+	bf	ftrace_stub
+	
 	MCOUNT_ENTER()
 
 	.globl ftrace_call
@@ -88,3 +99,7 @@ ftrace_call:
 ftrace_stub:
 	rts
 	 nop
+
+	.align 2
+.Lfunction_trace_stop:
+	.long	function_trace_stop
