@@ -1287,6 +1287,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_journal;
 
+	/* Calculate 'min_idx_lebs' after journal replay */
+	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+
 	err = ubifs_mount_orphans(c, c->need_recovery, mounted_read_only);
 	if (err)
 		goto out_orphans;
