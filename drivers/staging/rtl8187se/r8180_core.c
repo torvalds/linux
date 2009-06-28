@@ -3613,10 +3613,6 @@ DMESG output to andreamrl@tiscali.it THANKS");
 	priv->rf_init = rtl8225z2_rf_init;
 	priv->rf_set_chan = rtl8225z2_rf_set_chan;
 	priv->rf_set_sens = NULL;
-	//priv->rf_sleep = rtl8225_rf_sleep;
-	//priv->rf_wakeup = rtl8225_rf_wakeup;
-
-
 
 	if(!priv->card_8185){
 		if(priv->antb)
