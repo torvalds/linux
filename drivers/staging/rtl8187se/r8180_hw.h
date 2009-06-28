@@ -29,18 +29,10 @@
 #define BIT5	0x00000020
 #define BIT6	0x00000040
 #define BIT7	0x00000080
-#define BIT8	0x00000100
 #define BIT9	0x00000200
-#define BIT10	0x00000400
 #define BIT11	0x00000800
-#define BIT12	0x00001000
 #define BIT13	0x00002000
-#define BIT14	0x00004000
 #define BIT15	0x00008000
-#define BIT16	0x00010000
-#define BIT17	0x00020000
-#define BIT18	0x00040000
-#define BIT19	0x00080000
 #define BIT20	0x00100000
 #define BIT21	0x00200000
 #define BIT22	0x00400000
@@ -57,29 +49,14 @@
 #define MAX_SLEEP_TIME (10000)
 #define MIN_SLEEP_TIME (50)
 
-#define BB_ANTATTEN_CHAN14	0x0c
-#define BB_ANTENNA_B 0x40
-
-#define BB_HOST_BANG (1<<30)
 #define BB_HOST_BANG_EN (1<<2)
 #define BB_HOST_BANG_CLK (1<<1)
-#define BB_HOST_BANG_DATA	 1
-
-#define ANAPARAM_TXDACOFF_SHIFT 27
-#define ANAPARAM_PWR0_MASK ((1<<30)|(1<<29)|(1<<28))
-#define ANAPARAM_PWR0_SHIFT 28
-#define ANAPARAM_PWR1_MASK ((1<<26)|(1<<25)|(1<<24)|(1<<23)|(1<<22)|(1<<21)|(1<<20))
-#define ANAPARAM_PWR1_SHIFT 20
 
 #define MAC0 0
-#define MAC1 1
-#define MAC2 2
-#define MAC3 3
 #define MAC4 4
-#define MAC5 5
+
 #define CMD 0x37
 #define CMD_RST_SHIFT 4
-#define CMD_RESERVED_MASK ((1<<1) | (1<<5) | (1<<6) | (1<<7))
 #define CMD_RX_ENABLE_SHIFT 3
 #define CMD_TX_ENABLE_SHIFT 2
 
@@ -96,13 +73,9 @@
 #define EPROM_W_SHIFT 1
 #define EPROM_R_SHIFT 0
 #define CONFIG2_DMA_POLLING_MODE_SHIFT 3
-#define INTA 0x3e
+
 #define INTA_TXOVERFLOW (1<<15)
 #define INTA_TIMEOUT (1<<14)
-#define INTA_BEACONTIMEOUT (1<<13)
-#define INTA_ATIM (1<<12)
-#define INTA_BEACONDESCERR (1<<11)
-#define INTA_BEACONDESCOK (1<<10)
 #define INTA_HIPRIORITYDESCERR (1<<9)
 #define INTA_HIPRIORITYDESCOK (1<<8)
 #define INTA_NORMPRIORITYDESCERR (1<<7)
@@ -111,9 +84,9 @@
 #define INTA_RXDESCERR (1<<4)
 #define INTA_LOWPRIORITYDESCERR (1<<3)
 #define INTA_LOWPRIORITYDESCOK (1<<2)
-#define INTA_RXCRCERR (1<<1)
 #define INTA_RXOK (1)
 #define INTA_MASK 0x3c
+
 #define RXRING_ADDR 0xe4 // page 0
 #define PGSELECT 0x5e
 #define PGSELECT_PG_SHIFT 0
@@ -131,20 +104,15 @@
 #define ACCEPT_MCAST_FRAME_SHIFT 2
 #define ACCEPT_ALLMAC_FRAME_SHIFT 0
 #define ACCEPT_NICMAC_FRAME_SHIFT 1
+
 #define RX_FIFO_THRESHOLD_MASK ((1<<13) | (1<<14) | (1<<15))
 #define RX_FIFO_THRESHOLD_SHIFT 13
-#define RX_FIFO_THRESHOLD_128 3
-#define RX_FIFO_THRESHOLD_256 4
-#define RX_FIFO_THRESHOLD_512 5
-#define RX_FIFO_THRESHOLD_1024 6
 #define RX_FIFO_THRESHOLD_NONE 7
 #define RX_AUTORESETPHY_SHIFT 28
-#define EPROM_TYPE_SHIFT 6
+
 #define TX_CONF 0x40
 #define TX_CONF_HEADER_AUTOICREMENT_SHIFT 30
 #define TX_LOOPBACK_SHIFT 17
-#define TX_LOOPBACK_MAC 1
-#define TX_LOOPBACK_BASEBAND 2
 #define TX_LOOPBACK_NONE 0
 #define TX_LOOPBACK_CONTINUE 3
 #define TX_LOOPBACK_MASK ((1<<17)|(1<<18))
@@ -158,21 +126,12 @@
 #define TX_DMA_POLLING_HIPRIORITY_SHIFT 6
 #define TX_DMA_POLLING_NORMPRIORITY_SHIFT 5
 #define TX_DMA_POLLING_LOWPRIORITY_SHIFT 4
-#define TX_DMA_STOP_BEACON_SHIFT 3
-#define TX_DMA_STOP_HIPRIORITY_SHIFT 2
-#define TX_DMA_STOP_NORMPRIORITY_SHIFT 1
-#define TX_DMA_STOP_LOWPRIORITY_SHIFT 0
 #define TX_MANAGEPRIORITY_RING_ADDR 0x0C
 #define TX_BKPRIORITY_RING_ADDR 0x10
 #define TX_BEPRIORITY_RING_ADDR 0x14
 #define TX_VIPRIORITY_RING_ADDR 0x20
 #define TX_VOPRIORITY_RING_ADDR 0x24
 #define TX_HIGHPRIORITY_RING_ADDR 0x28
-//AC_VI and Low priority share the sane queue
-#define TX_LOWPRIORITY_RING_ADDR TX_VIPRIORITY_RING_ADDR
-//AC_VO and Norm priority share the same queue
-#define TX_NORMPRIORITY_RING_ADDR TX_VOPRIORITY_RING_ADDR
-
 #define MAX_RX_DMA_MASK ((1<<8) | (1<<9) | (1<<10))
 #define MAX_RX_DMA_2048 7
 #define MAX_RX_DMA_1024	6
@@ -189,11 +148,7 @@
 #define ATIM 0x72
 #define EPROM_CS_SHIFT 3
 #define EPROM_CK_SHIFT 2
-#define PHY_DELAY 0x78
-#define PHY_CONFIG 0x80
 #define PHY_ADR 0x7c
-#define PHY_READ 0x7e
-#define CARRIER_SENSE_COUNTER 0x79 //byte
 #define SECURITY 0x5f //1209 this is sth wrong
 #define SECURITY_WEP_TX_ENABLE_SHIFT 1
 #define SECURITY_WEP_RX_ENABLE_SHIFT 0
@@ -214,44 +169,16 @@
  * RealTek names are used.
  */
 
-#define IDR0 0x0000
-#define IDR1 0x0001
-#define IDR2 0x0002
-#define IDR3 0x0003
-#define IDR4 0x0004
-#define IDR5 0x0005
-
-/* 0x0006 - 0x0007 - reserved */
-
-#define MAR0 0x0008
-#define MAR1 0x0009
-#define MAR2 0x000A
-#define MAR3 0x000B
-#define MAR4 0x000C
-#define MAR5 0x000D
-#define MAR6 0x000E
-#define MAR7 0x000F
-
-/* 0x0010 - 0x0017 - reserved */
-
 #define TSFTR 0x0018
-#define TSFTR_END 0x001F
 
 #define TLPDA 0x0020
-#define TLPDA_END 0x0023
-#define TNPDA 0x0024
-#define TNPDA_END 0x0027
-#define THPDA 0x0028
-#define THPDA_END 0x002B
 
 #define BSSID 0x002E
-#define BSSID_END 0x0033
 
 #define CR 0x0037
 
 #define RF_SW_CONFIG	        0x8			// store data which is transmitted to RF for driver
 #define RF_SW_CFG_SI		BIT1
-#define PIFS			0x2C			// PCF InterFrame Spacing Timer Setting.
 #define EIFS			0x2D			// Extended InterFrame Space Timer, in unit of 4 us.
 
 #define BRSR			0x34			// Basic rate set
@@ -260,25 +187,15 @@
 #define ISR 0x003C
 
 #define TCR 0x0040
-#define TCR_END 0x0043
 
 #define RCR 0x0044
-#define RCR_END 0x0047
 
 #define TimerInt 0x0048
-#define TimerInt_END 0x004B
-
-#define TBDA 0x004C
-#define TBDA_END 0x004F
 
 #define CR9346 0x0050
 
 #define CONFIG0 0x0051
-#define CONFIG1 0x0052
 #define CONFIG2 0x0053
-
-#define ANA_PARM 0x0054
-#define ANA_PARM_END 0x0x0057
 
 #define MSR 0x0058
 
@@ -294,36 +211,16 @@
 
 #define TESTR 0x005B
 
-/* 0x005C - 0x005D - reserved */
-
 #define PSR 0x005E
 
-/* 0x0060 - 0x006F - reserved */
-
 #define BcnItv 0x0070
-#define BcnItv_END 0x0071
 
 #define AtimWnd 0x0072
-#define AtimWnd_END 0x0073
 
 #define BintrItv 0x0074
-#define BintrItv_END 0x0075
-
-#define AtimtrItv 0x0076
-#define AtimtrItv_END 0x0077
-
-#define PhyDelay 0x0078
-
-#define CRCount 0x0079
-
-/* 0x007A - 0x007B - reserved */
 
 #define PhyAddr 0x007C
-#define PhyDataW 0x007D
 #define PhyDataR 0x007E
-
-#define PhyCFG 0x0080
-#define PhyCFG_END 0x0083
 
 /* following are for rtl8185 */
 #define RFPinsOutput 0x80
@@ -356,99 +253,12 @@
 #define MAX_RESP_RATE_SHIFT 4
 #define MIN_RESP_RATE_SHIFT 0
 #define RATE_FALLBACK 0xbe
-/*
- *  0x0084 - 0x00D3 is selected to page 1 when PSEn bit (bit0, PSR)
- *  is set to 1
- */
-
-#define Wakeup0 0x0084
-#define Wakeup0_END 0x008B
-
-#define Wakeup1 0x008C
-#define Wakeup1_END 0x0093
-
-#define Wakeup2LD 0x0094
-#define Wakeup2LD_END 0x009B
-#define Wakeup2HD 0x009C
-#define Wakeup2HD_END 0x00A3
-
-#define Wakeup3LD 0x00A4
-#define Wakeup3LD_END 0x00AB
-#define Wakeup3HD 0x00AC
-#define Wakeup3HD_END 0x00B3
-
-#define Wakeup4LD 0x00B4
-#define Wakeup4LD_END 0x00BB
-#define Wakeup4HD 0x00BC
-#define Wakeup4HD_END 0x00C3
-
-#define CRC0 0x00C4
-#define CRC0_END 0x00C5
-#define CRC1 0x00C6
-#define CRC1_END 0x00C7
-#define CRC2 0x00C8
-#define CRC2_END 0x00C9
-#define CRC3 0x00CA
-#define CRC3_END 0x00CB
-#define CRC4 0x00CC
-#define CRC4_END 0x00CD
-
-/* 0x00CE - 0x00D3 - reserved */
-
-
-
-/*
- *  0x0084 - 0x00D3 is selected to page 0 when PSEn bit (bit0, PSR)
- *  is set to 0
- */
-
-/* 0x0084 - 0x008F - reserved */
-
-#define DK0 0x0090
-#define DK0_END 0x009F
-#define DK1 0x00A0
-#define DK1_END 0x00AF
-#define DK2 0x00B0
-#define DK2_END 0x00BF
-#define DK3 0x00C0
-#define DK3_END 0x00CF
-
-/* 0x00D0 - 0x00D3 - reserved */
-
-
-
-
-
-/* 0x00D4 - 0x00D7 - reserved */
 
 #define CONFIG5 0x00D8
 
-#define TPPoll 0x00D9
-
-/* 0x00DA - 0x00DB - reserved */
-
 #define PHYPR			0xDA			//0xDA - 0x0B PHY Parameter Register.
 
-#define CWR 0x00DC
-#define CWR_END 0x00DD
-
-#define RetryCTR 0x00DE
-
-/* 0x00DF - 0x00E3 - reserved */
-
-#define RDSAR 0x00E4
-#define RDSAR_END 0x00E7
-
-/* 0x00E8 - 0x00EF - reserved */
-#define LED_CONTROL		0xED
-
-#define FER 0x00F0
-#define FER_END 0x00F3
-
 #define FEMR			0x1D4	// Function Event Mask register
-
-#define FPSR 0x00F8
-#define FPSR_END 0x00FB
 
 #define FFER 0x00FC
 #define FFER_END 0x00FF
@@ -598,53 +408,10 @@
 #define CR9346_EED1    ((1<<1))
 #define CR9346_EED0    ((1<<0))
 
-#define CONFIG0_WEP104     ((1<<6))
-#define CONFIG0_LEDGPO_En  ((1<<4))
-#define CONFIG0_Aux_Status ((1<<3))
-#define CONFIG0_GL         ((1<<1)|(1<<0))
-#define CONFIG0_GL1        ((1<<1))
-#define CONFIG0_GL0        ((1<<0))
-
-#define CONFIG1_LEDS       ((1<<7)|(1<<6))
-#define CONFIG1_LEDS1      ((1<<7))
-#define CONFIG1_LEDS0      ((1<<6))
-#define CONFIG1_LWACT      ((1<<4))
-#define CONFIG1_MEMMAP     ((1<<3))
-#define CONFIG1_IOMAP      ((1<<2))
-#define CONFIG1_VPD        ((1<<1))
-#define CONFIG1_PMEn       ((1<<0))
-
-#define CONFIG2_LCK        ((1<<7))
-#define CONFIG2_ANT        ((1<<6))
-#define CONFIG2_DPS        ((1<<3))
-#define CONFIG2_PAPE_sign  ((1<<2))
-#define CONFIG2_PAPE_time  ((1<<1)|(1<<0))
-#define CONFIG2_PAPE_time1 ((1<<1))
-#define CONFIG2_PAPE_time0 ((1<<0))
-
-#define CONFIG3_GNTSel     ((1<<7))
 #define CONFIG3_PARM_En    ((1<<6))
-#define CONFIG3_Magic      ((1<<5))
-#define CONFIG3_CardB_En   ((1<<3))
-#define CONFIG3_CLKRUN_En  ((1<<2))
 #define CONFIG3_FuncRegEn  ((1<<1))
-#define CONFIG3_FBtbEn     ((1<<0))
 
-#define CONFIG4_VCOPDN     ((1<<7))
-#define CONFIG4_PWROFF     ((1<<6))
 #define CONFIG4_PWRMGT     ((1<<5))
-#define CONFIG4_LWPME      ((1<<4))
-#define CONFIG4_LWPTN      ((1<<2))
-#define CONFIG4_RFTYPE     ((1<<1)|(1<<0))
-#define CONFIG4_RFTYPE1    ((1<<1))
-#define CONFIG4_RFTYPE0    ((1<<0))
-
-#define CONFIG5_TX_FIFO_OK ((1<<7))
-#define CONFIG5_RX_FIFO_OK ((1<<6))
-#define CONFIG5_CALON      ((1<<5))
-#define CONFIG5_EACPI      ((1<<2))
-#define CONFIG5_LANWake    ((1<<1))
-#define CONFIG5_PME_STS    ((1<<0))
 
 #define MSR_LINK_MASK      ((1<<2)|(1<<3))
 #define MSR_LINK_MANAGED   2
@@ -653,49 +420,15 @@
 #define MSR_LINK_ADHOC     1
 #define MSR_LINK_MASTER    3
 
-#define PSR_GPO            ((1<<7))
-#define PSR_GPI            ((1<<6))
-#define PSR_LEDGPO1        ((1<<5))
-#define PSR_LEDGPO0        ((1<<4))
-#define PSR_UWF            ((1<<1))
-#define PSR_PSEn           ((1<<0))
-
-#define SCR_KM             ((1<<5)|(1<<4))
-#define SCR_KM1            ((1<<5))
-#define SCR_KM0            ((1<<4))
-#define SCR_TXSECON        ((1<<1))
-#define SCR_RXSECON        ((1<<0))
-
 #define BcnItv_BcnItv      (0x01FF)
 
 #define AtimWnd_AtimWnd    (0x01FF)
 
 #define BintrItv_BintrItv  (0x01FF)
 
-#define AtimtrItv_AtimtrItv (0x01FF)
-
-#define PhyDelay_PhyDelay  ((1<<2)|(1<<1)|(1<<0))
-
-#define TPPoll_BQ    ((1<<7))
-#define TPPoll_HPQ   ((1<<6))
-#define TPPoll_NPQ   ((1<<5))
-#define TPPoll_LPQ   ((1<<4))
-#define TPPoll_SBQ   ((1<<3))
-#define TPPoll_SHPQ  ((1<<2))
-#define TPPoll_SNPQ  ((1<<1))
-#define TPPoll_SLPQ  ((1<<0))
-
-#define CWR_CW       (0x01FF)
-
-#define FER_INTR     ((1<<15))
-#define FER_GWAKE    ((1<< 4))
-
 #define FEMR_INTR    ((1<<15))
 #define FEMR_WKUP    ((1<<14))
 #define FEMR_GWAKE   ((1<< 4))
-
-#define FPSR_INTR    ((1<<15))
-#define FPSR_GWAKE   ((1<< 4))
 
 #define FFER_INTR    ((1<<15))
 #define FFER_GWAKE   ((1<< 4))
@@ -716,17 +449,6 @@
 #define RCR_MXDMA_OFFSET				8
 #define RCR_FIFO_OFFSET					13
 
-#define TMGDS			0x0C			// Tx Management Descriptor Address
-#define TBKDS			0x10			// Tx AC_BK Descriptor Address
-#define TBEDS			0x14			// Tx AC_BE Descriptor Address
-#define TLPDS			0x20			// Tx AC_VI Descriptor Address
-#define TNPDS			0x24			// Tx AC_VO Descriptor Address
-#define THPDS			0x28			// Tx Hign Priority Descriptor Address
-
-#define TBDS			0x4c			// Beacon descriptor queue start address
-
-#define RDSA			0xE4			// Receive descriptor queue start address
-
 #define AckTimeOutReg	0x79		// ACK timeout register, in unit of 4 us.
 
 #define RFTiming			0x8C
@@ -740,8 +462,6 @@
 
 #define ACM_CONTROL             0x00BF      // ACM Control Registe
 
-#define RTL8185B_VER_REG    0xE1
-
 #define	IntMig			0xE2			// Interrupt Migration (0xE2 ~ 0xE3)
 
 #define TID_AC_MAP		0xE8			// TID to AC Mapping Register
@@ -753,9 +473,7 @@
 #define AC_BE_PARAM		0xF8			// AC_BE Parameters Record
 #define AC_BK_PARAM		0xFC			// AC_BK Parameters Record
 
-#define BcnTimingAdjust	0x16A			// Beacon Timing Adjust Register.
 #define GPIOCtrl			0x16B			// GPIO Control Register.
-#define PSByGC			0x180			// 0x180 - 0x183 Power Saving by Gated Clock.
 #define ARFR			0x1E0	// Auto Rate Fallback Register (0x1e0 ~ 0x1e2)
 
 #define RFSW_CTRL			0x272	// 0x272-0x273.
@@ -768,27 +486,10 @@
 #define SI_DATA_READ		0x362	// 0x362 - 0x363  Serial Interface Data Register.
 
 //----------------------------------------------------------------------------
-//       8185B TPPoll bits 				(offset 0xd9, 1 byte)
-//----------------------------------------------------------------------------
-#define TPPOLL_BQ			(0x01 << 7)
-#define TPPOLL_HPQ			(0x01 << 6)
-#define TPPOLL_AC_VOQ		(0x01 << 5)
-#define TPPOLL_AC_VIQ		(0x01 << 4)
-#define TPPOLL_AC_BEQ		(0x01 << 3)
-#define TPPOLL_AC_BKQ		(0x01 << 2)
-#define TPPOLL_AC_MGQ		(0x01 << 1)
-
-//----------------------------------------------------------------------------
 //       8185B TPPollStop bits 				(offset 0x93, 1 byte)
 //----------------------------------------------------------------------------
 #define TPPOLLSTOP_BQ			(0x01 << 7)
-#define TPPOLLSTOP_HPQ			(0x01 << 6)
-#define TPPOLLSTOP_AC_VOQ		(0x01 << 5)
 #define TPPOLLSTOP_AC_VIQ		(0x01 << 4)
-#define TPPOLLSTOP_AC_BEQ		(0x01 << 3)
-#define TPPOLLSTOP_AC_BKQ		(0x01 << 2)
-#define TPPOLLSTOP_AC_MGQ		(0x01 << 1)
-
 
 #define MSR_LINK_ENEDCA	   (1<<4)
 
@@ -807,7 +508,6 @@
 #define VIQ_ACM_EN				(0x01 << 6) //BIT6
 #define BEQ_ACM_EN				(0x01 << 5) //BIT5
 #define ACM_HW_EN				(0x01 << 4) //BIT4
-#define TXOPSEL					(0x01 << 3) //BIT3
 #define VOQ_ACM_CTL				(0x01 << 2) //BIT2 // Set to 1 when AC_VO used time reaches or exceeds the admitted time
 #define VIQ_ACM_CTL				(0x01 << 1) //BIT1 // Set to 1 when AC_VI used time reaches or exceeds the admitted time
 #define BEQ_ACM_CTL				(0x01 << 0) //BIT0 // Set to 1 when AC_BE used time reaches or exceeds the admitted time
@@ -838,7 +538,6 @@
 #define RTL8225z2_ANAPARAM_OFF	0x55480658
 #define RTL8225z2_ANAPARAM2_OFF	0x72003f70
 //by amy for power save
-#define RF_CHANGE_BY_SW BIT31
 #define RF_CHANGE_BY_HW BIT30
 #define RF_CHANGE_BY_PS BIT29
 #define RF_CHANGE_BY_IPS BIT28
@@ -856,18 +555,15 @@
 //{by amy 080312
 //0x7C, 0x7D Crystal calibration and Tx Power tracking mechanism. Added by Roger. 2007.12.10.
 #define EEPROM_RSV						0x7C
-#define EEPROM_XTAL_CAL_MASK			0x00FF	// 0x7C[7:0], Crystal calibration mask.
 #define EEPROM_XTAL_CAL_XOUT_MASK	0x0F	// 0x7C[3:0], Crystal calibration for Xout.
 #define EEPROM_XTAL_CAL_XIN_MASK		0xF0	// 0x7C[7:4], Crystal calibration for Xin.
 #define EEPROM_THERMAL_METER_MASK	0x0F00	// 0x7D[3:0], Thermal meter reference level.
 #define EEPROM_XTAL_CAL_ENABLE		0x1000	// 0x7D[4], Crystal calibration enabled/disabled BIT.
 #define EEPROM_THERMAL_METER_ENABLE	0x2000	// 0x7D[5], Thermal meter enabled/disabled BIT.
-#define EEPROM_CID_RSVD1				0x3F
 #define EN_LPF_CAL			0x238	// Enable LPF Calibration.
 #define PWR_METER_EN		BIT1
 // <RJ_TODO_8185B> where are false alarm counters in 8185B?
 #define CCK_FALSE_ALARM		0xD0
-#define OFDM_FALSE_ALARM	0xD2
 //by amy 080312}
 
 //YJ,add for Country IE, 080630
