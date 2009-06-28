@@ -54,11 +54,7 @@
 //#include <asm/uaccess.h>
 #include "r8180_hw.h"
 #include "r8180.h"
-#include "r8180_sa2400.h"  /* PHILIPS Radio frontend */
-#include "r8180_max2820.h" /* MAXIM Radio frontend */
-#include "r8180_gct.h"     /* GCT Radio frontend */
 #include "r8180_rtl8225.h" /* RTL8225 Radio frontend */
-#include "r8180_rtl8255.h" /* RTL8255 Radio frontend */
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8180_wx.h"
 #include "r8180_dm.h"

@@ -20,7 +20,6 @@
 
 #include "r8180.h"
 #include "r8180_hw.h"
-#include "r8180_sa2400.h"
 
 #include "ieee80211/dot11d.h"
 
