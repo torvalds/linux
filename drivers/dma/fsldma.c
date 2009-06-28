@@ -142,7 +142,7 @@ static int dma_is_idle(struct fsl_dma_chan *fsl_chan)
 
 static void dma_start(struct fsl_dma_chan *fsl_chan)
 {
-	u32 mr_set = 0;;
+	u32 mr_set = 0;
 
 	if (fsl_chan->feature & FSL_DMA_CHAN_PAUSE_EXT) {
 		DMA_OUT(fsl_chan, &fsl_chan->reg_base->bcr, 0, 32);
