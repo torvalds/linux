@@ -361,26 +361,6 @@ struct uvc_streaming_header {
 	__u8 bTriggerUsage;
 };
 
-struct uvc_streaming {
-	struct list_head list;
-
-	struct usb_interface *intf;
-	int intfnum;
-	__u16 maxpsize;
-
-	struct uvc_streaming_header header;
-	enum v4l2_buf_type type;
-
-	unsigned int nformats;
-	struct uvc_format *format;
-
-	struct uvc_streaming_control ctrl;
-	struct uvc_format *cur_format;
-	struct uvc_frame *cur_frame;
-
-	struct mutex mutex;
-};
-
 enum uvc_buffer_state {
 	UVC_BUF_STATE_IDLE	= 0,
 	UVC_BUF_STATE_QUEUED	= 1,
@@ -422,26 +402,31 @@ struct uvc_video_queue {
 	struct list_head irqqueue;
 };
 
-struct uvc_video_device {
+struct uvc_streaming {
+	struct list_head list;
 	struct uvc_device *dev;
 	struct video_device *vdev;
 	atomic_t active;
+
+	struct usb_interface *intf;
+	int intfnum;
+	__u16 maxpsize;
+
+	struct uvc_streaming_header header;
+	enum v4l2_buf_type type;
+
+	unsigned int nformats;
+	struct uvc_format *format;
+
+	struct uvc_streaming_control ctrl;
+	struct uvc_format *cur_format;
+	struct uvc_frame *cur_frame;
+
+	struct mutex mutex;
+
 	unsigned int frozen : 1;
-
-	struct list_head iterms;		/* Input terminals */
-	struct uvc_entity *oterm;		/* Output terminal */
-	struct uvc_entity *sterm;		/* USB streaming terminal */
-	struct uvc_entity *processing;
-	struct uvc_entity *selector;
-	struct list_head extensions;
-	struct mutex ctrl_mutex;
-
 	struct uvc_video_queue queue;
-
-	/* Video streaming object, must always be non-NULL. */
-	struct uvc_streaming *streaming;
-
-	void (*decode) (struct urb *urb, struct uvc_video_device *video,
+	void (*decode) (struct urb *urb, struct uvc_streaming *video,
 			struct uvc_buffer *buf);
 
 	/* Context data used by the bulk completion handler. */
@@ -459,6 +444,18 @@ struct uvc_video_device {
 	unsigned int urb_size;
 
 	__u8 last_fid;
+};
+
+struct uvc_video_device {
+	struct uvc_device *dev;
+
+	struct list_head iterms;		/* Input terminals */
+	struct uvc_entity *oterm;		/* Output terminal */
+	struct uvc_entity *sterm;		/* USB streaming terminal */
+	struct uvc_entity *processing;
+	struct uvc_entity *selector;
+	struct list_head extensions;
+	struct mutex ctrl_mutex;
 };
 
 enum uvc_device_state {
@@ -486,15 +483,15 @@ struct uvc_device {
 
 	struct uvc_video_device video;
 
+	/* Video Streaming interfaces */
+	struct list_head streams;
+
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
 	struct urb *int_urb;
 	__u8 *status;
 	struct input_dev *input;
 	char input_phys[64];
-
-	/* Video Streaming interfaces */
-	struct list_head streaming;
 };
 
 enum uvc_handle_state {
@@ -503,7 +500,8 @@ enum uvc_handle_state {
 };
 
 struct uvc_fh {
-	struct uvc_video_device *device;
+	struct uvc_video_device *video;
+	struct uvc_streaming *stream;
 	enum uvc_handle_state state;
 };
 
@@ -600,13 +598,13 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 extern const struct v4l2_file_operations uvc_fops;
 
 /* Video */
-extern int uvc_video_init(struct uvc_video_device *video);
-extern int uvc_video_suspend(struct uvc_video_device *video);
-extern int uvc_video_resume(struct uvc_video_device *video);
-extern int uvc_video_enable(struct uvc_video_device *video, int enable);
-extern int uvc_probe_video(struct uvc_video_device *video,
+extern int uvc_video_init(struct uvc_streaming *stream);
+extern int uvc_video_suspend(struct uvc_streaming *stream);
+extern int uvc_video_resume(struct uvc_streaming *stream);
+extern int uvc_video_enable(struct uvc_streaming *stream, int enable);
+extern int uvc_probe_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *probe);
-extern int uvc_commit_video(struct uvc_video_device *video,
+extern int uvc_commit_video(struct uvc_streaming *stream,
 		struct uvc_streaming_control *ctrl);
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
@@ -660,7 +658,7 @@ extern struct usb_host_endpoint *uvc_find_endpoint(
 		struct usb_host_interface *alts, __u8 epaddr);
 
 /* Quirks support */
-void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
+void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
 
 #endif /* __KERNEL__ */

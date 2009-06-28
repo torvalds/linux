@@ -551,6 +551,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	}
 
 	mutex_init(&streaming->mutex);
+	streaming->dev = dev;
 	streaming->intf = usb_get_intf(intf);
 	streaming->intfnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
@@ -751,7 +752,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 			streaming->maxpsize = psize;
 	}
 
-	list_add_tail(&streaming->list, &dev->streaming);
+	list_add_tail(&streaming->list, &dev->streams);
 	return 0;
 
 error:
@@ -1167,13 +1168,75 @@ next_descriptor:
  */
 static void uvc_unregister_video(struct uvc_device *dev)
 {
-	if (dev->video.vdev) {
-		if (dev->video.vdev->minor == -1)
-			video_device_release(dev->video.vdev);
+	struct uvc_streaming *streaming;
+
+	list_for_each_entry(streaming, &dev->streams, list) {
+		if (streaming->vdev == NULL)
+			continue;
+
+		if (streaming->vdev->minor == -1)
+			video_device_release(streaming->vdev);
 		else
-			video_unregister_device(dev->video.vdev);
-		dev->video.vdev = NULL;
+			video_unregister_device(streaming->vdev);
+		streaming->vdev = NULL;
 	}
+}
+
+static int uvc_register_video(struct uvc_device *dev,
+		struct uvc_streaming *stream)
+{
+	struct video_device *vdev;
+	struct uvc_entity *term;
+	int ret;
+
+	if (uvc_trace_param & UVC_TRACE_PROBE) {
+		uvc_printk(KERN_INFO, "Found a valid video chain (");
+		list_for_each_entry(term, &dev->video.iterms, chain) {
+			printk("%d", term->id);
+			if (term->chain.next != &dev->video.iterms)
+				printk(",");
+		}
+		printk(" -> %d).\n", dev->video.oterm->id);
+	}
+
+	/* Initialize the streaming interface with default streaming
+	 * parameters.
+	 */
+	ret = uvc_video_init(stream);
+	if (ret < 0) {
+		uvc_printk(KERN_ERR, "Failed to initialize the device "
+			"(%d).\n", ret);
+		return ret;
+	}
+
+	/* Register the device with V4L. */
+	vdev = video_device_alloc();
+	if (vdev == NULL)
+		return -1;
+
+	/* We already hold a reference to dev->udev. The video device will be
+	 * unregistered before the reference is released, so we don't need to
+	 * get another one.
+	 */
+	vdev->parent = &dev->intf->dev;
+	vdev->minor = -1;
+	vdev->fops = &uvc_fops;
+	vdev->release = video_device_release;
+	strlcpy(vdev->name, dev->name, sizeof vdev->name);
+
+	/* Set the driver data before calling video_register_device, otherwise
+	 * uvc_v4l2_open might race us.
+	 */
+	stream->vdev = vdev;
+	video_set_drvdata(vdev, stream);
+
+	if (video_register_device(vdev, VFL_TYPE_GRABBER, -1) < 0) {
+		stream->vdev = NULL;
+		video_device_release(vdev);
+		return -1;
+	}
+
+	return 0;
 }
 
 /*
@@ -1419,7 +1482,7 @@ static int uvc_scan_chain(struct uvc_video_device *video)
 }
 
 /*
- * Register the video devices.
+ * Scan the device for video chains and register video devices.
  *
  * The driver currently supports a single video device per control interface
  * only. The terminal and units must match the following structure:
@@ -1432,15 +1495,14 @@ static int uvc_scan_chain(struct uvc_video_device *video)
  * Extension Units connected to the main chain as single-unit branches are
  * also supported.
  */
-static int uvc_register_video(struct uvc_device *dev)
+static int uvc_scan_device(struct uvc_device *dev)
 {
-	struct video_device *vdev;
 	struct uvc_entity *term;
-	int found = 0, ret;
+	int found = 0;
 
 	/* Check if the control interface matches the structure we expect. */
 	list_for_each_entry(term, &dev->entities, list) {
-		struct uvc_streaming *streaming;
+		struct uvc_streaming *stream;
 
 		if (!UVC_ENTITY_IS_TERM(term) || !UVC_ENTITY_IS_OTERM(term))
 			continue;
@@ -1454,70 +1516,18 @@ static int uvc_register_video(struct uvc_device *dev)
 		if (uvc_scan_chain(&dev->video) < 0)
 			continue;
 
-		list_for_each_entry(streaming, &dev->streaming, list) {
-			if (streaming->header.bTerminalLink ==
+		list_for_each_entry(stream, &dev->streams, list) {
+			if (stream->header.bTerminalLink ==
 			    dev->video.sterm->id) {
-				dev->video.streaming = streaming;
+				uvc_register_video(dev, stream);
 				found = 1;
 				break;
 			}
 		}
-
-		if (found)
-			break;
 	}
 
 	if (!found) {
 		uvc_printk(KERN_INFO, "No valid video chain found.\n");
-		return -1;
-	}
-
-	if (uvc_trace_param & UVC_TRACE_PROBE) {
-		uvc_printk(KERN_INFO, "Found a valid video chain (");
-		list_for_each_entry(term, &dev->video.iterms, chain) {
-			printk("%d", term->id);
-			if (term->chain.next != &dev->video.iterms)
-				printk(",");
-		}
-		printk(" -> %d).\n", dev->video.oterm->id);
-	}
-
-	/* Initialize the video buffers queue. */
-	uvc_queue_init(&dev->video.queue, dev->video.streaming->type);
-
-	/* Initialize the streaming interface with default streaming
-	 * parameters.
-	 */
-	if ((ret = uvc_video_init(&dev->video)) < 0) {
-		uvc_printk(KERN_ERR, "Failed to initialize the device "
-			"(%d).\n", ret);
-		return ret;
-	}
-
-	/* Register the device with V4L. */
-	vdev = video_device_alloc();
-	if (vdev == NULL)
-		return -1;
-
-	/* We already hold a reference to dev->udev. The video device will be
-	 * unregistered before the reference is released, so we don't need to
-	 * get another one.
-	 */
-	vdev->parent = &dev->intf->dev;
-	vdev->minor = -1;
-	vdev->fops = &uvc_fops;
-	vdev->release = video_device_release;
-	strlcpy(vdev->name, dev->name, sizeof vdev->name);
-
-	/* Set the driver data before calling video_register_device, otherwise
-	 * uvc_v4l2_open might race us.
-	 */
-	dev->video.vdev = vdev;
-	video_set_drvdata(vdev, &dev->video);
-
-	if (video_register_device(vdev, VFL_TYPE_GRABBER, -1) < 0) {
-		dev->video.vdev = NULL;
-		video_device_release(vdev);
 		return -1;
 	}
 
@@ -1559,7 +1569,7 @@ void uvc_delete(struct kref *kref)
 		kfree(entity);
 	}
 
-	list_for_each_safe(p, n, &dev->streaming) {
+	list_for_each_safe(p, n, &dev->streams) {
 		struct uvc_streaming *streaming;
 		streaming = list_entry(p, struct uvc_streaming, list);
 		usb_driver_release_interface(&uvc_driver.driver,
@@ -1593,7 +1603,7 @@ static int uvc_probe(struct usb_interface *intf,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&dev->entities);
-	INIT_LIST_HEAD(&dev->streaming);
+	INIT_LIST_HEAD(&dev->streams);
 	kref_init(&dev->kref);
 	atomic_set(&dev->users, 0);
 
@@ -1634,8 +1644,8 @@ static int uvc_probe(struct usb_interface *intf,
 	if (uvc_ctrl_init_device(dev) < 0)
 		goto error;
 
-	/* Register the video devices. */
-	if (uvc_register_video(dev) < 0)
+	/* Scan the device for video chains and register video devices. */
+	if (uvc_scan_device(dev) < 0)
 		goto error;
 
 	/* Save our data pointer in the interface data. */
@@ -1689,6 +1699,7 @@ static void uvc_disconnect(struct usb_interface *intf)
 static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct uvc_device *dev = usb_get_intfdata(intf);
+	struct uvc_streaming *stream;
 
 	uvc_trace(UVC_TRACE_SUSPEND, "Suspending interface %u\n",
 		intf->cur_altsetting->desc.bInterfaceNumber);
@@ -1698,18 +1709,20 @@ static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
 	    UVC_SC_VIDEOCONTROL)
 		return uvc_status_suspend(dev);
 
-	if (dev->video.streaming->intf != intf) {
-		uvc_trace(UVC_TRACE_SUSPEND, "Suspend: video streaming USB "
-				"interface mismatch.\n");
-		return -EINVAL;
+	list_for_each_entry(stream, &dev->streams, list) {
+		if (stream->intf == intf)
+			return uvc_video_suspend(stream);
 	}
 
-	return uvc_video_suspend(&dev->video);
+	uvc_trace(UVC_TRACE_SUSPEND, "Suspend: video streaming USB interface "
+			"mismatch.\n");
+	return -EINVAL;
 }
 
 static int __uvc_resume(struct usb_interface *intf, int reset)
 {
 	struct uvc_device *dev = usb_get_intfdata(intf);
+	struct uvc_streaming *stream;
 
 	uvc_trace(UVC_TRACE_SUSPEND, "Resuming interface %u\n",
 		intf->cur_altsetting->desc.bInterfaceNumber);
@@ -1726,13 +1739,14 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 		return uvc_status_resume(dev);
 	}
 
-	if (dev->video.streaming->intf != intf) {
-		uvc_trace(UVC_TRACE_SUSPEND, "Resume: video streaming USB "
-				"interface mismatch.\n");
-		return -EINVAL;
+	list_for_each_entry(stream, &dev->streams, list) {
+		if (stream->intf == intf)
+			return uvc_video_resume(stream);
 	}
 
-	return uvc_video_resume(&dev->video);
+	uvc_trace(UVC_TRACE_SUSPEND, "Resume: video streaming USB interface "
+			"mismatch.\n");
+	return -EINVAL;
 }
 
 static int uvc_resume(struct usb_interface *intf)
