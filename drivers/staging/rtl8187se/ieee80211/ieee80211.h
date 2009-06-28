@@ -956,9 +956,7 @@ struct ieee80211_network {
 //by amy 080312
 	u8 HighestOperaRate;
 //by amy 080312
-#ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
-#endif
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
 };

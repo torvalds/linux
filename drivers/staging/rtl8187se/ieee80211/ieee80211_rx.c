@@ -1159,9 +1159,7 @@ inline int ieee80211_network_init(
 //by amy 080312
 	network->HighestOperaRate = 0;
 //by amy 080312
-#ifdef THOMAS_TURBO
 	network->Turbo_Enable = 0;
-#endif
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
 
@@ -1338,7 +1336,6 @@ inline int ieee80211_network_init(
 				       network->wpa_ie_len);
 			}
 
-#ifdef THOMAS_TURBO
 			if (info_element->len == 7 &&
 			    info_element->data[0] == 0x00 &&
 			    info_element->data[1] == 0xe0 &&
@@ -1347,7 +1344,6 @@ inline int ieee80211_network_init(
 			    info_element->data[4] == 0x02) {
 				network->Turbo_Enable = 1;
 			}
-#endif
 			if (1 == stats->nic_type) {//nic 87
 				break;
 			}
@@ -1541,9 +1537,7 @@ inline void update_network(struct ieee80211_network *dst,
 	dst->QoS_Enable = 1;//for Rtl8187 simulation
 #endif
 	dst->SignalStrength = src->SignalStrength;
-#ifdef THOMAS_TURBO
 	dst->Turbo_Enable = src->Turbo_Enable;
-#endif
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
 }

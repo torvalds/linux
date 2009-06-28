@@ -127,7 +127,6 @@ void ieee80211_WMM_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	*tag_p = tag;
 }
 
-#ifdef THOMAS_TURBO
 void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	u8 *tag = *tag_p;
 
@@ -144,7 +143,6 @@ void ieee80211_TURBO_Info(struct ieee80211_device *ieee, u8 **tag_p) {
 	*tag_p = tag;
 	printk(KERN_ALERT "This is enable turbo mode IE process\n");
 }
-#endif
 
 void enqueue_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
@@ -1108,9 +1106,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 #endif
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
 	unsigned int wmm_info_len = beacon->QoS_Enable?9:0;
-#ifdef THOMAS_TURBO
 	unsigned int turbo_info_len = beacon->Turbo_Enable?9:0;
-#endif
 
 	u8  encry_proto = ieee->wpax_type_notify & 0xff;
 	//u8  pairwise_type = (ieee->wpax_type_notify >> 8) & 0xff;
@@ -1128,7 +1124,6 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 			wpa_len = 0;
 		}
 	}
-#ifdef THOMAS_TURBO
 	len = sizeof(struct ieee80211_assoc_request_frame)+
 		+ beacon->ssid_len//essid tagged val
 		+ rate_len//rates tagged val
@@ -1136,14 +1131,6 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		+ rsn_len
 		+ wmm_info_len
 		+ turbo_info_len;
-#else
-	len = sizeof(struct ieee80211_assoc_request_frame)+
-		+ beacon->ssid_len//essid tagged val
-		+ rate_len//rates tagged val
-		+ wpa_len
-		+ rsn_len
-		+ wmm_info_len;
-#endif
 
 	skb = dev_alloc_skb(len);
 
@@ -1389,12 +1376,10 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	if(wmm_info_len) {
 	  ieee80211_WMM_Info(ieee, &tag);
 	}
-#ifdef THOMAS_TURBO
 	tag = skb_put(skb,turbo_info_len);
         if(turbo_info_len) {
                 ieee80211_TURBO_Info(ieee, &tag);
         }
-#endif
 
 	return skb;
 }

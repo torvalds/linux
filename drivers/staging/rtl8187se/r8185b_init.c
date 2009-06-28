@@ -2227,11 +2227,9 @@ ActUpdateChannelAccessSetting(
 
 		//lzm reserved 080826
 #if 1
-#ifdef THOMAS_TURBO
 		// For turbo mode setting. port from 87B by Isaiah 2008-08-01
 		if( ieee->current_network.Turbo_Enable == 1 )
 			AcParam.f.TXOPLimit = 0x01FF;
-#endif
 		// For 87SE with Intel 4965  Ad-Hoc mode have poor throughput (19MB)
 		if (ieee->iw_mode == IW_MODE_ADHOC)
 			AcParam.f.TXOPLimit = 0x0020;
