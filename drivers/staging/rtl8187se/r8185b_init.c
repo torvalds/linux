@@ -1194,11 +1194,6 @@ ZEBRA_Config_85BASIC_HardCode(
 	RF_WriteReg(dev, 0x05, 0x05ab);			mdelay(1); // Rx mode//+edward
 	RF_WriteReg(dev, 0x00, 0x009f);			mdelay(1); // Rx mode//+edward
 
-#if 0//-edward
-	RF_WriteReg(dev, 0x00, 0x0197);			mdelay(1);
-	RF_WriteReg(dev, 0x05, 0x05ab);			mdelay(1);
-	RF_WriteReg(dev, 0x00, 0x009F);			mdelay(1);
-#endif
 	RF_WriteReg(dev, 0x01, 0x0000);			mdelay(1); // Rx mode//+edward
 	RF_WriteReg(dev, 0x02, 0x0000);			mdelay(1); // Rx mode//+edward
 	//power save parameters.
@@ -1218,14 +1213,7 @@ ZEBRA_Config_85BASIC_HardCode(
 		CCK reg0x06[3]=1'b1: turn off unused circuits before cca = 1
 		CCK reg0x06[2]=1'b1: turn off cck's circuit if macrst =0
 	*/
-#if 0
-	write_nic_dword(dev, PHY_ADR, 0x0100c880);
-	write_nic_dword(dev, PHY_ADR, 0x01001c86);
-	write_nic_dword(dev, PHY_ADR, 0x01007890);
-	write_nic_dword(dev, PHY_ADR, 0x0100d0ae);
-	write_nic_dword(dev, PHY_ADR, 0x010006af);
-	write_nic_dword(dev, PHY_ADR, 0x01004681);
-#endif
+
 	write_phy_cck(dev,0x00,0xc8);
 	write_phy_cck(dev,0x06,0x1c);
 	write_phy_cck(dev,0x10,0x78);
@@ -1294,64 +1282,6 @@ ZEBRA_Config_85BASIC_HardCode(
 	// Config Sw/Hw  Combinational Antenna Diversity. Added by Roger, 2008.02.26.
 	SetAntennaConfig87SE(dev, priv->bDefaultAntenna1, priv->bSwAntennaDiverity);
 //by amy 080312}
-#if 0
-	// Config Sw/Hw  Antenna Diversity
-	if( priv->bSwAntennaDiverity )  //  Use SW+Hw Antenna Diversity
-	{
-		if( priv->bDefaultAntenna1 == true )  // aux antenna
-		{
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0xbb); // Reg11 : bb
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0xc7); // Reg01 : c7
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54);   // Reg0d : 54
-			write_phy_ofdm(dev, 0x18, 0xb2);  // Reg18 : b2
-		}
-		else //  main antenna
-		{
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			//base band
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0x9b); // Reg11 : 9b
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0xc7); // Reg01 : c7
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c);   // Reg0d : 5c
-			write_phy_ofdm(dev, 0x18, 0xb2);  // Reg18 : b2
-		}
-	}
-	else   // Disable Antenna Diversity
-	{
-		if( priv->bDefaultAntenna1 == true ) // aux Antenna
-		{
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0xbb); // Reg11 : bb
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0x47); // Reg01 : 47
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54);   // Reg0d : 54
-			write_phy_ofdm(dev, 0x18, 0x32);  // Reg18 : 32
-		}
-		else // main Antenna
-		{
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			// Config CCK RX antenna.
-			write_phy_cck(dev, 0x11, 0x9b); // Reg11 : 9b
-			write_phy_cck(dev, 0x0c, 0x09); // Reg0c : 09
-			write_phy_cck(dev, 0x01, 0x47); // Reg01 : 47
-			// Config OFDM RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c);   // Reg0d : 5c
-			write_phy_ofdm(dev, 0x18, 0x32);  // Reg18 : 32
-		}
-	}
-#endif
 //by amy for antenna
 }
 
@@ -1378,69 +1308,6 @@ UpdateInitialGain(
 
 	switch(priv->rf_chip)
 	{
-#if 0
-	case RF_ZEBRA2:
-		// Dynamic set initial gain, by shien chang, 2006.07.14
-		switch(priv->InitialGain)
-		{
-			case 1: //m861dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 1: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfa85);	mdelay(1);
-				break;
-
-			case 2: //m862dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 2: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 3: //m863dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 3: -82 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x96a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 4: //m864dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 4: -78 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 5: //m82dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 5: -74 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x3697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 6: //m78dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 6: -70 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x4697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			case 7: //m74dBm
-				DMESG("RTL8185B + 8225 Initial Gain State 7: -66 dBm \n");
-				write_nic_dword(dev, PhyAddr, 0x5697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xa6a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfb85);	mdelay(1);
-				break;
-
-			default:	//MP
-				DMESG("RTL8185B + 8225 Initial Gain State 1: -82 dBm (default)\n");
-				write_nic_dword(dev, PhyAddr, 0x2697);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0x86a4);	mdelay(1);
-				write_nic_dword(dev, PhyAddr, 0xfa85);	mdelay(1);
-				break;
-		}
-		break;
-#endif
 	case RF_ZEBRA4:
 		// Dynamic set initial gain, follow 87B
 		switch(priv->InitialGain)
@@ -1657,9 +1524,6 @@ HwConfigureRTL8185(
 		// <RJ_TODO_8185B> We shall set up the ARFR according to user's setting.
 		//write_nic_word(dev, ARFR, 0x0fff); // set 1M ~ 54M
 //by amy
-#if 0
-		PlatformIOWrite2Byte(dev, ARFR, 0x0fff); 	// set 1M ~ 54M
-#endif
 	        // Aadded by Roger, 2007.11.15.
 	        PlatformIOWrite2Byte(dev, ARFR, 0x0fff); //set 1M ~ 54Mbps.
 //by amy
@@ -1731,9 +1595,6 @@ MacConfig_85BASIC(
 	// Asked for by SD3 CM Lin, 2006.06.27, by rcnjko.
 	//PlatformIOWrite4Byte(dev, RFTiming, 0x00004001);
 //by amy
-#if 0
-	write_nic_dword(dev, RFTiming, 0x00004001);
-#endif
 	// power save parameter based on "87SE power save parameters 20071127.doc", as follow.
 
 	//Enable DA10 TX power saving
@@ -2118,16 +1979,6 @@ MgntDisconnectIBSS(
 	notify_wx_assoc_event(priv->ieee80211);
 
 	// Stop SW Beacon.Use hw beacon so do not need to do so.by amy
-#if 0
-	if(pMgntInfo->bEnableSwBeaconTimer)
-	{
-		// SwBeaconTimer will stop if pMgntInfo->mIbss==FALSE, see SwBeaconCallback() for details.
-// comment out by haich, 2007.10.01
-//#if DEV_BUS_TYPE==USB_INTERFACE
-		PlatformCancelTimer( Adapter, &pMgntInfo->SwBeaconTimer);
-//#endif
-	}
-#endif
 
 //		MgntIndicateMediaStatus( Adapter, RT_MEDIA_DISCONNECT, GENERAL_INDICATE );
 
@@ -2483,19 +2334,7 @@ InactivePowerSave(
 	//
 	// To solve CAM values miss in RF OFF, rewrite CAM values after RF ON. By Bruce, 2007-09-20.
 	//
-#if 0
-	while( index < 4 )
-	{
-		if( ( pMgntInfo->SecurityInfo.PairwiseEncAlgorithm == WEP104_Encryption ) ||
-			(pMgntInfo->SecurityInfo.PairwiseEncAlgorithm == WEP40_Encryption) )
-		{
-			if( pMgntInfo->SecurityInfo.KeyLen[index] != 0)
-			pAdapter->HalFunc.SetKeyHandler(pAdapter, index, 0, FALSE, pMgntInfo->SecurityInfo.PairwiseEncAlgorithm, TRUE, FALSE);
 
-		}
-		index++;
-	}
-#endif
 	priv->bSwRfProcessing = false;
 }
 
@@ -2782,58 +2621,6 @@ void rtl8185b_rx_enable(struct net_device *dev)
 	//u32 rxconf;
 	/* for now we accept data, management & ctl frame*/
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-#if 0
-	rxconf=read_nic_dword(dev,RX_CONF);
-	rxconf = rxconf &~ MAC_FILTER_MASK;
-	rxconf = rxconf | (1<<ACCEPT_MNG_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_DATA_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_BCAST_FRAME_SHIFT);
-	rxconf = rxconf | (1<<ACCEPT_MCAST_FRAME_SHIFT);
-//	rxconf = rxconf | (1<<ACCEPT_CRCERR_FRAME_SHIFT);
-	if (dev->flags & IFF_PROMISC) DMESG ("NIC in promisc mode");
-
-	if(priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
-	   dev->flags & IFF_PROMISC){
-		rxconf = rxconf | (1<<ACCEPT_ALLMAC_FRAME_SHIFT);
-	}else{
-		rxconf = rxconf | (1<<ACCEPT_NICMAC_FRAME_SHIFT);
-		if(priv->card_8185 == 0)
-			rxconf = rxconf | (1<<RX_CHECK_BSSID_SHIFT);
-	}
-
-	/*if(priv->ieee80211->iw_mode == IW_MODE_MASTER){
-		rxconf = rxconf | (1<<ACCEPT_ALLMAC_FRAME_SHIFT);
-		rxconf = rxconf | (1<<RX_CHECK_BSSID_SHIFT);
-	}*/
-
-	if(priv->ieee80211->iw_mode == IW_MODE_MONITOR){
-		rxconf = rxconf | (1<<ACCEPT_CTL_FRAME_SHIFT);
-		rxconf = rxconf | (1<<ACCEPT_ICVERR_FRAME_SHIFT);
-		rxconf = rxconf | (1<<ACCEPT_PWR_FRAME_SHIFT);
-	}
-
-	if( priv->crcmon == 1 && priv->ieee80211->iw_mode == IW_MODE_MONITOR)
-		rxconf = rxconf | (1<<ACCEPT_CRCERR_FRAME_SHIFT);
-
-	//if(!priv->card_8185){
-		rxconf = rxconf &~ RX_FIFO_THRESHOLD_MASK;
-		rxconf = rxconf | (RX_FIFO_THRESHOLD_NONE<<RX_FIFO_THRESHOLD_SHIFT);
-	//}
-
-	rxconf = rxconf | (1<<RX_AUTORESETPHY_SHIFT);
-	rxconf = rxconf &~ MAX_RX_DMA_MASK;
-	rxconf = rxconf | (MAX_RX_DMA_2048<<MAX_RX_DMA_SHIFT);
-
-	//if(!priv->card_8185)
-		rxconf = rxconf | RCR_ONLYERLPKT;
-
-	rxconf = rxconf &~ RCR_CS_MASK;
-	if(!priv->card_8185)
-		rxconf |= (priv->rcr_csense<<RCR_CS_SHIFT);
-//	rxconf &=~ 0xfff00000;
-//	rxconf |= 0x90100000;//9014f76f;
-	write_nic_dword(dev, RX_CONF, rxconf);
-#endif
 
 	if (dev->flags & IFF_PROMISC) DMESG ("NIC in promisc mode");
 
@@ -2874,76 +2661,6 @@ void rtl8185b_tx_enable(struct net_device *dev)
 	u8 byte;
 	//u32 txconf;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-
-#if 0
-	txconf= read_nic_dword(dev,TX_CONF);
-	if(priv->card_8185){
-
-
-		byte = read_nic_byte(dev,CW_CONF);
-		byte &= ~(1<<CW_CONF_PERPACKET_CW_SHIFT);
-		byte &= ~(1<<CW_CONF_PERPACKET_RETRY_SHIFT);
-		write_nic_byte(dev, CW_CONF, byte);
-
-		tx_agc_ctl = read_nic_byte(dev, TX_AGC_CTL);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_GAIN_SHIFT);
-		tx_agc_ctl &= ~(1<<TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT);
-		tx_agc_ctl |=(1<<TX_AGC_CTL_FEEDBACK_ANT);
-		write_nic_byte(dev, TX_AGC_CTL, tx_agc_ctl);
-		/*
-		write_nic_word(dev, 0x5e, 0x01);
-		force_pci_posting(dev);
-		mdelay(1);
-		write_nic_word(dev, 0xfe, 0x10);
-		force_pci_posting(dev);
-		mdelay(1);
-		write_nic_word(dev, 0x5e, 0x00);
-		force_pci_posting(dev);
-		mdelay(1);
-		*/
-		write_nic_byte(dev, 0xec, 0x3f); /* Disable early TX */
-	}
-
-	if(priv->card_8185){
-
-		txconf = txconf &~ (1<<TCR_PROBE_NOTIMESTAMP_SHIFT);
-
-	}else{
-
-		if(hwseqnum)
-			txconf= txconf &~ (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-		else
-			txconf= txconf | (1<<TX_CONF_HEADER_AUTOICREMENT_SHIFT);
-	}
-
-	txconf = txconf &~ TX_LOOPBACK_MASK;
-	txconf = txconf | (TX_LOOPBACK_NONE <<TX_LOOPBACK_SHIFT);
-	txconf = txconf &~ TCR_DPRETRY_MASK;
-	txconf = txconf &~ TCR_RTSRETRY_MASK;
-	txconf = txconf | (priv->retry_data<<TX_DPRETRY_SHIFT);
-	txconf = txconf | (priv->retry_rts<<TX_RTSRETRY_SHIFT);
-	txconf = txconf &~ (1<<TX_NOCRC_SHIFT);
-
-	if(priv->card_8185){
-		if(priv->hw_plcp_len)
-			txconf = txconf &~ TCR_PLCP_LEN;
-		else
-			txconf = txconf | TCR_PLCP_LEN;
-	}else{
-		txconf = txconf &~ TCR_SAT;
-	}
-	txconf = txconf &~ TCR_MXDMA_MASK;
-	txconf = txconf | (TCR_MXDMA_2048<<TCR_MXDMA_SHIFT);
-	txconf = txconf | TCR_CWMIN;
-	txconf = txconf | TCR_DISCW;
-
-//	if(priv->ieee80211->hw_wep)
-//		txconf=txconf &~ (1<<TX_NOICV_SHIFT);
-//	else
-		txconf=txconf | (1<<TX_NOICV_SHIFT);
-
-	write_nic_dword(dev,TX_CONF,txconf);
-#endif
 
 	write_nic_dword(dev, TCR, priv->TransmitConfig);
 	byte = read_nic_byte(dev, MSR);

@@ -574,25 +574,6 @@ out:
 		DOT11D_ScanComplete(ieee);
 }
 
-
-#if 0
-/* called both by wq with ieee->lock held */
-void ieee80211_softmac_scan(struct ieee80211_device *ieee)
-{
-	short watchdog = 0;
-
-	do{
-		ieee->current_network.channel =
-			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
-		if (watchdog++ > MAX_CHANNEL_NUMBER)
-				return; /* no good chans */
-
-	}while(!ieee->channel_map[ieee->current_network.channel]);
-
-
-	schedule_work(&ieee->softmac_scan_wq);
-}
-#endif
 #ifdef ENABLE_IPS
 void ieee80211_softmac_scan_wq(struct work_struct *work)
 {
@@ -1172,206 +1153,10 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 
 	//add rsn==0 condition for ap's mix security mode(wpa+wpa2), john2007.8.9
 	//choose AES encryption as default algorithm while using mixed mode
-#if 0
-	if(rsn_len == 0){
 
-		tag = skb_put(skb,wpa_len);
-
-		if(wpa_len) {
-
-
-		  //{add by david. 2006.8.31
-		  //fix linksys compatibility bug
-		  //}
-		  if(wpa_len > 24) {//22+2, mean include the capability
-			beacon->wpa_ie[wpa_len - 2] = 0;
-		  }
-		//multicast cipher OUI
-                  if(  beacon->wpa_ie[11]==0x2      ){ //0x0050f202 is the oui of tkip
-                  ieee->broadcast_key_type = KEY_TYPE_TKIP;
-                }
-                  else if(  beacon->wpa_ie[11]==0x4      ){//0x0050f204 is the oui of ccmp
-                  ieee->broadcast_key_type = KEY_TYPE_CCMP;
-                }
- 		//unicast cipher OUI
-		  if(	beacon->wpa_ie[14]==0
-			&& beacon->wpa_ie[15]==0x50
-                        && beacon->wpa_ie[16]==0xf2
-                        && beacon->wpa_ie[17]==0x2  	){ //0x0050f202 is the oui of tkip
-                  ieee->pairwise_key_type = KEY_TYPE_TKIP;
-		}
-
-                  else if(   beacon->wpa_ie[14]==0
-                        && beacon->wpa_ie[15]==0x50
-                        && beacon->wpa_ie[16]==0xf2
-                        && beacon->wpa_ie[17]==0x4      ){//0x0050f204 is the oui of ccmp
-                  ieee->pairwise_key_type = KEY_TYPE_CCMP;
-		}
-		//indicate the wpa_ie content to WPA_SUPPLICANT
-		buff = kmalloc(IW_CUSTOM_MAX, GFP_ATOMIC);
-		memset(buff, 0, IW_CUSTOM_MAX);
-		p=buff;
-		p += sprintf(p, "ASSOCINFO(ReqIEs=");
-		for(i=0;i<wpa_len;i++){
-			p += sprintf(p, "%02x", beacon->wpa_ie[i]);
-		}
-		p += sprintf(p, ")");
-		memset(&wrqu, 0, sizeof(wrqu) );
-		wrqu.data.length = p - buff;
-
-		wireless_send_event(dev, IWEVCUSTOM, &wrqu, buff);
-		  memcpy(tag,beacon->wpa_ie,wpa_len);
-		}
-
-	}
-
-	if(rsn_len > 22) {
-
-	  					if(     beacon->rsn_ie[4]==0x0 &&
-                                beacon->rsn_ie[5]==0xf &&
-                                beacon->rsn_ie[6]==0xac){
-
-                                switch(beacon->rsn_ie[7]){
-                                        case 0x1:
-                                                ieee->broadcast_key_type = KEY_TYPE_WEP40;
-                                                break;
-                                        case 0x2:
-                                                ieee->broadcast_key_type = KEY_TYPE_TKIP;
-                                                break;
-                                        case 0x4:
-                                                ieee->broadcast_key_type = KEY_TYPE_CCMP;
-                                                break;
-                                        case 0x5:
-                                                ieee->broadcast_key_type = KEY_TYPE_WEP104;
-                                                break;
-                                        default:
-                                                printk("fault suite type in RSN broadcast key\n");
-                                                break;
-                                }
-                        }
-
-                        if(     beacon->rsn_ie[10]==0x0 &&
-                                beacon->rsn_ie[11]==0xf &&
-                                beacon->rsn_ie[12]==0xac){
-				if(beacon->rsn_ie[8]==1){//not mixed mode
-	                                switch(beacon->rsn_ie[13]){
-        	                                case 0x2:
-                	                                ieee->pairwise_key_type = KEY_TYPE_TKIP;
-                        	                        break;
-                                	        case 0x4:
-                                        	        ieee->pairwise_key_type = KEY_TYPE_CCMP;
-                                                	break;
-        	                                default:
-	                                                printk("fault suite type in RSN pairwise key\n");
-                	                                break;
-                                	}
-				}
-				else if(beacon->rsn_ie[8]==2){//mixed mode
-					ieee->pairwise_key_type = KEY_TYPE_CCMP;
-				}
-                        }
-
-
-
-		tag = skb_put(skb,22);
-		memcpy(tag,(beacon->rsn_ie + info_addr),8);
-		tag[1] =  20;
-		tag += 8;
-		info_addr += 8;
-
-		spin_lock_irqsave(&ieee->wpax_suitlist_lock,flags);
-		for (i = 0; i < 2; i++) {
-			tag[0] = 1;
-			tag[1] = 0;
-			tag += 2;
-			suite_count = beacon->rsn_ie[info_addr] + \
-				      (beacon->rsn_ie[info_addr + 1] << 8);
-			info_addr += 2;
-			if(1 == suite_count) {
-				memcpy(tag,(beacon->rsn_ie + info_addr),4);
-				info_addr += 4;
-			} else {
-				// if the wpax_type_notify has been set by the application,
-				// just use it, otherwise just use the default one.
-				if(ieee->wpax_type_set) {
-					suit_select = ((0 == i) ? pairwise_type:authen_type)&0x0f ;
-					memcpy(tag,rsn_authen_cipher_suite[suit_select],4);
-				} else {
-					//default set as ccmp, or none authentication
-					if(i == 0) {
-						memcpy(tag,rsn_authen_cipher_suite[4],4);
-					} else {
-						memcpy(tag,rsn_authen_cipher_suite[2],4);
-					}
-
-				}
-
-				info_addr += (suite_count * 4);
-			}
-			tag += 4;
-		}
-		spin_unlock_irqrestore(&ieee->wpax_suitlist_lock,flags);
-
-		tag[0] = 0;
-		tag[1] = beacon->rsn_ie[info_addr+1];
-
-	} else {
-		tag = skb_put(skb,rsn_len);
-		if(rsn_len) {
-
-
-			if( 	beacon->rsn_ie[4]==0x0 &&
-				beacon->rsn_ie[5]==0xf &&
-				beacon->rsn_ie[6]==0xac){
-				switch(beacon->rsn_ie[7]){
-					case 0x1:
-						ieee->broadcast_key_type = KEY_TYPE_WEP40;
-                                                break;
-					case 0x2:
-						ieee->broadcast_key_type = KEY_TYPE_TKIP;
-						break;
-					case 0x4:
-   	                                        ieee->broadcast_key_type = KEY_TYPE_CCMP;
-                                                break;
-                                        case 0x5:
-                                                ieee->broadcast_key_type = KEY_TYPE_WEP104;
-                                                break;
-					default:
-						printk("fault suite type in RSN broadcast key\n");
-						break;
-				}
-			}
-                        if(     beacon->rsn_ie[10]==0x0 &&
-                                beacon->rsn_ie[11]==0xf &&
-                                beacon->rsn_ie[12]==0xac){
-                                if(beacon->rsn_ie[8]==1){//not mixed mode
-                                        switch(beacon->rsn_ie[13]){
-                                                case 0x2:
-                                                        ieee->pairwise_key_type = KEY_TYPE_TKIP;
-                                                        break;
-                                                case 0x4:
-                                                        ieee->pairwise_key_type = KEY_TYPE_CCMP;
-                                                        break;
-                                                default:
-                                                        printk("fault suite type in RSN pairwise key\n");
-                                                        break;
-                                	}
-
-				}
-                                else if(beacon->rsn_ie[8]==2){//mixed mode
-                                        ieee->pairwise_key_type = KEY_TYPE_CCMP;
-                                }
-                        }
-
-
-			beacon->rsn_ie[rsn_len - 2] = 0;
-			memcpy(tag,beacon->rsn_ie,rsn_len);
-		}
-	}
-#else
 	tag = skb_put(skb,ieee->wpa_ie_len);
 	memcpy(tag,ieee->wpa_ie,ieee->wpa_ie_len);
-#endif
+
 	tag = skb_put(skb,wmm_info_len);
 	if(wmm_info_len) {
 	  ieee80211_WMM_Info(ieee, &tag);
@@ -1827,12 +1612,6 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	}
 
 	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
-	//FIXME
-	#if 0
-	spin_lock_irqsave(&ieee->lock,flags);
-	add_associate(ieee,dest);
-	spin_unlock_irqrestore(&ieee->lock,flags);
-	#endif
 }
 
 
@@ -1850,11 +1629,8 @@ void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, short pwr)
 
 short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *time_l)
 {
-#if 0
-        int timeout = ieee->ps_timeout;
-#else
         int timeout = 0;
-#endif
+
 	u8 dtim;
 	/*if(ieee->ps == IEEE80211_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||
@@ -1885,13 +1661,7 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 	if((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
 		(ieee->mgmt_queue_tail != ieee->mgmt_queue_head))
 		return 0;
-#if 0
-	if(time_l){
-		*time_l = ieee->current_network.last_dtim_sta_time[0]
-			+ (ieee->current_network.beacon_interval
-			* ieee->current_network.dtim_period) * 1000;
-	}
-#else
+
 	if(time_l){
 		*time_l = ieee->current_network.last_dtim_sta_time[0]
 			+ MSECS((ieee->current_network.beacon_interval));
@@ -1899,7 +1669,6 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 			//printk("beacon_interval:%x, dtim_period:%x, totol to Msecs:%x, HZ:%x\n", ieee->current_network.beacon_interval, ieee->current_network.dtim_period, MSECS(((ieee->current_network.beacon_interval * ieee->current_network.dtim_period))), HZ);
 	}
 
-#endif
 	if(time_h){
 		*time_h = ieee->current_network.last_dtim_sta_time[1];
 		if(time_l && *time_l < ieee->current_network.last_dtim_sta_time[0])
@@ -2247,29 +2016,6 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	int  i;
 
 	spin_lock_irqsave(&ieee->lock,flags);
-	#if 0
-	if(ieee->queue_stop){
-		IEEE80211DMESG("EE: IEEE hard_start_xmit invoked when kernel queue should be stopped");
-		netif_stop_queue(ieee->dev);
-		ieee->ieee_stats.swtxstop++;
-		//dev_kfree_skb_any(skb);
-		err = 1;
-		goto exit;
-	}
-
-	ieee->stats.tx_bytes+=skb->len;
-
-
-	txb=ieee80211_skb_to_txb(ieee,skb);
-
-
-	if(txb==NULL){
-		IEEE80211DMESG("WW: IEEE stack failed to provide txb");
-		//dev_kfree_skb_any(skb);
-		err = 1;
-		goto exit;
-	}
-	#endif
 
 	/* called with 2nd parm 0, no tx mgmt lock required */
 	ieee80211_sta_wakeup(ieee,0);
@@ -2844,11 +2590,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 //by amy
 
 	init_mgmt_queue(ieee);
-#if 0
-	init_timer(&ieee->scan_timer);
-	ieee->scan_timer.data = (unsigned long)ieee;
-	ieee->scan_timer.function = ieee80211_softmac_scan_cb;
-#endif
+
 	ieee->tx_pending.txb = NULL;
 
 	init_timer(&ieee->associate_timer);
@@ -3306,26 +3048,3 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
-
-
-#if 0
-EXPORT_SYMBOL(ieee80211_get_beacon);
-EXPORT_SYMBOL(ieee80211_wake_queue);
-EXPORT_SYMBOL(ieee80211_stop_queue);
-EXPORT_SYMBOL(ieee80211_reset_queue);
-EXPORT_SYMBOL(ieee80211_softmac_stop_protocol);
-EXPORT_SYMBOL(ieee80211_softmac_start_protocol);
-EXPORT_SYMBOL(ieee80211_is_shortslot);
-EXPORT_SYMBOL(ieee80211_is_54g);
-EXPORT_SYMBOL(ieee80211_wpa_supplicant_ioctl);
-EXPORT_SYMBOL(ieee80211_ps_tx_ack);
-EXPORT_SYMBOL(ieee80211_start_protocol);
-EXPORT_SYMBOL(ieee80211_stop_protocol);
-EXPORT_SYMBOL(notify_wx_assoc_event);
-EXPORT_SYMBOL(ieee80211_stop_send_beacons);
-EXPORT_SYMBOL(SendDisassociation);
-EXPORT_SYMBOL(ieee80211_disassociate);
-EXPORT_SYMBOL(ieee80211_start_scan);
-EXPORT_SYMBOL(ieee80211_softmac_ips_scan_syncro);
-EXPORT_SYMBOL(ieee80211_sta_ps_send_null_frame);
-#endif

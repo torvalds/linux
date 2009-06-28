@@ -327,17 +327,6 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-#if 0
-printk("@@ tkey\n");
-printk("%x|", ((u32*)tkey->key)[0]);
-printk("%x|", ((u32*)tkey->key)[1]);
-printk("%x|", ((u32*)tkey->key)[2]);
-printk("%x|", ((u32*)tkey->key)[3]);
-printk("%x|", ((u32*)tkey->key)[4]);
-printk("%x|", ((u32*)tkey->key)[5]);
-printk("%x|", ((u32*)tkey->key)[6]);
-printk("%x\n", ((u32*)tkey->key)[7]);
-#endif
 
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
@@ -767,11 +756,3 @@ void ieee80211_tkip_null(void)
 //    printk("============>%s()\n", __func__);
         return;
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_tkip_null);
-#endif
-
-
-//module_init(ieee80211_crypto_tkip_init);
-//module_exit(ieee80211_crypto_tkip_exit);

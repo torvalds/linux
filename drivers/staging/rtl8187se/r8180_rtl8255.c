@@ -256,14 +256,6 @@ void rtl8255_SetTXPowerLevel(struct net_device *dev, short ch)
 	mdelay(1);
 	//write_nic_byte(dev, TX_AGC_CONTROL,4);
 }
-#if 0
-/* switch between mode B and G */
-void rtl8255_set_mode(struct net_device *dev, short modeb)
-{
-	write_phy_ofdm(dev, 0x15, (modeb ? 0x0 : 0x40));
-	write_phy_ofdm(dev, 0x17, (modeb ? 0x0 : 0x40));
-}
-#endif
 
 void rtl8255_rf_set_chan(struct net_device *dev, short ch)
 {
@@ -281,25 +273,6 @@ void rtl8255_rf_set_chan(struct net_device *dev, short ch)
 
 	rtl8255_SetTXPowerLevel(dev, ch);
 	/* FIXME FIXME FIXME */
-
-	#if 0
-	write_nic_byte(dev,DIFS,0xe); //DIFS
-	write_nic_byte(dev,SLOT,0x14); //SLOT
-	write_nic_byte(dev,EIFS,0x5b); // EIFS
-	//write_nic_byte(dev,0xbc,0); //CW CONFIG
-	write_nic_byte(dev,0xbd,0xa4); //CW VALUE
-	//write_nic_byte(dev,TX_AGC_CONTROL,4);
-	//write_nic_byte(dev, 0x9d,7);
-//Apr 20 13:25:03 localhost kernel: w8. 409d<-7  // CCK AGC
-	/*write_nic_word(dev,0x84,0x488);
-	write_nic_byte(dev,0x91,0x3e);
-	write_nic_byte(dev,0x90,0x30);
-	write_nic_word(dev,0x84,0x488);
-	write_nic_byte(dev,0x91,0x3e);
-	write_nic_byte(dev,0x90,0x20);
-	*/
-	//mdelay(100);
-	#endif
 }
 
 void rtl8255_init_BGband(struct net_device *dev)
@@ -1807,11 +1780,7 @@ void rtl8255_rf_init(struct net_device *dev)
 	write_phy_cck(dev, 0x4a, 0x0);
 	write_phy_cck(dev, 0x4b, 0x0);
 //	write_phy_cck(dev, 0x4c, 0x5);
-#if 0
-	write_phy_cck(dev, 0x41, 0x9d); /* Energy Threshold */
-	// TESTR 0xb 8187
-	write_phy_cck(dev, 0x10, 0x93);// & 0xfb);
-#endif
+
 	//rtl8255_set_gain(dev, 1); /* FIXME this '1' is random */
 
 	rtl8255_SetTXPowerLevel(dev, priv->chan);

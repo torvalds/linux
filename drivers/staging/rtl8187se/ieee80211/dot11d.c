@@ -222,13 +222,3 @@ int ToLegalChannel(
 
 	return default_chn;
 }
-
-#if 0
-EXPORT_SYMBOL(Dot11d_Init);
-EXPORT_SYMBOL(Dot11d_Reset);
-EXPORT_SYMBOL(Dot11d_UpdateCountryIe);
-EXPORT_SYMBOL(DOT11D_GetMaxTxPwrInDbm);
-EXPORT_SYMBOL(DOT11D_ScanComplete);
-EXPORT_SYMBOL(IsLegalChannel);
-EXPORT_SYMBOL(ToLegalChannel);
-#endif

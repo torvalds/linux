@@ -1380,12 +1380,6 @@ SwitchAntenna(
 
 	if(priv->CurrAntennaIndex == 0)
 	{
-#if 0//lzm del 080826
-//by amy 080312
-		if(priv->bSwAntennaDiverity)
-			bResult = SetAntennaConfig87SE(dev, 1, true);
-		else
-#endif
 			bResult = SetAntenna8185(dev, 1);
 //by amy 080312
 //		printk("SwitchAntenna(): switching to antenna 1 ......\n");
@@ -1393,12 +1387,6 @@ SwitchAntenna(
 	}
 	else
 	{
-#if 0//lzm del 080826
-//by amy 080312
-		if(priv->bSwAntennaDiverity)
-			bResult = SetAntennaConfig87SE(dev, 0, true);
-		else
-#endif
 			bResult = SetAntenna8185(dev, 0);
 //by amy 080312
 //		printk("SwitchAntenna(): switching to antenna 0 ......\n");

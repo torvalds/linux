@@ -570,22 +570,3 @@ exit:
 	return ret;
 
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_wx_get_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_rate);
-EXPORT_SYMBOL(ieee80211_wx_get_rate);
-EXPORT_SYMBOL(ieee80211_wx_set_wap);
-EXPORT_SYMBOL(ieee80211_wx_get_wap);
-EXPORT_SYMBOL(ieee80211_wx_set_mode);
-EXPORT_SYMBOL(ieee80211_wx_get_mode);
-EXPORT_SYMBOL(ieee80211_wx_set_scan);
-EXPORT_SYMBOL(ieee80211_wx_get_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_rawtx);
-EXPORT_SYMBOL(ieee80211_wx_get_name);
-EXPORT_SYMBOL(ieee80211_wx_set_power);
-EXPORT_SYMBOL(ieee80211_wx_get_power);
-EXPORT_SYMBOL(ieee80211_wlan_frequencies);
-#endif

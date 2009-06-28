@@ -650,22 +650,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 
 	if (type == IEEE80211_FTYPE_MGMT) {
-
-	#if 0
-		if ( stype == IEEE80211_STYPE_AUTH &&
-		    fc & IEEE80211_FCTL_WEP && ieee->host_decrypt &&
-		    (keyidx = hostap_rx_frame_decrypt(ieee, skb, crypt)) < 0)
-		{
-			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
-			       "from " MAC_FMT "\n", dev->name,
-			       MAC_ARG(hdr->addr2));
-			/* TODO: could inform hostapd about this so that it
-			 * could send auth failure report */
-			goto rx_dropped;
-		}
-	#endif
-
-
 		if (ieee80211_rx_frame_mgmt(ieee, skb, rx_stats, type, stype))
 			goto rx_dropped;
 		else
@@ -1077,15 +1061,6 @@ static inline void ieee80211_extract_country_ie(
 	u8 * addr2
 )
 {
-#if 0
-	u32 i = 0;
-	u8 * p = (u8*)info_element->data;
-	printk("-----------------------\n");
-	printk("%s Country IE:", network->ssid);
-	for(i=0; i<info_element->len; i++)
-		printk("\t%2.2x", *(p+i));
-	printk("\n-----------------------\n");
-#endif
 	if(IS_DOT11D_ENABLE(ieee))
 	{
 		if(info_element->len!= 0)
@@ -1277,11 +1252,8 @@ inline int ieee80211_network_init(
 
 			if(ieee->state != IEEE80211_LINKED)
 				break;
-#if 0
-			network->last_dtim_sta_time[0] = stats->mac_time[0];
-#else
+
 			network->last_dtim_sta_time[0] = jiffies;
-#endif
 			network->last_dtim_sta_time[1] = stats->mac_time[1];
 
 			network->dtim_data = IEEE80211_DTIM_VALID;
@@ -1425,9 +1397,7 @@ inline int ieee80211_network_init(
 
 	if (ieee80211_is_empty_essid(network->ssid, network->ssid_len))
 		network->flags |= NETWORK_EMPTY_ESSID;
-#if 0
-	stats->signal = ieee80211_SignalStrengthTranslate(stats->signal);
-#endif
+
 	stats->signal = ieee80211_TranslateToDbm(stats->signalstrength);
 	//stats->noise = stats->signal - stats->noise;
 	stats->noise = ieee80211_TranslateToDbm(100 - stats->signalstrength) - 25;
@@ -1581,21 +1551,7 @@ inline void ieee80211_process_probe_response(
 		(beacon->capability & (1<<0x2)) ? '1' : '0',
 		(beacon->capability & (1<<0x1)) ? '1' : '0',
 		(beacon->capability & (1<<0x0)) ? '1' : '0');
-#if 0
-	if(strcmp(escape_essid(beacon->info_element.data, beacon->info_element.len), "rtl_softap") == 0)
-	{
-		if(WLAN_FC_GET_STYPE(beacon->header.frame_ctl) == IEEE80211_STYPE_BEACON)
-		{
-			u32 i = 0, len = stats->len;
-			u8 * p = (u8*)beacon;
-			printk("-----------------------\n");
-			printk("rtl_softap Beacon:");
-			for(i=0; i<len; i++)
-				printk("\t%2.2x", *(p+i));
-			printk("\n-----------------------\n");
-		}
-	}
-#endif
+
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
 		IEEE80211_DEBUG_SCAN("Dropped '%s' (" MAC_FMT ") via %s.\n",
 				     escape_essid(info_element->data,
@@ -1781,9 +1737,3 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		break;
 	}
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_rx_mgt);
-EXPORT_SYMBOL(ieee80211_rx);
-EXPORT_SYMBOL(ieee80211_network_init);
-#endif

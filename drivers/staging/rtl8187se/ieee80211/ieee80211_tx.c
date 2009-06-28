@@ -585,7 +585,3 @@ int ieee80211_xmit(struct sk_buff *skb,
 	return NETDEV_TX_BUSY;
 
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_txb_free);
-#endif

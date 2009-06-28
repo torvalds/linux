@@ -298,8 +298,3 @@ void ieee80211_wep_null(void)
 //	printk("============>%s()\n", __func__);
         return;
 }
-#if 0
-EXPORT_SYMBOL(ieee80211_wep_null);
-#endif
-//module_init(ieee80211_crypto_wep_init);
-//module_exit(ieee80211_crypto_wep_exit);

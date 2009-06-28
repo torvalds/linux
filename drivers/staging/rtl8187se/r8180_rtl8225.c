@@ -26,18 +26,6 @@ u8 rtl8225_gain[]={
 	0x63,0x58,0x70,0xc5,// -66dbm
 };
 
-#if 0
-u8 rtl8225_init_gain[]={
-	//0x00,0x00,0x00,0x00,//0x00,0x00,0x00,0x00,
-	0x33,0x80,0x6c,0xc5,//0x00,0x49,0x06,0xb5,//Gain = 0 ~ -78dbm
-	0x43,0x78,0x69,0xc5,//0x00,0x45,0x06,0xb1,//Gain = 1 ~ -74dbm
-	0x53,0x60,0x66,0xc5,//0x00,0x41,0x06,0xab,//Gain = 2 ~ -70dbm
-	0x63,0x58,0x63,0xc5,//0x00,0x3d,0x06,0xa5,//Gain = 3 ~ -66dbm
-	0x73,0x50,0x62,0xc5,//0x00,0x39,0x06,0xa1,//Gain = 4 ~ -62dbm
-	0x83,0x43,0x61,0xc5,//0x00,0x35,0x06,0x9b,//Gain = 5 ~ -58dbm
-	0x93,0x38,0x5a,0xc5,//0x00,0x31,0x06,0x99,//Gain = 6 ~ -54dbm
-};
-#endif
 u32 rtl8225_chan[] ={
               0,
 		0x0080, //ch1
@@ -71,41 +59,6 @@ u16 rtl8225bcd_rxgain[]={
 	0x07b4, 0x07b5, 0x07b8, 0x07b9, 0x07ba, 0x07bb, 0x07bb
 
 };
-
-
-#if 0
-u16 rtl8225bc_rxgain[]={
-	0x0400, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0408, 0x0409,
-	0x040a, 0x040b, 0x0502, 0x0503, 0x0504, 0x0505, 0x0540, 0x0541,
-	0x0542, 0x0543, 0x0544, 0x0545, 0x0580, 0x0581, 0x0582, 0x0583,
-	0x0584, 0x0585, 0x0588, 0x0589, 0x058a, 0x058b, 0x0643, 0x0644,
-	0x0645, 0x0680, 0x0681, 0x0682, 0x0683, 0x0684, 0x0685, 0x0688,
-	0x0689, 0x068a, 0x068b, 0x068c, 0x0742, 0x0743, 0x0744, 0x0745,
-	0x0780, 0x0781, 0x0782, 0x0783, 0x0784, 0x0785, 0x0788, 0x0789,
-	0x078a, 0x078b, 0x078c, 0x078d, 0x0790, 0x0791, 0x0792, 0x0793,
-	0x0794, 0x0795, 0x0798, 0x0799, 0x039a, 0x039b, 0x039c, 0x039d,
-	0x03a0, 0x03a1, 0x03a2, 0x03a3, 0x03a4, 0x03a5, 0x03a8, 0x03a9,
-	0x03aa, 0x03ab, 0x03ac, 0x03ad, 0x03b0, 0x03b1, 0x03b2, 0x03b3,
-	0x03b4, 0x03b5, 0x03b8, 0x03b9, 0x03ba, 0x03bb, 0x03bb
-
-};
-
-
-u16 rtl8225a_rxgain[]={
-	0x0400, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0408, 0x0409,
-	0x040a, 0x040b, 0x0502, 0x0503, 0x0504, 0x0505, 0x0540, 0x0541,
-	0x0542, 0x0543, 0x0544, 0x0545, 0x0580, 0x0581, 0x0582, 0x0583,
-	0x0584, 0x0585, 0x0588, 0x0589, 0x058a, 0x058b, 0x0643, 0x0644,
-	0x0645, 0x0680, 0x0681, 0x0682, 0x0683, 0x0684, 0x0685, 0x0688,
-	0x0689, 0x068a, 0x068b, 0x068c, 0x0742, 0x0743, 0x0744, 0x0745,
-	0x0780, 0x0781, 0x0782, 0x0783, 0x0784, 0x0785, 0x0788, 0x0789,
-	0x078a, 0x078b, 0x078c, 0x078d, 0x0790, 0x0791, 0x0792, 0x0793,
-	0x0794, 0x0795, 0x0798, 0x0799, 0x079a, 0x079b, 0x079c, 0x079d,
-	0x07a0, 0x07a1, 0x07a2, 0x07a3, 0x07a4, 0x07a5, 0x07a8, 0x07a9,
-	0x07aa, 0x07ab, 0x07ac, 0x07ad, 0x07ad, 0x07ad, 0x07ad, 0x07ad,
-	0x07ad, 0x07ad, 0x07ad, 0x07ad, 0x07ad, 0x07ad, 0x07ad
-};
-#endif
 
 u8 rtl8225_agc[]={
 	0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9d,0x9c,0x9b,0x9a,0x99,0x98,0x97,0x96,
@@ -156,40 +109,6 @@ void rtl8225_set_gain(struct net_device *dev, short gain)
 	write_phy_ofdm(dev, 0x1b, rtl8225_gain[gain * 4 + 2]);
 	write_phy_ofdm(dev, 0x1d, rtl8225_gain[gain * 4 + 3]);
 }
-#if 0
-
-void rtl8225_set_gain(struct net_device *dev, short gain)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	rtl8180_set_anaparam(dev, RTL8225_ANAPARAM_ON);
-
-	if(priv->card_8185 == 2)
-		write_phy_ofdm(dev, 0x21, 0x27);
-	else
-		write_phy_ofdm(dev, 0x21, 0x37);
-
-	write_phy_ofdm(dev, 0x25, 0x20);
-	write_phy_ofdm(dev, 0x11, 0x6);
-
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_ofdm(dev, 0x27, 0x8);
-	else
-		write_phy_ofdm(dev, 0x27, 0x88);
-
-	write_phy_ofdm(dev, 0x14, 0);
-	write_phy_ofdm(dev, 0x16, 0);
-	write_phy_ofdm(dev, 0x15, 0x40);
-	write_phy_ofdm(dev, 0x17, 0x40);
-
-	write_phy_ofdm(dev, 0x0d, rtl8225_gain[gain * 4]);
-	write_phy_ofdm(dev, 0x23, rtl8225_gain[gain * 4 + 1]);
-	write_phy_ofdm(dev, 0x1b, rtl8225_gain[gain * 4 + 2]);
-	write_phy_ofdm(dev, 0x1d, rtl8225_gain[gain * 4 + 3]);
-	//rtl8225_set_gain_usb(dev, gain);
-}
-#endif
-
 
 void write_rtl8225(struct net_device *dev, u8 adr, u16 data)
 {
@@ -366,14 +285,7 @@ void rtl8225_SetTXPowerLevel(struct net_device *dev, short ch)
 	mdelay(1);
 	//write_nic_byte(dev, TX_AGC_CONTROL,4);
 }
-#if 0
-/* switch between mode B and G */
-void rtl8225_set_mode(struct net_device *dev, short modeb)
-{
-	write_phy_ofdm(dev, 0x15, (modeb ? 0x0 : 0x40));
-	write_phy_ofdm(dev, 0x17, (modeb ? 0x0 : 0x40));
-}
-#endif
+
 void rtl8225_rf_set_chan(struct net_device *dev, short ch)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -441,33 +353,6 @@ void rtl8225_host_pci_init(struct net_device *dev)
 
 void rtl8225_host_usb_init(struct net_device *dev)
 {
-	#if 0
-	write_nic_byte(dev,RFPinsSelect+1,0);
-
-	write_nic_byte(dev,GPIO,0);
-
-	write_nic_byte_E(dev,0x53,read_nic_byte_E(dev,0x53) | (1<<7));
-
-	write_nic_byte(dev,RFPinsSelect+1,4);
-
-	write_nic_byte(dev,GPIO,0x20);
-
-	write_nic_byte(dev,GP_ENABLE,0);
-
-
-	/* Config BB & RF */
-	write_nic_word(dev, RFPinsOutput, 0x80);
-
-	write_nic_word(dev, RFPinsSelect, 0x80);
-
-	write_nic_word(dev, RFPinsEnable, 0x80);
-
-
-	mdelay(100);
-
-	mdelay(1000);
-#endif
-
 }
 
 void rtl8225_rf_sleep(struct net_device *dev)
@@ -511,20 +396,6 @@ void rtl8225_rf_init(struct net_device *dev)
 
 	write_nic_word(dev, BRSR, 0xffff);
 
-	#if 0
-	if(priv->card_8185 == 1){/* version C or B */
-		if(priv->card_8185_Bversion)  /* version B*/
-			write_nic_dword(dev, RF_PARA, 0x44);
-		else    /* version C */
-			write_nic_dword(dev, RF_PARA, 0x100044);
-	}else{ /* version D */
-		if(priv->enable_gpio0)
-			write_nic_dword(dev, RF_PARA, 0x20100044);
-		else /* also USB */
-			write_nic_dword(dev, RF_PARA, 0x100044);
-	}
-	#endif
-
 	write_nic_dword(dev, RF_PARA, 0x100044);
 
 	#if 1  //0->1
@@ -555,13 +426,6 @@ void rtl8225_rf_init(struct net_device *dev)
 
 	mdelay(1);
 
-
-	#if 0
-	}else if(priv->phy_ver == 1){
-		/* version A */
-		write_rtl8225(dev, 0x5, 0xbc0 + 2);
-	}else{
-	#endif
 	/* version B & C */
 
 	if(priv->card_type == USB)
@@ -628,12 +492,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	for(i=0;i<95;i++){
 		write_rtl8225(dev, 0x1, (u8)(i+1));
 
-		#if 0
-		if(priv->phy_ver == 1)
-			/* version A */
-			write_rtl8225(dev, 0x2, rtl8225a_rxgain[i]);
-		else
-		#endif
 		/* version B & C & D*/
 
 		write_rtl8225(dev, 0x2, rtl8225bcd_rxgain[i]);
@@ -681,18 +539,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	write_phy_ofdm(dev, 0x8, 0x40); mdelay(1);
 	write_phy_ofdm(dev, 0x9, 0xfe); mdelay(1);
 
-	#if 0
-	if(priv->card_type == USB){
-		write_phy_ofdm(dev, 0xa, 0x9);
-	}else{
-		if(priv->card_8185 == 1 && priv->card_8185_Bversion){
-			/* Ver B
-			* maybe later version can accept this also?
-			*/
-			write_phy_ofdm(dev, 0xa, 0x6);
-			write_phy_ofdm(dev, 0x18, 0x6f);
-		}else{
-	#endif
 			/* ver C & D */
 	write_phy_ofdm(dev, 0xa, 0x9); mdelay(1);
 
@@ -710,14 +556,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	write_phy_ofdm(dev, 0xe, 0xd3);mdelay(1);
 
 
-	#if 0
-	if(priv->card_8185 == 1){
-		if(priv->card_8185_Bversion)
-			write_phy_ofdm(dev, 0xf, 0x20);/*ver B*/
-		else
-			write_phy_ofdm(dev, 0xf, 0x28);/*ver C*/
-	}else{
-	#endif
 	write_phy_ofdm(dev, 0xf, 0x38);mdelay(1);
 /*ver D & 8187*/
 //	}
@@ -738,13 +576,6 @@ void rtl8225_rf_init(struct net_device *dev)
 
 	write_phy_ofdm(dev, 0x13, 0x20);mdelay(1);
 
-#if 0
-	}else{
-		/* Ver B & C*/
-		write_phy_ofdm(dev, 0x12, 0x0);
-		write_phy_ofdm(dev, 0x13, 0x0);
-	}
-#endif
 	write_phy_ofdm(dev, 0x14, 0x0); mdelay(1);
 	write_phy_ofdm(dev, 0x15, 0x40); mdelay(1);
 	write_phy_ofdm(dev, 0x16, 0x0); mdelay(1);
@@ -769,20 +600,6 @@ void rtl8225_rf_init(struct net_device *dev)
 
 	write_phy_ofdm(dev, 0x1c, 0x4);mdelay(1);
 
-#if 0
-	if(priv->card_8185 == 1){
-		if(priv->card_8185_Bversion){
-			/*ver B*/
-			write_phy_ofdm(dev, 0x1e, 0x95);
-			write_phy_ofdm(dev, 0x1f, 0x55);
-		}else{
-			/*ver C*/
-			write_phy_ofdm(dev, 0x1e, 0x90);
-			write_phy_ofdm(dev, 0x1f, 0x34);
-
-		}
-	}else{
-#endif
 		/*ver D & 8187*/
 	write_phy_ofdm(dev, 0x1e, 0x95);mdelay(1);
 
@@ -802,11 +619,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	write_phy_ofdm(dev, 0x24, 0x46); mdelay(1);
 	write_phy_ofdm(dev, 0x25, 0x20); mdelay(1);
 	write_phy_ofdm(dev, 0x26, 0x90); mdelay(1);
-#if 0
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_ofdm(dev, 0x27, 0x08); /* Ver B. might work also fo ver C&D ?*/
-	else
-#endif
 	write_phy_ofdm(dev, 0x27, 0x88); mdelay(1);
 /* Ver C & D & 8187*/
 
@@ -824,11 +636,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	write_phy_cck(dev, 0x4, 0x7e); mdelay(1);
 	write_phy_cck(dev, 0x5, 0x12); mdelay(1);
 	write_phy_cck(dev, 0x6, 0xfc); mdelay(1);
-#if 0
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_cck(dev, 0x7, 0xd8); /* Ver B */
-	else
-#endif
 	write_phy_cck(dev, 0x7, 0x78);mdelay(1);
  /* Ver C & D & 8187*/
 
@@ -837,11 +644,6 @@ void rtl8225_rf_init(struct net_device *dev)
 	write_phy_cck(dev, 0x10, ((priv->card_type == USB) ? 0x9b: 0x93)); mdelay(1);
 	write_phy_cck(dev, 0x11, 0x88); mdelay(1);
 	write_phy_cck(dev, 0x12, 0x47); mdelay(1);
-#if 0
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_cck(dev, 0x13, 0x98); /* Ver B */
-	else
-#endif
 	write_phy_cck(dev, 0x13, 0xd0); /* Ver C & D & 8187*/
 
 	write_phy_cck(dev, 0x19, 0x0);

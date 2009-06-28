@@ -174,33 +174,6 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
-#if 0
-	if (ieee->wpa_enabled && network->wpa_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-	//	printk("WPA IE\n");
-		u8 *p = buf;
-		p += sprintf(p, "wpa_ie=");
-		for (i = 0; i < network->wpa_ie_len; i++) {
-			p += sprintf(p, "%02x", network->wpa_ie[i]);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
-		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
-	}
-
-	if (ieee->wpa_enabled && network->rsn_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-
-		u8 *p = buf;
-		p += sprintf(p, "rsn_ie=");
-		for (i = 0; i < network->rsn_ie_len; i++) {
-			p += sprintf(p, "%02x", network->rsn_ie[i]);
-		}
-
-
-#else
 		memset(&iwe, 0, sizeof(iwe));
         if (network->wpa_ie_len) {
 	//	printk("wpa_ie_len:%d\n", network->wpa_ie_len);
@@ -214,22 +187,12 @@ static inline char *rtl818x_translate_scan(struct ieee80211_device *ieee,
         memset(&iwe, 0, sizeof(iwe));
         if (network->rsn_ie_len) {
 	//	printk("=====>rsn_ie_len:\n", network->rsn_ie_len);
-		#if 0
-		{
-			int i;
-			for (i=0; i<network->rsn_ie_len; i++);
-			printk("%2x ", network->rsn_ie[i]);
-			printk("\n");
-		}
-		#endif
                 char buf[MAX_WPA_IE_LEN];
                 memcpy(buf, network->rsn_ie, network->rsn_ie_len);
                 iwe.cmd = IWEVGENIE;
                 iwe.u.data.length = network->rsn_ie_len;
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
-
-#endif
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
 	 * for given network. */
@@ -578,12 +541,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 	sec.enabled = 1;
     //    sec.encrypt = 1;
-#if 0
-        if (group_key ? !ieee->host_mc_decrypt :
-            !(ieee->host_encrypt || ieee->host_decrypt ||
-              ieee->host_encrypt_msdu))
-                goto skip_host_crypt;
-#endif
+
         switch (ext->alg) {
         case IW_ENCODE_ALG_WEP:
                 alg = "WEP";
@@ -769,15 +727,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
-#if 0
-	printk("====>%s()\n", __func__);
-	{
-		int i;
-		for (i=0; i<len; i++)
-		printk("%2x ", ie[i]&0xff);
-		printk("\n");
-	}
-#endif
 	u8 *buf = NULL;
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
@@ -811,14 +760,4 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 	return 0;
 
 }
-#endif
-
-#if 0
-EXPORT_SYMBOL(ieee80211_wx_set_gen_ie);
-EXPORT_SYMBOL(ieee80211_wx_set_mlme);
-EXPORT_SYMBOL(ieee80211_wx_set_auth);
-EXPORT_SYMBOL(ieee80211_wx_set_encode_ext);
-EXPORT_SYMBOL(ieee80211_wx_get_scan);
-EXPORT_SYMBOL(ieee80211_wx_set_encode);
-EXPORT_SYMBOL(ieee80211_wx_get_encode);
 #endif

@@ -46,26 +46,6 @@ u8 rtl8225z2_gain_a[]={
 	0x63,0x24,0x4f,//,0x37,// -70dbm
 	0x73,0x0f,0x4c,//,0x37,// -66dbm
 };
-#if 0
-u32 rtl8225_chan[] = {
-	0,	//dummy channel 0
-	0x085c, //1
-	0x08dc, //2
-	0x095c, //3
-	0x09dc, //4
-	0x0a5c, //5
-	0x0adc, //6
-	0x0b5c, //7
-	0x0bdc, //8
-	0x0c5c, //9
-	0x0cdc, //10
-	0x0d5c, //11
-	0x0ddc, //12
-	0x0e5c, //13
-	//0x0f5c, //14
-	0x0f72, // 14
-};
-#endif
 
 //-
 u16 rtl8225z2_rxgain[]={
@@ -94,19 +74,6 @@ u8 ZEBRA2_CCK_OFDM_GAIN_SETTING[]={
         0x1e,0x1f,0x20,0x21,0x22,0x23,
 };
 
-#if 0
-//-
-u8 rtl8225_agc[]={
-	0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9e,0x9d,0x9c,0x9b,0x9a,0x99,0x98,0x97,0x96,
-	0x95,0x94,0x93,0x92,0x91,0x90,0x8f,0x8e,0x8d,0x8c,0x8b,0x8a,0x89,0x88,0x87,0x86,
-	0x85,0x84,0x83,0x82,0x81,0x80,0x3f,0x3e,0x3d,0x3c,0x3b,0x3a,0x39,0x38,0x37,0x36,
-	0x35,0x34,0x33,0x32,0x31,0x30,0x2f,0x2e,0x2d,0x2c,0x2b,0x2a,0x29,0x28,0x27,0x26,
-	0x25,0x24,0x23,0x22,0x21,0x20,0x1f,0x1e,0x1d,0x1c,0x1b,0x1a,0x19,0x18,0x17,0x16,
-	0x15,0x14,0x13,0x12,0x11,0x10,0x0f,0x0e,0x0d,0x0c,0x0b,0x0a,0x09,0x08,0x07,0x06,
-	0x05,0x04,0x03,0x02,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-	0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-};
-#endif
 /*
  from 0 to 0x23
 u8 rtl8225_tx_gain_cck_ofdm[]={
@@ -154,40 +121,6 @@ void rtl8225z2_set_gain(struct net_device *dev, short gain)
 	write_phy_ofdm(dev, 0x21, 0x37);
 
 }
-
-#if 0
-
-void rtl8225_set_gain(struct net_device *dev, short gain)
-{
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	rtl8180_set_anaparam(dev, RTL8225_ANAPARAM_ON);
-
-	if(priv->card_8185 == 2)
-		write_phy_ofdm(dev, 0x21, 0x27);
-	else
-		write_phy_ofdm(dev, 0x21, 0x37);
-
-	write_phy_ofdm(dev, 0x25, 0x20);
-	write_phy_ofdm(dev, 0x11, 0x6);
-
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_ofdm(dev, 0x27, 0x8);
-	else
-		write_phy_ofdm(dev, 0x27, 0x88);
-
-	write_phy_ofdm(dev, 0x14, 0);
-	write_phy_ofdm(dev, 0x16, 0);
-	write_phy_ofdm(dev, 0x15, 0x40);
-	write_phy_ofdm(dev, 0x17, 0x40);
-
-	write_phy_ofdm(dev, 0x0d, rtl8225_gain[gain * 4]);
-	write_phy_ofdm(dev, 0x23, rtl8225_gain[gain * 4 + 1]);
-	write_phy_ofdm(dev, 0x1b, rtl8225_gain[gain * 4 + 2]);
-	write_phy_ofdm(dev, 0x1d, rtl8225_gain[gain * 4 + 3]);
-	//rtl8225_set_gain_usb(dev, gain);
-}
-#endif
 
 u32 read_rtl8225(struct net_device *dev, u8 adr)
 {
@@ -284,76 +217,7 @@ u32 read_rtl8225(struct net_device *dev, u8 adr)
 	return dataRead;
 
 }
-#if 0
-void write_rtl8225(struct net_device *dev, u8 adr, u16 data)
-{
-	int i;
-	u16 out,select;
-	u8 bit;
-	u32 bangdata = (data << 4) | (adr & 0xf);
-	struct r8180_priv *priv = ieee80211_priv(dev);
 
-	out = read_nic_word(dev, RFPinsOutput) & 0xfff3;
-
-	write_nic_word(dev,RFPinsEnable,
-		(read_nic_word(dev,RFPinsEnable) | 0x7));
-
-	select = read_nic_word(dev, RFPinsSelect);
-
-	write_nic_word(dev, RFPinsSelect, select | 0x7 |
-		((priv->card_type == USB) ? 0 : SW_CONTROL_GPIO));
-
-	force_pci_posting(dev);
-	udelay(10);
-
-	write_nic_word(dev, RFPinsOutput, out | BB_HOST_BANG_EN );//| 0x1fff);
-
-	force_pci_posting(dev);
-	udelay(2);
-
-	write_nic_word(dev, RFPinsOutput, out);
-
-	force_pci_posting(dev);
-	udelay(10);
-
-
-	for(i=15; i>=0;i--){
-
-		bit = (bangdata & (1<<i)) >> i;
-
-		write_nic_word(dev, RFPinsOutput, bit | out);
-
-		write_nic_word(dev, RFPinsOutput, bit | out | BB_HOST_BANG_CLK);
-		write_nic_word(dev, RFPinsOutput, bit | out | BB_HOST_BANG_CLK);
-
-		i--;
-		bit = (bangdata & (1<<i)) >> i;
-
-		write_nic_word(dev, RFPinsOutput, bit | out | BB_HOST_BANG_CLK);
-		write_nic_word(dev, RFPinsOutput, bit | out | BB_HOST_BANG_CLK);
-
-		write_nic_word(dev, RFPinsOutput, bit | out);
-
-	}
-
-	write_nic_word(dev, RFPinsOutput, out | BB_HOST_BANG_EN);
-
-	force_pci_posting(dev);
-	udelay(10);
-
-	write_nic_word(dev, RFPinsOutput, out |
-		((priv->card_type == USB) ? 4 : BB_HOST_BANG_EN));
-
-	write_nic_word(dev, RFPinsSelect, select |
-		((priv->card_type == USB) ? 0 : SW_CONTROL_GPIO));
-
-	if(priv->card_type == USB)
-		mdelay(2);
-	else
-		rtl8185_rf_pins_enable(dev);
-}
-
-#endif
 short rtl8225_is_V_z2(struct net_device *dev)
 {
 	short vz2 = 1;
@@ -364,13 +228,7 @@ short rtl8225_is_V_z2(struct net_device *dev)
 
 	/* reg 8 pg 1 = 23*/
 	//printk(KERN_WARNING "RF Rigisters:\n");
-#if 0
-	for(i = 0; i <= 0xf; i++)
-		printk(KERN_WARNING "%08x,", read_rtl8225(dev, i));
-	//printk(KERN_WARNING "reg[9]@pg1 = 0x%x\n", read_rtl8225(dev, 0x0F));
 
-//	printk(KERN_WARNING "RF:\n");
-#endif
 	if( read_rtl8225(dev, 8) != 0x588)
 		vz2 = 0;
 
@@ -384,38 +242,6 @@ short rtl8225_is_V_z2(struct net_device *dev)
 	return vz2;
 
 }
-
-#if 0
-void rtl8225_rf_close(struct net_device *dev)
-{
-	write_rtl8225(dev, 0x4, 0x1f);
-
-	force_pci_posting(dev);
-	mdelay(1);
-
-	rtl8180_set_anaparam(dev, RTL8225_ANAPARAM_OFF);
-	rtl8185_set_anaparam2(dev, RTL8225_ANAPARAM2_OFF);
-}
-#endif
-#if 0
-short rtl8225_rf_set_sens(struct net_device *dev, short sens)
-{
-	if (sens <0 || sens > 6) return -1;
-
-	if(sens > 4)
-		write_rtl8225(dev, 0x0c, 0x850);
-	else
-		write_rtl8225(dev, 0x0c, 0x50);
-
-	sens= 6-sens;
-	rtl8225_set_gain(dev, sens);
-
-	write_phy_cck(dev, 0x41, rtl8225_threshold[sens]);
-	return 0;
-
-}
-#endif
-
 
 void rtl8225z2_rf_close(struct net_device *dev)
 {
@@ -514,39 +340,7 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 //	u8 ofdm_power_level = 0xff & priv->chtxpwr_ofdm[ch];//-by amy 080312
 	char cck_power_level = (char)(0xff & priv->chtxpwr[ch]);//+by amy 080312
 	char ofdm_power_level = (char)(0xff & priv->chtxpwr_ofdm[ch]);//+by amy 080312
-#if 0
-	//
-	// CCX 2 S31, AP control of client transmit power:
-	// 1. We shall not exceed Cell Power Limit as possible as we can.
-	// 2. Tolerance is +/- 5dB.
-	// 3. 802.11h Power Contraint takes higher precedence over CCX Cell Power Limit.
-	//
-	// TODO:
-	// 1. 802.11h power contraint
-	//
-	// 071011, by rcnjko.
-	//
-	if(	priv->OpMode == RT_OP_MODE_INFRASTRUCTURE &&
-		priv->bWithCcxCellPwr &&
-		ch == priv->dot11CurrentChannelNumber)
-	{
-		u8 CckCellPwrIdx = DbmToTxPwrIdx(dev, WIRELESS_MODE_B, pMgntInfo->CcxCellPwr);
-		u8 OfdmCellPwrIdx = DbmToTxPwrIdx(dev, WIRELESS_MODE_G, pMgntInfo->CcxCellPwr);
 
-		printk("CCX Cell Limit: %d dBm => CCK Tx power index : %d, OFDM Tx power index: %d\n",
-			priv->CcxCellPwr, CckCellPwrIdx, OfdmCellPwrIdx);
-		printk("EEPROM channel(%d) => CCK Tx power index: %d, OFDM Tx power index: %d\n",
-			channel, CckTxPwrIdx, OfdmTxPwrIdx);
-
-		if(cck_power_level > CckCellPwrIdx)
-			cck_power_level = CckCellPwrIdx;
-		if(ofdm_power_level > OfdmCellPwrIdx)
-			ofdm_power_level = OfdmCellPwrIdx;
-
-		printk("Altered CCK Tx power index : %d, OFDM Tx power index: %d\n",
-			CckTxPwrIdx, OfdmTxPwrIdx);
-	}
-#endif
 	if(IS_DOT11D_ENABLE(priv->ieee80211) &&
 		IS_DOT11D_STATE_DONE(priv->ieee80211) )
 	{
@@ -642,14 +436,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 	mdelay(1);
 
 }
-#if 0
-/* switch between mode B and G */
-void rtl8225_set_mode(struct net_device *dev, short modeb)
-{
-	write_phy_ofdm(dev, 0x15, (modeb ? 0x0 : 0x40));
-	write_phy_ofdm(dev, 0x17, (modeb ? 0x0 : 0x40));
-}
-#endif
 
 void rtl8225z2_rf_set_chan(struct net_device *dev, short ch)
 {
@@ -672,86 +458,8 @@ void rtl8225z2_rf_set_chan(struct net_device *dev, short ch)
 
 	force_pci_posting(dev);
 	mdelay(10);
-//deleted by David : 2006/8/9
-#if 0
-	write_nic_byte(dev,SIFS,0x22);// SIFS: 0x22
-
-	if(gset)
-		write_nic_byte(dev,DIFS,20); //DIFS: 20
-	else
-		write_nic_byte(dev,DIFS,0x24); //DIFS: 36
-
-	if(priv->ieee80211->state == IEEE80211_LINKED &&
-		ieee80211_is_shortslot(priv->ieee80211->current_network))
-		write_nic_byte(dev,SLOT,0x9); //SLOT: 9
-
-	else
-		write_nic_byte(dev,SLOT,0x14); //SLOT: 20 (0x14)
-
-
-	if(gset){
-		write_nic_byte(dev,EIFS,91 - 20); // EIFS: 91 (0x5B)
-		write_nic_byte(dev,CW_VAL,0x73); //CW VALUE: 0x37
-		//DMESG("using G net params");
-	}else{
-		write_nic_byte(dev,EIFS,91 - 0x24); // EIFS: 91 (0x5B)
-		write_nic_byte(dev,CW_VAL,0xa5); //CW VALUE: 0x37
-		//DMESG("using B net params");
-	}
-#endif
-
-}
-#if 0
-void rtl8225_host_pci_init(struct net_device *dev)
-{
-	write_nic_word(dev, RFPinsOutput, 0x480);
-
-	rtl8185_rf_pins_enable(dev);
-
-	//if(priv->card_8185 == 2 && priv->enable_gpio0 ) /* version D */
-	//write_nic_word(dev, RFPinsSelect, 0x88);
-	//else
-	write_nic_word(dev, RFPinsSelect, 0x88 | SW_CONTROL_GPIO); /* 0x488 | SW_CONTROL_GPIO */
-
-	write_nic_byte(dev, GP_ENABLE, 0);
-
-	force_pci_posting(dev);
-	mdelay(200);
-
-	write_nic_word(dev, GP_ENABLE, 0xff & (~(1<<6))); /* bit 6 is for RF on/off detection */
-
-
 }
 
-void rtl8225_host_usb_init(struct net_device *dev)
-{
-	write_nic_byte(dev,RFPinsSelect+1,0);
-
-	write_nic_byte(dev,GPIO,0);
-
-	write_nic_byte_E(dev,0x53,read_nic_byte_E(dev,0x53) | (1<<7));
-
-	write_nic_byte(dev,RFPinsSelect+1,4);
-
-	write_nic_byte(dev,GPIO,0x20);
-
-	write_nic_byte(dev,GP_ENABLE,0);
-
-
-	/* Config BB & RF */
-	write_nic_word(dev, RFPinsOutput, 0x80);
-
-	write_nic_word(dev, RFPinsSelect, 0x80);
-
-	write_nic_word(dev, RFPinsEnable, 0x80);
-
-
-	mdelay(100);
-
-	mdelay(1000);
-
-}
-#endif
 void rtl8225z2_rf_init(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -840,12 +548,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	for(i=0;i<95;i++){
 		write_rtl8225(dev, 0x1, (u8)(i+1));
 
-		#if 0
-		if(priv->phy_ver == 1)
-			/* version A */
-			write_rtl8225(dev, 0x2, rtl8225a_rxgain[i]);
-		else
-		#endif
 		/* version B & C & D*/
 
 		write_rtl8225(dev, 0x2, rtl8225z2_rxgain[i]);
@@ -917,16 +619,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
                 mdelay(1);
         }
-#if 0
-	for(i=0;i<128;i++){
-		write_phy_ofdm(dev, 0xb, rtl8225_agc[i]);
-
-		mdelay(1);
-		write_phy_ofdm(dev, 0xa, (u8)i+ 0x80);
-
-		mdelay(1);
-	}
-#endif
 
 	force_pci_posting(dev);
 	mdelay(1);
@@ -958,14 +650,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	write_phy_ofdm(dev, 0xe, 0xd3);mdelay(1);
 
 
-	#if 0
-	if(priv->card_8185 == 1){
-		if(priv->card_8185_Bversion)
-			write_phy_ofdm(dev, 0xf, 0x20);/*ver B*/
-		else
-			write_phy_ofdm(dev, 0xf, 0x28);/*ver C*/
-	}else{
-	#endif
 	write_phy_ofdm(dev, 0xf, 0x38);mdelay(1);
 /*ver D & 8187*/
 //	}
@@ -986,13 +670,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 	write_phy_ofdm(dev, 0x13, 0x20);mdelay(1);
 
-#if 0
-	}else{
-		/* Ver B & C*/
-		write_phy_ofdm(dev, 0x12, 0x0);
-		write_phy_ofdm(dev, 0x13, 0x0);
-	}
-#endif
 	write_phy_ofdm(dev, 0x14, 0x0); mdelay(1);
 	write_phy_ofdm(dev, 0x15, 0x40); mdelay(1);
 	write_phy_ofdm(dev, 0x16, 0x0); mdelay(1);
@@ -1052,11 +729,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	write_phy_cck(dev, 0x10, ((priv->card_type == USB) ? 0x9b: 0x93)); mdelay(1);
 	write_phy_cck(dev, 0x11, 0x88); mdelay(1);
 	write_phy_cck(dev, 0x12, 0x47); mdelay(1);
-#if 0
-	if(priv->card_8185 == 1 && priv->card_8185_Bversion)
-		write_phy_cck(dev, 0x13, 0x98); /* Ver B */
-	else
-#endif
 	write_phy_cck(dev, 0x13, 0xd0); /* Ver C & D & 8187*/
 
 	write_phy_cck(dev, 0x19, 0x0);
@@ -1279,13 +951,6 @@ SetZebraRFPowerState8185(
 					QueueID++;
 					continue;
 				}
-#if 0		//reserved amy
-				else if(priv->NdisAdapter.CurrentPowerState != NdisDeviceStateD0)
-				{
-					RT_TRACE(COMP_POWER, DBG_LOUD, ("eRfSleep: %d times TcbBusyQueue[%d] !=0 but lower power state!\n", (pMgntInfo->TxPollingTimes+1), QueueID));
-					break;
-				}
-#endif
 				else//lzm mod 080826
 				{
 					priv->TxPollingTimes ++;
@@ -1388,13 +1053,6 @@ SetZebraRFPowerState8185(
 					QueueID++;
 					continue;
 				}
-#if 0
-				else if(Adapter->NdisAdapter.CurrentPowerState != NdisDeviceStateD0)
-				{
-					RT_TRACE(COMP_POWER, DBG_LOUD, ("%d times TcbBusyQueue[%d] !=0 but lower power state!\n", (i+1), QueueID));
-					break;
-				}
-#endif
 				else
 				{
 					udelay(10);
@@ -1477,39 +1135,6 @@ SetZebraRFPowerState8185(
 	{
 		// Update current RF state variable.
 		priv->eRFPowerState = eRFPowerState;
-#if 0
-		switch(priv->eRFPowerState)
-		{
-		case eRfOff:
-			//
-			//If Rf off reason is from IPS, Led should blink with no link, by Maddest 071015
-			//
-			if(priv->RfOffReason==RF_CHANGE_BY_IPS )
-			{
-				Adapter->HalFunc.LedControlHandler(Adapter,LED_CTL_NO_LINK);
-			}
-			else
-			{
-				// Turn off LED if RF is not ON.
-				Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_POWER_OFF);
-			}
-			break;
-
-		case eRfOn:
-			// Turn on RF we are still linked, which might happen when
-			// we quickly turn off and on HW RF. 2006.05.12, by rcnjko.
-			if( pMgntInfo->bMediaConnect == TRUE )
-			{
-				Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_LINK);
-			}
-			break;
-
-		default:
-			// do nothing.
-			break;
-		}
-#endif
-
 	}
 
 	priv->SetRFPowerStateInProgress = false;

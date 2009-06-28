@@ -1569,36 +1569,7 @@ static struct iw_statistics *r8180_get_wireless_stats(struct net_device *dev)
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		return wstats;
 	}
-#if 0
-	spin_lock_irqsave(&ieee->lock, flag);
-	list_for_each_entry(target, &ieee->network_list, list)
-	{
-		if (is_same_network(target, &ieee->current_network, ieee))
-		{
-			printk("it's same network:%s\n", target->ssid);
-#if 0
-			if (!tmp_level)
-			{
-				tmp_level = target->stats.signalstrength;
-				tmp_qual = target->stats.signal;
-			}
-			else
-			{
 
-				tmp_level = (15*tmp_level + target->stats.signalstrength)/16;
-				tmp_qual = (15*tmp_qual + target->stats.signal)/16;
-			}
-#else
-			tmp_level = target->stats.signal;
-			tmp_qual = target->stats.signalstrength;
-			tmp_noise = target->stats.noise;
-			printk("level:%d, qual:%d, noise:%d\n", tmp_level, tmp_qual, tmp_noise);
-#endif
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&ieee->lock, flag);
-#endif
 	tmp_level = (&ieee->current_network)->stats.signal;
 	tmp_qual = (&ieee->current_network)->stats.signalstrength;
 	tmp_noise = (&ieee->current_network)->stats.noise;

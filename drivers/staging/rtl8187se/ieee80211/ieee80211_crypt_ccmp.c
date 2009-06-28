@@ -472,10 +472,3 @@ void ieee80211_crypto_ccmp_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_ccmp);
 }
-
-#if 0
-EXPORT_SYMBOL(ieee80211_ccmp_null);
-#endif
-
-//module_init(ieee80211_crypto_ccmp_init);
-//module_exit(ieee80211_crypto_ccmp_exit);
