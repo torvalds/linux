@@ -252,14 +252,14 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 
 	/* Should never happen!! */
 	if (!IS_I965G(dev) && intel_crtc->pipe == 0) {
-		printk(KERN_ERR "Can't support LVDS on pipe A\n");
+		DRM_ERROR("Can't support LVDS on pipe A\n");
 		return false;
 	}
 
 	/* Should never happen!! */
 	list_for_each_entry(tmp_encoder, &dev->mode_config.encoder_list, head) {
 		if (tmp_encoder != encoder && tmp_encoder->crtc == encoder->crtc) {
-			printk(KERN_ERR "Can't enable LVDS and another "
+			DRM_ERROR("Can't enable LVDS and another "
 			       "encoder on the same pipe\n");
 			return false;
 		}

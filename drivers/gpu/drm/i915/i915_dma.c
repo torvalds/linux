@@ -846,7 +846,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	printk(KERN_DEBUG "set status page addr 0x%08x\n", (u32)hws->addr);
+	DRM_DEBUG("set status page addr 0x%08x\n", (u32)hws->addr);
 
 	dev_priv->status_gfx_addr = hws->addr & (0x1ffff<<12);
 

@@ -57,8 +57,8 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!dev || !dev_priv) {
-		printk(KERN_ERR "dev: %p, dev_priv: %p\n", dev, dev_priv);
-		printk(KERN_ERR "DRM not initialized, aborting suspend.\n");
+		DRM_ERROR("dev: %p, dev_priv: %p\n", dev, dev_priv);
+		DRM_ERROR("DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
 
