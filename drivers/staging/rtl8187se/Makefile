@@ -25,7 +25,6 @@ rtl8187se-objs :=			\
 		r8180_rtl8225z2.o	\
 		r8185b_init.o		\
 		r8180_dm.o		\
-		r8180_pm.o		\
 		ieee80211/dot11d.o			\
 		ieee80211/ieee80211_softmac.o		\
 		ieee80211/ieee80211_rx.o		\

@@ -26,8 +26,6 @@ Notes:
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8180_wx.h"
 
-#include "r8180_pm.h"
-
 #include "ieee80211/dot11d.h"
 
 

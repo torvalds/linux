@@ -22,6 +22,9 @@
 
    A big big thanks goes also to Realtek corp. for their help in my attempt to
    add RTL8185 and RTL8225 support, and to David Young also.
+
+   Power management interface routines.
+   Written by Mariusz Matuszek.
 */
 
 #undef RX_DONT_PASS_UL
@@ -36,8 +39,6 @@
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8180_wx.h"
 #include "r8180_dm.h"
-
-#include "r8180_pm.h"
 
 #include "ieee80211/dot11d.h"
 
@@ -119,6 +120,64 @@ static void rtl8180_shutdown (struct pci_dev *pdev)
 	if (dev->netdev_ops->ndo_stop)
 		dev->netdev_ops->ndo_stop(dev);
 	pci_disable_device(pdev);
+}
+
+static int rtl8180_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (!netif_running(dev))
+		goto out_pci_suspend;
+
+	if (dev->netdev_ops->ndo_stop)
+		dev->netdev_ops->ndo_stop(dev);
+
+	netif_device_detach(dev);
+
+out_pci_suspend:
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return 0;
+}
+
+static int rtl8180_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	int err;
+	u32 val;
+
+	pci_set_power_state(pdev, PCI_D0);
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
+				dev->name);
+
+		return err;
+	}
+
+	pci_restore_state(pdev);
+
+	/*
+	 * Suspend/Resume resets the PCI configuration space, so we have to
+	 * re-disable the RETRY_TIMEOUT register (0x41) to keep PCI Tx retries
+	 * from interfering with C3 CPU state. pci_restore_state won't help
+	 * here since it only restores the first 64 bytes pci config header.
+	 */
+	pci_read_config_dword(pdev, 0x40, &val);
+	if ((val & 0x0000ff00) != 0)
+		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+
+	if (!netif_running(dev))
+		goto out;
+
+	if (dev->netdev_ops->ndo_open)
+		dev->netdev_ops->ndo_open(dev);
+
+	netif_device_attach(dev);
+out:
+	return 0;
 }
 
 static struct pci_driver rtl8180_pci_driver = {
