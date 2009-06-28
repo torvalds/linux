@@ -1674,17 +1674,6 @@ static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
 	return 0;
 }
 
-static int domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
-			       u64 hpa, size_t size, int prot)
-{
-	unsigned long first_pfn = hpa >> VTD_PAGE_SHIFT;
-	unsigned long last_pfn = (hpa + size - 1) >> VTD_PAGE_SHIFT;
-
-	return domain_pfn_mapping(domain, iova >> VTD_PAGE_SHIFT, first_pfn,
-				  last_pfn - first_pfn + 1, prot);
-
-}
-
 static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
 	if (!iommu)
@@ -2745,17 +2734,16 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 			enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	phys_addr_t addr;
 	int i;
 	struct pci_dev *pdev = to_pci_dev(hwdev);
 	struct dmar_domain *domain;
 	size_t size = 0;
 	int prot = 0;
-	size_t offset = 0;
+	size_t offset_pfn = 0;
 	struct iova *iova = NULL;
 	int ret;
 	struct scatterlist *sg;
-	unsigned long start_addr;
+	unsigned long start_vpfn;
 	struct intel_iommu *iommu;
 
 	BUG_ON(dir == DMA_NONE);
@@ -2768,10 +2756,8 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	iommu = domain_get_iommu(domain);
 
-	for_each_sg(sglist, sg, nelems, i) {
-		addr = page_to_phys(sg_page(sg)) + sg->offset;
-		size += aligned_size((u64)addr, sg->length);
-	}
+	for_each_sg(sglist, sg, nelems, i)
+		size += aligned_size(sg->offset, sg->length);
 
 	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
 	if (!iova) {
@@ -2789,36 +2775,34 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
 		prot |= DMA_PTE_WRITE;
 
-	start_addr = iova->pfn_lo << PAGE_SHIFT;
-	offset = 0;
+	start_vpfn = mm_to_dma_pfn(iova->pfn_lo);
+	offset_pfn = 0;
 	for_each_sg(sglist, sg, nelems, i) {
-		addr = page_to_phys(sg_page(sg)) + sg->offset;
-		size = aligned_size((u64)addr, sg->length);
-		ret = domain_page_mapping(domain, start_addr + offset,
-					  ((u64)addr) & PHYSICAL_PAGE_MASK,
-					  size, prot);
+		int nr_pages = aligned_size(sg->offset, sg->length) >> VTD_PAGE_SHIFT;
+		ret = domain_pfn_mapping(domain, start_vpfn + offset_pfn,
+					 page_to_dma_pfn(sg_page(sg)),
+					 nr_pages, prot);
 		if (ret) {
 			/*  clear the page */
-			dma_pte_clear_range(domain,
-					    start_addr >> VTD_PAGE_SHIFT,
-					    (start_addr + offset - 1) >> VTD_PAGE_SHIFT);
+			dma_pte_clear_range(domain, start_vpfn,
+					    start_vpfn + offset_pfn);
 			/* free page tables */
-			dma_pte_free_pagetable(domain, start_addr >> VTD_PAGE_SHIFT,
-					       (start_addr + offset - 1) >> VTD_PAGE_SHIFT);
+			dma_pte_free_pagetable(domain, start_vpfn,
+					       start_vpfn + offset_pfn);
 			/* free iova */
 			__free_iova(&domain->iovad, iova);
 			return 0;
 		}
-		sg->dma_address = start_addr + offset +
-				((u64)addr & (~PAGE_MASK));
+		sg->dma_address = ((dma_addr_t)(start_vpfn + offset_pfn)
+				   << VTD_PAGE_SHIFT) + sg->offset;
 		sg->dma_length = sg->length;
-		offset += size;
+		offset_pfn += nr_pages;
 	}
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_addr,
-				      offset >> VTD_PAGE_SHIFT);
+		iommu_flush_iotlb_psi(iommu, 0, start_vpfn << VTD_PAGE_SHIFT,
+				      offset_pfn);
 	else
 		iommu_flush_write_buffer(iommu);
 
