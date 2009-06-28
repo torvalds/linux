@@ -155,7 +155,7 @@ static int pcf50633_regulator_get_voltage(struct regulator_dev *rdev)
 	int regulator_id, millivolts, volt_bits;
 	u8 regnr;
 
-	pcf = rdev_get_drvdata(rdev);;
+	pcf = rdev_get_drvdata(rdev);
 
 	regulator_id = rdev_get_id(rdev);
 	if (regulator_id >= PCF50633_NUM_REGULATORS)
