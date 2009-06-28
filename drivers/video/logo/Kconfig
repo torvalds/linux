@@ -41,6 +41,11 @@ config LOGO_ZEN_CLUT224
 	depends on LOGO
 	default y
 
+config LOGO_SKUNK_CLUT224
+	bool "244-color Skunk-Sources Logo"
+	depends on LOGO
+	default y
+
 config LOGO_ARCH_CLUT224
 	bool "224-color Arch Linux logo"
 	depends on LOGO
