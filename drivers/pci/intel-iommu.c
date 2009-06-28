@@ -761,34 +761,33 @@ static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 	return NULL;
 }
 
-/* clear one page's page table */
-static void dma_pte_clear_one(struct dmar_domain *domain, unsigned long pfn)
-{
-	struct dma_pte *pte = NULL;
-
-	/* get last level pte */
-	pte = dma_pfn_level_pte(domain, pfn, 1);
-
-	if (pte) {
-		dma_clear_pte(pte);
-		domain_flush_cache(domain, pte, sizeof(*pte));
-	}
-}
-
 /* clear last level pte, a tlb flush should be followed */
 static void dma_pte_clear_range(struct dmar_domain *domain,
 				unsigned long start_pfn,
 				unsigned long last_pfn)
 {
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
+	struct dma_pte *first_pte, *pte;
 
 	BUG_ON(addr_width < BITS_PER_LONG && start_pfn >> addr_width);
 	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
 
 	/* we don't need lock here; nobody else touches the iova range */
 	while (start_pfn <= last_pfn) {
-		dma_pte_clear_one(domain, start_pfn);
-		start_pfn++;
+		first_pte = pte = dma_pfn_level_pte(domain, start_pfn, 1);
+		if (!pte) {
+			start_pfn = align_to_level(start_pfn + 1, 2);
+			continue;
+		}
+		while (start_pfn <= last_pfn &&
+		       (unsigned long)pte >> VTD_PAGE_SHIFT ==
+		       (unsigned long)first_pte >> VTD_PAGE_SHIFT) {
+			dma_clear_pte(pte);
+			start_pfn++;
+			pte++;
+		}
+		domain_flush_cache(domain, first_pte,
+				   (void *)pte - (void *)first_pte);
 	}
 }
 
