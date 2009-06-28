@@ -3516,8 +3516,11 @@ static int intel_iommu_map_range(struct iommu_domain *domain,
 		}
 		dmar_domain->max_addr = max_addr;
 	}
-
-	ret = domain_page_mapping(dmar_domain, iova, hpa, size, prot);
+	/* Round up size to next multiple of PAGE_SIZE, if it and
+	   the low bits of hpa would take us onto the next page */
+	size = aligned_size(hpa, size) >> VTD_PAGE_SHIFT;
+	ret = domain_pfn_mapping(dmar_domain, iova >> VTD_PAGE_SHIFT,
+				 hpa >> VTD_PAGE_SHIFT, size, prot);
 	return ret;
 }
 
