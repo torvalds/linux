@@ -21,7 +21,6 @@
 #define R8180_HW
 
 #define CONFIG_RTL8185B  //support for rtl8185B, xiong-2006-11-15
-#define CONFIG_RTL818X_S
 
 #define BIT0	0x00000001
 #define BIT1	0x00000002
@@ -300,7 +299,6 @@
 #define CONFIG3 0x0059
 #define CONFIG4 0x005A
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 	// SD3 szuyitasi: Mac0x57= CC -> B0 Mac0x60= D1 -> C6
 	// Mac0x60 = 0x000004C6 power save parameters
 	#define ANAPARM_ASIC_ON    0xB0054D00
@@ -308,14 +306,6 @@
 
 	#define ANAPARM_ON ANAPARM_ASIC_ON
 	#define ANAPARM2_ON ANAPARM2_ASIC_ON
-#else
-	// SD3 CMLin:
-	#define ANAPARM_ASIC_ON    0x45090658
-	#define ANAPARM2_ASIC_ON  0x727f3f52
-
-	#define ANAPARM_ON ANAPARM_ASIC_ON
-	#define ANAPARM2_ON ANAPARM2_ASIC_ON
-#endif
 #endif
 
 #define TESTR 0x005B
@@ -453,9 +443,7 @@
 
 /* 0x00DA - 0x00DB - reserved */
 
-#ifdef CONFIG_RTL818X_S
 #define PHYPR			0xDA			//0xDA - 0x0B PHY Parameter Register.
-#endif
 
 #define CWR 0x00DC
 #define CWR_END 0x00DD
@@ -468,9 +456,7 @@
 #define RDSAR_END 0x00E7
 
 /* 0x00E8 - 0x00EF - reserved */
-#ifdef CONFIG_RTL818X_S
 #define LED_CONTROL		0xED
-#endif
 
 #define FER 0x00F0
 #define FER_END 0x00F3
@@ -827,11 +813,9 @@
 #define AC_BE_PARAM		0xF8			// AC_BE Parameters Record
 #define AC_BK_PARAM		0xFC			// AC_BK Parameters Record
 
-#ifdef CONFIG_RTL818X_S
 #define BcnTimingAdjust	0x16A			// Beacon Timing Adjust Register.
 #define GPIOCtrl			0x16B			// GPIO Control Register.
 #define PSByGC			0x180			// 0x180 - 0x183 Power Saving by Gated Clock.
-#endif
 #define ARFR			0x1E0	// Auto Rate Fallback Register (0x1e0 ~ 0x1e2)
 
 #define RFSW_CTRL			0x272	// 0x272-0x273.
@@ -840,10 +824,8 @@
 #define SW_3W_CMD0			0x27C	// Software 3-wire Control/Status Register.
 #define SW_3W_CMD1			0x27D	// Software 3-wire Control/Status Register.
 
-#ifdef CONFIG_RTL818X_S
 #define PI_DATA_READ		0X360	// 0x360 - 0x361  Parallel Interface Data Register.
 #define SI_DATA_READ		0x362	// 0x362 - 0x363  Serial Interface Data Register.
-#endif
 
 //----------------------------------------------------------------------------
 //       8185B TPPoll bits 				(offset 0xd9, 1 byte)

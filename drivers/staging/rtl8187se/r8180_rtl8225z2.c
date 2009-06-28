@@ -445,7 +445,6 @@ DbmToTxPwrIdx(
  	bool bUseDefault = true;
 	s8 TxPwrIdx = 0;
 
-#ifdef CONFIG_RTL818X_S
 	//
 	// 071011, SD3 SY:
 	// OFDM Power in dBm = Index * 0.5 + 0
@@ -480,7 +479,6 @@ DbmToTxPwrIdx(
 				TxPwrIdx = (s8)tmp;
 		}
 	}
-#endif
 
 	//
 	// TRUE if we want to use a default implementation.
@@ -577,7 +575,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 	min_ofdm_power_level = 10;
 
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 
 	if(cck_power_level > 35)
 	{
@@ -590,36 +587,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
        //printk("CCK TX power is %x\n", (ZEBRA2_CCK_OFDM_GAIN_SETTING[cck_power_level]));
        force_pci_posting(dev);
 	mdelay(1);
-#else
-
-	/* CCK power setting */
-	if(cck_power_level > max_cck_power_level)
-		cck_power_level = max_cck_power_level;
-
-	cck_power_level += priv->cck_txpwr_base;
-
-	if(cck_power_level > 35)
-		cck_power_level = 35;
-
-	if(ch == 14)
-		cck_power_table = rtl8225z2_tx_power_cck_ch14;
-	else
-		cck_power_table = rtl8225z2_tx_power_cck;
-
-
-	for(i=0;i<8;i++){
-
-		power = cck_power_table[i];
-		write_phy_cck(dev, 0x44 + i, power);
-	}
-
-	//write_nic_byte(dev, TX_GAIN_CCK, power);
-	//2005.11.17,
-	write_nic_byte(dev, CCK_TXAGC, ZEBRA2_CCK_OFDM_GAIN_SETTING[(u8)cck_power_level]);
-
-	force_pci_posting(dev);
-	mdelay(1);
-#endif
 #endif
 	/* OFDM power setting */
 //  Old:
@@ -652,11 +619,7 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 
 	//write_nic_byte(dev, TX_GAIN_OFDM, ofdm_power_level);
 	//2005.11.17,
-#ifdef CONFIG_RTL818X_S
         write_nic_byte(dev, OFDM_TXAGC, ZEBRA2_CCK_OFDM_GAIN_SETTING[(u8)ofdm_power_level]);
-#else
-        write_nic_byte(dev, OFDM_TXAGC, ZEBRA2_CCK_OFDM_GAIN_SETTING[(u8)ofdm_power_level]*2);
-#endif
         if(ofdm_power_level<=11)
         {
 //            write_nic_dword(dev,PHY_ADR,0x00005c87);
@@ -1137,11 +1100,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 //	//}
 
 	rtl8225z2_SetTXPowerLevel(dev, channel);
-#ifdef CONFIG_RTL818X_S
         write_phy_cck(dev, 0x11, 0x9b); mdelay(1); /* Rx ant A, 0xdb for B */
-#else
-	write_phy_cck(dev, 0x10, 0x9b); mdelay(1); /* Rx ant A, 0xdb for B */
-#endif
 	write_phy_ofdm(dev, 0x26, 0x90); mdelay(1); /* Rx ant A, 0x10 for B */
 
 	rtl8185_tx_antenna(dev, 0x3); /* TX ant A, 0x0 for B */

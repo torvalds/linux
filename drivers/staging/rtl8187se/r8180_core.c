@@ -2479,9 +2479,7 @@ void rtl8180_rx(struct net_device *dev)
 		}else {
 			padding = 0;
 		}
-#ifdef CONFIG_RTL818X_S
                padding = 0;
-#endif
 #endif
 		priv->rx_prevlen+=len;
 
@@ -3862,13 +3860,11 @@ void watch_dog_adaptive(unsigned long data)
 	}
 #endif
 
-#ifdef CONFIG_RTL818X_S
 	// Tx Power Tracking on 87SE.
 #ifdef TX_TRACK
 	//if( priv->bTxPowerTrack )	//lzm mod 080826
 	if( CheckTxPwrTracking((struct net_device *)data));
 		TxPwrTracking87SE((struct net_device *)data);
-#endif
 #endif
 
 	// Perform DIG immediately.
@@ -4024,11 +4020,7 @@ short rtl8180_init(struct net_device *dev)
 	 */
 
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 	priv->RegThreeWireMode = HW_THREE_WIRE_SI;
-#else
-        priv->RegThreeWireMode = SW_THREE_WIRE;
-#endif
 #endif
 
 //Add for RF power on power off by lizhaoming 080512
@@ -4269,10 +4261,6 @@ short rtl8180_init(struct net_device *dev)
 									(0 ? TCR_SAT : 0);	// FALSE: HW provies PLCP length and LENGEXT, TURE: SW proiveds them
 
 	priv->ReceiveConfig	=
-#ifdef CONFIG_RTL818X_S
-#else
-                                                        priv->CSMethod |
-#endif
 //								RCR_ENMARP |
 								RCR_AMF | RCR_ADF |				//accept management/data
 								RCR_ACF |						//accept control frame for SW AP needs PS-poll, 2005.07.07, by rcnjko.
@@ -4300,17 +4288,10 @@ short rtl8180_init(struct net_device *dev)
 	switch (hw_version){
 #ifdef CONFIG_RTL8185B
 		case HW_VERID_R8185B_B:
-#ifdef CONFIG_RTL818X_S
                         priv->card_8185 = VERSION_8187S_C;
 		        DMESG("MAC controller is a RTL8187SE b/g");
 			priv->phy_ver = 2;
 			break;
-#else
-			DMESG("MAC controller is a RTL8185B b/g");
-			priv->card_8185 = 3;
-			priv->phy_ver = 2;
-			break;
-#endif
 #endif
 		case HW_VERID_R8185_ABC:
 			DMESG("MAC controller is a RTL8185 b/g");
@@ -4350,24 +4331,9 @@ short rtl8180_init(struct net_device *dev)
 	priv->card_8185_Bversion = 0;
 
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 	// just for sync 85
 	priv->card_type = PCI;
         DMESG("This is a PCI NIC");
-#else
-	config3 = read_nic_byte(dev, CONFIG3);
-	if(config3 & 0x8){
-		priv->card_type = CARDBUS;
-		DMESG("This is a CARDBUS NIC");
-	}
-	else if( config3 & 0x4){
-		priv->card_type = MINIPCI;
-		DMESG("This is a MINI-PCI NIC");
-	}else{
-		priv->card_type = PCI;
-		DMESG("This is a PCI NIC");
-	}
-#endif
 #endif
 	priv->enable_gpio0 = 0;
 
@@ -4375,7 +4341,6 @@ short rtl8180_init(struct net_device *dev)
 #ifdef CONFIG_RTL8185B
 	usValue = eprom_read(dev, EEPROM_SW_REVD_OFFSET);
 	DMESG("usValue is 0x%x\n",usValue);
-#ifdef CONFIG_RTL818X_S
 	//3Read AntennaDiversity
 	// SW Antenna Diversity.
 	if(	(usValue & EEPROM_SW_AD_MASK) != EEPROM_SW_AD_ENABLE )
@@ -4426,7 +4391,6 @@ short rtl8180_init(struct net_device *dev)
 		priv->bDefaultAntenna1 = ((priv->RegDefaultAntenna== 2) ? true : false);
 	}
 	//printk("bDefaultAntenna1 = %d\n", priv->bDefaultAntenna1);
-#endif
 #endif
 //by amy for antenna
 	/* rtl8185 can calc plcp len in HW.*/
@@ -4537,13 +4501,9 @@ DMESG output to andreamrl@tiscali.it THANKS");
 	}
 
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 	priv->rf_chip = RF_ZEBRA4;
 	priv->rf_sleep = rtl8225z4_rf_sleep;
 	priv->rf_wakeup = rtl8225z4_rf_wakeup;
-#else
-        priv->rf_chip = RF_ZEBRA2;
-#endif
 	//DMESG("Card reports RF frontend Realtek 8225z2");
 	//DMESGW("This driver has EXPERIMENTAL support for this chipset.");
 	//DMESGW("use it with care and at your own risk and");

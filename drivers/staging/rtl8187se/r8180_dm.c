@@ -517,7 +517,6 @@ MgntIsCckRate(
 
         return bReturn;
 }
-#ifdef CONFIG_RTL818X_S
 //
 //	Description:
 //		Tx Power tracking mechanism routine on 87SE.
@@ -1233,7 +1232,6 @@ SetInitialGain:
 	priv->LastTxThroughput = TxThroughput;
 	priv->ieee80211->rate = priv->CurrentOperaRate * 5;
 }
-#endif
 
 void rtl8180_rate_adapter(struct work_struct * work)
 {
@@ -1259,10 +1257,8 @@ void timer_rate_adaptive(unsigned long data)
 			(priv->ForcedDataRate == 0) )
 	{
 //	DMESG("timer_rate_adaptive():schedule rate_adapter_wq\n");
-#ifdef CONFIG_RTL818X_S
 		queue_work(priv->ieee80211->wq, (void *)&priv->ieee80211->rate_adapter_wq);
 //		StaRateAdaptive87SE((struct net_device *)data);
-#endif
 	}
 	priv->rateadapter_timer.expires = jiffies + MSECS(priv->RateAdaptivePeriod);
 	add_timer(&priv->rateadapter_timer);
@@ -1320,20 +1316,12 @@ SetAntenna8185(
 		case RF_ZEBRA2:
 		case RF_ZEBRA4:
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 			// Mac register, main antenna
 			write_nic_byte(dev, ANTSEL, 0x03);
 			//base band
 			write_phy_cck(dev,0x11, 0x9b); // Config CCK RX antenna.
 			write_phy_ofdm(dev, 0x0d, 0x5c); // Config OFDM RX antenna.
 
-#else
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			//base band
-			write_phy_cck(dev, 0x10, 0x9b); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c); // Config OFDM RX antenna.
-#endif
 #endif
 
 			bAntennaSwitched = true;
@@ -1351,19 +1339,11 @@ SetAntenna8185(
 		case RF_ZEBRA2:
 		case RF_ZEBRA4:
 #ifdef CONFIG_RTL8185B
-#ifdef CONFIG_RTL818X_S
 			// Mac register, aux antenna
 			write_nic_byte(dev, ANTSEL, 0x00);
 			//base band
 			write_phy_cck(dev, 0x11, 0xbb); // Config CCK RX antenna.
 			write_phy_ofdm(dev, 0x0d, 0x54); // Config OFDM RX antenna.
-#else
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			//base band
-			write_phy_cck(dev, 0x10, 0xbb); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54); // Config OFDM RX antenna.
-#endif
 #endif
 
 			bAntennaSwitched = true;
@@ -1406,11 +1386,9 @@ SwitchAntenna(
 	{
 #if 0//lzm del 080826
 //by amy 080312
-#ifdef CONFIG_RTL818X_S
 		if(priv->bSwAntennaDiverity)
 			bResult = SetAntennaConfig87SE(dev, 1, true);
 		else
-#endif
 #endif
 			bResult = SetAntenna8185(dev, 1);
 //by amy 080312
@@ -1421,11 +1399,9 @@ SwitchAntenna(
 	{
 #if 0//lzm del 080826
 //by amy 080312
-#ifdef CONFIG_RTL818X_S
 		if(priv->bSwAntennaDiverity)
 			bResult = SetAntennaConfig87SE(dev, 0, true);
 		else
-#endif
 #endif
 			bResult = SetAntenna8185(dev, 0);
 //by amy 080312
