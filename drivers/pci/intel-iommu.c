@@ -1647,20 +1647,18 @@ static int
 domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 			u64 hpa, size_t size, int prot)
 {
-	u64 start_pfn, end_pfn;
+	unsigned long start_pfn = hpa >> VTD_PAGE_SHIFT;
+	unsigned long last_pfn = (hpa + size - 1) >> VTD_PAGE_SHIFT;
 	struct dma_pte *pte;
-	int index;
-	int addr_width = agaw_to_width(domain->agaw);
+	int index = 0;
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 
-	BUG_ON(hpa >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
 
 	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
 		return -EINVAL;
-	iova &= PAGE_MASK;
-	start_pfn = ((u64)hpa) >> VTD_PAGE_SHIFT;
-	end_pfn = (VTD_PAGE_ALIGN(((u64)hpa) + size)) >> VTD_PAGE_SHIFT;
-	index = 0;
-	while (start_pfn < end_pfn) {
+
+	while (start_pfn <= last_pfn) {
 		pte = pfn_to_dma_pte(domain, (iova >> VTD_PAGE_SHIFT) + index);
 		if (!pte)
 			return -ENOMEM;
