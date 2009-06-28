@@ -114,7 +114,7 @@ static void dmatest_init_srcs(u8 **bufs, unsigned int start, unsigned int len)
 			buf[i] = PATTERN_SRC | (~i & PATTERN_COUNT_MASK);
 		for ( ; i < start + len; i++)
 			buf[i] = PATTERN_SRC | PATTERN_COPY
-				| (~i & PATTERN_COUNT_MASK);;
+				| (~i & PATTERN_COUNT_MASK);
 		for ( ; i < test_buf_size; i++)
 			buf[i] = PATTERN_SRC | (~i & PATTERN_COUNT_MASK);
 		buf++;
