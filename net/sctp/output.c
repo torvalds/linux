@@ -407,7 +407,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	}
 	dst = dst_clone(tp->dst);
 	skb_dst_set(nskb, dst);
-	if (dst)
+	if (!dst)
 		goto no_route;
 
 	/* Build the SCTP header.  */
