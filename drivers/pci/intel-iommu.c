@@ -1861,31 +1861,25 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long long start,
 				     unsigned long long end)
 {
-	unsigned long size;
-	unsigned long long base;
+	unsigned long first_vpfn = start >> VTD_PAGE_SHIFT;
+	unsigned long last_vpfn = end >> VTD_PAGE_SHIFT;
 
-	/* The address might not be aligned */
-	base = start & PAGE_MASK;
-	size = end - base;
-	size = PAGE_ALIGN(size);
-	if (!reserve_iova(&domain->iovad, IOVA_PFN(base),
-			IOVA_PFN(base + size) - 1)) {
+	if (!reserve_iova(&domain->iovad, dma_to_mm_pfn(first_vpfn),
+			  dma_to_mm_pfn(last_vpfn))) {
 		printk(KERN_ERR "IOMMU: reserve iova failed\n");
 		return -ENOMEM;
 	}
 
-	pr_debug("Mapping reserved region %lx@%llx for domain %d\n",
-		 size, base, domain->id);
+	pr_debug("Mapping reserved region %llx-%llx for domain %d\n",
+		 start, end, domain->id);
 	/*
 	 * RMRR range might have overlap with physical memory range,
 	 * clear it first
 	 */
-	dma_pte_clear_range(domain, base >> VTD_PAGE_SHIFT,
-			    (base + size - 1) >> VTD_PAGE_SHIFT);
+	dma_pte_clear_range(domain, first_vpfn, last_vpfn);
 
-	return domain_pfn_mapping(domain, base >> VTD_PAGE_SHIFT,
-				  base >> VTD_PAGE_SHIFT,
-				  size >> VTD_PAGE_SHIFT,
+	return domain_pfn_mapping(domain, first_vpfn, first_vpfn,
+				  last_vpfn - first_vpfn + 1,
 				  DMA_PTE_READ|DMA_PTE_WRITE);
 }
 
