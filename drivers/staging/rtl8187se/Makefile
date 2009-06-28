@@ -22,7 +22,6 @@ rtl8187se-objs :=			\
 		r8180_core.o		\
 		r8180_93cx6.o		\
 		r8180_wx.o		\
-		r8180_rtl8225.o		\
 		r8180_rtl8225z2.o	\
 		r8185b_init.o		\
 		r8180_dm.o		\

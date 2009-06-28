@@ -23,12 +23,9 @@ void rtl8225z2_rf_init(struct net_device *dev);
 void rtl8225z2_rf_set_chan(struct net_device *dev,short ch);
 void rtl8225z2_rf_close(struct net_device *dev);
 
-void rtl8225_host_pci_init(struct net_device *dev);
-
-void write_rtl8225(struct net_device *dev, u8 adr, u16 data);
 void RF_WriteReg(struct net_device *dev, u8 offset, u32	data);
 u32 RF_ReadReg(struct net_device *dev, u8 offset);
-void rtl8225_rf_set_chan(struct net_device *dev,short ch);
+
 void rtl8180_set_mode(struct net_device *dev,int mode);
 void rtl8180_set_mode(struct net_device *dev,int mode);
 bool SetZebraRFPowerState8185(struct net_device *dev,RT_RF_POWER_STATE  eRFPowerState);
