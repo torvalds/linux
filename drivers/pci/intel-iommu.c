@@ -1643,38 +1643,46 @@ static int domain_context_mapped(struct pci_dev *pdev)
 					     tmp->devfn);
 }
 
-static int
-domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
-			u64 hpa, size_t size, int prot)
+static int domain_pfn_mapping(struct dmar_domain *domain, unsigned long iov_pfn,
+			      unsigned long phys_pfn, unsigned long nr_pages,
+			      int prot)
 {
-	unsigned long start_pfn = hpa >> VTD_PAGE_SHIFT;
-	unsigned long last_pfn = (hpa + size - 1) >> VTD_PAGE_SHIFT;
 	struct dma_pte *pte;
-	int index = 0;
 	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 
-	BUG_ON(addr_width < BITS_PER_LONG && last_pfn >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && (iov_pfn + nr_pages - 1) >> addr_width);
 
 	if ((prot & (DMA_PTE_READ|DMA_PTE_WRITE)) == 0)
 		return -EINVAL;
 
-	while (start_pfn <= last_pfn) {
-		pte = pfn_to_dma_pte(domain, (iova >> VTD_PAGE_SHIFT) + index);
+	while (nr_pages--) {
+		pte = pfn_to_dma_pte(domain, iov_pfn);
 		if (!pte)
 			return -ENOMEM;
 		/* We don't need lock here, nobody else
 		 * touches the iova range
 		 */
 		BUG_ON(dma_pte_addr(pte));
-		dma_set_pte_pfn(pte, start_pfn);
+		dma_set_pte_pfn(pte, phys_pfn);
 		dma_set_pte_prot(pte, prot);
 		if (prot & DMA_PTE_SNP)
 			dma_set_pte_snp(pte);
 		domain_flush_cache(domain, pte, sizeof(*pte));
-		start_pfn++;
-		index++;
+		iov_pfn++;
+		phys_pfn++;
 	}
 	return 0;
+}
+
+static int domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
+			       u64 hpa, size_t size, int prot)
+{
+	unsigned long first_pfn = hpa >> VTD_PAGE_SHIFT;
+	unsigned long last_pfn = (hpa + size - 1) >> VTD_PAGE_SHIFT;
+
+	return domain_pfn_mapping(domain, iova >> VTD_PAGE_SHIFT, first_pfn,
+				  last_pfn - first_pfn + 1, prot);
+
 }
 
 static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
@@ -1893,8 +1901,10 @@ static int iommu_domain_identity_map(struct dmar_domain *domain,
 	dma_pte_clear_range(domain, base >> VTD_PAGE_SHIFT,
 			    (base + size - 1) >> VTD_PAGE_SHIFT);
 
-	return domain_page_mapping(domain, base, base, size,
-				   DMA_PTE_READ|DMA_PTE_WRITE);
+	return domain_pfn_mapping(domain, base >> VTD_PAGE_SHIFT,
+				  base >> VTD_PAGE_SHIFT,
+				  size >> VTD_PAGE_SHIFT,
+				  DMA_PTE_READ|DMA_PTE_WRITE);
 }
 
 static int iommu_prepare_identity_map(struct pci_dev *pdev,
