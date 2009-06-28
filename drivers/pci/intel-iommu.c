@@ -2323,43 +2323,31 @@ static inline unsigned long aligned_nrpages(unsigned long host_addr,
 	return host_addr >> VTD_PAGE_SHIFT;
 }
 
-struct iova *
-iommu_alloc_iova(struct dmar_domain *domain, size_t size, u64 end)
-{
-	struct iova *piova;
-
-	/* Make sure it's in range */
-	end = min_t(u64, DOMAIN_MAX_ADDR(domain->gaw), end);
-	if (!size || (IOVA_START_ADDR + size > end))
-		return NULL;
-
-	piova = alloc_iova(&domain->iovad,
-			size >> PAGE_SHIFT, IOVA_PFN(end), 1);
-	return piova;
-}
-
-static struct iova *
-__intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
-		   size_t size, u64 dma_mask)
+static struct iova *intel_alloc_iova(struct device *dev,
+				     struct dmar_domain *domain,
+				     unsigned long nrpages, uint64_t dma_mask)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iova *iova = NULL;
 
-	if (dma_mask <= DMA_BIT_MASK(32) || dmar_forcedac)
-		iova = iommu_alloc_iova(domain, size, dma_mask);
-	else {
+	/* Restrict dma_mask to the width that the iommu can handle */
+	dma_mask = min_t(uint64_t, DOMAIN_MAX_ADDR(domain->gaw), dma_mask);
+
+	if (!dmar_forcedac && dma_mask > DMA_BIT_MASK(32)) {
 		/*
 		 * First try to allocate an io virtual address in
 		 * DMA_BIT_MASK(32) and if that fails then try allocating
 		 * from higher range
 		 */
-		iova = iommu_alloc_iova(domain, size, DMA_BIT_MASK(32));
-		if (!iova)
-			iova = iommu_alloc_iova(domain, size, dma_mask);
+		iova = alloc_iova(&domain->iovad, nrpages,
+				  IOVA_PFN(DMA_BIT_MASK(32)), 1);
+		if (iova)
+			return iova;
 	}
-
-	if (!iova) {
-		printk(KERN_ERR"Allocating iova for %s failed", pci_name(pdev));
+	iova = alloc_iova(&domain->iovad, nrpages, IOVA_PFN(dma_mask), 1);
+	if (unlikely(!iova)) {
+		printk(KERN_ERR "Allocating %ld-page iova for %s failed",
+		       nrpages, pci_name(pdev));
 		return NULL;
 	}
 
@@ -2464,7 +2452,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	iommu = domain_get_iommu(domain);
 	size = aligned_nrpages(paddr, size);
 
-	iova = __intel_alloc_iova(hwdev, domain, size << VTD_PAGE_SHIFT, pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
 	if (!iova)
 		goto error;
 
@@ -2753,8 +2741,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	for_each_sg(sglist, sg, nelems, i)
 		size += aligned_nrpages(sg->offset, sg->length);
 
-	iova = __intel_alloc_iova(hwdev, domain, size << VTD_PAGE_SHIFT,
-				  pdev->dma_mask);
+	iova = intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
 	if (!iova) {
 		sglist->dma_length = 0;
 		return 0;
