@@ -472,10 +472,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 //	rtl8180_set_anaparam(dev, RTL8225_ANAPARAM_ON);
 
-
-	if(priv->card_type == USB)
-		rtl8225_host_usb_init(dev);
-	else
+	if (priv->card_type != USB)
 		rtl8225_host_pci_init(dev);
 
 	write_nic_dword(dev, RF_TIMING, 0x000a8008);
