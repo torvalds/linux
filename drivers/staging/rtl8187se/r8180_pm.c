@@ -9,7 +9,6 @@
    Released under the terms of GPL (General Public Licence)
 */
 
-#ifdef CONFIG_RTL8180_PM
 
 
 #include "r8180_hw.h"
@@ -89,4 +88,3 @@ int rtl8180_enable_wake (struct pci_dev *dev, u32 state, int enable)
 
 
 
-#endif //CONFIG_RTL8180_PM

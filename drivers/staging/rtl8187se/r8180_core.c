@@ -74,9 +74,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8180_wx.h"
 #include "r8180_dm.h"
 
-#ifdef CONFIG_RTL8180_PM
 #include "r8180_pm.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
@@ -199,13 +197,8 @@ static struct pci_driver rtl8180_pci_driver = {
 	.id_table	= rtl8180_pci_id_tbl,	          /* PCI_ID table  */
 	.probe		= rtl8180_pci_probe,	          /* probe fn      */
 	.remove		= __devexit_p(rtl8180_pci_remove),/* remove fn     */
-#ifdef CONFIG_RTL8180_PM
 	.suspend	= rtl8180_suspend,	          /* PM suspend fn */
 	.resume		= rtl8180_resume,                 /* PM resume fn  */
-#else
-	.suspend	= NULL,			          /* PM suspend fn */
-	.resume      	= NULL,			          /* PM resume fn  */
-#endif
 	.shutdown	= rtl8180_shutdown,
 };
 

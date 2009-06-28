@@ -10,7 +10,6 @@
 
 */
 
-#ifdef CONFIG_RTL8180_PM
 
 #ifndef R8180_PM_H
 #define R8180_PM_H
@@ -25,4 +24,3 @@ int rtl8180_enable_wake (struct pci_dev *dev, u32 state, int enable);
 
 #endif //R8180_PM_H
 
-#endif // CONFIG_RTL8180_PM

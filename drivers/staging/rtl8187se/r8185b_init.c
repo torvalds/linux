@@ -30,9 +30,7 @@ Notes:
 #include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8180_wx.h"
 
-#ifdef CONFIG_RTL8180_PM
 #include "r8180_pm.h"
-#endif
 
 #include "ieee80211/dot11d.h"
 
