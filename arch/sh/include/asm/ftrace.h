@@ -11,10 +11,10 @@ extern void mcount(void);
 #define MCOUNT_ADDR		((long)(mcount))
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-#define CALLER_ADDR		((long)(ftrace_caller))
+#define CALL_ADDR		((long)(ftrace_call))
 #define STUB_ADDR		((long)(ftrace_stub))
 
-#define MCOUNT_INSN_OFFSET	((STUB_ADDR - CALLER_ADDR) >> 1)
+#define MCOUNT_INSN_OFFSET	((STUB_ADDR - CALL_ADDR) - 4)
 
 struct dyn_arch_ftrace {
 	/* No extra data needed on sh */
