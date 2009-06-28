@@ -131,37 +131,9 @@ PlatformIOWrite1Byte(
 	u8		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 	write_nic_byte(dev, offset, data);
 	read_nic_byte(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_byte(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_byte(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite1Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 
 void
@@ -171,38 +143,10 @@ PlatformIOWrite2Byte(
 	u16		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 	write_nic_word(dev, offset, data);
 	read_nic_word(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_word(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_word(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite2Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 u8 PlatformIORead1Byte(struct net_device *dev, u32 offset);
 
@@ -213,7 +157,6 @@ PlatformIOWrite4Byte(
 	u32		data
 	)
 {
-#ifndef CONFIG_RTL8180_IO_MAP
 //{by amy 080312
 if (offset == PhyAddr)
 	{//For Base Band configuration.
@@ -257,33 +200,6 @@ if (offset == PhyAddr)
 		write_nic_dword(dev, offset, data);
 		read_nic_dword(dev, offset); // To make sure write operation is completed, 2005.11.09, by rcnjko.
 	}
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		write_nic_word(dev, offset, data);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			write_nic_dword(dev, (offset & 0xff), data);
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIOWrite4Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 }
 
 u8
@@ -294,36 +210,8 @@ PlatformIORead1Byte(
 {
 	u8	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_byte(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_byte(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_byte(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead1Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }
@@ -336,36 +224,8 @@ PlatformIORead2Byte(
 {
 	u16	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_word(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_word(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_word(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead2Byte(): illegal page number: %d, offset: %#X", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }
@@ -378,36 +238,8 @@ PlatformIORead4Byte(
 {
 	u32	data = 0;
 
-#ifndef CONFIG_RTL8180_IO_MAP
 	data = read_nic_dword(dev, offset);
 
-#else // Port IO
-	u32 Page = (offset >> 8);
-
-	switch(Page)
-	{
-	case 0: // Page 0
-		data = read_nic_dword(dev, offset);
-		break;
-
-	case 1: // Page 1
-	case 2: // Page 2
-	case 3: // Page 3
-		{
-			u8 psr = read_nic_byte(dev, PSR);
-
-			write_nic_byte(dev, PSR, ((psr & 0xfc) | (u8)Page)); // Switch to page N.
-			data = read_nic_dword(dev, (offset & 0xff));
-			write_nic_byte(dev, PSR, (psr & 0xfc)); // Switch to page 0.
-		}
-		break;
-
-	default:
-		// Illegal page number.
-		DMESGE("PlatformIORead4Byte(): illegal page number: %d, offset: %#X\n", Page, offset);
-		break;
-	}
-#endif
 
 	return data;
 }

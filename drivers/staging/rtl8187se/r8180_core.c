@@ -59,7 +59,6 @@ double __extendsfdf2(float a) {return a;}
 //#define DEBUG_RX
 //#define DEBUG_RX_SKB
 
-//#define CONFIG_RTL8180_IO_MAP
 #include <linux/syscalls.h>
 //#include <linux/fcntl.h>
 //#include <asm/uaccess.h>
@@ -77,8 +76,6 @@ double __extendsfdf2(float a) {return a;}
 #include "r8180_pm.h"
 
 #include "ieee80211/dot11d.h"
-
-//#define CONFIG_RTL8180_IO_MAP
 
 #ifndef PCI_VENDOR_ID_BELKIN
 	#define PCI_VENDOR_ID_BELKIN 0x1799
@@ -202,39 +199,6 @@ static struct pci_driver rtl8180_pci_driver = {
 
 
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-u8 read_nic_byte(struct net_device *dev, int x)
-{
-        return 0xff&inb(dev->base_addr +x);
-}
-
-u32 read_nic_dword(struct net_device *dev, int x)
-{
-        return inl(dev->base_addr +x);
-}
-
-u16 read_nic_word(struct net_device *dev, int x)
-{
-        return inw(dev->base_addr +x);
-}
-
-void write_nic_byte(struct net_device *dev, int x,u8 y)
-{
-        outb(y&0xff,dev->base_addr +x);
-}
-
-void write_nic_word(struct net_device *dev, int x,u16 y)
-{
-        outw(y,dev->base_addr +x);
-}
-
-void write_nic_dword(struct net_device *dev, int x,u32 y)
-{
-        outl(y,dev->base_addr +x);
-}
-
-#else /* RTL_IO_MAP */
 
 u8 read_nic_byte(struct net_device *dev, int x)
 {
@@ -269,7 +233,6 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 	udelay(20);
 }
 
-#endif /* RTL_IO_MAP */
 
 
 
@@ -278,9 +241,7 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 inline void force_pci_posting(struct net_device *dev)
 {
 	read_nic_byte(dev,EPROM_CMD);
-#ifndef CONFIG_RTL8180_IO_MAP
 	mb();
-#endif
 }
 
 
@@ -5411,11 +5372,7 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	//u8 *ptr;
 	u8 unit = 0;
 
-#ifdef CONFIG_RTL8180_IO_MAP
-	unsigned long pio_start, pio_len, pio_flags;
-#else
 	unsigned long pmem_start, pmem_len, pmem_flags;
-#endif //end #ifdef RTL_IO_MAP
 
 	DMESG("Configuring chip resources");
 
@@ -5442,27 +5399,6 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	priv->pdev=pdev;
 
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-	pio_start = (unsigned long)pci_resource_start (pdev, 0);
-	pio_len = (unsigned long)pci_resource_len (pdev, 0);
-	pio_flags = (unsigned long)pci_resource_flags (pdev, 0);
-
-      	if (!(pio_flags & IORESOURCE_IO)) {
-		DMESG("region #0 not a PIO resource, aborting");
-		goto fail;
-	}
-
-	//DMESG("IO space @ 0x%08lx", pio_start );
-	if( ! request_region( pio_start, pio_len, RTL8180_MODULE_NAME ) ){
-		DMESG("request_region failed!");
-		goto fail;
-	}
-
-	ioaddr = pio_start;
-	dev->base_addr = ioaddr; // device I/O address
-
-#else
 
 	pmem_start = pci_resource_start(pdev, 1);
 	pmem_len = pci_resource_len(pdev, 1);
@@ -5490,7 +5426,6 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	dev->mem_start = ioaddr; // shared mem start
 	dev->mem_end = ioaddr + pci_resource_len(pdev, 0); // shared mem end
 
-#endif //end #ifdef RTL_IO_MAP
 
 	//pci_read_config_byte(pdev, 0x05, ptr);
 	//pci_write_config_byte(pdev, 0x05, (*ptr) & (~0x04));
@@ -5530,20 +5465,11 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 
 fail1:
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-	if( dev->base_addr != 0 ){
-
-		release_region(dev->base_addr,
-	       pci_resource_len(pdev, 0) );
-	}
-#else
 	if( dev->mem_start != (unsigned long)NULL ){
 		iounmap( (void *)dev->mem_start );
 		release_mem_region( pci_resource_start(pdev, 1),
 				    pci_resource_len(pdev, 1) );
 	}
-#endif //end #ifdef RTL_IO_MAP
 
 
 fail:
@@ -5598,20 +5524,11 @@ static void __devexit rtl8180_pci_remove(struct pci_dev *pdev)
 		free_tx_desc_rings(dev);
 	//	free_beacon_desc_ring(dev,priv->txbeaconcount);
 
-#ifdef CONFIG_RTL8180_IO_MAP
-
-		if( dev->base_addr != 0 ){
-
-			release_region(dev->base_addr,
-				       pci_resource_len(pdev, 0) );
-		}
-#else
 		if( dev->mem_start != (unsigned long)NULL ){
 			iounmap( (void *)dev->mem_start );
 			release_mem_region( pci_resource_start(pdev, 1),
 					    pci_resource_len(pdev, 1) );
 		}
-#endif /*end #ifdef RTL_IO_MAP*/
 
 		free_ieee80211(dev);
 	}
