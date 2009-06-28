@@ -52,29 +52,15 @@
 
 #define DEFAULT_FRAG_THRESHOLD 2342U
 #define MIN_FRAG_THRESHOLD     256U
-//#define	MAX_FRAG_THRESHOLD     2342U
 #define DEFAULT_RTS_THRESHOLD 2342U
 #define MIN_RTS_THRESHOLD 0U
 #define MAX_RTS_THRESHOLD 2342U
 #define DEFAULT_BEACONINTERVAL 0x64U
-#define DEFAULT_BEACON_ESSID "Rtl8180"
 
-#define DEFAULT_SSID ""
 #define DEFAULT_RETRY_RTS 7
 #define DEFAULT_RETRY_DATA 7
-#define PRISM_HDR_SIZE 64
 
-
-#define MGNT_QUEUE						0
-#define BK_QUEUE						1
-#define BE_QUEUE						2
-#define VI_QUEUE						3
-#define VO_QUEUE						4
-#define HIGH_QUEUE						5
 #define BEACON_QUEUE					6
-
-#define LOW_QUEUE						BE_QUEUE
-#define NORMAL_QUEUE					MGNT_QUEUE
 
 #define aSifsTime 	10
 
