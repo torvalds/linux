@@ -2320,11 +2320,13 @@ error:
 	return ret;
 }
 
-static inline u64 aligned_size(u64 host_addr, size_t size)
+static inline unsigned long aligned_nrpages(unsigned long host_addr,
+					    size_t size)
 {
-	u64 addr;
-	addr = (host_addr & (~PAGE_MASK)) + size;
-	return PAGE_ALIGN(addr);
+	host_addr &= ~PAGE_MASK;
+	host_addr += size + PAGE_SIZE - 1;
+
+	return host_addr >> VTD_PAGE_SHIFT;
 }
 
 struct iova *
@@ -2466,7 +2468,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 		return 0;
 
 	iommu = domain_get_iommu(domain);
-	size = aligned_size(paddr, size) >> VTD_PAGE_SHIFT;
+	size = aligned_nrpages(paddr, size);
 
 	iova = __intel_alloc_iova(hwdev, domain, size << VTD_PAGE_SHIFT, pdev->dma_mask);
 	if (!iova)
@@ -2757,9 +2759,10 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	iommu = domain_get_iommu(domain);
 
 	for_each_sg(sglist, sg, nelems, i)
-		size += aligned_size(sg->offset, sg->length);
+		size += aligned_nrpages(sg->offset, sg->length);
 
-	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = __intel_alloc_iova(hwdev, domain, size << VTD_PAGE_SHIFT,
+				  pdev->dma_mask);
 	if (!iova) {
 		sglist->dma_length = 0;
 		return 0;
@@ -2778,7 +2781,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 	start_vpfn = mm_to_dma_pfn(iova->pfn_lo);
 	offset_pfn = 0;
 	for_each_sg(sglist, sg, nelems, i) {
-		int nr_pages = aligned_size(sg->offset, sg->length) >> VTD_PAGE_SHIFT;
+		int nr_pages = aligned_nrpages(sg->offset, sg->length);
 		ret = domain_pfn_mapping(domain, start_vpfn + offset_pfn,
 					 page_to_dma_pfn(sg_page(sg)),
 					 nr_pages, prot);
@@ -3502,7 +3505,7 @@ static int intel_iommu_map_range(struct iommu_domain *domain,
 	}
 	/* Round up size to next multiple of PAGE_SIZE, if it and
 	   the low bits of hpa would take us onto the next page */
-	size = aligned_size(hpa, size) >> VTD_PAGE_SHIFT;
+	size = aligned_nrpages(hpa, size);
 	ret = domain_pfn_mapping(dmar_domain, iova >> VTD_PAGE_SHIFT,
 				 hpa >> VTD_PAGE_SHIFT, size, prot);
 	return ret;
