@@ -24,30 +24,8 @@
    add RTL8185 and RTL8225 support, and to David Young also.
 */
 
-#undef DEBUG_TX_DESC2
 #undef RX_DONT_PASS_UL
-#undef DEBUG_EPROM
-#undef DEBUG_RX_VERBOSE
 #undef DUMMY_RX
-#undef DEBUG_ZERO_RX
-#undef DEBUG_RX_SKB
-#undef DEBUG_TX_FRAG
-#undef DEBUG_RX_FRAG
-#undef DEBUG_TX_FILLDESC
-#undef DEBUG_TX
-#undef DEBUG_IRQ
-#undef DEBUG_RX
-#undef DEBUG_RXALLOC
-#undef DEBUG_REGISTERS
-#undef DEBUG_RING
-#undef DEBUG_IRQ_TASKLET
-#undef DEBUG_TX_ALLOC
-#undef DEBUG_TX_DESC
-
-//#define DEBUG_TX
-//#define DEBUG_TX_DESC2
-//#define DEBUG_RX
-//#define DEBUG_RX_SKB
 
 #include <linux/syscalls.h>
 //#include <linux/fcntl.h>
@@ -462,10 +440,6 @@ void rtl8180_proc_init_one(struct net_device *dev)
 short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 		struct buffer **bufferhead)
 {
-#ifdef DEBUG_RING
-	DMESG("adding buffer to TX/RX struct");
-#endif
-
         struct buffer *tmp;
 
 	if(! *buffer){
@@ -622,168 +596,12 @@ short check_nic_enought_desc(struct net_device *dev, int priority)
 	return (required+2 < get_curr_tx_free_desc(dev,priority));
 }
 
-
-/* This function is only for debuging purpose */
-void check_tx_ring(struct net_device *dev, int pri)
-{
-	static int maxlog =3;
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	u32* tmp;
-	struct buffer *buf;
-	int i;
-	int nic;
-	u32* tail;
-	u32* head;
-	u32* begin;
-	u32 nicbegin;
-	struct buffer* buffer;
-
-	maxlog --;
-	if (maxlog <0 ) return;
-
-	switch(pri) {
-	case MANAGE_PRIORITY:
-		tail = priv->txmapringtail;
-		begin = priv->txmapring;
-		head = priv->txmapringhead;
-		nic = read_nic_dword(dev,TX_MANAGEPRIORITY_RING_ADDR);
-		buffer = priv->txmapbufs;
-		nicbegin = priv->txmapringdma;
-		break;
-
-
-	case BK_PRIORITY:
-		tail = priv->txbkpringtail;
-		begin = priv->txbkpring;
-		head = priv->txbkpringhead;
-		nic = read_nic_dword(dev,TX_BKPRIORITY_RING_ADDR);
-		buffer = priv->txbkpbufs;
-		nicbegin = priv->txbkpringdma;
-		break;
-
-	case BE_PRIORITY:
-		tail = priv->txbepringtail;
-		begin = priv->txbepring;
-		head = priv->txbepringhead;
-		nic = read_nic_dword(dev,TX_BEPRIORITY_RING_ADDR);
-		buffer = priv->txbepbufs;
-		nicbegin = priv->txbepringdma;
-		break;
-
-	case VI_PRIORITY:
-		tail = priv->txvipringtail;
-		begin = priv->txvipring;
-		head = priv->txvipringhead;
-		nic = read_nic_dword(dev,TX_VIPRIORITY_RING_ADDR);
-		buffer = priv->txvipbufs;
-		nicbegin = priv->txvipringdma;
-		break;
-
-
-	case VO_PRIORITY:
-		tail = priv->txvopringtail;
-		begin = priv->txvopring;
-		head = priv->txvopringhead;
-		nic = read_nic_dword(dev,TX_VOPRIORITY_RING_ADDR);
-		buffer = priv->txvopbufs;
-		nicbegin = priv->txvopringdma;
-		break;
-
-	case HI_PRIORITY:
-		tail = priv->txhpringtail;
-		begin = priv->txhpring;
-		head = priv->txhpringhead;
-		nic = read_nic_dword(dev,TX_HIGHPRIORITY_RING_ADDR);
-		buffer = priv->txhpbufs;
-		nicbegin = priv->txhpringdma;
-		break;
-
-	default:
-		return ;
-		break;
-	}
-
-	if(!priv->txvopbufs)
-		DMESGE ("NIC TX ack, but TX queue corrupted!");
-	else{
-
-		for(i=0,buf=buffer, tmp=begin;
-			tmp<begin+(priv->txringcount)*8;
-			tmp+=8,buf=buf->next,i++)
-
-			DMESG("BUF%d %s %x %s. Next : %x",i,
-			      *tmp & (1<<31) ? "filled" : "empty",
-			      *(buf->buf),
-			      *tmp & (1<<15)? "ok": "err", *(tmp+4));
-	}
-
-	return;
-}
-
-
-
-/* this function is only for debugging purpose */
-void check_rxbuf(struct net_device *dev)
-{
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	u32* tmp;
-	struct buffer *buf;
-	u8 rx_desc_size;
-
-	rx_desc_size = 8;
-
-	if(!priv->rxbuffer)
-		DMESGE ("NIC RX ack, but RX queue corrupted!");
-
-	else{
-
-		for(buf=priv->rxbuffer, tmp=priv->rxring;
-		    tmp < priv->rxring+(priv->rxringcount)*rx_desc_size;
-		    tmp+=rx_desc_size, buf=buf->next)
-
-			DMESG("BUF %s %x",
-			      *tmp & (1<<31) ? "empty" : "filled",
-			      *(buf->buf));
-	}
-
-	return;
-}
-
-
-void dump_eprom(struct net_device *dev)
-{
-	int i;
-	for(i=0; i<63; i++)
-		DMESG("EEPROM addr %x : %x", i, eprom_read(dev,i));
-}
-
-
-void rtl8180_dump_reg(struct net_device *dev)
-{
-	int i;
-	int n;
-	int max=0xff;
-
-	DMESG("Dumping NIC register map");
-
-	for(n=0;n<=max;)
-	{
-		printk( "\nD: %2x> ", n);
-		for(i=0;i<16 && n<=max;i++,n++)
-			printk("%2x ",read_nic_byte(dev,n));
-	}
-	printk("\n");
-}
-
-
 void fix_tx_fifo(struct net_device *dev)
 {
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u32 *tmp;
 	int i;
-#ifdef DEBUG_TX_ALLOC
-	DMESG("FIXING TX FIFOs");
-#endif
+
 	for (tmp=priv->txmapring, i=0;
 	     i < priv->txringcount;
 	     tmp+=8, i++){
@@ -824,9 +642,7 @@ void fix_tx_fifo(struct net_device *dev)
 	     tmp+=8, i++){
 		*tmp = *tmp &~ (1<<31);
 	}
-#ifdef DEBUG_TX_ALLOC
-	DMESG("TX FIFOs FIXED");
-#endif
+
 	priv->txmapringtail = priv->txmapring;
 	priv->txmapringhead = priv->txmapring;
 	priv->txmapbufstail = priv->txmapbufs;
@@ -869,11 +685,6 @@ void fix_rx_fifo(struct net_device *dev)
 
 	rx_desc_size = 8; // 4*8 = 32 bytes
 
-#ifdef DEBUG_RXALLOC
-	DMESG("FIXING RX FIFO");
-	check_rxbuf(dev);
-#endif
-
 	for (tmp=priv->rxring, rxbuf=priv->rxbufferhead;
 	     (tmp < (priv->rxring)+(priv->rxringcount)*rx_desc_size);
 	     tmp+=rx_desc_size,rxbuf=rxbuf->next){
@@ -882,11 +693,6 @@ void fix_rx_fifo(struct net_device *dev)
 		*tmp=*tmp | priv->rxbuffersize;
 		*tmp |= (1<<31);
 	}
-
-#ifdef DEBUG_RXALLOC
-	DMESG("RX FIFO FIXED");
-	check_rxbuf(dev);
-#endif
 
 	priv->rxringtail=priv->rxring;
 	priv->rxbuffer=priv->rxbufferhead;
@@ -1199,9 +1005,6 @@ void rtl8180_rx_enable(struct net_device *dev)
 
 	fix_rx_fifo(dev);
 
-#ifdef DEBUG_RX
-	DMESG("rxconf: %x %x",rxconf ,read_nic_dword(dev,RX_CONF));
-#endif
 	cmd=read_nic_byte(dev,CMD);
 	write_nic_byte(dev,CMD,cmd | (1<<CMD_RX_ENABLE_SHIFT));
 
@@ -1335,10 +1138,6 @@ void rtl8180_tx_enable(struct net_device *dev)
 
 
 	fix_tx_fifo(dev);
-
-#ifdef DEBUG_TX
-	DMESG("txconf: %x %x",txconf,read_nic_dword(dev,TX_CONF));
-#endif
 
 	cmd=read_nic_byte(dev,CMD);
 	write_nic_byte(dev,CMD,cmd | (1<<CMD_TX_ENABLE_SHIFT));
@@ -1523,10 +1322,6 @@ short alloc_tx_desc_ring(struct net_device *dev, int bufsize, int count,
 
 	}
 
-#ifdef DEBUG_TX
-	DMESG("Tx dma physical address: %x",dma_desc);
-#endif
-
 	return 0;
 }
 
@@ -1626,11 +1421,6 @@ short alloc_rx_desc_ring(struct net_device *dev, u16 bufsize, int count)
 		dma_tmp = pci_map_single(pdev,buf,bufsize * sizeof(u8),
 					 PCI_DMA_FROMDEVICE);
 
-#ifdef DEBUG_ZERO_RX
-		int j;
-		for(j=0;j<bufsize;j++) ((u8*)buf)[i] = 0;
-#endif
-
 		//buf = (void*)pci_alloc_consistent(pdev,bufsize,&dma_tmp);
 		if(-1 == buffer_add(&(priv->rxbuffer), buf,dma_tmp,
 			   &(priv->rxbufferhead))){
@@ -1642,20 +1432,10 @@ short alloc_rx_desc_ring(struct net_device *dev, u16 bufsize, int count)
 		*(tmp+2) = (u32)dma_tmp;
 		*tmp = *tmp |(1<<31); // descriptor void, owned by the NIC
 
-#ifdef DEBUG_RXALLOC
-		DMESG("Alloc %x size buffer, DMA mem @ %x, virtual mem @ %x",
-		      (u32)(bufsize&0xfff), (u32)dma_tmp, (u32)buf);
-#endif
-
 		tmp=tmp+rx_desc_size;
 	}
 
 	*(tmp-rx_desc_size) = *(tmp-rx_desc_size) | (1<<30); // this is the last descriptor
-
-
-#ifdef DEBUG_RXALLOC
-	DMESG("RX DMA physical address: %x",dma_desc);
-#endif
 
 	return 0;
 }
@@ -2129,16 +1909,6 @@ void rtl8180_rx(struct net_device *dev)
 			priv->rx_skb_complete = 1;
 		}
 
-#ifdef DEBUG_RX_FRAG
-		DMESG("Iteration.. len %x",len);
-		if(first) DMESG ("First descriptor");
-		if(last) DMESG("Last descriptor");
-
-#endif
-#ifdef DEBUG_RX_VERBOSE
-		print_buffer( priv->rxbuffer->buf, len);
-#endif
-
 		signal=(unsigned char)(((*(priv->rxringtail+3))& (0x00ff0000))>>16);
 		signal=(signal&0xfe)>>1;	// Modify by hikaru 6.6
 
@@ -2271,14 +2041,8 @@ void rtl8180_rx(struct net_device *dev)
 			if(!priv->rx_skb_complete){
 				/* seems that HW sometimes fails to reiceve and
 				   doesn't provide the last descriptor */
-#ifdef DEBUG_RX_SKB
-				DMESG("going to free incomplete skb");
-#endif
 				dev_kfree_skb_any(priv->rx_skb);
 				priv->stats.rxnolast++;
-#ifdef DEBUG_RX_SKB
-				DMESG("free incomplete skb OK");
-#endif
 			}
 			/* support for prism header has been originally added by Christian */
 			if(priv->prism_hdr && priv->ieee80211->iw_mode == IW_MODE_MONITOR){
@@ -2286,9 +2050,6 @@ void rtl8180_rx(struct net_device *dev)
 			}else{
 				priv->rx_skb = dev_alloc_skb(len+2);
 				if( !priv->rx_skb) goto drop;
-#ifdef DEBUG_RX_SKB
-				DMESG("Alloc initial skb %x",len+2);
-#endif
 			}
 
 			priv->rx_skb_complete=0;
@@ -2307,31 +2068,17 @@ void rtl8180_rx(struct net_device *dev)
 				if(!tmp_skb) goto drop;
 
 				tmp_skb->dev=dev;
-#ifdef DEBUG_RX_SKB
-				DMESG("Realloc skb %x",len+2);
-#endif
 
-#ifdef DEBUG_RX_SKB
-				DMESG("going copy prev frag %x",priv->rx_skb->len);
-#endif
 				memcpy(skb_put(tmp_skb,priv->rx_skb->len),
 					priv->rx_skb->data,
 					priv->rx_skb->len);
-#ifdef DEBUG_RX_SKB
-				DMESG("skb copy prev frag complete");
-#endif
 
 				dev_kfree_skb_any(priv->rx_skb);
-#ifdef DEBUG_RX_SKB
-				DMESG("prev skb free ok");
-#endif
 
 				priv->rx_skb=tmp_skb;
 			}
 		}
-#ifdef DEBUG_RX_SKB
-		DMESG("going to copy current payload %x",len);
-#endif
+
 		if(!priv->rx_skb_complete) {
 			if(padding) {
 				memcpy(skb_put(priv->rx_skb,len),
@@ -2341,37 +2088,17 @@ void rtl8180_rx(struct net_device *dev)
 					priv->rxbuffer->buf,len);
 			}
 		}
-#ifdef DEBUG_RX_SKB
-		DMESG("current fragment skb copy complete");
-#endif
 
 		if(last && !priv->rx_skb_complete){
-
-#ifdef DEBUG_RX_SKB
-			DMESG("Got last fragment");
-#endif
-
 			if(priv->rx_skb->len > 4)
 				skb_trim(priv->rx_skb,priv->rx_skb->len-4);
-#ifdef DEBUG_RX_SKB
-			DMESG("yanked out crc, passing to the upper layer");
-#endif
-
 #ifndef RX_DONT_PASS_UL
 			if(!ieee80211_rx(priv->ieee80211,
 					 priv->rx_skb, &stats)){
-#ifdef DEBUG_RX
-				DMESGW("Packet not consumed");
-#endif
 #endif // RX_DONT_PASS_UL
 
 				dev_kfree_skb_any(priv->rx_skb);
 #ifndef RX_DONT_PASS_UL
-			}
-#endif
-#ifdef DEBUG_RX
-			else{
-					DMESG("Rcv frag");
 			}
 #endif
 			priv->rx_skb_complete=1;
@@ -2400,9 +2127,6 @@ drop: // this is used when we have not enought mem
 
 			//wmb();
 
-#ifdef DEBUG_RX
-		DMESG("Current descriptor: %x",(u32)priv->rxringtail);
-#endif
 		//unsigned long flags;
 		//spin_lock_irqsave(&priv->irq_lock,flags);
 
@@ -2829,12 +2553,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	temp_tail = tail;
 //printk("================================>buflen = %d, remain = %d!\n", buflen,remain);
 	while(remain!=0){
-#ifdef DEBUG_TX_FRAG
-		DMESG("TX iteration");
-#endif
-#ifdef DEBUG_TX
-		DMESG("TX: filling descriptor %x",(u32)tail);
-#endif
 		mb();
 		if(!buflist){
 			DMESGE("TX buffer error, cannot TX frames. pri %d.", priority);
@@ -2848,11 +2566,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 				DMESGW("No more TX desc, returning %x of %x",
 				remain,len);
 				priv->stats.txrdu++;
-#ifdef DEBUG_TX_DESC
-				check_tx_ring(dev,priority);
-			//	netif_stop_queue(dev);
-			//	netif_carrier_off(dev);
-#endif
 			//	spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 			return remain;
@@ -2874,9 +2587,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	//	*tail = *tail | (1<<16);
 		if(remain==len && !descfrag) {
 			ownbit_flag = false;	//added by david woo,2007.12.14
-#ifdef DEBUG_TX_FRAG
-			DMESG("First descriptor");
-#endif
 			*tail = *tail| (1<<29) ; //fist segment of the packet
 			*tail = *tail |(len);
 		} else {
@@ -2925,12 +2635,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 			duration = rtl8180_len2duration(len,
 				rate,&ext);
 
-
-#ifdef DEBUG_TX
-			DMESG("PLCP duration %d",duration );
-			//DMESG("drift %d",drift);
-			DMESG("extension %s", (ext==1) ? "on":"off");
-#endif
 			*(tail+1) = *(tail+1) | ((duration & 0x7fff)<<16);
 			if(ext) *(tail+1) = *(tail+1) |(1<<31); //plcp length extension
 		}
@@ -2938,10 +2642,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		if(morefrag) *tail = (*tail) | (1<<17); // more fragment
 		if(!remain) *tail = (*tail) | (1<<28); // last segment of frame
 
-#ifdef DEBUG_TX_FRAG
-		if(!remain)DMESG("Last descriptor");
-		if(morefrag)DMESG("More frag");
-#endif
                *(tail+5) = *(tail+5)|(2<<27);
                 *(tail+7) = *(tail+7)|(1<<4);
 
@@ -2950,12 +2650,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		{
 			*tail = *tail | (1<<31); // descriptor ready to be txed
 		}
-
-#ifdef DEBUG_TX_DESC2
-                printk("tx desc is:\n");
-		DMESG("%8x %8x %8x %8x %8x %8x %8x %8x", tail[0], tail[1], tail[2], tail[3],
-			tail[4], tail[5], tail[6], tail[7]);
-#endif
 
 		if((tail - begin)/8 == count-1)
 			tail=begin;
@@ -3839,11 +3533,6 @@ short rtl8180_init(struct net_device *dev)
 		word = eprom_read(dev,EPROM_TXPW_CH1_2 + j);
 		priv->chtxpwr[i]=word & 0xff;
 		priv->chtxpwr[i+1]=(word & 0xff00)>>8;
-#ifdef DEBUG_EPROM
-		DMESG("tx word %x:%x",j,word);
-		DMESG("ch %d pwr %x",i,priv->chtxpwr[i]);
-		DMESG("ch %d pwr %x",i+1,priv->chtxpwr[i+1]);
-#endif
 	}
 	if(priv->card_8185){
 		for(i=1,j=0; i<14; i+=2,j++){
@@ -3851,11 +3540,6 @@ short rtl8180_init(struct net_device *dev)
 			word = eprom_read(dev,EPROM_TXPW_OFDM_CH1_2 + j);
 			priv->chtxpwr_ofdm[i]=word & 0xff;
 			priv->chtxpwr_ofdm[i+1]=(word & 0xff00)>>8;
-#ifdef DEBUG_EPROM
-			DMESG("ofdm tx word %x:%x",j,word);
-			DMESG("ofdm ch %d pwr %x",i,priv->chtxpwr_ofdm[i]);
-			DMESG("ofdm ch %d pwr %x",i+1,priv->chtxpwr_ofdm[i+1]);
-#endif
 		}
 	}
 //{by amy 080312
@@ -4005,10 +3689,6 @@ DMESG output to andreamrl@tiscali.it THANKS");
 		priv->irq=dev->irq;
 		DMESG("IRQ %d",dev->irq);
 	}
-
-#ifdef DEBUG_EPROM
-	dump_eprom(dev);
-#endif
 
 	return 0;
 
@@ -4194,9 +3874,6 @@ void write_phy(struct net_device *dev, u8 adr, u8 data)
 		if(phy == data){ //SUCCESS!
 			force_pci_posting(dev);
 			mdelay(3); //random value
-#ifdef DEBUG_BB
-			DMESG("Phy wr %x,%x",adr,data);
-#endif
 			return;
 		}else{
 			force_pci_posting(dev);
@@ -4314,9 +3991,6 @@ void rtl8180_adapter_start(struct net_device *dev)
 	rtl8180_set_mode(dev,EPROM_CMD_NORMAL);
 
 	write_nic_dword(dev,INT_TIMEOUT,0);
-#ifdef DEBUG_REGISTERS
-	rtl8180_dump_reg(dev);
-#endif
 
 	if(!priv->card_8185)
 	{
@@ -5236,12 +4910,7 @@ priv->txnpring)/8);
 	nicv = (u32*) ((nic - nicbegin) + (u8*)begin);
 	if((head <= tail && (nicv > tail || nicv < head)) ||
 		(head > tail && (nicv > tail && nicv < head))){
-
 			DMESGW("nic has lost pointer");
-#ifdef DEBUG_TX_DESC
-			//check_tx_ring(dev,NORM_PRIORITY);
-			check_tx_ring(dev,pri);
-#endif
 			spin_unlock_irqrestore(&priv->tx_lock,flag);
 			rtl8180_restart(dev);
 			return;
@@ -5403,9 +5072,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	}
 
 	priv->stats.ints++;
-#ifdef DEBUG_IRQ
-	DMESG("NIC irq %x",inta);
-#endif
 	//priv->irqpending = inta;
 
 
@@ -5436,18 +5102,12 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	}
 
 	if(inta & ISR_THPDER){
-#ifdef DEBUG_TX
-		DMESG ("TX high priority ERR");
-#endif
 		priv->stats.txhperr++;
 		rtl8180_tx_isr(dev,HI_PRIORITY,1);
 		priv->ieee80211->stats.tx_errors++;
 	}
 
 	if(inta & ISR_THPDOK){ //High priority tx ok
-#ifdef DEBUG_TX
-		DMESG ("TX high priority OK");
-#endif
 //		priv->NumTxOkTotal++;
 		//priv->NumTxOkInPeriod++;  //YJ,del,080828
 		priv->link_detect.NumTxOkInPeriod++; //YJ,add,080828
@@ -5457,16 +5117,10 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 
 	if(inta & ISR_RER) {
 		priv->stats.rxerr++;
-#ifdef DEBUG_RX
-		DMESGW("RX error int");
-#endif
 	}
 	if(inta & ISR_TBKDER){ //corresponding to BK_PRIORITY
 		priv->stats.txbkperr++;
 		priv->ieee80211->stats.tx_errors++;
-#ifdef DEBUG_TX
-		DMESGW("TX bkp error int");
-#endif
 		//tasklet_schedule(&priv->irq_tx_tasklet);
 		rtl8180_tx_isr(dev,BK_PRIORITY,1);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
@@ -5475,9 +5129,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	if(inta & ISR_TBEDER){ //corresponding to BE_PRIORITY
 		priv->stats.txbeperr++;
 		priv->ieee80211->stats.tx_errors++;
-#ifdef DEBUG_TX
-		DMESGW("TX bep error int");
-#endif
 		rtl8180_tx_isr(dev,BE_PRIORITY,1);
 		//tasklet_schedule(&priv->irq_tx_tasklet);
 		rtl8180_try_wake_queue(dev, BE_PRIORITY);
@@ -5485,9 +5136,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	if(inta & ISR_TNPDER){ //corresponding to VO_PRIORITY
 		priv->stats.txnperr++;
 		priv->ieee80211->stats.tx_errors++;
-#ifdef DEBUG_TX
-		DMESGW("TX np error int");
-#endif
 		//tasklet_schedule(&priv->irq_tx_tasklet);
 		rtl8180_tx_isr(dev,NORM_PRIORITY,1);
 		rtl8180_try_wake_queue(dev, NORM_PRIORITY);
@@ -5496,27 +5144,18 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	if(inta & ISR_TLPDER){ //corresponding to VI_PRIORITY
 		priv->stats.txlperr++;
 		priv->ieee80211->stats.tx_errors++;
-#ifdef DEBUG_TX
-		DMESGW("TX lp error int");
-#endif
 		rtl8180_tx_isr(dev,LOW_PRIORITY,1);
 		//tasklet_schedule(&priv->irq_tx_tasklet);
 		rtl8180_try_wake_queue(dev, LOW_PRIORITY);
 	}
 
 	if(inta & ISR_ROK){
-#ifdef DEBUG_RX
-		DMESG("Frame arrived !");
-#endif
 		//priv->NumRxOkInPeriod++;  //YJ,del,080828
 		priv->stats.rxint++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 
 	if(inta & ISR_RQoSOK ){
-#ifdef DEBUG_RX
-		DMESG("QoS Frame arrived !");
-#endif
 		//priv->NumRxOkInPeriod++;  //YJ,del,080828
 		priv->stats.rxint++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
@@ -5527,18 +5166,13 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	}
 
 	if(inta & ISR_RDU){
-//#ifdef DEBUG_RX
 		DMESGW("No RX descriptor available");
 		priv->stats.rxrdu++;
-//#endif
 		tasklet_schedule(&priv->irq_rx_tasklet);
 		/*queue_work(priv->workqueue ,&priv->restart_work);*/
 
 	}
 	if(inta & ISR_RXFOVW){
-#ifdef DEBUG_RX
-		DMESGW("RX fifo overflow");
-#endif
 		priv->stats.rxoverflow++;
 		tasklet_schedule(&priv->irq_rx_tasklet);
 		//queue_work(priv->workqueue ,&priv->restart_work);
@@ -5547,9 +5181,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	if(inta & ISR_TXFOVW) priv->stats.txoverflow++;
 
 	if(inta & ISR_TNPDOK){ //Normal priority tx ok
-#ifdef DEBUG_TX
-		DMESG ("TX normal priority OK");
-#endif
 //		priv->NumTxOkTotal++;
 		//priv->NumTxOkInPeriod++;  //YJ,del,080828
 		priv->link_detect.NumTxOkInPeriod++; //YJ,add,080828
@@ -5559,9 +5190,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	}
 
 	if(inta & ISR_TLPDOK){ //Low priority tx ok
-#ifdef DEBUG_TX
-		DMESG ("TX low priority OK");
-#endif
 //		priv->NumTxOkTotal++;
 		//priv->NumTxOkInPeriod++;  //YJ,del,080828
 		priv->link_detect.NumTxOkInPeriod++; //YJ,add,080828
@@ -5573,9 +5201,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 
 	if(inta & ISR_TBKDOK){ //corresponding to BK_PRIORITY
 		priv->stats.txbkpokint++;
-#ifdef DEBUG_TX
-		DMESGW("TX bk priority ok");
-#endif
 //		priv->NumTxOkTotal++;
 		//priv->NumTxOkInPeriod++;  //YJ,del,080828
 		priv->link_detect.NumTxOkInPeriod++; //YJ,add,080828
@@ -5585,9 +5210,6 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 
 	if(inta & ISR_TBEDOK){ //corresponding to BE_PRIORITY
 		priv->stats.txbeperr++;
-#ifdef DEBUG_TX
-		DMESGW("TX be priority ok");
-#endif
 //		priv->NumTxOkTotal++;
 		//priv->NumTxOkInPeriod++;  //YJ,del,080828
 		priv->link_detect.NumTxOkInPeriod++; //YJ,add,080828
