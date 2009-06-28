@@ -2477,13 +2477,11 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 		return 0;
 
 	iommu = domain_get_iommu(domain);
-	size = aligned_size((u64)paddr, size);
+	size = aligned_size(paddr, size) >> VTD_PAGE_SHIFT;
 
-	iova = __intel_alloc_iova(hwdev, domain, size, pdev->dma_mask);
+	iova = __intel_alloc_iova(hwdev, domain, size << VTD_PAGE_SHIFT, pdev->dma_mask);
 	if (!iova)
 		goto error;
-
-	start_paddr = (phys_addr_t)iova->pfn_lo << PAGE_SHIFT;
 
 	/*
 	 * Check if DMAR supports zero-length reads on write only
@@ -2500,20 +2498,20 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	 * might have two guest_addr mapping to the same host paddr, but this
 	 * is not a big problem
 	 */
-	ret = domain_page_mapping(domain, start_paddr,
-				  ((u64)paddr) & PHYSICAL_PAGE_MASK,
-				  size, prot);
+	ret = domain_pfn_mapping(domain, mm_to_dma_pfn(iova->pfn_lo),
+				 paddr >> VTD_PAGE_SHIFT, size, prot);
 	if (ret)
 		goto error;
 
+	start_paddr = (phys_addr_t)iova->pfn_lo << PAGE_SHIFT;
+
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_paddr,
-				      size >> VTD_PAGE_SHIFT);
+		iommu_flush_iotlb_psi(iommu, 0, start_paddr, size);
 	else
 		iommu_flush_write_buffer(iommu);
 
-	return start_paddr + ((u64)paddr & (~PAGE_MASK));
+	return start_paddr + (paddr & (~PAGE_MASK));
 
 error:
 	if (iova)
