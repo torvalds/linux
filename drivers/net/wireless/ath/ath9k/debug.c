@@ -500,31 +500,31 @@ int ath9k_init_debug(struct ath_softc *sc)
 		goto err;
 
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
-		S_IRUGO | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
+		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
 	if (!sc->debug.debugfs_debug)
 		goto err;
 
-	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUGO,
+	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
 				       sc->debug.debugfs_phy, sc, &fops_dma);
 	if (!sc->debug.debugfs_dma)
 		goto err;
 
 	sc->debug.debugfs_interrupt = debugfs_create_file("interrupt",
-						     S_IRUGO,
+						     S_IRUSR,
 						     sc->debug.debugfs_phy,
 						     sc, &fops_interrupt);
 	if (!sc->debug.debugfs_interrupt)
 		goto err;
 
 	sc->debug.debugfs_rcstat = debugfs_create_file("rcstat",
-						  S_IRUGO,
+						  S_IRUSR,
 						  sc->debug.debugfs_phy,
 						  sc, &fops_rcstat);
 	if (!sc->debug.debugfs_rcstat)
 		goto err;
 
 	sc->debug.debugfs_wiphy = debugfs_create_file(
-		"wiphy", S_IRUGO | S_IWUSR, sc->debug.debugfs_phy, sc,
+		"wiphy", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc,
 		&fops_wiphy);
 	if (!sc->debug.debugfs_wiphy)
 		goto err;
