@@ -17,9 +17,6 @@ EXTRA_CFLAGS += -DSW_DIG
 EXTRA_CFLAGS += -DRATE_ADAPT
 EXTRA_CFLAGS += -DCONFIG_RTL8180_PM
 
-#+YJ,080626
-EXTRA_CFLAGS += -DENABLE_DOT11D
-
 #enable it for legacy power save, disable it for leisure  power save
 EXTRA_CFLAGS += -DENABLE_LPS
 

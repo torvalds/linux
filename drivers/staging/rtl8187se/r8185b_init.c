@@ -34,9 +34,7 @@ Notes:
 #include "r8180_pm.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #ifdef CONFIG_RTL8185B
 
@@ -2576,10 +2574,8 @@ MgntDisconnect(
 
 	// Indication of disassociation event.
 	//DrvIFIndicateDisassociation(Adapter, asRsn);
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(priv->ieee80211))
 		Dot11d_Reset(priv->ieee80211);
-#endif
 	// In adhoc mode, update beacon frame.
 	if( priv->ieee80211->state == IEEE80211_LINKED )
 	{

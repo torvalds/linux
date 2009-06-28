@@ -14,9 +14,7 @@
 #include "r8180_rtl8225.h"
 #include "r8180_93cx6.h"
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #ifdef CONFIG_RTL8185B
 
@@ -431,7 +429,6 @@ void rtl8225z2_rf_close(struct net_device *dev)
 	rtl8185_set_anaparam2(dev, RTL8225z2_ANAPARAM2_OFF);
 }
 
-#ifdef ENABLE_DOT11D
 //
 //	Description:
 //		Map dBm into Tx power index according to
@@ -502,7 +499,6 @@ DbmToTxPwrIdx(
 
 	return TxPwrIdx;
 }
-#endif
 
 void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 {
@@ -554,7 +550,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 			CckTxPwrIdx, OfdmTxPwrIdx);
 	}
 #endif
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(priv->ieee80211) &&
 		IS_DOT11D_STATE_DONE(priv->ieee80211) )
 	{
@@ -576,7 +571,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 
 	//priv->CurrentCckTxPwrIdx = cck_power_level;
 	//priv->CurrentOfdmTxPwrIdx = ofdm_power_level;
-#endif
 
 	max_cck_power_level = 15;
 	max_ofdm_power_level = 25; //  12 -> 25

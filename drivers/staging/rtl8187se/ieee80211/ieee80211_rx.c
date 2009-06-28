@@ -44,9 +44,7 @@
 #include <linux/ctype.h>
 
 #include "ieee80211.h"
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 					struct sk_buff *skb,
 					struct ieee80211_rx_stats *rx_stats)
@@ -1072,7 +1070,6 @@ static inline int ieee80211_SignalStrengthTranslate(
 	return RetSS;
 }
 
-#ifdef ENABLE_DOT11D
 static inline void ieee80211_extract_country_ie(
 	struct ieee80211_device *ieee,
 	struct ieee80211_info_element *info_element,
@@ -1114,7 +1111,6 @@ static inline void ieee80211_extract_country_ie(
 	}
 
 }
-#endif
 
 int
 ieee80211_TranslateToDbm(
@@ -1166,10 +1162,8 @@ inline int ieee80211_network_init(
 #ifdef THOMAS_TURBO
 	network->Turbo_Enable = 0;
 #endif
-#ifdef ENABLE_DOT11D
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
-#endif
 
 	if (stats->freq == IEEE80211_52GHZ_BAND) {
 		/* for A band (No DS info) */
@@ -1394,14 +1388,12 @@ inline int ieee80211_network_init(
 			memcpy(network->rsn_ie, info_element,
 			       network->rsn_ie_len);
 			break;
-#ifdef ENABLE_DOT11D
 		case MFIE_TYPE_COUNTRY:
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_COUNTRY: %d bytes\n",
 					     info_element->len);
 //			printk("=====>Receive <%s> Country IE\n",network->ssid);
 			ieee80211_extract_country_ie(ieee, info_element, network, beacon->header.addr2);
 			break;
-#endif
 		default:
 			IEEE80211_DEBUG_SCAN("unsupported IE %d\n",
 					     info_element->id);
@@ -1552,10 +1544,8 @@ inline void update_network(struct ieee80211_network *dst,
 #ifdef THOMAS_TURBO
 	dst->Turbo_Enable = src->Turbo_Enable;
 #endif
-#ifdef ENABLE_DOT11D
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
-#endif
 }
 
 
@@ -1623,7 +1613,6 @@ inline void ieee80211_process_probe_response(
 		return;
 	}
 
-#ifdef ENABLE_DOT11D
 	// For Asus EeePc request,
 	// (1) if wireless adapter receive get any 802.11d country code in AP beacon,
 	//	   wireless adapter should follow the country code.
@@ -1677,7 +1666,6 @@ inline void ieee80211_process_probe_response(
 			}
 		}
 	}
-#endif
 	/* The network parsed correctly -- so now we scan our known networks
 	 * to see if we can find it in our list.
 	 *

@@ -22,9 +22,7 @@
 #include "r8180_hw.h"
 #include "r8180_sa2400.h"
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 //#define RATE_COUNT 4
 u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
@@ -313,11 +311,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	for (i = 0, val = 0; i < 14; i++) {
 
 		// Include only legal frequencies for some countries
-#ifdef ENABLE_DOT11D
 		if ((GET_DOT11D_INFO(priv->ieee80211)->channel_map)[i+1]) {
-#else
-		if ((priv->ieee80211->channel_map)[i+1]) {
-#endif
 		        range->freq[val].i = i + 1;
 			range->freq[val].m = ieee80211_wlan_frequencies[i] * 100000;
 			range->freq[val].e = 1;
@@ -1189,20 +1183,12 @@ static int r8180_wx_set_channelplan(struct net_device *dev,
 		// Clear old channel map
 		for (i=1;i<=MAX_CHANNEL_NUMBER;i++)
 		{
-#ifdef ENABLE_DOT11D
 			GET_DOT11D_INFO(priv->ieee80211)->channel_map[i] = 0;
-#else
-			priv->ieee80211->channel_map[i] = 0;
-#endif
 		}
 		// Set new channel map
 		for (i=1;i<=DefaultChannelPlan[*val].Len;i++)
 		{
-#ifdef ENABLE_DOT11D
 			GET_DOT11D_INFO(priv->ieee80211)->channel_map[DefaultChannelPlan[*val].Channel[i-1]] = 1;
-#else
-			priv->ieee80211->channel_map[DefaultChannelPlan[*val].Channel[i-1]] = 1;
-#endif
 		}
 	}
 	up(&priv->wx_sem);

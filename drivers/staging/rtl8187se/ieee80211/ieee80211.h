@@ -694,7 +694,6 @@ struct ieee80211_header_data {
 #define MFIE_TYPE_RATES_EX   50
 #define MFIE_TYPE_GENERIC    221
 
-#ifdef ENABLE_DOT11D
 typedef enum
 {
 	COUNTRY_CODE_FCC = 0,
@@ -709,7 +708,6 @@ typedef enum
 	COUNTRY_CODE_GLOBAL_DOMAIN = 9,
 	COUNTRY_CODE_WORLD_WIDE_13_INDEX = 10
 }country_code_type_t;
-#endif
 
 struct ieee80211_info_element_hdr {
 	u8 id;
@@ -961,10 +959,8 @@ struct ieee80211_network {
 #ifdef THOMAS_TURBO
 	u8 Turbo_Enable;//enable turbo mode, added by thomas
 #endif
-#ifdef ENABLE_DOT11D
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-#endif
 };
 
 enum ieee80211_state {
@@ -1105,18 +1101,12 @@ struct ieee80211_device {
 	 */
 	short sync_scan_hurryup;
 
-#ifdef ENABLE_DOT11D
 	void * pDot11dInfo;
 	bool bGlobalDomain;
 
 	// For Liteon Ch12~13 passive scan
 	u8	MinPassiveChnlNum;
 	u8	IbssStartChnl;
-#else
-	/* map of allowed channels. 0 is dummy */
-	// FIXME: remeber to default to a basic channel plan depending of the PHY type
-	int channel_map[MAX_CHANNEL_NUMBER+1];
-#endif
 
 	int rate;       /* current rate */
 	int basic_rate;

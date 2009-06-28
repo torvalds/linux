@@ -21,9 +21,7 @@
 #include <linux/version.h>
 #include <asm/uaccess.h>
 
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 u8 rsn_authen_cipher_suite[16][4] = {
 	{0x00,0x0F,0xAC,0x00}, //Use group key, //Reserved
 	{0x00,0x0F,0xAC,0x01}, //WEP-40         //RSNA default
@@ -443,10 +441,8 @@ void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 {
 	short ch = 0;
-#ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-#endif
 	down(&ieee->scan_sem);
 //	printk("==================> Sync scan\n");
 
@@ -458,11 +454,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 			if (ch > MAX_CHANNEL_NUMBER)
 				goto out; /* scan completed */
 
-#ifdef ENABLE_DOT11D
 		}while(!channel_map[ch]);
-#else
-		}while(!ieee->channel_map[ch]);
-#endif
 		/* this fuction can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
@@ -487,9 +479,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 
 		ieee->set_chan(ieee->dev, ch);
 //		printk("=====>channel=%d   ",ch);
-#ifdef ENABLE_DOT11D
 		if(channel_map[ch] == 1)
-#endif
 		{
 //			printk("====send probe request\n");
 			ieee80211_send_probe_requests(ieee);
@@ -507,20 +497,16 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 out:
 	ieee->sync_scan_hurryup = 0;
 	up(&ieee->scan_sem);
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
-#endif
 }
 
 void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 {
 	int ch;
         unsigned int watch_dog = 0;
-#ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-#endif
         down(&ieee->scan_sem);
 	ch = ieee->current_network.channel;
 //      	if(ieee->sync_scan_hurryup)
@@ -554,16 +540,12 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 		{
 			goto out;
 		}
-#ifdef ENABLE_DOT11D
 		if(channel_map[ieee->current_network.channel] > 0)
-#endif
 		{
 			ieee->set_chan(ieee->dev, ieee->current_network.channel);
 //			printk("======>channel=%d  ",ieee->current_network.channel);
 		}
-#ifdef ENABLE_DOT11D
 		if(channel_map[ieee->current_network.channel] == 1)
-#endif
 		{
 //			printk("====send probe request\n");
 			ieee80211_send_probe_requests(ieee);
@@ -582,11 +564,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 				goto out; /* scan completed */
 
 			ieee->current_network.channel = (ieee->current_network.channel + 1)%MAX_CHANNEL_NUMBER;
-#ifdef ENABLE_DOT11D
 		}while(!channel_map[ieee->current_network.channel]);
-#else
-		}while(!ieee->channel_map[ieee->current_network.channel]);
-#endif
         }
 out:
 	//ieee->sync_scan_hurryup = 0;
@@ -594,10 +572,8 @@ out:
    	//ieee->current_network.channel = ch;
 	ieee->actscanning = false;
 	up(&ieee->scan_sem);
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
-#endif
 }
 
 
@@ -625,10 +601,8 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct ieee80211_device *ieee = container_of(dwork, struct ieee80211_device, softmac_scan_wq);
 	static short watchdog = 0;
-#ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-#endif
 //	printk("ieee80211_softmac_scan_wq ENABLE_IPS\n");
 //	printk("in %s\n",__func__);
 	down(&ieee->scan_sem);
@@ -639,11 +613,7 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 		if (watchdog++ > MAX_CHANNEL_NUMBER)
 				goto out; /* no good chans */
 
-#ifdef ENABLE_DOT11D
  	}while(!channel_map[ieee->current_network.channel]);
-#else
- 	}while(!ieee->channel_map[ieee->current_network.channel]);
-#endif
 
 	//printk("current_network.channel:%d\n", ieee->current_network.channel);
 	if (ieee->scanning == 0 )
@@ -652,9 +622,7 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 		goto out;
 	}
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
-#ifdef ENABLE_DOT11D
 	if(channel_map[ieee->current_network.channel] == 1)
-#endif
 		ieee80211_send_probe_requests(ieee);
 
 	queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
@@ -666,10 +634,8 @@ out:
 	ieee->scanning = 0;
 	up(&ieee->scan_sem);
 
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
-#endif
 	return;
 }
 #else
@@ -678,10 +644,8 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, softmac_scan_wq);
         short watchdog = 0;
-#ifdef ENABLE_DOT11D
 	u8 channel_map[MAX_CHANNEL_NUMBER+1];
 	memcpy(channel_map, GET_DOT11D_INFO(ieee)->channel_map, MAX_CHANNEL_NUMBER+1);
-#endif
 //      printk("enter scan wq,watchdog is %d\n",watchdog);
         down(&ieee->scan_sem);
 
@@ -691,11 +655,7 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
                 if (watchdog++ > MAX_CHANNEL_NUMBER)
                                 goto out; /* no good chans */
 
-#ifdef ENABLE_DOT11D
         }while(!channel_map[ieee->current_network.channel]);
-#else
-        }while(!ieee->channel_map[ieee->current_network.channel]);
-#endif
 
 //      printk("current_network.channel:%d\n", ieee->current_network.channel);
         if (ieee->scanning == 0 )
@@ -704,18 +664,14 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
                 goto out;
         }
         ieee->set_chan(ieee->dev, ieee->current_network.channel);
-#ifdef ENABLE_DOT11D
 	if(channel_map[ieee->current_network.channel] == 1)
-#endif
 		ieee80211_send_probe_requests(ieee);
 
 	queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
 out:
 	up(&ieee->scan_sem);
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		DOT11D_ScanComplete(ieee);
-#endif
 }
 
 #endif
@@ -794,7 +750,6 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 /* called with ieee->lock held */
 void ieee80211_start_scan(struct ieee80211_device *ieee)
 {
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
 		if(IS_COUNTRY_IE_VALID(ieee))
@@ -802,7 +757,6 @@ void ieee80211_start_scan(struct ieee80211_device *ieee)
 			RESET_CIE_WATCHDOG(ieee);
 		}
 	}
-#endif
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN){
 		if (ieee->scanning == 0)
 		{
@@ -822,7 +776,6 @@ void ieee80211_start_scan(struct ieee80211_device *ieee)
 /* called with wx_sem held */
 void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 {
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
 		if(IS_COUNTRY_IE_VALID(ieee))
@@ -830,7 +783,6 @@ void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 			RESET_CIE_WATCHDOG(ieee);
 		}
 	}
-#endif
 	ieee->sync_scan_hurryup = 0;
 
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
@@ -2534,10 +2486,8 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 	/* check if we have this cell in our network list */
 	ieee80211_softmac_check_all_nets(ieee);
 
-#ifdef ENABLE_DOT11D
 	if(ieee->state == IEEE80211_NOLINK)
 		ieee->current_network.channel = 10;
-#endif
 	/* if not then the state is not linked. Maybe the user swithced to
 	 * ad-hoc mode just after being in monitor mode, or just after
 	 * being very few time in managed mode (so the card have had no
@@ -2626,7 +2576,6 @@ inline void ieee80211_start_ibss(struct ieee80211_device *ieee)
 void ieee80211_start_bss(struct ieee80211_device *ieee)
 {
 	unsigned long flags;
-#ifdef ENABLE_DOT11D
 	//
 	// Ref: 802.11d 11.1.3.3
 	// STA shall not start a BSS unless properly formed Beacon frame including a Country IE.
@@ -2638,7 +2587,6 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 			return;
 		}
 	}
-#endif
 	/* check if we have already found the net we
 	 * are interested in (if any).
 	 * if not (we are disassociated and we are not
@@ -2677,10 +2625,8 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	if (ieee->data_hard_stop)
 			ieee->data_hard_stop(ieee->dev);
 
-#ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
-#endif
 	ieee->state = IEEE80211_NOLINK;
 	ieee->link_change(ieee->dev);
 	notify_wx_assoc_event(ieee);
@@ -2822,11 +2768,7 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 			if (ch > MAX_CHANNEL_NUMBER)
 				return; /* no channel found */
 
-#ifdef ENABLE_DOT11D
 		}while(!GET_DOT11D_INFO(ieee)->channel_map[ch]);
-#else
-		}while(!ieee->channel_map[ch]);
-#endif
 
 		ieee->current_network.channel = ch;
 	}
@@ -2954,9 +2896,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	tasklet_init(&ieee->ps_task,
 	     (void(*)(unsigned long)) ieee80211_sta_ps,
 	     (unsigned long)ieee);
-#ifdef ENABLE_DOT11D
 	ieee->pDot11dInfo = kmalloc(sizeof(RT_DOT11D_INFO), GFP_ATOMIC);
-#endif
 }
 
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
@@ -2971,10 +2911,8 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	cancel_delayed_work(&ieee->GPIOChangeRFWorkItem);
 
 	destroy_workqueue(ieee->wq);
-#ifdef ENABLE_DOT11D
 	if(NULL != ieee->pDot11dInfo)
 		kfree(ieee->pDot11dInfo);
-#endif
 	up(&ieee->wx_sem);
 }
 

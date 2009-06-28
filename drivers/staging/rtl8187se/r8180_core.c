@@ -78,9 +78,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8180_pm.h"
 #endif
 
-#ifdef ENABLE_DOT11D
 #include "ieee80211/dot11d.h"
-#endif
 
 #ifdef CONFIG_RTL8185B
 //#define CONFIG_RTL8180_IO_MAP
@@ -3899,7 +3897,6 @@ void watch_dog_adaptive(unsigned long data)
 //        DMESG("<----watch_dog_adaptive()\n");
 }
 
-#ifdef ENABLE_DOT11D
 
 static CHANNEL_LIST ChannelPlan[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64},19},  		//FCC
@@ -3975,7 +3972,6 @@ static void rtl8180_set_channel_map(u8 channel_plan, struct ieee80211_device *ie
 		}
 	}
 }
-#endif
 
 //Add for RF power on power off by lizhaoming 080512
 void GPIOChangeRFWorkItemCallBack(struct work_struct *work);
@@ -4003,7 +3999,6 @@ short rtl8180_init(struct net_device *dev)
 	u16 tmpu16;
 	int i, j;
 
-#ifdef ENABLE_DOT11D
 #if 0
 	for(i=0;i<0xFF;i++) {
 		if(i%16 == 0)
@@ -4020,21 +4015,6 @@ short rtl8180_init(struct net_device *dev)
 
 	DMESG("Channel plan is %d\n",priv->channel_plan);
 	rtl8180_set_channel_map(priv->channel_plan, priv->ieee80211);
-#else
-	int ch;
-	//Set Default Channel Plan
-	if(!channels){
-		DMESG("No channels, aborting");
-		return -1;
-	}
-	ch=channels;
-	priv->channel_plan = 0;//hikaru
-	 // set channels 1..14 allowed in given locale
-	for (i=1; i<=14; i++) {
-		(priv->ieee80211->channel_map)[i] = (u8)(ch & 0x01);
-		ch >>= 1;
-	}
-#endif
 
 	//memcpy(priv->stats,0,sizeof(struct Stats));
 
