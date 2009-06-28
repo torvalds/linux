@@ -62,9 +62,6 @@
 #define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
 #define DMA_64BIT_PFN		IOVA_PFN(DMA_BIT_MASK(64))
 
-#ifndef PHYSICAL_PAGE_MASK
-#define PHYSICAL_PAGE_MASK PAGE_MASK
-#endif
 
 /* VT-d pages must always be _smaller_ than MM pages. Otherwise things
    are never going to work. */
@@ -1307,7 +1304,6 @@ static void dmar_init_reserved_ranges(void)
 	struct pci_dev *pdev = NULL;
 	struct iova *iova;
 	int i;
-	u64 addr, size;
 
 	init_iova_domain(&reserved_iova_list, DMA_32BIT_PFN);
 
@@ -1330,12 +1326,9 @@ static void dmar_init_reserved_ranges(void)
 			r = &pdev->resource[i];
 			if (!r->flags || !(r->flags & IORESOURCE_MEM))
 				continue;
-			addr = r->start;
-			addr &= PHYSICAL_PAGE_MASK;
-			size = r->end - addr;
-			size = PAGE_ALIGN(size);
-			iova = reserve_iova(&reserved_iova_list, IOVA_PFN(addr),
-				IOVA_PFN(size + addr) - 1);
+			iova = reserve_iova(&reserved_iova_list,
+					    IOVA_PFN(r->start),
+					    IOVA_PFN(r->end));
 			if (!iova)
 				printk(KERN_ERR "Reserve iova failed\n");
 		}
