@@ -692,23 +692,24 @@ static inline unsigned long align_to_level(unsigned long pfn, int level)
 	return (pfn + level_size(level) - 1) & level_mask(level);
 }
 
-static struct dma_pte * addr_to_dma_pte(struct dmar_domain *domain, u64 addr)
+static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
+				      unsigned long pfn)
 {
-	int addr_width = agaw_to_width(domain->agaw);
+	int addr_width = agaw_to_width(domain->agaw) - VTD_PAGE_SHIFT;
 	struct dma_pte *parent, *pte = NULL;
 	int level = agaw_to_level(domain->agaw);
 	int offset;
 	unsigned long flags;
 
 	BUG_ON(!domain->pgd);
-	BUG_ON(addr >> addr_width);
+	BUG_ON(addr_width < BITS_PER_LONG && pfn >> addr_width);
 	parent = domain->pgd;
 
 	spin_lock_irqsave(&domain->mapping_lock, flags);
 	while (level > 0) {
 		void *tmp_page;
 
-		offset = pfn_level_offset(addr >> VTD_PAGE_SHIFT, level);
+		offset = pfn_level_offset(pfn, level);
 		pte = &parent[offset];
 		if (level == 1)
 			break;
@@ -1660,7 +1661,7 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 	end_pfn = (VTD_PAGE_ALIGN(((u64)hpa) + size)) >> VTD_PAGE_SHIFT;
 	index = 0;
 	while (start_pfn < end_pfn) {
-		pte = addr_to_dma_pte(domain, iova + VTD_PAGE_SIZE * index);
+		pte = pfn_to_dma_pte(domain, (iova >> VTD_PAGE_SHIFT) + index);
 		if (!pte)
 			return -ENOMEM;
 		/* We don't need lock here, nobody else
@@ -3533,7 +3534,7 @@ static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 	struct dma_pte *pte;
 	u64 phys = 0;
 
-	pte = addr_to_dma_pte(dmar_domain, iova);
+	pte = pfn_to_dma_pte(dmar_domain, iova >> VTD_PAGE_SHIFT);
 	if (pte)
 		phys = dma_pte_addr(pte);
 
