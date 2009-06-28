@@ -1,0 +1,21 @@
+TODO:
+- prepare private ieee80211 stack for merge with rtl8192su's version:
+  - remove [IN]_OPENSUSE_SLED definitions
+  - remove ENABLE_IPS ifdefs
+  - rename struct ieee80211_hdr to struct ieee80211_hdr_4addr
+  - rename struct ieee80211_hdr_3addr_QOS to struct ieee80211_hdr_3addrqos
+  - rename struct ieee80211_hdr_QOS to struct ieee80211_hdr_4addrqos
+  - add hwsec_active flag to struct ieee80211_device
+  - add bHwSec flag to cb_desc structure
+  - switch ieee80211.h to use <linux/ieee80211.h>
+- switch to use shared "librtl" instead of private ieee80211 stack
+- switch to use LIB80211
+- switch to use MAC80211
+- switch to use EEPROM_93CX6
+- use kernel coding style
+- checkpatch.pl fixes
+- sparse fixes
+- integrate with drivers/net/wireless/rtl818x
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
+Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>.
