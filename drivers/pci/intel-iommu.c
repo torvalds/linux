@@ -1058,11 +1058,11 @@ static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
 }
 
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
-				  u64 addr, unsigned int pages)
+				  unsigned long pfn, unsigned int pages)
 {
 	unsigned int mask = ilog2(__roundup_pow_of_two(pages));
+	uint64_t addr = (uint64_t)pfn << VTD_PAGE_SHIFT;
 
-	BUG_ON(addr & (~VTD_PAGE_MASK));
 	BUG_ON(pages == 0);
 
 	/*
@@ -2494,15 +2494,15 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	if (ret)
 		goto error;
 
-	start_paddr = (phys_addr_t)iova->pfn_lo << PAGE_SHIFT;
-
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_paddr, size);
+		iommu_flush_iotlb_psi(iommu, 0, mm_to_dma_pfn(iova->pfn_lo), size);
 	else
 		iommu_flush_write_buffer(iommu);
 
-	return start_paddr + (paddr & (~PAGE_MASK));
+	start_paddr = (phys_addr_t)iova->pfn_lo << PAGE_SHIFT;
+	start_paddr += paddr & ~PAGE_MASK;
+	return start_paddr;
 
 error:
 	if (iova)
@@ -2624,8 +2624,7 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
 
 	if (intel_iommu_strict) {
-		iommu_flush_iotlb_psi(iommu, domain->id,
-				      start_pfn << VTD_PAGE_SHIFT,
+		iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
 				      last_pfn - start_pfn + 1);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
@@ -2711,8 +2710,7 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_pfn, last_pfn);
 
-	iommu_flush_iotlb_psi(iommu, domain->id,
-			      start_pfn << VTD_PAGE_SHIFT,
+	iommu_flush_iotlb_psi(iommu, domain->id, start_pfn,
 			      (last_pfn - start_pfn + 1));
 
 	/* free iova */
@@ -2804,8 +2802,7 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 
 	/* it's a non-present to present mapping. Only flush if caching mode */
 	if (cap_caching_mode(iommu->cap))
-		iommu_flush_iotlb_psi(iommu, 0, start_vpfn << VTD_PAGE_SHIFT,
-				      offset_pfn);
+		iommu_flush_iotlb_psi(iommu, 0, start_vpfn, offset_pfn);
 	else
 		iommu_flush_write_buffer(iommu);
 
