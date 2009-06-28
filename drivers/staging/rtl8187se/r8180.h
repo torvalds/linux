@@ -64,7 +64,6 @@
 #define DEFAULT_RETRY_DATA 7
 #define PRISM_HDR_SIZE 64
 
-#ifdef CONFIG_RTL8185B
 
 #define MGNT_QUEUE						0
 #define BK_QUEUE						1
@@ -199,7 +198,6 @@ typedef	union _ThreeWire{
 	u16			longData;
 }ThreeWireReg;
 
-#endif
 
 typedef struct buffer
 {
@@ -659,7 +657,6 @@ typedef struct r8180_priv
 	short ack_tx_to_ieee;
 
 	u8 PowerProfile;
-#ifdef CONFIG_RTL8185B
 	u32 CSMethod;
 	u8 cck_txpwr_base;
 	u8 ofdm_txpwr_base;
@@ -675,7 +672,6 @@ typedef struct r8180_priv
 	u32 IntrMask;
 
 	struct 	ChnlAccessSetting  ChannelAccessSetting;
-#endif
 }r8180_priv;
 
 #define MANAGE_PRIORITY 0

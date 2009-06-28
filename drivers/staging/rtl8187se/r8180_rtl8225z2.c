@@ -16,7 +16,6 @@
 
 #include "ieee80211/dot11d.h"
 
-#ifdef CONFIG_RTL8185B
 
 extern u8 rtl8225_agc[];
 
@@ -574,7 +573,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 	max_ofdm_power_level = 25; //  12 -> 25
 	min_ofdm_power_level = 10;
 
-#ifdef CONFIG_RTL8185B
 
 	if(cck_power_level > 35)
 	{
@@ -587,7 +585,6 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
        //printk("CCK TX power is %x\n", (ZEBRA2_CCK_OFDM_GAIN_SETTING[cck_power_level]));
        force_pci_posting(dev);
 	mdelay(1);
-#endif
 	/* OFDM power setting */
 //  Old:
 //	if(ofdm_power_level > max_ofdm_power_level)
@@ -1536,5 +1533,4 @@ void rtl8225z4_rf_wakeup(struct net_device *dev)
 	//printk("=========>%s()\n", __func__);
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
 }
-#endif
 

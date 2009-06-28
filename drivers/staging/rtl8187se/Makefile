@@ -4,7 +4,6 @@
 #EXTRA_CFLAGS += -std=gnu89
 #EXTRA_CFLAGS += -O2
 #CC            = gcc
-#CFLAGS += -DCONFIG_RTL8185B
 
 #added for EeePC testing
 EXTRA_CFLAGS += -DENABLE_IPS

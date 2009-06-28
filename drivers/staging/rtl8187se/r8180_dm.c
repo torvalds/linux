@@ -1315,14 +1315,12 @@ SetAntenna8185(
 		{
 		case RF_ZEBRA2:
 		case RF_ZEBRA4:
-#ifdef CONFIG_RTL8185B
 			// Mac register, main antenna
 			write_nic_byte(dev, ANTSEL, 0x03);
 			//base band
 			write_phy_cck(dev,0x11, 0x9b); // Config CCK RX antenna.
 			write_phy_ofdm(dev, 0x0d, 0x5c); // Config OFDM RX antenna.
 
-#endif
 
 			bAntennaSwitched = true;
 			break;
@@ -1338,13 +1336,11 @@ SetAntenna8185(
 		{
 		case RF_ZEBRA2:
 		case RF_ZEBRA4:
-#ifdef CONFIG_RTL8185B
 			// Mac register, aux antenna
 			write_nic_byte(dev, ANTSEL, 0x00);
 			//base band
 			write_phy_cck(dev, 0x11, 0xbb); // Config CCK RX antenna.
 			write_phy_ofdm(dev, 0x0d, 0x54); // Config OFDM RX antenna.
-#endif
 
 			bAntennaSwitched = true;
 			break;

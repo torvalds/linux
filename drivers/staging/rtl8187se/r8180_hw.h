@@ -20,7 +20,6 @@
 #ifndef R8180_HW
 #define R8180_HW
 
-#define CONFIG_RTL8185B  //support for rtl8185B, xiong-2006-11-15
 
 #define BIT0	0x00000001
 #define BIT1	0x00000002
@@ -250,7 +249,6 @@
 
 #define CR 0x0037
 
-#ifdef CONFIG_RTL8185B
 #define RF_SW_CONFIG	        0x8			// store data which is transmitted to RF for driver
 #define RF_SW_CFG_SI		BIT1
 #define PIFS			0x2C			// PCF InterFrame Spacing Timer Setting.
@@ -260,18 +258,6 @@
 
 #define IMR 0x006C
 #define ISR 0x003C
-#else
-#define BRSR 0x002C
-#define BRSR_END 0x002D
-
-/* 0x0034 - 0x0034 - reserved */
-#define EIFS 0x0035
-
-#define IMR 0x003C
-#define IMR_END 0x003D
-#define ISR 0x003E
-#define ISR_END 0x003F
-#endif
 
 #define TCR 0x0040
 #define TCR_END 0x0043
@@ -298,7 +284,6 @@
 
 #define CONFIG3 0x0059
 #define CONFIG4 0x005A
-#ifdef CONFIG_RTL8185B
 	// SD3 szuyitasi: Mac0x57= CC -> B0 Mac0x60= D1 -> C6
 	// Mac0x60 = 0x000004C6 power save parameters
 	#define ANAPARM_ASIC_ON    0xB0054D00
@@ -306,7 +291,6 @@
 
 	#define ANAPARM_ON ANAPARM_ASIC_ON
 	#define ANAPARM2_ON ANAPARM2_ASIC_ON
-#endif
 
 #define TESTR 0x005B
 
@@ -461,12 +445,7 @@
 #define FER 0x00F0
 #define FER_END 0x00F3
 
-#ifdef CONFIG_RTL8185B
 #define FEMR			0x1D4	// Function Event Mask register
-#else
-#define FEMR 0x00F4
-#define FEMR_END 0x00F7
-#endif
 
 #define FPSR 0x00F8
 #define FPSR_END 0x00FB
@@ -496,7 +475,6 @@
 #define CR_TE       ((1<< 2))
 #define CR_MulRW    ((1<< 0))
 
-#ifdef CONFIG_RTL8185B
 #define IMR_Dot11hInt	((1<< 25))			// 802.11h Measurement Interrupt
 #define IMR_BcnDmaInt	((1<< 24))			// Beacon DMA Interrupt // What differenct between BcnDmaInt and BcnInt???
 #define IMR_WakeInt		((1<< 23))			// Wake Up Interrupt
@@ -559,49 +537,12 @@
 #define ISR_TimeOut ISR_TimeOut1
 #define ISR_RXFOVW ISR_FOVW
 
-#else
-#define IMR_TXFOVW  ((1<<15))
-#define IMR_TimeOut ((1<<14))
-#define IMR_BcnInt  ((1<<13))
-#define IMR_ATIMInt ((1<<12))
-#define IMR_TBDER   ((1<<11))
-#define IMR_TBDOK   ((1<<10))
-#define IMR_THPDER  ((1<< 9))
-#define IMR_THPDOK  ((1<< 8))
-#define IMR_TNPDER  ((1<< 7))
-#define IMR_TNPDOK  ((1<< 6))
-#define IMR_RXFOVW  ((1<< 5))
-#define IMR_RDU     ((1<< 4))
-#define IMR_TLPDER  ((1<< 3))
-#define IMR_TLPDOK  ((1<< 2))
-#define IMR_RER     ((1<< 1))
-#define IMR_ROK     ((1<< 0))
-
-#define ISR_TXFOVW  ((1<<15))
-#define ISR_TimeOut ((1<<14))
-#define ISR_BcnInt  ((1<<13))
-#define ISR_ATIMInt ((1<<12))
-#define ISR_TBDER   ((1<<11))
-#define ISR_TBDOK   ((1<<10))
-#define ISR_THPDER  ((1<< 9))
-#define ISR_THPDOK  ((1<< 8))
-#define ISR_TNPDER  ((1<< 7))
-#define ISR_TNPDOK  ((1<< 6))
-#define ISR_RXFOVW  ((1<< 5))
-#define ISR_RDU     ((1<< 4))
-#define ISR_TLPDER  ((1<< 3))
-#define ISR_TLPDOK  ((1<< 2))
-#define ISR_RER     ((1<< 1))
-#define ISR_ROK     ((1<< 0))
-#endif
 
 #define HW_VERID_R8180_F 3
 #define HW_VERID_R8180_ABCD 2
 #define HW_VERID_R8185_ABC 4
 #define HW_VERID_R8185_D 5
-#ifdef CONFIG_RTL8185B
 #define HW_VERID_R8185B_B 6
-#endif
 
 #define TCR_CWMIN   ((1<<31))
 #define TCR_SWSEQ   ((1<<30))
@@ -759,7 +700,6 @@
 #define FFER_INTR    ((1<<15))
 #define FFER_GWAKE   ((1<< 4))
 
-#ifdef CONFIG_RTL8185B
 // Three wire mode.
 #define SW_THREE_WIRE			0
 #define HW_THREE_WIRE			2
@@ -933,6 +873,5 @@
 //YJ,add for Country IE, 080630
 #define EEPROM_COUNTRY_CODE  0x2E
 //YJ,add,080630,end
-#endif
 
 #endif

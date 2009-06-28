@@ -34,7 +34,6 @@ Notes:
 
 #include "ieee80211/dot11d.h"
 
-#ifdef CONFIG_RTL8185B
 
 //#define CONFIG_RTL8180_IO_MAP
 
@@ -3139,4 +3138,3 @@ void rtl8185b_tx_enable(struct net_device *dev)
 }
 
 
-#endif
