@@ -47,7 +47,7 @@ unsigned int vbd_info(struct vbd *vbd)
 
 unsigned long vbd_secsize(struct vbd *vbd)
 {
-	return bdev_hardsect_size(vbd->bdev);
+	return bdev_logical_block_size(vbd->bdev);
 }
 
 int vbd_create(blkif_t *blkif, blkif_vdev_t handle, unsigned major,

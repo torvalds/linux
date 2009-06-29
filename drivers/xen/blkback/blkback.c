@@ -484,7 +484,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 	for (i = 0; i < nseg; i++) {
 		if (((int)preq.sector_number|(int)seg[i].nsec) &
-		    ((bdev_hardsect_size(preq.bdev) >> 9) - 1)) {
+		    ((bdev_logical_block_size(preq.bdev) >> 9) - 1)) {
 			DPRINTK("Misaligned I/O request from domain %d",
 				blkif->domid);
 			goto fail_put_bio;
