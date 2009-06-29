@@ -307,7 +307,8 @@ static void print_counter(int counter)
 		abs_printout(counter, count, noise);
 
 	if (scaled)
-		fprintf(stderr, "  (%7.2fx scaled)", (double)count[1]/count[2]);
+		fprintf(stderr, "  (scaled from %.2f%%)",
+			(double) count[2] / count[1] * 100);
 
 	fprintf(stderr, "\n");
 }
