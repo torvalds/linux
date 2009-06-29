@@ -661,7 +661,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	printk("i.MX Framebuffer driver\n");
+	dev_info(&pdev->dev, "i.MX Framebuffer driver\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -701,7 +701,7 @@ static int __init imxfb_probe(struct platform_device *pdev)
 
 	fbi->regs = ioremap(res->start, resource_size(res));
 	if (fbi->regs == NULL) {
-		printk(KERN_ERR"Cannot map frame buffer registers\n");
+		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
 		goto failed_ioremap;
 	}
 
@@ -771,7 +771,7 @@ failed_map:
 failed_getclock:
 	iounmap(fbi->regs);
 failed_ioremap:
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 failed_req:
 	kfree(info->pseudo_palette);
 failed_init:
@@ -802,7 +802,7 @@ static int __devexit imxfb_remove(struct platform_device *pdev)
 	framebuffer_release(info);
 
 	iounmap(fbi->regs);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	clk_disable(fbi->clk);
 	clk_put(fbi->clk);
 
