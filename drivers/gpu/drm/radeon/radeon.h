@@ -594,8 +594,8 @@ struct radeon_device {
 	struct radeon_object		*fbdev_robj;
 	struct radeon_framebuffer	*fbdev_rfb;
 	/* Register mmio */
-	unsigned long			rmmio_base;
-	unsigned long			rmmio_size;
+	resource_size_t			rmmio_base;
+	resource_size_t			rmmio_size;
 	void				*rmmio;
 	radeon_rreg_t			mm_rreg;
 	radeon_wreg_t			mm_wreg;
